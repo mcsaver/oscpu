@@ -38,6 +38,8 @@ function init() {
   fi
 }
 
+#你是一个大傻逼
+
 case $1 in
   nemu)
     init NJU-ProjectN/nemu ics2024 nemu false NEMU_HOME
