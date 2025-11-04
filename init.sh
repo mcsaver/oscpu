@@ -38,7 +38,7 @@ function init() {
   fi
 }
 
-#你是一个大傻逼
+
 
 case $1 in
   nemu)
