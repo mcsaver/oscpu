@@ -1,76 +1,55 @@
-# 指定 C 编译器变量（默认使用 gcc）
-CC = gcc
-# 指定编译器选项（警告开启）
-CFLAGS = -Wall -Wextra
+NAME = minirvEMU
+SRCS = \
+	app_main.c \
+	src/runtime/config.c \
+	src/runtime/loader.c \
+	src/hardware/memory.c \
+	src/hardware/core.c \
+	src/platform/soc.c \
+	src/hardware/trace.c \
+	src/platform/loopguard.c \
+	src/platform/video.c
 
-# 调试跟踪的默认限制（可通过 make run DEBUG=1 TRACE_LIMIT=... 覆盖）
+CFLAGS += -Wall -Wextra -Werror -std=gnu11 -Iinclude
+
+ARCH ?= native
+export ARCH
+
+include $(AM_HOME)/Makefile
+
+%.bin: %.hex
+	perl -ne 'next if /^v3\.0/; s/.*://; for $$w (split) { $$w =~ s/[^0-9a-fA-F]//g; next unless length($$w)==8; print pack("V", hex($$w)); }' $< > $@
+
 TRACE_LIMIT ?= 200
 SHOW_REGS_AFTER ?= 0
 PROGRESS_EVERY ?= 0
 LOOP_THRESH ?= 1000000
 LOOP_MAX_STEPS ?= 5000000
+HOLD_IMAGE_AFTER_HALT ?= 0
+AUTO_CLEAN_AFTER_HALT ?= 1
 
-# 声明伪目标，避免与同名文件冲突：all run clean help usage
-.PHONY: all run clean help usage
+.PHONY: runhex clean help usage
 
-# 默认目标 all，依赖于 minirvEMU（即执行 make 会先构建 minirvEMU）
-all: minirvEMU
-
-# 构建可执行 minirvEMU（应用层 + CPU）
-minirvEMU: minirv_main.c cpu.c
-	@$(CC) $(CFLAGS) -o $@ minirv_main.c cpu.c
-
-# 将 .hex 转换为小端 .bin 的规则（使用 Perl 避免 Makefile 中的转义问题）
-# 规则说明：对每一行去掉地址前缀，提取每个 8 个十六进制字符的词（对应一条 32-bit 指令），
-# 然后以小端顺序写入二进制文件。
-%.bin: %.hex
-	perl -ne 'next if /^v3\.0/; s/.*://; for $$w (split) { $$w =~ s/[^0-9a-fA-F]//g; next unless length($$w)==8; print pack("V", hex($$w)); }' $< > $@
-
-# run: 先构建（all），再把 HEX(.hex) 转为 .bin 并运行模拟器，最后删除生成的 .bin
-
-run: all
-	@# 若未提供 HEX 变量则提示用法并退出
-	@if [ -z "$(HEX)" ]; then echo "Usage: make run HEX=your.hex"; exit 1; fi
-	@# 使用 Make 的 patsubst 在 Make 层计算 bin 名称，避免 shell 变量与多行配方的作用域问题
+runhex: image
+	@if [ -z "$(HEX)" ]; then echo "Usage: make runhex HEX=your.hex [DEBUG=1]"; exit 1; fi
 	@$(MAKE) -s -B $(patsubst %.hex,%.bin,$(HEX))
-	@# 如果设置 DEBUG=1，则以 TRACE_INS=1 启动模拟器以便打印指令跟踪
-	@# 使用简单的 shell 分支以便兼容各种 make 实现
 	@if [ -n "$(DEBUG)" ]; then \
-		 env TRACE_INS=1 \
-		     TRACE_LIMIT=$(TRACE_LIMIT) \
-		     SHOW_REGS_AFTER=$(SHOW_REGS_AFTER) \
-		     PROGRESS_EVERY=$(PROGRESS_EVERY) \
-		     LOOP_THRESH=$(LOOP_THRESH) \
-		     LOOP_MAX_STEPS=$(LOOP_MAX_STEPS) \
-		     ./minirvEMU $(patsubst %.hex,%.bin,$(HEX)); \
+		env mainargs=$(abspath $(patsubst %.hex,%.bin,$(HEX))) TRACE_INS=1 TRACE_LIMIT=$(TRACE_LIMIT) SHOW_REGS_AFTER=$(SHOW_REGS_AFTER) \
+		    PROGRESS_EVERY=$(PROGRESS_EVERY) LOOP_THRESH=$(LOOP_THRESH) LOOP_MAX_STEPS=$(LOOP_MAX_STEPS) \
+		    HOLD_IMAGE_AFTER_HALT=$(HOLD_IMAGE_AFTER_HALT) AUTO_CLEAN_AFTER_HALT=$(AUTO_CLEAN_AFTER_HALT) \
+		    $(IMAGE).elf; \
 	else \
-		 ./minirvEMU $(patsubst %.hex,%.bin,$(HEX)); \
+		env mainargs=$(abspath $(patsubst %.hex,%.bin,$(HEX))) HOLD_IMAGE_AFTER_HALT=$(HOLD_IMAGE_AFTER_HALT) AUTO_CLEAN_AFTER_HALT=$(AUTO_CLEAN_AFTER_HALT) $(IMAGE).elf; \
 	fi
-	@# 运行结束后清理生成的可执行文件和中间二进制文件（方便短期调试）
-	@$(MAKE) -s clean
 
-# clean: 删除可执行与二进制文件
 clean:
-	rm -f minirvEMU *.bin
+	@echo "[clean] removing build outputs"
+	@rm -rf build *.bin hex/*.bin
 
-# @的作用是只隐藏命令行本身，且仅仅影响它所在的那一行
-
-# help: 打印简要帮助（纯 echo，不依赖构建可执行文件）
 help:
-	@echo "用法: ./minirvEMU [program.bin]"
-	@echo ""
-	@echo "说明: 直接运行 .bin；或使用 make run 将 Logisim 风格 .hex 转换后再运行。"
-	@echo ""
-	@echo "常用示例:"
-	@echo "  make run HEX=your.hex"
-	@echo "  make run HEX=your.hex DEBUG=1 TRACE_LIMIT=50"
-	@echo "  make run HEX=your.hex DEBUG=1 PROGRESS_EVERY=100000 SHOW_REGS_AFTER=1"
-	@echo ""
-	@echo "覆盖变量:"
-	@echo "  TRACE_LIMIT=$(TRACE_LIMIT)  SHOW_REGS_AFTER=$(SHOW_REGS_AFTER)  PROGRESS_EVERY=$(PROGRESS_EVERY)"
-	@echo "  LOOP_THRESH=$(LOOP_THRESH)  LOOP_MAX_STEPS=$(LOOP_MAX_STEPS)"
-	@echo ""
-	@echo "更多用法与原理说明请查看 README.md"
+	@echo "Targets:"
+	@echo "  make runhex HEX=path/to/program.hex    # convert and run"
+	@echo "  make run                                # run without extra args"
+	@echo "Variables: DEBUG=1 enables tracing"
 
-# usage: help 的别名
 usage: help
