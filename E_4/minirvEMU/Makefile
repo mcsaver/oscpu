@@ -47,11 +47,6 @@ runhex: image
 		env mainargs=$(abspath $(patsubst %.hex,%.bin,$(HEX))) HOLD_IMAGE_AFTER_HALT=$(HOLD_IMAGE_AFTER_HALT) AUTO_CLEAN_AFTER_HALT=$(AUTO_CLEAN_AFTER_HALT) $(IMAGE).elf; \
 	fi
 
-# clean 目标：清理构建产物与中间文件。
-clean:
-	@echo "[clean] removing build outputs"
-	@rm -rf build *.bin hex/*.bin
-
 # help/usage 目标：输出常见命令提示。
 help:
 	@echo "Targets:"
