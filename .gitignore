@@ -17,3 +17,5 @@
 /abstract-machine
 /nvboard
 /am-kernels
+*.o
+*.d
