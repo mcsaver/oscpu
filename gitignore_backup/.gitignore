@@ -6,8 +6,6 @@
 !/nanos-lite/*
 !/navy-apps/*
 !/npc/*
-!/E_4/*
-!/digital_logic_experiment/*
 !Makefile
 !README.md
 !.gitignore
