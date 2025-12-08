@@ -1,0 +1,42 @@
+/* Workspace-local Markdown preview styles to improve contrast and readability */
+/* Apply a slightly lighter foreground and stronger line-height */
+
+body, .markdown-preview, .markdown-preview-view {
+  color: #e6eef6 !important; /* 更亮的前景色 */
+  background-color: #0f1720 !important; /* 深色背景，和编辑器一致（可调整） */
+  line-height: 1.6 !important;
+  font-size: 13px !important; /* 可调整 */
+}
+
+/* Headings 更高对比 */
+h1, h2, h3, h4, h5, h6 {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+/* 链接颜色 */
+a {
+  color: #7dd3fc !important;
+}
+
+/* 代码块与行内代码 */
+code, pre, .hljs {
+  color: #f8f8f2 !important;
+  background-color: #0b1220 !important;
+}
+
+/* 局部注释/次要文字（降低透明度但仍可读） */
+.markdown-preview .muted, .markdown-preview em, .markdown-preview small {
+  color: #9aa6b2 !important;
+}
+
+/* 列表与块引用 */
+blockquote {
+  border-left-color: #1f6feb !important;
+  color: #cbd5e1 !important;
+}
+
+/* 表格优化 */
+table, th, td {
+  border-color: rgba(255,255,255,0.06) !important;
+}
