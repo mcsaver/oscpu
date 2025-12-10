@@ -32,8 +32,8 @@ static void welcome() {
   Log("Build time: %s, %s", __TIME__, __DATE__);
   printf("Welcome to %s-NEMU!\n", ANSI_FMT(str(__GUEST_ISA__), ANSI_FG_YELLOW ANSI_BG_RED));
   printf("For help, type \"help\"\n");
-  Log("Exercise: Please remove me in the source code and compile NEMU again.");
-  assert(0);
+  //Log("Exercise: Please remove me in the source code and compile NEMU again.");
+  //assert(0);
 }
 
 #ifndef CONFIG_TARGET_AM
@@ -68,6 +68,7 @@ static long load_img() {
   return size;
 }
 
+/* 用于解析命令行参数 */
 static int parse_args(int argc, char *argv[]) {
   const struct option table[] = {
     {"batch"    , no_argument      , NULL, 'b'},
@@ -80,11 +81,11 @@ static int parse_args(int argc, char *argv[]) {
   int o;
   while ( (o = getopt_long(argc, argv, "-bhl:d:p:", table, NULL)) != -1) {
     switch (o) {
-      case 'b': sdb_set_batch_mode(); break;
-      case 'p': sscanf(optarg, "%d", &difftest_port); break;
-      case 'l': log_file = optarg; break;
-      case 'd': diff_so_file = optarg; break;
-      case 1: img_file = optarg; return 0;
+      case 'b': sdb_set_batch_mode(); break;                                //批处理模式
+      case 'p': sscanf(optarg, "%d", &difftest_port); break;                
+      case 'l': log_file = optarg; break;                                   //日志文件
+      case 'd': diff_so_file = optarg; break;                               //difftest
+      case 1: img_file = optarg; return 0;                                  //镜像文件
       default:
         printf("Usage: %s [OPTION...] IMAGE [args]\n\n", argv[0]);
         printf("\t-b,--batch              run with batch mode\n");
@@ -105,11 +106,14 @@ void init_monitor(int argc, char *argv[]) {
   parse_args(argc, argv);
 
   /* Set random seed. */
+  //初始化随机数种子
   init_rand();
 
+  //打开日志文件
   /* Open the log file. */
   init_log(log_file);
 
+  //初始化物理内存
   /* Initialize memory. */
   init_mem();
 
@@ -125,6 +129,7 @@ void init_monitor(int argc, char *argv[]) {
   /* Initialize differential testing. */
   init_difftest(diff_so_file, img_size, difftest_port);
 
+  //调试器初始化
   /* Initialize the simple debugger. */
   init_sdb();
 
@@ -140,7 +145,7 @@ static long load_img() {
   Log("img size = %ld", size);
   memcpy(guest_to_host(RESET_VECTOR), &bin_start, size);
   return size;
-}
+}//将用户指定的镜像文件（二进制程序）读入到模拟器的内存中（通常从0x80000000开始）
 
 void am_init_monitor() {
   init_rand();

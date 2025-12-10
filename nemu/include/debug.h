@@ -20,10 +20,12 @@
 #include <stdio.h>
 #include <utils.h>
 
+//该宏定义的作用是打印带颜色的日志信息
 #define Log(format, ...) \
     _Log(ANSI_FMT("[%s:%d %s] " format, ANSI_FG_BLUE) "\n", \
         __FILE__, __LINE__, __func__, ## __VA_ARGS__)
 
+//自定义断言，如果条件cond为假，则打印错误信息并终止程序
 #define Assert(cond, format, ...) \
   do { \
     if (!(cond)) { \
@@ -36,8 +38,10 @@
     } \
   } while (0)
 
+//直接触发致命错误并退出，无条件assert
 #define panic(format, ...) Assert(0, format, ## __VA_ARGS__)
 
+//标记未实现的功能
 #define TODO() panic("please implement me")
 
 #endif
