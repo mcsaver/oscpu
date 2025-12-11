@@ -13,6 +13,8 @@
 * See the Mulan PSL v2 for more details.
 ***************************************************************************************/
 
+//管理物理内存（pmem）与外设映射（MMIO）
+
 #include <memory/host.h>
 #include <memory/paddr.h>
 #include <device/mmio.h>
@@ -24,9 +26,12 @@ static uint8_t *pmem = NULL;
 static uint8_t pmem[CONFIG_MSIZE] PG_ALIGN = {};
 #endif
 
+//guest物理地址与模拟器主机内存地址的映射转换
 uint8_t* guest_to_host(paddr_t paddr) { return pmem + paddr - CONFIG_MBASE; }
 paddr_t host_to_guest(uint8_t *haddr) { return haddr - pmem + CONFIG_MBASE; }
 
+//在主内存（pmem）上读写，使用host_read/host_write做按字节宽度的安全访问
+//
 static word_t pmem_read(paddr_t addr, int len) {
   word_t ret = host_read(guest_to_host(addr), len);
   return ret;
@@ -36,11 +41,14 @@ static void pmem_write(paddr_t addr, int len, word_t data) {
   host_write(guest_to_host(addr), len, data);
 }
 
+
+//当访问越界且没有MMIO时触发panic，并打印访问地址和cpu.pc以便调试
 static void out_of_bound(paddr_t addr) {
   panic("address = " FMT_PADDR " is out of bound of pmem [" FMT_PADDR ", " FMT_PADDR "] at pc = " FMT_WORD,
       addr, PMEM_LEFT, PMEM_RIGHT, cpu.pc);
 }
 
+//分配/初始化pmem（支持CONFIG_PMEM_MALLOC或静态数组），可按照CONFIG_MEM_RANDOM填充随机值并打印物理内存区间日志
 void init_mem() {
 #if   defined(CONFIG_PMEM_MALLOC)
   pmem = malloc(CONFIG_MSIZE);
@@ -50,6 +58,8 @@ void init_mem() {
   Log("physical memory area [" FMT_PADDR ", " FMT_PADDR "]", PMEM_LEFT, PMEM_RIGHT);
 }
 
+//对外的物理地址读写入口，若地址在pmem范围则走pmem_read/pmem_write，否则在启用CONFIG_DEVICE时调用mmio_read/mmio_write
+//否则触发out_of_bound(panic)
 word_t paddr_read(paddr_t addr, int len) {
   if (likely(in_pmem(addr))) return pmem_read(addr, len);
   IFDEF(CONFIG_DEVICE, return mmio_read(addr, len));

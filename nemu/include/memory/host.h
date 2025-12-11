@@ -12,12 +12,14 @@
 *
 * See the Mulan PSL v2 for more details.
 ***************************************************************************************/
+//提供对host内存指针的按宽度读写内联函数（直接访问NEMU进程的内存表示），被paddr层用于对pmem的访问
 
 #ifndef __MEMORY_HOST_H__
 #define __MEMORY_HOST_H__
 
 #include <common.h>
 
+//根据len(1/2/4/8)做合适宽度的读取并返回word_t
 static inline word_t host_read(void *addr, int len) {
   switch (len) {
     case 1: return *(uint8_t  *)addr;
@@ -28,6 +30,7 @@ static inline word_t host_read(void *addr, int len) {
   }
 }
 
+//对应的写入
 static inline void host_write(void *addr, int len, word_t data) {
   switch (len) {
     case 1: *(uint8_t  *)addr = data; return;

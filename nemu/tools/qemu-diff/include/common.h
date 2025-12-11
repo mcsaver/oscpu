@@ -23,6 +23,9 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+/* #include <errno.h>
+#include <ctype.h>
+#include <limits.h> */
 
 typedef uint32_t paddr_t;
 

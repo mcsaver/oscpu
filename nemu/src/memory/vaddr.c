@@ -12,6 +12,9 @@
 *
 * See the Mulan PSL v2 for more details.
 ***************************************************************************************/
+//提供三个接口，vaddr_ifetch（指令抓取）、vaddr_read（数据读取）、vaddr_write（数据写入）
+//当前实现直接把虚拟地址当成物理地址，调用paddr_read/paddr_write（即不做地址转换/页表/TLB)
+//作为上层（CPU/指令译码）和下层物理内存访问的桥梁，未来可以在这里插入虚拟地址到物理地址的转换逻辑
 
 #include <isa.h>
 #include <memory/paddr.h>

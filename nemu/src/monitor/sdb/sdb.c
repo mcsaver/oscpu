@@ -18,6 +18,9 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include "sdb.h"
+/* #include <errno.h>
+#include <ctype.h>
+#include <limits.h> */
 
 static int is_batch_mode = false;
 
@@ -53,10 +56,96 @@ static int cmd_c(char *args) {
   return 0;
 }
 
+static int cmd_si(char *args){
+  //单步或者N步执行
+  int n = 1;
+  if (args) {
+    char *end = NULL;
+    //errno = 0;
+    long v = strtol(args, &end, 0);
+    
+    if (end == args) {
+      printf("si: invalid number '%s'\n", args);
+      return 0;
+    } 
+/*     if (errno == ERANGE) {
+      printf("si: number out of range '%s'\n/", args);
+      return 0;
+    }
+    //跳过end指向的空白，检查是否有尾随非空字符
+    while (isspace((unsigned char)*end)) end++;
+    if (*end != '\0')
+    {
+      printf("Trailing characters after number: '%s'\n", end);
+      return 1;
+    } */
+
+    n = (int)v;
+    if (n <= 0) n = 1;
+  }
+  cpu_exec(n);
+  return 0;
+}
 
 static int cmd_q(char *args) {
   return -1;
 }
+
+static int cmd_info(char *args) {
+
+  if (args ==NULL) {
+    printf("Usage: info r\n");
+    return 0;
+  }
+  //提取第一个参数
+  char *tok = strtok(args, " ");
+  if (tok && strcmp(tok, "r") == 0) {
+    isa_reg_display();//调用打印
+    return 0;
+  }
+  printf("Unknown info command '%s'\n", tok ? tok : "");
+  return 0;
+}
+
+static int cmd_x(char *args) {
+  if (args == NULL) {
+    printf("Usage: x N ADDR\n");
+    return 0;
+  }
+
+  //strtok会修改传入的字符串，把遇到的分隔符字符替换成‘\0'，并返回各个token的起始指针
+  char *count_tok = strtok(args, " \t");//计数，读取args中的字符知道遇到空格为止
+  char *addr_tok = strtok(NULL, " \t");//地址，传入NULL 参数可以标售继续上一次对同一字符串的分割
+  if (count_tok == NULL || addr_tok == NULL) {
+    printf("Usage: x N ADDR\n");
+  }
+
+  char *end = NULL;
+  long n = strtol(count_tok, &end, 0);
+  if (end == count_tok || n <= 0) {
+    printf("x: invalid count '%s'\n", count_tok);
+    return 0;
+  }
+
+  //if (n > 1024) n = 1024;
+
+  //从字符串开头（跳过前导空白）解析符合当前进制的数字字符，遇到第一个不属于数学语法的字符就停止，并把end指向该位置，他不会修改原字符串
+  paddr_t addr = (paddr_t)strtoul(addr_tok, &end, 0);
+  if (end == addr_tok) {
+    printf("x: invalid count '%s'\n", count_tok);
+    return 0;
+  }
+
+  for (long i = 0; i < n; i++)
+  {
+    paddr_t a = addr + i * 4;
+    word_t v = paddr_read(a, 4);
+    printf("0x%08x: 0x%08x\n", (unsigned)a, (unsigned)v);
+  }
+  
+  return 0;
+}
+
 
 static int cmd_help(char *args);
 
@@ -68,6 +157,9 @@ static struct {
   { "help", "Display information about all supported commands", cmd_help },
   { "c", "Continue the execution of the program", cmd_c },
   { "q", "Exit NEMU", cmd_q },
+  { "si", "Single-step N instructions (default 1)", cmd_si },
+  { "info", "Show information (e.g. 'info r')", cmd_info },
+  { "x", "Examine memory: x N ADDR (print N words of 4 bytes from ADDR)", cmd_x },
 
   /* TODO: Add more commands */
 
@@ -107,13 +199,13 @@ void sdb_mainloop() {
   if (is_batch_mode) {
     cmd_c(NULL);
     return;
-  }//如果启动的时候加了-b参数，就直接调用cmd_c知道程序结束，不接受用户输入
+  }//如果启动的时候加了-b参数，就直接调用cmd_c直到程序结束，不接受用户输入
 
   for (char *str; (str = rl_gets()) != NULL; ) {
     char *str_end = str + strlen(str);
 
     /* extract the first token as the command */
-    //使用strtok获得第一个单词作为命令，如c,q,si,info剩余部分作为参数args
+    //使用strtok获得第一个单词作为命令，如c,q,si,info，剩余部分作为参数args
     char *cmd = strtok(str, " ");
     if (cmd == NULL) { continue; }
 
