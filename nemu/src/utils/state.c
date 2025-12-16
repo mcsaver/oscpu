@@ -14,7 +14,7 @@
 ***************************************************************************************/
 
 #include <utils.h>
-
+//全局状态，类型为NEMUState，定义在include/utils.h，初始状态为NEMU_STOP：表示NEMU处于停止状态，通常是进入监控器等待用户命令
 NEMUState nemu_state = { .state = NEMU_STOP };
 
 int is_exit_status_bad() {

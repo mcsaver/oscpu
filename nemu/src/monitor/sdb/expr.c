@@ -21,8 +21,15 @@
  */
 #include <regex.h>
 
+// tokens 类型定义：
+// - 256 起是为了避免和 ASCII 字符冲突（例如 '+' '-' '*' '/' '(' ')' 直接用字符本身做 type）
+// - 这里把“复杂/多字符 token”（如 ==、十进制数字、一元负号）单独用枚举值表示
 enum {
-  TK_NOTYPE = 256, TK_EQ,
+  //从256开始是为了避免和ASCII字符冲突
+  TK_NOTYPE = 256,
+  TK_EQ = 257,
+  TK_DECIMAL = 258,
+  TK_NEG = 259
 
   /* TODO: Add more token types */
 
@@ -32,14 +39,21 @@ static struct rule {
   const char *regex;
   int token_type;
 } rules[] = {
-
   /* TODO: Add more rules.
    * Pay attention to the precedence level of different rules.
    */
-
+// 词法规则表：用 POSIX regex 定义“如何匹配 token”以及“匹配后 token 的类型”
+// 注意：规则是按顺序尝试匹配的，越靠前优先级越高；因此多字符 token 要放在前面（例如 "==" 必须在 "=" 之前）
+// 本实验先支持：十进制整数、+ - * /、括号、空格
   {" +", TK_NOTYPE},    // spaces
-  {"\\+", '+'},         // plus
   {"==", TK_EQ},        // equal
+  {"[0-9]+", TK_DECIMAL}, // decimal number
+  {"\\+", '+'},         // plus
+  {"\\-", '-'},         // minus
+  {"\\*", '*'},         // multiply
+  {"/", '/'},          // divide
+  {"\\(", '('},       // left parenthesis
+  {"\\)", ')'},        // right parenthesis
 };
 
 #define NR_REGEX ARRLEN(rules)
@@ -49,11 +63,15 @@ static regex_t re[NR_REGEX] = {};
 /* Rules are used for many times.
  * Therefore we compile them only once before any usage.
  */
+//re[]保存每条规则编译后的正则对象
+//只编译一次，后续反复调用make_token()时直接regexec()，避免反复编译带来的性能浪费
+//编译失败会panic()直接终止
 void init_regex() {
   int i;
   char error_msg[128];
   int ret;
 
+  // 将 rules[] 中的每条正则提前编译到 re[]，避免 make_token() 每次都重复编译带来的开销
   for (i = 0; i < NR_REGEX; i ++) {
     ret = regcomp(&re[i], rules[i].regex, REG_EXTENDED);
     if (ret != 0) {
@@ -63,6 +81,9 @@ void init_regex() {
   }
 }
 
+//tokes[]：保存词法分析得到的token序列
+//nr_token：当前token数
+//这里token数和token文本都有硬编码上限：最多32个token，每个token的字面串最多31个字符（留一个\0）
 typedef struct token {
   int type;
   char str[32];
@@ -71,34 +92,76 @@ typedef struct token {
 static Token tokens[32] __attribute__((used)) = {};
 static int nr_token __attribute__((used))  = 0;
 
+//词法分析主循环：
+//从position从0开始，表示扫描到字符串e的哪个位置
+//外层while(e[position] != '\0')：直到字符串结束
+//内层for(i=0;i<NR;i++)：尝试所有规则，看哪个能在当前位置匹配
+// make_token(): 把输入字符串 e 做词法分析，生成 tokens[0..nr_token-1]
+// 解析失败返回 false；成功返回 true
 static bool make_token(char *e) {
   int position = 0;
   int i;
+  //regexct结构体用于保存匹配结果
+  //pmatch.rm_so：匹配子串在e+position中的起始位置（相对于e+position的偏移）
+  //pmatch.rm_eo：匹配子串在e+position中的结束位置
   regmatch_t pmatch;
 
   nr_token = 0;
 
+  // position 表示当前扫描到 e 的哪个位置
   while (e[position] != '\0') {
     /* Try all rules one by one. */
+    // 依次尝试所有规则：要求匹配必须从当前位置开始（pmatch.rm_so == 0）
     for (i = 0; i < NR_REGEX; i ++) {
+      //regexec(i)：用第i条规则的正则对象在e+position这段子串上执行匹配
+      //如果匹配成功，regexec返回0，并把匹配结果保存在pmatch中
+      //匹配的子串的起止位置写入pmatch.rm_so和pmatch.rm_eo
       if (regexec(&re[i], e + position, 1, &pmatch, 0) == 0 && pmatch.rm_so == 0) {
+        //关键判断，regexec在e+position这段子串上执行匹配，pmatch.rm_so == 0 强制要求匹配必须从字串起始位置开始
+        //否则会出现跳着匹配导致无法推进position的问题
+        
+        //成功匹配后
+        //substr_len是本次匹配到的token文本长度
+        //position前进，继续扫描后面的内容
+        //Log(...)只是调试输出：打印命中规则、位置、长度、匹配到的文本
         char *substr_start = e + position;
         int substr_len = pmatch.rm_eo;
-
+        
         Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
             i, rules[i].regex, position, substr_len, substr_len, substr_start);
 
+        // 消耗掉本次匹配到的 token 文本
         position += substr_len;
 
         /* TODO: Now a new token is recognized with rules[i]. Add codes
          * to record the token in the array `tokens'. For certain types
          * of tokens, some extra actions should be performed.
          */
-
+        // 将 token 记录到 tokens[]
+        // - TK_NOTYPE（空白）直接跳过
+        // - 其他 token：记录 type，并把字面量拷贝到 tokens[nr_token].str（方便后续 atoi/调试）
         switch (rules[i].token_type) {
-          default: TODO();
-        }
+          case TK_NOTYPE://跳过空格
+            break;
+          default://其他token都记录下来
+            if (nr_token >= 32)
+            {
+              printf("too many tokens\n");
+              return false;
+            }
+            tokens[nr_token].type = rules[i].token_type;
+            if (substr_len >= 32)
+            {
+              printf("token too long\n");
+              return false;
+            }
 
+            // 注意 strncpy 不会自动补 '\0'，这里手动补齐
+            strncpy(tokens[nr_token].str, substr_start, substr_len);
+            tokens[nr_token].str[substr_len] = '\0';//加上字符串结尾符
+            nr_token ++;
+            break; 
+        }
         break;
       }
     }
@@ -109,10 +172,143 @@ static bool make_token(char *e) {
     }
   }
 
+  // 区分一元负号与二元减号：
+  // - 词法阶段无法仅靠 regex 区分（两者都是 '-'）
+  // - 这里做一次 token 序列后处理：
+  //   若 '-' 出现在表达式开头，或出现在 ( / 运算符 之后，则把它标记为 TK_NEG（一元负号）
+  for (int i = 0; i < nr_token; i++) {
+    if (tokens[i].type != '-') continue;
+    if (i == 0) {
+      tokens[i].type = TK_NEG;
+      continue;
+    }
+
+    int prev = tokens[i - 1].type;
+    // 这些 token 后面出现 '-'，通常表示“取负”而不是“相减”
+    if (prev == '(' || prev == '+' || prev == '-' || prev == '*' || prev == '/' || prev == TK_EQ) {
+      tokens[i].type = TK_NEG;
+    }
+  }
+
   return true;
 }
 
+int get_priority(int token_type)
+{
+  // 运算符优先级：数值越小优先级越低（越应该作为“主运算符”先被分裂）
+  // 例如：1+2*3 的主运算符是 '+'（优先级更低）
+  switch (token_type)
+  {
+    case '+': return 1;
+    case '-': return 1;
+    case '*': return 2;
+    case '/': return 2;
+    case TK_NEG: return 3;
+    default: return 100;
+  }
+}
 
+int check_parentheses(int p, int q)
+{
+  // 判断 tokens[p..q] 是否被“一对最外层括号”完整包裹
+  // 返回 true 的条件：
+  // 1) tokens[p] == '(' 且 tokens[q] == ')'
+  // 2) 中间括号能正确配对，并且不会在中途提前闭合最外层括号
+  if (tokens[p].type != '(' || tokens[q].type != ')')
+    return false;
+
+  int bracket_level = 0;
+  for (int i = p + 1; i < q; i++)
+  {
+    if (tokens[i].type == '(')
+      bracket_level ++;
+    else if (tokens[i].type == ')')
+    {
+      if (bracket_level == 0)
+        return false;
+      bracket_level --;
+    }
+  }
+
+  return bracket_level == 0;
+}
+
+//递归下降解析求值表达式
+//eval(p,q)：计算tokens[p..q]表示的子表达式的值
+static uint32_t eval(int p, int q) {
+  // 递归下降求值：计算 tokens[p..q] 这段 token 表示的表达式的值
+  if (p > q) {
+    /* Bad expression */
+    assert(0);
+  }
+  else if (p == q) {
+    /* Single token.
+     * For now this token should be a number.
+     * Return the value of the number.
+     */
+    // 目前 p==q 只支持十进制数字
+    return atoi(tokens[p].str);
+  }
+  else if (check_parentheses(p, q) == true) {
+    /* The expression is surrounded by a matched pair of parentheses.
+     * If that is the case, just throw away the parentheses.
+     */
+    return eval(p + 1, q - 1);
+  }
+  else {
+    int op = -1;
+    int op_type = -1;
+    int min_pri = 100;
+    int bracket_level = 0;
+    // 寻找“主运算符”位置 op：
+    // - 只在最外层（bracket_level==0）挑选运算符，跳过括号内的运算符
+    // - 这里按优先级最小（最低优先级）作为主运算符
+    // - 从右往左扫描可以更自然地处理左结合（同级运算符优先取更靠右的作为分裂点）
+    for (int i = q; i >= p; i--) {
+      if (tokens[i].type == ')') bracket_level++;
+      else if (tokens[i].type == '(') bracket_level--;
+      else if (bracket_level == 0 && 
+        (tokens[i].type == '+' ||
+         tokens[i].type == '-' ||
+         tokens[i].type == '*' ||
+         tokens[i].type == '/' ||
+         tokens[i].type == TK_NEG)) {
+        int pri = get_priority(tokens[i].type);
+        if (pri < min_pri ) {
+          min_pri = pri;
+          op = i;
+          op_type = tokens[i].type;
+        }
+      }
+    }
+
+    assert(op != -1);
+
+    if (op_type == TK_NEG) {
+      // 一元负号：形式应当是 - <expr>，因此 TK_NEG 必须出现在当前子表达式开头
+      assert(op == p);
+      return (uint32_t)(-(int32_t)eval(op + 1, q));
+    }
+
+    // 二元运算符：把表达式按主运算符切成左右两边递归求值
+    uint32_t val1 = eval(p, op - 1);
+    uint32_t val2 = eval(op + 1, q);
+
+    switch (op_type) {
+      case '+': return val1 + val2;
+      case '-': return val1 - val2;
+      case '*': return val1 * val2;
+      case '/': return val1 / val2;
+      default: assert(0);
+    }
+  }
+}
+
+
+
+//对外接口
+//expr()是给SDB调用的入口，返回word_t（由isa.h定义，通常是uint32_t或uint64_t）
+//success：输出参数，表示表达式求值是否成功
 word_t expr(char *e, bool *success) {
   if (!make_token(e)) {
     *success = false;
@@ -120,7 +316,6 @@ word_t expr(char *e, bool *success) {
   }
 
   /* TODO: Insert codes to evaluate the expression. */
-  TODO();
-
-  return 0;
+  *success = true;
+  return eval(0, nr_token - 1);
 }

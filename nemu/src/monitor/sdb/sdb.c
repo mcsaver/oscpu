@@ -18,6 +18,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include "sdb.h"
+#include <utils.h>
 /* #include <errno.h>
 #include <ctype.h>
 #include <limits.h> */
@@ -88,6 +89,8 @@ static int cmd_si(char *args){
 }
 
 static int cmd_q(char *args) {
+  (void)args;
+  nemu_state.state = NEMU_QUIT;
   return -1;
 }
 
@@ -142,10 +145,26 @@ static int cmd_x(char *args) {
     word_t v = paddr_read(a, 4);
     printf("0x%08x: 0x%08x\n", (unsigned)a, (unsigned)v);
   }
-  
   return 0;
 }
 
+
+static int cmd_p(char *args) {
+  if (args ==NULL)
+  {
+    printf("Usage: p EXPR\n");
+    return 0;
+  }
+  bool success = false;
+  word_t result = expr(args, &success);
+  if (success) {
+    printf("result : %u\n", result);
+  } else {
+    printf("Invalid expression: %s\n", args);   
+  }
+
+  return 0;
+}
 
 static int cmd_help(char *args);
 
@@ -160,6 +179,7 @@ static struct {
   { "si", "Single-step N instructions (default 1)", cmd_si },
   { "info", "Show information (e.g. 'info r')", cmd_info },
   { "x", "Examine memory: x N ADDR (print N words of 4 bytes from ADDR)", cmd_x },
+  { "p", "Evaluate expression: p EXPR", cmd_p }
 
   /* TODO: Add more commands */
 
