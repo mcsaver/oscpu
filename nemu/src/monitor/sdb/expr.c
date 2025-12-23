@@ -21,6 +21,9 @@
  */
 #include <regex.h>
 
+//定义tokens大小
+#define BUF_SIZ 1024
+
 // tokens 类型定义：
 // - 256 起是为了避免和 ASCII 字符冲突（例如 '+' '-' '*' '/' '(' ')' 直接用字符本身做 type）
 // - 这里把“复杂/多字符 token”（如 ==、十进制数字、一元负号）单独用枚举值表示
@@ -56,6 +59,7 @@ static struct rule {
   {"\\)", ')'},        // right parenthesis
 };
 
+//NR_REGEX：规则数量
 #define NR_REGEX ARRLEN(rules)
 
 static regex_t re[NR_REGEX] = {};
@@ -86,11 +90,21 @@ void init_regex() {
 //这里token数和token文本都有硬编码上限：最多32个token，每个token的字面串最多31个字符（留一个\0）
 typedef struct token {
   int type;
-  char str[32];
+  // token 的字面量字符串（主要用于数字 token 的 atoi，以及调试输出）。
+  // 这里给了较大的 BUF_SIZ 上限，避免随机测试生成的长表达式导致 token 文本被截断。
+  char str[BUF_SIZ];
 } Token;
 
-static Token tokens[32] __attribute__((used)) = {};
+static Token tokens[BUF_SIZ] __attribute__((used)) = {};
 static int nr_token __attribute__((used))  = 0;
+
+// eval() 过程中用于“软失败”的标志：避免除 0 等情况直接触发宿主机 SIGFPE
+// [新增] eval() 过程中用于“软失败”的标志。（更改日期：2025-12-22）
+// 背景：gen-expr 会随机生成包含除法的表达式，可能出现除 0。
+// 如果 NEMU 直接执行 `a / 0`，会触发宿主机 SIGFPE（Floating point exception）导致 NEMU 进程崩溃。
+// 解决：在 eval() 检测到不合法/不支持的情况时，置 eval_success=false，并返回一个占位值 0。
+// expr() 最终把 eval_success 反馈到 *success，让上层（例如 `p test`）把该用例记为失败/跳过。
+static bool eval_success = true;
 
 //词法分析主循环：
 //从position从0开始，表示扫描到字符串e的哪个位置
@@ -127,9 +141,10 @@ static bool make_token(char *e) {
         char *substr_start = e + position;
         int substr_len = pmatch.rm_eo;
         
+        // 逐 token 打印 Log 会在批量对拍（`p test`）时产生海量输出，严重影响阅读与性能。（更改日期：2025-12-22）
+        // 如需调试词法匹配过程，可以临时取消注释下面这段 Log。
         Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
-            i, rules[i].regex, position, substr_len, substr_len, substr_start);
-
+          i, rules[i].regex, position, substr_len, substr_len, substr_start);
         // 消耗掉本次匹配到的 token 文本
         position += substr_len;
 
@@ -144,13 +159,13 @@ static bool make_token(char *e) {
           case TK_NOTYPE://跳过空格
             break;
           default://其他token都记录下来
-            if (nr_token >= 32)
+            if (nr_token >= BUF_SIZ)
             {
               printf("too many tokens\n");
               return false;
             }
             tokens[nr_token].type = rules[i].token_type;
-            if (substr_len >= 32)
+            if (substr_len >= BUF_SIZ)
             {
               printf("token too long\n");
               return false;
@@ -239,7 +254,9 @@ static uint32_t eval(int p, int q) {
   // 递归下降求值：计算 tokens[p..q] 这段 token 表示的表达式的值
   if (p > q) {
     /* Bad expression */
-    assert(0);
+    // [新增] 语法不合法：不要 assert/panic 直接炸掉 NEMU，而是“软失败”交给上层处理。（更改日期：2025-12-22）
+    eval_success = false;
+    return 0;
   }
   else if (p == q) {
     /* Single token.
@@ -247,7 +264,7 @@ static uint32_t eval(int p, int q) {
      * Return the value of the number.
      */
     // 目前 p==q 只支持十进制数字
-    return atoi(tokens[p].str);
+    return (uint32_t)atoi(tokens[p].str);
   }
   else if (check_parentheses(p, q) == true) {
     /* The expression is surrounded by a matched pair of parentheses.
@@ -282,12 +299,18 @@ static uint32_t eval(int p, int q) {
       }
     }
 
-    assert(op != -1);
+    if (op == -1) {
+      // [新增] 没找到主运算符：属于不合法表达式（例如括号不配对、token 序列异常等）。（更改日期：2025-12-22）
+      eval_success = false;
+      return 0;
+    }
 
     if (op_type == TK_NEG) {
       // 一元负号：形式应当是 - <expr>，因此 TK_NEG 必须出现在当前子表达式开头
       assert(op == p);
-      return (uint32_t)(-(int32_t)eval(op + 1, q));
+      int32_t v = (int32_t)eval(op + 1, q);
+      int64_t r = -(int64_t)v;
+      return (uint32_t)(int32_t)r;
     }
 
     // 二元运算符：把表达式按主运算符切成左右两边递归求值
@@ -298,7 +321,19 @@ static uint32_t eval(int p, int q) {
       case '+': return val1 + val2;
       case '-': return val1 - val2;
       case '*': return val1 * val2;
-      case '/': return val1 / val2;
+      case '/': {
+        // gen-expr 生成的 C 程序中：表达式按“有符号 int”计算，然后赋给 unsigned。（更改日期：2025-12-22）
+        // 因此这里需要按 int32_t 语义做除法（尤其是负数参与除法时）。
+        if (val2 == 0) {
+          // [新增] 除 0：标记失败，避免触发宿主机 SIGFPE。（更改日期：2025-12-22）
+          eval_success = false;
+          return 0;
+        }
+        int32_t a = (int32_t)val1;
+        int32_t b = (int32_t)val2;
+        int64_t qv = (int64_t)a / (int64_t)b; // 避免 int32_t 的潜在 UB
+        return (uint32_t)(int32_t)qv;
+      }
       default: assert(0);
     }
   }
@@ -316,6 +351,8 @@ word_t expr(char *e, bool *success) {
   }
 
   /* TODO: Insert codes to evaluate the expression. */
-  *success = true;
-  return eval(0, nr_token - 1);
+  eval_success = true; // 软失败标志的初始化（更改日期：2025-12-22）
+  word_t v = (word_t)eval(0, nr_token - 1);
+  *success = eval_success; // 把 eval() 的软失败状态回传给调用者（更改日期：2025-12-22）
+  return v;
 }

@@ -19,6 +19,16 @@
 #include <readline/history.h>
 #include "sdb.h"
 #include <utils.h>
+
+// 下面这些头文件主要服务于 `cmd_p` 新增的 `p test`。（更改日期：2025-12-22）
+// - <ctype.h>  : isspace() 用于跳过空白
+// - <errno.h>  : 解析数字/文件失败时打印原因
+// - <stdlib.h> : getenv()/system()/malloc()/strtol()/strtoul()
+// - <string.h> : strlen()/strerror()/strcmp()
+#include <ctype.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
 /* #include <errno.h>
 #include <ctype.h>
 #include <limits.h> */
@@ -150,17 +160,133 @@ static int cmd_x(char *args) {
 
 
 static int cmd_p(char *args) {
-  if (args ==NULL)
-  {
-    printf("Usage: p EXPR\n");
+  if (args == NULL) {
+    printf("Usage: p EXPR | p test\n");
     return 0;
   }
+
+  // `readline` 返回的参数可能有前导空格，这里先跳过，保证对 "test" 的识别稳定。（更改日期：2025-12-22）
+  while (*args != '\0' && isspace((unsigned char)*args)) args++;
+
+  //`p test`（更改日期：2025-12-22）
+  // 目的：把表达式求值和 gen-expr 自动对拍接起来，做回归测试。
+  // 流程：
+  // 1) 调用 tools/gen-expr 的 Makefile 生成一批 "<expected> <expr>" 用例到临时文件
+  // 2) 逐行读取：解析 expected（十进制无符号）和表达式字符串
+  // 3) 调用 NEMU 内部 `expr()` 计算 got，与 expected 做 32-bit 对比
+  // 4) 汇总 PASS/FAIL，并打印前若干条失败样例用于定位
+  if (strcmp(args, "test") == 0) {
+    // 优先使用环境变量 NEMU_HOME 来定位 tools/gen-expr，避免从别的目录启动 NEMU 时相对路径失效。
+    // 若没设置 NEMU_HOME，则退化为相对路径 ./tools/gen-expr（要求从 nemu/ 目录启动）。
+    //使用geten查询环境变量NEMU_HOME
+    const char *nemu_home = getenv("NEMU_HOME");
+    char gen_dir[512];
+    if (nemu_home && nemu_home[0] != '\0') {
+      snprintf(gen_dir, sizeof(gen_dir), "%s/tools/gen-expr", nemu_home);
+    } else {
+      snprintf(gen_dir, sizeof(gen_dir), "./tools/gen-expr");
+    } 
+
+    // 用例文件输出位置：写到 /tmp，避免污染仓库。
+    const char *out_path = "/tmp/.nemu_expr_input";
+
+    // 生成用例条数（可根据需要调大，例如 1000/10000 做更强的压力测试）。
+    const int loop = 100;
+
+    // 通过 make 触发 tools/gen-expr/Makefile 的 input 目标。
+    // `make -C <dir> input LOOP=<n> OUT=<file>`
+    // 这样 NEMU 侧不需要关心 gen-expr 的参数细节，只要读 out_path 即可。
+    char cmd[1024];
+
+    //snprintf生成执行命令字符串：格式化字符串到cmd中
+    // -C <dir>：切换到指定目录执行make
+    snprintf(cmd, sizeof(cmd), "make -C %s input LOOP=%d OUT=%s", gen_dir, loop, out_path);
+    int ret = system(cmd);
+    if (ret != 0) {
+      printf("p test: failed to run '%s'\n", cmd);
+      printf("p test: hint: ensure NEMU_HOME is set to the nemu/ directory and 'make' is available.\n");
+      return 0;
+    }
+
+    // 打开 gen-expr 生成的用例文件。（更改日期：2025-12-22）
+    FILE *fp = fopen(out_path, "r");
+    if (fp == NULL) {
+      printf("p test: cannot open %s: %s\n", out_path, strerror(errno));
+      return 0;
+    }
+
+    // 给每行分配一个足够大的缓冲：表达式可能很长（尤其是递归生成 + 随机空格）。（更改日期：2025-12-22）
+    char *line = malloc(65536);
+    if (line == NULL) {
+      fclose(fp);
+      printf("p test: out of memory\n");
+      return 0;
+    }
+
+    int total = 0;
+    int pass = 0;
+    int fail = 0;
+    while (fgets(line, 65536, fp) != NULL) {
+      char *p = line;
+      while (*p != '\0' && isspace((unsigned char)*p)) p++;
+      if (*p == '\0') continue;
+
+      // 解析 expected：gen-expr 输出格式为："<unsigned> <expr>\n"。（更改日期：2025-12-22）
+      // 用 strtoul() 从行首读取 expected 的十进制数。
+      errno = 0;
+      char *end = NULL;
+      unsigned long expected_ul = strtoul(p, &end, 10);
+      if (end == p || errno != 0) {
+        continue;
+      }
+
+      // end 当前指向 expected 后的第一个字符：跳过空白，剩下部分就是表达式字符串。
+      while (*end != '\0' && isspace((unsigned char)*end)) end++;
+      if (*end == '\0') {
+        continue;
+      }
+
+      char *expr_str = end;
+      size_t n = strlen(expr_str);
+      while (n > 0 && (expr_str[n - 1] == '\n' || expr_str[n - 1] == '\r')) {
+        expr_str[n - 1] = '\0';
+        n--;
+      }
+
+      // 调用 NEMU 内的表达式求值器。（更改日期：2025-12-22）
+      // 注意：expr() 的 `success` 会在词法/语法错误、或 eval 过程中“软失败”（比如除 0）时置为 false。
+      bool success = false;
+      word_t got = expr(expr_str, &success);
+
+      // 为了和 gen-expr 的输出对齐，这里统一截断/对比为 32-bit。（更改日期：2025-12-22）
+      //（当前用例生成用的是 unsigned result，按 32-bit 无符号打印。）
+      uint32_t expected = (uint32_t)expected_ul;
+      uint32_t got32 = (uint32_t)got;
+
+      total++;
+      if (!success || got32 != expected) {
+        fail++;
+        // 只打印前 10 条失败样例，避免输出过多；用 total 作为用例序号方便回溯。
+        if (fail <= 10) {
+          printf("FAIL[%d]: expected=%u got=%u expr=%s\n", total, expected, got32, expr_str);
+        }
+      } else {
+        pass++;
+      }
+    }
+
+    free(line);
+    fclose(fp);
+    printf("p test: PASS %d / %d (FAIL %d)\n", pass, total, fail);
+    return 0;
+  }
+
   bool success = false;
   word_t result = expr(args, &success);
   if (success) {
-    printf("result : %u\n", result);
+    printf("result : %u\n", (unsigned)result);
   } else {
-    printf("Invalid expression: %s\n", args);   
+    printf("Invalid expression: %s\n", args);
   }
 
   return 0;

@@ -12,6 +12,7 @@
 *
 * See the Mulan PSL v2 for more details.
 ***************************************************************************************/
+//NEMU主程序入口，主要负责初始化监控器和启动引擎
 
 #include <common.h>
 
@@ -22,14 +23,18 @@ int is_exit_status_bad();
 
 int main(int argc, char *argv[]) {
   /* Initialize the monitor. */
+  //初始化监视器/环境
 #ifdef CONFIG_TARGET_AM
+//如果编译的是AM目标，则调用am_init_monitor初始化
   am_init_monitor();
 #else
+//否则，普通NEMU仿真，初始化NEMU的监视器（SDB调试器、命令行参数）
   init_monitor(argc, argv);
 #endif
 
   /* Start engine. */
   engine_start();
 
+  //检查仿真是否以良好状态退出
   return is_exit_status_bad();
 }

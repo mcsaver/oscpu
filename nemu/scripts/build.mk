@@ -35,7 +35,10 @@ LD := $(CXX)
 INCLUDES = $(addprefix -I, $(INC_PATH))
 #CFLAGS/LDFLAGS基础设置
 #-O2优化；-MMD在编译时生成依赖文件（.d）；-Wall -Werror打开警告并当作错误；包含INCLUDES；允许外部追加CFLAGS
-CFLAGS  := -O2 -MMD -Wall -Werror $(INCLUDES) $(CFLAGS)
+#
+#注意，此处自行添加了-G作为gdb调试用
+#
+CFLAGS  := -O2 -MMD -Wall -Werror -g $(INCLUDES) $(CFLAGS)
 #链接器标志可被外部追击到
 LDFLAGS := -O2 $(LDFLAGS)
 
