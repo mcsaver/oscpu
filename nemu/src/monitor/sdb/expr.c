@@ -24,6 +24,8 @@
 //定义tokens大小
 #define BUF_SIZ 1024
 
+bool enable_expr_log = true;
+
 // tokens 类型定义：
 // - 256 起是为了避免和 ASCII 字符冲突（例如 '+' '-' '*' '/' '(' ')' 直接用字符本身做 type）
 // - 这里把“复杂/多字符 token”（如 ==、十进制数字、一元负号）单独用枚举值表示
@@ -99,7 +101,7 @@ static Token tokens[BUF_SIZ] __attribute__((used)) = {};
 static int nr_token __attribute__((used))  = 0;
 
 // eval() 过程中用于“软失败”的标志：避免除 0 等情况直接触发宿主机 SIGFPE
-// [新增] eval() 过程中用于“软失败”的标志。（更改日期：2025-12-22）
+//eval_success为eval() 过程中用于“软失败”的标志，避免assert直接退出nemu
 // 背景：gen-expr 会随机生成包含除法的表达式，可能出现除 0。
 // 如果 NEMU 直接执行 `a / 0`，会触发宿主机 SIGFPE（Floating point exception）导致 NEMU 进程崩溃。
 // 解决：在 eval() 检测到不合法/不支持的情况时，置 eval_success=false，并返回一个占位值 0。
@@ -133,7 +135,6 @@ static bool make_token(char *e) {
       if (regexec(&re[i], e + position, 1, &pmatch, 0) == 0 && pmatch.rm_so == 0) {
         //关键判断，regexec在e+position这段子串上执行匹配，pmatch.rm_so == 0 强制要求匹配必须从字串起始位置开始
         //否则会出现跳着匹配导致无法推进position的问题
-        
         //成功匹配后
         //substr_len是本次匹配到的token文本长度
         //position前进，继续扫描后面的内容
@@ -141,10 +142,13 @@ static bool make_token(char *e) {
         char *substr_start = e + position;
         int substr_len = pmatch.rm_eo;
         
-        // 逐 token 打印 Log 会在批量对拍（`p test`）时产生海量输出，严重影响阅读与性能。（更改日期：2025-12-22）
-        // 如需调试词法匹配过程，可以临时取消注释下面这段 Log。
-        Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
-          i, rules[i].regex, position, substr_len, substr_len, substr_start);
+        // 逐 token 打印 Log 会在批量对拍（`p test`）时产生海量输出，严重影响阅读与性能
+        // 如需调试词法匹配过程，可以临时取消注释下面这段 Log
+        
+        if (enable_expr_log) {
+          Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
+            i, rules[i].regex, position, substr_len, substr_len, substr_start);
+        }
         // 消耗掉本次匹配到的 token 文本
         position += substr_len;
 
@@ -254,7 +258,7 @@ static uint32_t eval(int p, int q) {
   // 递归下降求值：计算 tokens[p..q] 这段 token 表示的表达式的值
   if (p > q) {
     /* Bad expression */
-    // [新增] 语法不合法：不要 assert/panic 直接炸掉 NEMU，而是“软失败”交给上层处理。（更改日期：2025-12-22）
+    //不要 assert/panic 直接炸掉 NEMU，而是“软失败”交给上层处理
     eval_success = false;
     return 0;
   }
@@ -300,7 +304,7 @@ static uint32_t eval(int p, int q) {
     }
 
     if (op == -1) {
-      // [新增] 没找到主运算符：属于不合法表达式（例如括号不配对、token 序列异常等）。（更改日期：2025-12-22）
+      // [新增] 没找到主运算符：属于不合法表达式（例如括号不配对、token 序列异常等）
       eval_success = false;
       return 0;
     }
@@ -322,10 +326,10 @@ static uint32_t eval(int p, int q) {
       case '-': return val1 - val2;
       case '*': return val1 * val2;
       case '/': {
-        // gen-expr 生成的 C 程序中：表达式按“有符号 int”计算，然后赋给 unsigned。（更改日期：2025-12-22）
+        // gen-expr 生成的 C 程序中：表达式按“有符号 int”计算，然后赋给 unsigned
         // 因此这里需要按 int32_t 语义做除法（尤其是负数参与除法时）。
         if (val2 == 0) {
-          // [新增] 除 0：标记失败，避免触发宿主机 SIGFPE。（更改日期：2025-12-22）
+          //除 0：标记失败，避免触发宿主机 SIGFPE
           eval_success = false;
           return 0;
         }
@@ -351,8 +355,8 @@ word_t expr(char *e, bool *success) {
   }
 
   /* TODO: Insert codes to evaluate the expression. */
-  eval_success = true; // 软失败标志的初始化（更改日期：2025-12-22）
+  eval_success = true; // 软失败标志的初始化
   word_t v = (word_t)eval(0, nr_token - 1);
-  *success = eval_success; // 把 eval() 的软失败状态回传给调用者（更改日期：2025-12-22）
+  *success = eval_success; // 把 eval() 的软失败状态回传给调用者
   return v;
 }

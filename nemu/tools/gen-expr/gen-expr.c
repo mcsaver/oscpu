@@ -42,7 +42,7 @@
 //buf存放生成的表达式
 static char buf[BUF_SIZE] = {};
 //code_buf存放完整的c程序代码
-// code_buf 需要比 buf 稍大：除了表达式本身，还要拼上 code_format 的 C 模板（include/main/printf 等）。（更改日期：2025-12-22）
+// code_buf 需要比 buf 稍大：除了表达式本身，还要拼上 code_format 的 C 模板（include/main/printf 等）
 // 这里 +128 是一个经验值，足够容纳模板的固定部分。
 static char code_buf[BUF_SIZE + 128] = {};
 //code_format是生成临时c程序的模板，用于把表达式嵌入到main函数中
@@ -129,7 +129,7 @@ int main(int argc, char *argv[]) {
   }
   int i;
   for (i = 0; i < loop; i ++) {
-    // 每次生成一条新用例前都要清空 buf，否则会把上一条表达式拼接到下一条上，（更改日期：2025-12-22）
+    // 每次生成一条新用例前都要清空 buf，否则会把上一条表达式拼接到下一条上
     // 造成类似 "(((104)))962" 或 "817(((..." 这种非法 C 表达式。
     buf[0] = '\0';
     gen_rand_expr(0);//生成随机表达式，存入buf
@@ -150,11 +150,13 @@ int main(int argc, char *argv[]) {
     // 随机表达式可能触发编译器溢出等告警，屏蔽告警输出避免干扰用例生成。
     //int ret = system("gcc -w /tmp/.code.c -o /tmp/.expr");
     //int ret = system("gcc  /tmp/.code.c -o /tmp/.expr");
-    // [关键改动] 生成“标准答案”的 C 程序编译参数：（更改日期：2025-12-22）
+    // 生成“标准答案”的 C 程序编译参数：
     // - -fwrapv：把有符号溢出定义为按二进制补码回绕（避免 C 的 UB 导致结果不稳定）
     // - -O0：降低优化带来的常量折叠/重排差异，让“标准答案”更接近我们在 NEMU 里按 int32_t/uint32_t 的求值语义
-    // - 2> /tmp/.gcc_warn.log：收集告警，后面可以筛掉 overflow 等可疑用例
-    int ret = system("gcc -O0 -fwrapv /tmp/.code.c -o /tmp/.expr 2> /tmp/.gcc_warn.log");
+    // - -Wdiv-by-zero：开启“编译期可判定的除 0”告警（例如 /(0) 或 /(1-1) 这种能常量折叠为 0 的分母）
+    // - -Werror=div-by-zero：把上述告警提升为编译错误 => 直接丢弃该用例并重试
+    // - 2> /tmp/.gcc_warn.log：收集告警/错误日志（我们仍会筛 overflow）
+    int ret = system("gcc -O0 -fwrapv -Wdiv-by-zero -Werror=div-by-zero /tmp/.code.c -o /tmp/.expr 2> /tmp/.gcc_warn.log");
     if (ret != 0) {          // 编译失败：重试，保证输出条数够
       i = i - 1;
       continue;
@@ -178,18 +180,18 @@ int main(int argc, char *argv[]) {
       continue;
     }
 
-    // 运行子进程：把 stderr 丢到 /dev/null，避免除 0 等运行时错误信息污染 stdout。（更改日期：2025-12-22）
-    // 注意：stderr 被丢弃不代表我们忽略异常；异常会在 pclose() 的退出状态里体现。
+    // 运行子进程：把 stderr 丢到 /dev/null，避免除 0 等运行时错误信息污染 stdout
+    // 注意：stderr 被丢弃不代表我们忽略异常；异常会在 pclose() 的退出状态里体现
     fp = popen("/tmp/.expr 2>/dev/null", "r");
     assert(fp != NULL);
 
     unsigned result = 0;
     ret = fscanf(fp, "%u", &result);
 
-    // 关闭管道并拿到子进程退出状态：用于判断是否发生 SIGFPE 等异常。（更改日期：2025-12-22）
+    // 关闭管道并拿到子进程退出状态：用于判断是否发生 SIGFPE 等异常
     int status = pclose(fp);
 
-    // 读取失败 或 子进程异常退出（比如 SIGFPE/除 0）=> 丢弃用例并重试。（更改日期：2025-12-22）
+    // 读取失败 或 子进程异常退出（比如 SIGFPE/除 0）=> 丢弃用例并重试
     if (ret != 1 || status == -1 || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
       i = i - 1;
       continue;

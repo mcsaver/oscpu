@@ -29,6 +29,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 /* #include <errno.h>
 #include <ctype.h>
 #include <limits.h> */
@@ -165,10 +166,10 @@ static int cmd_p(char *args) {
     return 0;
   }
 
-  // `readline` 返回的参数可能有前导空格，这里先跳过，保证对 "test" 的识别稳定。（更改日期：2025-12-22）
+  // `readline` 返回的参数可能有前导空格，这里先跳过，保证对 "test" 的识别稳定
   while (*args != '\0' && isspace((unsigned char)*args)) args++;
 
-  //`p test`（更改日期：2025-12-22）
+  //`p test`
   // 目的：把表达式求值和 gen-expr 自动对拍接起来，做回归测试。
   // 流程：
   // 1) 调用 tools/gen-expr 的 Makefile 生成一批 "<expected> <expr>" 用例到临时文件
@@ -176,6 +177,11 @@ static int cmd_p(char *args) {
   // 3) 调用 NEMU 内部 `expr()` 计算 got，与 expected 做 32-bit 对比
   // 4) 汇总 PASS/FAIL，并打印前若干条失败样例用于定位
   if (strcmp(args, "test") == 0) {
+    bool old_enable_expr_log = enable_expr_log;
+    enable_expr_log = false; // 关闭逐 token 日志，避免海量输出影响性能和阅读
+
+    struct timespec t0, t1;
+    clock_gettime(CLOCK_MONOTONIC, &t0);
     // 优先使用环境变量 NEMU_HOME 来定位 tools/gen-expr，避免从别的目录启动 NEMU 时相对路径失效。
     // 若没设置 NEMU_HOME，则退化为相对路径 ./tools/gen-expr（要求从 nemu/ 目录启动）。
     //使用geten查询环境变量NEMU_HOME
@@ -187,11 +193,11 @@ static int cmd_p(char *args) {
       snprintf(gen_dir, sizeof(gen_dir), "./tools/gen-expr");
     } 
 
-    // 用例文件输出位置：写到 /tmp，避免污染仓库。
-    const char *out_path = "/tmp/.nemu_expr_input";
+    // 用例文件输出位置：写到 tools/gen-expr/input
+    const char *out_path = "./tools/gen-expr/input";
 
     // 生成用例条数（可根据需要调大，例如 1000/10000 做更强的压力测试）。
-    const int loop = 100;
+    const int loop = 1000;
 
     // 通过 make 触发 tools/gen-expr/Makefile 的 input 目标。
     // `make -C <dir> input LOOP=<n> OUT=<file>`
@@ -200,38 +206,43 @@ static int cmd_p(char *args) {
 
     //snprintf生成执行命令字符串：格式化字符串到cmd中
     // -C <dir>：切换到指定目录执行make
-    snprintf(cmd, sizeof(cmd), "make -C %s input LOOP=%d OUT=%s", gen_dir, loop, out_path);
+    // input：执行Makefile中的input目标
+    snprintf(cmd, sizeof(cmd), "make -C %s input LOOP=%d OUT=%s", gen_dir, loop, "input");
+    //system在shell中执行cmd命令，返回值是命令的退出状态
     int ret = system(cmd);
     if (ret != 0) {
       printf("p test: failed to run '%s'\n", cmd);
       printf("p test: hint: ensure NEMU_HOME is set to the nemu/ directory and 'make' is available.\n");
+      enable_expr_log = old_enable_expr_log;
       return 0;
     }
 
-    // 打开 gen-expr 生成的用例文件。（更改日期：2025-12-22）
+    // 打开 gen-expr 生成的用例文件
     FILE *fp = fopen(out_path, "r");
     if (fp == NULL) {
       printf("p test: cannot open %s: %s\n", out_path, strerror(errno));
+      enable_expr_log = old_enable_expr_log;
       return 0;
     }
 
-    // 给每行分配一个足够大的缓冲：表达式可能很长（尤其是递归生成 + 随机空格）。（更改日期：2025-12-22）
+    // 给每行分配一个足够大的缓冲：表达式可能很长（尤其是递归生成 + 随机空格）
     char *line = malloc(65536);
     if (line == NULL) {
       fclose(fp);
       printf("p test: out of memory\n");
+      enable_expr_log = old_enable_expr_log;
       return 0;
     }
 
-    int total = 0;
-    int pass = 0;
-    int fail = 0;
+    int total = 0;//总共测试的表达式用例数量
+    int pass = 0;//通过的用例数量
+    int fail = 0;//失败的用例数量
     while (fgets(line, 65536, fp) != NULL) {
-      char *p = line;
-      while (*p != '\0' && isspace((unsigned char)*p)) p++;
-      if (*p == '\0') continue;
+      char *p = line;//指向当前行的指针
+      while (*p != '\0' && isspace((unsigned char)*p)) p++;//跳过所有的行首的空白字符
+      if (*p == '\0') continue;//若遇到空白行直接跳过这行
 
-      // 解析 expected：gen-expr 输出格式为："<unsigned> <expr>\n"。（更改日期：2025-12-22）
+      // 解析 expected：gen-expr 输出格式为："<unsigned> <expr>\n"
       // 用 strtoul() 从行首读取 expected 的十进制数。
       errno = 0;
       char *end = NULL;
@@ -246,14 +257,14 @@ static int cmd_p(char *args) {
         continue;
       }
 
-      char *expr_str = end;
+      char *expr_str = end;//从起点开始
       size_t n = strlen(expr_str);
       while (n > 0 && (expr_str[n - 1] == '\n' || expr_str[n - 1] == '\r')) {
         expr_str[n - 1] = '\0';
-        n--;
+        n--;//长度减一，继续检查新的末尾字符
       }
 
-      // 调用 NEMU 内的表达式求值器。（更改日期：2025-12-22）
+      // 调用 NEMU 内的表达式求值器。
       // 注意：expr() 的 `success` 会在词法/语法错误、或 eval 过程中“软失败”（比如除 0）时置为 false。
       bool success = false;
       word_t got = expr(expr_str, &success);
@@ -277,7 +288,11 @@ static int cmd_p(char *args) {
 
     free(line);
     fclose(fp);
-    printf("p test: PASS %d / %d (FAIL %d)\n", pass, total, fail);
+    clock_gettime(CLOCK_MONOTONIC, &t1);
+    double elapsed = (double)(t1.tv_sec - t0.tv_sec) + (double)(t1.tv_nsec - t0.tv_nsec) / 1e9;
+    if (elapsed < 0) elapsed = 0;
+    printf("p test: PASS %d / %d (FAIL %d) time=%.3fs\n", pass, total, fail, elapsed);
+    enable_expr_log = old_enable_expr_log;
     return 0;
   }
 
@@ -288,7 +303,8 @@ static int cmd_p(char *args) {
   } else {
     printf("Invalid expression: %s\n", args);
   }
-
+  
+  enable_expr_log = true;
   return 0;
 }
 
