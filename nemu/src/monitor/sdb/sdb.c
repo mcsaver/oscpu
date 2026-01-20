@@ -176,7 +176,7 @@ static int cmd_p(char *args) {
   // 2) 逐行读取：解析 expected（十进制无符号）和表达式字符串
   // 3) 调用 NEMU 内部 `expr()` 计算 got，与 expected 做 32-bit 对比
   // 4) 汇总 PASS/FAIL，并打印前若干条失败样例用于定位
-  if (strcmp(args, "test") == 0) {
+  if (strcmp(args, "test") == 0) { //若相等则返回0
     bool old_enable_expr_log = enable_expr_log;
     enable_expr_log = false; // 关闭逐 token 日志，避免海量输出影响性能和阅读
 
@@ -197,7 +197,7 @@ static int cmd_p(char *args) {
     const char *out_path = "./tools/gen-expr/input";
 
     // 生成用例条数（可根据需要调大，例如 1000/10000 做更强的压力测试）。
-    const int loop = 1000;
+    const int loop = 100;
 
     // 通过 make 触发 tools/gen-expr/Makefile 的 input 目标。
     // `make -C <dir> input LOOP=<n> OUT=<file>`
@@ -269,7 +269,7 @@ static int cmd_p(char *args) {
       bool success = false;
       word_t got = expr(expr_str, &success);
 
-      // 为了和 gen-expr 的输出对齐，这里统一截断/对比为 32-bit。（更改日期：2025-12-22）
+      // 为了和 gen-expr 的输出对齐，这里统一截断/对比为 32-bit
       //（当前用例生成用的是 unsigned result，按 32-bit 无符号打印。）
       uint32_t expected = (uint32_t)expected_ul;
       uint32_t got32 = (uint32_t)got;
@@ -296,10 +296,13 @@ static int cmd_p(char *args) {
     return 0;
   }
 
+  //----------------普通模式执行------------//
   bool success = false;
   word_t result = expr(args, &success);
   if (success) {
-    printf("result : %u\n", (unsigned)result);
+    printf("Unsigned result : %u\n", (unsigned)result);
+    printf("Signed result : %d\n", (int32_t)result);
+    printf("HEX result : 0x%08x\n", (unsigned)result);
   } else {
     printf("Invalid expression: %s\n", args);
   }

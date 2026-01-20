@@ -15,11 +15,12 @@
 //用于表达式求值
 
 #include <isa.h>
-
+//#include "local-include/reg.h"
 /* We use the POSIX regex functions to process regular expressions.
  * Type 'man regex' for more information about POSIX regex functions.
  */
 #include <regex.h>
+#include "memory/paddr.h"
 
 //定义tokens大小
 #define BUF_SIZ 1024
@@ -34,8 +35,43 @@ enum {
   TK_NOTYPE = 256,
   TK_EQ = 257,
   TK_DECIMAL = 258,
-  TK_NEG = 259
-
+  TK_NEG = 259,
+  DEREF = 260,
+  TK_NEQ,
+  TK_HEX,
+  TK_DOUAM,
+  TK_REG_0,   // $0
+  TK_REG_RA,  // $ra
+  TK_REG_SP,  // $sp
+  TK_REG_GP,  // $gp
+  TK_REG_TP,  // $tp
+  TK_REG_T0,  // $t0
+  TK_REG_T1,  // $t1
+  TK_REG_T2,  // $t2
+  TK_REG_S0,  // $s0
+  TK_REG_S1,  // $s1
+  TK_REG_A0,  // $a0
+  TK_REG_A1,  // $a1
+  TK_REG_A2,  // $a2
+  TK_REG_A3,  // $a3
+  TK_REG_A4,  // $a4
+  TK_REG_A5,  // $a5
+  TK_REG_A6,  // $a6
+  TK_REG_A7,  // $a7
+  TK_REG_S2,  // $s2
+  TK_REG_S3,  // $s3
+  TK_REG_S4,  // $s4
+  TK_REG_S5,  // $s5
+  TK_REG_S6,  // $s6
+  TK_REG_S7,  // $s7
+  TK_REG_S8,  // $s8
+  TK_REG_S9,  // $s9
+  TK_REG_S10, // $s10
+  TK_REG_S11, // $s11
+  TK_REG_T3,  // $t3
+  TK_REG_T4,  // $t4
+  TK_REG_T5,  // $t5
+  TK_REG_T6,  // $t6
   /* TODO: Add more token types */
 
 };
@@ -50,9 +86,46 @@ static struct rule {
 // 词法规则表：用 POSIX regex 定义“如何匹配 token”以及“匹配后 token 的类型”
 // 注意：规则是按顺序尝试匹配的，越靠前优先级越高；因此多字符 token 要放在前面（例如 "==" 必须在 "=" 之前）
 // 本实验先支持：十进制整数、+ - * /、括号、空格
+  {"0[xX][0-9a-fA-F]+", TK_HEX}, // 新增：匹配16进制数
+  {"\\$0", TK_REG_0},
+  {"\\$ra", TK_REG_RA},
+  {"\\$sp", TK_REG_SP},
+  {"\\$gp", TK_REG_GP},
+  {"\\$tp", TK_REG_TP},
+  {"\\$t0", TK_REG_T0},
+  {"\\$t1", TK_REG_T1},
+  {"\\$t2", TK_REG_T2},
+  {"\\$s0", TK_REG_S0},
+  {"\\$s1", TK_REG_S1},
+  {"\\$a0", TK_REG_A0},
+  {"\\$a1", TK_REG_A1},
+  {"\\$a2", TK_REG_A2},
+  {"\\$a3", TK_REG_A3},
+  {"\\$a4", TK_REG_A4},
+  {"\\$a5", TK_REG_A5},
+  {"\\$a6", TK_REG_A6},
+  {"\\$a7", TK_REG_A7},
+  {"\\$s2", TK_REG_S2},
+  {"\\$s3", TK_REG_S3},
+  {"\\$s4", TK_REG_S4},
+  {"\\$s5", TK_REG_S5},
+  {"\\$s6", TK_REG_S6},
+  {"\\$s7", TK_REG_S7},
+  {"\\$s8", TK_REG_S8},
+  {"\\$s9", TK_REG_S9},
+  {"\\$s10", TK_REG_S10},
+  {"\\$s11", TK_REG_S11},
+  {"\\$t3", TK_REG_T3},
+  {"\\$t4", TK_REG_T4},
+  {"\\$t5", TK_REG_T5},
+  {"\\$t6", TK_REG_T6},
+  {"&&", TK_DOUAM},
   {" +", TK_NOTYPE},    // spaces
   {"==", TK_EQ},        // equal
+  {"!=", TK_NEQ},       // not equal
+  //{"0[xX][0-9a-fA-F]+", TK_HEX}, // 新增：匹配16进制数
   {"[0-9]+", TK_DECIMAL}, // decimal number
+ //{"0[xX][0-9a-fA-F]+", TK_HEX}, // 新增：匹配16进制数
   {"\\+", '+'},         // plus
   {"\\-", '-'},         // minus
   {"\\*", '*'},         // multiply
@@ -114,6 +187,8 @@ static bool eval_success = true;
 //内层for(i=0;i<NR;i++)：尝试所有规则，看哪个能在当前位置匹配
 // make_token(): 把输入字符串 e 做词法分析，生成 tokens[0..nr_token-1]
 // 解析失败返回 false；成功返回 true
+//把输入字符串分割成一个个token，每个token有自己的类型(type)和原始字符串(str)
+//后续再eval递归求值的时候，遇到数字token会用atoi把str转换成int
 static bool make_token(char *e) {
   int position = 0;
   int i;
@@ -162,6 +237,24 @@ static bool make_token(char *e) {
         switch (rules[i].token_type) {
           case TK_NOTYPE://跳过空格
             break;
+          case TK_HEX://16进制
+            if (nr_token >= BUF_SIZ)
+            {
+              printf("too many tokens\n");
+              return false;
+            }
+            tokens[nr_token].type =TK_HEX;
+            if (substr_len >= BUF_SIZ)
+            {
+              printf("token too long\n");
+              return false;
+            }
+
+            // 注意 strncpy 不会自动补 '\0'，这里手动补齐
+            strncpy(tokens[nr_token].str, substr_start, substr_len);
+            tokens[nr_token].str[substr_len] = '\0';//加上字符串结尾符
+            nr_token ++;
+              break;
           default://其他token都记录下来
             if (nr_token >= BUF_SIZ)
             {
@@ -204,7 +297,8 @@ static bool make_token(char *e) {
 
     int prev = tokens[i - 1].type;
     // 这些 token 后面出现 '-'，通常表示“取负”而不是“相减”
-    if (prev == '(' || prev == '+' || prev == '-' || prev == '*' || prev == '/' || prev == TK_EQ) {
+    if (prev == '(' || prev == '+' || prev == '-' || prev == '*' || prev == '/' || prev == TK_EQ
+    || prev == TK_NEQ) {
       tokens[i].type = TK_NEG;
     }
   }
@@ -218,11 +312,15 @@ int get_priority(int token_type)
   // 例如：1+2*3 的主运算符是 '+'（优先级更低）
   switch (token_type)
   {
+    case TK_DOUAM: return -1;
+    case TK_EQ: return 0;
+    case TK_NEQ: return 0;
     case '+': return 1;
     case '-': return 1;
     case '*': return 2;
     case '/': return 2;
     case TK_NEG: return 3;
+    case DEREF: return 4;
     default: return 100;
   }
 }
@@ -267,9 +365,18 @@ static uint32_t eval(int p, int q) {
      * For now this token should be a number.
      * Return the value of the number.
      */
-    // 目前 p==q 只支持十进制数字
-    return (uint32_t)atoi(tokens[p].str);
+    
+    if (tokens[p].type == TK_DECIMAL)
+    {
+      return (uint32_t)atoi(tokens[p].str);
+    }
+    else if(tokens[p].type == TK_HEX)
+    {
+      return (uint32_t)strtoul(tokens[p].str, NULL, 16);
+    }
+    
   }
+  
   else if (check_parentheses(p, q) == true) {
     /* The expression is surrounded by a matched pair of parentheses.
      * If that is the case, just throw away the parentheses.
@@ -278,7 +385,7 @@ static uint32_t eval(int p, int q) {
   }
   else {
     int op = -1;
-    int op_type = -1;
+    int op_type = -1;//主运算符下的子运算的主运算符
     int min_pri = 100;
     int bracket_level = 0;
     // 寻找“主运算符”位置 op：
@@ -288,12 +395,16 @@ static uint32_t eval(int p, int q) {
     for (int i = q; i >= p; i--) {
       if (tokens[i].type == ')') bracket_level++;
       else if (tokens[i].type == '(') bracket_level--;
-      else if (bracket_level == 0 && 
+      else if (bracket_level == 0 &&
         (tokens[i].type == '+' ||
          tokens[i].type == '-' ||
          tokens[i].type == '*' ||
          tokens[i].type == '/' ||
-         tokens[i].type == TK_NEG)) {
+         tokens[i].type == TK_NEG ||
+         tokens[i].type == DEREF ||
+         tokens[i].type == TK_EQ ||
+         tokens[i].type == TK_NEQ ||
+         tokens[i].type == TK_DOUAM)) {
         int pri = get_priority(tokens[i].type);
         if (pri < min_pri ) {
           min_pri = pri;
@@ -309,10 +420,25 @@ static uint32_t eval(int p, int q) {
       return 0;
     }
 
+    if (op_type == DEREF) {
+      assert(op == p);
+      // 判断 tokens[op + 1] 是否为寄存器类型
+      if (tokens[op + 1].type >= TK_REG_0 && tokens[op + 1].type <= TK_REG_T6) {
+        // 取寄存器名字符串
+        word_t der_reg = isa_reg_str2val(&tokens[op + 1].str[1], &eval_success);
+        //printf(FMT_WORD"\n",der_reg );
+        //printf("%s\n", &tokens[op + 1].str[1]);
+        return der_reg;
+      } else {
+        paddr_t ad = (uint32_t)eval(op + 1, q);
+        return (uint32_t)paddr_read(ad, 4);
+      }
+    }
+
     if (op_type == TK_NEG) {
       // 一元负号：形式应当是 - <expr>，因此 TK_NEG 必须出现在当前子表达式开头
       assert(op == p);
-      int32_t v = (int32_t)eval(op + 1, q);
+      int32_t v = (int32_t)eval(op + 1, q);//先把后面的值算出来
       int64_t r = -(int64_t)v;
       return (uint32_t)(int32_t)r;
     }
@@ -338,11 +464,21 @@ static uint32_t eval(int p, int q) {
         int64_t qv = (int64_t)a / (int64_t)b; // 避免 int32_t 的潜在 UB
         return (uint32_t)(int32_t)qv;
       }
+      case TK_EQ: return val1 == val2;
+      case TK_NEQ: return val1 != val2;
+      case TK_DOUAM: return val1 & val2;
       default: assert(0);
     }
   }
+  return 0;
 }
 
+//指针解引用前面可能出现的符号
+static int is_op(int type) {
+  return type == '+' || type == '-' || type == '*' || type == '/' ||
+          type == TK_EQ || type == TK_NEG || type == '(' || type == DEREF
+          || type == TK_NEQ || type == TK_DOUAM;
+}
 
 
 //对外接口
@@ -353,6 +489,12 @@ word_t expr(char *e, bool *success) {
     *success = false;
     return 0;
   }
+
+  for (int i = 0; i < nr_token; i ++) {
+  if (tokens[i].type == '*' && (i == 0 || is_op(tokens[i - 1].type) ) ) {
+    tokens[i].type = DEREF;
+  }
+}
 
   /* TODO: Insert codes to evaluate the expression. */
   eval_success = true; // 软失败标志的初始化

@@ -17,7 +17,7 @@
 #define __SDB_H__
 
 #include <common.h>
-#include <memory/paddr.h>
+#include "memory/paddr.h"
 
 extern bool enable_expr_log;
 
