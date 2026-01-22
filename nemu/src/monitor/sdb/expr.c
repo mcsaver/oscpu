@@ -40,7 +40,7 @@ enum {
   TK_NEQ,
   TK_HEX,
   TK_DOUAM,
-  TK_REG_0,   // $0
+/*   TK_REG_0,   // $0
   TK_REG_RA,  // $ra
   TK_REG_SP,  // $sp
   TK_REG_GP,  // $gp
@@ -71,7 +71,8 @@ enum {
   TK_REG_T3,  // $t3
   TK_REG_T4,  // $t4
   TK_REG_T5,  // $t5
-  TK_REG_T6,  // $t6
+  TK_REG_T6,  // $t6 */
+  TK_D
   /* TODO: Add more token types */
 
 };
@@ -87,7 +88,7 @@ static struct rule {
 // 注意：规则是按顺序尝试匹配的，越靠前优先级越高；因此多字符 token 要放在前面（例如 "==" 必须在 "=" 之前）
 // 本实验先支持：十进制整数、+ - * /、括号、空格
   {"0[xX][0-9a-fA-F]+", TK_HEX}, // 新增：匹配16进制数
-  {"\\$0", TK_REG_0},
+/*   {"\\$0", TK_REG_0},
   {"\\$ra", TK_REG_RA},
   {"\\$sp", TK_REG_SP},
   {"\\$gp", TK_REG_GP},
@@ -118,7 +119,8 @@ static struct rule {
   {"\\$t3", TK_REG_T3},
   {"\\$t4", TK_REG_T4},
   {"\\$t5", TK_REG_T5},
-  {"\\$t6", TK_REG_T6},
+  {"\\$t6", TK_REG_T6}, */
+  {"\\$[a-z0-9]+", TK_D}, 
   {"&&", TK_DOUAM},
   {" +", TK_NOTYPE},    // spaces
   {"==", TK_EQ},        // equal
@@ -298,7 +300,7 @@ static bool make_token(char *e) {
     int prev = tokens[i - 1].type;
     // 这些 token 后面出现 '-'，通常表示“取负”而不是“相减”
     if (prev == '(' || prev == '+' || prev == '-' || prev == '*' || prev == '/' || prev == TK_EQ
-    || prev == TK_NEQ) {
+    || prev == TK_NEQ || prev == TK_D) {
       tokens[i].type = TK_NEG;
     }
   }
@@ -321,6 +323,7 @@ int get_priority(int token_type)
     case '/': return 2;
     case TK_NEG: return 3;
     case DEREF: return 4;
+    case TK_D: return 5;
     default: return 100;
   }
 }
@@ -375,6 +378,23 @@ static uint32_t eval(int p, int q) {
       return (uint32_t)strtoul(tokens[p].str, NULL, 16);
     }
     
+    else if (tokens[p].type == TK_D)
+    {
+        // 取寄存器名字符串
+        //assert(op == p);
+        char *pc_char = "$pc";
+        //strcmp(tokens[p].str, pc_char)
+        if (strcmp(tokens[p].str, pc_char) == 0)
+        {
+              return cpu.pc;
+        }
+        else {
+        word_t der_reg = isa_reg_str2val(&tokens[p].str[1], &eval_success);
+        //printf(FMT_WORD"\n",der_reg );
+        //printf("%s\n", &tokens[p].str[1]);
+        return der_reg;
+              }
+    }
   }
   
   else if (check_parentheses(p, q) == true) {
@@ -404,7 +424,8 @@ static uint32_t eval(int p, int q) {
          tokens[i].type == DEREF ||
          tokens[i].type == TK_EQ ||
          tokens[i].type == TK_NEQ ||
-         tokens[i].type == TK_DOUAM)) {
+         tokens[i].type == TK_DOUAM ||
+         tokens[i].type == TK_D)) {
         int pri = get_priority(tokens[i].type);
         if (pri < min_pri ) {
           min_pri = pri;
@@ -422,7 +443,7 @@ static uint32_t eval(int p, int q) {
 
     if (op_type == DEREF) {
       assert(op == p);
-      // 判断 tokens[op + 1] 是否为寄存器类型
+/*       // 判断 tokens[op + 1] 是否为寄存器类型
       if (tokens[op + 1].type >= TK_REG_0 && tokens[op + 1].type <= TK_REG_T6) {
         // 取寄存器名字符串
         word_t der_reg = isa_reg_str2val(&tokens[op + 1].str[1], &eval_success);
@@ -432,16 +453,29 @@ static uint32_t eval(int p, int q) {
       } else {
         paddr_t ad = (uint32_t)eval(op + 1, q);
         return (uint32_t)paddr_read(ad, 4);
-      }
+      } */
+        paddr_t ad = (uint32_t)eval(op + 1, q);
+        return (uint32_t)paddr_read(ad, 4);
     }
 
-    if (op_type == TK_NEG) {
+    if (op_type == TK_D)
+    {
+        // 取寄存器名字符串
+        //assert(op == p);
+        word_t der_reg = isa_reg_str2val(&tokens[op].str[1], &eval_success);
+        printf(FMT_WORD"\n",der_reg );
+        printf("%s\n", &tokens[op].str[1]);
+        return der_reg;
+    }
+    
+
+/*     if (op_type == TK_NEG) {
       // 一元负号：形式应当是 - <expr>，因此 TK_NEG 必须出现在当前子表达式开头
       assert(op == p);
       int32_t v = (int32_t)eval(op + 1, q);//先把后面的值算出来
       int64_t r = -(int64_t)v;
       return (uint32_t)(int32_t)r;
-    }
+    } */
 
     // 二元运算符：把表达式按主运算符切成左右两边递归求值
     uint32_t val1 = eval(p, op - 1);

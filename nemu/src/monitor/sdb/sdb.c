@@ -18,6 +18,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include "sdb.h"
+#include "watchpoint.h"
 #include <utils.h>
 
 // 下面这些头文件主要服务于 `cmd_p` 新增的 `p test`。（更改日期：2025-12-22）
@@ -108,15 +109,24 @@ static int cmd_q(char *args) {
 static int cmd_info(char *args) {
 
   if (args ==NULL) {
-    printf("Usage: info r\n");
+    printf("Usage: info r/w\n");
     return 0;
   }
   //提取第一个参数
+  //已经调用过一次strtok来提取命令，strtok会在内部分配一个静态变量记录扫描为止
+  //继续提取参数
   char *tok = strtok(args, " ");
   if (tok && strcmp(tok, "r") == 0) {
     isa_reg_display();//调用打印
     return 0;
   }
+  
+  else if (tok && strcmp(tok, "w") == 0)
+  {
+    watchpoint_print();
+    return 0;
+  }
+  
   printf("Unknown info command '%s'\n", tok ? tok : "");
   return 0;
 }
@@ -313,6 +323,56 @@ static int cmd_p(char *args) {
 
 static int cmd_help(char *args);
 
+static int cmd_w(char *args){
+  if (args == NULL)
+  {
+    printf("Usage w EXPR\n");
+    return 0;
+  }
+
+  while (*args != '\0' && isspace((unsigned char)*args)) args++;
+  bool success = false;
+  word_t val = expr(args, &success);
+  if (success) {
+    printf("Unsigned expr : %u\n", (unsigned)val);
+    printf("Signed expr : %d\n", (int32_t)val);
+    printf("HEX expr : 0x%08x\n", (unsigned)val);
+  } else {
+    printf("Invalid expression: %s\n", args);
+  }
+  
+  //将args传给表达式求值和监视点创建
+  WP *wp = new_wp();
+  strncpy(wp->expr_str, args, sizeof(wp->expr_str) - 1);
+  wp->expr_str[sizeof(wp->expr_str) - 1] = '\0';
+  wp->old_data = val;
+
+  printf("Watchpoint %d set on: %s\n", wp->NO, wp->expr_str);
+  return 0;
+  
+}
+
+//watchpoint的删除，根据序号
+static int cmd_d(char *args){
+  if (args == NULL)
+  {
+    printf("Usage p NO\n");
+    return 0;
+  }
+
+  int no_reg = atoi(args);
+
+  bool success = delete_wp(no_reg);
+  
+  if (success) {
+      printf("Watchpoint %d deleted\n", no_reg);
+  } else {
+      printf("Watchpoint %d not found\n", no_reg);
+  }
+
+  return 0;
+}
+
 static struct {
   const char *name;
   const char *description;
@@ -324,7 +384,9 @@ static struct {
   { "si", "Single-step N instructions (default 1)", cmd_si },
   { "info", "Show information (e.g. 'info r')", cmd_info },
   { "x", "Examine memory: x N ADDR (print N words of 4 bytes from ADDR)", cmd_x },
-  { "p", "Evaluate expression: p EXPR", cmd_p }
+  { "p", "Evaluate expression: p EXPR", cmd_p },
+  { "w", "Watchpoint EXPR: Pause execution when the value of the expression EXPR changes", cmd_w},
+  { "d", "Delete watchpoint", cmd_d}
 
   /* TODO: Add more commands */
 
@@ -364,8 +426,9 @@ void sdb_mainloop() {
   if (is_batch_mode) {
     cmd_c(NULL);
     return;
-  }//如果启动的时候加了-b参数，就直接调用cmd_c直到程序结束，不接受用户输入
-
+  }
+  //如果启动的时候加了-b参数，就直接调用cmd_c直到程序结束，不接受用户输入
+  //不断的显示提示符并读取用户输入保存到str中，只要没有读到EOF(即用户没有按Ctrl+D，就进入循环体处理这条命令)
   for (char *str; (str = rl_gets()) != NULL; ) {
     char *str_end = str + strlen(str);
 

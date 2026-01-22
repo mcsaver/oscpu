@@ -23,6 +23,7 @@
  * This is useful when you use the `si' command.
  * You can modify this value as you want.
  */
+//打印指令的最大数
 #define MAX_INST_TO_PRINT 10
 
 CPU_state cpu = {};
@@ -31,13 +32,42 @@ static uint64_t g_timer = 0; // unit: us
 static bool g_print_step = false;
 
 void device_update();
+int compare_assert();
 
 static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
-#ifdef CONFIG_ITRACE_COND
+//条件日志记录
+//需要在menuconfig中开启CONFIG_ITRACE_COND
+//Itrace是是Instruction Trace指令追踪的缩写
+//ITRACE_COND是一个宏，可以定义在何时记录(例如只记录待定地址范围内的指令)，避免日志文件过大
+//数据：_this->logbuf存储了刚才执行的那条指令的反汇编字符串，也就是译码并且打印
+  #ifdef CONFIG_ITRACE_COND
   if (ITRACE_COND) { log_write("%s\n", _this->logbuf); }
 #endif
+//屏幕输出
+//功能：在屏幕上打印当前执行的指令
+//触发场景：如果执行步数n小于MAX_INST_TO_PRINT,也就是si 的时候打印
+//确保只有开启了ITrace功能的时候才打印
   if (g_print_step) { IFDEF(CONFIG_ITRACE, puts(_this->logbuf)); }
+//差分测试
+//调用difftest_step函数，将NEMU的cpu状态进行比对，如果两者状态(寄存器值、内存写入等)不一致，NUMU会报错
+//_this->pc当前指令的地址
+//dnpc:下一条指令的地址(Dynamic NEXT PC)，用于同步REF的执行流
   IFDEF(CONFIG_DIFFTEST, difftest_step(_this->pc, dnpc));
+  #ifdef CONFIG_WATCHPOINT
+  int state = 0;
+  state = compare_assert();
+  //state_stop = 1;
+  //state_run = 2;
+  switch (state)
+  {
+  case 1:
+    nemu_state.state = NEMU_STOP;
+    break;
+  
+  default: nemu_state.state = NEMU_RUNNING;
+    break;
+  }
+  #endif
 }
 
 static void exec_once(Decode *s, vaddr_t pc) {
@@ -74,11 +104,11 @@ static void exec_once(Decode *s, vaddr_t pc) {
 static void execute(uint64_t n) {
   Decode s;
   for (;n > 0; n --) {
-    exec_once(&s, cpu.pc);
+    exec_once(&s, cpu.pc);//单步执行
     g_nr_guest_inst ++;
-    trace_and_difftest(&s, cpu.pc);
-    if (nemu_state.state != NEMU_RUNNING) break;
-    IFDEF(CONFIG_DEVICE, device_update());
+    trace_and_difftest(&s, cpu.pc);//调用trace_and_difftest进行ltrace(指令追踪)和Difftest(与标准模型如QEMU对比状态)
+    if (nemu_state.state != NEMU_RUNNING) break;//如果执行过程中状态不再是NEMU_RUNNING(例如遇到了ebreak或断点，跳出循环)
+    IFDEF(CONFIG_DEVICE, device_update());//如果有设备模拟配置，通过device_update()刷新状态
   }
 }
 
@@ -98,14 +128,17 @@ void assert_fail_msg() {
 
 /* Simulate how the CPU works. */
 void cpu_exec(uint64_t n) {
+  //判断n是否小于MAX_INST_TO_PRINT，如果是开启g_print_step，这会让后续执行的时候打印每条指令的汇编消息
+  //用于si单步调试
   g_print_step = (n < MAX_INST_TO_PRINT);
+  //检查运行状态，如果状态时是END,ABORT,QUIT说明程序已经结束，打印信息并且返回
   switch (nemu_state.state) {
     case NEMU_END: case NEMU_ABORT: case NEMU_QUIT:
       printf("Program execution has ended. To restart the program, exit NEMU and run again.\n");
       return;
     default: nemu_state.state = NEMU_RUNNING;
   }
-
+  //启动记时，记录当前宿主机时间
   uint64_t timer_start = get_time();
 
   execute(n);
