@@ -492,7 +492,6 @@ static uint32_t eval(int p, int q) {
     {
       return 0;
     }
-    
 
     uint32_t val2 = eval(op + 1, q);
 
