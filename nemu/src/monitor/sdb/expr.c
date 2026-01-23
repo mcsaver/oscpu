@@ -12,6 +12,13 @@
 *
 * See the Mulan PSL v2 for more details.
 ***************************************************************************************/
+//2026/1/23修改说明：
+
+/* GCC (C标准)：对于 &&，如果左侧为 0，右侧不进行计算。因此 1/0 不会被执行，程序不会报错，结果为 0。这条指令会被写入 input 文件。
+NEMU (你的实现)：如果你的 expr() 函数没有实现短路逻辑（即先算左边，再算右边，最后做与运算），那么你会尝试计算 1/0。
+在计算 1/0 时，你的代码可能会报错（return failure）或触发除 0 异常。
+结果：sdb 接收到 success = false，但 GCC 给出的预期是 expected = 0。
+判定为 FAIL */
 //用于表达式求值
 
 #include <isa.h>
@@ -121,7 +128,7 @@ static struct rule {
   {"\\$t5", TK_REG_T5},
   {"\\$t6", TK_REG_T6}, */
   {"\\$[a-z0-9]+", TK_D}, 
-  {"&&", TK_DOUAM},
+  {"&&", TK_DOUAM},     //逻辑与两边都非0的时候结果为1
   {" +", TK_NOTYPE},    // spaces
   {"==", TK_EQ},        // equal
   {"!=", TK_NEQ},       // not equal
@@ -321,7 +328,7 @@ int get_priority(int token_type)
     case '-': return 1;
     case '*': return 2;
     case '/': return 2;
-    case TK_NEG: return 3;
+    case TK_NEG: return 4;
     case DEREF: return 4;
     case TK_D: return 5;
     default: return 100;
@@ -479,6 +486,14 @@ static uint32_t eval(int p, int q) {
 
     // 二元运算符：把表达式按主运算符切成左右两边递归求值
     uint32_t val1 = eval(p, op - 1);
+
+    //在gcc规则中，如果遇到&&且左边式子为0则优化使得右边不运算
+    if (op_type == TK_DOUAM && val1 == 0)
+    {
+      return 0;
+    }
+    
+
     uint32_t val2 = eval(op + 1, q);
 
     switch (op_type) {
@@ -500,7 +515,7 @@ static uint32_t eval(int p, int q) {
       }
       case TK_EQ: return val1 == val2;
       case TK_NEQ: return val1 != val2;
-      case TK_DOUAM: return val1 & val2;
+      case TK_DOUAM: return val1 && val2;
       default: assert(0);
     }
   }

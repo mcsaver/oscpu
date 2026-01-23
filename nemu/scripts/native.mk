@@ -49,4 +49,12 @@ $(clean-tools):
 clean-tools: $(clean-tools)
 clean-all: clean distclean clean-tools
 
-.PHONY: run gdb run-env clean-tools clean-all $(clean-tools)
+#find .:从当前目录.递归查找
+#\( -name '*.c' -o -name '*.h' \)：条件分组，匹配文件名以.c和.h结尾
+#-o表示逻辑或，'*c'用引号防止shell预展开
+#-print0:输出匹配路径并以NUL字符结尾（而非换行）便于处理含空格/特殊字符的文件名
+#| xargs -0 wc -l：管道传给xargs；-0表示按NUL分隔读取参数，再用wc -l统计函数，wc -l会输出每个文件的行数，最后一行total为总计
+count:
+	find . \( -name '*.c' -o -name '*.h' \) -print0 | xargs -0 wc -l
+
+.PHONY: run gdb run-env clean-tools clean-all $(clean-tools) count

@@ -25,6 +25,7 @@
 #include <time.h>
 #include <assert.h>
 #include <string.h>
+#include <stdbool.h>
 // [新增] 用于解析 pclose() 返回的子进程状态。（更改日期：2025-12-22）
 // - WIFEXITED/WEXITSTATUS：判断子进程是否正常退出
 // - 如果表达式运行时触发 SIGFPE（比如除 0），子进程会异常退出；我们需要丢弃这条用例并重试
@@ -38,6 +39,9 @@
 #define MAX_DEPTH 7
 
 // this should be enough
+
+//除0保护
+static bool need_nonzero = false;
 
 //buf存放生成的表达式
 static char buf[BUF_SIZE] = {};
@@ -59,13 +63,24 @@ static int choose(int n) {
   return rand() % n ;
 }
 
-//在buf末尾添加字符c
+//在buf末尾添加字符c，单字符
 static void gen(char c) {
   //flat_nospace = 1;
   int len = strlen(buf);
   if (len + 2 >= BUF_SIZE) return;
   buf[len] = c;
   buf[len + 1] = '\0';
+}
+
+//在buf末尾添加多字符
+static void gen_str(const char *s)
+{
+  int len = strlen(buf);
+  int n = strlen(s);
+  if (len + n >= BUF_SIZE) return;
+  memcpy(buf + len, s, n);
+  //buf[len] = *s;
+  buf[len + n] = '\0';
 }
 
 //生成一个随机十进制数字并追加到buf末尾
@@ -75,6 +90,11 @@ static void gen_num() {
   if (len + 16 >= BUF_SIZE) return;
   //生成一个随机数，范围是0~999
   int num = choose(1000); 
+  do
+  {
+    num = choose(1000);
+  } while (need_nonzero && num == 0);
+  
   //把数字转换成字符串，追加到buf后面
   len += sprintf(buf + len, "%d", num);
 }
@@ -82,11 +102,17 @@ static void gen_num() {
 // 生成一个随机运算符并追加到buf末尾
 static void gen_rand_op() {
   //flat_nospace = 0;//允许运算符前后有空格;
-  switch (choose(4)) {
+  switch (choose(10)) {
     case 0: gen('+'); break;
     case 1: gen('-'); break;
     case 2: gen('*'); break;
-    default: gen('/'); break;
+    case 3: gen_str("=="); break;
+    case 4: gen_str("!="); break;
+    case 5: gen_str("&&"); break;
+    case 6: gen('/'); need_nonzero = true; break;
+    case 7: gen('+'); break;
+    case 8: gen('-'); break;
+    case 9: gen('*'); break;
   }
 }
 
@@ -118,6 +144,7 @@ static void gen_rand_expr(int depth) {
   }
 }
 
+static int depth = 0;
 
 int main(int argc, char *argv[]) {
   int seed = time(0);
@@ -132,7 +159,9 @@ int main(int argc, char *argv[]) {
     // 每次生成一条新用例前都要清空 buf，否则会把上一条表达式拼接到下一条上
     // 造成类似 "(((104)))962" 或 "817(((..." 这种非法 C 表达式。
     buf[0] = '\0';
-    gen_rand_expr(0);//生成随机表达式，存入buf
+    //int depth = 0;
+    depth = 0;
+    gen_rand_expr(depth);//生成随机表达式，存入buf
 
     //把buf填进code_format，生成完整的c程序代码到code_buf
     sprintf(code_buf, code_format, buf);

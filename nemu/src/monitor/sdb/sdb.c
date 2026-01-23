@@ -186,7 +186,9 @@ static int cmd_p(char *args) {
   // 2) 逐行读取：解析 expected（十进制无符号）和表达式字符串
   // 3) 调用 NEMU 内部 `expr()` 计算 got，与 expected 做 32-bit 对比
   // 4) 汇总 PASS/FAIL，并打印前若干条失败样例用于定位
-  if (strcmp(args, "test") == 0) { //若相等则返回0
+  char *args_r = strtok(NULL, " ");
+
+  if (strcmp(args_r, "test") == 0) { //若相等则返回0
     bool old_enable_expr_log = enable_expr_log;
     enable_expr_log = false; // 关闭逐 token 日志，避免海量输出影响性能和阅读
 
@@ -207,7 +209,13 @@ static int cmd_p(char *args) {
     const char *out_path = "./tools/gen-expr/input";
 
     // 生成用例条数（可根据需要调大，例如 1000/10000 做更强的压力测试）。
-    const int loop = 100;
+    int loop = 100;//默认100
+    char *args_l = strtok(NULL, " ");
+    if (args_l != NULL)
+    {
+      loop = atoi(args_l);
+    }
+    
 
     // 通过 make 触发 tools/gen-expr/Makefile 的 input 目标。
     // `make -C <dir> input LOOP=<n> OUT=<file>`
