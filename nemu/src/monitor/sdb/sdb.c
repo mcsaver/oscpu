@@ -75,6 +75,8 @@ static int cmd_si(char *args){
   if (args) {
     char *end = NULL;
     //errno = 0;
+    //把字符串args解析成一个long类型的整数，支持自动识别进制(0表示可识别10进制)
+    //把解析结果存到v，end会指向第一个不能被识别为数字的字符
     long v = strtol(args, &end, 0);
     
     if (end == args) {
@@ -120,7 +122,6 @@ static int cmd_info(char *args) {
     isa_reg_display();//调用打印
     return 0;
   }
-  
   else if (tok && strcmp(tok, "w") == 0)
   {
     watchpoint_print();
@@ -145,6 +146,9 @@ static int cmd_x(char *args) {
   }
 
   char *end = NULL;
+  //strtol和strtok的区别
+  //strtol：把字符串解析成长整数 e.g：strtol("123xyz",&end,10)->返回123,end指向"xyz"
+  //strtok：把字符串按分隔符拆成多个字串 e.g: strtok(buf, " ,")->返回第一个字段后，后续strtok(NULL," ,")返回下一个
   long n = strtol(count_tok, &end, 0);
   if (end == count_tok || n <= 0) {
     printf("x: invalid count '%s'\n", count_tok);
@@ -170,25 +174,17 @@ static int cmd_x(char *args) {
 }
 
 
-static int cmd_p(char *args) {
-  if (args == NULL) {
-    printf("Usage: p EXPR | p test\n");
-    return 0;
-  }
-
-  // `readline` 返回的参数可能有前导空格，这里先跳过，保证对 "test" 的识别稳定
-  while (*args != '\0' && isspace((unsigned char)*args)) args++;
-
-  //`p test`
+static int cmd_expr_test(char *args) {
+//`p test`
   // 目的：把表达式求值和 gen-expr 自动对拍接起来，做回归测试。
   // 流程：
   // 1) 调用 tools/gen-expr 的 Makefile 生成一批 "<expected> <expr>" 用例到临时文件
   // 2) 逐行读取：解析 expected（十进制无符号）和表达式字符串
   // 3) 调用 NEMU 内部 `expr()` 计算 got，与 expected 做 32-bit 对比
   // 4) 汇总 PASS/FAIL，并打印前若干条失败样例用于定位
-  char *args_r = strtok(NULL, " ");
+  //char *args = strtok(NULL, " ");
 
-  if (strcmp(args_r, "test") == 0) { //若相等则返回0
+  //if (strcmp(args, "test") == 0) { //若相等则返回0
     bool old_enable_expr_log = enable_expr_log;
     enable_expr_log = false; // 关闭逐 token 日志，避免海量输出影响性能和阅读
 
@@ -210,12 +206,11 @@ static int cmd_p(char *args) {
 
     // 生成用例条数（可根据需要调大，例如 1000/10000 做更强的压力测试）。
     int loop = 100;//默认100
-    char *args_l = strtok(NULL, " ");
-    if (args_l != NULL)
+    //char *args_l = strtok(NULL, " ");
+    if (args != NULL)
     {
-      loop = atoi(args_l);
+      loop = atoi(args);
     }
-    
 
     // 通过 make 触发 tools/gen-expr/Makefile 的 input 目标。
     // `make -C <dir> input LOOP=<n> OUT=<file>`
@@ -225,6 +220,10 @@ static int cmd_p(char *args) {
     //snprintf生成执行命令字符串：格式化字符串到cmd中
     // -C <dir>：切换到指定目录执行make
     // input：执行Makefile中的input目标
+    //snprintf：把格式化结果写入指定缓冲区，接受缓冲区大小参数并保证以'\0'终止
+    //          同时返回要写入的字节数(不包含终止符)，可检测截断，适合构造字符串且防止溢出
+    //printf：把格式化结果直接输出到标准输出(屏幕)，不写入内存缓冲区，不饿能用来得到命令字符串
+    //此处需要把命令"make -c...."构造到cmd[1024]中方便后续继续使用，故使用snprintf
     snprintf(cmd, sizeof(cmd), "make -C %s input LOOP=%d OUT=%s", gen_dir, loop, "input");
     //system在shell中执行cmd命令，返回值是命令的退出状态
     int ret = system(cmd);
@@ -255,17 +254,16 @@ static int cmd_p(char *args) {
     int total = 0;//总共测试的表达式用例数量
     int pass = 0;//通过的用例数量
     int fail = 0;//失败的用例数量
-    while (fgets(line, 65536, fp) != NULL) {
+    while (fgets(line, 65536, fp) != NULL) {//读取到换行的时候停止
       char *p = line;//指向当前行的指针
       while (*p != '\0' && isspace((unsigned char)*p)) p++;//跳过所有的行首的空白字符
       if (*p == '\0') continue;//若遇到空白行直接跳过这行
 
       // 解析 expected：gen-expr 输出格式为："<unsigned> <expr>\n"
       // 用 strtoul() 从行首读取 expected 的十进制数。
-      errno = 0;
       char *end = NULL;
       unsigned long expected_ul = strtoul(p, &end, 10);
-      if (end == p || errno != 0) {
+      if (end == p ) {
         continue;
       }
 
@@ -314,6 +312,19 @@ static int cmd_p(char *args) {
     return 0;
   }
 
+  
+//}
+
+static int cmd_p(char *args) {
+  if (args == NULL) {
+    printf("Usage: p EXPR | p test\n");
+    return 0;
+  }
+
+/*   // `readline` 返回的参数可能有前导空格，这里先跳过，保证对 "test" 的识别稳定
+  while (*args != '\0' && isspace((unsigned char)*args)) args++;
+ */
+  
   //----------------普通模式执行------------//
   bool success = false;
   word_t result = expr(args, &success);
@@ -394,7 +405,8 @@ static struct {
   { "x", "Examine memory: x N ADDR (print N words of 4 bytes from ADDR)", cmd_x },
   { "p", "Evaluate expression: p EXPR", cmd_p },
   { "w", "Watchpoint EXPR: Pause execution when the value of the expression EXPR changes", cmd_w},
-  { "d", "Delete watchpoint", cmd_d}
+  { "d", "Delete watchpoint", cmd_d},
+  { "test", "EXPR test : test N", cmd_expr_test}
 
   /* TODO: Add more commands */
 

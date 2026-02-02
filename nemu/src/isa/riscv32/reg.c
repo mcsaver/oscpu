@@ -28,6 +28,9 @@ void isa_reg_display() {
   //printf("hello word\n");
   for (int i = 0; i < 32; i++)
   {
+    //%-2d，宽度为2，-表示左对齐
+    //%4s，默认右对齐，不够用空格不上
+    //%08x，无符号十六进制，宽度8，左侧用0填充，强制转换成unsigned避免符号拓展
     printf("x%-2d (%4s) = 0x%08x\n", i, reg_name(i), (unsigned)gpr(i));
   }
   

@@ -48,8 +48,12 @@ static void decode_operand(Decode *s, int *rd, word_t *src1, word_t *src2, word_
 }
 
 static int decode_exec(Decode *s) {
+  //snpc：本条指令的下一条指令，即顺序执行的下一个PC，通常是PC+4，
+  //dnpc：本次执行后实际要跳转到的PC，即真正执行CPU的下一个PC
+  //对于跳转、分支、异常等指令，dnpc会被设置为跳转目标地址或异常入口
   s->dnpc = s->snpc;
 
+//s->isa.inst已经在inst_fetch中被赋值当前正在译码/执行那条指令的32位机器码
 #define INSTPAT_INST(s) ((s)->isa.inst)
 #define INSTPAT_MATCH(s, name, type, ... /* execute body */ ) { \
   int rd = 0; \
@@ -57,20 +61,39 @@ static int decode_exec(Decode *s) {
   decode_operand(s, &rd, &src1, &src2, &imm, concat(TYPE_, type)); \
   __VA_ARGS__ ; \
 }
-
+  //INSTPAT_START：打开一个块，定义局部变量__instpat_end，保存标签地址&&__instpat_end_<name>，它不会自己关掉
   INSTPAT_START();
+  //INSTPAT(模式字符串， 指令名词， 指令类型，指令执行操作)
+  //指令名词再代码中仅当注释使用，不参与宏展开
+  //指令类型用于后续译码过程
+  //指令执行操作通过C代码来模拟指令执行的真正行为
   INSTPAT("??????? ????? ????? ??? ????? 00101 11", auipc  , U, R(rd) = s->pc + imm);
   INSTPAT("??????? ????? ????? 100 ????? 00000 11", lbu    , I, R(rd) = Mr(src1 + imm, 1));
   INSTPAT("??????? ????? ????? 000 ????? 01000 11", sb     , S, Mw(src1 + imm, 1, src2));
 
   INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak , N, NEMUTRAP(s->pc, R(10))); // R(10) is $a0
   INSTPAT("??????? ????? ????? ??? ????? ????? ??", inv    , N, INV(s->pc));
+  //与INSTPAT_START相呼应，定义标签__instpat_end_<name>:并且结束块
   INSTPAT_END();
 
   R(0) = 0; // reset $zero to 0
 
   return 0;
 }
+
+/* typedef struct Decode {
+  vaddr_t pc;
+  vaddr_t snpc; // static next pc
+  vaddr_t dnpc; // dynamic next pc
+  ISADecodeInfo isa;
+  IFDEF(CONFIG_ITRACE, char logbuf[128]);
+} Decode;
+ */
+
+/* // decode
+typedef struct {
+  uint32_t inst;
+} MUXDEF(CONFIG_RV64, riscv64_ISADecodeInfo, riscv32_ISADecodeInfo); */
 
 int isa_exec_once(Decode *s) {
   s->isa.inst = inst_fetch(&s->snpc, 4);

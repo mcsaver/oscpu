@@ -47,39 +47,8 @@ enum {
   TK_NEQ,
   TK_HEX,
   TK_DOUAM,
-/*   TK_REG_0,   // $0
-  TK_REG_RA,  // $ra
-  TK_REG_SP,  // $sp
-  TK_REG_GP,  // $gp
-  TK_REG_TP,  // $tp
-  TK_REG_T0,  // $t0
-  TK_REG_T1,  // $t1
-  TK_REG_T2,  // $t2
-  TK_REG_S0,  // $s0
-  TK_REG_S1,  // $s1
-  TK_REG_A0,  // $a0
-  TK_REG_A1,  // $a1
-  TK_REG_A2,  // $a2
-  TK_REG_A3,  // $a3
-  TK_REG_A4,  // $a4
-  TK_REG_A5,  // $a5
-  TK_REG_A6,  // $a6
-  TK_REG_A7,  // $a7
-  TK_REG_S2,  // $s2
-  TK_REG_S3,  // $s3
-  TK_REG_S4,  // $s4
-  TK_REG_S5,  // $s5
-  TK_REG_S6,  // $s6
-  TK_REG_S7,  // $s7
-  TK_REG_S8,  // $s8
-  TK_REG_S9,  // $s9
-  TK_REG_S10, // $s10
-  TK_REG_S11, // $s11
-  TK_REG_T3,  // $t3
-  TK_REG_T4,  // $t4
-  TK_REG_T5,  // $t5
-  TK_REG_T6,  // $t6 */
-  TK_D
+  TK_D,
+  TK_A
   /* TODO: Add more token types */
 
 };
@@ -127,10 +96,11 @@ static struct rule {
   {"\\$t4", TK_REG_T4},
   {"\\$t5", TK_REG_T5},
   {"\\$t6", TK_REG_T6}, */
-  {"\\$[a-z0-9]+", TK_D}, 
+  {"\\$[a-z0-9]+", TK_D},//识别$符号
   {"&&", TK_DOUAM},     //逻辑与两边都非0的时候结果为1
   {" +", TK_NOTYPE},    // spaces
   {"==", TK_EQ},        // equal
+  {"&", TK_A},         //&
   {"!=", TK_NEQ},       // not equal
   //{"0[xX][0-9a-fA-F]+", TK_HEX}, // 新增：匹配16进制数
   {"[0-9]+", TK_DECIMAL}, // decimal number
@@ -173,7 +143,7 @@ void init_regex() {
 //nr_token：当前token数
 //这里token数和token文本都有硬编码上限：最多32个token，每个token的字面串最多31个字符（留一个\0）
 typedef struct token {
-  int type;
+  int type;//记录token的类型
   // token 的字面量字符串（主要用于数字 token 的 atoi，以及调试输出）。
   // 这里给了较大的 BUF_SIZ 上限，避免随机测试生成的长表达式导致 token 文本被截断。
   char str[BUF_SIZ];
@@ -199,6 +169,7 @@ static bool eval_success = true;
 //把输入字符串分割成一个个token，每个token有自己的类型(type)和原始字符串(str)
 //后续再eval递归求值的时候，遇到数字token会用atoi把str转换成int
 static bool make_token(char *e) {
+  
   int position = 0;
   int i;
   //regexct结构体用于保存匹配结果
@@ -229,6 +200,7 @@ static bool make_token(char *e) {
         // 逐 token 打印 Log 会在批量对拍（`p test`）时产生海量输出，严重影响阅读与性能
         // 如需调试词法匹配过程，可以临时取消注释下面这段 Log
         
+        //%.*s精度手参数控制的字符串打印（精度由前面的int参数也就是sbustr_len控制
         if (enable_expr_log) {
           Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
             i, rules[i].regex, position, substr_len, substr_len, substr_start);
@@ -243,6 +215,7 @@ static bool make_token(char *e) {
         // 将 token 记录到 tokens[]
         // - TK_NOTYPE（空白）直接跳过
         // - 其他 token：记录 type，并把字面量拷贝到 tokens[nr_token].str（方便后续 atoi/调试）
+        //这里之所以能够匹配上是因为前面已经找到了对应的i，也就是第几条规则，故可以直接使用rules[i].token_type来进行匹配
         switch (rules[i].token_type) {
           case TK_NOTYPE://跳过空格
             break;
@@ -270,15 +243,15 @@ static bool make_token(char *e) {
               printf("too many tokens\n");
               return false;
             }
-            tokens[nr_token].type = rules[i].token_type;
+            tokens[nr_token].type = rules[i].token_type;//把匹配的类型保存下来
             if (substr_len >= BUF_SIZ)
             {
               printf("token too long\n");
               return false;
             }
 
-            // 注意 strncpy 不会自动补 '\0'，这里手动补齐
-            strncpy(tokens[nr_token].str, substr_start, substr_len);
+            // 注意 strncpy 可能不会自动补 '\0'，这里手动补齐
+            strncpy(tokens[nr_token].str, substr_start, substr_len);//把匹配的字符串保存下来
             tokens[nr_token].str[substr_len] = '\0';//加上字符串结尾符
             nr_token ++;
             break; 
@@ -287,6 +260,7 @@ static bool make_token(char *e) {
       }
     }
 
+    //无匹配
     if (i == NR_REGEX) {
       printf("no match at position %d\n%s\n%*.s^\n", position, e, position, "");
       return false;
@@ -300,14 +274,14 @@ static bool make_token(char *e) {
   for (int i = 0; i < nr_token; i++) {
     if (tokens[i].type != '-') continue;
     if (i == 0) {
-      tokens[i].type = TK_NEG;
+      tokens[i].type = TK_NEG;//一元负号
       continue;
     }
 
     int prev = tokens[i - 1].type;
     // 这些 token 后面出现 '-'，通常表示“取负”而不是“相减”
     if (prev == '(' || prev == '+' || prev == '-' || prev == '*' || prev == '/' || prev == TK_EQ
-    || prev == TK_NEQ || prev == TK_D) {
+    || prev == TK_NEQ || prev == TK_D || prev == TK_A) {
       tokens[i].type = TK_NEG;
     }
   }
@@ -323,6 +297,7 @@ int get_priority(int token_type)
   {
     case TK_DOUAM: return -1;
     case TK_EQ: return 0;
+    case TK_A:  return 0;
     case TK_NEQ: return 0;
     case '+': return 1;
     case '-': return 1;
@@ -370,22 +345,22 @@ static uint32_t eval(int p, int q) {
     eval_success = false;
     return 0;
   }
-  else if (p == q) {
+  else if (p == q) {//根据type类型提取数字
     /* Single token.
      * For now this token should be a number.
      * Return the value of the number.
      */
     
-    if (tokens[p].type == TK_DECIMAL)
+    if (tokens[p].type == TK_DECIMAL)//十进制
     {
       return (uint32_t)atoi(tokens[p].str);
     }
-    else if(tokens[p].type == TK_HEX)
+    else if(tokens[p].type == TK_HEX)//十六进制
     {
       return (uint32_t)strtoul(tokens[p].str, NULL, 16);
     }
     
-    else if (tokens[p].type == TK_D)
+    else if (tokens[p].type == TK_D)//$寄存器或者pc
     {
         // 取寄存器名字符串
         //assert(op == p);
@@ -396,7 +371,7 @@ static uint32_t eval(int p, int q) {
               return cpu.pc;
         }
         else {
-        word_t der_reg = isa_reg_str2val(&tokens[p].str[1], &eval_success);
+        word_t der_reg = isa_reg_str2val(&tokens[p].str[1], &eval_success);//str[1]的目的是去掉$
         //printf(FMT_WORD"\n",der_reg );
         //printf("%s\n", &tokens[p].str[1]);
         return der_reg;
@@ -427,11 +402,12 @@ static uint32_t eval(int p, int q) {
          tokens[i].type == '-' ||
          tokens[i].type == '*' ||
          tokens[i].type == '/' ||
-         tokens[i].type == TK_NEG ||
-         tokens[i].type == DEREF ||
-         tokens[i].type == TK_EQ ||
-         tokens[i].type == TK_NEQ ||
-         tokens[i].type == TK_DOUAM ||
+         tokens[i].type == TK_NEG ||//一元负号
+         tokens[i].type == DEREF ||//指针(解引用)
+         tokens[i].type == TK_EQ ||//==
+         tokens[i].type == TK_A ||//&
+         tokens[i].type == TK_NEQ ||//！=
+         tokens[i].type == TK_DOUAM ||//&&
          tokens[i].type == TK_D)) {
         int pri = get_priority(tokens[i].type);
         if (pri < min_pri ) {
@@ -476,18 +452,18 @@ static uint32_t eval(int p, int q) {
     }
     
 
-/*     if (op_type == TK_NEG) {
+    if (op_type == TK_NEG) {
       // 一元负号：形式应当是 - <expr>，因此 TK_NEG 必须出现在当前子表达式开头
       assert(op == p);
       int32_t v = (int32_t)eval(op + 1, q);//先把后面的值算出来
       int64_t r = -(int64_t)v;
       return (uint32_t)(int32_t)r;
-    } */
+    }
 
     // 二元运算符：把表达式按主运算符切成左右两边递归求值
     uint32_t val1 = eval(p, op - 1);
 
-    //在gcc规则中，如果遇到&&且左边式子为0则优化使得右边不运算
+    //在gcc规则中，如果遇到&&且左边式子为0则优化使得右边不运算，避免和gcc不一致的情况
     if (op_type == TK_DOUAM && val1 == 0)
     {
       return 0;
@@ -504,17 +480,20 @@ static uint32_t eval(int p, int q) {
         // 因此这里需要按 int32_t 语义做除法（尤其是负数参与除法时）。
         if (val2 == 0) {
           //除 0：标记失败，避免触发宿主机 SIGFPE
+          //sigfpe: floating-point exception，编号为8，用来通知进程发生了算术异常
+          //如果产生SIGFPE，NEMU会直接崩溃，此处进行标记可以避免这种问题
           eval_success = false;
           return 0;
         }
         int32_t a = (int32_t)val1;
         int32_t b = (int32_t)val2;
-        int64_t qv = (int64_t)a / (int64_t)b; // 避免 int32_t 的潜在 UB
+        int64_t qv = (int64_t)a / (int64_t)b; // 避免 int32_t 的潜在 UB，比如INT_MIN/-1的情况
         return (uint32_t)(int32_t)qv;
       }
       case TK_EQ: return val1 == val2;
       case TK_NEQ: return val1 != val2;
       case TK_DOUAM: return val1 && val2;
+      case TK_A: return val1 & val2;
       default: assert(0);
     }
   }
@@ -525,7 +504,7 @@ static uint32_t eval(int p, int q) {
 static int is_op(int type) {
   return type == '+' || type == '-' || type == '*' || type == '/' ||
           type == TK_EQ || type == TK_NEG || type == '(' || type == DEREF
-          || type == TK_NEQ || type == TK_DOUAM;
+          || type == TK_NEQ || type == TK_DOUAM || type == TK_A;
 }
 
 
@@ -538,6 +517,7 @@ word_t expr(char *e, bool *success) {
     return 0;
   }
 
+  //判断是否是*解引用的符号而不是*运算符
   for (int i = 0; i < nr_token; i ++) {
   if (tokens[i].type == '*' && (i == 0 || is_op(tokens[i - 1].type) ) ) {
     tokens[i].type = DEREF;

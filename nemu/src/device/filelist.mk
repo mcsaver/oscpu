@@ -13,6 +13,8 @@
 # See the Mulan PSL v2 for more details.
 #**************************************************************************************/
 
+##+=的作用是追加变量到末尾
+##如下的命令等价为，根据config的配置，若CONFIG_DEVICE为y，那么SRCS-y +=..后面的文件会被加到文件列表中进行编译
 DIRS-y += src/device/io
 SRCS-$(CONFIG_DEVICE) += src/device/device.c src/device/alarm.c src/device/intr.c
 SRCS-$(CONFIG_HAS_SERIAL) += src/device/serial.c
@@ -25,6 +27,12 @@ SRCS-$(CONFIG_HAS_SDCARD) += src/device/sdcard.c
 
 SRCS-BLACKLIST-$(CONFIG_TARGET_AM) += src/device/alarm.c
 
+##判断CONFIG_DEVICE是否被定义(通常在menuconfig里启用了设备支持)--CONFIG_DEVICE
+##只有启用了设备子系统时，下面的内容才会生效
+##ifndef CONFIG_TARGET_AM:判断CONFIG_TARGET_AM是否没有被定义(即当前不是在abstract machine(AM)平台下编译)
+##只有在本地NEMU仿真环境下，才需要链接SDL2库
+##LIBS +=....执行shelll命令，获取sdl2库的链接参数
+##把这些参数追加到LIBS中，确保编译时能正常链接SDL2库(用于图形、音频等设备模拟)
 ifdef CONFIG_DEVICE
 ifndef CONFIG_TARGET_AM
 LIBS += $(shell sdl2-config --libs)

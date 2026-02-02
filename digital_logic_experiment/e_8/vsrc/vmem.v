@@ -1,5 +1,3 @@
-// 显存模块 (vmem)
-// 中文说明：
 // - 该模块提供一个帧缓冲（显存），把预先生成的像素数据加载到内部存储中，
 //   并根据来自 `vga_ctrl` 的像素坐标输出对应像素的 24-bit RGB 数据。
 // - 输入：`h_addr`（水平像素坐标，10 位，0..639）和 `v_addr`（垂直像素坐标，9 位，0..479）。
@@ -30,7 +28,7 @@ module vmem(
 reg [23:0] vga_mem [524287:0];
 initial begin
     // 从十六进制文本文件初始化显存，文件路径相对于仿真/运行目录
-    $readmemh("resource/image.hex", vga_mem);
+    $readmemh("resource/image.hex", vga_mem);//640*480
 end
 
 // 地址计算：行优先存储，每行 640 个像素
@@ -51,7 +49,7 @@ end
 //    - 原来的位拼接 {h_addr, v_addr} 等价于 (h_addr << 9) | v_addr，每行步长为 512
 //    - 这导致每行读取 512 个地址，但实际像素宽度为 640，造成行内地址错位
 //    - 新的乘法映射每行步长恰好为 640，完全对应 hex 文件的布局，解决了扫描线失真
-
+//assign vga_data = vga_mem[{v_addr, h_addr}];
 wire [18:0] addr_index;
 assign addr_index = v_addr * 19'd640 + {9'b0, h_addr};
 assign vga_data = vga_mem[addr_index];

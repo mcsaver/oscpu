@@ -62,7 +62,7 @@ WP * new_wp(){
 }
 
 
-void free_wp(WP *wp){
+void free_wp(WP *wp){//wp为head中的一个点
   //检查wq是否为空，如果没有节点，直接报错
   assert(wp != NULL);
 
@@ -71,15 +71,17 @@ void free_wp(WP *wp){
   {
     head = head->next;
   }
-  else {
-    WP *prev = head;
+  else {//删除非头节点
+    WP *prev = head;//从链表头开始查找要删除节点的前驱
     while (prev != NULL && prev->next != wp)
-    {
+    {//走链表直到找到一个节点prev，使prev->next == wp，即前驱
       prev = prev->next;
     }
     assert(prev != NULL);
     
-    //此时prev->next = wp;
+    //prev的next直接指向了wp的mext，B的连接变成孤立
+    //修改prev->next不是在改变量prev变量本身，而是在改prev指向的那个节点的next字段
+    //所以链表被改变了
     prev->next = wp->next;
 
   }

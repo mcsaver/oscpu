@@ -17,6 +17,7 @@
 #include <capstone/capstone.h>
 #include <common.h>
 
+//定义了一个函数指针变量cs_disasm_dl，这个函数的功能是：反汇编机器码为汇编指令
 static size_t (*cs_disasm_dl)(csh handle, const uint8_t *code,
     size_t code_size, uint64_t address, size_t count, cs_insn **insn);
 static void (*cs_free_dl)(cs_insn *insn, size_t count);

@@ -22,12 +22,12 @@ typedef struct Decode {
   vaddr_t pc;
   vaddr_t snpc; // static next pc
   vaddr_t dnpc; // dynamic next pc
-  ISADecodeInfo isa;
+  ISADecodeInfo isa;//typedef concat(__GUEST_ISA__, _ISADecodeInfo) ISADecodeInfo;
   IFDEF(CONFIG_ITRACE, char logbuf[128]);
 } Decode;
 
 // --- pattern matching mechanism ---
-__attribute__((always_inline))
+__attribute__((always_inline))//表示编译器应尽量把函数体直接展开到调用处
 static inline void pattern_decode(const char *str, int len,
     uint64_t *key, uint64_t *mask, uint64_t *shift) {
   uint64_t __key = 0, __mask = 0, __shift = 0;
@@ -87,6 +87,10 @@ finish:
 
 
 // --- pattern matching wrappers for decode ---
+//pattern_decode会把这个字符串转成：
+//key：所有确定位（0/1）拼成的二进制数
+//maks：哪些位需要比对（0/1），?变成0，其他变成1
+//shift：右移多少位对齐最低位
 #define INSTPAT(pattern, ...) do { \
   uint64_t key, mask, shift; \
   pattern_decode(pattern, STRLEN(pattern), &key, &mask, &shift); \
@@ -96,6 +100,7 @@ finish:
   } \
 } while (0)
 
+//&&取标签地址
 #define INSTPAT_START(name) { const void * __instpat_end = &&concat(__instpat_end_, name);
 #define INSTPAT_END(name)   concat(__instpat_end_, name): ; }
 

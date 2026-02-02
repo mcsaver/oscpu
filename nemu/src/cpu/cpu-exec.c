@@ -58,19 +58,25 @@ static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
   state = compare_assert();
   //state_stop = 1;
   //state_run = 2;
-  switch (state)
-  {
-  case 1:
-    nemu_state.state = NEMU_STOP;
-    break;
   
-  default: nemu_state.state = NEMU_RUNNING;
-    break;
+  //执行到ebreak的时候，指令会通过set_nemu_state把nemu_state.state设为NEMU_END
+  //但是trace_and_difftest在exec_once后仍会执行，若此时监视点有效
+  //会用nemu_state.state = NEMU_STOP覆盖掉NEMU_END，此时可以继续向下执行，就会发生错误
+  if (nemu_state.state == NEMU_RUNNING && state)
+  {
+    nemu_state.state = NEMU_STOP;
   }
+
   #endif
 }
 
-static void exec_once(Decode *s, vaddr_t pc) {
+//Struct Decode
+//pc
+//snpc static next pc
+//dnpc dynamic next pc
+//isa
+//IFDEF(CONFIG_ITRACE, char logbuf[128])
+static void exec_once(Decode *s, vaddr_t pc) {//此处s是传入是指针,decode s是空的
   s->pc = pc;
   s->snpc = pc;
   isa_exec_once(s);
@@ -105,7 +111,7 @@ static void execute(uint64_t n) {
   Decode s;
   for (;n > 0; n --) {
     exec_once(&s, cpu.pc);//单步执行
-    g_nr_guest_inst ++;
+    g_nr_guest_inst ++;//记录客户指令的计数器
     trace_and_difftest(&s, cpu.pc);//调用trace_and_difftest进行ltrace(指令追踪)和Difftest(与标准模型如QEMU对比状态)
     if (nemu_state.state != NEMU_RUNNING) break;//如果执行过程中状态不再是NEMU_RUNNING(例如遇到了ebreak或断点，跳出循环)
     IFDEF(CONFIG_DEVICE, device_update());//如果有设备模拟配置，通过device_update()刷新状态

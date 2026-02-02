@@ -38,7 +38,7 @@ module ps2_keyboard(clk,resetn,ps2_clk,ps2_data,bu,counter);
                     (^buffer[9:1])) begin      // odd  parity // 奇校验检查
                      $display("receive %x", buffer[8:1]); // 打印接收到的8位数据（扫描码）
                     if (buffer[8:1] == 8'hF0) begin
-                        is_break <= 1'b1;
+                        is_break <= 1'b1;//按下表示
                          data_counter <= data_counter + 1'b1;
                     end else begin
                         if (!is_break) begin

@@ -13,5 +13,6 @@
 # See the Mulan PSL v2 for more details.
 #**************************************************************************************/
 
+##GUEST_ISA在主Makefile中由提及，若选择是riscv32则把当前所选架构ISA对应的头文件目录追加到INC_PATH变量中
 INC_PATH += $(NEMU_HOME)/src/isa/$(GUEST_ISA)/include
 DIRS-y += src/isa/$(GUEST_ISA)

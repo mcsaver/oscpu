@@ -151,7 +151,7 @@ int main(int argc, char *argv[]) {
   //srand(seed)，设置随机数种子
   srand(seed);
   int loop = 1;
-  if (argc > 1) {
+  if (argc > 1) {//读取程序的第一个命令行整数，用%d解析成由符号十进制整数，结果写入变量loop
     sscanf(argv[1], "%d", &loop);//sscanf从字符串读取格式化输入
   }
   int i;
@@ -180,11 +180,11 @@ int main(int argc, char *argv[]) {
     //int ret = system("gcc -w /tmp/.code.c -o /tmp/.expr");
     //int ret = system("gcc  /tmp/.code.c -o /tmp/.expr");
     // 生成“标准答案”的 C 程序编译参数：
-    // - -fwrapv：把有符号溢出定义为按二进制补码回绕（避免 C 的 UB 导致结果不稳定）
-    // - -O0：降低优化带来的常量折叠/重排差异，让“标准答案”更接近我们在 NEMU 里按 int32_t/uint32_t 的求值语义
-    // - -Wdiv-by-zero：开启“编译期可判定的除 0”告警（例如 /(0) 或 /(1-1) 这种能常量折叠为 0 的分母）
-    // - -Werror=div-by-zero：把上述告警提升为编译错误 => 直接丢弃该用例并重试
-    // - 2> /tmp/.gcc_warn.log：收集告警/错误日志（我们仍会筛 overflow）
+    // -fwrapv：把有符号溢出定义为按二进制补码回绕（避免 C 的 UB 导致结果不稳定）
+    // -O0：降低优化带来的常量折叠/重排差异，让“标准答案”更接近我们在 NEMU 里按 int32_t/uint32_t 的求值语义
+    // -Wdiv-by-zero：开启“编译期可判定的除 0”告警（例如 /(0) 或 /(1-1) 这种能常量折叠为 0 的分母）
+    // -Werror=div-by-zero：把上述告警提升为编译错误 => 直接丢弃该用例并重试
+    // 2> /tmp/.gcc_warn.log：收集告警/错误日志（我们仍会筛 overflow）
     int ret = system("gcc -O0 -fwrapv -Wdiv-by-zero -Werror=div-by-zero /tmp/.code.c -o /tmp/.expr 2> /tmp/.gcc_warn.log");
     if (ret != 0) {          // 编译失败：重试，保证输出条数够
       i = i - 1;
@@ -196,8 +196,8 @@ int main(int argc, char *argv[]) {
     int has_overflow = 0;
     if (warn_fp) {
       char line[256];
-      while (fgets(line, sizeof(line), warn_fp)) {
-        if (strstr(line, "overflow")) {
+      while (fgets(line, sizeof(line), warn_fp)) {//逐行读取
+        if (strstr(line, "overflow")) {//搜索含有"overflow“的警告
           has_overflow = 1;
           break;
         }
@@ -211,6 +211,8 @@ int main(int argc, char *argv[]) {
 
     // 运行子进程：把 stderr 丢到 /dev/null，避免除 0 等运行时错误信息污染 stdout
     // 注意：stderr 被丢弃不代表我们忽略异常；异常会在 pclose() 的退出状态里体现
+    //popen：启动一个子进程运行命令，并且返回一个到该子进程stdout的标准I/O流FILE *fp（父进程以读模式打开管道）
+    //2>dev/null：由shell处理，把子进程的stderr重定向到null，因此父进程通过fp只会看到子进程的stdout
     fp = popen("/tmp/.expr 2>/dev/null", "r");
     assert(fp != NULL);
 
