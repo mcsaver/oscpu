@@ -279,11 +279,11 @@ static bool make_token(char *e) {
     }
 
     int prev = tokens[i - 1].type;
-    // 这些 token 后面出现 '-'，通常表示“取负”而不是“相减”
     if (prev == '(' || prev == '+' || prev == '-' || prev == '*' || prev == '/' || prev == TK_EQ
-    || prev == TK_NEQ || prev == TK_D || prev == TK_A) {
+    || prev == TK_NEQ || prev == TK_A || prev == TK_A || prev == TK_DOUAM) {
       tokens[i].type = TK_NEG;
     }
+    
   }
 
   return true;

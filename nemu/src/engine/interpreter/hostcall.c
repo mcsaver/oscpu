@@ -47,5 +47,11 @@ void invalid_inst(vaddr_t thispc) {
         "* The machine is always right!\n"
         "* Every line of untested code is always wrong!\n\n", ANSI_FG_RED), isa_logo);
 
+  // 打印指令环形缓冲区，展示出错前执行的最近几条指令
+#ifdef CONFIG_ITRACE
+  extern void iringbuf_dump();
+  iringbuf_dump();
+#endif
+
   set_nemu_state(NEMU_ABORT, thispc, -1);
 }

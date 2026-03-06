@@ -63,6 +63,12 @@ __attribute__((always_inline))
 static inline void pattern_decode_hex(const char *str, int len,
     uint64_t *key, uint64_t *mask, uint64_t *shift) {
   uint64_t __key = 0, __mask = 0, __shift = 0;
+  //__key左移一位并加入当前确定的位（1或者0）
+  //__mask左移一位；?不比较置0，其他置1
+  //若是?，shift递增；否则重置为0（只统计末尾连续？的位数）
+  //key：把模式字符串里确定的0/1位按顺序拼成的数值，用来做匹配目标
+  //mask：标记哪些位需要比较（确定的位位1，?为0）
+  //shift：末尾连续?的位数，用于把指令右移对齐后再做mask/key比较
 #define macro(i) \
   if ((i) >= len) goto finish; \
   else { \

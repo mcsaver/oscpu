@@ -16,6 +16,7 @@
 #include <cpu/cpu.h>
 #include <cpu/decode.h>
 #include <cpu/difftest.h>
+#include <memory/vaddr.h>
 #include <locale.h>
 
 /* The assembly code of instructions executed is only output to the screen
@@ -26,6 +27,43 @@
 //打印指令的最大数
 #define MAX_INST_TO_PRINT 10
 
+#ifdef CONFIG_ITRACE
+#define IRINGBUF_MAX 16
+
+static char iringbuf[IRINGBUF_MAX][128];
+static int ir_head = 0;//写入下一个的位置
+static int ir_count = 0;//当前记录的条数
+
+void iringbuf_record(const char *logbuf) {
+  strncpy(iringbuf[ir_head], logbuf, 127);
+  iringbuf[ir_head][127] = '\0';
+  ir_head = (ir_head + 1) % IRINGBUF_MAX;
+  if (ir_count < IRINGBUF_MAX) ir_count++;
+}
+
+// 用完整反汇编字符串覆盖最近写入的那个槽位（执行成功后调用）
+void iringbuf_update_last(const char *logbuf) {
+  int last = (ir_head - 1 + IRINGBUF_MAX) % IRINGBUF_MAX;
+  strncpy(iringbuf[last], logbuf, 127);
+  iringbuf[last][127] = '\0';
+}
+
+void iringbuf_dump() {
+  int n     = ir_count;
+  int start = (ir_head - n + IRINGBUF_MAX) % IRINGBUF_MAX;
+  printf("Recent instructions (iringbuf, last %d):\n", n);
+  for (int i = 0; i < n; i++) {
+    int idx = (start + i) % IRINGBUF_MAX;
+    // 最后一条（即出错指令）用 --> 标记
+    if (i == n - 1)
+      printf("--> %s\n", iringbuf[idx]);
+    else
+      printf("    %s\n", iringbuf[idx]);
+  }
+}
+
+#endif
+
 CPU_state cpu = {};
 uint64_t g_nr_guest_inst = 0;
 static uint64_t g_timer = 0; // unit: us
@@ -35,6 +73,7 @@ void device_update();
 int compare_assert();
 
 static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
+
 //条件日志记录
 //需要在menuconfig中开启CONFIG_ITRACE_COND
 //Itrace是是Instruction Trace指令追踪的缩写
@@ -72,16 +111,36 @@ static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 
 //Struct Decode
 //pc
-//snpc static next pc
-//dnpc dynamic next pc
+//snpc static next pc: 静态下一条PC通常是PC+4
+//dnpc dynamic next pc：动态下一条PC通常是考虑跳转，分支，异常后的下一条
 //isa
 //IFDEF(CONFIG_ITRACE, char logbuf[128])
 static void exec_once(Decode *s, vaddr_t pc) {//此处s是传入是指针,decode s是空的
   s->pc = pc;
   s->snpc = pc;
+
+#ifdef CONFIG_ITRACE
+  // 【关键】在执行之前先预读指令字节并记录进 iringbuf。
+  // 这样即使 isa_exec_once 遇到非法指令触发 abort()，该指令也已被捕获。
+  {
+    uint32_t raw = (uint32_t)vaddr_ifetch(pc, 4);
+    uint8_t *rb = (uint8_t *)&raw;
+    char pre_buf[128];
+    char *pp = pre_buf;
+    pp += snprintf(pp, sizeof(pre_buf), FMT_WORD ":", pc);
+    // RISC-V 按大端序打印（与后续完整 logbuf 格式一致）
+    for (int i = 3; i >= 0; i--)
+      pp += snprintf(pp, 4, " %02x", rb[i]);
+    snprintf(pp, sizeof(pre_buf) - (pp - pre_buf), "  ???");
+    iringbuf_record(pre_buf);
+  }
+#endif
+
   isa_exec_once(s);
   cpu.pc = s->dnpc;
+
 #ifdef CONFIG_ITRACE
+  // isa_exec_once 成功返回后，用带完整反汇编的 logbuf 覆盖刚才的预记录槽位
   char *p = s->logbuf;
   p += snprintf(p, sizeof(s->logbuf), FMT_WORD ":", s->pc);
   int ilen = s->snpc - s->pc;
@@ -104,6 +163,8 @@ static void exec_once(Decode *s, vaddr_t pc) {//此处s是传入是指针,decode
   void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
   disassemble(p, s->logbuf + sizeof(s->logbuf) - p,
       MUXDEF(CONFIG_ISA_x86, s->snpc, s->pc), (uint8_t *)&s->isa.inst, ilen);
+  // 覆盖预记录槽位，将 ??? 替换为真正的反汇编结果
+  iringbuf_update_last(s->logbuf);
 #endif
 }
 

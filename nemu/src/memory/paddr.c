@@ -20,6 +20,11 @@
 #include <device/mmio.h>
 #include <isa.h>
 
+#ifdef CONFIG_MTRACE
+  #define CONFIG_MTRACE_START 0x80000000
+  #define CONFIG_MTRACE_END 0x90000000
+#endif
+
 #if   defined(CONFIG_PMEM_MALLOC)
 static uint8_t *pmem = NULL;
 #else // CONFIG_PMEM_GARRAY
@@ -61,14 +66,32 @@ void init_mem() {
 //对外的物理地址读写入口，若地址在pmem范围则走pmem_read/pmem_write，否则在启用CONFIG_DEVICE时调用mmio_read/mmio_write
 //否则触发out_of_bound(panic)
 word_t paddr_read(paddr_t addr, int len) {
-  if (likely(in_pmem(addr))) return pmem_read(addr, len);
+  if (likely(in_pmem(addr))) {
+    word_t ret = pmem_read(addr, len);
+#ifdef CONFIG_MTRACE
+    extern bool g_in_ifetch;
+    if (!g_in_ifetch && cpu.pc >= CONFIG_MTRACE_START && cpu.pc <= CONFIG_MTRACE_END)
+      log_write("[Mtrace] R addr=" FMT_PADDR " len=%d val " FMT_WORD " pc = " FMT_WORD "\n",
+      addr, len, ret, cpu.pc);
+#endif
+  return ret;
+  }
   IFDEF(CONFIG_DEVICE, return mmio_read(addr, len));
   out_of_bound(addr);
   return 0;
 }
 
 void paddr_write(paddr_t addr, int len, word_t data) {
-  if (likely(in_pmem(addr))) { pmem_write(addr, len, data); return; }
+  if (likely(in_pmem(addr))){
+    pmem_write(addr, len, data);
+#ifdef CONFIG_MTRACE
+    extern bool g_in_ifetch;
+    if(!g_in_ifetch && cpu.pc >= CONFIG_MTRACE_START && cpu.pc <= CONFIG_MTRACE_END)
+      log_write("[Mtrace] W addr=" FMT_PADDR " len=%d val " FMT_WORD " pc = " FMT_WORD "\n",
+      addr, len, data, cpu.pc);
+#endif
+    return;
+  }
   IFDEF(CONFIG_DEVICE, mmio_write(addr, len, data); return);
   out_of_bound(addr);
 }

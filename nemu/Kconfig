@@ -134,6 +134,11 @@ config TRACE
   bool "Enable tracer"
   default y
 
+config MTRACE
+  depends on TRACE && TARGET_NATIVE_ELF
+  bool "Enable memory access trace"
+  default y
+
 config TRACE_START
   depends on TRACE
   int "When tracing is enabled (unit: number of instructions)"
@@ -154,6 +159,17 @@ config ITRACE_COND
   string "Only trace instructions when the condition is true"
   default "true"
 
+config FTRACE
+  depends on TRACE && TARGET_NATIVE_ELF
+  bool "Enable function call trace (ftrace)"
+  default y
+
+config FTRACE_ELF
+  depends on FTRACE
+  string "ELF file for ftrace symbol table"
+  default ""
+  help
+    Path to the ELF binary whose symbol table will be used by ftrace.
 
 config DIFFTEST
   depends on TARGET_NATIVE_ELF

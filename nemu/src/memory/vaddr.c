@@ -19,8 +19,17 @@
 #include <isa.h>
 #include <memory/paddr.h>
 
+//添加MTRACE标志，以免每次取值都写入log
+bool g_in_ifetch = false;
+
+//vaddr是虚拟地址，是cpu执行的时候看到的地址
+//paddr是物理地址，是MMU转换过后的结果，直接对应内存芯片
+
 word_t vaddr_ifetch(vaddr_t addr, int len) {
-  return paddr_read(addr, len);
+  g_in_ifetch = true;
+  word_t ret = paddr_read(addr, len);
+  g_in_ifetch = false;
+  return ret;
 }
 
 word_t vaddr_read(vaddr_t addr, int len) {
