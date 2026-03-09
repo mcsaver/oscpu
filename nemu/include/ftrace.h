@@ -1,6 +1,6 @@
 #ifndef __FTRACE_H__
 #define __FTRACE_H__
-
+//geng
 #ifdef CONFIG_FTRACE
 void init_ftrace(const char *elf_file);
 void ftrace_log(int call_or_ret, uint32_t pc, uint32_t target);
