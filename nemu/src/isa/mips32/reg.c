@@ -23,6 +23,7 @@ const char *regs[] = {
   "t8", "t9", "k0", "k1", "gp", "sp", "s8", "ra"
 };
 
+
 void isa_reg_display() {
   
 }

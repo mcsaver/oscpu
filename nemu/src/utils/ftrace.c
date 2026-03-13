@@ -128,14 +128,14 @@ void ftrace_log(int call_or_ret, uint32_t pc, uint32_t target) {
     if (call_or_ret == 1) {
         //call先打印，再加深度
         log_write("[Ftrace]: 0x%08x: \t \t", pc);
-        for (int i = 0; i < call_depth; i++) log_write("  ");
+        for (int i = 0; i < call_depth; i++) log_write("  \t");
         log_write("call [%s@0x%08x]\n", find_func_by_entry(target), target);
         call_depth++;
     } else {
         //ret:先减深度，再打印
         if (call_depth > 0) call_depth--;
         log_write("[Ftrace]: 0x%08x: \t \t", pc);
-        for (int i = 0; i < call_depth; i++) log_write("  ");
+        for (int i = 0; i < call_depth; i++) log_write("  \t");
         log_write("ret  [%s]\n", find_func(pc));
     }
 }

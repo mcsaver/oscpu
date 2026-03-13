@@ -87,6 +87,8 @@ __EXPORT void difftest_memcpy(paddr_t addr, void *buf, size_t n, bool direction)
   }
 }
 
+
+//__EXPORT：导出符号给NEMU动态加载使用（dlopen/dlsym找到这个函数）
 __EXPORT void difftest_regcpy(void* dut, bool direction) {
   if (direction == DIFFTEST_TO_REF) {
     s->diff_set_regs(dut);

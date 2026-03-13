@@ -45,7 +45,7 @@ gdb: all
 clean:
 	rm -rf Makefile.* build/
 
-c: run 
+c: all
 	@cat $(RESULT)
 	@rm $(RESULT)
 
