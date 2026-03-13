@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "__locale": "c",
+        "dlfcn.h": "c",
+        "bitset": "c",
+        "format": "c",
+        "chrono": "c",
+        "unordered_map": "c",
+        "span": "c"
+    }
+}

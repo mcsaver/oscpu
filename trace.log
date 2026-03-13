@@ -1,0 +1,1819 @@
+commit f3683f9c8958d48abc2b23af45c8039e8e43db8c
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-27 13:49:23 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-27 13:49:23 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     13:49:23 up 1 min,  1 user,  load average: 0.71, 0.27, 0.09
+
+commit 679120dfd1f160542d2b6fef7499e3ba060ea45d
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-27 13:49:23 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-27 13:49:23 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     13:49:23 up 1 min,  1 user,  load average: 0.71, 0.27, 0.09
+
+commit fa15ba424ef2c3ac63d2421a45c4c4bbe7e211ba
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 21:04:28 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 21:04:28 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     21:04:28 up  7:35,  1 user,  load average: 0.29, 0.19, 0.10
+
+commit ab261abe7b2beacd9498fec25da817fdb8473548
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 21:04:28 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 21:04:28 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     21:04:28 up  7:35,  1 user,  load average: 0.29, 0.19, 0.10
+
+commit 8b3c582f2dc04060be235c67644173c492fed842
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 21:03:05 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 21:03:05 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     21:03:05 up  7:33,  1 user,  load average: 0.16, 0.16, 0.09
+
+commit 10846f2d794bd5812019a80595c232657a6d9dbb
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 21:03:05 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 21:03:05 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     21:03:05 up  7:33,  1 user,  load average: 0.16, 0.16, 0.09
+
+commit 6c2d9c0784cac079eb458ae1a29a5a7d3cdb8767
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 20:59:29 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 20:59:29 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     20:59:29 up  7:30,  1 user,  load average: 0.55, 0.17, 0.07
+
+commit 5ee227f1942c4558cae4e7c1feaba6520a3119f0
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 20:17:34 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 20:17:34 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     20:17:34 up  6:51,  1 user,  load average: 0.34, 0.19, 0.12
+
+commit 2085d21e132e22765bc7be5b7e5b397784a4e5fa
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 20:17:34 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 20:17:34 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     20:17:34 up  6:51,  1 user,  load average: 0.34, 0.19, 0.12
+
+commit e584c96b20cc2548edd32e16b8df4a1104244ca5
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 20:16:35 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 20:16:35 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     20:16:35 up  6:50,  1 user,  load average: 0.06, 0.13, 0.10
+
+commit 0012fb52453f10cb7408e643088a1b64e7604d74
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 20:16:35 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 20:16:35 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     20:16:35 up  6:50,  1 user,  load average: 0.06, 0.13, 0.10
+
+commit 5e6a34ead86023d552d8ff8b7404e4bc2b42f69f
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 20:13:57 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 20:13:57 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     20:13:57 up  6:47,  1 user,  load average: 0.04, 0.12, 0.09
+
+commit f336055e8e3b327a10f8c2dc355ac52231089ba9
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 20:13:57 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 20:13:57 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     20:13:57 up  6:47,  1 user,  load average: 0.04, 0.12, 0.09
+
+commit 6d0357819d9ccff20d33ad450e2ac469d26d6f9c
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 20:13:26 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 20:13:26 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     20:13:26 up  6:47,  1 user,  load average: 0.06, 0.13, 0.10
+
+commit 617025f1a6c7c35098342d48ca77da147b80e2f4
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 19:54:09 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 19:54:09 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:54:09 up  6:29,  1 user,  load average: 0.46, 0.23, 0.08
+
+commit 2ff13b455e682c671e78e9cb4a4976d0d8243249
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 19:54:09 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 19:54:09 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:54:09 up  6:29,  1 user,  load average: 0.46, 0.23, 0.08
+
+commit 3eb132d1f79e0631a27a47d8fa175bb7e31aa8d6
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 19:53:31 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 19:53:31 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:53:31 up  6:28,  1 user,  load average: 0.43, 0.19, 0.06
+
+commit f7aaf1cf2ccc6de5a17fb6d7ba19e667f9537186
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 19:53:31 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 19:53:31 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:53:31 up  6:28,  1 user,  load average: 0.43, 0.19, 0.06
+
+commit 5bcad6fef01f8ef7b484570a335394996d9d782e
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 19:51:42 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 19:51:42 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:51:42 up  6:26,  1 user,  load average: 0.03, 0.04, 0.00
+
+commit b6f13766a8122e68bba42a0564d2f034746329d4
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 19:51:42 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 19:51:42 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:51:42 up  6:26,  1 user,  load average: 0.03, 0.04, 0.00
+
+commit 0cdf0c9e912634d1eb40f782f6bee6f92da690a5
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 19:51:16 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 19:51:16 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:51:16 up  6:26,  1 user,  load average: 0.05, 0.04, 0.00
+
+commit 65862f67c65da172e76ce623ebc3796c042c5b7e
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 19:51:16 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 19:51:16 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:51:16 up  6:26,  1 user,  load average: 0.05, 0.04, 0.00
+
+commit 7975e08d20995bc1bae2c23fb607525d76abed6f
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 19:48:54 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 19:48:54 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:48:54 up  6:24,  1 user,  load average: 0.00, 0.01, 0.00
+
+commit 5c11c5082797647718bb8bcdd3697b14c3de846c
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 19:48:54 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 19:48:54 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:48:54 up  6:24,  1 user,  load average: 0.00, 0.01, 0.00
+
+commit 483e06c3ee9367a72ba574bb98a29ee75c37e715
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 19:11:32 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 19:11:32 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:11:32 up  5:49,  1 user,  load average: 0.06, 0.08, 0.02
+
+commit 95c2589b67dc7c25e5e78d461be80294478be6ac
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 19:11:32 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 19:11:32 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:11:32 up  5:49,  1 user,  load average: 0.06, 0.08, 0.02
+
+commit cfc7fc3970873ad7057dc43b64e73d5295bb344a
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 19:08:12 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 19:08:12 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:08:12 up  5:46,  1 user,  load average: 0.39, 0.10, 0.03
+
+commit 271be338c3f8e3db2373b4ae8d2466573c6d2d82
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-26 19:08:12 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-26 19:08:12 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:08:12 up  5:46,  1 user,  load average: 0.39, 0.10, 0.03
+
+commit 3c2bdd695f98593ae03f7f3e061cb5b0db1a33bf
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-25 19:40:58 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-25 19:40:58 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:40:58 up  5:03,  1 user,  load average: 0.05, 0.06, 0.01
+
+commit 4c176cc1c33b745e9adcf960093baf5cdc05cc99
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-25 19:40:58 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-25 19:40:58 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:40:58 up  5:03,  1 user,  load average: 0.05, 0.06, 0.01
+
+commit 7f3bf09b9482697d670ee73987d4da53e8688583
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-25 19:39:20 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-25 19:39:20 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:39:20 up  5:01,  1 user,  load average: 0.25, 0.09, 0.02
+
+commit d2baf6de4216eb1e48e3fe5ed393477715237728
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-25 19:39:20 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-25 19:39:20 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:39:20 up  5:01,  1 user,  load average: 0.25, 0.09, 0.02
+
+commit d427b5a3321a08b1dcee03733e91b957c52e0fd1
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-23 16:51:03 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-23 16:51:03 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     16:51:03 up  4:48,  1 user,  load average: 0.63, 0.25, 0.09
+
+commit 7236a50b3cbd4f32f8b537894692fc4200b33716
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-23 16:51:03 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-23 16:51:03 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     16:51:03 up  4:48,  1 user,  load average: 0.63, 0.25, 0.09
+
+commit 005c62a38e545da9de6ea77681bdb4e27e9b56e9
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-23 16:49:59 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-23 16:49:59 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     16:49:59 up  4:47,  1 user,  load average: 0.62, 0.16, 0.05
+
+commit ed739c520904146537fccabf4db9b1e3f1189387
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-23 16:49:59 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-23 16:49:59 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     16:49:59 up  4:47,  1 user,  load average: 0.62, 0.16, 0.05
+
+commit 024c5f7a1a1625571a43d2013193630b8e861d2d
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-22 22:30:19 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-22 22:30:19 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     22:30:19 up  1:57,  1 user,  load average: 0.15, 0.06, 0.01
+
+commit be39d58f8744922df3c6a16252383365ccfb8799
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-22 21:51:31 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-22 21:51:31 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     21:51:31 up  1:18,  1 user,  load average: 0.37, 0.18, 0.12
+
+commit 4b8afaac0fefa6139c26df67c74bddf3308c0730
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-22 21:31:56 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-22 21:31:56 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     21:31:56 up 59 min,  1 user,  load average: 0.09, 0.11, 0.12
+
+commit 462843e8bdd9ca6bb92ba21f0625a331e6535d0d
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-22 21:31:56 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-22 21:31:56 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     21:31:56 up 59 min,  1 user,  load average: 0.09, 0.11, 0.12
+
+commit ce6dd6cd3be2a75c3d833e6d4d87b6feae3c0005
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-22 21:23:23 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-22 21:23:23 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     21:23:23 up 50 min,  1 user,  load average: 0.28, 0.19, 0.17
+
+commit 41e07ed8307f82072038fccc10669bd4f48169a3
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-22 21:17:53 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-22 21:17:53 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     21:17:53 up 45 min,  1 user,  load average: 0.09, 0.10, 0.15
+
+commit 3c9ae50ddbf297fff8beae26f15cb836214006f8
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-22 21:11:50 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-22 21:11:50 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     21:11:50 up 38 min,  1 user,  load average: 0.14, 0.18, 0.20
+
+commit 5b0315b1aa16495bd75694de86f54a2833366ae6
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-22 21:07:17 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-22 21:07:17 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     21:07:17 up 34 min,  1 user,  load average: 0.24, 0.29, 0.24
+
+commit 2ecb3e5b474b7e7ce1e0ae2974e33a26a9d6d012
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-22 21:07:17 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-22 21:07:17 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     21:07:17 up 34 min,  1 user,  load average: 0.24, 0.29, 0.24
+
+commit 9c5c4f6207170b349d1c15c16ade89a8e3c16ba0
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-22 20:58:38 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-22 20:58:38 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     20:58:38 up 25 min,  1 user,  load average: 0.72, 0.27, 0.15
+
+commit 213b7ee8b6254f39fa1dfd221024547c69be1c5a
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-22 20:58:38 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-22 20:58:38 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     20:58:38 up 25 min,  1 user,  load average: 0.72, 0.27, 0.15
+
+commit ead040f674e31ecf5f3470ff07459586069508f5
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-22 20:58:02 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-22 20:58:02 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     20:58:02 up 25 min,  1 user,  load average: 0.21, 0.16, 0.11
+
+commit ce9c2a415d9a7853499226513dc35eefe2e4555a
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-18 19:56:28 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-18 19:56:28 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:56:28 up  3:03,  1 user,  load average: 0.10, 0.07, 0.04
+
+commit 59b585fb71fc5fbabf5d11aea1194acc7398ef04
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-18 19:56:28 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-18 19:56:28 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:56:28 up  3:03,  1 user,  load average: 0.10, 0.07, 0.04
+
+commit 070457fada85f047c6766ed320cfdd43abf531e5
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-18 19:14:53 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-18 19:14:53 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:14:53 up  2:24,  1 user,  load average: 0.19, 0.13, 0.07
+
+commit 3ba0d3d998cc2ae8af1f9c539addea8048a5a080
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-18 19:14:53 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-18 19:14:53 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:14:53 up  2:24,  1 user,  load average: 0.19, 0.13, 0.07
+
+commit 4bb7e33c271e789f22d58f03b7fe6694fb10004f
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-18 14:33:47 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-18 14:33:47 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:33:47 up 51 min,  1 user,  load average: 0.20, 0.15, 0.09
+
+commit 9d1082436573562c1e2387014a263ed764de39dc
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-18 14:33:47 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-18 14:33:47 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:33:47 up 51 min,  1 user,  load average: 0.20, 0.15, 0.09
+
+commit 2e2770ed6e0022c751622d213b895470f80fcfa8
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-18 14:26:01 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-18 14:26:01 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:26:01 up 44 min,  1 user,  load average: 0.02, 0.07, 0.03
+
+commit d9f47da55eb5c3e0294860f9a43f5b1574846de6
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-18 14:26:01 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-18 14:26:01 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:26:01 up 44 min,  1 user,  load average: 0.02, 0.07, 0.03
+
+commit c297d33fd853f7e0a4e23d24dd7540ca18e89c4f
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-15 16:37:41 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-15 16:37:41 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     16:37:41 up  2:07,  1 user,  load average: 0.00, 0.03, 0.04
+
+commit 1ba43f914348deaf966239fc3d693010be111257
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-15 16:37:41 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-15 16:37:41 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     16:37:41 up  2:07,  1 user,  load average: 0.00, 0.03, 0.04
+
+commit dd86305c839c2a276328310ac7ece04677dece0b
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-15 16:22:17 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-15 16:22:17 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     16:22:17 up  1:53,  1 user,  load average: 0.06, 0.04, 0.03
+
+commit b052d4447e2d0b42b2dcca1ce76bb6a4da2ebc90
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-15 16:22:17 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-15 16:22:17 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     16:22:17 up  1:53,  1 user,  load average: 0.06, 0.04, 0.03
+
+commit 21af9d2a88d0343fb219aab6359305b0d8dfac8f
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-15 16:14:57 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-15 16:14:57 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     16:14:57 up  1:47,  1 user,  load average: 0.00, 0.02, 0.04
+
+commit 9d707bdde37ee8c6ce4eb75f27d18e6e724eb8e7
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-15 16:14:56 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-15 16:14:56 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     16:14:56 up  1:47,  1 user,  load average: 0.00, 0.02, 0.04
+
+commit c82b63847b30eeca6f22793621f77ffcaf28470a
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-15 15:54:48 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-15 15:54:48 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     15:54:48 up  1:28,  1 user,  load average: 0.14, 0.11, 0.09
+
+commit 137a112625f387b9003e899c8e129c85f75e8ebf
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-15 15:54:48 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-15 15:54:48 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     15:54:48 up  1:28,  1 user,  load average: 0.14, 0.11, 0.09
+
+commit 011664ab38afe253617a3dd24c2395f0a6030616
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-13 17:43:14 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-13 17:43:14 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     17:43:14 up  5:18,  1 user,  load average: 0.28, 0.26, 0.18
+
+commit 4237cd8f9b386550b3a9b9312523245599711f6a
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-13 17:43:14 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-13 17:43:14 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     17:43:14 up  5:18,  1 user,  load average: 0.28, 0.26, 0.18
+
+commit 6846b6a14db4e116fe2303bbd8d0b295db7f6095
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-13 15:25:46 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-13 15:25:46 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     15:25:46 up  3:07,  1 user,  load average: 0.00, 0.02, 0.00
+
+commit 5eed64ece6720e5f9664b3f50594aa1a0f85f38d
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-13 15:25:46 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-13 15:25:46 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     15:25:46 up  3:07,  1 user,  load average: 0.00, 0.02, 0.00
+
+commit 623b7fd6347a4d201849a25a6d00ab3eaad1d83f
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-13 14:38:43 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-13 14:38:43 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:38:43 up  2:22,  1 user,  load average: 0.04, 0.08, 0.08
+
+commit ba5f65419aefc09af3e5806ff01704b7ec4f5996
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-13 14:38:43 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-13 14:38:43 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:38:43 up  2:22,  1 user,  load average: 0.04, 0.08, 0.08
+
+commit 7d8397348266f63f04104fbd7caca209eaa84d05
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-13 14:38:40 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-13 14:38:40 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:38:40 up  2:22,  1 user,  load average: 0.04, 0.08, 0.08
+
+commit 90a1562f25cf5c5de1b47846541b4d3af100660c
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-13 14:38:40 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-13 14:38:40 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:38:40 up  2:22,  1 user,  load average: 0.04, 0.08, 0.08
+
+commit 940109c59a737fe2f240f337fae7256d1b168554
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-13 13:53:39 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-13 13:53:39 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     13:53:39 up  1:39,  1 user,  load average: 0.21, 0.15, 0.05
+
+commit 8ea3df9575aa94c02c5697aeb14b0d33dda060ea
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-13 13:53:39 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-13 13:53:39 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     13:53:39 up  1:39,  1 user,  load average: 0.21, 0.15, 0.05
+
+commit d5339cdc5326760273fdaa411ba1f1c9ab2d164c
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-13 13:52:50 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-13 13:52:50 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     13:52:50 up  1:38,  1 user,  load average: 0.46, 0.18, 0.05
+
+commit c4b88db47144aeea923e72c6f0d5190099c1fa74
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-13 13:52:50 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-13 13:52:50 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     13:52:50 up  1:38,  1 user,  load average: 0.46, 0.18, 0.05
+
+commit fef995280183a3102056953918803a08708ff84c
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-13 13:27:46 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-13 13:27:46 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     13:27:46 up  1:14,  1 user,  load average: 0.04, 0.07, 0.02
+
+commit a370ba9c2c7fa72a07b0c92351a5ecdf8922bdf4
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-13 13:27:46 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-13 13:27:46 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     13:27:46 up  1:14,  1 user,  load average: 0.04, 0.07, 0.02
+
+commit 3a71b5fdbdb71fa0897dfc6f0eb80f77bf63b9cd
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-13 13:26:19 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-13 13:26:19 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     13:26:19 up  1:13,  1 user,  load average: 0.15, 0.10, 0.02
+
+commit 1270a87e826342d44ea6ed2dfbd58b98e47779d1
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-13 13:26:19 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-13 13:26:19 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     13:26:19 up  1:13,  1 user,  load average: 0.15, 0.10, 0.02
+
+commit 355d429a6a316e83affa5572b4f408e89526a9d0
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-13 12:45:49 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-13 12:45:49 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     12:45:49 up 35 min,  1 user,  load average: 0.58, 0.16, 0.04
+
+commit 277a1f8cea72bfa7f9d772eea6e5a883d1fd8809
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-13 12:45:49 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-13 12:45:49 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     12:45:49 up 35 min,  1 user,  load average: 0.58, 0.16, 0.04
+
+commit cd6ed6747e1c7766095a8b28465318235dbc6cb4
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 19:33:23 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 19:33:23 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:33:23 up  9:09,  1 user,  load average: 0.12, 0.21, 0.12
+
+commit 74046c2454a31cf6f077cf070d9ab1a6d58f26b2
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 19:33:23 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 19:33:23 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:33:23 up  9:09,  1 user,  load average: 0.12, 0.21, 0.12
+
+commit c2066ba64f6e5273b745360e8257de282fd713db
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 19:33:12 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 19:33:12 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:33:12 up  9:09,  1 user,  load average: 0.14, 0.22, 0.12
+
+commit b6703de24b50ec36071b19b66f8b230cdcae925f
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 19:33:12 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 19:33:12 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:33:12 up  9:09,  1 user,  load average: 0.14, 0.22, 0.12
+
+commit 484dbe1ca20989eb6816be2c44b01b4c7ca8f355
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 19:29:20 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 19:29:20 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:29:20 up  9:05,  1 user,  load average: 0.30, 0.22, 0.09
+
+commit f505f2826abdc81a50a3684adc340cded2071c70
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 19:29:20 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 19:29:20 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:29:20 up  9:05,  1 user,  load average: 0.30, 0.22, 0.09
+
+commit 116dd91f4ac78ab82186928438ea32b9f044a8cc
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 19:22:02 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 19:22:02 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:22:02 up  8:57,  1 user,  load average: 0.14, 0.04, 0.01
+
+commit 462c0fc84e52d5f1cc9cf611e7e58f1871fd92f6
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 19:22:02 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 19:22:02 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     19:22:02 up  8:57,  1 user,  load average: 0.14, 0.04, 0.01
+
+commit 0e94fde8ecadd0cd96da985316c53b668926573c
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 17:09:25 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 17:09:25 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     17:09:25 up  6:45,  1 user,  load average: 0.36, 0.22, 0.12
+
+commit 9f4a1bb966a74cd43769317265879c905733ce20
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 17:09:25 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 17:09:25 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     17:09:25 up  6:45,  1 user,  load average: 0.36, 0.22, 0.12
+
+commit 520111def3e82bbbceddb2f2b3791586e5e8eb56
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 15:38:14 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 15:38:14 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     15:38:14 up  5:14,  1 user,  load average: 0.08, 0.04, 0.01
+
+commit 9ac2c4a9f1220812a2ea6e7d1c5cf36a78b75e0c
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 15:38:14 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 15:38:14 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     15:38:14 up  5:14,  1 user,  load average: 0.08, 0.04, 0.01
+
+commit da56995adc0db8efbd7d687d6b0f608aae3e6295
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 13:15:48 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 13:15:48 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     13:15:48 up  2:54,  1 user,  load average: 0.08, 0.15, 0.08
+
+commit b24f31ba4fa9c7b3e7c0f6375f23c1f7245676f4
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 13:15:48 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 13:15:48 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     13:15:48 up  2:54,  1 user,  load average: 0.08, 0.15, 0.08
+
+commit 078b239b24b4a29c71dcac74528af4e462fbd087
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 13:07:01 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 13:07:01 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     13:07:01 up  2:45,  1 user,  load average: 0.21, 0.09, 0.02
+
+commit c7e660aa7925690357d9c009b7a4fcd2d7e89740
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 13:07:01 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 13:07:01 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     13:07:01 up  2:45,  1 user,  load average: 0.21, 0.09, 0.02
+
+commit 3b28b6ceeac64ee429f4615b79c11e79588a45c2
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 13:03:14 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 13:03:14 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     13:03:14 up  2:41,  1 user,  load average: 0.07, 0.06, 0.01
+
+commit aff6d845de424387e663614068d6435fec28dfe5
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 13:03:14 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 13:03:14 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     13:03:14 up  2:41,  1 user,  load average: 0.07, 0.06, 0.01
+
+commit ff37ea62c37334354b8f8fbc8883ff842052fbaa
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 13:02:07 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 13:02:07 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     13:02:07 up  2:40,  1 user,  load average: 0.10, 0.05, 0.01
+
+commit 16c1f69cc90e0169da5ba2c40dcfd295de944346
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 13:02:07 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 13:02:07 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     13:02:07 up  2:40,  1 user,  load average: 0.10, 0.05, 0.01
+
+commit 2dd27c9000492d240163feb2ae3453400f0324ec
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 13:01:43 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 13:01:43 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     13:01:43 up  2:40,  1 user,  load average: 0.15, 0.06, 0.01
+
+commit a0c292da14593c5651fb50da8f365c0d307fb113
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 13:01:43 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 13:01:43 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     13:01:43 up  2:40,  1 user,  load average: 0.15, 0.06, 0.01
+
+commit 5e1bba1f1198e272156387f8e7133d7f93eb3d85
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 13:00:46 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 13:00:46 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     13:00:46 up  2:39,  1 user,  load average: 0.03, 0.04, 0.00
+
+commit 96de5173a7e3d21c62c7eb9a9c80785d9a7d5881
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 13:00:46 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 13:00:46 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     13:00:46 up  2:39,  1 user,  load average: 0.03, 0.04, 0.00
+
+commit 25e44bdd9832a20664c34119028fc73dafa3a212
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 12:59:48 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 12:59:48 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     12:59:48 up  2:38,  1 user,  load average: 0.08, 0.05, 0.00
+
+commit 7b924f5911243e322ebd33301388bfa465af5d40
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 12:59:48 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 12:59:48 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     12:59:48 up  2:38,  1 user,  load average: 0.08, 0.05, 0.00
+
+commit be2a2d8014de9891b175f634a873a6380e9d0b72
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 11:10:14 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 11:10:14 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     11:10:14 up 52 min,  1 user,  load average: 0.11, 0.08, 0.08
+
+commit 3d3db78730080b6fc3ce81c5d9e39f1ca73bbe40
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 11:10:14 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 11:10:14 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     11:10:14 up 52 min,  1 user,  load average: 0.11, 0.08, 0.08
+
+commit 71a71e0e5cb94b479c5328c360d3fd0f7a9be6b6
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 10:58:16 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 10:58:16 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     10:58:16 up 40 min,  1 user,  load average: 0.09, 0.12, 0.10
+
+commit baa8fdce58a374ea8f3f7432c9ec0b07ddc55efb
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 10:58:16 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 10:58:16 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     10:58:16 up 40 min,  1 user,  load average: 0.09, 0.12, 0.10
+
+commit 0b5a2854d75011a45f47d51fc4cc1a97df0646e3
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 10:55:33 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 10:55:33 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     10:55:33 up 37 min,  1 user,  load average: 0.18, 0.13, 0.11
+
+commit bc72c9fcd280ada54ae550c83c4579d52af0181a
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 10:55:33 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 10:55:33 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     10:55:33 up 37 min,  1 user,  load average: 0.18, 0.13, 0.11
+
+commit 260042bf3f0f835e1f356a43a854b4841728391f
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 10:53:41 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 10:53:41 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     10:53:41 up 35 min,  1 user,  load average: 0.02, 0.11, 0.11
+
+commit c6fc1d37da3263c5cd27032539500014dcdf2b97
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-11 10:53:41 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-11 10:53:41 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     10:53:41 up 35 min,  1 user,  load average: 0.02, 0.11, 0.11
+
+commit ba286e0b7ad29c97c003c7b5b9f621a10f154afe
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-10 14:38:42 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-10 14:38:42 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:38:42 up  4:46,  1 user,  load average: 0.02, 0.05, 0.01
+
+commit d4b0d6aa7da5a0c5a47ddb47a539c3998b9fa66e
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-10 14:38:42 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-10 14:38:42 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:38:42 up  4:46,  1 user,  load average: 0.02, 0.05, 0.01
+
+commit 7f7918db6dc32cc59dad7fd889b9fa4a3375f16d
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-10 14:33:46 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-10 14:33:46 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:33:46 up  4:41,  1 user,  load average: 0.03, 0.03, 0.00
+
+commit 8f3b045335a9aea0a50fc806bb0f7ec72f5bc1ea
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-10 14:33:46 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-10 14:33:46 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:33:46 up  4:41,  1 user,  load average: 0.03, 0.03, 0.00
+
+commit 0d6110b0297cded6293238d89c42e1c6d4b093c7
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-10 14:21:59 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-10 14:21:59 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:21:59 up  4:29,  1 user,  load average: 0.00, 0.00, 0.00
+
+commit 3948230487eb09246fafc3ed2fcd8c39174327a4
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-10 14:21:59 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-10 14:21:59 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:21:59 up  4:29,  1 user,  load average: 0.00, 0.00, 0.00
+
+commit d0d8804c9ca8f36351b4e01defd7f46687aa2ee4
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-10 14:21:34 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-10 14:21:34 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:21:34 up  4:28,  1 user,  load average: 0.00, 0.01, 0.00
+
+commit 24143fbb3f49a8e7ad480cabe8f5c59fab822b46
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-10 14:21:34 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-10 14:21:34 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:21:34 up  4:28,  1 user,  load average: 0.00, 0.01, 0.00
+
+commit ec4ca9fe7f17ef118a75cb9bfb9aa75d2b147a47
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-10 14:14:47 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-10 14:14:47 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:14:47 up  4:21,  1 user,  load average: 0.03, 0.07, 0.02
+
+commit 4a6a4907536019613070031d41a0eadd5fbbeb3e
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-10 14:14:47 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-10 14:14:47 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:14:47 up  4:21,  1 user,  load average: 0.03, 0.07, 0.02
+
+commit 3e75431b4dc06b2b9e12d4aa1b2ba076d8f4bbbe
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-10 14:12:11 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-10 14:12:11 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:12:11 up  4:19,  1 user,  load average: 0.11, 0.09, 0.02
+
+commit d66e34a8cbaf4b4cca31f4c4399edaf1b611524b
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-10 14:12:11 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-10 14:12:11 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:12:11 up  4:19,  1 user,  load average: 0.11, 0.09, 0.02
+
+commit 95512f51a2dfda242852b8a8ff6298eb31394f9f
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-10 14:10:58 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-10 14:10:58 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:10:58 up  4:17,  1 user,  load average: 0.12, 0.08, 0.02
+
+commit 9cf385fd73dff619d12efbe12e3a38b3d355c50f
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-10 14:10:58 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-10 14:10:58 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:10:58 up  4:17,  1 user,  load average: 0.12, 0.08, 0.02
+
+commit 7b1fcfe33532255b2a61300577e417cca4aaf71b
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-10 14:10:19 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-10 14:10:19 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:10:19 up  4:17,  1 user,  load average: 0.08, 0.07, 0.02
+
+commit 43d421e657b777c01f5188b8f7ff65bc5a6326e9
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-10 14:10:19 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-10 14:10:19 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:10:19 up  4:17,  1 user,  load average: 0.08, 0.07, 0.02
+
+commit b1ff5fcef2030e2a0b255d8d61e66e4e4e1785fb
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-10 14:08:45 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-10 14:08:45 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:08:45 up  4:15,  1 user,  load average: 0.13, 0.09, 0.02
+
+commit 6f4ef8532981a02f99cfdd48a0d731ea29544363
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-10 14:08:45 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-10 14:08:45 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:08:45 up  4:15,  1 user,  load average: 0.13, 0.09, 0.02
+
+commit ec6d4fe6a495c675ef1ac509bc2ccf34c75a8157
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-10 14:07:52 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-10 14:07:52 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:07:52 up  4:14,  1 user,  load average: 0.05, 0.07, 0.02
+
+commit b987ced32ebf2742854c38351446b97ea0d2def4
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-10 14:07:52 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-10 14:07:52 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     14:07:52 up  4:14,  1 user,  load average: 0.05, 0.07, 0.02
+
+commit 85e2f6309b4cfac36d1abfbe78f78724cf0e7305
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-10 11:37:40 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-10 11:37:40 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     11:37:40 up  1:42,  1 user,  load average: 0.04, 0.04, 0.01
+
+commit 9f9550fc38df66fe6be8dece44439b7e9410b3ce
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-12-10 11:37:37 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-12-10 11:37:37 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     11:37:37 up  1:42,  1 user,  load average: 0.04, 0.04, 0.01
+
+commit 4f153af524ea22fbd68f994a4772994adaa61893
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-11-09 11:52:49 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-11-09 11:52:49 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     11:52:49 up  2:19,  1 user,  load average: 0.04, 0.09, 0.08
+
+commit b4143f07ee2be118167b694c432231e128e1aa3f
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-11-09 11:52:48 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-11-09 11:52:48 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     11:52:48 up  2:19,  1 user,  load average: 0.04, 0.09, 0.08
+
+commit 22376e2fc7721b8c4764d4f19f283dee45796d88
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-11-04 16:34:29 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-11-04 16:34:29 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     16:34:29 up  6:27,  1 user,  load average: 0.28, 0.13, 0.06
+
+commit 8e927ea8394896946dcd46c3af16f172c67ccd57
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-11-04 16:34:29 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-11-04 16:34:29 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     16:34:29 up  6:27,  1 user,  load average: 0.28, 0.13, 0.06
+
+commit 4697895157cb71e3a7523dc66757e662f409bf58
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-11-04 16:33:01 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-11-04 16:33:01 +0800
+
+    > run NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     16:33:01 up  6:26,  1 user,  load average: 0.00, 0.00, 0.01
+
+commit ee01c51d7165acd96120332f9b79a48daeae664d
+Author:     tracer-ysyx <tracer@ysyx.org>
+AuthorDate: 2025-11-04 16:33:01 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-11-04 16:33:01 +0800
+
+    > compile NEMU
+    ysyx_22040000 李一庚
+    Linux iris 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+     16:33:01 up  6:26,  1 user,  load average: 0.00, 0.00, 0.01
+
+commit e7be77feaf4477d27a475ebc5361d34face52e57
+Author:     231220000-Li Yigeng <1727935578@qq.com>
+AuthorDate: 2025-11-04 15:28:54 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-11-04 15:28:54 +0800
+
+    none
+
+commit 5e779d2251a4cc2df7e01d23941607f7dc83f609
+Author:     231220000-Li Yigeng <1727935578@qq.com>
+AuthorDate: 2025-11-04 15:24:25 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-11-04 15:24:25 +0800
+
+    NJU-ProjectN/abstract-machine ics2024 initialized without tracing
+    
+    NJU-ProjectN/abstract-machine ad41f4948e185243ca07f6d2a9ef296f7248d617 tools,minirv,minirv-common.sh: set flag for minirv in ELF
+
+commit c3f6baffd2f51b2022b52530f87d271bf4f911b4
+Author:     231220000-Li Yigeng <1727935578@qq.com>
+AuthorDate: 2025-11-04 15:24:15 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-11-04 15:24:15 +0800
+
+    NJU-ProjectN/nemu ics2024 initialized without tracing
+    
+    NJU-ProjectN/nemu e69f07f1a5bb4e754fd932eb5c668857543ca2eb x86,inst: fix dnpc
+
+commit 5abc25e14ff00acf3f4107cab6804db2479b9d5e
+Author:     231220000-Li Yigeng <1727935578@qq.com>
+AuthorDate: 2025-11-04 10:04:20 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-11-04 10:04:20 +0800
+
+    NJU-ProjectN/fceux-am ics2021 initialized without tracing
+    
+    NJU-ProjectN/fceux-am 9b167e7e47240cd8ef9a910242242c28affb713a fceu: remove unused function to fix linking error when SOUND_NONE
+
+commit c6b6d9505b6fea9a9eafa8ce8867850c4f9fc7b7
+Author:     231220000-Li Yigeng <1727935578@qq.com>
+AuthorDate: 2025-11-04 10:04:10 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-11-04 10:04:10 +0800
+
+    NJU-ProjectN/abstract-machine ics2024 initialized
+    
+    NJU-ProjectN/abstract-machine ad41f4948e185243ca07f6d2a9ef296f7248d617 tools,minirv,minirv-common.sh: set flag for minirv in ELF
+
+commit 88f3d96f96e497280a579538e4fb6b13334e23d4
+Author:     231220000-Li Yigeng <1727935578@qq.com>
+AuthorDate: 2025-11-04 10:04:01 +0800
+Commit:     231220000-Li Yigeng <1727935578@qq.com>
+CommitDate: 2025-11-04 10:04:01 +0800
+
+    NJU-ProjectN/nemu ics2024 initialized
+    
+    NJU-ProjectN/nemu e69f07f1a5bb4e754fd932eb5c668857543ca2eb x86,inst: fix dnpc
+
+commit c074ba47c5fc6744c8f11fb583ab7488b50e4756
+Author:     Zihao Yu <yuzihao@ict.ac.cn>
+AuthorDate: 2024-08-31 10:12:13 +0800
+Commit:     Zihao Yu <yuzihao@ict.ac.cn>
+CommitDate: 2024-08-31 10:12:13 +0800
+
+    bump NEMU, AM and Navy-apps to ics2024
+
+commit d1116915d4c440858a4eaacd9c9571d8d18ac88b
+Author:     Zihao Yu <yuzihao@ict.ac.cn>
+AuthorDate: 2024-04-11 02:17:34 +0800
+Commit:     Zihao Yu <yuzihao@ict.ac.cn>
+CommitDate: 2024-04-11 02:19:51 +0800
+
+    init.sh: modify the URL of chisel-playground
+
+commit 45b0981285eae2010d1c00e5dfad32e8eb570119
+Merge: e6c65e0 1147a5d
+Author:     Zihao Yu <19884013+sashimi-yzh@users.noreply.github.com>
+AuthorDate: 2023-11-19 13:18:38 +0800
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2023-11-19 13:18:38 +0800
+
+    Merge pull request #15 from Wenz-jam/master
+    
+    避免sync造成的不必要的阻塞
+
+commit 1147a5d217fbe7fd551d12cdc5ee69e5b47ce3bd
+Author:     wenz-jam <wjj20040520@163.com>
+AuthorDate: 2023-11-18 22:42:12 +0800
+Commit:     wenz-jam <wjj20040520@163.com>
+CommitDate: 2023-11-18 22:42:12 +0800
+
+            modified:   Makefile
+
+commit e6c65e0d78860b62b43d831d33bef619f4871a5f
+Author:     Zihao Yu <yuzihao@ict.ac.cn>
+AuthorDate: 2023-07-02 16:46:01 +0800
+Commit:     Zihao Yu <yuzihao@ict.ac.cn>
+CommitDate: 2023-07-02 16:46:01 +0800
+
+    ready for 2306
+
+commit f0a9bfa5e70f7aff5b5ba6eec802718141fa32b4
+Author:     Zihao Yu <yuzihao@ict.ac.cn>
+AuthorDate: 2023-05-18 20:31:37 +0800
+Commit:     Zihao Yu <yuzihao@ict.ac.cn>
+CommitDate: 2023-05-18 20:31:37 +0800
+
+    README: fix broken URL
+
+commit ca1efe654c61ea91f8cddf9639dbbcc4a8bff20a
+Author:     Zihao Yu <yuzihao@ict.ac.cn>
+AuthorDate: 2023-04-04 15:48:29 +0800
+Commit:     Zihao Yu <yuzihao@ict.ac.cn>
+CommitDate: 2023-04-04 15:48:29 +0800
+
+    fix invalid argument for MacOS
+
+commit 4b0d7562e7b926d0b3aa4eb53846aaf7cc8460f1
+Author:     Zihao Yu <yuzihao@ict.ac.cn>
+AuthorDate: 2023-02-25 08:33:18 +0800
+Commit:     Zihao Yu <yuzihao@ict.ac.cn>
+CommitDate: 2023-02-25 08:33:18 +0800
+
+    Makefile: remove 2204 from tracer
+
+commit 92051354898f810d6d19b690951b597315f687e6
+Merge: 3fc57bc aa85138
+Author:     Zihao Yu <19884013+sashimi-yzh@users.noreply.github.com>
+AuthorDate: 2022-11-04 11:15:06 +0800
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2022-11-04 11:15:06 +0800
+
+    Merge pull request #5 from Selflocking/patch-1
+    
+    fix: add build to git ignore
+
+commit aa851381704c8ede3a1a04f8e0ee2b0ac3c7364f
+Author:     YunShu <im@yunshu.site>
+AuthorDate: 2022-11-04 09:28:29 +0800
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2022-11-04 09:28:29 +0800
+
+    fix: add build to git ignore
+
+commit 3fc57bcc5a6ee9d0eaf54ec08fd76d1e37a10e0f
+Merge: e8e7213 932057f
+Author:     Zihao Yu <19884013+sashimi-yzh@users.noreply.github.com>
+AuthorDate: 2022-06-24 22:48:18 +0800
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2022-06-24 22:48:18 +0800
+
+    Merge pull request #4 from huaixv/ysyx2204
+    
+    fix: handle revision and pathspec of same name
+
+commit 932057fb7bb57d5722500a51435ad26429e44a59
+Author:     huaixv <44743118+huaixv@users.noreply.github.com>
+AuthorDate: 2022-06-24 22:07:46 +0800
+Commit:     huaixv <44743118+huaixv@users.noreply.github.com>
+CommitDate: 2022-06-24 22:07:46 +0800
+
+    fix: handle revision and pathspec of same name
+
+commit e8e7213cd69d45633af30e1b81939f4f5802e4a3
+Merge: dcd121c b2c8b7a
+Author:     Zihao Yu <19884013+sashimi-yzh@users.noreply.github.com>
+AuthorDate: 2022-04-21 20:36:18 +0800
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2022-04-21 20:36:18 +0800
+
+    Merge pull request #3 from huaixv/ysyx2204
+    
+    fix: switch to YSYX_HOME when exec tracer code
+
+commit b2c8b7a2fa0d8e00dbb959fde0e6a43a7d3f96b9
+Author:     huaixv <44743118+huaixv@users.noreply.github.com>
+AuthorDate: 2022-04-21 18:45:53 +0800
+Commit:     huaixv <44743118+huaixv@users.noreply.github.com>
+CommitDate: 2022-04-21 18:45:53 +0800
+
+    fix: switch to YSYX_HOME when exec tracer code
+
+commit dcd121cdb63ab90c721aea8079addeadd75b0f32
+Merge: 6c7b39a dcb9466
+Author:     Zihao Yu <19884013+sashimi-yzh@users.noreply.github.com>
+AuthorDate: 2022-03-16 15:53:33 +0800
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2022-03-16 15:53:33 +0800
+
+    Merge pull request #2 from huaixv/ysyx2204
+    
+    fix: fix committed files not traced problem
+
+commit dcb94661f183cb652f0d69d142f3441c3ad763d5
+Author:     huaixv <44743118+huaixv@users.noreply.github.com>
+AuthorDate: 2022-03-08 18:50:09 +0800
+Commit:     huaixv <44743118+huaixv@users.noreply.github.com>
+CommitDate: 2022-03-09 16:54:04 +0800
+
+    fix: fix committed files not traced problem
+
+commit 6c7b39a40ba95fce8321144c3535fe9ea4d01b8e
+Author:     Zihao Yu <yuzihao@ict.ac.cn>
+AuthorDate: 2022-03-08 10:50:24 +0800
+Commit:     Zihao Yu <yuzihao@ict.ac.cn>
+CommitDate: 2022-03-08 10:57:44 +0800
+
+    refactor
+
+commit aa59f01da23349dd6923c471b6f2ede10e3ed41b
+Merge: 0fa7144 a28bbd7
+Author:     Zihao Yu <19884013+sashimi-yzh@users.noreply.github.com>
+AuthorDate: 2022-03-08 10:40:25 +0800
+Commit:     GitHub <noreply@github.com>
+CommitDate: 2022-03-08 10:40:25 +0800
+
+    Merge pull request #1 from huaixv/ysyx2204
+    
+    feat: add shadow branch for tracer
+
+commit a28bbd7a3b23870aa6228a5b978a5b305eefcf61
+Author:     huaixv <44743118+huaixv@users.noreply.github.com>
+AuthorDate: 2022-02-25 17:45:35 +0800
+Commit:     huaixv <44743118+huaixv@users.noreply.github.com>
+CommitDate: 2022-03-07 22:50:21 +0800
+
+    feat: add shadow branch for tracer
+
+commit 0fa7144084b792e64eb10abfed2b2d83d3dcbe7c
+Author:     Zihao Yu <yuzihao@ict.ac.cn>
+AuthorDate: 2022-02-21 12:22:27 +0800
+Commit:     Zihao Yu <yuzihao@ict.ac.cn>
+CommitDate: 2022-02-21 16:41:03 +0800
+
+    first commit

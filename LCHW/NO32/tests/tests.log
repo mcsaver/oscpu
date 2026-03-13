@@ -1,0 +1,13 @@
+DEBUG /home/lyg/ysyx/LCHW/NO32/tests/list_tests.c:106:main(): ----- RUNNING: ./tests/list_tests
+DEBUG /home/lyg/ysyx/LCHW/NO32/tests/list_tests.c:96:all_tests(): 
+----- test_create
+DEBUG /home/lyg/ysyx/LCHW/NO32/tests/list_tests.c:97:all_tests(): 
+----- test_push_pop
+DEBUG /home/lyg/ysyx/LCHW/NO32/tests/list_tests.c:98:all_tests(): 
+----- test_unshift
+DEBUG /home/lyg/ysyx/LCHW/NO32/tests/list_tests.c:99:all_tests(): 
+----- test_remove
+DEBUG /home/lyg/ysyx/LCHW/NO32/tests/list_tests.c:100:all_tests(): 
+----- test_shift
+DEBUG /home/lyg/ysyx/LCHW/NO32/tests/list_tests.c:101:all_tests(): 
+----- test_destroy

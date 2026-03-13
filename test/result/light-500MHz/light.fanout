@@ -1,0 +1,15 @@
+Generate the report at 2025-11-17T21:03:44, GitVersion: aa25008b3778a76ae1975c839d4cc459f7f7b3b7.
++-----------------------------------------------------------+-----------+--------+-------------+---------------+------+
+| Net / Pin                                                 | MaxFanout | Fanout | FanoutSlack | LibCellPort   | Note |
++-----------------------------------------------------------+-----------+--------+-------------+---------------+------+
+| count_24_                                                 |           |        |             |               |      |
+| count_24__reg_p:Q                                         | NA        | 1      | NA          | DFFQX1H7L/Q   |      |
+| count_9__NOR4X0P5H7L_D_Y                                  |           |        |             |               |      |
+| count_9__NOR4X0P5H7L_D:Y                                  | NA        | 1      | NA          | NOR4X0P5H7L/Y |      |
+| count_9__NOR4X0P5H7L_D_Y_NAND3X0P5H7L_C_A                 |           |        |             |               |      |
+| count_9__NOR4X0P5H7L_D_Y_NAND3X0P5H7L_C_A_NOR4X0P5H7L_Y:Y | NA        | 1      | NA          | NOR4X0P5H7L/Y |      |
+| count_25_                                                 |           |        |             |               |      |
+| count_25__reg_p:Q                                         | NA        | 1      | NA          | DFFQX1H7L/Q   |      |
+| count_9__XNOR2X0P5H7L_A_B_NOR3BX0P5H7L_Y_B                |           |        |             |               |      |
+| count_3__NAND4X6H7L_D:Y                                   | NA        | 7      | NA          | NAND4X6H7L/Y  |      |
++-----------------------------------------------------------+-----------+--------+-------------+---------------+------+

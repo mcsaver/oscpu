@@ -1,0 +1,62 @@
+
+25. Printing statistics.
+
+=== light ===
+
+        +----------Local Count, excluding submodules.
+        |        +-Local Area, excluding submodules.
+        |        | 
+      171        - wires
+      171        - wire bits
+      171        - public wires
+      171        - public wire bits
+       18        - ports
+       18        - port bits
+      169    516.6 cells
+        1     1.68   AND2X1H7L
+        1     1.96   AND3X1P4H7L
+        2     4.48   AND4X0P5H7L
+        1     2.52   AOA211X1H7L
+        1     1.96   AOI211X0P5H7L
+        3      4.2   AOI21X0P5H7L
+        5        7   AOI21X1P4H7L
+        3     5.88   AOI21X2H7L
+        1     1.12   BUFX1P4H7L
+        1     1.68   BUFX3P5H7L
+       48   295.68   DFFQX1H7L
+        1     6.16   ICGX0P5H7L
+        4     3.36   INVX0P5H7L
+        5      5.6   NAND2X0P5H7L
+        1     1.12   NAND2X1H7L
+        3     5.88   NAND3BX0P5H7L
+        7      9.8   NAND3X0P5H7L
+        1      1.4   NAND3X1H7L
+        2     4.48   NAND4BX0P5H7L
+        3     5.88   NAND4X0P5H7L
+        2    10.64   NAND4X6H7L
+       15       21   NOR2BX1P4H7L
+        7     7.84   NOR2X0P5H7L
+        6     6.72   NOR2X1P4H7L
+        1     1.96   NOR3BX0P5H7L
+        2      2.8   NOR3X0P5H7L
+        1      1.4   NOR3X1P4H7L
+        5      9.8   NOR4X0P5H7L
+        1     5.32   NOR4X6H7L
+        1     1.68   OAI211X0P7H7L
+        3      4.2   OAI21X0P5H7L
+        1     1.96   OAI22X0P5H7L
+        3     5.88   OAI2BB1X0P5H7L
+        3     5.88   OAI31X0P5H7L
+        1     1.96   OAI31X1H7L
+        1      2.8   OAO211X2H7L
+        2      2.8   OR2X1P4H7L
+        1     1.96   OR3X1H7L
+        6    13.44   OR4X1P4H7L
+        1      2.8   OR4X3H7L
+        1     1.12   TIELOH7L
+        6     16.8   XNOR2X0P5H7L
+        5       14   XOR2X0P5H7L
+
+   Chip area for module '\light': 516.600000
+     of which used for sequential elements: 295.680000 (57.24%)
+
