@@ -1,4 +1,4 @@
 *.o
 *.d
-*
+*.s
 oss-cad-suite/
