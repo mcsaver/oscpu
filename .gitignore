@@ -1,4 +1,5 @@
 *.o
 *.d
 *.s
-oss-cad-suite/
+*oss-cad-suite/
+*jcs/
