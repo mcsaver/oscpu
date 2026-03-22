@@ -1,37 +1,49 @@
-# Copilot instructions for ysyx-workbench
+# YSYX 工作区 — 全局指导规范
 
-## Big picture
-- This is a YSYX lab workspace with multiple subprojects; do not assume a single build system.
-- [nemu/](nemu/) is the full-system emulator; it can run standalone or integrate with AbstractMachine when `CONFIG_TARGET_AM` is enabled (see [nemu/Makefile](nemu/Makefile)).
-- [abstract-machine/](abstract-machine/) provides the hardware abstraction layer (AM) used by kernels and NEMU AM-target builds.
-- [am-kernels/](am-kernels/) contains bare-metal kernels and benchmarks built against AM.
-- [npc/](npc/) is a separate hardware/RTL project; active student work is commonly under [npc/single/](npc/single/).
-- Many subprojects use their own `build/` directories; avoid mixing artifacts across subprojects.
+## 项目概览
+本工作区是 **"一生一芯" (YSYX)** 项目，目标是设计和验证一颗完整的 RV32 CPU。
+工作区包含多个协同模块：RTL 设计 (npc)、软件仿真器 (nemu)、硬件抽象层 (abstract-machine)、测试程序 (am-kernels)、综合分析 (yosys-sta)、虚拟开发板 (nvboard)、数字逻辑实验 (digital_logic_experiment)、NES 模拟器 (fceux-am) 等。
 
-## Critical workflows
-- Initialize subprojects via [init.sh](init.sh); it clones the expected upstream repos and sets env vars in `~/.bashrc` (e.g. `NEMU_HOME`, `AM_HOME`, `NAVY_HOME`, `NPC_HOME`).
-- NEMU configuration uses Kconfig; if `.config` is missing, run `make menuconfig` in [nemu/](nemu/) (see [nemu/scripts/config.mk](nemu/scripts/config.mk)).
-- Build NEMU with `make` in [nemu/](nemu/); run via `make run` and pass an image with `IMG=...` (targets are defined in [nemu/scripts/native.mk](nemu/scripts/native.mk)).
-- For AM-based projects, set `ARCH=...` and build `image` (default target) in [abstract-machine/](abstract-machine/) or kernel directories (see [abstract-machine/Makefile](abstract-machine/Makefile)).
-- If environment variables are updated by `init.sh`, remind user to run `source ~/.bashrc` before build/run.
+## 语言与工具
+- **RTL 设计**: Verilog / SystemVerilog, 使用 Verilator 仿真
+- **软件仿真**: C 语言, 使用 GCC/Clang 编译
+- **综合**: Yosys (开源综合器) + iEDA (STA/功耗分析)
+- **虚拟开发板**: NVBoard (SDL + Verilator)
+- **构建系统**: GNU Make, Kconfig
 
-## Project-specific conventions
-- The top-level [Makefile](Makefile) defines a tracer git-commit workflow used by subprojects; keep its `git_commit` calls intact (e.g. in [npc/single/Makefile](npc/single/Makefile)).
-- NEMU build flags come from `.config` and auto-generated headers in `include/config/` and `include/generated/`; don’t edit those directly.
-- NEMU’s `run` uses differential testing when configured (see `tools/difftest.mk` usage in [nemu/scripts/native.mk](nemu/scripts/native.mk)).
+## 代码风格
+- Verilog: 模块名大写开头 (如 `RegisterFile`), 信号名小写下划线 (如 `pc_out`)
+- C 代码: 遵循项目已有风格，函数名小写下划线分隔
+- 所有注释和文档使用中文
 
-## Current focus: NPC 8-instruction RTL stage
-- Scope changes to [npc/single/](npc/single/) first, especially [npc/single/vsrc/](npc/single/vsrc/) and [npc/single/csrc/](npc/single/csrc/); avoid unrelated edits in `nemu/` or `abstract-machine/` unless explicitly requested.
-- Keep [npc/single/Makefile](npc/single/Makefile) minimal and runnable for this stage: preserve tracer commit hook, add only essential simulation targets.
-- Prefer small, testable RTL increments (decode/ALU/regfile path) and verify each change with the smallest available simulation target.
-- Do not introduce broad refactors, new directory layouts, or nonessential framework code before the 8-instruction milestone is stable.
+## 构建命令速查
+| 模块 | 构建命令 |
+|------|---------|
+| NEMU | `cd nemu && make menuconfig && make` |
+| NPC (仿真) | `cd npc/single && make` (Verilator) |
+| AM 程序 | `cd am-kernels/tests/cpu-tests && make ARCH=riscv32-nemu run` |
+| 综合 | `cd yosys-sta && make syn` |
+| STA | `cd yosys-sta && make sta` |
+| NVBoard | 在对应实验目录下 `make run` |
 
-## Build hints for this stage
-- NEMU quick check: `cd nemu && make menuconfig && make`.
-- AM quick check: `cd am-kernels/kernels/hello && ARCH=riscv32-nemu make`.
-- NPC current skeleton has placeholder targets in [npc/single/Makefile](npc/single/Makefile); implement `sim` flow incrementally and keep target names consistent with existing file layout.
+## 模块间关系
+```
+npc (RTL CPU 设计)
+ ├── abstract-machine (提供 AM 硬件抽象层)
+ │    └── am-kernels (测试程序/基准测试)
+ ├── yosys-sta (综合 + 时序分析)
+ └── nvboard (虚拟开发板仿真)
 
-## When editing
-- Prefer changes inside the relevant subproject (e.g. [nemu/src/](nemu/src/) or [abstract-machine/](abstract-machine/)) rather than cross-cutting edits.
-- Keep make targets and env variable checks consistent with existing Makefiles; many sanity checks rely on `NEMU_HOME`/`AM_HOME` being set.
-- For partial-lab progress, bias toward minimal fixes that unblock current milestone instead of completing future stages in advance.
+nemu (指令集模拟器, 用于对比验证)
+ ├── abstract-machine (复用 AM 层)
+ │    └── am-kernels (同一套测试)
+ └── difftest (差分测试, npc vs nemu)
+
+digital_logic_experiment (数字逻辑实验, 使用 nvboard)
+fceux-am (NES 模拟器, 运行在 AM 上)
+```
+
+## 关键约定
+- 差分测试 (DiffTest): NPC 和 NEMU 逐指令对比，确保 RTL 实现正确
+- AM 程序可以同时运行在 NEMU 和 NPC 上，通过 ARCH 环境变量切换目标
+- ISA 目标: RISC-V 32 位 (RV32)
