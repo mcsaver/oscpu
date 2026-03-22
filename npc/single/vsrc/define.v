@@ -1,3 +1,3 @@
 //reg
-    `define ADDR_WIDTH 3'b101
-    `define DATA_WIDTH 6'b100000
+    `define ADDR_WIDTH 4'b1000//8
+    `define DATA_WIDTH 3'b101//5
