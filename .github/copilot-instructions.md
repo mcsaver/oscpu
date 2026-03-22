@@ -47,3 +47,16 @@ fceux-am (NES 模拟器, 运行在 AM 上)
 - 差分测试 (DiffTest): NPC 和 NEMU 逐指令对比，确保 RTL 实现正确
 - AM 程序可以同时运行在 NEMU 和 NPC 上，通过 ARCH 环境变量切换目标
 - ISA 目标: RISC-V 32 位 (RV32)
+
+## 持久化记忆系统
+本项目使用 `.github/memory/` 目录存储跨会话的项目状态和知识：
+- `project-status.md` — 项目进度总览
+- `decisions.md` — 设计决策记录
+- `known-issues.md` — 已知问题与调试历史
+- `modules/*.md` — 各模块专属笔记
+
+**所有 agent 在工作前必须读取相关记忆文件，完成后必须更新记忆。** 详见 `.github/instructions/memory-protocol.instructions.md`。
+
+## 调度机制
+复杂任务通过 `ysyx-coordinator` 总调度 agent 处理，它使用六步调度循环：
+RECALL (加载记忆) → PLAN (分解任务) → DISPATCH (逐步派发) → VERIFY (验证结果) → ADAPT (失败恢复) → RECORD (写入记忆)

@@ -38,8 +38,21 @@ make                  # 编译 NEMU
 make run              # 运行仿真器
 ```
 
+## 持久化记忆
+
+### 开始工作前
+1. 读取 `.github/memory/project-status.md` 了解项目当前状态
+2. 读取 `.github/memory/modules/nemu.md` 了解本模块历史上下文
+3. 如果是调试任务，读取 `.github/memory/known-issues.md`
+
+### 完成工作后
+1. 更新 `.github/memory/modules/nemu.md` 记录本次工作内容
+2. 更新 `.github/memory/project-status.md` 更新进度
+3. 如果做了设计决策，追加到 `.github/memory/decisions.md`
+4. 如果遇到坑，记录到 `.github/memory/known-issues.md`
+
 ## 约束
-- 只修改 `nemu/` 目录下的文件
+- 只修改 `nemu/` 目录下的文件（记忆文件除外）
 - C 代码风格遵循项目已有规范，函数名小写下划线分隔
 - 所有注释使用中文
 - 修改指令实现后建议运行差分测试验证正确性

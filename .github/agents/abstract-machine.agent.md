@@ -47,8 +47,21 @@ make ARCH=riscv32e-npc    # 使用 NPC 平台
 make ARCH=native          # 本地运行
 ```
 
+## 持久化记忆
+
+### 开始工作前
+1. 读取 `.github/memory/project-status.md` 了解项目当前状态
+2. 读取 `.github/memory/modules/abstract-machine.md` 了解本模块历史上下文
+3. 如果是调试任务，读取 `.github/memory/known-issues.md`
+
+### 完成工作后
+1. 更新 `.github/memory/modules/abstract-machine.md` 记录本次工作内容
+2. 更新 `.github/memory/project-status.md` 更新进度
+3. 如果做了设计决策，追加到 `.github/memory/decisions.md`
+4. 如果遇到坑，记录到 `.github/memory/known-issues.md`
+
 ## 约束
-- 只修改 `abstract-machine/` 目录下的文件
+- 只修改 `abstract-machine/` 目录下的文件（记忆文件除外）
 - 保持 API 的跨平台兼容性，不引入平台特定的依赖到公共接口
 - klib 实现应是独立的，不依赖宿主机的 libc
 - C/汇编混合编程时注意 ABI 约定

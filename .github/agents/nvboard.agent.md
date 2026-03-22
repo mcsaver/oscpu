@@ -50,8 +50,18 @@ seg[6:0] SEG0A-SEG0G
 make run              # 编译并启动虚拟开发板仿真
 ```
 
+## 持久化记忆
+
+### 开始工作前
+1. 读取 `.github/memory/project-status.md` 了解项目当前状态
+2. 如果是调试任务，读取 `.github/memory/known-issues.md`
+
+### 完成工作后
+1. 更新 `.github/memory/project-status.md` 更新进度
+2. 如果遇到坑，记录到 `.github/memory/known-issues.md`
+
 ## 约束
-- 只修改 `nvboard/` 目录下的文件，或各实验目录中的 `.nxdc` 约束文件
+- 只修改 `nvboard/` 目录下的文件，或各实验目录中的 `.nxdc` 约束文件（记忆文件除外）
 - 引脚绑定通过 `auto_pin_bind.py` 脚本自动生成 `auto_bind.cpp`
 - SDL 渲染依赖 X11/Wayland 图形环境
 - 所有注释使用中文

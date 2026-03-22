@@ -51,8 +51,18 @@ make clean        # 清理编译产物
 --noassert        # 禁用断言 (提速)
 ```
 
+## 持久化记忆
+
+### 开始工作前
+1. 读取 `.github/memory/project-status.md` 了解项目当前状态
+2. 如果是调试任务，读取 `.github/memory/known-issues.md`
+
+### 完成工作后
+1. 更新 `.github/memory/project-status.md` 更新进度
+2. 如果遇到坑，记录到 `.github/memory/known-issues.md`
+
 ## 约束
-- 只修改 `digital_logic_experiment/` 目录下的文件
+- 只修改 `digital_logic_experiment/` 目录下的文件（记忆文件除外）
 - 设计应遵循实验要求和规范
 - Verilog 模块命名大写开头，信号名小写下划线
 - 所有注释使用中文

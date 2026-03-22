@@ -53,8 +53,20 @@ cd am-kernels/benchmarks/coremark && make ARCH=riscv32-nemu run
 cd am-kernels/kernels/hello && make ARCH=native run
 ```
 
+## 持久化记忆
+
+### 开始工作前
+1. 读取 `.github/memory/project-status.md` 了解项目当前状态
+2. 读取 `.github/memory/modules/am-kernels.md` 了解测试通过情况
+3. 如果是调试任务，读取 `.github/memory/known-issues.md`
+
+### 完成工作后
+1. 更新 `.github/memory/modules/am-kernels.md` 记录测试结果
+2. 更新 `.github/memory/project-status.md` 更新进度
+3. 如果遇到坑，记录到 `.github/memory/known-issues.md`
+
 ## 约束
-- 只修改 `am-kernels/` 目录下的文件
+- 只修改 `am-kernels/` 目录下的文件（记忆文件除外）
 - 测试程序只能使用 AM API 和 klib，不能依赖宿主机的系统调用
 - 编写新测试时参考已有测试的代码风格
 - 测试应能在 native/nemu/npc 三个平台上通用

@@ -36,8 +36,20 @@ NPC (RTL仿真)                    NEMU (软件仿真)
     └── 不一致? → 报错并中断，打印差异详情
 ```
 
+## 持久化记忆
+
+### 开始工作前
+1. 读取 `.github/memory/project-status.md` 了解项目当前状态
+2. 读取 `.github/memory/modules/difftest.md` 了解历史不一致记录
+3. 读取 `.github/memory/known-issues.md` 查看是否有相关 bug 历史
+
+### 完成工作后
+1. 更新 `.github/memory/modules/difftest.md` 记录本次对比结果
+2. 更新 `.github/memory/project-status.md` 更新进度
+3. 如果发现新 bug，记录到 `.github/memory/known-issues.md`
+
 ## 约束
-- 跨 `nemu/tools/` 和 `npc/single/` 两个目录工作
+- 跨 `nemu/tools/` 和 `npc/single/` 两个目录工作（记忆文件除外）
 - 不修改 NEMU 核心仿真逻辑（它是参考模型）
 - DiffTest 不一致通常意味着 NPC 的 RTL 有 bug
 - 所有注释使用中文

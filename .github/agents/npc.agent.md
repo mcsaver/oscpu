@@ -51,8 +51,21 @@ make wave             # 查看波形 (如果支持)
   - 输入: `i_` 前缀（可选）
   - 输出: `o_` 前缀（可选）
 
+## 持久化记忆
+
+### 开始工作前
+1. 读取 `.github/memory/project-status.md` 了解项目当前状态
+2. 读取 `.github/memory/modules/npc.md` 了解本模块历史上下文
+3. 如果是调试任务，读取 `.github/memory/known-issues.md`
+
+### 完成工作后
+1. 更新 `.github/memory/modules/npc.md` 记录本次工作内容
+2. 更新 `.github/memory/project-status.md` 更新进度
+3. 如果做了设计决策，追加到 `.github/memory/decisions.md`
+4. 如果遇到坑，记录到 `.github/memory/known-issues.md`
+
 ## 约束
-- 只修改 `npc/` 目录下的文件
+- 只修改 `npc/` 目录下的文件（记忆文件除外）
 - Verilog 代码应是可综合的（synthesizable），避免非综合语法
 - 遵循 RISC-V 规范 (RV32I 基础指令集)
 - 注意时序: 组合逻辑和时序逻辑清晰分离

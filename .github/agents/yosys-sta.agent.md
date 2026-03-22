@@ -44,8 +44,20 @@ Verilog RTL → Yosys 综合 → 门级网表 (netlist.v) → iSTA 时序分析 
                                                   → iPA 功耗分析  → 报告
 ```
 
+## 持久化记忆
+
+### 开始工作前
+1. 读取 `.github/memory/project-status.md` 了解项目当前状态
+2. 读取 `.github/memory/modules/yosys-sta.md` 了解历史综合结果
+3. 如果是调试任务，读取 `.github/memory/known-issues.md`
+
+### 完成工作后
+1. 更新 `.github/memory/modules/yosys-sta.md` 记录综合/STA 结果数据
+2. 更新 `.github/memory/project-status.md` 更新进度
+3. 如果发现关键路径问题，记录到 `.github/memory/known-issues.md`
+
 ## 约束
-- 只修改 `yosys-sta/` 目录下的文件
+- 只修改 `yosys-sta/` 目录下的文件（记忆文件除外）
 - 不修改 PDK 库文件（`pdk/` 下的内容）
 - 综合脚本使用 Tcl 语言
 - 关注时序违例 (timing violations) 和关键路径 (critical path)
