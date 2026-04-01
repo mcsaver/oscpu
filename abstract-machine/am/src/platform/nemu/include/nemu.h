@@ -26,14 +26,15 @@
 
 #define MMIO_BASE 0xa0000000
 
-#define SERIAL_PORT     (DEVICE_BASE + 0x00003f8)
-#define KBD_ADDR        (DEVICE_BASE + 0x0000060)
-#define RTC_ADDR        (DEVICE_BASE + 0x0000048)
-#define VGACTL_ADDR     (DEVICE_BASE + 0x0000100)
-#define AUDIO_ADDR      (DEVICE_BASE + 0x0000200)
-#define DISK_ADDR       (DEVICE_BASE + 0x0000300)
-#define FB_ADDR         (MMIO_BASE   + 0x1000000)
-#define AUDIO_SBUF_ADDR (MMIO_BASE   + 0x1200000)
+//除去最后两个其余均是再DEVICE_BASE_上加偏移得到，后两个基于MMIO_BASE
+#define SERIAL_PORT     (DEVICE_BASE + 0x00003f8)//串口
+#define KBD_ADDR        (DEVICE_BASE + 0x0000060)//键盘
+#define RTC_ADDR        (DEVICE_BASE + 0x0000048)//时钟
+#define VGACTL_ADDR     (DEVICE_BASE + 0x0000100)//VGA控制器
+#define AUDIO_ADDR      (DEVICE_BASE + 0x0000200)//音频控制寄存器
+#define DISK_ADDR       (DEVICE_BASE + 0x0000300)//磁盘控制寄存器
+#define FB_ADDR         (MMIO_BASE   + 0x1000000)//显存framebuffer起始地址
+#define AUDIO_SBUF_ADDR (MMIO_BASE   + 0x1200000)//音频流缓冲区地址
 
 extern char _pmem_start;
 #define PMEM_SIZE (128 * 1024 * 1024)

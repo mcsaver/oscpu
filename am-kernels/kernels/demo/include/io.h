@@ -1,5 +1,7 @@
 #ifndef __DRAW_H__
-
+//调试用注释，不注释默认进入GUI分支
+//定义HAS_GUI：用AM 的GPU设备在屏幕上画方块字符
+//不定义HAS_GUI：用printf输出ANSI转义序列，在终端里画字符
 #define HAS_GUI
 
 #include <stdio.h>

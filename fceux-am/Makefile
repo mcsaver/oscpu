@@ -1,8 +1,9 @@
 NAME = fceux
 
 ROM_PATH  = ./nes
-ROMS      = $(shell ls $(ROM_PATH)/rom/*.nes)
-ROM_SRC   = $(addprefix $(ROM_PATH)/gen/, $(addsuffix .c, $(notdir $(basename $(ROMS)))))
+ROM_GEN_HDR = $(ROM_PATH)/gen/roms.h
+ROMS      = $(wildcard $(ROM_PATH)/rom/*.nes)
+ROM_SRC   = $(patsubst $(ROM_PATH)/rom/%.nes,$(ROM_PATH)/gen/%.c,$(ROMS))
 FCEUX_SRC = $(shell find -L src/ -name "*.c" -o -name "*.cpp")
 
 INC_PATH  = $(ROM_PATH)/gen/
@@ -11,7 +12,7 @@ CFLAGS    = -DPSS_STYLE=1 -DFRAMESKIP -D__NO_FILE_SYSTEM__
 
 include $(AM_HOME)/Makefile
 
-$(FCEUX_SRC): $(ROM_SRC)
+$(FCEUX_SRC): rom $(ROM_SRC)
 $(ROM_SRC): rom
 .PHONY: rom
 rom:

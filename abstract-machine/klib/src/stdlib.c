@@ -33,10 +33,31 @@ void *malloc(size_t size) {
   // On native, malloc() will be called during initializaion of C runtime.
   // Therefore do not call panic() here, else it will yield a dead recursion:
   //   panic() -> putchar() -> (glibc) -> malloc() -> panic()
+  //特殊防护注释：再native平台下不要轻易用这份klib malloc来替代宿主libc的malloc，否则可能
+  //在C runtime初始化阶段递归炸掉，这个实现的重点是非native路径
+  //static char *addr = NULL;
 #if !(defined(__ISA_NATIVE__) && defined(__NATIVE_USE_KLIB__))
-  panic("Not implemented");
-#endif
+  static char *addr = NULL;
+  //panic("Not implemented");
+  if(addr == NULL) {
+    addr = (char *)ROUNDUP(heap.start, 8);
+  }
+
+  size = (size_t)ROUNDUP(size, 8);
+  char *old = addr;
+  addr += size;
+
+  if ((uintptr_t)addr > (uintptr_t)heap.end)
+  {
+    panic("malloc: out of memory");
+  }
+
+  return old;
+
+#else
   return NULL;
+#endif
+
 }
 
 void free(void *ptr) {

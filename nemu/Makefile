@@ -86,6 +86,8 @@ CFLAGS_BUILD += $(if $(CONFIG_CC_ASAN),-fsanitize=address,)
 ##作用：为条件指令追踪（ITRACE）定义宏ITRACE_COND，值为CONFIG_ITRACE_COND（去引号），如果没定义则为true
 ##例子：CFLAGS_TRACE += -DITRACE_COND=true
 CFLAGS_TRACE += -DITRACE_COND=$(if $(CONFIG_ITRACE_COND),$(call remove_quote,$(CONFIG_ITRACE_COND)),true)
+##作用：为设备追踪（DTRACE）定义宏DTRACE_COND，值为CONFIG_DTRACE_COND（去引号），如果没定义则为true
+CFLAGS_TRACE += -DDTRACE_COND=$(if $(CONFIG_DTRACE_COND),$(call remove_quote,$(CONFIG_DTRACE_COND)),true)
 ##拼接最终的C编译参数，并定义当前目标结构的宏
 ##CFLAGS +=....：把右侧内容追加到CFLAGS变量中，CFLAGS是GCC/Clang等C编译器的标准参数变量
 ##$(FLAGS_BUILD)：包含了所有构建相关的编译参数，比如优化选项（如-o2)、调试选项（如-Og -ggdb3）、LTO（如-flto)、ASAN（如-fsanitize=address)等

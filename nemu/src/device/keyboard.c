@@ -13,9 +13,13 @@
 * See the Mulan PSL v2 for more details.
 ***************************************************************************************/
 
+//将“键盘事件”包装成NEMU里的一个键盘设备，然后把这个设备挂在PIO或MMIO地址上，供guest程序去读
+//普通native/linux宿主搜SDL，如果NEMU自己运行在AM上，就不再以来SDL，而是从AM的输入设备读
+
 #include <device/map.h>
 #include <utils.h>
 
+//用以把“按下/松开”编码进同一个整数里
 #define KEYDOWN_MASK 0x8000
 
 #ifndef CONFIG_TARGET_AM
@@ -88,6 +92,9 @@ static void i8042_data_io_handler(uint32_t offset, int len, bool is_write) {
   i8042_data_port_base[0] = key_dequeue();
 }
 
+//用map.h申请4字节后端空间，保存键盘数据
+//根据配置把这个后端空间注册成PIO或MMIO设备
+//非AM目标时初始化SDL到NEMU键码 的映射表
 void init_i8042() {
   i8042_data_port_base = (uint32_t *)new_space(4);
   i8042_data_port_base[0] = NEMU_KEY_NONE;

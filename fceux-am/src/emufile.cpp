@@ -27,6 +27,17 @@ THE SOFTWARE.
 #include "roms.h" // from $(AM_HOME)/share/games/nes/gen/
 
 void EMUFILE_FILE::open(const char* fname, const char* mode) {
+  if (nroms <= 0) {
+    printf("No embedded ROM found. Put a .nes file under nes/rom/ and rebuild.\n");
+    this->data = nullptr;
+    this->filesize = 0;
+    this->curpos = 0;
+    this->fname = "";
+    strcpy(this->mode, mode);
+    this->failbit = true;
+    return;
+  }
+
   struct rom *cur = &roms[0];
   int found = 0;
   for (int i = 0; i < nroms; i++) {
