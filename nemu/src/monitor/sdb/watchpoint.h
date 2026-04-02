@@ -17,6 +17,9 @@ typedef struct watchpoint {
 
 } WP;
 
+// 把“当前是否存在监视点”暴露给执行热路径，便于零监视点时直接走快路径。
+extern bool watchpoint_enabled;
+
 // expr.c 中的 expr() 函数声明
 word_t expr(char *e, bool *success);
 

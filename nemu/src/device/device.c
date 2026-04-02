@@ -33,8 +33,19 @@ void init_alarm();
 void send_key(uint8_t, bool);
 void vga_update_screen();
 
+// 先按 guest 指令数做粗粒度节流，避免每条指令都查询一次宿主时间。
+// 这样做不会改变 60Hz 左右的设备刷新语义，但能显著降低 get_time() 的累计开销。
+#define DEVICE_UPDATE_CHECK_INTERVAL 64
+
 void device_update() {
+  static uint32_t skip = 0;
   static uint64_t last = 0;
+
+  if (++skip < DEVICE_UPDATE_CHECK_INTERVAL) {
+    return;
+  }
+  skip = 0;
+
   uint64_t now = get_time();
   if (now - last < 1000000 / TIMER_HZ) {
     return;

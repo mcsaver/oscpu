@@ -19,46 +19,128 @@
 #include <cpu/decode.h>
 #include <ftrace.h>
 
-#define R(i) gpr(i)
+#define R(i) MUXDEF(CONFIG_RVE, gpr(i), cpu.gpr[(i)])
 #define Mr vaddr_read
 #define Mw vaddr_write
 
 #define MIN_INT  -2147483648//RV32
 
-enum {
-  TYPE_I, TYPE_U, TYPE_S, TYPE_J, TYPE_B, TYPE_R,
-  TYPE_N, // none
-};
+// 把常用字段先提成宏，后面按 opcode/funct 分层分发时可以少做重复位切片。
+// 这样既减少热路径里的样板代码，也让常见指令能够更快落到对应分支。
+#define OPCODE(i) BITS(i, 6, 0)
+#define RD(i)  BITS(i, 11, 7)
+#define RS1(i) BITS(i, 19, 15)
+#define RS2(i) BITS(i, 24, 20)
+#define FUNCT3(i) BITS(i, 14, 12)
+#define FUNCT7(i) BITS(i, 31, 25)
 
-//immI()：取I型立即数字段i[31:20]，符号拓展到32位
-//immU(): 取U型立即数字段i[31:12]，符号拓展后左移12
-//immS()：取S型立即数字段i[31:25]和i[11:7]拼接，并符号拓展
-#define src1R() do { *src1 = R(rs1); } while (0)
-#define src2R() do { *src2 = R(rs2); } while (0)
-#define immI() do { *imm = SEXT(BITS(i, 31, 20), 12); } while(0)
-#define immU() do { *imm = SEXT(BITS(i, 31, 12), 20) << 12; } while(0)
-#define immS() do { *imm = (SEXT(BITS(i, 31, 25), 7) << 5) | BITS(i, 11, 7); } while(0)
-#define immJ() do { *imm = SEXT((BITS(i, 31, 31) << 20 | BITS(i, 19, 12) << 12 | BITS(i, 20, 20) << 11 | BITS(i, 30, 21) << 1), 21); } while(0)
-#define immB() do { *imm = SEXT((BITS(i, 31, 31) << 12 | BITS(i, 7, 7) << 11 | BITS(i, 30, 25) << 5 | BITS(i, 11, 8) << 1), 13); } while(0)
+#define IMM_I(i) SEXT(BITS(i, 31, 20), 12)
+#define IMM_U(i) (SEXT(BITS(i, 31, 12), 20) << 12)
+#define IMM_S(i) ((SEXT(BITS(i, 31, 25), 7) << 5) | BITS(i, 11, 7))
+#define IMM_J(i) SEXT((BITS(i, 31, 31) << 20 | BITS(i, 19, 12) << 12 | BITS(i, 20, 20) << 11 | BITS(i, 30, 21) << 1), 21)
+#define IMM_B(i) SEXT((BITS(i, 31, 31) << 12 | BITS(i, 7, 7) << 11 | BITS(i, 30, 25) << 5 | BITS(i, 11, 8) << 1), 13)
 
+#define OPC_LOAD   0x03
+#define OPC_OP_IMM 0x13
+#define OPC_AUIPC  0x17
+#define OPC_STORE  0x23
+#define OPC_OP     0x33
+#define OPC_LUI    0x37
+#define OPC_BRANCH 0x63
+#define OPC_JALR   0x67
+#define OPC_JAL    0x6f
+#define OPC_SYSTEM 0x73
 
-static void decode_operand(Decode *s, int *rd, word_t *src1, word_t *src2, word_t *imm, int type) {
-  uint32_t i = s->isa.inst;
-  int rs1 = BITS(i, 19, 15);
-  int rs2 = BITS(i, 24, 20);
-  *rd     = BITS(i, 11, 7);
-  switch (type) {
-    case TYPE_I: src1R();          immI(); break;
-    case TYPE_U:                   immU(); break;
-    case TYPE_S: src1R(); src2R(); immS(); break;
-    case TYPE_J: src1R();          immJ(); break;
-    case TYPE_B: src1R(); src2R(); immB(); break;
-    case TYPE_R: src1R(); src2R();         break;
-    //inv
-    case TYPE_N: break;
-    default: panic("unsupported type = %d", type);
+#define INVALID_INST() goto invalid
+
+#define OPCODE_CASE(code, prepare, body) \
+  case code: { \
+    prepare; \
+    body; \
+    break; \
   }
-}
+
+#define FUNCT3_CASE(code, body) \
+  case code: { \
+    body; \
+    break; \
+  }
+
+#define FUNCT3_CASE_F7(code, body) \
+  case code: { \
+    switch (funct7) { \
+      body \
+      default: INVALID_INST(); \
+    } \
+    break; \
+  }
+
+#define FUNCT7_CASE(code, body) \
+  case code: { \
+    body; \
+    break; \
+  }
+
+#define OP_CASE_KEY(funct3, funct7) ((((funct7) & 0x7f) << 3) | ((funct3) & 0x7))
+#define OP_CASE(code3, code7, body) \
+  case OP_CASE_KEY(code3, code7): { \
+    body; \
+    break; \
+  }
+
+#define GEN_FUNCT3_CASE(code, body) FUNCT3_CASE(code, body)
+#define GEN_OP_CASE(code3, code7, body) OP_CASE(code3, code7, body)
+
+// 把每一类指令写成 X-macro 表项，查看时可以直接把“编码 -> 行为”对齐着读。
+// 这样既去掉了大片 if-else 嵌套，也保留了按 opcode/funct 分层命中的热路径结构。
+#define OPIMM_DIRECT_CASES(_) \
+  _(0x0, R(rd) = src1 + imm) /* addi */ \
+  _(0x7, R(rd) = src1 & imm) /* andi */ \
+  _(0x6, R(rd) = src1 | imm) /* ori */ \
+  _(0x4, R(rd) = src1 ^ imm) /* xori */ \
+  _(0x2, R(rd) = (sword_t)src1 < (sword_t)imm ? 1 : 0) /* slti */ \
+  _(0x3, R(rd) = src1 < (word_t)imm ? 1 : 0) /* sltiu */
+
+#define LOAD_CASES(_) \
+  _(0x2, R(rd) = Mr(src1 + imm, 4)) /* lw */ \
+  _(0x0, R(rd) = SEXT(Mr(src1 + imm, 1), 8)) /* lb */ \
+  _(0x1, R(rd) = SEXT(Mr(src1 + imm, 2), 16)) /* lh */ \
+  _(0x4, R(rd) = Mr(src1 + imm, 1)) /* lbu */ \
+  _(0x5, R(rd) = Mr(src1 + imm, 2)) /* lhu */
+
+#define STORE_CASES(_) \
+  _(0x2, Mw(src1 + imm, 4, src2)) /* sw */ \
+  _(0x0, Mw(src1 + imm, 1, src2)) /* sb */ \
+  _(0x1, Mw(src1 + imm, 2, src2)) /* sh */
+
+#define BRANCH_CASES(_) \
+  _(0x0, if (src1 == src2) s->dnpc = s->pc + imm) /* beq */ \
+  _(0x1, if (src1 != src2) s->dnpc = s->pc + imm) /* bne */ \
+  _(0x4, if ((sword_t)src1 < (sword_t)src2) s->dnpc = s->pc + imm) /* blt */ \
+  _(0x5, if ((sword_t)src1 >= (sword_t)src2) s->dnpc = s->pc + imm) /* bge */ \
+  _(0x6, if (src1 < src2) s->dnpc = s->pc + imm) /* bltu */ \
+  _(0x7, if (src1 >= src2) s->dnpc = s->pc + imm) /* bgeu */
+
+#define OP_CASES(_) \
+  _(0x0, 0x00, R(rd) = src1 + src2) /* add */ \
+  _(0x0, 0x20, R(rd) = src1 - src2) /* sub */ \
+  _(0x0, 0x01, R(rd) = (sword_t)src1 * (sword_t)src2) /* mul */ \
+  _(0x7, 0x00, R(rd) = src1 & src2) /* and */ \
+  _(0x7, 0x01, R(rd) = (src2 == 0) ? src1 : src1 % src2) /* remu */ \
+  _(0x6, 0x00, R(rd) = src1 | src2) /* or */ \
+  _(0x6, 0x01, if (src2 == 0) R(rd) = src1; else if ((sword_t)src1 == MIN_INT && (sword_t)src2 == -1) R(rd) = 0; else R(rd) = (sword_t)src1 % (sword_t)src2) /* rem */ \
+  _(0x4, 0x00, R(rd) = src1 ^ src2) /* xor */ \
+  _(0x4, 0x01, if (src2 == 0) R(rd) = -1; else if ((sword_t)src1 == MIN_INT && (sword_t)src2 == -1) R(rd) = (word_t)MIN_INT; else R(rd) = (sword_t)src1 / (sword_t)src2) /* div */ \
+  _(0x1, 0x00, R(rd) = src1 << (src2 & 0x1f)) /* sll */ \
+  _(0x1, 0x01, R(rd) = (word_t)(((int64_t)(sword_t)src1 * (int64_t)(sword_t)src2) >> 32)) /* mulh */ \
+  _(0x5, 0x00, R(rd) = src1 >> (src2 & 0x1f)) /* srl */ \
+  _(0x5, 0x20, R(rd) = (sword_t)src1 >> (src2 & 0x1f)) /* sra */ \
+  _(0x5, 0x01, R(rd) = (src2 == 0) ? 0xffffffff : src1 / src2) /* divu */ \
+  _(0x2, 0x00, R(rd) = (sword_t)src1 < (sword_t)src2 ? 1 : 0) /* slt */ \
+  _(0x3, 0x00, R(rd) = src1 < src2 ? 1 : 0) /* sltu */ \
+  _(0x3, 0x01, R(rd) = (word_t)(((uint64_t)src1 * (uint64_t)src2) >> 32)) /* mulhu */
+
+
 
 static int decode_exec(Decode *s) {
   //snpc：本条指令的下一条指令，即顺序执行的下一个PC，通常是PC+4，
@@ -66,99 +148,117 @@ static int decode_exec(Decode *s) {
   //对于跳转、分支、异常等指令，dnpc会被设置为跳转目标地址或异常入口
   s->dnpc = s->snpc;
 
-//s->isa.inst已经在inst_fetch中被赋值当前正在译码/执行那条指令的32位机器码
-#define INSTPAT_INST(s) ((s)->isa.inst)
-#define INSTPAT_MATCH(s, name, type, ... /* execute body */ ) { \
-  int rd = 0; \
-  word_t src1 = 0, src2 = 0, imm = 0; \
-  decode_operand(s, &rd, &src1, &src2, &imm, concat(TYPE_, type)); \
-  __VA_ARGS__ ; \
-}
-  //INSTPAT_START：打开一个块，定义局部变量__instpat_end，保存标签地址&&__instpat_end_<name>，它不会自己关掉
-  INSTPAT_START();
-  //INSTPAT(模式字符串， 指令名词， 指令类型，指令执行操作)
-  //指令名词再代码中仅当注释使用，不参与宏展开
-  //指令类型用于后续译码过程
-  //指令执行操作通过C代码来模拟指令执行的真正行为
-  //为什么此处要用src1而不是R(rs1)：
-  //1.解耦译码和执行：将译码和执行分开，在执行阶段就不需要关系src1从哪里读出来的
-  //2.安全性与副作用管理：当目的寄存器和源寄存器一样的时候，使用快照保留原值避免出错
-  //3.支持由不同来源构成的操作数
-  //4.性能优化
-  INSTPAT("??????? ????? ????? 000 ????? 00100 11", addi  , I, R(rd) = src1 + imm);
-  INSTPAT("??????? ????? ????? ??? ????? 00101 11", auipc  , U, R(rd) = s->pc + imm);
-  INSTPAT("??????? ????? ????? 000 ????? 00000 11", lb     , I, R(rd) = SEXT(Mr(src1 + imm, 1), 8));
-  INSTPAT("??????? ????? ????? 001 ????? 00000 11", lh     , I, R(rd) = SEXT(Mr(src1 + imm, 2), 16));
-  INSTPAT("??????? ????? ????? 100 ????? 00000 11", lbu    , I, R(rd) = Mr(src1 + imm, 1));
-  INSTPAT("??????? ????? ????? 101 ????? 00000 11", lhu    , I, R(rd) = Mr(src1 + imm, 2));
-  INSTPAT("??????? ????? ????? 010 ????? 00000 11", lw     , I, R(rd) = Mr(src1 + imm, 4));
-  INSTPAT("??????? ????? ????? 000 ????? 01000 11", sb     , S, Mw(src1 + imm, 1, src2));
-  INSTPAT("??????? ????? ????? 001 ????? 01000 11", sh     , S, Mw(src1 + imm, 2, src2));
-  INSTPAT("??????? ????? ????? ??? ????? 11011 11", jal    , J,
-    R(rd) = (s->pc + 4);
-    s->dnpc = (s->pc) + imm; 
-    // ftrace:rd == 1(ra) 或者rd(t0)视为call
-    IFDEF(CONFIG_FTRACE, if(rd == 1 || rd == 5) {ftrace_log(1, s->pc, s->dnpc);})
-  );
-  INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak , N, NEMUTRAP(s->pc, R(10))); // R(10) is $a0
-  INSTPAT("??????? ????? ????? 010 ????? 01000 11", sw    , S, Mw(src1 + imm, 4, src2));
-  INSTPAT("??????? ????? ????? 000 ????? 11001 11", jalr    , I, 
-    R(rd) = s->pc + 4;
-    uint32_t _target = (src1 + imm) & ~1;
-    s->dnpc = _target;
-    //ftrace： rd == 0 且rs1=ra -> ret：否则rd == 1 或者 rd == 5 -> call
-    IFDEF(CONFIG_FTRACE, {
-      uint32_t _inst = s->isa.inst;
-      int _rs1 = BITS(_inst, 19, 15);
-      if (rd == 0 && _rs1 == 1)
-        ftrace_log(-1, s->pc, _target); //ret
-      else if (rd == 1 || rd == 5)
-        ftrace_log(1, s->pc, _target); //call
-    })
-  );
-  INSTPAT("??????? ????? ????? 001 ????? 11000 11", bne    , B, if(src1 != src2) {s->dnpc = (s->pc) + imm;});
-  INSTPAT("??????? ????? ????? 000 ????? 11000 11", beq    , B, if(src1 == src2) {s->dnpc = (s->pc) + imm;});
-  INSTPAT("0100000 ????? ????? 000 ????? 01100 11", sub    , R , R(rd) = src1 - src2);
-  INSTPAT("??????? ????? ????? 011 ????? 00100 11", sltiu  , I, if(src1 < (word_t)imm) {R(rd) = 1;} else {R(rd) = 0;});
-  INSTPAT("??????? ????? ????? 010 ????? 00100 11", slti   , I, if((sword_t)src1 < (sword_t)imm) {R(rd) = 1;} else {R(rd) = 0;});
-  INSTPAT("0000000 ????? ????? 101 ????? 00100 11", srli   , I, R(rd) = src1 >> (imm & 0x1f));
-  INSTPAT("0100000 ????? ????? 101 ????? 00100 11", srai   , I, R(rd) = (sword_t)src1 >> (imm & 0x1f));
-  INSTPAT("??????? ????? ????? 111 ????? 00100 11", andi   , I, R(rd) = src1 & imm);
-  INSTPAT("??????? ????? ????? 110 ????? 00100 11", ori    , I, R(rd) = src1 | imm);
-  INSTPAT("0000000 ????? ????? 000 ????? 01100 11", add    , R, R(rd) = src1 + src2);
-  INSTPAT("0000000 ????? ????? 010 ????? 01100 11", slt    , R, R(rd) = (sword_t)src1 < (sword_t)src2 ? 1 : 0);
-  INSTPAT("0000000 ????? ????? 011 ????? 01100 11", sltu   , R, R(rd) = src1 < src2 ? 1 : 0);
-  INSTPAT("0000000 ????? ????? 101 ????? 01100 11", srl    , R, R(rd) = src1 >> (src2 & 0x1f));
-  INSTPAT("0100000 ????? ????? 101 ????? 01100 11", sra    , R, R(rd) = (sword_t)src1 >> (src2 & 0x1f));
-  INSTPAT("0000000 ????? ????? 110 ????? 01100 11", or     , R, R(rd) = src1 | src2);
-  INSTPAT("0000001 ????? ????? 110 ????? 01100 11", rem    , R, if(src2 == 0) {R(rd) = src1;} else if((sword_t)src1 == MIN_INT && (sword_t)src2 == -1) {R(rd) = 0;}
-                                                                  else {R(rd) = (sword_t)src1 % (sword_t)src2;});
-  INSTPAT("0000001 ????? ????? 111 ????? 01100 11", remu   , R, R(rd) = (src2 == 0) ? src1 : src1 % src2);
-  INSTPAT("0000001 ????? ????? 100 ????? 01100 11", div    , R, if(src2 == 0) {R(rd) = -1;} else if ((sword_t)src1 == MIN_INT && (sword_t)src2 == -1) {R(rd) = (word_t)MIN_INT;}
-                                                                  else {R(rd) = (sword_t)src1 / (sword_t)src2;});
-  INSTPAT("0000001 ????? ????? 101 ????? 01100 11", divu   , R, R(rd) = (src2 == 0) ? 0xffffffff : src1 / src2);
-  INSTPAT("??????? ????? ????? ??? ????? 01101 11", lui    , U, R(rd) = imm);
-  INSTPAT("??????? ????? ????? 101 ????? 11000 11", bge    , B, if((sword_t)src1 >= (sword_t)src2) {s->dnpc = (s->pc) + imm;});
-  INSTPAT("??????? ????? ????? 100 ????? 11000 11", blt    , B, if((sword_t)src1 < (sword_t)src2) {s->dnpc = (s->pc) + imm;});
-  INSTPAT("??????? ????? ????? 110 ????? 11000 11", bltu   , B, if(src1 < src2) {s->dnpc = (s->pc) + imm;});
-  INSTPAT("??????? ????? ????? 111 ????? 11000 11", bgeu   , B, if(src1 >= src2) {s->dnpc = (s->pc) + imm;});
-  INSTPAT("0000000 ????? ????? 001 ????? 00100 11", slli   , I, R(rd) = src1 << (imm & 0x1f));
-  INSTPAT("0000000 ????? ????? 001 ????? 01100 11", sll    , R, R(rd) = src1 << (src2 & 0x1f));
-  INSTPAT("0000000 ????? ????? 111 ????? 01100 11", and    , R, R(rd) = src1 & src2);
-  INSTPAT("0000000 ????? ????? 100 ????? 01100 11", xor    , R, R(rd) = src1 ^ src2);
-  INSTPAT("??????? ????? ????? 100 ????? 00100 11", xori   , I, R(rd) = src1 ^ imm);
-  INSTPAT("0000001 ????? ????? 000 ????? 01100 11", mul    , R, R(rd) = (sword_t)src1 * (sword_t)src2);
-  INSTPAT("0000001 ????? ????? 001 ????? 01100 11", mulh   , R, R(rd) = (word_t)(((int64_t)(sword_t)src1 * (int64_t)(sword_t)src2) >> 32));
-  INSTPAT("0000001 ????? ????? 011 ????? 01100 11", mulhu  , R, R(rd) = (word_t)(((uint64_t)src1 * (uint64_t)src2) >> 32));
-  //INSTPAT("??????? ????? ????? ??? ????? ????? ??",     , , );                                                        
-  //错误指令
-  INSTPAT("??????? ????? ????? ??? ????? ????? ??", inv    , N, INV(s->pc));
+  // 这里从“线性穷举所有 INSTPAT”改成“先按 opcode，再按 funct3/funct7”分层分发。
+  // 目的就是把最常见的整型、访存、分支类指令提前命中，缩短平均译码路径。
+  uint32_t inst = s->isa.inst;
+  uint32_t opcode = OPCODE(inst);
+  uint32_t funct3 = FUNCT3(inst);
+  uint32_t funct7 = FUNCT7(inst);
+  int rd = RD(inst);
+  int rs1 = RS1(inst);
+  int rs2 = RS2(inst);
+  word_t src1 = 0, src2 = 0, imm = 0;
 
-  //与INSTPAT_START相呼应，定义标签__instpat_end_<name>:并且结束块
-  INSTPAT_END();
+  // 这里继续保留“先按 opcode，再按 funct3/funct7”分层命中。
+  // 只是把分支主体改成宏表项，方便把一整类指令横向对照着看。
+  switch (opcode) {
+    // 常见整型立即数指令被写成表项后，新增或检查单条指令时不需要翻嵌套 if-else。
+    // 同时只有 slli/srli/srai 这些真正依赖 funct7 的指令才会再进下一层 switch。
+    OPCODE_CASE(OPC_OP_IMM,
+      src1 = R(rs1);
+      imm = IMM_I(inst),
+      switch (funct3) {
+        OPIMM_DIRECT_CASES(GEN_FUNCT3_CASE)
+        FUNCT3_CASE_F7(0x1,
+          FUNCT7_CASE(0x00, R(rd) = src1 << (imm & 0x1f))
+        )
+        FUNCT3_CASE_F7(0x5,
+          FUNCT7_CASE(0x00, R(rd) = src1 >> (imm & 0x1f))
+          FUNCT7_CASE(0x20, R(rd) = (sword_t)src1 >> (imm & 0x1f))
+        )
+        default: INVALID_INST();
+      }
+    )
+    OPCODE_CASE(OPC_LOAD,
+      src1 = R(rs1);
+      imm = IMM_I(inst),
+      switch (funct3) {
+        LOAD_CASES(GEN_FUNCT3_CASE)
+        default: INVALID_INST();
+      }
+    )
+    OPCODE_CASE(OPC_STORE,
+      src1 = R(rs1);
+      src2 = R(rs2);
+      imm = IMM_S(inst),
+      switch (funct3) {
+        STORE_CASES(GEN_FUNCT3_CASE)
+        default: INVALID_INST();
+      }
+    )
+    // OP 类最容易因为 funct3/funct7 组合变多而失去可读性。
+    // 这里把二者压成一个组合 key 后，每条 R-type/M 扩展指令都能稳定占一行表项。
+    OPCODE_CASE(OPC_OP,
+      src1 = R(rs1);
+      src2 = R(rs2),
+      switch (OP_CASE_KEY(funct3, funct7)) {
+        OP_CASES(GEN_OP_CASE)
+        default: INVALID_INST();
+      }
+    )
+    OPCODE_CASE(OPC_BRANCH,
+      src1 = R(rs1);
+      src2 = R(rs2);
+      imm = IMM_B(inst),
+      switch (funct3) {
+        BRANCH_CASES(GEN_FUNCT3_CASE)
+        default: INVALID_INST();
+      }
+    )
+    OPCODE_CASE(OPC_JALR,
+      ((void)0),
+      if (funct3 != 0x0) INVALID_INST();
+      src1 = R(rs1);
+      imm = IMM_I(inst);
+      R(rd) = s->pc + 4;
+      uint32_t target = (src1 + imm) & ~1;
+      s->dnpc = target;
+      IFDEF(CONFIG_FTRACE, {
+        if (rd == 0 && rs1 == 1) ftrace_log(-1, s->pc, target); // ret
+        else if (rd == 1 || rd == 5) ftrace_log(1, s->pc, target); // call
+      })
+    )
+    OPCODE_CASE(OPC_JAL,
+      ((void)0),
+      imm = IMM_J(inst);
+      R(rd) = s->pc + 4;
+      s->dnpc = s->pc + imm;
+      IFDEF(CONFIG_FTRACE, if (rd == 1 || rd == 5) { ftrace_log(1, s->pc, s->dnpc); })
+    )
+    OPCODE_CASE(OPC_LUI,
+      ((void)0),
+      R(rd) = IMM_U(inst)
+    )
+    OPCODE_CASE(OPC_AUIPC,
+      ((void)0),
+      R(rd) = s->pc + IMM_U(inst)
+    )
+    OPCODE_CASE(OPC_SYSTEM,
+      ((void)0),
+      if (inst == 0x00100073) NEMUTRAP(s->pc, R(10)); // ebreak, R(10) is $a0
+      else INVALID_INST();
+    )
+    default: INVALID_INST();
+  }
 
   R(0) = 0; // reset $zero to 0
 
+  return 0;
+
+invalid:
+  // 保留统一的非法指令出口，保证分层分发后出错语义仍和原先一致。
+  INV(s->pc);
+  R(0) = 0;
   return 0;
 }
 

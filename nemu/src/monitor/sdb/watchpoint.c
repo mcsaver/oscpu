@@ -27,6 +27,9 @@ static WP wp_pool[NR_WP] = {};
 //head用于组织使用中的监视点结构
 //free_用于组织空闲的监视点结构
 static WP *head = NULL, *free_ = NULL;
+// 维护一个独立标志，目的是让执行主循环在“没有监视点”时零成本跳过检查。
+// 这样改完后，不需要每条指令都先进入 compare_assert 再发现链表为空。
+bool watchpoint_enabled = false;
 
 //函数会对两个链表进行初始化
 void init_wp_pool() {
@@ -38,6 +41,7 @@ void init_wp_pool() {
 
   head = NULL;
   free_ = wp_pool;
+  watchpoint_enabled = false;
 }
 
 /* TODO: Implement the functionality of watchpoint */
@@ -56,6 +60,8 @@ WP * new_wp(){
   //将该节点加入head链表
   wp->next = head;
   head = wp;
+  // 新建监视点后立即置位，执行热路径就知道后续需要真的做表达式检查。
+  watchpoint_enabled = true;
 
   //返回这个节点的指针给外部使用
   return wp;
@@ -89,6 +95,8 @@ void free_wp(WP *wp){//wp为head中的一个点
   //将该节点加入free_链表
   wp->next = free_;
   free_ = wp;
+  // 删除监视点后同步刷新标志，保证最后一个监视点移除后能恢复快路径。
+  watchpoint_enabled = (head != NULL);
 
   //删除旧数据
   wp->expr_str[0] = '\0';

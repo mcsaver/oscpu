@@ -3,6 +3,8 @@
 
 // **MAY SUBJECT TO CHANGE IN THE FUTURE**
 
+// 这里把设备寄存器描述统一抽成宏，目的是减少一组寄存器一组样板 typedef/enum 的重复代码。
+// 这样后面扩展新设备时只要补一行 AM_DEVREG，接口编号和数据结构就会自动保持一致。
 #define AM_DEVREG(id, reg, perm, ...) \
   enum { AM_##reg = (id) }; \
   typedef struct { __VA_ARGS__; } AM_##reg##_T;

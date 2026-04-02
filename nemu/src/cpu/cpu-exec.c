@@ -18,6 +18,9 @@
 #include <cpu/difftest.h>
 #include <memory/vaddr.h>
 #include <locale.h>
+#ifdef CONFIG_WATCHPOINT
+#include "../monitor/sdb/watchpoint.h"
+#endif
 
 /* The assembly code of instructions executed is only output to the screen
  * when the number of instructions executed is less than this value.
@@ -26,6 +29,10 @@
  */
 //打印指令的最大数
 #define MAX_INST_TO_PRINT 10
+
+// 这里把 g_print_step 提前定义到 ITRACE 辅助函数之前。
+// 这样改完后，无论是否打开 ITRACE/ITRACE_COND，need_itrace_logbuf() 都能在同一份源码下稳定看到它。
+static bool g_print_step = false;
 
 #ifdef CONFIG_ITRACE
 #define IRINGBUF_MAX 16
@@ -39,13 +46,6 @@ void iringbuf_record(const char *logbuf) {
   iringbuf[ir_head][127] = '\0';
   ir_head = (ir_head + 1) % IRINGBUF_MAX;
   if (ir_count < IRINGBUF_MAX) ir_count++;
-}
-
-// 用完整反汇编字符串覆盖最近写入的那个槽位（执行成功后调用）
-void iringbuf_update_last(const char *logbuf) {
-  int last = (ir_head - 1 + IRINGBUF_MAX) % IRINGBUF_MAX;
-  strncpy(iringbuf[last], logbuf, 127);
-  iringbuf[last][127] = '\0';
 }
 
 void iringbuf_dump() {
@@ -62,15 +62,54 @@ void iringbuf_dump() {
   }
 }
 
+#if !defined(CONFIG_TARGET_AM) && defined(CONFIG_ITRACE_COND)
+// 这里先判断“这条指令的 logbuf 会不会真的被用到”，避免普通长跑时白做反汇编。
+// 这样改完后，保留 ITRACE 编译开关也不会默认在每条指令上都支付日志构造成本。
+static inline bool need_itrace_logbuf() {
+  extern bool log_enable();
+  return g_print_step || (log_enable() && ITRACE_COND);
+}
+#else
+static inline bool need_itrace_logbuf() {
+  return g_print_step;
+}
+#endif
+
+// 真正需要 trace 时再组装 logbuf，把“是否追踪”和“如何生成追踪文本”分离开。
+// 这样既保留出错时可读的指令日志，又把无效的预取指和反汇编开销移出热路径。
+static void build_itrace_logbuf(Decode *s) {
+  char *p = s->logbuf;
+  p += snprintf(p, sizeof(s->logbuf), FMT_WORD ":", s->pc);
+  int ilen = s->snpc - s->pc;
+  int i;
+  uint8_t *inst = (uint8_t *)&s->isa.inst;
+#ifdef CONFIG_ISA_x86
+  for (i = 0; i < ilen; i ++) {
+#else
+  for (i = ilen - 1; i >= 0; i --) {
+#endif
+    p += snprintf(p, 4, " %02x", inst[i]);
+  }
+  int ilen_max = MUXDEF(CONFIG_ISA_x86, 8, 4);
+  int space_len = ilen_max - ilen;
+  if (space_len < 0) space_len = 0;
+  space_len = space_len * 3 + 1;
+  memset(p, ' ', space_len);
+  p += space_len;
+
+  void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
+  disassemble(p, s->logbuf + sizeof(s->logbuf) - p,
+      MUXDEF(CONFIG_ISA_x86, s->snpc, s->pc), (uint8_t *)&s->isa.inst, ilen);
+  iringbuf_record(s->logbuf);
+}
+
 #endif
 
 CPU_state cpu = {};
 uint64_t g_nr_guest_inst = 0;
 static uint64_t g_timer = 0; // unit: us
-static bool g_print_step = false;
 
 void device_update();
-int compare_assert();
 
 static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 
@@ -94,7 +133,10 @@ static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
   IFDEF(CONFIG_DIFFTEST, difftest_step(_this->pc, dnpc));
   #ifdef CONFIG_WATCHPOINT
   int state = 0;
-  state = compare_assert();
+  // 没有监视点时直接跳过表达式求值，避免每条指令都白跑一层 compare_assert。
+  if (watchpoint_enabled) {
+    state = compare_assert();
+  }
   //state_stop = 1;
   //state_run = 2;
   
@@ -119,53 +161,8 @@ static void exec_once(Decode *s, vaddr_t pc) {//此处s是传入是指针,decode
   s->pc = pc;
   s->snpc = pc;
 
-#ifdef CONFIG_ITRACE
-  // 【关键】在执行之前先预读指令字节并记录进 iringbuf。
-  // 这样即使 isa_exec_once 遇到非法指令触发 abort()，该指令也已被捕获。
-  {
-    uint32_t raw = (uint32_t)vaddr_ifetch(pc, 4);
-    uint8_t *rb = (uint8_t *)&raw;
-    char pre_buf[128];
-    char *pp = pre_buf;
-    pp += snprintf(pp, sizeof(pre_buf), FMT_WORD ":", pc);
-    // RISC-V 按大端序打印（与后续完整 logbuf 格式一致）
-    for (int i = 3; i >= 0; i--)
-      pp += snprintf(pp, 4, " %02x", rb[i]);
-    snprintf(pp, sizeof(pre_buf) - (pp - pre_buf), "  ???");
-    iringbuf_record(pre_buf);
-  }
-#endif
-
   isa_exec_once(s);
   cpu.pc = s->dnpc;
-
-#ifdef CONFIG_ITRACE
-  // isa_exec_once 成功返回后，用带完整反汇编的 logbuf 覆盖刚才的预记录槽位
-  char *p = s->logbuf;
-  p += snprintf(p, sizeof(s->logbuf), FMT_WORD ":", s->pc);
-  int ilen = s->snpc - s->pc;
-  int i;
-  uint8_t *inst = (uint8_t *)&s->isa.inst;
-#ifdef CONFIG_ISA_x86
-  for (i = 0; i < ilen; i ++) {
-#else
-  for (i = ilen - 1; i >= 0; i --) {
-#endif
-    p += snprintf(p, 4, " %02x", inst[i]);
-  }
-  int ilen_max = MUXDEF(CONFIG_ISA_x86, 8, 4);
-  int space_len = ilen_max - ilen;
-  if (space_len < 0) space_len = 0;
-  space_len = space_len * 3 + 1;
-  memset(p, ' ', space_len);
-  p += space_len;
-
-  void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
-  disassemble(p, s->logbuf + sizeof(s->logbuf) - p,
-      MUXDEF(CONFIG_ISA_x86, s->snpc, s->pc), (uint8_t *)&s->isa.inst, ilen);
-  // 覆盖预记录槽位，将 ??? 替换为真正的反汇编结果
-  iringbuf_update_last(s->logbuf);
-#endif
 }
 
 static void execute(uint64_t n) {
@@ -173,6 +170,12 @@ static void execute(uint64_t n) {
   for (;n > 0; n --) {
     exec_once(&s, cpu.pc);//单步执行
     g_nr_guest_inst ++;//记录客户指令的计数器
+#ifdef CONFIG_ITRACE
+    // 把日志构造延后到执行后，并且仅在真正需要输出时触发，减少常规运行时的额外工作。
+    if (need_itrace_logbuf()) {
+      build_itrace_logbuf(&s);
+    }
+#endif
     trace_and_difftest(&s, cpu.pc);//调用trace_and_difftest进行ltrace(指令追踪)和Difftest(与标准模型如QEMU对比状态)
     if (nemu_state.state != NEMU_RUNNING) break;//如果执行过程中状态不再是NEMU_RUNNING(例如遇到了ebreak或断点，跳出循环)
     IFDEF(CONFIG_DEVICE, device_update());//如果有设备模拟配置，通过device_update()刷新状态

@@ -9,3 +9,4 @@
 - 旧版 `fceux-am/Makefile` 用 `ls $(ROM_PATH)/rom/*.nes` 生成 `ROMS`，当目录为空时 `ROM_SRC` 为空，`rom` 规则不会触发，最终 `src/emufile.cpp` 在编译期因为找不到 `roms.h` 失败。
 - 没有 ROM 时，当前 `make ... run` 末尾仍可能看到 LeakSanitizer 噪音；调用栈落在 NEMU 主机侧的 `src/device/vga.c:49` 和 SDL/GLX/Mesa 初始化链路，这不是 fceux-am 超级玛丽入口本身的阻塞点。
 - 从 Windows 复制 ROM 到 WSL 时，目录里可能出现 `xxx.nes:Zone.Identifier` 这类附带文件；它们不是真正 ROM，可直接在 `fceux-am/nes/rom/` 下清理。
+- 注释 `src/config.h` 中的 `HAS_GUI` 后，FCEUX 会进入字符模式：`src/drivers/sdl/sdl-video.cpp` 每帧只重绘左上角 128x60 字符区域，字符来自 `o. *O0@#` 的简单位深映射，因此终端里看到大量 `0`、`@`、`#` 属于预期现象；若终端宽于 128 列或高于 60 行，右侧和底部还会残留之前的构建/NEMU 文本，因为当前实现没有发送清屏或清行控制序列。
