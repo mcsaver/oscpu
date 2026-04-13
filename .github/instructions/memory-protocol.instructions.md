@@ -15,6 +15,7 @@ applyTo: "**"
 ├── decisions.md             — 设计决策记录
 ├── known-issues.md          — 已知问题与调试历史
 └── modules/                 — 各模块专属笔记
+    ├── agent-system.md      — agent 架构与工作流环境
     ├── npc.md
     ├── nemu.md
     ├── abstract-machine.md
@@ -23,11 +24,28 @@ applyTo: "**"
     └── yosys-sta.md
 ```
 
+## 任务执行产物位置
+
+```
+.github/task-runs/
+├── README.md                          — 任务级产物目录说明
+└── templates/
+    ├── task-report.template.md       — 图任务摘要模板
+    └── dispatch-log.template.md      — 节点派发日志模板
+```
+
+- `memory/` 用于沉淀稳定结论、长期经验与设计决策
+- `task-runs/` 用于保存单次图任务的执行产物、节点状态、证据链和派发历史
+- 不要把长日志、逐节点状态变更、阶段性失败细节整段塞进 `memory/`；应优先写入 `task-runs/`
+
 ## 工作流程
 
-### 1. 开始任务前 — 读取记忆
+### 1. 开始任务前 — 读取记忆与本地资料
 - **必须** 先读取 `.github/memory/project-status.md` 了解当前项目状态
 - **必须** 读取自己模块对应的 `.github/memory/modules/<模块>.md`
+- 如果任务涉及 `.github/agents/`、`.github/instructions/`、`copilot-instructions.md` 或 AI 驱动硬件开发环境本身，**必须** 读取 `.github/memory/modules/agent-system.md` 与 `.github/agentic-hardware-blueprint.md`
+- 如果对应模块目录下存在已整理的本地学习资料（如 `study/README.md`、规范摘要、实现 checklist、设计笔记），**必须** 先读取索引/README，再按当前任务补读相关资料后再开始规划或编码
+- 对 `tmp/`、提取文本等中间资料，只能作为快速检索入口；最终结论应以正式 Markdown 笔记、源码或规范为准
 - 如果任务涉及调试，读取 `.github/memory/known-issues.md` 查看是否有历史经验
 
 ### 2. 工作过程中 — 记录决策
@@ -38,6 +56,7 @@ applyTo: "**"
 - **必须** 更新 `.github/memory/project-status.md` 的相关条目
 - **必须** 更新自己模块的 `.github/memory/modules/<模块>.md`
 - 如果修复了 bug，将问题从"活跃问题"移到"已解决问题"
+- 若任务属于跨模块、图任务或长链调试，**应当** 同时更新 `.github/task-runs/<日期-任务名>/task-report.md` 与 `dispatch-log.md`
 
 ## 记录格式规范
 

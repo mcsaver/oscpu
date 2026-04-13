@@ -56,7 +56,11 @@ make wave             # 查看波形 (如果支持)
 ### 开始工作前
 1. 读取 `.github/memory/project-status.md` 了解项目当前状态
 2. 读取 `.github/memory/modules/npc.md` 了解本模块历史上下文
-3. 如果是调试任务，读取 `.github/memory/known-issues.md`
+3. 读取 `npc/single/design/study/README.md`，把它作为 NPC 当前稳定学习入口
+4. 对数据通路、译码、ALU、控制或单周期骨架任务，补读 `npc/single/design/study/RV32I-ai-notes.md` 和 `npc/single/design/study/RV32I-implementation-checklist.md`
+5. 对功能仿真、异常、CSR、ECALL/EBREAK、MRET、WFI、PMEM 任务，补读 `npc/single/design/study/RISC-V-spec-functional-sim-scope.md` 和 `npc/single/design/study/RISC-V-spec-functional-sim-notes.md`
+6. 对 machine CSR、trap controller、mtime/mtimecmp、PMA/PMP、pmem/mmio 边界任务，补读 `npc/single/design/study/RISC-V-spec-hardware-architecture-scope.md` 和 `npc/single/design/study/RISC-V-spec-hardware-architecture-notes.md`
+7. 如果是调试任务，读取 `.github/memory/known-issues.md`
 
 ### 完成工作后
 1. 更新 `.github/memory/modules/npc.md` 记录本次工作内容
@@ -73,4 +77,4 @@ make wave             # 查看波形 (如果支持)
 - 修改 RTL 后应运行仿真验证功能正确性
 
 ## 输出格式
-说明修改了哪个模块，给出端口表和功能描述。提供关键 Verilog 代码段，并说明仿真验证方法。
+说明修改了哪个模块，给出端口表和功能描述。说明本次参考了哪些 study 文件以及哪些结论影响了设计。提供关键 Verilog 代码段，并说明仿真验证方法。
