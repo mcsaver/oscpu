@@ -18,7 +18,9 @@
 #include <cpu/difftest.h>
 #include <memory/vaddr.h>
 #include <locale.h>
-#ifdef CONFIG_WATCHPOINT
+#if defined(CONFIG_WATCHPOINT) && !defined(CONFIG_TARGET_AM)
+// AM 目标不会编译 sdb/watchpoint 模块，这里同步收紧编译条件，
+// 这样即使配置或旧对象文件残留异常，也不会再把监视点符号带进 AM 链接。
 #include "../monitor/sdb/watchpoint.h"
 #endif
 
@@ -131,7 +133,7 @@ static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 //_this->pc当前指令的地址
 //dnpc:下一条指令的地址(Dynamic NEXT PC)，用于同步REF的执行流
   IFDEF(CONFIG_DIFFTEST, difftest_step(_this->pc, dnpc));
-  #ifdef CONFIG_WATCHPOINT
+  #if defined(CONFIG_WATCHPOINT) && !defined(CONFIG_TARGET_AM)
   int state = 0;
   // 没有监视点时直接跳过表达式求值，避免每条指令都白跑一层 compare_assert。
   if (watchpoint_enabled) {

@@ -45,6 +45,20 @@
 - **修复**: 用户在宿主机执行 `sudo apt install --reinstall -y libsdl2-2.0-0 libglx-mesa0 libgl1-mesa-dri libegl-mesa0 mesa-vulkan-drivers` 后反馈“没问题了”。
 - **教训**: 当 SDL/GLX/Mesa 调用栈只在某一台机器稳定复现时，不要只盯 guest 程序或上游代码；先核对宿主图形运行库、显示后端和 sanitizer 配置，低风险重装运行库往往能快速区分“代码问题”和“环境问题”。
 
+### [6] AM 目标下监视点符号在链接阶段未定义
+- **模块**: NEMU / CPU Exec / AM Target
+- **现象**: 执行 `make ARCH=riscv32-nemu` 时，链接 `riscv32-nemu-interpreter-riscv32-nemu.elf` 报 `undefined reference to 'watchpoint_enabled'` 和 `undefined reference to 'compare_assert'`。
+- **根因**: `ARCH=riscv32-nemu` 对应 `CONFIG_TARGET_AM=y`，而 `src/filelist.mk` 会在该目标下把 `src/monitor/sdb` 整个排除出构建，所以 `watchpoint.c` 不会参与链接；但 `src/cpu/cpu-exec.c` 里的监视点路径仍可能因为当时的 AM 配置开启了 `CONFIG_WATCHPOINT`，或复用了旧的 `build/riscv32-nemu/src/cpu/cpu-exec.o`，从而继续引用这两个符号。
+- **修复**: 已在 `nemu/Kconfig` 中为 `WATCHPOINT` 增加 `depends on !TARGET_AM`，并在 `nemu/src/cpu/cpu-exec.c` 中把监视点相关包含与执行分支都改成“`CONFIG_WATCHPOINT` 且非 `CONFIG_TARGET_AM`”才编译；随后复现 `make -C am-kernels/kernels/nemu ARCH=riscv32-nemu mainargs=/home/lyg/PA/ysyx-workbench/am-kernels/kernels/hello/build/hello-riscv32-nemu.bin`，确认链接恢复正常并成功运行到 `HIT GOOD TRAP`。
+- **教训**: 分析链接错误时不能只看当前根目录 `.config`；还要同时核对目标类型对应的源码黑名单和该目标目录中的对象文件是否为旧配置残留。对这类不合法配置组合，优先在 Kconfig 和源码使用点两层同时收口，比只在 Makefile 或生成宏文件里做单点修补更稳。
+
+### [7] 定宽宽度宏直接参与位宽算术时触发告警
+- **模块**: NPC / IFU / BHT
+- **现象**: 在 `npc/single/vsrc/IFU/bh_bt.v` 中把 `DATA_WIDTH_pc`、`BHT_ADDR_WIDTH` 直接拿来做 localparam 减法、移位和位选边界计算时，文件级检查报 `expects 32 bits ... generates 4 bits/6 bits` 一类位宽不匹配错误。
+- **根因**: `npc/single/vsrc/IFU/define.v` 把宽度宏定义成了 `6'b100000`、`4'b1000` 这样的定宽常量；它们直接参与参数算术时会保留原始位宽，检查器不会自动提升到 32 位。
+- **修复**: 在 `bh_bt.v` 中先把 `DATA_WIDTH_pc`、`BHT_ADDR_WIDTH` 零扩展成 32 位 localparam，再参与 BHT 表深、tag 宽度和 part-select 边界计算；修改后文件级检查恢复无报错。
+- **教训**: 宽度类宏如果写成定宽二进制常量，拿来做参数算术前要先显式扩展；更稳的长期方案是把这类宏改成无位宽十进制常量或 `localparam`。
+
 ## 调试技巧备忘
 <!-- 在调试过程中发现的有用技巧 -->
 - 像 ITRACE 这类调试功能不能只看“是否输出日志”，还要看“是否为了日志提前做了额外工作”；若 logbuf、反汇编、预取指在每条指令上无条件执行，即使最后没打印，也已经把开销付掉了。

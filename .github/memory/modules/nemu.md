@@ -2,6 +2,8 @@
 
 ## 当前状态
 <!-- 已实现的指令、设备等 -->
+- `WATCHPOINT` 现在已与 AM 目标对齐：`nemu/Kconfig` 用 `depends on !TARGET_AM` 从配置入口禁止 AM 打开监视点；`nemu/src/cpu/cpu-exec.c` 则进一步把监视点头文件和执行分支都收紧为“非 AM 且开启 WATCHPOINT”才参与编译。这样改完后，即使 future 配置切换或旧对象文件混入，AM 目标也不会再链接到被 `src/filelist.mk` 排除掉的 `watchpoint.c` 符号。
+- 已确认一次 AM 目标特有的链接失配：`make ARCH=riscv32-nemu` 构建的不是普通 native NEMU，而是 `CONFIG_TARGET_AM=y` 的目标；该目标会在 `src/filelist.mk` 中把 `src/monitor/sdb` 整个黑名单排除，所以 `watchpoint.c` 不会进入 `build/riscv32-nemu`。如果 `cpu-exec.c` 仍因 `CONFIG_WATCHPOINT` 或旧对象文件而保留 `watchpoint_enabled` / `compare_assert` 引用，就会在最终链接 `riscv32-nemu-interpreter-riscv32-nemu.elf` 时出现 undefined reference。
 - 当前这次 SDL/Mesa 泄漏问题已由用户在宿主机侧重装运行库后消失：`sudo apt install --reinstall -y libsdl2-2.0-0 libglx-mesa0 libgl1-mesa-dri libegl-mesa0 mesa-vulkan-drivers` 之后，用户反馈“没问题了”。因此本次案例里，虽然上游 NEMU 的 VGA/SDL 生命周期设计本身仍有缺口，但真正让错误在当前机器上显性化的触发条件，至少部分来自宿主图形运行库/后端状态。
 - 已追加一次显示后端对照实验：即便显式设置 `SDL_VIDEODRIVER=x11`，`ASAN_OPTIONS=detect_leaks=1 make -C am-kernels/tests/am-tests ARCH=riscv32-nemu c mainargs=v` 仍旧在 `libGLX_mesa.so`、`libSDL2.so` 与 `src/device/vga.c:56` 报相同泄漏规模。这说明当前问题不能简单归因为“只是在 Wayland 下才会泄漏”，更像 SDL 默认 renderer/GLX 路径与缺失 SDL 退出清理共同作用。
 - 当前终端没有 `sudo` 免密权限；涉及 `apt install --reinstall` 这类系统包修复时，agent 可以给出精确命令，但无法替用户无交互完成。
@@ -40,6 +42,8 @@
 
 ## 踩坑记录
 <!-- 本模块特有的问题和经验 -->
+- 这类“配置层排除了某模块，但源码层仍引用其符号”的问题，最好双保险处理：一层放在 Kconfig 里禁止不合法组合出现，另一层放在使用点的 `#if` 条件里保证即使配置文件或对象文件残留异常，也不会把错误符号带进最终链接。
+- `ARCH=riscv32-nemu` 的 AM 目标和普通 native 目标不是同一组源文件：前者会在 `src/filelist.mk` 里排除 `src/monitor/sdb`，所以分析 `watchpoint_enabled` / `compare_assert` 这类链接错误时，不能只看 `.config` 是否关闭了 `CONFIG_WATCHPOINT`，还要检查 `build/riscv32-nemu/src/cpu/cpu-exec.o` 是否残留了旧的监视点引用，以及对应实现是否根本未参与该目标的链接。
 - 若 ITRACE 的 logbuf 构建逻辑写在 `exec_once()` 且无条件执行，即使最终没有输出任何 trace，也会为每条指令额外做一次原始取指和一次反汇编；这类“为了调试兜底而默认常开”的路径很容易成为解释器热点。
 - 设备刷新若在每条指令后都先调用 `get_time()` 再判断是否到达 60Hz，会把宿主时间查询本身变成性能瓶颈；先按若干条 guest 指令分批检查，再进入时间门控，通常更划算。
 - 当前 `.config` 若同时打开 `ASAN + ITRACE + DTRACE + FTRACE + DIFFTEST + RT_CHECK`，NEMU 即使功能正确也会明显变慢；此时若只盯着 `inst.c` 微优化，很容易误判瓶颈位置。

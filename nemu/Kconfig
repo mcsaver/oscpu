@@ -127,6 +127,9 @@ endmenu
 menu "Testing and Debugging"
 
 config WATCHPOINT
+  # 监视点实现依赖 src/monitor/sdb；AM 目标会把该目录排除出构建，
+  # 因此这里直接禁止在 AM 下开启，避免配置和源码集合失配。
+  depends on !TARGET_AM
   bool "Enable watchpoint feature"
   default y
 
