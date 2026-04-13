@@ -13,6 +13,7 @@
 
 ## 已完成的工作
 <!-- 按时间倒序记录，格式: - [日期] 简要描述 -->
+- [2026-04-13] 通读 `npc/single/design/RV32I.pdf`，将单周期 RV32I 的 IFU/IDU/EXU/LSU/WBU 分层、译码字段、立即数规则、控制信号组织和写回约束整理到 `npc/single/design/study/README.md`、`npc/single/design/study/RV32I-ai-notes.md`、`npc/single/design/study/RV32I-implementation-checklist.md`，供后续 NPC 实现直接复用。改动文件：`npc/single/design/study/README.md`、`npc/single/design/study/RV32I-ai-notes.md`、`npc/single/design/study/RV32I-implementation-checklist.md`、`.github/memory/project-status.md`、`.github/memory/modules/npc.md`。
 - [2026-04-07] 在 `npc/single/vsrc/alu.v` 新增一版面向单周期 NPC 的组合 ALU：控制码对 OP/OP-IMM 直接复用 `{funct7[5], funct3}`，并补充 `LUI/src2 直通` 与 `src1 直通` 保留码；内部以共享减法/比较通路统一生成 `zero`、`less_than`、`less_than_u`，覆盖 RV32I 所需的 add/sub/shift/logic/set-less-than/LUI 基础执行能力。随后执行 `verilator --lint-only -Wall -I. alu.v`，确认文件级 lint 通过。改动文件：`npc/single/vsrc/alu.v`、`.github/memory/project-status.md`、`.github/memory/modules/npc.md`、`.github/memory/decisions.md`。
 - [2026-04-07] 按当前 NPC 代码风格把 `npc/single/vsrc/IFU/bh_bt.v` 中 BHT 的 tag/index/entry 位宽写法从 32 位展开参数改回直接使用 `DATA_WIDTH_pc`、`BHT_ADDR_WIDTH` 宏表达式；保留组合查表与同步写回逻辑不变，并确认当前剩余检查项主要是定宽宏参与算术引起的预期告警。改动文件：`npc/single/vsrc/IFU/bh_bt.v`、`.github/memory/project-status.md`、`.github/memory/modules/npc.md`。
 - [2026-04-07] 整理 NPC 的 BHT 模块 `npc/single/vsrc/IFU/bh_bt.v`：把表项宽度和表深改成参数化计算，补上基于 `pc_lookup` 的组合查表与 tag 命中判断，并把 BHT 更新收口为 `posedge clk` 下的同步写回与异步复位清零；随后执行文件级错误检查，确认 `bh_bt.v` 无报错。改动文件：`npc/single/vsrc/IFU/bh_bt.v`、`.github/memory/project-status.md`、`.github/memory/modules/npc.md`、`.github/memory/known-issues.md`。

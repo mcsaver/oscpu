@@ -2,12 +2,14 @@
 
 ## 当前状态
 <!-- 已实现的模块、信号位宽等 -->
+- 2026-04-13: 已通读 `npc/single/design/RV32I.pdf`，并把单周期 RV32I 的模块划分、立即数规则、控制包字段、WBU 提交原则整理到 `npc/single/design/study/README.md`、`npc/single/design/study/RV32I-ai-notes.md`、`npc/single/design/study/RV32I-implementation-checklist.md`，后续补 NPC 主通路前可先读这三份笔记对齐术语和边界。
 - 2026-04-07: `alu.v` 已重建为面向 RV32I 单周期执行路径的组合 ALU，当前支持 `ADD/SUB/SLL/SLT/SLTU/XOR/SRL/SRA/OR/AND/LUI(src2 直通)`，并额外输出 `zero`、`less_than`、`less_than_u` 供分支判断直接复用。
 - 2026-04-07: `IFU/bh_bt.v` 已补成最小 BHT 闭环，当前支持 `pc_lookup` 组合查表输出 `pre_state`/`jump_if`，以及 `pc_wb_bt + state_wb_bh` 的同步写回；表项格式为 `{tag, 2-bit state}`，表深为 `2^BHT_ADDR_WIDTH`。
 - 2026-03-22: 新增 alu.v 的基础实现，当前支持 10 种运算: add、sub、and、or、xor、sll、srl、sra、slt、sltu。
 
 ## 设计笔记
 <!-- 模块设计思路、接口约定 -->
+- 2026-04-13: `RV32I.pdf` 对 NPC 当前阶段最有价值的结论是“先把译码压成统一控制包，再把 EXU、LSU、WBU 的边界切清楚”；尤其 WBU 被明确定位为提交点而不是计算点，这会直接影响后续顶层数据通路和异常屏蔽的组织方式。
 - 2026-04-07: `alu.v` 当前改为纯组合实现，不再依赖时序寄存；这样更贴合 single 单周期数据通路，执行结果在同一拍内即可被写回、访存地址生成或分支判定复用。
 - `alu.v` 的 `select_mod` 对 `OP/OP-IMM` 采用 `{funct7[5], funct3}` 编码：`0000 add`、`1000 sub`、`0001 sll`、`0010 slt`、`0011 sltu`、`0100 xor`、`0101 srl`、`1101 sra`、`0110 or`、`0111 and`；额外用 `1110` 表示 `LUI/src2 直通`，`1111` 预留为 `src1` 直通。
 - `alu.v` 里 `zero`、`less_than`、`less_than_u` 统一由减法结果派生，后续 `BEQ/BNE/BLT/BGE/BLTU/BGEU` 可以直接复用，不必再单独复制一套比较器。
