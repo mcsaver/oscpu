@@ -2,6 +2,8 @@
 
 ## 当前状态
 <!-- 已实现的指令、设备等 -->
+- 在当前工作区的分层里，NEMU 应优先被当作“参考模型/参考平台”而不是最终目标实现：它先承载 AM 和 am-kernels 跑通参考闭环，定义程序、指令和基础设备在功能上的正确行为，后续 RTL 仿真再拿这份行为做对照。
+- 对 CPU 敏捷开发来说，NEMU、RTL 仿真和综合的职责不能混淆：NEMU 负责参考正确性与快速回归，RTL 仿真负责验证你的目标 CPU 实现是否与参考一致，RTL 综合/STA 则负责检查这份 RTL 是否可实现以及面积、频率、时序是否可接受；综合结果不能替代参考模型，NEMU 也不直接回答 PPA 问题。
 - `WATCHPOINT` 现在已与 AM 目标对齐：`nemu/Kconfig` 用 `depends on !TARGET_AM` 从配置入口禁止 AM 打开监视点；`nemu/src/cpu/cpu-exec.c` 则进一步把监视点头文件和执行分支都收紧为“非 AM 且开启 WATCHPOINT”才参与编译。这样改完后，即使 future 配置切换或旧对象文件混入，AM 目标也不会再链接到被 `src/filelist.mk` 排除掉的 `watchpoint.c` 符号。
 - 已确认一次 AM 目标特有的链接失配：`make ARCH=riscv32-nemu` 构建的不是普通 native NEMU，而是 `CONFIG_TARGET_AM=y` 的目标；该目标会在 `src/filelist.mk` 中把 `src/monitor/sdb` 整个黑名单排除，所以 `watchpoint.c` 不会进入 `build/riscv32-nemu`。如果 `cpu-exec.c` 仍因 `CONFIG_WATCHPOINT` 或旧对象文件而保留 `watchpoint_enabled` / `compare_assert` 引用，就会在最终链接 `riscv32-nemu-interpreter-riscv32-nemu.elf` 时出现 undefined reference。
 - 当前这次 SDL/Mesa 泄漏问题已由用户在宿主机侧重装运行库后消失：`sudo apt install --reinstall -y libsdl2-2.0-0 libglx-mesa0 libgl1-mesa-dri libegl-mesa0 mesa-vulkan-drivers` 之后，用户反馈“没问题了”。因此本次案例里，虽然上游 NEMU 的 VGA/SDL 生命周期设计本身仍有缺口，但真正让错误在当前机器上显性化的触发条件，至少部分来自宿主图形运行库/后端状态。

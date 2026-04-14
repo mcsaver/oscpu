@@ -2,6 +2,7 @@
 
 ## 当前状态
 
+- 2026-04-14：工作区级 agent 规则已新增一条 bug 修复方法论约束：默认禁止“补丁上再套补丁”的症状式修法，必须先从架构职责、模块边界和控制流/数据流定位根因，再在正确抽象层落修复；若不得不保留兼容性补丁，必须显式写清边界与退出条件。
 - 2026-04-13：根据用户确认，当前默认主闭环收敛为 `am-kernels -> abstract-machine -> NEMU(reference)`；`NPC/Verilator` 改为未来接入节点，不再作为当前调度前置。
 - 2026-04-13：继续吸收 NVIDIA Marco 的图任务思想后，工作区新增“静态图优先、动态图补洞、稳定后模板化”的规则，并补上 `regression-debug-loop`、动态图扩图规则和图质量门槛。
 - 2026-04-13：新增 `.github/task-runs/` 作为任务级结构化产物目录，把单次图任务的 `task-report` 和 `dispatch-log` 与长期记忆分层保存。
@@ -11,6 +12,7 @@
 
 ## 设计笔记
 
+- 修改 bug 时，优先问“当前症状是哪个职责层的数据流/控制流断掉了”，再决定在哪一层修；不要直接围着报错点缝局部特判，否则很容易把暂时能跑的补丁累积成后续无法收敛的技术债。
 - 图任务节点至少写清 `node_id`、`owner_agent`、`depends_on`、`inputs`、`outputs`、`success_criteria`、`fallback`。
 - `hardware-flow` 负责跨 `am-kernels + abstract-machine + nemu + npc` 的闭环，模块专家继续负责本模块内部实现与调试。
 - `.github/agentic-hardware-blueprint.md` 是当前 agent 环境的稳定入口；处理 `.github/agents/`、`.github/instructions/`、`.github/copilot-instructions.md` 相关任务时先读它。

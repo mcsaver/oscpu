@@ -2,7 +2,14 @@
 
 ## 当前状态
 <!-- 已实现的 API (TRM/IOE/CTE/VME/MPE) -->
+- 2026-04-14: `abstract-machine/klib/src/stdio.c` 现已补齐常用整数格式化能力，支持 `d/i/u/x/X/p`、`l/ll` 长度修饰、字段宽度和前导 `0`；CoreMark 的 CRC、`devscan` 的 `%08x` 以及 AM 侧指针打印不再退化成把 `%x/%p` 原样输出。
+- 2026-04-13: `abstract-machine/klib` 的 `stdlib` 已补齐当前工程最常用的一组能力：非 native 平台上的 `malloc/free/calloc/realloc` 改为基于 `heap` 区间的可回收空闲链表分配器，`atoi/atol/strtol/strtoul/labs` 现已支持前导空白、符号、自动进制识别、`0x` 前缀和溢出饱和；已通过 `klib-tests` 的 `klib_stdlib/klib_ro/klib_fmt/klib_rw` 批处理回归。
+- 2026-04-13: `abstract-machine` 的 `riscv32-npc` 输入与运行桥接已补齐到可回归状态：`am/src/riscv/npc/input.c` 现在会直接读取 `KBD_ADDR` 并按 bit15/低位拆出 `keydown/keycode`，`scripts/platform/npc.mk` 新增 `NPC_RUN_ARGS` 透传，因此 AM 侧可以不改程序就直接给 NPC 打开 `--trace`、`--trace-file`、`--max-cycles`、`--stdin-kbd` 等运行参数。
+- 2026-04-13: `abstract-machine` 现已补出一条可直接对接 `npc/single` 的最小 NPC 路径：新增 `scripts/riscv32-npc.mk`，`scripts/platform/npc.mk` 的 `run` 入口会直接调用 `npc/single` 的仿真器；同时 `am/src/riscv/npc/trm.c` 已改为向 `SERIAL_PORT(0xa00003f8)` 输出字符、通过 `ebreak + a0` 结束程序，`timer.c` 则改为从 `RTC_ADDR(0xa0000048)` 读取 uptime/rtc。
+- 在当前工作区的 CPU 敏捷开发闭环里，AM 更适合被理解为“软件/测试与底层平台之间的抽象契约”：上层 am-kernels 和应用只依赖 AM API，不直接依赖 NEMU 或 RTL 细节；同一套程序可以先跑在 NEMU 参考平台上确认语义，再迁移到未来的 NPC/RTL 目标平台上复用，减少测试环境切换成本。
+- AM 不负责给出“CPU 是否实现正确”的参考答案，它负责统一程序入口、设备语义和平台接口；真正的参考正确性通常由 NEMU 这类参考模型提供，而 RTL 仿真负责验证目标实现是否符合这份参考，综合/STA 则继续验证 RTL 是否能落成硬件与满足时序。
 - AM on NEMU 的 keyboard 映射不是 ASCII，而是“同名物理键枚举”映射：`abstract-machine/am/include/amdev.h` 用 `AM_KEYS` 生成 `AM_KEY_*` 顺序枚举，platform/nemu 的 `__am_input_keybrd` 只把 `KBD_ADDR` 中的 bit15 拆成 `keydown`、把低位原样作为 `keycode` 返回；NEMU 宿主侧 `src/device/keyboard.c` 用 `keymap[SDL_SCANCODE_x] = NEMU_KEY_x` 做一一对应，并依赖 `NEMU_KEYS` 与 `AM_KEYS` 顺序一致，使 `SDL_SCANCODE_A -> AM_KEY_A`、`SDL_SCANCODE_RETURN -> AM_KEY_RETURN`、方向键对应 `AM_KEY_UP/DOWN/LEFT/RIGHT`。判断按键时应优先比较 `AM_KEY_*` 宏，不要写死数字，也不要把 `keycode` 当 ASCII 字符处理。
+- `riscv32-npc` 现阶段也应沿用同一套 NEMU/AM 键盘 ABI，而不是单独发明一套 ASCII 或 host-only 输入语义；这样 `am-tests`、后续小游戏和更复杂应用可以在 `riscv32-nemu` 与 `riscv32-npc` 之间尽量复用输入处理逻辑。
 - 在 `__am_gpu_fbdraw` 中，目标 framebuffer 索引与源像素索引的“每行步长”不同：目标端用 `screen_w`（屏幕总宽）计算 `fb[(y + row) * screen_w + (x + col)]`，源端用 `w_reg`（图块宽度）计算 `data[row * w_reg + col]`。若把目标端也写成 `w_reg`，只有在整屏绘制时才偶然正确，普通子矩形绘制会写错行偏移。
 - 对 platform/nemu 的 GPU 绘制路径，可把 `ctl->pixels` 理解为“源图块”，把 `FB_ADDR` 理解为“目标屏幕显存基址”。前者由调用 `io_write(AM_GPU_FBDRAW, x, y, pixels, w, h, sync)` 时传入，后者是平台固定映射的 framebuffer 地址；实现时本质是在做一次从源缓冲区到目标显存的矩形拷贝。
 - `abstract-machine/am/src/platform/nemu/ioe/gpu.c` 中 `__am_gpu_fbdraw` 已落盘实现基础 framebuffer copy：当 `ctl->pixels` 非空且 `w/h > 0` 时，会把源像素块按 `(x, y)` 偏移写入 `FB_ADDR` 指向的 framebuffer；`sync` 仍通过向 `VGACTL_ADDR + 4` 写 1 请求 NEMU 提交一帧。该修改已通过 `am-kernels/tests/am-tests` 的 `ARCH=riscv32-nemu` 构建验证。
@@ -34,7 +41,10 @@
 
 ## klib 实现进度
 <!-- 已实现的标准库函数 -->
+- 2026-04-13: `stdlib` 现已提供 `rand/srand/abs/labs/atoi/atol/strtol/strtoul/malloc/free/calloc/realloc`。其中 native 目标继续复用宿主 libc 的分配器，避免在宿主可执行文件里导出自定义 `malloc/free` 干扰启动路径；非 native 目标再接入 klib 自己的可回收堆管理。
 
 ## 踩坑记录
 <!-- 本模块特有的问题和经验 -->
+- 2026-04-14: 之前那条“`kvsnprintf()` 只实现 `%d/%s/%c/%%`”的限制已经修复；后续若还要扩 `printf`，优先在统一整数输出路径上加能力，并同步补 `klib_fmt` 回归，不要再针对某一个 benchmark 单独修打印语句。
+- `klib` 自己实现分配器时，不能把“堆是否初始化完成”和“当前空闲链表是否非空”混为一谈；否则堆已初始化但所有块都暂时被占用时，后续 `free/realloc` 会误判成“堆尚未初始化”。
 - klib/src/stdio.c 当前的 kvsnprintf 只实现了 `%d`、`%s`、`%c`、`%%` 四类格式；遇到 `%02d` 这类带宽度/补零标志的格式会走未知格式分支，导致格式串被近似原样输出。

@@ -23,13 +23,23 @@ char  *strncpy   (char *dst, const char *src, size_t n);
 int    strcmp    (const char *s1, const char *s2);
 int    strncmp   (const char *s1, const char *s2, size_t n);
 
-// stdlib.h
+// stdlib.h: 补齐工程里常用的动态内存与字符串转数值接口。
+#ifndef RAND_MAX
+#define RAND_MAX 32767
+#endif
+
 void   srand     (unsigned int seed);
 int    rand      (void);
 void  *malloc    (size_t size);
+void  *calloc    (size_t nmemb, size_t size);
+void  *realloc   (void *ptr, size_t size);
 void   free      (void *ptr);
 int    abs       (int x);
+long   labs      (long x);
 int    atoi      (const char *nptr);
+long   atol      (const char *nptr);
+long   strtol    (const char *nptr, char **endptr, int base);
+unsigned long strtoul(const char *nptr, char **endptr, int base);
 
 // stdio.h
 int    printf    (const char *format, ...);

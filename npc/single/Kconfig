@@ -1,0 +1,124 @@
+mainmenu "NPC Single Configuration Menu"
+
+menu "Build Options"
+
+choice
+  prompt "Compiler"
+  default CC_GPP
+
+config CC_GPP
+  bool "g++"
+
+config CC_CLANGPP
+  bool "clang++"
+endchoice
+
+config CC
+  string
+  default "g++" if CC_GPP
+  default "clang++" if CC_CLANGPP
+  default "g++"
+
+choice
+  prompt "Optimization Level"
+  default CC_O3
+
+config CC_O0
+  bool "O0"
+
+config CC_O1
+  bool "O1"
+
+config CC_O2
+  bool "O2"
+
+config CC_O3
+  bool "O3"
+endchoice
+
+config CC_OPT
+  string
+  default "-O0" if CC_O0
+  default "-O1" if CC_O1
+  default "-O2" if CC_O2
+  default "-O3" if CC_O3
+  default "-O3"
+
+config CC_DEBUG
+  bool "Enable debug information"
+  default n
+
+config NPC_DEFAULT_MAX_CYCLES
+  int "Default max cycles before timeout (0 = unlimited)"
+  default 2000000
+  help
+    Set the default cycle timeout for NPC runs.
+    Use 0 to disable the timeout when running large tests.
+
+config NPC_DEFAULT_LOG_PATH
+  string "Default log path"
+  default "build/npc-log.txt"
+
+config NPC_BATCH_MODE
+  bool "Start in batch mode by default (-b)"
+  default y
+
+config NPC_STDIN_KEYBOARD
+  bool "Enable stdin keyboard by default"
+  default n
+
+config NPC_TRACE_BY_DEFAULT
+  bool "Enable wave trace by default"
+  default n
+
+endmenu
+
+menu "Monitor and Debugging"
+
+config NPC_COLORED_LOG
+  bool "Enable colored log output"
+  default y
+
+config NPC_LOG_FILE
+  bool "Enable file log output by default"
+  default n
+
+config NPC_DEFAULT_PROGRESS_INTERVAL
+  int "Default progress report interval in commits (0 = off)"
+  default 10000000
+  help
+    Periodically print execution progress during long-running continuous runs.
+    Use 0 to disable progress output by default.
+
+config NPC_SDB
+  bool "Enable monitor debugger"
+  default y
+
+config NPC_EXPR
+  depends on NPC_SDB
+  bool "Enable expression evaluator"
+  default y
+
+config NPC_WATCHPOINT
+  depends on NPC_EXPR
+  bool "Enable watchpoint feature"
+  default y
+
+config NPC_ITRACE
+  bool "Build commit trace support"
+  default n
+
+config NPC_ITRACE_COND
+  depends on NPC_ITRACE && NPC_EXPR
+  string "Default itrace condition"
+  default "true"
+
+config NPC_MTRACE
+  bool "Build memory access trace support"
+  default n
+
+config NPC_DTRACE
+  bool "Build device access trace support"
+  default n
+
+endmenu

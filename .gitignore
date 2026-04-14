@@ -3,3 +3,9 @@
 *.s
 *oss-cad-suite/
 *jcs/
+am-kernels/build/regression/
+npc/single/.config
+npc/single/.config.old
+npc/single/build/
+npc/single/include/config/
+npc/single/include/generated/

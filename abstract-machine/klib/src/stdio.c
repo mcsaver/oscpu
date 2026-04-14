@@ -3,6 +3,7 @@
 #include <klib.h>
 #include <klib-macros.h>
 #include <stdarg.h>
+#include <stdint.h>
 
 //条件编译开关，非native平台总是编译，native平台只有定义__NATIVE_USE_KLIB__的时候才编译这份实现
 
@@ -41,60 +42,63 @@ static void out_ch(char *out, size_t n, int *total, char c) {
   (*total)++;
 }
 
-static int dec_width_unsigned(unsigned int u) {
-  int width = 1;
-  while (u >= 10)
-  {
-    u /= 10;
+static int prefix_width(const char *prefix) {
+  int width = 0;
+  while (prefix != NULL && prefix[width] != '\0') {
     width++;
   }
   return width;
 }
 
-static void out_udec(char *out, size_t n, int *total, unsigned int u) {
-  char tmp[16];
-  int i = 0;
-  do
-  {
-    tmp[i++] = (char)('0' + (u % 10));
-    u /= 10;
-  } while (u > 0);
+// 用统一的无符号整数输出路径承接十进制/十六进制/指针，避免每种格式各写一套逻辑后再次出现能力缺口。
+static void out_uint(char *out, size_t n, int *total, unsigned long long value,
+                     unsigned int base, int width, int zero_pad,
+                     int uppercase, const char *prefix) {
+  char tmp[sizeof(unsigned long long) * 8];
+  const char *digits = uppercase ? "0123456789ABCDEF" : "0123456789abcdef";
+  int prefix_len = prefix_width(prefix);
+  int digit_count = 0;
+  int pad = 0;
 
-  while (i > 0)
-  {
-    out_ch(out, n, total, tmp[--i]);
-  }
-}
+  do {
+    tmp[digit_count++] = digits[value % base];
+    value /= base;
+  } while (value > 0);
 
-//十进制整数输出，支持宽度和前导0
-static void out_dec(char *out, size_t n, int *total, int val, int width, int zero_pad) {
-  unsigned int u = (val < 0) ? (unsigned int)(-(long long)val) : (unsigned int)val;
-  int negative = (val < 0);
-  int digits = dec_width_unsigned(u);
-  int pad = width - digits - negative;
-
-  if (pad < 0)
-  {
+  pad = width - digit_count - prefix_len;
+  if (pad < 0) {
     pad = 0;
   }
 
-  if (negative && zero_pad)
-  {
-    out_ch(out, n, total, '-');
-    negative = 0;
+  if (!zero_pad) {
+    while (pad-- > 0) {
+      out_ch(out, n, total, ' ');
+    }
   }
 
-  while ((pad--) > 0)
-  {
-    out_ch(out, n, total, zero_pad ? '0' : ' ');
+  while (prefix != NULL && *prefix != '\0') {
+    out_ch(out, n, total, *prefix++);
   }
-  
-  if (negative)
-  {
-    out_ch(out, n, total, '-');
+
+  if (zero_pad) {
+    while (pad-- > 0) {
+      out_ch(out, n, total, '0');
+    }
   }
-  
-  out_udec(out, n, total, u);
+
+  while (digit_count > 0) {
+    out_ch(out, n, total, tmp[--digit_count]);
+  }
+}
+
+// 有符号十进制只负责判定符号，真正的补零/补空格仍走统一整数输出路径，保证行为一致。
+static void out_dec(char *out, size_t n, int *total, long long val, int width, int zero_pad) {
+  unsigned long long magnitude = (val < 0)
+    ? (unsigned long long)(-(val + 1)) + 1ULL
+    : (unsigned long long)val;
+  const char *prefix = (val < 0) ? "-" : NULL;
+
+  out_uint(out, n, total, magnitude, 10, width, zero_pad, 0, prefix);
 }
 
 //核心格式化函数
@@ -113,6 +117,7 @@ static int kvsnprintf(char *out, size_t n, const char *fmt, va_list ap) {
 
     int zero_pad = 0;
     int width = 0;
+    int length = 0;
 
     if (*fmt == '0') {
       zero_pad = 1;
@@ -124,8 +129,48 @@ static int kvsnprintf(char *out, size_t n, const char *fmt, va_list ap) {
       fmt++;
     }
 
-    if (*fmt == 'd') {
-      out_dec(out, n, &total, va_arg(ap, int), width, zero_pad);
+    if (*fmt == 'l') {
+      length = 1;
+      fmt++;
+      if (*fmt == 'l') {
+        length = 2;
+        fmt++;
+      }
+    }
+
+    if (*fmt == 'd' || *fmt == 'i') {
+      long long val = 0;
+      if (length == 2) {
+        val = va_arg(ap, long long);
+      } else if (length == 1) {
+        val = va_arg(ap, long);
+      } else {
+        val = va_arg(ap, int);
+      }
+      out_dec(out, n, &total, val, width, zero_pad);
+    } else if (*fmt == 'u') {
+      unsigned long long val = 0;
+      if (length == 2) {
+        val = va_arg(ap, unsigned long long);
+      } else if (length == 1) {
+        val = va_arg(ap, unsigned long);
+      } else {
+        val = va_arg(ap, unsigned int);
+      }
+      out_uint(out, n, &total, val, 10, width, zero_pad, 0, NULL);
+    } else if (*fmt == 'x' || *fmt == 'X') {
+      unsigned long long val = 0;
+      if (length == 2) {
+        val = va_arg(ap, unsigned long long);
+      } else if (length == 1) {
+        val = va_arg(ap, unsigned long);
+      } else {
+        val = va_arg(ap, unsigned int);
+      }
+      out_uint(out, n, &total, val, 16, width, zero_pad, *fmt == 'X', NULL);
+    } else if (*fmt == 'p') {
+      uintptr_t ptr = (uintptr_t)va_arg(ap, void *);
+      out_uint(out, n, &total, (unsigned long long)ptr, 16, width, zero_pad, 0, "0x");
     } else if (*fmt == 's') {
       const char *s = va_arg(ap, const char *);
       if (s == NULL) s = "(null)";
@@ -138,6 +183,12 @@ static int kvsnprintf(char *out, size_t n, const char *fmt, va_list ap) {
       out_ch(out, n, &total, '%');
     } else {
       out_ch(out, n, &total, '%');
+      if (length >= 1) {
+        out_ch(out, n, &total, 'l');
+      }
+      if (length == 2) {
+        out_ch(out, n, &total, 'l');
+      }
       out_ch(out, n, &total, *fmt);
     }
 

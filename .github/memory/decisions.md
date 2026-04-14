@@ -19,6 +19,69 @@
 
 ## 实现决策
 
+### [25] NPC trace 采用“编译期能力 + 运行时开关”，并让 mtrace 排除 ifetch
+
+- **日期**: 2026-04-14
+- **状态**: 已决定
+- **上下文**: `npc/single` 在接入 monitor/Kconfig/SDB 后，用户继续要求补齐 `itrace/mtrace/dtrace` 的完整使用体验。现有实现虽然已经有零散日志点，但完全依赖 `CONFIG_NPC_ITRACE/MTRACE/DTRACE` 这类编译期开关，且 `mtrace` 把 IFU 取指和数据访存混在一起，实际用起来既不灵活也噪音很大。
+- **决策**: 保留 `CONFIG_NPC_ITRACE/MTRACE/DTRACE` 作为“二进制是否编进这项能力”的 build-time 选项；真正是否输出日志，统一交给 CLI 参数和 monitor 的 `trace ...` 命令在运行时控制。与此同时，把总线访问类型显式拆成 `ifetch/load/store`，其中 `mtrace` 只记录真实数据 `load/store`，`dtrace` 在 `device/map` 层统一记录 MMIO，IFU 取指不再混入 `mtrace`。
+- **理由**: 这样既保留了 Kconfig 对最终二进制大小和能力面的控制，也让日常运行默认保持安静，需要时再临时开 trace；而把 ifetch 从 mtrace 中拆出去，能显著提升访存日志的可读性，避免用户在排查 load/store 问题时被顺序取指噪音淹没。
+- **影响**: 后续若继续补反汇编、difftest 或更细粒度的设备 trace，应继续沿“build-time capability + runtime toggle”的边界扩展；同时默认把 `mtrace` 理解为数据路径观测，而不是泛化成“所有内存访问日志”。
+
+### [24] NPC 单步停点通过 host 收尾周期对齐下一条待执行 PC
+
+- **日期**: 2026-04-14
+- **状态**: 已决定
+- **上下文**: `npc/single` 已接入 NEMU 风格 monitor 后，`si 1` 虽然能正确提交 1 条指令，但 monitor 立即读取 `debug_pc_o` 时仍显示刚提交那条指令的 PC，观感上像“停在旧 PC”，与 NEMU 的单步体验不一致。
+- **决策**: 保持 RTL 导出的 `debug_pc_o` 继续表示核心当前在途状态，不在 `NpcCore` 内部为 monitor 额外改写 PC 语义；改由 `cpu_exec()` 在定步命中最后一次提交后，再额外推进一个不产生新提交的收尾周期，让 monitor 返回时看到下一条待执行指令的 PC。
+- **理由**: 这样可以把修正范围限制在 host monitor 语义层，不会污染 RTL 的状态定义、提交边界和 trap/exit 观测接口，也不会破坏 batch 连续运行路径。
+- **影响**: 后续若继续扩 SDB/trace，应默认把“单步返回时可观察 PC”理解为 host 收尾后的下一条待执行地址，而不是重新修改 `NpcCore` 的 `debug_pc_o` 语义。
+
+### [23] klib 的 stdlib 采用“native 复用宿主 libc，非 native 自管可回收堆”
+
+- **日期**: 2026-04-13
+- **状态**: 已决定
+- **上下文**: 当前工程中的 `am-kernels`、`abstract-machine` 和部分应用已经真实依赖 `malloc/free/rand/atoi` 等 `stdlib` 能力，但原有 `klib/src/stdlib.c` 只有线性 bump allocator 和极简 `atoi`，既不支持释放复用，也不足以覆盖工程里常见的字符串转数值场景。
+- **决策**: `abstract-machine/klib` 在非 native 目标上实现基于 `heap` 区间的可回收分配器，并补齐 `calloc/realloc/labs/atol/strtol/strtoul`；而在 native 目标上不导出自定义 `malloc/free`，继续复用宿主 libc 的分配器路径。
+- **理由**: 非 native 目标需要 freestanding 运行库提供完整的堆管理与数值转换；但 native 可执行文件若强行接管 `malloc/free`，容易截获宿主启动期或外部库内部的分配行为，把问题扩散到 SDL、工具链和宿主运行时边界。按目标类型分开处理，既能补齐工程能力，又能降低宿主侧副作用。
+- **影响**: 后续若继续补 `stdlib`，应优先围绕工程真实使用面扩展，并保持“native 复用宿主 libc、非 native 自管 freestanding 能力”的边界，不要把宿主进程运行时强行拉进 klib 的自定义分配器。
+
+### [22] NPC 仿真器 C++ 侧采用 NEMU 风格分层，而不是继续扩单个 main.cpp
+
+- **日期**: 2026-04-13
+- **状态**: 已决定
+- **上下文**: 最小 DPI bring-up 已经能跑通 `hello`，但用户明确要求不要把仿真器长期维持为“一个 `main.cpp` 做完所有平台逻辑”的教学式结构，希望后续输入、设备、trace、difftest 和更多平台能力都建立在更商业化、可维护的边界之上。
+- **决策**: `npc/single/csrc` 采用参考 NEMU 的 `monitor`、`memory/paddr`、`device/map`、`device`、`cpu/cpu-exec`、`dpi`、`utils` 分层，`main.cpp` 只保留 bootstrap；同时延续 NEMU 兼容地址图和 NEMU/AM 兼容键盘 ABI，让 AM/NEMU 现有软件假设尽量不变地迁到 NPC。
+- **理由**: 这样能把“参数与初始化”“物理地址空间”“设备注册与 host bridge”“执行循环”“DPI 边界”拆成稳定职责面，后续补设备或调试设施时不会再次陷回大文件耦合；同时继续复用 NEMU/AM 的地址与输入约定，可以显著降低平台迁移成本。
+- **影响**: 后续若补 `mtime/mtimecmp`、VGA、串口状态、trace、difftest 或更真实总线，应优先沿现有分层各自扩展；`main.cpp` 不再承担平台功能实现，AM 侧也继续沿 NEMU 兼容 ABI 接输入和 MMIO。
+
+### [21] NPC bring-up 先采用“core 外 DPI 平台层 + NEMU 兼容地址图”
+
+- **日期**: 2026-04-13
+- **状态**: 已决定
+- **上下文**: 用户当前已经完成了一版 RV32I 核心，但还没有外设和 SoC 外壳；下一步目标是用 Verilator 把 AM 编出来的程序镜像直接装进 NPC 的 `pmem`，至少先跑通取指、最小 MMIO、串口输出和程序正常退出，而不是一开始就上复杂总线或完整平台。
+- **决策**: 在 `npc/single` 中新增 `NpcSimTop.sv` 和 `csrc/main.cpp` 组成的最小 DPI 平台层，保持 `NpcCore` 只暴露 IFU/LSU 握手接口；平台层对齐 NEMU 现有地址图，先提供 `pmem@0x80000000`、`serial@0xa00003f8`、`rtc@0xa0000048` 与 `kbd@0xa0000060`。同时把 `abstract-machine` 的 `npc` 平台改成同一套串口/RTC/ebreak 约定，并新增 `riscv32-npc` 架构脚本。
+- **理由**: 这样能在最小改动核心的前提下快速形成“AM 镜像 -> NPC 平台 -> RV32I 核心”的可运行闭环，复用已有 NEMU/AM 软件约定，也为后续继续扩展 MMIO、trap handler、difftest 和更真实总线留出稳定平台边界。
+- **影响**: 后续若补 UART、mtime/mtimecmp、VGA、键盘等功能，应优先继续扩展 `NpcSimTop` 的 DPI 地址译码和 C++ 宿主实现；除非核心总线协议本身要升级，否则不要把平台语义重新塞回 `NpcCore` 内部。
+
+### [20] 在无 CSR/trap handler 阶段，把 ecall/ebreak 收口为 EEI 退出协议
+
+- **日期**: 2026-04-13
+- **状态**: 已决定
+- **上下文**: 当前 `npc/single/vsrc/NpcCore.v` 已能译码 `ecall/ebreak`，但此前只是把它们和普通异常一样送进 `TRAP` 状态卡死；对“CPU 跑程序并优雅退出”这个目标来说，外部 testbench 无法区分这是程序主动结束还是核心异常炸掉。
+- **决策**: 顶层新增 `CORE_STATE_HALT`，并导出 `exit_valid`、`exit_is_ecall`、`exit_is_ebreak`、`exit_code` 四个退出观测口；其中 `exit_code` 来自寄存器堆中的 `a0(x10)`。普通异常仍保留在 `TRAP` 路径，`ecall/ebreak` 单独进入 `HALT`。
+- **理由**: 当前还没有最小 CSR / mtvec / mepc / mcause / mtval 闭环，与其让 `ecall/ebreak` 伪装成普通 trap，不如先把它们定义为 EEI 结束协议，方便仿真环境、测试程序和后续 pmem harness 稳定收尾。
+- **影响**: 后续接 testbench、程序加载器或 difftest 时，应优先消费 `exit_*` 信号来结束仿真；未来即使补上最小 trap handler，也应保留这组观测口作为功能仿真阶段的稳定退出接口。
+
+### [19] NPC 首版 RV32I 核采用“单在途多周期 + 统一控制包”骨架
+
+- **日期**: 2026-04-13
+- **状态**: 已决定
+- **上下文**: 用户要求在 `npc/single/vsrc` 中直接落一版“近似商业级别”的 RV32I 非流水线核心，而当前工程只有 `define.v` 和 `RegisterFile.v` 的占位骨架；若继续按教学式超长组合单周期硬拼，很难同时把访存语义、提交边界和异常边界收清。
+- **决策**: 顶层 `NpcCore` 采用 `FETCH_REQ / FETCH_WAIT / DECODE / EXEC / MEM_REQ / MEM_WAIT / WB / TRAP` 的单在途多周期状态机；译码产出 packed ctrl bus，`ALU` / `CompareUnit` / `LSU` / `WBU` 各自负责纯组合语义，寄存器写回统一收口在 WBU，顶层只负责阶段推进、重定向和 trap 裁决。
+- **理由**: 这种方案仍属于非流水线实现，但比“所有逻辑一拍组合到底”的教学写法更接近可维护工程：模块边界清楚、访存和提交容易插入观测点，后续升级到 CSR / trap controller / difftest 时不用推翻主数据通路。
+- **影响**: 后续若补最小 machine CSR、mtvec/mepc/mcause/mtval 或 NEMU 对拍，应优先沿这条统一控制包和统一提交边界继续演进；当前 trap 仍是 halt-only，需要在下一轮升级成可恢复 trap 流。
+
 ### [13] 单周期 NPC ALU 采用“指令字段直编码 + 共享比较通路”
 
 - **日期**: 2026-04-07
@@ -182,3 +245,12 @@
 - **决策**: 新增 `.github/task-runs/` 作为单次图任务的结构化产物目录，并提供 `task-report.template.md` 与 `dispatch-log.template.md` 两个模板；`memory/` 继续只保存稳定结论和长期经验，节点级执行细节优先写入 `task-runs/`。
 - **理由**: 这样既保留了 Marco 风格的证据链和任务执行可审计性，又能维持长期记忆的简洁度与可复用性。
 - **影响**: 后续重要图任务在完成时，除了更新 `project-status.md`、`decisions.md`、模块记忆外，还应在 `.github/task-runs/<日期-任务名>/` 下维护对应的 `task-report.md` 与 `dispatch-log.md`。
+
+### [19] Bug 修复默认按“架构/数据流根因”而不是“补丁叠补丁”推进
+
+- **日期**: 2026-04-14
+- **状态**: 已决定
+- **上下文**: 随着 `npc`、`nemu`、`abstract-machine` 和工作区 agent 系统逐步工程化，单点报错往往只是更深层职责错位、状态机边界不清或数据流断裂的表象；如果每次都只围绕症状补一层特判，短期虽然能过当前 case，但会不断累积不可见耦合，最终演化成难以定位和清理的技术债。
+- **决策**: 后续 agent 处理 bug 时，必须先从架构职责、模块边界、控制流和数据流定位根因，再在正确抽象层修复；默认禁止“哪里坏了就在哪里缝一块”的补丁式修法。只有在明确属于兼容层、过渡期或外部约束导致无法立即做根修时，才允许保留局部补丁，并且必须显式说明边界、退出条件和债务控制方式。
+- **理由**: 这样能把修复动作和系统结构对齐，避免局部症状消失但全局复杂度持续上升，也更符合当前工作区希望沉淀长期可维护架构而不是堆临时 workaround 的方向。
+- **影响**: 后续无论是代码实现、review 还是 task-run 记录，遇到 bug 修复都应优先解释“根因在什么层、修复为什么放在这一层、数据流如何恢复正确”，而不是只记录表面补丁点。

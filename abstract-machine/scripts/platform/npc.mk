@@ -12,6 +12,9 @@ CFLAGS    += -fdata-sections -ffunction-sections
 LDSCRIPTS += $(AM_HOME)/scripts/linker.ld
 LDFLAGS   += --defsym=_pmem_start=0x80000000 --defsym=_entry_offset=0x0
 LDFLAGS   += --gc-sections -e _start
+NPC_HOME ?= $(abspath $(AM_HOME)/../npc)
+NPC_SINGLE_HOME ?= $(NPC_HOME)/single
+NPC_RUN_ARGS ?=
 
 MAINARGS_MAX_LEN = 64
 MAINARGS_PLACEHOLDER = the_insert-arg_rule_in_Makefile_will_insert_mainargs_here
@@ -26,6 +29,7 @@ image: image-dep
 	@$(OBJCOPY) -S --set-section-flags .bss=alloc,contents -O binary $(IMAGE).elf $(IMAGE).bin
 
 run: insert-arg
-	echo "TODO: add command here to run simulation"
+    # AM 侧只负责产出镜像和 mainargs，真正执行统一收口到 npc/single 的 run 入口，避免两边各维护一套参数协议。
+	$(MAKE) -C $(NPC_SINGLE_HOME) run IMG=$(IMAGE).bin RUN_ARGS="$(NPC_RUN_ARGS)"
 
 .PHONY: insert-arg

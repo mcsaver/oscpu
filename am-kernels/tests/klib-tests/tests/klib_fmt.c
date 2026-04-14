@@ -1,4 +1,5 @@
 #include "trap.h"
+#include <stdint.h>
 #include <stdarg.h>
 
 //---此测试程序专用与测试格式化输出函数
@@ -49,6 +50,19 @@ int main() {
   n = call_vsprintf(buf, "W:%d:%c", 42, 'q');
   check(n == 6);
   check(strcmp(buf, "W:42:q") == 0);
+
+  // 覆盖 CoreMark 和 devscan 依赖的整数格式，保证十六进制/无符号数不再把格式串原样吐出来。
+  n = sprintf(buf, "U=%u H=%04x X=%X", 123u, 0x2au, 0x2au);
+  check(n == 17);
+  check(strcmp(buf, "U=123 H=002a X=2A") == 0);
+
+  n = snprintf(tiny, sizeof(tiny), "%08x", 0x1234u);
+  check(n == 8);
+  check(strcmp(tiny, "0000123") == 0);
+
+  n = sprintf(buf, "P=%p", (void *)(uintptr_t)0x1234);
+  check(n == 8);
+  check(strcmp(buf, "P=0x1234") == 0);
 
   return 0;
 }
