@@ -5,6 +5,14 @@
 ## 活跃问题
 <!-- 当前未解决的问题 -->
 
+### [19] fceux-am 在 NPC 上 BAD TRAP：FUNC_IDX 溢出 + 音频设备 panic（已解决）
+
+- **模块**: FCEUX-AM / Abstract Machine / NPC
+- **现象**: `make ARCH=riscv32-npc mainargs=mario3 run` 先因 `FUNC_IDX_MAX=16` 溢出 `halt(1)`，修复后又因 `io_read(AM_AUDIO_CONFIG)` 触发 `access nonexist register` panic。
+- **根因**: 两层问题：① `fceux-am/src/config.h` 未识别 `__PLATFORM_NPC`，落入 `PERF_LOW` → `FUNC_IDX_MAX16`，MMC3 mapper 注册超 16 个唯一函数指针时 assert 失败；② 修成 `PERF_MIDDLE` 后 `SOUND_CONFIG` 变成 `SOUND_LQ`，`sdl-sound.cpp` 中 `io_read(AM_AUDIO_CONFIG)` 被编译进来，但 `riscv32-npc` 的 `ioe.c` 没有注册编号 14 的 `AM_AUDIO_CONFIG`。
+- **修复**: ① 在 `config.h` 的 `#elif` 分支加上 `|| defined(__PLATFORM_NPC)` 使 NPC 获得 `PERF_MIDDLE`；② 在 `abstract-machine/am/src/riscv/npc/ioe.c` 新增 `__am_audio_config` 空桩（`present=false, bufsize=0`）并注册到 lut。修复后 mario3 在 NPC 上成功加载运行。
+- **教训**: 跨平台的性能/功能配置层（如 `config.h`）在新增平台时必须显式接入，否则会静默退回最低档位带来意料之外的功能裁剪。IOE 设备查找表对所有 AM 定义的设备至少应提供 `present=false` 回应，避免任何程序碰未实现设备就直接 panic。后续实现 NPC 真实音频时，需把空桩替换为真实实现并同时注册 `AM_AUDIO_CTRL/STATUS/PLAY`。
+
 ### [18] NPC 开启 stdin keyboard 后，终端输出会出现“越打越往右”的错位
 
 - **模块**: NPC / 终端交互 / VGA 调试输出

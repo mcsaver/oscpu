@@ -193,7 +193,7 @@ void npc_kbd_init(bool enable) {
   struct termios raw = g_kbd.saved_termios;
   raw.c_lflag &= (tcflag_t)~(ICANON | ECHO);
   raw.c_iflag &= (tcflag_t)~(IXON | ICRNL);
-  raw.c_oflag &= (tcflag_t)~(OPOST);
+  /* 保留 OPOST/ONLCR，让 \n 仍被终端转成 \r\n 回到列首，避免输出越打越往右 */
   raw.c_cc[VMIN] = 0;
   raw.c_cc[VTIME] = 0;
 

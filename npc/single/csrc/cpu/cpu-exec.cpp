@@ -12,7 +12,11 @@
 #include "utils.h"
 
 #include <verilated.h>
+/* VCD trace 头文件和对象只在编译了 --trace 时存在；
+ * Verilator 不传 --trace 会定义 VM_TRACE=0 而非 undef，所以必须用 #if 而非 #ifdef。 */
+#if VM_TRACE
 #include <verilated_vcd_c.h>
+#endif
 #include "VNpcSimTop.h"
 
 #include <cctype>
@@ -23,14 +27,18 @@
 #include <memory>
 
 /* Verilator 用于 VCD 时间戳的回调 */
+#if VM_TRACE
 double sc_time_stamp() {
   return (double)npc_stats()->sim_time;
 }
+#endif
 
 /* ---- 内部状态 ---- */
 
 static std::unique_ptr<VNpcSimTop>    g_top;
+#if VM_TRACE
 static std::unique_ptr<VerilatedVcdC> g_trace_file;
+#endif
 static uint64_t g_cycle_limit        = NPC_DEFAULT_MAX_CYCLES;
 static uint64_t g_progress_interval  = NPC_DEFAULT_PROGRESS_INTERVAL;
 static volatile std::sig_atomic_t g_stop_requested = 0;
@@ -196,9 +204,11 @@ static void report_run_result(void) {
 static void eval_half_cycle(uint8_t clk_level) {
   g_top->clk = clk_level;
   g_top->eval();
+#if VM_TRACE
   if (g_trace_file) {
     g_trace_file->dump(npc_stats()->sim_time);
   }
+#endif
   ++npc_stats()->sim_time;
 }
 
@@ -287,12 +297,19 @@ bool npc_init_cpu(int argc, char **argv, const NpcSimConfig *config) {
   g_top = std::make_unique<VNpcSimTop>();
   if (!g_top) return false;
 
+#if VM_TRACE
   if (config->trace) {
     Verilated::traceEverOn(true);
     g_trace_file = std::make_unique<VerilatedVcdC>();
     g_top->trace(g_trace_file.get(), 99);
     g_trace_file->open(config->trace_path);
   }
+#else
+  if (config->trace) {
+    fprintf(stderr, "[npc] warning: --trace requested but binary built without VCD support.\n"
+                    "      Rebuild with 'make TRACE=1' or enable CONFIG_NPC_TRACE_BY_DEFAULT.\n");
+  }
+#endif
   // 初始化阶段复位，后续 si/c 在同一颗已上电核上推进
   apply_reset();
   return true;
@@ -431,7 +448,9 @@ bool npc_consume_sigint_request(void) {
 
 void npc_fini_cpu(void) {
   if (g_top) g_top->final();
+#if VM_TRACE
   if (g_trace_file) { g_trace_file->close(); g_trace_file.reset(); }
+#endif
   npc_fini_disasm();
   g_top.reset();
 }

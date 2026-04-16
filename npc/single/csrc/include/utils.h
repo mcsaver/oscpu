@@ -184,9 +184,13 @@ typedef struct {
   bool dtrace;
 } NpcSimConfig;
 
-/* ---- 全局状态访问（C 用指针代替 C++ 引用） ---- */
-NpcState *npc_state(void);
-NpcStats *npc_stats(void);
+/* ---- 全局状态访问 ----
+ * 热循环每拍多次访问 npc_state()/npc_stats()；
+ * 用 extern + static inline 让编译器在调用点直接内联，消除跨 TU 函数调用开销。 */
+extern NpcState g_npc_state;
+extern NpcStats g_npc_stats;
+static inline NpcState *npc_state(void) { return &g_npc_state; }
+static inline NpcStats *npc_stats(void) { return &g_npc_stats; }
 void npc_reset_state(void);
 uint64_t npc_get_time_us(void);
 const char *npc_state_name(int state);

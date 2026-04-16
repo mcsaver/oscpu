@@ -61,10 +61,23 @@ CXXFLAGS_BUILD += $(call remove_quote,$(CONFIG_CC_OPT))
 CXXFLAGS_BUILD += $(if $(CONFIG_CC_DEBUG),-Og -ggdb3,)
 
 # 这里直接让 Verilator 一次把 RTL、DPI 包装层和 C++ 宿主编成可执行文件，避免再手写额外链接步骤。
-VERILATOR_FLAGS += -MMD --build --cc --exe --trace \
+# 优化要点：
+#   1. -O3 让 Verilator 对 RTL→C++ 做更激进的内联与死码消除
+#   2. --trace 改为条件编译——即使不写 VCD，trace 基础设施也会给每次 eval() 加 ~30% 信号跟踪开销
+#   3. --prof-cfuncs 给生成函数加可读名称，便于 gprof/callgrind 定位热点，运行期零额外开销
+VERILATOR_FLAGS += -MMD --build --cc --exe \
+			   -O3 --prof-cfuncs \
 			   --x-assign fast --x-initial fast --noassert \
 			   -Wall -Wno-DECLFILENAME \
 			   -I$(abspath ./vsrc)
+
+# 只在确实需要波形时才打开 --trace，避免无谓的 eval() 开销
+ifeq ($(CONFIG_NPC_TRACE_BY_DEFAULT),y)
+VERILATOR_FLAGS += --trace
+endif
+ifdef TRACE
+VERILATOR_FLAGS += --trace
+endif
 
 $(shell mkdir -p $(BUILD_DIR))
 
@@ -174,7 +187,12 @@ run: $(BIN)
 clean:
 	rm -rf $(BUILD_DIR)
 
-.PHONY: default all lint syn-check-env sta-check-env syn sta sim run clean
+# 带 gprof 插桩的构建入口，产物可以送给 gprof 分析热点
+gprof-build: CXXFLAGS_BUILD += -pg
+gprof-build: LDLIBS_BUILD += -pg
+gprof-build: default
+
+.PHONY: default all lint syn-check-env sta-check-env syn sta sim run clean gprof-build
 
 include $(NPC_HOME)/scripts/config.mk
 

@@ -2,6 +2,7 @@
 
 ## 当前状态
 <!-- 已实现的模块、信号位宽等 -->
+- 2026-04-16: `npc/single` 首轮仿真性能优化完成，CoreMark 1000 iterations 稳定在 863K inst/s（perf_defconfig）。关键改动：Verilator -O3 + conditional --trace、设备轮询节流（65536 间隔）、pmem 用 calloc 消除 128MB 双写、npc_state()/npc_stats() 改成 extern+static inline。新增 `perf/` 目录记录优化数据和 profiling 脚本。注意：utils.h 中有 `#ifndef CONFIG_NPC_WATCHPOINT / #define ... 1` 的 fallback，header include 顺序敏感——watchpoint.h 在 utils.h 之前被 include 时会看到未定义的 CONFIG_NPC_WATCHPOINT，不要在 watchpoint.h 中使用依赖此宏的条件编译。
 - 2026-04-16: `npc/single/csrc/device/` 已按 NEMU IO/设备分层模式重构：`device.c` 只做编排，设备行为拆到 `serial.c`/`timer.c`/`keyboard.c`/`vga.c`，每个设备 static 管理自己的状态并通过 `npc_add_mmio_map()` 自行注册到 MMIO 总线。新增 `keyboard.h`/`vga.h` 头文件。VGA SDL 键盘事件通过 `npc_kbd_push_event()` 路由到键盘设备。
 - 2026-04-15: `npc/single/csrc` 已从 C++ 全面重构为 C 语言风格。除 `cpu/cpu-exec.cpp`（必须保留 C++ 是因为 Verilator 的 `VNpcSimTop` 是 C++ 类）外，其余 12 个源文件全部为 `.c` 扩展名。所有头文件带 `extern "C"` 守护，保证 C/C++ 互操作。函数命名统一加 `npc_` 前缀，类型用 `Npc` CamelCase，常量用 `NPC_` UPPER_SNAKE。注意：Verilator 用 g++ 编译所有用户源文件（含 .c），因此 DPI 函数需要 `#ifdef __cplusplus extern "C" { #endif` 包裹才能保证 C 链接。
 - 2026-04-14: 当前 `stdin keyboard` 路径除了把 stdin 设成非规范模式之外，还会在 `KeyboardDevice::Init()` 里对同一个 TTY 执行 `raw.c_oflag &= ~(OPOST)`。这会让 guest 的串口文本和 host 的 `LogBoth()` 在终端上只做 LF、不回列首；所以像 `am-tests mainargs=v` 这种持续打印 `FPS = ...\n` 的场景会出现“每一行越来越往右”的错位。该现象首先应归因于终端模式，而不是 VGA framebuffer 或 SDL 刷新坐标。

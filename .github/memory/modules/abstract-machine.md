@@ -2,6 +2,7 @@
 
 ## 当前状态
 <!-- 已实现的 API (TRM/IOE/CTE/VME/MPE) -->
+- 2026-04-16: `riscv32-npc` 的 `ioe.c` 新增 `AM_AUDIO_CONFIG` 空桩（`present=false, bufsize=0`），避免上层程序（如 fceux-am 在 `PERF_MIDDLE/SOUND_LQ` 下）查询音频设备时触发 `access nonexist register` panic。后续若在 NPC 上实现真正的音频设备，需要把这个空桩替换为真实实现，并同时注册 `AM_AUDIO_CTRL`、`AM_AUDIO_STATUS`、`AM_AUDIO_PLAY`。改动文件：`abstract-machine/am/src/riscv/npc/ioe.c`。
 - 2026-04-14: `platform/nemu` 与 `riscv32-npc` 现在都已经补齐高级 GPU ABI：`AM_GPU_MEMCPY` 会先把 canvas/texture 数据拷进一块 512KB 的 GPU 软显存，`AM_GPU_RENDER` 再按根节点把树形画布渲染到最终 framebuffer。实测 NEMU 上的 `am-tests mainargs=d` 已经可以完整跑到 `Test End!`，不再在 VGA 阶段报 `access nonexist register`。
 - 2026-04-14: 这轮高级 GPU 补全采用共享软件渲染层 `am/src/platform/gpu_soft.h`，而不是在 NEMU/NPC 两个平台里各自复制一套 canvas/tree 解释逻辑；这样 `GPU_MEMCPY/GPU_RENDER` 的语义只维护一份，平台文件只保留“如何把最终像素写到各自 framebuffer”这层差异。
 - 2026-04-14: `riscv32-npc` 现已补齐基础 GPU IOE：新增 `am/src/riscv/npc/gpu.c`，在 `ioe.c` 中注册 `AM_GPU_CONFIG/AM_GPU_STATUS/AM_GPU_FBDRAW`，并在 `npc.h` 中补上 `VGACTL_ADDR/FB_ADDR`。当前 `am-tests mainargs=v` 已能推进到 `__am_gpu_fbdraw` 的矩形拷贝循环，`mainargs=k` 也已继续通过 NPC 键盘设备看到 `A DOWN/UP`。

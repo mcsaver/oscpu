@@ -1,0 +1,14 @@
+# CoreMark 跑分结果 — 2026-04-16
+# 配置: perf_defconfig (无 trace/VGA/SDB/watchpoint)
+# 优化: Verilator -O3, conditional --trace, device throttle, calloc, inline accessors
+
+CoreMark Size    : 666
+Iterations       : 1000
+CoreMark PASS       3 Marks
+                vs. 100000 Marks (i7-7700K @ 4.20GHz)
+
+host time spent       = 864821101 us (865 s)
+total guest insts     = 746654077
+simulation frequency  = 863362 inst/s
+
+# cpu-tests 回归: 35/35 PASS

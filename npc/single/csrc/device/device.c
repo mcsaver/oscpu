@@ -20,7 +20,14 @@ void npc_init_device(bool enable_stdin_keyboard, bool enable_vga) {
   npc_vga_init(enable_vga);
 }
 
+/* 设备轮询节流计数器——和 NEMU 一样按执行周期批量检查，避免每拍做一次 poll() 系统调用。
+ * 经测试 poll() 在热循环里是仿真速度的主要瓶颈之一；节流后 CoreMark 级长跑提速显著。 */
+#define DEVICE_POLL_INTERVAL 65536
+static uint64_t s_device_poll_counter = 0;
+
 void npc_device_update(void) {
+  if (++s_device_poll_counter < DEVICE_POLL_INTERVAL) return;
+  s_device_poll_counter = 0;
   npc_vga_poll();
   npc_kbd_poll();
 }

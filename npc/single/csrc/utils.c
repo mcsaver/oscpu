@@ -7,11 +7,10 @@
 #include <time.h>
 
 /* ---- 全局单例 ---- */
-static NpcState  g_npc_state;
-static NpcStats  g_npc_stats;
-
-NpcState *npc_state(void) { return &g_npc_state; }
-NpcStats *npc_stats(void) { return &g_npc_stats; }
+/* 声明为非 static，让 utils.h 中的 extern 声明能找到；
+ * 头文件中的 inline 访问器可以直接引用这两个符号，消除热循环中的间接调用开销。 */
+NpcState  g_npc_state;
+NpcStats  g_npc_stats;
 
 void npc_reset_state(void) {
   memset(&g_npc_state, 0, sizeof(g_npc_state));

@@ -16,6 +16,8 @@ void __am_gpu_render(AM_GPU_RENDER_T *);
 static void __am_timer_config(AM_TIMER_CONFIG_T *cfg) { cfg->present = true; cfg->has_rtc = true; }
 static void __am_input_config(AM_INPUT_CONFIG_T *cfg) { cfg->present = true;  }
 static void __am_uart_config(AM_INPUT_CONFIG_T *cfg) { cfg->present = false;  }
+// 音频设备空桩：NPC 当前不支持音频，返回 present=false 让上层程序安全跳过，而不是 panic
+static void __am_audio_config(AM_AUDIO_CONFIG_T *cfg) { cfg->present = false; cfg->bufsize = 0; }
 
 typedef void (*handler_t)(void *buf);
 static void *lut[128] = {
@@ -30,6 +32,7 @@ static void *lut[128] = {
   [AM_GPU_MEMCPY  ] = __am_gpu_memcpy,
   [AM_GPU_RENDER  ] = __am_gpu_render,
   [AM_UART_CONFIG]  = __am_uart_config,
+  [AM_AUDIO_CONFIG] = __am_audio_config,
 };
 
 static void fail(void *buf) { panic("access nonexist register"); }
