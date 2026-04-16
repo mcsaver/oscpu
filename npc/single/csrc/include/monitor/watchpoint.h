@@ -1,16 +1,20 @@
 #ifndef NPC_SINGLE_CSRC_MONITOR_WATCHPOINT_H_
 #define NPC_SINGLE_CSRC_MONITOR_WATCHPOINT_H_
 
-#include <string>
+#include <stdbool.h>
 
-namespace npc {
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-void init_watchpoint_pool();
-bool new_watchpoint(const std::string &expression);
-bool free_watchpoint(int no);
-void watchpoint_display();
-bool check_watchpoints();
+void npc_init_watchpoint_pool(void);
+bool npc_new_watchpoint(const char *expression);
+bool npc_free_watchpoint(int no);
+void npc_watchpoint_display(void);
+bool npc_check_watchpoints(void);
 
-}  // namespace npc
+#ifdef __cplusplus
+}
+#endif
 
 #endif

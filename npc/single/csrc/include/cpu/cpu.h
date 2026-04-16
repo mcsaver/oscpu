@@ -1,23 +1,27 @@
 #ifndef NPC_SINGLE_CSRC_CPU_CPU_H_
 #define NPC_SINGLE_CSRC_CPU_CPU_H_
 
-#include <cstdint>
-
+#include <stdbool.h>
+#include <stdint.h>
 #include "../utils.h"
 
-namespace npc {
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-bool init_cpu(int argc, char **argv, const SimConfig &config);
-int cpu_exec(uint64_t max_cycles);
-void fini_cpu();
-void cpu_reg_display();
-void cpu_info_display();
-bool isa_reg_str2val(const char *name, uint32_t *value);
-bool cpu_read_reg(int index, uint32_t *value);
-uint32_t cpu_pc();
-uint32_t cpu_state_bits();
-bool consume_sigint_request();
+bool npc_init_cpu(int argc, char **argv, const NpcSimConfig *config);
+int npc_cpu_exec(uint64_t max_instructions);
+void npc_fini_cpu(void);
+void npc_cpu_reg_display(void);
+void npc_cpu_info_display(void);
+bool npc_isa_reg_str2val(const char *name, uint32_t *value);
+bool npc_cpu_read_reg(int index, uint32_t *value);
+uint32_t npc_cpu_pc(void);
+uint32_t npc_cpu_state_bits(void);
+bool npc_consume_sigint_request(void);
 
-}  // namespace npc
+#ifdef __cplusplus
+}
+#endif
 
 #endif

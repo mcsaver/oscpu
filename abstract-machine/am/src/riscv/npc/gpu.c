@@ -1,7 +1,8 @@
 #include <am.h>
-#include <nemu.h>
+#include <stdint.h>
 
-#include "../../gpu_soft.h"
+#include "../../platform/gpu_soft.h"
+#include "npc.h"
 
 #define SYNC_ADDR (VGACTL_ADDR + 4)
 
@@ -18,7 +19,8 @@ static inline bool gpu_present() {
 }
 
 void __am_gpu_init() {
-  // NEMU 宿主侧已经把 framebuffer 初始化干净了；这里保留一次 sync，避免 guest 再做无意义整屏清零。
+  // NPC 宿主侧在设备初始化时已经把 framebuffer 清成黑屏了；这里若再让 guest 用 store 扫满 400x300，
+  // 多周期核会在真正进入测试前先白白耗掉几十万次提交。保留一次 sync 即可把干净初始帧提交出来。
   if (gpu_present()) {
     outl(SYNC_ADDR, 1);
   }
@@ -27,9 +29,12 @@ void __am_gpu_init() {
 void __am_gpu_config(AM_GPU_CONFIG_T *cfg) {
   uint32_t width = gpu_width();
   uint32_t height = gpu_height();
+
   *cfg = (AM_GPU_CONFIG_T) {
-    .present = am_gpu_present(width, height), .has_accel = true,
-    .width = width, .height = height,
+    .present = am_gpu_present(width, height),
+    .has_accel = true,
+    .width = (int)width,
+    .height = (int)height,
     .vmemsz = am_gpu_present(width, height) ? AM_GPU_SOFT_VMEM_SIZE : 0,
   };
 }
@@ -44,25 +49,25 @@ void __am_gpu_fbdraw(AM_GPU_FBDRAW_T *ctl) {
   int w_reg = ctl->w;
   int h_reg = ctl->h;
 
-  if (ctl->pixels && w_reg > 0 && h_reg > 0) {
+  if (ctl->pixels != NULL && w_reg > 0 && h_reg > 0) {
     uint32_t screen_w = gpu_width();
     uint32_t screen_h = gpu_height();
-    uint32_t *data = (uint32_t *)ctl->pixels;
+    uint32_t *src = (uint32_t *)ctl->pixels;
     uint32_t *fb = (uint32_t *)(uintptr_t)FB_ADDR;
 
-    // 基础 FBDRAW 仍然负责“矩形像素块 -> framebuffer”的直接拷贝；高级树形渲染留给 GPU_RENDER 复用软件渲染层处理。
-    for (int y_h = 0; y_h < h_reg; y_h++) {
-      int dst_y = y_reg + y_h;
+    // 保留基础 framebuffer 拷贝路径，video_test 仍然直接走这里；而 devscan 的 canvas/render 由软件渲染层补齐。
+    for (int row = 0; row < h_reg; row++) {
+      int dst_y = y_reg + row;
       if (dst_y < 0 || dst_y >= (int)screen_h) {
         continue;
       }
 
-      for (int x_w = 0; x_w < w_reg; x_w++) {
-        int dst_x = x_reg + x_w;
+      for (int col = 0; col < w_reg; col++) {
+        int dst_x = x_reg + col;
         if (dst_x < 0 || dst_x >= (int)screen_w) {
           continue;
         }
-        fb[dst_y * screen_w + dst_x] = data[y_h * w_reg + x_w];
+        fb[dst_y * screen_w + dst_x] = src[row * w_reg + col];
       }
     }
   }
@@ -81,7 +86,7 @@ void __am_gpu_memcpy(AM_GPU_MEMCPY_T *params) {
     return;
   }
 
-  // devscan 依赖这层“guest 缓冲区 -> GPU 软显存”的拷贝语义；这样不同平台都能复用同一套 canvas/render ABI。
+  // 这里补上 devscan 依赖的高级 GPU 输入缓冲区，让上层能先把 canvas/texture 数据组织到一块软显存里。
   am_gpu_memcpy_to_vmem(params);
 }
 

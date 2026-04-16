@@ -1,15 +1,20 @@
 #ifndef NPC_SINGLE_CSRC_MONITOR_MONITOR_H_
 #define NPC_SINGLE_CSRC_MONITOR_MONITOR_H_
 
+#include <stdbool.h>
 #include "../utils.h"
 
-namespace npc {
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-bool init_monitor(int argc, char **argv, SimConfig *config);
-int monitor_run();
-void fini_monitor();
-const SimConfig &sim_config();
+bool npc_init_monitor(int argc, char **argv, NpcSimConfig *config);
+int npc_monitor_run(void);
+void npc_fini_monitor(void);
+const NpcSimConfig *npc_sim_config(void);
 
-}  // namespace npc
+#ifdef __cplusplus
+}
+#endif
 
 #endif

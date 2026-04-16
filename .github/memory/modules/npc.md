@@ -2,6 +2,25 @@
 
 ## 当前状态
 <!-- 已实现的模块、信号位宽等 -->
+- 2026-04-16: `npc/single/csrc/device/` 已按 NEMU IO/设备分层模式重构：`device.c` 只做编排，设备行为拆到 `serial.c`/`timer.c`/`keyboard.c`/`vga.c`，每个设备 static 管理自己的状态并通过 `npc_add_mmio_map()` 自行注册到 MMIO 总线。新增 `keyboard.h`/`vga.h` 头文件。VGA SDL 键盘事件通过 `npc_kbd_push_event()` 路由到键盘设备。
+- 2026-04-15: `npc/single/csrc` 已从 C++ 全面重构为 C 语言风格。除 `cpu/cpu-exec.cpp`（必须保留 C++ 是因为 Verilator 的 `VNpcSimTop` 是 C++ 类）外，其余 12 个源文件全部为 `.c` 扩展名。所有头文件带 `extern "C"` 守护，保证 C/C++ 互操作。函数命名统一加 `npc_` 前缀，类型用 `Npc` CamelCase，常量用 `NPC_` UPPER_SNAKE。注意：Verilator 用 g++ 编译所有用户源文件（含 .c），因此 DPI 函数需要 `#ifdef __cplusplus extern "C" { #endif` 包裹才能保证 C 链接。
+- 2026-04-14: 当前 `stdin keyboard` 路径除了把 stdin 设成非规范模式之外，还会在 `KeyboardDevice::Init()` 里对同一个 TTY 执行 `raw.c_oflag &= ~(OPOST)`。这会让 guest 的串口文本和 host 的 `LogBoth()` 在终端上只做 LF、不回列首；所以像 `am-tests mainargs=v` 这种持续打印 `FPS = ...\n` 的场景会出现“每一行越来越往右”的错位。该现象首先应归因于终端模式，而不是 VGA framebuffer 或 SDL 刷新坐标。
+- 2026-04-14: `npc/single` 现在已经把 VGA 设备提成显式配置项：`Kconfig`/`default_defconfig` 新增 `CONFIG_NPC_HAS_VGA`，运行时也支持 `--vga/--no-vga`。关闭后宿主仍保留 `vgactl/framebuffer` 的安全 MMIO 占位，但控制寄存器宽高会回到 `0`，因此 AM 的 `GPU_CONFIG.present` 会变成 `false`，便于在不改镜像的情况下快速退回无图形路径排查问题。
+- 2026-04-14: `npc/single` 的宿主 VGA 设备当前不仅支持基础 framebuffer，还和 AM 的高级 GPU ABI 对齐了：`riscv32-npc` 现已通过共享软件渲染层接通 `AM_GPU_MEMCPY/GPU_RENDER`。不过在真实 `devscan` 回归里，当前多周期 NPC 还会先被 `timer_test` 的 10^7 忙等拖住，`--max-cycles 3000000` 时停点仍落在 `0x80000264`，所以接下来若继续追 `mainargs=d`，优先看性能与 disk，而不是再回头怀疑 VGA 没补全。
+- 2026-04-14: `npc/single` 宿主侧现已补齐基础 VGA 设备：`device.cpp` 新增 `vgactl@0xa0000100` 与 `framebuffer@0xa1000000` 两段 MMIO，SDL2 可用时会弹出窗口并把窗口键盘事件编码成 NEMU/AM 兼容的 `keydown/keycode`；即使宿主缺少 SDL2，framebuffer 仍会保留为 headless 后端，stdin 键盘桥也继续可用。
+- 2026-04-14: 当前 `riscv32-npc` 的基础图形链路已经通到 `AM_GPU_FBDRAW`：实测 `am-tests mainargs=v` 不再卡死在 `__am_gpu_init`，停点已推进到 `__am_gpu_fbdraw` 的矩形像素拷贝循环；`am-tests mainargs=k` 也已继续在 NPC 上打印 `Got  (kbd): A (43) DOWN/UP`。
+- 2026-04-14: `npc/single/Makefile` 现在已经原生接管 `NpcCore` 的标准单元综合与 STA 流程；后续不必再切到 `yosys-sta/` 目录手敲长命令，直接在 `npc/single` 下执行 `make syn` 或 `make sta` 即可。
+- 2026-04-14: 当前 Makefile 里的综合文件列表已经显式收敛为 `ALU/CompareUnit/DecodeUnit/ImmGen/LSU/RegisterFile/WBU/NpcCore`，目的是把“可综合核心”与“含 DPI 的仿真壳 `NpcSimTop.sv`”稳定分开，避免以后因为自动枚举源文件把仿真层误喂给 `yosys-sta`。
+- 2026-04-14: `NpcCore` 已经接通 `yosys-sta` 的 `icsprout55` 标准单元综合与 STA 流程；当前使用默认 `500MHz`/`clk` 约束时，`NpcCore-500MHz/NpcCore.rpt` 显示 `core_clock` 的 `max/min TNS` 都是 `0.000`，最差 setup slack 约 `0.963ns`，最差 hold slack 约 `0.100ns`，映射面积约 `21437.92`，总功耗约 `0.2035W`。
+- 2026-04-14: 这轮 `yosys-sta` 的产物目录已经固定到 `npc/single/build/sta/NpcCore-500MHz/`，其中 `NpcCore.netlist.v` 是标准单元网表，`NpcCore.rpt` 是时序报告，`NpcCore.pwr` 是功耗报告，`NpcCore.cap/fanout/trans` 用来补看电气约束是否全清。
+- 2026-04-14: 已经用 Yosys 0.59 对 `npc/single/vsrc` 的纯 RTL 核心 `NpcCore` 做过一次完整综合，输入文件为 `ALU/CompareUnit/DecodeUnit/ImmGen/LSU/RegisterFile/WBU/NpcCore`，`check` 阶段结果为 `0 problems`；本轮综合产物位于 `npc/single/build/yosys/NpcCore.netlist.v`、`npc/single/build/yosys/NpcCore.json`、`npc/single/build/yosys/yosys-pass2.log`。
+- 2026-04-14: `NpcSimTop.sv` 目前仍是仿真平台壳，不是可综合 SoC 顶层；根因不是 RTL 语法本身，而是它包含 `import "DPI-C"` 的 `npc_ifetch/npc_mem_read/npc_mem_write` 宿主总线任务。当前若做 Yosys 综合，应默认把顶层收敛到 `NpcCore`，或后续再单独补一个不含 DPI 的 SoC wrapper。
+- 2026-04-14: `npc/single/configs/default_defconfig` 现在也已经同步打开 `NPC_LOG_FILE`、`NPC_ITRACE_BY_DEFAULT`、`NPC_MTRACE_BY_DEFAULT`、`NPC_DTRACE_BY_DEFAULT`；因此 richer log 不再只是当前本地 `.config` 的一次性状态，而是新的默认配置行为，新同步配置后也会直接生效。
+- 2026-04-14: `npc/single` 的 itrace 现在已经能直接显示反汇编结果：当前通过 Capstone 对 `commit_inst_o` 做 RISC-V decode，日志形态升级为 `itrace pc=... inst=... asm="..." ...`，例如 `asm="addi sp, sp, -4"`、`asm="jal 0x8c"` 这类文本已经在 `hello` 和 `add` 回归中实测出现。
+- 2026-04-14: 当前 itrace 里的寄存器项 `xN(name)<=0x...` 表示“这条指令提交后写回到寄存器堆的新值”，不是写前旧值；实现上直接读取 `NpcCore` 的 `commit_rd_data_o`，因此这项日志更接近 NEMU 的提交语义，而不是某个时刻采样到的 debug 寄存器快照。
+- 2026-04-14: `npc/single` 现在已经修掉默认开波形时启动阶段那组 `%Warning: previous dump at t=9, requesting t=0`；根因不在 RTL，而在 host 侧把 `sim_time` 和“本次运行统计”绑在了一起，reset warmup dump 完后又被状态清理回零。现在 `sim_time` 会继续单调递增，最新实测 `hello`/`add` 都不再出现这组 warning。
+- 2026-04-14: `npc/single` 的软件 trace 现在除了“编译进二进制”之外，又多了一层可持久化的默认运行态配置：`Kconfig` 新增 `NPC_ITRACE_BY_DEFAULT`、`NPC_MTRACE_BY_DEFAULT`、`NPC_DTRACE_BY_DEFAULT`，当前本地 `.config` 已打开三项，因此直接 `make ... run` 时 `npc-log.txt` 会默认带上 `itrace/mtrace/dtrace`，更接近 NEMU 的日志体验。
+- 2026-04-14: guest 串口输出现在也会镜像到日志文件，但不是原来那种逐字节裸写，而是整理成 `[guest] ...` 行；这样即使同时打开 `dtrace`，离线看 `npc/single/build/npc-log.txt` 时也能直接 grep 到 `Hello, AbstractMachine!`、`mainargs = ''` 这类 guest 文本。
 - 2026-04-14: `npc/single` 现在在程序结束时会补一组接近 NEMU 的统计摘要：`npc: HIT GOOD/BAD TRAP`、`host time spent`、`total guest instructions`、`simulation frequency`；同时 `info s` 也已扩展出 `host-us` 和 `inst/s`，方便在 monitor 里查看累计统计。
 - 2026-04-14: `npc/single` 现在已经带上长跑 progress 机制：默认配置项 `CONFIG_NPC_DEFAULT_PROGRESS_INTERVAL` 控制 progress 间隔，运行时也支持 `--progress/--no-progress/--progress-interval`；在 batch 或 monitor 的 `c` 路径下，CPU 会按“已提交指令数”周期性打印 `[progress] ...`，帮助区分“CoreMark 还在跑”和“仿真真的卡死”。
 - 2026-04-14: `npc/single` 的周期上限现在已经支持 `0 = unlimited`：`menuconfig` 里的 `NPC_DEFAULT_MAX_CYCLES` 不再只是“改一个更大的默认数”，而是可以直接设成 `0` 关闭超时；命令行 `--max-cycles 0` 也走同一条语义，welcome 会显示 `max cycles: unlimited`，适合 CoreMark 这类较大的测试。
@@ -32,6 +51,16 @@
 
 ## 设计笔记
 <!-- 模块设计思路、接口约定 -->
+- 2026-04-14: 对当前 NPC，更稳的高级 GPU 落点不是继续往宿主 `VgaDevice` 里堆 canvas/tree ABI，而是把 `AM_GPU_MEMCPY/GPU_RENDER` 收口在 AM 平台层的共享软件渲染器里，再复用现有 `vgactl/framebuffer` 做最终显示。这样 NEMU 和 NPC 可以共享同一套 `devscan` 语义，宿主设备层仍只负责“控制寄存器 + framebuffer + SDL/headless 提交”。
+- 2026-04-14: 对 `npc/single` 这类“目标核很慢、宿主后端可控”的平台，GPU 初始黑屏不值得在 guest 侧用 `for (i < w * h) fb[i] = 0` 重新扫一遍；更稳的做法是让宿主 `VgaDevice::Init()` 直接把 framebuffer 清零，再让 AM 的 `__am_gpu_init()` 只做一次 sync。这样既保留了黑屏初始语义，又不会让多周期 NPC 在正式进入测试前先白白提交几十万次 store。
+- 2026-04-14: 对 NPC 这类既有“纯 RTL 核心”又有“DPI 仿真壳”的工程，最稳的 Makefile 管理方式不是自动把 `vsrc/*.v*` 全量喂给综合，而是显式维护一份 `STA_RTL_FILES`；这样新的仿真辅助模块、wrapper 或实验文件即使后来被加进 `vsrc/`，也不会悄悄污染综合网表入口。
+- 2026-04-14: 当前 `NpcCore` 做 STA 时，最稳妥的接法不是去改 `yosys-sta` 主脚本，而是直接复用它的参数化入口：`DESIGN=NpcCore`、`RTL_FILES=<NpcCore 子模块列表>`、`CLK_PORT_NAME=clk`、`CLK_FREQ_MHZ=<目标频率>`、`SDC_FILE=scripts/default.sdc`。这样后续扫不同目标频率时，只需要改命令行变量，不必再维护一套 NPC 专用 TCL。
+- 2026-04-14: `NpcCore` 当前 500MHz 的时序已经满足，但 `NpcCore.cap` 仍有 `ICGX0P5H7L/ECK` 的最大电容违规；因此后续若要把“综合分析通过”升级成更严格的 PPA 闭环，不能只盯 WNS/TNS，还要同时看 `cap/fanout/trans` 这些电气报告。
+- 2026-04-14: 对当前 `npc/single`，应把“可综合核心”和“仿真平台壳”明确分层处理：`NpcCore` 负责纯 RTL ISA/状态机/寄存器堆/LSU/WBU，适合直接交给 Yosys；`NpcSimTop` 负责 DPI 总线桥和宿主环境接线，只适合 Verilator 仿真，不应直接拿去做综合入口。
+- 2026-04-14: 对提交级日志，`commit_rd_data_o` 比直接读取 `debug_gprs_o[rd]` 更适合作为 itrace 的寄存器值来源；前者表达的是“本条指令 architecturally commit 的写回结果”，后者表达的是“当前拍寄存器堆快照”，两者在边界时刻不完全等价。为了避免误读，日志格式最好显式写成 `xN<=VALUE`。
+- 2026-04-14: 对 NPC 这类宿主仿真器，反汇编不值得再手写一套 RV32I 字符串拼接逻辑；更稳的方式是直接复用 NEMU 已经维护的 Capstone 依赖，把关注点放在“commit 点取哪条指令、用什么格式表达提交语义”，而不是重复维护 decode 表。
+- 2026-04-14: VCD 的时间轴必须和“本次运行的 cycles/commits/host-us 统计”解耦；前者要求单调递增，后者则可以在 reset 后清零。把这两类职责塞进同一个 `reset_npc_state()` 会导致 warmup dump 完的时间戳被回卷，Verilator 于是报 `previous dump` warning。
+- 2026-04-14: 如果希望 `npc-log.txt` 真正承担“离线调试证据”职责，不能只镜像 host 侧 `Log(...)`；guest 串口输出也要保留下来，而且最好按整行整理成 `[guest] ...`，否则一旦叠上 `dtrace`，日志会退化成每个字符和 MMIO 记录交错的噪音。
 - 2026-04-14: progress 逻辑应该挂在 `cpu_exec()` 的提交循环里，而不是塞进 RTL 或 PMEM/MMIO 层；因为它关心的是“用户看到的连续执行是否还在前进”，本质上是宿主执行器的可观测性问题，不是硬件功能语义的一部分。
 - 2026-04-14: 这轮 trace 体验增强的关键决定是把 `CONFIG_NPC_ITRACE/MTRACE/DTRACE` 限定为“是否把能力编进二进制”，真正是否输出日志交给运行时参数和 monitor 命令；这样默认运行路径保持安静，但需要时仍能像 NEMU 一样随开随看。
 - 2026-04-14: `mtrace` 必须和 ifetch 分离，否则一旦 guest 程序开始顺序执行，日志立刻被取指流量淹没，根本看不到真实数据访存；因此当前 `BusAccessKind` 已显式区分 `kIfetch/kLoad/kStore`，并把 ifetch 拦在 MMIO 与 mtrace 之外。
@@ -63,6 +92,8 @@
 
 ## 踩坑记录
 <!-- 本模块特有的问题和经验 -->
+- 2026-04-14: 对交互式 TTY，只想把 stdin 变成“可轮询、无回显、非规范模式”时，不要顺手关闭 `OPOST`。`tcsetattr(STDIN_FILENO, ...)` 改的是整台终端设备属性，不只影响输入；一旦关掉输出后处理，普通 `\n` 就不再被终端行规程转换成回到列首的换行，guest 串口和 host 日志都会表现成阶梯式错位。更稳的做法是只收窄 `ICANON/ECHO/IXON/ICRNL` 这类输入相关位，保留 `OPOST/ONLCR`。
+- 2026-04-14: `clear_runtime_state()` 如果顺手调用 `reset_npc_state()`，会把 `NpcStats::sim_time` 一起清零；而 `apply_reset()` 在 warmup 期间已经向 VCD dump 过 `t=0..9`，后续一进入正式执行又从 `t=0` 开始，就会稳定触发 Verilator 的 `previous dump at t=9, requesting t=0` warning。更稳的做法是只清 `NpcState`，把 `sim_time` 留在统计对象里继续增长。
 - 2026-04-14: 对 CoreMark 这类长时间 batch 跑分，如果执行器长时间完全静默，用户很容易把“正常推进但暂时没结束”误判成卡死；更稳的做法是在连续执行路径按提交数定期打印 progress，并且显式限制它不去干扰 `si` 这类短命令。
 - 2026-04-14: 如果全局 `SIGINT` 处理只在 `cpu_exec()` 的运行循环里消费，而 monitor 提示符仍然直接阻塞在 `std::getline()` 上，那么 prompt 态 `Ctrl-C` 只会让终端回显 `^C`，却不会真正退出 NPC；更稳的做法是用不带 `SA_RESTART` 的 `sigaction(SIGINT, ...)` 打断阻塞读，再让 `sdb_mainloop()` 显式消费这次中断并退出。
 - 2026-04-14: 默认 `CONFIG_NPC_ITRACE_COND="true"` 这类配置字符串不能直接假设表达式求值器认识；如果 expr 语法只支持数字、寄存器和运算符，就要在 trace 运行时层额外兼容 `true/false/0/1` 这类布尔字面量，否则即使 itrace 默认关闭，也会在启动时冒出误报警。

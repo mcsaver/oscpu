@@ -1,10 +1,14 @@
 #ifndef NPC_SINGLE_CSRC_MONITOR_SDB_H_
 #define NPC_SINGLE_CSRC_MONITOR_SDB_H_
 
-namespace npc {
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-int sdb_mainloop();
+int npc_sdb_mainloop(void);
 
-}  // namespace npc
+#ifdef __cplusplus
+}
+#endif
 
 #endif

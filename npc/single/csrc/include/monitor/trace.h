@@ -1,27 +1,31 @@
 #ifndef NPC_SINGLE_CSRC_MONITOR_TRACE_H_
 #define NPC_SINGLE_CSRC_MONITOR_TRACE_H_
 
+#include <stdbool.h>
+#include <stddef.h>
 #include "../utils.h"
 
-#include <string>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-namespace npc {
+void npc_init_trace(const NpcSimConfig *config);
+bool npc_itrace_compiled(void);
+bool npc_mtrace_compiled(void);
+bool npc_dtrace_compiled(void);
+bool npc_itrace_configured(void);
+bool npc_mtrace_configured(void);
+bool npc_dtrace_configured(void);
+bool npc_itrace_enabled(void);
+bool npc_mtrace_enabled(void);
+bool npc_dtrace_enabled(void);
+const char *npc_itrace_condition(void);
+void npc_trace_info_display(void);
+bool npc_trace_set_mode(const char *name, bool enabled, char *msg_buf, size_t bufsize);
+bool npc_trace_set_itrace_condition(const char *expression, char *msg_buf, size_t bufsize);
 
-void init_trace(const SimConfig &config);
-bool itrace_compiled();
-bool mtrace_compiled();
-bool dtrace_compiled();
-bool itrace_configured();
-bool mtrace_configured();
-bool dtrace_configured();
-bool itrace_enabled();
-bool mtrace_enabled();
-bool dtrace_enabled();
-const std::string &itrace_condition();
-void trace_info_display();
-bool trace_set_mode(const std::string &name, bool enabled, std::string *message);
-bool trace_set_itrace_condition(const std::string &expression, std::string *message);
-
-}  // namespace npc
+#ifdef __cplusplus
+}
+#endif
 
 #endif

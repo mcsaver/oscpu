@@ -1,183 +1,189 @@
+/* NPC CPU 执行引擎 — C 重构后唯一保留的 C++ 文件
+ * 必须用 C++ 是因为 Verilator 生成的 VNpcSimTop 是 C++ 类，
+ * std::unique_ptr 用于管理仿真模型和 VCD 的生命周期。
+ * 所有对外函数通过 extern "C" 暴露给 C 代码。 */
 #include "cpu/cpu.h"
 
 #include "device/device.h"
-#include "monitor/expr.h"
+#include "monitor/disasm.h"
 #include "monitor/log.h"
 #include "monitor/trace.h"
 #include "monitor/watchpoint.h"
+#include "utils.h"
 
 #include <verilated.h>
 #include <verilated_vcd_c.h>
-
-#include <array>
-#include <csignal>
-#include <cstdio>
-#include <cctype>
-#include <cstring>
-#include <limits>
-#include <memory>
-#include <string>
-
 #include "VNpcSimTop.h"
 
-namespace npc {
+#include <cctype>
+#include <csignal>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <memory>
 
-namespace {
+/* Verilator 用于 VCD 时间戳的回调 */
+double sc_time_stamp() {
+  return (double)npc_stats()->sim_time;
+}
 
-std::unique_ptr<VNpcSimTop> g_top;
-std::unique_ptr<VerilatedVcdC> g_trace_file;
-uint64_t g_cycle_limit = kDefaultMaxCycles;
-uint64_t g_progress_interval = kDefaultProgressInterval;
-volatile std::sig_atomic_t g_stop_requested = 0;
+/* ---- 内部状态 ---- */
 
-constexpr std::array<const char *, 32> kRegNames = {
+static std::unique_ptr<VNpcSimTop>    g_top;
+static std::unique_ptr<VerilatedVcdC> g_trace_file;
+static uint64_t g_cycle_limit        = NPC_DEFAULT_MAX_CYCLES;
+static uint64_t g_progress_interval  = NPC_DEFAULT_PROGRESS_INTERVAL;
+static volatile std::sig_atomic_t g_stop_requested = 0;
+
+static const char *kRegNames[32] = {
   "zero", "ra", "sp", "gp", "tp", "t0", "t1", "t2",
-  "s0", "s1", "a0", "a1", "a2", "a3", "a4", "a5",
-  "a6", "a7", "s2", "s3", "s4", "s5", "s6", "s7",
-  "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6",
+  "s0",   "s1", "a0", "a1", "a2", "a3", "a4", "a5",
+  "a6",   "a7", "s2", "s3", "s4", "s5", "s6", "s7",
+  "s8",   "s9", "s10","s11","t3", "t4", "t5", "t6",
 };
 
 struct ProgressReporter {
-  bool enabled = false;
-  uint64_t interval = 0;
-  uint64_t next_commit = 0;
-  uint64_t last_commit = 0;
-  uint64_t last_report_time_us = 0;
+  bool     enabled;
+  uint64_t interval;
+  uint64_t next_commit;
+  uint64_t last_commit;
+  uint64_t last_report_time_us;
 };
 
-uint64_t simulation_frequency() {
-  if (npc_stats().host_time_us == 0) {
-    return 0;
-  }
-  return (npc_stats().commits * 1000000ull) / npc_stats().host_time_us;
+static uint64_t simulation_frequency(void) {
+  if (npc_stats()->host_time_us == 0) return 0;
+  return (npc_stats()->commits * 1000000ull) / npc_stats()->host_time_us;
 }
 
-void on_sigint(int) {
-  g_stop_requested = 1;
+static void on_sigint(int) { g_stop_requested = 1; }
+
+static bool install_sigint_handler(void) {
+  struct sigaction act = {};
+  act.sa_handler = on_sigint;
+  sigemptyset(&act.sa_mask);
+  // 不打开 SA_RESTART，Ctrl-C 可以打断 monitor 阻塞的 stdin 读操作
+  return sigaction(SIGINT, &act, nullptr) == 0;
 }
 
-bool install_sigint_handler() {
-  struct sigaction action = {};
-  action.sa_handler = on_sigint;
-  sigemptyset(&action.sa_mask);
-  // 不打开 SA_RESTART，这样 monitor 在提示符上阻塞读 stdin 时，Ctrl-C 可以真正打断读操作并退出。
-  return sigaction(SIGINT, &action, nullptr) == 0;
-}
-
-uint32_t debug_reg_value(int index) {
+static uint32_t debug_reg_value(int index) {
   return g_top->debug_gprs_o[index];
 }
 
-void clear_runtime_state() {
-  reset_npc_state();
-  npc_state().state = NPC_STOP;
+static void clear_runtime_state(void) {
+  NpcState *st = npc_state();
+  memset(st, 0, sizeof(*st));
+  st->state = NPC_STOP;
+  st->watchpoint_id = -1;
 }
 
-void trace_commit() {
-  if (!itrace_enabled()) {
-    return;
-  }
+/* ---- itrace 提交记录 ---- */
+
+static void trace_commit(void) {
+  if (!npc_itrace_enabled()) return;
+
+  char asm_buf[128];
+  int asm_len = npc_disassemble_inst(g_top->commit_pc_o, g_top->commit_inst_o,
+                                     asm_buf, sizeof(asm_buf));
+  const char *asm_text = (asm_len > 0) ? asm_buf : "<decode unavailable>";
 
   if (g_top->commit_rd_en_o) {
-    Log("itrace pc=0x%08x inst=0x%08x x%u(%s)=0x%08x",
-        g_top->commit_pc_o,
-        g_top->commit_inst_o,
-        g_top->commit_rd_addr_o,
-        kRegNames[g_top->commit_rd_addr_o],
+    // <= 表示"提交后新值写入寄存器"
+    Log("itrace pc=0x%08x inst=0x%08x asm=\"%s\" x%u(%s)<=0x%08x",
+        g_top->commit_pc_o, g_top->commit_inst_o, asm_text,
+        g_top->commit_rd_addr_o, kRegNames[g_top->commit_rd_addr_o],
         g_top->commit_rd_data_o);
   } else {
-    Log("itrace pc=0x%08x inst=0x%08x", g_top->commit_pc_o, g_top->commit_inst_o);
+    Log("itrace pc=0x%08x inst=0x%08x asm=\"%s\"",
+        g_top->commit_pc_o, g_top->commit_inst_o, asm_text);
   }
 }
 
-// 长时间 batch/c 路径默认会静默运行，定期吐一行提交进度能直接区分“还在跑”和“真的卡死了”。
-ProgressReporter make_progress_reporter(uint64_t max_instructions) {
-  ProgressReporter reporter;
-  if (!progress_enabled(g_progress_interval) || max_instructions != std::numeric_limits<uint64_t>::max()) {
-    return reporter;
-  }
+/* ---- Progress ---- */
 
-  reporter.enabled = true;
-  reporter.interval = g_progress_interval;
-  reporter.next_commit = ((npc_stats().commits / reporter.interval) + 1) * reporter.interval;
-  reporter.last_commit = npc_stats().commits;
-  reporter.last_report_time_us = get_time_us();
-  return reporter;
+static ProgressReporter make_progress_reporter(uint64_t max_instructions) {
+  ProgressReporter rpt = {};
+  if (!npc_progress_enabled(g_progress_interval) || max_instructions != UINT64_MAX)
+    return rpt;
+  rpt.enabled = true;
+  rpt.interval = g_progress_interval;
+  rpt.next_commit = ((npc_stats()->commits / rpt.interval) + 1) * rpt.interval;
+  rpt.last_commit = npc_stats()->commits;
+  rpt.last_report_time_us = npc_get_time_us();
+  return rpt;
 }
 
-void maybe_report_progress(ProgressReporter *reporter) {
-  if (reporter == nullptr || !reporter->enabled || npc_stats().commits < reporter->next_commit) {
-    return;
-  }
+static void maybe_report_progress(ProgressReporter *rpt) {
+  if (!rpt || !rpt->enabled || npc_stats()->commits < rpt->next_commit) return;
 
-  const uint64_t now_us = get_time_us();
-  const uint64_t commits = npc_stats().commits;
-  const uint64_t delta_commits = commits - reporter->last_commit;
-  const uint64_t delta_us = now_us - reporter->last_report_time_us;
-  const uint64_t inst_per_sec = (delta_us == 0) ? 0 : (delta_commits * 1000000ull) / delta_us;
+  uint64_t now_us        = npc_get_time_us();
+  uint64_t commits       = npc_stats()->commits;
+  uint64_t delta_commits = commits - rpt->last_commit;
+  uint64_t delta_us      = now_us - rpt->last_report_time_us;
+  uint64_t inst_per_sec  = (delta_us == 0) ? 0 : (delta_commits * 1000000ull) / delta_us;
 
-  std::printf("[progress] %llu insts, pc=0x%08x, %llu inst/s\n",
-              static_cast<unsigned long long>(commits),
-              g_top->debug_pc_o,
-              static_cast<unsigned long long>(inst_per_sec));
-  std::fflush(stdout);
+  npc_log_plain("[progress] %llu insts, pc=0x%08x, %llu inst/s\n",
+                (unsigned long long)commits, g_top->debug_pc_o,
+                (unsigned long long)inst_per_sec);
 
-  reporter->last_commit = commits;
-  reporter->last_report_time_us = now_us;
-  while (reporter->next_commit <= commits) {
-    reporter->next_commit += reporter->interval;
-  }
+  rpt->last_commit = commits;
+  rpt->last_report_time_us = now_us;
+  while (rpt->next_commit <= commits) rpt->next_commit += rpt->interval;
 }
 
-void accumulate_host_time(uint64_t start_time_us) {
-  npc_stats().host_time_us += get_time_us() - start_time_us;
+/* ---- 统计与报告 ---- */
+
+static void accumulate_host_time(uint64_t start_us) {
+  npc_stats()->host_time_us += npc_get_time_us() - start_us;
 }
 
-// 结束时补一组 NEMU 风格统计，方便直接把 NPC 跑分结果和参考模型放在一起对比。
-void report_statistics() {
-  Log("host time spent = %llu us", static_cast<unsigned long long>(npc_stats().host_time_us));
-  Log("total guest instructions = %llu", static_cast<unsigned long long>(npc_stats().commits));
-  if (npc_stats().host_time_us > 0) {
-    Log("simulation frequency = %llu inst/s", static_cast<unsigned long long>(simulation_frequency()));
+// NEMU 风格统计，NPC 跑分结果可直接和参考模型对比
+static void report_statistics(void) {
+  LogBoth("host time spent = %llu us",
+          (unsigned long long)npc_stats()->host_time_us);
+  LogBoth("total guest instructions = %llu",
+          (unsigned long long)npc_stats()->commits);
+  if (npc_stats()->host_time_us > 0) {
+    LogBoth("simulation frequency = %llu inst/s",
+            (unsigned long long)simulation_frequency());
   } else {
-    Log("Finish running in less than 1 us and can not calculate the simulation frequency");
+    LogBoth("Finish running in less than 1 us and can not calculate the simulation frequency");
   }
 }
 
-void report_run_result() {
-  const auto &state = npc_state();
-  switch (state.state) {
+static void report_run_result(void) {
+  NpcState *st = npc_state();
+  switch (st->state) {
     case NPC_END: {
-      const char *trap_text = (state.halt_ret == 0) ? (ANSI_FG_GREEN "HIT GOOD TRAP" ANSI_NONE)
-                                                    : (ANSI_FG_RED "HIT BAD TRAP" ANSI_NONE);
-      Log("npc: %s at pc = 0x%08x", trap_text, state.halt_pc);
-      Log("exit via %s, code=%u, cycles=%llu, commits=%llu",
-          state.exit_is_ebreak ? "ebreak" : (state.exit_is_ecall ? "ecall" : "unknown"),
-          state.halt_ret,
-          static_cast<unsigned long long>(npc_stats().cycles),
-          static_cast<unsigned long long>(npc_stats().commits));
+      const char *trap_text = (st->halt_ret == 0)
+          ? (ANSI_FG_GREEN "HIT GOOD TRAP" ANSI_NONE)
+          : (ANSI_FG_RED   "HIT BAD TRAP"  ANSI_NONE);
+      LogBoth("npc: %s at pc = 0x%08x", trap_text, st->halt_pc);
+      LogBoth("exit via %s, code=%u, cycles=%llu, commits=%llu",
+              st->exit_is_ebreak ? "ebreak" : (st->exit_is_ecall ? "ecall" : "unknown"),
+              st->halt_ret,
+              (unsigned long long)npc_stats()->cycles,
+              (unsigned long long)npc_stats()->commits);
       report_statistics();
       return;
     }
     case NPC_TRAP:
-      Log("npc: %s at pc = 0x%08x", ANSI_FG_RED "TRAP" ANSI_NONE, state.halt_pc);
-      Log("trap cause=%u tval=0x%08x, cycles=%llu, commits=%llu",
-          state.trap_cause,
-          state.trap_tval,
-          static_cast<unsigned long long>(npc_stats().cycles),
-          static_cast<unsigned long long>(npc_stats().commits));
+      LogBoth("npc: %s at pc = 0x%08x", ANSI_FG_RED "TRAP" ANSI_NONE, st->halt_pc);
+      LogBoth("trap cause=%u tval=0x%08x, cycles=%llu, commits=%llu",
+              st->trap_cause, st->trap_tval,
+              (unsigned long long)npc_stats()->cycles,
+              (unsigned long long)npc_stats()->commits);
       report_statistics();
       return;
     case NPC_ABORT:
-      Log("npc: %s at pc = 0x%08x", ANSI_FG_RED "ABORT" ANSI_NONE, state.halt_pc);
-      Log("cycles=%llu, commits=%llu, core-state=0x%08x",
-          static_cast<unsigned long long>(npc_stats().cycles),
-          static_cast<unsigned long long>(npc_stats().commits),
-          cpu_state_bits());
+      LogBoth("npc: %s at pc = 0x%08x", ANSI_FG_RED "ABORT" ANSI_NONE, st->halt_pc);
+      LogBoth("cycles=%llu, commits=%llu, core-state=0x%08x",
+              (unsigned long long)npc_stats()->cycles,
+              (unsigned long long)npc_stats()->commits,
+              npc_cpu_state_bits());
       report_statistics();
       return;
     case NPC_QUIT:
-      Log("npc: quit");
+      LogBoth("npc: quit");
       report_statistics();
       return;
     default:
@@ -185,312 +191,247 @@ void report_run_result() {
   }
 }
 
-void eval_half_cycle(uint8_t clk_level) {
+/* ---- 仿真步进 ---- */
+
+static void eval_half_cycle(uint8_t clk_level) {
   g_top->clk = clk_level;
   g_top->eval();
   if (g_trace_file) {
-    g_trace_file->dump(npc_stats().sim_time);
+    g_trace_file->dump(npc_stats()->sim_time);
   }
-  ++npc_stats().sim_time;
+  ++npc_stats()->sim_time;
 }
 
-void step_cycle() {
-  device_update();
+static void step_cycle(void) {
+  npc_device_update();
   eval_half_cycle(0);
   eval_half_cycle(1);
-
-  ++npc_stats().cycles;
-  if (g_top->commit_valid_o) {
-    ++npc_stats().commits;
-  }
+  ++npc_stats()->cycles;
+  if (g_top->commit_valid_o) ++npc_stats()->commits;
 }
 
-void apply_reset() {
+static void apply_reset(void) {
   g_top->rst = 1;
   g_top->clk = 0;
-  for (int warmup = 0; warmup < 5; ++warmup) {
-    step_cycle();
-  }
+  for (int i = 0; i < 5; ++i) step_cycle();
   g_top->rst = 0;
-  npc_stats() = NpcStats();
+  // VCD 时间必须单调，只重置统计量，保留 trace 时间轴
+  uint64_t trace_time = npc_stats()->sim_time;
+  memset(npc_stats(), 0, sizeof(NpcStats));
+  npc_stats()->sim_time = trace_time;
   clear_runtime_state();
 }
 
-void report_exit() {
-  auto &state = npc_state();
-  state.state = NPC_END;
-  state.halt_pc = g_top->debug_pc_o;
-  state.halt_ret = g_top->exit_code_o;
-  state.exit_is_ebreak = g_top->exit_is_ebreak_o;
-  state.exit_is_ecall = g_top->exit_is_ecall_o;
+/* ---- 状态报告 ---- */
+
+static void report_exit(void) {
+  NpcState *st = npc_state();
+  st->state = NPC_END;
+  st->halt_pc = g_top->debug_pc_o;
+  st->halt_ret = g_top->exit_code_o;
+  st->exit_is_ebreak = g_top->exit_is_ebreak_o;
+  st->exit_is_ecall = g_top->exit_is_ecall_o;
 }
 
-void report_trap() {
-  auto &state = npc_state();
-  state.state = NPC_TRAP;
-  state.halt_pc = g_top->trap_pc_o;
-  state.trap_cause = g_top->trap_cause_o;
-  state.trap_tval = g_top->trap_tval_o;
+static void report_trap(void) {
+  NpcState *st = npc_state();
+  st->state = NPC_TRAP;
+  st->halt_pc = g_top->trap_pc_o;
+  st->trap_cause = g_top->trap_cause_o;
+  st->trap_tval = g_top->trap_tval_o;
 }
 
-void report_timeout() {
-  auto &state = npc_state();
-  state.state = NPC_ABORT;
-  state.halt_pc = g_top->debug_pc_o;
+static void report_timeout(void) {
+  NpcState *st = npc_state();
+  st->state = NPC_ABORT;
+  st->halt_pc = g_top->debug_pc_o;
 }
 
-void report_interrupt() {
-  npc_state().state = NPC_STOP;
-  std::printf("\n[npc] execution interrupted at pc=0x%08x after %llu cycles\n",
-              g_top->debug_pc_o,
-              static_cast<unsigned long long>(npc_stats().cycles));
+static void report_interrupt(void) {
+  npc_state()->state = NPC_STOP;
+  npc_log_plain("\n[npc] execution interrupted at pc=0x%08x after %llu cycles\n",
+                g_top->debug_pc_o, (unsigned long long)npc_stats()->cycles);
 }
 
-int reg_index_from_name(const char *name) {
-  if (name == nullptr) {
-    return -1;
-  }
-
-  if (std::strcmp(name, "pc") == 0) {
-    return 32;
-  }
-
+static int reg_index_from_name(const char *name) {
+  if (!name) return -1;
+  if (strcmp(name, "pc") == 0) return 32;
   if (name[0] == 'x') {
     char *end = nullptr;
-    const long value = std::strtol(name + 1, &end, 10);
-    if (end != nullptr && *end == '\0' && value >= 0 && value < 32) {
-      return static_cast<int>(value);
-    }
+    long val = strtol(name + 1, &end, 10);
+    if (end && *end == '\0' && val >= 0 && val < 32) return (int)val;
   }
-
-  for (int index = 0; index < 32; ++index) {
-    if (std::strcmp(name, kRegNames[index]) == 0) {
-      return index;
-    }
+  for (int i = 0; i < 32; ++i) {
+    if (strcmp(name, kRegNames[i]) == 0) return i;
   }
-
   return -1;
 }
 
-}  // namespace
+/* finish_exec 替代原来的 lambda：收尾统计 + 有条件输出报告 */
+static int finish_exec(uint64_t start_us, int ret, bool report_summary) {
+  accumulate_host_time(start_us);
+  if (report_summary) report_run_result();
+  return ret;
+}
 
-bool init_cpu(int argc, char **argv, const SimConfig &config) {
+/* ---- 对外 extern "C" 接口 ---- */
+
+bool npc_init_cpu(int argc, char **argv, const NpcSimConfig *config) {
   Verilated::commandArgs(argc, argv);
-  g_cycle_limit = config.max_cycles;
-  g_progress_interval = config.progress_interval;
+  g_cycle_limit       = config->max_cycles;
+  g_progress_interval = config->progress_interval;
   if (!install_sigint_handler()) {
-    std::perror("[npc] sigaction(SIGINT)");
+    perror("[npc] sigaction(SIGINT)");
     return false;
   }
-
   g_top = std::make_unique<VNpcSimTop>();
-  if (!g_top) {
-    return false;
-  }
+  if (!g_top) return false;
 
-  if (config.trace) {
+  if (config->trace) {
     Verilated::traceEverOn(true);
     g_trace_file = std::make_unique<VerilatedVcdC>();
     g_top->trace(g_trace_file.get(), 99);
-    g_trace_file->open(config.trace_path.c_str());
+    g_trace_file->open(config->trace_path);
   }
-
-  // 这里把复位放到初始化阶段做掉，后续 monitor 的 si/c 命令才能在同一颗已上电的核上连续推进。
+  // 初始化阶段复位，后续 si/c 在同一颗已上电核上推进
   apply_reset();
-
   return true;
 }
 
-int cpu_exec(uint64_t max_instructions) {
-  if (!g_top) {
-    return 1;
-  }
+int npc_cpu_exec(uint64_t max_instructions) {
+  if (!g_top) return 1;
 
-  if (npc_state().state == NPC_END || npc_state().state == NPC_TRAP || npc_state().state == NPC_ABORT) {
-    std::printf("[npc] core already stopped in state=%s, reset the simulator to restart.\n",
-                npc_state_name(npc_state().state));
-    return (npc_state().state == NPC_END) ? static_cast<int>(npc_state().halt_ret) : 1;
+  NpcState *st = npc_state();
+  if (st->state == NPC_END || st->state == NPC_TRAP || st->state == NPC_ABORT) {
+    printf("[npc] core already stopped in state=%s, reset to restart.\n",
+           npc_state_name(st->state));
+    return (st->state == NPC_END) ? (int)st->halt_ret : 1;
   }
-
-  if (max_instructions == 0) {
-    npc_state().state = NPC_STOP;
-    return 0;
-  }
+  if (max_instructions == 0) { st->state = NPC_STOP; return 0; }
 
   g_stop_requested = 0;
-  npc_state().state = NPC_RUNNING;
-  npc_state().watchpoint_id = -1;
-  npc_state().watchpoint_expr.clear();
+  st->state = NPC_RUNNING;
+  st->watchpoint_id = -1;
+  st->watchpoint_expr[0] = '\0';
 
-  const uint64_t timer_start_us = get_time_us();
-  auto finish_exec = [&](int ret, bool report_summary) -> int {
-    accumulate_host_time(timer_start_us);
-    if (report_summary) {
-      report_run_result();
-    }
-    return ret;
-  };
-
+  uint64_t timer_start_us = npc_get_time_us();
   uint64_t executed = 0;
   ProgressReporter progress = make_progress_reporter(max_instructions);
 
-  // 运行循环只关心“推进一个周期、记录提交、接住退出/异常”，其余平台细节都被压到 memory/device 层里。
+  // 运行循环：推进周期、记录提交、接住退出/异常
   while (!Verilated::gotFinish()) {
-    if (consume_sigint_request()) {
+    if (npc_consume_sigint_request()) {
       report_interrupt();
-      return finish_exec(0, false);
+      return finish_exec(timer_start_us, 0, false);
     }
-
-    if (cycle_limit_enabled(g_cycle_limit) && npc_stats().cycles >= g_cycle_limit) {
+    if (npc_cycle_limit_enabled(g_cycle_limit) && npc_stats()->cycles >= g_cycle_limit) {
       report_timeout();
-      return finish_exec(2, true);
+      return finish_exec(timer_start_us, 2, true);
     }
 
     step_cycle();
 
     if (g_top->exit_valid_o) {
       report_exit();
-      return finish_exec(static_cast<int>(g_top->exit_code_o), true);
+      return finish_exec(timer_start_us, (int)g_top->exit_code_o, true);
     }
-
     if (g_top->trap_valid_o) {
       report_trap();
-      return finish_exec(1, true);
+      return finish_exec(timer_start_us, 1, true);
     }
 
     if (g_top->commit_valid_o) {
       ++executed;
       trace_commit();
-      if (check_watchpoints()) {
-        return finish_exec(0, false);
-      }
+      if (npc_check_watchpoints())
+        return finish_exec(timer_start_us, 0, false);
       maybe_report_progress(&progress);
+
       if (executed >= max_instructions) {
-        // 单步/定步命中提交点后，再额外冲一个“不产生新提交”的周期，
-        // 这样 monitor 里看到的 PC 会前推到下一条待执行指令，更接近 NEMU 的 si 观感。
+        // 多走一个不提交周期让 PC 前推，接近 NEMU si 观感
         if (!Verilated::gotFinish() &&
-            (!cycle_limit_enabled(g_cycle_limit) || npc_stats().cycles < g_cycle_limit)) {
+            (!npc_cycle_limit_enabled(g_cycle_limit) || npc_stats()->cycles < g_cycle_limit)) {
           step_cycle();
-
-          if (g_top->exit_valid_o) {
-            report_exit();
-            return finish_exec(static_cast<int>(g_top->exit_code_o), true);
-          }
-
-          if (g_top->trap_valid_o) {
-            report_trap();
-            return finish_exec(1, true);
-          }
+          if (g_top->exit_valid_o) { report_exit(); return finish_exec(timer_start_us, (int)g_top->exit_code_o, true); }
+          if (g_top->trap_valid_o) { report_trap(); return finish_exec(timer_start_us, 1, true); }
         }
-
-        npc_state().state = NPC_STOP;
-        return finish_exec(0, false);
+        st->state = NPC_STOP;
+        return finish_exec(timer_start_us, 0, false);
       }
     }
-
-    if (npc_state().state == NPC_QUIT) {
-      return finish_exec(0, true);
-    }
+    if (st->state == NPC_QUIT)
+      return finish_exec(timer_start_us, 0, true);
   }
 
   if (Verilated::gotFinish()) {
-    npc_state().state = NPC_QUIT;
-    return finish_exec(0, true);
+    st->state = NPC_QUIT;
+    return finish_exec(timer_start_us, 0, true);
   }
-
   report_timeout();
-  return finish_exec(2, true);
+  return finish_exec(timer_start_us, 2, true);
 }
 
-void cpu_reg_display() {
-  if (!g_top) {
-    std::printf("NPC core is not initialized.\n");
-    return;
+void npc_cpu_reg_display(void) {
+  if (!g_top) { printf("NPC core is not initialized.\n"); return; }
+  for (int i = 0; i < 32; ++i) {
+    printf("x%-2d %-4s 0x%08x%s", i, kRegNames[i], debug_reg_value(i),
+           ((i + 1) % 4 == 0) ? "\n" : "    ");
   }
-
-  for (int index = 0; index < 32; ++index) {
-    std::printf("x%-2d %-4s 0x%08x%s",
-                index,
-                kRegNames[index],
-                debug_reg_value(index),
-                ((index + 1) % 4 == 0) ? "\n" : "    ");
-  }
-  if ((32 % 4) != 0) {
-    std::printf("\n");
-  }
-  std::printf("pc      0x%08x\n", g_top->debug_pc_o);
+  if (32 % 4 != 0) printf("\n");
+  printf("pc      0x%08x\n", g_top->debug_pc_o);
 }
 
-void cpu_info_display() {
-  std::printf("state    : %s\n", npc_state_name(npc_state().state));
-  std::printf("pc       : 0x%08x\n", cpu_pc());
-  std::printf("core     : 0x%08x\n", cpu_state_bits());
-  std::printf("cycles   : %llu\n", static_cast<unsigned long long>(npc_stats().cycles));
-  std::printf("commits  : %llu\n", static_cast<unsigned long long>(npc_stats().commits));
-  std::printf("host-us  : %llu\n", static_cast<unsigned long long>(npc_stats().host_time_us));
-  if (npc_stats().host_time_us > 0) {
-    std::printf("inst/s   : %llu\n", static_cast<unsigned long long>(simulation_frequency()));
-  }
+void npc_cpu_info_display(void) {
+  NpcState *st = npc_state();
+  printf("state    : %s\n", npc_state_name(st->state));
+  printf("pc       : 0x%08x\n", npc_cpu_pc());
+  printf("core     : 0x%08x\n", npc_cpu_state_bits());
+  printf("cycles   : %llu\n", (unsigned long long)npc_stats()->cycles);
+  printf("commits  : %llu\n", (unsigned long long)npc_stats()->commits);
+  printf("host-us  : %llu\n", (unsigned long long)npc_stats()->host_time_us);
+  if (npc_stats()->host_time_us > 0)
+    printf("inst/s   : %llu\n", (unsigned long long)simulation_frequency());
 }
 
-bool isa_reg_str2val(const char *name, uint32_t *value) {
-  if (value == nullptr) {
-    return false;
+bool npc_isa_reg_str2val(const char *name, uint32_t *value) {
+  if (!value) return false;
+  /* 小写化到栈缓冲区，替代 std::string */
+  char lowered[64] = {};
+  if (name) {
+    size_t len = strlen(name);
+    if (len >= sizeof(lowered)) len = sizeof(lowered) - 1;
+    for (size_t i = 0; i < len; ++i)
+      lowered[i] = (char)tolower((unsigned char)name[i]);
   }
-
-  std::string lowered = name == nullptr ? "" : std::string(name);
-  for (char &ch : lowered) {
-    ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
-  }
-
-  const int reg_index = reg_index_from_name(lowered.c_str());
-  if (reg_index < 0) {
-    return false;
-  }
-
-  if (reg_index == 32) {
-    *value = cpu_pc();
-    return true;
-  }
-
-  return cpu_read_reg(reg_index, value);
+  int idx = reg_index_from_name(lowered);
+  if (idx < 0) return false;
+  if (idx == 32) { *value = npc_cpu_pc(); return true; }
+  return npc_cpu_read_reg(idx, value);
 }
 
-bool cpu_read_reg(int index, uint32_t *value) {
-  if (!g_top || value == nullptr || index < 0 || index >= 32) {
-    return false;
-  }
+bool npc_cpu_read_reg(int index, uint32_t *value) {
+  if (!g_top || !value || index < 0 || index >= 32) return false;
   *value = debug_reg_value(index);
   return true;
 }
 
-uint32_t cpu_pc() {
-  return g_top ? g_top->debug_pc_o : kResetPc;
+uint32_t npc_cpu_pc(void) {
+  return g_top ? g_top->debug_pc_o : NPC_RESET_PC;
 }
 
-uint32_t cpu_state_bits() {
+uint32_t npc_cpu_state_bits(void) {
   return g_top ? g_top->debug_state_o : 0;
 }
 
-bool consume_sigint_request() {
-  if (g_stop_requested == 0) {
-    return false;
-  }
+bool npc_consume_sigint_request(void) {
+  if (g_stop_requested == 0) return false;
   g_stop_requested = 0;
   return true;
 }
 
-void fini_cpu() {
-  if (g_top) {
-    g_top->final();
-  }
-
-  if (g_trace_file) {
-    g_trace_file->close();
-    g_trace_file.reset();
-  }
-
+void npc_fini_cpu(void) {
+  if (g_top) g_top->final();
+  if (g_trace_file) { g_trace_file->close(); g_trace_file.reset(); }
+  npc_fini_disasm();
   g_top.reset();
 }
-
-}  // namespace npc

@@ -67,6 +67,13 @@ config NPC_STDIN_KEYBOARD
   bool "Enable stdin keyboard by default"
   default n
 
+config NPC_HAS_VGA
+  bool "Enable VGA MMIO device"
+  default y
+  help
+    Expose vgactl/framebuffer MMIO to the guest. When disabled, AM GPU config
+    will report present=false and VGA accesses become harmless no-ops.
+
 config NPC_TRACE_BY_DEFAULT
   bool "Enable wave trace by default"
   default n
@@ -108,6 +115,14 @@ config NPC_ITRACE
   bool "Build commit trace support"
   default n
 
+config NPC_ITRACE_BY_DEFAULT
+  depends on NPC_ITRACE
+  bool "Enable commit trace by default at runtime"
+  default n
+  help
+    Turn itrace on at startup without requiring --itrace or monitor commands.
+    This is useful when you want file logs to behave more like NEMU's trace logs.
+
 config NPC_ITRACE_COND
   depends on NPC_ITRACE && NPC_EXPR
   string "Default itrace condition"
@@ -117,8 +132,22 @@ config NPC_MTRACE
   bool "Build memory access trace support"
   default n
 
+config NPC_MTRACE_BY_DEFAULT
+  depends on NPC_MTRACE
+  bool "Enable memory access trace by default at runtime"
+  default n
+  help
+    Turn mtrace on at startup without requiring --mtrace or monitor commands.
+
 config NPC_DTRACE
   bool "Build device access trace support"
   default n
+
+config NPC_DTRACE_BY_DEFAULT
+  depends on NPC_DTRACE
+  bool "Enable device access trace by default at runtime"
+  default n
+  help
+    Turn dtrace on at startup without requiring --dtrace or monitor commands.
 
 endmenu

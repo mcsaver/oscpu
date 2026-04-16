@@ -5,7 +5,31 @@
 ## 活跃问题
 <!-- 当前未解决的问题 -->
 
+### [18] NPC 开启 stdin keyboard 后，终端输出会出现“越打越往右”的错位
+
+- **模块**: NPC / 终端交互 / VGA 调试输出
+- **现象**: 在 `riscv32-npc` 上运行 `make ARCH=riscv32-npc mainargs=v run` 一类会持续打印文本的程序时，即使 guest 代码只是普通 `printf("...\n")`，终端里的 `FPS = ...`、welcome 和 SDL 关闭日志也会逐行向右漂移，看起来像输出无法对齐；截图里 `[npc] stdin keyboard enabled` 同时出现时，几乎可以直接怀疑这条路径。
+- **根因**: `npc/single/csrc/device/device.cpp` 的 `KeyboardDevice::Init()` 在把 TTY 切到“可轮询、无回显”的模式时额外执行了 `raw.c_oflag &= ~(OPOST)`。由于 stdin/stdout/stderr 共享同一个终端设备，这会关闭输出后处理，使 `\n` 不再被 TTY 转成回到列首的换行；而 guest 串口输出通过 `npc/single/csrc/monitor/log.cpp` 逐字符写 stdout，host `LogBoth()` 也直接 `printf("\n")`，于是列偏移会累积暴露出来。
+- **修复**: 暂未修复；根治时应优先保留 `OPOST/ONLCR`，或者至少不要在只需要 raw input 的场景改动输出侧 termios。临时恢复宿主终端可用 `stty sane`。
+- **教训**: 终端 raw mode 不是“只影响输入”的局部开关；凡是通过 `tcsetattr()` 修改同一个 TTY，输出行规程也会一起受影响。看到“文本错位”时先查 termios，再怀疑显示链路。
+
+### [17] NPC 上直接跑 `am-tests mainargs=d` 时，当前主要卡在 `timer_test` 忙等与后续磁盘缺口，而不是 VGA
+
+- **模块**: NPC / AM-Kernels / Abstract Machine
+- **现象**: 在 `riscv32-npc` 上直接运行 `./npc/single/build/NpcSimTop ./am-kernels/tests/am-tests/build/amtest-riscv32-npc.bin --no-itrace --max-cycles 3000000` 时，输出只能到 `heap = ...` 和 `Input device test skipped.`，随后因周期上限在 `0x80000264` abort，看起来像 `devscan` 还没走通。
+- **根因**: 这次停点位于 `devscan()` 里 `timer_test` 的 `for (volatile i = 0; i < 10000000; i++)` 忙等循环，本质上是当前多周期 NPC 对这种纯 CPU busy loop 太慢；而且即使越过这段，`storage_test()` 后面还会碰到 `riscv32-npc` 尚未实现的磁盘设备。高级 VGA ABI 本轮已经通过共享软件渲染层补齐，不再是这里的首要阻塞。
+- **修复**: 暂未修复；若要让 `mainargs=d` 在 NPC 上更实用，可从“给 NPC 加快连续执行性能、为 `devscan` 增加 NPC 专用 smoke 入口、或补最小 disk config/blkio”几个方向继续推进。
+- **教训**: 当一个跨设备测试在慢速 RTL 目标上跑不完时，不要直接把责任推回最近补的某个设备；先定位 PC 所在阶段，确认当前真正挡路的是功能缺口、性能预算，还是测试本身的前置 busy loop。
+
 - 原 [3] 已在当前宿主环境中通过重装 SDL/Mesa 运行库暂时解除，见下方“已解决问题”。
+
+### [15] NpcCore 在 500MHz STA 下时序满足，但时钟门控使能脚仍有最大电容违规
+
+- **模块**: NPC / Yosys-STA
+- **现象**: `npc/single/build/sta/NpcCore-500MHz/NpcCore.rpt` 显示 `core_clock` 的 `max/min TNS` 都为 `0.000`，最差 setup slack 约 `0.963ns`，但 `NpcCore.cap` 里 `mem_addr_raw_q_0__..._ICGX0P5H7L_E:ECK` 等时钟门控使能脚仍出现最大电容超限，最坏 `CapacitanceSlack` 约 `-0.074`。
+- **根因**: 当前 `yosys-sta` 流程在综合阶段启用了 clockgate，`NpcCore` 又包含较宽的状态/调试寄存器扇出，导致部分 `ICGX0P5H7L` 的 `ECK` 使能脚负载偏大；这类问题不一定会立刻打穿逻辑级 WNS/TNS，但会先在电气约束报告里暴露出来。
+- **修复**: 暂未修复；后续可从“收紧/调整 clockgate 策略、对高扇出的门控使能链补缓冲、降低调试扇出影响，或在更完整的物理实现阶段重新评估”几个方向处理。
+- **教训**: 做综合验收时不能只看 `WNS/TNS`；对带 clock gating 的设计，还要同时检查 `cap/fanout/trans`，否则会把“时序过了但电气没过”的半成品误判成完全 clean。
 
 ### [8] am-tests 的 devscan 在 NEMU 上访问 GPU 高级接口时触发 BAD TRAP
 
@@ -24,6 +48,22 @@
 - **修复**: 如何修复的
 - **教训**: 从中学到了什么
 -->
+
+### [16] NPC 开启基础 VGA 后，AM 带 IOE 的程序一度在 `__am_gpu_init` 阶段提前超时
+
+- **模块**: NPC / Abstract Machine
+- **现象**: 给 `riscv32-npc` 平台补上 `VGACTL_ADDR/FB_ADDR` 和基础 GPU IOE 后，`am-tests mainargs=k/v` 在刚启动时就反复卡在 `0x80001624/0x8000162c`，也就是 `__am_gpu_init()` 的 `sw zero, 0(a5)` 清屏循环；即使用户真正想验证的是 keyboard 或 `AM_GPU_FBDRAW`，程序也会先在 GPU 初始化阶段把默认周期预算烧光。
+- **根因**: `abstract-machine/am/src/riscv/npc/gpu.c` 起初沿用了 guest 侧逐像素清 400x300 framebuffer 的写法，这在 NEMU 上问题不大，但对当前多周期 NPC 来说会先消耗数十万次 `store` 提交；而宿主 `VgaDevice::Init()` 实际上已经把 framebuffer 后端清零了，这段 guest 清屏因此变成了纯冗余开销。
+- **修复**: 把 `__am_gpu_init()` 收敛成“只做一次 sync”，把初始黑屏语义交给宿主 `VgaDevice::Init()` 负责；随后重新执行 `printf 'a' | ./npc/single/build/NpcSimTop ... mainargs=k --stdin-kbd --no-itrace --max-cycles 500000`，确认 `readkey test` 已输出 `A DOWN/UP`，并复验 `mainargs=v` 的停点已推进到 `__am_gpu_fbdraw` 的像素拷贝循环。
+- **教训**: 对 RTL 目标上的平台初始化，不能机械照搬参考模型的 guest 侧大块清屏/搬运逻辑；只要宿主后端能在更低成本的抽象层提供同样的初始状态，就应该把这类 bulk 操作下沉到宿主，否则功能还没开始，性能预算就先被平台 glue 烧掉。
+
+### [14] NPC 开启波形时启动阶段反复报 `previous dump`，日志文件也缺少可读的 guest 输出
+
+- **模块**: NPC / cpu-exec / monitor / device
+- **现象**: 打开默认波形后，程序刚启动就打印 `%Warning: previous dump at t=9, requesting t=0, dump call ignored` 一串 warning；即使 `npc-log.txt` 已经打开，文件里也主要只有 host 侧欢迎信息和收尾摘要，guest 串口文本不完整，离线排查体验很差。
+- **根因**: `apply_reset()` 的 warmup 已经把 VCD 时间推进到 `t=9`，但后续 `clear_runtime_state()` 又经由 `reset_npc_state()` 把整份 `NpcStats` 连同 `sim_time` 一起清零，导致正式执行重新从 `t=0` dump；同时日志系统此前只镜像 `Log(...)`，guest 串口输出直接写 stdout，没有进入文件日志。
+- **修复**: 把运行态清理收窄成“只清 `NpcState`，不重置 `NpcStats::sim_time`”，确保 VCD 时间轴持续单调；同时新增 `NPC_ITRACE_BY_DEFAULT`、`NPC_MTRACE_BY_DEFAULT`、`NPC_DTRACE_BY_DEFAULT` 默认运行态开关，并把 guest 串口输出整理成 `[guest] ...` 行写入日志文件。复验 `make -C am-kernels/kernels/hello ARCH=riscv32-npc run` 后，warning 已消失，`npc/single/build/npc-log.txt` 也能直接看到 `[guest] Hello, AbstractMachine!`。
+- **教训**: “状态复位”和“trace 时间轴复位”不是一回事；只要 VCD 已经开始 dump，就不能再把时间戳回卷。另一方面，若希望日志文件承担 NEMU 风格的离线调试作用，就必须同时保留 host trace 和 guest 串口文本，不能只镜像其中一边。
 
 ### [13] NPC 长时间 batch 跑分时完全静默，容易被误判为卡死
 

@@ -1,14 +1,18 @@
 #ifndef NPC_SINGLE_CSRC_MONITOR_EXPR_H_
 #define NPC_SINGLE_CSRC_MONITOR_EXPR_H_
 
-#include <cstdint>
-#include <string>
+#include <stdbool.h>
+#include <stdint.h>
 
-namespace npc {
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-void init_expr();
-bool expr(const std::string &text, uint32_t *result);
+void npc_init_expr(void);
+bool npc_expr(const char *text, uint32_t *result);
 
-}  // namespace npc
+#ifdef __cplusplus
+}
+#endif
 
 #endif

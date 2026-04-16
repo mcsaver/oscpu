@@ -19,6 +19,33 @@
 
 ## 实现决策
 
+### [28] NPC 设备层采用 NEMU 的 IO/设备分层模式
+
+- **日期**: 2026-04-16
+- **状态**: 已决定
+- **上下文**: `npc/single/csrc/device/device.c` 把串口、RTC、键盘、VGA 四个设备的全部行为和 ~460 行代码都挤在一个文件里，增删设备或修改设备行为时必须在大文件中翻找。NEMU 则把 IO 注册/分发（`io/map.c + io/mmio.c`）和具体设备（`serial.c/timer.c/keyboard.c/vga.c`）分开两层。
+- **决策**: 按 NEMU 模式拆分——每个设备有自己的 `.c` 文件，内部管理 static 状态，在 `init` 中通过 `npc_add_mmio_map()` 自行注册到 MMIO 总线；`device.c` 精简成只调用各设备 init/update/fini 的编排入口。VGA 的 SDL 键盘事件通过公共接口 `npc_kbd_push_event()` 跨设备路由。
+- **理由**: 与真实 SoC 的总线-外设分层对应；增删设备只改一个文件和 device.c 的一行 init 调用；IO 基础设施（地址译码、边界检查、trace）与设备行为（回调逻辑）彻底解耦。
+- **影响**: 新增设备时只需新建 `csrc/device/<name>.c`，实现回调并在 init 中调用 `npc_add_mmio_map()`，再在 `device.c` 加一行 init 调用即可，不需要修改 IO 框架。
+
+### [27] 高级 GPU ABI 采用共享 AM 软件渲染层，而不是继续堆进宿主 VGA 设备
+
+- **日期**: 2026-04-14
+- **状态**: 已决定
+- **上下文**: `am-tests` 的 `devscan` 并不满足于基础 `AM_GPU_FBDRAW`，它还会调用 `AM_GPU_MEMCPY` 和 `AM_GPU_RENDER`，把一棵 `gpu_canvas`/texture 树交给平台渲染。此前 NEMU 和 NPC 都只实现了基础 framebuffer 语义，导致 `mainargs=v` 能工作，但 `mainargs=d` 会在 GPU 高级寄存器处直接 `access nonexist register`。
+- **决策**: 新增共享软件渲染层 `abstract-machine/am/src/platform/gpu_soft.h`，统一维护 512KB GPU 软显存、scratch buffer、`gpu_canvas` 递归渲染与缩放逻辑；`platform/nemu/ioe/gpu.c` 与 `riscv/npc/gpu.c` 只各自负责读取屏幕宽高、把最终像素写到 `FB_ADDR` 并做一次 sync。
+- **理由**: 这样能把“高级 GPU ABI 语义”和“宿主显示设备实现”分层：前者只写一份，NEMU 和 NPC 共用；后者仍保持为简单的 `vgactl + framebuffer + sync` 平台边界，不需要让宿主设备层背上 `gpu_canvas` 树解释逻辑。
+- **影响**: 后续若继续扩 `gpu_canvas` 类型或渲染策略，应优先改共享软件渲染层；平台文件只处理屏幕几何和 framebuffer 落点。对 NPC 来说，这也意味着之后若 `devscan` 仍跑不完，应先看 `timer_test`/disk/性能，而不是再回头怀疑 VGA 高级 ABI 缺口。
+
+### [26] NPC 的基础黑屏初始化由宿主预清屏，guest 侧 GPU init 只做 sync
+
+- **日期**: 2026-04-14
+- **状态**: 已决定
+- **上下文**: 在 `riscv32-npc` 平台补齐基础 VGA 后，`am-tests` 这类带 IOE 的程序一启动就会进入 `__am_gpu_init()`；若沿用 NEMU 平台那种 guest 侧 `for (i < w * h) fb[i] = 0` 整屏清零，对当前多周期 NPC 会先白白耗掉数十万次 `store`，导致程序还没进入真正测试主体就因为默认周期上限而超时。
+- **决策**: 让 `npc/single/csrc/device/device.cpp` 里的宿主 `VgaDevice::Init()` 负责把 framebuffer 后端清零；`abstract-machine/am/src/riscv/npc/gpu.c` 里的 `__am_gpu_init()` 只保留一次 `sync` 提交，不再让 guest 侧逐像素扫满 400x300 的初始黑屏。
+- **理由**: 初始显示语义并没有改变，窗口第一次提交时仍然是黑屏；但清零动作从“慢速 guest store 循环”转移到“宿主一次性内存初始化”后，AM 带 IOE 的程序就能在合理周期预算内进入真正逻辑，而不是被平台初始化本身拖死。
+- **影响**: 后续若在同一仿真进程内引入热复位、程序重载或多次运行，同样要继续由宿主设备重置 framebuffer 后端，再让 guest 侧用一次 `sync` 观察到干净初始帧；不要再把大块清屏搬回 guest 路径。
+
 ### [25] NPC trace 采用“编译期能力 + 运行时开关”，并让 mtrace 排除 ifetch
 
 - **日期**: 2026-04-14

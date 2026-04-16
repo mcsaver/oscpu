@@ -2,6 +2,10 @@
 
 ## 当前状态
 <!-- 已实现的 API (TRM/IOE/CTE/VME/MPE) -->
+- 2026-04-14: `platform/nemu` 与 `riscv32-npc` 现在都已经补齐高级 GPU ABI：`AM_GPU_MEMCPY` 会先把 canvas/texture 数据拷进一块 512KB 的 GPU 软显存，`AM_GPU_RENDER` 再按根节点把树形画布渲染到最终 framebuffer。实测 NEMU 上的 `am-tests mainargs=d` 已经可以完整跑到 `Test End!`，不再在 VGA 阶段报 `access nonexist register`。
+- 2026-04-14: 这轮高级 GPU 补全采用共享软件渲染层 `am/src/platform/gpu_soft.h`，而不是在 NEMU/NPC 两个平台里各自复制一套 canvas/tree 解释逻辑；这样 `GPU_MEMCPY/GPU_RENDER` 的语义只维护一份，平台文件只保留“如何把最终像素写到各自 framebuffer”这层差异。
+- 2026-04-14: `riscv32-npc` 现已补齐基础 GPU IOE：新增 `am/src/riscv/npc/gpu.c`，在 `ioe.c` 中注册 `AM_GPU_CONFIG/AM_GPU_STATUS/AM_GPU_FBDRAW`，并在 `npc.h` 中补上 `VGACTL_ADDR/FB_ADDR`。当前 `am-tests mainargs=v` 已能推进到 `__am_gpu_fbdraw` 的矩形拷贝循环，`mainargs=k` 也已继续通过 NPC 键盘设备看到 `A DOWN/UP`。
+- 2026-04-14: `riscv32-npc` 的 `__am_gpu_init()` 现在不再在 guest 侧逐像素清 400x300 全屏，而是复用 NPC 宿主 `VgaDevice::Init()` 已预清零的 framebuffer，只做一次 sync；这样 AM 带 IOE 的程序不会再在 GPU 初始化阶段先耗掉几十万次 store。
 - 2026-04-14: `abstract-machine/klib/src/stdio.c` 现已补齐常用整数格式化能力，支持 `d/i/u/x/X/p`、`l/ll` 长度修饰、字段宽度和前导 `0`；CoreMark 的 CRC、`devscan` 的 `%08x` 以及 AM 侧指针打印不再退化成把 `%x/%p` 原样输出。
 - 2026-04-13: `abstract-machine/klib` 的 `stdlib` 已补齐当前工程最常用的一组能力：非 native 平台上的 `malloc/free/calloc/realloc` 改为基于 `heap` 区间的可回收空闲链表分配器，`atoi/atol/strtol/strtoul/labs` 现已支持前导空白、符号、自动进制识别、`0x` 前缀和溢出饱和；已通过 `klib-tests` 的 `klib_stdlib/klib_ro/klib_fmt/klib_rw` 批处理回归。
 - 2026-04-13: `abstract-machine` 的 `riscv32-npc` 输入与运行桥接已补齐到可回归状态：`am/src/riscv/npc/input.c` 现在会直接读取 `KBD_ADDR` 并按 bit15/低位拆出 `keydown/keycode`，`scripts/platform/npc.mk` 新增 `NPC_RUN_ARGS` 透传，因此 AM 侧可以不改程序就直接给 NPC 打开 `--trace`、`--trace-file`、`--max-cycles`、`--stdin-kbd` 等运行参数。

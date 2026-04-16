@@ -27,7 +27,7 @@ npc/single/
     ├── monitor/             # 参数解析、初始化/收尾顺序
     ├── cpu/                 # 执行循环、trace、退出/超时报告
     ├── memory/              # PMEM 与镜像装载
-    ├── device/              # MMIO 注册、串口、RTC、键盘
+    ├── device/              # MMIO 注册、串口、RTC、键盘、VGA
     └── dpi.cpp              # SystemVerilog <-> C++ 总线桥
 ```
 
@@ -39,6 +39,8 @@ npc/single/
 - `serial`: `0xa00003f8`
 - `rtc`: `0xa0000048`
 - `keyboard`: `0xa0000060`
+- `vgactl`: `0xa0000100`
+- `framebuffer`: `0xa1000000`
 
 对应的 AM 平台头文件在 `abstract-machine/am/src/riscv/npc/npc.h`。
 
@@ -49,6 +51,7 @@ npc/single/
 - `verilator` 在 `PATH` 中
 - RISC-V 32 位交叉工具链可用，用于 `abstract-machine` 和 `am-kernels`
 - 当前工作区已经存在 `abstract-machine/` 和 `am-kernels/`
+- 如果你希望 NPC 直接弹出 VGA 窗口并从窗口接收键盘事件，构建时还需要可被 `pkg-config` 或 `sdl2-config` 发现的 SDL2 开发包；缺失时 Makefile 会自动退回 headless framebuffer + stdin 键盘桥
 
 如果你平时通过环境变量工作，建议至少保证：
 
@@ -87,7 +90,7 @@ npc/single/include/generated/autoconf.h
 make -C /home/lyg/PA/ysyx-workbench/npc/single savedefconfig
 ```
 
-其中 `CONFIG_NPC_BATCH_MODE` 现在默认打开，等价于把 `-b` 作为默认启动方式，因此直接运行测试镜像时不会再先停在 `(npc)` 等你手动按 `c`；如果某次只是临时想进 monitor，可直接追加 `--no-batch`，不需要回去改配置重编。`CONFIG_NPC_DEFAULT_MAX_CYCLES` 用来设置默认超时周期数，并且现在支持把值设成 `0` 来关闭超时，适合 CoreMark 这类较大的测试。`CONFIG_NPC_ITRACE`、`CONFIG_NPC_MTRACE`、`CONFIG_NPC_DTRACE` 决定的则是“二进制里有没有这项能力”；真正是否输出日志，默认仍由运行时参数或 monitor 命令控制，避免平时把正常执行路径变成 trace 洪水。
+其中 `CONFIG_NPC_BATCH_MODE` 现在默认打开，等价于把 `-b` 作为默认启动方式，因此直接运行测试镜像时不会再先停在 `(npc)` 等你手动按 `c`；如果某次只是临时想进 monitor，可直接追加 `--no-batch`，不需要回去改配置重编。`CONFIG_NPC_DEFAULT_MAX_CYCLES` 用来设置默认超时周期数，并且现在支持把值设成 `0` 来关闭超时，适合 CoreMark 这类较大的测试。`CONFIG_NPC_HAS_VGA` 控制 guest 是否看到 `vgactl/framebuffer` 这组 MMIO；关闭后，AM 的 `GPU_CONFIG.present` 会回到 `false`，适合临时退回纯串口/键盘路径排查问题。`CONFIG_NPC_ITRACE`、`CONFIG_NPC_MTRACE`、`CONFIG_NPC_DTRACE` 决定的是“二进制里有没有这项能力”；如果你希望像 NEMU 一样一启动就把这些软件 trace 写进日志，可以再打开 `CONFIG_NPC_ITRACE_BY_DEFAULT`、`CONFIG_NPC_MTRACE_BY_DEFAULT`、`CONFIG_NPC_DTRACE_BY_DEFAULT`，这样不必每次都手动传 `--itrace/--mtrace/--dtrace`。
 
 另外，`CONFIG_NPC_DEFAULT_PROGRESS_INTERVAL` 用来控制长时间连续执行时的进度输出间隔，单位是“已提交指令数”；默认 `10000000`，表示每执行一千万条已提交指令打印一次 `[progress] ...`，如果你希望默认静默运行，可以把它设成 `0`。
 
@@ -163,12 +166,63 @@ make -C /home/lyg/PA/ysyx-workbench/am-kernels/kernels/hello ARCH=riscv32-npc ru
 3. 回填 `mainargs`
 4. 调用 `npc/single` 的 `make run`
 
+## 网表综合与 STA
+
+如果你想对当前可综合核心 `NpcCore` 直接做标准单元网表综合和 STA，现在不用再切到 `yosys-sta/` 目录手动拼长命令；直接在 `npc/single` 下运行下面两条入口即可：
+
+```bash
+make -C /home/lyg/PA/ysyx-workbench/npc/single syn
+make -C /home/lyg/PA/ysyx-workbench/npc/single sta
+```
+
+其中：
+
+- `make syn`：只跑 `yosys-sta` 的标准单元综合，生成 `NpcCore.netlist.v` 和综合统计
+- `make sta`：在综合基础上继续跑 iEDA 的时序/功耗分析，生成 `.rpt/.pwr/.cap/.fanout/.trans`
+- 这条流程默认只综合 `NpcCore` 及其纯 RTL 子模块，不会把带 `DPI-C` 的 `NpcSimTop.sv` 混进综合网表
+
+默认结果目录位于：
+
+```text
+npc/single/build/sta/NpcCore-500MHz/
+```
+
+常用覆写参数如下：
+
+- `STA_CLK_FREQ_MHZ=<MHz>`：覆盖时钟频率，默认 `500`
+- `STA_CLK_PORT_NAME=<port>`：覆盖时钟端口名，默认 `clk`
+- `STA_SDC_FILE=<path>`：覆盖 SDC 约束文件，默认复用 `yosys-sta/scripts/default.sdc`
+- `STA_RESULT_ROOT=<dir>`：覆盖综合/STA 结果根目录，默认 `npc/single/build/sta`
+
+例如，跑一次 `800MHz` 的 STA：
+
+```bash
+make -C /home/lyg/PA/ysyx-workbench/npc/single sta STA_CLK_FREQ_MHZ=800
+```
+
+或者把结果输出到单独目录：
+
+```bash
+make -C /home/lyg/PA/ysyx-workbench/npc/single sta \
+  STA_CLK_FREQ_MHZ=800 \
+  STA_RESULT_ROOT=/home/lyg/PA/ysyx-workbench/npc/single/build/sta-800
+```
+
+这组入口默认依赖工作区里的：
+
+- `oss-cad-suite/bin/yosys`
+- `yosys-sta/bin/iEDA`
+- `yosys-sta/pdk/icsprout55`
+
+如果这些工具或资源缺失，`make syn` / `make sta` 会先在 NPC Makefile 的环境检查阶段直接报出缺失项，而不是等子流程跑到一半才失败。
+
 ## 常用运行参数
 
 仿真器当前支持下面几项参数：
 
 - `-b`, `--batch`: 跳过 `(npc)` 提示符，直接持续运行到程序退出、异常或超时
-- `-l path`, `--log path`: 把 welcome 和运行日志同时写到文件
+- `-l path`, `--log path`: 把 welcome、host 运行日志以及 guest 串口输出同时写到文件
+- `--vga`, `--no-vga`: 临时打开或关闭 VGA MMIO 设备，不需要回 `menuconfig` 重编
 - `--itrace`: 打开提交级指令 trace
 - `--itrace-cond EXPR`: 为 `itrace` 指定运行时条件表达式，也支持 `true/false`
 - `--mtrace`: 打开数据访存 trace
@@ -250,11 +304,13 @@ c
 
 当前这套 NEMU 风格壳已经把 `itrace/mtrace/dtrace` 做成“编译期能力 + 运行时开关”的两层模型：
 
-- `itrace`: 记录已提交指令，支持条件表达式过滤
+- `itrace`: 记录已提交指令，支持条件表达式过滤，并会追加反汇编结果；若存在寄存器写回，日志里的 `xN<=VALUE` 表示“提交后的新值”
 - `mtrace`: 只记录真实数据 `load/store`，不会把 IFU 取指混进日志
 - `dtrace`: 记录 MMIO 设备访问，当前从 `device/map` 层统一收口
 
 如果你只是临时追一段执行，不需要回 `menuconfig` 改默认配置，直接在运行时打开即可。
+
+如果你希望日志文件默认就更接近 NEMU 的调试风格，可以在 `menuconfig` 里把 `NPC_LOG_FILE` 和 `NPC_*TRACE_BY_DEFAULT` 一起打开；这样 batch 运行时，`npc-log.txt` 会同时保留 welcome、guest 串口输出以及 `itrace/mtrace/dtrace`。
 
 ### 1. batch 下追首条提交的 itrace
 
@@ -299,9 +355,15 @@ c
 
 ## 键盘交互
 
-当前键盘桥支持两种模式。
+当前键盘桥支持三种模式：SDL 窗口模式优先服务图形程序，stdin 模式继续保留给终端交互和脚本化回归。
 
-### 1. 终端交互模式
+### 1. SDL 窗口模式
+
+如果构建时检测到了 SDL2，NPC 会在 guest 首次提交 VGA sync 时弹出窗口；后续窗口里的 `keydown/keyup` 会直接被编码成 NEMU/AM 兼容的 `keydown/keycode` 事件。
+
+这个模式适合 `typing-game`、`litenes`、`am-tests mainargs=v` 这类同时依赖 VGA 和键盘的程序，不需要额外打开 `--stdin-kbd`。
+
+### 2. 终端交互模式
 
 如果 stdin 是 TTY，并且打开了 `--stdin-kbd`，宿主会把终端切到原始模式，把输入转换成 NEMU/AM 兼容的 `keydown/keycode` 事件。
 
@@ -310,20 +372,24 @@ c
 ```bash
 AM_HOME=/home/lyg/PA/ysyx-workbench/abstract-machine \
 make -C /home/lyg/PA/ysyx-workbench/am-kernels/tests/am-tests ARCH=riscv32-npc run \
-  mainargs=k NPC_RUN_ARGS='--stdin-kbd --max-cycles 200000'
+  mainargs=k NPC_RUN_ARGS='--stdin-kbd --max-cycles 500000 --no-itrace'
 ```
 
-### 2. 脚本化模式
+### 3. 脚本化模式
 
 如果 stdin 不是 TTY，比如来自管道，仿真器会把它当作可回归的事件源。这适合自动化验证。
+
+注意：脚本化输入时不要直接把管道喂给 `make ... run`，构建过程可能会抢先消费 stdin。最稳的方式是先把 `mainargs` 回填进镜像，再直接运行 `NpcSimTop`。
 
 示例：
 
 ```bash
-printf 'a' | \
 AM_HOME=/home/lyg/PA/ysyx-workbench/abstract-machine \
-make -C /home/lyg/PA/ysyx-workbench/am-kernels/tests/am-tests ARCH=riscv32-npc run \
-  mainargs=k NPC_RUN_ARGS='--stdin-kbd --max-cycles 200000'
+make -C /home/lyg/PA/ysyx-workbench/am-kernels/tests/am-tests ARCH=riscv32-npc insert-arg mainargs=k
+
+printf 'a' | /home/lyg/PA/ysyx-workbench/npc/single/build/NpcSimTop \
+  /home/lyg/PA/ysyx-workbench/am-kernels/tests/am-tests/build/amtest-riscv32-npc.bin \
+  --stdin-kbd --max-cycles 500000 --no-itrace
 ```
 
 如果链路正常，`readkey test` 会打印类似：
@@ -335,6 +401,15 @@ Got  (kbd): A (43) UP
 ```
 
 注意：`keyboard_test()` 本身是无限轮询，所以超时不等于功能失败。这里真正的成功标准是 guest 已经看到了 `DOWN/UP` 事件。
+
+## VGA 测试语义
+
+`am-tests mainargs=v` 和 `am-tests mainargs=d` 都会碰到 VGA，但两者测试的层级不同：
+
+- `mainargs=v` 只验证基础 framebuffer 语义，也就是 `AM_GPU_FBDRAW` 能不能把一块像素矩形拷到 `FB_ADDR` 并通过 sync 刷出来
+- `mainargs=d` 的 `devscan` 会继续验证高级 GPU ABI：先通过 `AM_GPU_MEMCPY` 把 canvas/texture 数据搬进一块 GPU 软显存，再通过 `AM_GPU_RENDER` 按根节点把树形画布渲染到 framebuffer
+
+这也是为什么“基础 VGA 已经能画图”并不等于“devscan 已经通过”。如果 `GPU_MEMCPY/GPU_RENDER` 没补齐，`mainargs=v` 可能正常，但 `mainargs=d` 仍会在 GPU 阶段报 `access nonexist register`。
 
 ## 退出、异常和超时
 
@@ -381,8 +456,11 @@ Got  (kbd): A (43) UP
 这套环境已经适合 RV32I bring-up 和 AM 最小程序回归，但还不是完整平台：
 
 - 普通 trap 目前仍是 halt-only 语义，还没有最小 CSR/trap handler 闭环
-- 设备当前主要是 `serial/rtc/keyboard`
-- 还没有 `mtime/mtimecmp`、GPU、完整 UART 状态机和更真实的总线协议
+- 设备当前已覆盖 `serial/rtc/keyboard/vgactl/framebuffer`，并支持 `GPU_CONFIG/GPU_STATUS/GPU_FBDRAW/GPU_MEMCPY/GPU_RENDER`
+- 如果构建时未检测到 SDL2，VGA 仍能走 headless framebuffer 语义，但不会弹出窗口，也不会有窗口键盘事件
+- NEMU 上的 `am-tests mainargs=d` 现在已经能穿过 VGA 阶段并跑到 `Test End!`
+- NPC 上的 `am-tests mainargs=d` 当前主要瓶颈已经不是 VGA，而是前面的 `timer_test` 忙等循环对多周期核太重，后面还叠加了磁盘设备尚未实现；因此若它还没完整跑完，先不要再把问题归因到 VGA 缺口
+- 还没有 `mtime/mtimecmp`、完整 UART 状态机和更真实的总线协议
 - DPI 总线目前是“一拍请求、一拍返回”的简单模型，目标是 bring-up，而不是最终 SoC 互连
 
 ## 推荐阅读
