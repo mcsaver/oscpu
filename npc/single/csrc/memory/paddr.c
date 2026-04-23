@@ -84,7 +84,8 @@ bool npc_load_img(const char *image_path) {
     return false;
   }
 
-  LogBoth("image loaded: %s (%ld bytes) -> 0x%08x", image_path, image_size, NPC_RESET_PC);
+  /* 对齐参考工程：显示镜像路径和大小 */
+  LogBoth("The image is %s, size = %ld", image_path, image_size);
   return true;
 }
 

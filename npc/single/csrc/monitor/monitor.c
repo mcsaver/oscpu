@@ -21,9 +21,15 @@
 
 static NpcSimConfig g_config;
 
+/* 对齐参考工程的 welcome 输出：Trace 状态、编译时间、ISA 名称 */
 static void welcome(void) {
-  printf("Welcome to NPC (%s-%s)\n", __DATE__, __TIME__);
-  printf("Use 'help' for available commands.\n");
+  /* OFF 红色、ON 绿色；riscv32 黄字红底，与参考工程配色一致 */
+  LogBothTag("welcome", "Trace: %s",
+             g_config.trace ? ANSI_FG_GREEN "ON" ANSI_NONE
+                            : ANSI_FG_RED   "OFF" ANSI_NONE);
+  LogBothTag("welcome", "Build time: %s, %s", __TIME__, __DATE__);
+  printf("Welcome to " ANSI_FG_YELLOW ANSI_BG_RED "riscv32" ANSI_NONE "-NPC!\n");
+  printf("For help, type \"help\"\n");
 }
 
 /* 解析命令行参数，结果写入 config */

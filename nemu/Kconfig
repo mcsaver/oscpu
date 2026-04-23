@@ -133,13 +133,18 @@ config WATCHPOINT
   bool "Enable watchpoint feature"
   default y
 
+config BATCH_MODE
+  # 批处理模式同样依赖 src/monitor/sdb；AM 目标没有 monitor 交互循环，
+  # 因此这里不暴露该配置，避免出现“配了但没有生效点”的假接口。
+  depends on !TARGET_AM
+  bool "Run NEMU in batch mode by default"
+  default n
+  help
+    启动时默认跳过 SDB 的 readline 交互循环，直接执行 continue。
+    命令行 -b/--batch 仍然保留，用于按次显式开启批处理模式。
+
 config TRACE
   bool "Enable tracer"
-  default y
-
-config MTRACE
-  depends on TRACE && TARGET_NATIVE_ELF
-  bool "Enable memory access trace"
   default y
 
 config TRACE_START
@@ -149,8 +154,14 @@ config TRACE_START
 
 config TRACE_END
   depends on TRACE
-  int "When tracing is disabled (unit: number of instructions)"
-  default 10000
+  # 0 表示不设置结束点，便于只打开 trace 开关时默认持续记录。
+  int "When tracing is disabled (0 = unlimited, unit: number of instructions)"
+  default 0
+
+config MTRACE
+  depends on TRACE && TARGET_NATIVE_ELF
+  bool "Enable memory access trace"
+  default y
 
 config ITRACE
   depends on TRACE && TARGET_NATIVE_ELF && ENGINE_INTERPRETER
@@ -159,7 +170,9 @@ config ITRACE
 
 config ITRACE_COND
   depends on ITRACE
-  string "Only trace instructions when the condition is true"
+  # 当前统一用 TRACE_START/TRACE_END 控制日志范围，条件表达式保持内部默认 true，
+  # 避免 menuconfig 里再暴露一层重复的 trace 条件配置。
+  string
   default "true"
 
 config DTRACE
@@ -169,8 +182,18 @@ config DTRACE
 
 config DTRACE_COND
   depends on DTRACE
-  string "Only trace devices when the condition is true"
+  # 和 ITRACE_COND 一样保留内部默认 true，由全局 TRACE_START/TRACE_END 统一控范围。
+  string
   default "true"
+
+config ETRACE
+  # ETRACE 直接记录 RISC-V trap 入口和 mret 返回，依赖 native 日志文件承载输出。
+  depends on TRACE && TARGET_NATIVE_ELF && ISA_riscv
+  bool "Enable exception trace (etrace)"
+  default y
+  help
+    记录异常/中断进入 trap 以及 mret 返回时的关键 CSR 和 PC，便于调试 CTE
+    的 ecall -> mtvec -> mret 往返链路。
 
 config FTRACE
   depends on TRACE && TARGET_NATIVE_ELF

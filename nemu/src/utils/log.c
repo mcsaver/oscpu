@@ -31,7 +31,8 @@ void init_log(const char *log_file) {
 }
 
 bool log_enable() {
+  // TRACE_END=0 表示不限制结束指令数，只要超过 TRACE_START 就持续记录。
   return MUXDEF(CONFIG_TRACE, (g_nr_guest_inst >= CONFIG_TRACE_START) &&
-         (g_nr_guest_inst <= CONFIG_TRACE_END), false);
+         (CONFIG_TRACE_END == 0 || g_nr_guest_inst <= CONFIG_TRACE_END), false);
 }
 #endif

@@ -63,6 +63,15 @@ void init_disasm() {
 void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte) {
 	cs_insn *insn;
 	size_t count = cs_disasm_dl(handle, code, nbyte, pc, 0, &insn);
+  if (count == 0) {
+    uint64_t raw = 0;
+    for (int i = 0; i < nbyte && i < (int)sizeof(raw); i++) {
+      raw |= (uint64_t)code[i] << (i * 8);
+    }
+    // 非法指令进入 trap 后仍可能被 ITRACE 反汇编；这里输出原始编码，避免 trace 路径抢先断言退出。
+    snprintf(str, size, ".word\t0x%0*" PRIx64, nbyte * 2, raw);
+    return;
+  }
   assert(count == 1);
   int ret = snprintf(str, size, "%s", insn->mnemonic);
   if (insn->op_str[0] != '\0') {

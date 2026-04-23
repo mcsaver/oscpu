@@ -2,6 +2,9 @@
 
 ## 当前状态
 
+- 2026-04-21：继续按“先补 shim、后做真实消费端验证”的路线推进，已为 `CLAUDE.md`、`GEMINI.md`、`CONVENTIONS.md`、`.windsurfrules`、`.cursor/rules/agents.mdc` 补齐最小兼容入口，并在 `.github/AGENTS.md` 中显式写清“工程规则走 AGENTS / instructions / memory，Codex 通用能力走 skills，plugin 只在 UI / MCP / marketplace 场景下引入”的分层边界。
+- 2026-04-21：根据一次人工验收意见，继续收紧 agent 环境文档：修正 `.github/agents/npc.agent.md` 中已经漂移的 NPC 入口与命令示例，把根目录 `AGENTS.md` 的最小契约补强到不弱于 `memory-protocol.instructions.md`，并把 task-run 结论从“多 agent 兼容已完成”收敛为“AGENTS 基线已补齐、仍待非 Copilot smoke 验证”。
+- 2026-04-21：补齐跨 agent 发现入口，新增仓库根 `AGENTS.md` 兼容 shim 与 `.github/AGENTS.md` 通用基线。前者为只读取根入口的 agent 提供最小契约，后者把当前工作区的 `.github/copilot-instructions.md`、`memory/`、`task-runs/`、蓝图和 study 入口统一成跨工具可复用的工作流规范，避免规则只对 Copilot 可见。
 - 2026-04-14：工作区级 agent 规则已新增一条 bug 修复方法论约束：默认禁止“补丁上再套补丁”的症状式修法，必须先从架构职责、模块边界和控制流/数据流定位根因，再在正确抽象层落修复；若不得不保留兼容性补丁，必须显式写清边界与退出条件。
 - 2026-04-13：根据用户确认，当前默认主闭环收敛为 `am-kernels -> abstract-machine -> NEMU(reference)`；`NPC/Verilator` 改为未来接入节点，不再作为当前调度前置。
 - 2026-04-13：继续吸收 NVIDIA Marco 的图任务思想后，工作区新增“静态图优先、动态图补洞、稳定后模板化”的规则，并补上 `regression-debug-loop`、动态图扩图规则和图质量门槛。

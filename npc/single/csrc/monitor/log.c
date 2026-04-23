@@ -62,6 +62,9 @@ void npc_init_log(const NpcSimConfig *config) {
   g_log_file = fopen(config->log_path, "w");
   if (!g_log_file) {
     perror("[npc] fopen log");
+  } else {
+    /* 对齐参考工程：日志文件打开后在终端显示写入路径 */
+    LogBoth("Log is written to %s", config->log_path);
   }
 }
 
@@ -103,13 +106,16 @@ void npc_log_both_impl(const char *file, int line, const char *func, const char 
   va_copy(console_args, args);
   va_copy(file_args, args);
 
+/* 整行蓝色高亮（含消息体），对齐参考工程的终端输出风格 */
 #if CONFIG_NPC_COLORED_LOG
-  printf(ANSI_FG_BLUE "[%s:%d %s] " ANSI_NONE, short_file_name(file), line, func);
+  printf(ANSI_FG_BLUE "[%s:%d %s] ", short_file_name(file), line, func);
+  vprintf(fmt, console_args);
+  printf(ANSI_NONE "\n");
 #else
   printf("[%s:%d %s] ", short_file_name(file), line, func);
-#endif
   vprintf(fmt, console_args);
   printf("\n");
+#endif
   va_end(console_args);
 
   if (g_log_file) {

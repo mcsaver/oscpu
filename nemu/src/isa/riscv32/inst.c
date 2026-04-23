@@ -18,6 +18,7 @@
 #include <cpu/ifetch.h>
 #include <cpu/decode.h>
 #include <ftrace.h>
+#include <etrace.h>
 
 #define R(i) MUXDEF(CONFIG_RVE, gpr(i), cpu.gpr[(i)])
 #define Mr vaddr_read
@@ -50,6 +51,24 @@
 #define OPC_JALR   0x67
 #define OPC_JAL    0x6f
 #define OPC_SYSTEM 0x73
+
+#define CSR_MSTATUS  0x300
+#define CSR_MISA     0x301
+#define CSR_MIE      0x304
+#define CSR_MTVEC    0x305
+#define CSR_MSCRATCH 0x340
+#define CSR_MEPC     0x341
+#define CSR_MCAUSE   0x342
+#define CSR_MTVAL    0x343
+#define CSR_MIP      0x344
+#define CSR_MHARTID  0xf14
+
+#define CAUSE_ILLEGAL_INST 2
+#define CAUSE_ECALL_M 11
+
+#define MSTATUS_MIE      (1u << 3)
+#define MSTATUS_MPIE     (1u << 7)
+#define MSTATUS_MPP_MASK (3u << 11)
 
 #define INVALID_INST() goto invalid
 
@@ -139,6 +158,97 @@
   _(0x2, 0x00, R(rd) = (sword_t)src1 < (sword_t)src2 ? 1 : 0) /* slt */ \
   _(0x3, 0x00, R(rd) = src1 < src2 ? 1 : 0) /* sltu */ \
   _(0x3, 0x01, R(rd) = (word_t)(((uint64_t)src1 * (uint64_t)src2) >> 32)) /* mulhu */
+
+static bool csr_read(uint32_t csr, word_t *value) {
+  switch (csr) {
+    case CSR_MSTATUS:  *value = cpu.csr.mstatus; return true;
+    case CSR_MIE:      *value = cpu.csr.mie; return true;
+    case CSR_MTVEC:    *value = cpu.csr.mtvec; return true;
+    case CSR_MSCRATCH: *value = cpu.csr.mscratch; return true;
+    case CSR_MEPC:     *value = cpu.csr.mepc; return true;
+    case CSR_MCAUSE:   *value = cpu.csr.mcause; return true;
+    case CSR_MTVAL:    *value = cpu.csr.mtval; return true;
+    case CSR_MIP:      *value = cpu.csr.mip; return true;
+    case CSR_MISA:
+      *value = (1u << 30) | (1u << ('I' - 'A')) | (1u << ('M' - 'A'));
+      return true;
+    case CSR_MHARTID:
+      *value = 0;
+      return true;
+    default:
+      return false;
+  }
+}
+
+static bool csr_write(uint32_t csr, word_t value) {
+  switch (csr) {
+    case CSR_MSTATUS:  cpu.csr.mstatus = value; return true;
+    case CSR_MIE:      cpu.csr.mie = value; return true;
+    case CSR_MTVEC:    cpu.csr.mtvec = value; return true;
+    case CSR_MSCRATCH: cpu.csr.mscratch = value; return true;
+    case CSR_MEPC:     cpu.csr.mepc = value & ~0x3u; return true;
+    case CSR_MCAUSE:   cpu.csr.mcause = value; return true;
+    case CSR_MTVAL:    cpu.csr.mtval = value; return true;
+    case CSR_MIP:      cpu.csr.mip = value; return true;
+    default:
+      return false;
+  }
+}
+
+static void csr_mret(Decode *s) {
+  word_t mstatus = cpu.csr.mstatus;
+  // mret 不只是跳回 mepc，还要恢复 MIE/MPIE 并弹出 MPP；否则 CTE 的 yield 返回会停在错误的中断栈位。
+  if (mstatus & MSTATUS_MPIE) cpu.csr.mstatus |= MSTATUS_MIE;
+  else cpu.csr.mstatus &= ~MSTATUS_MIE;
+  cpu.csr.mstatus |= MSTATUS_MPIE;
+  cpu.csr.mstatus &= ~MSTATUS_MPP_MASK;
+  s->dnpc = cpu.csr.mepc;
+  // ETRACE 把 trap 返回点也记下来，和 isa_raise_intr() 的入口日志形成闭环。
+  etrace_log_mret(s->pc, s->dnpc, cpu.csr.mstatus);
+}
+
+static bool exec_csr_inst(uint32_t inst, uint32_t funct3, int rd, int rs1) {
+  uint32_t csr = BITS(inst, 31, 20);
+  word_t old_val = 0;
+  word_t new_val = 0;
+  bool need_write = false;
+
+  if (!csr_read(csr, &old_val)) return false;
+
+  // Zicsr 的读改写语义集中在这里，避免 trap.S 用到的 csrr/csrw/csrs/csrc 分散到多个分支里各自处理。
+  switch (funct3) {
+    case 0x1: // csrrw
+      new_val = R(rs1);
+      need_write = true;
+      break;
+    case 0x2: // csrrs
+      new_val = old_val | R(rs1);
+      need_write = (rs1 != 0);
+      break;
+    case 0x3: // csrrc
+      new_val = old_val & ~R(rs1);
+      need_write = (rs1 != 0);
+      break;
+    case 0x5: // csrrwi
+      new_val = rs1;
+      need_write = true;
+      break;
+    case 0x6: // csrrsi
+      new_val = old_val | (word_t)rs1;
+      need_write = (rs1 != 0);
+      break;
+    case 0x7: // csrrci
+      new_val = old_val & ~((word_t)rs1);
+      need_write = (rs1 != 0);
+      break;
+    default:
+      return false;
+  }
+
+  if (need_write && !csr_write(csr, new_val)) return false;
+  R(rd) = old_val;
+  return true;
+}
 
 
 
@@ -245,8 +355,25 @@ static int decode_exec(Decode *s) {
     )
     OPCODE_CASE(OPC_SYSTEM,
       ((void)0),
-      if (inst == 0x00100073) NEMUTRAP(s->pc, R(10)); // ebreak, R(10) is $a0
-      else INVALID_INST();
+      switch (funct3) {
+        case 0x0:
+          if (inst == 0x00000073) {
+            // ecall 进入 machine trap，后续由 mtvec 指向的 AM trap.S 保存现场并通过 mret 返回。
+            s->dnpc = isa_raise_intr(CAUSE_ECALL_M, s->pc);
+          } else if (inst == 0x00100073) {
+            NEMUTRAP(s->pc, R(10)); // ebreak, R(10) is $a0
+          } else if (inst == 0x30200073) {
+            csr_mret(s);
+          } else if (inst == 0x10500073) {
+            // 当前没有真实异步中断源，WFI 先按规范允许的 nop 语义处理，避免误杀合法程序。
+          } else {
+            INVALID_INST();
+          }
+          break;
+        default:
+          if (!exec_csr_inst(inst, funct3, rd, rs1)) INVALID_INST();
+          break;
+      }
     )
     default: INVALID_INST();
   }
@@ -256,8 +383,8 @@ static int decode_exec(Decode *s) {
   return 0;
 
 invalid:
-  // 保留统一的非法指令出口，保证分层分发后出错语义仍和原先一致。
-  INV(s->pc);
+  // 非法/未实现编码按 RISC-V illegal instruction trap 处理，mtval 记录原始指令编码供异常处理程序诊断。
+  s->dnpc = isa_raise_intr_with_tval(CAUSE_ILLEGAL_INST, s->pc, inst);
   R(0) = 0;
   return 0;
 }

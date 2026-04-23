@@ -35,7 +35,10 @@
 #include <ctype.h>
 #include <limits.h> */
 
-static int is_batch_mode = false;
+// 批处理模式支持两种入口：
+// 1. Kconfig 里的 CONFIG_BATCH_MODE 负责设置“默认启动行为”
+// 2. 命令行 `-b/--batch` 通过 sdb_set_batch_mode() 按次显式开启
+static bool is_batch_mode = MUXDEF(CONFIG_BATCH_MODE, true, false);
 
 void init_regex();
 void init_wp_pool();
@@ -437,12 +440,12 @@ static int cmd_help(char *args) {
   return 0;
 }
 
-void sdb_set_batch_mode() {
+void sdb_set_batch_mode(void) {
   is_batch_mode = true;
 }
 
 //monitor的核心
-void sdb_mainloop() {
+void sdb_mainloop(void) {
   if (is_batch_mode) {
     cmd_c(NULL);
     return;

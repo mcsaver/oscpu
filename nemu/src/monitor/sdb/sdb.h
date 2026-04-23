@@ -22,6 +22,11 @@
 
 extern bool enable_expr_log;
 
+// 统一导出 SDB 的初始化/运行接口，避免 monitor 和 engine 侧再各自手写前向声明。
+void init_sdb(void);
+void sdb_mainloop(void);
+void sdb_set_batch_mode(void);
+
 // expr.c 中的 expr() 函数声明
 word_t expr(char *e, bool *success);
 

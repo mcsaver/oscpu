@@ -72,7 +72,8 @@ void npc_add_mmio_map(const char *name, uint32_t addr, uint32_t len, void *opaqu
   }
 
   ++g_map_count;
-  Log("Add mmio map '%s' at [0x%08x, 0x%08x]", map->name, map->low, map->high);
+  /* 对齐参考工程：MMIO 映射信息同时输出到终端，方便确认设备注册 */
+  LogBoth("Add mmio map '%s' at [0x%08x, 0x%08x]", map->name, map->low, map->high);
 }
 
 bool npc_mmio_read(uint32_t addr, uint32_t *data, enum NpcBusAccess kind) {

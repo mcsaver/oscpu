@@ -43,6 +43,15 @@ static uint64_t g_cycle_limit        = NPC_DEFAULT_MAX_CYCLES;
 static uint64_t g_progress_interval  = NPC_DEFAULT_PROGRESS_INTERVAL;
 static volatile std::sig_atomic_t g_stop_requested = 0;
 
+/* 分支/跳转动态统计计数器：在每条指令提交时按 opcode 分类累加，
+ * 用于输出 CPI 和分支预测相关的性能指标，方便与其他工程对比。 */
+static uint64_t g_nr_branch       = 0;  // B-type 条件分支总数
+static uint64_t g_nr_branch_taken = 0;  // 条件分支中实际跳转的次数
+static uint64_t g_nr_jal          = 0;  // JAL 无条件跳转
+static uint64_t g_nr_jalr         = 0;  // JALR 间接跳转（含 ret）
+static uint32_t g_prev_commit_pc  = 0;  // 上一条提交指令的 PC
+static bool     g_prev_was_branch = false; // 上一条是否为条件分支
+
 static const char *kRegNames[32] = {
   "zero", "ra", "sp", "gp", "tp", "t0", "t1", "t2",
   "s0",   "s1", "a0", "a1", "a2", "a3", "a4", "a5",
@@ -144,18 +153,47 @@ static void accumulate_host_time(uint64_t start_us) {
   npc_stats()->host_time_us += npc_get_time_us() - start_us;
 }
 
-// NEMU 风格统计，NPC 跑分结果可直接和参考模型对比
+// 分支/跳转统计报告：按指令类型汇总动态执行次数，方便与其他仿真器输出对比
+static void report_branch_stats(void) {
+  uint64_t total_commits = npc_stats()->commits;
+  uint64_t nr_not_taken = g_nr_branch - g_nr_branch_taken;
+  double taken_rate = g_nr_branch > 0
+      ? (double)g_nr_branch_taken / (double)g_nr_branch * 100.0 : 0.0;
+  uint64_t total_jb = g_nr_branch + g_nr_jal + g_nr_jalr;
+  double jb_pct = total_commits > 0
+      ? (double)total_jb / (double)total_commits * 100.0 : 0.0;
+
+  LogBothTag("statistic", "=== Branch/Jump Statistics ===");
+  LogBothTag("statistic", "  conditional branch  = %llu (taken %llu, not-taken %llu, taken rate %.1f%%)",
+          (unsigned long long)g_nr_branch,
+          (unsigned long long)g_nr_branch_taken,
+          (unsigned long long)nr_not_taken, taken_rate);
+  LogBothTag("statistic", "  JAL  (unconditional) = %llu", (unsigned long long)g_nr_jal);
+  LogBothTag("statistic", "  JALR (indirect/ret)  = %llu", (unsigned long long)g_nr_jalr);
+  LogBothTag("statistic", "  total jump/branch    = %llu (%.1f%% of all instructions)",
+          (unsigned long long)total_jb, jb_pct);
+}
+
+// NEMU 风格统计 + CPI + 分支统计，NPC 跑分结果可直接和参考模型对比
 static void report_statistics(void) {
-  LogBoth("host time spent = %llu us",
+  LogBothTag("statistic", "host time spent = %llu us",
           (unsigned long long)npc_stats()->host_time_us);
-  LogBoth("total guest instructions = %llu",
+  LogBothTag("statistic", "total guest instructions = %llu",
           (unsigned long long)npc_stats()->commits);
+  // 新增 cycles 和 CPI 输出，对齐参考工程的统计格式
+  LogBothTag("statistic", "total guest cycles = %llu",
+          (unsigned long long)npc_stats()->cycles);
+  if (npc_stats()->commits > 0) {
+    LogBothTag("statistic", "CPI (cycles/instruction) = %.3f",
+            (double)npc_stats()->cycles / (double)npc_stats()->commits);
+  }
   if (npc_stats()->host_time_us > 0) {
-    LogBoth("simulation frequency = %llu inst/s",
+    LogBothTag("statistic", "simulation frequency = %llu inst/s",
             (unsigned long long)simulation_frequency());
   } else {
-    LogBoth("Finish running in less than 1 us and can not calculate the simulation frequency");
+    LogBothTag("statistic", "Finish running in less than 1 us and can not calculate the simulation frequency");
   }
+  report_branch_stats();
 }
 
 static void report_run_result(void) {
@@ -165,7 +203,7 @@ static void report_run_result(void) {
       const char *trap_text = (st->halt_ret == 0)
           ? (ANSI_FG_GREEN "HIT GOOD TRAP" ANSI_NONE)
           : (ANSI_FG_RED   "HIT BAD TRAP"  ANSI_NONE);
-      LogBoth("npc: %s at pc = 0x%08x", trap_text, st->halt_pc);
+      LogBothTag("cpu_exec", "npc: %s at pc = 0x%08x", trap_text, st->halt_pc);
       LogBoth("exit via %s, code=%u, cycles=%llu, commits=%llu",
               st->exit_is_ebreak ? "ebreak" : (st->exit_is_ecall ? "ecall" : "unknown"),
               st->halt_ret,
@@ -175,7 +213,7 @@ static void report_run_result(void) {
       return;
     }
     case NPC_TRAP:
-      LogBoth("npc: %s at pc = 0x%08x", ANSI_FG_RED "TRAP" ANSI_NONE, st->halt_pc);
+      LogBothTag("cpu_exec", "npc: %s at pc = 0x%08x", ANSI_FG_RED "TRAP" ANSI_NONE, st->halt_pc);
       LogBoth("trap cause=%u tval=0x%08x, cycles=%llu, commits=%llu",
               st->trap_cause, st->trap_tval,
               (unsigned long long)npc_stats()->cycles,
@@ -183,7 +221,7 @@ static void report_run_result(void) {
       report_statistics();
       return;
     case NPC_ABORT:
-      LogBoth("npc: %s at pc = 0x%08x", ANSI_FG_RED "ABORT" ANSI_NONE, st->halt_pc);
+      LogBothTag("cpu_exec", "npc: %s at pc = 0x%08x", ANSI_FG_RED "ABORT" ANSI_NONE, st->halt_pc);
       LogBoth("cycles=%llu, commits=%llu, core-state=0x%08x",
               (unsigned long long)npc_stats()->cycles,
               (unsigned long long)npc_stats()->commits,
@@ -225,11 +263,17 @@ static void apply_reset(void) {
   g_top->clk = 0;
   for (int i = 0; i < 5; ++i) step_cycle();
   g_top->rst = 0;
+  /* 对齐参考工程：复位完成后打印 ***reset*** 标记 */
+  printf("***reset***\n");
   // VCD 时间必须单调，只重置统计量，保留 trace 时间轴
   uint64_t trace_time = npc_stats()->sim_time;
   memset(npc_stats(), 0, sizeof(NpcStats));
   npc_stats()->sim_time = trace_time;
   clear_runtime_state();
+  // 复位时清零分支/跳转计数器，确保统计只反映本次运行
+  g_nr_branch = g_nr_branch_taken = g_nr_jal = g_nr_jalr = 0;
+  g_prev_was_branch = false;
+  g_prev_commit_pc = 0;
 }
 
 /* ---- 状态报告 ---- */
@@ -360,6 +404,26 @@ int npc_cpu_exec(uint64_t max_instructions) {
     if (g_top->commit_valid_o) {
       ++executed;
       trace_commit();
+      // 按 opcode[6:0] 分类统计分支/跳转指令的动态执行次数
+      {
+        uint32_t inst = g_top->commit_inst_o;
+        uint32_t opcode = inst & 0x7fu;
+        uint32_t cur_pc = g_top->commit_pc_o;
+        // 上一条是条件分支：用本条 PC 判断是否 taken
+        if (g_prev_was_branch) {
+          if (cur_pc != g_prev_commit_pc + 4) g_nr_branch_taken++;
+          g_prev_was_branch = false;
+        }
+        if (opcode == 0x63u) {        // B-type 条件分支
+          g_nr_branch++;
+          g_prev_was_branch = true;
+          g_prev_commit_pc = cur_pc;
+        } else if (opcode == 0x6fu) { // JAL
+          g_nr_jal++;
+        } else if (opcode == 0x67u) { // JALR (含 ret)
+          g_nr_jalr++;
+        }
+      }
       if (npc_check_watchpoints())
         return finish_exec(timer_start_us, 0, false);
       maybe_report_progress(&progress);

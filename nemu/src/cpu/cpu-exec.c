@@ -116,9 +116,8 @@ void device_update();
 static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 
 //条件日志记录
-//需要在menuconfig中开启CONFIG_ITRACE_COND
-//Itrace是是Instruction Trace指令追踪的缩写
-//ITRACE_COND是一个宏，可以定义在何时记录(例如只记录待定地址范围内的指令)，避免日志文件过大
+//Itrace是Instruction Trace指令追踪的缩写。
+//ITRACE_COND 保留为内部条件宏，当前默认 true；日志范围统一交给 TRACE_START/TRACE_END 控制，避免菜单里重复配置。
 //数据：_this->logbuf存储了刚才执行的那条指令的反汇编字符串，也就是译码并且打印
   #ifdef CONFIG_ITRACE_COND
   if (ITRACE_COND) { log_write("%s\n", _this->logbuf); }

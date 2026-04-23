@@ -30,5 +30,7 @@ void npc_log_plain(const char *fmt, ...);
 #define Log(fmt, ...) npc_log_impl(__FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 /* LogBoth: 同时写日志文件和终端 */
 #define LogBoth(fmt, ...) npc_log_both_impl(__FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
+/* LogBothTag: 同 LogBoth，但用自定义标签替代 __func__，对齐参考工程的 statistic / cpu_exec 标签 */
+#define LogBothTag(tag, fmt, ...) npc_log_both_impl(__FILE__, __LINE__, tag, fmt, ##__VA_ARGS__)
 
 #endif

@@ -48,6 +48,9 @@ paddr_t isa_mmu_translate(vaddr_t vaddr, int len, int type);
 
 // interrupt/exception
 vaddr_t isa_raise_intr(word_t NO, vaddr_t epc);
+#ifdef CONFIG_ISA_riscv
+vaddr_t isa_raise_intr_with_tval(word_t NO, vaddr_t epc, word_t tval);
+#endif
 #define INTR_EMPTY ((word_t)-1)
 word_t isa_query_intr();
 

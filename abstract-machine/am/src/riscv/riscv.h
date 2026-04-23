@@ -21,6 +21,7 @@ static inline void outl(uintptr_t addr, uint32_t data) { *(volatile uint32_t *)a
 #define PTE_D 0x80//Dirty，页被写脏过
 
 enum { MODE_U, MODE_S, MODE_M = 3 };
+#define MSTATUS_MIE  (1 << 3)//Machine Interrupt Enable，供 CTE 查询和切换机器态全局中断开关
 #define MSTATUS_MXR  (1 << 19)
 #define MSTATUS_SUM  (1 << 18)
 

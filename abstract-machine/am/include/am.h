@@ -21,6 +21,8 @@ typedef struct {
 typedef struct Context Context;
 
 // An event of type @event, caused by @cause of pointer @ref
+//Event可以理解成“上层handler收到的事件包”
+
 typedef struct {
   enum {
     EVENT_NULL = 0,
@@ -28,7 +30,11 @@ typedef struct {
     EVENT_IRQ_TIMER, EVENT_IRQ_IODEV,
   } event;
   uintptr_t cause, ref;
+  //uintptr_t是“能装下指针/地址的无符号整数类型”，常用于保存异常原因码、地址、寄存器值之类和机器位宽相关的数据
+  //cause：事件原因/错误码
+  //ref：与事件相关的引用值，常常是故障地址、相关对象地址等
   const char *msg;
+  //这是可选的文字说明，主要方便调试或打印日志
 } Event;
 
 // A protected address space with user memory @area
