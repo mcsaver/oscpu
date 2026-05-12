@@ -2,6 +2,7 @@
 
 ## 当前状态
 <!-- 已实现的指令、设备等 -->
+- 2026-05-10: `nemu/src/isa/riscv32/inst.c` 的 opcode/funct 表驱动译码已补充查阅型中文注释：OP-IMM、LOAD、STORE、BRANCH、OP/RV32M 子集、JAL/JALR、LUI/AUIPC、SYSTEM/CSR 相关实现均标明助记符和核心语义；RV32M 表项旁明确当前只实现列出的子集，未列编码仍进入 illegal instruction trap。本次不改功能逻辑，仅提升源码可读性；默认 native RISC-V 配置下 `make -j4` 构建通过。
 - 2026-04-23: RISC-V 非法/未实现指令现在不再通过 `INV()` 直接置 `NEMU_ABORT`，而是进入标准 illegal instruction trap：`mcause=2`、`mepc=出错 PC`、`mtval=原始 32 位指令编码`，并跳转到 `mtvec`。新增 `isa_raise_intr_with_tval()` 供需要写 `mtval` 的异常使用，普通 `isa_raise_intr()` 仍默认 `mtval=0`。trap 入口会用 `Log` 在终端高亮输出异常类型与 `epc/mtval/target`，`ETRACE` 同步记录 `mtval`。同时 `disassemble()` 对无法反汇编的非法编码输出 `.word 0x...`，避免开启 ITRACE 时 Capstone 返回 0 条结果导致断言退出。已验证：`make -C nemu -j4` 通过；自定义非法指令镜像触发 `0xffffffff` 后 handler 读到 `mcause=2/mtval=0xffffffff` 并 `HIT GOOD TRAP`；`cpu-tests ALL=add` 继续 PASS。
 - 2026-04-23: trace 全局范围配置已调整：Kconfig 中 `TRACE_START/TRACE_END` 位于 `Enable tracer` 后面、各具体 trace 类型之前；`TRACE_END` 默认改为 `0`，`log_enable()` 解释为“无结束上限”。当前 `nemu/.config` 和生成的 `autoconf.h/auto.conf` 已同步为 `CONFIG_TRACE_END=0`，默认开启 trace 后不再只记录前 10000 条指令。
 - 2026-04-23: `ETRACE` 已从普通 `log_write()` 改为直接写 `log_fp`，因此只要 `CONFIG_ETRACE=y` 且有日志文件，就能记录 trap 进入/返回，不再受 `TRACE_START/TRACE_END` 指令窗口过滤。这样 `am-tests mainargs=i` 这类首次 `ecall` 很晚才发生的程序也能在 `am-kernels/tests/am-tests/build/nemu-log.txt` 里看到 `[Etrace] trap ...` 与 `[Etrace] mret ...` 成对日志。

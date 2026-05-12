@@ -24,7 +24,7 @@
 #define Mr vaddr_read
 #define Mw vaddr_write
 
-#define MIN_INT  -2147483648//RV32
+#define MIN_INT  -2147483648 // RV32 有符号除法溢出特判用的最小值
 
 // 把常用字段先提成宏，后面按 opcode/funct 分层分发时可以少做重复位切片。
 // 这样既减少热路径里的样板代码，也让常见指令能够更快落到对应分支。
@@ -111,55 +111,57 @@
 #define GEN_OP_CASE(code3, code7, body) OP_CASE(code3, code7, body)
 
 // 把每一类指令写成 X-macro 表项，查看时可以直接把“编码 -> 行为”对齐着读。
-// 这样既去掉了大片 if-else 嵌套，也保留了按 opcode/funct 分层命中的热路径结构。
+// 每条表项都保留“助记符 + 语义摘要”，方便后续按 funct3/funct7 查询当前已实现的指令。
 #define OPIMM_DIRECT_CASES(_) \
-  _(0x0, R(rd) = src1 + imm) /* addi */ \
-  _(0x7, R(rd) = src1 & imm) /* andi */ \
-  _(0x6, R(rd) = src1 | imm) /* ori */ \
-  _(0x4, R(rd) = src1 ^ imm) /* xori */ \
-  _(0x2, R(rd) = (sword_t)src1 < (sword_t)imm ? 1 : 0) /* slti */ \
-  _(0x3, R(rd) = src1 < (word_t)imm ? 1 : 0) /* sltiu */
+  _(0x0, R(rd) = src1 + imm) /* addi: rd = rs1 + 有符号立即数 */ \
+  _(0x7, R(rd) = src1 & imm) /* andi: rd = rs1 & 有符号立即数 */ \
+  _(0x6, R(rd) = src1 | imm) /* ori: rd = rs1 | 有符号立即数 */ \
+  _(0x4, R(rd) = src1 ^ imm) /* xori: rd = rs1 ^ 有符号立即数 */ \
+  _(0x2, R(rd) = (sword_t)src1 < (sword_t)imm ? 1 : 0) /* slti: 有符号比较，小于置 1 */ \
+  _(0x3, R(rd) = src1 < (word_t)imm ? 1 : 0) /* sltiu: 无符号比较，小于置 1 */
 
 #define LOAD_CASES(_) \
-  _(0x2, R(rd) = Mr(src1 + imm, 4)) /* lw */ \
-  _(0x0, R(rd) = SEXT(Mr(src1 + imm, 1), 8)) /* lb */ \
-  _(0x1, R(rd) = SEXT(Mr(src1 + imm, 2), 16)) /* lh */ \
-  _(0x4, R(rd) = Mr(src1 + imm, 1)) /* lbu */ \
-  _(0x5, R(rd) = Mr(src1 + imm, 2)) /* lhu */
+  _(0x2, R(rd) = Mr(src1 + imm, 4)) /* lw: 从 rs1+imm 读取 32 位字 */ \
+  _(0x0, R(rd) = SEXT(Mr(src1 + imm, 1), 8)) /* lb: 读取 8 位并符号扩展 */ \
+  _(0x1, R(rd) = SEXT(Mr(src1 + imm, 2), 16)) /* lh: 读取 16 位并符号扩展 */ \
+  _(0x4, R(rd) = Mr(src1 + imm, 1)) /* lbu: 读取 8 位并零扩展 */ \
+  _(0x5, R(rd) = Mr(src1 + imm, 2)) /* lhu: 读取 16 位并零扩展 */
 
 #define STORE_CASES(_) \
-  _(0x2, Mw(src1 + imm, 4, src2)) /* sw */ \
-  _(0x0, Mw(src1 + imm, 1, src2)) /* sb */ \
-  _(0x1, Mw(src1 + imm, 2, src2)) /* sh */
+  _(0x2, Mw(src1 + imm, 4, src2)) /* sw: 向 rs1+imm 写入 rs2 低 32 位 */ \
+  _(0x0, Mw(src1 + imm, 1, src2)) /* sb: 向 rs1+imm 写入 rs2 低 8 位 */ \
+  _(0x1, Mw(src1 + imm, 2, src2)) /* sh: 向 rs1+imm 写入 rs2 低 16 位 */
 
 #define BRANCH_CASES(_) \
-  _(0x0, if (src1 == src2) s->dnpc = s->pc + imm) /* beq */ \
-  _(0x1, if (src1 != src2) s->dnpc = s->pc + imm) /* bne */ \
-  _(0x4, if ((sword_t)src1 < (sword_t)src2) s->dnpc = s->pc + imm) /* blt */ \
-  _(0x5, if ((sword_t)src1 >= (sword_t)src2) s->dnpc = s->pc + imm) /* bge */ \
-  _(0x6, if (src1 < src2) s->dnpc = s->pc + imm) /* bltu */ \
-  _(0x7, if (src1 >= src2) s->dnpc = s->pc + imm) /* bgeu */
+  _(0x0, if (src1 == src2) s->dnpc = s->pc + imm) /* beq: 相等则跳转 */ \
+  _(0x1, if (src1 != src2) s->dnpc = s->pc + imm) /* bne: 不相等则跳转 */ \
+  _(0x4, if ((sword_t)src1 < (sword_t)src2) s->dnpc = s->pc + imm) /* blt: 有符号小于则跳转 */ \
+  _(0x5, if ((sword_t)src1 >= (sword_t)src2) s->dnpc = s->pc + imm) /* bge: 有符号大于等于则跳转 */ \
+  _(0x6, if (src1 < src2) s->dnpc = s->pc + imm) /* bltu: 无符号小于则跳转 */ \
+  _(0x7, if (src1 >= src2) s->dnpc = s->pc + imm) /* bgeu: 无符号大于等于则跳转 */
 
+// RV32M 这里只列当前实现的子集；未列出的 M 扩展编码会进入 illegal instruction trap。
 #define OP_CASES(_) \
-  _(0x0, 0x00, R(rd) = src1 + src2) /* add */ \
-  _(0x0, 0x20, R(rd) = src1 - src2) /* sub */ \
-  _(0x0, 0x01, R(rd) = (sword_t)src1 * (sword_t)src2) /* mul */ \
-  _(0x7, 0x00, R(rd) = src1 & src2) /* and */ \
-  _(0x7, 0x01, R(rd) = (src2 == 0) ? src1 : src1 % src2) /* remu */ \
-  _(0x6, 0x00, R(rd) = src1 | src2) /* or */ \
-  _(0x6, 0x01, if (src2 == 0) R(rd) = src1; else if ((sword_t)src1 == MIN_INT && (sword_t)src2 == -1) R(rd) = 0; else R(rd) = (sword_t)src1 % (sword_t)src2) /* rem */ \
-  _(0x4, 0x00, R(rd) = src1 ^ src2) /* xor */ \
-  _(0x4, 0x01, if (src2 == 0) R(rd) = -1; else if ((sword_t)src1 == MIN_INT && (sword_t)src2 == -1) R(rd) = (word_t)MIN_INT; else R(rd) = (sword_t)src1 / (sword_t)src2) /* div */ \
-  _(0x1, 0x00, R(rd) = src1 << (src2 & 0x1f)) /* sll */ \
-  _(0x1, 0x01, R(rd) = (word_t)(((int64_t)(sword_t)src1 * (int64_t)(sword_t)src2) >> 32)) /* mulh */ \
-  _(0x5, 0x00, R(rd) = src1 >> (src2 & 0x1f)) /* srl */ \
-  _(0x5, 0x20, R(rd) = (sword_t)src1 >> (src2 & 0x1f)) /* sra */ \
-  _(0x5, 0x01, R(rd) = (src2 == 0) ? 0xffffffff : src1 / src2) /* divu */ \
-  _(0x2, 0x00, R(rd) = (sword_t)src1 < (sword_t)src2 ? 1 : 0) /* slt */ \
-  _(0x3, 0x00, R(rd) = src1 < src2 ? 1 : 0) /* sltu */ \
-  _(0x3, 0x01, R(rd) = (word_t)(((uint64_t)src1 * (uint64_t)src2) >> 32)) /* mulhu */
+  _(0x0, 0x00, R(rd) = src1 + src2) /* add: rd = rs1 + rs2 */ \
+  _(0x0, 0x20, R(rd) = src1 - src2) /* sub: rd = rs1 - rs2 */ \
+  _(0x0, 0x01, R(rd) = (sword_t)src1 * (sword_t)src2) /* mul: 乘积低 32 位 */ \
+  _(0x7, 0x00, R(rd) = src1 & src2) /* and: 按位与 */ \
+  _(0x7, 0x01, R(rd) = (src2 == 0) ? src1 : src1 % src2) /* remu: 无符号取余，除数为 0 返回被除数 */ \
+  _(0x6, 0x00, R(rd) = src1 | src2) /* or: 按位或 */ \
+  _(0x6, 0x01, if (src2 == 0) R(rd) = src1; else if ((sword_t)src1 == MIN_INT && (sword_t)src2 == -1) R(rd) = 0; else R(rd) = (sword_t)src1 % (sword_t)src2) /* rem: 有符号取余，含除 0/溢出特判 */ \
+  _(0x4, 0x00, R(rd) = src1 ^ src2) /* xor: 按位异或 */ \
+  _(0x4, 0x01, if (src2 == 0) R(rd) = -1; else if ((sword_t)src1 == MIN_INT && (sword_t)src2 == -1) R(rd) = (word_t)MIN_INT; else R(rd) = (sword_t)src1 / (sword_t)src2) /* div: 有符号除法，含除 0/溢出特判 */ \
+  _(0x1, 0x00, R(rd) = src1 << (src2 & 0x1f)) /* sll: 逻辑左移，移位量取 rs2[4:0] */ \
+  _(0x1, 0x01, R(rd) = (word_t)(((int64_t)(sword_t)src1 * (int64_t)(sword_t)src2) >> 32)) /* mulh: 有符号乘积高 32 位 */ \
+  _(0x5, 0x00, R(rd) = src1 >> (src2 & 0x1f)) /* srl: 逻辑右移，移位量取 rs2[4:0] */ \
+  _(0x5, 0x20, R(rd) = (sword_t)src1 >> (src2 & 0x1f)) /* sra: 算术右移，移位量取 rs2[4:0] */ \
+  _(0x5, 0x01, R(rd) = (src2 == 0) ? 0xffffffff : src1 / src2) /* divu: 无符号除法，除数为 0 返回全 1 */ \
+  _(0x2, 0x00, R(rd) = (sword_t)src1 < (sword_t)src2 ? 1 : 0) /* slt: 有符号比较，小于置 1 */ \
+  _(0x3, 0x00, R(rd) = src1 < src2 ? 1 : 0) /* sltu: 无符号比较，小于置 1 */ \
+  _(0x3, 0x01, R(rd) = (word_t)(((uint64_t)src1 * (uint64_t)src2) >> 32)) /* mulhu: 无符号乘积高 32 位 */
 
 static bool csr_read(uint32_t csr, word_t *value) {
+  // 这里集中列出当前 NEMU 支持的 M-mode CSR；未知 CSR 返回 false，让上层转 illegal instruction。
   switch (csr) {
     case CSR_MSTATUS:  *value = cpu.csr.mstatus; return true;
     case CSR_MIE:      *value = cpu.csr.mie; return true;
@@ -181,6 +183,7 @@ static bool csr_read(uint32_t csr, word_t *value) {
 }
 
 static bool csr_write(uint32_t csr, word_t value) {
+  // mepc 写入时清低 2 位，保持 RV32 下 trap 返回地址按 4 字节对齐。
   switch (csr) {
     case CSR_MSTATUS:  cpu.csr.mstatus = value; return true;
     case CSR_MIE:      cpu.csr.mie = value; return true;
@@ -246,6 +249,7 @@ static bool exec_csr_inst(uint32_t inst, uint32_t funct3, int rd, int rs1) {
   }
 
   if (need_write && !csr_write(csr, new_val)) return false;
+  // CSR 指令读出的旧值统一写回 rd；如果 rd 是 x0，decode 末尾会继续强制保持零寄存器语义。
   R(rd) = old_val;
   return true;
 }
@@ -280,11 +284,11 @@ static int decode_exec(Decode *s) {
       switch (funct3) {
         OPIMM_DIRECT_CASES(GEN_FUNCT3_CASE)
         FUNCT3_CASE_F7(0x1,
-          FUNCT7_CASE(0x00, R(rd) = src1 << (imm & 0x1f))
+          FUNCT7_CASE(0x00, R(rd) = src1 << (imm & 0x1f)) /* slli: 逻辑左移立即数 */
         )
         FUNCT3_CASE_F7(0x5,
-          FUNCT7_CASE(0x00, R(rd) = src1 >> (imm & 0x1f))
-          FUNCT7_CASE(0x20, R(rd) = (sword_t)src1 >> (imm & 0x1f))
+          FUNCT7_CASE(0x00, R(rd) = src1 >> (imm & 0x1f)) /* srli: 逻辑右移立即数 */
+          FUNCT7_CASE(0x20, R(rd) = (sword_t)src1 >> (imm & 0x1f)) /* srai: 算术右移立即数 */
         )
         default: INVALID_INST();
       }
@@ -330,6 +334,7 @@ static int decode_exec(Decode *s) {
       if (funct3 != 0x0) INVALID_INST();
       src1 = R(rs1);
       imm = IMM_I(inst);
+      // jalr: rd 保存返回地址，目标地址清 bit0，便于函数返回/间接跳转共用同一条指令。
       R(rd) = s->pc + 4;
       uint32_t target = (src1 + imm) & ~1;
       s->dnpc = target;
@@ -341,16 +346,19 @@ static int decode_exec(Decode *s) {
     OPCODE_CASE(OPC_JAL,
       ((void)0),
       imm = IMM_J(inst);
+      // jal: rd 保存返回地址，dnpc 改成 PC 相对跳转目标。
       R(rd) = s->pc + 4;
       s->dnpc = s->pc + imm;
       IFDEF(CONFIG_FTRACE, if (rd == 1 || rd == 5) { ftrace_log(1, s->pc, s->dnpc); })
     )
     OPCODE_CASE(OPC_LUI,
       ((void)0),
+      // lui: 把 U 型立即数放入高 20 位，低 12 位补 0。
       R(rd) = IMM_U(inst)
     )
     OPCODE_CASE(OPC_AUIPC,
       ((void)0),
+      // auipc: 生成 PC 相对地址，常和 jalr/load/store 组合做远距离寻址。
       R(rd) = s->pc + IMM_U(inst)
     )
     OPCODE_CASE(OPC_SYSTEM,
@@ -361,8 +369,10 @@ static int decode_exec(Decode *s) {
             // ecall 进入 machine trap，后续由 mtvec 指向的 AM trap.S 保存现场并通过 mret 返回。
             s->dnpc = isa_raise_intr(CAUSE_ECALL_M, s->pc);
           } else if (inst == 0x00100073) {
+            // ebreak: NEMU 约定用 a0(x10) 作为 trap code，供 AM 程序报告 GOOD/BAD TRAP。
             NEMUTRAP(s->pc, R(10)); // ebreak, R(10) is $a0
           } else if (inst == 0x30200073) {
+            // mret: 从 mepc 返回，同时恢复 mstatus 中的中断栈位。
             csr_mret(s);
           } else if (inst == 0x10500073) {
             // 当前没有真实异步中断源，WFI 先按规范允许的 nop 语义处理，避免误杀合法程序。
@@ -371,6 +381,7 @@ static int decode_exec(Decode *s) {
           }
           break;
         default:
+          // csrrw/csrrs/csrrc 及立即数变体都在 exec_csr_inst() 中按 Zicsr 语义统一处理。
           if (!exec_csr_inst(inst, funct3, rd, rs1)) INVALID_INST();
           break;
       }
@@ -378,7 +389,7 @@ static int decode_exec(Decode *s) {
     default: INVALID_INST();
   }
 
-  R(0) = 0; // reset $zero to 0
+  R(0) = 0; // x0 必须恒为 0，任何误写都在指令执行末尾统一清回去。
 
   return 0;
 
