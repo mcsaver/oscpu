@@ -5,7 +5,7 @@
 #支持构建可选的共享库：若传入SHARE=1，会设置SO=-so、增加-fPIC/-shared等编译/链接选项
 ifeq ($(SHARE),1)
 SO = -so
-CFLAGS  += -fPIC -fvisibility=hidden
+CFLAGS  += -fPIC -fvisibility=hidden -DCONFIG_TARGET_SHARE
 LDFLAGS += -shared -fPIC
 endif
 

@@ -1,0 +1,162 @@
+`include "define.v"
+
+module tb_icache;
+  `include "tb_common.svh"
+
+  reg clk;
+  reg rst;
+  reg abort_i;
+  reg invalidate_i;
+  reg cpu_req_valid;
+  wire cpu_req_ready;
+  reg [`XLEN-1:0] cpu_req_addr;
+  wire cpu_rsp_valid;
+  wire [`XLEN-1:0] cpu_rsp_data;
+  wire cpu_rsp_error;
+  wire mem_req_valid;
+  reg mem_req_ready;
+  wire [`XLEN-1:0] mem_req_addr;
+  reg mem_rsp_valid;
+  reg [`XLEN-1:0] mem_rsp_data;
+  reg mem_rsp_error;
+
+  ICache dut (
+    .clk(clk),
+    .rst(rst),
+    .abort_i(abort_i),
+    .invalidate_i(invalidate_i),
+    .cpu_req_valid_i(cpu_req_valid),
+    .cpu_req_ready_o(cpu_req_ready),
+    .cpu_req_addr_i(cpu_req_addr),
+    .cpu_rsp_valid_o(cpu_rsp_valid),
+    .cpu_rsp_data_o(cpu_rsp_data),
+    .cpu_rsp_error_o(cpu_rsp_error),
+    .mem_req_valid_o(mem_req_valid),
+    .mem_req_ready_i(mem_req_ready),
+    .mem_req_addr_o(mem_req_addr),
+    .mem_rsp_valid_i(mem_rsp_valid),
+    .mem_rsp_data_i(mem_rsp_data),
+    .mem_rsp_error_i(mem_rsp_error)
+  );
+
+  task automatic reset_dut;
+    begin
+      rst = 1'b1;
+      abort_i = 1'b0;
+      invalidate_i = 1'b0;
+      cpu_req_valid = 1'b0;
+      cpu_req_addr = 32'h0;
+      mem_req_ready = 1'b1;
+      mem_rsp_valid = 1'b0;
+      mem_rsp_data = 32'h0;
+      mem_rsp_error = 1'b0;
+      `TB_TICK(clk);
+      rst = 1'b0;
+      `TB_TICK(clk);
+    end
+  endtask
+
+  task automatic send_mem_word;
+    input [`XLEN-1:0] exp_addr;
+    input [`XLEN-1:0] data;
+    integer guard;
+    begin
+      guard = 0;
+      while (!mem_req_valid && guard < 8) begin
+        `TB_TICK(clk);
+        guard = guard + 1;
+      end
+      tb_check1("icache mem req valid", mem_req_valid, 1'b1);
+      tb_check32("icache mem req addr", mem_req_addr, exp_addr);
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b1;
+      mem_rsp_data = data;
+      mem_rsp_error = 1'b0;
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      mem_rsp_data = 32'h0;
+    end
+  endtask
+
+  task automatic wait_cpu_rsp;
+    input [1023:0] name;
+    input [`XLEN-1:0] exp_data;
+    input exp_error;
+    input check_data;
+    integer guard;
+    begin
+      guard = 0;
+      while (!cpu_rsp_valid && guard < 16) begin
+        `TB_TICK(clk);
+        guard = guard + 1;
+      end
+      tb_check1({name, " valid"}, cpu_rsp_valid, 1'b1);
+      if (check_data)
+        tb_check32(name, cpu_rsp_data, exp_data);
+      tb_check1({name, " error"}, cpu_rsp_error, exp_error);
+      `TB_TICK(clk);
+    end
+  endtask
+
+  integer i;
+
+  initial begin
+    tb_errors = 0;
+    clk = 1'b0;
+    reset_dut();
+    #1;
+    tb_check1("reset ready", cpu_req_ready, 1'b1);
+
+    cpu_req_addr = 32'h8000_0001;
+    cpu_req_valid = 1'b1;
+    #1;
+    tb_check1("misaligned combo rsp", cpu_rsp_valid, 1'b1);
+    tb_check1("misaligned error", cpu_rsp_error, 1'b1);
+    `TB_TICK(clk);
+    cpu_req_valid = 1'b0;
+
+    cpu_req_addr = 32'h8000_0004;
+    cpu_req_valid = 1'b1;
+    `TB_TICK(clk);
+    cpu_req_valid = 1'b0;
+    for (i = 0; i < 16; i = i + 1) begin
+      send_mem_word(32'h8000_0000 + (i << 2), 32'h0000_1000 + i);
+    end
+    tb_check32("filled internal word1", dut.data_q[1], 32'h0000_1001);
+    wait_cpu_rsp("filled line response", 32'h0000_1001, 1'b0, 1'b0);
+
+    cpu_req_addr = 32'h8000_0004;
+    cpu_req_valid = 1'b1;
+    #1;
+    tb_check1("hit combo rsp", cpu_rsp_valid, 1'b1);
+    tb_check32("hit internal word1", dut.data_q[1], 32'h0000_1001);
+    `TB_TICK(clk);
+    cpu_req_valid = 1'b0;
+
+    cpu_req_addr = 32'h9000_0000;
+    cpu_req_valid = 1'b1;
+    `TB_TICK(clk);
+    cpu_req_valid = 1'b0;
+    while (!mem_req_valid) `TB_TICK(clk);
+    tb_check32("uncached req addr", mem_req_addr, 32'h9000_0000);
+    `TB_TICK(clk);
+    mem_rsp_valid = 1'b1;
+    mem_rsp_data = 32'hfeed_cafe;
+    mem_rsp_error = 1'b0;
+    `TB_TICK(clk);
+    mem_rsp_valid = 1'b0;
+    wait_cpu_rsp("uncached response", 32'hfeed_cafe, 1'b0, 1'b1);
+
+    invalidate_i = 1'b1;
+    `TB_TICK(clk);
+    invalidate_i = 1'b0;
+    cpu_req_addr = 32'h8000_0004;
+    cpu_req_valid = 1'b1;
+    #1;
+    tb_check1("invalidate removes combo hit", cpu_rsp_valid, 1'b0);
+    `TB_TICK(clk);
+    cpu_req_valid = 1'b0;
+
+    tb_finish("tb_icache");
+  end
+endmodule

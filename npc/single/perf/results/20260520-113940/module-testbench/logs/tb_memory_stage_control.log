@@ -1,0 +1,7 @@
+[TEST] tb_memory_stage_control
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/single/vsrc -Icommon -s tb_memory_stage_control -o build/tb_memory_stage_control.vvp tests/tb_memory_stage_control.sv /home/lyg/PA/ysyx-workbench/npc/single/vsrc/MemoryStageControl.v
+[CHECK-FAIL] store req got=0 expected=1
+[FAIL] tb_memory_stage_control errors=1
+FATAL: common/tb_common.svh:35: 
+       Time: 25  Scope: tb_memory_stage_control.tb_finish
+[RESULT] FAIL status=1

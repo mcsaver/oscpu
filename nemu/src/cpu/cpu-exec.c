@@ -14,8 +14,10 @@
 ***************************************************************************************/
 
 #include <cpu/cpu.h>
+#include <cpu/bpu.h>
 #include <cpu/decode.h>
 #include <cpu/difftest.h>
+#include <memory/cache.h>
 #include <memory/vaddr.h>
 #include <locale.h>
 #if defined(CONFIG_WATCHPOINT) && !defined(CONFIG_TARGET_AM)
@@ -131,7 +133,9 @@ static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 //调用difftest_step函数，将NEMU的cpu状态进行比对，如果两者状态(寄存器值、内存写入等)不一致，NUMU会报错
 //_this->pc当前指令的地址
 //dnpc:下一条指令的地址(Dynamic NEXT PC)，用于同步REF的执行流
-  IFDEF(CONFIG_DIFFTEST, difftest_step(_this->pc, dnpc));
+#if defined(CONFIG_DIFFTEST) && !defined(CONFIG_TARGET_SHARE)
+  difftest_step(_this->pc, dnpc);
+#endif
   #if defined(CONFIG_WATCHPOINT) && !defined(CONFIG_TARGET_AM)
   int state = 0;
   // 没有监视点时直接跳过表达式求值，避免每条指令都白跑一层 compare_assert。
@@ -163,6 +167,8 @@ static void exec_once(Decode *s, vaddr_t pc) {//此处s是传入是指针,decode
   s->snpc = pc;
 
   isa_exec_once(s);
+  // BPU 是透明性能模型，只用真实 dnpc 校验预测结果，不改变解释器提交的 PC。
+  IFDEF(CONFIG_BPU, bpu_commit(s->pc, s->isa.inst, s->snpc, s->dnpc));
   cpu.pc = s->dnpc;
 }
 
@@ -179,7 +185,9 @@ static void execute(uint64_t n) {
 #endif
     trace_and_difftest(&s, cpu.pc);//调用trace_and_difftest进行ltrace(指令追踪)和Difftest(与标准模型如QEMU对比状态)
     if (nemu_state.state != NEMU_RUNNING) break;//如果执行过程中状态不再是NEMU_RUNNING(例如遇到了ebreak或断点，跳出循环)
-    IFDEF(CONFIG_DEVICE, device_update());//如果有设备模拟配置，通过device_update()刷新状态
+#if defined(CONFIG_DEVICE) && !defined(CONFIG_TARGET_SHARE)
+    device_update();//如果有设备模拟配置，通过device_update()刷新状态
+#endif
   }
 }
 
@@ -190,6 +198,9 @@ static void statistic() {
   Log("total guest instructions = " NUMBERIC_FMT, g_nr_guest_inst);
   if (g_timer > 0) Log("simulation frequency = " NUMBERIC_FMT " inst/s", g_nr_guest_inst * 1000000 / g_timer);
   else Log("Finish running in less than 1 us and can not calculate the simulation frequency");
+  // 程序结束时统一输出 cache counter，并顺带写回 DCache 脏行，方便结束后检查 PMEM。
+  IFDEF(CONFIG_CACHE, cache_statistic());
+  IFDEF(CONFIG_BPU, bpu_statistic());
 }
 
 void assert_fail_msg() {

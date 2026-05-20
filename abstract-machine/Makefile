@@ -129,22 +129,24 @@ LDFLAGS  += -z noexecstack $(addprefix -T, $(LDSCRIPTS))
 
 ### Rule (compile): a single `.c` -> `.o` (gcc)
 ##C源文件编译规则
-$(DST_DIR)/%.o: %.c
+# EXTRA_DEPS 给平台脚本挂接生成配置文件；例如 NEMU ISA 扩展变化时，
+# AM guest 必须随新的 -march/-mabi 重编，不能继续复用旧对象。
+$(DST_DIR)/%.o: %.c $(EXTRA_DEPS)
 	@mkdir -p $(dir $@) && echo + CC $<
 	@$(CC) -std=gnu11 $(CFLAGS) -c -o $@ $(realpath $<)
 
 ### Rule (compile): a single `.cc` -> `.o` (g++)
-$(DST_DIR)/%.o: %.cc
+$(DST_DIR)/%.o: %.cc $(EXTRA_DEPS)
 	@mkdir -p $(dir $@) && echo + CXX $<
 	@$(CXX) -std=c++17 $(CXXFLAGS) -c -o $@ $(realpath $<)
 
 ### Rule (compile): a single `.cpp` -> `.o` (g++)
-$(DST_DIR)/%.o: %.cpp
+$(DST_DIR)/%.o: %.cpp $(EXTRA_DEPS)
 	@mkdir -p $(dir $@) && echo + CXX $<
 	@$(CXX) -std=c++17 $(CXXFLAGS) -c -o $@ $(realpath $<)
 
 ### Rule (compile): a single `.S` -> `.o` (gcc, which preprocesses and calls as)
-$(DST_DIR)/%.o: %.S
+$(DST_DIR)/%.o: %.S $(EXTRA_DEPS)
 	@mkdir -p $(dir $@) && echo + AS $<
 	@$(AS) $(ASFLAGS) -c -o $@ $(realpath $<)
 

@@ -7,4 +7,29 @@ config RV64
 config RVE
   bool "Use E extension"
   default n
+
+config RISCV_EXT_M
+  depends on !RV64
+  bool "Enable M extension (integer multiply/divide)"
+  default y
+  help
+    控制 NEMU 是否接受 RV32M 指令编码。关闭后，mul/div/rem 等编码会按
+    illegal instruction trap 处理；AM guest 编译参数也会同步移除 m。
+
+config RISCV_EXT_B
+  depends on !RV64
+  bool "Enable B extension (Zba/Zbb/Zbc/Zbs bit manipulation)"
+  default n
+  help
+    控制 NEMU 是否接受当前 GCC 已拆分命名的 bitmanip 子扩展：
+    Zba/Zbb/Zbc/Zbs。AM guest 编译参数会同步追加
+    _zba_zbb_zbc_zbs，而不是使用 GCC 不接受默认版本的裸 b。
+
+config RISCV_EXT_C
+  depends on !RV64
+  bool "Enable C extension (compressed instructions)"
+  default n
+  help
+    控制 NEMU 是否按 16/32 位可变长度取指并执行 RV32C 压缩整数指令；
+    AM guest 编译参数会同步追加 c。
 endmenu

@@ -1,0 +1,8 @@
+[TEST] tb_icache
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/single/vsrc -Icommon -s tb_icache -o build/tb_icache.vvp tests/tb_icache.sv /home/lyg/PA/ysyx-workbench/npc/single/vsrc/ICache.v
+[CHECK-FAIL] filled line response got=0xxxxxxxxx expected=0x00001001
+[CHECK-FAIL] hit combo data got=0xxxxxxxxx expected=0x00001001
+[FAIL] tb_icache errors=2
+FATAL: common/tb_common.svh:35: 
+       Time: 94  Scope: tb_icache.tb_finish
+[RESULT] FAIL status=1

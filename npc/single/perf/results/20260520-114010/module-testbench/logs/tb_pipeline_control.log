@@ -1,0 +1,5 @@
+[TEST] tb_pipeline_control
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/single/vsrc -Icommon -s tb_pipeline_control -o build/tb_pipeline_control.vvp tests/tb_pipeline_control.sv /home/lyg/PA/ysyx-workbench/npc/single/vsrc/PipelineControl.v
+[PASS] tb_pipeline_control
+common/tb_common.svh:32: $finish called at 8 (1s)
+[RESULT] PASS

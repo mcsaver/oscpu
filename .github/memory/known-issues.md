@@ -5,13 +5,21 @@
 ## 活跃问题
 <!-- 当前未解决的问题 -->
 
-### [19] fceux-am 在 NPC 上 BAD TRAP：FUNC_IDX 溢出 + 音频设备 panic（已解决）
+### [23] 本机缺少 `oss-cad-suite/bin/yosys`，RTL cache 接入后的综合/STA 尚未复跑
 
-- **模块**: FCEUX-AM / Abstract Machine / NPC
-- **现象**: `make ARCH=riscv32-npc mainargs=mario3 run` 先因 `FUNC_IDX_MAX=16` 溢出 `halt(1)`，修复后又因 `io_read(AM_AUDIO_CONFIG)` 触发 `access nonexist register` panic。
-- **根因**: 两层问题：① `fceux-am/src/config.h` 未识别 `__PLATFORM_NPC`，落入 `PERF_LOW` → `FUNC_IDX_MAX16`，MMC3 mapper 注册超 16 个唯一函数指针时 assert 失败；② 修成 `PERF_MIDDLE` 后 `SOUND_CONFIG` 变成 `SOUND_LQ`，`sdl-sound.cpp` 中 `io_read(AM_AUDIO_CONFIG)` 被编译进来，但 `riscv32-npc` 的 `ioe.c` 没有注册编号 14 的 `AM_AUDIO_CONFIG`。
-- **修复**: ① 在 `config.h` 的 `#elif` 分支加上 `|| defined(__PLATFORM_NPC)` 使 NPC 获得 `PERF_MIDDLE`；② 在 `abstract-machine/am/src/riscv/npc/ioe.c` 新增 `__am_audio_config` 空桩（`present=false, bufsize=0`）并注册到 lut。修复后 mario3 在 NPC 上成功加载运行。
-- **教训**: 跨平台的性能/功能配置层（如 `config.h`）在新增平台时必须显式接入，否则会静默退回最低档位带来意料之外的功能裁剪。IOE 设备查找表对所有 AM 定义的设备至少应提供 `present=false` 回应，避免任何程序碰未实现设备就直接 panic。后续实现 NPC 真实音频时，需把空桩替换为真实实现并同时注册 `AM_AUDIO_CTRL/STATUS/PLAY`。
+- **模块**: NPC / Yosys-STA / 环境
+- **现象**: `make -C npc/single syn-check-env` 直接失败，提示缺少 `/home/lyg/PA/ysyx-workbench/oss-cad-suite/bin/yosys`；因此本轮 ASIC 层级 I/D cache 接入后只完成了 Verilator lint/build 与 difftest/benchmark 功能验证，未产生新的综合网表、时序、面积、功耗报告。
+- **根因**: 当前工作区期望的 oss-cad-suite 工具链路径不存在或未安装，`npc/single/Makefile` 的综合入口检查在进入 Yosys 前终止。
+- **修复**: 暂未修复；恢复该路径下的 Yosys/OpenROAD 工具链，或调整 `YOSYS_STA_HOME`/相关工具路径后，再执行 `make -C npc/single syn` 与 `make -C npc/single sta`。
+- **教训**: RTL 功能回归通过不等于 PPA 闭环完成；每次把 cache、BPU 这类大状态模块推进可综合层后，都要重新跑综合/STA 并更新面积/时序基线。
+
+### [22] RTL cache 接管后 legacy host cache counter 会显示为 0
+
+- **模块**: NPC / cache / 性能统计
+- **现象**: 本轮 `IDCache.v` 接入后，`npc/single/csrc/dpi.c` 已改为 raw PMEM/MMIO 访问，host 侧 `memory/cache.c` 不再位于取指/访存路径上；因此程序结束时若仍打印 legacy `icache/dcache` counter，数值可能为 0 或不再代表真实 RTL cache 行为。
+- **根因**: cache 微结构已经从 host bus 层下沉到 `NpcCore` 内部 RTL，原先的 C 侧 cache 统计自然失去数据源。继续让 host cache 和 RTL cache 同时工作会造成双重建模，反而破坏硬件语义。
+- **修复**: 暂未修复；后续应在 RTL cache 内增加性能计数器，并通过仿真专用层次化读取或显式 debug/perf 端口暴露给 host。不要为了恢复旧 counter 而重新启用 host cache。
+- **教训**: 性能统计的层次必须跟真实微结构层次一致；当 cache 从 simulator 优化变成硬件模块后，统计口也要迁移到 RTL，而不是继续复用 host 侧旧路径。
 
 ### [18] NPC 开启 stdin keyboard 后，终端输出会出现“越打越往右”的错位
 
@@ -39,14 +47,6 @@
 - **修复**: 暂未修复；后续可从“收紧/调整 clockgate 策略、对高扇出的门控使能链补缓冲、降低调试扇出影响，或在更完整的物理实现阶段重新评估”几个方向处理。
 - **教训**: 做综合验收时不能只看 `WNS/TNS`；对带 clock gating 的设计，还要同时检查 `cap/fanout/trans`，否则会把“时序过了但电气没过”的半成品误判成完全 clean。
 
-### [8] am-tests 的 devscan 在 NEMU 上访问 GPU 高级接口时触发 BAD TRAP
-
-- **模块**: AM-Kernels / Abstract Machine / NEMU
-- **现象**: 执行 `make -C am-kernels/tests/am-tests ARCH=riscv32-nemu run mainargs=d NEMUFLAGS=-b` 时，日志会先打印 `Screen size: 400 x 300`，随后报 `AM Panic: access nonexist register`，NEMU 最终 `HIT BAD TRAP`。
-- **根因**: `am-kernels/tests/am-tests/src/tests/devscan.c` 会调用 `io_write(AM_GPU_MEMCPY, ...)` 和 `io_write(AM_GPU_RENDER, ...)`；但 `abstract-machine/am/src/platform/nemu/ioe/ioe.c` 当前只注册了 `AM_GPU_CONFIG`、`AM_GPU_FBDRAW`、`AM_GPU_STATUS`，没有注册 12/13 号 GPU 高级寄存器，因此访问时会落到 `fail()` 并 panic。
-- **修复**: 暂未修复；若要让 `devscan` 在 NEMU 上通过，需要在 `platform/nemu` 补齐 `AM_GPU_MEMCPY/AM_GPU_RENDER` 的处理，或让测试按平台能力降级，不再无条件访问这两个接口。
-- **教训**: 做回归归因时不要只看“最近改过什么”，还要先核对平台设备分发表和 AM 抽象 ABI 是否一致；这类 `access nonexist register` 更像平台能力缺口，不应直接归因到 `stdlib` 或其它最近改动上。
-
 ## 已解决问题
 <!--
 ### [编号] 问题标题
@@ -56,6 +56,38 @@
 - **修复**: 如何修复的
 - **教训**: 从中学到了什么
 -->
+
+### [21] NPC cache 曾停留在 Verilator host bus 透明模型，还不是可综合 RTL cache
+
+- **模块**: NPC / cache / RTL-PPA
+- **现象**: 早期 `riscv32-npc` 虽可通过 `fence-i` 自修改代码测试，并能输出 ICache/DCache counter，但真正的 cache tag/data/miss/fill/writeback 位于 `npc/single/csrc/memory/cache.c`；DPI 取指/访存经 host bus cache 后再访问 PMEM/MMIO，`NpcCore` 的 IFU/LSU ready/valid 接口没有真实多拍 cache miss/fill 时序。
+- **根因**: 当时优先目标是按 NEMU 可选功能闭合功能与 difftest 回归，先做对 RTL 透明的 simulator cache，避免一次性扩大流水线控制面、外部 memory protocol 和 PPA 闭环。
+- **修复**: 2026-05-19 新增 `npc/single/vsrc/IDCache.v`，在 `NpcCore.v` 内部接入可综合阻塞式 ICache/DCache，host `dpi.c` 改为 raw PMEM/MMIO 访问，`NpcSimTop.sv` 通过层次化引用观察 `u_core.cache_flush_valid_w`。复验 `make -C npc/single lint`、`make -C npc/single`、全量 `cpu-tests` 38/38 difftest 与 MicroBench `mainargs=test` difftest 均 PASS。
+- **教训**: “参考模型/仿真器可观察到 cache 行为”不等于“CPU RTL 已经实现 cache 微结构”。记录性能数据时需要明确层次边界，避免把 host 侧透明优化误当作硬件 PPA 结果。
+
+### [20] NPC 流水线化后 PC 跑飞：IF 返回丢失与 load 响应未前递
+
+- **模块**: NPC / RTL 流水线 / IFU/LSU 冒险
+- **现象**: 初版流水线在简单 `add` 可继续跑通，但更复杂的 AM 路径会出现 PC 跑飞；`am-tests mainargs=i` 曾在跳表附近把 PC 带到 `0x00007980`，触发 fetch out of bound。
+- **根因**: 两层问题叠加：① IF fetch buffer 的容量判断只看旧的 `fetch_buf_valid_q`，没有把本拍 incoming response 和本拍 buffer 消费一起纳入，后级背压时可能静默丢取指返回；② load-use 只做了 ID 阶段一拍停顿，消费者进入 EX 时若 load 数据正好在 MEM 响应同拍返回，EX 仍只能从旧寄存器/MEM-WB 取值，跳表索引路径会读到旧地址。
+- **修复**: IF 侧新增基于 `fetch_rsp_slot_w/fetch_issue_slot_w` 的容量计算，保证不会在没有槽位时继续接收/覆盖返回；EX 操作数转发新增 `mem_response_w && ex_mem_load_q` 的同拍 LSU 响应前递，同时保留 EX/MEM、MEM/WB 转发和 load-use stall。随后 `make -C am-kernels/tests/cpu-tests ARCH=riscv32-npc run` 35/35 PASS，`am-tests mainargs=i` 能稳定进入交互菜单并运行到超时，`yield-os` 持续输出 `ABAB...`。
+- **教训**: 流水线冒险不能只用“停一拍”口头覆盖；需要逐拍确认数据在哪一级产生、哪一级消费。带 ready/valid 的 IF/MEM 也要把“本拍进出队”合并计算容量，否则 bug 会表现为远端 PC 跑飞，根因却在更早的握手边界。
+
+### [19] fceux-am 在 NPC 上 BAD TRAP：FUNC_IDX 溢出 + 音频设备 panic
+
+- **模块**: FCEUX-AM / Abstract Machine / NPC
+- **现象**: `make ARCH=riscv32-npc mainargs=mario3 run` 先因 `FUNC_IDX_MAX=16` 溢出 `halt(1)`，修复后又因 `io_read(AM_AUDIO_CONFIG)` 触发 `access nonexist register` panic。
+- **根因**: 两层问题：① `fceux-am/src/config.h` 未识别 `__PLATFORM_NPC`，落入 `PERF_LOW` → `FUNC_IDX_MAX16`，MMC3 mapper 注册超 16 个唯一函数指针时 assert 失败；② 修成 `PERF_MIDDLE` 后 `SOUND_CONFIG` 变成 `SOUND_LQ`，`sdl-sound.cpp` 中 `io_read(AM_AUDIO_CONFIG)` 被编译进来，但 `riscv32-npc` 的 `ioe.c` 没有注册编号 14 的 `AM_AUDIO_CONFIG`。
+- **修复**: ① 在 `config.h` 的 `#elif` 分支加上 `|| defined(__PLATFORM_NPC)` 使 NPC 获得 `PERF_MIDDLE`；② 在 `abstract-machine/am/src/riscv/npc/ioe.c` 新增 `__am_audio_config` 空桩（`present=false, bufsize=0`）并注册到 lut。修复后 mario3 在 NPC 上成功加载运行。
+- **教训**: 跨平台的性能/功能配置层（如 `config.h`）在新增平台时必须显式接入，否则会静默退回最低档位带来意料之外的功能裁剪。IOE 设备查找表对所有 AM 定义的设备至少应提供 `present=false` 回应，避免任何程序碰未实现设备就直接 panic。后续实现 NPC 真实音频时，需把空桩替换为真实实现并同时注册 `AM_AUDIO_CTRL/STATUS/PLAY`。
+
+### [8] am-tests 的 devscan 在 NEMU 上访问 GPU 高级接口时触发 BAD TRAP
+
+- **模块**: AM-Kernels / Abstract Machine / NEMU
+- **现象**: 早期执行 `make -C am-kernels/tests/am-tests ARCH=riscv32-nemu run mainargs=d NEMUFLAGS=-b` 时，日志会先打印 `Screen size: 400 x 300`，随后报 `AM Panic: access nonexist register`，NEMU 最终 `HIT BAD TRAP`。
+- **根因**: `am-kernels/tests/am-tests/src/tests/devscan.c` 会调用 `io_write(AM_GPU_MEMCPY, ...)` 和 `io_write(AM_GPU_RENDER, ...)`；当时 `abstract-machine/am/src/platform/nemu/ioe/ioe.c` 只注册了 `AM_GPU_CONFIG`、`AM_GPU_FBDRAW`、`AM_GPU_STATUS`，没有注册 12/13 号 GPU 高级寄存器，因此访问时会落到 `fail()` 并 panic。
+- **修复**: 2026-04-14 已通过共享软件渲染层 `abstract-machine/am/src/platform/gpu_soft.h` 补齐 NEMU/NPC 两条平台的 `AM_GPU_MEMCPY/AM_GPU_RENDER`，`platform/nemu/ioe/ioe.c` 现在已注册这两个寄存器，`platform/nemu/ioe/gpu.c` 会把 canvas/texture 数据写入 512KB 软显存并渲染到 framebuffer。历史验证显示 NEMU `am-tests mainargs=d` 已到达 `Test End!`。
+- **教训**: 做回归归因时不要只看“最近改过什么”，还要先核对平台设备分发表和 AM 抽象 ABI 是否一致；这类 `access nonexist register` 更像平台能力缺口，不应直接归因到 `stdlib` 或其它最近改动上。
 
 ### [16] NPC 开启基础 VGA 后，AM 带 IOE 的程序一度在 `__am_gpu_init` 阶段提前超时
 

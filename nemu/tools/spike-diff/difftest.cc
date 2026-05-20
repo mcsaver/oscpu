@@ -103,7 +103,12 @@ __EXPORT void difftest_exec(uint64_t n) {
 
 __EXPORT void difftest_init(int port) {
   difftest_htif_args.push_back("");
-  const char *isa = "RV" MUXDEF(CONFIG_RV64, "64", "32") MUXDEF(CONFIG_RVE, "E", "I") "MAFDC";
+  // Spike 参考模型的 ISA 字符串跟随同一组 Kconfig 扩展，避免 NEMU 已打开 B/C 但 REF 仍按固定 RV32IMAFDC 启动。
+  const char *isa = "RV" MUXDEF(CONFIG_RV64, "64", "32")
+                    MUXDEF(CONFIG_RVE, "E", "I")
+                    MUXDEF(CONFIG_RISCV_EXT_M, "M", "")
+                    MUXDEF(CONFIG_RISCV_EXT_C, "C", "")
+                    MUXDEF(CONFIG_RISCV_EXT_B, "_Zba_Zbb_Zbc_Zbs", "");
   cfg_t cfg(/*default_initrd_bounds=*/std::make_pair((reg_t)0, (reg_t)0),
             /*default_bootargs=*/nullptr,
             /*default_isa=*/isa,

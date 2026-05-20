@@ -17,6 +17,7 @@
 
 #include <memory/host.h>
 #include <memory/paddr.h>
+#include <memory/cache.h>
 #include <device/mmio.h>
 #include <isa.h>
 
@@ -61,6 +62,8 @@ void init_mem() {
 #endif
   IFDEF(CONFIG_MEM_RANDOM, memset(pmem, rand(), CONFIG_MSIZE));
   Log("physical memory area [" FMT_PADDR ", " FMT_PADDR "]", PMEM_LEFT, PMEM_RIGHT);
+  // cache 以 paddr 层作为后端，初始化只建立 tag/data 状态，不改变 PMEM/MMIO 的权威语义。
+  IFDEF(CONFIG_CACHE, init_cache());
 }
 
 //对外的物理地址读写入口，若地址在pmem范围则走pmem_read/pmem_write，否则在启用CONFIG_DEVICE时调用mmio_read/mmio_write

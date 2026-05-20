@@ -22,6 +22,8 @@ static inline void outl(uintptr_t addr, uint32_t data) { *(volatile uint32_t *)a
 
 enum { MODE_U, MODE_S, MODE_M = 3 };
 #define MSTATUS_MIE  (1 << 3)//Machine Interrupt Enable，供 CTE 查询和切换机器态全局中断开关
+#define MSTATUS_MPIE (1 << 7)//Machine Previous Interrupt Enable，mret 用它恢复返回后的 MIE
+#define MSTATUS_MPP_M (MODE_M << 11)//新建内核上下文通过 mret 返回时应继续处在 M-mode
 #define MSTATUS_MXR  (1 << 19)
 #define MSTATUS_SUM  (1 << 18)
 

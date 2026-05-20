@@ -14,7 +14,7 @@ void npc_ifetch(uint32_t addr, uint32_t *data, svBit *error) {
   if (data == NULL || error == NULL) return;
   *data = 0;
   *error = 0;
-  if ((addr & 0x3u) != 0) { *error = 1; return; }
+  if ((addr & 0x1u) != 0) { *error = 1; return; }
   if (!npc_paddr_read(addr, data, NPC_BUS_IFETCH)) { *error = 1; }
 }
 

@@ -1,0 +1,7 @@
+[TEST] tb_if_stage
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/single/vsrc -Icommon -s tb_if_stage -o build/tb_if_stage.vvp tests/tb_if_stage.sv /home/lyg/PA/ysyx-workbench/npc/single/vsrc/BranchPredictor.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/IfStage.v
+[CHECK-FAIL] reset fetch request got=0 expected=1
+[FAIL] tb_if_stage errors=1
+FATAL: common/tb_common.svh:35: 
+       Time: 21  Scope: tb_if_stage.tb_finish
+[RESULT] FAIL status=1

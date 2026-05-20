@@ -52,8 +52,16 @@ __am_asm_trap:
   STORE t1, OFFSET_STATUS(sp)
   STORE t2, OFFSET_EPC(sp)
 
+  # 与 NEMU 平台保持一致：trap handler 内临时置 MPRV，后续由恢复的 Context 决定返回状态。
+  li a0, (1 << 17)
+  or t1, t1, a0
+  csrw mstatus, t1
+
   mv a0, sp
   call __am_irq_handle
+
+  # __am_irq_handle 可返回另一个 Context；切换 sp 后再恢复寄存器，才能支持 kcontext 调度。
+  mv sp, a0
 
   LOAD t1, OFFSET_STATUS(sp)
   LOAD t2, OFFSET_EPC(sp)

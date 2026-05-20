@@ -56,10 +56,30 @@
 `define FUNCT3_FENCE_I     3'b001
 
 `define FUNCT7_STD         7'b0000000
+`define FUNCT7_MULDIV      7'b0000001
 `define FUNCT7_ALT         7'b0100000
 
 `define SYSTEM_FUNCT12_ECALL   12'h000
 `define SYSTEM_FUNCT12_EBREAK  12'h001
+`define SYSTEM_FUNCT12_MRET    12'h302
+`define SYSTEM_FUNCT12_WFI     12'h105
+
+`define CSR_MSTATUS        12'h300
+`define CSR_MISA           12'h301
+`define CSR_MIE            12'h304
+`define CSR_MTVEC          12'h305
+`define CSR_MSCRATCH       12'h340
+`define CSR_MEPC           12'h341
+`define CSR_MCAUSE         12'h342
+`define CSR_MTVAL          12'h343
+`define CSR_MIP            12'h344
+`define CSR_MHARTID        12'hf14
+
+`define MSTATUS_MIE        32'h0000_0008
+`define MSTATUS_MPIE       32'h0000_0080
+`define MSTATUS_MPP_MASK   32'h0000_1800
+`define MSTATUS_MPP_M      32'h0000_1800
+`define MSTATUS_MPRV       32'h0002_0000
 
 // 立即数类型编码：DecodeUnit 给出类型，ImmGen 按类型完成拼接与符号扩展。
 `define IMM_TYPE_X         3'b000  // 不使用立即数
@@ -113,6 +133,7 @@
 `define WB_SEL_LOAD        3'b010  // 写回 load 返回值
 `define WB_SEL_PC4         3'b011  // 写回 pc + 4，jal/jalr 使用
 `define WB_SEL_IMM         3'b100  // 写回立即数，lui 使用
+`define WB_SEL_CSR         3'b101  // 写回 CSR 指令读到的旧值
 
 `define EXC_INST_ADDR_MISALIGN   5'd0
 `define EXC_INST_ACCESS_FAULT    5'd1
@@ -168,8 +189,13 @@
 `define CTRL_NEED_EXEC_BIT       33  // 指令是否需要经过 EXEC 阶段
 `define CTRL_NEED_MEM_BIT        34  // 指令是否需要经过 MEM 阶段
 `define CTRL_NEED_WB_BIT         35  // 指令是否需要在 WB 阶段提交写回
-`define CTRL_SYSTEM_BIT          36  // 是否属于 system 指令族（当前只接 ecall/ebreak）
+`define CTRL_SYSTEM_BIT          36  // 是否属于 system 指令族
 `define CTRL_MISC_MEM_BIT        37  // 是否属于 misc-mem 指令族（当前只接 fence/fence.i）
-`define CTRL_BUS_W               38  // 统一控制总线总宽度
+`define CTRL_CSR_BIT             38  // 是否属于 Zicsr 读改写指令
+`define CTRL_MRET_BIT            39  // 是否为 mret
+`define CTRL_WFI_BIT             40  // 是否为 wfi；当前实现为合法 no-op
+`define CTRL_MULDIV_BIT          41  // 是否属于 RV32M 乘除法扩展，EX 阶段按 funct3/funct7 计算
+`define CTRL_BITMANIP_BIT        42  // 是否属于 Zba/Zbb/Zbc/Zbs 扩展，EX 阶段按原始编码计算
+`define CTRL_BUS_W               43  // 统一控制总线总宽度
 
 `endif

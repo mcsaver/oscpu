@@ -4,7 +4,9 @@
  * 所有对外函数通过 extern "C" 暴露给 C 代码。 */
 #include "cpu/cpu.h"
 
+#include "cpu/difftest.h"
 #include "device/device.h"
+#include "memory/cache.h"
 #include "monitor/disasm.h"
 #include "monitor/log.h"
 #include "monitor/trace.h"
@@ -84,6 +86,10 @@ static bool install_sigint_handler(void) {
 
 static uint32_t debug_reg_value(int index) {
   return g_top->debug_gprs_o[index];
+}
+
+static void snapshot_gprs(uint32_t gpr[32]) {
+  for (int i = 0; i < 32; ++i) gpr[i] = debug_reg_value(i);
 }
 
 static void clear_runtime_state(void) {
@@ -194,6 +200,7 @@ static void report_statistics(void) {
     LogBothTag("statistic", "Finish running in less than 1 us and can not calculate the simulation frequency");
   }
   report_branch_stats();
+  npc_cache_report();
 }
 
 static void report_run_result(void) {
@@ -356,6 +363,7 @@ bool npc_init_cpu(int argc, char **argv, const NpcSimConfig *config) {
 #endif
   // 初始化阶段复位，后续 si/c 在同一颗已上电核上推进
   apply_reset();
+  if (!npc_init_difftest(config)) return false;
   return true;
 }
 
@@ -404,6 +412,16 @@ int npc_cpu_exec(uint64_t max_instructions) {
     if (g_top->commit_valid_o) {
       ++executed;
       trace_commit();
+      uint32_t diff_gprs[32];
+      snapshot_gprs(diff_gprs);
+      if (!npc_difftest_step(g_top->commit_pc_o, g_top->commit_inst_o,
+                             g_top->commit_next_pc_o, diff_gprs,
+                             g_top->commit_rd_en_o, g_top->commit_rd_addr_o,
+                             g_top->commit_rd_data_o)) {
+        st->state = NPC_ABORT;
+        st->halt_pc = g_top->commit_pc_o;
+        return finish_exec(timer_start_us, 1, true);
+      }
       // 按 opcode[6:0] 分类统计分支/跳转指令的动态执行次数
       {
         uint32_t inst = g_top->commit_inst_o;
@@ -516,5 +534,6 @@ void npc_fini_cpu(void) {
   if (g_trace_file) { g_trace_file->close(); g_trace_file.reset(); }
 #endif
   npc_fini_disasm();
+  npc_fini_difftest();
   g_top.reset();
 }

@@ -124,6 +124,8 @@ config CC_ASAN
   default n
 endmenu
 
+source "src/cpu/Kconfig"
+
 menu "Testing and Debugging"
 
 config WATCHPOINT

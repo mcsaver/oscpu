@@ -1,0 +1,30 @@
+# NPC single module testbench summary
+
+- result_dir: /home/lyg/PA/ysyx-workbench/npc/single/perf/results/20260520-114215/module-testbench
+- tool: Icarus Verilog version 12.0 (stable) ()
+
+- PASS tb_alu
+- PASS tb_compare
+- PASS tb_immgen
+- PASS tb_wbu
+- PASS tb_lsu_control
+- PASS tb_lsu_datapath
+- PASS tb_lsu
+- PASS tb_decode_unit
+- PASS tb_decode_stage
+- PASS tb_register_file
+- PASS tb_pipe_regs
+- PASS tb_cache_control
+- PASS tb_memory_stage_control
+- PASS tb_memory_stage
+- PASS tb_pipeline_control
+- PASS tb_divider
+- PASS tb_branch_predictor
+- PASS tb_icache
+- PASS tb_dcache
+- PASS tb_if_stage
+- PASS tb_npc_core_smoke
+
+- total: 21
+- passed: 21
+- failed: 0

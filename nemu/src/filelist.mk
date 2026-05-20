@@ -24,8 +24,8 @@ DIRS-BLACKLIST-$(CONFIG_TARGET_AM) += src/monitor/sdb
 
 #如果CONFIG_TARGET_SHARE非空，则SHARE=1，否则=0，等价开关变量初始化
 SHARE = $(if $(CONFIG_TARGET_SHARE),1,0)
-#如果CONFIG_TARGET_NATIVE_ELF启用，则向LIBS添加链接库 -lreadlin -ldl -pie，否则不添加
-LIBS += $(if $(CONFIG_TARGET_NATIVE_ELF),-lreadline -ldl -pie,)
+#如果CONFIG_TARGET_NATIVE_ELF启用，则向LIBS添加链接库；构建 SHARE=1 的 ref-so 时不能混入 -pie。
+LIBS += $(if $(filter 1,$(SHARE)),,$(if $(CONFIG_TARGET_NATIVE_ELF),-lreadline -ldl -pie,))
 
 #如果在make环境中传入了mainargs，则在汇编/编译标志ASFLAGS中添加一个预处理定义-DBIN_PATH=\"$(mainars)\"，常用于把运行时二进制的路径写入目标
 ifdef mainargs

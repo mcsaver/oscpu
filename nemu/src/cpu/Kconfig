@@ -1,0 +1,53 @@
+menu "CPU Performance Models"
+  depends on TARGET_NATIVE_ELF && ISA_riscv
+
+config BPU
+  depends on TARGET_NATIVE_ELF && ISA_riscv
+  bool "Enable branch prediction model"
+  default y
+  help
+    启用透明的 BPU 统计模型。它不会改变 NEMU 的真实执行 PC，只在控制流
+    指令提交时用 BTB/BHT/RAS 预测并和真实 dnpc 对比，便于观察分支预测效果。
+
+config BPU_BTB_ENTRIES
+  depends on BPU
+  int "BPU BTB entries"
+  range 1 4096
+  default 128
+
+config BPU_BHT_ENTRIES
+  depends on BPU
+  int "BPU BHT entries"
+  range 1 8192
+  default 256
+
+config BPU_RAS_ENTRIES
+  depends on BPU
+  int "BPU RAS entries"
+  range 1 128
+  default 16
+
+config BPU_COUNTER_BITS
+  depends on BPU
+  int "BPU saturating counter bits"
+  range 1 8
+  default 2
+
+config BPU_COUNTER_INIT
+  depends on BPU
+  int "BPU initial counter value"
+  range 0 255
+  default 1
+  help
+    2-bit 计数器默认值 1 表示 weakly not-taken；若调大 COUNTER_BITS，
+    该值仍必须小于等于该位宽下的最大计数值。
+
+config BPU_GHR_BITS
+  depends on BPU
+  int "BPU global history bits"
+  range 0 16
+  default 0
+  help
+    0 表示 BHT 只按 PC 索引；大于 0 时用 PC 和全局分支历史异或索引 BHT。
+
+endmenu

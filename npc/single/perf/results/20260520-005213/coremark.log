@@ -1,0 +1,51 @@
+[1;34m[paddr.c:54 npc_init_mem] physical memory area [0x80000000, 0x87ffffff][0m
+[1;34m[paddr.c:98 npc_load_img] The image is /home/lyg/PA/ysyx-workbench/npc/single/../../am-kernels/benchmarks/coremark/build/coremark-riscv32-npc.bin, size = 1070384[0m
+[1;34m[map.c:76 npc_add_mmio_map] Add mmio map 'serial' at [0xa00003f8, 0xa00003ff][0m
+[1;34m[map.c:76 npc_add_mmio_map] Add mmio map 'rtc' at [0xa0000048, 0xa000004f][0m
+[1;34m[map.c:76 npc_add_mmio_map] Add mmio map 'keyboard' at [0xa0000060, 0xa0000063][0m
+[1;34m[map.c:76 npc_add_mmio_map] Add mmio map 'vgactl' at [0xa0000100, 0xa0000107][0m
+[1;34m[map.c:76 npc_add_mmio_map] Add mmio map 'framebuffer' at [0xa1000000, 0xa11fffff][0m
+***reset***
+[1;34m[src/memory/paddr.c:64 init_mem] physical memory area [0x80000000, 0x87ffffff][0m
+[1;34m[difftest.cpp:112 npc_init_difftest] [npc-diff] reference enabled: /home/lyg/PA/ysyx-workbench/nemu/build/riscv32-nemu-interpreter-so, image-size=1070384[0m
+[1;34m[monitor.c:27 welcome] Trace: [1;31mOFF[0m[0m
+[1;34m[monitor.c:30 welcome] Build time: 00:50:45, May 20 2026[0m
+Welcome to [1;33m[1;41mriscv32[0m-NPC!
+For help, type "help"
+Running CoreMark for 1000 iterations
+[progress] 10000000 insts, pc=0x80003164, 623807 inst/s
+[progress] 20000000 insts, pc=0x80003160, 646678 inst/s
+[progress] 30000000 insts, pc=0x80003164, 643981 inst/s
+[progress] 40000000 insts, pc=0x80003164, 648837 inst/s
+[progress] 50000000 insts, pc=0x80000e08, 647975 inst/s
+[progress] 60000000 insts, pc=0x8000051c, 647983 inst/s
+[progress] 70000000 insts, pc=0x8000316c, 649815 inst/s
+[progress] 80000000 insts, pc=0x80003160, 649740 inst/s
+[progress] 90000000 insts, pc=0x8000315c, 648660 inst/s
+[progress] 100000000 insts, pc=0x80002238, 645818 inst/s
+[progress] 110000000 insts, pc=0x80003164, 649639 inst/s
+[progress] 120000000 insts, pc=0x80003158, 644966 inst/s
+[progress] 130000000 insts, pc=0x80003160, 649052 inst/s
+[progress] 140000000 insts, pc=0x80003168, 645794 inst/s
+[progress] 150000000 insts, pc=0x80001520, 644631 inst/s
+[progress] 160000000 insts, pc=0x80003174, 649620 inst/s
+[progress] 170000000 insts, pc=0x80001388, 640480 inst/s
+[progress] 180000000 insts, pc=0x80003170, 648044 inst/s
+[progress] 190000000 insts, pc=0x80003160, 644640 inst/s
+[progress] 200000000 insts, pc=0x80003160, 646141 inst/s
+[progress] 210000000 insts, pc=0x80003154, 645288 inst/s
+[progress] 220000000 insts, pc=0x800020fc, 649988 inst/s
+[progress] 230000000 insts, pc=0x80000e0c, 645616 inst/s
+[progress] 240000000 insts, pc=0x8000316c, 650581 inst/s
+[progress] 250000000 insts, pc=0x80003168, 647692 inst/s
+[progress] 260000000 insts, pc=0x8000090c, 646270 inst/s
+[progress] 270000000 insts, pc=0x80001718, 648919 inst/s
+[progress] 280000000 insts, pc=0x80000dec, 646828 inst/s
+[progress] 290000000 insts, pc=0x8000315c, 647635 inst/s
+[progress] 300000000 insts, pc=0x80003168, 641854 inst/s
+[progress] 310000000 insts, pc=0x8000315c, 648971 inst/s
+[progress] 320000000 insts, pc=0x80001458, 646633 inst/s
+[progress] 330000000 insts, pc=0x80002270, 644646 inst/s
+[progress] 340000000 insts, pc=0x80003168, 645053 inst/s
+[progress] 350000000 insts, pc=0x80003160, 650268 inst/s
+[progress] 360000000 insts, pc=0x8000316c, 646400 inst/s

@@ -19,7 +19,7 @@ The main features of NEMU include
   * mips32
     * CP1 floating point instructions are not supported
   * riscv32
-    * only RV32IM
+    * RV32I with configurable M/B/C extensions in Kconfig
   * riscv64
     * only RV64IM
 * memory

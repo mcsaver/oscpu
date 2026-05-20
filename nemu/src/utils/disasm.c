@@ -45,8 +45,12 @@ void init_disasm() {
                    MUXDEF(CONFIG_ISA_loongarch32r,  CS_ARCH_LOONGARCH, -1))));
   cs_mode mode = MUXDEF(CONFIG_ISA_x86,      CS_MODE_32,
                    MUXDEF(CONFIG_ISA_mips32, CS_MODE_MIPS32,
-                   MUXDEF(CONFIG_ISA_riscv,  MUXDEF(CONFIG_ISA64, CS_MODE_RISCV64, CS_MODE_RISCV32) | CS_MODE_RISCVC,
+                   MUXDEF(CONFIG_ISA_riscv,  MUXDEF(CONFIG_ISA64, CS_MODE_RISCV64, CS_MODE_RISCV32),
                    MUXDEF(CONFIG_ISA_loongarch32r,  CS_MODE_LOONGARCH32, -1))));
+#if defined(CONFIG_ISA_riscv) && defined(CONFIG_RISCV_EXT_C)
+  // 反汇编模式和真实取指配置保持一致；未开启 C 时不把 16 位编码误当成合法指令显示。
+  mode |= CS_MODE_RISCVC;
+#endif
 	int ret = cs_open_dl(arch, mode, &handle);
   assert(ret == CS_ERR_OK);
 

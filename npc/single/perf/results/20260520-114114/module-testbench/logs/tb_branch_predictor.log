@@ -1,0 +1,5 @@
+[TEST] tb_branch_predictor
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/single/vsrc -Icommon -s tb_branch_predictor -o build/tb_branch_predictor.vvp tests/tb_branch_predictor.sv /home/lyg/PA/ysyx-workbench/npc/single/vsrc/BranchPredictor.v
+[PASS] tb_branch_predictor
+common/tb_common.svh:32: $finish called at 16 (1s)
+[RESULT] PASS

@@ -69,6 +69,9 @@ extern "C" {
 #ifndef NPC_HAS_SDL
 #define NPC_HAS_SDL 0
 #endif
+#ifndef NPC_DEFAULT_DIFF_SO
+#define NPC_DEFAULT_DIFF_SO ""
+#endif
 
 /* ---- 地址常量 ---- */
 #define NPC_RESET_PC            0x80000000u
@@ -182,6 +185,9 @@ typedef struct {
   char itrace_cond[NPC_EXPR_MAX];
   bool mtrace;
   bool dtrace;
+  bool difftest;
+  char diff_so_path[NPC_PATH_MAX];
+  int diff_port;
 } NpcSimConfig;
 
 /* ---- 全局状态访问 ----

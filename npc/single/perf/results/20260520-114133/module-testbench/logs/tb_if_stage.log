@@ -1,0 +1,5 @@
+[TEST] tb_if_stage
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/single/vsrc -Icommon -s tb_if_stage -o build/tb_if_stage.vvp tests/tb_if_stage.sv /home/lyg/PA/ysyx-workbench/npc/single/vsrc/BranchPredictor.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/IfStage.v
+[PASS] tb_if_stage
+common/tb_common.svh:32: $finish called at 19 (1s)
+[RESULT] PASS

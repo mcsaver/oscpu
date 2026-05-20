@@ -1,0 +1,5 @@
+[TEST] tb_divider
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/single/vsrc -Icommon -s tb_divider -o build/tb_divider.vvp tests/tb_divider.sv /home/lyg/PA/ysyx-workbench/npc/single/vsrc/Rv32Divider.v
+[PASS] tb_divider
+common/tb_common.svh:32: $finish called at 313 (1s)
+[RESULT] PASS

@@ -1,0 +1,11 @@
+[TEST] tb_register_file
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/single/vsrc -Icommon -s tb_register_file -o build/tb_register_file.vvp tests/tb_register_file.sv /home/lyg/PA/ysyx-workbench/npc/single/vsrc/RegisterFile.v
+[CHECK-FAIL] x1 reset got=0xxxxxxxxx expected=0x00000000
+[CHECK-FAIL] x1 write got=0xxxxxxxxx expected=0x12345678
+[CHECK-FAIL] debug x1 got=0xxxxxxxxx expected=0x12345678
+[CHECK-FAIL] debug x0 got=0xxxxxxxxx expected=0x00000000
+[CHECK-FAIL] a0 mirror got=0xxxxxxxxx expected=0xdeadbeef
+[FAIL] tb_register_file errors=5
+FATAL: common/tb_common.svh:35: 
+       Time: 12  Scope: tb_register_file.tb_finish
+[RESULT] FAIL status=1

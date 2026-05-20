@@ -17,7 +17,9 @@ ifneq ($(CONFIG_CC),)
 	CXX := $(call remove_quote,$(CONFIG_CC))
 endif
 
-TOPNAME = NpcSimTop
+RTL_CORE_TOP ?= NpcCore
+SIM_TOP ?= NpcSimTop
+TOPNAME = $(SIM_TOP)
 VERILATOR = verilator
 BUILD_DIR = ./build
 OBJ_DIR = $(BUILD_DIR)/obj_dir
@@ -25,6 +27,7 @@ BIN = $(BUILD_DIR)/$(TOPNAME)
 CAPSTONE_HOME = $(abspath $(NEMU_HOME)/tools/capstone)
 CAPSTONE_REPO = $(CAPSTONE_HOME)/repo
 CAPSTONE_LIB = $(CAPSTONE_REPO)/libcapstone.so.5
+DEFAULT_DIFF_SO = $(abspath $(NEMU_HOME)/build/riscv32-nemu-interpreter-so)
 
 INC_PATH ?=
 IMG ?=
@@ -32,11 +35,12 @@ RUN_ARGS ?=
 LDLIBS_BUILD ?=
 
 INC_PATH += $(abspath ./csrc/include)
+CXXFLAGS_BUILD += -DNPC_DEFAULT_DIFF_SO='\"$(DEFAULT_DIFF_SO)\"'
+LDLIBS_BUILD += -ldl
 
 ifeq ($(CONFIG_NPC_ITRACE),y)
 	# itrace 的反汇编直接复用 NEMU 已经在维护的 Capstone 依赖，避免 NPC 再养一套重复 decode 逻辑。
 	INC_PATH += $(CAPSTONE_REPO)/include
-	LDLIBS_BUILD += -ldl
 endif
 
 SDL2_PKGCONFIG_AVAILABLE := $(shell if command -v pkg-config >/dev/null 2>&1 && pkg-config --exists sdl2; then echo 1; else echo 0; fi)
@@ -81,26 +85,45 @@ endif
 
 $(shell mkdir -p $(BUILD_DIR))
 
-VSRCS = $(shell find $(abspath ./vsrc) \( -name "*.v" -o -name "*.sv" \))
+RTL_HEADER_SRCS := $(abspath ./vsrc/define.v)
+RTL_CORE_SRCS := $(strip \
+	$(abspath ./vsrc/ALU.v) \
+	$(abspath ./vsrc/BranchPredictor.v) \
+	$(abspath ./vsrc/CacheControl.v) \
+	$(abspath ./vsrc/CompareUnit.v) \
+	$(abspath ./vsrc/DCache.v) \
+	$(abspath ./vsrc/DecodeStage.v) \
+	$(abspath ./vsrc/DecodeUnit.v) \
+	$(abspath ./vsrc/ICache.v) \
+	$(abspath ./vsrc/IfStage.v) \
+	$(abspath ./vsrc/ImmGen.v) \
+	$(abspath ./vsrc/IfIdPipeReg.v) \
+	$(abspath ./vsrc/IdExPipeReg.v) \
+	$(abspath ./vsrc/ExMemPipeReg.v) \
+	$(abspath ./vsrc/LSUControl.v) \
+	$(abspath ./vsrc/LSUDataPath.v) \
+	$(abspath ./vsrc/LSU.v) \
+	$(abspath ./vsrc/MemWbPipeReg.v) \
+	$(abspath ./vsrc/MemoryStageControl.v) \
+	$(abspath ./vsrc/MemoryStage.v) \
+	$(abspath ./vsrc/PipelineControl.v) \
+	$(abspath ./vsrc/RegisterFile.v) \
+	$(abspath ./vsrc/Rv32Divider.v) \
+	$(abspath ./vsrc/WBU.v) \
+	$(abspath ./vsrc/NpcCore.v))
+SIM_TOP_SRCS := $(abspath ./vsrc/NpcSimTop.sv)
+VSRCS = $(RTL_CORE_SRCS) $(SIM_TOP_SRCS)
 CSRCS = $(shell find $(abspath ./csrc) \( -name "*.c" -o -name "*.cc" -o -name "*.cpp" \))
 
 # 这组变量把“纯 RTL 核心的网表综合/STA”和 Verilator 仿真壳分开管理；以后直接 make syn/make sta 即可，不必再回 yosys-sta 目录拼长命令。
-STA_DESIGN ?= NpcCore
+STA_DESIGN ?= $(RTL_CORE_TOP)
 STA_PDK ?= icsprout55
 STA_CLK_PORT_NAME ?= clk
 STA_CLK_FREQ_MHZ ?= 500
 STA_SDC_FILE ?= $(abspath $(YOSYS_STA_HOME)/scripts/default.sdc)
 STA_RESULT_ROOT ?= $(abspath $(BUILD_DIR)/sta)
 # 显式列出可综合核心文件，避免把含 DPI-C 的 NpcSimTop.sv 或纯宏头 define.v 混进综合网表。
-STA_RTL_FILES ?= $(strip \
-	$(abspath ./vsrc/ALU.v) \
-	$(abspath ./vsrc/CompareUnit.v) \
-	$(abspath ./vsrc/DecodeUnit.v) \
-	$(abspath ./vsrc/ImmGen.v) \
-	$(abspath ./vsrc/LSU.v) \
-	$(abspath ./vsrc/RegisterFile.v) \
-	$(abspath ./vsrc/WBU.v) \
-	$(abspath ./vsrc/NpcCore.v))
+STA_RTL_FILES ?= $(RTL_CORE_SRCS)
 STA_RESULT_DIR = $(STA_RESULT_ROOT)/$(STA_DESIGN)-$(STA_CLK_FREQ_MHZ)MHz
 STA_MAKE_ARGS = \
 	DESIGN=$(STA_DESIGN) \
@@ -119,7 +142,7 @@ default: $(BIN)
 $(CAPSTONE_LIB):
 	$(MAKE) -C $(CAPSTONE_HOME)
 
-$(BIN): $(VSRCS) $(CSRCS)
+$(BIN): $(VSRCS) $(RTL_HEADER_SRCS) $(CSRCS)
 	@rm -rf $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) \
 		--top-module $(TOPNAME) $(VSRCS) $(CSRCS) \
@@ -192,7 +215,10 @@ gprof-build: CXXFLAGS_BUILD += -pg
 gprof-build: LDLIBS_BUILD += -pg
 gprof-build: default
 
-.PHONY: default all lint syn-check-env sta-check-env syn sta sim run clean gprof-build
+difftest-ref:
+	$(MAKE) -C $(NEMU_HOME) GUEST_ISA=riscv32 SHARE=1 ENGINE=interpreter
+
+.PHONY: default all lint syn-check-env sta-check-env syn sta sim run clean gprof-build difftest-ref
 
 include $(NPC_HOME)/scripts/config.mk
 

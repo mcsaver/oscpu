@@ -2,6 +2,11 @@
 
 ## 当前状态
 <!-- 已实现的 API (TRM/IOE/CTE/VME/MPE) -->
+- 2026-05-19: `riscv32-npc` 的 guest 编译参数已从 `rv32i_zicsr` 扩展为 `rv32imc_zicsr_zifencei_zba_zbb_zbc_zbs`，用于驱动 NPC 本轮新增的 RV32M、RV32C、bitmanip 与 `fence.i` 路径。新增 cpu-tests `bitmanip/compressed/fence-i` 已随 AM 构建并在 NPC/NEMU difftest 下通过；全量 `cpu-tests` 38/38 PASS。后续若临时关闭 NPC 某个扩展，必须同步调整 `abstract-machine/scripts/riscv32-npc.mk`，否则 guest 可能生成目标核尚不支持的指令。
+- 2026-05-19: `riscv32-npc` 的 AM CTE 已对齐 NEMU 平台的最小语义：`cte_init()` 写 `mtvec=__am_asm_trap`；`__am_irq_handle()` 将 M-mode ecall 映射为 `EVENT_YIELD/EVENT_SYSCALL` 并推进 `mepc += 4`，识别 timer/external interrupt cause；`kcontext()` 在任务栈顶构造初始 `Context`，设置 `mepc=entry`、`a0=arg`、M-mode `mstatus` 与返回即 panic 的 `ra`；`ienabled()/iset()` 读写 `mstatus.MIE`。`trap.S` 在 handler 返回后切换到返回的 `Context *` 再恢复寄存器，因此 `yield-os` 已能在 NPC 上持续输出 `ABAB...`。
+- 2026-05-19: `riscv32-nemu` / `riscv32e-nemu` 的 guest 编译参数已接入 NEMU Kconfig：新增 `scripts/isa/riscv-nemu-ext.mk` 读取 `$(NEMU_HOME)/include/config/auto.conf`，按 `RISCV_EXT_M/C/B` 拼接 `-march=rv32{e,i}{m}{c}_zicsr[_zba_zbb_zbc_zbs]` 与对应 `-mabi`；`auto.conf` 被加入 AM 编译规则的 `EXTRA_DEPS`，所以 menuconfig 改扩展后会触发 guest 对象重编。NEMU 平台还复用了现有 `riscv/npc/libgcc` 乘除法例程，使关闭 M 后的 `rv32i_zicsr` 程序仍可链接并运行。
+- 2026-05-19: `riscv32-nemu` 的 AM CTE 已补齐最小内核上下文切换能力：`kcontext()` 在 16 字节对齐后的任务栈顶构造 `Context`，通过 `mepc` 让第一次 `mret` 直接进入 `entry(arg)`，并设置 `ra` 为返回即 panic 的兜底；`trap.S` 的 `CONTEXT_SIZE` 已包含 `Context.pdir` 槽位，且会使用 `__am_irq_handle()` 返回的 `Context *` 作为新的 `sp` 再恢复现场。`yield-os` 在 NEMU 上已能输出交替 `ABAB...`，说明两个 PCB 的协作式切换生效。
+- 2026-05-19: 清理本模块记忆中的过时 GPU/klib 叙述：当前 `platform/nemu` 已注册并实现 `AM_GPU_MEMCPY/AM_GPU_RENDER`，`GPU_CONFIG` 会报告 `has_accel=true` 与 512KB 软显存；`klib` 的 `kvsnprintf()` 也已支持常用整数格式、宽度和补零。后续排查同类问题时应以这些当前状态为基准，不再引用早期“只支持 sync/缺高级 GPU/printf 只支持窄子集”的旧描述。
 - 2026-04-23: `abstract-machine/am/src/riscv/riscv.h` 已补 `MSTATUS_MIE` 位定义，匹配 `riscv/nemu/cte.c::ienabled()/iset()` 中对机器态全局中断开关的读写；此前 AM CTE 编译会因 `MSTATUS_MIE` 未定义失败。配合 NEMU `SYSTEM` 指令补全后，`timeout 3s make -C am-kernels/tests/am-tests ARCH=riscv32-nemu c mainargs=i` 已能进入 `Hello, AM World` 并连续输出 `y`，说明 `yield()` 的 `ecall -> trap.S -> __am_irq_handle -> mret` 闭环可用。
 - 2026-04-16: `riscv32-npc` 的 `ioe.c` 新增 `AM_AUDIO_CONFIG` 空桩（`present=false, bufsize=0`），避免上层程序（如 fceux-am 在 `PERF_MIDDLE/SOUND_LQ` 下）查询音频设备时触发 `access nonexist register` panic。后续若在 NPC 上实现真正的音频设备，需要把这个空桩替换为真实实现，并同时注册 `AM_AUDIO_CTRL`、`AM_AUDIO_STATUS`、`AM_AUDIO_PLAY`。改动文件：`abstract-machine/am/src/riscv/npc/ioe.c`。
 - 2026-04-14: `platform/nemu` 与 `riscv32-npc` 现在都已经补齐高级 GPU ABI：`AM_GPU_MEMCPY` 会先把 canvas/texture 数据拷进一块 512KB 的 GPU 软显存，`AM_GPU_RENDER` 再按根节点把树形画布渲染到最终 framebuffer。实测 NEMU 上的 `am-tests mainargs=d` 已经可以完整跑到 `Test End!`，不再在 VGA 阶段报 `access nonexist register`。
@@ -23,9 +28,9 @@
 - `FB_ADDR` 是 framebuffer 像素区起始地址，不承载 `x/y/w/h` 这类控制参数；在 platform/nemu 中，`x/y/w/h` 只用于计算显存偏移与拷贝范围。若直接 `outl(FB_ADDR, ctl->x)`、`outl(FB_ADDR + 4, ctl->y)`，效果只是把 `x` 和 `y` 写成前两个像素值。
 - 需要区分 AM 抽象寄存器编号和平台底层 MMIO 地址：`AM_GPU_FBDRAW` 在 `am/include/amdev.h` 中只是寄存器 ID 11，供 `io_write(AM_GPU_FBDRAW, ...)` 通过 `ioe_write()` 分发到 `__am_gpu_fbdraw`；它不对应 `VGACTL_ADDR + 8`。在 platform/nemu 下，GPU 相关的底层地址是 `VGACTL_ADDR`、`VGACTL_ADDR + 4` 和 `FB_ADDR`。
 - `AM_GPU_FBDRAW_T` 中 `x/y` 表示把像素块画到目标 framebuffer 的左上角坐标，`w/h` 表示待绘制矩形的宽高，单位都是像素；`pixels` 则是源像素块首地址，通常按行连续存放。可把它理解成“把一个 `w x h` 的小图拷贝到屏幕上从 `(x, y)` 开始的位置”。
-- `abstract-machine/am/src/platform/nemu/ioe/gpu.c` 里的 `__am_gpu_fbdraw` 目前只是“部分实现”：它已支持 `ctl->sync` 时向 `VGACTL_ADDR + 4` 写 1 触发提交请求，但还没有利用 `ctl->pixels/x/y/w/h` 把像素块写入 `FB_ADDR`。因此它实现了 sync 通知语义，还没有实现完整的 framebuffer draw 语义。
-- `AM_GPU_CONFIG_T` 的 `present`、`has_accel`、`vmemsz` 字段定义在 `am/include/amdev.h` 的 `AM_DEVREG(9, GPU_CONFIG, ...)` 展开结果中；当前 platform/nemu 的 `__am_gpu_config` 返回 `present=true`、`has_accel=false`、`vmemsz=0`。可把它理解为“GPU 是否存在、是否支持加速特性、是否显式报告显存容量”。
-- `abstract-machine/am/src/platform/nemu/ioe/gpu.c` 中的 `__am_gpu_config` 已落盘实现 `VGACTL_ADDR` 宽高寄存器解析，不再返回 0x0 的占位分辨率；当前仍待补的是 `__am_gpu_fbdraw` 的 framebuffer 像素复制与 NEMU 侧 `vga_update_screen()` 的 sync 提交逻辑。
+- `abstract-machine/am/src/platform/nemu/ioe/gpu.c` 里的 `__am_gpu_fbdraw` 早期只实现过 sync 通知，这个旧状态已在后续补齐：当前它会把 `ctl->pixels/x/y/w/h` 对应的源像素块写入 `FB_ADDR`，再按 `sync` 请求提交；树形 canvas 渲染则由 `AM_GPU_MEMCPY/AM_GPU_RENDER` 走共享软件渲染层。
+- `AM_GPU_CONFIG_T` 的 `present`、`has_accel`、`vmemsz` 字段定义在 `am/include/amdev.h` 的 `AM_DEVREG(9, GPU_CONFIG, ...)` 展开结果中；当前 platform/nemu 的 `__am_gpu_config` 会在 VGA 存在时返回 `present=true`、`has_accel=true`、`vmemsz=AM_GPU_SOFT_VMEM_SIZE`。可把它理解为“GPU 是否存在、是否支持高级 canvas/render ABI、是否显式报告软显存容量”。
+- `abstract-machine/am/src/platform/nemu/ioe/gpu.c` 中的 `__am_gpu_config` 已落盘实现 `VGACTL_ADDR` 宽高寄存器解析，`__am_gpu_fbdraw` 已负责 framebuffer 像素复制，NEMU 侧 `vga_update_screen()` 也已能消费 sync 提交；当前 NEMU devscan 的高级 GPU ABI 缺口已关闭。
 - `VGACTL_ADDR` 的第一个 32 位寄存器按“高 16 位宽度、低 16 位高度”编码；AM 侧实现 `GPU_CONFIG` 时应先 `uint32_t reg = inl(VGACTL_ADDR)`，再用 `reg >> 16` 和 `reg & 0xffff` 拆出 width/height。
 - 完成 IOE(3) 的 NEMU GPU 路径时要把三个层次分开：`GPU_CONFIG` 负责从 `VGACTL_ADDR` 读回真实宽高，`GPU_FBDRAW` 负责把像素块写到 `FB_ADDR` 对应的帧缓冲区域，而 `sync` 只负责通知 NEMU 提交这一帧。若只写 sync 而不复制像素，窗口会刷新但内容仍是旧帧/黑屏。
 - 在 AM/NEMU 输入模型里，`io_read(AM_INPUT_KEYBRD)` 是“事件流”接口而不是“当前全键盘状态”接口：一次读取最多得到 1 个按下/松开事件。若应用需要检测多个键同时按下，必须在应用层循环 drain 事件，并维护 `key_state[keycode] = keydown` 这类状态表，再按帧检查多个键是否同时为真；`am-kernels/kernels/litenes/src/psg.c` 已按此模式实现，`snake` 中只取首个 keydown 的 `read_key()` 则只适合单键控制。
@@ -51,6 +56,7 @@
 
 ## 踩坑记录
 <!-- 本模块特有的问题和经验 -->
+- 2026-05-19: AM CTE 的 `__am_irq_handle()` 返回值不是装饰性接口；调度器可以返回另一个 `Context *`。trap.S 若调用 handler 后继续用旧 `sp` 恢复现场，`kcontext()` 即使构造正确也不会真正切任务。NEMU/NPC 的 RISC-V trap.S 都应在恢复 GPR/CSR 前执行 `mv sp, a0`。
 - 2026-04-14: 之前那条“`kvsnprintf()` 只实现 `%d/%s/%c/%%`”的限制已经修复；后续若还要扩 `printf`，优先在统一整数输出路径上加能力，并同步补 `klib_fmt` 回归，不要再针对某一个 benchmark 单独修打印语句。
 - `klib` 自己实现分配器时，不能把“堆是否初始化完成”和“当前空闲链表是否非空”混为一谈；否则堆已初始化但所有块都暂时被占用时，后续 `free/realloc` 会误判成“堆尚未初始化”。
-- klib/src/stdio.c 当前的 kvsnprintf 只实现了 `%d`、`%s`、`%c`、`%%` 四类格式；遇到 `%02d` 这类带宽度/补零标志的格式会走未知格式分支，导致格式串被近似原样输出。
+- `klib/src/stdio.c` 当前的 `kvsnprintf()` 已支持 `d/i/u/x/X/p`、`l/ll`、字段宽度和前导 `0`；若后续再遇到格式串原样输出，优先检查是否使用了尚未实现的新格式，而不是沿用早期“只支持 `%d/%s/%c/%%`”的旧判断。

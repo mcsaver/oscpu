@@ -1,0 +1,12 @@
+[TEST] tb_npc_core_smoke
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/single/vsrc -Icommon -s tb_npc_core_smoke -o build/tb_npc_core_smoke.vvp tests/tb_npc_core_smoke.sv /home/lyg/PA/ysyx-workbench/npc/single/vsrc/ALU.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/BranchPredictor.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/CacheControl.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/CompareUnit.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/DCache.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/DecodeStage.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/DecodeUnit.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/ICache.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/IfStage.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/ImmGen.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/IfIdPipeReg.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/IdExPipeReg.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/ExMemPipeReg.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/LSUControl.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/LSUDataPath.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/LSU.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/MemWbPipeReg.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/MemoryStageControl.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/MemoryStage.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/PipelineControl.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/RegisterFile.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/Rv32Divider.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/WBU.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/NpcCore.v
+[CHECK-FAIL] core exited got=0 expected=1
+[CHECK-FAIL] core ebreak got=0 expected=1
+[CHECK-FAIL] no fatal trap got=1 expected=0
+[CHECK-FAIL] exit code got=0x00000000 expected=0x00000011
+[CHECK-FAIL] x10 debug got=0x00000000 expected=0x00000011
+[CHECK-FAIL] expected at least 3 commits, got 0
+[FAIL] tb_npc_core_smoke errors=6
+FATAL: common/tb_common.svh:35: 
+       Time: 80  Scope: tb_npc_core_smoke.tb_finish
+[RESULT] FAIL status=1

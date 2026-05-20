@@ -22,6 +22,21 @@ perf/
 | gprof (-pg) | 编译插桩，函数级耗时 | 约 5% 开销 |
 | callgrind | 指令级精确计数 | 20-40x 慢，短程序 |
 | Verilator -O3 | RTL 转 C++ 优化等级 | 构建时间增加 |
+| Icarus Verilog | 模块级 RTL 自检 | 由 `npc/single/testbench` 驱动，结果归档到 `results/<timestamp>/module-testbench/` |
+
+## 模块级自检结果
+
+`npc/single/testbench` 用于独立编译运行纯 RTL 模块自检：
+
+```sh
+make -C npc/single/testbench run
+```
+
+最新一次归档：
+
+- `results/20260520-114215/module-testbench/summary.txt`
+- 结果：21/21 PASS
+- 同轮补充验证：`make -C npc/single lint` PASS
 
 ## 优化记录
 

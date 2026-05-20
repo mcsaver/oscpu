@@ -1,0 +1,5 @@
+[TEST] tb_compare
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/single/vsrc -Icommon -s tb_compare -o build/tb_compare.vvp tests/tb_compare.sv /home/lyg/PA/ysyx-workbench/npc/single/vsrc/CompareUnit.v
+[PASS] tb_compare
+common/tb_common.svh:32: $finish called at 8 (1s)
+[RESULT] PASS

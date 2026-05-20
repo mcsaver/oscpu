@@ -1,0 +1,16 @@
+[TEST] tb_decode_unit
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/single/vsrc -Icommon -s tb_decode_unit -o build/tb_decode_unit.vvp tests/tb_decode_unit.sv /home/lyg/PA/ysyx-workbench/npc/single/vsrc/DecodeUnit.v
+tests/tb_decode_unit.sv:36: error: A reference to a wire or reg (`lsb') is not allowed in a constant expression.
+tests/tb_decode_unit.sv:36: error: Part select expressions must be constant.
+tests/tb_decode_unit.sv:36:      : This lsb expression violates the rule: lsb
+tests/tb_decode_unit.sv:36: error: A reference to a wire or reg (`msb') is not allowed in a constant expression.
+tests/tb_decode_unit.sv:36: error: Part select expressions must be constant.
+tests/tb_decode_unit.sv:36:      : This msb expression violates the rule: msb
+tests/tb_decode_unit.sv:36: error: A reference to a wire or reg (`lsb') is not allowed in a constant expression.
+tests/tb_decode_unit.sv:36: error: Part select expressions must be constant.
+tests/tb_decode_unit.sv:36:      : This lsb expression violates the rule: lsb
+tests/tb_decode_unit.sv:36: error: A reference to a wire or reg (`msb') is not allowed in a constant expression.
+tests/tb_decode_unit.sv:36: error: Part select expressions must be constant.
+tests/tb_decode_unit.sv:36:      : This msb expression violates the rule: msb
+8 error(s) during elaboration.
+[RESULT] FAIL status=8

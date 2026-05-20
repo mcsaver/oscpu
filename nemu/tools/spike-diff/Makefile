@@ -20,15 +20,25 @@ endif
 
 REPO_BUILD_PATH = $(REPO_PATH)/build
 REPO_MAKEFILE = $(REPO_BUILD_PATH)/Makefile
+REPO_RISCV_MK = $(REPO_BUILD_PATH)/riscv.mk
+SPIKE_B_STAMP = $(REPO_BUILD_PATH)/.nemu-enable-b-insns
 $(REPO_MAKEFILE):
 	@mkdir -p $(@D)
 	cd $(@D) && $(abspath $(REPO_PATH))/configure
 	sed -i -e 's/-g -O2/-O2/' $@
 	sed -i -e 's/-Wno-nonportable-include-path//g' $@
 
+# PA 的 Spike 默认裁掉 B 扩展指令对象；difftest 开 B 时要把这些 opcode 加回参考模型构建。
+$(SPIKE_B_STAMP): $(REPO_MAKEFILE) $(REPO_RISCV_MK)
+	@if ! sed -n '/^riscv_insn_list =/,/^$$/p' $(REPO_RISCV_MK) | grep -q 'riscv_insn_ext_b'; then \
+		sed -i '/$$(riscv_insn_ext_m) \\/a\\t$$(riscv_insn_ext_b) \\' $(REPO_RISCV_MK); \
+		rm -f $(REPO_BUILD_PATH)/insn_list.h; \
+	fi
+	@touch $@
+
 SPIKE = $(REPO_BUILD_PATH)/spike
-$(SPIKE): $(REPO_MAKEFILE)
-	CFLAGS="-fvisibility=hidden" CXXFLAGS="-fvisibility=hidden" $(MAKE) -C $(^D)
+$(SPIKE): $(REPO_MAKEFILE) $(SPIKE_B_STAMP)
+	CFLAGS="-fvisibility=hidden" CXXFLAGS="-fvisibility=hidden" $(MAKE) -C $(REPO_BUILD_PATH)
 
 BUILD_DIR = ./build
 $(shell mkdir -p $(BUILD_DIR))
@@ -42,8 +52,10 @@ INC_LIBS  = $(addprefix $(REPO_PATH)/build/, $(lib_dependencies))
 NAME = $(GUEST_ISA)-spike-so
 BINARY = $(BUILD_DIR)/$(NAME)
 SRCS = difftest.cc
+CONFIG_DEPS = $(NEMU_HOME)/include/config/auto.conf $(NEMU_HOME)/include/generated/autoconf.h
 
-$(BINARY): $(SPIKE) $(SRCS)
+# difftest 的 Spike ISA 字符串由 NEMU Kconfig 决定，配置变更后必须重建参考 so。
+$(BINARY): $(SPIKE) $(SRCS) $(CONFIG_DEPS)
 	g++ -std=c++17 -O2 -shared -fPIC -fvisibility=hidden -Wno-ignored-attributes $(INC_PATH) $(SRCS) $(INC_LIBS) -o $@
 
 clean:
@@ -52,4 +64,4 @@ clean:
 all: $(BINARY)
 .DEFAULT_GOAL = all
 
-.PHONY: all clean $(SPIKE)
+.PHONY: all clean

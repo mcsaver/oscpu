@@ -1,0 +1,5 @@
+[TEST] tb_decode_stage
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/single/vsrc -Icommon -s tb_decode_stage -o build/tb_decode_stage.vvp tests/tb_decode_stage.sv /home/lyg/PA/ysyx-workbench/npc/single/vsrc/DecodeUnit.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/ImmGen.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/DecodeStage.v
+[PASS] tb_decode_stage
+common/tb_common.svh:32: $finish called at 3 (1s)
+[RESULT] PASS

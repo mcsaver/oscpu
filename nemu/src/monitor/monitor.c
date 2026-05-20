@@ -14,6 +14,7 @@
 ***************************************************************************************/
 
 #include <isa.h>
+#include <cpu/bpu.h>
 #include <memory/paddr.h>
 #include <ftrace.h>
 
@@ -120,6 +121,8 @@ void init_monitor(int argc, char *argv[]) {
   /* Initialize memory. */
   init_mem();
 
+  IFDEF(CONFIG_BPU, init_bpu());
+
   /* Initialize devices. */
   IFDEF(CONFIG_DEVICE, init_device());
 
@@ -156,6 +159,7 @@ static long load_img() {
 void am_init_monitor() {
   init_rand();
   init_mem();
+  IFDEF(CONFIG_BPU, init_bpu());
   init_isa();
   load_img();
   IFDEF(CONFIG_DEVICE, init_device());

@@ -4,7 +4,7 @@
 
 `npc/single` 现在包含两部分：
 
-- 一版 RV32I 非流水线核心 RTL，位于 `vsrc/`
+- 一版 RV32 五级流水核心 RTL，位于 `vsrc/`
 - 一套参考 NEMU 分层方式组织的 Verilator + DPI 宿主仿真环境，位于 `csrc/`
 
 当前目标不是完整 SoC，而是先提供一条稳定的 bring-up 闭环：
@@ -20,8 +20,11 @@
 npc/single/
 ├── Makefile                 # Verilator 构建、运行和清理入口
 ├── vsrc/
-│   ├── NpcCore.v            # RV32I 非流水线核心
-│   └── NpcSimTop.sv         # core 外层 DPI 平台封装
+│   ├── NpcCore.v            # 可综合流水线核心顶层
+│   ├── IfStage.v            # 取指、RVC 解压和 IF 缓冲
+│   ├── BranchPredictor.v    # BTB/BHT/RAS 分支预测器
+│   ├── CacheControl.v       # fence.i flush/cache 同步边界
+│   └── NpcSimTop.sv         # 含 DPI-C 的仿真顶层
 └── csrc/
     ├── main.cpp             # 启动入口
     ├── monitor/             # 参数解析、初始化/收尾顺序
@@ -179,7 +182,7 @@ make -C /home/lyg/PA/ysyx-workbench/npc/single sta
 
 - `make syn`：只跑 `yosys-sta` 的标准单元综合，生成 `NpcCore.netlist.v` 和综合统计
 - `make sta`：在综合基础上继续跑 iEDA 的时序/功耗分析，生成 `.rpt/.pwr/.cap/.fanout/.trans`
-- 这条流程默认只综合 `NpcCore` 及其纯 RTL 子模块，不会把带 `DPI-C` 的 `NpcSimTop.sv` 混进综合网表
+- 这条流程默认只综合 `RTL_CORE_SRCS` 中的 `NpcCore` 及其纯 RTL 子模块，不会把带 `DPI-C` 的 `NpcSimTop.sv` 混进综合网表
 
 默认结果目录位于：
 

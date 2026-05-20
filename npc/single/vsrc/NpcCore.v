@@ -26,6 +26,7 @@ module NpcCore #(
   output commit_valid_o,
   output [`XLEN-1:0] commit_pc_o,
   output [`INST_W-1:0] commit_inst_o,
+  output [`XLEN-1:0] commit_next_pc_o,
   output commit_rd_en_o,
   output [`REG_ADDR_W-1:0] commit_rd_addr_o,
   output [`XLEN-1:0] commit_rd_data_o,
@@ -45,103 +46,654 @@ module NpcCore #(
   output [`XLEN * `REG_NUM - 1:0] debug_gprs_o
 );
 
-  reg [`CORE_STATE_W-1:0] state_q;
-  reg [`XLEN-1:0] pc_q;
-  reg [`INST_W-1:0] inst_q;
-  reg [`CTRL_BUS_W-1:0] ctrl_q;
-  reg [`XLEN-1:0] imm_q;
-  reg [`REG_ADDR_W-1:0] rd_idx_q;
-  reg [`XLEN-1:0] rs1_data_q;
-  reg [`XLEN-1:0] rs2_data_q;
-  reg [`XLEN-1:0] alu_result_q;
-  reg [`XLEN-1:0] mem_addr_raw_q;
-  reg [`XLEN-1:0] store_data_q;
-  reg [`XLEN-1:0] load_data_q;
-  reg [`XLEN-1:0] next_pc_q;
-  reg [`TRAP_CAUSE_W-1:0] trap_cause_q;
-  reg [`XLEN-1:0] trap_pc_q;
-  reg [`XLEN-1:0] trap_tval_q;
-  reg exit_is_ecall_q;
+  function [`XLEN-1:0] trap_mstatus;
+    input [`XLEN-1:0] old_status;
+    begin
+      trap_mstatus = old_status;
+      if ((old_status & `MSTATUS_MIE) != {`XLEN{1'b0}})
+        trap_mstatus = trap_mstatus | `MSTATUS_MPIE;
+      else
+        trap_mstatus = trap_mstatus & ~`MSTATUS_MPIE;
+      trap_mstatus = trap_mstatus & ~`MSTATUS_MIE;
+      trap_mstatus = (trap_mstatus & ~`MSTATUS_MPP_MASK) | `MSTATUS_MPP_M;
+    end
+  endfunction
+
+  function [`XLEN-1:0] mret_mstatus;
+    input [`XLEN-1:0] old_status;
+    begin
+      mret_mstatus = old_status;
+      if ((old_status & `MSTATUS_MPIE) != {`XLEN{1'b0}})
+        mret_mstatus = mret_mstatus | `MSTATUS_MIE;
+      else
+        mret_mstatus = mret_mstatus & ~`MSTATUS_MIE;
+      mret_mstatus = mret_mstatus | `MSTATUS_MPIE;
+      mret_mstatus = mret_mstatus & ~`MSTATUS_MPP_MASK;
+    end
+  endfunction
+
+  function csr_writable;
+    input [11:0] csr_addr;
+    begin
+      case (csr_addr)
+        `CSR_MSTATUS,
+        `CSR_MIE,
+        `CSR_MTVEC,
+        `CSR_MSCRATCH,
+        `CSR_MEPC,
+        `CSR_MCAUSE,
+        `CSR_MTVAL,
+        `CSR_MIP: csr_writable = 1'b1;
+        default:  csr_writable = 1'b0;
+      endcase
+    end
+  endfunction
+
+  function csr_known;
+    input [11:0] csr_addr;
+    begin
+      case (csr_addr)
+        `CSR_MSTATUS,
+        `CSR_MISA,
+        `CSR_MIE,
+        `CSR_MTVEC,
+        `CSR_MSCRATCH,
+        `CSR_MEPC,
+        `CSR_MCAUSE,
+        `CSR_MTVAL,
+        `CSR_MIP,
+        `CSR_MHARTID: csr_known = 1'b1;
+        default:      csr_known = 1'b0;
+      endcase
+    end
+  endfunction
+
+  function [`XLEN-1:0] rv32m_mul_result;
+    input [2:0] funct3;
+    input [`XLEN-1:0] src1;
+    input [`XLEN-1:0] src2;
+    reg signed [31:0] s_src1;
+    reg signed [31:0] s_src2;
+    reg [31:0] u_src1;
+    reg [31:0] u_src2;
+    reg signed [63:0] ss_prod;
+    /* verilator lint_off UNUSEDSIGNAL */
+    reg signed [63:0] su_prod;
+    reg [63:0] uu_prod;
+    /* verilator lint_on UNUSEDSIGNAL */
+    begin
+      s_src1 = src1;
+      s_src2 = src2;
+      u_src1 = src1;
+      u_src2 = src2;
+      ss_prod = s_src1 * s_src2;
+      su_prod = s_src1 * $signed({1'b0, u_src2});
+      uu_prod = u_src1 * u_src2;
+      case (funct3)
+        3'b000: rv32m_mul_result = ss_prod[31:0];
+        3'b001: rv32m_mul_result = ss_prod[63:32];
+        3'b010: rv32m_mul_result = su_prod[63:32];
+        3'b011: rv32m_mul_result = uu_prod[63:32];
+        default: rv32m_mul_result = {`XLEN{1'b0}};
+      endcase
+    end
+  endfunction
+
+  function [`XLEN-1:0] rv32b_result;
+    /* verilator lint_off UNUSEDSIGNAL */
+    input [`INST_W-1:0] inst;
+    /* verilator lint_on UNUSEDSIGNAL */
+    input [`XLEN-1:0] src1;
+    input [`XLEN-1:0] src2;
+    reg [4:0] imm5;
+    reg [4:0] shamt;
+    reg [5:0] inv_shamt;
+    integer i;
+    begin
+      imm5 = inst[24:20];
+      shamt = src2[`SHIFT_AMT_W-1:0];
+      inv_shamt = 6'd32 - {1'b0, shamt};
+      rv32b_result = {`XLEN{1'b0}};
+
+      if (inst[6:0] == `OPCODE_OP_IMM) begin
+        case ({inst[31:25], inst[14:12]})
+          {7'h14, `FUNCT3_SLL}:     rv32b_result = src1 | (32'h1 << imm5);
+          {7'h24, `FUNCT3_SLL}:     rv32b_result = src1 & ~(32'h1 << imm5);
+          {7'h34, `FUNCT3_SLL}:     rv32b_result = src1 ^ (32'h1 << imm5);
+          {7'h30, `FUNCT3_SRL_SRA}: rv32b_result = (imm5 == 5'h0) ? src1 :
+                                                     ((src1 >> imm5) | (src1 << (6'd32 - {1'b0, imm5})));
+          {7'h24, `FUNCT3_SRL_SRA}: rv32b_result = {{(`XLEN-1){1'b0}}, src1[imm5]};
+          {7'h14, `FUNCT3_SRL_SRA}: rv32b_result = {
+              (src1[31:24] != 8'h00) ? 8'hff : 8'h00,
+              (src1[23:16] != 8'h00) ? 8'hff : 8'h00,
+              (src1[15:8]  != 8'h00) ? 8'hff : 8'h00,
+              (src1[7:0]   != 8'h00) ? 8'hff : 8'h00
+          };
+          {7'h34, `FUNCT3_SRL_SRA}: rv32b_result = {src1[7:0], src1[15:8], src1[23:16], src1[31:24]};
+          {7'h30, `FUNCT3_SLL}: begin
+            case (imm5)
+              5'h00: begin
+                rv32b_result = 32'd32;
+                for (i = 0; i < 32; i = i + 1) begin
+                  if (src1[31 - i] && (rv32b_result == 32'd32))
+                    rv32b_result = i;
+                end
+              end
+              5'h01: begin
+                rv32b_result = 32'd32;
+                for (i = 0; i < 32; i = i + 1) begin
+                  if (src1[i] && (rv32b_result == 32'd32))
+                    rv32b_result = i;
+                end
+              end
+              5'h02: begin
+                rv32b_result = {`XLEN{1'b0}};
+                for (i = 0; i < 32; i = i + 1)
+                  rv32b_result = rv32b_result + {{(`XLEN-1){1'b0}}, src1[i]};
+              end
+              5'h04: rv32b_result = {{24{src1[7]}}, src1[7:0]};
+              5'h05: rv32b_result = {{16{src1[15]}}, src1[15:0]};
+              default: begin end
+            endcase
+          end
+          default: begin end
+        endcase
+      end else begin
+        case ({inst[31:25], inst[14:12]})
+          {7'h10, `FUNCT3_SLT}:     rv32b_result = (src1 << 1) + src2;
+          {7'h10, `FUNCT3_XOR}:     rv32b_result = (src1 << 2) + src2;
+          {7'h10, `FUNCT3_OR}:      rv32b_result = (src1 << 3) + src2;
+          {7'h20, `FUNCT3_AND}:     rv32b_result = src1 & ~src2;
+          {7'h20, `FUNCT3_OR}:      rv32b_result = src1 | ~src2;
+          {7'h20, `FUNCT3_XOR}:     rv32b_result = ~(src1 ^ src2);
+          {7'h30, `FUNCT3_SLL}:     rv32b_result = (shamt == 5'h0) ? src1 :
+                                                     ((src1 << shamt) | (src1 >> inv_shamt));
+          {7'h30, `FUNCT3_SRL_SRA}: rv32b_result = (shamt == 5'h0) ? src1 :
+                                                     ((src1 >> shamt) | (src1 << inv_shamt));
+          {7'h05, `FUNCT3_XOR}:     rv32b_result = ($signed(src1) < $signed(src2)) ? src1 : src2;
+          {7'h05, `FUNCT3_SRL_SRA}: rv32b_result = (src1 < src2) ? src1 : src2;
+          {7'h05, `FUNCT3_OR}:      rv32b_result = ($signed(src1) > $signed(src2)) ? src1 : src2;
+          {7'h05, `FUNCT3_AND}:     rv32b_result = (src1 > src2) ? src1 : src2;
+          {7'h14, `FUNCT3_SLL}:     rv32b_result = src1 | (32'h1 << shamt);
+          {7'h24, `FUNCT3_SLL}:     rv32b_result = src1 & ~(32'h1 << shamt);
+          {7'h24, `FUNCT3_SRL_SRA}: rv32b_result = {{(`XLEN-1){1'b0}}, src1[shamt]};
+          {7'h34, `FUNCT3_SLL}:     rv32b_result = src1 ^ (32'h1 << shamt);
+          {7'h04, `FUNCT3_XOR}:     rv32b_result = {16'h0000, src1[15:0]};
+          {7'h05, `FUNCT3_SLL}: begin
+            rv32b_result = {`XLEN{1'b0}};
+            for (i = 0; i < 32; i = i + 1) begin
+              if (src2[i])
+                rv32b_result = rv32b_result ^ (src1 << i);
+            end
+          end
+          {7'h05, `FUNCT3_SLT}: begin
+            rv32b_result = {`XLEN{1'b0}};
+            for (i = 0; i < 32; i = i + 1) begin
+              if (src2[i])
+                rv32b_result = rv32b_result ^ (src1 >> (31 - i));
+            end
+          end
+          {7'h05, `FUNCT3_SLTU}: begin
+            rv32b_result = {`XLEN{1'b0}};
+            for (i = 1; i < 32; i = i + 1) begin
+              if (src2[i])
+                rv32b_result = rv32b_result ^ (src1 >> (32 - i));
+            end
+          end
+          default: begin end
+        endcase
+      end
+    end
+  endfunction
+
+  wire fetch_pending_w;
+  wire [`XLEN-1:0] fetch_pc_w;
+  wire if_stage_valid_w;
+  wire [`XLEN-1:0] if_stage_pc_w;
+  wire [`INST_W-1:0] if_stage_inst_w;
+  wire [`XLEN-1:0] if_stage_inst_len_w;
+  wire [`XLEN-1:0] if_stage_pred_pc_w;
+  wire if_stage_error_w;
+  wire ifu_cpu_req_valid_w;
+  wire ifu_cpu_req_ready_w;
+  wire [`XLEN-1:0] ifu_cpu_req_addr_w;
+  wire ifu_cpu_rsp_valid_w;
+  wire [`XLEN-1:0] ifu_cpu_rsp_data_w;
+  wire ifu_cpu_rsp_error_w;
+
+  wire if_id_valid_q;
+  wire [`XLEN-1:0] if_id_pc_q;
+  wire [`INST_W-1:0] if_id_inst_q;
+  wire [`XLEN-1:0] if_id_inst_len_q;
+  wire [`XLEN-1:0] if_id_pred_pc_q;
+  wire if_id_error_q;
+
+  wire id_ex_valid_q;
+  wire [`XLEN-1:0] id_ex_pc_q;
+  wire [`INST_W-1:0] id_ex_inst_q;
+  wire [`XLEN-1:0] id_ex_inst_len_q;
+  wire [`XLEN-1:0] id_ex_pred_pc_q;
+  /* verilator lint_off UNUSEDSIGNAL */
+  wire [`CTRL_BUS_W-1:0] id_ex_ctrl_q;
+  /* verilator lint_on UNUSEDSIGNAL */
+  wire [`XLEN-1:0] id_ex_imm_q;
+  wire [`REG_ADDR_W-1:0] id_ex_rs1_idx_q;
+  wire [`REG_ADDR_W-1:0] id_ex_rs2_idx_q;
+  wire [`REG_ADDR_W-1:0] id_ex_rd_idx_q;
+  wire [`XLEN-1:0] id_ex_rs1_data_q;
+  wire [`XLEN-1:0] id_ex_rs2_data_q;
+  wire id_ex_fetch_error_q;
+
+  wire ex_mem_valid_q;
+  wire [`XLEN-1:0] ex_mem_pc_q;
+  wire [`INST_W-1:0] ex_mem_inst_q;
+  wire [`XLEN-1:0] ex_mem_next_pc_q;
+  wire ex_mem_load_q;
+  wire ex_mem_store_q;
+  wire ex_mem_rd_en_q;
+  wire ex_mem_need_wb_q;
+  wire [1:0] ex_mem_mem_size_q;
+  wire ex_mem_mem_unsigned_q;
+  wire [`REG_ADDR_W-1:0] ex_mem_rd_idx_q;
+  wire [`XLEN-1:0] ex_mem_wb_data_q;
+  wire [`XLEN-1:0] ex_mem_mem_addr_q;
+  wire [`XLEN-1:0] ex_mem_store_data_q;
+  wire mem_pending_w;
+  wire lsu_cpu_req_valid_w;
+  wire lsu_cpu_req_ready_w;
+  wire lsu_cpu_req_write_w;
+  wire [`XLEN-1:0] lsu_cpu_req_addr_w;
+  wire [`XLEN-1:0] lsu_cpu_req_wdata_w;
+  wire [3:0] lsu_cpu_req_wstrb_w;
+  wire lsu_cpu_rsp_valid_w;
+  wire [`XLEN-1:0] lsu_cpu_rsp_rdata_w;
+  wire lsu_cpu_rsp_error_w;
+
+  wire mem_wb_valid_q;
+  wire [`XLEN-1:0] mem_wb_pc_q;
+  wire [`INST_W-1:0] mem_wb_inst_q;
+  wire [`XLEN-1:0] mem_wb_next_pc_q;
+  wire mem_wb_rd_en_q;
+  wire mem_wb_need_wb_q;
+  wire [`REG_ADDR_W-1:0] mem_wb_rd_idx_q;
+  wire [`XLEN-1:0] mem_wb_wb_data_q;
+
+  reg [`XLEN-1:0] csr_mstatus_q;
+  reg [`XLEN-1:0] csr_mtvec_q;
+  reg [`XLEN-1:0] csr_mscratch_q;
+  reg [`XLEN-1:0] csr_mepc_q;
+  reg [`XLEN-1:0] csr_mcause_q;
+  reg [`XLEN-1:0] csr_mtval_q;
+  reg [`XLEN-1:0] csr_mie_q;
+  reg [`XLEN-1:0] csr_mip_q;
+
+  reg halt_q;
+  reg fatal_trap_q;
   reg exit_is_ebreak_q;
   reg [`XLEN-1:0] exit_code_q;
+  reg [`TRAP_CAUSE_W-1:0] fatal_cause_q;
+  reg [`XLEN-1:0] fatal_pc_q;
+  reg [`XLEN-1:0] fatal_tval_q;
+  reg [`XLEN-1:0] stop_pc_q;
+  reg rf_wen_q;
+  reg [`REG_ADDR_W-1:0] rf_waddr_q;
+  reg [`XLEN-1:0] rf_wdata_q;
+  wire rf_we_w = rf_wen_q && ~halt_q && ~fatal_trap_q;
+  wire [`REG_ADDR_W-1:0] rf_waddr_w = rf_waddr_q;
+  wire [`XLEN-1:0] rf_wdata_w = rf_wdata_q;
 
   wire [`CTRL_BUS_W-1:0] dec_ctrl_w;
   wire [`REG_ADDR_W-1:0] dec_rs1_idx_w;
   wire [`REG_ADDR_W-1:0] dec_rs2_idx_w;
   wire [`REG_ADDR_W-1:0] dec_rd_idx_w;
+  wire [`XLEN-1:0] dec_imm_w;
   wire [`XLEN-1:0] rf_rs1_data_w;
   wire [`XLEN-1:0] rf_rs2_data_w;
   wire [`XLEN-1:0] rf_a0_data_w;
-  wire [`XLEN-1:0] dec_imm_w;
 
-  wire ctrl_rd_en_w = ctrl_q[`CTRL_RD_EN_BIT];
-  wire ctrl_branch_w = ctrl_q[`CTRL_BRANCH_BIT];
-  wire ctrl_jal_w = ctrl_q[`CTRL_JAL_BIT];
-  wire ctrl_jalr_w = ctrl_q[`CTRL_JALR_BIT];
-  wire ctrl_load_w = ctrl_q[`CTRL_LOAD_BIT];
-  wire ctrl_store_w = ctrl_q[`CTRL_STORE_BIT];
-  wire ctrl_ecall_w = ctrl_q[`CTRL_ECALL_BIT];
-  wire ctrl_ebreak_w = ctrl_q[`CTRL_EBREAK_BIT];
-  wire [1:0] ctrl_op1_sel_w = ctrl_q[`CTRL_OP1_SEL_MSB:`CTRL_OP1_SEL_LSB];
-  wire [1:0] ctrl_op2_sel_w = ctrl_q[`CTRL_OP2_SEL_MSB:`CTRL_OP2_SEL_LSB];
-  wire [3:0] ctrl_alu_op_w = ctrl_q[`CTRL_ALU_OP_MSB:`CTRL_ALU_OP_LSB];
-  wire [2:0] ctrl_cmp_op_w = ctrl_q[`CTRL_CMP_OP_MSB:`CTRL_CMP_OP_LSB];
-  wire [1:0] ctrl_mem_size_w = ctrl_q[`CTRL_MEM_SIZE_MSB:`CTRL_MEM_SIZE_LSB];
-  wire ctrl_mem_unsigned_w = ctrl_q[`CTRL_MEM_UNSIGNED_BIT];
-  wire [2:0] ctrl_wb_sel_w = ctrl_q[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB];
-  wire ctrl_has_imm_w = (ctrl_q[`CTRL_IMM_TYPE_MSB:`CTRL_IMM_TYPE_LSB] != `IMM_TYPE_X);
-  wire ctrl_side_effect_w = ctrl_q[`CTRL_NEED_EXEC_BIT] |
-                            ctrl_q[`CTRL_NEED_MEM_BIT] |
-                            ctrl_q[`CTRL_NEED_WB_BIT] |
-                            ctrl_q[`CTRL_FENCE_BIT] |
-                            ctrl_q[`CTRL_SYSTEM_BIT] |
-                            ctrl_q[`CTRL_MISC_MEM_BIT];
-  wire [`XLEN-1:0] rs1_operand_w = ctrl_q[`CTRL_RS1_EN_BIT] ? rs1_data_q : {`XLEN{1'b0}};
-  wire [`XLEN-1:0] rs2_operand_w = ctrl_q[`CTRL_RS2_EN_BIT] ? rs2_data_q : {`XLEN{1'b0}};
+  wire id_ex_rs1_en_w = id_ex_ctrl_q[`CTRL_RS1_EN_BIT];
+  wire id_ex_rs2_en_w = id_ex_ctrl_q[`CTRL_RS2_EN_BIT];
+  wire id_ex_load_w = id_ex_ctrl_q[`CTRL_LOAD_BIT];
+  wire id_ex_store_w = id_ex_ctrl_q[`CTRL_STORE_BIT];
+  wire id_ex_branch_w = id_ex_ctrl_q[`CTRL_BRANCH_BIT];
+  wire id_ex_jal_w = id_ex_ctrl_q[`CTRL_JAL_BIT];
+  wire id_ex_jalr_w = id_ex_ctrl_q[`CTRL_JALR_BIT];
+  wire id_ex_ecall_w = id_ex_ctrl_q[`CTRL_ECALL_BIT];
+  wire id_ex_ebreak_w = id_ex_ctrl_q[`CTRL_EBREAK_BIT];
+  wire id_ex_csr_w = id_ex_ctrl_q[`CTRL_CSR_BIT];
+  wire id_ex_mret_w = id_ex_ctrl_q[`CTRL_MRET_BIT];
+  wire id_ex_muldiv_w = id_ex_ctrl_q[`CTRL_MULDIV_BIT];
+  wire id_ex_divrem_w = id_ex_muldiv_w && id_ex_inst_q[14];
+  wire id_ex_divrem_exec_w;
+  wire id_ex_bitmanip_w = id_ex_ctrl_q[`CTRL_BITMANIP_BIT];
+  wire id_ex_fence_i_w = id_ex_ctrl_q[`CTRL_FENCE_BIT] &&
+                         (id_ex_inst_q[14:12] == `FUNCT3_FENCE_I);
+  wire [1:0] id_ex_op1_sel_w = id_ex_ctrl_q[`CTRL_OP1_SEL_MSB:`CTRL_OP1_SEL_LSB];
+  wire [1:0] id_ex_op2_sel_w = id_ex_ctrl_q[`CTRL_OP2_SEL_MSB:`CTRL_OP2_SEL_LSB];
+  wire [3:0] id_ex_alu_op_w = id_ex_ctrl_q[`CTRL_ALU_OP_MSB:`CTRL_ALU_OP_LSB];
+  wire [2:0] id_ex_cmp_op_w = id_ex_ctrl_q[`CTRL_CMP_OP_MSB:`CTRL_CMP_OP_LSB];
+  wire [1:0] id_ex_mem_size_w = id_ex_ctrl_q[`CTRL_MEM_SIZE_MSB:`CTRL_MEM_SIZE_LSB];
+  wire id_ex_mem_unsigned_w = id_ex_ctrl_q[`CTRL_MEM_UNSIGNED_BIT];
+  wire [2:0] id_ex_wb_sel_w = id_ex_ctrl_q[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB];
 
-  wire [`XLEN-1:0] pc_plus4_w = pc_q + `PC_STEP;
-  wire [`XLEN-1:0] alu_src1_w = (ctrl_op1_sel_w == `OP1_SEL_PC) ? pc_q :
-                                 (ctrl_op1_sel_w == `OP1_SEL_ZERO) ? {`XLEN{1'b0}} :
-                                 rs1_operand_w;
-  wire [`XLEN-1:0] alu_src2_w = (ctrl_op2_sel_w == `OP2_SEL_IMM) ? imm_q :
-                                 (ctrl_op2_sel_w == `OP2_SEL_FOUR) ? `PC_STEP :
-                                 rs2_operand_w;
-  wire [`XLEN-1:0] alu_result_w;
-  wire cmp_true_w;
-  wire [`XLEN-1:0] addr_sum_w = rs1_operand_w + imm_q;
-  wire [`XLEN-1:0] branch_target_w = pc_q + imm_q;
-  wire [`XLEN-1:0] jal_target_w = pc_q + imm_q;
-  wire [`XLEN-1:0] jalr_target_w = {addr_sum_w[`XLEN-1:1], 1'b0};
-  wire redirect_valid_w = ctrl_jal_w | ctrl_jalr_w | (ctrl_branch_w & cmp_true_w);
-  wire [`XLEN-1:0] redirect_pc_w = ctrl_jalr_w ? jalr_target_w :
-                                   ctrl_jal_w ? jal_target_w :
-                                   branch_target_w;
-  wire redirect_misaligned_w = redirect_valid_w && (redirect_pc_w[1:0] != 2'b00);
-  wire [`XLEN-1:0] next_pc_exec_w = redirect_valid_w ? redirect_pc_w : pc_plus4_w;
+  wire ex_mem_is_mem_w = ex_mem_load_q | ex_mem_store_q;
+  wire ex_mem_load_w = ex_mem_load_q;
+  wire ex_mem_writes_rd_w = ex_mem_valid_q &&
+                             ex_mem_need_wb_q &&
+                             ex_mem_rd_en_q &&
+                             (ex_mem_rd_idx_q != {`REG_ADDR_W{1'b0}}) &&
+                             ~ex_mem_load_w;
+  wire mem_wb_writes_rd_w = mem_wb_valid_q &&
+                             mem_wb_need_wb_q &&
+                             mem_wb_rd_en_q &&
+                             (mem_wb_rd_idx_q != {`REG_ADDR_W{1'b0}});
 
-  wire [`XLEN-1:0] lsu_eff_addr_w = (state_q == `CORE_STATE_EXEC) ? addr_sum_w : mem_addr_raw_q;
-  wire [`XLEN-1:0] lsu_store_data_w = (state_q == `CORE_STATE_EXEC) ? rs2_operand_w : store_data_q;
-  wire [`XLEN-1:0] lsu_bus_addr_w;
-  wire [`XLEN-1:0] lsu_bus_wdata_w;
-  wire [3:0] lsu_bus_wstrb_w;
-  wire [`XLEN-1:0] lsu_load_data_w;
-  wire lsu_misaligned_w;
-  wire [`XLEN-1:0] wb_imm_data_w = ctrl_has_imm_w ? imm_q : {`XLEN{1'b0}};
-  wire [`XLEN-1:0] wb_data_w;
-  wire commit_fire_w = (state_q == `CORE_STATE_WB) && ctrl_q[`CTRL_VALID_BIT] && (~ctrl_q[`CTRL_ILLEGAL_BIT]) && ctrl_side_effect_w;
-  wire rf_we_w = commit_fire_w && ctrl_q[`CTRL_NEED_WB_BIT] && ctrl_rd_en_w && (rd_idx_q != {`REG_ADDR_W{1'b0}});
+  wire [`XLEN-1:0] ex_rs1_forward_w =
+      (id_ex_rs1_en_w && mem_response_w && ex_mem_load_w && ex_mem_need_wb_q &&
+       (ex_mem_rd_idx_q == id_ex_rs1_idx_q)) ? lsu_mem_load_data_w :
+      (id_ex_rs1_en_w && ex_mem_writes_rd_w && (ex_mem_rd_idx_q == id_ex_rs1_idx_q)) ? ex_mem_wb_data_q :
+      (id_ex_rs1_en_w && mem_wb_writes_rd_w && (mem_wb_rd_idx_q == id_ex_rs1_idx_q)) ? mem_wb_wb_data_q :
+      (id_ex_rs1_en_w && rf_we_w && (rf_waddr_w == id_ex_rs1_idx_q)) ? rf_wdata_w :
+      id_ex_rs1_data_q;
+  wire [`XLEN-1:0] ex_rs2_forward_w =
+      (id_ex_rs2_en_w && mem_response_w && ex_mem_load_w && ex_mem_need_wb_q &&
+       (ex_mem_rd_idx_q == id_ex_rs2_idx_q)) ? lsu_mem_load_data_w :
+      (id_ex_rs2_en_w && ex_mem_writes_rd_w && (ex_mem_rd_idx_q == id_ex_rs2_idx_q)) ? ex_mem_wb_data_q :
+      (id_ex_rs2_en_w && mem_wb_writes_rd_w && (mem_wb_rd_idx_q == id_ex_rs2_idx_q)) ? mem_wb_wb_data_q :
+      (id_ex_rs2_en_w && rf_we_w && (rf_waddr_w == id_ex_rs2_idx_q)) ? rf_wdata_w :
+      id_ex_rs2_data_q;
+  wire [`XLEN-1:0] ex_a0_forward_w =
+      (mem_response_w && ex_mem_load_w && ex_mem_need_wb_q &&
+       (ex_mem_rd_idx_q == 5'd10)) ? lsu_mem_load_data_w :
+      (ex_mem_writes_rd_w && (ex_mem_rd_idx_q == 5'd10)) ? ex_mem_wb_data_q :
+      (mem_wb_writes_rd_w && (mem_wb_rd_idx_q == 5'd10)) ? mem_wb_wb_data_q :
+      (rf_we_w && (rf_waddr_w == 5'd10)) ? rf_wdata_w :
+      rf_a0_data_w;
 
-  DecodeUnit u_decode (
-    .inst_i(inst_q),
+  wire [`XLEN-1:0] ex_pc_plus4_w = id_ex_pc_q + id_ex_inst_len_q;
+  wire [`XLEN-1:0] ex_addr_sum_w = ex_rs1_forward_w + id_ex_imm_q;
+  wire [`XLEN-1:0] ex_alu_src1_w = (id_ex_op1_sel_w == `OP1_SEL_PC) ? id_ex_pc_q :
+                                   (id_ex_op1_sel_w == `OP1_SEL_ZERO) ? {`XLEN{1'b0}} :
+                                   ex_rs1_forward_w;
+  wire [`XLEN-1:0] ex_alu_src2_w = (id_ex_op2_sel_w == `OP2_SEL_IMM) ? id_ex_imm_q :
+                                   (id_ex_op2_sel_w == `OP2_SEL_FOUR) ? id_ex_inst_len_q :
+                                   ex_rs2_forward_w;
+  wire [`XLEN-1:0] ex_alu_result_w;
+  wire [`XLEN-1:0] ex_ext_result_w;
+  wire [`XLEN-1:0] ex_exec_result_w;
+  wire [`XLEN-1:0] ex_mul_result_w;
+  wire [`XLEN-1:0] ex_div_result_w;
+  wire ex_div_req_ready_w;
+  wire ex_div_rsp_valid_w;
+  wire ex_muldiv_wait_w;
+  wire ex_div_req_valid_w;
+  wire ex_cmp_true_w;
+  wire [`XLEN-1:0] ex_branch_target_w = id_ex_pc_q + id_ex_imm_q;
+  wire [`XLEN-1:0] ex_jal_target_w = id_ex_pc_q + id_ex_imm_q;
+  wire [`XLEN-1:0] ex_jalr_target_w = {ex_addr_sum_w[`XLEN-1:1], 1'b0};
+  wire ex_control_redirect_w = id_ex_jal_w | id_ex_jalr_w | (id_ex_branch_w & ex_cmp_true_w);
+  wire [`XLEN-1:0] ex_control_target_w = id_ex_jalr_w ? ex_jalr_target_w :
+                                         id_ex_jal_w ? ex_jal_target_w :
+                                         ex_branch_target_w;
+  wire [`XLEN-1:0] ex_control_next_pc_w = ex_control_redirect_w ? ex_control_target_w :
+                                                                  ex_pc_plus4_w;
+  wire ex_redirect_misaligned_w = ex_control_redirect_w && ex_control_target_w[0];
+
+  /* verilator lint_off UNUSEDSIGNAL */
+  wire [`XLEN-1:0] lsu_ex_bus_addr_w;
+  wire [`XLEN-1:0] lsu_ex_bus_wdata_w;
+  wire [3:0] lsu_ex_bus_wstrb_w;
+  wire [`XLEN-1:0] lsu_ex_load_unused_w;
+  /* verilator lint_on UNUSEDSIGNAL */
+  wire lsu_ex_misaligned_w;
+
+  wire [`XLEN-1:0] lsu_mem_load_data_w;
+  wire mem_response_w;
+  wire mem_fault_w;
+
+  wire [`XLEN-1:0] csr_old_value_w =
+      (id_ex_inst_q[31:20] == `CSR_MSTATUS)  ? csr_mstatus_q :
+      (id_ex_inst_q[31:20] == `CSR_MISA)     ? 32'h4000_1106 :
+      (id_ex_inst_q[31:20] == `CSR_MIE)      ? csr_mie_q :
+      (id_ex_inst_q[31:20] == `CSR_MTVEC)    ? csr_mtvec_q :
+      (id_ex_inst_q[31:20] == `CSR_MSCRATCH) ? csr_mscratch_q :
+      (id_ex_inst_q[31:20] == `CSR_MEPC)     ? csr_mepc_q :
+      (id_ex_inst_q[31:20] == `CSR_MCAUSE)   ? csr_mcause_q :
+      (id_ex_inst_q[31:20] == `CSR_MTVAL)    ? csr_mtval_q :
+      (id_ex_inst_q[31:20] == `CSR_MIP)      ? csr_mip_q :
+      (id_ex_inst_q[31:20] == `CSR_MHARTID)  ? {`XLEN{1'b0}} :
+                                                {`XLEN{1'b0}};
+  wire [2:0] csr_funct3_w = id_ex_inst_q[14:12];
+  wire [11:0] csr_addr_w = id_ex_inst_q[31:20];
+  wire [`XLEN-1:0] csr_zimm_w = {{(`XLEN-5){1'b0}}, id_ex_inst_q[19:15]};
+  wire csr_imm_op_w = csr_funct3_w[2];
+  wire [`XLEN-1:0] csr_src_w = csr_imm_op_w ? csr_zimm_w : ex_rs1_forward_w;
+  wire csr_set_clear_noop_w = ((csr_funct3_w == 3'b010) || (csr_funct3_w == 3'b011) ||
+                               (csr_funct3_w == 3'b110) || (csr_funct3_w == 3'b111)) &&
+                              (id_ex_rs1_idx_q == {`REG_ADDR_W{1'b0}});
+  wire csr_need_write_w = id_ex_csr_w && ((csr_funct3_w == 3'b001) ||
+                                          (csr_funct3_w == 3'b101) ||
+                                          ~csr_set_clear_noop_w);
+  wire [`XLEN-1:0] csr_new_value_w =
+      ((csr_funct3_w == 3'b001) || (csr_funct3_w == 3'b101)) ? csr_src_w :
+      ((csr_funct3_w == 3'b010) || (csr_funct3_w == 3'b110)) ? (csr_old_value_w | csr_src_w) :
+      ((csr_funct3_w == 3'b011) || (csr_funct3_w == 3'b111)) ? (csr_old_value_w & ~csr_src_w) :
+                                                               csr_old_value_w;
+  wire csr_illegal_w = id_ex_csr_w && (~csr_known(csr_addr_w) ||
+                                       (csr_need_write_w && ~csr_writable(csr_addr_w)));
+
+  wire [`XLEN-1:0] ex_wbu_data_w;
+  assign ex_mul_result_w = rv32m_mul_result(id_ex_inst_q[14:12], ex_rs1_forward_w, ex_rs2_forward_w);
+  assign ex_ext_result_w = id_ex_muldiv_w ? (id_ex_divrem_w ? ex_div_result_w : ex_mul_result_w) :
+                                           id_ex_bitmanip_w ? rv32b_result(id_ex_inst_q, ex_rs1_forward_w, ex_rs2_forward_w) :
+                                           {`XLEN{1'b0}};
+  assign ex_exec_result_w = (id_ex_muldiv_w | id_ex_bitmanip_w) ? ex_ext_result_w : ex_alu_result_w;
+
+  wire dec_uses_rs1_w = dec_ctrl_w[`CTRL_RS1_EN_BIT];
+  wire dec_uses_rs2_w = dec_ctrl_w[`CTRL_RS2_EN_BIT];
+  wire [`XLEN-1:0] dec_rs1_data_w =
+      (dec_uses_rs1_w && mem_response_w && ex_mem_load_w && ex_mem_need_wb_q &&
+       (ex_mem_rd_idx_q == dec_rs1_idx_w)) ? lsu_mem_load_data_w :
+      (dec_uses_rs1_w && ex_mem_writes_rd_w && (ex_mem_rd_idx_q == dec_rs1_idx_w)) ? ex_mem_wb_data_q :
+      (dec_uses_rs1_w && mem_wb_writes_rd_w && (mem_wb_rd_idx_q == dec_rs1_idx_w)) ? mem_wb_wb_data_q :
+      (dec_uses_rs1_w && rf_we_w && (rf_waddr_w == dec_rs1_idx_w)) ? rf_wdata_w :
+      rf_rs1_data_w;
+  wire [`XLEN-1:0] dec_rs2_data_w =
+      (dec_uses_rs2_w && mem_response_w && ex_mem_load_w && ex_mem_need_wb_q &&
+       (ex_mem_rd_idx_q == dec_rs2_idx_w)) ? lsu_mem_load_data_w :
+      (dec_uses_rs2_w && ex_mem_writes_rd_w && (ex_mem_rd_idx_q == dec_rs2_idx_w)) ? ex_mem_wb_data_q :
+      (dec_uses_rs2_w && mem_wb_writes_rd_w && (mem_wb_rd_idx_q == dec_rs2_idx_w)) ? mem_wb_wb_data_q :
+      (dec_uses_rs2_w && rf_we_w && (rf_waddr_w == dec_rs2_idx_w)) ? rf_wdata_w :
+      rf_rs2_data_w;
+
+  wire ex_fetch_fault_w = id_ex_fetch_error_q;
+  wire ex_illegal_w = id_ex_ctrl_q[`CTRL_ILLEGAL_BIT] | csr_illegal_w;
+  assign id_ex_divrem_exec_w = id_ex_divrem_w && ~ex_fetch_fault_w && ~ex_illegal_w;
+  assign ex_muldiv_wait_w = id_ex_valid_q && id_ex_divrem_exec_w && ~ex_div_rsp_valid_w;
+  assign ex_div_req_valid_w = id_ex_valid_q && id_ex_divrem_exec_w &&
+                              ex_div_req_ready_w && ~mem_fault_w &&
+                              ~halt_q && ~fatal_trap_q;
+  wire ex_load_store_misaligned_w = (id_ex_load_w | id_ex_store_w) && lsu_ex_misaligned_w;
+  wire [`TRAP_CAUSE_W-1:0] ex_exception_cause_w =
+      ex_fetch_fault_w ? `EXC_INST_ACCESS_FAULT :
+      ex_illegal_w ? `EXC_ILLEGAL_INST :
+      ex_redirect_misaligned_w ? `EXC_INST_ADDR_MISALIGN :
+      ex_load_store_misaligned_w ? (id_ex_load_w ? `EXC_LOAD_ADDR_MISALIGN : `EXC_STORE_ADDR_MISALIGN) :
+      `EXC_ECALL_MMODE;
+  wire [`XLEN-1:0] ex_exception_tval_w =
+      ex_fetch_fault_w ? id_ex_pc_q :
+      ex_illegal_w ? id_ex_inst_q :
+      ex_redirect_misaligned_w ? ex_control_target_w :
+      ex_load_store_misaligned_w ? ex_addr_sum_w :
+      {`XLEN{1'b0}};
+  wire [`XLEN-1:0] trap_target_w = {csr_mtvec_q[`XLEN-1:2], 2'b00};
+
+  wire ex_fire_w;
+  wire ex_exception_w;
+  wire ex_exception_fatal_w;
+  wire ex_mret_redirect_w;
+  wire cache_flush_valid_w;
+  wire [`XLEN-1:0] cache_flush_redirect_pc_w;
+  wire ex_any_flush_w;
+  wire [`XLEN-1:0] ex_next_pc_w = ex_mret_redirect_w ? csr_mepc_q :
+                                  (id_ex_branch_w | id_ex_jal_w | id_ex_jalr_w) ? ex_control_next_pc_w :
+                                  ex_pc_plus4_w;
+  wire id_accept_w;
+  wire if_id_consume_w;
+  wire if_id_can_refill_w;
+  wire ebreak_fire_w;
+  wire pipeline_normal_update_w;
+  wire if_redirect_valid_w;
+  wire [`XLEN-1:0] if_redirect_pc_w;
+  wire ex_mem_leave_update_w;
+  wire ex_mem_load_update_w;
+  wire mem_wb_from_mem_w;
+  wire mem_wb_from_ex_w;
+  wire mem_wb_load_w;
+  wire bpu_update_valid_w;
+  wire [`XLEN-1:0] mem_wb_load_wb_data_w =
+      mem_wb_from_mem_w ? (ex_mem_load_w ? lsu_mem_load_data_w : ex_mem_wb_data_q) :
+                          ex_mem_wb_data_q;
+
+  CacheControl u_cache_control (
+    .ex_fire_i(ex_fire_w),
+    .fence_i_i(id_ex_fence_i_w),
+    .exception_i(ex_exception_w),
+    .seq_pc_i(ex_pc_plus4_w),
+    .flush_valid_o(cache_flush_valid_w),
+    .flush_redirect_pc_o(cache_flush_redirect_pc_w)
+  );
+
+  PipelineControl u_pipeline_control (
+    .if_id_valid_i(if_id_valid_q),
+    .id_ex_valid_i(id_ex_valid_q),
+    .id_ex_load_i(id_ex_load_w),
+    .id_ex_ecall_i(id_ex_ecall_w),
+    .id_ex_ebreak_i(id_ex_ebreak_w),
+    .id_ex_mret_i(id_ex_mret_w),
+    .id_ex_branch_i(id_ex_branch_w),
+    .id_ex_jal_i(id_ex_jal_w),
+    .id_ex_jalr_i(id_ex_jalr_w),
+    .id_ex_rd_idx_i(id_ex_rd_idx_q),
+    .id_ex_pred_pc_i(id_ex_pred_pc_q),
+    .dec_uses_rs1_i(dec_uses_rs1_w),
+    .dec_uses_rs2_i(dec_uses_rs2_w),
+    .dec_rs1_idx_i(dec_rs1_idx_w),
+    .dec_rs2_idx_i(dec_rs2_idx_w),
+    .ex_mem_valid_i(ex_mem_valid_q),
+    .ex_mem_is_mem_i(ex_mem_is_mem_w),
+    .mem_response_i(mem_response_w),
+    .mem_fault_i(mem_fault_w),
+    .ex_wait_i(ex_muldiv_wait_w),
+    .halt_i(halt_q),
+    .fatal_i(fatal_trap_q),
+    .ex_fetch_fault_i(ex_fetch_fault_w),
+    .ex_illegal_i(ex_illegal_w),
+    .ex_redirect_misaligned_i(ex_redirect_misaligned_w),
+    .ex_load_store_misaligned_i(ex_load_store_misaligned_w),
+    .ex_control_next_pc_i(ex_control_next_pc_w),
+    .ex_redirect_pc_i(ex_control_next_pc_w),
+    .trap_target_i(trap_target_w),
+    .csr_mepc_i(csr_mepc_q),
+    .cache_flush_valid_i(cache_flush_valid_w),
+    .cache_flush_redirect_pc_i(cache_flush_redirect_pc_w),
+    .ex_fire_o(ex_fire_w),
+    .ex_exception_o(ex_exception_w),
+    .ex_exception_fatal_o(ex_exception_fatal_w),
+    .ex_mret_redirect_o(ex_mret_redirect_w),
+    .ex_any_flush_o(ex_any_flush_w),
+    .id_accept_o(id_accept_w),
+    .if_id_consume_o(if_id_consume_w),
+    .if_id_can_refill_o(if_id_can_refill_w),
+    .ebreak_fire_o(ebreak_fire_w),
+    .pipeline_normal_update_o(pipeline_normal_update_w),
+    .if_redirect_valid_o(if_redirect_valid_w),
+    .if_redirect_pc_o(if_redirect_pc_w),
+    .ex_mem_leave_update_o(ex_mem_leave_update_w),
+    .ex_mem_load_update_o(ex_mem_load_update_w),
+    .mem_wb_from_mem_o(mem_wb_from_mem_w),
+    .mem_wb_from_ex_o(mem_wb_from_ex_w),
+    .mem_wb_load_o(mem_wb_load_w),
+    .bpu_update_valid_o(bpu_update_valid_w)
+  );
+
+  IfStage #(
+    .RESET_PC(RESET_PC)
+  ) u_if_stage (
+    .clk(clk),
+    .rst(rst),
+    .flush_i(ex_any_flush_w),
+    .redirect_valid_i(if_redirect_valid_w),
+    .redirect_pc_i(if_redirect_pc_w),
+    .pipe_ready_i(if_id_can_refill_w),
+    .halt_i(halt_q),
+    .fatal_i(fatal_trap_q),
+    .bpu_update_valid_i(bpu_update_valid_w),
+    .bpu_update_pc_i(id_ex_pc_q),
+    .bpu_update_inst_i(id_ex_inst_q),
+    .bpu_update_seq_pc_i(ex_pc_plus4_w),
+    .bpu_update_next_pc_i(ex_control_next_pc_w),
+    .bpu_update_taken_i(ex_control_redirect_w),
+    .pipe_valid_o(if_stage_valid_w),
+    .pipe_pc_o(if_stage_pc_w),
+    .pipe_inst_o(if_stage_inst_w),
+    .pipe_inst_len_o(if_stage_inst_len_w),
+    .pipe_pred_pc_o(if_stage_pred_pc_w),
+    .pipe_error_o(if_stage_error_w),
+    .ifu_req_valid_o(ifu_cpu_req_valid_w),
+    .ifu_req_ready_i(ifu_cpu_req_ready_w),
+    .ifu_req_addr_o(ifu_cpu_req_addr_w),
+    .ifu_rsp_valid_i(ifu_cpu_rsp_valid_w),
+    .ifu_rsp_data_i(ifu_cpu_rsp_data_w),
+    .ifu_rsp_error_i(ifu_cpu_rsp_error_w),
+    .fetch_pc_o(fetch_pc_w),
+    .fetch_pending_o(fetch_pending_w)
+  );
+
+  ICache u_icache (
+    .clk(clk),
+    .rst(rst),
+    .abort_i(ex_any_flush_w),
+    .invalidate_i(cache_flush_valid_w),
+    .cpu_req_valid_i(ifu_cpu_req_valid_w),
+    .cpu_req_ready_o(ifu_cpu_req_ready_w),
+    .cpu_req_addr_i(ifu_cpu_req_addr_w),
+    .cpu_rsp_valid_o(ifu_cpu_rsp_valid_w),
+    .cpu_rsp_data_o(ifu_cpu_rsp_data_w),
+    .cpu_rsp_error_o(ifu_cpu_rsp_error_w),
+    .mem_req_valid_o(ifu_req_valid_o),
+    .mem_req_ready_i(ifu_req_ready_i),
+    .mem_req_addr_o(ifu_req_addr_o),
+    .mem_rsp_valid_i(ifu_rsp_valid_i),
+    .mem_rsp_data_i(ifu_rsp_data_i),
+    .mem_rsp_error_i(ifu_rsp_error_i)
+  );
+
+  IfIdPipeReg u_if_id_pipe (
+    .clk(clk),
+    .rst(rst),
+    .clear_i(ex_any_flush_w),
+    .consume_i(if_id_consume_w),
+    .load_i(if_stage_valid_w),
+    .load_pc_i(if_stage_pc_w),
+    .load_inst_i(if_stage_inst_w),
+    .load_inst_len_i(if_stage_inst_len_w),
+    .load_pred_pc_i(if_stage_pred_pc_w),
+    .load_error_i(if_stage_error_w),
+    .valid_o(if_id_valid_q),
+    .pc_o(if_id_pc_q),
+    .inst_o(if_id_inst_q),
+    .inst_len_o(if_id_inst_len_q),
+    .pred_pc_o(if_id_pred_pc_q),
+    .error_o(if_id_error_q)
+  );
+
+  DecodeStage u_decode_stage (
+    .inst_i(if_id_inst_q),
     .ctrl_o(dec_ctrl_w),
     .rs1_idx_o(dec_rs1_idx_w),
     .rs2_idx_o(dec_rs2_idx_w),
-    .rd_idx_o(dec_rd_idx_w)
-  );
-
-  ImmGen u_imm_gen (
-    .inst_i(inst_q),
-    .imm_type_i(dec_ctrl_w[`CTRL_IMM_TYPE_MSB:`CTRL_IMM_TYPE_LSB]),
+    .rd_idx_o(dec_rd_idx_w),
     .imm_o(dec_imm_w)
   );
 
@@ -155,254 +707,314 @@ module NpcCore #(
     .a0_data_o(rf_a0_data_w),
     .debug_gprs_o(debug_gprs_o),
     .wen_i(rf_we_w),
-    .waddr_i(rd_idx_q),
-    .wdata_i(wb_data_w)
+    .waddr_i(rf_waddr_w),
+    .wdata_i(rf_wdata_w)
   );
 
   ALU u_alu (
-    .src1_i(alu_src1_w),
-    .src2_i(alu_src2_w),
-    .alu_op_i(ctrl_alu_op_w),
-    .result_o(alu_result_w)
+    .src1_i(ex_alu_src1_w),
+    .src2_i(ex_alu_src2_w),
+    .alu_op_i(id_ex_alu_op_w),
+    .result_o(ex_alu_result_w)
   );
 
   CompareUnit u_compare (
-    .lhs_i(rs1_operand_w),
-    .rhs_i(rs2_operand_w),
-    .cmp_op_i(ctrl_cmp_op_w),
-    .cmp_true_o(cmp_true_w)
+    .lhs_i(ex_rs1_forward_w),
+    .rhs_i(ex_rs2_forward_w),
+    .cmp_op_i(id_ex_cmp_op_w),
+    .cmp_true_o(ex_cmp_true_w)
   );
 
-  LSU u_lsu (
-    .eff_addr_i(lsu_eff_addr_w),
-    .store_data_i(lsu_store_data_w),
-    .mem_size_i(ctrl_mem_size_w),
-    .mem_unsigned_i(ctrl_mem_unsigned_w),
-    .mem_rdata_i(lsu_rsp_rdata_i),
-    .mem_addr_o(lsu_bus_addr_w),
-    .mem_wdata_o(lsu_bus_wdata_w),
-    .mem_wstrb_o(lsu_bus_wstrb_w),
-    .load_data_o(lsu_load_data_w),
-    .misaligned_o(lsu_misaligned_w)
+  Rv32Divider u_rv32_divider (
+    .clk(clk),
+    .rst(rst),
+    .flush_i(mem_fault_w | halt_q | fatal_trap_q),
+    .req_valid_i(ex_div_req_valid_w),
+    .req_ready_o(ex_div_req_ready_w),
+    .req_funct3_i(id_ex_inst_q[14:12]),
+    .req_src1_i(ex_rs1_forward_w),
+    .req_src2_i(ex_rs2_forward_w),
+    .rsp_valid_o(ex_div_rsp_valid_w),
+    .rsp_ready_i(ex_fire_w && id_ex_divrem_w),
+    .rsp_data_o(ex_div_result_w)
+  );
+
+  LSU u_lsu_ex (
+    .eff_addr_i(ex_addr_sum_w),
+    .store_data_i(ex_rs2_forward_w),
+    .mem_size_i(id_ex_mem_size_w),
+    .mem_unsigned_i(id_ex_mem_unsigned_w),
+    .mem_rdata_i({`XLEN{1'b0}}),
+    .mem_addr_o(lsu_ex_bus_addr_w),
+    .mem_wdata_o(lsu_ex_bus_wdata_w),
+    .mem_wstrb_o(lsu_ex_bus_wstrb_w),
+    .load_data_o(lsu_ex_load_unused_w),
+    .misaligned_o(lsu_ex_misaligned_w)
   );
 
   WBU u_wbu (
-    .wb_sel_i(ctrl_wb_sel_w),
-    .alu_data_i(alu_result_q),
-    .load_data_i(load_data_q),
-    .pc_plus4_i(pc_plus4_w),
-    .imm_data_i(wb_imm_data_w),
-    .wb_data_o(wb_data_w)
+    .wb_sel_i(id_ex_wb_sel_w),
+    .alu_data_i(ex_exec_result_w),
+    .load_data_i({`XLEN{1'b0}}),
+    .pc_plus4_i(ex_pc_plus4_w),
+    .imm_data_i(id_ex_imm_q),
+    .csr_data_i(csr_old_value_w),
+    .wb_data_o(ex_wbu_data_w)
   );
 
-  assign ifu_req_valid_o = (state_q == `CORE_STATE_FETCH_REQ);
-  assign ifu_req_addr_o = pc_q;
+  IdExPipeReg u_id_ex_pipe (
+    .clk(clk),
+    .rst(rst),
+    .clear_i(mem_fault_w | ex_exception_w | ebreak_fire_w),
+    .kill_i(pipeline_normal_update_w & ex_fire_w),
+    .load_i(pipeline_normal_update_w & id_accept_w),
+    .load_pc_i(if_id_pc_q),
+    .load_inst_i(if_id_inst_q),
+    .load_inst_len_i(if_id_inst_len_q),
+    .load_pred_pc_i(if_id_pred_pc_q),
+    .load_ctrl_i(dec_ctrl_w),
+    .load_imm_i(dec_imm_w),
+    .load_rs1_idx_i(dec_rs1_idx_w),
+    .load_rs2_idx_i(dec_rs2_idx_w),
+    .load_rd_idx_i(dec_rd_idx_w),
+    .load_rs1_data_i(dec_rs1_data_w),
+    .load_rs2_data_i(dec_rs2_data_w),
+    .load_fetch_error_i(if_id_error_q),
+    .valid_o(id_ex_valid_q),
+    .pc_o(id_ex_pc_q),
+    .inst_o(id_ex_inst_q),
+    .inst_len_o(id_ex_inst_len_q),
+    .pred_pc_o(id_ex_pred_pc_q),
+    .ctrl_o(id_ex_ctrl_q),
+    .imm_o(id_ex_imm_q),
+    .rs1_idx_o(id_ex_rs1_idx_q),
+    .rs2_idx_o(id_ex_rs2_idx_q),
+    .rd_idx_o(id_ex_rd_idx_q),
+    .rs1_data_o(id_ex_rs1_data_q),
+    .rs2_data_o(id_ex_rs2_data_q),
+    .fetch_error_o(id_ex_fetch_error_q)
+  );
 
-  assign lsu_req_valid_o = (state_q == `CORE_STATE_MEM_REQ);
-  assign lsu_req_write_o = ctrl_store_w;
-  assign lsu_req_addr_o = lsu_bus_addr_w;
-  assign lsu_req_wdata_o = lsu_bus_wdata_w;
-  assign lsu_req_wstrb_o = lsu_bus_wstrb_w;
+  ExMemPipeReg u_ex_mem_pipe (
+    .clk(clk),
+    .rst(rst),
+    .clear_i(mem_fault_w),
+    .leave_i(ex_mem_leave_update_w),
+    .load_i(ex_mem_load_update_w),
+    .load_pc_i(id_ex_pc_q),
+    .load_inst_i(id_ex_inst_q),
+    .load_next_pc_i(ex_next_pc_w),
+    .load_is_load_i(id_ex_load_w),
+    .load_is_store_i(id_ex_store_w),
+    .load_rd_en_i(id_ex_ctrl_q[`CTRL_RD_EN_BIT]),
+    .load_need_wb_i(id_ex_ctrl_q[`CTRL_NEED_WB_BIT]),
+    .load_mem_size_i(id_ex_mem_size_w),
+    .load_mem_unsigned_i(id_ex_mem_unsigned_w),
+    .load_rd_idx_i(id_ex_rd_idx_q),
+    .load_wb_data_i(ex_wbu_data_w),
+    .load_mem_addr_i(ex_addr_sum_w),
+    .load_store_data_i(ex_rs2_forward_w),
+    .valid_o(ex_mem_valid_q),
+    .pc_o(ex_mem_pc_q),
+    .inst_o(ex_mem_inst_q),
+    .next_pc_o(ex_mem_next_pc_q),
+    .is_load_o(ex_mem_load_q),
+    .is_store_o(ex_mem_store_q),
+    .rd_en_o(ex_mem_rd_en_q),
+    .need_wb_o(ex_mem_need_wb_q),
+    .mem_size_o(ex_mem_mem_size_q),
+    .mem_unsigned_o(ex_mem_mem_unsigned_q),
+    .rd_idx_o(ex_mem_rd_idx_q),
+    .wb_data_o(ex_mem_wb_data_q),
+    .mem_addr_o(ex_mem_mem_addr_q),
+    .store_data_o(ex_mem_store_data_q)
+  );
 
-  assign commit_valid_o = commit_fire_w;
-  assign commit_pc_o = pc_q;
-  assign commit_inst_o = inst_q;
-  assign commit_rd_en_o = rf_we_w;
-  assign commit_rd_addr_o = rd_idx_q;
-  assign commit_rd_data_o = wb_data_w;
+  MemoryStage u_memory_stage (
+    .clk(clk),
+    .rst(rst),
+    .update_en_i(pipeline_normal_update_w),
+    .clear_i(mem_fault_w),
+    .ex_valid_i(ex_mem_valid_q & ~halt_q & ~fatal_trap_q),
+    .ex_load_i(ex_mem_load_q),
+    .ex_store_i(ex_mem_store_q),
+    .ex_mem_size_i(ex_mem_mem_size_q),
+    .ex_mem_unsigned_i(ex_mem_mem_unsigned_q),
+    .ex_mem_addr_i(ex_mem_mem_addr_q),
+    .ex_store_data_i(ex_mem_store_data_q),
+    .lsu_req_valid_o(lsu_cpu_req_valid_w),
+    .lsu_req_ready_i(lsu_cpu_req_ready_w),
+    .lsu_req_write_o(lsu_cpu_req_write_w),
+    .lsu_req_addr_o(lsu_cpu_req_addr_w),
+    .lsu_req_wdata_o(lsu_cpu_req_wdata_w),
+    .lsu_req_wstrb_o(lsu_cpu_req_wstrb_w),
+    .lsu_rsp_valid_i(lsu_cpu_rsp_valid_w),
+    .lsu_rsp_rdata_i(lsu_cpu_rsp_rdata_w),
+    .lsu_rsp_error_i(lsu_cpu_rsp_error_w),
+    .load_data_o(lsu_mem_load_data_w),
+    .response_o(mem_response_w),
+    .fault_o(mem_fault_w),
+    .pending_o(mem_pending_w)
+  );
 
-  assign trap_valid_o = (state_q == `CORE_STATE_TRAP);
-  assign trap_cause_o = trap_cause_q;
-  assign trap_pc_o = trap_pc_q;
-  assign trap_tval_o = trap_tval_q;
-  assign exit_valid_o = (state_q == `CORE_STATE_HALT);
-  assign exit_is_ecall_o = exit_is_ecall_q;
+  DCache u_dcache (
+    .clk(clk),
+    .rst(rst),
+    .invalidate_i(cache_flush_valid_w),
+    .cpu_req_valid_i(lsu_cpu_req_valid_w),
+    .cpu_req_ready_o(lsu_cpu_req_ready_w),
+    .cpu_req_write_i(lsu_cpu_req_write_w),
+    .cpu_req_addr_i(lsu_cpu_req_addr_w),
+    .cpu_req_wdata_i(lsu_cpu_req_wdata_w),
+    .cpu_req_wstrb_i(lsu_cpu_req_wstrb_w),
+    .cpu_rsp_valid_o(lsu_cpu_rsp_valid_w),
+    .cpu_rsp_rdata_o(lsu_cpu_rsp_rdata_w),
+    .cpu_rsp_error_o(lsu_cpu_rsp_error_w),
+    .mem_req_valid_o(lsu_req_valid_o),
+    .mem_req_ready_i(lsu_req_ready_i),
+    .mem_req_write_o(lsu_req_write_o),
+    .mem_req_addr_o(lsu_req_addr_o),
+    .mem_req_wdata_o(lsu_req_wdata_o),
+    .mem_req_wstrb_o(lsu_req_wstrb_o),
+    .mem_rsp_valid_i(lsu_rsp_valid_i),
+    .mem_rsp_rdata_i(lsu_rsp_rdata_i),
+    .mem_rsp_error_i(lsu_rsp_error_i)
+  );
+
+  MemWbPipeReg u_mem_wb_pipe (
+    .clk(clk),
+    .rst(rst),
+    .load_i(mem_wb_load_w),
+    .load_pc_i(ex_mem_pc_q),
+    .load_inst_i(ex_mem_inst_q),
+    .load_next_pc_i(ex_mem_next_pc_q),
+    .load_rd_en_i(ex_mem_rd_en_q),
+    .load_need_wb_i(ex_mem_need_wb_q),
+    .load_rd_idx_i(ex_mem_rd_idx_q),
+    .load_wb_data_i(mem_wb_load_wb_data_w),
+    .valid_o(mem_wb_valid_q),
+    .pc_o(mem_wb_pc_q),
+    .inst_o(mem_wb_inst_q),
+    .next_pc_o(mem_wb_next_pc_q),
+    .rd_en_o(mem_wb_rd_en_q),
+    .need_wb_o(mem_wb_need_wb_q),
+    .rd_idx_o(mem_wb_rd_idx_q),
+    .wb_data_o(mem_wb_wb_data_q)
+  );
+
+  assign commit_valid_o = mem_wb_valid_q && (~halt_q) && (~fatal_trap_q);
+  assign commit_pc_o = mem_wb_pc_q;
+  assign commit_inst_o = mem_wb_inst_q;
+  assign commit_next_pc_o = mem_wb_next_pc_q;
+  assign commit_rd_en_o = mem_wb_writes_rd_w;
+  assign commit_rd_addr_o = mem_wb_rd_idx_q;
+  assign commit_rd_data_o = mem_wb_wb_data_q;
+
+  assign trap_valid_o = fatal_trap_q;
+  assign trap_cause_o = fatal_cause_q;
+  assign trap_pc_o = fatal_pc_q;
+  assign trap_tval_o = fatal_tval_q;
+  assign exit_valid_o = halt_q;
+  assign exit_is_ecall_o = 1'b0;
   assign exit_is_ebreak_o = exit_is_ebreak_q;
   assign exit_code_o = exit_code_q;
-  assign halted_o = (state_q == `CORE_STATE_HALT) || (state_q == `CORE_STATE_TRAP);
+  assign halted_o = halt_q | fatal_trap_q;
 
-  assign debug_pc_o = pc_q;
-  assign debug_state_o = state_q;
+  assign debug_pc_o = halted_o ? stop_pc_q : fetch_pc_w;
+  assign debug_state_o = halt_q ? `CORE_STATE_HALT :
+                         fatal_trap_q ? `CORE_STATE_TRAP :
+                         {(fetch_pending_w | mem_pending_w | ex_muldiv_wait_w),
+                          if_id_valid_q, id_ex_valid_q, ex_mem_valid_q};
 
-  // 顶层状态机只维护“一次只允许 1 条在途指令”，这样能用简单控制面拿到精确提交和精确异常。
   always @(posedge clk) begin
     if (rst) begin
-      state_q <= `CORE_STATE_RESET;
-      pc_q <= RESET_PC;
-      inst_q <= {`INST_W{1'b0}};
-      ctrl_q <= {`CTRL_BUS_W{1'b0}};
-      imm_q <= {`XLEN{1'b0}};
-      rd_idx_q <= {`REG_ADDR_W{1'b0}};
-      rs1_data_q <= {`XLEN{1'b0}};
-      rs2_data_q <= {`XLEN{1'b0}};
-      alu_result_q <= {`XLEN{1'b0}};
-      mem_addr_raw_q <= {`XLEN{1'b0}};
-      store_data_q <= {`XLEN{1'b0}};
-      load_data_q <= {`XLEN{1'b0}};
-      next_pc_q <= RESET_PC;
-      trap_cause_q <= {`TRAP_CAUSE_W{1'b0}};
-      trap_pc_q <= {`XLEN{1'b0}};
-      trap_tval_q <= {`XLEN{1'b0}};
-      exit_is_ecall_q <= 1'b0;
+      csr_mstatus_q <= {`XLEN{1'b0}};
+      csr_mtvec_q <= {`XLEN{1'b0}};
+      csr_mscratch_q <= {`XLEN{1'b0}};
+      csr_mepc_q <= {`XLEN{1'b0}};
+      csr_mcause_q <= {`XLEN{1'b0}};
+      csr_mtval_q <= {`XLEN{1'b0}};
+      csr_mie_q <= {`XLEN{1'b0}};
+      csr_mip_q <= {`XLEN{1'b0}};
+      halt_q <= 1'b0;
+      fatal_trap_q <= 1'b0;
       exit_is_ebreak_q <= 1'b0;
       exit_code_q <= {`XLEN{1'b0}};
+      fatal_cause_q <= {`TRAP_CAUSE_W{1'b0}};
+      fatal_pc_q <= {`XLEN{1'b0}};
+      fatal_tval_q <= {`XLEN{1'b0}};
+      stop_pc_q <= RESET_PC;
+      rf_wen_q <= 1'b0;
+      rf_waddr_q <= {`REG_ADDR_W{1'b0}};
+      rf_wdata_q <= {`XLEN{1'b0}};
     end else begin
-      case (state_q)
-        `CORE_STATE_RESET: begin
-          pc_q <= RESET_PC;
-          next_pc_q <= RESET_PC;
-          exit_is_ecall_q <= 1'b0;
-          exit_is_ebreak_q <= 1'b0;
-          exit_code_q <= {`XLEN{1'b0}};
-          state_q <= `CORE_STATE_FETCH_REQ;
+      rf_wen_q <= 1'b0;
+
+      if (mem_fault_w) begin
+        if (trap_target_w == {`XLEN{1'b0}}) begin
+          fatal_trap_q <= 1'b1;
+          fatal_cause_q <= ex_mem_load_w ? `EXC_LOAD_ACCESS_FAULT : `EXC_STORE_ACCESS_FAULT;
+          fatal_pc_q <= ex_mem_pc_q;
+          fatal_tval_q <= ex_mem_mem_addr_q;
+          stop_pc_q <= ex_mem_pc_q;
+        end else begin
+          csr_mepc_q <= {ex_mem_pc_q[`XLEN-1:1], 1'b0};
+          csr_mcause_q <= {{(`XLEN-`TRAP_CAUSE_W){1'b0}},
+                           (ex_mem_load_w ? `EXC_LOAD_ACCESS_FAULT : `EXC_STORE_ACCESS_FAULT)};
+          csr_mtval_q <= ex_mem_mem_addr_q;
+          csr_mstatus_q <= trap_mstatus(csr_mstatus_q);
+        end
+      end else if (ex_exception_w) begin
+        if (ex_exception_fatal_w) begin
+          fatal_trap_q <= 1'b1;
+          fatal_cause_q <= ex_exception_cause_w;
+          fatal_pc_q <= id_ex_pc_q;
+          fatal_tval_q <= ex_exception_tval_w;
+          stop_pc_q <= id_ex_pc_q;
+        end else begin
+          csr_mepc_q <= {id_ex_pc_q[`XLEN-1:1], 1'b0};
+          csr_mcause_q <= {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, ex_exception_cause_w};
+          csr_mtval_q <= ex_exception_tval_w;
+          csr_mstatus_q <= trap_mstatus(csr_mstatus_q);
+        end
+      end else if (ebreak_fire_w) begin
+        halt_q <= 1'b1;
+        exit_is_ebreak_q <= 1'b1;
+        exit_code_q <= ex_a0_forward_w;
+        stop_pc_q <= id_ex_pc_q;
+      end else begin
+        if (ex_mret_redirect_w) begin
+          csr_mstatus_q <= mret_mstatus(csr_mstatus_q);
         end
 
-        `CORE_STATE_FETCH_REQ: begin
-          if (ifu_req_ready_i) begin
-            if (ifu_rsp_valid_i) begin
-              if (ifu_rsp_error_i) begin
-                trap_cause_q <= `EXC_INST_ACCESS_FAULT;
-                trap_pc_q <= pc_q;
-                trap_tval_q <= pc_q;
-                state_q <= `CORE_STATE_TRAP;
-              end else begin
-                inst_q <= ifu_rsp_data_i;
-                state_q <= `CORE_STATE_DECODE;
-              end
-            end else begin
-              state_q <= `CORE_STATE_FETCH_WAIT;
-            end
+        if (mem_wb_from_mem_w) begin
+          rf_wen_q <= ex_mem_load_w && ex_mem_need_wb_q && ex_mem_rd_en_q &&
+                      (ex_mem_rd_idx_q != {`REG_ADDR_W{1'b0}});
+          rf_waddr_q <= ex_mem_rd_idx_q;
+          rf_wdata_q <= lsu_mem_load_data_w;
+        end else if (mem_wb_from_ex_w) begin
+          rf_wen_q <= ex_mem_need_wb_q && ex_mem_rd_en_q &&
+                      (ex_mem_rd_idx_q != {`REG_ADDR_W{1'b0}});
+          rf_waddr_q <= ex_mem_rd_idx_q;
+          rf_wdata_q <= ex_mem_wb_data_q;
+        end
+
+        if (ex_fire_w) begin
+          if (id_ex_csr_w && ~csr_illegal_w && csr_need_write_w) begin
+            case (csr_addr_w)
+              `CSR_MSTATUS:  csr_mstatus_q <= csr_new_value_w;
+              `CSR_MIE:      csr_mie_q <= csr_new_value_w;
+              `CSR_MTVEC:    csr_mtvec_q <= {csr_new_value_w[`XLEN-1:2], 2'b00};
+              `CSR_MSCRATCH: csr_mscratch_q <= csr_new_value_w;
+              `CSR_MEPC:     csr_mepc_q <= {csr_new_value_w[`XLEN-1:1], 1'b0};
+              `CSR_MCAUSE:   csr_mcause_q <= csr_new_value_w;
+              `CSR_MTVAL:    csr_mtval_q <= csr_new_value_w;
+              `CSR_MIP:      csr_mip_q <= csr_new_value_w;
+              default: begin end
+            endcase
           end
         end
-
-        `CORE_STATE_FETCH_WAIT: begin
-          if (ifu_rsp_valid_i) begin
-            if (ifu_rsp_error_i) begin
-              trap_cause_q <= `EXC_INST_ACCESS_FAULT;
-              trap_pc_q <= pc_q;
-              trap_tval_q <= pc_q;
-              state_q <= `CORE_STATE_TRAP;
-            end else begin
-              inst_q <= ifu_rsp_data_i;
-              state_q <= `CORE_STATE_DECODE;
-            end
-          end
-        end
-
-        `CORE_STATE_DECODE: begin
-          ctrl_q <= dec_ctrl_w;
-          imm_q <= dec_imm_w;
-          rd_idx_q <= dec_rd_idx_w;
-          rs1_data_q <= dec_ctrl_w[`CTRL_RS1_EN_BIT] ? rf_rs1_data_w : {`XLEN{1'b0}};
-          rs2_data_q <= dec_ctrl_w[`CTRL_RS2_EN_BIT] ? rf_rs2_data_w : {`XLEN{1'b0}};
-
-          if (dec_ctrl_w[`CTRL_ILLEGAL_BIT]) begin
-            trap_cause_q <= `EXC_ILLEGAL_INST;
-            trap_pc_q <= pc_q;
-            trap_tval_q <= inst_q;
-            state_q <= `CORE_STATE_TRAP;
-          end else begin
-            state_q <= `CORE_STATE_EXEC;
-          end
-        end
-
-        `CORE_STATE_EXEC: begin
-          alu_result_q <= alu_result_w;
-          next_pc_q <= next_pc_exec_w;
-          mem_addr_raw_q <= addr_sum_w;
-          store_data_q <= rs2_data_q;
-
-          // 当前还没有完整 CSR/trap handler，所以把 ecall/ebreak 显式收口成 EEI 退出协议，仿真环境能区分“主动退出”和“异常停机”。
-          if (ctrl_ecall_w) begin
-            trap_cause_q <= `EXC_ECALL_MMODE;
-            trap_pc_q <= pc_q;
-            trap_tval_q <= {`XLEN{1'b0}};
-            exit_is_ecall_q <= 1'b1;
-            exit_is_ebreak_q <= 1'b0;
-            exit_code_q <= rf_a0_data_w;
-            state_q <= `CORE_STATE_HALT;
-          end else if (ctrl_ebreak_w) begin
-            trap_cause_q <= `EXC_BREAKPOINT;
-            trap_pc_q <= pc_q;
-            trap_tval_q <= {`XLEN{1'b0}};
-            exit_is_ecall_q <= 1'b0;
-            exit_is_ebreak_q <= 1'b1;
-            exit_code_q <= rf_a0_data_w;
-            state_q <= `CORE_STATE_HALT;
-          end else if (redirect_misaligned_w) begin
-            exit_is_ecall_q <= 1'b0;
-            exit_is_ebreak_q <= 1'b0;
-            trap_cause_q <= `EXC_INST_ADDR_MISALIGN;
-            trap_pc_q <= pc_q;
-            trap_tval_q <= redirect_pc_w;
-            state_q <= `CORE_STATE_TRAP;
-          end else if ((ctrl_load_w || ctrl_store_w) && lsu_misaligned_w) begin
-            exit_is_ecall_q <= 1'b0;
-            exit_is_ebreak_q <= 1'b0;
-            trap_cause_q <= ctrl_load_w ? `EXC_LOAD_ADDR_MISALIGN : `EXC_STORE_ADDR_MISALIGN;
-            trap_pc_q <= pc_q;
-            trap_tval_q <= addr_sum_w;
-            state_q <= `CORE_STATE_TRAP;
-          end else if (ctrl_load_w || ctrl_store_w) begin
-            state_q <= `CORE_STATE_MEM_REQ;
-          end else begin
-            state_q <= `CORE_STATE_WB;
-          end
-        end
-
-        `CORE_STATE_MEM_REQ: begin
-          if (lsu_req_ready_i) begin
-            if (lsu_rsp_valid_i) begin
-              if (lsu_rsp_error_i) begin
-                exit_is_ecall_q <= 1'b0;
-                exit_is_ebreak_q <= 1'b0;
-                trap_cause_q <= ctrl_load_w ? `EXC_LOAD_ACCESS_FAULT : `EXC_STORE_ACCESS_FAULT;
-                trap_pc_q <= pc_q;
-                trap_tval_q <= mem_addr_raw_q;
-                state_q <= `CORE_STATE_TRAP;
-              end else begin
-                load_data_q <= lsu_load_data_w;
-                state_q <= `CORE_STATE_WB;
-              end
-            end else begin
-              state_q <= `CORE_STATE_MEM_WAIT;
-            end
-          end
-        end
-
-        `CORE_STATE_MEM_WAIT: begin
-          if (lsu_rsp_valid_i) begin
-            if (lsu_rsp_error_i) begin
-              exit_is_ecall_q <= 1'b0;
-              exit_is_ebreak_q <= 1'b0;
-              trap_cause_q <= ctrl_load_w ? `EXC_LOAD_ACCESS_FAULT : `EXC_STORE_ACCESS_FAULT;
-              trap_pc_q <= pc_q;
-              trap_tval_q <= mem_addr_raw_q;
-              state_q <= `CORE_STATE_TRAP;
-            end else begin
-              load_data_q <= lsu_load_data_w;
-              state_q <= `CORE_STATE_WB;
-            end
-          end
-        end
-
-        `CORE_STATE_WB: begin
-          pc_q <= next_pc_q;
-          state_q <= `CORE_STATE_FETCH_REQ;
-        end
-
-        `CORE_STATE_HALT: begin
-          state_q <= `CORE_STATE_HALT;
-        end
-
-        `CORE_STATE_TRAP: begin
-          state_q <= `CORE_STATE_TRAP;
-        end
-
-        default: begin
-          state_q <= `CORE_STATE_RESET;
-        end
-      endcase
+      end
     end
   end
 

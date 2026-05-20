@@ -44,6 +44,8 @@ static bool parse_args(int argc, char **argv, NpcSimConfig *config) {
     {"itrace",   no_argument,       NULL, 'I'},
     {"mtrace",   no_argument,       NULL, 'M'},
     {"dtrace",   no_argument,       NULL, 'D'},
+    {"diff",     required_argument, NULL, 'F'},
+    {"diff-port",required_argument, NULL, 'p'},
     {"help",     no_argument,       NULL, 'h'},
     {NULL, 0, NULL, 0},
   };
@@ -51,7 +53,7 @@ static bool parse_args(int argc, char **argv, NpcSimConfig *config) {
   int opt;
   /* 使用 optind = 0 兼容 glibc 的重入 */
   optind = 0;
-  while ((opt = getopt_long(argc, argv, "bi:m:l::t::P::IMDh", long_opts, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "bi:m:l::t::P::IMDF:p:h", long_opts, NULL)) != -1) {
     switch (opt) {
       case 'b':
         config->batch_mode = true;
@@ -92,6 +94,19 @@ static bool parse_args(int argc, char **argv, NpcSimConfig *config) {
       case 'I': config->itrace = true; break;
       case 'M': config->mtrace = true; break;
       case 'D': config->dtrace = true; break;
+      case 'F':
+        config->difftest = true;
+        if (optarg && strcmp(optarg, "default") != 0) {
+          strncpy(config->diff_so_path, optarg, NPC_PATH_MAX - 1);
+          config->diff_so_path[NPC_PATH_MAX - 1] = '\0';
+        }
+        break;
+      case 'p': {
+        char *end = NULL;
+        long val = strtol(optarg, &end, 10);
+        if (end && *end == '\0' && val > 0) config->diff_port = (int)val;
+        break;
+      }
       case 'h':
         printf("Usage: %s [OPTIONS]\n", argv[0]);
         printf("  -b, --batch          batch mode (no SDB)\n");
@@ -103,6 +118,8 @@ static bool parse_args(int argc, char **argv, NpcSimConfig *config) {
         printf("  -I, --itrace         enable instruction trace\n");
         printf("  -M, --mtrace         enable memory trace\n");
         printf("  -D, --dtrace         enable device trace\n");
+        printf("  -F, --diff=SO        enable difftest with reference .so (use 'default' for built-in path)\n");
+        printf("      --diff-port=N    difftest reference port (default 1234)\n");
         return false;
       default:
         return false;

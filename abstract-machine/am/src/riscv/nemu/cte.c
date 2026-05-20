@@ -1,6 +1,7 @@
 #include <am.h>
 #include <riscv/riscv.h>
 #include <klib.h>
+#include <klib-macros.h>
 
 //RISCV中mcause的编码规则：最高位：1表示中断，0表示异常，其余低位表示具体原因号
 //mcasuse = 是否中断表示位 | 异常号
@@ -68,6 +69,10 @@ Context* __am_irq_handle(Context *c) {
 
 extern void __am_asm_trap(void);
 
+static void __am_kcontext_on_return() {
+  panic("kernel context returns");
+}
+
 //cte_init主要做两件事，第一件事就是设置异常入口地址
 //第二件事就是注册一个事件处理回调函数，这个回调函数由yield test提供
 bool cte_init(Context*(*handler)(Event, Context*)) {
@@ -81,7 +86,18 @@ bool cte_init(Context*(*handler)(Event, Context*)) {
 }
 
 Context *kcontext(Area kstack, void (*entry)(void *), void *arg) {
-  return NULL;
+  uintptr_t stack_top = (uintptr_t)kstack.end & ~(uintptr_t)0xf;
+  Context *c = (Context *)stack_top - 1;
+  memset(c, 0, sizeof(Context));
+
+  // 新建任务第一次被调度时不是从 trap 返回点继续，而是让 mret 直接进入 entry(arg)。
+  c->mepc = (uintptr_t)entry;
+  // PA 讲义要求 riscv32 初始内核线程上下文的 mstatus 为 0x1800，即 MPP=M。
+  c->mstatus = MSTATUS_MPP_M;
+  c->gpr[1] = (uintptr_t)__am_kcontext_on_return;
+  c->GPR2 = (uintptr_t)arg;
+  c->pdir = NULL;
+  return c;
 }
 
 void yield() {

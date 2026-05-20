@@ -1,0 +1,5 @@
+[TEST] tb_pipe_regs
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/single/vsrc -Icommon -s tb_pipe_regs -o build/tb_pipe_regs.vvp tests/tb_pipe_regs.sv /home/lyg/PA/ysyx-workbench/npc/single/vsrc/IfIdPipeReg.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/IdExPipeReg.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/ExMemPipeReg.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/MemWbPipeReg.v
+[PASS] tb_pipe_regs
+common/tb_common.svh:32: $finish called at 39 (1s)
+[RESULT] PASS

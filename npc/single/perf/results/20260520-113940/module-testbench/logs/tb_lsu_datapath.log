@@ -1,0 +1,5 @@
+[TEST] tb_lsu_datapath
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/single/vsrc -Icommon -s tb_lsu_datapath -o build/tb_lsu_datapath.vvp tests/tb_lsu_datapath.sv /home/lyg/PA/ysyx-workbench/npc/single/vsrc/LSUDataPath.v
+[PASS] tb_lsu_datapath
+common/tb_common.svh:32: $finish called at 5 (1s)
+[RESULT] PASS

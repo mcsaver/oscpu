@@ -2,7 +2,9 @@
  * std::vector<uint8_t> 改为 malloc + 手动管理 */
 #include "memory/paddr.h"
 
+#include "cpu/difftest.h"
 #include "device/map.h"
+#include "memory/cache.h"
 #include "monitor/log.h"
 #include "monitor/trace.h"
 #include "utils.h"
@@ -13,6 +15,7 @@
 
 static uint8_t *g_pmem = NULL;
 static size_t   g_pmem_size = 0;
+static size_t   g_img_size = 0;
 
 static uint32_t host_read_u32(const uint8_t *base) {
   return (uint32_t)base[0]
@@ -41,13 +44,19 @@ static const char *access_kind_name(enum NpcBusAccess kind) {
 void npc_init_mem(void) {
   if (g_pmem) { free(g_pmem); }
   g_pmem_size = (size_t)NPC_PMEM_SIZE;
+  g_img_size = 0;
   /* 用 calloc 代替 malloc + memset：
    * 1. 少一次显式 memset 128MB
    * 2. 大块 calloc 在 Linux 上通常由内核零页映射实现，不会真正触碰物理页 */
   g_pmem = (uint8_t *)calloc(1, g_pmem_size);
   if (!g_pmem) { perror("[npc] calloc pmem"); abort(); }
+  npc_cache_init();
   LogBoth("physical memory area [0x%08x, 0x%08x]",
           NPC_PMEM_BASE, NPC_PMEM_BASE + (uint32_t)g_pmem_size - 1);
+}
+
+size_t npc_loaded_img_size(void) {
+  return g_img_size;
 }
 
 bool npc_in_pmem(uint32_t addr) {
@@ -84,6 +93,7 @@ bool npc_load_img(const char *image_path) {
     return false;
   }
 
+  g_img_size = (size_t)image_size;
   /* 对齐参考工程：显示镜像路径和大小 */
   LogBoth("The image is %s, size = %ld", image_path, image_size);
   return true;
@@ -102,6 +112,7 @@ bool npc_paddr_read(uint32_t addr, uint32_t *data, enum NpcBusAccess kind) {
 
   /* 取指不穿过 MMIO */
   if (kind != NPC_BUS_IFETCH && npc_mmio_read(addr, data, kind)) {
+    npc_difftest_skip_ref();
     return true;
   }
 
@@ -118,7 +129,10 @@ bool npc_paddr_write(uint32_t addr, uint32_t data, uint32_t mask, enum NpcBusAcc
     return true;
   }
 
-  if (npc_mmio_write(addr, data, mask, kind)) return true;
+  if (npc_mmio_write(addr, data, mask, kind)) {
+    npc_difftest_skip_ref();
+    return true;
+  }
 
   fprintf(stderr, "[npc] %s out of bound at 0x%08x\n", access_kind_name(kind), addr);
   return false;

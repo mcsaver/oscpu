@@ -69,4 +69,6 @@ void npc_simconfig_init(NpcSimConfig *cfg) {
   strncpy(cfg->itrace_cond, CONFIG_NPC_ITRACE_COND, NPC_EXPR_MAX - 1);
   cfg->mtrace            = CONFIG_NPC_MTRACE_BY_DEFAULT;
   cfg->dtrace            = CONFIG_NPC_DTRACE_BY_DEFAULT;
+  strncpy(cfg->diff_so_path, NPC_DEFAULT_DIFF_SO, NPC_PATH_MAX - 1);
+  cfg->diff_port         = 1234;
 }

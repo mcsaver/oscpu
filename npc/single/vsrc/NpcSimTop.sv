@@ -1,5 +1,7 @@
 `include "define.v"
 
+// DPI-C 仿真顶层：只负责把可综合 NpcCore 的总线/flush 事件桥接到宿主侧模型。
+// 该文件不能进入 RTL_CORE_SRCS/STA_RTL_FILES。
 import "DPI-C" task npc_ifetch(
   input int unsigned addr,
   output int unsigned data,
@@ -19,6 +21,8 @@ import "DPI-C" task npc_mem_write(
   output bit error
 );
 
+import "DPI-C" task npc_cache_flush_all();
+
 module NpcSimTop (
   input logic clk,
   input logic rst,
@@ -26,6 +30,7 @@ module NpcSimTop (
   output logic commit_valid_o,
   output logic [`XLEN-1:0] commit_pc_o,
   output logic [`INST_W-1:0] commit_inst_o,
+  output logic [`XLEN-1:0] commit_next_pc_o,
   output logic commit_rd_en_o,
   output logic [`REG_ADDR_W-1:0] commit_rd_addr_o,
   output logic [`XLEN-1:0] commit_rd_data_o,
@@ -61,6 +66,7 @@ module NpcSimTop (
   logic lsu_rsp_valid_q;
   logic [`XLEN-1:0] lsu_rsp_rdata_q;
   logic lsu_rsp_error_q;
+  logic sim_cache_flush_w;
 
   assign ifu_req_ready_w = 1'b1;
   assign lsu_req_ready_w = 1'b1;
@@ -86,6 +92,7 @@ module NpcSimTop (
     .commit_valid_o(commit_valid_o),
     .commit_pc_o(commit_pc_o),
     .commit_inst_o(commit_inst_o),
+    .commit_next_pc_o(commit_next_pc_o),
     .commit_rd_en_o(commit_rd_en_o),
     .commit_rd_addr_o(commit_rd_addr_o),
     .commit_rd_data_o(commit_rd_data_o),
@@ -102,6 +109,9 @@ module NpcSimTop (
     .debug_state_o(debug_state_o),
     .debug_gprs_o(debug_gprs_o)
   );
+
+  // 仿真兼容事件不进入 NpcCore 端口 ABI；DPI 顶层用层次化引用观察 RTL 内部 flush。
+  assign sim_cache_flush_w = u_core.cache_flush_valid_w;
 
   // 这里故意把 DPI 总线做成“一拍请求、一拍返回”，避免在组合路径里重复调用 C++ 侧带副作用的总线函数。
   always_ff @(posedge clk) begin
@@ -121,6 +131,10 @@ module NpcSimTop (
       ifu_rsp_error_q <= 1'b0;
       lsu_rsp_valid_q <= 1'b0;
       lsu_rsp_error_q <= 1'b0;
+
+      if (sim_cache_flush_w) begin
+        npc_cache_flush_all();
+      end
 
       if (ifu_req_valid_w && ifu_req_ready_w) begin
         npc_ifetch(ifu_req_addr_w, bus_data_v, bus_error_v);
@@ -142,6 +156,7 @@ module NpcSimTop (
         lsu_rsp_valid_q <= 1'b1;
         lsu_rsp_error_q <= bus_error_v;
       end
+
     end
   end
 

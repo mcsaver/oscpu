@@ -31,4 +31,26 @@ config MEM_RANDOM
   help
     This may help to find undefined behaviors.
 
+config CACHE
+  depends on TARGET_NATIVE_ELF
+  bool "Enable ICache and DCache model"
+  default y
+  help
+    在 vaddr 层启用透明的 ICache/DCache 模型；MMIO 仍直通 paddr 层，避免破坏设备副作用。
+
+config ICACHE_SIZE
+  depends on CACHE
+  int "ICache size in bytes"
+  default 4096
+
+config DCACHE_SIZE
+  depends on CACHE
+  int "DCache size in bytes"
+  default 4096
+
+config CACHE_LINE_SIZE
+  depends on CACHE
+  int "Cache line size in bytes"
+  default 64
+
 endmenu #MEMORY
