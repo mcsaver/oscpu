@@ -99,9 +99,13 @@ module tb_pipeline_control;
     tb_errors = 0;
 
     defaults(); id_ex_load = 1'b1; dec_uses_rs1 = 1'b1; dec_rs1_idx = 5'd5; #1;
-    tb_check1("load-use blocks id", id_accept, 1'b0);
-    tb_check1("load-use no consume", if_id_consume, 1'b0);
-    tb_check1("load-use ex can still fire", ex_fire, 1'b1);
+    tb_check1("load-use accepts into ex", id_accept, 1'b1);
+    tb_check1("load-use consumes ifid", if_id_consume, 1'b1);
+    tb_check1("load-use load can still fire", ex_fire, 1'b1);
+
+    defaults(); ex_mem_valid = 1'b1; ex_mem_is_mem = 1'b1; mem_response = 1'b0; #1;
+    tb_check1("dependent waits behind load miss in EX", ex_fire, 1'b0);
+    tb_check1("busy EX keeps IF/ID", id_accept, 1'b0);
 
     defaults(); id_ex_branch = 1'b1; id_ex_pred_pc = 32'h8000_0004; ex_control_next_pc = 32'h8000_0100; #1;
     tb_check1("branch flush", ex_any_flush, 1'b1);

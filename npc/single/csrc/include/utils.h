@@ -12,6 +12,8 @@ extern "C" {
 #endif
 
 /* ---- Kconfig 默认值回退 ---- */
+/* Kconfig 的 bool=n 在 autoconf.h 中表现为“未定义”，所以这里的布尔回退必须保守为 0；
+ * 否则 perf_defconfig 关闭的设备/调试功能会被 C 侧重新打开。 */
 #ifndef CONFIG_NPC_DEFAULT_MAX_CYCLES
 #define CONFIG_NPC_DEFAULT_MAX_CYCLES 2000000
 #endif
@@ -25,19 +27,19 @@ extern "C" {
 #define CONFIG_NPC_STDIN_KEYBOARD 0
 #endif
 #ifndef CONFIG_NPC_HAS_VGA
-#define CONFIG_NPC_HAS_VGA 1
+#define CONFIG_NPC_HAS_VGA 0
 #endif
 #ifndef CONFIG_NPC_TRACE_BY_DEFAULT
 #define CONFIG_NPC_TRACE_BY_DEFAULT 0
 #endif
 #ifndef CONFIG_NPC_SDB
-#define CONFIG_NPC_SDB 1
+#define CONFIG_NPC_SDB 0
 #endif
 #ifndef CONFIG_NPC_EXPR
-#define CONFIG_NPC_EXPR 1
+#define CONFIG_NPC_EXPR 0
 #endif
 #ifndef CONFIG_NPC_WATCHPOINT
-#define CONFIG_NPC_WATCHPOINT 1
+#define CONFIG_NPC_WATCHPOINT 0
 #endif
 #ifndef CONFIG_NPC_ITRACE
 #define CONFIG_NPC_ITRACE 0
@@ -59,6 +61,9 @@ extern "C" {
 #endif
 #ifndef CONFIG_NPC_DTRACE_BY_DEFAULT
 #define CONFIG_NPC_DTRACE_BY_DEFAULT 0
+#endif
+#ifndef CONFIG_NPC_DIFFTEST
+#define CONFIG_NPC_DIFFTEST 0
 #endif
 #ifndef CONFIG_NPC_LOG_FILE
 #define CONFIG_NPC_LOG_FILE 0

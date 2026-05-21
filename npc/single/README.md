@@ -73,7 +73,7 @@ export NPC_HOME=/home/lyg/PA/ysyx-workbench/npc
 make -C /home/lyg/PA/ysyx-workbench/npc/single default_defconfig
 ```
 
-如果你想修改默认行为，比如 batch、trace、SDB、watchpoint、MTRACE/DTRACE 或默认最大周期数，可以执行：
+如果你想修改默认行为，比如 batch、trace、SDB、watchpoint、difftest、MTRACE/DTRACE 或默认最大周期数，可以执行：
 
 ```bash
 make -C /home/lyg/PA/ysyx-workbench/npc/single menuconfig
@@ -93,7 +93,7 @@ npc/single/include/generated/autoconf.h
 make -C /home/lyg/PA/ysyx-workbench/npc/single savedefconfig
 ```
 
-其中 `CONFIG_NPC_BATCH_MODE` 现在默认打开，等价于把 `-b` 作为默认启动方式，因此直接运行测试镜像时不会再先停在 `(npc)` 等你手动按 `c`；如果某次只是临时想进 monitor，可直接追加 `--no-batch`，不需要回去改配置重编。`CONFIG_NPC_DEFAULT_MAX_CYCLES` 用来设置默认超时周期数，并且现在支持把值设成 `0` 来关闭超时，适合 CoreMark 这类较大的测试。`CONFIG_NPC_HAS_VGA` 控制 guest 是否看到 `vgactl/framebuffer` 这组 MMIO；关闭后，AM 的 `GPU_CONFIG.present` 会回到 `false`，适合临时退回纯串口/键盘路径排查问题。`CONFIG_NPC_ITRACE`、`CONFIG_NPC_MTRACE`、`CONFIG_NPC_DTRACE` 决定的是“二进制里有没有这项能力”；如果你希望像 NEMU 一样一启动就把这些软件 trace 写进日志，可以再打开 `CONFIG_NPC_ITRACE_BY_DEFAULT`、`CONFIG_NPC_MTRACE_BY_DEFAULT`、`CONFIG_NPC_DTRACE_BY_DEFAULT`，这样不必每次都手动传 `--itrace/--mtrace/--dtrace`。
+其中 `CONFIG_NPC_BATCH_MODE` 现在默认打开，等价于把 `-b` 作为默认启动方式，因此直接运行测试镜像时不会再先停在 `(npc)` 等你手动按 `c`；如果某次只是临时想进 monitor，可直接追加 `--no-batch`，不需要回去改配置重编。`CONFIG_NPC_DEFAULT_MAX_CYCLES` 用来设置默认超时周期数，并且现在支持把值设成 `0` 来关闭超时，适合 CoreMark 这类较大的测试。`CONFIG_NPC_HAS_VGA` 控制 guest 是否看到 `vgactl/framebuffer` 这组 MMIO；关闭后，AM 的 `GPU_CONFIG.present` 会回到 `false`，适合临时退回纯串口/键盘路径排查问题。`CONFIG_NPC_DIFFTEST` 决定是否把差分测试能力编进二进制，并且打开后启动时默认逐条驱动 NEMU reference 做提交级对比；如果某次只想裸跑，可追加 `--no-diff`，性能跑分则建议直接使用关闭该项的 `perf_defconfig`，这样 `difftest.cpp` 不参与 Verilator 构建，也不会在提交热路径检查 reference 状态。`CONFIG_NPC_ITRACE`、`CONFIG_NPC_MTRACE`、`CONFIG_NPC_DTRACE` 决定的是“二进制里有没有这项能力”；如果你希望像 NEMU 一样一启动就把这些软件 trace 写进日志，可以再打开 `CONFIG_NPC_ITRACE_BY_DEFAULT`、`CONFIG_NPC_MTRACE_BY_DEFAULT`、`CONFIG_NPC_DTRACE_BY_DEFAULT`，这样不必每次都手动传 `--itrace/--mtrace/--dtrace`。
 
 另外，`CONFIG_NPC_DEFAULT_PROGRESS_INTERVAL` 用来控制长时间连续执行时的进度输出间隔，单位是“已提交指令数”；默认 `10000000`，表示每执行一千万条已提交指令打印一次 `[progress] ...`，如果你希望默认静默运行，可以把它设成 `0`。
 
@@ -237,6 +237,9 @@ make -C /home/lyg/PA/ysyx-workbench/npc/single sta \
 - `--trace`: 打开 VCD 波形，默认输出到 `build/npc-wave.vcd`
 - `--trace-file path`: 指定 VCD 输出文件
 - `--stdin-kbd`: 打开宿主 stdin 键盘桥
+- `--diff=default|path`: 在已编译 `CONFIG_NPC_DIFFTEST=y` 时指定 difftest reference；`default` 使用 `nemu/build/riscv32-nemu-interpreter-so`
+- `--diff-port N`: 指定 difftest reference 初始化端口，默认 `1234`
+- `--no-diff`: 本次运行显式关闭 difftest，用于临时裸跑或观察性能差异
 
 直接运行时，把参数放到 `RUN_ARGS`：
 
@@ -252,6 +255,19 @@ make -C /home/lyg/PA/ysyx-workbench/npc/single run \
 AM_HOME=/home/lyg/PA/ysyx-workbench/abstract-machine \
 make -C /home/lyg/PA/ysyx-workbench/am-kernels/kernels/hello ARCH=riscv32-npc run \
   NPC_RUN_ARGS='--max-cycles 500000 --progress-interval 1000000 --trace --trace-file build/hello.vcd --log build/hello.log'
+```
+
+如果要跑 difftest，先确认 `menuconfig` 中 `CONFIG_NPC_DIFFTEST=y`，再构建 reference：
+
+```bash
+make -C /home/lyg/PA/ysyx-workbench/npc/single difftest-ref
+```
+
+此时运行默认就会逐条对比 NEMU reference；如果想显式写清 reference，可保留 `--diff=default`：
+
+```bash
+make -C /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests ARCH=riscv32-npc ALL=add run \
+  NPC_RUN_ARGS='--diff=default --max-cycles 0'
 ```
 
 ## Monitor 和 batch

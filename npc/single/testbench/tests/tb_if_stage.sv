@@ -17,11 +17,13 @@ module tb_if_stage;
   reg [`XLEN-1:0] bpu_update_seq_pc;
   reg [`XLEN-1:0] bpu_update_next_pc;
   reg bpu_update_taken;
+  reg [9:0] bpu_update_bht_idx;
   wire pipe_valid;
   wire [`XLEN-1:0] pipe_pc;
   wire [`INST_W-1:0] pipe_inst;
   wire [`XLEN-1:0] pipe_inst_len;
   wire [`XLEN-1:0] pipe_pred_pc;
+  wire [9:0] pipe_bht_idx;
   wire pipe_error;
   wire ifu_req_valid;
   reg ifu_req_ready;
@@ -47,11 +49,13 @@ module tb_if_stage;
     .bpu_update_seq_pc_i(bpu_update_seq_pc),
     .bpu_update_next_pc_i(bpu_update_next_pc),
     .bpu_update_taken_i(bpu_update_taken),
+    .bpu_update_bht_idx_i(bpu_update_bht_idx),
     .pipe_valid_o(pipe_valid),
     .pipe_pc_o(pipe_pc),
     .pipe_inst_o(pipe_inst),
     .pipe_inst_len_o(pipe_inst_len),
     .pipe_pred_pc_o(pipe_pred_pc),
+    .pipe_bht_idx_o(pipe_bht_idx),
     .pipe_error_o(pipe_error),
     .ifu_req_valid_o(ifu_req_valid),
     .ifu_req_ready_i(ifu_req_ready),
@@ -78,6 +82,7 @@ module tb_if_stage;
       bpu_update_seq_pc = 32'h0;
       bpu_update_next_pc = 32'h0;
       bpu_update_taken = 1'b0;
+      bpu_update_bht_idx = 10'h0;
       ifu_req_ready = 1'b1;
       ifu_rsp_valid = 1'b0;
       ifu_rsp_data = 32'h0;
@@ -98,8 +103,6 @@ module tb_if_stage;
     ifu_rsp_valid = 1'b1;
     ifu_rsp_data = 32'h0000_0013;
     ifu_rsp_error = 1'b0;
-    `TB_TICK(clk);
-    ifu_rsp_valid = 1'b0;
     #1;
     tb_check1("same-cycle rsp to pipe", pipe_valid, 1'b1);
     tb_check32("pipe pc", pipe_pc, `RESET_PC);
@@ -107,8 +110,10 @@ module tb_if_stage;
     tb_check32("pipe len", pipe_inst_len, 32'd4);
     tb_check32("pipe pred pc", pipe_pred_pc, `RESET_PC + 32'd4);
     `TB_TICK(clk);
+    ifu_rsp_valid = 1'b0;
     #1;
-    tb_check1("pipe consumed", pipe_valid, 1'b0);
+    tb_check1("direct rsp not buffered again", pipe_valid, 1'b0);
+    tb_check32("next fetch pc", ifu_req_addr, `RESET_PC + 32'd4);
 
     pipe_ready = 1'b0;
     ifu_rsp_valid = 1'b1;

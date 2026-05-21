@@ -1,0 +1,5 @@
+[TEST] tb_icache
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/single/vsrc -Icommon -s tb_icache -o build/tb_icache.vvp tests/tb_icache.sv /home/lyg/PA/ysyx-workbench/npc/single/vsrc/ICache.v
+[PASS] tb_icache
+common/tb_common.svh:32: $finish called at 94 (1s)
+[RESULT] PASS

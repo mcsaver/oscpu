@@ -1,0 +1,5 @@
+[TEST] tb_memory_stage
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/single/vsrc -Icommon -s tb_memory_stage -o build/tb_memory_stage.vvp tests/tb_memory_stage.sv /home/lyg/PA/ysyx-workbench/npc/single/vsrc/LSUControl.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/LSUDataPath.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/LSU.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/MemoryStageControl.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/MemoryStage.v
+[PASS] tb_memory_stage
+common/tb_common.svh:32: $finish called at 22 (1s)
+[RESULT] PASS

@@ -97,6 +97,15 @@ config NPC_DEFAULT_PROGRESS_INTERVAL
     Periodically print execution progress during long-running continuous runs.
     Use 0 to disable progress output by default.
 
+config NPC_DIFFTEST
+  bool "Build difftest support"
+  default n
+  help
+    Build the NPC-to-reference DiffTest runtime and enable it by default at
+    startup. Use --no-diff for one-off bare runs, or disable this in
+    performance configs to omit the reference loader and commit hot-path
+    difftest checks entirely.
+
 config NPC_SDB
   bool "Enable monitor debugger"
   default y

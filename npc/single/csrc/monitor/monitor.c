@@ -21,12 +21,15 @@
 
 static NpcSimConfig g_config;
 
-/* 对齐参考工程的 welcome 输出：Trace 状态、编译时间、ISA 名称 */
+/* 对齐参考工程的 welcome 输出：Trace/DiffTest 状态、编译时间、ISA 名称 */
 static void welcome(void) {
   /* OFF 红色、ON 绿色；riscv32 黄字红底，与参考工程配色一致 */
   LogBothTag("welcome", "Trace: %s",
              g_config.trace ? ANSI_FG_GREEN "ON" ANSI_NONE
                             : ANSI_FG_RED   "OFF" ANSI_NONE);
+  LogBothTag("welcome", "Difftest: %s",
+             g_config.difftest ? ANSI_FG_GREEN "ON" ANSI_NONE
+                               : ANSI_FG_RED   "OFF" ANSI_NONE);
   LogBothTag("welcome", "Build time: %s, %s", __TIME__, __DATE__);
   printf("Welcome to " ANSI_FG_YELLOW ANSI_BG_RED "riscv32" ANSI_NONE "-NPC!\n");
   printf("For help, type \"help\"\n");
@@ -34,19 +37,28 @@ static void welcome(void) {
 
 /* 解析命令行参数，结果写入 config */
 static bool parse_args(int argc, char **argv, NpcSimConfig *config) {
+  enum {
+    OPT_NO_PROGRESS = 1000,
+    OPT_NO_DIFF,
+  };
+
   static const struct option long_opts[] = {
-    {"batch",    no_argument,       NULL, 'b'},
-    {"image",    required_argument, NULL, 'i'},
-    {"max",      required_argument, NULL, 'm'},
-    {"log",      optional_argument, NULL, 'l'},
-    {"trace",    optional_argument, NULL, 't'},
-    {"progress", optional_argument, NULL, 'P'},
-    {"itrace",   no_argument,       NULL, 'I'},
-    {"mtrace",   no_argument,       NULL, 'M'},
-    {"dtrace",   no_argument,       NULL, 'D'},
-    {"diff",     required_argument, NULL, 'F'},
-    {"diff-port",required_argument, NULL, 'p'},
-    {"help",     no_argument,       NULL, 'h'},
+    {"batch",             no_argument,       NULL, 'b'},
+    {"image",             required_argument, NULL, 'i'},
+    {"max",               required_argument, NULL, 'm'},
+    {"max-cycles",        required_argument, NULL, 'm'},
+    {"log",               optional_argument, NULL, 'l'},
+    {"trace",             optional_argument, NULL, 't'},
+    {"progress",          optional_argument, NULL, 'P'},
+    {"progress-interval", required_argument, NULL, 'P'},
+    {"no-progress",       no_argument,       NULL, OPT_NO_PROGRESS},
+    {"itrace",            no_argument,       NULL, 'I'},
+    {"mtrace",            no_argument,       NULL, 'M'},
+    {"dtrace",            no_argument,       NULL, 'D'},
+    {"diff",              required_argument, NULL, 'F'},
+    {"diff-port",         required_argument, NULL, 'p'},
+    {"no-diff",           no_argument,       NULL, OPT_NO_DIFF},
+    {"help",              no_argument,       NULL, 'h'},
     {NULL, 0, NULL, 0},
   };
 
@@ -91,20 +103,41 @@ static bool parse_args(int argc, char **argv, NpcSimConfig *config) {
           config->progress_interval = NPC_SUGGESTED_PROGRESS_INTERVAL;
         }
         break;
+      case OPT_NO_PROGRESS:
+        config->progress_interval = 0;
+        break;
       case 'I': config->itrace = true; break;
       case 'M': config->mtrace = true; break;
       case 'D': config->dtrace = true; break;
       case 'F':
+#if CONFIG_NPC_DIFFTEST
+        /* 默认已开启 difftest；该选项保留给用户显式指定 reference so。 */
         config->difftest = true;
-        if (optarg && strcmp(optarg, "default") != 0) {
+        if (optarg && strcmp(optarg, "default") == 0) {
+          strncpy(config->diff_so_path, NPC_DEFAULT_DIFF_SO, NPC_PATH_MAX - 1);
+          config->diff_so_path[NPC_PATH_MAX - 1] = '\0';
+        } else if (optarg) {
           strncpy(config->diff_so_path, optarg, NPC_PATH_MAX - 1);
           config->diff_so_path[NPC_PATH_MAX - 1] = '\0';
         }
+#else
+        fprintf(stderr, "[npc-diff] --diff requested, but CONFIG_NPC_DIFFTEST is disabled.\n"
+                        "           Enable it in menuconfig or use default_defconfig, then rebuild.\n");
+        return false;
+#endif
+        break;
+      case OPT_NO_DIFF:
+        config->difftest = false;
         break;
       case 'p': {
+#if CONFIG_NPC_DIFFTEST
         char *end = NULL;
         long val = strtol(optarg, &end, 10);
         if (end && *end == '\0' && val > 0) config->diff_port = (int)val;
+#else
+        fprintf(stderr, "[npc-diff] --diff-port is unavailable because CONFIG_NPC_DIFFTEST is disabled.\n");
+        return false;
+#endif
         break;
       }
       case 'h':
@@ -112,14 +145,24 @@ static bool parse_args(int argc, char **argv, NpcSimConfig *config) {
         printf("  -b, --batch          batch mode (no SDB)\n");
         printf("  -i, --image=FILE     load binary image\n");
         printf("  -m, --max=N          max cycles (0=unlimited)\n");
+        printf("      --max-cycles=N   compatibility alias for --max\n");
         printf("  -l, --log[=FILE]     enable log to file\n");
         printf("  -t, --trace[=FILE]   enable VCD trace\n");
         printf("  -P, --progress[=N]   progress reporting interval\n");
+        printf("      --progress-interval=N compatibility alias for --progress=N\n");
+        printf("      --no-progress    disable progress reporting\n");
         printf("  -I, --itrace         enable instruction trace\n");
         printf("  -M, --mtrace         enable memory trace\n");
         printf("  -D, --dtrace         enable device trace\n");
-        printf("  -F, --diff=SO        enable difftest with reference .so (use 'default' for built-in path)\n");
+#if CONFIG_NPC_DIFFTEST
+        printf("  -F, --diff=SO        set difftest reference .so (default: built-in NEMU reference)\n");
         printf("      --diff-port=N    difftest reference port (default 1234)\n");
+        printf("      --no-diff        disable difftest for this run\n");
+#else
+        printf("  -F, --diff=SO        unavailable: rebuild with CONFIG_NPC_DIFFTEST=y\n");
+        printf("      --diff-port=N    unavailable: rebuild with CONFIG_NPC_DIFFTEST=y\n");
+        printf("      --no-diff        accepted as a no-op; difftest is not built\n");
+#endif
         return false;
       default:
         return false;

@@ -6,22 +6,31 @@ module NpcCore #(
   input clk,
   input rst,
 
-  output ifu_req_valid_o,
-  input ifu_req_ready_i,
-  output [`XLEN-1:0] ifu_req_addr_o,
-  input ifu_rsp_valid_i,
-  input [`XLEN-1:0] ifu_rsp_data_i,
-  input ifu_rsp_error_i,
+  output ifu_axi_arvalid_o,
+  input ifu_axi_arready_i,
+  output [`XLEN-1:0] ifu_axi_araddr_o,
+  input ifu_axi_rvalid_i,
+  output ifu_axi_rready_o,
+  input [`XLEN-1:0] ifu_axi_rdata_i,
+  input [1:0] ifu_axi_rresp_i,
 
-  output lsu_req_valid_o,
-  input lsu_req_ready_i,
-  output lsu_req_write_o,
-  output [`XLEN-1:0] lsu_req_addr_o,
-  output [`XLEN-1:0] lsu_req_wdata_o,
-  output [3:0] lsu_req_wstrb_o,
-  input lsu_rsp_valid_i,
-  input [`XLEN-1:0] lsu_rsp_rdata_i,
-  input lsu_rsp_error_i,
+  output lsu_axi_arvalid_o,
+  input lsu_axi_arready_i,
+  output [`XLEN-1:0] lsu_axi_araddr_o,
+  input lsu_axi_rvalid_i,
+  output lsu_axi_rready_o,
+  input [`XLEN-1:0] lsu_axi_rdata_i,
+  input [1:0] lsu_axi_rresp_i,
+  output lsu_axi_awvalid_o,
+  input lsu_axi_awready_i,
+  output [`XLEN-1:0] lsu_axi_awaddr_o,
+  output lsu_axi_wvalid_o,
+  input lsu_axi_wready_i,
+  output [`XLEN-1:0] lsu_axi_wdata_o,
+  output [3:0] lsu_axi_wstrb_o,
+  input lsu_axi_bvalid_i,
+  output lsu_axi_bready_o,
+  input [1:0] lsu_axi_bresp_i,
 
   output commit_valid_o,
   output [`XLEN-1:0] commit_pc_o,
@@ -246,6 +255,9 @@ module NpcCore #(
     end
   endfunction
 
+  // CoreMark 当前条件分支误预测仍约 428 万次，扩大 gshare 表项以降低不同分支间的 alias。
+  localparam BPU_BHT_INDEX_W = 12;
+
   wire fetch_pending_w;
   wire [`XLEN-1:0] fetch_pc_w;
   wire if_stage_valid_w;
@@ -253,6 +265,7 @@ module NpcCore #(
   wire [`INST_W-1:0] if_stage_inst_w;
   wire [`XLEN-1:0] if_stage_inst_len_w;
   wire [`XLEN-1:0] if_stage_pred_pc_w;
+  wire [BPU_BHT_INDEX_W-1:0] if_stage_bht_idx_w;
   wire if_stage_error_w;
   wire ifu_cpu_req_valid_w;
   wire ifu_cpu_req_ready_w;
@@ -266,6 +279,7 @@ module NpcCore #(
   wire [`INST_W-1:0] if_id_inst_q;
   wire [`XLEN-1:0] if_id_inst_len_q;
   wire [`XLEN-1:0] if_id_pred_pc_q;
+  wire [BPU_BHT_INDEX_W-1:0] if_id_bht_idx_q;
   wire if_id_error_q;
 
   wire id_ex_valid_q;
@@ -273,6 +287,7 @@ module NpcCore #(
   wire [`INST_W-1:0] id_ex_inst_q;
   wire [`XLEN-1:0] id_ex_inst_len_q;
   wire [`XLEN-1:0] id_ex_pred_pc_q;
+  wire [BPU_BHT_INDEX_W-1:0] id_ex_bht_idx_q;
   /* verilator lint_off UNUSEDSIGNAL */
   wire [`CTRL_BUS_W-1:0] id_ex_ctrl_q;
   /* verilator lint_on UNUSEDSIGNAL */
@@ -338,6 +353,7 @@ module NpcCore #(
   reg rf_wen_q;
   reg [`REG_ADDR_W-1:0] rf_waddr_q;
   reg [`XLEN-1:0] rf_wdata_q;
+  reg cache_flush_active_q;
   wire rf_we_w = rf_wen_q && ~halt_q && ~fatal_trap_q;
   wire [`REG_ADDR_W-1:0] rf_waddr_w = rf_waddr_q;
   wire [`XLEN-1:0] rf_wdata_w = rf_wdata_q;
@@ -554,6 +570,17 @@ module NpcCore #(
   wire [`XLEN-1:0] mem_wb_load_wb_data_w =
       mem_wb_from_mem_w ? (ex_mem_load_w ? lsu_mem_load_data_w : ex_mem_wb_data_q) :
                           ex_mem_wb_data_q;
+  wire dcache_flush_done_w;
+  wire fence_flush_candidate_w = id_ex_valid_q && id_ex_fence_i_w &&
+                                 ~halt_q && ~fatal_trap_q &&
+                                 ~ex_fetch_fault_w && ~ex_illegal_w;
+  wire dcache_flush_can_start_w = fence_flush_candidate_w &&
+                                  ~cache_flush_active_q &&
+                                  ~ex_mem_valid_q &&
+                                  ~mem_pending_w;
+  wire dcache_flush_req_w = cache_flush_active_q || dcache_flush_can_start_w;
+  wire fence_flush_wait_w = fence_flush_candidate_w &&
+                            ~(cache_flush_active_q && dcache_flush_done_w);
 
   CacheControl u_cache_control (
     .ex_fire_i(ex_fire_w),
@@ -584,7 +611,7 @@ module NpcCore #(
     .ex_mem_is_mem_i(ex_mem_is_mem_w),
     .mem_response_i(mem_response_w),
     .mem_fault_i(mem_fault_w),
-    .ex_wait_i(ex_muldiv_wait_w),
+    .ex_wait_i(ex_muldiv_wait_w | fence_flush_wait_w),
     .halt_i(halt_q),
     .fatal_i(fatal_trap_q),
     .ex_fetch_fault_i(ex_fetch_fault_w),
@@ -618,7 +645,8 @@ module NpcCore #(
   );
 
   IfStage #(
-    .RESET_PC(RESET_PC)
+    .RESET_PC(RESET_PC),
+    .BPU_BHT_INDEX_W(BPU_BHT_INDEX_W)
   ) u_if_stage (
     .clk(clk),
     .rst(rst),
@@ -634,11 +662,13 @@ module NpcCore #(
     .bpu_update_seq_pc_i(ex_pc_plus4_w),
     .bpu_update_next_pc_i(ex_control_next_pc_w),
     .bpu_update_taken_i(ex_control_redirect_w),
+    .bpu_update_bht_idx_i(id_ex_bht_idx_q),
     .pipe_valid_o(if_stage_valid_w),
     .pipe_pc_o(if_stage_pc_w),
     .pipe_inst_o(if_stage_inst_w),
     .pipe_inst_len_o(if_stage_inst_len_w),
     .pipe_pred_pc_o(if_stage_pred_pc_w),
+    .pipe_bht_idx_o(if_stage_bht_idx_w),
     .pipe_error_o(if_stage_error_w),
     .ifu_req_valid_o(ifu_cpu_req_valid_w),
     .ifu_req_ready_i(ifu_cpu_req_ready_w),
@@ -661,15 +691,18 @@ module NpcCore #(
     .cpu_rsp_valid_o(ifu_cpu_rsp_valid_w),
     .cpu_rsp_data_o(ifu_cpu_rsp_data_w),
     .cpu_rsp_error_o(ifu_cpu_rsp_error_w),
-    .mem_req_valid_o(ifu_req_valid_o),
-    .mem_req_ready_i(ifu_req_ready_i),
-    .mem_req_addr_o(ifu_req_addr_o),
-    .mem_rsp_valid_i(ifu_rsp_valid_i),
-    .mem_rsp_data_i(ifu_rsp_data_i),
-    .mem_rsp_error_i(ifu_rsp_error_i)
+    .axi_arvalid_o(ifu_axi_arvalid_o),
+    .axi_arready_i(ifu_axi_arready_i),
+    .axi_araddr_o(ifu_axi_araddr_o),
+    .axi_rvalid_i(ifu_axi_rvalid_i),
+    .axi_rready_o(ifu_axi_rready_o),
+    .axi_rdata_i(ifu_axi_rdata_i),
+    .axi_rresp_i(ifu_axi_rresp_i)
   );
 
-  IfIdPipeReg u_if_id_pipe (
+  IfIdPipeReg #(
+    .BPU_BHT_INDEX_W(BPU_BHT_INDEX_W)
+  ) u_if_id_pipe (
     .clk(clk),
     .rst(rst),
     .clear_i(ex_any_flush_w),
@@ -679,12 +712,14 @@ module NpcCore #(
     .load_inst_i(if_stage_inst_w),
     .load_inst_len_i(if_stage_inst_len_w),
     .load_pred_pc_i(if_stage_pred_pc_w),
+    .load_bht_idx_i(if_stage_bht_idx_w),
     .load_error_i(if_stage_error_w),
     .valid_o(if_id_valid_q),
     .pc_o(if_id_pc_q),
     .inst_o(if_id_inst_q),
     .inst_len_o(if_id_inst_len_q),
     .pred_pc_o(if_id_pred_pc_q),
+    .bht_idx_o(if_id_bht_idx_q),
     .error_o(if_id_error_q)
   );
 
@@ -762,7 +797,9 @@ module NpcCore #(
     .wb_data_o(ex_wbu_data_w)
   );
 
-  IdExPipeReg u_id_ex_pipe (
+  IdExPipeReg #(
+    .BPU_BHT_INDEX_W(BPU_BHT_INDEX_W)
+  ) u_id_ex_pipe (
     .clk(clk),
     .rst(rst),
     .clear_i(mem_fault_w | ex_exception_w | ebreak_fire_w),
@@ -772,6 +809,7 @@ module NpcCore #(
     .load_inst_i(if_id_inst_q),
     .load_inst_len_i(if_id_inst_len_q),
     .load_pred_pc_i(if_id_pred_pc_q),
+    .load_bht_idx_i(if_id_bht_idx_q),
     .load_ctrl_i(dec_ctrl_w),
     .load_imm_i(dec_imm_w),
     .load_rs1_idx_i(dec_rs1_idx_w),
@@ -785,6 +823,7 @@ module NpcCore #(
     .inst_o(id_ex_inst_q),
     .inst_len_o(id_ex_inst_len_q),
     .pred_pc_o(id_ex_pred_pc_q),
+    .bht_idx_o(id_ex_bht_idx_q),
     .ctrl_o(id_ex_ctrl_q),
     .imm_o(id_ex_imm_q),
     .rs1_idx_o(id_ex_rs1_idx_q),
@@ -861,6 +900,8 @@ module NpcCore #(
     .clk(clk),
     .rst(rst),
     .invalidate_i(cache_flush_valid_w),
+    .flush_i(dcache_flush_req_w),
+    .flush_done_o(dcache_flush_done_w),
     .cpu_req_valid_i(lsu_cpu_req_valid_w),
     .cpu_req_ready_o(lsu_cpu_req_ready_w),
     .cpu_req_write_i(lsu_cpu_req_write_w),
@@ -870,15 +911,23 @@ module NpcCore #(
     .cpu_rsp_valid_o(lsu_cpu_rsp_valid_w),
     .cpu_rsp_rdata_o(lsu_cpu_rsp_rdata_w),
     .cpu_rsp_error_o(lsu_cpu_rsp_error_w),
-    .mem_req_valid_o(lsu_req_valid_o),
-    .mem_req_ready_i(lsu_req_ready_i),
-    .mem_req_write_o(lsu_req_write_o),
-    .mem_req_addr_o(lsu_req_addr_o),
-    .mem_req_wdata_o(lsu_req_wdata_o),
-    .mem_req_wstrb_o(lsu_req_wstrb_o),
-    .mem_rsp_valid_i(lsu_rsp_valid_i),
-    .mem_rsp_rdata_i(lsu_rsp_rdata_i),
-    .mem_rsp_error_i(lsu_rsp_error_i)
+    .axi_arvalid_o(lsu_axi_arvalid_o),
+    .axi_arready_i(lsu_axi_arready_i),
+    .axi_araddr_o(lsu_axi_araddr_o),
+    .axi_rvalid_i(lsu_axi_rvalid_i),
+    .axi_rready_o(lsu_axi_rready_o),
+    .axi_rdata_i(lsu_axi_rdata_i),
+    .axi_rresp_i(lsu_axi_rresp_i),
+    .axi_awvalid_o(lsu_axi_awvalid_o),
+    .axi_awready_i(lsu_axi_awready_i),
+    .axi_awaddr_o(lsu_axi_awaddr_o),
+    .axi_wvalid_o(lsu_axi_wvalid_o),
+    .axi_wready_i(lsu_axi_wready_i),
+    .axi_wdata_o(lsu_axi_wdata_o),
+    .axi_wstrb_o(lsu_axi_wstrb_o),
+    .axi_bvalid_i(lsu_axi_bvalid_i),
+    .axi_bready_o(lsu_axi_bready_o),
+    .axi_bresp_i(lsu_axi_bresp_i)
   );
 
   MemWbPipeReg u_mem_wb_pipe (
@@ -923,7 +972,8 @@ module NpcCore #(
   assign debug_pc_o = halted_o ? stop_pc_q : fetch_pc_w;
   assign debug_state_o = halt_q ? `CORE_STATE_HALT :
                          fatal_trap_q ? `CORE_STATE_TRAP :
-                         {(fetch_pending_w | mem_pending_w | ex_muldiv_wait_w),
+                         {(fetch_pending_w | mem_pending_w |
+                           ex_muldiv_wait_w | fence_flush_wait_w),
                           if_id_valid_q, id_ex_valid_q, ex_mem_valid_q};
 
   always @(posedge clk) begin
@@ -947,8 +997,17 @@ module NpcCore #(
       rf_wen_q <= 1'b0;
       rf_waddr_q <= {`REG_ADDR_W{1'b0}};
       rf_wdata_q <= {`XLEN{1'b0}};
+      cache_flush_active_q <= 1'b0;
     end else begin
       rf_wen_q <= 1'b0;
+
+      if (mem_fault_w || ex_exception_w || ebreak_fire_w || halt_q || fatal_trap_q) begin
+        cache_flush_active_q <= 1'b0;
+      end else if (dcache_flush_can_start_w) begin
+        cache_flush_active_q <= 1'b1;
+      end else if (cache_flush_active_q && dcache_flush_done_w && ex_fire_w) begin
+        cache_flush_active_q <= 1'b0;
+      end
 
       if (mem_fault_w) begin
         if (trap_target_w == {`XLEN{1'b0}}) begin

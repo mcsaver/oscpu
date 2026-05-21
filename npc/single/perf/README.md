@@ -23,6 +23,7 @@ perf/
 | callgrind | 指令级精确计数 | 20-40x 慢，短程序 |
 | Verilator -O3 | RTL 转 C++ 优化等级 | 构建时间增加 |
 | Icarus Verilog | 模块级 RTL 自检 | 由 `npc/single/testbench` 驱动，结果归档到 `results/<timestamp>/module-testbench/` |
+| pipe_test | 流水线级气泡提取 | 由 `npc/single/testbench` 驱动，结果归档到 `results/<timestamp>/pipe-test/` |
 
 ## 模块级自检结果
 
@@ -38,9 +39,30 @@ make -C npc/single/testbench run
 - 结果：21/21 PASS
 - 同轮补充验证：`make -C npc/single lint` PASS
 
+## 流水线级气泡测试
+
+`pipe_test` 用于把 MEM 级 `MemoryStage+DCache` 与 ID 级 `PipelineControl` 放在同一个微基准里，提取 load miss、DCache load hit、write-through store 和 load-use 气泡：
+
+```sh
+make -C npc/single/testbench pipe_test
+```
+
+本轮 DCache 命中读优化证据：
+
+- 基线：`results/20260520-130540/pipe-test/summary.txt`，`mem_stage_dcache_load_hit_wait_cycles=2`
+- 优化后：`results/20260520-131123/pipe-test/summary.txt`，`mem_stage_dcache_load_hit_wait_cycles=0`，`removable_load_hit_bubbles=0`
+
 ## 优化记录
 
 > 以下按日期追加，保留历史基线用于对比。
+
+### 2026-05-20 DCache load-hit 流水线气泡优化
+
+- **基线**：`pipe_test` 显示 DCache cacheable load hit 仍有 2 个 MEM 级等待周期。
+- **根因**：`DCache.v` 命中读也必须从 `S_IDLE` 进入 `S_LOOKUP/S_RESP`；`MemoryStageControl.v` 只接受 pending 后的响应，不能消费 req/rsp 同周期完成。
+- **优化**：`DCache.v` 在 `S_IDLE` 对 cacheable load hit 组合返回；`MemoryStageControl.v` 增加同周期响应识别。
+- **结果**：`mem_stage_dcache_load_hit_wait_cycles` 从 2 降到 0；load miss 仍为 51，write-through store 仍为 5，load-use 仍为 1。
+- **验证**：模块 testbench 21/21 PASS、`pipe_test` PASS、`make -C npc/single lint` PASS、`cpu-tests load-store` PASS。
 
 ### 2026-04-16 首轮优化
 

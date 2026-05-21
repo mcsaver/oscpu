@@ -24,10 +24,13 @@ module MemoryStageControl (
 
   wire ex_is_mem_w = ex_load_i | ex_store_i;
   wire req_fire_w = lsu_req_valid_o & lsu_req_ready_i;
+  wire pending_rsp_w = mem_pending_q & lsu_rsp_valid_i;
+  wire same_cycle_rsp_w = req_fire_w & lsu_rsp_valid_i;
 
   // 访存控制面只管理“已发请求但尚未响应”的生命周期，数据 lane 由 LSU 处理。
   assign lsu_req_valid_o = ex_valid_i & ex_is_mem_w & (~mem_pending_q);
-  assign response_o = ex_valid_i & ex_is_mem_w & mem_pending_q & lsu_rsp_valid_i;
+  // DCache load hit 允许 req/rsp 同周期完成，此时不需要进入 pending 状态。
+  assign response_o = ex_valid_i & ex_is_mem_w & (pending_rsp_w | same_cycle_rsp_w);
   assign fault_o = response_o & lsu_rsp_error_i;
   assign pending_o = mem_pending_q;
 

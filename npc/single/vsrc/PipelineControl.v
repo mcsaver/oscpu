@@ -60,7 +60,6 @@ module PipelineControl (
   output bpu_update_valid_o
 );
 
-  wire load_use_hazard_w;
   wire ex_mem_leave_w;
   wire ex_mem_can_accept_w;
   wire raw_ex_exception_w;
@@ -69,10 +68,13 @@ module PipelineControl (
   wire ex_to_mem_w;
   wire id_ex_slot_free_w;
 
-  assign load_use_hazard_w = if_id_valid_i && id_ex_valid_i && id_ex_load_i &&
-                             (id_ex_rd_idx_i != {`REG_ADDR_W{1'b0}}) &&
-                             ((dec_uses_rs1_i && (dec_rs1_idx_i == id_ex_rd_idx_i)) ||
-                              (dec_uses_rs2_i && (dec_rs2_idx_i == id_ex_rd_idx_i)));
+  wire load_use_hazard_w = if_id_valid_i && id_ex_valid_i && id_ex_load_i &&
+                           (id_ex_rd_idx_i != {`REG_ADDR_W{1'b0}}) &&
+                           ((dec_uses_rs1_i && (dec_rs1_idx_i == id_ex_rd_idx_i)) ||
+                            (dec_uses_rs2_i && (dec_rs2_idx_i == id_ex_rd_idx_i)));
+  /* verilator lint_off UNUSEDSIGNAL */
+  wire load_use_can_wait_in_ex_w = load_use_hazard_w;
+  /* verilator lint_on UNUSEDSIGNAL */
 
   assign ex_mem_leave_w = ex_mem_valid_i &&
                           (ex_mem_is_mem_i ? mem_response_i : 1'b1);
@@ -98,7 +100,8 @@ module PipelineControl (
 
   assign id_ex_slot_free_w = (~id_ex_valid_i) || ex_fire_o || mem_fault_i;
   assign id_accept_o = if_id_valid_i && id_ex_slot_free_w &&
-                       ~load_use_hazard_w && ~ex_any_flush_o &&
+                       // load-use 不再在 ID 固定插泡；若 load miss，消费者进入 EX 后由 ex_mem_can_accept 背压等待。
+                       ~ex_any_flush_o &&
                        ~halt_i && ~fatal_i;
   assign if_id_consume_o = id_accept_o;
   assign if_id_can_refill_o = (~if_id_valid_i) || if_id_consume_o;

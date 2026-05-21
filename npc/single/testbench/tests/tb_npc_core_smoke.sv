@@ -6,21 +6,30 @@ module tb_npc_core_smoke;
 
   reg clk;
   reg rst;
-  wire ifu_req_valid;
-  reg ifu_req_ready;
-  wire [`XLEN-1:0] ifu_req_addr;
-  reg ifu_rsp_valid;
-  reg [`XLEN-1:0] ifu_rsp_data;
-  reg ifu_rsp_error;
-  wire lsu_req_valid;
-  reg lsu_req_ready;
-  wire lsu_req_write;
-  wire [`XLEN-1:0] lsu_req_addr;
-  wire [`XLEN-1:0] lsu_req_wdata;
-  wire [3:0] lsu_req_wstrb;
-  reg lsu_rsp_valid;
-  reg [`XLEN-1:0] lsu_rsp_rdata;
-  reg lsu_rsp_error;
+  wire ifu_axi_arvalid;
+  reg ifu_axi_arready;
+  wire [`XLEN-1:0] ifu_axi_araddr;
+  reg ifu_axi_rvalid;
+  wire ifu_axi_rready;
+  reg [`XLEN-1:0] ifu_axi_rdata;
+  reg [1:0] ifu_axi_rresp;
+  wire lsu_axi_arvalid;
+  reg lsu_axi_arready;
+  wire [`XLEN-1:0] lsu_axi_araddr;
+  reg lsu_axi_rvalid;
+  wire lsu_axi_rready;
+  reg [`XLEN-1:0] lsu_axi_rdata;
+  reg [1:0] lsu_axi_rresp;
+  wire lsu_axi_awvalid;
+  reg lsu_axi_awready;
+  wire [`XLEN-1:0] lsu_axi_awaddr;
+  wire lsu_axi_wvalid;
+  reg lsu_axi_wready;
+  wire [`XLEN-1:0] lsu_axi_wdata;
+  wire [3:0] lsu_axi_wstrb;
+  reg lsu_axi_bvalid;
+  wire lsu_axi_bready;
+  reg [1:0] lsu_axi_bresp;
   wire commit_valid;
   wire [`XLEN-1:0] commit_pc;
   wire [`INST_W-1:0] commit_inst;
@@ -43,9 +52,6 @@ module tb_npc_core_smoke;
 
   reg ifu_pending;
   reg [`XLEN-1:0] ifu_pending_data;
-  reg lsu_pending;
-  reg [`XLEN-1:0] lsu_pending_data;
-  reg lsu_pending_error;
   integer cycle;
   integer commits;
   integer ifu_seen;
@@ -53,21 +59,30 @@ module tb_npc_core_smoke;
   NpcCore dut (
     .clk(clk),
     .rst(rst),
-    .ifu_req_valid_o(ifu_req_valid),
-    .ifu_req_ready_i(ifu_req_ready),
-    .ifu_req_addr_o(ifu_req_addr),
-    .ifu_rsp_valid_i(ifu_rsp_valid),
-    .ifu_rsp_data_i(ifu_rsp_data),
-    .ifu_rsp_error_i(ifu_rsp_error),
-    .lsu_req_valid_o(lsu_req_valid),
-    .lsu_req_ready_i(lsu_req_ready),
-    .lsu_req_write_o(lsu_req_write),
-    .lsu_req_addr_o(lsu_req_addr),
-    .lsu_req_wdata_o(lsu_req_wdata),
-    .lsu_req_wstrb_o(lsu_req_wstrb),
-    .lsu_rsp_valid_i(lsu_rsp_valid),
-    .lsu_rsp_rdata_i(lsu_rsp_rdata),
-    .lsu_rsp_error_i(lsu_rsp_error),
+    .ifu_axi_arvalid_o(ifu_axi_arvalid),
+    .ifu_axi_arready_i(ifu_axi_arready),
+    .ifu_axi_araddr_o(ifu_axi_araddr),
+    .ifu_axi_rvalid_i(ifu_axi_rvalid),
+    .ifu_axi_rready_o(ifu_axi_rready),
+    .ifu_axi_rdata_i(ifu_axi_rdata),
+    .ifu_axi_rresp_i(ifu_axi_rresp),
+    .lsu_axi_arvalid_o(lsu_axi_arvalid),
+    .lsu_axi_arready_i(lsu_axi_arready),
+    .lsu_axi_araddr_o(lsu_axi_araddr),
+    .lsu_axi_rvalid_i(lsu_axi_rvalid),
+    .lsu_axi_rready_o(lsu_axi_rready),
+    .lsu_axi_rdata_i(lsu_axi_rdata),
+    .lsu_axi_rresp_i(lsu_axi_rresp),
+    .lsu_axi_awvalid_o(lsu_axi_awvalid),
+    .lsu_axi_awready_i(lsu_axi_awready),
+    .lsu_axi_awaddr_o(lsu_axi_awaddr),
+    .lsu_axi_wvalid_o(lsu_axi_wvalid),
+    .lsu_axi_wready_i(lsu_axi_wready),
+    .lsu_axi_wdata_o(lsu_axi_wdata),
+    .lsu_axi_wstrb_o(lsu_axi_wstrb),
+    .lsu_axi_bvalid_i(lsu_axi_bvalid),
+    .lsu_axi_bready_o(lsu_axi_bready),
+    .lsu_axi_bresp_i(lsu_axi_bresp),
     .commit_valid_o(commit_valid),
     .commit_pc_o(commit_pc),
     .commit_inst_o(commit_inst),
@@ -105,34 +120,27 @@ module tb_npc_core_smoke;
   task automatic step_core;
     reg next_ifu_pending;
     reg [`XLEN-1:0] next_ifu_data;
-    reg next_lsu_pending;
-    reg [`XLEN-1:0] next_lsu_data;
-    reg next_lsu_error;
     begin
-      ifu_rsp_valid = ifu_pending;
-      ifu_rsp_data = ifu_pending_data;
-      ifu_rsp_error = 1'b0;
-      lsu_rsp_valid = lsu_pending;
-      lsu_rsp_rdata = lsu_pending_data;
-      lsu_rsp_error = lsu_pending_error;
+      ifu_axi_rvalid = ifu_pending;
+      ifu_axi_rdata = ifu_pending_data;
+      ifu_axi_rresp = 2'b00;
+      lsu_axi_rvalid = 1'b0;
+      lsu_axi_rdata = 32'h0;
+      lsu_axi_rresp = 2'b00;
+      lsu_axi_bvalid = 1'b0;
+      lsu_axi_bresp = 2'b00;
 
-      next_ifu_pending = ifu_req_valid && ifu_req_ready;
-      next_ifu_data = imem_word(ifu_req_addr);
+      next_ifu_pending = ifu_axi_arvalid && ifu_axi_arready;
+      next_ifu_data = imem_word(ifu_axi_araddr);
       if (next_ifu_pending && (ifu_seen < 16)) begin
-        tb_check32("core fill request addr", ifu_req_addr, 32'h8000_0000 + (ifu_seen << 2));
+        tb_check32("core fill request addr", ifu_axi_araddr, 32'h8000_0000 + (ifu_seen << 2));
         ifu_seen = ifu_seen + 1;
       end
-      next_lsu_pending = lsu_req_valid && lsu_req_ready;
-      next_lsu_data = 32'h0;
-      next_lsu_error = 1'b0;
 
       `TB_TICK(clk);
 
       ifu_pending = next_ifu_pending;
       ifu_pending_data = next_ifu_data;
-      lsu_pending = next_lsu_pending;
-      lsu_pending_data = next_lsu_data;
-      lsu_pending_error = next_lsu_error;
 
       if (commit_valid) begin
         commits = commits + 1;
@@ -154,19 +162,20 @@ module tb_npc_core_smoke;
     tb_errors = 0;
     clk = 1'b0;
     rst = 1'b1;
-    ifu_req_ready = 1'b1;
-    ifu_rsp_valid = 1'b0;
-    ifu_rsp_data = 32'h0;
-    ifu_rsp_error = 1'b0;
-    lsu_req_ready = 1'b1;
-    lsu_rsp_valid = 1'b0;
-    lsu_rsp_rdata = 32'h0;
-    lsu_rsp_error = 1'b0;
+    ifu_axi_arready = 1'b1;
+    ifu_axi_rvalid = 1'b0;
+    ifu_axi_rdata = 32'h0;
+    ifu_axi_rresp = 2'b00;
+    lsu_axi_arready = 1'b1;
+    lsu_axi_rvalid = 1'b0;
+    lsu_axi_rdata = 32'h0;
+    lsu_axi_rresp = 2'b00;
+    lsu_axi_awready = 1'b1;
+    lsu_axi_wready = 1'b1;
+    lsu_axi_bvalid = 1'b0;
+    lsu_axi_bresp = 2'b00;
     ifu_pending = 1'b0;
     ifu_pending_data = 32'h0;
-    lsu_pending = 1'b0;
-    lsu_pending_data = 32'h0;
-    lsu_pending_error = 1'b0;
     commits = 0;
     ifu_seen = 0;
 
@@ -179,7 +188,8 @@ module tb_npc_core_smoke;
 
     tb_check1("no fatal trap during first fill", trap_valid, 1'b0);
     tb_check1("not halted during first fill", halted, 1'b0);
-    tb_check1("no data-side request in fetch smoke", lsu_req_valid, 1'b0);
+    tb_check1("no data-side axi read in fetch smoke", lsu_axi_arvalid, 1'b0);
+    tb_check1("no data-side axi write in fetch smoke", lsu_axi_awvalid | lsu_axi_wvalid, 1'b0);
     if (ifu_seen != 16) begin
       tb_errors = tb_errors + 1;
       $display("[CHECK-FAIL] expected 16 first-line fetch requests, got %0d", ifu_seen);

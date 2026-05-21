@@ -95,7 +95,8 @@ void npc_fini_disasm(void) {
   if (g_capstone_handle) { dlclose(g_capstone_handle); g_capstone_handle = NULL; }
   g_capstone_path[0] = '\0';
   g_disasm_ready = false;
-  g_cs_open = g_cs_disasm = NULL;
+  g_cs_open = NULL;
+  g_cs_disasm = NULL;
   g_cs_free = NULL;
   g_cs_close = NULL;
 }

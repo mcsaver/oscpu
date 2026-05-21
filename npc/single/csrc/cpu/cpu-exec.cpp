@@ -6,7 +6,6 @@
 
 #include "cpu/difftest.h"
 #include "device/device.h"
-#include "memory/cache.h"
 #include "monitor/disasm.h"
 #include "monitor/log.h"
 #include "monitor/trace.h"
@@ -45,14 +44,87 @@ static uint64_t g_cycle_limit        = NPC_DEFAULT_MAX_CYCLES;
 static uint64_t g_progress_interval  = NPC_DEFAULT_PROGRESS_INTERVAL;
 static volatile std::sig_atomic_t g_stop_requested = 0;
 
-/* 分支/跳转动态统计计数器：在每条指令提交时按 opcode 分类累加，
- * 用于输出 CPI 和分支预测相关的性能指标，方便与其他工程对比。 */
+struct CommitEvent {
+  bool     valid;
+  uint32_t pc;
+  uint32_t inst;
+  uint32_t next_pc;
+  bool     rd_en;
+  uint32_t rd_addr;
+  uint32_t rd_data;
+};
+
+struct ExitEvent {
+  bool     valid;
+  bool     is_ebreak;
+  bool     is_ecall;
+  uint32_t code;
+  uint32_t pc;
+};
+
+struct TrapEvent {
+  bool     valid;
+  uint32_t cause;
+  uint32_t pc;
+  uint32_t tval;
+};
+
+static CommitEvent g_commit_event = {};
+static ExitEvent   g_exit_event   = {};
+static TrapEvent   g_trap_event   = {};
+static uint32_t    g_shadow_gpr[32] = {};
+
+struct SimPerfStats {
+  uint64_t icache_access;
+  uint64_t icache_hit;
+  uint64_t icache_miss;
+  uint64_t dcache_access;
+  uint64_t dcache_hit;
+  uint64_t dcache_miss;
+  uint64_t dcache_load_access;
+  uint64_t dcache_load_hit;
+  uint64_t dcache_load_miss;
+  uint64_t dcache_store_access;
+  uint64_t dcache_store_hit;
+  uint64_t dcache_store_miss;
+  uint64_t dcache_writeback;
+  uint64_t dcache_write_through;
+};
+
+struct BpuStats {
+  uint64_t branch_total;
+  uint64_t branch_correct;
+  uint64_t branch_dir_correct;
+  uint64_t jal_total;
+  uint64_t jal_correct;
+  uint64_t jalr_total;
+  uint64_t jalr_correct;
+  uint64_t ret_total;
+  uint64_t ret_correct;
+  uint64_t btb_hit;
+  uint64_t btb_miss;
+  uint64_t bht_correct;
+  uint64_t bht_miss;
+  uint64_t bht_cold;
+  uint64_t ras_hit;
+  uint64_t ras_miss;
+  uint64_t ras_overflow;
+};
+
+struct BranchMissPcStat {
+  bool valid;
+  uint32_t pc;
+  uint64_t count;
+};
+
+/* 这些计数来自 NpcSimTop.sv 对 RTL 内部信号的层次化采样；host 只累加 DPI 事件。 */
+static SimPerfStats g_sim_perf = {};
+static BpuStats g_bpu_stats = {};
+static BranchMissPcStat g_branch_miss_pc_stats[256] = {};
 static uint64_t g_nr_branch       = 0;  // B-type 条件分支总数
 static uint64_t g_nr_branch_taken = 0;  // 条件分支中实际跳转的次数
 static uint64_t g_nr_jal          = 0;  // JAL 无条件跳转
 static uint64_t g_nr_jalr         = 0;  // JALR 间接跳转（含 ret）
-static uint32_t g_prev_commit_pc  = 0;  // 上一条提交指令的 PC
-static bool     g_prev_was_branch = false; // 上一条是否为条件分支
 
 static const char *kRegNames[32] = {
   "zero", "ra", "sp", "gp", "tp", "t0", "t1", "t2",
@@ -74,7 +146,162 @@ static uint64_t simulation_frequency(void) {
   return (npc_stats()->commits * 1000000ull) / npc_stats()->host_time_us;
 }
 
+static double ratio_percent(uint64_t part, uint64_t total) {
+  return total > 0 ? (double)part / (double)total * 100.0 : 0.0;
+}
+
 static void on_sigint(int) { g_stop_requested = 1; }
+
+static void clear_cycle_events(void) {
+  g_commit_event.valid = false;
+  g_exit_event.valid = false;
+  g_trap_event.valid = false;
+}
+
+static void reset_event_state(void) {
+  clear_cycle_events();
+  memset(g_shadow_gpr, 0, sizeof(g_shadow_gpr));
+  memset(&g_sim_perf, 0, sizeof(g_sim_perf));
+  memset(&g_bpu_stats, 0, sizeof(g_bpu_stats));
+  memset(g_branch_miss_pc_stats, 0, sizeof(g_branch_miss_pc_stats));
+}
+
+extern "C" void npc_commit_event(uint32_t pc, uint32_t inst, uint32_t next_pc,
+                                 uint32_t rd_en, uint32_t rd_addr, uint32_t rd_data) {
+  g_commit_event.valid = true;
+  g_commit_event.pc = pc;
+  g_commit_event.inst = inst;
+  g_commit_event.next_pc = next_pc;
+  g_commit_event.rd_en = rd_en != 0;
+  g_commit_event.rd_addr = rd_addr;
+  g_commit_event.rd_data = rd_data;
+
+  if (g_commit_event.rd_en && rd_addr > 0 && rd_addr < 32) {
+    g_shadow_gpr[rd_addr] = rd_data;
+  }
+  g_shadow_gpr[0] = 0;
+}
+
+extern "C" void npc_exit_event(uint32_t is_ebreak, uint32_t is_ecall,
+                               uint32_t code, uint32_t pc) {
+  g_exit_event.valid = true;
+  g_exit_event.is_ebreak = is_ebreak != 0;
+  g_exit_event.is_ecall = is_ecall != 0;
+  g_exit_event.code = code;
+  g_exit_event.pc = pc;
+}
+
+extern "C" void npc_trap_event(uint32_t cause, uint32_t pc, uint32_t tval) {
+  g_trap_event.valid = true;
+  g_trap_event.cause = cause;
+  g_trap_event.pc = pc;
+  g_trap_event.tval = tval;
+}
+
+extern "C" void npc_control_flow_event(uint32_t is_branch, uint32_t branch_taken,
+                                       uint32_t is_jal, uint32_t is_jalr) {
+  if (is_branch) {
+    g_nr_branch++;
+    if (branch_taken) g_nr_branch_taken++;
+  }
+  if (is_jal) g_nr_jal++;
+  if (is_jalr) g_nr_jalr++;
+}
+
+extern "C" void npc_bpu_lookup_event(uint32_t is_branch, uint32_t is_jalr,
+                                     uint32_t is_ret, uint32_t btb_hit,
+                                     uint32_t bht_valid, uint32_t ras_lookup,
+                                     uint32_t ras_hit, uint32_t ras_overflow) {
+  // lookup 类指标描述预测器表项质量；它按 IF 预测点计数，不参与架构行为。
+  if (is_branch && !bht_valid) g_bpu_stats.bht_cold++;
+  if (is_jalr) {
+    if (btb_hit) g_bpu_stats.btb_hit++;
+    else g_bpu_stats.btb_miss++;
+  }
+  if (is_ret && ras_lookup) {
+    if (ras_hit) g_bpu_stats.ras_hit++;
+    else g_bpu_stats.ras_miss++;
+  }
+  if (ras_overflow) g_bpu_stats.ras_overflow++;
+}
+
+static void record_branch_mispredict_pc(uint32_t pc) {
+  const uint32_t mask = (sizeof(g_branch_miss_pc_stats) / sizeof(g_branch_miss_pc_stats[0])) - 1u;
+  uint32_t pos = ((pc >> 1) * 2654435761u) & mask;
+  for (uint32_t probe = 0; probe <= mask; ++probe) {
+    BranchMissPcStat *slot = &g_branch_miss_pc_stats[(pos + probe) & mask];
+    if (!slot->valid) {
+      slot->valid = true;
+      slot->pc = pc;
+      slot->count = 1;
+      return;
+    }
+    if (slot->pc == pc) {
+      slot->count++;
+      return;
+    }
+  }
+}
+
+extern "C" void npc_bpu_resolve_event(uint32_t is_branch, uint32_t pc,
+                                      uint32_t is_jal,
+                                      uint32_t is_jalr, uint32_t is_ret,
+                                      uint32_t pred_taken,
+                                      uint32_t actual_taken,
+                                      uint32_t correct) {
+  // resolve 类指标以 EX 解析结果为准，pred_pc == real_next_pc 才算最终预测正确。
+  if (is_branch) {
+    g_bpu_stats.branch_total++;
+    if (correct) g_bpu_stats.branch_correct++;
+    if (pred_taken == actual_taken) {
+      g_bpu_stats.branch_dir_correct++;
+      g_bpu_stats.bht_correct++;
+    } else {
+      g_bpu_stats.bht_miss++;
+    }
+    if (!correct) record_branch_mispredict_pc(pc);
+  }
+  if (is_jal) {
+    g_bpu_stats.jal_total++;
+    if (correct) g_bpu_stats.jal_correct++;
+  }
+  if (is_jalr) {
+    g_bpu_stats.jalr_total++;
+    if (correct) g_bpu_stats.jalr_correct++;
+  }
+  if (is_ret) {
+    g_bpu_stats.ret_total++;
+    if (correct) g_bpu_stats.ret_correct++;
+  }
+}
+
+extern "C" void npc_icache_event(uint32_t access, uint32_t hit, uint32_t miss) {
+  g_sim_perf.icache_access += access ? 1u : 0u;
+  g_sim_perf.icache_hit += hit ? 1u : 0u;
+  g_sim_perf.icache_miss += miss ? 1u : 0u;
+}
+
+extern "C" void npc_dcache_event(uint32_t access, uint32_t hit, uint32_t miss,
+                                 uint32_t writeback, uint32_t write_through,
+                                 uint32_t is_store) {
+  g_sim_perf.dcache_access += access ? 1u : 0u;
+  g_sim_perf.dcache_hit += hit ? 1u : 0u;
+  g_sim_perf.dcache_miss += miss ? 1u : 0u;
+  // load/store 明细帮助区分容量冲突、写分配和脏行换出的真实来源。
+  if (access) {
+    if (is_store) {
+      g_sim_perf.dcache_store_access++;
+      g_sim_perf.dcache_store_hit += hit ? 1u : 0u;
+      g_sim_perf.dcache_store_miss += miss ? 1u : 0u;
+    } else {
+      g_sim_perf.dcache_load_access++;
+      g_sim_perf.dcache_load_hit += hit ? 1u : 0u;
+      g_sim_perf.dcache_load_miss += miss ? 1u : 0u;
+    }
+  }
+  g_sim_perf.dcache_writeback += writeback ? 1u : 0u;
+  g_sim_perf.dcache_write_through += write_through ? 1u : 0u;
+}
 
 static bool install_sigint_handler(void) {
   struct sigaction act = {};
@@ -85,11 +312,7 @@ static bool install_sigint_handler(void) {
 }
 
 static uint32_t debug_reg_value(int index) {
-  return g_top->debug_gprs_o[index];
-}
-
-static void snapshot_gprs(uint32_t gpr[32]) {
-  for (int i = 0; i < 32; ++i) gpr[i] = debug_reg_value(i);
+  return g_shadow_gpr[index];
 }
 
 static void clear_runtime_state(void) {
@@ -105,19 +328,19 @@ static void trace_commit(void) {
   if (!npc_itrace_enabled()) return;
 
   char asm_buf[128];
-  int asm_len = npc_disassemble_inst(g_top->commit_pc_o, g_top->commit_inst_o,
+  int asm_len = npc_disassemble_inst(g_commit_event.pc, g_commit_event.inst,
                                      asm_buf, sizeof(asm_buf));
   const char *asm_text = (asm_len > 0) ? asm_buf : "<decode unavailable>";
 
-  if (g_top->commit_rd_en_o) {
+  if (g_commit_event.rd_en) {
     // <= 表示"提交后新值写入寄存器"
     Log("itrace pc=0x%08x inst=0x%08x asm=\"%s\" x%u(%s)<=0x%08x",
-        g_top->commit_pc_o, g_top->commit_inst_o, asm_text,
-        g_top->commit_rd_addr_o, kRegNames[g_top->commit_rd_addr_o],
-        g_top->commit_rd_data_o);
+        g_commit_event.pc, g_commit_event.inst, asm_text,
+        g_commit_event.rd_addr, kRegNames[g_commit_event.rd_addr],
+        g_commit_event.rd_data);
   } else {
     Log("itrace pc=0x%08x inst=0x%08x asm=\"%s\"",
-        g_top->commit_pc_o, g_top->commit_inst_o, asm_text);
+        g_commit_event.pc, g_commit_event.inst, asm_text);
   }
 }
 
@@ -178,6 +401,80 @@ static void report_branch_stats(void) {
   LogBothTag("statistic", "  JALR (indirect/ret)  = %llu", (unsigned long long)g_nr_jalr);
   LogBothTag("statistic", "  total jump/branch    = %llu (%.1f%% of all instructions)",
           (unsigned long long)total_jb, jb_pct);
+  LogBothTag("statistic", "=== BPU Prediction Statistics ===");
+  LogBothTag("statistic", "  branch accuracy      = %llu/%llu correct, %llu mispredict (%.1f%%)",
+          (unsigned long long)g_bpu_stats.branch_correct,
+          (unsigned long long)g_bpu_stats.branch_total,
+          (unsigned long long)(g_bpu_stats.branch_total - g_bpu_stats.branch_correct),
+          ratio_percent(g_bpu_stats.branch_correct, g_bpu_stats.branch_total));
+  LogBothTag("statistic", "  branch direction     = %llu/%llu correct (%.1f%%), BHT miss=%llu, cold=%llu",
+          (unsigned long long)g_bpu_stats.branch_dir_correct,
+          (unsigned long long)g_bpu_stats.branch_total,
+          ratio_percent(g_bpu_stats.branch_dir_correct, g_bpu_stats.branch_total),
+          (unsigned long long)g_bpu_stats.bht_miss,
+          (unsigned long long)g_bpu_stats.bht_cold);
+  LogBothTag("statistic", "  JAL accuracy         = %llu/%llu correct (%.1f%%)",
+          (unsigned long long)g_bpu_stats.jal_correct,
+          (unsigned long long)g_bpu_stats.jal_total,
+          ratio_percent(g_bpu_stats.jal_correct, g_bpu_stats.jal_total));
+  LogBothTag("statistic", "  JALR accuracy        = %llu/%llu correct (%.1f%%)",
+          (unsigned long long)g_bpu_stats.jalr_correct,
+          (unsigned long long)g_bpu_stats.jalr_total,
+          ratio_percent(g_bpu_stats.jalr_correct, g_bpu_stats.jalr_total));
+  LogBothTag("statistic", "  return accuracy      = %llu/%llu correct (%.1f%%)",
+          (unsigned long long)g_bpu_stats.ret_correct,
+          (unsigned long long)g_bpu_stats.ret_total,
+          ratio_percent(g_bpu_stats.ret_correct, g_bpu_stats.ret_total));
+  LogBothTag("statistic", "  BTB JALR lookup      = hit %llu, miss %llu",
+          (unsigned long long)g_bpu_stats.btb_hit,
+          (unsigned long long)g_bpu_stats.btb_miss);
+  LogBothTag("statistic", "  BHT direction        = correct %llu, miss %llu",
+          (unsigned long long)g_bpu_stats.bht_correct,
+          (unsigned long long)g_bpu_stats.bht_miss);
+  LogBothTag("statistic", "  RAS lookup           = hit %llu, miss/underflow %llu, overflow %llu",
+          (unsigned long long)g_bpu_stats.ras_hit,
+          (unsigned long long)g_bpu_stats.ras_miss,
+          (unsigned long long)g_bpu_stats.ras_overflow);
+  LogBothTag("statistic", "  top branch miss PCs  =");
+  bool printed[256] = {};
+  for (int rank = 0; rank < 8; ++rank) {
+    int best_idx = -1;
+    for (int i = 0; i < 256; ++i) {
+      if (!g_branch_miss_pc_stats[i].valid) continue;
+      if (printed[i]) continue;
+      if (best_idx < 0 || g_branch_miss_pc_stats[i].count > g_branch_miss_pc_stats[best_idx].count) {
+        best_idx = i;
+      }
+    }
+    if (best_idx < 0) break;
+    LogBothTag("statistic", "    #%d pc=0x%08x miss=%llu",
+               rank + 1, g_branch_miss_pc_stats[best_idx].pc,
+               (unsigned long long)g_branch_miss_pc_stats[best_idx].count);
+    printed[best_idx] = true;
+  }
+}
+
+static void report_cache_stats(void) {
+  LogBothTag("statistic", "=== Cache Statistics ===");
+  LogBothTag("statistic", "icache: access=%llu, hit=%llu, miss=%llu",
+             (unsigned long long)g_sim_perf.icache_access,
+             (unsigned long long)g_sim_perf.icache_hit,
+             (unsigned long long)g_sim_perf.icache_miss);
+  LogBothTag("statistic", "dcache: access=%llu, hit=%llu, miss=%llu",
+             (unsigned long long)g_sim_perf.dcache_access,
+             (unsigned long long)g_sim_perf.dcache_hit,
+             (unsigned long long)g_sim_perf.dcache_miss);
+  LogBothTag("statistic", "dcache load: access=%llu, hit=%llu, miss=%llu",
+             (unsigned long long)g_sim_perf.dcache_load_access,
+             (unsigned long long)g_sim_perf.dcache_load_hit,
+             (unsigned long long)g_sim_perf.dcache_load_miss);
+  LogBothTag("statistic", "dcache store: access=%llu, hit=%llu, miss=%llu",
+             (unsigned long long)g_sim_perf.dcache_store_access,
+             (unsigned long long)g_sim_perf.dcache_store_hit,
+             (unsigned long long)g_sim_perf.dcache_store_miss);
+  LogBothTag("statistic", "dcache writeback = %llu, write-through store = %llu",
+             (unsigned long long)g_sim_perf.dcache_writeback,
+             (unsigned long long)g_sim_perf.dcache_write_through);
 }
 
 // NEMU 风格统计 + CPI + 分支统计，NPC 跑分结果可直接和参考模型对比
@@ -200,7 +497,7 @@ static void report_statistics(void) {
     LogBothTag("statistic", "Finish running in less than 1 us and can not calculate the simulation frequency");
   }
   report_branch_stats();
-  npc_cache_report();
+  report_cache_stats();
 }
 
 static void report_run_result(void) {
@@ -258,11 +555,12 @@ static void eval_half_cycle(uint8_t clk_level) {
 }
 
 static void step_cycle(void) {
+  clear_cycle_events();
   npc_device_update();
   eval_half_cycle(0);
   eval_half_cycle(1);
   ++npc_stats()->cycles;
-  if (g_top->commit_valid_o) ++npc_stats()->commits;
+  if (g_commit_event.valid) ++npc_stats()->commits;
 }
 
 static void apply_reset(void) {
@@ -279,8 +577,7 @@ static void apply_reset(void) {
   clear_runtime_state();
   // 复位时清零分支/跳转计数器，确保统计只反映本次运行
   g_nr_branch = g_nr_branch_taken = g_nr_jal = g_nr_jalr = 0;
-  g_prev_was_branch = false;
-  g_prev_commit_pc = 0;
+  reset_event_state();
 }
 
 /* ---- 状态报告 ---- */
@@ -288,18 +585,18 @@ static void apply_reset(void) {
 static void report_exit(void) {
   NpcState *st = npc_state();
   st->state = NPC_END;
-  st->halt_pc = g_top->debug_pc_o;
-  st->halt_ret = g_top->exit_code_o;
-  st->exit_is_ebreak = g_top->exit_is_ebreak_o;
-  st->exit_is_ecall = g_top->exit_is_ecall_o;
+  st->halt_pc = g_exit_event.valid ? g_exit_event.pc : g_top->debug_pc_o;
+  st->halt_ret = g_exit_event.valid ? g_exit_event.code : 1;
+  st->exit_is_ebreak = g_exit_event.valid && g_exit_event.is_ebreak;
+  st->exit_is_ecall = g_exit_event.valid && g_exit_event.is_ecall;
 }
 
 static void report_trap(void) {
   NpcState *st = npc_state();
   st->state = NPC_TRAP;
-  st->halt_pc = g_top->trap_pc_o;
-  st->trap_cause = g_top->trap_cause_o;
-  st->trap_tval = g_top->trap_tval_o;
+  st->halt_pc = g_trap_event.valid ? g_trap_event.pc : g_top->debug_pc_o;
+  st->trap_cause = g_trap_event.valid ? g_trap_event.cause : 0;
+  st->trap_tval = g_trap_event.valid ? g_trap_event.tval : 0;
 }
 
 static void report_timeout(void) {
@@ -400,48 +697,30 @@ int npc_cpu_exec(uint64_t max_instructions) {
 
     step_cycle();
 
-    if (g_top->exit_valid_o) {
+    if (g_exit_event.valid) {
       report_exit();
-      return finish_exec(timer_start_us, (int)g_top->exit_code_o, true);
+      return finish_exec(timer_start_us, (int)st->halt_ret, true);
     }
-    if (g_top->trap_valid_o) {
+    if (g_trap_event.valid) {
       report_trap();
       return finish_exec(timer_start_us, 1, true);
     }
 
-    if (g_top->commit_valid_o) {
+    if (g_commit_event.valid) {
       ++executed;
       trace_commit();
-      uint32_t diff_gprs[32];
-      snapshot_gprs(diff_gprs);
-      if (!npc_difftest_step(g_top->commit_pc_o, g_top->commit_inst_o,
-                             g_top->commit_next_pc_o, diff_gprs,
-                             g_top->commit_rd_en_o, g_top->commit_rd_addr_o,
-                             g_top->commit_rd_data_o)) {
-        st->state = NPC_ABORT;
-        st->halt_pc = g_top->commit_pc_o;
-        return finish_exec(timer_start_us, 1, true);
-      }
-      // 按 opcode[6:0] 分类统计分支/跳转指令的动态执行次数
-      {
-        uint32_t inst = g_top->commit_inst_o;
-        uint32_t opcode = inst & 0x7fu;
-        uint32_t cur_pc = g_top->commit_pc_o;
-        // 上一条是条件分支：用本条 PC 判断是否 taken
-        if (g_prev_was_branch) {
-          if (cur_pc != g_prev_commit_pc + 4) g_nr_branch_taken++;
-          g_prev_was_branch = false;
-        }
-        if (opcode == 0x63u) {        // B-type 条件分支
-          g_nr_branch++;
-          g_prev_was_branch = true;
-          g_prev_commit_pc = cur_pc;
-        } else if (opcode == 0x6fu) { // JAL
-          g_nr_jal++;
-        } else if (opcode == 0x67u) { // JALR (含 ret)
-          g_nr_jalr++;
+#if CONFIG_NPC_DIFFTEST
+      if (npc_difftest_enabled()) {
+        if (!npc_difftest_step(g_commit_event.pc, g_commit_event.inst,
+                               g_commit_event.next_pc, g_shadow_gpr,
+                               g_commit_event.rd_en, g_commit_event.rd_addr,
+                               g_commit_event.rd_data)) {
+          st->state = NPC_ABORT;
+          st->halt_pc = g_commit_event.pc;
+          return finish_exec(timer_start_us, 1, true);
         }
       }
+#endif
       if (npc_check_watchpoints())
         return finish_exec(timer_start_us, 0, false);
       maybe_report_progress(&progress);
@@ -451,8 +730,8 @@ int npc_cpu_exec(uint64_t max_instructions) {
         if (!Verilated::gotFinish() &&
             (!npc_cycle_limit_enabled(g_cycle_limit) || npc_stats()->cycles < g_cycle_limit)) {
           step_cycle();
-          if (g_top->exit_valid_o) { report_exit(); return finish_exec(timer_start_us, (int)g_top->exit_code_o, true); }
-          if (g_top->trap_valid_o) { report_trap(); return finish_exec(timer_start_us, 1, true); }
+          if (g_exit_event.valid) { report_exit(); return finish_exec(timer_start_us, (int)st->halt_ret, true); }
+          if (g_trap_event.valid) { report_trap(); return finish_exec(timer_start_us, 1, true); }
         }
         st->state = NPC_STOP;
         return finish_exec(timer_start_us, 0, false);

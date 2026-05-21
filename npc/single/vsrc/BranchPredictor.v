@@ -1,6 +1,8 @@
 `include "define.v"
 
-module BranchPredictor (
+module BranchPredictor #(
+  parameter BPU_BHT_INDEX_W = 10
+) (
   input clk,
   input rst,
 
@@ -9,17 +11,30 @@ module BranchPredictor (
   input [`INST_W-1:0] predict_inst_i,
   input [`XLEN-1:0] predict_seq_pc_i,
   output [`XLEN-1:0] predict_next_pc_o,
+  output [BPU_BHT_INDEX_W-1:0] predict_bht_idx_o,
+  output predict_control_o,
+  output predict_branch_o,
+  output predict_jalr_o,
+  output predict_ret_o,
+  output predict_btb_hit_o,
+  output predict_bht_valid_o,
+  output predict_bht_taken_o,
+  output predict_ras_lookup_o,
+  output predict_ras_hit_o,
+  output predict_ras_overflow_o,
+  input rollback_i,
 
   input update_valid_i,
   input [`XLEN-1:0] update_pc_i,
   input [`INST_W-1:0] update_inst_i,
   input [`XLEN-1:0] update_seq_pc_i,
   input [`XLEN-1:0] update_next_pc_i,
-  input update_taken_i
+  input update_taken_i,
+  input [BPU_BHT_INDEX_W-1:0] update_bht_idx_i
 );
 
-  localparam BPU_BTB_ENTRIES = 128;
-  localparam BPU_BHT_ENTRIES = 256;
+  localparam BPU_BTB_ENTRIES = 256;
+  localparam BPU_BHT_ENTRIES = (1 << BPU_BHT_INDEX_W);
   localparam BPU_RAS_ENTRIES = 16;
   localparam [4:0] BPU_RAS_DEPTH = 5'd16;
 
@@ -31,9 +46,13 @@ module BranchPredictor (
   reg btb_valid_q [0:BPU_BTB_ENTRIES-1];
   reg [`XLEN-1:0] btb_pc_q [0:BPU_BTB_ENTRIES-1];
   reg [`XLEN-1:0] btb_target_q [0:BPU_BTB_ENTRIES-1];
+  reg bht_valid_q [0:BPU_BHT_ENTRIES-1];
   reg [1:0] bht_q [0:BPU_BHT_ENTRIES-1];
-  reg [`XLEN-1:0] ras_q [0:BPU_RAS_ENTRIES-1];
-  reg [4:0] ras_size_q;
+  reg [BPU_BHT_INDEX_W-1:0] ghr_q;
+  reg [`XLEN-1:0] ras_arch_q [0:BPU_RAS_ENTRIES-1];
+  reg [`XLEN-1:0] ras_spec_q [0:BPU_RAS_ENTRIES-1];
+  reg [4:0] ras_arch_size_q;
+  reg [4:0] ras_spec_size_q;
   integer bpu_i;
 
   /* verilator lint_off UNUSEDSIGNAL */
@@ -93,21 +112,31 @@ module BranchPredictor (
   wire predict_is_jal_w = predict_inst_i[6:0] == `OPCODE_JAL;
   wire predict_is_jalr_w = (predict_inst_i[6:0] == `OPCODE_JALR) &&
                            (predict_inst_i[14:12] == `FUNCT3_ADD_SUB);
-  wire [6:0] predict_btb_idx_w = predict_pc_i[7:1];
-  wire [7:0] predict_bht_idx_w = predict_pc_i[8:1];
+  wire predict_is_control_w = predict_is_branch_w | predict_is_jal_w | predict_is_jalr_w;
+  wire [7:0] predict_btb_idx_w = predict_pc_i[8:1];
+  wire [BPU_BHT_INDEX_W-1:0] predict_pc_idx_w = predict_pc_i[BPU_BHT_INDEX_W:1];
+  wire [BPU_BHT_INDEX_W-1:0] predict_bht_idx_w = predict_pc_idx_w ^ ghr_q;
   wire predict_btb_hit_w = btb_valid_q[predict_btb_idx_w] &&
                            (btb_pc_q[predict_btb_idx_w] == predict_pc_i);
-  wire predict_bht_taken_w = bht_q[predict_bht_idx_w] >= 2'd2;
+  wire predict_bht_valid_w = bht_valid_q[predict_bht_idx_w];
+  wire predict_static_taken_w = predict_inst_i[31];
+  wire predict_bht_taken_w = predict_bht_valid_w ?
+                             (bht_q[predict_bht_idx_w] >= 2'd2) :
+                             predict_static_taken_w;
   wire [1:0] predict_ras_action_w = ras_action(predict_inst_i);
   wire predict_ras_uses_top_w = (predict_ras_action_w == RAS_POP) ||
                                 (predict_ras_action_w == RAS_POP_PUSH);
-  wire predict_ras_hit_w = predict_ras_uses_top_w && (ras_size_q != 5'd0);
-  wire [3:0] ras_top_idx_w = ras_size_q[3:0] - 4'd1;
-  wire [3:0] ras_push_idx_w = ras_size_q[3:0];
+  wire predict_ras_hit_w = predict_ras_uses_top_w && (ras_spec_size_q != 5'd0);
+  wire predict_ras_overflow_w = (predict_ras_action_w == RAS_PUSH) &&
+                                (ras_spec_size_q == BPU_RAS_DEPTH);
+  wire [3:0] ras_spec_top_idx_w = ras_spec_size_q[3:0] - 4'd1;
+  wire [3:0] ras_spec_push_idx_w = ras_spec_size_q[3:0];
+  wire [3:0] ras_arch_top_idx_w = ras_arch_size_q[3:0] - 4'd1;
+  wire [3:0] ras_arch_push_idx_w = ras_arch_size_q[3:0];
   wire [`XLEN-1:0] predict_branch_target_w = predict_pc_i + rv32_imm_b(predict_inst_i);
   wire [`XLEN-1:0] predict_jal_target_w = predict_pc_i + rv32_imm_j(predict_inst_i);
   wire [`XLEN-1:0] predict_jalr_target_w =
-      predict_ras_hit_w ? ras_q[ras_top_idx_w] :
+      predict_ras_hit_w ? ras_spec_q[ras_spec_top_idx_w] :
       predict_btb_hit_w ? btb_target_q[predict_btb_idx_w] :
                           predict_seq_pc_i;
   wire [`XLEN-1:0] predict_next_pc_w =
@@ -120,68 +149,149 @@ module BranchPredictor (
   wire update_is_control_w = update_is_branch_w ||
                              (update_inst_i[6:0] == `OPCODE_JAL) ||
                              (update_inst_i[6:0] == `OPCODE_JALR);
-  wire [6:0] update_btb_idx_w = update_pc_i[7:1];
-  wire [7:0] update_bht_idx_w = update_pc_i[8:1];
+  wire [7:0] update_btb_idx_w = update_pc_i[8:1];
+  wire [BPU_BHT_INDEX_W-1:0] update_bht_idx_w = update_bht_idx_i;
   wire [1:0] update_ras_action_w = ras_action(update_inst_i);
 
   assign predict_next_pc_o = predict_valid_i ? predict_next_pc_w : predict_seq_pc_i;
+  assign predict_bht_idx_o = predict_bht_idx_w;
+  assign predict_control_o = predict_is_control_w;
+  assign predict_branch_o = predict_is_branch_w;
+  assign predict_jalr_o = predict_is_jalr_w;
+  assign predict_ret_o = predict_is_jalr_w && predict_ras_uses_top_w;
+  assign predict_btb_hit_o = predict_btb_hit_w;
+  assign predict_bht_valid_o = predict_bht_valid_w;
+  assign predict_bht_taken_o = predict_bht_taken_w;
+  assign predict_ras_lookup_o = predict_is_jalr_w && predict_ras_uses_top_w;
+  assign predict_ras_hit_o = predict_ras_hit_w;
+  assign predict_ras_overflow_o = predict_ras_overflow_w;
 
   /* verilator lint_off BLKSEQ */
   always @(posedge clk) begin
     if (rst) begin
-      ras_size_q <= 5'd0;
+      ras_arch_size_q <= 5'd0;
+      ras_spec_size_q <= 5'd0;
+      ghr_q <= {BPU_BHT_INDEX_W{1'b0}};
       for (bpu_i = 0; bpu_i < BPU_BTB_ENTRIES; bpu_i = bpu_i + 1) begin
         btb_valid_q[bpu_i] = 1'b0;
         btb_pc_q[bpu_i] = {`XLEN{1'b0}};
         btb_target_q[bpu_i] = {`XLEN{1'b0}};
       end
       for (bpu_i = 0; bpu_i < BPU_BHT_ENTRIES; bpu_i = bpu_i + 1) begin
+        bht_valid_q[bpu_i] = 1'b0;
         bht_q[bpu_i] = 2'd1;
       end
       for (bpu_i = 0; bpu_i < BPU_RAS_ENTRIES; bpu_i = bpu_i + 1) begin
-        ras_q[bpu_i] = {`XLEN{1'b0}};
+        ras_arch_q[bpu_i] = {`XLEN{1'b0}};
+        ras_spec_q[bpu_i] = {`XLEN{1'b0}};
       end
-    end else if (update_valid_i && update_is_control_w) begin
-      if (update_is_branch_w) begin
+    end else begin
+      if (update_valid_i && update_is_control_w) begin
+        if (update_is_branch_w) begin
+          // gshare 用预测时携带下来的 index 更新，避免 EX 阶段 GHR 漂移训练错表项。
+          bht_valid_q[update_bht_idx_w] <= 1'b1;
+          if (update_taken_i) begin
+            if (bht_q[update_bht_idx_w] != 2'd3)
+              bht_q[update_bht_idx_w] <= bht_q[update_bht_idx_w] + 2'd1;
+          end else if (bht_q[update_bht_idx_w] != 2'd0) begin
+            bht_q[update_bht_idx_w] <= bht_q[update_bht_idx_w] - 2'd1;
+          end
+          ghr_q <= {ghr_q[BPU_BHT_INDEX_W-2:0], update_taken_i};
+        end
+
         if (update_taken_i) begin
-          if (bht_q[update_bht_idx_w] != 2'd3)
-            bht_q[update_bht_idx_w] <= bht_q[update_bht_idx_w] + 2'd1;
-        end else if (bht_q[update_bht_idx_w] != 2'd0) begin
-          bht_q[update_bht_idx_w] <= bht_q[update_bht_idx_w] - 2'd1;
+          btb_valid_q[update_btb_idx_w] <= 1'b1;
+          btb_pc_q[update_btb_idx_w] <= update_pc_i;
+          btb_target_q[update_btb_idx_w] <= update_next_pc_i;
         end
+
+        case (update_ras_action_w)
+          RAS_PUSH: begin
+            if (ras_arch_size_q == BPU_RAS_DEPTH) begin
+              for (bpu_i = 0; bpu_i < BPU_RAS_ENTRIES - 1; bpu_i = bpu_i + 1)
+                ras_arch_q[bpu_i] <= ras_arch_q[bpu_i + 1];
+              ras_arch_q[BPU_RAS_ENTRIES-1] <= update_seq_pc_i;
+            end else begin
+              ras_arch_q[ras_arch_push_idx_w] <= update_seq_pc_i;
+              ras_arch_size_q <= ras_arch_size_q + 5'd1;
+            end
+          end
+          RAS_POP: begin
+            if (ras_arch_size_q != 5'd0)
+              ras_arch_size_q <= ras_arch_size_q - 5'd1;
+          end
+          RAS_POP_PUSH: begin
+            if (ras_arch_size_q == 5'd0) begin
+              ras_arch_q[0] <= update_seq_pc_i;
+              ras_arch_size_q <= 5'd1;
+            end else begin
+              ras_arch_q[ras_arch_top_idx_w] <= update_seq_pc_i;
+            end
+          end
+          default: begin end
+        endcase
       end
 
-      if (update_taken_i) begin
-        btb_valid_q[update_btb_idx_w] <= 1'b1;
-        btb_pc_q[update_btb_idx_w] <= update_pc_i;
-        btb_target_q[update_btb_idx_w] <= update_next_pc_i;
-      end
+      if (rollback_i) begin
+        // flush 会丢弃所有 younger 预测，spec RAS 回到已解析边界；若同拍 EX 有 control update，则包含该 update 的效果。
+        ras_spec_size_q <= ras_arch_size_q;
+        for (bpu_i = 0; bpu_i < BPU_RAS_ENTRIES; bpu_i = bpu_i + 1)
+          ras_spec_q[bpu_i] <= ras_arch_q[bpu_i];
 
-      case (update_ras_action_w)
-        RAS_PUSH: begin
-          if (ras_size_q == BPU_RAS_DEPTH) begin
-            for (bpu_i = 0; bpu_i < BPU_RAS_ENTRIES - 1; bpu_i = bpu_i + 1)
-              ras_q[bpu_i] = ras_q[bpu_i + 1];
-            ras_q[BPU_RAS_ENTRIES-1] <= update_seq_pc_i;
-          end else begin
-            ras_q[ras_push_idx_w] <= update_seq_pc_i;
-            ras_size_q <= ras_size_q + 5'd1;
+        if (update_valid_i && update_is_control_w) begin
+          case (update_ras_action_w)
+            RAS_PUSH: begin
+              if (ras_arch_size_q == BPU_RAS_DEPTH) begin
+                for (bpu_i = 0; bpu_i < BPU_RAS_ENTRIES - 1; bpu_i = bpu_i + 1)
+                  ras_spec_q[bpu_i] <= ras_arch_q[bpu_i + 1];
+                ras_spec_q[BPU_RAS_ENTRIES-1] <= update_seq_pc_i;
+              end else begin
+                ras_spec_q[ras_arch_push_idx_w] <= update_seq_pc_i;
+                ras_spec_size_q <= ras_arch_size_q + 5'd1;
+              end
+            end
+            RAS_POP: begin
+              if (ras_arch_size_q != 5'd0)
+                ras_spec_size_q <= ras_arch_size_q - 5'd1;
+            end
+            RAS_POP_PUSH: begin
+              if (ras_arch_size_q == 5'd0) begin
+                ras_spec_q[0] <= update_seq_pc_i;
+                ras_spec_size_q <= 5'd1;
+              end else begin
+                ras_spec_q[ras_arch_top_idx_w] <= update_seq_pc_i;
+              end
+            end
+            default: begin end
+          endcase
+        end
+      end else if (predict_valid_i) begin
+        case (predict_ras_action_w)
+          RAS_PUSH: begin
+            if (ras_spec_size_q == BPU_RAS_DEPTH) begin
+              for (bpu_i = 0; bpu_i < BPU_RAS_ENTRIES - 1; bpu_i = bpu_i + 1)
+                ras_spec_q[bpu_i] <= ras_spec_q[bpu_i + 1];
+              ras_spec_q[BPU_RAS_ENTRIES-1] <= predict_seq_pc_i;
+            end else begin
+              ras_spec_q[ras_spec_push_idx_w] <= predict_seq_pc_i;
+              ras_spec_size_q <= ras_spec_size_q + 5'd1;
+            end
           end
-        end
-        RAS_POP: begin
-          if (ras_size_q != 5'd0)
-            ras_size_q <= ras_size_q - 5'd1;
-        end
-        RAS_POP_PUSH: begin
-          if (ras_size_q == 5'd0) begin
-            ras_q[0] <= update_seq_pc_i;
-            ras_size_q <= 5'd1;
-          end else begin
-            ras_q[ras_top_idx_w] <= update_seq_pc_i;
+          RAS_POP: begin
+            if (ras_spec_size_q != 5'd0)
+              ras_spec_size_q <= ras_spec_size_q - 5'd1;
           end
-        end
-        default: begin end
-      endcase
+          RAS_POP_PUSH: begin
+            if (ras_spec_size_q == 5'd0) begin
+              ras_spec_q[0] <= predict_seq_pc_i;
+              ras_spec_size_q <= 5'd1;
+            end else begin
+              ras_spec_q[ras_spec_top_idx_w] <= predict_seq_pc_i;
+            end
+          end
+          default: begin end
+        endcase
+      end
     end
   end
   /* verilator lint_on BLKSEQ */

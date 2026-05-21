@@ -69,6 +69,8 @@ void npc_simconfig_init(NpcSimConfig *cfg) {
   strncpy(cfg->itrace_cond, CONFIG_NPC_ITRACE_COND, NPC_EXPR_MAX - 1);
   cfg->mtrace            = CONFIG_NPC_MTRACE_BY_DEFAULT;
   cfg->dtrace            = CONFIG_NPC_DTRACE_BY_DEFAULT;
+  /* CONFIG_NPC_DIFFTEST=y 表示验证构建，默认应逐条驱动 reference；跑分用 --no-diff 或 perf_defconfig 显式关闭。 */
+  cfg->difftest          = CONFIG_NPC_DIFFTEST;
   strncpy(cfg->diff_so_path, NPC_DEFAULT_DIFF_SO, NPC_PATH_MAX - 1);
   cfg->diff_port         = 1234;
 }

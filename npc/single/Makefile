@@ -33,10 +33,19 @@ INC_PATH ?=
 IMG ?=
 RUN_ARGS ?=
 LDLIBS_BUILD ?=
+VERILATOR_PROFILE ?= 0
+VERILATOR_PROF_EXEC ?= 0
+VERILATOR_THREADS ?= 1
+VERILATOR_THREADS_DPI ?= none
+VERILATOR_THREADS_MAX_MTASKS ?=
 
 INC_PATH += $(abspath ./csrc/include)
-CXXFLAGS_BUILD += -DNPC_DEFAULT_DIFF_SO='\"$(DEFAULT_DIFF_SO)\"'
-LDLIBS_BUILD += -ldl
+
+ifeq ($(CONFIG_NPC_DIFFTEST),y)
+	# difftest 只在配置打开时编进二进制；性能配置关闭后不再链接 dlopen 路径，也不进入提交热路径检查。
+	CXXFLAGS_BUILD += -DNPC_DEFAULT_DIFF_SO='\"$(DEFAULT_DIFF_SO)\"'
+	LDLIBS_BUILD += -ldl
+endif
 
 ifeq ($(CONFIG_NPC_ITRACE),y)
 	# itrace 的反汇编直接复用 NEMU 已经在维护的 Capstone 依赖，避免 NPC 再养一套重复 decode 逻辑。
@@ -68,12 +77,27 @@ CXXFLAGS_BUILD += $(if $(CONFIG_CC_DEBUG),-Og -ggdb3,)
 # 优化要点：
 #   1. -O3 让 Verilator 对 RTL→C++ 做更激进的内联与死码消除
 #   2. --trace 改为条件编译——即使不写 VCD，trace 基础设施也会给每次 eval() 加 ~30% 信号跟踪开销
-#   3. --prof-cfuncs 给生成函数加可读名称，便于 gprof/callgrind 定位热点，运行期零额外开销
-VERILATOR_FLAGS += -MMD --build --cc --exe \
-			   -O3 --prof-cfuncs \
+#   3. profiling 只在显式目标中打开；--prof-cfuncs 会触发 -pg 插桩，不能混进普通性能基线
+VERILATOR_FLAGS += -MMD --cc --exe \
+			   -O3 \
 			   --x-assign fast --x-initial fast --noassert \
 			   -Wall -Wno-DECLFILENAME \
 			   -I$(abspath ./vsrc)
+
+ifeq ($(VERILATOR_PROFILE),1)
+VERILATOR_FLAGS += --prof-cfuncs
+endif
+
+ifeq ($(VERILATOR_PROF_EXEC),1)
+VERILATOR_FLAGS += --prof-exec
+endif
+
+ifneq ($(VERILATOR_THREADS),1)
+VERILATOR_FLAGS += --threads $(VERILATOR_THREADS) --threads-dpi $(VERILATOR_THREADS_DPI)
+ifneq ($(strip $(VERILATOR_THREADS_MAX_MTASKS)),)
+VERILATOR_FLAGS += --threads-max-mtasks $(VERILATOR_THREADS_MAX_MTASKS)
+endif
+endif
 
 # 只在确实需要波形时才打开 --trace，避免无谓的 eval() 开销
 ifeq ($(CONFIG_NPC_TRACE_BY_DEFAULT),y)
@@ -88,6 +112,8 @@ $(shell mkdir -p $(BUILD_DIR))
 RTL_HEADER_SRCS := $(abspath ./vsrc/define.v)
 RTL_CORE_SRCS := $(strip \
 	$(abspath ./vsrc/ALU.v) \
+	$(abspath ./vsrc/AxiDefaultSlave.v) \
+	$(abspath ./vsrc/AxiLiteXbar.v) \
 	$(abspath ./vsrc/BranchPredictor.v) \
 	$(abspath ./vsrc/CacheControl.v) \
 	$(abspath ./vsrc/CompareUnit.v) \
@@ -106,14 +132,23 @@ RTL_CORE_SRCS := $(strip \
 	$(abspath ./vsrc/MemWbPipeReg.v) \
 	$(abspath ./vsrc/MemoryStageControl.v) \
 	$(abspath ./vsrc/MemoryStage.v) \
+	$(abspath ./vsrc/NpcAxiBus.v) \
 	$(abspath ./vsrc/PipelineControl.v) \
 	$(abspath ./vsrc/RegisterFile.v) \
 	$(abspath ./vsrc/Rv32Divider.v) \
+	$(abspath ./vsrc/Sram1Rw.v) \
+	$(abspath ./vsrc/Sram2R1W.v) \
 	$(abspath ./vsrc/WBU.v) \
 	$(abspath ./vsrc/NpcCore.v))
-SIM_TOP_SRCS := $(abspath ./vsrc/NpcSimTop.sv)
+SIM_TOP_SRCS := $(abspath ./vsrc/AxiDpiSlave.sv) $(abspath ./vsrc/NpcSimTop.sv)
 VSRCS = $(RTL_CORE_SRCS) $(SIM_TOP_SRCS)
-CSRCS = $(shell find $(abspath ./csrc) \( -name "*.c" -o -name "*.cc" -o -name "*.cpp" \))
+CSRCS_ALL = $(shell find $(abspath ./csrc) \( -name "*.c" -o -name "*.cc" -o -name "*.cpp" \))
+DIFFTEST_CSRC := $(abspath ./csrc/cpu/difftest.cpp)
+ifeq ($(CONFIG_NPC_DIFFTEST),y)
+CSRCS = $(CSRCS_ALL)
+else
+CSRCS = $(filter-out $(DIFFTEST_CSRC),$(CSRCS_ALL))
+endif
 
 # 这组变量把“纯 RTL 核心的网表综合/STA”和 Verilator 仿真壳分开管理；以后直接 make syn/make sta 即可，不必再回 yosys-sta 目录拼长命令。
 STA_DESIGN ?= $(RTL_CORE_TOP)
@@ -149,6 +184,9 @@ $(BIN): $(VSRCS) $(RTL_HEADER_SRCS) $(CSRCS)
 		$(addprefix -CFLAGS , $(CXXFLAGS)) \
 		$(addprefix -LDFLAGS , $(LDLIBS_BUILD)) \
 		--Mdir $(OBJ_DIR) -o $(abspath $(BIN))
+	@ln -sf V$(TOPNAME)__pch.h $(OBJ_DIR)/V$(TOPNAME)__pch.h.fast
+	@ln -sf V$(TOPNAME)__pch.h $(OBJ_DIR)/V$(TOPNAME)__pch.h.slow
+	$(MAKE) -C $(OBJ_DIR) -f V$(TOPNAME).mk
 
 ifeq ($(CONFIG_NPC_ITRACE),y)
 $(BIN): $(CAPSTONE_LIB)
@@ -211,14 +249,17 @@ clean:
 	rm -rf $(BUILD_DIR)
 
 # 带 gprof 插桩的构建入口，产物可以送给 gprof 分析热点
-gprof-build: CXXFLAGS_BUILD += -pg
-gprof-build: LDLIBS_BUILD += -pg
+gprof-build: VERILATOR_PROFILE = 1
 gprof-build: default
+
+# 生成 Verilator 执行 profile，配合多线程 mtask/调度分析使用
+prof-exec-build: VERILATOR_PROF_EXEC = 1
+prof-exec-build: default
 
 difftest-ref:
 	$(MAKE) -C $(NEMU_HOME) GUEST_ISA=riscv32 SHARE=1 ENGINE=interpreter
 
-.PHONY: default all lint syn-check-env sta-check-env syn sta sim run clean gprof-build difftest-ref
+.PHONY: default all lint syn-check-env sta-check-env syn sta sim run clean gprof-build prof-exec-build difftest-ref
 
 include $(NPC_HOME)/scripts/config.mk
 

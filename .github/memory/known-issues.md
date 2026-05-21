@@ -57,6 +57,22 @@
 - **教训**: 从中学到了什么
 -->
 
+### [24] NPC 默认 Verilator 构建携带 `--prof-cfuncs/-pg`，普通运行不再是干净性能基线
+
+- **模块**: NPC / Verilator / 性能
+- **现象**: `npc/single/Makefile` 默认 `VERILATOR_FLAGS` 含 `--prof-cfuncs`；生成的 `npc/single/build/obj_dir/VNpcSimTop.mk` 中 `VM_PROFC=1`，Verilator 公共 `verilated.mk` 会据此给编译和链接都追加 `-pg`。因此默认二进制适合 gprof 归因，但不适合作为普通仿真速度基线。
+- **根因**: `--prof-cfuncs` 被当作“便于 profile 且运行期零开销”的默认选项保留在普通构建中；但 Verilator 5.020 的生成 makefile 会把它转成 profile build，并会拆分生成函数/影响内联。
+- **修复**: 2026-05-21 已修复：默认 `VERILATOR_FLAGS` 移除 `--prof-cfuncs`，新增 `VERILATOR_PROFILE/VERILATOR_PROF_EXEC/VERILATOR_THREADS*` 显式开关；`gprof-build` 才设置 `VERILATOR_PROFILE=1`，`prof-exec-build` 才设置 `VERILATOR_PROF_EXEC=1`。复验 `VM_PROFC=0`，MicroBench 单线程性能约 `2.68-2.81M inst/s`。
+- **教训**: 仿真性能基线必须区分“profile 构建”和“release/perf 构建”；任何用于定位热点的插桩都不能长期留在默认路径，否则后续比较会把工具开销误判成 RTL 或 Verilator 本身慢。
+
+### [25] NPC perf 配置关闭 VGA 后仍会被 C fallback 重新打开
+
+- **模块**: NPC / Kconfig / VGA / 性能配置
+- **现象**: 使用 `perf_defconfig` 跑 benchmark 时仍可能出现 SDL/VGA 窗口；`perf_defconfig` 中 `CONFIG_NPC_HAS_VGA=n`，但运行时 `CoreMark -> ioe_init -> __am_gpu_init` 仍认为 GPU present 并写 `SYNC_ADDR`，host 侧随后创建窗口。
+- **根因**: Kconfig 的 `bool=n` 在 `include/generated/autoconf.h` 中表现为没有对应宏；`npc/single/csrc/include/utils.h` 的 fallback 却把未定义的 `CONFIG_NPC_HAS_VGA` 定义为 1。同类扫描确认 `CONFIG_NPC_SDB/EXPR/WATCHPOINT` 也曾有关闭后被 fallback 为 1 的风险。
+- **修复**: 将 `CONFIG_NPC_HAS_VGA`、`CONFIG_NPC_SDB`、`CONFIG_NPC_EXPR`、`CONFIG_NPC_WATCHPOINT` 的 fallback 统一改为 0，并补注释说明 bool fallback 必须保守处理 Kconfig not-set 语义。
+- **教训**: 对 Kconfig bool，未定义不是“配置缺失”，而是合法的关闭态。手写兼容默认值只能让整数/字符串补默认值，bool 应默认关闭，否则性能配置和最小配置会被悄悄污染。
+
 ### [21] NPC cache 曾停留在 Verilator host bus 透明模型，还不是可综合 RTL cache
 
 - **模块**: NPC / cache / RTL-PPA

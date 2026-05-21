@@ -13,12 +13,14 @@ module tb_pipe_regs;
   reg [`INST_W-1:0] ifid_load_inst;
   reg [`XLEN-1:0] ifid_load_len;
   reg [`XLEN-1:0] ifid_load_pred;
+  reg [9:0] ifid_load_bht_idx;
   reg ifid_load_error;
   wire ifid_valid;
   wire [`XLEN-1:0] ifid_pc;
   wire [`INST_W-1:0] ifid_inst;
   wire [`XLEN-1:0] ifid_len;
   wire [`XLEN-1:0] ifid_pred;
+  wire [9:0] ifid_bht_idx;
   wire ifid_error;
 
   reg idex_clear;
@@ -28,6 +30,7 @@ module tb_pipe_regs;
   reg [`INST_W-1:0] idex_load_inst;
   reg [`XLEN-1:0] idex_load_len;
   reg [`XLEN-1:0] idex_load_pred;
+  reg [9:0] idex_load_bht_idx;
   reg [`CTRL_BUS_W-1:0] idex_load_ctrl;
   reg [`XLEN-1:0] idex_load_imm;
   reg [`REG_ADDR_W-1:0] idex_load_rs1;
@@ -38,6 +41,7 @@ module tb_pipe_regs;
   reg idex_load_error;
   wire idex_valid;
   wire [`XLEN-1:0] idex_pc;
+  wire [9:0] idex_bht_idx;
   wire [`CTRL_BUS_W-1:0] idex_ctrl;
   wire [`XLEN-1:0] idex_imm;
   wire [`REG_ADDR_W-1:0] idex_rd;
@@ -80,19 +84,20 @@ module tb_pipe_regs;
   IfIdPipeReg u_ifid (
     .clk(clk), .rst(rst), .clear_i(ifid_clear), .consume_i(ifid_consume), .load_i(ifid_load),
     .load_pc_i(ifid_load_pc), .load_inst_i(ifid_load_inst), .load_inst_len_i(ifid_load_len),
-    .load_pred_pc_i(ifid_load_pred), .load_error_i(ifid_load_error),
+    .load_pred_pc_i(ifid_load_pred), .load_bht_idx_i(ifid_load_bht_idx), .load_error_i(ifid_load_error),
     .valid_o(ifid_valid), .pc_o(ifid_pc), .inst_o(ifid_inst), .inst_len_o(ifid_len),
-    .pred_pc_o(ifid_pred), .error_o(ifid_error)
+    .pred_pc_o(ifid_pred), .bht_idx_o(ifid_bht_idx), .error_o(ifid_error)
   );
 
   IdExPipeReg u_idex (
     .clk(clk), .rst(rst), .clear_i(idex_clear), .kill_i(idex_kill), .load_i(idex_load),
     .load_pc_i(idex_load_pc), .load_inst_i(idex_load_inst), .load_inst_len_i(idex_load_len),
-    .load_pred_pc_i(idex_load_pred), .load_ctrl_i(idex_load_ctrl), .load_imm_i(idex_load_imm),
+    .load_pred_pc_i(idex_load_pred), .load_bht_idx_i(idex_load_bht_idx),
+    .load_ctrl_i(idex_load_ctrl), .load_imm_i(idex_load_imm),
     .load_rs1_idx_i(idex_load_rs1), .load_rs2_idx_i(idex_load_rs2), .load_rd_idx_i(idex_load_rd),
     .load_rs1_data_i(idex_load_rs1_data), .load_rs2_data_i(idex_load_rs2_data),
     .load_fetch_error_i(idex_load_error), .valid_o(idex_valid), .pc_o(idex_pc), .inst_o(),
-    .inst_len_o(), .pred_pc_o(), .ctrl_o(idex_ctrl), .imm_o(idex_imm),
+    .inst_len_o(), .pred_pc_o(), .bht_idx_o(idex_bht_idx), .ctrl_o(idex_ctrl), .imm_o(idex_imm),
     .rs1_idx_o(), .rs2_idx_o(), .rd_idx_o(idex_rd), .rs1_data_o(), .rs2_data_o(),
     .fetch_error_o()
   );
@@ -124,9 +129,9 @@ module tb_pipe_regs;
     clk = 1'b0;
     rst = 1'b1;
     ifid_clear = 1'b0; ifid_consume = 1'b0; ifid_load = 1'b0;
-    ifid_load_pc = 32'h1000; ifid_load_inst = 32'h13; ifid_load_len = 32'd4; ifid_load_pred = 32'h1004; ifid_load_error = 1'b0;
+    ifid_load_pc = 32'h1000; ifid_load_inst = 32'h13; ifid_load_len = 32'd4; ifid_load_pred = 32'h1004; ifid_load_bht_idx = 10'h155; ifid_load_error = 1'b0;
     idex_clear = 1'b0; idex_kill = 1'b0; idex_load = 1'b0;
-    idex_load_pc = 32'h2000; idex_load_inst = 32'h13; idex_load_len = 32'd4; idex_load_pred = 32'h2004;
+    idex_load_pc = 32'h2000; idex_load_inst = 32'h13; idex_load_len = 32'd4; idex_load_pred = 32'h2004; idex_load_bht_idx = 10'h2aa;
     idex_load_ctrl = {`CTRL_BUS_W{1'b0}}; idex_load_ctrl[`CTRL_VALID_BIT] = 1'b1;
     idex_load_imm = 32'h1234; idex_load_rs1 = 5'd1; idex_load_rs2 = 5'd2; idex_load_rd = 5'd3;
     idex_load_rs1_data = 32'h1111; idex_load_rs2_data = 32'h2222; idex_load_error = 1'b0;
@@ -148,6 +153,7 @@ module tb_pipe_regs;
     ifid_load = 1'b1; `TB_TICK(clk); ifid_load = 1'b0; #1;
     tb_check1("ifid load valid", ifid_valid, 1'b1);
     tb_check32("ifid pc", ifid_pc, 32'h1000);
+    tb_check32("ifid bht idx", {22'b0, ifid_bht_idx}, 32'h155);
     ifid_consume = 1'b1; `TB_TICK(clk); ifid_consume = 1'b0; #1;
     tb_check1("ifid consume", ifid_valid, 1'b0);
     ifid_clear = 1'b1; ifid_load = 1'b1; `TB_TICK(clk); ifid_clear = 1'b0; ifid_load = 1'b0; #1;
@@ -158,6 +164,7 @@ module tb_pipe_regs;
     tb_check32("idex ctrl valid", {31'b0, idex_ctrl[`CTRL_VALID_BIT]}, 32'd1);
     tb_check32("idex imm", idex_imm, 32'h1234);
     tb_check32("idex rd", {27'b0, idex_rd}, 32'd3);
+    tb_check32("idex bht idx", {22'b0, idex_bht_idx}, 32'h2aa);
     idex_kill = 1'b1; `TB_TICK(clk); idex_kill = 1'b0; #1;
     tb_check1("idex kill", idex_valid, 1'b0);
     idex_clear = 1'b1; idex_load = 1'b1; `TB_TICK(clk); idex_clear = 1'b0; idex_load = 1'b0; #1;

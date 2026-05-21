@@ -1,0 +1,10 @@
+[TEST] pipe_test
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/single/vsrc -Icommon -s pipe_test -o build/pipe_test.vvp tests/pipe_test.sv /home/lyg/PA/ysyx-workbench/npc/single/vsrc/LSUControl.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/LSUDataPath.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/LSU.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/MemoryStageControl.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/MemoryStage.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/DCache.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/PipelineControl.v
+[METRIC] mem_stage_load_miss_wait_cycles=51
+[METRIC] mem_stage_dcache_load_hit_wait_cycles=2
+[METRIC] mem_stage_store_write_through_wait_cycles=5
+[METRIC] id_stage_load_use_bubbles=1
+[METRIC] removable_load_hit_bubbles=2
+[PASS] pipe_test
+common/tb_common.svh:32: $finish called at 193 (1s)
+[RESULT] PASS

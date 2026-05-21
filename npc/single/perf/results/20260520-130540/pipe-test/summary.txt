@@ -1,0 +1,15 @@
+# NPC single pipe_test summary
+
+- result_dir: /home/lyg/PA/ysyx-workbench/npc/single/perf/results/20260520-130540/pipe-test
+- tool: Icarus Verilog version 12.0 (stable) ()
+- expect_load_hit_zero: 0
+
+- PASS pipe_test
+
+## Bubble Metrics
+- # NPC single pipe_test bubble report
+- mem_stage_load_miss_wait_cycles=51
+- mem_stage_dcache_load_hit_wait_cycles=2
+- mem_stage_store_write_through_wait_cycles=5
+- id_stage_load_use_bubbles=1
+- removable_load_hit_bubbles=2

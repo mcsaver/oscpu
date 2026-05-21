@@ -1,0 +1,5 @@
+[TEST] tb_register_file
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/single/vsrc -Icommon -s tb_register_file -o build/tb_register_file.vvp tests/tb_register_file.sv /home/lyg/PA/ysyx-workbench/npc/single/vsrc/RegisterFile.v
+[PASS] tb_register_file
+common/tb_common.svh:32: $finish called at 12 (1s)
+[RESULT] PASS

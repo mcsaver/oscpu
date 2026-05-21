@@ -1,0 +1,5 @@
+[TEST] tb_memory_stage_control
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/single/vsrc -Icommon -s tb_memory_stage_control -o build/tb_memory_stage_control.vvp tests/tb_memory_stage_control.sv /home/lyg/PA/ysyx-workbench/npc/single/vsrc/MemoryStageControl.v
+[PASS] tb_memory_stage_control
+common/tb_common.svh:32: $finish called at 29 (1s)
+[RESULT] PASS

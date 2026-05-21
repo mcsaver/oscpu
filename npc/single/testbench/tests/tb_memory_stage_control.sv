@@ -73,7 +73,16 @@ module tb_memory_stage_control;
     clear = 1'b1; `TB_TICK(clk); clear = 1'b0; lsu_rsp_valid = 1'b0; lsu_rsp_error = 1'b0; #1;
     tb_check1("clear pending", pending, 1'b0);
 
-    update_en = 1'b0; ex_store = 1'b1; #1;
+    ex_store = 1'b0; ex_load = 1'b1; ex_valid = 1'b1;
+    lsu_req_ready = 1'b1; lsu_rsp_valid = 1'b1; lsu_rsp_error = 1'b0; #1;
+    tb_check1("same-cycle req visible", lsu_req_valid, 1'b1);
+    tb_check1("same-cycle response", response, 1'b1);
+    tb_check1("same-cycle no fault", fault, 1'b0);
+    `TB_TICK(clk);
+    lsu_rsp_valid = 1'b0; ex_load = 1'b0; ex_valid = 1'b0; #1;
+    tb_check1("same-cycle leaves no pending", pending, 1'b0);
+
+    update_en = 1'b0; ex_valid = 1'b1; ex_store = 1'b1; #1;
     tb_check1("req still visible when update disabled", lsu_req_valid, 1'b1);
     `TB_TICK(clk); #1;
     tb_check1("no state update when disabled", pending, 1'b0);

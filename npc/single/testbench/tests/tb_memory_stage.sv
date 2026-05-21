@@ -76,6 +76,14 @@ module tb_memory_stage;
     tb_check32("load signed byte", load_data, 32'hffff_ff80);
     `TB_TICK(clk); lsu_rsp_valid = 1'b0; ex_load = 1'b0; #1;
 
+    ex_load = 1'b1; ex_store = 1'b0; ex_mem_size = `MEM_SIZE_WORD;
+    ex_mem_addr = 32'h8000_0000; lsu_rsp_valid = 1'b1; lsu_rsp_rdata = 32'hdead_beef; #1;
+    tb_check1("same-cycle load req", lsu_req_valid, 1'b1);
+    tb_check1("same-cycle load response", response, 1'b1);
+    tb_check32("same-cycle load data", load_data, 32'hdead_beef);
+    `TB_TICK(clk); lsu_rsp_valid = 1'b0; ex_load = 1'b0; #1;
+    tb_check1("same-cycle load no pending", pending, 1'b0);
+
     ex_store = 1'b1; ex_mem_size = `MEM_SIZE_HALF; ex_mem_addr = 32'h8000_0002; ex_store_data = 32'h0000_beef; #1;
     tb_check1("store req valid", lsu_req_valid, 1'b1);
     tb_check1("store req write", lsu_req_write, 1'b1);

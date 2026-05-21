@@ -1,0 +1,5 @@
+[TEST] tb_dcache
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/single/vsrc -Icommon -s tb_dcache -o build/tb_dcache.vvp tests/tb_dcache.sv /home/lyg/PA/ysyx-workbench/npc/single/vsrc/DCache.v
+[PASS] tb_dcache
+common/tb_common.svh:32: $finish called at 111 (1s)
+[RESULT] PASS
