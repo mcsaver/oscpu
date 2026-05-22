@@ -64,16 +64,25 @@
 `define SYSTEM_FUNCT12_MRET    12'h302
 `define SYSTEM_FUNCT12_WFI     12'h105
 
+`define CSR_MVENDORID      12'hf11
+`define CSR_MARCHID        12'hf12
 `define CSR_MSTATUS        12'h300
 `define CSR_MISA           12'h301
 `define CSR_MIE            12'h304
 `define CSR_MTVEC          12'h305
+`define CSR_MCOUNTINHIBIT  12'h320
 `define CSR_MSCRATCH       12'h340
 `define CSR_MEPC           12'h341
 `define CSR_MCAUSE         12'h342
 `define CSR_MTVAL          12'h343
 `define CSR_MIP            12'h344
+`define CSR_MCYCLE         12'hb00
+`define CSR_MCYCLEH        12'hb80
+`define CSR_CYCLE          12'hc00
+`define CSR_CYCLEH         12'hc80
 `define CSR_MHARTID        12'hf14
+
+`define MCOUNTINHIBIT_CY   32'h0000_0001
 
 `define MSTATUS_MIE        32'h0000_0008
 `define MSTATUS_MPIE       32'h0000_0080

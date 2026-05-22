@@ -90,12 +90,21 @@ config NPC_LOG_FILE
   bool "Enable file log output by default"
   default n
 
+config NPC_PROGRESS_BY_DEFAULT
+  bool "Enable progress report by default"
+  default y
+  help
+    Print periodic execution progress during long-running continuous runs by
+    default. This only controls the startup default; command-line options can
+    still override it with --progress or --no-progress.
+
 config NPC_DEFAULT_PROGRESS_INTERVAL
-  int "Default progress report interval in commits (0 = off)"
+  int "Default progress report interval in commits"
+  depends on NPC_PROGRESS_BY_DEFAULT
   default 10000000
   help
-    Periodically print execution progress during long-running continuous runs.
-    Use 0 to disable progress output by default.
+    Number of committed instructions between two progress reports when default
+    progress reporting is enabled.
 
 config NPC_DIFFTEST
   bool "Build difftest support"

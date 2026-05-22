@@ -407,7 +407,7 @@ static void report_branch_stats(void) {
           (unsigned long long)g_bpu_stats.branch_total,
           (unsigned long long)(g_bpu_stats.branch_total - g_bpu_stats.branch_correct),
           ratio_percent(g_bpu_stats.branch_correct, g_bpu_stats.branch_total));
-  LogBothTag("statistic", "  branch direction     = %llu/%llu correct (%.1f%%), BHT miss=%llu, cold=%llu",
+  LogBothTag("statistic", "  branch direction     = %llu/%llu correct (%.1f%%), dir miss=%llu, gshare cold=%llu",
           (unsigned long long)g_bpu_stats.branch_dir_correct,
           (unsigned long long)g_bpu_stats.branch_total,
           ratio_percent(g_bpu_stats.branch_dir_correct, g_bpu_stats.branch_total),
@@ -428,7 +428,7 @@ static void report_branch_stats(void) {
   LogBothTag("statistic", "  BTB JALR lookup      = hit %llu, miss %llu",
           (unsigned long long)g_bpu_stats.btb_hit,
           (unsigned long long)g_bpu_stats.btb_miss);
-  LogBothTag("statistic", "  BHT direction        = correct %llu, miss %llu",
+  LogBothTag("statistic", "  direction predictor  = correct %llu, miss %llu",
           (unsigned long long)g_bpu_stats.bht_correct,
           (unsigned long long)g_bpu_stats.bht_miss);
   LogBothTag("statistic", "  RAS lookup           = hit %llu, miss/underflow %llu, overflow %llu",

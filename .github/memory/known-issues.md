@@ -57,6 +57,22 @@
 - **教训**: 从中学到了什么
 -->
 
+### [26] NPC 配置切换不会稳定触发 Verilator 二进制重建，可能继续沿用旧产物
+
+- **模块**: NPC / Makefile / Kconfig
+- **现象**: `.config` 与 `include/generated/autoconf.h` 已更新配置，但直接 `make run` 仍可能运行旧 `npc/single/build/NpcSimTop`，例如关闭 `CONFIG_NPC_PROGRESS_BY_DEFAULT` 后仍打印 `[progress] ...`，或切回 VGA 后仍显示 `NPC VGA disabled`。
+- **根因**: `include/generated/autoconf.h` 只通过 `-include` 传给 Verilator CFLAGS，之前没有作为 `$(BIN)` 的显式依赖；配置切换后如果 RTL/C 源文件没变，`make` 会认为二进制仍是最新。
+- **修复**: 2026-05-22 已修复：`npc/single/Makefile` 新增 `CONFIG_OUTPUTS := include/generated/autoconf.h include/config/auto.conf`，并把它们加入 `$(BIN)` 依赖。验证：`make -C npc/single -W /home/lyg/PA/ysyx-workbench/npc/single/include/generated/autoconf.h -n default` 会展开 Verilator 重建命令；普通 `make -n default` 在二进制晚于配置头时保持 no-op。
+- **教训**: Kconfig 选项影响 CFLAGS/条件编译时，配置生成物必须进入最终产物依赖链；否则用户看到的是“配置明明关了/开了却无效”，实际只是二进制陈旧。
+
+### [27] RT-Thread AM on NPC 在线程入口返回后触发 `context.c:69`
+
+- **模块**: Abstract Machine / RT-Thread BSP / NPC
+- **现象**: `riscv32-npc` 上 RT-Thread 已打印 banner、utest 和 `Hello RISC-V!` 后，立即报 `Assertion fail at .../context.c:69`，NPC 侧显示 `HIT BAD TRAP at pc = 0x80043f9a`、`exit via ebreak, code=1`。
+- **根因**: `pc=0x80043f9a` 是 `halt(1)` 内的 `ebreak`，不是第一现场。真正问题是 `rt_hw_stack_init()` 只按 `RT_ALIGN_SIZE=8` 计算新线程栈布局，而 RISC-V AM 的 `kcontext()` 会把 `kstack.end` 再按 16 字节向下对齐并清零 `Context`。当 RT-Thread heap 返回的线程栈顶是 8-byte-only 对齐时，`kcontext()` 实际放置的 `Context` 会比 BSP 预估位置低 8 字节，覆盖 `RtAmThreadStart.exit` 字段；trampoline 随后看到 `exit == NULL`，跳过 `texit` 并触发第 69 行 `assert(0)`。
+- **修复**: 2026-05-22 已修复：`Templates/rt-thread-am/bsp/abstract-machine/src/context.c::rt_hw_stack_init()` 先把 `kstack.end` 按 16 字节对齐，再在该边界下方布局 `Context` 和 `RtAmThreadStart`，使 BSP 预留空间与 RISC-V `kcontext()` 内部行为一致。复验 `timeout 30s make ARCH=riscv32-npc run` 已进入 RT-Thread `msh` 并执行 shell 命令；native 回归和 `yield-os` on NPC 均正常。
+- **教训**: OS/BSP 桥接栈布局时不能只看上层 RTOS 的最小对齐，还必须匹配底层架构 `kcontext()` 的真实对齐和清零范围。看到 trap PC 落在 `halt/ebreak` 时，要先沿断言/退出路径回溯，不要把 ebreak 地址当作原始异常点。
+
 ### [24] NPC 默认 Verilator 构建携带 `--prof-cfuncs/-pg`，普通运行不再是干净性能基线
 
 - **模块**: NPC / Verilator / 性能

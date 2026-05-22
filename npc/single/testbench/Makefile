@@ -37,7 +37,8 @@ TESTS := \
   tb_icache \
   tb_dcache \
   tb_if_stage \
-  tb_npc_core_smoke
+  tb_npc_core_smoke \
+  tb_npc_core_mcycle
 
 TB_SRCS_tb_alu := tests/tb_alu.sv $(VSRCDIR)/ALU.v
 TB_SRCS_tb_compare := tests/tb_compare.sv $(VSRCDIR)/CompareUnit.v
@@ -64,6 +65,36 @@ TB_SRCS_tb_npc_core_smoke := tests/tb_npc_core_smoke.sv \
   $(VSRCDIR)/BranchPredictor.v \
   $(VSRCDIR)/CacheControl.v \
   $(VSRCDIR)/CompareUnit.v \
+  $(VSRCDIR)/CsrFile.v \
+  $(VSRCDIR)/DCache.v \
+  $(VSRCDIR)/DecodeStage.v \
+  $(VSRCDIR)/DecodeUnit.v \
+  $(VSRCDIR)/ICache.v \
+  $(VSRCDIR)/IfStage.v \
+  $(VSRCDIR)/ImmGen.v \
+  $(VSRCDIR)/IfIdPipeReg.v \
+  $(VSRCDIR)/IdExPipeReg.v \
+  $(VSRCDIR)/ExMemPipeReg.v \
+  $(VSRCDIR)/LSUControl.v \
+  $(VSRCDIR)/LSUDataPath.v \
+  $(VSRCDIR)/LSU.v \
+  $(VSRCDIR)/MemWbPipeReg.v \
+  $(VSRCDIR)/MemoryStageControl.v \
+  $(VSRCDIR)/MemoryStage.v \
+  $(VSRCDIR)/PipelineControl.v \
+  $(VSRCDIR)/RegisterFile.v \
+  $(VSRCDIR)/Rv32Divider.v \
+  $(VSRCDIR)/Sram1Rw.v \
+  $(VSRCDIR)/Sram2R1W.v \
+  $(VSRCDIR)/WBU.v \
+  $(VSRCDIR)/NpcCore.v
+
+TB_SRCS_tb_npc_core_mcycle := tests/tb_npc_core_mcycle.sv \
+  $(VSRCDIR)/ALU.v \
+  $(VSRCDIR)/BranchPredictor.v \
+  $(VSRCDIR)/CacheControl.v \
+  $(VSRCDIR)/CompareUnit.v \
+  $(VSRCDIR)/CsrFile.v \
   $(VSRCDIR)/DCache.v \
   $(VSRCDIR)/DecodeStage.v \
   $(VSRCDIR)/DecodeUnit.v \

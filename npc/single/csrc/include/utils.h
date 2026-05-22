@@ -68,6 +68,9 @@ extern "C" {
 #ifndef CONFIG_NPC_LOG_FILE
 #define CONFIG_NPC_LOG_FILE 0
 #endif
+#ifndef CONFIG_NPC_PROGRESS_BY_DEFAULT
+#define CONFIG_NPC_PROGRESS_BY_DEFAULT 0
+#endif
 #ifndef CONFIG_NPC_DEFAULT_PROGRESS_INTERVAL
 #define CONFIG_NPC_DEFAULT_PROGRESS_INTERVAL 10000000
 #endif
@@ -98,7 +101,9 @@ extern "C" {
 #define NPC_PROGRESS_DISABLED   0ull
 #define NPC_SUGGESTED_PROGRESS_INTERVAL 10000000ull
 #define NPC_DEFAULT_MAX_CYCLES  ((uint64_t)(CONFIG_NPC_DEFAULT_MAX_CYCLES))
-#define NPC_DEFAULT_PROGRESS_INTERVAL ((uint64_t)(CONFIG_NPC_DEFAULT_PROGRESS_INTERVAL))
+/* 默认 progress 先受 Kconfig bool 控制；关闭时不要再依赖 interval=0 这种隐式约定。 */
+#define NPC_DEFAULT_PROGRESS_INTERVAL \
+  (CONFIG_NPC_PROGRESS_BY_DEFAULT ? ((uint64_t)(CONFIG_NPC_DEFAULT_PROGRESS_INTERVAL)) : NPC_PROGRESS_DISABLED)
 
 /* 把 0 统一约定成"关闭周期超时"，Kconfig 和命令行走同一套语义 */
 static inline bool npc_cycle_limit_enabled(uint64_t max_cycles) {

@@ -117,6 +117,7 @@ RTL_CORE_SRCS := $(strip \
 	$(abspath ./vsrc/BranchPredictor.v) \
 	$(abspath ./vsrc/CacheControl.v) \
 	$(abspath ./vsrc/CompareUnit.v) \
+	$(abspath ./vsrc/CsrFile.v) \
 	$(abspath ./vsrc/DCache.v) \
 	$(abspath ./vsrc/DecodeStage.v) \
 	$(abspath ./vsrc/DecodeUnit.v) \
@@ -171,13 +172,15 @@ STA_MAKE_ARGS = \
 
 INCFLAGS = $(addprefix -I, $(INC_PATH))
 CXXFLAGS += $(CXXFLAGS_BUILD) $(INCFLAGS) -include $(abspath ./include/generated/autoconf.h)
+CONFIG_OUTPUTS := $(abspath ./include/generated/autoconf.h) $(abspath ./include/config/auto.conf)
 
 default: $(BIN)
 
 $(CAPSTONE_LIB):
 	$(MAKE) -C $(CAPSTONE_HOME)
 
-$(BIN): $(VSRCS) $(RTL_HEADER_SRCS) $(CSRCS)
+# Kconfig 输出会改变 CFLAGS 和条件编译；列入依赖后，切换配置不会继续沿用旧 NpcSimTop。
+$(BIN): $(VSRCS) $(RTL_HEADER_SRCS) $(CSRCS) $(CONFIG_OUTPUTS)
 	@rm -rf $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) \
 		--top-module $(TOPNAME) $(VSRCS) $(CSRCS) \

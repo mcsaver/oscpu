@@ -88,6 +88,8 @@ module tb_branch_predictor;
     tb_errors = 0;
     clk = 1'b0;
     reset_dut();
+    tb_check32("reset gshare counter weak taken", {30'b0, dut.bht_q[0]}, 32'd2);
+    tb_check32("reset local counter weak taken", {30'b0, dut.local_pht_q[0]}, 32'd2);
 
     predict_valid = 1'b0;
     predict_pc = 32'h8000_0000;
@@ -98,7 +100,7 @@ module tb_branch_predictor;
 
     predict_valid = 1'b1;
     #1;
-    tb_check32("branch initially weak not taken", predict_next_pc, 32'h8000_0004);
+    tb_check32("cold forward branch uses BTFNT not taken", predict_next_pc, 32'h8000_0004);
     tb_check1("branch cold bht invalid", predict_bht_valid, 1'b0);
     saved_bht_idx = predict_bht_idx;
     predict_valid = 1'b0;
@@ -123,6 +125,47 @@ module tb_branch_predictor;
     #1;
     tb_check32("gshare branch trains taken", predict_next_pc, 32'h8000_0008);
     tb_check1("branch trained bht valid", predict_bht_valid, 1'b1);
+    predict_valid = 1'b0;
+
+    reset_dut();
+    update_valid = 1'b1;
+    update_pc = 32'h8000_0800;
+    update_inst = rv32_b(13'd8, 5'd2, 5'd1, `FUNCT3_BEQ);
+    update_seq_pc = 32'h8000_0804;
+    update_next_pc = 32'h8000_0808;
+    update_taken = 1'b1;
+    update_bht_idx = 10'h000;
+    `TB_TICK(clk);
+    update_valid = 1'b0;
+    update_taken = 1'b0;
+    predict_pc = 32'h8000_0810;
+    predict_seq_pc = 32'h8000_0814;
+    predict_inst = rv32_b(13'd8, 5'd2, 5'd1, `FUNCT3_BEQ);
+    predict_valid = 1'b1;
+    #1;
+    tb_check32("local pht pc bits avoid low-bit alias", predict_next_pc, 32'h8000_0814);
+    predict_valid = 1'b0;
+
+    reset_dut();
+    predict_pc = 32'h8000_0800;
+    predict_seq_pc = 32'h8000_0804;
+    predict_inst = rv32_b(13'd8, 5'd2, 5'd1, `FUNCT3_BEQ);
+    for (train_i = 0; train_i < 48; train_i = train_i + 1) begin
+      update_valid = 1'b1;
+      update_pc = predict_pc;
+      update_inst = predict_inst;
+      update_seq_pc = predict_seq_pc;
+      update_taken = ((train_i % 2) == 0);
+      update_next_pc = update_taken ? 32'h8000_0808 : predict_seq_pc;
+      // 故意不使用预测时的 gshare index，确保这个用例验证的是 per-PC local history。
+      update_bht_idx = 10'h000;
+      `TB_TICK(clk);
+      update_valid = 1'b0;
+      update_taken = 1'b0;
+    end
+    predict_valid = 1'b1;
+    #1;
+    tb_check32("local history overrides weak forward static", predict_next_pc, 32'h8000_0808);
     predict_valid = 1'b0;
 
     predict_pc = 32'h8000_0100;

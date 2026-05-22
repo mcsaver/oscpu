@@ -35,6 +35,12 @@ module BranchPredictor #(
 
   localparam BPU_BTB_ENTRIES = 256;
   localparam BPU_BHT_ENTRIES = (1 << BPU_BHT_INDEX_W);
+  localparam BPU_LOCAL_HISTORY_INDEX_W = 8;
+  localparam BPU_LOCAL_HISTORY_ENTRIES = (1 << BPU_LOCAL_HISTORY_INDEX_W);
+  localparam BPU_LOCAL_HISTORY_W = 8;
+  localparam BPU_LOCAL_PHT_PC_BITS = 4;
+  localparam BPU_LOCAL_PHT_INDEX_W = BPU_LOCAL_PHT_PC_BITS + BPU_LOCAL_HISTORY_W;
+  localparam BPU_LOCAL_PHT_ENTRIES = (1 << BPU_LOCAL_PHT_INDEX_W);
   localparam BPU_RAS_ENTRIES = 16;
   localparam [4:0] BPU_RAS_DEPTH = 5'd16;
 
@@ -49,6 +55,9 @@ module BranchPredictor #(
   reg bht_valid_q [0:BPU_BHT_ENTRIES-1];
   reg [1:0] bht_q [0:BPU_BHT_ENTRIES-1];
   reg [BPU_BHT_INDEX_W-1:0] ghr_q;
+  reg [BPU_LOCAL_HISTORY_W-1:0] local_hist_q [0:BPU_LOCAL_HISTORY_ENTRIES-1];
+  reg local_pht_valid_q [0:BPU_LOCAL_PHT_ENTRIES-1];
+  reg [1:0] local_pht_q [0:BPU_LOCAL_PHT_ENTRIES-1];
   reg [`XLEN-1:0] ras_arch_q [0:BPU_RAS_ENTRIES-1];
   reg [`XLEN-1:0] ras_spec_q [0:BPU_RAS_ENTRIES-1];
   reg [4:0] ras_arch_size_q;
@@ -120,9 +129,29 @@ module BranchPredictor #(
                            (btb_pc_q[predict_btb_idx_w] == predict_pc_i);
   wire predict_bht_valid_w = bht_valid_q[predict_bht_idx_w];
   wire predict_static_taken_w = predict_inst_i[31];
-  wire predict_bht_taken_w = predict_bht_valid_w ?
-                             (bht_q[predict_bht_idx_w] >= 2'd2) :
-                             predict_static_taken_w;
+  wire predict_gshare_taken_w = predict_bht_valid_w ?
+                                (bht_q[predict_bht_idx_w] >= 2'd2) :
+                                predict_static_taken_w;
+  wire [BPU_LOCAL_HISTORY_INDEX_W-1:0] predict_local_hist_idx_w =
+      predict_pc_i[BPU_LOCAL_HISTORY_INDEX_W:1];
+  wire [BPU_LOCAL_HISTORY_W-1:0] predict_local_hist_w =
+      local_hist_q[predict_local_hist_idx_w];
+  wire [BPU_LOCAL_PHT_PC_BITS-1:0] predict_local_pc_idx_w =
+      predict_pc_i[BPU_LOCAL_PHT_PC_BITS:1];
+  wire [BPU_LOCAL_PHT_INDEX_W-1:0] predict_local_pht_idx_w =
+      {predict_local_pc_idx_w, predict_local_hist_w};
+  wire predict_local_valid_w = local_pht_valid_q[predict_local_pht_idx_w];
+  wire [1:0] predict_local_ctr_w = local_pht_q[predict_local_pht_idx_w];
+  wire predict_local_taken_w = predict_local_valid_w ?
+                               (predict_local_ctr_w >= 2'd2) :
+                               predict_static_taken_w;
+  wire predict_local_strong_w = predict_local_valid_w &&
+                                ((predict_local_ctr_w == 2'd0) ||
+                                 (predict_local_ctr_w == 2'd3));
+  // 局部历史只在强置信时覆盖 gshare，避免弱置信项扰动已稳定的全局预测。
+  wire predict_dir_taken_w = predict_local_strong_w ?
+                             predict_local_taken_w :
+                             predict_gshare_taken_w;
   wire [1:0] predict_ras_action_w = ras_action(predict_inst_i);
   wire predict_ras_uses_top_w = (predict_ras_action_w == RAS_POP) ||
                                 (predict_ras_action_w == RAS_POP_PUSH);
@@ -140,7 +169,7 @@ module BranchPredictor #(
       predict_btb_hit_w ? btb_target_q[predict_btb_idx_w] :
                           predict_seq_pc_i;
   wire [`XLEN-1:0] predict_next_pc_w =
-      predict_is_branch_w ? (predict_bht_taken_w ? predict_branch_target_w : predict_seq_pc_i) :
+      predict_is_branch_w ? (predict_dir_taken_w ? predict_branch_target_w : predict_seq_pc_i) :
       predict_is_jal_w ? predict_jal_target_w :
       predict_is_jalr_w ? predict_jalr_target_w :
       predict_seq_pc_i;
@@ -151,6 +180,14 @@ module BranchPredictor #(
                              (update_inst_i[6:0] == `OPCODE_JALR);
   wire [7:0] update_btb_idx_w = update_pc_i[8:1];
   wire [BPU_BHT_INDEX_W-1:0] update_bht_idx_w = update_bht_idx_i;
+  wire [BPU_LOCAL_HISTORY_INDEX_W-1:0] update_local_hist_idx_w =
+      update_pc_i[BPU_LOCAL_HISTORY_INDEX_W:1];
+  wire [BPU_LOCAL_HISTORY_W-1:0] update_local_hist_w =
+      local_hist_q[update_local_hist_idx_w];
+  wire [BPU_LOCAL_PHT_PC_BITS-1:0] update_local_pc_idx_w =
+      update_pc_i[BPU_LOCAL_PHT_PC_BITS:1];
+  wire [BPU_LOCAL_PHT_INDEX_W-1:0] update_local_pht_idx_w =
+      {update_local_pc_idx_w, update_local_hist_w};
   wire [1:0] update_ras_action_w = ras_action(update_inst_i);
 
   assign predict_next_pc_o = predict_valid_i ? predict_next_pc_w : predict_seq_pc_i;
@@ -161,7 +198,7 @@ module BranchPredictor #(
   assign predict_ret_o = predict_is_jalr_w && predict_ras_uses_top_w;
   assign predict_btb_hit_o = predict_btb_hit_w;
   assign predict_bht_valid_o = predict_bht_valid_w;
-  assign predict_bht_taken_o = predict_bht_taken_w;
+  assign predict_bht_taken_o = predict_dir_taken_w;
   assign predict_ras_lookup_o = predict_is_jalr_w && predict_ras_uses_top_w;
   assign predict_ras_hit_o = predict_ras_hit_w;
   assign predict_ras_overflow_o = predict_ras_overflow_w;
@@ -179,7 +216,15 @@ module BranchPredictor #(
       end
       for (bpu_i = 0; bpu_i < BPU_BHT_ENTRIES; bpu_i = bpu_i + 1) begin
         bht_valid_q[bpu_i] = 1'b0;
-        bht_q[bpu_i] = 2'd1;
+        // 复位后计数器从弱跳转开始；valid 仍为 0，首轮 cold 预测继续交给 BTFNT。
+        bht_q[bpu_i] = 2'd2;
+      end
+      for (bpu_i = 0; bpu_i < BPU_LOCAL_HISTORY_ENTRIES; bpu_i = bpu_i + 1) begin
+        local_hist_q[bpu_i] = {BPU_LOCAL_HISTORY_W{1'b0}};
+      end
+      for (bpu_i = 0; bpu_i < BPU_LOCAL_PHT_ENTRIES; bpu_i = bpu_i + 1) begin
+        local_pht_valid_q[bpu_i] = 1'b0;
+        local_pht_q[bpu_i] = 2'd2;
       end
       for (bpu_i = 0; bpu_i < BPU_RAS_ENTRIES; bpu_i = bpu_i + 1) begin
         ras_arch_q[bpu_i] = {`XLEN{1'b0}};
@@ -197,6 +242,17 @@ module BranchPredictor #(
             bht_q[update_bht_idx_w] <= bht_q[update_bht_idx_w] - 2'd1;
           end
           ghr_q <= {ghr_q[BPU_BHT_INDEX_W-2:0], update_taken_i};
+
+          // local PHT 混入更多 PC 位，减少 CoreMark 字符状态机多分支共用同一 history 时的别名。
+          local_pht_valid_q[update_local_pht_idx_w] <= 1'b1;
+          if (update_taken_i) begin
+            if (local_pht_q[update_local_pht_idx_w] != 2'd3)
+              local_pht_q[update_local_pht_idx_w] <= local_pht_q[update_local_pht_idx_w] + 2'd1;
+          end else if (local_pht_q[update_local_pht_idx_w] != 2'd0) begin
+            local_pht_q[update_local_pht_idx_w] <= local_pht_q[update_local_pht_idx_w] - 2'd1;
+          end
+          local_hist_q[update_local_hist_idx_w] <=
+              {update_local_hist_w[BPU_LOCAL_HISTORY_W-2:0], update_taken_i};
         end
 
         if (update_taken_i) begin

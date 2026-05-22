@@ -55,68 +55,6 @@ module NpcCore #(
   output [`XLEN * `REG_NUM - 1:0] debug_gprs_o
 );
 
-  function [`XLEN-1:0] trap_mstatus;
-    input [`XLEN-1:0] old_status;
-    begin
-      trap_mstatus = old_status;
-      if ((old_status & `MSTATUS_MIE) != {`XLEN{1'b0}})
-        trap_mstatus = trap_mstatus | `MSTATUS_MPIE;
-      else
-        trap_mstatus = trap_mstatus & ~`MSTATUS_MPIE;
-      trap_mstatus = trap_mstatus & ~`MSTATUS_MIE;
-      trap_mstatus = (trap_mstatus & ~`MSTATUS_MPP_MASK) | `MSTATUS_MPP_M;
-    end
-  endfunction
-
-  function [`XLEN-1:0] mret_mstatus;
-    input [`XLEN-1:0] old_status;
-    begin
-      mret_mstatus = old_status;
-      if ((old_status & `MSTATUS_MPIE) != {`XLEN{1'b0}})
-        mret_mstatus = mret_mstatus | `MSTATUS_MIE;
-      else
-        mret_mstatus = mret_mstatus & ~`MSTATUS_MIE;
-      mret_mstatus = mret_mstatus | `MSTATUS_MPIE;
-      mret_mstatus = mret_mstatus & ~`MSTATUS_MPP_MASK;
-    end
-  endfunction
-
-  function csr_writable;
-    input [11:0] csr_addr;
-    begin
-      case (csr_addr)
-        `CSR_MSTATUS,
-        `CSR_MIE,
-        `CSR_MTVEC,
-        `CSR_MSCRATCH,
-        `CSR_MEPC,
-        `CSR_MCAUSE,
-        `CSR_MTVAL,
-        `CSR_MIP: csr_writable = 1'b1;
-        default:  csr_writable = 1'b0;
-      endcase
-    end
-  endfunction
-
-  function csr_known;
-    input [11:0] csr_addr;
-    begin
-      case (csr_addr)
-        `CSR_MSTATUS,
-        `CSR_MISA,
-        `CSR_MIE,
-        `CSR_MTVEC,
-        `CSR_MSCRATCH,
-        `CSR_MEPC,
-        `CSR_MCAUSE,
-        `CSR_MTVAL,
-        `CSR_MIP,
-        `CSR_MHARTID: csr_known = 1'b1;
-        default:      csr_known = 1'b0;
-      endcase
-    end
-  endfunction
-
   function [`XLEN-1:0] rv32m_mul_result;
     input [2:0] funct3;
     input [`XLEN-1:0] src1;
@@ -255,7 +193,7 @@ module NpcCore #(
     end
   endfunction
 
-  // CoreMark 当前条件分支误预测仍约 428 万次，扩大 gshare 表项以降低不同分支间的 alias。
+  // CoreMark 条件分支误预测仍约 343 万次且集中在少数 PC，保留较大的 gshare 表项以降低 alias。
   localparam BPU_BHT_INDEX_W = 12;
 
   wire fetch_pending_w;
@@ -333,14 +271,10 @@ module NpcCore #(
   wire [`REG_ADDR_W-1:0] mem_wb_rd_idx_q;
   wire [`XLEN-1:0] mem_wb_wb_data_q;
 
-  reg [`XLEN-1:0] csr_mstatus_q;
-  reg [`XLEN-1:0] csr_mtvec_q;
-  reg [`XLEN-1:0] csr_mscratch_q;
-  reg [`XLEN-1:0] csr_mepc_q;
-  reg [`XLEN-1:0] csr_mcause_q;
-  reg [`XLEN-1:0] csr_mtval_q;
-  reg [`XLEN-1:0] csr_mie_q;
-  reg [`XLEN-1:0] csr_mip_q;
+  wire [`XLEN-1:0] csr_rdata_w;
+  wire csr_illegal_w;
+  wire [`XLEN-1:0] csr_trap_target_w;
+  wire [`XLEN-1:0] csr_mepc_w;
 
   reg halt_q;
   reg fatal_trap_q;
@@ -467,37 +401,6 @@ module NpcCore #(
   wire mem_response_w;
   wire mem_fault_w;
 
-  wire [`XLEN-1:0] csr_old_value_w =
-      (id_ex_inst_q[31:20] == `CSR_MSTATUS)  ? csr_mstatus_q :
-      (id_ex_inst_q[31:20] == `CSR_MISA)     ? 32'h4000_1106 :
-      (id_ex_inst_q[31:20] == `CSR_MIE)      ? csr_mie_q :
-      (id_ex_inst_q[31:20] == `CSR_MTVEC)    ? csr_mtvec_q :
-      (id_ex_inst_q[31:20] == `CSR_MSCRATCH) ? csr_mscratch_q :
-      (id_ex_inst_q[31:20] == `CSR_MEPC)     ? csr_mepc_q :
-      (id_ex_inst_q[31:20] == `CSR_MCAUSE)   ? csr_mcause_q :
-      (id_ex_inst_q[31:20] == `CSR_MTVAL)    ? csr_mtval_q :
-      (id_ex_inst_q[31:20] == `CSR_MIP)      ? csr_mip_q :
-      (id_ex_inst_q[31:20] == `CSR_MHARTID)  ? {`XLEN{1'b0}} :
-                                                {`XLEN{1'b0}};
-  wire [2:0] csr_funct3_w = id_ex_inst_q[14:12];
-  wire [11:0] csr_addr_w = id_ex_inst_q[31:20];
-  wire [`XLEN-1:0] csr_zimm_w = {{(`XLEN-5){1'b0}}, id_ex_inst_q[19:15]};
-  wire csr_imm_op_w = csr_funct3_w[2];
-  wire [`XLEN-1:0] csr_src_w = csr_imm_op_w ? csr_zimm_w : ex_rs1_forward_w;
-  wire csr_set_clear_noop_w = ((csr_funct3_w == 3'b010) || (csr_funct3_w == 3'b011) ||
-                               (csr_funct3_w == 3'b110) || (csr_funct3_w == 3'b111)) &&
-                              (id_ex_rs1_idx_q == {`REG_ADDR_W{1'b0}});
-  wire csr_need_write_w = id_ex_csr_w && ((csr_funct3_w == 3'b001) ||
-                                          (csr_funct3_w == 3'b101) ||
-                                          ~csr_set_clear_noop_w);
-  wire [`XLEN-1:0] csr_new_value_w =
-      ((csr_funct3_w == 3'b001) || (csr_funct3_w == 3'b101)) ? csr_src_w :
-      ((csr_funct3_w == 3'b010) || (csr_funct3_w == 3'b110)) ? (csr_old_value_w | csr_src_w) :
-      ((csr_funct3_w == 3'b011) || (csr_funct3_w == 3'b111)) ? (csr_old_value_w & ~csr_src_w) :
-                                                               csr_old_value_w;
-  wire csr_illegal_w = id_ex_csr_w && (~csr_known(csr_addr_w) ||
-                                       (csr_need_write_w && ~csr_writable(csr_addr_w)));
-
   wire [`XLEN-1:0] ex_wbu_data_w;
   assign ex_mul_result_w = rv32m_mul_result(id_ex_inst_q[14:12], ex_rs1_forward_w, ex_rs2_forward_w);
   assign ex_ext_result_w = id_ex_muldiv_w ? (id_ex_divrem_w ? ex_div_result_w : ex_mul_result_w) :
@@ -542,7 +445,7 @@ module NpcCore #(
       ex_redirect_misaligned_w ? ex_control_target_w :
       ex_load_store_misaligned_w ? ex_addr_sum_w :
       {`XLEN{1'b0}};
-  wire [`XLEN-1:0] trap_target_w = {csr_mtvec_q[`XLEN-1:2], 2'b00};
+  wire [`XLEN-1:0] trap_target_w = csr_trap_target_w;
 
   wire ex_fire_w;
   wire ex_exception_w;
@@ -551,7 +454,7 @@ module NpcCore #(
   wire cache_flush_valid_w;
   wire [`XLEN-1:0] cache_flush_redirect_pc_w;
   wire ex_any_flush_w;
-  wire [`XLEN-1:0] ex_next_pc_w = ex_mret_redirect_w ? csr_mepc_q :
+  wire [`XLEN-1:0] ex_next_pc_w = ex_mret_redirect_w ? csr_mepc_w :
                                   (id_ex_branch_w | id_ex_jal_w | id_ex_jalr_w) ? ex_control_next_pc_w :
                                   ex_pc_plus4_w;
   wire id_accept_w;
@@ -621,7 +524,7 @@ module NpcCore #(
     .ex_control_next_pc_i(ex_control_next_pc_w),
     .ex_redirect_pc_i(ex_control_next_pc_w),
     .trap_target_i(trap_target_w),
-    .csr_mepc_i(csr_mepc_q),
+    .csr_mepc_i(csr_mepc_w),
     .cache_flush_valid_i(cache_flush_valid_w),
     .cache_flush_redirect_pc_i(cache_flush_redirect_pc_w),
     .ex_fire_o(ex_fire_w),
@@ -642,6 +545,32 @@ module NpcCore #(
     .mem_wb_from_ex_o(mem_wb_from_ex_w),
     .mem_wb_load_o(mem_wb_load_w),
     .bpu_update_valid_o(bpu_update_valid_w)
+  );
+
+  CsrFile u_csr_file (
+    .clk(clk),
+    .rst(rst),
+    .cycle_count_enable_i(~halt_q & ~fatal_trap_q),
+    .csr_valid_i(id_ex_csr_w),
+    .csr_addr_i(id_ex_inst_q[31:20]),
+    .csr_funct3_i(id_ex_inst_q[14:12]),
+    .csr_rs1_idx_i(id_ex_rs1_idx_q),
+    .csr_rs1_data_i(ex_rs1_forward_w),
+    .csr_zimm_i(id_ex_inst_q[19:15]),
+    .csr_commit_i(ex_fire_w),
+    .csr_rdata_o(csr_rdata_w),
+    .csr_illegal_o(csr_illegal_w),
+    .trap_mem_valid_i(mem_fault_w && (trap_target_w != {`XLEN{1'b0}})),
+    .trap_mem_pc_i(ex_mem_pc_q),
+    .trap_mem_cause_i(ex_mem_load_w ? `EXC_LOAD_ACCESS_FAULT : `EXC_STORE_ACCESS_FAULT),
+    .trap_mem_tval_i(ex_mem_mem_addr_q),
+    .trap_ex_valid_i(ex_exception_w && ~ex_exception_fatal_w),
+    .trap_ex_pc_i(id_ex_pc_q),
+    .trap_ex_cause_i(ex_exception_cause_w),
+    .trap_ex_tval_i(ex_exception_tval_w),
+    .mret_valid_i(ex_mret_redirect_w),
+    .trap_target_o(csr_trap_target_w),
+    .mepc_o(csr_mepc_w)
   );
 
   IfStage #(
@@ -793,7 +722,7 @@ module NpcCore #(
     .load_data_i({`XLEN{1'b0}}),
     .pc_plus4_i(ex_pc_plus4_w),
     .imm_data_i(id_ex_imm_q),
-    .csr_data_i(csr_old_value_w),
+    .csr_data_i(csr_rdata_w),
     .wb_data_o(ex_wbu_data_w)
   );
 
@@ -978,14 +907,6 @@ module NpcCore #(
 
   always @(posedge clk) begin
     if (rst) begin
-      csr_mstatus_q <= {`XLEN{1'b0}};
-      csr_mtvec_q <= {`XLEN{1'b0}};
-      csr_mscratch_q <= {`XLEN{1'b0}};
-      csr_mepc_q <= {`XLEN{1'b0}};
-      csr_mcause_q <= {`XLEN{1'b0}};
-      csr_mtval_q <= {`XLEN{1'b0}};
-      csr_mie_q <= {`XLEN{1'b0}};
-      csr_mip_q <= {`XLEN{1'b0}};
       halt_q <= 1'b0;
       fatal_trap_q <= 1'b0;
       exit_is_ebreak_q <= 1'b0;
@@ -1016,12 +937,6 @@ module NpcCore #(
           fatal_pc_q <= ex_mem_pc_q;
           fatal_tval_q <= ex_mem_mem_addr_q;
           stop_pc_q <= ex_mem_pc_q;
-        end else begin
-          csr_mepc_q <= {ex_mem_pc_q[`XLEN-1:1], 1'b0};
-          csr_mcause_q <= {{(`XLEN-`TRAP_CAUSE_W){1'b0}},
-                           (ex_mem_load_w ? `EXC_LOAD_ACCESS_FAULT : `EXC_STORE_ACCESS_FAULT)};
-          csr_mtval_q <= ex_mem_mem_addr_q;
-          csr_mstatus_q <= trap_mstatus(csr_mstatus_q);
         end
       end else if (ex_exception_w) begin
         if (ex_exception_fatal_w) begin
@@ -1030,11 +945,6 @@ module NpcCore #(
           fatal_pc_q <= id_ex_pc_q;
           fatal_tval_q <= ex_exception_tval_w;
           stop_pc_q <= id_ex_pc_q;
-        end else begin
-          csr_mepc_q <= {id_ex_pc_q[`XLEN-1:1], 1'b0};
-          csr_mcause_q <= {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, ex_exception_cause_w};
-          csr_mtval_q <= ex_exception_tval_w;
-          csr_mstatus_q <= trap_mstatus(csr_mstatus_q);
         end
       end else if (ebreak_fire_w) begin
         halt_q <= 1'b1;
@@ -1042,10 +952,6 @@ module NpcCore #(
         exit_code_q <= ex_a0_forward_w;
         stop_pc_q <= id_ex_pc_q;
       end else begin
-        if (ex_mret_redirect_w) begin
-          csr_mstatus_q <= mret_mstatus(csr_mstatus_q);
-        end
-
         if (mem_wb_from_mem_w) begin
           rf_wen_q <= ex_mem_load_w && ex_mem_need_wb_q && ex_mem_rd_en_q &&
                       (ex_mem_rd_idx_q != {`REG_ADDR_W{1'b0}});
@@ -1056,22 +962,6 @@ module NpcCore #(
                       (ex_mem_rd_idx_q != {`REG_ADDR_W{1'b0}});
           rf_waddr_q <= ex_mem_rd_idx_q;
           rf_wdata_q <= ex_mem_wb_data_q;
-        end
-
-        if (ex_fire_w) begin
-          if (id_ex_csr_w && ~csr_illegal_w && csr_need_write_w) begin
-            case (csr_addr_w)
-              `CSR_MSTATUS:  csr_mstatus_q <= csr_new_value_w;
-              `CSR_MIE:      csr_mie_q <= csr_new_value_w;
-              `CSR_MTVEC:    csr_mtvec_q <= {csr_new_value_w[`XLEN-1:2], 2'b00};
-              `CSR_MSCRATCH: csr_mscratch_q <= csr_new_value_w;
-              `CSR_MEPC:     csr_mepc_q <= {csr_new_value_w[`XLEN-1:1], 1'b0};
-              `CSR_MCAUSE:   csr_mcause_q <= csr_new_value_w;
-              `CSR_MTVAL:    csr_mtval_q <= csr_new_value_w;
-              `CSR_MIP:      csr_mip_q <= csr_new_value_w;
-              default: begin end
-            endcase
-          end
         end
       end
     end
