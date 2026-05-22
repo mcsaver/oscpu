@@ -19,6 +19,15 @@
 
 ## 实现决策
 
+### [30] NPC 可调结构参数以 `define.v` 宏区作为唯一默认来源
+
+- **日期**: 2026-05-22
+- **状态**: 已决定
+- **上下文**: NPC core 中 reset PC、BPU 表规模、RAS 深度、I/D cache 容量和地址范围等参数此前分散在模块参数或局部常量中，后续若用外部软件生成配置，容易出现 `NpcCore`、前端、流水寄存器、cache 和 testbench 位宽不一致。
+- **决策**: 把这类全局结构参数统一收口到 `npc/single/vsrc/include/define.v` 的可配置宏区，并用 `ifndef` 允许外部软件或 Verilator/仿真命令行覆盖默认值。模块内部只保留从宏派生出的别名或状态编码；通用 IP 的接口泛型如 SRAM 宽度、crossbar master/slave 数量继续保留为模块参数。
+- **理由**: 全局可调参数需要单一事实来源，才能保证 BPU index 宽度、cache SRAM 深度、AXI 地址图和测试期望同步变化；而通用 IP 参数是实例化时的复用边界，不应强行全局化。
+- **影响**: 后续新增 NPC core 级结构旋钮时优先加入 `define.v`，并同步修改相关 testbench 使用同一宏。外部软件生成配置时必须成组维护相关字段，例如 cache 的 line/count/index/offset/word bits 与 RAS entries/index/size/depth。
+
 ### [29] NEMU BPU 作为透明预测统计模型接入提交路径
 
 - **日期**: 2026-05-19
@@ -290,3 +299,12 @@
 - **决策**: 后续 agent 处理 bug 时，必须先从架构职责、模块边界、控制流和数据流定位根因，再在正确抽象层修复；默认禁止“哪里坏了就在哪里缝一块”的补丁式修法。只有在明确属于兼容层、过渡期或外部约束导致无法立即做根修时，才允许保留局部补丁，并且必须显式说明边界、退出条件和债务控制方式。
 - **理由**: 这样能把修复动作和系统结构对齐，避免局部症状消失但全局复杂度持续上升，也更符合当前工作区希望沉淀长期可维护架构而不是堆临时 workaround 的方向。
 - **影响**: 后续无论是代码实现、review 还是 task-run 记录，遇到 bug 修复都应优先解释“根因在什么层、修复为什么放在这一层、数据流如何恢复正确”，而不是只记录表面补丁点。
+
+### [20] NPC RTL 源码采用功能目录 + 统一 filelist 管理
+
+- **日期**: 2026-05-22
+- **状态**: 已决定
+- **上下文**: `npc/single/vsrc` 的 RTL 模块数量已经增长到 30+，继续把所有 `.v/.sv` 平铺在同一目录会让新增模块、综合边界、仿真壳和 testbench 路径维护变得混乱。
+- **决策**: `vsrc` 按功能域划分为 `include/core/frontend/decode/execute/memory/cache/bus/common/pipeline/writeback/sim`，并新增 `vsrc/filelist.mk` 集中维护各模块路径变量、`RTL_CORE_SRCS`、`SIM_TOP_SRCS` 和 `VSRCS`；主 Makefile、模块 testbench 与 STA 入口共享这份清单。
+- **理由**: 这是商业 RTL 工程中常见的组织方式：目录表达架构职责，filelist 表达工具入口，避免每个构建脚本各自散落一份路径清单，也能继续明确区分可综合核心和 DPI 仿真壳。
+- **影响**: 后续新增或移动 RTL 文件时，应先选择对应功能目录，再更新 `vsrc/filelist.mk`；不要重新在 `Makefile` 或 testbench 中直接写平铺文件路径。

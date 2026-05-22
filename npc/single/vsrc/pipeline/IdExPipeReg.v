@@ -1,8 +1,6 @@
 `include "define.v"
 
-module IdExPipeReg #(
-  parameter BPU_BHT_INDEX_W = 10
-) (
+module IdExPipeReg (
   input clk,
   input rst,
   input clear_i,
@@ -12,7 +10,7 @@ module IdExPipeReg #(
   input [`INST_W-1:0] load_inst_i,
   input [`XLEN-1:0] load_inst_len_i,
   input [`XLEN-1:0] load_pred_pc_i,
-  input [BPU_BHT_INDEX_W-1:0] load_bht_idx_i,
+  input [`BPU_BHT_INDEX_W-1:0] load_bht_idx_i,
   input [`CTRL_BUS_W-1:0] load_ctrl_i,
   input [`XLEN-1:0] load_imm_i,
   input [`REG_ADDR_W-1:0] load_rs1_idx_i,
@@ -26,7 +24,7 @@ module IdExPipeReg #(
   output reg [`INST_W-1:0] inst_o,
   output reg [`XLEN-1:0] inst_len_o,
   output reg [`XLEN-1:0] pred_pc_o,
-  output reg [BPU_BHT_INDEX_W-1:0] bht_idx_o,
+  output reg [`BPU_BHT_INDEX_W-1:0] bht_idx_o,
   output reg [`CTRL_BUS_W-1:0] ctrl_o,
   output reg [`XLEN-1:0] imm_o,
   output reg [`REG_ADDR_W-1:0] rs1_idx_o,
@@ -44,7 +42,7 @@ module IdExPipeReg #(
       inst_o <= {`INST_W{1'b0}};
       inst_len_o <= `PC_STEP;
       pred_pc_o <= `RESET_PC + `PC_STEP;
-      bht_idx_o <= {BPU_BHT_INDEX_W{1'b0}};
+      bht_idx_o <= {`BPU_BHT_INDEX_W{1'b0}};
       ctrl_o <= {`CTRL_BUS_W{1'b0}};
       imm_o <= {`XLEN{1'b0}};
       rs1_idx_o <= {`REG_ADDR_W{1'b0}};

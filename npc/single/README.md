@@ -20,11 +20,19 @@
 npc/single/
 ├── Makefile                 # Verilator 构建、运行和清理入口
 ├── vsrc/
-│   ├── NpcCore.v            # 可综合流水线核心顶层
-│   ├── IfStage.v            # 取指、RVC 解压和 IF 缓冲
-│   ├── BranchPredictor.v    # BTB/BHT/RAS 分支预测器
-│   ├── CacheControl.v       # fence.i flush/cache 同步边界
-│   └── NpcSimTop.sv         # 含 DPI-C 的仿真顶层
+│   ├── filelist.mk          # RTL/仿真源文件统一清单
+│   ├── include/             # 全局宏和编码定义
+│   ├── core/                # NpcCore、CSR、寄存器堆和流水控制
+│   ├── frontend/            # 取指、RVC 解压、IF 缓冲和 BPU
+│   ├── decode/              # 译码与立即数生成
+│   ├── execute/             # ALU、比较器和多周期除法器
+│   ├── memory/              # LSU 与 MEM 阶段控制/数据路径
+│   ├── cache/               # ICache、DCache 与 fence.i cache 控制
+│   ├── bus/                 # AXI-like 总线、crossbar 和默认 slave
+│   ├── common/              # SRAM-like 通用存储封装
+│   ├── pipeline/            # IF/ID、ID/EX、EX/MEM、MEM/WB 寄存器
+│   ├── writeback/           # 写回选择逻辑
+│   └── sim/                 # 含 DPI-C 的 Verilator 仿真顶层
 └── csrc/
     ├── main.cpp             # 启动入口
     ├── monitor/             # 参数解析、初始化/收尾顺序
@@ -38,6 +46,7 @@ npc/single/
 
 `NpcSimTop` 和宿主侧环境当前对齐 NEMU 风格的最小地址图：
 
+- `uart`: `0x10000000` - `0x10000fff`，独立 `Uart` RTL 设备核心经 `AxiLiteToUart` 适配层接入 AXI-Lite crossbar
 - `pmem`: `0x80000000`
 - `serial`: `0xa00003f8`
 - `rtc`: `0xa0000048`

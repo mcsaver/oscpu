@@ -32,6 +32,7 @@ module PipelineControl (
   input ex_illegal_i,
   input ex_redirect_misaligned_i,
   input ex_load_store_misaligned_i,
+  input irq_pending_i,
   input [`XLEN-1:0] ex_control_next_pc_i,
   input [`XLEN-1:0] ex_redirect_pc_i,
   input [`XLEN-1:0] trap_target_i,
@@ -43,6 +44,8 @@ module PipelineControl (
   output ex_fire_o,
   output ex_exception_o,
   output ex_exception_fatal_o,
+  output ex_interrupt_o,
+  output ex_interrupt_fatal_o,
   output ex_mret_redirect_o,
   output ex_any_flush_o,
   output id_accept_o,
@@ -63,7 +66,9 @@ module PipelineControl (
   wire ex_mem_leave_w;
   wire ex_mem_can_accept_w;
   wire raw_ex_exception_w;
+  wire raw_ex_interrupt_w;
   wire ex_exception_redirect_w;
+  wire ex_interrupt_redirect_w;
   wire ex_branch_redirect_w;
   wire ex_to_mem_w;
   wire id_ex_slot_free_w;
@@ -86,15 +91,20 @@ module PipelineControl (
                               ex_redirect_misaligned_i |
                               ex_load_store_misaligned_i |
                               id_ex_ecall_i;
+  assign raw_ex_interrupt_w = irq_pending_i && ~raw_ex_exception_w &&
+                              ~id_ex_ebreak_i && ~id_ex_mret_i;
   assign ex_exception_o = ex_fire_o && raw_ex_exception_w;
   assign ex_exception_fatal_o = ex_exception_o && (trap_target_i == {`XLEN{1'b0}});
+  assign ex_interrupt_o = ex_fire_o && raw_ex_interrupt_w;
+  assign ex_interrupt_fatal_o = ex_interrupt_o && (trap_target_i == {`XLEN{1'b0}});
   assign ex_exception_redirect_w = ex_exception_o && ~ex_exception_fatal_o;
+  assign ex_interrupt_redirect_w = ex_interrupt_o && ~ex_interrupt_fatal_o;
   assign ex_mret_redirect_o = ex_fire_o && id_ex_mret_i;
   assign ex_branch_redirect_w = ex_fire_o && (id_ex_branch_i | id_ex_jal_i | id_ex_jalr_i) &&
-                                ~ex_redirect_misaligned_i && ~ex_exception_o &&
+                                ~ex_redirect_misaligned_i && ~ex_exception_o && ~ex_interrupt_o &&
                                 (id_ex_pred_pc_i != ex_control_next_pc_i);
   assign ebreak_fire_o = ex_fire_o && id_ex_ebreak_i;
-  assign ex_any_flush_o = mem_fault_i | ex_exception_o | ex_mret_redirect_o |
+  assign ex_any_flush_o = mem_fault_i | ex_exception_o | ex_interrupt_o | ex_mret_redirect_o |
                           ex_branch_redirect_w | cache_flush_valid_i |
                           ebreak_fire_o;
 
@@ -106,19 +116,20 @@ module PipelineControl (
   assign if_id_consume_o = id_accept_o;
   assign if_id_can_refill_o = (~if_id_valid_i) || if_id_consume_o;
 
-  assign pipeline_normal_update_o = ~(mem_fault_i | ex_exception_o | ebreak_fire_o);
+  assign pipeline_normal_update_o = ~(mem_fault_i | ex_exception_o | ex_interrupt_o | ebreak_fire_o);
 
   assign if_redirect_valid_o = (mem_fault_i && (trap_target_i != {`XLEN{1'b0}})) |
-                               ex_exception_redirect_w | ex_mret_redirect_o |
+                               ex_exception_redirect_w | ex_interrupt_redirect_w | ex_mret_redirect_o |
                                ex_branch_redirect_w | cache_flush_valid_i;
   assign if_redirect_pc_o =
       mem_fault_i ? trap_target_i :
       ex_exception_redirect_w ? trap_target_i :
+      ex_interrupt_redirect_w ? trap_target_i :
       ex_mret_redirect_o ? csr_mepc_i :
       cache_flush_valid_i ? cache_flush_redirect_pc_i :
       ex_redirect_pc_i;
 
-  assign ex_to_mem_w = ex_fire_o && ~ex_exception_o && ~id_ex_ebreak_i;
+  assign ex_to_mem_w = ex_fire_o && ~ex_exception_o && ~ex_interrupt_o && ~id_ex_ebreak_i;
   assign ex_mem_leave_update_o = pipeline_normal_update_o && ex_mem_leave_w;
   assign ex_mem_load_update_o = pipeline_normal_update_o && ex_to_mem_w;
   assign mem_wb_from_mem_o = pipeline_normal_update_o && mem_response_i;
@@ -127,6 +138,6 @@ module PipelineControl (
 
   assign bpu_update_valid_o = ex_fire_o &&
                               (id_ex_branch_i | id_ex_jal_i | id_ex_jalr_i) &&
-                              ~ex_exception_o;
+                              ~ex_exception_o && ~ex_interrupt_o;
 
 endmodule

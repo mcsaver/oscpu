@@ -39,6 +39,9 @@ VERILATOR_THREADS ?= 1
 VERILATOR_THREADS_DPI ?= none
 VERILATOR_THREADS_MAX_MTASKS ?=
 
+VSRCDIR := $(abspath ./vsrc)
+include $(VSRCDIR)/filelist.mk
+
 INC_PATH += $(abspath ./csrc/include)
 
 ifeq ($(CONFIG_NPC_DIFFTEST),y)
@@ -82,7 +85,7 @@ VERILATOR_FLAGS += -MMD --cc --exe \
 			   -O3 \
 			   --x-assign fast --x-initial fast --noassert \
 			   -Wall -Wno-DECLFILENAME \
-			   -I$(abspath ./vsrc)
+			   -I$(VSRCDIR) -I$(RTL_INCLUDE_DIR)
 
 ifeq ($(VERILATOR_PROFILE),1)
 VERILATOR_FLAGS += --prof-cfuncs
@@ -109,40 +112,6 @@ endif
 
 $(shell mkdir -p $(BUILD_DIR))
 
-RTL_HEADER_SRCS := $(abspath ./vsrc/define.v)
-RTL_CORE_SRCS := $(strip \
-	$(abspath ./vsrc/ALU.v) \
-	$(abspath ./vsrc/AxiDefaultSlave.v) \
-	$(abspath ./vsrc/AxiLiteXbar.v) \
-	$(abspath ./vsrc/BranchPredictor.v) \
-	$(abspath ./vsrc/CacheControl.v) \
-	$(abspath ./vsrc/CompareUnit.v) \
-	$(abspath ./vsrc/CsrFile.v) \
-	$(abspath ./vsrc/DCache.v) \
-	$(abspath ./vsrc/DecodeStage.v) \
-	$(abspath ./vsrc/DecodeUnit.v) \
-	$(abspath ./vsrc/ICache.v) \
-	$(abspath ./vsrc/IfStage.v) \
-	$(abspath ./vsrc/ImmGen.v) \
-	$(abspath ./vsrc/IfIdPipeReg.v) \
-	$(abspath ./vsrc/IdExPipeReg.v) \
-	$(abspath ./vsrc/ExMemPipeReg.v) \
-	$(abspath ./vsrc/LSUControl.v) \
-	$(abspath ./vsrc/LSUDataPath.v) \
-	$(abspath ./vsrc/LSU.v) \
-	$(abspath ./vsrc/MemWbPipeReg.v) \
-	$(abspath ./vsrc/MemoryStageControl.v) \
-	$(abspath ./vsrc/MemoryStage.v) \
-	$(abspath ./vsrc/NpcAxiBus.v) \
-	$(abspath ./vsrc/PipelineControl.v) \
-	$(abspath ./vsrc/RegisterFile.v) \
-	$(abspath ./vsrc/Rv32Divider.v) \
-	$(abspath ./vsrc/Sram1Rw.v) \
-	$(abspath ./vsrc/Sram2R1W.v) \
-	$(abspath ./vsrc/WBU.v) \
-	$(abspath ./vsrc/NpcCore.v))
-SIM_TOP_SRCS := $(abspath ./vsrc/AxiDpiSlave.sv) $(abspath ./vsrc/NpcSimTop.sv)
-VSRCS = $(RTL_CORE_SRCS) $(SIM_TOP_SRCS)
 CSRCS_ALL = $(shell find $(abspath ./csrc) \( -name "*.c" -o -name "*.cc" -o -name "*.cpp" \))
 DIFFTEST_CSRC := $(abspath ./csrc/cpu/difftest.cpp)
 ifeq ($(CONFIG_NPC_DIFFTEST),y)
@@ -196,7 +165,7 @@ $(BIN): $(CAPSTONE_LIB)
 endif
 
 lint:
-	$(VERILATOR) --lint-only -Wall -I$(abspath ./vsrc) --top-module $(TOPNAME) $(VSRCS)
+	$(VERILATOR) --lint-only -Wall -I$(VSRCDIR) -I$(RTL_INCLUDE_DIR) --top-module $(TOPNAME) $(VSRCS)
 
 all: default
 

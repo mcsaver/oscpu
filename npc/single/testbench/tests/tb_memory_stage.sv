@@ -21,6 +21,7 @@ module tb_memory_stage;
   wire [`XLEN-1:0] lsu_req_wdata;
   wire [3:0] lsu_req_wstrb;
   reg lsu_rsp_valid;
+  wire lsu_rsp_ready;
   reg [`XLEN-1:0] lsu_rsp_rdata;
   reg lsu_rsp_error;
   wire [`XLEN-1:0] load_data;
@@ -47,6 +48,7 @@ module tb_memory_stage;
     .lsu_req_wdata_o(lsu_req_wdata),
     .lsu_req_wstrb_o(lsu_req_wstrb),
     .lsu_rsp_valid_i(lsu_rsp_valid),
+    .lsu_rsp_ready_o(lsu_rsp_ready),
     .lsu_rsp_rdata_i(lsu_rsp_rdata),
     .lsu_rsp_error_i(lsu_rsp_error),
     .load_data_o(load_data),

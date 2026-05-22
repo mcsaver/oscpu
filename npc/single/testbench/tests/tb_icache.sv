@@ -11,6 +11,7 @@ module tb_icache;
   wire cpu_req_ready;
   reg [`XLEN-1:0] cpu_req_addr;
   wire cpu_rsp_valid;
+  reg cpu_rsp_ready;
   wire [`XLEN-1:0] cpu_rsp_data;
   wire cpu_rsp_error;
   wire axi_arvalid;
@@ -30,6 +31,7 @@ module tb_icache;
     .cpu_req_ready_o(cpu_req_ready),
     .cpu_req_addr_i(cpu_req_addr),
     .cpu_rsp_valid_o(cpu_rsp_valid),
+    .cpu_rsp_ready_i(cpu_rsp_ready),
     .cpu_rsp_data_o(cpu_rsp_data),
     .cpu_rsp_error_o(cpu_rsp_error),
     .axi_arvalid_o(axi_arvalid),
@@ -47,6 +49,7 @@ module tb_icache;
       abort_i = 1'b0;
       invalidate_i = 1'b0;
       cpu_req_valid = 1'b0;
+      cpu_rsp_ready = 1'b1;
       cpu_req_addr = 32'h0;
       axi_arready = 1'b1;
       axi_rvalid = 1'b0;
@@ -135,6 +138,22 @@ module tb_icache;
     tb_check32("hit sram word1", dut.u_data_sram.mem_q[0][32 +: 32], 32'h0000_1001);
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
+
+    cpu_req_addr = 32'h8000_0004;
+    cpu_req_valid = 1'b1;
+    cpu_rsp_ready = 1'b0;
+    #1;
+    tb_check1("hit backpressure valid", cpu_rsp_valid, 1'b1);
+    tb_check32("hit backpressure data", cpu_rsp_data, 32'h0000_1001);
+    `TB_TICK(clk);
+    cpu_req_valid = 1'b0;
+    #1;
+    tb_check1("hit backpressure holds valid", cpu_rsp_valid, 1'b1);
+    tb_check32("hit backpressure holds data", cpu_rsp_data, 32'h0000_1001);
+    cpu_rsp_ready = 1'b1;
+    `TB_TICK(clk);
+    #1;
+    tb_check1("hit backpressure releases", cpu_rsp_valid, 1'b0);
 
     cpu_req_addr = 32'h9000_0000;
     cpu_req_valid = 1'b1;

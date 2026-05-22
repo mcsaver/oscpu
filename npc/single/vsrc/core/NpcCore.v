@@ -1,8 +1,6 @@
 `include "define.v"
 
-module NpcCore #(
-  parameter [`XLEN-1:0] RESET_PC = `RESET_PC
-) (
+module NpcCore (
   input clk,
   input rst,
 
@@ -31,6 +29,10 @@ module NpcCore #(
   input lsu_axi_bvalid_i,
   output lsu_axi_bready_o,
   input [1:0] lsu_axi_bresp_i,
+
+  input irq_software_i,
+  input irq_timer_i,
+  input irq_external_i,
 
   output commit_valid_o,
   output [`XLEN-1:0] commit_pc_o,
@@ -193,8 +195,7 @@ module NpcCore #(
     end
   endfunction
 
-  // CoreMark 条件分支误预测仍约 343 万次且集中在少数 PC，保留较大的 gshare 表项以降低 alias。
-  localparam BPU_BHT_INDEX_W = 12;
+  // BPU/cache 等结构参数统一由 define.v 管理，避免 core 内部再散落可调常量。
 
   wire fetch_pending_w;
   wire [`XLEN-1:0] fetch_pc_w;
@@ -203,12 +204,13 @@ module NpcCore #(
   wire [`INST_W-1:0] if_stage_inst_w;
   wire [`XLEN-1:0] if_stage_inst_len_w;
   wire [`XLEN-1:0] if_stage_pred_pc_w;
-  wire [BPU_BHT_INDEX_W-1:0] if_stage_bht_idx_w;
+  wire [`BPU_BHT_INDEX_W-1:0] if_stage_bht_idx_w;
   wire if_stage_error_w;
   wire ifu_cpu_req_valid_w;
   wire ifu_cpu_req_ready_w;
   wire [`XLEN-1:0] ifu_cpu_req_addr_w;
   wire ifu_cpu_rsp_valid_w;
+  wire ifu_cpu_rsp_ready_w;
   wire [`XLEN-1:0] ifu_cpu_rsp_data_w;
   wire ifu_cpu_rsp_error_w;
 
@@ -217,7 +219,7 @@ module NpcCore #(
   wire [`INST_W-1:0] if_id_inst_q;
   wire [`XLEN-1:0] if_id_inst_len_q;
   wire [`XLEN-1:0] if_id_pred_pc_q;
-  wire [BPU_BHT_INDEX_W-1:0] if_id_bht_idx_q;
+  wire [`BPU_BHT_INDEX_W-1:0] if_id_bht_idx_q;
   wire if_id_error_q;
 
   wire id_ex_valid_q;
@@ -225,7 +227,7 @@ module NpcCore #(
   wire [`INST_W-1:0] id_ex_inst_q;
   wire [`XLEN-1:0] id_ex_inst_len_q;
   wire [`XLEN-1:0] id_ex_pred_pc_q;
-  wire [BPU_BHT_INDEX_W-1:0] id_ex_bht_idx_q;
+  wire [`BPU_BHT_INDEX_W-1:0] id_ex_bht_idx_q;
   /* verilator lint_off UNUSEDSIGNAL */
   wire [`CTRL_BUS_W-1:0] id_ex_ctrl_q;
   /* verilator lint_on UNUSEDSIGNAL */
@@ -259,6 +261,7 @@ module NpcCore #(
   wire [`XLEN-1:0] lsu_cpu_req_wdata_w;
   wire [3:0] lsu_cpu_req_wstrb_w;
   wire lsu_cpu_rsp_valid_w;
+  wire lsu_cpu_rsp_ready_w;
   wire [`XLEN-1:0] lsu_cpu_rsp_rdata_w;
   wire lsu_cpu_rsp_error_w;
 
@@ -275,6 +278,8 @@ module NpcCore #(
   wire csr_illegal_w;
   wire [`XLEN-1:0] csr_trap_target_w;
   wire [`XLEN-1:0] csr_mepc_w;
+  wire csr_irq_pending_w;
+  wire [`TRAP_CAUSE_W-1:0] csr_irq_cause_w;
 
   reg halt_q;
   reg fatal_trap_q;
@@ -450,6 +455,8 @@ module NpcCore #(
   wire ex_fire_w;
   wire ex_exception_w;
   wire ex_exception_fatal_w;
+  wire ex_interrupt_w;
+  wire ex_interrupt_fatal_w;
   wire ex_mret_redirect_w;
   wire cache_flush_valid_w;
   wire [`XLEN-1:0] cache_flush_redirect_pc_w;
@@ -488,7 +495,7 @@ module NpcCore #(
   CacheControl u_cache_control (
     .ex_fire_i(ex_fire_w),
     .fence_i_i(id_ex_fence_i_w),
-    .exception_i(ex_exception_w),
+    .exception_i(ex_exception_w | ex_interrupt_w),
     .seq_pc_i(ex_pc_plus4_w),
     .flush_valid_o(cache_flush_valid_w),
     .flush_redirect_pc_o(cache_flush_redirect_pc_w)
@@ -521,6 +528,7 @@ module NpcCore #(
     .ex_illegal_i(ex_illegal_w),
     .ex_redirect_misaligned_i(ex_redirect_misaligned_w),
     .ex_load_store_misaligned_i(ex_load_store_misaligned_w),
+    .irq_pending_i(csr_irq_pending_w),
     .ex_control_next_pc_i(ex_control_next_pc_w),
     .ex_redirect_pc_i(ex_control_next_pc_w),
     .trap_target_i(trap_target_w),
@@ -530,6 +538,8 @@ module NpcCore #(
     .ex_fire_o(ex_fire_w),
     .ex_exception_o(ex_exception_w),
     .ex_exception_fatal_o(ex_exception_fatal_w),
+    .ex_interrupt_o(ex_interrupt_w),
+    .ex_interrupt_fatal_o(ex_interrupt_fatal_w),
     .ex_mret_redirect_o(ex_mret_redirect_w),
     .ex_any_flush_o(ex_any_flush_w),
     .id_accept_o(id_accept_w),
@@ -568,15 +578,20 @@ module NpcCore #(
     .trap_ex_pc_i(id_ex_pc_q),
     .trap_ex_cause_i(ex_exception_cause_w),
     .trap_ex_tval_i(ex_exception_tval_w),
+    .irq_software_i(irq_software_i),
+    .irq_timer_i(irq_timer_i),
+    .irq_external_i(irq_external_i),
+    .irq_pending_o(csr_irq_pending_w),
+    .irq_cause_o(csr_irq_cause_w),
+    .trap_irq_valid_i(ex_interrupt_w && ~ex_interrupt_fatal_w),
+    .trap_irq_pc_i(id_ex_pc_q),
+    .trap_irq_cause_i(csr_irq_cause_w),
     .mret_valid_i(ex_mret_redirect_w),
     .trap_target_o(csr_trap_target_w),
     .mepc_o(csr_mepc_w)
   );
 
-  IfStage #(
-    .RESET_PC(RESET_PC),
-    .BPU_BHT_INDEX_W(BPU_BHT_INDEX_W)
-  ) u_if_stage (
+  IfStage u_if_stage (
     .clk(clk),
     .rst(rst),
     .flush_i(ex_any_flush_w),
@@ -603,6 +618,7 @@ module NpcCore #(
     .ifu_req_ready_i(ifu_cpu_req_ready_w),
     .ifu_req_addr_o(ifu_cpu_req_addr_w),
     .ifu_rsp_valid_i(ifu_cpu_rsp_valid_w),
+    .ifu_rsp_ready_o(ifu_cpu_rsp_ready_w),
     .ifu_rsp_data_i(ifu_cpu_rsp_data_w),
     .ifu_rsp_error_i(ifu_cpu_rsp_error_w),
     .fetch_pc_o(fetch_pc_w),
@@ -618,6 +634,7 @@ module NpcCore #(
     .cpu_req_ready_o(ifu_cpu_req_ready_w),
     .cpu_req_addr_i(ifu_cpu_req_addr_w),
     .cpu_rsp_valid_o(ifu_cpu_rsp_valid_w),
+    .cpu_rsp_ready_i(ifu_cpu_rsp_ready_w),
     .cpu_rsp_data_o(ifu_cpu_rsp_data_w),
     .cpu_rsp_error_o(ifu_cpu_rsp_error_w),
     .axi_arvalid_o(ifu_axi_arvalid_o),
@@ -629,9 +646,7 @@ module NpcCore #(
     .axi_rresp_i(ifu_axi_rresp_i)
   );
 
-  IfIdPipeReg #(
-    .BPU_BHT_INDEX_W(BPU_BHT_INDEX_W)
-  ) u_if_id_pipe (
+  IfIdPipeReg u_if_id_pipe (
     .clk(clk),
     .rst(rst),
     .clear_i(ex_any_flush_w),
@@ -692,7 +707,7 @@ module NpcCore #(
   Rv32Divider u_rv32_divider (
     .clk(clk),
     .rst(rst),
-    .flush_i(mem_fault_w | halt_q | fatal_trap_q),
+    .flush_i(mem_fault_w | ex_interrupt_w | halt_q | fatal_trap_q),
     .req_valid_i(ex_div_req_valid_w),
     .req_ready_o(ex_div_req_ready_w),
     .req_funct3_i(id_ex_inst_q[14:12]),
@@ -726,12 +741,10 @@ module NpcCore #(
     .wb_data_o(ex_wbu_data_w)
   );
 
-  IdExPipeReg #(
-    .BPU_BHT_INDEX_W(BPU_BHT_INDEX_W)
-  ) u_id_ex_pipe (
+  IdExPipeReg u_id_ex_pipe (
     .clk(clk),
     .rst(rst),
-    .clear_i(mem_fault_w | ex_exception_w | ebreak_fire_w),
+    .clear_i(mem_fault_w | ex_exception_w | ex_interrupt_w | ebreak_fire_w),
     .kill_i(pipeline_normal_update_w & ex_fire_w),
     .load_i(pipeline_normal_update_w & id_accept_w),
     .load_pc_i(if_id_pc_q),
@@ -817,6 +830,7 @@ module NpcCore #(
     .lsu_req_wdata_o(lsu_cpu_req_wdata_w),
     .lsu_req_wstrb_o(lsu_cpu_req_wstrb_w),
     .lsu_rsp_valid_i(lsu_cpu_rsp_valid_w),
+    .lsu_rsp_ready_o(lsu_cpu_rsp_ready_w),
     .lsu_rsp_rdata_i(lsu_cpu_rsp_rdata_w),
     .lsu_rsp_error_i(lsu_cpu_rsp_error_w),
     .load_data_o(lsu_mem_load_data_w),
@@ -838,6 +852,7 @@ module NpcCore #(
     .cpu_req_wdata_i(lsu_cpu_req_wdata_w),
     .cpu_req_wstrb_i(lsu_cpu_req_wstrb_w),
     .cpu_rsp_valid_o(lsu_cpu_rsp_valid_w),
+    .cpu_rsp_ready_i(lsu_cpu_rsp_ready_w),
     .cpu_rsp_rdata_o(lsu_cpu_rsp_rdata_w),
     .cpu_rsp_error_o(lsu_cpu_rsp_error_w),
     .axi_arvalid_o(lsu_axi_arvalid_o),
@@ -914,7 +929,7 @@ module NpcCore #(
       fatal_cause_q <= {`TRAP_CAUSE_W{1'b0}};
       fatal_pc_q <= {`XLEN{1'b0}};
       fatal_tval_q <= {`XLEN{1'b0}};
-      stop_pc_q <= RESET_PC;
+      stop_pc_q <= `RESET_PC;
       rf_wen_q <= 1'b0;
       rf_waddr_q <= {`REG_ADDR_W{1'b0}};
       rf_wdata_q <= {`XLEN{1'b0}};
@@ -922,7 +937,7 @@ module NpcCore #(
     end else begin
       rf_wen_q <= 1'b0;
 
-      if (mem_fault_w || ex_exception_w || ebreak_fire_w || halt_q || fatal_trap_q) begin
+      if (mem_fault_w || ex_exception_w || ex_interrupt_w || ebreak_fire_w || halt_q || fatal_trap_q) begin
         cache_flush_active_q <= 1'b0;
       end else if (dcache_flush_can_start_w) begin
         cache_flush_active_q <= 1'b1;
@@ -944,6 +959,14 @@ module NpcCore #(
           fatal_cause_q <= ex_exception_cause_w;
           fatal_pc_q <= id_ex_pc_q;
           fatal_tval_q <= ex_exception_tval_w;
+          stop_pc_q <= id_ex_pc_q;
+        end
+      end else if (ex_interrupt_w) begin
+        if (ex_interrupt_fatal_w) begin
+          fatal_trap_q <= 1'b1;
+          fatal_cause_q <= csr_irq_cause_w;
+          fatal_pc_q <= id_ex_pc_q;
+          fatal_tval_q <= {`XLEN{1'b0}};
           stop_pc_q <= id_ex_pc_q;
         end
       end else if (ebreak_fire_w) begin

@@ -12,6 +12,7 @@ module ICache (
   output cpu_req_ready_o,
   input [`XLEN-1:0] cpu_req_addr_i,
   output cpu_rsp_valid_o,
+  input cpu_rsp_ready_i,
   output [`XLEN-1:0] cpu_rsp_data_o,
   output cpu_rsp_error_o,
 
@@ -24,13 +25,14 @@ module ICache (
   input [1:0] axi_rresp_i
 );
 
-  localparam LINE_WORDS = 16;
-  localparam LINE_COUNT = 64;
-  localparam OFFSET_BITS = 6;
-  localparam INDEX_BITS = 6;
-  localparam WORD_BITS = 4;
+  localparam LINE_WORDS = `ICACHE_LINE_WORDS;
+  localparam LINE_COUNT = `ICACHE_LINE_COUNT;
+  localparam OFFSET_BITS = `ICACHE_OFFSET_BITS;
+  localparam INDEX_BITS = `ICACHE_INDEX_BITS;
+  localparam WORD_BITS = `ICACHE_WORD_BITS;
   localparam TAG_BITS = `XLEN - OFFSET_BITS - INDEX_BITS;
   localparam LINE_DATA_BITS = LINE_WORDS * `XLEN;
+  localparam [WORD_BITS-1:0] WORD_STEP = {{(WORD_BITS-1){1'b0}}, 1'b1};
 
   localparam [2:0] S_IDLE = 3'd0;
   localparam [2:0] S_LOOKUP = 3'd1;
@@ -52,7 +54,7 @@ module ICache (
   function cacheable_range4;
     input [`XLEN-1:0] addr;
     begin
-      cacheable_range4 = (addr >= 32'h8000_0000) && (addr <= 32'h87ff_fffc);
+      cacheable_range4 = (addr >= `CACHEABLE_BASE) && (addr <= `CACHEABLE_LAST);
     end
   endfunction
 
@@ -175,6 +177,9 @@ module ICache (
       fill_base_q + {{(`XLEN-WORD_BITS-2){1'b0}}, fill_word_q, 2'b00};
   wire combo_rsp_valid_w = (state_q == S_IDLE) && cpu_req_valid_i &&
                            (cur_misaligned_w || (cur_cacheable_w && cur_lookup_hit_w));
+  wire [`XLEN-1:0] combo_rsp_data_w = cur_misaligned_w ? {`XLEN{1'b0}} :
+                                                         cur_lookup_data_w;
+  wire combo_rsp_error_w = cur_misaligned_w;
   wire fill_rsp_fire_w = (state_q == S_FILL_R) && axi_rvalid_i && axi_rready_o;
   wire fill_rsp_ok_w = fill_rsp_fire_w && (axi_rresp_i == 2'b00);
   wire fill_last_word_w = (fill_word_q == {WORD_BITS{1'b1}});
@@ -194,10 +199,8 @@ module ICache (
 
   assign cpu_req_ready_o = (state_q == S_IDLE);
   assign cpu_rsp_valid_o = combo_rsp_valid_w || (state_q == S_RESP);
-  assign cpu_rsp_data_o = combo_rsp_valid_w ?
-                          (cur_misaligned_w ? {`XLEN{1'b0}} : cur_lookup_data_w) :
-                          rsp_data_q;
-  assign cpu_rsp_error_o = combo_rsp_valid_w ? cur_misaligned_w : rsp_error_q;
+  assign cpu_rsp_data_o = combo_rsp_valid_w ? combo_rsp_data_w : rsp_data_q;
+  assign cpu_rsp_error_o = combo_rsp_valid_w ? combo_rsp_error_w : rsp_error_q;
 
   assign axi_arvalid_o = (state_q == S_FILL_AR) || (state_q == S_UNCACHED_AR);
   assign axi_araddr_o = (state_q == S_UNCACHED_AR) ? req_addr_q : fill_req_addr_w;
@@ -282,7 +285,13 @@ module ICache (
           if (cpu_req_valid_i) begin
             req_addr_q <= cpu_req_addr_i;
             if (cur_misaligned_w || (cur_cacheable_w && cur_lookup_hit_w)) begin
-              state_q <= S_IDLE;
+              if (!cpu_rsp_ready_i) begin
+                rsp_data_q <= combo_rsp_data_w;
+                rsp_error_q <= combo_rsp_error_w;
+                state_q <= S_RESP;
+              end else begin
+                state_q <= S_IDLE;
+              end
             end else if (!cur_cacheable_w) begin
               state_q <= S_UNCACHED_AR;
             end else begin
@@ -331,7 +340,7 @@ module ICache (
               fill_word_q <= {WORD_BITS{1'b0}};
               state_q <= S_LOOKUP;
             end else begin
-              fill_word_q <= fill_word_q + 4'd1;
+              fill_word_q <= fill_word_q + WORD_STEP;
               state_q <= S_FILL_AR;
             end
           end
@@ -352,7 +361,9 @@ module ICache (
         end
 
         S_RESP: begin
-          state_q <= S_IDLE;
+          if (cpu_rsp_ready_i) begin
+            state_q <= S_IDLE;
+          end
         end
 
         default: begin

@@ -176,6 +176,7 @@ typedef struct {
 typedef struct {
   uint64_t cycles;
   uint64_t commits;
+  uint64_t clint_mtime;
   uint64_t sim_time;
   uint64_t host_time_us;
 } NpcStats;

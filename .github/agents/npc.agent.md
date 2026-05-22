@@ -34,10 +34,20 @@ tools: [read, edit, search, execute, agent, todo]
 ## 关键目录结构
 ```
 npc/single/
-├── vsrc/              — Verilog RTL 源文件
-│   ├── define.v       — 宏定义 (位宽参数等)
-│   ├── pc_reg.v       — 程序计数器模块
-│   └── RegisterFile.v — 寄存器堆模块
+├── vsrc/              — Verilog/SystemVerilog RTL 与仿真壳源文件
+│   ├── filelist.mk    — RTL/仿真源文件统一清单
+│   ├── include/       — define.v 等全局宏定义
+│   ├── core/          — NpcCore、CSR、寄存器堆和流水控制
+│   ├── frontend/      — IF 阶段与分支预测
+│   ├── decode/        — 译码与立即数生成
+│   ├── execute/       — ALU、比较器和除法器
+│   ├── memory/        — LSU 与 MEM 阶段控制/数据路径
+│   ├── cache/         — ICache、DCache 与 cache 控制
+│   ├── bus/           — AXI-like 总线与 crossbar
+│   ├── common/        — SRAM-like 通用存储封装
+│   ├── pipeline/      — 流水寄存器
+│   ├── writeback/     — 写回选择逻辑
+│   └── sim/           — NpcSimTop/AxiDpiSlave 仿真顶层
 ├── csrc/              — Verilator 宿主侧代码
 │   ├── main.c         — 宿主入口与参数处理
 │   └── cpu/cpu-exec.cpp — Verilator 模型生命周期与执行引擎

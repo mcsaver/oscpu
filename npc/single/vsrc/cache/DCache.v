@@ -16,6 +16,7 @@ module DCache (
   input [`XLEN-1:0] cpu_req_wdata_i,
   input [3:0] cpu_req_wstrb_i,
   output cpu_rsp_valid_o,
+  input cpu_rsp_ready_i,
   output [`XLEN-1:0] cpu_rsp_rdata_o,
   output cpu_rsp_error_o,
 
@@ -39,16 +40,17 @@ module DCache (
   input [1:0] axi_bresp_i
 );
 
-  localparam LINE_WORDS = 16;
-  localparam LINE_COUNT = 64;
-  localparam OFFSET_BITS = 6;
-  localparam INDEX_BITS = 6;
-  localparam WORD_BITS = 4;
+  localparam LINE_WORDS = `DCACHE_LINE_WORDS;
+  localparam LINE_COUNT = `DCACHE_LINE_COUNT;
+  localparam OFFSET_BITS = `DCACHE_OFFSET_BITS;
+  localparam INDEX_BITS = `DCACHE_INDEX_BITS;
+  localparam WORD_BITS = `DCACHE_WORD_BITS;
   localparam TAG_BITS = `XLEN - OFFSET_BITS - INDEX_BITS;
   localparam DATA_WORDS = LINE_COUNT * LINE_WORDS;
   localparam DATA_INDEX_BITS = INDEX_BITS + WORD_BITS;
   // flush 扫描步进随 index 宽度参数化，避免后续容量调整时留下硬编码常量。
   localparam [INDEX_BITS-1:0] INDEX_STEP = {{(INDEX_BITS-1){1'b0}}, 1'b1};
+  localparam [WORD_BITS-1:0] WORD_STEP = {{(WORD_BITS-1){1'b0}}, 1'b1};
 
   localparam [3:0] S_IDLE = 4'd0;
   localparam [3:0] S_LOOKUP = 4'd1;
@@ -89,7 +91,7 @@ module DCache (
   function cacheable_word;
     input [`XLEN-1:0] addr;
     begin
-      cacheable_word = (addr >= 32'h8000_0000) && (addr <= 32'h87ff_fffc);
+      cacheable_word = (addr >= `CACHEABLE_BASE) && (addr <= `CACHEABLE_LAST);
     end
   endfunction
 
@@ -244,14 +246,15 @@ module DCache (
                           (axi_w_done_q || axi_w_fire_w);
   wire wb_axi_write_fire_w = ((state_q == S_WB_AW) ||
                               (state_q == S_FLUSH_WB_AW)) && axi_write_done_w;
+  wire combo_rsp_valid_w = cur_load_hit_w || cur_store_hit_w || cur_store_nop_w;
+  wire [`XLEN-1:0] combo_rsp_data_w = cur_load_hit_w ? data_rd_w : {`XLEN{1'b0}};
+  wire combo_rsp_error_w = 1'b0;
 
   assign flush_done_o = (state_q == S_FLUSH_DONE);
   assign cpu_req_ready_o = idle_cpu_accept_w;
-  assign cpu_rsp_valid_o = cur_load_hit_w || cur_store_hit_w || cur_store_nop_w ||
-                           (state_q == S_RESP);
-  assign cpu_rsp_rdata_o = cur_load_hit_w ? data_rd_w : rsp_data_q;
-  assign cpu_rsp_error_o = (cur_load_hit_w || cur_store_hit_w || cur_store_nop_w) ? 1'b0 :
-                           rsp_error_q;
+  assign cpu_rsp_valid_o = combo_rsp_valid_w || (state_q == S_RESP);
+  assign cpu_rsp_rdata_o = combo_rsp_valid_w ? combo_rsp_data_w : rsp_data_q;
+  assign cpu_rsp_error_o = combo_rsp_valid_w ? combo_rsp_error_w : rsp_error_q;
 
   assign axi_arvalid_o = (state_q == S_FILL_AR) || (state_q == S_UNCACHED_AR);
   assign axi_araddr_o = (state_q == S_UNCACHED_AR) ? req_addr_q : fill_req_addr_w;
@@ -375,7 +378,17 @@ module DCache (
             req_addr_q <= cpu_req_addr_i;
             req_wdata_q <= cpu_req_wdata_i;
             req_wstrb_q <= cpu_req_wstrb_i;
-            state_q <= (cur_load_hit_w || cur_store_hit_w || cur_store_nop_w) ? S_IDLE : S_LOOKUP;
+            if (combo_rsp_valid_w) begin
+              if (!cpu_rsp_ready_i) begin
+                rsp_data_q <= combo_rsp_data_w;
+                rsp_error_q <= combo_rsp_error_w;
+                state_q <= S_RESP;
+              end else begin
+                state_q <= S_IDLE;
+              end
+            end else begin
+              state_q <= S_LOOKUP;
+            end
           end
         end
 
@@ -445,7 +458,7 @@ module DCache (
               wb_word_q <= {WORD_BITS{1'b0}};
               state_q <= S_FILL_AR;
             end else begin
-              wb_word_q <= wb_word_q + 4'd1;
+              wb_word_q <= wb_word_q + WORD_STEP;
               state_q <= S_WB_AW;
             end
           end
@@ -467,7 +480,7 @@ module DCache (
               fill_word_q <= {WORD_BITS{1'b0}};
               state_q <= req_write_q ? S_STORE_ALLOC_UPDATE : S_LOOKUP;
             end else begin
-              fill_word_q <= fill_word_q + 4'd1;
+              fill_word_q <= fill_word_q + WORD_STEP;
               state_q <= S_FILL_AR;
             end
           end
@@ -547,7 +560,7 @@ module DCache (
                 state_q <= S_FLUSH_SCAN;
               end
             end else begin
-              flush_word_q <= flush_word_q + 4'd1;
+              flush_word_q <= flush_word_q + WORD_STEP;
               state_q <= S_FLUSH_WB_AW;
             end
           end
@@ -558,7 +571,9 @@ module DCache (
         end
 
         S_RESP: begin
-          state_q <= S_IDLE;
+          if (cpu_rsp_ready_i) begin
+            state_q <= S_IDLE;
+          end
         end
 
         default: begin

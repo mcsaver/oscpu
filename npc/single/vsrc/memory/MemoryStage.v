@@ -21,6 +21,7 @@ module MemoryStage (
   output [`XLEN-1:0] lsu_req_wdata_o,
   output [3:0] lsu_req_wstrb_o,
   input lsu_rsp_valid_i,
+  output lsu_rsp_ready_o,
   input [`XLEN-1:0] lsu_rsp_rdata_i,
   input lsu_rsp_error_i,
 
@@ -46,6 +47,7 @@ module MemoryStage (
     .lsu_req_valid_o(lsu_req_valid_o),
     .lsu_req_ready_i(lsu_req_ready_i),
     .lsu_rsp_valid_i(lsu_rsp_valid_i),
+    .lsu_rsp_ready_o(lsu_rsp_ready_o),
     .lsu_rsp_error_i(lsu_rsp_error_i),
     .response_o(response_o),
     .fault_o(fault_o),

@@ -1,9 +1,6 @@
 `include "define.v"
 
-module IfStage #(
-  parameter [`XLEN-1:0] RESET_PC = `RESET_PC,
-  parameter BPU_BHT_INDEX_W = 10
-) (
+module IfStage (
   input clk,
   input rst,
 
@@ -19,20 +16,21 @@ module IfStage #(
   input [`XLEN-1:0] bpu_update_seq_pc_i,
   input [`XLEN-1:0] bpu_update_next_pc_i,
   input bpu_update_taken_i,
-  input [BPU_BHT_INDEX_W-1:0] bpu_update_bht_idx_i,
+  input [`BPU_BHT_INDEX_W-1:0] bpu_update_bht_idx_i,
 
   output pipe_valid_o,
   output [`XLEN-1:0] pipe_pc_o,
   output [`INST_W-1:0] pipe_inst_o,
   output [`XLEN-1:0] pipe_inst_len_o,
   output [`XLEN-1:0] pipe_pred_pc_o,
-  output [BPU_BHT_INDEX_W-1:0] pipe_bht_idx_o,
+  output [`BPU_BHT_INDEX_W-1:0] pipe_bht_idx_o,
   output pipe_error_o,
 
   output ifu_req_valid_o,
   input ifu_req_ready_i,
   output [`XLEN-1:0] ifu_req_addr_o,
   input ifu_rsp_valid_i,
+  output ifu_rsp_ready_o,
   input [`XLEN-1:0] ifu_rsp_data_i,
   input ifu_rsp_error_i,
 
@@ -49,7 +47,7 @@ module IfStage #(
   reg [`INST_W-1:0] fetch_buf_inst_q;
   reg [`XLEN-1:0] fetch_buf_inst_len_q;
   reg [`XLEN-1:0] fetch_buf_pred_pc_q;
-  reg [BPU_BHT_INDEX_W-1:0] fetch_buf_bht_idx_q;
+  reg [`BPU_BHT_INDEX_W-1:0] fetch_buf_bht_idx_q;
   reg fetch_buf_error_q;
 
   /* verilator lint_off UNUSEDSIGNAL */
@@ -351,11 +349,12 @@ module IfStage #(
   /* verilator lint_on UNUSEDSIGNAL */
 
   wire active_w = ~halt_i & ~fatal_i & ~flush_i;
-  wire fetch_late_rsp_w = ifu_rsp_valid_i & fetch_pending_q;
   wire fetch_buf_to_pipe_w = fetch_buf_valid_q & pipe_ready_i & active_w;
   wire fetch_rsp_slot_w = (~fetch_buf_valid_q) | fetch_buf_to_pipe_w;
   wire ifu_req_fire_w = ifu_req_valid_o & ifu_req_ready_i;
-  wire fetch_same_cycle_rsp_w = ifu_rsp_valid_i & ifu_req_fire_w & ~fetch_pending_q;
+  wire fetch_late_rsp_w = ifu_rsp_valid_i & ifu_rsp_ready_o & fetch_pending_q;
+  wire fetch_same_cycle_rsp_w = ifu_rsp_valid_i & ifu_rsp_ready_o &
+                                ifu_req_fire_w & ~fetch_pending_q;
   wire fetch_incoming_rsp_w = fetch_late_rsp_w | fetch_same_cycle_rsp_w;
   // buffer 为空且 IF/ID 可接收时，取指返回直接旁路到流水寄存器，消除前端多余一拍气泡。
   wire fetch_direct_to_pipe_w = fetch_incoming_rsp_w & pipe_ready_i & active_w &
@@ -365,7 +364,7 @@ module IfStage #(
   wire fetch_store_rsp_w = fetch_rsp_accept_w & ~fetch_direct_to_pipe_w;
   wire fetch_issue_slot_w = fetch_buf_to_pipe_w | (~fetch_buf_valid_q);
   wire pipe_load_w = fetch_buf_to_pipe_w | fetch_direct_to_pipe_w;
-  wire [`XLEN-1:0] fetch_rsp_pc_w = fetch_late_rsp_w ? fetch_req_pc_q : fetch_pc_q;
+  wire [`XLEN-1:0] fetch_rsp_pc_w = fetch_pending_q ? fetch_req_pc_q : fetch_pc_q;
   wire fetch_rsp_compressed_w = ifu_rsp_data_i[1:0] != 2'b11;
   wire [`INST_W-1:0] fetch_rsp_inst_w = fetch_rsp_compressed_w ?
                                         decompress_rvc(ifu_rsp_data_i[15:0]) :
@@ -373,7 +372,7 @@ module IfStage #(
   wire [`XLEN-1:0] fetch_rsp_inst_len_w = fetch_rsp_compressed_w ? 32'd2 : 32'd4;
   wire [`XLEN-1:0] fetch_rsp_seq_pc_w = fetch_rsp_pc_w + fetch_rsp_inst_len_w;
   wire [`XLEN-1:0] bpu_predict_next_pc_w;
-  wire [BPU_BHT_INDEX_W-1:0] bpu_predict_bht_idx_w;
+  wire [`BPU_BHT_INDEX_W-1:0] bpu_predict_bht_idx_w;
   /* verilator lint_off UNUSEDSIGNAL */
   wire bpu_predict_control_w;
   wire bpu_predict_branch_w;
@@ -390,9 +389,7 @@ module IfStage #(
       ifu_rsp_error_i ? fetch_rsp_seq_pc_w :
       bpu_predict_next_pc_w;
 
-  BranchPredictor #(
-    .BPU_BHT_INDEX_W(BPU_BHT_INDEX_W)
-  ) u_branch_predictor (
+  BranchPredictor u_branch_predictor (
     .clk(clk),
     .rst(rst),
     .predict_valid_i(fetch_rsp_accept_w && ~ifu_rsp_error_i),
@@ -431,20 +428,21 @@ module IfStage #(
 
   assign ifu_req_valid_o = active_w & fetch_issue_slot_w & ~fetch_pending_q;
   assign ifu_req_addr_o = fetch_pc_q;
+  assign ifu_rsp_ready_o = active_w & fetch_rsp_slot_w;
   assign fetch_pc_o = fetch_pc_q;
   assign fetch_pending_o = fetch_pending_q;
 
   always @(posedge clk) begin
     if (rst) begin
       fetch_pending_q <= 1'b0;
-      fetch_pc_q <= RESET_PC;
-      fetch_req_pc_q <= RESET_PC;
+      fetch_pc_q <= `RESET_PC;
+      fetch_req_pc_q <= `RESET_PC;
       fetch_buf_valid_q <= 1'b0;
       fetch_buf_pc_q <= {`XLEN{1'b0}};
       fetch_buf_inst_q <= {`INST_W{1'b0}};
       fetch_buf_inst_len_q <= `PC_STEP;
-      fetch_buf_pred_pc_q <= RESET_PC + `PC_STEP;
-      fetch_buf_bht_idx_q <= {BPU_BHT_INDEX_W{1'b0}};
+      fetch_buf_pred_pc_q <= `RESET_PC + `PC_STEP;
+      fetch_buf_bht_idx_q <= {`BPU_BHT_INDEX_W{1'b0}};
       fetch_buf_error_q <= 1'b0;
     end else begin
       if (flush_i) begin

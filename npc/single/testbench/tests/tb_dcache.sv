@@ -15,6 +15,7 @@ module tb_dcache;
   reg [`XLEN-1:0] cpu_req_wdata;
   reg [3:0] cpu_req_wstrb;
   wire cpu_rsp_valid;
+  reg cpu_rsp_ready;
   wire [`XLEN-1:0] cpu_rsp_rdata;
   wire cpu_rsp_error;
 
@@ -49,6 +50,7 @@ module tb_dcache;
     .cpu_req_wdata_i(cpu_req_wdata),
     .cpu_req_wstrb_i(cpu_req_wstrb),
     .cpu_rsp_valid_o(cpu_rsp_valid),
+    .cpu_rsp_ready_i(cpu_rsp_ready),
     .cpu_rsp_rdata_o(cpu_rsp_rdata),
     .cpu_rsp_error_o(cpu_rsp_error),
     .axi_arvalid_o(axi_arvalid),
@@ -80,6 +82,7 @@ module tb_dcache;
       cpu_req_addr = 32'h0;
       cpu_req_wdata = 32'h0;
       cpu_req_wstrb = 4'h0;
+      cpu_rsp_ready = 1'b1;
       axi_arready = 1'b1;
       axi_rvalid = 1'b0;
       axi_rdata = 32'h0;
@@ -215,6 +218,25 @@ module tb_dcache;
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
     #1;
+
+    cpu_req_valid = 1'b1;
+    cpu_req_write = 1'b0;
+    cpu_req_addr = 32'h8000_0008;
+    cpu_req_wdata = 32'h0;
+    cpu_req_wstrb = 4'h0;
+    cpu_rsp_ready = 1'b0;
+    #1;
+    tb_check1("load hit backpressure valid", cpu_rsp_valid, 1'b1);
+    tb_check32("load hit backpressure data", cpu_rsp_rdata, 32'h0000_2002);
+    `TB_TICK(clk);
+    cpu_req_valid = 1'b0;
+    #1;
+    tb_check1("load hit backpressure holds valid", cpu_rsp_valid, 1'b1);
+    tb_check32("load hit backpressure holds data", cpu_rsp_rdata, 32'h0000_2002);
+    cpu_rsp_ready = 1'b1;
+    `TB_TICK(clk);
+    #1;
+    tb_check1("load hit backpressure releases", cpu_rsp_valid, 1'b0);
 
     cpu_read(32'h8000_0008, 32'h0000_2002);
 

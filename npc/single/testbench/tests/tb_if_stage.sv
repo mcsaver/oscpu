@@ -29,6 +29,7 @@ module tb_if_stage;
   reg ifu_req_ready;
   wire [`XLEN-1:0] ifu_req_addr;
   reg ifu_rsp_valid;
+  wire ifu_rsp_ready;
   reg [`XLEN-1:0] ifu_rsp_data;
   reg ifu_rsp_error;
   wire [`XLEN-1:0] fetch_pc;
@@ -61,6 +62,7 @@ module tb_if_stage;
     .ifu_req_ready_i(ifu_req_ready),
     .ifu_req_addr_o(ifu_req_addr),
     .ifu_rsp_valid_i(ifu_rsp_valid),
+    .ifu_rsp_ready_o(ifu_rsp_ready),
     .ifu_rsp_data_i(ifu_rsp_data),
     .ifu_rsp_error_i(ifu_rsp_error),
     .fetch_pc_o(fetch_pc),

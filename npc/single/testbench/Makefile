@@ -1,5 +1,6 @@
 NPC_SINGLE_HOME := $(abspath ..)
 VSRCDIR := $(NPC_SINGLE_HOME)/vsrc
+include $(VSRCDIR)/filelist.mk
 BUILD_DIR ?= build
 RESULT_TIMESTAMP := $(shell date +%Y%m%d-%H%M%S)
 RESULT_DIR ?= ../perf/results/$(RESULT_TIMESTAMP)/module-testbench
@@ -14,7 +15,7 @@ PIPE_EXPECT_FRONTEND_ARG := $(if $(filter 1,$(PIPE_EXPECT_FRONTEND_HIT_ZERO)),+E
 IVERILOG ?= iverilog
 # 当前 PATH 里可能先命中不完整 oss-cad-suite 的 vvp；优先使用系统 Icarus vvp，保证模块级 testbench 可独立复跑。
 VVP ?= $(if $(wildcard /usr/bin/vvp),/usr/bin/vvp,vvp)
-IVFLAGS ?= -g2012 -Wall -I$(VSRCDIR) -Icommon
+IVFLAGS ?= -g2012 -Wall -I$(VSRCDIR) -I$(RTL_INCLUDE_DIR) -Icommon
 
 TESTS := \
   tb_alu \
@@ -24,6 +25,9 @@ TESTS := \
   tb_lsu_control \
   tb_lsu_datapath \
   tb_lsu \
+  tb_uart \
+  tb_axi_lite_to_uart \
+  tb_axi_lite_clint \
   tb_decode_unit \
   tb_decode_stage \
   tb_register_file \
@@ -38,110 +42,143 @@ TESTS := \
   tb_dcache \
   tb_if_stage \
   tb_npc_core_smoke \
-  tb_npc_core_mcycle
+  tb_npc_core_mcycle \
+  tb_npc_core_interrupt
 
-TB_SRCS_tb_alu := tests/tb_alu.sv $(VSRCDIR)/ALU.v
-TB_SRCS_tb_compare := tests/tb_compare.sv $(VSRCDIR)/CompareUnit.v
-TB_SRCS_tb_immgen := tests/tb_immgen.sv $(VSRCDIR)/ImmGen.v
-TB_SRCS_tb_wbu := tests/tb_wbu.sv $(VSRCDIR)/WBU.v
-TB_SRCS_tb_lsu_control := tests/tb_lsu_control.sv $(VSRCDIR)/LSUControl.v
-TB_SRCS_tb_lsu_datapath := tests/tb_lsu_datapath.sv $(VSRCDIR)/LSUDataPath.v
-TB_SRCS_tb_lsu := tests/tb_lsu.sv $(VSRCDIR)/LSUControl.v $(VSRCDIR)/LSUDataPath.v $(VSRCDIR)/LSU.v
-TB_SRCS_tb_decode_unit := tests/tb_decode_unit.sv $(VSRCDIR)/DecodeUnit.v
-TB_SRCS_tb_decode_stage := tests/tb_decode_stage.sv $(VSRCDIR)/DecodeUnit.v $(VSRCDIR)/ImmGen.v $(VSRCDIR)/DecodeStage.v
-TB_SRCS_tb_register_file := tests/tb_register_file.sv $(VSRCDIR)/RegisterFile.v
-TB_SRCS_tb_pipe_regs := tests/tb_pipe_regs.sv $(VSRCDIR)/IfIdPipeReg.v $(VSRCDIR)/IdExPipeReg.v $(VSRCDIR)/ExMemPipeReg.v $(VSRCDIR)/MemWbPipeReg.v
-TB_SRCS_tb_cache_control := tests/tb_cache_control.sv $(VSRCDIR)/CacheControl.v
-TB_SRCS_tb_memory_stage_control := tests/tb_memory_stage_control.sv $(VSRCDIR)/MemoryStageControl.v
-TB_SRCS_tb_memory_stage := tests/tb_memory_stage.sv $(VSRCDIR)/LSUControl.v $(VSRCDIR)/LSUDataPath.v $(VSRCDIR)/LSU.v $(VSRCDIR)/MemoryStageControl.v $(VSRCDIR)/MemoryStage.v
-TB_SRCS_tb_pipeline_control := tests/tb_pipeline_control.sv $(VSRCDIR)/PipelineControl.v
-TB_SRCS_tb_divider := tests/tb_divider.sv $(VSRCDIR)/Rv32Divider.v
-TB_SRCS_tb_branch_predictor := tests/tb_branch_predictor.sv $(VSRCDIR)/BranchPredictor.v
-TB_SRCS_tb_icache := tests/tb_icache.sv $(VSRCDIR)/Sram2R1W.v $(VSRCDIR)/ICache.v
-TB_SRCS_tb_dcache := tests/tb_dcache.sv $(VSRCDIR)/Sram1Rw.v $(VSRCDIR)/DCache.v
-TB_SRCS_tb_if_stage := tests/tb_if_stage.sv $(VSRCDIR)/BranchPredictor.v $(VSRCDIR)/IfStage.v
+TB_SRCS_tb_alu := tests/tb_alu.sv $(RTL_ALU)
+TB_SRCS_tb_compare := tests/tb_compare.sv $(RTL_COMPARE_UNIT)
+TB_SRCS_tb_immgen := tests/tb_immgen.sv $(RTL_IMM_GEN)
+TB_SRCS_tb_wbu := tests/tb_wbu.sv $(RTL_WBU)
+TB_SRCS_tb_lsu_control := tests/tb_lsu_control.sv $(RTL_LSU_CONTROL)
+TB_SRCS_tb_lsu_datapath := tests/tb_lsu_datapath.sv $(RTL_LSU_DATAPATH)
+TB_SRCS_tb_lsu := tests/tb_lsu.sv $(RTL_LSU_CONTROL) $(RTL_LSU_DATAPATH) $(RTL_LSU)
+TB_SRCS_tb_uart := tests/tb_uart.sv $(RTL_UART)
+TB_SRCS_tb_axi_lite_to_uart := tests/tb_axi_lite_to_uart.sv $(RTL_UART) $(RTL_AXI_LITE_TO_UART)
+TB_SRCS_tb_axi_lite_clint := tests/tb_axi_lite_clint.sv $(RTL_AXI_LITE_CLINT)
+TB_SRCS_tb_decode_unit := tests/tb_decode_unit.sv $(RTL_DECODE_UNIT)
+TB_SRCS_tb_decode_stage := tests/tb_decode_stage.sv $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(RTL_DECODE_STAGE)
+TB_SRCS_tb_register_file := tests/tb_register_file.sv $(RTL_REGISTER_FILE)
+TB_SRCS_tb_pipe_regs := tests/tb_pipe_regs.sv $(RTL_IF_ID_PIPE_REG) $(RTL_ID_EX_PIPE_REG) $(RTL_EX_MEM_PIPE_REG) $(RTL_MEM_WB_PIPE_REG)
+TB_SRCS_tb_cache_control := tests/tb_cache_control.sv $(RTL_CACHE_CONTROL)
+TB_SRCS_tb_memory_stage_control := tests/tb_memory_stage_control.sv $(RTL_MEMORY_STAGE_CONTROL)
+TB_SRCS_tb_memory_stage := tests/tb_memory_stage.sv $(RTL_LSU_CONTROL) $(RTL_LSU_DATAPATH) $(RTL_LSU) $(RTL_MEMORY_STAGE_CONTROL) $(RTL_MEMORY_STAGE)
+TB_SRCS_tb_pipeline_control := tests/tb_pipeline_control.sv $(RTL_PIPELINE_CONTROL)
+TB_SRCS_tb_divider := tests/tb_divider.sv $(RTL_RV32_DIVIDER)
+TB_SRCS_tb_branch_predictor := tests/tb_branch_predictor.sv $(RTL_BRANCH_PREDICTOR)
+TB_SRCS_tb_icache := tests/tb_icache.sv $(RTL_SRAM2R1W) $(RTL_ICACHE)
+TB_SRCS_tb_dcache := tests/tb_dcache.sv $(RTL_SRAM1RW) $(RTL_DCACHE)
+TB_SRCS_tb_if_stage := tests/tb_if_stage.sv $(RTL_BRANCH_PREDICTOR) $(RTL_IF_STAGE)
 TB_SRCS_tb_npc_core_smoke := tests/tb_npc_core_smoke.sv \
-  $(VSRCDIR)/ALU.v \
-  $(VSRCDIR)/BranchPredictor.v \
-  $(VSRCDIR)/CacheControl.v \
-  $(VSRCDIR)/CompareUnit.v \
-  $(VSRCDIR)/CsrFile.v \
-  $(VSRCDIR)/DCache.v \
-  $(VSRCDIR)/DecodeStage.v \
-  $(VSRCDIR)/DecodeUnit.v \
-  $(VSRCDIR)/ICache.v \
-  $(VSRCDIR)/IfStage.v \
-  $(VSRCDIR)/ImmGen.v \
-  $(VSRCDIR)/IfIdPipeReg.v \
-  $(VSRCDIR)/IdExPipeReg.v \
-  $(VSRCDIR)/ExMemPipeReg.v \
-  $(VSRCDIR)/LSUControl.v \
-  $(VSRCDIR)/LSUDataPath.v \
-  $(VSRCDIR)/LSU.v \
-  $(VSRCDIR)/MemWbPipeReg.v \
-  $(VSRCDIR)/MemoryStageControl.v \
-  $(VSRCDIR)/MemoryStage.v \
-  $(VSRCDIR)/PipelineControl.v \
-  $(VSRCDIR)/RegisterFile.v \
-  $(VSRCDIR)/Rv32Divider.v \
-  $(VSRCDIR)/Sram1Rw.v \
-  $(VSRCDIR)/Sram2R1W.v \
-  $(VSRCDIR)/WBU.v \
-  $(VSRCDIR)/NpcCore.v
+  $(RTL_ALU) \
+  $(RTL_BRANCH_PREDICTOR) \
+  $(RTL_CACHE_CONTROL) \
+  $(RTL_COMPARE_UNIT) \
+  $(RTL_CSR_FILE) \
+  $(RTL_DCACHE) \
+  $(RTL_DECODE_STAGE) \
+  $(RTL_DECODE_UNIT) \
+  $(RTL_ICACHE) \
+  $(RTL_IF_STAGE) \
+  $(RTL_IMM_GEN) \
+  $(RTL_IF_ID_PIPE_REG) \
+  $(RTL_ID_EX_PIPE_REG) \
+  $(RTL_EX_MEM_PIPE_REG) \
+  $(RTL_LSU_CONTROL) \
+  $(RTL_LSU_DATAPATH) \
+  $(RTL_LSU) \
+  $(RTL_MEM_WB_PIPE_REG) \
+  $(RTL_MEMORY_STAGE_CONTROL) \
+  $(RTL_MEMORY_STAGE) \
+  $(RTL_PIPELINE_CONTROL) \
+  $(RTL_REGISTER_FILE) \
+  $(RTL_RV32_DIVIDER) \
+  $(RTL_SRAM1RW) \
+  $(RTL_SRAM2R1W) \
+  $(RTL_WBU) \
+  $(RTL_NPC_CORE)
 
 TB_SRCS_tb_npc_core_mcycle := tests/tb_npc_core_mcycle.sv \
-  $(VSRCDIR)/ALU.v \
-  $(VSRCDIR)/BranchPredictor.v \
-  $(VSRCDIR)/CacheControl.v \
-  $(VSRCDIR)/CompareUnit.v \
-  $(VSRCDIR)/CsrFile.v \
-  $(VSRCDIR)/DCache.v \
-  $(VSRCDIR)/DecodeStage.v \
-  $(VSRCDIR)/DecodeUnit.v \
-  $(VSRCDIR)/ICache.v \
-  $(VSRCDIR)/IfStage.v \
-  $(VSRCDIR)/ImmGen.v \
-  $(VSRCDIR)/IfIdPipeReg.v \
-  $(VSRCDIR)/IdExPipeReg.v \
-  $(VSRCDIR)/ExMemPipeReg.v \
-  $(VSRCDIR)/LSUControl.v \
-  $(VSRCDIR)/LSUDataPath.v \
-  $(VSRCDIR)/LSU.v \
-  $(VSRCDIR)/MemWbPipeReg.v \
-  $(VSRCDIR)/MemoryStageControl.v \
-  $(VSRCDIR)/MemoryStage.v \
-  $(VSRCDIR)/PipelineControl.v \
-  $(VSRCDIR)/RegisterFile.v \
-  $(VSRCDIR)/Rv32Divider.v \
-  $(VSRCDIR)/Sram1Rw.v \
-  $(VSRCDIR)/Sram2R1W.v \
-  $(VSRCDIR)/WBU.v \
-  $(VSRCDIR)/NpcCore.v
+  $(RTL_ALU) \
+  $(RTL_BRANCH_PREDICTOR) \
+  $(RTL_CACHE_CONTROL) \
+  $(RTL_COMPARE_UNIT) \
+  $(RTL_CSR_FILE) \
+  $(RTL_DCACHE) \
+  $(RTL_DECODE_STAGE) \
+  $(RTL_DECODE_UNIT) \
+  $(RTL_ICACHE) \
+  $(RTL_IF_STAGE) \
+  $(RTL_IMM_GEN) \
+  $(RTL_IF_ID_PIPE_REG) \
+  $(RTL_ID_EX_PIPE_REG) \
+  $(RTL_EX_MEM_PIPE_REG) \
+  $(RTL_LSU_CONTROL) \
+  $(RTL_LSU_DATAPATH) \
+  $(RTL_LSU) \
+  $(RTL_MEM_WB_PIPE_REG) \
+  $(RTL_MEMORY_STAGE_CONTROL) \
+  $(RTL_MEMORY_STAGE) \
+  $(RTL_PIPELINE_CONTROL) \
+  $(RTL_REGISTER_FILE) \
+  $(RTL_RV32_DIVIDER) \
+  $(RTL_SRAM1RW) \
+  $(RTL_SRAM2R1W) \
+  $(RTL_WBU) \
+  $(RTL_NPC_CORE)
+
+TB_SRCS_tb_npc_core_interrupt := tests/tb_npc_core_interrupt.sv \
+  $(RTL_ALU) \
+  $(RTL_BRANCH_PREDICTOR) \
+  $(RTL_CACHE_CONTROL) \
+  $(RTL_COMPARE_UNIT) \
+  $(RTL_CSR_FILE) \
+  $(RTL_DCACHE) \
+  $(RTL_DECODE_STAGE) \
+  $(RTL_DECODE_UNIT) \
+  $(RTL_ICACHE) \
+  $(RTL_IF_STAGE) \
+  $(RTL_IMM_GEN) \
+  $(RTL_IF_ID_PIPE_REG) \
+  $(RTL_ID_EX_PIPE_REG) \
+  $(RTL_EX_MEM_PIPE_REG) \
+  $(RTL_LSU_CONTROL) \
+  $(RTL_LSU_DATAPATH) \
+  $(RTL_LSU) \
+  $(RTL_MEM_WB_PIPE_REG) \
+  $(RTL_MEMORY_STAGE_CONTROL) \
+  $(RTL_MEMORY_STAGE) \
+  $(RTL_PIPELINE_CONTROL) \
+  $(RTL_REGISTER_FILE) \
+  $(RTL_RV32_DIVIDER) \
+  $(RTL_SRAM1RW) \
+  $(RTL_SRAM2R1W) \
+  $(RTL_WBU) \
+  $(RTL_NPC_CORE)
 
 PIPE_TEST_SRCS := tests/pipe_test.sv \
-  $(VSRCDIR)/LSUControl.v \
-  $(VSRCDIR)/LSUDataPath.v \
-  $(VSRCDIR)/LSU.v \
-  $(VSRCDIR)/MemoryStageControl.v \
-  $(VSRCDIR)/MemoryStage.v \
-  $(VSRCDIR)/Sram1Rw.v \
-  $(VSRCDIR)/DCache.v \
-  $(VSRCDIR)/PipelineControl.v
+  $(RTL_LSU_CONTROL) \
+  $(RTL_LSU_DATAPATH) \
+  $(RTL_LSU) \
+  $(RTL_MEMORY_STAGE_CONTROL) \
+  $(RTL_MEMORY_STAGE) \
+  $(RTL_SRAM1RW) \
+  $(RTL_DCACHE) \
+  $(RTL_PIPELINE_CONTROL)
 
 STAGE_PIPE_TEST_SRCS := tests/stage_pipe_test.sv \
-  $(VSRCDIR)/BranchPredictor.v \
-  $(VSRCDIR)/IfStage.v \
-  $(VSRCDIR)/IfIdPipeReg.v \
-  $(VSRCDIR)/Sram2R1W.v \
-  $(VSRCDIR)/ICache.v \
-  $(VSRCDIR)/LSUControl.v \
-  $(VSRCDIR)/LSUDataPath.v \
-  $(VSRCDIR)/LSU.v \
-  $(VSRCDIR)/MemoryStageControl.v \
-  $(VSRCDIR)/MemoryStage.v \
-  $(VSRCDIR)/Sram1Rw.v \
-  $(VSRCDIR)/DCache.v \
-  $(VSRCDIR)/PipelineControl.v
+  $(RTL_BRANCH_PREDICTOR) \
+  $(RTL_IF_STAGE) \
+  $(RTL_IF_ID_PIPE_REG) \
+  $(RTL_SRAM2R1W) \
+  $(RTL_ICACHE) \
+  $(RTL_LSU_CONTROL) \
+  $(RTL_LSU_DATAPATH) \
+  $(RTL_LSU) \
+  $(RTL_MEMORY_STAGE_CONTROL) \
+  $(RTL_MEMORY_STAGE) \
+  $(RTL_SRAM1RW) \
+  $(RTL_DCACHE) \
+  $(RTL_PIPELINE_CONTROL)
 
 .DEFAULT_GOAL := run
 

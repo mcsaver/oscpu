@@ -11,8 +11,128 @@
 `define TRAP_CAUSE_W       5
 `define CORE_STATE_W       4
 
+// 可配置结构参数统一放在本文件，便于后续由外部软件生成或覆盖这组宏。
+`ifndef RESET_PC
 `define RESET_PC           32'h8000_0000
+`endif
+`ifndef PC_STEP
 `define PC_STEP            32'd4
+`endif
+
+`ifndef CACHEABLE_BASE
+`define CACHEABLE_BASE     32'h8000_0000
+`endif
+`ifndef CACHEABLE_LAST
+`define CACHEABLE_LAST     32'h87ff_fffc
+`endif
+`ifndef NPC_AXI_UART_BASE
+`define NPC_AXI_UART_BASE  32'h1000_0000
+`endif
+`ifndef NPC_AXI_UART_MASK
+`define NPC_AXI_UART_MASK  32'hffff_f000
+`endif
+`ifndef NPC_AXI_CLINT_BASE
+`define NPC_AXI_CLINT_BASE 32'h0200_0000
+`endif
+`ifndef NPC_AXI_CLINT_MASK
+`define NPC_AXI_CLINT_MASK 32'hffff_0000
+`endif
+`ifndef NPC_AXI_PMEM_BASE
+`define NPC_AXI_PMEM_BASE  32'h8000_0000
+`endif
+`ifndef NPC_AXI_PMEM_MASK
+`define NPC_AXI_PMEM_MASK  32'hf800_0000
+`endif
+`ifndef NPC_AXI_LEGACY_MMIO_BASE
+`define NPC_AXI_LEGACY_MMIO_BASE 32'ha000_0000
+`endif
+`ifndef NPC_AXI_LEGACY_MMIO_MASK
+`define NPC_AXI_LEGACY_MMIO_MASK 32'hfe00_0000
+`endif
+`ifndef NPC_AXI_DEFAULT_BASE
+`define NPC_AXI_DEFAULT_BASE 32'h0000_0000
+`endif
+`ifndef NPC_AXI_DEFAULT_MASK
+`define NPC_AXI_DEFAULT_MASK 32'h0000_0000
+`endif
+
+`ifndef BPU_BHT_INDEX_W
+`define BPU_BHT_INDEX_W    12
+`endif
+`ifndef BPU_BHT_ENTRIES
+`define BPU_BHT_ENTRIES    (1 << `BPU_BHT_INDEX_W)
+`endif
+`ifndef BPU_BTB_INDEX_W
+`define BPU_BTB_INDEX_W    8
+`endif
+`ifndef BPU_BTB_ENTRIES
+`define BPU_BTB_ENTRIES    (1 << `BPU_BTB_INDEX_W)
+`endif
+`ifndef BPU_LOCAL_HISTORY_INDEX_W
+`define BPU_LOCAL_HISTORY_INDEX_W 8
+`endif
+`ifndef BPU_LOCAL_HISTORY_ENTRIES
+`define BPU_LOCAL_HISTORY_ENTRIES (1 << `BPU_LOCAL_HISTORY_INDEX_W)
+`endif
+`ifndef BPU_LOCAL_HISTORY_W
+`define BPU_LOCAL_HISTORY_W 8
+`endif
+`ifndef BPU_LOCAL_PHT_PC_BITS
+`define BPU_LOCAL_PHT_PC_BITS 4
+`endif
+`ifndef BPU_LOCAL_PHT_INDEX_W
+`define BPU_LOCAL_PHT_INDEX_W (`BPU_LOCAL_PHT_PC_BITS + `BPU_LOCAL_HISTORY_W)
+`endif
+`ifndef BPU_LOCAL_PHT_ENTRIES
+`define BPU_LOCAL_PHT_ENTRIES (1 << `BPU_LOCAL_PHT_INDEX_W)
+`endif
+`ifndef BPU_RAS_ENTRIES
+`define BPU_RAS_ENTRIES    16
+`endif
+`ifndef BPU_RAS_INDEX_W
+`define BPU_RAS_INDEX_W    4
+`endif
+`ifndef BPU_RAS_SIZE_W
+`define BPU_RAS_SIZE_W     5
+`endif
+`ifndef BPU_RAS_DEPTH
+`define BPU_RAS_DEPTH      5'd16
+`endif
+`ifndef BPU_COUNTER_INIT
+`define BPU_COUNTER_INIT   2'd2
+`endif
+
+`ifndef ICACHE_LINE_WORDS
+`define ICACHE_LINE_WORDS  16
+`endif
+`ifndef ICACHE_LINE_COUNT
+`define ICACHE_LINE_COUNT  64
+`endif
+`ifndef ICACHE_OFFSET_BITS
+`define ICACHE_OFFSET_BITS 6
+`endif
+`ifndef ICACHE_INDEX_BITS
+`define ICACHE_INDEX_BITS  6
+`endif
+`ifndef ICACHE_WORD_BITS
+`define ICACHE_WORD_BITS   4
+`endif
+
+`ifndef DCACHE_LINE_WORDS
+`define DCACHE_LINE_WORDS  16
+`endif
+`ifndef DCACHE_LINE_COUNT
+`define DCACHE_LINE_COUNT  64
+`endif
+`ifndef DCACHE_OFFSET_BITS
+`define DCACHE_OFFSET_BITS 6
+`endif
+`ifndef DCACHE_INDEX_BITS
+`define DCACHE_INDEX_BITS  6
+`endif
+`ifndef DCACHE_WORD_BITS
+`define DCACHE_WORD_BITS   4
+`endif
 
 `define OPCODE_LOAD        7'b0000011
 `define OPCODE_MISC_MEM    7'b0001111
@@ -89,6 +209,17 @@
 `define MSTATUS_MPP_MASK   32'h0000_1800
 `define MSTATUS_MPP_M      32'h0000_1800
 `define MSTATUS_MPRV       32'h0002_0000
+
+`define IRQ_CAUSE_MSI      5'd3
+`define IRQ_CAUSE_MTI      5'd7
+`define IRQ_CAUSE_MEI      5'd11
+`define MCAUSE_INTERRUPT   32'h8000_0000
+`define MIP_MSIP           32'h0000_0008
+`define MIP_MTIP           32'h0000_0080
+`define MIP_MEIP           32'h0000_0800
+`define MIE_MSIE           32'h0000_0008
+`define MIE_MTIE           32'h0000_0080
+`define MIE_MEIE           32'h0000_0800
 
 // 立即数类型编码：DecodeUnit 给出类型，ImmGen 按类型完成拼接与符号扩展。
 `define IMM_TYPE_X         3'b000  // 不使用立即数

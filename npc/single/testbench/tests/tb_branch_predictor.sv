@@ -11,7 +11,7 @@ module tb_branch_predictor;
   reg [`INST_W-1:0] predict_inst;
   reg [`XLEN-1:0] predict_seq_pc;
   wire [`XLEN-1:0] predict_next_pc;
-  wire [9:0] predict_bht_idx;
+  wire [`BPU_BHT_INDEX_W-1:0] predict_bht_idx;
   wire predict_control;
   wire predict_branch;
   wire predict_jalr;
@@ -29,8 +29,8 @@ module tb_branch_predictor;
   reg [`XLEN-1:0] update_seq_pc;
   reg [`XLEN-1:0] update_next_pc;
   reg update_taken;
-  reg [9:0] update_bht_idx;
-  reg [9:0] saved_bht_idx;
+  reg [`BPU_BHT_INDEX_W-1:0] update_bht_idx;
+  reg [`BPU_BHT_INDEX_W-1:0] saved_bht_idx;
   integer train_i;
 
   BranchPredictor dut (
@@ -76,8 +76,8 @@ module tb_branch_predictor;
       update_seq_pc = 32'h0;
       update_next_pc = 32'h0;
       update_taken = 1'b0;
-      update_bht_idx = 10'h0;
-      saved_bht_idx = 10'h0;
+      update_bht_idx = {`BPU_BHT_INDEX_W{1'b0}};
+      saved_bht_idx = {`BPU_BHT_INDEX_W{1'b0}};
       `TB_TICK(clk);
       rst = 1'b0;
       `TB_TICK(clk);
@@ -105,7 +105,7 @@ module tb_branch_predictor;
     saved_bht_idx = predict_bht_idx;
     predict_valid = 1'b0;
 
-    for (train_i = 0; train_i < 11; train_i = train_i + 1) begin
+    for (train_i = 0; train_i < (`BPU_BHT_INDEX_W + 1); train_i = train_i + 1) begin
       predict_valid = 1'b1;
       #1;
       saved_bht_idx = predict_bht_idx;
@@ -134,7 +134,7 @@ module tb_branch_predictor;
     update_seq_pc = 32'h8000_0804;
     update_next_pc = 32'h8000_0808;
     update_taken = 1'b1;
-    update_bht_idx = 10'h000;
+    update_bht_idx = {`BPU_BHT_INDEX_W{1'b0}};
     `TB_TICK(clk);
     update_valid = 1'b0;
     update_taken = 1'b0;
@@ -158,7 +158,7 @@ module tb_branch_predictor;
       update_taken = ((train_i % 2) == 0);
       update_next_pc = update_taken ? 32'h8000_0808 : predict_seq_pc;
       // 故意不使用预测时的 gshare index，确保这个用例验证的是 per-PC local history。
-      update_bht_idx = 10'h000;
+      update_bht_idx = {`BPU_BHT_INDEX_W{1'b0}};
       `TB_TICK(clk);
       update_valid = 1'b0;
       update_taken = 1'b0;

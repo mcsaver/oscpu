@@ -150,6 +150,15 @@ static double ratio_percent(uint64_t part, uint64_t total) {
   return total > 0 ? (double)part / (double)total * 100.0 : 0.0;
 }
 
+static void format_u64_delta(char *buf, size_t size, uint64_t lhs, uint64_t rhs) {
+  if (!buf || size == 0) return;
+  if (lhs >= rhs) {
+    snprintf(buf, size, "+%llu", (unsigned long long)(lhs - rhs));
+  } else {
+    snprintf(buf, size, "-%llu", (unsigned long long)(rhs - lhs));
+  }
+}
+
 static void on_sigint(int) { g_stop_requested = 1; }
 
 static void clear_cycle_events(void) {
@@ -479,6 +488,10 @@ static void report_cache_stats(void) {
 
 // NEMU 风格统计 + CPI + 分支统计，NPC 跑分结果可直接和参考模型对比
 static void report_statistics(void) {
+  char mtime_delta[48];
+  format_u64_delta(mtime_delta, sizeof(mtime_delta),
+                   npc_stats()->clint_mtime, npc_stats()->cycles);
+
   LogBothTag("statistic", "host time spent = %llu us",
           (unsigned long long)npc_stats()->host_time_us);
   LogBothTag("statistic", "total guest instructions = %llu",
@@ -486,6 +499,10 @@ static void report_statistics(void) {
   // 新增 cycles 和 CPI 输出，对齐参考工程的统计格式
   LogBothTag("statistic", "total guest cycles = %llu",
           (unsigned long long)npc_stats()->cycles);
+  LogBothTag("statistic", "CLINT mtime = %llu (mtime-cycles=%s, match=%s)",
+          (unsigned long long)npc_stats()->clint_mtime,
+          mtime_delta,
+          (npc_stats()->clint_mtime == npc_stats()->cycles) ? "yes" : "no");
   if (npc_stats()->commits > 0) {
     LogBothTag("statistic", "CPI (cycles/instruction) = %.3f",
             (double)npc_stats()->cycles / (double)npc_stats()->commits);
@@ -560,6 +577,8 @@ static void step_cycle(void) {
   eval_half_cycle(0);
   eval_half_cycle(1);
   ++npc_stats()->cycles;
+  // 在完整 posedge 之后采样 Verilator 顶层调试口，和同一拍的 DPIC cycles 计数对齐。
+  npc_stats()->clint_mtime = g_top->debug_clint_mtime_o;
   if (g_commit_event.valid) ++npc_stats()->commits;
 }
 
@@ -765,6 +784,7 @@ void npc_cpu_info_display(void) {
   printf("pc       : 0x%08x\n", npc_cpu_pc());
   printf("core     : 0x%08x\n", npc_cpu_state_bits());
   printf("cycles   : %llu\n", (unsigned long long)npc_stats()->cycles);
+  printf("mtime    : %llu\n", (unsigned long long)npc_stats()->clint_mtime);
   printf("commits  : %llu\n", (unsigned long long)npc_stats()->commits);
   printf("host-us  : %llu\n", (unsigned long long)npc_stats()->host_time_us);
   if (npc_stats()->host_time_us > 0)

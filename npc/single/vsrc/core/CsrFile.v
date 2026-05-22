@@ -27,6 +27,15 @@ module CsrFile (
   input [`TRAP_CAUSE_W-1:0] trap_ex_cause_i,
   input [`XLEN-1:0] trap_ex_tval_i,
 
+  input irq_software_i,
+  input irq_timer_i,
+  input irq_external_i,
+  output irq_pending_o,
+  output [`TRAP_CAUSE_W-1:0] irq_cause_o,
+
+  input trap_irq_valid_i,
+  input [`XLEN-1:0] trap_irq_pc_i,
+  input [`TRAP_CAUSE_W-1:0] trap_irq_cause_i,
   input mret_valid_i,
   output [`XLEN-1:0] trap_target_o,
   output [`XLEN-1:0] mepc_o
@@ -118,6 +127,7 @@ module CsrFile (
   /* verilator lint_off UNUSEDSIGNAL */
   wire trap_mem_pc_align_bit_unused_w = trap_mem_pc_i[0];
   wire trap_ex_pc_align_bit_unused_w = trap_ex_pc_i[0];
+  wire trap_irq_pc_align_bit_unused_w = trap_irq_pc_i[0];
   /* verilator lint_on UNUSEDSIGNAL */
 
   wire csr_imm_op_w = csr_funct3_i[2];
@@ -130,6 +140,14 @@ module CsrFile (
                                           (csr_funct3_i == 3'b101) ||
                                           ~csr_set_clear_noop_w);
   wire mcycle_inhibit_w = (csr_mcountinhibit_q & `MCOUNTINHIBIT_CY) != {`XLEN{1'b0}};
+  wire [`XLEN-1:0] csr_mip_hw_w =
+      (irq_software_i ? `MIP_MSIP : {`XLEN{1'b0}}) |
+      (irq_timer_i    ? `MIP_MTIP : {`XLEN{1'b0}}) |
+      (irq_external_i ? `MIP_MEIP : {`XLEN{1'b0}});
+  wire [`XLEN-1:0] csr_mip_visible_w = csr_mip_q | csr_mip_hw_w;
+  wire [`XLEN-1:0] irq_enabled_pending_w = csr_mip_visible_w & csr_mie_q &
+                                           (`MIP_MSIP | `MIP_MTIP | `MIP_MEIP);
+  wire irq_global_enable_w = (csr_mstatus_q & `MSTATUS_MIE) != {`XLEN{1'b0}};
   wire [`XLEN-1:0] csr_new_value_w =
       ((csr_funct3_i == 3'b001) || (csr_funct3_i == 3'b101)) ? csr_src_w :
       ((csr_funct3_i == 3'b010) || (csr_funct3_i == 3'b110)) ? (csr_rdata_o | csr_src_w) :
@@ -149,7 +167,7 @@ module CsrFile (
       (csr_addr_i == `CSR_MEPC)     ? csr_mepc_q :
       (csr_addr_i == `CSR_MCAUSE)   ? csr_mcause_q :
       (csr_addr_i == `CSR_MTVAL)    ? csr_mtval_q :
-      (csr_addr_i == `CSR_MIP)      ? csr_mip_q :
+      (csr_addr_i == `CSR_MIP)      ? csr_mip_visible_w :
       (csr_addr_i == `CSR_MCYCLE)   ? csr_mcycle_q[31:0] :
       (csr_addr_i == `CSR_MCYCLEH)  ? csr_mcycle_q[63:32] :
       (csr_addr_i == `CSR_CYCLE)    ? csr_mcycle_q[31:0] :
@@ -160,6 +178,11 @@ module CsrFile (
                                          (csr_need_write_w && ~csr_writable(csr_addr_i)));
   assign trap_target_o = {csr_mtvec_q[`XLEN-1:2], 2'b00};
   assign mepc_o = csr_mepc_q;
+  assign irq_pending_o = irq_global_enable_w && (irq_enabled_pending_w != {`XLEN{1'b0}});
+  // M-mode 标准固定优先级：外部中断优先，其次软件中断，最后定时器中断。
+  assign irq_cause_o = ((irq_enabled_pending_w & `MIP_MEIP) != {`XLEN{1'b0}}) ? `IRQ_CAUSE_MEI :
+                       ((irq_enabled_pending_w & `MIP_MSIP) != {`XLEN{1'b0}}) ? `IRQ_CAUSE_MSI :
+                                                                                `IRQ_CAUSE_MTI;
 
   always @(posedge clk) begin
     if (rst) begin
@@ -188,6 +211,11 @@ module CsrFile (
         csr_mcause_q <= {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, trap_ex_cause_i};
         csr_mtval_q <= trap_ex_tval_i;
         csr_mstatus_q <= trap_mstatus(csr_mstatus_q);
+      end else if (trap_irq_valid_i) begin
+        csr_mepc_q <= {trap_irq_pc_i[`XLEN-1:1], 1'b0};
+        csr_mcause_q <= `MCAUSE_INTERRUPT | {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, trap_irq_cause_i};
+        csr_mtval_q <= {`XLEN{1'b0}};
+        csr_mstatus_q <= trap_mstatus(csr_mstatus_q);
       end else begin
         if (mret_valid_i) begin
           csr_mstatus_q <= mret_mstatus(csr_mstatus_q);
@@ -196,14 +224,15 @@ module CsrFile (
         if (csr_commit_i && csr_valid_i && ~csr_illegal_o && csr_need_write_w) begin
           case (csr_addr_i)
             `CSR_MSTATUS:  csr_mstatus_q <= csr_new_value_w;
-            `CSR_MIE:      csr_mie_q <= csr_new_value_w;
+            `CSR_MIE:      csr_mie_q <= csr_new_value_w & (`MIE_MSIE | `MIE_MTIE | `MIE_MEIE);
             `CSR_MTVEC:    csr_mtvec_q <= {csr_new_value_w[`XLEN-1:2], 2'b00};
             `CSR_MCOUNTINHIBIT: csr_mcountinhibit_q <= csr_new_value_w & `MCOUNTINHIBIT_CY;
             `CSR_MSCRATCH: csr_mscratch_q <= csr_new_value_w;
             `CSR_MEPC:     csr_mepc_q <= {csr_new_value_w[`XLEN-1:1], 1'b0};
             `CSR_MCAUSE:   csr_mcause_q <= csr_new_value_w;
             `CSR_MTVAL:    csr_mtval_q <= csr_new_value_w;
-            `CSR_MIP:      csr_mip_q <= csr_new_value_w;
+            // 标准 M-mode 硬件 pending 位由 CLINT/外部控制器驱动，CSR 写不能伪造或清除它们。
+            `CSR_MIP:      csr_mip_q <= csr_new_value_w & ~(`MIP_MSIP | `MIP_MTIP | `MIP_MEIP);
             `CSR_MCYCLE:   csr_mcycle_q <= {csr_mcycle_q[63:32], csr_new_value_w};
             `CSR_MCYCLEH:  csr_mcycle_q <= {csr_new_value_w, csr_mcycle_q[31:0]};
             default: begin end

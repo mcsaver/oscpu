@@ -2,8 +2,7 @@
 // 当前仿真第一阶段仍把所有地址交给 DPI slave，后续拆多设备时可把
 // `DEFAULT_SLAVE` 指向本模块，避免非法地址静默成功。
 module AxiDefaultSlave #(
-  parameter DATA_W = 32,
-  parameter STRB_W = DATA_W / 8
+  parameter DATA_W = 32
 ) (
   input clk,
   input rst,

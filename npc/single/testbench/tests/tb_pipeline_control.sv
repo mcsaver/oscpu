@@ -29,6 +29,7 @@ module tb_pipeline_control;
   reg ex_illegal;
   reg ex_redirect_misaligned;
   reg ex_load_store_misaligned;
+  reg irq_pending;
   reg [`XLEN-1:0] ex_control_next_pc;
   reg [`XLEN-1:0] ex_redirect_pc;
   reg [`XLEN-1:0] trap_target;
@@ -38,6 +39,8 @@ module tb_pipeline_control;
   wire ex_fire;
   wire ex_exception;
   wire ex_exception_fatal;
+  wire ex_interrupt;
+  wire ex_interrupt_fatal;
   wire ex_mret_redirect;
   wire ex_any_flush;
   wire id_accept;
@@ -66,10 +69,12 @@ module tb_pipeline_control;
     .halt_i(halt), .fatal_i(fatal), .ex_fetch_fault_i(ex_fetch_fault),
     .ex_illegal_i(ex_illegal), .ex_redirect_misaligned_i(ex_redirect_misaligned),
     .ex_load_store_misaligned_i(ex_load_store_misaligned),
+    .irq_pending_i(irq_pending),
     .ex_control_next_pc_i(ex_control_next_pc), .ex_redirect_pc_i(ex_redirect_pc),
     .trap_target_i(trap_target), .csr_mepc_i(csr_mepc),
     .cache_flush_valid_i(cache_flush_valid), .cache_flush_redirect_pc_i(cache_flush_redirect_pc),
     .ex_fire_o(ex_fire), .ex_exception_o(ex_exception), .ex_exception_fatal_o(ex_exception_fatal),
+    .ex_interrupt_o(ex_interrupt), .ex_interrupt_fatal_o(ex_interrupt_fatal),
     .ex_mret_redirect_o(ex_mret_redirect), .ex_any_flush_o(ex_any_flush),
     .id_accept_o(id_accept), .if_id_consume_o(if_id_consume), .if_id_can_refill_o(if_id_can_refill),
     .ebreak_fire_o(ebreak_fire), .pipeline_normal_update_o(pipeline_normal_update),
@@ -89,6 +94,7 @@ module tb_pipeline_control;
       ex_mem_valid = 1'b0; ex_mem_is_mem = 1'b0; mem_response = 1'b0; mem_fault = 1'b0; ex_wait = 1'b0;
       halt = 1'b0; fatal = 1'b0; ex_fetch_fault = 1'b0; ex_illegal = 1'b0;
       ex_redirect_misaligned = 1'b0; ex_load_store_misaligned = 1'b0;
+      irq_pending = 1'b0;
       ex_control_next_pc = 32'h8000_0004; ex_redirect_pc = 32'h8000_0100;
       trap_target = 32'h8000_1000; csr_mepc = 32'h8000_2000;
       cache_flush_valid = 1'b0; cache_flush_redirect_pc = 32'h8000_3000;
@@ -121,6 +127,21 @@ module tb_pipeline_control;
 
     defaults(); trap_target = 32'h0; ex_fetch_fault = 1'b1; #1;
     tb_check1("fatal exception", ex_exception_fatal, 1'b1);
+
+    defaults(); irq_pending = 1'b1; #1;
+    tb_check1("interrupt", ex_interrupt, 1'b1);
+    tb_check1("interrupt flush", ex_any_flush, 1'b1);
+    tb_check1("interrupt redirect", if_redirect_valid, 1'b1);
+    tb_check32("interrupt target", if_redirect_pc, 32'h8000_1000);
+    tb_check1("interrupt stops normal", pipeline_normal_update, 1'b0);
+    tb_check1("interrupt blocks bpu update", bpu_update_valid, 1'b0);
+
+    defaults(); irq_pending = 1'b1; ex_illegal = 1'b1; #1;
+    tb_check1("exception masks interrupt", ex_interrupt, 1'b0);
+    tb_check1("exception still wins", ex_exception, 1'b1);
+
+    defaults(); irq_pending = 1'b1; trap_target = 32'h0; #1;
+    tb_check1("fatal interrupt", ex_interrupt_fatal, 1'b1);
 
     defaults(); id_ex_mret = 1'b1; #1;
     tb_check1("mret redirect", ex_mret_redirect, 1'b1);

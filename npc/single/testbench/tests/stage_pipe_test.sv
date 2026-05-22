@@ -28,6 +28,7 @@ module stage_pipe_test;
   wire icache_cpu_req_ready;
   wire [`XLEN-1:0] icache_cpu_req_addr;
   wire icache_cpu_rsp_valid;
+  wire icache_cpu_rsp_ready;
   wire [`XLEN-1:0] icache_cpu_rsp_data;
   wire icache_cpu_rsp_error;
   wire imem_axi_arvalid;
@@ -64,6 +65,7 @@ module stage_pipe_test;
   wire [`XLEN-1:0] lsu_req_wdata;
   wire [3:0] lsu_req_wstrb;
   wire lsu_rsp_valid;
+  wire lsu_rsp_ready;
   wire [`XLEN-1:0] lsu_rsp_rdata;
   wire lsu_rsp_error;
   wire [`XLEN-1:0] mem_load_data;
@@ -120,6 +122,7 @@ module stage_pipe_test;
   reg p_ex_illegal;
   reg p_ex_redirect_misaligned;
   reg p_ex_load_store_misaligned;
+  reg p_irq_pending;
   reg [`XLEN-1:0] p_ex_control_next_pc;
   reg [`XLEN-1:0] p_ex_redirect_pc;
   reg [`XLEN-1:0] p_trap_target;
@@ -129,6 +132,8 @@ module stage_pipe_test;
   wire p_ex_fire;
   wire p_ex_exception;
   wire p_ex_exception_fatal;
+  wire p_ex_interrupt;
+  wire p_ex_interrupt_fatal;
   wire p_ex_mret_redirect;
   wire p_ex_any_flush;
   wire p_id_accept;
@@ -188,6 +193,7 @@ module stage_pipe_test;
     .ifu_req_ready_i(icache_cpu_req_ready),
     .ifu_req_addr_o(icache_cpu_req_addr),
     .ifu_rsp_valid_i(icache_cpu_rsp_valid),
+    .ifu_rsp_ready_o(icache_cpu_rsp_ready),
     .ifu_rsp_data_i(icache_cpu_rsp_data),
     .ifu_rsp_error_i(icache_cpu_rsp_error),
     .fetch_pc_o(fe_fetch_pc),
@@ -203,6 +209,7 @@ module stage_pipe_test;
     .cpu_req_ready_o(icache_cpu_req_ready),
     .cpu_req_addr_i(icache_cpu_req_addr),
     .cpu_rsp_valid_o(icache_cpu_rsp_valid),
+    .cpu_rsp_ready_i(icache_cpu_rsp_ready),
     .cpu_rsp_data_o(icache_cpu_rsp_data),
     .cpu_rsp_error_o(icache_cpu_rsp_error),
     .axi_arvalid_o(imem_axi_arvalid),
@@ -254,6 +261,7 @@ module stage_pipe_test;
     .lsu_req_wdata_o(lsu_req_wdata),
     .lsu_req_wstrb_o(lsu_req_wstrb),
     .lsu_rsp_valid_i(lsu_rsp_valid),
+    .lsu_rsp_ready_o(lsu_rsp_ready),
     .lsu_rsp_rdata_i(lsu_rsp_rdata),
     .lsu_rsp_error_i(lsu_rsp_error),
     .load_data_o(mem_load_data),
@@ -275,6 +283,7 @@ module stage_pipe_test;
     .cpu_req_wdata_i(lsu_req_wdata),
     .cpu_req_wstrb_i(lsu_req_wstrb),
     .cpu_rsp_valid_o(lsu_rsp_valid),
+    .cpu_rsp_ready_i(lsu_rsp_ready),
     .cpu_rsp_rdata_o(lsu_rsp_rdata),
     .cpu_rsp_error_o(lsu_rsp_error),
     .axi_arvalid_o(dmem_axi_arvalid),
@@ -323,6 +332,7 @@ module stage_pipe_test;
     .ex_illegal_i(p_ex_illegal),
     .ex_redirect_misaligned_i(p_ex_redirect_misaligned),
     .ex_load_store_misaligned_i(p_ex_load_store_misaligned),
+    .irq_pending_i(p_irq_pending),
     .ex_control_next_pc_i(p_ex_control_next_pc),
     .ex_redirect_pc_i(p_ex_redirect_pc),
     .trap_target_i(p_trap_target),
@@ -332,6 +342,8 @@ module stage_pipe_test;
     .ex_fire_o(p_ex_fire),
     .ex_exception_o(p_ex_exception),
     .ex_exception_fatal_o(p_ex_exception_fatal),
+    .ex_interrupt_o(p_ex_interrupt),
+    .ex_interrupt_fatal_o(p_ex_interrupt_fatal),
     .ex_mret_redirect_o(p_ex_mret_redirect),
     .ex_any_flush_o(p_ex_any_flush),
     .id_accept_o(p_id_accept),
@@ -578,6 +590,7 @@ module stage_pipe_test;
       p_ex_illegal = 1'b0;
       p_ex_redirect_misaligned = 1'b0;
       p_ex_load_store_misaligned = 1'b0;
+      p_irq_pending = 1'b0;
       p_ex_control_next_pc = 32'h8000_0004;
       p_ex_redirect_pc = 32'h8000_0100;
       p_trap_target = 32'h8000_1000;

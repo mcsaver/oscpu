@@ -70,13 +70,27 @@ import "DPI-C" function void npc_dcache_event(
   input int unsigned is_store
 );
 
+import "DPI-C" function void npc_uart_event(
+  input int unsigned is_write,
+  input int unsigned tx_valid,
+  input int unsigned tx_data
+);
+
 module NpcSimTop (
   input logic clk,
   input logic rst,
 
   output logic [`XLEN-1:0] debug_pc_o,
-  output logic [`CORE_STATE_W-1:0] debug_state_o
+  output logic [`CORE_STATE_W-1:0] debug_state_o,
+  output logic [63:0] debug_clint_mtime_o
 );
+
+  localparam int AXI_S_UART = 0;
+  localparam int AXI_S_CLINT = 1;
+  localparam int AXI_S_PMEM = 2;
+  localparam int AXI_S_LEGACY_MMIO = 3;
+  localparam int AXI_S_DEFAULT = 4;
+  localparam int AXI_S_COUNT = 5;
 
   logic ifu_axi_arvalid_w;
   logic ifu_axi_arready_w;
@@ -103,24 +117,31 @@ module NpcSimTop (
   logic lsu_axi_bvalid_w;
   logic lsu_axi_bready_w;
   logic [1:0] lsu_axi_bresp_w;
-  logic bus_axi_arvalid_w;
-  logic bus_axi_arready_w;
-  logic [`XLEN-1:0] bus_axi_araddr_w;
-  logic bus_axi_aruser_w;
-  logic bus_axi_rvalid_w;
-  logic bus_axi_rready_w;
-  logic [`XLEN-1:0] bus_axi_rdata_w;
-  logic [1:0] bus_axi_rresp_w;
-  logic bus_axi_awvalid_w;
-  logic bus_axi_awready_w;
-  logic [`XLEN-1:0] bus_axi_awaddr_w;
-  logic bus_axi_wvalid_w;
-  logic bus_axi_wready_w;
-  logic [`XLEN-1:0] bus_axi_wdata_w;
-  logic [3:0] bus_axi_wstrb_w;
-  logic bus_axi_bvalid_w;
-  logic bus_axi_bready_w;
-  logic [1:0] bus_axi_bresp_w;
+  logic [AXI_S_COUNT-1:0] bus_axi_arvalid_w;
+  logic [AXI_S_COUNT-1:0] bus_axi_arready_w;
+  logic [AXI_S_COUNT*`XLEN-1:0] bus_axi_araddr_w;
+  logic [AXI_S_COUNT-1:0] bus_axi_aruser_w;
+  logic [AXI_S_COUNT-1:0] bus_axi_rvalid_w;
+  logic [AXI_S_COUNT-1:0] bus_axi_rready_w;
+  logic [AXI_S_COUNT*`XLEN-1:0] bus_axi_rdata_w;
+  logic [AXI_S_COUNT*2-1:0] bus_axi_rresp_w;
+  logic [AXI_S_COUNT-1:0] bus_axi_awvalid_w;
+  logic [AXI_S_COUNT-1:0] bus_axi_awready_w;
+  logic [AXI_S_COUNT*`XLEN-1:0] bus_axi_awaddr_w;
+  logic [AXI_S_COUNT-1:0] bus_axi_wvalid_w;
+  logic [AXI_S_COUNT-1:0] bus_axi_wready_w;
+  logic [AXI_S_COUNT*`XLEN-1:0] bus_axi_wdata_w;
+  logic [AXI_S_COUNT*4-1:0] bus_axi_wstrb_w;
+  logic [AXI_S_COUNT-1:0] bus_axi_bvalid_w;
+  logic [AXI_S_COUNT-1:0] bus_axi_bready_w;
+  logic [AXI_S_COUNT*2-1:0] bus_axi_bresp_w;
+  logic uart_tx_valid_w;
+  logic [7:0] uart_tx_data_w;
+  logic uart_access_valid_w;
+  logic uart_access_write_w;
+  logic [63:0] clint_mtime_w;
+  logic clint_msip_irq_w;
+  logic clint_mtip_irq_w;
   logic sim_cache_flush_w;
   logic sim_icache_access_w;
   logic sim_icache_hit_w;
@@ -171,6 +192,9 @@ module NpcSimTop (
     .lsu_axi_bvalid_i(lsu_axi_bvalid_w),
     .lsu_axi_bready_o(lsu_axi_bready_w),
     .lsu_axi_bresp_i(lsu_axi_bresp_w),
+    .irq_software_i(clint_msip_irq_w),
+    .irq_timer_i(clint_mtip_irq_w),
+    .irq_external_i(1'b0),
     /* verilator lint_off PINCONNECTEMPTY */
     .commit_valid_o(),
     .commit_pc_o(),
@@ -195,10 +219,13 @@ module NpcSimTop (
   );
 
   NpcAxiBus #(
-    .S_COUNT(1),
-    .DEFAULT_SLAVE(0),
-    .SLAVE_BASE(32'h0000_0000),
-    .SLAVE_MASK(32'h0000_0000)
+    .S_COUNT(AXI_S_COUNT),
+    .DEFAULT_SLAVE(AXI_S_DEFAULT),
+    // slave0: UART 4KB；slave1: CLINT 64KB；slave2: PMEM 128MB；slave3: legacy DPI MMIO；slave4: default error。
+    .SLAVE_BASE({`NPC_AXI_DEFAULT_BASE, `NPC_AXI_LEGACY_MMIO_BASE,
+                 `NPC_AXI_PMEM_BASE, `NPC_AXI_CLINT_BASE, `NPC_AXI_UART_BASE}),
+    .SLAVE_MASK({`NPC_AXI_DEFAULT_MASK, `NPC_AXI_LEGACY_MMIO_MASK,
+                 `NPC_AXI_PMEM_MASK, `NPC_AXI_CLINT_MASK, `NPC_AXI_UART_MASK})
   ) u_bus (
     .clk(clk),
     .rst(rst),
@@ -247,28 +274,130 @@ module NpcSimTop (
     .s_axi_bresp_i(bus_axi_bresp_w)
   );
 
-  AxiDpiSlave u_dpi_slave (
+  AxiLiteToUart u_uart_axi (
     .clk(clk),
     .rst(rst),
-    .s_axi_arvalid_i(bus_axi_arvalid_w),
-    .s_axi_arready_o(bus_axi_arready_w),
-    .s_axi_araddr_i(bus_axi_araddr_w),
-    .s_axi_aruser_i(bus_axi_aruser_w),
-    .s_axi_rvalid_o(bus_axi_rvalid_w),
-    .s_axi_rready_i(bus_axi_rready_w),
-    .s_axi_rdata_o(bus_axi_rdata_w),
-    .s_axi_rresp_o(bus_axi_rresp_w),
-    .s_axi_awvalid_i(bus_axi_awvalid_w),
-    .s_axi_awready_o(bus_axi_awready_w),
-    .s_axi_awaddr_i(bus_axi_awaddr_w),
-    .s_axi_wvalid_i(bus_axi_wvalid_w),
-    .s_axi_wready_o(bus_axi_wready_w),
-    .s_axi_wdata_i(bus_axi_wdata_w),
-    .s_axi_wstrb_i(bus_axi_wstrb_w),
-    .s_axi_bvalid_o(bus_axi_bvalid_w),
-    .s_axi_bready_i(bus_axi_bready_w),
-    .s_axi_bresp_o(bus_axi_bresp_w)
+    .s_axi_arvalid_i(bus_axi_arvalid_w[AXI_S_UART]),
+    .s_axi_arready_o(bus_axi_arready_w[AXI_S_UART]),
+    .s_axi_araddr_i(bus_axi_araddr_w[AXI_S_UART*`XLEN +: `XLEN]),
+    .s_axi_rvalid_o(bus_axi_rvalid_w[AXI_S_UART]),
+    .s_axi_rready_i(bus_axi_rready_w[AXI_S_UART]),
+    .s_axi_rdata_o(bus_axi_rdata_w[AXI_S_UART*`XLEN +: `XLEN]),
+    .s_axi_rresp_o(bus_axi_rresp_w[AXI_S_UART*2 +: 2]),
+    .s_axi_awvalid_i(bus_axi_awvalid_w[AXI_S_UART]),
+    .s_axi_awready_o(bus_axi_awready_w[AXI_S_UART]),
+    .s_axi_awaddr_i(bus_axi_awaddr_w[AXI_S_UART*`XLEN +: `XLEN]),
+    .s_axi_wvalid_i(bus_axi_wvalid_w[AXI_S_UART]),
+    .s_axi_wready_o(bus_axi_wready_w[AXI_S_UART]),
+    .s_axi_wdata_i(bus_axi_wdata_w[AXI_S_UART*`XLEN +: `XLEN]),
+    .s_axi_wstrb_i(bus_axi_wstrb_w[AXI_S_UART*4 +: 4]),
+    .s_axi_bvalid_o(bus_axi_bvalid_w[AXI_S_UART]),
+    .s_axi_bready_i(bus_axi_bready_w[AXI_S_UART]),
+    .s_axi_bresp_o(bus_axi_bresp_w[AXI_S_UART*2 +: 2]),
+    .uart_tx_valid_o(uart_tx_valid_w),
+    .uart_tx_data_o(uart_tx_data_w),
+    .uart_access_valid_o(uart_access_valid_w),
+    .uart_access_write_o(uart_access_write_w)
   );
+
+  AxiLiteClint u_clint_axi (
+    .clk(clk),
+    .rst(rst),
+    .s_axi_arvalid_i(bus_axi_arvalid_w[AXI_S_CLINT]),
+    .s_axi_arready_o(bus_axi_arready_w[AXI_S_CLINT]),
+    .s_axi_araddr_i(bus_axi_araddr_w[AXI_S_CLINT*`XLEN +: `XLEN]),
+    .s_axi_rvalid_o(bus_axi_rvalid_w[AXI_S_CLINT]),
+    .s_axi_rready_i(bus_axi_rready_w[AXI_S_CLINT]),
+    .s_axi_rdata_o(bus_axi_rdata_w[AXI_S_CLINT*`XLEN +: `XLEN]),
+    .s_axi_rresp_o(bus_axi_rresp_w[AXI_S_CLINT*2 +: 2]),
+    .s_axi_awvalid_i(bus_axi_awvalid_w[AXI_S_CLINT]),
+    .s_axi_awready_o(bus_axi_awready_w[AXI_S_CLINT]),
+    .s_axi_awaddr_i(bus_axi_awaddr_w[AXI_S_CLINT*`XLEN +: `XLEN]),
+    .s_axi_wvalid_i(bus_axi_wvalid_w[AXI_S_CLINT]),
+    .s_axi_wready_o(bus_axi_wready_w[AXI_S_CLINT]),
+    .s_axi_wdata_i(bus_axi_wdata_w[AXI_S_CLINT*`XLEN +: `XLEN]),
+    .s_axi_wstrb_i(bus_axi_wstrb_w[AXI_S_CLINT*4 +: 4]),
+    .s_axi_bvalid_o(bus_axi_bvalid_w[AXI_S_CLINT]),
+    .s_axi_bready_i(bus_axi_bready_w[AXI_S_CLINT]),
+    .s_axi_bresp_o(bus_axi_bresp_w[AXI_S_CLINT*2 +: 2]),
+    .mtime_o(clint_mtime_w),
+    .msip_irq_o(clint_msip_irq_w),
+    .mtip_irq_o(clint_mtip_irq_w)
+  );
+  wire unused_clint_mtime_w = |clint_mtime_w;
+  // 仿真统计需要观察 CLINT 内部计时器；层次化引用避免把调试口并入可综合 core ABI。
+  assign debug_clint_mtime_o = u_clint_axi.mtime_q;
+
+  AxiDpiSlave u_pmem_slave (
+    .clk(clk),
+    .rst(rst),
+    .s_axi_arvalid_i(bus_axi_arvalid_w[AXI_S_PMEM]),
+    .s_axi_arready_o(bus_axi_arready_w[AXI_S_PMEM]),
+    .s_axi_araddr_i(bus_axi_araddr_w[AXI_S_PMEM*`XLEN +: `XLEN]),
+    .s_axi_aruser_i(bus_axi_aruser_w[AXI_S_PMEM]),
+    .s_axi_rvalid_o(bus_axi_rvalid_w[AXI_S_PMEM]),
+    .s_axi_rready_i(bus_axi_rready_w[AXI_S_PMEM]),
+    .s_axi_rdata_o(bus_axi_rdata_w[AXI_S_PMEM*`XLEN +: `XLEN]),
+    .s_axi_rresp_o(bus_axi_rresp_w[AXI_S_PMEM*2 +: 2]),
+    .s_axi_awvalid_i(bus_axi_awvalid_w[AXI_S_PMEM]),
+    .s_axi_awready_o(bus_axi_awready_w[AXI_S_PMEM]),
+    .s_axi_awaddr_i(bus_axi_awaddr_w[AXI_S_PMEM*`XLEN +: `XLEN]),
+    .s_axi_wvalid_i(bus_axi_wvalid_w[AXI_S_PMEM]),
+    .s_axi_wready_o(bus_axi_wready_w[AXI_S_PMEM]),
+    .s_axi_wdata_i(bus_axi_wdata_w[AXI_S_PMEM*`XLEN +: `XLEN]),
+    .s_axi_wstrb_i(bus_axi_wstrb_w[AXI_S_PMEM*4 +: 4]),
+    .s_axi_bvalid_o(bus_axi_bvalid_w[AXI_S_PMEM]),
+    .s_axi_bready_i(bus_axi_bready_w[AXI_S_PMEM]),
+    .s_axi_bresp_o(bus_axi_bresp_w[AXI_S_PMEM*2 +: 2])
+  );
+
+  AxiDpiSlave u_legacy_mmio_slave (
+    .clk(clk),
+    .rst(rst),
+    .s_axi_arvalid_i(bus_axi_arvalid_w[AXI_S_LEGACY_MMIO]),
+    .s_axi_arready_o(bus_axi_arready_w[AXI_S_LEGACY_MMIO]),
+    .s_axi_araddr_i(bus_axi_araddr_w[AXI_S_LEGACY_MMIO*`XLEN +: `XLEN]),
+    .s_axi_aruser_i(bus_axi_aruser_w[AXI_S_LEGACY_MMIO]),
+    .s_axi_rvalid_o(bus_axi_rvalid_w[AXI_S_LEGACY_MMIO]),
+    .s_axi_rready_i(bus_axi_rready_w[AXI_S_LEGACY_MMIO]),
+    .s_axi_rdata_o(bus_axi_rdata_w[AXI_S_LEGACY_MMIO*`XLEN +: `XLEN]),
+    .s_axi_rresp_o(bus_axi_rresp_w[AXI_S_LEGACY_MMIO*2 +: 2]),
+    .s_axi_awvalid_i(bus_axi_awvalid_w[AXI_S_LEGACY_MMIO]),
+    .s_axi_awready_o(bus_axi_awready_w[AXI_S_LEGACY_MMIO]),
+    .s_axi_awaddr_i(bus_axi_awaddr_w[AXI_S_LEGACY_MMIO*`XLEN +: `XLEN]),
+    .s_axi_wvalid_i(bus_axi_wvalid_w[AXI_S_LEGACY_MMIO]),
+    .s_axi_wready_o(bus_axi_wready_w[AXI_S_LEGACY_MMIO]),
+    .s_axi_wdata_i(bus_axi_wdata_w[AXI_S_LEGACY_MMIO*`XLEN +: `XLEN]),
+    .s_axi_wstrb_i(bus_axi_wstrb_w[AXI_S_LEGACY_MMIO*4 +: 4]),
+    .s_axi_bvalid_o(bus_axi_bvalid_w[AXI_S_LEGACY_MMIO]),
+    .s_axi_bready_i(bus_axi_bready_w[AXI_S_LEGACY_MMIO]),
+    .s_axi_bresp_o(bus_axi_bresp_w[AXI_S_LEGACY_MMIO*2 +: 2])
+  );
+
+  AxiDefaultSlave u_default_slave (
+    .clk(clk),
+    .rst(rst),
+    .s_axi_arvalid_i(bus_axi_arvalid_w[AXI_S_DEFAULT]),
+    .s_axi_arready_o(bus_axi_arready_w[AXI_S_DEFAULT]),
+    .s_axi_rvalid_o(bus_axi_rvalid_w[AXI_S_DEFAULT]),
+    .s_axi_rready_i(bus_axi_rready_w[AXI_S_DEFAULT]),
+    .s_axi_rdata_o(bus_axi_rdata_w[AXI_S_DEFAULT*`XLEN +: `XLEN]),
+    .s_axi_rresp_o(bus_axi_rresp_w[AXI_S_DEFAULT*2 +: 2]),
+    .s_axi_awvalid_i(bus_axi_awvalid_w[AXI_S_DEFAULT]),
+    .s_axi_awready_o(bus_axi_awready_w[AXI_S_DEFAULT]),
+    .s_axi_wvalid_i(bus_axi_wvalid_w[AXI_S_DEFAULT]),
+    .s_axi_wready_o(bus_axi_wready_w[AXI_S_DEFAULT]),
+    .s_axi_bvalid_o(bus_axi_bvalid_w[AXI_S_DEFAULT]),
+    .s_axi_bready_i(bus_axi_bready_w[AXI_S_DEFAULT]),
+    .s_axi_bresp_o(bus_axi_bresp_w[AXI_S_DEFAULT*2 +: 2])
+  );
+  wire unused_default_payload_w = |{
+      bus_axi_araddr_w[AXI_S_DEFAULT*`XLEN +: `XLEN],
+      bus_axi_aruser_w[AXI_S_DEFAULT],
+      bus_axi_awaddr_w[AXI_S_DEFAULT*`XLEN +: `XLEN],
+      bus_axi_wdata_w[AXI_S_DEFAULT*`XLEN +: `XLEN],
+      bus_axi_wstrb_w[AXI_S_DEFAULT*4 +: 4]
+  };
 
   // 仿真兼容事件不进入 NpcCore 端口 ABI；DPI 顶层用层次化引用观察 RTL 内部 flush。
   assign sim_cache_flush_w = u_core.cache_flush_valid_w;
@@ -304,6 +433,15 @@ module NpcSimTop (
     if (rst) begin
       exit_reported_q <= 1'b0;
     end else begin
+      if (uart_access_valid_w) begin
+        // UART 已从 DPI 大从设备拆出；这里补回仿真侧输出和 difftest MMIO skip。
+        npc_uart_event(
+          uart_access_write_w ? 32'd1 : 32'd0,
+          uart_tx_valid_w ? 32'd1 : 32'd0,
+          {24'd0, uart_tx_data_w}
+        );
+      end
+
       // commit/trap/exit 只作为仿真事件推给宿主侧，避免把宽调试总线做成 Verilator 顶层 IO。
       if (u_core.mem_wb_load_w && !u_core.halt_q && !u_core.fatal_trap_q) begin
         npc_commit_event(
@@ -396,6 +534,12 @@ module NpcSimTop (
           {{(32-`TRAP_CAUSE_W){1'b0}}, u_core.ex_exception_cause_w},
           u_core.id_ex_pc_q,
           u_core.ex_exception_tval_w
+        );
+      end else if (u_core.ex_interrupt_w && u_core.ex_interrupt_fatal_w) begin
+        npc_trap_event(
+          `MCAUSE_INTERRUPT | {{(32-`TRAP_CAUSE_W){1'b0}}, u_core.csr_irq_cause_w},
+          u_core.id_ex_pc_q,
+          32'h0
         );
       end
 
