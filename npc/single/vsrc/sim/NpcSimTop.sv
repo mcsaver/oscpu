@@ -85,12 +85,44 @@ module NpcSimTop (
   output logic [63:0] debug_clint_mtime_o
 );
 
-  localparam int AXI_S_UART = 0;
-  localparam int AXI_S_CLINT = 1;
-  localparam int AXI_S_PMEM = 2;
-  localparam int AXI_S_LEGACY_MMIO = 3;
-  localparam int AXI_S_DEFAULT = 4;
-  localparam int AXI_S_COUNT = 5;
+  localparam [3:0] AXI_S_CLINT = 4'd0;
+  localparam [3:0] AXI_S_SRAM = 4'd1;
+  localparam [3:0] AXI_S_UART = 4'd2;
+  localparam [3:0] AXI_S_SPI = 4'd3;
+  localparam [3:0] AXI_S_GPIO = 4'd4;
+  localparam [3:0] AXI_S_PS2 = 4'd5;
+  localparam [3:0] AXI_S_MROM = 4'd6;
+  localparam [3:0] AXI_S_VGA = 4'd7;
+  localparam [3:0] AXI_S_FLASH = 4'd8;
+  localparam [3:0] AXI_S_CHIPLINK_MMIO = 4'd9;
+  localparam [3:0] AXI_S_PSRAM = 4'd10;
+  // 当前 AM/NEMU 兼容设备仍走 legacy DPI；严格 SoC 模式迁移后可删除这个覆盖窗口。
+  localparam [3:0] AXI_S_LEGACY_MMIO = 4'd11;
+  localparam [3:0] AXI_S_SDRAM = 4'd12;
+  localparam [3:0] AXI_S_CHIPLINK_MEM = 4'd13;
+  localparam [3:0] AXI_S_DEFAULT = 4'd14;
+  localparam int AXI_S_DEFAULT_PARAM = 14;
+  localparam int AXI_S_COUNT = 15;
+
+  function automatic logic [AXI_S_COUNT-1:0] axi_slave_bit(input [3:0] idx);
+    begin
+      axi_slave_bit = {AXI_S_COUNT{1'b0}};
+      axi_slave_bit[idx] = 1'b1;
+    end
+  endfunction
+
+  localparam logic [AXI_S_COUNT-1:0] AXI_S_STUB_MASK =
+      axi_slave_bit(AXI_S_SRAM) |
+      axi_slave_bit(AXI_S_SPI) |
+      axi_slave_bit(AXI_S_GPIO) |
+      axi_slave_bit(AXI_S_PS2) |
+      axi_slave_bit(AXI_S_MROM) |
+      axi_slave_bit(AXI_S_VGA) |
+      axi_slave_bit(AXI_S_FLASH) |
+      axi_slave_bit(AXI_S_CHIPLINK_MMIO) |
+      axi_slave_bit(AXI_S_SDRAM) |
+      axi_slave_bit(AXI_S_CHIPLINK_MEM) |
+      axi_slave_bit(AXI_S_DEFAULT);
 
   logic ifu_axi_arvalid_w;
   logic ifu_axi_arready_w;
@@ -220,12 +252,24 @@ module NpcSimTop (
 
   NpcAxiBus #(
     .S_COUNT(AXI_S_COUNT),
-    .DEFAULT_SLAVE(AXI_S_DEFAULT),
-    // slave0: UART 4KB；slave1: CLINT 64KB；slave2: PMEM 128MB；slave3: legacy DPI MMIO；slave4: default error。
-    .SLAVE_BASE({`NPC_AXI_DEFAULT_BASE, `NPC_AXI_LEGACY_MMIO_BASE,
-                 `NPC_AXI_PMEM_BASE, `NPC_AXI_CLINT_BASE, `NPC_AXI_UART_BASE}),
-    .SLAVE_MASK({`NPC_AXI_DEFAULT_MASK, `NPC_AXI_LEGACY_MMIO_MASK,
-                 `NPC_AXI_PMEM_MASK, `NPC_AXI_CLINT_MASK, `NPC_AXI_UART_MASK})
+    .DEFAULT_SLAVE(AXI_S_DEFAULT_PARAM),
+    // 按 ysyxSoC 表预留 slave 窗口；未实现设备先接 SLVERR stub，避免非法地址静默成功。
+    .SLAVE_BASE({`NPC_AXI_DEFAULT_BASE, `NPC_AXI_CHIPLINK_MEM_BASE,
+                 `NPC_AXI_SDRAM_BASE, `NPC_AXI_LEGACY_MMIO_BASE,
+                 `NPC_AXI_PSRAM_BASE, `NPC_AXI_CHIPLINK_MMIO_BASE,
+                 `NPC_AXI_FLASH_BASE, `NPC_AXI_VGA_BASE,
+                 `NPC_AXI_MROM_BASE, `NPC_AXI_PS2_BASE,
+                 `NPC_AXI_GPIO_BASE, `NPC_AXI_SPI_BASE,
+                 `NPC_AXI_UART_BASE, `NPC_AXI_SRAM_BASE,
+                 `NPC_AXI_CLINT_BASE}),
+    .SLAVE_MASK({`NPC_AXI_DEFAULT_MASK, `NPC_AXI_CHIPLINK_MEM_MASK,
+                 `NPC_AXI_SDRAM_MASK, `NPC_AXI_LEGACY_MMIO_MASK,
+                 `NPC_AXI_PSRAM_MASK, `NPC_AXI_CHIPLINK_MMIO_MASK,
+                 `NPC_AXI_FLASH_MASK, `NPC_AXI_VGA_MASK,
+                 `NPC_AXI_MROM_MASK, `NPC_AXI_PS2_MASK,
+                 `NPC_AXI_GPIO_MASK, `NPC_AXI_SPI_MASK,
+                 `NPC_AXI_UART_MASK, `NPC_AXI_SRAM_MASK,
+                 `NPC_AXI_CLINT_MASK})
   ) u_bus (
     .clk(clk),
     .rst(rst),
@@ -328,27 +372,27 @@ module NpcSimTop (
   // 仿真统计需要观察 CLINT 内部计时器；层次化引用避免把调试口并入可综合 core ABI。
   assign debug_clint_mtime_o = u_clint_axi.mtime_q;
 
-  AxiDpiSlave u_pmem_slave (
+  AxiDpiSlave u_psram_slave (
     .clk(clk),
     .rst(rst),
-    .s_axi_arvalid_i(bus_axi_arvalid_w[AXI_S_PMEM]),
-    .s_axi_arready_o(bus_axi_arready_w[AXI_S_PMEM]),
-    .s_axi_araddr_i(bus_axi_araddr_w[AXI_S_PMEM*`XLEN +: `XLEN]),
-    .s_axi_aruser_i(bus_axi_aruser_w[AXI_S_PMEM]),
-    .s_axi_rvalid_o(bus_axi_rvalid_w[AXI_S_PMEM]),
-    .s_axi_rready_i(bus_axi_rready_w[AXI_S_PMEM]),
-    .s_axi_rdata_o(bus_axi_rdata_w[AXI_S_PMEM*`XLEN +: `XLEN]),
-    .s_axi_rresp_o(bus_axi_rresp_w[AXI_S_PMEM*2 +: 2]),
-    .s_axi_awvalid_i(bus_axi_awvalid_w[AXI_S_PMEM]),
-    .s_axi_awready_o(bus_axi_awready_w[AXI_S_PMEM]),
-    .s_axi_awaddr_i(bus_axi_awaddr_w[AXI_S_PMEM*`XLEN +: `XLEN]),
-    .s_axi_wvalid_i(bus_axi_wvalid_w[AXI_S_PMEM]),
-    .s_axi_wready_o(bus_axi_wready_w[AXI_S_PMEM]),
-    .s_axi_wdata_i(bus_axi_wdata_w[AXI_S_PMEM*`XLEN +: `XLEN]),
-    .s_axi_wstrb_i(bus_axi_wstrb_w[AXI_S_PMEM*4 +: 4]),
-    .s_axi_bvalid_o(bus_axi_bvalid_w[AXI_S_PMEM]),
-    .s_axi_bready_i(bus_axi_bready_w[AXI_S_PMEM]),
-    .s_axi_bresp_o(bus_axi_bresp_w[AXI_S_PMEM*2 +: 2])
+    .s_axi_arvalid_i(bus_axi_arvalid_w[AXI_S_PSRAM]),
+    .s_axi_arready_o(bus_axi_arready_w[AXI_S_PSRAM]),
+    .s_axi_araddr_i(bus_axi_araddr_w[AXI_S_PSRAM*`XLEN +: `XLEN]),
+    .s_axi_aruser_i(bus_axi_aruser_w[AXI_S_PSRAM]),
+    .s_axi_rvalid_o(bus_axi_rvalid_w[AXI_S_PSRAM]),
+    .s_axi_rready_i(bus_axi_rready_w[AXI_S_PSRAM]),
+    .s_axi_rdata_o(bus_axi_rdata_w[AXI_S_PSRAM*`XLEN +: `XLEN]),
+    .s_axi_rresp_o(bus_axi_rresp_w[AXI_S_PSRAM*2 +: 2]),
+    .s_axi_awvalid_i(bus_axi_awvalid_w[AXI_S_PSRAM]),
+    .s_axi_awready_o(bus_axi_awready_w[AXI_S_PSRAM]),
+    .s_axi_awaddr_i(bus_axi_awaddr_w[AXI_S_PSRAM*`XLEN +: `XLEN]),
+    .s_axi_wvalid_i(bus_axi_wvalid_w[AXI_S_PSRAM]),
+    .s_axi_wready_o(bus_axi_wready_w[AXI_S_PSRAM]),
+    .s_axi_wdata_i(bus_axi_wdata_w[AXI_S_PSRAM*`XLEN +: `XLEN]),
+    .s_axi_wstrb_i(bus_axi_wstrb_w[AXI_S_PSRAM*4 +: 4]),
+    .s_axi_bvalid_o(bus_axi_bvalid_w[AXI_S_PSRAM]),
+    .s_axi_bready_i(bus_axi_bready_w[AXI_S_PSRAM]),
+    .s_axi_bresp_o(bus_axi_bresp_w[AXI_S_PSRAM*2 +: 2])
   );
 
   AxiDpiSlave u_legacy_mmio_slave (
@@ -374,30 +418,37 @@ module NpcSimTop (
     .s_axi_bresp_o(bus_axi_bresp_w[AXI_S_LEGACY_MMIO*2 +: 2])
   );
 
-  AxiDefaultSlave u_default_slave (
-    .clk(clk),
-    .rst(rst),
-    .s_axi_arvalid_i(bus_axi_arvalid_w[AXI_S_DEFAULT]),
-    .s_axi_arready_o(bus_axi_arready_w[AXI_S_DEFAULT]),
-    .s_axi_rvalid_o(bus_axi_rvalid_w[AXI_S_DEFAULT]),
-    .s_axi_rready_i(bus_axi_rready_w[AXI_S_DEFAULT]),
-    .s_axi_rdata_o(bus_axi_rdata_w[AXI_S_DEFAULT*`XLEN +: `XLEN]),
-    .s_axi_rresp_o(bus_axi_rresp_w[AXI_S_DEFAULT*2 +: 2]),
-    .s_axi_awvalid_i(bus_axi_awvalid_w[AXI_S_DEFAULT]),
-    .s_axi_awready_o(bus_axi_awready_w[AXI_S_DEFAULT]),
-    .s_axi_wvalid_i(bus_axi_wvalid_w[AXI_S_DEFAULT]),
-    .s_axi_wready_o(bus_axi_wready_w[AXI_S_DEFAULT]),
-    .s_axi_bvalid_o(bus_axi_bvalid_w[AXI_S_DEFAULT]),
-    .s_axi_bready_i(bus_axi_bready_w[AXI_S_DEFAULT]),
-    .s_axi_bresp_o(bus_axi_bresp_w[AXI_S_DEFAULT*2 +: 2])
-  );
-  wire unused_default_payload_w = |{
-      bus_axi_araddr_w[AXI_S_DEFAULT*`XLEN +: `XLEN],
-      bus_axi_aruser_w[AXI_S_DEFAULT],
-      bus_axi_awaddr_w[AXI_S_DEFAULT*`XLEN +: `XLEN],
-      bus_axi_wdata_w[AXI_S_DEFAULT*`XLEN +: `XLEN],
-      bus_axi_wstrb_w[AXI_S_DEFAULT*4 +: 4]
-  };
+  genvar stub_idx;
+  generate
+    for (stub_idx = 0; stub_idx < AXI_S_COUNT; stub_idx = stub_idx + 1) begin : gen_device_stub
+      if (AXI_S_STUB_MASK[stub_idx]) begin : g
+        AxiDefaultSlave u_stub (
+          .clk(clk),
+          .rst(rst),
+          .s_axi_arvalid_i(bus_axi_arvalid_w[stub_idx]),
+          .s_axi_arready_o(bus_axi_arready_w[stub_idx]),
+          .s_axi_rvalid_o(bus_axi_rvalid_w[stub_idx]),
+          .s_axi_rready_i(bus_axi_rready_w[stub_idx]),
+          .s_axi_rdata_o(bus_axi_rdata_w[stub_idx*`XLEN +: `XLEN]),
+          .s_axi_rresp_o(bus_axi_rresp_w[stub_idx*2 +: 2]),
+          .s_axi_awvalid_i(bus_axi_awvalid_w[stub_idx]),
+          .s_axi_awready_o(bus_axi_awready_w[stub_idx]),
+          .s_axi_wvalid_i(bus_axi_wvalid_w[stub_idx]),
+          .s_axi_wready_o(bus_axi_wready_w[stub_idx]),
+          .s_axi_bvalid_o(bus_axi_bvalid_w[stub_idx]),
+          .s_axi_bready_i(bus_axi_bready_w[stub_idx]),
+          .s_axi_bresp_o(bus_axi_bresp_w[stub_idx*2 +: 2])
+        );
+        wire unused_stub_payload_w = |{
+            bus_axi_araddr_w[stub_idx*`XLEN +: `XLEN],
+            bus_axi_aruser_w[stub_idx],
+            bus_axi_awaddr_w[stub_idx*`XLEN +: `XLEN],
+            bus_axi_wdata_w[stub_idx*`XLEN +: `XLEN],
+            bus_axi_wstrb_w[stub_idx*4 +: 4]
+        };
+      end
+    end
+  endgenerate
 
   // 仿真兼容事件不进入 NpcCore 端口 ABI；DPI 顶层用层次化引用观察 RTL 内部 flush。
   assign sim_cache_flush_w = u_core.cache_flush_valid_w;

@@ -1,0 +1,69 @@
+[log.c:67 npc_init_log] Log is written to build/npc-log.txt
+[paddr.c:54 npc_init_mem] physical memory area [0x80000000, 0x87ffffff]
+[paddr.c:98 npc_load_img] The image is am-kernels/tests/cpu-tests/build/dummy-riscv32-npc.bin, size = 104
+[map.c:76 npc_add_mmio_map] Add mmio map 'serial' at [0xa00003f8, 0xa00003ff]
+[map.c:76 npc_add_mmio_map] Add mmio map 'rtc' at [0xa0000048, 0xa000004f]
+[map.c:76 npc_add_mmio_map] Add mmio map 'keyboard' at [0xa0000060, 0xa0000063]
+[map.c:76 npc_add_mmio_map] Add mmio map 'vgactl' at [0xa0000100, 0xa0000107]
+[map.c:76 npc_add_mmio_map] Add mmio map 'framebuffer' at [0xa1000000, 0xa11fffff]
+[difftest.cpp:112 npc_init_difftest] [npc-diff] reference enabled: /home/lyg/PA/ysyx-workbench/nemu/build/riscv32-nemu-interpreter-so, image-size=104
+[monitor.c:40 welcome] Wave Trace: [1;31mOFF[0m
+[monitor.c:41 welcome] Text Trace: [1;32mON[0m (itrace=on, mtrace=on, dtrace=on)
+[monitor.c:43 welcome] Difftest: [1;32mON[0m
+[monitor.c:44 welcome] Build time: 16:05:43, May 23 2026
+[cpu-exec.cpp:346 trace_commit] itrace pc=0x80000000 inst=0x00000413 asm="mv s0, zero" x8(s0)<=0x00000000
+[cpu-exec.cpp:346 trace_commit] itrace pc=0x80000004 inst=0x00009117 asm="auipc sp, 9" x2(sp)<=0x80009004
+[cpu-exec.cpp:346 trace_commit] itrace pc=0x80000008 inst=0xffc10113 asm="addi sp, sp, -4" x2(sp)<=0x80009000
+[cpu-exec.cpp:346 trace_commit] itrace pc=0x8000000c inst=0x006000ef asm="jal 6" x1(ra)<=0x8000000e
+[cpu-exec.cpp:346 trace_commit] itrace pc=0x80000012 inst=0xff010113 asm="addi sp, sp, -0x10" x2(sp)<=0x80008ff0
+[cpu-exec.cpp:346 trace_commit] itrace pc=0x80000014 inst=0x00000517 asm="auipc a0, 0" x10(a0)<=0x80000014
+[cpu-exec.cpp:346 trace_commit] itrace pc=0x80000018 inst=0x01450513 asm="addi a0, a0, 0x14" x10(a0)<=0x80000028
+[paddr.c:108 npc_paddr_read] mtrace load addr=0x80008fc0 data=0x00000000
+[paddr.c:108 npc_paddr_read] mtrace load addr=0x80008fc4 data=0x00000000
+[paddr.c:108 npc_paddr_read] mtrace load addr=0x80008fc8 data=0x00000000
+[paddr.c:108 npc_paddr_read] mtrace load addr=0x80008fcc data=0x00000000
+[paddr.c:108 npc_paddr_read] mtrace load addr=0x80008fd0 data=0x00000000
+[paddr.c:108 npc_paddr_read] mtrace load addr=0x80008fd4 data=0x00000000
+[paddr.c:108 npc_paddr_read] mtrace load addr=0x80008fd8 data=0x00000000
+[paddr.c:108 npc_paddr_read] mtrace load addr=0x80008fdc data=0x00000000
+[paddr.c:108 npc_paddr_read] mtrace load addr=0x80008fe0 data=0x00000000
+[paddr.c:108 npc_paddr_read] mtrace load addr=0x80008fe4 data=0x00000000
+[paddr.c:108 npc_paddr_read] mtrace load addr=0x80008fe8 data=0x00000000
+[paddr.c:108 npc_paddr_read] mtrace load addr=0x80008fec data=0x00000000
+[paddr.c:108 npc_paddr_read] mtrace load addr=0x80008ff0 data=0x00000000
+[paddr.c:108 npc_paddr_read] mtrace load addr=0x80008ff4 data=0x00000000
+[paddr.c:108 npc_paddr_read] mtrace load addr=0x80008ff8 data=0x00000000
+[paddr.c:108 npc_paddr_read] mtrace load addr=0x80008ffc data=0x00000000
+[cpu-exec.cpp:351 trace_commit] itrace pc=0x8000001c inst=0x00112623 asm="sw ra, 0xc(sp)"
+[cpu-exec.cpp:346 trace_commit] itrace pc=0x8000001e inst=0xff1ff0ef asm="jal -0x10" x1(ra)<=0x80000020
+[cpu-exec.cpp:346 trace_commit] itrace pc=0x8000000e inst=0x00000513 asm="mv a0, zero" x10(a0)<=0x00000000
+[cpu-exec.cpp:351 trace_commit] itrace pc=0x80000010 inst=0x00008067 asm="ret"
+[cpu-exec.cpp:527 cpu_exec] npc: [1;32mHIT GOOD TRAP[0m at pc = 0x80000022
+[cpu-exec.cpp:528 report_run_result] exit via ebreak, code=0, cycles=117, commits=11
+[cpu-exec.cpp:495 statistic] host time spent = 452 us
+[cpu-exec.cpp:497 statistic] total guest instructions = 11
+[cpu-exec.cpp:500 statistic] total guest cycles = 117
+[cpu-exec.cpp:502 statistic] CLINT mtime = 117 (mtime-cycles=+0, match=yes)
+[cpu-exec.cpp:507 statistic] CPI (cycles/instruction) = 10.636
+[cpu-exec.cpp:511 statistic] simulation frequency = 24336 inst/s
+[cpu-exec.cpp:404 statistic] === Branch/Jump Statistics ===
+[cpu-exec.cpp:405 statistic]   conditional branch  = 0 (taken 0, not-taken 0, taken rate 0.0%)
+[cpu-exec.cpp:409 statistic]   JAL  (unconditional) = 2
+[cpu-exec.cpp:410 statistic]   JALR (indirect/ret)  = 1
+[cpu-exec.cpp:411 statistic]   total jump/branch    = 3 (27.3% of all instructions)
+[cpu-exec.cpp:413 statistic] === BPU Prediction Statistics ===
+[cpu-exec.cpp:414 statistic]   branch accuracy      = 0/0 correct, 0 mispredict (0.0%)
+[cpu-exec.cpp:419 statistic]   branch direction     = 0/0 correct (0.0%), dir miss=0, gshare cold=0
+[cpu-exec.cpp:425 statistic]   JAL accuracy         = 2/2 correct (100.0%)
+[cpu-exec.cpp:429 statistic]   JALR accuracy        = 1/1 correct (100.0%)
+[cpu-exec.cpp:433 statistic]   return accuracy      = 1/1 correct (100.0%)
+[cpu-exec.cpp:437 statistic]   BTB JALR lookup      = hit 0, miss 0
+[cpu-exec.cpp:440 statistic]   direction predictor  = correct 0, miss 0
+[cpu-exec.cpp:443 statistic]   RAS lookup           = hit 1, miss/underflow 0, overflow 0
+[cpu-exec.cpp:447 statistic]   top branch miss PCs  =
+[cpu-exec.cpp:467 statistic] === Cache Statistics ===
+[cpu-exec.cpp:468 statistic] icache: access=15, hit=14, miss=1
+[cpu-exec.cpp:472 statistic] dcache: access=1, hit=0, miss=1
+[cpu-exec.cpp:476 statistic] dcache load: access=0, hit=0, miss=0
+[cpu-exec.cpp:480 statistic] dcache store: access=1, hit=0, miss=1
+[cpu-exec.cpp:484 statistic] dcache writeback = 0, write-through store = 0

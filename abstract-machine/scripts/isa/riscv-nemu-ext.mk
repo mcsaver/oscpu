@@ -11,7 +11,8 @@ endif
 AM_RISCV_XLEN := 32
 AM_RISCV_BASE := rv$(AM_RISCV_XLEN)$(AM_RISCV_BASE_EXT)
 AM_RISCV_SINGLE_EXTS := $(if $(CONFIG_RISCV_EXT_M),m,)$(if $(CONFIG_RISCV_EXT_C),c,)
-AM_RISCV_MULTI_EXTS := _zicsr$(if $(CONFIG_RISCV_EXT_B),_zba_zbb_zbc_zbs,)
+# NEMU 译码始终实现 fence.i；guest 侧同步声明 zifencei，避免自修改代码测试在汇编阶段被工具链拒绝。
+AM_RISCV_MULTI_EXTS := _zicsr_zifencei$(if $(CONFIG_RISCV_EXT_B),_zba_zbb_zbc_zbs,)
 AM_RISCV_MARCH := $(AM_RISCV_BASE)$(AM_RISCV_SINGLE_EXTS)$(AM_RISCV_MULTI_EXTS)
 AM_RISCV_MABI := ilp32$(if $(filter e,$(AM_RISCV_BASE_EXT)),e,)
 

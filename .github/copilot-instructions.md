@@ -2,10 +2,11 @@
 
 ## 项目概览
 本工作区是 **"一生一芯" (YSYX)** 项目，目标是设计和验证一颗完整的 RV32 CPU。
-工作区包含多个协同模块：RTL 设计 (npc)、软件仿真器 (nemu)、硬件抽象层 (abstract-machine)、测试程序 (am-kernels)、综合分析 (yosys-sta)、虚拟开发板 (nvboard)、数字逻辑实验 (digital_logic_experiment)、NES 模拟器 (fceux-am) 等。
+工作区包含多个协同模块：RTL 设计与仿真入口 (`npc/sim`、`npc/single`、`npc/soc`)、SoC/Chisel 集成 (`ysyxSoC`)、软件仿真器 (`nemu`)、硬件抽象层 (`abstract-machine`)、测试程序 (`am-kernels`)、综合分析 (`yosys-sta`)、虚拟开发板 (`nvboard`)、数字逻辑实验 (`digital_logic_experiment`)、NES 模拟器 (`fceux-am`) 等。
 
 ## 语言与工具
 - **RTL 设计**: Verilog / SystemVerilog, 使用 Verilator 仿真
+- **SoC 生成**: Scala / Chisel / Mill / Firtool，生成 `ysyxSoC/build/ysyxSoCFull.v`
 - **软件仿真**: C 语言, 使用 GCC/Clang 编译
 - **综合**: Yosys (开源综合器) + iEDA (STA/功耗分析)
 - **虚拟开发板**: NVBoard (SDL + Verilator)
@@ -20,24 +21,32 @@
 | 模块 | 构建命令 |
 |------|---------|
 | NEMU | `cd nemu && make menuconfig && make` |
-| NPC (仿真，预留) | `cd npc/single && make` (Verilator，当前未纳入默认流程) |
+| NPC 统一仿真入口 | `cd npc/sim && make status && make run IMG=/path/to/image.bin` |
+| NPC single 后端 | `cd npc/single && make lint && make` |
+| NPC SoC 后端 | `cd npc/soc && make lint && make soc-lint && make soc` |
+| ysyxSoC Verilog | `cd ysyxSoC && make verilog` |
 | AM 程序 | `cd am-kernels/tests/cpu-tests && make ARCH=riscv32-nemu run` |
+| AM on NPC | `cd am-kernels/tests/cpu-tests && make ARCH=riscv32-npc run NPC_RUN_ARGS="--diff=default --no-progress -m 0"` |
 | 综合 | `cd yosys-sta && make syn` |
 | STA | `cd yosys-sta && make sta` |
 | NVBoard | 在对应实验目录下 `make run` |
 
 ## 模块间关系
 ```
-npc (RTL CPU 设计)
- ├── abstract-machine (提供 AM 硬件抽象层)
- │    └── am-kernels (测试程序/基准测试)
- ├── yosys-sta (综合 + 时序分析)
- └── nvboard (虚拟开发板仿真)
+npc/sim (NPC 平台无关仿真入口)
+ ├── npc/single (普通 NPC 自仿真后端)
+ └── npc/soc (ysyxSoC 接入后端)
+      └── ysyxSoC (Chisel SoC + ysyxSoCFull.v + CPU ABI)
+
+abstract-machine
+ └── am-kernels (测试程序/基准测试)
+      ├── riscv32-nemu -> NEMU reference
+      └── riscv32-npc  -> npc/sim -> single/soc 后端
 
 nemu (指令集模拟器, 用于对比验证)
  ├── abstract-machine (复用 AM 层)
  │    └── am-kernels (同一套测试)
- └── difftest (差分测试, npc vs nemu)
+ └── difftest (NPC single/soc vs NEMU reference)
 
 digital_logic_experiment (数字逻辑实验, 使用 nvboard)
 fceux-am (NES 模拟器, 运行在 AM 上)
@@ -45,30 +54,36 @@ fceux-am (NES 模拟器, 运行在 AM 上)
 
 ## 关键约定
 - 差分测试 (DiffTest): NPC 和 NEMU 逐指令对比，确保 RTL 实现正确
-- AM 程序当前默认只围绕 NEMU 参考路径运行；NPC 目标待实现后，再通过 ARCH 环境变量或平台脚本接入同一套测试
+- AM 程序当前支持 `riscv32-nemu` 参考路径和 `riscv32-npc` 目标路径；`riscv32-npc` 默认通过 `npc/sim` 进入当前配置后端，可用 `NPC_SIM_BACKEND=soc` 临时切到 `npc/soc`
+- NEMU `CONFIG_SOC_SIM` 是 NPC SoC/ysyxSoC 地址图的 reference 模式，构建 SoC difftest reference 时使用 `make -C npc/sim BACKEND=soc difftest-ref`
 - ISA 目标: RISC-V 32 位 (RV32)
 
 ## AI 驱动硬件开发环境
 - 工作区 agent 处理复杂任务时，先把任务建模为“图任务”，而不是只列线性 TODO。节点表示子任务，边表示执行依赖或知识依赖。
 - 每个图节点至少写清：`node_id`、`owner_agent`、`depends_on`、`inputs`、`outputs`、`success_criteria`、`fallback`。
-- 优先复用静态图模板：`rv32-reference-loop`、`am-device-loop`、`agent-env-refactor`；`rv32-bringup` 只在 NPC/Verilator 目标已实现后启用。只有模板不足时才动态扩图。
+- 优先复用静态图模板：`rv32-reference-loop`、`rv32-bringup`、`npc-sim-regression`、`soc-difftest-loop`、`am-device-loop`、`ysyx-soc-integration`、`agent-env-refactor`。只有模板不足时才动态扩图。
 - 选图顺序遵循“静态图优先，动态图补洞”：只要已有模板能覆盖任务类别、输入输出稳定且成功标准明确，就不要重新发明流程。
 - 只有在以下情况才动态扩图：现有模板缺少定位节点、节点连续失败需要插入 `reproduce/collect-log/localize/fix/rerun` 链、出现新的跨模块边界、或当前产物缺少可验证证据。
 - 图质量必须满足：没有 `evidence` 的节点不能作为下游硬依赖；没有两份可比较产物时不得创建 `compare/difftest` 节点；未来节点不能反向变成当前主闭环的硬前置。
 - 若同类动态图在多轮任务中反复以相同输入输出和成功标准复用，应把它提升为新的静态图模板，而不是长期靠临时扩图维持。
 - 对跨模块或多节点图任务，应在 `.github/task-runs/<日期-任务名>/` 下维护 `task-report.md` 与 `dispatch-log.md`；模板入口固定为 `.github/task-runs/templates/task-report.template.md` 与 `.github/task-runs/templates/dispatch-log.template.md`。
 - `.github/memory/` 只沉淀稳定结论、长期经验和设计决策；单次图执行的节点明细、阶段状态、证据链和派发历史优先写入 `.github/task-runs/`，不要把长日志整段塞进记忆文件。
-- 当前默认主闭环是 `am-kernels -> abstract-machine -> NEMU(reference)`；`NPC/Verilator(target)` 在实现后再作为新节点接入。真实 EDA 工具可以后续再加入，但现阶段不能替代这条已可落地的参考闭环。
+- 当前默认主闭环已经推进为 `am-kernels -> abstract-machine -> npc/sim -> NPC/Verilator(target) + NEMU(reference)`；纯参考调研、AM/NEMU 平台问题或 target 不相关任务仍可截断到 `NEMU(reference)`。
 - 大任务允许并发调用多个只读子 agent 做 RECALL、资料审计和日志整理；涉及实现、验证、记录的节点仍按依赖顺序串行推进。
 - 工作区级蓝图统一维护在 `.github/agentic-hardware-blueprint.md`；处理 agent 架构、工作流编排或 AI 驱动硬件开发环境任务时优先读取。
 
 ## Agent 本地学习资料约束
 - 若相关模块目录存在已整理的本地学习资料（例如 `design/study/README.md`、规范摘要、实现清单），agent 在 RECALL / PLAN 阶段必须先读取索引文件，再按任务类型补读对应笔记，之后才能开始给方案、改代码或跑验证。
 - 资料使用优先级：索引/范围说明 → 正式 Markdown 笔记 → 实现 checklist → `tmp/` 提取文本。`tmp/` 只用于快速定位，不直接作为最终依据。
-- 当前已固化的稳定入口是 `npc/single/design/study/README.md`。
-- 处理 `npc/single/` 下的数据通路、译码、ALU、控制、单周期骨架任务时，优先读取 `npc/single/design/study/RV32I-ai-notes.md` 与 `npc/single/design/study/RV32I-implementation-checklist.md`。
-- 处理 `npc/single/` 下的功能仿真、异常、CSR、ECALL/EBREAK、MRET、WFI、PMEM 任务时，优先读取 `npc/single/design/study/RISC-V-spec-functional-sim-scope.md` 与 `npc/single/design/study/RISC-V-spec-functional-sim-notes.md`。
-- 处理 `npc/single/` 下的 machine CSR、trap controller、mtime/mtimecmp、PMA/PMP、pmem/mmio 边界任务时，优先读取 `npc/single/design/study/RISC-V-spec-hardware-architecture-scope.md` 与 `npc/single/design/study/RISC-V-spec-hardware-architecture-notes.md`。
+- 当前已固化的稳定入口是 `npc/single/design/study/README.md` 和 `npc/soc/design/study/README.md`；若 `npc/soc` 笔记缺失或明显滞后，可回退读取 `npc/single` 对应正式笔记并记录原因。
+- 处理 `npc/{single,soc}/` 下的数据通路、译码、ALU、控制、CPU wrapper 或骨架任务时，优先读取对应目录的 `RV32I-ai-notes.md` 与 `RV32I-implementation-checklist.md`。
+- 处理 `npc/{single,soc}/` 下的功能仿真、异常、CSR、ECALL/EBREAK、MRET、WFI、PMEM 任务时，优先读取对应目录的 `RISC-V-spec-functional-sim-scope.md` 与 `RISC-V-spec-functional-sim-notes.md`。
+- 处理 `npc/{single,soc}/` 下的 machine CSR、trap controller、mtime/mtimecmp、PMA/PMP、pmem/mmio 边界或 SoC 地址图任务时，优先读取对应目录的 `RISC-V-spec-hardware-architecture-scope.md` 与 `RISC-V-spec-hardware-architecture-notes.md`。
+
+## Agent ysyxSoC / Chisel 约束
+- 处理 `ysyxSoC/`、CPU 顶层 ABI、AXI4 端口命名、SoC 地址图或 `ysyxSoCFull.v` 生成任务时，优先读取 `.github/agents/ysyx-soc.agent.md`、`.github/memory/modules/ysyx-soc.md` 与 `ysyxSoC/spec/cpu-interface.md`。
+- `ysyxSoC/build/ysyxSoCFull.v` 是生成物；除非任务明确要求临时补丁，否则优先修改 `ysyxSoC/src/` 后用 `make -C ysyxSoC verilog` 重新生成。
+- 当前 Mill/Chisel 环境依赖用户级 JDK 21 与 `/home/lyg/.local/bin/mill` wrapper；不要用系统 OpenJDK 8 失败来判断源码错误。
 
 ## Agent 终端约束
 - 对 NEMU、NVBoard、menuconfig、SDL 窗口等交互式程序，禁止使用 `tail`、`head`、`sed -n`、管道截断或其他会消费/劫持标准输入输出的包装方式运行；这会破坏界面显示或导致交互异常。

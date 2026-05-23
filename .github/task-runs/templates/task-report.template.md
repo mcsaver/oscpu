@@ -4,7 +4,7 @@
 
 - `task_id`:
 - `task_slug`:
-- `graph_template`: `rv32-reference-loop | am-device-loop | regression-debug-loop | agent-env-refactor | custom`
+- `graph_template`: `rv32-reference-loop | rv32-bringup | npc-sim-regression | soc-difftest-loop | am-device-loop | ysyx-soc-integration | regression-debug-loop | agent-env-refactor | custom`
 - `graph_mode`: `static | dynamic | static+dynamic`
 - `status`: `planned | in-progress | blocked | completed | archived`
 - `owner`:

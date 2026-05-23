@@ -50,7 +50,7 @@ ifeq ($(CONFIG_NPC_DIFFTEST),y)
 	LDLIBS_BUILD += -ldl
 endif
 
-ifeq ($(CONFIG_NPC_ITRACE),y)
+ifeq ($(CONFIG_NPC_TEXT_TRACE),y)
 	# itrace 的反汇编直接复用 NEMU 已经在维护的 Capstone 依赖，避免 NPC 再养一套重复 decode 逻辑。
 	INC_PATH += $(CAPSTONE_REPO)/include
 endif
@@ -160,7 +160,7 @@ $(BIN): $(VSRCS) $(RTL_HEADER_SRCS) $(CSRCS) $(CONFIG_OUTPUTS)
 	@ln -sf V$(TOPNAME)__pch.h $(OBJ_DIR)/V$(TOPNAME)__pch.h.slow
 	$(MAKE) -C $(OBJ_DIR) -f V$(TOPNAME).mk
 
-ifeq ($(CONFIG_NPC_ITRACE),y)
+ifeq ($(CONFIG_NPC_TEXT_TRACE),y)
 $(BIN): $(CAPSTONE_LIB)
 endif
 

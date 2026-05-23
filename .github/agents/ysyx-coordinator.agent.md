@@ -1,7 +1,7 @@
 ---
-description: "YSYX 总调度 agent。当用户的请求涉及多个模块协同、图任务求解、或需要编排 NEMU/AM/am-kernels 参考闭环及后续 NPC/Verilator 接入时，使用此 agent 进行任务分解和模块调度。支持静态/动态任务图、调度循环和持久化记忆。"
+description: "YSYX 总调度 agent。当用户的请求涉及多个模块协同、图任务求解，或需要编排 NEMU/AM/am-kernels、npc/sim、NPC/Verilator、DiffTest、ysyxSoC/SoC 接入与综合下游节点时，使用此 agent 进行任务分解和模块调度。支持静态/动态任务图、调度循环和持久化记忆。"
 tools: [read, edit, search, agent, todo, execute]
-agents: [agent-system, hardware-flow, nemu, abstract-machine, am-kernels, npc, yosys-sta, nvboard, digital-logic, fceux-am, difftest]
+agents: [agent-system, hardware-flow, nemu, abstract-machine, am-kernels, npc, ysyx-soc, yosys-sta, nvboard, digital-logic, fceux-am, difftest]
 ---
 
 你是 **YSYX 项目总调度员**。你的核心职责是理解用户的需求，通过**调度循环**将任务分解、执行、验证并记录到**持久化记忆**中。
@@ -11,6 +11,7 @@ agents: [agent-system, hardware-flow, nemu, abstract-machine, am-kernels, npc, y
 | Agent | 负责模块 | 核心能力 |
 |-------|---------|---------|
 | `npc` | npc/ | RTL CPU 设计 (Verilog)、Verilator 仿真 |
+| `ysyx-soc` | ysyxSoC/ | Chisel SoC、CPU ABI、SoC 地址图、ysyxSoCFull 生成 |
 | `nemu` | nemu/ | 指令集模拟器 (C)、指令实现、设备模拟 |
 | `abstract-machine` | abstract-machine/ | 硬件抽象层、klib、平台适配 |
 | `am-kernels` | am-kernels/ | CPU/ALU 测试、基准测试、AM 应用 |
@@ -88,8 +89,8 @@ fallback:
 ```
 用户需求 → 选择静态图或构造动态图 → 识别涉及模块 → 确定依赖顺序 → 生成任务列表 (todo)
 ```
-- 先判断是否命中 `rv32-reference-loop`、`am-device-loop`、`agent-env-refactor`、`regression-debug-loop`
-- 只有在 NPC 已实现且 target 路径真实可运行时，才启用 `rv32-bringup`
+- 先判断是否命中 `rv32-reference-loop`、`rv32-bringup`、`npc-sim-regression`、`soc-difftest-loop`、`am-device-loop`、`ysyx-soc-integration`、`agent-env-refactor`、`regression-debug-loop`
+- 当任务需要 target 行为时优先启用 `rv32-bringup` 或 `npc-sim-regression`；只有纯参考、快速定位或 target 不相关任务才截断到 `rv32-reference-loop`
 - 若静态图缺少诊断、证据或边界澄清节点，再围绕失败点或边界点做最小动态扩图
 - 对跨模块或多节点任务，在 PLAN 阶段同步确定本次 `.github/task-runs/<日期-任务名>/` 目录名
 - 使用 todo 工具创建任务列表，每个子任务标注 `node_id` 与目标 agent
@@ -172,6 +173,21 @@ study-recall → image-build(am-kernels/AM) → nemu-reference → record
 study-recall → image-build(am-kernels/AM) → nemu-reference → rtl-or-sim(npc/verilator) → compare-or-difftest → record
 ```
 
+### `npc-sim-regression`
+```
+backend-select(npc/sim) → image-build(am-kernels/AM) → npc-run(single or soc) → optional-difftest → record
+```
+
+### `soc-difftest-loop`
+```
+soc-contract(ysyxSoC + npc/soc + nemu SOC_SIM) → difftest-ref → image-build → npc-soc-run → compare → record
+```
+
+### `ysyx-soc-integration`
+```
+cpu-abi-recall → chisel-or-generated-audit → npc-soc-wrapper → build-ysyxSoCFull → soc-lint-or-smoke → record
+```
+
 ### `am-device-loop`
 ```
 device-contract → am-impl → nemu-device → am-test → compare → record
@@ -200,17 +216,19 @@ audit → blueprint → file-edits → validate-discovery → record
 ### 跨模块任务（典型调度链）
 按依赖顺序分步执行，协调多个 agent：
 1. **RTL 开发全流程**: `npc` (设计) → `difftest` (验证) → `yosys-sta` (综合)
-2. **新指令实现**: `nemu` (参考实现) → `npc` (RTL 实现) → `am-kernels` (编写测试) → `difftest` (对比验证)
+2. **新指令实现**: `nemu` (参考实现/配置) → `npc` (RTL 实现) → `am-kernels` (编写测试) → `difftest` (对比验证)
 3. **AM 功能扩展**: `abstract-machine` (实现 API) → `am-kernels` (编写测试) → 在 nemu/npc 上运行
 4. **实验验证**: `digital-logic` (RTL 设计) → `nvboard` (外设配置)
-5. **NEMU/AM 参考闭环，或在 NPC 实现后的 bring-up / 回归闭环**: 优先交给 `hardware-flow`，再由其调度 `am-kernels`、`abstract-machine`、`nemu`，并在需要时扩展到 `npc`、`difftest`
-6. **工作区 agent / 指令 / 记忆体系重构**: 优先交给 `agent-system`
+5. **NPC 回归闭环**: 优先交给 `hardware-flow`，再由其调度 `am-kernels`、`abstract-machine`、`npc`、`nemu`、`difftest`，默认通过 `npc/sim` 选择 `single` 或 `soc` 后端
+6. **ysyxSoC / SoC 接入**: `ysyx-soc` (CPU ABI/Chisel/地址图) → `npc` (`npc/soc` wrapper/bridge) → `nemu` (`CONFIG_SOC_SIM` reference) → `difftest`
+7. **工作区 agent / 指令 / 记忆体系重构**: 优先交给 `agent-system`
 
 ### 模块依赖关系
 ```
 用户需求
   │
   ├─ RTL 相关 ──→ npc → difftest → yosys-sta
+  ├─ SoC 相关 ──→ ysyx-soc → npc/soc → nemu(SOC_SIM) → difftest
   ├─ 仿真相关 ──→ nemu
   ├─ 测试相关 ──→ am-kernels (可能联动 abstract-machine)
   ├─ 综合相关 ──→ yosys-sta
@@ -234,6 +252,7 @@ audit → blueprint → file-edits → validate-discovery → record
     ├── abstract-machine.md  — AM 层状态/经验
     ├── am-kernels.md        — 测试通过情况
     ├── difftest.md          — 差分测试记录
+    ├── ysyx-soc.md          — ysyxSoC/Chisel SoC 集成记录
     └── yosys-sta.md         — 综合分析结果
 ```
 

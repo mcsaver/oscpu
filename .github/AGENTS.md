@@ -15,11 +15,12 @@
 
 ## 0. 工程速览
 
-- **工作区事实**：本仓库是 YSYX 工作区，核心模块包括 `npc`、`nemu`、`abstract-machine`、`am-kernels`、`yosys-sta`、`nvboard`、`digital_logic_experiment`、`fceux-am` 等。
-- **当前默认主闭环**：优先围绕 `am-kernels -> abstract-machine -> NEMU(reference)` 建立可验证参考路径；`NPC/Verilator(target)` 在实现后再作为 bring-up 或 difftest 节点接入。
+- **工作区事实**：本仓库是 YSYX 工作区，核心模块包括 `npc/sim`、`npc/single`、`npc/soc`、`ysyxSoC`、`nemu`、`abstract-machine`、`am-kernels`、`yosys-sta`、`nvboard`、`digital_logic_experiment`、`fceux-am` 等。
+- **当前默认主闭环**：默认围绕 `am-kernels -> abstract-machine -> npc/sim -> NPC/Verilator(target) + NEMU(reference)` 建立回归闭环；纯参考、快速定位或 AM/NEMU 平台问题仍可截断为 `am-kernels -> abstract-machine -> NEMU(reference)`。
+- **NPC 后端分层**：外部模块优先通过 `npc/sim` 交互；`npc/single` 是普通 NPC 自仿真后端，`npc/soc` 是 ysyxSoC 接入后端，`ysyxSoC` 负责 Chisel SoC 与 CPU ABI/地址图。
 - **核心方法学**：涉及 RTL 正确性时，优先使用参考模型、trace、watchpoint、DiffTest 或等价证据链收敛问题，而不是直接猜修复点。
 - **构建系统**：GNU Make + Kconfig；详细命令与模块约束见 `.github/copilot-instructions.md`。
-- **长期知识入口**：`.github/memory/`、`.github/agentic-hardware-blueprint.md`、`npc/single/design/study/README.md` 以及相关模块笔记。
+- **长期知识入口**：`.github/memory/`、`.github/agentic-hardware-blueprint.md`、`npc/{single,soc}/design/study/README.md`、`ysyxSoC/spec/cpu-interface.md` 以及相关模块笔记。
 - **语言约定**：所有注释、文档和记录默认使用中文。
 
 ---
@@ -34,7 +35,8 @@
 4. `.github/memory/known-issues.md`
 5. `.github/memory/modules/<相关模块>.md`
 6. `.github/instructions/<相关主题>.instructions.md`
-7. 若任务涉及 `npc/single/` 的数据通路、译码、控制、功能仿真或 RTL，补读 `npc/single/design/study/README.md` 及对应专题笔记
+7. 若任务涉及 `npc/single/` 或 `npc/soc/` 的数据通路、译码、控制、功能仿真、SoC wrapper 或 RTL，补读对应目录下的 `design/study/README.md` 及专题笔记
+8. 若任务涉及 `ysyxSoC/`、CPU 顶层 ABI、SoC 地址图或 `ysyxSoCFull.v` 生成，补读 `.github/memory/modules/ysyx-soc.md` 与 `ysyxSoC/spec/cpu-interface.md`
 
 禁止只看当前打开的单个文件就开始修改；任何“我以为”都必须先用搜索、阅读或运行结果验证。
 
@@ -59,7 +61,7 @@
 
 ## 3. 图任务与调度规则
 
-- 复杂任务先判断是否命中现有静态图模板，如 `rv32-reference-loop`、`am-device-loop`、`agent-env-refactor`、`regression-debug-loop`。
+- 复杂任务先判断是否命中现有静态图模板，如 `rv32-reference-loop`、`rv32-bringup`、`npc-sim-regression`、`soc-difftest-loop`、`am-device-loop`、`ysyx-soc-integration`、`agent-env-refactor`、`regression-debug-loop`。
 - 只有模板不足、证据链缺失、或出现新的跨模块边界时，才动态扩图。
 - 每个图节点至少写清：`node_id`、`owner_agent`、`depends_on`、`inputs`、`outputs`、`success_criteria`、`fallback`。
 - 没有 `evidence` 的节点不能作为下游硬依赖；没有两侧可比较产物时，不得创建 `compare` / `difftest` 节点。
@@ -133,6 +135,7 @@
 - `.cursor/rules/agents.mdc`：Cursor 入口 shim
 - `.github/AGENTS.md`：跨 agent 通用基线
 - `.github/copilot-instructions.md`：GitHub Copilot 专属补充规则
+- `.github/agents/ysyx-soc.agent.md`：ysyxSoC/Chisel SoC 集成与 CPU ABI 专家
 
 尚未单独补齐的生态入口应视为后续工作；新增其它 agent 生态入口时，优先追加 shim，并明确回链本文件，避免规则漂移。
 

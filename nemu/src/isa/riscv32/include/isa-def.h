@@ -24,8 +24,11 @@
 //mie：机器态中断使能寄存器，负责每种中断源允不允许进来
 //mip：机器态中断待处理中断寄存器，表示：哪些中断已经来了，在排队等处理
 //mscratch/mtval：trap 处理程序的临时寄存器和异常附加值，先补齐状态槽位，便于 SYSTEM 指令统一分发
+//mcycle/mcountinhibit：对齐 NPC 已实现的最小性能计数器语义，供 CSR 指令和 difftest reference 共享。
 typedef struct {
   word_t mtvec, mepc, mcause, mstatus, mie, mip, mscratch, mtval;
+  uint64_t mcycle;
+  word_t mcountinhibit;
 } riscv32_CSR_state;
 
 typedef struct {

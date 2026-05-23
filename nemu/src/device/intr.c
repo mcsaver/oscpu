@@ -16,4 +16,6 @@
 #include <isa.h>
 
 void dev_raise_intr() {
+  // 旧 timer/alarm 路径通过这里投递一次性 MTIP；CLINT 自身的 MTIP 仍由 mtime >= mtimecmp 派生。
+  IFDEF(CONFIG_ISA_riscv, isa_riscv32_raise_timer_intr());
 }

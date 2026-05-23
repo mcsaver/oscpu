@@ -28,6 +28,10 @@ static const uint32_t img [] = {
 };
 
 static void restart() {
+  // reference so 可能被多轮 difftest 初始化复用；先清 ISA 状态，避免 CSR/CLINT 残留跨测试串味。
+  memset(&cpu, 0, sizeof(cpu));
+  isa_riscv32_reset();
+
   /* Set the initial program counter. */
   cpu.pc = RESET_VECTOR;
 

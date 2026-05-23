@@ -32,4 +32,17 @@ config RISCV_EXT_C
   help
     控制 NEMU 是否按 16/32 位可变长度取指并执行 RV32C 压缩整数指令；
     AM guest 编译参数会同步追加 c。
+
+config SOC_SIM
+  depends on !RV64 && MODE_SYSTEM
+  bool "Enable ysyxSoC platform simulation map"
+  default n
+  help
+    打开后，NEMU 会在 paddr 层直接模拟当前 NPC/ysyxSoC 使用的
+    SoC 地址图和最小设备窗口，例如 SRAM、UART16550、SPI/GPIO/PS2
+    占位寄存器、MROM、VGA、Flash 和 SDRAM。
+
+    该模型不依赖 CONFIG_DEVICE，因此构建 NPC difftest reference so
+    时也能处理 SoC MMIO/内存访问。默认关闭，避免普通 AM/NEMU
+    legacy 设备地址和严格 SoC 地址图互相覆盖。
 endmenu

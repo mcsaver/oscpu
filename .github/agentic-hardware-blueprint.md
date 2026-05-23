@@ -3,9 +3,9 @@
 ## 目标
 
 - 把当前工作区从“模块专家集合”升级为“图任务调度 + 工作流 agent + 模块专家执行 + 经验沉淀”的 AI 驱动硬件开发环境。
-- 先围绕当前工作区真正可执行的后端建立闭环：`NEMU + AbstractMachine + am-kernels`。
-- `NPC/Verilator` 与 `difftest` 在目标实现后再作为下游节点接入。
-- 真实 EDA 工具后续作为新节点加入，不阻塞当前设计、验证与 bring-up 环境搭建。
+- 围绕当前工作区真正可执行的后端建立闭环：`am-kernels + AbstractMachine + npc/sim + NPC/Verilator + NEMU reference`。
+- 保留 `NEMU + AbstractMachine + am-kernels` 作为纯参考/快速定位闭环；当任务目标涉及 target 行为时，默认把 `npc/sim`、`npc/single`/`npc/soc` 和 difftest 纳入图。
+- `ysyxSoC` 作为 SoC/Chisel 集成节点接入 `npc/soc`，真实 EDA 工具仍作为后续 PPA/STA 下游节点，不替代功能验证闭环。
 
 ## Marco 思想在本工作区的映射
 
@@ -14,19 +14,22 @@
 | Graph-based task solving | 先选静态图模板，再按当前任务动态扩图 |
 | Agent config per sub-task | 每个节点指定 owner agent、输入、输出、成功标准与回退策略 |
 | Tool / skill config | 每个节点都绑定当前可用工具：Make、NEMU、Verilator、日志、study 笔记 |
-| Memory / knowledge base | `.github/memory/`、`npc/single/design/study/`、README、Makefile、已有构建脚本 |
+| Memory / knowledge base | `.github/memory/`、`npc/{single,soc}/design/study/`、`ysyxSoC/spec/`、README、Makefile、已有构建脚本 |
 | Iterative self-debug | 采用“构建 → 运行 → 对比 → 定位 → 修复 → 回归”的循环，而不是一次性生成后结束 |
 
 ## 当前真实后端
 
-- 当前默认后端：
+- 当前默认回归后端：
   - `am-kernels`：测试与最小工作负载入口
   - `abstract-machine`：平台抽象、链接脚本、镜像封装
-  - `nemu`：参考模型、设备模型、trace / watchpoint / batch 调试入口
-- 未来接入节点：
-  - `npc/single` + `Verilator`：目标 RTL 仿真后端
-  - `difftest`：参考对比层
-  - `yosys-sta`：后续阶段的综合 / 时序节点
+  - `npc/sim`：NPC 平台无关仿真入口，按 Kconfig/覆盖变量选择后端
+  - `npc/single` + `Verilator`：普通 NPC 自仿真后端
+  - `npc/soc` + `ysyxSoCFull`：ysyxSoC 接入后端
+  - `nemu`：参考模型、NEMU SoC reference、trace / watchpoint / batch 调试入口
+  - `difftest`：NPC single/soc 与 NEMU reference 的提交级 GPR/PC 对比层
+- 下游节点：
+  - `ysyxSoC`：Chisel SoC、CPU ABI、外设地址图与生成物
+  - `yosys-sta`：综合、STA、PPA 节点
 
 ## 图节点契约
 
@@ -83,7 +86,7 @@ evidence:
 
 - 节点执行失败时，优先把失败节点拆成 `reproduce → collect-evidence → localize → fix → rerun`
 - 若关键产物缺少证据，插入专门的 `collect-log`、`collect-trace`、`wave-summary` 或 `artifact-audit` 节点
-- 若依赖的 target 路径尚未实现，应用“截断而非伪造”原则，把图收敛到当前可执行的参考闭环，并把缺口记录成基础设施节点
+- 若依赖的 target、reference 或 SoC 生成路径不可用，应用“截断而非伪造”原则，把图收敛到当前可执行节点，并把缺口记录成基础设施节点
 - 若需要对比或诊断，必须先确保两侧产物可比较；不能在只有参考输出或只有目标输出时创建 `compare-or-difftest` 节点
 
 ## 图质量门槛
@@ -113,7 +116,7 @@ evidence:
 study-recall → image-build(am-kernels / AM) → nemu-reference → record
 ```
 
-适用场景：当前阶段的功能验证、最小工作负载回归，以及为后续 target 路径接入准备稳定参考输出。
+适用场景：纯参考功能验证、AM/NEMU 平台调研、最小工作负载快速回归，以及为 target 路径准备稳定参考输出。
 
 ### `rv32-bringup`
 
@@ -121,7 +124,31 @@ study-recall → image-build(am-kernels / AM) → nemu-reference → record
 study-recall → image-build(am-kernels / AM) → nemu-reference → rtl-sim(npc / verilator) → compare-or-difftest → record
 ```
 
-适用场景：NPC 已实现后的单周期 bring-up、指令实现、最小功能回归、目标仿真链路打通。
+适用场景：普通 NPC target 的指令、CSR、流水线、cache、设备 bring-up、最小功能回归和 target 仿真链路验证。
+
+### `npc-sim-regression`
+
+```text
+backend-select(npc/sim) → image-build(am-kernels / AM) → npc-run(single or soc) → optional-difftest → record
+```
+
+适用场景：通过 `npc/sim` 统一入口验证 `riscv32-npc` 镜像、默认后端、临时 `NPC_SIM_BACKEND` 覆盖和后端配置是否生效。
+
+### `soc-difftest-loop`
+
+```text
+soc-contract(ysyxSoC + npc/soc + nemu SOC_SIM) → difftest-ref → image-build → npc-soc-run → compare → record
+```
+
+适用场景：ysyxSoC 地址图、`npc/soc`、NEMU `CONFIG_SOC_SIM` reference 和 AM `riscv32-npc` SoC 后端的协同验证。
+
+### `ysyx-soc-integration`
+
+```text
+cpu-abi-recall → chisel-or-generated-audit → npc-soc-wrapper → build-ysyxSoCFull → soc-lint-or-smoke → record
+```
+
+适用场景：修改 ysyxSoC Chisel、CPU 顶层 ABI、SoC 生成链路或 `npc/soc` 的 ysyxSoC wrapper。
 
 ### `am-device-loop`
 
@@ -153,8 +180,8 @@ reproduce → collect-log-or-trace → localize-boundary → fix → rerun → r
 | ------ | ------ | ------ |
 | L0 | `ysyx-coordinator` | 选择静态图 / 动态图，切分节点，调度与记录 |
 | L1 | `agent-system` | 重构 agent 架构、指令、记忆、蓝图 |
-| L1 | `hardware-flow` | 管理 NEMU / AM / am-kernels 参考闭环，并为 target 节点接入做编排 |
-| L2 | `npc`、`nemu`、`abstract-machine`、`am-kernels`、`difftest` 等 | 在各自模块内实现与调试 |
+| L1 | `hardware-flow` | 管理 NEMU / AM / am-kernels / npc-sim / difftest 闭环，并为 SoC、PPA 节点接入做编排 |
+| L2 | `npc`、`ysyx-soc`、`nemu`、`abstract-machine`、`am-kernels`、`difftest` 等 | 在各自模块内实现与调试 |
 | L3 | `.github/memory/` 与 `study/` | 提供长期知识、经验和稳定入口 |
 
 ## 当前阶段门槛
@@ -174,22 +201,24 @@ reproduce → collect-log-or-trace → localize-boundary → fix → rerun → r
 
 - NPC / Verilator 能加载或对接同类工作负载
 - 能输出最小可用的仿真日志或波形
+- `npc/sim` 能稳定选择 `single` / `soc` 后端，并被 AM `riscv32-npc` 入口调用
 
 ### Gate 4：对比与扩展闭环
 
 - 能把 NEMU 结果与 NPC 结果收敛到同一套比较与诊断流程
 - `difftest` 或等价比较层开始稳定工作
+- SoC 后端具备 NEMU `CONFIG_SOC_SIM` reference，可验证 ysyxSoC 地址图下的基础 CPU 测试
 - 在功能闭环稳定后，再把综合、STA、PPA 分析作为下游节点接入
 
 ## 分阶段路线图
 
 1. **P0 骨架期**：落地图任务协议、`agent-system`、`hardware-flow`、蓝图与记忆入口
-2. **P1 参考闭环期**：稳定 `am-kernels -> AM -> NEMU` 默认工作流，并补结构化 task report / dispatch log
-3. **P2 目标接入期**：待 NPC 实现后，再补齐 `npc/single/Makefile` 与 `platform/npc.mk` 的真实运行链路
-4. **P3 对比与扩展期**：接入 `difftest`，并逐步引入 `yosys-sta`、PPA、时序诊断等更强的 EDA 节点
+2. **P1 参考闭环期**：稳定 `am-kernels -> AM -> NEMU` 工作流，并补结构化 task report / dispatch log
+3. **P2 目标接入期**：通过 `npc/sim` 稳定 `npc/single` 与 `npc/soc` 后端、AM `riscv32-npc` 入口和 Verilator target 运行链路
+4. **P3 对比与扩展期**：稳定 `difftest`、NEMU `CONFIG_SOC_SIM`、ysyxSoC 接入，并逐步引入 `yosys-sta`、PPA、时序诊断等更强的 EDA 节点
 
 ## 当前落地原则
 
 - 优先使用工作区已经具备的真实链路，而不是为了“像 EDA”而空转设计概念
-- 先让 agent 能围绕镜像、NEMU 参考运行、日志与结构化记录工作，再在 NPC 就绪后接入 target 仿真与对比
+- 让 agent 围绕镜像、NEMU 参考运行、NPC target 仿真、difftest 日志与结构化记录工作；SoC/Chisel 与综合/STA 作为明确的下游或并行节点接入
 - 每一轮重构都要留下明确的静态图模板、节点契约与记忆更新，避免体系再次退化成散乱规则

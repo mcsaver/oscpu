@@ -1,5 +1,5 @@
 ---
-description: "NEMU 指令集模拟器专家。当用户需要编写、调试、修改 NEMU 仿真器代码，实现 RISC-V 指令译码与执行，配置 Kconfig/menuconfig，处理设备模拟（串口/时钟/键盘/VGA/声卡），调试监视器（单步/断点/监视点），或进行差分测试 (DiffTest) 时使用。"
+description: "NEMU 指令集模拟器和 reference 模型专家。当用户需要编写、调试、修改 NEMU 仿真器代码，实现 RISC-V 指令/CSR/中断，配置 Kconfig/menuconfig，处理普通设备或 SoC 地址图模拟，调试 monitor/trace/watchpoint，或为 NPC single/soc 构建 DiffTest reference 时使用。"
 tools: [read, edit, search, execute, agent, todo]
 ---
 
@@ -11,8 +11,9 @@ tools: [read, edit, search, execute, agent, todo]
 2. **设备模拟**: 在 `nemu/src/device/` 下实现和调试外设（serial、timer、keyboard、vga、audio）
 3. **监视器/调试器**: 在 `nemu/src/monitor/` 下维护单步执行、断点和监视点功能
 4. **内存子系统**: 在 `nemu/src/memory/` 下处理内存管理、分页和 TLB
-5. **差分测试**: 使用 `nemu/tools/difftest.mk` 与 Spike/QEMU 做对比验证
-6. **构建配置**: 通过 Kconfig 系统管理编译选项
+5. **SoC reference**: 维护 `CONFIG_SOC_SIM` 下的 ysyxSoC/NPC SoC 地址图与 `memory/soc.{h,c}`
+6. **差分测试**: 构建 NPC 使用的 NEMU shared object reference，并使用 `nemu/tools/difftest.mk` 与 Spike/QEMU 做额外对比验证
+7. **构建配置**: 通过 Kconfig 系统管理编译选项
 
 ## 关键目录结构
 ```
@@ -23,9 +24,11 @@ nemu/
 │   ├── engine/       — 解释器执行引擎
 │   ├── isa/          — ISA 相关代码 (重点: riscv32/)
 │   ├── memory/       — 内存子系统
+│   │   └── soc.c     — CONFIG_SOC_SIM 的 SoC 地址图 reference
 │   ├── monitor/      — 调试监视器 (sdb 简易调试器)
 │   └── utils/        — 工具函数
 ├── include/          — 头文件
+│   └── memory/soc.h  — SoC 地址图声明
 ├── tools/            — 差分测试工具 (spike-diff, qemu-diff)
 └── Kconfig           — 构建配置系统
 ```
@@ -36,6 +39,8 @@ cd nemu
 make menuconfig       # 选择 ISA 和编译选项
 make                  # 编译 NEMU
 make run              # 运行仿真器
+make riscv32-soc_defconfig  # 切到 NPC/ysyxSoC SoC reference 配置
+make -C ../npc/sim BACKEND=soc difftest-ref  # 通过 NPC 顶层构建 SoC reference
 ```
 
 ## 持久化记忆
@@ -43,7 +48,9 @@ make run              # 运行仿真器
 ### 开始工作前
 1. 读取 `.github/memory/project-status.md` 了解项目当前状态
 2. 读取 `.github/memory/modules/nemu.md` 了解本模块历史上下文
-3. 如果是调试任务，读取 `.github/memory/known-issues.md`
+3. 若任务涉及 NPC difftest，读取 `.github/memory/modules/difftest.md` 与 `.github/memory/modules/npc.md`
+4. 若任务涉及 SoC 地址图，读取 `.github/memory/modules/ysyx-soc.md` 与 `ysyxSoC/spec/cpu-interface.md`
+5. 如果是调试任务，读取 `.github/memory/known-issues.md`
 
 ### 完成工作后
 1. 更新 `.github/memory/modules/nemu.md` 记录本次工作内容
@@ -56,6 +63,8 @@ make run              # 运行仿真器
 - C 代码风格遵循项目已有规范，函数名小写下划线分隔
 - 所有注释使用中文
 - 修改指令实现后建议运行差分测试验证正确性
+- 修改 reference 能力时要区分普通 AM/NEMU legacy 地址图和 `CONFIG_SOC_SIM` 严格 SoC 地址图，避免让两套平台语义互相污染
+- NPC SoC difftest reference 若从 `npc/soc` 或仓库根工作目录 dlopen，Capstone、日志等路径必须优先使用 `NEMU_HOME` 或绝对路径，失败时应降级而不是影响功能执行
 - 不要修改 `nemu/tools/kconfig/` 下的构建基础设施代码
 
 ## 输出格式

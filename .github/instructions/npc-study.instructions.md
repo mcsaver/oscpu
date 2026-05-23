@@ -1,16 +1,16 @@
 ---
-description: "NPC 单周期开发的本地学习资料流程。处理 npc/single 下的 RTL、仿真、设计或 bring-up 任务时，先读取 study 索引和对应专题笔记，再开始规划、实现和验证。"
-applyTo: "npc/single/**"
+description: "NPC 开发的本地学习资料流程。处理 npc/single 或 npc/soc 下的 RTL、仿真、设计或 bring-up 任务时，先读取对应 study 索引和专题笔记，再开始规划、实现和验证。"
+applyTo: "npc/{single,soc}/**"
 ---
 
 # NPC 本地学习资料流程
 
-处理 `npc/single/` 下的任务时，先把本地学习资料当作正式输入，而不是只在卡住时回头翻。
+处理 `npc/single/` 或 `npc/soc/` 下的任务时，先把本地学习资料当作正式输入，而不是只在卡住时回头翻。`npc/soc` 是从 SoC 接入版拆出的目录，若对应 study 文件与 `npc/single` 同步存在，应按当前后端目录读取；若缺失，再回退读取 `npc/single/design/study/` 的正式笔记并在记录里说明。
 
 ## 固定入口
 
-- **必须** 先读取 `npc/single/design/study/README.md`
-- 只有在索引无法覆盖问题时，才继续进入 `npc/single/design/study/tmp/README.md` 和 `npc/single/design/study/tmp/*.txt` 查找原始摘录
+- **必须** 先读取当前后端目录下的 `design/study/README.md`，例如 `npc/single/design/study/README.md` 或 `npc/soc/design/study/README.md`
+- 只有在索引无法覆盖问题时，才继续进入同一目录下的 `design/study/tmp/README.md` 和 `design/study/tmp/*.txt` 查找原始摘录
 
 ## 按任务选读
 

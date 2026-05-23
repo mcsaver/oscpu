@@ -18,11 +18,16 @@
 #include <cpu/cpu.h>
 #include <difftest-def.h>
 #include <memory/paddr.h>
+#include <memory/soc.h>
 #include <utils.h>
 
 __EXPORT void difftest_memcpy(paddr_t addr, void *buf, size_t n, bool direction) {
   if (n == 0) return;
   assert(buf != NULL);
+  // SoC 模式允许 testbench/loader 把镜像或数据同步到片上 SRAM/MROM/SDRAM 等非主 PMEM 窗口。
+  if (MUXDEF(CONFIG_SOC_SIM, soc_sim_memcpy(addr, buf, n, direction), false)) {
+    return;
+  }
   Assert(in_pmem(addr) && in_pmem(addr + n - 1),
       "difftest memcpy out of pmem: addr=" FMT_PADDR ", size=%zu", addr, n);
 

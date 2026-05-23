@@ -60,11 +60,18 @@
 #define CSR_MISA     0x301
 #define CSR_MIE      0x304
 #define CSR_MTVEC    0x305
+#define CSR_MCOUNTINHIBIT 0x320
 #define CSR_MSCRATCH 0x340
 #define CSR_MEPC     0x341
 #define CSR_MCAUSE   0x342
 #define CSR_MTVAL    0x343
 #define CSR_MIP      0x344
+#define CSR_MCYCLE   0xb00
+#define CSR_MCYCLEH  0xb80
+#define CSR_CYCLE    0xc00
+#define CSR_CYCLEH   0xc80
+#define CSR_MVENDORID 0xf11
+#define CSR_MARCHID  0xf12
 #define CSR_MHARTID  0xf14
 
 #define CAUSE_ILLEGAL_INST 2
@@ -73,6 +80,8 @@
 #define MSTATUS_MIE      (1u << 3)
 #define MSTATUS_MPIE     (1u << 7)
 #define MSTATUS_MPP_MASK (3u << 11)
+
+#define MCOUNTINHIBIT_CY 0x00000001u
 
 #define OP_KEY(funct3, funct7) ((((funct7) & 0x7f) << 3) | ((funct3) & 0x7))
 #define SHAMT5(value) ((value) & 0x1f)
@@ -177,14 +186,22 @@ static inline word_t csr_misa_value() {
 
 static inline bool csr_read(uint32_t csr, word_t *value) {
   switch (csr) {
+    // 身份与计数器 CSR 对齐 NPC，避免 guest 在 difftest 下读到 reference illegal trap。
+    case CSR_MVENDORID: *value = 0x79737978u; return true;
+    case CSR_MARCHID:   *value = 26010035u; return true;
     case CSR_MSTATUS:  *value = cpu.csr.mstatus; return true;
     case CSR_MIE:      *value = cpu.csr.mie; return true;
     case CSR_MTVEC:    *value = cpu.csr.mtvec; return true;
+    case CSR_MCOUNTINHIBIT: *value = cpu.csr.mcountinhibit; return true;
     case CSR_MSCRATCH: *value = cpu.csr.mscratch; return true;
     case CSR_MEPC:     *value = cpu.csr.mepc; return true;
     case CSR_MCAUSE:   *value = cpu.csr.mcause; return true;
     case CSR_MTVAL:    *value = cpu.csr.mtval; return true;
-    case CSR_MIP:      *value = cpu.csr.mip; return true;
+    case CSR_MIP:      *value = isa_riscv32_mip_value(); return true;
+    case CSR_MCYCLE:   *value = (word_t)cpu.csr.mcycle; return true;
+    case CSR_MCYCLEH:  *value = (word_t)(cpu.csr.mcycle >> 32); return true;
+    case CSR_CYCLE:    *value = (word_t)cpu.csr.mcycle; return true;
+    case CSR_CYCLEH:   *value = (word_t)(cpu.csr.mcycle >> 32); return true;
     case CSR_MISA:     *value = csr_misa_value(); return true;
     case CSR_MHARTID:  *value = 0; return true;
     default: return false;
@@ -195,13 +212,16 @@ static inline bool csr_write(uint32_t csr, word_t value) {
   word_t mepc_mask = MUXDEF(CONFIG_RISCV_EXT_C, ~0x1u, ~0x3u);
   switch (csr) {
     case CSR_MSTATUS:  cpu.csr.mstatus = value; return true;
-    case CSR_MIE:      cpu.csr.mie = value; return true;
-    case CSR_MTVEC:    cpu.csr.mtvec = value; return true;
+    case CSR_MIE:      isa_riscv32_write_mie(value); return true;
+    case CSR_MTVEC:    cpu.csr.mtvec = value & ~0x3u; return true;
+    case CSR_MCOUNTINHIBIT: cpu.csr.mcountinhibit = value & MCOUNTINHIBIT_CY; return true;
     case CSR_MSCRATCH: cpu.csr.mscratch = value; return true;
     case CSR_MEPC:     cpu.csr.mepc = value & mepc_mask; return true;
     case CSR_MCAUSE:   cpu.csr.mcause = value; return true;
     case CSR_MTVAL:    cpu.csr.mtval = value; return true;
-    case CSR_MIP:      cpu.csr.mip = value; return true;
+    case CSR_MIP:      isa_riscv32_write_mip(value); return true;
+    case CSR_MCYCLE:   isa_riscv32_write_mcycle_lo(value); return true;
+    case CSR_MCYCLEH:  isa_riscv32_write_mcycle_hi(value); return true;
     default: return false;
   }
 }

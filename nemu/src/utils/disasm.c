@@ -23,21 +23,49 @@ static size_t (*cs_disasm_dl)(csh handle, const uint8_t *code,
 static void (*cs_free_dl)(cs_insn *insn, size_t count);
 
 static csh handle;
+static bool disasm_ready = false;
+
+static void format_raw_inst(char *str, int size, uint64_t pc, uint8_t *code, int nbyte) {
+  uint64_t raw = 0;
+  for (int i = 0; i < nbyte && i < (int)sizeof(raw); i++) {
+    raw |= (uint64_t)code[i] << (i * 8);
+  }
+  // Capstone 不可用或遇到非法编码时，trace 仍输出原始指令，避免调试路径影响执行语义。
+  snprintf(str, size, ".word\t0x%0*" PRIx64 " @ 0x%08" PRIx64, nbyte * 2, raw, pc);
+}
+
+static void *open_capstone(void) {
+  const char *nemu_home = getenv("NEMU_HOME");
+  if (nemu_home != NULL && nemu_home[0] != '\0') {
+    char path[4096];
+    snprintf(path, sizeof(path), "%s/tools/capstone/repo/libcapstone.so.5", nemu_home);
+    void *dl_handle = dlopen(path, RTLD_LAZY);
+    if (dl_handle != NULL) return dl_handle;
+  }
+
+  // 保留从 nemu/ 目录直接启动时的旧相对路径行为。
+  return dlopen("tools/capstone/repo/libcapstone.so.5", RTLD_LAZY);
+}
 
 void init_disasm() {
-  void *dl_handle;
-  dl_handle = dlopen("tools/capstone/repo/libcapstone.so.5", RTLD_LAZY);
-  assert(dl_handle);
+  void *dl_handle = open_capstone();
+  if (dl_handle == NULL) {
+    Log("failed to load capstone: %s", dlerror());
+    disasm_ready = false;
+    return;
+  }
 
   cs_err (*cs_open_dl)(cs_arch arch, cs_mode mode, csh *handle) = NULL;
   cs_open_dl = dlsym(dl_handle, "cs_open");
-  assert(cs_open_dl);
 
   cs_disasm_dl = dlsym(dl_handle, "cs_disasm");
-  assert(cs_disasm_dl);
 
   cs_free_dl = dlsym(dl_handle, "cs_free");
-  assert(cs_free_dl);
+  if (cs_open_dl == NULL || cs_disasm_dl == NULL || cs_free_dl == NULL) {
+    Log("failed to resolve capstone symbols: %s", dlerror());
+    disasm_ready = false;
+    return;
+  }
 
   cs_arch arch = MUXDEF(CONFIG_ISA_x86,      CS_ARCH_X86,
                    MUXDEF(CONFIG_ISA_mips32, CS_ARCH_MIPS,
@@ -52,28 +80,40 @@ void init_disasm() {
   mode |= CS_MODE_RISCVC;
 #endif
 	int ret = cs_open_dl(arch, mode, &handle);
-  assert(ret == CS_ERR_OK);
+  if (ret != CS_ERR_OK) {
+    Log("failed to initialize capstone, ret=%d", ret);
+    disasm_ready = false;
+    return;
+  }
 
 #ifdef CONFIG_ISA_x86
   cs_err (*cs_option_dl)(csh handle, cs_opt_type type, size_t value) = NULL;
   cs_option_dl = dlsym(dl_handle, "cs_option");
-  assert(cs_option_dl);
+  if (cs_option_dl == NULL) {
+    Log("failed to resolve capstone option symbol: %s", dlerror());
+    disasm_ready = false;
+    return;
+  }
 
   ret = cs_option_dl(handle, CS_OPT_SYNTAX, CS_OPT_SYNTAX_ATT);
-  assert(ret == CS_ERR_OK);
+  if (ret != CS_ERR_OK) {
+    Log("failed to configure capstone syntax, ret=%d", ret);
+    disasm_ready = false;
+    return;
+  }
 #endif
+  disasm_ready = true;
 }
 
 void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte) {
+  if (!disasm_ready || cs_disasm_dl == NULL || cs_free_dl == NULL) {
+    format_raw_inst(str, size, pc, code, nbyte);
+    return;
+  }
 	cs_insn *insn;
 	size_t count = cs_disasm_dl(handle, code, nbyte, pc, 0, &insn);
   if (count == 0) {
-    uint64_t raw = 0;
-    for (int i = 0; i < nbyte && i < (int)sizeof(raw); i++) {
-      raw |= (uint64_t)code[i] << (i * 8);
-    }
-    // 非法指令进入 trap 后仍可能被 ITRACE 反汇编；这里输出原始编码，避免 trace 路径抢先断言退出。
-    snprintf(str, size, ".word\t0x%0*" PRIx64, nbyte * 2, raw);
+    format_raw_inst(str, size, pc, code, nbyte);
     return;
   }
   assert(count == 1);

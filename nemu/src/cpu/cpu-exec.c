@@ -175,8 +175,14 @@ static void exec_once(Decode *s, vaddr_t pc) {//此处s是传入是指针,decode
 static void execute(uint64_t n) {
   Decode s;
   for (;n > 0; n --) {
+    word_t intr = isa_query_intr();
+    if (intr != INTR_EMPTY) {
+      // 异步中断在两条指令之间进入；先重定向到 trap handler，再执行本轮要退休的 handler 指令。
+      cpu.pc = isa_raise_intr(intr, cpu.pc);
+    }
     exec_once(&s, cpu.pc);//单步执行
     g_nr_guest_inst ++;//记录客户指令的计数器
+    IFDEF(CONFIG_ISA_riscv, isa_riscv32_post_exec());
 #ifdef CONFIG_ITRACE
     // 把日志构造延后到执行后，并且仅在真正需要输出时触发，减少常规运行时的额外工作。
     if (need_itrace_logbuf()) {

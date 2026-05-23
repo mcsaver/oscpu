@@ -9,3 +9,16 @@ npc/single/.config.old
 npc/single/build/
 npc/single/include/config/
 npc/single/include/generated/
+npc/.platform
+npc/sim/.config
+npc/sim/.config.old
+npc/sim/include/config/
+npc/sim/include/generated/
+npc/soc/.config
+npc/soc/.config.old
+npc/soc/build/
+npc/soc/gmon.out
+npc/soc/include/config/
+npc/soc/include/generated/
+npc/soc/perf/results/
+npc/soc/testbench/build/

@@ -1,0 +1,35 @@
+mainmenu "NPC Simulation Top Configuration Menu"
+
+menu "Backend Selection"
+
+choice
+  prompt "Simulation backend"
+  default NPC_SIM_BACKEND_SINGLE
+  help
+    Select the concrete backend used by the platform-independent npc/sim
+    entry. External modules such as Abstract Machine should call npc/sim,
+    while this choice decides whether the real Verilator model comes from
+    npc/single or npc/soc.
+
+config NPC_SIM_BACKEND_SINGLE
+  bool "single: AM/NpcSimTop self-simulation backend"
+  help
+    Use npc/single as the concrete backend. This is the default path for
+    AM/riscv32-npc programs and does not instantiate ysyxSoCFull.
+
+config NPC_SIM_BACKEND_SOC
+  bool "soc: ysyxSoC integration copy backend"
+  help
+    Use npc/soc as the concrete backend. The normal run/lint targets still
+    use its copied NpcSimTop backend, while soc/soc-lint build the
+    ysyxSoCFull integration top.
+
+endchoice
+
+config NPC_SIM_BACKEND
+  string
+  default "single" if NPC_SIM_BACKEND_SINGLE
+  default "soc" if NPC_SIM_BACKEND_SOC
+  default "single"
+
+endmenu

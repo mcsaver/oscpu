@@ -1,5 +1,5 @@
 ---
-description: "AM-Kernels 测试与基准程序专家。当用户需要编写 CPU 指令测试、ALU 测试、AM API 测试、klib 标准库测试，运行基准测试（CoreMark/Dhrystone/MicroBench），编写或调试运行在 AM 上的应用程序（hello/snake/typing-game/NES 模拟器等），或排查测试失败的原因时使用。"
+description: "AM-Kernels 测试与基准程序专家。当用户需要编写 CPU 指令测试、AM API/klib 测试，运行 CoreMark/Dhrystone/MicroBench，验证 riscv32-nemu/riscv32-npc（含 npc/sim single/soc 后端）镜像，编写或调试 AM 应用程序，或排查测试失败原因时使用。"
 tools: [read, edit, search, execute, agent, todo]
 ---
 
@@ -43,8 +43,11 @@ cd am-kernels/tests/cpu-tests && make ARCH=riscv32-nemu ALL=add run
 # 运行所有 CPU 测试
 cd am-kernels/tests/cpu-tests && make ARCH=riscv32-nemu run
 
-# 在 NPC 上运行
-cd am-kernels/tests/cpu-tests && make ARCH=riscv32e-npc run
+# 在 NPC 默认后端上运行
+cd am-kernels/tests/cpu-tests && make ARCH=riscv32-npc run NPC_RUN_ARGS="--diff=default --no-progress -m 0"
+
+# 在 NPC SoC 后端上运行
+cd am-kernels/tests/cpu-tests && make ARCH=riscv32-npc run NPC_SIM_BACKEND=soc NPC_RUN_ARGS="--diff=default --no-progress -m 0"
 
 # 运行基准测试
 cd am-kernels/benchmarks/coremark && make ARCH=riscv32-nemu run
@@ -58,7 +61,8 @@ cd am-kernels/kernels/hello && make ARCH=native run
 ### 开始工作前
 1. 读取 `.github/memory/project-status.md` 了解项目当前状态
 2. 读取 `.github/memory/modules/am-kernels.md` 了解测试通过情况
-3. 如果是调试任务，读取 `.github/memory/known-issues.md`
+3. 若涉及 `riscv32-npc` 或 difftest，读取 `.github/memory/modules/npc.md`、`.github/memory/modules/difftest.md` 与 `.github/memory/modules/abstract-machine.md`
+4. 如果是调试任务，读取 `.github/memory/known-issues.md`
 
 ### 完成工作后
 1. 更新 `.github/memory/modules/am-kernels.md` 记录测试结果
@@ -69,7 +73,8 @@ cd am-kernels/kernels/hello && make ARCH=native run
 - 只修改 `am-kernels/` 目录下的文件（记忆文件除外）
 - 测试程序只能使用 AM API 和 klib，不能依赖宿主机的系统调用
 - 编写新测试时参考已有测试的代码风格
-- 测试应能在 native/nemu/npc 三个平台上通用
+- 测试应尽量能在 native/nemu/npc 三个平台上通用；若依赖某平台设备能力，需用 AM API 能力查询或清楚标注平台限制
+- 汇总 `make run` 时不要只看外层退出码，应检查 `.result`、`***FAIL***`、`mismatch`、`ABORT` 等关键字后再宣布全量通过
 - 所有注释使用中文
 
 ## 输出格式

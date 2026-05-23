@@ -1,0 +1,1041 @@
+pid:16508 2026-05-23T10:50:42.665460568 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:16508 2026-05-23T10:50:42.678924622 [t1] acceptTimeout=Some(30 minutes)
+pid:16508 2026-05-23T10:50:42.688242515 [t1] server file locked
+pid:16508 2026-05-23T10:50:42.699429524 [t1] listening on port 43408
+pid:20303 2026-05-23T11:13:16.641264415 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:20303 2026-05-23T11:13:16.654571567 [t1] acceptTimeout=Some(30 minutes)
+pid:20303 2026-05-23T11:13:16.665088471 [t1] server file locked
+pid:16508 2026-05-23T11:13:16.667104564 [t1] handling run for Socket[addr=/127.0.0.1,port=44969,localport=43408]
+pid:16508 2026-05-23T11:13:16.670688903 [t27] prepareConnection Socket[addr=/127.0.0.1,port=44969,localport=43408]
+pid:16508 2026-05-23T11:13:16.672762567 [t27] 1 active connections
+pid:20303 2026-05-23T11:13:16.676134036 [t1] listening on port 44410
+pid:16508 2026-05-23T11:13:16.678113357 [t28] handleConnection: starting RPC server
+pid:16508 2026-05-23T11:13:16.703940446 [t28] handleConnection: running RPC server
+pid:16508 2026-05-23T11:13:16.704325377 [t28] [MillDaemon-Socket[addr=/127.0.0.1,port=44969,localport=43408]] Initializing Mill RPC server... Waiting for the `initialize` message.
+pid:16508 2026-05-23T11:13:16.751544911 [t28] [MillDaemon-Socket[addr=/127.0.0.1,port=44969,localport=43408]] Initialized, waiting for messages.
+pid:16508 2026-05-23T11:13:16.771601284 [t20] watchProcessIdFile: processId file (/home/lyg/PA/ysyx-workbench/out/mill-daemon/processId) contents 20303 does not match processId 16508
+pid:16508 2026-05-23T11:13:16.772286764 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:16508 2026-05-23T11:13:16.77264694 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:16508 2026-05-23T11:13:16.772770625 [t1] releasing daemonLock
+pid:16508 2026-05-23T11:13:16.773156304 [t1] daemonLock released
+pid:16508 2026-05-23T11:13:16.773311524 [t1] exiting server
+pid:29 2026-05-23T11:14:04.632937339 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:29 2026-05-23T11:14:04.645875342 [t1] acceptTimeout=Some(30 minutes)
+pid:29 2026-05-23T11:14:04.653957186 [t1] server file locked
+pid:29 2026-05-23T11:14:04.65634351 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:29 2026-05-23T11:14:04.656707656 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:29 2026-05-23T11:14:04.656932071 [t1] releasing daemonLock
+pid:29 2026-05-23T11:14:04.657611882 [t1] daemonLock released
+pid:29 2026-05-23T11:14:04.657781039 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:29 2026-05-23T11:14:04.658177364 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:29 2026-05-23T11:14:04.658390503 [t1] exiting server
+pid:49 2026-05-23T11:14:04.872593949 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:49 2026-05-23T11:14:04.885016645 [t1] acceptTimeout=Some(30 minutes)
+pid:49 2026-05-23T11:14:04.894782108 [t1] server file locked
+pid:49 2026-05-23T11:14:04.898106034 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:49 2026-05-23T11:14:04.898580974 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:49 2026-05-23T11:14:04.898819693 [t1] releasing daemonLock
+pid:49 2026-05-23T11:14:04.899472946 [t1] daemonLock released
+pid:49 2026-05-23T11:14:04.89968258 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:49 2026-05-23T11:14:04.900196443 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:49 2026-05-23T11:14:04.900420586 [t1] exiting server
+pid:73 2026-05-23T11:14:05.117319058 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:73 2026-05-23T11:14:05.129275475 [t1] acceptTimeout=Some(30 minutes)
+pid:73 2026-05-23T11:14:05.136939942 [t1] server file locked
+pid:73 2026-05-23T11:14:05.139248289 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:73 2026-05-23T11:14:05.139624657 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:73 2026-05-23T11:14:05.139762292 [t1] releasing daemonLock
+pid:73 2026-05-23T11:14:05.140329443 [t1] daemonLock released
+pid:73 2026-05-23T11:14:05.140533058 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:73 2026-05-23T11:14:05.140934526 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:73 2026-05-23T11:14:05.141109972 [t1] exiting server
+pid:96 2026-05-23T11:14:05.365847594 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:96 2026-05-23T11:14:05.377499208 [t1] acceptTimeout=Some(30 minutes)
+pid:96 2026-05-23T11:14:05.385400387 [t1] server file locked
+pid:96 2026-05-23T11:14:05.388108925 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:96 2026-05-23T11:14:05.388543462 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:96 2026-05-23T11:14:05.388763213 [t1] releasing daemonLock
+pid:96 2026-05-23T11:14:05.389572737 [t1] daemonLock released
+pid:96 2026-05-23T11:14:05.389752815 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:96 2026-05-23T11:14:05.390192017 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:96 2026-05-23T11:14:05.390398927 [t1] exiting server
+pid:119 2026-05-23T11:14:05.632498341 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:119 2026-05-23T11:14:05.645077678 [t1] acceptTimeout=Some(30 minutes)
+pid:119 2026-05-23T11:14:05.652656077 [t1] server file locked
+pid:119 2026-05-23T11:14:05.655461966 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:119 2026-05-23T11:14:05.656068093 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:119 2026-05-23T11:14:05.656231447 [t1] releasing daemonLock
+pid:119 2026-05-23T11:14:05.65732189 [t1] daemonLock released
+pid:119 2026-05-23T11:14:05.657745646 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:119 2026-05-23T11:14:05.658487836 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:119 2026-05-23T11:14:05.658730531 [t1] exiting server
+pid:142 2026-05-23T11:14:05.873737841 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:142 2026-05-23T11:14:05.886282391 [t1] acceptTimeout=Some(30 minutes)
+pid:142 2026-05-23T11:14:05.893802393 [t1] server file locked
+pid:142 2026-05-23T11:14:05.895765209 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:142 2026-05-23T11:14:05.89602313 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:142 2026-05-23T11:14:05.896185501 [t1] releasing daemonLock
+pid:142 2026-05-23T11:14:05.896773052 [t1] daemonLock released
+pid:142 2026-05-23T11:14:05.896974912 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:142 2026-05-23T11:14:05.897350469 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:142 2026-05-23T11:14:05.897533756 [t1] exiting server
+pid:165 2026-05-23T11:14:06.125571113 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:165 2026-05-23T11:14:06.137689298 [t1] acceptTimeout=Some(30 minutes)
+pid:165 2026-05-23T11:14:06.145398504 [t1] server file locked
+pid:165 2026-05-23T11:14:06.147485996 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:165 2026-05-23T11:14:06.147812336 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:165 2026-05-23T11:14:06.147958439 [t1] releasing daemonLock
+pid:165 2026-05-23T11:14:06.148514772 [t1] daemonLock released
+pid:165 2026-05-23T11:14:06.14867277 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:165 2026-05-23T11:14:06.149042189 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:165 2026-05-23T11:14:06.149259771 [t1] exiting server
+pid:188 2026-05-23T11:14:06.384395019 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:188 2026-05-23T11:14:06.398319985 [t1] acceptTimeout=Some(30 minutes)
+pid:188 2026-05-23T11:14:06.406012657 [t1] server file locked
+pid:188 2026-05-23T11:14:06.408529639 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:188 2026-05-23T11:14:06.408897259 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:188 2026-05-23T11:14:06.409083589 [t1] releasing daemonLock
+pid:188 2026-05-23T11:14:06.409787089 [t1] daemonLock released
+pid:188 2026-05-23T11:14:06.410004548 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:188 2026-05-23T11:14:06.410686854 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:188 2026-05-23T11:14:06.410902123 [t1] exiting server
+pid:211 2026-05-23T11:14:06.65604325 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:211 2026-05-23T11:14:06.668237327 [t1] acceptTimeout=Some(30 minutes)
+pid:211 2026-05-23T11:14:06.676108032 [t1] server file locked
+pid:211 2026-05-23T11:14:06.678440313 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:211 2026-05-23T11:14:06.679144143 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:211 2026-05-23T11:14:06.679336702 [t1] releasing daemonLock
+pid:211 2026-05-23T11:14:06.680147191 [t1] daemonLock released
+pid:211 2026-05-23T11:14:06.680317044 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:211 2026-05-23T11:14:06.68083695 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:211 2026-05-23T11:14:06.681135573 [t1] exiting server
+pid:235 2026-05-23T11:14:06.898364134 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:235 2026-05-23T11:14:06.909302162 [t1] acceptTimeout=Some(30 minutes)
+pid:235 2026-05-23T11:14:06.916904328 [t1] server file locked
+pid:235 2026-05-23T11:14:06.91885449 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:235 2026-05-23T11:14:06.919145712 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:235 2026-05-23T11:14:06.919276016 [t1] releasing daemonLock
+pid:235 2026-05-23T11:14:06.919829509 [t1] daemonLock released
+pid:235 2026-05-23T11:14:06.920007297 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:235 2026-05-23T11:14:06.920426152 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:235 2026-05-23T11:14:06.920620082 [t1] exiting server
+pid:258 2026-05-23T11:14:07.151613554 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:258 2026-05-23T11:14:07.163782218 [t1] acceptTimeout=Some(30 minutes)
+pid:258 2026-05-23T11:14:07.171814897 [t1] server file locked
+pid:258 2026-05-23T11:14:07.173862998 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:258 2026-05-23T11:14:07.174206874 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:258 2026-05-23T11:14:07.174376143 [t1] releasing daemonLock
+pid:258 2026-05-23T11:14:07.175154784 [t1] daemonLock released
+pid:258 2026-05-23T11:14:07.175358208 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:258 2026-05-23T11:14:07.175822465 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:258 2026-05-23T11:14:07.176020759 [t1] exiting server
+pid:281 2026-05-23T11:14:07.413325095 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:281 2026-05-23T11:14:07.424028322 [t1] acceptTimeout=Some(30 minutes)
+pid:281 2026-05-23T11:14:07.431397636 [t1] server file locked
+pid:281 2026-05-23T11:14:07.43411479 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:281 2026-05-23T11:14:07.434554242 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:281 2026-05-23T11:14:07.43471727 [t1] releasing daemonLock
+pid:281 2026-05-23T11:14:07.435440333 [t1] daemonLock released
+pid:281 2026-05-23T11:14:07.435617969 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:281 2026-05-23T11:14:07.436019425 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:281 2026-05-23T11:14:07.436231709 [t1] exiting server
+pid:304 2026-05-23T11:14:07.700589968 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:304 2026-05-23T11:14:07.713342929 [t1] acceptTimeout=Some(30 minutes)
+pid:304 2026-05-23T11:14:07.720317548 [t1] server file locked
+pid:304 2026-05-23T11:14:07.72287182 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:304 2026-05-23T11:14:07.723225462 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:304 2026-05-23T11:14:07.723361017 [t1] releasing daemonLock
+pid:304 2026-05-23T11:14:07.724051516 [t1] daemonLock released
+pid:304 2026-05-23T11:14:07.724227666 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:304 2026-05-23T11:14:07.724630885 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:304 2026-05-23T11:14:07.72482017 [t1] exiting server
+pid:327 2026-05-23T11:14:07.968613959 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:327 2026-05-23T11:14:07.982673242 [t1] acceptTimeout=Some(30 minutes)
+pid:327 2026-05-23T11:14:07.989928406 [t1] server file locked
+pid:327 2026-05-23T11:14:07.992920528 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:327 2026-05-23T11:14:07.993765121 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:327 2026-05-23T11:14:07.994003504 [t1] releasing daemonLock
+pid:327 2026-05-23T11:14:07.995428881 [t1] daemonLock released
+pid:327 2026-05-23T11:14:07.995842164 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:327 2026-05-23T11:14:07.996628998 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:327 2026-05-23T11:14:07.996915922 [t1] exiting server
+pid:350 2026-05-23T11:14:08.231217292 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:350 2026-05-23T11:14:08.24408916 [t1] acceptTimeout=Some(30 minutes)
+pid:350 2026-05-23T11:14:08.252185686 [t1] server file locked
+pid:350 2026-05-23T11:14:08.254509215 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:350 2026-05-23T11:14:08.255312099 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:350 2026-05-23T11:14:08.255535044 [t1] releasing daemonLock
+pid:350 2026-05-23T11:14:08.256245015 [t1] daemonLock released
+pid:350 2026-05-23T11:14:08.256530671 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:350 2026-05-23T11:14:08.256999234 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:350 2026-05-23T11:14:08.257198729 [t1] exiting server
+pid:374 2026-05-23T11:14:08.484862341 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:374 2026-05-23T11:14:08.497878516 [t1] acceptTimeout=Some(30 minutes)
+pid:374 2026-05-23T11:14:08.510146762 [t1] server file locked
+pid:374 2026-05-23T11:14:08.513006998 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:374 2026-05-23T11:14:08.513455482 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:374 2026-05-23T11:14:08.513610618 [t1] releasing daemonLock
+pid:374 2026-05-23T11:14:08.514401596 [t1] daemonLock released
+pid:374 2026-05-23T11:14:08.514588167 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:374 2026-05-23T11:14:08.515029842 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:374 2026-05-23T11:14:08.515240147 [t1] exiting server
+pid:397 2026-05-23T11:14:08.765090268 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:397 2026-05-23T11:14:08.777549419 [t1] acceptTimeout=Some(30 minutes)
+pid:397 2026-05-23T11:14:08.7859008 [t1] server file locked
+pid:397 2026-05-23T11:14:08.788014845 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:397 2026-05-23T11:14:08.788366343 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:397 2026-05-23T11:14:08.788503886 [t1] releasing daemonLock
+pid:397 2026-05-23T11:14:08.789120966 [t1] daemonLock released
+pid:397 2026-05-23T11:14:08.789286481 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:397 2026-05-23T11:14:08.789710466 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:397 2026-05-23T11:14:08.78994718 [t1] exiting server
+pid:420 2026-05-23T11:14:09.031287998 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:420 2026-05-23T11:14:09.043161203 [t1] acceptTimeout=Some(30 minutes)
+pid:420 2026-05-23T11:14:09.050103501 [t1] server file locked
+pid:420 2026-05-23T11:14:09.052849622 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:420 2026-05-23T11:14:09.053215404 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:420 2026-05-23T11:14:09.053359788 [t1] releasing daemonLock
+pid:420 2026-05-23T11:14:09.053924451 [t1] daemonLock released
+pid:420 2026-05-23T11:14:09.054126652 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:420 2026-05-23T11:14:09.054554115 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:420 2026-05-23T11:14:09.054718012 [t1] exiting server
+pid:443 2026-05-23T11:14:09.268869468 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:443 2026-05-23T11:14:09.281215289 [t1] acceptTimeout=Some(30 minutes)
+pid:443 2026-05-23T11:14:09.289390759 [t1] server file locked
+pid:443 2026-05-23T11:14:09.291530479 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:443 2026-05-23T11:14:09.291835243 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:443 2026-05-23T11:14:09.291969563 [t1] releasing daemonLock
+pid:443 2026-05-23T11:14:09.292538282 [t1] daemonLock released
+pid:443 2026-05-23T11:14:09.292703689 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:443 2026-05-23T11:14:09.29308971 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:443 2026-05-23T11:14:09.293272519 [t1] exiting server
+pid:467 2026-05-23T11:14:09.523494036 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:467 2026-05-23T11:14:09.536094161 [t1] acceptTimeout=Some(30 minutes)
+pid:467 2026-05-23T11:14:09.544385333 [t1] server file locked
+pid:467 2026-05-23T11:14:09.54667159 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:467 2026-05-23T11:14:09.547194306 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:467 2026-05-23T11:14:09.547403836 [t1] releasing daemonLock
+pid:467 2026-05-23T11:14:09.548603521 [t1] daemonLock released
+pid:467 2026-05-23T11:14:09.548827854 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:467 2026-05-23T11:14:09.549722613 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:467 2026-05-23T11:14:09.549961066 [t1] exiting server
+pid:489 2026-05-23T11:14:09.793447558 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:489 2026-05-23T11:14:09.805511014 [t1] acceptTimeout=Some(30 minutes)
+pid:489 2026-05-23T11:14:09.813677869 [t1] server file locked
+pid:489 2026-05-23T11:14:09.816561159 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:489 2026-05-23T11:14:09.817169909 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:489 2026-05-23T11:14:09.817332554 [t1] releasing daemonLock
+pid:489 2026-05-23T11:14:09.818265433 [t1] daemonLock released
+pid:489 2026-05-23T11:14:09.818463889 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:489 2026-05-23T11:14:09.818847738 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:489 2026-05-23T11:14:09.819024776 [t1] exiting server
+pid:512 2026-05-23T11:14:10.038444893 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:512 2026-05-23T11:14:10.051325397 [t1] acceptTimeout=Some(30 minutes)
+pid:512 2026-05-23T11:14:10.059398799 [t1] server file locked
+pid:512 2026-05-23T11:14:10.061648138 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:512 2026-05-23T11:14:10.062088075 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:512 2026-05-23T11:14:10.062349566 [t1] releasing daemonLock
+pid:512 2026-05-23T11:14:10.063617278 [t1] daemonLock released
+pid:512 2026-05-23T11:14:10.063842963 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:512 2026-05-23T11:14:10.064501308 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:512 2026-05-23T11:14:10.064793319 [t1] exiting server
+pid:535 2026-05-23T11:14:10.286550067 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:535 2026-05-23T11:14:10.299041574 [t1] acceptTimeout=Some(30 minutes)
+pid:535 2026-05-23T11:14:10.307342407 [t1] server file locked
+pid:535 2026-05-23T11:14:10.309597532 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:535 2026-05-23T11:14:10.309911414 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:535 2026-05-23T11:14:10.310039552 [t1] releasing daemonLock
+pid:535 2026-05-23T11:14:10.310754793 [t1] daemonLock released
+pid:535 2026-05-23T11:14:10.310929025 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:535 2026-05-23T11:14:10.311447177 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:535 2026-05-23T11:14:10.311769552 [t1] exiting server
+pid:558 2026-05-23T11:14:10.532410358 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:558 2026-05-23T11:14:10.544563176 [t1] acceptTimeout=Some(30 minutes)
+pid:558 2026-05-23T11:14:10.551805905 [t1] server file locked
+pid:558 2026-05-23T11:14:10.554014268 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:558 2026-05-23T11:14:10.554455953 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:558 2026-05-23T11:14:10.554598827 [t1] releasing daemonLock
+pid:558 2026-05-23T11:14:10.5556284 [t1] daemonLock released
+pid:558 2026-05-23T11:14:10.55582286 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:558 2026-05-23T11:14:10.556393891 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:558 2026-05-23T11:14:10.556863865 [t1] exiting server
+pid:581 2026-05-23T11:14:10.765732439 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:581 2026-05-23T11:14:10.7796168 [t1] acceptTimeout=Some(30 minutes)
+pid:581 2026-05-23T11:14:10.78723409 [t1] server file locked
+pid:581 2026-05-23T11:14:10.789373311 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:581 2026-05-23T11:14:10.789692552 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:581 2026-05-23T11:14:10.789877785 [t1] releasing daemonLock
+pid:581 2026-05-23T11:14:10.790744651 [t1] daemonLock released
+pid:581 2026-05-23T11:14:10.790940792 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:581 2026-05-23T11:14:10.79139858 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:581 2026-05-23T11:14:10.791589886 [t1] exiting server
+pid:604 2026-05-23T11:14:11.015312512 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:604 2026-05-23T11:14:11.027225103 [t1] acceptTimeout=Some(30 minutes)
+pid:604 2026-05-23T11:14:11.034802237 [t1] server file locked
+pid:604 2026-05-23T11:14:11.037360692 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:604 2026-05-23T11:14:11.037882792 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:604 2026-05-23T11:14:11.038154428 [t1] releasing daemonLock
+pid:604 2026-05-23T11:14:11.039421043 [t1] daemonLock released
+pid:604 2026-05-23T11:14:11.039735768 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:604 2026-05-23T11:14:11.040698148 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:604 2026-05-23T11:14:11.041001954 [t1] exiting server
+pid:628 2026-05-23T11:14:11.256958733 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:628 2026-05-23T11:14:11.269207284 [t1] acceptTimeout=Some(30 minutes)
+pid:628 2026-05-23T11:14:11.277061748 [t1] server file locked
+pid:628 2026-05-23T11:14:11.279215415 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:628 2026-05-23T11:14:11.279539719 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:628 2026-05-23T11:14:11.279673032 [t1] releasing daemonLock
+pid:628 2026-05-23T11:14:11.28085971 [t1] daemonLock released
+pid:628 2026-05-23T11:14:11.281335619 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:628 2026-05-23T11:14:11.282080078 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:628 2026-05-23T11:14:11.282428762 [t1] exiting server
+pid:651 2026-05-23T11:14:11.494174341 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:651 2026-05-23T11:14:11.506263801 [t1] acceptTimeout=Some(30 minutes)
+pid:651 2026-05-23T11:14:11.514617357 [t1] server file locked
+pid:651 2026-05-23T11:14:11.517784195 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:651 2026-05-23T11:14:11.518390354 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:651 2026-05-23T11:14:11.51863889 [t1] releasing daemonLock
+pid:651 2026-05-23T11:14:11.519659543 [t1] daemonLock released
+pid:651 2026-05-23T11:14:11.51992001 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:651 2026-05-23T11:14:11.520337436 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:651 2026-05-23T11:14:11.520505638 [t1] exiting server
+pid:674 2026-05-23T11:14:11.755219118 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:674 2026-05-23T11:14:11.767886072 [t1] acceptTimeout=Some(30 minutes)
+pid:674 2026-05-23T11:14:11.776370772 [t1] server file locked
+pid:674 2026-05-23T11:14:11.778652827 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:674 2026-05-23T11:14:11.779029816 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:674 2026-05-23T11:14:11.779246933 [t1] releasing daemonLock
+pid:674 2026-05-23T11:14:11.779929003 [t1] daemonLock released
+pid:674 2026-05-23T11:14:11.780122626 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:674 2026-05-23T11:14:11.780502457 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:674 2026-05-23T11:14:11.780680345 [t1] exiting server
+pid:697 2026-05-23T11:14:12.024888662 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:697 2026-05-23T11:14:12.03709583 [t1] acceptTimeout=Some(30 minutes)
+pid:697 2026-05-23T11:14:12.044519491 [t1] server file locked
+pid:697 2026-05-23T11:14:12.046989586 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:697 2026-05-23T11:14:12.047385487 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:697 2026-05-23T11:14:12.047605076 [t1] releasing daemonLock
+pid:697 2026-05-23T11:14:12.048376381 [t1] daemonLock released
+pid:697 2026-05-23T11:14:12.048782126 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:697 2026-05-23T11:14:12.049278492 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:697 2026-05-23T11:14:12.049440629 [t1] exiting server
+pid:720 2026-05-23T11:14:12.274832141 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:720 2026-05-23T11:14:12.287531567 [t1] acceptTimeout=Some(30 minutes)
+pid:720 2026-05-23T11:14:12.295014483 [t1] server file locked
+pid:720 2026-05-23T11:14:12.2970114 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:720 2026-05-23T11:14:12.297305191 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:720 2026-05-23T11:14:12.297642064 [t1] releasing daemonLock
+pid:720 2026-05-23T11:14:12.298625923 [t1] daemonLock released
+pid:720 2026-05-23T11:14:12.298953525 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:720 2026-05-23T11:14:12.299372399 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:720 2026-05-23T11:14:12.29956108 [t1] exiting server
+pid:743 2026-05-23T11:14:12.533406547 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:743 2026-05-23T11:14:12.546877483 [t1] acceptTimeout=Some(30 minutes)
+pid:743 2026-05-23T11:14:12.555768285 [t1] server file locked
+pid:743 2026-05-23T11:14:12.558646167 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:743 2026-05-23T11:14:12.55926612 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:743 2026-05-23T11:14:12.559548631 [t1] releasing daemonLock
+pid:743 2026-05-23T11:14:12.560730053 [t1] daemonLock released
+pid:743 2026-05-23T11:14:12.561307991 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:743 2026-05-23T11:14:12.562043091 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:743 2026-05-23T11:14:12.562319153 [t1] exiting server
+pid:766 2026-05-23T11:14:12.801888723 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:766 2026-05-23T11:14:12.814618341 [t1] acceptTimeout=Some(30 minutes)
+pid:766 2026-05-23T11:14:12.822657483 [t1] server file locked
+pid:766 2026-05-23T11:14:12.824998145 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:766 2026-05-23T11:14:12.825603449 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:766 2026-05-23T11:14:12.82602652 [t1] releasing daemonLock
+pid:766 2026-05-23T11:14:12.827373126 [t1] daemonLock released
+pid:766 2026-05-23T11:14:12.827791923 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:766 2026-05-23T11:14:12.828597723 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:766 2026-05-23T11:14:12.828837234 [t1] exiting server
+pid:789 2026-05-23T11:14:13.05591548 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:789 2026-05-23T11:14:13.068877632 [t1] acceptTimeout=Some(30 minutes)
+pid:789 2026-05-23T11:14:13.076480771 [t1] server file locked
+pid:789 2026-05-23T11:14:13.078756386 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:789 2026-05-23T11:14:13.079324168 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:789 2026-05-23T11:14:13.07957155 [t1] releasing daemonLock
+pid:789 2026-05-23T11:14:13.0805828 [t1] daemonLock released
+pid:789 2026-05-23T11:14:13.080897055 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:789 2026-05-23T11:14:13.081400192 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:789 2026-05-23T11:14:13.081617679 [t1] exiting server
+pid:812 2026-05-23T11:14:13.310560312 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:812 2026-05-23T11:14:13.322758468 [t1] acceptTimeout=Some(30 minutes)
+pid:812 2026-05-23T11:14:13.32948118 [t1] server file locked
+pid:812 2026-05-23T11:14:13.332411807 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:812 2026-05-23T11:14:13.333112164 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:812 2026-05-23T11:14:13.333485637 [t1] releasing daemonLock
+pid:812 2026-05-23T11:14:13.334916031 [t1] daemonLock released
+pid:812 2026-05-23T11:14:13.335236045 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:812 2026-05-23T11:14:13.335851382 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:812 2026-05-23T11:14:13.336319706 [t1] exiting server
+pid:835 2026-05-23T11:14:13.557038591 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:835 2026-05-23T11:14:13.569165197 [t1] acceptTimeout=Some(30 minutes)
+pid:835 2026-05-23T11:14:13.576124814 [t1] server file locked
+pid:835 2026-05-23T11:14:13.578426909 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:835 2026-05-23T11:14:13.578732476 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:835 2026-05-23T11:14:13.579101074 [t1] releasing daemonLock
+pid:835 2026-05-23T11:14:13.579783939 [t1] daemonLock released
+pid:835 2026-05-23T11:14:13.579950236 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:835 2026-05-23T11:14:13.580292277 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:835 2026-05-23T11:14:13.580449705 [t1] exiting server
+pid:858 2026-05-23T11:14:13.786307724 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:858 2026-05-23T11:14:13.798802631 [t1] acceptTimeout=Some(30 minutes)
+pid:858 2026-05-23T11:14:13.806008299 [t1] server file locked
+pid:858 2026-05-23T11:14:13.808134726 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:858 2026-05-23T11:14:13.808437704 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:858 2026-05-23T11:14:13.808619982 [t1] releasing daemonLock
+pid:858 2026-05-23T11:14:13.809165565 [t1] daemonLock released
+pid:858 2026-05-23T11:14:13.809330203 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:858 2026-05-23T11:14:13.80969885 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:858 2026-05-23T11:14:13.809883754 [t1] exiting server
+pid:881 2026-05-23T11:14:14.032306661 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:881 2026-05-23T11:14:14.044618782 [t1] acceptTimeout=Some(30 minutes)
+pid:881 2026-05-23T11:14:14.051418931 [t1] server file locked
+pid:881 2026-05-23T11:14:14.053462792 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:881 2026-05-23T11:14:14.053818078 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:881 2026-05-23T11:14:14.054030525 [t1] releasing daemonLock
+pid:881 2026-05-23T11:14:14.05489885 [t1] daemonLock released
+pid:881 2026-05-23T11:14:14.055133372 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:881 2026-05-23T11:14:14.055537829 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:881 2026-05-23T11:14:14.055716493 [t1] exiting server
+pid:904 2026-05-23T11:14:14.317021473 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:904 2026-05-23T11:14:14.332685161 [t1] acceptTimeout=Some(30 minutes)
+pid:904 2026-05-23T11:14:14.343868778 [t1] server file locked
+pid:904 2026-05-23T11:14:14.347064773 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:904 2026-05-23T11:14:14.347510379 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:904 2026-05-23T11:14:14.347667814 [t1] releasing daemonLock
+pid:904 2026-05-23T11:14:14.348576067 [t1] daemonLock released
+pid:904 2026-05-23T11:14:14.348836711 [t1] server loop error: java.net.SocketException: Operation not permitted
+pid:904 2026-05-23T11:14:14.349290607 [t1] server loop stack trace: java.base/sun.nio.ch.Net.socket0(Native Method)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:556)
+java.base/sun.nio.ch.Net.serverSocket(Net.java:550)
+java.base/sun.nio.ch.NioSocketImpl.create(NioSocketImpl.java:464)
+java.base/java.net.ServerSocket.getImpl(ServerSocket.java:316)
+java.base/java.net.ServerSocket.bind(ServerSocket.java:395)
+java.base/java.net.ServerSocket.<init>(ServerSocket.java:283)
+mill.server.Server.runLocked(Server.scala:109)
+mill.server.Server.run$$anonfun$3(Server.scala:94)
+mill.server.Server$.tryLockBlock(Server.scala:447)
+mill.server.Server.run(Server.scala:93)
+mill.daemon.MillDaemonMain0$.main$$anonfun$1(MillDaemonMain0.scala:64)
+mill.daemon.MillDaemonMain0$.main$$anonfun$adapted$1(MillDaemonMain0.scala:68)
+mill.api.SystemStreamsUtils$.withTopLevelSystemStreamProxy(SystemStreamsUtils.scala:76)
+mill.daemon.MillDaemonMain0$.main(MillDaemonMain0.scala:68)
+mill.daemon.MillDaemonMain0.main(MillDaemonMain0.scala)
+mill.daemon.MillDaemonMain.main(MillDaemonMain.java:9)
+pid:904 2026-05-23T11:14:14.3496663 [t1] exiting server
+pid:928 2026-05-23T11:14:14.607185838 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:928 2026-05-23T11:14:14.620372331 [t1] acceptTimeout=Some(30 minutes)
+pid:928 2026-05-23T11:14:14.628504097 [t1] server file locked
+pid:928 2026-05-23T11:14:14.631186747 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:928 2026-05-23T11:14:14.631815576 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:928 2026-05-23T11:14:14.632085776 [t1] releasing daemonLock

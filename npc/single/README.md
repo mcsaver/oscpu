@@ -82,7 +82,7 @@ export NPC_HOME=/home/lyg/PA/ysyx-workbench/npc
 make -C /home/lyg/PA/ysyx-workbench/npc/single default_defconfig
 ```
 
-如果你想修改默认行为，比如 batch、trace、SDB、watchpoint、difftest、MTRACE/DTRACE 或默认最大周期数，可以执行：
+如果你想修改默认行为，比如 batch、wave trace、text trace、SDB、watchpoint、difftest 或默认最大周期数，可以执行：
 
 ```bash
 make -C /home/lyg/PA/ysyx-workbench/npc/single menuconfig
@@ -102,7 +102,7 @@ npc/single/include/generated/autoconf.h
 make -C /home/lyg/PA/ysyx-workbench/npc/single savedefconfig
 ```
 
-其中 `CONFIG_NPC_BATCH_MODE` 现在默认打开，等价于把 `-b` 作为默认启动方式，因此直接运行测试镜像时不会再先停在 `(npc)` 等你手动按 `c`；如果某次只是临时想进 monitor，可直接追加 `--no-batch`，不需要回去改配置重编。`CONFIG_NPC_DEFAULT_MAX_CYCLES` 用来设置默认超时周期数，并且现在支持把值设成 `0` 来关闭超时，适合 CoreMark 这类较大的测试。`CONFIG_NPC_HAS_VGA` 控制 guest 是否看到 `vgactl/framebuffer` 这组 MMIO；关闭后，AM 的 `GPU_CONFIG.present` 会回到 `false`，适合临时退回纯串口/键盘路径排查问题。`CONFIG_NPC_DIFFTEST` 决定是否把差分测试能力编进二进制，并且打开后启动时默认逐条驱动 NEMU reference 做提交级对比；如果某次只想裸跑，可追加 `--no-diff`，性能跑分则建议直接使用关闭该项的 `perf_defconfig`，这样 `difftest.cpp` 不参与 Verilator 构建，也不会在提交热路径检查 reference 状态。`CONFIG_NPC_ITRACE`、`CONFIG_NPC_MTRACE`、`CONFIG_NPC_DTRACE` 决定的是“二进制里有没有这项能力”；如果你希望像 NEMU 一样一启动就把这些软件 trace 写进日志，可以再打开 `CONFIG_NPC_ITRACE_BY_DEFAULT`、`CONFIG_NPC_MTRACE_BY_DEFAULT`、`CONFIG_NPC_DTRACE_BY_DEFAULT`，这样不必每次都手动传 `--itrace/--mtrace/--dtrace`。
+其中 `CONFIG_NPC_BATCH_MODE` 现在默认打开，等价于把 `-b` 作为默认启动方式，因此直接运行测试镜像时不会再先停在 `(npc)` 等你手动按 `c`；如果某次只是临时想进 monitor，可直接追加 `--no-batch`，不需要回去改配置重编。`CONFIG_NPC_DEFAULT_MAX_CYCLES` 用来设置默认超时周期数，并且现在支持把值设成 `0` 来关闭超时，适合 CoreMark 这类较大的测试。`CONFIG_NPC_HAS_VGA` 控制 guest 是否看到 `vgactl/framebuffer` 这组 MMIO；关闭后，AM 的 `GPU_CONFIG.present` 会回到 `false`，适合临时退回纯串口/键盘路径排查问题。`CONFIG_NPC_DIFFTEST` 决定是否把差分测试能力编进二进制，并且打开后启动时默认逐条驱动 NEMU reference 做提交级对比；如果某次只想裸跑，可追加 `--no-diff`，性能跑分则建议直接使用关闭该项的 `perf_defconfig`，这样 `difftest.cpp` 不参与 Verilator 构建，也不会在提交热路径检查 reference 状态。`CONFIG_NPC_TEXT_TRACE` 是软件文本 trace 的总构建开关，打开后 itrace/mtrace/dtrace 三类能力一起编进二进制；`CONFIG_NPC_ITRACE_BY_DEFAULT`、`CONFIG_NPC_MTRACE_BY_DEFAULT`、`CONFIG_NPC_DTRACE_BY_DEFAULT` 只控制启动后的默认运行状态，单次运行仍可用 `--itrace/--mtrace/--dtrace` 或 monitor 命令临时调整。
 
 另外，`CONFIG_NPC_PROGRESS_BY_DEFAULT` 用来控制启动后是否默认打印长跑进度；打开后，`CONFIG_NPC_DEFAULT_PROGRESS_INTERVAL` 再控制进度输出间隔，单位是“已提交指令数”。默认间隔为 `10000000`，表示每执行一千万条已提交指令打印一次 `[progress] ...`；如果你希望默认静默运行，可以直接关闭 `CONFIG_NPC_PROGRESS_BY_DEFAULT`，单次运行仍可用 `--progress` 临时打开。
 

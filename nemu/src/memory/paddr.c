@@ -18,7 +18,9 @@
 #include <memory/host.h>
 #include <memory/paddr.h>
 #include <memory/cache.h>
+#include <memory/soc.h>
 #include <device/mmio.h>
+#include <cpu/difftest.h>
 #include <isa.h>
 
 #ifdef CONFIG_MTRACE
@@ -62,6 +64,8 @@ void init_mem() {
 #endif
   IFDEF(CONFIG_MEM_RANDOM, memset(pmem, rand(), CONFIG_MSIZE));
   Log("physical memory area [" FMT_PADDR ", " FMT_PADDR "]", PMEM_LEFT, PMEM_RIGHT);
+  // SoC 仿真窗口是 paddr 层直连模型，初始化时清空其平台状态，避免 reference so 多轮复用串味。
+  IFDEF(CONFIG_SOC_SIM, soc_sim_reset());
   // cache 以 paddr 层作为后端，初始化只建立 tag/data 状态，不改变 PMEM/MMIO 的权威语义。
   IFDEF(CONFIG_CACHE, init_cache());
 }
@@ -79,6 +83,16 @@ word_t paddr_read(paddr_t addr, int len) {
 #endif
   return ret;
   }
+  if (MUXDEF(CONFIG_ISA_riscv, isa_riscv32_clint_in_range(addr), false)) {
+    // CLINT 是 RISC-V 平台固定 MMIO；在 paddr 层直连后，reference so 不需要走完整 device init。
+    difftest_skip_ref();
+    return isa_riscv32_clint_read(addr, len);
+  }
+  if (MUXDEF(CONFIG_SOC_SIM, soc_sim_in_range(addr), false)) {
+    // ysyxSoC 平台窗口不依赖 CONFIG_DEVICE；这样 NPC reference so 也能直接响应 SoC MMIO/片上存储。
+    difftest_skip_ref();
+    return soc_sim_read(addr, len);
+  }
   IFDEF(CONFIG_DEVICE, return mmio_read(addr, len));
   out_of_bound(addr);
   return 0;
@@ -93,6 +107,18 @@ void paddr_write(paddr_t addr, int len, word_t data) {
       log_write("[Mtrace] W addr=" FMT_PADDR " len=%d val " FMT_WORD " pc = " FMT_WORD "\n",
       addr, len, data, cpu.pc);
 #endif
+    return;
+  }
+  if (MUXDEF(CONFIG_ISA_riscv, isa_riscv32_clint_in_range(addr), false)) {
+    // CLINT 写会改变软件/定时器中断源；这里和读路径一起对齐 NPC 的 0x0200_0000 地址窗口。
+    difftest_skip_ref();
+    isa_riscv32_clint_write(addr, len, data);
+    return;
+  }
+  if (MUXDEF(CONFIG_SOC_SIM, soc_sim_in_range(addr), false)) {
+    // SoC 模型和 CLINT 一样在 paddr 层完成副作用，避免完整 device init 成为 difftest reference 前置条件。
+    difftest_skip_ref();
+    soc_sim_write(addr, len, data);
     return;
   }
   IFDEF(CONFIG_DEVICE, mmio_write(addr, len, data); return);

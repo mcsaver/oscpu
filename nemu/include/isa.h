@@ -54,6 +54,22 @@ vaddr_t isa_raise_intr_with_tval(word_t NO, vaddr_t epc, word_t tval);
 #define INTR_EMPTY ((word_t)-1)
 word_t isa_query_intr();
 
+#ifdef CONFIG_ISA_riscv
+// RISC-V 平台级 CLINT/CSR 钩子放在 ISA 层，保证 difftest reference so 不依赖完整设备初始化也能响应 0x0200_0000 MMIO。
+bool isa_riscv32_clint_in_range(paddr_t addr);
+word_t isa_riscv32_clint_read(paddr_t addr, int len);
+void isa_riscv32_clint_write(paddr_t addr, int len, word_t data);
+void isa_riscv32_post_exec(void);
+void isa_riscv32_reset(void);
+
+word_t isa_riscv32_mip_value(void);
+void isa_riscv32_write_mie(word_t value);
+void isa_riscv32_write_mip(word_t value);
+void isa_riscv32_write_mcycle_lo(word_t value);
+void isa_riscv32_write_mcycle_hi(word_t value);
+void isa_riscv32_raise_timer_intr(void);
+#endif
+
 // difftest
 bool isa_difftest_checkregs(CPU_state *ref_r, vaddr_t pc);
 void isa_difftest_attach();

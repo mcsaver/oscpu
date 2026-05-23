@@ -21,6 +21,7 @@ applyTo: "**"
     ├── abstract-machine.md
     ├── am-kernels.md
     ├── difftest.md
+    ├── ysyx-soc.md
     └── yosys-sta.md
 ```
 

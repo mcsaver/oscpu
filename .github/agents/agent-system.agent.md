@@ -25,6 +25,7 @@ tools: [read, edit, search, agent, todo]
 - 先判断需求应落在 **全局规则**、**按目录生效的 instructions**、**按需触发的 custom agent**、还是 **记忆/蓝图文档**，不要把所有东西都塞进一份全局指令
 - 复杂任务优先落成“图任务协议 + 专用工作流 agent + 模块专家”的三层结构，而不是继续堆叠超长提示词
 - 新增 agent 时，必须让 `description` 能清楚暴露触发词和使用场景
+- 新增工程模块后，同时检查 coordinator 的 `agents` 列表、蓝图 Agent 分层、memory-protocol 模块清单和对应 `memory/modules/*.md`
 - 修改范围保持最小闭环：同一轮只落一组能独立生效的配置变更
 
 ## 约束

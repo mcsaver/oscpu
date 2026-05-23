@@ -30,7 +30,7 @@
 ## 命名建议
 
 - 目录名使用 `YYYY-MM-DD-<task-slug>`
-- `<task-slug>` 采用小写短横线，例如 `rv32-reference-add-test`、`gpu-ioe-debug`
+- `<task-slug>` 采用小写短横线，例如 `rv32-reference-add-test`、`npc-sim-regression`、`soc-difftest-loop`、`gpu-ioe-debug`
 
 ## 模板入口
 

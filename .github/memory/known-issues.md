@@ -5,6 +5,14 @@
 ## 活跃问题
 <!-- 当前未解决的问题 -->
 
+### [28] NPC SoC 地址图预留使 Verilator host 仿真速度明显下降
+
+- **模块**: NPC / NpcSimTop / AXI crossbar / 性能
+- **现象**: `perf_defconfig` 下 CoreMark progress 的 `inst/s` 下降到约 1.31M；同一 500 万 cycles 短跑，当前工作树 `simulation frequency=1310861 inst/s`，干净 `HEAD` 基线为 `2176195 inst/s`。
+- **根因**: ysyxSoC 地址图接入后，`NpcSimTop` 的 `AXI_S_COUNT` 从 5 扩到 15，并为多个未实现窗口实例化 `AxiDefaultSlave`。`AxiLiteXbar` 当前按 `S_COUNT` 循环执行地址译码、读仲裁和写仲裁，slave 数增加会直接抬高每拍 Verilator `eval()` 成本；guest 侧 `cycles/commits/CPI/branch/cache` 统计保持一致，因此不是核心执行效率退化。
+- **修复**: 暂未修复；可选方向是为 perf/legacy 仿真保留精简 5-slot 地址图、把未实现窗口合并到单 default stub，或重写 crossbar 为层级/区间优先译码，避免每拍扫描所有预留窗口。
+- **教训**: 为未来 SoC 预留地址窗口也会改变仿真模型的热路径复杂度；功能兼容改动如果落在每拍组合逻辑上，需要同步做 host 仿真性能 A/B。
+
 ### [23] 本机缺少 `oss-cad-suite/bin/yosys`，RTL cache 接入后的综合/STA 尚未复跑
 
 - **模块**: NPC / Yosys-STA / 环境
