@@ -1,5 +1,5 @@
-`ifndef __NPC_SINGLE_DEFINE_V__
-`define __NPC_SINGLE_DEFINE_V__
+`ifndef __NPC_SOC_DEFINE_V__
+`define __NPC_SOC_DEFINE_V__
 
 // 用统一宏收口 ISA 编码、控制枚举和状态编码，后续补 CSR/异常时不用到处找 magic number。
 `define XLEN               32
@@ -172,35 +172,47 @@
 `endif
 
 `ifndef ICACHE_LINE_WORDS
-`define ICACHE_LINE_WORDS  16
+`define ICACHE_LINE_WORDS  8
+`endif
+`ifndef ICACHE_WAY_COUNT
+`define ICACHE_WAY_COUNT   2
+`endif
+`ifndef ICACHE_WAY_BITS
+`define ICACHE_WAY_BITS    1
 `endif
 `ifndef ICACHE_LINE_COUNT
 `define ICACHE_LINE_COUNT  64
 `endif
 `ifndef ICACHE_OFFSET_BITS
-`define ICACHE_OFFSET_BITS 6
+`define ICACHE_OFFSET_BITS 5
 `endif
 `ifndef ICACHE_INDEX_BITS
 `define ICACHE_INDEX_BITS  6
 `endif
 `ifndef ICACHE_WORD_BITS
-`define ICACHE_WORD_BITS   4
+`define ICACHE_WORD_BITS   3
 `endif
 
 `ifndef DCACHE_LINE_WORDS
-`define DCACHE_LINE_WORDS  16
+`define DCACHE_LINE_WORDS  8
+`endif
+`ifndef DCACHE_WAY_COUNT
+`define DCACHE_WAY_COUNT   2
+`endif
+`ifndef DCACHE_WAY_BITS
+`define DCACHE_WAY_BITS    1
 `endif
 `ifndef DCACHE_LINE_COUNT
 `define DCACHE_LINE_COUNT  64
 `endif
 `ifndef DCACHE_OFFSET_BITS
-`define DCACHE_OFFSET_BITS 6
+`define DCACHE_OFFSET_BITS 5
 `endif
 `ifndef DCACHE_INDEX_BITS
 `define DCACHE_INDEX_BITS  6
 `endif
 `ifndef DCACHE_WORD_BITS
-`define DCACHE_WORD_BITS   4
+`define DCACHE_WORD_BITS   3
 `endif
 
 `define OPCODE_LOAD        7'b0000011

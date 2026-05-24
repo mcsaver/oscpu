@@ -2,6 +2,7 @@
 
 module tb_dcache;
   `include "tb_common.svh"
+  localparam LINE_WORDS = `DCACHE_LINE_WORDS;
 
   reg clk;
   reg rst;
@@ -200,7 +201,7 @@ module tb_dcache;
     cpu_req_addr = 32'h8000_0008;
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
-    for (i = 0; i < 16; i = i + 1) begin
+    for (i = 0; i < LINE_WORDS; i = i + 1) begin
       send_fill_word(32'h8000_0000 + (i << 2), 32'h0000_2000 + i);
     end
     wait_rsp("miss fill read", 32'h0000_2002, 1'b0);
@@ -258,15 +259,11 @@ module tb_dcache;
     cpu_req_addr = 32'h8000_1008;
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
-    for (i = 0; i < 16; i = i + 1) begin
-      accept_write_word(32'h8000_0000 + (i << 2),
-                        (i == 2) ? 32'haaaa_2002 : (32'h0000_2000 + i),
-                        4'b1111);
-    end
-    for (i = 0; i < 16; i = i + 1) begin
+    for (i = 0; i < LINE_WORDS; i = i + 1) begin
       send_fill_word(32'h8000_1000 + (i << 2), 32'h0000_3000 + i);
     end
-    wait_rsp("dirty victim refill read", 32'h0000_3002, 1'b0);
+    wait_rsp("second way refill read", 32'h0000_3002, 1'b0);
+    cpu_read(32'h8000_0008, 32'haaaa_2002);
 
     cpu_req_valid = 1'b1;
     cpu_req_write = 1'b1;
@@ -274,16 +271,49 @@ module tb_dcache;
     cpu_req_wdata = 32'hfeed_0002;
     cpu_req_wstrb = 4'b1111;
     #1;
-    tb_check1("flush setup store hit", cpu_rsp_valid, 1'b1);
+    tb_check1("second way store hit", cpu_rsp_valid, 1'b1);
+    `TB_TICK(clk);
+    cpu_req_valid = 1'b0;
+    #1;
+
+    cpu_read(32'h8000_0008, 32'haaaa_2002);
+
+    cpu_req_valid = 1'b1;
+    cpu_req_write = 1'b0;
+    cpu_req_addr = 32'h8000_2008;
+    `TB_TICK(clk);
+    cpu_req_valid = 1'b0;
+    for (i = 0; i < LINE_WORDS; i = i + 1) begin
+      accept_write_word(32'h8000_1000 + (i << 2),
+                        (i == 2) ? 32'hfeed_0002 : (32'h0000_3000 + i),
+                        4'b1111);
+    end
+    for (i = 0; i < LINE_WORDS; i = i + 1) begin
+      send_fill_word(32'h8000_2000 + (i << 2), 32'h0000_4000 + i);
+    end
+    wait_rsp("third line evicts lru dirty way", 32'h0000_4002, 1'b0);
+
+    cpu_req_valid = 1'b1;
+    cpu_req_write = 1'b1;
+    cpu_req_addr = 32'h8000_2008;
+    cpu_req_wdata = 32'hcafe_0002;
+    cpu_req_wstrb = 4'b1111;
+    #1;
+    tb_check1("flush setup third way store hit", cpu_rsp_valid, 1'b1);
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
     #1;
 
     flush_i = 1'b1;
     tb_check1("flush starts not done", flush_done, 1'b0);
-    for (i = 0; i < 16; i = i + 1) begin
-      accept_write_word(32'h8000_1000 + (i << 2),
-                        (i == 2) ? 32'hfeed_0002 : (32'h0000_3000 + i),
+    for (i = 0; i < LINE_WORDS; i = i + 1) begin
+      accept_write_word(32'h8000_0000 + (i << 2),
+                        (i == 2) ? 32'haaaa_2002 : (32'h0000_2000 + i),
+                        4'b1111);
+    end
+    for (i = 0; i < LINE_WORDS; i = i + 1) begin
+      accept_write_word(32'h8000_2000 + (i << 2),
+                        (i == 2) ? 32'hcafe_0002 : (32'h0000_4000 + i),
                         4'b1111);
     end
     for (i = 0; !flush_done && (i < 128); i = i + 1) begin

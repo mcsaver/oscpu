@@ -193,6 +193,10 @@ $(YSYX_SOC_FULL_V):
 
 soc: $(SOC_BIN)
 
+soc-run: $(SOC_BIN)
+	@# ysyxSoCFull 入口可直接加载 MROM 镜像；IMG 为空时运行内建两条指令 smoke。
+	@$(SOC_BIN) $(IMG) $(RUN_ARGS)
+
 $(SOC_BIN): $(SOC_VSRCS) $(SOC_CSRCS)
 	@rm -rf $(SOC_OBJ_DIR)
 	$(VERILATOR) $(SOC_VERILATOR_FLAGS) \
@@ -277,7 +281,7 @@ prof-exec-build: default
 difftest-ref:
 	$(MAKE) -C $(NEMU_HOME) GUEST_ISA=riscv32 SHARE=1 ENGINE=interpreter
 
-.PHONY: default all lint soc soc-lint syn-check-env sta-check-env syn sta sim run clean gprof-build prof-exec-build difftest-ref
+.PHONY: default all lint soc soc-run soc-lint syn-check-env sta-check-env syn sta sim run clean gprof-build prof-exec-build difftest-ref
 
 include $(NPC_HOME)/scripts/config.mk
 

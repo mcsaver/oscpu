@@ -65,6 +65,8 @@ module AxiLiteToUart #(
     .DATA_W(DATA_W),
     .STRB_W(STRB_W)
   ) u_uart (
+    .clk(clk),
+    .rst(rst),
     .reg_read_valid_i(ar_fire_w),
     .reg_read_addr_i(s_axi_araddr_i[11:0]),
     .reg_read_data_o(uart_rdata_w),

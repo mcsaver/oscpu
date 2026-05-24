@@ -174,14 +174,20 @@
 `ifndef ICACHE_LINE_WORDS
 `define ICACHE_LINE_WORDS  16
 `endif
+`ifndef ICACHE_WAY_COUNT
+`define ICACHE_WAY_COUNT   2
+`endif
+`ifndef ICACHE_WAY_BITS
+`define ICACHE_WAY_BITS    1
+`endif
 `ifndef ICACHE_LINE_COUNT
-`define ICACHE_LINE_COUNT  64
+`define ICACHE_LINE_COUNT  32
 `endif
 `ifndef ICACHE_OFFSET_BITS
 `define ICACHE_OFFSET_BITS 6
 `endif
 `ifndef ICACHE_INDEX_BITS
-`define ICACHE_INDEX_BITS  6
+`define ICACHE_INDEX_BITS  5
 `endif
 `ifndef ICACHE_WORD_BITS
 `define ICACHE_WORD_BITS   4
@@ -190,14 +196,20 @@
 `ifndef DCACHE_LINE_WORDS
 `define DCACHE_LINE_WORDS  16
 `endif
+`ifndef DCACHE_WAY_COUNT
+`define DCACHE_WAY_COUNT   2
+`endif
+`ifndef DCACHE_WAY_BITS
+`define DCACHE_WAY_BITS    1
+`endif
 `ifndef DCACHE_LINE_COUNT
-`define DCACHE_LINE_COUNT  64
+`define DCACHE_LINE_COUNT  32
 `endif
 `ifndef DCACHE_OFFSET_BITS
 `define DCACHE_OFFSET_BITS 6
 `endif
 `ifndef DCACHE_INDEX_BITS
-`define DCACHE_INDEX_BITS  6
+`define DCACHE_INDEX_BITS  5
 `endif
 `ifndef DCACHE_WORD_BITS
 `define DCACHE_WORD_BITS   4

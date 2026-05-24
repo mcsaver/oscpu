@@ -16,8 +16,19 @@ module LSUDataPath (
   wire [7:0] shifted_byte_w = shifted_rdata_w[7:0];
   wire [15:0] shifted_half_w = shifted_rdata_w[15:0];
 
-  // 数据面只做地址对齐、store 数据移位和 load 提取扩展，不再决定访问是否合法。
-  assign mem_addr_o = eff_addr_i & {{(`XLEN-2){1'b1}}, 2'b00};
+  wire mmio_byte_addr_w =
+      ((eff_addr_i & `NPC_AXI_CLINT_MASK) == `NPC_AXI_CLINT_BASE) ||
+      ((eff_addr_i & `NPC_AXI_UART_MASK) == `NPC_AXI_UART_BASE) ||
+      ((eff_addr_i & `NPC_AXI_SPI_MASK) == `NPC_AXI_SPI_BASE) ||
+      ((eff_addr_i & `NPC_AXI_GPIO_MASK) == `NPC_AXI_GPIO_BASE) ||
+      ((eff_addr_i & `NPC_AXI_PS2_MASK) == `NPC_AXI_PS2_BASE) ||
+      ((eff_addr_i & `NPC_AXI_VGA_MASK) == `NPC_AXI_VGA_BASE) ||
+      ((eff_addr_i & `NPC_AXI_LEGACY_MMIO_MASK) == `NPC_AXI_LEGACY_MMIO_BASE);
+
+  // 内存窗口保持 word 对齐，让 load 数据提取继续由 byte_shift 完成；
+  // APB/MMIO 窗口保留真实 byte offset，供 16550 这类寄存器设备解码。
+  assign mem_addr_o = mmio_byte_addr_w ? eff_addr_i :
+                      (eff_addr_i & {{(`XLEN-2){1'b1}}, 2'b00});
   assign mem_wdata_o = store_data_i << byte_shift_i;
 
   always @(*) begin

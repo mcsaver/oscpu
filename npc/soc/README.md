@@ -19,7 +19,9 @@
 
 - `make -C npc/soc soc-lint`
 - `make -C npc/soc soc`
-- `./npc/soc/build/ysyxSoCFull`
+- `make -C npc/soc soc-run IMG=/path/to/image.bin RUN_ARGS='--max-cycles 10000000'`
+
+`IMG` 为空时，`soc-run` 会在 MROM 中放入内建 smoke 程序；传入 `riscv32-ysyxsoc` 的 AM `.bin` 后，ysyxSoCFull 会从 `0x20000000` 取指并通过 DPI 报告 GOOD/BAD TRAP。
 
 ## 目录结构
 

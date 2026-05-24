@@ -41,14 +41,18 @@ module DCache (
 );
 
   localparam LINE_WORDS = `DCACHE_LINE_WORDS;
-  localparam LINE_COUNT = `DCACHE_LINE_COUNT;
+  localparam SET_COUNT = `DCACHE_LINE_COUNT;
+  localparam WAY_COUNT = `DCACHE_WAY_COUNT;
   localparam OFFSET_BITS = `DCACHE_OFFSET_BITS;
   localparam INDEX_BITS = `DCACHE_INDEX_BITS;
   localparam WORD_BITS = `DCACHE_WORD_BITS;
+  localparam WAY_BITS = `DCACHE_WAY_BITS;
   localparam TAG_BITS = `XLEN - OFFSET_BITS - INDEX_BITS;
-  localparam DATA_WORDS = LINE_COUNT * LINE_WORDS;
+  localparam DATA_WORDS = SET_COUNT * LINE_WORDS;
   localparam DATA_INDEX_BITS = INDEX_BITS + WORD_BITS;
-  // flush 扫描步进随 index 宽度参数化，避免后续容量调整时留下硬编码常量。
+  localparam WAY_TAG_BITS = WAY_COUNT * TAG_BITS;
+  localparam WAY_DATA_BITS = WAY_COUNT * `XLEN;
+  // flush 扫描步进随 index/way 宽度参数化，避免后续容量调整时留下硬编码常量。
   localparam [INDEX_BITS-1:0] INDEX_STEP = {{(INDEX_BITS-1){1'b0}}, 1'b1};
   localparam [WORD_BITS-1:0] WORD_STEP = {{(WORD_BITS-1){1'b0}}, 1'b1};
 
@@ -77,16 +81,22 @@ module DCache (
   reg [`XLEN-1:0] fill_base_q;
   reg [INDEX_BITS-1:0] fill_index_q;
   reg [TAG_BITS-1:0] fill_tag_q;
+  reg [WAY_BITS-1:0] fill_way_q;
   reg [WORD_BITS-1:0] fill_word_q;
   reg [INDEX_BITS-1:0] victim_index_q;
   reg [TAG_BITS-1:0] victim_tag_q;
+  reg [WAY_BITS-1:0] victim_way_q;
   reg [WORD_BITS-1:0] wb_word_q;
   reg [INDEX_BITS-1:0] flush_index_q;
+  reg [WAY_BITS-1:0] flush_way_q;
   reg [WORD_BITS-1:0] flush_word_q;
   reg axi_aw_done_q;
   reg axi_w_done_q;
   reg [`XLEN-1:0] rsp_data_q;
   reg rsp_error_q;
+
+  // 2-way 伪 LRU：记录每个 set 下一次冲突时优先替换哪个 way。
+  reg [WAY_BITS-1:0] repl_q [0:SET_COUNT-1];
 
   function cacheable_word;
     input [`XLEN-1:0] addr;
@@ -138,6 +148,90 @@ module DCache (
     end
   endfunction
 
+  function [WAY_COUNT-1:0] way_mask;
+    input [WAY_BITS-1:0] way;
+    begin
+      way_mask = {{(WAY_COUNT-1){1'b0}}, 1'b1} << way;
+    end
+  endfunction
+
+  function [WAY_TAG_BITS-1:0] way_tag_mask;
+    input [WAY_BITS-1:0] way;
+    begin
+      way_tag_mask = {{(WAY_TAG_BITS-TAG_BITS){1'b0}}, {TAG_BITS{1'b1}}} << (way * TAG_BITS);
+    end
+  endfunction
+
+  function [TAG_BITS-1:0] way_tag;
+    input [WAY_TAG_BITS-1:0] tags;
+    input [WAY_BITS-1:0] way;
+    begin
+      way_tag = tags[way * TAG_BITS +: TAG_BITS];
+    end
+  endfunction
+
+  function [`XLEN-1:0] way_word;
+    input [WAY_DATA_BITS-1:0] words;
+    input [WAY_BITS-1:0] way;
+    begin
+      way_word = words[way * `XLEN +: `XLEN];
+    end
+  endfunction
+
+  function [WAY_COUNT-1:0] tag_hit_vec;
+    input [WAY_COUNT-1:0] valid;
+    input [WAY_TAG_BITS-1:0] tags;
+    input [TAG_BITS-1:0] tag;
+    integer w;
+    begin
+      tag_hit_vec = {WAY_COUNT{1'b0}};
+      for (w = 0; w < WAY_COUNT; w = w + 1) begin
+        tag_hit_vec[w] = valid[w] && (tags[w * TAG_BITS +: TAG_BITS] == tag);
+      end
+    end
+  endfunction
+
+  function [WAY_BITS-1:0] hit_way;
+    input [WAY_COUNT-1:0] hit_vec;
+    begin
+      hit_way = hit_vec[0] ? {WAY_BITS{1'b0}} : {{(WAY_BITS-1){1'b0}}, 1'b1};
+    end
+  endfunction
+
+  function [WAY_BITS-1:0] victim_way;
+    input [WAY_COUNT-1:0] valid;
+    input [WAY_BITS-1:0] repl;
+    begin
+      victim_way = !valid[0] ? {WAY_BITS{1'b0}} :
+                   !valid[1] ? {{(WAY_BITS-1){1'b0}}, 1'b1} :
+                   repl;
+    end
+  endfunction
+
+  function [WAY_TAG_BITS-1:0] tag_wr_data;
+    input [WAY_BITS-1:0] way;
+    input [TAG_BITS-1:0] tag;
+    begin
+      tag_wr_data = {{(WAY_TAG_BITS-TAG_BITS){1'b0}}, tag} << (way * TAG_BITS);
+    end
+  endfunction
+
+  function [WAY_DATA_BITS-1:0] way_word_data;
+    input [WAY_BITS-1:0] way;
+    input [`XLEN-1:0] data;
+    begin
+      way_word_data = {{(WAY_DATA_BITS-`XLEN){1'b0}}, data} << (way * `XLEN);
+    end
+  endfunction
+
+  function [WAY_DATA_BITS-1:0] way_word_mask;
+    input [WAY_BITS-1:0] way;
+    input [3:0] wstrb;
+    begin
+      way_word_mask = {{(WAY_DATA_BITS-`XLEN){1'b0}}, byte_mask32(wstrb)} << (way * `XLEN);
+    end
+  endfunction
+
   wire req_cacheable_w = cacheable_word(req_addr_q);
   wire [INDEX_BITS-1:0] req_index_w = line_index(req_addr_q);
   wire [TAG_BITS-1:0] req_tag_w = line_tag(req_addr_q);
@@ -167,13 +261,24 @@ module DCache (
       ((state_q == S_FLUSH_WB_AW) || (state_q == S_FLUSH_WB_B)) ? flush_data_index_w :
       lookup_data_index_w;
 
-  wire valid_rd_w;
-  wire dirty_rd_w;
-  wire [TAG_BITS-1:0] tag_rd_w;
-  wire [`XLEN-1:0] data_rd_w;
+  wire [WAY_COUNT-1:0] valid_rd_w;
+  wire [WAY_COUNT-1:0] dirty_rd_w;
+  wire [WAY_TAG_BITS-1:0] tag_rd_w;
+  wire [WAY_DATA_BITS-1:0] data_rd_w;
 
-  wire lookup_hit_w = valid_rd_w && (tag_rd_w == req_tag_w);
-  wire cur_req_lookup_hit_w = valid_rd_w && (tag_rd_w == cur_req_tag_w);
+  wire [WAY_COUNT-1:0] lookup_hit_vec_w = tag_hit_vec(valid_rd_w, tag_rd_w, req_tag_w);
+  wire [WAY_COUNT-1:0] cur_req_hit_vec_w = tag_hit_vec(valid_rd_w, tag_rd_w, cur_req_tag_w);
+  wire lookup_hit_w = |lookup_hit_vec_w;
+  wire cur_req_lookup_hit_w = |cur_req_hit_vec_w;
+  wire [WAY_BITS-1:0] lookup_way_w = hit_way(lookup_hit_vec_w);
+  wire [WAY_BITS-1:0] cur_req_way_w = hit_way(cur_req_hit_vec_w);
+  wire [WAY_BITS-1:0] victim_way_w = victim_way(valid_rd_w, repl_q[req_index_w]);
+  wire [TAG_BITS-1:0] victim_tag_w = way_tag(tag_rd_w, victim_way_w);
+  wire victim_dirty_w = dirty_rd_w[victim_way_w];
+  wire victim_valid_w = valid_rd_w[victim_way_w];
+
+  wire [`XLEN-1:0] lookup_data_w = way_word(data_rd_w, lookup_way_w);
+  wire [`XLEN-1:0] cur_lookup_data_w = way_word(data_rd_w, cur_req_way_w);
   wire cur_load_hit_w = idle_cpu_accept_w && cpu_req_valid_i && !cpu_req_write_i &&
                         cur_req_cacheable_w && cur_req_lookup_hit_w;
   wire cur_store_hit_w = idle_cpu_accept_w && cpu_req_valid_i && cpu_req_write_i &&
@@ -185,7 +290,13 @@ module DCache (
                             (req_wstrb_q != 4'b0000) && req_cacheable_w && lookup_hit_w;
   wire store_alloc_update_w = (state_q == S_STORE_ALLOC_UPDATE);
   wire store_update_w = cur_store_hit_w || store_lookup_hit_w || store_alloc_update_w;
+  wire [WAY_BITS-1:0] store_update_way_w = cur_store_hit_w ? cur_req_way_w :
+                                           store_alloc_update_w ? fill_way_q :
+                                           lookup_way_w;
 
+  wire [`XLEN-1:0] store_update_old_data_w = cur_store_hit_w ? cur_lookup_data_w :
+                                             store_alloc_update_w ? way_word(data_rd_w, fill_way_q) :
+                                             lookup_data_w;
   wire [`XLEN-1:0] store_update_wdata_w = cur_store_hit_w ? cpu_req_wdata_i : req_wdata_q;
   wire [3:0] store_update_wstrb_w = cur_store_hit_w ? cpu_req_wstrb_i : req_wstrb_q;
   wire [DATA_INDEX_BITS-1:0] store_update_index_w = cur_store_hit_w ?
@@ -193,7 +304,7 @@ module DCache (
                                                     req_data_index_w;
   wire [`XLEN-1:0] store_update_mask_w = byte_mask32(store_update_wstrb_w);
   wire [`XLEN-1:0] store_update_data_w =
-      (data_rd_w & ~store_update_mask_w) | (store_update_wdata_w & store_update_mask_w);
+      (store_update_old_data_w & ~store_update_mask_w) | (store_update_wdata_w & store_update_mask_w);
 
   wire [`XLEN-1:0] fill_req_addr_w =
       fill_base_q + {{(`XLEN-WORD_BITS-2){1'b0}}, fill_word_q, 2'b00};
@@ -202,9 +313,11 @@ module DCache (
   wire [`XLEN-1:0] wb_req_addr_w =
       wb_base_addr_w + {{(`XLEN-WORD_BITS-2){1'b0}}, wb_word_q, 2'b00};
   wire [`XLEN-1:0] flush_base_addr_w =
-      {tag_rd_w, flush_index_q, {OFFSET_BITS{1'b0}}};
+      {way_tag(tag_rd_w, flush_way_q), flush_index_q, {OFFSET_BITS{1'b0}}};
   wire [`XLEN-1:0] flush_req_addr_w =
       flush_base_addr_w + {{(`XLEN-WORD_BITS-2){1'b0}}, flush_word_q, 2'b00};
+  wire [`XLEN-1:0] wb_word_data_w = way_word(data_rd_w, victim_way_q);
+  wire [`XLEN-1:0] flush_word_data_w = way_word(data_rd_w, flush_way_q);
   wire fill_rsp_fire_w = (state_q == S_FILL_R) && axi_rvalid_i && axi_rready_o;
   wire fill_rsp_ok_w = fill_rsp_fire_w && (axi_rresp_i == 2'b00);
   wire fill_last_word_w = (fill_word_q == {WORD_BITS{1'b1}});
@@ -214,17 +327,23 @@ module DCache (
   wire line_wb_b_ok_w = line_wb_b_fire_w && (axi_bresp_i == 2'b00);
   wire wb_last_word_w = (wb_word_q == {WORD_BITS{1'b1}});
   wire flush_last_word_w = (flush_word_q == {WORD_BITS{1'b1}});
+  wire flush_last_way_w = (flush_way_q == {{(WAY_BITS-1){1'b0}}, 1'b1});
   wire flush_last_index_w = (flush_index_q == {INDEX_BITS{1'b1}});
   wire wb_done_line_w = (state_q == S_WB_B) && line_wb_b_ok_w && wb_last_word_w;
   wire flush_wb_done_line_w = (state_q == S_FLUSH_WB_B) &&
                               line_wb_b_ok_w && flush_last_word_w;
+  wire flush_dirty_line_w = valid_rd_w[flush_way_q] && dirty_rd_w[flush_way_q];
 
   wire data_wr_en_w = fill_rsp_ok_w || store_update_w;
   wire [DATA_INDEX_BITS-1:0] data_wr_addr_w = fill_rsp_ok_w ?
                                                data_index(fill_index_q, fill_word_q) :
                                                store_update_index_w;
-  wire [`XLEN-1:0] data_wr_data_w = fill_rsp_ok_w ? axi_rdata_i : store_update_data_w;
-  wire [`XLEN-1:0] data_wr_mask_w = fill_rsp_ok_w ? {`XLEN{1'b1}} : store_update_mask_w;
+  wire [WAY_DATA_BITS-1:0] data_wr_data_w = fill_rsp_ok_w ?
+                                            way_word_data(fill_way_q, axi_rdata_i) :
+                                            way_word_data(store_update_way_w, store_update_data_w);
+  wire [WAY_DATA_BITS-1:0] data_wr_mask_w = fill_rsp_ok_w ?
+                                            way_word_mask(fill_way_q, 4'b1111) :
+                                            way_word_mask(store_update_way_w, store_update_wstrb_w);
 
   wire valid_wr_en_w = fill_done_w;
   wire tag_wr_en_w = fill_done_w;
@@ -234,7 +353,11 @@ module DCache (
                                            (cur_store_hit_w ? cur_req_index_w : req_index_w) :
                                            (wb_done_line_w ? victim_index_q :
                                             (flush_wb_done_line_w ? flush_index_q : fill_index_q));
-  wire dirty_wr_data_w = store_update_w;
+  wire [WAY_BITS-1:0] dirty_wr_way_w = store_update_w ? store_update_way_w :
+                                       (wb_done_line_w ? victim_way_q :
+                                        (flush_wb_done_line_w ? flush_way_q : fill_way_q));
+  wire [WAY_COUNT-1:0] dirty_wr_data_w = store_update_w ? way_mask(store_update_way_w) :
+                                         {WAY_COUNT{1'b0}};
 
   wire axi_write_state_w = (state_q == S_WB_AW) ||
                            (state_q == S_UNCACHED_AW) ||
@@ -247,7 +370,7 @@ module DCache (
   wire wb_axi_write_fire_w = ((state_q == S_WB_AW) ||
                               (state_q == S_FLUSH_WB_AW)) && axi_write_done_w;
   wire combo_rsp_valid_w = cur_load_hit_w || cur_store_hit_w || cur_store_nop_w;
-  wire [`XLEN-1:0] combo_rsp_data_w = cur_load_hit_w ? data_rd_w : {`XLEN{1'b0}};
+  wire [`XLEN-1:0] combo_rsp_data_w = cur_load_hit_w ? cur_lookup_data_w : {`XLEN{1'b0}};
   wire combo_rsp_error_w = 1'b0;
 
   assign flush_done_o = (state_q == S_FLUSH_DONE);
@@ -265,16 +388,18 @@ module DCache (
                          (state_q == S_FLUSH_WB_AW) ? flush_req_addr_w :
                          wb_req_addr_w;
   assign axi_wvalid_o = axi_write_state_w && !axi_w_done_q;
-  assign axi_wdata_o = (state_q == S_UNCACHED_AW) ? req_wdata_q : data_rd_w;
+  assign axi_wdata_o = (state_q == S_UNCACHED_AW) ? req_wdata_q :
+                       (state_q == S_FLUSH_WB_AW) ? flush_word_data_w :
+                       wb_word_data_w;
   assign axi_wstrb_o = (state_q == S_UNCACHED_AW) ? req_wstrb_q : 4'b1111;
   assign axi_bready_o = (state_q == S_WB_B) ||
                         (state_q == S_UNCACHED_B) ||
                         (state_q == S_FLUSH_WB_B);
 
   Sram1Rw #(
-    .DATA_WIDTH(1),
+    .DATA_WIDTH(WAY_COUNT),
     .ADDR_WIDTH(INDEX_BITS),
-    .DEPTH(LINE_COUNT)
+    .DEPTH(SET_COUNT)
   ) u_valid_sram (
     .clk(clk),
     .clear_i(rst | invalidate_i | flush_done_o),
@@ -283,14 +408,14 @@ module DCache (
     .rd_data_o(valid_rd_w),
     .wr_en_i(valid_wr_en_w),
     .wr_addr_i(fill_index_q),
-    .wr_data_i(1'b1),
-    .wr_mask_i(1'b1)
+    .wr_data_i(way_mask(fill_way_q)),
+    .wr_mask_i(way_mask(fill_way_q))
   );
 
   Sram1Rw #(
-    .DATA_WIDTH(1),
+    .DATA_WIDTH(WAY_COUNT),
     .ADDR_WIDTH(INDEX_BITS),
-    .DEPTH(LINE_COUNT)
+    .DEPTH(SET_COUNT)
   ) u_dirty_sram (
     .clk(clk),
     .clear_i(rst | invalidate_i | flush_done_o),
@@ -300,13 +425,13 @@ module DCache (
     .wr_en_i(dirty_wr_en_w),
     .wr_addr_i(dirty_wr_addr_w),
     .wr_data_i(dirty_wr_data_w),
-    .wr_mask_i(1'b1)
+    .wr_mask_i(way_mask(dirty_wr_way_w))
   );
 
   Sram1Rw #(
-    .DATA_WIDTH(TAG_BITS),
+    .DATA_WIDTH(WAY_TAG_BITS),
     .ADDR_WIDTH(INDEX_BITS),
-    .DEPTH(LINE_COUNT)
+    .DEPTH(SET_COUNT)
   ) u_tag_sram (
     .clk(clk),
     .clear_i(rst),
@@ -315,12 +440,12 @@ module DCache (
     .rd_data_o(tag_rd_w),
     .wr_en_i(tag_wr_en_w),
     .wr_addr_i(fill_index_q),
-    .wr_data_i(fill_tag_q),
-    .wr_mask_i({TAG_BITS{1'b1}})
+    .wr_data_i(tag_wr_data(fill_way_q, fill_tag_q)),
+    .wr_mask_i(way_tag_mask(fill_way_q))
   );
 
   Sram1Rw #(
-    .DATA_WIDTH(`XLEN),
+    .DATA_WIDTH(WAY_DATA_BITS),
     .ADDR_WIDTH(DATA_INDEX_BITS),
     .DEPTH(DATA_WORDS)
   ) u_data_sram (
@@ -335,8 +460,12 @@ module DCache (
     .wr_mask_i(data_wr_mask_w)
   );
 
+  integer repl_i;
   always @(posedge clk) begin
     if (rst) begin
+      for (repl_i = 0; repl_i < SET_COUNT; repl_i = repl_i + 1) begin
+        repl_q[repl_i] <= {WAY_BITS{1'b0}};
+      end
       state_q <= S_IDLE;
       req_write_q <= 1'b0;
       req_addr_q <= {`XLEN{1'b0}};
@@ -345,11 +474,14 @@ module DCache (
       fill_base_q <= {`XLEN{1'b0}};
       fill_index_q <= {INDEX_BITS{1'b0}};
       fill_tag_q <= {TAG_BITS{1'b0}};
+      fill_way_q <= {WAY_BITS{1'b0}};
       fill_word_q <= {WORD_BITS{1'b0}};
       victim_index_q <= {INDEX_BITS{1'b0}};
       victim_tag_q <= {TAG_BITS{1'b0}};
+      victim_way_q <= {WAY_BITS{1'b0}};
       wb_word_q <= {WORD_BITS{1'b0}};
       flush_index_q <= {INDEX_BITS{1'b0}};
+      flush_way_q <= {WAY_BITS{1'b0}};
       flush_word_q <= {WORD_BITS{1'b0}};
       axi_aw_done_q <= 1'b0;
       axi_w_done_q <= 1'b0;
@@ -360,15 +492,24 @@ module DCache (
       fill_word_q <= {WORD_BITS{1'b0}};
       wb_word_q <= {WORD_BITS{1'b0}};
       flush_index_q <= {INDEX_BITS{1'b0}};
+      flush_way_q <= {WAY_BITS{1'b0}};
       flush_word_q <= {WORD_BITS{1'b0}};
       axi_aw_done_q <= 1'b0;
       axi_w_done_q <= 1'b0;
       rsp_error_q <= 1'b0;
     end else begin
+      if (combo_rsp_valid_w && cur_req_cacheable_w && cur_req_lookup_hit_w) begin
+        repl_q[cur_req_index_w] <= ~cur_req_way_w;
+      end
+      if (fill_done_w) begin
+        repl_q[fill_index_q] <= ~fill_way_q;
+      end
+
       case (state_q)
         S_IDLE: begin
           if (flush_i) begin
             flush_index_q <= {INDEX_BITS{1'b0}};
+            flush_way_q <= {WAY_BITS{1'b0}};
             flush_word_q <= {WORD_BITS{1'b0}};
             axi_aw_done_q <= 1'b0;
             axi_w_done_q <= 1'b0;
@@ -405,36 +546,42 @@ module DCache (
             end else if (lookup_hit_w) begin
               rsp_data_q <= {`XLEN{1'b0}};
               rsp_error_q <= 1'b0;
+              repl_q[req_index_w] <= ~lookup_way_w;
               state_q <= S_RESP;
             end else begin
               fill_base_q <= line_base(req_addr_q);
               fill_index_q <= req_index_w;
               fill_tag_q <= req_tag_w;
+              fill_way_q <= victim_way_w;
               fill_word_q <= {WORD_BITS{1'b0}};
               victim_index_q <= req_index_w;
-              victim_tag_q <= tag_rd_w;
+              victim_tag_q <= victim_tag_w;
+              victim_way_q <= victim_way_w;
               wb_word_q <= {WORD_BITS{1'b0}};
               axi_aw_done_q <= 1'b0;
               axi_w_done_q <= 1'b0;
-              state_q <= (valid_rd_w && dirty_rd_w) ? S_WB_AW : S_FILL_AR;
+              state_q <= (victim_valid_w && victim_dirty_w) ? S_WB_AW : S_FILL_AR;
             end
           end else if (!req_cacheable_w) begin
             state_q <= S_UNCACHED_AR;
           end else if (lookup_hit_w) begin
-            rsp_data_q <= data_rd_w;
+            rsp_data_q <= lookup_data_w;
             rsp_error_q <= 1'b0;
+            repl_q[req_index_w] <= ~lookup_way_w;
             state_q <= S_RESP;
           end else begin
             fill_base_q <= line_base(req_addr_q);
             fill_index_q <= req_index_w;
             fill_tag_q <= req_tag_w;
+            fill_way_q <= victim_way_w;
             fill_word_q <= {WORD_BITS{1'b0}};
             victim_index_q <= req_index_w;
-            victim_tag_q <= tag_rd_w;
+            victim_tag_q <= victim_tag_w;
+            victim_way_q <= victim_way_w;
             wb_word_q <= {WORD_BITS{1'b0}};
             axi_aw_done_q <= 1'b0;
             axi_w_done_q <= 1'b0;
-            state_q <= (valid_rd_w && dirty_rd_w) ? S_WB_AW : S_FILL_AR;
+            state_q <= (victim_valid_w && victim_dirty_w) ? S_WB_AW : S_FILL_AR;
           end
         end
 
@@ -526,14 +673,17 @@ module DCache (
 
         S_FLUSH_SCAN: begin
           flush_word_q <= {WORD_BITS{1'b0}};
-          if (valid_rd_w && dirty_rd_w) begin
+          if (flush_dirty_line_w) begin
             axi_aw_done_q <= 1'b0;
             axi_w_done_q <= 1'b0;
             state_q <= S_FLUSH_WB_AW;
-          end else if (flush_last_index_w) begin
+          end else if (flush_last_way_w && flush_last_index_w) begin
             state_q <= S_FLUSH_DONE;
-          end else begin
+          end else if (flush_last_way_w) begin
+            flush_way_q <= {WAY_BITS{1'b0}};
             flush_index_q <= flush_index_q + INDEX_STEP;
+          end else begin
+            flush_way_q <= flush_way_q + {{(WAY_BITS-1){1'b0}}, 1'b1};
           end
         end
 
@@ -553,10 +703,14 @@ module DCache (
               state_q <= S_FLUSH_DONE;
             end else if (flush_last_word_w) begin
               flush_word_q <= {WORD_BITS{1'b0}};
-              if (flush_last_index_w) begin
+              if (flush_last_way_w && flush_last_index_w) begin
                 state_q <= S_FLUSH_DONE;
-              end else begin
+              end else if (flush_last_way_w) begin
+                flush_way_q <= {WAY_BITS{1'b0}};
                 flush_index_q <= flush_index_q + INDEX_STEP;
+                state_q <= S_FLUSH_SCAN;
+              end else begin
+                flush_way_q <= flush_way_q + {{(WAY_BITS-1){1'b0}}, 1'b1};
                 state_q <= S_FLUSH_SCAN;
               end
             end else begin
@@ -584,5 +738,3 @@ module DCache (
   end
 
 endmodule
-
-/* verilator lint_on UNUSEDSIGNAL */

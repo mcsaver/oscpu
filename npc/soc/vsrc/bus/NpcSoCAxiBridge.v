@@ -82,6 +82,21 @@ module NpcSoCAxiBridge (
   wire pick_valid_w = pick_lsu_w || pick_ifu_w;
   wire pick_owner_w = pick_lsu_w ? RD_OWNER_LSU : RD_OWNER_IFU;
   wire [`XLEN-1:0] pick_addr_w = pick_lsu_w ? lsu_axi_araddr_i : ifu_axi_araddr_i;
+  wire [`XLEN-1:0] araddr_sel_w = (rd_state_q == RD_IDLE) ? pick_addr_w : rd_addr_q;
+  wire ar_owner_lsu_sel_w = (rd_state_q == RD_IDLE) ?
+                            (pick_owner_w == RD_OWNER_LSU) :
+                            rd_owner_lsu_w;
+  wire ar_uart_w = (araddr_sel_w & `NPC_AXI_UART_MASK) == `NPC_AXI_UART_BASE;
+  wire aw_uart_w = (lsu_axi_awaddr_i & `NPC_AXI_UART_MASK) == `NPC_AXI_UART_BASE;
+  wire aw_byte_w = (lsu_axi_wstrb_i == 4'b0001) ||
+                   (lsu_axi_wstrb_i == 4'b0010) ||
+                   (lsu_axi_wstrb_i == 4'b0100) ||
+                   (lsu_axi_wstrb_i == 4'b1000);
+  wire aw_half_w = (lsu_axi_wstrb_i == 4'b0011) ||
+                   (lsu_axi_wstrb_i == 4'b0110) ||
+                   (lsu_axi_wstrb_i == 4'b1100);
+  wire [2:0] awsize_w = aw_byte_w ? 3'b000 :
+                        (aw_half_w ? 3'b001 : 3'b010);
 
   wire rd_ar_cancel_w = (rd_state_q == RD_AR) &&
                         (rd_owner_q == RD_OWNER_IFU) &&
@@ -95,10 +110,10 @@ module NpcSoCAxiBridge (
 
   assign io_master_arvalid = ((rd_state_q == RD_IDLE) && pick_valid_w) ||
                              ((rd_state_q == RD_AR) && !rd_ar_cancel_w);
-  assign io_master_araddr = (rd_state_q == RD_IDLE) ? pick_addr_w : rd_addr_q;
+  assign io_master_araddr = araddr_sel_w;
   assign io_master_arid = 4'h0;
   assign io_master_arlen = 8'h00;
-  assign io_master_arsize = 3'b010;
+  assign io_master_arsize = (ar_owner_lsu_sel_w && ar_uart_w) ? 3'b000 : 3'b010;
   assign io_master_arburst = 2'b01;
 
   assign ifu_axi_arready_o = ((rd_state_q == RD_IDLE) &&
@@ -129,7 +144,7 @@ module NpcSoCAxiBridge (
   assign io_master_awaddr = lsu_axi_awaddr_i;
   assign io_master_awid = 4'h0;
   assign io_master_awlen = 8'h00;
-  assign io_master_awsize = 3'b010;
+  assign io_master_awsize = aw_uart_w ? awsize_w : 3'b010;
   assign io_master_awburst = 2'b01;
 
   assign io_master_wvalid = lsu_axi_wvalid_i;

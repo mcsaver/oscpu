@@ -1,5 +1,19 @@
 `include "define.v"
 
+`ifndef SYNTHESIS
+import "DPI-C" function void npc_soc_exit_event(
+  input int unsigned is_ebreak,
+  input int unsigned is_ecall,
+  input int unsigned code,
+  input int unsigned pc
+);
+import "DPI-C" function void npc_soc_commit_event(
+  input int unsigned pc,
+  input int unsigned inst,
+  input int unsigned state
+);
+`endif
+
 /* verilator lint_off UNUSEDSIGNAL */
 
 // ysyxSoC 规范顶层：端口命名、方向和位宽对齐 spec/cpu-interface.md。
@@ -116,6 +130,9 @@ module ysyx_26010035 (
   wire [`XLEN-1:0] debug_pc_w;
   wire [`CORE_STATE_W-1:0] debug_state_w;
   wire [`XLEN * `REG_NUM - 1:0] debug_gprs_w;
+`ifndef SYNTHESIS
+  reg soc_exit_reported_q;
+`endif
 
   NpcCore u_core (
     .clk(clock),
@@ -248,12 +265,39 @@ module ysyx_26010035 (
       io_slave_arburst, io_slave_rready
   };
   wire unused_debug_w = |{
-      commit_valid_w, commit_pc_w, commit_inst_w, commit_next_pc_w,
-      commit_rd_en_w, commit_rd_addr_w, commit_rd_data_w,
+      commit_next_pc_w, commit_rd_en_w, commit_rd_addr_w, commit_rd_data_w,
       trap_valid_w, trap_cause_w, trap_pc_w, trap_tval_w,
-      exit_valid_w, exit_is_ecall_w, exit_is_ebreak_w, exit_code_w,
-      halted_w, debug_pc_w, debug_state_w, debug_gprs_w
+      halted_w, debug_pc_w, debug_gprs_w
   };
+
+`ifndef SYNTHESIS
+  always @(posedge clock) begin
+    if (reset) begin
+      soc_exit_reported_q <= 1'b0;
+    end else begin
+      if (commit_valid_w) begin
+        npc_soc_commit_event(
+          commit_pc_w,
+          commit_inst_w,
+          {{(32-`CORE_STATE_W){1'b0}}, debug_state_w}
+        );
+      end
+
+      if (exit_valid_w && !soc_exit_reported_q) begin
+        // ysyxSoCFull 顶层没有 NPC monitor；用 DPI 只在仿真中汇报 AM 的 ebreak 退出协议。
+        soc_exit_reported_q <= 1'b1;
+        npc_soc_exit_event(
+          exit_is_ebreak_w ? 32'd1 : 32'd0,
+          exit_is_ecall_w ? 32'd1 : 32'd0,
+          exit_code_w,
+          debug_pc_w
+        );
+      end
+    end
+  end
+`else
+  wire unused_soc_exit_w = |{exit_valid_w, exit_is_ecall_w, exit_is_ebreak_w, exit_code_w};
+`endif
 
 endmodule
 

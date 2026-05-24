@@ -2,6 +2,7 @@
 
 module tb_icache;
   `include "tb_common.svh"
+  localparam LINE_WORDS = `ICACHE_LINE_WORDS;
 
   reg clk;
   reg rst;
@@ -125,7 +126,7 @@ module tb_icache;
     cpu_req_valid = 1'b1;
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
-    for (i = 0; i < 16; i = i + 1) begin
+    for (i = 0; i < LINE_WORDS; i = i + 1) begin
       send_mem_word(32'h8000_0000 + (i << 2), 32'h0000_1000 + i);
     end
     tb_check32("filled sram word1", dut.u_data_sram.mem_q[0][32 +: 32], 32'h0000_1001);
@@ -154,6 +155,24 @@ module tb_icache;
     `TB_TICK(clk);
     #1;
     tb_check1("hit backpressure releases", cpu_rsp_valid, 1'b0);
+
+    cpu_req_addr = 32'h8000_1004;
+    cpu_req_valid = 1'b1;
+    `TB_TICK(clk);
+    cpu_req_valid = 1'b0;
+    for (i = 0; i < LINE_WORDS; i = i + 1) begin
+      send_mem_word(32'h8000_1000 + (i << 2), 32'h0000_3000 + i);
+    end
+    wait_cpu_rsp("second way filled response", 32'h0000_3001, 1'b0, 1'b0);
+
+    cpu_req_addr = 32'h8000_0004;
+    cpu_req_valid = 1'b1;
+    #1;
+    tb_check1("first way still hits", cpu_rsp_valid, 1'b1);
+    tb_check32("first way still data", cpu_rsp_data, 32'h0000_1001);
+    `TB_TICK(clk);
+    cpu_req_valid = 1'b0;
+    #1;
 
     cpu_req_addr = 32'h9000_0000;
     cpu_req_valid = 1'b1;
