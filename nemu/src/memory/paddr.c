@@ -89,8 +89,9 @@ word_t paddr_read(paddr_t addr, int len) {
     return isa_riscv32_clint_read(addr, len);
   }
   if (MUXDEF(CONFIG_SOC_SIM, soc_sim_in_range(addr), false)) {
-    // ysyxSoC 平台窗口不依赖 CONFIG_DEVICE；这样 NPC reference so 也能直接响应 SoC MMIO/片上存储。
-    difftest_skip_ref();
+    // ysyxSoC 平台窗口不依赖 CONFIG_DEVICE；MROM/SRAM/SDRAM 是可比较内存，
+    // 只有 UART/占位设备这类 MMIO 副作用需要跳过 reference 步进。
+    if (soc_sim_should_skip_ref(addr)) difftest_skip_ref();
     return soc_sim_read(addr, len);
   }
   IFDEF(CONFIG_DEVICE, return mmio_read(addr, len));
@@ -116,8 +117,8 @@ void paddr_write(paddr_t addr, int len, word_t data) {
     return;
   }
   if (MUXDEF(CONFIG_SOC_SIM, soc_sim_in_range(addr), false)) {
-    // SoC 模型和 CLINT 一样在 paddr 层完成副作用，避免完整 device init 成为 difftest reference 前置条件。
-    difftest_skip_ref();
+    // SoC 模型在 paddr 层完成副作用；片上存储保持指令级比较，MMIO 才跳过。
+    if (soc_sim_should_skip_ref(addr)) difftest_skip_ref();
     soc_sim_write(addr, len, data);
     return;
   }

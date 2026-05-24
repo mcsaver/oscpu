@@ -6,9 +6,9 @@
 ***************************************************************************************/
 
 #include <memory/soc.h>
+#include <difftest-def.h>
 
 #ifdef CONFIG_SOC_SIM
-#include <difftest-def.h>
 #include <utils.h>
 
 #define SOC_SRAM_BASE   ((paddr_t)0x0f000000u)
@@ -36,6 +36,7 @@ typedef struct {
   size_t size;
   uint8_t *data;
   bool readonly;
+  bool skip_ref;
 } SocMemRegion;
 
 static uint8_t *soc_sram = NULL;
@@ -49,13 +50,13 @@ static uint8_t *soc_sdram = NULL;
 static uint8_t soc_uart_regs[8];
 
 static SocMemRegion soc_regions[] = {
-  { "sram",  SOC_SRAM_BASE,  SOC_SRAM_SIZE,  NULL, false },
-  { "spi",   SOC_SPI_BASE,   SOC_SPI_SIZE,   NULL, false },
-  { "gpio",  SOC_GPIO_BASE,  SOC_GPIO_SIZE,  NULL, false },
-  { "ps2",   SOC_PS2_BASE,   SOC_PS2_SIZE,   NULL, false },
-  { "mrom",  SOC_MROM_BASE,  SOC_MROM_SIZE,  NULL, true  },
-  { "vga",   SOC_VGA_BASE,   SOC_VGA_SIZE,   NULL, false },
-  { "sdram", SOC_SDRAM_BASE, SOC_SDRAM_SIZE, NULL, false },
+  { "sram",  SOC_SRAM_BASE,  SOC_SRAM_SIZE,  NULL, false, false },
+  { "spi",   SOC_SPI_BASE,   SOC_SPI_SIZE,   NULL, false, true  },
+  { "gpio",  SOC_GPIO_BASE,  SOC_GPIO_SIZE,  NULL, false, true  },
+  { "ps2",   SOC_PS2_BASE,   SOC_PS2_SIZE,   NULL, false, true  },
+  { "mrom",  SOC_MROM_BASE,  SOC_MROM_SIZE,  NULL, true,  false },
+  { "vga",   SOC_VGA_BASE,   SOC_VGA_SIZE,   NULL, false, true  },
+  { "sdram", SOC_SDRAM_BASE, SOC_SDRAM_SIZE, NULL, false, false },
 };
 
 static bool range_hit(paddr_t base, size_t size, paddr_t addr, int len) {
@@ -144,10 +145,17 @@ static bool flash_in_range(paddr_t addr, int len) {
   return range_hit(SOC_FLASH_BASE, SOC_FLASH_SIZE, addr, len);
 }
 
-bool soc_sim_in_range(paddr_t addr) {
+__EXPORT bool soc_sim_in_range(paddr_t addr) {
   if (range_hit(SOC_UART_BASE, SOC_UART_SIZE, addr, 1)) return true;
   if (flash_in_range(addr, 1)) return true;
   return find_region(addr, 1) != NULL;
+}
+
+bool soc_sim_should_skip_ref(paddr_t addr) {
+  if (range_hit(SOC_UART_BASE, SOC_UART_SIZE, addr, 1)) return true;
+  if (flash_in_range(addr, 1)) return true;
+  SocMemRegion *region = find_region(addr, 1);
+  return region != NULL && region->skip_ref;
 }
 
 word_t soc_sim_read(paddr_t addr, int len) {
@@ -221,7 +229,12 @@ bool soc_sim_memcpy(paddr_t addr, void *buf, size_t n, bool direction) {
 
 #else
 
-bool soc_sim_in_range(paddr_t addr) {
+__EXPORT bool soc_sim_in_range(paddr_t addr) {
+  (void)addr;
+  return false;
+}
+
+bool soc_sim_should_skip_ref(paddr_t addr) {
   (void)addr;
   return false;
 }

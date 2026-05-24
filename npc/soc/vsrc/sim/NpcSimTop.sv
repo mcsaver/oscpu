@@ -112,11 +112,9 @@ module NpcSimTop (
   endfunction
 
   localparam logic [AXI_S_COUNT-1:0] AXI_S_STUB_MASK =
-      axi_slave_bit(AXI_S_SRAM) |
       axi_slave_bit(AXI_S_SPI) |
       axi_slave_bit(AXI_S_GPIO) |
       axi_slave_bit(AXI_S_PS2) |
-      axi_slave_bit(AXI_S_MROM) |
       axi_slave_bit(AXI_S_VGA) |
       axi_slave_bit(AXI_S_FLASH) |
       axi_slave_bit(AXI_S_CHIPLINK_MMIO) |
@@ -373,6 +371,52 @@ module NpcSimTop (
   wire unused_clint_mtime_w = |clint_mtime_w;
   // 仿真统计需要观察 CLINT 内部计时器；层次化引用避免把调试口并入可综合 core ABI。
   assign debug_clint_mtime_o = u_clint_axi.mtime_q;
+
+  AxiDpiSlave u_sram_slave (
+    .clk(clk),
+    .rst(rst),
+    .s_axi_arvalid_i(bus_axi_arvalid_w[AXI_S_SRAM]),
+    .s_axi_arready_o(bus_axi_arready_w[AXI_S_SRAM]),
+    .s_axi_araddr_i(bus_axi_araddr_w[AXI_S_SRAM*`XLEN +: `XLEN]),
+    .s_axi_aruser_i(bus_axi_aruser_w[AXI_S_SRAM]),
+    .s_axi_rvalid_o(bus_axi_rvalid_w[AXI_S_SRAM]),
+    .s_axi_rready_i(bus_axi_rready_w[AXI_S_SRAM]),
+    .s_axi_rdata_o(bus_axi_rdata_w[AXI_S_SRAM*`XLEN +: `XLEN]),
+    .s_axi_rresp_o(bus_axi_rresp_w[AXI_S_SRAM*2 +: 2]),
+    .s_axi_awvalid_i(bus_axi_awvalid_w[AXI_S_SRAM]),
+    .s_axi_awready_o(bus_axi_awready_w[AXI_S_SRAM]),
+    .s_axi_awaddr_i(bus_axi_awaddr_w[AXI_S_SRAM*`XLEN +: `XLEN]),
+    .s_axi_wvalid_i(bus_axi_wvalid_w[AXI_S_SRAM]),
+    .s_axi_wready_o(bus_axi_wready_w[AXI_S_SRAM]),
+    .s_axi_wdata_i(bus_axi_wdata_w[AXI_S_SRAM*`XLEN +: `XLEN]),
+    .s_axi_wstrb_i(bus_axi_wstrb_w[AXI_S_SRAM*4 +: 4]),
+    .s_axi_bvalid_o(bus_axi_bvalid_w[AXI_S_SRAM]),
+    .s_axi_bready_i(bus_axi_bready_w[AXI_S_SRAM]),
+    .s_axi_bresp_o(bus_axi_bresp_w[AXI_S_SRAM*2 +: 2])
+  );
+
+  AxiDpiSlave u_mrom_slave (
+    .clk(clk),
+    .rst(rst),
+    .s_axi_arvalid_i(bus_axi_arvalid_w[AXI_S_MROM]),
+    .s_axi_arready_o(bus_axi_arready_w[AXI_S_MROM]),
+    .s_axi_araddr_i(bus_axi_araddr_w[AXI_S_MROM*`XLEN +: `XLEN]),
+    .s_axi_aruser_i(bus_axi_aruser_w[AXI_S_MROM]),
+    .s_axi_rvalid_o(bus_axi_rvalid_w[AXI_S_MROM]),
+    .s_axi_rready_i(bus_axi_rready_w[AXI_S_MROM]),
+    .s_axi_rdata_o(bus_axi_rdata_w[AXI_S_MROM*`XLEN +: `XLEN]),
+    .s_axi_rresp_o(bus_axi_rresp_w[AXI_S_MROM*2 +: 2]),
+    .s_axi_awvalid_i(bus_axi_awvalid_w[AXI_S_MROM]),
+    .s_axi_awready_o(bus_axi_awready_w[AXI_S_MROM]),
+    .s_axi_awaddr_i(bus_axi_awaddr_w[AXI_S_MROM*`XLEN +: `XLEN]),
+    .s_axi_wvalid_i(bus_axi_wvalid_w[AXI_S_MROM]),
+    .s_axi_wready_o(bus_axi_wready_w[AXI_S_MROM]),
+    .s_axi_wdata_i(bus_axi_wdata_w[AXI_S_MROM*`XLEN +: `XLEN]),
+    .s_axi_wstrb_i(bus_axi_wstrb_w[AXI_S_MROM*4 +: 4]),
+    .s_axi_bvalid_o(bus_axi_bvalid_w[AXI_S_MROM]),
+    .s_axi_bready_i(bus_axi_bready_w[AXI_S_MROM]),
+    .s_axi_bresp_o(bus_axi_bresp_w[AXI_S_MROM*2 +: 2])
+  );
 
   AxiDpiSlave u_psram_slave (
     .clk(clk),

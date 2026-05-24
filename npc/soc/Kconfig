@@ -115,6 +115,15 @@ config NPC_DIFFTEST
     performance configs to omit the reference loader and commit hot-path
     difftest checks entirely.
 
+config NPC_SOC_DIFFTEST
+  bool "Sync SoC local memories to the DiffTest reference"
+  depends on NPC_DIFFTEST
+  default n
+  help
+    Copy SoC-local memories such as MROM and SRAM into the reference during
+    DiffTest initialization. Enable this only when the NEMU reference is built
+    with CONFIG_SOC_SIM=y, for example through riscv32-soc_defconfig.
+
 config NPC_SDB
   bool "Enable monitor debugger"
   default y

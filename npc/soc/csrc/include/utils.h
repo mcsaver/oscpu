@@ -59,6 +59,9 @@ extern "C" {
 #ifndef CONFIG_NPC_DIFFTEST
 #define CONFIG_NPC_DIFFTEST 0
 #endif
+#ifndef CONFIG_NPC_SOC_DIFFTEST
+#define CONFIG_NPC_SOC_DIFFTEST 0
+#endif
 #ifndef CONFIG_NPC_LOG_FILE
 #define CONFIG_NPC_LOG_FILE 0
 #endif
@@ -76,7 +79,11 @@ extern "C" {
 #endif
 
 /* ---- 地址常量 ---- */
-#define NPC_RESET_PC            0x80000000u
+#define NPC_RESET_PC            0x20000000u
+#define NPC_SRAM_BASE           0x0f000000u
+#define NPC_SRAM_SIZE           (8ull * 1024ull)
+#define NPC_MROM_BASE           0x20000000u
+#define NPC_MROM_SIZE           (4ull * 1024ull)
 #define NPC_PMEM_BASE           0x80000000u
 #define NPC_PMEM_SIZE           (128ull * 1024ull * 1024ull)
 #define NPC_DEVICE_BASE         0xa0000000u

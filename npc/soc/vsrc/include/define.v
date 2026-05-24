@@ -13,7 +13,7 @@
 
 // 可配置结构参数统一放在本文件，便于后续由外部软件生成或覆盖这组宏。
 `ifndef RESET_PC
-`define RESET_PC           32'h8000_0000
+`define RESET_PC           32'h2000_0000
 `endif
 `ifndef PC_STEP
 `define PC_STEP            32'd4
@@ -37,7 +37,7 @@
 `define NPC_AXI_SRAM_BASE  32'h0f00_0000
 `endif
 `ifndef NPC_AXI_SRAM_MASK
-`define NPC_AXI_SRAM_MASK  32'hff00_0000
+`define NPC_AXI_SRAM_MASK  32'hffff_e000
 `endif
 `ifndef NPC_AXI_UART_BASE
 `define NPC_AXI_UART_BASE  32'h1000_0000

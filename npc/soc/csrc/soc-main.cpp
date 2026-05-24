@@ -1,5 +1,4 @@
 // ysyxSoCFull 的最小 Verilator 入口，只用于确认 SoC 顶层和 NPC CPU 包装能完成链接/复位。
-#include <cassert>
 #include <cstdint>
 
 #include <verilated.h>
@@ -7,14 +6,16 @@
 
 extern "C" void flash_read(int32_t addr, int32_t *data) {
   (void)addr;
-  (void)data;
-  assert(0);
+  if (data) *data = 0;
 }
 
 extern "C" void mrom_read(int32_t raddr, int32_t *rdata) {
-  (void)raddr;
-  (void)rdata;
-  assert(0);
+  if (!rdata) return;
+  switch ((uint32_t)raddr - 0x20000000u) {
+    case 0x0: *rdata = 0x00000513u; break; // li a0, 0
+    case 0x4: *rdata = 0x00100073u; break; // ebreak
+    default:  *rdata = 0; break;
+  }
 }
 
 static void init_inputs(VysyxSoCFull &top) {

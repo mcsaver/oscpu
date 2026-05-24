@@ -1,0 +1,82 @@
+#include <am.h>
+#include <klib-macros.h>
+
+#include "ysyxsoc.h"
+
+void __am_timer_init();
+void __am_gpu_init();
+
+void __am_uart_tx(AM_UART_TX_T *);
+void __am_uart_rx(AM_UART_RX_T *);
+void __am_timer_rtc(AM_TIMER_RTC_T *);
+void __am_timer_uptime(AM_TIMER_UPTIME_T *);
+void __am_input_keybrd(AM_INPUT_KEYBRD_T *);
+void __am_gpu_config(AM_GPU_CONFIG_T *);
+void __am_gpu_status(AM_GPU_STATUS_T *);
+void __am_gpu_fbdraw(AM_GPU_FBDRAW_T *);
+void __am_gpu_memcpy(AM_GPU_MEMCPY_T *);
+void __am_gpu_render(AM_GPU_RENDER_T *);
+
+static void __am_uart_config(AM_UART_CONFIG_T *cfg) { cfg->present = true; }
+static void __am_timer_config(AM_TIMER_CONFIG_T *cfg) { cfg->present = true; cfg->has_rtc = false; }
+static void __am_input_config(AM_INPUT_CONFIG_T *cfg) { cfg->present = YSYXSOC_HAS_INPUT != 0; }
+static void __am_audio_config(AM_AUDIO_CONFIG_T *cfg) { cfg->present = false; cfg->bufsize = 0; }
+static void __am_audio_ctrl(AM_AUDIO_CTRL_T *ctrl) { (void)ctrl; }
+static void __am_audio_status(AM_AUDIO_STATUS_T *status) { status->count = 0; }
+static void __am_audio_play(AM_AUDIO_PLAY_T *play) { (void)play; }
+static void __am_disk_config(AM_DISK_CONFIG_T *cfg) { cfg->present = false; cfg->blksz = 512; cfg->blkcnt = 0; }
+static void __am_disk_status(AM_DISK_STATUS_T *status) { status->ready = false; }
+static void __am_disk_blkio(AM_DISK_BLKIO_T *io) { (void)io; }
+static void __am_net_config(AM_NET_CONFIG_T *cfg) { cfg->present = false; }
+static void __am_net_status(AM_NET_STATUS_T *status) { status->rx_len = 0; status->tx_len = 0; }
+static void __am_net_tx(AM_NET_TX_T *tx) { (void)tx; }
+static void __am_net_rx(AM_NET_RX_T *rx) { (void)rx; }
+
+typedef void (*handler_t)(void *buf);
+static void * const lut[128] = {
+  [AM_UART_CONFIG ] = __am_uart_config,
+  [AM_UART_TX     ] = __am_uart_tx,
+  [AM_UART_RX     ] = __am_uart_rx,
+  [AM_TIMER_CONFIG] = __am_timer_config,
+  [AM_TIMER_RTC   ] = __am_timer_rtc,
+  [AM_TIMER_UPTIME] = __am_timer_uptime,
+  [AM_INPUT_CONFIG] = __am_input_config,
+  [AM_INPUT_KEYBRD] = __am_input_keybrd,
+  [AM_GPU_CONFIG  ] = __am_gpu_config,
+  [AM_GPU_FBDRAW  ] = __am_gpu_fbdraw,
+  [AM_GPU_STATUS  ] = __am_gpu_status,
+  [AM_GPU_MEMCPY  ] = __am_gpu_memcpy,
+  [AM_GPU_RENDER  ] = __am_gpu_render,
+  [AM_AUDIO_CONFIG] = __am_audio_config,
+  [AM_AUDIO_CTRL  ] = __am_audio_ctrl,
+  [AM_AUDIO_STATUS] = __am_audio_status,
+  [AM_AUDIO_PLAY  ] = __am_audio_play,
+  [AM_DISK_CONFIG ] = __am_disk_config,
+  [AM_DISK_STATUS ] = __am_disk_status,
+  [AM_DISK_BLKIO  ] = __am_disk_blkio,
+  [AM_NET_CONFIG  ] = __am_net_config,
+  [AM_NET_STATUS  ] = __am_net_status,
+  [AM_NET_TX      ] = __am_net_tx,
+  [AM_NET_RX      ] = __am_net_rx,
+};
+
+static void fail(void *buf) {
+  (void)buf;
+  panic("access nonexist register");
+}
+
+bool ioe_init() {
+  __am_timer_init();
+  __am_gpu_init();
+  return true;
+}
+
+void ioe_read(int reg, void *buf) {
+  handler_t handler = (reg >= 0 && reg < LENGTH(lut)) ? lut[reg] : NULL;
+  (handler ? handler : fail)(buf);
+}
+
+void ioe_write(int reg, void *buf) {
+  handler_t handler = (reg >= 0 && reg < LENGTH(lut)) ? lut[reg] : NULL;
+  (handler ? handler : fail)(buf);
+}

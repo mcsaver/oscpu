@@ -19,6 +19,15 @@
 
 ## 实现决策
 
+### [31] ysyxSoC AM 运行时以 MROM 作为复位入口、SRAM 作为栈堆
+
+- **日期**: 2026-05-23
+- **状态**: 已决定
+- **上下文**: ysyxSoC 的 NPC 复位后从 MROM 地址空间取指，MROM 只有读能力；若 AM 镜像继续链接到 PSRAM `0x80000000`，TRM 第一条指令和复位 PC 不一致，且栈/全局写可能落在只读区域。
+- **决策**: `riscv32-ysyxsoc` 使用专用链接脚本：`.text/.rodata` 从 `0x20000000` 开始放入 4KB MROM，`_stack_pointer=0x0f001000`、`_heap_start=0x0f001000`、`PMEM_END=0x0f002000` 放在 8KB SRAM；NPC SoC `RESET_PC` 同步为 `0x20000000`，仿真内存模型显式提供 read-only MROM 和 writable SRAM。
+- **理由**: 这样 `_start` 的第一条机器指令就是复位后 CPU 实际取到的第一条指令，栈和堆也满足可写性要求；MROM 写入在仿真侧立即报错，能尽早暴露不符合 ysyxSoC 约束的全局写。
+- **影响**: ysyxSoC AM 程序应避免运行期写全局变量；IOE 查表、timer init 等运行时代码需要保持只读或改用栈/调用者缓冲。镜像大小也受 MROM 4KB 限制，超出时链接脚本会报 overflow。
+
 ### [30] NPC 可调结构参数以 `define.v` 宏区作为唯一默认来源
 
 - **日期**: 2026-05-22
