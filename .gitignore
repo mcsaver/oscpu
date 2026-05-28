@@ -22,3 +22,20 @@ npc/soc/include/config/
 npc/soc/include/generated/
 npc/soc/perf/results/
 npc/soc/testbench/build/
+
+# AI 开发环境需要随仓库同步；这些 allowlist 用来覆盖本机或工具引入的宽泛忽略规则。
+!.github/
+!.github/**
+!AGENTS.md
+!CLAUDE.md
+!GEMINI.md
+!CONVENTIONS.md
+!.windsurfrules
+!.cursor/
+!.cursor/rules/
+!.cursor/rules/agents.mdc
+
+# 已脱敏的 AI 环境便携包也需要能被 Git 发现，方便压缩前先审计和提交。
+!outputs/
+!outputs/manual-20260528-ai-dev-env-package/
+!outputs/manual-20260528-ai-dev-env-package/**

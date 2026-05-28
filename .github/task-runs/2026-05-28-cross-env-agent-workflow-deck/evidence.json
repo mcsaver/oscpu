@@ -1,0 +1,34 @@
+{
+  "task_id": "2026-05-28-cross-env-agent-workflow-deck",
+  "artifact": "outputs/manual-20260528-cross-env-agent-workflow/presentations/cross-env-agent-workflow/output/cross-env-agent-workflow-playbook.pptx",
+  "summary": {
+    "slides": 16,
+    "pptx_bytes": 75849,
+    "preview_pngs": 16,
+    "contact_sheet_review": "PASS",
+    "layout_warning_search": "PASS"
+  },
+  "checks": [
+    {
+      "name": "pptx_package",
+      "status": "PASS",
+      "details": {
+        "slide_xml_count": 16,
+        "media_count": 0,
+        "empty_media_count": 0
+      }
+    },
+    {
+      "name": "preview_render",
+      "status": "PASS",
+      "details": {
+        "png_count": 16
+      }
+    },
+    {
+      "name": "contact_sheet_manual_review",
+      "status": "PASS",
+      "details": "整体节奏清晰，未见明显重叠、截断或空白页。"
+    }
+  ]
+}
