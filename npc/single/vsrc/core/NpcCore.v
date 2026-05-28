@@ -1,5 +1,6 @@
 `include "define.v"
 
+
 module NpcCore (
   input clk,
   input rst,
