@@ -8,6 +8,10 @@
 #define YSYXSOC_UART_BASE       0x10000000ul
 #define YSYXSOC_UART_THR        (YSYXSOC_UART_BASE + 0)
 #define YSYXSOC_UART_RBR        (YSYXSOC_UART_BASE + 0)
+#define YSYXSOC_UART_DLL        (YSYXSOC_UART_BASE + 0)
+#define YSYXSOC_UART_DLM        (YSYXSOC_UART_BASE + 1)
+#define YSYXSOC_UART_FCR        (YSYXSOC_UART_BASE + 2)
+#define YSYXSOC_UART_LCR        (YSYXSOC_UART_BASE + 3)
 #define YSYXSOC_UART_LSR        (YSYXSOC_UART_BASE + 5)
 #define YSYXSOC_SPI_BASE        0x10001000ul
 #define YSYXSOC_GPIO_BASE       0x10002000ul
@@ -45,5 +49,24 @@
 #endif
 
 #define ysyxsoc_trap(code) asm volatile("mv a0, %0; ebreak" : : "r"(code))
+
+static inline void ysyxsoc_uart_init(void) {
+  // ysyxSoCFull 里的真实 16550 发送器依赖除数锁存器产生 bit enable；TRM 入口先配置好 8N1 + divisor=1。
+  outb(YSYXSOC_UART_LCR, 0x83);
+  outb(YSYXSOC_UART_DLL, 0x01);
+  outb(YSYXSOC_UART_DLM, 0x00);
+  outb(YSYXSOC_UART_FCR, 0x07);
+  outb(YSYXSOC_UART_LCR, 0x03);
+}
+
+static inline void ysyxsoc_uart_wait_tx_ready(void) {
+  while ((inb(YSYXSOC_UART_LSR) & 0x20) == 0) {
+  }
+}
+
+static inline void ysyxsoc_uart_putc(char ch) {
+  ysyxsoc_uart_wait_tx_ready();
+  outb(YSYXSOC_UART_THR, ch);
+}
 
 #endif

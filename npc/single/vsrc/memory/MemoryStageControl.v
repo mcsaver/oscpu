@@ -33,7 +33,7 @@ module MemoryStageControl (
   assign lsu_req_valid_o = ex_valid_i & ex_is_mem_w & (~mem_pending_q);
   // MEM 级持有有效访存指令时即可接收 cache 响应；是否推进流水由 update_en_i 控制。
   assign lsu_rsp_ready_o = ex_valid_i & ex_is_mem_w;
-  // DCache load hit 允许 req/rsp 同周期完成，此时不需要进入 pending 状态。
+  // 控制面保留同拍响应兼容性；当前同步 SRAM DCache hit 会通过 pending 路径晚拍返回。
   assign response_o = ex_valid_i & ex_is_mem_w & (pending_rsp_w | same_cycle_rsp_w);
   assign fault_o = response_o & lsu_rsp_error_i;
   assign pending_o = mem_pending_q;

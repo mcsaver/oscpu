@@ -116,11 +116,9 @@ module tb_icache;
 
     cpu_req_addr = 32'h8000_0001;
     cpu_req_valid = 1'b1;
-    #1;
-    tb_check1("misaligned combo rsp", cpu_rsp_valid, 1'b1);
-    tb_check1("misaligned error", cpu_rsp_error, 1'b1);
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
+    wait_cpu_rsp("misaligned sync rsp", 32'h0, 1'b1, 1'b0);
 
     cpu_req_addr = 32'h8000_0004;
     cpu_req_valid = 1'b1;
@@ -134,20 +132,36 @@ module tb_icache;
 
     cpu_req_addr = 32'h8000_0004;
     cpu_req_valid = 1'b1;
-    #1;
-    tb_check1("hit combo rsp", cpu_rsp_valid, 1'b1);
-    tb_check32("hit sram word1", dut.u_data_sram.mem_q[0][32 +: 32], 32'h0000_1001);
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
+    wait_cpu_rsp("hit sync rsp", 32'h0000_1001, 1'b0, 1'b1);
+    tb_check32("hit sram word1", dut.u_data_sram.mem_q[0][32 +: 32], 32'h0000_1001);
+
+    cpu_req_valid = 1'b1;
+    cpu_req_addr = 32'h8000_0004;
+    `TB_TICK(clk);
+    cpu_req_addr = 32'h8000_0008;
+    #1;
+    tb_check1("icache first pipelined hit rsp", cpu_rsp_valid, 1'b1);
+    tb_check1("icache accepts next hit", cpu_req_ready, 1'b1);
+    tb_check32("icache first pipelined data", cpu_rsp_data, 32'h0000_1001);
+    `TB_TICK(clk);
+    cpu_req_valid = 1'b0;
+    #1;
+    tb_check1("icache second pipelined hit rsp", cpu_rsp_valid, 1'b1);
+    tb_check32("icache second pipelined data", cpu_rsp_data, 32'h0000_1002);
+    `TB_TICK(clk);
 
     cpu_req_addr = 32'h8000_0004;
     cpu_req_valid = 1'b1;
     cpu_rsp_ready = 1'b0;
+    `TB_TICK(clk);
+    cpu_req_valid = 1'b0;
+    while (!cpu_rsp_valid) `TB_TICK(clk);
     #1;
     tb_check1("hit backpressure valid", cpu_rsp_valid, 1'b1);
     tb_check32("hit backpressure data", cpu_rsp_data, 32'h0000_1001);
     `TB_TICK(clk);
-    cpu_req_valid = 1'b0;
     #1;
     tb_check1("hit backpressure holds valid", cpu_rsp_valid, 1'b1);
     tb_check32("hit backpressure holds data", cpu_rsp_data, 32'h0000_1001);
@@ -167,12 +181,9 @@ module tb_icache;
 
     cpu_req_addr = 32'h8000_0004;
     cpu_req_valid = 1'b1;
-    #1;
-    tb_check1("first way still hits", cpu_rsp_valid, 1'b1);
-    tb_check32("first way still data", cpu_rsp_data, 32'h0000_1001);
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
-    #1;
+    wait_cpu_rsp("first way still hits", 32'h0000_1001, 1'b0, 1'b1);
 
     cpu_req_addr = 32'h9000_0000;
     cpu_req_valid = 1'b1;
@@ -194,7 +205,7 @@ module tb_icache;
     cpu_req_addr = 32'h8000_0004;
     cpu_req_valid = 1'b1;
     #1;
-    tb_check1("invalidate removes combo hit", cpu_rsp_valid, 1'b0);
+    tb_check1("invalidate removes immediate hit", cpu_rsp_valid, 1'b0);
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
 

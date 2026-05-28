@@ -3736,3 +3736,100 @@ Caused by: java.nio.file.NoSuchFileException: /home/lyg/PA/ysyx-workbench/out/mi
 	at mill.client.ServerLauncher$.retryWithTimeout(ServerLauncher.scala:181)
 	... 5 more
 
+2026-05-28T06:00:14Z launchOrConnectToServer: mill.client.lock.Locks@6e353538
+2026-05-28T06:00:14Z Acquiring the launcher lock: PidLock{@a0eacf2, path='/home/lyg/PA/ysyx-workbench/out/mill-daemon/launcherLock'}
+2026-05-28T06:00:14Z launchOrConnectToServer attempt
+2026-05-28T06:00:14Z Checking if the daemon lock is available: PidLock{@5d3741bf, path='/home/lyg/PA/ysyx-workbench/out/mill-daemon/daemonLock'}
+2026-05-28T06:00:14Z The daemon lock is available, starting the server.
+2026-05-28T06:00:14Z The server has started: OsProcess(1163183)
+2026-05-28T06:00:14Z Waiting for the server to take the daemon lock: PidLock{@5d3741bf, path='/home/lyg/PA/ysyx-workbench/out/mill-daemon/daemonLock'}
+2026-05-28T06:00:15Z The server OsProcess(1163183) has taken the daemon lock: PidLock{@5d3741bf, path='/home/lyg/PA/ysyx-workbench/out/mill-daemon/daemonLock'}
+2026-05-28T06:00:15Z Reading server port: /home/lyg/PA/ysyx-workbench/out/mill-daemon
+2026-05-28T06:00:15Z launchOrConnectToServer attempt
+2026-05-28T06:00:15Z Checking if the daemon lock is available: PidLock{@5d3741bf, path='/home/lyg/PA/ysyx-workbench/out/mill-daemon/daemonLock'}
+2026-05-28T06:00:15Z The daemon lock is not available, there is already a server running.
+2026-05-28T06:00:15Z Trying to read the process ID of a running daemon from /home/lyg/PA/ysyx-workbench/out/mill-daemon/processId
+2026-05-28T06:00:15Z Read PID: 20303
+2026-05-28T06:00:15Z Reading server port: /home/lyg/PA/ysyx-workbench/out/mill-daemon
+2026-05-28T06:00:15Z launchOrConnectToServer attempt
+2026-05-28T06:00:15Z Checking if the daemon lock is available: PidLock{@5d3741bf, path='/home/lyg/PA/ysyx-workbench/out/mill-daemon/daemonLock'}
+2026-05-28T06:00:15Z The daemon lock is not available, there is already a server running.
+2026-05-28T06:00:15Z Trying to read the process ID of a running daemon from /home/lyg/PA/ysyx-workbench/out/mill-daemon/processId
+2026-05-28T06:00:15Z Read PID: 20303
+2026-05-28T06:00:15Z Reading server port: /home/lyg/PA/ysyx-workbench/out/mill-daemon
+2026-05-28T06:00:15Z launchOrConnectToServer attempt
+2026-05-28T06:00:15Z Checking if the daemon lock is available: PidLock{@5d3741bf, path='/home/lyg/PA/ysyx-workbench/out/mill-daemon/daemonLock'}
+2026-05-28T06:00:15Z The daemon lock is not available, there is already a server running.
+2026-05-28T06:00:15Z Trying to read the process ID of a running daemon from /home/lyg/PA/ysyx-workbench/out/mill-daemon/processId
+2026-05-28T06:00:15Z Read PID: 20303
+2026-05-28T06:00:15Z Reading server port: /home/lyg/PA/ysyx-workbench/out/mill-daemon
+2026-05-28T06:00:15Z launchOrConnectToServer attempt
+2026-05-28T06:00:15Z Checking if the daemon lock is available: PidLock{@5d3741bf, path='/home/lyg/PA/ysyx-workbench/out/mill-daemon/daemonLock'}
+2026-05-28T06:00:15Z The daemon lock is not available, there is already a server running.
+2026-05-28T06:00:15Z Trying to read the process ID of a running daemon from /home/lyg/PA/ysyx-workbench/out/mill-daemon/processId
+2026-05-28T06:00:15Z Read PID: 20303
+2026-05-28T06:00:15Z Reading server port: /home/lyg/PA/ysyx-workbench/out/mill-daemon
+2026-05-28T06:00:15Z launchOrConnectToServer attempt
+2026-05-28T06:00:15Z Checking if the daemon lock is available: PidLock{@5d3741bf, path='/home/lyg/PA/ysyx-workbench/out/mill-daemon/daemonLock'}
+2026-05-28T06:00:15Z The daemon lock is not available, there is already a server running.
+2026-05-28T06:00:15Z Trying to read the process ID of a running daemon from /home/lyg/PA/ysyx-workbench/out/mill-daemon/processId
+2026-05-28T06:00:15Z Read PID: 20303
+2026-05-28T06:00:15Z Reading server port: /home/lyg/PA/ysyx-workbench/out/mill-daemon
+2026-05-28T06:00:15Z launchOrConnectToServer attempt
+2026-05-28T06:00:15Z Checking if the daemon lock is available: PidLock{@5d3741bf, path='/home/lyg/PA/ysyx-workbench/out/mill-daemon/daemonLock'}
+2026-05-28T06:00:15Z The daemon lock is not available, there is already a server running.
+2026-05-28T06:00:15Z Trying to read the process ID of a running daemon from /home/lyg/PA/ysyx-workbench/out/mill-daemon/processId
+2026-05-28T06:00:15Z Read PID: 20303
+2026-05-28T06:00:15Z Reading server port: /home/lyg/PA/ysyx-workbench/out/mill-daemon
+2026-05-28T06:00:15Z launchOrConnectToServer attempt
+2026-05-28T06:00:15Z Checking if the daemon lock is available: PidLock{@5d3741bf, path='/home/lyg/PA/ysyx-workbench/out/mill-daemon/daemonLock'}
+2026-05-28T06:00:15Z The daemon lock is not available, there is already a server running.
+2026-05-28T06:00:15Z Trying to read the process ID of a running daemon from /home/lyg/PA/ysyx-workbench/out/mill-daemon/processId
+2026-05-28T06:00:15Z Read PID: 20303
+2026-05-28T06:00:15Z Reading server port: /home/lyg/PA/ysyx-workbench/out/mill-daemon
+2026-05-28T06:00:15Z launchOrConnectToServer attempt
+2026-05-28T06:00:15Z Checking if the daemon lock is available: PidLock{@5d3741bf, path='/home/lyg/PA/ysyx-workbench/out/mill-daemon/daemonLock'}
+2026-05-28T06:00:15Z The daemon lock is not available, there is already a server running.
+2026-05-28T06:00:15Z Trying to read the process ID of a running daemon from /home/lyg/PA/ysyx-workbench/out/mill-daemon/processId
+2026-05-28T06:00:15Z Read PID: 20303
+2026-05-28T06:00:15Z Reading server port: /home/lyg/PA/ysyx-workbench/out/mill-daemon
+2026-05-28T06:00:15Z launchOrConnectToServer attempt
+2026-05-28T06:00:15Z Checking if the daemon lock is available: PidLock{@5d3741bf, path='/home/lyg/PA/ysyx-workbench/out/mill-daemon/daemonLock'}
+2026-05-28T06:00:15Z The daemon lock is not available, there is already a server running.
+2026-05-28T06:00:15Z Trying to read the process ID of a running daemon from /home/lyg/PA/ysyx-workbench/out/mill-daemon/processId
+2026-05-28T06:00:15Z Read PID: 20303
+2026-05-28T06:00:15Z Reading server port: /home/lyg/PA/ysyx-workbench/out/mill-daemon
+2026-05-28T06:00:15Z launchOrConnectToServer attempt
+2026-05-28T06:00:15Z Checking if the daemon lock is available: PidLock{@5d3741bf, path='/home/lyg/PA/ysyx-workbench/out/mill-daemon/daemonLock'}
+2026-05-28T06:00:15Z The daemon lock is not available, there is already a server running.
+2026-05-28T06:00:15Z Trying to read the process ID of a running daemon from /home/lyg/PA/ysyx-workbench/out/mill-daemon/processId
+2026-05-28T06:00:15Z Read PID: 1163183
+2026-05-28T06:00:15Z Reading server port: /home/lyg/PA/ysyx-workbench/out/mill-daemon
+2026-05-28T06:00:15Z launchOrConnectToServer attempt
+2026-05-28T06:00:15Z Checking if the daemon lock is available: PidLock{@5d3741bf, path='/home/lyg/PA/ysyx-workbench/out/mill-daemon/daemonLock'}
+2026-05-28T06:00:15Z The daemon lock is not available, there is already a server running.
+2026-05-28T06:00:15Z Trying to read the process ID of a running daemon from /home/lyg/PA/ysyx-workbench/out/mill-daemon/processId
+2026-05-28T06:00:15Z Read PID: 1163183
+2026-05-28T06:00:15Z Reading server port: /home/lyg/PA/ysyx-workbench/out/mill-daemon
+2026-05-28T06:00:15Z launchOrConnectToServer attempt
+2026-05-28T06:00:15Z Checking if the daemon lock is available: PidLock{@5d3741bf, path='/home/lyg/PA/ysyx-workbench/out/mill-daemon/daemonLock'}
+2026-05-28T06:00:15Z The daemon lock is not available, there is already a server running.
+2026-05-28T06:00:15Z Trying to read the process ID of a running daemon from /home/lyg/PA/ysyx-workbench/out/mill-daemon/processId
+2026-05-28T06:00:15Z Read PID: 1163183
+2026-05-28T06:00:15Z Reading server port: /home/lyg/PA/ysyx-workbench/out/mill-daemon
+2026-05-28T06:00:15Z launchOrConnectToServer attempt
+2026-05-28T06:00:15Z Checking if the daemon lock is available: PidLock{@5d3741bf, path='/home/lyg/PA/ysyx-workbench/out/mill-daemon/daemonLock'}
+2026-05-28T06:00:15Z The daemon lock is not available, there is already a server running.
+2026-05-28T06:00:15Z Trying to read the process ID of a running daemon from /home/lyg/PA/ysyx-workbench/out/mill-daemon/processId
+2026-05-28T06:00:15Z Read PID: 1163183
+2026-05-28T06:00:15Z Reading server port: /home/lyg/PA/ysyx-workbench/out/mill-daemon
+2026-05-28T06:00:15Z launchOrConnectToServer attempt
+2026-05-28T06:00:15Z Checking if the daemon lock is available: PidLock{@5d3741bf, path='/home/lyg/PA/ysyx-workbench/out/mill-daemon/daemonLock'}
+2026-05-28T06:00:15Z The daemon lock is not available, there is already a server running.
+2026-05-28T06:00:15Z Trying to read the process ID of a running daemon from /home/lyg/PA/ysyx-workbench/out/mill-daemon/processId
+2026-05-28T06:00:15Z Read PID: 1163183
+2026-05-28T06:00:15Z Reading server port: /home/lyg/PA/ysyx-workbench/out/mill-daemon
+2026-05-28T06:00:15Z Read server port
+2026-05-28T06:00:15Z Connecting: 44116
+2026-05-28T06:00:15Z runWithConnection (RPC): Launched(44116,Some(Socket[addr=localhost/127.0.0.1,port=44116,localport=44791]),OsProcess(1163183))
+2026-05-28T06:00:15Z runWithConnection exit code: 0

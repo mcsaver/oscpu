@@ -388,6 +388,18 @@ module IfStage (
   wire [`XLEN-1:0] fetch_rsp_pred_pc_w =
       ifu_rsp_error_i ? fetch_rsp_seq_pc_w :
       bpu_predict_next_pc_w;
+  // steady-state 取指允许“接收上一条返回”和“发起下一条预测 PC”同拍发生。
+  wire fetch_late_direct_to_pipe_w = fetch_late_rsp_w & pipe_ready_i &
+                                     active_w & ~fetch_buf_valid_q;
+  wire fetch_late_accept_w = fetch_late_rsp_w & active_w &
+                             (fetch_late_direct_to_pipe_w | fetch_rsp_slot_w);
+  wire fetch_late_keeps_slot_w = fetch_late_direct_to_pipe_w | fetch_buf_to_pipe_w;
+  wire fetch_pipeline_issue_w = fetch_late_accept_w & fetch_late_keeps_slot_w;
+  wire ifu_req_issue_w = active_w & fetch_issue_slot_w &
+                         ((~fetch_pending_q) | fetch_pipeline_issue_w);
+  wire [`XLEN-1:0] ifu_req_addr_w = fetch_pipeline_issue_w ?
+                                    fetch_rsp_pred_pc_w :
+                                    fetch_pc_q;
 
   BranchPredictor u_branch_predictor (
     .clk(clk),
@@ -426,8 +438,8 @@ module IfStage (
   assign pipe_bht_idx_o = fetch_buf_valid_q ? fetch_buf_bht_idx_q : bpu_predict_bht_idx_w;
   assign pipe_error_o = fetch_buf_valid_q ? fetch_buf_error_q : ifu_rsp_error_i;
 
-  assign ifu_req_valid_o = active_w & fetch_issue_slot_w & ~fetch_pending_q;
-  assign ifu_req_addr_o = fetch_pc_q;
+  assign ifu_req_valid_o = ifu_req_issue_w;
+  assign ifu_req_addr_o = ifu_req_addr_w;
   assign ifu_rsp_ready_o = active_w & fetch_rsp_slot_w;
   assign fetch_pc_o = fetch_pc_q;
   assign fetch_pending_o = fetch_pending_q;
@@ -475,9 +487,9 @@ module IfStage (
         end
 
         if (ifu_req_fire_w) begin
-          // ICache 命中可同拍组合返回；只有未同拍返回的请求才需要挂起等待。
+          // 同步 SRAM cache 正常晚拍返回；保留同拍分支只用于兼容其它前端存储实现。
           fetch_pending_q <= ~fetch_same_cycle_rsp_w;
-          fetch_req_pc_q <= fetch_pc_q;
+          fetch_req_pc_q <= ifu_req_addr_w;
         end
       end
     end

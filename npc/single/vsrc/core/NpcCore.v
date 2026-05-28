@@ -57,37 +57,6 @@ module NpcCore (
   output [`XLEN * `REG_NUM - 1:0] debug_gprs_o
 );
 
-  function [`XLEN-1:0] rv32m_mul_result;
-    input [2:0] funct3;
-    input [`XLEN-1:0] src1;
-    input [`XLEN-1:0] src2;
-    reg signed [31:0] s_src1;
-    reg signed [31:0] s_src2;
-    reg [31:0] u_src1;
-    reg [31:0] u_src2;
-    reg signed [63:0] ss_prod;
-    /* verilator lint_off UNUSEDSIGNAL */
-    reg signed [63:0] su_prod;
-    reg [63:0] uu_prod;
-    /* verilator lint_on UNUSEDSIGNAL */
-    begin
-      s_src1 = src1;
-      s_src2 = src2;
-      u_src1 = src1;
-      u_src2 = src2;
-      ss_prod = s_src1 * s_src2;
-      su_prod = s_src1 * $signed({1'b0, u_src2});
-      uu_prod = u_src1 * u_src2;
-      case (funct3)
-        3'b000: rv32m_mul_result = ss_prod[31:0];
-        3'b001: rv32m_mul_result = ss_prod[63:32];
-        3'b010: rv32m_mul_result = su_prod[63:32];
-        3'b011: rv32m_mul_result = uu_prod[63:32];
-        default: rv32m_mul_result = {`XLEN{1'b0}};
-      endcase
-    end
-  endfunction
-
   function [`XLEN-1:0] rv32b_result;
     /* verilator lint_off UNUSEDSIGNAL */
     input [`INST_W-1:0] inst;
@@ -293,6 +262,7 @@ module NpcCore (
   reg [`REG_ADDR_W-1:0] rf_waddr_q;
   reg [`XLEN-1:0] rf_wdata_q;
   reg cache_flush_active_q;
+  reg mul_req_issued_q;
   wire rf_we_w = rf_wen_q && ~halt_q && ~fatal_trap_q;
   wire [`REG_ADDR_W-1:0] rf_waddr_w = rf_waddr_q;
   wire [`XLEN-1:0] rf_wdata_w = rf_wdata_q;
@@ -318,7 +288,9 @@ module NpcCore (
   wire id_ex_csr_w = id_ex_ctrl_q[`CTRL_CSR_BIT];
   wire id_ex_mret_w = id_ex_ctrl_q[`CTRL_MRET_BIT];
   wire id_ex_muldiv_w = id_ex_ctrl_q[`CTRL_MULDIV_BIT];
+  wire id_ex_mul_w = id_ex_muldiv_w && ~id_ex_inst_q[14];
   wire id_ex_divrem_w = id_ex_muldiv_w && id_ex_inst_q[14];
+  wire id_ex_mul_exec_w;
   wire id_ex_divrem_exec_w;
   wire id_ex_bitmanip_w = id_ex_ctrl_q[`CTRL_BITMANIP_BIT];
   wire id_ex_fence_i_w = id_ex_ctrl_q[`CTRL_FENCE_BIT] &&
@@ -364,6 +336,15 @@ module NpcCore (
       (mem_wb_writes_rd_w && (mem_wb_rd_idx_q == 5'd10)) ? mem_wb_wb_data_q :
       (rf_we_w && (rf_waddr_w == 5'd10)) ? rf_wdata_w :
       rf_a0_data_w;
+  wire ex_rs1_load_wait_w = id_ex_rs1_en_w && ex_mem_valid_q && ex_mem_load_w &&
+                             ex_mem_need_wb_q && ex_mem_rd_en_q &&
+                             (ex_mem_rd_idx_q != {`REG_ADDR_W{1'b0}}) &&
+                             (ex_mem_rd_idx_q == id_ex_rs1_idx_q) && ~mem_response_w;
+  wire ex_rs2_load_wait_w = id_ex_rs2_en_w && ex_mem_valid_q && ex_mem_load_w &&
+                             ex_mem_need_wb_q && ex_mem_rd_en_q &&
+                             (ex_mem_rd_idx_q != {`REG_ADDR_W{1'b0}}) &&
+                             (ex_mem_rd_idx_q == id_ex_rs2_idx_q) && ~mem_response_w;
+  wire ex_operand_load_wait_w = ex_rs1_load_wait_w | ex_rs2_load_wait_w;
 
   wire [`XLEN-1:0] ex_pc_plus4_w = id_ex_pc_q + id_ex_inst_len_q;
   wire [`XLEN-1:0] ex_addr_sum_w = ex_rs1_forward_w + id_ex_imm_q;
@@ -377,11 +358,19 @@ module NpcCore (
   wire [`XLEN-1:0] ex_ext_result_w;
   wire [`XLEN-1:0] ex_exec_result_w;
   wire [`XLEN-1:0] ex_mul_result_w;
+  wire [`XLEN-1:0] ex_mul_rsp_data_w;
   wire [`XLEN-1:0] ex_div_result_w;
+  wire ex_mul_req_ready_w;
+  wire ex_mul_rsp_valid_w;
   wire ex_div_req_ready_w;
   wire ex_div_rsp_valid_w;
   wire ex_muldiv_wait_w;
+  wire ex_mul_req_valid_w;
+  wire ex_mul_rsp_ready_w;
+  wire ex_mul_req_fire_w;
+  wire ex_mul_rsp_consumed_w;
   wire ex_div_req_valid_w;
+  wire ex_div_rsp_ready_w;
   wire ex_cmp_true_w;
   wire [`XLEN-1:0] ex_branch_target_w = id_ex_pc_q + id_ex_imm_q;
   wire [`XLEN-1:0] ex_jal_target_w = id_ex_pc_q + id_ex_imm_q;
@@ -407,7 +396,7 @@ module NpcCore (
   wire mem_fault_w;
 
   wire [`XLEN-1:0] ex_wbu_data_w;
-  assign ex_mul_result_w = rv32m_mul_result(id_ex_inst_q[14:12], ex_rs1_forward_w, ex_rs2_forward_w);
+  assign ex_mul_result_w = ex_mul_rsp_data_w;
   assign ex_ext_result_w = id_ex_muldiv_w ? (id_ex_divrem_w ? ex_div_result_w : ex_mul_result_w) :
                                            id_ex_bitmanip_w ? rv32b_result(id_ex_inst_q, ex_rs1_forward_w, ex_rs2_forward_w) :
                                            {`XLEN{1'b0}};
@@ -432,11 +421,22 @@ module NpcCore (
 
   wire ex_fetch_fault_w = id_ex_fetch_error_q;
   wire ex_illegal_w = id_ex_ctrl_q[`CTRL_ILLEGAL_BIT] | csr_illegal_w;
+  assign id_ex_mul_exec_w = id_ex_mul_w && ~ex_fetch_fault_w && ~ex_illegal_w;
   assign id_ex_divrem_exec_w = id_ex_divrem_w && ~ex_fetch_fault_w && ~ex_illegal_w;
-  assign ex_muldiv_wait_w = id_ex_valid_q && id_ex_divrem_exec_w && ~ex_div_rsp_valid_w;
+  assign ex_mul_req_valid_w = id_ex_valid_q && id_ex_mul_exec_w && ~mul_req_issued_q &&
+                              ~ex_operand_load_wait_w &&
+                              ~mem_fault_w && ~halt_q && ~fatal_trap_q;
+  assign ex_mul_req_fire_w = ex_mul_req_valid_w && ex_mul_req_ready_w;
+  assign ex_mul_rsp_ready_w = ex_fire_w && id_ex_mul_w;
+  assign ex_mul_rsp_consumed_w = ex_mul_rsp_valid_w && ex_mul_rsp_ready_w;
+  assign ex_muldiv_wait_w = id_ex_valid_q &&
+                            ((id_ex_mul_exec_w && ~ex_mul_rsp_valid_w) ||
+                             (id_ex_divrem_exec_w && ~ex_div_rsp_valid_w));
   assign ex_div_req_valid_w = id_ex_valid_q && id_ex_divrem_exec_w &&
-                              ex_div_req_ready_w && ~mem_fault_w &&
+                              ex_div_req_ready_w && ~ex_operand_load_wait_w &&
+                              ~mem_fault_w &&
                               ~halt_q && ~fatal_trap_q;
+  assign ex_div_rsp_ready_w = ex_fire_w && id_ex_divrem_w;
   wire ex_load_store_misaligned_w = (id_ex_load_w | id_ex_store_w) && lsu_ex_misaligned_w;
   wire [`TRAP_CAUSE_W-1:0] ex_exception_cause_w =
       ex_fetch_fault_w ? `EXC_INST_ACCESS_FAULT :
@@ -704,6 +704,20 @@ module NpcCore (
     .cmp_true_o(ex_cmp_true_w)
   );
 
+  Rv32Multiplier u_rv32_multiplier (
+    .clk(clk),
+    .rst(rst),
+    .flush_i(mem_fault_w | ex_interrupt_w | halt_q | fatal_trap_q),
+    .req_valid_i(ex_mul_req_valid_w),
+    .req_ready_o(ex_mul_req_ready_w),
+    .req_funct3_i(id_ex_inst_q[14:12]),
+    .req_src1_i(ex_rs1_forward_w),
+    .req_src2_i(ex_rs2_forward_w),
+    .rsp_valid_o(ex_mul_rsp_valid_w),
+    .rsp_ready_i(ex_mul_rsp_ready_w),
+    .rsp_data_o(ex_mul_rsp_data_w)
+  );
+
   Rv32Divider u_rv32_divider (
     .clk(clk),
     .rst(rst),
@@ -714,7 +728,7 @@ module NpcCore (
     .req_src1_i(ex_rs1_forward_w),
     .req_src2_i(ex_rs2_forward_w),
     .rsp_valid_o(ex_div_rsp_valid_w),
-    .rsp_ready_i(ex_fire_w && id_ex_divrem_w),
+    .rsp_ready_i(ex_div_rsp_ready_w),
     .rsp_data_o(ex_div_result_w)
   );
 
@@ -919,6 +933,18 @@ module NpcCore (
                          {(fetch_pending_w | mem_pending_w |
                            ex_muldiv_wait_w | fence_flush_wait_w),
                           if_id_valid_q, id_ex_valid_q, ex_mem_valid_q};
+
+  always @(posedge clk) begin
+    if (rst || mem_fault_w || ex_interrupt_w || halt_q || fatal_trap_q ||
+        !id_ex_valid_q || !id_ex_mul_exec_w) begin
+      mul_req_issued_q <= 1'b0;
+    end else if (ex_mul_req_fire_w) begin
+      // ID/EX 在等待乘法流水返回期间保持同一条指令，这个位防止每拍重复发射同一乘法。
+      mul_req_issued_q <= 1'b1;
+    end else if (ex_mul_rsp_consumed_w) begin
+      mul_req_issued_q <= 1'b0;
+    end
+  end
 
   always @(posedge clk) begin
     if (rst) begin

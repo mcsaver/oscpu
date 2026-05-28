@@ -7,8 +7,8 @@ RESULT_DIR ?= ../perf/results/$(RESULT_TIMESTAMP)/module-testbench
 LOG_DIR := $(RESULT_DIR)/logs
 PIPE_RESULT_DIR ?= ../perf/results/$(RESULT_TIMESTAMP)/pipe-test
 PIPE_LOG_DIR := $(PIPE_RESULT_DIR)/logs
-PIPE_EXPECT_LOAD_HIT_ZERO ?= 1
-PIPE_EXPECT_FRONTEND_HIT_ZERO ?= 1
+PIPE_EXPECT_LOAD_HIT_ZERO ?= 0
+PIPE_EXPECT_FRONTEND_HIT_ZERO ?= 0
 PIPE_EXPECT_ARG := $(if $(filter 1,$(PIPE_EXPECT_LOAD_HIT_ZERO)),+EXPECT_LOAD_HIT_ZERO,)
 PIPE_EXPECT_FRONTEND_ARG := $(if $(filter 1,$(PIPE_EXPECT_FRONTEND_HIT_ZERO)),+EXPECT_FRONTEND_HIT_ZERO,)
 
@@ -36,6 +36,7 @@ TESTS := \
   tb_memory_stage_control \
   tb_memory_stage \
   tb_pipeline_control \
+  tb_multiplier \
   tb_divider \
   tb_branch_predictor \
   tb_icache \
@@ -63,6 +64,7 @@ TB_SRCS_tb_cache_control := tests/tb_cache_control.sv $(RTL_CACHE_CONTROL)
 TB_SRCS_tb_memory_stage_control := tests/tb_memory_stage_control.sv $(RTL_MEMORY_STAGE_CONTROL)
 TB_SRCS_tb_memory_stage := tests/tb_memory_stage.sv $(RTL_LSU_CONTROL) $(RTL_LSU_DATAPATH) $(RTL_LSU) $(RTL_MEMORY_STAGE_CONTROL) $(RTL_MEMORY_STAGE)
 TB_SRCS_tb_pipeline_control := tests/tb_pipeline_control.sv $(RTL_PIPELINE_CONTROL)
+TB_SRCS_tb_multiplier := tests/tb_multiplier.sv $(RTL_RV32_MULTIPLIER)
 TB_SRCS_tb_divider := tests/tb_divider.sv $(RTL_RV32_DIVIDER)
 TB_SRCS_tb_branch_predictor := tests/tb_branch_predictor.sv $(RTL_BRANCH_PREDICTOR)
 TB_SRCS_tb_icache := tests/tb_icache.sv $(RTL_SRAM2R1W) $(RTL_ICACHE)
@@ -91,6 +93,7 @@ TB_SRCS_tb_npc_core_smoke := tests/tb_npc_core_smoke.sv \
   $(RTL_MEMORY_STAGE) \
   $(RTL_PIPELINE_CONTROL) \
   $(RTL_REGISTER_FILE) \
+  $(RTL_RV32_MULTIPLIER) \
   $(RTL_RV32_DIVIDER) \
   $(RTL_SRAM1RW) \
   $(RTL_SRAM2R1W) \
@@ -120,6 +123,7 @@ TB_SRCS_tb_npc_core_mcycle := tests/tb_npc_core_mcycle.sv \
   $(RTL_MEMORY_STAGE) \
   $(RTL_PIPELINE_CONTROL) \
   $(RTL_REGISTER_FILE) \
+  $(RTL_RV32_MULTIPLIER) \
   $(RTL_RV32_DIVIDER) \
   $(RTL_SRAM1RW) \
   $(RTL_SRAM2R1W) \
@@ -149,6 +153,7 @@ TB_SRCS_tb_npc_core_interrupt := tests/tb_npc_core_interrupt.sv \
   $(RTL_MEMORY_STAGE) \
   $(RTL_PIPELINE_CONTROL) \
   $(RTL_REGISTER_FILE) \
+  $(RTL_RV32_MULTIPLIER) \
   $(RTL_RV32_DIVIDER) \
   $(RTL_SRAM1RW) \
   $(RTL_SRAM2R1W) \

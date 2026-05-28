@@ -45,6 +45,7 @@ module ICache (
   localparam [2:0] S_UNCACHED_AR = 3'd4;
   localparam [2:0] S_UNCACHED_R = 3'd5;
   localparam [2:0] S_RESP = 3'd6;
+  localparam [2:0] S_REFILL_LOOKUP = 3'd7;
 
   reg [2:0] state_q;
   reg [`XLEN-1:0] req_addr_q;
@@ -201,15 +202,6 @@ module ICache (
     end
   endfunction
 
-  wire [`XLEN-1:0] cur_last_addr_w = cpu_req_addr_i + 32'd3;
-  wire cur_misaligned_w = cpu_req_addr_i[0];
-  wire cur_cacheable_w = cacheable_range4(cpu_req_addr_i);
-  wire cur_need_second_line_w = line_base(cpu_req_addr_i) != line_base(cur_last_addr_w);
-  wire [INDEX_BITS-1:0] cur_first_index_w = line_index(cpu_req_addr_i);
-  wire [TAG_BITS-1:0] cur_first_tag_w = line_tag(cpu_req_addr_i);
-  wire [INDEX_BITS-1:0] cur_second_index_w = line_index(cur_last_addr_w);
-  wire [TAG_BITS-1:0] cur_second_tag_w = line_tag(cur_last_addr_w);
-
   wire [`XLEN-1:0] req_last_addr_w = req_addr_q + 32'd3;
   wire req_misaligned_w = req_addr_q[0];
   wire req_cacheable_w = cacheable_range4(req_addr_q);
@@ -219,35 +211,19 @@ module ICache (
   wire [INDEX_BITS-1:0] second_index_w = line_index(req_last_addr_w);
   wire [TAG_BITS-1:0] second_tag_w = line_tag(req_last_addr_w);
 
-  wire lookup_cur_w = (state_q == S_IDLE);
-  wire [INDEX_BITS-1:0] sram_rd0_index_w = lookup_cur_w ? cur_first_index_w : first_index_w;
-  wire [INDEX_BITS-1:0] sram_rd1_index_w = lookup_cur_w ? cur_second_index_w : second_index_w;
+  wire cpu_req_fire_w = cpu_req_valid_i && cpu_req_ready_o;
+  wire refill_lookup_issue_w = (state_q == S_REFILL_LOOKUP);
+  wire lookup_issue_w = cpu_req_fire_w || refill_lookup_issue_w;
+  wire [`XLEN-1:0] lookup_issue_addr_w = cpu_req_fire_w ? cpu_req_addr_i : req_addr_q;
+  wire [`XLEN-1:0] lookup_issue_last_addr_w = lookup_issue_addr_w + 32'd3;
+  wire [INDEX_BITS-1:0] sram_rd0_index_w = line_index(lookup_issue_addr_w);
+  wire [INDEX_BITS-1:0] sram_rd1_index_w = line_index(lookup_issue_last_addr_w);
   wire [WAY_COUNT-1:0] valid_rd0_w;
   wire [WAY_COUNT-1:0] valid_rd1_w;
   wire [WAY_TAG_BITS-1:0] tag_rd0_w;
   wire [WAY_TAG_BITS-1:0] tag_rd1_w;
   wire [WAY_LINE_DATA_BITS-1:0] data_rd0_w;
   wire [WAY_LINE_DATA_BITS-1:0] data_rd1_w;
-
-  wire [WAY_COUNT-1:0] cur_first_hit_vec_w = tag_hit_vec(valid_rd0_w, tag_rd0_w, cur_first_tag_w);
-  wire [WAY_COUNT-1:0] cur_second_hit_vec_w = tag_hit_vec(valid_rd1_w, tag_rd1_w, cur_second_tag_w);
-  wire cur_first_hit_w = |cur_first_hit_vec_w;
-  wire cur_second_hit_w = (~cur_need_second_line_w) || (|cur_second_hit_vec_w);
-  wire cur_lookup_hit_w = cur_first_hit_w && cur_second_hit_w;
-  wire [WAY_BITS-1:0] cur_first_hit_way_w = hit_way(cur_first_hit_vec_w);
-  wire [WAY_BITS-1:0] cur_second_hit_way_w = hit_way(cur_second_hit_vec_w);
-  wire [LINE_DATA_BITS-1:0] cur_first_line_w = way_line(data_rd0_w, cur_first_hit_way_w);
-  wire [LINE_DATA_BITS-1:0] cur_second_line_w = way_line(data_rd1_w, cur_second_hit_way_w);
-  wire [`XLEN-1:0] cur_missing_line_addr_w = cur_first_hit_w ? cur_last_addr_w : cpu_req_addr_i;
-  wire [WAY_COUNT-1:0] cur_missing_valid_w = cur_first_hit_w ? valid_rd1_w : valid_rd0_w;
-  wire [WAY_BITS-1:0] cur_missing_repl_w = repl_q[line_index(cur_missing_line_addr_w)];
-  wire [WAY_BITS-1:0] cur_victim_way_w = victim_way(cur_missing_valid_w, cur_missing_repl_w);
-  wire [`XLEN-1:0] cur_lookup_data_w = {
-      lookup_byte(cpu_req_addr_i, cur_first_line_w, cur_second_line_w, cpu_req_addr_i + 32'd3),
-      lookup_byte(cpu_req_addr_i, cur_first_line_w, cur_second_line_w, cpu_req_addr_i + 32'd2),
-      lookup_byte(cpu_req_addr_i, cur_first_line_w, cur_second_line_w, cpu_req_addr_i + 32'd1),
-      lookup_byte(cpu_req_addr_i, cur_first_line_w, cur_second_line_w, cpu_req_addr_i)
-  };
 
   wire [WAY_COUNT-1:0] first_hit_vec_w = tag_hit_vec(valid_rd0_w, tag_rd0_w, first_tag_w);
   wire [WAY_COUNT-1:0] second_hit_vec_w = tag_hit_vec(valid_rd1_w, tag_rd1_w, second_tag_w);
@@ -271,23 +247,24 @@ module ICache (
 
   wire [`XLEN-1:0] fill_req_addr_w =
       fill_base_q + {{(`XLEN-WORD_BITS-2){1'b0}}, fill_word_q, 2'b00};
-  wire combo_rsp_valid_w = (state_q == S_IDLE) && cpu_req_valid_i &&
-                           (cur_misaligned_w || (cur_cacheable_w && cur_lookup_hit_w));
-  wire [`XLEN-1:0] combo_rsp_data_w = cur_misaligned_w ? {`XLEN{1'b0}} :
-                                                         cur_lookup_data_w;
-  wire combo_rsp_error_w = cur_misaligned_w;
   wire fill_rsp_fire_w = (state_q == S_FILL_R) && axi_rvalid_i && axi_rready_o;
   wire fill_rsp_ok_w = fill_rsp_fire_w && (axi_rresp_i == 2'b00);
   wire fill_last_word_w = (fill_word_q == {WORD_BITS{1'b1}});
   wire fill_done_w = fill_rsp_ok_w && fill_last_word_w;
-  wire miss_start_w = (state_q == S_IDLE) && cpu_req_valid_i &&
-                      !cur_misaligned_w && cur_cacheable_w && !cur_lookup_hit_w;
+  wire lookup_miss_w = (state_q == S_LOOKUP) && !req_misaligned_w &&
+                       req_cacheable_w && !lookup_hit_w;
+  wire lookup_rsp_valid_w = (state_q == S_LOOKUP) &&
+                            (req_misaligned_w || (req_cacheable_w && lookup_hit_w));
+  wire [`XLEN-1:0] lookup_rsp_data_w = req_misaligned_w ? {`XLEN{1'b0}} :
+                                       lookup_data_w;
+  wire lookup_rsp_error_w = req_misaligned_w;
+  wire lookup_rsp_fire_w = lookup_rsp_valid_w && cpu_rsp_ready_i;
 
-  wire valid_wr_en_w = miss_start_w || fill_done_w;
-  wire [INDEX_BITS-1:0] valid_wr_addr_w = miss_start_w ?
-                                          line_index(cur_missing_line_addr_w) :
+  wire valid_wr_en_w = lookup_miss_w || fill_done_w;
+  wire [INDEX_BITS-1:0] valid_wr_addr_w = lookup_miss_w ?
+                                          line_index(missing_line_addr_w) :
                                           fill_index_q;
-  wire [WAY_BITS-1:0] valid_wr_way_w = miss_start_w ? cur_victim_way_w : fill_way_q;
+  wire [WAY_BITS-1:0] valid_wr_way_w = lookup_miss_w ? victim_way_w : fill_way_q;
   wire [WAY_COUNT-1:0] valid_wr_data_w = fill_done_w ? way_mask(fill_way_q) : {WAY_COUNT{1'b0}};
   wire tag_wr_en_w = fill_done_w;
   wire data_wr_en_w = fill_rsp_ok_w;
@@ -295,10 +272,11 @@ module ICache (
   wire [WAY_LINE_DATA_BITS-1:0] data_wr_mask_w = line_word_mask(fill_way_q, fill_word_q);
   wire [WAY_LINE_DATA_BITS-1:0] data_wr_data_w = line_word_data(fill_way_q, fill_word_q, axi_rdata_i);
 
-  assign cpu_req_ready_o = (state_q == S_IDLE);
-  assign cpu_rsp_valid_o = combo_rsp_valid_w || (state_q == S_RESP);
-  assign cpu_rsp_data_o = combo_rsp_valid_w ? combo_rsp_data_w : rsp_data_q;
-  assign cpu_rsp_error_o = combo_rsp_valid_w ? combo_rsp_error_w : rsp_error_q;
+  assign cpu_req_ready_o = (state_q == S_IDLE) ||
+                           ((state_q == S_LOOKUP) && lookup_rsp_fire_w);
+  assign cpu_rsp_valid_o = (state_q == S_RESP) || lookup_rsp_valid_w;
+  assign cpu_rsp_data_o = (state_q == S_RESP) ? rsp_data_q : lookup_rsp_data_w;
+  assign cpu_rsp_error_o = (state_q == S_RESP) ? rsp_error_q : lookup_rsp_error_w;
 
   assign axi_arvalid_o = (state_q == S_FILL_AR) || (state_q == S_UNCACHED_AR);
   assign axi_araddr_o = (state_q == S_UNCACHED_AR) ? req_addr_q : fill_req_addr_w;
@@ -311,10 +289,10 @@ module ICache (
   ) u_valid_sram (
     .clk(clk),
     .clear_i(rst | invalidate_i),
-    .rd0_en_i(1'b1),
+    .rd0_en_i(lookup_issue_w),
     .rd0_addr_i(sram_rd0_index_w),
     .rd0_data_o(valid_rd0_w),
-    .rd1_en_i(1'b1),
+    .rd1_en_i(lookup_issue_w),
     .rd1_addr_i(sram_rd1_index_w),
     .rd1_data_o(valid_rd1_w),
     .wr_en_i(valid_wr_en_w),
@@ -330,10 +308,10 @@ module ICache (
   ) u_tag_sram (
     .clk(clk),
     .clear_i(rst),
-    .rd0_en_i(1'b1),
+    .rd0_en_i(lookup_issue_w),
     .rd0_addr_i(sram_rd0_index_w),
     .rd0_data_o(tag_rd0_w),
-    .rd1_en_i(1'b1),
+    .rd1_en_i(lookup_issue_w),
     .rd1_addr_i(sram_rd1_index_w),
     .rd1_data_o(tag_rd1_w),
     .wr_en_i(tag_wr_en_w),
@@ -349,10 +327,10 @@ module ICache (
   ) u_data_sram (
     .clk(clk),
     .clear_i(rst),
-    .rd0_en_i(1'b1),
+    .rd0_en_i(lookup_issue_w),
     .rd0_addr_i(sram_rd0_index_w),
     .rd0_data_o(data_rd0_w),
-    .rd1_en_i(1'b1),
+    .rd1_en_i(lookup_issue_w),
     .rd1_addr_i(sram_rd1_index_w),
     .rd1_data_o(data_rd1_w),
     .wr_en_i(data_wr_en_w),
@@ -383,38 +361,15 @@ module ICache (
       state_q <= S_IDLE;
       rsp_error_q <= 1'b0;
     end else begin
-      if (combo_rsp_valid_w && !cur_misaligned_w) begin
-        repl_q[cur_first_index_w] <= ~cur_first_hit_way_w;
-        if (cur_need_second_line_w) begin
-          repl_q[cur_second_index_w] <= ~cur_second_hit_way_w;
-        end
-      end
       if (fill_done_w) begin
         repl_q[fill_index_q] <= ~fill_way_q;
       end
 
       case (state_q)
         S_IDLE: begin
-          if (cpu_req_valid_i) begin
+          if (cpu_req_fire_w) begin
             req_addr_q <= cpu_req_addr_i;
-            if (cur_misaligned_w || (cur_cacheable_w && cur_lookup_hit_w)) begin
-              if (!cpu_rsp_ready_i) begin
-                rsp_data_q <= combo_rsp_data_w;
-                rsp_error_q <= combo_rsp_error_w;
-                state_q <= S_RESP;
-              end else begin
-                state_q <= S_IDLE;
-              end
-            end else if (!cur_cacheable_w) begin
-              state_q <= S_UNCACHED_AR;
-            end else begin
-              fill_base_q <= line_base(cur_missing_line_addr_w);
-              fill_index_q <= line_index(cur_missing_line_addr_w);
-              fill_tag_q <= line_tag(cur_missing_line_addr_w);
-              fill_way_q <= cur_victim_way_w;
-              fill_word_q <= {WORD_BITS{1'b0}};
-              state_q <= S_FILL_AR;
-            end
+            state_q <= S_LOOKUP;
           end
         end
 
@@ -422,7 +377,14 @@ module ICache (
           if (req_misaligned_w) begin
             rsp_data_q <= {`XLEN{1'b0}};
             rsp_error_q <= 1'b1;
-            state_q <= S_RESP;
+            if (!cpu_rsp_ready_i) begin
+              state_q <= S_RESP;
+            end else if (cpu_req_fire_w) begin
+              req_addr_q <= cpu_req_addr_i;
+              state_q <= S_LOOKUP;
+            end else begin
+              state_q <= S_IDLE;
+            end
           end else if (!req_cacheable_w) begin
             state_q <= S_UNCACHED_AR;
           end else if (lookup_hit_w) begin
@@ -432,7 +394,14 @@ module ICache (
             if (need_second_line_w) begin
               repl_q[second_index_w] <= ~second_hit_way_w;
             end
-            state_q <= S_RESP;
+            if (!cpu_rsp_ready_i) begin
+              state_q <= S_RESP;
+            end else if (cpu_req_fire_w) begin
+              req_addr_q <= cpu_req_addr_i;
+              state_q <= S_LOOKUP;
+            end else begin
+              state_q <= S_IDLE;
+            end
           end else begin
             fill_base_q <= line_base(missing_line_addr_w);
             fill_index_q <= line_index(missing_line_addr_w);
@@ -441,6 +410,10 @@ module ICache (
             fill_word_q <= {WORD_BITS{1'b0}};
             state_q <= S_FILL_AR;
           end
+        end
+
+        S_REFILL_LOOKUP: begin
+          state_q <= S_LOOKUP;
         end
 
         S_FILL_AR: begin
@@ -457,7 +430,7 @@ module ICache (
               state_q <= S_RESP;
             end else if (fill_last_word_w) begin
               fill_word_q <= {WORD_BITS{1'b0}};
-              state_q <= S_LOOKUP;
+              state_q <= S_REFILL_LOOKUP;
             end else begin
               fill_word_q <= fill_word_q + WORD_STEP;
               state_q <= S_FILL_AR;

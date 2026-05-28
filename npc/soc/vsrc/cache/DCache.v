@@ -56,24 +56,27 @@ module DCache (
   localparam [INDEX_BITS-1:0] INDEX_STEP = {{(INDEX_BITS-1){1'b0}}, 1'b1};
   localparam [WORD_BITS-1:0] WORD_STEP = {{(WORD_BITS-1){1'b0}}, 1'b1};
 
-  localparam [3:0] S_IDLE = 4'd0;
-  localparam [3:0] S_LOOKUP = 4'd1;
-  localparam [3:0] S_WB_AW = 4'd2;
-  localparam [3:0] S_WB_B = 4'd3;
-  localparam [3:0] S_FILL_AR = 4'd4;
-  localparam [3:0] S_FILL_R = 4'd5;
-  localparam [3:0] S_STORE_ALLOC_UPDATE = 4'd6;
-  localparam [3:0] S_UNCACHED_AR = 4'd7;
-  localparam [3:0] S_UNCACHED_R = 4'd8;
-  localparam [3:0] S_UNCACHED_AW = 4'd9;
-  localparam [3:0] S_UNCACHED_B = 4'd10;
-  localparam [3:0] S_RESP = 4'd11;
-  localparam [3:0] S_FLUSH_SCAN = 4'd12;
-  localparam [3:0] S_FLUSH_WB_AW = 4'd13;
-  localparam [3:0] S_FLUSH_WB_B = 4'd14;
-  localparam [3:0] S_FLUSH_DONE = 4'd15;
+  localparam [4:0] S_IDLE = 5'd0;
+  localparam [4:0] S_LOOKUP = 5'd1;
+  localparam [4:0] S_WB_AW = 5'd2;
+  localparam [4:0] S_WB_B = 5'd3;
+  localparam [4:0] S_FILL_AR = 5'd4;
+  localparam [4:0] S_FILL_R = 5'd5;
+  localparam [4:0] S_REFILL_LOOKUP = 5'd6;
+  localparam [4:0] S_STORE_ALLOC_READ = 5'd7;
+  localparam [4:0] S_STORE_ALLOC_UPDATE = 5'd8;
+  localparam [4:0] S_UNCACHED_AR = 5'd9;
+  localparam [4:0] S_UNCACHED_R = 5'd10;
+  localparam [4:0] S_UNCACHED_AW = 5'd11;
+  localparam [4:0] S_UNCACHED_B = 5'd12;
+  localparam [4:0] S_RESP = 5'd13;
+  localparam [4:0] S_FLUSH_READ = 5'd14;
+  localparam [4:0] S_FLUSH_SCAN = 5'd15;
+  localparam [4:0] S_FLUSH_WB_AW = 5'd16;
+  localparam [4:0] S_FLUSH_WB_B = 5'd17;
+  localparam [4:0] S_FLUSH_DONE = 5'd18;
 
-  reg [3:0] state_q;
+  reg [4:0] state_q;
   reg req_write_q;
   reg [`XLEN-1:0] req_addr_q;
   reg [`XLEN-1:0] req_wdata_q;
@@ -238,28 +241,17 @@ module DCache (
   wire [WORD_BITS-1:0] req_word_w = word_offset(req_addr_q);
   wire [DATA_INDEX_BITS-1:0] req_data_index_w = data_index(req_index_w, req_word_w);
 
-  wire cur_req_cacheable_w = cacheable_word(cpu_req_addr_i);
-  wire [INDEX_BITS-1:0] cur_req_index_w = line_index(cpu_req_addr_i);
-  wire [TAG_BITS-1:0] cur_req_tag_w = line_tag(cpu_req_addr_i);
-  wire [WORD_BITS-1:0] cur_req_word_w = word_offset(cpu_req_addr_i);
-  wire [DATA_INDEX_BITS-1:0] cur_req_data_index_w = data_index(cur_req_index_w, cur_req_word_w);
-
-  wire flush_meta_read_w = (state_q == S_FLUSH_SCAN) ||
-                           (state_q == S_FLUSH_WB_AW) ||
-                           (state_q == S_FLUSH_WB_B) ||
-                           (state_q == S_FLUSH_DONE);
-  wire lookup_cur_w = (state_q == S_IDLE) && !flush_i;
   wire idle_cpu_accept_w = (state_q == S_IDLE) && !flush_i;
-  wire [INDEX_BITS-1:0] meta_rd_index_w = lookup_cur_w ? cur_req_index_w : req_index_w;
-  wire [INDEX_BITS-1:0] meta_rd_index_sel_w = flush_meta_read_w ? flush_index_q :
-                                              meta_rd_index_w;
-  wire [DATA_INDEX_BITS-1:0] lookup_data_index_w = lookup_cur_w ? cur_req_data_index_w : req_data_index_w;
-  wire [DATA_INDEX_BITS-1:0] wb_data_index_w = data_index(victim_index_q, wb_word_q);
-  wire [DATA_INDEX_BITS-1:0] flush_data_index_w = data_index(flush_index_q, flush_word_q);
-  wire [DATA_INDEX_BITS-1:0] data_rd_index_w =
-      ((state_q == S_WB_AW) || (state_q == S_WB_B)) ? wb_data_index_w :
-      ((state_q == S_FLUSH_WB_AW) || (state_q == S_FLUSH_WB_B)) ? flush_data_index_w :
-      lookup_data_index_w;
+  wire cpu_req_fire_w = cpu_req_valid_i && cpu_req_ready_o;
+  wire refill_lookup_issue_w = (state_q == S_REFILL_LOOKUP);
+  wire store_alloc_read_issue_w = (state_q == S_STORE_ALLOC_READ);
+  wire flush_read_issue_w = (state_q == S_FLUSH_READ);
+  wire [`XLEN-1:0] lookup_issue_addr_w = cpu_req_fire_w ? cpu_req_addr_i : req_addr_q;
+  wire [INDEX_BITS-1:0] lookup_issue_index_w = line_index(lookup_issue_addr_w);
+  wire [WORD_BITS-1:0] lookup_issue_word_w = word_offset(lookup_issue_addr_w);
+  wire [DATA_INDEX_BITS-1:0] lookup_issue_data_index_w =
+      data_index(lookup_issue_index_w, lookup_issue_word_w);
+  wire lookup_issue_w = cpu_req_fire_w || refill_lookup_issue_w;
 
   wire [WAY_COUNT-1:0] valid_rd_w;
   wire [WAY_COUNT-1:0] dirty_rd_w;
@@ -267,41 +259,37 @@ module DCache (
   wire [WAY_DATA_BITS-1:0] data_rd_w;
 
   wire [WAY_COUNT-1:0] lookup_hit_vec_w = tag_hit_vec(valid_rd_w, tag_rd_w, req_tag_w);
-  wire [WAY_COUNT-1:0] cur_req_hit_vec_w = tag_hit_vec(valid_rd_w, tag_rd_w, cur_req_tag_w);
   wire lookup_hit_w = |lookup_hit_vec_w;
-  wire cur_req_lookup_hit_w = |cur_req_hit_vec_w;
   wire [WAY_BITS-1:0] lookup_way_w = hit_way(lookup_hit_vec_w);
-  wire [WAY_BITS-1:0] cur_req_way_w = hit_way(cur_req_hit_vec_w);
   wire [WAY_BITS-1:0] victim_way_w = victim_way(valid_rd_w, repl_q[req_index_w]);
   wire [TAG_BITS-1:0] victim_tag_w = way_tag(tag_rd_w, victim_way_w);
   wire victim_dirty_w = dirty_rd_w[victim_way_w];
   wire victim_valid_w = valid_rd_w[victim_way_w];
 
   wire [`XLEN-1:0] lookup_data_w = way_word(data_rd_w, lookup_way_w);
-  wire [`XLEN-1:0] cur_lookup_data_w = way_word(data_rd_w, cur_req_way_w);
-  wire cur_load_hit_w = idle_cpu_accept_w && cpu_req_valid_i && !cpu_req_write_i &&
-                        cur_req_cacheable_w && cur_req_lookup_hit_w;
-  wire cur_store_hit_w = idle_cpu_accept_w && cpu_req_valid_i && cpu_req_write_i &&
-                         (cpu_req_wstrb_i != 4'b0000) &&
-                         cur_req_cacheable_w && cur_req_lookup_hit_w;
-  wire cur_store_nop_w = idle_cpu_accept_w && cpu_req_valid_i && cpu_req_write_i &&
-                         (cpu_req_wstrb_i == 4'b0000);
+  wire lookup_miss_w = (state_q == S_LOOKUP) && req_cacheable_w && !lookup_hit_w;
+  wire lookup_dirty_miss_w = lookup_miss_w && victim_valid_w && victim_dirty_w;
   wire store_lookup_hit_w = (state_q == S_LOOKUP) && req_write_q &&
                             (req_wstrb_q != 4'b0000) && req_cacheable_w && lookup_hit_w;
+  wire lookup_zero_store_w = (state_q == S_LOOKUP) && req_write_q &&
+                             (req_wstrb_q == 4'b0000);
+  wire lookup_load_hit_w = (state_q == S_LOOKUP) && !req_write_q &&
+                           req_cacheable_w && lookup_hit_w;
+  wire lookup_rsp_valid_w = lookup_zero_store_w || lookup_load_hit_w || store_lookup_hit_w;
+  wire lookup_rsp_fire_w = lookup_rsp_valid_w && cpu_rsp_ready_i;
+  // DCache data SRAM 是 1RW；store hit 同拍要写 data array，不能再接下一次读请求。
+  wire lookup_can_accept_next_w = lookup_rsp_fire_w && !store_lookup_hit_w && !flush_i;
   wire store_alloc_update_w = (state_q == S_STORE_ALLOC_UPDATE);
-  wire store_update_w = cur_store_hit_w || store_lookup_hit_w || store_alloc_update_w;
-  wire [WAY_BITS-1:0] store_update_way_w = cur_store_hit_w ? cur_req_way_w :
-                                           store_alloc_update_w ? fill_way_q :
+  wire store_alloc_rsp_valid_w = store_alloc_update_w;
+  wire store_update_w = store_lookup_hit_w || store_alloc_update_w;
+  wire [WAY_BITS-1:0] store_update_way_w = store_alloc_update_w ? fill_way_q :
                                            lookup_way_w;
 
-  wire [`XLEN-1:0] store_update_old_data_w = cur_store_hit_w ? cur_lookup_data_w :
-                                             store_alloc_update_w ? way_word(data_rd_w, fill_way_q) :
+  wire [`XLEN-1:0] store_update_old_data_w = store_alloc_update_w ? way_word(data_rd_w, fill_way_q) :
                                              lookup_data_w;
-  wire [`XLEN-1:0] store_update_wdata_w = cur_store_hit_w ? cpu_req_wdata_i : req_wdata_q;
-  wire [3:0] store_update_wstrb_w = cur_store_hit_w ? cpu_req_wstrb_i : req_wstrb_q;
-  wire [DATA_INDEX_BITS-1:0] store_update_index_w = cur_store_hit_w ?
-                                                    cur_req_data_index_w :
-                                                    req_data_index_w;
+  wire [`XLEN-1:0] store_update_wdata_w = req_wdata_q;
+  wire [3:0] store_update_wstrb_w = req_wstrb_q;
+  wire [DATA_INDEX_BITS-1:0] store_update_index_w = req_data_index_w;
   wire [`XLEN-1:0] store_update_mask_w = byte_mask32(store_update_wstrb_w);
   wire [`XLEN-1:0] store_update_data_w =
       (store_update_old_data_w & ~store_update_mask_w) | (store_update_wdata_w & store_update_mask_w);
@@ -333,6 +321,27 @@ module DCache (
   wire flush_wb_done_line_w = (state_q == S_FLUSH_WB_B) &&
                               line_wb_b_ok_w && flush_last_word_w;
   wire flush_dirty_line_w = valid_rd_w[flush_way_q] && dirty_rd_w[flush_way_q];
+  wire [WORD_BITS-1:0] wb_next_word_w = wb_word_q + WORD_STEP;
+  wire [WORD_BITS-1:0] flush_next_word_w = flush_word_q + WORD_STEP;
+  wire lookup_wb_read_issue_w = lookup_dirty_miss_w;
+  wire wb_next_read_issue_w = (state_q == S_WB_B) && line_wb_b_ok_w && !wb_last_word_w;
+  wire flush_dirty_read_issue_w = (state_q == S_FLUSH_SCAN) && flush_dirty_line_w;
+  wire flush_next_read_issue_w = (state_q == S_FLUSH_WB_B) &&
+                                 line_wb_b_ok_w && !flush_last_word_w;
+  wire meta_rd_en_w = lookup_issue_w || flush_read_issue_w;
+  wire [INDEX_BITS-1:0] meta_rd_index_sel_w = flush_read_issue_w ?
+                                              flush_index_q :
+                                              lookup_issue_index_w;
+  wire data_rd_en_w = lookup_issue_w || store_alloc_read_issue_w ||
+                      lookup_wb_read_issue_w || wb_next_read_issue_w ||
+                      flush_dirty_read_issue_w || flush_next_read_issue_w;
+  wire [DATA_INDEX_BITS-1:0] data_rd_index_w =
+      lookup_wb_read_issue_w ? data_index(req_index_w, {WORD_BITS{1'b0}}) :
+      wb_next_read_issue_w ? data_index(victim_index_q, wb_next_word_w) :
+      flush_dirty_read_issue_w ? data_index(flush_index_q, {WORD_BITS{1'b0}}) :
+      flush_next_read_issue_w ? data_index(flush_index_q, flush_next_word_w) :
+      store_alloc_read_issue_w ? req_data_index_w :
+      lookup_issue_data_index_w;
 
   wire data_wr_en_w = fill_rsp_ok_w || store_update_w;
   wire [DATA_INDEX_BITS-1:0] data_wr_addr_w = fill_rsp_ok_w ?
@@ -350,7 +359,7 @@ module DCache (
   wire dirty_wr_en_w = fill_done_w || wb_done_line_w ||
                        flush_wb_done_line_w || store_update_w;
   wire [INDEX_BITS-1:0] dirty_wr_addr_w = store_update_w ?
-                                           (cur_store_hit_w ? cur_req_index_w : req_index_w) :
+                                           req_index_w :
                                            (wb_done_line_w ? victim_index_q :
                                             (flush_wb_done_line_w ? flush_index_q : fill_index_q));
   wire [WAY_BITS-1:0] dirty_wr_way_w = store_update_w ? store_update_way_w :
@@ -369,15 +378,14 @@ module DCache (
                           (axi_w_done_q || axi_w_fire_w);
   wire wb_axi_write_fire_w = ((state_q == S_WB_AW) ||
                               (state_q == S_FLUSH_WB_AW)) && axi_write_done_w;
-  wire combo_rsp_valid_w = cur_load_hit_w || cur_store_hit_w || cur_store_nop_w;
-  wire [`XLEN-1:0] combo_rsp_data_w = cur_load_hit_w ? cur_lookup_data_w : {`XLEN{1'b0}};
-  wire combo_rsp_error_w = 1'b0;
 
   assign flush_done_o = (state_q == S_FLUSH_DONE);
-  assign cpu_req_ready_o = idle_cpu_accept_w;
-  assign cpu_rsp_valid_o = combo_rsp_valid_w || (state_q == S_RESP);
-  assign cpu_rsp_rdata_o = combo_rsp_valid_w ? combo_rsp_data_w : rsp_data_q;
-  assign cpu_rsp_error_o = combo_rsp_valid_w ? combo_rsp_error_w : rsp_error_q;
+  assign cpu_req_ready_o = idle_cpu_accept_w || lookup_can_accept_next_w;
+  assign cpu_rsp_valid_o = (state_q == S_RESP) || lookup_rsp_valid_w ||
+                           store_alloc_rsp_valid_w;
+  assign cpu_rsp_rdata_o = (state_q == S_RESP) ? rsp_data_q :
+                           (lookup_load_hit_w ? lookup_data_w : {`XLEN{1'b0}});
+  assign cpu_rsp_error_o = (state_q == S_RESP) ? rsp_error_q : 1'b0;
 
   assign axi_arvalid_o = (state_q == S_FILL_AR) || (state_q == S_UNCACHED_AR);
   assign axi_araddr_o = (state_q == S_UNCACHED_AR) ? req_addr_q : fill_req_addr_w;
@@ -403,7 +411,7 @@ module DCache (
   ) u_valid_sram (
     .clk(clk),
     .clear_i(rst | invalidate_i | flush_done_o),
-    .rd_en_i(1'b1),
+    .rd_en_i(meta_rd_en_w),
     .rd_addr_i(meta_rd_index_sel_w),
     .rd_data_o(valid_rd_w),
     .wr_en_i(valid_wr_en_w),
@@ -419,7 +427,7 @@ module DCache (
   ) u_dirty_sram (
     .clk(clk),
     .clear_i(rst | invalidate_i | flush_done_o),
-    .rd_en_i(1'b1),
+    .rd_en_i(meta_rd_en_w),
     .rd_addr_i(meta_rd_index_sel_w),
     .rd_data_o(dirty_rd_w),
     .wr_en_i(dirty_wr_en_w),
@@ -435,7 +443,7 @@ module DCache (
   ) u_tag_sram (
     .clk(clk),
     .clear_i(rst),
-    .rd_en_i(1'b1),
+    .rd_en_i(meta_rd_en_w),
     .rd_addr_i(meta_rd_index_sel_w),
     .rd_data_o(tag_rd_w),
     .wr_en_i(tag_wr_en_w),
@@ -451,7 +459,7 @@ module DCache (
   ) u_data_sram (
     .clk(clk),
     .clear_i(rst),
-    .rd_en_i(1'b1),
+    .rd_en_i(data_rd_en_w),
     .rd_addr_i(data_rd_index_w),
     .rd_data_o(data_rd_w),
     .wr_en_i(data_wr_en_w),
@@ -498,9 +506,6 @@ module DCache (
       axi_w_done_q <= 1'b0;
       rsp_error_q <= 1'b0;
     end else begin
-      if (combo_rsp_valid_w && cur_req_cacheable_w && cur_req_lookup_hit_w) begin
-        repl_q[cur_req_index_w] <= ~cur_req_way_w;
-      end
       if (fill_done_w) begin
         repl_q[fill_index_q] <= ~fill_way_q;
       end
@@ -513,23 +518,13 @@ module DCache (
             flush_word_q <= {WORD_BITS{1'b0}};
             axi_aw_done_q <= 1'b0;
             axi_w_done_q <= 1'b0;
-            state_q <= S_FLUSH_SCAN;
-          end else if (cpu_req_valid_i) begin
+            state_q <= S_FLUSH_READ;
+          end else if (cpu_req_fire_w) begin
             req_write_q <= cpu_req_write_i;
             req_addr_q <= cpu_req_addr_i;
             req_wdata_q <= cpu_req_wdata_i;
             req_wstrb_q <= cpu_req_wstrb_i;
-            if (combo_rsp_valid_w) begin
-              if (!cpu_rsp_ready_i) begin
-                rsp_data_q <= combo_rsp_data_w;
-                rsp_error_q <= combo_rsp_error_w;
-                state_q <= S_RESP;
-              end else begin
-                state_q <= S_IDLE;
-              end
-            end else begin
-              state_q <= S_LOOKUP;
-            end
+            state_q <= S_LOOKUP;
           end
         end
 
@@ -538,7 +533,17 @@ module DCache (
             if (req_wstrb_q == 4'b0000) begin
               rsp_data_q <= {`XLEN{1'b0}};
               rsp_error_q <= 1'b0;
-              state_q <= S_RESP;
+              if (!cpu_rsp_ready_i) begin
+                state_q <= S_RESP;
+              end else if (cpu_req_fire_w) begin
+                req_write_q <= cpu_req_write_i;
+                req_addr_q <= cpu_req_addr_i;
+                req_wdata_q <= cpu_req_wdata_i;
+                req_wstrb_q <= cpu_req_wstrb_i;
+                state_q <= S_LOOKUP;
+              end else begin
+                state_q <= S_IDLE;
+              end
             end else if (!req_cacheable_w) begin
               axi_aw_done_q <= 1'b0;
               axi_w_done_q <= 1'b0;
@@ -547,7 +552,11 @@ module DCache (
               rsp_data_q <= {`XLEN{1'b0}};
               rsp_error_q <= 1'b0;
               repl_q[req_index_w] <= ~lookup_way_w;
-              state_q <= S_RESP;
+              if (!cpu_rsp_ready_i) begin
+                state_q <= S_RESP;
+              end else begin
+                state_q <= S_IDLE;
+              end
             end else begin
               fill_base_q <= line_base(req_addr_q);
               fill_index_q <= req_index_w;
@@ -568,7 +577,17 @@ module DCache (
             rsp_data_q <= lookup_data_w;
             rsp_error_q <= 1'b0;
             repl_q[req_index_w] <= ~lookup_way_w;
-            state_q <= S_RESP;
+            if (!cpu_rsp_ready_i) begin
+              state_q <= S_RESP;
+            end else if (cpu_req_fire_w) begin
+              req_write_q <= cpu_req_write_i;
+              req_addr_q <= cpu_req_addr_i;
+              req_wdata_q <= cpu_req_wdata_i;
+              req_wstrb_q <= cpu_req_wstrb_i;
+              state_q <= S_LOOKUP;
+            end else begin
+              state_q <= S_IDLE;
+            end
           end else begin
             fill_base_q <= line_base(req_addr_q);
             fill_index_q <= req_index_w;
@@ -583,6 +602,10 @@ module DCache (
             axi_w_done_q <= 1'b0;
             state_q <= (victim_valid_w && victim_dirty_w) ? S_WB_AW : S_FILL_AR;
           end
+        end
+
+        S_REFILL_LOOKUP: begin
+          state_q <= S_LOOKUP;
         end
 
         S_WB_AW: begin
@@ -605,7 +628,7 @@ module DCache (
               wb_word_q <= {WORD_BITS{1'b0}};
               state_q <= S_FILL_AR;
             end else begin
-              wb_word_q <= wb_word_q + WORD_STEP;
+              wb_word_q <= wb_next_word_w;
               state_q <= S_WB_AW;
             end
           end
@@ -625,7 +648,7 @@ module DCache (
               state_q <= S_RESP;
             end else if (fill_last_word_w) begin
               fill_word_q <= {WORD_BITS{1'b0}};
-              state_q <= req_write_q ? S_STORE_ALLOC_UPDATE : S_LOOKUP;
+              state_q <= req_write_q ? S_STORE_ALLOC_READ : S_REFILL_LOOKUP;
             end else begin
               fill_word_q <= fill_word_q + WORD_STEP;
               state_q <= S_FILL_AR;
@@ -633,10 +656,14 @@ module DCache (
           end
         end
 
+        S_STORE_ALLOC_READ: begin
+          state_q <= S_STORE_ALLOC_UPDATE;
+        end
+
         S_STORE_ALLOC_UPDATE: begin
           rsp_data_q <= {`XLEN{1'b0}};
           rsp_error_q <= 1'b0;
-          state_q <= S_RESP;
+          state_q <= cpu_rsp_ready_i ? S_IDLE : S_RESP;
         end
 
         S_UNCACHED_AR: begin
@@ -671,6 +698,11 @@ module DCache (
           end
         end
 
+        S_FLUSH_READ: begin
+          flush_word_q <= {WORD_BITS{1'b0}};
+          state_q <= S_FLUSH_SCAN;
+        end
+
         S_FLUSH_SCAN: begin
           flush_word_q <= {WORD_BITS{1'b0}};
           if (flush_dirty_line_w) begin
@@ -682,6 +714,7 @@ module DCache (
           end else if (flush_last_way_w) begin
             flush_way_q <= {WAY_BITS{1'b0}};
             flush_index_q <= flush_index_q + INDEX_STEP;
+            state_q <= S_FLUSH_READ;
           end else begin
             flush_way_q <= flush_way_q + {{(WAY_BITS-1){1'b0}}, 1'b1};
           end
@@ -708,13 +741,13 @@ module DCache (
               end else if (flush_last_way_w) begin
                 flush_way_q <= {WAY_BITS{1'b0}};
                 flush_index_q <= flush_index_q + INDEX_STEP;
-                state_q <= S_FLUSH_SCAN;
+                state_q <= S_FLUSH_READ;
               end else begin
                 flush_way_q <= flush_way_q + {{(WAY_BITS-1){1'b0}}, 1'b1};
                 state_q <= S_FLUSH_SCAN;
               end
             end else begin
-              flush_word_q <= flush_word_q + WORD_STEP;
+              flush_word_q <= flush_next_word_w;
               state_q <= S_FLUSH_WB_AW;
             end
           end

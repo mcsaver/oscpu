@@ -1039,3 +1039,24 @@ pid:928 2026-05-23T11:14:14.628504097 [t1] server file locked
 pid:928 2026-05-23T11:14:14.631186747 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
 pid:928 2026-05-23T11:14:14.631815576 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
 pid:928 2026-05-23T11:14:14.632085776 [t1] releasing daemonLock
+pid:1163183 2026-05-28T14:00:15.048237993 [t1] running server in /home/lyg/PA/ysyx-workbench/out/mill-daemon
+pid:1163183 2026-05-28T14:00:15.075178762 [t1] acceptTimeout=Some(30 minutes)
+pid:1163183 2026-05-28T14:00:15.089002303 [t1] server file locked
+pid:1163183 2026-05-28T14:00:15.108848241 [t1] listening on port 44116
+pid:1163183 2026-05-28T14:00:15.113841121 [t1] handling run for Socket[addr=/127.0.0.1,port=44791,localport=44116]
+pid:1163183 2026-05-28T14:00:15.117288173 [t26] prepareConnection Socket[addr=/127.0.0.1,port=44791,localport=44116]
+pid:1163183 2026-05-28T14:00:15.121345926 [t26] 1 active connections
+pid:1163183 2026-05-28T14:00:15.127874876 [t27] handleConnection: starting RPC server
+pid:20303 2026-05-28T14:00:15.119005853 [t24] watchProcessIdFile: processId file (/home/lyg/PA/ysyx-workbench/out/mill-daemon/processId) contents 1163183 does not match processId 20303
+pid:20303 2026-05-28T14:00:15.158972439 [t1] removing /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:20303 2026-05-28T14:00:15.159997413 [t1] removed /home/lyg/PA/ysyx-workbench/out/mill-daemon/socketPort
+pid:20303 2026-05-28T14:00:15.160211795 [t1] releasing daemonLock
+pid:20303 2026-05-28T14:00:15.162292559 [t1] daemonLock released
+pid:20303 2026-05-28T14:00:15.162749628 [t1] exiting server
+pid:1163183 2026-05-28T14:00:15.179898575 [t27] handleConnection: running RPC server
+pid:1163183 2026-05-28T14:00:15.180299888 [t27] [MillDaemon-Socket[addr=/127.0.0.1,port=44791,localport=44116]] Initializing Mill RPC server... Waiting for the `initialize` message.
+pid:1163183 2026-05-28T14:00:15.249704934 [t27] [MillDaemon-Socket[addr=/127.0.0.1,port=44791,localport=44116]] Initialized, waiting for messages.
+pid:1163183 2026-05-28T14:00:15.341928496 [t27] [MillDaemon-Socket[addr=/127.0.0.1,port=44791,localport=44116]] Transport wire broken.
+pid:1163183 2026-05-28T14:00:15.343510851 [t27] handleConnection: RPC server finished normally, exitCode=0
+pid:1163183 2026-05-28T14:00:15.344249151 [t26] done=true, idle=true, lastClientAlive=false
+pid:1163183 2026-05-28T14:00:15.346251044 [t26] 0 active connections

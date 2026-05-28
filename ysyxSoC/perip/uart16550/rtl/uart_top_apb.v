@@ -28,14 +28,15 @@ module uart_top_apb (
    wire [2:0] reg_adr;
    reg  [7:0] reg_dat8_w; // write to reg
    reg  [7:0] reg_dat8_w_reg;
+   reg        transfer_seen_q;
    wire [7:0] reg_dat8_r; // read from reg
    wire       rts_internal;
    assign     rtsn = ~rts_internal;
    //--------------------------------------------------------
    assign in_pready = in_psel && in_penable;
    assign in_pslverr = 1'b0;
-   assign reg_we  = ~reset & in_psel & ~in_penable &  in_pwrite;
-   assign reg_re  = ~reset & in_psel & ~in_penable & ~in_pwrite;
+   assign reg_we  = ~reset & in_psel & in_penable &  in_pwrite & ~transfer_seen_q;
+   assign reg_re  = ~reset & in_psel & in_penable & ~in_pwrite & ~transfer_seen_q;
    assign reg_adr = in_paddr[2:0]; //assign adr_o   = in_paddr[2:0];
    assign in_prdata  = (in_psel) ? {4{reg_dat8_r}} : 'h0;
    always @ (in_paddr[1:0] or in_pwdata) begin
@@ -56,6 +57,15 @@ module uart_top_apb (
    always @ (posedge clock) begin
      reg_dat8_w_reg <= reg_dat8_w;
    end
+
+   always @ (posedge clock) begin
+     if (reset || !in_psel || !in_penable) begin
+       transfer_seen_q <= 1'b0;
+     end else begin
+       transfer_seen_q <= 1'b1;
+     end
+   end
+
    //--------------------------------------------------------
    // Registers
    // As shown below reg_dat_i should be stable

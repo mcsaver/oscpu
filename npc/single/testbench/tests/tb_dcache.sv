@@ -3,6 +3,7 @@
 module tb_dcache;
   `include "tb_common.svh"
   localparam LINE_WORDS = `DCACHE_LINE_WORDS;
+  localparam FLUSH_TIMEOUT = (`DCACHE_LINE_COUNT * 4) + (`DCACHE_LINE_WORDS * 8);
 
   reg clk;
   reg rst;
@@ -178,14 +179,15 @@ module tb_dcache;
         tb_check32("read same-cycle response", cpu_rsp_rdata, exp_data);
         tb_check1("read same-cycle error", cpu_rsp_error, 1'b0);
         `TB_TICK(clk);
-      end else begin
-        `TB_TICK(clk);
-        wait_rsp("read response", exp_data, 1'b0);
-      end
-      cpu_req_valid = 1'b0;
-      #1;
-    end
-  endtask
+	      end else begin
+	        `TB_TICK(clk);
+	        cpu_req_valid = 1'b0;
+	        wait_rsp("read response", exp_data, 1'b0);
+	      end
+	      cpu_req_valid = 1'b0;
+	      #1;
+	    end
+	  endtask
 
   integer i;
 
@@ -212,13 +214,29 @@ module tb_dcache;
     cpu_req_wdata = 32'h0;
     cpu_req_wstrb = 4'h0;
     #1;
-    tb_check1("load hit combo valid", cpu_rsp_valid, 1'b1);
-    tb_check32("load hit combo data", cpu_rsp_rdata, 32'h0000_2002);
-    tb_check1("load hit combo error", cpu_rsp_error, 1'b0);
+    tb_check1("load hit no immediate valid", cpu_rsp_valid, 1'b0);
     tb_check1("load hit no axi read", axi_arvalid, 1'b0);
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
+    wait_rsp("load hit sync response", 32'h0000_2002, 1'b0);
+
+    cpu_req_valid = 1'b1;
+    cpu_req_write = 1'b0;
+    cpu_req_addr = 32'h8000_0008;
+    cpu_req_wdata = 32'h0;
+    cpu_req_wstrb = 4'h0;
+    `TB_TICK(clk);
+    cpu_req_addr = 32'h8000_000c;
     #1;
+    tb_check1("dcache first pipelined load rsp", cpu_rsp_valid, 1'b1);
+    tb_check1("dcache accepts next load hit", cpu_req_ready, 1'b1);
+    tb_check32("dcache first pipelined data", cpu_rsp_rdata, 32'h0000_2002);
+    `TB_TICK(clk);
+    cpu_req_valid = 1'b0;
+    #1;
+    tb_check1("dcache second pipelined load rsp", cpu_rsp_valid, 1'b1);
+    tb_check32("dcache second pipelined data", cpu_rsp_rdata, 32'h0000_2003);
+    `TB_TICK(clk);
 
     cpu_req_valid = 1'b1;
     cpu_req_write = 1'b0;
@@ -226,11 +244,13 @@ module tb_dcache;
     cpu_req_wdata = 32'h0;
     cpu_req_wstrb = 4'h0;
     cpu_rsp_ready = 1'b0;
+    `TB_TICK(clk);
+    cpu_req_valid = 1'b0;
+    while (!cpu_rsp_valid) `TB_TICK(clk);
     #1;
     tb_check1("load hit backpressure valid", cpu_rsp_valid, 1'b1);
     tb_check32("load hit backpressure data", cpu_rsp_rdata, 32'h0000_2002);
     `TB_TICK(clk);
-    cpu_req_valid = 1'b0;
     #1;
     tb_check1("load hit backpressure holds valid", cpu_rsp_valid, 1'b1);
     tb_check32("load hit backpressure holds data", cpu_rsp_rdata, 32'h0000_2002);
@@ -247,11 +267,11 @@ module tb_dcache;
     cpu_req_wdata = 32'haaaa_0000;
     cpu_req_wstrb = 4'b1100;
     #1;
-    tb_check1("store hit combo valid", cpu_rsp_valid, 1'b1);
+    tb_check1("store hit no immediate valid", cpu_rsp_valid, 1'b0);
     tb_check1("store hit no axi write", axi_awvalid, 1'b0);
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
-    #1;
+    wait_rsp("store hit sync response", 32'h0, 1'b0);
     cpu_read(32'h8000_0008, 32'haaaa_2002);
 
     cpu_req_valid = 1'b1;
@@ -271,10 +291,10 @@ module tb_dcache;
     cpu_req_wdata = 32'hfeed_0002;
     cpu_req_wstrb = 4'b1111;
     #1;
-    tb_check1("second way store hit", cpu_rsp_valid, 1'b1);
+    tb_check1("second way store hit no immediate valid", cpu_rsp_valid, 1'b0);
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
-    #1;
+    wait_rsp("second way store hit", 32'h0, 1'b0);
 
     cpu_read(32'h8000_0008, 32'haaaa_2002);
 
@@ -299,10 +319,10 @@ module tb_dcache;
     cpu_req_wdata = 32'hcafe_0002;
     cpu_req_wstrb = 4'b1111;
     #1;
-    tb_check1("flush setup third way store hit", cpu_rsp_valid, 1'b1);
+    tb_check1("flush setup store no immediate valid", cpu_rsp_valid, 1'b0);
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
-    #1;
+    wait_rsp("flush setup third way store hit", 32'h0, 1'b0);
 
     flush_i = 1'b1;
     tb_check1("flush starts not done", flush_done, 1'b0);
@@ -316,7 +336,7 @@ module tb_dcache;
                         (i == 2) ? 32'hcafe_0002 : (32'h0000_4000 + i),
                         4'b1111);
     end
-    for (i = 0; !flush_done && (i < 128); i = i + 1) begin
+    for (i = 0; !flush_done && (i < FLUSH_TIMEOUT); i = i + 1) begin
       `TB_TICK(clk);
     end
     #1;

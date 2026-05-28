@@ -11,8 +11,8 @@ Area heap = RANGE(&_heap_start, &_heap_end);
 static const char mainargs[MAINARGS_MAX_LEN] = TOSTRING(MAINARGS_PLACEHOLDER);
 
 void putch(char ch) {
-  // ysyxSoC 的可用串口是 0x1000_0000 的 16550 THR；AM 基础输出直接落到这一路设备。
-  outb(YSYXSOC_UART_THR, ch);
+  // 真实 16550 发送 FIFO 有容量限制；等待 THR ready 后再写，避免长字符串覆盖 FIFO。
+  ysyxsoc_uart_putc(ch);
 }
 
 void halt(int code) {
@@ -23,6 +23,7 @@ void halt(int code) {
 }
 
 void _trm_init() {
+  ysyxsoc_uart_init();
   int ret = main(mainargs);
   halt(ret);
 }

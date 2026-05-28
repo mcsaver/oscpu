@@ -452,22 +452,20 @@ module NpcSimTop (
 
   // 仿真兼容事件不进入 NpcCore 端口 ABI；DPI 顶层用层次化引用观察 RTL 内部 flush。
   assign sim_cache_flush_w = u_core.cache_flush_valid_w;
-  // 性能统计属于仿真观测，不进入 NpcCore 端口 ABI；这里直接观察 RTL cache CPU-side 握手和 lookup 结果。
-  assign sim_icache_access_w = u_core.u_icache.cpu_req_valid_i &&
-                               u_core.u_icache.cpu_req_ready_o &&
-                               u_core.u_icache.cur_cacheable_w &&
-                               !u_core.u_icache.cur_misaligned_w;
-  assign sim_icache_hit_w = sim_icache_access_w && u_core.u_icache.cur_lookup_hit_w;
-  assign sim_icache_miss_w = sim_icache_access_w && !u_core.u_icache.cur_lookup_hit_w;
+  // 性能统计属于仿真观测，不进入 NpcCore 端口 ABI；同步 SRAM 下 lookup 结果晚于请求握手一拍。
+  assign sim_icache_access_w = (u_core.u_icache.state_q == 3'd1) &&
+                               u_core.u_icache.req_cacheable_w &&
+                               !u_core.u_icache.req_misaligned_w;
+  assign sim_icache_hit_w = sim_icache_access_w && u_core.u_icache.lookup_hit_w;
+  assign sim_icache_miss_w = sim_icache_access_w && !u_core.u_icache.lookup_hit_w;
 
-  assign sim_dcache_access_w = u_core.u_dcache.cpu_req_valid_i &&
-                               u_core.u_dcache.cpu_req_ready_o &&
-                               u_core.u_dcache.cur_req_cacheable_w &&
-                               (!u_core.u_dcache.cpu_req_write_i ||
-                                (u_core.u_dcache.cpu_req_wstrb_i != 4'b0000));
-  assign sim_dcache_hit_w = sim_dcache_access_w && u_core.u_dcache.cur_req_lookup_hit_w;
-  assign sim_dcache_miss_w = sim_dcache_access_w && !u_core.u_dcache.cur_req_lookup_hit_w;
-  assign sim_dcache_store_access_w = sim_dcache_access_w && u_core.u_dcache.cpu_req_write_i;
+  assign sim_dcache_access_w = (u_core.u_dcache.state_q == 5'd1) &&
+                               u_core.u_dcache.req_cacheable_w &&
+                               (!u_core.u_dcache.req_write_q ||
+                                (u_core.u_dcache.req_wstrb_q != 4'b0000));
+  assign sim_dcache_hit_w = sim_dcache_access_w && u_core.u_dcache.lookup_hit_w;
+  assign sim_dcache_miss_w = sim_dcache_access_w && !u_core.u_dcache.lookup_hit_w;
+  assign sim_dcache_store_access_w = sim_dcache_access_w && u_core.u_dcache.req_write_q;
   assign sim_dcache_writeback_w = u_core.u_dcache.wb_axi_write_fire_w;
   assign sim_dcache_write_through_w = 1'b0;
   assign sim_control_event_w = u_core.bpu_update_valid_w;

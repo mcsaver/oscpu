@@ -483,15 +483,12 @@ module stage_pipe_test;
       fe_halt = 1'b0;
       #1;
 
-      // cache hit 必须在请求同拍形成 IF/ID load 脉冲，不能再落入 fetch buffer 等下一拍。
+      // 同步 SRAM 下 hit 需要先发出读地址，下一拍以后才能形成 IF/ID load。
       tb_check1("frontend hit req valid", icache_cpu_req_valid, 1'b1);
-      tb_check1("frontend hit rsp valid", icache_cpu_rsp_valid, 1'b1);
-      tb_check1("frontend hit direct pipe", fe_pipe_valid, 1'b1);
-      tb_check32("frontend hit pipe pc", fe_pipe_pc, `RESET_PC);
-      hit_cycles = 0;
+      tb_check1("frontend hit no immediate rsp", icache_cpu_rsp_valid, 1'b0);
+      tb_check1("frontend hit no immediate pipe", fe_pipe_valid, 1'b0);
 
-      `TB_TICK(clk);
-      #1;
+      wait_for_frontend_ifid(hit_cycles);
       tb_check1("frontend hit loaded ifid", fe_if_id_valid, 1'b1);
       tb_check32("frontend hit ifid inst", fe_if_id_inst, 32'h0000_0013);
       tb_check1("frontend hit not duplicated", fe_pipe_valid, 1'b0);
