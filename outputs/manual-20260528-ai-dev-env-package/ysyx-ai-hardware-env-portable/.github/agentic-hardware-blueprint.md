@@ -19,17 +19,7 @@
 
 ## 当前真实后端
 
-- 当前默认回归后端：
-  - `am-kernels`：测试与最小工作负载入口
-  - `abstract-machine`：平台抽象、链接脚本、镜像封装
-  - `npc/sim`：NPC 平台无关仿真入口，按 Kconfig/覆盖变量选择后端
-  - `npc/single` + `Verilator`：普通 NPC 自仿真后端
-  - `npc/soc` + `ysyxSoCFull`：ysyxSoC 接入后端
-  - `nemu`：参考模型、NEMU SoC reference、trace / watchpoint / batch 调试入口
-  - `difftest`：NPC single/soc 与 NEMU reference 的提交级 GPR/PC 对比层
-- 下游节点：
-  - `ysyxSoC`：Chisel SoC、CPU ABI、外设地址图与生成物
-  - `yosys-sta`：综合、STA、PPA 节点
+
 
 ## 图节点契约
 

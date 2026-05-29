@@ -70,6 +70,29 @@ import "DPI-C" function void npc_dcache_event(
   input int unsigned is_store
 );
 
+import "DPI-C" function void npc_ooo_cycle_event(
+  input int unsigned retire_count,
+  input int unsigned execute_count,
+  input int unsigned dispatch_count,
+  input int unsigned fetch_req_valid,
+  input int unsigned fetch_req_fire,
+  input int unsigned fetch_rsp_fire,
+  input int unsigned fetch_rsp_enqueue,
+  input int unsigned fetch_rsp_bypass,
+  input int unsigned stop_pending,
+  input int unsigned pending_branch,
+  input int unsigned pending_jump,
+  input int unsigned pending_mem,
+  input int unsigned synth_ret_pending,
+  input int unsigned branch_prefetch_fire,
+  input int unsigned branch_prefetch_hit,
+  input int unsigned mem0_req_fire,
+  input int unsigned mem1_req_fire,
+  input int unsigned mem0_rsp_fire,
+  input int unsigned mem1_rsp_fire,
+  input int unsigned commit1_block
+);
+
 import "DPI-C" function void npc_uart_event(
   input int unsigned is_write,
   input int unsigned tx_valid,
@@ -190,6 +213,7 @@ module NpcSimTop (
   logic sim_bpu_pred_taken_w;
   logic sim_bpu_resolve_correct_w;
   logic exit_reported_q;
+  logic ifu_axi_abort_w;
 
   function automatic logic sim_is_link_reg(input logic [4:0] reg_idx);
     begin
@@ -197,12 +221,47 @@ module NpcSimTop (
     end
   endfunction
 
-  NpcCore u_core (
+  logic core_commit0_valid_w;
+  logic [`XLEN-1:0] core_commit0_pc_w;
+  logic [`INST_W-1:0] core_commit0_inst_w;
+  logic [`XLEN-1:0] core_commit0_next_pc_w;
+  logic core_commit0_rd_en_w;
+  logic [`REG_ADDR_W-1:0] core_commit0_rd_addr_w;
+  logic [`XLEN-1:0] core_commit0_rd_data_w;
+  logic core_commit0_exception_w;
+  logic core_commit0_write_w;
+  logic core_commit1_valid_w;
+  logic [`XLEN-1:0] core_commit1_pc_w;
+  logic [`INST_W-1:0] core_commit1_inst_w;
+  logic [`XLEN-1:0] core_commit1_next_pc_w;
+  logic core_commit1_rd_en_w;
+  logic [`REG_ADDR_W-1:0] core_commit1_rd_addr_w;
+  logic [`XLEN-1:0] core_commit1_rd_data_w;
+  logic core_commit1_exception_w;
+  logic core_commit1_write_w;
+  logic core_trap_valid_w;
+  logic [`TRAP_CAUSE_W-1:0] core_trap_cause_w;
+  logic [`XLEN-1:0] core_trap_pc_w;
+  logic [`XLEN-1:0] core_trap_tval_w;
+  logic core_exit_valid_w;
+  logic core_exit_is_ecall_w;
+  logic core_exit_is_ebreak_w;
+  logic [`XLEN-1:0] core_exit_code_w;
+  logic [`XLEN-1:0] core_exit_pc_w;
+  logic core_halted_w;
+  logic [`XLEN * `REG_NUM - 1:0] core_debug_gprs_w;
+  logic [1:0] core_retire_count_w;
+  logic [6:0] core_free_count_w;
+  logic [4:0] core_rob_count_w;
+  logic [3:0] core_issue_count_w;
+
+  NpcCoreTop u_core (
     .clk(clk),
     .rst(rst),
     .ifu_axi_arvalid_o(ifu_axi_arvalid_w),
     .ifu_axi_arready_i(ifu_axi_arready_w),
     .ifu_axi_araddr_o(ifu_axi_araddr_w),
+    .ifu_axi_abort_o(ifu_axi_abort_w),
     .ifu_axi_rvalid_i(ifu_axi_rvalid_w),
     .ifu_axi_rready_o(ifu_axi_rready_w),
     .ifu_axi_rdata_i(ifu_axi_rdata_w),
@@ -227,28 +286,47 @@ module NpcSimTop (
     .irq_software_i(clint_msip_irq_w),
     .irq_timer_i(clint_mtip_irq_w),
     .irq_external_i(1'b0),
-    /* verilator lint_off PINCONNECTEMPTY */
-    .commit_valid_o(),
-    .commit_pc_o(),
-    .commit_inst_o(),
-    .commit_next_pc_o(),
-    .commit_rd_en_o(),
-    .commit_rd_addr_o(),
-    .commit_rd_data_o(),
-    .trap_valid_o(),
-    .trap_cause_o(),
-    .trap_pc_o(),
-    .trap_tval_o(),
-    .exit_valid_o(),
-    .exit_is_ecall_o(),
-    .exit_is_ebreak_o(),
-    .exit_code_o(),
-    .halted_o(),
+    .commit0_valid_o(core_commit0_valid_w),
+    .commit0_pc_o(core_commit0_pc_w),
+    .commit0_inst_o(core_commit0_inst_w),
+    .commit0_next_pc_o(core_commit0_next_pc_w),
+    .commit0_rd_en_o(core_commit0_rd_en_w),
+    .commit0_rd_addr_o(core_commit0_rd_addr_w),
+    .commit0_rd_data_o(core_commit0_rd_data_w),
+    .commit0_exception_o(core_commit0_exception_w),
+    .commit0_write_o(core_commit0_write_w),
+    .commit1_valid_o(core_commit1_valid_w),
+    .commit1_pc_o(core_commit1_pc_w),
+    .commit1_inst_o(core_commit1_inst_w),
+    .commit1_next_pc_o(core_commit1_next_pc_w),
+    .commit1_rd_en_o(core_commit1_rd_en_w),
+    .commit1_rd_addr_o(core_commit1_rd_addr_w),
+    .commit1_rd_data_o(core_commit1_rd_data_w),
+    .commit1_exception_o(core_commit1_exception_w),
+    .commit1_write_o(core_commit1_write_w),
+    .trap_valid_o(core_trap_valid_w),
+    .trap_cause_o(core_trap_cause_w),
+    .trap_pc_o(core_trap_pc_w),
+    .trap_tval_o(core_trap_tval_w),
+    .exit_valid_o(core_exit_valid_w),
+    .exit_is_ecall_o(core_exit_is_ecall_w),
+    .exit_is_ebreak_o(core_exit_is_ebreak_w),
+    .exit_code_o(core_exit_code_w),
+    .exit_pc_o(core_exit_pc_w),
+    .halted_o(core_halted_w),
     .debug_pc_o(debug_pc_o),
     .debug_state_o(debug_state_o),
-    .debug_gprs_o()
-    /* verilator lint_on PINCONNECTEMPTY */
+    .debug_gprs_o(core_debug_gprs_w),
+    .retire_count_o(core_retire_count_w),
+    .free_count_o(core_free_count_w),
+    .rob_count_o(core_rob_count_w),
+    .issue_count_o(core_issue_count_w)
   );
+
+  wire unused_core_status_w =
+      core_halted_w | core_commit0_write_w | core_commit1_write_w |
+      (|core_debug_gprs_w) | (|core_retire_count_w) |
+      (|core_free_count_w) | (|core_rob_count_w) | (|core_issue_count_w);
 
   NpcAxiBus #(
     .S_COUNT(AXI_S_COUNT),
@@ -276,7 +354,7 @@ module NpcSimTop (
     .ifu_axi_arvalid_i(ifu_axi_arvalid_w),
     .ifu_axi_arready_o(ifu_axi_arready_w),
     .ifu_axi_araddr_i(ifu_axi_araddr_w),
-    .ifu_axi_abort_i(u_core.ex_any_flush_w),
+    .ifu_axi_abort_i(ifu_axi_abort_w),
     .ifu_axi_rvalid_o(ifu_axi_rvalid_w),
     .ifu_axi_rready_i(ifu_axi_rready_w),
     .ifu_axi_rdata_o(ifu_axi_rdata_w),
@@ -450,32 +528,76 @@ module NpcSimTop (
     end
   endgenerate
 
+`ifndef NPC_OOO_ALU_EXPERIMENT
   // 仿真兼容事件不进入 NpcCore 端口 ABI；DPI 顶层用层次化引用观察 RTL 内部 flush。
-  assign sim_cache_flush_w = u_core.cache_flush_valid_w;
+  assign sim_cache_flush_w = u_core.u_inorder.cache_flush_valid_w;
   // 性能统计属于仿真观测，不进入 NpcCore 端口 ABI；同步 SRAM 下 lookup 结果晚于请求握手一拍。
-  assign sim_icache_access_w = (u_core.u_icache.state_q == 3'd1) &&
-                               u_core.u_icache.req_cacheable_w &&
-                               !u_core.u_icache.req_misaligned_w;
-  assign sim_icache_hit_w = sim_icache_access_w && u_core.u_icache.lookup_hit_w;
-  assign sim_icache_miss_w = sim_icache_access_w && !u_core.u_icache.lookup_hit_w;
+  assign sim_icache_access_w = (u_core.u_inorder.u_icache.state_q == 3'd1) &&
+                               u_core.u_inorder.u_icache.req_cacheable_w &&
+                               !u_core.u_inorder.u_icache.req_misaligned_w;
+  assign sim_icache_hit_w = sim_icache_access_w && u_core.u_inorder.u_icache.lookup_hit_w;
+  assign sim_icache_miss_w = sim_icache_access_w && !u_core.u_inorder.u_icache.lookup_hit_w;
 
-  assign sim_dcache_access_w = (u_core.u_dcache.state_q == 5'd1) &&
-                               u_core.u_dcache.req_cacheable_w &&
-                               (!u_core.u_dcache.req_write_q ||
-                                (u_core.u_dcache.req_wstrb_q != 4'b0000));
-  assign sim_dcache_hit_w = sim_dcache_access_w && u_core.u_dcache.lookup_hit_w;
-  assign sim_dcache_miss_w = sim_dcache_access_w && !u_core.u_dcache.lookup_hit_w;
-  assign sim_dcache_store_access_w = sim_dcache_access_w && u_core.u_dcache.req_write_q;
-  assign sim_dcache_writeback_w = u_core.u_dcache.wb_axi_write_fire_w;
+  assign sim_dcache_access_w = (u_core.u_inorder.u_dcache.state_q == 5'd1) &&
+                               u_core.u_inorder.u_dcache.req_cacheable_w &&
+                               (!u_core.u_inorder.u_dcache.req_write_q ||
+                                (u_core.u_inorder.u_dcache.req_wstrb_q != 4'b0000));
+  assign sim_dcache_hit_w = sim_dcache_access_w && u_core.u_inorder.u_dcache.lookup_hit_w;
+  assign sim_dcache_miss_w = sim_dcache_access_w && !u_core.u_inorder.u_dcache.lookup_hit_w;
+  assign sim_dcache_store_access_w = sim_dcache_access_w && u_core.u_inorder.u_dcache.req_write_q;
+  assign sim_dcache_writeback_w = u_core.u_inorder.u_dcache.wb_axi_write_fire_w;
   assign sim_dcache_write_through_w = 1'b0;
-  assign sim_control_event_w = u_core.bpu_update_valid_w;
-  assign sim_bpu_lookup_event_w = u_core.u_if_stage.u_branch_predictor.predict_valid_i &&
-                                  u_core.u_if_stage.bpu_predict_control_w;
-  assign sim_bpu_ret_resolve_w = u_core.id_ex_jalr_w &&
-                                 !sim_is_link_reg(u_core.id_ex_inst_q[11:7]) &&
-                                 sim_is_link_reg(u_core.id_ex_inst_q[19:15]);
-  assign sim_bpu_pred_taken_w = u_core.id_ex_pred_pc_q != u_core.ex_pc_plus4_w;
-  assign sim_bpu_resolve_correct_w = u_core.id_ex_pred_pc_q == u_core.ex_control_next_pc_w;
+  assign sim_control_event_w = u_core.u_inorder.bpu_update_valid_w;
+  assign sim_bpu_lookup_event_w = u_core.u_inorder.u_if_stage.u_branch_predictor.predict_valid_i &&
+                                  u_core.u_inorder.u_if_stage.bpu_predict_control_w;
+  assign sim_bpu_ret_resolve_w = u_core.u_inorder.id_ex_jalr_w &&
+                                 !sim_is_link_reg(u_core.u_inorder.id_ex_inst_q[11:7]) &&
+                                 sim_is_link_reg(u_core.u_inorder.id_ex_inst_q[19:15]);
+  assign sim_bpu_pred_taken_w = u_core.u_inorder.id_ex_pred_pc_q != u_core.u_inorder.ex_pc_plus4_w;
+  assign sim_bpu_resolve_correct_w =
+      u_core.u_inorder.id_ex_pred_pc_q == u_core.u_inorder.ex_control_next_pc_w;
+`else
+  assign sim_cache_flush_w = 1'b0;
+  // OoO 实验核的 packet I-cache 位于 core top fetch bridge 内；这里仅做仿真统计观察。
+  assign sim_icache_access_w = u_core.u_ooo_fetch_bridge.fetch_req_fire_w;
+  assign sim_icache_hit_w = sim_icache_access_w &&
+                            u_core.u_ooo_fetch_bridge.cache_hit_w;
+  assign sim_icache_miss_w = sim_icache_access_w &&
+                             !u_core.u_ooo_fetch_bridge.cache_hit_w;
+  assign sim_dcache_access_w =
+      u_core.u_ooo_mem_bridge.mem0_req_fire_w ||
+      u_core.u_ooo_mem_bridge.mem1_req_fire_w;
+  assign sim_dcache_store_access_w =
+      sim_dcache_access_w && u_core.u_ooo_mem_bridge.req_write_w;
+  assign sim_dcache_hit_w =
+      sim_dcache_access_w && u_core.u_ooo_mem_bridge.req_dcache_hit_w;
+  assign sim_dcache_miss_w =
+      sim_dcache_access_w && !u_core.u_ooo_mem_bridge.req_write_w &&
+      !u_core.u_ooo_mem_bridge.req_dcache_hit_w;
+  assign sim_dcache_writeback_w = 1'b0;
+  assign sim_dcache_write_through_w = 1'b0;
+  assign sim_control_event_w = 1'b0;
+  assign sim_bpu_lookup_event_w = 1'b0;
+  assign sim_bpu_ret_resolve_w = 1'b0;
+  assign sim_bpu_pred_taken_w = 1'b0;
+  assign sim_bpu_resolve_correct_w = 1'b0;
+  // OoO 统计只在仿真顶层旁路观察已有信号，不回馈任何 ready/valid 或提交路径。
+  wire [1:0] sim_ooo_execute_count_w =
+      {1'b0, u_core.u_ooo_core.execute0_valid_unused_w} +
+      {1'b0, u_core.u_ooo_core.execute1_valid_unused_w};
+  wire [1:0] sim_ooo_dispatch_count_w =
+      {1'b0, u_core.u_ooo_core.core_dispatch0_fire_w} +
+      {1'b0, (u_core.u_ooo_core.core_dispatch1_valid_w &&
+              u_core.u_ooo_core.dispatch1_ready_w)};
+  wire unused_ooo_sim_stat_w =
+      sim_icache_access_w | sim_icache_hit_w | sim_icache_miss_w |
+      sim_dcache_access_w | sim_dcache_hit_w | sim_dcache_miss_w |
+      sim_dcache_store_access_w | sim_dcache_writeback_w |
+      sim_dcache_write_through_w | sim_control_event_w |
+      sim_bpu_lookup_event_w | sim_bpu_ret_resolve_w |
+      sim_bpu_pred_taken_w | sim_bpu_resolve_correct_w |
+      (|sim_ooo_execute_count_w) | (|sim_ooo_dispatch_count_w);
+`endif
 
   // 仿真事件仍集中在顶层；真实 PMEM/MMIO 请求已经下沉到 AxiDpiSlave。
   always_ff @(posedge clk) begin
@@ -492,33 +614,45 @@ module NpcSimTop (
       end
 
       // commit/trap/exit 只作为仿真事件推给宿主侧，避免把宽调试总线做成 Verilator 顶层 IO。
-      if (u_core.mem_wb_load_w && !u_core.halt_q && !u_core.fatal_trap_q) begin
+      if (core_commit0_valid_w && !core_commit0_exception_w) begin
         npc_commit_event(
-          u_core.ex_mem_pc_q,
-          u_core.ex_mem_inst_q,
-          u_core.ex_mem_next_pc_q,
-          (u_core.ex_mem_need_wb_q && u_core.ex_mem_rd_en_q &&
-           (u_core.ex_mem_rd_idx_q != {`REG_ADDR_W{1'b0}})) ? 32'd1 : 32'd0,
-          {{(32-`REG_ADDR_W){1'b0}}, u_core.ex_mem_rd_idx_q},
-          u_core.mem_wb_load_wb_data_w
+          core_commit0_pc_w,
+          core_commit0_inst_w,
+          core_commit0_next_pc_w,
+          core_commit0_rd_en_w ? 32'd1 : 32'd0,
+          {{(32-`REG_ADDR_W){1'b0}}, core_commit0_rd_addr_w},
+          core_commit0_rd_data_w
         );
       end
 
+      if (core_commit1_valid_w && !core_commit1_exception_w) begin
+        npc_commit_event(
+          core_commit1_pc_w,
+          core_commit1_inst_w,
+          core_commit1_next_pc_w,
+          core_commit1_rd_en_w ? 32'd1 : 32'd0,
+          {{(32-`REG_ADDR_W){1'b0}}, core_commit1_rd_addr_w},
+          core_commit1_rd_data_w
+        );
+      end
+
+`ifndef NPC_OOO_ALU_EXPERIMENT
       if (sim_control_event_w) begin
         npc_control_flow_event(
-          u_core.id_ex_branch_w ? 32'd1 : 32'd0,
-          (u_core.id_ex_branch_w && u_core.ex_control_redirect_w) ? 32'd1 : 32'd0,
-          u_core.id_ex_jal_w ? 32'd1 : 32'd0,
-          u_core.id_ex_jalr_w ? 32'd1 : 32'd0
+          u_core.u_inorder.id_ex_branch_w ? 32'd1 : 32'd0,
+          (u_core.u_inorder.id_ex_branch_w &&
+           u_core.u_inorder.ex_control_redirect_w) ? 32'd1 : 32'd0,
+          u_core.u_inorder.id_ex_jal_w ? 32'd1 : 32'd0,
+          u_core.u_inorder.id_ex_jalr_w ? 32'd1 : 32'd0
         );
         npc_bpu_resolve_event(
-          u_core.id_ex_branch_w ? 32'd1 : 32'd0,
-          u_core.id_ex_pc_q,
-          u_core.id_ex_jal_w ? 32'd1 : 32'd0,
-          u_core.id_ex_jalr_w ? 32'd1 : 32'd0,
+          u_core.u_inorder.id_ex_branch_w ? 32'd1 : 32'd0,
+          u_core.u_inorder.id_ex_pc_q,
+          u_core.u_inorder.id_ex_jal_w ? 32'd1 : 32'd0,
+          u_core.u_inorder.id_ex_jalr_w ? 32'd1 : 32'd0,
           sim_bpu_ret_resolve_w ? 32'd1 : 32'd0,
           sim_bpu_pred_taken_w ? 32'd1 : 32'd0,
-          u_core.ex_control_redirect_w ? 32'd1 : 32'd0,
+          u_core.u_inorder.ex_control_redirect_w ? 32'd1 : 32'd0,
           sim_bpu_resolve_correct_w ? 32'd1 : 32'd0
         );
       end
@@ -526,17 +660,18 @@ module NpcSimTop (
       if (sim_bpu_lookup_event_w) begin
         // lookup 统计按预测发生点计数；最终正确率仍由 EX resolve 事件给出。
         npc_bpu_lookup_event(
-          u_core.u_if_stage.bpu_predict_branch_w ? 32'd1 : 32'd0,
-          (u_core.u_if_stage.bpu_predict_jalr_w &&
-           !u_core.u_if_stage.bpu_predict_ras_hit_w) ? 32'd1 : 32'd0,
-          u_core.u_if_stage.bpu_predict_ret_w ? 32'd1 : 32'd0,
-          u_core.u_if_stage.bpu_predict_btb_hit_w ? 32'd1 : 32'd0,
-          u_core.u_if_stage.bpu_predict_bht_valid_w ? 32'd1 : 32'd0,
-          u_core.u_if_stage.bpu_predict_ras_lookup_w ? 32'd1 : 32'd0,
-          u_core.u_if_stage.bpu_predict_ras_hit_w ? 32'd1 : 32'd0,
-          u_core.u_if_stage.bpu_predict_ras_overflow_w ? 32'd1 : 32'd0
+          u_core.u_inorder.u_if_stage.bpu_predict_branch_w ? 32'd1 : 32'd0,
+          (u_core.u_inorder.u_if_stage.bpu_predict_jalr_w &&
+           !u_core.u_inorder.u_if_stage.bpu_predict_ras_hit_w) ? 32'd1 : 32'd0,
+          u_core.u_inorder.u_if_stage.bpu_predict_ret_w ? 32'd1 : 32'd0,
+          u_core.u_inorder.u_if_stage.bpu_predict_btb_hit_w ? 32'd1 : 32'd0,
+          u_core.u_inorder.u_if_stage.bpu_predict_bht_valid_w ? 32'd1 : 32'd0,
+          u_core.u_inorder.u_if_stage.bpu_predict_ras_lookup_w ? 32'd1 : 32'd0,
+          u_core.u_inorder.u_if_stage.bpu_predict_ras_hit_w ? 32'd1 : 32'd0,
+          u_core.u_inorder.u_if_stage.bpu_predict_ras_overflow_w ? 32'd1 : 32'd0
         );
       end
+`endif
 
       if (sim_icache_access_w) begin
         npc_icache_event(
@@ -561,34 +696,46 @@ module NpcSimTop (
         npc_dcache_event(32'd0, 32'd0, 32'd0, 32'd1, 32'd0, 32'd0);
       end
 
-      if (u_core.exit_valid_o && !exit_reported_q) begin
+`ifdef NPC_OOO_ALU_EXPERIMENT
+      npc_ooo_cycle_event(
+        {30'd0, core_retire_count_w},
+        {30'd0, sim_ooo_execute_count_w},
+        {30'd0, sim_ooo_dispatch_count_w},
+        u_core.u_ooo_core.fetch_req_valid_o ? 32'd1 : 32'd0,
+        u_core.u_ooo_core.fetch_req_fire_w ? 32'd1 : 32'd0,
+        u_core.u_ooo_core.fetch_rsp_fire_w ? 32'd1 : 32'd0,
+        u_core.u_ooo_core.fetch_rsp_enqueue_w ? 32'd1 : 32'd0,
+        u_core.u_ooo_core.fetch_rsp_bypass_consumed_w ? 32'd1 : 32'd0,
+        u_core.u_ooo_core.stop_pending_q ? 32'd1 : 32'd0,
+        u_core.u_ooo_core.pending_branch_q ? 32'd1 : 32'd0,
+        u_core.u_ooo_core.pending_jump_q ? 32'd1 : 32'd0,
+        u_core.u_ooo_core.pending_mem_q ? 32'd1 : 32'd0,
+        u_core.u_ooo_core.synth_lane1_ret_pending_q ? 32'd1 : 32'd0,
+        u_core.u_ooo_core.branch_prefetch_req_fire_w ? 32'd1 : 32'd0,
+        u_core.u_ooo_core.branch_prefetch_hit_available_w ? 32'd1 : 32'd0,
+        u_core.u_ooo_mem_bridge.mem0_req_fire_w ? 32'd1 : 32'd0,
+        u_core.u_ooo_mem_bridge.mem1_req_fire_w ? 32'd1 : 32'd0,
+        (u_core.ooo_mem0_rsp_valid_w && u_core.ooo_mem0_rsp_ready_w) ? 32'd1 : 32'd0,
+        (u_core.ooo_mem1_rsp_valid_w && u_core.ooo_mem1_rsp_ready_w) ? 32'd1 : 32'd0,
+        u_core.u_ooo_core.core_commit1_block_w ? 32'd1 : 32'd0
+      );
+`endif
+
+      if (core_exit_valid_w && !exit_reported_q) begin
         exit_reported_q <= 1'b1;
         npc_exit_event(
-          u_core.exit_is_ebreak_o ? 32'd1 : 32'd0,
-          u_core.exit_is_ecall_o ? 32'd1 : 32'd0,
-          u_core.exit_code_o,
-          u_core.stop_pc_q
+          core_exit_is_ebreak_w ? 32'd1 : 32'd0,
+          core_exit_is_ecall_w ? 32'd1 : 32'd0,
+          core_exit_code_w,
+          core_exit_pc_w
         );
       end
 
-      if (u_core.mem_fault_w && (u_core.trap_target_w == {`XLEN{1'b0}})) begin
+      if (core_trap_valid_w) begin
         npc_trap_event(
-          {{(32-`TRAP_CAUSE_W){1'b0}},
-           (u_core.ex_mem_load_w ? `EXC_LOAD_ACCESS_FAULT : `EXC_STORE_ACCESS_FAULT)},
-          u_core.ex_mem_pc_q,
-          u_core.ex_mem_mem_addr_q
-        );
-      end else if (u_core.ex_exception_w && u_core.ex_exception_fatal_w) begin
-        npc_trap_event(
-          {{(32-`TRAP_CAUSE_W){1'b0}}, u_core.ex_exception_cause_w},
-          u_core.id_ex_pc_q,
-          u_core.ex_exception_tval_w
-        );
-      end else if (u_core.ex_interrupt_w && u_core.ex_interrupt_fatal_w) begin
-        npc_trap_event(
-          `MCAUSE_INTERRUPT | {{(32-`TRAP_CAUSE_W){1'b0}}, u_core.csr_irq_cause_w},
-          u_core.id_ex_pc_q,
-          32'h0
+          {{(32-`TRAP_CAUSE_W){1'b0}}, core_trap_cause_w},
+          core_trap_pc_w,
+          core_trap_tval_w
         );
       end
 

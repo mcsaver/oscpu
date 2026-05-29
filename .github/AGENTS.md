@@ -93,6 +93,7 @@
 - 需要查看结果时，应直接运行程序并基于真实终端输出总结关键结论。
 - 能脚本化的调试路径优先脚本化，例如 `--batch`、日志文件、trace、watchpoint、配置开关、临时代码插桩或专用测试程序。
 - 任何实际代码修改后，都要提供至少一条验证证据；如果无法验证，必须明确说明缺口。
+- NPC 性能/CPI/OoO 优化不得只看 `add` 单项；必须按 `.github/instructions/npc-optimization-workflow.instructions.md` 执行 CPU-test 全量优先、三类代表样本分析和一个 module 一个源文件约束。
 
 ---
 

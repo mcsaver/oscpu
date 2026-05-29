@@ -52,6 +52,7 @@ struct CommitEvent {
   bool     rd_en;
   uint32_t rd_addr;
   uint32_t rd_data;
+  uint32_t gpr_after[32];
 };
 
 struct ExitEvent {
@@ -69,7 +70,9 @@ struct TrapEvent {
   uint32_t tval;
 };
 
-static CommitEvent g_commit_event = {};
+static constexpr uint32_t kMaxCommitEventsPerCycle = 2;
+static CommitEvent g_commit_events[kMaxCommitEventsPerCycle] = {};
+static uint32_t    g_commit_event_count = 0;
 static ExitEvent   g_exit_event   = {};
 static TrapEvent   g_trap_event   = {};
 static uint32_t    g_shadow_gpr[32] = {};
@@ -89,6 +92,27 @@ struct SimPerfStats {
   uint64_t dcache_store_miss;
   uint64_t dcache_writeback;
   uint64_t dcache_write_through;
+  uint64_t ooo_cycles;
+  uint64_t ooo_retire_hist[3];
+  uint64_t ooo_execute_hist[3];
+  uint64_t ooo_dispatch_hist[3];
+  uint64_t ooo_fetch_req_valid;
+  uint64_t ooo_fetch_req_fire;
+  uint64_t ooo_fetch_rsp_fire;
+  uint64_t ooo_fetch_rsp_enqueue;
+  uint64_t ooo_fetch_rsp_bypass;
+  uint64_t ooo_stop_pending_cycles;
+  uint64_t ooo_pending_branch_cycles;
+  uint64_t ooo_pending_jump_cycles;
+  uint64_t ooo_pending_mem_cycles;
+  uint64_t ooo_synth_ret_pending_cycles;
+  uint64_t ooo_branch_prefetch_fire;
+  uint64_t ooo_branch_prefetch_hit;
+  uint64_t ooo_mem0_req_fire;
+  uint64_t ooo_mem1_req_fire;
+  uint64_t ooo_mem0_rsp_fire;
+  uint64_t ooo_mem1_rsp_fire;
+  uint64_t ooo_commit1_block_cycles;
 };
 
 struct BpuStats {
@@ -162,7 +186,10 @@ static void format_u64_delta(char *buf, size_t size, uint64_t lhs, uint64_t rhs)
 static void on_sigint(int) { g_stop_requested = 1; }
 
 static void clear_cycle_events(void) {
-  g_commit_event.valid = false;
+  for (uint32_t i = 0; i < kMaxCommitEventsPerCycle; ++i) {
+    g_commit_events[i].valid = false;
+  }
+  g_commit_event_count = 0;
   g_exit_event.valid = false;
   g_trap_event.valid = false;
 }
@@ -177,18 +204,24 @@ static void reset_event_state(void) {
 
 extern "C" void npc_commit_event(uint32_t pc, uint32_t inst, uint32_t next_pc,
                                  uint32_t rd_en, uint32_t rd_addr, uint32_t rd_data) {
-  g_commit_event.valid = true;
-  g_commit_event.pc = pc;
-  g_commit_event.inst = inst;
-  g_commit_event.next_pc = next_pc;
-  g_commit_event.rd_en = rd_en != 0;
-  g_commit_event.rd_addr = rd_addr;
-  g_commit_event.rd_data = rd_data;
-
-  if (g_commit_event.rd_en && rd_addr > 0 && rd_addr < 32) {
+  const bool write_rd = (rd_en != 0) && rd_addr > 0 && rd_addr < 32;
+  if (write_rd) {
     g_shadow_gpr[rd_addr] = rd_data;
   }
   g_shadow_gpr[0] = 0;
+
+  if (g_commit_event_count < kMaxCommitEventsPerCycle) {
+    CommitEvent *event = &g_commit_events[g_commit_event_count++];
+    event->valid = true;
+    event->pc = pc;
+    event->inst = inst;
+    event->next_pc = next_pc;
+    event->rd_en = write_rd;
+    event->rd_addr = rd_addr;
+    event->rd_data = rd_data;
+    // 双提交时每条事件都保留“该条提交后”的 GPR 快照，避免 lane0 被 lane1 的未来写回污染。
+    memcpy(event->gpr_after, g_shadow_gpr, sizeof(event->gpr_after));
+  }
 }
 
 extern "C" void npc_exit_event(uint32_t is_ebreak, uint32_t is_ecall,
@@ -312,6 +345,53 @@ extern "C" void npc_dcache_event(uint32_t access, uint32_t hit, uint32_t miss,
   g_sim_perf.dcache_write_through += write_through ? 1u : 0u;
 }
 
+static void bump_ooo_hist(uint64_t hist[3], uint32_t value) {
+  hist[value < 2 ? value : 2]++;
+}
+
+extern "C" void npc_ooo_cycle_event(uint32_t retire_count,
+                                    uint32_t execute_count,
+                                    uint32_t dispatch_count,
+                                    uint32_t fetch_req_valid,
+                                    uint32_t fetch_req_fire,
+                                    uint32_t fetch_rsp_fire,
+                                    uint32_t fetch_rsp_enqueue,
+                                    uint32_t fetch_rsp_bypass,
+                                    uint32_t stop_pending,
+                                    uint32_t pending_branch,
+                                    uint32_t pending_jump,
+                                    uint32_t pending_mem,
+                                    uint32_t synth_ret_pending,
+                                    uint32_t branch_prefetch_fire,
+                                    uint32_t branch_prefetch_hit,
+                                    uint32_t mem0_req_fire,
+                                    uint32_t mem1_req_fire,
+                                    uint32_t mem0_rsp_fire,
+                                    uint32_t mem1_rsp_fire,
+                                    uint32_t commit1_block) {
+  g_sim_perf.ooo_cycles++;
+  bump_ooo_hist(g_sim_perf.ooo_retire_hist, retire_count);
+  bump_ooo_hist(g_sim_perf.ooo_execute_hist, execute_count);
+  bump_ooo_hist(g_sim_perf.ooo_dispatch_hist, dispatch_count);
+  g_sim_perf.ooo_fetch_req_valid += fetch_req_valid ? 1u : 0u;
+  g_sim_perf.ooo_fetch_req_fire += fetch_req_fire ? 1u : 0u;
+  g_sim_perf.ooo_fetch_rsp_fire += fetch_rsp_fire ? 1u : 0u;
+  g_sim_perf.ooo_fetch_rsp_enqueue += fetch_rsp_enqueue ? 1u : 0u;
+  g_sim_perf.ooo_fetch_rsp_bypass += fetch_rsp_bypass ? 1u : 0u;
+  g_sim_perf.ooo_stop_pending_cycles += stop_pending ? 1u : 0u;
+  g_sim_perf.ooo_pending_branch_cycles += pending_branch ? 1u : 0u;
+  g_sim_perf.ooo_pending_jump_cycles += pending_jump ? 1u : 0u;
+  g_sim_perf.ooo_pending_mem_cycles += pending_mem ? 1u : 0u;
+  g_sim_perf.ooo_synth_ret_pending_cycles += synth_ret_pending ? 1u : 0u;
+  g_sim_perf.ooo_branch_prefetch_fire += branch_prefetch_fire ? 1u : 0u;
+  g_sim_perf.ooo_branch_prefetch_hit += branch_prefetch_hit ? 1u : 0u;
+  g_sim_perf.ooo_mem0_req_fire += mem0_req_fire ? 1u : 0u;
+  g_sim_perf.ooo_mem1_req_fire += mem1_req_fire ? 1u : 0u;
+  g_sim_perf.ooo_mem0_rsp_fire += mem0_rsp_fire ? 1u : 0u;
+  g_sim_perf.ooo_mem1_rsp_fire += mem1_rsp_fire ? 1u : 0u;
+  g_sim_perf.ooo_commit1_block_cycles += commit1_block ? 1u : 0u;
+}
+
 static bool install_sigint_handler(void) {
   struct sigaction act = {};
   act.sa_handler = on_sigint;
@@ -333,23 +413,23 @@ static void clear_runtime_state(void) {
 
 /* ---- itrace 提交记录 ---- */
 
-static void trace_commit(void) {
+static void trace_commit(const CommitEvent &event) {
   if (!npc_itrace_enabled()) return;
 
   char asm_buf[128];
-  int asm_len = npc_disassemble_inst(g_commit_event.pc, g_commit_event.inst,
+  int asm_len = npc_disassemble_inst(event.pc, event.inst,
                                      asm_buf, sizeof(asm_buf));
   const char *asm_text = (asm_len > 0) ? asm_buf : "<decode unavailable>";
 
-  if (g_commit_event.rd_en) {
+  if (event.rd_en) {
     // <= 表示"提交后新值写入寄存器"
     Log("itrace pc=0x%08x inst=0x%08x asm=\"%s\" x%u(%s)<=0x%08x",
-        g_commit_event.pc, g_commit_event.inst, asm_text,
-        g_commit_event.rd_addr, kRegNames[g_commit_event.rd_addr],
-        g_commit_event.rd_data);
+        event.pc, event.inst, asm_text,
+        event.rd_addr, kRegNames[event.rd_addr],
+        event.rd_data);
   } else {
     Log("itrace pc=0x%08x inst=0x%08x asm=\"%s\"",
-        g_commit_event.pc, g_commit_event.inst, asm_text);
+        event.pc, event.inst, asm_text);
   }
 }
 
@@ -486,6 +566,46 @@ static void report_cache_stats(void) {
              (unsigned long long)g_sim_perf.dcache_write_through);
 }
 
+static void report_ooo_stats(void) {
+  if (g_sim_perf.ooo_cycles == 0) return;
+  LogBothTag("statistic", "=== OoO Pipeline Statistics ===");
+  LogBothTag("statistic", "ooo cycles observed = %llu",
+             (unsigned long long)g_sim_perf.ooo_cycles);
+  LogBothTag("statistic", "retire hist 0/1/2 = %llu/%llu/%llu",
+             (unsigned long long)g_sim_perf.ooo_retire_hist[0],
+             (unsigned long long)g_sim_perf.ooo_retire_hist[1],
+             (unsigned long long)g_sim_perf.ooo_retire_hist[2]);
+  LogBothTag("statistic", "execute hist 0/1/2 = %llu/%llu/%llu",
+             (unsigned long long)g_sim_perf.ooo_execute_hist[0],
+             (unsigned long long)g_sim_perf.ooo_execute_hist[1],
+             (unsigned long long)g_sim_perf.ooo_execute_hist[2]);
+  LogBothTag("statistic", "dispatch hist 0/1/2 = %llu/%llu/%llu",
+             (unsigned long long)g_sim_perf.ooo_dispatch_hist[0],
+             (unsigned long long)g_sim_perf.ooo_dispatch_hist[1],
+             (unsigned long long)g_sim_perf.ooo_dispatch_hist[2]);
+  LogBothTag("statistic", "fetch req valid/fire = %llu/%llu, rsp fire=%llu, enqueue=%llu, bypass=%llu",
+             (unsigned long long)g_sim_perf.ooo_fetch_req_valid,
+             (unsigned long long)g_sim_perf.ooo_fetch_req_fire,
+             (unsigned long long)g_sim_perf.ooo_fetch_rsp_fire,
+             (unsigned long long)g_sim_perf.ooo_fetch_rsp_enqueue,
+             (unsigned long long)g_sim_perf.ooo_fetch_rsp_bypass);
+  LogBothTag("statistic", "control wait cycles: stop=%llu, branch=%llu, jump=%llu, mem=%llu, synth-ret=%llu, commit1-block=%llu",
+             (unsigned long long)g_sim_perf.ooo_stop_pending_cycles,
+             (unsigned long long)g_sim_perf.ooo_pending_branch_cycles,
+             (unsigned long long)g_sim_perf.ooo_pending_jump_cycles,
+             (unsigned long long)g_sim_perf.ooo_pending_mem_cycles,
+             (unsigned long long)g_sim_perf.ooo_synth_ret_pending_cycles,
+             (unsigned long long)g_sim_perf.ooo_commit1_block_cycles);
+  LogBothTag("statistic", "branch prefetch fire/hit = %llu/%llu",
+             (unsigned long long)g_sim_perf.ooo_branch_prefetch_fire,
+             (unsigned long long)g_sim_perf.ooo_branch_prefetch_hit);
+  LogBothTag("statistic", "mem req0/req1/rsp0/rsp1 = %llu/%llu/%llu/%llu",
+             (unsigned long long)g_sim_perf.ooo_mem0_req_fire,
+             (unsigned long long)g_sim_perf.ooo_mem1_req_fire,
+             (unsigned long long)g_sim_perf.ooo_mem0_rsp_fire,
+             (unsigned long long)g_sim_perf.ooo_mem1_rsp_fire);
+}
+
 // NEMU 风格统计 + CPI + 分支统计，NPC 跑分结果可直接和参考模型对比
 static void report_statistics(void) {
   char mtime_delta[48];
@@ -515,6 +635,7 @@ static void report_statistics(void) {
   }
   report_branch_stats();
   report_cache_stats();
+  report_ooo_stats();
 }
 
 static void report_run_result(void) {
@@ -579,7 +700,7 @@ static void step_cycle(void) {
   ++npc_stats()->cycles;
   // 在完整 posedge 之后采样 Verilator 顶层调试口，和同一拍的 DPIC cycles 计数对齐。
   npc_stats()->clint_mtime = g_top->debug_clint_mtime_o;
-  if (g_commit_event.valid) ++npc_stats()->commits;
+  npc_stats()->commits += g_commit_event_count;
 }
 
 static void apply_reset(void) {
@@ -725,24 +846,29 @@ int npc_cpu_exec(uint64_t max_instructions) {
       return finish_exec(timer_start_us, 1, true);
     }
 
-    if (g_commit_event.valid) {
-      ++executed;
-      trace_commit();
+    if (g_commit_event_count > 0) {
+      for (uint32_t commit_idx = 0; commit_idx < g_commit_event_count; ++commit_idx) {
+        const CommitEvent &event = g_commit_events[commit_idx];
+        if (!event.valid) continue;
+
+        ++executed;
+        trace_commit(event);
 #if CONFIG_NPC_DIFFTEST
-      if (npc_difftest_enabled()) {
-        if (!npc_difftest_step(g_commit_event.pc, g_commit_event.inst,
-                               g_commit_event.next_pc, g_shadow_gpr,
-                               g_commit_event.rd_en, g_commit_event.rd_addr,
-                               g_commit_event.rd_data)) {
-          st->state = NPC_ABORT;
-          st->halt_pc = g_commit_event.pc;
-          return finish_exec(timer_start_us, 1, true);
+        if (npc_difftest_enabled()) {
+          if (!npc_difftest_step(event.pc, event.inst,
+                                 event.next_pc, event.gpr_after,
+                                 event.rd_en, event.rd_addr,
+                                 event.rd_data)) {
+            st->state = NPC_ABORT;
+            st->halt_pc = event.pc;
+            return finish_exec(timer_start_us, 1, true);
+          }
         }
-      }
 #endif
-      if (npc_check_watchpoints())
-        return finish_exec(timer_start_us, 0, false);
-      maybe_report_progress(&progress);
+        if (npc_check_watchpoints())
+          return finish_exec(timer_start_us, 0, false);
+        maybe_report_progress(&progress);
+      }
 
       if (executed >= max_instructions) {
         // 多走一个不提交周期让 PC 前推，接近 NEMU si 观感

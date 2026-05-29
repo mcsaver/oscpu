@@ -17,7 +17,7 @@ ifneq ($(CONFIG_CC),)
 	CXX := $(call remove_quote,$(CONFIG_CC))
 endif
 
-RTL_CORE_TOP ?= NpcCore
+RTL_CORE_TOP ?= NpcCoreTop
 SIM_TOP ?= NpcSimTop
 TOPNAME = $(SIM_TOP)
 VERILATOR = verilator
@@ -38,6 +38,7 @@ VERILATOR_PROF_EXEC ?= 0
 VERILATOR_THREADS ?= 1
 VERILATOR_THREADS_DPI ?= none
 VERILATOR_THREADS_MAX_MTASKS ?=
+NPC_OOO_ALU_EXPERIMENT ?= 0
 
 VSRCDIR := $(abspath ./vsrc)
 include $(VSRCDIR)/filelist.mk
@@ -75,6 +76,7 @@ endif
 
 CXXFLAGS_BUILD += $(call remove_quote,$(CONFIG_CC_OPT))
 CXXFLAGS_BUILD += $(if $(CONFIG_CC_DEBUG),-Og -ggdb3,)
+RTL_VERILATOR_DEFINES :=
 
 # 这里直接让 Verilator 一次把 RTL、DPI 包装层和 C++ 宿主编成可执行文件，避免再手写额外链接步骤。
 # 优化要点：
@@ -101,6 +103,13 @@ ifneq ($(strip $(VERILATOR_THREADS_MAX_MTASKS)),)
 VERILATOR_FLAGS += --threads-max-mtasks $(VERILATOR_THREADS_MAX_MTASKS)
 endif
 endif
+
+ifeq ($(NPC_OOO_ALU_EXPERIMENT),1)
+# 只用于受控实验：把 NpcSimTop 的核心实例切到 ALU-only OoO 壳，默认构建仍保持顺序流水线核。
+RTL_VERILATOR_DEFINES += -DNPC_OOO_ALU_EXPERIMENT
+CXXFLAGS_BUILD += -DNPC_OOO_ALU_EXPERIMENT=1
+endif
+VERILATOR_FLAGS += $(RTL_VERILATOR_DEFINES)
 
 # 只在确实需要波形时才打开 --trace，避免无谓的 eval() 开销
 ifeq ($(CONFIG_NPC_TRACE_BY_DEFAULT),y)
@@ -165,7 +174,7 @@ $(BIN): $(CAPSTONE_LIB)
 endif
 
 lint:
-	$(VERILATOR) --lint-only -Wall -I$(VSRCDIR) -I$(RTL_INCLUDE_DIR) --top-module $(TOPNAME) $(VSRCS)
+	$(VERILATOR) --lint-only -Wall -I$(VSRCDIR) -I$(RTL_INCLUDE_DIR) $(RTL_VERILATOR_DEFINES) --top-module $(TOPNAME) $(VSRCS)
 
 all: default
 

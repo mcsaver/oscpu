@@ -1,0 +1,601 @@
+`include "define.v"
+
+module tb_ooo_int_backend;
+  `include "tb_common.svh"
+
+  localparam PHY_REG_ADDR_W = 6;
+  localparam ROB_INDEX_W = 4;
+  localparam ROB_COUNT_W = 5;
+  localparam FREE_COUNT_W = 7;
+  localparam ISSUE_COUNT_W = 4;
+
+  reg clk;
+  reg rst;
+  reg flush;
+
+  reg dispatch0_valid;
+  wire dispatch0_ready;
+  reg [`XLEN-1:0] dispatch0_pc;
+  reg [`INST_W-1:0] dispatch0_inst;
+  reg [`CTRL_BUS_W-1:0] dispatch0_ctrl;
+  reg [`REG_ADDR_W-1:0] dispatch0_rs1_arch;
+  reg [`REG_ADDR_W-1:0] dispatch0_rs2_arch;
+  reg [`REG_ADDR_W-1:0] dispatch0_rd_arch;
+  reg [`XLEN-1:0] dispatch0_imm;
+
+  reg dispatch1_valid;
+  wire dispatch1_ready;
+  reg [`XLEN-1:0] dispatch1_pc;
+  reg [`INST_W-1:0] dispatch1_inst;
+  reg [`CTRL_BUS_W-1:0] dispatch1_ctrl;
+  reg [`REG_ADDR_W-1:0] dispatch1_rs1_arch;
+  reg [`REG_ADDR_W-1:0] dispatch1_rs2_arch;
+  reg [`REG_ADDR_W-1:0] dispatch1_rd_arch;
+  reg [`XLEN-1:0] dispatch1_imm;
+
+  reg commit_ready;
+  wire commit0_valid;
+  wire [`XLEN-1:0] commit0_pc;
+  wire [`XLEN-1:0] commit0_next_pc;
+  wire [`INST_W-1:0] commit0_inst;
+  wire commit0_rd_en;
+  wire [`REG_ADDR_W-1:0] commit0_arch_rd;
+  wire [PHY_REG_ADDR_W-1:0] commit0_old_pdest;
+  wire [PHY_REG_ADDR_W-1:0] commit0_new_pdest;
+  wire [`XLEN-1:0] commit0_data;
+  wire commit0_exception;
+  wire [`TRAP_CAUSE_W-1:0] commit0_cause;
+  wire [`XLEN-1:0] commit0_tval;
+
+  wire commit1_valid;
+  wire [`XLEN-1:0] commit1_pc;
+  wire [`XLEN-1:0] commit1_next_pc;
+  wire [`INST_W-1:0] commit1_inst;
+  wire commit1_rd_en;
+  wire [`REG_ADDR_W-1:0] commit1_arch_rd;
+  wire [PHY_REG_ADDR_W-1:0] commit1_old_pdest;
+  wire [PHY_REG_ADDR_W-1:0] commit1_new_pdest;
+  wire [`XLEN-1:0] commit1_data;
+  wire commit1_exception;
+  wire [`TRAP_CAUSE_W-1:0] commit1_cause;
+  wire [`XLEN-1:0] commit1_tval;
+
+  wire [FREE_COUNT_W-1:0] free_count;
+  wire [ROB_COUNT_W-1:0] rob_count;
+  wire [ISSUE_COUNT_W-1:0] issue_count;
+  wire execute0_valid;
+  wire execute1_valid;
+  wire branch_resolve_valid;
+  wire [`XLEN-1:0] branch_resolve_pc;
+  wire [`XLEN-1:0] branch_resolve_next_pc;
+  wire branch_resolve_misaligned;
+  wire dispatch_branch_resolve_valid;
+  wire [`XLEN-1:0] dispatch_branch_resolve_pc;
+  wire [`XLEN-1:0] dispatch_branch_resolve_next_pc;
+  wire dispatch_branch_resolve_misaligned;
+  wire mem_req_valid;
+  wire mem_req_write;
+  wire [`XLEN-1:0] mem_req_addr;
+  wire [`XLEN-1:0] mem_req_wdata;
+  wire [3:0] mem_req_wstrb;
+  wire mem_rsp_ready;
+  reg mem_rsp_valid;
+  reg [`XLEN-1:0] mem_rsp_rdata;
+  reg mem_rsp_error;
+  wire mem1_req_valid;
+  wire mem1_req_write;
+  wire [`XLEN-1:0] mem1_req_addr;
+  wire [`XLEN-1:0] mem1_req_wdata;
+  wire [3:0] mem1_req_wstrb;
+  wire mem1_rsp_ready;
+  reg mem1_rsp_valid;
+  reg [`XLEN-1:0] mem1_rsp_rdata;
+  reg mem1_rsp_error;
+
+  wire unused_mem_ready =
+      mem_rsp_ready | mem1_rsp_ready | mem1_req_write |
+      (|mem1_req_wdata) | (|mem1_req_wstrb);
+
+  OooIntBackend dut (
+    .clk(clk),
+    .rst(rst),
+    .flush_i(flush),
+    .checkpoint_capture_i(1'b0),
+    .checkpoint_restore_i(1'b0),
+    .checkpoint_quiesce_i(1'b0),
+    .mem_issue_block_i(1'b0),
+    .dispatch0_valid_i(dispatch0_valid),
+    .dispatch0_ready_o(dispatch0_ready),
+    .dispatch0_pc_i(dispatch0_pc),
+    .dispatch0_next_pc_i(dispatch0_pc + 32'd4),
+    .dispatch0_inst_i(dispatch0_inst),
+    .dispatch0_ctrl_i(dispatch0_ctrl),
+    .dispatch0_rs1_arch_i(dispatch0_rs1_arch),
+    .dispatch0_rs2_arch_i(dispatch0_rs2_arch),
+    .dispatch0_rd_arch_i(dispatch0_rd_arch),
+    .dispatch0_imm_i(dispatch0_imm),
+    .dispatch1_valid_i(dispatch1_valid),
+    .dispatch1_optional_i(1'b0),
+    .dispatch1_ready_o(dispatch1_ready),
+    .dispatch1_pc_i(dispatch1_pc),
+    .dispatch1_next_pc_i(dispatch1_pc + 32'd4),
+    .dispatch1_inst_i(dispatch1_inst),
+    .dispatch1_ctrl_i(dispatch1_ctrl),
+    .dispatch1_rs1_arch_i(dispatch1_rs1_arch),
+    .dispatch1_rs2_arch_i(dispatch1_rs2_arch),
+    .dispatch1_rd_arch_i(dispatch1_rd_arch),
+    .dispatch1_imm_i(dispatch1_imm),
+    .mem_req_valid_o(mem_req_valid),
+    .mem_req_ready_i(1'b1),
+    .mem_req_write_o(mem_req_write),
+    .mem_req_addr_o(mem_req_addr),
+    .mem_req_wdata_o(mem_req_wdata),
+    .mem_req_wstrb_o(mem_req_wstrb),
+    .mem_rsp_valid_i(mem_rsp_valid),
+    .mem_rsp_ready_o(mem_rsp_ready),
+    .mem_rsp_rdata_i(mem_rsp_rdata),
+    .mem_rsp_error_i(mem_rsp_error),
+    .mem1_req_valid_o(mem1_req_valid),
+    .mem1_req_ready_i(1'b1),
+    .mem1_req_write_o(mem1_req_write),
+    .mem1_req_addr_o(mem1_req_addr),
+    .mem1_req_wdata_o(mem1_req_wdata),
+    .mem1_req_wstrb_o(mem1_req_wstrb),
+    .mem1_rsp_valid_i(mem1_rsp_valid),
+    .mem1_rsp_ready_o(mem1_rsp_ready),
+    .mem1_rsp_rdata_i(mem1_rsp_rdata),
+    .mem1_rsp_error_i(mem1_rsp_error),
+    .commit_ready_i(commit_ready),
+    .commit1_block_i(1'b0),
+    .commit0_valid_o(commit0_valid),
+    .commit0_pc_o(commit0_pc),
+    .commit0_next_pc_o(commit0_next_pc),
+    .commit0_inst_o(commit0_inst),
+    .commit0_rd_en_o(commit0_rd_en),
+    .commit0_arch_rd_o(commit0_arch_rd),
+    .commit0_old_pdest_o(commit0_old_pdest),
+    .commit0_new_pdest_o(commit0_new_pdest),
+    .commit0_data_o(commit0_data),
+    .commit0_exception_o(commit0_exception),
+    .commit0_cause_o(commit0_cause),
+    .commit0_tval_o(commit0_tval),
+    .commit1_valid_o(commit1_valid),
+    .commit1_pc_o(commit1_pc),
+    .commit1_next_pc_o(commit1_next_pc),
+    .commit1_inst_o(commit1_inst),
+    .commit1_rd_en_o(commit1_rd_en),
+    .commit1_arch_rd_o(commit1_arch_rd),
+    .commit1_old_pdest_o(commit1_old_pdest),
+    .commit1_new_pdest_o(commit1_new_pdest),
+    .commit1_data_o(commit1_data),
+    .commit1_exception_o(commit1_exception),
+    .commit1_cause_o(commit1_cause),
+    .commit1_tval_o(commit1_tval),
+    .free_count_o(free_count),
+    .rob_count_o(rob_count),
+	    .issue_count_o(issue_count),
+	    .execute0_valid_o(execute0_valid),
+	    .execute1_valid_o(execute1_valid),
+	    .branch_resolve_valid_o(branch_resolve_valid),
+	    .branch_resolve_pc_o(branch_resolve_pc),
+	    .branch_resolve_next_pc_o(branch_resolve_next_pc),
+	    .branch_resolve_misaligned_o(branch_resolve_misaligned),
+	    .dispatch_branch_resolve_valid_o(dispatch_branch_resolve_valid),
+	    .dispatch_branch_resolve_pc_o(dispatch_branch_resolve_pc),
+	    .dispatch_branch_resolve_next_pc_o(dispatch_branch_resolve_next_pc),
+	    .dispatch_branch_resolve_misaligned_o(dispatch_branch_resolve_misaligned)
+	  );
+
+  wire unused_next_pc_w = (|commit0_next_pc) | (|commit1_next_pc) |
+                          branch_resolve_valid | (|branch_resolve_pc) |
+                          (|branch_resolve_next_pc) |
+                          branch_resolve_misaligned |
+                          dispatch_branch_resolve_valid |
+                          (|dispatch_branch_resolve_pc) |
+                          (|dispatch_branch_resolve_next_pc) |
+                          dispatch_branch_resolve_misaligned;
+
+  function [`CTRL_BUS_W-1:0] make_alu_ctrl;
+    input [1:0] op1_sel;
+    input [1:0] op2_sel;
+    input [3:0] alu_op;
+    input rs1_en;
+    input rs2_en;
+    input rd_en;
+    begin
+      make_alu_ctrl = {`CTRL_BUS_W{1'b0}};
+      make_alu_ctrl[`CTRL_VALID_BIT] = 1'b1;
+      make_alu_ctrl[`CTRL_RS1_EN_BIT] = rs1_en;
+      make_alu_ctrl[`CTRL_RS2_EN_BIT] = rs2_en;
+      make_alu_ctrl[`CTRL_RD_EN_BIT] = rd_en;
+      make_alu_ctrl[`CTRL_OP1_SEL_MSB:`CTRL_OP1_SEL_LSB] = op1_sel;
+      make_alu_ctrl[`CTRL_OP2_SEL_MSB:`CTRL_OP2_SEL_LSB] = op2_sel;
+      make_alu_ctrl[`CTRL_ALU_OP_MSB:`CTRL_ALU_OP_LSB] = alu_op;
+      make_alu_ctrl[`CTRL_NEED_EXEC_BIT] = 1'b1;
+      make_alu_ctrl[`CTRL_NEED_WB_BIT] = rd_en;
+      make_alu_ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = rd_en ? `WB_SEL_ALU : `WB_SEL_NONE;
+    end
+  endfunction
+
+  function [`CTRL_BUS_W-1:0] make_store_ctrl;
+    input [1:0] mem_size;
+    begin
+      make_store_ctrl = make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                      `ALU_OP_ADD, 1'b0, 1'b0, 1'b0);
+      make_store_ctrl[`CTRL_STORE_BIT] = 1'b1;
+      make_store_ctrl[`CTRL_MEM_SIZE_MSB:`CTRL_MEM_SIZE_LSB] = mem_size;
+      make_store_ctrl[`CTRL_NEED_MEM_BIT] = 1'b1;
+    end
+  endfunction
+
+  function [`CTRL_BUS_W-1:0] make_load_ctrl;
+    input [1:0] mem_size;
+    input mem_unsigned;
+    begin
+      make_load_ctrl = make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                     `ALU_OP_ADD, 1'b0, 1'b0, 1'b1);
+      make_load_ctrl[`CTRL_LOAD_BIT] = 1'b1;
+      make_load_ctrl[`CTRL_MEM_SIZE_MSB:`CTRL_MEM_SIZE_LSB] = mem_size;
+      make_load_ctrl[`CTRL_MEM_UNSIGNED_BIT] = mem_unsigned;
+      make_load_ctrl[`CTRL_NEED_MEM_BIT] = 1'b1;
+      make_load_ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_LOAD;
+    end
+  endfunction
+
+  function [`CTRL_BUS_W-1:0] make_branch_ctrl;
+    input [2:0] cmp_op;
+    begin
+      make_branch_ctrl = make_alu_ctrl(`OP1_SEL_RS1, `OP2_SEL_RS2,
+                                       `ALU_OP_ADD, 1'b1, 1'b1, 1'b0);
+      make_branch_ctrl[`CTRL_BRANCH_BIT] = 1'b1;
+      make_branch_ctrl[`CTRL_CMP_OP_MSB:`CTRL_CMP_OP_LSB] = cmp_op;
+    end
+  endfunction
+
+  task automatic clear_dispatch;
+    begin
+      flush = 1'b0;
+      dispatch0_valid = 1'b0;
+      dispatch0_pc = 32'h0;
+      dispatch0_inst = 32'h0;
+      dispatch0_ctrl = {`CTRL_BUS_W{1'b0}};
+      dispatch0_rs1_arch = 5'd0;
+      dispatch0_rs2_arch = 5'd0;
+      dispatch0_rd_arch = 5'd0;
+      dispatch0_imm = 32'h0;
+      dispatch1_valid = 1'b0;
+      dispatch1_pc = 32'h0;
+      dispatch1_inst = 32'h0;
+      dispatch1_ctrl = {`CTRL_BUS_W{1'b0}};
+      dispatch1_rs1_arch = 5'd0;
+      dispatch1_rs2_arch = 5'd0;
+      dispatch1_rd_arch = 5'd0;
+      dispatch1_imm = 32'h0;
+    end
+  endtask
+
+  task automatic reset_dut;
+    begin
+	      clk = 1'b0;
+	      rst = 1'b1;
+	      commit_ready = 1'b1;
+	      mem_rsp_valid = 1'b0;
+	      mem_rsp_rdata = {`XLEN{1'b0}};
+	      mem_rsp_error = 1'b0;
+      mem1_rsp_valid = 1'b0;
+      mem1_rsp_rdata = {`XLEN{1'b0}};
+      mem1_rsp_error = 1'b0;
+	      clear_dispatch();
+      `TB_TICK(clk);
+      rst = 1'b0;
+      #1;
+    end
+  endtask
+
+  task automatic set_dispatch0;
+    input [`XLEN-1:0] pc;
+    input [`CTRL_BUS_W-1:0] ctrl;
+    input [`REG_ADDR_W-1:0] rs1;
+    input [`REG_ADDR_W-1:0] rs2;
+    input [`REG_ADDR_W-1:0] rd;
+    input [`XLEN-1:0] imm;
+    begin
+      dispatch0_valid = 1'b1;
+      dispatch0_pc = pc;
+      dispatch0_inst = pc;
+      dispatch0_ctrl = ctrl;
+      dispatch0_rs1_arch = rs1;
+      dispatch0_rs2_arch = rs2;
+      dispatch0_rd_arch = rd;
+      dispatch0_imm = imm;
+    end
+  endtask
+
+  task automatic set_dispatch1;
+    input [`XLEN-1:0] pc;
+    input [`CTRL_BUS_W-1:0] ctrl;
+    input [`REG_ADDR_W-1:0] rs1;
+    input [`REG_ADDR_W-1:0] rs2;
+    input [`REG_ADDR_W-1:0] rd;
+    input [`XLEN-1:0] imm;
+    begin
+      dispatch1_valid = 1'b1;
+      dispatch1_pc = pc;
+      dispatch1_inst = pc;
+      dispatch1_ctrl = ctrl;
+      dispatch1_rs1_arch = rs1;
+      dispatch1_rs2_arch = rs2;
+      dispatch1_rd_arch = rd;
+      dispatch1_imm = imm;
+    end
+  endtask
+
+  task automatic tick_dispatch_to_commit;
+    input [1023:0] label;
+    input [`XLEN-1:0] exp0;
+    input [`XLEN-1:0] exp1;
+    begin
+      #1;
+      tb_check1({label, " dispatch0 ready"}, dispatch0_ready, 1'b1);
+      tb_check1({label, " dispatch1 ready"}, dispatch1_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check32({label, " rob has two entries"}, {27'b0, rob_count}, 32'd2);
+      tb_check32({label, " ready uops bypass iq"}, {28'b0, issue_count}, 32'd0);
+      tb_check1({label, " execute0 captures"}, execute0_valid, 1'b1);
+      tb_check1({label, " execute1 captures"}, execute1_valid, 1'b1);
+      tb_check1({label, " commit0 valid via wb bypass"}, commit0_valid, 1'b1);
+      tb_check1({label, " commit1 valid via wb bypass"}, commit1_valid, 1'b1);
+      tb_check32({label, " commit0 data via wb bypass"}, commit0_data, exp0);
+      tb_check32({label, " commit1 data via wb bypass"}, commit1_data, exp1);
+
+      `TB_TICK(clk);
+      #1;
+      tb_check32({label, " rob drains"}, {27'b0, rob_count}, 32'd0);
+      tb_check32({label, " iq drains"}, {28'b0, issue_count}, 32'd0);
+      tb_check32({label, " freelist recovers"}, {25'b0, free_count}, 32'd32);
+    end
+  endtask
+
+  initial begin
+    tb_errors = 0;
+    reset_dut();
+
+    tb_check32("initial freelist count", {25'b0, free_count}, 32'd32);
+    tb_check32("initial rob count", {27'b0, rob_count}, 32'd0);
+    tb_check32("initial issue count", {28'b0, issue_count}, 32'd0);
+
+    set_dispatch0(32'h8000_0000,
+                  make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM, `ALU_OP_ADD,
+                                1'b0, 1'b0, 1'b1),
+                  5'd0, 5'd0, 5'd5, 32'd7);
+    set_dispatch1(32'h8000_0004,
+                  make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM, `ALU_OP_ADD,
+                                1'b0, 1'b0, 1'b1),
+                  5'd0, 5'd0, 5'd6, 32'd9);
+    tick_dispatch_to_commit("dual independent addi", 32'd7, 32'd9);
+
+    set_dispatch0(32'h8000_0010,
+                  make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM, `ALU_OP_ADD,
+                                1'b0, 1'b0, 1'b1),
+                  5'd0, 5'd0, 5'd7, 32'd7);
+    set_dispatch1(32'h8000_0014,
+                  make_alu_ctrl(`OP1_SEL_RS1, `OP2_SEL_IMM, `ALU_OP_ADD,
+                                1'b1, 1'b0, 1'b1),
+                  5'd7, 5'd0, 5'd8, 32'd3);
+    #1;
+    tb_check1("dependent dispatch0 ready", dispatch0_ready, 1'b1);
+    tb_check1("dependent dispatch1 ready", dispatch1_ready, 1'b1);
+    `TB_TICK(clk);
+    clear_dispatch();
+    #1;
+    tb_check32("dependent consumer forwards without queue", {28'b0, issue_count}, 32'd0);
+    tb_check1("producer enters execute", execute0_valid, 1'b1);
+    tb_check1("consumer enters execute via issue0 forward", execute1_valid, 1'b1);
+    tb_check1("producer commits via wb bypass", commit0_valid, 1'b1);
+    tb_check1("consumer commits via same-cycle forward", commit1_valid, 1'b1);
+    tb_check32("producer result via wb bypass", commit0_data, 32'd7);
+    tb_check32("consumer result uses producer value", commit1_data, 32'd10);
+
+    `TB_TICK(clk);
+    #1;
+    tb_check32("dependent rob drains", {27'b0, rob_count}, 32'd0);
+    tb_check32("dependent iq drains", {28'b0, issue_count}, 32'd0);
+    tb_check32("dependent freelist recovers", {25'b0, free_count}, 32'd32);
+
+    set_dispatch0(32'h8000_0800,
+                  make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM, `ALU_OP_ADD,
+                                1'b0, 1'b0, 1'b1),
+                  5'd0, 5'd0, 5'd5, 32'd1);
+    #1;
+    tb_check1("branch bypass producer dispatch ready", dispatch0_ready, 1'b1);
+    `TB_TICK(clk);
+    clear_dispatch();
+    #1;
+    tb_check32("branch bypass producer bypasses iq", {28'b0, issue_count}, 32'd0);
+
+    set_dispatch0(32'h8000_0804,
+                  make_branch_ctrl(`CMP_OP_EQ),
+                  5'd5, 5'd0, 5'd0, 32'd8);
+    #1;
+    tb_check1("branch bypass direct resolve valid",
+              dispatch_branch_resolve_valid, 1'b1);
+    tb_check32("branch bypass direct resolve pc",
+               dispatch_branch_resolve_pc, 32'h8000_0804);
+    tb_check32("branch bypass direct resolve not taken",
+               dispatch_branch_resolve_next_pc, 32'h8000_0808);
+    `TB_TICK(clk);
+    clear_dispatch();
+    repeat (4) begin
+      `TB_TICK(clk);
+    end
+    #1;
+    tb_check32("branch bypass rob drains", {27'b0, rob_count}, 32'd0);
+    tb_check32("branch bypass iq drains", {28'b0, issue_count}, 32'd0);
+    tb_check32("branch bypass freelist recovers", {25'b0, free_count}, 32'd32);
+
+    set_dispatch0(32'h8000_1000,
+                  make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM, `ALU_OP_COPY_B,
+                                1'b0, 1'b0, 1'b1),
+                  5'd0, 5'd0, 5'd9, 32'h1234_5000);
+    set_dispatch1(32'h8000_1004,
+                  make_alu_ctrl(`OP1_SEL_PC, `OP2_SEL_FOUR, `ALU_OP_ADD,
+                                1'b0, 1'b0, 1'b1),
+                  5'd0, 5'd0, 5'd10, 32'd0);
+    tick_dispatch_to_commit("operand select", 32'h1234_5000, 32'h8000_1008);
+
+    set_dispatch0(32'h8000_2000,
+                  make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM, `ALU_OP_ADD,
+                                1'b0, 1'b0, 1'b1),
+                  5'd0, 5'd0, 5'd11, 32'd11);
+    `TB_TICK(clk);
+    clear_dispatch();
+    #1;
+    tb_check1("flush setup execute valid", execute0_valid, 1'b1);
+    flush = 1'b1;
+    `TB_TICK(clk);
+    clear_dispatch();
+    #1;
+    tb_check1("flush clears execute0", execute0_valid, 1'b0);
+	    tb_check1("flush clears execute1", execute1_valid, 1'b0);
+	    tb_check32("flush clears rob", {27'b0, rob_count}, 32'd0);
+	    tb_check32("flush clears issue queue", {28'b0, issue_count}, 32'd0);
+	    tb_check32("flush restores freelist", {25'b0, free_count}, 32'd32);
+
+    mem_rsp_valid = 1'b0;
+    mem1_rsp_valid = 1'b0;
+    set_dispatch0(32'h8000_2400,
+                  make_load_ctrl(`MEM_SIZE_WORD, 1'b0),
+                  5'd0, 5'd0, 5'd15, 32'h0000_0100);
+    set_dispatch1(32'h8000_2404,
+                  make_load_ctrl(`MEM_SIZE_WORD, 1'b0),
+                  5'd0, 5'd0, 5'd16, 32'h0000_0104);
+    #1;
+    tb_check1("dual load dispatch0 ready", dispatch0_ready, 1'b1);
+    tb_check1("dual load dispatch1 ready", dispatch1_ready, 1'b1);
+    tb_check1("dual load port0 request visible", mem_req_valid, 1'b1);
+    tb_check1("dual load port1 request visible", mem1_req_valid, 1'b1);
+    tb_check1("dual load port0 is read", mem_req_write, 1'b0);
+    tb_check1("dual load port1 is read", mem1_req_write, 1'b0);
+    tb_check32("dual load port0 addr", mem_req_addr, 32'h0000_0100);
+    tb_check32("dual load port1 addr", mem1_req_addr, 32'h0000_0104);
+
+    `TB_TICK(clk);
+    clear_dispatch();
+    mem_rsp_valid = 1'b1;
+    mem_rsp_rdata = 32'haaaa_5555;
+    mem_rsp_error = 1'b0;
+    mem1_rsp_valid = 1'b1;
+    mem1_rsp_rdata = 32'h1234_5678;
+    mem1_rsp_error = 1'b0;
+    #1;
+    tb_check1("dual load port0 rsp ready", mem_rsp_ready, 1'b1);
+    tb_check1("dual load port1 rsp ready", mem1_rsp_ready, 1'b1);
+    tb_check1("dual load commit0 valid", commit0_valid, 1'b1);
+    tb_check1("dual load commit1 valid", commit1_valid, 1'b1);
+    tb_check32("dual load commit0 data", commit0_data, 32'haaaa_5555);
+    tb_check32("dual load commit1 data", commit1_data, 32'h1234_5678);
+
+    `TB_TICK(clk);
+    mem_rsp_valid = 1'b0;
+    mem1_rsp_valid = 1'b0;
+    #1;
+    tb_check32("dual load rob drains", {27'b0, rob_count}, 32'd0);
+    tb_check32("dual load iq drains", {28'b0, issue_count}, 32'd0);
+    tb_check32("dual load freelist recovers", {25'b0, free_count}, 32'd32);
+
+	    set_dispatch0(32'h8000_2800,
+	                  make_store_ctrl(`MEM_SIZE_WORD),
+	                  5'd0, 5'd0, 5'd0, 32'h0000_0200);
+	    `TB_TICK(clk);
+	    clear_dispatch();
+	    #1;
+	    tb_check1("store starts memory request", mem_req_valid, 1'b1);
+	    tb_check1("store request is write", mem_req_write, 1'b1);
+	    tb_check32("store request addr", mem_req_addr, 32'h0000_0200);
+
+	    `TB_TICK(clk);
+	    #1;
+	    set_dispatch0(32'h8000_2810,
+	                  make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM, `ALU_OP_ADD,
+	                                1'b0, 1'b0, 1'b1),
+	                  5'd0, 5'd0, 5'd13, 32'd21);
+	    set_dispatch1(32'h8000_2814,
+	                  make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM, `ALU_OP_ADD,
+	                                1'b0, 1'b0, 1'b1),
+	                  5'd0, 5'd0, 5'd14, 32'd22);
+	    #1;
+	    tb_check1("dual alu dispatch under mem pending lane0 ready", dispatch0_ready, 1'b1);
+	    tb_check1("dual alu dispatch under mem pending lane1 ready", dispatch1_ready, 1'b1);
+	    `TB_TICK(clk);
+	    clear_dispatch();
+	    #1;
+	    tb_check32("dual alu under mem pending bypass iq", {28'b0, issue_count}, 32'd0);
+	    mem_rsp_valid = 1'b1;
+	    mem_rsp_rdata = 32'h0;
+	    mem_rsp_error = 1'b0;
+	    #1;
+	    tb_check1("dual alu under mem pending execute0", execute0_valid, 1'b1);
+	    tb_check1("dual alu under mem pending execute1", execute1_valid, 1'b1);
+	    tb_check1("full wb ports backpressure mem rsp", mem_rsp_ready, 1'b0);
+	    tb_check1("head store cannot commit while rsp backpressured", commit0_valid, 1'b0);
+
+	    `TB_TICK(clk);
+	    #1;
+	    tb_check1("mem rsp accepted after wb port frees", mem_rsp_ready, 1'b1);
+	    tb_check1("store commits after delayed rsp", commit0_valid, 1'b1);
+	    tb_check1("first alu commits beside delayed store", commit1_valid, 1'b1);
+	    tb_check1("store has no rd write", commit0_rd_en, 1'b0);
+	    tb_check32("first alu data beside delayed store", commit1_data, 32'd21);
+
+	    `TB_TICK(clk);
+	    mem_rsp_valid = 1'b0;
+	    #1;
+	    tb_check1("second alu commits after delayed store pair", commit0_valid, 1'b1);
+	    tb_check32("second alu data after delayed store pair", commit0_data, 32'd22);
+
+	    `TB_TICK(clk);
+	    #1;
+	    tb_check32("dual alu mem overlap rob drains", {27'b0, rob_count}, 32'd0);
+	    tb_check32("dual alu mem overlap iq drains", {28'b0, issue_count}, 32'd0);
+	    tb_check32("dual alu mem overlap freelist recovers", {25'b0, free_count}, 32'd32);
+
+	    mem_rsp_valid = 1'b0;
+	    set_dispatch0(32'h8000_3000,
+	                  make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM, `ALU_OP_ADD,
+	                                1'b0, 1'b0, 1'b1),
+	                  5'd0, 5'd0, 5'd12, 32'h0000_0055);
+	    set_dispatch1(32'h8000_3004,
+	                  make_store_ctrl(`MEM_SIZE_WORD),
+	                  5'd0, 5'd0, 5'd0, 32'h0000_0100);
+	    `TB_TICK(clk);
+	    clear_dispatch();
+	    #1;
+	    tb_check32("lane1 store waits in iq", {28'b0, issue_count}, 32'd1);
+	    tb_check1("lane0 alu writes before delayed lane1 store", execute0_valid, 1'b1);
+	    tb_check1("lane0 alu commits before delayed lane1 store", commit0_valid, 1'b1);
+	    tb_check32("lane0 alu commit data before store", commit0_data, 32'h0000_0055);
+	    tb_check1("lane1 store request visible", mem_req_valid, 1'b1);
+	    tb_check1("lane1 store request write", mem_req_write, 1'b1);
+	    tb_check32("lane1 store request addr", mem_req_addr, 32'h0000_0100);
+
+	    `TB_TICK(clk);
+	    mem_rsp_valid = 1'b1;
+	    mem_rsp_rdata = 32'h0;
+	    mem_rsp_error = 1'b0;
+	    #1;
+	    tb_check1("lane1 mem rsp uses first writeback", execute0_valid, 1'b1);
+	    tb_check1("lane1 store commits after lane0 alu", commit0_valid, 1'b1);
+	    tb_check1("lane1 store has no rd write", commit0_rd_en, 1'b0);
+
+	    `TB_TICK(clk);
+	    mem_rsp_valid = 1'b0;
+	    #1;
+	    tb_check32("lane1 store rob drains", {27'b0, rob_count}, 32'd0);
+	    tb_check32("lane1 store iq drains", {28'b0, issue_count}, 32'd0);
+	    tb_check32("lane1 store freelist recovers", {25'b0, free_count}, 32'd32);
+
+	    tb_finish("tb_ooo_int_backend");
+  end
+endmodule

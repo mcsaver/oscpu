@@ -103,6 +103,12 @@ fceux-am (NES 模拟器, 运行在 AM 上)
 - 落盘 RTL 改动需在 `.github/task-runs/<日期-任务名>/task-report.md` 追加“RTL 推导摘要”一节（需求要点、协议、状态机、不变量、数据通路骨架）；模块级稳定结论回写到 `.github/memory/modules/npc.md` 或对应模块笔记。
 - 只读类问题（仅解释代码、做 RECALL）不强制走完整四段；但若结论会被用于后续 RTL 改动，那一步必须补齐。
 
+## Agent NPC 性能优化约束
+- 处理 NPC CPI、cache、BPU、LSQ、OoO/superscalar、issue/commit、取指/访存等性能优化时，必须叠加读取 `.github/instructions/npc-optimization-workflow.instructions.md`。
+- 性能优化以 CPU-test 全量正确性为门槛；每次 RTL 性能改动后必须跑全量并收集每个测试的 `cycles/commits/CPI`，不能只用 `add` 作为有效性依据。
+- 每轮分析必须从同一次全量结果中同时选取 `highest_cpi`、`lowest_cpi`、`near_average_cpi` 三类代表样本，并报告它们与全量加权 CPI 的变化。
+- Verilog/SystemVerilog 源码默认一个 module 一个源文件；新增 module 必须放入同名源文件并更新 `vsrc/filelist.mk`。
+
 ## Agent 代码建议约束
 - 默认不要直接修改用户工作区文件。用户询问“如何实现”“给出代码”“帮我分析/建议”这类请求时，优先在对话框中给出可审阅的代码片段、补丁建议或实现思路。
 - 只有当用户明确要求“直接修改”“帮我改文件”“落盘实现”“应用补丁”或等价意图时，agent 才可以对工作区文件执行编辑。
