@@ -577,10 +577,42 @@ module NpcSimTop (
   assign sim_dcache_writeback_w = 1'b0;
   assign sim_dcache_write_through_w = 1'b0;
   assign sim_control_event_w = 1'b0;
-  assign sim_bpu_lookup_event_w = 1'b0;
   assign sim_bpu_ret_resolve_w = 1'b0;
   assign sim_bpu_pred_taken_w = 1'b0;
   assign sim_bpu_resolve_correct_w = 1'b0;
+  wire sim_ooo_pending_jalr_ret_w =
+      u_core.u_ooo_core.pending_jump_q &&
+      u_core.u_ooo_core.pending_jump_jalr_q &&
+      (u_core.u_ooo_core.pending_jump_inst_q[11:7] == 5'd0) &&
+      sim_is_link_reg(u_core.u_ooo_core.pending_jump_rs1_q) &&
+      (u_core.u_ooo_core.pending_jump_imm_q == {`XLEN{1'b0}});
+  wire sim_ooo_pending_jalr_lookup_w =
+      u_core.u_ooo_core.pending_jump_resolve_ready_w &&
+      u_core.u_ooo_core.pending_jump_jalr_q &&
+      !u_core.u_ooo_core.pending_jump_misaligned_w;
+  wire sim_ooo_direct_ras_lookup_w =
+      u_core.u_ooo_core.direct_ret0_fire_w ||
+      u_core.u_ooo_core.direct_ret1_fire_w ||
+      u_core.u_ooo_core.direct_branch0_lane1_ret_w;
+  wire sim_ooo_pending_ras_lookup_w =
+      sim_ooo_pending_jalr_lookup_w && sim_ooo_pending_jalr_ret_w;
+  wire sim_ooo_ras_lookup_event_w =
+      sim_ooo_direct_ras_lookup_w || sim_ooo_pending_ras_lookup_w;
+  wire sim_ooo_ras_hit_w =
+      sim_ooo_direct_ras_lookup_w ||
+      (sim_ooo_pending_ras_lookup_w && !u_core.u_ooo_core.ras_empty_w);
+  wire sim_ooo_btb_lookup_event_w =
+      sim_ooo_pending_jalr_lookup_w &&
+      !(sim_ooo_pending_jalr_ret_w && !u_core.u_ooo_core.ras_empty_w);
+  wire sim_ooo_ras_overflow_event_w =
+      (u_core.u_ooo_core.direct_jal_call_w ||
+       u_core.u_ooo_core.pending_jump_call_fire_w) &&
+      u_core.u_ooo_core.ras_full_w;
+  assign sim_bpu_lookup_event_w =
+      u_core.u_ooo_core.branch_bpu_lookup_event_w ||
+      sim_ooo_btb_lookup_event_w ||
+      sim_ooo_ras_lookup_event_w ||
+      sim_ooo_ras_overflow_event_w;
   // OoO 统计只在仿真顶层旁路观察已有信号，不回馈任何 ready/valid 或提交路径。
   wire [1:0] sim_ooo_execute_count_w =
       {1'b0, u_core.u_ooo_core.execute0_valid_unused_w} +
@@ -596,6 +628,12 @@ module NpcSimTop (
       sim_dcache_write_through_w | sim_control_event_w |
       sim_bpu_lookup_event_w | sim_bpu_ret_resolve_w |
       sim_bpu_pred_taken_w | sim_bpu_resolve_correct_w |
+      u_core.u_ooo_core.branch_bpu_update_valid_w |
+      u_core.u_ooo_core.branch_bpu_update_correct_w |
+      sim_ooo_pending_jalr_ret_w | sim_ooo_pending_jalr_lookup_w |
+      sim_ooo_direct_ras_lookup_w | sim_ooo_pending_ras_lookup_w |
+      sim_ooo_ras_lookup_event_w | sim_ooo_ras_hit_w |
+      sim_ooo_btb_lookup_event_w | sim_ooo_ras_overflow_event_w |
       (|sim_ooo_execute_count_w) | (|sim_ooo_dispatch_count_w);
 `endif
 
@@ -671,6 +709,34 @@ module NpcSimTop (
           u_core.u_inorder.u_if_stage.bpu_predict_ras_overflow_w ? 32'd1 : 32'd0
         );
       end
+`else
+      if (u_core.u_ooo_core.branch_bpu_update_valid_w) begin
+        npc_bpu_resolve_event(
+          32'd1,
+          u_core.u_ooo_core.branch_bpu_update_pc_w,
+          32'd0,
+          32'd0,
+          32'd0,
+          u_core.u_ooo_core.branch_bpu_update_pred_taken_w ? 32'd1 : 32'd0,
+          u_core.u_ooo_core.branch_bpu_update_taken_w ? 32'd1 : 32'd0,
+          u_core.u_ooo_core.branch_bpu_update_correct_w ? 32'd1 : 32'd0
+        );
+      end
+
+      if (sim_bpu_lookup_event_w) begin
+        // OoO 侧 BPU 仍不进入端口 ABI；仿真顶层只读观察预测表 lookup 结果。
+        // branch 走 OoO gshare/local，普通非 return JALR 走 OoO JALR BTB，return 走 OoO RAS。
+        npc_bpu_lookup_event(
+          u_core.u_ooo_core.branch_bpu_lookup_event_w ? 32'd1 : 32'd0,
+          sim_ooo_btb_lookup_event_w ? 32'd1 : 32'd0,
+          sim_ooo_ras_lookup_event_w ? 32'd1 : 32'd0,
+          u_core.u_ooo_core.pending_jump_jalr_btb_hit_w ? 32'd1 : 32'd0,
+          u_core.u_ooo_core.branch_bpu_lookup_bht_valid_w ? 32'd1 : 32'd0,
+          sim_ooo_ras_lookup_event_w ? 32'd1 : 32'd0,
+          sim_ooo_ras_hit_w ? 32'd1 : 32'd0,
+          sim_ooo_ras_overflow_event_w ? 32'd1 : 32'd0
+        );
+      end
 `endif
 
       if (sim_icache_access_w) begin
@@ -710,9 +776,10 @@ module NpcSimTop (
         u_core.u_ooo_core.pending_branch_q ? 32'd1 : 32'd0,
         u_core.u_ooo_core.pending_jump_q ? 32'd1 : 32'd0,
         u_core.u_ooo_core.pending_mem_q ? 32'd1 : 32'd0,
-        u_core.u_ooo_core.synth_lane1_ret_pending_q ? 32'd1 : 32'd0,
-        u_core.u_ooo_core.branch_prefetch_req_fire_w ? 32'd1 : 32'd0,
-        u_core.u_ooo_core.branch_prefetch_hit_available_w ? 32'd1 : 32'd0,
+	        u_core.u_ooo_core.synth_lane1_ret_pending_q ? 32'd1 : 32'd0,
+	        u_core.u_ooo_core.branch_prefetch_req_fire_w ? 32'd1 : 32'd0,
+	        (u_core.u_ooo_core.branch_prefetch_hit_available_w ||
+	         u_core.u_ooo_core.jalr_prefetch_hit_available_w) ? 32'd1 : 32'd0,
         u_core.u_ooo_mem_bridge.mem0_req_fire_w ? 32'd1 : 32'd0,
         u_core.u_ooo_mem_bridge.mem1_req_fire_w ? 32'd1 : 32'd0,
         (u_core.ooo_mem0_rsp_valid_w && u_core.ooo_mem0_rsp_ready_w) ? 32'd1 : 32'd0,

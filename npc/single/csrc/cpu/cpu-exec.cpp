@@ -145,6 +145,7 @@ struct BranchMissPcStat {
 static SimPerfStats g_sim_perf = {};
 static BpuStats g_bpu_stats = {};
 static BranchMissPcStat g_branch_miss_pc_stats[256] = {};
+static bool g_last_ooo_branch_prefetch_hit = false;
 static uint64_t g_nr_branch       = 0;  // B-type 条件分支总数
 static uint64_t g_nr_branch_taken = 0;  // 条件分支中实际跳转的次数
 static uint64_t g_nr_jal          = 0;  // JAL 无条件跳转
@@ -174,6 +175,10 @@ static double ratio_percent(uint64_t part, uint64_t total) {
   return total > 0 ? (double)part / (double)total * 100.0 : 0.0;
 }
 
+#ifdef NPC_OOO_ALU_EXPERIMENT
+static void record_ooo_control_flow_commit(uint32_t pc, uint32_t inst, uint32_t next_pc);
+#endif
+
 static void format_u64_delta(char *buf, size_t size, uint64_t lhs, uint64_t rhs) {
   if (!buf || size == 0) return;
   if (lhs >= rhs) {
@@ -200,6 +205,7 @@ static void reset_event_state(void) {
   memset(&g_sim_perf, 0, sizeof(g_sim_perf));
   memset(&g_bpu_stats, 0, sizeof(g_bpu_stats));
   memset(g_branch_miss_pc_stats, 0, sizeof(g_branch_miss_pc_stats));
+  g_last_ooo_branch_prefetch_hit = false;
 }
 
 extern "C" void npc_commit_event(uint32_t pc, uint32_t inst, uint32_t next_pc,
@@ -209,6 +215,10 @@ extern "C" void npc_commit_event(uint32_t pc, uint32_t inst, uint32_t next_pc,
     g_shadow_gpr[rd_addr] = rd_data;
   }
   g_shadow_gpr[0] = 0;
+
+#ifdef NPC_OOO_ALU_EXPERIMENT
+  record_ooo_control_flow_commit(pc, inst, next_pc);
+#endif
 
   if (g_commit_event_count < kMaxCommitEventsPerCycle) {
     CommitEvent *event = &g_commit_events[g_commit_event_count++];
@@ -317,6 +327,62 @@ extern "C" void npc_bpu_resolve_event(uint32_t is_branch, uint32_t pc,
   }
 }
 
+#ifdef NPC_OOO_ALU_EXPERIMENT
+static constexpr uint32_t kOpcodeBranch = 0x63;
+static constexpr uint32_t kOpcodeJalr   = 0x67;
+static constexpr uint32_t kOpcodeJal    = 0x6f;
+
+static bool is_link_reg(uint32_t reg_idx) {
+  return reg_idx == 1u || reg_idx == 5u;
+}
+
+static int32_t sign_extend_u32(uint32_t value, unsigned bits) {
+  const uint32_t sign = 1u << (bits - 1u);
+  return (int32_t)((value ^ sign) - sign);
+}
+
+static int32_t decode_branch_imm(uint32_t inst) {
+  uint32_t imm = 0;
+  imm |= ((inst >> 31) & 0x1u) << 12;
+  imm |= ((inst >> 7)  & 0x1u) << 11;
+  imm |= ((inst >> 25) & 0x3fu) << 5;
+  imm |= ((inst >> 8)  & 0x0fu) << 1;
+  return sign_extend_u32(imm, 13);
+}
+
+static void record_ooo_control_flow_commit(uint32_t pc, uint32_t inst, uint32_t next_pc) {
+  const uint32_t opcode = inst & 0x7fu;
+  const bool is_branch = opcode == kOpcodeBranch;
+  const bool is_jal = opcode == kOpcodeJal;
+  const bool is_jalr = opcode == kOpcodeJalr;
+  if (!is_branch && !is_jal && !is_jalr) return;
+
+  const uint32_t rd = (inst >> 7) & 0x1fu;
+  const uint32_t rs1 = (inst >> 15) & 0x1fu;
+  const bool is_ret = is_jalr && !is_link_reg(rd) && is_link_reg(rs1);
+  bool actual_taken = is_jal || is_jalr;
+  bool pred_taken = is_jal || is_jalr;
+  bool correct = true;
+
+  if (is_branch) {
+    const int32_t imm = decode_branch_imm(inst);
+    const uint32_t target = pc + (uint32_t)imm;
+    actual_taken = next_pc == target;
+    // OoO 的动态方向预测在 RTL resolve 点上报；commit 侧只恢复架构控制流计数，
+    // 避免把旧的静态 BTFNT 估算重复计入 BPU accuracy。
+    npc_control_flow_event(1u, actual_taken ? 1u : 0u, 0u, 0u);
+    return;
+  }
+
+  npc_control_flow_event(is_branch ? 1u : 0u, actual_taken ? 1u : 0u,
+                         is_jal ? 1u : 0u, is_jalr ? 1u : 0u);
+  npc_bpu_resolve_event(is_branch ? 1u : 0u, pc, is_jal ? 1u : 0u,
+                        is_jalr ? 1u : 0u, is_ret ? 1u : 0u,
+                        pred_taken ? 1u : 0u, actual_taken ? 1u : 0u,
+                        correct ? 1u : 0u);
+}
+#endif
+
 extern "C" void npc_icache_event(uint32_t access, uint32_t hit, uint32_t miss) {
   g_sim_perf.icache_access += access ? 1u : 0u;
   g_sim_perf.icache_hit += hit ? 1u : 0u;
@@ -384,7 +450,11 @@ extern "C" void npc_ooo_cycle_event(uint32_t retire_count,
   g_sim_perf.ooo_pending_mem_cycles += pending_mem ? 1u : 0u;
   g_sim_perf.ooo_synth_ret_pending_cycles += synth_ret_pending ? 1u : 0u;
   g_sim_perf.ooo_branch_prefetch_fire += branch_prefetch_fire ? 1u : 0u;
-  g_sim_perf.ooo_branch_prefetch_hit += branch_prefetch_hit ? 1u : 0u;
+  // RTL 侧 hit_available 是状态信号；host 侧只在上升沿计一次命中事件，避免长等待时把同一次命中重复累加。
+  bool branch_prefetch_hit_now = branch_prefetch_hit != 0;
+  g_sim_perf.ooo_branch_prefetch_hit +=
+      (branch_prefetch_hit_now && !g_last_ooo_branch_prefetch_hit) ? 1u : 0u;
+  g_last_ooo_branch_prefetch_hit = branch_prefetch_hit_now;
   g_sim_perf.ooo_mem0_req_fire += mem0_req_fire ? 1u : 0u;
   g_sim_perf.ooo_mem1_req_fire += mem1_req_fire ? 1u : 0u;
   g_sim_perf.ooo_mem0_rsp_fire += mem0_rsp_fire ? 1u : 0u;

@@ -13,6 +13,7 @@
 # See the Mulan PSL v2 for more details.
 #**************************************************************************************/
 
-##GUEST_ISA在主Makefile中由提及，若选择是riscv32则把当前所选架构ISA对应的头文件目录追加到INC_PATH变量中
-INC_PATH += $(NEMU_HOME)/src/isa/$(GUEST_ISA)/include
-DIRS-y += src/isa/$(GUEST_ISA)
+## RISC-V 的 RV32/RV64 共用同一套 XLEN 参数化解释器实现；CONFIG_RV64 负责决定 word_t/CPU_state 宽度。
+ISA_SRC_DIR := $(if $(filter riscv64,$(GUEST_ISA)),riscv32,$(GUEST_ISA))
+INC_PATH += $(NEMU_HOME)/src/isa/$(ISA_SRC_DIR)/include
+DIRS-y += src/isa/$(ISA_SRC_DIR)

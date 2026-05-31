@@ -86,8 +86,9 @@ static void out_uint(char *out, size_t n, int *total, unsigned long long value,
     }
   }
 
-  while (digit_count > 0) {
-    out_ch(out, n, total, tmp[--digit_count]);
+  char *digit = tmp + digit_count;
+  while (digit != tmp) {
+    out_ch(out, n, total, *--digit);
   }
 }
 

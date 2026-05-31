@@ -5,6 +5,62 @@
 ## 活跃问题
 <!-- 当前未解决的问题 -->
 
+### [41] RV64 CoreMark 已恢复 PASS，但当前 CPI 从历史 0.783 回退到 0.828
+
+- **模块**: NPC RV64 / OoO control-flow / memory flush / CoreMark
+- **现象**: fault-trap 后的 CoreMark no-progress 已不再复现，CoreMark `ITERATIONS=10` 当前可以 PASS，且 memory request/response 已平衡；但性能从历史好点 `CPI=0.783/0.779` 回退到 `cycles=2661725/commits=3216115/CPI=0.828`，未满足 CPI<0.8 目标。top control wait 集中在 CoreMark `core_bench_list` 的 load-dependent branch，尤其 `0x80000b2c`，整体 control wait cycles 为 `stop=814454/branch=795811/jump=18641`。
+- **根因**: 已确认不是旧 orphan memory response 死锁；当前更像后续正确性修复或性能实验恢复后的控制流/访存吞吐回归。负实验显示，简单加大 ROB/IQ、过度门控 issue1、ROB 同拍借 commit 槽、BPU local strong-only、branch prefetch same-cycle dispatch 都不能恢复 0.8；load-branch fast resolve 甚至把 CoreMark 退化到 `CPI=0.907`，推测它过早 redirect 干扰了 branch shadow prefetch 的收益。
+- **修复**: 暂未完成。当前保留能稳定 PASS 的基线：focused `branch-resolve-loop ooo-mem-order linux-mini-boot` 3/3 PASS，CoreMark10 PASS。后续应先对比 `0.783` 好点之后的 `OooRob/NpcAxiBus/OooFetchAxiBridge/OooMemAxiBridge/OooAluFetchCore` 变更，再设计保持 branch shadow prefetch 的 load-dependent branch resolve，或引入更系统的 response queue/LSQ/ROB-age selective squash；禁止用会形成 ready/valid 组合环或破坏 memory response ownership 的症状级补丁。
+- **教训**: CoreMark PASS 不等于性能目标达标；CoreMark no-progress 修复后必须同时看 `mem req/rsp` 平衡、branch wait 分布和历史 CPI A/B。对 OoO 控制流，越早 resolve 不一定越快，如果它抢掉已经成熟的影子预取，反而会增加 refetch 和 wait。
+
+### [40] RV64 真实 Linux kernel 已越过 MMU relocation，但仍未完整 boot
+
+- **模块**: NPC RV64 / CSR / OoO frontend RAS / Sv39 / Linux boot
+- **现象**: 真实 Debian `vmlinux-6.12.90+deb13-riscv64` 经真实 OpenSBI v1.8 handoff 后，已不再停在 early `stvec` 的 `0xffffffff800010bc`/`wfi` 循环。当前 20M cycles smoke 到 `pc=0xffffffff8051be34`、`commits=6637254`，40M cycles smoke 到 `pc=0xffffffff8021531e`、`commits=8830390`，说明 Linux kernel 仍在继续退休推进；但两次仍因 `--max` 到期退出，尚无完整 Linux banner/rootfs boot 成功证据。
+- **根因**: 本轮修掉两个真实 kernel 前置缺口：一是 OpenSBI SBI base `get_mimpid` 需要 `CSR_MIMPID`，此前 CSR 未实现；二是 Linux `relocate_enable_mmu` 在低地址 call 后把真实 `ra` 改到高半区，最终 high-only `satp` 后 `ret`，旧 OoO frontend 仍把 RAS 低地址项当成架构返回目标，导致取低地址 `0x80201152` 时 instruction page fault 并进入 early trap loop。剩余未完整 boot 的问题还未收敛，可能继续涉及 kernel 后续设备模型、console/earlycon、virtio/rootfs、内核初始化工作量与当前仿真性能。
+- **修复**: 部分完成：`define.v/CsrFile.v` 新增只读 `mimpid=0`；`OooAluFetchCore` 在 `satp` CSR 写提交边界清 RAS、return continuation、synthetic lane1 return、branch target cache 与 JALR BTB；`sv39-ras-relocate` cpu-test 复现并锁定该 RAS/SATP 边界；`smoke-linux-kernel` target 允许装载真实 OpenSBI、真实 Debian kernel 和 DTB。后续应继续分析 40M 后的内核路径，补齐真实 Linux 所需设备/console/rootfs，并把 smoke 从“越过 relocation 并持续退休”推进到“打印 Linux banner/进入 initramfs 或 rootfs”。
+- **教训**: RAS/BTB/target cache 这类预测状态不能跨地址空间切换复用；`satp` 写提交是精确清理边界。真实 kernel smoke 还要区分“卡在同一 PC/无退休”和“max-cycles 到期但 commits 持续增加”，否则容易把慢启动误判成死锁。
+
+### [39] RV64 OpenSBI/mini payload 已闭合，真实 Linux kernel smoke 已进入下一阶段
+
+- **模块**: NPC RV64 / CSR / SBI / Linux boot platform
+- **现象**: `counteren-time/sbi-timer/sbi-base-console/linux-handoff/sbi-ipi-reset-hsm` 已覆盖 counter、timer、console、handoff、IPI/HSM/reset ABI 等 mini SBI 路径；host 侧 `--load=ADDR:FILE`、reset trampoline、`npc-rv64.dts`、`smoke-dtb` 已能验证多镜像装载和真实 DTB handoff。当前已跑通真实 OpenSBI v1.8 `fw_jump.bin`：OpenSBI banner 完整输出，Domain0 handoff 到 `0x80200000` 的 S-mode payload；直接 payload 可验证 `a0=0/a1=DTB` 后 UART 输出 `S`；runtime SBI payload 还能通过真实 OpenSBI 调 SBI base probe、legacy console putchar 输出 `B`、SBI TIME `set_timer` 并接收 S-mode timer interrupt。2026-05-31 已开始真实 Linux kernel smoke 并越过 early relocation，后续仍依赖真实镜像、virtio/blk、多源 PLIC、更完整 DTB/设备模型和更完整 OpenSBI/Linux 驱动闭环。
+- **根因**: 真实 OpenSBI 闭环已证明核心 privilege/SBI/DTB/entry ABI 与 base/console/time runtime SBI 的关键边界；此前 next stage 仍是 repo 内小型 payload，不是 Linux kernel。当前真实 kernel smoke 已暴露更深一层的 CSR/RAS/Sv39 与后续平台缺口；平台设备仍只有单 hart、最小 UART/CLINT/PLIC smoke，没有 virtio block/rootfs、真实多源中断和 kernel driver 所需的完整设备行为。OpenSBI smoke `CPI=0.944~0.946` 还高于 0.8，主要受 banner/UART 输出与控制等待影响；性能目标目前只由 CoreMark `CPI=0.779/0.783` 支撑。
+- **修复**: 部分完成：2026-05-30 已补 counter/SBI/DTB/reset trampoline/multi-image loader，并新增真实 OpenSBI smoke。关键修复包括 `misa` 报告 RV64 I/M/A/B/C/S/U，默认 OpenSBI text start + `FW_FDT_PATH` embedded DTB，semihosting magic `ebreak` 走架构 breakpoint trap而普通 `ebreak` 继续作为 AM halt，`smoke-opensbi` 装载 OpenSBI、payload 和 DTB@`0x82200000`。2026-05-31 新增 `smoke-opensbi-sbi`，验证真实 OpenSBI base/console/time runtime path；同日开始真实 Linux kernel smoke，详见 [40]。后续应继续补 virtio/blk、多源 PLIC、kernel 期望的 DTB 和更完整设备模型。
+- **教训**: “真实 OpenSBI 能启动”已经比 mini SBI 更接近 Linux boot，但仍不能等同于 Linux kernel boot。每一层验收要标明 next stage 是 toy payload 还是真实 kernel，并单独记录功能 CPI 与 benchmark CPI。
+
+### [38] RV64 SBI timer 仍是 mini service，不是完整 OpenSBI
+
+- **模块**: NPC RV64 / CLINT / SBI / Linux boot platform
+- **现象**: `sbi-timer` 已覆盖 S-mode `ecall` 进入 M-mode timer handler、M handler 写 CLINT `mtimecmp`、返回 S-mode 后触发 delegated `STIP` 并 `sret`，证明 Linux early timer 的关键控制链路已闭合。但这仍只是 TIME extension 的最小 smoke，不代表真实 OpenSBI 已能运行，也不能覆盖 Linux 后续依赖的 console、IPI、reset、HSM、hart state、firmware payload handoff 等 SBI 行为。
+- **根因**: 当前 `AxiLiteClint` 已具备 `mtime/mtimecmp/msip` 的基础寄存器和 RV64 aligned lane 兼容，但平台固件仍由 cpu-test 内的裸汇编 trap handler 模拟；没有真实 OpenSBI 镜像装载、设备树传参、hart boot 参数、SBI extension 分发表，也没有多 hart IPI 语义。`sbi-timer` 为了验证 CLINT 高 lane 和 STIP，直接把 `mtimecmp` 写成 pending，不建模真实固件里的计时目标、返回结构和错误码矩阵。
+- **修复**: 部分完成：2026-05-30 已修复 CLINT `mtimecmp+4/mtime+4` 在 RV64 8-byte aligned LSU 下的高 lane 访问，并新增 `sbi-timer` mini boot 测试。后续若要推进真实 Linux boot，应先建立 OpenSBI/kernel 镜像加载与 DTB/hart 参数，再逐步补 SBI console、IPI、reset/HSM、真实 set_timer 参数路径和多 hart/多中断源联动。
+- **教训**: SBI 测试要区分“控制链路能进 trap 并返回”和“固件 ABI 完整”。mini boot 可以用于锁定硬件边界，但不能用一个裸 handler 的 PASS 代替真实 OpenSBI 启动证据。
+
+### [37] RV64 PLIC/UART 目前仍是 mini boot 单源模型，不是完整 Linux 平台设备栈
+
+- **模块**: NPC RV64 / PLIC-like MMIO / Linux boot platform
+- **现象**: `plic-sirq` 已能通过 MMIO pending 注入 source 1，`uart-plic-sirq` 也已能通过 UART THRE interrupt 驱动 PLIC source 1，让 S-mode `wfi` 进入 supervisor external interrupt handler 并完成 claim/complete；但这仍只能证明核心 external IRQ、UART THRE source、PLIC MMIO lane、S-mode trap 入口闭合。它还不能代表真实 Linux 已有完整平台设备栈，也不能直接替代 virtio/blk、DTB 或完整 QEMU `virt` 设备模型。
+- **根因**: 当前 `AxiLitePlic` 仍是为了 Linux boot 前置验证而做的最小设备：单 source、M/S context、简化 gateway/in-service，没有多源优先级仲裁、claim priority、完整上下文 pending arbitration。`Uart` 也只是最小 16550-style TX/IER/IIR/LSR 模型，没有 RX FIFO、真实输入、DLL/DLM baud、FIFO 深度和多 cause interrupt。另因 RV64 LSU 对 32-bit MMIO 访问使用 8-byte aligned beat，PLIC 对 `+4` lane 做了兼容，aligned threshold/claim 共 beat 读仍会触发 claim clear，尚未建成完全通用的 PLIC ABI 模型。
+- **修复**: 部分完成：2026-05-30 已将 UART `irq_o` 接到 PLIC source 1，并为 PLIC 增加 in-service 网关语义。后续真实 Linux boot 应补多 source PLIC/gateway/priority arbitration、virtio/blk source 接线、DTB/设备模型、真实 OpenSBI/kernel 镜像加载；如果要保持当前 8-byte aligned LSU 协议，也应明确处理同 beat 内 threshold/claim 的 side effect 边界或在总线侧保留原始低地址 lane 信息。
+- **教训**: 小型 boot 测试要明确“验证了哪条系统路径”，不能把 UART THRE interrupt smoke 误当成完整平台设备模型。Linux boot 的下一步应把 PLIC、virtio/blk、DTB 和 SBI 服务一起闭合，而不是只看单个 SEIP 是否能进 handler。
+
+### [34] 当前 Windows/WSL 会话存在 vsock/utility VM 不稳定
+
+- **模块**: 宿主环境 / WSL
+- **现象**: RV64 CoreMark 长跑或并行启动多个 WSL 命令后，可能出现 `Wsl/Service/E_UNEXPECTED`、`Wsl/Service/0x8007274c`、`UtilBindVsockAnyPort: bind failed`、`InitCreateProcessUtilityVm failed`。本轮串行短命令可恢复，说明不是项目代码直接把 Windows 资源耗尽；并发读文件时也复现过同类错误。
+- **根因**: 当前机器 WSL 会话/vsock/utility VM 层不稳定，长时间 benchmark 或并发命令会放大问题；此前 dmesg 还出现过 unclean shutdown/journal corrupted。代码侧卡死会增加触发概率，但 WSL 报错本身属于环境层症状。
+- **修复**: 本轮采用串行、短命令验证，避免并发 WSL 进程。长期应重启/修复 WSL 会话、减少并行命令，并把 benchmark 卡死先收敛成 NPC 超时而不是任其长跑。
+- **教训**: 遇到 WSL `E_UNEXPECTED` 不要直接等同于 RTL OOM 或 benchmark 自身崩溃；先看 NPC 是否有 no-progress/commits 卡点，再单独评估宿主 WSL 稳定性。
+
+### [33] `npc/rv64/testbench` 全量 run 仍会被旧 `tb_ooo_alu_fetch_core` 语义挡住
+
+- **模块**: NPC RV64 / module testbench / OoO fetch-core focused test
+- **现象**: 本轮 S-mode/A-extension 和 Sv39 bridge 改动后，focused 验证 `tb_ooo_sv39_boot tb_ooo_int_backend tb_ooo_priv_system` PASS，rv64 lint/build、cpu-tests 和 CoreMark 均 PASS；但直接执行 `make -C npc/rv64/testbench RESULT_DIR=/tmp/rv64-full-module run` 仍会在旧 `tb_ooo_alu_fetch_core` 失败。日志显示该旧 test 仍期待 `mret` 走 illegal trap、并按旧 32-bit 访存模型/退出模型断言 JALR/memory/ecall 行为。
+- **根因**: `npc/rv64` 近期已经把 MRET/CSR/ECALL/64-bit LSU/OoO core-top 语义推进到新边界，但 `tb_ooo_alu_fetch_core` 仍继承较早 RV32/OoO focused 假设，没有同步到当前 RV64 “MRET 合法、ECALL 架构 trap、8-byte aligned LSU、priv SYSTEM drain” 的协议。
+- **修复**: 暂未在本轮清理该旧 testbench；本轮新增/扩展的 `tb_ooo_sv39_boot` 已覆盖 IFU/LSU Sv39 success path、S-mode handoff、delegated ecall 和 `SRET` 小型 boot 骨架，`tb_ooo_priv_system` 覆盖当前 privilege/SYSTEM 验收点，`tb_ooo_int_backend` 覆盖 AMO/LR/SC，`tb_decode_unit` 覆盖 SRET/AMO decode。后续若要恢复 `testbench` 全量 run，应重写 `tb_ooo_alu_fetch_core` 的程序模型和断言，使其与当前 RV64 privilege/LSU/exit 协议一致，而不是把 RTL 回退到旧预期。
+- **教训**: focused testbench 的历史预期本身也属于接口契约；当体系结构语义从“unsupported/illegal”推进到“合法精确控制事件”时，需要同步升级旧断言，否则全量 module run 会把已完成的能力误报成回归。
+
 ### [30] OoO 实验核接入真实 core-top 后，CPI=0.5 目标转为 core 内 cache/LSQ/control-flow 问题
 
 - **模块**: NPC / `NpcCoreTop` / OoO experimental core / fetch-memory bridge
@@ -80,6 +136,46 @@
 - **修复**: 如何修复的
 - **教训**: 从中学到了什么
 -->
+
+### [40] 真实 OpenSBI 先后卡在 `sbi_hart_hang` 和 semihosting `ebreak`
+
+- **模块**: NPC RV64 / OpenSBI / CSR trap / boot tools
+- **现象**: 真实 OpenSBI 初次推进时停在 `pc=0x80006656`，反查为 `sbi_hart_hang()` 的 WFI loop；改用默认 text start 后，OpenSBI 又在 semihosting probe 的 `slli x0,x0,0x1f; ebreak; srai x0,x0,7` 处被 NPC 当成 AM halt/BAD TRAP。
+- **根因**: 第一层是用 `FW_TEXT_START=0x80001000` 给 reset trampoline 留洞，导致 OpenSBI `_fw_rw_start - _fw_start = 0x3f000`，不满足 `sbi_domain_init()` 对 `fw_rw_offset` power-of-2 的 sanity check。第二层是 NPC 此前把所有 `ebreak` 都作为实验壳退出边界，没有区分 OpenSBI semihosting magic 序列里的架构 breakpoint trap。
+- **修复**: 2026-05-30 已修复。OpenSBI smoke 改为默认 text start，并用 `FW_FDT_PATH` embedded DTB；`OooAluFetchCore` 只把 semihost magic 序列中的 `ebreak` 转成 `EXC_BREAKPOINT` 精确 trap，普通 `ebreak` 仍驱动 AM halt。新增 `semihost-ebreak` 与 `misa-priv` cpu-test，`npc/rv64/tools` 新增 `smoke-opensbi` 和 `mini-linux-payload.S`。验证：真实 OpenSBI v1.8 banner 完整输出，handoff 到 S-mode payload，payload 打印 `S` 并 GOOD TRAP；`smoke-opensbi` 统计 `cycles=4366855/commits=4626201/CPI=0.944`。
+- **教训**: OpenSBI 的链接地址、FDT 传参和 semihosting probe 都是固件 ABI 的一部分；为 toy trampoline 调整 text start 会破坏 OpenSBI 自身假设。`ebreak` 在 AM harness 和真实固件里语义不同，必须按上下文区分。
+
+### [35] RV64 fault-trap 后 CoreMark 卡在固定 commit 点并触发 WSL 崩溃
+
+- **模块**: NPC RV64 / OoO memory bridge / fault-trap flush / CoreMark
+- **现象**: Sv39 fault-trap 改动后，CoreMark `ITERATIONS=10` 会在 `commits=325846` 附近长期无进展，`--max-cycles 1000000` 与 `20000000` 结果相同；统计曾显示 `mem req0/rsp0 = 72065/72064`，最后 itrace 在 `core_list_mergesort` 退栈 load 附近。长跑叠加当前 WSL 不稳定后，表现为 `Wsl/Service/E_UNEXPECTED`。
+- **根因**: 两个边界叠加。第一层是后端 flush/exception 会清 `mem_pending_q`，但 `OooMemAxiBridge` 可能已经持有 CPU response 或已发 AXI 事务；没有 flush-drain/drop 规则时会留下 orphan response。第二层是原先 `branch_resolve_untracked_w` 在 `stop_pending_q` 期间仍可抢占状态机，使 `pending_arch_trap_q` 已经记录 IFU fault packet 时无法进入 drain 后 trap 处理，前端/后端被清空后停在 decode/stop 状态。
+- **修复**: 2026-05-30 已修复。`OooMemAxiBridge` 新增 `flush_i/drop_rsp_q`，flush 后隐藏/丢弃 CPU response、drain 已发 R/B response、部分 write 补完剩余通道再 drain；`OooAluFetchCore` 新增 `mem_flush_o` 并由 `NpcCoreTop` 接到 bridge，trap flush 同拍、checkpoint restore 打一拍；`branch_resolve_untracked_w` 改为 `!stop_pending_q` 时才生效，并在 untracked 恢复路径清 `pending_arch_trap_q`。新增 `tb_ooo_mem_axi_bridge` 覆盖 held response、in-flight read、partial write 三类 flush。验证：focused 4/4 PASS，rv64 lint/build PASS；CoreMark 10 不再卡在 `325846`，最终 PASS 且 `CPI=0.783`。
+- **教训**: OoO flush 不只清 ROB/IQ；所有跨模块 outstanding owner 都必须闭合。后端 pending 位清零后，bridge 仍需能够消费或明确丢弃已经返回/必将返回的总线响应。前端 stop/drain 期间也不能让无 owner 的 branch resolve 抢占 precise trap/exit 状态机。
+
+### [36] AM `out_uint()` 在 RV64 高地址栈上生成 4GB 反向输出循环
+
+- **模块**: Abstract Machine / klib stdio / RV64 CoreMark 输出
+- **现象**: 修复 OoO no-progress 后，CoreMark 10 能继续退休到三千万级指令但长期停在 `out_uint` 的 CRC 输出循环，20M/80M 周期都只打印到 `seedcrc` 附近。临时 commit 探针显示 `sp=0x000000008010cda0`、`digit_count=1` 时终止寄存器变成 `a3=0xffffffff8010cda0`，`a5` 需要从 `0x000000008010cda0` 递减绕 4GB 才相等。
+- **根因**: `while (digit_count > 0) tmp[--digit_count]` 被 GCC 在 RV64/Zba 下编成含 `zext.w` 的终止地址计算；在 PMEM/stack 低 32 位 bit31 为 1 的地址上，32-bit index 与 64-bit 指针混算形成远端终止地址。RTL 按语义执行该代码，所以表现为超长但仍退休的循环。
+- **修复**: 2026-05-30 已修复。`out_uint()` 改为 `char *digit = tmp + digit_count; while (digit != tmp) out_ch(... *--digit);`，反汇编变成指针回走到 `tmp`，不再生成 `sp - 0xffffffff` 终止地址。新增 `stdio-format` cpu-test 覆盖 CoreMark CRC 输出样式。验证：`stdio-format` PASS；CoreMark 10 PASS，`cycles=2518692/commits=3216171/CPI=0.783`。
+- **教训**: AM/klib 也会暴露 RV64 高地址与编译器优化交互问题。看到 NPC 仍在稳定退休且 CPI 正常时，不要继续按 RTL 死锁处理；应检查 guest 代码/反汇编和寄存器不变量。
+
+### [32] RV64 CoreMark 迁移后 CPI 退化到 6.017
+
+- **模块**: NPC RV64 / cache / OoO 性能后端 / CoreMark
+- **现象**: `riscv64-npc` 跑 CoreMark 默认 1000 iterations 虽然 `CoreMark PASS`，但 NPC 统计 `cycles=1915750770`、`commits=318393500`、`CPI=6.017`，且截图中 ICache/DCache 统计全为 0；用户要求恢复到 RV32 历史基线 `0.78/0.8` 左右。
+- **根因**: 第一层是 RV64 后端的 cacheable PMEM 范围仍配置成不覆盖 `0x8000_0000`，导致 I/D cache 被完全绕过，同时 ICache fill/line-byte 选择仍隐含 32-bit beat，RV64 下不能正确按 64-bit word 取线。第二层是即使恢复 cache，默认仍走顺序核，只能到 `CPI=1.274`；切到双发射 OoO 后又暴露 RV64 语义缺口：`ADDW/ADDIW/*W` 没有 sign-extend、RV64M/W 和 RV64B/Zba/Zbb/Zbc/Zbs 仍按 RV32 处理，memory path 的 `wstrb`/alignment/cache index 仍是 4-byte 假设，导致 `bitmanip`/访存类测试不能作为默认性能路径。
+- **修复**: 2026-05-30 已修复。`npc/rv64` 恢复 `0x8000_0000..0x87ff_fffc` cacheable，I/D cache line 设为 `8 x 64-bit beat`，ICache refill/byte select 改用 `XLEN_BYTE_W/XLEN_BIT_SHIFT`；OoO 后端补齐 RV64 `*W` sign-extend、RV64M/W、RV64 bitmanip 和 8-bit `STRB_W` 访存链路，`OooMemAxiBridge` 按 8-byte aligned word 建 D-cache index/merge，最后将 `npc/rv64/Makefile` 默认切到已验证的双发射 OoO 后端。验证：默认 `make -C npc/sim BACKEND=rv64 lint` 与 build PASS；默认 cpu-tests `40/40 PASS`；默认 CoreMark `ITERATIONS=1000` 在当前性能配置 `Difftest: OFF` 下输出 `CoreMark PASS 8 Marks`、`cycles=247287515`、`commits=317356136`、`CPI=0.779`。
+- **教训**: RV64 迁移不能只改 `XLEN` 和 ABI；cacheable 地址、line beat、byte lane、word-op sign-extension、bitmanip 宽度、访存 strobe/alignment 都是同一个数据通路契约。性能目标低于 1 CPI 时，顺序核即便 cache 正常也不可能达标，必须把性能后端作为默认路径前先用全量 cpu-tests 证明其 RV64 语义闭合。
+
+### [31] RV64 NPC 没有可用 NEMU DiffTest reference
+
+- **模块**: NPC RV64 / NEMU reference / DiffTest
+- **现象**: `npc/rv64` 初始只能关闭 difftest 自检；直接构建 `GUEST_ISA=riscv64 SHARE=1` 时 NEMU 没有独立 `src/isa/riscv64`，绕到 RV32 源后又缺 RV64I load/store、OP-32、RV64M/B/C、CSR/misa 与 64-bit CPU_state 语义，不能作为逐条参考。
+- **根因**: 本仓库的 `CONFIG_RV64` 过去主要切换 `word_t/CONFIG_ISA64`，ISA 源码目录、CSR 布局、扩展 Kconfig 和 `inst.c` 执行语义仍以 RV32 为主。后续 CoreMark 首次 difftest 还暴露出 NEMU `CONFIG_MEM_RANDOM=y` 与 NPC 零初始化 PMEM 不一致，读取未显式写满的栈槽时会在无关高字节上分叉。
+- **修复**: 2026-05-30 已修复。`filelist.mk` 将 `riscv64` 映射到共享 RV32 源，`isa-def.h/inst.c/reg.c/intr.c` 补齐 RV64 CPU/CSR/指令/异常语义，`RISCV_EXT_M/B/C` 允许 RV64；新增 `riscv64-npc_defconfig` 并关闭 `MEM_RANDOM`。NPC 侧默认开启 RV64 difftest，补齐 RV64B/Zba `.uw` 与 RVC RV64 差异；AM 侧可随 `npc/sim BACKEND=rv64` 自动切到 `riscv64-npc/lp64`。验证：NEMU RV64 shared object 构建 PASS；`ARCH=riscv64-npc` cpu-tests `40/40 PASS`；CoreMark 默认 `1000` iterations + DiffTest ON `CoreMark PASS` / `HIT GOOD TRAP`。
+- **教训**: Kconfig 名称不是 reference 能力证明；DiffTest reference 必须和 DUT 的 ISA/ABI、CSR 以及初始内存基线都对齐。CoreMark 这类 C 程序可能读到未显式写满但随后会被 mask 的栈字节，逐条 difftest 仍会比较完整寄存器值，因此 reference/DUT 的 PMEM 初始化也属于验收前提。
 
 ### [26] NPC 配置切换不会稳定触发 Verilator 二进制重建，可能继续沿用旧产物
 

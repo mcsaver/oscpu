@@ -2,6 +2,9 @@
 
 ## 当前状态
 <!-- 已实现的 API (TRM/IOE/CTE/VME/MPE) -->
+- 2026-05-30: `abstract-machine/klib/src/stdio.c::out_uint()` 的反向 digit 输出已改成 `char *digit = tmp + digit_count` 到 `tmp` 的纯指针回走，避免 RV64 `riscv64-npc` 高地址栈上 GCC/Zba 把 `while (digit_count > 0) tmp[--digit_count]` 编成 `zext.w` 参与终止指针计算。旧代码在 `sp=0x000000008010cda0`、`digit_count=1` 时会形成 `a3=0xffffffff8010cda0` 这类终止指针，使 CoreMark CRC 输出阶段绕 4GB 长跑。新增 `am-kernels/tests/cpu-tests/tests/stdio-format.c` 覆盖 `sprintf("[%d]crclist...0x%04x")` 与 `snprintf("seedcrc...0x%04x")`，`ARCH=riscv64-npc ALL=stdio-format run` PASS。CoreMark `ITERATIONS=10` 重新构建后完整 PASS，`CPI=0.783`。
+- 2026-05-30: `riscv64-npc` 现在是可 difftest 的 RV64 AM 目标。`abstract-machine/scripts/riscv64-npc.mk` 使用 `-march=rv64im_zicsr_zifencei_zba_zbb_zbc_zbs -mabi=lp64`，默认不全局启用 C，压缩指令测试用局部 `.option arch,+c` 覆盖；`riscv32-npc.mk` 会读取 `npc/sim` 当前后端，未显式指定 `NPC_SIM_BACKEND` 且配置为 `rv64` 时自动切到 `ISA=riscv64`、RV64 flags 和 `lp64`，从而满足“sim 顶层切换时 AM 也切换到 64 位编译”。CoreMark port 的 `ITERATIONS` 现可由 Makefile 覆盖，默认仍为 1000。验证：`ARCH=riscv64-npc` cpu-tests `40/40 PASS`；CoreMark 默认 1000 iterations + DiffTest ON PASS。
+- 2026-05-29: 新增 `riscv64-npc` AM 架构入口，默认 `NPC_SIM_BACKEND=rv64`，复用 `riscv/npc/*` runtime 与 `platform/npc.mk` 的统一 `npc/sim` 运行桥。guest 编译参数为 freestanding `-march=rv64im_zicsr_zifencei -mabi=lp64`，避免当前宿主 `riscv64-linux-gnu` sysroot 缺 `gnu/stubs-lp64.h` 时污染裸机构建；同时 `klib/include/limits.h` 提供 AM 自带 freestanding limits 宏，避免 `stdlib.c` 继续 include 到 Linux sysroot。验证：`ARCH=riscv64-npc ALL=add run` PASS；`ARCH=riscv64-npc` cpu-tests 基础全量 `38/38 PASS`，运行进入 `npc/sim BACKEND=rv64`。
 - 2026-05-24: `riscv32-ysyxsoc` 的 AM 脚本现在按 `npc/sim` 当前后端选择平台实现：single 后端时退回 `platform/npc.mk`、legacy linker 和 `riscv/npc/*` runtime，并用 `-U__PLATFORM_YSYXSOC -D__PLATFORM_NPC` 避免上层测试误走 ysyxSoC UART/IOE 分支；只有显式选择 soc 后端时才 include `platform/ysyxsoc.mk`，继续使用 MROM/SRAM 地址图。验证：`ARCH=riscv32-ysyxsoc ALL=char-test run` 在 `npc/sim` single 配置下进入 `npc/single`，PMEM 为 `0x80000000..0x87ffffff`，GOOD TRAP。
 - 2026-05-24: `riscv32-ysyxsoc` 平台启动时已初始化 16550 UART，避免 ysyxSoCFull 上 DLL 写 `0x01` 被误当作 THR 字符。`ysyxsoc.h` 新增 DLL/DLM/FCR/LCR/LSR 寄存器定义和 `ysyxsoc_uart_init()/ysyxsoc_uart_putc()`；`trm.c::_trm_init()` 先设置 DLAB、divisor、FIFO、8N1，再进入用户 `main()`，`putch()` 与 `uart.c` 的 AM_UART_TX 共用 TX ready 等待和 THR 写入 helper。验证：Full ysyxSoCFull char-test 输出只有 `putch path` 与 `AM_UART_TX path` 两行有效文本，没有 divisor 噪声或重复打印。
 - 2026-05-24: `riscv32-ysyxsoc` 的链接/启动布局已修正为真实 MROM/SRAM 分工：`.text/.rodata` 仍位于 MROM `0x20000000..0x20000fff`，`.data/.bss/heap` 位于 SRAM `0x0f000000..`，栈顶为 `0x0f002000` 并预留高 4KB 栈区；`.data` 的 LMA 紧跟 MROM 中的 text/rodata，新增 `am/src/riscv/ysyxsoc/start.S` 在 `_start` 中复制 `.data` 到 SRAM 并清零 `.bss`。`platform/ysyxsoc.mk` 不再把 `.bss` 强制写入 flat binary，`trm.c` 的 heap 结束改用链接脚本 `_heap_end`，避免覆盖栈。验证：`readelf -S -l select-sort-riscv32-ysyxsoc.elf` 显示 `.data` VMA=`0x0f000000`、LMA=`0x20000160`；`ARCH=riscv32-ysyxsoc` cpu-tests 39/39 difftest PASS。
@@ -63,10 +66,12 @@
 
 ## klib 实现进度
 <!-- 已实现的标准库函数 -->
+- 2026-05-30: `stdio.c` 的统一整数输出路径继续支持宽度/补零/十六进制；反向输出 digits 时禁止再用会被编译成 32-bit index 与 64-bit 指针混算的写法。当前 `stdio-format` cpu-test 已覆盖 CoreMark CRC 输出样式。
 - 2026-04-13: `stdlib` 现已提供 `rand/srand/abs/labs/atoi/atol/strtol/strtoul/malloc/free/calloc/realloc`。其中 native 目标继续复用宿主 libc 的分配器，避免在宿主可执行文件里导出自定义 `malloc/free` 干扰启动路径；非 native 目标再接入 klib 自己的可回收堆管理。
 
 ## 踩坑记录
 <!-- 本模块特有的问题和经验 -->
+- 2026-05-30: RV64 裸机程序的栈/PMEM 常在 `0x8000_0000` 以上；如果局部数组地址低 32 位最高位为 1，GCC/Zba 可能把 `int` 下标反向循环优化成 `zext.w` 参与终止指针计算。对 `tmp[--idx]` 这类短数组反向遍历，优先写成显式指针从 `tmp + count` 回到 `tmp`，避免形成 `0xffffffff8010xxxx` 这类远端终止地址。
 - 2026-05-19: AM CTE 的 `__am_irq_handle()` 返回值不是装饰性接口；调度器可以返回另一个 `Context *`。trap.S 若调用 handler 后继续用旧 `sp` 恢复现场，`kcontext()` 即使构造正确也不会真正切任务。NEMU/NPC 的 RISC-V trap.S 都应在恢复 GPR/CSR 前执行 `mv sp, a0`。
 - 2026-04-14: 之前那条“`kvsnprintf()` 只实现 `%d/%s/%c/%%`”的限制已经修复；后续若还要扩 `printf`，优先在统一整数输出路径上加能力，并同步补 `klib_fmt` 回归，不要再针对某一个 benchmark 单独修打印语句。
 - `klib` 自己实现分配器时，不能把“堆是否初始化完成”和“当前空闲链表是否非空”混为一谈；否则堆已初始化但所有块都暂时被占用时，后续 `free/realloc` 会误判成“堆尚未初始化”。

@@ -9,7 +9,7 @@ choice
     Select the concrete backend used by the platform-independent npc/sim
     entry. External modules such as Abstract Machine should call npc/sim,
     while this choice decides whether the real Verilator model comes from
-    npc/single or npc/soc.
+    npc/single, npc/rv64 or npc/soc.
 
 config NPC_SIM_BACKEND_SINGLE
   bool "single: AM/NpcSimTop self-simulation backend"
@@ -24,11 +24,18 @@ config NPC_SIM_BACKEND_SOC
     use its copied NpcSimTop backend, while soc/soc-lint build the
     ysyxSoCFull integration top.
 
+config NPC_SIM_BACKEND_RV64
+  bool "rv64: RV64 NpcSimTop self-simulation backend"
+  help
+    Use npc/rv64 as the concrete backend. This is the RV64 copy of the
+    single core and is selected by AM/riscv64-npc.
+
 endchoice
 
 config NPC_SIM_BACKEND
   string
   default "single" if NPC_SIM_BACKEND_SINGLE
+  default "rv64" if NPC_SIM_BACKEND_RV64
   default "soc" if NPC_SIM_BACKEND_SOC
   default "single"
 

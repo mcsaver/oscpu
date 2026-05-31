@@ -16,10 +16,10 @@
 #include <isa.h>
 #include <etrace.h>
 
-#define MSTATUS_MIE  (1u << 3)//当前是否允许机器态中断
-#define MSTATUS_MPIE (1u << 7)//进入trap前，原来的MIE值备份
-#define MSTATUS_MPP_MASK (3u << 11)
-#define MSTATUS_MPP_M    (3u << 11)
+#define MSTATUS_MIE  ((word_t)1 << 3)//当前是否允许机器态中断
+#define MSTATUS_MPIE ((word_t)1 << 7)//进入trap前，原来的MIE值备份
+#define MSTATUS_MPP_MASK ((word_t)3 << 11)
+#define MSTATUS_MPP_M    ((word_t)3 << 11)
 
 #define MCOUNTINHIBIT_CY 0x00000001u
 
@@ -48,7 +48,7 @@ static bool host_timer_irq_pending = false;
 static bool mcycle_written_this_inst = false;
 
 static inline word_t riscv_mepc_mask(void) {
-  return MUXDEF(CONFIG_RISCV_EXT_C, ~0x1u, ~0x3u);
+  return MUXDEF(CONFIG_RISCV_EXT_C, ~(word_t)0x1, ~(word_t)0x3);
 }
 
 static inline word_t clint_pending_bits(void) {

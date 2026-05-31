@@ -1,0 +1,168 @@
+mainmenu "NPC RV64 Configuration Menu"
+
+menu "Build Options"
+
+choice
+  prompt "Compiler"
+  default CC_GPP
+
+config CC_GPP
+  bool "g++"
+
+config CC_CLANGPP
+  bool "clang++"
+endchoice
+
+config CC
+  string
+  default "g++" if CC_GPP
+  default "clang++" if CC_CLANGPP
+  default "g++"
+
+choice
+  prompt "Optimization Level"
+  default CC_O3
+
+config CC_O0
+  bool "O0"
+
+config CC_O1
+  bool "O1"
+
+config CC_O2
+  bool "O2"
+
+config CC_O3
+  bool "O3"
+endchoice
+
+config CC_OPT
+  string
+  default "-O0" if CC_O0
+  default "-O1" if CC_O1
+  default "-O2" if CC_O2
+  default "-O3" if CC_O3
+  default "-O3"
+
+config CC_DEBUG
+  bool "Enable debug information"
+  default n
+
+config NPC_DEFAULT_MAX_CYCLES
+  int "Default max cycles before timeout (0 = unlimited)"
+  default 2000000
+  help
+    Set the default cycle timeout for NPC runs.
+    Use 0 to disable the timeout when running large tests.
+
+config NPC_DEFAULT_LOG_PATH
+  string "Default log path"
+  default "build/npc-log.txt"
+
+config NPC_BATCH_MODE
+  bool "Start in batch mode by default (-b)"
+  default y
+
+config NPC_STDIN_KEYBOARD
+  bool "Enable stdin keyboard by default"
+  default n
+
+config NPC_HAS_VGA
+  bool "Enable VGA MMIO device"
+  default y
+  help
+    Expose vgactl/framebuffer MMIO to the guest. When disabled, AM GPU config
+    will report present=false and VGA accesses become harmless no-ops.
+
+config NPC_TRACE_BY_DEFAULT
+  bool "Enable wave trace by default"
+  default n
+
+endmenu
+
+menu "Monitor and Debugging"
+
+config NPC_COLORED_LOG
+  bool "Enable colored log output"
+  default y
+
+config NPC_LOG_FILE
+  bool "Enable file log output by default"
+  default n
+
+config NPC_PROGRESS_BY_DEFAULT
+  bool "Enable progress report by default"
+  default y
+  help
+    Print periodic execution progress during long-running continuous runs by
+    default. This only controls the startup default; command-line options can
+    still override it with --progress or --no-progress.
+
+config NPC_DEFAULT_PROGRESS_INTERVAL
+  int "Default progress report interval in commits"
+  depends on NPC_PROGRESS_BY_DEFAULT
+  default 10000000
+  help
+    Number of committed instructions between two progress reports when default
+    progress reporting is enabled.
+
+config NPC_DIFFTEST
+  bool "Build difftest support"
+  default n
+  help
+    Build the NPC-to-reference DiffTest runtime and enable it by default at
+    startup. Use --no-diff for one-off bare runs, or disable this in
+    performance configs to omit the reference loader and commit hot-path
+    difftest checks entirely.
+
+config NPC_SDB
+  bool "Enable monitor debugger"
+  default y
+
+config NPC_EXPR
+  depends on NPC_SDB
+  bool "Enable expression evaluator"
+  default y
+
+config NPC_WATCHPOINT
+  depends on NPC_EXPR
+  bool "Enable watchpoint feature"
+  default y
+
+config NPC_TEXT_TRACE
+  bool "Build text trace support"
+  default n
+  help
+    Build the software text trace framework. When disabled, itrace/mtrace/dtrace
+    code paths are compiled out together. When enabled, runtime defaults and
+    command-line options decide which trace streams are actually printed.
+
+if NPC_TEXT_TRACE
+
+config NPC_ITRACE_BY_DEFAULT
+  bool "Enable commit trace by default at runtime"
+  default n
+  help
+    Turn itrace on at startup without requiring --itrace or monitor commands.
+    This is useful when you want file logs to behave more like NEMU's trace logs.
+
+config NPC_ITRACE_COND
+  depends on NPC_EXPR
+  string "Default itrace condition"
+  default "true"
+
+config NPC_MTRACE_BY_DEFAULT
+  bool "Enable memory access trace by default at runtime"
+  default n
+  help
+    Turn mtrace on at startup without requiring --mtrace or monitor commands.
+
+config NPC_DTRACE_BY_DEFAULT
+  bool "Enable device access trace by default at runtime"
+  default n
+  help
+    Turn dtrace on at startup without requiring --dtrace or monitor commands.
+
+endif
+
+endmenu

@@ -41,6 +41,7 @@ typedef struct {
 typedef struct {
   word_t gpr[MUXDEF(CONFIG_RVE, 16, 32)];
   vaddr_t pc;
+  riscv32_CSR_state csr;
 } riscv64_CPU_state;
 #endif
 

@@ -1,0 +1,51 @@
+[TEST] tb_ooo_alu_fetch_core
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/single/vsrc -I/home/lyg/PA/ysyx-workbench/npc/single/vsrc/include -Icommon -s tb_ooo_alu_fetch_core -o build/tb_ooo_alu_fetch_core.vvp tests/tb_ooo_alu_fetch_core.sv /home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooAluFetchCore.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooAluCoreSlice.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooArchRegFile.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooAluDecodeBackend.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/decode/DecodeStage.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/decode/DecodeUnit.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/decode/ImmGen.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/execute/CompareUnit.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntBackend.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooDispatchBackend.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooRenameMap.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooFreeList.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooBusyTable.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooRob.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooPhysRegFile.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/execute/ALU.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/memory/LSUControl.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/memory/LSUDataPath.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/memory/LSU.v /home/lyg/PA/ysyx-workbench/npc/single/vsrc/writeback/WBU.v
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:252: warning: @* is sensitive to all 8 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:253: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:362: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:363: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:367: warning: @* is sensitive to all 8 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:369: warning: @* is sensitive to all 8 words in array 'src1_ready_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:370: warning: @* is sensitive to all 8 words in array 'src1_preg_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:373: warning: @* is sensitive to all 8 words in array 'src2_ready_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:374: warning: @* is sensitive to all 8 words in array 'src2_preg_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:377: warning: @* is sensitive to all 8 words in array 'entry_ready_r'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:381: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:382: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:383: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:385: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:386: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:387: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:388: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:389: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:390: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:391: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:392: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:393: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:394: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:395: warning: @* is sensitive to all 8 words in array 'pdest_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:396: warning: @* is sensitive to all 8 words in array 'pdest_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:398: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:400: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:401: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:403: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:409: warning: @* is sensitive to all 8 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:410: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:411: warning: @* is sensitive to all 8 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:599: warning: @* is sensitive to all 8 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:605: warning: @* is sensitive to all 8 words in array 'pc_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:606: warning: @* is sensitive to all 8 words in array 'next_pc_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:607: warning: @* is sensitive to all 8 words in array 'inst_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:608: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:609: warning: @* is sensitive to all 8 words in array 'rob_idx_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:610: warning: @* is sensitive to all 8 words in array 'src1_preg_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:612: warning: @* is sensitive to all 8 words in array 'src1_ready_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:613: warning: @* is sensitive to all 8 words in array 'src1_preg_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:616: warning: @* is sensitive to all 8 words in array 'src2_preg_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:618: warning: @* is sensitive to all 8 words in array 'src2_ready_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:619: warning: @* is sensitive to all 8 words in array 'src2_preg_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:622: warning: @* is sensitive to all 8 words in array 'pdest_q'.
+/home/lyg/PA/ysyx-workbench/npc/single/vsrc/ooo/OooIntIssueQueue.v:623: warning: @* is sensitive to all 8 words in array 'imm_q'.
+[PASS] tb_ooo_alu_fetch_core
+common/tb_common.svh:32: $finish called at 6150 (1s)
+[RESULT] PASS

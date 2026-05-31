@@ -3,7 +3,7 @@ NPC_ROOT ?= $(abspath ..)
 NEMU_HOME ?= $(abspath $(NPC_ROOT)/../nemu)
 DEFAULT_BACKEND := single
 LEGACY_BACKEND_FILE ?= $(NPC_ROOT)/.platform
-SUPPORTED_BACKENDS := single soc
+SUPPORTED_BACKENDS := single rv64 soc
 
 remove_quote = $(patsubst "%",%,$(1))
 
@@ -57,6 +57,7 @@ help:
 	@echo 'Usage:'
 	@echo '  make -C npc/sim [target]                         # use current/default backend'
 	@echo '  make -C npc/sim BACKEND=single [target]          # AM/NpcSimTop self-simulation'
+	@echo '  make -C npc/sim BACKEND=rv64 [target]            # RV64 NpcSimTop self-simulation'
 	@echo '  make -C npc/sim BACKEND=soc [target]             # copied ysyxSoC integration tree'
 	@echo '  make -C npc/sim menuconfig                       # choose backend using Kconfig'
 	@echo '  make -C npc/sim switch BACKEND=soc               # persist selected backend in npc/sim/.config'
@@ -65,7 +66,7 @@ help:
 	@echo '  AM should call npc/sim and pass NPC_SIM_BACKEND when it needs a non-default backend.'
 	@echo ''
 	@echo 'Common targets:'
-	@echo '  default all lint run sim clean menuconfig default_defconfig single_defconfig soc_defconfig'
+	@echo '  default all lint run sim clean menuconfig default_defconfig single_defconfig rv64_defconfig soc_defconfig'
 	@echo '  backend-menuconfig backend-default_defconfig backend-perf_defconfig'
 	@echo '  testbench pipe-test soc soc-lint status'
 

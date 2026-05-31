@@ -9,7 +9,6 @@ config RVE
   default n
 
 config RISCV_EXT_M
-  depends on !RV64
   bool "Enable M extension (integer multiply/divide)"
   default y
   help
@@ -17,7 +16,6 @@ config RISCV_EXT_M
     illegal instruction trap 处理；AM guest 编译参数也会同步移除 m。
 
 config RISCV_EXT_B
-  depends on !RV64
   bool "Enable B extension (Zba/Zbb/Zbc/Zbs bit manipulation)"
   default n
   help
@@ -26,7 +24,6 @@ config RISCV_EXT_B
     _zba_zbb_zbc_zbs，而不是使用 GCC 不接受默认版本的裸 b。
 
 config RISCV_EXT_C
-  depends on !RV64
   bool "Enable C extension (compressed instructions)"
   default n
   help

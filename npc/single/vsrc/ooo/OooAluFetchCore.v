@@ -487,6 +487,16 @@ module OooAluFetchCore #(
   reg [`XLEN-1:0] branch_target_cache_target_pc_q [0:BRANCH_TARGET_CACHE_ENTRIES-1];
   reg [`XLEN-1:0] branch_target_cache_next_pc_q [0:BRANCH_TARGET_CACHE_ENTRIES-1];
   reg [`INST_W-1:0] branch_target_cache_inst_q [0:BRANCH_TARGET_CACHE_ENTRIES-1];
+  reg jalr_btb_valid_q [0:`BPU_BTB_ENTRIES-1];
+  reg [`XLEN-1:0] jalr_btb_pc_q [0:`BPU_BTB_ENTRIES-1];
+  reg [`XLEN-1:0] jalr_btb_target_q [0:`BPU_BTB_ENTRIES-1];
+  reg branch_bht_valid_q [0:`BPU_BHT_ENTRIES-1];
+  reg [1:0] branch_bht_q [0:`BPU_BHT_ENTRIES-1];
+  reg [`BPU_BHT_INDEX_W-1:0] branch_ghr_q;
+  reg [`BPU_LOCAL_HISTORY_W-1:0] branch_local_hist_q
+      [0:`BPU_LOCAL_HISTORY_ENTRIES-1];
+  reg branch_local_pht_valid_q [0:`BPU_LOCAL_PHT_ENTRIES-1];
+  reg [1:0] branch_local_pht_q [0:`BPU_LOCAL_PHT_ENTRIES-1];
 
   reg trap_valid_q;
   reg [`TRAP_CAUSE_W-1:0] trap_cause_q;
@@ -513,6 +523,9 @@ module OooAluFetchCore #(
   reg [`REG_ADDR_W-1:0] pending_branch_rs2_q;
   reg [`XLEN-1:0] pending_branch_imm_q;
   reg [2:0] pending_branch_cmp_op_q;
+  reg pending_branch_pred_taken_q;
+  reg pending_branch_bht_valid_q;
+  reg [`BPU_BHT_INDEX_W-1:0] pending_branch_bht_idx_q;
   reg [`XLEN-1:0] pending_jump_pc_q;
   reg [`XLEN-1:0] pending_jump_next_pc_q;
   reg [`INST_W-1:0] pending_jump_inst_q;
@@ -792,7 +805,83 @@ module OooAluFetchCore #(
       direct_branch1_fire_w ? head1_imm_w : head0_imm_w;
   wire [`XLEN-1:0] direct_branch_target_w =
       direct_branch_pc_w + direct_branch_imm_w;
-  wire direct_branch_predict_taken_w = direct_branch_imm_w[`XLEN-1];
+  wire [`BPU_BHT_INDEX_W-1:0] head0_branch_pc_idx_w =
+      head_pc_w[`BPU_BHT_INDEX_W:1];
+  wire [`BPU_BHT_INDEX_W-1:0] head0_branch_bht_idx_w =
+      head0_branch_pc_idx_w ^ branch_ghr_q;
+  wire head0_branch_bht_valid_w =
+      branch_bht_valid_q[head0_branch_bht_idx_w];
+  wire head0_branch_static_taken_w = head0_imm_w[`XLEN-1];
+  wire head0_branch_gshare_taken_w =
+      head0_branch_bht_valid_w ?
+      (branch_bht_q[head0_branch_bht_idx_w] >= 2'd2) :
+      head0_branch_static_taken_w;
+  wire [`BPU_LOCAL_HISTORY_INDEX_W-1:0] head0_branch_local_hist_idx_w =
+      head_pc_w[`BPU_LOCAL_HISTORY_INDEX_W:1];
+  wire [`BPU_LOCAL_HISTORY_W-1:0] head0_branch_local_hist_w =
+      branch_local_hist_q[head0_branch_local_hist_idx_w];
+  wire [`BPU_LOCAL_PHT_PC_BITS-1:0] head0_branch_local_pc_idx_w =
+      head_pc_w[`BPU_LOCAL_PHT_PC_BITS:1];
+  wire [`BPU_LOCAL_PHT_INDEX_W-1:0] head0_branch_local_pht_idx_w =
+      {head0_branch_local_pc_idx_w, head0_branch_local_hist_w};
+  wire head0_branch_local_valid_w =
+      branch_local_pht_valid_q[head0_branch_local_pht_idx_w];
+  wire [1:0] head0_branch_local_ctr_w =
+      branch_local_pht_q[head0_branch_local_pht_idx_w];
+  wire head0_branch_local_taken_w =
+      head0_branch_local_valid_w ?
+      (head0_branch_local_ctr_w >= 2'd2) :
+      head0_branch_static_taken_w;
+  wire head0_branch_local_strong_w =
+      head0_branch_local_valid_w &&
+      ((head0_branch_local_ctr_w == 2'd0) ||
+       (head0_branch_local_ctr_w == 2'd3));
+  wire head0_branch_pred_taken_w =
+      head0_branch_local_strong_w ? head0_branch_local_taken_w :
+                                    head0_branch_gshare_taken_w;
+  wire [`BPU_BHT_INDEX_W-1:0] head1_branch_pc_idx_w =
+      head_pc1_w[`BPU_BHT_INDEX_W:1];
+  wire [`BPU_BHT_INDEX_W-1:0] head1_branch_bht_idx_w =
+      head1_branch_pc_idx_w ^ branch_ghr_q;
+  wire head1_branch_bht_valid_w =
+      branch_bht_valid_q[head1_branch_bht_idx_w];
+  wire head1_branch_static_taken_w = head1_imm_w[`XLEN-1];
+  wire head1_branch_gshare_taken_w =
+      head1_branch_bht_valid_w ?
+      (branch_bht_q[head1_branch_bht_idx_w] >= 2'd2) :
+      head1_branch_static_taken_w;
+  wire [`BPU_LOCAL_HISTORY_INDEX_W-1:0] head1_branch_local_hist_idx_w =
+      head_pc1_w[`BPU_LOCAL_HISTORY_INDEX_W:1];
+  wire [`BPU_LOCAL_HISTORY_W-1:0] head1_branch_local_hist_w =
+      branch_local_hist_q[head1_branch_local_hist_idx_w];
+  wire [`BPU_LOCAL_PHT_PC_BITS-1:0] head1_branch_local_pc_idx_w =
+      head_pc1_w[`BPU_LOCAL_PHT_PC_BITS:1];
+  wire [`BPU_LOCAL_PHT_INDEX_W-1:0] head1_branch_local_pht_idx_w =
+      {head1_branch_local_pc_idx_w, head1_branch_local_hist_w};
+  wire head1_branch_local_valid_w =
+      branch_local_pht_valid_q[head1_branch_local_pht_idx_w];
+  wire [1:0] head1_branch_local_ctr_w =
+      branch_local_pht_q[head1_branch_local_pht_idx_w];
+  wire head1_branch_local_taken_w =
+      head1_branch_local_valid_w ?
+      (head1_branch_local_ctr_w >= 2'd2) :
+      head1_branch_static_taken_w;
+  wire head1_branch_local_strong_w =
+      head1_branch_local_valid_w &&
+      ((head1_branch_local_ctr_w == 2'd0) ||
+       (head1_branch_local_ctr_w == 2'd3));
+  wire head1_branch_pred_taken_w =
+      head1_branch_local_strong_w ? head1_branch_local_taken_w :
+                                    head1_branch_gshare_taken_w;
+  wire [`BPU_BHT_INDEX_W-1:0] direct_branch_bht_idx_w =
+      direct_branch1_fire_w ? head1_branch_bht_idx_w :
+                              head0_branch_bht_idx_w;
+  wire direct_branch_bht_valid_w =
+      direct_branch1_fire_w ? head1_branch_bht_valid_w :
+                              head0_branch_bht_valid_w;
+  wire direct_branch_predict_taken_w =
+      direct_branch1_fire_w ? head1_branch_pred_taken_w :
+                              head0_branch_pred_taken_w;
   wire [`XLEN-1:0] direct_branch_pred_pc_w =
       direct_branch_predict_taken_w ? direct_branch_target_w :
                                       direct_branch_next_pc_w;
@@ -986,19 +1075,49 @@ module OooAluFetchCore #(
       branch_target_capture_hit_w && branch_target_capture_safe_w;
   wire [`XLEN-1:0] pending_branch_target_w =
       pending_branch_pc_q + pending_branch_imm_q;
-  wire branch_prefetch_predict_taken_w = pending_branch_imm_q[`XLEN-1];
-  wire [`XLEN-1:0] branch_prefetch_pred_pc_w =
-      branch_prefetch_predict_taken_w ? pending_branch_target_w :
-                                        pending_branch_next_pc_q;
-  wire branch_prefetch_req_valid_w =
+  wire branch_prefetch_branch_predict_taken_w = pending_branch_pred_taken_q;
+  wire [`XLEN-1:0] branch_prefetch_branch_pred_pc_w =
+      branch_prefetch_branch_predict_taken_w ? pending_branch_target_w :
+                                               pending_branch_next_pc_q;
+  wire pending_jump_jalr_ret_hint_w =
+      pending_jump_q && pending_jump_jalr_q &&
+      (pending_jump_inst_q[11:7] == 5'd0) &&
+      ((pending_jump_rs1_q == 5'd1) || (pending_jump_rs1_q == 5'd5)) &&
+      (pending_jump_imm_q == {`XLEN{1'b0}});
+  wire pending_jump_jalr_btb_lookup_w =
+      stop_pending_q && pending_jump_q && pending_jump_jalr_q &&
+      !(pending_jump_jalr_ret_hint_w && !ras_empty_w);
+  wire [`BPU_BTB_INDEX_W-1:0] pending_jump_jalr_btb_idx_w =
+      pending_jump_pc_q[`BPU_BTB_INDEX_W:1];
+  wire pending_jump_jalr_btb_entry_hit_w =
+      pending_jump_jalr_q &&
+      jalr_btb_valid_q[pending_jump_jalr_btb_idx_w] &&
+      (jalr_btb_pc_q[pending_jump_jalr_btb_idx_w] == pending_jump_pc_q);
+  wire pending_jump_jalr_btb_hit_w =
+      pending_jump_jalr_btb_lookup_w && pending_jump_jalr_btb_entry_hit_w;
+  wire [`XLEN-1:0] pending_jump_jalr_btb_target_w =
+      jalr_btb_target_q[pending_jump_jalr_btb_idx_w];
+  wire branch_prefetch_branch_req_valid_w =
       stop_pending_q && pending_branch_q && pending_branch_dispatched_q &&
       !branch_prefetch_active_q && !outstanding_valid_q &&
       !discard_fetch_rsp_q && !branch_resolve_pending_match_w &&
       !branch_spec_checkpoint_pending_q && !branch_spec_active_q &&
       !halted_q && !trap_valid_q && !exit_valid_q;
+  wire branch_prefetch_jalr_req_valid_w =
+      pending_jump_jalr_btb_hit_w && !pending_jump_dispatched_q &&
+      !branch_prefetch_active_q && !outstanding_valid_q &&
+      !discard_fetch_rsp_q && !branch_spec_checkpoint_pending_q &&
+      !branch_spec_active_q && !halted_q && !trap_valid_q && !exit_valid_q;
+  wire branch_prefetch_req_valid_w =
+      branch_prefetch_branch_req_valid_w || branch_prefetch_jalr_req_valid_w;
+  wire [`XLEN-1:0] branch_prefetch_req_pc_w =
+      branch_prefetch_jalr_req_valid_w ? pending_jump_jalr_btb_target_w :
+                                         branch_prefetch_branch_pred_pc_w;
   wire branch_prefetch_rsp_capture_w =
       branch_prefetch_active_q && !branch_prefetch_buffer_valid_q &&
-      stop_pending_q && pending_branch_q && pending_branch_dispatched_q &&
+      stop_pending_q &&
+      ((pending_branch_q && pending_branch_dispatched_q) ||
+       (pending_jump_q && pending_jump_jalr_q)) &&
       fetch_rsp_fire_w;
   wire branch_prefetch_match_w =
       branch_prefetch_active_q &&
@@ -1099,7 +1218,7 @@ module OooAluFetchCore #(
                            core_branch_resolve_next_pc_w;
   wire [`XLEN-1:0] fetch_req_pc_w =
       redirect_fetch_req_valid_w ? redirect_fetch_pc_w :
-      branch_prefetch_req_valid_w ? branch_prefetch_pred_pc_w :
+      branch_prefetch_req_valid_w ? branch_prefetch_req_pc_w :
                                     fetch_req_seq_pc_w;
   wire can_issue_request_w = can_run_w && !stop_head_w &&
                              !fetch_rsp_control_stop_w &&
@@ -1167,6 +1286,57 @@ module OooAluFetchCore #(
                             pending_jump_jal_target_w;
   wire pending_jump_misaligned_w =
       pending_jump_resolved_target_w[0];
+  wire pending_jump_resolve_ready_w = stop_pending_q && pending_jump_q &&
+                                      !pending_jump_dispatched_q &&
+                                      backend_drained_q;
+  wire jalr_prefetch_target_ready_w =
+      pending_jump_dispatched_q || pending_jump_resolve_ready_w;
+  wire [`XLEN-1:0] jalr_prefetch_target_w =
+      pending_jump_dispatched_q ? pending_jump_target_q :
+                                  pending_jump_resolved_target_w;
+  wire jalr_prefetch_match_w =
+      branch_prefetch_active_q && stop_pending_q && pending_jump_q &&
+      pending_jump_jalr_q && jalr_prefetch_target_ready_w &&
+      !pending_jump_misaligned_w &&
+      (branch_prefetch_pc_q == jalr_prefetch_target_w);
+  wire jalr_prefetch_buffer_match_w =
+      jalr_prefetch_match_w && branch_prefetch_buffer_valid_q;
+  wire jalr_prefetch_rsp_match_w =
+      jalr_prefetch_match_w && branch_prefetch_rsp_capture_w;
+  wire jalr_prefetch_hit_available_w =
+      jalr_prefetch_buffer_match_w || jalr_prefetch_rsp_match_w;
+  wire jalr_prefetch_pending_match_w =
+      jalr_prefetch_match_w && !jalr_prefetch_hit_available_w;
+  wire [`XLEN-1:0] jalr_prefetch_hit_pc0_w =
+      jalr_prefetch_rsp_match_w ? fetch_dec0_pc_w :
+                                  branch_prefetch_buf_pc0_q;
+  wire [`XLEN-1:0] jalr_prefetch_hit_pc1_w =
+      jalr_prefetch_rsp_match_w ? fetch_dec1_pc_w :
+                                  branch_prefetch_buf_pc1_q;
+  wire [`XLEN-1:0] jalr_prefetch_hit_next_pc0_w =
+      jalr_prefetch_rsp_match_w ? fetch_dec0_next_pc_w :
+                                  branch_prefetch_buf_next_pc0_q;
+  wire [`XLEN-1:0] jalr_prefetch_hit_next_pc1_w =
+      jalr_prefetch_rsp_match_w ? fetch_dec1_next_pc_w :
+                                  branch_prefetch_buf_next_pc1_q;
+  wire [`XLEN-1:0] jalr_prefetch_hit_packet_next_pc_w =
+      jalr_prefetch_rsp_match_w ? fetch_rsp_packet_next_pc_w :
+                                  branch_prefetch_buf_packet_next_pc_q;
+  wire [`INST_W-1:0] jalr_prefetch_hit_inst0_w =
+      jalr_prefetch_rsp_match_w ? fetch_dec0_inst_w :
+                                  branch_prefetch_buf_inst0_q;
+  wire [`INST_W-1:0] jalr_prefetch_hit_inst1_w =
+      jalr_prefetch_rsp_match_w ? fetch_dec1_inst_w :
+                                  branch_prefetch_buf_inst1_q;
+  wire [1:0] jalr_prefetch_hit_resp0_w =
+      jalr_prefetch_rsp_match_w ? fetch_rsp_resp0_i :
+                                  branch_prefetch_buf_resp0_q;
+  wire [1:0] jalr_prefetch_hit_resp1_w =
+      jalr_prefetch_rsp_match_w ? fetch_dec1_resp_w :
+                                  branch_prefetch_buf_resp1_q;
+  wire jalr_btb_update_w =
+      pending_jump_resolve_ready_w && pending_jump_jalr_q &&
+      !pending_jump_misaligned_w;
   wire pending_jump_return_w =
       pending_jump_q && pending_jump_jalr_q && !ras_empty_w &&
       (pending_jump_inst_q[11:7] == 5'd0) &&
@@ -1273,9 +1443,19 @@ module OooAluFetchCore #(
   wire direct_branch_spec_start_w =
       direct_branch_fire_w && backend_drained_w &&
       (!direct_branch1_fire_w || !head0_mem_raw_w);
-  wire pending_jump_resolve_ready_w = stop_pending_q && pending_jump_q &&
-                                      !pending_jump_dispatched_q &&
-                                      backend_drained_q;
+  wire branch_bpu_pending0_capture_w =
+      !direct_frontend_flush_w && can_run_w && fifo_has_packet_w &&
+      dispatch0_branch_w && !direct_branch0_dispatch_valid_w;
+  wire branch_bpu_pending1_capture_w =
+      !direct_frontend_flush_w && can_run_w && fifo_has_packet_w &&
+      dispatch1_barrier_fire_w && head1_branch_raw_w;
+  wire branch_bpu_lookup_event_w =
+      direct_branch_fire_w || branch_bpu_pending0_capture_w ||
+      branch_bpu_pending1_capture_w;
+  wire branch_bpu_lookup_bht_valid_w =
+      (direct_branch_fire_w ? direct_branch_bht_valid_w : 1'b0) |
+      (branch_bpu_pending0_capture_w ? head0_branch_bht_valid_w : 1'b0) |
+      (branch_bpu_pending1_capture_w ? head1_branch_bht_valid_w : 1'b0);
   wire jump_dispatch_valid_w = pending_jump_resolve_ready_w &&
                                !pending_jump_nolink_w &&
                                !pending_jump_misaligned_w;
@@ -1292,6 +1472,44 @@ module OooAluFetchCore #(
   wire drain_complete_w = stop_pending_q && backend_drained_w &&
                           pending_control_ready_w &&
                           !pending_replay_wait_w;
+  wire branch_bpu_direct_update_w = direct_branch_resolve_valid_w;
+  wire branch_bpu_pending_update_w =
+      stop_pending_q && pending_branch_q && pending_branch_dispatched_q &&
+      branch_resolve_pending_match_w;
+  wire branch_bpu_drained_update_w =
+      stop_pending_q && drain_complete_w &&
+      pending_branch_q && !pending_branch_dispatched_q;
+  wire branch_bpu_update_valid_w =
+      branch_bpu_direct_update_w || branch_bpu_pending_update_w ||
+      branch_bpu_drained_update_w;
+  wire branch_bpu_update_taken_w =
+      branch_bpu_pending_update_w ?
+          (!core_branch_resolve_misaligned_w &&
+           (core_branch_resolve_next_pc_w == pending_branch_target_w)) :
+      branch_bpu_drained_update_w ? pending_branch_taken_w :
+      direct_branch_resolve_taken_w;
+  wire branch_bpu_update_pred_taken_w =
+      (branch_bpu_pending_update_w || branch_bpu_drained_update_w) ?
+          pending_branch_pred_taken_q :
+          direct_branch_predict_taken_w;
+  wire branch_bpu_update_correct_w =
+      branch_bpu_update_pred_taken_w == branch_bpu_update_taken_w;
+  wire [`XLEN-1:0] branch_bpu_update_pc_w =
+      (branch_bpu_pending_update_w || branch_bpu_drained_update_w) ?
+          pending_branch_pc_q :
+          direct_branch_pc_w;
+  wire [`BPU_BHT_INDEX_W-1:0] branch_bpu_update_bht_idx_w =
+      (branch_bpu_pending_update_w || branch_bpu_drained_update_w) ?
+          pending_branch_bht_idx_q :
+          direct_branch_bht_idx_w;
+  wire [`BPU_LOCAL_HISTORY_INDEX_W-1:0] branch_bpu_update_local_hist_idx_w =
+      branch_bpu_update_pc_w[`BPU_LOCAL_HISTORY_INDEX_W:1];
+  wire [`BPU_LOCAL_HISTORY_W-1:0] branch_bpu_update_local_hist_w =
+      branch_local_hist_q[branch_bpu_update_local_hist_idx_w];
+  wire [`BPU_LOCAL_PHT_PC_BITS-1:0] branch_bpu_update_local_pc_idx_w =
+      branch_bpu_update_pc_w[`BPU_LOCAL_PHT_PC_BITS:1];
+  wire [`BPU_LOCAL_PHT_INDEX_W-1:0] branch_bpu_update_local_pht_idx_w =
+      {branch_bpu_update_local_pc_idx_w, branch_bpu_update_local_hist_w};
   wire core_checkpoint_capture_w = branch_spec_checkpoint_capture_w;
   wire core_checkpoint_restore_w = branch_spec_restore_w;
   wire core_checkpoint_quiesce_w =
@@ -1640,11 +1858,18 @@ module OooAluFetchCore #(
       (|branch_target_capture_imm_unused_w) |
       branch_fallthrough_safe_w | branch_target_cache_hit_w |
       pending_jump_jalr_sum_lsb_unused_w | head_fetch_fault_w |
+      pending_branch_bht_valid_q |
+      branch_bpu_lookup_event_w | branch_bpu_lookup_bht_valid_w |
+      branch_bpu_update_correct_w |
       (|head_packet_next_pc_w);
 
   integer reset_idx;
   integer ras_reset_idx;
   integer branch_target_cache_reset_idx;
+  integer jalr_btb_reset_idx;
+  integer branch_bht_reset_idx;
+  integer branch_local_hist_reset_idx;
+  integer branch_local_pht_reset_idx;
 
   always @(posedge clk) begin
     if (rst || flush_i) begin
@@ -1700,6 +1925,9 @@ module OooAluFetchCore #(
       pending_branch_rs2_q <= {`REG_ADDR_W{1'b0}};
       pending_branch_imm_q <= {`XLEN{1'b0}};
       pending_branch_cmp_op_q <= `CMP_OP_NONE;
+      pending_branch_pred_taken_q <= 1'b0;
+      pending_branch_bht_valid_q <= 1'b0;
+      pending_branch_bht_idx_q <= {`BPU_BHT_INDEX_W{1'b0}};
       pending_jump_pc_q <= {`XLEN{1'b0}};
       pending_jump_next_pc_q <= {`XLEN{1'b0}};
       pending_jump_inst_q <= {`INST_W{1'b0}};
@@ -1757,9 +1985,73 @@ module OooAluFetchCore #(
         branch_target_cache_inst_q[branch_target_cache_reset_idx] <=
             {`INST_W{1'b0}};
       end
+      /* verilator lint_off BLKSEQ */
+      for (jalr_btb_reset_idx = 0;
+           jalr_btb_reset_idx < `BPU_BTB_ENTRIES;
+           jalr_btb_reset_idx = jalr_btb_reset_idx + 1) begin
+        jalr_btb_valid_q[jalr_btb_reset_idx] = 1'b0;
+        jalr_btb_pc_q[jalr_btb_reset_idx] = {`XLEN{1'b0}};
+        jalr_btb_target_q[jalr_btb_reset_idx] = {`XLEN{1'b0}};
+      end
+      branch_ghr_q <= {`BPU_BHT_INDEX_W{1'b0}};
+      for (branch_bht_reset_idx = 0;
+           branch_bht_reset_idx < `BPU_BHT_ENTRIES;
+           branch_bht_reset_idx = branch_bht_reset_idx + 1) begin
+        branch_bht_valid_q[branch_bht_reset_idx] = 1'b0;
+        branch_bht_q[branch_bht_reset_idx] = `BPU_COUNTER_INIT;
+      end
+      for (branch_local_hist_reset_idx = 0;
+           branch_local_hist_reset_idx < `BPU_LOCAL_HISTORY_ENTRIES;
+           branch_local_hist_reset_idx = branch_local_hist_reset_idx + 1) begin
+        branch_local_hist_q[branch_local_hist_reset_idx] =
+            {`BPU_LOCAL_HISTORY_W{1'b0}};
+      end
+      for (branch_local_pht_reset_idx = 0;
+           branch_local_pht_reset_idx < `BPU_LOCAL_PHT_ENTRIES;
+           branch_local_pht_reset_idx = branch_local_pht_reset_idx + 1) begin
+        branch_local_pht_valid_q[branch_local_pht_reset_idx] = 1'b0;
+        branch_local_pht_q[branch_local_pht_reset_idx] = `BPU_COUNTER_INIT;
+      end
+      /* verilator lint_on BLKSEQ */
     end else begin
       ctrl_commit_valid_q <= 1'b0;
       backend_drained_q <= backend_drained_w && !core_dispatch0_fire_w;
+
+      if (branch_bpu_update_valid_w) begin
+        // 条件分支按预测时携带的 gshare index 训练，避免 resolve 阶段 GHR 漂移写错表项。
+        branch_bht_valid_q[branch_bpu_update_bht_idx_w] <= 1'b1;
+        if (branch_bpu_update_taken_w) begin
+          if (branch_bht_q[branch_bpu_update_bht_idx_w] != 2'd3)
+            branch_bht_q[branch_bpu_update_bht_idx_w] <=
+                branch_bht_q[branch_bpu_update_bht_idx_w] + 2'd1;
+        end else if (branch_bht_q[branch_bpu_update_bht_idx_w] != 2'd0) begin
+          branch_bht_q[branch_bpu_update_bht_idx_w] <=
+              branch_bht_q[branch_bpu_update_bht_idx_w] - 2'd1;
+        end
+        branch_ghr_q <= {branch_ghr_q[`BPU_BHT_INDEX_W-2:0],
+                         branch_bpu_update_taken_w};
+
+        // local predictor 与原 BPU 一致：强置信 local 项才覆盖 gshare，弱项只参与训练。
+        branch_local_pht_valid_q[branch_bpu_update_local_pht_idx_w] <= 1'b1;
+        if (branch_bpu_update_taken_w) begin
+          if (branch_local_pht_q[branch_bpu_update_local_pht_idx_w] != 2'd3)
+            branch_local_pht_q[branch_bpu_update_local_pht_idx_w] <=
+                branch_local_pht_q[branch_bpu_update_local_pht_idx_w] + 2'd1;
+        end else if (branch_local_pht_q[branch_bpu_update_local_pht_idx_w] != 2'd0) begin
+          branch_local_pht_q[branch_bpu_update_local_pht_idx_w] <=
+              branch_local_pht_q[branch_bpu_update_local_pht_idx_w] - 2'd1;
+        end
+        branch_local_hist_q[branch_bpu_update_local_hist_idx_w] <=
+            {branch_bpu_update_local_hist_w[`BPU_LOCAL_HISTORY_W-2:0],
+             branch_bpu_update_taken_w};
+      end
+
+      if (jalr_btb_update_w) begin
+        jalr_btb_valid_q[pending_jump_jalr_btb_idx_w] <= 1'b1;
+        jalr_btb_pc_q[pending_jump_jalr_btb_idx_w] <= pending_jump_pc_q;
+        jalr_btb_target_q[pending_jump_jalr_btb_idx_w] <=
+            pending_jump_resolved_target_w;
+      end
 
       if (branch_target_cache_invalidate_w) begin
         for (branch_target_cache_reset_idx = 0;
@@ -1828,10 +2120,10 @@ module OooAluFetchCore #(
       end
 
       if (branch_prefetch_req_fire_w) begin
-        // 分支预测包只进入影子槽，resolve 命中前绝不暴露给正常 dispatch FIFO。
+        // 控制流预测包只进入影子槽，resolve 命中前绝不暴露给正常 dispatch FIFO。
         branch_prefetch_active_q <= 1'b1;
         branch_prefetch_buffer_valid_q <= 1'b0;
-        branch_prefetch_pc_q <= branch_prefetch_pred_pc_w;
+        branch_prefetch_pc_q <= branch_prefetch_req_pc_w;
       end
 
       if (branch_prefetch_rsp_capture_w) begin
@@ -1941,6 +2233,9 @@ module OooAluFetchCore #(
               direct_branch1_fire_w ?
               head1_ctrl_w[`CTRL_CMP_OP_MSB:`CTRL_CMP_OP_LSB] :
               head0_ctrl_w[`CTRL_CMP_OP_MSB:`CTRL_CMP_OP_LSB];
+          pending_branch_pred_taken_q <= direct_branch_predict_taken_w;
+          pending_branch_bht_valid_q <= direct_branch_bht_valid_w;
+          pending_branch_bht_idx_q <= direct_branch_bht_idx_w;
           pending_jump_next_pc_q <= {`XLEN{1'b0}};
           if (direct_branch_resolve_redirect_w &&
               !direct_branch0_lane1_ret_w && !branch_target_dispatch_w &&
@@ -2170,6 +2465,9 @@ module OooAluFetchCore #(
           pending_mem_next_pc_q <= {`XLEN{1'b0}};
           pending_branch_next_pc_q <= {`XLEN{1'b0}};
           pending_jump_next_pc_q <= {`XLEN{1'b0}};
+          branch_prefetch_active_q <= 1'b0;
+          branch_prefetch_buffer_valid_q <= 1'b0;
+          branch_prefetch_pc_q <= {`XLEN{1'b0}};
           fifo_head_q <= {FETCH_PACKET_COUNT_W{1'b0}};
           fifo_tail_q <= {FETCH_PACKET_COUNT_W{1'b0}};
           fifo_count_q <= {FETCH_COUNT_W{1'b0}};
@@ -2192,13 +2490,49 @@ module OooAluFetchCore #(
           pending_mem_next_pc_q <= {`XLEN{1'b0}};
           pending_branch_next_pc_q <= {`XLEN{1'b0}};
           pending_jump_next_pc_q <= {`XLEN{1'b0}};
+          branch_prefetch_active_q <= 1'b0;
+          branch_prefetch_buffer_valid_q <= 1'b0;
+          branch_prefetch_pc_q <= {`XLEN{1'b0}};
           fifo_head_q <= {FETCH_PACKET_COUNT_W{1'b0}};
-          fifo_tail_q <= {FETCH_PACKET_COUNT_W{1'b0}};
-          fifo_count_q <= {FETCH_COUNT_W{1'b0}};
-          outstanding_valid_q <= fetch_req_fire_w;
-          outstanding_pc_q <= fetch_req_fire_w ? fetch_req_pc_w : {`XLEN{1'b0}};
-          discard_fetch_rsp_q <= outstanding_valid_q && !fetch_rsp_fire_w;
-          next_fetch_pc_q <= pending_jump_resolved_target_w;
+          fifo_tail_q <= jalr_prefetch_hit_available_w ?
+                         ptr_inc({FETCH_PACKET_COUNT_W{1'b0}}) :
+                         {FETCH_PACKET_COUNT_W{1'b0}};
+          fifo_count_q <= jalr_prefetch_hit_available_w ?
+                          {{(FETCH_COUNT_W-1){1'b0}}, 1'b1} :
+                          {FETCH_COUNT_W{1'b0}};
+          outstanding_valid_q <= jalr_prefetch_pending_match_w ? 1'b1 :
+                                 fetch_req_fire_w;
+          outstanding_pc_q <= jalr_prefetch_pending_match_w ?
+                              branch_prefetch_pc_q :
+                              (fetch_req_fire_w ? fetch_req_pc_w :
+                                                  {`XLEN{1'b0}});
+          discard_fetch_rsp_q <= (jalr_prefetch_hit_available_w &&
+                                  fetch_req_fire_w) ||
+                                 (!jalr_prefetch_pending_match_w &&
+                                  outstanding_valid_q && !fetch_rsp_fire_w);
+          if (jalr_prefetch_hit_available_w) begin
+            fifo_pc0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_pc0_w;
+            fifo_pc1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_pc1_w;
+            fifo_next_pc0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_next_pc0_w;
+            fifo_next_pc1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_next_pc1_w;
+            fifo_packet_next_pc_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_packet_next_pc_w;
+            fifo_inst0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_inst0_w;
+            fifo_inst1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_inst1_w;
+            fifo_resp0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_resp0_w;
+            fifo_resp1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_resp1_w;
+            next_fetch_pc_q <= jalr_prefetch_hit_packet_next_pc_w;
+          end else begin
+            next_fetch_pc_q <= pending_jump_resolved_target_w;
+          end
           ctrl_commit_valid_q <= 1'b1;
           ctrl_commit_pc_q <= pending_jump_pc_q;
           ctrl_commit_inst_q <= pending_jump_inst_q;
@@ -2243,11 +2577,43 @@ module OooAluFetchCore #(
           end
         end else if (pending_jump_q) begin
           fifo_head_q <= {FETCH_PACKET_COUNT_W{1'b0}};
-          fifo_tail_q <= {FETCH_PACKET_COUNT_W{1'b0}};
-          fifo_count_q <= {FETCH_COUNT_W{1'b0}};
-          outstanding_valid_q <= 1'b0;
-          outstanding_pc_q <= {`XLEN{1'b0}};
-          next_fetch_pc_q <= pending_jump_target_q;
+          fifo_tail_q <= jalr_prefetch_hit_available_w ?
+                         ptr_inc({FETCH_PACKET_COUNT_W{1'b0}}) :
+                         {FETCH_PACKET_COUNT_W{1'b0}};
+          fifo_count_q <= jalr_prefetch_hit_available_w ?
+                          {{(FETCH_COUNT_W-1){1'b0}}, 1'b1} :
+                          {FETCH_COUNT_W{1'b0}};
+          outstanding_valid_q <= jalr_prefetch_pending_match_w;
+          outstanding_pc_q <= jalr_prefetch_pending_match_w ?
+                              branch_prefetch_pc_q : {`XLEN{1'b0}};
+          discard_fetch_rsp_q <= (!jalr_prefetch_pending_match_w &&
+                                  outstanding_valid_q && !fetch_rsp_fire_w);
+          branch_prefetch_active_q <= 1'b0;
+          branch_prefetch_buffer_valid_q <= 1'b0;
+          branch_prefetch_pc_q <= {`XLEN{1'b0}};
+          if (jalr_prefetch_hit_available_w) begin
+            fifo_pc0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_pc0_w;
+            fifo_pc1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_pc1_w;
+            fifo_next_pc0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_next_pc0_w;
+            fifo_next_pc1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_next_pc1_w;
+            fifo_packet_next_pc_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_packet_next_pc_w;
+            fifo_inst0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_inst0_w;
+            fifo_inst1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_inst1_w;
+            fifo_resp0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_resp0_w;
+            fifo_resp1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_resp1_w;
+            next_fetch_pc_q <= jalr_prefetch_hit_packet_next_pc_w;
+          end else begin
+            next_fetch_pc_q <= pending_jump_target_q;
+          end
         end else if (pending_mem_q) begin
           fifo_head_q <= {FETCH_PACKET_COUNT_W{1'b0}};
           fifo_tail_q <= {FETCH_PACKET_COUNT_W{1'b0}};
@@ -2313,6 +2679,9 @@ module OooAluFetchCore #(
           pending_branch_imm_q <= head0_imm_w;
           pending_branch_cmp_op_q <=
               head0_ctrl_w[`CTRL_CMP_OP_MSB:`CTRL_CMP_OP_LSB];
+          pending_branch_pred_taken_q <= head0_branch_pred_taken_w;
+          pending_branch_bht_valid_q <= head0_branch_bht_valid_w;
+          pending_branch_bht_idx_q <= head0_branch_bht_idx_w;
         end else if (dispatch0_jump_w && !dispatch0_return_w) begin
           // JALR 目标依赖寄存器值：先排空更老项，再单 lane 派发 jump uop。
           stop_pending_q <= 1'b1;
@@ -2353,6 +2722,9 @@ module OooAluFetchCore #(
           pending_branch_imm_q <= head1_imm_w;
           pending_branch_cmp_op_q <=
               head1_ctrl_w[`CTRL_CMP_OP_MSB:`CTRL_CMP_OP_LSB];
+          pending_branch_pred_taken_q <= head1_branch_pred_taken_w;
+          pending_branch_bht_valid_q <= head1_branch_bht_valid_w;
+          pending_branch_bht_idx_q <= head1_branch_bht_idx_w;
 
           pending_jump_jalr_q <= head1_jalr_raw_w;
           pending_jump_pc_q <= head_pc1_w;

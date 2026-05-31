@@ -22,6 +22,14 @@ npc/soc/include/config/
 npc/soc/include/generated/
 npc/soc/perf/results/
 npc/soc/testbench/build/
+npc/rv64/.config
+npc/rv64/.config.old
+npc/rv64/build/
+npc/rv64/gmon.out
+npc/rv64/include/config/
+npc/rv64/include/generated/
+npc/rv64/perf/results/
+npc/rv64/testbench/build/
 
 # AI 开发环境需要随仓库同步；这些 allowlist 用来覆盖本机或工具引入的宽泛忽略规则。
 !.github/
