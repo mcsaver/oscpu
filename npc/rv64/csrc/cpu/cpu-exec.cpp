@@ -25,6 +25,7 @@
 #include <csignal>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 
@@ -101,6 +102,14 @@ static uint64_t    g_recent_debug_count = 0;
 static ExitEvent   g_exit_event   = {};
 static TrapEvent   g_trap_event   = {};
 static npc_word_t  g_shadow_gpr[32] = {};
+static bool        g_commit_watch_inited = false;
+static bool        g_commit_watch_enabled = false;
+static npc_word_t  g_commit_watch_start = 0;
+static npc_word_t  g_commit_watch_end = 0;
+static uint64_t    g_commit_watch_min_commit = 0;
+static uint64_t    g_commit_watch_max_commit = UINT64_MAX;
+static bool        g_trap_watch_inited = false;
+static bool        g_trap_watch_enabled = false;
 
 struct SimPerfStats {
   uint64_t icache_access;
@@ -208,6 +217,76 @@ static void record_ooo_control_flow_commit(uint32_t pc, uint32_t inst, uint32_t 
 static void report_recent_commits(void);
 static void report_recent_debug_cycles(void);
 
+static void init_commit_watch(void) {
+  if (g_commit_watch_inited) return;
+  g_commit_watch_inited = true;
+
+  const char *start_s = std::getenv("NPC_COMMITWATCH_START");
+  const char *end_s = std::getenv("NPC_COMMITWATCH_END");
+  if (!start_s || !end_s || start_s[0] == '\0' || end_s[0] == '\0') return;
+
+  char *start_end = nullptr;
+  char *end_end = nullptr;
+  uint64_t start = std::strtoull(start_s, &start_end, 0);
+  uint64_t end = std::strtoull(end_s, &end_end, 0);
+  if (start_end == start_s || end_end == end_s || start > end) return;
+
+  g_commit_watch_start = (npc_word_t)start;
+  g_commit_watch_end = (npc_word_t)end;
+  const char *min_commit_s = std::getenv("NPC_COMMITWATCH_MIN_COMMIT");
+  const char *max_commit_s = std::getenv("NPC_COMMITWATCH_MAX_COMMIT");
+  if (min_commit_s && min_commit_s[0] != '\0') {
+    char *min_end = nullptr;
+    uint64_t min_commit = std::strtoull(min_commit_s, &min_end, 0);
+    if (min_end != min_commit_s) g_commit_watch_min_commit = min_commit;
+  }
+  if (max_commit_s && max_commit_s[0] != '\0') {
+    char *max_end = nullptr;
+    uint64_t max_commit = std::strtoull(max_commit_s, &max_end, 0);
+    if (max_end != max_commit_s) g_commit_watch_max_commit = max_commit;
+  }
+  g_commit_watch_enabled = true;
+  LogBothTag("commitwatch",
+             "enabled pc=[0x%016" NPC_PRIxWORD ",0x%016" NPC_PRIxWORD
+             "] commit=[%llu,%llu]",
+             g_commit_watch_start, g_commit_watch_end,
+             (unsigned long long)g_commit_watch_min_commit,
+             (unsigned long long)g_commit_watch_max_commit);
+}
+
+static void maybe_log_commit_watch(npc_word_t pc, uint32_t inst, npc_word_t next_pc,
+                                   uint32_t rd_en, uint32_t rd_addr,
+                                   npc_word_t rd_data) {
+  init_commit_watch();
+  uint64_t commit = npc_stats()->commits;
+  if (!g_commit_watch_enabled || pc < g_commit_watch_start ||
+      pc > g_commit_watch_end || commit < g_commit_watch_min_commit ||
+      commit > g_commit_watch_max_commit) {
+    return;
+  }
+
+  LogBothTag("commitwatch",
+             "commit=%llu pc=0x%016" NPC_PRIxWORD
+             " inst=0x%08x next=0x%016" NPC_PRIxWORD
+             " rd=%u wen=%u rd_data=0x%016" NPC_PRIxWORD
+             " ra=0x%016" NPC_PRIxWORD " sp=0x%016" NPC_PRIxWORD
+             " s0=0x%016" NPC_PRIxWORD " s1=0x%016" NPC_PRIxWORD
+             " s2=0x%016" NPC_PRIxWORD " s3=0x%016" NPC_PRIxWORD
+             " s4=0x%016" NPC_PRIxWORD " s5=0x%016" NPC_PRIxWORD
+             " s6=0x%016" NPC_PRIxWORD " s7=0x%016" NPC_PRIxWORD
+             " a0=0x%016" NPC_PRIxWORD " a1=0x%016" NPC_PRIxWORD
+             " a2=0x%016" NPC_PRIxWORD " a3=0x%016" NPC_PRIxWORD
+             " a4=0x%016" NPC_PRIxWORD " a5=0x%016" NPC_PRIxWORD,
+             (unsigned long long)npc_stats()->commits, pc, inst, next_pc,
+             rd_addr, rd_en, rd_data,
+             g_shadow_gpr[1], g_shadow_gpr[2], g_shadow_gpr[8],
+             g_shadow_gpr[9], g_shadow_gpr[18], g_shadow_gpr[19],
+             g_shadow_gpr[20], g_shadow_gpr[21], g_shadow_gpr[22],
+             g_shadow_gpr[23], g_shadow_gpr[10], g_shadow_gpr[11],
+             g_shadow_gpr[12], g_shadow_gpr[13], g_shadow_gpr[14],
+             g_shadow_gpr[15]);
+}
+
 static void format_u64_delta(char *buf, size_t size, uint64_t lhs, uint64_t rhs) {
   if (!buf || size == 0) return;
   if (lhs >= rhs) {
@@ -302,9 +381,15 @@ extern "C" void npc_commit_event(npc_word_t pc, uint32_t inst, npc_word_t next_p
   g_shadow_gpr[0] = 0;
 
   record_ooo_control_flow_commit(pc, inst, next_pc);
+  maybe_log_commit_watch(pc, inst, next_pc, rd_en, rd_addr, rd_data);
 
+  static const bool linux_probe_enabled = [] {
+    const char *enabled = std::getenv("NPC_LINUX_HANG_PROBE");
+    return enabled != nullptr && enabled[0] != '\0' && enabled[0] != '0';
+  }();
   const bool linux_probe_hit =
-      pc == 0x8000564cull || pc == 0x8000cf42ull ||
+      linux_probe_enabled &&
+      (pc == 0x8000564cull || pc == 0x8000cf42ull ||
       pc < 0x80000000ull || next_pc < 0x80000000ull ||
       pc == 0x8000c72eull || pc == 0x8000c730ull ||
       pc == 0x8000c738ull || pc == 0x8000c73aull ||
@@ -326,7 +411,7 @@ extern "C" void npc_commit_event(npc_word_t pc, uint32_t inst, npc_word_t next_p
       pc == 0x80023eb2ull || pc == 0x80023cd2ull ||
       pc == 0x80023cd6ull || pc == 0x80023cdaull ||
       pc == 0x80023cdcull || pc == 0x80023ce4ull ||
-      pc == 0x80023d2eull || pc == 0x80023d32ull;
+      pc == 0x80023d2eull || pc == 0x80023d32ull);
 
   if (linux_probe_hit) {
     if (pc == 0x8000cf42ull) {
@@ -455,6 +540,22 @@ extern "C" void npc_trap_event(uint32_t cause, npc_word_t pc, npc_word_t tval) {
   g_trap_event.cause = cause;
   g_trap_event.pc = pc;
   g_trap_event.tval = tval;
+}
+
+extern "C" void npc_handled_trap_event(uint32_t kind, uint32_t cause,
+                                       npc_word_t pc, npc_word_t tval) {
+  if (!g_trap_watch_inited) {
+    g_trap_watch_inited = true;
+    const char *enabled = std::getenv("NPC_TRAPWATCH");
+    g_trap_watch_enabled = enabled && enabled[0] != '\0' && enabled[0] != '0';
+  }
+  if (!g_trap_watch_enabled) return;
+
+  const char *kind_name = (kind == 0) ? "mem" : (kind == 1) ? "ex" : "irq";
+  LogBothTag("trapwatch",
+             "commit=%llu kind=%s cause=%u pc=0x%016" NPC_PRIxWORD
+             " tval=0x%016" NPC_PRIxWORD,
+             (unsigned long long)npc_stats()->commits, kind_name, cause, pc, tval);
 }
 
 extern "C" void npc_control_flow_event(uint32_t is_branch, uint32_t branch_taken,

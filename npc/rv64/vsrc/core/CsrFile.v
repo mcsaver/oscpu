@@ -52,16 +52,17 @@ module CsrFile (
 
   localparam [`XLEN-1:0] MSTATUS_WRITABLE_MASK =
       `MSTATUS_SIE | `MSTATUS_MIE | `MSTATUS_SPIE | `MSTATUS_MPIE |
-      `MSTATUS_SPP | `MSTATUS_MPP_MASK | `MSTATUS_MPRV |
+      `MSTATUS_SPP | `MSTATUS_FS_MASK | `MSTATUS_MPP_MASK | `MSTATUS_MPRV |
       `MSTATUS_SUM | `MSTATUS_MXR;
   localparam [`XLEN-1:0] SSTATUS_WRITABLE_MASK =
-      `MSTATUS_SIE | `MSTATUS_SPIE | `MSTATUS_SPP |
+      `MSTATUS_SIE | `MSTATUS_SPIE | `MSTATUS_SPP | `MSTATUS_FS_MASK |
       `MSTATUS_SUM | `MSTATUS_MXR;
   localparam [`XLEN-1:0] SUPERVISOR_INT_MASK =
       `MIE_SSIE | `MIE_STIE | `MIE_SEIE;
   localparam [`XLEN-1:0] MACHINE_INT_MASK =
       `MIE_MSIE | `MIE_MTIE | `MIE_MEIE;
-  localparam [`XLEN-1:0] CSR_MISA_VALUE = 64'h8000_0000_0014_1107;
+  localparam [`XLEN-1:0] CSR_MISA_VALUE =
+      64'h8000_0000_0014_1105 | (64'd1 << 3) | (64'd1 << 5);
 
   function csr_counter;
     input [11:0] csr_addr;
@@ -184,6 +185,9 @@ module CsrFile (
     input [11:0] csr_addr;
     begin
       case (csr_addr)
+        `CSR_FFLAGS,
+        `CSR_FRM,
+        `CSR_FCSR,
         `CSR_SSTATUS,
         `CSR_SIE,
         `CSR_STVEC,
@@ -219,6 +223,9 @@ module CsrFile (
     input [11:0] csr_addr;
     begin
       case (csr_addr)
+        `CSR_FFLAGS,
+        `CSR_FRM,
+        `CSR_FCSR,
         `CSR_MVENDORID,
         `CSR_MARCHID,
         `CSR_MIMPID,
@@ -294,6 +301,8 @@ module CsrFile (
   reg [`XLEN-1:0] csr_mcounteren_q;
   reg [`XLEN-1:0] csr_scounteren_q;
   reg [`XLEN-1:0] csr_mcountinhibit_q;
+  reg [4:0] csr_fflags_q;
+  reg [2:0] csr_frm_q;
 
   /* verilator lint_off UNUSEDSIGNAL */
   wire trap_mem_pc_align_bit_unused_w = trap_mem_pc_i[0];
@@ -381,6 +390,9 @@ module CsrFile (
       (csr_addr_i == `CSR_MVENDORID) ? 64'h0000_0000_7973_7978 :
       (csr_addr_i == `CSR_MARCHID)   ? 64'd26010035 :
       (csr_addr_i == `CSR_MIMPID)    ? {`XLEN{1'b0}} :
+      (csr_addr_i == `CSR_FFLAGS)   ? {{(`XLEN-5){1'b0}}, csr_fflags_q} :
+      (csr_addr_i == `CSR_FRM)      ? {{(`XLEN-3){1'b0}}, csr_frm_q} :
+      (csr_addr_i == `CSR_FCSR)     ? {{(`XLEN-8){1'b0}}, csr_frm_q, csr_fflags_q} :
       (csr_addr_i == `CSR_SSTATUS)  ? ((csr_mstatus_q | `MSTATUS_SXL_UXL) & `SSTATUS_MASK) :
       (csr_addr_i == `CSR_SIE)      ? (csr_mie_q & SUPERVISOR_INT_MASK) :
       (csr_addr_i == `CSR_STVEC)    ? csr_stvec_q :
@@ -457,6 +469,8 @@ module CsrFile (
       csr_mcounteren_q <= {`XLEN{1'b0}};
       csr_scounteren_q <= {`XLEN{1'b0}};
       csr_mcountinhibit_q <= {`XLEN{1'b0}};
+      csr_fflags_q <= 5'b00000;
+      csr_frm_q <= 3'b000;
     end else begin
       csr_mcycle_q <= (cycle_count_enable_i && ~mcycle_inhibit_w) ?
                       (csr_mcycle_q + 64'd1) : csr_mcycle_q;
@@ -520,6 +534,12 @@ module CsrFile (
 
         if (csr_commit_i && csr_valid_i && ~csr_illegal_o && csr_need_write_w) begin
           case (csr_addr_i)
+            `CSR_FFLAGS:   csr_fflags_q <= csr_new_value_w[4:0];
+            `CSR_FRM:      csr_frm_q <= csr_new_value_w[2:0];
+            `CSR_FCSR: begin
+              csr_fflags_q <= csr_new_value_w[4:0];
+              csr_frm_q <= csr_new_value_w[7:5];
+            end
             `CSR_SSTATUS:  csr_mstatus_q <=
                 ((csr_mstatus_q & ~SSTATUS_WRITABLE_MASK) |
                  (csr_new_value_w & SSTATUS_WRITABLE_MASK) |

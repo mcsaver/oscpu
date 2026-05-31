@@ -26,6 +26,13 @@ import "DPI-C" function void npc_trap_event(
   input longint unsigned tval
 );
 
+import "DPI-C" function void npc_handled_trap_event(
+  input int unsigned kind,
+  input int unsigned cause,
+  input longint unsigned pc,
+  input longint unsigned tval
+);
+
 import "DPI-C" function void npc_bpu_lookup_event(
   input int unsigned is_branch,
   input int unsigned is_jalr,
@@ -884,6 +891,33 @@ module NpcSimTop (
           {{(32-`TRAP_CAUSE_W){1'b0}}, core_trap_cause_w},
           core_trap_pc_w,
           core_trap_tval_w
+        );
+      end
+
+      if (u_core.u_ooo_core.csr_trap_mem_valid_w) begin
+        npc_handled_trap_event(
+          32'd0,
+          {{(32-`TRAP_CAUSE_W){1'b0}}, u_core.u_ooo_core.csr_trap_mem_cause_w},
+          u_core.u_ooo_core.csr_trap_mem_pc_w,
+          u_core.u_ooo_core.csr_trap_mem_tval_w
+        );
+      end
+
+      if (u_core.u_ooo_core.csr_trap_ex_valid_w) begin
+        npc_handled_trap_event(
+          32'd1,
+          {{(32-`TRAP_CAUSE_W){1'b0}}, u_core.u_ooo_core.csr_trap_ex_cause_w},
+          u_core.u_ooo_core.csr_trap_ex_pc_w,
+          u_core.u_ooo_core.csr_trap_ex_tval_w
+        );
+      end
+
+      if (u_core.u_ooo_core.csr_trap_irq_valid_w) begin
+        npc_handled_trap_event(
+          32'd2,
+          {{(32-`TRAP_CAUSE_W){1'b0}}, u_core.u_ooo_core.pending_system_irq_cause_q},
+          u_core.u_ooo_core.pending_system_pc_q,
+          64'd0
         );
       end
 

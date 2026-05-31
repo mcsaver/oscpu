@@ -236,7 +236,54 @@ difftest-ref:
 	$(MAKE) -C $(NEMU_HOME) AM_HOME=$(abspath ../../abstract-machine) ARCH=riscv64-npc riscv64-npc_defconfig
 	$(MAKE) -C $(NEMU_HOME) GUEST_ISA=riscv64 SHARE=1 ENGINE=interpreter
 
-.PHONY: default all lint syn-check-env sta-check-env syn sta sim run clean gprof-build prof-exec-build difftest-ref
+setup-env:
+	bash scripts/setup-env.sh
+
+opensbi:
+	bash scripts/build-opensbi.sh
+
+opensbi-initramfs:
+	OPENSBI_DTB="$(NPC_HOME)/tools/build/npc-rv64-initramfs.dtb" \
+	OPENSBI_BUILD_DIR="$(NPC_HOME)/env/build/opensbi-npc-initramfs" \
+	bash scripts/build-opensbi.sh
+
+opensbi-ubuntu-initramfs:
+	OPENSBI_DTB="$(NPC_HOME)/tools/build/npc-rv64-ubuntu-initramfs.dtb" \
+	OPENSBI_BUILD_DIR="$(NPC_HOME)/env/build/opensbi-npc-ubuntu-initramfs" \
+	bash scripts/build-opensbi.sh
+
+opensbi-rootfs:
+	OPENSBI_DTB="$(NPC_HOME)/tools/build/npc-rv64-rootfs.dtb" \
+	OPENSBI_BUILD_DIR="$(NPC_HOME)/env/build/opensbi-npc-rootfs" \
+	bash scripts/build-opensbi.sh
+
+linux:
+	bash scripts/build-linux.sh
+
+initramfs:
+	bash scripts/build-busybox-initramfs.sh
+
+ubuntu-rootfs:
+	bash scripts/build-ubuntu-rootfs.sh
+
+ubuntu-base-initramfs:
+	bash scripts/build-ubuntu-base-initramfs.sh
+
+qemu:
+	bash scripts/build-qemu.sh
+
+qemu-ubuntu-initramfs:
+	bash scripts/run-qemu-ubuntu-initramfs.sh
+
+linux-initramfs: $(BIN)
+	bash scripts/run-linux-initramfs.sh
+
+linux-bringup-regression:
+	bash regression/run_all.sh
+
+.PHONY: default all lint syn-check-env sta-check-env syn sta sim run clean gprof-build prof-exec-build difftest-ref \
+	setup-env opensbi opensbi-initramfs opensbi-ubuntu-initramfs opensbi-rootfs linux initramfs \
+	ubuntu-rootfs ubuntu-base-initramfs qemu qemu-ubuntu-initramfs linux-initramfs linux-bringup-regression
 
 include $(NPC_HOME)/scripts/config.mk
 

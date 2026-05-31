@@ -71,7 +71,7 @@ uintptr_t linux_dtb_smoke_main(uintptr_t hartid, const uint8_t *dtb) {
   if (off_strings + size_strings > totalsize) return 11;
 
   if (!blob_contains(dtb, totalsize, "YSYX NPC RV64")) return 12;
-  if (!blob_contains(dtb, totalsize, "rv64imac_zicsr_zifencei_zba_zbb_zbc_zbs")) return 13;
+  if (!blob_contains(dtb, totalsize, "rv64imafdc_zicsr_zifencei")) return 13;
   if (!blob_contains(dtb, totalsize, "riscv,sv39")) return 14;
   if (!blob_contains(dtb, totalsize, "riscv,clint0")) return 15;
   if (!blob_contains(dtb, totalsize, "riscv,plic0")) return 16;

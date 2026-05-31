@@ -1,0 +1,58 @@
+# NPC RV64 Linux/Ubuntu bring-up 平台配置。
+# 这个文件是 OpenSBI/Linux/DTB/initramfs/rootfs 入口的单一事实来源，
+# 避免 RAM、镜像装载地址和设备中断号散落在 Makefile/DTS/C++/RTL 中。
+memory:
+  base: 0x80000000
+  size: 0x10000000   # 256 MiB，足够容纳当前 Ubuntu base initramfs 并缩短早期 memmap 初始化
+
+reset:
+  pc: 0x80000000
+  boot_hartid: 0
+
+opensbi:
+  fw_jump: npc/rv64/env/build/opensbi-npc/platform/generic/firmware/fw_jump.bin
+  fw_jump_addr: 0x80000000
+
+kernel:
+  load_addr: 0x80200000
+  image: npc/rv64/env/src/linux/arch/riscv/boot/Image
+
+dtb:
+  load_addr: 0x82200000
+  build_dir: npc/rv64/tools/build
+
+initrd:
+  load_addr: 0x84000000
+  image: npc/rv64/env/images/initramfs/rootfs.cpio
+
+ubuntu_initrd:
+  image: npc/rv64/env/images/ubuntu2204/ubuntu-22.04-riscv64-probe.cpio
+
+rootfs:
+  image: npc/rv64/env/images/ubuntu2204/ubuntu-22.04-riscv64.ext4
+
+devices:
+  clint:
+    base: 0x02000000
+    size: 0x00010000
+  plic:
+    base: 0x0c000000
+    size: 0x04000000
+    sources_initramfs: 1
+    sources_rootfs: 32
+  uart0:
+    base: 0x10000000
+    size: 0x1000
+    irq: 1
+    clock_frequency: 1843200
+    current_speed: 115200
+  virtio_blk:
+    base: 0x10001000
+    size: 0x1000
+    irq: 2
+
+bootargs:
+  kernel: "console=ttyS0,115200n8 earlycon=sbi loglevel=8 ignore_loglevel"
+  initramfs: "console=ttyS0,115200n8 earlycon=sbi loglevel=8 ignore_loglevel rdinit=/bin/sh"
+  ubuntu_initramfs: "earlycon=sbi rdinit=/init nowatchdog softlockup_panic=0"
+  rootfs: "console=ttyS0,115200n8 earlycon=sbi loglevel=8 ignore_loglevel root=/dev/vda rw"

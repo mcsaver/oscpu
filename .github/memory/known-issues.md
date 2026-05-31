@@ -5,6 +5,14 @@
 ## 活跃问题
 <!-- 当前未解决的问题 -->
 
+### [42] RV64 Ubuntu 22.04 probe 已进入 `/init`，但 NPC 用户态长串口输出仍会截断
+
+- **模块**: NPC RV64 / Linux bring-up / Ubuntu rootfs / 平台设备
+- **现象**: `npc/rv64` 已按用户要求把 OpenSBI/Linux/QEMU/Ubuntu Base/本地 Python/日志等 bring-up 套件默认收口到 `npc/rv64/env/`。当前默认 Ubuntu 路线是官方 Ubuntu Base 22.04.5 riscv64 的 probe initramfs：`npc/rv64/env/images/ubuntu2204/ubuntu-22.04-riscv64-probe.cpio` 内含 syscall-only `/init` 和官方 `/etc/os-release`。QEMU 同镜像验证已完整打印 `[ysyx-init] Ubuntu 22.04 initramfs reached...`、`PRETTY_NAME="Ubuntu 22.04.5 LTS"`、`VERSION_ID="22.04"`、`UBUNTU_CODENAME=jammy`。NPC clean 运行也已越过 Linux 初始化并出现 `Run /init as init process`，stdout 进一步出现用户态 banner 前缀 `[ysyx-init] Ubun...`，说明 probe `/init` 已执行；但 NPC 串口/tty 模型对用户态一次性长 write 只稳定保留前缀，后续 `/etc/os-release` 全文没有在 NPC stdout 中完整出现。
+- **根因**: 旧的“尚未进入 `/init`”阻塞已解除；当前剩余是输出可见性和后续完整用户态能力问题。NPC 侧 kernel printk/串口初始化日志完整，但 `/init` 通过 Linux tty 写较长用户态字符串时后半段丢失，疑似当前 16550/UART/tty 模型或 host stdout/progress 交错仍不足以承载用户态长 burst 输出。另一个长期边界是官方 Ubuntu riscv64 `/bin/sh` 属于 `rv64gc/lp64d` 用户态，需要完整 F/D（尤其 FPR->GPR、FP 算术/转换等）与更完整 rootfs/设备路径；当前 probe init 使用 rv64imac/lp64 是为了先证明 kernel->initramfs->用户态链路。
+- **修复**: 部分完成：已新增 syscall-only probe init、cpio 自动重建依赖、QEMU 本地验证脚本、Linux/OpenSBI/QEMU 构建脚本和 `env/` 管理；RTL/仿真侧禁用 direct RAS ret 快路径、修正中断精确边界 dispatch gate、补 F/D 基础 CSR/FPR load-store/RVC FP load-store、跳过 Linux RISC-V unaligned benchmark，并把 `linux_hang_probe` 改为 `NPC_LINUX_HANG_PROBE=1` 才启用。后续若要让 NPC stdout 完整打印 os-release，应优先修 UART/tty burst 输出或把 probe 输出拆成更短、更可观测的同步写；若要进入官方 `/bin/sh`，继续补完整 F/D 和设备/rootfs 路线。
+- **教训**: “进入 `/init`”和“串口完整打印所有用户态文本”仍是两个 gate；QEMU 可用来证明镜像内容和 Linux 用户态路径，NPC 则要单独验证 UART/tty 的可观测性。官方 Ubuntu 用户态还必须和 ISA/ABI 能力匹配，不能用 rv64imac probe 的 PASS 直接声称 rv64gc/lp64d shell 已完成。
+
 ### [41] RV64 CoreMark 已恢复 PASS，但当前 CPI 从历史 0.783 回退到 0.828
 
 - **模块**: NPC RV64 / OoO control-flow / memory flush / CoreMark

@@ -108,6 +108,7 @@ module OooAluFetchCore #(
   localparam RAS_COUNT_W = 6;
   localparam [RAS_COUNT_W-1:0] RAS_DEPTH_VALUE = RAS_DEPTH;
   localparam [RAS_INDEX_W-1:0] RAS_LAST_INDEX = {RAS_INDEX_W{1'b1}};
+  localparam ENABLE_DIRECT_RAS_RET = 1'b0;
   localparam BRANCH_TARGET_CACHE_INDEX_W = 4;
   localparam BRANCH_TARGET_CACHE_ENTRIES =
       (1 << BRANCH_TARGET_CACHE_INDEX_W);
@@ -152,6 +153,17 @@ module OooAluFetchCore #(
     input [2:0] funct3;
     begin
       enc_s = {imm[11:5], rs2, rs1, funct3, imm[4:0], `OPCODE_STORE};
+    end
+  endfunction
+
+  function [`INST_W-1:0] enc_s_op;
+    input [11:0] imm;
+    input [4:0] rs2;
+    input [4:0] rs1;
+    input [2:0] funct3;
+    input [6:0] opcode;
+    begin
+      enc_s_op = {imm[11:5], rs2, rs1, funct3, imm[4:0], opcode};
     end
   endfunction
 
@@ -318,6 +330,12 @@ module OooAluFetchCore #(
                     enc_i(imm[11:0], 5'd2, `FUNCT3_ADD_SUB,
                           rvc_rdp(inst), `OPCODE_OP_IMM);
             end
+            3'b001: begin
+              imm = rvc_imm_ld_sd(inst);
+              decompress_rvc =
+                  enc_i(imm[11:0], rs1p, `FUNCT3_LD,
+                        rvc_rdp(inst), `OPCODE_LOAD_FP);
+            end
             3'b010: begin
               imm = rvc_imm_lw_sw(inst);
               decompress_rvc =
@@ -329,6 +347,12 @@ module OooAluFetchCore #(
               decompress_rvc =
                   enc_i(imm[11:0], rs1p, `FUNCT3_LD,
                         rvc_rdp(inst), `OPCODE_LOAD);
+            end
+            3'b101: begin
+              imm = rvc_imm_ld_sd(inst);
+              decompress_rvc =
+                  enc_s_op(imm[11:0], rs2p, rs1p, `FUNCT3_SD,
+                           `OPCODE_STORE_FP);
             end
             3'b110: begin
               imm = rvc_imm_lw_sw(inst);
@@ -449,6 +473,13 @@ module OooAluFetchCore #(
                   enc_i({6'b000000, shamt}, rd, `FUNCT3_SLL, rd,
                         `OPCODE_OP_IMM);
             end
+            3'b001: begin
+              imm = rvc_imm_ldsp(inst);
+              if (rd != 5'd0)
+                decompress_rvc =
+                    enc_i(imm[11:0], 5'd2, `FUNCT3_LD, rd,
+                          `OPCODE_LOAD_FP);
+            end
             3'b010: begin
               imm = rvc_imm_lwsp(inst);
               if (rd != 5'd0)
@@ -489,6 +520,12 @@ module OooAluFetchCore #(
                             `OPCODE_OP);
                 end
               end
+            end
+            3'b101: begin
+              imm = rvc_imm_sdsp(inst);
+              decompress_rvc =
+                  enc_s_op(imm[11:0], rs2, 5'd2, `FUNCT3_SD,
+                           `OPCODE_STORE_FP);
             end
             3'b110: begin
               imm = rvc_imm_swsp(inst);
@@ -581,6 +618,12 @@ module OooAluFetchCore #(
   reg pending_jump_jalr_q;
   reg pending_mem_q;
   reg pending_mem_dispatched_q;
+  reg pending_fp_q;
+  reg pending_fp_mem_pending_q;
+  reg pending_fp_mem_done_q;
+  reg pending_fp_load_q;
+  reg pending_fp_store_q;
+  reg pending_fp_double_q;
   reg pending_arch_trap_q;
   reg [`TRAP_CAUSE_W-1:0] pending_trap_cause_q;
   reg [`XLEN-1:0] pending_trap_pc_q;
@@ -622,6 +665,14 @@ module OooAluFetchCore #(
   reg [`XLEN-1:0] pending_mem_pc_q;
   reg [`INST_W-1:0] pending_mem_inst_q;
   reg [`XLEN-1:0] pending_mem_next_pc_q;
+  reg [`XLEN-1:0] pending_fp_pc_q;
+  reg [`INST_W-1:0] pending_fp_inst_q;
+  reg [`XLEN-1:0] pending_fp_next_pc_q;
+  reg [`XLEN-1:0] pending_fp_addr_q;
+  reg [`XLEN-1:0] pending_fp_wdata_q;
+  reg [`STRB_W-1:0] pending_fp_wstrb_q;
+  reg [`REG_ADDR_W-1:0] pending_fp_rd_q;
+  reg [`XLEN-1:0] fpr_q [0:`REG_NUM-1];
   reg pending_system_q;
   reg pending_system_dispatched_q;
   reg pending_system_csr_q;
@@ -645,6 +696,7 @@ module OooAluFetchCore #(
 
   wire stop_pending_owner_w =
       pending_exit_q || pending_branch_q || pending_jump_q || pending_mem_q ||
+      pending_fp_q ||
       pending_arch_trap_q || pending_system_q || synth_lane1_ret_pending_q ||
       synth_lane1_branch_drop_pending_q || branch_spec_checkpoint_pending_q ||
       branch_spec_active_q;
@@ -672,6 +724,8 @@ module OooAluFetchCore #(
                     {{(RAS_INDEX_W-1){1'b0}}, 1'b1});
   wire [`XLEN-1:0] ras_top_w = ras_stack_q[ras_top_idx_w];
   wire pending_system_csr_commit_w;
+  wire csr_irq_pending_w;
+  wire [`TRAP_CAUSE_W-1:0] csr_irq_cause_w;
 
   wire [`XLEN-1:0] head_pc_w =
       fetch_rsp_dispatch_bypass_w ? fetch_dec0_pc_w :
@@ -746,6 +800,23 @@ module OooAluFetchCore #(
                          !head0_ctrl_w[`CTRL_ILLEGAL_BIT] &&
                          (head0_ctrl_w[`CTRL_LOAD_BIT] ||
                           head0_ctrl_w[`CTRL_STORE_BIT]);
+  wire head0_fp_load_raw_w = head0_decode_valid_w &&
+                             (head_inst0_w[6:0] == `OPCODE_LOAD_FP) &&
+                             ((head_inst0_w[14:12] == `FUNCT3_LW) ||
+                              (head_inst0_w[14:12] == `FUNCT3_LD));
+  wire head0_fp_store_raw_w = head0_decode_valid_w &&
+                              (head_inst0_w[6:0] == `OPCODE_STORE_FP) &&
+                              ((head_inst0_w[14:12] == `FUNCT3_SW) ||
+                               (head_inst0_w[14:12] == `FUNCT3_SD));
+  wire head0_fp_move_to_fpr_raw_w =
+      head0_decode_valid_w &&
+      (head_inst0_w[6:0] == `OPCODE_OP_FP) &&
+      (head_inst0_w[14:12] == 3'b000) &&
+      (head_inst0_w[24:20] == 5'b00000) &&
+      ((head_inst0_w[31:25] == 7'b1111000) ||
+       (head_inst0_w[31:25] == 7'b1111001));
+  wire head0_fp_raw_w = head0_fp_load_raw_w || head0_fp_store_raw_w ||
+                        head0_fp_move_to_fpr_raw_w;
   wire head0_ecall_raw_w = head0_decode_valid_w &&
                            head0_ctrl_w[`CTRL_ECALL_BIT] &&
                            !head0_ctrl_w[`CTRL_ILLEGAL_BIT];
@@ -776,6 +847,7 @@ module OooAluFetchCore #(
                             head0_sfence_raw_w;
   wire head0_arch_trap_raw_w = head0_semihost_ebreak_w;
   wire head0_stop_raw_w = head0_exit_raw_w || head0_system_raw_w ||
+                          head0_fp_raw_w ||
                           head0_arch_trap_raw_w;
   wire head_fetch_fault1_w = fifo_has_packet_w && !head_fetch_fault0_w &&
                              !head0_branch_raw_w && !head0_jump_raw_w &&
@@ -805,6 +877,23 @@ module OooAluFetchCore #(
                          !head1_ctrl_w[`CTRL_ILLEGAL_BIT] &&
                          (head1_ctrl_w[`CTRL_LOAD_BIT] ||
                           head1_ctrl_w[`CTRL_STORE_BIT]);
+  wire head1_fp_load_raw_w = head1_decode_valid_w &&
+                             (head_inst1_w[6:0] == `OPCODE_LOAD_FP) &&
+                             ((head_inst1_w[14:12] == `FUNCT3_LW) ||
+                              (head_inst1_w[14:12] == `FUNCT3_LD));
+  wire head1_fp_store_raw_w = head1_decode_valid_w &&
+                              (head_inst1_w[6:0] == `OPCODE_STORE_FP) &&
+                              ((head_inst1_w[14:12] == `FUNCT3_SW) ||
+                               (head_inst1_w[14:12] == `FUNCT3_SD));
+  wire head1_fp_move_to_fpr_raw_w =
+      head1_decode_valid_w &&
+      (head_inst1_w[6:0] == `OPCODE_OP_FP) &&
+      (head_inst1_w[14:12] == 3'b000) &&
+      (head_inst1_w[24:20] == 5'b00000) &&
+      ((head_inst1_w[31:25] == 7'b1111000) ||
+       (head_inst1_w[31:25] == 7'b1111001));
+  wire head1_fp_raw_w = head1_fp_load_raw_w || head1_fp_store_raw_w ||
+                        head1_fp_move_to_fpr_raw_w;
   wire head1_ecall_raw_w = head1_decode_valid_w &&
                            head1_ctrl_w[`CTRL_ECALL_BIT] &&
                            !head1_ctrl_w[`CTRL_ILLEGAL_BIT];
@@ -835,6 +924,7 @@ module OooAluFetchCore #(
                             head1_sfence_raw_w;
   wire head1_arch_trap_raw_w = head1_semihost_ebreak_w;
   wire head1_stop_raw_w = head1_exit_raw_w || head1_system_raw_w ||
+                          head1_fp_raw_w ||
                           head1_arch_trap_raw_w;
   wire branch_spec_dispatch_block_w =
       branch_spec_active_q && fifo_has_packet_w &&
@@ -850,6 +940,7 @@ module OooAluFetchCore #(
   wire dispatch0_unsupported_w;
   wire dispatch1_unsupported_w;
   wire dispatch_valid_w = fifo_has_packet_w && can_run_w &&
+                          !csr_irq_pending_w &&
                           !pending_lane1_ret_q &&
                           !head_fetch_fault0_w &&
                           !branch_spec_dispatch_block_w;
@@ -858,6 +949,7 @@ module OooAluFetchCore #(
   wire dispatch0_exit_w = dispatch_valid_w && head0_exit_raw_w;
   wire dispatch0_arch_trap_w = dispatch_valid_w && head0_arch_trap_raw_w;
   wire dispatch0_system_w = dispatch_valid_w && head0_system_raw_w;
+  wire dispatch0_fp_w = dispatch_valid_w && head0_fp_raw_w;
   wire dispatch0_branch_w = dispatch_valid_w && head0_branch_raw_w;
   wire direct_branch0_dispatch_valid_w = dispatch0_branch_w;
   wire direct_branch0_fire_w = dispatch0_branch_w &&
@@ -872,12 +964,14 @@ module OooAluFetchCore #(
       head1_jal_raw_w &&
       ((head1_rd_unused_w == 5'd1) || (head1_rd_unused_w == 5'd5));
   wire dispatch0_return_w =
+      ENABLE_DIRECT_RAS_RET &&
       dispatch0_jump_w &&
       ras_reliable_q && !ras_empty_w &&
       (head0_rd_unused_w == {`REG_ADDR_W{1'b0}}) &&
       ((head0_rs1_w == 5'd1) || (head0_rs1_w == 5'd5)) &&
       (head0_imm_w == {`XLEN{1'b0}});
   wire head1_return_candidate_w =
+      ENABLE_DIRECT_RAS_RET &&
       head1_jalr_raw_w &&
       ras_reliable_q && !ras_empty_w &&
       (head1_rd_unused_w == {`REG_ADDR_W{1'b0}}) &&
@@ -912,6 +1006,7 @@ module OooAluFetchCore #(
                                 !dispatch0_exit_w &&
                                 !dispatch0_arch_trap_w &&
                                 !dispatch0_system_w &&
+                                !dispatch0_fp_w &&
                                 !dispatch0_branch_w &&
                                 !dispatch0_jal_w &&
                                 !dispatch0_jump_w &&
@@ -921,6 +1016,7 @@ module OooAluFetchCore #(
                             !dispatch0_exit_w &&
                             !dispatch0_arch_trap_w &&
                             !dispatch0_system_w &&
+                            !dispatch0_fp_w &&
                             !dispatch0_branch_w &&
                             !dispatch0_jal_w &&
                             !dispatch0_jump_w &&
@@ -932,6 +1028,7 @@ module OooAluFetchCore #(
                                          !dispatch0_exit_w &&
                                          !dispatch0_arch_trap_w &&
                                          !dispatch0_system_w &&
+                                         !dispatch0_fp_w &&
                                          !dispatch0_branch_w &&
                                          !dispatch0_jal_w &&
                                          !dispatch0_jump_w;
@@ -939,12 +1036,14 @@ module OooAluFetchCore #(
                              !dispatch0_exit_w &&
                              !dispatch0_arch_trap_w &&
                              !dispatch0_system_w &&
+                             !dispatch0_fp_w &&
                              !dispatch0_branch_w &&
                              !dispatch0_jal_w &&
                              !dispatch0_jump_w &&
                              (head_fetch_fault1_w ||
                               head1_exit_raw_w ||
                               head1_system_raw_w ||
+                              head1_fp_raw_w ||
                               head1_arch_trap_raw_w ||
                               (head1_branch_raw_w &&
                                !direct_branch1_dispatch_valid_w) ||
@@ -954,6 +1053,7 @@ module OooAluFetchCore #(
                                          !dispatch0_exit_w &&
                                          !dispatch0_arch_trap_w &&
                                          !dispatch0_system_w &&
+                                         !dispatch0_fp_w &&
                                          !dispatch0_branch_w &&
                                          !dispatch0_jal_w &&
                                          !dispatch0_jump_w &&
@@ -965,16 +1065,17 @@ module OooAluFetchCore #(
   wire dispatch1_mem_unsupported_w = 1'b0;
   wire dispatch_unsupported_w = dispatch_valid_w && !dispatch0_exit_w &&
                                 !dispatch0_arch_trap_w &&
-                                !dispatch0_system_w &&
+                                !dispatch0_system_w && !dispatch0_fp_w &&
                                 !dispatch0_branch_w && !dispatch0_jump_w &&
-                                (dispatch0_unsupported_w |
-                                 dispatch1_unsupported_w |
+                                ((dispatch0_unsupported_w && !head0_fp_raw_w) |
+                                 (dispatch1_unsupported_w && !head1_fp_raw_w) |
                                  dispatch1_control_unsupported_w |
                                  dispatch1_mem_unsupported_w);
   wire dispatch_fire_w = dispatch_valid_w &&
                          !dispatch0_exit_w &&
                          !dispatch0_arch_trap_w &&
                          !dispatch0_system_w &&
+                         !dispatch0_fp_w &&
                          !dispatch0_branch_w &&
                          !dispatch0_jal_w &&
                          !dispatch0_jump_w &&
@@ -1477,6 +1578,7 @@ module OooAluFetchCore #(
   wire frontend_dispatch_to_backend_valid_w =
       dispatch_valid_w && !dispatch0_branch_w && !dispatch0_jal_w &&
       !dispatch0_jump_w && !dispatch0_exit_w && !dispatch0_system_w &&
+      !dispatch0_fp_w &&
       !dispatch1_barrier_w &&
       !dispatch1_control_unsupported_w &&
       !dispatch1_mem_unsupported_w;
@@ -1486,6 +1588,18 @@ module OooAluFetchCore #(
   wire execute0_valid_unused_w;
   wire execute1_valid_unused_w;
   wire core_mem_idle_w;
+  wire core_mem_req_valid_w;
+  wire core_mem_req_write_w;
+  wire [`XLEN-1:0] core_mem_req_addr_w;
+  wire [`XLEN-1:0] core_mem_req_wdata_w;
+  wire [`STRB_W-1:0] core_mem_req_wstrb_w;
+  wire core_mem_rsp_ready_w;
+  wire core_mem1_req_valid_w;
+  wire core_mem1_req_write_w;
+  wire [`XLEN-1:0] core_mem1_req_addr_w;
+  wire [`XLEN-1:0] core_mem1_req_wdata_w;
+  wire [`STRB_W-1:0] core_mem1_req_wstrb_w;
+  wire core_mem1_rsp_ready_w;
   wire core_branch_resolve_valid_w;
   wire [`XLEN-1:0] core_branch_resolve_pc_w;
   wire [`XLEN-1:0] core_branch_resolve_next_pc_w;
@@ -1596,8 +1710,6 @@ module OooAluFetchCore #(
   wire csr_real_mret_valid_w = csr_mret_valid_w && !csr_sret_valid_w;
   wire [`XLEN-1:0] csr_rdata_w;
   wire csr_illegal_w;
-  wire csr_irq_pending_w;
-  wire [`TRAP_CAUSE_W-1:0] csr_irq_cause_w;
   wire [`XLEN-1:0] csr_trap_target_w;
   wire [`XLEN-1:0] csr_mepc_w;
   wire [`XLEN-1:0] csr_ret_target_w;
@@ -1907,7 +2019,8 @@ module OooAluFetchCore #(
       pending_branch_q && pending_branch_dispatched_q &&
       !branch_resolve_pending_match_w && !branch_spec_active_q &&
       !branch_spec_checkpoint_pending_q && !pending_jump_q &&
-      !pending_mem_q && !pending_arch_trap_q && !pending_system_q;
+      !pending_mem_q && !pending_fp_q && !pending_arch_trap_q &&
+      !pending_system_q;
   wire pending_branch_resolve_wait_w =
       pending_branch_q && pending_branch_dispatched_q &&
       !branch_resolve_pending_match_w && !pending_branch_commit_resolve_w;
@@ -1915,6 +2028,7 @@ module OooAluFetchCore #(
       pending_branch_resolve_wait_w ||
       (pending_jump_q && !pending_jump_dispatched_q) ||
       (pending_mem_q && !pending_mem_dispatched_q) ||
+      (pending_fp_q && !pending_fp_mem_done_q) ||
       (pending_system_q && pending_system_csr_q);
   wire drain_complete_w = stop_pending_q && backend_drained_w &&
                           pending_control_ready_w &&
@@ -2063,12 +2177,108 @@ module OooAluFetchCore #(
     end
   endfunction
 
+  function [`XLEN-1:0] fp_i_imm;
+    input [`INST_W-1:0] inst;
+    begin
+      fp_i_imm = {{(`XLEN-12){inst[31]}}, inst[31:20]};
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_s_imm;
+    input [`INST_W-1:0] inst;
+    begin
+      fp_s_imm = {{(`XLEN-12){inst[31]}}, inst[31:25], inst[11:7]};
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_aligned_addr;
+    input [`XLEN-1:0] addr;
+    begin
+      fp_aligned_addr = addr & {{(`XLEN-`XLEN_BYTE_W){1'b1}}, {`XLEN_BYTE_W{1'b0}}};
+    end
+  endfunction
+
+  function [`STRB_W-1:0] fp_store_wstrb;
+    input [`XLEN-1:0] addr;
+    input is_double;
+    begin
+      fp_store_wstrb = is_double ? {`STRB_W{1'b1}} :
+                       ({{(`STRB_W-4){1'b0}}, 4'b1111} << addr[`XLEN_BYTE_W-1:0]);
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_store_wdata;
+    input [`XLEN-1:0] addr;
+    input [`XLEN-1:0] value;
+    input is_double;
+    begin
+      fp_store_wdata = is_double ? value :
+                       ({{32{1'b0}}, value[31:0]} << {addr[`XLEN_BYTE_W-1:0], 3'b000});
+    end
+  endfunction
+
+  wire pending_fp_mem_req_valid_w =
+      stop_pending_q && pending_fp_q && backend_drained_q &&
+      !pending_fp_mem_pending_q && !pending_fp_mem_done_q;
+  wire pending_fp_mem_req_fire_w =
+      pending_fp_mem_req_valid_w && mem_req_ready_i;
+  wire pending_fp_mem_rsp_fire_w =
+      pending_fp_mem_pending_q && mem_rsp_valid_i;
+  wire [`XLEN-1:0] pending_fp_shifted_rdata_w =
+      mem_rsp_rdata_i >> {pending_fp_addr_q[`XLEN_BYTE_W-1:0], 3'b000};
+  wire [`XLEN-1:0] pending_fp_load_value_w =
+      pending_fp_double_q ? pending_fp_shifted_rdata_w :
+      {32'hffff_ffff, pending_fp_shifted_rdata_w[31:0]};
+
+  assign mem_req_valid_o = pending_fp_mem_req_valid_w ? 1'b1 : core_mem_req_valid_w;
+  assign mem_req_write_o = pending_fp_mem_req_valid_w ? pending_fp_store_q :
+                           core_mem_req_write_w;
+  assign mem_req_addr_o = pending_fp_mem_req_valid_w ? fp_aligned_addr(pending_fp_addr_q) :
+                          core_mem_req_addr_w;
+  assign mem_req_wdata_o = pending_fp_mem_req_valid_w ? pending_fp_wdata_q :
+                           core_mem_req_wdata_w;
+  assign mem_req_wstrb_o = pending_fp_mem_req_valid_w ? pending_fp_wstrb_q :
+                           core_mem_req_wstrb_w;
+  assign mem_rsp_ready_o = pending_fp_mem_pending_q ? 1'b1 : core_mem_rsp_ready_w;
+  assign mem1_req_valid_o = core_mem1_req_valid_w;
+  assign mem1_req_write_o = core_mem1_req_write_w;
+  assign mem1_req_addr_o = core_mem1_req_addr_w;
+  assign mem1_req_wdata_o = core_mem1_req_wdata_w;
+  assign mem1_req_wstrb_o = core_mem1_req_wstrb_w;
+  assign mem1_rsp_ready_o = core_mem1_rsp_ready_w;
+
   assign pending_branch_rs1_data_w =
       arch_gpr(core_debug_gprs_w, pending_branch_rs1_q);
   assign pending_branch_rs2_data_w =
       arch_gpr(core_debug_gprs_w, pending_branch_rs2_q);
   assign pending_jump_rs1_data_w =
       arch_gpr(core_debug_gprs_w, pending_jump_rs1_q);
+  wire head0_fp_double_w =
+      (head_inst0_w[14:12] == `FUNCT3_LD) ||
+      (head_inst0_w[14:12] == `FUNCT3_SD) ||
+      (head_inst0_w[31:25] == 7'b1111001);
+  wire head1_fp_double_w =
+      (head_inst1_w[14:12] == `FUNCT3_LD) ||
+      (head_inst1_w[14:12] == `FUNCT3_SD) ||
+      (head_inst1_w[31:25] == 7'b1111001);
+  wire [`XLEN-1:0] head0_fp_addr_w =
+      arch_gpr(core_debug_gprs_w, head0_rs1_w) +
+      (head0_fp_load_raw_w ? fp_i_imm(head_inst0_w) : fp_s_imm(head_inst0_w));
+  wire [`XLEN-1:0] head1_fp_addr_w =
+      arch_gpr(core_debug_gprs_w, head1_rs1_w) +
+      (head1_fp_load_raw_w ? fp_i_imm(head_inst1_w) : fp_s_imm(head_inst1_w));
+  wire [`XLEN-1:0] head0_fp_store_value_w = fpr_q[head0_rs2_w];
+  wire [`XLEN-1:0] head1_fp_store_value_w = fpr_q[head1_rs2_w];
+  wire [`XLEN-1:0] head0_fp_rs1_value_w =
+      arch_gpr(core_debug_gprs_w, head0_rs1_w);
+  wire [`XLEN-1:0] head1_fp_rs1_value_w =
+      arch_gpr(core_debug_gprs_w, head1_rs1_w);
+  wire [`XLEN-1:0] head0_fp_move_value_w =
+      head0_fp_double_w ? head0_fp_rs1_value_w :
+      {32'hffff_ffff, head0_fp_rs1_value_w[31:0]};
+  wire [`XLEN-1:0] head1_fp_move_value_w =
+      head1_fp_double_w ? head1_fp_rs1_value_w :
+      {32'hffff_ffff, head1_fp_rs1_value_w[31:0]};
 
   CsrFile u_csr_file (
     .clk(clk),
@@ -2205,25 +2415,25 @@ module OooAluFetchCore #(
     .dispatch1_inst_i(core_dispatch1_inst_w),
     .dispatch1_csr_rdata_i({`XLEN{1'b0}}),
     .dispatch1_unsupported_o(dispatch1_unsupported_w),
-    .mem_req_valid_o(mem_req_valid_o),
+    .mem_req_valid_o(core_mem_req_valid_w),
     .mem_req_ready_i(mem_req_ready_i),
-    .mem_req_write_o(mem_req_write_o),
-    .mem_req_addr_o(mem_req_addr_o),
-    .mem_req_wdata_o(mem_req_wdata_o),
-    .mem_req_wstrb_o(mem_req_wstrb_o),
+    .mem_req_write_o(core_mem_req_write_w),
+    .mem_req_addr_o(core_mem_req_addr_w),
+    .mem_req_wdata_o(core_mem_req_wdata_w),
+    .mem_req_wstrb_o(core_mem_req_wstrb_w),
     .mem_rsp_valid_i(mem_rsp_valid_i),
-    .mem_rsp_ready_o(mem_rsp_ready_o),
+    .mem_rsp_ready_o(core_mem_rsp_ready_w),
     .mem_rsp_rdata_i(mem_rsp_rdata_i),
     .mem_rsp_error_i(mem_rsp_error_i),
     .mem_rsp_page_fault_i(mem_rsp_page_fault_i),
-    .mem1_req_valid_o(mem1_req_valid_o),
+    .mem1_req_valid_o(core_mem1_req_valid_w),
     .mem1_req_ready_i(mem1_req_ready_i),
-    .mem1_req_write_o(mem1_req_write_o),
-    .mem1_req_addr_o(mem1_req_addr_o),
-    .mem1_req_wdata_o(mem1_req_wdata_o),
-    .mem1_req_wstrb_o(mem1_req_wstrb_o),
+    .mem1_req_write_o(core_mem1_req_write_w),
+    .mem1_req_addr_o(core_mem1_req_addr_w),
+    .mem1_req_wdata_o(core_mem1_req_wdata_w),
+    .mem1_req_wstrb_o(core_mem1_req_wstrb_w),
     .mem1_rsp_valid_i(mem1_rsp_valid_i),
-    .mem1_rsp_ready_o(mem1_rsp_ready_o),
+    .mem1_rsp_ready_o(core_mem1_rsp_ready_w),
     .mem1_rsp_rdata_i(mem1_rsp_rdata_i),
     .mem1_rsp_error_i(mem1_rsp_error_i),
     .mem1_rsp_page_fault_i(mem1_rsp_page_fault_i),
@@ -2384,7 +2594,7 @@ module OooAluFetchCore #(
   assign exit_code_o = a0_data_w;
   assign halted_o = halted_q ||
                     (stop_pending_q && !pending_branch_q && !pending_jump_q &&
-                     !pending_mem_q && !pending_system_q &&
+                     !pending_mem_q && !pending_fp_q && !pending_system_q &&
                      !synth_lane1_ret_pending_q &&
                      !synth_lane1_branch_drop_pending_q);
   assign priv_mode_o = csr_priv_mode_w;
@@ -2448,6 +2658,7 @@ module OooAluFetchCore #(
   integer branch_bht_reset_idx;
   integer branch_local_hist_reset_idx;
   integer branch_local_pht_reset_idx;
+  integer fpr_reset_idx;
 
   always @(posedge clk) begin
     if (rst || flush_i) begin
@@ -2497,6 +2708,12 @@ module OooAluFetchCore #(
       pending_jump_jalr_q <= 1'b0;
       pending_mem_q <= 1'b0;
       pending_mem_dispatched_q <= 1'b0;
+      pending_fp_q <= 1'b0;
+      pending_fp_mem_pending_q <= 1'b0;
+      pending_fp_mem_done_q <= 1'b0;
+      pending_fp_load_q <= 1'b0;
+      pending_fp_store_q <= 1'b0;
+      pending_fp_double_q <= 1'b0;
       pending_arch_trap_q <= 1'b0;
       pending_trap_cause_q <= {`TRAP_CAUSE_W{1'b0}};
       pending_trap_pc_q <= {`XLEN{1'b0}};
@@ -2538,6 +2755,13 @@ module OooAluFetchCore #(
       pending_mem_pc_q <= {`XLEN{1'b0}};
       pending_mem_inst_q <= {`INST_W{1'b0}};
       pending_mem_next_pc_q <= {`XLEN{1'b0}};
+      pending_fp_pc_q <= {`XLEN{1'b0}};
+      pending_fp_inst_q <= {`INST_W{1'b0}};
+      pending_fp_next_pc_q <= {`XLEN{1'b0}};
+      pending_fp_addr_q <= {`XLEN{1'b0}};
+      pending_fp_wdata_q <= {`XLEN{1'b0}};
+      pending_fp_wstrb_q <= {`STRB_W{1'b0}};
+      pending_fp_rd_q <= {`REG_ADDR_W{1'b0}};
       pending_system_q <= 1'b0;
       pending_system_dispatched_q <= 1'b0;
       pending_system_csr_q <= 1'b0;
@@ -2612,12 +2836,25 @@ module OooAluFetchCore #(
         branch_local_pht_valid_q[branch_local_pht_reset_idx] = 1'b0;
         branch_local_pht_q[branch_local_pht_reset_idx] = `BPU_COUNTER_INIT;
       end
+      for (fpr_reset_idx = 0; fpr_reset_idx < `REG_NUM; fpr_reset_idx = fpr_reset_idx + 1) begin
+        fpr_q[fpr_reset_idx] = {`XLEN{1'b0}};
+      end
       /* verilator lint_on BLKSEQ */
     end else begin
       ctrl_commit_valid_q <= 1'b0;
       backend_drained_q <= backend_drained_w && !core_dispatch0_fire_w;
       core_trap_flush_q <= 1'b0;
       checkpoint_mem_flush_q <= core_checkpoint_restore_w;
+
+      if (pending_fp_mem_req_fire_w) begin
+        pending_fp_mem_pending_q <= 1'b1;
+      end
+      if (pending_fp_mem_rsp_fire_w) begin
+        pending_fp_mem_pending_q <= 1'b0;
+        pending_fp_mem_done_q <= 1'b1;
+        if (pending_fp_load_q)
+          fpr_q[pending_fp_rd_q] <= pending_fp_load_value_w;
+      end
 
       if (branch_bpu_update_valid_w) begin
         // 条件分支按预测时携带的 gshare index 训练，避免 resolve 阶段 GHR 漂移写错表项。
@@ -2824,6 +3061,9 @@ module OooAluFetchCore #(
         pending_jump_dispatched_q <= 1'b0;
         pending_mem_q <= 1'b0;
         pending_mem_dispatched_q <= 1'b0;
+        pending_fp_q <= 1'b0;
+        pending_fp_mem_pending_q <= 1'b0;
+        pending_fp_mem_done_q <= 1'b0;
         pending_arch_trap_q <= 1'b0;
         pending_system_q <= 1'b0;
         pending_system_dispatched_q <= 1'b0;
@@ -2834,6 +3074,7 @@ module OooAluFetchCore #(
         pending_system_sfence_q <= 1'b0;
         pending_system_irq_q <= 1'b0;
         pending_mem_next_pc_q <= {`XLEN{1'b0}};
+        pending_fp_next_pc_q <= {`XLEN{1'b0}};
         pending_branch_next_pc_q <= {`XLEN{1'b0}};
         pending_jump_next_pc_q <= {`XLEN{1'b0}};
         direct_branch_wait_q <= 1'b0;
@@ -3603,6 +3844,22 @@ module OooAluFetchCore #(
           outstanding_valid_q <= 1'b0;
           outstanding_pc_q <= {`XLEN{1'b0}};
           next_fetch_pc_q <= pending_mem_next_pc_q;
+        end else if (pending_fp_q) begin
+          fifo_head_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+          fifo_tail_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+          fifo_count_q <= {FETCH_COUNT_W{1'b0}};
+          outstanding_valid_q <= 1'b0;
+          outstanding_pc_q <= {`XLEN{1'b0}};
+          branch_prefetch_active_q <= 1'b0;
+          branch_prefetch_buffer_valid_q <= 1'b0;
+          branch_prefetch_pc_q <= {`XLEN{1'b0}};
+          next_fetch_pc_q <= pending_fp_next_pc_q;
+          if (!pending_fp_load_q && !pending_fp_store_q)
+            fpr_q[pending_fp_rd_q] <= pending_fp_wdata_q;
+          ctrl_commit_valid_q <= 1'b1;
+          ctrl_commit_pc_q <= pending_fp_pc_q;
+          ctrl_commit_inst_q <= pending_fp_inst_q;
+          ctrl_commit_next_pc_q <= pending_fp_next_pc_q;
         end else if (pending_exit_q) begin
           halted_q <= 1'b1;
           exit_valid_q <= 1'b1;
@@ -3719,6 +3976,47 @@ module OooAluFetchCore #(
           pending_mem_next_pc_q <= {`XLEN{1'b0}};
           pending_branch_next_pc_q <= {`XLEN{1'b0}};
           pending_jump_next_pc_q <= {`XLEN{1'b0}};
+        end else if (dispatch0_fp_w) begin
+          // F/D bring-up path: FP load/store 是序列化边界，先排空整数 OoO 后端，
+          // 再通过同一 LSU/MMU 通路访问内存并提交 FPR 副作用。
+          stop_pending_q <= 1'b1;
+          pending_exit_q <= 1'b0;
+          pending_branch_q <= 1'b0;
+          pending_branch_dispatched_q <= 1'b0;
+          pending_jump_q <= 1'b0;
+          pending_jump_dispatched_q <= 1'b0;
+          pending_mem_q <= 1'b0;
+          pending_mem_dispatched_q <= 1'b0;
+          pending_fp_q <= 1'b1;
+          pending_fp_mem_pending_q <= 1'b0;
+          pending_fp_mem_done_q <= head0_fp_move_to_fpr_raw_w;
+          pending_fp_load_q <= head0_fp_load_raw_w;
+          pending_fp_store_q <= head0_fp_store_raw_w;
+          pending_fp_double_q <= head0_fp_double_w;
+          pending_arch_trap_q <= 1'b0;
+          pending_system_q <= 1'b0;
+          pending_system_dispatched_q <= 1'b0;
+          pending_system_csr_q <= 1'b0;
+          pending_system_ecall_q <= 1'b0;
+          pending_system_mret_q <= 1'b0;
+          pending_system_wfi_q <= 1'b0;
+          pending_system_sfence_q <= 1'b0;
+          pending_system_irq_q <= 1'b0;
+          pending_mem_next_pc_q <= {`XLEN{1'b0}};
+          pending_branch_next_pc_q <= {`XLEN{1'b0}};
+          pending_jump_next_pc_q <= {`XLEN{1'b0}};
+          pending_fp_pc_q <= head_pc_w;
+          pending_fp_inst_q <= head_inst0_w;
+          pending_fp_next_pc_q <= head_next_pc0_w;
+          pending_fp_addr_q <= head0_fp_addr_w;
+          pending_fp_wdata_q <= head0_fp_move_to_fpr_raw_w ?
+                                head0_fp_move_value_w :
+                                fp_store_wdata(head0_fp_addr_w,
+                                               head0_fp_store_value_w,
+                                               head0_fp_double_w);
+          pending_fp_wstrb_q <= fp_store_wstrb(head0_fp_addr_w,
+                                               head0_fp_double_w);
+          pending_fp_rd_q <= head_inst0_w[11:7];
         end else if (dispatch0_system_w && head0_csr_illegal_w) begin
           stop_pending_q <= 1'b1;
           pending_exit_q <= 1'b0;
@@ -3841,6 +4139,12 @@ module OooAluFetchCore #(
         pending_jump_dispatched_q <= 1'b0;
         pending_mem_q <= head1_mem_raw_w;
         pending_mem_dispatched_q <= 1'b0;
+        pending_fp_q <= head1_fp_raw_w;
+        pending_fp_mem_pending_q <= 1'b0;
+        pending_fp_mem_done_q <= head1_fp_move_to_fpr_raw_w;
+        pending_fp_load_q <= head1_fp_load_raw_w;
+        pending_fp_store_q <= head1_fp_store_raw_w;
+        pending_fp_double_q <= head1_fp_double_w;
           pending_arch_trap_q <= head_fetch_fault1_w || head1_csr_illegal_w ||
                                  head1_arch_trap_raw_w;
         pending_system_q <= head1_system_raw_w && !head1_csr_illegal_w;
@@ -3889,6 +4193,18 @@ module OooAluFetchCore #(
           pending_mem_pc_q <= head_pc1_w;
           pending_mem_inst_q <= head_inst1_w;
           pending_mem_next_pc_q <= head_next_pc1_w;
+          pending_fp_pc_q <= head_pc1_w;
+          pending_fp_inst_q <= head_inst1_w;
+          pending_fp_next_pc_q <= head_next_pc1_w;
+          pending_fp_addr_q <= head1_fp_addr_w;
+          pending_fp_wdata_q <= head1_fp_move_to_fpr_raw_w ?
+                                head1_fp_move_value_w :
+                                fp_store_wdata(head1_fp_addr_w,
+                                               head1_fp_store_value_w,
+                                               head1_fp_double_w);
+          pending_fp_wstrb_q <= fp_store_wstrb(head1_fp_addr_w,
+                                               head1_fp_double_w);
+          pending_fp_rd_q <= head_inst1_w[11:7];
         end else if (dispatch_unsupported_w) begin
           // unsupported 是当前实验核心的停机边界，同样等待更老 ROB 项 drain 后再报精确 trap。
           stop_pending_q <= 1'b1;

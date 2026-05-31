@@ -28,7 +28,7 @@
 `define CACHEABLE_BASE     64'h0000_0000_8000_0000
 `endif
 `ifndef CACHEABLE_LAST
-`define CACHEABLE_LAST     64'h0000_0000_87ff_fffc
+`define CACHEABLE_LAST     64'h0000_0000_9fff_fffc
 `endif
 // ysyxSoC 地址图统一在这里预留。未实现设备先在顶层接错误 slave，
 // 后续替换成真实 IP 时只需要沿用同名窗口，不再改 core/cache 接口。
@@ -120,7 +120,7 @@
 `define NPC_AXI_PMEM_BASE  64'h0000_0000_8000_0000
 `endif
 `ifndef NPC_AXI_PMEM_MASK
-`define NPC_AXI_PMEM_MASK  64'hffff_ffff_f800_0000
+`define NPC_AXI_PMEM_MASK  64'hffff_ffff_f000_0000
 `endif
 // 旧 AM/NEMU 兼容 MMIO 窗口仅用于当前 Verilator 仿真设备，严格 SoC 地址图不依赖它。
 `ifndef NPC_AXI_LEGACY_MMIO_BASE
@@ -227,15 +227,18 @@
 `endif
 
 `define OPCODE_LOAD        7'b0000011
+`define OPCODE_LOAD_FP     7'b0000111
 `define OPCODE_MISC_MEM    7'b0001111
 `define OPCODE_OP_IMM      7'b0010011
 `define OPCODE_OP_IMM_32   7'b0011011
 `define OPCODE_AUIPC       7'b0010111
 `define OPCODE_STORE       7'b0100011
+`define OPCODE_STORE_FP    7'b0100111
 `define OPCODE_AMO         7'b0101111
 `define OPCODE_OP          7'b0110011
 `define OPCODE_OP_32       7'b0111011
 `define OPCODE_LUI         7'b0110111
+`define OPCODE_OP_FP       7'b1010011
 `define OPCODE_BRANCH      7'b1100011
 `define OPCODE_JALR        7'b1100111
 `define OPCODE_JAL         7'b1101111
@@ -287,6 +290,9 @@
 `define CSR_MVENDORID      12'hf11
 `define CSR_MARCHID        12'hf12
 `define CSR_MIMPID         12'hf13
+`define CSR_FFLAGS         12'h001
+`define CSR_FRM            12'h002
+`define CSR_FCSR           12'h003
 `define CSR_SSTATUS        12'h100
 `define CSR_SIE            12'h104
 `define CSR_STVEC          12'h105
@@ -338,6 +344,10 @@
 `define MSTATUS_SPIE       64'h0000_0000_0000_0020
 `define MSTATUS_MPIE       64'h0000_0000_0000_0080
 `define MSTATUS_SPP        64'h0000_0000_0000_0100
+`define MSTATUS_FS_MASK    64'h0000_0000_0000_6000
+`define MSTATUS_FS_INITIAL 64'h0000_0000_0000_2000
+`define MSTATUS_FS_CLEAN   64'h0000_0000_0000_4000
+`define MSTATUS_FS_DIRTY   64'h0000_0000_0000_6000
 `define MSTATUS_MPP_MASK   64'h0000_0000_0000_1800
 `define MSTATUS_MPP_S      64'h0000_0000_0000_0800
 `define MSTATUS_MPP_M      64'h0000_0000_0000_1800
@@ -346,6 +356,7 @@
 `define MSTATUS_MPRV       64'h0000_0000_0002_0000
 `define MSTATUS_SXL_UXL    64'h0000_000a_0000_0000
 `define SSTATUS_MASK       (`MSTATUS_SIE | `MSTATUS_SPIE | `MSTATUS_SPP | \
+                            `MSTATUS_FS_MASK | \
                             `MSTATUS_SUM | `MSTATUS_MXR | `MSTATUS_SXL_UXL)
 
 `define IRQ_CAUSE_SSI      5'd1

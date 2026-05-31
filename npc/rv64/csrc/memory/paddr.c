@@ -16,6 +16,35 @@
 static uint8_t *g_pmem = NULL;
 static size_t   g_pmem_size = 0;
 static size_t   g_img_size = 0;
+static bool     g_memwatch_enabled = false;
+static npc_paddr_t g_memwatch_start = 0;
+static npc_paddr_t g_memwatch_end = 0;
+
+static void init_memwatch(void) {
+  const char *start_s = getenv("NPC_MEMWATCH_START");
+  const char *end_s = getenv("NPC_MEMWATCH_END");
+  g_memwatch_enabled = false;
+  if (!start_s || !end_s || start_s[0] == '\0' || end_s[0] == '\0') return;
+
+  char *endp = NULL;
+  npc_paddr_t start = (npc_paddr_t)strtoull(start_s, &endp, 0);
+  if (!endp || *endp != '\0') return;
+  endp = NULL;
+  npc_paddr_t end = (npc_paddr_t)strtoull(end_s, &endp, 0);
+  if (!endp || *endp != '\0' || end <= start) return;
+
+  g_memwatch_start = start;
+  g_memwatch_end = end;
+  g_memwatch_enabled = true;
+  LogBoth("memwatch [0x%016" NPC_PRIxPADDR ", 0x%016" NPC_PRIxPADDR ")",
+          g_memwatch_start, g_memwatch_end);
+}
+
+static bool memwatch_hits(npc_paddr_t addr, size_t size) {
+  if (!g_memwatch_enabled) return false;
+  npc_paddr_t end = addr + (npc_paddr_t)size;
+  return addr < g_memwatch_end && end > g_memwatch_start;
+}
 
 static npc_word_t host_read_word(const uint8_t *base) {
   npc_word_t data = 0;
@@ -52,6 +81,7 @@ void npc_init_mem(void) {
   g_pmem = (uint8_t *)calloc(1, g_pmem_size);
   if (!g_pmem) { perror("[npc] calloc pmem"); abort(); }
   npc_cache_init();
+  init_memwatch();
   LogBoth("physical memory area [0x%016" NPC_PRIxPADDR ", 0x%016" NPC_PRIxPADDR "]",
           (npc_paddr_t)NPC_PMEM_BASE, (npc_paddr_t)(NPC_PMEM_BASE + (npc_paddr_t)g_pmem_size - 1));
 }
@@ -128,6 +158,9 @@ bool npc_paddr_read(npc_paddr_t addr, npc_word_t *data, enum NpcBusAccess kind) 
 
   if (npc_in_pmem(addr)) {
     *data = host_read_word(npc_guest_to_host(addr));
+    if (kind == NPC_BUS_LOAD && memwatch_hits(addr, sizeof(npc_word_t))) {
+      Log("memwatch load addr=0x%016" NPC_PRIxPADDR " data=0x%016" NPC_PRIxWORD, addr, *data);
+    }
     if (kind == NPC_BUS_LOAD && npc_mtrace_enabled()) {
       Log("mtrace load addr=0x%016" NPC_PRIxPADDR " data=0x%016" NPC_PRIxWORD, addr, *data);
     }
@@ -151,6 +184,10 @@ bool npc_paddr_read(npc_paddr_t addr, npc_word_t *data, enum NpcBusAccess kind) 
 bool npc_paddr_write(npc_paddr_t addr, npc_word_t data, npc_word_t mask, enum NpcBusAccess kind) {
   if (npc_in_pmem(addr)) {
     host_write_masked(npc_guest_to_host(addr), data, mask);
+    if (kind == NPC_BUS_STORE && memwatch_hits(addr, sizeof(npc_word_t))) {
+      Log("memwatch store addr=0x%016" NPC_PRIxPADDR " data=0x%016" NPC_PRIxWORD " mask=0x%02" NPC_PRIxWORD,
+          addr, data, mask);
+    }
     if (kind == NPC_BUS_STORE && npc_mtrace_enabled()) {
       Log("mtrace store addr=0x%016" NPC_PRIxPADDR " data=0x%016" NPC_PRIxWORD " mask=0x%02" NPC_PRIxWORD,
           addr, data, mask);

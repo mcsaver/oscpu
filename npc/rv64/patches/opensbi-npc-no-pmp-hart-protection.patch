@@ -1,0 +1,19 @@
+diff --git a/lib/sbi/sbi_hart_protection.c b/lib/sbi/sbi_hart_protection.c
+index 1d0d1987..68185899 100644
+--- a/lib/sbi/sbi_hart_protection.c
++++ b/lib/sbi/sbi_hart_protection.c
+@@ -45,8 +45,12 @@ int sbi_hart_protection_configure(struct sbi_scratch *scratch)
+ {
+ 	struct sbi_hart_protection *hprot = sbi_hart_protection_best();
+ 
+-	if (!hprot)
+-		return SBI_EINVAL;
++	if (!hprot) {
++		/* NPC currently exposes no PMP entries; skip isolation instead of
++		 * aborting after coldboot diagnostics.
++		 */
++		return 0;
++	}
+ 	if (!hprot->configure)
+ 		return SBI_ENOSYS;
+ 
