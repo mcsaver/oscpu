@@ -38,6 +38,7 @@ VERILATOR_PROF_EXEC ?= 0
 VERILATOR_THREADS ?= 1
 VERILATOR_THREADS_DPI ?= none
 VERILATOR_THREADS_MAX_MTASKS ?=
+VERILATOR_BUILD_JOBS ?= $(if $(filter 1,$(VERILATOR_THREADS)),1,$(VERILATOR_THREADS))
 
 VSRCDIR := $(abspath ./vsrc)
 include $(VSRCDIR)/filelist.mk
@@ -99,6 +100,9 @@ endif
 
 ifneq ($(VERILATOR_THREADS),1)
 VERILATOR_FLAGS += --threads $(VERILATOR_THREADS) --threads-dpi $(VERILATOR_THREADS_DPI)
+# 多线程构建时 Verilator 可能提示当前 RTL 只能切出较少 mtask；这本身是性能诊断，
+# 不应阻止我们用 Ubuntu 长跑实测 8 线程是否值得保留。
+VERILATOR_FLAGS += -Wno-UNOPTTHREADS
 ifneq ($(strip $(VERILATOR_THREADS_MAX_MTASKS)),)
 VERILATOR_FLAGS += --threads-max-mtasks $(VERILATOR_THREADS_MAX_MTASKS)
 endif
@@ -162,7 +166,7 @@ $(BIN): $(VSRCS) $(RTL_HEADER_SRCS) $(CSRCS) $(CONFIG_OUTPUTS)
 		--Mdir $(OBJ_DIR) -o $(abspath $(BIN))
 	@ln -sf V$(TOPNAME)__pch.h $(OBJ_DIR)/V$(TOPNAME)__pch.h.fast
 	@ln -sf V$(TOPNAME)__pch.h $(OBJ_DIR)/V$(TOPNAME)__pch.h.slow
-	$(MAKE) -C $(OBJ_DIR) -f V$(TOPNAME).mk
+	$(MAKE) -C $(OBJ_DIR) -f V$(TOPNAME).mk -j$(VERILATOR_BUILD_JOBS)
 
 ifeq ($(CONFIG_NPC_TEXT_TRACE),y)
 $(BIN): $(CAPSTONE_LIB)

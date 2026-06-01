@@ -5,6 +5,14 @@
 ## 活跃问题
 <!-- 当前未解决的问题 -->
 
+### [43] RV64 Ubuntu 长跑中 Verilator 8 线程比单线程更慢
+
+- **模块**: NPC RV64 / Verilator / Ubuntu 性能仿真
+- **现象**: 用户允许在 14-core 主机上调用 8 core 后，按 Ubuntu shell initramfs 而不是轻量 smoke 做实测。单线程 `threads()=1` 的 `smoke-ubuntu-shell-watch UBUNTU_INITRAMFS_MAX_CYCLES=120000000` 已进入 Linux 并到 `clocksource: Switched to clocksource riscv_clocksource`，最终 `cycles=120000000/commits=24517449/CPI=4.894`，host time `362499028 us`，`67634 inst/s`。显式 `VERILATOR_THREADS=8` 重编后生成物确认 `threads()=8`，同一窗口 guest 进度和 commits 完全一致，但 host time `731380226 us`，`33522 inst/s`，约为单线程 0.50x；因此当前默认不应启用 8 线程。
+- **根因**: Verilator 5.020 对当前 RTL 报 `UNOPTTHREADS`，提示调度器无法提供请求的并行度。当前 RV64 sim top/core 被大量跨模块组合依赖、DPI memory/MMIO 边界和单 hart 单时钟热路径限制，mtask 同步/worker 调度开销超过并行收益；多线程只保证 host 并行执行，不会改善 guest CPI 或 Linux 真实进度。
+- **修复**: 已按用户要求回退当前活动 `npc/rv64/build/NpcSimTop` 到单线程，重建后确认 `VNpcSimTop::threads() const { return 1; }`。Makefile 默认仍 `VERILATOR_THREADS ?= 1`；仅保留显式实验入口，`VERILATOR_THREADS>1` 时追加 `-Wno-UNOPTTHREADS` 使该警告作为性能诊断而非 fatal，并用 `VERILATOR_BUILD_JOBS` 控制生成物编译并行度。后续若要再尝试多核，应先用 `--prof-exec`/mtask profile 或重构 sim top/RTL 分区，再用同类 Ubuntu 窗口 A/B，不能凭轻量 smoke 或线程数假设收益。
+- **教训**: Verilator 多线程不是免费加速开关；对单 hart、DPI 密集、组合依赖重的 RTL，8 线程可能显著变慢。Ubuntu 长跑瓶颈目前仍优先看 guest CPI、cache/mem wait、control wait、rootfs/initramfs 进度和仿真热路径，而不是盲目增大 `--threads`。
+
 ### [42] RV64 Ubuntu 22.04 probe 已完整可见，官方 `/bin/sh` 与 rootfs 仍未闭合
 
 - **模块**: NPC RV64 / Linux bring-up / Ubuntu rootfs / 平台设备
