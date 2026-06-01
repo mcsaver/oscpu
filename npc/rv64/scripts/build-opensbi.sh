@@ -42,6 +42,9 @@ case "$(basename -- "$DTB")" in
   npc-rv64-ubuntu-initramfs.dtb)
     make -C "$RV64_DIR/tools" ubuntu-initramfs-dtb
     ;;
+  npc-rv64-ubuntu-shell-initramfs.dtb)
+    make -C "$RV64_DIR/tools" ubuntu-shell-initramfs-dtb
+    ;;
   npc-rv64-rootfs.dtb)
     make -C "$RV64_DIR/tools" rootfs-dtb
     ;;

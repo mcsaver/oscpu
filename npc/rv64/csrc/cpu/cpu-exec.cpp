@@ -108,6 +108,13 @@ static npc_word_t  g_commit_watch_start = 0;
 static npc_word_t  g_commit_watch_end = 0;
 static uint64_t    g_commit_watch_min_commit = 0;
 static uint64_t    g_commit_watch_max_commit = UINT64_MAX;
+static bool        g_commit_watch_stop_on_match = false;
+static uint64_t    g_commit_watch_stop_after = 1;
+static uint64_t    g_commit_watch_match_count = 0;
+static uint64_t    g_commit_watch_post_cycles = 0;
+static bool        g_commit_watch_post_active = false;
+static uint64_t    g_commit_watch_post_deadline = 0;
+static bool        g_commit_watch_matched = false;
 static bool        g_trap_watch_inited = false;
 static bool        g_trap_watch_enabled = false;
 
@@ -245,13 +252,35 @@ static void init_commit_watch(void) {
     uint64_t max_commit = std::strtoull(max_commit_s, &max_end, 0);
     if (max_end != max_commit_s) g_commit_watch_max_commit = max_commit;
   }
+  const char *stop_s = std::getenv("NPC_COMMITWATCH_STOP");
+  g_commit_watch_stop_on_match =
+      stop_s != nullptr && stop_s[0] != '\0' && stop_s[0] != '0';
+  const char *stop_after_s = std::getenv("NPC_COMMITWATCH_STOP_AFTER");
+  if (stop_after_s && stop_after_s[0] != '\0') {
+    char *stop_after_end = nullptr;
+    uint64_t stop_after = std::strtoull(stop_after_s, &stop_after_end, 0);
+    if (stop_after_end != stop_after_s && stop_after > 0) {
+      g_commit_watch_stop_after = stop_after;
+    }
+  }
+  const char *post_cycles_s = std::getenv("NPC_COMMITWATCH_POST_CYCLES");
+  if (post_cycles_s && post_cycles_s[0] != '\0') {
+    char *post_cycles_end = nullptr;
+    uint64_t post_cycles = std::strtoull(post_cycles_s, &post_cycles_end, 0);
+    if (post_cycles_end != post_cycles_s) {
+      g_commit_watch_post_cycles = post_cycles;
+    }
+  }
   g_commit_watch_enabled = true;
   LogBothTag("commitwatch",
              "enabled pc=[0x%016" NPC_PRIxWORD ",0x%016" NPC_PRIxWORD
-             "] commit=[%llu,%llu]",
+             "] commit=[%llu,%llu] stop=%s stop_after=%llu post_cycles=%llu",
              g_commit_watch_start, g_commit_watch_end,
              (unsigned long long)g_commit_watch_min_commit,
-             (unsigned long long)g_commit_watch_max_commit);
+             (unsigned long long)g_commit_watch_max_commit,
+             g_commit_watch_stop_on_match ? "yes" : "no",
+             (unsigned long long)g_commit_watch_stop_after,
+             (unsigned long long)g_commit_watch_post_cycles);
 }
 
 static void maybe_log_commit_watch(npc_word_t pc, uint32_t inst, npc_word_t next_pc,
@@ -266,7 +295,7 @@ static void maybe_log_commit_watch(npc_word_t pc, uint32_t inst, npc_word_t next
   }
 
   LogBothTag("commitwatch",
-             "commit=%llu pc=0x%016" NPC_PRIxWORD
+             "match=%llu commit=%llu pc=0x%016" NPC_PRIxWORD
              " inst=0x%08x next=0x%016" NPC_PRIxWORD
              " rd=%u wen=%u rd_data=0x%016" NPC_PRIxWORD
              " ra=0x%016" NPC_PRIxWORD " sp=0x%016" NPC_PRIxWORD
@@ -276,7 +305,9 @@ static void maybe_log_commit_watch(npc_word_t pc, uint32_t inst, npc_word_t next
              " s6=0x%016" NPC_PRIxWORD " s7=0x%016" NPC_PRIxWORD
              " a0=0x%016" NPC_PRIxWORD " a1=0x%016" NPC_PRIxWORD
              " a2=0x%016" NPC_PRIxWORD " a3=0x%016" NPC_PRIxWORD
-             " a4=0x%016" NPC_PRIxWORD " a5=0x%016" NPC_PRIxWORD,
+             " a4=0x%016" NPC_PRIxWORD " a5=0x%016" NPC_PRIxWORD
+             " a6=0x%016" NPC_PRIxWORD " a7=0x%016" NPC_PRIxWORD,
+             (unsigned long long)(g_commit_watch_match_count + 1),
              (unsigned long long)npc_stats()->commits, pc, inst, next_pc,
              rd_addr, rd_en, rd_data,
              g_shadow_gpr[1], g_shadow_gpr[2], g_shadow_gpr[8],
@@ -284,7 +315,22 @@ static void maybe_log_commit_watch(npc_word_t pc, uint32_t inst, npc_word_t next
              g_shadow_gpr[20], g_shadow_gpr[21], g_shadow_gpr[22],
              g_shadow_gpr[23], g_shadow_gpr[10], g_shadow_gpr[11],
              g_shadow_gpr[12], g_shadow_gpr[13], g_shadow_gpr[14],
-             g_shadow_gpr[15]);
+             g_shadow_gpr[15], g_shadow_gpr[16], g_shadow_gpr[17]);
+  g_commit_watch_match_count++;
+  if (g_commit_watch_stop_on_match &&
+      g_commit_watch_match_count >= g_commit_watch_stop_after) {
+    if (g_commit_watch_post_cycles > 0 && !g_commit_watch_post_active) {
+      g_commit_watch_post_active = true;
+      g_commit_watch_post_deadline =
+          npc_stats()->cycles + g_commit_watch_post_cycles;
+      LogBothTag("commitwatch",
+                 "post window armed cycles=%llu deadline=%llu",
+                 (unsigned long long)g_commit_watch_post_cycles,
+                 (unsigned long long)g_commit_watch_post_deadline);
+    } else if (g_commit_watch_post_cycles == 0) {
+      g_commit_watch_matched = true;
+    }
+  }
 }
 
 static void format_u64_delta(char *buf, size_t size, uint64_t lhs, uint64_t rhs) {
@@ -1304,12 +1350,25 @@ static void report_run_result(void) {
   NpcState *st = npc_state();
   switch (st->state) {
     case NPC_END: {
-      const char *trap_text = (st->halt_ret == 0)
+      const bool guest_watch_exit =
+          (st->halt_ret == 0) && !st->exit_is_ebreak && !st->exit_is_ecall &&
+          npc_guest_expect_matched();
+      const bool commit_watch_exit =
+          (st->halt_ret == 0) && !st->exit_is_ebreak && !st->exit_is_ecall &&
+          g_commit_watch_matched;
+      const char *trap_text = guest_watch_exit
+          ? (ANSI_FG_GREEN "GUEST EXPECT MATCH" ANSI_NONE)
+          : commit_watch_exit
+          ? (ANSI_FG_GREEN "COMMIT WATCH MATCH" ANSI_NONE)
+          : (st->halt_ret == 0)
           ? (ANSI_FG_GREEN "HIT GOOD TRAP" ANSI_NONE)
           : (ANSI_FG_RED   "HIT BAD TRAP"  ANSI_NONE);
       LogBothTag("cpu_exec", "npc: %s at pc = 0x%016" NPC_PRIxWORD, trap_text, st->halt_pc);
       LogBoth("exit via %s, code=%" PRIu64 ", cycles=%llu, commits=%llu",
-              st->exit_is_ebreak ? "ebreak" : (st->exit_is_ecall ? "ecall" : "unknown"),
+              guest_watch_exit ? "guest-watch" :
+                  (commit_watch_exit ? "commit-watch" :
+                  (st->exit_is_ebreak ? "ebreak" :
+                  (st->exit_is_ecall ? "ecall" : "unknown"))),
               (uint64_t)st->halt_ret,
               (unsigned long long)npc_stats()->cycles,
               (unsigned long long)npc_stats()->commits);
@@ -1492,6 +1551,11 @@ int npc_cpu_exec(uint64_t max_instructions) {
   uint64_t timer_start_us = npc_get_time_us();
   uint64_t executed = 0;
   ProgressReporter progress = make_progress_reporter(max_instructions);
+  npc_reset_guest_expect();
+  g_commit_watch_matched = false;
+  g_commit_watch_match_count = 0;
+  g_commit_watch_post_active = false;
+  g_commit_watch_post_deadline = 0;
 
   // 运行循环：推进周期、记录提交、接住退出/异常
   while (!Verilated::gotFinish()) {
@@ -1505,6 +1569,36 @@ int npc_cpu_exec(uint64_t max_instructions) {
     }
 
     step_cycle();
+
+    if (npc_guest_expect_matched()) {
+      st->state = NPC_END;
+      st->halt_pc = g_top->debug_pc_o;
+      st->halt_ret = 0;
+      st->exit_is_ebreak = false;
+      st->exit_is_ecall = false;
+      LogBothTag("guest-watch", "matched NPC_GUEST_EXPECT='%s'",
+                 npc_guest_expect_text());
+      return finish_exec(timer_start_us, 0, true);
+    }
+    if (g_commit_watch_post_active &&
+        npc_stats()->cycles >= g_commit_watch_post_deadline) {
+      g_commit_watch_post_active = false;
+      g_commit_watch_matched = true;
+      LogBothTag("commitwatch",
+                 "post window expired at cycle=%llu after %llu match(es)",
+                 (unsigned long long)npc_stats()->cycles,
+                 (unsigned long long)g_commit_watch_match_count);
+    }
+    if (g_commit_watch_matched) {
+      st->state = NPC_END;
+      st->halt_pc = g_top->debug_pc_o;
+      st->halt_ret = 0;
+      st->exit_is_ebreak = false;
+      st->exit_is_ecall = false;
+      LogBothTag("commitwatch", "stop after %llu matching committed PC(s)",
+                 (unsigned long long)g_commit_watch_match_count);
+      return finish_exec(timer_start_us, 0, true);
+    }
 
     if (g_exit_event.valid) {
       report_exit();

@@ -27,6 +27,10 @@ module tb_axi_lite_to_uart;
   wire [7:0] tx_data;
   wire access_valid;
   wire access_write;
+  wire [11:0] access_addr;
+  wire [31:0] access_wdata;
+  wire [3:0] access_wstrb;
+  wire [31:0] access_rdata;
   wire irq;
 
   AxiLiteToUart dut (
@@ -53,6 +57,10 @@ module tb_axi_lite_to_uart;
     .uart_tx_data_o(tx_data),
     .uart_access_valid_o(access_valid),
     .uart_access_write_o(access_write),
+    .uart_access_addr_o(access_addr),
+    .uart_access_wdata_o(access_wdata),
+    .uart_access_wstrb_o(access_wstrb),
+    .uart_access_rdata_o(access_rdata),
     .uart_irq_o(irq)
   );
 
@@ -87,6 +95,8 @@ module tb_axi_lite_to_uart;
       tb_check1("read arready", arready, 1'b1);
       tb_check1("read access pulse", access_valid, 1'b1);
       tb_check1("read access is read", access_write, 1'b0);
+      tb_check32("read access addr", {20'b0, access_addr}, {20'b0, addr[11:0]});
+      tb_check32("read access rdata", access_rdata, exp_data);
       `TB_TICK(clk);
       arvalid = 1'b0;
       #1;
@@ -117,6 +127,9 @@ module tb_axi_lite_to_uart;
       tb_check1("write wready", wready, 1'b1);
       tb_check1("write access pulse", access_valid, 1'b1);
       tb_check1("write access is write", access_write, 1'b1);
+      tb_check32("write access addr", {20'b0, access_addr}, {20'b0, addr[11:0]});
+      tb_check32("write access wdata", access_wdata, data);
+      tb_check32("write access wstrb", {28'b0, access_wstrb}, {28'b0, strb});
       tb_check1("write tx_valid", tx_valid, exp_tx);
       if (exp_tx) tb_check32("write tx_data", {24'b0, tx_data}, {24'b0, exp_ch});
       `TB_TICK(clk);
@@ -143,9 +156,21 @@ module tb_axi_lite_to_uart;
     tb_check1("ier raises irq", irq, 1'b1);
     axi_read_word(32'h1000_0000, 32'h0002_0200);
     #1;
-    tb_check1("iir read clears irq", irq, 1'b0);
+    tb_check1("iir read keeps level irq", irq, 1'b1);
+    axi_write_word(32'h1000_0000, 32'h0000_0000, 4'b0010, 1'b0, 8'h00);
+    #1;
+    tb_check1("ier disable drops irq", irq, 1'b0);
+    axi_write_word(32'h1000_0000, 32'h0001_0000, 4'b0100, 1'b0, 8'h00);
+    axi_write_word(32'h1000_0000, 32'h0000_0200, 4'b0010, 1'b0, 8'h00);
+    axi_read_word(32'h1000_0000, 32'h00c2_0200);
     axi_write_word(32'h1000_0000, 32'h0000_0000, 4'b0010, 1'b0, 8'h00);
     axi_write_word(32'h1000_0004, 32'h0000_0043, 4'b0001, 1'b0, 8'h00);
+    axi_write_word(32'h1000_0000, 32'h8000_0000, 4'b1000, 1'b0, 8'h00);
+    axi_write_word(32'h1000_0000, 32'h0000_0034, 4'b0001, 1'b0, 8'h00);
+    axi_write_word(32'h1000_0000, 32'h0000_1200, 4'b0010, 1'b0, 8'h00);
+    axi_read_word(32'h1000_0000, 32'h80c1_1234);
+    axi_write_word(32'h1000_0000, 32'h0000_0000, 4'b1000, 1'b0, 8'h00);
+    axi_write_word(32'h1000_0000, 32'h0000_0044, 4'b0001, 1'b1, 8'h44);
 
     tb_finish("tb_axi_lite_to_uart");
   end

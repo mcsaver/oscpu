@@ -7,10 +7,14 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <stdlib.h>
 
 static FILE *g_log_file = NULL;
 static char  g_guest_buf[4096];
 static int   g_guest_buf_len = 0;
+static bool  g_guest_expect_inited = false;
+static bool  g_guest_expect_matched = false;
+static const char *g_guest_expect = NULL;
 
 static const char *short_file_name(const char *file) {
   const char *slash = strrchr(file, '/');
@@ -23,11 +27,47 @@ static void vprint_to_file(const char *fmt, va_list args) {
   fflush(g_log_file);
 }
 
+static void init_guest_expect(void) {
+  if (g_guest_expect_inited) return;
+  g_guest_expect_inited = true;
+  g_guest_expect = getenv("NPC_GUEST_EXPECT");
+  if (g_guest_expect && g_guest_expect[0] == '\0') {
+    g_guest_expect = NULL;
+  }
+}
+
+void npc_reset_guest_expect(void) {
+  g_guest_expect_inited = false;
+  g_guest_expect_matched = false;
+  g_guest_expect = NULL;
+}
+
+bool npc_guest_expect_matched(void) {
+  init_guest_expect();
+  return g_guest_expect_matched;
+}
+
+const char *npc_guest_expect_text(void) {
+  init_guest_expect();
+  return g_guest_expect ? g_guest_expect : "";
+}
+
+static void check_guest_expect_line(const char *line) {
+  init_guest_expect();
+  if (!g_guest_expect || g_guest_expect_matched) return;
+  if (strstr(line, g_guest_expect)) {
+    g_guest_expect_matched = true;
+  }
+}
+
 static void flush_guest_line_buffer(void) {
-  if (!g_log_file || g_guest_buf_len == 0) return;
+  if (g_guest_buf_len == 0) return;
   g_guest_buf[g_guest_buf_len] = '\0';
-  fprintf(g_log_file, "[guest] %s\n", g_guest_buf);
-  fflush(g_log_file);
+  check_guest_expect_line(g_guest_buf);
+  if (g_log_file) {
+    fprintf(g_log_file, "[guest] %s\n", g_guest_buf);
+    fflush(g_log_file);
+  }
   g_guest_buf_len = 0;
 }
 
@@ -81,11 +121,14 @@ bool npc_log_enable(void) { return true; }
 void npc_log_putchar(char ch) {
   fputc((unsigned char)ch, stdout);
   fflush(stdout);
-  if (!g_log_file) return;
   if (ch == '\n') { flush_guest_line_buffer(); return; }
-  if (ch != '\r' && g_guest_buf_len < (int)sizeof(g_guest_buf) - 1) {
-    g_guest_buf[g_guest_buf_len++] = ch;
+  if (ch == '\r') return;
+  if (g_guest_buf_len >= (int)sizeof(g_guest_buf) - 1) {
+    flush_guest_line_buffer();
   }
+  g_guest_buf[g_guest_buf_len++] = ch;
+  g_guest_buf[g_guest_buf_len] = '\0';
+  check_guest_expect_line(g_guest_buf);
 }
 
 void npc_log_impl(const char *file, int line, const char *func, const char *fmt, ...) {

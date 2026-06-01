@@ -30,6 +30,13 @@
 - 下游节点：
   - `ysyxSoC`：Chisel SoC、CPU ABI、外设地址图与生成物
   - `yosys-sta`：综合、STA、PPA 节点
+- RV64 Linux/Ubuntu 扩展后端：
+  - `npc/rv64`：RV64 OoO core、OpenSBI/Linux/Ubuntu bring-up、Verilator target
+  - `npc/rv64/env/`：工作区内的 OpenSBI、Linux、BusyBox、Ubuntu Base、QEMU、镜像与日志套件
+  - `rv64-linux`：OpenSBI/Linux/Ubuntu 启动层级与 QEMU/NPC 证据分层
+  - `linux-device`：UART、CLINT、PLIC、virtio-mmio、rootfs 和 Linux driver 设备契约
+  - `display-vga`：Linux-visible framebuffer/simplefb/simpledrm/fbcon 与 SDL scanout
+  - `verilator-tapeout`：Verilator 真实性能仿真、仿真-only 边界和后续可流片约束
 
 ## 图节点契约
 
@@ -158,6 +165,46 @@ device-contract → am-impl → nemu-device → am-test → compare → record
 
 适用场景：IOE / 设备模型 / AM 平台联调。
 
+### `rv64-ubuntu-probe-loop`
+
+```text
+recall → qemu-reference → npc-verilator-run → uart-visible-check → record
+```
+
+适用场景：用同一份 OpenSBI/Linux/DTB/Ubuntu probe initramfs 先跑 QEMU reference，再跑 NPC/Verilator target，验证是否达到 Ubuntu probe `/init` 和 `/etc/os-release` 可见 gate。
+
+### `rv64-ubuntu-rootfs-loop`
+
+```text
+rootfs-artifact → virtio-device-contract → multi-source-plic → qemu-reference → npc-rootfs-run → shell-check → record
+```
+
+适用场景：从 initramfs 推进到真实 Ubuntu rootfs，要求 virtio-mmio block、多源 PLIC、Linux driver probe、`/dev/vda` 与 rootfs mount 形成证据链。
+
+### `linux-display-loop`
+
+```text
+display-contract → dtb-framebuffer → kernel-config → npc-sdl-scanout → fbcon-smoke → record
+```
+
+适用场景：让 Linux/Ubuntu 文本输出进入 Linux-visible framebuffer/fbcon，并由 Verilator host SDL 窗口扫描显示；明确区分 AM legacy VGA 与 Linux framebuffer。
+
+### `rv64gc-userland-loop`
+
+```text
+isa-abi-recall → fp-focused-smoke → dynamic-linker-smoke → ubuntu-userland-run → record
+```
+
+适用场景：验证官方 Ubuntu riscv64 `rv64gc/lp64d` 用户态、动态链接器、libc 与 `/bin/sh`，不得用 rv64imac/lp64 syscall-only probe 代替。
+
+### `verilator-tapeout-readiness-loop`
+
+```text
+synth-boundary-audit → verilator-perf-run → rtl-invariant-check → focused-regression → ppa-risk-record → record
+```
+
+适用场景：在暂不使用 Vivado 的阶段，用 Verilator 做尽量真实的性能/系统仿真，同时审计 core/SoC 可综合边界和后续流片风险。
+
 ### `agent-env-refactor`
 
 ```text
@@ -181,7 +228,9 @@ reproduce → collect-log-or-trace → localize-boundary → fix → rerun → r
 | L0 | `ysyx-coordinator` | 选择静态图 / 动态图，切分节点，调度与记录 |
 | L1 | `agent-system` | 重构 agent 架构、指令、记忆、蓝图 |
 | L1 | `hardware-flow` | 管理 NEMU / AM / am-kernels / npc-sim / difftest 闭环，并为 SoC、PPA 节点接入做编排 |
-| L2 | `npc`、`ysyx-soc`、`nemu`、`abstract-machine`、`am-kernels`、`difftest` 等 | 在各自模块内实现与调试 |
+| L1 | `rv64-linux` | 管理 RV64 OpenSBI/Linux/Ubuntu 证据分层和 QEMU/NPC bring-up 闭环 |
+| L1 | `verilator-tapeout` | 管理 Verilator 真实性能仿真、仿真-only 边界和后续流片约束 |
+| L2 | `npc`、`linux-device`、`display-vga`、`ysyx-soc`、`nemu`、`abstract-machine`、`am-kernels`、`difftest` 等 | 在各自模块内实现与调试 |
 | L3 | `.github/memory/` 与 `study/` | 提供长期知识、经验和稳定入口 |
 
 ## 当前阶段门槛
@@ -216,9 +265,13 @@ reproduce → collect-log-or-trace → localize-boundary → fix → rerun → r
 2. **P1 参考闭环期**：稳定 `am-kernels -> AM -> NEMU` 工作流，并补结构化 task report / dispatch log
 3. **P2 目标接入期**：通过 `npc/sim` 稳定 `npc/single` 与 `npc/soc` 后端、AM `riscv32-npc` 入口和 Verilator target 运行链路
 4. **P3 对比与扩展期**：稳定 `difftest`、NEMU `CONFIG_SOC_SIM`、ysyxSoC 接入，并逐步引入 `yosys-sta`、PPA、时序诊断等更强的 EDA 节点
+5. **P4 RV64 Ubuntu 系统闭环期**：围绕 `npc/rv64` 用 Verilator-first 路线分层推进 OpenSBI/Linux/Ubuntu 22.04，从 probe `/init`、官方 `/bin/sh`、dynamic linker/libc、rootfs/virtio、Linux-visible display 到长跑性能证据逐级闭合
+6. **P5 流片水准收敛期**：在设备契约、可综合边界和系统 gate 清晰后，再把 Vivado/FPGA、综合、STA、PPA、模块 testbench 与 RTL 不变量作为下游 signoff 节点接入，而不是用它们替代功能 bring-up
 
 ## 当前落地原则
 
 - 优先使用工作区已经具备的真实链路，而不是为了“像 EDA”而空转设计概念
 - 让 agent 围绕镜像、NEMU 参考运行、NPC target 仿真、difftest 日志与结构化记录工作；SoC/Chisel 与综合/STA 作为明确的下游或并行节点接入
+- RV64 Linux/Ubuntu 任务默认走 QEMU reference + NPC/Verilator target 双证据，并按 `/init`、`/etc/os-release`、官方 `/bin/sh`、rootfs 和 Linux-visible framebuffer 分层记录
+- 暂不把 Vivado/FPGA 作为 RV64 Ubuntu 功能 bring-up 前置；Verilator 平台可以有 DPI/host C++/SDL，但 core/长期 RTL 必须保留可综合边界
 - 每一轮重构都要留下明确的静态图模板、节点契约与记忆更新，避免体系再次退化成散乱规则

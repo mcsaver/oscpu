@@ -98,7 +98,16 @@ import "DPI-C" function void npc_ooo_cycle_event(
 import "DPI-C" function void npc_uart_event(
   input int unsigned is_write,
   input int unsigned tx_valid,
-  input int unsigned tx_data
+  input int unsigned tx_data,
+  input int unsigned access_addr,
+  input longint unsigned access_wdata,
+  input int unsigned access_wstrb,
+  input longint unsigned access_rdata
+);
+
+import "DPI-C" function void npc_irq_event(
+  input int unsigned uart_irq,
+  input int unsigned plic_irq
 );
 
 module NpcSimTop (
@@ -205,6 +214,10 @@ module NpcSimTop (
   logic [7:0] uart_tx_data_w;
   logic uart_access_valid_w;
   logic uart_access_write_w;
+  logic [11:0] uart_access_addr_w;
+  logic [`XLEN-1:0] uart_access_wdata_w;
+  logic [`STRB_W-1:0] uart_access_wstrb_w;
+  logic [`XLEN-1:0] uart_access_rdata_w;
   logic [63:0] clint_mtime_w;
   logic clint_msip_irq_w;
   logic clint_mtip_irq_w;
@@ -226,6 +239,8 @@ module NpcSimTop (
   logic sim_bpu_pred_taken_w;
   logic sim_bpu_resolve_correct_w;
   logic exit_reported_q;
+  logic uart_irq_prev_q;
+  logic plic_irq_prev_q;
   logic ifu_axi_abort_w;
   logic lsu_axi_abort_w;
 
@@ -443,6 +458,10 @@ module NpcSimTop (
     .uart_tx_data_o(uart_tx_data_w),
     .uart_access_valid_o(uart_access_valid_w),
     .uart_access_write_o(uart_access_write_w),
+    .uart_access_addr_o(uart_access_addr_w),
+    .uart_access_wdata_o(uart_access_wdata_w),
+    .uart_access_wstrb_o(uart_access_wstrb_w),
+    .uart_access_rdata_o(uart_access_rdata_w),
     .uart_irq_o(uart_irq_w)
   );
 
@@ -766,13 +785,29 @@ module NpcSimTop (
   always_ff @(posedge clk) begin
     if (rst) begin
       exit_reported_q <= 1'b0;
+      uart_irq_prev_q <= 1'b0;
+      plic_irq_prev_q <= 1'b0;
     end else begin
+      if ((uart_irq_w != uart_irq_prev_q) ||
+          (plic_external_irq_w != plic_irq_prev_q)) begin
+        npc_irq_event(
+          uart_irq_w ? 32'd1 : 32'd0,
+          plic_external_irq_w ? 32'd1 : 32'd0
+        );
+      end
+      uart_irq_prev_q <= uart_irq_w;
+      plic_irq_prev_q <= plic_external_irq_w;
+
       if (uart_access_valid_w) begin
         // UART 已从 DPI 大从设备拆出；这里补回仿真侧输出和 difftest MMIO skip。
         npc_uart_event(
           uart_access_write_w ? 32'd1 : 32'd0,
           uart_tx_valid_w ? 32'd1 : 32'd0,
-          {24'd0, uart_tx_data_w}
+          {24'd0, uart_tx_data_w},
+          {20'd0, uart_access_addr_w},
+          uart_access_wdata_w,
+          {{(32-`STRB_W){1'b0}}, uart_access_wstrb_w},
+          uart_access_rdata_w
         );
       end
 

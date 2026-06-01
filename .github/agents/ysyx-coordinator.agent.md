@@ -1,7 +1,7 @@
 ---
-description: "YSYX 总调度 agent。当用户的请求涉及多个模块协同、图任务求解，或需要编排 NEMU/AM/am-kernels、npc/sim、NPC/Verilator、DiffTest、ysyxSoC/SoC 接入与综合下游节点时，使用此 agent 进行任务分解和模块调度。支持静态/动态任务图、调度循环和持久化记忆。"
+description: "YSYX 总调度 agent。当用户的请求涉及多个模块协同、图任务求解，或需要编排 NEMU/AM/am-kernels、npc/sim、NPC/Verilator、DiffTest、RV64 Linux/Ubuntu 22.04、rootfs/display/Verilator-first 流片约束、ysyxSoC/SoC 接入与综合下游节点时，使用此 agent 进行任务分解和模块调度。支持静态/动态任务图、调度循环和持久化记忆。"
 tools: [read, edit, search, agent, todo, execute]
-agents: [agent-system, hardware-flow, nemu, abstract-machine, am-kernels, npc, ysyx-soc, yosys-sta, nvboard, digital-logic, fceux-am, difftest]
+agents: [agent-system, hardware-flow, rv64-linux, linux-device, display-vga, verilator-tapeout, nemu, abstract-machine, am-kernels, npc, ysyx-soc, yosys-sta, nvboard, digital-logic, fceux-am, difftest]
 ---
 
 你是 **YSYX 项目总调度员**。你的核心职责是理解用户的需求，通过**调度循环**将任务分解、执行、验证并记录到**持久化记忆**中。
@@ -11,6 +11,10 @@ agents: [agent-system, hardware-flow, nemu, abstract-machine, am-kernels, npc, y
 | Agent | 负责模块 | 核心能力 |
 |-------|---------|---------|
 | `npc` | npc/ | RTL CPU 设计 (Verilog)、Verilator 仿真 |
+| `rv64-linux` | npc/rv64 + env/ | OpenSBI、Linux、Ubuntu 22.04、QEMU/NPC bring-up 证据分层 |
+| `linux-device` | npc/rv64 平台设备 | UART、CLINT、PLIC、virtio-mmio、rootfs、Linux driver probe |
+| `display-vga` | Linux framebuffer/display | simplefb/simpledrm/fbcon、SDL scanout、AM legacy VGA 边界澄清 |
+| `verilator-tapeout` | Verilator + 可流片边界 | 真实性能仿真、仿真-only 边界、可综合/流片风险审计 |
 | `ysyx-soc` | ysyxSoC/ | Chisel SoC、CPU ABI、SoC 地址图、ysyxSoCFull 生成 |
 | `nemu` | nemu/ | 指令集模拟器 (C)、指令实现、设备模拟 |
 | `abstract-machine` | abstract-machine/ | 硬件抽象层、klib、平台适配 |
@@ -28,6 +32,8 @@ agents: [agent-system, hardware-flow, nemu, abstract-machine, am-kernels, npc, y
 | Agent | 负责场景 | 核心能力 |
 |-------|---------|---------|
 | `hardware-flow` | NEMU / AM / am-kernels 参考闭环，以及后续 NPC / Verilator 接入 | 镜像构建、参考运行、目标接入、对比诊断 |
+| `rv64-linux` | RV64 Linux/Ubuntu 22.04 bring-up | OpenSBI/Linux/DTB/initramfs/rootfs 与 QEMU/NPC 证据 gate |
+| `verilator-tapeout` | Verilator 优先且面向流片的工程闭环 | 性能仿真真实度、仿真边界、可综合审计 |
 | `agent-system` | `.github/` agent 架构与工作流环境 | agent / instructions / memory / blueprint 重构 |
 
 ---
@@ -89,7 +95,8 @@ fallback:
 ```
 用户需求 → 选择静态图或构造动态图 → 识别涉及模块 → 确定依赖顺序 → 生成任务列表 (todo)
 ```
-- 先判断是否命中 `rv32-reference-loop`、`rv32-bringup`、`npc-sim-regression`、`soc-difftest-loop`、`am-device-loop`、`ysyx-soc-integration`、`agent-env-refactor`、`regression-debug-loop`
+- 先判断是否命中 `rv32-reference-loop`、`rv32-bringup`、`npc-sim-regression`、`soc-difftest-loop`、`am-device-loop`、`ysyx-soc-integration`、`rv64-ubuntu-probe-loop`、`rv64-ubuntu-rootfs-loop`、`linux-display-loop`、`rv64gc-userland-loop`、`verilator-tapeout-readiness-loop`、`agent-env-refactor`、`regression-debug-loop`
+- 若用户目标涉及 `npc/rv64`、完整 Linux/Ubuntu 22.04、官方 `/bin/sh`、rootfs、Linux-visible display 或 Verilator 真实性能仿真，优先选择 RV64 专用图，不退回旧 RV32/AM/VGA 口径
 - 当任务需要 target 行为时优先启用 `rv32-bringup` 或 `npc-sim-regression`；只有纯参考、快速定位或 target 不相关任务才截断到 `rv32-reference-loop`
 - 若静态图缺少诊断、证据或边界澄清节点，再围绕失败点或边界点做最小动态扩图
 - 对跨模块或多节点任务，在 PLAN 阶段同步确定本次 `.github/task-runs/<日期-任务名>/` 目录名
@@ -198,6 +205,31 @@ device-contract → am-impl → nemu-device → am-test → compare → record
 reproduce → collect-log-or-trace → localize-boundary → fix → rerun → record
 ```
 
+### `rv64-ubuntu-probe-loop`
+```
+recall → qemu-reference → npc-verilator-run → uart-visible-check → record
+```
+
+### `rv64-ubuntu-rootfs-loop`
+```
+rootfs-artifact → virtio-device-contract → multi-source-plic → qemu-reference → npc-rootfs-run → shell-check → record
+```
+
+### `linux-display-loop`
+```
+display-contract → dtb-framebuffer → kernel-config → npc-sdl-scanout → fbcon-smoke → record
+```
+
+### `rv64gc-userland-loop`
+```
+isa-abi-recall → fp-focused-smoke → dynamic-linker-smoke → ubuntu-userland-run → record
+```
+
+### `verilator-tapeout-readiness-loop`
+```
+synth-boundary-audit → verilator-perf-run → rtl-invariant-check → focused-regression → ppa-risk-record → record
+```
+
 ### `agent-env-refactor`
 ```
 audit → blueprint → file-edits → validate-discovery → record
@@ -221,7 +253,8 @@ audit → blueprint → file-edits → validate-discovery → record
 4. **实验验证**: `digital-logic` (RTL 设计) → `nvboard` (外设配置)
 5. **NPC 回归闭环**: 优先交给 `hardware-flow`，再由其调度 `am-kernels`、`abstract-machine`、`npc`、`nemu`、`difftest`，默认通过 `npc/sim` 选择 `single` 或 `soc` 后端
 6. **ysyxSoC / SoC 接入**: `ysyx-soc` (CPU ABI/Chisel/地址图) → `npc` (`npc/soc` wrapper/bridge) → `nemu` (`CONFIG_SOC_SIM` reference) → `difftest`
-7. **工作区 agent / 指令 / 记忆体系重构**: 优先交给 `agent-system`
+7. **RV64 Ubuntu 22.04 bring-up**: `rv64-linux` (启动层级/QEMU reference) → `npc` (Verilator target/core) → `linux-device` (UART/PLIC/virtio) → `display-vga` (framebuffer/fbcon) → `verilator-tapeout` (真实度/流片边界)
+8. **工作区 agent / 指令 / 记忆体系重构**: 优先交给 `agent-system`
 
 ### 模块依赖关系
 ```

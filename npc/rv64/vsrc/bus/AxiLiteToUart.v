@@ -32,6 +32,10 @@ module AxiLiteToUart #(
   output [7:0] uart_tx_data_o,
   output uart_access_valid_o,
   output uart_access_write_o,
+  output [11:0] uart_access_addr_o,
+  output [DATA_W-1:0] uart_access_wdata_o,
+  output [STRB_W-1:0] uart_access_wstrb_o,
+  output [DATA_W-1:0] uart_access_rdata_o,
   output uart_irq_o
 );
 
@@ -61,6 +65,14 @@ module AxiLiteToUart #(
   assign s_axi_awready_o = !aw_seen_q && !s_axi_bvalid_o;
   assign s_axi_wready_o = !w_seen_q && !s_axi_bvalid_o;
   assign s_axi_bresp_o = 2'b00;
+  assign uart_access_addr_o = write_done_w ? write_addr_low_w
+                                           : s_axi_araddr_i[11:0];
+  assign uart_access_wdata_o = write_done_w ? write_data_w
+                                            : {DATA_W{1'b0}};
+  assign uart_access_wstrb_o = write_done_w ? write_strb_w
+                                            : {STRB_W{1'b0}};
+  assign uart_access_rdata_o = ar_fire_w ? uart_rdata_w
+                                         : {DATA_W{1'b0}};
 
   Uart #(
     .DATA_W(DATA_W),

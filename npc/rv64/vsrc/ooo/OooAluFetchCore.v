@@ -114,6 +114,28 @@ module OooAluFetchCore #(
       (1 << BRANCH_TARGET_CACHE_INDEX_W);
   localparam [`INST_W-1:0] SEMIHOST_ENTER_INST = 32'h01f01013;
   localparam [`INST_W-1:0] SEMIHOST_EXIT_INST  = 32'h40705013;
+  localparam [6:0] FP_FUNCT7_FADD_S     = 7'b0000000;
+  localparam [6:0] FP_FUNCT7_FADD_D     = 7'b0000001;
+  localparam [6:0] FP_FUNCT7_FSUB_S     = 7'b0000100;
+  localparam [6:0] FP_FUNCT7_FSUB_D     = 7'b0000101;
+  localparam [6:0] FP_FUNCT7_FMUL_S     = 7'b0001000;
+  localparam [6:0] FP_FUNCT7_FMUL_D     = 7'b0001001;
+  localparam [6:0] FP_FUNCT7_FDIV_S     = 7'b0001100;
+  localparam [6:0] FP_FUNCT7_FDIV_D     = 7'b0001101;
+  localparam [6:0] FP_FUNCT7_FSQRT_S    = 7'b0101100;
+  localparam [6:0] FP_FUNCT7_FSQRT_D    = 7'b0101101;
+  localparam [6:0] FP_FUNCT7_FSGNJ_S    = 7'b0010000;
+  localparam [6:0] FP_FUNCT7_FSGNJ_D    = 7'b0010001;
+  localparam [6:0] FP_FUNCT7_FMINMAX_S  = 7'b0010100;
+  localparam [6:0] FP_FUNCT7_FMINMAX_D  = 7'b0010101;
+  localparam [6:0] FP_FUNCT7_FCMP_S     = 7'b1010000;
+  localparam [6:0] FP_FUNCT7_FCMP_D     = 7'b1010001;
+  localparam [6:0] FP_FUNCT7_FCVT_INT_D = 7'b1101001;
+  localparam [6:0] FP_FUNCT7_FCVT_D_INT = 7'b1100001;
+  localparam [6:0] FP_FUNCT7_FMV_X      = 7'b1111000;
+  localparam [6:0] FP_FUNCT7_FMV_D_X    = 7'b1111001;
+  localparam [6:0] FP_FUNCT7_FMV_X_W    = 7'b1110000;
+  localparam [6:0] FP_FUNCT7_FMV_X_D    = 7'b1110001;
 
   function [FETCH_PACKET_COUNT_W-1:0] ptr_inc;
     input [FETCH_PACKET_COUNT_W-1:0] ptr;
@@ -192,6 +214,14 @@ module OooAluFetchCore #(
     input [4:0] rd;
     begin
       enc_j = {imm[20], imm[10:1], imm[11], imm[19:12], rd, `OPCODE_JAL};
+    end
+  endfunction
+
+  function [`XLEN-1:0] rv32_imm_j;
+    input [`INST_W-1:0] inst;
+    begin
+      rv32_imm_j = {{(`XLEN-21){inst[31]}}, inst[31], inst[19:12],
+                    inst[20], inst[30:21], 1'b0};
     end
   endfunction
 
@@ -624,6 +654,7 @@ module OooAluFetchCore #(
   reg pending_fp_load_q;
   reg pending_fp_store_q;
   reg pending_fp_double_q;
+  reg pending_fp_gpr_write_q;
   reg pending_arch_trap_q;
   reg [`TRAP_CAUSE_W-1:0] pending_trap_cause_q;
   reg [`XLEN-1:0] pending_trap_pc_q;
@@ -690,8 +721,13 @@ module OooAluFetchCore #(
   reg [`XLEN-1:0] ctrl_commit_pc_q;
   reg [`INST_W-1:0] ctrl_commit_inst_q;
   reg [`XLEN-1:0] ctrl_commit_next_pc_q;
+  reg ctrl_commit_rd_en_q;
+  reg [`REG_ADDR_W-1:0] ctrl_commit_rd_addr_q;
+  reg [`XLEN-1:0] ctrl_commit_rd_data_q;
+  reg ctrl_commit_write_q;
   reg backend_drained_q;
   reg core_trap_flush_q;
+  reg core_serial_flush_q;
   reg checkpoint_mem_flush_q;
 
   wire stop_pending_owner_w =
@@ -702,8 +738,9 @@ module OooAluFetchCore #(
       branch_spec_active_q;
   wire orphan_stop_pending_w = stop_pending_q && !stop_pending_owner_w;
   wire stop_pending_busy_w = stop_pending_q && !orphan_stop_pending_w;
-  wire can_run_w = run_i && !core_trap_flush_q && !stop_pending_busy_w &&
-                   !halted_q && !trap_valid_q && !exit_valid_q;
+  wire can_run_w = run_i && !core_trap_flush_q && !core_serial_flush_q &&
+                   !stop_pending_busy_w && !halted_q && !trap_valid_q &&
+                   !exit_valid_q;
   wire fifo_empty_storage_w = (fifo_count_q == {FETCH_COUNT_W{1'b0}});
   wire fetch_rsp_dispatch_bypass_w =
       fifo_empty_storage_w && can_run_w && outstanding_valid_q &&
@@ -813,10 +850,99 @@ module OooAluFetchCore #(
       (head_inst0_w[6:0] == `OPCODE_OP_FP) &&
       (head_inst0_w[14:12] == 3'b000) &&
       (head_inst0_w[24:20] == 5'b00000) &&
-      ((head_inst0_w[31:25] == 7'b1111000) ||
-       (head_inst0_w[31:25] == 7'b1111001));
+      ((head_inst0_w[31:25] == FP_FUNCT7_FMV_X) ||
+       (head_inst0_w[31:25] == FP_FUNCT7_FMV_D_X));
+  wire head0_fp_move_to_gpr_raw_w =
+      head0_decode_valid_w &&
+      (head_inst0_w[6:0] == `OPCODE_OP_FP) &&
+      (head_inst0_w[14:12] == 3'b000) &&
+      (head_inst0_w[24:20] == 5'b00000) &&
+      ((head_inst0_w[31:25] == FP_FUNCT7_FMV_X_W) ||
+       (head_inst0_w[31:25] == FP_FUNCT7_FMV_X_D));
+  wire head0_fp_class_raw_w =
+      head0_decode_valid_w &&
+      (head_inst0_w[6:0] == `OPCODE_OP_FP) &&
+      (head_inst0_w[14:12] == 3'b001) &&
+      (head_inst0_w[24:20] == 5'b00000) &&
+      ((head_inst0_w[31:25] == FP_FUNCT7_FMV_X_W) ||
+       (head_inst0_w[31:25] == FP_FUNCT7_FMV_X_D));
+  wire head0_fp_sgnj_raw_w =
+      head0_decode_valid_w &&
+      (head_inst0_w[6:0] == `OPCODE_OP_FP) &&
+      ((head_inst0_w[14:12] == 3'b000) ||
+       (head_inst0_w[14:12] == 3'b001) ||
+       (head_inst0_w[14:12] == 3'b010)) &&
+      ((head_inst0_w[31:25] == FP_FUNCT7_FSGNJ_S) ||
+       (head_inst0_w[31:25] == FP_FUNCT7_FSGNJ_D));
+  wire head0_fp_addsub_raw_w =
+      head0_decode_valid_w &&
+      (head_inst0_w[6:0] == `OPCODE_OP_FP) &&
+      ((head_inst0_w[14:12] <= 3'b100) ||
+       (head_inst0_w[14:12] == 3'b111)) &&
+      ((head_inst0_w[31:25] == FP_FUNCT7_FADD_S) ||
+       (head_inst0_w[31:25] == FP_FUNCT7_FADD_D) ||
+       (head_inst0_w[31:25] == FP_FUNCT7_FSUB_S) ||
+       (head_inst0_w[31:25] == FP_FUNCT7_FSUB_D));
+  wire head0_fp_mul_raw_w =
+      head0_decode_valid_w &&
+      (head_inst0_w[6:0] == `OPCODE_OP_FP) &&
+      ((head_inst0_w[14:12] <= 3'b100) ||
+       (head_inst0_w[14:12] == 3'b111)) &&
+      ((head_inst0_w[31:25] == FP_FUNCT7_FMUL_S) ||
+       (head_inst0_w[31:25] == FP_FUNCT7_FMUL_D));
+  wire head0_fp_div_raw_w =
+      head0_decode_valid_w &&
+      (head_inst0_w[6:0] == `OPCODE_OP_FP) &&
+      ((head_inst0_w[14:12] <= 3'b100) ||
+       (head_inst0_w[14:12] == 3'b111)) &&
+      ((head_inst0_w[31:25] == FP_FUNCT7_FDIV_S) ||
+       (head_inst0_w[31:25] == FP_FUNCT7_FDIV_D));
+  wire head0_fp_sqrt_raw_w =
+      head0_decode_valid_w &&
+      (head_inst0_w[6:0] == `OPCODE_OP_FP) &&
+      (head_inst0_w[24:20] == 5'b00000) &&
+      ((head_inst0_w[14:12] <= 3'b100) ||
+       (head_inst0_w[14:12] == 3'b111)) &&
+      ((head_inst0_w[31:25] == FP_FUNCT7_FSQRT_S) ||
+       (head_inst0_w[31:25] == FP_FUNCT7_FSQRT_D));
+  wire head0_fp_minmax_raw_w =
+      head0_decode_valid_w &&
+      (head_inst0_w[6:0] == `OPCODE_OP_FP) &&
+      ((head_inst0_w[14:12] == 3'b000) ||
+       (head_inst0_w[14:12] == 3'b001)) &&
+      ((head_inst0_w[31:25] == FP_FUNCT7_FMINMAX_S) ||
+       (head_inst0_w[31:25] == FP_FUNCT7_FMINMAX_D));
+  wire head0_fp_compare_raw_w =
+      head0_decode_valid_w &&
+      (head_inst0_w[6:0] == `OPCODE_OP_FP) &&
+      ((head_inst0_w[14:12] == 3'b000) ||
+       (head_inst0_w[14:12] == 3'b001) ||
+       (head_inst0_w[14:12] == 3'b010)) &&
+      ((head_inst0_w[31:25] == FP_FUNCT7_FCMP_S) ||
+       (head_inst0_w[31:25] == FP_FUNCT7_FCMP_D));
+  wire head0_fp_convert_to_fpr_raw_w =
+      head0_decode_valid_w &&
+      (head_inst0_w[6:0] == `OPCODE_OP_FP) &&
+      (head_inst0_w[31:25] == FP_FUNCT7_FCVT_INT_D) &&
+      (head_inst0_w[24:22] == 3'b000);
+  wire head0_fp_convert_to_gpr_raw_w =
+      head0_decode_valid_w &&
+      (head_inst0_w[6:0] == `OPCODE_OP_FP) &&
+      (head_inst0_w[31:25] == FP_FUNCT7_FCVT_D_INT) &&
+      (head_inst0_w[24:22] == 3'b000);
   wire head0_fp_raw_w = head0_fp_load_raw_w || head0_fp_store_raw_w ||
-                        head0_fp_move_to_fpr_raw_w;
+                        head0_fp_move_to_fpr_raw_w ||
+                        head0_fp_move_to_gpr_raw_w ||
+                        head0_fp_class_raw_w ||
+                        head0_fp_sgnj_raw_w ||
+                        head0_fp_addsub_raw_w ||
+                        head0_fp_mul_raw_w ||
+                        head0_fp_div_raw_w ||
+                        head0_fp_sqrt_raw_w ||
+                        head0_fp_minmax_raw_w ||
+                        head0_fp_compare_raw_w ||
+                        head0_fp_convert_to_fpr_raw_w ||
+                        head0_fp_convert_to_gpr_raw_w;
   wire head0_ecall_raw_w = head0_decode_valid_w &&
                            head0_ctrl_w[`CTRL_ECALL_BIT] &&
                            !head0_ctrl_w[`CTRL_ILLEGAL_BIT];
@@ -890,10 +1016,99 @@ module OooAluFetchCore #(
       (head_inst1_w[6:0] == `OPCODE_OP_FP) &&
       (head_inst1_w[14:12] == 3'b000) &&
       (head_inst1_w[24:20] == 5'b00000) &&
-      ((head_inst1_w[31:25] == 7'b1111000) ||
-       (head_inst1_w[31:25] == 7'b1111001));
+      ((head_inst1_w[31:25] == FP_FUNCT7_FMV_X) ||
+       (head_inst1_w[31:25] == FP_FUNCT7_FMV_D_X));
+  wire head1_fp_move_to_gpr_raw_w =
+      head1_decode_valid_w &&
+      (head_inst1_w[6:0] == `OPCODE_OP_FP) &&
+      (head_inst1_w[14:12] == 3'b000) &&
+      (head_inst1_w[24:20] == 5'b00000) &&
+      ((head_inst1_w[31:25] == FP_FUNCT7_FMV_X_W) ||
+       (head_inst1_w[31:25] == FP_FUNCT7_FMV_X_D));
+  wire head1_fp_class_raw_w =
+      head1_decode_valid_w &&
+      (head_inst1_w[6:0] == `OPCODE_OP_FP) &&
+      (head_inst1_w[14:12] == 3'b001) &&
+      (head_inst1_w[24:20] == 5'b00000) &&
+      ((head_inst1_w[31:25] == FP_FUNCT7_FMV_X_W) ||
+       (head_inst1_w[31:25] == FP_FUNCT7_FMV_X_D));
+  wire head1_fp_sgnj_raw_w =
+      head1_decode_valid_w &&
+      (head_inst1_w[6:0] == `OPCODE_OP_FP) &&
+      ((head_inst1_w[14:12] == 3'b000) ||
+       (head_inst1_w[14:12] == 3'b001) ||
+       (head_inst1_w[14:12] == 3'b010)) &&
+      ((head_inst1_w[31:25] == FP_FUNCT7_FSGNJ_S) ||
+       (head_inst1_w[31:25] == FP_FUNCT7_FSGNJ_D));
+  wire head1_fp_addsub_raw_w =
+      head1_decode_valid_w &&
+      (head_inst1_w[6:0] == `OPCODE_OP_FP) &&
+      ((head_inst1_w[14:12] <= 3'b100) ||
+       (head_inst1_w[14:12] == 3'b111)) &&
+      ((head_inst1_w[31:25] == FP_FUNCT7_FADD_S) ||
+       (head_inst1_w[31:25] == FP_FUNCT7_FADD_D) ||
+       (head_inst1_w[31:25] == FP_FUNCT7_FSUB_S) ||
+       (head_inst1_w[31:25] == FP_FUNCT7_FSUB_D));
+  wire head1_fp_mul_raw_w =
+      head1_decode_valid_w &&
+      (head_inst1_w[6:0] == `OPCODE_OP_FP) &&
+      ((head_inst1_w[14:12] <= 3'b100) ||
+       (head_inst1_w[14:12] == 3'b111)) &&
+      ((head_inst1_w[31:25] == FP_FUNCT7_FMUL_S) ||
+       (head_inst1_w[31:25] == FP_FUNCT7_FMUL_D));
+  wire head1_fp_div_raw_w =
+      head1_decode_valid_w &&
+      (head_inst1_w[6:0] == `OPCODE_OP_FP) &&
+      ((head_inst1_w[14:12] <= 3'b100) ||
+       (head_inst1_w[14:12] == 3'b111)) &&
+      ((head_inst1_w[31:25] == FP_FUNCT7_FDIV_S) ||
+       (head_inst1_w[31:25] == FP_FUNCT7_FDIV_D));
+  wire head1_fp_sqrt_raw_w =
+      head1_decode_valid_w &&
+      (head_inst1_w[6:0] == `OPCODE_OP_FP) &&
+      (head_inst1_w[24:20] == 5'b00000) &&
+      ((head_inst1_w[14:12] <= 3'b100) ||
+       (head_inst1_w[14:12] == 3'b111)) &&
+      ((head_inst1_w[31:25] == FP_FUNCT7_FSQRT_S) ||
+       (head_inst1_w[31:25] == FP_FUNCT7_FSQRT_D));
+  wire head1_fp_minmax_raw_w =
+      head1_decode_valid_w &&
+      (head_inst1_w[6:0] == `OPCODE_OP_FP) &&
+      ((head_inst1_w[14:12] == 3'b000) ||
+       (head_inst1_w[14:12] == 3'b001)) &&
+      ((head_inst1_w[31:25] == FP_FUNCT7_FMINMAX_S) ||
+       (head_inst1_w[31:25] == FP_FUNCT7_FMINMAX_D));
+  wire head1_fp_compare_raw_w =
+      head1_decode_valid_w &&
+      (head_inst1_w[6:0] == `OPCODE_OP_FP) &&
+      ((head_inst1_w[14:12] == 3'b000) ||
+       (head_inst1_w[14:12] == 3'b001) ||
+       (head_inst1_w[14:12] == 3'b010)) &&
+      ((head_inst1_w[31:25] == FP_FUNCT7_FCMP_S) ||
+       (head_inst1_w[31:25] == FP_FUNCT7_FCMP_D));
+  wire head1_fp_convert_to_fpr_raw_w =
+      head1_decode_valid_w &&
+      (head_inst1_w[6:0] == `OPCODE_OP_FP) &&
+      (head_inst1_w[31:25] == FP_FUNCT7_FCVT_INT_D) &&
+      (head_inst1_w[24:22] == 3'b000);
+  wire head1_fp_convert_to_gpr_raw_w =
+      head1_decode_valid_w &&
+      (head_inst1_w[6:0] == `OPCODE_OP_FP) &&
+      (head_inst1_w[31:25] == FP_FUNCT7_FCVT_D_INT) &&
+      (head_inst1_w[24:22] == 3'b000);
   wire head1_fp_raw_w = head1_fp_load_raw_w || head1_fp_store_raw_w ||
-                        head1_fp_move_to_fpr_raw_w;
+                        head1_fp_move_to_fpr_raw_w ||
+                        head1_fp_move_to_gpr_raw_w ||
+                        head1_fp_class_raw_w ||
+                        head1_fp_sgnj_raw_w ||
+                        head1_fp_addsub_raw_w ||
+                        head1_fp_mul_raw_w ||
+                        head1_fp_div_raw_w ||
+                        head1_fp_sqrt_raw_w ||
+                        head1_fp_minmax_raw_w ||
+                        head1_fp_compare_raw_w ||
+                        head1_fp_convert_to_fpr_raw_w ||
+                        head1_fp_convert_to_gpr_raw_w;
   wire head1_ecall_raw_w = head1_decode_valid_w &&
                            head1_ctrl_w[`CTRL_ECALL_BIT] &&
                            !head1_ctrl_w[`CTRL_ILLEGAL_BIT];
@@ -2078,10 +2293,13 @@ module OooAluFetchCore #(
   wire core_checkpoint_quiesce_w =
       branch_spec_checkpoint_pending_q && !core_checkpoint_capture_w;
   wire core_mem_issue_block_w = branch_spec_active_q;
-  wire core_local_flush_w = flush_i || core_trap_flush_q;
+  wire pending_fp_gpr_commit_w =
+      !direct_frontend_flush_w && stop_pending_q && drain_complete_w &&
+      pending_fp_q && pending_fp_gpr_write_q;
+  wire core_local_flush_w = flush_i || core_trap_flush_q || core_serial_flush_q;
   assign mem_flush_o = core_local_flush_w || checkpoint_mem_flush_q;
   wire core_commit_ready_w =
-      commit_ready_i && !core_trap_flush_q &&
+      commit_ready_i && !core_trap_flush_q && !core_serial_flush_q &&
       !branch_spec_checkpoint_pending_q &&
       !branch_spec_active_q && !core_checkpoint_restore_w;
   wire core_commit1_block_w =
@@ -2123,6 +2341,7 @@ module OooAluFetchCore #(
       system_csr_dispatch_valid_w ? pending_system_next_pc_q :
       jump_dispatch_valid_w ? pending_jump_next_pc_q :
       mem_dispatch_valid_w ? pending_mem_next_pc_q :
+      direct_jal0_dispatch_valid_w ? head_next_pc0_w :
       direct_ret0_dispatch_valid_w ? direct_ret_target_w :
       head_next_pc0_w;
   wire [`INST_W-1:0] core_dispatch0_inst_w =
@@ -2146,8 +2365,9 @@ module OooAluFetchCore #(
       return_cont_attempt_w ? return_cont_next_pc_q :
       branch_target_append_attempt_w ?
       branch_target_cache_next_pc_q[branch_target_cache_head_idx_w] :
+      direct_jal1_fire_w ? head_next_pc1_w :
       direct_ret1_fire_w ? direct_ret_target_w :
-                                       head_next_pc1_w;
+                                        head_next_pc1_w;
   wire [`INST_W-1:0] core_dispatch1_inst_w =
       branch_prefetch_dispatch_buffer_w ? branch_prefetch_buf_inst1_q :
       branch_prefetch_dispatch_rsp_w ? fetch_dec1_inst_w :
@@ -2217,6 +2437,1682 @@ module OooAluFetchCore #(
     end
   endfunction
 
+  function [`XLEN-1:0] fp_move_to_gpr_value;
+    input [`XLEN-1:0] value;
+    input is_double;
+    begin
+      fp_move_to_gpr_value = is_double ? value :
+                             {{32{value[31]}}, value[31:0]};
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_class_s_value;
+    input [31:0] value;
+    reg sign;
+    reg [7:0] exp;
+    reg [22:0] frac;
+    reg [9:0] class_bits;
+    begin
+      sign = value[31];
+      exp = value[30:23];
+      frac = value[22:0];
+      class_bits = 10'b0;
+      if (exp == 8'hff) begin
+        if (frac == 23'b0) begin
+          class_bits[sign ? 0 : 7] = 1'b1;
+        end else begin
+          class_bits[frac[22] ? 9 : 8] = 1'b1;
+        end
+      end else if (exp == 8'h00) begin
+        if (frac == 23'b0) begin
+          class_bits[sign ? 3 : 4] = 1'b1;
+        end else begin
+          class_bits[sign ? 2 : 5] = 1'b1;
+        end
+      end else begin
+        class_bits[sign ? 1 : 6] = 1'b1;
+      end
+      fp_class_s_value = {{(`XLEN-10){1'b0}}, class_bits};
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_class_d_value;
+    input [`XLEN-1:0] value;
+    reg sign;
+    reg [10:0] exp;
+    reg [51:0] frac;
+    reg [9:0] class_bits;
+    begin
+      sign = value[63];
+      exp = value[62:52];
+      frac = value[51:0];
+      class_bits = 10'b0;
+      if (exp == 11'h7ff) begin
+        if (frac == 52'b0) begin
+          class_bits[sign ? 0 : 7] = 1'b1;
+        end else begin
+          class_bits[frac[51] ? 9 : 8] = 1'b1;
+        end
+      end else if (exp == 11'h000) begin
+        if (frac == 52'b0) begin
+          class_bits[sign ? 3 : 4] = 1'b1;
+        end else begin
+          class_bits[sign ? 2 : 5] = 1'b1;
+        end
+      end else begin
+        class_bits[sign ? 1 : 6] = 1'b1;
+      end
+      fp_class_d_value = {{(`XLEN-10){1'b0}}, class_bits};
+    end
+  endfunction
+
+  function fp_round_increment;
+    input sign;
+    input [2:0] rm;
+    input lsb;
+    input guard;
+    input sticky;
+    begin
+      case (rm)
+        3'b000,
+        3'b111: fp_round_increment = guard && (sticky || lsb);
+        3'b001: fp_round_increment = 1'b0;
+        3'b010: fp_round_increment = sign && (guard || sticky);
+        3'b011: fp_round_increment = !sign && (guard || sticky);
+        3'b100: fp_round_increment = guard;
+        default: fp_round_increment = guard && (sticky || lsb);
+      endcase
+    end
+  endfunction
+
+  function [5:0] fp_u64_msb_index;
+    input [63:0] value;
+    integer bit_idx;
+    begin
+      fp_u64_msb_index = 6'd0;
+      for (bit_idx = 0; bit_idx < 64; bit_idx = bit_idx + 1) begin
+        if (value[bit_idx])
+          fp_u64_msb_index = bit_idx[5:0];
+      end
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_int_to_d_value;
+    input [`XLEN-1:0] value;
+    input [1:0] src_fmt;
+    input [2:0] rm;
+    reg is_signed;
+    reg is_word;
+    reg sign;
+    reg [63:0] src_ext;
+    reg [63:0] mag;
+    reg [5:0] msb_idx;
+    reg [10:0] exp_bits;
+    reg [63:0] shifted_mag;
+    reg [52:0] mant53;
+    reg [53:0] mant_round_ext;
+    reg [51:0] frac_bits;
+    reg guard;
+    reg sticky;
+    reg inc;
+    integer shift_count;
+    integer bit_idx;
+    begin
+      is_signed = (src_fmt == 2'b00) || (src_fmt == 2'b10);
+      is_word = (src_fmt == 2'b00) || (src_fmt == 2'b01);
+      if (is_word) begin
+        src_ext = is_signed ? {{32{value[31]}}, value[31:0]} :
+                              {32'b0, value[31:0]};
+      end else begin
+        src_ext = value;
+      end
+      sign = is_signed && src_ext[63];
+      mag = sign ? (~src_ext + 64'd1) : src_ext;
+      if (mag == 64'b0) begin
+        fp_int_to_d_value = 64'b0;
+      end else begin
+        msb_idx = fp_u64_msb_index(mag);
+        exp_bits = 11'd1023 + {5'b0, msb_idx};
+        if (msb_idx <= 6'd52) begin
+          shift_count = 52 - msb_idx;
+          shifted_mag = mag << shift_count;
+          frac_bits = shifted_mag[51:0];
+        end else begin
+          shift_count = msb_idx - 52;
+          mant53 = mag >> shift_count;
+          guard = mag[shift_count - 1];
+          sticky = 1'b0;
+          for (bit_idx = 0; bit_idx < 64; bit_idx = bit_idx + 1) begin
+            if ((bit_idx < (shift_count - 1)) && mag[bit_idx])
+              sticky = 1'b1;
+          end
+          inc = fp_round_increment(sign, rm, mant53[0], guard, sticky);
+          mant_round_ext = {1'b0, mant53} + {{53{1'b0}}, inc};
+          if (mant_round_ext[53]) begin
+            exp_bits = exp_bits + 11'd1;
+            frac_bits = mant_round_ext[52:1];
+          end else begin
+            frac_bits = mant_round_ext[51:0];
+          end
+        end
+        // 当前串行转换先覆盖 Ubuntu userland 常见 exact/RTZ 路径；全 fflags 后续再接 CSR。
+        fp_int_to_d_value = {sign, exp_bits, frac_bits};
+      end
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_d_to_int_value;
+    input [`XLEN-1:0] value;
+    input [1:0] dst_fmt;
+    input [2:0] rm;
+    reg is_signed;
+    reg is_word;
+    reg sign;
+    reg [10:0] exp;
+    reg [51:0] frac;
+    reg [52:0] sig;
+    reg [64:0] sig_ext;
+    reg [64:0] mag_ext;
+    reg [64:0] int_part_ext;
+    reg [64:0] max_pos_mag;
+    reg [64:0] max_neg_mag;
+    reg [63:0] sat_pos_value;
+    reg [63:0] sat_neg_value;
+    reg [63:0] signed_value;
+    reg guard;
+    reg sticky;
+    reg inc;
+    integer unbiased_exp;
+    integer shift_count;
+    integer bit_idx;
+    begin
+      is_signed = (dst_fmt == 2'b00) || (dst_fmt == 2'b10);
+      is_word = (dst_fmt == 2'b00) || (dst_fmt == 2'b01);
+      sign = value[63];
+      exp = value[62:52];
+      frac = value[51:0];
+      if (is_word) begin
+        max_pos_mag = is_signed ? 65'h0000000007fffffff :
+                                  65'h000000000ffffffff;
+        max_neg_mag = is_signed ? 65'h00000000080000000 :
+                                  65'h00000000000000000;
+        sat_pos_value = is_signed ? 64'h000000007fffffff :
+                                    64'h00000000ffffffff;
+        sat_neg_value = is_signed ? 64'hffffffff80000000 :
+                                    64'h0000000000000000;
+      end else begin
+        max_pos_mag = is_signed ? 65'h07fffffffffffffff :
+                                  65'h0ffffffffffffffff;
+        max_neg_mag = is_signed ? 65'h08000000000000000 :
+                                  65'h00000000000000000;
+        sat_pos_value = is_signed ? 64'h7fffffffffffffff :
+                                    64'hffffffffffffffff;
+        sat_neg_value = is_signed ? 64'h8000000000000000 :
+                                    64'h0000000000000000;
+      end
+
+      if (exp == 11'h7ff) begin
+        if (frac != 52'b0) begin
+          fp_d_to_int_value = sat_pos_value;
+        end else begin
+          fp_d_to_int_value = sign ? sat_neg_value : sat_pos_value;
+        end
+      end else begin
+        if (exp == 11'h000) begin
+          sig = {1'b0, frac};
+          unbiased_exp = -1022;
+        end else begin
+          sig = {1'b1, frac};
+          unbiased_exp = exp - 11'd1023;
+        end
+        sig_ext = {{12{1'b0}}, sig};
+        if (unbiased_exp >= 64) begin
+          mag_ext = 65'h10000000000000000;
+        end else if (unbiased_exp >= 52) begin
+          mag_ext = sig_ext << (unbiased_exp - 52);
+        end else begin
+          shift_count = 52 - unbiased_exp;
+          if (shift_count > 53) begin
+            int_part_ext = 65'b0;
+            guard = 1'b0;
+            sticky = |sig;
+          end else begin
+            int_part_ext = sig_ext >> shift_count;
+            guard = sig[shift_count - 1];
+            sticky = 1'b0;
+            for (bit_idx = 0; bit_idx < 53; bit_idx = bit_idx + 1) begin
+              if ((bit_idx < (shift_count - 1)) && sig[bit_idx])
+                sticky = 1'b1;
+            end
+          end
+          inc = fp_round_increment(sign, rm, int_part_ext[0], guard, sticky);
+          mag_ext = int_part_ext + {{64{1'b0}}, inc};
+        end
+
+        if (!is_signed && sign && (mag_ext != 65'b0)) begin
+          fp_d_to_int_value = sat_neg_value;
+        end else if (sign) begin
+          if (mag_ext > max_neg_mag) begin
+            fp_d_to_int_value = sat_neg_value;
+          end else begin
+            signed_value = ~mag_ext[63:0] + 64'd1;
+            fp_d_to_int_value = is_word ?
+                {{32{signed_value[31]}}, signed_value[31:0]} :
+                signed_value;
+          end
+        end else begin
+          if (mag_ext > max_pos_mag) begin
+            fp_d_to_int_value = sat_pos_value;
+          end else begin
+            fp_d_to_int_value = is_word ? {32'b0, mag_ext[31:0]} :
+                                          mag_ext[63:0];
+          end
+        end
+      end
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_sgnj_value;
+    input [`XLEN-1:0] rs1_value;
+    input [`XLEN-1:0] rs2_value;
+    input is_double;
+    input [2:0] op;
+    reg sign_bit;
+    reg [31:0] single_bits;
+    begin
+      if (is_double) begin
+        case (op)
+          3'b000: sign_bit = rs2_value[63];
+          3'b001: sign_bit = ~rs2_value[63];
+          3'b010: sign_bit = rs1_value[63] ^ rs2_value[63];
+          default: sign_bit = rs1_value[63];
+        endcase
+        fp_sgnj_value = {sign_bit, rs1_value[62:0]};
+      end else begin
+        case (op)
+          3'b000: sign_bit = rs2_value[31];
+          3'b001: sign_bit = ~rs2_value[31];
+          3'b010: sign_bit = rs1_value[31] ^ rs2_value[31];
+          default: sign_bit = rs1_value[31];
+        endcase
+        single_bits = {sign_bit, rs1_value[30:0]};
+        fp_sgnj_value = {32'hffff_ffff, single_bits};
+      end
+    end
+  endfunction
+
+  function fp_is_nan_s_value;
+    input [`XLEN-1:0] value;
+    begin
+      fp_is_nan_s_value =
+          (value[63:32] != 32'hffff_ffff) ||
+          ((value[30:23] == 8'hff) && (value[22:0] != 23'b0));
+    end
+  endfunction
+
+  function fp_is_nan_d_value;
+    input [`XLEN-1:0] value;
+    begin
+      fp_is_nan_d_value =
+          (value[62:52] == 11'h7ff) && (value[51:0] != 52'b0);
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_compare_value;
+    input [`XLEN-1:0] rs1_value;
+    input [`XLEN-1:0] rs2_value;
+    input is_double;
+    input [2:0] op;
+    reg sign1;
+    reg sign2;
+    reg nan_operand;
+    reg both_zero;
+    reg equal_value;
+    reg less_value;
+    reg [62:0] mag1_d;
+    reg [62:0] mag2_d;
+    reg [30:0] mag1_s;
+    reg [30:0] mag2_s;
+    reg result_bit;
+    begin
+      if (is_double) begin
+        sign1 = rs1_value[63];
+        sign2 = rs2_value[63];
+        mag1_d = rs1_value[62:0];
+        mag2_d = rs2_value[62:0];
+        nan_operand = fp_is_nan_d_value(rs1_value) ||
+                      fp_is_nan_d_value(rs2_value);
+        both_zero = (mag1_d == 63'b0) && (mag2_d == 63'b0);
+        equal_value = both_zero || (rs1_value == rs2_value);
+        if (both_zero || equal_value) begin
+          less_value = 1'b0;
+        end else if (sign1 != sign2) begin
+          less_value = sign1;
+        end else if (sign1) begin
+          less_value = mag1_d > mag2_d;
+        end else begin
+          less_value = mag1_d < mag2_d;
+        end
+      end else begin
+        sign1 = rs1_value[31];
+        sign2 = rs2_value[31];
+        mag1_s = rs1_value[30:0];
+        mag2_s = rs2_value[30:0];
+        nan_operand = fp_is_nan_s_value(rs1_value) ||
+                      fp_is_nan_s_value(rs2_value);
+        both_zero = (mag1_s == 31'b0) && (mag2_s == 31'b0);
+        equal_value = both_zero || (rs1_value[31:0] == rs2_value[31:0]);
+        if (both_zero || equal_value) begin
+          less_value = 1'b0;
+        end else if (sign1 != sign2) begin
+          less_value = sign1;
+        end else if (sign1) begin
+          less_value = mag1_s > mag2_s;
+        end else begin
+          less_value = mag1_s < mag2_s;
+        end
+      end
+
+      if (nan_operand) begin
+        result_bit = 1'b0;
+      end else begin
+        case (op)
+          3'b000: result_bit = less_value || equal_value;
+          3'b001: result_bit = less_value;
+          3'b010: result_bit = equal_value;
+          default: result_bit = 1'b0;
+        endcase
+      end
+      // FCMP 结果位先闭合，异常标志后续接入 fflags CSR 聚合路径。
+      fp_compare_value = {{(`XLEN-1){1'b0}}, result_bit};
+    end
+  endfunction
+
+  function [55:0] fp_shift_right_jam_56;
+    input [55:0] value;
+    input [6:0] shamt;
+    reg sticky;
+    integer bit_idx;
+    begin
+      if (shamt == 7'd0) begin
+        fp_shift_right_jam_56 = value;
+      end else if (shamt >= 7'd56) begin
+        fp_shift_right_jam_56 = {55'b0, |value};
+      end else begin
+        sticky = 1'b0;
+        for (bit_idx = 0; bit_idx < 56; bit_idx = bit_idx + 1) begin
+          if ((bit_idx < shamt) && value[bit_idx])
+            sticky = 1'b1;
+        end
+        fp_shift_right_jam_56 = value >> shamt;
+        fp_shift_right_jam_56[0] = fp_shift_right_jam_56[0] | sticky;
+      end
+    end
+  endfunction
+
+  function [26:0] fp_shift_right_jam_27;
+    input [26:0] value;
+    input [5:0] shamt;
+    reg sticky;
+    integer bit_idx;
+    begin
+      if (shamt == 6'd0) begin
+        fp_shift_right_jam_27 = value;
+      end else if (shamt >= 6'd27) begin
+        fp_shift_right_jam_27 = {26'b0, |value};
+      end else begin
+        sticky = 1'b0;
+        for (bit_idx = 0; bit_idx < 27; bit_idx = bit_idx + 1) begin
+          if ((bit_idx < shamt) && value[bit_idx])
+            sticky = 1'b1;
+        end
+        fp_shift_right_jam_27 = value >> shamt;
+        fp_shift_right_jam_27[0] = fp_shift_right_jam_27[0] | sticky;
+      end
+    end
+  endfunction
+
+  function [105:0] fp_shift_right_jam_106;
+    input [105:0] value;
+    input [7:0] shamt;
+    reg sticky;
+    integer bit_idx;
+    begin
+      if (shamt == 8'd0) begin
+        fp_shift_right_jam_106 = value;
+      end else if (shamt >= 8'd106) begin
+        fp_shift_right_jam_106 = {105'b0, |value};
+      end else begin
+        sticky = 1'b0;
+        for (bit_idx = 0; bit_idx < 106; bit_idx = bit_idx + 1) begin
+          if ((bit_idx < shamt) && value[bit_idx])
+            sticky = 1'b1;
+        end
+        fp_shift_right_jam_106 = value >> shamt;
+        fp_shift_right_jam_106[0] = fp_shift_right_jam_106[0] | sticky;
+      end
+    end
+  endfunction
+
+  function [47:0] fp_shift_right_jam_48;
+    input [47:0] value;
+    input [5:0] shamt;
+    reg sticky;
+    integer bit_idx;
+    begin
+      if (shamt == 6'd0) begin
+        fp_shift_right_jam_48 = value;
+      end else if (shamt >= 6'd48) begin
+        fp_shift_right_jam_48 = {47'b0, |value};
+      end else begin
+        sticky = 1'b0;
+        for (bit_idx = 0; bit_idx < 48; bit_idx = bit_idx + 1) begin
+          if ((bit_idx < shamt) && value[bit_idx])
+            sticky = 1'b1;
+        end
+        fp_shift_right_jam_48 = value >> shamt;
+        fp_shift_right_jam_48[0] = fp_shift_right_jam_48[0] | sticky;
+      end
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_addsub_d_value;
+    input [`XLEN-1:0] rs1_value;
+    input [`XLEN-1:0] rs2_value;
+    input is_sub;
+    input [2:0] rm;
+    reg sign_a;
+    reg sign_b;
+    reg sign_z;
+    reg [10:0] exp_a;
+    reg [10:0] exp_b;
+    reg [10:0] exp_a_eff;
+    reg [10:0] exp_b_eff;
+    reg [10:0] exp_z;
+    reg [51:0] frac_a;
+    reg [51:0] frac_b;
+    reg [55:0] sig_a;
+    reg [55:0] sig_b;
+    reg [55:0] sig_a_aligned;
+    reg [55:0] sig_b_aligned;
+    reg [55:0] sig_norm;
+    reg [56:0] sig_sum;
+    reg [52:0] mant53;
+    reg [53:0] mant_round_ext;
+    reg [10:0] exp_diff;
+    reg [6:0] shift_dist;
+    reg guard;
+    reg sticky;
+    reg inc;
+    reg a_is_nan;
+    reg b_is_nan;
+    reg a_is_inf;
+    reg b_is_inf;
+    reg a_is_zero;
+    reg b_is_zero;
+    reg a_lt_b_mag;
+    integer norm_idx;
+    begin
+      sign_a = rs1_value[63];
+      sign_b = rs2_value[63] ^ is_sub;
+      exp_a = rs1_value[62:52];
+      exp_b = rs2_value[62:52];
+      frac_a = rs1_value[51:0];
+      frac_b = rs2_value[51:0];
+      a_is_nan = (exp_a == 11'h7ff) && (frac_a != 52'b0);
+      b_is_nan = (exp_b == 11'h7ff) && (frac_b != 52'b0);
+      a_is_inf = (exp_a == 11'h7ff) && (frac_a == 52'b0);
+      b_is_inf = (exp_b == 11'h7ff) && (frac_b == 52'b0);
+      a_is_zero = (exp_a == 11'h000) && (frac_a == 52'b0);
+      b_is_zero = (exp_b == 11'h000) && (frac_b == 52'b0);
+
+      if (a_is_nan || b_is_nan) begin
+        fp_addsub_d_value = 64'h7ff8000000000000;
+      end else if (a_is_inf && b_is_inf && (sign_a != sign_b)) begin
+        fp_addsub_d_value = 64'h7ff8000000000000;
+      end else if (a_is_inf) begin
+        fp_addsub_d_value = {sign_a, 11'h7ff, 52'b0};
+      end else if (b_is_inf) begin
+        fp_addsub_d_value = {sign_b, 11'h7ff, 52'b0};
+      end else if (a_is_zero && b_is_zero) begin
+        fp_addsub_d_value = {sign_a & sign_b, 63'b0};
+      end else if (a_is_zero) begin
+        fp_addsub_d_value = {sign_b, exp_b, frac_b};
+      end else if (b_is_zero) begin
+        fp_addsub_d_value = rs1_value;
+      end else begin
+        exp_a_eff = (exp_a == 11'h000) ? 11'd1 : exp_a;
+        exp_b_eff = (exp_b == 11'h000) ? 11'd1 : exp_b;
+        sig_a = {(exp_a != 11'h000), frac_a, 3'b000};
+        sig_b = {(exp_b != 11'h000), frac_b, 3'b000};
+
+        if (exp_a_eff >= exp_b_eff) begin
+          exp_z = exp_a_eff;
+          sig_a_aligned = sig_a;
+          exp_diff = exp_a_eff - exp_b_eff;
+          shift_dist = (exp_diff >= 11'd56) ? 7'd56 : exp_diff[6:0];
+          sig_b_aligned = fp_shift_right_jam_56(sig_b, shift_dist);
+        end else begin
+          exp_z = exp_b_eff;
+          exp_diff = exp_b_eff - exp_a_eff;
+          shift_dist = (exp_diff >= 11'd56) ? 7'd56 : exp_diff[6:0];
+          sig_a_aligned = fp_shift_right_jam_56(sig_a, shift_dist);
+          sig_b_aligned = sig_b;
+        end
+
+        if (sign_a == sign_b) begin
+          sign_z = sign_a;
+          sig_sum = {1'b0, sig_a_aligned} + {1'b0, sig_b_aligned};
+          if (sig_sum[56]) begin
+            sig_norm = sig_sum[56:1];
+            sig_norm[0] = sig_norm[0] | sig_sum[0];
+            exp_z = exp_z + 11'd1;
+          end else begin
+            sig_norm = sig_sum[55:0];
+          end
+        end else begin
+          a_lt_b_mag =
+              (exp_a_eff < exp_b_eff) ||
+              ((exp_a_eff == exp_b_eff) && (sig_a < sig_b));
+          if ((exp_a_eff == exp_b_eff) && (sig_a == sig_b)) begin
+            sign_z = 1'b0;
+            sig_norm = 56'b0;
+          end else if (a_lt_b_mag) begin
+            sign_z = sign_b;
+            sig_norm = sig_b_aligned - sig_a_aligned;
+          end else begin
+            sign_z = sign_a;
+            sig_norm = sig_a_aligned - sig_b_aligned;
+          end
+          for (norm_idx = 0; norm_idx < 55; norm_idx = norm_idx + 1) begin
+            if ((sig_norm != 56'b0) && !sig_norm[55] && (exp_z > 11'd1)) begin
+              sig_norm = sig_norm << 1;
+              exp_z = exp_z - 11'd1;
+            end
+          end
+        end
+
+        if (sig_norm == 56'b0) begin
+          fp_addsub_d_value = 64'b0;
+        end else begin
+          mant53 = sig_norm[55:3];
+          guard = sig_norm[2];
+          sticky = sig_norm[1] | sig_norm[0];
+          inc = fp_round_increment(sign_z, rm, mant53[0], guard, sticky);
+          mant_round_ext = {1'b0, mant53} + {{53{1'b0}}, inc};
+          if (mant_round_ext[53]) begin
+            exp_z = exp_z + 11'd1;
+            mant53 = mant_round_ext[53:1];
+          end else begin
+            mant53 = mant_round_ext[52:0];
+          end
+
+          if (exp_z >= 11'h7ff) begin
+            fp_addsub_d_value = {sign_z, 11'h7ff, 52'b0};
+          end else if ((exp_z == 11'd1) && !mant53[52]) begin
+            fp_addsub_d_value = {sign_z, 11'b0, mant53[51:0]};
+          end else begin
+            fp_addsub_d_value = {sign_z, exp_z, mant53[51:0]};
+          end
+        end
+      end
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_addsub_s_value;
+    input [`XLEN-1:0] rs1_value;
+    input [`XLEN-1:0] rs2_value;
+    input is_sub;
+    input [2:0] rm;
+    reg [31:0] a;
+    reg [31:0] b;
+    reg sign_a;
+    reg sign_b;
+    reg sign_z;
+    reg [7:0] exp_a;
+    reg [7:0] exp_b;
+    reg [7:0] exp_a_eff;
+    reg [7:0] exp_b_eff;
+    reg [7:0] exp_z;
+    reg [22:0] frac_a;
+    reg [22:0] frac_b;
+    reg [26:0] sig_a;
+    reg [26:0] sig_b;
+    reg [26:0] sig_a_aligned;
+    reg [26:0] sig_b_aligned;
+    reg [26:0] sig_norm;
+    reg [27:0] sig_sum;
+    reg [23:0] mant24;
+    reg [24:0] mant_round_ext;
+    reg [7:0] exp_diff;
+    reg [5:0] shift_dist;
+    reg guard;
+    reg sticky;
+    reg inc;
+    reg a_is_nan;
+    reg b_is_nan;
+    reg a_is_inf;
+    reg b_is_inf;
+    reg a_is_zero;
+    reg b_is_zero;
+    reg a_lt_b_mag;
+    integer norm_idx;
+    begin
+      a = rs1_value[31:0];
+      b = rs2_value[31:0];
+      sign_a = a[31];
+      sign_b = b[31] ^ is_sub;
+      exp_a = a[30:23];
+      exp_b = b[30:23];
+      frac_a = a[22:0];
+      frac_b = b[22:0];
+      a_is_nan = fp_is_nan_s_value(rs1_value);
+      b_is_nan = fp_is_nan_s_value(rs2_value);
+      a_is_inf = (rs1_value[63:32] == 32'hffff_ffff) &&
+                 (exp_a == 8'hff) && (frac_a == 23'b0);
+      b_is_inf = (rs2_value[63:32] == 32'hffff_ffff) &&
+                 (exp_b == 8'hff) && (frac_b == 23'b0);
+      a_is_zero = (rs1_value[63:32] == 32'hffff_ffff) &&
+                  (exp_a == 8'h00) && (frac_a == 23'b0);
+      b_is_zero = (rs2_value[63:32] == 32'hffff_ffff) &&
+                  (exp_b == 8'h00) && (frac_b == 23'b0);
+
+      if (a_is_nan || b_is_nan) begin
+        fp_addsub_s_value = 64'hffffffff7fc00000;
+      end else if (a_is_inf && b_is_inf && (sign_a != sign_b)) begin
+        fp_addsub_s_value = 64'hffffffff7fc00000;
+      end else if (a_is_inf) begin
+        fp_addsub_s_value = {32'hffff_ffff, sign_a, 8'hff, 23'b0};
+      end else if (b_is_inf) begin
+        fp_addsub_s_value = {32'hffff_ffff, sign_b, 8'hff, 23'b0};
+      end else if (a_is_zero && b_is_zero) begin
+        fp_addsub_s_value = {32'hffff_ffff, sign_a & sign_b, 31'b0};
+      end else if (a_is_zero) begin
+        fp_addsub_s_value = {32'hffff_ffff, sign_b, exp_b, frac_b};
+      end else if (b_is_zero) begin
+        fp_addsub_s_value = {32'hffff_ffff, a};
+      end else begin
+        exp_a_eff = (exp_a == 8'h00) ? 8'd1 : exp_a;
+        exp_b_eff = (exp_b == 8'h00) ? 8'd1 : exp_b;
+        sig_a = {(exp_a != 8'h00), frac_a, 3'b000};
+        sig_b = {(exp_b != 8'h00), frac_b, 3'b000};
+
+        if (exp_a_eff >= exp_b_eff) begin
+          exp_z = exp_a_eff;
+          sig_a_aligned = sig_a;
+          exp_diff = exp_a_eff - exp_b_eff;
+          shift_dist = (exp_diff >= 8'd27) ? 6'd27 : exp_diff[5:0];
+          sig_b_aligned = fp_shift_right_jam_27(sig_b, shift_dist);
+        end else begin
+          exp_z = exp_b_eff;
+          exp_diff = exp_b_eff - exp_a_eff;
+          shift_dist = (exp_diff >= 8'd27) ? 6'd27 : exp_diff[5:0];
+          sig_a_aligned = fp_shift_right_jam_27(sig_a, shift_dist);
+          sig_b_aligned = sig_b;
+        end
+
+        if (sign_a == sign_b) begin
+          sign_z = sign_a;
+          sig_sum = {1'b0, sig_a_aligned} + {1'b0, sig_b_aligned};
+          if (sig_sum[27]) begin
+            sig_norm = sig_sum[27:1];
+            sig_norm[0] = sig_norm[0] | sig_sum[0];
+            exp_z = exp_z + 8'd1;
+          end else begin
+            sig_norm = sig_sum[26:0];
+          end
+        end else begin
+          a_lt_b_mag =
+              (exp_a_eff < exp_b_eff) ||
+              ((exp_a_eff == exp_b_eff) && (sig_a < sig_b));
+          if ((exp_a_eff == exp_b_eff) && (sig_a == sig_b)) begin
+            sign_z = 1'b0;
+            sig_norm = 27'b0;
+          end else if (a_lt_b_mag) begin
+            sign_z = sign_b;
+            sig_norm = sig_b_aligned - sig_a_aligned;
+          end else begin
+            sign_z = sign_a;
+            sig_norm = sig_a_aligned - sig_b_aligned;
+          end
+          for (norm_idx = 0; norm_idx < 26; norm_idx = norm_idx + 1) begin
+            if ((sig_norm != 27'b0) && !sig_norm[26] && (exp_z > 8'd1)) begin
+              sig_norm = sig_norm << 1;
+              exp_z = exp_z - 8'd1;
+            end
+          end
+        end
+
+        if (sig_norm == 27'b0) begin
+          fp_addsub_s_value = 64'hffffffff00000000;
+        end else begin
+          mant24 = sig_norm[26:3];
+          guard = sig_norm[2];
+          sticky = sig_norm[1] | sig_norm[0];
+          inc = fp_round_increment(sign_z, rm, mant24[0], guard, sticky);
+          mant_round_ext = {1'b0, mant24} + {{24{1'b0}}, inc};
+          if (mant_round_ext[24]) begin
+            exp_z = exp_z + 8'd1;
+            mant24 = mant_round_ext[24:1];
+          end else begin
+            mant24 = mant_round_ext[23:0];
+          end
+
+          if (exp_z >= 8'hff) begin
+            fp_addsub_s_value = {32'hffff_ffff, sign_z, 8'hff, 23'b0};
+          end else if ((exp_z == 8'd1) && !mant24[23]) begin
+            fp_addsub_s_value = {32'hffff_ffff, sign_z, 8'b0, mant24[22:0]};
+          end else begin
+            fp_addsub_s_value = {32'hffff_ffff, sign_z, exp_z, mant24[22:0]};
+          end
+        end
+      end
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_addsub_value;
+    input [`XLEN-1:0] rs1_value;
+    input [`XLEN-1:0] rs2_value;
+    input is_double;
+    input is_sub;
+    input [2:0] rm;
+    begin
+      fp_addsub_value = is_double ?
+          fp_addsub_d_value(rs1_value, rs2_value, is_sub, rm) :
+          fp_addsub_s_value(rs1_value, rs2_value, is_sub, rm);
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_mul_d_value;
+    input [`XLEN-1:0] rs1_value;
+    input [`XLEN-1:0] rs2_value;
+    input [2:0] rm;
+    reg sign_z;
+    reg [10:0] exp_a;
+    reg [10:0] exp_b;
+    reg [51:0] frac_a;
+    reg [51:0] frac_b;
+    reg a_is_nan;
+    reg b_is_nan;
+    reg a_is_inf;
+    reg b_is_inf;
+    reg a_is_zero;
+    reg b_is_zero;
+    reg [52:0] sig_a;
+    reg [52:0] sig_b;
+    reg [105:0] product;
+    reg [105:0] product_norm;
+    reg [52:0] mant53;
+    reg [53:0] mant_round_ext;
+    reg guard;
+    reg sticky;
+    reg inc;
+    reg [7:0] sub_shift;
+    integer exp_z;
+    integer norm_idx;
+    integer sub_shift_int;
+    begin
+      sign_z = rs1_value[63] ^ rs2_value[63];
+      exp_a = rs1_value[62:52];
+      exp_b = rs2_value[62:52];
+      frac_a = rs1_value[51:0];
+      frac_b = rs2_value[51:0];
+      a_is_nan = (exp_a == 11'h7ff) && (frac_a != 52'b0);
+      b_is_nan = (exp_b == 11'h7ff) && (frac_b != 52'b0);
+      a_is_inf = (exp_a == 11'h7ff) && (frac_a == 52'b0);
+      b_is_inf = (exp_b == 11'h7ff) && (frac_b == 52'b0);
+      a_is_zero = (exp_a == 11'h000) && (frac_a == 52'b0);
+      b_is_zero = (exp_b == 11'h000) && (frac_b == 52'b0);
+
+      if (a_is_nan || b_is_nan) begin
+        fp_mul_d_value = 64'h7ff8000000000000;
+      end else if ((a_is_inf && b_is_zero) ||
+                   (b_is_inf && a_is_zero)) begin
+        fp_mul_d_value = 64'h7ff8000000000000;
+      end else if (a_is_inf || b_is_inf) begin
+        fp_mul_d_value = {sign_z, 11'h7ff, 52'b0};
+      end else if (a_is_zero || b_is_zero) begin
+        fp_mul_d_value = {sign_z, 63'b0};
+      end else begin
+        sig_a = {(exp_a != 11'h000), frac_a};
+        sig_b = {(exp_b != 11'h000), frac_b};
+        exp_z = ((exp_a == 11'h000) ? 1 : exp_a) +
+                ((exp_b == 11'h000) ? 1 : exp_b) - 1023;
+        product = sig_a * sig_b;
+        product_norm = product;
+
+        for (norm_idx = 0; norm_idx < 105; norm_idx = norm_idx + 1) begin
+          if ((product_norm != 106'b0) && !product_norm[105] &&
+              !product_norm[104] && (exp_z > 1)) begin
+            product_norm = product_norm << 1;
+            exp_z = exp_z - 1;
+          end
+        end
+
+        if (exp_z < 1) begin
+          sub_shift_int = 1 - exp_z;
+          if (sub_shift_int >= 106)
+            sub_shift = 8'd106;
+          else
+            sub_shift = sub_shift_int;
+          product_norm = fp_shift_right_jam_106(product_norm, sub_shift);
+          exp_z = 1;
+        end
+
+        if (product_norm[105]) begin
+          mant53 = product_norm[105:53];
+          guard = product_norm[52];
+          sticky = |product_norm[51:0];
+          exp_z = exp_z + 1;
+        end else begin
+          mant53 = product_norm[104:52];
+          guard = product_norm[51];
+          sticky = |product_norm[50:0];
+        end
+
+        inc = fp_round_increment(sign_z, rm, mant53[0], guard, sticky);
+        mant_round_ext = {1'b0, mant53} + {{53{1'b0}}, inc};
+        if (mant_round_ext[53]) begin
+          mant53 = mant_round_ext[53:1];
+          exp_z = exp_z + 1;
+        end else begin
+          mant53 = mant_round_ext[52:0];
+        end
+
+        if (exp_z >= 2047) begin
+          fp_mul_d_value = {sign_z, 11'h7ff, 52'b0};
+        end else if ((exp_z <= 1) && !mant53[52]) begin
+          fp_mul_d_value = {sign_z, 11'b0, mant53[51:0]};
+        end else begin
+          fp_mul_d_value = {sign_z, exp_z[10:0], mant53[51:0]};
+        end
+      end
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_mul_s_value;
+    input [`XLEN-1:0] rs1_value;
+    input [`XLEN-1:0] rs2_value;
+    input [2:0] rm;
+    reg [31:0] a;
+    reg [31:0] b;
+    reg sign_z;
+    reg [7:0] exp_a;
+    reg [7:0] exp_b;
+    reg [22:0] frac_a;
+    reg [22:0] frac_b;
+    reg a_is_nan;
+    reg b_is_nan;
+    reg a_is_inf;
+    reg b_is_inf;
+    reg a_is_zero;
+    reg b_is_zero;
+    reg [23:0] sig_a;
+    reg [23:0] sig_b;
+    reg [47:0] product;
+    reg [47:0] product_norm;
+    reg [23:0] mant24;
+    reg [24:0] mant_round_ext;
+    reg guard;
+    reg sticky;
+    reg inc;
+    reg [5:0] sub_shift;
+    integer exp_z;
+    integer norm_idx;
+    integer sub_shift_int;
+    begin
+      a = rs1_value[31:0];
+      b = rs2_value[31:0];
+      sign_z = a[31] ^ b[31];
+      exp_a = a[30:23];
+      exp_b = b[30:23];
+      frac_a = a[22:0];
+      frac_b = b[22:0];
+      a_is_nan = fp_is_nan_s_value(rs1_value);
+      b_is_nan = fp_is_nan_s_value(rs2_value);
+      a_is_inf = (rs1_value[63:32] == 32'hffff_ffff) &&
+                 (exp_a == 8'hff) && (frac_a == 23'b0);
+      b_is_inf = (rs2_value[63:32] == 32'hffff_ffff) &&
+                 (exp_b == 8'hff) && (frac_b == 23'b0);
+      a_is_zero = (rs1_value[63:32] == 32'hffff_ffff) &&
+                  (exp_a == 8'h00) && (frac_a == 23'b0);
+      b_is_zero = (rs2_value[63:32] == 32'hffff_ffff) &&
+                  (exp_b == 8'h00) && (frac_b == 23'b0);
+
+      if (a_is_nan || b_is_nan) begin
+        fp_mul_s_value = 64'hffffffff7fc00000;
+      end else if ((a_is_inf && b_is_zero) ||
+                   (b_is_inf && a_is_zero)) begin
+        fp_mul_s_value = 64'hffffffff7fc00000;
+      end else if (a_is_inf || b_is_inf) begin
+        fp_mul_s_value = {32'hffff_ffff, sign_z, 8'hff, 23'b0};
+      end else if (a_is_zero || b_is_zero) begin
+        fp_mul_s_value = {32'hffff_ffff, sign_z, 31'b0};
+      end else begin
+        sig_a = {(exp_a != 8'h00), frac_a};
+        sig_b = {(exp_b != 8'h00), frac_b};
+        exp_z = ((exp_a == 8'h00) ? 1 : exp_a) +
+                ((exp_b == 8'h00) ? 1 : exp_b) - 127;
+        product = sig_a * sig_b;
+        product_norm = product;
+
+        for (norm_idx = 0; norm_idx < 47; norm_idx = norm_idx + 1) begin
+          if ((product_norm != 48'b0) && !product_norm[47] &&
+              !product_norm[46] && (exp_z > 1)) begin
+            product_norm = product_norm << 1;
+            exp_z = exp_z - 1;
+          end
+        end
+
+        if (exp_z < 1) begin
+          sub_shift_int = 1 - exp_z;
+          if (sub_shift_int >= 48)
+            sub_shift = 6'd48;
+          else
+            sub_shift = sub_shift_int;
+          product_norm = fp_shift_right_jam_48(product_norm, sub_shift);
+          exp_z = 1;
+        end
+
+        if (product_norm[47]) begin
+          mant24 = product_norm[47:24];
+          guard = product_norm[23];
+          sticky = |product_norm[22:0];
+          exp_z = exp_z + 1;
+        end else begin
+          mant24 = product_norm[46:23];
+          guard = product_norm[22];
+          sticky = |product_norm[21:0];
+        end
+
+        inc = fp_round_increment(sign_z, rm, mant24[0], guard, sticky);
+        mant_round_ext = {1'b0, mant24} + {{24{1'b0}}, inc};
+        if (mant_round_ext[24]) begin
+          mant24 = mant_round_ext[24:1];
+          exp_z = exp_z + 1;
+        end else begin
+          mant24 = mant_round_ext[23:0];
+        end
+
+        if (exp_z >= 255) begin
+          fp_mul_s_value = {32'hffff_ffff, sign_z, 8'hff, 23'b0};
+        end else if ((exp_z <= 1) && !mant24[23]) begin
+          fp_mul_s_value = {32'hffff_ffff, sign_z, 8'b0, mant24[22:0]};
+        end else begin
+          fp_mul_s_value = {32'hffff_ffff, sign_z, exp_z[7:0], mant24[22:0]};
+        end
+      end
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_mul_value;
+    input [`XLEN-1:0] rs1_value;
+    input [`XLEN-1:0] rs2_value;
+    input is_double;
+    input [2:0] rm;
+    begin
+      fp_mul_value = is_double ?
+          fp_mul_d_value(rs1_value, rs2_value, rm) :
+          fp_mul_s_value(rs1_value, rs2_value, rm);
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_div_d_value;
+    input [`XLEN-1:0] rs1_value;
+    input [`XLEN-1:0] rs2_value;
+    input [2:0] rm;
+    reg sign_z;
+    reg [10:0] exp_a;
+    reg [10:0] exp_b;
+    reg [51:0] frac_a;
+    reg [51:0] frac_b;
+    reg a_is_nan;
+    reg b_is_nan;
+    reg a_is_inf;
+    reg b_is_inf;
+    reg a_is_zero;
+    reg b_is_zero;
+    reg [52:0] sig_a;
+    reg [52:0] sig_b;
+    reg [107:0] dividend;
+    reg [55:0] quotient_ext;
+    reg [55:0] quotient_norm;
+    reg [107:0] remainder_ext;
+    reg [52:0] mant53;
+    reg [53:0] mant_round_ext;
+    reg guard;
+    reg sticky;
+    reg inc;
+    reg [6:0] sub_shift;
+    integer exp_z;
+    integer sub_shift_int;
+    begin
+      sign_z = rs1_value[63] ^ rs2_value[63];
+      exp_a = rs1_value[62:52];
+      exp_b = rs2_value[62:52];
+      frac_a = rs1_value[51:0];
+      frac_b = rs2_value[51:0];
+      a_is_nan = (exp_a == 11'h7ff) && (frac_a != 52'b0);
+      b_is_nan = (exp_b == 11'h7ff) && (frac_b != 52'b0);
+      a_is_inf = (exp_a == 11'h7ff) && (frac_a == 52'b0);
+      b_is_inf = (exp_b == 11'h7ff) && (frac_b == 52'b0);
+      a_is_zero = (exp_a == 11'h000) && (frac_a == 52'b0);
+      b_is_zero = (exp_b == 11'h000) && (frac_b == 52'b0);
+
+      if (a_is_nan || b_is_nan) begin
+        fp_div_d_value = 64'h7ff8000000000000;
+      end else if ((a_is_zero && b_is_zero) ||
+                   (a_is_inf && b_is_inf)) begin
+        fp_div_d_value = 64'h7ff8000000000000;
+      end else if (a_is_inf || b_is_zero) begin
+        fp_div_d_value = {sign_z, 11'h7ff, 52'b0};
+      end else if (a_is_zero || b_is_inf) begin
+        fp_div_d_value = {sign_z, 63'b0};
+      end else begin
+        sig_a = {(exp_a != 11'h000), frac_a};
+        sig_b = {(exp_b != 11'h000), frac_b};
+        exp_z = ((exp_a == 11'h000) ? 1 : exp_a) -
+                ((exp_b == 11'h000) ? 1 : exp_b) + 1023;
+
+        // Focused FDIV gate uses a combinational integer quotient helper.
+        // It is synthesizable, but a tapeout FPU should replace it with a
+        // timed divider pipeline and keep the same architectural cases.
+        dividend = {sig_a, 55'b0};
+        quotient_ext = dividend / sig_b;
+        remainder_ext = dividend % sig_b;
+        if (quotient_ext[55]) begin
+          quotient_norm = quotient_ext;
+        end else begin
+          quotient_norm = {quotient_ext[54:0], 1'b0};
+          exp_z = exp_z - 1;
+        end
+        quotient_norm[0] = quotient_norm[0] | (remainder_ext != 108'b0);
+
+        if (exp_z < 1) begin
+          sub_shift_int = 1 - exp_z;
+          if (sub_shift_int >= 56)
+            sub_shift = 7'd56;
+          else
+            sub_shift = sub_shift_int;
+          quotient_norm = fp_shift_right_jam_56(quotient_norm, sub_shift);
+          exp_z = 1;
+        end
+
+        mant53 = quotient_norm[55:3];
+        guard = quotient_norm[2];
+        sticky = quotient_norm[1] | quotient_norm[0];
+        inc = fp_round_increment(sign_z, rm, mant53[0], guard, sticky);
+        mant_round_ext = {1'b0, mant53} + {{53{1'b0}}, inc};
+        if (mant_round_ext[53]) begin
+          mant53 = mant_round_ext[53:1];
+          exp_z = exp_z + 1;
+        end else begin
+          mant53 = mant_round_ext[52:0];
+        end
+
+        if (exp_z >= 2047) begin
+          fp_div_d_value = {sign_z, 11'h7ff, 52'b0};
+        end else if ((exp_z <= 1) && !mant53[52]) begin
+          fp_div_d_value = {sign_z, 11'b0, mant53[51:0]};
+        end else begin
+          fp_div_d_value = {sign_z, exp_z[10:0], mant53[51:0]};
+        end
+      end
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_div_s_value;
+    input [`XLEN-1:0] rs1_value;
+    input [`XLEN-1:0] rs2_value;
+    input [2:0] rm;
+    reg [31:0] a;
+    reg [31:0] b;
+    reg sign_z;
+    reg [7:0] exp_a;
+    reg [7:0] exp_b;
+    reg [22:0] frac_a;
+    reg [22:0] frac_b;
+    reg a_is_nan;
+    reg b_is_nan;
+    reg a_is_inf;
+    reg b_is_inf;
+    reg a_is_zero;
+    reg b_is_zero;
+    reg [23:0] sig_a;
+    reg [23:0] sig_b;
+    reg [49:0] dividend;
+    reg [26:0] quotient_ext;
+    reg [26:0] quotient_norm;
+    reg [49:0] remainder_ext;
+    reg [23:0] mant24;
+    reg [24:0] mant_round_ext;
+    reg guard;
+    reg sticky;
+    reg inc;
+    reg [5:0] sub_shift;
+    integer exp_z;
+    integer sub_shift_int;
+    begin
+      a = rs1_value[31:0];
+      b = rs2_value[31:0];
+      sign_z = a[31] ^ b[31];
+      exp_a = a[30:23];
+      exp_b = b[30:23];
+      frac_a = a[22:0];
+      frac_b = b[22:0];
+      a_is_nan = fp_is_nan_s_value(rs1_value);
+      b_is_nan = fp_is_nan_s_value(rs2_value);
+      a_is_inf = (rs1_value[63:32] == 32'hffff_ffff) &&
+                 (exp_a == 8'hff) && (frac_a == 23'b0);
+      b_is_inf = (rs2_value[63:32] == 32'hffff_ffff) &&
+                 (exp_b == 8'hff) && (frac_b == 23'b0);
+      a_is_zero = (rs1_value[63:32] == 32'hffff_ffff) &&
+                  (exp_a == 8'h00) && (frac_a == 23'b0);
+      b_is_zero = (rs2_value[63:32] == 32'hffff_ffff) &&
+                  (exp_b == 8'h00) && (frac_b == 23'b0);
+
+      if (a_is_nan || b_is_nan) begin
+        fp_div_s_value = 64'hffffffff7fc00000;
+      end else if ((a_is_zero && b_is_zero) ||
+                   (a_is_inf && b_is_inf)) begin
+        fp_div_s_value = 64'hffffffff7fc00000;
+      end else if (a_is_inf || b_is_zero) begin
+        fp_div_s_value = {32'hffff_ffff, sign_z, 8'hff, 23'b0};
+      end else if (a_is_zero || b_is_inf) begin
+        fp_div_s_value = {32'hffff_ffff, sign_z, 31'b0};
+      end else begin
+        sig_a = {(exp_a != 8'h00), frac_a};
+        sig_b = {(exp_b != 8'h00), frac_b};
+        exp_z = ((exp_a == 8'h00) ? 1 : exp_a) -
+                ((exp_b == 8'h00) ? 1 : exp_b) + 127;
+
+        dividend = {sig_a, 26'b0};
+        quotient_ext = dividend / sig_b;
+        remainder_ext = dividend % sig_b;
+        if (quotient_ext[26]) begin
+          quotient_norm = quotient_ext;
+        end else begin
+          quotient_norm = {quotient_ext[25:0], 1'b0};
+          exp_z = exp_z - 1;
+        end
+        quotient_norm[0] = quotient_norm[0] | (remainder_ext != 50'b0);
+
+        if (exp_z < 1) begin
+          sub_shift_int = 1 - exp_z;
+          if (sub_shift_int >= 27)
+            sub_shift = 6'd27;
+          else
+            sub_shift = sub_shift_int;
+          quotient_norm = fp_shift_right_jam_27(quotient_norm, sub_shift);
+          exp_z = 1;
+        end
+
+        mant24 = quotient_norm[26:3];
+        guard = quotient_norm[2];
+        sticky = quotient_norm[1] | quotient_norm[0];
+        inc = fp_round_increment(sign_z, rm, mant24[0], guard, sticky);
+        mant_round_ext = {1'b0, mant24} + {{24{1'b0}}, inc};
+        if (mant_round_ext[24]) begin
+          mant24 = mant_round_ext[24:1];
+          exp_z = exp_z + 1;
+        end else begin
+          mant24 = mant_round_ext[23:0];
+        end
+
+        if (exp_z >= 255) begin
+          fp_div_s_value = {32'hffff_ffff, sign_z, 8'hff, 23'b0};
+        end else if ((exp_z <= 1) && !mant24[23]) begin
+          fp_div_s_value = {32'hffff_ffff, sign_z, 8'b0, mant24[22:0]};
+        end else begin
+          fp_div_s_value = {32'hffff_ffff, sign_z, exp_z[7:0], mant24[22:0]};
+        end
+      end
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_div_value;
+    input [`XLEN-1:0] rs1_value;
+    input [`XLEN-1:0] rs2_value;
+    input is_double;
+    input [2:0] rm;
+    begin
+      fp_div_value = is_double ?
+          fp_div_d_value(rs1_value, rs2_value, rm) :
+          fp_div_s_value(rs1_value, rs2_value, rm);
+    end
+  endfunction
+
+  function [55:0] fp_isqrt_112;
+    input [111:0] value;
+    reg [55:0] root;
+    reg [55:0] candidate;
+    reg [111:0] candidate_sq;
+    integer bit_idx;
+    begin
+      root = 56'b0;
+      for (bit_idx = 55; bit_idx >= 0; bit_idx = bit_idx - 1) begin
+        candidate = root | (56'd1 << bit_idx);
+        candidate_sq = candidate * candidate;
+        if (candidate_sq <= value)
+          root = candidate;
+      end
+      fp_isqrt_112 = root;
+    end
+  endfunction
+
+  function [26:0] fp_isqrt_54;
+    input [53:0] value;
+    reg [26:0] root;
+    reg [26:0] candidate;
+    reg [53:0] candidate_sq;
+    integer bit_idx;
+    begin
+      root = 27'b0;
+      for (bit_idx = 26; bit_idx >= 0; bit_idx = bit_idx - 1) begin
+        candidate = root | (27'd1 << bit_idx);
+        candidate_sq = candidate * candidate;
+        if (candidate_sq <= value)
+          root = candidate;
+      end
+      fp_isqrt_54 = root;
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_sqrt_d_value;
+    input [`XLEN-1:0] rs1_value;
+    input [2:0] rm;
+    reg sign_a;
+    reg [10:0] exp_a;
+    reg [51:0] frac_a;
+    reg a_is_nan;
+    reg a_is_inf;
+    reg a_is_zero;
+    reg exp_odd;
+    reg [52:0] sig_a;
+    reg [111:0] radicand_ext;
+    reg [55:0] root_ext;
+    reg [111:0] root_sq;
+    reg [52:0] mant53;
+    reg [53:0] mant_round_ext;
+    reg guard;
+    reg sticky;
+    reg inc;
+    integer exp_unbiased;
+    integer sqrt_exp;
+    integer exp_z;
+    integer norm_idx;
+    begin
+      sign_a = rs1_value[63];
+      exp_a = rs1_value[62:52];
+      frac_a = rs1_value[51:0];
+      a_is_nan = (exp_a == 11'h7ff) && (frac_a != 52'b0);
+      a_is_inf = (exp_a == 11'h7ff) && (frac_a == 52'b0);
+      a_is_zero = (exp_a == 11'h000) && (frac_a == 52'b0);
+
+      if (a_is_nan) begin
+        fp_sqrt_d_value = 64'h7ff8000000000000;
+      end else if (sign_a && !a_is_zero) begin
+        fp_sqrt_d_value = 64'h7ff8000000000000;
+      end else if (a_is_inf) begin
+        fp_sqrt_d_value = {1'b0, 11'h7ff, 52'b0};
+      end else if (a_is_zero) begin
+        fp_sqrt_d_value = {sign_a, 63'b0};
+      end else begin
+        sig_a = {(exp_a != 11'h000), frac_a};
+        exp_unbiased = ((exp_a == 11'h000) ? 1 : exp_a) - 1023;
+        if (exp_a == 11'h000) begin
+          for (norm_idx = 0; norm_idx < 52; norm_idx = norm_idx + 1) begin
+            if (!sig_a[52]) begin
+              sig_a = sig_a << 1;
+              exp_unbiased = exp_unbiased - 1;
+            end
+          end
+        end
+
+        exp_odd = (exp_unbiased - ((exp_unbiased / 2) * 2)) != 0;
+        if (exp_odd) begin
+          sqrt_exp = (exp_unbiased - 1) / 2;
+          radicand_ext = {59'b0, sig_a} << 59;
+        end else begin
+          sqrt_exp = exp_unbiased / 2;
+          radicand_ext = {59'b0, sig_a} << 58;
+        end
+
+        // Focused FSQRT gate uses a combinational integer sqrt helper.
+        // A tapeout FPU should replace it with a timed pipeline.
+        root_ext = fp_isqrt_112(radicand_ext);
+        root_sq = root_ext * root_ext;
+        mant53 = root_ext[55:3];
+        guard = root_ext[2];
+        sticky = root_ext[1] | root_ext[0] | (root_sq != radicand_ext);
+        inc = fp_round_increment(1'b0, rm, mant53[0], guard, sticky);
+        mant_round_ext = {1'b0, mant53} + {{53{1'b0}}, inc};
+        exp_z = sqrt_exp + 1023;
+        if (mant_round_ext[53]) begin
+          mant53 = mant_round_ext[53:1];
+          exp_z = exp_z + 1;
+        end else begin
+          mant53 = mant_round_ext[52:0];
+        end
+
+        if (exp_z >= 2047) begin
+          fp_sqrt_d_value = {1'b0, 11'h7ff, 52'b0};
+        end else if ((exp_z <= 1) && !mant53[52]) begin
+          fp_sqrt_d_value = {1'b0, 11'b0, mant53[51:0]};
+        end else begin
+          fp_sqrt_d_value = {1'b0, exp_z[10:0], mant53[51:0]};
+        end
+      end
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_sqrt_s_value;
+    input [`XLEN-1:0] rs1_value;
+    input [2:0] rm;
+    reg [31:0] a;
+    reg sign_a;
+    reg [7:0] exp_a;
+    reg [22:0] frac_a;
+    reg a_is_nan;
+    reg a_is_inf;
+    reg a_is_zero;
+    reg exp_odd;
+    reg [23:0] sig_a;
+    reg [53:0] radicand_ext;
+    reg [26:0] root_ext;
+    reg [53:0] root_sq;
+    reg [23:0] mant24;
+    reg [24:0] mant_round_ext;
+    reg guard;
+    reg sticky;
+    reg inc;
+    integer exp_unbiased;
+    integer sqrt_exp;
+    integer exp_z;
+    integer norm_idx;
+    begin
+      a = rs1_value[31:0];
+      sign_a = a[31];
+      exp_a = a[30:23];
+      frac_a = a[22:0];
+      a_is_nan = fp_is_nan_s_value(rs1_value);
+      a_is_inf = (rs1_value[63:32] == 32'hffff_ffff) &&
+                 (exp_a == 8'hff) && (frac_a == 23'b0);
+      a_is_zero = (rs1_value[63:32] == 32'hffff_ffff) &&
+                  (exp_a == 8'h00) && (frac_a == 23'b0);
+
+      if (a_is_nan) begin
+        fp_sqrt_s_value = 64'hffffffff7fc00000;
+      end else if (sign_a && !a_is_zero) begin
+        fp_sqrt_s_value = 64'hffffffff7fc00000;
+      end else if (a_is_inf) begin
+        fp_sqrt_s_value = {32'hffff_ffff, 1'b0, 8'hff, 23'b0};
+      end else if (a_is_zero) begin
+        fp_sqrt_s_value = {32'hffff_ffff, sign_a, 31'b0};
+      end else begin
+        sig_a = {(exp_a != 8'h00), frac_a};
+        exp_unbiased = ((exp_a == 8'h00) ? 1 : exp_a) - 127;
+        if (exp_a == 8'h00) begin
+          for (norm_idx = 0; norm_idx < 23; norm_idx = norm_idx + 1) begin
+            if (!sig_a[23]) begin
+              sig_a = sig_a << 1;
+              exp_unbiased = exp_unbiased - 1;
+            end
+          end
+        end
+
+        exp_odd = (exp_unbiased - ((exp_unbiased / 2) * 2)) != 0;
+        if (exp_odd) begin
+          sqrt_exp = (exp_unbiased - 1) / 2;
+          radicand_ext = {30'b0, sig_a} << 30;
+        end else begin
+          sqrt_exp = exp_unbiased / 2;
+          radicand_ext = {30'b0, sig_a} << 29;
+        end
+
+        root_ext = fp_isqrt_54(radicand_ext);
+        root_sq = root_ext * root_ext;
+        mant24 = root_ext[26:3];
+        guard = root_ext[2];
+        sticky = root_ext[1] | root_ext[0] | (root_sq != radicand_ext);
+        inc = fp_round_increment(1'b0, rm, mant24[0], guard, sticky);
+        mant_round_ext = {1'b0, mant24} + {{24{1'b0}}, inc};
+        exp_z = sqrt_exp + 127;
+        if (mant_round_ext[24]) begin
+          mant24 = mant_round_ext[24:1];
+          exp_z = exp_z + 1;
+        end else begin
+          mant24 = mant_round_ext[23:0];
+        end
+
+        if (exp_z >= 255) begin
+          fp_sqrt_s_value = {32'hffff_ffff, 1'b0, 8'hff, 23'b0};
+        end else if ((exp_z <= 1) && !mant24[23]) begin
+          fp_sqrt_s_value = {32'hffff_ffff, 1'b0, 8'b0, mant24[22:0]};
+        end else begin
+          fp_sqrt_s_value = {32'hffff_ffff, 1'b0, exp_z[7:0], mant24[22:0]};
+        end
+      end
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_sqrt_value;
+    input [`XLEN-1:0] rs1_value;
+    input is_double;
+    input [2:0] rm;
+    begin
+      fp_sqrt_value = is_double ?
+          fp_sqrt_d_value(rs1_value, rm) :
+          fp_sqrt_s_value(rs1_value, rm);
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_minmax_value;
+    input [`XLEN-1:0] rs1_value;
+    input [`XLEN-1:0] rs2_value;
+    input is_double;
+    input is_max;
+    reg sign1;
+    reg sign2;
+    reg nan1;
+    reg nan2;
+    reg both_zero;
+    reg less_value;
+    reg [62:0] mag1_d;
+    reg [62:0] mag2_d;
+    reg [30:0] mag1_s;
+    reg [30:0] mag2_s;
+    begin
+      if (is_double) begin
+        nan1 = fp_is_nan_d_value(rs1_value);
+        nan2 = fp_is_nan_d_value(rs2_value);
+        sign1 = rs1_value[63];
+        sign2 = rs2_value[63];
+        mag1_d = rs1_value[62:0];
+        mag2_d = rs2_value[62:0];
+        both_zero = (mag1_d == 63'b0) && (mag2_d == 63'b0);
+        if (nan1 && nan2) begin
+          fp_minmax_value = 64'h7ff8000000000000;
+        end else if (nan1) begin
+          fp_minmax_value = rs2_value;
+        end else if (nan2) begin
+          fp_minmax_value = rs1_value;
+        end else if (both_zero) begin
+          if (is_max)
+            fp_minmax_value = sign1 ? rs2_value : rs1_value;
+          else
+            fp_minmax_value = sign1 ? rs1_value : rs2_value;
+        end else begin
+          if (sign1 != sign2) begin
+            less_value = sign1;
+          end else if (sign1) begin
+            less_value = mag1_d > mag2_d;
+          end else begin
+            less_value = mag1_d < mag2_d;
+          end
+          fp_minmax_value = is_max ?
+              (less_value ? rs2_value : rs1_value) :
+              (less_value ? rs1_value : rs2_value);
+        end
+      end else begin
+        nan1 = fp_is_nan_s_value(rs1_value);
+        nan2 = fp_is_nan_s_value(rs2_value);
+        sign1 = rs1_value[31];
+        sign2 = rs2_value[31];
+        mag1_s = rs1_value[30:0];
+        mag2_s = rs2_value[30:0];
+        both_zero = (mag1_s == 31'b0) && (mag2_s == 31'b0);
+        if (nan1 && nan2) begin
+          fp_minmax_value = 64'hffffffff7fc00000;
+        end else if (nan1) begin
+          fp_minmax_value = {32'hffff_ffff, rs2_value[31:0]};
+        end else if (nan2) begin
+          fp_minmax_value = {32'hffff_ffff, rs1_value[31:0]};
+        end else if (both_zero) begin
+          if (is_max)
+            fp_minmax_value = {32'hffff_ffff,
+                               (sign1 ? rs2_value[31:0] : rs1_value[31:0])};
+          else
+            fp_minmax_value = {32'hffff_ffff,
+                               (sign1 ? rs1_value[31:0] : rs2_value[31:0])};
+        end else begin
+          if (sign1 != sign2) begin
+            less_value = sign1;
+          end else if (sign1) begin
+            less_value = mag1_s > mag2_s;
+          end else begin
+            less_value = mag1_s < mag2_s;
+          end
+          fp_minmax_value = {32'hffff_ffff,
+              (is_max ?
+               (less_value ? rs2_value[31:0] : rs1_value[31:0]) :
+               (less_value ? rs1_value[31:0] : rs2_value[31:0]))};
+        end
+      end
+    end
+  endfunction
+
+  wire [`REG_ADDR_W-1:0] pending_fp_rs1_idx_w = pending_fp_inst_q[19:15];
+  wire [`REG_ADDR_W-1:0] pending_fp_rs2_idx_w = pending_fp_inst_q[24:20];
+  wire [`XLEN-1:0] pending_fp_int_rs1_value_w =
+      arch_gpr(core_debug_gprs_w, pending_fp_rs1_idx_w);
+  wire [`XLEN-1:0] pending_fp_mem_addr_w =
+      pending_fp_int_rs1_value_w +
+      (pending_fp_load_q ? fp_i_imm(pending_fp_inst_q) :
+                           fp_s_imm(pending_fp_inst_q));
+  wire [`XLEN-1:0] pending_fp_store_value_w = fpr_q[pending_fp_rs2_idx_w];
+  wire [`XLEN-1:0] pending_fp_mem_wdata_w =
+      fp_store_wdata(pending_fp_mem_addr_w,
+                     pending_fp_store_value_w,
+                     pending_fp_double_q);
+  wire [`STRB_W-1:0] pending_fp_mem_wstrb_w =
+      fp_store_wstrb(pending_fp_mem_addr_w, pending_fp_double_q);
+  wire [`XLEN-1:0] pending_fp_move_to_fpr_value_w =
+      pending_fp_double_q ? pending_fp_int_rs1_value_w :
+      {32'hffff_ffff, pending_fp_int_rs1_value_w[31:0]};
+  wire [`XLEN-1:0] pending_fp_frs1_value_w = fpr_q[pending_fp_rs1_idx_w];
+  wire [`XLEN-1:0] pending_fp_frs2_value_w = fpr_q[pending_fp_rs2_idx_w];
+  wire pending_fp_class_w =
+      pending_fp_gpr_write_q && (pending_fp_inst_q[14:12] == 3'b001) &&
+      ((pending_fp_inst_q[31:25] == FP_FUNCT7_FMV_X_W) ||
+       (pending_fp_inst_q[31:25] == FP_FUNCT7_FMV_X_D));
+  wire pending_fp_compare_w =
+      pending_fp_gpr_write_q &&
+      ((pending_fp_inst_q[31:25] == FP_FUNCT7_FCMP_S) ||
+       (pending_fp_inst_q[31:25] == FP_FUNCT7_FCMP_D));
+  wire pending_fp_sgnj_w =
+      !pending_fp_gpr_write_q &&
+      ((pending_fp_inst_q[31:25] == FP_FUNCT7_FSGNJ_S) ||
+       (pending_fp_inst_q[31:25] == FP_FUNCT7_FSGNJ_D));
+  wire pending_fp_addsub_w =
+      !pending_fp_gpr_write_q &&
+      ((pending_fp_inst_q[31:25] == FP_FUNCT7_FADD_S) ||
+       (pending_fp_inst_q[31:25] == FP_FUNCT7_FADD_D) ||
+       (pending_fp_inst_q[31:25] == FP_FUNCT7_FSUB_S) ||
+       (pending_fp_inst_q[31:25] == FP_FUNCT7_FSUB_D));
+  wire pending_fp_mul_w =
+      !pending_fp_gpr_write_q &&
+      ((pending_fp_inst_q[31:25] == FP_FUNCT7_FMUL_S) ||
+       (pending_fp_inst_q[31:25] == FP_FUNCT7_FMUL_D));
+  wire pending_fp_div_w =
+      !pending_fp_gpr_write_q &&
+      ((pending_fp_inst_q[31:25] == FP_FUNCT7_FDIV_S) ||
+       (pending_fp_inst_q[31:25] == FP_FUNCT7_FDIV_D));
+  wire pending_fp_sqrt_w =
+      !pending_fp_gpr_write_q &&
+      ((pending_fp_inst_q[31:25] == FP_FUNCT7_FSQRT_S) ||
+       (pending_fp_inst_q[31:25] == FP_FUNCT7_FSQRT_D));
+  wire pending_fp_minmax_w =
+      !pending_fp_gpr_write_q &&
+      ((pending_fp_inst_q[31:25] == FP_FUNCT7_FMINMAX_S) ||
+       (pending_fp_inst_q[31:25] == FP_FUNCT7_FMINMAX_D));
+  wire pending_fp_convert_to_gpr_w =
+      pending_fp_gpr_write_q &&
+      (pending_fp_inst_q[31:25] == FP_FUNCT7_FCVT_D_INT);
+  wire pending_fp_convert_to_fpr_w =
+      !pending_fp_gpr_write_q &&
+      (pending_fp_inst_q[31:25] == FP_FUNCT7_FCVT_INT_D);
+  wire [`XLEN-1:0] pending_fp_convert_to_gpr_value_w =
+      fp_d_to_int_value(pending_fp_frs1_value_w,
+                        pending_fp_inst_q[21:20],
+                        pending_fp_inst_q[14:12]);
+  wire [`XLEN-1:0] pending_fp_convert_to_fpr_value_w =
+      fp_int_to_d_value(pending_fp_int_rs1_value_w,
+                        pending_fp_inst_q[21:20],
+                        pending_fp_inst_q[14:12]);
+  wire [`XLEN-1:0] pending_fp_compare_value_w =
+      fp_compare_value(pending_fp_frs1_value_w,
+                       pending_fp_frs2_value_w,
+                       pending_fp_double_q,
+                       pending_fp_inst_q[14:12]);
+  wire [`XLEN-1:0] pending_fp_sgnj_value_w =
+      fp_sgnj_value(pending_fp_frs1_value_w,
+                    pending_fp_frs2_value_w,
+                    pending_fp_double_q,
+                    pending_fp_inst_q[14:12]);
+  wire [`XLEN-1:0] pending_fp_addsub_value_w =
+      fp_addsub_value(pending_fp_frs1_value_w,
+                      pending_fp_frs2_value_w,
+                      pending_fp_double_q,
+                      (pending_fp_inst_q[31:25] == FP_FUNCT7_FSUB_S) ||
+                      (pending_fp_inst_q[31:25] == FP_FUNCT7_FSUB_D),
+                      pending_fp_inst_q[14:12]);
+  wire [`XLEN-1:0] pending_fp_mul_value_w =
+      fp_mul_value(pending_fp_frs1_value_w,
+                   pending_fp_frs2_value_w,
+                   pending_fp_double_q,
+                   pending_fp_inst_q[14:12]);
+  wire [`XLEN-1:0] pending_fp_div_value_w =
+      fp_div_value(pending_fp_frs1_value_w,
+                   pending_fp_frs2_value_w,
+                   pending_fp_double_q,
+                   pending_fp_inst_q[14:12]);
+  wire [`XLEN-1:0] pending_fp_sqrt_value_w =
+      fp_sqrt_value(pending_fp_frs1_value_w,
+                    pending_fp_double_q,
+                    pending_fp_inst_q[14:12]);
+  wire [`XLEN-1:0] pending_fp_minmax_value_w =
+      fp_minmax_value(pending_fp_frs1_value_w,
+                      pending_fp_frs2_value_w,
+                      pending_fp_double_q,
+                      pending_fp_inst_q[12]);
+  wire [`XLEN-1:0] pending_fp_gpr_value_w =
+      pending_fp_class_w ?
+      (pending_fp_double_q ? fp_class_d_value(pending_fp_frs1_value_w) :
+       fp_class_s_value(pending_fp_frs1_value_w[31:0])) :
+      pending_fp_compare_w ? pending_fp_compare_value_w :
+      pending_fp_convert_to_gpr_w ? pending_fp_convert_to_gpr_value_w :
+      fp_move_to_gpr_value(pending_fp_frs1_value_w, pending_fp_double_q);
+  wire [`XLEN-1:0] pending_fp_result_value_w =
+      pending_fp_gpr_write_q ? pending_fp_gpr_value_w :
+      pending_fp_convert_to_fpr_w ? pending_fp_convert_to_fpr_value_w :
+      pending_fp_sgnj_w ? pending_fp_sgnj_value_w :
+      pending_fp_addsub_w ? pending_fp_addsub_value_w :
+      pending_fp_mul_w ? pending_fp_mul_value_w :
+      pending_fp_div_w ? pending_fp_div_value_w :
+      pending_fp_sqrt_w ? pending_fp_sqrt_value_w :
+      pending_fp_minmax_w ? pending_fp_minmax_value_w :
+                               pending_fp_move_to_fpr_value_w;
   wire pending_fp_mem_req_valid_w =
       stop_pending_q && pending_fp_q && backend_drained_q &&
       !pending_fp_mem_pending_q && !pending_fp_mem_done_q;
@@ -2233,11 +4129,11 @@ module OooAluFetchCore #(
   assign mem_req_valid_o = pending_fp_mem_req_valid_w ? 1'b1 : core_mem_req_valid_w;
   assign mem_req_write_o = pending_fp_mem_req_valid_w ? pending_fp_store_q :
                            core_mem_req_write_w;
-  assign mem_req_addr_o = pending_fp_mem_req_valid_w ? fp_aligned_addr(pending_fp_addr_q) :
+  assign mem_req_addr_o = pending_fp_mem_req_valid_w ? fp_aligned_addr(pending_fp_mem_addr_w) :
                           core_mem_req_addr_w;
-  assign mem_req_wdata_o = pending_fp_mem_req_valid_w ? pending_fp_wdata_q :
+  assign mem_req_wdata_o = pending_fp_mem_req_valid_w ? pending_fp_mem_wdata_w :
                            core_mem_req_wdata_w;
-  assign mem_req_wstrb_o = pending_fp_mem_req_valid_w ? pending_fp_wstrb_q :
+  assign mem_req_wstrb_o = pending_fp_mem_req_valid_w ? pending_fp_mem_wstrb_w :
                            core_mem_req_wstrb_w;
   assign mem_rsp_ready_o = pending_fp_mem_pending_q ? 1'b1 : core_mem_rsp_ready_w;
   assign mem1_req_valid_o = core_mem1_req_valid_w;
@@ -2256,30 +4152,33 @@ module OooAluFetchCore #(
   wire head0_fp_double_w =
       (head_inst0_w[14:12] == `FUNCT3_LD) ||
       (head_inst0_w[14:12] == `FUNCT3_SD) ||
-      (head_inst0_w[31:25] == 7'b1111001);
+      (head_inst0_w[31:25] == FP_FUNCT7_FMV_X_D) ||
+      (head_inst0_w[31:25] == FP_FUNCT7_FMV_D_X) ||
+      (head_inst0_w[31:25] == FP_FUNCT7_FSGNJ_D) ||
+      (head_inst0_w[31:25] == FP_FUNCT7_FADD_D) ||
+      (head_inst0_w[31:25] == FP_FUNCT7_FSUB_D) ||
+      (head_inst0_w[31:25] == FP_FUNCT7_FMUL_D) ||
+      (head_inst0_w[31:25] == FP_FUNCT7_FDIV_D) ||
+      (head_inst0_w[31:25] == FP_FUNCT7_FSQRT_D) ||
+      (head_inst0_w[31:25] == FP_FUNCT7_FMINMAX_D) ||
+      (head_inst0_w[31:25] == FP_FUNCT7_FCMP_D) ||
+      (head_inst0_w[31:25] == FP_FUNCT7_FCVT_D_INT) ||
+      (head_inst0_w[31:25] == FP_FUNCT7_FCVT_INT_D);
   wire head1_fp_double_w =
       (head_inst1_w[14:12] == `FUNCT3_LD) ||
       (head_inst1_w[14:12] == `FUNCT3_SD) ||
-      (head_inst1_w[31:25] == 7'b1111001);
-  wire [`XLEN-1:0] head0_fp_addr_w =
-      arch_gpr(core_debug_gprs_w, head0_rs1_w) +
-      (head0_fp_load_raw_w ? fp_i_imm(head_inst0_w) : fp_s_imm(head_inst0_w));
-  wire [`XLEN-1:0] head1_fp_addr_w =
-      arch_gpr(core_debug_gprs_w, head1_rs1_w) +
-      (head1_fp_load_raw_w ? fp_i_imm(head_inst1_w) : fp_s_imm(head_inst1_w));
-  wire [`XLEN-1:0] head0_fp_store_value_w = fpr_q[head0_rs2_w];
-  wire [`XLEN-1:0] head1_fp_store_value_w = fpr_q[head1_rs2_w];
-  wire [`XLEN-1:0] head0_fp_rs1_value_w =
-      arch_gpr(core_debug_gprs_w, head0_rs1_w);
-  wire [`XLEN-1:0] head1_fp_rs1_value_w =
-      arch_gpr(core_debug_gprs_w, head1_rs1_w);
-  wire [`XLEN-1:0] head0_fp_move_value_w =
-      head0_fp_double_w ? head0_fp_rs1_value_w :
-      {32'hffff_ffff, head0_fp_rs1_value_w[31:0]};
-  wire [`XLEN-1:0] head1_fp_move_value_w =
-      head1_fp_double_w ? head1_fp_rs1_value_w :
-      {32'hffff_ffff, head1_fp_rs1_value_w[31:0]};
-
+      (head_inst1_w[31:25] == FP_FUNCT7_FMV_X_D) ||
+      (head_inst1_w[31:25] == FP_FUNCT7_FMV_D_X) ||
+      (head_inst1_w[31:25] == FP_FUNCT7_FSGNJ_D) ||
+      (head_inst1_w[31:25] == FP_FUNCT7_FADD_D) ||
+      (head_inst1_w[31:25] == FP_FUNCT7_FSUB_D) ||
+      (head_inst1_w[31:25] == FP_FUNCT7_FMUL_D) ||
+      (head_inst1_w[31:25] == FP_FUNCT7_FDIV_D) ||
+      (head_inst1_w[31:25] == FP_FUNCT7_FSQRT_D) ||
+      (head_inst1_w[31:25] == FP_FUNCT7_FMINMAX_D) ||
+      (head_inst1_w[31:25] == FP_FUNCT7_FCMP_D) ||
+      (head_inst1_w[31:25] == FP_FUNCT7_FCVT_D_INT) ||
+      (head_inst1_w[31:25] == FP_FUNCT7_FCVT_INT_D);
   CsrFile u_csr_file (
     .clk(clk),
     .rst(rst),
@@ -2400,6 +4299,9 @@ module OooAluFetchCore #(
     .pending_branch_fast_valid_i(stop_pending_q && pending_branch_q &&
                                  pending_branch_dispatched_q),
     .pending_branch_fast_pc_i(pending_branch_pc_q),
+    .serial_write_valid_i(pending_fp_gpr_commit_w),
+    .serial_write_arch_rd_i(pending_fp_rd_q),
+    .serial_write_data_i(pending_fp_result_value_w),
     .dispatch0_valid_i(core_dispatch0_valid_w),
     .dispatch0_ready_o(dispatch0_ready_w),
     .dispatch0_pc_i(core_dispatch0_pc_w),
@@ -2496,30 +4398,40 @@ module OooAluFetchCore #(
       (synth_lane1_ret_before_core0_w ||
        synth_lane1_ret_drop_branch_w) ? synth_lane1_ret_inst_q :
       core_commit0_inst_w;
+  wire core_commit0_jal_w =
+      core_commit0_valid_w && (core_commit0_inst_w[6:0] == `OPCODE_JAL);
+  wire core_commit1_jal_w =
+      core_commit1_valid_w && (core_commit1_inst_w[6:0] == `OPCODE_JAL);
+  wire [`XLEN-1:0] core_commit0_arch_next_pc_w =
+      core_commit0_jal_w ? (core_commit0_pc_w + rv32_imm_j(core_commit0_inst_w)) :
+                           core_commit0_next_pc_w;
+  wire [`XLEN-1:0] core_commit1_arch_next_pc_w =
+      core_commit1_jal_w ? (core_commit1_pc_w + rv32_imm_j(core_commit1_inst_w)) :
+                           core_commit1_next_pc_w;
   assign commit0_next_pc_o =
       ctrl_commit_valid_q ? ctrl_commit_next_pc_q :
       (synth_lane1_ret_before_core0_w ||
        synth_lane1_ret_drop_branch_w) ? synth_lane1_ret_next_pc_q :
-      core_commit0_next_pc_w;
+      core_commit0_arch_next_pc_w;
   assign commit0_rd_en_o =
-      (ctrl_commit_valid_q || synth_lane1_ret_before_core0_w ||
-       synth_lane1_ret_drop_branch_w) ?
+      ctrl_commit_valid_q ? ctrl_commit_rd_en_q :
+      (synth_lane1_ret_before_core0_w || synth_lane1_ret_drop_branch_w) ?
       1'b0 : core_commit0_rd_en_w;
   assign commit0_rd_addr_o =
-      (ctrl_commit_valid_q || synth_lane1_ret_before_core0_w ||
-       synth_lane1_ret_drop_branch_w) ?
+      ctrl_commit_valid_q ? ctrl_commit_rd_addr_q :
+      (synth_lane1_ret_before_core0_w || synth_lane1_ret_drop_branch_w) ?
       {`REG_ADDR_W{1'b0}} : core_commit0_rd_addr_w;
   assign commit0_rd_data_o =
-      (ctrl_commit_valid_q || synth_lane1_ret_before_core0_w ||
-       synth_lane1_ret_drop_branch_w) ?
+      ctrl_commit_valid_q ? ctrl_commit_rd_data_q :
+      (synth_lane1_ret_before_core0_w || synth_lane1_ret_drop_branch_w) ?
       {`XLEN{1'b0}} : core_commit0_rd_data_w;
   assign commit0_exception_o =
       (ctrl_commit_valid_q || synth_lane1_ret_before_core0_w ||
        synth_lane1_ret_drop_branch_w) ?
       1'b0 : core_commit0_exception_w;
   assign commit0_write_o =
-      (ctrl_commit_valid_q || synth_lane1_ret_before_core0_w ||
-       synth_lane1_ret_drop_branch_w) ?
+      ctrl_commit_valid_q ? ctrl_commit_write_q :
+      (synth_lane1_ret_before_core0_w || synth_lane1_ret_drop_branch_w) ?
       1'b0 : core_commit0_write_w;
   assign commit1_valid_o =
       ctrl_commit_valid_q ? 1'b0 :
@@ -2546,9 +4458,9 @@ module OooAluFetchCore #(
       ctrl_commit_valid_q ? {`XLEN{1'b0}} :
       synth_lane1_branch_append_w ? core_dispatch_branch_resolve_next_pc_w :
       synth_lane1_ret_after_core0_w ? synth_lane1_ret_next_pc_q :
-      synth_lane1_ret_before_core0_w ? core_commit0_next_pc_w :
-      synth_lane1_ret_drop_branch_w ? core_commit1_next_pc_w :
-      core_commit1_next_pc_w;
+      synth_lane1_ret_before_core0_w ? core_commit0_arch_next_pc_w :
+      synth_lane1_ret_drop_branch_w ? core_commit1_arch_next_pc_w :
+      core_commit1_arch_next_pc_w;
   assign commit1_rd_en_o =
       (ctrl_commit_valid_q || synth_lane1_branch_append_w ||
        synth_lane1_ret_after_core0_w) ?
@@ -2714,6 +4626,7 @@ module OooAluFetchCore #(
       pending_fp_load_q <= 1'b0;
       pending_fp_store_q <= 1'b0;
       pending_fp_double_q <= 1'b0;
+      pending_fp_gpr_write_q <= 1'b0;
       pending_arch_trap_q <= 1'b0;
       pending_trap_cause_q <= {`TRAP_CAUSE_W{1'b0}};
       pending_trap_pc_q <= {`XLEN{1'b0}};
@@ -2779,8 +4692,13 @@ module OooAluFetchCore #(
       ctrl_commit_pc_q <= {`XLEN{1'b0}};
       ctrl_commit_inst_q <= {`INST_W{1'b0}};
       ctrl_commit_next_pc_q <= {`XLEN{1'b0}};
+      ctrl_commit_rd_en_q <= 1'b0;
+      ctrl_commit_rd_addr_q <= {`REG_ADDR_W{1'b0}};
+      ctrl_commit_rd_data_q <= {`XLEN{1'b0}};
+      ctrl_commit_write_q <= 1'b0;
       backend_drained_q <= 1'b1;
       core_trap_flush_q <= 1'b0;
+      core_serial_flush_q <= 1'b0;
       checkpoint_mem_flush_q <= 1'b0;
       for (reset_idx = 0; reset_idx < FETCH_PACKET_COUNT; reset_idx = reset_idx + 1) begin
         fifo_pc0_q[reset_idx] <= {`XLEN{1'b0}};
@@ -2842,12 +4760,20 @@ module OooAluFetchCore #(
       /* verilator lint_on BLKSEQ */
     end else begin
       ctrl_commit_valid_q <= 1'b0;
+      ctrl_commit_rd_en_q <= 1'b0;
+      ctrl_commit_rd_addr_q <= {`REG_ADDR_W{1'b0}};
+      ctrl_commit_rd_data_q <= {`XLEN{1'b0}};
+      ctrl_commit_write_q <= 1'b0;
       backend_drained_q <= backend_drained_w && !core_dispatch0_fire_w;
       core_trap_flush_q <= 1'b0;
+      core_serial_flush_q <= 1'b0;
       checkpoint_mem_flush_q <= core_checkpoint_restore_w;
 
       if (pending_fp_mem_req_fire_w) begin
         pending_fp_mem_pending_q <= 1'b1;
+        pending_fp_addr_q <= pending_fp_mem_addr_w;
+        pending_fp_wdata_q <= pending_fp_mem_wdata_w;
+        pending_fp_wstrb_q <= pending_fp_mem_wstrb_w;
       end
       if (pending_fp_mem_rsp_fire_w) begin
         pending_fp_mem_pending_q <= 1'b0;
@@ -3726,12 +5652,21 @@ module OooAluFetchCore #(
         next_fetch_pc_q <= pending_system_next_pc_q;
       end else if (!direct_frontend_flush_w && stop_pending_q && drain_complete_w) begin
         stop_pending_q <= 1'b0;
+        pending_exit_q <= 1'b0;
+        pending_exit_is_ecall_q <= 1'b0;
+        pending_exit_is_ebreak_q <= 1'b0;
         pending_branch_q <= 1'b0;
         pending_branch_dispatched_q <= 1'b0;
         pending_jump_q <= 1'b0;
         pending_jump_dispatched_q <= 1'b0;
         pending_mem_q <= 1'b0;
         pending_mem_dispatched_q <= 1'b0;
+        pending_fp_q <= 1'b0;
+        pending_fp_mem_pending_q <= 1'b0;
+        pending_fp_mem_done_q <= 1'b0;
+        pending_fp_load_q <= 1'b0;
+        pending_fp_store_q <= 1'b0;
+        pending_fp_gpr_write_q <= 1'b0;
         pending_arch_trap_q <= 1'b0;
         pending_system_q <= 1'b0;
         pending_system_dispatched_q <= 1'b0;
@@ -3854,12 +5789,22 @@ module OooAluFetchCore #(
           branch_prefetch_buffer_valid_q <= 1'b0;
           branch_prefetch_pc_q <= {`XLEN{1'b0}};
           next_fetch_pc_q <= pending_fp_next_pc_q;
-          if (!pending_fp_load_q && !pending_fp_store_q)
-            fpr_q[pending_fp_rd_q] <= pending_fp_wdata_q;
+          if (!pending_fp_load_q && !pending_fp_store_q &&
+              !pending_fp_gpr_write_q) begin
+            fpr_q[pending_fp_rd_q] <= pending_fp_result_value_w;
+          end
+          if (pending_fp_gpr_write_q) begin
+            core_serial_flush_q <= 1'b1;
+          end
           ctrl_commit_valid_q <= 1'b1;
           ctrl_commit_pc_q <= pending_fp_pc_q;
           ctrl_commit_inst_q <= pending_fp_inst_q;
           ctrl_commit_next_pc_q <= pending_fp_next_pc_q;
+          ctrl_commit_rd_en_q <= pending_fp_gpr_write_q;
+          ctrl_commit_rd_addr_q <= pending_fp_rd_q;
+          ctrl_commit_rd_data_q <= pending_fp_result_value_w;
+          ctrl_commit_write_q <= pending_fp_gpr_write_q &&
+                                 (pending_fp_rd_q != {`REG_ADDR_W{1'b0}});
         end else if (pending_exit_q) begin
           halted_q <= 1'b1;
           exit_valid_q <= 1'b1;
@@ -3989,10 +5934,15 @@ module OooAluFetchCore #(
           pending_mem_dispatched_q <= 1'b0;
           pending_fp_q <= 1'b1;
           pending_fp_mem_pending_q <= 1'b0;
-          pending_fp_mem_done_q <= head0_fp_move_to_fpr_raw_w;
+          pending_fp_mem_done_q <= !head0_fp_load_raw_w &&
+                                   !head0_fp_store_raw_w;
           pending_fp_load_q <= head0_fp_load_raw_w;
           pending_fp_store_q <= head0_fp_store_raw_w;
           pending_fp_double_q <= head0_fp_double_w;
+          pending_fp_gpr_write_q <= head0_fp_move_to_gpr_raw_w ||
+                                    head0_fp_class_raw_w ||
+                                    head0_fp_compare_raw_w ||
+                                    head0_fp_convert_to_gpr_raw_w;
           pending_arch_trap_q <= 1'b0;
           pending_system_q <= 1'b0;
           pending_system_dispatched_q <= 1'b0;
@@ -4008,14 +5958,9 @@ module OooAluFetchCore #(
           pending_fp_pc_q <= head_pc_w;
           pending_fp_inst_q <= head_inst0_w;
           pending_fp_next_pc_q <= head_next_pc0_w;
-          pending_fp_addr_q <= head0_fp_addr_w;
-          pending_fp_wdata_q <= head0_fp_move_to_fpr_raw_w ?
-                                head0_fp_move_value_w :
-                                fp_store_wdata(head0_fp_addr_w,
-                                               head0_fp_store_value_w,
-                                               head0_fp_double_w);
-          pending_fp_wstrb_q <= fp_store_wstrb(head0_fp_addr_w,
-                                               head0_fp_double_w);
+          pending_fp_addr_q <= {`XLEN{1'b0}};
+          pending_fp_wdata_q <= {`XLEN{1'b0}};
+          pending_fp_wstrb_q <= {`STRB_W{1'b0}};
           pending_fp_rd_q <= head_inst0_w[11:7];
         end else if (dispatch0_system_w && head0_csr_illegal_w) begin
           stop_pending_q <= 1'b1;
@@ -4141,10 +6086,15 @@ module OooAluFetchCore #(
         pending_mem_dispatched_q <= 1'b0;
         pending_fp_q <= head1_fp_raw_w;
         pending_fp_mem_pending_q <= 1'b0;
-        pending_fp_mem_done_q <= head1_fp_move_to_fpr_raw_w;
+        pending_fp_mem_done_q <= head1_fp_raw_w && !head1_fp_load_raw_w &&
+                                 !head1_fp_store_raw_w;
         pending_fp_load_q <= head1_fp_load_raw_w;
         pending_fp_store_q <= head1_fp_store_raw_w;
         pending_fp_double_q <= head1_fp_double_w;
+        pending_fp_gpr_write_q <= head1_fp_move_to_gpr_raw_w ||
+                                  head1_fp_class_raw_w ||
+                                  head1_fp_compare_raw_w ||
+                                  head1_fp_convert_to_gpr_raw_w;
           pending_arch_trap_q <= head_fetch_fault1_w || head1_csr_illegal_w ||
                                  head1_arch_trap_raw_w;
         pending_system_q <= head1_system_raw_w && !head1_csr_illegal_w;
@@ -4196,14 +6146,9 @@ module OooAluFetchCore #(
           pending_fp_pc_q <= head_pc1_w;
           pending_fp_inst_q <= head_inst1_w;
           pending_fp_next_pc_q <= head_next_pc1_w;
-          pending_fp_addr_q <= head1_fp_addr_w;
-          pending_fp_wdata_q <= head1_fp_move_to_fpr_raw_w ?
-                                head1_fp_move_value_w :
-                                fp_store_wdata(head1_fp_addr_w,
-                                               head1_fp_store_value_w,
-                                               head1_fp_double_w);
-          pending_fp_wstrb_q <= fp_store_wstrb(head1_fp_addr_w,
-                                               head1_fp_double_w);
+          pending_fp_addr_q <= {`XLEN{1'b0}};
+          pending_fp_wdata_q <= {`XLEN{1'b0}};
+          pending_fp_wstrb_q <= {`STRB_W{1'b0}};
           pending_fp_rd_q <= head_inst1_w[11:7];
         end else if (dispatch_unsupported_w) begin
           // unsupported 是当前实验核心的停机边界，同样等待更老 ROB 项 drain 后再报精确 trap。

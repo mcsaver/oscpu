@@ -56,12 +56,12 @@ fceux-am (NES 模拟器, 运行在 AM 上)
 - 差分测试 (DiffTest): NPC 和 NEMU 逐指令对比，确保 RTL 实现正确
 - AM 程序当前支持 `riscv32-nemu` 参考路径和 `riscv32-npc` 目标路径；`riscv32-npc` 默认通过 `npc/sim` 进入当前配置后端，可用 `NPC_SIM_BACKEND=soc` 临时切到 `npc/soc`
 - NEMU `CONFIG_SOC_SIM` 是 NPC SoC/ysyxSoC 地址图的 reference 模式，构建 SoC difftest reference 时使用 `make -C npc/sim BACKEND=soc difftest-ref`
-- ISA 目标: RISC-V 32 位 (RV32)
+- ISA 目标: 默认历史主线是 RISC-V 32 位 (RV32)；`npc/rv64` 是 RV64 Linux/Ubuntu 22.04 bring-up 主线，必须单独按 RV64/OpenSBI/Linux/Ubuntu gate 判断。
 
 ## AI 驱动硬件开发环境
 - 工作区 agent 处理复杂任务时，先把任务建模为“图任务”，而不是只列线性 TODO。节点表示子任务，边表示执行依赖或知识依赖。
 - 每个图节点至少写清：`node_id`、`owner_agent`、`depends_on`、`inputs`、`outputs`、`success_criteria`、`fallback`。
-- 优先复用静态图模板：`rv32-reference-loop`、`rv32-bringup`、`npc-sim-regression`、`soc-difftest-loop`、`am-device-loop`、`ysyx-soc-integration`、`agent-env-refactor`。只有模板不足时才动态扩图。
+- 优先复用静态图模板：`rv32-reference-loop`、`rv32-bringup`、`npc-sim-regression`、`soc-difftest-loop`、`am-device-loop`、`ysyx-soc-integration`、`rv64-ubuntu-probe-loop`、`rv64-ubuntu-rootfs-loop`、`linux-display-loop`、`rv64gc-userland-loop`、`verilator-tapeout-readiness-loop`、`agent-env-refactor`。只有模板不足时才动态扩图。
 - 选图顺序遵循“静态图优先，动态图补洞”：只要已有模板能覆盖任务类别、输入输出稳定且成功标准明确，就不要重新发明流程。
 - 只有在以下情况才动态扩图：现有模板缺少定位节点、节点连续失败需要插入 `reproduce/collect-log/localize/fix/rerun` 链、出现新的跨模块边界、或当前产物缺少可验证证据。
 - 图质量必须满足：没有 `evidence` 的节点不能作为下游硬依赖；没有两份可比较产物时不得创建 `compare/difftest` 节点；未来节点不能反向变成当前主闭环的硬前置。
@@ -76,6 +76,7 @@ fceux-am (NES 模拟器, 运行在 AM 上)
 - 若相关模块目录存在已整理的本地学习资料（例如 `design/study/README.md`、规范摘要、实现清单），agent 在 RECALL / PLAN 阶段必须先读取索引文件，再按任务类型补读对应笔记，之后才能开始给方案、改代码或跑验证。
 - 资料使用优先级：索引/范围说明 → 正式 Markdown 笔记 → 实现 checklist → `tmp/` 提取文本。`tmp/` 只用于快速定位，不直接作为最终依据。
 - 当前已固化的稳定入口是 `npc/single/design/study/README.md` 和 `npc/soc/design/study/README.md`；若 `npc/soc` 笔记缺失或明显滞后，可回退读取 `npc/single` 对应正式笔记并记录原因。
+- `npc/rv64` 的稳定入口是 `npc/rv64/README.md`、`npc/rv64/env/README.md` 与 `npc/rv64/design/study/README.md`；Linux/Ubuntu 任务还必须读取 `.github/instructions/rv64-linux-bringup.instructions.md`，按需叠加 `virtio-rootfs`、`linux-framebuffer-vga`、`rv64gc-userland`、`verilator-tapeout-realism`。
 - 处理 `npc/{single,soc}/` 下的数据通路、译码、ALU、控制、CPU wrapper 或骨架任务时，优先读取对应目录的 `RV32I-ai-notes.md` 与 `RV32I-implementation-checklist.md`。
 - 处理 `npc/{single,soc}/` 下的功能仿真、异常、CSR、ECALL/EBREAK、MRET、WFI、PMEM 任务时，优先读取对应目录的 `RISC-V-spec-functional-sim-scope.md` 与 `RISC-V-spec-functional-sim-notes.md`。
 - 处理 `npc/{single,soc}/` 下的 machine CSR、trap controller、mtime/mtimecmp、PMA/PMP、pmem/mmio 边界或 SoC 地址图任务时，优先读取对应目录的 `RISC-V-spec-hardware-architecture-scope.md` 与 `RISC-V-spec-hardware-architecture-notes.md`。
@@ -84,6 +85,17 @@ fceux-am (NES 模拟器, 运行在 AM 上)
 - 处理 `ysyxSoC/`、CPU 顶层 ABI、AXI4 端口命名、SoC 地址图或 `ysyxSoCFull.v` 生成任务时，优先读取 `.github/agents/ysyx-soc.agent.md`、`.github/memory/modules/ysyx-soc.md` 与 `ysyxSoC/spec/cpu-interface.md`。
 - `ysyxSoC/build/ysyxSoCFull.v` 是生成物；除非任务明确要求临时补丁，否则优先修改 `ysyxSoC/src/` 后用 `make -C ysyxSoC verilog` 重新生成。
 - 当前 Mill/Chisel 环境依赖用户级 JDK 21 与 `/home/lyg/.local/bin/mill` wrapper；不要用系统 OpenJDK 8 失败来判断源码错误。
+
+## Agent RV64 Linux / Ubuntu 约束
+- 处理 `npc/rv64`、OpenSBI、Linux kernel、DTB、initramfs/rootfs、Ubuntu Base、QEMU reference 或 NPC/Verilator Linux 启动任务时，优先读取 `.github/agents/rv64-linux.agent.md` 与 `.github/instructions/rv64-linux-bringup.instructions.md`。
+- 结论必须按层级表述：环境构建、QEMU reference、OpenSBI handoff、Linux kernel 推进、`/init` 执行、Ubuntu probe 完整可见、Ubuntu Base shell、Ubuntu rootfs；禁止越级声称“完整 Ubuntu 已启动”。
+- 官方 Ubuntu riscv64 用户态是 `rv64gc/lp64d` 路线；rv64imac/lp64 syscall-only probe 只能证明 kernel 到用户态的最小链路，不能替代 `/bin/sh`、动态链接器或 rootfs 证据。
+- 近期不把 Vivado/FPGA 作为功能 bring-up 前置；Verilator 是主验证平台，但不能借 Verilator 便利在 core 内引入不可综合后门。
+
+## Agent Linux 设备 / 显示约束
+- rootfs 任务必须读取 `.github/agents/linux-device.agent.md` 与 `.github/instructions/virtio-rootfs.instructions.md`；没有 virtio-mmio、vring、host block backend、多源 PLIC 和 Linux probe 日志，就不能声称 `/dev/vda` rootfs 路线已闭合。
+- 显示任务必须读取 `.github/agents/display-vga.agent.md` 与 `.github/instructions/linux-framebuffer-vga.instructions.md`；AM legacy VGA、`CONFIG_NPC_HAS_VGA` 或 SoC 预留 VGA window 都不能直接当作 Linux framebuffer/fbcon 已接通。
+- Linux 屏幕近期目标是 simple-framebuffer/simpledrm/fbcon + SDL scanout 文本显示，不是完整 Ubuntu 图形桌面。
 
 ## Agent 终端约束
 - 对 NEMU、NVBoard、menuconfig、SDL 窗口等交互式程序，禁止使用 `tail`、`head`、`sed -n`、管道截断或其他会消费/劫持标准输入输出的包装方式运行；这会破坏界面显示或导致交互异常。
@@ -108,6 +120,11 @@ fceux-am (NES 模拟器, 运行在 AM 上)
 - 性能优化以 CPU-test 全量正确性为门槛；每次 RTL 性能改动后必须跑全量并收集每个测试的 `cycles/commits/CPI`，不能只用 `add` 作为有效性依据。
 - 每轮分析必须从同一次全量结果中同时选取 `highest_cpi`、`lowest_cpi`、`near_average_cpi` 三类代表样本，并报告它们与全量加权 CPI 的变化。
 - Verilog/SystemVerilog 源码默认一个 module 一个源文件；新增 module 必须放入同名源文件并更新 `vsrc/filelist.mk`。
+
+## Agent Verilator / 流片约束
+- 处理 `npc/rv64` 长跑、性能仿真、设备模型真实性或后续流片水准任务时，读取 `.github/agents/verilator-tapeout.agent.md` 与 `.github/instructions/verilator-tapeout-realism.instructions.md`。
+- DPI/host C++/SDL/文件 IO 只能作为仿真平台层；长期 core/SoC RTL 必须保留可综合边界、状态机、不变量和验证证据。
+- 性能仿真必须报告 guest cycles、commits、CPI、host time 与关键等待来源；不能只用 `add` 或单个 smoke 作为性能优化依据。
 
 ## Agent 代码建议约束
 - 默认不要直接修改用户工作区文件。用户询问“如何实现”“给出代码”“帮我分析/建议”这类请求时，优先在对话框中给出可审阅的代码片段、补丁建议或实现思路。

@@ -90,6 +90,10 @@ if [ -r /etc/os-release ]; then
   cat /etc/os-release
 fi
 uname -a 2>/dev/null || true
+echo "[ysyx-init] probing /bin/sh -c"
+/bin/sh -c 'echo "[ysyx-sh] /bin/sh -c marker"; exit 0'
+sh_probe_rc=$?
+echo "[ysyx-init] /bin/sh -c exit=$sh_probe_rc"
 echo "[ysyx-init] launching /bin/sh"
 
 exec /bin/sh -i </dev/console >/dev/console 2>&1

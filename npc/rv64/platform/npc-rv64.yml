@@ -54,5 +54,5 @@ devices:
 bootargs:
   kernel: "console=ttyS0,115200n8 earlycon=sbi loglevel=8 ignore_loglevel"
   initramfs: "console=ttyS0,115200n8 earlycon=sbi loglevel=8 ignore_loglevel rdinit=/bin/sh"
-  ubuntu_initramfs: "earlycon=sbi rdinit=/init nowatchdog softlockup_panic=0"
+  ubuntu_initramfs: "console=ttyS0,115200n8 earlycon=sbi loglevel=8 ignore_loglevel rdinit=/init nowatchdog softlockup_panic=0"
   rootfs: "console=ttyS0,115200n8 earlycon=sbi loglevel=8 ignore_loglevel root=/dev/vda rw"

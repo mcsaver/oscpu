@@ -103,6 +103,10 @@ static void putstr(const char *s) {
   }
 }
 
+static void putstr_stdout(const char *s) {
+  write_all(1, s, cstrlen(s));
+}
+
 static void mkdir_p(const char *path) {
   (void)syscall3(SYS_mkdirat, AT_FDCWD, (long)path, 0755);
 }
@@ -146,14 +150,17 @@ static void sleep_forever(void) {
 }
 
 void _start(void) {
+  putstr_stdout("[ysyx-init] early-entry\n");
   mkdir_p("/dev");
   mkdir_p("/proc");
   mkdir_p("/sys");
   mkdir_p("/run");
   mkdir_p("/tmp");
+  putstr_stdout("[ysyx-init] after-mkdir\n");
   mount_fs("devtmpfs", "/dev", "devtmpfs");
   mount_fs("proc", "/proc", "proc");
   mount_fs("sysfs", "/sys", "sysfs");
+  putstr_stdout("[ysyx-init] after-mount\n");
 
   putstr("[ysyx-init] Ubuntu 22.04 initramfs reached on NPC rv64imac core\n");
   putstr("[ysyx-init] /etc/os-release follows:\n");

@@ -17,6 +17,7 @@
 
 - **工作区事实**：本仓库是 YSYX 工作区，核心模块包括 `npc/sim`、`npc/single`、`npc/soc`、`ysyxSoC`、`nemu`、`abstract-machine`、`am-kernels`、`yosys-sta`、`nvboard`、`digital_logic_experiment`、`fceux-am` 等。
 - **当前默认主闭环**：默认围绕 `am-kernels -> abstract-machine -> npc/sim -> NPC/Verilator(target) + NEMU(reference)` 建立回归闭环；纯参考、快速定位或 AM/NEMU 平台问题仍可截断为 `am-kernels -> abstract-machine -> NEMU(reference)`。
+- **RV64 Linux/Ubuntu 主线**：`npc/rv64` 的近期目标是用 Verilator 启动尽量真实的 Linux/Ubuntu 22.04；暂不把 Vivado/FPGA 作为功能 bring-up 前置。完整 Ubuntu 结论必须按 QEMU reference、NPC/Verilator、`/init`、`/etc/os-release`、`/bin/sh`、rootfs 等 gate 分层表述。
 - **NPC 后端分层**：外部模块优先通过 `npc/sim` 交互；`npc/single` 是普通 NPC 自仿真后端，`npc/soc` 是 ysyxSoC 接入后端，`ysyxSoC` 负责 Chisel SoC 与 CPU ABI/地址图。
 - **核心方法学**：涉及 RTL 正确性时，优先使用参考模型、trace、watchpoint、DiffTest 或等价证据链收敛问题，而不是直接猜修复点。
 - **构建系统**：GNU Make + Kconfig；详细命令与模块约束见 `.github/copilot-instructions.md`。
@@ -37,6 +38,7 @@
 6. `.github/instructions/<相关主题>.instructions.md`
 7. 若任务涉及 `npc/single/` 或 `npc/soc/` 的数据通路、译码、控制、功能仿真、SoC wrapper 或 RTL，补读对应目录下的 `design/study/README.md` 及专题笔记
 8. 若任务涉及 `ysyxSoC/`、CPU 顶层 ABI、SoC 地址图或 `ysyxSoCFull.v` 生成，补读 `.github/memory/modules/ysyx-soc.md` 与 `ysyxSoC/spec/cpu-interface.md`
+9. 若任务涉及 `npc/rv64`、OpenSBI/Linux/Ubuntu 22.04、rootfs、framebuffer/VGA、RV64GC/lp64d 或 Verilator 性能仿真，补读 `.github/agents/rv64-linux.agent.md`、`.github/agents/linux-device.agent.md`、`.github/agents/display-vga.agent.md`、`.github/agents/verilator-tapeout.agent.md` 以及相关 `.github/instructions/*.instructions.md`
 
 禁止只看当前打开的单个文件就开始修改；任何“我以为”都必须先用搜索、阅读或运行结果验证。
 
@@ -61,7 +63,7 @@
 
 ## 3. 图任务与调度规则
 
-- 复杂任务先判断是否命中现有静态图模板，如 `rv32-reference-loop`、`rv32-bringup`、`npc-sim-regression`、`soc-difftest-loop`、`am-device-loop`、`ysyx-soc-integration`、`agent-env-refactor`、`regression-debug-loop`。
+- 复杂任务先判断是否命中现有静态图模板，如 `rv32-reference-loop`、`rv32-bringup`、`npc-sim-regression`、`soc-difftest-loop`、`am-device-loop`、`ysyx-soc-integration`、`rv64-ubuntu-probe-loop`、`rv64-ubuntu-rootfs-loop`、`linux-display-loop`、`rv64gc-userland-loop`、`verilator-tapeout-readiness-loop`、`agent-env-refactor`、`regression-debug-loop`。
 - 只有模板不足、证据链缺失、或出现新的跨模块边界时，才动态扩图。
 - 每个图节点至少写清：`node_id`、`owner_agent`、`depends_on`、`inputs`、`outputs`、`success_criteria`、`fallback`。
 - 没有 `evidence` 的节点不能作为下游硬依赖；没有两侧可比较产物时，不得创建 `compare` / `difftest` 节点。
@@ -94,6 +96,7 @@
 - 能脚本化的调试路径优先脚本化，例如 `--batch`、日志文件、trace、watchpoint、配置开关、临时代码插桩或专用测试程序。
 - 任何实际代码修改后，都要提供至少一条验证证据；如果无法验证，必须明确说明缺口。
 - NPC 性能/CPI/OoO 优化不得只看 `add` 单项；必须按 `.github/instructions/npc-optimization-workflow.instructions.md` 执行 CPU-test 全量优先、三类代表样本分析和一个 module 一个源文件约束。
+- RV64 Linux/Ubuntu 性能仿真不得为了跑快绕过 guest 可见设备/中断/总线协议；Verilator 平台可用 DPI/host C++，但 core/长期 RTL 必须保持可综合边界并按 `.github/instructions/verilator-tapeout-realism.instructions.md` 记录真实度假设。
 
 ---
 

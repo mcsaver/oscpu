@@ -97,7 +97,29 @@ module tb_uart;
     `TB_TICK(clk);
     read_valid = 1'b0;
     #1;
-    tb_check1("iir read clears irq", irq, 1'b0);
+    tb_check1("iir read keeps level irq", irq, 1'b1);
+
+    write_valid = 1'b1;
+    write_data = 32'h0000_0000;
+    write_strb = 4'b0010;
+    `TB_TICK(clk);
+    write_valid = 1'b0;
+    #1;
+    tb_check1("ier disable drops irq", irq, 1'b0);
+
+    write_valid = 1'b1;
+    write_data = 32'h0001_0000;
+    write_strb = 4'b0100;
+    `TB_TICK(clk);
+    write_data = 32'h0000_0200;
+    write_strb = 4'b0010;
+    `TB_TICK(clk);
+    write_valid = 1'b0;
+    read_valid = 1'b1;
+    read_addr = 12'h000;
+    #1;
+    tb_check32("iir reports fifo and thre", read_data, 32'h00c2_0200);
+    read_valid = 1'b0;
 
     write_valid = 1'b1;
     write_data = 32'h0000_0000;
@@ -116,6 +138,35 @@ module tb_uart;
     write_strb = 4'b0010;
     #1;
     tb_check1("non lane0 no tx", tx_valid, 1'b0);
+
+    write_data = 32'h8000_0000;
+    write_strb = 4'b1000;
+    `TB_TICK(clk);
+    write_data = 32'h0000_0034;
+    write_strb = 4'b0001;
+    #1;
+    tb_check1("dlab dll write no tx", tx_valid, 1'b0);
+    `TB_TICK(clk);
+    write_data = 32'h0000_1200;
+    write_strb = 4'b0010;
+    #1;
+    tb_check1("dlab dlm write no tx", tx_valid, 1'b0);
+    `TB_TICK(clk);
+    read_valid = 1'b1;
+    read_addr = 12'h000;
+    write_valid = 1'b0;
+    #1;
+    tb_check32("dlab exposes divisor", read_data, 32'h80c1_1234);
+    read_valid = 1'b0;
+    write_valid = 1'b1;
+    write_data = 32'h0000_0000;
+    write_strb = 4'b1000;
+    `TB_TICK(clk);
+    write_data = 32'h0000_0044;
+    write_strb = 4'b0001;
+    #1;
+    tb_check1("thr write after dlab tx", tx_valid, 1'b1);
+    tb_check32("thr write after dlab data", {24'b0, tx_data}, 32'h0000_0044);
 
     tb_finish("tb_uart");
   end

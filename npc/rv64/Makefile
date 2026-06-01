@@ -252,6 +252,11 @@ opensbi-ubuntu-initramfs:
 	OPENSBI_BUILD_DIR="$(NPC_HOME)/env/build/opensbi-npc-ubuntu-initramfs" \
 	bash scripts/build-opensbi.sh
 
+opensbi-ubuntu-shell-initramfs:
+	OPENSBI_DTB="$(NPC_HOME)/tools/build/npc-rv64-ubuntu-shell-initramfs.dtb" \
+	OPENSBI_BUILD_DIR="$(NPC_HOME)/env/build/opensbi-npc-ubuntu-shell-initramfs" \
+	bash scripts/build-opensbi.sh
+
 opensbi-rootfs:
 	OPENSBI_DTB="$(NPC_HOME)/tools/build/npc-rv64-rootfs.dtb" \
 	OPENSBI_BUILD_DIR="$(NPC_HOME)/env/build/opensbi-npc-rootfs" \
@@ -269,10 +274,21 @@ ubuntu-rootfs:
 ubuntu-base-initramfs:
 	bash scripts/build-ubuntu-base-initramfs.sh
 
+ubuntu-base-shell-initramfs:
+	UBUNTU_INIT_MODE=shell UBUNTU_INITRAMFS_PROFILE=full \
+	UBUNTU_INITRD_IMAGE="$(NPC_HOME)/env/images/ubuntu2204/ubuntu-22.04-riscv64.cpio" \
+	bash scripts/build-ubuntu-base-initramfs.sh
+
 qemu:
 	bash scripts/build-qemu.sh
 
 qemu-ubuntu-initramfs:
+	bash scripts/run-qemu-ubuntu-initramfs.sh
+
+qemu-ubuntu-shell-initramfs:
+	UBUNTU_INITRD_IMAGE="$(NPC_HOME)/env/images/ubuntu2204/ubuntu-22.04-riscv64.cpio" \
+	LOG_FILE="$(NPC_HOME)/env/logs/qemu/ubuntu-shell-initramfs.log" \
+	QEMU_MEMORY=256M QEMU_GUEST_EXPECT='[ysyx-sh] /bin/sh -c marker' \
 	bash scripts/run-qemu-ubuntu-initramfs.sh
 
 linux-initramfs: $(BIN)
@@ -282,8 +298,8 @@ linux-bringup-regression:
 	bash regression/run_all.sh
 
 .PHONY: default all lint syn-check-env sta-check-env syn sta sim run clean gprof-build prof-exec-build difftest-ref \
-	setup-env opensbi opensbi-initramfs opensbi-ubuntu-initramfs opensbi-rootfs linux initramfs \
-	ubuntu-rootfs ubuntu-base-initramfs qemu qemu-ubuntu-initramfs linux-initramfs linux-bringup-regression
+	setup-env opensbi opensbi-initramfs opensbi-ubuntu-initramfs opensbi-ubuntu-shell-initramfs opensbi-rootfs linux initramfs \
+	ubuntu-rootfs ubuntu-base-initramfs ubuntu-base-shell-initramfs qemu qemu-ubuntu-initramfs qemu-ubuntu-shell-initramfs linux-initramfs linux-bringup-regression
 
 include $(NPC_HOME)/scripts/config.mk
 

@@ -17,6 +17,51 @@
 
 ## 架构决策
 
+### [36] RV64 外部中断对 Linux S 态按 SEI delegation 建模
+
+- **日期**: 2026-06-01
+- **状态**: 已决定
+- **上下文**: Ubuntu probe 已证明 `/init` 多次 `write()` 返回成功，但 UART THR 没有写入。新增 UART access/IRQ trace 后发现 UART IER 写入会让 `uart_irq` 与 PLIC 输出抬高，说明源和 PLIC 输出可达；问题在 S 态 Linux 是否按 supervisor external interrupt 服务该事件。
+- **决策**: 当前单外部中断线模型中，`CsrFile` 将 PLIC external IRQ 映射为 S 态 `MIP_SEIP` 时使用 `mideleg[IRQ_CAUSE_SEI]`，并在 lower privilege 下按同一 `SEI` delegation 位屏蔽对应 `MIP_MEIP`，不再使用 `MEI` 位伪装 S external interrupt。测试中 S external IRQ 也必须显式设置 `mideleg` bit 9。
+- **理由**: Linux/OpenSBI 对 S 态外部中断使用 cause 9 (`SEI`)；旧模型看 `MEI(cause=11)` 会导致 PLIC 输出已高但 S 态 8250 handler 不被触发，表现为 `write()` 返回后 TTY 队列不写 THR。
+- **影响**: 后续 PLIC 从单线模型升级为更真实多 context 时，应优先拆出 M/S context 独立 IRQ 输出；在拆分前，所有 Ubuntu/Linux 报告都必须把 `SEIP` delegation 与 PLIC claim/complete 作为同一条证据链说明，不能把 `plic_irq=1` 直接等同于 Linux handler 已执行。
+
+### [35] RV64 Ubuntu 输出路径采用 post-window 与 UART TX trace 切分
+
+- **日期**: 2026-06-01
+- **状态**: 已决定
+- **上下文**: commitwatch 已证明 Ubuntu probe `/init` 用户态入口和多次 `write()` 返回成功，但 guest-watch 仍看不到 `[ysyx-init]`。若在 `write()` 返回点立即退出，可能误把 UART/TTY 异步 drain 的延迟当成输出丢失。
+- **决策**: 对“syscall 已返回但 guest 输出不可见”的 Linux bring-up 诊断，使用 host-only `NPC_COMMITWATCH_POST_CYCLES` 在命中 stop 条件后继续运行固定 cycles；同时用 `NPC_UART_TX_TRACE`、`NPC_UART_TX_TRACE_MIN_COMMIT`、`NPC_UART_TX_TRACE_LIMIT` 记录 DPI 层真实 UART TX 字节。报告中必须同时列出 post window 长度、commit/cycle 退出点、UART TX trace 计数和 guest-watch 结果。
+- **理由**: post-window 可以排除“退出太早”这一类误判；UART TX trace 能把 Linux/TTY/8250 队列和仿真 host capture 分开。短跑先用 OpenSBI 验证 trace 链路有效，长跑再对 `/init` 输出做负证据，结论才可复验。
+- **影响**: `NPC_COMMITWATCH_POST_CYCLES` 与 `NPC_UART_TX_TRACE` 只属于 Verilator/DPI 诊断能力，不进入可综合 RTL，也不能替代完整 Ubuntu gate。若 post-window 内 `write()` 返回成功但 `uart-trace tx=0`，下一步应查 Linux console/TTY/8250/THR MMIO；若有 TX 字节但 guest-watch 未命中，才回查 `npc_log_putchar`/guest buffer/匹配器。
+
+### [34] RV64 Ubuntu 用户态入口采用 commitwatch-stop 做执行证据
+
+- **日期**: 2026-06-01
+- **状态**: 已决定
+- **上下文**: Ubuntu probe 在 NPC 上已到 `Run /init as init process`，但 guest UART 没有出现 `[ysyx-init] early-entry`。仅靠 guest 输出无法区分“没有进入用户态”“用户态第一条 write/syscall 未生效”和“串口/console 输出未可见”。
+- **决策**: 对这类 Linux 用户态入口切分，允许使用 host-only `NPC_COMMITWATCH_START/END` 加 `NPC_COMMITWATCH_STOP=1` 观察提交 PC 是否落入目标 ELF 地址范围；需要连续观察多个返回点时使用 `NPC_COMMITWATCH_STOP_AFTER=N`，并在 commitwatch 记录中保留 `a0..a7` 等 syscall 参数/返回证据。命中时以 `COMMIT WATCH MATCH` 正常退出，并在报告中同时给出目标 ELF 符号/反汇编和 QEMU 同镜像证据。commitwatch 是诊断证据，不替代 guest-watch 或架构 PASS。
+- **理由**: 提交级 PC 证据能把 execve/user-entry 与 first syscall/output 路径分开，避免把“未见串口字符串”误判为“未进入用户态”。stop-on-match 还能显著缩短后续长跑定位时间。
+- **影响**: 后续 Ubuntu/Linux 报告必须明确区分 `COMMIT WATCH MATCH`、`GUEST EXPECT MATCH`、GOOD TRAP 和完整 shell/rootfs gate。`NPC_COMMITWATCH_STOP`/`NPC_COMMITWATCH_STOP_AFTER` 属于 Verilator harness 诊断开关，不得进入可综合 RTL，也不能作为完整 Ubuntu 可见性的验收条件；若 syscall 返回成功但 guest-watch 不可见，下一步应转向 Linux console/TTY/8250、UART MMIO/DPI TX 或 host capture 层。
+
+### [33] RV64 Ubuntu probe 证据采用 guest-watch 与 embedded-FDT 重建纪律
+
+- **日期**: 2026-05-31
+- **状态**: 已决定
+- **上下文**: RV64 Ubuntu bring-up 同时存在 QEMU reference、NPC/Verilator target、OpenSBI embedded DTB、Linux printk、用户 `/init` 输出和后续 shell/rootfs 多层证据。若只看某段日志或只重建外部 DTB，容易把旧 bootargs、QEMU PASS 或部分 guest 输出误判成 NPC 已完整 Ubuntu。
+- **决策**: NPC 侧 Ubuntu probe 使用 `NPC_GUEST_EXPECT`/`smoke-ubuntu-probe-watch` 分层验收：先证实 OpenSBI 输出，再证实 Linux 实际 command line，再证实 `[ysyx-init]`，最后证实 `PRETTY_NAME="Ubuntu 22.04.5 LTS"`。修改平台 DTB/bootargs 后，若 OpenSBI 通过 `FW_FDT_PATH` 嵌入 DTB，必须重建对应 `fw_jump.bin`，不能只重建外部 `.dtb`。
+- **理由**: guest-watch 能把“看到了某个 guest 可见字符串”做成可复验退出条件，embedded-FDT 重建纪律能防止 Linux 实际读取旧 DTB。二者结合可以把证据边界写清，避免未来开发误把 `/init` handoff、半行输出或 QEMU reference 当成完整 NPC Ubuntu。
+- **影响**: 后续 Ubuntu/Linux 任务必须在报告中标明命中的具体 gate、镜像/firmware 是否重建、以及 NPC 和 QEMU 证据的关系。`GUEST EXPECT MATCH` 是仿真 harness gate，不是架构 GOOD TRAP，也不代表官方 Ubuntu shell 或 rootfs 已闭合。
+
+### [32] RV64 Ubuntu 主线采用 Verilator-first 且按流片边界约束
+
+- **日期**: 2026-05-31
+- **状态**: 已决定
+- **上下文**: 用户要求后续目标是启动完整 Linux/Ubuntu 22.04，近期先不考虑 Vivado，而是用 Verilator 做尽量真实的性能/系统仿真，同时要求 core 后期能达到流片水准。旧 agent 体系主要围绕 RV32/NPC/AM/NEMU，容易把 QEMU PASS、toy payload、AM VGA 或 probe init 误判成完整 Ubuntu。
+- **决策**: 新增 RV64 Linux/Ubuntu 专用 agent 和 instructions，把 `rv64-ubuntu-probe-loop`、`rv64-ubuntu-rootfs-loop`、`linux-display-loop`、`rv64gc-userland-loop`、`verilator-tapeout-readiness-loop` 接入总调度。近期不把 Vivado/FPGA 作为功能 bring-up 前置；Verilator 是主验证平台，但必须保留 core/SoC 可综合边界，DPI/host C++/SDL 只能作为仿真平台层。
+- **理由**: 这样可以让完整 Ubuntu 的证据按 QEMU reference、NPC/Verilator target、`/init`、完整 `/etc/os-release`、官方 `/bin/sh`、rootfs mount 分层推进，避免未来开发因旧图任务或旧 agent 口径造成错判。
+- **影响**: 后续 `npc/rv64` 任务必须优先读取新的 RV64/Linux/Verilator instructions；涉及 RTL 或性能优化时仍叠加 RTL 四段式和 NPC 性能优化流程。Vivado/FPGA 只作为后续硬件原型/PPA 节点，不替代当前 Verilator Linux/Ubuntu 功能闭环。
+
 ## 实现决策
 
 ### [31] ysyxSoC AM 运行时以 MROM 作为复位入口、SRAM 作为栈堆
