@@ -62,6 +62,12 @@
 `ifndef NPC_AXI_SPI_MASK
 `define NPC_AXI_SPI_MASK   64'hffff_ffff_ffff_f000
 `endif
+`ifndef NPC_AXI_VIRTIO_BLK_BASE
+`define NPC_AXI_VIRTIO_BLK_BASE 64'h0000_0000_1000_1000
+`endif
+`ifndef NPC_AXI_VIRTIO_BLK_MASK
+`define NPC_AXI_VIRTIO_BLK_MASK 64'hffff_ffff_ffff_f000
+`endif
 `ifndef NPC_AXI_GPIO_BASE
 `define NPC_AXI_GPIO_BASE  64'h0000_0000_1000_2000
 `endif

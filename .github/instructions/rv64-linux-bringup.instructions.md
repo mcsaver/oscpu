@@ -1,6 +1,6 @@
 ---
-description: "RV64 Linux/Ubuntu 22.04 bring-up 约束。处理 npc/rv64 的 OpenSBI、Linux、DTB、initramfs/rootfs、QEMU reference 或 Verilator Ubuntu 启动任务时使用。"
-applyTo: "npc/rv64/**"
+description: "RV64 Linux/Ubuntu 22.04 bring-up 约束。处理 Linux/、npc/rv64 target 的 OpenSBI、Linux、DTB、initramfs/rootfs、QEMU reference 或 Verilator Ubuntu 启动任务时使用。"
+applyTo: "Linux/**,npc/rv64/**"
 ---
 
 # RV64 Linux / Ubuntu Bring-up 约束
@@ -15,7 +15,8 @@ applyTo: "npc/rv64/**"
 - `.github/memory/known-issues.md`
 - `.github/memory/modules/npc.md`
 - `npc/rv64/README.md`
-- `npc/rv64/env/README.md`
+- `Linux/README.md`
+- `Linux/env/README.md`
 - `npc/rv64/design/study/README.md`
 
 ## 证据层级

@@ -24,16 +24,23 @@ npc/soc/perf/results/
 npc/soc/testbench/build/
 npc/rv64/.config
 npc/rv64/.config.old
+npc/rv64/.linux-defconfig.stamp
+npc/rv64/.linux-trace-defconfig.stamp
 npc/rv64/build/
-npc/rv64/env/*
-!npc/rv64/env/README.md
 npc/rv64/gmon.out
 npc/rv64/include/config/
 npc/rv64/include/generated/
 npc/rv64/perf/results/
 npc/rv64/testbench/build/
-# RV64 Linux/OpenSBI 构建产物可能包含 GB 级镜像，禁止纳入 Git。
-npc/rv64/tools/build/
+
+# RV64 Linux/OpenSBI/Ubuntu 构建产物可能包含 GB 级源码、镜像和日志，禁止纳入 Git。
+Linux/build/
+Linux/env/*
+!Linux/env/README.md
+Linux/tools/build/
+Linux/tools/generated/
+Linux/tools/images/
+Linux/tools/initramfs/
 
 # AI 开发环境需要随仓库同步；这些 allowlist 用来覆盖本机或工具引入的宽泛忽略规则。
 !.github/

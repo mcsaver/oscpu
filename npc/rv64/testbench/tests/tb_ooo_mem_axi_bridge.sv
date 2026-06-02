@@ -6,6 +6,7 @@ module tb_ooo_mem_axi_bridge;
   reg clk;
   reg rst;
   reg flush;
+  reg mmu_flush;
 
   reg [1:0] priv_mode;
   reg [`XLEN-1:0] mstatus;
@@ -52,11 +53,21 @@ module tb_ooo_mem_axi_bridge;
   reg lsu_axi_bvalid;
   wire lsu_axi_bready;
   reg [1:0] lsu_axi_bresp;
+  localparam [`XLEN-1:0] ROOT_PT = 64'h0000_0000_8000_2000;
+  localparam [`XLEN-1:0] DATA_VA = 64'h0000_0000_8000_3000;
+  localparam [`XLEN-1:0] DATA_PA = 64'h0000_0000_8000_3000;
+  localparam [`XLEN-1:0] ROOT_PPN = ROOT_PT >> 12;
+  localparam [`XLEN-1:0] SUPERPAGE_PPN =
+      64'h0000_0000_8000_0000 >> 12;
+  localparam [`XLEN-1:0] LEAF_FLAGS = 64'h0cf;
+  localparam [`XLEN-1:0] SUPERPAGE_PTE =
+      (SUPERPAGE_PPN << 10) | LEAF_FLAGS;
 
   OooMemAxiBridge dut (
     .clk(clk),
     .rst(rst),
     .flush_i(flush),
+    .mmu_flush_i(mmu_flush),
     .priv_mode_i(priv_mode),
     .mstatus_i(mstatus),
     .satp_i(satp),
@@ -123,6 +134,7 @@ module tb_ooo_mem_axi_bridge;
   task automatic clear_inputs;
     begin
       flush = 1'b0;
+      mmu_flush = 1'b0;
       priv_mode = `PRIV_M;
       mstatus = {`XLEN{1'b0}};
       satp = {`XLEN{1'b0}};
@@ -215,25 +227,32 @@ module tb_ooo_mem_axi_bridge;
     end
   endtask
 
-  task automatic inflight_read_flush_drain;
+  task automatic inflight_read_flush_abort;
     begin
       issue_mem0_read(64'h0000_0000_8000_3000);
       flush = 1'b1;
       #1;
-      tb_check1("flush keeps R drain ready", lsu_axi_rready, 1'b1);
+      tb_check1("flush keeps current R channel ready", lsu_axi_rready, 1'b1);
       tb_check1("flush suppresses inflight response", mem0_rsp_valid, 1'b0);
       tick();
       flush = 1'b0;
       #1;
-      tb_check1("read drain still waits for R", lsu_axi_rready, 1'b1);
-      tb_check1("read drain blocks new request", mem0_req_ready, 1'b0);
+      tb_check1("aborted read no longer waits for R", lsu_axi_rready, 1'b0);
+      tb_check1("aborted read has no CPU response", mem0_rsp_valid, 1'b0);
+      tb_check1("bridge idle after read abort", mem0_req_ready, 1'b1);
+
+      issue_mem0_read(64'h0000_0000_8000_3008);
       lsu_axi_rvalid = 1'b1;
       lsu_axi_rdata = 64'haaaa_bbbb_cccc_dddd;
       tick();
       lsu_axi_rvalid = 1'b0;
       #1;
-      tb_check1("drained read has no CPU response", mem0_rsp_valid, 1'b0);
-      tb_check1("bridge idle after read drain", mem0_req_ready, 1'b1);
+      tb_check1("post-abort read response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("post-abort read response data", mem0_rsp_rdata,
+                 64'haaaa_bbbb_cccc_dddd);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
     end
   endtask
 
@@ -281,6 +300,219 @@ module tb_ooo_mem_axi_bridge;
     end
   endtask
 
+  task automatic flushed_store_does_not_poison_dcache;
+    begin
+      issue_mem0_read(64'h0000_0000_8000_5000);
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'h1111_2222_3333_4444;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("dcache seed response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("dcache seed response data", mem0_rsp_rdata,
+                 64'h1111_2222_3333_4444);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b1;
+      mem0_req_addr = 64'h0000_0000_8000_5000;
+      mem0_req_wdata = 64'haaaa_bbbb_cccc_dddd;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      #1;
+      tb_check1("aborted store request ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+
+      flush = 1'b1;
+      #1;
+      tb_check1("aborted store hides response", mem0_rsp_valid, 1'b0);
+      tick();
+      flush = 1'b0;
+      #1;
+      tb_check1("aborted store returns idle", mem0_req_ready, 1'b1);
+
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = 64'h0000_0000_8000_5000;
+      #1;
+      tb_check1("post-abort read hits cache", lsu_axi_arvalid, 1'b0);
+      tick();
+      mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("post-abort cached response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("aborted store must not update dcache", mem0_rsp_rdata,
+                 64'h1111_2222_3333_4444);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b1;
+      mem0_req_addr = 64'h0000_0000_8000_5000;
+      mem0_req_wdata = 64'haaaa_bbbb_cccc_dddd;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      lsu_axi_awready = 1'b1;
+      lsu_axi_wready = 1'b1;
+      #1;
+      tb_check1("committed store request ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("committed store issues AW", lsu_axi_awvalid, 1'b1);
+      tb_check1("committed store issues W", lsu_axi_wvalid, 1'b1);
+      tick();
+      lsu_axi_awready = 1'b0;
+      lsu_axi_wready = 1'b0;
+      #1;
+      tb_check1("committed store waits B", lsu_axi_bready, 1'b1);
+      lsu_axi_bvalid = 1'b1;
+      tick();
+      lsu_axi_bvalid = 1'b0;
+      #1;
+      tb_check1("committed store response valid", mem0_rsp_valid, 1'b1);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = 64'h0000_0000_8000_5000;
+      #1;
+      tb_check1("post-commit read hits cache", lsu_axi_arvalid, 1'b0);
+      tick();
+      mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("post-commit cached response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("committed store updates dcache", mem0_rsp_rdata,
+                 64'haaaa_bbbb_cccc_dddd);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b1;
+      mem0_req_addr = 64'h0000_0000_8000_5000;
+      mem0_req_wdata = 64'h1234_5678_9abc_def0;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      lsu_axi_awready = 1'b1;
+      lsu_axi_wready = 1'b1;
+      #1;
+      tb_check1("drained store request ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("drained store issues AW", lsu_axi_awvalid, 1'b1);
+      tb_check1("drained store issues W", lsu_axi_wvalid, 1'b1);
+      tick();
+      lsu_axi_awready = 1'b0;
+      lsu_axi_wready = 1'b0;
+      #1;
+      tb_check1("drained store waits B", lsu_axi_bready, 1'b1);
+      flush = 1'b1;
+      lsu_axi_bvalid = 1'b1;
+      tick();
+      flush = 1'b0;
+      lsu_axi_bvalid = 1'b0;
+      #1;
+      tb_check1("drained store hides response", mem0_rsp_valid, 1'b0);
+
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = 64'h0000_0000_8000_5000;
+      #1;
+      tb_check1("post-drain read hits cache", lsu_axi_arvalid, 1'b0);
+      tick();
+      mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("post-drain cached response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("drained store updates dcache", mem0_rsp_rdata,
+                 64'h1234_5678_9abc_def0);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+    end
+  endtask
+
+  task automatic sv39_dtlb_and_paddr_cache_hit;
+    begin
+      priv_mode = `PRIV_S;
+      satp = (64'h8 << 60) | ROOT_PPN;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = DATA_VA;
+      #1;
+      tb_check1("sv39 first request ready", mem0_req_ready, 1'b1);
+      tb_check1("sv39 first request no direct data AR", lsu_axi_arvalid, 1'b0);
+      tick();
+      mem0_req_valid = 1'b0;
+
+      #1;
+      tb_check1("sv39 first walk AR valid", lsu_axi_arvalid, 1'b1);
+      tb_check64("sv39 first walk PTE address", lsu_axi_araddr,
+                 ROOT_PT + 64'd16);
+      lsu_axi_arready = 1'b1;
+      tick();
+      lsu_axi_arready = 1'b0;
+
+      #1;
+      tb_check1("sv39 first walk waits R", lsu_axi_rready, 1'b1);
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = SUPERPAGE_PTE;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+
+      #1;
+      tb_check1("sv39 translated data AR valid", lsu_axi_arvalid, 1'b1);
+      tb_check64("sv39 translated data AR physical", lsu_axi_araddr, DATA_PA);
+      lsu_axi_arready = 1'b1;
+      tick();
+      lsu_axi_arready = 1'b0;
+
+      #1;
+      tb_check1("sv39 data waits R", lsu_axi_rready, 1'b1);
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'hfeed_face_cafe_beef;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+
+      #1;
+      tb_check1("sv39 first response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("sv39 first response data", mem0_rsp_rdata,
+                 64'hfeed_face_cafe_beef);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = DATA_VA;
+      lsu_axi_arready = 1'b1;
+      #1;
+      tb_check1("sv39 repeat request ready", mem0_req_ready, 1'b1);
+      // 第二次同页同字访问应由 DTLB + 物理 data cache 命中，不再发 page-walk/data AR。
+      tb_check1("sv39 repeat request no AXI AR", lsu_axi_arvalid, 1'b0);
+      tick();
+      mem0_req_valid = 1'b0;
+      lsu_axi_arready = 1'b0;
+
+      #1;
+      tb_check1("sv39 repeat response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("sv39 repeat response data", mem0_rsp_rdata,
+                 64'hfeed_face_cafe_beef);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+
+      mmu_flush = 1'b1;
+      tick();
+      mmu_flush = 1'b0;
+      priv_mode = `PRIV_M;
+      satp = {`XLEN{1'b0}};
+    end
+  endtask
+
   wire unused_outputs =
       mem0_rsp_error | mem0_rsp_page_fault | mem1_rsp_error |
       mem1_rsp_page_fault | (|lsu_axi_wstrb);
@@ -296,8 +528,10 @@ module tb_ooo_mem_axi_bridge;
     #1;
 
     held_response_flush_drop();
-    inflight_read_flush_drain();
+    inflight_read_flush_abort();
     partial_write_flush_drain();
+    flushed_store_does_not_poison_dcache();
+    sv39_dtlb_and_paddr_cache_hit();
 
     tb_check1("unused outputs settle", unused_outputs, unused_outputs);
     tb_finish("tb_ooo_mem_axi_bridge");

@@ -76,7 +76,7 @@ fceux-am (NES 模拟器, 运行在 AM 上)
 - 若相关模块目录存在已整理的本地学习资料（例如 `design/study/README.md`、规范摘要、实现清单），agent 在 RECALL / PLAN 阶段必须先读取索引文件，再按任务类型补读对应笔记，之后才能开始给方案、改代码或跑验证。
 - 资料使用优先级：索引/范围说明 → 正式 Markdown 笔记 → 实现 checklist → `tmp/` 提取文本。`tmp/` 只用于快速定位，不直接作为最终依据。
 - 当前已固化的稳定入口是 `npc/single/design/study/README.md` 和 `npc/soc/design/study/README.md`；若 `npc/soc` 笔记缺失或明显滞后，可回退读取 `npc/single` 对应正式笔记并记录原因。
-- `npc/rv64` 的稳定入口是 `npc/rv64/README.md`、`npc/rv64/env/README.md` 与 `npc/rv64/design/study/README.md`；Linux/Ubuntu 任务还必须读取 `.github/instructions/rv64-linux-bringup.instructions.md`，按需叠加 `virtio-rootfs`、`linux-framebuffer-vga`、`rv64gc-userland`、`verilator-tapeout-realism`。
+- `npc/rv64` 的 core 稳定入口是 `npc/rv64/README.md` 与 `npc/rv64/design/study/README.md`；Linux/Ubuntu 启动套件稳定入口是 `Linux/README.md`、`Linux/env/README.md`、`Linux/tools/Makefile` 与 `.github/instructions/rv64-linux-bringup.instructions.md`，按需叠加 `virtio-rootfs`、`linux-framebuffer-vga`、`rv64gc-userland`、`verilator-tapeout-realism`。
 - 处理 `npc/{single,soc}/` 下的数据通路、译码、ALU、控制、CPU wrapper 或骨架任务时，优先读取对应目录的 `RV32I-ai-notes.md` 与 `RV32I-implementation-checklist.md`。
 - 处理 `npc/{single,soc}/` 下的功能仿真、异常、CSR、ECALL/EBREAK、MRET、WFI、PMEM 任务时，优先读取对应目录的 `RISC-V-spec-functional-sim-scope.md` 与 `RISC-V-spec-functional-sim-notes.md`。
 - 处理 `npc/{single,soc}/` 下的 machine CSR、trap controller、mtime/mtimecmp、PMA/PMP、pmem/mmio 边界或 SoC 地址图任务时，优先读取对应目录的 `RISC-V-spec-hardware-architecture-scope.md` 与 `RISC-V-spec-hardware-architecture-notes.md`。

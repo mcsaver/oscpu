@@ -409,7 +409,7 @@ module tb_ooo_sv39_boot;
       end else if (addr == (DATA_PA + 64'd8)) begin
         read64 = stored_data_q;
       end else begin
-        read64 = {{(`XLEN-`INST_W){1'b0}}, program_word(addr)};
+        read64 = {program_word(addr + 64'd4), program_word(addr)};
       end
     end
   endfunction
@@ -609,6 +609,19 @@ module tb_ooo_sv39_boot;
       tb_errors = tb_errors + 1;
       $display("[CHECK-FAIL] translated data load/store not observed load=%0d store=%0d",
                data_load_reads, data_store_writes);
+    end
+    $display("[INFO] sv39 page walks ifu=%0d ifu_fault=%0d lsu=%0d lsu_fault=%0d data_load=%0d data_store=%0d",
+             ifu_page_walk_reads, ifu_fault_walk_reads, lsu_page_walk_reads,
+             lsu_fault_walk_reads, data_load_reads, data_store_writes);
+    if (lsu_page_walk_reads != 1) begin
+      tb_errors = tb_errors + 1;
+      $display("[CHECK-FAIL] DTLB should let translated store reuse load translation, lsu_walk=%0d",
+               lsu_page_walk_reads);
+    end
+    if (ifu_page_walk_reads > 3) begin
+      tb_errors = tb_errors + 1;
+      $display("[CHECK-FAIL] ITLB should bound same-superpage instruction walks, ifu_walk=%0d",
+               ifu_page_walk_reads);
     end
 
     tb_finish("tb_ooo_sv39_boot");

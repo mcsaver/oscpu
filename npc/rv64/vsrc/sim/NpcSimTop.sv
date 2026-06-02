@@ -131,7 +131,7 @@ module NpcSimTop (
   localparam [3:0] AXI_S_PLIC = 4'd1;
   localparam [3:0] AXI_S_SRAM = 4'd2;
   localparam [3:0] AXI_S_UART = 4'd3;
-  localparam [3:0] AXI_S_SPI = 4'd4;
+  localparam [3:0] AXI_S_VIRTIO_BLK = 4'd4;
   localparam [3:0] AXI_S_GPIO = 4'd5;
   localparam [3:0] AXI_S_PS2 = 4'd6;
   localparam [3:0] AXI_S_MROM = 4'd7;
@@ -156,7 +156,6 @@ module NpcSimTop (
 
   localparam logic [AXI_S_COUNT-1:0] AXI_S_STUB_MASK =
       axi_slave_bit(AXI_S_SRAM) |
-      axi_slave_bit(AXI_S_SPI) |
       axi_slave_bit(AXI_S_GPIO) |
       axi_slave_bit(AXI_S_PS2) |
       axi_slave_bit(AXI_S_MROM) |
@@ -223,6 +222,8 @@ module NpcSimTop (
   logic clint_mtip_irq_w;
   logic plic_external_irq_w;
   logic uart_irq_w;
+  logic virtio_blk_irq_w;
+  logic [31:0] plic_sources_w;
   logic sim_cache_flush_w;
   logic sim_icache_access_w;
   logic sim_icache_hit_w;
@@ -368,7 +369,7 @@ module NpcSimTop (
                  `NPC_AXI_PSRAM_BASE, `NPC_AXI_CHIPLINK_MMIO_BASE,
                  `NPC_AXI_FLASH_BASE, `NPC_AXI_VGA_BASE,
                  `NPC_AXI_MROM_BASE, `NPC_AXI_PS2_BASE,
-                 `NPC_AXI_GPIO_BASE, `NPC_AXI_SPI_BASE,
+                 `NPC_AXI_GPIO_BASE, `NPC_AXI_VIRTIO_BLK_BASE,
                  `NPC_AXI_UART_BASE, `NPC_AXI_SRAM_BASE,
                  `NPC_AXI_PLIC_BASE,
                  `NPC_AXI_CLINT_BASE}),
@@ -377,7 +378,7 @@ module NpcSimTop (
                  `NPC_AXI_PSRAM_MASK, `NPC_AXI_CHIPLINK_MMIO_MASK,
                  `NPC_AXI_FLASH_MASK, `NPC_AXI_VGA_MASK,
                  `NPC_AXI_MROM_MASK, `NPC_AXI_PS2_MASK,
-                 `NPC_AXI_GPIO_MASK, `NPC_AXI_SPI_MASK,
+                 `NPC_AXI_GPIO_MASK, `NPC_AXI_VIRTIO_BLK_MASK,
                  `NPC_AXI_UART_MASK, `NPC_AXI_SRAM_MASK,
                  `NPC_AXI_PLIC_MASK,
                  `NPC_AXI_CLINT_MASK})
@@ -593,11 +594,40 @@ module NpcSimTop (
     u_core.u_ooo_fetch_bridge.debug_last_pte_second_q,
     u_core.u_ooo_fetch_bridge.debug_last_pte_level_q
   };
+  assign plic_sources_w = {29'd0, virtio_blk_irq_w, uart_irq_w, 1'b0};
+
+  AxiLiteVirtioBlk #(
+    .ADDR_W(`XLEN),
+    .DATA_W(`XLEN),
+    .STRB_W(`STRB_W)
+  ) u_virtio_blk_axi (
+    .clk(clk),
+    .rst(rst),
+    .s_axi_arvalid_i(bus_axi_arvalid_w[AXI_S_VIRTIO_BLK]),
+    .s_axi_arready_o(bus_axi_arready_w[AXI_S_VIRTIO_BLK]),
+    .s_axi_araddr_i(bus_axi_araddr_w[AXI_S_VIRTIO_BLK*`XLEN +: `XLEN]),
+    .s_axi_rvalid_o(bus_axi_rvalid_w[AXI_S_VIRTIO_BLK]),
+    .s_axi_rready_i(bus_axi_rready_w[AXI_S_VIRTIO_BLK]),
+    .s_axi_rdata_o(bus_axi_rdata_w[AXI_S_VIRTIO_BLK*`XLEN +: `XLEN]),
+    .s_axi_rresp_o(bus_axi_rresp_w[AXI_S_VIRTIO_BLK*2 +: 2]),
+    .s_axi_awvalid_i(bus_axi_awvalid_w[AXI_S_VIRTIO_BLK]),
+    .s_axi_awready_o(bus_axi_awready_w[AXI_S_VIRTIO_BLK]),
+    .s_axi_awaddr_i(bus_axi_awaddr_w[AXI_S_VIRTIO_BLK*`XLEN +: `XLEN]),
+    .s_axi_wvalid_i(bus_axi_wvalid_w[AXI_S_VIRTIO_BLK]),
+    .s_axi_wready_o(bus_axi_wready_w[AXI_S_VIRTIO_BLK]),
+    .s_axi_wdata_i(bus_axi_wdata_w[AXI_S_VIRTIO_BLK*`XLEN +: `XLEN]),
+    .s_axi_wstrb_i(bus_axi_wstrb_w[AXI_S_VIRTIO_BLK*`STRB_W +: `STRB_W]),
+    .s_axi_bvalid_o(bus_axi_bvalid_w[AXI_S_VIRTIO_BLK]),
+    .s_axi_bready_i(bus_axi_bready_w[AXI_S_VIRTIO_BLK]),
+    .s_axi_bresp_o(bus_axi_bresp_w[AXI_S_VIRTIO_BLK*2 +: 2]),
+    .irq_o(virtio_blk_irq_w)
+  );
 
   AxiLitePlic #(
     .ADDR_W(`XLEN),
     .DATA_W(`XLEN),
-    .STRB_W(`STRB_W)
+    .STRB_W(`STRB_W),
+    .SOURCE_NUM(32)
   ) u_plic_axi (
     .clk(clk),
     .rst(rst),
@@ -618,7 +648,7 @@ module NpcSimTop (
     .s_axi_bvalid_o(bus_axi_bvalid_w[AXI_S_PLIC]),
     .s_axi_bready_i(bus_axi_bready_w[AXI_S_PLIC]),
     .s_axi_bresp_o(bus_axi_bresp_w[AXI_S_PLIC*2 +: 2]),
-    .source_irq_i(uart_irq_w),
+    .source_irq_i(plic_sources_w),
     .external_irq_o(plic_external_irq_w)
   );
 

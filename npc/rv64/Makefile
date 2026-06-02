@@ -101,7 +101,7 @@ endif
 ifneq ($(VERILATOR_THREADS),1)
 VERILATOR_FLAGS += --threads $(VERILATOR_THREADS) --threads-dpi $(VERILATOR_THREADS_DPI)
 # 多线程构建时 Verilator 可能提示当前 RTL 只能切出较少 mtask；这本身是性能诊断，
-# 不应阻止我们用 Ubuntu 长跑实测 8 线程是否值得保留。
+# 不应阻止我们用长 workload 实测多线程是否值得保留。
 VERILATOR_FLAGS += -Wno-UNOPTTHREADS
 ifneq ($(strip $(VERILATOR_THREADS_MAX_MTASKS)),)
 VERILATOR_FLAGS += --threads-max-mtasks $(VERILATOR_THREADS_MAX_MTASKS)
@@ -240,70 +240,8 @@ difftest-ref:
 	$(MAKE) -C $(NEMU_HOME) AM_HOME=$(abspath ../../abstract-machine) ARCH=riscv64-npc riscv64-npc_defconfig
 	$(MAKE) -C $(NEMU_HOME) GUEST_ISA=riscv64 SHARE=1 ENGINE=interpreter
 
-setup-env:
-	bash scripts/setup-env.sh
-
-opensbi:
-	bash scripts/build-opensbi.sh
-
-opensbi-initramfs:
-	OPENSBI_DTB="$(NPC_HOME)/tools/build/npc-rv64-initramfs.dtb" \
-	OPENSBI_BUILD_DIR="$(NPC_HOME)/env/build/opensbi-npc-initramfs" \
-	bash scripts/build-opensbi.sh
-
-opensbi-ubuntu-initramfs:
-	OPENSBI_DTB="$(NPC_HOME)/tools/build/npc-rv64-ubuntu-initramfs.dtb" \
-	OPENSBI_BUILD_DIR="$(NPC_HOME)/env/build/opensbi-npc-ubuntu-initramfs" \
-	bash scripts/build-opensbi.sh
-
-opensbi-ubuntu-shell-initramfs:
-	OPENSBI_DTB="$(NPC_HOME)/tools/build/npc-rv64-ubuntu-shell-initramfs.dtb" \
-	OPENSBI_BUILD_DIR="$(NPC_HOME)/env/build/opensbi-npc-ubuntu-shell-initramfs" \
-	bash scripts/build-opensbi.sh
-
-opensbi-rootfs:
-	OPENSBI_DTB="$(NPC_HOME)/tools/build/npc-rv64-rootfs.dtb" \
-	OPENSBI_BUILD_DIR="$(NPC_HOME)/env/build/opensbi-npc-rootfs" \
-	bash scripts/build-opensbi.sh
-
-linux:
-	bash scripts/build-linux.sh
-
-initramfs:
-	bash scripts/build-busybox-initramfs.sh
-
-ubuntu-rootfs:
-	bash scripts/build-ubuntu-rootfs.sh
-
-ubuntu-base-initramfs:
-	bash scripts/build-ubuntu-base-initramfs.sh
-
-ubuntu-base-shell-initramfs:
-	UBUNTU_INIT_MODE=shell UBUNTU_INITRAMFS_PROFILE=full \
-	UBUNTU_INITRD_IMAGE="$(NPC_HOME)/env/images/ubuntu2204/ubuntu-22.04-riscv64.cpio" \
-	bash scripts/build-ubuntu-base-initramfs.sh
-
-qemu:
-	bash scripts/build-qemu.sh
-
-qemu-ubuntu-initramfs:
-	bash scripts/run-qemu-ubuntu-initramfs.sh
-
-qemu-ubuntu-shell-initramfs:
-	UBUNTU_INITRD_IMAGE="$(NPC_HOME)/env/images/ubuntu2204/ubuntu-22.04-riscv64.cpio" \
-	LOG_FILE="$(NPC_HOME)/env/logs/qemu/ubuntu-shell-initramfs.log" \
-	QEMU_MEMORY=256M QEMU_GUEST_EXPECT='[ysyx-sh] /bin/sh -c marker' \
-	bash scripts/run-qemu-ubuntu-initramfs.sh
-
-linux-initramfs: $(BIN)
-	bash scripts/run-linux-initramfs.sh
-
-linux-bringup-regression:
-	bash regression/run_all.sh
-
 .PHONY: default all lint syn-check-env sta-check-env syn sta sim run clean gprof-build prof-exec-build difftest-ref \
-	setup-env opensbi opensbi-initramfs opensbi-ubuntu-initramfs opensbi-ubuntu-shell-initramfs opensbi-rootfs linux initramfs \
-	ubuntu-rootfs ubuntu-base-initramfs ubuntu-base-shell-initramfs qemu qemu-ubuntu-initramfs qemu-ubuntu-shell-initramfs linux-initramfs linux-bringup-regression
+	menuconfig savedefconfig defconfig help-config distclean-config
 
 include $(NPC_HOME)/scripts/config.mk
 

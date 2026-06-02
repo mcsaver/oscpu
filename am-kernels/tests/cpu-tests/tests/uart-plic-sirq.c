@@ -154,7 +154,7 @@ int main() {
   uart_irq_iir = 0;
 
   write_csr_stvec((uintptr_t)s_uart_plic_trap);
-  write_csr_mideleg(1ul << IRQ_CAUSE_MEI);
+  write_csr_mideleg(1ul << IRQ_CAUSE_SEI);
   mret_to_s_payload();
   halt(1);
   return 1;

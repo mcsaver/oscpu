@@ -767,7 +767,7 @@ module tb_ooo_alu_fetch_core;
       if (dut.core_branch_resolve_valid_w) begin
         saw_backend_branch_resolve <= 1'b1;
       end
-      if (dut.u_core_slice.u_decode_backend.u_int_backend.fast_branch_resolve_valid_q) begin
+      if (dut.core_dispatch_branch_resolve_valid_w) begin
         saw_branch_dispatch_resolve <= 1'b1;
       end
       if (dut.direct_branch0_lane1_ret_w || dut.pending_lane1_ret_fire_w) begin

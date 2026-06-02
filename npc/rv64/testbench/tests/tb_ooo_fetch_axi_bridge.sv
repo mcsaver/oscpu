@@ -1,0 +1,338 @@
+`include "define.v"
+`include "tb_common.svh"
+
+module tb_ooo_fetch_axi_bridge;
+  reg clk;
+  reg rst;
+  reg mmu_flush;
+  reg invalidate_valid;
+  reg [`XLEN-1:0] invalidate_addr;
+  reg [1:0] priv_mode;
+  reg [`XLEN-1:0] satp;
+  reg fetch_req_valid;
+  wire fetch_req_ready;
+  reg [`XLEN-1:0] fetch_req_pc;
+  wire fetch_rsp_valid;
+  reg fetch_rsp_ready;
+  wire [`INST_W-1:0] fetch_rsp_inst0;
+  wire [1:0] fetch_rsp_resp0;
+  wire [`INST_W-1:0] fetch_rsp_inst1;
+  wire [1:0] fetch_rsp_resp1;
+  wire ifu_axi_arvalid;
+  reg ifu_axi_arready;
+  wire [`XLEN-1:0] ifu_axi_araddr;
+  reg ifu_axi_rvalid;
+  wire ifu_axi_rready;
+  reg [`XLEN-1:0] ifu_axi_rdata;
+  reg [1:0] ifu_axi_rresp;
+
+  localparam [1:0] RESP_OK = 2'b00;
+  localparam [1:0] RESP_PAGE_FAULT = 2'b10;
+  localparam [`XLEN-1:0] ROOT_PT = 64'h0000_0000_8100_0000;
+  localparam [`XLEN-1:0] L1_PT = 64'h0000_0000_8100_1000;
+  localparam [`XLEN-1:0] L0_PT = 64'h0000_0000_8100_2000;
+  localparam [`XLEN-1:0] USER_VA = 64'h0000_0000_0000_4000;
+  localparam [`XLEN-1:0] USER_PA = 64'h0000_0000_8200_4000;
+  localparam [`XLEN-1:0] CROSS_VA = 64'h0000_0000_0000_4ffe;
+  localparam [`XLEN-1:0] CROSS_NEXT_VA = 64'h0000_0000_0000_5000;
+  localparam [`XLEN-1:0] CROSS_PA0 = 64'h0000_0000_8200_4000;
+  localparam [`XLEN-1:0] CROSS_PA1 = 64'h0000_0000_8200_9000;
+  localparam [`XLEN-1:0] SUP_VA = 64'h0000_0000_0000_8000;
+  localparam [`XLEN-1:0] SUP_PA = 64'h0000_0000_8200_8000;
+  localparam [`XLEN-1:0] SATP_VALUE =
+      64'h8000_0000_0000_0000 | (ROOT_PT >> 12);
+  localparam [`XLEN-1:0] PTE_NONLEAF_FLAGS = 64'h001;
+  localparam [`XLEN-1:0] PTE_USER_X_FLAGS = 64'h0df;
+  localparam [`XLEN-1:0] PTE_SUP_X_FLAGS = 64'h0cf;
+  localparam [`XLEN-1:0] USER_INST_BEAT = 64'h0010_0093_0000_0013;
+  localparam [`XLEN-1:0] CROSS_FIRST_BEAT = 64'hcccc_cccc_97de_1693;
+  localparam [`XLEN-1:0] CROSS_SECOND_BEAT = 64'h0073_0016_8693_0024;
+  localparam [`XLEN-1:0] CROSS_MERGED_BEAT = 64'h0016_8693_0024_1693;
+  localparam [`XLEN-1:0] SUP_INST_BEAT = 64'h0020_0113_0000_0013;
+
+  OooFetchAxiBridge dut (
+    .clk(clk),
+    .rst(rst),
+    .mmu_flush_i(mmu_flush),
+    .invalidate_valid_i(invalidate_valid),
+    .invalidate_addr_i(invalidate_addr),
+    .priv_mode_i(priv_mode),
+    .satp_i(satp),
+    .fetch_req_valid_i(fetch_req_valid),
+    .fetch_req_ready_o(fetch_req_ready),
+    .fetch_req_pc_i(fetch_req_pc),
+    .fetch_rsp_valid_o(fetch_rsp_valid),
+    .fetch_rsp_ready_i(fetch_rsp_ready),
+    .fetch_rsp_inst0_o(fetch_rsp_inst0),
+    .fetch_rsp_resp0_o(fetch_rsp_resp0),
+    .fetch_rsp_inst1_o(fetch_rsp_inst1),
+    .fetch_rsp_resp1_o(fetch_rsp_resp1),
+    .ifu_axi_arvalid_o(ifu_axi_arvalid),
+    .ifu_axi_arready_i(ifu_axi_arready),
+    .ifu_axi_araddr_o(ifu_axi_araddr),
+    .ifu_axi_rvalid_i(ifu_axi_rvalid),
+    .ifu_axi_rready_o(ifu_axi_rready),
+    .ifu_axi_rdata_i(ifu_axi_rdata),
+    .ifu_axi_rresp_i(ifu_axi_rresp)
+  );
+
+  always #5 clk = ~clk;
+
+  task automatic tb_check2;
+    input [1023:0] what;
+    input [1:0] got;
+    input [1:0] exp;
+    begin
+      if (got !== exp) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] %0s got=%0b expected=%0b", what, got, exp);
+      end
+    end
+  endtask
+
+  task automatic tb_check32_local;
+    input [1023:0] what;
+    input [`INST_W-1:0] got;
+    input [`INST_W-1:0] exp;
+    begin
+      if (got !== exp) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] %0s got=0x%08x expected=0x%08x",
+                 what, got, exp);
+      end
+    end
+  endtask
+
+  task automatic tb_check64_local;
+    input [1023:0] what;
+    input [`XLEN-1:0] got;
+    input [`XLEN-1:0] exp;
+    begin
+      if (got !== exp) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] %0s got=0x%016x expected=0x%016x",
+                 what, got, exp);
+      end
+    end
+  endtask
+
+  function [8:0] vpn_by_level;
+    input [`XLEN-1:0] vaddr;
+    input [1:0] level;
+    begin
+      case (level)
+        2'd2: vpn_by_level = vaddr[38:30];
+        2'd1: vpn_by_level = vaddr[29:21];
+        default: vpn_by_level = vaddr[20:12];
+      endcase
+    end
+  endfunction
+
+  function [`XLEN-1:0] pte_addr;
+    input [`XLEN-1:0] base;
+    input [`XLEN-1:0] vaddr;
+    input [1:0] level;
+    begin
+      pte_addr = base + {{(`XLEN-12){1'b0}}, vpn_by_level(vaddr, level), 3'b000};
+    end
+  endfunction
+
+  function [`XLEN-1:0] pte_for_page;
+    input [`XLEN-1:0] paddr;
+    input [`XLEN-1:0] flags;
+    begin
+      pte_for_page = ((paddr >> 12) << 10) | flags;
+    end
+  endfunction
+
+  task automatic tick;
+    begin
+      @(posedge clk);
+      #1;
+    end
+  endtask
+
+  task automatic reset_dut;
+    begin
+      clk = 1'b0;
+      rst = 1'b1;
+      mmu_flush = 1'b0;
+      invalidate_valid = 1'b0;
+      invalidate_addr = {`XLEN{1'b0}};
+      priv_mode = `PRIV_M;
+      satp = {`XLEN{1'b0}};
+      fetch_req_valid = 1'b0;
+      fetch_req_pc = {`XLEN{1'b0}};
+      fetch_rsp_ready = 1'b0;
+      ifu_axi_arready = 1'b1;
+      ifu_axi_rvalid = 1'b0;
+      ifu_axi_rdata = {`XLEN{1'b0}};
+      ifu_axi_rresp = RESP_OK;
+      repeat (3) tick();
+      rst = 1'b0;
+      tick();
+    end
+  endtask
+
+  task automatic start_fetch;
+    input [1023:0] what;
+    input [`XLEN-1:0] pc;
+    input [1:0] req_priv;
+    begin
+      priv_mode = req_priv;
+      satp = SATP_VALUE;
+      fetch_req_pc = pc;
+      fetch_req_valid = 1'b1;
+      #1;
+      tb_check1(what, fetch_req_ready, 1'b1);
+      tick();
+      fetch_req_valid = 1'b0;
+      fetch_req_pc = {`XLEN{1'b0}};
+    end
+  endtask
+
+  task automatic expect_ar;
+    input [1023:0] what;
+    input [`XLEN-1:0] exp_addr;
+    integer waits;
+    begin
+      waits = 0;
+      while ((ifu_axi_arvalid !== 1'b1) && (waits < 20)) begin
+        tick();
+        waits = waits + 1;
+      end
+      tb_check1(what, ifu_axi_arvalid, 1'b1);
+      if (ifu_axi_arvalid === 1'b1) begin
+        tb_check64_local(what, ifu_axi_araddr, exp_addr);
+      end
+      tick();
+    end
+  endtask
+
+  task automatic drive_r;
+    input [`XLEN-1:0] data;
+    input [1:0] resp;
+    integer waits;
+    begin
+      waits = 0;
+      while ((ifu_axi_rready !== 1'b1) && (waits < 20)) begin
+        tick();
+        waits = waits + 1;
+      end
+      tb_check1("read channel ready", ifu_axi_rready, 1'b1);
+      ifu_axi_rdata = data;
+      ifu_axi_rresp = resp;
+      ifu_axi_rvalid = 1'b1;
+      tick();
+      ifu_axi_rvalid = 1'b0;
+      ifu_axi_rdata = {`XLEN{1'b0}};
+      ifu_axi_rresp = RESP_OK;
+    end
+  endtask
+
+  task automatic walk_to_fetch;
+    input [1023:0] what;
+    input [`XLEN-1:0] vaddr;
+    input [`XLEN-1:0] paddr;
+    input [`XLEN-1:0] leaf_flags;
+    input [`XLEN-1:0] inst_beat;
+    begin
+      expect_ar(what, pte_addr(ROOT_PT, vaddr, 2'd2));
+      drive_r(pte_for_page(L1_PT, PTE_NONLEAF_FLAGS), RESP_OK);
+      expect_ar(what, pte_addr(L1_PT, vaddr, 2'd1));
+      drive_r(pte_for_page(L0_PT, PTE_NONLEAF_FLAGS), RESP_OK);
+      expect_ar(what, pte_addr(L0_PT, vaddr, 2'd0));
+      drive_r(pte_for_page(paddr, leaf_flags), RESP_OK);
+      expect_ar(what, paddr);
+      drive_r(inst_beat, RESP_OK);
+    end
+  endtask
+
+  task automatic walk_to_cross_fetch;
+    input [1023:0] what;
+    begin
+      expect_ar(what, pte_addr(ROOT_PT, CROSS_VA, 2'd2));
+      drive_r(pte_for_page(L1_PT, PTE_NONLEAF_FLAGS), RESP_OK);
+      expect_ar(what, pte_addr(L1_PT, CROSS_VA, 2'd1));
+      drive_r(pte_for_page(L0_PT, PTE_NONLEAF_FLAGS), RESP_OK);
+      expect_ar(what, pte_addr(L0_PT, CROSS_VA, 2'd0));
+      drive_r(pte_for_page(CROSS_PA0, PTE_USER_X_FLAGS), RESP_OK);
+
+      expect_ar(what, pte_addr(ROOT_PT, CROSS_NEXT_VA, 2'd2));
+      drive_r(pte_for_page(L1_PT, PTE_NONLEAF_FLAGS), RESP_OK);
+      expect_ar(what, pte_addr(L1_PT, CROSS_NEXT_VA, 2'd1));
+      drive_r(pte_for_page(L0_PT, PTE_NONLEAF_FLAGS), RESP_OK);
+      expect_ar(what, pte_addr(L0_PT, CROSS_NEXT_VA, 2'd0));
+      drive_r(pte_for_page(CROSS_PA1, PTE_USER_X_FLAGS), RESP_OK);
+
+      expect_ar(what, CROSS_PA0 + 64'hffe);
+      drive_r(CROSS_FIRST_BEAT, RESP_OK);
+      expect_ar(what, CROSS_PA1);
+      drive_r(CROSS_SECOND_BEAT, RESP_OK);
+    end
+  endtask
+
+  task automatic expect_rsp;
+    input [1023:0] what;
+    input [1:0] exp_resp0;
+    input [1:0] exp_resp1;
+    input [`XLEN-1:0] exp_inst_beat;
+    integer waits;
+    begin
+      waits = 0;
+      while ((fetch_rsp_valid !== 1'b1) && (waits < 20)) begin
+        tick();
+        waits = waits + 1;
+      end
+      tb_check1(what, fetch_rsp_valid, 1'b1);
+      if (fetch_rsp_valid === 1'b1) begin
+        tb_check2(what, fetch_rsp_resp0, exp_resp0);
+        tb_check2(what, fetch_rsp_resp1, exp_resp1);
+        if (exp_resp0 == RESP_OK) begin
+          tb_check32_local(what, fetch_rsp_inst0, exp_inst_beat[`INST_W-1:0]);
+        end
+        if (exp_resp1 == RESP_OK) begin
+          tb_check32_local(what, fetch_rsp_inst1, exp_inst_beat[`XLEN-1:`INST_W]);
+        end
+      end
+      fetch_rsp_ready = 1'b1;
+      tick();
+      fetch_rsp_ready = 1'b0;
+    end
+  endtask
+
+  initial begin
+    tb_errors = 0;
+    reset_dut();
+
+    start_fetch("user fetch request accepted", USER_VA, `PRIV_U);
+    priv_mode = `PRIV_S;
+    walk_to_fetch("user fetch keeps request privilege", USER_VA, USER_PA,
+                  PTE_USER_X_FLAGS, USER_INST_BEAT);
+    expect_rsp("user fetch response ok after privilege drift",
+               RESP_OK, RESP_OK, USER_INST_BEAT);
+
+    start_fetch("supervisor fetch request accepted", SUP_VA, `PRIV_S);
+    priv_mode = `PRIV_U;
+    walk_to_fetch("supervisor fetch keeps request privilege", SUP_VA, SUP_PA,
+                  PTE_SUP_X_FLAGS, SUP_INST_BEAT);
+    expect_rsp("supervisor fetch response ok after privilege drift",
+               RESP_OK, RESP_OK, SUP_INST_BEAT);
+
+    start_fetch("supervisor cannot execute user page", USER_VA, `PRIV_S);
+    expect_rsp("itlb permissions use current request privilege",
+               RESP_PAGE_FAULT, RESP_PAGE_FAULT, {`XLEN{1'b0}});
+
+    mmu_flush = 1'b1;
+    tick();
+    mmu_flush = 1'b0;
+    tick();
+
+    start_fetch("cross-page user fetch request accepted", CROSS_VA, `PRIV_U);
+    walk_to_cross_fetch("cross-page packet uses translated next page");
+    expect_rsp("cross-page packet merges non-contiguous pages",
+               RESP_OK, RESP_OK, CROSS_MERGED_BEAT);
+
+    tb_finish("tb_ooo_fetch_axi_bridge");
+  end
+endmodule

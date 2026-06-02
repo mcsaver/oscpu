@@ -31,8 +31,9 @@
   - `ysyxSoC`：Chisel SoC、CPU ABI、外设地址图与生成物
   - `yosys-sta`：综合、STA、PPA 节点
 - RV64 Linux/Ubuntu 扩展后端：
-  - `npc/rv64`：RV64 OoO core、OpenSBI/Linux/Ubuntu bring-up、Verilator target
-  - `npc/rv64/env/`：工作区内的 OpenSBI、Linux、BusyBox、Ubuntu Base、QEMU、镜像与日志套件
+  - `npc/rv64`：RV64 OoO core、Kconfig、testbench、Verilator target
+  - `Linux/`：OpenSBI/Linux/Ubuntu bring-up 的 Makefile 入口、脚本、平台配置、tools 和验证套件
+  - `Linux/env/`：工作区内的 OpenSBI、Linux、BusyBox、Ubuntu Base、QEMU、镜像与日志套件
   - `rv64-linux`：OpenSBI/Linux/Ubuntu 启动层级与 QEMU/NPC 证据分层
   - `linux-device`：UART、CLINT、PLIC、virtio-mmio、rootfs 和 Linux driver 设备契约
   - `display-vga`：Linux-visible framebuffer/simplefb/simpledrm/fbcon 与 SDL scanout

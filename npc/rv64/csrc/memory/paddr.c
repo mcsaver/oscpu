@@ -96,7 +96,7 @@ bool npc_in_pmem(npc_paddr_t addr) {
   return offset + sizeof(npc_word_t) <= g_pmem_size;
 }
 
-static bool npc_pmem_range_valid(npc_paddr_t addr, size_t size) {
+bool npc_pmem_range_valid(npc_paddr_t addr, size_t size) {
   if (addr < NPC_PMEM_BASE || !g_pmem) return false;
   uint64_t offset = (uint64_t)(addr - NPC_PMEM_BASE);
   return offset <= g_pmem_size && (uint64_t)size <= (uint64_t)g_pmem_size - offset;

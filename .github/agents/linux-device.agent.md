@@ -16,7 +16,7 @@ tools: [read, edit, search, execute, agent, todo]
 ## 开始工作前
 
 1. 读取 `.github/memory/modules/npc.md` 与 `.github/memory/known-issues.md`。
-2. 读取 `npc/rv64/platform/npc-rv64.yml`、`npc/rv64/platform/gen_dts.py`。
+2. 读取 `Linux/platform/npc-rv64.yml`、`Linux/platform/gen_dts.py`。
 3. 读取 `npc/rv64/vsrc/bus/` 下相关设备 RTL。
 4. rootfs/virtio 任务必须读取 `.github/instructions/virtio-rootfs.instructions.md`。
 5. 涉及 RTL 修改时必须叠加 `.github/instructions/rtl-generation-workflow.instructions.md`。

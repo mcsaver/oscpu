@@ -1,0 +1,252 @@
+`include "define.v"
+
+module tb_ooo_fetch_trap_gate;
+  `include "tb_common.svh"
+
+  reg clk;
+  reg rst;
+  reg flush;
+  reg run;
+  reg commit_ready;
+  wire fetch_req_valid;
+  wire [`XLEN-1:0] fetch_req_pc;
+  wire fetch_rsp_ready;
+  wire mem_req_valid;
+  wire mem_req_write;
+  wire [`XLEN-1:0] mem_req_addr;
+  wire [`XLEN-1:0] mem_req_wdata;
+  wire [`STRB_W-1:0] mem_req_wstrb;
+  wire mem_rsp_ready;
+  wire mem1_req_valid;
+  wire mem1_req_write;
+  wire [`XLEN-1:0] mem1_req_addr;
+  wire [`XLEN-1:0] mem1_req_wdata;
+  wire [`STRB_W-1:0] mem1_req_wstrb;
+  wire mem1_rsp_ready;
+  wire mem_flush;
+  wire commit0_valid;
+  wire [`XLEN-1:0] commit0_pc;
+  wire [`INST_W-1:0] commit0_inst;
+  wire [`XLEN-1:0] commit0_next_pc;
+  wire commit0_rd_en;
+  wire [`REG_ADDR_W-1:0] commit0_rd_addr;
+  wire [`XLEN-1:0] commit0_rd_data;
+  wire commit0_exception;
+  wire commit0_write;
+  wire commit1_valid;
+  wire [`XLEN-1:0] commit1_pc;
+  wire [`INST_W-1:0] commit1_inst;
+  wire [`XLEN-1:0] commit1_next_pc;
+  wire commit1_rd_en;
+  wire [`REG_ADDR_W-1:0] commit1_rd_addr;
+  wire [`XLEN-1:0] commit1_rd_data;
+  wire commit1_exception;
+  wire commit1_write;
+  wire trap_valid;
+  wire [`TRAP_CAUSE_W-1:0] trap_cause;
+  wire [`XLEN-1:0] trap_pc;
+  wire [`XLEN-1:0] trap_tval;
+  wire exit_valid;
+  wire exit_is_ecall;
+  wire exit_is_ebreak;
+  wire [`XLEN-1:0] exit_code;
+  wire halted;
+  wire [`XLEN-1:0] debug_pc;
+  wire [`CORE_STATE_W-1:0] debug_state;
+  wire [`XLEN * `REG_NUM - 1:0] debug_gprs;
+  wire [1:0] retire_count;
+  wire [6:0] free_count;
+  wire [4:0] rob_count;
+  wire [3:0] issue_count;
+  localparam [`XLEN-1:0] STALE_USER_PC = 64'h0000003fa795aa32;
+
+  OooAluFetchCore dut (
+    .clk(clk),
+    .rst(rst),
+    .flush_i(flush),
+    .run_i(run),
+    .reset_pc_i(`RESET_PC),
+    .time_i(64'd0),
+    .irq_software_i(1'b0),
+    .irq_timer_i(1'b0),
+    .irq_external_i(1'b0),
+    .fetch_req_valid_o(fetch_req_valid),
+    .fetch_req_ready_i(1'b1),
+    .fetch_req_pc_o(fetch_req_pc),
+    .fetch_rsp_valid_i(1'b0),
+    .fetch_rsp_ready_o(fetch_rsp_ready),
+    .fetch_rsp_inst0_i({`INST_W{1'b0}}),
+    .fetch_rsp_resp0_i(2'b00),
+    .fetch_rsp_inst1_i({`INST_W{1'b0}}),
+    .fetch_rsp_resp1_i(2'b00),
+    .mem_req_valid_o(mem_req_valid),
+    .mem_req_ready_i(1'b1),
+    .mem_req_write_o(mem_req_write),
+    .mem_req_addr_o(mem_req_addr),
+    .mem_req_wdata_o(mem_req_wdata),
+    .mem_req_wstrb_o(mem_req_wstrb),
+    .mem_rsp_valid_i(1'b0),
+    .mem_rsp_ready_o(mem_rsp_ready),
+    .mem_rsp_rdata_i({`XLEN{1'b0}}),
+    .mem_rsp_error_i(1'b0),
+    .mem_rsp_page_fault_i(1'b0),
+    .mem1_req_valid_o(mem1_req_valid),
+    .mem1_req_ready_i(1'b1),
+    .mem1_req_write_o(mem1_req_write),
+    .mem1_req_addr_o(mem1_req_addr),
+    .mem1_req_wdata_o(mem1_req_wdata),
+    .mem1_req_wstrb_o(mem1_req_wstrb),
+    .mem1_rsp_valid_i(1'b0),
+    .mem1_rsp_ready_o(mem1_rsp_ready),
+    .mem1_rsp_rdata_i({`XLEN{1'b0}}),
+    .mem1_rsp_error_i(1'b0),
+    .mem1_rsp_page_fault_i(1'b0),
+    .mem_flush_o(mem_flush),
+    .commit_ready_i(commit_ready),
+    .commit0_valid_o(commit0_valid),
+    .commit0_pc_o(commit0_pc),
+    .commit0_inst_o(commit0_inst),
+    .commit0_next_pc_o(commit0_next_pc),
+    .commit0_rd_en_o(commit0_rd_en),
+    .commit0_rd_addr_o(commit0_rd_addr),
+    .commit0_rd_data_o(commit0_rd_data),
+    .commit0_exception_o(commit0_exception),
+    .commit0_write_o(commit0_write),
+    .commit1_valid_o(commit1_valid),
+    .commit1_pc_o(commit1_pc),
+    .commit1_inst_o(commit1_inst),
+    .commit1_next_pc_o(commit1_next_pc),
+    .commit1_rd_en_o(commit1_rd_en),
+    .commit1_rd_addr_o(commit1_rd_addr),
+    .commit1_rd_data_o(commit1_rd_data),
+    .commit1_exception_o(commit1_exception),
+    .commit1_write_o(commit1_write),
+    .trap_valid_o(trap_valid),
+    .trap_cause_o(trap_cause),
+    .trap_pc_o(trap_pc),
+    .trap_tval_o(trap_tval),
+    .exit_valid_o(exit_valid),
+    .exit_is_ecall_o(exit_is_ecall),
+    .exit_is_ebreak_o(exit_is_ebreak),
+    .exit_code_o(exit_code),
+    .halted_o(halted),
+    .priv_mode_o(),
+    .mstatus_o(),
+    .satp_o(),
+    .debug_pc_o(debug_pc),
+    .debug_state_o(debug_state),
+    .debug_gprs_o(debug_gprs),
+    .retire_count_o(retire_count),
+    .free_count_o(free_count),
+    .rob_count_o(rob_count),
+    .issue_count_o(issue_count)
+  );
+
+  always #5 clk = ~clk;
+
+  initial begin
+    tb_errors = 0;
+    clk = 1'b0;
+    rst = 1'b1;
+    flush = 1'b0;
+    run = 1'b1;
+    commit_ready = 1'b1;
+    repeat (3) @(posedge clk);
+    #1;
+    rst = 1'b0;
+    #1;
+
+    tb_check1("baseline fetch request valid", fetch_req_valid, 1'b1);
+
+    force dut.csr_trap_mem_valid_w = 1'b1;
+    #1;
+    tb_check1("committing memory trap blocks fetch request",
+              fetch_req_valid, 1'b0);
+    release dut.csr_trap_mem_valid_w;
+
+    force dut.core_trap_flush_q = 1'b1;
+    #1;
+    tb_check1("trap flush blocks fetch request", fetch_req_valid, 1'b0);
+    release dut.core_trap_flush_q;
+
+    force dut.core_serial_flush_q = 1'b1;
+    #1;
+    tb_check1("serial flush blocks fetch request", fetch_req_valid, 1'b0);
+    release dut.core_serial_flush_q;
+
+    force dut.backend_drained_w = 1'b0;
+    force dut.csr_trap_mem_valid_w = 1'b1;
+    @(posedge clk);
+    #1;
+    release dut.csr_trap_mem_valid_w;
+    tb_check1("memory trap starts trap flush", dut.core_trap_flush_q, 1'b1);
+    tb_check1("memory trap starts redirect squash",
+              dut.trap_redirect_squash_q, 1'b1);
+    tb_check1("trap flush blocks fetch request", fetch_req_valid, 1'b0);
+    @(posedge clk);
+    #1;
+    tb_check1("trap flush is one-shot", dut.core_trap_flush_q, 1'b0);
+    tb_check1("redirect squash waits for backend drain",
+              dut.trap_redirect_squash_q, 1'b1);
+    tb_check1("redirect squash does not block sequential trap fetch",
+              fetch_req_valid, 1'b1);
+    force dut.branch_resolve_untracked_raw_w = 1'b1;
+    force dut.core_branch_resolve_misaligned_w = 1'b0;
+    force dut.core_branch_resolve_next_pc_w = STALE_USER_PC;
+    #1;
+    tb_check1("redirect squash masks untracked resolve",
+              dut.branch_resolve_untracked_w, 1'b0);
+    if (fetch_req_pc === STALE_USER_PC) begin
+      tb_errors = tb_errors + 1;
+      $display("[CHECK-FAIL] stale user redirect selected during squash pc=0x%016x",
+               fetch_req_pc);
+    end
+    release dut.branch_resolve_untracked_raw_w;
+    release dut.core_branch_resolve_misaligned_w;
+    release dut.core_branch_resolve_next_pc_w;
+    force dut.direct_branch_resolve_redirect_raw_w = 1'b1;
+    force dut.direct_branch_resolve_next_pc_w = STALE_USER_PC;
+    #1;
+    tb_check1("redirect squash masks direct branch resolve",
+              dut.direct_branch_resolve_redirect_w, 1'b0);
+    if (fetch_req_pc === STALE_USER_PC) begin
+      tb_errors = tb_errors + 1;
+      $display("[CHECK-FAIL] stale direct branch redirect selected during squash pc=0x%016x",
+               fetch_req_pc);
+    end
+    release dut.direct_branch_resolve_redirect_raw_w;
+    release dut.direct_branch_resolve_next_pc_w;
+    force dut.branch_resolve_redirect_raw_w = 1'b1;
+    force dut.core_branch_resolve_next_pc_w = STALE_USER_PC;
+    #1;
+    tb_check1("redirect squash masks tracked branch resolve",
+              dut.branch_resolve_redirect_w, 1'b0);
+    if (fetch_req_pc === STALE_USER_PC) begin
+      tb_errors = tb_errors + 1;
+      $display("[CHECK-FAIL] stale tracked branch redirect selected during squash pc=0x%016x",
+               fetch_req_pc);
+    end
+    release dut.branch_resolve_redirect_raw_w;
+    release dut.core_branch_resolve_next_pc_w;
+    force dut.branch_spec_redirect_raw_w = 1'b1;
+    force dut.core_branch_resolve_next_pc_w = STALE_USER_PC;
+    #1;
+    tb_check1("redirect squash masks speculative branch restore",
+              dut.branch_spec_redirect_w, 1'b0);
+    if (fetch_req_pc === STALE_USER_PC) begin
+      tb_errors = tb_errors + 1;
+      $display("[CHECK-FAIL] stale speculative branch redirect selected during squash pc=0x%016x",
+               fetch_req_pc);
+    end
+    release dut.branch_spec_redirect_raw_w;
+    release dut.core_branch_resolve_next_pc_w;
+    force dut.backend_drained_w = 1'b1;
+    @(posedge clk);
+    #1;
+    tb_check1("redirect squash clears after backend drain",
+              dut.trap_redirect_squash_q, 1'b0);
+    release dut.backend_drained_w;
+
+    tb_finish("tb_ooo_fetch_trap_gate");
+  end
+endmodule

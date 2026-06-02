@@ -160,6 +160,7 @@ module NpcCoreTop (
     .clk(clk),
     .rst(rst),
     .flush_i(ooo_mem_flush_w),
+    .mmu_flush_i(ooo_mmu_flush_w),
     .priv_mode_i(ooo_priv_mode_w),
     .mstatus_i(ooo_mstatus_w),
     .satp_i(ooo_satp_w),

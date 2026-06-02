@@ -1,0 +1,5 @@
+[TEST] tb_ooo_mem_axi_bridge
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_mem_axi_bridge -o build/tb_ooo_mem_axi_bridge.vvp tests/tb_ooo_mem_axi_bridge.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/core/OooMemAxiBridge.v
+[PASS] tb_ooo_mem_axi_bridge
+common/tb_common.svh:32: $finish called at 74 (1s)
+[RESULT] PASS

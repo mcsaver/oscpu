@@ -5,6 +5,7 @@
 #include "cpu/cpu.h"
 #include "device/device.h"
 #include "device/map.h"
+#include "device/virtio_blk.h"
 #include "memory/paddr.h"
 #include "monitor/expr.h"
 #include "monitor/log.h"
@@ -52,12 +53,15 @@ static bool parse_args(int argc, char **argv, NpcSimConfig *config) {
     OPT_NO_PROGRESS = 1000,
     OPT_NO_DIFF,
     OPT_LOAD,
+    OPT_BLOCK,
   };
 
   static const struct option long_opts[] = {
     {"batch",             no_argument,       NULL, 'b'},
     {"image",             required_argument, NULL, 'i'},
     {"load",              required_argument, NULL, OPT_LOAD},
+    {"block",             required_argument, NULL, OPT_BLOCK},
+    {"disk",              required_argument, NULL, OPT_BLOCK},
     {"max",               required_argument, NULL, 'm'},
     {"max-cycles",        required_argument, NULL, 'm'},
     {"log",               optional_argument, NULL, 'l'},
@@ -117,6 +121,10 @@ static bool parse_args(int argc, char **argv, NpcSimConfig *config) {
         spec->path[NPC_PATH_MAX - 1] = '\0';
         break;
       }
+      case OPT_BLOCK:
+        strncpy(config->block_path, optarg, NPC_PATH_MAX - 1);
+        config->block_path[NPC_PATH_MAX - 1] = '\0';
+        break;
       case 'm': {
         char *end = NULL;
         unsigned long long val = strtoull(optarg, &end, 10);
@@ -188,6 +196,7 @@ static bool parse_args(int argc, char **argv, NpcSimConfig *config) {
         printf("  -b, --batch          batch mode (no SDB)\n");
         printf("  -i, --image=FILE     load binary image\n");
         printf("      --load=ADDR:FILE load extra image at physical address (repeatable)\n");
+        printf("      --block=FILE     attach virtio-mmio block image (alias: --disk)\n");
         printf("  -m, --max=N          max cycles (0=unlimited)\n");
         printf("      --max-cycles=N   compatibility alias for --max\n");
         printf("  -l, --log[=FILE]     enable log to file\n");
@@ -246,6 +255,7 @@ bool npc_init_monitor(int argc, char **argv, NpcSimConfig *config) {
   }
 
   npc_init_device(g_config.stdin_keyboard, g_config.vga_enable);
+  if (!npc_virtio_blk_init(g_config.block_path)) return false;
   npc_init_trace(&g_config);
   npc_init_expr();
   npc_init_watchpoint_pool();
@@ -271,6 +281,7 @@ int npc_monitor_run(void) {
 
 void npc_fini_monitor(void) {
   npc_fini_cpu();
+  npc_virtio_blk_fini();
   npc_fini_device();
   npc_close_log();
 }

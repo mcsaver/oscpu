@@ -108,7 +108,7 @@ module OooAluFetchCore #(
   localparam RAS_COUNT_W = 6;
   localparam [RAS_COUNT_W-1:0] RAS_DEPTH_VALUE = RAS_DEPTH;
   localparam [RAS_INDEX_W-1:0] RAS_LAST_INDEX = {RAS_INDEX_W{1'b1}};
-  localparam ENABLE_DIRECT_RAS_RET = 1'b0;
+  localparam ENABLE_DIRECT_RAS_RET = 1'b1;
   localparam BRANCH_TARGET_CACHE_INDEX_W = 4;
   localparam BRANCH_TARGET_CACHE_ENTRIES =
       (1 << BRANCH_TARGET_CACHE_INDEX_W);
@@ -727,6 +727,7 @@ module OooAluFetchCore #(
   reg ctrl_commit_write_q;
   reg backend_drained_q;
   reg core_trap_flush_q;
+  reg trap_redirect_squash_q;
   reg core_serial_flush_q;
   reg checkpoint_mem_flush_q;
 
@@ -1178,9 +1179,15 @@ module OooAluFetchCore #(
   wire head1_jal_call_raw_w =
       head1_jal_raw_w &&
       ((head1_rd_unused_w == 5'd1) || (head1_rd_unused_w == 5'd5));
+  wire ras_direct_update_safe_w =
+      (rob_count_o == {ROB_COUNT_W{1'b0}}) &&
+      !stop_pending_q &&
+      !branch_spec_active_q &&
+      !branch_spec_checkpoint_pending_q;
   wire dispatch0_return_w =
       ENABLE_DIRECT_RAS_RET &&
       dispatch0_jump_w &&
+      ras_direct_update_safe_w &&
       ras_reliable_q && !ras_empty_w &&
       (head0_rd_unused_w == {`REG_ADDR_W{1'b0}}) &&
       ((head0_rs1_w == 5'd1) || (head0_rs1_w == 5'd5)) &&
@@ -1188,6 +1195,7 @@ module OooAluFetchCore #(
   wire head1_return_candidate_w =
       ENABLE_DIRECT_RAS_RET &&
       head1_jalr_raw_w &&
+      ras_direct_update_safe_w &&
       ras_reliable_q && !ras_empty_w &&
       (head1_rd_unused_w == {`REG_ADDR_W{1'b0}}) &&
       ((head1_rs1_w == 5'd1) || (head1_rs1_w == 5'd5)) &&
@@ -1438,8 +1446,10 @@ module OooAluFetchCore #(
       direct_branch_dispatch_resolve_valid_w ?
       core_dispatch_branch_resolve_misaligned_w :
       core_branch_resolve_misaligned_w;
-  wire direct_branch_resolve_redirect_w =
+  wire direct_branch_resolve_redirect_raw_w =
       direct_branch_resolve_valid_w && !direct_branch_resolve_misaligned_w;
+  wire direct_branch_resolve_redirect_w =
+      direct_branch_resolve_redirect_raw_w && !trap_redirect_squash_q;
   wire direct_branch_resolve_taken_w =
       direct_branch_resolve_redirect_w &&
       (direct_branch_resolve_next_pc_w == direct_branch_target_w);
@@ -1469,7 +1479,12 @@ module OooAluFetchCore #(
   wire direct_jal1_call_w = direct_jal1_fire_w &&
                             ((head1_rd_unused_w == 5'd1) ||
                              (head1_rd_unused_w == 5'd5));
-  wire direct_jal_call_w = direct_jal0_call_w || direct_jal1_call_w;
+  wire direct_jal_call_raw_w = direct_jal0_call_w || direct_jal1_call_w;
+  wire direct_jal_call_w =
+      ras_direct_update_safe_w && direct_jal_call_raw_w;
+  wire direct_jal_call_unsafe_w =
+      ENABLE_DIRECT_RAS_RET && direct_jal_call_raw_w &&
+      !ras_direct_update_safe_w;
   wire [`XLEN-1:0] direct_jal_link_w =
       direct_jal0_call_w ? head_next_pc0_w : head_next_pc1_w;
   wire return_cont_safe_w =
@@ -1715,11 +1730,14 @@ module OooAluFetchCore #(
   wire branch_resolve_pending_match_w =
       stop_pending_q && pending_branch_q && pending_branch_dispatched_q &&
       branch_resolve_pending_pc_match_w;
-  wire branch_resolve_redirect_w = stop_pending_q && pending_branch_q &&
-                                   pending_branch_dispatched_q &&
-                                   branch_resolve_pending_match_w &&
-                                   !core_branch_resolve_misaligned_w &&
-                                   !branch_prefetch_match_w;
+  wire branch_resolve_redirect_raw_w =
+      stop_pending_q && pending_branch_q &&
+      pending_branch_dispatched_q &&
+      branch_resolve_pending_match_w &&
+      !core_branch_resolve_misaligned_w &&
+      !branch_prefetch_match_w;
+  wire branch_resolve_redirect_w =
+      branch_resolve_redirect_raw_w && !trap_redirect_squash_q;
   wire backend_execute_quiet_w =
       !execute0_valid_unused_w && !execute1_valid_unused_w &&
       !mem_rsp_ready_o && !mem1_rsp_ready_o;
@@ -1736,8 +1754,10 @@ module OooAluFetchCore #(
       (core_branch_resolve_next_pc_w == branch_spec_pred_pc_q);
   wire branch_spec_restore_w =
       branch_spec_resolve_valid_w && !branch_spec_pred_match_w;
-  wire branch_spec_redirect_w =
+  wire branch_spec_redirect_raw_w =
       branch_spec_restore_w && !core_branch_resolve_misaligned_w;
+  wire branch_spec_redirect_w =
+      branch_spec_redirect_raw_w && !trap_redirect_squash_q;
   wire direct_branch_wait_resolve_match_w =
       direct_branch_wait_q && core_branch_resolve_valid_w &&
       (core_branch_resolve_pc_w == direct_branch_wait_pc_q);
@@ -1745,13 +1765,15 @@ module OooAluFetchCore #(
       direct_branch_wait_resolve_match_w &&
       !branch_resolve_pending_match_w &&
       !direct_branch_resolve_valid_w;
-  wire branch_resolve_untracked_w =
+  wire branch_resolve_untracked_raw_w =
       (direct_branch_wait_untracked_w ||
        (core_branch_resolve_valid_w &&
         !stop_pending_q &&
         !branch_resolve_pending_pc_match_w &&
         !direct_branch_resolve_valid_w)) &&
       !branch_spec_resolve_valid_w;
+  wire branch_resolve_untracked_w =
+      branch_resolve_untracked_raw_w && !trap_redirect_squash_q;
   wire branch_resolve_untracked_redirect_w =
       branch_resolve_untracked_w && !core_branch_resolve_misaligned_w;
   wire direct_redirect_fetch_w =
@@ -1789,6 +1811,9 @@ module OooAluFetchCore #(
                              !discard_fetch_rsp_q &&
                              fifo_reserve_available_w &&
                              (!outstanding_valid_q || fetch_rsp_fire_w);
+  wire fetch_request_blocked_by_trap_w =
+      csr_trap_mem_valid_w || csr_trap_ex_valid_w || csr_trap_irq_valid_w ||
+      core_trap_flush_q || core_serial_flush_q;
   wire fetch_req_fire_w = fetch_req_valid_o && fetch_req_ready_i;
   wire frontend_dispatch_to_backend_valid_w =
       dispatch_valid_w && !dispatch0_branch_w && !dispatch0_jal_w &&
@@ -1923,6 +1948,11 @@ module OooAluFetchCore #(
       csr_mret_valid_w &&
       (pending_system_inst_q[31:20] == `SYSTEM_FUNCT12_SRET);
   wire csr_real_mret_valid_w = csr_mret_valid_w && !csr_sret_valid_w;
+  wire priv_predictor_boundary_w =
+      csr_trap_mem_valid_w || csr_trap_ex_valid_w ||
+      csr_trap_irq_valid_w || csr_mret_valid_w ||
+      pending_system_satp_write_commit_w ||
+      pending_system_sfence_commit_w;
   wire [`XLEN-1:0] csr_rdata_w;
   wire csr_illegal_w;
   wire [`XLEN-1:0] csr_trap_target_w;
@@ -2381,9 +2411,11 @@ module OooAluFetchCore #(
       system_csr_dispatch_valid_w ? pending_system_csr_rdata_q :
                                     {`XLEN{1'b0}};
 
-  assign fetch_req_valid_o = redirect_fetch_req_valid_w ||
-                             branch_prefetch_req_valid_w ||
-                             can_issue_request_w;
+  assign fetch_req_valid_o =
+      !fetch_request_blocked_by_trap_w &&
+      (redirect_fetch_req_valid_w ||
+       branch_prefetch_req_valid_w ||
+       can_issue_request_w);
   assign fetch_req_pc_o = fetch_req_pc_w;
   assign fetch_rsp_ready_o = fetch_rsp_can_enqueue_w ||
                              fetch_rsp_dispatch_bypass_w ||
@@ -4698,6 +4730,7 @@ module OooAluFetchCore #(
       ctrl_commit_write_q <= 1'b0;
       backend_drained_q <= 1'b1;
       core_trap_flush_q <= 1'b0;
+      trap_redirect_squash_q <= 1'b0;
       core_serial_flush_q <= 1'b0;
       checkpoint_mem_flush_q <= 1'b0;
       for (reset_idx = 0; reset_idx < FETCH_PACKET_COUNT; reset_idx = reset_idx + 1) begin
@@ -4766,6 +4799,9 @@ module OooAluFetchCore #(
       ctrl_commit_write_q <= 1'b0;
       backend_drained_q <= backend_drained_w && !core_dispatch0_fire_w;
       core_trap_flush_q <= 1'b0;
+      trap_redirect_squash_q <=
+          (trap_redirect_squash_q && !backend_drained_w) ||
+          priv_predictor_boundary_w;
       core_serial_flush_q <= 1'b0;
       checkpoint_mem_flush_q <= core_checkpoint_restore_w;
 
@@ -5161,7 +5197,18 @@ module OooAluFetchCore #(
         end
       end
 
-      if (direct_ret0_fire_w || direct_ret1_fire_w ||
+      if (priv_predictor_boundary_w ||
+          branch_spec_restore_w || branch_resolve_untracked_w ||
+          direct_jal_call_unsafe_w) begin
+        // RAS 没有 privilege/checkpoint 上下文；trap/xRET/sfence 或更老控制流恢复后，
+        // 不能让用户态 return 目标继续影响内核 ret，统一回退普通 JALR 路径。
+        ras_count_q <= {RAS_COUNT_W{1'b0}};
+        ras_reliable_q <= 1'b1;
+        return_cont_valid_q <= 1'b0;
+        return_cont_pc_q <= {`XLEN{1'b0}};
+        return_cont_next_pc_q <= {`XLEN{1'b0}};
+        return_cont_inst_q <= {`INST_W{1'b0}};
+      end else if (direct_ret0_fire_w || direct_ret1_fire_w ||
           pending_lane1_ret_fire_w ||
           pending_jump_return_fire_w ||
           direct_branch0_lane1_ret_w) begin
@@ -5650,7 +5697,8 @@ module OooAluFetchCore #(
         outstanding_pc_q <= {`XLEN{1'b0}};
         discard_fetch_rsp_q <= outstanding_valid_q && !fetch_rsp_fire_w;
         next_fetch_pc_q <= pending_system_next_pc_q;
-      end else if (!direct_frontend_flush_w && stop_pending_q && drain_complete_w) begin
+      end else if (!csr_trap_mem_valid_w &&
+          !direct_frontend_flush_w && stop_pending_q && drain_complete_w) begin
         stop_pending_q <= 1'b0;
         pending_exit_q <= 1'b0;
         pending_exit_is_ecall_q <= 1'b0;
@@ -5817,7 +5865,8 @@ module OooAluFetchCore #(
           trap_pc_q <= pending_trap_pc_q;
           trap_tval_q <= pending_trap_tval_q;
         end
-      end else if (!direct_frontend_flush_w && can_run_w && fifo_has_packet_w) begin
+      end else if (!csr_trap_mem_valid_w &&
+          !direct_frontend_flush_w && can_run_w && fifo_has_packet_w) begin
         if (csr_irq_pending_w) begin
           // 中断在下一条指令边界进入 SYSTEM drain；mepc 指向尚未执行的 head PC。
           stop_pending_q <= 1'b1;
@@ -6178,6 +6227,73 @@ module OooAluFetchCore #(
           pending_trap_tval_q <= dispatch0_unsupported_w ? head_inst0_w :
                                                          head_inst1_w;
         end
+      end
+
+      if (csr_trap_mem_valid_w) begin
+        // Trap commit is the precise privilege boundary.  Re-apply the
+        // frontend clear after dispatch capture so same-cycle stale user
+        // control state cannot survive into the S-mode handler.
+        fifo_head_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+        fifo_tail_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+        fifo_count_q <= {FETCH_COUNT_W{1'b0}};
+        outstanding_valid_q <= 1'b0;
+        outstanding_pc_q <= {`XLEN{1'b0}};
+        discard_fetch_rsp_q <= outstanding_valid_q && !fetch_rsp_fire_w;
+        stop_pending_q <= 1'b0;
+        pending_exit_q <= 1'b0;
+        pending_exit_is_ecall_q <= 1'b0;
+        pending_exit_is_ebreak_q <= 1'b0;
+        pending_branch_q <= 1'b0;
+        pending_branch_dispatched_q <= 1'b0;
+        pending_jump_q <= 1'b0;
+        pending_jump_dispatched_q <= 1'b0;
+        pending_mem_q <= 1'b0;
+        pending_mem_dispatched_q <= 1'b0;
+        pending_fp_q <= 1'b0;
+        pending_fp_mem_pending_q <= 1'b0;
+        pending_fp_mem_done_q <= 1'b0;
+        pending_arch_trap_q <= 1'b0;
+        pending_system_q <= 1'b0;
+        pending_system_dispatched_q <= 1'b0;
+        pending_system_csr_q <= 1'b0;
+        pending_system_ecall_q <= 1'b0;
+        pending_system_mret_q <= 1'b0;
+        pending_system_wfi_q <= 1'b0;
+        pending_system_sfence_q <= 1'b0;
+        pending_system_irq_q <= 1'b0;
+        pending_lane1_ret_q <= 1'b0;
+        pending_lane1_ret_pc_q <= {`XLEN{1'b0}};
+        pending_lane1_ret_next_pc_q <= {`XLEN{1'b0}};
+        pending_lane1_ret_inst_q <= {`INST_W{1'b0}};
+        synth_lane1_ret_pending_q <= 1'b0;
+        synth_lane1_ret_branch_seen_q <= 1'b0;
+        synth_lane1_ret_branch_pc_q <= {`XLEN{1'b0}};
+        synth_lane1_ret_pc_q <= {`XLEN{1'b0}};
+        synth_lane1_ret_next_pc_q <= {`XLEN{1'b0}};
+        synth_lane1_ret_inst_q <= {`INST_W{1'b0}};
+        synth_lane1_branch_drop_pending_q <= 1'b0;
+        synth_lane1_branch_drop_pc_q <= {`XLEN{1'b0}};
+        pending_mem_next_pc_q <= {`XLEN{1'b0}};
+        pending_fp_next_pc_q <= {`XLEN{1'b0}};
+        pending_branch_next_pc_q <= {`XLEN{1'b0}};
+        pending_jump_next_pc_q <= {`XLEN{1'b0}};
+        direct_branch_wait_q <= 1'b0;
+        direct_branch_wait_pc_q <= {`XLEN{1'b0}};
+        pending_trap_cause_q <= {`TRAP_CAUSE_W{1'b0}};
+        pending_trap_pc_q <= {`XLEN{1'b0}};
+        pending_trap_tval_q <= {`XLEN{1'b0}};
+        branch_prefetch_active_q <= 1'b0;
+        branch_prefetch_buffer_valid_q <= 1'b0;
+        branch_prefetch_pc_q <= {`XLEN{1'b0}};
+        branch_spec_active_q <= 1'b0;
+        branch_spec_checkpoint_pending_q <= 1'b0;
+        branch_spec_pred_pc_q <= {`XLEN{1'b0}};
+        branch_target_capture_pending_q <= 1'b0;
+        branch_target_capture_branch_pc_q <= {`XLEN{1'b0}};
+        branch_target_capture_target_pc_q <= {`XLEN{1'b0}};
+        backend_drained_q <= 1'b1;
+        core_trap_flush_q <= 1'b1;
+        next_fetch_pc_q <= csr_trap_target_w;
       end
     end
   end

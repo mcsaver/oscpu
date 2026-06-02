@@ -130,7 +130,7 @@ int main() {
   s_plic_claim = 0;
 
   write_csr_stvec((uintptr_t)s_plic_trap);
-  write_csr_mideleg(1ul << IRQ_CAUSE_MEI);
+  write_csr_mideleg(1ul << IRQ_CAUSE_SEI);
   mret_to_s_payload();
   halt(1);
   return 1;

@@ -210,6 +210,7 @@ typedef struct {
   bool difftest;
   char diff_so_path[NPC_PATH_MAX];
   int diff_port;
+  char block_path[NPC_PATH_MAX];
 } NpcSimConfig;
 
 /* ---- 全局状态访问 ----

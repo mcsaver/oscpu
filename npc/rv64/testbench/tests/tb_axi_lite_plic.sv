@@ -25,7 +25,7 @@ module tb_axi_lite_plic;
   reg bready;
   wire [1:0] bresp;
 
-  reg source_irq;
+  reg [31:0] source_irq;
   wire external_irq;
 
   AxiLitePlic #(
@@ -69,7 +69,7 @@ module tb_axi_lite_plic;
       wdata = {`XLEN{1'b0}};
       wstrb = {`STRB_W{1'b0}};
       bready = 1'b0;
-      source_irq = 1'b0;
+      source_irq = 32'h0;
       `TB_TICK(clk);
       `TB_TICK(clk);
       rst = 1'b0;
@@ -215,9 +215,9 @@ module tb_axi_lite_plic;
     axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0020_1000, 32'h0, {{(`STRB_W-4){1'b0}}, 4'hf});
     tb_check1("external irq waits for pending", external_irq, 1'b0);
 
-    source_irq = 1'b1;
+    source_irq[1] = 1'b1;
     `TB_TICK(clk);
-    source_irq = 1'b0;
+    source_irq[1] = 1'b0;
     tb_check1("external irq set by source", external_irq, 1'b1);
     axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0000_1000, 32'h2);
     axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h1);
@@ -225,7 +225,7 @@ module tb_axi_lite_plic;
     axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0000_1000, 32'h0);
     axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h1, {{(`STRB_W-4){1'b0}}, 4'hf});
 
-    source_irq = 1'b1;
+    source_irq[1] = 1'b1;
     `TB_TICK(clk);
     tb_check1("level source sets irq", external_irq, 1'b1);
     axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h1);
@@ -234,7 +234,7 @@ module tb_axi_lite_plic;
     tb_check1("in-service blocks repending", external_irq, 1'b0);
     axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h1, {{(`STRB_W-4){1'b0}}, 4'hf});
     tb_check1("completion re-pends level source", external_irq, 1'b1);
-    source_irq = 1'b0;
+    source_irq[1] = 1'b0;
     axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h1);
     axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h1, {{(`STRB_W-4){1'b0}}, 4'hf});
 
@@ -246,6 +246,29 @@ module tb_axi_lite_plic;
     tb_check1("split threshold write unmasks irq", external_irq, 1'b1);
     axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h1);
     tb_check1("final claim clears irq", external_irq, 1'b0);
+    axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h1, {{(`STRB_W-4){1'b0}}, 4'hf});
+
+    axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0000_0008, 32'h5, {{(`STRB_W-4){1'b0}}, 4'hf});
+    axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0000_2080, 32'h6, {{(`STRB_W-4){1'b0}}, 4'hf});
+    source_irq[2] = 1'b1;
+    `TB_TICK(clk);
+    source_irq[2] = 1'b0;
+    tb_check1("source2 irq set", external_irq, 1'b1);
+    axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0000_1000, 32'h4);
+    axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h2);
+    tb_check1("source2 claim clears irq", external_irq, 1'b0);
+    axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h2, {{(`STRB_W-4){1'b0}}, 4'hf});
+
+    source_irq[1] = 1'b1;
+    source_irq[2] = 1'b1;
+    `TB_TICK(clk);
+    source_irq = 32'h0;
+    axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h2);
+    tb_check1("source1 remains pending after higher priority source2", external_irq, 1'b1);
+    axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h2, {{(`STRB_W-4){1'b0}}, 4'hf});
+    axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h1);
+    axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h1, {{(`STRB_W-4){1'b0}}, 4'hf});
+    tb_check1("all multi-source claims complete", external_irq, 1'b0);
 
     tb_finish("tb_axi_lite_plic");
   end
