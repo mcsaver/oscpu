@@ -33,6 +33,22 @@ npc/rv64/include/generated/
 npc/rv64/perf/results/
 npc/rv64/testbench/build/
 
+# Vivado/FPGA 工程生成物：保留 fpga/Makefile、scripts/、constraints/ 等入口文件。
+fpga/.Xil/
+fpga/vivado/
+fpga/reports/
+fpga/filelists/*.f
+fpga/**/*.jou
+fpga/**/*.log
+fpga/**/*.str
+fpga/**/*.rpt
+fpga/**/*.dcp
+fpga/**/*.wdb
+fpga/**/*.pb
+fpga/**/*.vdi
+fpga/**/*.backup.jou
+fpga/**/*.backup.log
+
 # RV64 Linux/OpenSBI/Ubuntu 构建产物可能包含 GB 级源码、镜像和日志，禁止纳入 Git。
 Linux/build/
 Linux/env/*
