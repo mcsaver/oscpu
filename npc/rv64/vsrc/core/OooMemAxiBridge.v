@@ -62,9 +62,7 @@ module OooMemAxiBridge (
   localparam [3:0] S_WRITE_RESP = 4'd6;
   localparam [3:0] S_RESP = 4'd7;
   localparam DCACHE_INDEX_W = 10;
-  localparam DCACHE_ENTRIES = (1 << DCACHE_INDEX_W);
   localparam DTLB_INDEX_W = 6;
-  localparam DTLB_ENTRIES = (1 << DTLB_INDEX_W);
 
   reg [3:0] state_q;
   reg active_port_q;
@@ -83,15 +81,6 @@ module OooMemAxiBridge (
   reg aw_done_q;
   reg w_done_q;
   reg drop_rsp_q;
-
-  reg [DCACHE_ENTRIES-1:0] dcache_valid_q;
-  reg [`XLEN-1:0] dcache_addr_q [0:DCACHE_ENTRIES-1];
-  reg [`XLEN-1:0] dcache_data_q [0:DCACHE_ENTRIES-1];
-  reg [DTLB_ENTRIES-1:0] dtlb_valid_q;
-  reg [26:0] dtlb_vpn_q [0:DTLB_ENTRIES-1];
-  reg [`XLEN-1:0] dtlb_satp_q [0:DTLB_ENTRIES-1];
-  reg [`XLEN-1:0] dtlb_pte_q [0:DTLB_ENTRIES-1];
-  reg [1:0] dtlb_level_q [0:DTLB_ENTRIES-1];
 
   function [1:0] mstatus_mpp_priv;
     input [`XLEN-1:0] status;
@@ -213,64 +202,6 @@ module OooMemAxiBridge (
   endfunction
   /* verilator lint_on BLKSEQ */
 
-  /* verilator lint_off UNUSEDSIGNAL */
-  function [DCACHE_INDEX_W-1:0] dcache_index;
-    input [`XLEN-1:0] addr;
-    begin
-      dcache_index = addr[DCACHE_INDEX_W+`XLEN_BYTE_W-1:`XLEN_BYTE_W];
-    end
-  endfunction
-  /* verilator lint_on UNUSEDSIGNAL */
-
-  function [DTLB_INDEX_W-1:0] dtlb_index;
-    input [`XLEN-1:0] addr;
-    begin
-      dtlb_index = addr[DTLB_INDEX_W+11:12];
-    end
-  endfunction
-
-  function [26:0] vpn_tag;
-    input [`XLEN-1:0] addr;
-    begin
-      vpn_tag = addr[38:12];
-    end
-  endfunction
-
-  function dtlb_vpn_match;
-    input [26:0] req_vpn;
-    input [26:0] ent_vpn;
-    input [1:0] level;
-    begin
-      case (level)
-        2'd2: dtlb_vpn_match = (req_vpn[26:18] == ent_vpn[26:18]);
-        2'd1: dtlb_vpn_match = (req_vpn[26:9] == ent_vpn[26:9]);
-        default: dtlb_vpn_match = (req_vpn == ent_vpn);
-      endcase
-    end
-  endfunction
-
-  function dcacheable_addr;
-    input [`XLEN-1:0] addr;
-    begin
-      dcacheable_addr = ((addr & `NPC_AXI_PMEM_MASK) == `NPC_AXI_PMEM_BASE);
-    end
-  endfunction
-
-  function [`XLEN-1:0] merge_wstrb;
-    input [`XLEN-1:0] old_data;
-    input [`XLEN-1:0] new_data;
-    input [`STRB_W-1:0] mask;
-    integer byte_idx;
-    begin
-      merge_wstrb = old_data;
-      for (byte_idx = 0; byte_idx < `STRB_W; byte_idx = byte_idx + 1) begin
-        if (mask[byte_idx]) begin
-          merge_wstrb[byte_idx*8 +: 8] = new_data[byte_idx*8 +: 8];
-        end
-      end
-    end
-  endfunction
-
   wire [1:0] req_priv_w = effective_data_priv(priv_mode_i, mstatus_i);
   wire req_translate_w = sv39_enabled(req_priv_w, satp_i);
   wire mem0_req_fire_w = mem0_req_valid_i && mem0_req_ready_o;
@@ -290,50 +221,91 @@ module OooMemAxiBridge (
       req_select_mem1_w ? mem1_req_wdata_i : mem0_req_wdata_i;
   wire [`STRB_W-1:0] req_wstrb_w =
       req_select_mem1_w ? mem1_req_wstrb_i : mem0_req_wstrb_i;
-  wire [DTLB_INDEX_W-1:0] req_dtlb_idx_w = dtlb_index(req_addr_w);
-  wire [26:0] req_vpn_w = vpn_tag(req_addr_w);
-  wire req_dtlb_context_hit_w =
-      req_translate_w && !mmu_flush_i && canonical_sv39(req_addr_w) &&
-      dtlb_valid_q[req_dtlb_idx_w] &&
-      (dtlb_satp_q[req_dtlb_idx_w] == satp_i) &&
-      dtlb_vpn_match(req_vpn_w, dtlb_vpn_q[req_dtlb_idx_w],
-                     dtlb_level_q[req_dtlb_idx_w]);
+  wire req_dtlb_context_hit_w;
+  wire [`XLEN-1:0] req_dtlb_pte_w;
+  wire [1:0] req_dtlb_level_unused_w;
+  wire [`XLEN-1:0] req_translated_paddr_w;
   wire req_dtlb_perm_fault_w =
       req_dtlb_context_hit_w &&
-      data_permission_fault(dtlb_pte_q[req_dtlb_idx_w], req_write_w,
-                            req_priv_w, mstatus_i);
+      data_permission_fault(req_dtlb_pte_w, req_write_w, req_priv_w,
+                            mstatus_i);
   wire req_dtlb_hit_w = req_dtlb_context_hit_w && !req_dtlb_perm_fault_w;
-  wire [`XLEN-1:0] req_translated_paddr_w =
-      leaf_paddr(dtlb_pte_q[req_dtlb_idx_w], req_addr_w,
-                 dtlb_level_q[req_dtlb_idx_w]);
   wire [`XLEN-1:0] req_cache_addr_w =
       req_dtlb_hit_w ? req_translated_paddr_w : req_addr_w;
-  wire [DCACHE_INDEX_W-1:0] req_dcache_idx_w = dcache_index(req_cache_addr_w);
-  wire req_dcacheable_w =
-      (!req_translate_w || req_dtlb_hit_w) && dcacheable_addr(req_cache_addr_w);
+  wire req_dcacheable_unused_w;
+  wire req_dcache_hit_raw_w;
+  wire [`XLEN-1:0] req_dcache_data_w;
   wire req_dcache_hit_w =
-      req_dcacheable_w && dcache_valid_q[req_dcache_idx_w] &&
-      (dcache_addr_q[req_dcache_idx_w] == req_cache_addr_w);
+      (!req_translate_w || req_dtlb_hit_w) && req_dcache_hit_raw_w;
   wire req_read_miss_fire_w =
       (mem0_req_fire_w || mem1_req_fire_w) && !req_write_w &&
       (!req_translate_w || req_dtlb_hit_w) && !req_dcache_hit_w;
-  wire [DCACHE_INDEX_W-1:0] rsp_paddr_dcache_idx_w = dcache_index(paddr_q);
   wire [`XLEN-1:0] walk_pte_addr_w =
       pte_addr(walk_ppn_q, addr_q, walk_level_q);
   wire [`XLEN-1:0] walk_leaf_paddr_w =
       leaf_paddr(lsu_axi_rdata_i, addr_q, walk_level_q);
-  wire [DCACHE_INDEX_W-1:0] walk_leaf_dcache_idx_w =
-      dcache_index(walk_leaf_paddr_w);
-  wire walk_leaf_dcacheable_w = dcacheable_addr(walk_leaf_paddr_w);
-  wire walk_leaf_dcache_hit_w =
-      walk_leaf_dcacheable_w && dcache_valid_q[walk_leaf_dcache_idx_w] &&
-      (dcache_addr_q[walk_leaf_dcache_idx_w] == walk_leaf_paddr_w);
-  wire write_paddr_dcacheable_w = dcacheable_addr(paddr_q);
+  wire walk_leaf_dcacheable_unused_w;
+  wire walk_leaf_dcache_hit_w;
+  wire [`XLEN-1:0] walk_leaf_dcache_data_w;
   wire write_paddr_virtio_blk_w =
       ((paddr_q & `NPC_AXI_VIRTIO_BLK_MASK) == `NPC_AXI_VIRTIO_BLK_BASE);
-  wire write_paddr_dcache_hit_w =
-      write_paddr_dcacheable_w && dcache_valid_q[rsp_paddr_dcache_idx_w] &&
-      (dcache_addr_q[rsp_paddr_dcache_idx_w] == paddr_q);
+  wire dtlb_fill_valid_w =
+      (state_q == S_WALK_R) && lsu_axi_rvalid_i &&
+      (lsu_axi_rresp_i == 2'b00) &&
+      !pte_invalid(lsu_axi_rdata_i) &&
+      pte_leaf(lsu_axi_rdata_i) &&
+      !superpage_misaligned(lsu_axi_rdata_i, walk_level_q) &&
+      !data_permission_fault(lsu_axi_rdata_i, write_q, access_priv_q,
+                             mstatus_i);
+  wire dcache_read_fill_valid_w =
+      !cpu_kill_w && (state_q == S_READ_DATA) && lsu_axi_rvalid_i &&
+      (lsu_axi_rresp_i == 2'b00);
+  wire dcache_store_commit_w =
+      (state_q == S_WRITE_RESP) && lsu_axi_bvalid_i &&
+      (lsu_axi_bresp_i == 2'b00);
+
+  OooSv39Tlb #(
+    .INDEX_W(DTLB_INDEX_W)
+  ) u_dtlb (
+    .clk(clk),
+    .rst(rst),
+    .clear_i(mmu_flush_i),
+    .lookup_valid_i(req_translate_w),
+    .lookup_vaddr_i(req_addr_w),
+    .lookup_satp_i(satp_i),
+    .lookup_context_hit_o(req_dtlb_context_hit_w),
+    .lookup_pte_o(req_dtlb_pte_w),
+    .lookup_level_o(req_dtlb_level_unused_w),
+    .lookup_paddr_o(req_translated_paddr_w),
+    .fill_valid_i(dtlb_fill_valid_w),
+    .fill_vaddr_i(addr_q),
+    .fill_satp_i(satp_i),
+    .fill_pte_i(lsu_axi_rdata_i),
+    .fill_level_i(walk_level_q)
+  );
+
+  OooDataWordCache #(
+    .INDEX_W(DCACHE_INDEX_W)
+  ) u_dcache (
+    .clk(clk),
+    .rst(rst),
+    .req_lookup_addr_i(req_cache_addr_w),
+    .req_cacheable_o(req_dcacheable_unused_w),
+    .req_hit_o(req_dcache_hit_raw_w),
+    .req_data_o(req_dcache_data_w),
+    .walk_lookup_addr_i(walk_leaf_paddr_w),
+    .walk_cacheable_o(walk_leaf_dcacheable_unused_w),
+    .walk_hit_o(walk_leaf_dcache_hit_w),
+    .walk_data_o(walk_leaf_dcache_data_w),
+    .fill_valid_i(dcache_read_fill_valid_w),
+    .fill_addr_i(paddr_q),
+    .fill_data_i(lsu_axi_rdata_i),
+    .store_commit_i(dcache_store_commit_w),
+    .store_invalidate_all_i(write_paddr_virtio_blk_w),
+    .store_addr_i(paddr_q),
+    .store_data_i(wdata_q),
+    .store_wstrb_i(wstrb_q)
+  );
 
   assign mem0_req_ready_o = req_slot_ready_w;
   assign mem1_req_ready_o = req_slot_ready_w && !mem0_req_valid_i;
@@ -403,31 +375,10 @@ module OooMemAxiBridge (
       end else if (req_write_w) begin
         state_q <= S_WRITE_REQ;
       end else if (req_dcache_hit_w) begin
-        rsp_rdata_q <= dcache_data_q[req_dcache_idx_w];
+        rsp_rdata_q <= req_dcache_data_w;
         state_q <= S_RESP;
       end else begin
         state_q <= lsu_axi_arready_i ? S_READ_DATA : S_READ_ADDR;
-      end
-    end
-  endtask
-
-  task automatic commit_write_dcache;
-    begin
-      if ((lsu_axi_bresp_i == 2'b00) && write_paddr_virtio_blk_w) begin
-        // virtio queue notify may DMA-write PMEM; this small cache is write-through,
-        // so invalidating all data lines is conservative and does not lose dirty data.
-        dcache_valid_q <= {DCACHE_ENTRIES{1'b0}};
-      end
-      if ((lsu_axi_bresp_i == 2'b00) && write_paddr_dcacheable_w) begin
-        if (write_paddr_dcache_hit_w) begin
-          dcache_data_q[rsp_paddr_dcache_idx_w] <=
-              merge_wstrb(dcache_data_q[rsp_paddr_dcache_idx_w],
-                          wdata_q, wstrb_q);
-        end else if (wstrb_q == {`STRB_W{1'b1}}) begin
-          dcache_valid_q[rsp_paddr_dcache_idx_w] <= 1'b1;
-          dcache_addr_q[rsp_paddr_dcache_idx_w] <= paddr_q;
-          dcache_data_q[rsp_paddr_dcache_idx_w] <= wdata_q;
-        end
       end
     end
   endtask
@@ -451,14 +402,7 @@ module OooMemAxiBridge (
       aw_done_q <= 1'b0;
       w_done_q <= 1'b0;
       drop_rsp_q <= 1'b0;
-      dcache_valid_q <= {DCACHE_ENTRIES{1'b0}};
-      dtlb_valid_q <= {DTLB_ENTRIES{1'b0}};
     end else begin
-      if (mmu_flush_i) begin
-        // satp/sfence.vma 是翻译缓存的精确失效点；物理 data cache 不需要清空。
-        dtlb_valid_q <= {DTLB_ENTRIES{1'b0}};
-      end
-
       if (flush_i || drop_rsp_q) begin
       case (state_q)
         S_IDLE: begin
@@ -508,7 +452,6 @@ module OooMemAxiBridge (
 
         S_WRITE_RESP: begin
           if (lsu_axi_bvalid_i) begin
-            commit_write_dcache();
             state_q <= S_IDLE;
             aw_done_q <= 1'b0;
             w_done_q <= 1'b0;
@@ -571,16 +514,11 @@ module OooMemAxiBridge (
                 rsp_page_fault_q <= 1'b1;
                 state_q <= S_RESP;
               end else begin
-                dtlb_valid_q[dtlb_index(addr_q)] <= 1'b1;
-                dtlb_vpn_q[dtlb_index(addr_q)] <= vpn_tag(addr_q);
-                dtlb_satp_q[dtlb_index(addr_q)] <= satp_i;
-                dtlb_pte_q[dtlb_index(addr_q)] <= lsu_axi_rdata_i;
-                dtlb_level_q[dtlb_index(addr_q)] <= walk_level_q;
                 paddr_q <= walk_leaf_paddr_w;
                 if (write_q) begin
                   state_q <= S_WRITE_REQ;
                 end else if (walk_leaf_dcache_hit_w) begin
-                  rsp_rdata_q <= dcache_data_q[walk_leaf_dcache_idx_w];
+                  rsp_rdata_q <= walk_leaf_dcache_data_w;
                   rsp_error_q <= 1'b0;
                   rsp_page_fault_q <= 1'b0;
                   state_q <= S_RESP;
@@ -607,12 +545,6 @@ module OooMemAxiBridge (
             rsp_rdata_q <= lsu_axi_rdata_i;
             rsp_error_q <= (lsu_axi_rresp_i != 2'b00);
             rsp_page_fault_q <= 1'b0;
-            if (dcacheable_addr(paddr_q) &&
-                (lsu_axi_rresp_i == 2'b00)) begin
-              dcache_valid_q[rsp_paddr_dcache_idx_w] <= 1'b1;
-              dcache_addr_q[rsp_paddr_dcache_idx_w] <= paddr_q;
-              dcache_data_q[rsp_paddr_dcache_idx_w] <= lsu_axi_rdata_i;
-            end
             state_q <= S_RESP;
           end
         end
@@ -634,7 +566,6 @@ module OooMemAxiBridge (
             rsp_rdata_q <= {`XLEN{1'b0}};
             rsp_error_q <= (lsu_axi_bresp_i != 2'b00);
             rsp_page_fault_q <= 1'b0;
-            commit_write_dcache();
             state_q <= S_RESP;
           end
         end

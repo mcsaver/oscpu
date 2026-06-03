@@ -154,10 +154,30 @@ struct SimPerfStats {
   uint64_t ooo_mem0_rsp_fire;
   uint64_t ooo_mem1_rsp_fire;
   uint64_t ooo_commit1_block_cycles;
+  uint64_t ooo_fetch_busy_cycles;
+  uint64_t ooo_mem_busy_cycles;
+  uint64_t ooo_axi_wait_cycles;
+  uint64_t ooo_hazard_busy_cycles;
+  uint64_t ooo_branch_flush_cycles;
+  uint64_t ooo_exception_busy_cycles;
   npc_word_t ooo_branch_wait_pc[kTopBranchWaitPcCount];
   uint64_t ooo_branch_wait_pc_cycles[kTopBranchWaitPcCount];
   npc_word_t ooo_jump_wait_pc[kTopBranchWaitPcCount];
   uint64_t ooo_jump_wait_pc_cycles[kTopBranchWaitPcCount];
+};
+
+struct OooWindowStats {
+  uint64_t start_cycle;
+  uint64_t cycles;
+  uint64_t retire;
+  uint64_t execute;
+  uint64_t dispatch;
+  uint64_t fetch_busy;
+  uint64_t mem_busy;
+  uint64_t axi_wait;
+  uint64_t hazard_busy;
+  uint64_t branch_flush;
+  uint64_t exception_busy;
 };
 
 struct BpuStats {
@@ -191,6 +211,11 @@ static SimPerfStats g_sim_perf = {};
 static BpuStats g_bpu_stats = {};
 static BranchMissPcStat g_branch_miss_pc_stats[256] = {};
 static bool g_last_ooo_branch_prefetch_hit = false;
+static constexpr uint64_t kDefaultOooWindowCycles = 1000000ull;
+static OooWindowStats g_ooo_window = {};
+static uint64_t g_ooo_window_cycles = kDefaultOooWindowCycles;
+static bool g_ooo_window_config_inited = false;
+static bool g_ooo_window_enabled = true;
 static uint64_t g_nr_branch       = 0;  // B-type 条件分支总数
 static uint64_t g_nr_branch_taken = 0;  // 条件分支中实际跳转的次数
 static uint64_t g_nr_jal          = 0;  // JAL 无条件跳转
@@ -819,6 +844,92 @@ static void bump_jump_wait_pc(npc_word_t pc) {
   g_sim_perf.ooo_jump_wait_pc_cycles[idx] = 1;
 }
 
+static double pct_u64(uint64_t value, uint64_t total) {
+  return total == 0 ? 0.0 : (100.0 * (double)value / (double)total);
+}
+
+static void init_ooo_window_config(void) {
+  if (g_ooo_window_config_inited) return;
+  g_ooo_window_config_inited = true;
+
+  const char *enabled_s = std::getenv("NPC_OOO_WINDOW");
+  if (enabled_s != nullptr && enabled_s[0] != '\0') {
+    char c = (char)std::tolower((unsigned char)enabled_s[0]);
+    g_ooo_window_enabled = !(c == '0' || c == 'n' || c == 'f');
+  }
+
+  const char *cycles_s = std::getenv("NPC_OOO_WINDOW_CYCLES");
+  if (cycles_s != nullptr && cycles_s[0] != '\0') {
+    char *end = nullptr;
+    uint64_t value = std::strtoull(cycles_s, &end, 0);
+    if (end != cycles_s && *end == '\0' && value != 0) {
+      g_ooo_window_cycles = value;
+    }
+  }
+}
+
+static void clear_ooo_window(uint64_t start_cycle) {
+  memset(&g_ooo_window, 0, sizeof(g_ooo_window));
+  g_ooo_window.start_cycle = start_cycle;
+}
+
+static void report_ooo_window(bool partial) {
+  if (!g_ooo_window_enabled || g_ooo_window.cycles == 0) return;
+
+  uint64_t end_cycle = g_ooo_window.start_cycle + g_ooo_window.cycles - 1;
+  LogBothTag("ooo_window",
+             "%s cycles=%llu..%llu n=%llu retire=%llu exec=%llu dispatch=%llu "
+             "fetch=%llu(%.1f%%) mem=%llu(%.1f%%) axi_wait=%llu(%.1f%%) "
+             "hazard=%llu(%.1f%%) branch_flush=%llu(%.1f%%) exception=%llu(%.1f%%)",
+             partial ? "partial" : "window",
+             (unsigned long long)g_ooo_window.start_cycle,
+             (unsigned long long)end_cycle,
+             (unsigned long long)g_ooo_window.cycles,
+             (unsigned long long)g_ooo_window.retire,
+             (unsigned long long)g_ooo_window.execute,
+             (unsigned long long)g_ooo_window.dispatch,
+             (unsigned long long)g_ooo_window.fetch_busy,
+             pct_u64(g_ooo_window.fetch_busy, g_ooo_window.cycles),
+             (unsigned long long)g_ooo_window.mem_busy,
+             pct_u64(g_ooo_window.mem_busy, g_ooo_window.cycles),
+             (unsigned long long)g_ooo_window.axi_wait,
+             pct_u64(g_ooo_window.axi_wait, g_ooo_window.cycles),
+             (unsigned long long)g_ooo_window.hazard_busy,
+             pct_u64(g_ooo_window.hazard_busy, g_ooo_window.cycles),
+             (unsigned long long)g_ooo_window.branch_flush,
+             pct_u64(g_ooo_window.branch_flush, g_ooo_window.cycles),
+             (unsigned long long)g_ooo_window.exception_busy,
+             pct_u64(g_ooo_window.exception_busy, g_ooo_window.cycles));
+}
+
+static void bump_ooo_window(uint32_t retire_count, uint32_t execute_count,
+                            uint32_t dispatch_count, uint32_t fetch_busy,
+                            uint32_t mem_busy, uint32_t axi_wait,
+                            uint32_t hazard_busy, uint32_t branch_flush,
+                            uint32_t exception_busy) {
+  init_ooo_window_config();
+  if (!g_ooo_window_enabled) return;
+
+  if (g_ooo_window.cycles == 0) {
+    g_ooo_window.start_cycle = g_sim_perf.ooo_cycles;
+  }
+  g_ooo_window.cycles++;
+  g_ooo_window.retire += retire_count;
+  g_ooo_window.execute += execute_count;
+  g_ooo_window.dispatch += dispatch_count;
+  g_ooo_window.fetch_busy += fetch_busy ? 1u : 0u;
+  g_ooo_window.mem_busy += mem_busy ? 1u : 0u;
+  g_ooo_window.axi_wait += axi_wait ? 1u : 0u;
+  g_ooo_window.hazard_busy += hazard_busy ? 1u : 0u;
+  g_ooo_window.branch_flush += branch_flush ? 1u : 0u;
+  g_ooo_window.exception_busy += exception_busy ? 1u : 0u;
+
+  if (g_ooo_window.cycles >= g_ooo_window_cycles) {
+    report_ooo_window(false);
+    clear_ooo_window(g_sim_perf.ooo_cycles + 1);
+  }
+}
+
 extern "C" void npc_ooo_cycle_event(uint32_t retire_count,
                                     uint32_t execute_count,
                                     uint32_t dispatch_count,
@@ -839,6 +950,12 @@ extern "C" void npc_ooo_cycle_event(uint32_t retire_count,
                                     uint32_t mem0_rsp_fire,
                                     uint32_t mem1_rsp_fire,
                                     uint32_t commit1_block,
+                                    uint32_t fetch_busy,
+                                    uint32_t mem_busy,
+                                    uint32_t axi_wait,
+                                    uint32_t hazard_busy,
+                                    uint32_t branch_flush,
+                                    uint32_t exception_busy,
                                     npc_word_t pending_branch_pc,
                                     npc_word_t pending_jump_pc) {
   g_sim_perf.ooo_cycles++;
@@ -868,6 +985,15 @@ extern "C" void npc_ooo_cycle_event(uint32_t retire_count,
   g_sim_perf.ooo_mem0_rsp_fire += mem0_rsp_fire ? 1u : 0u;
   g_sim_perf.ooo_mem1_rsp_fire += mem1_rsp_fire ? 1u : 0u;
   g_sim_perf.ooo_commit1_block_cycles += commit1_block ? 1u : 0u;
+  g_sim_perf.ooo_fetch_busy_cycles += fetch_busy ? 1u : 0u;
+  g_sim_perf.ooo_mem_busy_cycles += mem_busy ? 1u : 0u;
+  g_sim_perf.ooo_axi_wait_cycles += axi_wait ? 1u : 0u;
+  g_sim_perf.ooo_hazard_busy_cycles += hazard_busy ? 1u : 0u;
+  g_sim_perf.ooo_branch_flush_cycles += branch_flush ? 1u : 0u;
+  g_sim_perf.ooo_exception_busy_cycles += exception_busy ? 1u : 0u;
+  bump_ooo_window(retire_count, execute_count, dispatch_count, fetch_busy,
+                  mem_busy, axi_wait, hazard_busy, branch_flush,
+                  exception_busy);
 }
 
 static bool install_sigint_handler(void) {
@@ -1074,6 +1200,24 @@ static void report_ooo_stats(void) {
              (unsigned long long)g_sim_perf.ooo_pending_mem_cycles,
              (unsigned long long)g_sim_perf.ooo_synth_ret_pending_cycles,
              (unsigned long long)g_sim_perf.ooo_commit1_block_cycles);
+  LogBothTag("statistic",
+             "cycle buckets (overlap): fetch=%llu(%.1f%%), mem=%llu(%.1f%%), axi_wait=%llu(%.1f%%), hazard=%llu(%.1f%%), branch_flush=%llu(%.1f%%), exception=%llu(%.1f%%)",
+             (unsigned long long)g_sim_perf.ooo_fetch_busy_cycles,
+             pct_u64(g_sim_perf.ooo_fetch_busy_cycles,
+                     g_sim_perf.ooo_cycles),
+             (unsigned long long)g_sim_perf.ooo_mem_busy_cycles,
+             pct_u64(g_sim_perf.ooo_mem_busy_cycles, g_sim_perf.ooo_cycles),
+             (unsigned long long)g_sim_perf.ooo_axi_wait_cycles,
+             pct_u64(g_sim_perf.ooo_axi_wait_cycles, g_sim_perf.ooo_cycles),
+             (unsigned long long)g_sim_perf.ooo_hazard_busy_cycles,
+             pct_u64(g_sim_perf.ooo_hazard_busy_cycles,
+                     g_sim_perf.ooo_cycles),
+             (unsigned long long)g_sim_perf.ooo_branch_flush_cycles,
+             pct_u64(g_sim_perf.ooo_branch_flush_cycles,
+                     g_sim_perf.ooo_cycles),
+             (unsigned long long)g_sim_perf.ooo_exception_busy_cycles,
+             pct_u64(g_sim_perf.ooo_exception_busy_cycles,
+                     g_sim_perf.ooo_cycles));
   LogBothTag("statistic", "branch prefetch fire/hit = %llu/%llu",
              (unsigned long long)g_sim_perf.ooo_branch_prefetch_fire,
              (unsigned long long)g_sim_perf.ooo_branch_prefetch_hit);
@@ -1125,6 +1269,7 @@ static void report_ooo_stats(void) {
              (unsigned long long)g_sim_perf.ooo_mem1_req_fire,
              (unsigned long long)g_sim_perf.ooo_mem0_rsp_fire,
              (unsigned long long)g_sim_perf.ooo_mem1_rsp_fire);
+  report_ooo_window(true);
 }
 
 // NEMU 风格统计 + CPI + 分支统计，NPC 跑分结果可直接和参考模型对比

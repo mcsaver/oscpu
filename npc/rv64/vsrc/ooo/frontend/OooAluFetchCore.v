@@ -1,0 +1,5539 @@
+`include "define.v"
+
+// 受控 ALU-only OoO 核心壳：前端一次取回 PC/PC+4 两条 32-bit 指令，
+// 通过小 fetch FIFO 连续喂给 OooAluCoreSlice，避免旧版串行取两次指令的前端空泡。
+module OooAluFetchCore #(
+  parameter PHY_REG_ADDR_W = 6,
+  parameter ROB_INDEX_W = 4,
+  parameter ROB_COUNT_W = 5,
+  parameter FREE_COUNT_W = 7,
+  parameter ISSUE_COUNT_W = 4,
+  parameter FETCH_PACKET_COUNT_W = 2
+) (
+  input clk,
+  input rst,
+  input flush_i,
+  input run_i,
+  input [`XLEN-1:0] reset_pc_i,
+  input [`XLEN-1:0] time_i,
+  input irq_software_i,
+  input irq_timer_i,
+  input irq_external_i,
+
+  output fetch_req_valid_o,
+  input fetch_req_ready_i,
+  output [`XLEN-1:0] fetch_req_pc_o,
+  input fetch_rsp_valid_i,
+  output fetch_rsp_ready_o,
+  input [`INST_W-1:0] fetch_rsp_inst0_i,
+  input [1:0] fetch_rsp_resp0_i,
+  input [`INST_W-1:0] fetch_rsp_inst1_i,
+  input [1:0] fetch_rsp_resp1_i,
+
+  output mem_req_valid_o,
+  input mem_req_ready_i,
+  output mem_req_write_o,
+  output [`XLEN-1:0] mem_req_addr_o,
+  output [`XLEN-1:0] mem_req_wdata_o,
+  output [`STRB_W-1:0] mem_req_wstrb_o,
+  input mem_rsp_valid_i,
+  output mem_rsp_ready_o,
+  input [`XLEN-1:0] mem_rsp_rdata_i,
+  input mem_rsp_error_i,
+  input mem_rsp_page_fault_i,
+  output mem1_req_valid_o,
+  input mem1_req_ready_i,
+  output mem1_req_write_o,
+  output [`XLEN-1:0] mem1_req_addr_o,
+  output [`XLEN-1:0] mem1_req_wdata_o,
+  output [`STRB_W-1:0] mem1_req_wstrb_o,
+  input mem1_rsp_valid_i,
+  output mem1_rsp_ready_o,
+  input [`XLEN-1:0] mem1_rsp_rdata_i,
+  input mem1_rsp_error_i,
+  input mem1_rsp_page_fault_i,
+  output mem_flush_o,
+  output mmu_flush_o,
+
+  input commit_ready_i,
+
+  output commit0_valid_o,
+  output [`XLEN-1:0] commit0_pc_o,
+  output [`INST_W-1:0] commit0_inst_o,
+  output [`XLEN-1:0] commit0_next_pc_o,
+  output commit0_rd_en_o,
+  output [`REG_ADDR_W-1:0] commit0_rd_addr_o,
+  output [`XLEN-1:0] commit0_rd_data_o,
+  output commit0_exception_o,
+  output commit0_write_o,
+
+  output commit1_valid_o,
+  output [`XLEN-1:0] commit1_pc_o,
+  output [`INST_W-1:0] commit1_inst_o,
+  output [`XLEN-1:0] commit1_next_pc_o,
+  output commit1_rd_en_o,
+  output [`REG_ADDR_W-1:0] commit1_rd_addr_o,
+  output [`XLEN-1:0] commit1_rd_data_o,
+  output commit1_exception_o,
+  output commit1_write_o,
+
+  output trap_valid_o,
+  output [`TRAP_CAUSE_W-1:0] trap_cause_o,
+  output [`XLEN-1:0] trap_pc_o,
+  output [`XLEN-1:0] trap_tval_o,
+  output exit_valid_o,
+  output exit_is_ecall_o,
+  output exit_is_ebreak_o,
+  output [`XLEN-1:0] exit_code_o,
+  output halted_o,
+  output [1:0] priv_mode_o,
+  output [`XLEN-1:0] mstatus_o,
+  output [`XLEN-1:0] satp_o,
+
+  output [`XLEN-1:0] debug_pc_o,
+  output [`CORE_STATE_W-1:0] debug_state_o,
+  output [`XLEN * `REG_NUM - 1:0] debug_gprs_o,
+  output [1:0] retire_count_o,
+  output [FREE_COUNT_W-1:0] free_count_o,
+  output [ROB_COUNT_W-1:0] rob_count_o,
+  output [ISSUE_COUNT_W-1:0] issue_count_o
+);
+
+  localparam FETCH_PACKET_COUNT = (1 << FETCH_PACKET_COUNT_W);
+  localparam FETCH_COUNT_W = FETCH_PACKET_COUNT_W + 1;
+  localparam [FETCH_COUNT_W-1:0] FETCH_PACKET_COUNT_VALUE =
+      (1 << FETCH_PACKET_COUNT_W);
+  localparam RAS_DEPTH = 32;
+  localparam RAS_INDEX_W = 5;
+  localparam RAS_COUNT_W = 6;
+  localparam [RAS_COUNT_W-1:0] RAS_DEPTH_VALUE = RAS_DEPTH;
+  localparam [RAS_INDEX_W-1:0] RAS_LAST_INDEX = {RAS_INDEX_W{1'b1}};
+  localparam ENABLE_DIRECT_RAS_RET = 1'b1;
+  localparam BRANCH_TARGET_CACHE_INDEX_W = 4;
+  localparam [`INST_W-1:0] SEMIHOST_ENTER_INST = 32'h01f01013;
+  localparam [`INST_W-1:0] SEMIHOST_EXIT_INST  = 32'h40705013;
+  localparam [6:0] FP_FUNCT7_FADD_S     = 7'b0000000;
+  localparam [6:0] FP_FUNCT7_FADD_D     = 7'b0000001;
+  localparam [6:0] FP_FUNCT7_FSUB_S     = 7'b0000100;
+  localparam [6:0] FP_FUNCT7_FSUB_D     = 7'b0000101;
+  localparam [6:0] FP_FUNCT7_FMUL_S     = 7'b0001000;
+  localparam [6:0] FP_FUNCT7_FMUL_D     = 7'b0001001;
+  localparam [6:0] FP_FUNCT7_FDIV_S     = 7'b0001100;
+  localparam [6:0] FP_FUNCT7_FDIV_D     = 7'b0001101;
+  localparam [6:0] FP_FUNCT7_FSQRT_S    = 7'b0101100;
+  localparam [6:0] FP_FUNCT7_FSQRT_D    = 7'b0101101;
+  localparam [6:0] FP_FUNCT7_FSGNJ_S    = 7'b0010000;
+  localparam [6:0] FP_FUNCT7_FSGNJ_D    = 7'b0010001;
+  localparam [6:0] FP_FUNCT7_FMINMAX_S  = 7'b0010100;
+  localparam [6:0] FP_FUNCT7_FMINMAX_D  = 7'b0010101;
+  localparam [6:0] FP_FUNCT7_FCMP_S     = 7'b1010000;
+  localparam [6:0] FP_FUNCT7_FCMP_D     = 7'b1010001;
+  localparam [6:0] FP_FUNCT7_FCVT_INT_D = 7'b1101001;
+  localparam [6:0] FP_FUNCT7_FCVT_D_INT = 7'b1100001;
+  localparam [6:0] FP_FUNCT7_FMV_X_W    = 7'b1110000;
+  localparam [6:0] FP_FUNCT7_FMV_X_D    = 7'b1110001;
+
+  function [FETCH_PACKET_COUNT_W-1:0] ptr_inc;
+    input [FETCH_PACKET_COUNT_W-1:0] ptr;
+    begin
+      ptr_inc = ptr + {{(FETCH_PACKET_COUNT_W-1){1'b0}}, 1'b1};
+    end
+  endfunction
+
+  // RVC decompression lives in OooRvcDecompressor; commit redirect keeps this JAL immediate helper.
+  function [`XLEN-1:0] rv32_imm_j;
+    input [`INST_W-1:0] inst;
+    begin
+      rv32_imm_j = {{(`XLEN-21){inst[31]}}, inst[31], inst[19:12],
+                    inst[20], inst[30:21], 1'b0};
+    end
+  endfunction
+
+  reg [`XLEN-1:0] next_fetch_pc_q;
+  reg outstanding_valid_q;
+  reg [`XLEN-1:0] outstanding_pc_q;
+  reg discard_fetch_rsp_q;
+  reg [`XLEN-1:0] ras_stack_q [0:RAS_DEPTH-1];
+  reg [RAS_COUNT_W-1:0] ras_count_q;
+  reg ras_reliable_q;
+
+  reg [FETCH_PACKET_COUNT_W-1:0] fifo_head_q;
+  reg [FETCH_PACKET_COUNT_W-1:0] fifo_tail_q;
+  reg [FETCH_COUNT_W-1:0] fifo_count_q;
+  reg [`XLEN-1:0] fifo_pc0_q [0:FETCH_PACKET_COUNT-1];
+  reg [`XLEN-1:0] fifo_pc1_q [0:FETCH_PACKET_COUNT-1];
+  reg [`XLEN-1:0] fifo_next_pc0_q [0:FETCH_PACKET_COUNT-1];
+  reg [`XLEN-1:0] fifo_next_pc1_q [0:FETCH_PACKET_COUNT-1];
+  reg [`XLEN-1:0] fifo_packet_next_pc_q [0:FETCH_PACKET_COUNT-1];
+  reg [`INST_W-1:0] fifo_inst0_q [0:FETCH_PACKET_COUNT-1];
+  reg [`INST_W-1:0] fifo_inst1_q [0:FETCH_PACKET_COUNT-1];
+  reg [1:0] fifo_resp0_q [0:FETCH_PACKET_COUNT-1];
+  reg [1:0] fifo_resp1_q [0:FETCH_PACKET_COUNT-1];
+  reg branch_prefetch_active_q;
+  reg branch_prefetch_buffer_valid_q;
+  reg [`XLEN-1:0] branch_prefetch_pc_q;
+  reg [`XLEN-1:0] branch_prefetch_buf_pc0_q;
+  reg [`XLEN-1:0] branch_prefetch_buf_pc1_q;
+  reg [`XLEN-1:0] branch_prefetch_buf_next_pc0_q;
+  reg [`XLEN-1:0] branch_prefetch_buf_next_pc1_q;
+  reg [`XLEN-1:0] branch_prefetch_buf_packet_next_pc_q;
+  reg [`INST_W-1:0] branch_prefetch_buf_inst0_q;
+  reg [`INST_W-1:0] branch_prefetch_buf_inst1_q;
+  reg [1:0] branch_prefetch_buf_resp0_q;
+  reg [1:0] branch_prefetch_buf_resp1_q;
+  reg branch_spec_active_q;
+  reg branch_spec_checkpoint_pending_q;
+  reg [`XLEN-1:0] branch_spec_pred_pc_q;
+  reg branch_target_capture_pending_q;
+  reg [`XLEN-1:0] branch_target_capture_branch_pc_q;
+  reg [`XLEN-1:0] branch_target_capture_target_pc_q;
+
+  reg trap_valid_q;
+  reg [`TRAP_CAUSE_W-1:0] trap_cause_q;
+  reg [`XLEN-1:0] trap_pc_q;
+  reg [`XLEN-1:0] trap_tval_q;
+  reg exit_valid_q;
+  reg exit_is_ecall_q;
+  reg exit_is_ebreak_q;
+  reg halted_q;
+  reg stop_pending_q;
+  reg pending_exit_q;
+  reg pending_exit_is_ecall_q;
+  reg pending_exit_is_ebreak_q;
+  reg pending_branch_q;
+  reg pending_branch_dispatched_q;
+  reg pending_jump_q;
+  reg pending_jump_dispatched_q;
+  reg pending_jump_jalr_q;
+  reg pending_mem_q;
+  reg pending_mem_dispatched_q;
+  reg pending_fp_q;
+  reg pending_fp_mem_pending_q;
+  reg pending_fp_mem_done_q;
+  reg pending_fp_load_q;
+  reg pending_fp_store_q;
+  reg pending_fp_double_q;
+  reg pending_fp_gpr_write_q;
+  reg pending_arch_trap_q;
+  reg [`TRAP_CAUSE_W-1:0] pending_trap_cause_q;
+  reg [`XLEN-1:0] pending_trap_pc_q;
+  reg [`XLEN-1:0] pending_trap_tval_q;
+  reg [`XLEN-1:0] pending_branch_pc_q;
+  reg [`XLEN-1:0] pending_branch_next_pc_q;
+  reg [`INST_W-1:0] pending_branch_inst_q;
+  reg [`REG_ADDR_W-1:0] pending_branch_rs1_q;
+  reg [`REG_ADDR_W-1:0] pending_branch_rs2_q;
+  reg [`XLEN-1:0] pending_branch_imm_q;
+  reg [2:0] pending_branch_cmp_op_q;
+  reg pending_branch_pred_taken_q;
+  reg pending_branch_bht_valid_q;
+  reg [`BPU_BHT_INDEX_W-1:0] pending_branch_bht_idx_q;
+  reg direct_branch_wait_q;
+  reg [`XLEN-1:0] direct_branch_wait_pc_q;
+  reg [`XLEN-1:0] pending_jump_pc_q;
+  reg [`XLEN-1:0] pending_jump_next_pc_q;
+  reg [`INST_W-1:0] pending_jump_inst_q;
+  reg [`REG_ADDR_W-1:0] pending_jump_rs1_q;
+  reg [`XLEN-1:0] pending_jump_imm_q;
+  reg [`XLEN-1:0] pending_jump_target_q;
+  reg pending_lane1_ret_q;
+  reg [`XLEN-1:0] pending_lane1_ret_pc_q;
+  reg [`XLEN-1:0] pending_lane1_ret_next_pc_q;
+  reg [`INST_W-1:0] pending_lane1_ret_inst_q;
+  reg return_cont_valid_q;
+  reg [`XLEN-1:0] return_cont_pc_q;
+  reg [`XLEN-1:0] return_cont_next_pc_q;
+  reg [`INST_W-1:0] return_cont_inst_q;
+  reg synth_lane1_ret_pending_q;
+  reg synth_lane1_ret_branch_seen_q;
+  reg [`XLEN-1:0] synth_lane1_ret_branch_pc_q;
+  reg [`XLEN-1:0] synth_lane1_ret_pc_q;
+  reg [`XLEN-1:0] synth_lane1_ret_next_pc_q;
+  reg [`INST_W-1:0] synth_lane1_ret_inst_q;
+  reg synth_lane1_branch_drop_pending_q;
+  reg [`XLEN-1:0] synth_lane1_branch_drop_pc_q;
+  reg [`XLEN-1:0] pending_mem_pc_q;
+  reg [`INST_W-1:0] pending_mem_inst_q;
+  reg [`XLEN-1:0] pending_mem_next_pc_q;
+  reg [`XLEN-1:0] pending_fp_pc_q;
+  reg [`INST_W-1:0] pending_fp_inst_q;
+  reg [`XLEN-1:0] pending_fp_next_pc_q;
+  reg [`XLEN-1:0] pending_fp_addr_q;
+  reg [`XLEN-1:0] pending_fp_wdata_q;
+  reg [`STRB_W-1:0] pending_fp_wstrb_q;
+  reg [`REG_ADDR_W-1:0] pending_fp_rd_q;
+  reg [`XLEN-1:0] fpr_q [0:`REG_NUM-1];
+  reg pending_system_q;
+  reg pending_system_dispatched_q;
+  reg pending_system_csr_q;
+  reg pending_system_ecall_q;
+  reg pending_system_mret_q;
+  reg pending_system_wfi_q;
+  reg pending_system_sfence_q;
+  reg pending_system_irq_q;
+  reg [`XLEN-1:0] pending_system_pc_q;
+  reg [`INST_W-1:0] pending_system_inst_q;
+  reg [`XLEN-1:0] pending_system_next_pc_q;
+  reg [`XLEN-1:0] pending_system_csr_rdata_q;
+  reg [`TRAP_CAUSE_W-1:0] pending_system_irq_cause_q;
+  reg ctrl_commit_valid_q;
+  reg [`XLEN-1:0] ctrl_commit_pc_q;
+  reg [`INST_W-1:0] ctrl_commit_inst_q;
+  reg [`XLEN-1:0] ctrl_commit_next_pc_q;
+  reg ctrl_commit_rd_en_q;
+  reg [`REG_ADDR_W-1:0] ctrl_commit_rd_addr_q;
+  reg [`XLEN-1:0] ctrl_commit_rd_data_q;
+  reg ctrl_commit_write_q;
+  reg backend_drained_q;
+  reg core_trap_flush_q;
+  reg trap_redirect_squash_q;
+  reg core_serial_flush_q;
+  reg checkpoint_mem_flush_q;
+
+  wire stop_pending_owner_w =
+      pending_exit_q || pending_branch_q || pending_jump_q || pending_mem_q ||
+      pending_fp_q ||
+      pending_arch_trap_q || pending_system_q || synth_lane1_ret_pending_q ||
+      synth_lane1_branch_drop_pending_q || branch_spec_checkpoint_pending_q ||
+      branch_spec_active_q;
+  wire orphan_stop_pending_w = stop_pending_q && !stop_pending_owner_w;
+  wire stop_pending_busy_w = stop_pending_q && !orphan_stop_pending_w;
+  wire can_run_w = run_i && !core_trap_flush_q && !core_serial_flush_q &&
+                   !stop_pending_busy_w && !halted_q && !trap_valid_q &&
+                   !exit_valid_q;
+  wire fifo_empty_storage_w = (fifo_count_q == {FETCH_COUNT_W{1'b0}});
+  wire fetch_rsp_dispatch_bypass_w =
+      fifo_empty_storage_w && can_run_w && outstanding_valid_q &&
+      fetch_rsp_valid_i && !discard_fetch_rsp_q;
+  wire fifo_has_packet_w = !fifo_empty_storage_w ||
+                           fetch_rsp_dispatch_bypass_w;
+  wire [FETCH_COUNT_W-1:0] outstanding_count_w =
+      {{(FETCH_COUNT_W-1){1'b0}}, outstanding_valid_q};
+  wire fifo_reserve_available_w =
+      ((fifo_count_q + outstanding_count_w) < FETCH_PACKET_COUNT_VALUE);
+  wire ras_empty_w = (ras_count_q == {RAS_COUNT_W{1'b0}});
+  wire ras_full_w = (ras_count_q == RAS_DEPTH_VALUE);
+  wire [RAS_INDEX_W-1:0] ras_push_idx_w =
+      ras_full_w ? RAS_LAST_INDEX : ras_count_q[RAS_INDEX_W-1:0];
+  wire [RAS_INDEX_W-1:0] ras_top_idx_w =
+      ras_full_w ? RAS_LAST_INDEX :
+                   (ras_count_q[RAS_INDEX_W-1:0] -
+                    {{(RAS_INDEX_W-1){1'b0}}, 1'b1});
+  wire [`XLEN-1:0] ras_top_w = ras_stack_q[ras_top_idx_w];
+  wire pending_system_csr_commit_w;
+  wire csr_irq_pending_w;
+  wire [`TRAP_CAUSE_W-1:0] csr_irq_cause_w;
+
+  wire [`XLEN-1:0] head_pc_w =
+      fetch_rsp_dispatch_bypass_w ? fetch_dec0_pc_w :
+                                    fifo_pc0_q[fifo_head_q];
+  wire [`XLEN-1:0] head_pc1_w =
+      fetch_rsp_dispatch_bypass_w ? fetch_dec1_pc_w :
+                                    fifo_pc1_q[fifo_head_q];
+  wire [`XLEN-1:0] head_next_pc0_w =
+      fetch_rsp_dispatch_bypass_w ? fetch_dec0_next_pc_w :
+                                    fifo_next_pc0_q[fifo_head_q];
+  wire [`XLEN-1:0] head_next_pc1_w =
+      fetch_rsp_dispatch_bypass_w ? fetch_dec1_next_pc_w :
+                                    fifo_next_pc1_q[fifo_head_q];
+  wire [`XLEN-1:0] head_packet_next_pc_w =
+      fetch_rsp_dispatch_bypass_w ? fetch_rsp_packet_next_pc_w :
+                                    fifo_packet_next_pc_q[fifo_head_q];
+  wire [`INST_W-1:0] head_inst0_w =
+      fetch_rsp_dispatch_bypass_w ? fetch_dec0_inst_w :
+                                    fifo_inst0_q[fifo_head_q];
+  wire [`INST_W-1:0] head_inst1_w =
+      fetch_rsp_dispatch_bypass_w ? fetch_dec1_inst_w :
+                                    fifo_inst1_q[fifo_head_q];
+  wire [1:0] head_resp0_w =
+      fetch_rsp_dispatch_bypass_w ? fetch_rsp_resp0_i :
+                                    fifo_resp0_q[fifo_head_q];
+  wire [1:0] head_resp1_w =
+      fetch_rsp_dispatch_bypass_w ? fetch_dec1_resp_w :
+                                    fifo_resp1_q[fifo_head_q];
+  wire head_fetch_fault0_w = fifo_has_packet_w && (head_resp0_w != 2'b00);
+  wire [`CTRL_BUS_W-1:0] head0_ctrl_w;
+  wire [`REG_ADDR_W-1:0] head0_rs1_w;
+  wire [`REG_ADDR_W-1:0] head0_rs2_w;
+  wire [`REG_ADDR_W-1:0] head0_rd_unused_w;
+  wire [`XLEN-1:0] head0_imm_w;
+  wire [`CTRL_BUS_W-1:0] head1_ctrl_w;
+  wire [`REG_ADDR_W-1:0] head1_rs1_w;
+  wire [`REG_ADDR_W-1:0] head1_rs2_w;
+  wire [`REG_ADDR_W-1:0] head1_rd_unused_w;
+  wire [`XLEN-1:0] head1_imm_w;
+  wire [`CTRL_BUS_W-1:0] branch_target_capture_ctrl_w;
+  wire [`REG_ADDR_W-1:0] branch_target_capture_rs1_unused_w;
+  wire [`REG_ADDR_W-1:0] branch_target_capture_rs2_unused_w;
+  wire [`REG_ADDR_W-1:0] branch_target_capture_rd_unused_w;
+  wire [`XLEN-1:0] branch_target_capture_imm_unused_w;
+  wire [`CTRL_BUS_W-1:0] branch_prefetch0_ctrl_w;
+  wire [`REG_ADDR_W-1:0] branch_prefetch0_rs1_unused_w;
+  wire [`REG_ADDR_W-1:0] branch_prefetch0_rs2_unused_w;
+  wire [`REG_ADDR_W-1:0] branch_prefetch0_rd_unused_w;
+  wire [`XLEN-1:0] branch_prefetch0_imm_unused_w;
+  wire [`CTRL_BUS_W-1:0] branch_prefetch1_ctrl_w;
+  wire [`REG_ADDR_W-1:0] branch_prefetch1_rs1_unused_w;
+  wire [`REG_ADDR_W-1:0] branch_prefetch1_rs2_unused_w;
+  wire [`REG_ADDR_W-1:0] branch_prefetch1_rd_unused_w;
+  wire [`XLEN-1:0] branch_prefetch1_imm_unused_w;
+  wire [`CTRL_BUS_W-1:0] branch_prefetch_rsp1_ctrl_w;
+  wire [`REG_ADDR_W-1:0] branch_prefetch_rsp1_rs1_unused_w;
+  wire [`REG_ADDR_W-1:0] branch_prefetch_rsp1_rs2_unused_w;
+  wire [`REG_ADDR_W-1:0] branch_prefetch_rsp1_rd_unused_w;
+  wire [`XLEN-1:0] branch_prefetch_rsp1_imm_unused_w;
+  wire head0_decode_valid_w = fifo_has_packet_w && !head_fetch_fault0_w;
+  wire head0_branch_raw_w = head0_decode_valid_w &&
+                            head0_ctrl_w[`CTRL_BRANCH_BIT] &&
+                            !head0_ctrl_w[`CTRL_ILLEGAL_BIT];
+  wire head0_jal_raw_w = head0_decode_valid_w &&
+                         head0_ctrl_w[`CTRL_JAL_BIT] &&
+                         !head0_ctrl_w[`CTRL_ILLEGAL_BIT];
+  wire head0_jalr_raw_w = head0_decode_valid_w &&
+                          head0_ctrl_w[`CTRL_JALR_BIT] &&
+                          !head0_ctrl_w[`CTRL_ILLEGAL_BIT];
+  wire head0_jump_raw_w = head0_jal_raw_w || head0_jalr_raw_w;
+  wire head0_mem_raw_w = head0_decode_valid_w &&
+                         !head0_ctrl_w[`CTRL_ILLEGAL_BIT] &&
+                         (head0_ctrl_w[`CTRL_LOAD_BIT] ||
+                          head0_ctrl_w[`CTRL_STORE_BIT]);
+  wire head0_fp_load_raw_w;
+  wire head0_fp_store_raw_w;
+  wire head0_fp_move_to_fpr_raw_w;
+  wire head0_fp_move_to_gpr_raw_w;
+  wire head0_fp_class_raw_w;
+  wire head0_fp_sgnj_raw_w;
+  wire head0_fp_addsub_raw_w;
+  wire head0_fp_mul_raw_w;
+  wire head0_fp_div_raw_w;
+  wire head0_fp_sqrt_raw_w;
+  wire head0_fp_minmax_raw_w;
+  wire head0_fp_compare_raw_w;
+  wire head0_fp_convert_to_fpr_raw_w;
+  wire head0_fp_convert_to_gpr_raw_w;
+  wire head0_fp_raw_w;
+  wire head0_fp_double_w;
+  wire head0_fp_gpr_write_w;
+
+  OooFpDecode u_head0_fp_decode (
+    .decode_valid_i(head0_decode_valid_w),
+    .inst_i(head_inst0_w),
+    .fp_load_o(head0_fp_load_raw_w),
+    .fp_store_o(head0_fp_store_raw_w),
+    .fp_move_to_fpr_o(head0_fp_move_to_fpr_raw_w),
+    .fp_move_to_gpr_o(head0_fp_move_to_gpr_raw_w),
+    .fp_class_o(head0_fp_class_raw_w),
+    .fp_sgnj_o(head0_fp_sgnj_raw_w),
+    .fp_addsub_o(head0_fp_addsub_raw_w),
+    .fp_mul_o(head0_fp_mul_raw_w),
+    .fp_div_o(head0_fp_div_raw_w),
+    .fp_sqrt_o(head0_fp_sqrt_raw_w),
+    .fp_minmax_o(head0_fp_minmax_raw_w),
+    .fp_compare_o(head0_fp_compare_raw_w),
+    .fp_convert_to_fpr_o(head0_fp_convert_to_fpr_raw_w),
+    .fp_convert_to_gpr_o(head0_fp_convert_to_gpr_raw_w),
+    .fp_o(head0_fp_raw_w),
+    .fp_double_o(head0_fp_double_w),
+    .fp_gpr_write_o(head0_fp_gpr_write_w)
+  );
+
+  wire head0_ecall_raw_w = head0_decode_valid_w &&
+                           head0_ctrl_w[`CTRL_ECALL_BIT] &&
+                           !head0_ctrl_w[`CTRL_ILLEGAL_BIT];
+  wire head0_ebreak_raw_w = head0_decode_valid_w &&
+                             head0_ctrl_w[`CTRL_EBREAK_BIT] &&
+                             !head0_ctrl_w[`CTRL_ILLEGAL_BIT];
+  wire head0_semihost_ebreak_w = head0_ebreak_raw_w &&
+                                 (head_inst1_w == SEMIHOST_EXIT_INST);
+  wire head0_csr_raw_w = head0_decode_valid_w &&
+                         head0_ctrl_w[`CTRL_CSR_BIT] &&
+                         !head0_ctrl_w[`CTRL_ILLEGAL_BIT];
+  wire head0_mret_raw_w = head0_decode_valid_w &&
+                          head0_ctrl_w[`CTRL_MRET_BIT] &&
+                          !head0_ctrl_w[`CTRL_ILLEGAL_BIT];
+  wire head0_sret_raw_w = head0_decode_valid_w &&
+                          head0_ctrl_w[`CTRL_SRET_BIT] &&
+                          !head0_ctrl_w[`CTRL_ILLEGAL_BIT];
+  wire head0_xret_raw_w = head0_mret_raw_w || head0_sret_raw_w;
+  wire head0_wfi_raw_w = head0_decode_valid_w &&
+                         head0_ctrl_w[`CTRL_WFI_BIT] &&
+                         !head0_ctrl_w[`CTRL_ILLEGAL_BIT];
+  wire head0_sfence_raw_w = head0_decode_valid_w &&
+                            head0_ctrl_w[`CTRL_SFENCE_VMA_BIT] &&
+                            !head0_ctrl_w[`CTRL_ILLEGAL_BIT];
+  wire head0_exit_raw_w = head0_ebreak_raw_w && !head0_semihost_ebreak_w;
+  wire head0_system_raw_w = head0_ecall_raw_w || head0_csr_raw_w ||
+                            head0_xret_raw_w || head0_wfi_raw_w ||
+                            head0_sfence_raw_w;
+  wire head0_arch_trap_raw_w = head0_semihost_ebreak_w;
+  wire head0_stop_raw_w = head0_exit_raw_w || head0_system_raw_w ||
+                          head0_fp_raw_w ||
+                          head0_arch_trap_raw_w;
+  wire head_fetch_fault1_w = fifo_has_packet_w && !head_fetch_fault0_w &&
+                             !head0_branch_raw_w && !head0_jump_raw_w &&
+                             !head0_stop_raw_w &&
+                             (head_resp1_w != 2'b00);
+  wire head_fetch_fault_w = head_fetch_fault0_w | head_fetch_fault1_w;
+  wire head1_decode_valid_w = fifo_has_packet_w && !head_fetch_fault0_w &&
+                              !head0_branch_raw_w && !head0_jump_raw_w &&
+                              !head0_stop_raw_w &&
+                              (head_resp1_w == 2'b00);
+  wire head1_control_raw_w = head1_decode_valid_w &&
+                             !head1_ctrl_w[`CTRL_ILLEGAL_BIT] &&
+                             (head1_ctrl_w[`CTRL_BRANCH_BIT] ||
+                              head1_ctrl_w[`CTRL_JAL_BIT] ||
+                              head1_ctrl_w[`CTRL_JALR_BIT]);
+  wire head1_branch_raw_w = head1_decode_valid_w &&
+                            head1_ctrl_w[`CTRL_BRANCH_BIT] &&
+                            !head1_ctrl_w[`CTRL_ILLEGAL_BIT];
+  wire head1_jal_raw_w = head1_decode_valid_w &&
+                         head1_ctrl_w[`CTRL_JAL_BIT] &&
+                         !head1_ctrl_w[`CTRL_ILLEGAL_BIT];
+  wire head1_jalr_raw_w = head1_decode_valid_w &&
+                          head1_ctrl_w[`CTRL_JALR_BIT] &&
+                          !head1_ctrl_w[`CTRL_ILLEGAL_BIT];
+  wire head1_jump_raw_w = head1_jal_raw_w || head1_jalr_raw_w;
+  wire head1_mem_raw_w = head1_decode_valid_w &&
+                         !head1_ctrl_w[`CTRL_ILLEGAL_BIT] &&
+                         (head1_ctrl_w[`CTRL_LOAD_BIT] ||
+                          head1_ctrl_w[`CTRL_STORE_BIT]);
+  wire head1_fp_load_raw_w;
+  wire head1_fp_store_raw_w;
+  wire head1_fp_move_to_fpr_raw_w;
+  wire head1_fp_move_to_gpr_raw_w;
+  wire head1_fp_class_raw_w;
+  wire head1_fp_sgnj_raw_w;
+  wire head1_fp_addsub_raw_w;
+  wire head1_fp_mul_raw_w;
+  wire head1_fp_div_raw_w;
+  wire head1_fp_sqrt_raw_w;
+  wire head1_fp_minmax_raw_w;
+  wire head1_fp_compare_raw_w;
+  wire head1_fp_convert_to_fpr_raw_w;
+  wire head1_fp_convert_to_gpr_raw_w;
+  wire head1_fp_raw_w;
+  wire head1_fp_double_w;
+  wire head1_fp_gpr_write_w;
+
+  OooFpDecode u_head1_fp_decode (
+    .decode_valid_i(head1_decode_valid_w),
+    .inst_i(head_inst1_w),
+    .fp_load_o(head1_fp_load_raw_w),
+    .fp_store_o(head1_fp_store_raw_w),
+    .fp_move_to_fpr_o(head1_fp_move_to_fpr_raw_w),
+    .fp_move_to_gpr_o(head1_fp_move_to_gpr_raw_w),
+    .fp_class_o(head1_fp_class_raw_w),
+    .fp_sgnj_o(head1_fp_sgnj_raw_w),
+    .fp_addsub_o(head1_fp_addsub_raw_w),
+    .fp_mul_o(head1_fp_mul_raw_w),
+    .fp_div_o(head1_fp_div_raw_w),
+    .fp_sqrt_o(head1_fp_sqrt_raw_w),
+    .fp_minmax_o(head1_fp_minmax_raw_w),
+    .fp_compare_o(head1_fp_compare_raw_w),
+    .fp_convert_to_fpr_o(head1_fp_convert_to_fpr_raw_w),
+    .fp_convert_to_gpr_o(head1_fp_convert_to_gpr_raw_w),
+    .fp_o(head1_fp_raw_w),
+    .fp_double_o(head1_fp_double_w),
+    .fp_gpr_write_o(head1_fp_gpr_write_w)
+  );
+
+  wire head1_ecall_raw_w = head1_decode_valid_w &&
+                           head1_ctrl_w[`CTRL_ECALL_BIT] &&
+                           !head1_ctrl_w[`CTRL_ILLEGAL_BIT];
+  wire head1_ebreak_raw_w = head1_decode_valid_w &&
+                             head1_ctrl_w[`CTRL_EBREAK_BIT] &&
+                             !head1_ctrl_w[`CTRL_ILLEGAL_BIT];
+  wire head1_semihost_ebreak_w = head1_ebreak_raw_w &&
+                                 (head_inst0_w == SEMIHOST_ENTER_INST);
+  wire head1_csr_raw_w = head1_decode_valid_w &&
+                         head1_ctrl_w[`CTRL_CSR_BIT] &&
+                         !head1_ctrl_w[`CTRL_ILLEGAL_BIT];
+  wire head1_mret_raw_w = head1_decode_valid_w &&
+                          head1_ctrl_w[`CTRL_MRET_BIT] &&
+                          !head1_ctrl_w[`CTRL_ILLEGAL_BIT];
+  wire head1_sret_raw_w = head1_decode_valid_w &&
+                          head1_ctrl_w[`CTRL_SRET_BIT] &&
+                          !head1_ctrl_w[`CTRL_ILLEGAL_BIT];
+  wire head1_xret_raw_w = head1_mret_raw_w || head1_sret_raw_w;
+  wire head1_wfi_raw_w = head1_decode_valid_w &&
+                         head1_ctrl_w[`CTRL_WFI_BIT] &&
+                         !head1_ctrl_w[`CTRL_ILLEGAL_BIT];
+  wire head1_sfence_raw_w = head1_decode_valid_w &&
+                            head1_ctrl_w[`CTRL_SFENCE_VMA_BIT] &&
+                            !head1_ctrl_w[`CTRL_ILLEGAL_BIT];
+  wire head1_exit_raw_w = head1_ebreak_raw_w && !head1_semihost_ebreak_w;
+  wire head1_system_raw_w = head1_ecall_raw_w || head1_csr_raw_w ||
+                            head1_xret_raw_w || head1_wfi_raw_w ||
+                            head1_sfence_raw_w;
+  wire head1_arch_trap_raw_w = head1_semihost_ebreak_w;
+  wire head1_stop_raw_w = head1_exit_raw_w || head1_system_raw_w ||
+                          head1_fp_raw_w ||
+                          head1_arch_trap_raw_w;
+  wire branch_spec_dispatch_block_w =
+      branch_spec_active_q && fifo_has_packet_w &&
+      (head_fetch_fault0_w || head_fetch_fault1_w ||
+       head0_stop_raw_w || head0_branch_raw_w || head0_jump_raw_w ||
+       head0_mem_raw_w || head1_stop_raw_w || head1_control_raw_w ||
+       head1_mem_raw_w);
+
+  wire dispatch0_ready_w;
+  /* verilator lint_off UNOPTFLAT */
+  wire dispatch1_ready_w;
+  /* verilator lint_on UNOPTFLAT */
+  wire dispatch0_unsupported_w;
+  wire dispatch1_unsupported_w;
+  wire dispatch_valid_w = fifo_has_packet_w && can_run_w &&
+                          !csr_irq_pending_w &&
+                          !pending_lane1_ret_q &&
+                          !head_fetch_fault0_w &&
+                          !branch_spec_dispatch_block_w;
+  wire dispatch0_ecall_w = dispatch_valid_w && head0_ecall_raw_w;
+  wire dispatch0_ebreak_w = dispatch_valid_w && head0_ebreak_raw_w;
+  wire dispatch0_exit_w = dispatch_valid_w && head0_exit_raw_w;
+  wire dispatch0_arch_trap_w = dispatch_valid_w && head0_arch_trap_raw_w;
+  wire dispatch0_system_w = dispatch_valid_w && head0_system_raw_w;
+  wire dispatch0_fp_w = dispatch_valid_w && head0_fp_raw_w;
+  wire dispatch0_branch_w = dispatch_valid_w && head0_branch_raw_w;
+  wire direct_branch0_dispatch_valid_w = dispatch0_branch_w;
+  wire direct_branch0_fire_w = dispatch0_branch_w &&
+                               !dispatch0_unsupported_w &&
+                               dispatch0_ready_w;
+  wire dispatch0_jal_w = dispatch_valid_w && head0_jal_raw_w;
+  wire dispatch0_jump_w = dispatch_valid_w && head0_jalr_raw_w;
+  wire head0_jal_call_raw_w =
+      head0_jal_raw_w &&
+      ((head0_rd_unused_w == 5'd1) || (head0_rd_unused_w == 5'd5));
+  wire head1_jal_call_raw_w =
+      head1_jal_raw_w &&
+      ((head1_rd_unused_w == 5'd1) || (head1_rd_unused_w == 5'd5));
+  wire ras_direct_update_safe_w =
+      (rob_count_o == {ROB_COUNT_W{1'b0}}) &&
+      !stop_pending_q &&
+      !branch_spec_active_q &&
+      !branch_spec_checkpoint_pending_q;
+  wire dispatch0_return_w =
+      ENABLE_DIRECT_RAS_RET &&
+      dispatch0_jump_w &&
+      ras_direct_update_safe_w &&
+      ras_reliable_q && !ras_empty_w &&
+      (head0_rd_unused_w == {`REG_ADDR_W{1'b0}}) &&
+      ((head0_rs1_w == 5'd1) || (head0_rs1_w == 5'd5)) &&
+      (head0_imm_w == {`XLEN{1'b0}});
+  wire head1_return_candidate_w =
+      ENABLE_DIRECT_RAS_RET &&
+      head1_jalr_raw_w &&
+      ras_direct_update_safe_w &&
+      ras_reliable_q && !ras_empty_w &&
+      (head1_rd_unused_w == {`REG_ADDR_W{1'b0}}) &&
+      ((head1_rs1_w == 5'd1) || (head1_rs1_w == 5'd5)) &&
+      (head1_imm_w == {`XLEN{1'b0}});
+  // lane1 ret 在 lane0 不改写 ret 源寄存器、且不是控制/CSR/AMO 时可直接走 RAS。
+  // 普通 load/store 由 ROB 精确异常和 IQ/LSU 的 store-order 规则约束，不需要退化成 drain 边界。
+  wire lane0_before_ret_safe_w =
+      head0_ctrl_w[`CTRL_VALID_BIT] &&
+      !head0_ctrl_w[`CTRL_ILLEGAL_BIT] &&
+      head0_ctrl_w[`CTRL_NEED_EXEC_BIT] &&
+      !head0_ctrl_w[`CTRL_BRANCH_BIT] &&
+      !head0_ctrl_w[`CTRL_JAL_BIT] &&
+      !head0_ctrl_w[`CTRL_JALR_BIT] &&
+      !head0_ctrl_w[`CTRL_ECALL_BIT] &&
+      !head0_ctrl_w[`CTRL_EBREAK_BIT] &&
+      !head0_ctrl_w[`CTRL_SYSTEM_BIT] &&
+      !head0_ctrl_w[`CTRL_CSR_BIT] &&
+      !head0_ctrl_w[`CTRL_FENCE_BIT] &&
+      !head0_ctrl_w[`CTRL_MISC_MEM_BIT] &&
+      !head0_ctrl_w[`CTRL_MRET_BIT] &&
+      !head0_ctrl_w[`CTRL_WFI_BIT] &&
+      !head0_ctrl_w[`CTRL_SFENCE_VMA_BIT] &&
+      !head0_ctrl_w[`CTRL_SRET_BIT] &&
+      !head0_ctrl_w[`CTRL_MULDIV_BIT] &&
+      !head0_ctrl_w[`CTRL_BITMANIP_BIT] &&
+      !head0_ctrl_w[`CTRL_AMO_BIT] &&
+      (!head0_ctrl_w[`CTRL_RD_EN_BIT] ||
+       (head0_rd_unused_w == {`REG_ADDR_W{1'b0}}) ||
+       (head0_rd_unused_w != head1_rs1_w));
+  wire dispatch1_direct_jal_w = dispatch_valid_w &&
+                                !dispatch0_exit_w &&
+                                !dispatch0_arch_trap_w &&
+                                !dispatch0_system_w &&
+                                !dispatch0_fp_w &&
+                                !dispatch0_branch_w &&
+                                !dispatch0_jal_w &&
+                                !dispatch0_jump_w &&
+                                head1_jal_raw_w &&
+                                !head1_jal_call_raw_w;
+  wire dispatch1_return_w = dispatch_valid_w &&
+                            !dispatch0_exit_w &&
+                            !dispatch0_arch_trap_w &&
+                            !dispatch0_system_w &&
+                            !dispatch0_fp_w &&
+                            !dispatch0_branch_w &&
+                            !dispatch0_jal_w &&
+                            !dispatch0_jump_w &&
+                            head1_return_candidate_w &&
+                            lane0_before_ret_safe_w;
+  wire direct_branch1_dispatch_valid_w = dispatch_valid_w &&
+                                         head1_branch_raw_w &&
+                                         !head_fetch_fault1_w &&
+                                         !dispatch0_exit_w &&
+                                         !dispatch0_arch_trap_w &&
+                                         !dispatch0_system_w &&
+                                         !dispatch0_fp_w &&
+                                         !dispatch0_branch_w &&
+                                         !dispatch0_jal_w &&
+                                         !dispatch0_jump_w;
+  wire dispatch1_barrier_w = dispatch_valid_w &&
+                             !dispatch0_exit_w &&
+                             !dispatch0_arch_trap_w &&
+                             !dispatch0_system_w &&
+                             !dispatch0_fp_w &&
+                             !dispatch0_branch_w &&
+                             !dispatch0_jal_w &&
+                             !dispatch0_jump_w &&
+                             (head_fetch_fault1_w ||
+                              head1_exit_raw_w ||
+                              head1_system_raw_w ||
+                              head1_fp_raw_w ||
+                              head1_arch_trap_raw_w ||
+                              (head1_branch_raw_w &&
+                               !direct_branch1_dispatch_valid_w) ||
+                              (head1_jalr_raw_w &&
+                               !dispatch1_return_w));
+  wire dispatch1_control_unsupported_w = dispatch_valid_w &&
+                                         !dispatch0_exit_w &&
+                                         !dispatch0_arch_trap_w &&
+                                         !dispatch0_system_w &&
+                                         !dispatch0_fp_w &&
+                                         !dispatch0_branch_w &&
+                                         !dispatch0_jal_w &&
+                                         !dispatch0_jump_w &&
+                                         !dispatch1_barrier_w &&
+                                         !direct_branch1_dispatch_valid_w &&
+                                         !dispatch1_return_w &&
+                                         head1_control_raw_w &&
+                                         !head1_jal_raw_w;
+  wire dispatch1_mem_unsupported_w = 1'b0;
+  wire dispatch_unsupported_w = dispatch_valid_w && !dispatch0_exit_w &&
+                                !dispatch0_arch_trap_w &&
+                                !dispatch0_system_w && !dispatch0_fp_w &&
+                                !dispatch0_branch_w && !dispatch0_jump_w &&
+                                ((dispatch0_unsupported_w && !head0_fp_raw_w) |
+                                 (dispatch1_unsupported_w && !head1_fp_raw_w) |
+                                 dispatch1_control_unsupported_w |
+                                 dispatch1_mem_unsupported_w);
+  wire dispatch_fire_w = dispatch_valid_w &&
+                         !dispatch0_exit_w &&
+                         !dispatch0_arch_trap_w &&
+                         !dispatch0_system_w &&
+                         !dispatch0_fp_w &&
+                         !dispatch0_branch_w &&
+                         !dispatch0_jal_w &&
+                         !dispatch0_jump_w &&
+                         !dispatch1_barrier_w &&
+                         !dispatch_unsupported_w &&
+                         dispatch0_ready_w &&
+                         dispatch1_ready_w;
+  wire direct_jal0_dispatch_valid_w = dispatch0_jal_w;
+  wire direct_jal0_fire_w = dispatch0_jal_w &&
+                            direct_jal0_dispatch_valid_w &&
+                            !dispatch0_unsupported_w &&
+                            dispatch0_ready_w;
+  wire direct_jal1_fire_w = dispatch_fire_w && head1_jal_raw_w;
+  wire direct_jal_fire_w = direct_jal0_fire_w || direct_jal1_fire_w;
+  wire direct_ret1_fire_w = dispatch_fire_w && dispatch1_return_w;
+  wire direct_branch1_fire_w = dispatch_fire_w && head1_branch_raw_w;
+  wire direct_branch_fire_w = direct_branch0_fire_w || direct_branch1_fire_w;
+  wire [`XLEN-1:0] direct_branch_pc_w =
+      direct_branch1_fire_w ? head_pc1_w : head_pc_w;
+  wire [`XLEN-1:0] direct_branch_next_pc_w =
+      direct_branch1_fire_w ? head_next_pc1_w : head_next_pc0_w;
+  wire [`XLEN-1:0] direct_branch_imm_w =
+      direct_branch1_fire_w ? head1_imm_w : head0_imm_w;
+  wire [`XLEN-1:0] direct_branch_target_w =
+      direct_branch_pc_w + direct_branch_imm_w;
+  wire [`BPU_BHT_INDEX_W-1:0] head0_branch_bht_idx_w;
+  wire head0_branch_bht_valid_w;
+  wire head0_branch_predict_strong_w;
+  wire head0_branch_pred_taken_w;
+  wire [`BPU_BHT_INDEX_W-1:0] head1_branch_bht_idx_w;
+  wire head1_branch_bht_valid_w;
+  wire head1_branch_predict_strong_w;
+  wire head1_branch_pred_taken_w;
+  wire [`BPU_BHT_INDEX_W-1:0] direct_branch_bht_idx_w =
+      direct_branch1_fire_w ? head1_branch_bht_idx_w :
+                              head0_branch_bht_idx_w;
+  wire direct_branch_bht_valid_w =
+      direct_branch1_fire_w ? head1_branch_bht_valid_w :
+                              head0_branch_bht_valid_w;
+  wire direct_branch_predict_strong_w =
+      direct_branch1_fire_w ? head1_branch_predict_strong_w :
+                              head0_branch_predict_strong_w;
+  wire direct_branch_predict_taken_w =
+      direct_branch1_fire_w ? head1_branch_pred_taken_w :
+                              head0_branch_pred_taken_w;
+  wire [`XLEN-1:0] direct_branch_pred_pc_w =
+      direct_branch_predict_taken_w ? direct_branch_target_w :
+                                      direct_branch_next_pc_w;
+  wire direct_branch0_dispatch_resolve_valid_w =
+      direct_branch0_fire_w && core_dispatch_branch_resolve_valid_w &&
+      (core_dispatch_branch_resolve_pc_w == head_pc_w);
+  wire direct_branch1_dispatch_resolve_valid_w =
+      direct_branch1_fire_w && core_dispatch_branch_resolve_valid_w &&
+      (core_dispatch_branch_resolve_pc_w == head_pc1_w);
+  wire direct_branch_dispatch_resolve_valid_w =
+      direct_branch0_dispatch_resolve_valid_w ||
+      direct_branch1_dispatch_resolve_valid_w;
+  wire direct_branch_issue_resolve_valid_w =
+      direct_branch_fire_w && core_branch_resolve_valid_w &&
+      (core_branch_resolve_pc_w == direct_branch_pc_w);
+  wire direct_branch_resolve_valid_w =
+      direct_branch_dispatch_resolve_valid_w ||
+      direct_branch_issue_resolve_valid_w;
+  wire [`XLEN-1:0] direct_branch_resolve_next_pc_w =
+      direct_branch_dispatch_resolve_valid_w ?
+      core_dispatch_branch_resolve_next_pc_w : core_branch_resolve_next_pc_w;
+  wire direct_branch_resolve_misaligned_w =
+      direct_branch_dispatch_resolve_valid_w ?
+      core_dispatch_branch_resolve_misaligned_w :
+      core_branch_resolve_misaligned_w;
+  wire direct_branch_resolve_redirect_raw_w =
+      direct_branch_resolve_valid_w && !direct_branch_resolve_misaligned_w;
+  wire direct_branch_resolve_redirect_w =
+      direct_branch_resolve_redirect_raw_w && !trap_redirect_squash_q;
+  wire direct_branch_resolve_taken_w =
+      direct_branch_resolve_redirect_w &&
+      (direct_branch_resolve_next_pc_w == direct_branch_target_w);
+  wire direct_branch0_lane1_ret_w =
+      direct_branch0_fire_w && direct_branch_resolve_valid_w &&
+      !synth_lane1_ret_pending_q &&
+      !synth_lane1_branch_drop_pending_q &&
+      !direct_branch_resolve_misaligned_w &&
+      (direct_branch_resolve_next_pc_w == head_pc1_w) &&
+      head1_return_candidate_w;
+  wire direct_ret0_dispatch_valid_w = dispatch0_return_w;
+  wire direct_ret0_fire_w = dispatch0_return_w &&
+                            !dispatch0_unsupported_w &&
+                            dispatch0_ready_w;
+  wire direct_frontend_flush_w = direct_jal_fire_w ||
+                                 direct_branch0_fire_w ||
+                                 direct_branch1_fire_w ||
+                                 direct_ret0_fire_w ||
+                                 direct_ret1_fire_w;
+  wire [`XLEN-1:0] direct_jal_target_w =
+      direct_jal0_fire_w ? (head_pc_w + head0_imm_w) :
+                           (head_pc1_w + head1_imm_w);
+  wire [`XLEN-1:0] direct_ret_target_w = ras_top_w;
+  wire direct_jal0_call_w = direct_jal0_fire_w &&
+                            ((head0_rd_unused_w == 5'd1) ||
+                             (head0_rd_unused_w == 5'd5));
+  wire direct_jal1_call_w = direct_jal1_fire_w &&
+                            ((head1_rd_unused_w == 5'd1) ||
+                             (head1_rd_unused_w == 5'd5));
+  wire direct_jal_call_raw_w = direct_jal0_call_w || direct_jal1_call_w;
+  wire direct_jal_call_w =
+      ras_direct_update_safe_w && direct_jal_call_raw_w;
+  wire direct_jal_call_unsafe_w =
+      ENABLE_DIRECT_RAS_RET && direct_jal_call_raw_w &&
+      !ras_direct_update_safe_w;
+  wire [`XLEN-1:0] direct_jal_link_w =
+      direct_jal0_call_w ? head_next_pc0_w : head_next_pc1_w;
+  wire return_cont_safe_w =
+      !head_fetch_fault1_w &&
+      head1_ctrl_w[`CTRL_VALID_BIT] &&
+      !head1_ctrl_w[`CTRL_ILLEGAL_BIT] &&
+      head1_ctrl_w[`CTRL_NEED_EXEC_BIT] &&
+      !head1_ctrl_w[`CTRL_BRANCH_BIT] &&
+      !head1_ctrl_w[`CTRL_JAL_BIT] &&
+      !head1_ctrl_w[`CTRL_JALR_BIT] &&
+      !head1_ctrl_w[`CTRL_LOAD_BIT] &&
+      !head1_ctrl_w[`CTRL_STORE_BIT] &&
+      !head1_ctrl_w[`CTRL_ECALL_BIT] &&
+      !head1_ctrl_w[`CTRL_EBREAK_BIT] &&
+      !head1_ctrl_w[`CTRL_SYSTEM_BIT] &&
+      !head1_ctrl_w[`CTRL_CSR_BIT] &&
+      !head1_ctrl_w[`CTRL_FENCE_BIT] &&
+      !head1_ctrl_w[`CTRL_MISC_MEM_BIT] &&
+      !head1_ctrl_w[`CTRL_MRET_BIT] &&
+      !head1_ctrl_w[`CTRL_WFI_BIT] &&
+      !head1_ctrl_w[`CTRL_MULDIV_BIT] &&
+      !head1_ctrl_w[`CTRL_BITMANIP_BIT];
+  wire return_cont_capture_w =
+      direct_jal0_call_w && return_cont_safe_w;
+  wire return_cont_match_w =
+      return_cont_valid_q && (return_cont_pc_q == ras_top_w);
+  wire branch_fallthrough_safe_w =
+      (head_resp1_w == 2'b00) &&
+      (head_inst1_w != 32'h0010_0073) &&
+      head1_ctrl_w[`CTRL_VALID_BIT] &&
+      !head1_ctrl_w[`CTRL_ILLEGAL_BIT] &&
+      head1_ctrl_w[`CTRL_NEED_EXEC_BIT] &&
+      !head1_ctrl_w[`CTRL_BRANCH_BIT] &&
+      !head1_ctrl_w[`CTRL_JAL_BIT] &&
+      !head1_ctrl_w[`CTRL_JALR_BIT] &&
+      !head1_ctrl_w[`CTRL_STORE_BIT] &&
+      !head1_ctrl_w[`CTRL_ECALL_BIT] &&
+      !head1_ctrl_w[`CTRL_EBREAK_BIT] &&
+      !head1_ctrl_w[`CTRL_SYSTEM_BIT] &&
+      !head1_ctrl_w[`CTRL_CSR_BIT] &&
+      !head1_ctrl_w[`CTRL_FENCE_BIT] &&
+      !head1_ctrl_w[`CTRL_MISC_MEM_BIT] &&
+      !head1_ctrl_w[`CTRL_MRET_BIT] &&
+      !head1_ctrl_w[`CTRL_WFI_BIT] &&
+      !head1_ctrl_w[`CTRL_MULDIV_BIT] &&
+      !head1_ctrl_w[`CTRL_BITMANIP_BIT];
+  wire dispatch1_barrier_fire_w = dispatch1_barrier_w &&
+                                  !dispatch0_unsupported_w &&
+                                  dispatch0_ready_w;
+  wire stop_head_w = can_run_w && fifo_has_packet_w &&
+                     !branch_spec_dispatch_block_w &&
+                     (head_fetch_fault0_w | dispatch0_exit_w |
+                      dispatch0_arch_trap_w |
+                      dispatch0_system_w |
+                      dispatch0_branch_w | dispatch0_jal_w |
+                      dispatch0_jump_w |
+                      dispatch1_barrier_w | dispatch1_direct_jal_w |
+                      direct_branch1_dispatch_valid_w |
+                      dispatch_unsupported_w);
+  wire fifo_pop_w = dispatch_fire_w || dispatch1_barrier_fire_w ||
+                    direct_jal0_fire_w;
+  wire fetch_rsp_bypass_consumed_w =
+      fetch_rsp_dispatch_bypass_w &&
+      (fifo_pop_w || direct_frontend_flush_w);
+  wire fifo_storage_pop_w = fifo_pop_w && !fetch_rsp_dispatch_bypass_w;
+  wire fifo_can_accept_rsp_w =
+      (fifo_count_q < FETCH_PACKET_COUNT_VALUE) || fifo_storage_pop_w;
+
+  wire fetch_rsp_can_enqueue_w = can_run_w && outstanding_valid_q &&
+                                 fifo_can_accept_rsp_w;
+  wire fetch_rsp_can_drop_w = !outstanding_valid_q ||
+                              stop_pending_busy_w || halted_q ||
+                              trap_valid_q || exit_valid_q;
+  wire direct_fetch_drop_w = direct_frontend_flush_w ||
+                             discard_fetch_rsp_q;
+  wire fetch_rsp_fire_w = fetch_rsp_valid_i && fetch_rsp_ready_o;
+  wire fetch_rsp_enqueue_w = fetch_rsp_valid_i && fetch_rsp_can_enqueue_w &&
+                             !direct_fetch_drop_w &&
+                             !fetch_rsp_bypass_consumed_w;
+  wire [15:0] fetch_half0_w = fetch_rsp_inst0_i[15:0];
+  wire [15:0] fetch_half1_w = fetch_rsp_inst0_i[31:16];
+  wire [15:0] fetch_half2_w = fetch_rsp_inst1_i[15:0];
+  wire fetch_dec0_compressed_w = (fetch_half0_w[1:0] != 2'b11);
+  wire [`XLEN-1:0] fetch_dec0_len_w =
+      fetch_dec0_compressed_w ? 32'd2 : 32'd4;
+  wire [`XLEN-1:0] fetch_dec0_pc_w = outstanding_pc_q;
+  wire [`XLEN-1:0] fetch_dec0_next_pc_w =
+      fetch_dec0_pc_w + fetch_dec0_len_w;
+  wire [15:0] fetch_dec1_half_w =
+      fetch_dec0_compressed_w ? fetch_half1_w : fetch_half2_w;
+  wire fetch_dec1_compressed_w = (fetch_dec1_half_w[1:0] != 2'b11);
+  wire [`XLEN-1:0] fetch_dec1_len_w =
+      fetch_dec1_compressed_w ? 32'd2 : 32'd4;
+  wire [`XLEN-1:0] fetch_dec1_pc_w = fetch_dec0_next_pc_w;
+  wire [`XLEN-1:0] fetch_dec1_next_pc_w =
+      fetch_dec1_pc_w + fetch_dec1_len_w;
+  wire [`INST_W-1:0] fetch_dec0_rvc_inst_w;
+  wire [`INST_W-1:0] fetch_dec1_rvc_inst_w;
+
+  OooRvcDecompressor u_fetch_dec0_rvc_decompressor (
+    .inst_i(fetch_half0_w),
+    .inst_o(fetch_dec0_rvc_inst_w)
+  );
+
+  OooRvcDecompressor u_fetch_dec1_rvc_decompressor (
+    .inst_i(fetch_dec1_half_w),
+    .inst_o(fetch_dec1_rvc_inst_w)
+  );
+
+  wire [`INST_W-1:0] fetch_dec0_inst_w =
+      fetch_dec0_compressed_w ? fetch_dec0_rvc_inst_w :
+                                fetch_rsp_inst0_i;
+  wire [`INST_W-1:0] fetch_dec1_raw32_w =
+      fetch_dec0_compressed_w ? {fetch_half2_w, fetch_half1_w} :
+                                fetch_rsp_inst1_i;
+  wire [`INST_W-1:0] fetch_dec1_inst_w =
+      fetch_dec1_compressed_w ? fetch_dec1_rvc_inst_w :
+                                fetch_dec1_raw32_w;
+  wire fetch_dec0_control_stop_w =
+      (fetch_rsp_resp0_i != 2'b00) ||
+      (fetch_dec0_inst_w[6:0] == `OPCODE_BRANCH) ||
+      (fetch_dec0_inst_w[6:0] == `OPCODE_JAL) ||
+      (fetch_dec0_inst_w[6:0] == `OPCODE_JALR) ||
+      (fetch_dec0_inst_w[6:0] == `OPCODE_SYSTEM);
+  wire fetch_dec1_needs_word1_w =
+      !fetch_dec0_compressed_w || !fetch_dec1_compressed_w;
+  wire [1:0] fetch_dec1_resp_w =
+      fetch_dec1_needs_word1_w ? fetch_rsp_resp1_i : fetch_rsp_resp0_i;
+  wire fetch_dec1_control_stop_w =
+      (fetch_dec1_resp_w != 2'b00) ||
+      (fetch_dec1_inst_w[6:0] == `OPCODE_BRANCH) ||
+      (fetch_dec1_inst_w[6:0] == `OPCODE_JAL) ||
+      (fetch_dec1_inst_w[6:0] == `OPCODE_JALR) ||
+      (fetch_dec1_inst_w[6:0] == `OPCODE_SYSTEM);
+  wire fetch_rsp_control_stop_w =
+      fetch_rsp_fire_w && fetch_rsp_can_enqueue_w &&
+      (fetch_dec0_control_stop_w || fetch_dec1_control_stop_w);
+  wire [`XLEN-1:0] fetch_rsp_packet_next_pc_w = fetch_dec1_next_pc_w;
+  wire branch_target_capture_safe_w =
+      (fetch_rsp_resp0_i == 2'b00) &&
+      (fetch_dec0_inst_w != 32'h0010_0073) &&
+      branch_target_capture_ctrl_w[`CTRL_VALID_BIT] &&
+      !branch_target_capture_ctrl_w[`CTRL_ILLEGAL_BIT] &&
+      branch_target_capture_ctrl_w[`CTRL_NEED_EXEC_BIT] &&
+      !branch_target_capture_ctrl_w[`CTRL_BRANCH_BIT] &&
+      !branch_target_capture_ctrl_w[`CTRL_JAL_BIT] &&
+      !branch_target_capture_ctrl_w[`CTRL_JALR_BIT] &&
+      !branch_target_capture_ctrl_w[`CTRL_STORE_BIT] &&
+      !branch_target_capture_ctrl_w[`CTRL_ECALL_BIT] &&
+      !branch_target_capture_ctrl_w[`CTRL_EBREAK_BIT] &&
+      !branch_target_capture_ctrl_w[`CTRL_SYSTEM_BIT] &&
+      !branch_target_capture_ctrl_w[`CTRL_CSR_BIT] &&
+      !branch_target_capture_ctrl_w[`CTRL_FENCE_BIT] &&
+      !branch_target_capture_ctrl_w[`CTRL_MISC_MEM_BIT] &&
+      !branch_target_capture_ctrl_w[`CTRL_MRET_BIT] &&
+      !branch_target_capture_ctrl_w[`CTRL_WFI_BIT] &&
+      !branch_target_capture_ctrl_w[`CTRL_MULDIV_BIT] &&
+      !branch_target_capture_ctrl_w[`CTRL_BITMANIP_BIT];
+  wire branch_target_capture_hit_w =
+      branch_target_capture_pending_q && fetch_rsp_fire_w &&
+      (fetch_dec0_pc_w == branch_target_capture_target_pc_q);
+  wire branch_target_cache_capture_w =
+      branch_target_capture_hit_w && branch_target_capture_safe_w;
+  wire [`XLEN-1:0] pending_branch_target_w =
+      pending_branch_pc_q + pending_branch_imm_q;
+  wire branch_prefetch_branch_predict_taken_w = pending_branch_pred_taken_q;
+  wire [`XLEN-1:0] branch_prefetch_branch_pred_pc_w =
+      branch_prefetch_branch_predict_taken_w ? pending_branch_target_w :
+                                               pending_branch_next_pc_q;
+  wire pending_jump_jalr_ret_hint_w =
+      pending_jump_q && pending_jump_jalr_q &&
+      (pending_jump_inst_q[11:7] == 5'd0) &&
+      ((pending_jump_rs1_q == 5'd1) || (pending_jump_rs1_q == 5'd5)) &&
+      (pending_jump_imm_q == {`XLEN{1'b0}});
+  wire pending_jump_jalr_btb_lookup_w =
+      stop_pending_q && pending_jump_q && pending_jump_jalr_q &&
+      !(pending_jump_jalr_ret_hint_w && !ras_empty_w);
+  wire [`BPU_BTB_INDEX_W-1:0] pending_jump_jalr_btb_idx_w;
+  wire pending_jump_jalr_btb_entry_hit_w;
+  wire pending_jump_jalr_btb_hit_w;
+  wire [`XLEN-1:0] pending_jump_jalr_btb_target_w;
+  wire branch_prefetch_branch_req_valid_w =
+      stop_pending_q && pending_branch_q && pending_branch_dispatched_q &&
+      !branch_prefetch_active_q && !outstanding_valid_q &&
+      !discard_fetch_rsp_q && !branch_resolve_pending_match_w &&
+      !branch_spec_checkpoint_pending_q && !branch_spec_active_q &&
+      !halted_q && !trap_valid_q && !exit_valid_q;
+  wire branch_prefetch_jalr_req_valid_w =
+      pending_jump_jalr_btb_hit_w && !pending_jump_dispatched_q &&
+      !branch_prefetch_active_q && !outstanding_valid_q &&
+      !discard_fetch_rsp_q && !branch_spec_checkpoint_pending_q &&
+      !branch_spec_active_q && !halted_q && !trap_valid_q && !exit_valid_q;
+  wire branch_prefetch_req_valid_w =
+      branch_prefetch_branch_req_valid_w || branch_prefetch_jalr_req_valid_w;
+  wire [`XLEN-1:0] branch_prefetch_req_pc_w =
+      branch_prefetch_jalr_req_valid_w ? pending_jump_jalr_btb_target_w :
+                                         branch_prefetch_branch_pred_pc_w;
+  wire branch_prefetch_rsp_capture_w =
+      branch_prefetch_active_q && !branch_prefetch_buffer_valid_q &&
+      stop_pending_q &&
+      ((pending_branch_q && pending_branch_dispatched_q) ||
+       (pending_jump_q && pending_jump_jalr_q)) &&
+      fetch_rsp_fire_w;
+  wire branch_prefetch_match_w =
+      branch_prefetch_active_q &&
+      (branch_prefetch_pc_q == core_branch_resolve_next_pc_w);
+  wire branch_prefetch_buffer_match_w =
+      branch_prefetch_match_w && branch_prefetch_buffer_valid_q;
+  wire branch_prefetch_rsp_match_w =
+      branch_prefetch_match_w && branch_prefetch_rsp_capture_w;
+  wire branch_prefetch_hit_available_w =
+      branch_prefetch_buffer_match_w || branch_prefetch_rsp_match_w;
+  wire branch_prefetch_pending_match_w =
+      branch_prefetch_match_w && !branch_prefetch_hit_available_w;
+  wire branch_prefetch_req_fire_w =
+      branch_prefetch_req_valid_w && fetch_req_ready_i;
+  wire [`XLEN-1:0] branch_prefetch_hit_pc0_w =
+      branch_prefetch_rsp_match_w ? fetch_dec0_pc_w :
+                                    branch_prefetch_buf_pc0_q;
+  wire [`XLEN-1:0] branch_prefetch_hit_pc1_w =
+      branch_prefetch_rsp_match_w ? fetch_dec1_pc_w :
+                                    branch_prefetch_buf_pc1_q;
+  wire [`XLEN-1:0] branch_prefetch_hit_next_pc0_w =
+      branch_prefetch_rsp_match_w ? fetch_dec0_next_pc_w :
+                                    branch_prefetch_buf_next_pc0_q;
+  wire [`XLEN-1:0] branch_prefetch_hit_next_pc1_w =
+      branch_prefetch_rsp_match_w ? fetch_dec1_next_pc_w :
+                                    branch_prefetch_buf_next_pc1_q;
+  wire [`XLEN-1:0] branch_prefetch_hit_packet_next_pc_w =
+      branch_prefetch_rsp_match_w ? fetch_rsp_packet_next_pc_w :
+                                    branch_prefetch_buf_packet_next_pc_q;
+  wire [`INST_W-1:0] branch_prefetch_hit_inst0_w =
+      branch_prefetch_rsp_match_w ? fetch_dec0_inst_w :
+                                    branch_prefetch_buf_inst0_q;
+  wire [`INST_W-1:0] branch_prefetch_hit_inst1_w =
+      branch_prefetch_rsp_match_w ? fetch_dec1_inst_w :
+                                    branch_prefetch_buf_inst1_q;
+  wire [1:0] branch_prefetch_hit_resp0_w =
+      branch_prefetch_rsp_match_w ? fetch_rsp_resp0_i :
+                                    branch_prefetch_buf_resp0_q;
+  wire [1:0] branch_prefetch_hit_resp1_w =
+      branch_prefetch_rsp_match_w ? fetch_dec1_resp_w :
+                                    branch_prefetch_buf_resp1_q;
+  wire [`XLEN-1:0] fetch_req_seq_pc_w =
+      (outstanding_valid_q && fetch_rsp_fire_w) ?
+      fetch_rsp_packet_next_pc_w : next_fetch_pc_q;
+  wire branch_resolve_pending_pc_match_w =
+      core_branch_resolve_valid_w &&
+      (core_branch_resolve_pc_w == pending_branch_pc_q);
+  wire branch_resolve_pending_match_w =
+      stop_pending_q && pending_branch_q && pending_branch_dispatched_q &&
+      branch_resolve_pending_pc_match_w;
+  wire branch_resolve_redirect_raw_w =
+      stop_pending_q && pending_branch_q &&
+      pending_branch_dispatched_q &&
+      branch_resolve_pending_match_w &&
+      !core_branch_resolve_misaligned_w &&
+      !branch_prefetch_match_w;
+  wire branch_resolve_redirect_w =
+      branch_resolve_redirect_raw_w && !trap_redirect_squash_q;
+  wire backend_execute_quiet_w =
+      !execute0_valid_unused_w && !execute1_valid_unused_w &&
+      !mem_rsp_ready_o && !mem1_rsp_ready_o;
+  wire branch_spec_checkpoint_capture_w =
+      branch_spec_checkpoint_pending_q && stop_pending_q &&
+      pending_branch_q && pending_branch_dispatched_q &&
+      backend_execute_quiet_w &&
+      (core_mem_idle_w || core_pending_load_branch_dep_w);
+  wire branch_spec_resolve_valid_w =
+      branch_spec_active_q && pending_branch_q &&
+      pending_branch_dispatched_q && branch_resolve_pending_pc_match_w;
+  wire branch_spec_pred_match_w =
+      !core_branch_resolve_misaligned_w &&
+      (core_branch_resolve_next_pc_w == branch_spec_pred_pc_q);
+  wire branch_spec_restore_w =
+      branch_spec_resolve_valid_w && !branch_spec_pred_match_w;
+  wire branch_spec_redirect_raw_w =
+      branch_spec_restore_w && !core_branch_resolve_misaligned_w;
+  wire branch_spec_redirect_w =
+      branch_spec_redirect_raw_w && !trap_redirect_squash_q;
+  wire direct_branch_wait_resolve_match_w =
+      direct_branch_wait_q && core_branch_resolve_valid_w &&
+      (core_branch_resolve_pc_w == direct_branch_wait_pc_q);
+  wire direct_branch_wait_untracked_w =
+      direct_branch_wait_resolve_match_w &&
+      !branch_resolve_pending_match_w &&
+      !direct_branch_resolve_valid_w;
+  wire branch_resolve_untracked_raw_w =
+      (direct_branch_wait_untracked_w ||
+       (core_branch_resolve_valid_w &&
+        !stop_pending_q &&
+        !branch_resolve_pending_pc_match_w &&
+        !direct_branch_resolve_valid_w)) &&
+      !branch_spec_resolve_valid_w;
+  wire branch_resolve_untracked_w =
+      branch_resolve_untracked_raw_w && !trap_redirect_squash_q;
+  wire branch_resolve_untracked_redirect_w =
+      branch_resolve_untracked_w && !core_branch_resolve_misaligned_w;
+  wire direct_redirect_fetch_w =
+      direct_jal_fire_w || direct_ret0_fire_w || direct_ret1_fire_w ||
+      direct_branch0_lane1_ret_w ||
+      pending_jump_nolink_commit_w ||
+      pending_jump_redirect_after_dispatch_w ||
+      direct_branch_resolve_redirect_w;
+  wire redirect_fetch_req_valid_w =
+      (direct_redirect_fetch_w || branch_resolve_redirect_w ||
+       branch_spec_redirect_w || branch_resolve_untracked_redirect_w) &&
+      (!branch_fallthrough_dispatch_w ||
+       !branch_fallthrough_outstanding_match_w) &&
+      (!outstanding_valid_q || fetch_rsp_fire_w);
+  wire [`XLEN-1:0] redirect_fetch_pc_w =
+      direct_jal_fire_w ? direct_jal_target_w :
+      (direct_ret0_fire_w || direct_ret1_fire_w) ? direct_ret_target_w :
+      direct_branch0_lane1_ret_w ? (return_cont_dispatch_w ?
+                                    return_cont_next_pc_q : ras_top_w) :
+      branch_target_dispatch_w ?
+      branch_target_cache_next_pc_w :
+      branch_fallthrough_dispatch_w ? head_next_pc1_w :
+      direct_branch_resolve_redirect_w ?
+          direct_branch_resolve_next_pc_w :
+      (pending_jump_nolink_commit_w ||
+       pending_jump_redirect_after_dispatch_w) ? pending_jump_resolved_target_w :
+      branch_spec_redirect_w ? core_branch_resolve_next_pc_w :
+                           core_branch_resolve_next_pc_w;
+  wire [`XLEN-1:0] fetch_req_pc_w =
+      redirect_fetch_req_valid_w ? redirect_fetch_pc_w :
+      branch_prefetch_req_valid_w ? branch_prefetch_req_pc_w :
+                                    fetch_req_seq_pc_w;
+  wire can_issue_request_w = can_run_w && !stop_head_w &&
+                             !fetch_rsp_control_stop_w &&
+                             !discard_fetch_rsp_q &&
+                             fifo_reserve_available_w &&
+                             (!outstanding_valid_q || fetch_rsp_fire_w);
+  wire fetch_request_blocked_by_trap_w =
+      csr_trap_mem_valid_w || csr_trap_ex_valid_w || csr_trap_irq_valid_w ||
+      core_trap_flush_q || core_serial_flush_q;
+  wire fetch_req_fire_w = fetch_req_valid_o && fetch_req_ready_i;
+  wire frontend_dispatch_to_backend_valid_w =
+      dispatch_valid_w && !dispatch0_branch_w && !dispatch0_jal_w &&
+      !dispatch0_jump_w && !dispatch0_exit_w && !dispatch0_system_w &&
+      !dispatch0_fp_w &&
+      !dispatch1_barrier_w &&
+      !dispatch1_control_unsupported_w &&
+      !dispatch1_mem_unsupported_w;
+  wire lane1_barrier_dispatch0_valid_w =
+      dispatch1_barrier_w;
+
+  wire execute0_valid_unused_w;
+  wire execute1_valid_unused_w;
+  wire core_mem_idle_w;
+  wire core_mem_req_valid_w;
+  wire core_mem_req_write_w;
+  wire [`XLEN-1:0] core_mem_req_addr_w;
+  wire [`XLEN-1:0] core_mem_req_wdata_w;
+  wire [`STRB_W-1:0] core_mem_req_wstrb_w;
+  wire core_mem_rsp_ready_w;
+  wire core_mem1_req_valid_w;
+  wire core_mem1_req_write_w;
+  wire [`XLEN-1:0] core_mem1_req_addr_w;
+  wire [`XLEN-1:0] core_mem1_req_wdata_w;
+  wire [`STRB_W-1:0] core_mem1_req_wstrb_w;
+  wire core_mem1_rsp_ready_w;
+  wire core_branch_resolve_valid_w;
+  wire [`XLEN-1:0] core_branch_resolve_pc_w;
+  wire [`XLEN-1:0] core_branch_resolve_next_pc_w;
+  wire core_branch_resolve_misaligned_w;
+  wire core_dispatch_branch_resolve_valid_w;
+  wire [`XLEN-1:0] core_dispatch_branch_resolve_pc_w;
+  wire [`XLEN-1:0] core_dispatch_branch_resolve_next_pc_w;
+  wire core_dispatch_branch_resolve_misaligned_w;
+  wire core_pending_load_branch_dep_w;
+  wire [`XLEN-1:0] a0_data_w;
+  wire core_commit0_valid_w;
+  wire [`XLEN-1:0] core_commit0_pc_w;
+  wire [`XLEN-1:0] core_commit0_next_pc_w;
+  wire [`INST_W-1:0] core_commit0_inst_w;
+  wire core_commit0_rd_en_w;
+  wire [`REG_ADDR_W-1:0] core_commit0_rd_addr_w;
+  wire [`XLEN-1:0] core_commit0_rd_data_w;
+  wire core_commit0_exception_w;
+  wire [`TRAP_CAUSE_W-1:0] core_commit0_cause_w;
+  wire [`XLEN-1:0] core_commit0_tval_w;
+  wire core_commit0_write_w;
+  wire core_commit1_valid_w;
+  wire [`XLEN-1:0] core_commit1_pc_w;
+  wire [`XLEN-1:0] core_commit1_next_pc_w;
+  wire [`INST_W-1:0] core_commit1_inst_w;
+  wire core_commit1_rd_en_w;
+  wire [`REG_ADDR_W-1:0] core_commit1_rd_addr_w;
+  wire [`XLEN-1:0] core_commit1_rd_data_w;
+  wire core_commit1_exception_w;
+  wire [`TRAP_CAUSE_W-1:0] core_commit1_cause_w;
+  wire [`XLEN-1:0] core_commit1_tval_w;
+  wire core_commit1_write_w;
+  wire [1:0] core_retire_count_w;
+  wire [`XLEN * `REG_NUM - 1:0] core_debug_gprs_w;
+  wire core_commit0_csr_w =
+      core_commit0_valid_w && !core_commit0_exception_w &&
+      (core_commit0_inst_w[6:0] == `OPCODE_SYSTEM) &&
+      (core_commit0_inst_w[14:12] != 3'b000);
+  wire core_commit_exception_trap_w =
+      (core_commit0_valid_w && core_commit0_exception_w) ||
+      (core_commit1_valid_w && core_commit1_exception_w);
+  wire csr_trap_mem_valid_w = core_commit_exception_trap_w;
+  wire [`XLEN-1:0] csr_trap_mem_pc_w =
+      (core_commit0_valid_w && core_commit0_exception_w) ?
+      core_commit0_pc_w : core_commit1_pc_w;
+  wire [`TRAP_CAUSE_W-1:0] csr_trap_mem_cause_w =
+      (core_commit0_valid_w && core_commit0_exception_w) ?
+      core_commit0_cause_w : core_commit1_cause_w;
+  wire [`XLEN-1:0] csr_trap_mem_tval_w =
+      (core_commit0_valid_w && core_commit0_exception_w) ?
+      core_commit0_tval_w : core_commit1_tval_w;
+  assign pending_system_csr_commit_w =
+      pending_system_q && pending_system_csr_q && pending_system_dispatched_q &&
+      core_commit0_csr_w && (core_commit0_pc_w == pending_system_pc_q);
+  wire head1_csr_probe_w =
+      dispatch_valid_w && !dispatch0_system_w && dispatch1_barrier_w &&
+      head1_csr_raw_w;
+  wire [`INST_W-1:0] csr_access_inst_w =
+      core_commit0_csr_w ? core_commit0_inst_w :
+      pending_system_q ? pending_system_inst_q :
+      head1_csr_probe_w ? head_inst1_w : head_inst0_w;
+  wire [11:0] csr_access_addr_w = csr_access_inst_w[31:20];
+  wire [2:0] csr_access_funct3_w = csr_access_inst_w[14:12];
+  wire [`REG_ADDR_W-1:0] csr_access_rs1_idx_w = csr_access_inst_w[19:15];
+  wire [`XLEN-1:0] csr_access_rs1_data_w =
+      core_debug_gprs_w[csr_access_rs1_idx_w * `XLEN +: `XLEN];
+  wire csr_access_set_clear_noop_w =
+      ((csr_access_funct3_w == 3'b010) || (csr_access_funct3_w == 3'b011) ||
+       (csr_access_funct3_w == 3'b110) || (csr_access_funct3_w == 3'b111)) &&
+      (csr_access_rs1_idx_w == {`REG_ADDR_W{1'b0}});
+  wire csr_access_need_write_w =
+      (csr_access_funct3_w == 3'b001) ||
+      (csr_access_funct3_w == 3'b101) ||
+      !csr_access_set_clear_noop_w;
+  wire csr_access_valid_w =
+      core_commit0_csr_w || (pending_system_q && pending_system_csr_q) ||
+      head0_csr_raw_w || head1_csr_probe_w;
+  wire pending_system_satp_write_commit_w =
+      pending_system_csr_commit_w &&
+      (csr_access_addr_w == `CSR_SATP) &&
+      csr_access_need_write_w;
+  wire pending_system_sfence_commit_w =
+      stop_pending_q && drain_complete_w && pending_system_q &&
+      pending_system_sfence_q;
+  wire [`TRAP_CAUSE_W-1:0] csr_ecall_cause_w;
+  wire pending_system_ecall_trap_w =
+      stop_pending_q && drain_complete_w && pending_system_q &&
+      pending_system_ecall_q;
+  wire pending_arch_trap_fire_w =
+      stop_pending_q && drain_complete_w && pending_arch_trap_q;
+  wire csr_trap_ex_valid_w =
+      pending_system_ecall_trap_w || pending_arch_trap_fire_w;
+  wire [`XLEN-1:0] csr_trap_ex_pc_w =
+      pending_arch_trap_fire_w ? pending_trap_pc_q : pending_system_pc_q;
+  wire [`TRAP_CAUSE_W-1:0] csr_trap_ex_cause_w =
+      pending_arch_trap_fire_w ? pending_trap_cause_q : csr_ecall_cause_w;
+  wire [`XLEN-1:0] csr_trap_ex_tval_w =
+      pending_arch_trap_fire_w ? pending_trap_tval_q : {`XLEN{1'b0}};
+  wire csr_trap_irq_valid_w =
+      stop_pending_q && drain_complete_w && pending_system_q &&
+      pending_system_irq_q;
+  wire csr_mret_valid_w =
+      stop_pending_q && drain_complete_w && pending_system_q &&
+      pending_system_mret_q;
+  wire csr_sret_valid_w =
+      csr_mret_valid_w &&
+      (pending_system_inst_q[31:20] == `SYSTEM_FUNCT12_SRET);
+  wire csr_real_mret_valid_w = csr_mret_valid_w && !csr_sret_valid_w;
+  wire priv_predictor_boundary_w =
+      csr_trap_mem_valid_w || csr_trap_ex_valid_w ||
+      csr_trap_irq_valid_w || csr_mret_valid_w ||
+      pending_system_satp_write_commit_w ||
+      pending_system_sfence_commit_w;
+  wire [`XLEN-1:0] csr_rdata_w;
+  wire csr_illegal_w;
+  wire [`XLEN-1:0] csr_trap_target_w;
+  wire [`XLEN-1:0] csr_mepc_w;
+  wire [`XLEN-1:0] csr_ret_target_w;
+  wire [1:0] csr_priv_mode_w;
+  wire [`XLEN-1:0] csr_mstatus_w;
+  wire [`XLEN-1:0] csr_satp_w;
+  wire head0_csr_illegal_w = head0_csr_raw_w && !head1_csr_probe_w &&
+                             csr_illegal_w;
+  wire head1_csr_illegal_w = head1_csr_probe_w && csr_illegal_w;
+  wire [`XLEN-1:0] pending_branch_rs1_data_w;
+  wire [`XLEN-1:0] pending_branch_rs2_data_w;
+  wire [`XLEN-1:0] pending_jump_rs1_data_w;
+  wire pending_branch_taken_w;
+  wire [`XLEN-1:0] pending_branch_fallthrough_w =
+      pending_branch_next_pc_q;
+  wire [`XLEN-1:0] pending_branch_next_pc_w =
+      pending_branch_taken_w ? pending_branch_target_w :
+                               pending_branch_fallthrough_w;
+  wire pending_branch_misaligned_w =
+      pending_branch_taken_w && pending_branch_target_w[0];
+  wire [`XLEN-1:0] pending_jump_jal_target_w =
+      pending_jump_pc_q + pending_jump_imm_q;
+  wire [`XLEN-1:0] pending_jump_jalr_sum_w =
+      pending_jump_rs1_data_w + pending_jump_imm_q;
+  wire pending_jump_jalr_sum_lsb_unused_w = pending_jump_jalr_sum_w[0];
+  wire [`XLEN-1:0] pending_jump_resolved_target_w =
+      pending_jump_jalr_q ? {pending_jump_jalr_sum_w[`XLEN-1:1], 1'b0} :
+                            pending_jump_jal_target_w;
+  wire pending_jump_misaligned_w =
+      pending_jump_resolved_target_w[0];
+  wire pending_jump_resolve_ready_w = stop_pending_q && pending_jump_q &&
+                                      !pending_jump_dispatched_q &&
+                                      backend_drained_q;
+  wire jalr_prefetch_target_ready_w =
+      pending_jump_dispatched_q || pending_jump_resolve_ready_w;
+  wire [`XLEN-1:0] jalr_prefetch_target_w =
+      pending_jump_dispatched_q ? pending_jump_target_q :
+                                  pending_jump_resolved_target_w;
+  wire jalr_prefetch_match_w =
+      branch_prefetch_active_q && stop_pending_q && pending_jump_q &&
+      pending_jump_jalr_q && jalr_prefetch_target_ready_w &&
+      !pending_jump_misaligned_w &&
+      (branch_prefetch_pc_q == jalr_prefetch_target_w);
+  wire jalr_prefetch_buffer_match_w =
+      jalr_prefetch_match_w && branch_prefetch_buffer_valid_q;
+  wire jalr_prefetch_rsp_match_w =
+      jalr_prefetch_match_w && branch_prefetch_rsp_capture_w;
+  wire jalr_prefetch_hit_available_w =
+      jalr_prefetch_buffer_match_w || jalr_prefetch_rsp_match_w;
+  wire jalr_prefetch_pending_match_w =
+      jalr_prefetch_match_w && !jalr_prefetch_hit_available_w;
+  wire [`XLEN-1:0] jalr_prefetch_hit_pc0_w =
+      jalr_prefetch_rsp_match_w ? fetch_dec0_pc_w :
+                                  branch_prefetch_buf_pc0_q;
+  wire [`XLEN-1:0] jalr_prefetch_hit_pc1_w =
+      jalr_prefetch_rsp_match_w ? fetch_dec1_pc_w :
+                                  branch_prefetch_buf_pc1_q;
+  wire [`XLEN-1:0] jalr_prefetch_hit_next_pc0_w =
+      jalr_prefetch_rsp_match_w ? fetch_dec0_next_pc_w :
+                                  branch_prefetch_buf_next_pc0_q;
+  wire [`XLEN-1:0] jalr_prefetch_hit_next_pc1_w =
+      jalr_prefetch_rsp_match_w ? fetch_dec1_next_pc_w :
+                                  branch_prefetch_buf_next_pc1_q;
+  wire [`XLEN-1:0] jalr_prefetch_hit_packet_next_pc_w =
+      jalr_prefetch_rsp_match_w ? fetch_rsp_packet_next_pc_w :
+                                  branch_prefetch_buf_packet_next_pc_q;
+  wire [`INST_W-1:0] jalr_prefetch_hit_inst0_w =
+      jalr_prefetch_rsp_match_w ? fetch_dec0_inst_w :
+                                  branch_prefetch_buf_inst0_q;
+  wire [`INST_W-1:0] jalr_prefetch_hit_inst1_w =
+      jalr_prefetch_rsp_match_w ? fetch_dec1_inst_w :
+                                  branch_prefetch_buf_inst1_q;
+  wire [1:0] jalr_prefetch_hit_resp0_w =
+      jalr_prefetch_rsp_match_w ? fetch_rsp_resp0_i :
+                                  branch_prefetch_buf_resp0_q;
+  wire [1:0] jalr_prefetch_hit_resp1_w =
+      jalr_prefetch_rsp_match_w ? fetch_dec1_resp_w :
+                                  branch_prefetch_buf_resp1_q;
+  wire jalr_btb_update_w =
+      pending_jump_resolve_ready_w && pending_jump_jalr_q &&
+      !pending_jump_misaligned_w;
+
+  OooJalrBtb u_jalr_btb (
+    .clk(clk),
+    .rst(rst),
+    .clear_i(flush_i || pending_system_satp_write_commit_w),
+    .lookup_enable_i(pending_jump_jalr_btb_lookup_w),
+    .lookup_pc_i(pending_jump_pc_q),
+    .lookup_idx_o(pending_jump_jalr_btb_idx_w),
+    .lookup_entry_hit_o(pending_jump_jalr_btb_entry_hit_w),
+    .lookup_hit_o(pending_jump_jalr_btb_hit_w),
+    .lookup_target_o(pending_jump_jalr_btb_target_w),
+    .update_valid_i(jalr_btb_update_w),
+    .update_pc_i(pending_jump_pc_q),
+    .update_target_i(pending_jump_resolved_target_w)
+  );
+
+  wire pending_jump_return_w =
+      pending_jump_q && pending_jump_jalr_q && !ras_empty_w &&
+      (pending_jump_inst_q[11:7] == 5'd0) &&
+      ((pending_jump_rs1_q == 5'd1) || (pending_jump_rs1_q == 5'd5)) &&
+      (pending_jump_imm_q == {`XLEN{1'b0}});
+  wire pending_jump_return_fire_w =
+      pending_jump_return_w && pending_jump_resolve_ready_w &&
+      jump_dispatch_fire_w && !pending_jump_misaligned_w;
+  wire pending_jump_call_w =
+      pending_jump_q &&
+      ((pending_jump_inst_q[11:7] == 5'd1) ||
+       (pending_jump_inst_q[11:7] == 5'd5));
+  wire pending_jump_call_fire_w =
+      pending_jump_call_w && pending_jump_resolve_ready_w &&
+      jump_dispatch_fire_w && !pending_jump_misaligned_w;
+  wire pending_jump_nolink_w =
+      pending_jump_q && pending_jump_jalr_q && !pending_jump_return_w &&
+      (pending_jump_inst_q[11:7] == 5'd0);
+  wire pending_jump_nolink_commit_w =
+      pending_jump_nolink_w && pending_jump_resolve_ready_w &&
+      !pending_jump_misaligned_w && commit_ready_i;
+  wire pending_jump_redirect_after_dispatch_w =
+      pending_jump_resolve_ready_w && !pending_jump_misaligned_w &&
+      !pending_jump_nolink_w && jump_dispatch_fire_w;
+  wire pending_control_ready_w = !pending_branch_q || commit_ready_i;
+  wire synth_lane1_ret_branch_commit0_w =
+      synth_lane1_ret_pending_q && !synth_lane1_ret_branch_seen_q &&
+      core_commit0_valid_w &&
+      (core_commit0_pc_w == synth_lane1_ret_branch_pc_q);
+  wire synth_lane1_ret_branch_commit1_w =
+      synth_lane1_ret_pending_q && !synth_lane1_ret_branch_seen_q &&
+      core_commit1_valid_w &&
+      (core_commit1_pc_w == synth_lane1_ret_branch_pc_q);
+  wire return_cont_optional_w = dispatch0_branch_w && return_cont_match_w;
+  wire branch_target_cache_hit_w;
+  wire [BRANCH_TARGET_CACHE_INDEX_W-1:0] branch_target_cache_idx_unused_w;
+  wire [`XLEN-1:0] branch_target_cache_target_pc_w;
+  wire [`XLEN-1:0] branch_target_cache_next_pc_w;
+  wire [`INST_W-1:0] branch_target_cache_inst_w;
+
+  function branch_prefetch_plain_uop_safe;
+    input [`CTRL_BUS_W-1:0] ctrl;
+    begin
+      branch_prefetch_plain_uop_safe =
+          ctrl[`CTRL_VALID_BIT] &&
+          !ctrl[`CTRL_ILLEGAL_BIT] &&
+          ctrl[`CTRL_NEED_EXEC_BIT] &&
+          !ctrl[`CTRL_BRANCH_BIT] &&
+          !ctrl[`CTRL_JAL_BIT] &&
+          !ctrl[`CTRL_JALR_BIT] &&
+          !ctrl[`CTRL_STORE_BIT] &&
+          !ctrl[`CTRL_ECALL_BIT] &&
+          !ctrl[`CTRL_EBREAK_BIT] &&
+          !ctrl[`CTRL_SYSTEM_BIT] &&
+          !ctrl[`CTRL_CSR_BIT] &&
+          !ctrl[`CTRL_FENCE_BIT] &&
+          !ctrl[`CTRL_MISC_MEM_BIT] &&
+          !ctrl[`CTRL_MRET_BIT] &&
+          !ctrl[`CTRL_WFI_BIT] &&
+          !ctrl[`CTRL_SFENCE_VMA_BIT] &&
+          !ctrl[`CTRL_SRET_BIT] &&
+          !ctrl[`CTRL_AMO_BIT];
+    end
+  endfunction
+
+  wire branch_target_store_fire_w =
+      (mem_req_valid_o && mem_req_ready_i && mem_req_write_o) ||
+      (mem1_req_valid_o && mem1_req_ready_i && mem1_req_write_o);
+  wire [`XLEN-1:0] branch_target_store_addr_w =
+      (mem_req_valid_o && mem_req_ready_i && mem_req_write_o) ?
+      mem_req_addr_o : mem1_req_addr_o;
+  wire branch_target_cache_invalidate_all_w =
+      (core_commit0_valid_w &&
+       (core_commit0_inst_w[6:0] == `OPCODE_MISC_MEM)) ||
+      (core_commit1_valid_w &&
+       (core_commit1_inst_w[6:0] == `OPCODE_MISC_MEM));
+
+  OooBranchTargetCache #(
+    .INDEX_W(BRANCH_TARGET_CACHE_INDEX_W)
+  ) u_branch_target_cache (
+    .clk(clk),
+    .rst(rst),
+    .clear_i(flush_i || pending_system_satp_write_commit_w),
+    .lookup_branch_pc_i(head_pc_w),
+    .lookup_target_pc_i(direct_branch_target_w),
+    .lookup_idx_o(branch_target_cache_idx_unused_w),
+    .lookup_hit_o(branch_target_cache_hit_w),
+    .lookup_target_pc_o(branch_target_cache_target_pc_w),
+    .lookup_next_pc_o(branch_target_cache_next_pc_w),
+    .lookup_inst_o(branch_target_cache_inst_w),
+    .invalidate_all_i(branch_target_cache_invalidate_all_w),
+    .store_fire_i(branch_target_store_fire_w),
+    .store_addr_i(branch_target_store_addr_w),
+    .capture_valid_i(branch_target_cache_capture_w),
+    .capture_branch_pc_i(branch_target_capture_branch_pc_q),
+    .capture_target_pc_i(branch_target_capture_target_pc_q),
+    .capture_next_pc_i(fetch_dec0_next_pc_w),
+    .capture_inst_i(fetch_dec0_inst_w)
+  );
+
+  wire branch_fallthrough_outstanding_match_w =
+      outstanding_valid_q && (outstanding_pc_q == head_next_pc1_w);
+  /* verilator lint_off UNOPTFLAT */
+  wire return_cont_attempt_w =
+      direct_branch0_lane1_ret_w &&
+      !ctrl_commit_valid_q && commit_ready_i &&
+      return_cont_match_w &&
+      core_commit0_valid_w && !core_commit1_valid_w &&
+      (rob_count_o == {{(ROB_COUNT_W-1){1'b0}}, 1'b1});
+  wire branch_target_append_candidate_w =
+      dispatch0_branch_w && branch_target_cache_hit_w;
+  // FIFO 头包后面若已有旧取指响应在路上，直接追加落空 lane1 可能把同一窗口
+  // 重复入队；但当前包来自 bypass response 时，这个 response 本身会在 flush
+  // 周期被消费，不属于旧响应，可以安全追加 lane1。
+  wire branch_fallthrough_append_safe_w =
+      branch_fallthrough_safe_w &&
+      (!outstanding_valid_q || fetch_rsp_dispatch_bypass_w ||
+       branch_fallthrough_outstanding_match_w);
+  wire branch_fallthrough_append_candidate_w =
+      dispatch0_branch_w && branch_fallthrough_append_safe_w;
+  wire branch_target_append_attempt_w =
+      branch_target_append_candidate_w &&
+      direct_branch0_fire_w && direct_branch_resolve_redirect_w &&
+      direct_branch_resolve_taken_w;
+  wire branch_fallthrough_append_attempt_w =
+      branch_fallthrough_append_candidate_w &&
+      direct_branch0_fire_w && direct_branch_resolve_redirect_w &&
+      !direct_branch_resolve_taken_w;
+  wire synth_lane1_branch_append_w =
+      return_cont_attempt_w && dispatch1_ready_w;
+  wire branch_target_append_w =
+      branch_target_append_attempt_w && dispatch1_ready_w;
+  wire branch_fallthrough_append_w =
+      branch_fallthrough_append_attempt_w && dispatch1_ready_w;
+  wire return_cont_dispatch_w = synth_lane1_branch_append_w;
+  wire branch_target_dispatch_w = branch_target_append_w;
+  wire branch_fallthrough_dispatch_w = branch_fallthrough_append_w;
+  wire branch_fallthrough_keep_outstanding_w =
+      branch_fallthrough_dispatch_w && branch_fallthrough_outstanding_match_w &&
+      !fetch_rsp_fire_w;
+  wire branch_fallthrough_capture_rsp_w =
+      branch_fallthrough_dispatch_w && branch_fallthrough_outstanding_match_w &&
+      fetch_rsp_fire_w;
+  wire branch_prefetch_dispatch0_safe_w =
+      (branch_prefetch_buf_resp0_q == 2'b00) &&
+      branch_prefetch_plain_uop_safe(branch_prefetch0_ctrl_w);
+  wire branch_prefetch_dispatch1_safe_w =
+      (branch_prefetch_buf_resp1_q == 2'b00) &&
+      branch_prefetch_plain_uop_safe(branch_prefetch1_ctrl_w);
+  wire branch_prefetch_rsp_raw_match_w =
+      branch_prefetch_active_q && !branch_prefetch_buffer_valid_q &&
+      stop_pending_q && pending_branch_q && pending_branch_dispatched_q &&
+      fetch_rsp_valid_i &&
+      (branch_prefetch_pc_q == core_branch_resolve_next_pc_w);
+  wire branch_prefetch_rsp_dispatch0_safe_w =
+      (fetch_rsp_resp0_i == 2'b00) &&
+      branch_prefetch_plain_uop_safe(branch_target_capture_ctrl_w);
+  wire branch_prefetch_rsp_dispatch1_safe_w =
+      (fetch_dec1_resp_w == 2'b00) &&
+      branch_prefetch_plain_uop_safe(branch_prefetch_rsp1_ctrl_w);
+  wire branch_prefetch_dispatch_buffer_w =
+      !direct_frontend_flush_w && stop_pending_q && pending_branch_q &&
+      pending_branch_dispatched_q && branch_resolve_pending_match_w &&
+      !branch_spec_active_q && !core_branch_resolve_misaligned_w &&
+      branch_prefetch_buffer_match_w &&
+      branch_prefetch_dispatch0_safe_w &&
+      branch_prefetch_dispatch1_safe_w;
+  wire branch_prefetch_dispatch_rsp_w =
+      !direct_frontend_flush_w && stop_pending_q && pending_branch_q &&
+      pending_branch_dispatched_q && branch_resolve_pending_match_w &&
+      !branch_spec_active_q && !core_branch_resolve_misaligned_w &&
+      branch_prefetch_rsp_raw_match_w &&
+      branch_prefetch_rsp_dispatch0_safe_w &&
+      branch_prefetch_rsp_dispatch1_safe_w;
+  wire branch_prefetch_dispatch_attempt_w = 1'b0;
+  wire branch_prefetch_dispatch_fire_w = 1'b0;
+  wire branch_prefetch_hit_to_fifo_w =
+      branch_prefetch_hit_available_w && !branch_prefetch_dispatch_fire_w;
+  wire dispatch1_optional_w =
+      return_cont_optional_w || branch_target_append_candidate_w ||
+      branch_fallthrough_append_candidate_w;
+  /* verilator lint_on UNOPTFLAT */
+  wire synth_lane1_branch_drop_match_w =
+      synth_lane1_branch_drop_pending_q &&
+      core_commit0_valid_w &&
+      (core_commit0_pc_w == synth_lane1_branch_drop_pc_q);
+  wire synth_lane1_ret_drop_branch_w =
+      synth_lane1_branch_drop_match_w &&
+      synth_lane1_ret_pending_q && synth_lane1_ret_branch_seen_q &&
+      !ctrl_commit_valid_q && commit_ready_i;
+  wire synth_lane1_ret_before_core0_w =
+      synth_lane1_ret_pending_q && synth_lane1_ret_branch_seen_q &&
+      !synth_lane1_branch_drop_match_w &&
+      !ctrl_commit_valid_q && commit_ready_i;
+  wire synth_lane1_ret_after_core0_w =
+      !ctrl_commit_valid_q && synth_lane1_ret_branch_commit0_w;
+  wire synth_lane1_ret_commit_w =
+      synth_lane1_ret_before_core0_w ||
+      synth_lane1_ret_after_core0_w ||
+      synth_lane1_ret_drop_branch_w;
+  wire backend_drained_w = (rob_count_o == {ROB_COUNT_W{1'b0}}) &&
+                           (issue_count_o == {ISSUE_COUNT_W{1'b0}}) &&
+                           (core_retire_count_w == 2'b00) &&
+                           !synth_lane1_ret_pending_q &&
+                           !synth_lane1_branch_drop_pending_q;
+  wire direct_branch_spec_start_w = 1'b0;
+  wire branch_bpu_pending0_capture_w =
+      !direct_frontend_flush_w && can_run_w && fifo_has_packet_w &&
+      dispatch0_branch_w && !direct_branch0_dispatch_valid_w;
+  wire branch_bpu_pending1_capture_w =
+      !direct_frontend_flush_w && can_run_w && fifo_has_packet_w &&
+      dispatch1_barrier_fire_w && head1_branch_raw_w;
+  wire branch_bpu_lookup_event_w =
+      direct_branch_fire_w || branch_bpu_pending0_capture_w ||
+      branch_bpu_pending1_capture_w;
+  wire branch_bpu_lookup_bht_valid_w =
+      (direct_branch_fire_w ? direct_branch_bht_valid_w : 1'b0) |
+      (branch_bpu_pending0_capture_w ? head0_branch_bht_valid_w : 1'b0) |
+      (branch_bpu_pending1_capture_w ? head1_branch_bht_valid_w : 1'b0);
+  wire jump_dispatch_valid_w = pending_jump_resolve_ready_w &&
+                               !pending_jump_nolink_w &&
+                               !pending_jump_misaligned_w;
+  wire pending_lane1_ret_dispatch_valid_w = pending_lane1_ret_q;
+  wire pending_lane1_ret_fire_w =
+      pending_lane1_ret_dispatch_valid_w && dispatch0_ready_w;
+  wire system_csr_dispatch_valid_w =
+      stop_pending_q && pending_system_q && pending_system_csr_q &&
+      !pending_system_dispatched_q && backend_drained_q;
+  wire system_csr_dispatch_fire_w =
+      system_csr_dispatch_valid_w && dispatch0_ready_w;
+  wire pending_mem_resolve_ready_w = stop_pending_q && pending_mem_q &&
+                                     !pending_mem_dispatched_q &&
+                                     backend_drained_q;
+  wire mem_dispatch_valid_w = pending_mem_resolve_ready_w;
+  wire pending_branch_commit_resolve_w =
+      !direct_frontend_flush_w && stop_pending_q && backend_drained_w &&
+      pending_branch_q && pending_branch_dispatched_q &&
+      !branch_resolve_pending_match_w && !branch_spec_active_q &&
+      !branch_spec_checkpoint_pending_q && !pending_jump_q &&
+      !pending_mem_q && !pending_fp_q && !pending_arch_trap_q &&
+      !pending_system_q;
+  wire pending_branch_resolve_wait_w =
+      pending_branch_q && pending_branch_dispatched_q &&
+      !branch_resolve_pending_match_w && !pending_branch_commit_resolve_w;
+  wire pending_replay_wait_w =
+      pending_branch_resolve_wait_w ||
+      (pending_jump_q && !pending_jump_dispatched_q) ||
+      (pending_mem_q && !pending_mem_dispatched_q) ||
+      (pending_fp_q && !pending_fp_mem_done_q) ||
+      (pending_system_q && pending_system_csr_q);
+  wire drain_complete_w = stop_pending_q && backend_drained_w &&
+                          pending_control_ready_w &&
+                          !pending_replay_wait_w;
+  wire branch_bpu_direct_update_w = direct_branch_resolve_valid_w;
+  wire branch_bpu_pending_update_w =
+      stop_pending_q && pending_branch_q && pending_branch_dispatched_q &&
+      branch_resolve_pending_match_w;
+  wire branch_bpu_drained_update_w =
+      stop_pending_q && drain_complete_w &&
+      pending_branch_q && !pending_branch_dispatched_q;
+  wire branch_bpu_commit_update_w = pending_branch_commit_resolve_w;
+  wire branch_bpu_update_valid_w =
+      branch_bpu_direct_update_w || branch_bpu_pending_update_w ||
+      branch_bpu_drained_update_w || branch_bpu_commit_update_w;
+  wire branch_bpu_pending_like_update_w =
+      branch_bpu_pending_update_w || branch_bpu_drained_update_w ||
+      branch_bpu_commit_update_w;
+  wire branch_bpu_update_taken_w =
+      branch_bpu_pending_update_w ?
+          (!core_branch_resolve_misaligned_w &&
+           (core_branch_resolve_next_pc_w == pending_branch_target_w)) :
+      (branch_bpu_drained_update_w || branch_bpu_commit_update_w) ?
+          pending_branch_taken_w :
+      direct_branch_resolve_taken_w;
+  wire branch_bpu_update_pred_taken_w =
+      branch_bpu_pending_like_update_w ? pending_branch_pred_taken_q :
+                                         direct_branch_predict_taken_w;
+  wire branch_bpu_update_correct_w =
+      branch_bpu_update_pred_taken_w == branch_bpu_update_taken_w;
+  wire [`XLEN-1:0] branch_bpu_update_pc_w =
+      branch_bpu_pending_like_update_w ? pending_branch_pc_q :
+                                         direct_branch_pc_w;
+  wire [`BPU_BHT_INDEX_W-1:0] branch_bpu_update_bht_idx_w =
+      branch_bpu_pending_like_update_w ? pending_branch_bht_idx_q :
+                                         direct_branch_bht_idx_w;
+
+  OooBranchDirectionPredictor u_branch_direction_predictor (
+    .clk(clk),
+    .rst(rst),
+    .clear_i(flush_i),
+    .lookup0_pc_i(head_pc_w),
+    .lookup0_imm_i(head0_imm_w),
+    .lookup0_bht_idx_o(head0_branch_bht_idx_w),
+    .lookup0_bht_valid_o(head0_branch_bht_valid_w),
+    .lookup0_pred_taken_o(head0_branch_pred_taken_w),
+    .lookup0_predict_strong_o(head0_branch_predict_strong_w),
+    .lookup1_pc_i(head_pc1_w),
+    .lookup1_imm_i(head1_imm_w),
+    .lookup1_bht_idx_o(head1_branch_bht_idx_w),
+    .lookup1_bht_valid_o(head1_branch_bht_valid_w),
+    .lookup1_pred_taken_o(head1_branch_pred_taken_w),
+    .lookup1_predict_strong_o(head1_branch_predict_strong_w),
+    .update_valid_i(branch_bpu_update_valid_w),
+    .update_pc_i(branch_bpu_update_pc_w),
+    .update_bht_idx_i(branch_bpu_update_bht_idx_w),
+    .update_taken_i(branch_bpu_update_taken_w)
+  );
+
+  wire core_checkpoint_capture_w = branch_spec_checkpoint_capture_w;
+  wire core_checkpoint_restore_w = branch_spec_restore_w;
+  wire core_checkpoint_quiesce_w =
+      branch_spec_checkpoint_pending_q && !core_checkpoint_capture_w;
+  wire core_mem_issue_block_w = branch_spec_active_q;
+  wire pending_fp_gpr_commit_w =
+      !direct_frontend_flush_w && stop_pending_q && drain_complete_w &&
+      pending_fp_q && pending_fp_gpr_write_q;
+  wire core_local_flush_w = flush_i || core_trap_flush_q || core_serial_flush_q;
+  assign mem_flush_o = core_local_flush_w || checkpoint_mem_flush_q;
+  wire core_commit_ready_w =
+      commit_ready_i && !core_trap_flush_q && !core_serial_flush_q &&
+      !branch_spec_checkpoint_pending_q &&
+      !branch_spec_active_q && !core_checkpoint_restore_w;
+  wire core_commit1_block_w =
+      !ctrl_commit_valid_q && synth_lane1_ret_pending_q &&
+      !synth_lane1_branch_drop_match_w &&
+      (synth_lane1_ret_branch_seen_q ||
+       synth_lane1_ret_branch_commit0_w);
+  wire core_dispatch0_valid_w =
+      branch_prefetch_dispatch_attempt_w ||
+      pending_lane1_ret_dispatch_valid_w ||
+      system_csr_dispatch_valid_w ||
+      frontend_dispatch_to_backend_valid_w ||
+      direct_branch0_dispatch_valid_w ||
+      direct_jal0_dispatch_valid_w ||
+      direct_ret0_dispatch_valid_w ||
+      lane1_barrier_dispatch0_valid_w ||
+      jump_dispatch_valid_w || mem_dispatch_valid_w;
+  /* verilator lint_off UNOPTFLAT */
+  wire core_dispatch1_valid_w =
+      branch_prefetch_dispatch_attempt_w ||
+      (!pending_lane1_ret_dispatch_valid_w &&
+      (return_cont_attempt_w || branch_target_append_attempt_w ||
+       branch_fallthrough_append_attempt_w ||
+       frontend_dispatch_to_backend_valid_w));
+  /* verilator lint_on UNOPTFLAT */
+  wire core_dispatch0_fire_w = core_dispatch0_valid_w && dispatch0_ready_w;
+  wire [`XLEN-1:0] core_dispatch0_pc_w =
+      branch_prefetch_dispatch_buffer_w ? branch_prefetch_buf_pc0_q :
+      branch_prefetch_dispatch_rsp_w ? fetch_dec0_pc_w :
+      pending_lane1_ret_dispatch_valid_w ? pending_lane1_ret_pc_q :
+      system_csr_dispatch_valid_w ? pending_system_pc_q :
+      jump_dispatch_valid_w ? pending_jump_pc_q :
+      mem_dispatch_valid_w ? pending_mem_pc_q :
+      head_pc_w;
+  wire [`XLEN-1:0] core_dispatch0_next_pc_w =
+      branch_prefetch_dispatch_buffer_w ? branch_prefetch_buf_next_pc0_q :
+      branch_prefetch_dispatch_rsp_w ? fetch_dec0_next_pc_w :
+      pending_lane1_ret_dispatch_valid_w ? pending_lane1_ret_next_pc_q :
+      system_csr_dispatch_valid_w ? pending_system_next_pc_q :
+      jump_dispatch_valid_w ? pending_jump_next_pc_q :
+      mem_dispatch_valid_w ? pending_mem_next_pc_q :
+      direct_jal0_dispatch_valid_w ? head_next_pc0_w :
+      direct_ret0_dispatch_valid_w ? direct_ret_target_w :
+      head_next_pc0_w;
+  wire [`INST_W-1:0] core_dispatch0_inst_w =
+      branch_prefetch_dispatch_buffer_w ? branch_prefetch_buf_inst0_q :
+      branch_prefetch_dispatch_rsp_w ? fetch_dec0_inst_w :
+      pending_lane1_ret_dispatch_valid_w ? pending_lane1_ret_inst_q :
+      system_csr_dispatch_valid_w ? pending_system_inst_q :
+      jump_dispatch_valid_w ? pending_jump_inst_q :
+      mem_dispatch_valid_w ? pending_mem_inst_q :
+      head_inst0_w;
+  wire [`XLEN-1:0] core_dispatch1_pc_w =
+      branch_prefetch_dispatch_buffer_w ? branch_prefetch_buf_pc1_q :
+      branch_prefetch_dispatch_rsp_w ? fetch_dec1_pc_w :
+      return_cont_attempt_w ? return_cont_pc_q :
+      branch_target_append_attempt_w ?
+      branch_target_cache_target_pc_w :
+                                       head_pc1_w;
+  wire [`XLEN-1:0] core_dispatch1_next_pc_w =
+      branch_prefetch_dispatch_buffer_w ? branch_prefetch_buf_next_pc1_q :
+      branch_prefetch_dispatch_rsp_w ? fetch_dec1_next_pc_w :
+      return_cont_attempt_w ? return_cont_next_pc_q :
+      branch_target_append_attempt_w ?
+      branch_target_cache_next_pc_w :
+      direct_jal1_fire_w ? head_next_pc1_w :
+      direct_ret1_fire_w ? direct_ret_target_w :
+                                        head_next_pc1_w;
+  wire [`INST_W-1:0] core_dispatch1_inst_w =
+      branch_prefetch_dispatch_buffer_w ? branch_prefetch_buf_inst1_q :
+      branch_prefetch_dispatch_rsp_w ? fetch_dec1_inst_w :
+      return_cont_attempt_w ? return_cont_inst_q :
+      branch_target_append_attempt_w ?
+      branch_target_cache_inst_w :
+                                       head_inst1_w;
+  wire jump_dispatch_fire_w = jump_dispatch_valid_w && dispatch0_ready_w;
+  wire mem_dispatch_fire_w = mem_dispatch_valid_w && dispatch0_ready_w;
+  wire [`XLEN-1:0] core_dispatch0_csr_rdata_w =
+      system_csr_dispatch_valid_w ? pending_system_csr_rdata_q :
+                                    {`XLEN{1'b0}};
+
+  assign fetch_req_valid_o =
+      !fetch_request_blocked_by_trap_w &&
+      (redirect_fetch_req_valid_w ||
+       branch_prefetch_req_valid_w ||
+       can_issue_request_w);
+  assign fetch_req_pc_o = fetch_req_pc_w;
+  assign fetch_rsp_ready_o = fetch_rsp_can_enqueue_w ||
+                             fetch_rsp_dispatch_bypass_w ||
+                             fetch_rsp_can_drop_w || direct_fetch_drop_w;
+
+  function [`XLEN-1:0] arch_gpr;
+    input [`XLEN * `REG_NUM - 1:0] gprs;
+    input [`REG_ADDR_W-1:0] idx;
+    begin
+      arch_gpr = gprs[idx * `XLEN +: `XLEN];
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_i_imm;
+    input [`INST_W-1:0] inst;
+    begin
+      fp_i_imm = {{(`XLEN-12){inst[31]}}, inst[31:20]};
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_s_imm;
+    input [`INST_W-1:0] inst;
+    begin
+      fp_s_imm = {{(`XLEN-12){inst[31]}}, inst[31:25], inst[11:7]};
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_aligned_addr;
+    input [`XLEN-1:0] addr;
+    begin
+      fp_aligned_addr = addr & {{(`XLEN-`XLEN_BYTE_W){1'b1}}, {`XLEN_BYTE_W{1'b0}}};
+    end
+  endfunction
+
+  function [`STRB_W-1:0] fp_store_wstrb;
+    input [`XLEN-1:0] addr;
+    input is_double;
+    begin
+      fp_store_wstrb = is_double ? {`STRB_W{1'b1}} :
+                       ({{(`STRB_W-4){1'b0}}, 4'b1111} << addr[`XLEN_BYTE_W-1:0]);
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_store_wdata;
+    input [`XLEN-1:0] addr;
+    input [`XLEN-1:0] value;
+    input is_double;
+    begin
+      fp_store_wdata = is_double ? value :
+                       ({{32{1'b0}}, value[31:0]} << {addr[`XLEN_BYTE_W-1:0], 3'b000});
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_move_to_gpr_value;
+    input [`XLEN-1:0] value;
+    input is_double;
+    begin
+      fp_move_to_gpr_value = is_double ? value :
+                             {{32{value[31]}}, value[31:0]};
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_class_s_value;
+    input [31:0] value;
+    reg sign;
+    reg [7:0] exp;
+    reg [22:0] frac;
+    reg [9:0] class_bits;
+    begin
+      sign = value[31];
+      exp = value[30:23];
+      frac = value[22:0];
+      class_bits = 10'b0;
+      if (exp == 8'hff) begin
+        if (frac == 23'b0) begin
+          class_bits[sign ? 0 : 7] = 1'b1;
+        end else begin
+          class_bits[frac[22] ? 9 : 8] = 1'b1;
+        end
+      end else if (exp == 8'h00) begin
+        if (frac == 23'b0) begin
+          class_bits[sign ? 3 : 4] = 1'b1;
+        end else begin
+          class_bits[sign ? 2 : 5] = 1'b1;
+        end
+      end else begin
+        class_bits[sign ? 1 : 6] = 1'b1;
+      end
+      fp_class_s_value = {{(`XLEN-10){1'b0}}, class_bits};
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_class_d_value;
+    input [`XLEN-1:0] value;
+    reg sign;
+    reg [10:0] exp;
+    reg [51:0] frac;
+    reg [9:0] class_bits;
+    begin
+      sign = value[63];
+      exp = value[62:52];
+      frac = value[51:0];
+      class_bits = 10'b0;
+      if (exp == 11'h7ff) begin
+        if (frac == 52'b0) begin
+          class_bits[sign ? 0 : 7] = 1'b1;
+        end else begin
+          class_bits[frac[51] ? 9 : 8] = 1'b1;
+        end
+      end else if (exp == 11'h000) begin
+        if (frac == 52'b0) begin
+          class_bits[sign ? 3 : 4] = 1'b1;
+        end else begin
+          class_bits[sign ? 2 : 5] = 1'b1;
+        end
+      end else begin
+        class_bits[sign ? 1 : 6] = 1'b1;
+      end
+      fp_class_d_value = {{(`XLEN-10){1'b0}}, class_bits};
+    end
+  endfunction
+
+  function fp_round_increment;
+    input sign;
+    input [2:0] rm;
+    input lsb;
+    input guard;
+    input sticky;
+    begin
+      case (rm)
+        3'b000,
+        3'b111: fp_round_increment = guard && (sticky || lsb);
+        3'b001: fp_round_increment = 1'b0;
+        3'b010: fp_round_increment = sign && (guard || sticky);
+        3'b011: fp_round_increment = !sign && (guard || sticky);
+        3'b100: fp_round_increment = guard;
+        default: fp_round_increment = guard && (sticky || lsb);
+      endcase
+    end
+  endfunction
+
+  function [5:0] fp_u64_msb_index;
+    input [63:0] value;
+    integer bit_idx;
+    begin
+      fp_u64_msb_index = 6'd0;
+      for (bit_idx = 0; bit_idx < 64; bit_idx = bit_idx + 1) begin
+        if (value[bit_idx])
+          fp_u64_msb_index = bit_idx[5:0];
+      end
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_int_to_d_value;
+    input [`XLEN-1:0] value;
+    input [1:0] src_fmt;
+    input [2:0] rm;
+    reg is_signed;
+    reg is_word;
+    reg sign;
+    reg [63:0] src_ext;
+    reg [63:0] mag;
+    reg [5:0] msb_idx;
+    reg [10:0] exp_bits;
+    reg [63:0] shifted_mag;
+    reg [52:0] mant53;
+    reg [53:0] mant_round_ext;
+    reg [51:0] frac_bits;
+    reg guard;
+    reg sticky;
+    reg inc;
+    integer shift_count;
+    integer bit_idx;
+    begin
+      is_signed = (src_fmt == 2'b00) || (src_fmt == 2'b10);
+      is_word = (src_fmt == 2'b00) || (src_fmt == 2'b01);
+      if (is_word) begin
+        src_ext = is_signed ? {{32{value[31]}}, value[31:0]} :
+                              {32'b0, value[31:0]};
+      end else begin
+        src_ext = value;
+      end
+      sign = is_signed && src_ext[63];
+      mag = sign ? (~src_ext + 64'd1) : src_ext;
+      if (mag == 64'b0) begin
+        fp_int_to_d_value = 64'b0;
+      end else begin
+        msb_idx = fp_u64_msb_index(mag);
+        exp_bits = 11'd1023 + {5'b0, msb_idx};
+        if (msb_idx <= 6'd52) begin
+          shift_count = 52 - msb_idx;
+          shifted_mag = mag << shift_count;
+          frac_bits = shifted_mag[51:0];
+        end else begin
+          shift_count = msb_idx - 52;
+          mant53 = mag >> shift_count;
+          guard = mag[shift_count - 1];
+          sticky = 1'b0;
+          for (bit_idx = 0; bit_idx < 64; bit_idx = bit_idx + 1) begin
+            if ((bit_idx < (shift_count - 1)) && mag[bit_idx])
+              sticky = 1'b1;
+          end
+          inc = fp_round_increment(sign, rm, mant53[0], guard, sticky);
+          mant_round_ext = {1'b0, mant53} + {{53{1'b0}}, inc};
+          if (mant_round_ext[53]) begin
+            exp_bits = exp_bits + 11'd1;
+            frac_bits = mant_round_ext[52:1];
+          end else begin
+            frac_bits = mant_round_ext[51:0];
+          end
+        end
+        // 当前串行转换先覆盖 Ubuntu userland 常见 exact/RTZ 路径；全 fflags 后续再接 CSR。
+        fp_int_to_d_value = {sign, exp_bits, frac_bits};
+      end
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_d_to_int_value;
+    input [`XLEN-1:0] value;
+    input [1:0] dst_fmt;
+    input [2:0] rm;
+    reg is_signed;
+    reg is_word;
+    reg sign;
+    reg [10:0] exp;
+    reg [51:0] frac;
+    reg [52:0] sig;
+    reg [64:0] sig_ext;
+    reg [64:0] mag_ext;
+    reg [64:0] int_part_ext;
+    reg [64:0] max_pos_mag;
+    reg [64:0] max_neg_mag;
+    reg [63:0] sat_pos_value;
+    reg [63:0] sat_neg_value;
+    reg [63:0] signed_value;
+    reg guard;
+    reg sticky;
+    reg inc;
+    integer unbiased_exp;
+    integer shift_count;
+    integer bit_idx;
+    begin
+      is_signed = (dst_fmt == 2'b00) || (dst_fmt == 2'b10);
+      is_word = (dst_fmt == 2'b00) || (dst_fmt == 2'b01);
+      sign = value[63];
+      exp = value[62:52];
+      frac = value[51:0];
+      if (is_word) begin
+        max_pos_mag = is_signed ? 65'h0000000007fffffff :
+                                  65'h000000000ffffffff;
+        max_neg_mag = is_signed ? 65'h00000000080000000 :
+                                  65'h00000000000000000;
+        sat_pos_value = is_signed ? 64'h000000007fffffff :
+                                    64'h00000000ffffffff;
+        sat_neg_value = is_signed ? 64'hffffffff80000000 :
+                                    64'h0000000000000000;
+      end else begin
+        max_pos_mag = is_signed ? 65'h07fffffffffffffff :
+                                  65'h0ffffffffffffffff;
+        max_neg_mag = is_signed ? 65'h08000000000000000 :
+                                  65'h00000000000000000;
+        sat_pos_value = is_signed ? 64'h7fffffffffffffff :
+                                    64'hffffffffffffffff;
+        sat_neg_value = is_signed ? 64'h8000000000000000 :
+                                    64'h0000000000000000;
+      end
+
+      if (exp == 11'h7ff) begin
+        if (frac != 52'b0) begin
+          fp_d_to_int_value = sat_pos_value;
+        end else begin
+          fp_d_to_int_value = sign ? sat_neg_value : sat_pos_value;
+        end
+      end else begin
+        if (exp == 11'h000) begin
+          sig = {1'b0, frac};
+          unbiased_exp = -1022;
+        end else begin
+          sig = {1'b1, frac};
+          unbiased_exp = exp - 11'd1023;
+        end
+        sig_ext = {{12{1'b0}}, sig};
+        if (unbiased_exp >= 64) begin
+          mag_ext = 65'h10000000000000000;
+        end else if (unbiased_exp >= 52) begin
+          mag_ext = sig_ext << (unbiased_exp - 52);
+        end else begin
+          shift_count = 52 - unbiased_exp;
+          if (shift_count > 53) begin
+            int_part_ext = 65'b0;
+            guard = 1'b0;
+            sticky = |sig;
+          end else begin
+            int_part_ext = sig_ext >> shift_count;
+            guard = sig[shift_count - 1];
+            sticky = 1'b0;
+            for (bit_idx = 0; bit_idx < 53; bit_idx = bit_idx + 1) begin
+              if ((bit_idx < (shift_count - 1)) && sig[bit_idx])
+                sticky = 1'b1;
+            end
+          end
+          inc = fp_round_increment(sign, rm, int_part_ext[0], guard, sticky);
+          mag_ext = int_part_ext + {{64{1'b0}}, inc};
+        end
+
+        if (!is_signed && sign && (mag_ext != 65'b0)) begin
+          fp_d_to_int_value = sat_neg_value;
+        end else if (sign) begin
+          if (mag_ext > max_neg_mag) begin
+            fp_d_to_int_value = sat_neg_value;
+          end else begin
+            signed_value = ~mag_ext[63:0] + 64'd1;
+            fp_d_to_int_value = is_word ?
+                {{32{signed_value[31]}}, signed_value[31:0]} :
+                signed_value;
+          end
+        end else begin
+          if (mag_ext > max_pos_mag) begin
+            fp_d_to_int_value = sat_pos_value;
+          end else begin
+            fp_d_to_int_value = is_word ? {32'b0, mag_ext[31:0]} :
+                                          mag_ext[63:0];
+          end
+        end
+      end
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_sgnj_value;
+    input [`XLEN-1:0] rs1_value;
+    input [`XLEN-1:0] rs2_value;
+    input is_double;
+    input [2:0] op;
+    reg sign_bit;
+    reg [31:0] single_bits;
+    begin
+      if (is_double) begin
+        case (op)
+          3'b000: sign_bit = rs2_value[63];
+          3'b001: sign_bit = ~rs2_value[63];
+          3'b010: sign_bit = rs1_value[63] ^ rs2_value[63];
+          default: sign_bit = rs1_value[63];
+        endcase
+        fp_sgnj_value = {sign_bit, rs1_value[62:0]};
+      end else begin
+        case (op)
+          3'b000: sign_bit = rs2_value[31];
+          3'b001: sign_bit = ~rs2_value[31];
+          3'b010: sign_bit = rs1_value[31] ^ rs2_value[31];
+          default: sign_bit = rs1_value[31];
+        endcase
+        single_bits = {sign_bit, rs1_value[30:0]};
+        fp_sgnj_value = {32'hffff_ffff, single_bits};
+      end
+    end
+  endfunction
+
+  function fp_is_nan_s_value;
+    input [`XLEN-1:0] value;
+    begin
+      fp_is_nan_s_value =
+          (value[63:32] != 32'hffff_ffff) ||
+          ((value[30:23] == 8'hff) && (value[22:0] != 23'b0));
+    end
+  endfunction
+
+  function fp_is_nan_d_value;
+    input [`XLEN-1:0] value;
+    begin
+      fp_is_nan_d_value =
+          (value[62:52] == 11'h7ff) && (value[51:0] != 52'b0);
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_compare_value;
+    input [`XLEN-1:0] rs1_value;
+    input [`XLEN-1:0] rs2_value;
+    input is_double;
+    input [2:0] op;
+    reg sign1;
+    reg sign2;
+    reg nan_operand;
+    reg both_zero;
+    reg equal_value;
+    reg less_value;
+    reg [62:0] mag1_d;
+    reg [62:0] mag2_d;
+    reg [30:0] mag1_s;
+    reg [30:0] mag2_s;
+    reg result_bit;
+    begin
+      if (is_double) begin
+        sign1 = rs1_value[63];
+        sign2 = rs2_value[63];
+        mag1_d = rs1_value[62:0];
+        mag2_d = rs2_value[62:0];
+        nan_operand = fp_is_nan_d_value(rs1_value) ||
+                      fp_is_nan_d_value(rs2_value);
+        both_zero = (mag1_d == 63'b0) && (mag2_d == 63'b0);
+        equal_value = both_zero || (rs1_value == rs2_value);
+        if (both_zero || equal_value) begin
+          less_value = 1'b0;
+        end else if (sign1 != sign2) begin
+          less_value = sign1;
+        end else if (sign1) begin
+          less_value = mag1_d > mag2_d;
+        end else begin
+          less_value = mag1_d < mag2_d;
+        end
+      end else begin
+        sign1 = rs1_value[31];
+        sign2 = rs2_value[31];
+        mag1_s = rs1_value[30:0];
+        mag2_s = rs2_value[30:0];
+        nan_operand = fp_is_nan_s_value(rs1_value) ||
+                      fp_is_nan_s_value(rs2_value);
+        both_zero = (mag1_s == 31'b0) && (mag2_s == 31'b0);
+        equal_value = both_zero || (rs1_value[31:0] == rs2_value[31:0]);
+        if (both_zero || equal_value) begin
+          less_value = 1'b0;
+        end else if (sign1 != sign2) begin
+          less_value = sign1;
+        end else if (sign1) begin
+          less_value = mag1_s > mag2_s;
+        end else begin
+          less_value = mag1_s < mag2_s;
+        end
+      end
+
+      if (nan_operand) begin
+        result_bit = 1'b0;
+      end else begin
+        case (op)
+          3'b000: result_bit = less_value || equal_value;
+          3'b001: result_bit = less_value;
+          3'b010: result_bit = equal_value;
+          default: result_bit = 1'b0;
+        endcase
+      end
+      // FCMP 结果位先闭合，异常标志后续接入 fflags CSR 聚合路径。
+      fp_compare_value = {{(`XLEN-1){1'b0}}, result_bit};
+    end
+  endfunction
+
+  function [55:0] fp_shift_right_jam_56;
+    input [55:0] value;
+    input [6:0] shamt;
+    reg sticky;
+    integer bit_idx;
+    begin
+      if (shamt == 7'd0) begin
+        fp_shift_right_jam_56 = value;
+      end else if (shamt >= 7'd56) begin
+        fp_shift_right_jam_56 = {55'b0, |value};
+      end else begin
+        sticky = 1'b0;
+        for (bit_idx = 0; bit_idx < 56; bit_idx = bit_idx + 1) begin
+          if ((bit_idx < shamt) && value[bit_idx])
+            sticky = 1'b1;
+        end
+        fp_shift_right_jam_56 = value >> shamt;
+        fp_shift_right_jam_56[0] = fp_shift_right_jam_56[0] | sticky;
+      end
+    end
+  endfunction
+
+  function [26:0] fp_shift_right_jam_27;
+    input [26:0] value;
+    input [5:0] shamt;
+    reg sticky;
+    integer bit_idx;
+    begin
+      if (shamt == 6'd0) begin
+        fp_shift_right_jam_27 = value;
+      end else if (shamt >= 6'd27) begin
+        fp_shift_right_jam_27 = {26'b0, |value};
+      end else begin
+        sticky = 1'b0;
+        for (bit_idx = 0; bit_idx < 27; bit_idx = bit_idx + 1) begin
+          if ((bit_idx < shamt) && value[bit_idx])
+            sticky = 1'b1;
+        end
+        fp_shift_right_jam_27 = value >> shamt;
+        fp_shift_right_jam_27[0] = fp_shift_right_jam_27[0] | sticky;
+      end
+    end
+  endfunction
+
+  function [105:0] fp_shift_right_jam_106;
+    input [105:0] value;
+    input [7:0] shamt;
+    reg sticky;
+    integer bit_idx;
+    begin
+      if (shamt == 8'd0) begin
+        fp_shift_right_jam_106 = value;
+      end else if (shamt >= 8'd106) begin
+        fp_shift_right_jam_106 = {105'b0, |value};
+      end else begin
+        sticky = 1'b0;
+        for (bit_idx = 0; bit_idx < 106; bit_idx = bit_idx + 1) begin
+          if ((bit_idx < shamt) && value[bit_idx])
+            sticky = 1'b1;
+        end
+        fp_shift_right_jam_106 = value >> shamt;
+        fp_shift_right_jam_106[0] = fp_shift_right_jam_106[0] | sticky;
+      end
+    end
+  endfunction
+
+  function [47:0] fp_shift_right_jam_48;
+    input [47:0] value;
+    input [5:0] shamt;
+    reg sticky;
+    integer bit_idx;
+    begin
+      if (shamt == 6'd0) begin
+        fp_shift_right_jam_48 = value;
+      end else if (shamt >= 6'd48) begin
+        fp_shift_right_jam_48 = {47'b0, |value};
+      end else begin
+        sticky = 1'b0;
+        for (bit_idx = 0; bit_idx < 48; bit_idx = bit_idx + 1) begin
+          if ((bit_idx < shamt) && value[bit_idx])
+            sticky = 1'b1;
+        end
+        fp_shift_right_jam_48 = value >> shamt;
+        fp_shift_right_jam_48[0] = fp_shift_right_jam_48[0] | sticky;
+      end
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_addsub_d_value;
+    input [`XLEN-1:0] rs1_value;
+    input [`XLEN-1:0] rs2_value;
+    input is_sub;
+    input [2:0] rm;
+    reg sign_a;
+    reg sign_b;
+    reg sign_z;
+    reg [10:0] exp_a;
+    reg [10:0] exp_b;
+    reg [10:0] exp_a_eff;
+    reg [10:0] exp_b_eff;
+    reg [10:0] exp_z;
+    reg [51:0] frac_a;
+    reg [51:0] frac_b;
+    reg [55:0] sig_a;
+    reg [55:0] sig_b;
+    reg [55:0] sig_a_aligned;
+    reg [55:0] sig_b_aligned;
+    reg [55:0] sig_norm;
+    reg [56:0] sig_sum;
+    reg [52:0] mant53;
+    reg [53:0] mant_round_ext;
+    reg [10:0] exp_diff;
+    reg [6:0] shift_dist;
+    reg guard;
+    reg sticky;
+    reg inc;
+    reg a_is_nan;
+    reg b_is_nan;
+    reg a_is_inf;
+    reg b_is_inf;
+    reg a_is_zero;
+    reg b_is_zero;
+    reg a_lt_b_mag;
+    integer norm_idx;
+    begin
+      sign_a = rs1_value[63];
+      sign_b = rs2_value[63] ^ is_sub;
+      exp_a = rs1_value[62:52];
+      exp_b = rs2_value[62:52];
+      frac_a = rs1_value[51:0];
+      frac_b = rs2_value[51:0];
+      a_is_nan = (exp_a == 11'h7ff) && (frac_a != 52'b0);
+      b_is_nan = (exp_b == 11'h7ff) && (frac_b != 52'b0);
+      a_is_inf = (exp_a == 11'h7ff) && (frac_a == 52'b0);
+      b_is_inf = (exp_b == 11'h7ff) && (frac_b == 52'b0);
+      a_is_zero = (exp_a == 11'h000) && (frac_a == 52'b0);
+      b_is_zero = (exp_b == 11'h000) && (frac_b == 52'b0);
+
+      if (a_is_nan || b_is_nan) begin
+        fp_addsub_d_value = 64'h7ff8000000000000;
+      end else if (a_is_inf && b_is_inf && (sign_a != sign_b)) begin
+        fp_addsub_d_value = 64'h7ff8000000000000;
+      end else if (a_is_inf) begin
+        fp_addsub_d_value = {sign_a, 11'h7ff, 52'b0};
+      end else if (b_is_inf) begin
+        fp_addsub_d_value = {sign_b, 11'h7ff, 52'b0};
+      end else if (a_is_zero && b_is_zero) begin
+        fp_addsub_d_value = {sign_a & sign_b, 63'b0};
+      end else if (a_is_zero) begin
+        fp_addsub_d_value = {sign_b, exp_b, frac_b};
+      end else if (b_is_zero) begin
+        fp_addsub_d_value = rs1_value;
+      end else begin
+        exp_a_eff = (exp_a == 11'h000) ? 11'd1 : exp_a;
+        exp_b_eff = (exp_b == 11'h000) ? 11'd1 : exp_b;
+        sig_a = {(exp_a != 11'h000), frac_a, 3'b000};
+        sig_b = {(exp_b != 11'h000), frac_b, 3'b000};
+
+        if (exp_a_eff >= exp_b_eff) begin
+          exp_z = exp_a_eff;
+          sig_a_aligned = sig_a;
+          exp_diff = exp_a_eff - exp_b_eff;
+          shift_dist = (exp_diff >= 11'd56) ? 7'd56 : exp_diff[6:0];
+          sig_b_aligned = fp_shift_right_jam_56(sig_b, shift_dist);
+        end else begin
+          exp_z = exp_b_eff;
+          exp_diff = exp_b_eff - exp_a_eff;
+          shift_dist = (exp_diff >= 11'd56) ? 7'd56 : exp_diff[6:0];
+          sig_a_aligned = fp_shift_right_jam_56(sig_a, shift_dist);
+          sig_b_aligned = sig_b;
+        end
+
+        if (sign_a == sign_b) begin
+          sign_z = sign_a;
+          sig_sum = {1'b0, sig_a_aligned} + {1'b0, sig_b_aligned};
+          if (sig_sum[56]) begin
+            sig_norm = sig_sum[56:1];
+            sig_norm[0] = sig_norm[0] | sig_sum[0];
+            exp_z = exp_z + 11'd1;
+          end else begin
+            sig_norm = sig_sum[55:0];
+          end
+        end else begin
+          a_lt_b_mag =
+              (exp_a_eff < exp_b_eff) ||
+              ((exp_a_eff == exp_b_eff) && (sig_a < sig_b));
+          if ((exp_a_eff == exp_b_eff) && (sig_a == sig_b)) begin
+            sign_z = 1'b0;
+            sig_norm = 56'b0;
+          end else if (a_lt_b_mag) begin
+            sign_z = sign_b;
+            sig_norm = sig_b_aligned - sig_a_aligned;
+          end else begin
+            sign_z = sign_a;
+            sig_norm = sig_a_aligned - sig_b_aligned;
+          end
+          for (norm_idx = 0; norm_idx < 55; norm_idx = norm_idx + 1) begin
+            if ((sig_norm != 56'b0) && !sig_norm[55] && (exp_z > 11'd1)) begin
+              sig_norm = sig_norm << 1;
+              exp_z = exp_z - 11'd1;
+            end
+          end
+        end
+
+        if (sig_norm == 56'b0) begin
+          fp_addsub_d_value = 64'b0;
+        end else begin
+          mant53 = sig_norm[55:3];
+          guard = sig_norm[2];
+          sticky = sig_norm[1] | sig_norm[0];
+          inc = fp_round_increment(sign_z, rm, mant53[0], guard, sticky);
+          mant_round_ext = {1'b0, mant53} + {{53{1'b0}}, inc};
+          if (mant_round_ext[53]) begin
+            exp_z = exp_z + 11'd1;
+            mant53 = mant_round_ext[53:1];
+          end else begin
+            mant53 = mant_round_ext[52:0];
+          end
+
+          if (exp_z >= 11'h7ff) begin
+            fp_addsub_d_value = {sign_z, 11'h7ff, 52'b0};
+          end else if ((exp_z == 11'd1) && !mant53[52]) begin
+            fp_addsub_d_value = {sign_z, 11'b0, mant53[51:0]};
+          end else begin
+            fp_addsub_d_value = {sign_z, exp_z, mant53[51:0]};
+          end
+        end
+      end
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_addsub_s_value;
+    input [`XLEN-1:0] rs1_value;
+    input [`XLEN-1:0] rs2_value;
+    input is_sub;
+    input [2:0] rm;
+    reg [31:0] a;
+    reg [31:0] b;
+    reg sign_a;
+    reg sign_b;
+    reg sign_z;
+    reg [7:0] exp_a;
+    reg [7:0] exp_b;
+    reg [7:0] exp_a_eff;
+    reg [7:0] exp_b_eff;
+    reg [7:0] exp_z;
+    reg [22:0] frac_a;
+    reg [22:0] frac_b;
+    reg [26:0] sig_a;
+    reg [26:0] sig_b;
+    reg [26:0] sig_a_aligned;
+    reg [26:0] sig_b_aligned;
+    reg [26:0] sig_norm;
+    reg [27:0] sig_sum;
+    reg [23:0] mant24;
+    reg [24:0] mant_round_ext;
+    reg [7:0] exp_diff;
+    reg [5:0] shift_dist;
+    reg guard;
+    reg sticky;
+    reg inc;
+    reg a_is_nan;
+    reg b_is_nan;
+    reg a_is_inf;
+    reg b_is_inf;
+    reg a_is_zero;
+    reg b_is_zero;
+    reg a_lt_b_mag;
+    integer norm_idx;
+    begin
+      a = rs1_value[31:0];
+      b = rs2_value[31:0];
+      sign_a = a[31];
+      sign_b = b[31] ^ is_sub;
+      exp_a = a[30:23];
+      exp_b = b[30:23];
+      frac_a = a[22:0];
+      frac_b = b[22:0];
+      a_is_nan = fp_is_nan_s_value(rs1_value);
+      b_is_nan = fp_is_nan_s_value(rs2_value);
+      a_is_inf = (rs1_value[63:32] == 32'hffff_ffff) &&
+                 (exp_a == 8'hff) && (frac_a == 23'b0);
+      b_is_inf = (rs2_value[63:32] == 32'hffff_ffff) &&
+                 (exp_b == 8'hff) && (frac_b == 23'b0);
+      a_is_zero = (rs1_value[63:32] == 32'hffff_ffff) &&
+                  (exp_a == 8'h00) && (frac_a == 23'b0);
+      b_is_zero = (rs2_value[63:32] == 32'hffff_ffff) &&
+                  (exp_b == 8'h00) && (frac_b == 23'b0);
+
+      if (a_is_nan || b_is_nan) begin
+        fp_addsub_s_value = 64'hffffffff7fc00000;
+      end else if (a_is_inf && b_is_inf && (sign_a != sign_b)) begin
+        fp_addsub_s_value = 64'hffffffff7fc00000;
+      end else if (a_is_inf) begin
+        fp_addsub_s_value = {32'hffff_ffff, sign_a, 8'hff, 23'b0};
+      end else if (b_is_inf) begin
+        fp_addsub_s_value = {32'hffff_ffff, sign_b, 8'hff, 23'b0};
+      end else if (a_is_zero && b_is_zero) begin
+        fp_addsub_s_value = {32'hffff_ffff, sign_a & sign_b, 31'b0};
+      end else if (a_is_zero) begin
+        fp_addsub_s_value = {32'hffff_ffff, sign_b, exp_b, frac_b};
+      end else if (b_is_zero) begin
+        fp_addsub_s_value = {32'hffff_ffff, a};
+      end else begin
+        exp_a_eff = (exp_a == 8'h00) ? 8'd1 : exp_a;
+        exp_b_eff = (exp_b == 8'h00) ? 8'd1 : exp_b;
+        sig_a = {(exp_a != 8'h00), frac_a, 3'b000};
+        sig_b = {(exp_b != 8'h00), frac_b, 3'b000};
+
+        if (exp_a_eff >= exp_b_eff) begin
+          exp_z = exp_a_eff;
+          sig_a_aligned = sig_a;
+          exp_diff = exp_a_eff - exp_b_eff;
+          shift_dist = (exp_diff >= 8'd27) ? 6'd27 : exp_diff[5:0];
+          sig_b_aligned = fp_shift_right_jam_27(sig_b, shift_dist);
+        end else begin
+          exp_z = exp_b_eff;
+          exp_diff = exp_b_eff - exp_a_eff;
+          shift_dist = (exp_diff >= 8'd27) ? 6'd27 : exp_diff[5:0];
+          sig_a_aligned = fp_shift_right_jam_27(sig_a, shift_dist);
+          sig_b_aligned = sig_b;
+        end
+
+        if (sign_a == sign_b) begin
+          sign_z = sign_a;
+          sig_sum = {1'b0, sig_a_aligned} + {1'b0, sig_b_aligned};
+          if (sig_sum[27]) begin
+            sig_norm = sig_sum[27:1];
+            sig_norm[0] = sig_norm[0] | sig_sum[0];
+            exp_z = exp_z + 8'd1;
+          end else begin
+            sig_norm = sig_sum[26:0];
+          end
+        end else begin
+          a_lt_b_mag =
+              (exp_a_eff < exp_b_eff) ||
+              ((exp_a_eff == exp_b_eff) && (sig_a < sig_b));
+          if ((exp_a_eff == exp_b_eff) && (sig_a == sig_b)) begin
+            sign_z = 1'b0;
+            sig_norm = 27'b0;
+          end else if (a_lt_b_mag) begin
+            sign_z = sign_b;
+            sig_norm = sig_b_aligned - sig_a_aligned;
+          end else begin
+            sign_z = sign_a;
+            sig_norm = sig_a_aligned - sig_b_aligned;
+          end
+          for (norm_idx = 0; norm_idx < 26; norm_idx = norm_idx + 1) begin
+            if ((sig_norm != 27'b0) && !sig_norm[26] && (exp_z > 8'd1)) begin
+              sig_norm = sig_norm << 1;
+              exp_z = exp_z - 8'd1;
+            end
+          end
+        end
+
+        if (sig_norm == 27'b0) begin
+          fp_addsub_s_value = 64'hffffffff00000000;
+        end else begin
+          mant24 = sig_norm[26:3];
+          guard = sig_norm[2];
+          sticky = sig_norm[1] | sig_norm[0];
+          inc = fp_round_increment(sign_z, rm, mant24[0], guard, sticky);
+          mant_round_ext = {1'b0, mant24} + {{24{1'b0}}, inc};
+          if (mant_round_ext[24]) begin
+            exp_z = exp_z + 8'd1;
+            mant24 = mant_round_ext[24:1];
+          end else begin
+            mant24 = mant_round_ext[23:0];
+          end
+
+          if (exp_z >= 8'hff) begin
+            fp_addsub_s_value = {32'hffff_ffff, sign_z, 8'hff, 23'b0};
+          end else if ((exp_z == 8'd1) && !mant24[23]) begin
+            fp_addsub_s_value = {32'hffff_ffff, sign_z, 8'b0, mant24[22:0]};
+          end else begin
+            fp_addsub_s_value = {32'hffff_ffff, sign_z, exp_z, mant24[22:0]};
+          end
+        end
+      end
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_addsub_value;
+    input [`XLEN-1:0] rs1_value;
+    input [`XLEN-1:0] rs2_value;
+    input is_double;
+    input is_sub;
+    input [2:0] rm;
+    begin
+      fp_addsub_value = is_double ?
+          fp_addsub_d_value(rs1_value, rs2_value, is_sub, rm) :
+          fp_addsub_s_value(rs1_value, rs2_value, is_sub, rm);
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_mul_d_value;
+    input [`XLEN-1:0] rs1_value;
+    input [`XLEN-1:0] rs2_value;
+    input [2:0] rm;
+    reg sign_z;
+    reg [10:0] exp_a;
+    reg [10:0] exp_b;
+    reg [51:0] frac_a;
+    reg [51:0] frac_b;
+    reg a_is_nan;
+    reg b_is_nan;
+    reg a_is_inf;
+    reg b_is_inf;
+    reg a_is_zero;
+    reg b_is_zero;
+    reg [52:0] sig_a;
+    reg [52:0] sig_b;
+    reg [105:0] product;
+    reg [105:0] product_norm;
+    reg [52:0] mant53;
+    reg [53:0] mant_round_ext;
+    reg guard;
+    reg sticky;
+    reg inc;
+    reg [7:0] sub_shift;
+    integer exp_z;
+    integer norm_idx;
+    integer sub_shift_int;
+    begin
+      sign_z = rs1_value[63] ^ rs2_value[63];
+      exp_a = rs1_value[62:52];
+      exp_b = rs2_value[62:52];
+      frac_a = rs1_value[51:0];
+      frac_b = rs2_value[51:0];
+      a_is_nan = (exp_a == 11'h7ff) && (frac_a != 52'b0);
+      b_is_nan = (exp_b == 11'h7ff) && (frac_b != 52'b0);
+      a_is_inf = (exp_a == 11'h7ff) && (frac_a == 52'b0);
+      b_is_inf = (exp_b == 11'h7ff) && (frac_b == 52'b0);
+      a_is_zero = (exp_a == 11'h000) && (frac_a == 52'b0);
+      b_is_zero = (exp_b == 11'h000) && (frac_b == 52'b0);
+
+      if (a_is_nan || b_is_nan) begin
+        fp_mul_d_value = 64'h7ff8000000000000;
+      end else if ((a_is_inf && b_is_zero) ||
+                   (b_is_inf && a_is_zero)) begin
+        fp_mul_d_value = 64'h7ff8000000000000;
+      end else if (a_is_inf || b_is_inf) begin
+        fp_mul_d_value = {sign_z, 11'h7ff, 52'b0};
+      end else if (a_is_zero || b_is_zero) begin
+        fp_mul_d_value = {sign_z, 63'b0};
+      end else begin
+        sig_a = {(exp_a != 11'h000), frac_a};
+        sig_b = {(exp_b != 11'h000), frac_b};
+        exp_z = ((exp_a == 11'h000) ? 1 : exp_a) +
+                ((exp_b == 11'h000) ? 1 : exp_b) - 1023;
+        product = sig_a * sig_b;
+        product_norm = product;
+
+        for (norm_idx = 0; norm_idx < 105; norm_idx = norm_idx + 1) begin
+          if ((product_norm != 106'b0) && !product_norm[105] &&
+              !product_norm[104] && (exp_z > 1)) begin
+            product_norm = product_norm << 1;
+            exp_z = exp_z - 1;
+          end
+        end
+
+        if (exp_z < 1) begin
+          sub_shift_int = 1 - exp_z;
+          if (sub_shift_int >= 106)
+            sub_shift = 8'd106;
+          else
+            sub_shift = sub_shift_int;
+          product_norm = fp_shift_right_jam_106(product_norm, sub_shift);
+          exp_z = 1;
+        end
+
+        if (product_norm[105]) begin
+          mant53 = product_norm[105:53];
+          guard = product_norm[52];
+          sticky = |product_norm[51:0];
+          exp_z = exp_z + 1;
+        end else begin
+          mant53 = product_norm[104:52];
+          guard = product_norm[51];
+          sticky = |product_norm[50:0];
+        end
+
+        inc = fp_round_increment(sign_z, rm, mant53[0], guard, sticky);
+        mant_round_ext = {1'b0, mant53} + {{53{1'b0}}, inc};
+        if (mant_round_ext[53]) begin
+          mant53 = mant_round_ext[53:1];
+          exp_z = exp_z + 1;
+        end else begin
+          mant53 = mant_round_ext[52:0];
+        end
+
+        if (exp_z >= 2047) begin
+          fp_mul_d_value = {sign_z, 11'h7ff, 52'b0};
+        end else if ((exp_z <= 1) && !mant53[52]) begin
+          fp_mul_d_value = {sign_z, 11'b0, mant53[51:0]};
+        end else begin
+          fp_mul_d_value = {sign_z, exp_z[10:0], mant53[51:0]};
+        end
+      end
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_mul_s_value;
+    input [`XLEN-1:0] rs1_value;
+    input [`XLEN-1:0] rs2_value;
+    input [2:0] rm;
+    reg [31:0] a;
+    reg [31:0] b;
+    reg sign_z;
+    reg [7:0] exp_a;
+    reg [7:0] exp_b;
+    reg [22:0] frac_a;
+    reg [22:0] frac_b;
+    reg a_is_nan;
+    reg b_is_nan;
+    reg a_is_inf;
+    reg b_is_inf;
+    reg a_is_zero;
+    reg b_is_zero;
+    reg [23:0] sig_a;
+    reg [23:0] sig_b;
+    reg [47:0] product;
+    reg [47:0] product_norm;
+    reg [23:0] mant24;
+    reg [24:0] mant_round_ext;
+    reg guard;
+    reg sticky;
+    reg inc;
+    reg [5:0] sub_shift;
+    integer exp_z;
+    integer norm_idx;
+    integer sub_shift_int;
+    begin
+      a = rs1_value[31:0];
+      b = rs2_value[31:0];
+      sign_z = a[31] ^ b[31];
+      exp_a = a[30:23];
+      exp_b = b[30:23];
+      frac_a = a[22:0];
+      frac_b = b[22:0];
+      a_is_nan = fp_is_nan_s_value(rs1_value);
+      b_is_nan = fp_is_nan_s_value(rs2_value);
+      a_is_inf = (rs1_value[63:32] == 32'hffff_ffff) &&
+                 (exp_a == 8'hff) && (frac_a == 23'b0);
+      b_is_inf = (rs2_value[63:32] == 32'hffff_ffff) &&
+                 (exp_b == 8'hff) && (frac_b == 23'b0);
+      a_is_zero = (rs1_value[63:32] == 32'hffff_ffff) &&
+                  (exp_a == 8'h00) && (frac_a == 23'b0);
+      b_is_zero = (rs2_value[63:32] == 32'hffff_ffff) &&
+                  (exp_b == 8'h00) && (frac_b == 23'b0);
+
+      if (a_is_nan || b_is_nan) begin
+        fp_mul_s_value = 64'hffffffff7fc00000;
+      end else if ((a_is_inf && b_is_zero) ||
+                   (b_is_inf && a_is_zero)) begin
+        fp_mul_s_value = 64'hffffffff7fc00000;
+      end else if (a_is_inf || b_is_inf) begin
+        fp_mul_s_value = {32'hffff_ffff, sign_z, 8'hff, 23'b0};
+      end else if (a_is_zero || b_is_zero) begin
+        fp_mul_s_value = {32'hffff_ffff, sign_z, 31'b0};
+      end else begin
+        sig_a = {(exp_a != 8'h00), frac_a};
+        sig_b = {(exp_b != 8'h00), frac_b};
+        exp_z = ((exp_a == 8'h00) ? 1 : exp_a) +
+                ((exp_b == 8'h00) ? 1 : exp_b) - 127;
+        product = sig_a * sig_b;
+        product_norm = product;
+
+        for (norm_idx = 0; norm_idx < 47; norm_idx = norm_idx + 1) begin
+          if ((product_norm != 48'b0) && !product_norm[47] &&
+              !product_norm[46] && (exp_z > 1)) begin
+            product_norm = product_norm << 1;
+            exp_z = exp_z - 1;
+          end
+        end
+
+        if (exp_z < 1) begin
+          sub_shift_int = 1 - exp_z;
+          if (sub_shift_int >= 48)
+            sub_shift = 6'd48;
+          else
+            sub_shift = sub_shift_int;
+          product_norm = fp_shift_right_jam_48(product_norm, sub_shift);
+          exp_z = 1;
+        end
+
+        if (product_norm[47]) begin
+          mant24 = product_norm[47:24];
+          guard = product_norm[23];
+          sticky = |product_norm[22:0];
+          exp_z = exp_z + 1;
+        end else begin
+          mant24 = product_norm[46:23];
+          guard = product_norm[22];
+          sticky = |product_norm[21:0];
+        end
+
+        inc = fp_round_increment(sign_z, rm, mant24[0], guard, sticky);
+        mant_round_ext = {1'b0, mant24} + {{24{1'b0}}, inc};
+        if (mant_round_ext[24]) begin
+          mant24 = mant_round_ext[24:1];
+          exp_z = exp_z + 1;
+        end else begin
+          mant24 = mant_round_ext[23:0];
+        end
+
+        if (exp_z >= 255) begin
+          fp_mul_s_value = {32'hffff_ffff, sign_z, 8'hff, 23'b0};
+        end else if ((exp_z <= 1) && !mant24[23]) begin
+          fp_mul_s_value = {32'hffff_ffff, sign_z, 8'b0, mant24[22:0]};
+        end else begin
+          fp_mul_s_value = {32'hffff_ffff, sign_z, exp_z[7:0], mant24[22:0]};
+        end
+      end
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_mul_value;
+    input [`XLEN-1:0] rs1_value;
+    input [`XLEN-1:0] rs2_value;
+    input is_double;
+    input [2:0] rm;
+    begin
+      fp_mul_value = is_double ?
+          fp_mul_d_value(rs1_value, rs2_value, rm) :
+          fp_mul_s_value(rs1_value, rs2_value, rm);
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_div_d_value;
+    input [`XLEN-1:0] rs1_value;
+    input [`XLEN-1:0] rs2_value;
+    input [2:0] rm;
+    reg sign_z;
+    reg [10:0] exp_a;
+    reg [10:0] exp_b;
+    reg [51:0] frac_a;
+    reg [51:0] frac_b;
+    reg a_is_nan;
+    reg b_is_nan;
+    reg a_is_inf;
+    reg b_is_inf;
+    reg a_is_zero;
+    reg b_is_zero;
+    reg [52:0] sig_a;
+    reg [52:0] sig_b;
+    reg [107:0] dividend;
+    reg [55:0] quotient_ext;
+    reg [55:0] quotient_norm;
+    reg [107:0] remainder_ext;
+    reg [52:0] mant53;
+    reg [53:0] mant_round_ext;
+    reg guard;
+    reg sticky;
+    reg inc;
+    reg [6:0] sub_shift;
+    integer exp_z;
+    integer sub_shift_int;
+    begin
+      sign_z = rs1_value[63] ^ rs2_value[63];
+      exp_a = rs1_value[62:52];
+      exp_b = rs2_value[62:52];
+      frac_a = rs1_value[51:0];
+      frac_b = rs2_value[51:0];
+      a_is_nan = (exp_a == 11'h7ff) && (frac_a != 52'b0);
+      b_is_nan = (exp_b == 11'h7ff) && (frac_b != 52'b0);
+      a_is_inf = (exp_a == 11'h7ff) && (frac_a == 52'b0);
+      b_is_inf = (exp_b == 11'h7ff) && (frac_b == 52'b0);
+      a_is_zero = (exp_a == 11'h000) && (frac_a == 52'b0);
+      b_is_zero = (exp_b == 11'h000) && (frac_b == 52'b0);
+
+      if (a_is_nan || b_is_nan) begin
+        fp_div_d_value = 64'h7ff8000000000000;
+      end else if ((a_is_zero && b_is_zero) ||
+                   (a_is_inf && b_is_inf)) begin
+        fp_div_d_value = 64'h7ff8000000000000;
+      end else if (a_is_inf || b_is_zero) begin
+        fp_div_d_value = {sign_z, 11'h7ff, 52'b0};
+      end else if (a_is_zero || b_is_inf) begin
+        fp_div_d_value = {sign_z, 63'b0};
+      end else begin
+        sig_a = {(exp_a != 11'h000), frac_a};
+        sig_b = {(exp_b != 11'h000), frac_b};
+        exp_z = ((exp_a == 11'h000) ? 1 : exp_a) -
+                ((exp_b == 11'h000) ? 1 : exp_b) + 1023;
+
+        // Focused FDIV gate uses a combinational integer quotient helper.
+        // It is synthesizable, but a tapeout FPU should replace it with a
+        // timed divider pipeline and keep the same architectural cases.
+        dividend = {sig_a, 55'b0};
+        quotient_ext = dividend / sig_b;
+        remainder_ext = dividend % sig_b;
+        if (quotient_ext[55]) begin
+          quotient_norm = quotient_ext;
+        end else begin
+          quotient_norm = {quotient_ext[54:0], 1'b0};
+          exp_z = exp_z - 1;
+        end
+        quotient_norm[0] = quotient_norm[0] | (remainder_ext != 108'b0);
+
+        if (exp_z < 1) begin
+          sub_shift_int = 1 - exp_z;
+          if (sub_shift_int >= 56)
+            sub_shift = 7'd56;
+          else
+            sub_shift = sub_shift_int;
+          quotient_norm = fp_shift_right_jam_56(quotient_norm, sub_shift);
+          exp_z = 1;
+        end
+
+        mant53 = quotient_norm[55:3];
+        guard = quotient_norm[2];
+        sticky = quotient_norm[1] | quotient_norm[0];
+        inc = fp_round_increment(sign_z, rm, mant53[0], guard, sticky);
+        mant_round_ext = {1'b0, mant53} + {{53{1'b0}}, inc};
+        if (mant_round_ext[53]) begin
+          mant53 = mant_round_ext[53:1];
+          exp_z = exp_z + 1;
+        end else begin
+          mant53 = mant_round_ext[52:0];
+        end
+
+        if (exp_z >= 2047) begin
+          fp_div_d_value = {sign_z, 11'h7ff, 52'b0};
+        end else if ((exp_z <= 1) && !mant53[52]) begin
+          fp_div_d_value = {sign_z, 11'b0, mant53[51:0]};
+        end else begin
+          fp_div_d_value = {sign_z, exp_z[10:0], mant53[51:0]};
+        end
+      end
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_div_s_value;
+    input [`XLEN-1:0] rs1_value;
+    input [`XLEN-1:0] rs2_value;
+    input [2:0] rm;
+    reg [31:0] a;
+    reg [31:0] b;
+    reg sign_z;
+    reg [7:0] exp_a;
+    reg [7:0] exp_b;
+    reg [22:0] frac_a;
+    reg [22:0] frac_b;
+    reg a_is_nan;
+    reg b_is_nan;
+    reg a_is_inf;
+    reg b_is_inf;
+    reg a_is_zero;
+    reg b_is_zero;
+    reg [23:0] sig_a;
+    reg [23:0] sig_b;
+    reg [49:0] dividend;
+    reg [26:0] quotient_ext;
+    reg [26:0] quotient_norm;
+    reg [49:0] remainder_ext;
+    reg [23:0] mant24;
+    reg [24:0] mant_round_ext;
+    reg guard;
+    reg sticky;
+    reg inc;
+    reg [5:0] sub_shift;
+    integer exp_z;
+    integer sub_shift_int;
+    begin
+      a = rs1_value[31:0];
+      b = rs2_value[31:0];
+      sign_z = a[31] ^ b[31];
+      exp_a = a[30:23];
+      exp_b = b[30:23];
+      frac_a = a[22:0];
+      frac_b = b[22:0];
+      a_is_nan = fp_is_nan_s_value(rs1_value);
+      b_is_nan = fp_is_nan_s_value(rs2_value);
+      a_is_inf = (rs1_value[63:32] == 32'hffff_ffff) &&
+                 (exp_a == 8'hff) && (frac_a == 23'b0);
+      b_is_inf = (rs2_value[63:32] == 32'hffff_ffff) &&
+                 (exp_b == 8'hff) && (frac_b == 23'b0);
+      a_is_zero = (rs1_value[63:32] == 32'hffff_ffff) &&
+                  (exp_a == 8'h00) && (frac_a == 23'b0);
+      b_is_zero = (rs2_value[63:32] == 32'hffff_ffff) &&
+                  (exp_b == 8'h00) && (frac_b == 23'b0);
+
+      if (a_is_nan || b_is_nan) begin
+        fp_div_s_value = 64'hffffffff7fc00000;
+      end else if ((a_is_zero && b_is_zero) ||
+                   (a_is_inf && b_is_inf)) begin
+        fp_div_s_value = 64'hffffffff7fc00000;
+      end else if (a_is_inf || b_is_zero) begin
+        fp_div_s_value = {32'hffff_ffff, sign_z, 8'hff, 23'b0};
+      end else if (a_is_zero || b_is_inf) begin
+        fp_div_s_value = {32'hffff_ffff, sign_z, 31'b0};
+      end else begin
+        sig_a = {(exp_a != 8'h00), frac_a};
+        sig_b = {(exp_b != 8'h00), frac_b};
+        exp_z = ((exp_a == 8'h00) ? 1 : exp_a) -
+                ((exp_b == 8'h00) ? 1 : exp_b) + 127;
+
+        dividend = {sig_a, 26'b0};
+        quotient_ext = dividend / sig_b;
+        remainder_ext = dividend % sig_b;
+        if (quotient_ext[26]) begin
+          quotient_norm = quotient_ext;
+        end else begin
+          quotient_norm = {quotient_ext[25:0], 1'b0};
+          exp_z = exp_z - 1;
+        end
+        quotient_norm[0] = quotient_norm[0] | (remainder_ext != 50'b0);
+
+        if (exp_z < 1) begin
+          sub_shift_int = 1 - exp_z;
+          if (sub_shift_int >= 27)
+            sub_shift = 6'd27;
+          else
+            sub_shift = sub_shift_int;
+          quotient_norm = fp_shift_right_jam_27(quotient_norm, sub_shift);
+          exp_z = 1;
+        end
+
+        mant24 = quotient_norm[26:3];
+        guard = quotient_norm[2];
+        sticky = quotient_norm[1] | quotient_norm[0];
+        inc = fp_round_increment(sign_z, rm, mant24[0], guard, sticky);
+        mant_round_ext = {1'b0, mant24} + {{24{1'b0}}, inc};
+        if (mant_round_ext[24]) begin
+          mant24 = mant_round_ext[24:1];
+          exp_z = exp_z + 1;
+        end else begin
+          mant24 = mant_round_ext[23:0];
+        end
+
+        if (exp_z >= 255) begin
+          fp_div_s_value = {32'hffff_ffff, sign_z, 8'hff, 23'b0};
+        end else if ((exp_z <= 1) && !mant24[23]) begin
+          fp_div_s_value = {32'hffff_ffff, sign_z, 8'b0, mant24[22:0]};
+        end else begin
+          fp_div_s_value = {32'hffff_ffff, sign_z, exp_z[7:0], mant24[22:0]};
+        end
+      end
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_div_value;
+    input [`XLEN-1:0] rs1_value;
+    input [`XLEN-1:0] rs2_value;
+    input is_double;
+    input [2:0] rm;
+    begin
+      fp_div_value = is_double ?
+          fp_div_d_value(rs1_value, rs2_value, rm) :
+          fp_div_s_value(rs1_value, rs2_value, rm);
+    end
+  endfunction
+
+  function [55:0] fp_isqrt_112;
+    input [111:0] value;
+    reg [55:0] root;
+    reg [55:0] candidate;
+    reg [111:0] candidate_sq;
+    integer bit_idx;
+    begin
+      root = 56'b0;
+      for (bit_idx = 55; bit_idx >= 0; bit_idx = bit_idx - 1) begin
+        candidate = root | (56'd1 << bit_idx);
+        candidate_sq = candidate * candidate;
+        if (candidate_sq <= value)
+          root = candidate;
+      end
+      fp_isqrt_112 = root;
+    end
+  endfunction
+
+  function [26:0] fp_isqrt_54;
+    input [53:0] value;
+    reg [26:0] root;
+    reg [26:0] candidate;
+    reg [53:0] candidate_sq;
+    integer bit_idx;
+    begin
+      root = 27'b0;
+      for (bit_idx = 26; bit_idx >= 0; bit_idx = bit_idx - 1) begin
+        candidate = root | (27'd1 << bit_idx);
+        candidate_sq = candidate * candidate;
+        if (candidate_sq <= value)
+          root = candidate;
+      end
+      fp_isqrt_54 = root;
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_sqrt_d_value;
+    input [`XLEN-1:0] rs1_value;
+    input [2:0] rm;
+    reg sign_a;
+    reg [10:0] exp_a;
+    reg [51:0] frac_a;
+    reg a_is_nan;
+    reg a_is_inf;
+    reg a_is_zero;
+    reg exp_odd;
+    reg [52:0] sig_a;
+    reg [111:0] radicand_ext;
+    reg [55:0] root_ext;
+    reg [111:0] root_sq;
+    reg [52:0] mant53;
+    reg [53:0] mant_round_ext;
+    reg guard;
+    reg sticky;
+    reg inc;
+    integer exp_unbiased;
+    integer sqrt_exp;
+    integer exp_z;
+    integer norm_idx;
+    begin
+      sign_a = rs1_value[63];
+      exp_a = rs1_value[62:52];
+      frac_a = rs1_value[51:0];
+      a_is_nan = (exp_a == 11'h7ff) && (frac_a != 52'b0);
+      a_is_inf = (exp_a == 11'h7ff) && (frac_a == 52'b0);
+      a_is_zero = (exp_a == 11'h000) && (frac_a == 52'b0);
+
+      if (a_is_nan) begin
+        fp_sqrt_d_value = 64'h7ff8000000000000;
+      end else if (sign_a && !a_is_zero) begin
+        fp_sqrt_d_value = 64'h7ff8000000000000;
+      end else if (a_is_inf) begin
+        fp_sqrt_d_value = {1'b0, 11'h7ff, 52'b0};
+      end else if (a_is_zero) begin
+        fp_sqrt_d_value = {sign_a, 63'b0};
+      end else begin
+        sig_a = {(exp_a != 11'h000), frac_a};
+        exp_unbiased = ((exp_a == 11'h000) ? 1 : exp_a) - 1023;
+        if (exp_a == 11'h000) begin
+          for (norm_idx = 0; norm_idx < 52; norm_idx = norm_idx + 1) begin
+            if (!sig_a[52]) begin
+              sig_a = sig_a << 1;
+              exp_unbiased = exp_unbiased - 1;
+            end
+          end
+        end
+
+        exp_odd = (exp_unbiased - ((exp_unbiased / 2) * 2)) != 0;
+        if (exp_odd) begin
+          sqrt_exp = (exp_unbiased - 1) / 2;
+          radicand_ext = {59'b0, sig_a} << 59;
+        end else begin
+          sqrt_exp = exp_unbiased / 2;
+          radicand_ext = {59'b0, sig_a} << 58;
+        end
+
+        // Focused FSQRT gate uses a combinational integer sqrt helper.
+        // A tapeout FPU should replace it with a timed pipeline.
+        root_ext = fp_isqrt_112(radicand_ext);
+        root_sq = root_ext * root_ext;
+        mant53 = root_ext[55:3];
+        guard = root_ext[2];
+        sticky = root_ext[1] | root_ext[0] | (root_sq != radicand_ext);
+        inc = fp_round_increment(1'b0, rm, mant53[0], guard, sticky);
+        mant_round_ext = {1'b0, mant53} + {{53{1'b0}}, inc};
+        exp_z = sqrt_exp + 1023;
+        if (mant_round_ext[53]) begin
+          mant53 = mant_round_ext[53:1];
+          exp_z = exp_z + 1;
+        end else begin
+          mant53 = mant_round_ext[52:0];
+        end
+
+        if (exp_z >= 2047) begin
+          fp_sqrt_d_value = {1'b0, 11'h7ff, 52'b0};
+        end else if ((exp_z <= 1) && !mant53[52]) begin
+          fp_sqrt_d_value = {1'b0, 11'b0, mant53[51:0]};
+        end else begin
+          fp_sqrt_d_value = {1'b0, exp_z[10:0], mant53[51:0]};
+        end
+      end
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_sqrt_s_value;
+    input [`XLEN-1:0] rs1_value;
+    input [2:0] rm;
+    reg [31:0] a;
+    reg sign_a;
+    reg [7:0] exp_a;
+    reg [22:0] frac_a;
+    reg a_is_nan;
+    reg a_is_inf;
+    reg a_is_zero;
+    reg exp_odd;
+    reg [23:0] sig_a;
+    reg [53:0] radicand_ext;
+    reg [26:0] root_ext;
+    reg [53:0] root_sq;
+    reg [23:0] mant24;
+    reg [24:0] mant_round_ext;
+    reg guard;
+    reg sticky;
+    reg inc;
+    integer exp_unbiased;
+    integer sqrt_exp;
+    integer exp_z;
+    integer norm_idx;
+    begin
+      a = rs1_value[31:0];
+      sign_a = a[31];
+      exp_a = a[30:23];
+      frac_a = a[22:0];
+      a_is_nan = fp_is_nan_s_value(rs1_value);
+      a_is_inf = (rs1_value[63:32] == 32'hffff_ffff) &&
+                 (exp_a == 8'hff) && (frac_a == 23'b0);
+      a_is_zero = (rs1_value[63:32] == 32'hffff_ffff) &&
+                  (exp_a == 8'h00) && (frac_a == 23'b0);
+
+      if (a_is_nan) begin
+        fp_sqrt_s_value = 64'hffffffff7fc00000;
+      end else if (sign_a && !a_is_zero) begin
+        fp_sqrt_s_value = 64'hffffffff7fc00000;
+      end else if (a_is_inf) begin
+        fp_sqrt_s_value = {32'hffff_ffff, 1'b0, 8'hff, 23'b0};
+      end else if (a_is_zero) begin
+        fp_sqrt_s_value = {32'hffff_ffff, sign_a, 31'b0};
+      end else begin
+        sig_a = {(exp_a != 8'h00), frac_a};
+        exp_unbiased = ((exp_a == 8'h00) ? 1 : exp_a) - 127;
+        if (exp_a == 8'h00) begin
+          for (norm_idx = 0; norm_idx < 23; norm_idx = norm_idx + 1) begin
+            if (!sig_a[23]) begin
+              sig_a = sig_a << 1;
+              exp_unbiased = exp_unbiased - 1;
+            end
+          end
+        end
+
+        exp_odd = (exp_unbiased - ((exp_unbiased / 2) * 2)) != 0;
+        if (exp_odd) begin
+          sqrt_exp = (exp_unbiased - 1) / 2;
+          radicand_ext = {30'b0, sig_a} << 30;
+        end else begin
+          sqrt_exp = exp_unbiased / 2;
+          radicand_ext = {30'b0, sig_a} << 29;
+        end
+
+        root_ext = fp_isqrt_54(radicand_ext);
+        root_sq = root_ext * root_ext;
+        mant24 = root_ext[26:3];
+        guard = root_ext[2];
+        sticky = root_ext[1] | root_ext[0] | (root_sq != radicand_ext);
+        inc = fp_round_increment(1'b0, rm, mant24[0], guard, sticky);
+        mant_round_ext = {1'b0, mant24} + {{24{1'b0}}, inc};
+        exp_z = sqrt_exp + 127;
+        if (mant_round_ext[24]) begin
+          mant24 = mant_round_ext[24:1];
+          exp_z = exp_z + 1;
+        end else begin
+          mant24 = mant_round_ext[23:0];
+        end
+
+        if (exp_z >= 255) begin
+          fp_sqrt_s_value = {32'hffff_ffff, 1'b0, 8'hff, 23'b0};
+        end else if ((exp_z <= 1) && !mant24[23]) begin
+          fp_sqrt_s_value = {32'hffff_ffff, 1'b0, 8'b0, mant24[22:0]};
+        end else begin
+          fp_sqrt_s_value = {32'hffff_ffff, 1'b0, exp_z[7:0], mant24[22:0]};
+        end
+      end
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_sqrt_value;
+    input [`XLEN-1:0] rs1_value;
+    input is_double;
+    input [2:0] rm;
+    begin
+      fp_sqrt_value = is_double ?
+          fp_sqrt_d_value(rs1_value, rm) :
+          fp_sqrt_s_value(rs1_value, rm);
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_minmax_value;
+    input [`XLEN-1:0] rs1_value;
+    input [`XLEN-1:0] rs2_value;
+    input is_double;
+    input is_max;
+    reg sign1;
+    reg sign2;
+    reg nan1;
+    reg nan2;
+    reg both_zero;
+    reg less_value;
+    reg [62:0] mag1_d;
+    reg [62:0] mag2_d;
+    reg [30:0] mag1_s;
+    reg [30:0] mag2_s;
+    begin
+      if (is_double) begin
+        nan1 = fp_is_nan_d_value(rs1_value);
+        nan2 = fp_is_nan_d_value(rs2_value);
+        sign1 = rs1_value[63];
+        sign2 = rs2_value[63];
+        mag1_d = rs1_value[62:0];
+        mag2_d = rs2_value[62:0];
+        both_zero = (mag1_d == 63'b0) && (mag2_d == 63'b0);
+        if (nan1 && nan2) begin
+          fp_minmax_value = 64'h7ff8000000000000;
+        end else if (nan1) begin
+          fp_minmax_value = rs2_value;
+        end else if (nan2) begin
+          fp_minmax_value = rs1_value;
+        end else if (both_zero) begin
+          if (is_max)
+            fp_minmax_value = sign1 ? rs2_value : rs1_value;
+          else
+            fp_minmax_value = sign1 ? rs1_value : rs2_value;
+        end else begin
+          if (sign1 != sign2) begin
+            less_value = sign1;
+          end else if (sign1) begin
+            less_value = mag1_d > mag2_d;
+          end else begin
+            less_value = mag1_d < mag2_d;
+          end
+          fp_minmax_value = is_max ?
+              (less_value ? rs2_value : rs1_value) :
+              (less_value ? rs1_value : rs2_value);
+        end
+      end else begin
+        nan1 = fp_is_nan_s_value(rs1_value);
+        nan2 = fp_is_nan_s_value(rs2_value);
+        sign1 = rs1_value[31];
+        sign2 = rs2_value[31];
+        mag1_s = rs1_value[30:0];
+        mag2_s = rs2_value[30:0];
+        both_zero = (mag1_s == 31'b0) && (mag2_s == 31'b0);
+        if (nan1 && nan2) begin
+          fp_minmax_value = 64'hffffffff7fc00000;
+        end else if (nan1) begin
+          fp_minmax_value = {32'hffff_ffff, rs2_value[31:0]};
+        end else if (nan2) begin
+          fp_minmax_value = {32'hffff_ffff, rs1_value[31:0]};
+        end else if (both_zero) begin
+          if (is_max)
+            fp_minmax_value = {32'hffff_ffff,
+                               (sign1 ? rs2_value[31:0] : rs1_value[31:0])};
+          else
+            fp_minmax_value = {32'hffff_ffff,
+                               (sign1 ? rs1_value[31:0] : rs2_value[31:0])};
+        end else begin
+          if (sign1 != sign2) begin
+            less_value = sign1;
+          end else if (sign1) begin
+            less_value = mag1_s > mag2_s;
+          end else begin
+            less_value = mag1_s < mag2_s;
+          end
+          fp_minmax_value = {32'hffff_ffff,
+              (is_max ?
+               (less_value ? rs2_value[31:0] : rs1_value[31:0]) :
+               (less_value ? rs1_value[31:0] : rs2_value[31:0]))};
+        end
+      end
+    end
+  endfunction
+
+  wire [`REG_ADDR_W-1:0] pending_fp_rs1_idx_w = pending_fp_inst_q[19:15];
+  wire [`REG_ADDR_W-1:0] pending_fp_rs2_idx_w = pending_fp_inst_q[24:20];
+  wire [`XLEN-1:0] pending_fp_int_rs1_value_w =
+      arch_gpr(core_debug_gprs_w, pending_fp_rs1_idx_w);
+  wire [`XLEN-1:0] pending_fp_mem_addr_w =
+      pending_fp_int_rs1_value_w +
+      (pending_fp_load_q ? fp_i_imm(pending_fp_inst_q) :
+                           fp_s_imm(pending_fp_inst_q));
+  wire [`XLEN-1:0] pending_fp_store_value_w = fpr_q[pending_fp_rs2_idx_w];
+  wire [`XLEN-1:0] pending_fp_mem_wdata_w =
+      fp_store_wdata(pending_fp_mem_addr_w,
+                     pending_fp_store_value_w,
+                     pending_fp_double_q);
+  wire [`STRB_W-1:0] pending_fp_mem_wstrb_w =
+      fp_store_wstrb(pending_fp_mem_addr_w, pending_fp_double_q);
+  wire [`XLEN-1:0] pending_fp_move_to_fpr_value_w =
+      pending_fp_double_q ? pending_fp_int_rs1_value_w :
+      {32'hffff_ffff, pending_fp_int_rs1_value_w[31:0]};
+  wire [`XLEN-1:0] pending_fp_frs1_value_w = fpr_q[pending_fp_rs1_idx_w];
+  wire [`XLEN-1:0] pending_fp_frs2_value_w = fpr_q[pending_fp_rs2_idx_w];
+  wire pending_fp_class_w =
+      pending_fp_gpr_write_q && (pending_fp_inst_q[14:12] == 3'b001) &&
+      ((pending_fp_inst_q[31:25] == FP_FUNCT7_FMV_X_W) ||
+       (pending_fp_inst_q[31:25] == FP_FUNCT7_FMV_X_D));
+  wire pending_fp_compare_w =
+      pending_fp_gpr_write_q &&
+      ((pending_fp_inst_q[31:25] == FP_FUNCT7_FCMP_S) ||
+       (pending_fp_inst_q[31:25] == FP_FUNCT7_FCMP_D));
+  wire pending_fp_sgnj_w =
+      !pending_fp_gpr_write_q &&
+      ((pending_fp_inst_q[31:25] == FP_FUNCT7_FSGNJ_S) ||
+       (pending_fp_inst_q[31:25] == FP_FUNCT7_FSGNJ_D));
+  wire pending_fp_addsub_w =
+      !pending_fp_gpr_write_q &&
+      ((pending_fp_inst_q[31:25] == FP_FUNCT7_FADD_S) ||
+       (pending_fp_inst_q[31:25] == FP_FUNCT7_FADD_D) ||
+       (pending_fp_inst_q[31:25] == FP_FUNCT7_FSUB_S) ||
+       (pending_fp_inst_q[31:25] == FP_FUNCT7_FSUB_D));
+  wire pending_fp_mul_w =
+      !pending_fp_gpr_write_q &&
+      ((pending_fp_inst_q[31:25] == FP_FUNCT7_FMUL_S) ||
+       (pending_fp_inst_q[31:25] == FP_FUNCT7_FMUL_D));
+  wire pending_fp_div_w =
+      !pending_fp_gpr_write_q &&
+      ((pending_fp_inst_q[31:25] == FP_FUNCT7_FDIV_S) ||
+       (pending_fp_inst_q[31:25] == FP_FUNCT7_FDIV_D));
+  wire pending_fp_sqrt_w =
+      !pending_fp_gpr_write_q &&
+      ((pending_fp_inst_q[31:25] == FP_FUNCT7_FSQRT_S) ||
+       (pending_fp_inst_q[31:25] == FP_FUNCT7_FSQRT_D));
+  wire pending_fp_minmax_w =
+      !pending_fp_gpr_write_q &&
+      ((pending_fp_inst_q[31:25] == FP_FUNCT7_FMINMAX_S) ||
+       (pending_fp_inst_q[31:25] == FP_FUNCT7_FMINMAX_D));
+  wire pending_fp_convert_to_gpr_w =
+      pending_fp_gpr_write_q &&
+      (pending_fp_inst_q[31:25] == FP_FUNCT7_FCVT_D_INT);
+  wire pending_fp_convert_to_fpr_w =
+      !pending_fp_gpr_write_q &&
+      (pending_fp_inst_q[31:25] == FP_FUNCT7_FCVT_INT_D);
+  wire [`XLEN-1:0] pending_fp_convert_to_gpr_value_w =
+      fp_d_to_int_value(pending_fp_frs1_value_w,
+                        pending_fp_inst_q[21:20],
+                        pending_fp_inst_q[14:12]);
+  wire [`XLEN-1:0] pending_fp_convert_to_fpr_value_w =
+      fp_int_to_d_value(pending_fp_int_rs1_value_w,
+                        pending_fp_inst_q[21:20],
+                        pending_fp_inst_q[14:12]);
+  wire [`XLEN-1:0] pending_fp_compare_value_w =
+      fp_compare_value(pending_fp_frs1_value_w,
+                       pending_fp_frs2_value_w,
+                       pending_fp_double_q,
+                       pending_fp_inst_q[14:12]);
+  wire [`XLEN-1:0] pending_fp_sgnj_value_w =
+      fp_sgnj_value(pending_fp_frs1_value_w,
+                    pending_fp_frs2_value_w,
+                    pending_fp_double_q,
+                    pending_fp_inst_q[14:12]);
+  wire [`XLEN-1:0] pending_fp_addsub_value_w =
+      fp_addsub_value(pending_fp_frs1_value_w,
+                      pending_fp_frs2_value_w,
+                      pending_fp_double_q,
+                      (pending_fp_inst_q[31:25] == FP_FUNCT7_FSUB_S) ||
+                      (pending_fp_inst_q[31:25] == FP_FUNCT7_FSUB_D),
+                      pending_fp_inst_q[14:12]);
+  wire [`XLEN-1:0] pending_fp_mul_value_w =
+      fp_mul_value(pending_fp_frs1_value_w,
+                   pending_fp_frs2_value_w,
+                   pending_fp_double_q,
+                   pending_fp_inst_q[14:12]);
+  wire [`XLEN-1:0] pending_fp_div_value_w =
+      fp_div_value(pending_fp_frs1_value_w,
+                   pending_fp_frs2_value_w,
+                   pending_fp_double_q,
+                   pending_fp_inst_q[14:12]);
+  wire [`XLEN-1:0] pending_fp_sqrt_value_w =
+      fp_sqrt_value(pending_fp_frs1_value_w,
+                    pending_fp_double_q,
+                    pending_fp_inst_q[14:12]);
+  wire [`XLEN-1:0] pending_fp_minmax_value_w =
+      fp_minmax_value(pending_fp_frs1_value_w,
+                      pending_fp_frs2_value_w,
+                      pending_fp_double_q,
+                      pending_fp_inst_q[12]);
+  wire [`XLEN-1:0] pending_fp_gpr_value_w =
+      pending_fp_class_w ?
+      (pending_fp_double_q ? fp_class_d_value(pending_fp_frs1_value_w) :
+       fp_class_s_value(pending_fp_frs1_value_w[31:0])) :
+      pending_fp_compare_w ? pending_fp_compare_value_w :
+      pending_fp_convert_to_gpr_w ? pending_fp_convert_to_gpr_value_w :
+      fp_move_to_gpr_value(pending_fp_frs1_value_w, pending_fp_double_q);
+  wire [`XLEN-1:0] pending_fp_result_value_w =
+      pending_fp_gpr_write_q ? pending_fp_gpr_value_w :
+      pending_fp_convert_to_fpr_w ? pending_fp_convert_to_fpr_value_w :
+      pending_fp_sgnj_w ? pending_fp_sgnj_value_w :
+      pending_fp_addsub_w ? pending_fp_addsub_value_w :
+      pending_fp_mul_w ? pending_fp_mul_value_w :
+      pending_fp_div_w ? pending_fp_div_value_w :
+      pending_fp_sqrt_w ? pending_fp_sqrt_value_w :
+      pending_fp_minmax_w ? pending_fp_minmax_value_w :
+                               pending_fp_move_to_fpr_value_w;
+  wire pending_fp_mem_req_valid_w =
+      stop_pending_q && pending_fp_q && backend_drained_q &&
+      !pending_fp_mem_pending_q && !pending_fp_mem_done_q;
+  wire pending_fp_mem_req_fire_w =
+      pending_fp_mem_req_valid_w && mem_req_ready_i;
+  wire pending_fp_mem_rsp_fire_w =
+      pending_fp_mem_pending_q && mem_rsp_valid_i;
+  wire [`XLEN-1:0] pending_fp_shifted_rdata_w =
+      mem_rsp_rdata_i >> {pending_fp_addr_q[`XLEN_BYTE_W-1:0], 3'b000};
+  wire [`XLEN-1:0] pending_fp_load_value_w =
+      pending_fp_double_q ? pending_fp_shifted_rdata_w :
+      {32'hffff_ffff, pending_fp_shifted_rdata_w[31:0]};
+
+  assign mem_req_valid_o = pending_fp_mem_req_valid_w ? 1'b1 : core_mem_req_valid_w;
+  assign mem_req_write_o = pending_fp_mem_req_valid_w ? pending_fp_store_q :
+                           core_mem_req_write_w;
+  assign mem_req_addr_o = pending_fp_mem_req_valid_w ? fp_aligned_addr(pending_fp_mem_addr_w) :
+                          core_mem_req_addr_w;
+  assign mem_req_wdata_o = pending_fp_mem_req_valid_w ? pending_fp_mem_wdata_w :
+                           core_mem_req_wdata_w;
+  assign mem_req_wstrb_o = pending_fp_mem_req_valid_w ? pending_fp_mem_wstrb_w :
+                           core_mem_req_wstrb_w;
+  assign mem_rsp_ready_o = pending_fp_mem_pending_q ? 1'b1 : core_mem_rsp_ready_w;
+  assign mem1_req_valid_o = core_mem1_req_valid_w;
+  assign mem1_req_write_o = core_mem1_req_write_w;
+  assign mem1_req_addr_o = core_mem1_req_addr_w;
+  assign mem1_req_wdata_o = core_mem1_req_wdata_w;
+  assign mem1_req_wstrb_o = core_mem1_req_wstrb_w;
+  assign mem1_rsp_ready_o = core_mem1_rsp_ready_w;
+
+  assign pending_branch_rs1_data_w =
+      arch_gpr(core_debug_gprs_w, pending_branch_rs1_q);
+  assign pending_branch_rs2_data_w =
+      arch_gpr(core_debug_gprs_w, pending_branch_rs2_q);
+  assign pending_jump_rs1_data_w =
+      arch_gpr(core_debug_gprs_w, pending_jump_rs1_q);
+  CsrFile u_csr_file (
+    .clk(clk),
+    .rst(rst),
+    .cycle_count_enable_i(run_i && !halted_q),
+    .time_i(time_i),
+    .instret_inc_i(core_retire_count_w),
+    .csr_valid_i(csr_access_valid_w),
+    .csr_addr_i(csr_access_addr_w),
+    .csr_funct3_i(csr_access_funct3_w),
+    .csr_rs1_idx_i(csr_access_rs1_idx_w),
+    .csr_rs1_data_i(csr_access_rs1_data_w),
+    .csr_zimm_i(csr_access_rs1_idx_w),
+    .csr_commit_i(pending_system_csr_commit_w),
+    .csr_rdata_o(csr_rdata_w),
+    .csr_illegal_o(csr_illegal_w),
+    .trap_mem_valid_i(csr_trap_mem_valid_w),
+    .trap_mem_pc_i(csr_trap_mem_pc_w),
+    .trap_mem_cause_i(csr_trap_mem_cause_w),
+    .trap_mem_tval_i(csr_trap_mem_tval_w),
+    .trap_ex_valid_i(csr_trap_ex_valid_w),
+    .trap_ex_pc_i(csr_trap_ex_pc_w),
+    .trap_ex_cause_i(csr_trap_ex_cause_w),
+    .trap_ex_tval_i(csr_trap_ex_tval_w),
+    .irq_software_i(irq_software_i),
+    .irq_timer_i(irq_timer_i),
+    .irq_external_i(irq_external_i),
+    .irq_pending_o(csr_irq_pending_w),
+    .irq_cause_o(csr_irq_cause_w),
+    .trap_irq_valid_i(csr_trap_irq_valid_w),
+    .trap_irq_pc_i(pending_system_pc_q),
+    .trap_irq_cause_i(pending_system_irq_cause_q),
+    .mret_valid_i(csr_real_mret_valid_w),
+    .sret_valid_i(csr_sret_valid_w),
+    .trap_target_o(csr_trap_target_w),
+    .mepc_o(csr_mepc_w),
+    .ret_target_o(csr_ret_target_w),
+    .priv_mode_o(csr_priv_mode_w),
+    .ecall_cause_o(csr_ecall_cause_w),
+    .mstatus_o(csr_mstatus_w),
+    .satp_o(csr_satp_w)
+  );
+
+  DecodeStage u_head0_decode (
+    .inst_i(head_inst0_w),
+    .ctrl_o(head0_ctrl_w),
+    .rs1_idx_o(head0_rs1_w),
+    .rs2_idx_o(head0_rs2_w),
+    .rd_idx_o(head0_rd_unused_w),
+    .imm_o(head0_imm_w)
+  );
+
+  DecodeStage u_head1_decode (
+    .inst_i(head_inst1_w),
+    .ctrl_o(head1_ctrl_w),
+    .rs1_idx_o(head1_rs1_w),
+    .rs2_idx_o(head1_rs2_w),
+    .rd_idx_o(head1_rd_unused_w),
+    .imm_o(head1_imm_w)
+  );
+
+  DecodeStage u_branch_target_capture_decode (
+    .inst_i(fetch_dec0_inst_w),
+    .ctrl_o(branch_target_capture_ctrl_w),
+    .rs1_idx_o(branch_target_capture_rs1_unused_w),
+    .rs2_idx_o(branch_target_capture_rs2_unused_w),
+    .rd_idx_o(branch_target_capture_rd_unused_w),
+    .imm_o(branch_target_capture_imm_unused_w)
+  );
+
+  DecodeStage u_branch_prefetch0_decode (
+    .inst_i(branch_prefetch_buf_inst0_q),
+    .ctrl_o(branch_prefetch0_ctrl_w),
+    .rs1_idx_o(branch_prefetch0_rs1_unused_w),
+    .rs2_idx_o(branch_prefetch0_rs2_unused_w),
+    .rd_idx_o(branch_prefetch0_rd_unused_w),
+    .imm_o(branch_prefetch0_imm_unused_w)
+  );
+
+  DecodeStage u_branch_prefetch1_decode (
+    .inst_i(branch_prefetch_buf_inst1_q),
+    .ctrl_o(branch_prefetch1_ctrl_w),
+    .rs1_idx_o(branch_prefetch1_rs1_unused_w),
+    .rs2_idx_o(branch_prefetch1_rs2_unused_w),
+    .rd_idx_o(branch_prefetch1_rd_unused_w),
+    .imm_o(branch_prefetch1_imm_unused_w)
+  );
+
+  DecodeStage u_branch_prefetch_rsp1_decode (
+    .inst_i(fetch_dec1_inst_w),
+    .ctrl_o(branch_prefetch_rsp1_ctrl_w),
+    .rs1_idx_o(branch_prefetch_rsp1_rs1_unused_w),
+    .rs2_idx_o(branch_prefetch_rsp1_rs2_unused_w),
+    .rd_idx_o(branch_prefetch_rsp1_rd_unused_w),
+    .imm_o(branch_prefetch_rsp1_imm_unused_w)
+  );
+
+  CompareUnit u_pending_branch_compare (
+    .lhs_i(pending_branch_rs1_data_w),
+    .rhs_i(pending_branch_rs2_data_w),
+    .cmp_op_i(pending_branch_cmp_op_q),
+    .cmp_true_o(pending_branch_taken_w)
+  );
+
+  OooAluCoreSlice #(
+    .PHY_REG_ADDR_W(PHY_REG_ADDR_W),
+    .ROB_INDEX_W(ROB_INDEX_W),
+    .ROB_COUNT_W(ROB_COUNT_W),
+    .FREE_COUNT_W(FREE_COUNT_W),
+    .ISSUE_COUNT_W(ISSUE_COUNT_W)
+  ) u_core_slice (
+    .clk(clk),
+    .rst(rst),
+    .flush_i(core_local_flush_w),
+    .checkpoint_capture_i(core_checkpoint_capture_w),
+    .checkpoint_restore_i(core_checkpoint_restore_w),
+    .checkpoint_quiesce_i(core_checkpoint_quiesce_w),
+    .mem_issue_block_i(core_mem_issue_block_w),
+    .pending_branch_fast_valid_i(stop_pending_q && pending_branch_q &&
+                                 pending_branch_dispatched_q),
+    .pending_branch_fast_pc_i(pending_branch_pc_q),
+    .serial_write_valid_i(pending_fp_gpr_commit_w),
+    .serial_write_arch_rd_i(pending_fp_rd_q),
+    .serial_write_data_i(pending_fp_result_value_w),
+    .dispatch0_valid_i(core_dispatch0_valid_w),
+    .dispatch0_ready_o(dispatch0_ready_w),
+    .dispatch0_pc_i(core_dispatch0_pc_w),
+    .dispatch0_next_pc_i(core_dispatch0_next_pc_w),
+    .dispatch0_inst_i(core_dispatch0_inst_w),
+    .dispatch0_csr_rdata_i(core_dispatch0_csr_rdata_w),
+    .dispatch0_unsupported_o(dispatch0_unsupported_w),
+    .dispatch1_valid_i(core_dispatch1_valid_w),
+    .dispatch1_optional_i(dispatch1_optional_w),
+    .dispatch1_ready_o(dispatch1_ready_w),
+    .dispatch1_pc_i(core_dispatch1_pc_w),
+    .dispatch1_next_pc_i(core_dispatch1_next_pc_w),
+    .dispatch1_inst_i(core_dispatch1_inst_w),
+    .dispatch1_csr_rdata_i({`XLEN{1'b0}}),
+    .dispatch1_unsupported_o(dispatch1_unsupported_w),
+    .mem_req_valid_o(core_mem_req_valid_w),
+    .mem_req_ready_i(mem_req_ready_i),
+    .mem_req_write_o(core_mem_req_write_w),
+    .mem_req_addr_o(core_mem_req_addr_w),
+    .mem_req_wdata_o(core_mem_req_wdata_w),
+    .mem_req_wstrb_o(core_mem_req_wstrb_w),
+    .mem_rsp_valid_i(mem_rsp_valid_i),
+    .mem_rsp_ready_o(core_mem_rsp_ready_w),
+    .mem_rsp_rdata_i(mem_rsp_rdata_i),
+    .mem_rsp_error_i(mem_rsp_error_i),
+    .mem_rsp_page_fault_i(mem_rsp_page_fault_i),
+    .mem1_req_valid_o(core_mem1_req_valid_w),
+    .mem1_req_ready_i(mem1_req_ready_i),
+    .mem1_req_write_o(core_mem1_req_write_w),
+    .mem1_req_addr_o(core_mem1_req_addr_w),
+    .mem1_req_wdata_o(core_mem1_req_wdata_w),
+    .mem1_req_wstrb_o(core_mem1_req_wstrb_w),
+    .mem1_rsp_valid_i(mem1_rsp_valid_i),
+    .mem1_rsp_ready_o(core_mem1_rsp_ready_w),
+    .mem1_rsp_rdata_i(mem1_rsp_rdata_i),
+    .mem1_rsp_error_i(mem1_rsp_error_i),
+    .mem1_rsp_page_fault_i(mem1_rsp_page_fault_i),
+    .commit_ready_i(core_commit_ready_w),
+    .commit1_block_i(core_commit1_block_w),
+    .commit0_valid_o(core_commit0_valid_w),
+    .commit0_pc_o(core_commit0_pc_w),
+    .commit0_next_pc_o(core_commit0_next_pc_w),
+    .commit0_inst_o(core_commit0_inst_w),
+    .commit0_rd_en_o(core_commit0_rd_en_w),
+    .commit0_arch_rd_o(core_commit0_rd_addr_w),
+    .commit0_data_o(core_commit0_rd_data_w),
+    .commit0_exception_o(core_commit0_exception_w),
+    .commit0_cause_o(core_commit0_cause_w),
+    .commit0_tval_o(core_commit0_tval_w),
+    .commit0_write_o(core_commit0_write_w),
+    .commit1_valid_o(core_commit1_valid_w),
+    .commit1_pc_o(core_commit1_pc_w),
+    .commit1_next_pc_o(core_commit1_next_pc_w),
+    .commit1_inst_o(core_commit1_inst_w),
+    .commit1_rd_en_o(core_commit1_rd_en_w),
+    .commit1_arch_rd_o(core_commit1_rd_addr_w),
+    .commit1_data_o(core_commit1_rd_data_w),
+    .commit1_exception_o(core_commit1_exception_w),
+    .commit1_cause_o(core_commit1_cause_w),
+    .commit1_tval_o(core_commit1_tval_w),
+    .commit1_write_o(core_commit1_write_w),
+    .free_count_o(free_count_o),
+    .rob_count_o(rob_count_o),
+	    .issue_count_o(issue_count_o),
+	    .mem_idle_o(core_mem_idle_w),
+	    .execute0_valid_o(execute0_valid_unused_w),
+	    .execute1_valid_o(execute1_valid_unused_w),
+	    .branch_resolve_valid_o(core_branch_resolve_valid_w),
+	    .branch_resolve_pc_o(core_branch_resolve_pc_w),
+	    .branch_resolve_next_pc_o(core_branch_resolve_next_pc_w),
+	    .branch_resolve_misaligned_o(core_branch_resolve_misaligned_w),
+	    .dispatch_branch_resolve_valid_o(core_dispatch_branch_resolve_valid_w),
+	    .dispatch_branch_resolve_pc_o(core_dispatch_branch_resolve_pc_w),
+	    .dispatch_branch_resolve_next_pc_o(core_dispatch_branch_resolve_next_pc_w),
+	    .dispatch_branch_resolve_misaligned_o(core_dispatch_branch_resolve_misaligned_w),
+	    .pending_load_branch_dep_o(core_pending_load_branch_dep_w),
+	    .retire_count_o(core_retire_count_w),
+    .a0_data_o(a0_data_w),
+    .debug_gprs_o(core_debug_gprs_w)
+  );
+
+  assign commit0_valid_o =
+      ctrl_commit_valid_q ? 1'b1 :
+      (synth_lane1_ret_before_core0_w ||
+       synth_lane1_ret_drop_branch_w) ? 1'b1 :
+      core_commit0_valid_w;
+  assign commit0_pc_o =
+      ctrl_commit_valid_q ? ctrl_commit_pc_q :
+      (synth_lane1_ret_before_core0_w ||
+       synth_lane1_ret_drop_branch_w) ? synth_lane1_ret_pc_q :
+      core_commit0_pc_w;
+  assign commit0_inst_o =
+      ctrl_commit_valid_q ? ctrl_commit_inst_q :
+      (synth_lane1_ret_before_core0_w ||
+       synth_lane1_ret_drop_branch_w) ? synth_lane1_ret_inst_q :
+      core_commit0_inst_w;
+  wire core_commit0_jal_w =
+      core_commit0_valid_w && (core_commit0_inst_w[6:0] == `OPCODE_JAL);
+  wire core_commit1_jal_w =
+      core_commit1_valid_w && (core_commit1_inst_w[6:0] == `OPCODE_JAL);
+  wire [`XLEN-1:0] core_commit0_arch_next_pc_w =
+      core_commit0_jal_w ? (core_commit0_pc_w + rv32_imm_j(core_commit0_inst_w)) :
+                           core_commit0_next_pc_w;
+  wire [`XLEN-1:0] core_commit1_arch_next_pc_w =
+      core_commit1_jal_w ? (core_commit1_pc_w + rv32_imm_j(core_commit1_inst_w)) :
+                           core_commit1_next_pc_w;
+  assign commit0_next_pc_o =
+      ctrl_commit_valid_q ? ctrl_commit_next_pc_q :
+      (synth_lane1_ret_before_core0_w ||
+       synth_lane1_ret_drop_branch_w) ? synth_lane1_ret_next_pc_q :
+      core_commit0_arch_next_pc_w;
+  assign commit0_rd_en_o =
+      ctrl_commit_valid_q ? ctrl_commit_rd_en_q :
+      (synth_lane1_ret_before_core0_w || synth_lane1_ret_drop_branch_w) ?
+      1'b0 : core_commit0_rd_en_w;
+  assign commit0_rd_addr_o =
+      ctrl_commit_valid_q ? ctrl_commit_rd_addr_q :
+      (synth_lane1_ret_before_core0_w || synth_lane1_ret_drop_branch_w) ?
+      {`REG_ADDR_W{1'b0}} : core_commit0_rd_addr_w;
+  assign commit0_rd_data_o =
+      ctrl_commit_valid_q ? ctrl_commit_rd_data_q :
+      (synth_lane1_ret_before_core0_w || synth_lane1_ret_drop_branch_w) ?
+      {`XLEN{1'b0}} : core_commit0_rd_data_w;
+  assign commit0_exception_o =
+      (ctrl_commit_valid_q || synth_lane1_ret_before_core0_w ||
+       synth_lane1_ret_drop_branch_w) ?
+      1'b0 : core_commit0_exception_w;
+  assign commit0_write_o =
+      ctrl_commit_valid_q ? ctrl_commit_write_q :
+      (synth_lane1_ret_before_core0_w || synth_lane1_ret_drop_branch_w) ?
+      1'b0 : core_commit0_write_w;
+  assign commit1_valid_o =
+      ctrl_commit_valid_q ? 1'b0 :
+      synth_lane1_branch_append_w ? 1'b1 :
+      synth_lane1_ret_after_core0_w ? 1'b1 :
+      synth_lane1_ret_before_core0_w ? core_commit0_valid_w :
+      synth_lane1_ret_drop_branch_w ? core_commit1_valid_w :
+      core_commit1_valid_w;
+  assign commit1_pc_o =
+      ctrl_commit_valid_q ? {`XLEN{1'b0}} :
+      synth_lane1_branch_append_w ? head_pc_w :
+      synth_lane1_ret_after_core0_w ? synth_lane1_ret_pc_q :
+      synth_lane1_ret_before_core0_w ? core_commit0_pc_w :
+      synth_lane1_ret_drop_branch_w ? core_commit1_pc_w :
+      core_commit1_pc_w;
+  assign commit1_inst_o =
+      ctrl_commit_valid_q ? {`INST_W{1'b0}} :
+      synth_lane1_branch_append_w ? head_inst0_w :
+      synth_lane1_ret_after_core0_w ? synth_lane1_ret_inst_q :
+      synth_lane1_ret_before_core0_w ? core_commit0_inst_w :
+      synth_lane1_ret_drop_branch_w ? core_commit1_inst_w :
+      core_commit1_inst_w;
+  assign commit1_next_pc_o =
+      ctrl_commit_valid_q ? {`XLEN{1'b0}} :
+      synth_lane1_branch_append_w ? core_dispatch_branch_resolve_next_pc_w :
+      synth_lane1_ret_after_core0_w ? synth_lane1_ret_next_pc_q :
+      synth_lane1_ret_before_core0_w ? core_commit0_arch_next_pc_w :
+      synth_lane1_ret_drop_branch_w ? core_commit1_arch_next_pc_w :
+      core_commit1_arch_next_pc_w;
+  assign commit1_rd_en_o =
+      (ctrl_commit_valid_q || synth_lane1_branch_append_w ||
+       synth_lane1_ret_after_core0_w) ?
+      1'b0 :
+      synth_lane1_ret_before_core0_w ? core_commit0_rd_en_w :
+      synth_lane1_ret_drop_branch_w ? core_commit1_rd_en_w :
+      core_commit1_rd_en_w;
+  assign commit1_rd_addr_o =
+      (ctrl_commit_valid_q || synth_lane1_branch_append_w ||
+       synth_lane1_ret_after_core0_w) ?
+      {`REG_ADDR_W{1'b0}} :
+      synth_lane1_ret_before_core0_w ? core_commit0_rd_addr_w :
+      synth_lane1_ret_drop_branch_w ? core_commit1_rd_addr_w :
+      core_commit1_rd_addr_w;
+  assign commit1_rd_data_o =
+      (ctrl_commit_valid_q || synth_lane1_branch_append_w ||
+       synth_lane1_ret_after_core0_w) ?
+      {`XLEN{1'b0}} :
+      synth_lane1_ret_before_core0_w ? core_commit0_rd_data_w :
+      synth_lane1_ret_drop_branch_w ? core_commit1_rd_data_w :
+      core_commit1_rd_data_w;
+  assign commit1_exception_o =
+      (ctrl_commit_valid_q || synth_lane1_branch_append_w ||
+       synth_lane1_ret_after_core0_w) ?
+      1'b0 :
+      synth_lane1_ret_before_core0_w ? core_commit0_exception_w :
+      synth_lane1_ret_drop_branch_w ? core_commit1_exception_w :
+      core_commit1_exception_w;
+  assign commit1_write_o =
+      (ctrl_commit_valid_q || synth_lane1_branch_append_w ||
+       synth_lane1_ret_after_core0_w) ?
+      1'b0 :
+      synth_lane1_ret_before_core0_w ? core_commit0_write_w :
+      synth_lane1_ret_drop_branch_w ? core_commit1_write_w :
+      core_commit1_write_w;
+  assign trap_valid_o = trap_valid_q;
+  assign trap_cause_o = trap_cause_q;
+  assign trap_pc_o = trap_pc_q;
+  assign trap_tval_o = trap_tval_q;
+  assign exit_valid_o = exit_valid_q;
+  assign exit_is_ecall_o = exit_is_ecall_q;
+  assign exit_is_ebreak_o = exit_is_ebreak_q;
+  assign exit_code_o = a0_data_w;
+  assign halted_o = halted_q ||
+                    (stop_pending_q && !pending_branch_q && !pending_jump_q &&
+                     !pending_mem_q && !pending_fp_q && !pending_system_q &&
+                     !synth_lane1_ret_pending_q &&
+                     !synth_lane1_branch_drop_pending_q);
+  assign priv_mode_o = csr_priv_mode_w;
+  assign mstatus_o = csr_mstatus_w;
+  assign satp_o = csr_satp_w;
+  assign mmu_flush_o =
+      pending_system_satp_write_commit_w || pending_system_sfence_commit_w;
+  assign debug_gprs_o = core_debug_gprs_w;
+  assign retire_count_o = core_retire_count_w +
+                          {1'b0, ctrl_commit_valid_q} +
+                          {1'b0, synth_lane1_branch_append_w} +
+                          {1'b0, synth_lane1_ret_commit_w} -
+                          {1'b0, synth_lane1_ret_drop_branch_w};
+
+  assign debug_pc_o = trap_valid_q ? trap_pc_q :
+                      fifo_has_packet_w ? head_pc_w :
+                      outstanding_valid_q ? outstanding_pc_q :
+                      next_fetch_pc_q;
+  assign debug_state_o =
+      trap_valid_q ? `CORE_STATE_TRAP :
+      halted_q ? `CORE_STATE_HALT :
+      fifo_has_packet_w ? `CORE_STATE_DECODE :
+      outstanding_valid_q ? `CORE_STATE_FETCH_WAIT :
+      fetch_req_valid_o ? `CORE_STATE_FETCH_REQ :
+      `CORE_STATE_FETCH_REQ;
+
+  wire unused_core_slice_observe_w =
+      execute0_valid_unused_w | execute1_valid_unused_w |
+      (|head0_ctrl_w) | (|head0_rd_unused_w) |
+      (|head1_ctrl_w) | (|head1_rd_unused_w) |
+      (|branch_target_capture_ctrl_w) |
+      (|branch_target_capture_rs1_unused_w) |
+      (|branch_target_capture_rs2_unused_w) |
+      (|branch_target_capture_rd_unused_w) |
+      (|branch_target_capture_imm_unused_w) |
+      (|branch_prefetch0_rs1_unused_w) |
+      (|branch_prefetch0_rs2_unused_w) |
+      (|branch_prefetch0_rd_unused_w) |
+      (|branch_prefetch0_imm_unused_w) |
+      (|branch_prefetch1_rs1_unused_w) |
+      (|branch_prefetch1_rs2_unused_w) |
+      (|branch_prefetch1_rd_unused_w) |
+      (|branch_prefetch1_imm_unused_w) |
+      (|branch_prefetch_rsp1_rs1_unused_w) |
+      (|branch_prefetch_rsp1_rs2_unused_w) |
+      (|branch_prefetch_rsp1_rd_unused_w) |
+      (|branch_prefetch_rsp1_imm_unused_w) |
+      branch_fallthrough_safe_w | branch_target_cache_hit_w |
+      pending_jump_jalr_sum_lsb_unused_w | head_fetch_fault_w |
+      pending_branch_bht_valid_q |
+      branch_bpu_lookup_event_w | branch_bpu_lookup_bht_valid_w |
+      branch_bpu_update_correct_w |
+      csr_irq_pending_w | (|csr_irq_cause_w) | (|csr_trap_target_w) |
+      (|csr_mepc_w) | (|csr_priv_mode_w) | (|csr_satp_w) |
+      (|head_packet_next_pc_w);
+
+  integer reset_idx;
+  integer ras_reset_idx;
+  integer fpr_reset_idx;
+
+  always @(posedge clk) begin
+    if (rst || flush_i) begin
+      next_fetch_pc_q <= reset_pc_i;
+      outstanding_valid_q <= 1'b0;
+      outstanding_pc_q <= {`XLEN{1'b0}};
+      discard_fetch_rsp_q <= 1'b0;
+      ras_count_q <= {RAS_COUNT_W{1'b0}};
+      ras_reliable_q <= 1'b1;
+      fifo_head_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+      fifo_tail_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+      fifo_count_q <= {FETCH_COUNT_W{1'b0}};
+      branch_prefetch_active_q <= 1'b0;
+      branch_prefetch_buffer_valid_q <= 1'b0;
+      branch_prefetch_pc_q <= {`XLEN{1'b0}};
+      branch_prefetch_buf_pc0_q <= {`XLEN{1'b0}};
+      branch_prefetch_buf_pc1_q <= {`XLEN{1'b0}};
+      branch_prefetch_buf_next_pc0_q <= {`XLEN{1'b0}};
+      branch_prefetch_buf_next_pc1_q <= {`XLEN{1'b0}};
+      branch_prefetch_buf_packet_next_pc_q <= {`XLEN{1'b0}};
+      branch_prefetch_buf_inst0_q <= {`INST_W{1'b0}};
+      branch_prefetch_buf_inst1_q <= {`INST_W{1'b0}};
+      branch_prefetch_buf_resp0_q <= 2'b00;
+      branch_prefetch_buf_resp1_q <= 2'b00;
+      branch_spec_active_q <= 1'b0;
+      branch_spec_checkpoint_pending_q <= 1'b0;
+      branch_spec_pred_pc_q <= {`XLEN{1'b0}};
+      branch_target_capture_pending_q <= 1'b0;
+      branch_target_capture_branch_pc_q <= {`XLEN{1'b0}};
+      branch_target_capture_target_pc_q <= {`XLEN{1'b0}};
+      trap_valid_q <= 1'b0;
+      trap_cause_q <= {`TRAP_CAUSE_W{1'b0}};
+      trap_pc_q <= {`XLEN{1'b0}};
+      trap_tval_q <= {`XLEN{1'b0}};
+      exit_valid_q <= 1'b0;
+      exit_is_ecall_q <= 1'b0;
+      exit_is_ebreak_q <= 1'b0;
+      halted_q <= 1'b0;
+      stop_pending_q <= 1'b0;
+      pending_exit_q <= 1'b0;
+      pending_exit_is_ecall_q <= 1'b0;
+      pending_exit_is_ebreak_q <= 1'b0;
+      pending_branch_q <= 1'b0;
+      pending_branch_dispatched_q <= 1'b0;
+      pending_jump_q <= 1'b0;
+      pending_jump_dispatched_q <= 1'b0;
+      pending_jump_jalr_q <= 1'b0;
+      pending_mem_q <= 1'b0;
+      pending_mem_dispatched_q <= 1'b0;
+      pending_fp_q <= 1'b0;
+      pending_fp_mem_pending_q <= 1'b0;
+      pending_fp_mem_done_q <= 1'b0;
+      pending_fp_load_q <= 1'b0;
+      pending_fp_store_q <= 1'b0;
+      pending_fp_double_q <= 1'b0;
+      pending_fp_gpr_write_q <= 1'b0;
+      pending_arch_trap_q <= 1'b0;
+      pending_trap_cause_q <= {`TRAP_CAUSE_W{1'b0}};
+      pending_trap_pc_q <= {`XLEN{1'b0}};
+      pending_trap_tval_q <= {`XLEN{1'b0}};
+      pending_branch_pc_q <= {`XLEN{1'b0}};
+      pending_branch_next_pc_q <= {`XLEN{1'b0}};
+      pending_branch_inst_q <= {`INST_W{1'b0}};
+      pending_branch_rs1_q <= {`REG_ADDR_W{1'b0}};
+      pending_branch_rs2_q <= {`REG_ADDR_W{1'b0}};
+      pending_branch_imm_q <= {`XLEN{1'b0}};
+      pending_branch_cmp_op_q <= `CMP_OP_NONE;
+      pending_branch_pred_taken_q <= 1'b0;
+      pending_branch_bht_valid_q <= 1'b0;
+      pending_branch_bht_idx_q <= {`BPU_BHT_INDEX_W{1'b0}};
+      direct_branch_wait_q <= 1'b0;
+      direct_branch_wait_pc_q <= {`XLEN{1'b0}};
+      pending_jump_pc_q <= {`XLEN{1'b0}};
+      pending_jump_next_pc_q <= {`XLEN{1'b0}};
+      pending_jump_inst_q <= {`INST_W{1'b0}};
+      pending_jump_rs1_q <= {`REG_ADDR_W{1'b0}};
+      pending_jump_imm_q <= {`XLEN{1'b0}};
+      pending_jump_target_q <= {`XLEN{1'b0}};
+      pending_lane1_ret_q <= 1'b0;
+      pending_lane1_ret_pc_q <= {`XLEN{1'b0}};
+      pending_lane1_ret_next_pc_q <= {`XLEN{1'b0}};
+      pending_lane1_ret_inst_q <= {`INST_W{1'b0}};
+      return_cont_valid_q <= 1'b0;
+      return_cont_pc_q <= {`XLEN{1'b0}};
+      return_cont_next_pc_q <= {`XLEN{1'b0}};
+      return_cont_inst_q <= {`INST_W{1'b0}};
+      synth_lane1_ret_pending_q <= 1'b0;
+      synth_lane1_ret_branch_seen_q <= 1'b0;
+      synth_lane1_ret_branch_pc_q <= {`XLEN{1'b0}};
+      synth_lane1_ret_pc_q <= {`XLEN{1'b0}};
+      synth_lane1_ret_next_pc_q <= {`XLEN{1'b0}};
+      synth_lane1_ret_inst_q <= {`INST_W{1'b0}};
+      synth_lane1_branch_drop_pending_q <= 1'b0;
+      synth_lane1_branch_drop_pc_q <= {`XLEN{1'b0}};
+      pending_mem_pc_q <= {`XLEN{1'b0}};
+      pending_mem_inst_q <= {`INST_W{1'b0}};
+      pending_mem_next_pc_q <= {`XLEN{1'b0}};
+      pending_fp_pc_q <= {`XLEN{1'b0}};
+      pending_fp_inst_q <= {`INST_W{1'b0}};
+      pending_fp_next_pc_q <= {`XLEN{1'b0}};
+      pending_fp_addr_q <= {`XLEN{1'b0}};
+      pending_fp_wdata_q <= {`XLEN{1'b0}};
+      pending_fp_wstrb_q <= {`STRB_W{1'b0}};
+      pending_fp_rd_q <= {`REG_ADDR_W{1'b0}};
+      pending_system_q <= 1'b0;
+      pending_system_dispatched_q <= 1'b0;
+      pending_system_csr_q <= 1'b0;
+      pending_system_ecall_q <= 1'b0;
+      pending_system_mret_q <= 1'b0;
+      pending_system_wfi_q <= 1'b0;
+      pending_system_sfence_q <= 1'b0;
+      pending_system_irq_q <= 1'b0;
+      pending_system_pc_q <= {`XLEN{1'b0}};
+      pending_system_inst_q <= {`INST_W{1'b0}};
+      pending_system_next_pc_q <= {`XLEN{1'b0}};
+      pending_system_csr_rdata_q <= {`XLEN{1'b0}};
+      pending_system_irq_cause_q <= {`TRAP_CAUSE_W{1'b0}};
+      ctrl_commit_valid_q <= 1'b0;
+      ctrl_commit_pc_q <= {`XLEN{1'b0}};
+      ctrl_commit_inst_q <= {`INST_W{1'b0}};
+      ctrl_commit_next_pc_q <= {`XLEN{1'b0}};
+      ctrl_commit_rd_en_q <= 1'b0;
+      ctrl_commit_rd_addr_q <= {`REG_ADDR_W{1'b0}};
+      ctrl_commit_rd_data_q <= {`XLEN{1'b0}};
+      ctrl_commit_write_q <= 1'b0;
+      backend_drained_q <= 1'b1;
+      core_trap_flush_q <= 1'b0;
+      trap_redirect_squash_q <= 1'b0;
+      core_serial_flush_q <= 1'b0;
+      checkpoint_mem_flush_q <= 1'b0;
+      for (reset_idx = 0; reset_idx < FETCH_PACKET_COUNT; reset_idx = reset_idx + 1) begin
+        fifo_pc0_q[reset_idx] <= {`XLEN{1'b0}};
+        fifo_pc1_q[reset_idx] <= {`XLEN{1'b0}};
+        fifo_next_pc0_q[reset_idx] <= {`XLEN{1'b0}};
+        fifo_next_pc1_q[reset_idx] <= {`XLEN{1'b0}};
+        fifo_packet_next_pc_q[reset_idx] <= {`XLEN{1'b0}};
+        fifo_inst0_q[reset_idx] <= {`INST_W{1'b0}};
+        fifo_inst1_q[reset_idx] <= {`INST_W{1'b0}};
+        fifo_resp0_q[reset_idx] <= 2'b00;
+        fifo_resp1_q[reset_idx] <= 2'b00;
+      end
+      for (ras_reset_idx = 0; ras_reset_idx < RAS_DEPTH; ras_reset_idx = ras_reset_idx + 1) begin
+        ras_stack_q[ras_reset_idx] <= {`XLEN{1'b0}};
+      end
+      /* verilator lint_off BLKSEQ */
+      for (fpr_reset_idx = 0; fpr_reset_idx < `REG_NUM; fpr_reset_idx = fpr_reset_idx + 1) begin
+        fpr_q[fpr_reset_idx] = {`XLEN{1'b0}};
+      end
+      /* verilator lint_on BLKSEQ */
+    end else begin
+      ctrl_commit_valid_q <= 1'b0;
+      ctrl_commit_rd_en_q <= 1'b0;
+      ctrl_commit_rd_addr_q <= {`REG_ADDR_W{1'b0}};
+      ctrl_commit_rd_data_q <= {`XLEN{1'b0}};
+      ctrl_commit_write_q <= 1'b0;
+      backend_drained_q <= backend_drained_w && !core_dispatch0_fire_w;
+      core_trap_flush_q <= 1'b0;
+      trap_redirect_squash_q <=
+          (trap_redirect_squash_q && !backend_drained_w) ||
+          priv_predictor_boundary_w;
+      core_serial_flush_q <= 1'b0;
+      checkpoint_mem_flush_q <= core_checkpoint_restore_w;
+
+      if (pending_fp_mem_req_fire_w) begin
+        pending_fp_mem_pending_q <= 1'b1;
+        pending_fp_addr_q <= pending_fp_mem_addr_w;
+        pending_fp_wdata_q <= pending_fp_mem_wdata_w;
+        pending_fp_wstrb_q <= pending_fp_mem_wstrb_w;
+      end
+      if (pending_fp_mem_rsp_fire_w) begin
+        pending_fp_mem_pending_q <= 1'b0;
+        pending_fp_mem_done_q <= 1'b1;
+        if (pending_fp_load_q)
+          fpr_q[pending_fp_rd_q] <= pending_fp_load_value_w;
+      end
+
+      if (!branch_target_cache_invalidate_all_w) begin
+        if (branch_target_cache_capture_w) begin
+          branch_target_capture_pending_q <= 1'b0;
+          branch_target_capture_branch_pc_q <= {`XLEN{1'b0}};
+          branch_target_capture_target_pc_q <= {`XLEN{1'b0}};
+        end else if (branch_target_capture_hit_w) begin
+          branch_target_capture_pending_q <= 1'b0;
+          branch_target_capture_branch_pc_q <= {`XLEN{1'b0}};
+          branch_target_capture_target_pc_q <= {`XLEN{1'b0}};
+        end
+      end
+
+      if (pending_lane1_ret_fire_w) begin
+        pending_lane1_ret_q <= 1'b0;
+        pending_lane1_ret_pc_q <= {`XLEN{1'b0}};
+        pending_lane1_ret_next_pc_q <= {`XLEN{1'b0}};
+        pending_lane1_ret_inst_q <= {`INST_W{1'b0}};
+      end
+
+      if (return_cont_dispatch_w) begin
+        return_cont_valid_q <= 1'b0;
+        return_cont_pc_q <= {`XLEN{1'b0}};
+        return_cont_next_pc_q <= {`XLEN{1'b0}};
+        return_cont_inst_q <= {`INST_W{1'b0}};
+      end
+
+      if (direct_jal_call_w) begin
+        return_cont_valid_q <= return_cont_capture_w;
+        return_cont_pc_q <= return_cont_capture_w ? head_pc1_w :
+                                                 {`XLEN{1'b0}};
+        return_cont_next_pc_q <= return_cont_capture_w ? head_next_pc1_w :
+                                                      {`XLEN{1'b0}};
+        return_cont_inst_q <= return_cont_capture_w ? head_inst1_w :
+                                                   {`INST_W{1'b0}};
+      end
+
+      if (direct_branch_wait_resolve_match_w) begin
+        direct_branch_wait_q <= 1'b0;
+        direct_branch_wait_pc_q <= {`XLEN{1'b0}};
+      end
+      if (direct_branch_fire_w) begin
+        direct_branch_wait_q <= !direct_branch_resolve_valid_w;
+        direct_branch_wait_pc_q <= direct_branch_resolve_valid_w ?
+                                   {`XLEN{1'b0}} : direct_branch_pc_w;
+      end
+
+      if (synth_lane1_ret_commit_w) begin
+        synth_lane1_ret_pending_q <= 1'b0;
+        synth_lane1_ret_branch_seen_q <= 1'b0;
+        synth_lane1_ret_branch_pc_q <= {`XLEN{1'b0}};
+        synth_lane1_ret_pc_q <= {`XLEN{1'b0}};
+        synth_lane1_ret_next_pc_q <= {`XLEN{1'b0}};
+        synth_lane1_ret_inst_q <= {`INST_W{1'b0}};
+        synth_lane1_branch_drop_pending_q <= 1'b0;
+        synth_lane1_branch_drop_pc_q <= {`XLEN{1'b0}};
+      end else if (synth_lane1_branch_drop_match_w) begin
+        synth_lane1_branch_drop_pending_q <= 1'b0;
+        synth_lane1_branch_drop_pc_q <= {`XLEN{1'b0}};
+      end else if (synth_lane1_ret_branch_commit1_w) begin
+        synth_lane1_ret_branch_seen_q <= 1'b1;
+      end
+
+      if (branch_prefetch_req_fire_w) begin
+        // 控制流预测包只进入影子槽，resolve 命中前绝不暴露给正常 dispatch FIFO。
+        branch_prefetch_active_q <= 1'b1;
+        branch_prefetch_buffer_valid_q <= 1'b0;
+        branch_prefetch_pc_q <= branch_prefetch_req_pc_w;
+      end
+
+      if (branch_prefetch_rsp_capture_w) begin
+        branch_prefetch_buffer_valid_q <= 1'b1;
+        branch_prefetch_buf_pc0_q <= fetch_dec0_pc_w;
+        branch_prefetch_buf_pc1_q <= fetch_dec1_pc_w;
+        branch_prefetch_buf_next_pc0_q <= fetch_dec0_next_pc_w;
+        branch_prefetch_buf_next_pc1_q <= fetch_dec1_next_pc_w;
+        branch_prefetch_buf_packet_next_pc_q <= fetch_rsp_packet_next_pc_w;
+        branch_prefetch_buf_inst0_q <= fetch_dec0_inst_w;
+        branch_prefetch_buf_inst1_q <= fetch_dec1_inst_w;
+        branch_prefetch_buf_resp0_q <= fetch_rsp_resp0_i;
+        branch_prefetch_buf_resp1_q <= fetch_dec1_resp_w;
+      end
+
+      if (fetch_rsp_enqueue_w) begin
+        fifo_pc0_q[fifo_tail_q] <= fetch_dec0_pc_w;
+        fifo_pc1_q[fifo_tail_q] <= fetch_dec1_pc_w;
+        fifo_next_pc0_q[fifo_tail_q] <= fetch_dec0_next_pc_w;
+        fifo_next_pc1_q[fifo_tail_q] <= fetch_dec1_next_pc_w;
+        fifo_packet_next_pc_q[fifo_tail_q] <= fetch_rsp_packet_next_pc_w;
+        fifo_inst0_q[fifo_tail_q] <= fetch_dec0_inst_w;
+        fifo_inst1_q[fifo_tail_q] <= fetch_dec1_inst_w;
+        fifo_resp0_q[fifo_tail_q] <= fetch_rsp_resp0_i;
+        fifo_resp1_q[fifo_tail_q] <= fetch_dec1_resp_w;
+        fifo_tail_q <= ptr_inc(fifo_tail_q);
+      end
+
+      if (fifo_storage_pop_w) begin
+        fifo_head_q <= ptr_inc(fifo_head_q);
+      end
+
+      case ({fetch_rsp_enqueue_w, fifo_storage_pop_w})
+        2'b10: fifo_count_q <= fifo_count_q + {{(FETCH_COUNT_W-1){1'b0}}, 1'b1};
+        2'b01: fifo_count_q <= fifo_count_q - {{(FETCH_COUNT_W-1){1'b0}}, 1'b1};
+        default: fifo_count_q <= fifo_count_q;
+      endcase
+
+      if ((fetch_rsp_enqueue_w || fetch_rsp_bypass_consumed_w) &&
+          !fetch_req_fire_w) begin
+        next_fetch_pc_q <= fetch_rsp_packet_next_pc_w;
+      end else if (fetch_req_fire_w) begin
+        next_fetch_pc_q <= fetch_req_pc_w;
+      end
+
+      if (fetch_rsp_fire_w && !fetch_req_fire_w) begin
+        outstanding_valid_q <= 1'b0;
+      end else if (fetch_req_fire_w) begin
+        outstanding_valid_q <= 1'b1;
+        outstanding_pc_q <= fetch_req_pc_w;
+      end
+
+      if (csr_trap_mem_valid_w) begin
+        fifo_head_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+        fifo_tail_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+        fifo_count_q <= {FETCH_COUNT_W{1'b0}};
+        outstanding_valid_q <= 1'b0;
+        outstanding_pc_q <= {`XLEN{1'b0}};
+        discard_fetch_rsp_q <= outstanding_valid_q && !fetch_rsp_fire_w;
+        stop_pending_q <= 1'b0;
+        pending_exit_q <= 1'b0;
+        pending_exit_is_ecall_q <= 1'b0;
+        pending_exit_is_ebreak_q <= 1'b0;
+        pending_branch_q <= 1'b0;
+        pending_branch_dispatched_q <= 1'b0;
+        pending_jump_q <= 1'b0;
+        pending_jump_dispatched_q <= 1'b0;
+        pending_mem_q <= 1'b0;
+        pending_mem_dispatched_q <= 1'b0;
+        pending_fp_q <= 1'b0;
+        pending_fp_mem_pending_q <= 1'b0;
+        pending_fp_mem_done_q <= 1'b0;
+        pending_arch_trap_q <= 1'b0;
+        pending_system_q <= 1'b0;
+        pending_system_dispatched_q <= 1'b0;
+        pending_system_csr_q <= 1'b0;
+        pending_system_ecall_q <= 1'b0;
+        pending_system_mret_q <= 1'b0;
+        pending_system_wfi_q <= 1'b0;
+        pending_system_sfence_q <= 1'b0;
+        pending_system_irq_q <= 1'b0;
+        pending_mem_next_pc_q <= {`XLEN{1'b0}};
+        pending_fp_next_pc_q <= {`XLEN{1'b0}};
+        pending_branch_next_pc_q <= {`XLEN{1'b0}};
+        pending_jump_next_pc_q <= {`XLEN{1'b0}};
+        direct_branch_wait_q <= 1'b0;
+        direct_branch_wait_pc_q <= {`XLEN{1'b0}};
+        pending_trap_cause_q <= {`TRAP_CAUSE_W{1'b0}};
+        pending_trap_pc_q <= {`XLEN{1'b0}};
+        pending_trap_tval_q <= {`XLEN{1'b0}};
+        branch_prefetch_active_q <= 1'b0;
+        branch_prefetch_buffer_valid_q <= 1'b0;
+        branch_prefetch_pc_q <= {`XLEN{1'b0}};
+        branch_spec_active_q <= 1'b0;
+        branch_spec_checkpoint_pending_q <= 1'b0;
+        branch_spec_pred_pc_q <= {`XLEN{1'b0}};
+        branch_target_capture_pending_q <= 1'b0;
+        branch_target_capture_branch_pc_q <= {`XLEN{1'b0}};
+        branch_target_capture_target_pc_q <= {`XLEN{1'b0}};
+        backend_drained_q <= 1'b1;
+        core_trap_flush_q <= 1'b1;
+        next_fetch_pc_q <= csr_trap_target_w;
+      end else if (direct_frontend_flush_w) begin
+        fifo_head_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+        fifo_tail_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+        fifo_count_q <= {FETCH_COUNT_W{1'b0}};
+        pending_lane1_ret_q <= 1'b0;
+        pending_lane1_ret_pc_q <= {`XLEN{1'b0}};
+        pending_lane1_ret_next_pc_q <= {`XLEN{1'b0}};
+        pending_lane1_ret_inst_q <= {`INST_W{1'b0}};
+        pending_system_q <= 1'b0;
+        pending_system_dispatched_q <= 1'b0;
+        pending_system_csr_q <= 1'b0;
+        pending_system_ecall_q <= 1'b0;
+        pending_system_mret_q <= 1'b0;
+        pending_system_wfi_q <= 1'b0;
+        pending_system_sfence_q <= 1'b0;
+        pending_system_irq_q <= 1'b0;
+        pending_arch_trap_q <= 1'b0;
+        branch_prefetch_active_q <= 1'b0;
+        branch_prefetch_buffer_valid_q <= 1'b0;
+        branch_prefetch_pc_q <= {`XLEN{1'b0}};
+        branch_spec_active_q <= 1'b0;
+        branch_spec_checkpoint_pending_q <= 1'b0;
+        branch_spec_pred_pc_q <= {`XLEN{1'b0}};
+        branch_target_capture_pending_q <= 1'b0;
+        branch_target_capture_branch_pc_q <= {`XLEN{1'b0}};
+        branch_target_capture_target_pc_q <= {`XLEN{1'b0}};
+        outstanding_valid_q <= branch_fallthrough_keep_outstanding_w ? 1'b1 :
+                               fetch_req_fire_w;
+        outstanding_pc_q <= branch_fallthrough_keep_outstanding_w ?
+                            outstanding_pc_q :
+                            (fetch_req_fire_w ? fetch_req_pc_w :
+                                                {`XLEN{1'b0}});
+        discard_fetch_rsp_q <= branch_fallthrough_keep_outstanding_w ? 1'b0 :
+                               (outstanding_valid_q && !fetch_rsp_fire_w);
+        if (direct_jal_fire_w) begin
+          next_fetch_pc_q <= direct_jal_target_w;
+        end else if (direct_ret0_fire_w || direct_ret1_fire_w) begin
+          next_fetch_pc_q <= direct_ret_target_w;
+        end else if (direct_branch0_fire_w || direct_branch1_fire_w) begin
+          stop_pending_q <= !direct_branch_resolve_redirect_w;
+          branch_spec_checkpoint_pending_q <=
+              !direct_branch_resolve_redirect_w && direct_branch_spec_start_w;
+          branch_spec_pred_pc_q <= (!direct_branch_resolve_redirect_w &&
+                                    direct_branch_spec_start_w) ?
+                                   direct_branch_pred_pc_w :
+                                   {`XLEN{1'b0}};
+          pending_exit_q <= 1'b0;
+          pending_branch_q <= !direct_branch_resolve_redirect_w;
+          pending_branch_dispatched_q <= !direct_branch_resolve_redirect_w;
+        pending_jump_q <= 1'b0;
+        pending_jump_dispatched_q <= 1'b0;
+        pending_mem_q <= 1'b0;
+        pending_mem_dispatched_q <= 1'b0;
+        pending_arch_trap_q <= 1'b0;
+        pending_system_q <= 1'b0;
+        pending_system_dispatched_q <= 1'b0;
+        pending_system_csr_q <= 1'b0;
+        pending_system_ecall_q <= 1'b0;
+        pending_system_mret_q <= 1'b0;
+        pending_system_wfi_q <= 1'b0;
+        pending_system_sfence_q <= 1'b0;
+        pending_system_irq_q <= 1'b0;
+        pending_mem_next_pc_q <= {`XLEN{1'b0}};
+          pending_branch_pc_q <= direct_branch1_fire_w ? head_pc1_w :
+                                                          head_pc_w;
+          pending_branch_next_pc_q <= direct_branch1_fire_w ?
+                                      head_next_pc1_w : head_next_pc0_w;
+          pending_branch_inst_q <= direct_branch1_fire_w ? head_inst1_w :
+                                                            head_inst0_w;
+          pending_branch_rs1_q <= direct_branch1_fire_w ? head1_rs1_w :
+                                                           head0_rs1_w;
+          pending_branch_rs2_q <= direct_branch1_fire_w ? head1_rs2_w :
+                                                           head0_rs2_w;
+          pending_branch_imm_q <= direct_branch1_fire_w ? head1_imm_w :
+                                                           head0_imm_w;
+          pending_branch_cmp_op_q <=
+              direct_branch1_fire_w ?
+              head1_ctrl_w[`CTRL_CMP_OP_MSB:`CTRL_CMP_OP_LSB] :
+              head0_ctrl_w[`CTRL_CMP_OP_MSB:`CTRL_CMP_OP_LSB];
+          pending_branch_pred_taken_q <= direct_branch_predict_taken_w;
+          pending_branch_bht_valid_q <= direct_branch_bht_valid_w;
+          pending_branch_bht_idx_q <= direct_branch_bht_idx_w;
+          pending_jump_next_pc_q <= {`XLEN{1'b0}};
+          if (direct_branch_resolve_redirect_w &&
+              !direct_branch0_lane1_ret_w && !branch_target_dispatch_w &&
+              direct_branch_resolve_taken_w) begin
+            branch_target_capture_pending_q <= 1'b1;
+            branch_target_capture_branch_pc_q <= direct_branch1_fire_w ?
+                                                 head_pc1_w : head_pc_w;
+            branch_target_capture_target_pc_q <=
+                direct_branch_resolve_next_pc_w;
+          end
+          if (direct_branch0_lane1_ret_w) begin
+            synth_lane1_ret_pending_q <= 1'b1;
+            synth_lane1_ret_branch_seen_q <= synth_lane1_branch_append_w;
+            synth_lane1_ret_branch_pc_q <= head_pc_w;
+            synth_lane1_ret_pc_q <= head_pc1_w;
+            synth_lane1_ret_next_pc_q <= head_next_pc1_w;
+            synth_lane1_ret_inst_q <= head_inst1_w;
+            if (synth_lane1_branch_append_w) begin
+              synth_lane1_branch_drop_pending_q <= 1'b1;
+              synth_lane1_branch_drop_pc_q <= head_pc_w;
+            end
+          end
+          next_fetch_pc_q <= direct_branch0_lane1_ret_w ?
+                             (return_cont_dispatch_w ?
+                              return_cont_next_pc_q : ras_top_w) :
+	                             branch_target_dispatch_w ?
+	                             branch_target_cache_next_pc_w :
+                             branch_fallthrough_dispatch_w ?
+                             head_next_pc1_w :
+                             direct_branch_resolve_redirect_w ?
+                             direct_branch_resolve_next_pc_w :
+	                             direct_branch_spec_start_w ?
+	                             direct_branch_pred_pc_w :
+	                             (direct_branch1_fire_w ? head_next_pc1_w :
+	                                                      head_next_pc0_w);
+          if (branch_fallthrough_capture_rsp_w) begin
+            fifo_tail_q <= ptr_inc({FETCH_PACKET_COUNT_W{1'b0}});
+            fifo_count_q <= {{(FETCH_COUNT_W-1){1'b0}}, 1'b1};
+            fifo_pc0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <= fetch_dec0_pc_w;
+            fifo_pc1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <= fetch_dec1_pc_w;
+            fifo_next_pc0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                fetch_dec0_next_pc_w;
+            fifo_next_pc1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                fetch_dec1_next_pc_w;
+            fifo_packet_next_pc_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                fetch_rsp_packet_next_pc_w;
+            fifo_inst0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <= fetch_dec0_inst_w;
+            fifo_inst1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <= fetch_dec1_inst_w;
+            fifo_resp0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <= fetch_rsp_resp0_i;
+            fifo_resp1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <= fetch_dec1_resp_w;
+            next_fetch_pc_q <= fetch_rsp_packet_next_pc_w;
+          end
+        end
+      end else begin
+        if (discard_fetch_rsp_q && fetch_rsp_fire_w) begin
+          discard_fetch_rsp_q <= 1'b0;
+        end
+      end
+
+      if (priv_predictor_boundary_w ||
+          branch_spec_restore_w || branch_resolve_untracked_w ||
+          direct_jal_call_unsafe_w) begin
+        // RAS 没有 privilege/checkpoint 上下文；trap/xRET/sfence 或更老控制流恢复后，
+        // 不能让用户态 return 目标继续影响内核 ret，统一回退普通 JALR 路径。
+        ras_count_q <= {RAS_COUNT_W{1'b0}};
+        ras_reliable_q <= 1'b1;
+        return_cont_valid_q <= 1'b0;
+        return_cont_pc_q <= {`XLEN{1'b0}};
+        return_cont_next_pc_q <= {`XLEN{1'b0}};
+        return_cont_inst_q <= {`INST_W{1'b0}};
+      end else if (direct_ret0_fire_w || direct_ret1_fire_w ||
+          pending_lane1_ret_fire_w ||
+          pending_jump_return_fire_w ||
+          direct_branch0_lane1_ret_w) begin
+        ras_count_q <= ras_count_q - {{(RAS_COUNT_W-1){1'b0}}, 1'b1};
+        if (ras_count_q == {{(RAS_COUNT_W-1){1'b0}}, 1'b1}) begin
+          ras_reliable_q <= 1'b1;
+        end
+      end else if (direct_jal_call_w || pending_jump_call_fire_w) begin
+        ras_stack_q[ras_push_idx_w] <= pending_jump_call_fire_w ?
+                                      pending_jump_next_pc_q :
+                                      direct_jal_link_w;
+        if (!ras_full_w) begin
+          ras_count_q <= ras_count_q + {{(RAS_COUNT_W-1){1'b0}}, 1'b1};
+        end else begin
+          ras_reliable_q <= 1'b0;
+        end
+      end
+
+      if (!direct_frontend_flush_w && branch_spec_checkpoint_capture_w) begin
+        // capture 周期只冻结后端状态；下一拍开始按预测 PC 正常取指/派发 ALU-only 路径。
+        branch_spec_checkpoint_pending_q <= 1'b0;
+        branch_spec_active_q <= 1'b1;
+        stop_pending_q <= 1'b0;
+      end
+
+      if (!direct_frontend_flush_w && branch_spec_resolve_valid_w) begin
+        branch_spec_active_q <= 1'b0;
+        branch_spec_checkpoint_pending_q <= 1'b0;
+        branch_spec_pred_pc_q <= {`XLEN{1'b0}};
+        stop_pending_q <= 1'b0;
+        pending_exit_q <= 1'b0;
+        pending_branch_q <= 1'b0;
+        pending_branch_dispatched_q <= 1'b0;
+        pending_jump_q <= 1'b0;
+        pending_jump_dispatched_q <= 1'b0;
+        pending_mem_q <= 1'b0;
+        pending_mem_dispatched_q <= 1'b0;
+        pending_arch_trap_q <= 1'b0;
+        pending_system_q <= 1'b0;
+        pending_system_dispatched_q <= 1'b0;
+        pending_system_csr_q <= 1'b0;
+        pending_system_ecall_q <= 1'b0;
+        pending_system_mret_q <= 1'b0;
+        pending_system_wfi_q <= 1'b0;
+        pending_system_sfence_q <= 1'b0;
+        pending_system_irq_q <= 1'b0;
+        pending_mem_next_pc_q <= {`XLEN{1'b0}};
+        pending_branch_next_pc_q <= {`XLEN{1'b0}};
+        pending_jump_next_pc_q <= {`XLEN{1'b0}};
+        branch_spec_active_q <= 1'b0;
+        branch_spec_checkpoint_pending_q <= 1'b0;
+        branch_spec_pred_pc_q <= {`XLEN{1'b0}};
+        branch_prefetch_active_q <= 1'b0;
+        branch_prefetch_buffer_valid_q <= 1'b0;
+        branch_prefetch_pc_q <= {`XLEN{1'b0}};
+
+        if (branch_spec_restore_w) begin
+          fifo_head_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+          fifo_tail_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+          fifo_count_q <= {FETCH_COUNT_W{1'b0}};
+          outstanding_valid_q <= fetch_req_fire_w &&
+                                 !core_branch_resolve_misaligned_w;
+          outstanding_pc_q <= (fetch_req_fire_w &&
+                               !core_branch_resolve_misaligned_w) ?
+                              fetch_req_pc_w : {`XLEN{1'b0}};
+          discard_fetch_rsp_q <= outstanding_valid_q && !fetch_rsp_fire_w;
+          if (core_branch_resolve_misaligned_w) begin
+            halted_q <= 1'b1;
+            trap_valid_q <= 1'b1;
+            trap_cause_q <= `EXC_INST_ADDR_MISALIGN;
+            trap_pc_q <= core_branch_resolve_pc_w;
+            trap_tval_q <= core_branch_resolve_next_pc_w;
+          end else begin
+            next_fetch_pc_q <= core_branch_resolve_next_pc_w;
+          end
+        end
+      end
+
+      if (orphan_stop_pending_w) begin
+        stop_pending_q <= 1'b0;
+        pending_branch_dispatched_q <= 1'b0;
+        pending_jump_dispatched_q <= 1'b0;
+        pending_mem_dispatched_q <= 1'b0;
+        pending_system_dispatched_q <= 1'b0;
+      end
+
+      if (pending_branch_commit_resolve_w) begin
+        // 后端已在精确边界退休该分支，但 resolve pulse 没被前端采到；
+        // 此时后端已清空，可用架构寄存器重算分支方向并收束前端停顿。
+        stop_pending_q <= 1'b0;
+        pending_exit_q <= 1'b0;
+        pending_branch_q <= 1'b0;
+        pending_branch_dispatched_q <= 1'b0;
+        pending_jump_q <= 1'b0;
+        pending_jump_dispatched_q <= 1'b0;
+        pending_mem_q <= 1'b0;
+        pending_mem_dispatched_q <= 1'b0;
+        pending_arch_trap_q <= 1'b0;
+        pending_system_q <= 1'b0;
+        pending_system_dispatched_q <= 1'b0;
+        pending_system_csr_q <= 1'b0;
+        pending_system_ecall_q <= 1'b0;
+        pending_system_mret_q <= 1'b0;
+        pending_system_wfi_q <= 1'b0;
+        pending_system_sfence_q <= 1'b0;
+        pending_system_irq_q <= 1'b0;
+        pending_mem_next_pc_q <= {`XLEN{1'b0}};
+        pending_branch_next_pc_q <= {`XLEN{1'b0}};
+        pending_jump_next_pc_q <= {`XLEN{1'b0}};
+        branch_spec_active_q <= 1'b0;
+        branch_spec_checkpoint_pending_q <= 1'b0;
+        branch_spec_pred_pc_q <= {`XLEN{1'b0}};
+        branch_prefetch_active_q <= 1'b0;
+        branch_prefetch_buffer_valid_q <= 1'b0;
+        branch_prefetch_pc_q <= {`XLEN{1'b0}};
+        fifo_head_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+        fifo_tail_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+        fifo_count_q <= {FETCH_COUNT_W{1'b0}};
+        outstanding_valid_q <= 1'b0;
+        outstanding_pc_q <= {`XLEN{1'b0}};
+        discard_fetch_rsp_q <= fetch_req_fire_w ||
+                               (outstanding_valid_q && !fetch_rsp_fire_w);
+        if (pending_branch_misaligned_w) begin
+          halted_q <= 1'b1;
+          trap_valid_q <= 1'b1;
+          trap_cause_q <= `EXC_INST_ADDR_MISALIGN;
+          trap_pc_q <= pending_branch_pc_q;
+          trap_tval_q <= pending_branch_target_w;
+        end else begin
+          next_fetch_pc_q <= pending_branch_next_pc_w;
+        end
+      end else if (!direct_frontend_flush_w && stop_pending_q &&
+          pending_branch_q && pending_branch_dispatched_q &&
+          branch_resolve_pending_match_w && !branch_spec_active_q) begin
+        stop_pending_q <= 1'b0;
+        pending_exit_q <= 1'b0;
+        pending_branch_q <= 1'b0;
+        pending_branch_dispatched_q <= 1'b0;
+        pending_jump_q <= 1'b0;
+        pending_jump_dispatched_q <= 1'b0;
+        pending_mem_q <= 1'b0;
+        pending_mem_dispatched_q <= 1'b0;
+        pending_arch_trap_q <= 1'b0;
+        pending_system_q <= 1'b0;
+        pending_system_dispatched_q <= 1'b0;
+        pending_system_csr_q <= 1'b0;
+        pending_system_ecall_q <= 1'b0;
+        pending_system_mret_q <= 1'b0;
+        pending_system_wfi_q <= 1'b0;
+        pending_system_sfence_q <= 1'b0;
+        pending_system_irq_q <= 1'b0;
+        pending_mem_next_pc_q <= {`XLEN{1'b0}};
+        pending_branch_next_pc_q <= {`XLEN{1'b0}};
+        pending_jump_next_pc_q <= {`XLEN{1'b0}};
+        branch_spec_active_q <= 1'b0;
+        branch_spec_checkpoint_pending_q <= 1'b0;
+        branch_spec_pred_pc_q <= {`XLEN{1'b0}};
+        branch_prefetch_active_q <= 1'b0;
+        branch_prefetch_buffer_valid_q <= 1'b0;
+        branch_prefetch_pc_q <= {`XLEN{1'b0}};
+        fifo_head_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+        fifo_tail_q <= (!core_branch_resolve_misaligned_w &&
+                        branch_prefetch_hit_to_fifo_w) ?
+                       ptr_inc({FETCH_PACKET_COUNT_W{1'b0}}) :
+                       {FETCH_PACKET_COUNT_W{1'b0}};
+        fifo_count_q <= (!core_branch_resolve_misaligned_w &&
+                         branch_prefetch_hit_to_fifo_w) ?
+                        {{(FETCH_COUNT_W-1){1'b0}}, 1'b1} :
+                        {FETCH_COUNT_W{1'b0}};
+        outstanding_valid_q <= (!core_branch_resolve_misaligned_w &&
+                                branch_prefetch_pending_match_w) ? 1'b1 :
+                               fetch_req_fire_w;
+        outstanding_pc_q <= (!core_branch_resolve_misaligned_w &&
+                             branch_prefetch_pending_match_w) ?
+                            branch_prefetch_pc_q :
+                            (fetch_req_fire_w ? fetch_req_pc_w :
+                                                {`XLEN{1'b0}});
+        discard_fetch_rsp_q <= ((core_branch_resolve_misaligned_w ||
+                                 !branch_prefetch_pending_match_w) &&
+                                outstanding_valid_q && !fetch_rsp_fire_w);
+        if (core_branch_resolve_misaligned_w) begin
+          halted_q <= 1'b1;
+          trap_valid_q <= 1'b1;
+          trap_cause_q <= `EXC_INST_ADDR_MISALIGN;
+          trap_pc_q <= core_branch_resolve_pc_w;
+          trap_tval_q <= core_branch_resolve_next_pc_w;
+        end else if (branch_prefetch_hit_available_w) begin
+          // 普通 uop 包可在 resolve 同拍送入后端；不能旁路时仍转正为 FIFO 包。
+          if (branch_prefetch_hit_to_fifo_w) begin
+            fifo_pc0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <= branch_prefetch_hit_pc0_w;
+            fifo_pc1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <= branch_prefetch_hit_pc1_w;
+            fifo_next_pc0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                branch_prefetch_hit_next_pc0_w;
+            fifo_next_pc1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                branch_prefetch_hit_next_pc1_w;
+            fifo_packet_next_pc_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                branch_prefetch_hit_packet_next_pc_w;
+            fifo_inst0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                branch_prefetch_hit_inst0_w;
+            fifo_inst1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                branch_prefetch_hit_inst1_w;
+            fifo_resp0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                branch_prefetch_hit_resp0_w;
+            fifo_resp1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                branch_prefetch_hit_resp1_w;
+          end
+          next_fetch_pc_q <= branch_prefetch_hit_packet_next_pc_w;
+        end else begin
+          next_fetch_pc_q <= core_branch_resolve_next_pc_w;
+        end
+      end else if (!direct_frontend_flush_w && branch_resolve_untracked_w) begin
+        stop_pending_q <= 1'b0;
+        pending_exit_q <= 1'b0;
+        pending_branch_q <= 1'b0;
+        pending_branch_dispatched_q <= 1'b0;
+        pending_jump_q <= 1'b0;
+        pending_jump_dispatched_q <= 1'b0;
+        pending_mem_q <= 1'b0;
+        pending_mem_dispatched_q <= 1'b0;
+        pending_arch_trap_q <= 1'b0;
+        pending_system_q <= 1'b0;
+        pending_system_dispatched_q <= 1'b0;
+        pending_system_csr_q <= 1'b0;
+        pending_system_ecall_q <= 1'b0;
+        pending_system_mret_q <= 1'b0;
+        pending_system_wfi_q <= 1'b0;
+        pending_system_sfence_q <= 1'b0;
+        pending_system_irq_q <= 1'b0;
+        pending_mem_next_pc_q <= {`XLEN{1'b0}};
+        pending_branch_next_pc_q <= {`XLEN{1'b0}};
+        pending_jump_next_pc_q <= {`XLEN{1'b0}};
+        branch_spec_active_q <= 1'b0;
+        branch_spec_checkpoint_pending_q <= 1'b0;
+        branch_spec_pred_pc_q <= {`XLEN{1'b0}};
+        branch_prefetch_active_q <= 1'b0;
+        branch_prefetch_buffer_valid_q <= 1'b0;
+        branch_prefetch_pc_q <= {`XLEN{1'b0}};
+        fifo_head_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+        fifo_tail_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+        fifo_count_q <= {FETCH_COUNT_W{1'b0}};
+        outstanding_valid_q <= fetch_req_fire_w &&
+                               !core_branch_resolve_misaligned_w;
+        outstanding_pc_q <= (fetch_req_fire_w &&
+                             !core_branch_resolve_misaligned_w) ?
+                            fetch_req_pc_w : {`XLEN{1'b0}};
+        discard_fetch_rsp_q <= outstanding_valid_q && !fetch_rsp_fire_w;
+        if (core_branch_resolve_misaligned_w) begin
+          halted_q <= 1'b1;
+          trap_valid_q <= 1'b1;
+          trap_cause_q <= `EXC_INST_ADDR_MISALIGN;
+          trap_pc_q <= core_branch_resolve_pc_w;
+          trap_tval_q <= core_branch_resolve_next_pc_w;
+        end else begin
+          next_fetch_pc_q <= core_branch_resolve_next_pc_w;
+        end
+      end else if (!direct_frontend_flush_w && pending_jump_resolve_ready_w) begin
+        if (pending_jump_misaligned_w) begin
+          stop_pending_q <= 1'b0;
+          pending_exit_q <= 1'b0;
+          pending_branch_q <= 1'b0;
+          pending_branch_dispatched_q <= 1'b0;
+          pending_jump_q <= 1'b0;
+          pending_jump_dispatched_q <= 1'b0;
+          pending_mem_q <= 1'b0;
+          pending_mem_dispatched_q <= 1'b0;
+          pending_system_q <= 1'b0;
+          pending_system_dispatched_q <= 1'b0;
+          pending_system_csr_q <= 1'b0;
+          pending_system_ecall_q <= 1'b0;
+          pending_system_mret_q <= 1'b0;
+          pending_system_wfi_q <= 1'b0;
+          pending_system_sfence_q <= 1'b0;
+          pending_system_irq_q <= 1'b0;
+          pending_mem_next_pc_q <= {`XLEN{1'b0}};
+          pending_branch_next_pc_q <= {`XLEN{1'b0}};
+          pending_jump_next_pc_q <= {`XLEN{1'b0}};
+          branch_prefetch_active_q <= 1'b0;
+          branch_prefetch_buffer_valid_q <= 1'b0;
+          branch_prefetch_pc_q <= {`XLEN{1'b0}};
+          fifo_head_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+          fifo_tail_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+          fifo_count_q <= {FETCH_COUNT_W{1'b0}};
+          outstanding_valid_q <= 1'b0;
+          outstanding_pc_q <= {`XLEN{1'b0}};
+          halted_q <= 1'b1;
+          trap_valid_q <= 1'b1;
+          trap_cause_q <= `EXC_INST_ADDR_MISALIGN;
+          trap_pc_q <= pending_jump_pc_q;
+          trap_tval_q <= pending_jump_resolved_target_w;
+	        end else if (pending_jump_nolink_commit_w) begin
+	          stop_pending_q <= 1'b0;
+	          pending_exit_q <= 1'b0;
+	          pending_branch_q <= 1'b0;
+          pending_branch_dispatched_q <= 1'b0;
+          pending_jump_q <= 1'b0;
+          pending_jump_dispatched_q <= 1'b0;
+          pending_mem_q <= 1'b0;
+          pending_mem_dispatched_q <= 1'b0;
+          pending_system_q <= 1'b0;
+          pending_system_dispatched_q <= 1'b0;
+          pending_system_csr_q <= 1'b0;
+          pending_system_ecall_q <= 1'b0;
+          pending_system_mret_q <= 1'b0;
+          pending_system_wfi_q <= 1'b0;
+          pending_system_sfence_q <= 1'b0;
+          pending_system_irq_q <= 1'b0;
+          pending_mem_next_pc_q <= {`XLEN{1'b0}};
+          pending_branch_next_pc_q <= {`XLEN{1'b0}};
+          pending_jump_next_pc_q <= {`XLEN{1'b0}};
+          branch_prefetch_active_q <= 1'b0;
+          branch_prefetch_buffer_valid_q <= 1'b0;
+          branch_prefetch_pc_q <= {`XLEN{1'b0}};
+          fifo_head_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+          fifo_tail_q <= jalr_prefetch_hit_available_w ?
+                         ptr_inc({FETCH_PACKET_COUNT_W{1'b0}}) :
+                         {FETCH_PACKET_COUNT_W{1'b0}};
+          fifo_count_q <= jalr_prefetch_hit_available_w ?
+                          {{(FETCH_COUNT_W-1){1'b0}}, 1'b1} :
+                          {FETCH_COUNT_W{1'b0}};
+          outstanding_valid_q <= jalr_prefetch_pending_match_w ? 1'b1 :
+                                 fetch_req_fire_w;
+          outstanding_pc_q <= jalr_prefetch_pending_match_w ?
+                              branch_prefetch_pc_q :
+                              (fetch_req_fire_w ? fetch_req_pc_w :
+                                                  {`XLEN{1'b0}});
+          discard_fetch_rsp_q <= (jalr_prefetch_hit_available_w &&
+                                  fetch_req_fire_w) ||
+                                 (!jalr_prefetch_pending_match_w &&
+                                  outstanding_valid_q && !fetch_rsp_fire_w);
+          if (jalr_prefetch_hit_available_w) begin
+            fifo_pc0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_pc0_w;
+            fifo_pc1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_pc1_w;
+            fifo_next_pc0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_next_pc0_w;
+            fifo_next_pc1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_next_pc1_w;
+            fifo_packet_next_pc_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_packet_next_pc_w;
+            fifo_inst0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_inst0_w;
+            fifo_inst1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_inst1_w;
+            fifo_resp0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_resp0_w;
+            fifo_resp1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_resp1_w;
+            next_fetch_pc_q <= jalr_prefetch_hit_packet_next_pc_w;
+          end else begin
+            next_fetch_pc_q <= pending_jump_resolved_target_w;
+          end
+          ctrl_commit_valid_q <= 1'b1;
+	          ctrl_commit_pc_q <= pending_jump_pc_q;
+	          ctrl_commit_inst_q <= pending_jump_inst_q;
+	          ctrl_commit_next_pc_q <= pending_jump_resolved_target_w;
+	        end else if (pending_jump_redirect_after_dispatch_w) begin
+	          stop_pending_q <= 1'b0;
+	          pending_exit_q <= 1'b0;
+	          pending_branch_q <= 1'b0;
+	          pending_branch_dispatched_q <= 1'b0;
+	          pending_jump_q <= 1'b0;
+	          pending_jump_dispatched_q <= 1'b0;
+	          pending_mem_q <= 1'b0;
+	          pending_mem_dispatched_q <= 1'b0;
+	          pending_system_q <= 1'b0;
+	          pending_system_dispatched_q <= 1'b0;
+	          pending_system_csr_q <= 1'b0;
+	          pending_system_ecall_q <= 1'b0;
+	          pending_system_mret_q <= 1'b0;
+	          pending_system_wfi_q <= 1'b0;
+	          pending_system_sfence_q <= 1'b0;
+	          pending_system_irq_q <= 1'b0;
+	          pending_mem_next_pc_q <= {`XLEN{1'b0}};
+	          pending_branch_next_pc_q <= {`XLEN{1'b0}};
+	          pending_jump_next_pc_q <= {`XLEN{1'b0}};
+	          branch_prefetch_active_q <= 1'b0;
+	          branch_prefetch_buffer_valid_q <= 1'b0;
+	          branch_prefetch_pc_q <= {`XLEN{1'b0}};
+	          fifo_head_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+	          fifo_tail_q <= jalr_prefetch_hit_available_w ?
+	                         ptr_inc({FETCH_PACKET_COUNT_W{1'b0}}) :
+	                         {FETCH_PACKET_COUNT_W{1'b0}};
+	          fifo_count_q <= jalr_prefetch_hit_available_w ?
+	                          {{(FETCH_COUNT_W-1){1'b0}}, 1'b1} :
+	                          {FETCH_COUNT_W{1'b0}};
+	          outstanding_valid_q <= jalr_prefetch_pending_match_w ? 1'b1 :
+	                                 fetch_req_fire_w;
+	          outstanding_pc_q <= jalr_prefetch_pending_match_w ?
+	                              branch_prefetch_pc_q :
+	                              (fetch_req_fire_w ? fetch_req_pc_w :
+	                                                  {`XLEN{1'b0}});
+	          discard_fetch_rsp_q <= (jalr_prefetch_hit_available_w &&
+	                                  fetch_req_fire_w) ||
+	                                 (!jalr_prefetch_pending_match_w &&
+	                                  outstanding_valid_q && !fetch_rsp_fire_w);
+	          if (jalr_prefetch_hit_available_w) begin
+	            fifo_pc0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+	                jalr_prefetch_hit_pc0_w;
+	            fifo_pc1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+	                jalr_prefetch_hit_pc1_w;
+	            fifo_next_pc0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+	                jalr_prefetch_hit_next_pc0_w;
+	            fifo_next_pc1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+	                jalr_prefetch_hit_next_pc1_w;
+	            fifo_packet_next_pc_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+	                jalr_prefetch_hit_packet_next_pc_w;
+	            fifo_inst0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+	                jalr_prefetch_hit_inst0_w;
+	            fifo_inst1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+	                jalr_prefetch_hit_inst1_w;
+	            fifo_resp0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+	                jalr_prefetch_hit_resp0_w;
+	            fifo_resp1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+	                jalr_prefetch_hit_resp1_w;
+	            next_fetch_pc_q <= jalr_prefetch_hit_packet_next_pc_w;
+	          end else begin
+	            next_fetch_pc_q <= pending_jump_resolved_target_w;
+	          end
+	        end else if (jump_dispatch_fire_w) begin
+	          pending_jump_dispatched_q <= 1'b1;
+	          pending_jump_target_q <= pending_jump_resolved_target_w;
+	        end
+      end else if (!direct_frontend_flush_w && pending_mem_resolve_ready_w) begin
+        if (mem_dispatch_fire_w) begin
+          pending_mem_dispatched_q <= 1'b1;
+        end
+      end else if (!direct_frontend_flush_w && system_csr_dispatch_fire_w) begin
+        pending_system_dispatched_q <= 1'b1;
+      end else if (!direct_frontend_flush_w && pending_system_csr_commit_w) begin
+        stop_pending_q <= 1'b0;
+        pending_exit_q <= 1'b0;
+        pending_branch_q <= 1'b0;
+        pending_branch_dispatched_q <= 1'b0;
+        pending_jump_q <= 1'b0;
+        pending_jump_dispatched_q <= 1'b0;
+        pending_mem_q <= 1'b0;
+        pending_mem_dispatched_q <= 1'b0;
+        pending_arch_trap_q <= 1'b0;
+        pending_system_q <= 1'b0;
+        pending_system_dispatched_q <= 1'b0;
+        pending_system_csr_q <= 1'b0;
+        pending_system_ecall_q <= 1'b0;
+        pending_system_mret_q <= 1'b0;
+        pending_system_wfi_q <= 1'b0;
+        pending_system_sfence_q <= 1'b0;
+        pending_system_irq_q <= 1'b0;
+        pending_mem_next_pc_q <= {`XLEN{1'b0}};
+        pending_branch_next_pc_q <= {`XLEN{1'b0}};
+        pending_jump_next_pc_q <= {`XLEN{1'b0}};
+        branch_prefetch_active_q <= 1'b0;
+        branch_prefetch_buffer_valid_q <= 1'b0;
+        branch_prefetch_pc_q <= {`XLEN{1'b0}};
+        if (pending_system_satp_write_commit_w) begin
+          ras_count_q <= {RAS_COUNT_W{1'b0}};
+          ras_reliable_q <= 1'b1;
+          return_cont_valid_q <= 1'b0;
+          return_cont_pc_q <= {`XLEN{1'b0}};
+          return_cont_next_pc_q <= {`XLEN{1'b0}};
+          return_cont_inst_q <= {`INST_W{1'b0}};
+          synth_lane1_ret_pending_q <= 1'b0;
+          synth_lane1_ret_branch_seen_q <= 1'b0;
+          synth_lane1_ret_branch_pc_q <= {`XLEN{1'b0}};
+          synth_lane1_ret_pc_q <= {`XLEN{1'b0}};
+          synth_lane1_ret_next_pc_q <= {`XLEN{1'b0}};
+          synth_lane1_ret_inst_q <= {`INST_W{1'b0}};
+          synth_lane1_branch_drop_pending_q <= 1'b0;
+          synth_lane1_branch_drop_pc_q <= {`XLEN{1'b0}};
+        end
+        fifo_head_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+        fifo_tail_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+        fifo_count_q <= {FETCH_COUNT_W{1'b0}};
+        outstanding_valid_q <= 1'b0;
+        outstanding_pc_q <= {`XLEN{1'b0}};
+        discard_fetch_rsp_q <= outstanding_valid_q && !fetch_rsp_fire_w;
+        next_fetch_pc_q <= pending_system_next_pc_q;
+      end else if (!csr_trap_mem_valid_w &&
+          !direct_frontend_flush_w && stop_pending_q && drain_complete_w) begin
+        stop_pending_q <= 1'b0;
+        pending_exit_q <= 1'b0;
+        pending_exit_is_ecall_q <= 1'b0;
+        pending_exit_is_ebreak_q <= 1'b0;
+        pending_branch_q <= 1'b0;
+        pending_branch_dispatched_q <= 1'b0;
+        pending_jump_q <= 1'b0;
+        pending_jump_dispatched_q <= 1'b0;
+        pending_mem_q <= 1'b0;
+        pending_mem_dispatched_q <= 1'b0;
+        pending_fp_q <= 1'b0;
+        pending_fp_mem_pending_q <= 1'b0;
+        pending_fp_mem_done_q <= 1'b0;
+        pending_fp_load_q <= 1'b0;
+        pending_fp_store_q <= 1'b0;
+        pending_fp_gpr_write_q <= 1'b0;
+        pending_arch_trap_q <= 1'b0;
+        pending_system_q <= 1'b0;
+        pending_system_dispatched_q <= 1'b0;
+        pending_system_csr_q <= 1'b0;
+        pending_system_ecall_q <= 1'b0;
+        pending_system_mret_q <= 1'b0;
+        pending_system_wfi_q <= 1'b0;
+        pending_system_sfence_q <= 1'b0;
+        pending_system_irq_q <= 1'b0;
+        pending_mem_next_pc_q <= {`XLEN{1'b0}};
+        pending_branch_next_pc_q <= {`XLEN{1'b0}};
+        pending_jump_next_pc_q <= {`XLEN{1'b0}};
+        if (pending_arch_trap_q) begin
+          fifo_head_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+          fifo_tail_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+          fifo_count_q <= {FETCH_COUNT_W{1'b0}};
+          outstanding_valid_q <= 1'b0;
+          outstanding_pc_q <= {`XLEN{1'b0}};
+          branch_prefetch_active_q <= 1'b0;
+          branch_prefetch_buffer_valid_q <= 1'b0;
+          branch_prefetch_pc_q <= {`XLEN{1'b0}};
+          next_fetch_pc_q <= csr_trap_target_w;
+        end else if (pending_system_q) begin
+          fifo_head_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+          fifo_tail_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+          fifo_count_q <= {FETCH_COUNT_W{1'b0}};
+          outstanding_valid_q <= 1'b0;
+          outstanding_pc_q <= {`XLEN{1'b0}};
+          branch_prefetch_active_q <= 1'b0;
+          branch_prefetch_buffer_valid_q <= 1'b0;
+          branch_prefetch_pc_q <= {`XLEN{1'b0}};
+          // ECALL/中断在精确边界写 CSR 并跳 mtvec；MRET/WFI/SFENCE 则作为序列化控制提交。
+          if (pending_system_ecall_q || pending_system_irq_q) begin
+            next_fetch_pc_q <= csr_trap_target_w;
+          end else if (pending_system_mret_q) begin
+            next_fetch_pc_q <= csr_ret_target_w;
+            ctrl_commit_valid_q <= 1'b1;
+            ctrl_commit_pc_q <= pending_system_pc_q;
+            ctrl_commit_inst_q <= pending_system_inst_q;
+            ctrl_commit_next_pc_q <= csr_ret_target_w;
+          end else begin
+            next_fetch_pc_q <= pending_system_next_pc_q;
+            ctrl_commit_valid_q <= 1'b1;
+            ctrl_commit_pc_q <= pending_system_pc_q;
+            ctrl_commit_inst_q <= pending_system_inst_q;
+            ctrl_commit_next_pc_q <= pending_system_next_pc_q;
+          end
+        end else if (pending_branch_q && !pending_branch_dispatched_q) begin
+          fifo_head_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+          fifo_tail_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+          fifo_count_q <= {FETCH_COUNT_W{1'b0}};
+          outstanding_valid_q <= 1'b0;
+          outstanding_pc_q <= {`XLEN{1'b0}};
+          if (pending_branch_misaligned_w) begin
+            halted_q <= 1'b1;
+            trap_valid_q <= 1'b1;
+            trap_cause_q <= `EXC_INST_ADDR_MISALIGN;
+            trap_pc_q <= pending_branch_pc_q;
+            trap_tval_q <= pending_branch_target_w;
+          end else begin
+            next_fetch_pc_q <= pending_branch_next_pc_w;
+            ctrl_commit_valid_q <= 1'b1;
+            ctrl_commit_pc_q <= pending_branch_pc_q;
+            ctrl_commit_inst_q <= pending_branch_inst_q;
+            ctrl_commit_next_pc_q <= pending_branch_next_pc_w;
+          end
+        end else if (pending_jump_q) begin
+          fifo_head_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+          fifo_tail_q <= jalr_prefetch_hit_available_w ?
+                         ptr_inc({FETCH_PACKET_COUNT_W{1'b0}}) :
+                         {FETCH_PACKET_COUNT_W{1'b0}};
+          fifo_count_q <= jalr_prefetch_hit_available_w ?
+                          {{(FETCH_COUNT_W-1){1'b0}}, 1'b1} :
+                          {FETCH_COUNT_W{1'b0}};
+          outstanding_valid_q <= jalr_prefetch_pending_match_w;
+          outstanding_pc_q <= jalr_prefetch_pending_match_w ?
+                              branch_prefetch_pc_q : {`XLEN{1'b0}};
+          discard_fetch_rsp_q <= (!jalr_prefetch_pending_match_w &&
+                                  outstanding_valid_q && !fetch_rsp_fire_w);
+          branch_prefetch_active_q <= 1'b0;
+          branch_prefetch_buffer_valid_q <= 1'b0;
+          branch_prefetch_pc_q <= {`XLEN{1'b0}};
+          if (jalr_prefetch_hit_available_w) begin
+            fifo_pc0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_pc0_w;
+            fifo_pc1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_pc1_w;
+            fifo_next_pc0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_next_pc0_w;
+            fifo_next_pc1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_next_pc1_w;
+            fifo_packet_next_pc_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_packet_next_pc_w;
+            fifo_inst0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_inst0_w;
+            fifo_inst1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_inst1_w;
+            fifo_resp0_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_resp0_w;
+            fifo_resp1_q[{FETCH_PACKET_COUNT_W{1'b0}}] <=
+                jalr_prefetch_hit_resp1_w;
+            next_fetch_pc_q <= jalr_prefetch_hit_packet_next_pc_w;
+          end else begin
+            next_fetch_pc_q <= pending_jump_target_q;
+          end
+        end else if (pending_mem_q) begin
+          fifo_head_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+          fifo_tail_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+          fifo_count_q <= {FETCH_COUNT_W{1'b0}};
+          outstanding_valid_q <= 1'b0;
+          outstanding_pc_q <= {`XLEN{1'b0}};
+          next_fetch_pc_q <= pending_mem_next_pc_q;
+        end else if (pending_fp_q) begin
+          fifo_head_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+          fifo_tail_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+          fifo_count_q <= {FETCH_COUNT_W{1'b0}};
+          outstanding_valid_q <= 1'b0;
+          outstanding_pc_q <= {`XLEN{1'b0}};
+          branch_prefetch_active_q <= 1'b0;
+          branch_prefetch_buffer_valid_q <= 1'b0;
+          branch_prefetch_pc_q <= {`XLEN{1'b0}};
+          next_fetch_pc_q <= pending_fp_next_pc_q;
+          if (!pending_fp_load_q && !pending_fp_store_q &&
+              !pending_fp_gpr_write_q) begin
+            fpr_q[pending_fp_rd_q] <= pending_fp_result_value_w;
+          end
+          if (pending_fp_gpr_write_q) begin
+            core_serial_flush_q <= 1'b1;
+          end
+          ctrl_commit_valid_q <= 1'b1;
+          ctrl_commit_pc_q <= pending_fp_pc_q;
+          ctrl_commit_inst_q <= pending_fp_inst_q;
+          ctrl_commit_next_pc_q <= pending_fp_next_pc_q;
+          ctrl_commit_rd_en_q <= pending_fp_gpr_write_q;
+          ctrl_commit_rd_addr_q <= pending_fp_rd_q;
+          ctrl_commit_rd_data_q <= pending_fp_result_value_w;
+          ctrl_commit_write_q <= pending_fp_gpr_write_q &&
+                                 (pending_fp_rd_q != {`REG_ADDR_W{1'b0}});
+        end else if (pending_exit_q) begin
+          halted_q <= 1'b1;
+          exit_valid_q <= 1'b1;
+          exit_is_ecall_q <= pending_exit_is_ecall_q;
+          exit_is_ebreak_q <= pending_exit_is_ebreak_q;
+        end else begin
+          halted_q <= 1'b1;
+          trap_valid_q <= 1'b1;
+          trap_cause_q <= pending_trap_cause_q;
+          trap_pc_q <= pending_trap_pc_q;
+          trap_tval_q <= pending_trap_tval_q;
+        end
+      end else if (!csr_trap_mem_valid_w &&
+          !direct_frontend_flush_w && can_run_w && fifo_has_packet_w) begin
+        if (csr_irq_pending_w) begin
+          // 中断在下一条指令边界进入 SYSTEM drain；mepc 指向尚未执行的 head PC。
+          stop_pending_q <= 1'b1;
+          pending_exit_q <= 1'b0;
+          pending_branch_q <= 1'b0;
+          pending_branch_dispatched_q <= 1'b0;
+        pending_jump_q <= 1'b0;
+        pending_jump_dispatched_q <= 1'b0;
+        pending_mem_q <= 1'b0;
+        pending_mem_dispatched_q <= 1'b0;
+        pending_arch_trap_q <= 1'b0;
+        pending_system_q <= 1'b1;
+          pending_system_dispatched_q <= 1'b0;
+          pending_system_csr_q <= 1'b0;
+          pending_system_ecall_q <= 1'b0;
+          pending_system_mret_q <= 1'b0;
+          pending_system_wfi_q <= 1'b0;
+          pending_system_sfence_q <= 1'b0;
+          pending_system_irq_q <= 1'b1;
+          pending_system_pc_q <= head_pc_w;
+          pending_system_inst_q <= {`INST_W{1'b0}};
+          pending_system_next_pc_q <= head_pc_w;
+          pending_system_csr_rdata_q <= {`XLEN{1'b0}};
+          pending_system_irq_cause_q <= csr_irq_cause_w;
+          pending_mem_next_pc_q <= {`XLEN{1'b0}};
+          pending_branch_next_pc_q <= {`XLEN{1'b0}};
+          pending_jump_next_pc_q <= {`XLEN{1'b0}};
+        end else if (head_fetch_fault0_w) begin
+          // 先冻结前端，等已派发的更老指令全部退休后再报 trap，保持精确异常边界。
+          stop_pending_q <= 1'b1;
+          pending_exit_q <= 1'b0;
+          pending_branch_q <= 1'b0;
+          pending_branch_dispatched_q <= 1'b0;
+        pending_jump_q <= 1'b0;
+        pending_jump_dispatched_q <= 1'b0;
+        pending_mem_q <= 1'b0;
+        pending_mem_dispatched_q <= 1'b0;
+        pending_arch_trap_q <= 1'b1;
+        pending_system_q <= 1'b0;
+          pending_system_dispatched_q <= 1'b0;
+          pending_system_csr_q <= 1'b0;
+          pending_system_ecall_q <= 1'b0;
+          pending_system_mret_q <= 1'b0;
+          pending_system_wfi_q <= 1'b0;
+          pending_system_sfence_q <= 1'b0;
+          pending_system_irq_q <= 1'b0;
+          pending_trap_cause_q <= (head_resp0_w == 2'b10) ?
+                                  `EXC_INST_PAGE_FAULT :
+                                  `EXC_INST_ACCESS_FAULT;
+          pending_trap_pc_q <= head_pc_w;
+          pending_trap_tval_q <= head_pc_w;
+          pending_branch_next_pc_q <= {`XLEN{1'b0}};
+          pending_jump_next_pc_q <= {`XLEN{1'b0}};
+        end else if (dispatch0_arch_trap_w) begin
+          // OpenSBI semihosting probe uses a magic ebreak sequence and expects
+          // the architectural breakpoint trap; plain ebreak remains AM halt.
+          stop_pending_q <= 1'b1;
+          pending_exit_q <= 1'b0;
+          pending_branch_q <= 1'b0;
+          pending_branch_dispatched_q <= 1'b0;
+        pending_jump_q <= 1'b0;
+        pending_jump_dispatched_q <= 1'b0;
+        pending_mem_q <= 1'b0;
+        pending_mem_dispatched_q <= 1'b0;
+        pending_arch_trap_q <= 1'b1;
+        pending_system_q <= 1'b0;
+          pending_system_dispatched_q <= 1'b0;
+          pending_system_csr_q <= 1'b0;
+          pending_system_ecall_q <= 1'b0;
+          pending_system_mret_q <= 1'b0;
+          pending_system_wfi_q <= 1'b0;
+          pending_system_sfence_q <= 1'b0;
+          pending_system_irq_q <= 1'b0;
+          pending_mem_next_pc_q <= {`XLEN{1'b0}};
+          pending_branch_next_pc_q <= {`XLEN{1'b0}};
+          pending_jump_next_pc_q <= {`XLEN{1'b0}};
+          pending_trap_cause_q <= `EXC_BREAKPOINT;
+          pending_trap_pc_q <= head_pc_w;
+          pending_trap_tval_q <= {`XLEN{1'b0}};
+        end else if (dispatch0_exit_w) begin
+          // EBREAK 保留为实验壳退出边界；ECALL 改走架构 trap 以承接 Linux/SBI。
+          stop_pending_q <= 1'b1;
+          pending_exit_q <= 1'b1;
+          pending_exit_is_ecall_q <= dispatch0_ecall_w;
+          pending_exit_is_ebreak_q <= dispatch0_ebreak_w;
+          pending_branch_q <= 1'b0;
+          pending_branch_dispatched_q <= 1'b0;
+        pending_jump_q <= 1'b0;
+        pending_jump_dispatched_q <= 1'b0;
+        pending_mem_q <= 1'b0;
+        pending_mem_dispatched_q <= 1'b0;
+        pending_arch_trap_q <= 1'b0;
+        pending_system_q <= 1'b0;
+          pending_system_dispatched_q <= 1'b0;
+          pending_system_csr_q <= 1'b0;
+          pending_system_ecall_q <= 1'b0;
+          pending_system_mret_q <= 1'b0;
+          pending_system_wfi_q <= 1'b0;
+          pending_system_sfence_q <= 1'b0;
+          pending_system_irq_q <= 1'b0;
+          pending_mem_next_pc_q <= {`XLEN{1'b0}};
+          pending_branch_next_pc_q <= {`XLEN{1'b0}};
+          pending_jump_next_pc_q <= {`XLEN{1'b0}};
+        end else if (dispatch0_fp_w) begin
+          // F/D bring-up path: FP load/store 是序列化边界，先排空整数 OoO 后端，
+          // 再通过同一 LSU/MMU 通路访问内存并提交 FPR 副作用。
+          stop_pending_q <= 1'b1;
+          pending_exit_q <= 1'b0;
+          pending_branch_q <= 1'b0;
+          pending_branch_dispatched_q <= 1'b0;
+          pending_jump_q <= 1'b0;
+          pending_jump_dispatched_q <= 1'b0;
+          pending_mem_q <= 1'b0;
+          pending_mem_dispatched_q <= 1'b0;
+          pending_fp_q <= 1'b1;
+          pending_fp_mem_pending_q <= 1'b0;
+          pending_fp_mem_done_q <= !head0_fp_load_raw_w &&
+                                   !head0_fp_store_raw_w;
+          pending_fp_load_q <= head0_fp_load_raw_w;
+          pending_fp_store_q <= head0_fp_store_raw_w;
+          pending_fp_double_q <= head0_fp_double_w;
+          pending_fp_gpr_write_q <= head0_fp_gpr_write_w;
+          pending_arch_trap_q <= 1'b0;
+          pending_system_q <= 1'b0;
+          pending_system_dispatched_q <= 1'b0;
+          pending_system_csr_q <= 1'b0;
+          pending_system_ecall_q <= 1'b0;
+          pending_system_mret_q <= 1'b0;
+          pending_system_wfi_q <= 1'b0;
+          pending_system_sfence_q <= 1'b0;
+          pending_system_irq_q <= 1'b0;
+          pending_mem_next_pc_q <= {`XLEN{1'b0}};
+          pending_branch_next_pc_q <= {`XLEN{1'b0}};
+          pending_jump_next_pc_q <= {`XLEN{1'b0}};
+          pending_fp_pc_q <= head_pc_w;
+          pending_fp_inst_q <= head_inst0_w;
+          pending_fp_next_pc_q <= head_next_pc0_w;
+          pending_fp_addr_q <= {`XLEN{1'b0}};
+          pending_fp_wdata_q <= {`XLEN{1'b0}};
+          pending_fp_wstrb_q <= {`STRB_W{1'b0}};
+          pending_fp_rd_q <= head_inst0_w[11:7];
+        end else if (dispatch0_system_w && head0_csr_illegal_w) begin
+          stop_pending_q <= 1'b1;
+          pending_exit_q <= 1'b0;
+          pending_branch_q <= 1'b0;
+          pending_branch_dispatched_q <= 1'b0;
+        pending_jump_q <= 1'b0;
+        pending_jump_dispatched_q <= 1'b0;
+        pending_mem_q <= 1'b0;
+        pending_mem_dispatched_q <= 1'b0;
+        pending_arch_trap_q <= 1'b1;
+        pending_system_q <= 1'b0;
+          pending_system_dispatched_q <= 1'b0;
+          pending_system_csr_q <= 1'b0;
+          pending_system_ecall_q <= 1'b0;
+          pending_system_mret_q <= 1'b0;
+          pending_system_wfi_q <= 1'b0;
+          pending_system_sfence_q <= 1'b0;
+          pending_system_irq_q <= 1'b0;
+          pending_mem_next_pc_q <= {`XLEN{1'b0}};
+          pending_branch_next_pc_q <= {`XLEN{1'b0}};
+          pending_jump_next_pc_q <= {`XLEN{1'b0}};
+          pending_trap_cause_q <= `EXC_ILLEGAL_INST;
+          pending_trap_pc_q <= head_pc_w;
+          pending_trap_tval_q <= head_inst0_w;
+        end else if (dispatch0_system_w) begin
+          // SYSTEM/CSR 是特权控制面边界：先等更老 ROB 项全部退休，再执行副作用或单 lane CSR。
+          stop_pending_q <= 1'b1;
+          pending_exit_q <= 1'b0;
+          pending_branch_q <= 1'b0;
+          pending_branch_dispatched_q <= 1'b0;
+        pending_jump_q <= 1'b0;
+        pending_jump_dispatched_q <= 1'b0;
+        pending_mem_q <= 1'b0;
+        pending_mem_dispatched_q <= 1'b0;
+        pending_arch_trap_q <= 1'b0;
+        pending_system_q <= 1'b1;
+          pending_system_dispatched_q <= 1'b0;
+          pending_system_csr_q <= head0_csr_raw_w;
+          pending_system_ecall_q <= head0_ecall_raw_w;
+          pending_system_mret_q <= head0_xret_raw_w;
+          pending_system_wfi_q <= head0_wfi_raw_w;
+          pending_system_sfence_q <= head0_sfence_raw_w;
+          pending_system_irq_q <= 1'b0;
+          pending_system_pc_q <= head_pc_w;
+          pending_system_inst_q <= head_inst0_w;
+          pending_system_next_pc_q <= head_next_pc0_w;
+          pending_system_csr_rdata_q <= csr_rdata_w;
+          pending_system_irq_cause_q <= {`TRAP_CAUSE_W{1'b0}};
+          pending_mem_next_pc_q <= {`XLEN{1'b0}};
+          pending_branch_next_pc_q <= {`XLEN{1'b0}};
+          pending_jump_next_pc_q <= {`XLEN{1'b0}};
+        end else if (dispatch0_branch_w && !direct_branch0_dispatch_valid_w) begin
+          // lane0 branch fast-dispatch 不可用时，回落到精确 drain 后解析。
+          stop_pending_q <= 1'b1;
+          pending_exit_q <= 1'b0;
+          pending_branch_q <= 1'b1;
+          pending_branch_dispatched_q <= 1'b0;
+          pending_jump_q <= 1'b0;
+          pending_jump_dispatched_q <= 1'b0;
+          pending_mem_q <= 1'b0;
+          pending_mem_dispatched_q <= 1'b0;
+          pending_system_q <= 1'b0;
+          pending_system_dispatched_q <= 1'b0;
+          pending_system_csr_q <= 1'b0;
+          pending_system_ecall_q <= 1'b0;
+          pending_system_mret_q <= 1'b0;
+          pending_system_wfi_q <= 1'b0;
+          pending_system_sfence_q <= 1'b0;
+          pending_system_irq_q <= 1'b0;
+          pending_mem_next_pc_q <= {`XLEN{1'b0}};
+          pending_branch_pc_q <= head_pc_w;
+          pending_branch_next_pc_q <= head_next_pc0_w;
+          pending_branch_inst_q <= head_inst0_w;
+          pending_branch_rs1_q <= head0_rs1_w;
+          pending_branch_rs2_q <= head0_rs2_w;
+          pending_branch_imm_q <= head0_imm_w;
+          pending_branch_cmp_op_q <=
+              head0_ctrl_w[`CTRL_CMP_OP_MSB:`CTRL_CMP_OP_LSB];
+          pending_branch_pred_taken_q <= head0_branch_pred_taken_w;
+          pending_branch_bht_valid_q <= head0_branch_bht_valid_w;
+          pending_branch_bht_idx_q <= head0_branch_bht_idx_w;
+        end else if ((dispatch0_jal_w && !direct_jal0_dispatch_valid_w) ||
+                     (dispatch0_jump_w && !dispatch0_return_w)) begin
+          // 函数调用 JAL 和 JALR 都是精确控制流边界：先排空更老项，
+          // 再单 lane 派发 jump uop，避免 caller fall-through 混入 callee ROB。
+          stop_pending_q <= 1'b1;
+          pending_exit_q <= 1'b0;
+          pending_branch_q <= 1'b0;
+          pending_branch_dispatched_q <= 1'b0;
+        pending_jump_q <= 1'b1;
+        pending_jump_dispatched_q <= 1'b0;
+        pending_mem_q <= 1'b0;
+        pending_mem_dispatched_q <= 1'b0;
+        pending_arch_trap_q <= 1'b0;
+        pending_system_q <= 1'b0;
+          pending_system_dispatched_q <= 1'b0;
+          pending_system_csr_q <= 1'b0;
+          pending_system_ecall_q <= 1'b0;
+          pending_system_mret_q <= 1'b0;
+          pending_system_wfi_q <= 1'b0;
+          pending_system_sfence_q <= 1'b0;
+          pending_system_irq_q <= 1'b0;
+          pending_mem_next_pc_q <= {`XLEN{1'b0}};
+          pending_jump_jalr_q <= head0_jalr_raw_w;
+          pending_jump_pc_q <= head_pc_w;
+          pending_jump_next_pc_q <= head_next_pc0_w;
+          pending_jump_inst_q <= head_inst0_w;
+          pending_jump_rs1_q <= head0_rs1_w;
+          pending_jump_imm_q <= head0_imm_w;
+          pending_jump_target_q <= {`XLEN{1'b0}};
+        end else if (dispatch1_barrier_fire_w) begin
+          // lane1 半包屏障：lane0 已进入后端，lane1 等 lane0/更老 ROB 项退休后精确处理。
+          stop_pending_q <= 1'b1;
+          pending_exit_q <= head1_exit_raw_w;
+          pending_exit_is_ecall_q <= head1_ecall_raw_w;
+          pending_exit_is_ebreak_q <= head1_ebreak_raw_w;
+          pending_branch_q <= head1_branch_raw_w;
+          pending_branch_dispatched_q <= 1'b0;
+        pending_jump_q <= head1_jump_raw_w;
+        pending_jump_dispatched_q <= 1'b0;
+        pending_mem_q <= head1_mem_raw_w;
+        pending_mem_dispatched_q <= 1'b0;
+        pending_fp_q <= head1_fp_raw_w;
+        pending_fp_mem_pending_q <= 1'b0;
+        pending_fp_mem_done_q <= head1_fp_raw_w && !head1_fp_load_raw_w &&
+                                 !head1_fp_store_raw_w;
+        pending_fp_load_q <= head1_fp_load_raw_w;
+        pending_fp_store_q <= head1_fp_store_raw_w;
+        pending_fp_double_q <= head1_fp_double_w;
+        pending_fp_gpr_write_q <= head1_fp_gpr_write_w;
+          pending_arch_trap_q <= head_fetch_fault1_w || head1_csr_illegal_w ||
+                                 head1_arch_trap_raw_w;
+        pending_system_q <= head1_system_raw_w && !head1_csr_illegal_w;
+          pending_system_dispatched_q <= 1'b0;
+          pending_system_csr_q <= head1_csr_raw_w && !head1_csr_illegal_w;
+          pending_system_ecall_q <= head1_ecall_raw_w;
+          pending_system_mret_q <= head1_xret_raw_w;
+          pending_system_wfi_q <= head1_wfi_raw_w;
+          pending_system_sfence_q <= head1_sfence_raw_w;
+          pending_system_irq_q <= 1'b0;
+          pending_system_pc_q <= head_pc1_w;
+          pending_system_inst_q <= head_inst1_w;
+          pending_system_next_pc_q <= head_next_pc1_w;
+          pending_system_csr_rdata_q <= csr_rdata_w;
+          pending_system_irq_cause_q <= {`TRAP_CAUSE_W{1'b0}};
+          pending_trap_cause_q <= head1_arch_trap_raw_w ? `EXC_BREAKPOINT :
+                                  head1_csr_illegal_w ? `EXC_ILLEGAL_INST :
+                                  ((head_resp1_w == 2'b10) ?
+                                   `EXC_INST_PAGE_FAULT :
+                                   `EXC_INST_ACCESS_FAULT);
+          pending_trap_pc_q <= head_pc1_w;
+          pending_trap_tval_q <= head1_arch_trap_raw_w ? {`XLEN{1'b0}} :
+                                 head1_csr_illegal_w ? head_inst1_w :
+                                 head_pc1_w;
+
+          pending_branch_pc_q <= head_pc1_w;
+          pending_branch_next_pc_q <= head_next_pc1_w;
+          pending_branch_inst_q <= head_inst1_w;
+          pending_branch_rs1_q <= head1_rs1_w;
+          pending_branch_rs2_q <= head1_rs2_w;
+          pending_branch_imm_q <= head1_imm_w;
+          pending_branch_cmp_op_q <=
+              head1_ctrl_w[`CTRL_CMP_OP_MSB:`CTRL_CMP_OP_LSB];
+          pending_branch_pred_taken_q <= head1_branch_pred_taken_w;
+          pending_branch_bht_valid_q <= head1_branch_bht_valid_w;
+          pending_branch_bht_idx_q <= head1_branch_bht_idx_w;
+
+          pending_jump_jalr_q <= head1_jalr_raw_w;
+          pending_jump_pc_q <= head_pc1_w;
+          pending_jump_next_pc_q <= head_next_pc1_w;
+          pending_jump_inst_q <= head_inst1_w;
+          pending_jump_rs1_q <= head1_rs1_w;
+          pending_jump_imm_q <= head1_imm_w;
+          pending_jump_target_q <= {`XLEN{1'b0}};
+
+          pending_mem_pc_q <= head_pc1_w;
+          pending_mem_inst_q <= head_inst1_w;
+          pending_mem_next_pc_q <= head_next_pc1_w;
+          pending_fp_pc_q <= head_pc1_w;
+          pending_fp_inst_q <= head_inst1_w;
+          pending_fp_next_pc_q <= head_next_pc1_w;
+          pending_fp_addr_q <= {`XLEN{1'b0}};
+          pending_fp_wdata_q <= {`XLEN{1'b0}};
+          pending_fp_wstrb_q <= {`STRB_W{1'b0}};
+          pending_fp_rd_q <= head_inst1_w[11:7];
+        end else if (dispatch_unsupported_w) begin
+          // unsupported 是当前实验核心的停机边界，同样等待更老 ROB 项 drain 后再报精确 trap。
+          stop_pending_q <= 1'b1;
+          pending_exit_q <= 1'b0;
+          pending_branch_q <= 1'b0;
+          pending_branch_dispatched_q <= 1'b0;
+        pending_jump_q <= 1'b0;
+        pending_jump_dispatched_q <= 1'b0;
+        pending_mem_q <= 1'b0;
+        pending_mem_dispatched_q <= 1'b0;
+        pending_arch_trap_q <= 1'b1;
+        pending_system_q <= 1'b0;
+          pending_system_dispatched_q <= 1'b0;
+          pending_system_csr_q <= 1'b0;
+          pending_system_ecall_q <= 1'b0;
+          pending_system_mret_q <= 1'b0;
+          pending_system_wfi_q <= 1'b0;
+          pending_system_sfence_q <= 1'b0;
+          pending_system_irq_q <= 1'b0;
+          pending_mem_next_pc_q <= {`XLEN{1'b0}};
+          pending_branch_next_pc_q <= {`XLEN{1'b0}};
+          pending_jump_next_pc_q <= {`XLEN{1'b0}};
+          pending_trap_cause_q <= `EXC_ILLEGAL_INST;
+          pending_trap_pc_q <= dispatch0_unsupported_w ? head_pc_w :
+                                                       head_pc1_w;
+          pending_trap_tval_q <= dispatch0_unsupported_w ? head_inst0_w :
+                                                         head_inst1_w;
+        end
+      end
+
+      if (csr_trap_mem_valid_w) begin
+        // Trap commit is the precise privilege boundary.  Re-apply the
+        // frontend clear after dispatch capture so same-cycle stale user
+        // control state cannot survive into the S-mode handler.
+        fifo_head_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+        fifo_tail_q <= {FETCH_PACKET_COUNT_W{1'b0}};
+        fifo_count_q <= {FETCH_COUNT_W{1'b0}};
+        outstanding_valid_q <= 1'b0;
+        outstanding_pc_q <= {`XLEN{1'b0}};
+        discard_fetch_rsp_q <= outstanding_valid_q && !fetch_rsp_fire_w;
+        stop_pending_q <= 1'b0;
+        pending_exit_q <= 1'b0;
+        pending_exit_is_ecall_q <= 1'b0;
+        pending_exit_is_ebreak_q <= 1'b0;
+        pending_branch_q <= 1'b0;
+        pending_branch_dispatched_q <= 1'b0;
+        pending_jump_q <= 1'b0;
+        pending_jump_dispatched_q <= 1'b0;
+        pending_mem_q <= 1'b0;
+        pending_mem_dispatched_q <= 1'b0;
+        pending_fp_q <= 1'b0;
+        pending_fp_mem_pending_q <= 1'b0;
+        pending_fp_mem_done_q <= 1'b0;
+        pending_arch_trap_q <= 1'b0;
+        pending_system_q <= 1'b0;
+        pending_system_dispatched_q <= 1'b0;
+        pending_system_csr_q <= 1'b0;
+        pending_system_ecall_q <= 1'b0;
+        pending_system_mret_q <= 1'b0;
+        pending_system_wfi_q <= 1'b0;
+        pending_system_sfence_q <= 1'b0;
+        pending_system_irq_q <= 1'b0;
+        pending_lane1_ret_q <= 1'b0;
+        pending_lane1_ret_pc_q <= {`XLEN{1'b0}};
+        pending_lane1_ret_next_pc_q <= {`XLEN{1'b0}};
+        pending_lane1_ret_inst_q <= {`INST_W{1'b0}};
+        synth_lane1_ret_pending_q <= 1'b0;
+        synth_lane1_ret_branch_seen_q <= 1'b0;
+        synth_lane1_ret_branch_pc_q <= {`XLEN{1'b0}};
+        synth_lane1_ret_pc_q <= {`XLEN{1'b0}};
+        synth_lane1_ret_next_pc_q <= {`XLEN{1'b0}};
+        synth_lane1_ret_inst_q <= {`INST_W{1'b0}};
+        synth_lane1_branch_drop_pending_q <= 1'b0;
+        synth_lane1_branch_drop_pc_q <= {`XLEN{1'b0}};
+        pending_mem_next_pc_q <= {`XLEN{1'b0}};
+        pending_fp_next_pc_q <= {`XLEN{1'b0}};
+        pending_branch_next_pc_q <= {`XLEN{1'b0}};
+        pending_jump_next_pc_q <= {`XLEN{1'b0}};
+        direct_branch_wait_q <= 1'b0;
+        direct_branch_wait_pc_q <= {`XLEN{1'b0}};
+        pending_trap_cause_q <= {`TRAP_CAUSE_W{1'b0}};
+        pending_trap_pc_q <= {`XLEN{1'b0}};
+        pending_trap_tval_q <= {`XLEN{1'b0}};
+        branch_prefetch_active_q <= 1'b0;
+        branch_prefetch_buffer_valid_q <= 1'b0;
+        branch_prefetch_pc_q <= {`XLEN{1'b0}};
+        branch_spec_active_q <= 1'b0;
+        branch_spec_checkpoint_pending_q <= 1'b0;
+        branch_spec_pred_pc_q <= {`XLEN{1'b0}};
+        branch_target_capture_pending_q <= 1'b0;
+        branch_target_capture_branch_pc_q <= {`XLEN{1'b0}};
+        branch_target_capture_target_pc_q <= {`XLEN{1'b0}};
+        backend_drained_q <= 1'b1;
+        core_trap_flush_q <= 1'b1;
+        next_fetch_pc_q <= csr_trap_target_w;
+      end
+    end
+  end
+
+endmodule

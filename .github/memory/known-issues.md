@@ -80,14 +80,6 @@
 - **修复**: 本轮采用串行、短命令验证，避免并发 WSL 进程。长期应重启/修复 WSL 会话、减少并行命令，并把 benchmark 卡死先收敛成 NPC 超时而不是任其长跑。
 - **教训**: 遇到 WSL `E_UNEXPECTED` 不要直接等同于 RTL OOM 或 benchmark 自身崩溃；先看 NPC 是否有 no-progress/commits 卡点，再单独评估宿主 WSL 稳定性。
 
-### [33] `npc/rv64/testbench` 全量 run 仍会被旧 `tb_ooo_alu_fetch_core` 语义挡住
-
-- **模块**: NPC RV64 / module testbench / OoO fetch-core focused test
-- **现象**: 本轮 S-mode/A-extension 和 Sv39 bridge 改动后，focused 验证 `tb_ooo_sv39_boot tb_ooo_int_backend tb_ooo_priv_system` PASS，rv64 lint/build、cpu-tests 和 CoreMark 均 PASS；但直接执行 `make -C npc/rv64/testbench RESULT_DIR=/tmp/rv64-full-module run` 仍会在旧 `tb_ooo_alu_fetch_core` 失败。日志显示该旧 test 仍期待 `mret` 走 illegal trap、并按旧 32-bit 访存模型/退出模型断言 JALR/memory/ecall 行为。
-- **根因**: `npc/rv64` 近期已经把 MRET/CSR/ECALL/64-bit LSU/OoO core-top 语义推进到新边界，但 `tb_ooo_alu_fetch_core` 仍继承较早 RV32/OoO focused 假设，没有同步到当前 RV64 “MRET 合法、ECALL 架构 trap、8-byte aligned LSU、priv SYSTEM drain” 的协议。
-- **修复**: 暂未完整清理该旧 testbench；2026-06-01 direct RAS return 优化中仅把一个已不存在的 backend 层级引用 `fast_branch_resolve_valid_q` 改为当前 core 层 `core_dispatch_branch_resolve_valid_w`，让 elaboration 不再卡在陈旧信号名上，但行为断言仍按旧 RV32/早期 OoO 语义失败，且在 direct RAS 开关临时关回时也失败，证明不是本轮 RAS 优化引入的回归。本轮新增/扩展的 `tb_ooo_sv39_boot` 已覆盖 IFU/LSU Sv39 success path、S-mode handoff、delegated ecall 和 `SRET` 小型 boot 骨架，`tb_ooo_priv_system` 覆盖当前 privilege/SYSTEM 验收点，`tb_ooo_int_backend` 覆盖 AMO/LR/SC，`tb_decode_unit` 覆盖 SRET/AMO decode。后续若要恢复 `testbench` 全量 run，应重写 `tb_ooo_alu_fetch_core` 的程序模型和断言，使其与当前 RV64 privilege/LSU/exit 协议一致，而不是把 RTL 回退到旧预期。
-- **教训**: focused testbench 的历史预期本身也属于接口契约；当体系结构语义从“unsupported/illegal”推进到“合法精确控制事件”时，需要同步升级旧断言，否则全量 module run 会把已完成的能力误报成回归。
-
 ### [30] OoO 实验核接入真实 core-top 后，CPI=0.5 目标转为 core 内 cache/LSQ/control-flow 问题
 
 - **模块**: NPC / `NpcCoreTop` / OoO experimental core / fetch-memory bridge
@@ -163,6 +155,15 @@
 - **修复**: 如何修复的
 - **教训**: 从中学到了什么
 -->
+
+### [33] `tb_ooo_alu_fetch_core` 旧 RV32/早期 OoO 语义已重基线到当前 RV64
+
+- **模块**: NPC RV64 / module testbench / OoO fetch-core focused test
+- **现象**: 旧 `tb_ooo_alu_fetch_core` 曾把当前已合法的 RV64 privilege/SYSTEM 行为误报为失败：期待 `MRET` 走 illegal trap，期待 `ECALL` 直接作为 legacy exit，使用 RV32 风格 `lui 0x80000` 构造高地址，访存 mock 只有 4-bit `wstrb`，并窥探已经搬迁或语义改变的 return/branch fast-path 层次信号。2026-06-03 baseline 运行有 26 个失败，集中在这些旧断言和旧地址/端口模型上。
+- **根因**: RV64 OoO 主线已经推进到“`MRET/SRET/CSR/WFI/SFENCE` 为合法精确控制事件，`ECALL` 走 CSR trap/`mtvec`，`EBREAK` 保留实验壳退出，LSU 为 64-bit/8-byte strobe，fetch bridge 区分 access fault/page fault”的协议；该 testbench 仍沿用 RV32/早期 OoO focused 假设，导致测试契约落后于 RTL 架构语义。
+- **修复**: 2026-06-03 已把 testbench 重基线到当前 RV64：`mem*_req_wstrb` 扩为 `` `STRB_W``；JALR 与内存场景改用 `AUIPC+ADDI` 构造当前 PC 附近的 64-bit 地址，避免 RV64 `LUI 0x80000` 符号扩展；`ECALL` 场景改为先写 `mtvec`，执行 `ecall` 后进入 handler，再由 `EBREAK` 退出；默认 smoke case 改为普通执行体跑到 `EBREAK` 退出，不再把 `MRET/semihost` 当非法 trap；fetch mock 用当前 `FETCH_RESP_ACCESS_FAULT=2'b01`；return/branch fast-path 观测点更新为当前 core 层信号，并移除不再属于该集成 tb owner 的 lane1 fetch-fault 旧断言。
+- **验证**: `make -C npc/rv64/testbench TESTS=tb_ooo_alu_fetch_core RESULT_TIMESTAMP=20260603-rv64-tb-rebase-5 run` PASS；相邻 owner 回归 `make -C npc/rv64/testbench TESTS="tb_ooo_fetch_axi_bridge tb_ooo_mem_axi_bridge tb_ooo_priv_system tb_ooo_sv39_boot" RESULT_TIMESTAMP=20260603-rv64-tb-rebase-neighbor run` 4/4 PASS；`git diff --check -- npc/rv64/testbench/tests/tb_ooo_alu_fetch_core.sv` PASS。
+- **教训**: 旧 testbench 不是永远正确的 oracle。ISA/privilege/LSU 协议升级后，要同步升级测试的程序模型、端口宽度、异常/退出口径和层次化观测点；否则“测试失败”会把已经实现的 RV64 能力误判成 RTL 回归。
 
 ### [46] RV64 Ubuntu rootfs `/init` 后 `ld-linux` 因页尾跨页取指拼错高半字触发非法指令
 

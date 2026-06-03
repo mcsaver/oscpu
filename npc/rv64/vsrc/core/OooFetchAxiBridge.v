@@ -42,9 +42,7 @@ module OooFetchAxiBridge (
   localparam [1:0] RESP_ACCESS_FAULT = 2'b01;
   localparam [1:0] RESP_PAGE_FAULT = 2'b10;
   localparam CACHE_INDEX_W = 12;
-  localparam CACHE_ENTRIES = (1 << CACHE_INDEX_W);
   localparam ITLB_INDEX_W = 6;
-  localparam ITLB_ENTRIES = (1 << ITLB_INDEX_W);
 
   reg [3:0] state_q;
   reg paging_q;
@@ -67,21 +65,6 @@ module OooFetchAxiBridge (
   reg [`XLEN-1:0] debug_last_pte_q;
   reg [1:0] debug_last_pte_level_q;
   reg debug_last_pte_second_q;
-
-  reg [CACHE_ENTRIES-1:0] cache_valid_q;
-  reg cache_paging_q [0:CACHE_ENTRIES-1];
-  reg [1:0] cache_priv_q [0:CACHE_ENTRIES-1];
-  reg [`XLEN-1:0] cache_satp_q [0:CACHE_ENTRIES-1];
-  reg [`XLEN-1:0] cache_pc_q [0:CACHE_ENTRIES-1];
-  reg [`INST_W-1:0] cache_inst0_q [0:CACHE_ENTRIES-1];
-  reg [`INST_W-1:0] cache_inst1_q [0:CACHE_ENTRIES-1];
-  reg [1:0] cache_resp0_q [0:CACHE_ENTRIES-1];
-  reg [1:0] cache_resp1_q [0:CACHE_ENTRIES-1];
-  reg [ITLB_ENTRIES-1:0] itlb_valid_q;
-  reg [26:0] itlb_vpn_q [0:ITLB_ENTRIES-1];
-  reg [`XLEN-1:0] itlb_satp_q [0:ITLB_ENTRIES-1];
-  reg [`XLEN-1:0] itlb_pte_q [0:ITLB_ENTRIES-1];
-  reg [1:0] itlb_level_q [0:ITLB_ENTRIES-1];
 
   function sv39_enabled;
     input [1:0] priv_mode;
@@ -173,51 +156,6 @@ module OooFetchAxiBridge (
   endfunction
   /* verilator lint_on BLKSEQ */
 
-  /* verilator lint_off UNUSEDSIGNAL */
-  function [CACHE_INDEX_W-1:0] cache_index;
-    input [`XLEN-1:0] pc;
-    begin
-      cache_index = pc[CACHE_INDEX_W:1];
-    end
-  endfunction
-
-  function cache_overlap;
-    input [`XLEN-1:0] fetch_pc;
-    input [`XLEN-1:0] store_addr;
-    begin
-      cache_overlap =
-          ((store_addr & {{(`XLEN-2){1'b1}}, 2'b00}) <= (fetch_pc + 32'd7)) &&
-          (((store_addr & {{(`XLEN-2){1'b1}}, 2'b00}) + 32'd3) >= fetch_pc);
-    end
-  endfunction
-
-  function [ITLB_INDEX_W-1:0] itlb_index;
-    input [`XLEN-1:0] pc;
-    begin
-      itlb_index = pc[ITLB_INDEX_W+11:12];
-    end
-  endfunction
-
-  function [26:0] vpn_tag;
-    input [`XLEN-1:0] pc;
-    begin
-      vpn_tag = pc[38:12];
-    end
-  endfunction
-
-  function itlb_vpn_match;
-    input [26:0] req_vpn;
-    input [26:0] ent_vpn;
-    input [1:0] level;
-    begin
-      case (level)
-        2'd2: itlb_vpn_match = (req_vpn[26:18] == ent_vpn[26:18]);
-        2'd1: itlb_vpn_match = (req_vpn[26:9] == ent_vpn[26:9]);
-        default: itlb_vpn_match = (req_vpn == ent_vpn);
-      endcase
-    end
-  endfunction
-
   function [`XLEN-1:0] merge_cross_page_packet;
     input [`XLEN-1:0] first_beat;
     input [`XLEN-1:0] second_beat;
@@ -235,7 +173,6 @@ module OooFetchAxiBridge (
       endcase
     end
   endfunction
-  /* verilator lint_on UNUSEDSIGNAL */
 
   wire req_paging_w = sv39_enabled(priv_mode_i, satp_i);
   wire [`XLEN-1:0] req_packet_end_pc_w = fetch_req_pc_i + 64'd7;
@@ -248,37 +185,20 @@ module OooFetchAxiBridge (
   wire req_cross_fetch_page_w = !req_same_fetch_page_w;
   wire [2:0] req_first_page_bytes_w =
       req_first_page_bytes_full_w[2:0];
-  wire [CACHE_INDEX_W-1:0] req_cache_idx_w = cache_index(fetch_req_pc_i);
-  wire [CACHE_INDEX_W-1:0] fill_cache_idx_w = cache_index(pc_q);
-  wire [ITLB_INDEX_W-1:0] req_itlb_idx_w = itlb_index(fetch_req_pc_i);
-  wire [26:0] req_vpn_w = vpn_tag(fetch_req_pc_i);
-  wire req_itlb_context_hit_w =
-      req_paging_w && !mmu_flush_i && canonical_sv39(fetch_req_pc_i) &&
-      itlb_valid_q[req_itlb_idx_w] &&
-      (itlb_satp_q[req_itlb_idx_w] == satp_i) &&
-      itlb_vpn_match(req_vpn_w, itlb_vpn_q[req_itlb_idx_w],
-                     itlb_level_q[req_itlb_idx_w]);
+  wire cache_hit_w;
+  wire fetch_cache_context_unused_w;
+  wire [`INST_W-1:0] cache_inst0_w;
+  wire [`INST_W-1:0] cache_inst1_w;
+  wire [1:0] cache_resp0_w;
+  wire [1:0] cache_resp1_w;
+  wire req_itlb_context_hit_w;
+  wire [`XLEN-1:0] req_itlb_pte_w;
+  wire [1:0] req_itlb_level_unused_w;
+  wire [`XLEN-1:0] req_itlb_paddr_w;
   wire req_itlb_perm_fault_w =
       req_itlb_context_hit_w &&
-      exec_permission_fault(itlb_pte_q[req_itlb_idx_w], priv_mode_i);
+      exec_permission_fault(req_itlb_pte_w, priv_mode_i);
   wire req_itlb_hit_w = req_itlb_context_hit_w && !req_itlb_perm_fault_w;
-  wire [`XLEN-1:0] req_itlb_paddr_w =
-      leaf_paddr(itlb_pte_q[req_itlb_idx_w], fetch_req_pc_i,
-                 itlb_level_q[req_itlb_idx_w]);
-  wire req_cache_invalidated_w =
-      invalidate_valid_i && cache_overlap(fetch_req_pc_i, invalidate_addr_i);
-  wire fill_cache_invalidated_w =
-      invalidate_valid_i && cache_overlap(pc_q, invalidate_addr_i);
-  wire cache_context_hit_w =
-      cache_valid_q[req_cache_idx_w] &&
-      (cache_paging_q[req_cache_idx_w] == req_paging_w) &&
-      (!req_paging_w ||
-       ((cache_priv_q[req_cache_idx_w] == priv_mode_i) &&
-        (cache_satp_q[req_cache_idx_w] == satp_i)));
-  wire cache_hit_w =
-      cache_context_hit_w &&
-      (cache_pc_q[req_cache_idx_w] == fetch_req_pc_i) &&
-      !req_cache_invalidated_w;
   wire fetch_req_fire_w = fetch_req_valid_i && fetch_req_ready_o;
   wire fetch_req_direct_miss_fire_w =
       fetch_req_fire_w && !req_paging_w && !cache_hit_w;
@@ -299,6 +219,82 @@ module OooFetchAxiBridge (
                               packet_first_bytes_q);
   wire first_inst_cross_page_w =
       packet_cross_page_q && (packet_first_bytes_q < 3'd4);
+  wire itlb_fill_valid_w =
+      !mmu_flush_i && (state_q == S_WALK_R) && ifu_axi_rvalid_i &&
+      (ifu_axi_rresp_i == RESP_OK) &&
+      !pte_invalid(ifu_axi_rdata_i) &&
+      (pte_leaf(ifu_axi_rdata_i)) &&
+      !superpage_misaligned(ifu_axi_rdata_i, walk_level_q) &&
+      !exec_permission_fault(ifu_axi_rdata_i, req_priv_q);
+  wire fetch_cache_fill_r0_w =
+      (state_q == S_R0) && ifu_axi_rvalid_i &&
+      (ifu_axi_rresp_i == RESP_OK) &&
+      !packet_cross_page_q &&
+      (resp0_q == RESP_OK) && (resp1_q == RESP_OK);
+  wire fetch_cache_fill_r1_w =
+      (state_q == S_R1) && ifu_axi_rvalid_i &&
+      (ifu_axi_rresp_i == RESP_OK) &&
+      (resp0_q == RESP_OK);
+  wire fetch_cache_fill_valid_w =
+      fetch_cache_fill_r0_w || fetch_cache_fill_r1_w;
+  wire [`INST_W-1:0] fetch_cache_fill_inst0_w =
+      fetch_cache_fill_r1_w ? merged_cross_packet_w[`INST_W-1:0] :
+                              fetch_beat_inst0_w;
+  wire [`INST_W-1:0] fetch_cache_fill_inst1_w =
+      fetch_cache_fill_r1_w ? merged_cross_packet_w[`XLEN-1:`INST_W] :
+                              fetch_beat_inst1_w;
+  wire [1:0] fetch_cache_fill_resp0_w =
+      fetch_cache_fill_r1_w ? resp0_q : RESP_OK;
+  wire [1:0] fetch_cache_fill_resp1_w = resp1_q;
+
+  OooFetchPacketCache #(
+    .INDEX_W(CACHE_INDEX_W)
+  ) u_fetch_packet_cache (
+    .clk(clk),
+    .rst(rst),
+    .clear_i(mmu_flush_i),
+    .lookup_paging_i(req_paging_w),
+    .lookup_priv_i(priv_mode_i),
+    .lookup_satp_i(satp_i),
+    .lookup_pc_i(fetch_req_pc_i),
+    .lookup_context_hit_o(fetch_cache_context_unused_w),
+    .lookup_hit_o(cache_hit_w),
+    .lookup_inst0_o(cache_inst0_w),
+    .lookup_resp0_o(cache_resp0_w),
+    .lookup_inst1_o(cache_inst1_w),
+    .lookup_resp1_o(cache_resp1_w),
+    .fill_valid_i(fetch_cache_fill_valid_w),
+    .fill_paging_i(paging_q),
+    .fill_priv_i(req_priv_q),
+    .fill_satp_i(req_satp_q),
+    .fill_pc_i(pc_q),
+    .fill_inst0_i(fetch_cache_fill_inst0_w),
+    .fill_resp0_i(fetch_cache_fill_resp0_w),
+    .fill_inst1_i(fetch_cache_fill_inst1_w),
+    .fill_resp1_i(fetch_cache_fill_resp1_w),
+    .invalidate_valid_i(invalidate_valid_i),
+    .invalidate_addr_i(invalidate_addr_i)
+  );
+
+  OooSv39Tlb #(
+    .INDEX_W(ITLB_INDEX_W)
+  ) u_itlb (
+    .clk(clk),
+    .rst(rst),
+    .clear_i(mmu_flush_i),
+    .lookup_valid_i(req_paging_w),
+    .lookup_vaddr_i(fetch_req_pc_i),
+    .lookup_satp_i(satp_i),
+    .lookup_context_hit_o(req_itlb_context_hit_w),
+    .lookup_pte_o(req_itlb_pte_w),
+    .lookup_level_o(req_itlb_level_unused_w),
+    .lookup_paddr_o(req_itlb_paddr_w),
+    .fill_valid_i(itlb_fill_valid_w),
+    .fill_vaddr_i(walk_vaddr_w),
+    .fill_satp_i(req_satp_q),
+    .fill_pte_i(ifu_axi_rdata_i),
+    .fill_level_i(walk_level_q)
+  );
 
   // packet cache 使用 PC+satp/priv 做上下文 tag；ITLB 命中只缓存翻译，不绕过取指权限。
   assign fetch_req_ready_o = (state_q == S_IDLE) ||
@@ -320,8 +316,6 @@ module OooFetchAxiBridge (
       fetch0_addr_w;
   assign ifu_axi_rready_o =
       (state_q == S_WALK_R) || (state_q == S_R0) || (state_q == S_R1);
-
-  integer cache_idx;
 
   always @(posedge clk) begin
     if (rst || mmu_flush_i) begin
@@ -346,18 +340,7 @@ module OooFetchAxiBridge (
       debug_last_pte_q <= {`XLEN{1'b0}};
       debug_last_pte_level_q <= 2'd0;
       debug_last_pte_second_q <= 1'b0;
-      cache_valid_q <= {CACHE_ENTRIES{1'b0}};
-      itlb_valid_q <= {ITLB_ENTRIES{1'b0}};
     end else begin
-      if (invalidate_valid_i) begin
-        for (cache_idx = 0; cache_idx < CACHE_ENTRIES; cache_idx = cache_idx + 1) begin
-          if (cache_valid_q[cache_idx] &&
-              cache_overlap(cache_pc_q[cache_idx], invalidate_addr_i)) begin
-            cache_valid_q[cache_idx] <= 1'b0;
-          end
-        end
-      end
-
       case (state_q)
         S_IDLE: begin
           if (fetch_req_fire_w) begin
@@ -376,10 +359,10 @@ module OooFetchAxiBridge (
             req_priv_q <= priv_mode_i;
             req_satp_q <= satp_i;
             if (cache_hit_w) begin
-              inst0_q <= cache_inst0_q[req_cache_idx_w];
-              inst1_q <= cache_inst1_q[req_cache_idx_w];
-              resp0_q <= cache_resp0_q[req_cache_idx_w];
-              resp1_q <= cache_resp1_q[req_cache_idx_w];
+              inst0_q <= cache_inst0_w;
+              inst1_q <= cache_inst1_w;
+              resp0_q <= cache_resp0_w;
+              resp1_q <= cache_resp1_w;
               state_q <= S_RESP;
             end else if (req_paging_w && req_itlb_perm_fault_w) begin
               resp0_q <= RESP_PAGE_FAULT;
@@ -462,11 +445,6 @@ module OooFetchAxiBridge (
                   state_q <= S_RESP;
                 end
               end else begin
-                itlb_valid_q[itlb_index(walk_vaddr_w)] <= 1'b1;
-                itlb_vpn_q[itlb_index(walk_vaddr_w)] <= vpn_tag(walk_vaddr_w);
-                itlb_satp_q[itlb_index(walk_vaddr_w)] <= req_satp_q;
-                itlb_pte_q[itlb_index(walk_vaddr_w)] <= ifu_axi_rdata_i;
-                itlb_level_q[itlb_index(walk_vaddr_w)] <= walk_level_q;
                 if (walk_second_q) begin
                 paddr1_q <= leaf_paddr(ifu_axi_rdata_i,
                                        pc_second_page_vaddr_w,
@@ -522,20 +500,6 @@ module OooFetchAxiBridge (
                   (resp1_q != RESP_OK)) begin
                 resp0_q <= resp1_q;
               end
-              if (!packet_cross_page_q &&
-                  (resp0_q == RESP_OK) && (resp1_q == RESP_OK) &&
-                  !fill_cache_invalidated_w) begin
-                // 一个 64-bit fetch packet 覆盖当前 PC 起始的八个字节。
-                cache_valid_q[fill_cache_idx_w] <= 1'b1;
-                cache_paging_q[fill_cache_idx_w] <= paging_q;
-                cache_priv_q[fill_cache_idx_w] <= req_priv_q;
-                cache_satp_q[fill_cache_idx_w] <= req_satp_q;
-                cache_pc_q[fill_cache_idx_w] <= pc_q;
-                cache_inst0_q[fill_cache_idx_w] <= fetch_beat_inst0_w;
-                cache_inst1_q[fill_cache_idx_w] <= fetch_beat_inst1_w;
-                cache_resp0_q[fill_cache_idx_w] <= RESP_OK;
-                cache_resp1_q[fill_cache_idx_w] <= resp1_q;
-              end
               state_q <= S_RESP;
             end
           end
@@ -556,20 +520,6 @@ module OooFetchAxiBridge (
             end
             resp1_q <= (ifu_axi_rresp_i == RESP_OK) ? resp1_q :
                        RESP_ACCESS_FAULT;
-            if ((resp0_q == RESP_OK) &&
-                (ifu_axi_rresp_i == RESP_OK) && !fill_cache_invalidated_w) begin
-              // 只缓存完整无错误 packet；分页态 entry 额外带 satp/priv 上下文。
-              cache_valid_q[fill_cache_idx_w] <= 1'b1;
-              cache_paging_q[fill_cache_idx_w] <= paging_q;
-              cache_priv_q[fill_cache_idx_w] <= req_priv_q;
-              cache_satp_q[fill_cache_idx_w] <= req_satp_q;
-              cache_pc_q[fill_cache_idx_w] <= pc_q;
-              cache_inst0_q[fill_cache_idx_w] <= merged_cross_packet_w[`INST_W-1:0];
-              cache_inst1_q[fill_cache_idx_w] <= merged_cross_packet_w[`XLEN-1:`INST_W];
-              cache_resp0_q[fill_cache_idx_w] <= resp0_q;
-              cache_resp1_q[fill_cache_idx_w] <=
-                  (ifu_axi_rresp_i == RESP_OK) ? resp1_q : RESP_ACCESS_FAULT;
-            end
             state_q <= S_RESP;
           end
         end
@@ -592,10 +542,10 @@ module OooFetchAxiBridge (
               req_priv_q <= priv_mode_i;
               req_satp_q <= satp_i;
               if (cache_hit_w) begin
-                inst0_q <= cache_inst0_q[req_cache_idx_w];
-                inst1_q <= cache_inst1_q[req_cache_idx_w];
-                resp0_q <= cache_resp0_q[req_cache_idx_w];
-                resp1_q <= cache_resp1_q[req_cache_idx_w];
+                inst0_q <= cache_inst0_w;
+                inst1_q <= cache_inst1_w;
+                resp0_q <= cache_resp0_w;
+                resp1_q <= cache_resp1_w;
                 state_q <= S_RESP;
               end else if (req_paging_w && req_itlb_perm_fault_w) begin
                 resp0_q <= RESP_PAGE_FAULT;

@@ -1,0 +1,52 @@
+Source compile order for 'synthesis' with fileset 'sources_1' in source management mode 'All':
+Index  File Name                      Used_In      File_Type  Library  Ngc Wrapper  Full Path Name
+-----  -----------------------------  -----------  ---------  -------  -----------  --------------------------------------------------------------------------------
+1      ALU.v                          Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/ALU.v
+2      AxiDefaultSlave.v              Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiDefaultSlave.v
+3      AxiLiteClint.v                 Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLiteClint.v
+4      AxiLitePlic.v                  Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLitePlic.v
+5      AxiLiteToUart.v                Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLiteToUart.v
+6      AxiLiteXbar.v                  Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLiteXbar.v
+7      CompareUnit.v                  Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/CompareUnit.v
+8      CsrFile.v                      Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/core/CsrFile.v
+9      DecodeStage.v                  Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/DecodeStage.v
+10     DecodeUnit.v                   Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/DecodeUnit.v
+11     ImmGen.v                       Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/ImmGen.v
+12     LSU.v                          Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/LSU.v
+13     LSUControl.v                   Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/LSUControl.v
+14     LSUDataPath.v                  Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/LSUDataPath.v
+15     NpcAxiBus.v                    Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/NpcAxiBus.v
+16     NpcCoreTop.v                   Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/core/NpcCoreTop.v
+17     OooAluCoreSlice.v              Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/ooo/backend/OooAluCoreSlice.v
+18     OooAluDecodeBackend.v          Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/ooo/backend/OooAluDecodeBackend.v
+19     OooAluFetchCore.v              Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/ooo/frontend/OooAluFetchCore.v
+20     OooArchRegFile.v               Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/ooo/regfile/OooArchRegFile.v
+21     OooBranchDirectionPredictor.v  Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v
+22     OooBranchTargetCache.v         Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBranchTargetCache.v
+23     OooBusyTable.v                 Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/ooo/rename/OooBusyTable.v
+24     OooDataWordCache.v             Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/cache/OooDataWordCache.v
+25     OooDispatchBackend.v           Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/ooo/backend/OooDispatchBackend.v
+26     OooFetchAxiBridge.v            Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/core/OooFetchAxiBridge.v
+27     OooFetchPacketCache.v          Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/cache/OooFetchPacketCache.v
+28     OooFpDecode.v                  Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/ooo/frontend/OooFpDecode.v
+29     OooFreeList.v                  Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/ooo/rename/OooFreeList.v
+30     OooIntBackend.v                Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/ooo/backend/OooIntBackend.v
+31     OooIntIssueQueue.v             Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/ooo/issue/OooIntIssueQueue.v
+32     OooJalrBtb.v                   Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooJalrBtb.v
+33     OooMemAxiBridge.v              Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/core/OooMemAxiBridge.v
+34     OooPhysRegFile.v               Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/ooo/regfile/OooPhysRegFile.v
+35     OooRenameMap.v                 Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/ooo/rename/OooRenameMap.v
+36     OooRob.v                       Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/ooo/commit/OooRob.v
+37     OooRvcDecompressor.v           Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/ooo/frontend/OooRvcDecompressor.v
+38     OooSv39Tlb.v                   Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/common/OooSv39Tlb.v
+39     Uart.v                         Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/Uart.v
+40     WBU.v                          Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/WBU.v
+41     NpcTop.v                       Synth & Sim  Verilog    work     No           /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/core/NpcTop.v
+
+
+Missing instances for 'synthesis' with fileset 'sources_1':
+Index  Instance Path  File Path  Line
+-----  -------------  ---------  ----
+< empty >
+
+

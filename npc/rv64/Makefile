@@ -17,7 +17,7 @@ ifneq ($(CONFIG_CC),)
 	CXX := $(call remove_quote,$(CONFIG_CC))
 endif
 
-RTL_CORE_TOP ?= NpcCoreTop
+RTL_CORE_TOP ?= NpcTop
 SIM_TOP ?= NpcSimTop
 TOPNAME = $(SIM_TOP)
 VERILATOR = verilator
@@ -128,7 +128,7 @@ else
 CSRCS = $(filter-out $(DIFFTEST_CSRC),$(CSRCS_ALL))
 endif
 
-# 这组变量把“纯 RTL 核心的网表综合/STA”和 Verilator 仿真壳分开管理；以后直接 make syn/make sta 即可，不必再回 yosys-sta 目录拼长命令。
+# 这组变量把“可综合 NPC 顶层的网表综合/STA”和 Verilator 仿真壳分开管理；以后直接 make syn/make sta 即可，不必再回 yosys-sta 目录拼长命令。
 STA_DESIGN ?= $(RTL_CORE_TOP)
 STA_PDK ?= icsprout55
 STA_CLK_PORT_NAME ?= clk

@@ -1,0 +1,124 @@
+#-----------------------------------------------------------
+# Vivado v2025.2 (64-bit)
+# SW Build 6299465 on Fri Nov 14 12:34:56 MST 2025
+# IP Build 6300035 on Fri Nov 14 10:48:45 MST 2025
+# SharedData Build 6298862 on Thu Nov 13 04:50:51 MST 2025
+# Start of session at: Wed Jun  3 13:18:56 2026
+# Process ID         : 733012
+# Current directory  : /home/lyg/PA/ysyx-workbench/fpga
+# Command line       : vivado -mode batch -log /home/lyg/PA/ysyx-workbench/fpga/reports/npc_rv64_core_vivado.log -jou /home/lyg/PA/ysyx-workbench/fpga/reports/npc_rv64_core_vivado.jou -source /home/lyg/PA/ysyx-workbench/fpga/scripts/create_rv64_core_project.tcl -tclargs -root /home/lyg/PA/ysyx-workbench -project-name npc_rv64_core -project-dir /home/lyg/PA/ysyx-workbench/fpga/vivado/npc_rv64_core -part xc7s25csga225-1 -top NpcCoreTop -filelist /home/lyg/PA/ysyx-workbench/fpga/filelists/npc_rv64_core_files.f -clock-period 10.000 -run-synth 0
+# Log file           : /home/lyg/PA/ysyx-workbench/fpga/reports/npc_rv64_core_vivado.log
+# Journal file       : /home/lyg/PA/ysyx-workbench/fpga/reports/npc_rv64_core_vivado.jou
+# Running On         : lygdebug
+# Platform           : Ubuntu
+# Operating System   : Ubuntu 24.04.3 LTS
+# Processor Detail   : Intel(R) Core(TM) Ultra 5 225H
+# CPU Frequency      : 3686.397 MHz
+# CPU Physical cores : 14
+# CPU Logical cores  : 14
+# Host memory        : 16469 MB
+# Swap memory        : 4294 MB
+# Total Virtual      : 20764 MB
+# Available Virtual  : 16638 MB
+#-----------------------------------------------------------
+source /home/lyg/PA/ysyx-workbench/fpga/scripts/create_rv64_core_project.tcl
+# proc require_arg {dict key} {
+#   if {![dict exists $dict $key]} {
+#     error "missing required argument: $key"
+#   }
+#   return [dict get $dict $key]
+# }
+# proc parse_args {argv} {
+#   set opts [dict create]
+#   set i 0
+#   while {$i < [llength $argv]} {
+#     set key [lindex $argv $i]
+#     if {![string match "-*" $key]} {
+#       error "unexpected argument: $key"
+#     }
+#     set key [string trimleft $key "-"]
+#     incr i
+#     if {$i >= [llength $argv]} {
+#       error "missing value for $key"
+#     }
+#     dict set opts $key [lindex $argv $i]
+#     incr i
+#   }
+#   return $opts
+# }
+# set opts [parse_args $argv]
+# set root [file normalize [require_arg $opts root]]
+# set project_name [require_arg $opts project-name]
+# set project_dir [file normalize [require_arg $opts project-dir]]
+# set part [require_arg $opts part]
+# set top [require_arg $opts top]
+# set filelist [file normalize [require_arg $opts filelist]]
+# set clock_period [require_arg $opts clock-period]
+# set run_synth [require_arg $opts run-synth]
+# set report_dir [file normalize [file join $root fpga reports]]
+# set constraints_file [file normalize [file join $root fpga constraints rv64_core_ooc.xdc]]
+# set include_dir [file normalize [file join $root npc rv64 vsrc include]]
+# file mkdir $project_dir
+# file mkdir $report_dir
+# puts "== RV64 core Vivado project =="
+== RV64 core Vivado project ==
+# puts "root           : $root"
+root           : /home/lyg/PA/ysyx-workbench
+# puts "project        : $project_dir"
+project        : /home/lyg/PA/ysyx-workbench/fpga/vivado/npc_rv64_core
+# puts "part           : $part"
+part           : xc7s25csga225-1
+# puts "top            : $top"
+top            : NpcCoreTop
+# puts "filelist       : $filelist"
+filelist       : /home/lyg/PA/ysyx-workbench/fpga/filelists/npc_rv64_core_files.f
+# puts "clock period ns: $clock_period"
+clock period ns: 10.000
+# puts "run synth      : $run_synth"
+run synth      : 0
+# create_project -force $project_name $project_dir -part $part
+# set_property target_language Verilog [current_project]
+# set_property default_lib work [current_project]
+# set_property source_mgmt_mode All [current_project]
+# set fp [open $filelist r]
+# set rtl_files {}
+# while {[gets $fp line] >= 0} {
+#   set line [string trim $line]
+#   if {$line eq "" || [string match "#*" $line]} {
+#     continue
+#   }
+#   lappend rtl_files [file normalize $line]
+# }
+# close $fp
+# if {[llength $rtl_files] == 0} {
+#   error "empty RTL filelist: $filelist"
+# }
+# add_files -norecurse -fileset sources_1 $rtl_files
+# set_property include_dirs [list $include_dir] [get_filesets sources_1]
+# set_property verilog_define {SYNTHESIS=1} [get_filesets sources_1]
+# set_property top $top [get_filesets sources_1]
+# if {[file exists $constraints_file]} {
+#   add_files -fileset constrs_1 $constraints_file
+#   set_property used_in_synthesis true [get_files $constraints_file]
+# }
+# update_compile_order -fileset sources_1
+# report_compile_order -fileset sources_1 -file [file join $report_dir compile_order.rpt]
+WARNING: [Vivado 12-3460] The report_compile_order switch '-fileset <fileset>' has been deprecated in favor of '-of_objects <fileset>' and this switch will be removed in a future release
+INFO: [Vivado 12-3442] The output from report_compile_order is primarily targeted for human readability and ease of use. The 'get_files' command, with the -compile_order and -used_in options, produces this same information in a format that is better suited for automated scripts.
+# if {$run_synth eq "1"} {
+#   synth_design -top $top -part $part -mode out_of_context -flatten_hierarchy rebuilt
+#   if {[llength [get_clocks -quiet core_clk]] == 0} {
+#     create_clock -name core_clk -period $clock_period [get_ports clk]
+#   }
+#   report_utilization -hierarchical -file [file join $report_dir utilization_hier.rpt]
+#   report_utilization -file [file join $report_dir utilization.rpt]
+#   report_timing_summary -delay_type max -max_paths 20 -report_unconstrained \
+#     -file [file join $report_dir timing_summary.rpt]
+#   report_high_fanout_nets -timing -load_types -max_nets 50 \
+#     -file [file join $report_dir high_fanout_nets.rpt]
+#   report_drc -file [file join $report_dir drc.rpt]
+#   write_checkpoint -force [file join $report_dir ${top}_synth.dcp]
+#   write_verilog -force [file join $report_dir ${top}_synth.v]
+# }
+# close_project
+INFO: [Common 17-206] Exiting Vivado at Wed Jun  3 13:19:02 2026...
