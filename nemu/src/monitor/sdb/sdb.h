@@ -26,6 +26,7 @@ extern bool enable_expr_log;
 void init_sdb(void);
 void sdb_mainloop(void);
 void sdb_set_batch_mode(void);
+void sdb_set_batch_limit(uint64_t limit);
 
 // expr.c 中的 expr() 函数声明
 word_t expr(char *e, bool *success);

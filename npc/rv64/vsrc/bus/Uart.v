@@ -10,7 +10,7 @@ module Uart #(
 
   input reg_read_valid_i,
   input [11:0] reg_read_addr_i,
-  output reg [DATA_W-1:0] reg_read_data_o,
+  output [DATA_W-1:0] reg_read_data_o,
 
   input reg_write_valid_i,
   input [11:0] reg_write_addr_i,
@@ -52,29 +52,254 @@ module Uart #(
   assign access_write_o = reg_write_valid_i;
   assign irq_o = ier_q[1] && thre_ready_w;
 
-  integer read_lane_i;
-  integer write_lane_i;
+  wire [63:0] reg_write_data_pad_w;
+  wire [7:0] reg_write_strb_pad_w;
 
-  always @(*) begin
-    reg_read_data_o = {DATA_W{1'b0}};
-    for (read_lane_i = 0; read_lane_i < STRB_W; read_lane_i = read_lane_i + 1) begin
-      case (reg_read_addr_i + read_lane_i)
-        UART_RBR_THR_DLL_OFFSET:
-          reg_read_data_o[read_lane_i*8 +: 8] = dlab_w ? dll_q : 8'h00;
-        UART_IER_DLM_OFFSET:
-          reg_read_data_o[read_lane_i*8 +: 8] = dlab_w ? dlm_q : ier_q;
-        UART_IIR_FCR_OFFSET:
-          reg_read_data_o[read_lane_i*8 +: 8] =
-              (fifo_enabled_w ? 8'hc0 : 8'h00) | (irq_o ? 8'h02 : 8'h01);
-        UART_LCR_OFFSET:
-          reg_read_data_o[read_lane_i*8 +: 8] = lcr_q;
-        UART_COMPAT_STAT_OFFSET:
-          reg_read_data_o[read_lane_i*8 +: 8] = 8'h01;
-        UART_LSR_OFFSET:
-          reg_read_data_o[read_lane_i*8 +: 8] = 8'h60;
-        default:
-          reg_read_data_o[read_lane_i*8 +: 8] = 8'h00;
+  assign reg_write_data_pad_w[31:0] = reg_write_data_i[31:0];
+  assign reg_write_strb_pad_w[3:0] = reg_write_strb_i[3:0];
+  generate
+    if (DATA_W > 32) begin : gen_uart_data_high_lanes
+      assign reg_write_data_pad_w[63:32] = reg_write_data_i[63:32];
+    end else begin : gen_uart_data_high_zero
+      assign reg_write_data_pad_w[63:32] = 32'b0;
+    end
+    if (STRB_W > 4) begin : gen_uart_strb_high_lanes
+      assign reg_write_strb_pad_w[7:4] = reg_write_strb_i[7:4];
+    end else begin : gen_uart_strb_high_zero
+      assign reg_write_strb_pad_w[7:4] = 4'b0;
+    end
+  endgenerate
+
+  function [7:0] uart_read_byte;
+    input [12:0] byte_addr;
+    input dlab;
+    input fifo_enabled;
+    input irq;
+    input [7:0] ier;
+    input [7:0] dll;
+    input [7:0] dlm;
+    input [7:0] lcr;
+    begin
+      case (byte_addr)
+        {1'b0, UART_RBR_THR_DLL_OFFSET}:
+          uart_read_byte = dlab ? dll : 8'h00;
+        {1'b0, UART_IER_DLM_OFFSET}:
+          uart_read_byte = dlab ? dlm : ier;
+        {1'b0, UART_IIR_FCR_OFFSET}:
+          uart_read_byte =
+              (fifo_enabled ? 8'hc0 : 8'h00) | (irq ? 8'h02 : 8'h01);
+        {1'b0, UART_LCR_OFFSET}: uart_read_byte = lcr;
+        {1'b0, UART_COMPAT_STAT_OFFSET}: uart_read_byte = 8'h01;
+        {1'b0, UART_LSR_OFFSET}: uart_read_byte = 8'h60;
+        default: uart_read_byte = 8'h00;
       endcase
+    end
+  endfunction
+
+  // UART 寄存器窗口最多接 64-bit AXI beat；固定 lane 网络比 procedural
+  // byte loop 更容易审查每个 byte 对应的寄存器副作用。
+  assign reg_read_data_o[7:0] =
+      uart_read_byte({1'b0, reg_read_addr_i} + 13'd0, dlab_w,
+                     fifo_enabled_w, irq_o, ier_q, dll_q, dlm_q, lcr_q);
+  assign reg_read_data_o[15:8] =
+      uart_read_byte({1'b0, reg_read_addr_i} + 13'd1, dlab_w,
+                     fifo_enabled_w, irq_o, ier_q, dll_q, dlm_q, lcr_q);
+  assign reg_read_data_o[23:16] =
+      uart_read_byte({1'b0, reg_read_addr_i} + 13'd2, dlab_w,
+                     fifo_enabled_w, irq_o, ier_q, dll_q, dlm_q, lcr_q);
+  assign reg_read_data_o[31:24] =
+      uart_read_byte({1'b0, reg_read_addr_i} + 13'd3, dlab_w,
+                     fifo_enabled_w, irq_o, ier_q, dll_q, dlm_q, lcr_q);
+
+  generate
+    if (STRB_W > 4) begin : gen_uart_read_high_lanes
+      assign reg_read_data_o[39:32] =
+          uart_read_byte({1'b0, reg_read_addr_i} + 13'd4, dlab_w,
+                         fifo_enabled_w, irq_o, ier_q, dll_q, dlm_q, lcr_q);
+      assign reg_read_data_o[47:40] =
+          uart_read_byte({1'b0, reg_read_addr_i} + 13'd5, dlab_w,
+                         fifo_enabled_w, irq_o, ier_q, dll_q, dlm_q, lcr_q);
+      assign reg_read_data_o[55:48] =
+          uart_read_byte({1'b0, reg_read_addr_i} + 13'd6, dlab_w,
+                         fifo_enabled_w, irq_o, ier_q, dll_q, dlm_q, lcr_q);
+      assign reg_read_data_o[63:56] =
+          uart_read_byte({1'b0, reg_read_addr_i} + 13'd7, dlab_w,
+                         fifo_enabled_w, irq_o, ier_q, dll_q, dlm_q, lcr_q);
+    end
+  endgenerate
+
+  reg [7:0] ier_next_r;
+  reg [7:0] dll_next_r;
+  reg [7:0] dlm_next_r;
+  reg [7:0] fcr_next_r;
+  reg [7:0] lcr_next_r;
+  always @(*) begin
+    ier_next_r = ier_q;
+    dll_next_r = dll_q;
+    dlm_next_r = dlm_q;
+    fcr_next_r = fcr_q;
+    lcr_next_r = lcr_q;
+    if (reg_write_valid_i) begin
+      if (reg_write_strb_pad_w[0]) begin
+        case ({1'b0, reg_write_addr_i} + 13'd0)
+          {1'b0, UART_RBR_THR_DLL_OFFSET}: begin
+            if (dlab_w) dll_next_r = reg_write_data_pad_w[7:0];
+          end
+          {1'b0, UART_IER_DLM_OFFSET}: begin
+            if (dlab_w)
+              dlm_next_r = reg_write_data_pad_w[7:0];
+            else
+              ier_next_r = reg_write_data_pad_w[7:0] & 8'h0f;
+          end
+          {1'b0, UART_IIR_FCR_OFFSET}: begin
+            fcr_next_r = reg_write_data_pad_w[7:0] & 8'hc1;
+          end
+          {1'b0, UART_LCR_OFFSET}: begin
+            lcr_next_r = reg_write_data_pad_w[7:0];
+          end
+          default: begin end
+        endcase
+      end
+      if (reg_write_strb_pad_w[1]) begin
+        case ({1'b0, reg_write_addr_i} + 13'd1)
+          {1'b0, UART_RBR_THR_DLL_OFFSET}: begin
+            if (dlab_w) dll_next_r = reg_write_data_pad_w[15:8];
+          end
+          {1'b0, UART_IER_DLM_OFFSET}: begin
+            if (dlab_w)
+              dlm_next_r = reg_write_data_pad_w[15:8];
+            else
+              ier_next_r = reg_write_data_pad_w[15:8] & 8'h0f;
+          end
+          {1'b0, UART_IIR_FCR_OFFSET}: begin
+            fcr_next_r = reg_write_data_pad_w[15:8] & 8'hc1;
+          end
+          {1'b0, UART_LCR_OFFSET}: begin
+            lcr_next_r = reg_write_data_pad_w[15:8];
+          end
+          default: begin end
+        endcase
+      end
+      if (reg_write_strb_pad_w[2]) begin
+        case ({1'b0, reg_write_addr_i} + 13'd2)
+          {1'b0, UART_RBR_THR_DLL_OFFSET}: begin
+            if (dlab_w) dll_next_r = reg_write_data_pad_w[23:16];
+          end
+          {1'b0, UART_IER_DLM_OFFSET}: begin
+            if (dlab_w)
+              dlm_next_r = reg_write_data_pad_w[23:16];
+            else
+              ier_next_r = reg_write_data_pad_w[23:16] & 8'h0f;
+          end
+          {1'b0, UART_IIR_FCR_OFFSET}: begin
+            fcr_next_r = reg_write_data_pad_w[23:16] & 8'hc1;
+          end
+          {1'b0, UART_LCR_OFFSET}: begin
+            lcr_next_r = reg_write_data_pad_w[23:16];
+          end
+          default: begin end
+        endcase
+      end
+      if (reg_write_strb_pad_w[3]) begin
+        case ({1'b0, reg_write_addr_i} + 13'd3)
+          {1'b0, UART_RBR_THR_DLL_OFFSET}: begin
+            if (dlab_w) dll_next_r = reg_write_data_pad_w[31:24];
+          end
+          {1'b0, UART_IER_DLM_OFFSET}: begin
+            if (dlab_w)
+              dlm_next_r = reg_write_data_pad_w[31:24];
+            else
+              ier_next_r = reg_write_data_pad_w[31:24] & 8'h0f;
+          end
+          {1'b0, UART_IIR_FCR_OFFSET}: begin
+            fcr_next_r = reg_write_data_pad_w[31:24] & 8'hc1;
+          end
+          {1'b0, UART_LCR_OFFSET}: begin
+            lcr_next_r = reg_write_data_pad_w[31:24];
+          end
+          default: begin end
+        endcase
+      end
+      if (reg_write_strb_pad_w[4]) begin
+        case ({1'b0, reg_write_addr_i} + 13'd4)
+          {1'b0, UART_RBR_THR_DLL_OFFSET}: begin
+            if (dlab_w) dll_next_r = reg_write_data_pad_w[39:32];
+          end
+          {1'b0, UART_IER_DLM_OFFSET}: begin
+            if (dlab_w)
+              dlm_next_r = reg_write_data_pad_w[39:32];
+            else
+              ier_next_r = reg_write_data_pad_w[39:32] & 8'h0f;
+          end
+          {1'b0, UART_IIR_FCR_OFFSET}: begin
+            fcr_next_r = reg_write_data_pad_w[39:32] & 8'hc1;
+          end
+          {1'b0, UART_LCR_OFFSET}: begin
+            lcr_next_r = reg_write_data_pad_w[39:32];
+          end
+          default: begin end
+        endcase
+      end
+      if (reg_write_strb_pad_w[5]) begin
+        case ({1'b0, reg_write_addr_i} + 13'd5)
+          {1'b0, UART_RBR_THR_DLL_OFFSET}: begin
+            if (dlab_w) dll_next_r = reg_write_data_pad_w[47:40];
+          end
+          {1'b0, UART_IER_DLM_OFFSET}: begin
+            if (dlab_w)
+              dlm_next_r = reg_write_data_pad_w[47:40];
+            else
+              ier_next_r = reg_write_data_pad_w[47:40] & 8'h0f;
+          end
+          {1'b0, UART_IIR_FCR_OFFSET}: begin
+            fcr_next_r = reg_write_data_pad_w[47:40] & 8'hc1;
+          end
+          {1'b0, UART_LCR_OFFSET}: begin
+            lcr_next_r = reg_write_data_pad_w[47:40];
+          end
+          default: begin end
+        endcase
+      end
+      if (reg_write_strb_pad_w[6]) begin
+        case ({1'b0, reg_write_addr_i} + 13'd6)
+          {1'b0, UART_RBR_THR_DLL_OFFSET}: begin
+            if (dlab_w) dll_next_r = reg_write_data_pad_w[55:48];
+          end
+          {1'b0, UART_IER_DLM_OFFSET}: begin
+            if (dlab_w)
+              dlm_next_r = reg_write_data_pad_w[55:48];
+            else
+              ier_next_r = reg_write_data_pad_w[55:48] & 8'h0f;
+          end
+          {1'b0, UART_IIR_FCR_OFFSET}: begin
+            fcr_next_r = reg_write_data_pad_w[55:48] & 8'hc1;
+          end
+          {1'b0, UART_LCR_OFFSET}: begin
+            lcr_next_r = reg_write_data_pad_w[55:48];
+          end
+          default: begin end
+        endcase
+      end
+      if (reg_write_strb_pad_w[7]) begin
+        case ({1'b0, reg_write_addr_i} + 13'd7)
+          {1'b0, UART_RBR_THR_DLL_OFFSET}: begin
+            if (dlab_w) dll_next_r = reg_write_data_pad_w[63:56];
+          end
+          {1'b0, UART_IER_DLM_OFFSET}: begin
+            if (dlab_w)
+              dlm_next_r = reg_write_data_pad_w[63:56];
+            else
+              ier_next_r = reg_write_data_pad_w[63:56] & 8'h0f;
+          end
+          {1'b0, UART_IIR_FCR_OFFSET}: begin
+            fcr_next_r = reg_write_data_pad_w[63:56] & 8'hc1;
+          end
+          {1'b0, UART_LCR_OFFSET}: begin
+            lcr_next_r = reg_write_data_pad_w[63:56];
+          end
+          default: begin end
+        endcase
+      end
     end
   end
 
@@ -87,30 +312,11 @@ module Uart #(
       lcr_q <= 8'h00;
     end else begin
       if (reg_write_valid_i) begin
-        for (write_lane_i = 0; write_lane_i < STRB_W; write_lane_i = write_lane_i + 1) begin
-          if (reg_write_strb_i[write_lane_i]) begin
-            case (reg_write_addr_i + write_lane_i)
-              UART_RBR_THR_DLL_OFFSET: begin
-                if (dlab_w)
-                  dll_q <= reg_write_data_i[write_lane_i*8 +: 8];
-              end
-              UART_IER_DLM_OFFSET: begin
-                if (dlab_w)
-                  dlm_q <= reg_write_data_i[write_lane_i*8 +: 8];
-                else
-                  ier_q <= reg_write_data_i[write_lane_i*8 +: 8] & 8'h0f;
-              end
-              UART_IIR_FCR_OFFSET: begin
-                // 只保留 FIFO enable/trigger 配置；clear bits 在当前零延迟 TX 模型中自清。
-                fcr_q <= reg_write_data_i[write_lane_i*8 +: 8] & 8'hc1;
-              end
-              UART_LCR_OFFSET: begin
-                lcr_q <= reg_write_data_i[write_lane_i*8 +: 8];
-              end
-              default: begin end
-            endcase
-          end
-        end
+        ier_q <= ier_next_r;
+        dll_q <= dll_next_r;
+        dlm_q <= dlm_next_r;
+        fcr_q <= fcr_next_r;
+        lcr_q <= lcr_next_r;
       end
     end
   end

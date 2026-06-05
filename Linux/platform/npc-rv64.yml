@@ -3,7 +3,7 @@
 # 避免 RAM、镜像装载地址和设备中断号散落在 Makefile/DTS/C++/RTL 中。
 memory:
   base: 0x80000000
-  size: 0x10000000   # 256 MiB，足够容纳当前 Ubuntu base initramfs 并缩短早期 memmap 初始化
+  size: 0x20000000   # 512 MiB，给完整 Ubuntu 22.04 rootfs/systemd 留出页缓存和用户态余量
 
 reset:
   pc: 0x80000000
@@ -20,6 +20,11 @@ kernel:
 dtb:
   load_addr: 0x82200000
   build_dir: Linux/build
+
+# NEMU/NPC 没有真实硬件 RNG；用 DTB rng-seed 走 Linux 官方 bootloader
+# 随机种子入口，避免 systemd 早期 getrandom 在无熵状态下停住。
+chosen:
+  rng_seed: "79 73 79 78 2d 72 76 36 34 2d 6e 65 6d 75 2d 73 79 73 74 65 6d 64 2d 72 6e 67 2d 73 65 65 64 01"
 
 initrd:
   load_addr: 0x84000000
@@ -55,4 +60,4 @@ bootargs:
   kernel: "console=ttyS0,115200n8 earlycon=sbi loglevel=8 ignore_loglevel"
   initramfs: "console=ttyS0,115200n8 earlycon=sbi loglevel=8 ignore_loglevel rdinit=/bin/sh"
   ubuntu_initramfs: "console=ttyS0,115200n8 earlycon=sbi loglevel=8 ignore_loglevel rdinit=/init nowatchdog softlockup_panic=0"
-  rootfs: "console=ttyS0,115200n8 earlycon=sbi loglevel=8 ignore_loglevel root=/dev/vda rw init=/init"
+  rootfs: "console=ttyS0,115200n8 root=/dev/vda rw init=/lib/systemd/systemd"

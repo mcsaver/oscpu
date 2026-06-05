@@ -24,6 +24,7 @@
 /* 基础设施：寄存器/访存入口、字段提取和少量规范常量都放在文件开头。
  * 执行层只通过这些窄接口读写状态，后续扩指令不再到处散落位切片。 */
 #define R(i) MUXDEF(CONFIG_RVE, gpr(i), cpu.gpr[(i)])
+#define F(i) (cpu.fpr[(i)])
 #define Mr vaddr_read
 #define Mw vaddr_write
 
@@ -46,11 +47,14 @@
                        BITS(i, 20, 20) << 11 | BITS(i, 30, 21) << 1), 21)
 
 #define OPC_LOAD   0x03
+#define OPC_LOAD_FP 0x07
 #define OPC_MISC_MEM 0x0f
 #define OPC_OP_IMM 0x13
 #define OPC_OP_IMM_32 0x1b
 #define OPC_AUIPC  0x17
 #define OPC_STORE  0x23
+#define OPC_STORE_FP 0x27
+#define OPC_AMO    0x2f
 #define OPC_OP     0x33
 #define OPC_OP_32  0x3b
 #define OPC_LUI    0x37
@@ -59,37 +63,24 @@
 #define OPC_JAL    0x6f
 #define OPC_SYSTEM 0x73
 
-#define CSR_MSTATUS  0x300
-#define CSR_MISA     0x301
-#define CSR_MIE      0x304
-#define CSR_MTVEC    0x305
-#define CSR_MCOUNTINHIBIT 0x320
-#define CSR_MSCRATCH 0x340
-#define CSR_MEPC     0x341
-#define CSR_MCAUSE   0x342
-#define CSR_MTVAL    0x343
-#define CSR_MIP      0x344
-#define CSR_MCYCLE   0xb00
-#define CSR_MCYCLEH  0xb80
-#define CSR_CYCLE    0xc00
-#define CSR_CYCLEH   0xc80
-#define CSR_MVENDORID 0xf11
-#define CSR_MARCHID  0xf12
-#define CSR_MHARTID  0xf14
-
-#define CAUSE_ILLEGAL_INST 2
-#define CAUSE_ECALL_M      11
-
-#define MSTATUS_MIE      ((word_t)1 << 3)
-#define MSTATUS_MPIE     ((word_t)1 << 7)
-#define MSTATUS_MPP_MASK ((word_t)3 << 11)
-
-#define MCOUNTINHIBIT_CY 0x00000001u
-
 #define OP_KEY(funct3, funct7) ((((funct7) & 0x7f) << 3) | ((funct3) & 0x7))
 #define SHAMT5(value) ((value) & 0x1f)
 #define SHAMT_XLEN(value) ((value) & (XLEN_BITS - 1))
 #define BAD_DECODE() return false
+
+static bool lr_reservation_valid = false;
+static word_t lr_reservation_addr = 0;
+#ifdef CONFIG_RISCV_DEBUG_LOG
+static int csr_boot_log_budget = 8;
+#define CSR_DEBUG_LOG(...) do { \
+  if (csr_boot_log_budget > 0) { \
+    csr_boot_log_budget--; \
+    Log(__VA_ARGS__); \
+  } \
+} while (0)
+#else
+#define CSR_DEBUG_LOG(...) do {} while (0)
+#endif
 
 static inline word_t sext32(uint32_t value) {
   return (word_t)SEXT(value, 32);
@@ -192,13 +183,62 @@ static inline word_t csr_misa_value() {
 #ifdef CONFIG_RISCV_EXT_M
   misa |= (word_t)1 << ('M' - 'A');
 #endif
+#ifdef CONFIG_RISCV_EXT_A
+  misa |= (word_t)1 << ('A' - 'A');
+#endif
 #ifdef CONFIG_RISCV_EXT_B
   misa |= (word_t)1 << ('B' - 'A');
 #endif
 #ifdef CONFIG_RISCV_EXT_C
   misa |= (word_t)1 << ('C' - 'A');
 #endif
+#ifdef CONFIG_MODE_SYSTEM
+  misa |= (word_t)1 << ('S' - 'A');
+  misa |= (word_t)1 << ('U' - 'A');
+#endif
   return misa;
+}
+
+static inline bool csr_is_counter(uint32_t csr) {
+  switch (csr) {
+    case CSR_CYCLE:
+    case CSR_TIME:
+    case CSR_INSTRET:
+    case CSR_CYCLEH:
+    case CSR_TIMEH:
+    case CSR_INSTRETH:
+      return true;
+    default:
+      return false;
+  }
+}
+
+static inline word_t csr_counter_bit(uint32_t csr) {
+  switch (csr) {
+    case CSR_CYCLE:
+    case CSR_CYCLEH: return COUNTEREN_CY;
+    case CSR_TIME:
+    case CSR_TIMEH: return COUNTEREN_TM;
+    case CSR_INSTRET:
+    case CSR_INSTRETH: return COUNTEREN_IR;
+    default: return 0;
+  }
+}
+
+static inline bool csr_counter_allowed(uint32_t csr) {
+  if (!csr_is_counter(csr) || cpu.priv == PRIV_M) return true;
+  word_t bit = csr_counter_bit(csr);
+  if (cpu.priv == PRIV_S) return (cpu.csr.mcounteren & bit) != 0;
+  return (cpu.csr.mcounteren & bit) != 0 && (cpu.csr.scounteren & bit) != 0;
+}
+
+static inline word_t csr_sanitize_satp(word_t value) {
+#ifdef CONFIG_ISA64
+  word_t mode = value >> 60;
+  return (mode == 0 || mode == 8) ? value : 0;
+#else
+  return value;
+#endif
 }
 
 static inline bool csr_read(uint32_t csr, word_t *value) {
@@ -206,9 +246,26 @@ static inline bool csr_read(uint32_t csr, word_t *value) {
     // 身份与计数器 CSR 对齐 NPC，避免 guest 在 difftest 下读到 reference illegal trap。
     case CSR_MVENDORID: *value = 0x79737978u; return true;
     case CSR_MARCHID:   *value = 26010035u; return true;
+    case CSR_MIMPID:    *value = 0; return true;
+    case CSR_FFLAGS:    *value = cpu.csr.fflags; return true;
+    case CSR_FRM:       *value = cpu.csr.frm; return true;
+    case CSR_FCSR:      *value = ((word_t)cpu.csr.frm << 5) | cpu.csr.fflags; return true;
+    case CSR_SSTATUS:  *value = (cpu.csr.mstatus | MSTATUS_SXL_UXL) & SSTATUS_MASK; return true;
+    case CSR_SIE:      *value = cpu.csr.mie & MIP_SUPERVISOR_MASK; return true;
+    case CSR_STVEC:    *value = cpu.csr.stvec; return true;
+    case CSR_SCOUNTEREN: *value = cpu.csr.scounteren; return true;
+    case CSR_SSCRATCH: *value = cpu.csr.sscratch; return true;
+    case CSR_SEPC:     *value = cpu.csr.sepc; return true;
+    case CSR_SCAUSE:   *value = cpu.csr.scause; return true;
+    case CSR_STVAL:    *value = cpu.csr.stval; return true;
+    case CSR_SIP:      *value = isa_riscv32_mip_value() & MIP_SUPERVISOR_MASK; return true;
+    case CSR_SATP:     *value = cpu.csr.satp; return true;
     case CSR_MSTATUS:  *value = cpu.csr.mstatus; return true;
+    case CSR_MEDELEG:  *value = cpu.csr.medeleg; return true;
+    case CSR_MIDELEG:  *value = cpu.csr.mideleg; return true;
     case CSR_MIE:      *value = cpu.csr.mie; return true;
     case CSR_MTVEC:    *value = cpu.csr.mtvec; return true;
+    case CSR_MCOUNTEREN: *value = cpu.csr.mcounteren; return true;
     case CSR_MCOUNTINHIBIT: *value = cpu.csr.mcountinhibit; return true;
     case CSR_MSCRATCH: *value = cpu.csr.mscratch; return true;
     case CSR_MEPC:     *value = cpu.csr.mepc; return true;
@@ -217,8 +274,14 @@ static inline bool csr_read(uint32_t csr, word_t *value) {
     case CSR_MIP:      *value = isa_riscv32_mip_value(); return true;
     case CSR_MCYCLE:   *value = (word_t)cpu.csr.mcycle; return true;
     case CSR_MCYCLEH:  *value = (word_t)(cpu.csr.mcycle >> 32); return true;
+    case CSR_MINSTRET: *value = (word_t)cpu.csr.minstret; return true;
+    case CSR_MINSTRETH:*value = (word_t)(cpu.csr.minstret >> 32); return true;
     case CSR_CYCLE:    *value = (word_t)cpu.csr.mcycle; return true;
     case CSR_CYCLEH:   *value = (word_t)(cpu.csr.mcycle >> 32); return true;
+    case CSR_TIME:     *value = (word_t)cpu.csr.mcycle; return true;
+    case CSR_TIMEH:    *value = (word_t)(cpu.csr.mcycle >> 32); return true;
+    case CSR_INSTRET:  *value = (word_t)cpu.csr.minstret; return true;
+    case CSR_INSTRETH: *value = (word_t)(cpu.csr.minstret >> 32); return true;
     case CSR_MISA:     *value = csr_misa_value(); return true;
     case CSR_MHARTID:  *value = 0; return true;
     default: return false;
@@ -228,10 +291,46 @@ static inline bool csr_read(uint32_t csr, word_t *value) {
 static inline bool csr_write(uint32_t csr, word_t value) {
   word_t mepc_mask = MUXDEF(CONFIG_RISCV_EXT_C, ~(word_t)0x1, ~(word_t)0x3);
   switch (csr) {
-    case CSR_MSTATUS:  cpu.csr.mstatus = value; return true;
+    case CSR_FFLAGS:   cpu.csr.fflags = value & 0x1f; return true;
+    case CSR_FRM:      cpu.csr.frm = value & 0x7; return true;
+    case CSR_FCSR:
+      cpu.csr.fflags = value & 0x1f;
+      cpu.csr.frm = (value >> 5) & 0x7;
+      return true;
+    case CSR_SSTATUS:
+      cpu.csr.mstatus = (cpu.csr.mstatus & ~SSTATUS_MASK) |
+                        (value & SSTATUS_MASK) | MSTATUS_SXL_UXL;
+      return true;
+    case CSR_SIE:
+      cpu.csr.mie = (cpu.csr.mie & ~MIP_SUPERVISOR_MASK) |
+                    (value & MIP_SUPERVISOR_MASK);
+      return true;
+    case CSR_STVEC:
+      cpu.csr.stvec = value & ~(word_t)0x3;
+      CSR_DEBUG_LOG("CSR write stvec=" FMT_WORD " raw=" FMT_WORD " pc=" FMT_WORD
+          " priv=%u", cpu.csr.stvec, value, cpu.pc, cpu.priv);
+      return true;
+    case CSR_SCOUNTEREN: cpu.csr.scounteren = value & COUNTEREN_MASK; return true;
+    case CSR_SSCRATCH: cpu.csr.sscratch = value; return true;
+    case CSR_SEPC:     cpu.csr.sepc = value & mepc_mask; return true;
+    case CSR_SCAUSE:   cpu.csr.scause = value; return true;
+    case CSR_STVAL:    cpu.csr.stval = value; return true;
+    case CSR_SIP:
+      cpu.csr.mip = (cpu.csr.mip & ~SIP_WRITABLE_MASK) |
+                    (value & SIP_WRITABLE_MASK);
+      return true;
+    case CSR_SATP:
+      cpu.csr.satp = csr_sanitize_satp(value);
+      CSR_DEBUG_LOG("CSR write satp=" FMT_WORD " raw=" FMT_WORD " pc=" FMT_WORD
+          " priv=%u", cpu.csr.satp, value, cpu.pc, cpu.priv);
+      return true;
+    case CSR_MSTATUS:  cpu.csr.mstatus = (value & MSTATUS_WRITABLE_MASK) | MSTATUS_SXL_UXL; return true;
+    case CSR_MEDELEG:  cpu.csr.medeleg = value; return true;
+    case CSR_MIDELEG:  cpu.csr.mideleg = value; return true;
     case CSR_MIE:      isa_riscv32_write_mie(value); return true;
-    case CSR_MTVEC:    cpu.csr.mtvec = value & ~0x3u; return true;
-    case CSR_MCOUNTINHIBIT: cpu.csr.mcountinhibit = value & MCOUNTINHIBIT_CY; return true;
+    case CSR_MTVEC:    cpu.csr.mtvec = value & ~(word_t)0x3; return true;
+    case CSR_MCOUNTEREN: cpu.csr.mcounteren = value & COUNTEREN_MASK; return true;
+    case CSR_MCOUNTINHIBIT: cpu.csr.mcountinhibit = value & (MCOUNTINHIBIT_CY | MCOUNTINHIBIT_IR); return true;
     case CSR_MSCRATCH: cpu.csr.mscratch = value; return true;
     case CSR_MEPC:     cpu.csr.mepc = value & mepc_mask; return true;
     case CSR_MCAUSE:   cpu.csr.mcause = value; return true;
@@ -239,39 +338,108 @@ static inline bool csr_write(uint32_t csr, word_t value) {
     case CSR_MIP:      isa_riscv32_write_mip(value); return true;
     case CSR_MCYCLE:   isa_riscv32_write_mcycle_lo(value); return true;
     case CSR_MCYCLEH:  isa_riscv32_write_mcycle_hi(value); return true;
+    case CSR_MINSTRET: cpu.csr.minstret = (cpu.csr.minstret & 0xffffffff00000000ull) | (uint32_t)value; return true;
+    case CSR_MINSTRETH: cpu.csr.minstret = ((uint64_t)(uint32_t)value << 32) | (uint32_t)cpu.csr.minstret; return true;
     default: return false;
   }
 }
 
+static inline bool csr_write_masked(uint32_t csr, word_t value, word_t write_mask) {
+  if (csr == CSR_SIP) {
+    word_t writable_mask = write_mask & SIP_WRITABLE_MASK;
+    cpu.csr.mip = (cpu.csr.mip & ~writable_mask) | (value & writable_mask);
+    return true;
+  }
+
+  if (csr == CSR_MIP) {
+    word_t merged = (cpu.csr.mip & ~write_mask) | (value & write_mask);
+    isa_riscv32_write_mip(merged);
+    return true;
+  }
+
+  return csr_write(csr, value);
+}
+
+static inline uint8_t csr_mpp_to_priv(word_t status) {
+  switch (status & MSTATUS_MPP_MASK) {
+    case MSTATUS_MPP_S: return PRIV_S;
+    case MSTATUS_MPP_M: return PRIV_M;
+    default: return PRIV_U;
+  }
+}
+
+static inline word_t csr_encode_mpp(uint8_t priv) {
+  switch (priv) {
+    case PRIV_S: return MSTATUS_MPP_S;
+    case PRIV_M: return MSTATUS_MPP_M;
+    default: return 0;
+  }
+}
+
+static inline bool ebreak_should_raise_breakpoint_trap(void) {
+#if defined(CONFIG_MODE_SYSTEM) && !defined(CONFIG_TARGET_AM)
+  // Linux/system 模式必须按官方 ISA 把 ebreak 当 breakpoint trap，不能被 PA 退出协议抢走。
+  return true;
+#else
+  return cpu.csr.mtvec != 0 || cpu.csr.stvec != 0;
+#endif
+}
+
 static inline void csr_mret(Decode *s) {
+  uint8_t next_priv = csr_mpp_to_priv(cpu.csr.mstatus);
   word_t mstatus = cpu.csr.mstatus;
   if (mstatus & MSTATUS_MPIE) cpu.csr.mstatus |= MSTATUS_MIE;
   else cpu.csr.mstatus &= ~MSTATUS_MIE;
   cpu.csr.mstatus |= MSTATUS_MPIE;
   cpu.csr.mstatus &= ~MSTATUS_MPP_MASK;
+  if (next_priv != PRIV_M) cpu.csr.mstatus &= ~MSTATUS_MPRV;
+  cpu.csr.mstatus |= MSTATUS_SXL_UXL;
+  cpu.priv = next_priv;
   s->dnpc = cpu.csr.mepc;
   etrace_log_mret(s->pc, s->dnpc, cpu.csr.mstatus);
+}
+
+static inline void csr_sret(Decode *s) {
+  uint8_t next_priv = (cpu.csr.mstatus & MSTATUS_SPP) ? PRIV_S : PRIV_U;
+  word_t mstatus = cpu.csr.mstatus;
+  if (mstatus & MSTATUS_SPIE) cpu.csr.mstatus |= MSTATUS_SIE;
+  else cpu.csr.mstatus &= ~MSTATUS_SIE;
+  cpu.csr.mstatus |= MSTATUS_SPIE;
+  cpu.csr.mstatus &= ~MSTATUS_SPP;
+  if (next_priv != PRIV_M) cpu.csr.mstatus &= ~MSTATUS_MPRV;
+  cpu.csr.mstatus |= MSTATUS_SXL_UXL;
+  cpu.priv = next_priv;
+  s->dnpc = cpu.csr.sepc;
 }
 
 static inline bool exec_csr(uint32_t inst, uint32_t funct3, int rd, int rs1) {
   uint32_t csr = BITS(inst, 31, 20);
   word_t old_val = 0;
   word_t new_val = 0;
+  word_t write_mask = 0;
   bool need_write = false;
 
+  if (cpu.priv < BITS(csr, 9, 8)) return false;
+  if (!csr_counter_allowed(csr)) return false;
   if (!csr_read(csr, &old_val)) return false;
 
   switch (funct3) {
-    case 0x1: new_val = R(rs1); need_write = true; break;                 // csrrw
-    case 0x2: new_val = old_val | R(rs1); need_write = (rs1 != 0); break;  // csrrs
-    case 0x3: new_val = old_val & ~R(rs1); need_write = (rs1 != 0); break; // csrrc
-    case 0x5: new_val = rs1; need_write = true; break;                    // csrrwi
-    case 0x6: new_val = old_val | (word_t)rs1; need_write = (rs1 != 0); break;
-    case 0x7: new_val = old_val & ~((word_t)rs1); need_write = (rs1 != 0); break;
+    case 0x1:
+      new_val = R(rs1); write_mask = ~(word_t)0; need_write = true; break;                 // csrrw
+    case 0x2:
+      write_mask = R(rs1); new_val = old_val | write_mask; need_write = (rs1 != 0); break;  // csrrs
+    case 0x3:
+      write_mask = R(rs1); new_val = old_val & ~write_mask; need_write = (rs1 != 0); break; // csrrc
+    case 0x5:
+      new_val = rs1; write_mask = ~(word_t)0; need_write = true; break;                    // csrrwi
+    case 0x6:
+      write_mask = (word_t)rs1; new_val = old_val | write_mask; need_write = (rs1 != 0); break;
+    case 0x7:
+      write_mask = (word_t)rs1; new_val = old_val & ~write_mask; need_write = (rs1 != 0); break;
     default: return false;
   }
 
-  if (need_write && !csr_write(csr, new_val)) return false;
+  if (need_write && !csr_write_masked(csr, new_val, write_mask)) return false;
   R(rd) = old_val;
   return true;
 }
@@ -313,17 +481,41 @@ static inline bool exec_rv32i_op_imm(uint32_t inst, int rd, word_t src1) {
 }
 
 static inline bool exec_rv32i_load(uint32_t funct3, int rd, word_t addr) {
+  word_t val = 0;
   switch (funct3) {
-    case 0x0: R(rd) = SEXT(Mr(addr, 1), 8); return true;  // lb
-    case 0x1: R(rd) = SEXT(Mr(addr, 2), 16); return true; // lh
-    case 0x2: R(rd) = SEXT(Mr(addr, 4), 32); return true; // lw
+    case 0x0:
+      val = Mr(addr, 1);
+      if (vaddr_has_fault()) return true;
+      R(rd) = SEXT(val, 8); return true;  // lb
+    case 0x1:
+      val = Mr(addr, 2);
+      if (vaddr_has_fault()) return true;
+      R(rd) = SEXT(val, 16); return true; // lh
+    case 0x2:
+      val = Mr(addr, 4);
+      if (vaddr_has_fault()) return true;
+      R(rd) = SEXT(val, 32); return true; // lw
     case 0x3:
-      IFDEF(CONFIG_ISA64, R(rd) = Mr(addr, 8); return true); // ld
+      IFDEF(CONFIG_ISA64, {
+        val = Mr(addr, 8);
+        if (vaddr_has_fault()) return true;
+        R(rd) = val; return true; // ld
+      });
       return false;
-    case 0x4: R(rd) = Mr(addr, 1); return true;           // lbu
-    case 0x5: R(rd) = Mr(addr, 2); return true;           // lhu
+    case 0x4:
+      val = Mr(addr, 1);
+      if (vaddr_has_fault()) return true;
+      R(rd) = val; return true;           // lbu
+    case 0x5:
+      val = Mr(addr, 2);
+      if (vaddr_has_fault()) return true;
+      R(rd) = val; return true;           // lhu
     case 0x6:
-      IFDEF(CONFIG_ISA64, R(rd) = Mr(addr, 4); return true); // lwu
+      IFDEF(CONFIG_ISA64, {
+        val = Mr(addr, 4);
+        if (vaddr_has_fault()) return true;
+        R(rd) = val; return true; // lwu
+      });
       return false;
     default: return false;
   }
@@ -338,6 +530,57 @@ static inline bool exec_rv32i_store(uint32_t funct3, word_t addr, word_t data) {
       IFDEF(CONFIG_ISA64, Mw(addr, 8, data); return true); // sd
       return false;
     default: return false;
+  }
+}
+
+static inline bool fp_state_enabled(void) {
+  return (cpu.csr.mstatus & MSTATUS_FS_MASK) != 0;
+}
+
+static inline void fp_mark_dirty(void) {
+  cpu.csr.mstatus = (cpu.csr.mstatus & ~MSTATUS_FS_MASK) | MSTATUS_FS_DIRTY;
+}
+
+static inline bool exec_rvf_load(uint32_t funct3, int rd, word_t addr) {
+  if (!fp_state_enabled()) return false;
+  word_t val = 0;
+  switch (funct3) {
+#ifdef CONFIG_RISCV_EXT_F
+    case 0x2: // flw
+      val = Mr(addr, 4);
+      if (vaddr_has_fault()) return true;
+      F(rd) = 0xffffffff00000000ull | (uint32_t)val;
+      fp_mark_dirty();
+      return true;
+#endif
+#ifdef CONFIG_RISCV_EXT_D
+    case 0x3: // fld
+      val = Mr(addr, 8);
+      if (vaddr_has_fault()) return true;
+      F(rd) = val;
+      fp_mark_dirty();
+      return true;
+#endif
+    default:
+      return false;
+  }
+}
+
+static inline bool exec_rvf_store(uint32_t funct3, word_t addr, int rs2) {
+  if (!fp_state_enabled()) return false;
+  switch (funct3) {
+#ifdef CONFIG_RISCV_EXT_F
+    case 0x2: // fsw
+      Mw(addr, 4, (uint32_t)F(rs2));
+      return true;
+#endif
+#ifdef CONFIG_RISCV_EXT_D
+    case 0x3: // fsd
+      Mw(addr, 8, F(rs2));
+      return true;
+#endif
+    default:
+      return false;
   }
 }
 
@@ -416,17 +659,32 @@ static inline bool exec_system(Decode *s, uint32_t inst, uint32_t funct3, int rd
 
   switch (inst) {
     case 0x00000073: // ecall
-      s->dnpc = isa_raise_intr(CAUSE_ECALL_M, s->pc);
+      s->dnpc = isa_raise_intr(
+          cpu.priv == PRIV_M ? CAUSE_ECALL_M :
+          cpu.priv == PRIV_S ? CAUSE_ECALL_S : CAUSE_ECALL_U,
+          s->pc);
       return true;
     case 0x00100073: // ebreak
-      NEMUTRAP(s->pc, R(10));
+      if (ebreak_should_raise_breakpoint_trap()) {
+        s->dnpc = isa_raise_intr(CAUSE_BREAKPOINT, s->pc);
+      } else {
+        NEMUTRAP(s->pc, R(10));
+      }
+      return true;
+    case 0x10200073: // sret
+      if (cpu.priv < PRIV_S) return false;
+      csr_sret(s);
       return true;
     case 0x30200073: // mret
+      if (cpu.priv != PRIV_M) return false;
       csr_mret(s);
       return true;
     case 0x10500073: // wfi
       return true;
     default:
+      if ((inst & 0xfe007fffu) == 0x12000073u) { // sfence.vma
+        return true;
+      }
       return false;
   }
 }
@@ -519,6 +777,124 @@ static inline bool exec_rvm_op_32(uint32_t funct3, uint32_t funct7, int rd, word
     default:
       return false;
   }
+}
+#endif
+
+#ifdef CONFIG_RISCV_EXT_A
+static inline word_t amo_sext_word(uint32_t value) {
+  return MUXDEF(CONFIG_ISA64, (word_t)SEXT(value, 32), (word_t)value);
+}
+
+static inline bool amo_funct5_valid(uint32_t funct5) {
+  switch (funct5) {
+    case 0x00: case 0x01: case 0x04: case 0x08: case 0x0c:
+    case 0x10: case 0x14: case 0x18: case 0x1c:
+      return true;
+    default:
+      return false;
+  }
+}
+
+static inline uint32_t amo_compute_w(uint32_t old, uint32_t src, uint32_t funct5) {
+  switch (funct5) {
+    case 0x01: return src;                                      // amoswap.w
+    case 0x00: return old + src;                                // amoadd.w
+    case 0x04: return old ^ src;                                // amoxor.w
+    case 0x0c: return old & src;                                // amoand.w
+    case 0x08: return old | src;                                // amoor.w
+    case 0x10: return (int32_t)old < (int32_t)src ? old : src;  // amomin.w
+    case 0x14: return (int32_t)old > (int32_t)src ? old : src;  // amomax.w
+    case 0x18: return old < src ? old : src;                    // amominu.w
+    case 0x1c: return old > src ? old : src;                    // amomaxu.w
+    default: return old;
+  }
+}
+
+static inline word_t amo_compute_xlen(word_t old, word_t src, uint32_t funct5) {
+  switch (funct5) {
+    case 0x01: return src;                                      // amoswap.d
+    case 0x00: return old + src;                                // amoadd.d
+    case 0x04: return old ^ src;                                // amoxor.d
+    case 0x0c: return old & src;                                // amoand.d
+    case 0x08: return old | src;                                // amoor.d
+    case 0x10: return (sword_t)old < (sword_t)src ? old : src;  // amomin.d
+    case 0x14: return (sword_t)old > (sword_t)src ? old : src;  // amomax.d
+    case 0x18: return old < src ? old : src;                    // amominu.d
+    case 0x1c: return old > src ? old : src;                    // amomaxu.d
+    default: return old;
+  }
+}
+
+static inline bool exec_rva_amo(uint32_t inst, int rd, int rs1, int rs2) {
+  uint32_t funct3 = FUNCT3(inst);
+  uint32_t funct5 = BITS(inst, 31, 27);
+  word_t addr = R(rs1);
+
+  if (funct3 == 0x2) {
+    if ((addr & 0x3) != 0) return false;
+    if (funct5 == 0x02) {                                      // lr.w
+      uint32_t old = Mr(addr, 4);
+      if (vaddr_has_fault()) return true;
+      lr_reservation_valid = true;
+      lr_reservation_addr = addr;
+      R(rd) = amo_sext_word(old);
+      return true;
+    }
+    if (funct5 == 0x03) {                                      // sc.w
+      bool ok = lr_reservation_valid && lr_reservation_addr == addr;
+      if (ok) {
+        Mw(addr, 4, (uint32_t)R(rs2));
+        if (vaddr_has_fault()) return true;
+      }
+      lr_reservation_valid = false;
+      R(rd) = ok ? 0 : 1;
+      return true;
+    }
+    if (!amo_funct5_valid(funct5)) return false;
+
+    uint32_t old = Mr(addr, 4);
+    if (vaddr_has_fault()) return true;
+    uint32_t result = amo_compute_w(old, (uint32_t)R(rs2), funct5);
+    Mw(addr, 4, result);
+    if (vaddr_has_fault()) return true;
+    lr_reservation_valid = false;
+    R(rd) = amo_sext_word(old);
+    return true;
+  }
+
+  if (funct3 == 0x3 && ISDEF(CONFIG_ISA64)) {
+    if ((addr & 0x7) != 0) return false;
+    if (funct5 == 0x02) {                                      // lr.d
+      word_t old = Mr(addr, 8);
+      if (vaddr_has_fault()) return true;
+      lr_reservation_valid = true;
+      lr_reservation_addr = addr;
+      R(rd) = old;
+      return true;
+    }
+    if (funct5 == 0x03) {                                      // sc.d
+      bool ok = lr_reservation_valid && lr_reservation_addr == addr;
+      if (ok) {
+        Mw(addr, 8, R(rs2));
+        if (vaddr_has_fault()) return true;
+      }
+      lr_reservation_valid = false;
+      R(rd) = ok ? 0 : 1;
+      return true;
+    }
+    if (!amo_funct5_valid(funct5)) return false;
+
+    word_t old = Mr(addr, 8);
+    if (vaddr_has_fault()) return true;
+    word_t result = amo_compute_xlen(old, R(rs2), funct5);
+    Mw(addr, 8, result);
+    if (vaddr_has_fault()) return true;
+    lr_reservation_valid = false;
+    R(rd) = old;
+    return true;
+  }
+
+  return false;
 }
 #endif
 
@@ -647,6 +1023,11 @@ static inline word_t c_imm_lw_sw(uint16_t inst) {
          (BITS(inst, 6, 6) << 2);
 }
 
+static inline word_t c_imm_ld_sd(uint16_t inst) {
+  return (BITS(inst, 6, 5) << 6) |
+         (BITS(inst, 12, 10) << 3);
+}
+
 static inline word_t c_imm_6(uint16_t inst) {
   return SEXT((BITS(inst, 12, 12) << 5) | BITS(inst, 6, 2), 6);
 }
@@ -687,9 +1068,20 @@ static inline word_t c_imm_lwsp(uint16_t inst) {
          (BITS(inst, 3, 2) << 6);
 }
 
+static inline word_t c_imm_ldsp(uint16_t inst) {
+  return (BITS(inst, 12, 12) << 5) |
+         (BITS(inst, 6, 5) << 3) |
+         (BITS(inst, 4, 2) << 6);
+}
+
 static inline word_t c_imm_swsp(uint16_t inst) {
   return (BITS(inst, 8, 7) << 6) |
          (BITS(inst, 12, 9) << 2);
+}
+
+static inline word_t c_imm_sdsp(uint16_t inst) {
+  return (BITS(inst, 9, 7) << 6) |
+         (BITS(inst, 12, 10) << 3);
 }
 
 static inline word_t c_shamt(uint16_t inst) {
@@ -710,11 +1102,35 @@ static inline bool exec_rv32c(Decode *s, uint16_t inst) {
           R(C_RD(inst)) = R(2) + imm;
           return true;
         }
+        case 0x1: // c.fld
+          if (!ISDEF(CONFIG_RISCV_EXT_D) ||
+              !exec_rvf_load(0x3, C_RD(inst), R(C_RS1(inst)) + c_imm_ld_sd(inst))) {
+            BAD_DECODE();
+          }
+          return true;
         case 0x2: // c.lw
-          R(C_RD(inst)) = SEXT(Mr(R(C_RS1(inst)) + c_imm_lw_sw(inst), 4), 32);
+          if (!exec_rv32i_load(0x2, C_RD(inst), R(C_RS1(inst)) + c_imm_lw_sw(inst))) {
+            BAD_DECODE();
+          }
+          return true;
+        case 0x3: // c.ld
+          if (!ISDEF(CONFIG_ISA64)) BAD_DECODE();
+          if (!exec_rv32i_load(0x3, C_RD(inst), R(C_RS1(inst)) + c_imm_ld_sd(inst))) {
+            BAD_DECODE();
+          }
           return true;
         case 0x6: // c.sw
           Mw(R(C_RS1(inst)) + c_imm_lw_sw(inst), 4, R(C_RS2(inst)));
+          return true;
+        case 0x5: // c.fsd
+          if (!ISDEF(CONFIG_RISCV_EXT_D) ||
+              !exec_rvf_store(0x3, R(C_RS1(inst)) + c_imm_ld_sd(inst), C_RS2(inst))) {
+            BAD_DECODE();
+          }
+          return true;
+        case 0x7: // c.sd
+          if (!ISDEF(CONFIG_ISA64)) BAD_DECODE();
+          Mw(R(C_RS1(inst)) + c_imm_ld_sd(inst), 8, R(C_RS2(inst)));
           return true;
         default:
           BAD_DECODE();
@@ -764,12 +1180,17 @@ static inline bool exec_rv32c(Decode *s, uint16_t inst) {
               R(rs1p) = R(rs1p) & c_imm_6(inst);
               return true;
             case 0x3:
-              if (BITS(inst, 12, 12)) BAD_DECODE();
-              switch (BITS(inst, 6, 5)) {
+              switch ((BITS(inst, 12, 12) << 2) | BITS(inst, 6, 5)) {
                 case 0x0: R(rs1p) = R(rs1p) - R(rs2p); return true; // c.sub
                 case 0x1: R(rs1p) = R(rs1p) ^ R(rs2p); return true; // c.xor
                 case 0x2: R(rs1p) = R(rs1p) | R(rs2p); return true; // c.or
                 case 0x3: R(rs1p) = R(rs1p) & R(rs2p); return true; // c.and
+                case 0x4:
+                  if (!ISDEF(CONFIG_ISA64)) BAD_DECODE();
+                  R(rs1p) = sext32((uint32_t)R(rs1p) - (uint32_t)R(rs2p)); return true; // c.subw
+                case 0x5:
+                  if (!ISDEF(CONFIG_ISA64)) BAD_DECODE();
+                  R(rs1p) = sext32((uint32_t)R(rs1p) + (uint32_t)R(rs2p)); return true; // c.addw
                 default: BAD_DECODE();
               }
             default:
@@ -794,15 +1215,29 @@ static inline bool exec_rv32c(Decode *s, uint16_t inst) {
           if (!ISDEF(CONFIG_ISA64) && BITS(inst, 12, 12)) BAD_DECODE();
           R(rd) = R(rd) << c_shamt(inst);
           return true;
+        case 0x1: // c.fldsp
+          if (rd == 0 || !ISDEF(CONFIG_RISCV_EXT_D) ||
+              !exec_rvf_load(0x3, rd, R(2) + c_imm_ldsp(inst))) {
+            BAD_DECODE();
+          }
+          return true;
         case 0x2: // c.lwsp
           if (rd == 0) BAD_DECODE();
-          R(rd) = SEXT(Mr(R(2) + c_imm_lwsp(inst), 4), 32);
+          if (!exec_rv32i_load(0x2, rd, R(2) + c_imm_lwsp(inst))) {
+            BAD_DECODE();
+          }
+          return true;
+        case 0x3: // c.ldsp
+          if (!ISDEF(CONFIG_ISA64) || rd == 0) BAD_DECODE();
+          if (!exec_rv32i_load(0x3, rd, R(2) + c_imm_ldsp(inst))) {
+            BAD_DECODE();
+          }
           return true;
         case 0x4:
           if (BITS(inst, 12, 12) == 0) {
             if (rs2 == 0) { // c.jr
               if (rd == 0) BAD_DECODE();
-              s->dnpc = R(rd) & ~1u;
+              s->dnpc = R(rd) & ~(word_t)1;
               IFDEF(CONFIG_FTRACE, if (rd == 1) ftrace_log(-1, s->pc, s->dnpc));
             } else if (rd != 0) { // c.mv
               R(rd) = R(rs2);
@@ -810,9 +1245,13 @@ static inline bool exec_rv32c(Decode *s, uint16_t inst) {
           } else {
             if (rs2 == 0) {
               if (rd == 0) {
-                NEMUTRAP(s->pc, R(10)); // c.ebreak
+                if (ebreak_should_raise_breakpoint_trap()) {
+                  s->dnpc = isa_raise_intr(CAUSE_BREAKPOINT, s->pc);
+                } else {
+                  NEMUTRAP(s->pc, R(10)); // c.ebreak
+                }
               } else { // c.jalr
-                word_t target = R(rd) & ~1u;
+                word_t target = R(rd) & ~(word_t)1;
                 R(1) = s->pc + 2;
                 s->dnpc = target;
                 IFDEF(CONFIG_FTRACE, ftrace_log(1, s->pc, target));
@@ -824,6 +1263,16 @@ static inline bool exec_rv32c(Decode *s, uint16_t inst) {
           return true;
         case 0x6: // c.swsp
           Mw(R(2) + c_imm_swsp(inst), 4, R(rs2));
+          return true;
+        case 0x5: // c.fsdsp
+          if (!ISDEF(CONFIG_RISCV_EXT_D) ||
+              !exec_rvf_store(0x3, R(2) + c_imm_sdsp(inst), rs2)) {
+            BAD_DECODE();
+          }
+          return true;
+        case 0x7: // c.sdsp
+          if (!ISDEF(CONFIG_ISA64)) BAD_DECODE();
+          Mw(R(2) + c_imm_sdsp(inst), 8, R(rs2));
           return true;
         default:
           BAD_DECODE();
@@ -874,6 +1323,11 @@ static int decode_exec(Decode *s) {
       if (!exec_rv32i_load(funct3, rd, addr)) goto invalid;
       break;
     }
+    case OPC_LOAD_FP: {
+      word_t addr = R(rs1) + IMM_I(inst);
+      if (!exec_rvf_load(funct3, rd, addr)) goto invalid;
+      break;
+    }
     case OPC_MISC_MEM:
       if (!exec_misc_mem(funct3)) goto invalid;
       break;
@@ -882,6 +1336,18 @@ static int decode_exec(Decode *s) {
       if (!exec_rv32i_store(funct3, addr, R(rs2))) goto invalid;
       break;
     }
+    case OPC_STORE_FP: {
+      word_t addr = R(rs1) + IMM_S(inst);
+      if (!exec_rvf_store(funct3, addr, rs2)) goto invalid;
+      break;
+    }
+    case OPC_AMO:
+#ifdef CONFIG_RISCV_EXT_A
+      if (!exec_rva_amo(inst, rd, rs1, rs2)) goto invalid;
+      break;
+#else
+      goto invalid;
+#endif
     case OPC_OP: {
       uint32_t funct7 = FUNCT7(inst);
       word_t src1 = R(rs1);
@@ -913,7 +1379,7 @@ static int decode_exec(Decode *s) {
       break;
     case OPC_JALR: {
       if (funct3 != 0x0) goto invalid;
-      word_t target = (R(rs1) + IMM_I(inst)) & ~1u;
+      word_t target = (R(rs1) + IMM_I(inst)) & ~(word_t)1;
       R(rd) = s->pc + 4;
       s->dnpc = target;
       IFDEF(CONFIG_FTRACE, {
@@ -949,15 +1415,35 @@ invalid:
   return 0;
 }
 
+static inline bool take_vaddr_fault(Decode *s) {
+  word_t cause;
+  vaddr_t tval;
+  if (!vaddr_take_fault(&cause, &tval)) return false;
+  s->dnpc = isa_raise_intr_with_tval(cause, s->pc, tval);
+  R(0) = 0;
+  return true;
+}
+
 int isa_exec_once(Decode *s) {
 #ifdef CONFIG_RISCV_EXT_C
   uint32_t inst = inst_fetch(&s->snpc, 2);
+  if (take_vaddr_fault(s)) {
+    s->isa.inst = 0;
+    return 0;
+  }
   if ((inst & 0x3) == 0x3) {
     inst |= inst_fetch(&s->snpc, 2) << 16;
+    if (take_vaddr_fault(s)) {
+      s->isa.inst = 0;
+      return 0;
+    }
   }
   s->isa.inst = inst;
 #else
   s->isa.inst = inst_fetch(&s->snpc, 4);
+  if (take_vaddr_fault(s)) return 0;
 #endif
-  return decode_exec(s);
+  int ret = decode_exec(s);
+  take_vaddr_fault(s);
+  return ret;
 }

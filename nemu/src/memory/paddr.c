@@ -88,6 +88,10 @@ word_t paddr_read(paddr_t addr, int len) {
     difftest_skip_ref();
     return isa_riscv32_clint_read(addr, len);
   }
+  if (MUXDEF(CONFIG_ISA_riscv, isa_riscv32_plic_in_range(addr), false)) {
+    difftest_skip_ref();
+    return isa_riscv32_plic_read(addr, len);
+  }
   if (MUXDEF(CONFIG_SOC_SIM, soc_sim_in_range(addr), false)) {
     // ysyxSoC 平台窗口不依赖 CONFIG_DEVICE；MROM/SRAM/SDRAM 是可比较内存，
     // 只有 UART/占位设备这类 MMIO 副作用需要跳过 reference 步进。
@@ -114,6 +118,11 @@ void paddr_write(paddr_t addr, int len, word_t data) {
     // CLINT 写会改变软件/定时器中断源；这里和读路径一起对齐 NPC 的 0x0200_0000 地址窗口。
     difftest_skip_ref();
     isa_riscv32_clint_write(addr, len, data);
+    return;
+  }
+  if (MUXDEF(CONFIG_ISA_riscv, isa_riscv32_plic_in_range(addr), false)) {
+    difftest_skip_ref();
+    isa_riscv32_plic_write(addr, len, data);
     return;
   }
   if (MUXDEF(CONFIG_SOC_SIM, soc_sim_in_range(addr), false)) {

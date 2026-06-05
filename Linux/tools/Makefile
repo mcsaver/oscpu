@@ -38,6 +38,8 @@ JAL_LINK_TEXT ?= 0x80000000
 JAL_LINK_STACK ?= 0x87ef9000
 BRANCH_RAW_TEXT ?= 0x80000000
 BRANCH_RAW_STACK ?= 0x87ef8000
+MULDIV_SMOKE_TEXT ?= 0x80000000
+MULDIV_SMOKE_STACK ?= 0x87ef0000
 SRET_USER_TEXT ?= 0x80000000
 SRET_USER_STACK ?= 0x87ef7000
 SRET_USER_PF_TEXT ?= 0x80000000
@@ -93,6 +95,8 @@ JAL_LINK_ELF := $(BUILD_DIR)/jal-link-smoke.elf
 JAL_LINK_BIN := $(BUILD_DIR)/jal-link-smoke.bin
 BRANCH_RAW_ELF := $(BUILD_DIR)/branch-raw-smoke.elf
 BRANCH_RAW_BIN := $(BUILD_DIR)/branch-raw-smoke.bin
+MULDIV_SMOKE_ELF := $(BUILD_DIR)/muldiv-smoke.elf
+MULDIV_SMOKE_BIN := $(BUILD_DIR)/muldiv-smoke.bin
 SRET_USER_ELF := $(BUILD_DIR)/sret-user-smoke.elf
 SRET_USER_BIN := $(BUILD_DIR)/sret-user-smoke.bin
 SRET_USER_PF_ELF := $(BUILD_DIR)/sret-user-pagefault-smoke.elf
@@ -125,7 +129,7 @@ FP_SQRT_ELF := $(BUILD_DIR)/fp-sqrt-smoke.elf
 FP_SQRT_BIN := $(BUILD_DIR)/fp-sqrt-smoke.bin
 
 SMOKE_BINS := \
-  $(JAL_LINK_BIN) $(BRANCH_RAW_BIN) \
+  $(JAL_LINK_BIN) $(BRANCH_RAW_BIN) $(MULDIV_SMOKE_BIN) \
   $(SRET_USER_BIN) $(SRET_USER_PF_BIN) $(SRET_USER_SV39_BIN) $(SRET_USER_SV39_HALF_BIN) \
   $(SRET_RESTORE_BIN) $(RAS_TRAP_BIN) \
   $(FP_SMOKE_BIN) $(FP_FCSR_BIN) $(FP_FMV_FCLASS_BIN) $(FP_CONVERT_BIN) $(FP_COMPARE_SGNJ_BIN) \
@@ -135,7 +139,7 @@ BOOT_TOOL_BINS := $(TRAMPOLINE_BIN) $(DTB_SMOKE_BIN) $(MINI_LINUX_BIN) $(OPENSBI
 
 .PHONY: all boot-tools dtb check-dtb clean \
 	smoke-dtb smoke-opensbi smoke-opensbi-sbi smoke-virtio-blk \
-	smoke-jal-link smoke-branch-raw smoke-sret-user smoke-sret-user-pagefault \
+	smoke-jal-link smoke-branch-raw smoke-muldiv smoke-sret-user smoke-sret-user-pagefault \
 	smoke-sret-user-sv39 smoke-sret-user-sv39-halfword smoke-sret-restore smoke-ras-trap-boundary \
 	smoke-fp-loadstore smoke-fp-fcsr smoke-fp-fmv-fclass smoke-fp-convert \
 	smoke-fp-compare-sgnj smoke-fp-minmax smoke-fp-addsub smoke-fp-mul \
@@ -248,6 +252,14 @@ $(BRANCH_RAW_ELF): branch-raw-smoke.S Makefile
 	  -march=rv64ima_zicsr_zifencei -mabi=lp64 -Wl,-Ttext=$(BRANCH_RAW_TEXT) \
 	  -static -no-pie -Wl,--no-relax -Wl,--build-id=none \
 	  -DBRANCH_RAW_STACK=$(BRANCH_RAW_STACK) \
+	  $< -o $@
+
+$(MULDIV_SMOKE_ELF): muldiv-smoke.S Makefile
+	mkdir -p $(BUILD_DIR)
+	$(CC) -x assembler-with-cpp -nostdlib -nostartfiles \
+	  -march=rv64ima_zicsr_zifencei -mabi=lp64 -Wl,-Ttext=$(MULDIV_SMOKE_TEXT) \
+	  -static -no-pie -Wl,--no-relax -Wl,--build-id=none \
+	  -DMULDIV_SMOKE_STACK=$(MULDIV_SMOKE_STACK) \
 	  $< -o $@
 
 $(SRET_USER_ELF): sret-user-smoke.S Makefile
@@ -394,6 +406,9 @@ smoke-jal-link: $(JAL_LINK_BIN)
 
 smoke-branch-raw: $(BRANCH_RAW_BIN)
 	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(BRANCH_RAW_BIN)
+
+smoke-muldiv: $(MULDIV_SMOKE_BIN)
+	$(NPC_SIM) -b --no-progress --no-diff --max=4000000 -i $(MULDIV_SMOKE_BIN)
 
 smoke-sret-user: $(SRET_USER_BIN)
 	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(SRET_USER_BIN)

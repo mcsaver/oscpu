@@ -237,11 +237,25 @@ module OooIntIssueQueue #(
     input ctrl_system;
     input ctrl_mret;
     input ctrl_wfi;
+    input ctrl_muldiv;
+    input ctrl_clmul;
     begin
       ctrl_can_forward =
           !ctrl_is_mem(ctrl_load, ctrl_store) &&
           !ctrl_is_control(ctrl_branch, ctrl_jal, ctrl_jalr, ctrl_ecall,
-                           ctrl_ebreak, ctrl_system, ctrl_mret, ctrl_wfi);
+                           ctrl_ebreak, ctrl_system, ctrl_mret, ctrl_wfi) &&
+          !ctrl_muldiv && !ctrl_clmul;
+    end
+  endfunction
+
+  function is_clmul_inst;
+    input [`INST_W-1:0] inst;
+    begin
+      is_clmul_inst =
+          (inst[6:0] == `OPCODE_OP) && (inst[31:25] == 7'h05) &&
+          ((inst[14:12] == `FUNCT3_SLL) ||
+           (inst[14:12] == `FUNCT3_SLT) ||
+           (inst[14:12] == `FUNCT3_SLTU));
     end
   endfunction
 
@@ -538,7 +552,10 @@ module OooIntIssueQueue #(
                                ctrl_q[scan_i][`CTRL_EBREAK_BIT],
                                ctrl_q[scan_i][`CTRL_SYSTEM_BIT],
                                ctrl_q[scan_i][`CTRL_MRET_BIT],
-                               ctrl_q[scan_i][`CTRL_WFI_BIT]) &&
+                               ctrl_q[scan_i][`CTRL_WFI_BIT],
+                               ctrl_q[scan_i][`CTRL_MULDIV_BIT],
+                               ctrl_q[scan_i][`CTRL_BITMANIP_BIT] &&
+                               is_clmul_inst(inst_q[scan_i])) &&
                              (pdest_q[scan_i] != {PHY_REG_ADDR_W{1'b0}});
           issue0_pdest_r = pdest_q[scan_i];
         end else if (!issue1_found_r &&
@@ -594,7 +611,10 @@ module OooIntIssueQueue #(
                              dispatch0_ctrl_i[`CTRL_EBREAK_BIT],
                              dispatch0_ctrl_i[`CTRL_SYSTEM_BIT],
                              dispatch0_ctrl_i[`CTRL_MRET_BIT],
-                             dispatch0_ctrl_i[`CTRL_WFI_BIT]) &&
+                             dispatch0_ctrl_i[`CTRL_WFI_BIT],
+                             dispatch0_ctrl_i[`CTRL_MULDIV_BIT],
+                             dispatch0_ctrl_i[`CTRL_BITMANIP_BIT] &&
+                             is_clmul_inst(dispatch0_inst_i)) &&
                            (dispatch0_pdest_i != {PHY_REG_ADDR_W{1'b0}});
         issue0_pdest_r = dispatch0_pdest_i;
         dispatch1_entry_ready_for_issue1_r =
@@ -640,7 +660,10 @@ module OooIntIssueQueue #(
                              dispatch1_ctrl_i[`CTRL_EBREAK_BIT],
                              dispatch1_ctrl_i[`CTRL_SYSTEM_BIT],
                              dispatch1_ctrl_i[`CTRL_MRET_BIT],
-                             dispatch1_ctrl_i[`CTRL_WFI_BIT]) &&
+                             dispatch1_ctrl_i[`CTRL_WFI_BIT],
+                             dispatch1_ctrl_i[`CTRL_MULDIV_BIT],
+                             dispatch1_ctrl_i[`CTRL_BITMANIP_BIT] &&
+                             is_clmul_inst(dispatch1_inst_i)) &&
                            (dispatch1_pdest_i != {PHY_REG_ADDR_W{1'b0}});
         issue0_pdest_r = dispatch1_pdest_i;
       end else if (!issue1_found_r &&

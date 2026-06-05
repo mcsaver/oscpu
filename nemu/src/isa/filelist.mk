@@ -13,7 +13,7 @@
 # See the Mulan PSL v2 for more details.
 #**************************************************************************************/
 
-## RISC-V 的 RV32/RV64 共用同一套 XLEN 参数化解释器实现；CONFIG_RV64 负责决定 word_t/CPU_state 宽度。
-ISA_SRC_DIR := $(if $(filter riscv64,$(GUEST_ISA)),riscv32,$(GUEST_ISA))
+## RV64 现在有独立源码目录，避免日志和调试栈继续显示 src/isa/riscv32。
+ISA_SRC_DIR := $(GUEST_ISA)
 INC_PATH += $(NEMU_HOME)/src/isa/$(ISA_SRC_DIR)/include
 DIRS-y += src/isa/$(ISA_SRC_DIR)

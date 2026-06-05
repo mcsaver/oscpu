@@ -16,6 +16,19 @@ module tb_uart;
   wire access_write;
   wire irq;
 
+  reg read_valid64;
+  reg [11:0] read_addr64;
+  wire [63:0] read_data64;
+  reg write_valid64;
+  reg [11:0] write_addr64;
+  reg [63:0] write_data64;
+  reg [7:0] write_strb64;
+  wire tx_valid64;
+  wire [7:0] tx_data64;
+  wire access_valid64;
+  wire access_write64;
+  wire irq64;
+
   Uart dut (
     .clk(clk),
     .rst(rst),
@@ -33,6 +46,39 @@ module tb_uart;
     .irq_o(irq)
   );
 
+  Uart #(
+    .DATA_W(64),
+    .STRB_W(8)
+  ) dut64 (
+    .clk(clk),
+    .rst(rst),
+    .reg_read_valid_i(read_valid64),
+    .reg_read_addr_i(read_addr64),
+    .reg_read_data_o(read_data64),
+    .reg_write_valid_i(write_valid64),
+    .reg_write_addr_i(write_addr64),
+    .reg_write_data_i(write_data64),
+    .reg_write_strb_i(write_strb64),
+    .tx_valid_o(tx_valid64),
+    .tx_data_o(tx_data64),
+    .access_valid_o(access_valid64),
+    .access_write_o(access_write64),
+    .irq_o(irq64)
+  );
+
+  task automatic tb_check64_local;
+    input [1023:0] what;
+    input [63:0] got;
+    input [63:0] exp;
+    begin
+      if (got !== exp) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] %0s got=0x%016x expected=0x%016x",
+                 what, got, exp);
+      end
+    end
+  endtask
+
   task automatic reset_dut;
     begin
       clk = 1'b0;
@@ -43,6 +89,12 @@ module tb_uart;
       write_addr = 12'h000;
       write_data = 32'h0;
       write_strb = 4'h0;
+      read_valid64 = 1'b0;
+      read_addr64 = 12'h000;
+      write_valid64 = 1'b0;
+      write_addr64 = 12'h000;
+      write_data64 = 64'h0;
+      write_strb64 = 8'h0;
       `TB_TICK(clk);
       `TB_TICK(clk);
       rst = 1'b0;
@@ -167,6 +219,61 @@ module tb_uart;
     #1;
     tb_check1("thr write after dlab tx", tx_valid, 1'b1);
     tb_check32("thr write after dlab data", {24'b0, tx_data}, 32'h0000_0044);
+
+    write_valid = 1'b0;
+    read_valid = 1'b0;
+
+    read_valid64 = 1'b1;
+    read_addr64 = 12'h000;
+    #1;
+    tb_check64_local("uart64 low window reset", read_data64,
+                     64'h0000_6001_0001_0000);
+    tb_check1("uart64 read access", access_valid64, 1'b1);
+    tb_check1("uart64 read access write", access_write64, 1'b0);
+
+    read_addr64 = 12'h004;
+    #1;
+    tb_check64_local("uart64 status window reset", read_data64,
+                     64'h0000_0000_0000_6001);
+    read_valid64 = 1'b0;
+
+    write_valid64 = 1'b1;
+    write_addr64 = 12'h000;
+    write_data64 = 64'h0000_0000_0000_0200;
+    write_strb64 = 8'b0000_0010;
+    #1;
+    tb_check1("uart64 ier write no tx", tx_valid64, 1'b0);
+    tb_check1("uart64 write access", access_valid64, 1'b1);
+    tb_check1("uart64 write access write", access_write64, 1'b1);
+    `TB_TICK(clk);
+    write_valid64 = 1'b0;
+    #1;
+    tb_check1("uart64 irq after ier", irq64, 1'b1);
+
+    read_valid64 = 1'b1;
+    read_addr64 = 12'h000;
+    #1;
+    tb_check64_local("uart64 iir reports thre", read_data64,
+                     64'h0000_6001_0002_0200);
+    read_valid64 = 1'b0;
+
+    write_valid64 = 1'b1;
+    write_data64 = 64'h0000_0000_8000_0000;
+    write_strb64 = 8'b0000_1000;
+    `TB_TICK(clk);
+    write_data64 = 64'h0000_0000_0000_1234;
+    write_strb64 = 8'b0000_0011;
+    #1;
+    tb_check1("uart64 dlab divisor no tx", tx_valid64, 1'b0);
+    `TB_TICK(clk);
+    write_valid64 = 1'b0;
+
+    read_valid64 = 1'b1;
+    read_addr64 = 12'h000;
+    #1;
+    tb_check64_local("uart64 dlab exposes divisor", read_data64,
+                     64'h0000_6001_8002_1234);
+    read_valid64 = 1'b0;
 
     tb_finish("tb_uart");
   end

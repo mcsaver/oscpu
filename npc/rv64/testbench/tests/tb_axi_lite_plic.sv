@@ -270,6 +270,27 @@ module tb_axi_lite_plic;
     axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h1, {{(`STRB_W-4){1'b0}}, 4'hf});
     tb_check1("all multi-source claims complete", external_irq, 1'b0);
 
+    axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0000_0024, 32'h7, {{(`STRB_W-4){1'b0}}, 4'hf});
+    axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0000_2080, 32'h0000_0200,
+                   {{(`STRB_W-4){1'b0}}, 4'h2});
+    axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0000_2080, 32'h0000_0206);
+    source_irq[9] = 1'b1;
+    `TB_TICK(clk);
+    source_irq[9] = 1'b0;
+    tb_check1("byte1 enable strobe accepts source9", external_irq, 1'b1);
+    axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0000_1000, 32'h0000_0200);
+    axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h9);
+    axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h9, {{(`STRB_W-4){1'b0}}, 4'hf});
+    tb_check1("source9 byte1 enable completes", external_irq, 1'b0);
+
+    axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0000_1000, 32'h0000_0200,
+                   {{(`STRB_W-4){1'b0}}, 4'h2});
+    axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0000_1000, 32'h0000_0200);
+    tb_check1("byte1 pending strobe injects source9", external_irq, 1'b1);
+    axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h9);
+    axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h9, {{(`STRB_W-4){1'b0}}, 4'hf});
+    tb_check1("byte1 software pending completes", external_irq, 1'b0);
+
     tb_finish("tb_axi_lite_plic");
   end
 endmodule

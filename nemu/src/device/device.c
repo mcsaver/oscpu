@@ -22,6 +22,7 @@
 
 void init_map();
 void init_serial();
+void serial_poll_input();
 void init_timer();
 void init_vga();
 void init_i8042();
@@ -52,6 +53,8 @@ void device_update() {
   }
   last = now;
 
+  // UART RX 来自宿主 stdin/FIFO，需要在 guest 没有主动轮询寄存器时也能触发中断。
+  IFDEF(CONFIG_HAS_SERIAL, serial_poll_input());
   IFDEF(CONFIG_HAS_VGA, vga_update_screen());
 
 #ifndef CONFIG_TARGET_AM

@@ -190,6 +190,13 @@ module OooDispatchBackend #(
   wire free_ok0_w = !dispatch0_writes_rd_w ||
                     (free_count_w >= {{(FREE_COUNT_W-1){1'b0}}, 1'b1});
 
+  wire rob_slot0_ready_w =
+      (rob_count_w != ROB_ENTRY_COUNT[ROB_COUNT_W-1:0]);
+  wire iq_slot0_ready_w =
+      (iq_count_w != ISSUE_ENTRY_COUNT[ISSUE_COUNT_W-1:0]);
+  wire rob_pair_ready_w = (rob_count_w <= ROB_PAIR_MAX_COUNT);
+  wire iq_pair_ready_w = (iq_count_w <= IQ_PAIR_MAX_COUNT);
+
   wire dispatch0_fire_w = dispatch0_valid_i && dispatch0_ready_o;
   wire dispatch0_alloc_w = dispatch0_fire_w && dispatch0_writes_rd_w;
 
@@ -201,19 +208,19 @@ module OooDispatchBackend #(
   wire dispatch1_pair_ready_w =
       !dispatch1_valid_i ||
       dispatch1_optional_i ||
-      ((rob_count_w <= ROB_PAIR_MAX_COUNT) &&
-       (iq_count_w <= IQ_PAIR_MAX_COUNT) &&
-       free_ok1_pair_w);
-
-  assign dispatch0_ready_o = rob_dispatch0_ready_w && iq_dispatch0_ready_w &&
-                             free_ok0_w && dispatch1_pair_ready_w;
+      (rob_pair_ready_w && iq_pair_ready_w && free_ok1_pair_w);
 
   wire free_ok1_w = !dispatch1_writes_rd_w ||
                     (free_count_w >= (dispatch0_alloc_w ?
                                       {{(FREE_COUNT_W-2){1'b0}}, 2'd2} :
                                       {{(FREE_COUNT_W-1){1'b0}}, 1'b1}));
-  assign dispatch1_ready_o = dispatch0_fire_w && rob_dispatch1_ready_w &&
-                             iq_dispatch1_ready_w && free_ok1_w;
+  // Dispatch owner 直接用容量计数生成 ready，避免 parent fire 再反喂
+  // ROB/IQ ready 形成跨层组合环；子模块仍接收同一个 fire 更新状态。
+  assign dispatch0_ready_o = rob_slot0_ready_w && iq_slot0_ready_w &&
+                             free_ok0_w && dispatch1_pair_ready_w;
+
+  assign dispatch1_ready_o = dispatch0_fire_w && rob_pair_ready_w &&
+                             iq_pair_ready_w && free_ok1_w;
 
   wire dispatch1_fire_w = dispatch1_valid_i && dispatch1_ready_o;
   wire dispatch1_alloc_w = dispatch1_fire_w && dispatch1_writes_rd_w;
@@ -518,6 +525,8 @@ module OooDispatchBackend #(
 
   wire unused_status_w = free_empty_w | free_full_w |
                          freelist_alloc0_ready_w | freelist_alloc1_ready_w |
+                         rob_dispatch0_ready_w | rob_dispatch1_ready_w |
+                         iq_dispatch0_ready_w | iq_dispatch1_ready_w |
                          rob_empty_w | rob_full_w | iq_empty_w | iq_full_w |
                          (|rename0_new_pdest_unused_w) |
                          (|rename1_new_pdest_unused_w) | (|debug_map_unused_w);

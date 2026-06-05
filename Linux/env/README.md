@@ -24,4 +24,11 @@
 
 - `make -C Linux qemu-build`：把 QEMU riscv64-softmmu 构建/安装到 `tools/qemu/`
 - `make -C Linux ARCH=riscv64-npc BOOT=ubuntu-shell run`：用 NPC/Verilator 启动 Ubuntu shell initramfs gate
+- `make -C Linux ARCH=riscv64-nemu run`：用 NEMU 启动完整 Ubuntu rootfs 路线，默认 `MAX_CYCLES=0` 为无限预算
+- `make -C Linux ARCH=riscv64-nemu check-ubuntu-rootfs`：检查 ext4 rootfs 实物并报告是否含 systemd 候选入口
+- `make -C Linux ARCH=riscv64-nemu check-ubuntu-rootfs-systemd`：把 systemd 作为硬门槛；Ubuntu Base/fakeroot shell-only 镜像会明确失败
+- `make -C Linux ARCH=riscv64-nemu ubuntu-rootfs-systemd-image`：无 sudo/debootstrap/qemu-user-static 时，用 apt 沙箱下载 jammy/riscv64 的 systemd 相关 deb 并解包进 rootfs，形成 systemd gate 候选镜像
+- `make -C Linux check-nemu-systemd-guest`：启动 NEMU Ubuntu rootfs，在 guest 内检查 systemd running、伪文件系统挂载、TTY/console、timer、`/dev/vda` 和 rootfs 小规模写回
 - `make -C Linux qemu-ubuntu-shell`：用本地 QEMU 启动同一份 Ubuntu 22.04 shell initramfs，作为 NPC RTL bring-up 的参考路径
+
+当前无免密 sudo、`debootstrap` 或 `qemu-riscv64-static` 时，`build-ubuntu-rootfs.sh` 会回退到 Ubuntu Base + fakeroot 路线；若要生成完整 systemd rootfs，可在具备这些工具的环境中设置 `UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1` 后重建，脚本会在无法满足 systemd 路线时直接失败。若只是继续推进 NEMU 的 systemd 启动调试，可用 `UBUNTU_ROOTFS_SYSTEMD_OVERLAY=1` 或 `ubuntu-rootfs-systemd-image` 生成 chrootless overlay 候选镜像；当前 NEMU 已有运行证据证明该候选镜像可进入 ttyS0 root shell 且 systemd 为 `running`。后续仍需用更长时间窗口和更强 virtio/TTY/interrupt 压力测试补足 QEMU 级设备完整性证据。

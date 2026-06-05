@@ -2,7 +2,7 @@ menu "CPU Performance Models"
   depends on TARGET_NATIVE_ELF && ISA_riscv
 
 config BPU
-  depends on TARGET_NATIVE_ELF && ISA_riscv
+  depends on TARGET_NATIVE_ELF && ISA_riscv && !PERFORMANCE
   bool "Enable branch prediction model"
   default y
   help

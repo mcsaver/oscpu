@@ -139,22 +139,21 @@ module OooFetchAxiBridge (
     end
   endfunction
 
-  /* verilator lint_off BLKSEQ */
   function [`XLEN-1:0] leaf_paddr;
     input [`XLEN-1:0] pte;
     input [`XLEN-1:0] vaddr;
     input [1:0] level;
-    reg [43:0] leaf_ppn;
     begin
-      case (level)
-        2'd2: leaf_ppn = {pte[53:28], vaddr[29:21], vaddr[20:12]};
-        2'd1: leaf_ppn = {pte[53:28], pte[27:19], vaddr[20:12]};
-        default: leaf_ppn = pte[53:10];
-      endcase
-      leaf_paddr = {8'b0, leaf_ppn, vaddr[11:0]};
+      // 用单表达式保持 Sv39 superpage PPN 拼接，避免函数级 lint waiver。
+      leaf_paddr = {8'b0,
+                    (level == 2'd2) ?
+                    {pte[53:28], vaddr[29:21], vaddr[20:12]} :
+                    (level == 2'd1) ?
+                    {pte[53:28], pte[27:19], vaddr[20:12]} :
+                    pte[53:10],
+                    vaddr[11:0]};
     end
   endfunction
-  /* verilator lint_on BLKSEQ */
 
   function [`XLEN-1:0] merge_cross_page_packet;
     input [`XLEN-1:0] first_beat;

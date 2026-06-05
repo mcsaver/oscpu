@@ -18,7 +18,7 @@ module DecodeStage (
   );
 
   ImmGen u_imm_gen (
-    .inst_i(inst_i),
+    .inst_imm_i(inst_i[31:7]),
     .imm_type_i(ctrl_o[`CTRL_IMM_TYPE_MSB:`CTRL_IMM_TYPE_LSB]),
     .imm_o(imm_o)
   );

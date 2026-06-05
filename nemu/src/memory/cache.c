@@ -45,6 +45,12 @@ static cache_test_write_t backend_write = paddr_write;
 static paddr_t cache_pmem_left = PMEM_LEFT;
 static paddr_t cache_pmem_right = PMEM_RIGHT;
 
+#ifdef CONFIG_CACHE_STATISTIC
+#define CACHE_STAT_INC(field) do { cache_stats.field++; } while (0)
+#else
+#define CACHE_STAT_INC(field) do {} while (0)
+#endif
+
 static inline bool is_power_of_two(uint32_t x) {
   return x != 0 && (x & (x - 1)) == 0;
 }
@@ -104,7 +110,7 @@ static void writeback_dcache_line(DCacheLine *line, uint32_t index) {
     backend_write(base + i, 1, line->data[i]);
   }
   line->dirty = false;
-  cache_stats.dcache_writeback++;
+  CACHE_STAT_INC(dcache_writeback);
 }
 
 static void fill_dcache_line(DCacheLine *line, paddr_t base) {
@@ -176,7 +182,7 @@ word_t icache_read(paddr_t addr, int len) {
     return uncached_read(addr, len);
   }
 
-  cache_stats.icache_access++;
+  CACHE_STAT_INC(icache_access);
   word_t ret = 0;
   bool missed = false;
   for (int i = 0; i < len; i++) {
@@ -185,8 +191,8 @@ word_t icache_read(paddr_t addr, int len) {
     missed |= !hit;
     ret |= (word_t)line->data[line_offset_of(addr + i)] << (i * 8);
   }
-  if (missed) cache_stats.icache_miss++;
-  else cache_stats.icache_hit++;
+  if (missed) CACHE_STAT_INC(icache_miss);
+  else CACHE_STAT_INC(icache_hit);
   return ret;
 }
 
@@ -195,7 +201,7 @@ word_t dcache_read(paddr_t addr, int len) {
     return uncached_read(addr, len);
   }
 
-  cache_stats.dcache_access++;
+  CACHE_STAT_INC(dcache_access);
   word_t ret = 0;
   bool missed = false;
   for (int i = 0; i < len; i++) {
@@ -204,8 +210,8 @@ word_t dcache_read(paddr_t addr, int len) {
     missed |= !hit;
     ret |= (word_t)line->data[line_offset_of(addr + i)] << (i * 8);
   }
-  if (missed) cache_stats.dcache_miss++;
-  else cache_stats.dcache_hit++;
+  if (missed) CACHE_STAT_INC(dcache_miss);
+  else CACHE_STAT_INC(dcache_hit);
   return ret;
 }
 
@@ -215,7 +221,7 @@ void dcache_write(paddr_t addr, int len, word_t data) {
     return;
   }
 
-  cache_stats.dcache_access++;
+  CACHE_STAT_INC(dcache_access);
   bool missed = false;
   for (int i = 0; i < len; i++) {
     bool hit = false;
@@ -224,8 +230,8 @@ void dcache_write(paddr_t addr, int len, word_t data) {
     line->data[line_offset_of(addr + i)] = (data >> (i * 8)) & 0xffu;
     line->dirty = true;
   }
-  if (missed) cache_stats.dcache_miss++;
-  else cache_stats.dcache_hit++;
+  if (missed) CACHE_STAT_INC(dcache_miss);
+  else CACHE_STAT_INC(dcache_hit);
 }
 
 void cache_flush_all(void) {
@@ -240,6 +246,7 @@ const CacheStats *cache_get_stats(void) {
   return &cache_stats;
 }
 
+#ifdef CONFIG_CACHE_STATISTIC
 static uint64_t hit_rate_x100(uint64_t hit, uint64_t access) {
   return access == 0 ? 0 : hit * 10000 / access;
 }
@@ -250,14 +257,17 @@ static void print_cache_line(const char *name, uint64_t access, uint64_t hit, ui
       ", hit rate = %" PRIu64 ".%02" PRIu64 "%%",
       name, access, hit, miss, rate / 100, rate % 100);
 }
+#endif
 
 void cache_statistic(void) {
   cache_flush_all();
+#ifdef CONFIG_CACHE_STATISTIC
   print_cache_line("icache", cache_stats.icache_access,
       cache_stats.icache_hit, cache_stats.icache_miss);
   print_cache_line("dcache", cache_stats.dcache_access,
       cache_stats.dcache_hit, cache_stats.dcache_miss);
   Log("dcache writeback = %" PRIu64, cache_stats.dcache_writeback);
+#endif
 }
 
 #else

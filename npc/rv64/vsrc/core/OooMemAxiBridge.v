@@ -167,22 +167,37 @@ module OooMemAxiBridge (
     end
   endfunction
 
-  /* verilator lint_off BLKSEQ */
+  function data_read_ok;
+    input [`XLEN-1:0] pte;
+    input [`XLEN-1:0] status;
+    begin
+      data_read_ok =
+          pte[1] ||
+          (((status & `MSTATUS_MXR) != {`XLEN{1'b0}}) && pte[3]);
+    end
+  endfunction
+
+  function data_user_ok;
+    input [`XLEN-1:0] pte;
+    input [1:0] priv_mode;
+    input [`XLEN-1:0] status;
+    begin
+      data_user_ok =
+          (priv_mode == `PRIV_U) ? pte[4] :
+          (pte[4] ? ((status & `MSTATUS_SUM) != {`XLEN{1'b0}}) : 1'b1);
+    end
+  endfunction
+
   function data_permission_fault;
     input [`XLEN-1:0] pte;
     input write_access;
     input [1:0] priv_mode;
     input [`XLEN-1:0] status;
-    reg read_ok;
-    reg user_ok;
     begin
-      read_ok = pte[1] ||
-                (((status & `MSTATUS_MXR) != {`XLEN{1'b0}}) && pte[3]);
-      user_ok =
-          (priv_mode == `PRIV_U) ? pte[4] :
-          (pte[4] ? ((status & `MSTATUS_SUM) != {`XLEN{1'b0}}) : 1'b1);
+      // 权限判断拆成纯组合 helper，保持 MXR/SUM/U 语义且去掉函数级 waiver。
       data_permission_fault =
-          (write_access ? !pte[2] : !read_ok) || !user_ok;
+          (write_access ? !pte[2] : !data_read_ok(pte, status)) ||
+          !data_user_ok(pte, priv_mode, status);
     end
   endfunction
 
@@ -190,17 +205,17 @@ module OooMemAxiBridge (
     input [`XLEN-1:0] pte;
     input [`XLEN-1:0] vaddr;
     input [1:0] level;
-    reg [43:0] leaf_ppn;
     begin
-      case (level)
-        2'd2: leaf_ppn = {pte[53:28], vaddr[29:21], vaddr[20:12]};
-        2'd1: leaf_ppn = {pte[53:28], pte[27:19], vaddr[20:12]};
-        default: leaf_ppn = pte[53:10];
-      endcase
-      leaf_paddr = {8'b0, leaf_ppn, vaddr[11:0]};
+      // 用组合 mux 直接拼 leaf PPN，便于后续 TLB/page-walk 逻辑 lint 收敛。
+      leaf_paddr = {8'b0,
+                    (level == 2'd2) ?
+                    {pte[53:28], vaddr[29:21], vaddr[20:12]} :
+                    (level == 2'd1) ?
+                    {pte[53:28], pte[27:19], vaddr[20:12]} :
+                    pte[53:10],
+                    vaddr[11:0]};
     end
   endfunction
-  /* verilator lint_on BLKSEQ */
 
   wire [1:0] req_priv_w = effective_data_priv(priv_mode_i, mstatus_i);
   wire req_translate_w = sv39_enabled(req_priv_w, satp_i);

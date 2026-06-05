@@ -59,8 +59,17 @@ word_t isa_query_intr();
 bool isa_riscv32_clint_in_range(paddr_t addr);
 word_t isa_riscv32_clint_read(paddr_t addr, int len);
 void isa_riscv32_clint_write(paddr_t addr, int len, word_t data);
+bool isa_riscv32_plic_in_range(paddr_t addr);
+word_t isa_riscv32_plic_read(paddr_t addr, int len);
+void isa_riscv32_plic_write(paddr_t addr, int len, word_t data);
+void isa_riscv32_plic_reset(void);
+void isa_riscv32_plic_set_irq(uint32_t irq, bool level);
+word_t isa_riscv32_plic_pending_bits(void);
+void isa_riscv32_plic_statistic(void);
 void isa_riscv32_post_exec(void);
 void isa_riscv32_reset(void);
+void isa_riscv32_mmu_tlb_flush(void);
+void isa_riscv32_wfi(void);
 
 word_t isa_riscv32_mip_value(void);
 void isa_riscv32_write_mie(word_t value);

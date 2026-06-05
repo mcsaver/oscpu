@@ -16,23 +16,6 @@
 #include <isa.h>
 #include <etrace.h>
 
-#define MSTATUS_MIE  ((word_t)1 << 3)//当前是否允许机器态中断
-#define MSTATUS_MPIE ((word_t)1 << 7)//进入trap前，原来的MIE值备份
-#define MSTATUS_MPP_MASK ((word_t)3 << 11)
-#define MSTATUS_MPP_M    ((word_t)3 << 11)
-
-#define MCOUNTINHIBIT_CY 0x00000001u
-
-#define MIP_MSIP 0x00000008u
-#define MIP_MTIP 0x00000080u
-#define MIP_MEIP 0x00000800u
-#define MIP_IRQ_MASK (MIP_MSIP | MIP_MTIP | MIP_MEIP)
-
-#define IRQ_CAUSE_MSI 3u
-#define IRQ_CAUSE_MTI 7u
-#define IRQ_CAUSE_MEI 11u
-#define MCAUSE_INTERRUPT ((word_t)1 << (sizeof(word_t) * 8 - 1))
-
 #define CLINT_BASE 0x02000000u
 #define CLINT_SIZE 0x00010000u
 #define CLINT_MSIP_OFFSET      0x0000u
@@ -46,6 +29,9 @@ static uint64_t clint_mtimecmp = ~0ull;
 static uint64_t clint_mtime = 0;
 static bool host_timer_irq_pending = false;
 static bool mcycle_written_this_inst = false;
+#ifdef CONFIG_RISCV_DEBUG_LOG
+static int trap_log_budget = 64;
+#endif
 
 static inline word_t riscv_mepc_mask(void) {
   return MUXDEF(CONFIG_RISCV_EXT_C, ~(word_t)0x1, ~(word_t)0x3);
@@ -109,7 +95,11 @@ bool isa_riscv32_clint_in_range(paddr_t addr) {
 }
 
 word_t isa_riscv32_clint_read(paddr_t addr, int len) {
-  assert(len >= 1 && len <= 4);
+  assert(len >= 1 && len <= 8);
+  if (len == 8) {
+    return isa_riscv32_clint_read(addr, 4) |
+           (isa_riscv32_clint_read(addr + 4, 4) << 32);
+  }
   uint32_t offset = addr - CLINT_BASE;
   uint32_t shift = (offset & 0x3u) * 8u;
   uint32_t word = clint_read_word(offset & ~0x3u);
@@ -118,7 +108,12 @@ word_t isa_riscv32_clint_read(paddr_t addr, int len) {
 }
 
 void isa_riscv32_clint_write(paddr_t addr, int len, word_t data) {
-  assert(len >= 1 && len <= 4);
+  assert(len >= 1 && len <= 8);
+  if (len == 8) {
+    isa_riscv32_clint_write(addr, 4, (uint32_t)data);
+    isa_riscv32_clint_write(addr + 4, 4, (uint32_t)(data >> 32));
+    return;
+  }
   uint32_t offset = addr - CLINT_BASE;
   uint32_t shift = (offset & 0x3u) * 8u;
   uint32_t mask = len == 4 ? 0xffffffffu : ((1u << (len * 8)) - 1u);
@@ -132,6 +127,9 @@ void isa_riscv32_post_exec(void) {
   if (!mcycle_written_this_inst && (cpu.csr.mcountinhibit & MCOUNTINHIBIT_CY) == 0) {
     cpu.csr.mcycle++;
   }
+  if ((cpu.csr.mcountinhibit & MCOUNTINHIBIT_IR) == 0) {
+    cpu.csr.minstret++;
+  }
   mcycle_written_this_inst = false;
   clint_mtime++;
 }
@@ -142,10 +140,13 @@ void isa_riscv32_reset(void) {
   clint_mtime = 0;
   host_timer_irq_pending = false;
   mcycle_written_this_inst = false;
+  isa_riscv32_plic_reset();
 }
 
 word_t isa_riscv32_mip_value(void) {
-  return (cpu.csr.mip & ~MIP_IRQ_MASK) | clint_pending_bits();
+  return (cpu.csr.mip & ~MIP_MACHINE_MASK) |
+         clint_pending_bits() |
+         isa_riscv32_plic_pending_bits();
 }
 
 void isa_riscv32_write_mie(word_t value) {
@@ -153,8 +154,9 @@ void isa_riscv32_write_mie(word_t value) {
 }
 
 void isa_riscv32_write_mip(word_t value) {
-  // 标准硬件 pending 位来自 CLINT/外部控制器，软件写 mip 不能伪造或清除这些源。
-  cpu.csr.mip = value & ~MIP_IRQ_MASK;
+  // M 级硬件 pending 位来自 CLINT/外部控制器；M-mode 可通过 mip 注入 S 级软件 pending。
+  // sip 的 S-mode 视图只允许 SSIP 写入，不能伪造 STIP/SEIP。
+  cpu.csr.mip = value & MIP_SUPERVISOR_MASK;
 }
 
 void isa_riscv32_write_mcycle_lo(word_t value) {
@@ -185,7 +187,10 @@ static const char *riscv_trap_cause_name(word_t cause) {
   if (riscv_trap_is_intr(cause)) {
     switch (code) {
       case 3:  return "machine software interrupt";
+      case 1:  return "supervisor software interrupt";
+      case 5:  return "supervisor timer interrupt";
       case 7:  return "machine timer interrupt";
+      case 9:  return "supervisor external interrupt";
       case 11: return "machine external interrupt";
       default: return "unknown interrupt";
     }
@@ -203,43 +208,103 @@ static const char *riscv_trap_cause_name(word_t cause) {
     case 8:  return "environment call from U-mode";
     case 9:  return "environment call from S-mode";
     case 11: return "environment call from M-mode";
+    case 12: return "instruction page fault";
+    case 13: return "load page fault";
+    case 15: return "store page fault";
     default: return "unknown exception";
   }
 }
 
+static bool should_log_trap(word_t cause, uint8_t from_priv) {
+#ifndef CONFIG_RISCV_DEBUG_LOG
+  (void)cause;
+  (void)from_priv;
+  return false;
+#else
+  if (trap_log_budget <= 0) return false;
+  if (riscv_trap_is_intr(cause)) return false;
+
+  word_t code = riscv_trap_cause_code(cause);
+  switch (code) {
+    case CAUSE_ECALL_U:
+    case CAUSE_ECALL_S:
+    case CAUSE_ECALL_M:
+      return false;
+    case CAUSE_BREAKPOINT:
+    case CAUSE_ILLEGAL_INST:
+      if (from_priv == PRIV_M) return false;
+      break;
+    default:
+      break;
+  }
+
+  trap_log_budget--;
+  return true;
+#endif
+}
+
+static inline word_t encode_mpp(uint8_t priv) {
+  switch (priv) {
+    case PRIV_S: return MSTATUS_MPP_S;
+    case PRIV_M: return MSTATUS_MPP_M;
+    default: return 0;
+  }
+}
+
+static inline bool trap_delegated_to_s(word_t cause) {
+  if (cpu.priv == PRIV_M) return false;
+
+  word_t code = riscv_trap_cause_code(cause);
+  const word_t xlen = sizeof(word_t) * 8;
+  if (riscv_trap_is_intr(cause)) {
+    return code < xlen && ((cpu.csr.mideleg >> code) & 1u);
+  }
+  return code < xlen && ((cpu.csr.medeleg >> code) & 1u);
+}
+
 vaddr_t isa_raise_intr_with_tval(word_t NO, vaddr_t epc, word_t tval) {
+  uint8_t from_priv = cpu.priv;
+  bool to_s = trap_delegated_to_s(NO);
+  word_t target;
 
-  cpu.csr.mepc = epc & riscv_mepc_mask();
-  cpu.csr.mcause = NO;
-  cpu.csr.mtval = tval;
+  if (to_s) {
+    cpu.csr.sepc = epc & riscv_mepc_mask();
+    cpu.csr.scause = NO;
+    cpu.csr.stval = tval;
 
-  //如果跟MIE=1，就把MPIE置1
-  //如果MIE=0，就把MPIE清0
-  //用于记录是否打开了是否允许机器态中断
-  if (cpu.csr.mstatus & MSTATUS_MIE)
-  {
-    cpu.csr.mstatus |= MSTATUS_MPIE;
+    if (cpu.csr.mstatus & MSTATUS_SIE) cpu.csr.mstatus |= MSTATUS_SPIE;
+    else cpu.csr.mstatus &= ~MSTATUS_SPIE;
+    cpu.csr.mstatus &= ~MSTATUS_SIE;
+    if (cpu.priv == PRIV_S) cpu.csr.mstatus |= MSTATUS_SPP;
+    else cpu.csr.mstatus &= ~MSTATUS_SPP;
+    cpu.csr.mstatus |= MSTATUS_SXL_UXL;
+    cpu.priv = PRIV_S;
+    target = cpu.csr.stvec & ~(word_t)0x3;
+  } else {
+    cpu.csr.mepc = epc & riscv_mepc_mask();
+    cpu.csr.mcause = NO;
+    cpu.csr.mtval = tval;
+
+    if (cpu.csr.mstatus & MSTATUS_MIE) cpu.csr.mstatus |= MSTATUS_MPIE;
+    else cpu.csr.mstatus &= ~MSTATUS_MPIE;
+    cpu.csr.mstatus &= ~MSTATUS_MIE;
+    cpu.csr.mstatus = (cpu.csr.mstatus & ~MSTATUS_MPP_MASK) | encode_mpp(cpu.priv);
+    cpu.csr.mstatus |= MSTATUS_SXL_UXL;
+    cpu.priv = PRIV_M;
+    target = cpu.csr.mtvec & ~(word_t)0x3;
   }
-  else  {
-    cpu.csr.mstatus &= ~MSTATUS_MPIE;// &= ~..代表的是按位清零某些位
+
+  if (should_log_trap(NO, from_priv)) {
+    // 常规 SBI ecall/timer interrupt 会极高频出现；这里只保留少量真正异常入口。
+    const bool is_intr = riscv_trap_is_intr(NO);
+    const char *type_color = is_intr ? ANSI_FG_YELLOW : ANSI_FG_RED;
+    Log("RISC-V trap %s cause=%" PRIu64 " type=%s%s%s to=%c epc=" FMT_WORD
+        " mtval=" FMT_WORD " target=" FMT_WORD,
+        is_intr ? "interrupt" : "exception", (uint64_t)riscv_trap_cause_code(NO),
+        type_color, riscv_trap_cause_name(NO), ANSI_NONE,
+        to_s ? 'S' : 'M', epc & riscv_mepc_mask(), tval, target);
   }
-
-  //进入trap后先关中断
-  cpu.csr.mstatus &= ~MSTATUS_MIE;
-  // 当前只建模 M-mode，进入 trap 时仍显式记录 MPP=M，保证后续 mret 能按规范恢复栈位。
-  cpu.csr.mstatus = (cpu.csr.mstatus & ~MSTATUS_MPP_MASK) | MSTATUS_MPP_M;
-
-  // ETRACE 在 trap 入口统一记录 cause/epc/目标入口，便于直接观察 CTE 往返链路。
-  word_t target = cpu.csr.mtvec & ~0x3u;
-  const bool is_intr = riscv_trap_is_intr(NO);
-  const char *type_color = is_intr ? ANSI_FG_YELLOW : ANSI_FG_RED;
-  // 用 Log 在终端高亮输出 trap 类型；非法指令等同步异常不会再退化成 NEMU_ABORT。
-  Log("RISC-V trap %s cause=%" PRIu64 " type=%s%s%s epc=" FMT_WORD
-      " mtval=" FMT_WORD " target=" FMT_WORD,
-      is_intr ? "interrupt" : "exception", (uint64_t)riscv_trap_cause_code(NO),
-      type_color, riscv_trap_cause_name(NO), ANSI_NONE,
-      cpu.csr.mepc, cpu.csr.mtval, target);
-  etrace_log_raise(NO, cpu.csr.mepc, cpu.csr.mtval, target, cpu.csr.mstatus);
+  etrace_log_raise(NO, epc & riscv_mepc_mask(), tval, target, cpu.csr.mstatus);
 
   return target;
 }
@@ -249,15 +314,23 @@ vaddr_t isa_raise_intr(word_t NO, vaddr_t epc) {
 }
 
 word_t isa_query_intr() {
-  word_t pending = isa_riscv32_mip_value() & cpu.csr.mie & MIP_IRQ_MASK;
-  if ((cpu.csr.mstatus & MSTATUS_MIE) == 0 || pending == 0) {
-    return INTR_EMPTY;
+  word_t enabled_pending = isa_riscv32_mip_value() & cpu.csr.mie & MIP_IRQ_MASK;
+  word_t s_pending = enabled_pending & MIP_SUPERVISOR_MASK;
+  bool s_global = (cpu.priv == PRIV_U) ||
+                  (cpu.priv == PRIV_S && (cpu.csr.mstatus & MSTATUS_SIE));
+  if (s_global && s_pending != 0) {
+    if (s_pending & MIP_SEIP) return MCAUSE_INTERRUPT | IRQ_CAUSE_SEI;
+    if (s_pending & MIP_SSIP) return MCAUSE_INTERRUPT | IRQ_CAUSE_SSI;
+    if (s_pending & MIP_STIP) return MCAUSE_INTERRUPT | IRQ_CAUSE_STI;
   }
 
-  // M-mode 固定优先级对齐 NPC：外部中断 > 软件中断 > 定时器中断。
-  if (pending & MIP_MEIP) return MCAUSE_INTERRUPT | IRQ_CAUSE_MEI;
-  if (pending & MIP_MSIP) return MCAUSE_INTERRUPT | IRQ_CAUSE_MSI;
-  if (pending & MIP_MTIP) {
+  word_t m_pending = enabled_pending & MIP_MACHINE_MASK;
+  bool m_global = (cpu.priv != PRIV_M) || (cpu.csr.mstatus & MSTATUS_MIE);
+  if (!m_global || m_pending == 0) return INTR_EMPTY;
+
+  if (m_pending & MIP_MEIP) return MCAUSE_INTERRUPT | IRQ_CAUSE_MEI;
+  if (m_pending & MIP_MSIP) return MCAUSE_INTERRUPT | IRQ_CAUSE_MSI;
+  if (m_pending & MIP_MTIP) {
     host_timer_irq_pending = false;
     return MCAUSE_INTERRUPT | IRQ_CAUSE_MTI;
   }

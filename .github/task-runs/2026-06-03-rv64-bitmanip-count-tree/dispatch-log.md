@@ -1,0 +1,22 @@
+# RV64 bitmanip count-tree dispatch log
+
+- 需求：`OooIntBackend` 的 `bitmanip_result()` 中，Zbb `clz/ctz/cpop` 原先用 64 次函数内循环扫描或累加。该写法功能正确，但更像仿真式描述，综合后优先链/累加链边界不清晰；目标是在保持一拍 bitmanip 执行语义的前提下，改成明确的分层组合树。
+- 协议规则：
+  - `CTRL_BITMANIP_BIT` 仍在 issue lane 当前周期选择 `bitmanip_result()`。
+  - 结果仍通过 WBU 的 ALU data 进入 execute register、PRF/ROB writeback 和 commit。
+  - 不新增 ready/backpressure，不改变 issue0/issue1 forwarding、dispatch bypass、branch fast resolve 或 MulDiv 长延迟握手。
+  - 非 `clz/ctz/cpop` 的 Zba/Zbb/Zbc/Zbs case 保持原路径。
+- 状态机：
+  - 本轮纯组合 helper 替换，无新增状态。
+  - 后端原 `issue fire -> execute capture -> writeback/commit` 时序保持不变。
+- 不变量：
+  - `clz(0) = 64`，`ctz(0) = 64`。
+  - 非零 `clz` 返回最高 1 bit 前的 0 个数，非零 `ctz` 返回最低 1 bit 前的 0 个数。
+  - `cpop` 返回 64-bit 输入中 1 的个数。
+  - issue0/issue1 同拍 count 类 bitmanip 互不影响。
+  - Zbc `clmul*` 暂不纳入本轮，不能把本轮结论外推为完整 bitmanip PPA 闭合。
+- 数据通路约束：
+  - `clz/ctz` 先用 8-bit helper 得到 byte 内 count，再用 8 个 byte 的 priority mux tree 加 byte offset。
+  - `cpop` 先做 8 个 byte popcount，再用 `2 byte -> 4 byte -> 8 byte` 的加法树求和。
+  - count 结果统一 7-bit，再零扩展到 XLEN。
+- 验证证据：见 `task-report.md`。

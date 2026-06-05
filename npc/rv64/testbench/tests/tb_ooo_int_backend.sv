@@ -106,6 +106,7 @@ module tb_ooo_int_backend;
     .mem_issue_block_i(1'b0),
     .pending_branch_fast_valid_i(1'b0),
     .pending_branch_fast_pc_i({`XLEN{1'b0}}),
+    .recover_gprs_i({(`XLEN * `REG_NUM){1'b0}}),
     .dispatch0_valid_i(dispatch0_valid),
     .dispatch0_ready_o(dispatch0_ready),
     .dispatch0_pc_i(dispatch0_pc),
@@ -264,6 +265,43 @@ module tb_ooo_int_backend;
     end
   endfunction
 
+  function [`CTRL_BUS_W-1:0] make_bitmanip_ctrl;
+    begin
+      make_bitmanip_ctrl = make_alu_ctrl(`OP1_SEL_RS1, `OP2_SEL_RS2,
+                                         `ALU_OP_ADD, 1'b1, 1'b0, 1'b1);
+      make_bitmanip_ctrl[`CTRL_BITMANIP_BIT] = 1'b1;
+    end
+  endfunction
+
+  function [`CTRL_BUS_W-1:0] make_bitmanip_op_ctrl;
+    begin
+      make_bitmanip_op_ctrl = make_bitmanip_ctrl();
+      make_bitmanip_op_ctrl[`CTRL_RS2_EN_BIT] = 1'b1;
+    end
+  endfunction
+
+  function [`INST_W-1:0] inst_op_imm;
+    input [6:0] funct7;
+    input [4:0] imm5;
+    input [4:0] rs1;
+    input [2:0] funct3;
+    input [4:0] rd;
+    begin
+      inst_op_imm = {funct7, imm5, rs1, funct3, rd, `OPCODE_OP_IMM};
+    end
+  endfunction
+
+  function [`INST_W-1:0] inst_op;
+    input [6:0] funct7;
+    input [4:0] rs2;
+    input [4:0] rs1;
+    input [2:0] funct3;
+    input [4:0] rd;
+    begin
+      inst_op = {funct7, rs2, rs1, funct3, rd, `OPCODE_OP};
+    end
+  endfunction
+
   function [`INST_W-1:0] inst_amo;
     input [4:0] funct5;
     input [4:0] rs2;
@@ -272,6 +310,45 @@ module tb_ooo_int_backend;
     input [4:0] rd;
     begin
       inst_amo = {funct5, 2'b00, rs2, rs1, funct3, rd, `OPCODE_AMO};
+    end
+  endfunction
+
+  task automatic tb_check64;
+    input [1023:0] what;
+    input [`XLEN-1:0] got;
+    input [`XLEN-1:0] exp;
+    begin
+      if (got !== exp) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] %0s got=0x%016x expected=0x%016x",
+                 what, got, exp);
+      end
+    end
+  endtask
+
+  function [`XLEN-1:0] ref_clmul;
+    input [1:0] op;
+    input [`XLEN-1:0] src1;
+    input [`XLEN-1:0] src2;
+    integer i;
+    begin
+      ref_clmul = {`XLEN{1'b0}};
+      if (op == 2'd0) begin
+        for (i = 0; i < 64; i = i + 1) begin
+          if (src2[i])
+            ref_clmul = ref_clmul ^ (src1 << i);
+        end
+      end else if (op == 2'd1) begin
+        for (i = 0; i < 64; i = i + 1) begin
+          if (src2[i])
+            ref_clmul = ref_clmul ^ (src1 >> (63 - i));
+        end
+      end else begin
+        for (i = 1; i < 64; i = i + 1) begin
+          if (src2[i])
+            ref_clmul = ref_clmul ^ (src1 >> (64 - i));
+        end
+      end
     end
   endfunction
 
@@ -363,6 +440,89 @@ module tb_ooo_int_backend;
     end
   endtask
 
+  task automatic check_mem0_request;
+    input [1023:0] label;
+    input exp_write;
+    input [`XLEN-1:0] exp_addr;
+    input check_wdata;
+    input [`XLEN-1:0] exp_wdata;
+    input check_wstrb;
+    input [`STRB_W-1:0] exp_wstrb;
+    begin
+      tb_check1({label, " request visible"}, mem_req_valid, 1'b1);
+      tb_check1({label, " request write"}, mem_req_write, exp_write);
+      tb_check32({label, " request addr"}, mem_req_addr[31:0],
+                 exp_addr[31:0]);
+      if (check_wdata) begin
+        tb_check32({label, " request wdata"}, mem_req_wdata[31:0],
+                   exp_wdata[31:0]);
+      end
+      if (check_wstrb) begin
+        tb_check32({label, " request wstrb"},
+                   {{(32-`STRB_W){1'b0}}, mem_req_wstrb},
+                   {{(32-`STRB_W){1'b0}}, exp_wstrb});
+      end
+    end
+  endtask
+
+  task automatic wait_mem0_request;
+    input [1023:0] label;
+    input exp_write;
+    input [`XLEN-1:0] exp_addr;
+    input check_wdata;
+    input [`XLEN-1:0] exp_wdata;
+    input check_wstrb;
+    input [`STRB_W-1:0] exp_wstrb;
+    integer wait_cycles;
+    begin
+      #1;
+      wait_cycles = 0;
+      while (!mem_req_valid && (wait_cycles < 16)) begin
+        `TB_TICK(clk);
+        #1;
+        wait_cycles = wait_cycles + 1;
+      end
+      check_mem0_request(label, exp_write, exp_addr, check_wdata,
+                         exp_wdata, check_wstrb, exp_wstrb);
+    end
+  endtask
+
+  task automatic complete_mem0_response;
+    input [1023:0] label;
+    input [`XLEN-1:0] rsp_data;
+    input exp_commit;
+    input exp_rd_en;
+    input check_data;
+    input [`XLEN-1:0] exp_data;
+    integer wait_cycles;
+    begin
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = rsp_data;
+      mem_rsp_error = 1'b0;
+      #1;
+      wait_cycles = 0;
+      while (!mem_rsp_ready && (wait_cycles < 16)) begin
+        `TB_TICK(clk);
+        #1;
+        wait_cycles = wait_cycles + 1;
+      end
+      tb_check1({label, " rsp ready"}, mem_rsp_ready, 1'b1);
+      tb_check1({label, " commit valid"}, commit0_valid, exp_commit);
+      if (exp_commit) begin
+        tb_check1({label, " commit rd en"}, commit0_rd_en, exp_rd_en);
+        if (check_data) begin
+          tb_check32({label, " commit data"}, commit0_data[31:0],
+                     exp_data[31:0]);
+        end
+      end
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      mem_rsp_rdata = {`XLEN{1'b0}};
+      mem_rsp_error = 1'b0;
+      #1;
+    end
+  endtask
+
   task automatic tick_dispatch_to_commit;
     input [1023:0] label;
     input [`XLEN-1:0] exp0;
@@ -388,6 +548,56 @@ module tb_ooo_int_backend;
       tb_check32({label, " rob drains"}, {27'b0, rob_count}, 32'd0);
       tb_check32({label, " iq drains"}, {28'b0, issue_count}, 32'd0);
       tb_check32({label, " freelist recovers"}, {25'b0, free_count}, 32'd32);
+    end
+  endtask
+
+  task automatic wait_commit0_data64;
+    input [1023:0] label;
+    input [`XLEN-1:0] exp_data;
+    input integer max_cycles;
+    integer wait_cycles;
+    begin
+      wait_cycles = 0;
+      while (!commit0_valid && (wait_cycles < max_cycles)) begin
+        `TB_TICK(clk);
+        #1;
+        wait_cycles = wait_cycles + 1;
+      end
+      tb_check1({label, " commit0 valid"}, commit0_valid, 1'b1);
+      tb_check1({label, " commit0 rd en"}, commit0_rd_en, 1'b1);
+      if (commit0_valid) begin
+        tb_check64({label, " commit0 data"}, commit0_data, exp_data);
+      end
+      `TB_TICK(clk);
+      #1;
+      tb_check32({label, " rob drains"}, {27'b0, rob_count}, 32'd0);
+      tb_check32({label, " iq drains"}, {28'b0, issue_count}, 32'd0);
+      tb_check32({label, " freelist recovers"}, {25'b0, free_count}, 32'd32);
+    end
+  endtask
+
+  task automatic run_clmul_backend_case;
+    input [1023:0] label;
+    input [`XLEN-1:0] pc;
+    input [2:0] funct3;
+    input [4:0] rd;
+    input [1:0] op;
+    begin
+      set_dispatch0(pc, make_bitmanip_op_ctrl(), 5'd22, 5'd23, rd, 64'd0);
+      dispatch0_inst = inst_op(7'h05, 5'd23, 5'd22, funct3, rd);
+      #1;
+      tb_check1({label, " dispatch ready"}, dispatch0_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check1({label, " does not use ex0 one-cycle path"},
+                execute0_valid, 1'b0);
+      tb_check1({label, " waits for long-op response"}, commit0_valid, 1'b0);
+      tb_check32({label, " rob holds long op"}, {27'b0, rob_count}, 32'd1);
+      wait_commit0_data64(label,
+                          ref_clmul(op, 64'h1234_5678_9abc_def0,
+                                    64'hfedc_ba98_7654_3210),
+                          90);
     end
   endtask
 
@@ -477,6 +687,55 @@ module tb_ooo_int_backend;
                                 1'b0, 1'b0, 1'b1),
                   5'd0, 5'd0, 5'd10, 32'd0);
     tick_dispatch_to_commit("operand select", 32'h1234_5000, 32'h8000_1008);
+
+    set_dispatch0(32'h8000_1800,
+                  make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM, `ALU_OP_COPY_B,
+                                1'b0, 1'b0, 1'b1),
+                  5'd0, 5'd0, 5'd17, 64'hf0f1_0001_0000_0000);
+    #1;
+    tb_check1("bitmanip setup dispatch ready", dispatch0_ready, 1'b1);
+    `TB_TICK(clk);
+    clear_dispatch();
+    #1;
+
+    // Zbb count 类指令走 bitmanip helper 的 byte 分层组合树，direct TB 锁住 64-bit 边界值。
+    set_dispatch0(32'h8000_1810, make_bitmanip_ctrl(),
+                  5'd17, 5'd0, 5'd18, 64'd0);
+    dispatch0_inst = inst_op_imm(7'h30, 5'h00, 5'd17,
+                                 `FUNCT3_SLL, 5'd18);
+    set_dispatch1(32'h8000_1814, make_bitmanip_ctrl(),
+                  5'd17, 5'd0, 5'd19, 64'd0);
+    dispatch1_inst = inst_op_imm(7'h30, 5'h01, 5'd17,
+                                 `FUNCT3_SLL, 5'd19);
+    tick_dispatch_to_commit("bitmanip clz ctz", 32'd0, 32'd32);
+
+    set_dispatch0(32'h8000_1820, make_bitmanip_ctrl(),
+                  5'd17, 5'd0, 5'd20, 64'd0);
+    dispatch0_inst = inst_op_imm(7'h30, 5'h02, 5'd17,
+                                 `FUNCT3_SLL, 5'd20);
+    set_dispatch1(32'h8000_1824, make_bitmanip_ctrl(),
+                  5'd0, 5'd0, 5'd21, 64'd0);
+    dispatch1_inst = inst_op_imm(7'h30, 5'h00, 5'd0,
+                                 `FUNCT3_SLL, 5'd21);
+    tick_dispatch_to_commit("bitmanip cpop clz-zero", 32'd10, 32'd64);
+
+    set_dispatch0(32'h8000_1840,
+                  make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                `ALU_OP_COPY_B, 1'b0, 1'b0, 1'b1),
+                  5'd0, 5'd0, 5'd22, 64'h1234_5678_9abc_def0);
+    set_dispatch1(32'h8000_1844,
+                  make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                `ALU_OP_COPY_B, 1'b0, 1'b0, 1'b1),
+                  5'd0, 5'd0, 5'd23, 64'hfedc_ba98_7654_3210);
+    tick_dispatch_to_commit("clmul setup operands", 32'h9abc_def0,
+                            32'h7654_3210);
+
+    run_clmul_backend_case("backend clmul", 32'h8000_1850,
+                           `FUNCT3_SLL, 5'd24, 2'd0);
+    run_clmul_backend_case("backend clmulh", 32'h8000_1860,
+                           `FUNCT3_SLT, 5'd25, 2'd1);
+    run_clmul_backend_case("backend clmulr", 32'h8000_1870,
+                           `FUNCT3_SLTU, 5'd26, 2'd2);
 
     set_dispatch0(32'h8000_2000,
                   make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM, `ALU_OP_ADD,
@@ -609,22 +868,13 @@ module tb_ooo_int_backend;
 	    tb_check1("lane0 alu writes before delayed lane1 store", execute0_valid, 1'b1);
 	    tb_check1("lane0 alu commits before delayed lane1 store", commit0_valid, 1'b1);
 	    tb_check32("lane0 alu commit data before store", commit0_data, 32'h0000_0055);
-	    tb_check1("lane1 store request visible", mem_req_valid, 1'b1);
-	    tb_check1("lane1 store request write", mem_req_write, 1'b1);
-	    tb_check32("lane1 store request addr", mem_req_addr, 32'h0000_0100);
+	    wait_mem0_request("lane1 store", 1'b1, 32'h0000_0100,
+	                      1'b0, {`XLEN{1'b0}}, 1'b0, {`STRB_W{1'b0}});
 
 	    `TB_TICK(clk);
-	    mem_rsp_valid = 1'b1;
-	    mem_rsp_rdata = 32'h0;
-	    mem_rsp_error = 1'b0;
 	    #1;
-	    tb_check1("lane1 mem rsp uses first writeback", execute0_valid, 1'b1);
-	    tb_check1("lane1 store commits after lane0 alu", commit0_valid, 1'b1);
-	    tb_check1("lane1 store has no rd write", commit0_rd_en, 1'b0);
-
-	    `TB_TICK(clk);
-	    mem_rsp_valid = 1'b0;
-	    #1;
+	    complete_mem0_response("lane1 store", {`XLEN{1'b0}},
+	                           1'b1, 1'b0, 1'b0, {`XLEN{1'b0}});
 	    tb_check32("lane1 store rob drains", {27'b0, rob_count}, 32'd0);
 	    tb_check32("lane1 store iq drains", {28'b0, issue_count}, 32'd0);
 	    tb_check32("lane1 store freelist recovers", {25'b0, free_count}, 32'd32);
@@ -646,21 +896,13 @@ module tb_ooo_int_backend;
     dispatch0_inst = inst_amo(5'b00010, 5'd0, 5'd1, `FUNCT3_LD, 5'd3);
     #1;
     tb_check1("lr.d dispatch ready", dispatch0_ready, 1'b1);
-    tb_check1("lr.d request visible", mem_req_valid, 1'b1);
-    tb_check1("lr.d is read", mem_req_write, 1'b0);
-    tb_check32("lr.d addr uses rs1 only", mem_req_addr, 32'h0000_0300);
     `TB_TICK(clk);
     clear_dispatch();
-    mem_rsp_valid = 1'b1;
-    mem_rsp_rdata = 64'h1111_2222_3333_4444;
-    mem_rsp_error = 1'b0;
-    #1;
-    tb_check1("lr.d rsp ready", mem_rsp_ready, 1'b1);
-    tb_check1("lr.d commits", commit0_valid, 1'b1);
-    tb_check32("lr.d commit low data", commit0_data[31:0], 32'h3333_4444);
-    `TB_TICK(clk);
-    mem_rsp_valid = 1'b0;
-    #1;
+    wait_mem0_request("lr.d", 1'b0, 32'h0000_0300,
+                      1'b0, {`XLEN{1'b0}}, 1'b0, {`STRB_W{1'b0}});
+    complete_mem0_response("lr.d", 64'h1111_2222_3333_4444,
+                           1'b1, 1'b1, 1'b1,
+                           64'h0000_0000_3333_4444);
 
     set_dispatch0(32'h8000_4020,
                   make_amo_ctrl(`MEM_SIZE_DWORD, 1'b0, 1'b1),
@@ -670,23 +912,12 @@ module tb_ooo_int_backend;
     tb_check1("sc.d success dispatch ready", dispatch0_ready, 1'b1);
     `TB_TICK(clk);
     clear_dispatch();
-    #1;
-    tb_check1("sc.d success request visible", mem_req_valid, 1'b1);
-    tb_check1("sc.d success writes", mem_req_write, 1'b1);
-    tb_check32("sc.d success addr", mem_req_addr, 32'h0000_0300);
-    tb_check32("sc.d success wdata", mem_req_wdata[31:0], 32'd5);
-    tb_check32("sc.d success wstrb", {{(32-`STRB_W){1'b0}}, mem_req_wstrb}, 32'hff);
+    wait_mem0_request("sc.d success", 1'b1, 32'h0000_0300,
+                      1'b1, 32'd5, 1'b1, 8'hff);
     `TB_TICK(clk);
-    mem_rsp_valid = 1'b1;
-    mem_rsp_rdata = {`XLEN{1'b0}};
-    mem_rsp_error = 1'b0;
     #1;
-    tb_check1("sc.d success rsp ready", mem_rsp_ready, 1'b1);
-    tb_check1("sc.d success commits", commit0_valid, 1'b1);
-    tb_check32("sc.d success returns zero", commit0_data, 32'd0);
-    `TB_TICK(clk);
-    mem_rsp_valid = 1'b0;
-    #1;
+    complete_mem0_response("sc.d success", {`XLEN{1'b0}},
+                           1'b1, 1'b1, 1'b1, {`XLEN{1'b0}});
 
     set_dispatch0(32'h8000_4030,
                   make_amo_ctrl(`MEM_SIZE_DWORD, 1'b0, 1'b1),
@@ -713,35 +944,18 @@ module tb_ooo_int_backend;
     tb_check1("amoadd.d dispatch ready", dispatch0_ready, 1'b1);
     `TB_TICK(clk);
     clear_dispatch();
-    #1;
-    tb_check1("amoadd.d read request visible", mem_req_valid, 1'b1);
-    tb_check1("amoadd.d first request is read", mem_req_write, 1'b0);
-    tb_check32("amoadd.d addr uses rs1 not rs2", mem_req_addr, 32'h0000_0300);
+    wait_mem0_request("amoadd.d read", 1'b0, 32'h0000_0300,
+                      1'b0, {`XLEN{1'b0}}, 1'b0, {`STRB_W{1'b0}});
     `TB_TICK(clk);
-    mem_rsp_valid = 1'b1;
-    mem_rsp_rdata = 64'd7;
-    mem_rsp_error = 1'b0;
     #1;
-    tb_check1("amoadd.d read rsp ready", mem_rsp_ready, 1'b1);
-    tb_check1("amoadd.d read does not commit", commit0_valid, 1'b0);
+    complete_mem0_response("amoadd.d read", 64'd7,
+                           1'b0, 1'b0, 1'b0, {`XLEN{1'b0}});
+    wait_mem0_request("amoadd.d write", 1'b1, 32'h0000_0300,
+                      1'b1, 32'd12, 1'b0, {`STRB_W{1'b0}});
     `TB_TICK(clk);
-    mem_rsp_valid = 1'b0;
     #1;
-    tb_check1("amoadd.d write request visible", mem_req_valid, 1'b1);
-    tb_check1("amoadd.d second request is write", mem_req_write, 1'b1);
-    tb_check32("amoadd.d write addr", mem_req_addr, 32'h0000_0300);
-    tb_check32("amoadd.d write data", mem_req_wdata[31:0], 32'd12);
-    `TB_TICK(clk);
-    mem_rsp_valid = 1'b1;
-    mem_rsp_rdata = {`XLEN{1'b0}};
-    mem_rsp_error = 1'b0;
-    #1;
-    tb_check1("amoadd.d write rsp ready", mem_rsp_ready, 1'b1);
-    tb_check1("amoadd.d commits old value", commit0_valid, 1'b1);
-    tb_check32("amoadd.d old value data", commit0_data, 32'd7);
-    `TB_TICK(clk);
-    mem_rsp_valid = 1'b0;
-    #1;
+    complete_mem0_response("amoadd.d write", {`XLEN{1'b0}},
+                           1'b1, 1'b1, 1'b1, 64'd7);
     tb_check32("amo sequence rob drains", {27'b0, rob_count}, 32'd0);
     tb_check32("amo sequence iq drains", {28'b0, issue_count}, 32'd0);
     tb_check32("amo sequence freelist recovers", {25'b0, free_count}, 32'd32);

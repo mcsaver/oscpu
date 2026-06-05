@@ -1,7 +1,6 @@
 // 参数化 single-beat AXI-like crossbar。
 // 当前 NPC cache miss 侧还没有 AXI4 ID/burst，本模块先把 valid/ready 通道、
 // 地址译码和 response route 独立出来，后续扩设备时不再改 core/cache。
-/* verilator lint_off UNUSEDSIGNAL */
 
 module AxiLiteXbar #(
   parameter ADDR_W = 32,
@@ -64,7 +63,7 @@ module AxiLiteXbar #(
 
   function [ADDR_W-1:0] m_addr_slice;
     input [M_COUNT*ADDR_W-1:0] bus;
-    input integer idx;
+    input [MASTER_W-1:0] idx;
     begin
       m_addr_slice = bus[idx*ADDR_W +: ADDR_W];
     end
@@ -72,7 +71,7 @@ module AxiLiteXbar #(
 
   function [DATA_W-1:0] m_data_slice;
     input [M_COUNT*DATA_W-1:0] bus;
-    input integer idx;
+    input [MASTER_W-1:0] idx;
     begin
       m_data_slice = bus[idx*DATA_W +: DATA_W];
     end
@@ -80,7 +79,7 @@ module AxiLiteXbar #(
 
   function [STRB_W-1:0] m_strb_slice;
     input [M_COUNT*STRB_W-1:0] bus;
-    input integer idx;
+    input [MASTER_W-1:0] idx;
     begin
       m_strb_slice = bus[idx*STRB_W +: STRB_W];
     end
@@ -88,44 +87,44 @@ module AxiLiteXbar #(
 
   function [ARUSER_W-1:0] m_user_slice;
     input [M_COUNT*ARUSER_W-1:0] bus;
-    input integer idx;
+    input [MASTER_W-1:0] idx;
     begin
       m_user_slice = bus[idx*ARUSER_W +: ARUSER_W];
     end
   endfunction
 
   function [ADDR_W-1:0] s_base_slice;
-    input integer idx;
+    input [SLAVE_W-1:0] idx;
     begin
       s_base_slice = SLAVE_BASE[idx*ADDR_W +: ADDR_W];
     end
   endfunction
 
   function [ADDR_W-1:0] s_mask_slice;
-    input integer idx;
+    input [SLAVE_W-1:0] idx;
     begin
       s_mask_slice = SLAVE_MASK[idx*ADDR_W +: ADDR_W];
     end
   endfunction
 
   function [MASTER_W-1:0] master_idx;
-    input integer idx;
+    input [MASTER_W-1:0] idx;
     begin
-      master_idx = idx[MASTER_W-1:0];
+      master_idx = idx;
     end
   endfunction
 
   function [SLAVE_W-1:0] slave_idx;
-    input integer idx;
+    input [SLAVE_W-1:0] idx;
     begin
-      slave_idx = idx[SLAVE_W-1:0];
+      slave_idx = idx;
     end
   endfunction
 
   function integer master_int;
     input [MASTER_W-1:0] idx;
     begin
-      master_int = {{(32-MASTER_W){1'b0}}, idx};
+      master_int = idx;
     end
   endfunction
 
@@ -205,6 +204,7 @@ module AxiLiteXbar #(
   reg [MASTER_W-1:0] rd_grant_master_r [0:S_COUNT-1];
   reg [S_COUNT-1:0] wr_grant_valid_r;
   reg [MASTER_W-1:0] wr_grant_master_r [0:S_COUNT-1];
+  reg [SLAVE_W-1:0] artarget_decode_r [0:M_COUNT-1];
   reg [SLAVE_W-1:0] awtarget_decode_r [0:M_COUNT-1];
 
   assign m_arready_o = m_arready_r;
@@ -258,7 +258,9 @@ module AxiLiteXbar #(
     wr_grant_valid_r = {S_COUNT{1'b0}};
     cand = 0;
     owner = 0;
+    // 每个 master 的目标 slave 只译码一次，再供各 slave 仲裁器复用。
     for (m = 0; m < M_COUNT; m = m + 1) begin
+      artarget_decode_r[m] = decode_slave(m_addr_slice(m_araddr_i, m));
       awtarget_decode_r[m] = decode_slave(m_addr_slice(m_awaddr_i, m));
     end
     for (s = 0; s < S_COUNT; s = s + 1) begin
@@ -276,16 +278,45 @@ module AxiLiteXbar #(
 
     for (s = 0; s < S_COUNT; s = s + 1) begin
       if (!rd_active_q[s]) begin
-        for (step = 0; step < M_COUNT; step = step + 1) begin
-          cand = master_int(rd_rr_q[s]) + step;
-          if (cand >= M_COUNT) cand = cand - M_COUNT;
-          if (!rd_grant_valid_r[s] &&
-              m_arvalid_i[cand] && !rd_master_busy_q[cand] &&
-              !m_read_abort_i[cand] &&
-              (decode_slave(m_addr_slice(m_araddr_i, cand)) == slave_idx(s))) begin
-            rd_grant_valid_r[s] = 1'b1;
-            rd_grant_master_r[s] = master_idx(cand);
-            m_arready_r[cand] = 1'b1;
+        if (M_COUNT == 2) begin
+          // 当前 RV64 平台真实使用 IFU/LSU 两个 master；显式两路选择避免综合成可变扫描链。
+          if (rd_rr_q[s] == master_idx(0)) begin
+            if (m_arvalid_i[0] && !rd_master_busy_q[0] &&
+                !m_read_abort_i[0] && (artarget_decode_r[0] == slave_idx(s))) begin
+              rd_grant_valid_r[s] = 1'b1;
+              rd_grant_master_r[s] = master_idx(0);
+              m_arready_r[0] = 1'b1;
+            end else if (m_arvalid_i[1] && !rd_master_busy_q[1] &&
+                         !m_read_abort_i[1] && (artarget_decode_r[1] == slave_idx(s))) begin
+              rd_grant_valid_r[s] = 1'b1;
+              rd_grant_master_r[s] = master_idx(1);
+              m_arready_r[1] = 1'b1;
+            end
+          end else begin
+            if (m_arvalid_i[1] && !rd_master_busy_q[1] &&
+                !m_read_abort_i[1] && (artarget_decode_r[1] == slave_idx(s))) begin
+              rd_grant_valid_r[s] = 1'b1;
+              rd_grant_master_r[s] = master_idx(1);
+              m_arready_r[1] = 1'b1;
+            end else if (m_arvalid_i[0] && !rd_master_busy_q[0] &&
+                         !m_read_abort_i[0] && (artarget_decode_r[0] == slave_idx(s))) begin
+              rd_grant_valid_r[s] = 1'b1;
+              rd_grant_master_r[s] = master_idx(0);
+              m_arready_r[0] = 1'b1;
+            end
+          end
+        end else begin
+          for (step = 0; step < M_COUNT; step = step + 1) begin
+            cand = master_int(rd_rr_q[s]) + step;
+            if (cand >= M_COUNT) cand = cand - M_COUNT;
+            if (!rd_grant_valid_r[s] &&
+                m_arvalid_i[cand] && !rd_master_busy_q[cand] &&
+                !m_read_abort_i[cand] &&
+                (artarget_decode_r[cand] == slave_idx(s))) begin
+              rd_grant_valid_r[s] = 1'b1;
+              rd_grant_master_r[s] = master_idx(cand);
+              m_arready_r[cand] = 1'b1;
+            end
           end
         end
       end
@@ -318,15 +349,40 @@ module AxiLiteXbar #(
 
     for (s = 0; s < S_COUNT; s = s + 1) begin
       if (!wr_active_q[s]) begin
-        for (step = 0; step < M_COUNT; step = step + 1) begin
-          cand = master_int(wr_rr_q[s]) + step;
-          if (cand >= M_COUNT) cand = cand - M_COUNT;
-          if (!wr_grant_valid_r[s] &&
-              wr_aw_hold_q[cand] && wr_w_hold_q[cand] &&
-              !wr_master_busy_q[cand] &&
-              (wr_awtarget_q[cand] == slave_idx(s))) begin
-            wr_grant_valid_r[s] = 1'b1;
-            wr_grant_master_r[s] = master_idx(cand);
+        if (M_COUNT == 2) begin
+          // 写通道同样针对真实两 master 路径展开，保留 AW/W hold 后再 grant 的协议边界。
+          if (wr_rr_q[s] == master_idx(0)) begin
+            if (wr_aw_hold_q[0] && wr_w_hold_q[0] &&
+                !wr_master_busy_q[0] && (wr_awtarget_q[0] == slave_idx(s))) begin
+              wr_grant_valid_r[s] = 1'b1;
+              wr_grant_master_r[s] = master_idx(0);
+            end else if (wr_aw_hold_q[1] && wr_w_hold_q[1] &&
+                         !wr_master_busy_q[1] && (wr_awtarget_q[1] == slave_idx(s))) begin
+              wr_grant_valid_r[s] = 1'b1;
+              wr_grant_master_r[s] = master_idx(1);
+            end
+          end else begin
+            if (wr_aw_hold_q[1] && wr_w_hold_q[1] &&
+                !wr_master_busy_q[1] && (wr_awtarget_q[1] == slave_idx(s))) begin
+              wr_grant_valid_r[s] = 1'b1;
+              wr_grant_master_r[s] = master_idx(1);
+            end else if (wr_aw_hold_q[0] && wr_w_hold_q[0] &&
+                         !wr_master_busy_q[0] && (wr_awtarget_q[0] == slave_idx(s))) begin
+              wr_grant_valid_r[s] = 1'b1;
+              wr_grant_master_r[s] = master_idx(0);
+            end
+          end
+        end else begin
+          for (step = 0; step < M_COUNT; step = step + 1) begin
+            cand = master_int(wr_rr_q[s]) + step;
+            if (cand >= M_COUNT) cand = cand - M_COUNT;
+            if (!wr_grant_valid_r[s] &&
+                wr_aw_hold_q[cand] && wr_w_hold_q[cand] &&
+                !wr_master_busy_q[cand] &&
+                (wr_awtarget_q[cand] == slave_idx(s))) begin
+              wr_grant_valid_r[s] = 1'b1;
+              wr_grant_master_r[s] = master_idx(cand);
+            end
           end
         end
       end
@@ -498,5 +554,3 @@ module AxiLiteXbar #(
   end
 
 endmodule
-
-/* verilator lint_on UNUSEDSIGNAL */

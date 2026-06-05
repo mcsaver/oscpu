@@ -36,12 +36,25 @@ def initrd_cells(cfg: dict, mode: str, initrd_image: str | None) -> tuple[str, s
     return u32_cells(start), u32_cells(end)
 
 
+def rng_seed_line(cfg: dict) -> str:
+    seed = cfg.get("chosen", {}).get("rng_seed")
+    if not seed:
+        return ""
+    if isinstance(seed, (list, tuple)):
+        seed_text = " ".join(f"{int(byte) & 0xff:02x}" for byte in seed)
+    else:
+        seed_text = str(seed).strip()
+    # Linux 会读取 /chosen/rng-seed 并在 trust_bootloader 时给随机池记账。
+    return f"    rng-seed = [{seed_text}];\n"
+
+
 def render(
     cfg: dict,
     mode: str,
     initrd_image: str | None,
     bootargs_key: str | None,
     memory_size: str | None,
+    bootargs_extra: str | None,
 ) -> str:
     mem = cfg["memory"]
     mem_size = int(memory_size, 0) if memory_size else int(mem["size"])
@@ -51,6 +64,8 @@ def render(
     clint = dev["clint"]
     virtio = dev["virtio_blk"]
     bootargs = cfg["bootargs"][bootargs_key or mode]
+    if bootargs_extra:
+        bootargs = f"{bootargs} {bootargs_extra.strip()}"
     initrd = initrd_cells(cfg, mode, initrd_image)
     ndev = int(plic["sources_rootfs"] if mode == "rootfs" else plic["sources_initramfs"])
 
@@ -61,6 +76,7 @@ def render(
             f"    linux,initrd-start = <{initrd[0]}>;\n"
             f"    linux,initrd-end = <{initrd[1]}>;\n"
         )
+    rng_seed = rng_seed_line(cfg)
 
     virtio_node = ""
     if mode == "rootfs":
@@ -85,7 +101,7 @@ def render(
   chosen {{
     stdout-path = "serial0:115200n8";
     bootargs = "{bootargs}";
-{initrd_lines}  }};
+{rng_seed}{initrd_lines}  }};
 
   aliases {{
     serial0 = &UART0;
@@ -158,6 +174,7 @@ def main() -> int:
     parser.add_argument("--config", default="Linux/platform/npc-rv64.yml")
     parser.add_argument("--mode", choices=["kernel", "initramfs", "rootfs"], default="kernel")
     parser.add_argument("--bootargs-key", choices=["kernel", "initramfs", "ubuntu_initramfs", "rootfs"])
+    parser.add_argument("--bootargs-extra", default="")
     parser.add_argument("--initrd-image")
     parser.add_argument("--memory-size", help="覆盖 memory.reg 的 size，支持 0x... 形式")
     parser.add_argument("--output", required=True)
@@ -167,7 +184,10 @@ def main() -> int:
     cfg = load_config(config_path)
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    text = render(cfg, args.mode, args.initrd_image, args.bootargs_key, args.memory_size)
+    text = render(
+        cfg, args.mode, args.initrd_image, args.bootargs_key,
+        args.memory_size, args.bootargs_extra,
+    )
     output.write_text(text, encoding="utf-8")
     print(f"[gen-dts] {args.mode}: {output}")
     return 0

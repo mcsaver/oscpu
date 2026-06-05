@@ -210,6 +210,11 @@ module OooAluFetchCore #(
   reg pending_fp_q;
   reg pending_fp_mem_pending_q;
   reg pending_fp_mem_done_q;
+  reg pending_fp_long_pending_q;
+  reg pending_fp_long_done_q;
+  reg [`XLEN-1:0] pending_fp_long_result_q;
+  reg pending_fp_compute_done_q;
+  reg [`XLEN-1:0] pending_fp_compute_result_q;
   reg pending_fp_load_q;
   reg pending_fp_store_q;
   reg pending_fp_double_q;
@@ -577,9 +582,7 @@ module OooAluFetchCore #(
        head1_mem_raw_w);
 
   wire dispatch0_ready_w;
-  /* verilator lint_off UNOPTFLAT */
   wire dispatch1_ready_w;
-  /* verilator lint_on UNOPTFLAT */
   wire dispatch0_unsupported_w;
   wire dispatch1_unsupported_w;
   wire dispatch_valid_w = fifo_has_packet_w && can_run_w &&
@@ -749,6 +752,7 @@ module OooAluFetchCore #(
       direct_branch1_fire_w ? head_next_pc1_w : head_next_pc0_w;
   wire [`XLEN-1:0] direct_branch_imm_w =
       direct_branch1_fire_w ? head1_imm_w : head0_imm_w;
+  wire [`XLEN-1:0] head0_branch_target_w = head_pc_w + head0_imm_w;
   wire [`XLEN-1:0] direct_branch_target_w =
       direct_branch_pc_w + direct_branch_imm_w;
   wire [`BPU_BHT_INDEX_W-1:0] head0_branch_bht_idx_w;
@@ -1493,7 +1497,7 @@ module OooAluFetchCore #(
     .rst(rst),
     .clear_i(flush_i || pending_system_satp_write_commit_w),
     .lookup_branch_pc_i(head_pc_w),
-    .lookup_target_pc_i(direct_branch_target_w),
+    .lookup_target_pc_i(head0_branch_target_w),
     .lookup_idx_o(branch_target_cache_idx_unused_w),
     .lookup_hit_o(branch_target_cache_hit_w),
     .lookup_target_pc_o(branch_target_cache_target_pc_w),
@@ -1511,13 +1515,15 @@ module OooAluFetchCore #(
 
   wire branch_fallthrough_outstanding_match_w =
       outstanding_valid_q && (outstanding_pc_q == head_next_pc1_w);
-  /* verilator lint_off UNOPTFLAT */
-  wire return_cont_attempt_w =
+  wire return_cont_attempt_ready_w =
       direct_branch0_lane1_ret_w &&
       !ctrl_commit_valid_q && commit_ready_i &&
       return_cont_match_w &&
       core_commit0_valid_w && !core_commit1_valid_w &&
       (rob_count_o == {{(ROB_COUNT_W-1){1'b0}}, 1'b1});
+  // return-continuation 同拍合成 lane1 会把当前 branch resolve 再喂回
+  // dispatch/issue bypass 锥；当前先走 RAS redirect 后重新取指，保持组合边界单向。
+  wire return_cont_attempt_w = 1'b0;
   wire branch_target_append_candidate_w =
       dispatch0_branch_w && branch_target_cache_hit_w;
   // FIFO 头包后面若已有旧取指响应在路上，直接追加落空 lane1 可能把同一窗口
@@ -1529,11 +1535,16 @@ module OooAluFetchCore #(
        branch_fallthrough_outstanding_match_w);
   wire branch_fallthrough_append_candidate_w =
       dispatch0_branch_w && branch_fallthrough_append_safe_w;
+  // branch target/fallthrough 同拍追加 lane1 属于前端性能 fast path；
+  // 未打拍时会让 branch resolve 反向影响当前 dispatch payload，先显式关闭。
+  wire branch_append_dispatch_enable_w = 1'b0;
   wire branch_target_append_attempt_w =
+      branch_append_dispatch_enable_w &&
       branch_target_append_candidate_w &&
       direct_branch0_fire_w && direct_branch_resolve_redirect_w &&
       direct_branch_resolve_taken_w;
   wire branch_fallthrough_append_attempt_w =
+      branch_append_dispatch_enable_w &&
       branch_fallthrough_append_candidate_w &&
       direct_branch0_fire_w && direct_branch_resolve_redirect_w &&
       !direct_branch_resolve_taken_w;
@@ -1569,7 +1580,10 @@ module OooAluFetchCore #(
   wire branch_prefetch_rsp_dispatch1_safe_w =
       (fetch_dec1_resp_w == 2'b00) &&
       branch_prefetch_plain_uop_safe(branch_prefetch_rsp1_ctrl_w);
+  // branch prefetch 直接派发尚未启用，显式门掉死路径以避免参与 ready/resolve 组合环。
+  wire branch_prefetch_dispatch_enable_w = 1'b0;
   wire branch_prefetch_dispatch_buffer_w =
+      branch_prefetch_dispatch_enable_w &&
       !direct_frontend_flush_w && stop_pending_q && pending_branch_q &&
       pending_branch_dispatched_q && branch_resolve_pending_match_w &&
       !branch_spec_active_q && !core_branch_resolve_misaligned_w &&
@@ -1577,20 +1591,21 @@ module OooAluFetchCore #(
       branch_prefetch_dispatch0_safe_w &&
       branch_prefetch_dispatch1_safe_w;
   wire branch_prefetch_dispatch_rsp_w =
+      branch_prefetch_dispatch_enable_w &&
       !direct_frontend_flush_w && stop_pending_q && pending_branch_q &&
       pending_branch_dispatched_q && branch_resolve_pending_match_w &&
       !branch_spec_active_q && !core_branch_resolve_misaligned_w &&
       branch_prefetch_rsp_raw_match_w &&
       branch_prefetch_rsp_dispatch0_safe_w &&
       branch_prefetch_rsp_dispatch1_safe_w;
-  wire branch_prefetch_dispatch_attempt_w = 1'b0;
+  wire branch_prefetch_dispatch_attempt_w =
+      branch_prefetch_dispatch_buffer_w || branch_prefetch_dispatch_rsp_w;
   wire branch_prefetch_dispatch_fire_w = 1'b0;
   wire branch_prefetch_hit_to_fifo_w =
       branch_prefetch_hit_available_w && !branch_prefetch_dispatch_fire_w;
   wire dispatch1_optional_w =
       return_cont_optional_w || branch_target_append_candidate_w ||
       branch_fallthrough_append_candidate_w;
-  /* verilator lint_on UNOPTFLAT */
   wire synth_lane1_branch_drop_match_w =
       synth_lane1_branch_drop_pending_q &&
       core_commit0_valid_w &&
@@ -1643,6 +1658,19 @@ module OooAluFetchCore #(
                                      !pending_mem_dispatched_q &&
                                      backend_drained_q;
   wire mem_dispatch_valid_w = pending_mem_resolve_ready_w;
+  wire pending_fp_long_op_w =
+      pending_fp_q && !pending_fp_gpr_write_q &&
+      ((pending_fp_inst_q[31:25] == FP_FUNCT7_FDIV_S) ||
+       (pending_fp_inst_q[31:25] == FP_FUNCT7_FDIV_D) ||
+       (pending_fp_inst_q[31:25] == FP_FUNCT7_FSQRT_S) ||
+       (pending_fp_inst_q[31:25] == FP_FUNCT7_FSQRT_D));
+  wire pending_fp_long_wait_w =
+      pending_fp_long_op_w && !pending_fp_long_done_q;
+  wire pending_fp_compute_op_w =
+      pending_fp_q && !pending_fp_load_q && !pending_fp_store_q &&
+      !pending_fp_long_op_w;
+  wire pending_fp_compute_wait_w =
+      pending_fp_compute_op_w && !pending_fp_compute_done_q;
   wire pending_branch_commit_resolve_w =
       !direct_frontend_flush_w && stop_pending_q && backend_drained_w &&
       pending_branch_q && pending_branch_dispatched_q &&
@@ -1657,7 +1685,8 @@ module OooAluFetchCore #(
       pending_branch_resolve_wait_w ||
       (pending_jump_q && !pending_jump_dispatched_q) ||
       (pending_mem_q && !pending_mem_dispatched_q) ||
-      (pending_fp_q && !pending_fp_mem_done_q) ||
+      (pending_fp_q && (!pending_fp_mem_done_q || pending_fp_long_wait_w ||
+                        pending_fp_compute_wait_w)) ||
       (pending_system_q && pending_system_csr_q);
   wire drain_complete_w = stop_pending_q && backend_drained_w &&
                           pending_control_ready_w &&
@@ -1746,14 +1775,12 @@ module OooAluFetchCore #(
       direct_ret0_dispatch_valid_w ||
       lane1_barrier_dispatch0_valid_w ||
       jump_dispatch_valid_w || mem_dispatch_valid_w;
-  /* verilator lint_off UNOPTFLAT */
   wire core_dispatch1_valid_w =
       branch_prefetch_dispatch_attempt_w ||
       (!pending_lane1_ret_dispatch_valid_w &&
       (return_cont_attempt_w || branch_target_append_attempt_w ||
        branch_fallthrough_append_attempt_w ||
        frontend_dispatch_to_backend_valid_w));
-  /* verilator lint_on UNOPTFLAT */
   wire core_dispatch0_fire_w = core_dispatch0_valid_w && dispatch0_ready_w;
   wire [`XLEN-1:0] core_dispatch0_pc_w =
       branch_prefetch_dispatch_buffer_w ? branch_prefetch_buf_pc0_q :
@@ -1958,13 +1985,175 @@ module OooAluFetchCore #(
 
   function [5:0] fp_u64_msb_index;
     input [63:0] value;
-    integer bit_idx;
+    reg [31:0] stage32;
+    reg [15:0] stage16;
+    reg [7:0] stage8;
+    reg [3:0] stage4;
+    reg [1:0] stage2;
     begin
-      fp_u64_msb_index = 6'd0;
-      for (bit_idx = 0; bit_idx < 64; bit_idx = bit_idx + 1) begin
-        if (value[bit_idx])
-          fp_u64_msb_index = bit_idx[5:0];
+      fp_u64_msb_index[5] = |value[63:32];
+      stage32 = fp_u64_msb_index[5] ? value[63:32] : value[31:0];
+      fp_u64_msb_index[4] = |stage32[31:16];
+      stage16 = fp_u64_msb_index[4] ? stage32[31:16] : stage32[15:0];
+      fp_u64_msb_index[3] = |stage16[15:8];
+      stage8 = fp_u64_msb_index[3] ? stage16[15:8] : stage16[7:0];
+      fp_u64_msb_index[2] = |stage8[7:4];
+      stage4 = fp_u64_msb_index[2] ? stage8[7:4] : stage8[3:0];
+      fp_u64_msb_index[1] = |stage4[3:2];
+      stage2 = fp_u64_msb_index[1] ? stage4[3:2] : stage4[1:0];
+      fp_u64_msb_index[0] = stage2[1];
+    end
+  endfunction
+
+  // byte 级 sticky 选择器用于 FP 转换舍入，避免函数内逐 bit 循环扫描低位。
+  function fp_u64_low_or;
+    input [63:0] value;
+    input [6:0] bit_count;
+    reg [7:0] byte_or;
+    reg [7:0] partial_byte;
+    reg full_byte_or;
+    reg partial_or;
+    begin
+      byte_or[0] = |value[7:0];
+      byte_or[1] = |value[15:8];
+      byte_or[2] = |value[23:16];
+      byte_or[3] = |value[31:24];
+      byte_or[4] = |value[39:32];
+      byte_or[5] = |value[47:40];
+      byte_or[6] = |value[55:48];
+      byte_or[7] = |value[63:56];
+
+      case (bit_count[6:3])
+        4'd0: full_byte_or = 1'b0;
+        4'd1: full_byte_or = byte_or[0];
+        4'd2: full_byte_or = |byte_or[1:0];
+        4'd3: full_byte_or = |byte_or[2:0];
+        4'd4: full_byte_or = |byte_or[3:0];
+        4'd5: full_byte_or = |byte_or[4:0];
+        4'd6: full_byte_or = |byte_or[5:0];
+        4'd7: full_byte_or = |byte_or[6:0];
+        default: full_byte_or = |byte_or;
+      endcase
+
+      case (bit_count[6:3])
+        4'd0: partial_byte = value[7:0];
+        4'd1: partial_byte = value[15:8];
+        4'd2: partial_byte = value[23:16];
+        4'd3: partial_byte = value[31:24];
+        4'd4: partial_byte = value[39:32];
+        4'd5: partial_byte = value[47:40];
+        4'd6: partial_byte = value[55:48];
+        4'd7: partial_byte = value[63:56];
+        default: partial_byte = 8'b0;
+      endcase
+
+      case (bit_count[2:0])
+        3'd0: partial_or = 1'b0;
+        3'd1: partial_or = partial_byte[0];
+        3'd2: partial_or = |partial_byte[1:0];
+        3'd3: partial_or = |partial_byte[2:0];
+        3'd4: partial_or = |partial_byte[3:0];
+        3'd5: partial_or = |partial_byte[4:0];
+        3'd6: partial_or = |partial_byte[5:0];
+        default: partial_or = |partial_byte[6:0];
+      endcase
+
+      fp_u64_low_or = full_byte_or | partial_or;
+    end
+  endfunction
+
+  function [6:0] fp_lzc_64;
+    input [63:0] value;
+    reg [31:0] stage32;
+    reg [15:0] stage16;
+    reg [7:0] stage8;
+    reg [3:0] stage4;
+    reg [1:0] stage2;
+    begin
+      if (value == 64'b0) begin
+        fp_lzc_64 = 7'd64;
+      end else begin
+        fp_lzc_64 = 7'd0;
+        fp_lzc_64[5] = ~|value[63:32];
+        stage32 = fp_lzc_64[5] ? value[31:0] : value[63:32];
+        fp_lzc_64[4] = ~|stage32[31:16];
+        stage16 = fp_lzc_64[4] ? stage32[15:0] : stage32[31:16];
+        fp_lzc_64[3] = ~|stage16[15:8];
+        stage8 = fp_lzc_64[3] ? stage16[7:0] : stage16[15:8];
+        fp_lzc_64[2] = ~|stage8[7:4];
+        stage4 = fp_lzc_64[2] ? stage8[3:0] : stage8[7:4];
+        fp_lzc_64[1] = ~|stage4[3:2];
+        stage2 = fp_lzc_64[1] ? stage4[1:0] : stage4[3:2];
+        fp_lzc_64[0] = ~stage2[1];
       end
+    end
+  endfunction
+
+  function [6:0] fp_lzc_56;
+    input [55:0] value;
+    reg [6:0] count;
+    begin
+      count = fp_lzc_64({value, 8'b0});
+      fp_lzc_56 = (count > 7'd56) ? 7'd56 : count;
+    end
+  endfunction
+
+  function [5:0] fp_lzc_27;
+    input [26:0] value;
+    reg [6:0] count;
+    begin
+      count = fp_lzc_64({value, 37'b0});
+      fp_lzc_27 = (count > 7'd27) ? 6'd27 : count[5:0];
+    end
+  endfunction
+
+  // 乘法规格化复用宽 LZC 树，避免 product normalize 继续展开逐 bit 左移循环。
+  function [7:0] fp_lzc_128;
+    input [127:0] value;
+    reg [6:0] high_count;
+    reg [6:0] low_count;
+    begin
+      high_count = fp_lzc_64(value[127:64]);
+      low_count = fp_lzc_64(value[63:0]);
+      fp_lzc_128 = (high_count != 7'd64) ?
+                   {1'b0, high_count} : (8'd64 + {1'b0, low_count});
+    end
+  endfunction
+
+  function [7:0] fp_lzc_106;
+    input [105:0] value;
+    reg [7:0] count;
+    begin
+      count = fp_lzc_128({value, 22'b0});
+      fp_lzc_106 = (count > 8'd106) ? 8'd106 : count;
+    end
+  endfunction
+
+  function [5:0] fp_lzc_48;
+    input [47:0] value;
+    reg [6:0] count;
+    begin
+      count = fp_lzc_64({value, 16'b0});
+      fp_lzc_48 = (count > 7'd48) ? 6'd48 : count[5:0];
+    end
+  endfunction
+
+  // FSQRT subnormal normalize 只允许旧循环上界内的左移次数。
+  function [5:0] fp_norm_shift_53;
+    input [52:0] value;
+    reg [6:0] count;
+    begin
+      count = fp_lzc_64({value, 11'b0});
+      fp_norm_shift_53 = (count > 7'd52) ? 6'd52 : count[5:0];
+    end
+  endfunction
+
+  function [4:0] fp_norm_shift_24;
+    input [23:0] value;
+    reg [6:0] count;
+    begin
+      count = fp_lzc_64({value, 40'b0});
+      fp_norm_shift_24 = (count > 7'd23) ? 5'd23 : count[4:0];
     end
   endfunction
 
@@ -1986,8 +2175,8 @@ module OooAluFetchCore #(
     reg guard;
     reg sticky;
     reg inc;
+    reg [6:0] sticky_bit_count;
     integer shift_count;
-    integer bit_idx;
     begin
       is_signed = (src_fmt == 2'b00) || (src_fmt == 2'b10);
       is_word = (src_fmt == 2'b00) || (src_fmt == 2'b01);
@@ -2012,11 +2201,8 @@ module OooAluFetchCore #(
           shift_count = msb_idx - 52;
           mant53 = mag >> shift_count;
           guard = mag[shift_count - 1];
-          sticky = 1'b0;
-          for (bit_idx = 0; bit_idx < 64; bit_idx = bit_idx + 1) begin
-            if ((bit_idx < (shift_count - 1)) && mag[bit_idx])
-              sticky = 1'b1;
-          end
+          sticky_bit_count = shift_count - 1;
+          sticky = fp_u64_low_or(mag, sticky_bit_count);
           inc = fp_round_increment(sign, rm, mant53[0], guard, sticky);
           mant_round_ext = {1'b0, mant53} + {{53{1'b0}}, inc};
           if (mant_round_ext[53]) begin
@@ -2053,9 +2239,9 @@ module OooAluFetchCore #(
     reg guard;
     reg sticky;
     reg inc;
+    reg [6:0] sticky_bit_count;
     integer unbiased_exp;
     integer shift_count;
-    integer bit_idx;
     begin
       is_signed = (dst_fmt == 2'b00) || (dst_fmt == 2'b10);
       is_word = (dst_fmt == 2'b00) || (dst_fmt == 2'b01);
@@ -2110,11 +2296,8 @@ module OooAluFetchCore #(
           end else begin
             int_part_ext = sig_ext >> shift_count;
             guard = sig[shift_count - 1];
-            sticky = 1'b0;
-            for (bit_idx = 0; bit_idx < 53; bit_idx = bit_idx + 1) begin
-              if ((bit_idx < (shift_count - 1)) && sig[bit_idx])
-                sticky = 1'b1;
-            end
+            sticky_bit_count = shift_count - 1;
+            sticky = fp_u64_low_or({11'b0, sig}, sticky_bit_count);
           end
           inc = fp_round_increment(sign, rm, int_part_ext[0], guard, sticky);
           mag_ext = int_part_ext + {{64{1'b0}}, inc};
@@ -2262,21 +2445,46 @@ module OooAluFetchCore #(
   function [55:0] fp_shift_right_jam_56;
     input [55:0] value;
     input [6:0] shamt;
-    reg sticky;
-    integer bit_idx;
+    reg [55:0] stage;
+    reg [55:0] stage_next;
     begin
       if (shamt == 7'd0) begin
         fp_shift_right_jam_56 = value;
       end else if (shamt >= 7'd56) begin
         fp_shift_right_jam_56 = {55'b0, |value};
       end else begin
-        sticky = 1'b0;
-        for (bit_idx = 0; bit_idx < 56; bit_idx = bit_idx + 1) begin
-          if ((bit_idx < shamt) && value[bit_idx])
-            sticky = 1'b1;
+        stage = value;
+        if (shamt[0]) begin
+          stage_next = {1'b0, stage[55:1]};
+          stage_next[0] = stage_next[0] | stage[0];
+          stage = stage_next;
         end
-        fp_shift_right_jam_56 = value >> shamt;
-        fp_shift_right_jam_56[0] = fp_shift_right_jam_56[0] | sticky;
+        if (shamt[1]) begin
+          stage_next = {2'b0, stage[55:2]};
+          stage_next[0] = stage_next[0] | (|stage[1:0]);
+          stage = stage_next;
+        end
+        if (shamt[2]) begin
+          stage_next = {4'b0, stage[55:4]};
+          stage_next[0] = stage_next[0] | (|stage[3:0]);
+          stage = stage_next;
+        end
+        if (shamt[3]) begin
+          stage_next = {8'b0, stage[55:8]};
+          stage_next[0] = stage_next[0] | (|stage[7:0]);
+          stage = stage_next;
+        end
+        if (shamt[4]) begin
+          stage_next = {16'b0, stage[55:16]};
+          stage_next[0] = stage_next[0] | (|stage[15:0]);
+          stage = stage_next;
+        end
+        if (shamt[5]) begin
+          stage_next = {32'b0, stage[55:32]};
+          stage_next[0] = stage_next[0] | (|stage[31:0]);
+          stage = stage_next;
+        end
+        fp_shift_right_jam_56 = stage;
       end
     end
   endfunction
@@ -2284,21 +2492,41 @@ module OooAluFetchCore #(
   function [26:0] fp_shift_right_jam_27;
     input [26:0] value;
     input [5:0] shamt;
-    reg sticky;
-    integer bit_idx;
+    reg [26:0] stage;
+    reg [26:0] stage_next;
     begin
       if (shamt == 6'd0) begin
         fp_shift_right_jam_27 = value;
       end else if (shamt >= 6'd27) begin
         fp_shift_right_jam_27 = {26'b0, |value};
       end else begin
-        sticky = 1'b0;
-        for (bit_idx = 0; bit_idx < 27; bit_idx = bit_idx + 1) begin
-          if ((bit_idx < shamt) && value[bit_idx])
-            sticky = 1'b1;
+        stage = value;
+        if (shamt[0]) begin
+          stage_next = {1'b0, stage[26:1]};
+          stage_next[0] = stage_next[0] | stage[0];
+          stage = stage_next;
         end
-        fp_shift_right_jam_27 = value >> shamt;
-        fp_shift_right_jam_27[0] = fp_shift_right_jam_27[0] | sticky;
+        if (shamt[1]) begin
+          stage_next = {2'b0, stage[26:2]};
+          stage_next[0] = stage_next[0] | (|stage[1:0]);
+          stage = stage_next;
+        end
+        if (shamt[2]) begin
+          stage_next = {4'b0, stage[26:4]};
+          stage_next[0] = stage_next[0] | (|stage[3:0]);
+          stage = stage_next;
+        end
+        if (shamt[3]) begin
+          stage_next = {8'b0, stage[26:8]};
+          stage_next[0] = stage_next[0] | (|stage[7:0]);
+          stage = stage_next;
+        end
+        if (shamt[4]) begin
+          stage_next = {16'b0, stage[26:16]};
+          stage_next[0] = stage_next[0] | (|stage[15:0]);
+          stage = stage_next;
+        end
+        fp_shift_right_jam_27 = stage;
       end
     end
   endfunction
@@ -2306,21 +2534,51 @@ module OooAluFetchCore #(
   function [105:0] fp_shift_right_jam_106;
     input [105:0] value;
     input [7:0] shamt;
-    reg sticky;
-    integer bit_idx;
+    reg [105:0] stage;
+    reg [105:0] stage_next;
     begin
       if (shamt == 8'd0) begin
         fp_shift_right_jam_106 = value;
       end else if (shamt >= 8'd106) begin
         fp_shift_right_jam_106 = {105'b0, |value};
       end else begin
-        sticky = 1'b0;
-        for (bit_idx = 0; bit_idx < 106; bit_idx = bit_idx + 1) begin
-          if ((bit_idx < shamt) && value[bit_idx])
-            sticky = 1'b1;
+        stage = value;
+        if (shamt[0]) begin
+          stage_next = {1'b0, stage[105:1]};
+          stage_next[0] = stage_next[0] | stage[0];
+          stage = stage_next;
         end
-        fp_shift_right_jam_106 = value >> shamt;
-        fp_shift_right_jam_106[0] = fp_shift_right_jam_106[0] | sticky;
+        if (shamt[1]) begin
+          stage_next = {2'b0, stage[105:2]};
+          stage_next[0] = stage_next[0] | (|stage[1:0]);
+          stage = stage_next;
+        end
+        if (shamt[2]) begin
+          stage_next = {4'b0, stage[105:4]};
+          stage_next[0] = stage_next[0] | (|stage[3:0]);
+          stage = stage_next;
+        end
+        if (shamt[3]) begin
+          stage_next = {8'b0, stage[105:8]};
+          stage_next[0] = stage_next[0] | (|stage[7:0]);
+          stage = stage_next;
+        end
+        if (shamt[4]) begin
+          stage_next = {16'b0, stage[105:16]};
+          stage_next[0] = stage_next[0] | (|stage[15:0]);
+          stage = stage_next;
+        end
+        if (shamt[5]) begin
+          stage_next = {32'b0, stage[105:32]};
+          stage_next[0] = stage_next[0] | (|stage[31:0]);
+          stage = stage_next;
+        end
+        if (shamt[6]) begin
+          stage_next = {64'b0, stage[105:64]};
+          stage_next[0] = stage_next[0] | (|stage[63:0]);
+          stage = stage_next;
+        end
+        fp_shift_right_jam_106 = stage;
       end
     end
   endfunction
@@ -2328,21 +2586,46 @@ module OooAluFetchCore #(
   function [47:0] fp_shift_right_jam_48;
     input [47:0] value;
     input [5:0] shamt;
-    reg sticky;
-    integer bit_idx;
+    reg [47:0] stage;
+    reg [47:0] stage_next;
     begin
       if (shamt == 6'd0) begin
         fp_shift_right_jam_48 = value;
       end else if (shamt >= 6'd48) begin
         fp_shift_right_jam_48 = {47'b0, |value};
       end else begin
-        sticky = 1'b0;
-        for (bit_idx = 0; bit_idx < 48; bit_idx = bit_idx + 1) begin
-          if ((bit_idx < shamt) && value[bit_idx])
-            sticky = 1'b1;
+        stage = value;
+        if (shamt[0]) begin
+          stage_next = {1'b0, stage[47:1]};
+          stage_next[0] = stage_next[0] | stage[0];
+          stage = stage_next;
         end
-        fp_shift_right_jam_48 = value >> shamt;
-        fp_shift_right_jam_48[0] = fp_shift_right_jam_48[0] | sticky;
+        if (shamt[1]) begin
+          stage_next = {2'b0, stage[47:2]};
+          stage_next[0] = stage_next[0] | (|stage[1:0]);
+          stage = stage_next;
+        end
+        if (shamt[2]) begin
+          stage_next = {4'b0, stage[47:4]};
+          stage_next[0] = stage_next[0] | (|stage[3:0]);
+          stage = stage_next;
+        end
+        if (shamt[3]) begin
+          stage_next = {8'b0, stage[47:8]};
+          stage_next[0] = stage_next[0] | (|stage[7:0]);
+          stage = stage_next;
+        end
+        if (shamt[4]) begin
+          stage_next = {16'b0, stage[47:16]};
+          stage_next[0] = stage_next[0] | (|stage[15:0]);
+          stage = stage_next;
+        end
+        if (shamt[5]) begin
+          stage_next = {32'b0, stage[47:32]};
+          stage_next[0] = stage_next[0] | (|stage[31:0]);
+          stage = stage_next;
+        end
+        fp_shift_right_jam_48 = stage;
       end
     end
   endfunction
@@ -2382,7 +2665,9 @@ module OooAluFetchCore #(
     reg a_is_zero;
     reg b_is_zero;
     reg a_lt_b_mag;
-    integer norm_idx;
+    reg [6:0] norm_lzc;
+    reg [6:0] norm_shift;
+    reg [10:0] norm_exp_limit;
     begin
       sign_a = rs1_value[63];
       sign_b = rs2_value[63] ^ is_sub;
@@ -2455,11 +2740,13 @@ module OooAluFetchCore #(
             sign_z = sign_a;
             sig_norm = sig_a_aligned - sig_b_aligned;
           end
-          for (norm_idx = 0; norm_idx < 55; norm_idx = norm_idx + 1) begin
-            if ((sig_norm != 56'b0) && !sig_norm[55] && (exp_z > 11'd1)) begin
-              sig_norm = sig_norm << 1;
-              exp_z = exp_z - 11'd1;
-            end
+          if ((sig_norm != 56'b0) && (exp_z > 11'd1)) begin
+            norm_lzc = fp_lzc_56(sig_norm);
+            norm_exp_limit = exp_z - 11'd1;
+            norm_shift = ({4'b0, norm_lzc} < norm_exp_limit) ?
+                         norm_lzc : norm_exp_limit[6:0];
+            sig_norm = sig_norm << norm_shift;
+            exp_z = exp_z - {4'b0, norm_shift};
           end
         end
 
@@ -2527,7 +2814,9 @@ module OooAluFetchCore #(
     reg a_is_zero;
     reg b_is_zero;
     reg a_lt_b_mag;
-    integer norm_idx;
+    reg [5:0] norm_lzc;
+    reg [5:0] norm_shift;
+    reg [7:0] norm_exp_limit;
     begin
       a = rs1_value[31:0];
       b = rs2_value[31:0];
@@ -2606,11 +2895,13 @@ module OooAluFetchCore #(
             sign_z = sign_a;
             sig_norm = sig_a_aligned - sig_b_aligned;
           end
-          for (norm_idx = 0; norm_idx < 26; norm_idx = norm_idx + 1) begin
-            if ((sig_norm != 27'b0) && !sig_norm[26] && (exp_z > 8'd1)) begin
-              sig_norm = sig_norm << 1;
-              exp_z = exp_z - 8'd1;
-            end
+          if ((sig_norm != 27'b0) && (exp_z > 8'd1)) begin
+            norm_lzc = fp_lzc_27(sig_norm);
+            norm_exp_limit = exp_z - 8'd1;
+            norm_shift = ({2'b0, norm_lzc} < norm_exp_limit) ?
+                         norm_lzc : norm_exp_limit[5:0];
+            sig_norm = sig_norm << norm_shift;
+            exp_z = exp_z - {2'b0, norm_shift};
           end
         end
 
@@ -2679,8 +2970,10 @@ module OooAluFetchCore #(
     reg sticky;
     reg inc;
     reg [7:0] sub_shift;
+    reg [7:0] norm_lzc;
+    reg [7:0] norm_required;
+    reg [7:0] norm_shift;
     integer exp_z;
-    integer norm_idx;
     integer sub_shift_int;
     begin
       sign_z = rs1_value[63] ^ rs2_value[63];
@@ -2712,12 +3005,13 @@ module OooAluFetchCore #(
         product = sig_a * sig_b;
         product_norm = product;
 
-        for (norm_idx = 0; norm_idx < 105; norm_idx = norm_idx + 1) begin
-          if ((product_norm != 106'b0) && !product_norm[105] &&
-              !product_norm[104] && (exp_z > 1)) begin
-            product_norm = product_norm << 1;
-            exp_z = exp_z - 1;
-          end
+        if ((product_norm != 106'b0) && (exp_z > 1)) begin
+          norm_lzc = fp_lzc_106(product_norm);
+          norm_required = (norm_lzc > 8'd1) ? (norm_lzc - 8'd1) : 8'd0;
+          norm_shift = (norm_required > (exp_z - 1)) ?
+                       (exp_z - 1) : norm_required;
+          product_norm = product_norm << norm_shift;
+          exp_z = exp_z - norm_shift;
         end
 
         if (exp_z < 1) begin
@@ -2788,8 +3082,10 @@ module OooAluFetchCore #(
     reg sticky;
     reg inc;
     reg [5:0] sub_shift;
+    reg [5:0] norm_lzc;
+    reg [5:0] norm_required;
+    reg [5:0] norm_shift;
     integer exp_z;
-    integer norm_idx;
     integer sub_shift_int;
     begin
       a = rs1_value[31:0];
@@ -2827,12 +3123,13 @@ module OooAluFetchCore #(
         product = sig_a * sig_b;
         product_norm = product;
 
-        for (norm_idx = 0; norm_idx < 47; norm_idx = norm_idx + 1) begin
-          if ((product_norm != 48'b0) && !product_norm[47] &&
-              !product_norm[46] && (exp_z > 1)) begin
-            product_norm = product_norm << 1;
-            exp_z = exp_z - 1;
-          end
+        if ((product_norm != 48'b0) && (exp_z > 1)) begin
+          norm_lzc = fp_lzc_48(product_norm);
+          norm_required = (norm_lzc > 6'd1) ? (norm_lzc - 6'd1) : 6'd0;
+          norm_shift = (norm_required > (exp_z - 1)) ?
+                       (exp_z - 1) : norm_required;
+          product_norm = product_norm << norm_shift;
+          exp_z = exp_z - norm_shift;
         end
 
         if (exp_z < 1) begin
@@ -2892,6 +3189,8 @@ module OooAluFetchCore #(
     input [`XLEN-1:0] rs1_value;
     input [`XLEN-1:0] rs2_value;
     input [2:0] rm;
+    input [55:0] quotient_ext_i;
+    input remainder_nonzero_i;
     reg sign_z;
     reg [10:0] exp_a;
     reg [10:0] exp_b;
@@ -2903,12 +3202,8 @@ module OooAluFetchCore #(
     reg b_is_inf;
     reg a_is_zero;
     reg b_is_zero;
-    reg [52:0] sig_a;
-    reg [52:0] sig_b;
-    reg [107:0] dividend;
     reg [55:0] quotient_ext;
     reg [55:0] quotient_norm;
-    reg [107:0] remainder_ext;
     reg [52:0] mant53;
     reg [53:0] mant_round_ext;
     reg guard;
@@ -2940,24 +3235,17 @@ module OooAluFetchCore #(
       end else if (a_is_zero || b_is_inf) begin
         fp_div_d_value = {sign_z, 63'b0};
       end else begin
-        sig_a = {(exp_a != 11'h000), frac_a};
-        sig_b = {(exp_b != 11'h000), frac_b};
         exp_z = ((exp_a == 11'h000) ? 1 : exp_a) -
                 ((exp_b == 11'h000) ? 1 : exp_b) + 1023;
 
-        // Focused FDIV gate uses a combinational integer quotient helper.
-        // It is synthesizable, but a tapeout FPU should replace it with a
-        // timed divider pipeline and keep the same architectural cases.
-        dividend = {sig_a, 55'b0};
-        quotient_ext = dividend / sig_b;
-        remainder_ext = dividend % sig_b;
+        quotient_ext = quotient_ext_i;
         if (quotient_ext[55]) begin
           quotient_norm = quotient_ext;
         end else begin
           quotient_norm = {quotient_ext[54:0], 1'b0};
           exp_z = exp_z - 1;
         end
-        quotient_norm[0] = quotient_norm[0] | (remainder_ext != 108'b0);
+        quotient_norm[0] = quotient_norm[0] | remainder_nonzero_i;
 
         if (exp_z < 1) begin
           sub_shift_int = 1 - exp_z;
@@ -2996,6 +3284,8 @@ module OooAluFetchCore #(
     input [`XLEN-1:0] rs1_value;
     input [`XLEN-1:0] rs2_value;
     input [2:0] rm;
+    input [26:0] quotient_ext_i;
+    input remainder_nonzero_i;
     reg [31:0] a;
     reg [31:0] b;
     reg sign_z;
@@ -3009,12 +3299,8 @@ module OooAluFetchCore #(
     reg b_is_inf;
     reg a_is_zero;
     reg b_is_zero;
-    reg [23:0] sig_a;
-    reg [23:0] sig_b;
-    reg [49:0] dividend;
     reg [26:0] quotient_ext;
     reg [26:0] quotient_norm;
-    reg [49:0] remainder_ext;
     reg [23:0] mant24;
     reg [24:0] mant_round_ext;
     reg guard;
@@ -3052,21 +3338,17 @@ module OooAluFetchCore #(
       end else if (a_is_zero || b_is_inf) begin
         fp_div_s_value = {32'hffff_ffff, sign_z, 31'b0};
       end else begin
-        sig_a = {(exp_a != 8'h00), frac_a};
-        sig_b = {(exp_b != 8'h00), frac_b};
         exp_z = ((exp_a == 8'h00) ? 1 : exp_a) -
                 ((exp_b == 8'h00) ? 1 : exp_b) + 127;
 
-        dividend = {sig_a, 26'b0};
-        quotient_ext = dividend / sig_b;
-        remainder_ext = dividend % sig_b;
+        quotient_ext = quotient_ext_i;
         if (quotient_ext[26]) begin
           quotient_norm = quotient_ext;
         end else begin
           quotient_norm = {quotient_ext[25:0], 1'b0};
           exp_z = exp_z - 1;
         end
-        quotient_norm[0] = quotient_norm[0] | (remainder_ext != 50'b0);
+        quotient_norm[0] = quotient_norm[0] | remainder_nonzero_i;
 
         if (exp_z < 1) begin
           sub_shift_int = 1 - exp_z;
@@ -3106,72 +3388,71 @@ module OooAluFetchCore #(
     input [`XLEN-1:0] rs2_value;
     input is_double;
     input [2:0] rm;
+    input [55:0] quotient_ext_i;
+    input remainder_nonzero_i;
     begin
       fp_div_value = is_double ?
-          fp_div_d_value(rs1_value, rs2_value, rm) :
-          fp_div_s_value(rs1_value, rs2_value, rm);
+          fp_div_d_value(rs1_value, rs2_value, rm, quotient_ext_i,
+                         remainder_nonzero_i) :
+          fp_div_s_value(rs1_value, rs2_value, rm, quotient_ext_i[26:0],
+                         remainder_nonzero_i);
     end
   endfunction
 
-  function [55:0] fp_isqrt_112;
-    input [111:0] value;
-    reg [55:0] root;
-    reg [55:0] candidate;
-    reg [111:0] candidate_sq;
-    integer bit_idx;
+  function [107:0] fp_div_dividend_value;
+    input [`XLEN-1:0] rs1_value;
+    input is_double;
+    reg [52:0] sig_d;
+    reg [23:0] sig_s;
     begin
-      root = 56'b0;
-      for (bit_idx = 55; bit_idx >= 0; bit_idx = bit_idx - 1) begin
-        candidate = root | (56'd1 << bit_idx);
-        candidate_sq = candidate * candidate;
-        if (candidate_sq <= value)
-          root = candidate;
+      if (is_double) begin
+        sig_d = {(rs1_value[62:52] != 11'h000), rs1_value[51:0]};
+        fp_div_dividend_value = {sig_d, 55'b0};
+      end else begin
+        sig_s = {(rs1_value[30:23] != 8'h00), rs1_value[22:0]};
+        fp_div_dividend_value = {58'b0, sig_s, 26'b0};
       end
-      fp_isqrt_112 = root;
     end
   endfunction
 
-  function [26:0] fp_isqrt_54;
-    input [53:0] value;
-    reg [26:0] root;
-    reg [26:0] candidate;
-    reg [53:0] candidate_sq;
-    integer bit_idx;
+  function [52:0] fp_div_divisor_value;
+    input [`XLEN-1:0] rs2_value;
+    input is_double;
+    reg [52:0] sig_d;
+    reg [23:0] sig_s;
     begin
-      root = 27'b0;
-      for (bit_idx = 26; bit_idx >= 0; bit_idx = bit_idx - 1) begin
-        candidate = root | (27'd1 << bit_idx);
-        candidate_sq = candidate * candidate;
-        if (candidate_sq <= value)
-          root = candidate;
+      if (is_double) begin
+        sig_d = {(rs2_value[62:52] != 11'h000), rs2_value[51:0]};
+        fp_div_divisor_value = sig_d;
+      end else begin
+        sig_s = {(rs2_value[30:23] != 8'h00), rs2_value[22:0]};
+        fp_div_divisor_value = {29'b0, sig_s};
       end
-      fp_isqrt_54 = root;
     end
   endfunction
 
   function [`XLEN-1:0] fp_sqrt_d_value;
     input [`XLEN-1:0] rs1_value;
     input [2:0] rm;
+    input [55:0] root_ext_i;
+    input remainder_nonzero_i;
     reg sign_a;
     reg [10:0] exp_a;
     reg [51:0] frac_a;
     reg a_is_nan;
     reg a_is_inf;
     reg a_is_zero;
-    reg exp_odd;
     reg [52:0] sig_a;
-    reg [111:0] radicand_ext;
     reg [55:0] root_ext;
-    reg [111:0] root_sq;
     reg [52:0] mant53;
     reg [53:0] mant_round_ext;
     reg guard;
     reg sticky;
     reg inc;
+    reg [5:0] norm_shift;
     integer exp_unbiased;
     integer sqrt_exp;
     integer exp_z;
-    integer norm_idx;
     begin
       sign_a = rs1_value[63];
       exp_a = rs1_value[62:52];
@@ -3192,30 +3473,17 @@ module OooAluFetchCore #(
         sig_a = {(exp_a != 11'h000), frac_a};
         exp_unbiased = ((exp_a == 11'h000) ? 1 : exp_a) - 1023;
         if (exp_a == 11'h000) begin
-          for (norm_idx = 0; norm_idx < 52; norm_idx = norm_idx + 1) begin
-            if (!sig_a[52]) begin
-              sig_a = sig_a << 1;
-              exp_unbiased = exp_unbiased - 1;
-            end
-          end
+          norm_shift = fp_norm_shift_53(sig_a);
+          sig_a = sig_a << norm_shift;
+          exp_unbiased = exp_unbiased - norm_shift;
         end
 
-        exp_odd = (exp_unbiased - ((exp_unbiased / 2) * 2)) != 0;
-        if (exp_odd) begin
-          sqrt_exp = (exp_unbiased - 1) / 2;
-          radicand_ext = {59'b0, sig_a} << 59;
-        end else begin
-          sqrt_exp = exp_unbiased / 2;
-          radicand_ext = {59'b0, sig_a} << 58;
-        end
+        sqrt_exp = exp_unbiased >>> 1;
 
-        // Focused FSQRT gate uses a combinational integer sqrt helper.
-        // A tapeout FPU should replace it with a timed pipeline.
-        root_ext = fp_isqrt_112(radicand_ext);
-        root_sq = root_ext * root_ext;
+        root_ext = root_ext_i;
         mant53 = root_ext[55:3];
         guard = root_ext[2];
-        sticky = root_ext[1] | root_ext[0] | (root_sq != radicand_ext);
+        sticky = root_ext[1] | root_ext[0] | remainder_nonzero_i;
         inc = fp_round_increment(1'b0, rm, mant53[0], guard, sticky);
         mant_round_ext = {1'b0, mant53} + {{53{1'b0}}, inc};
         exp_z = sqrt_exp + 1023;
@@ -3240,6 +3508,8 @@ module OooAluFetchCore #(
   function [`XLEN-1:0] fp_sqrt_s_value;
     input [`XLEN-1:0] rs1_value;
     input [2:0] rm;
+    input [26:0] root_ext_i;
+    input remainder_nonzero_i;
     reg [31:0] a;
     reg sign_a;
     reg [7:0] exp_a;
@@ -3247,20 +3517,17 @@ module OooAluFetchCore #(
     reg a_is_nan;
     reg a_is_inf;
     reg a_is_zero;
-    reg exp_odd;
     reg [23:0] sig_a;
-    reg [53:0] radicand_ext;
     reg [26:0] root_ext;
-    reg [53:0] root_sq;
     reg [23:0] mant24;
     reg [24:0] mant_round_ext;
     reg guard;
     reg sticky;
     reg inc;
+    reg [4:0] norm_shift;
     integer exp_unbiased;
     integer sqrt_exp;
     integer exp_z;
-    integer norm_idx;
     begin
       a = rs1_value[31:0];
       sign_a = a[31];
@@ -3284,28 +3551,17 @@ module OooAluFetchCore #(
         sig_a = {(exp_a != 8'h00), frac_a};
         exp_unbiased = ((exp_a == 8'h00) ? 1 : exp_a) - 127;
         if (exp_a == 8'h00) begin
-          for (norm_idx = 0; norm_idx < 23; norm_idx = norm_idx + 1) begin
-            if (!sig_a[23]) begin
-              sig_a = sig_a << 1;
-              exp_unbiased = exp_unbiased - 1;
-            end
-          end
+          norm_shift = fp_norm_shift_24(sig_a);
+          sig_a = sig_a << norm_shift;
+          exp_unbiased = exp_unbiased - norm_shift;
         end
 
-        exp_odd = (exp_unbiased - ((exp_unbiased / 2) * 2)) != 0;
-        if (exp_odd) begin
-          sqrt_exp = (exp_unbiased - 1) / 2;
-          radicand_ext = {30'b0, sig_a} << 30;
-        end else begin
-          sqrt_exp = exp_unbiased / 2;
-          radicand_ext = {30'b0, sig_a} << 29;
-        end
+        sqrt_exp = exp_unbiased >>> 1;
 
-        root_ext = fp_isqrt_54(radicand_ext);
-        root_sq = root_ext * root_ext;
+        root_ext = root_ext_i;
         mant24 = root_ext[26:3];
         guard = root_ext[2];
-        sticky = root_ext[1] | root_ext[0] | (root_sq != radicand_ext);
+        sticky = root_ext[1] | root_ext[0] | remainder_nonzero_i;
         inc = fp_round_increment(1'b0, rm, mant24[0], guard, sticky);
         mant_round_ext = {1'b0, mant24} + {{24{1'b0}}, inc};
         exp_z = sqrt_exp + 127;
@@ -3331,10 +3587,52 @@ module OooAluFetchCore #(
     input [`XLEN-1:0] rs1_value;
     input is_double;
     input [2:0] rm;
+    input [55:0] root_ext_i;
+    input remainder_nonzero_i;
     begin
       fp_sqrt_value = is_double ?
-          fp_sqrt_d_value(rs1_value, rm) :
-          fp_sqrt_s_value(rs1_value, rm);
+          fp_sqrt_d_value(rs1_value, rm, root_ext_i,
+                          remainder_nonzero_i) :
+          fp_sqrt_s_value(rs1_value, rm, root_ext_i[26:0],
+                          remainder_nonzero_i);
+    end
+  endfunction
+
+  function [111:0] fp_sqrt_radicand_value;
+    input [`XLEN-1:0] rs1_value;
+    input is_double;
+    reg [52:0] sig_d;
+    reg [23:0] sig_s;
+    reg [53:0] radicand_s;
+    reg [5:0] norm_shift_d;
+    reg [4:0] norm_shift_s;
+    integer exp_unbiased;
+    begin
+      if (is_double) begin
+        sig_d = {(rs1_value[62:52] != 11'h000), rs1_value[51:0]};
+        exp_unbiased = ((rs1_value[62:52] == 11'h000) ? 1 :
+                        rs1_value[62:52]) - 1023;
+        if (rs1_value[62:52] == 11'h000) begin
+          norm_shift_d = fp_norm_shift_53(sig_d);
+          sig_d = sig_d << norm_shift_d;
+          exp_unbiased = exp_unbiased - norm_shift_d;
+        end
+        fp_sqrt_radicand_value =
+            exp_unbiased[0] ? ({59'b0, sig_d} << 59) :
+                              ({59'b0, sig_d} << 58);
+      end else begin
+        sig_s = {(rs1_value[30:23] != 8'h00), rs1_value[22:0]};
+        exp_unbiased = ((rs1_value[30:23] == 8'h00) ? 1 :
+                        rs1_value[30:23]) - 127;
+        if (rs1_value[30:23] == 8'h00) begin
+          norm_shift_s = fp_norm_shift_24(sig_s);
+          sig_s = sig_s << norm_shift_s;
+          exp_unbiased = exp_unbiased - norm_shift_s;
+        end
+        radicand_s = exp_unbiased[0] ? ({30'b0, sig_s} << 30) :
+                                      ({30'b0, sig_s} << 29);
+        fp_sqrt_radicand_value = {58'b0, radicand_s};
+      end
     end
   endfunction
 
@@ -3483,6 +3781,54 @@ module OooAluFetchCore #(
   wire pending_fp_convert_to_fpr_w =
       !pending_fp_gpr_write_q &&
       (pending_fp_inst_q[31:25] == FP_FUNCT7_FCVT_INT_D);
+  wire pending_fp_long_start_w =
+      stop_pending_q && pending_fp_q && backend_drained_q &&
+      pending_fp_mem_done_q && pending_fp_long_op_w &&
+      !pending_fp_long_pending_q && !pending_fp_long_done_q;
+  wire pending_fp_compute_start_w =
+      stop_pending_q && pending_fp_q && backend_drained_q &&
+      pending_fp_mem_done_q && pending_fp_compute_op_w &&
+      !pending_fp_compute_done_q;
+  wire [107:0] pending_fp_div_dividend_w =
+      fp_div_dividend_value(pending_fp_frs1_value_w, pending_fp_double_q);
+  wire [52:0] pending_fp_div_divisor_w =
+      fp_div_divisor_value(pending_fp_frs2_value_w, pending_fp_double_q);
+  wire [55:0] pending_fp_div_quotient_w;
+  wire pending_fp_div_remainder_nonzero_w;
+  wire pending_fp_div_busy_w;
+  wire pending_fp_div_done_w;
+  wire [111:0] pending_fp_sqrt_radicand_w =
+      fp_sqrt_radicand_value(pending_fp_frs1_value_w, pending_fp_double_q);
+  wire [55:0] pending_fp_sqrt_root_w;
+  wire pending_fp_sqrt_remainder_nonzero_w;
+  wire pending_fp_sqrt_busy_w;
+  wire pending_fp_sqrt_done_w;
+
+  OooFpDivIter u_pending_fp_div_iter (
+    .clk(clk),
+    .rst(rst),
+    .flush_i(core_local_flush_w),
+    .start_i(pending_fp_long_start_w && pending_fp_div_w),
+    .dividend_i(pending_fp_div_dividend_w),
+    .divisor_i(pending_fp_div_divisor_w),
+    .busy_o(pending_fp_div_busy_w),
+    .done_o(pending_fp_div_done_w),
+    .quotient_o(pending_fp_div_quotient_w),
+    .remainder_nonzero_o(pending_fp_div_remainder_nonzero_w)
+  );
+
+  OooFpSqrtIter u_pending_fp_sqrt_iter (
+    .clk(clk),
+    .rst(rst),
+    .flush_i(core_local_flush_w),
+    .start_i(pending_fp_long_start_w && pending_fp_sqrt_w),
+    .value_i(pending_fp_sqrt_radicand_w),
+    .busy_o(pending_fp_sqrt_busy_w),
+    .done_o(pending_fp_sqrt_done_w),
+    .root_o(pending_fp_sqrt_root_w),
+    .remainder_nonzero_o(pending_fp_sqrt_remainder_nonzero_w)
+  );
+
   wire [`XLEN-1:0] pending_fp_convert_to_gpr_value_w =
       fp_d_to_int_value(pending_fp_frs1_value_w,
                         pending_fp_inst_q[21:20],
@@ -3517,11 +3863,20 @@ module OooAluFetchCore #(
       fp_div_value(pending_fp_frs1_value_w,
                    pending_fp_frs2_value_w,
                    pending_fp_double_q,
-                   pending_fp_inst_q[14:12]);
+                   pending_fp_inst_q[14:12],
+                   pending_fp_div_quotient_w,
+                   pending_fp_div_remainder_nonzero_w);
   wire [`XLEN-1:0] pending_fp_sqrt_value_w =
       fp_sqrt_value(pending_fp_frs1_value_w,
                     pending_fp_double_q,
-                    pending_fp_inst_q[14:12]);
+                    pending_fp_inst_q[14:12],
+                    pending_fp_sqrt_root_w,
+                    pending_fp_sqrt_remainder_nonzero_w);
+  wire pending_fp_long_done_w =
+      pending_fp_div_done_w || pending_fp_sqrt_done_w;
+  wire [`XLEN-1:0] pending_fp_long_done_result_w =
+      pending_fp_div_done_w ? pending_fp_div_value_w :
+                              pending_fp_sqrt_value_w;
   wire [`XLEN-1:0] pending_fp_minmax_value_w =
       fp_minmax_value(pending_fp_frs1_value_w,
                       pending_fp_frs2_value_w,
@@ -3534,16 +3889,17 @@ module OooAluFetchCore #(
       pending_fp_compare_w ? pending_fp_compare_value_w :
       pending_fp_convert_to_gpr_w ? pending_fp_convert_to_gpr_value_w :
       fp_move_to_gpr_value(pending_fp_frs1_value_w, pending_fp_double_q);
-  wire [`XLEN-1:0] pending_fp_result_value_w =
+  wire [`XLEN-1:0] pending_fp_compute_value_w =
       pending_fp_gpr_write_q ? pending_fp_gpr_value_w :
       pending_fp_convert_to_fpr_w ? pending_fp_convert_to_fpr_value_w :
       pending_fp_sgnj_w ? pending_fp_sgnj_value_w :
       pending_fp_addsub_w ? pending_fp_addsub_value_w :
       pending_fp_mul_w ? pending_fp_mul_value_w :
-      pending_fp_div_w ? pending_fp_div_value_w :
-      pending_fp_sqrt_w ? pending_fp_sqrt_value_w :
       pending_fp_minmax_w ? pending_fp_minmax_value_w :
                                pending_fp_move_to_fpr_value_w;
+  wire [`XLEN-1:0] pending_fp_result_value_w =
+      pending_fp_long_op_w ? pending_fp_long_result_q :
+                             pending_fp_compute_result_q;
   wire pending_fp_mem_req_valid_w =
       stop_pending_q && pending_fp_q && backend_drained_q &&
       !pending_fp_mem_pending_q && !pending_fp_mem_done_q;
@@ -3956,6 +4312,8 @@ module OooAluFetchCore #(
       (|branch_prefetch_rsp1_rd_unused_w) |
       (|branch_prefetch_rsp1_imm_unused_w) |
       branch_fallthrough_safe_w | branch_target_cache_hit_w |
+      pending_fp_div_busy_w | pending_fp_sqrt_busy_w |
+      return_cont_attempt_ready_w |
       pending_jump_jalr_sum_lsb_unused_w | head_fetch_fault_w |
       pending_branch_bht_valid_q |
       branch_bpu_lookup_event_w | branch_bpu_lookup_bht_valid_w |
@@ -4019,6 +4377,11 @@ module OooAluFetchCore #(
       pending_fp_q <= 1'b0;
       pending_fp_mem_pending_q <= 1'b0;
       pending_fp_mem_done_q <= 1'b0;
+      pending_fp_long_pending_q <= 1'b0;
+      pending_fp_long_done_q <= 1'b0;
+      pending_fp_long_result_q <= {`XLEN{1'b0}};
+      pending_fp_compute_done_q <= 1'b0;
+      pending_fp_compute_result_q <= {`XLEN{1'b0}};
       pending_fp_load_q <= 1'b0;
       pending_fp_store_q <= 1'b0;
       pending_fp_double_q <= 1'b0;
@@ -4111,11 +4474,10 @@ module OooAluFetchCore #(
       for (ras_reset_idx = 0; ras_reset_idx < RAS_DEPTH; ras_reset_idx = ras_reset_idx + 1) begin
         ras_stack_q[ras_reset_idx] <= {`XLEN{1'b0}};
       end
-      /* verilator lint_off BLKSEQ */
       for (fpr_reset_idx = 0; fpr_reset_idx < `REG_NUM; fpr_reset_idx = fpr_reset_idx + 1) begin
-        fpr_q[fpr_reset_idx] = {`XLEN{1'b0}};
+        // FPR 和其它前端状态一样在 reset 边沿统一落库，避免时序块内 blocking waiver。
+        fpr_q[fpr_reset_idx] <= {`XLEN{1'b0}};
       end
-      /* verilator lint_on BLKSEQ */
     end else begin
       ctrl_commit_valid_q <= 1'b0;
       ctrl_commit_rd_en_q <= 1'b0;
@@ -4141,6 +4503,21 @@ module OooAluFetchCore #(
         pending_fp_mem_done_q <= 1'b1;
         if (pending_fp_load_q)
           fpr_q[pending_fp_rd_q] <= pending_fp_load_value_w;
+      end
+      if (pending_fp_long_start_w) begin
+        pending_fp_long_pending_q <= 1'b1;
+        pending_fp_long_done_q <= 1'b0;
+        pending_fp_long_result_q <= {`XLEN{1'b0}};
+      end
+      if (pending_fp_long_done_w) begin
+        pending_fp_long_pending_q <= 1'b0;
+        pending_fp_long_done_q <= 1'b1;
+        pending_fp_long_result_q <= pending_fp_long_done_result_w;
+      end
+      if (pending_fp_compute_start_w) begin
+        // 非 long-op FP helper 先打一拍，再进入提交边界，切断 helper 到写回的同拍组合锥。
+        pending_fp_compute_done_q <= 1'b1;
+        pending_fp_compute_result_q <= pending_fp_compute_value_w;
       end
 
       if (!branch_target_cache_invalidate_all_w) begin
@@ -4282,6 +4659,11 @@ module OooAluFetchCore #(
         pending_fp_q <= 1'b0;
         pending_fp_mem_pending_q <= 1'b0;
         pending_fp_mem_done_q <= 1'b0;
+        pending_fp_long_pending_q <= 1'b0;
+        pending_fp_long_done_q <= 1'b0;
+        pending_fp_long_result_q <= {`XLEN{1'b0}};
+        pending_fp_compute_done_q <= 1'b0;
+        pending_fp_compute_result_q <= {`XLEN{1'b0}};
         pending_arch_trap_q <= 1'b0;
         pending_system_q <= 1'b0;
         pending_system_dispatched_q <= 1'b0;
@@ -4956,6 +5338,11 @@ module OooAluFetchCore #(
         pending_fp_q <= 1'b0;
         pending_fp_mem_pending_q <= 1'b0;
         pending_fp_mem_done_q <= 1'b0;
+        pending_fp_long_pending_q <= 1'b0;
+        pending_fp_long_done_q <= 1'b0;
+        pending_fp_long_result_q <= {`XLEN{1'b0}};
+        pending_fp_compute_done_q <= 1'b0;
+        pending_fp_compute_result_q <= {`XLEN{1'b0}};
         pending_fp_load_q <= 1'b0;
         pending_fp_store_q <= 1'b0;
         pending_fp_gpr_write_q <= 1'b0;
@@ -5229,6 +5616,11 @@ module OooAluFetchCore #(
           pending_fp_mem_pending_q <= 1'b0;
           pending_fp_mem_done_q <= !head0_fp_load_raw_w &&
                                    !head0_fp_store_raw_w;
+          pending_fp_long_pending_q <= 1'b0;
+          pending_fp_long_done_q <= 1'b0;
+          pending_fp_long_result_q <= {`XLEN{1'b0}};
+          pending_fp_compute_done_q <= 1'b0;
+          pending_fp_compute_result_q <= {`XLEN{1'b0}};
           pending_fp_load_q <= head0_fp_load_raw_w;
           pending_fp_store_q <= head0_fp_store_raw_w;
           pending_fp_double_q <= head0_fp_double_w;
@@ -5378,6 +5770,11 @@ module OooAluFetchCore #(
         pending_fp_mem_pending_q <= 1'b0;
         pending_fp_mem_done_q <= head1_fp_raw_w && !head1_fp_load_raw_w &&
                                  !head1_fp_store_raw_w;
+        pending_fp_long_pending_q <= 1'b0;
+        pending_fp_long_done_q <= 1'b0;
+        pending_fp_long_result_q <= {`XLEN{1'b0}};
+        pending_fp_compute_done_q <= 1'b0;
+        pending_fp_compute_result_q <= {`XLEN{1'b0}};
         pending_fp_load_q <= head1_fp_load_raw_w;
         pending_fp_store_q <= head1_fp_store_raw_w;
         pending_fp_double_q <= head1_fp_double_w;
@@ -5490,6 +5887,11 @@ module OooAluFetchCore #(
         pending_fp_q <= 1'b0;
         pending_fp_mem_pending_q <= 1'b0;
         pending_fp_mem_done_q <= 1'b0;
+        pending_fp_long_pending_q <= 1'b0;
+        pending_fp_long_done_q <= 1'b0;
+        pending_fp_long_result_q <= {`XLEN{1'b0}};
+        pending_fp_compute_done_q <= 1'b0;
+        pending_fp_compute_result_q <= {`XLEN{1'b0}};
         pending_arch_trap_q <= 1'b0;
         pending_system_q <= 1'b0;
         pending_system_dispatched_q <= 1'b0;

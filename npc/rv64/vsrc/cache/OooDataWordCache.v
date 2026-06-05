@@ -46,18 +46,23 @@ module OooDataWordCache #(
     end
   endfunction
 
-  function [`XLEN-1:0] merge_wstrb;
+  function [`XLEN-1:0] merge_wstrb64;
     input [`XLEN-1:0] old_data;
     input [`XLEN-1:0] new_data;
     input [`STRB_W-1:0] mask;
-    integer byte_idx;
     begin
-      merge_wstrb = old_data;
-      for (byte_idx = 0; byte_idx < `STRB_W; byte_idx = byte_idx + 1) begin
-        if (mask[byte_idx]) begin
-          merge_wstrb[byte_idx*8 +: 8] = new_data[byte_idx*8 +: 8];
-        end
-      end
+      // RV64 数据 cache 只在 64-bit word 粒度存储；显式 8-lane mux
+      // 比按 strobe 循环改写更容易审查综合后的 byte-enable 数据通路。
+      merge_wstrb64 = {
+          mask[7] ? new_data[63:56] : old_data[63:56],
+          mask[6] ? new_data[55:48] : old_data[55:48],
+          mask[5] ? new_data[47:40] : old_data[47:40],
+          mask[4] ? new_data[39:32] : old_data[39:32],
+          mask[3] ? new_data[31:24] : old_data[31:24],
+          mask[2] ? new_data[23:16] : old_data[23:16],
+          mask[1] ? new_data[15:8]  : old_data[15:8],
+          mask[0] ? new_data[7:0]   : old_data[7:0]
+      };
     end
   endfunction
 
@@ -100,8 +105,8 @@ module OooDataWordCache #(
         if (store_cacheable_w) begin
           if (store_hit_w) begin
             data_q[store_idx_w] <=
-                merge_wstrb(data_q[store_idx_w], store_data_i,
-                            store_wstrb_i);
+                merge_wstrb64(data_q[store_idx_w], store_data_i,
+                              store_wstrb_i);
           end else if (store_wstrb_i == {`STRB_W{1'b1}}) begin
             valid_q[store_idx_w] <= 1'b1;
             addr_q[store_idx_w] <= store_addr_i;

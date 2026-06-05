@@ -113,6 +113,10 @@ module OooIntBackend #(
   output pending_load_branch_dep_o
 );
 
+  localparam [1:0] CLMUL_OP_LOW = 2'd0;
+  localparam [1:0] CLMUL_OP_HIGH = 2'd1;
+  localparam [1:0] CLMUL_OP_REV = 2'd2;
+
   wire wb0_valid_w;
   wire [ROB_INDEX_W-1:0] wb0_rob_idx_w;
   wire [PHY_REG_ADDR_W-1:0] wb0_pdest_w;
@@ -150,6 +154,7 @@ module OooIntBackend #(
   wire [PHY_REG_ADDR_W-1:0] issue1_src2_preg_w;
   wire [PHY_REG_ADDR_W-1:0] issue1_pdest_w;
   wire [`XLEN-1:0] issue1_imm_w;
+  wire mem_issue_block_w = mem_issue_block_i || checkpoint_quiesce_i;
 
   wire dispatch0_fire_w;
   wire [ROB_INDEX_W-1:0] dispatch0_rob_idx_w;
@@ -333,9 +338,15 @@ module OooIntBackend #(
   wire dispatch1_branch_fire_w =
       dispatch1_fire_w && !dispatch1_optional_i &&
       dispatch1_ctrl_i[`CTRL_BRANCH_BIT];
+  // lane1 branch 仍正常进入 IQ 执行；dispatch 同拍 fast resolve 只保留 lane0，
+  // 避免 lane1 合成 payload 反向参与前端 ready/return-continuation 组合环。
+  wire dispatch_branch_fast_lane1_enable_w = 1'b0;
   wire dispatch_branch_from1_w =
+      dispatch_branch_fast_lane1_enable_w &&
       !dispatch1_optional_i && !dispatch0_branch_fire_w &&
       dispatch1_branch_fire_w;
+  wire dispatch_branch_fast_candidate_w =
+      dispatch0_branch_fire_w || dispatch_branch_from1_w;
   wire [PHY_REG_ADDR_W-1:0] dispatch_branch_src1_preg_w =
       dispatch_branch_from1_w ? dispatch1_src1_preg_w :
                                 dispatch0_src1_preg_w;
@@ -498,112 +509,172 @@ module OooIntBackend #(
     end
   endfunction
 
-  /* verilator lint_off UNUSEDSIGNAL */
-  function [`XLEN-1:0] rv64m_result;
-    input [`INST_W-1:0] inst;
-    input [`XLEN-1:0] src1;
-    input [`XLEN-1:0] src2;
-    input word_op;
-    reg [`XLEN-1:0] op1;
-    reg [`XLEN-1:0] op2;
-    reg [`XLEN-1:0] raw_result;
-    reg signed [(`XLEN*2)-1:0] ss_prod;
-    reg signed [(`XLEN*2)-1:0] su_prod;
-    reg [(`XLEN*2)-1:0] uu_prod;
-    reg word_unsigned;
-    reg [`XLEN-1:0] signed_min;
-    reg [`XLEN-1:0] all_ones;
+  function [3:0] bitmanip_clz8;
+    input [7:0] value;
     begin
-      word_unsigned = word_op &&
-                      ((inst[14:12] == 3'b101) ||
-                       (inst[14:12] == 3'b111));
-      op1 = word_op ? (word_unsigned ? zero_extend_word(src1[31:0]) :
-                                       sign_extend_word(src1[31:0])) :
-                       src1;
-      op2 = word_op ? (word_unsigned ? zero_extend_word(src2[31:0]) :
-                                       sign_extend_word(src2[31:0])) :
-                       src2;
-      signed_min = {1'b1, {(`XLEN-1){1'b0}}};
-      all_ones = {`XLEN{1'b1}};
-      ss_prod = $signed({{`XLEN{op1[`XLEN-1]}}, op1}) *
-                $signed({{`XLEN{op2[`XLEN-1]}}, op2});
-      su_prod = $signed({{`XLEN{op1[`XLEN-1]}}, op1}) *
-                $signed({{`XLEN{1'b0}}, op2});
-      uu_prod = {{`XLEN{1'b0}}, op1} * {{`XLEN{1'b0}}, op2};
-      raw_result = {`XLEN{1'b0}};
-      case (inst[14:12])
-        3'b000: raw_result = uu_prod[`XLEN-1:0];
-        3'b001: raw_result = ss_prod[(`XLEN*2)-1:`XLEN];
-        3'b010: raw_result = su_prod[(`XLEN*2)-1:`XLEN];
-        3'b011: raw_result = uu_prod[(`XLEN*2)-1:`XLEN];
-        3'b100: begin
-          if (op2 == {`XLEN{1'b0}})
-            raw_result = all_ones;
-          else if ((op1 == signed_min) && (op2 == all_ones))
-            raw_result = signed_min;
-          else
-            raw_result = $signed(op1) / $signed(op2);
-        end
-        3'b101: begin
-          if (op2 == {`XLEN{1'b0}})
-            raw_result = all_ones;
-          else
-            raw_result = op1 / op2;
-        end
-        3'b110: begin
-          if (op2 == {`XLEN{1'b0}})
-            raw_result = op1;
-          else if ((op1 == signed_min) && (op2 == all_ones))
-            raw_result = {`XLEN{1'b0}};
-          else
-            raw_result = $signed(op1) % $signed(op2);
-        end
-        3'b111: begin
-          if (op2 == {`XLEN{1'b0}})
-            raw_result = op1;
-          else
-            raw_result = op1 % op2;
-        end
-        default: raw_result = {`XLEN{1'b0}};
+      casez (value)
+        8'b1???????: bitmanip_clz8 = 4'd0;
+        8'b01??????: bitmanip_clz8 = 4'd1;
+        8'b001?????: bitmanip_clz8 = 4'd2;
+        8'b0001????: bitmanip_clz8 = 4'd3;
+        8'b00001???: bitmanip_clz8 = 4'd4;
+        8'b000001??: bitmanip_clz8 = 4'd5;
+        8'b0000001?: bitmanip_clz8 = 4'd6;
+        8'b00000001: bitmanip_clz8 = 4'd7;
+        default:     bitmanip_clz8 = 4'd8;
       endcase
-      rv64m_result = word_op ? sign_extend_word(raw_result[31:0]) :
-                                raw_result;
     end
   endfunction
-  /* verilator lint_on UNUSEDSIGNAL */
 
-  function [`XLEN-1:0] rv32b_result;
-    /* verilator lint_off UNUSEDSIGNAL */
-    input [`INST_W-1:0] inst;
-    /* verilator lint_on UNUSEDSIGNAL */
+  function [3:0] bitmanip_ctz8;
+    input [7:0] value;
+    begin
+      casez (value)
+        8'b???????1: bitmanip_ctz8 = 4'd0;
+        8'b??????10: bitmanip_ctz8 = 4'd1;
+        8'b?????100: bitmanip_ctz8 = 4'd2;
+        8'b????1000: bitmanip_ctz8 = 4'd3;
+        8'b???10000: bitmanip_ctz8 = 4'd4;
+        8'b??100000: bitmanip_ctz8 = 4'd5;
+        8'b?1000000: bitmanip_ctz8 = 4'd6;
+        8'b10000000: bitmanip_ctz8 = 4'd7;
+        default:     bitmanip_ctz8 = 4'd8;
+      endcase
+    end
+  endfunction
+
+  function [3:0] bitmanip_popcount8;
+    input [7:0] value;
+    reg [1:0] pair0;
+    reg [1:0] pair1;
+    reg [1:0] pair2;
+    reg [1:0] pair3;
+    reg [2:0] nibble0;
+    reg [2:0] nibble1;
+    begin
+      pair0 = {1'b0, value[0]} + {1'b0, value[1]};
+      pair1 = {1'b0, value[2]} + {1'b0, value[3]};
+      pair2 = {1'b0, value[4]} + {1'b0, value[5]};
+      pair3 = {1'b0, value[6]} + {1'b0, value[7]};
+      nibble0 = {1'b0, pair0} + {1'b0, pair1};
+      nibble1 = {1'b0, pair2} + {1'b0, pair3};
+      bitmanip_popcount8 = {1'b0, nibble0} + {1'b0, nibble1};
+    end
+  endfunction
+
+  function [6:0] bitmanip_clz64;
+    input [63:0] value;
+    begin
+      // Zbb count 类指令用 byte 级优先树表达，避免 64 次循环覆盖结果形成长组合链。
+      if (value[63:56] != 8'b0)
+        bitmanip_clz64 = {3'b000, bitmanip_clz8(value[63:56])};
+      else if (value[55:48] != 8'b0)
+        bitmanip_clz64 = 7'd8 + {3'b000, bitmanip_clz8(value[55:48])};
+      else if (value[47:40] != 8'b0)
+        bitmanip_clz64 = 7'd16 + {3'b000, bitmanip_clz8(value[47:40])};
+      else if (value[39:32] != 8'b0)
+        bitmanip_clz64 = 7'd24 + {3'b000, bitmanip_clz8(value[39:32])};
+      else if (value[31:24] != 8'b0)
+        bitmanip_clz64 = 7'd32 + {3'b000, bitmanip_clz8(value[31:24])};
+      else if (value[23:16] != 8'b0)
+        bitmanip_clz64 = 7'd40 + {3'b000, bitmanip_clz8(value[23:16])};
+      else if (value[15:8] != 8'b0)
+        bitmanip_clz64 = 7'd48 + {3'b000, bitmanip_clz8(value[15:8])};
+      else if (value[7:0] != 8'b0)
+        bitmanip_clz64 = 7'd56 + {3'b000, bitmanip_clz8(value[7:0])};
+      else
+        bitmanip_clz64 = 7'd64;
+    end
+  endfunction
+
+  function [6:0] bitmanip_ctz64;
+    input [63:0] value;
+    begin
+      if (value[7:0] != 8'b0)
+        bitmanip_ctz64 = {3'b000, bitmanip_ctz8(value[7:0])};
+      else if (value[15:8] != 8'b0)
+        bitmanip_ctz64 = 7'd8 + {3'b000, bitmanip_ctz8(value[15:8])};
+      else if (value[23:16] != 8'b0)
+        bitmanip_ctz64 = 7'd16 + {3'b000, bitmanip_ctz8(value[23:16])};
+      else if (value[31:24] != 8'b0)
+        bitmanip_ctz64 = 7'd24 + {3'b000, bitmanip_ctz8(value[31:24])};
+      else if (value[39:32] != 8'b0)
+        bitmanip_ctz64 = 7'd32 + {3'b000, bitmanip_ctz8(value[39:32])};
+      else if (value[47:40] != 8'b0)
+        bitmanip_ctz64 = 7'd40 + {3'b000, bitmanip_ctz8(value[47:40])};
+      else if (value[55:48] != 8'b0)
+        bitmanip_ctz64 = 7'd48 + {3'b000, bitmanip_ctz8(value[55:48])};
+      else if (value[63:56] != 8'b0)
+        bitmanip_ctz64 = 7'd56 + {3'b000, bitmanip_ctz8(value[63:56])};
+      else
+        bitmanip_ctz64 = 7'd64;
+    end
+  endfunction
+
+  function [6:0] bitmanip_cpop64;
+    input [63:0] value;
+    reg [3:0] pop0;
+    reg [3:0] pop1;
+    reg [3:0] pop2;
+    reg [3:0] pop3;
+    reg [3:0] pop4;
+    reg [3:0] pop5;
+    reg [3:0] pop6;
+    reg [3:0] pop7;
+    reg [4:0] sum01;
+    reg [4:0] sum23;
+    reg [4:0] sum45;
+    reg [4:0] sum67;
+    reg [5:0] sum0123;
+    reg [5:0] sum4567;
+    begin
+      pop0 = bitmanip_popcount8(value[7:0]);
+      pop1 = bitmanip_popcount8(value[15:8]);
+      pop2 = bitmanip_popcount8(value[23:16]);
+      pop3 = bitmanip_popcount8(value[31:24]);
+      pop4 = bitmanip_popcount8(value[39:32]);
+      pop5 = bitmanip_popcount8(value[47:40]);
+      pop6 = bitmanip_popcount8(value[55:48]);
+      pop7 = bitmanip_popcount8(value[63:56]);
+      sum01 = {1'b0, pop0} + {1'b0, pop1};
+      sum23 = {1'b0, pop2} + {1'b0, pop3};
+      sum45 = {1'b0, pop4} + {1'b0, pop5};
+      sum67 = {1'b0, pop6} + {1'b0, pop7};
+      sum0123 = {1'b0, sum01} + {1'b0, sum23};
+      sum4567 = {1'b0, sum45} + {1'b0, sum67};
+      bitmanip_cpop64 = {1'b0, sum0123} + {1'b0, sum4567};
+    end
+  endfunction
+
+  function [`XLEN-1:0] bitmanip_result;
+    input [6:0] opcode;
+    input [9:0] funct10;
+    input [5:0] imm;
     input [`XLEN-1:0] src1;
     input [`XLEN-1:0] src2;
-    reg [5:0] imm;
     reg [4:0] imm5;
     reg [5:0] shamt;
     reg [6:0] inv_shamt;
-    integer i;
     begin
-      imm = inst[25:20];
-      imm5 = inst[24:20];
+      imm5 = imm[4:0];
       shamt = src2[`SHIFT_AMT_W-1:0];
       inv_shamt = 7'd64 - {1'b0, shamt};
-      rv32b_result = {`XLEN{1'b0}};
+      bitmanip_result = {`XLEN{1'b0}};
 
-      if (inst[6:0] == `OPCODE_OP_IMM) begin
-        case ({inst[31:25], inst[14:12]})
+      if (opcode == `OPCODE_OP_IMM) begin
+        case (funct10)
           {7'h14, `FUNCT3_SLL},
-          {7'h15, `FUNCT3_SLL}:     rv32b_result = src1 | (64'h1 << imm);
+          {7'h15, `FUNCT3_SLL}:     bitmanip_result = src1 | (64'h1 << imm);
           {7'h24, `FUNCT3_SLL},
-          {7'h25, `FUNCT3_SLL}:     rv32b_result = src1 & ~(64'h1 << imm);
+          {7'h25, `FUNCT3_SLL}:     bitmanip_result = src1 & ~(64'h1 << imm);
           {7'h34, `FUNCT3_SLL},
-          {7'h35, `FUNCT3_SLL}:     rv32b_result = src1 ^ (64'h1 << imm);
+          {7'h35, `FUNCT3_SLL}:     bitmanip_result = src1 ^ (64'h1 << imm);
           {7'h30, `FUNCT3_SRL_SRA},
-          {7'h31, `FUNCT3_SRL_SRA}: rv32b_result = (imm == 6'h0) ? src1 :
+          {7'h31, `FUNCT3_SRL_SRA}: bitmanip_result = (imm == 6'h0) ? src1 :
                                                      ((src1 >> imm) | (src1 << (7'd64 - {1'b0, imm})));
           {7'h24, `FUNCT3_SRL_SRA},
-          {7'h25, `FUNCT3_SRL_SRA}: rv32b_result = {{(`XLEN-1){1'b0}}, src1[imm]};
-          {7'h14, `FUNCT3_SRL_SRA}: rv32b_result = {
+          {7'h25, `FUNCT3_SRL_SRA}: bitmanip_result = {{(`XLEN-1){1'b0}}, src1[imm]};
+          {7'h14, `FUNCT3_SRL_SRA}: bitmanip_result = {
               (src1[63:56] != 8'h00) ? 8'hff : 8'h00,
               (src1[55:48] != 8'h00) ? 8'hff : 8'h00,
               (src1[47:40] != 8'h00) ? 8'hff : 8'h00,
@@ -614,87 +685,75 @@ module OooIntBackend #(
               (src1[7:0]   != 8'h00) ? 8'hff : 8'h00
           };
           {7'h34, `FUNCT3_SRL_SRA},
-          {7'h35, `FUNCT3_SRL_SRA}: rv32b_result = {src1[7:0], src1[15:8], src1[23:16], src1[31:24],
+          {7'h35, `FUNCT3_SRL_SRA}: bitmanip_result = {src1[7:0], src1[15:8], src1[23:16], src1[31:24],
                                                      src1[39:32], src1[47:40], src1[55:48], src1[63:56]};
           {7'h30, `FUNCT3_SLL}: begin
             case (imm5)
-              5'h00: begin
-                rv32b_result = 64'd64;
-                for (i = 0; i < 64; i = i + 1) begin
-                  if (src1[63 - i] && (rv32b_result == 64'd64))
-                    rv32b_result = i;
-                end
-              end
-              5'h01: begin
-                rv32b_result = 64'd64;
-                for (i = 0; i < 64; i = i + 1) begin
-                  if (src1[i] && (rv32b_result == 64'd64))
-                    rv32b_result = i;
-                end
-              end
-              5'h02: begin
-                rv32b_result = {`XLEN{1'b0}};
-                for (i = 0; i < 64; i = i + 1)
-                  rv32b_result = rv32b_result + {{(`XLEN-1){1'b0}}, src1[i]};
-              end
-              5'h04: rv32b_result = {{(`XLEN-8){src1[7]}}, src1[7:0]};
-              5'h05: rv32b_result = {{(`XLEN-16){src1[15]}}, src1[15:0]};
+              5'h00: bitmanip_result = {{(`XLEN-7){1'b0}},
+                                         bitmanip_clz64(src1)};
+              5'h01: bitmanip_result = {{(`XLEN-7){1'b0}},
+                                         bitmanip_ctz64(src1)};
+              5'h02: bitmanip_result = {{(`XLEN-7){1'b0}},
+                                         bitmanip_cpop64(src1)};
+              5'h04: bitmanip_result = {{(`XLEN-8){src1[7]}}, src1[7:0]};
+              5'h05: bitmanip_result = {{(`XLEN-16){src1[15]}}, src1[15:0]};
               default: begin end
             endcase
           end
           default: begin end
         endcase
-      end else if (inst[6:0] == `OPCODE_OP_IMM_32) begin
-        case ({inst[31:26], inst[14:12]})
-          {6'h02, `FUNCT3_SLL}: rv32b_result = ({{(`XLEN-32){1'b0}}, src1[31:0]}) << imm;
+      end else if (opcode == `OPCODE_OP_IMM_32) begin
+        case ({funct10[9:4], funct10[2:0]})
+          {6'h02, `FUNCT3_SLL}: bitmanip_result = ({{(`XLEN-32){1'b0}}, src1[31:0]}) << imm;
           default: begin end
         endcase
       end else begin
-        case ({inst[31:25], inst[14:12]})
-          {7'h04, `FUNCT3_ADD_SUB}: rv32b_result = {{(`XLEN-32){1'b0}}, src1[31:0]} + src2;
-          {7'h10, `FUNCT3_SLT}:     rv32b_result = (((inst[6:0] == `OPCODE_OP_32) ? {{(`XLEN-32){1'b0}}, src1[31:0]} : src1) << 1) + src2;
-          {7'h10, `FUNCT3_XOR}:     rv32b_result = (((inst[6:0] == `OPCODE_OP_32) ? {{(`XLEN-32){1'b0}}, src1[31:0]} : src1) << 2) + src2;
-          {7'h10, `FUNCT3_OR}:      rv32b_result = (((inst[6:0] == `OPCODE_OP_32) ? {{(`XLEN-32){1'b0}}, src1[31:0]} : src1) << 3) + src2;
-          {7'h20, `FUNCT3_AND}:     rv32b_result = src1 & ~src2;
-          {7'h20, `FUNCT3_OR}:      rv32b_result = src1 | ~src2;
-          {7'h20, `FUNCT3_XOR}:     rv32b_result = ~(src1 ^ src2);
-          {7'h30, `FUNCT3_SLL}:     rv32b_result = (shamt == 5'h0) ? src1 :
+        case (funct10)
+          {7'h04, `FUNCT3_ADD_SUB}: bitmanip_result = {{(`XLEN-32){1'b0}}, src1[31:0]} + src2;
+          {7'h10, `FUNCT3_SLT}:     bitmanip_result = (((opcode == `OPCODE_OP_32) ? {{(`XLEN-32){1'b0}}, src1[31:0]} : src1) << 1) + src2;
+          {7'h10, `FUNCT3_XOR}:     bitmanip_result = (((opcode == `OPCODE_OP_32) ? {{(`XLEN-32){1'b0}}, src1[31:0]} : src1) << 2) + src2;
+          {7'h10, `FUNCT3_OR}:      bitmanip_result = (((opcode == `OPCODE_OP_32) ? {{(`XLEN-32){1'b0}}, src1[31:0]} : src1) << 3) + src2;
+          {7'h20, `FUNCT3_AND}:     bitmanip_result = src1 & ~src2;
+          {7'h20, `FUNCT3_OR}:      bitmanip_result = src1 | ~src2;
+          {7'h20, `FUNCT3_XOR}:     bitmanip_result = ~(src1 ^ src2);
+          {7'h30, `FUNCT3_SLL}:     bitmanip_result = (shamt == 5'h0) ? src1 :
                                                      ((src1 << shamt) | (src1 >> inv_shamt));
-          {7'h30, `FUNCT3_SRL_SRA}: rv32b_result = (shamt == 5'h0) ? src1 :
+          {7'h30, `FUNCT3_SRL_SRA}: bitmanip_result = (shamt == 5'h0) ? src1 :
                                                      ((src1 >> shamt) | (src1 << inv_shamt));
-          {7'h05, `FUNCT3_XOR}:     rv32b_result = ($signed(src1) < $signed(src2)) ? src1 : src2;
-          {7'h05, `FUNCT3_SRL_SRA}: rv32b_result = (src1 < src2) ? src1 : src2;
-          {7'h05, `FUNCT3_OR}:      rv32b_result = ($signed(src1) > $signed(src2)) ? src1 : src2;
-          {7'h05, `FUNCT3_AND}:     rv32b_result = (src1 > src2) ? src1 : src2;
-          {7'h14, `FUNCT3_SLL}:     rv32b_result = src1 | (64'h1 << shamt);
-          {7'h24, `FUNCT3_SLL}:     rv32b_result = src1 & ~(64'h1 << shamt);
-          {7'h24, `FUNCT3_SRL_SRA}: rv32b_result = {{(`XLEN-1){1'b0}}, src1[shamt]};
-          {7'h34, `FUNCT3_SLL}:     rv32b_result = src1 ^ (64'h1 << shamt);
-          {7'h04, `FUNCT3_XOR}:     rv32b_result = {{(`XLEN-16){1'b0}}, src1[15:0]};
-          {7'h05, `FUNCT3_SLL}: begin
-            rv32b_result = {`XLEN{1'b0}};
-            for (i = 0; i < 64; i = i + 1) begin
-              if (src2[i])
-                rv32b_result = rv32b_result ^ (src1 << i);
-            end
-          end
-          {7'h05, `FUNCT3_SLT}: begin
-            rv32b_result = {`XLEN{1'b0}};
-            for (i = 0; i < 64; i = i + 1) begin
-              if (src2[i])
-                rv32b_result = rv32b_result ^ (src1 >> (63 - i));
-            end
-          end
-          {7'h05, `FUNCT3_SLTU}: begin
-            rv32b_result = {`XLEN{1'b0}};
-            for (i = 1; i < 64; i = i + 1) begin
-              if (src2[i])
-                rv32b_result = rv32b_result ^ (src1 >> (64 - i));
-            end
-          end
+          {7'h05, `FUNCT3_XOR}:     bitmanip_result = ($signed(src1) < $signed(src2)) ? src1 : src2;
+          {7'h05, `FUNCT3_SRL_SRA}: bitmanip_result = (src1 < src2) ? src1 : src2;
+          {7'h05, `FUNCT3_OR}:      bitmanip_result = ($signed(src1) > $signed(src2)) ? src1 : src2;
+          {7'h05, `FUNCT3_AND}:     bitmanip_result = (src1 > src2) ? src1 : src2;
+          {7'h14, `FUNCT3_SLL}:     bitmanip_result = src1 | (64'h1 << shamt);
+          {7'h24, `FUNCT3_SLL}:     bitmanip_result = src1 & ~(64'h1 << shamt);
+          {7'h24, `FUNCT3_SRL_SRA}: bitmanip_result = {{(`XLEN-1){1'b0}}, src1[shamt]};
+          {7'h34, `FUNCT3_SLL}:     bitmanip_result = src1 ^ (64'h1 << shamt);
+          {7'h04, `FUNCT3_XOR}:     bitmanip_result = {{(`XLEN-16){1'b0}}, src1[15:0]};
           default: begin end
         endcase
       end
+    end
+  endfunction
+
+  function is_clmul_inst;
+    input [`INST_W-1:0] inst;
+    begin
+      is_clmul_inst =
+          (inst[6:0] == `OPCODE_OP) && (inst[31:25] == 7'h05) &&
+          ((inst[14:12] == `FUNCT3_SLL) ||
+           (inst[14:12] == `FUNCT3_SLT) ||
+           (inst[14:12] == `FUNCT3_SLTU));
+    end
+  endfunction
+
+  function [1:0] clmul_op_from_funct3;
+    input [2:0] funct3;
+    begin
+      case (funct3)
+        `FUNCT3_SLT:  clmul_op_from_funct3 = CLMUL_OP_HIGH;
+        `FUNCT3_SLTU: clmul_op_from_funct3 = CLMUL_OP_REV;
+        default:      clmul_op_from_funct3 = CLMUL_OP_LOW;
+      endcase
     end
   endfunction
 
@@ -786,18 +845,14 @@ module OooIntBackend #(
       issue1_alu_result_w;
 
   assign issue0_exec_result_w =
-      issue0_ctrl_w[`CTRL_MULDIV_BIT] ?
-      rv64m_result(issue0_inst_w, issue0_src1_data_w, issue0_src2_data_w,
-                   issue0_ctrl_w[`CTRL_WORD_OP_BIT]) :
       issue0_ctrl_w[`CTRL_BITMANIP_BIT] ?
-      rv32b_result(issue0_inst_w, issue0_src1_data_w, issue0_src2_data_w) :
+      bitmanip_result(issue0_inst_w[6:0], {issue0_inst_w[31:25], issue0_inst_w[14:12]},
+                      issue0_inst_w[25:20], issue0_src1_data_w, issue0_src2_data_w) :
       issue0_alu_result_final_w;
   assign issue1_exec_result_w =
-      issue1_ctrl_w[`CTRL_MULDIV_BIT] ?
-      rv64m_result(issue1_inst_w, issue1_src1_value_w, issue1_src2_value_w,
-                   issue1_ctrl_w[`CTRL_WORD_OP_BIT]) :
       issue1_ctrl_w[`CTRL_BITMANIP_BIT] ?
-      rv32b_result(issue1_inst_w, issue1_src1_value_w, issue1_src2_value_w) :
+      bitmanip_result(issue1_inst_w[6:0], {issue1_inst_w[31:25], issue1_inst_w[14:12]},
+                      issue1_inst_w[25:20], issue1_src1_value_w, issue1_src2_value_w) :
       issue1_alu_result_final_w;
 
   WBU u_wbu0 (
@@ -995,7 +1050,6 @@ module OooIntBackend #(
   wire issue1_mem_exception_w = issue1_is_mem_w && issue1_mem_misaligned_w;
   wire issue_block_w =
       checkpoint_capture_i || checkpoint_quiesce_i;
-  wire mem_issue_block_w = mem_issue_block_i || checkpoint_quiesce_i;
   wire mem_rsp_wants_w = mem_pending_q && mem_rsp_valid_i && !flush_i;
   wire mem1_rsp_wants_w = mem1_pending_q && mem1_rsp_valid_i && !flush_i;
   assign mem_idle_o =
@@ -1093,26 +1147,134 @@ module OooIntBackend #(
   wire mem_rsp_waiting_for_wb_w =
       (mem_rsp_wants_w && !mem_rsp_ready_o) ||
       (mem1_rsp_wants_w && !mem1_rsp_ready_o);
+  wire issue0_is_muldiv_w =
+      issue0_valid_w && issue0_ctrl_w[`CTRL_MULDIV_BIT];
+  wire issue1_is_muldiv_w =
+      issue1_valid_w && issue1_ctrl_w[`CTRL_MULDIV_BIT];
+  wire issue0_is_clmul_w =
+      issue0_valid_w && issue0_ctrl_w[`CTRL_BITMANIP_BIT] &&
+      is_clmul_inst(issue0_inst_w);
+  wire issue1_is_clmul_w =
+      issue1_valid_w && issue1_ctrl_w[`CTRL_BITMANIP_BIT] &&
+      is_clmul_inst(issue1_inst_w);
+  wire muldiv_req_valid_w;
+  wire muldiv_req_ready_w;
+  wire muldiv_resp_valid_w;
+  wire muldiv_resp_ready_w;
+  wire [ROB_INDEX_W-1:0] muldiv_resp_rob_idx_w;
+  wire [PHY_REG_ADDR_W-1:0] muldiv_resp_pdest_w;
+  wire [`XLEN-1:0] muldiv_resp_data_w;
+  wire clmul_req_valid_w;
+  wire clmul_req_ready_w;
+  wire clmul_resp_valid_w;
+  wire clmul_resp_ready_w;
+  wire [ROB_INDEX_W-1:0] clmul_resp_rob_idx_w;
+  wire [PHY_REG_ADDR_W-1:0] clmul_resp_pdest_w;
+  wire [`XLEN-1:0] clmul_resp_data_w;
 
   assign issue0_ready_w = !flush_i && !issue_block_w &&
-                          (!issue0_is_mem_w || issue0_mem_can_fire_w);
+                          (!issue0_is_mem_w || issue0_mem_can_fire_w) &&
+                          (!issue0_is_muldiv_w || muldiv_req_ready_w) &&
+                          (!issue0_is_clmul_w || clmul_req_ready_w);
   assign issue1_ready_w = !flush_i && !issue_block_w &&
                           !mem_rsp_waiting_for_wb_w &&
                           (!issue1_is_mem_w || issue1_mem_can_fire_w) &&
+                          (!issue1_is_muldiv_w ||
+                           (muldiv_req_ready_w && !issue0_is_muldiv_w)) &&
+                          (!issue1_is_clmul_w ||
+                           (clmul_req_ready_w && !issue0_is_clmul_w)) &&
                           (!issue0_is_mem_w || issue0_mem_can_fire_w ||
                            !issue1_is_mem_w);
 
   wire issue0_fire_w = issue0_valid_w && issue0_ready_w;
   wire issue1_fire_w = issue1_valid_w && issue1_ready_w;
+  wire issue0_muldiv_fire_w = issue0_fire_w && issue0_is_muldiv_w;
+  wire issue1_muldiv_fire_w = issue1_fire_w && issue1_is_muldiv_w;
+  wire issue0_clmul_fire_w = issue0_fire_w && issue0_is_clmul_w;
+  wire issue1_clmul_fire_w = issue1_fire_w && issue1_is_clmul_w;
   wire issue0_branch_fire_w = issue0_fire_w && issue0_is_branch_w;
   wire issue1_branch_fire_w = issue1_fire_w && issue1_is_branch_w;
 
   wire issue0_current_result_valid_w =
-      issue0_fire_w && !issue0_is_mem_w &&
+      issue0_fire_w && !issue0_is_mem_w && !issue0_is_muldiv_w &&
+      !issue0_is_clmul_w &&
       (issue0_pdest_w != {PHY_REG_ADDR_W{1'b0}});
   wire issue1_current_result_valid_w =
       issue1_fire_w && !dispatch1_optional_i && !issue1_is_mem_w &&
+      !issue1_is_muldiv_w && !issue1_is_clmul_w &&
       (issue1_pdest_w != {PHY_REG_ADDR_W{1'b0}});
+
+  assign muldiv_req_valid_w = issue0_muldiv_fire_w || issue1_muldiv_fire_w;
+  wire [ROB_INDEX_W-1:0] muldiv_req_rob_idx_w =
+      issue0_muldiv_fire_w ? issue0_rob_idx_w : issue1_rob_idx_w;
+  wire [PHY_REG_ADDR_W-1:0] muldiv_req_pdest_w =
+      issue0_muldiv_fire_w ? issue0_pdest_w : issue1_pdest_w;
+  wire [`INST_W-1:0] muldiv_req_inst_w =
+      issue0_muldiv_fire_w ? issue0_inst_w : issue1_inst_w;
+  wire [`XLEN-1:0] muldiv_req_src1_w =
+      issue0_muldiv_fire_w ? issue0_src1_data_w : issue1_src1_value_w;
+  wire [`XLEN-1:0] muldiv_req_src2_w =
+      issue0_muldiv_fire_w ? issue0_src2_data_w : issue1_src2_value_w;
+  wire muldiv_req_word_w =
+      issue0_muldiv_fire_w ? issue0_ctrl_w[`CTRL_WORD_OP_BIT] :
+                             issue1_ctrl_w[`CTRL_WORD_OP_BIT];
+
+  OooMulDivUnit #(
+    .PHY_REG_ADDR_W(PHY_REG_ADDR_W),
+    .ROB_INDEX_W(ROB_INDEX_W)
+  ) u_muldiv_unit (
+    .clk(clk),
+    .rst(rst),
+    .flush_i(flush_i || checkpoint_restore_i),
+    .req_valid_i(muldiv_req_valid_w),
+    .req_ready_o(muldiv_req_ready_w),
+    .req_rob_idx_i(muldiv_req_rob_idx_w),
+    .req_pdest_i(muldiv_req_pdest_w),
+    .req_inst_i(muldiv_req_inst_w),
+    .req_src1_i(muldiv_req_src1_w),
+    .req_src2_i(muldiv_req_src2_w),
+    .req_word_i(muldiv_req_word_w),
+    .resp_valid_o(muldiv_resp_valid_w),
+    .resp_ready_i(muldiv_resp_ready_w),
+    .resp_rob_idx_o(muldiv_resp_rob_idx_w),
+    .resp_pdest_o(muldiv_resp_pdest_w),
+    .resp_data_o(muldiv_resp_data_w)
+  );
+
+  assign clmul_req_valid_w = issue0_clmul_fire_w || issue1_clmul_fire_w;
+  wire [ROB_INDEX_W-1:0] clmul_req_rob_idx_w =
+      issue0_clmul_fire_w ? issue0_rob_idx_w : issue1_rob_idx_w;
+  wire [PHY_REG_ADDR_W-1:0] clmul_req_pdest_w =
+      issue0_clmul_fire_w ? issue0_pdest_w : issue1_pdest_w;
+  wire [1:0] clmul_req_op_w =
+      clmul_op_from_funct3(issue0_clmul_fire_w ? issue0_inst_w[14:12] :
+                                                  issue1_inst_w[14:12]);
+  wire [`XLEN-1:0] clmul_req_src1_w =
+      issue0_clmul_fire_w ? issue0_src1_data_w : issue1_src1_value_w;
+  wire [`XLEN-1:0] clmul_req_src2_w =
+      issue0_clmul_fire_w ? issue0_src2_data_w : issue1_src2_value_w;
+
+  OooClmulUnit #(
+    .PHY_REG_ADDR_W(PHY_REG_ADDR_W),
+    .ROB_INDEX_W(ROB_INDEX_W)
+  ) u_clmul_unit (
+    .clk(clk),
+    .rst(rst),
+    .flush_i(flush_i || checkpoint_restore_i),
+    .req_valid_i(clmul_req_valid_w),
+    .req_ready_o(clmul_req_ready_w),
+    .req_rob_idx_i(clmul_req_rob_idx_w),
+    .req_pdest_i(clmul_req_pdest_w),
+    .req_op_i(clmul_req_op_w),
+    .req_src1_i(clmul_req_src1_w),
+    .req_src2_i(clmul_req_src2_w),
+    .resp_valid_o(clmul_resp_valid_w),
+    .resp_ready_i(clmul_resp_ready_w),
+    .resp_rob_idx_o(clmul_resp_rob_idx_w),
+    .resp_pdest_o(clmul_resp_pdest_w),
+    .resp_data_o(clmul_resp_data_w)
+  );
+
   wire dispatch0_src1_issue0_match_w =
       issue0_current_result_valid_w &&
       (issue0_pdest_w == dispatch0_src1_preg_w);
@@ -1224,7 +1386,7 @@ module OooIntBackend #(
       dispatch_branch_src2_issue0_match_w ||
       dispatch_branch_src2_issue1_match_w;
   wire dispatch_branch_ready_w =
-      (dispatch0_branch_fire_w || dispatch1_branch_fire_w) &&
+      dispatch_branch_fast_candidate_w &&
       dispatch_branch_src1_ready_w && dispatch_branch_src2_ready_w;
 
   wire [`XLEN-1:0] dispatch_branch_src1_value_w =
@@ -1720,9 +1882,11 @@ module OooIntBackend #(
         mem_buffer_wstrb_q <= issue1_mem_wstrb_w;
       end
 
-      ex0_valid_q <= issue0_fire_w &&
+      ex0_valid_q <= issue0_fire_w && !issue0_is_muldiv_w &&
+                     !issue0_is_clmul_w &&
                      (!issue0_is_mem_w || issue0_mem_exception_w);
-      if (issue0_fire_w && !issue0_is_mem_w) begin
+      if (issue0_fire_w && !issue0_is_mem_w && !issue0_is_muldiv_w &&
+          !issue0_is_clmul_w) begin
         ex0_rob_idx_q <= issue0_rob_idx_w;
         ex0_pdest_q <= issue0_pdest_w;
         ex0_result_q <= (issue0_is_sc_w && !issue0_sc_success_w) ?
@@ -1748,9 +1912,10 @@ module OooIntBackend #(
         ex0_tval_q <= {`XLEN{1'b0}};
       end
 
-      ex1_valid_q <= issue1_fire_w &&
+      ex1_valid_q <= issue1_fire_w && !issue1_is_muldiv_w &&
+                     !issue1_is_clmul_w &&
                      (!issue1_is_mem_w || issue1_mem_exception_w);
-      if (issue1_fire_w) begin
+      if (issue1_fire_w && !issue1_is_muldiv_w && !issue1_is_clmul_w) begin
         ex1_rob_idx_q <= issue1_rob_idx_w;
         ex1_pdest_q <= issue1_pdest_w;
         ex1_result_q <= issue1_mem_exception_w ? {`XLEN{1'b0}} :
@@ -1780,6 +1945,18 @@ module OooIntBackend #(
   wire mem1_rsp_to_wb0_w =
       mem1_rsp_fire_w && !ex0_valid_q && !mem_rsp_to_wb0_w;
   wire mem1_rsp_to_wb1_w = mem1_rsp_fire_w && !mem1_rsp_to_wb0_w;
+  wire muldiv_rsp_to_wb0_w =
+      muldiv_resp_valid_w && !ex0_valid_q && !mem_rsp_to_wb0_w &&
+      !mem1_rsp_to_wb0_w;
+  wire muldiv_rsp_to_wb1_w =
+      muldiv_resp_valid_w && !muldiv_rsp_to_wb0_w && !ex1_valid_q &&
+      !mem_rsp_to_wb1_w && !mem1_rsp_to_wb1_w;
+  wire clmul_rsp_to_wb0_w =
+      clmul_resp_valid_w && !ex0_valid_q && !mem_rsp_to_wb0_w &&
+      !mem1_rsp_to_wb0_w && !muldiv_rsp_to_wb0_w;
+  wire clmul_rsp_to_wb1_w =
+      clmul_resp_valid_w && !clmul_rsp_to_wb0_w && !ex1_valid_q &&
+      !mem_rsp_to_wb1_w && !mem1_rsp_to_wb1_w && !muldiv_rsp_to_wb1_w;
   wire [`XLEN-1:0] mem_rsp_wb_data_w =
       mem_amo_q ? (mem_amo_sc_q ? {`XLEN{1'b0}} :
                    (mem_amo_write_phase_q ? mem_amo_old_value_q :
@@ -1793,46 +1970,73 @@ module OooIntBackend #(
        `EXC_STORE_ACCESS_FAULT : `EXC_LOAD_ACCESS_FAULT);
   wire [`XLEN-1:0] mem1_rsp_wb_data_w = mem1_rsp_load_data_w;
 
-  assign wb0_valid_w = ex0_valid_q || mem_rsp_to_wb0_w || mem1_rsp_to_wb0_w;
+  assign muldiv_resp_ready_w = muldiv_rsp_to_wb0_w || muldiv_rsp_to_wb1_w;
+  assign clmul_resp_ready_w = clmul_rsp_to_wb0_w || clmul_rsp_to_wb1_w;
+
+  assign wb0_valid_w =
+      ex0_valid_q || mem_rsp_to_wb0_w || mem1_rsp_to_wb0_w ||
+      muldiv_rsp_to_wb0_w || clmul_rsp_to_wb0_w;
   assign wb0_rob_idx_w = ex0_valid_q ? ex0_rob_idx_q :
                          mem_rsp_to_wb0_w ? mem_rob_idx_q :
-                                            mem1_rob_idx_q;
+                         mem1_rsp_to_wb0_w ? mem1_rob_idx_q :
+                         muldiv_rsp_to_wb0_w ? muldiv_resp_rob_idx_w :
+                                               clmul_resp_rob_idx_w;
   assign wb0_pdest_w = ex0_valid_q ? ex0_pdest_q :
-                       mem_rsp_to_wb0_w ? mem_pdest_q : mem1_pdest_q;
+                       mem_rsp_to_wb0_w ? mem_pdest_q :
+                       mem1_rsp_to_wb0_w ? mem1_pdest_q :
+                       muldiv_rsp_to_wb0_w ? muldiv_resp_pdest_w :
+                                             clmul_resp_pdest_w;
   assign wb0_data_w = ex0_valid_q ? ex0_result_q :
                       mem_rsp_to_wb0_w ? mem_rsp_wb_data_w :
-                                         mem1_rsp_wb_data_w;
+                      mem1_rsp_to_wb0_w ? mem1_rsp_wb_data_w :
+                      muldiv_rsp_to_wb0_w ? muldiv_resp_data_w :
+                                            clmul_resp_data_w;
   assign wb0_exception_w = ex0_valid_q ? ex0_exception_q :
                            mem_rsp_to_wb0_w ? mem_rsp_error_i :
-                                              mem1_rsp_error_i;
+                           mem1_rsp_to_wb0_w ? mem1_rsp_error_i :
+                                               1'b0;
   assign wb0_cause_w = ex0_valid_q ? ex0_cause_q :
                        mem_rsp_to_wb0_w ? mem_rsp_wb_cause_w :
-                                          (mem1_rsp_page_fault_i ?
-                                           `EXC_LOAD_PAGE_FAULT :
-                                           `EXC_LOAD_ACCESS_FAULT);
+                       mem1_rsp_to_wb0_w ? (mem1_rsp_page_fault_i ?
+                                            `EXC_LOAD_PAGE_FAULT :
+                                            `EXC_LOAD_ACCESS_FAULT) :
+                                           {`TRAP_CAUSE_W{1'b0}};
   assign wb0_tval_w = ex0_valid_q ? ex0_tval_q :
                       mem_rsp_to_wb0_w ? mem_eff_addr_q :
-                                         mem1_eff_addr_q;
-  assign wb1_valid_w = ex1_valid_q || mem_rsp_to_wb1_w || mem1_rsp_to_wb1_w;
+                      mem1_rsp_to_wb0_w ? mem1_eff_addr_q :
+                                          {`XLEN{1'b0}};
+  assign wb1_valid_w =
+      ex1_valid_q || mem_rsp_to_wb1_w || mem1_rsp_to_wb1_w ||
+      muldiv_rsp_to_wb1_w || clmul_rsp_to_wb1_w;
   assign wb1_rob_idx_w = ex1_valid_q ? ex1_rob_idx_q :
                          mem_rsp_to_wb1_w ? mem_rob_idx_q :
-                                            mem1_rob_idx_q;
+                         mem1_rsp_to_wb1_w ? mem1_rob_idx_q :
+                         muldiv_rsp_to_wb1_w ? muldiv_resp_rob_idx_w :
+                                               clmul_resp_rob_idx_w;
   assign wb1_pdest_w = ex1_valid_q ? ex1_pdest_q :
-                       mem_rsp_to_wb1_w ? mem_pdest_q : mem1_pdest_q;
+                       mem_rsp_to_wb1_w ? mem_pdest_q :
+                       mem1_rsp_to_wb1_w ? mem1_pdest_q :
+                       muldiv_rsp_to_wb1_w ? muldiv_resp_pdest_w :
+                                             clmul_resp_pdest_w;
   assign wb1_data_w = ex1_valid_q ? ex1_result_q :
                       mem_rsp_to_wb1_w ? mem_rsp_wb_data_w :
-                                         mem1_rsp_wb_data_w;
+                      mem1_rsp_to_wb1_w ? mem1_rsp_wb_data_w :
+                      muldiv_rsp_to_wb1_w ? muldiv_resp_data_w :
+                                            clmul_resp_data_w;
   assign wb1_exception_w = ex1_valid_q ? ex1_exception_q :
                            mem_rsp_to_wb1_w ? mem_rsp_error_i :
-                                              mem1_rsp_error_i;
+                           mem1_rsp_to_wb1_w ? mem1_rsp_error_i :
+                                               1'b0;
   assign wb1_cause_w = ex1_valid_q ? ex1_cause_q :
                        mem_rsp_to_wb1_w ? mem_rsp_wb_cause_w :
-                                          (mem1_rsp_page_fault_i ?
-                                           `EXC_LOAD_PAGE_FAULT :
-                                           `EXC_LOAD_ACCESS_FAULT);
+                       mem1_rsp_to_wb1_w ? (mem1_rsp_page_fault_i ?
+                                            `EXC_LOAD_PAGE_FAULT :
+                                            `EXC_LOAD_ACCESS_FAULT) :
+                                           {`TRAP_CAUSE_W{1'b0}};
   assign wb1_tval_w = ex1_valid_q ? ex1_tval_q :
                       mem_rsp_to_wb1_w ? mem_eff_addr_q :
-                                         mem1_eff_addr_q;
+                      mem1_rsp_to_wb1_w ? mem1_eff_addr_q :
+                                          {`XLEN{1'b0}};
 
   assign execute0_valid_o = wb0_valid_w;
   assign execute1_valid_o = wb1_valid_w;

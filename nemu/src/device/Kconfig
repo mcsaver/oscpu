@@ -29,6 +29,12 @@ config SERIAL_MMIO
 config SERIAL_INPUT_FIFO
   bool "Enable input FIFO with /tmp/nemu.serial"
   default n
+
+config SERIAL_INPUT_STDIN
+  depends on !TARGET_AM
+  bool "Attach host stdin to serial RX"
+  default y if BATCH_MODE
+  default n
 endif # HAS_SERIAL
 
 menuconfig HAS_TIMER

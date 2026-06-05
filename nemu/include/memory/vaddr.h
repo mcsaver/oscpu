@@ -25,6 +25,8 @@ word_t vaddr_ifetch(vaddr_t addr, int len);
 word_t vaddr_read(vaddr_t addr, int len);
 //写数据
 void vaddr_write(vaddr_t addr, int len, word_t data);
+bool vaddr_has_fault(void);
+bool vaddr_take_fault(word_t *cause, vaddr_t *tval);
 
 //定义分页常量，方便后续实现页表/分页时使用
 #define PAGE_SHIFT        12

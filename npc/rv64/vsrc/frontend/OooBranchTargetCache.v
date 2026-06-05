@@ -27,18 +27,20 @@ module OooBranchTargetCache #(
   input [`INST_W-1:0] capture_inst_i
 );
 
-  reg valid_q [0:ENTRY_COUNT-1];
+  reg [ENTRY_COUNT-1:0] valid_q;
   reg [`XLEN-1:0] branch_pc_q [0:ENTRY_COUNT-1];
   reg [`XLEN-1:0] target_pc_q [0:ENTRY_COUNT-1];
   reg [`XLEN-1:0] next_pc_q [0:ENTRY_COUNT-1];
   reg [`INST_W-1:0] inst_q [0:ENTRY_COUNT-1];
 
-  function same_fetch_word;
-    input [`XLEN-1:0] lhs;
-    input [`XLEN-1:0] rhs;
+  function store_hits_fetch_word;
+    input [`XLEN-1:0] store_addr;
+    input [`XLEN-1:`XLEN_BYTE_W] fetch_word_tag;
     begin
-      same_fetch_word =
-          lhs[`XLEN-1:`XLEN_BYTE_W] == rhs[`XLEN-1:`XLEN_BYTE_W];
+      store_hits_fetch_word =
+          (store_addr >= {fetch_word_tag, {`XLEN_BYTE_W{1'b0}}}) &&
+          (store_addr <= ({fetch_word_tag, {`XLEN_BYTE_W{1'b0}}} +
+                          {{(`XLEN-4){1'b0}}, 4'd7}));
     end
   endfunction
 
@@ -56,43 +58,36 @@ module OooBranchTargetCache #(
   assign lookup_next_pc_o = next_pc_q[lookup_idx_w];
   assign lookup_inst_o = inst_q[lookup_idx_w];
 
-  integer reset_idx;
-  integer invalidate_idx;
+  wire capture_blocked_by_store_w =
+      store_fire_i &&
+      store_hits_fetch_word(store_addr_i,
+                            capture_target_pc_i[`XLEN-1:`XLEN_BYTE_W]);
+
+  wire [ENTRY_COUNT-1:0] store_invalidate_mask_w;
+  genvar invalidate_idx;
+  generate
+    for (invalidate_idx = 0; invalidate_idx < ENTRY_COUNT;
+         invalidate_idx = invalidate_idx + 1) begin : gen_store_invalidate
+      assign store_invalidate_mask_w[invalidate_idx] =
+          store_fire_i && valid_q[invalidate_idx] &&
+          store_hits_fetch_word(store_addr_i,
+                                target_pc_q[invalidate_idx]
+                                    [`XLEN-1:`XLEN_BYTE_W]);
+    end
+  endgenerate
 
   always @(posedge clk) begin
-    if (rst || clear_i) begin
-      /* verilator lint_off BLKSEQ */
-      for (reset_idx = 0; reset_idx < ENTRY_COUNT; reset_idx = reset_idx + 1) begin
-        valid_q[reset_idx] = 1'b0;
-        branch_pc_q[reset_idx] = {`XLEN{1'b0}};
-        target_pc_q[reset_idx] = {`XLEN{1'b0}};
-        next_pc_q[reset_idx] = {`XLEN{1'b0}};
-        inst_q[reset_idx] = {`INST_W{1'b0}};
-      end
-      /* verilator lint_on BLKSEQ */
-    end else if (invalidate_all_i) begin
-      /* verilator lint_off BLKSEQ */
-      for (invalidate_idx = 0; invalidate_idx < ENTRY_COUNT;
-           invalidate_idx = invalidate_idx + 1) begin
-        valid_q[invalidate_idx] = 1'b0;
-      end
-      /* verilator lint_on BLKSEQ */
+    if (rst || clear_i || invalidate_all_i) begin
+      valid_q <= {ENTRY_COUNT{1'b0}};
     end else begin
       if (store_fire_i) begin
-        /* verilator lint_off BLKSEQ */
-        for (invalidate_idx = 0; invalidate_idx < ENTRY_COUNT;
-             invalidate_idx = invalidate_idx + 1) begin
-          if (valid_q[invalidate_idx] &&
-              same_fetch_word(store_addr_i, target_pc_q[invalidate_idx])) begin
-            valid_q[invalidate_idx] = 1'b0;
-          end
-        end
-        /* verilator lint_on BLKSEQ */
+        // Store can modify a cached target packet; clear valid bits through
+        // the structural mask while leaving invalid payload as don't-care.
+        valid_q <= valid_q & ~store_invalidate_mask_w;
       end
 
       if (capture_valid_i) begin
-        if (!store_fire_i ||
-            !same_fetch_word(store_addr_i, capture_target_pc_i)) begin
+        if (!capture_blocked_by_store_w) begin
           valid_q[capture_idx_w] <= 1'b1;
           branch_pc_q[capture_idx_w] <= capture_branch_pc_i;
           target_pc_q[capture_idx_w] <= capture_target_pc_i;

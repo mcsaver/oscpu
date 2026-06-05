@@ -12,6 +12,7 @@ module tb_ooo_int_issue_queue;
   reg flush;
   reg checkpoint_capture;
   reg checkpoint_restore;
+  reg issue_mem_block;
   reg dispatch0_valid;
   wire dispatch0_ready;
   reg [`XLEN-1:0] dispatch0_pc;
@@ -41,6 +42,10 @@ module tb_ooo_int_issue_queue;
   reg [PHY_REG_ADDR_W-1:0] wakeup0_pdest;
   reg wakeup1_valid;
   reg [PHY_REG_ADDR_W-1:0] wakeup1_pdest;
+  reg pending_load0_valid;
+  reg [PHY_REG_ADDR_W-1:0] pending_load0_pdest;
+  reg pending_load1_valid;
+  reg [PHY_REG_ADDR_W-1:0] pending_load1_pdest;
   wire issue0_valid;
   reg issue0_ready;
   wire [`XLEN-1:0] issue0_pc;
@@ -66,6 +71,17 @@ module tb_ooo_int_issue_queue;
   wire [ENTRY_COUNT_W-1:0] count;
   wire empty;
   wire full;
+  wire pending_load_branch_dep;
+  wire load_branch_fast_valid;
+  wire [ROB_INDEX_W-1:0] load_branch_fast_rob_idx;
+  wire [`XLEN-1:0] load_branch_fast_pc;
+  wire [`XLEN-1:0] load_branch_fast_next_pc;
+  wire [`XLEN-1:0] load_branch_fast_imm;
+  wire [2:0] load_branch_fast_cmp_op;
+  wire [PHY_REG_ADDR_W-1:0] load_branch_fast_src1_preg;
+  wire [PHY_REG_ADDR_W-1:0] load_branch_fast_src2_preg;
+  wire load_branch_fast_wait_load0;
+  wire load_branch_fast_wait_load1;
 
   OooIntIssueQueue dut (
     .clk(clk),
@@ -73,6 +89,7 @@ module tb_ooo_int_issue_queue;
     .flush_i(flush),
     .checkpoint_capture_i(checkpoint_capture),
     .checkpoint_restore_i(checkpoint_restore),
+    .issue_mem_block_i(issue_mem_block),
     .dispatch0_valid_i(dispatch0_valid),
     .dispatch0_ready_o(dispatch0_ready),
     .dispatch0_pc_i(dispatch0_pc),
@@ -104,6 +121,10 @@ module tb_ooo_int_issue_queue;
     .wakeup0_pdest_i(wakeup0_pdest),
     .wakeup1_valid_i(wakeup1_valid),
     .wakeup1_pdest_i(wakeup1_pdest),
+    .pending_load0_valid_i(pending_load0_valid),
+    .pending_load0_pdest_i(pending_load0_pdest),
+    .pending_load1_valid_i(pending_load1_valid),
+    .pending_load1_pdest_i(pending_load1_pdest),
     .issue0_valid_o(issue0_valid),
     .issue0_ready_i(issue0_ready),
     .issue0_pc_o(issue0_pc),
@@ -128,16 +149,39 @@ module tb_ooo_int_issue_queue;
     .issue1_imm_o(issue1_imm),
     .count_o(count),
     .empty_o(empty),
-    .full_o(full)
+    .full_o(full),
+    .pending_load_branch_dep_o(pending_load_branch_dep),
+    .load_branch_fast_valid_o(load_branch_fast_valid),
+    .load_branch_fast_rob_idx_o(load_branch_fast_rob_idx),
+    .load_branch_fast_pc_o(load_branch_fast_pc),
+    .load_branch_fast_next_pc_o(load_branch_fast_next_pc),
+    .load_branch_fast_imm_o(load_branch_fast_imm),
+    .load_branch_fast_cmp_op_o(load_branch_fast_cmp_op),
+    .load_branch_fast_src1_preg_o(load_branch_fast_src1_preg),
+    .load_branch_fast_src2_preg_o(load_branch_fast_src2_preg),
+    .load_branch_fast_wait_load0_o(load_branch_fast_wait_load0),
+    .load_branch_fast_wait_load1_o(load_branch_fast_wait_load1)
   );
 
-  wire unused_next_pc_w = (|issue0_next_pc) | (|issue1_next_pc);
+  wire unused_next_pc_w = (|issue0_next_pc) | (|issue1_next_pc) |
+                          pending_load_branch_dep |
+                          load_branch_fast_valid |
+                          (|load_branch_fast_rob_idx) |
+                          (|load_branch_fast_pc) |
+                          (|load_branch_fast_next_pc) |
+                          (|load_branch_fast_imm) |
+                          (|load_branch_fast_cmp_op) |
+                          (|load_branch_fast_src1_preg) |
+                          (|load_branch_fast_src2_preg) |
+                          load_branch_fast_wait_load0 |
+                          load_branch_fast_wait_load1;
 
   task automatic clear_inputs;
     begin
       flush = 1'b0;
       checkpoint_capture = 1'b0;
       checkpoint_restore = 1'b0;
+      issue_mem_block = 1'b0;
       dispatch0_valid = 1'b0;
       dispatch0_pc = 32'h0;
       dispatch0_inst = 32'h0;
@@ -165,6 +209,10 @@ module tb_ooo_int_issue_queue;
       wakeup0_pdest = 6'd0;
       wakeup1_valid = 1'b0;
       wakeup1_pdest = 6'd0;
+      pending_load0_valid = 1'b0;
+      pending_load0_pdest = 6'd0;
+      pending_load1_valid = 1'b0;
+      pending_load1_pdest = 6'd0;
     end
   endtask
 
@@ -227,6 +275,24 @@ module tb_ooo_int_issue_queue;
     end
   endtask
 
+  function [`INST_W-1:0] inst_op;
+    input [6:0] funct7;
+    input [4:0] rs2;
+    input [4:0] rs1;
+    input [2:0] funct3;
+    input [4:0] rd;
+    begin
+      inst_op = {funct7, rs2, rs1, funct3, rd, `OPCODE_OP};
+    end
+  endfunction
+
+  task automatic mark_clmul0;
+    begin
+      dispatch0_ctrl[`CTRL_BITMANIP_BIT] = 1'b1;
+      dispatch0_inst = inst_op(7'h05, 5'd2, 5'd1, `FUNCT3_SLL, 5'd3);
+    end
+  endtask
+
   initial begin
     tb_errors = 0;
     reset_dut();
@@ -255,6 +321,25 @@ module tb_ooo_int_issue_queue;
     clear_inputs();
     #1;
     tb_check1("empty after wakeup issue", empty, 1'b1);
+
+    set_dispatch0(32'h8000_0008, 4'd8, 6'd1, 1'b1, 6'd2, 1'b1, 6'd40);
+    mark_clmul0();
+    set_dispatch1(32'h8000_000c, 4'd9, 6'd40, 1'b0, 6'd0, 1'b1, 6'd41);
+    #1;
+    tb_check1("clmul can issue when operands ready", issue0_valid, 1'b1);
+    tb_check1("clmul cannot forward to dependent lane1", issue1_valid, 1'b0);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check32("clmul dependent waits in iq", {28'b0, count}, 32'd1);
+    wakeup0_valid = 1'b1;
+    wakeup0_pdest = 6'd40;
+    #1;
+    tb_check1("clmul wakeup releases dependent", issue0_valid, 1'b1);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("empty after clmul dependent wakeup", empty, 1'b1);
 
     set_dispatch0(32'h8000_0010, 4'd2, 6'd1, 1'b1, 6'd2, 1'b1, 6'd34);
     set_dispatch1(32'h8000_0014, 4'd3, 6'd3, 1'b1, 6'd4, 1'b1, 6'd35);
@@ -388,18 +473,20 @@ module tb_ooo_int_issue_queue;
     issue1_ready = 1'b1;
     #1;
     tb_check1("dispatch bypass respects issue0 backpressure", issue0_valid, 1'b1);
-    tb_check1("issue1 waits for bypass issue0 fire", issue1_valid, 1'b0);
+    tb_check1("independent issue1 bypass under issue0 backpressure",
+              issue1_valid, 1'b1);
+    tb_check32("independent issue1 bypass pc", issue1_pc, 32'h8000_0024);
     `TB_TICK(clk);
     clear_inputs();
     #1;
-    tb_check32("backpressure keeps entries", {28'b0, count}, 32'd2);
+    tb_check32("backpressure keeps lane0 entry", {28'b0, count}, 32'd1);
     issue0_ready = 1'b1;
     `TB_TICK(clk);
     #1;
     tb_check1("entries drain after ready", empty, 1'b1);
 
     issue0_ready = 1'b0;
-    issue1_ready = 1'b1;
+    issue1_ready = 1'b0;
     set_dispatch0(32'h8000_0028, 4'd10, 6'd1, 1'b1, 6'd2, 1'b1, 6'd42);
     dispatch0_ctrl[`CTRL_LOAD_BIT] = 1'b1;
     set_dispatch1(32'h8000_002c, 4'd11, 6'd3, 1'b1, 6'd4, 1'b1, 6'd43);
@@ -412,6 +499,7 @@ module tb_ooo_int_issue_queue;
     #1;
     tb_check32("dual load setup count", {28'b0, count}, 32'd3);
     issue0_ready = 1'b1;
+    issue1_ready = 1'b1;
     #1;
     tb_check1("dual load issue0 valid", issue0_valid, 1'b1);
 	    tb_check1("dual load issue1 valid", issue1_valid, 1'b1);
@@ -448,9 +536,11 @@ module tb_ooo_int_issue_queue;
     checkpoint_capture = 1'b1;
     `TB_TICK(clk);
     clear_inputs();
+    issue1_ready = 1'b0;
     set_dispatch0(32'h8000_0054, 4'd9, 6'd3, 1'b1, 6'd4, 1'b1, 6'd41);
     `TB_TICK(clk);
     clear_inputs();
+    issue1_ready = 1'b1;
     #1;
     tb_check32("checkpoint mutation count", {28'b0, count}, 32'd2);
     checkpoint_restore = 1'b1;

@@ -17,7 +17,7 @@ module OooJalrBtb (
   input [`XLEN-1:0] update_target_i
 );
 
-  reg valid_q [0:`BPU_BTB_ENTRIES-1];
+  reg [`BPU_BTB_ENTRIES-1:0] valid_q;
   reg [`XLEN-1:0] pc_q [0:`BPU_BTB_ENTRIES-1];
   reg [`XLEN-1:0] target_q [0:`BPU_BTB_ENTRIES-1];
 
@@ -32,18 +32,10 @@ module OooJalrBtb (
   assign lookup_hit_o = lookup_enable_i && lookup_entry_hit_o;
   assign lookup_target_o = target_q[lookup_idx_w];
 
-  integer reset_idx;
-
   always @(posedge clk) begin
     if (rst || clear_i) begin
-      /* verilator lint_off BLKSEQ */
-      for (reset_idx = 0; reset_idx < `BPU_BTB_ENTRIES;
-           reset_idx = reset_idx + 1) begin
-        valid_q[reset_idx] = 1'b0;
-        pc_q[reset_idx] = {`XLEN{1'b0}};
-        target_q[reset_idx] = {`XLEN{1'b0}};
-      end
-      /* verilator lint_on BLKSEQ */
+      // lookup hit 由 valid 和 PC tag 共同门控，清表只需清 valid。
+      valid_q <= {`BPU_BTB_ENTRIES{1'b0}};
     end else if (update_valid_i) begin
       valid_q[update_idx_w] <= 1'b1;
       pc_q[update_idx_w] <= update_pc_i;

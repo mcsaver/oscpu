@@ -25,12 +25,13 @@ module OooBranchDirectionPredictor (
   input update_taken_i
 );
 
-  reg bht_valid_q [0:`BPU_BHT_ENTRIES-1];
+  reg [`BPU_BHT_ENTRIES-1:0] bht_valid_q;
   reg [1:0] bht_q [0:`BPU_BHT_ENTRIES-1];
   reg [`BPU_BHT_INDEX_W-1:0] ghr_q;
+  reg [`BPU_LOCAL_HISTORY_ENTRIES-1:0] local_hist_valid_q;
   reg [`BPU_LOCAL_HISTORY_W-1:0] local_hist_q
       [0:`BPU_LOCAL_HISTORY_ENTRIES-1];
-  reg local_pht_valid_q [0:`BPU_LOCAL_PHT_ENTRIES-1];
+  reg [`BPU_LOCAL_PHT_ENTRIES-1:0] local_pht_valid_q;
   reg [1:0] local_pht_q [0:`BPU_LOCAL_PHT_ENTRIES-1];
 
   function bht_counter_taken;
@@ -48,6 +49,18 @@ module OooBranchDirectionPredictor (
     begin
       counter_strong = valid &&
           ((counter == 2'd0) || (counter == 2'd3));
+    end
+  endfunction
+
+  function [1:0] counter_train;
+    input [1:0] counter;
+    input taken;
+    begin
+      if (taken) begin
+        counter_train = (counter == 2'd3) ? 2'd3 : (counter + 2'd1);
+      end else begin
+        counter_train = (counter == 2'd0) ? 2'd0 : (counter - 2'd1);
+      end
     end
   endfunction
 
@@ -85,10 +98,16 @@ module OooBranchDirectionPredictor (
       lookup0_pc_i[`BPU_LOCAL_HISTORY_INDEX_W:1];
   wire [`BPU_LOCAL_HISTORY_INDEX_W-1:0] lookup1_local_hist_idx_w =
       lookup1_pc_i[`BPU_LOCAL_HISTORY_INDEX_W:1];
+  wire lookup0_local_hist_valid_w =
+      local_hist_valid_q[lookup0_local_hist_idx_w];
+  wire lookup1_local_hist_valid_w =
+      local_hist_valid_q[lookup1_local_hist_idx_w];
   wire [`BPU_LOCAL_HISTORY_W-1:0] lookup0_local_hist_w =
-      local_hist_q[lookup0_local_hist_idx_w];
+      lookup0_local_hist_valid_w ? local_hist_q[lookup0_local_hist_idx_w] :
+                                   {`BPU_LOCAL_HISTORY_W{1'b0}};
   wire [`BPU_LOCAL_HISTORY_W-1:0] lookup1_local_hist_w =
-      local_hist_q[lookup1_local_hist_idx_w];
+      lookup1_local_hist_valid_w ? local_hist_q[lookup1_local_hist_idx_w] :
+                                   {`BPU_LOCAL_HISTORY_W{1'b0}};
   wire [`BPU_LOCAL_PHT_PC_BITS-1:0] lookup0_local_pc_idx_w =
       lookup0_pc_i[`BPU_LOCAL_PHT_PC_BITS:1];
   wire [`BPU_LOCAL_PHT_PC_BITS-1:0] lookup1_local_pc_idx_w =
@@ -133,59 +152,42 @@ module OooBranchDirectionPredictor (
 
   wire [`BPU_LOCAL_HISTORY_INDEX_W-1:0] update_local_hist_idx_w =
       update_pc_i[`BPU_LOCAL_HISTORY_INDEX_W:1];
+  wire update_local_hist_valid_w =
+      local_hist_valid_q[update_local_hist_idx_w];
   wire [`BPU_LOCAL_HISTORY_W-1:0] update_local_hist_w =
-      local_hist_q[update_local_hist_idx_w];
+      update_local_hist_valid_w ? local_hist_q[update_local_hist_idx_w] :
+                                  {`BPU_LOCAL_HISTORY_W{1'b0}};
   wire [`BPU_LOCAL_PHT_PC_BITS-1:0] update_local_pc_idx_w =
       update_pc_i[`BPU_LOCAL_PHT_PC_BITS:1];
   wire [`BPU_LOCAL_PHT_INDEX_W-1:0] update_local_pht_idx_w =
       {update_local_pc_idx_w, update_local_hist_w};
-
-  integer bht_reset_idx;
-  integer local_hist_reset_idx;
-  integer local_pht_reset_idx;
+  wire [1:0] update_bht_counter_w =
+      bht_valid_q[update_bht_idx_i] ? bht_q[update_bht_idx_i] :
+                                      `BPU_COUNTER_INIT;
+  wire [1:0] update_local_pht_counter_w =
+      local_pht_valid_q[update_local_pht_idx_w] ?
+      local_pht_q[update_local_pht_idx_w] : `BPU_COUNTER_INIT;
+  wire unused_predictor_input_bits_w =
+      (|lookup0_pc_i) | (|lookup0_imm_i) |
+      (|lookup1_pc_i) | (|lookup1_imm_i) | (|update_pc_i);
 
   always @(posedge clk) begin
     if (rst || clear_i) begin
+      // 预测表 payload 在 invalid 时不可见，清表只清 valid 和全局历史。
       ghr_q <= {`BPU_BHT_INDEX_W{1'b0}};
-      /* verilator lint_off BLKSEQ */
-      for (bht_reset_idx = 0; bht_reset_idx < `BPU_BHT_ENTRIES;
-           bht_reset_idx = bht_reset_idx + 1) begin
-        bht_valid_q[bht_reset_idx] = 1'b0;
-        bht_q[bht_reset_idx] = `BPU_COUNTER_INIT;
-      end
-      for (local_hist_reset_idx = 0;
-           local_hist_reset_idx < `BPU_LOCAL_HISTORY_ENTRIES;
-           local_hist_reset_idx = local_hist_reset_idx + 1) begin
-        local_hist_q[local_hist_reset_idx] = {`BPU_LOCAL_HISTORY_W{1'b0}};
-      end
-      for (local_pht_reset_idx = 0;
-           local_pht_reset_idx < `BPU_LOCAL_PHT_ENTRIES;
-           local_pht_reset_idx = local_pht_reset_idx + 1) begin
-        local_pht_valid_q[local_pht_reset_idx] = 1'b0;
-        local_pht_q[local_pht_reset_idx] = `BPU_COUNTER_INIT;
-      end
-      /* verilator lint_on BLKSEQ */
+      bht_valid_q <= {`BPU_BHT_ENTRIES{1'b0}};
+      local_hist_valid_q <= {`BPU_LOCAL_HISTORY_ENTRIES{1'b0}};
+      local_pht_valid_q <= {`BPU_LOCAL_PHT_ENTRIES{1'b0}};
     end else if (update_valid_i) begin
       bht_valid_q[update_bht_idx_i] <= 1'b1;
-      if (update_taken_i) begin
-        if (bht_q[update_bht_idx_i] != 2'd3) begin
-          bht_q[update_bht_idx_i] <= bht_q[update_bht_idx_i] + 2'd1;
-        end
-      end else if (bht_q[update_bht_idx_i] != 2'd0) begin
-        bht_q[update_bht_idx_i] <= bht_q[update_bht_idx_i] - 2'd1;
-      end
+      bht_q[update_bht_idx_i] <=
+          counter_train(update_bht_counter_w, update_taken_i);
       ghr_q <= {ghr_q[`BPU_BHT_INDEX_W-2:0], update_taken_i};
 
       local_pht_valid_q[update_local_pht_idx_w] <= 1'b1;
-      if (update_taken_i) begin
-        if (local_pht_q[update_local_pht_idx_w] != 2'd3) begin
-          local_pht_q[update_local_pht_idx_w] <=
-              local_pht_q[update_local_pht_idx_w] + 2'd1;
-        end
-      end else if (local_pht_q[update_local_pht_idx_w] != 2'd0) begin
-        local_pht_q[update_local_pht_idx_w] <=
-            local_pht_q[update_local_pht_idx_w] - 2'd1;
-      end
+      local_pht_q[update_local_pht_idx_w] <=
+          counter_train(update_local_pht_counter_w, update_taken_i);
+      local_hist_valid_q[update_local_hist_idx_w] <= 1'b1;
       local_hist_q[update_local_hist_idx_w] <=
           {update_local_hist_w[`BPU_LOCAL_HISTORY_W-2:0], update_taken_i};
     end

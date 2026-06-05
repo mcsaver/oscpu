@@ -9,7 +9,7 @@ module tb_immgen;
   wire [`XLEN-1:0] imm;
 
   ImmGen dut (
-    .inst_i(inst),
+    .inst_imm_i(inst[31:7]),
     .imm_type_i(imm_type),
     .imm_o(imm)
   );

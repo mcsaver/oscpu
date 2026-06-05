@@ -63,6 +63,8 @@ module CsrFile (
       `MIE_MSIE | `MIE_MTIE | `MIE_MEIE;
   localparam [`XLEN-1:0] CSR_MISA_VALUE =
       64'h8000_0000_0014_1105 | (64'd1 << 3) | (64'd1 << 5);
+  localparam [`XLEN-1:0] EPC_WARL_MASK =
+      {{(`XLEN-1){1'b1}}, 1'b0};
 
   function csr_counter;
     input [11:0] csr_addr;
@@ -279,6 +281,13 @@ module CsrFile (
     end
   endfunction
 
+  function [`XLEN-1:0] epc_warl_value;
+    input [`XLEN-1:0] value;
+    begin
+      epc_warl_value = value & EPC_WARL_MASK;
+    end
+  endfunction
+
   reg [1:0] priv_mode_q;
   reg [`XLEN-1:0] csr_mstatus_q;
   reg [`XLEN-1:0] csr_medeleg_q;
@@ -303,12 +312,6 @@ module CsrFile (
   reg [`XLEN-1:0] csr_mcountinhibit_q;
   reg [4:0] csr_fflags_q;
   reg [2:0] csr_frm_q;
-
-  /* verilator lint_off UNUSEDSIGNAL */
-  wire trap_mem_pc_align_bit_unused_w = trap_mem_pc_i[0];
-  wire trap_ex_pc_align_bit_unused_w = trap_ex_pc_i[0];
-  wire trap_irq_pc_align_bit_unused_w = trap_irq_pc_i[0];
-  /* verilator lint_on UNUSEDSIGNAL */
 
   wire csr_imm_op_w = csr_funct3_i[2];
   wire [`XLEN-1:0] csr_zimm_w = {{(`XLEN-5){1'b0}}, csr_zimm_i};
@@ -480,13 +483,13 @@ module CsrFile (
 
       if (trap_mem_valid_i) begin
         if (trap_mem_to_s_w) begin
-          csr_sepc_q <= {trap_mem_pc_i[`XLEN-1:1], 1'b0};
+          csr_sepc_q <= epc_warl_value(trap_mem_pc_i);
           csr_scause_q <= {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, trap_mem_cause_i};
           csr_stval_q <= trap_mem_tval_i;
           csr_mstatus_q <= trap_to_s_mstatus(csr_mstatus_q, priv_mode_q);
           priv_mode_q <= `PRIV_S;
         end else begin
-          csr_mepc_q <= {trap_mem_pc_i[`XLEN-1:1], 1'b0};
+          csr_mepc_q <= epc_warl_value(trap_mem_pc_i);
           csr_mcause_q <= {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, trap_mem_cause_i};
           csr_mtval_q <= trap_mem_tval_i;
           csr_mstatus_q <= trap_to_m_mstatus(csr_mstatus_q, priv_mode_q);
@@ -494,13 +497,13 @@ module CsrFile (
         end
       end else if (trap_ex_valid_i) begin
         if (trap_ex_to_s_w) begin
-          csr_sepc_q <= {trap_ex_pc_i[`XLEN-1:1], 1'b0};
+          csr_sepc_q <= epc_warl_value(trap_ex_pc_i);
           csr_scause_q <= {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, trap_ex_cause_i};
           csr_stval_q <= trap_ex_tval_i;
           csr_mstatus_q <= trap_to_s_mstatus(csr_mstatus_q, priv_mode_q);
           priv_mode_q <= `PRIV_S;
         end else begin
-          csr_mepc_q <= {trap_ex_pc_i[`XLEN-1:1], 1'b0};
+          csr_mepc_q <= epc_warl_value(trap_ex_pc_i);
           csr_mcause_q <= {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, trap_ex_cause_i};
           csr_mtval_q <= trap_ex_tval_i;
           csr_mstatus_q <= trap_to_m_mstatus(csr_mstatus_q, priv_mode_q);
@@ -508,14 +511,14 @@ module CsrFile (
         end
       end else if (trap_irq_valid_i) begin
         if (trap_irq_to_s_w) begin
-          csr_sepc_q <= {trap_irq_pc_i[`XLEN-1:1], 1'b0};
+          csr_sepc_q <= epc_warl_value(trap_irq_pc_i);
           csr_scause_q <= `MCAUSE_INTERRUPT |
                           {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, trap_irq_cause_i};
           csr_stval_q <= {`XLEN{1'b0}};
           csr_mstatus_q <= trap_to_s_mstatus(csr_mstatus_q, priv_mode_q);
           priv_mode_q <= `PRIV_S;
         end else begin
-          csr_mepc_q <= {trap_irq_pc_i[`XLEN-1:1], 1'b0};
+          csr_mepc_q <= epc_warl_value(trap_irq_pc_i);
           csr_mcause_q <= `MCAUSE_INTERRUPT |
                           {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, trap_irq_cause_i};
           csr_mtval_q <= {`XLEN{1'b0}};
@@ -549,7 +552,7 @@ module CsrFile (
                 (csr_new_value_w & SUPERVISOR_INT_MASK);
             `CSR_STVEC:    csr_stvec_q <= {csr_new_value_w[`XLEN-1:2], 2'b00};
             `CSR_SSCRATCH: csr_sscratch_q <= csr_new_value_w;
-            `CSR_SEPC:     csr_sepc_q <= {csr_new_value_w[`XLEN-1:1], 1'b0};
+            `CSR_SEPC:     csr_sepc_q <= epc_warl_value(csr_new_value_w);
             `CSR_SCAUSE:   csr_scause_q <= csr_new_value_w;
             `CSR_STVAL:    csr_stval_q <= csr_new_value_w;
             `CSR_SIP:      csr_mip_q <=
@@ -568,7 +571,7 @@ module CsrFile (
             `CSR_MCOUNTINHIBIT: csr_mcountinhibit_q <=
                 csr_new_value_w & (`MCOUNTINHIBIT_CY | `MCOUNTINHIBIT_IR);
             `CSR_MSCRATCH: csr_mscratch_q <= csr_new_value_w;
-            `CSR_MEPC:     csr_mepc_q <= {csr_new_value_w[`XLEN-1:1], 1'b0};
+            `CSR_MEPC:     csr_mepc_q <= epc_warl_value(csr_new_value_w);
             `CSR_MCAUSE:   csr_mcause_q <= csr_new_value_w;
             `CSR_MTVAL:    csr_mtval_q <= csr_new_value_w;
             `CSR_MIP:      csr_mip_q <= csr_new_value_w &

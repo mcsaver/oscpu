@@ -39,6 +39,7 @@
 // 1. Kconfig 里的 CONFIG_BATCH_MODE 负责设置“默认启动行为”
 // 2. 命令行 `-b/--batch` 通过 sdb_set_batch_mode() 按次显式开启
 static bool is_batch_mode = MUXDEF(CONFIG_BATCH_MODE, true, false);
+static uint64_t batch_inst_limit = UINT64_MAX;
 
 void init_regex();
 void init_wp_pool();
@@ -68,7 +69,7 @@ static char* rl_gets() {
 //该函数不是线程安全的（依赖静态变量和readline全局状态
 
 static int cmd_c(char *args) {
-  cpu_exec(-1);
+  cpu_exec(batch_inst_limit);
   return 0;
 }
 
@@ -442,6 +443,10 @@ static int cmd_help(char *args) {
 
 void sdb_set_batch_mode(void) {
   is_batch_mode = true;
+}
+
+void sdb_set_batch_limit(uint64_t limit) {
+  batch_inst_limit = limit == 0 ? UINT64_MAX : limit;
 }
 
 //monitor的核心

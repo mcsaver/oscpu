@@ -115,6 +115,25 @@ static uint64_t g_timer = 0; // unit: us
 
 void device_update();
 
+#if defined(CONFIG_RISCV_PROGRESS_DEBUG_LOG) && defined(CONFIG_ISA_riscv)
+static inline void riscv_progress_debug_log(void) {
+  if (CONFIG_RISCV_PROGRESS_DEBUG_INTERVAL <= 0) return;
+  if (g_nr_guest_inst % CONFIG_RISCV_PROGRESS_DEBUG_INTERVAL != 0) return;
+  Log("[Progress] inst=%" PRIu64 " pc=" FMT_WORD " priv=%u"
+      " satp=" FMT_WORD " mstatus=" FMT_WORD
+      " sepc=" FMT_WORD " scause=" FMT_WORD " stval=" FMT_WORD
+      " mepc=" FMT_WORD " mcause=" FMT_WORD " mtval=" FMT_WORD
+      " mie=" FMT_WORD " mip=" FMT_WORD,
+      g_nr_guest_inst, cpu.pc, cpu.priv,
+      cpu.csr.satp, cpu.csr.mstatus,
+      cpu.csr.sepc, cpu.csr.scause, cpu.csr.stval,
+      cpu.csr.mepc, cpu.csr.mcause, cpu.csr.mtval,
+      cpu.csr.mie, cpu.csr.mip);
+}
+#else
+static inline void riscv_progress_debug_log(void) {}
+#endif
+
 static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 
 //条件日志记录
@@ -183,6 +202,7 @@ static void execute(uint64_t n) {
     exec_once(&s, cpu.pc);//单步执行
     g_nr_guest_inst ++;//记录客户指令的计数器
     IFDEF(CONFIG_ISA_riscv, isa_riscv32_post_exec());
+    riscv_progress_debug_log();
 #ifdef CONFIG_ITRACE
     // 把日志构造延后到执行后，并且仅在真正需要输出时触发，减少常规运行时的额外工作。
     if (need_itrace_logbuf()) {
@@ -198,6 +218,7 @@ static void execute(uint64_t n) {
 }
 
 static void statistic() {
+#ifdef CONFIG_STATISTIC
   IFNDEF(CONFIG_TARGET_AM, setlocale(LC_NUMERIC, ""));
 #define NUMBERIC_FMT MUXDEF(CONFIG_TARGET_AM, "%", "%'") PRIu64
   Log("host time spent = " NUMBERIC_FMT " us", g_timer);
@@ -205,8 +226,13 @@ static void statistic() {
   if (g_timer > 0) Log("simulation frequency = " NUMBERIC_FMT " inst/s", g_nr_guest_inst * 1000000 / g_timer);
   else Log("Finish running in less than 1 us and can not calculate the simulation frequency");
   // 程序结束时统一输出 cache counter，并顺带写回 DCache 脏行，方便结束后检查 PMEM。
+  IFDEF(CONFIG_ISA_riscv, isa_riscv32_plic_statistic());
   IFDEF(CONFIG_CACHE, cache_statistic());
   IFDEF(CONFIG_BPU, bpu_statistic());
+#else
+  // 性能模式关闭统计输出，但 cache 模型若开启仍必须 flush 脏线，避免功能语义变化。
+  IFDEF(CONFIG_CACHE, cache_flush_all());
+#endif
 }
 
 void assert_fail_msg() {
@@ -235,7 +261,13 @@ void cpu_exec(uint64_t n) {
   g_timer += timer_end - timer_start;
 
   switch (nemu_state.state) {
-    case NEMU_RUNNING: nemu_state.state = NEMU_STOP; break;
+    case NEMU_RUNNING:
+      nemu_state.state = NEMU_STOP;
+      if (n >= MAX_INST_TO_PRINT) {
+        Log("nemu: STOP after requested budget at pc = " FMT_WORD, cpu.pc);
+        statistic();
+      }
+      break;
 
     case NEMU_END: case NEMU_ABORT:
       Log("nemu: %s at pc = " FMT_WORD,

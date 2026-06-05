@@ -58,6 +58,8 @@ module AxiLiteClint #(
   wire [15:0] write_addr_low_w = aw_fire_w ? s_axi_awaddr_i[15:0] : awaddr_low_q;
   wire [DATA_W-1:0] write_data_w = w_fire_w ? s_axi_wdata_i : wdata_q;
   wire [STRB_W-1:0] write_strb_w = w_fire_w ? s_axi_wstrb_i : wstrb_q;
+  wire [63:0] write_data_pad_w;
+  wire [7:0] write_strb_pad_w;
   wire unused_addr_hi_w = |{
       s_axi_araddr_i[ADDR_W-1:16],
       s_axi_awaddr_i[ADDR_W-1:16]
@@ -72,56 +74,50 @@ module AxiLiteClint #(
   assign msip_irq_o = msip_q;
   assign mtip_irq_o = (mtime_q >= mtimecmp_q);
 
-  function [DATA_W-1:0] apply_wstrb;
-    input [DATA_W-1:0] old_value;
-    input [DATA_W-1:0] new_value;
-    input [STRB_W-1:0] strb;
-    integer i;
-    begin
-      apply_wstrb = old_value;
-      for (i = 0; i < STRB_W; i = i + 1) begin
-        if (strb[i])
-          apply_wstrb[i*8 +: 8] = new_value[i*8 +: 8];
-      end
+  assign write_data_pad_w[31:0] = write_data_w[31:0];
+  assign write_strb_pad_w[3:0] = write_strb_w[3:0];
+  generate
+    if (DATA_W > 32) begin : gen_clint_data_high_lanes
+      assign write_data_pad_w[63:32] = write_data_w[63:32];
+    end else begin : gen_clint_data_high_zero
+      assign write_data_pad_w[63:32] = 32'h0000_0000;
     end
-  endfunction
 
-  function [31:0] apply_wstrb32;
-    input [31:0] old_value;
-    input [DATA_W-1:0] new_value;
-    input [STRB_W-1:0] strb;
-    reg [DATA_W-1:0] merged;
-    begin
-      merged = apply_wstrb({{(DATA_W-32){1'b0}}, old_value}, new_value, strb);
-      apply_wstrb32 = merged[31:0];
+    if (STRB_W > 4) begin : gen_clint_strb_high_lanes
+      assign write_strb_pad_w[7:4] = write_strb_w[7:4];
+    end else begin : gen_clint_strb_high_zero
+      assign write_strb_pad_w[7:4] = 4'h0;
     end
-  endfunction
+  endgenerate
 
   function [63:0] apply_wstrb64_aligned;
     input [63:0] old_value;
-    input [DATA_W-1:0] new_value;
-    input [STRB_W-1:0] strb;
-    integer i;
+    input [63:0] new_value;
+    input [7:0] strb;
     begin
-      apply_wstrb64_aligned = old_value;
-      for (i = 0; i < STRB_W; i = i + 1) begin
-        if (strb[i])
-          apply_wstrb64_aligned[i*8 +: 8] = new_value[i*8 +: 8];
-      end
+      // 固定 8-lane byte-enable mux，替代仿真式循环，便于综合审查每个 byte 的来源。
+      apply_wstrb64_aligned[7:0]   = strb[0] ? new_value[7:0]   : old_value[7:0];
+      apply_wstrb64_aligned[15:8]  = strb[1] ? new_value[15:8]  : old_value[15:8];
+      apply_wstrb64_aligned[23:16] = strb[2] ? new_value[23:16] : old_value[23:16];
+      apply_wstrb64_aligned[31:24] = strb[3] ? new_value[31:24] : old_value[31:24];
+      apply_wstrb64_aligned[39:32] = strb[4] ? new_value[39:32] : old_value[39:32];
+      apply_wstrb64_aligned[47:40] = strb[5] ? new_value[47:40] : old_value[47:40];
+      apply_wstrb64_aligned[55:48] = strb[6] ? new_value[55:48] : old_value[55:48];
+      apply_wstrb64_aligned[63:56] = strb[7] ? new_value[63:56] : old_value[63:56];
     end
   endfunction
 
   function [63:0] apply_wstrb64_high_word;
     input [63:0] old_value;
-    input [DATA_W-1:0] new_value;
-    input [STRB_W-1:0] strb;
-    integer i;
+    input [63:0] new_value;
+    input [7:0] strb;
     begin
-      apply_wstrb64_high_word = old_value;
-      for (i = 0; i < STRB_W; i = i + 1) begin
-        if ((i < 4) && strb[i])
-          apply_wstrb64_high_word[32 + i*8 +: 8] = new_value[i*8 +: 8];
-      end
+      // *_HI 寄存器只消费写数据低 4 lane，高 4 lane 被显式忽略。
+      apply_wstrb64_high_word[31:0]  = old_value[31:0];
+      apply_wstrb64_high_word[39:32] = strb[0] ? new_value[7:0]   : old_value[39:32];
+      apply_wstrb64_high_word[47:40] = strb[1] ? new_value[15:8]  : old_value[47:40];
+      apply_wstrb64_high_word[55:48] = strb[2] ? new_value[23:16] : old_value[55:48];
+      apply_wstrb64_high_word[63:56] = strb[3] ? new_value[31:24] : old_value[63:56];
     end
   endfunction
 
@@ -207,17 +203,17 @@ module AxiLiteClint #(
         case (write_addr_low_w)
           CLINT_MSIP_OFFSET: msip_q <= apply_msip_wstrb_bit(msip_q, write_data_w[0], write_strb_w[0]);
           CLINT_MTIMECMP_LO: mtimecmp_q <= apply_wstrb64_aligned(mtimecmp_q,
-                                                                 write_data_w,
-                                                                 write_strb_w);
+                                                                 write_data_pad_w,
+                                                                 write_strb_pad_w);
           CLINT_MTIMECMP_HI: mtimecmp_q <= apply_wstrb64_high_word(mtimecmp_q,
-                                                                   write_data_w,
-                                                                   write_strb_w);
+                                                                   write_data_pad_w,
+                                                                   write_strb_pad_w);
           CLINT_MTIME_LO: mtime_q <= apply_wstrb64_aligned(mtime_q,
-                                                           write_data_w,
-                                                           write_strb_w);
+                                                           write_data_pad_w,
+                                                           write_strb_pad_w);
           CLINT_MTIME_HI: mtime_q <= apply_wstrb64_high_word(mtime_q,
-                                                             write_data_w,
-                                                             write_strb_w);
+                                                             write_data_pad_w,
+                                                             write_strb_pad_w);
           default: begin end
         endcase
       end

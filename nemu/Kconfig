@@ -114,12 +114,21 @@ config CC_LTO
   bool "Enable link-time optimization"
   default n
 
+config PERFORMANCE
+  depends on TARGET_NATIVE_ELF
+  bool "Performance mode: disable debug traces and counters"
+  default n
+  help
+    一键性能模式。开启后，trace、difftest、watchpoint、透明 BPU 统计模型、
+    运行时检查、ASAN 以及调试诊断日志都会被配置层关闭，适合 Linux/Ubuntu
+    长跑时减少热路径开销和控制台噪声。
+
 config CC_DEBUG
   bool "Enable debug information"
   default n
 
 config CC_ASAN
-  depends on MODE_SYSTEM
+  depends on MODE_SYSTEM && !PERFORMANCE
   bool "Enable address sanitizer"
   default n
 endmenu
@@ -131,7 +140,7 @@ menu "Testing and Debugging"
 config WATCHPOINT
   # 监视点实现依赖 src/monitor/sdb；AM 目标会把该目录排除出构建，
   # 因此这里直接禁止在 AM 下开启，避免配置和源码集合失配。
-  depends on !TARGET_AM
+  depends on !TARGET_AM && !PERFORMANCE
   bool "Enable watchpoint feature"
   default y
 
@@ -146,8 +155,75 @@ config BATCH_MODE
     命令行 -b/--batch 仍然保留，用于按次显式开启批处理模式。
 
 config TRACE
+  depends on !PERFORMANCE
   bool "Enable tracer"
   default y
+
+config STATISTIC
+  depends on !TARGET_AM && !PERFORMANCE
+  bool "Print execution statistics"
+  default y
+  help
+    结束时打印 host time、guest instruction、simulation frequency，并串接
+    cache/BPU 等统计输出。性能模式会关闭该项，但仍保留必要的 cache flush。
+
+config RISCV_DEBUG_LOG
+  depends on ISA_riscv && TARGET_NATIVE_ELF && !PERFORMANCE
+  bool "Enable RISC-V boot/MMU/trap debug logs"
+  default y
+  help
+    打印少量 CSR、Sv39 page fault 和 trap 诊断日志。该日志对 bring-up 很有用，
+    但 Ubuntu 长跑时会污染 console 并增加 I/O 开销，性能模式会关闭它。
+
+config RISCV_FAULT_DEBUG_BUDGET
+  depends on RISCV_DEBUG_LOG
+  int "RISC-V MMU/trap debug log budget"
+  default 16
+  help
+    限制 Sv39 fault 与 trap 诊断日志条数；调大后可观察 execve/page-fault
+    是否持续推进，但只应在 debug defconfig 下使用。
+
+config RISCV_PROGRESS_DEBUG_LOG
+  depends on RISCV_DEBUG_LOG
+  bool "Enable low-rate RISC-V execution progress logs"
+  default n
+  help
+    按固定 guest 指令间隔打印当前 PC、特权级和关键 CSR，用于判断 Linux
+    长跑时是在推进、内核态自旋还是用户态自旋。默认关闭，性能模式也会
+    通过 RISCV_DEBUG_LOG 依赖关闭它。
+
+config RISCV_PROGRESS_DEBUG_INTERVAL
+  depends on RISCV_PROGRESS_DEBUG_LOG
+  int "RISC-V progress log interval in guest instructions"
+  default 100000000
+  help
+    进度心跳的 guest 指令间隔。调试 Ubuntu/systemd 早期启动时建议保持在
+    1e8 量级，既能观察卡点，又不会刷屏拖慢解释器。
+
+config RISCV_IRQ_DEBUG_LOG
+  depends on ISA_riscv && TARGET_NATIVE_ELF && TRACE && !PERFORMANCE
+  bool "Enable RISC-V PLIC/IRQ debug logs"
+  default n
+  help
+    在 TRACE_START/TRACE_END 窗口内记录少量 PLIC claim/complete 事件，
+    用于区分 UART、virtio 等外部中断源。默认关闭，避免长跑时刷屏。
+
+config RISCV_SYSCALL_DEBUG_LOG
+  depends on ISA_riscv && RV64 && TARGET_NATIVE_ELF && !PERFORMANCE
+  bool "Enable RV64 Linux syscall debug logs"
+  default n
+  help
+    记录 U-mode ecall 的 syscall 号、参数以及返回值，用于定位 Linux
+    PID1/rootfs bring-up 卡在具体哪个系统调用。该 trace 默认关闭，性能模式
+    也会关闭它，避免长跑时在热路径写日志。
+
+config RISCV_SYSCALL_DEBUG_BUDGET
+  depends on RISCV_SYSCALL_DEBUG_LOG
+  int "RV64 Linux syscall debug log budget"
+  default 256
+  help
+    限制 syscall trace 的入口条数；每个入口最多再配一个返回日志，避免
+    Ubuntu 用户态长跑时持续刷屏。
 
 config TRACE_START
   depends on TRACE
@@ -210,7 +286,7 @@ config FTRACE_ELF
     Path to the ELF binary whose symbol table will be used by ftrace.
 
 config DIFFTEST
-  depends on TARGET_NATIVE_ELF
+  depends on TARGET_NATIVE_ELF && !PERFORMANCE
   bool "Enable differential testing"
   default n
   help
@@ -268,6 +344,7 @@ config TIMER_CLOCK_GETTIME
 endchoice
 
 config RT_CHECK
+  depends on !PERFORMANCE
   bool "Enable runtime checking"
   default y
 

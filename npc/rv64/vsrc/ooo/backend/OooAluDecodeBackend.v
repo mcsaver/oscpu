@@ -136,34 +136,57 @@ module OooAluDecodeBackend #(
     .imm_o(decode1_imm_w)
   );
 
-  /* verilator lint_off UNUSEDSIGNAL */
+  // 只把支持性判定位送入 helper，避免把整条控制总线当成伪消费者。
   function ctrl_supported;
-    input [`CTRL_BUS_W-1:0] ctrl;
+    input ctrl_valid;
+    input ctrl_illegal;
+    input ctrl_need_exec;
+    input ctrl_system;
+    input ctrl_csr;
+    input ctrl_mret;
+    input ctrl_sret;
+    input ctrl_wfi;
+    input ctrl_sfence_vma;
     begin
-	      ctrl_supported = ctrl[`CTRL_VALID_BIT] &&
-	                       !ctrl[`CTRL_ILLEGAL_BIT] &&
-	                       ctrl[`CTRL_NEED_EXEC_BIT] &&
-                       (!ctrl[`CTRL_SYSTEM_BIT] || ctrl[`CTRL_CSR_BIT]) &&
-                       !ctrl[`CTRL_MRET_BIT] &&
-                       !ctrl[`CTRL_SRET_BIT] &&
-                       !ctrl[`CTRL_WFI_BIT] &&
-                       !ctrl[`CTRL_SFENCE_VMA_BIT];
+      ctrl_supported = ctrl_valid &&
+                       !ctrl_illegal &&
+                       ctrl_need_exec &&
+                       (!ctrl_system || ctrl_csr) &&
+                       !ctrl_mret &&
+                       !ctrl_sret &&
+                       !ctrl_wfi &&
+                       !ctrl_sfence_vma;
     end
   endfunction
-  /* verilator lint_on UNUSEDSIGNAL */
 
-  wire dispatch0_supported_w = ctrl_supported(decode0_ctrl_w);
-  wire dispatch1_supported_w = ctrl_supported(decode1_ctrl_w);
+  wire dispatch0_supported_w =
+      ctrl_supported(decode0_ctrl_w[`CTRL_VALID_BIT],
+                     decode0_ctrl_w[`CTRL_ILLEGAL_BIT],
+                     decode0_ctrl_w[`CTRL_NEED_EXEC_BIT],
+                     decode0_ctrl_w[`CTRL_SYSTEM_BIT],
+                     decode0_ctrl_w[`CTRL_CSR_BIT],
+                     decode0_ctrl_w[`CTRL_MRET_BIT],
+                     decode0_ctrl_w[`CTRL_SRET_BIT],
+                     decode0_ctrl_w[`CTRL_WFI_BIT],
+                     decode0_ctrl_w[`CTRL_SFENCE_VMA_BIT]);
+  wire dispatch1_supported_w =
+      ctrl_supported(decode1_ctrl_w[`CTRL_VALID_BIT],
+                     decode1_ctrl_w[`CTRL_ILLEGAL_BIT],
+                     decode1_ctrl_w[`CTRL_NEED_EXEC_BIT],
+                     decode1_ctrl_w[`CTRL_SYSTEM_BIT],
+                     decode1_ctrl_w[`CTRL_CSR_BIT],
+                     decode1_ctrl_w[`CTRL_MRET_BIT],
+                     decode1_ctrl_w[`CTRL_SRET_BIT],
+                     decode1_ctrl_w[`CTRL_WFI_BIT],
+                     decode1_ctrl_w[`CTRL_SFENCE_VMA_BIT]);
   // CSR 旧值作为该 uop 的写回数据，复用 imm payload 穿过 rename/issue/ROB。
   wire [`XLEN-1:0] backend_dispatch0_imm_w =
       decode0_ctrl_w[`CTRL_CSR_BIT] ? dispatch0_csr_rdata_i : decode0_imm_w;
   wire [`XLEN-1:0] backend_dispatch1_imm_w =
       decode1_ctrl_w[`CTRL_CSR_BIT] ? dispatch1_csr_rdata_i : decode1_imm_w;
-  /* verilator lint_off UNOPTFLAT */
   wire backend_dispatch0_valid_w = dispatch0_valid_i && dispatch0_supported_w;
   wire backend_dispatch1_valid_w = dispatch1_valid_i && dispatch1_supported_w;
   wire backend_dispatch0_ready_w;
-  /* verilator lint_on UNOPTFLAT */
   wire backend_dispatch1_ready_w;
 
   assign dispatch0_ready_o = dispatch0_supported_w && backend_dispatch0_ready_w;

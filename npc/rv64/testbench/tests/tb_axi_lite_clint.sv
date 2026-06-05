@@ -229,6 +229,54 @@ module tb_axi_lite_clint;
     end
   endtask
 
+  task automatic axi_write_word_split;
+    input [31:0] addr;
+    input [31:0] data;
+    input [3:0] strb;
+    input aw_first;
+    begin
+      awaddr = addr;
+      wdata = data;
+      wstrb = strb;
+      awvalid = 1'b0;
+      wvalid = 1'b0;
+      bready = 1'b0;
+
+      if (aw_first) begin
+        awvalid = 1'b1;
+        #1;
+        tb_check1("split write awready first", awready, 1'b1);
+        `TB_TICK(clk);
+        awvalid = 1'b0;
+
+        wvalid = 1'b1;
+        #1;
+        tb_check1("split write wready second", wready, 1'b1);
+        `TB_TICK(clk);
+        wvalid = 1'b0;
+      end else begin
+        wvalid = 1'b1;
+        #1;
+        tb_check1("split write wready first", wready, 1'b1);
+        `TB_TICK(clk);
+        wvalid = 1'b0;
+
+        awvalid = 1'b1;
+        #1;
+        tb_check1("split write awready second", awready, 1'b1);
+        `TB_TICK(clk);
+        awvalid = 1'b0;
+      end
+
+      #1;
+      tb_check1("split write bvalid", bvalid, 1'b1);
+      tb_check32("split write bresp", {30'b0, bresp}, 32'h0);
+      bready = 1'b1;
+      `TB_TICK(clk);
+      bready = 1'b0;
+    end
+  endtask
+
   task automatic axi64_read_word;
     input [63:0] addr;
     input [63:0] exp_data;
@@ -300,6 +348,11 @@ module tb_axi_lite_clint;
     axi_write_word(`NPC_AXI_CLINT_BASE + 32'h0000_0000, 32'h0000_0000, 4'b1111);
     tb_check1("msip irq clear", msip_irq, 1'b0);
 
+    axi_write_word_split(`NPC_AXI_CLINT_BASE + 32'h0000_bff8, 32'hdead_beef, 4'b1111, 1'b1);
+    axi_read_word(`NPC_AXI_CLINT_BASE + 32'h0000_bff8, 32'hdead_beef);
+    axi_write_word_split(`NPC_AXI_CLINT_BASE + 32'h0000_bffc, 32'h0000_0001, 4'b1111, 1'b0);
+    axi_read_word(`NPC_AXI_CLINT_BASE + 32'h0000_bffc, 32'h0000_0001);
+
     axi_write_word(`NPC_AXI_CLINT_BASE + 32'h0000_bff8, 32'h1234_5678, 4'b1111);
     axi_write_word(`NPC_AXI_CLINT_BASE + 32'h0000_bffc, 32'h0000_0009, 4'b1111);
     axi_read_word(`NPC_AXI_CLINT_BASE + 32'h0000_bff8, 32'h1234_5678);
@@ -325,6 +378,11 @@ module tb_axi_lite_clint;
     axi64_write_word(`NPC_AXI_CLINT_BASE + 64'h0000_4000, 64'hffff_ffff_0000_0000, 8'hf0);
     axi64_read_word(`NPC_AXI_CLINT_BASE + 64'h0000_4000, 64'hffff_ffff_2468_ace0);
     axi64_read_word(`NPC_AXI_CLINT_BASE + 64'h0000_4004, 64'h0000_0000_ffff_ffff);
+    axi64_write_word(`NPC_AXI_CLINT_BASE + 64'h0000_4004, 64'h0000_0000_89ab_cdef, 8'h0f);
+    axi64_read_word(`NPC_AXI_CLINT_BASE + 64'h0000_4000, 64'h89ab_cdef_2468_ace0);
+    axi64_read_word(`NPC_AXI_CLINT_BASE + 64'h0000_4004, 64'h0000_0000_89ab_cdef);
+    axi64_write_word(`NPC_AXI_CLINT_BASE + 64'h0000_4004, 64'hffff_ffff_0000_0000, 8'hf0);
+    axi64_read_word(`NPC_AXI_CLINT_BASE + 64'h0000_4000, 64'h89ab_cdef_2468_ace0);
 
     axi64_write_word(`NPC_AXI_CLINT_BASE + 64'h0000_bff8, 64'h0000_0001_0000_0002, 8'hff);
     axi64_read_word(`NPC_AXI_CLINT_BASE + 64'h0000_bff8, 64'h0000_0001_0000_0002);

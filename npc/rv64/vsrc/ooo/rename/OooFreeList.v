@@ -49,8 +49,6 @@ module OooFreeList #(
   wire [1:0] alloc_count_w;
 
   integer idx;
-  reg [1:0] push_count;
-  reg [FREE_COUNT_W-1:0] next_count;
 
   function [PHY_REG_ADDR_W-1:0] ptr_add;
     input [PHY_REG_ADDR_W-1:0] base;
@@ -71,6 +69,23 @@ module OooFreeList #(
   assign free_count_o = count_q;
   assign empty_o = (count_q == {FREE_COUNT_W{1'b0}});
   assign full_o = (count_q == PHY_REG_COUNT_COUNT);
+
+  wire [FREE_COUNT_W-1:0] post_alloc_count_w =
+      count_q - {{(FREE_COUNT_W-2){1'b0}}, alloc_count_w};
+  wire free0_push_w =
+      free0_valid_i && (free0_preg_i != {PHY_REG_ADDR_W{1'b0}}) &&
+      (post_alloc_count_w < PHY_REG_COUNT_COUNT);
+  wire [FREE_COUNT_W-1:0] post_free0_count_w =
+      post_alloc_count_w + {{(FREE_COUNT_W-1){1'b0}}, free0_push_w};
+  wire free1_push_w =
+      free1_valid_i && (free1_preg_i != {PHY_REG_ADDR_W{1'b0}}) &&
+      (post_free0_count_w < PHY_REG_COUNT_COUNT);
+  wire [1:0] push_count_w =
+      {1'b0, free0_push_w} + {1'b0, free1_push_w};
+  wire [FREE_COUNT_W-1:0] next_count_w =
+      post_free0_count_w + {{(FREE_COUNT_W-1){1'b0}}, free1_push_w};
+  wire [PHY_REG_ADDR_W-1:0] free1_tail_w =
+      ptr_add(tail_q, {1'b0, free0_push_w});
 
   always @(posedge clk) begin
     if (rst || flush_i) begin
@@ -104,28 +119,18 @@ module OooFreeList #(
       checkpoint_tail_q <= tail_q;
       checkpoint_count_q <= count_q;
     end else begin
-      /* verilator lint_off BLKSEQ */
-      push_count = 2'd0;
-      next_count = count_q - {{(FREE_COUNT_W-2){1'b0}}, alloc_count_w};
-
-      if (free0_valid_i && (free0_preg_i != {PHY_REG_ADDR_W{1'b0}}) &&
-          (next_count < PHY_REG_COUNT_COUNT)) begin
-        fifo_q[ptr_add(tail_q, push_count[1:0])] <= free0_preg_i;
-        push_count = push_count + 2'd1;
-        next_count = next_count + {{(FREE_COUNT_W-1){1'b0}}, 1'b1};
+      // 正常路径的 push/count 先由组合逻辑推导，时序块只落状态。
+      if (free0_push_w) begin
+        fifo_q[tail_q] <= free0_preg_i;
       end
 
-      if (free1_valid_i && (free1_preg_i != {PHY_REG_ADDR_W{1'b0}}) &&
-          (next_count < PHY_REG_COUNT_COUNT)) begin
-        fifo_q[ptr_add(tail_q, push_count[1:0])] <= free1_preg_i;
-        push_count = push_count + 2'd1;
-        next_count = next_count + {{(FREE_COUNT_W-1){1'b0}}, 1'b1};
+      if (free1_push_w) begin
+        fifo_q[free1_tail_w] <= free1_preg_i;
       end
-      /* verilator lint_on BLKSEQ */
 
       head_q <= ptr_add(head_q, alloc_count_w);
-      tail_q <= ptr_add(tail_q, push_count[1:0]);
-      count_q <= next_count[FREE_COUNT_W-1:0];
+      tail_q <= ptr_add(tail_q, push_count_w);
+      count_q <= next_count_w;
     end
   end
 

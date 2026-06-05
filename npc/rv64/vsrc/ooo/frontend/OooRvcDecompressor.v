@@ -7,7 +7,9 @@ module OooRvcDecompressor (
   output [`INST_W-1:0] inst_o
 );
 
-  /* verilator lint_off UNUSEDSIGNAL */
+  // Helper inputs are sliced to the RVC fields they really encode, so
+  // reserved or alignment bits stay visible in the decode table instead of
+  // being hidden by module-wide unused-signal waivers.
   function [`INST_W-1:0] enc_r;
     input [6:0] funct7;
     input [4:0] rs2;
@@ -53,7 +55,7 @@ module OooRvcDecompressor (
   endfunction
 
   function [`INST_W-1:0] enc_b;
-    input [12:0] imm;
+    input [12:1] imm;
     input [4:0] rs2;
     input [4:0] rs1;
     input [2:0] funct3;
@@ -73,7 +75,7 @@ module OooRvcDecompressor (
   endfunction
 
   function [`INST_W-1:0] enc_j;
-    input [20:0] imm;
+    input [20:1] imm;
     input [4:0] rd;
     begin
       enc_j = {imm[20], imm[10:1], imm[11], imm[19:12], rd, `OPCODE_JAL};
@@ -82,111 +84,140 @@ module OooRvcDecompressor (
 
 
   function [4:0] rvc_rdp;
-    input [15:0] inst;
+    input [2:0] rd_p;
     begin
-      rvc_rdp = {2'b01, inst[4:2]};
+      rvc_rdp = {2'b01, rd_p};
     end
   endfunction
 
   function [4:0] rvc_rs1p;
-    input [15:0] inst;
+    input [2:0] rs1_p;
     begin
-      rvc_rs1p = {2'b01, inst[9:7]};
+      rvc_rs1p = {2'b01, rs1_p};
     end
   endfunction
 
   function [4:0] rvc_rs2p;
-    input [15:0] inst;
+    input [2:0] rs2_p;
     begin
-      rvc_rs2p = {2'b01, inst[4:2]};
+      rvc_rs2p = {2'b01, rs2_p};
     end
   endfunction
 
   function [`XLEN-1:0] rvc_imm_addi4spn;
-    input [15:0] inst;
+    input [3:0] inst_10_7;
+    input [1:0] inst_12_11;
+    input inst_5;
+    input inst_6;
     begin
       rvc_imm_addi4spn =
-          {22'b0, inst[10:7], inst[12:11], inst[5], inst[6], 2'b00};
+          {22'b0, inst_10_7, inst_12_11, inst_5, inst_6, 2'b00};
     end
   endfunction
 
   function [`XLEN-1:0] rvc_imm_lw_sw;
-    input [15:0] inst;
+    input inst_5;
+    input [2:0] inst_12_10;
+    input inst_6;
     begin
-      rvc_imm_lw_sw = {25'b0, inst[5], inst[12:10], inst[6], 2'b00};
+      rvc_imm_lw_sw = {25'b0, inst_5, inst_12_10, inst_6, 2'b00};
     end
   endfunction
 
   function [`XLEN-1:0] rvc_imm_ld_sd;
-    input [15:0] inst;
+    input [1:0] inst_6_5;
+    input [2:0] inst_12_10;
     begin
-      rvc_imm_ld_sd = {24'b0, inst[6:5], inst[12:10], 3'b000};
+      rvc_imm_ld_sd = {24'b0, inst_6_5, inst_12_10, 3'b000};
     end
   endfunction
 
   function [`XLEN-1:0] rvc_imm_6;
-    input [15:0] inst;
+    input inst_12;
+    input [4:0] inst_6_2;
     begin
-      rvc_imm_6 = {{26{inst[12]}}, inst[12], inst[6:2]};
+      rvc_imm_6 = {{26{inst_12}}, inst_12, inst_6_2};
     end
   endfunction
 
   function [`XLEN-1:0] rvc_imm_j;
-    input [15:0] inst;
+    input inst_12;
+    input inst_8;
+    input [1:0] inst_10_9;
+    input inst_6;
+    input inst_7;
+    input inst_2;
+    input inst_11;
+    input [2:0] inst_5_3;
     begin
-      rvc_imm_j = {{20{inst[12]}}, inst[12], inst[8], inst[10:9],
-                   inst[6], inst[7], inst[2], inst[11], inst[5:3], 1'b0};
+      rvc_imm_j = {{20{inst_12}}, inst_12, inst_8, inst_10_9,
+                   inst_6, inst_7, inst_2, inst_11, inst_5_3, 1'b0};
     end
   endfunction
 
   function [`XLEN-1:0] rvc_imm_addi16sp;
-    input [15:0] inst;
+    input inst_12;
+    input [1:0] inst_4_3;
+    input inst_5;
+    input inst_2;
+    input inst_6;
     begin
-      rvc_imm_addi16sp = {{22{inst[12]}}, inst[12], inst[4:3],
-                          inst[5], inst[2], inst[6], 4'b0000};
+      rvc_imm_addi16sp = {{22{inst_12}}, inst_12, inst_4_3,
+                          inst_5, inst_2, inst_6, 4'b0000};
     end
   endfunction
 
   function [`XLEN-1:0] rvc_imm_b;
-    input [15:0] inst;
+    input inst_12;
+    input [1:0] inst_6_5;
+    input inst_2;
+    input [1:0] inst_11_10;
+    input [1:0] inst_4_3;
     begin
-      rvc_imm_b = {{23{inst[12]}}, inst[12], inst[6:5], inst[2],
-                   inst[11:10], inst[4:3], 1'b0};
+      rvc_imm_b = {{23{inst_12}}, inst_12, inst_6_5, inst_2,
+                   inst_11_10, inst_4_3, 1'b0};
     end
   endfunction
 
   function [`XLEN-1:0] rvc_imm_lwsp;
-    input [15:0] inst;
+    input [1:0] inst_3_2;
+    input inst_12;
+    input [2:0] inst_6_4;
     begin
-      rvc_imm_lwsp = {24'b0, inst[3:2], inst[12], inst[6:4], 2'b00};
+      rvc_imm_lwsp = {24'b0, inst_3_2, inst_12, inst_6_4, 2'b00};
     end
   endfunction
 
   function [`XLEN-1:0] rvc_imm_ldsp;
-    input [15:0] inst;
+    input [2:0] inst_4_2;
+    input inst_12;
+    input [1:0] inst_6_5;
     begin
-      rvc_imm_ldsp = {23'b0, inst[4:2], inst[12], inst[6:5], 3'b000};
+      rvc_imm_ldsp = {23'b0, inst_4_2, inst_12, inst_6_5, 3'b000};
     end
   endfunction
 
   function [`XLEN-1:0] rvc_imm_swsp;
-    input [15:0] inst;
+    input [1:0] inst_8_7;
+    input [3:0] inst_12_9;
     begin
-      rvc_imm_swsp = {24'b0, inst[8:7], inst[12:9], 2'b00};
+      rvc_imm_swsp = {24'b0, inst_8_7, inst_12_9, 2'b00};
     end
   endfunction
 
   function [`XLEN-1:0] rvc_imm_sdsp;
-    input [15:0] inst;
+    input [2:0] inst_9_7;
+    input [2:0] inst_12_10;
     begin
-      rvc_imm_sdsp = {23'b0, inst[9:7], inst[12:10], 3'b000};
+      rvc_imm_sdsp = {23'b0, inst_9_7, inst_12_10, 3'b000};
     end
   endfunction
 
   function [5:0] rvc_shamt;
-    input [15:0] inst;
+    input inst_12;
+    input [4:0] inst_6_2;
     begin
-      rvc_shamt = {inst[12], inst[6:2]};
+      rvc_shamt = {inst_12, inst_6_2};
     end
   endfunction
 
@@ -202,50 +233,51 @@ module OooRvcDecompressor (
       decompress_rvc = 32'h0000_0000;
       rd = inst[11:7];
       rs2 = inst[6:2];
-      rs1p = rvc_rs1p(inst);
-      rs2p = rvc_rs2p(inst);
-      shamt = rvc_shamt(inst);
+      rs1p = rvc_rs1p(inst[9:7]);
+      rs2p = rvc_rs2p(inst[4:2]);
+      shamt = rvc_shamt(inst[12], inst[6:2]);
 
       case (inst[1:0])
         2'b00: begin
           case (inst[15:13])
             3'b000: begin
-              imm = rvc_imm_addi4spn(inst);
+              imm = rvc_imm_addi4spn(inst[10:7], inst[12:11],
+                                      inst[5], inst[6]);
               if (imm != {`XLEN{1'b0}})
                 decompress_rvc =
                     enc_i(imm[11:0], 5'd2, `FUNCT3_ADD_SUB,
-                          rvc_rdp(inst), `OPCODE_OP_IMM);
+                          rvc_rdp(inst[4:2]), `OPCODE_OP_IMM);
             end
             3'b001: begin
-              imm = rvc_imm_ld_sd(inst);
+              imm = rvc_imm_ld_sd(inst[6:5], inst[12:10]);
               decompress_rvc =
                   enc_i(imm[11:0], rs1p, `FUNCT3_LD,
-                        rvc_rdp(inst), `OPCODE_LOAD_FP);
+                        rvc_rdp(inst[4:2]), `OPCODE_LOAD_FP);
             end
             3'b010: begin
-              imm = rvc_imm_lw_sw(inst);
+              imm = rvc_imm_lw_sw(inst[5], inst[12:10], inst[6]);
               decompress_rvc =
                   enc_i(imm[11:0], rs1p, `FUNCT3_LW,
-                        rvc_rdp(inst), `OPCODE_LOAD);
+                        rvc_rdp(inst[4:2]), `OPCODE_LOAD);
             end
             3'b011: begin
-              imm = rvc_imm_ld_sd(inst);
+              imm = rvc_imm_ld_sd(inst[6:5], inst[12:10]);
               decompress_rvc =
                   enc_i(imm[11:0], rs1p, `FUNCT3_LD,
-                        rvc_rdp(inst), `OPCODE_LOAD);
+                        rvc_rdp(inst[4:2]), `OPCODE_LOAD);
             end
             3'b101: begin
-              imm = rvc_imm_ld_sd(inst);
+              imm = rvc_imm_ld_sd(inst[6:5], inst[12:10]);
               decompress_rvc =
                   enc_s_op(imm[11:0], rs2p, rs1p, `FUNCT3_SD,
                            `OPCODE_STORE_FP);
             end
             3'b110: begin
-              imm = rvc_imm_lw_sw(inst);
+              imm = rvc_imm_lw_sw(inst[5], inst[12:10], inst[6]);
               decompress_rvc = enc_s(imm[11:0], rs2p, rs1p, `FUNCT3_SW);
             end
             3'b111: begin
-              imm = rvc_imm_ld_sd(inst);
+              imm = rvc_imm_ld_sd(inst[6:5], inst[12:10]);
               decompress_rvc = enc_s(imm[11:0], rs2p, rs1p, `FUNCT3_SD);
             end
             default: begin end
@@ -255,33 +287,34 @@ module OooRvcDecompressor (
         2'b01: begin
           case (inst[15:13])
             3'b000: begin
-              imm = rvc_imm_6(inst);
+              imm = rvc_imm_6(inst[12], inst[6:2]);
               decompress_rvc =
                   enc_i(imm[11:0], rd, `FUNCT3_ADD_SUB, rd,
                         `OPCODE_OP_IMM);
             end
             3'b001: begin
-              imm = rvc_imm_6(inst);
+              imm = rvc_imm_6(inst[12], inst[6:2]);
               if (rd != 5'd0)
                 decompress_rvc =
                     enc_i(imm[11:0], rd, `FUNCT3_ADD_SUB, rd,
                           `OPCODE_OP_IMM_32);
             end
             3'b010: begin
-              imm = rvc_imm_6(inst);
+              imm = rvc_imm_6(inst[12], inst[6:2]);
               decompress_rvc =
                   enc_i(imm[11:0], 5'd0, `FUNCT3_ADD_SUB, rd,
                         `OPCODE_OP_IMM);
             end
             3'b011: begin
               if (rd == 5'd2) begin
-                imm = rvc_imm_addi16sp(inst);
+                imm = rvc_imm_addi16sp(inst[12], inst[4:3],
+                                        inst[5], inst[2], inst[6]);
                 if (imm != {`XLEN{1'b0}})
                   decompress_rvc =
                       enc_i(imm[11:0], 5'd2, `FUNCT3_ADD_SUB, 5'd2,
                             `OPCODE_OP_IMM);
               end else begin
-                imm = rvc_imm_6(inst);
+                imm = rvc_imm_6(inst[12], inst[6:2]);
                 if ((rd != 5'd0) && (imm != {`XLEN{1'b0}}))
                   decompress_rvc = enc_u(imm[19:0], rd, `OPCODE_LUI);
               end
@@ -299,7 +332,7 @@ module OooRvcDecompressor (
                             `FUNCT3_SRL_SRA, rs1p, `OPCODE_OP_IMM);
                 end
                 2'b10: begin
-                  imm = rvc_imm_6(inst);
+                  imm = rvc_imm_6(inst[12], inst[6:2]);
                   decompress_rvc =
                       enc_i(imm[11:0], rs1p, `FUNCT3_AND, rs1p,
                             `OPCODE_OP_IMM);
@@ -337,16 +370,20 @@ module OooRvcDecompressor (
               endcase
             end
             3'b101: begin
-              imm = rvc_imm_j(inst);
-              decompress_rvc = enc_j(imm[20:0], 5'd0);
+              imm = rvc_imm_j(inst[12], inst[8], inst[10:9],
+                              inst[6], inst[7], inst[2],
+                              inst[11], inst[5:3]);
+              decompress_rvc = enc_j(imm[20:1], 5'd0);
             end
             3'b110: begin
-              imm = rvc_imm_b(inst);
-              decompress_rvc = enc_b(imm[12:0], 5'd0, rs1p, `FUNCT3_BEQ);
+              imm = rvc_imm_b(inst[12], inst[6:5], inst[2],
+                              inst[11:10], inst[4:3]);
+              decompress_rvc = enc_b(imm[12:1], 5'd0, rs1p, `FUNCT3_BEQ);
             end
             3'b111: begin
-              imm = rvc_imm_b(inst);
-              decompress_rvc = enc_b(imm[12:0], 5'd0, rs1p, `FUNCT3_BNE);
+              imm = rvc_imm_b(inst[12], inst[6:5], inst[2],
+                              inst[11:10], inst[4:3]);
+              decompress_rvc = enc_b(imm[12:1], 5'd0, rs1p, `FUNCT3_BNE);
             end
             default: begin end
           endcase
@@ -360,20 +397,20 @@ module OooRvcDecompressor (
                         `OPCODE_OP_IMM);
             end
             3'b001: begin
-              imm = rvc_imm_ldsp(inst);
+              imm = rvc_imm_ldsp(inst[4:2], inst[12], inst[6:5]);
               if (rd != 5'd0)
                 decompress_rvc =
                     enc_i(imm[11:0], 5'd2, `FUNCT3_LD, rd,
                           `OPCODE_LOAD_FP);
             end
             3'b010: begin
-              imm = rvc_imm_lwsp(inst);
+              imm = rvc_imm_lwsp(inst[3:2], inst[12], inst[6:4]);
               if (rd != 5'd0)
                 decompress_rvc =
                     enc_i(imm[11:0], 5'd2, `FUNCT3_LW, rd, `OPCODE_LOAD);
             end
             3'b011: begin
-              imm = rvc_imm_ldsp(inst);
+              imm = rvc_imm_ldsp(inst[4:2], inst[12], inst[6:5]);
               if (rd != 5'd0)
                 decompress_rvc =
                     enc_i(imm[11:0], 5'd2, `FUNCT3_LD, rd, `OPCODE_LOAD);
@@ -408,17 +445,17 @@ module OooRvcDecompressor (
               end
             end
             3'b101: begin
-              imm = rvc_imm_sdsp(inst);
+              imm = rvc_imm_sdsp(inst[9:7], inst[12:10]);
               decompress_rvc =
                   enc_s_op(imm[11:0], rs2, 5'd2, `FUNCT3_SD,
                            `OPCODE_STORE_FP);
             end
             3'b110: begin
-              imm = rvc_imm_swsp(inst);
+              imm = rvc_imm_swsp(inst[8:7], inst[12:9]);
               decompress_rvc = enc_s(imm[11:0], rs2, 5'd2, `FUNCT3_SW);
             end
             3'b111: begin
-              imm = rvc_imm_sdsp(inst);
+              imm = rvc_imm_sdsp(inst[9:7], inst[12:10]);
               decompress_rvc = enc_s(imm[11:0], rs2, 5'd2, `FUNCT3_SD);
             end
             default: begin end
@@ -429,7 +466,6 @@ module OooRvcDecompressor (
       endcase
     end
   endfunction
-  /* verilator lint_on UNUSEDSIGNAL */
 
   assign inst_o = decompress_rvc(inst_i);
 
