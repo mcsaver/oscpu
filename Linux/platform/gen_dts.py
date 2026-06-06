@@ -55,6 +55,7 @@ def render(
     bootargs_key: str | None,
     memory_size: str | None,
     bootargs_extra: str | None,
+    reset_syscon: bool,
 ) -> str:
     mem = cfg["memory"]
     mem_size = int(memory_size, 0) if memory_size else int(mem["size"])
@@ -88,6 +89,39 @@ def render(
       reg = <{u32_cells(int(virtio["base"]))} {u32_cells(int(virtio["size"]))}>;
       interrupt-parent = <&PLIC>;
       interrupts = <{int(virtio["irq"])}>;
+    }};"""
+
+    reset_syscon_node = ""
+    if mode == "rootfs" and reset_syscon:
+        reset = dev["reset_syscon"]
+        reset_base = int(reset["base"])
+        reset_size = int(reset["size"])
+        poweroff_value = int(reset["poweroff_value"])
+        reboot_value = int(reset["reboot_value"])
+        # NEMU 专用 rootfs DTB 通过标准 syscon-poweroff/syscon-reboot binding
+        # 暴露关机/重启终点，让 systemd -> kernel -> OpenSBI 的官方 reset 链闭合。
+        reset_syscon_node = f"""
+
+    SYSCON: syscon@{reset_base:x} {{
+      compatible = "ysyx,nemu-reset-syscon", "syscon";
+      reg = <{u32_cells(reset_base)} {u32_cells(reset_size)}>;
+      reg-io-width = <4>;
+
+      poweroff {{
+        compatible = "syscon-poweroff";
+        regmap = <&SYSCON>;
+        offset = <0x0>;
+        value = <0x{poweroff_value:x}>;
+        mask = <0xffffffff>;
+      }};
+
+      reboot {{
+        compatible = "syscon-reboot";
+        regmap = <&SYSCON>;
+        offset = <0x0>;
+        value = <0x{reboot_value:x}>;
+        mask = <0xffffffff>;
+      }};
     }};"""
 
     return f"""/dts-v1/;
@@ -163,7 +197,7 @@ def render(
       reg-io-width = <1>;
       interrupt-parent = <&PLIC>;
       interrupts = <{int(uart["irq"])}>;
-    }};{virtio_node}
+    }};{reset_syscon_node}{virtio_node}
   }};
 }};
 """
@@ -175,6 +209,7 @@ def main() -> int:
     parser.add_argument("--mode", choices=["kernel", "initramfs", "rootfs"], default="kernel")
     parser.add_argument("--bootargs-key", choices=["kernel", "initramfs", "ubuntu_initramfs", "rootfs"])
     parser.add_argument("--bootargs-extra", default="")
+    parser.add_argument("--reset-syscon", action="store_true")
     parser.add_argument("--initrd-image")
     parser.add_argument("--memory-size", help="覆盖 memory.reg 的 size，支持 0x... 形式")
     parser.add_argument("--output", required=True)
@@ -186,7 +221,7 @@ def main() -> int:
     output.parent.mkdir(parents=True, exist_ok=True)
     text = render(
         cfg, args.mode, args.initrd_image, args.bootargs_key,
-        args.memory_size, args.bootargs_extra,
+        args.memory_size, args.bootargs_extra, args.reset_syscon,
     )
     output.write_text(text, encoding="utf-8")
     print(f"[gen-dts] {args.mode}: {output}")

@@ -6,9 +6,11 @@
 ***************************************************************************************/
 
 #include <memory/soc.h>
+#include <device/uart16550.h>
 #include <difftest-def.h>
 
 #ifdef CONFIG_SOC_SIM
+#include <isa.h>
 #include <utils.h>
 
 #define SOC_SRAM_BASE   ((paddr_t)0x0f000000u)
@@ -47,7 +49,9 @@ static uint8_t *soc_mrom = NULL;
 static uint8_t *soc_vga = NULL;
 static uint8_t *soc_sdram = NULL;
 
-static uint8_t soc_uart_regs[8];
+static Uart16550 *soc_uart = NULL;
+static const Uart16550BusProfile soc_uart_bus_profile =
+    UART16550_BUS_PROFILE_8BIT;
 
 static SocMemRegion soc_regions[] = {
   { "sram",  SOC_SRAM_BASE,  SOC_SRAM_SIZE,  NULL, false, false },
@@ -108,37 +112,48 @@ static void write_le(uint8_t *base, int len, word_t data) {
   }
 }
 
-static uint8_t uart_read_byte(uint32_t offset) {
-  switch (offset & 0x7u) {
-    case 2: return 0x01; // IIR: no interrupt pending.
-    case 5: return 0x60; // LSR: THRE/TEMT，和当前 NPC/ysyxSoC 串口轮询语义对齐。
-    default: return soc_uart_regs[offset & 0x7u];
+static void soc_uart_tx(void *opaque, uint8_t ch) {
+  (void)opaque;
+  putc((char)ch, stderr);
+  fflush(stderr);
+}
+
+static void soc_uart_irq(void *opaque, bool level) {
+  (void)opaque;
+#ifdef CONFIG_ISA_riscv
+  isa_riscv32_plic_set_irq(1, level);
+#else
+  (void)level;
+#endif
+}
+
+static void soc_uart_init_once(void) {
+  if (soc_uart != NULL) {
+    return;
   }
+  Uart16550Ops ops = {
+    .tx = soc_uart_tx,
+    .irq = soc_uart_irq,
+  };
+  Uart16550Config config = {
+    .ops = &ops,
+  };
+  soc_uart = uart16550_create(&config);
+  Assert(soc_uart != NULL, "can not create ysyxSoC 16550A device");
 }
 
 static word_t uart_read(paddr_t addr, int len) {
-  uint32_t offset = addr - SOC_UART_BASE;
-  word_t ret = 0;
-  for (int i = 0; i < len; i++) {
-    ret |= (word_t)uart_read_byte(offset + i) << (i * 8);
-  }
-  return ret;
+  soc_uart_init_once();
+  uint32_t offset = (uint32_t)(addr - SOC_UART_BASE);
+  uart16550_service(soc_uart);
+  return (word_t)uart16550_bus_read(soc_uart, &soc_uart_bus_profile,
+      offset, len);
 }
 
 static void uart_write(paddr_t addr, int len, word_t data) {
-  uint32_t offset = addr - SOC_UART_BASE;
-  uint8_t selected = (uint8_t)data;
-  if ((offset & 0x7u) == 0) {
-    // ysyxSoC 的 16550 APB wrapper 按 paddr[1:0] 选一个 8-bit 寄存器写入；
-    // 因此 32-bit sw 到 THR 时也只消费低字节，避免误打印高 3 个空字节。
-    putc((char)selected, stderr);
-    fflush(stderr);
-    return;
-  }
-  for (int i = 0; i < len; i++) {
-    uint32_t reg = (offset + i) & 0x7u;
-    soc_uart_regs[reg] = (uint8_t)(data >> (i * 8));
-  }
+  soc_uart_init_once();
+  uint32_t offset = (uint32_t)(addr - SOC_UART_BASE);
+  uart16550_bus_write(soc_uart, &soc_uart_bus_profile, offset, len, data);
 }
 
 static bool flash_in_range(paddr_t addr, int len) {
@@ -203,7 +218,11 @@ void soc_sim_reset(void) {
   memset(soc_mrom, 0, SOC_MROM_SIZE);
   memset(soc_vga, 0, SOC_VGA_SIZE);
   memset(soc_sdram, 0, SOC_SDRAM_SIZE);
-  memset(soc_uart_regs, 0, sizeof(soc_uart_regs));
+  if (soc_uart == NULL) {
+    soc_uart_init_once();
+  } else {
+    uart16550_reset(soc_uart);
+  }
 }
 
 bool soc_sim_memcpy(paddr_t addr, void *buf, size_t n, bool direction) {

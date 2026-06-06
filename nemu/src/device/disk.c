@@ -11,6 +11,7 @@
 
 #include <errno.h>
 #include <inttypes.h>
+#include <unistd.h>
 
 // Linux rootfs gate 只需要一个最小 modern virtio-mmio block 设备：
 // 单队列、512B sector、used-buffer interrupt，就足够把 ext4 镜像挂成 /dev/vda。
@@ -44,9 +45,14 @@
 #define VIRTIO_VENDOR_YSYX 0x58535959u
 #define VIRTIO_F_VERSION_1 32
 #define VIRTIO_MMIO_INT_USED_BUFFER 0x1u
+#define VIRTIO_BLK_F_BLK_SIZE 6
+#define VIRTIO_BLK_F_FLUSH 9
+#define VIRTIO_RING_F_INDIRECT_DESC 28
 #define VRING_AVAIL_F_NO_INTERRUPT 0x1u
+#define VIRTIO_STATUS_FEATURES_OK 0x08u
 #define VIRTQ_DESC_F_NEXT  0x1u
 #define VIRTQ_DESC_F_WRITE 0x2u
+#define VIRTQ_DESC_F_INDIRECT 0x4u
 
 #define VIRTIO_BLK_T_IN     0u
 #define VIRTIO_BLK_T_OUT    1u
@@ -57,7 +63,11 @@
 #define VIRTIO_BLK_S_UNSUPP 2u
 
 #define VIRTIO_BLK_SECTOR_SIZE 512u
+#define VIRTIO_BLK_CONFIG_BLK_SIZE 20u
+#define VIRTIO_BLK_ID_BYTES 20u
+#define VIRTIO_BLK_ID_STRING "ysyx-nemu-virtio-blk"
 #define VIRTIO_BLK_QUEUE_SIZE 64u
+#define VIRTIO_BLK_MAX_CHAIN 128u
 #define VIRTIO_BLK_IRQ 2u
 
 typedef struct {
@@ -103,6 +113,29 @@ static int virtio_irq_debug_budget = 256;
 #define VIRTIO_IRQ_DEBUG_LOG(...) ((void)0)
 #endif
 
+static uint32_t virtio_blk_device_features(uint32_t sel) {
+  if (sel == 0) {
+    return (1u << VIRTIO_BLK_F_BLK_SIZE) |
+           (1u << VIRTIO_BLK_F_FLUSH) |
+           (1u << VIRTIO_RING_F_INDIRECT_DESC);
+  }
+  if (sel == 1) {
+    return 1u << (VIRTIO_F_VERSION_1 - 32);
+  }
+  return 0;
+}
+
+static bool virtio_blk_driver_features_supported(void) {
+  for (uint32_t sel = 0; sel < 2; sel++) {
+    uint32_t unsupported = driver_features[sel] & ~virtio_blk_device_features(sel);
+    if (unsupported != 0) {
+      Log("virtio-blk: unsupported driver features sel=%u bits=0x%08x", sel, unsupported);
+      return false;
+    }
+  }
+  return true;
+}
+
 void disk_set_image(const char *path) {
   disk_image_path = path;
 }
@@ -133,50 +166,120 @@ static void guest_write32(paddr_t addr, uint32_t value) {
   paddr_write(addr, 4, value);
 }
 
-static void guest_copy_from(paddr_t addr, void *buf, uint32_t len) {
-  if (len == 0) return;
+static bool guest_range_ok(paddr_t addr, uint32_t len) {
+  if (len == 0) return true;
+  paddr_t end = addr + (paddr_t)len - 1;
+  return end >= addr && in_pmem(addr) && in_pmem(end);
+}
+
+static bool guest_copy_from(paddr_t addr, void *buf, uint32_t len) {
+  if (len == 0) return true;
+  if (!guest_range_ok(addr, len)) return false;
   if (in_pmem(addr) && in_pmem(addr + len - 1)) {
     memcpy(buf, guest_to_host(addr), len);
-    return;
+    return true;
   }
   uint8_t *out = buf;
   for (uint32_t i = 0; i < len; i++) out[i] = paddr_read(addr + i, 1);
+  return true;
 }
 
-static void guest_copy_to(paddr_t addr, const void *buf, uint32_t len) {
-  if (len == 0) return;
+static bool guest_copy_to(paddr_t addr, const void *buf, uint32_t len) {
+  if (len == 0) return true;
+  if (!guest_range_ok(addr, len)) return false;
   if (in_pmem(addr) && in_pmem(addr + len - 1)) {
     memcpy(guest_to_host(addr), buf, len);
-    return;
+    return true;
   }
   const uint8_t *in = buf;
   for (uint32_t i = 0; i < len; i++) paddr_write(addr + i, 1, in[i]);
+  return true;
 }
 
-static void virtq_read_desc(uint16_t idx, VirtqDesc *desc) {
-  paddr_t base = queue0.desc + (paddr_t)idx * 16;
+static bool virtq_read_desc_from(paddr_t table, uint16_t table_num, uint16_t idx, VirtqDesc *desc) {
+  if (idx >= table_num) return false;
+  paddr_t base = table + (paddr_t)idx * 16;
+  if (!guest_range_ok(base, 16)) return false;
   desc->addr = guest_read64(base);
   desc->len = guest_read32(base + 8);
   desc->flags = guest_read16(base + 12);
   desc->next = guest_read16(base + 14);
+  return true;
+}
+
+static bool virtq_collect_table(paddr_t table, uint16_t table_num, uint16_t head,
+    VirtqDesc *out, int *out_count) {
+  if (table_num == 0 || table_num > VIRTIO_BLK_MAX_CHAIN) return false;
+
+  bool seen[VIRTIO_BLK_MAX_CHAIN] = {};
+  uint16_t idx = head;
+  int count = 0;
+  while (true) {
+    if (idx >= table_num || seen[idx] || count >= (int)VIRTIO_BLK_MAX_CHAIN) return false;
+    seen[idx] = true;
+    if (!virtq_read_desc_from(table, table_num, idx, &out[count])) return false;
+    // indirect 描述符只允许出现在主队列 head，不能在 indirect table 里再次嵌套。
+    if (out[count].flags & VIRTQ_DESC_F_INDIRECT) return false;
+    count++;
+    if ((out[count - 1].flags & VIRTQ_DESC_F_NEXT) == 0) break;
+    idx = out[count - 1].next;
+  }
+
+  *out_count = count;
+  return true;
+}
+
+static bool virtq_collect_chain(uint16_t head, VirtqDesc *out, int *out_count) {
+  VirtqDesc first;
+  if (!virtq_read_desc_from(queue0.desc, queue0.num, head, &first)) return false;
+
+  if (first.flags & VIRTQ_DESC_F_INDIRECT) {
+    if ((first.flags & (VIRTQ_DESC_F_NEXT | VIRTQ_DESC_F_WRITE)) ||
+        first.len == 0 || (first.len % 16) != 0) {
+      return false;
+    }
+    uint32_t indirect_num = first.len / 16;
+    if (indirect_num == 0 || indirect_num > VIRTIO_BLK_MAX_CHAIN) return false;
+    // Linux 可能在压力下启用 indirect descriptor；这里按规范解析而不是强行依赖直接三段链。
+    return virtq_collect_table(first.addr, indirect_num, 0, out, out_count);
+  }
+
+  bool seen[VIRTIO_BLK_QUEUE_SIZE] = {};
+  uint16_t idx = head;
+  int count = 0;
+  while (true) {
+    if (idx >= queue0.num || idx >= VIRTIO_BLK_QUEUE_SIZE || seen[idx] ||
+        count >= (int)VIRTIO_BLK_MAX_CHAIN) {
+      return false;
+    }
+    seen[idx] = true;
+    if (!virtq_read_desc_from(queue0.desc, queue0.num, idx, &out[count])) return false;
+    if (out[count].flags & VIRTQ_DESC_F_INDIRECT) return false;
+    count++;
+    if ((out[count - 1].flags & VIRTQ_DESC_F_NEXT) == 0) break;
+    idx = out[count - 1].next;
+  }
+
+  *out_count = count;
+  return true;
 }
 
 static bool disk_seek(uint64_t offset) {
   return fseeko(disk_fp, (off_t)offset, SEEK_SET) == 0;
 }
 
+static bool disk_range_ok(uint64_t offset, uint32_t len) {
+  return offset <= disk_size && len <= disk_size - offset;
+}
+
 static bool disk_read_to_guest(paddr_t addr, uint32_t len, uint64_t *offset) {
+  if (!guest_range_ok(addr, len) || !disk_range_ok(*offset, len)) return false;
   uint8_t buf[4096];
   uint32_t left = len;
   while (left > 0) {
     uint32_t chunk = left < sizeof(buf) ? left : sizeof(buf);
-    memset(buf, 0, chunk);
-    if (*offset < disk_size) {
-      uint32_t readable = chunk;
-      if (*offset + readable > disk_size) readable = disk_size - *offset;
-      if (!disk_seek(*offset) || fread(buf, readable, 1, disk_fp) != 1) return false;
-    }
-    guest_copy_to(addr, buf, chunk);
+    if (!disk_seek(*offset) || fread(buf, 1, chunk, disk_fp) != chunk) return false;
+    if (!guest_copy_to(addr, buf, chunk)) return false;
     addr += chunk;
     *offset += chunk;
     left -= chunk;
@@ -186,11 +289,12 @@ static bool disk_read_to_guest(paddr_t addr, uint32_t len, uint64_t *offset) {
 
 static bool disk_write_from_guest(paddr_t addr, uint32_t len, uint64_t *offset) {
   if (disk_readonly) return false;
+  if (!guest_range_ok(addr, len) || !disk_range_ok(*offset, len)) return false;
   uint8_t buf[4096];
   uint32_t left = len;
   while (left > 0) {
     uint32_t chunk = left < sizeof(buf) ? left : sizeof(buf);
-    guest_copy_from(addr, buf, chunk);
+    if (!guest_copy_from(addr, buf, chunk)) return false;
     if (!disk_seek(*offset) || fwrite(buf, chunk, 1, disk_fp) != 1) return false;
     addr += chunk;
     *offset += chunk;
@@ -199,17 +303,42 @@ static bool disk_write_from_guest(paddr_t addr, uint32_t len, uint64_t *offset) 
   return true;
 }
 
-static uint32_t virtio_blk_handle_chain(uint16_t head) {
-  VirtqDesc descs[64];
-  uint16_t idx = head;
-  int count = 0;
-  while (count < (int)(sizeof(descs) / sizeof(descs[0]))) {
-    if (idx >= queue0.num) return 0;
-    virtq_read_desc(idx, &descs[count++]);
-    if ((descs[count - 1].flags & VIRTQ_DESC_F_NEXT) == 0) break;
-    idx = descs[count - 1].next;
+static bool virtio_blk_write_id(const VirtqDesc *descs, int status_desc,
+    uint32_t *used_len) {
+  uint8_t id[VIRTIO_BLK_ID_BYTES] = {};
+  const char id_string[] = VIRTIO_BLK_ID_STRING;
+  uint32_t id_len = sizeof(id_string) - 1u;
+  if (id_len > VIRTIO_BLK_ID_BYTES) id_len = VIRTIO_BLK_ID_BYTES;
+  memcpy(id, id_string, id_len);
+
+  uint32_t done = 0;
+  for (int i = 1; i < status_desc && done < VIRTIO_BLK_ID_BYTES; i++) {
+    if ((descs[i].flags & VIRTQ_DESC_F_WRITE) == 0) {
+      return false;
+    }
+    uint32_t left = VIRTIO_BLK_ID_BYTES - done;
+    uint32_t chunk = descs[i].len < left ? descs[i].len : left;
+    if (chunk != 0 &&
+        !guest_copy_to(descs[i].addr, id + done, chunk)) {
+      return false;
+    }
+    done += chunk;
   }
+
+  if (done != VIRTIO_BLK_ID_BYTES) {
+    return false;
+  }
+  *used_len += done;
+  return true;
+}
+
+static uint32_t virtio_blk_handle_chain(uint16_t head) {
+  VirtqDesc descs[VIRTIO_BLK_MAX_CHAIN];
+  int count = 0;
+  if (!virtq_collect_chain(head, descs, &count)) return 0;
   if (count < 2 || descs[0].len < 16) return 0;
+  if (descs[0].flags & VIRTQ_DESC_F_WRITE) return 0;
+  if (!guest_range_ok(descs[0].addr, 16)) return 0;
 
   uint32_t type = guest_read32(descs[0].addr);
   uint64_t sector = guest_read64(descs[0].addr + 8);
@@ -240,24 +369,21 @@ static uint32_t virtio_blk_handle_chain(uint16_t head) {
       }
     }
   } else if (type == VIRTIO_BLK_T_FLUSH) {
-    if (disk_fp != NULL && fflush(disk_fp) != 0) status = VIRTIO_BLK_S_IOERR;
+    if (disk_fp != NULL &&
+        (fflush(disk_fp) != 0 || fsync(fileno(disk_fp)) != 0)) {
+      status = VIRTIO_BLK_S_IOERR;
+    }
   } else if (type == VIRTIO_BLK_T_GET_ID) {
-    static const char id[] = "ysyx-nemu-virtio-blk";
-    for (int i = 1; i < status_desc; i++) {
-      if ((descs[i].flags & VIRTQ_DESC_F_WRITE) == 0) {
-        status = VIRTIO_BLK_S_IOERR;
-        break;
-      }
-      uint32_t n = descs[i].len < sizeof(id) ? descs[i].len : sizeof(id);
-      guest_copy_to(descs[i].addr, id, n);
-      used_len += n;
-      break;
+    // Linux 的 /sys/block/vda/serial 会触发 GET_ID；按规范写满固定 20B，
+    // 即使未来请求被拆成多个 writable descriptor 也能返回稳定设备身份。
+    if (!virtio_blk_write_id(descs, status_desc, &used_len)) {
+      status = VIRTIO_BLK_S_IOERR;
     }
   } else {
     status = VIRTIO_BLK_S_UNSUPP;
   }
 
-  guest_copy_to(descs[status_desc].addr, &status, 1);
+  if (!guest_copy_to(descs[status_desc].addr, &status, 1)) return 0;
   return used_len + 1;
 }
 
@@ -315,7 +441,7 @@ static uint32_t virtio_read_reg(uint32_t offset) {
     case VIRTIO_MMIO_DEVICE_ID: return disk_fp != NULL ? VIRTIO_BLK_DEVICE_ID : 0;
     case VIRTIO_MMIO_VENDOR_ID: return VIRTIO_VENDOR_YSYX;
     case VIRTIO_MMIO_DEVICE_FEATURES:
-      return device_features_sel == 1 ? (1u << (VIRTIO_F_VERSION_1 - 32)) : 0;
+      return virtio_blk_device_features(device_features_sel);
     case VIRTIO_MMIO_DEVICE_FEATURES_SEL: return device_features_sel;
     case VIRTIO_MMIO_DRIVER_FEATURES_SEL: return driver_features_sel;
     case VIRTIO_MMIO_QUEUE_SEL: return queue_sel;
@@ -335,6 +461,10 @@ static uint32_t virtio_read_reg(uint32_t offset) {
     case VIRTIO_MMIO_CONFIG_GENERATION: return 0;
     case VIRTIO_MMIO_CONFIG: return (uint32_t)(disk_size / VIRTIO_BLK_SECTOR_SIZE);
     case VIRTIO_MMIO_CONFIG + 4: return (uint32_t)((disk_size / VIRTIO_BLK_SECTOR_SIZE) >> 32);
+    case VIRTIO_MMIO_CONFIG + VIRTIO_BLK_CONFIG_BLK_SIZE:
+      // Linux virtio-blk 只有在协商 BLK_SIZE 后才读取这里；显式返回 512B，
+      // 避免 guest 队列限制只是依赖内核默认值。
+      return VIRTIO_BLK_SECTOR_SIZE;
     default: return 0;
   }
 }
@@ -376,8 +506,17 @@ static void virtio_write_reg(uint32_t offset, uint32_t value) {
       virtio_blk_raise_irq();
       break;
     case VIRTIO_MMIO_STATUS:
-      if (value == 0) virtio_blk_reset();
-      else device_status = value;
+      if (value == 0) {
+        virtio_blk_reset();
+      } else {
+        // virtio 要求设备只在 driver 选择的 feature 全部受支持时保留 FEATURES_OK；
+        // 否则后续 queue/IO 不能进入 DRIVER_OK，避免错误协商被 Linux 或 smoke 误当成功。
+        device_status = value;
+        if ((value & VIRTIO_STATUS_FEATURES_OK) &&
+            !virtio_blk_driver_features_supported()) {
+          device_status &= ~VIRTIO_STATUS_FEATURES_OK;
+        }
+      }
       break;
     case VIRTIO_MMIO_QUEUE_DESC_LOW:
       if (queue_sel == 0) queue0.desc = (queue0.desc & 0xffffffff00000000ull) | value;

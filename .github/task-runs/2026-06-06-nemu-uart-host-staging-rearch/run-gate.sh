@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT=$(cd -- "$(dirname -- "$0")/../../.." && pwd)
+cd "$REPO_ROOT"
+
+LOG_DIR="$REPO_ROOT/Linux/env/logs/linux-front/riscv64-nemu-uart-host-staging-rearch"
+rm -rf "$LOG_DIR"
+mkdir -p "$LOG_DIR"
+
+timeout 1600s make -C Linux ARCH=riscv64-nemu \
+  NEMU_SYSTEMD_CHECK_LOG_DIR="$LOG_DIR" \
+  NEMU_SYSTEMD_CHECK_TIMEOUT=1300 \
+  NEMU_SYSTEMD_BOOT_TIMEOUT=900 \
+  NEMU_SYSTEMD_FIFO_TIMEOUT=60 \
+  NEMU_SYSTEMD_CHECK_MAX_CYCLES=25000000000 \
+  NEMU_SYSTEMD_SOAK_SECONDS=0 \
+  NEMU_SYSTEMD_FS_STRESS_MIB=1 \
+  NEMU_SYSTEMD_FS_TREE_FILES=8 \
+  NEMU_SYSTEMD_PROCESS_LOOPS=2 \
+  NEMU_SYSTEMD_UART_RX_STRESS_LINES=128 \
+  NEMU_SYSTEMD_BLOCK_PARALLEL_JOBS=1 \
+  NEMU_SYSTEMD_BLOCK_JOB_MIB=1 \
+  NEMU_SYSTEMD_SYSCALL_PROBE=0 \
+  __check-nemu-systemd-guest

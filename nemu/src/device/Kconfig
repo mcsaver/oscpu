@@ -27,6 +27,7 @@ config SERIAL_MMIO
   default 0xa00003f8
 
 config SERIAL_INPUT_FIFO
+  depends on !TARGET_AM
   bool "Enable input FIFO with /tmp/nemu.serial"
   default n
 
@@ -141,6 +142,28 @@ config DISK_IMG_PATH
   string "The path of disk image"
   default ""
 endif # HAS_DISK
+
+menuconfig HAS_SYSCON_RESET
+  bool "Enable syscon reset/poweroff"
+  default n
+  help
+    Provide a small MMIO syscon register used by standard
+    syscon-poweroff/syscon-reboot device-tree nodes. This lets Linux or
+    OpenSBI finish a real shutdown path instead of relying on host kill.
+
+if HAS_SYSCON_RESET
+config SYSCON_RESET_MMIO
+  hex "MMIO address of the syscon reset register"
+  default 0x100000
+
+config SYSCON_POWEROFF_VALUE
+  hex "Poweroff value"
+  default 0x5555
+
+config SYSCON_REBOOT_VALUE
+  hex "Reboot value"
+  default 0x7777
+endif # HAS_SYSCON_RESET
 
 menuconfig HAS_SDCARD
   bool "Enable sdcard"

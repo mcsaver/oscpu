@@ -28,6 +28,7 @@ void init_vga();
 void init_i8042();
 void init_audio();
 void init_disk();
+void init_syscon_reset();
 void init_sdcard();
 void init_alarm();
 
@@ -97,6 +98,7 @@ void init_device() {
   IFDEF(CONFIG_HAS_KEYBOARD, init_i8042());
   IFDEF(CONFIG_HAS_AUDIO, init_audio());
   IFDEF(CONFIG_HAS_DISK, init_disk());
+  IFDEF(CONFIG_HAS_SYSCON_RESET, init_syscon_reset());
   IFDEF(CONFIG_HAS_SDCARD, init_sdcard());
 
   IFNDEF(CONFIG_TARGET_AM, init_alarm());

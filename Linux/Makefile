@@ -50,9 +50,38 @@ LOG_ROOT ?= $(ENV_ROOT)/logs/linux-front
 EXTRA_ARGS ?=
 BOOTARGS_EXTRA ?=
 NEMU_SYSTEMD_CHECK_LOG_DIR ?= $(LOG_ROOT)/riscv64-nemu-systemd-guest-check
-NEMU_SYSTEMD_CHECK_MAX_CYCLES ?= 12000000000
-NEMU_SYSTEMD_CHECK_TIMEOUT ?= 1200
+NEMU_SYSTEMD_CHECK_MAX_CYCLES ?= 25000000000
+NEMU_SYSTEMD_CHECK_TIMEOUT ?= 1800
 NEMU_SYSTEMD_BOOT_TIMEOUT ?= 900
+NEMU_SYSTEMD_SOAK_SECONDS ?= 20
+NEMU_SYSTEMD_FS_STRESS_MIB ?= 4
+NEMU_SYSTEMD_FS_TREE_FILES ?= 64
+NEMU_SYSTEMD_PROCESS_LOOPS ?= 16
+NEMU_SYSTEMD_INPUT_DELAY ?= 0
+NEMU_SYSTEMD_UART_RX_STRESS_LINES ?= 512
+NEMU_SYSTEMD_BLOCK_PARALLEL_JOBS ?= 4
+NEMU_SYSTEMD_BLOCK_JOB_MIB ?= 1
+NEMU_SYSTEMD_LONG_CHECK_LOG_DIR ?= $(LOG_ROOT)/riscv64-nemu-systemd-guest-long-check
+NEMU_SYSTEMD_LONG_CHECK_MAX_CYCLES ?= 30000000000
+NEMU_SYSTEMD_LONG_CHECK_TIMEOUT ?= 1800
+NEMU_SYSTEMD_LONG_SOAK_SECONDS ?= 120
+NEMU_SYSTEMD_LONG_FS_STRESS_MIB ?= 16
+NEMU_SYSTEMD_LONG_FS_TREE_FILES ?= 128
+NEMU_SYSTEMD_LONG_PROCESS_LOOPS ?= 64
+NEMU_SYSTEMD_LONG_UART_RX_STRESS_LINES ?= 768
+NEMU_SYSTEMD_LONG_BLOCK_PARALLEL_JOBS ?= 4
+NEMU_SYSTEMD_LONG_BLOCK_JOB_MIB ?= 2
+NEMU_SYSTEMD_SOAK_CHECK_LOG_DIR ?= $(LOG_ROOT)/riscv64-nemu-systemd-guest-soak-check
+NEMU_SYSTEMD_SOAK_CHECK_MAX_CYCLES ?= 60000000000
+NEMU_SYSTEMD_SOAK_CHECK_TIMEOUT ?= 2400
+NEMU_SYSTEMD_SOAK_SOAK_SECONDS ?= 300
+NEMU_SYSTEMD_SOAK_FS_STRESS_MIB ?= 32
+NEMU_SYSTEMD_SOAK_FS_TREE_FILES ?= 256
+NEMU_SYSTEMD_SOAK_PROCESS_LOOPS ?= 128
+NEMU_SYSTEMD_SOAK_UART_RX_STRESS_LINES ?= 1024
+NEMU_SYSTEMD_SOAK_BLOCK_PARALLEL_JOBS ?= 4
+NEMU_SYSTEMD_SOAK_BLOCK_JOB_MIB ?= 4
+NEMU_PERFORMANCE_REQUIRED ?= 1
 
 LINUX_IMAGE ?= $(ENV_ROOT)/src/linux/arch/riscv/boot/Image
 BUSYBOX_INITRD ?= $(ENV_ROOT)/images/initramfs/rootfs.cpio
@@ -64,7 +93,9 @@ KERNEL_DTB ?= $(BUILD_DIR)/npc-rv64.dtb
 BUSYBOX_INITRAMFS_DTB ?= $(BUILD_DIR)/npc-rv64-initramfs.dtb
 UBUNTU_PROBE_DTB ?= $(BUILD_DIR)/npc-rv64-ubuntu-initramfs.dtb
 UBUNTU_SHELL_DTB ?= $(BUILD_DIR)/npc-rv64-ubuntu-shell-initramfs.dtb
-ROOTFS_DTB ?= $(BUILD_DIR)/npc-rv64-rootfs.dtb
+NPC_ROOTFS_DTB ?= $(BUILD_DIR)/npc-rv64-rootfs.dtb
+NEMU_ROOTFS_DTB ?= $(BUILD_DIR)/npc-rv64-nemu-rootfs.dtb
+ROOTFS_DTB ?= $(if $(filter riscv64-nemu,$(ARCH)),$(NEMU_ROOTFS_DTB),$(NPC_ROOTFS_DTB))
 
 OPENSBI_PROFILE ?= $(if $(filter riscv64-nemu,$(ARCH)),nemu,npc)
 OPENSBI_BUILD_DIR ?= $(ENV_ROOT)/build/opensbi-$(OPENSBI_PROFILE)
@@ -166,7 +197,8 @@ ROOTFS_BLOCK := $(if $(strip $(RUN_ROOTFS)),--block='$(RUN_ROOTFS)',)
         opensbi-ubuntu-shell opensbi-rootfs qemu qemu-build qemu-ubuntu-probe qemu-ubuntu-shell \
         tools-build boot-tools tools-smoke tools-clean paths check ubuntu-rootfs-check \
         check-ubuntu-rootfs check-ubuntu-rootfs-systemd ubuntu-rootfs-systemd-image \
-        ubuntu-rootfs-systemd-overlay check-nemu-systemd-guest __check-nemu-systemd-guest clean clean-logs \
+        ubuntu-rootfs-systemd-overlay check-nemu-systemd-guest check-nemu-systemd-guest-long \
+        check-nemu-systemd-guest-soak check-nemu-performance-config __check-nemu-systemd-guest clean clean-logs \
         $(TOOL_SMOKES) $(TOOL_BOOT_SMOKES)
 
 help:
@@ -207,7 +239,12 @@ help:
 	@printf '%s\n' '  make ARCH=riscv64-nemu ubuntu-rootfs-systemd-image'
 	@printf '%s\n' '      无 sudo 时用 apt/dpkg-deb overlay 把 systemd/udev/dbus 候选用户态放进 rootfs。'
 	@printf '%s\n' '  make check-nemu-systemd-guest'
-	@printf '%s\n' '      启动 NEMU Ubuntu rootfs，并在 guest 内检查 systemd、挂载、TTY、timer 和 rootfs 写回。'
+	@printf '%s\n' '      启动 NEMU Ubuntu rootfs，并在 guest 内检查 systemd target/getty/manager/journal/dbus、runtime unit、挂载、udev/sysfs/virtio-blk、TTY、syscall、timer、rootfs 写回和短 soak。'
+	@printf '%s\n' '      默认要求 NEMU performance 配置已生效；调试 trace 时可显式传 NEMU_PERFORMANCE_REQUIRED=0。'
+	@printf '%s\n' '  make check-nemu-systemd-guest-long'
+	@printf '%s\n' '      更长时间的 NEMU Ubuntu/systemd 稳定性 gate，默认 120s soak、16MiB rootfs stress、128 个元数据文件、64 轮进程循环和 4 个 2MiB 并发 direct IO job。'
+	@printf '%s\n' '  make check-nemu-systemd-guest-soak'
+	@printf '%s\n' '      更重的 NEMU Ubuntu/systemd soak gate，默认 300s soak、32MiB rootfs stress、256 个元数据文件、128 轮进程循环和 4 个 4MiB 并发 direct IO job。'
 	@printf '%s\n' ''
 	@printf '%s\n' '别名:'
 	@printf '%s\n' '  make ARCH=riscv64-npc run-ubuntu-rootfs'
@@ -328,9 +365,18 @@ check-sim: nemu-linux-defconfig
 	else \
 	  echo '[Linux] NEMU sim exists: $(NEMU_SIM)'; \
 	fi
+
+check-nemu-performance-config: nemu-linux-defconfig
+	NEMU_PERFORMANCE_REQUIRED='$(NEMU_PERFORMANCE_REQUIRED)' \
+	NEMU_CONFIG='$(NEMU_HOME)/.config' \
+	NEMU_AUTOCONF='$(NEMU_HOME)/include/generated/autoconf.h' \
+	  bash '$(SCRIPT_DIR)/check-nemu-performance-config.sh'
 else
 nemu-linux-defconfig:
 	@echo '[Linux] skip NEMU defconfig for ARCH=$(ARCH)'
+
+check-nemu-performance-config:
+	@echo '[Linux] skip NEMU performance config check for ARCH=$(ARCH)'
 
 sim: linux-defconfig
 	$(MAKE) -C '$(NPC_RV64)' -j'$(JOBS)'
@@ -362,7 +408,35 @@ check-ubuntu-rootfs-systemd: $(UBUNTU_ROOTFS_IMAGE)
 check-nemu-systemd-guest:
 	$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs __check-nemu-systemd-guest
 
-__check-nemu-systemd-guest: $(RUN_DEPS) check-ubuntu-rootfs-systemd
+check-nemu-systemd-guest-long:
+	$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs \
+	  NEMU_SYSTEMD_CHECK_LOG_DIR='$(NEMU_SYSTEMD_LONG_CHECK_LOG_DIR)' \
+	  NEMU_SYSTEMD_CHECK_MAX_CYCLES='$(NEMU_SYSTEMD_LONG_CHECK_MAX_CYCLES)' \
+	  NEMU_SYSTEMD_CHECK_TIMEOUT='$(NEMU_SYSTEMD_LONG_CHECK_TIMEOUT)' \
+	  NEMU_SYSTEMD_SOAK_SECONDS='$(NEMU_SYSTEMD_LONG_SOAK_SECONDS)' \
+	  NEMU_SYSTEMD_FS_STRESS_MIB='$(NEMU_SYSTEMD_LONG_FS_STRESS_MIB)' \
+	  NEMU_SYSTEMD_FS_TREE_FILES='$(NEMU_SYSTEMD_LONG_FS_TREE_FILES)' \
+	  NEMU_SYSTEMD_PROCESS_LOOPS='$(NEMU_SYSTEMD_LONG_PROCESS_LOOPS)' \
+	  NEMU_SYSTEMD_UART_RX_STRESS_LINES='$(NEMU_SYSTEMD_LONG_UART_RX_STRESS_LINES)' \
+	  NEMU_SYSTEMD_BLOCK_PARALLEL_JOBS='$(NEMU_SYSTEMD_LONG_BLOCK_PARALLEL_JOBS)' \
+	  NEMU_SYSTEMD_BLOCK_JOB_MIB='$(NEMU_SYSTEMD_LONG_BLOCK_JOB_MIB)' \
+	  __check-nemu-systemd-guest
+
+check-nemu-systemd-guest-soak:
+	$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs \
+	  NEMU_SYSTEMD_CHECK_LOG_DIR='$(NEMU_SYSTEMD_SOAK_CHECK_LOG_DIR)' \
+	  NEMU_SYSTEMD_CHECK_MAX_CYCLES='$(NEMU_SYSTEMD_SOAK_CHECK_MAX_CYCLES)' \
+	  NEMU_SYSTEMD_CHECK_TIMEOUT='$(NEMU_SYSTEMD_SOAK_CHECK_TIMEOUT)' \
+	  NEMU_SYSTEMD_SOAK_SECONDS='$(NEMU_SYSTEMD_SOAK_SOAK_SECONDS)' \
+	  NEMU_SYSTEMD_FS_STRESS_MIB='$(NEMU_SYSTEMD_SOAK_FS_STRESS_MIB)' \
+	  NEMU_SYSTEMD_FS_TREE_FILES='$(NEMU_SYSTEMD_SOAK_FS_TREE_FILES)' \
+	  NEMU_SYSTEMD_PROCESS_LOOPS='$(NEMU_SYSTEMD_SOAK_PROCESS_LOOPS)' \
+	  NEMU_SYSTEMD_UART_RX_STRESS_LINES='$(NEMU_SYSTEMD_SOAK_UART_RX_STRESS_LINES)' \
+	  NEMU_SYSTEMD_BLOCK_PARALLEL_JOBS='$(NEMU_SYSTEMD_SOAK_BLOCK_PARALLEL_JOBS)' \
+	  NEMU_SYSTEMD_BLOCK_JOB_MIB='$(NEMU_SYSTEMD_SOAK_BLOCK_JOB_MIB)' \
+	  __check-nemu-systemd-guest
+
+__check-nemu-systemd-guest: $(RUN_DEPS) check-ubuntu-rootfs-systemd check-nemu-performance-config
 	LOG_DIR='$(NEMU_SYSTEMD_CHECK_LOG_DIR)' \
 	LOG_FILE='$(NEMU_SYSTEMD_CHECK_LOG_DIR)/nemu.log' \
 	CONSOLE_LOG='$(NEMU_SYSTEMD_CHECK_LOG_DIR)/console.log' \
@@ -378,6 +452,14 @@ __check-nemu-systemd-guest: $(RUN_DEPS) check-ubuntu-rootfs-systemd
 	MAX_CYCLES='$(NEMU_SYSTEMD_CHECK_MAX_CYCLES)' \
 	NEMU_SYSTEMD_CHECK_TIMEOUT='$(NEMU_SYSTEMD_CHECK_TIMEOUT)' \
 	NEMU_SYSTEMD_BOOT_TIMEOUT='$(NEMU_SYSTEMD_BOOT_TIMEOUT)' \
+	NEMU_SYSTEMD_SOAK_SECONDS='$(NEMU_SYSTEMD_SOAK_SECONDS)' \
+	NEMU_SYSTEMD_FS_STRESS_MIB='$(NEMU_SYSTEMD_FS_STRESS_MIB)' \
+	NEMU_SYSTEMD_FS_TREE_FILES='$(NEMU_SYSTEMD_FS_TREE_FILES)' \
+	NEMU_SYSTEMD_PROCESS_LOOPS='$(NEMU_SYSTEMD_PROCESS_LOOPS)' \
+	NEMU_SYSTEMD_UART_RX_STRESS_LINES='$(NEMU_SYSTEMD_UART_RX_STRESS_LINES)' \
+	NEMU_SYSTEMD_BLOCK_PARALLEL_JOBS='$(NEMU_SYSTEMD_BLOCK_PARALLEL_JOBS)' \
+	NEMU_SYSTEMD_BLOCK_JOB_MIB='$(NEMU_SYSTEMD_BLOCK_JOB_MIB)' \
+	NEMU_SYSTEMD_INPUT_DELAY='$(NEMU_SYSTEMD_INPUT_DELAY)' \
 	  bash '$(SCRIPT_DIR)/check-nemu-systemd-guest.sh'
 
 dtb: $(KERNEL_DTB)
@@ -447,11 +529,18 @@ $(UBUNTU_SHELL_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(UBUNTU_SHELL_INITRD) | $(BU
 	  --output '$(BUILD_DIR)/generated/npc-rv64-ubuntu-shell-initramfs.dts'
 	$(DTC) -I dts -O dtb -o '$@' '$(BUILD_DIR)/generated/npc-rv64-ubuntu-shell-initramfs.dts'
 
-$(ROOTFS_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) | $(BUILD_DIR) $(BUILD_DIR)/generated
+$(NPC_ROOTFS_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) | $(BUILD_DIR) $(BUILD_DIR)/generated
 	$(PYTHON) '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode rootfs \
 	  --bootargs-extra '$(BOOTARGS_EXTRA)' \
 	  --output '$(BUILD_DIR)/generated/npc-rv64-rootfs.dts'
 	$(DTC) -I dts -O dtb -o '$@' '$(BUILD_DIR)/generated/npc-rv64-rootfs.dts'
+
+$(NEMU_ROOTFS_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) | $(BUILD_DIR) $(BUILD_DIR)/generated
+	$(PYTHON) '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode rootfs \
+	  --reset-syscon \
+	  --bootargs-extra '$(BOOTARGS_EXTRA)' \
+	  --output '$(BUILD_DIR)/generated/npc-rv64-nemu-rootfs.dts'
+	$(DTC) -I dts -O dtb -o '$@' '$(BUILD_DIR)/generated/npc-rv64-nemu-rootfs.dts'
 
 $(OPENSBI_FW): $(KERNEL_DTB)
 	OPENSBI_DTB='$(KERNEL_DTB)' OPENSBI_BUILD_DIR='$(OPENSBI_BUILD_DIR)' \

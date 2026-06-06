@@ -55,6 +55,11 @@ devices:
     base: 0x10001000
     size: 0x1000
     irq: 2
+  reset_syscon:
+    base: 0x00100000
+    size: 0x1000
+    poweroff_value: 0x5555
+    reboot_value: 0x7777
 
 bootargs:
   kernel: "console=ttyS0,115200n8 earlycon=sbi loglevel=8 ignore_loglevel"

@@ -22,6 +22,10 @@ FW_JUMP_ADDR=${FW_JUMP_ADDR:-0x80200000}
 DISABLE_PMU=${OPENSBI_DISABLE_PMU:-0}
 PLATFORM_DEFCONFIG=defconfig
 
+make_linux_dtb() {
+  env -u OPENSBI_DTB -u OPENSBI_BUILD_DIR make -C "$LINUX_HOME" "$@"
+}
+
 if [ ! -d "$ROOT/.git" ]; then
   git clone https://github.com/riscv-software-src/opensbi.git "$ROOT"
 fi
@@ -39,19 +43,22 @@ fi
 
 case "$(basename -- "$DTB")" in
   npc-rv64-initramfs.dtb)
-    make -C "$LINUX_HOME" initramfs-dtb
+    make_linux_dtb initramfs-dtb
     ;;
   npc-rv64-ubuntu-initramfs.dtb)
-    make -C "$LINUX_HOME" ubuntu-initramfs-dtb
+    make_linux_dtb ubuntu-initramfs-dtb
     ;;
   npc-rv64-ubuntu-shell-initramfs.dtb)
-    make -C "$LINUX_HOME" ubuntu-shell-initramfs-dtb
+    make_linux_dtb ubuntu-shell-initramfs-dtb
     ;;
   npc-rv64-rootfs.dtb)
-    make -C "$LINUX_HOME" rootfs-dtb
+    make_linux_dtb rootfs-dtb
+    ;;
+  npc-rv64-nemu-rootfs.dtb)
+    make_linux_dtb ARCH=riscv64-nemu rootfs-dtb
     ;;
   *)
-    make -C "$LINUX_HOME" dtb
+    make_linux_dtb dtb
     ;;
 esac
 

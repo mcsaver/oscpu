@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+require_perf="${NEMU_PERFORMANCE_REQUIRED:-1}"
+config_path="${NEMU_CONFIG:-}"
+autoconf_path="${NEMU_AUTOCONF:-}"
+
+if [[ "$require_perf" != "1" ]]; then
+  echo "__NEMU_PERFORMANCE_CONFIG__:skipped"
+  exit 0
+fi
+
+if [[ -z "$config_path" || ! -f "$config_path" ]]; then
+  echo "missing NEMU .config: ${config_path:-<unset>}" >&2
+  exit 1
+fi
+
+if [[ -z "$autoconf_path" || ! -f "$autoconf_path" ]]; then
+  echo "missing NEMU autoconf.h: ${autoconf_path:-<unset>}" >&2
+  exit 1
+fi
+
+require_config_enabled() {
+  local opt="$1"
+  if ! grep -qx "${opt}=y" "$config_path"; then
+    echo "required ${opt}=y in $config_path" >&2
+    exit 1
+  fi
+}
+
+reject_config_enabled() {
+  local opt="$1"
+  if grep -qx "${opt}=y" "$config_path"; then
+    echo "performance gate rejects ${opt}=y in $config_path" >&2
+    exit 1
+  fi
+}
+
+require_autoconf_define() {
+  local opt="$1"
+  if ! grep -qx "#define ${opt} 1" "$autoconf_path"; then
+    echo "required #define ${opt} 1 in $autoconf_path" >&2
+    exit 1
+  fi
+}
+
+reject_autoconf_define() {
+  local opt="$1"
+  if grep -qx "#define ${opt} 1" "$autoconf_path"; then
+    echo "performance gate rejects #define ${opt} 1 in $autoconf_path" >&2
+    exit 1
+  fi
+}
+
+require_config_enabled CONFIG_PERFORMANCE
+require_autoconf_define CONFIG_PERFORMANCE
+
+debug_opts=(
+  CONFIG_TRACE
+  CONFIG_MTRACE
+  CONFIG_ITRACE
+  CONFIG_DTRACE
+  CONFIG_ETRACE
+  CONFIG_FTRACE
+  CONFIG_DIFFTEST
+  CONFIG_WATCHPOINT
+  CONFIG_BPU
+  CONFIG_STATISTIC
+  CONFIG_CACHE_STATISTIC
+  CONFIG_RT_CHECK
+  CONFIG_CC_ASAN
+  CONFIG_MEM_RANDOM
+  CONFIG_RISCV_DEBUG_LOG
+  CONFIG_RISCV_PROGRESS_DEBUG_LOG
+  CONFIG_RISCV_IRQ_DEBUG_LOG
+  CONFIG_RISCV_SYSCALL_DEBUG_LOG
+)
+
+for opt in "${debug_opts[@]}"; do
+  reject_config_enabled "$opt"
+  reject_autoconf_define "$opt"
+done
+
+echo "__NEMU_PERFORMANCE_CONFIG__:ok"

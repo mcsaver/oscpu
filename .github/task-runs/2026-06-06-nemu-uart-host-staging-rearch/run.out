@@ -1,0 +1,80 @@
+make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' riscv64-linux_defconfig
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu'
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/nemu'
+make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' -j'14'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu'
+make[2]: warning: jobserver unavailable: using -j1.  Add '+' to parent make rule.
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench'
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/nemu'
+UBUNTU_ROOTFS_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64.ext4' UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-ubuntu-rootfs.sh'
+[ubuntu-rootfs-check] image: /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64.ext4
+[ubuntu-rootfs-check] OK      stage1 init: /init
+[ubuntu-rootfs-check] OK      Ubuntu shell: /bin/sh
+[ubuntu-rootfs-check] OK      Ubuntu identity: /etc/os-release
+[ubuntu-rootfs-check] OK      systemd candidate: /lib/systemd/systemd
+[ubuntu-rootfs-check] OK      systemd basic.target: /lib/systemd/system/basic.target
+[ubuntu-rootfs-check] OK      udev daemon: /lib/systemd/systemd-udevd
+[ubuntu-rootfs-check] OK      dbus daemon: /usr/bin/dbus-daemon
+[ubuntu-rootfs-check] OK      agetty login path: /bin/login
+[ubuntu-rootfs-check] OK      root login shell: /bin/bash
+[ubuntu-rootfs-check] OK      lp64d dynamic linker: /lib/ld-linux-riscv64-lp64d.so.1
+[ubuntu-rootfs-check] OK      PAM module path: /lib/riscv64-linux-gnu/security
+[ubuntu-rootfs-check] OK      e2scrub service entrypoint: /sbin/e2scrub_all
+[ubuntu-rootfs-check] OK      unavailable hvc0 getty masked: /etc/systemd/system/serial-getty@hvc0.service
+[ubuntu-rootfs-check] rootfs readiness check passed
+NEMU_PERFORMANCE_REQUIRED='1' \
+NEMU_CONFIG='/home/lyg/PA/ysyx-workbench/nemu/.config' \
+NEMU_AUTOCONF='/home/lyg/PA/ysyx-workbench/nemu/include/generated/autoconf.h' \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-nemu-performance-config.sh'
+__NEMU_PERFORMANCE_CONFIG__:ok
+LOG_DIR='/home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-uart-host-staging-rearch' \
+LOG_FILE='/home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-uart-host-staging-rearch/nemu.log' \
+CONSOLE_LOG='/home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-uart-host-staging-rearch/console.log' \
+NEMU_SERIAL_FIFO='/home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-uart-host-staging-rearch/nemu.serial' \
+NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' \
+NEMU_SIM='/home/lyg/PA/ysyx-workbench/nemu/build/riscv64-nemu-interpreter' \
+LINUX_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/src/linux/arch/riscv/boot/Image' \
+RUN_FW='/home/lyg/PA/ysyx-workbench/Linux/env/build/opensbi-nemu-rootfs/platform/generic/firmware/fw_jump.bin' \
+RUN_DTB='/home/lyg/PA/ysyx-workbench/Linux/build/npc-rv64-nemu-rootfs.dtb' \
+RUN_ROOTFS='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64.ext4' \
+NEXT_ADDR='0x80200000' \
+DTB_ADDR='0x82200000' \
+MAX_CYCLES='25000000000' \
+NEMU_SYSTEMD_CHECK_TIMEOUT='1300' \
+NEMU_SYSTEMD_BOOT_TIMEOUT='900' \
+NEMU_SYSTEMD_SOAK_SECONDS='0' \
+NEMU_SYSTEMD_FS_STRESS_MIB='1' \
+NEMU_SYSTEMD_FS_TREE_FILES='8' \
+NEMU_SYSTEMD_PROCESS_LOOPS='2' \
+NEMU_SYSTEMD_UART_RX_STRESS_LINES='128' \
+NEMU_SYSTEMD_BLOCK_PARALLEL_JOBS='1' \
+NEMU_SYSTEMD_BLOCK_JOB_MIB='1' \
+NEMU_SYSTEMD_INPUT_DELAY='0' \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-nemu-systemd-guest.sh'
+[nemu-systemd-check] log dir: /home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-uart-host-staging-rearch
+[nemu-systemd-check] serial fifo: /home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-uart-host-staging-rearch/nemu.serial
+[nemu-systemd-check] max cycles: 25000000000
+[nemu-systemd-check] soak seconds: 0
+[nemu-systemd-check] fs stress MiB: 1
+[nemu-systemd-check] fs tree files: 8
+[nemu-systemd-check] process loops: 2
+[nemu-systemd-check] UART RX stress lines: 128
+[nemu-systemd-check] block parallel jobs: 1
+[nemu-systemd-check] block job MiB: 1
+[nemu-systemd-check] systemd reload timeout: 180
+[nemu-systemd-check] input delay: 0
+[nemu-systemd-check] syscall probe: 0
+[nemu-systemd-check] poweroff: 1
+[nemu-systemd-check] poweroff timeout: 180
+[nemu-systemd-check] rootfs bytes: 2147483648
+[nemu-systemd-check] vda hash window bytes: 65536
+[nemu-systemd-check] vda hash windows: 1
+[nemu-systemd-check] perf log: /home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-uart-host-staging-rearch/perf.tsv
+[nemu-systemd-check] poweroff exit: rc=0 seconds=20
+[nemu-systemd-check] perf boot=237s guest_check=964s poweroff=20s total=1221s
+[nemu-systemd-check] perf log: /home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-uart-host-staging-rearch/perf.tsv
+[nemu-systemd-check] PASS
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/Linux'
