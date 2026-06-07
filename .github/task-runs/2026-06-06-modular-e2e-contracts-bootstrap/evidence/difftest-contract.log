@@ -1,0 +1,5 @@
+[difftest] contract
+PASS nemu/tools/spike-diff/Makefile
+PASS npc/sim/Makefile
+PASS .github/memory/modules/difftest.md
+PASS .github/agents/difftest.agent.md

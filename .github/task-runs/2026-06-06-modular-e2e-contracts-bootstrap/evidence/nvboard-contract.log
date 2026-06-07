@@ -1,0 +1,4 @@
+[nvboard] contract
+FAIL nvboard/Makefile
+PASS nvboard/README.md
+PASS .github/agents/nvboard.agent.md

@@ -87,6 +87,13 @@ isa-abi-recall → fp-focused-smoke → dynamic-linker-smoke → ubuntu-userland
 synth-boundary-audit → verilator-perf-run → rtl-invariant-check → focused-regression → ppa-risk-record → record
 ```
 
+### `modular-agent-e2e`（兼容名：`agent-e2e-loop`）
+```
+.github/e2e/profiles/*.tsv → recall-discovery → tool-env-check → backend-status → module-contract/smoke → record
+```
+
+`hardware-flow` 负责其中的 `backend-status`、NEMU reference smoke、AM/NEMU 回归和 NPC target smoke；`agent-system` 负责规则发现、工具自检、profile/模块合约和记录入口解释。
+
 ## 动态扩图触发器
 
 - `image-build` 失败：插入 `config-check`、`build-fix`、`rebuild`
@@ -120,6 +127,7 @@ synth-boundary-audit → verilator-perf-run → rtl-invariant-check → focused-
 - `uart-visible-check`：产出 `/init`、`/etc/os-release` 或用户态串口输出是否完整可见的证据
 - `virtio-device-contract`：产出 virtio-mmio 地址、中断号、DTB 节点、vring/host block 后端边界
 - `display-contract`：产出 framebuffer 地址、格式、stride、DTB 节点、kernel config 与 SDL scanout 路径
+- `modular-agent-e2e`：产出 `scripts/agent-e2e.sh` 生成的 task-run 目录、profile manifest、模块 contract gate、`npc/sim status`、profile 对应 smoke 日志和“不能越级证明”的边界说明
 
 ## 约束
 

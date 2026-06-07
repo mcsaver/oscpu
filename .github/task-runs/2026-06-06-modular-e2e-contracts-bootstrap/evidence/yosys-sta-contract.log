@@ -1,0 +1,8 @@
+[yosys-sta] contract
+PASS yosys-sta/Makefile
+PASS .github/agents/yosys-sta.agent.md
+PASS .github/memory/modules/yosys-sta.md
+
+[e2e] optional tools
+WARN yosys                        <missing>
+WARN iEDA                         <missing>

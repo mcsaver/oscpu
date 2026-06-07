@@ -1,0 +1,22 @@
+# node_id|module|function|owner_agent|inputs|outputs
+@include|discovery||||
+profile-index|agent-system|e2e_agent_system_profile_index|agent-system|.github/e2e/profiles|列出所有可执行 profile
+ysyx-coordinator-contract|ysyx-coordinator|e2e_ysyx_coordinator_contract|ysyx-coordinator|coordinator agent + blueprint + profile root|总调度 e2e 合约入口存在
+hardware-flow-contract|hardware-flow|e2e_hardware_flow_contract|hardware-flow|hardware-flow agent + scripts/am-regression.sh + e2e profiles|硬件流程合约入口存在
+abstract-machine-contract|abstract-machine|e2e_abstract_machine_contract|abstract-machine|AM Makefile/scripts/include/memory|AM 平台合约入口存在
+am-kernels-contract|am-kernels|e2e_am_kernels_contract|am-kernels|cpu-tests/am-tests/klib-tests/benchmarks|测试与 benchmark 合约入口存在
+nemu-config-probe|nemu|e2e_nemu_config_probe|nemu|nemu Kconfig/configs/device filelist|NEMU 当前配置和参考入口可见
+npc-sim-contract|npc|e2e_npc_sim_contract|npc|npc/sim + backends|NPC 统一仿真入口合约存在
+npc-single-contract|npc|e2e_npc_single_contract|npc|npc/single Makefile/Kconfig/vsrc/csrc|NPC single 后端合约入口存在
+npc-soc-contract|npc|e2e_npc_soc_contract|npc|npc/soc + ysyxSoC CPU ABI|NPC SoC 后端合约入口存在
+npc-rv64-contract|npc|e2e_npc_rv64_contract|npc|npc/rv64 + Linux README|RV64 core/Linux 入口合约存在
+ysyx-soc-contract|ysyx-soc|e2e_ysyx_soc_contract|ysyx-soc|ysyxSoC Makefile/spec/agent/memory|ysyxSoC 合约入口存在
+difftest-contract|difftest|e2e_difftest_contract|difftest|NEMU spike-diff + npc/sim difftest-ref|DiffTest 合约入口存在
+yosys-sta-contract|yosys-sta|e2e_yosys_sta_contract|yosys-sta|yosys-sta Makefile/tools/memory|综合/STA 合约入口和工具状态可见
+rv64-linux-contract|rv64-linux|e2e_rv64_linux_contract|rv64-linux|Linux Makefile/env/platform/instructions|RV64 Linux/Ubuntu 合约入口存在
+linux-device-contract|linux-device|e2e_linux_device_contract|linux-device|virtio-rootfs instruction + Linux scripts|Linux 设备合约入口存在
+display-vga-contract|display-vga|e2e_display_vga_contract|display-vga|linux-framebuffer-vga instruction + Linux README|显示/fbcon 合约入口存在
+verilator-tapeout-contract|verilator-tapeout|e2e_verilator_tapeout_contract|verilator-tapeout|verilator realism instruction + npc/rv64|Verilator-first 流片边界合约入口存在
+fceux-am-contract|fceux-am|e2e_fceux_am_contract|fceux-am|fceux-am Makefile/agent/memory|FCEUX-AM 合约入口存在
+nvboard-contract|nvboard|e2e_nvboard_contract|nvboard|nvboard README/scripts/example/agent|NVBoard 合约入口存在
+digital-logic-contract|digital-logic|e2e_digital_logic_contract|digital-logic|digital_logic_experiment + agent|数字逻辑实验合约入口存在

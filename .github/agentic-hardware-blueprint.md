@@ -206,6 +206,14 @@ synth-boundary-audit → verilator-perf-run → rtl-invariant-check → focused-
 
 适用场景：在暂不使用 Vivado 的阶段，用 Verilator 做尽量真实的性能/系统仿真，同时审计 core/SoC 可综合边界和后续流片风险。
 
+### `modular-agent-e2e`（兼容名：`agent-e2e-loop`）
+
+```text
+.github/e2e/profiles/*.tsv → recall-discovery → tool-env-check → backend-status → module-contract/smoke → record
+```
+
+适用场景：验证 AI 开发环境自身是否可被稳定发现和执行，包括 AGENTS/Copilot/instructions/memory/task-run 入口、`.github/e2e/modules/*.md` 模块合约、`.github/e2e/profiles/*.tsv` profile 编排、基础工具链、`npc/sim` 后端状态，以及按 profile 选择的 NEMU/NPC smoke 或模块 contract gate。该图用于降低后续 AI 判断前提的不确定性，不替代具体模块的功能回归、DiffTest、Linux/Ubuntu gate 或 PPA/STA signoff。
+
 ### `agent-env-refactor`
 
 ```text
@@ -246,6 +254,7 @@ reproduce → collect-log-or-trace → localize-boundary → fix → rerun → r
 - 调度结果能稳定产出结构化 task report / dispatch log
 - 任务级产物能稳定落到 `.github/task-runs/` 统一目录，并与 `memory/` 分层保存
 - `image-build` 与 `nemu-reference` 节点的命令、输入、输出、日志摘要可重复复用
+- `scripts/agent-e2e.sh --list-profiles` 能列出模块 profile；`--validate-all-profiles` 能检查全部 profile 展开和函数绑定；`--profile discovery|agent-system|contracts|quick` 能稳定生成 `modular-agent-e2e` 证据包，用于证明规则发现、profile/模块合约、工具自检、`npc/sim status`；当 NEMU 当前是 AM-compatible 配置时，`quick` 还应包含最小 NEMU reference smoke，否则以 `SKIP` 记录配置边界
 
 ### Gate 3：目标路径打通
 

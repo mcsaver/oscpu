@@ -1,5 +1,5 @@
 ---
-description: "YSYX 总调度 agent。当用户的请求涉及多个模块协同、图任务求解，或需要编排 NEMU/AM/am-kernels、npc/sim、NPC/Verilator、DiffTest、RV64 Linux/Ubuntu 22.04、rootfs/display/Verilator-first 流片约束、ysyxSoC/SoC 接入与综合下游节点时，使用此 agent 进行任务分解和模块调度。支持静态/动态任务图、调度循环和持久化记忆。"
+description: "YSYX 总调度 agent。当用户的请求涉及多个模块协同、图任务求解、AI 开发环境 e2e 自检，或需要编排 NEMU/AM/am-kernels、npc/sim、NPC/Verilator、DiffTest、RV64 Linux/Ubuntu 22.04、rootfs/display/Verilator-first 流片约束、ysyxSoC/SoC 接入与综合下游节点时，使用此 agent 进行任务分解和模块调度。支持静态/动态任务图、调度循环和持久化记忆。"
 tools: [read, edit, search, agent, todo, execute]
 agents: [agent-system, hardware-flow, rv64-linux, linux-device, display-vga, verilator-tapeout, nemu, abstract-machine, am-kernels, npc, ysyx-soc, yosys-sta, nvboard, digital-logic, fceux-am, difftest]
 ---
@@ -95,7 +95,7 @@ fallback:
 ```
 用户需求 → 选择静态图或构造动态图 → 识别涉及模块 → 确定依赖顺序 → 生成任务列表 (todo)
 ```
-- 先判断是否命中 `rv32-reference-loop`、`rv32-bringup`、`npc-sim-regression`、`soc-difftest-loop`、`am-device-loop`、`ysyx-soc-integration`、`rv64-ubuntu-probe-loop`、`rv64-ubuntu-rootfs-loop`、`linux-display-loop`、`rv64gc-userland-loop`、`verilator-tapeout-readiness-loop`、`agent-env-refactor`、`regression-debug-loop`
+- 先判断是否命中 `rv32-reference-loop`、`rv32-bringup`、`npc-sim-regression`、`soc-difftest-loop`、`am-device-loop`、`ysyx-soc-integration`、`rv64-ubuntu-probe-loop`、`rv64-ubuntu-rootfs-loop`、`linux-display-loop`、`rv64gc-userland-loop`、`verilator-tapeout-readiness-loop`、`modular-agent-e2e`（兼容名 `agent-e2e-loop`）、`agent-env-refactor`、`regression-debug-loop`
 - 若用户目标涉及 `npc/rv64`、完整 Linux/Ubuntu 22.04、官方 `/bin/sh`、rootfs、Linux-visible display 或 Verilator 真实性能仿真，优先选择 RV64 专用图，不退回旧 RV32/AM/VGA 口径
 - 当任务需要 target 行为时优先启用 `rv32-bringup` 或 `npc-sim-regression`；只有纯参考、快速定位或 target 不相关任务才截断到 `rv32-reference-loop`
 - 若静态图缺少诊断、证据或边界澄清节点，再围绕失败点或边界点做最小动态扩图
@@ -229,6 +229,13 @@ isa-abi-recall → fp-focused-smoke → dynamic-linker-smoke → ubuntu-userland
 ```
 synth-boundary-audit → verilator-perf-run → rtl-invariant-check → focused-regression → ppa-risk-record → record
 ```
+
+### `modular-agent-e2e`（兼容名：`agent-e2e-loop`）
+```
+.github/e2e/profiles/*.tsv → recall-discovery → tool-env-check → backend-status → module-contract/smoke → record
+```
+
+用于“搭建/验证 AI 开发环境 e2e”“降低 AI 不确定性”和规则发现漂移检查。默认先运行 `scripts/agent-e2e.sh --list-profiles` 与 `--validate-all-profiles`；若只想确认规则和工具，用 `--profile discovery`；若要确认 agent 配置覆盖，用 `--profile agent-system`；若要确认所有模块 contract，用 `--profile contracts`；若要最小 smoke，用 `--profile quick`；若涉及 target，至少使用 `--profile npc` 或后续业务静态图。
 
 ### `agent-env-refactor`
 ```

@@ -114,6 +114,7 @@ uint64_t g_nr_guest_inst = 0;
 static uint64_t g_timer = 0; // unit: us
 
 void device_update();
+void device_update_after_inst(uint64_t retired);
 
 #if defined(CONFIG_RISCV_PROGRESS_DEBUG_LOG) && defined(CONFIG_ISA_riscv)
 static inline void riscv_progress_debug_log(void) {
@@ -191,28 +192,119 @@ static void exec_once(Decode *s, vaddr_t pc) {//此处s是传入是指针,decode
   cpu.pc = s->dnpc;
 }
 
-static void execute(uint64_t n) {
+static void execute_one(Decode *s) {
+  exec_once(s, cpu.pc);//单步执行
+  g_nr_guest_inst ++;//记录客户指令的计数器
+  IFDEF(CONFIG_ISA_riscv, isa_riscv32_post_exec());
+  riscv_progress_debug_log();
+#ifdef CONFIG_ITRACE
+  // 把日志构造延后到执行后，并且仅在真正需要输出时触发，减少常规运行时的额外工作。
+  if (need_itrace_logbuf()) {
+    build_itrace_logbuf(s);
+  }
+#endif
+  trace_and_difftest(s, cpu.pc);//调用trace_and_difftest进行ltrace(指令追踪)和Difftest(与标准模型如QEMU对比状态)
+}
+
+#ifdef CONFIG_INTERPRETER_BASIC_BLOCK
+#define INTERPRETER_TB_MAX_INST 16
+
+static inline bool interpreter_tb_compressed_barrier(uint32_t inst) {
+#ifdef CONFIG_RISCV_EXT_C
+  uint32_t op = inst & 0x3u;
+  uint32_t funct3 = BITS(inst, 15, 13);
+
+  if (op == 0x0) {
+    return funct3 == 0x6 || funct3 == 0x7; // c.sw/c.sd 一类压缩 store。
+  }
+  if (op == 0x1) {
+    return funct3 == 0x1 || funct3 == 0x4 || funct3 == 0x5 ||
+           funct3 == 0x6 || funct3 == 0x7; // c.j/c.beqz/c.bnez/c.jr/csr-like。
+  }
+  if (op == 0x2) {
+    return funct3 == 0x4 || funct3 == 0x6 || funct3 == 0x7; // c.jr/c.jalr/c.ebreak 与 sp store。
+  }
+#endif
+  return false;
+}
+
+static inline bool interpreter_tb_should_stop(const Decode *s) {
+  if (nemu_state.state != NEMU_RUNNING) return true;
+  if (s->dnpc != s->snpc) return true;
+
+  uint32_t inst = s->isa.inst;
+#ifdef CONFIG_RISCV_EXT_C
+  if ((inst & 0x3u) != 0x3u) {
+    return interpreter_tb_compressed_barrier(inst);
+  }
+#endif
+
+  switch (inst & 0x7fu) {
+    case 0x0f: // fence/fence.i：让自修改代码和外部可见顺序自然形成 TB 边界。
+    case 0x23: // store 可能写 CLINT/PLIC/virtio/UART，下一条前应重新观察中断。
+    case 0x27: // floating-point store。
+    case 0x2f: // AMO/LR/SC 保守收束，避免把同步原语跨块重排。
+    case 0x63: // branch，即使未跳转也结束当前 basic block。
+    case 0x67: // jalr。
+    case 0x6f: // jal。
+    case 0x73: // SYSTEM/CSR/WFI/sret/mret/sfence.vma。
+      return true;
+    default:
+      return false;
+  }
+}
+
+static uint64_t execute_basic_block(uint64_t n) {
   Decode s;
-  for (;n > 0; n --) {
-    word_t intr = isa_query_intr();
+  uint64_t retired = 0;
+  uint64_t limit = n < INTERPRETER_TB_MAX_INST ? n : INTERPRETER_TB_MAX_INST;
+
+  // 这是 basic block interpreter 的保守第一阶段：仍逐条译码执行，
+  // 但把中断查询和设备轮询移到块边界，减少 Ubuntu 长跑主循环开销。
+  while (retired < limit) {
+    execute_one(&s);
+    retired++;
+    if (interpreter_tb_should_stop(&s)) break;
+  }
+
+  return retired;
+}
+#endif
+
+static uint64_t execute_one_or_block(uint64_t n) {
+#ifdef CONFIG_INTERPRETER_BASIC_BLOCK
+  if (!g_print_step) {
+    return execute_basic_block(n);
+  }
+#endif
+
+  Decode s;
+  execute_one(&s);
+  return 1;
+}
+
+static void execute(uint64_t n) {
+  while (n > 0 && nemu_state.state == NEMU_RUNNING) {
+    word_t intr = INTR_EMPTY;
+#ifdef CONFIG_INTERPRETER_INTR_FAST_FLAG
+    if (isa_riscv32_intr_pending_fast()) {
+      intr = isa_query_intr();
+    }
+#else
+    intr = isa_query_intr();
+#endif
     if (intr != INTR_EMPTY) {
-      // 异步中断在两条指令之间进入；先重定向到 trap handler，再执行本轮要退休的 handler 指令。
+      // 异步中断在 TB 边界进入；先重定向到 trap handler，再执行本轮要退休的 handler 指令。
       cpu.pc = isa_raise_intr(intr, cpu.pc);
     }
-    exec_once(&s, cpu.pc);//单步执行
-    g_nr_guest_inst ++;//记录客户指令的计数器
-    IFDEF(CONFIG_ISA_riscv, isa_riscv32_post_exec());
-    riscv_progress_debug_log();
-#ifdef CONFIG_ITRACE
-    // 把日志构造延后到执行后，并且仅在真正需要输出时触发，减少常规运行时的额外工作。
-    if (need_itrace_logbuf()) {
-      build_itrace_logbuf(&s);
-    }
-#endif
-    trace_and_difftest(&s, cpu.pc);//调用trace_and_difftest进行ltrace(指令追踪)和Difftest(与标准模型如QEMU对比状态)
+
+    uint64_t retired = execute_one_or_block(n);
+    if (retired == 0) break;
+    n -= retired;
+
     if (nemu_state.state != NEMU_RUNNING) break;//如果执行过程中状态不再是NEMU_RUNNING(例如遇到了ebreak或断点，跳出循环)
 #if defined(CONFIG_DEVICE) && !defined(CONFIG_TARGET_SHARE)
-    device_update();//如果有设备模拟配置，通过device_update()刷新状态
+    device_update_after_inst(retired);//如果有设备模拟配置，通过device_update()刷新状态
 #endif
   }
 }

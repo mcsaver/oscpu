@@ -47,7 +47,12 @@
 #define VIRTIO_MMIO_INT_USED_BUFFER 0x1u
 #define VIRTIO_BLK_F_BLK_SIZE 6
 #define VIRTIO_BLK_F_FLUSH 9
+#define VIRTIO_BLK_F_TOPOLOGY 10
+#define VIRTIO_BLK_F_CONFIG_WCE 11
+#define VIRTIO_BLK_F_DISCARD 13
+#define VIRTIO_BLK_F_WRITE_ZEROES 14
 #define VIRTIO_RING_F_INDIRECT_DESC 28
+#define VIRTIO_RING_F_EVENT_IDX 29
 #define VRING_AVAIL_F_NO_INTERRUPT 0x1u
 #define VIRTIO_STATUS_FEATURES_OK 0x08u
 #define VIRTQ_DESC_F_NEXT  0x1u
@@ -58,17 +63,34 @@
 #define VIRTIO_BLK_T_OUT    1u
 #define VIRTIO_BLK_T_FLUSH  4u
 #define VIRTIO_BLK_T_GET_ID 8u
+#define VIRTIO_BLK_T_DISCARD 11u
+#define VIRTIO_BLK_T_WRITE_ZEROES 13u
 #define VIRTIO_BLK_S_OK     0u
 #define VIRTIO_BLK_S_IOERR  1u
 #define VIRTIO_BLK_S_UNSUPP 2u
 
 #define VIRTIO_BLK_SECTOR_SIZE 512u
 #define VIRTIO_BLK_CONFIG_BLK_SIZE 20u
+#define VIRTIO_BLK_CONFIG_PHYSICAL_BLOCK_EXP 24u
+#define VIRTIO_BLK_CONFIG_ALIGNMENT_OFFSET 25u
+#define VIRTIO_BLK_CONFIG_MIN_IO_SIZE 26u
+#define VIRTIO_BLK_CONFIG_OPT_IO_SIZE 28u
+#define VIRTIO_BLK_CONFIG_WCE 32u
+#define VIRTIO_BLK_CONFIG_MAX_DISCARD_SECTORS 36u
+#define VIRTIO_BLK_CONFIG_MAX_DISCARD_SEG 40u
+#define VIRTIO_BLK_CONFIG_DISCARD_SECTOR_ALIGNMENT 44u
+#define VIRTIO_BLK_CONFIG_MAX_WRITE_ZEROES_SECTORS 48u
+#define VIRTIO_BLK_CONFIG_MAX_WRITE_ZEROES_SEG 52u
+#define VIRTIO_BLK_CONFIG_WRITE_ZEROES_MAY_UNMAP 56u
 #define VIRTIO_BLK_ID_BYTES 20u
 #define VIRTIO_BLK_ID_STRING "ysyx-nemu-virtio-blk"
 #define VIRTIO_BLK_QUEUE_SIZE 64u
 #define VIRTIO_BLK_MAX_CHAIN 128u
 #define VIRTIO_BLK_IRQ 2u
+#define VIRTIO_BLK_DISCARD_WRITE_ZEROES_BYTES 16u
+#define VIRTIO_BLK_WRITE_ZEROES_FLAG_UNMAP 0x00000001u
+#define VIRTIO_BLK_MAX_ZERO_RANGE_SECTORS 4096u
+#define VIRTIO_BLK_MAX_ZERO_RANGE_SEG 1u
 
 typedef struct {
   paddr_t addr;
@@ -90,6 +112,7 @@ static uint8_t *virtio_base;
 static const char *disk_image_path;
 static FILE *disk_fp;
 static bool disk_readonly;
+static bool disk_writeback = true;
 static uint64_t disk_size;
 static uint32_t device_features_sel;
 static uint32_t driver_features_sel;
@@ -117,7 +140,12 @@ static uint32_t virtio_blk_device_features(uint32_t sel) {
   if (sel == 0) {
     return (1u << VIRTIO_BLK_F_BLK_SIZE) |
            (1u << VIRTIO_BLK_F_FLUSH) |
-           (1u << VIRTIO_RING_F_INDIRECT_DESC);
+           (1u << VIRTIO_BLK_F_TOPOLOGY) |
+           (1u << VIRTIO_BLK_F_CONFIG_WCE) |
+           (1u << VIRTIO_BLK_F_DISCARD) |
+           (1u << VIRTIO_BLK_F_WRITE_ZEROES) |
+           (1u << VIRTIO_RING_F_INDIRECT_DESC) |
+           (1u << VIRTIO_RING_F_EVENT_IDX);
   }
   if (sel == 1) {
     return 1u << (VIRTIO_F_VERSION_1 - 32);
@@ -134,6 +162,16 @@ static bool virtio_blk_driver_features_supported(void) {
     }
   }
   return true;
+}
+
+static bool virtio_blk_driver_feature_enabled(uint32_t bit) {
+  uint32_t sel = bit / 32;
+  uint32_t off = bit % 32;
+  return sel < 2 && (driver_features[sel] & (1u << off)) != 0;
+}
+
+static bool virtio_blk_event_idx_enabled(void) {
+  return virtio_blk_driver_feature_enabled(VIRTIO_RING_F_EVENT_IDX);
 }
 
 void disk_set_image(const char *path) {
@@ -166,6 +204,30 @@ static void guest_write32(paddr_t addr, uint32_t value) {
   paddr_write(addr, 4, value);
 }
 
+static bool guest_range_ok(paddr_t addr, uint32_t len);
+
+static paddr_t virtq_used_event_addr(void) {
+  return queue0.driver + 4 + (paddr_t)queue0.num * 2;
+}
+
+static paddr_t virtq_avail_event_addr(void) {
+  return queue0.device + 4 + (paddr_t)queue0.num * 8;
+}
+
+static bool virtq_need_event(uint16_t event_idx, uint16_t new_idx, uint16_t old_idx) {
+  return (uint16_t)(new_idx - event_idx - 1) < (uint16_t)(new_idx - old_idx);
+}
+
+static void virtq_set_avail_event(uint16_t avail_idx) {
+  if (virtio_blk_event_idx_enabled() && queue0.num != 0 &&
+      guest_range_ok(virtq_avail_event_addr(), 2)) {
+    // EVENT_IDX 协商后 used->flags 必须保持 0；avail_event 先设为下一次 avail idx，
+    // 等价于不主动抑制 driver kick，保证同步解释器设备不会因缺通知饿死。
+    guest_write16(queue0.device, 0);
+    guest_write16(virtq_avail_event_addr(), avail_idx);
+  }
+}
+
 static bool guest_range_ok(paddr_t addr, uint32_t len) {
   if (len == 0) return true;
   paddr_t end = addr + (paddr_t)len - 1;
@@ -194,6 +256,11 @@ static bool guest_copy_to(paddr_t addr, const void *buf, uint32_t len) {
   const uint8_t *in = buf;
   for (uint32_t i = 0; i < len; i++) paddr_write(addr + i, 1, in[i]);
   return true;
+}
+
+static uint8_t *guest_host_buffer(paddr_t addr, uint32_t len) {
+  if (len == 0 || !guest_range_ok(addr, len)) return NULL;
+  return guest_to_host(addr);
 }
 
 static bool virtq_read_desc_from(paddr_t table, uint16_t table_num, uint16_t idx, VirtqDesc *desc) {
@@ -264,21 +331,59 @@ static bool virtq_collect_chain(uint16_t head, VirtqDesc *out, int *out_count) {
   return true;
 }
 
-static bool disk_seek(uint64_t offset) {
-  return fseeko(disk_fp, (off_t)offset, SEEK_SET) == 0;
+static bool disk_range64_ok(uint64_t offset, uint64_t len) {
+  return offset <= disk_size && len <= disk_size - offset;
 }
 
 static bool disk_range_ok(uint64_t offset, uint32_t len) {
-  return offset <= disk_size && len <= disk_size - offset;
+  return disk_range64_ok(offset, len);
+}
+
+static bool disk_pread_all(void *buf, uint32_t len, uint64_t offset) {
+  uint8_t *out = buf;
+  while (len > 0) {
+    ssize_t got = pread(fileno(disk_fp), out, len, (off_t)offset);
+    if (got < 0 && errno == EINTR) continue;
+    if (got <= 0) return false;
+    out += got;
+    offset += got;
+    len -= got;
+  }
+  return true;
+}
+
+static bool disk_pwrite_all(const void *buf, uint32_t len, uint64_t offset) {
+  const uint8_t *in = buf;
+  while (len > 0) {
+    ssize_t done = pwrite(fileno(disk_fp), in, len, (off_t)offset);
+    if (done < 0 && errno == EINTR) continue;
+    if (done <= 0) return false;
+    in += done;
+    offset += done;
+    len -= done;
+  }
+  return true;
+}
+
+static bool disk_sync_if_writethrough(void) {
+  return disk_writeback || (fflush(disk_fp) == 0 && fsync(fileno(disk_fp)) == 0);
 }
 
 static bool disk_read_to_guest(paddr_t addr, uint32_t len, uint64_t *offset) {
   if (!guest_range_ok(addr, len) || !disk_range_ok(*offset, len)) return false;
+  uint8_t *host_buf = guest_host_buffer(addr, len);
+  if (host_buf != NULL) {
+    // virtio-blk 的数据描述符来自 guest PMEM 时，直接把 pread 结果写入 guest buffer，
+    // 避免每 4KiB 先落到宿主临时栈缓冲再 memcpy 一次。
+    if (!disk_pread_all(host_buf, len, *offset)) return false;
+    *offset += len;
+    return true;
+  }
   uint8_t buf[4096];
   uint32_t left = len;
   while (left > 0) {
     uint32_t chunk = left < sizeof(buf) ? left : sizeof(buf);
-    if (!disk_seek(*offset) || fread(buf, 1, chunk, disk_fp) != chunk) return false;
+    if (!disk_pread_all(buf, chunk, *offset)) return false;
     if (!guest_copy_to(addr, buf, chunk)) return false;
     addr += chunk;
     *offset += chunk;
@@ -290,16 +395,38 @@ static bool disk_read_to_guest(paddr_t addr, uint32_t len, uint64_t *offset) {
 static bool disk_write_from_guest(paddr_t addr, uint32_t len, uint64_t *offset) {
   if (disk_readonly) return false;
   if (!guest_range_ok(addr, len) || !disk_range_ok(*offset, len)) return false;
+  uint8_t *host_buf = guest_host_buffer(addr, len);
+  if (host_buf != NULL) {
+    // OUT 请求同样可以直接从 guest PMEM buffer pwrite 到镜像；write-through 语义仍在末尾同步。
+    if (!disk_pwrite_all(host_buf, len, *offset)) return false;
+    *offset += len;
+    return disk_sync_if_writethrough();
+  }
   uint8_t buf[4096];
   uint32_t left = len;
   while (left > 0) {
     uint32_t chunk = left < sizeof(buf) ? left : sizeof(buf);
     if (!guest_copy_from(addr, buf, chunk)) return false;
-    if (!disk_seek(*offset) || fwrite(buf, chunk, 1, disk_fp) != 1) return false;
+    if (!disk_pwrite_all(buf, chunk, *offset)) return false;
     addr += chunk;
     *offset += chunk;
     left -= chunk;
   }
+  if (!disk_sync_if_writethrough()) return false;
+  return true;
+}
+
+static bool disk_zero_range(uint64_t offset, uint64_t len) {
+  if (disk_readonly) return false;
+  if (!disk_range64_ok(offset, len)) return false;
+  uint8_t zeros[4096] = {};
+  while (len > 0) {
+    uint32_t chunk = len < sizeof(zeros) ? (uint32_t)len : (uint32_t)sizeof(zeros);
+    if (!disk_pwrite_all(zeros, chunk, offset)) return false;
+    offset += chunk;
+    len -= chunk;
+  }
+  if (!disk_sync_if_writethrough()) return false;
   return true;
 }
 
@@ -329,6 +456,48 @@ static bool virtio_blk_write_id(const VirtqDesc *descs, int status_desc,
     return false;
   }
   *used_len += done;
+  return true;
+}
+
+static bool virtio_blk_zero_range_from_sector(uint64_t sector, uint32_t num_sectors) {
+  if (num_sectors == 0) return true;
+  if (sector > UINT64_MAX / VIRTIO_BLK_SECTOR_SIZE) return false;
+  uint64_t offset = sector * VIRTIO_BLK_SECTOR_SIZE;
+  uint64_t len = (uint64_t)num_sectors * VIRTIO_BLK_SECTOR_SIZE;
+  return disk_zero_range(offset, len);
+}
+
+static bool virtio_blk_handle_zero_ranges(const VirtqDesc *descs, int status_desc,
+    bool is_write_zeroes) {
+  if (disk_readonly) return false;
+  uint32_t range_count = 0;
+  for (int i = 1; i < status_desc; i++) {
+    if ((descs[i].flags & VIRTQ_DESC_F_WRITE) != 0 ||
+        (descs[i].len % VIRTIO_BLK_DISCARD_WRITE_ZEROES_BYTES) != 0 ||
+        !guest_range_ok(descs[i].addr, descs[i].len)) {
+      return false;
+    }
+
+    for (uint32_t off = 0; off < descs[i].len; off += VIRTIO_BLK_DISCARD_WRITE_ZEROES_BYTES) {
+      paddr_t range = descs[i].addr + off;
+      uint64_t sector = guest_read64(range);
+      uint32_t num_sectors = guest_read32(range + 8);
+      uint32_t flags = guest_read32(range + 12);
+      range_count++;
+      if (range_count > VIRTIO_BLK_MAX_ZERO_RANGE_SEG ||
+          num_sectors > VIRTIO_BLK_MAX_ZERO_RANGE_SECTORS) {
+        return false;
+      }
+      if (is_write_zeroes) {
+        if ((flags & ~VIRTIO_BLK_WRITE_ZEROES_FLAG_UNMAP) != 0) return false;
+      } else if (flags != 0) {
+        return false;
+      }
+      // raw image 后端没有 hole-punch 接口；DISCARD 与 WRITE_ZEROES 都采用确定性写零，
+      // 既避免读取旧数据的不确定性，也为后续 async/multiqueue 复用同一 offset I/O 路径。
+      if (!virtio_blk_zero_range_from_sector(sector, num_sectors)) return false;
+    }
+  }
   return true;
 }
 
@@ -379,6 +548,18 @@ static uint32_t virtio_blk_handle_chain(uint16_t head) {
     if (!virtio_blk_write_id(descs, status_desc, &used_len)) {
       status = VIRTIO_BLK_S_IOERR;
     }
+  } else if (type == VIRTIO_BLK_T_DISCARD) {
+    if (!virtio_blk_driver_feature_enabled(VIRTIO_BLK_F_DISCARD)) {
+      status = VIRTIO_BLK_S_UNSUPP;
+    } else if (!virtio_blk_handle_zero_ranges(descs, status_desc, false)) {
+      status = VIRTIO_BLK_S_IOERR;
+    }
+  } else if (type == VIRTIO_BLK_T_WRITE_ZEROES) {
+    if (!virtio_blk_driver_feature_enabled(VIRTIO_BLK_F_WRITE_ZEROES)) {
+      status = VIRTIO_BLK_S_UNSUPP;
+    } else if (!virtio_blk_handle_zero_ranges(descs, status_desc, true)) {
+      status = VIRTIO_BLK_S_IOERR;
+    }
   } else {
     status = VIRTIO_BLK_S_UNSUPP;
   }
@@ -396,29 +577,41 @@ static void virtio_blk_process_queue(void) {
   bool used_any = false;
   uint16_t avail_flags = guest_read16(queue0.driver);
   uint16_t avail_idx = guest_read16(queue0.driver + 2);
+  uint16_t old_used_idx = guest_read16(queue0.device + 2);
+  uint16_t used_idx = old_used_idx;
   while (queue0.last_avail_idx != avail_idx) {
     uint16_t ring_off = queue0.last_avail_idx % queue0.num;
     uint16_t head = guest_read16(queue0.driver + 4 + ring_off * 2);
     uint32_t used_len = virtio_blk_handle_chain(head);
-    uint16_t used_idx = guest_read16(queue0.device + 2);
     uint16_t used_off = used_idx % queue0.num;
     guest_write32(queue0.device + 4 + used_off * 8, head);
     guest_write32(queue0.device + 4 + used_off * 8 + 4, used_len);
-    guest_write16(queue0.device + 2, used_idx + 1);
+    used_idx++;
+    guest_write16(queue0.device + 2, used_idx);
     queue0.last_avail_idx++;
     used_any = true;
   }
+  virtq_set_avail_event(queue0.last_avail_idx);
 
   if (used_any) {
-    if ((avail_flags & VRING_AVAIL_F_NO_INTERRUPT) == 0) {
+    bool notify = true;
+    if (virtio_blk_event_idx_enabled()) {
+      uint16_t used_event = guest_range_ok(virtq_used_event_addr(), 2) ?
+        guest_read16(virtq_used_event_addr()) : old_used_idx;
+      notify = virtq_need_event(used_event, used_idx, old_used_idx);
+    } else {
+      notify = (avail_flags & VRING_AVAIL_F_NO_INTERRUPT) == 0;
+    }
+
+    if (notify) {
       // virtio-mmio 用 interrupt status bit 通知 used ring 更新，再由 PLIC IRQ2 送到 Linux。
       interrupt_status |= VIRTIO_MMIO_INT_USED_BUFFER;
-      VIRTIO_IRQ_DEBUG_LOG("virtio-blk used interrupt avail_idx=%u last_avail=%u avail_flags=0x%04x",
-          avail_idx, queue0.last_avail_idx, avail_flags);
+      VIRTIO_IRQ_DEBUG_LOG("virtio-blk used interrupt avail_idx=%u last_avail=%u old_used=%u new_used=%u event_idx=%u",
+          avail_idx, queue0.last_avail_idx, old_used_idx, used_idx, virtio_blk_event_idx_enabled());
       virtio_blk_raise_irq();
     } else {
-      VIRTIO_IRQ_DEBUG_LOG("virtio-blk used interrupt suppressed avail_idx=%u last_avail=%u avail_flags=0x%04x",
-          avail_idx, queue0.last_avail_idx, avail_flags);
+      VIRTIO_IRQ_DEBUG_LOG("virtio-blk used interrupt suppressed avail_idx=%u last_avail=%u old_used=%u new_used=%u event_idx=%u",
+          avail_idx, queue0.last_avail_idx, old_used_idx, used_idx, virtio_blk_event_idx_enabled());
     }
   }
 }
@@ -465,6 +658,33 @@ static uint32_t virtio_read_reg(uint32_t offset) {
       // Linux virtio-blk 只有在协商 BLK_SIZE 后才读取这里；显式返回 512B，
       // 避免 guest 队列限制只是依赖内核默认值。
       return VIRTIO_BLK_SECTOR_SIZE;
+    case VIRTIO_MMIO_CONFIG + VIRTIO_BLK_CONFIG_PHYSICAL_BLOCK_EXP:
+      // TOPOLOGY 用最保守的 512B 物理块、0 对齐偏移和 512B minimum I/O，
+      // 让 Linux 的 queue topology 走标准 virtio config 路径而不是默认猜测。
+      return 0;
+    case VIRTIO_MMIO_CONFIG + VIRTIO_BLK_CONFIG_ALIGNMENT_OFFSET:
+      return 0;
+    case VIRTIO_MMIO_CONFIG + VIRTIO_BLK_CONFIG_MIN_IO_SIZE:
+      return 1;
+    case VIRTIO_MMIO_CONFIG + VIRTIO_BLK_CONFIG_OPT_IO_SIZE:
+      return 0;
+    case VIRTIO_MMIO_CONFIG + VIRTIO_BLK_CONFIG_WCE:
+      // CONFIG_WCE 让 Linux /sys/block/vda/cache_type 能读写缓存模式；
+      // write-through 模式下写请求会在完成前同步落盘，避免该 sysfs 控制只是空壳。
+      return disk_writeback ? 1 : 0;
+    case VIRTIO_MMIO_CONFIG + VIRTIO_BLK_CONFIG_MAX_DISCARD_SECTORS:
+      // 暴露保守的 2MiB 单段上限；后端按 offset 分块 pwrite 零化，不依赖 FILE seek 状态。
+      return VIRTIO_BLK_MAX_ZERO_RANGE_SECTORS;
+    case VIRTIO_MMIO_CONFIG + VIRTIO_BLK_CONFIG_MAX_DISCARD_SEG:
+      return VIRTIO_BLK_MAX_ZERO_RANGE_SEG;
+    case VIRTIO_MMIO_CONFIG + VIRTIO_BLK_CONFIG_DISCARD_SECTOR_ALIGNMENT:
+      return 1;
+    case VIRTIO_MMIO_CONFIG + VIRTIO_BLK_CONFIG_MAX_WRITE_ZEROES_SECTORS:
+      return VIRTIO_BLK_MAX_ZERO_RANGE_SECTORS;
+    case VIRTIO_MMIO_CONFIG + VIRTIO_BLK_CONFIG_MAX_WRITE_ZEROES_SEG:
+      return VIRTIO_BLK_MAX_ZERO_RANGE_SEG;
+    case VIRTIO_MMIO_CONFIG + VIRTIO_BLK_CONFIG_WRITE_ZEROES_MAY_UNMAP:
+      return 0;
     default: return 0;
   }
 }
@@ -480,6 +700,9 @@ static void virtio_write_reg(uint32_t offset, uint32_t value) {
     case VIRTIO_MMIO_DRIVER_FEATURES_SEL:
       driver_features_sel = value;
       break;
+    case VIRTIO_MMIO_CONFIG + VIRTIO_BLK_CONFIG_WCE:
+      disk_writeback = (value & 1u) != 0;
+      break;
     case VIRTIO_MMIO_QUEUE_SEL:
       queue_sel = value;
       break;
@@ -490,6 +713,7 @@ static void virtio_write_reg(uint32_t offset, uint32_t value) {
       if (queue_sel == 0) {
         queue0.ready = (value & 1u) != 0;
         queue0.last_avail_idx = queue0.ready ? guest_read16(queue0.driver + 2) : 0;
+        if (queue0.ready) virtq_set_avail_event(queue0.last_avail_idx);
       }
       break;
     case VIRTIO_MMIO_QUEUE_NOTIFY:
@@ -544,8 +768,8 @@ static void virtio_write_reg(uint32_t offset, uint32_t value) {
 static void virtio_blk_io_handler(uint32_t offset, int len, bool is_write) {
   assert(len == 1 || len == 2 || len == 4 || len == 8);
   if (is_write) {
-    if (len == 4) {
-      virtio_write_reg(offset, host_read(virtio_base + offset, 4));
+    if (len == 1 || len == 2 || len == 4) {
+      virtio_write_reg(offset, host_read(virtio_base + offset, len));
     } else if (len == 8) {
       virtio_write_reg(offset, host_read(virtio_base + offset, 4));
       virtio_write_reg(offset + 4, host_read(virtio_base + offset + 4, 4));

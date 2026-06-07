@@ -164,6 +164,25 @@ word_t isa_riscv32_mip_value(void) {
          isa_riscv32_plic_pending_bits();
 }
 
+bool isa_riscv32_intr_pending_fast(void) {
+  word_t enabled = cpu.csr.mie & MIP_IRQ_MASK;
+  if (enabled == 0) return false;
+
+  word_t raw_pending = (cpu.csr.mip & MIP_SUPERVISOR_MASK) | clint_pending_bits();
+  if (isa_riscv32_plic_maybe_pending()) {
+    raw_pending |= MIP_MEIP | MIP_SEIP;
+  }
+  raw_pending &= enabled;
+  if (raw_pending == 0) return false;
+
+  bool s_global = (cpu.priv == PRIV_U) ||
+                  (cpu.priv == PRIV_S && (cpu.csr.mstatus & MSTATUS_SIE));
+  if (s_global && (raw_pending & MIP_SUPERVISOR_MASK) != 0) return true;
+
+  bool m_global = (cpu.priv != PRIV_M) || (cpu.csr.mstatus & MSTATUS_MIE);
+  return m_global && (raw_pending & MIP_MACHINE_MASK) != 0;
+}
+
 void isa_riscv32_write_mie(word_t value) {
   cpu.csr.mie = value & MIP_IRQ_MASK;
 }

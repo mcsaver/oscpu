@@ -21,6 +21,7 @@
 #ifndef CONFIG_TARGET_AM
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/select.h>
@@ -40,6 +41,7 @@
 #define SERIAL_HOST_RX_POLL_CHUNK 512u
 #define SERIAL_HOST_RX_POLL_BUDGET 16u
 #define SERIAL_HOST_RX_STAGING_CAP 1048576u
+#define SERIAL_TX_BUFFER_CAP 4096u
 
 #if !defined(CONFIG_TARGET_AM) && \
     (defined(CONFIG_SERIAL_INPUT_STDIN) || defined(CONFIG_SERIAL_INPUT_FIFO))
@@ -76,6 +78,10 @@ typedef struct {
   int fifo_fd;
   const char *fifo_path;
 #endif
+#ifndef CONFIG_TARGET_AM
+  uint8_t tx_buffer[SERIAL_TX_BUFFER_CAP];
+  uint32_t tx_count;
+#endif
 } SerialPort;
 
 static SerialPort serial0 = {
@@ -88,11 +94,46 @@ static SerialPort serial0 = {
 #endif
 };
 
+#ifndef CONFIG_TARGET_AM
+static void serial_port_flush_tx(SerialPort *port);
+#endif
+
 static void serial_port_tx(void *opaque, uint8_t ch) {
   SerialPort *port = (SerialPort *)opaque;
+#ifdef CONFIG_TARGET_AM
   (void)port;
-  MUXDEF(CONFIG_TARGET_AM, putch(ch), putc(ch, stderr));
+  putch(ch);
+#else
+  if (port->tx_count == SERIAL_TX_BUFFER_CAP) {
+    serial_port_flush_tx(port);
+  }
+
+  port->tx_buffer[port->tx_count++] = ch;
+  if (ch == '\n' || ch == '\r' || port->tx_count == SERIAL_TX_BUFFER_CAP) {
+    serial_port_flush_tx(port);
+  }
+#endif
 }
+
+#ifndef CONFIG_TARGET_AM
+static void serial_port_flush_tx(SerialPort *port) {
+  if (port->tx_count == 0) {
+    return;
+  }
+
+  /*
+   * Ubuntu 启动日志会经 8250 驱动逐字节写 THR；缓冲只属于宿主前端，
+   * 不改变 guest 可见的 16550A THRE/TEMT/IRQ 语义，却能减少 host write 次数。
+   */
+  (void)fwrite(port->tx_buffer, 1, port->tx_count, stderr);
+  port->tx_count = 0;
+  fflush(stderr);
+}
+
+static void serial_flush_all(void) {
+  serial_port_flush_tx(&serial0);
+}
+#endif
 
 static void serial_port_irq(void *opaque, bool level) {
   SerialPort *port = (SerialPort *)opaque;
@@ -276,6 +317,9 @@ static void serial_port_poll_host(SerialPort *port) {
   if (port->bus_space != NULL) {
     uart16550_service(port->uart);
   }
+#ifndef CONFIG_TARGET_AM
+  serial_port_flush_tx(port);
+#endif
 }
 
 void serial_poll_input(void) {
@@ -364,5 +408,8 @@ void init_serial() {
 #endif
   serial_register_bus(port);
   serial_open_host_inputs(port);
+#ifndef CONFIG_TARGET_AM
+  atexit(serial_flush_all);
+#endif
   uart16550_service(port->uart);
 }

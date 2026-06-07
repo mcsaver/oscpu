@@ -21,6 +21,8 @@
 #include <common.h>
 //指令抓取
 word_t vaddr_ifetch(vaddr_t addr, int len);
+// performance 模式下的 RVC 宽取指快路径；不能命中时返回 false 让 ISA 层走旧精确路径。
+bool vaddr_ifetch_wide(vaddr_t addr, uint32_t *inst, int *len);
 //从虚拟地址读数据
 word_t vaddr_read(vaddr_t addr, int len);
 //写数据

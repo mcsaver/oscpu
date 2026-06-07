@@ -1,0 +1,2 @@
+@include|npc-sim||||
+npc-single-contract|npc|e2e_npc_single_contract|npc|npc/single Makefile/Kconfig/vsrc/csrc|NPC single 后端合约入口存在

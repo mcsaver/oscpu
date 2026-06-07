@@ -94,6 +94,11 @@ void isa_riscv32_plic_set_irq(uint32_t irq, bool level) {
   }
 }
 
+bool isa_riscv32_plic_maybe_pending(void) {
+  uint32_t enabled = plic_enable_m | plic_enable_s;
+  return (plic_pending & enabled) != 0;
+}
+
 word_t isa_riscv32_plic_pending_bits(void) {
   word_t pending = 0;
   if (plic_best_irq(false) != 0) pending |= MIP_MEIP;

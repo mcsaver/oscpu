@@ -538,6 +538,8 @@ $(NPC_ROOTFS_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) | $(BUILD_DIR) $(BUILD_DIR)/gen
 $(NEMU_ROOTFS_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) | $(BUILD_DIR) $(BUILD_DIR)/generated
 	$(PYTHON) '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode rootfs \
 	  --reset-syscon \
+	  --virtio-rng \
+	  --goldfish-rtc \
 	  --bootargs-extra '$(BOOTARGS_EXTRA)' \
 	  --output '$(BUILD_DIR)/generated/npc-rv64-nemu-rootfs.dts'
 	$(DTC) -I dts -O dtb -o '$@' '$(BUILD_DIR)/generated/npc-rv64-nemu-rootfs.dts'

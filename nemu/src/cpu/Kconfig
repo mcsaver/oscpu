@@ -1,6 +1,45 @@
 menu "CPU Performance Models"
   depends on TARGET_NATIVE_ELF && ISA_riscv
 
+config INTERPRETER_BASIC_BLOCK
+  depends on ENGINE_INTERPRETER && PERFORMANCE
+  bool "Enable conservative interpreter basic-block batching"
+  default y
+  help
+    在 Ubuntu/Linux performance 配置下，把普通连续指令按小块执行：
+    中断查询和设备轮询只在块边界发生；遇到分支、跳转、SYSTEM、
+    store/AMO、fence 或压缩控制/存储指令时立即结束当前块。该选项
+    不做译码缓存或 JIT，只是 basic block interpreter 的第一阶段。
+
+config INTERPRETER_WIDE_IFETCH
+  depends on INTERPRETER_BASIC_BLOCK && RISCV_EXT_C
+  bool "Enable one-translation wide ifetch for RVC"
+  default y
+  help
+    在同页 PMEM host pointer 命中时，一次读取 4 字节并用低 2 bit 判断
+    当前是 16-bit 压缩指令还是 32-bit 指令，减少 RV64C 热路径中
+    两次 vaddr/MMU/TLB 取指。跨页、MMIO 或 fault 场景仍回退旧精确路径。
+
+config INTERPRETER_DECODE_CACHE
+  depends on INTERPRETER_BASIC_BLOCK
+  bool "Enable conservative interpreter decode cache"
+  default y
+  help
+    在解释器热路径中缓存 PC+原始指令对应的预译码字段，包括常见整数、
+    load/store、AMO、分支跳转和压缩指令分发类别。命中时仍先真实取指并
+    比对原始指令，保证自修改代码或页重映射后会自动回到慢路径重新译码；
+    fence.i 会显式清空缓存。该选项不是完整 TB cache 或 JIT。
+
+config INTERPRETER_INTR_FAST_FLAG
+  depends on INTERPRETER_BASIC_BLOCK && RV64
+  bool "Enable fast interrupt pending guard at TB boundary"
+  default y
+  help
+    在 basic-block 解释器块边界先做一个保守的 pending/enable/global
+    快速判断；只有存在可能可投递中断时才进入完整 isa_query_intr()
+    路径。该选项不改变 CLINT/PLIC/CSR 语义，只减少无中断热路径的
+    重复 pending 计算。
+
 config BPU
   depends on TARGET_NATIVE_ELF && ISA_riscv && !PERFORMANCE
   bool "Enable branch prediction model"

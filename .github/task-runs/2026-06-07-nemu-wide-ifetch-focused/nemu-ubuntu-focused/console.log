@@ -1,0 +1,2423 @@
+
+OpenSBI v1.8
+   ____                    _____ ____ _____
+  / __ \                  / ____|  _ \_   _|
+ | |  | |_ __   ___ _ __ | (___ | |_) || |
+ | |  | | '_ \ / _ \ '_ \ \___ \|  _ < | |
+ | |__| | |_) |  __/ | | |____) | |_) || |_
+  \____/| .__/ \___|_| |_|_____/|____/_____|
+        | |
+        |_|
+
+Platform Name               : YSYX NPC RV64
+Platform Features           : medeleg
+Platform HART Count         : 1
+Platform HART Protection    : ---
+Platform IPI Device         : aclint-mswi
+Platform Timer Device       : aclint-mtimer @ 10000000Hz
+Platform Console Device     : uart8250
+Platform HSM Device         : ---
+Platform PMU Device         : ---
+Platform Reboot Device      : syscon-reboot
+Platform Shutdown Device    : syscon-poweroff
+Platform Suspend Device     : ---
+Platform CPPC Device        : ---
+Firmware Base               : 0x80000000
+Firmware Size               : 321 KB
+Firmware RW Offset          : 0x40000
+Firmware RW Size            : 65 KB
+Firmware Heap Offset        : 0x47000
+Firmware Heap Size          : 37 KB (total), 0 KB (reserved), 10 KB (used), 25 KB (free)
+Firmware Scratch Size       : 4096 B (total), 408 B (used), 3688 B (free)
+Runtime SBI Version         : 3.0
+Standard SBI Extensions     : time,rfnc,ipi,base,hsm,srst,dbcn,fwft,legacy,sse
+Experimental SBI Extensions : none
+
+Domain0 Name                : root
+Domain0 Boot HART           : 0
+Domain0 HARTs               : 0*
+Domain0 Region00            : 0x0000000080040000-0x000000008005ffff M: (F,R,W) S/U: ()
+Domain0 Region01            : 0x0000000080000000-0x000000008003ffff M: (F,R,X) S/U: ()
+Domain0 Region02            : 0x0000000000100000-0x0000000000100fff M: (I,R,W) S/U: (R,W)
+Domain0 Region03            : 0x0000000010000000-0x0000000010000fff M: (I,R,W) S/U: (R,W)
+Domain0 Region04            : 0x0000000002000000-0x000000000200ffff M: (I,R,W) S/U: ()
+Domain0 Region05            : 0x000000000c000000-0x000000000fffffff M: (I,R,W) S/U: (R,W)
+Domain0 Region06            : 0x0000000000000000-0xffffffffffffffff M: () S/U: (R,W,X)
+Domain0 Next Address        : 0x0000000080200000
+Domain0 Next Arg1           : 0x0000000082200000
+Domain0 Next Mode           : S-mode
+Domain0 SysReset            : yes
+Domain0 SysSuspend          : yes
+
+Boot HART ID                : 0
+Boot HART Domain            : root
+Boot HART Priv Version      : v1.11
+Boot HART Base ISA          : rv64imafdc
+Boot HART ISA Extensions    : zicntr
+Boot HART PMP Count         : 0
+Boot HART PMP Granularity   : 0 bits
+Boot HART PMP Address Bits  : 0
+Boot HART MHPM Info         : 0 (0x00000000)
+Boot HART Debug Triggers    : 0 triggers
+Boot HART MIDELEG           : 0x0000000000000222
+Boot HART MEDELEG           : 0x000000000004b109
+[    0.000000] Linux version 6.6.0 (lyg@lygdebug) (riscv64-linux-gnu-gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, GNU ld (GNU Binutils for Ubuntu) 2.42) #16 Sat Jun  6 18:31:56 CST 2026
+[    0.000000] random: crng init done
+[    0.000000] Machine model: YSYX NPC RV64
+[    0.000000] SBI specification v3.0 detected
+[    0.000000] SBI implementation ID=0x1 Version=0x10008
+[    0.000000] SBI TIME extension detected
+[    0.000000] SBI IPI extension detected
+[    0.000000] SBI RFENCE extension detected
+[    0.000000] SBI SRST extension detected
+[    0.000000] efi: UEFI not found.
+[    0.000000] OF: reserved mem: 0x0000000080000000..0x000000008003ffff (256 KiB) nomap non-reusable mmode_resv1@80000000
+[    0.000000] OF: reserved mem: 0x0000000080040000..0x000000008005ffff (128 KiB) nomap non-reusable mmode_resv0@80040000
+[    0.000000] Zone ranges:
+[    0.000000]   DMA32    [mem 0x0000000080000000-0x000000009fffffff]
+[    0.000000]   Normal   empty
+[    0.000000] Movable zone start for each node
+[    0.000000] Early memory node ranges
+[    0.000000]   node   0: [mem 0x0000000080000000-0x000000008005ffff]
+[    0.000000]   node   0: [mem 0x0000000080060000-0x000000009fffffff]
+[    0.000000] Initmem setup node 0 [mem 0x0000000080000000-0x000000009fffffff]
+[    0.000000] Falling back to deprecated "riscv,isa"
+[    0.000000] riscv: base ISA extensions acdfim
+[    0.000000] riscv: ELF capabilities acdfim
+[    0.000000] Kernel command line: console=ttyS0,115200n8 root=/dev/vda rw init=/lib/systemd/systemd
+[    0.000000] Dentry cache hash table entries: 65536 (order: 7, 524288 bytes, linear)
+[    0.000000] Inode-cache hash table entries: 32768 (order: 6, 262144 bytes, linear)
+[    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: 129024
+[    0.000000] mem auto-init: stack:off, heap alloc:off, heap free:off
+[    0.000000] Memory: 484128K/524288K available (3834K kernel code, 4778K rwdata, 2048K rodata, 2110K init, 342K bss, 40160K reserved, 0K cma-reserved)
+[    0.000000] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
+[    0.000000] NR_IRQS: 64, nr_irqs: 64, preallocated irqs: 0
+[    0.000000] riscv-intc: 64 local interrupts mapped
+[    0.000000] plic: interrupt-controller@c000000: mapped 32 interrupts with 1 handlers for 2 contexts.
+[    0.000000] clocksource: riscv_clocksource: mask: 0xffffffffffffffff max_cycles: 0x24e6a1710, max_idle_ns: 440795202120 ns
+[    0.000025] sched_clock: 64 bits at 10MHz, resolution 100ns, wraps every 4398046511100ns
+[    0.006755] Calibrating delay loop (skipped), value calculated using timer frequency.. 20.00 BogoMIPS (lpj=40000)
+[    0.007465] pid_max: default: 32768 minimum: 301
+[    0.011026] LSM: initializing lsm=capability,integrity
+[    0.016807] Mount-cache hash table entries: 1024 (order: 1, 8192 bytes, linear)
+[    0.017572] Mountpoint-cache hash table entries: 1024 (order: 1, 8192 bytes, linear)
+[    0.072972] riscv: ELF compat mode unsupported
+[    0.073815] ASID allocator using 16 bits (65536 entries)
+[    0.080018] EFI services will not be available.
+[    0.092261] devtmpfs: initialized
+[    0.167056] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 7645041785100000 ns
+[    0.167815] futex hash table entries: 256 (order: 1, 12288 bytes, linear)
+[    0.186656] NET: Registered PF_NETLINK/PF_ROUTE protocol family
+[    0.196037] DMA: preallocated 128 KiB GFP_KERNEL pool for atomic allocations
+[    0.197318] DMA: preallocated 128 KiB GFP_KERNEL|GFP_DMA32 pool for atomic allocations
+[    0.405680] clocksource: Switched to clocksource riscv_clocksource
+[    0.486698] NET: Registered PF_INET protocol family
+[    0.492754] IP idents hash table entries: 8192 (order: 4, 65536 bytes, linear)
+[    0.647905] tcp_listen_portaddr_hash hash table entries: 256 (order: 1, 8192 bytes, linear)
+[    0.649331] Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+[    0.650565] TCP established hash table entries: 4096 (order: 3, 32768 bytes, linear)
+[    0.656244] TCP bind hash table entries: 4096 (order: 6, 262144 bytes, linear)
+[    0.679300] TCP: Hash tables configured (established 4096 bind 4096)
+[    0.682200] UDP hash table entries: 256 (order: 2, 24576 bytes, linear)
+[    0.684654] UDP-Lite hash table entries: 256 (order: 2, 24576 bytes, linear)
+[    0.691702] NET: Registered PF_UNIX/PF_LOCAL protocol family
+[    0.735809] workingset: timestamp_bits=46 max_order=17 bucket_order=0
+[    0.761169] io scheduler mq-deadline registered
+[    3.575073] Serial: 8250/16550 driver, 4 ports, IRQ sharing disabled
+[    3.687225] printk: console [ttyS0] disabled
+[    3.704374] 10000000.serial: ttyS0 at MMIO 0x10000000 (irq = 2, base_baud = 115200) is a 16550A
+[    3.705351] printk: console [ttyS0] enabled
+[    4.050162] loop: module loaded
+[    4.052610] virtio_blk virtio0: 1/0/0 default/read/poll queues
+[    4.062123] virtio_blk virtio0: [vda] 4194304 512-byte logical blocks (2.15 GB/2.00 GiB)
+[    4.127709] goldfish_rtc 10003000.rtc: registered as rtc0
+[    4.129556] goldfish_rtc 10003000.rtc: setting system clock to 2026-06-07T02:37:05 UTC (1780799825)
+[    4.155584] NET: Registered PF_PACKET protocol family
+[    4.157238] Key type dns_resolver registered
+[    4.958024] clk: Disabling unused clocks
+[    5.090940] EXT4-fs (vda): mounted filesystem 663821c8-d4f8-4cad-8ef9-e8a8751d9301 r/w with ordered data mode. Quota mode: disabled.
+[    5.093253] VFS: Mounted root (ext4 filesystem) on device 254:0.
+[    5.102227] devtmpfs: mounted
+[    5.159655] Freeing unused kernel image (initmem) memory: 2108K
+[    5.161392] Run /lib/systemd/systemd as init process
+[    7.403625] systemd[1]: Failed to look up module alias 'autofs4': Function not implemented
+[    7.713176] systemd[1]: systemd 249.11-0ubuntu3.20 running in system mode (+PAM +AUDIT +SELINUX +APPARMOR +IMA +SMACK +SECCOMP +GCRYPT +GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 -IDN +IPTC +KMOD +LIBCRYPTSETUP +LIBFDISK +PCRE2 -PWQUALITY -P11KIT -QRENCODE +BZIP2 +LZ4 +XZ +ZLIB +ZSTD -XKBCOMMON +UTMP +SYSVINIT default-hierarchy=unified)
+[    7.724011] systemd[1]: Detected architecture riscv64.
+
+Welcome to [1mUbuntu 22.04.5 LTS[0m!
+
+[    7.776967] systemd[1]: Hostname set to <ysyx-ubuntu2204>.
+[   40.683406] systemd[1]: Queued start job for default target Graphical Interface.
+[   40.898552] systemd[1]: Created slice Slice /system/modprobe.
+[[0;32m  OK  [0m] Created slice [0;1;39mSlice /system/modprobe[0m.
+[   41.014034] systemd[1]: Created slice Slice /system/serial-getty.
+[[0;32m  OK  [0m] Created slice [0;1;39mSlice /system/serial-getty[0m.
+[   41.098019] systemd[1]: Created slice User and Session Slice.
+[[0;32m  OK  [0m] Created slice [0;1;39mUser and Session Slice[0m.
+[   41.131224] systemd[1]: Started Dispatch Password Requests to Console Directory Watch.
+[[0;32m  OK  [0m] Started [0;1;39mDispatch Password …ts to Console Directory Watch[0m.
+[   41.165438] systemd[1]: Started Forward Password Requests to Wall Directory Watch.
+[[0;32m  OK  [0m] Started [0;1;39mForward Password R…uests to Wall Directory Watch[0m.
+[   41.199545] systemd[1]: Condition check resulted in Arbitrary Executable File Formats File System Automount Point being skipped.
+[   41.209994] systemd[1]: Reached target Local Encrypted Volumes.
+[[0;32m  OK  [0m] Reached target [0;1;39mLocal Encrypted Volumes[0m.
+[   41.241453] systemd[1]: Reached target Path Units.
+[[0;32m  OK  [0m] Reached target [0;1;39mPath Units[0m.
+[   41.266280] systemd[1]: Reached target Slice Units.
+[[0;32m  OK  [0m] Reached target [0;1;39mSlice Units[0m.
+[   41.292318] systemd[1]: Reached target Swaps.
+[[0;32m  OK  [0m] Reached target [0;1;39mSwaps[0m.
+[   41.315325] systemd[1]: Reached target Local Verity Protected Volumes.
+[[0;32m  OK  [0m] Reached target [0;1;39mLocal Verity Protected Volumes[0m.
+[   41.358488] systemd[1]: Listening on fsck to fsckd communication Socket.
+[[0;32m  OK  [0m] Listening on [0;1;39mfsck to fsckd communication Socket[0m.
+[   41.392642] systemd[1]: Listening on initctl Compatibility Named Pipe.
+[[0;32m  OK  [0m] Listening on [0;1;39minitctl Compatibility Named Pipe[0m.
+[   41.450282] systemd[1]: Condition check resulted in Journal Audit Socket being skipped.
+[   41.480150] systemd[1]: Listening on Journal Socket (/dev/log).
+[[0;32m  OK  [0m] Listening on [0;1;39mJournal Socket (/dev/log)[0m.
+[   41.525143] systemd[1]: Listening on Journal Socket.
+[[0;32m  OK  [0m] Listening on [0;1;39mJournal Socket[0m.
+[   41.580043] systemd[1]: Listening on udev Control Socket.
+[[0;32m  OK  [0m] Listening on [0;1;39mudev Control Socket[0m.
+[   41.620367] systemd[1]: Listening on udev Kernel Socket.
+[[0;32m  OK  [0m] Listening on [0;1;39mudev Kernel Socket[0m.
+[   41.643070] systemd[1]: Reached target Socket Units.
+[[0;32m  OK  [0m] Reached target [0;1;39mSocket Units[0m.
+[   41.696908] systemd[1]: Condition check resulted in Huge Pages File System being skipped.
+[   41.896687] systemd[1]: Mounting POSIX Message Queue File System...
+         Mounting [0;1;39mPOSIX Message Queue File System[0m...
+[   42.008856] systemd[1]: Condition check resulted in Kernel Debug File System being skipped.
+[   42.082634] systemd[1]: Condition check resulted in Kernel Trace File System being skipped.
+[   42.177162] systemd[1]: systemd-journald.service: unit configures an IP firewall, but the local system does not support BPF/cgroup firewalling.
+[   42.179154] systemd[1]: (This warning is only shown for the first unit using IP firewalling.)
+[   42.525454] systemd[1]: Starting Journal Service...
+         Starting [0;1;39mJournal Service[0m...
+[   42.660819] systemd[1]: Condition check resulted in Create List of Static Device Nodes being skipped.
+[   43.453111] systemd[1]: Starting Load Kernel Module configfs...
+         Starting [0;1;39mLoad Kernel Module configfs[0m...
+[   44.272447] systemd[1]: Starting Load Kernel Module drm...
+         Starting [0;1;39mLoad Kernel Module drm[0m...
+[   45.306055] systemd[1]: Starting Load Kernel Module fuse...
+         Starting [0;1;39mLoad Kernel Module fuse[0m...
+[   45.454843] systemd[1]: Condition check resulted in File System Check on Root Device being skipped.
+[   46.447512] systemd[1]: Starting Load Kernel Modules...
+         Starting [0;1;39mLoad Kernel Modules[0m...
+[   47.310312] systemd[1]: Starting Remount Root and Kernel File Systems...
+         Starting [0;1;39mRemount Root and Kernel File Systems[0m...
+[   48.269231] systemd[1]: Starting Coldplug All udev Devices...
+         Starting [0;1;39mColdplug All udev Devices[0m...
+[   49.823137] systemd[1]: Mounted POSIX Message Queue File System.
+[[0;32m  OK  [0m] Mounted [0;1;39mPOSIX Message Queue File System[0m.
+[   50.254529] systemd[1]: modprobe@configfs.service: Deactivated successfully.
+[   50.635826] systemd[1]: Finished Load Kernel Module configfs.
+[[0;32m  OK  [0m] Finished [0;1;39mLoad Kernel Module configfs[0m.
+[   51.043548] systemd[1]: modprobe@drm.service: Deactivated successfully.
+[   51.456980] systemd[1]: Finished Load Kernel Module drm.
+[[0;32m  OK  [0m] Finished [0;1;39mLoad Kernel Module drm[0m.
+[   52.071012] systemd[1]: modprobe@fuse.service: Deactivated successfully.
+[   52.723727] systemd[1]: Finished Load Kernel Module fuse.
+[[0;32m  OK  [0m] Finished [0;1;39mLoad Kernel Module fuse[0m.
+[   53.819603] systemd[1]: Finished Load Kernel Modules.
+[[0;32m  OK  [0m] Finished [0;1;39mLoad Kernel Modules[0m.
+[   54.342257] EXT4-fs (vda): re-mounted 663821c8-d4f8-4cad-8ef9-e8a8751d9301 r/w. Quota mode: disabled.
+[   57.634988] systemd[1]: Finished Remount Root and Kernel File Systems.
+[[0;32m  OK  [0m] Finished [0;1;39mRemount Root and Kernel File Systems[0m.
+[   57.850130] systemd[1]: Condition check resulted in FUSE Control File System being skipped.
+[   57.960300] systemd[1]: Condition check resulted in Kernel Configuration File System being skipped.
+[   58.723659] systemd[1]: Starting Load/Save Random Seed...
+         Starting [0;1;39mLoad/Save Random Seed[0m...
+[   59.392628] systemd[1]: Starting Apply Kernel Variables...
+         Starting [0;1;39mApply Kernel Variables[0m...
+[   60.367829] systemd[1]: Starting Create System Users...
+         Starting [0;1;39mCreate System Users[0m...
+[   64.642968] systemd[1]: Finished Load/Save Random Seed.
+[[0;32m  OK  [0m] Finished [0;1;39mLoad/Save Random Seed[0m.
+[   64.832972] systemd[1]: Condition check resulted in First Boot Complete being skipped.
+[[0;32m  OK  [0m] Finished [0;1;39mApply Kernel Variables[0m.
+[[0;32m  OK  [0m] Finished [0;1;39mCreate System Users[0m.
+         Starting [0;1;39mCreate Static Device Nodes in /dev[0m...
+[[0;32m  OK  [0m] Started [0;1;39mJournal Service[0m.
+         Starting [0;1;39mFlush Journal to Persistent Storage[0m...
+[[0m[0;31m*     [0m] (1 of 4) A start job is running for…ice Nodes in /dev (29s / no limit)
+M[K[[0;1;31m*[0m[0;31m*    [0m] (1 of 4) A start job is running for…ice Nodes in /dev (30s / no limit)
+M[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (1 of 4) A start job is running for…ice Nodes in /dev (30s / no limit)
+M[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] (2 of 4) A start job is running for…ersistent Storage (31s / 1min 58s)
+M[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] (2 of 4) A start job is running for…ersistent Storage (31s / 1min 58s)
+M[K[[0;32m  OK  [0m] Finished [0;1;39mFlush Journal to Persistent Storage[0m.
+[K[[0;32m  OK  [0m] Finished [0;1;39mCreate Static Device Nodes in /dev[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mPreparation for Local File Systems[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mLocal File Systems[0m.
+         Starting [0;1;39mCreate Volatile Files and Directories[0m...
+         Starting [0;1;39mRule-based Manage…for Device Events and Files[0m...
+[   [0;31m*[0;1;31m*[0m[0;31m*[0m] (2 of 4) A start job is running for…s and Directories (35s / no limit)
+M[K[    [0;31m*[0;1;31m*[0m] (3 of 4) A start job is running for… All udev Devices (35s / no limit)
+M[K[     [0;31m*[0m] (3 of 4) A start job is running for… All udev Devices (36s / no limit)
+M[K[    [0;31m*[0;1;31m*[0m] (3 of 4) A start job is running for… All udev Devices (36s / no limit)
+M[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] (4 of 4) A start job is running for /dev/ttyS0 (37s / 1min 30s)
+M[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] (4 of 4) A start job is running for /dev/ttyS0 (37s / 1min 30s)
+M[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] (4 of 4) A start job is running for /dev/ttyS0 (38s / 1min 30s)
+M[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (1 of 4) A start job is running for…e Events and Files (38s / 2min 4s)
+M[K[[0;1;31m*[0m[0;31m*    [0m] (1 of 4) A start job is running for…e Events and Files (39s / 2min 4s)
+M[K[[0m[0;31m*     [0m] (1 of 4) A start job is running for…e Events and Files (39s / 2min 4s)
+M[K[[0;1;31m*[0m[0;31m*    [0m] (2 of 4) A start job is running for…s and Directories (40s / no limit)
+M[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (2 of 4) A start job is running for…s and Directories (40s / no limit)
+M[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] (2 of 4) A start job is running for…s and Directories (41s / no limit)
+M[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] (3 of 4) A start job is running for… All udev Devices (41s / no limit)
+M[K[[0;32m  OK  [0m] Finished [0;1;39mCreate Volatile Files and Directories[0m.
+[K         Starting [0;1;39mRecord System Boot/Shutdown in UTMP[0m...
+[   [0;31m*[0;1;31m*[0m[0;31m*[0m] (3 of 4) A start job is running for… All udev Devices (44s / no limit)
+M[K[    [0;31m*[0;1;31m*[0m] (3 of 4) A start job is running for… All udev Devices (45s / no limit)
+M[K[     [0;31m*[0m] (4 of 4) A start job is running for /dev/ttyS0 (49s / 1min 30s)
+M[K[[0;32m  OK  [0m] Finished [0;1;39mRecord System Boot/Shutdown in UTMP[0m.
+[K[    [0;31m*[0;1;31m*[0m] (2 of 3) A start job is running for… All udev Devices (53s / no limit)
+M[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] (2 of 3) A start job is running for… All udev Devices (53s / no limit)
+M[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] (3 of 3) A start job is running for /dev/ttyS0 (54s / 1min 30s)
+M[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] (3 of 3) A start job is running for /dev/ttyS0 (54s / 1min 30s)
+M[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (3 of 3) A start job is running for /dev/ttyS0 (55s / 1min 30s)
+M[K[[0;1;31m*[0m[0;31m*    [0m] (1 of 3) A start job is running for…e Events and Files (55s / 2min 4s)
+M[K[[0m[0;31m*     [0m] (1 of 3) A start job is running for…e Events and Files (56s / 2min 4s)
+M[K[[0;32m  OK  [0m] Started [0;1;39mRule-based Manager for Device Events and Files[0m.
+[K[[0;1;31m*[0m[0;31m*    [0m] (2 of 2) A start job is running for /dev/ttyS0 (58s / 1min 30s)
+M[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (1 of 2) A start job is running for… All udev Devices (59s / no limit)
+M[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] (1 of 2) A start job is running for… All udev Devices (59s / no limit)
+M[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] (1 of 2) A start job is running for…All udev Devices (1min / no limit)
+M[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] (2 of 2) A start job is running for /dev/ttyS0 (1min / 1min 30s)
+M[K[    [0;31m*[0;1;31m*[0m] (2 of 2) A start job is running for /dev/ttyS0 (1min 1s / 1min 30s)
+M[K[     [0;31m*[0m] (2 of 2) A start job is running for /dev/ttyS0 (1min 1s / 1min 30s)
+M[K[    [0;31m*[0;1;31m*[0m] (1 of 2) A start job is running for… udev Devices (1min 2s / no limit)
+M[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] (1 of 2) A start job is running for… udev Devices (1min 2s / no limit)
+M[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] (1 of 2) A start job is running for… udev Devices (1min 3s / no limit)
+M[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] (2 of 2) A start job is running for /dev/ttyS0 (1min 3s / 1min 30s)
+M[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (2 of 2) A start job is running for /dev/ttyS0 (1min 4s / 1min 30s)
+M[K[[0;1;31m*[0m[0;31m*    [0m] (2 of 2) A start job is running for /dev/ttyS0 (1min 4s / 1min 30s)
+M[K[[0m[0;31m*     [0m] (1 of 2) A start job is running for… udev Devices (1min 5s / no limit)
+M[K[[0;1;31m*[0m[0;31m*    [0m] (1 of 2) A start job is running for… udev Devices (1min 5s / no limit)
+M[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (1 of 2) A start job is running for… udev Devices (1min 6s / no limit)
+M[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] (2 of 2) A start job is running for /dev/ttyS0 (1min 6s / 1min 30s)
+M[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] (2 of 2) A start job is running for /dev/ttyS0 (1min 7s / 1min 30s)
+M[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] (2 of 2) A start job is running for /dev/ttyS0 (1min 7s / 1min 30s)
+M[K[    [0;31m*[0;1;31m*[0m] (1 of 2) A start job is running for…udev Devices (1min 12s / no limit)
+M[K[     [0;31m*[0m] (1 of 2) A start job is running for…udev Devices (1min 21s / no limit)
+M[K[[0;32m  OK  [0m] Found device [0;1;39m/dev/ttyS0[0m.
+[K[[0;32m  OK  [0m] Finished [0;1;39mColdplug All udev Devices[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mSystem Initialization[0m.
+[[0;32m  OK  [0m] Started [0;1;39mDaily apt download activities[0m.
+[[0;32m  OK  [0m] Started [0;1;39mDaily apt upgrade and clean activities[0m.
+[[0;32m  OK  [0m] Started [0;1;39mDaily dpkg database backup timer[0m.
+[[0;32m  OK  [0m] Started [0;1;39mPeriodic ext4 Onli…ata Check for All Filesystems[0m.
+[[0;32m  OK  [0m] Started [0;1;39mDiscard unused blocks once a week[0m.
+[[0;32m  OK  [0m] Started [0;1;39mMessage of the Day[0m.
+[[0;32m  OK  [0m] Started [0;1;39mDaily Cleanup of Temporary Directories[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mBasic System[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mTimer Units[0m.
+[[0;32m  OK  [0m] Listening on [0;1;39mD-Bus System Message Bus Socket[0m.
+[[0;32m  OK  [0m] Started [0;1;39mD-Bus System Message Bus[0m.
+         Starting [0;1;39mRemove Stale Onli…t4 Metadata Check Snapshots[0m...
+         Starting [0;1;39mUser Login Management[0m...
+         Starting [0;1;39mPermit User Sessions[0m...
+[[0;32m  OK  [0m] Finished [0;1;39mPermit User Sessions[0m.
+[[0;32m  OK  [0m] Started [0;1;39mSerial Getty on ttyS0[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mLogin Prompts[0m.
+
+Ubuntu 22.04.5 LTS ysyx-ubuntu2204 ttyS0
+
+ysyx-ubuntu2204 login: root (automatic login)
+
+Welcome to Ubuntu 22.04.5 LTS (GNU/Linux 6.6.0 riscv64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+This system has been minimized by removing packages and content that are
+not required on a system that users do not log into.
+
+To restore this content, you can run the 'unminimize' command.
+Last login: Sat Jun  6 16:36:06 UTC 2026 on ttyS0
+root@ysyx-ubuntu2204:~# NEMU_GUEST_SOAK_SECONDS=0
+root@ysyx-ubuntu2204:~# NEMU_GUEST_FS_STRESS_MIB=1
+root@ysyx-ubuntu2204:~# NEMU_GUEST_FS_TREE_FILES=8
+root@ysyx-ubuntu2204:~# NEMU_GUEST_PROCESS_LOOPS=4
+root@ysyx-ubuntu2204:~# NEMU_GUEST_UART_RX_STRESS_LINES=64
+root@ysyx-ubuntu2204:~# NEMU_GUEST_BLOCK_PARALLEL_JOBS=1
+root@ysyx-ubuntu2204:~# NEMU_GUEST_BLOCK_JOB_MIB=1
+root@ysyx-ubuntu2204:~# NEMU_GUEST_SYSTEMD_RELOAD_TIMEOUT=180
+root@ysyx-ubuntu2204:~# NEMU_GUEST_ROOTFS_BYTES=2147483648
+root@ysyx-ubuntu2204:~# NEMU_GUEST_SYSCALL_PROBE=1
+root@ysyx-ubuntu2204:~# NEMU_GUEST_POWEROFF=1
+root@ysyx-ubuntu2204:~# NEMU_GUEST_VDA_HASH_WINDOW_BYTES=65536
+root@ysyx-ubuntu2204:~# <SH_EXPECT_FILE=/tmp/nemu-vda-direct-read-sha256.tsv
+x_strroot@ysyx-ubuntu2204:~# <_VDA_HASH_EXPECT_FILE" <<'__NEMU_VDA_HASH_EXPECT__'
+> 2147418112:de2f256064a0af797747c2b97505dc0b9f3df0de4f489eac731c23ae9ca9cc31
+> __NEMU_VDA_HASH_EXPECT__
+root@ysyx-ubuntu2204:~# echo __NEMU_SYSTEMD_CHECK_BEGIN__
+t_r__NEMU_SYSTEMD_CHECK_BEGIN__
+root@ysyx-ubuntu2204:~# check_fail=0
+root@ysyx-ubuntu2204:~# pass() { echo "__NEMU_CHECK_PASS__:$1"; }
+_root@ysyx-ubuntu2204:~# <() { echo "__NEMU_CHECK_FAIL__:$1"; check_fail=1; }
++ 1root@ysyx-ubuntu2204:~# uart_rx_stress_count=0
+T_Rroot@ysyx-ubuntu2204:~# uart_rx_stress_expect=64
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0000"
+__NEMU_UART_RX_STRESS_LINE__:0000
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0001"
+__NEMU_UART_RX_STRESS_LINE__:0001
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0002"
+__NEMU_UART_RX_STRESS_LINE__:0002
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0003"
+uar__NEMU_UART_RX_STRESS_LINE__:0003
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0004"
+r__NEMU_UART_RX_STRESS_LINE__:0004
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0005"
+__NEMU_UART_RX_STRESS_LINE__:0005
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0006"
+__NEMU_UART_RX_STRESS_LINE__:0006
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0007"
+__NEMU_UART_RX_STRESS_LINE__:0007
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0008"
+__NEMU_UART_RX_STRESS_LINE__:0008
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0009"
+__NEMU_UART_RX_STRESS_LINE__:0009
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0010"
+__NEMU_UART_RX_STRESS_LINE__:0010
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0011"
+ar__NEMU_UART_RX_STRESS_LINE__:0011
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0012"
+__NEMU_UART_RX_STRESS_LINE__:0012
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0013"
+__NEMU_UART_RX_STRESS_LINE__:0013
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0014"
+__NEMU_UART_RX_STRESS_LINE__:0014
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0015"
+__NEMU_UART_RX_STRESS_LINE__:0015
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0016"
+ar__NEMU_UART_RX_STRESS_LINE__:0016
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0017"
+__NEMU_UART_RX_STRESS_LINE__:0017
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0018"
+__NEMU_UART_RX_STRESS_LINE__:0018
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0019"
+__NEMU_UART_RX_STRESS_LINE__:0019
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0020"
+__NEMU_UART_RX_STRESS_LINE__:0020
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0021"
+__NEMU_UART_RX_STRESS_LINE__:0021
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0022"
+__NEMU_UART_RX_STRESS_LINE__:0022
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0023"
+__NEMU_UART_RX_STRESS_LINE__:0023
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0024"
+__NEMU_UART_RX_STRESS_LINE__:0024
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0025"
+__NEMU_UART_RX_STRESS_LINE__:0025
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0026"
+__NEMU_UART_RX_STRESS_LINE__:0026
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0027"
+__NEMU_UART_RX_STRESS_LINE__:0027
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0028"
+__NEMU_UART_RX_STRESS_LINE__:0028
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0029"
+__NEMU_UART_RX_STRESS_LINE__:0029
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0030"
+__NEMU_UART_RX_STRESS_LINE__:0030
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0031"
+__NEMU_UART_RX_STRESS_LINE__:0031
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0032"
+__NEMU_UART_RX_STRESS_LINE__:0032
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0033"
+__NEMU_UART_RX_STRESS_LINE__:0033
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0034"
+__NEMU_UART_RX_STRESS_LINE__:0034
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0035"
+__NEMU_UART_RX_STRESS_LINE__:0035
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0036"
+__NEMU_UART_RX_STRESS_LINE__:0036
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0037"
+__NEMU_UART_RX_STRESS_LINE__:0037
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0038"
+__NEMU_UART_RX_STRESS_LINE__:0038
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0039"
+__NEMU_UART_RX_STRESS_LINE__:0039
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0040"
+__NEMU_UART_RX_STRESS_LINE__:0040
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0041"
+__NEMU_UART_RX_STRESS_LINE__:0041
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0042"
+__NEMU_UART_RX_STRESS_LINE__:0042
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0043"
+__NEMU_UART_RX_STRESS_LINE__:0043
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0044"
+__NEMU_UART_RX_STRESS_LINE__:0044
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0045"
+__NEMU_UART_RX_STRESS_LINE__:0045
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0046"
+__NEMU_UART_RX_STRESS_LINE__:0046
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0047"
+__NEMU_UART_RX_STRESS_LINE__:0047
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0048"
+__NEMU_UART_RX_STRESS_LINE__:0048
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0049"
+__NEMU_UART_RX_STRESS_LINE__:0049
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0050"
+__NEMU_UART_RX_STRESS_LINE__:0050
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0051"
+__NEMU_UART_RX_STRESS_LINE__:0051
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0052"
+__NEMU_UART_RX_STRESS_LINE__:0052
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0053"
+__NEMU_UART_RX_STRESS_LINE__:0053
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0054"
+__NEMU_UART_RX_STRESS_LINE__:0054
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0055"
+__NEMU_UART_RX_STRESS_LINE__:0055
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0056"
+__NEMU_UART_RX_STRESS_LINE__:0056
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0057"
+__NEMU_UART_RX_STRESS_LINE__:0057
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0058"
+__NEMU_UART_RX_STRESS_LINE__:0058
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0059"
+__NEMU_UART_RX_STRESS_LINE__:0059
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0060"
+__NEMU_UART_RX_STRESS_LINE__:0060
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0061"
+__NEMU_UART_RX_STRESS_LINE__:0061
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0062"
+__NEMU_UART_RX_STRESS_LINE__:0062
+root@ysyx-ubuntu2204:~# <unt + 1)); echo "__NEMU_UART_RX_STRESS_LINE__:0063"
+__NEMU_UART_RX_STRESS_LINE__:0063
+root@ysyx-ubuntu2204:~# <UNT__:$uart_rx_stress_count/$uart_rx_stress_expect"
+__NEMU_UART_RX_STRESS_COUNT__:64/64
+root@ysyx-ubuntu2204:~# <uart-rx-command-burst || fail uart-rx-command-burst
+__NEMU_CHECK_PASS__:uart-rx-command-burst
+root@ysyx-ubuntu2204:~# check_dir="/root/nemu-systemd-guest-check.d"
+root@ysyx-ubuntu2204:~# <"$(cut -d. -f1 /proc/uptime 2>/dev/null || echo 0)"
+root@ysyx-ubuntu2204:~# <MU_CHECK_GUEST_UPTIME_BEGIN__:$guest_check_uptime0"
+__NEMU_CHECK_GUEST_UPTIME_BEGIN__:360
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# intr_sum() {
+>   intr_try=0
+>   while [ "$intr_try" -lt 3 ]; do
+> <-9]*\).*/\1/p' /proc/stat 2>/dev/null | head -n 1)"
+>     case "$intr_value" in
+>       ''|*[!0-9]*) intr_value=0 ;;
+>     esac
+>     if [ "$intr_value" -gt 0 ] 2>/dev/null; then
+>       echo "$intr_value"
+>       return
+>     fi
+>     intr_try=$((intr_try + 1))
+>     sleep 1
+>   done
+>   echo "$intr_value"
+> }
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# interrupts_table_sum() {
+>   awk '
+>     NR > 1 {
+>       for (i = 2; i <= NF; i++) {
+>         if ($i ~ /^[0-9]+$/) sum += $i
+>       }
+>     }
+>     END { print sum + 0 }
+>   ' /proc/interrupts 2>/dev/null
+> }
+root@ysyx-ubuntu2204:~# 
+�root@ysyx-ubuntu2204:~# interrupts_match_sum() {
+>   irq_pattern="$1"
+>   awk -v pat="$irq_pattern" '
+>     tolower($0) ~ pat {
+>       for (i = 2; i <= NF; i++) {
+>         if ($i ~ /^[0-9]+$/) sum += $i
+>       }
+>     }
+>     END { print sum + 0 }
+>   ' /proc/interrupts 2>/dev/null
+> }
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# check_mount_fstype() {
+>   mount_target="$1"
+>   expected_fstype="$2"
+> <TYPE --target "$mount_target" 2>/dev/null || true)"
+>   echo "__NEMU_CHECK_MOUNT_FSTYPE__:$mount_target:$actual_fstype"
+>   if [ "$actual_fstype" = "$expected_fstype" ]; then
+>     pass "mount-fstype-$mount_target"
+>   else
+l>     fail "mount-fstype-$mount_target"
+>   fi
+> }
+root@ysyx-ubuntu2204:~# 
+froot@ysyx-ubuntu2204:~# check_systemd_unit_active() {
+>   unit="$1"
+>   marker="$2"
+>   unit_state="$(systemctl is-active "$unit" 2>/dev/null || true)"
+>   echo "__NEMU_CHECK_SYSTEMD_UNIT__:$unit:$unit_state"
+>   if [ "$unit_state" = "active" ]; then
+>     pass "$marker"
+>   else
+>     fail "$marker"
+>   fi
+> }
+ root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# virtio_feature_bit() {
+>   feature_bits="$1"
+>   feature_bit="$2"
+>   feature_pos=$((feature_bit + 1))
+>   printf '%s' "$feature_bits" | cut -c "$feature_pos"
+> }
+root@ysyx-ubuntu2204:~# 
+_root@ysyx-ubuntu2204:~# systemd_daemon_reload_request() {
+>   reload_unit="$1"
+>   reload_goal="$2"
+> 
+> <eply 可能很慢；reload 请求本身用短 D-Bus
+> <看到 unit”的证明交给后续 start/output。
+>   if ! timeout 5s env SYSTEMD_BUS_TIMEOUT=5s systemctl daemon-reload; then
+> <MD_RELOAD_DBUS_TIMEOUT__:$reload_unit:$reload_goal"
+>     kill -HUP 1 || return 1
+>   fi
+ev>   return 0
+> }
+root@ysyx-ubuntu2204:~# 
+ root@ysyx-ubuntu2204:~# systemd_start_runtime_unit_after_reload() {
+>   runtime_unit="$1"
+>   runtime_marker="$2"
+> 
+>   start_limit="$NEMU_GUEST_SYSTEMD_RELOAD_TIMEOUT"
+>   [ "$start_limit" -gt 30 ] 2>/dev/null && start_limit=30
+>   start_i=0
+->   while [ "$start_i" -lt "$start_limit" ]; do
+>     timeout 5s env SYSTEMD_BUS_TIMEOUT=5s \
+>       systemctl start "$runtime_unit" >/dev/null 2>&1 || true
+>     if [ -s "$runtime_marker" ]; then
+> <MD_RUNTIME_START_OBSERVED__:$runtime_unit:$start_i"
+>       return 0
+>     fi
+>     if [ "$start_i" -eq 0 ] || [ $((start_i % 5)) -eq 0 ]; then
+> <STEMD_RUNTIME_START_RETRY__:$runtime_unit:$start_i"
+>     fi
+>     start_i=$((start_i + 1))
+>     sleep 1
+>   done
+> <RUNTIME_START_TIMEOUT__:$runtime_unit:$start_limit"
+>   return 1
+U> }
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# wait_i=0
+root@ysyx-ubuntu2204:~# while [ "$wait_i" -lt 150 ]; do
+>   state="$(systemctl --no-pager --plain is-system-running 2>&1 || true)"
+>   echo "__NEMU_CHECK_SYSTEMD_WAIT__:$wait_i:$state"
+>   [ "$state" = "running" ] && break
+>   sleep 2
+>   wait_i=$((wait_i + 1))
+> done
+__NEMU_CHECK_SYSTEMD_WAIT__:0:starting
+__NEMU_CHECK_SYSTEMD_WAIT__:1:starting
+__NEMU_CHECK_SYSTEMD_WAIT__:2:starting
+__NEMU_CHECK_SYSTEMD_WAIT__:3:starting
+__NEMU_CHECK_SYSTEMD_WAIT__:4:starting
+__NEMU_CHECK_SYSTEMD_WAIT__:5:starting
+__NEMU_CHECK_SYSTEMD_WAIT__:6:running
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# <stemctl --no-pager --plain is-system-running 2>&1)"
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_SYSTEMD_STATE__:$state"
+__NEMU_CHECK_SYSTEMD_STATE__:running
+root@ysyx-ubuntu2204:~# <" ] && pass systemd-running || fail systemd-running
+__NEMU_CHECK_PASS__:systemd-running
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# <its="$(systemctl --no-pager --plain --failed 2>&1)"
+root@ysyx-ubuntu2204:~# echo "$failed_units"
+UNIT LOAD ACTIVE SUB DESCRIPTION
+0 loaded units listed.
+root@ysyx-ubuntu2204:~# <s systemd-failed-units || fail systemd-failed-units
+__NEMU_CHECK_PASS__:systemd-failed-units
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# jobs="$(systemctl --no-pager --plain list-jobs 2>&1)"
+root@ysyx-ubuntu2204:~# echo "$jobs"
+No jobs running.
+root@ysyx-ubuntu2204:~# < running" && pass systemd-jobs || fail systemd-jobs
+__NEMU_CHECK_PASS__:systemd-jobs
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# pid1="$(ps -p 1 -o comm= 2>/dev/null)"
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_PID1__:$pid1"
+__NEMU_CHECK_PID1__:systemd
+root@ysyx-ubuntu2204:~# <ystemd" ] && pass pid1-systemd || fail pid1-systemd
+__NEMU_CHECK_PASS__:pid1-systemd
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# <stemctl --version 2>/dev/null | head -n 1 || true)"
+root@ysyx-ubuntu2204:~# <o "__NEMU_CHECK_SYSTEMD_VERSION__:$systemd_version"
+__NEMU_CHECK_SYSTEMD_VERSION__:systemd 249 (249.11-0ubuntu3.20)
+root@ysyx-ubuntu2204:~# <]+' && pass systemd-version || fail systemd-version
+__NEMU_CHECK_PASS__:systemd-version
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# <-property=SystemState --value 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# <EMU_CHECK_SYSTEMD_SHOW_STATE__:$systemd_show_state"
+__NEMU_CHECK_SYSTEMD_SHOW_STATE__:running
+root@ysyx-ubuntu2204:~# [ "$systemd_show_state" = "running" ] &&
+>   pass systemd-show-system-state || fail systemd-show-system-state
+__NEMU_CHECK_PASS__:systemd-show-system-state
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# <property=NFailedUnits --value 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# <CHECK_SYSTEMD_FAILED_COUNT__:$systemd_failed_count"
+__NEMU_CHECK_SYSTEMD_FAILED_COUNT__:0
+root@ysyx-ubuntu2204:~# [ "$systemd_failed_count" = "0" ] &&
+>   pass systemd-show-failed-count || fail systemd-show-failed-count
+__NEMU_CHECK_PASS__:systemd-show-failed-count
+root@ysyx-ubuntu2204:~# 
+troot@ysyx-ubuntu2204:~# <早期 init 到普通多用户态的主干，能把
+root@ysyx-ubuntu2204:~# <�”推进为“完整 target 链已经跑完”。
+root@ysyx-ubuntu2204:~# for systemd_target in \
+>   local-fs.target \
+>   sysinit.target \
+>   basic.target \
+>   multi-user.target \
+>   getty.target; do
+> < "$systemd_target" "systemd-target-$systemd_target"
+> done
+u__NEMU_CHECK_SYSTEMD_UNIT__:local-fs.target:active
+__NEMU_CHECK_PASS__:systemd-target-local-fs.target
+__NEMU_CHECK_SYSTEMD_UNIT__:sysinit.target:active
+__NEMU_CHECK_PASS__:systemd-target-sysinit.target
+__NEMU_CHECK_SYSTEMD_UNIT__:basic.target:active
+__NEMU_CHECK_PASS__:systemd-target-basic.target
+__NEMU_CHECK_SYSTEMD_UNIT__:multi-user.target:active
+__NEMU_CHECK_PASS__:systemd-target-multi-user.target
+__NEMU_CHECK_SYSTEMD_UNIT__:getty.target:active
+__NEMU_CHECK_PASS__:systemd-target-getty.target
+root@ysyx-ubuntu2204:~# <erial-getty@ttyS0.service serial-getty-ttyS0-active
+__NEMU_CHECK_SYSTEMD_UNIT__:serial-getty@ttyS0.service:active
+__NEMU_CHECK_PASS__:serial-getty-ttyS0-active
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# <emctl --quiet is-active systemd-journald.service &&
+>   pass journald-active || fail journald-active
+__NEMU_CHECK_PASS__:journald-active
+root@ysyx-ubuntu2204:~# if command -v journalctl >/dev/null 2>&1; then
+>   pass journalctl-present
+>   journalctl --no-pager -b -n 5 >/dev/null 2>&1 &&
+>     pass journalctl-boot-read || fail journalctl-boot-read
+> else
+bi>   fail journalctl-present
+> fi
+__NEMU_CHECK_PASS__:journalctl-present
+__NEMU_CHECK_PASS__:journalctl-boot-read
+root@ysyx-ubuntu2204:~# 
+Uroot@ysyx-ubuntu2204:~# <bus.service && pass dbus-active || fail dbus-active
+__NEMU_CHECK_PASS__:dbus-active
+root@ysyx-ubuntu2204:~# if command -v busctl >/dev/null 2>&1; then
+>   pass busctl-present
+>   busctl --system --no-pager list >/dev/null 2>&1 &&
+>     pass busctl-system-list || fail busctl-system-list
+> else
+>   fail busctl-present
+> fi
+__NEMU_CHECK_PASS__:busctl-present
+__NEMU_CHECK_PASS__:busctl-system-list
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# transient_dir="/run/nemu-systemd-transient-check.d"
+root@ysyx-ubuntu2204:~# transient_service_name="nemu-transient-check"
+root@ysyx-ubuntu2204:~# transient_service="$transient_service_name.service"
+root@ysyx-ubuntu2204:~# transient_timer_name="nemu-transient-timer-check"
+root@ysyx-ubuntu2204:~# transient_timer="$transient_timer_name.timer"
+root@ysyx-ubuntu2204:~# <sient_timer_service="$transient_timer_name.service"
+root@ysyx-ubuntu2204:~# rm -rf "$transient_dir"
+root@ysyx-ubuntu2204:~# <r -p "$transient_dir" || fail systemd-transient-dir
+root@ysyx-ubuntu2204:~# <rvice" "$transient_service" >/dev/null 2>&1 || true
+root@ysyx-ubuntu2204:~# <rvice" "$transient_service" >/dev/null 2>&1 || true
+root@ysyx-ubuntu2204:~# if command -v systemd-run >/dev/null 2>&1; then
+>   pass systemd-run-present
+>   if timeout 30s systemd-run --unit="$transient_service_name" --wait \
+>       --property=StandardOutput=journal \
+> <elf/cgroup > '$transient_dir/service.cgroup'"; then
+>     pass systemd-run-transient-service
+>   else
+>     fail systemd-run-transient-service
+>   fi
+m> <out" 2>/dev/null || true)" = "transient-ok" ]; then
+>     pass systemd-transient-service-output
+>   else
+>     fail systemd-transient-service-output
+>   fi
+t> < --value "$transient_service" 2>/dev/null || true)"
+>   echo "__NEMU_CHECK_SYSTEMD_TRANSIENT_RESULT__:$transient_result"
+>   [ "$transient_result" = "success" ] &&
+> <ice-result || fail systemd-transient-service-result
+> <" "$transient_dir/service.cgroup" 2>/dev/null; then
+>     pass systemd-transient-service-cgroup
+>   else
+>     cat "$transient_dir/service.cgroup" 2>/dev/null || true
+>     fail systemd-transient-service-cgroup
+>   fi
+>   journal_i=0
+>   journal_ok=0
+>   while [ "$journal_i" -lt 10 ]; do
+>     if journalctl --no-pager -u "$transient_service" -n 50 2>/dev/null |
+>        grep -q "__NEMU_TRANSIENT_SERVICE_JOURNAL__"; then
+>       journal_ok=1
+ >       break
+>     fi
+>     journal_i=$((journal_i + 1))
+>     sleep 1
+>   done
+>   [ "$journal_ok" = "1" ] &&
+> <e-journal || fail systemd-transient-service-journal
+> 
+>   rm -f "$transient_dir/timer.out"
+> <run --unit="$transient_timer_name" --on-active=1s \
+>       --timer-property=AccuracySec=100ms \
+>       /bin/sh -c "printf timer-ok > '$transient_dir/timer.out'"; then
+>     pass systemd-run-transient-timer
+>   else
+MU>     fail systemd-run-transient-timer
+>   fi
+>   timer_i=0
+>   while [ "$timer_i" -lt 30 ] && [ ! -s "$transient_dir/timer.out" ]; do
+>     sleep 1
+>     timer_i=$((timer_i + 1))
+>   done
+> <mer.out" 2>/dev/null || true)" = "timer-ok" ]; then
+>     pass systemd-transient-timer-fired
+>   else
+fs> <sient_timer_service" --no-pager 2>/dev/null || true
+>     fail systemd-transient-timer-fired
+>   fi
+> else
+>   fail systemd-run-present
+> fi
+__NEMU_CHECK_PASS__:systemd-run-present
+Running as unit: nemu-transient-check.service
+Finished with result: success
+Main processes terminated with: code=exited/status=0
+Service runtime: 1.463s
+CPU time consumed: 386ms
+__NEMU_CHECK_PASS__:systemd-run-transient-service
+__NEMU_CHECK_PASS__:systemd-transient-service-output
+__NEMU_CHECK_SYSTEMD_TRANSIENT_RESULT__:success
+__NEMU_CHECK_PASS__:systemd-transient-service-result
+__NEMU_CHECK_PASS__:systemd-transient-service-cgroup
+__NEMU_CHECK_PASS__:systemd-transient-service-journal
+Running timer as unit: nemu-transient-timer-check.timer
+Will run service as unit: nemu-transient-timer-check.service
+__NEMU_CHECK_PASS__:systemd-run-transient-timer
+__NEMU_CHECK_PASS__:systemd-transient-timer-fired
+root@ysyx-ubuntu2204:~# < "$transient_timer_service" >/dev/null 2>&1 || true
+root@ysyx-ubuntu2204:~# <rvice" "$transient_service" >/dev/null 2>&1 || true
+root@ysyx-ubuntu2204:~# rm -rf "$transient_dir"
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# runtime_unit_name="nemu-runtime-unit-check.service"
+root@ysyx-ubuntu2204:~# <e_unit_dir="/run/nemu-systemd-runtime-unit-check.d"
+root@ysyx-ubuntu2204:~# <_unit_path="/run/systemd/system/$runtime_unit_name"
+root@ysyx-ubuntu2204:~# rm -rf "$runtime_unit_dir"
+root@ysyx-ubuntu2204:~# <$runtime_unit_dir" || fail systemd-runtime-unit-dir
+root@ysyx-ubuntu2204:~# <l stop "$runtime_unit_name" >/dev/null 2>&1 || true
+root@ysyx-ubuntu2204:~# <failed "$runtime_unit_name" >/dev/null 2>&1 || true
+root@ysyx-ubuntu2204:~# rm -f "$runtime_unit_path"
+root@ysyx-ubuntu2204:~# cat > "$runtime_unit_path" <<UNIT
+> [Unit]
+> Description=NEMU runtime unit lifecycle check
+> After=basic.target
+> 
+> [Service]
+> Type=oneshot
+> RemainAfterExit=yes
+> StandardOutput=journal
+> StandardError=journal
+> <c/self/cgroup > "$runtime_unit_dir/runtime.cgroup"'
+> UNIT
+earoot@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# <emon_reload_request "$runtime_unit_name" present &&
+>    systemd_start_runtime_unit_after_reload "$runtime_unit_name" \
+>      "$runtime_unit_dir/runtime.out"; then
+>   pass systemd-runtime-daemon-reload
+>   pass systemd-runtime-unit-start
+> else
+>   systemctl status "$runtime_unit_name" --no-pager 2>/dev/null || true
+>   fail systemd-runtime-daemon-reload
+>   fail systemd-runtime-unit-start
+> fi
+__NEMU_CHECK_SYSTEMD_RELOAD_DBUS_TIMEOUT__:nemu-runtime-unit-check.service:present
+__NEMU_CHECK_SYSTEMD_RUNTIME_START_RETRY__:nemu-runtime-unit-check.service:0
+__NEMU_CHECK_SYSTEMD_RUNTIME_START_RETRY__:nemu-runtime-unit-check.service:5
+__NEMU_CHECK_SYSTEMD_RUNTIME_START_OBSERVED__:nemu-runtime-unit-check.service:9
+__NEMU_CHECK_PASS__:systemd-runtime-daemon-reload
+__NEMU_CHECK_PASS__:systemd-runtime-unit-start
+root@ysyx-ubuntu2204:~# <e.out" 2>/dev/null || true)" = "runtime-ok" ]; then
+>   pass systemd-runtime-unit-output
+> else
+>   fail systemd-runtime-unit-output
+> fi
+__NEMU_CHECK_PASS__:systemd-runtime-unit-output
+root@ysyx-ubuntu2204:~# < --value "$runtime_unit_name" 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# < --value "$runtime_unit_name" 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# <EMU_CHECK_SYSTEMD_RUNTIME_ACTIVE__:$runtime_active"
+__NEMU_CHECK_SYSTEMD_RUNTIME_ACTIVE__:active
+root@ysyx-ubuntu2204:~# <EMU_CHECK_SYSTEMD_RUNTIME_RESULT__:$runtime_result"
+__NEMU_CHECK_SYSTEMD_RUNTIME_RESULT__:success
+root@ysyx-ubuntu2204:~# [ "$runtime_active" = "active" ] &&
+>   pass systemd-runtime-unit-active || fail systemd-runtime-unit-active
+__NEMU_CHECK_PASS__:systemd-runtime-unit-active
+root@ysyx-ubuntu2204:~# [ "$runtime_result" = "success" ] &&
+>   pass systemd-runtime-unit-result || fail systemd-runtime-unit-result
+__NEMU_CHECK_PASS__:systemd-runtime-unit-result
+root@ysyx-ubuntu2204:~# <lain status "$runtime_unit_name" >/dev/null 2>&1 &&
+>   pass systemd-runtime-unit-status || fail systemd-runtime-unit-status
+__NEMU_CHECK_PASS__:systemd-runtime-unit-status
+root@ysyx-ubuntu2204:~# <$runtime_unit_dir/runtime.cgroup" 2>/dev/null; then
+>   pass systemd-runtime-unit-cgroup
+> else
+>   cat "$runtime_unit_dir/runtime.cgroup" 2>/dev/null || true
+>   fail systemd-runtime-unit-cgroup
+> fi
+o __NEMU_CHECK_PASS__:systemd-runtime-unit-cgroup
+root@ysyx-ubuntu2204:~# runtime_journal_i=0
+root@ysyx-ubuntu2204:~# runtime_journal_ok=0
+root@ysyx-ubuntu2204:~# while [ "$runtime_journal_i" -lt 10 ]; do
+>   if journalctl --no-pager -u "$runtime_unit_name" -n 50 2>/dev/null |
+>      grep -q "__NEMU_RUNTIME_UNIT_JOURNAL__"; then
+>     runtime_journal_ok=1
+>     break
+>   fi
+>   runtime_journal_i=$((runtime_journal_i + 1))
+>   sleep 1
+> done
+root@ysyx-ubuntu2204:~# [ "$runtime_journal_ok" = "1" ] &&
+>   pass systemd-runtime-unit-journal || fail systemd-runtime-unit-journal
+__NEMU_CHECK_PASS__:systemd-runtime-unit-journal
+root@ysyx-ubuntu2204:~# <l stop "$runtime_unit_name" >/dev/null 2>&1 || true
+root@ysyx-ubuntu2204:~# <failed "$runtime_unit_name" >/dev/null 2>&1 || true
+root@ysyx-ubuntu2204:~# rm -f "$runtime_unit_path"
+root@ysyx-ubuntu2204:~# rm -rf "$runtime_unit_dir"
+root@ysyx-ubuntu2204:~# <p_state="$(timeout 10s env SYSTEMD_BUS_TIMEOUT=5s \
+>   systemctl is-active "$runtime_unit_name" 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# <MD_RUNTIME_CLEANUP_ACTIVE__:$runtime_cleanup_state"
+__NEMU_CHECK_SYSTEMD_RUNTIME_CLEANUP_ACTIVE__:inactive
+root@ysyx-ubuntu2204:~# if [ ! -e "$runtime_unit_path" ] &&
+>    [ ! -d "$runtime_unit_dir" ] &&
+>    [ "$runtime_cleanup_state" != "active" ]; then
+>   pass systemd-runtime-unit-cleanup
+> else
+E>   fail systemd-runtime-unit-cleanup
+> fi
+__NEMU_CHECK_PASS__:systemd-runtime-unit-cleanup
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# <proc /sys /run /dev/pts /dev/shm /sys/fs/cgroup; do
+>   if mountpoint -q "$m"; then
+>     echo "__NEMU_CHECK_MOUNT_OK__:$m"
+>   else
+>     echo "__NEMU_CHECK_MOUNT_MISSING__:$m"
+>     check_fail=1
+>   fi
+> done
+__NEMU_CHECK_MOUNT_OK__:/dev
+__NEMU_CHECK_MOUNT_OK__:/proc
+__NEMU_CHECK_MOUNT_OK__:/sys
+__NEMU_CHECK_MOUNT_OK__:/run
+__NEMU_CHECK_MOUNT_OK__:/dev/pts
+__NEMU_CHECK_MOUNT_OK__:/dev/shm
+__NEMU_CHECK_MOUNT_OK__:/sys/fs/cgroup
+root@ysyx-ubuntu2204:~# check_mount_fstype /dev devtmpfs
+__NEMU_CHECK_MOUNT_FSTYPE__:/dev:devtmpfs
+__NEMU_CHECK_PASS__:mount-fstype-/dev
+root@ysyx-ubuntu2204:~# check_mount_fstype /proc proc
+__NEMU_CHECK_MOUNT_FSTYPE__:/proc:proc
+__NEMU_CHECK_PASS__:mount-fstype-/proc
+root@ysyx-ubuntu2204:~# check_mount_fstype /sys sysfs
+__NEMU_CHECK_MOUNT_FSTYPE__:/sys:sysfs
+__NEMU_CHECK_PASS__:mount-fstype-/sys
+root@ysyx-ubuntu2204:~# check_mount_fstype /run tmpfs
+__NEMU_CHECK_MOUNT_FSTYPE__:/run:tmpfs
+__NEMU_CHECK_PASS__:mount-fstype-/run
+root@ysyx-ubuntu2204:~# check_mount_fstype /dev/pts devpts
+__NEMU_CHECK_MOUNT_FSTYPE__:/dev/pts:devpts
+__NEMU_CHECK_PASS__:mount-fstype-/dev/pts
+root@ysyx-ubuntu2204:~# check_mount_fstype /dev/shm tmpfs
+__NEMU_CHECK_MOUNT_FSTYPE__:/dev/shm:tmpfs
+__NEMU_CHECK_PASS__:mount-fstype-/dev/shm
+root@ysyx-ubuntu2204:~# check_mount_fstype /sys/fs/cgroup cgroup2
+__NEMU_CHECK_MOUNT_FSTYPE__:/sys/fs/cgroup:cgroup2
+__NEMU_CHECK_PASS__:mount-fstype-/sys/fs/cgroup
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# < /dev/ttyS0 ] && pass ttyS0-node || fail ttyS0-node
+__NEMU_CHECK_PASS__:ttyS0-node
+root@ysyx-ubuntu2204:~# <console ] && pass console-node || fail console-node
+__NEMU_CHECK_PASS__:console-node
+root@ysyx-ubuntu2204:~# tty_name="$(tty 2>&1 || true)"
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_TTY__:$tty_name"
+__NEMU_CHECK_TTY__:/dev/ttyS0
+root@ysyx-ubuntu2204:~# <e)' && pass interactive-tty || fail interactive-tty
+__NEMU_CHECK_PASS__:interactive-tty
+root@ysyx-ubuntu2204:~# <dev/null 2>&1 && pass ttyS0-stty || fail ttyS0-stty
+__NEMU_CHECK_PASS__:ttyS0-stty
+root@ysyx-ubuntu2204:~# <f '__NEMU_CHECK_TTYS0_WRITE__\n' > /dev/ttyS0; then
+>   pass ttyS0-write
+> else
+>   fail ttyS0-write
+> fi
+__NEMU_CHECK_TTYS0_WRITE__
+__NEMU_CHECK_PASS__:ttyS0-write
+root@ysyx-ubuntu2204:~# <_NEMU_CHECK_CONSOLE_WRITE__\n' > /dev/console; then
+>   pass console-write
+l> else
+>   fail console-write
+> fi
+__NEMU_CHECK_CONSOLE_WRITE__
+__NEMU_CHECK_PASS__:console-write
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# if command -v udevadm >/dev/null 2>&1; then
+>   pass udevadm-present
+> <v/null 2>&1 && pass udev-settle || fail udev-settle
+> else
+>   fail udevadm-present
+> fi
+__NEMU_CHECK_PASS__:udevadm-present
+__NEMU_CHECK_PASS__:udev-settle
+root@ysyx-ubuntu2204:~# <d.service && pass udevd-active || fail udevd-active
+__NEMU_CHECK_PASS__:udevd-active
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# hwrng_misc="/sys/class/misc/hw_random"
+root@ysyx-ubuntu2204:~# <cat "$hwrng_misc/rng_current" 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# <t "$hwrng_misc/rng_available" 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# <modalias="$(grep -h '^virtio:d00000004v58535959$' \
+>   /sys/bus/virtio/devices/*/modalias 2>/dev/null | head -n 1 || true)"
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_HWRNG_CURRENT__:$hwrng_current"
+__NEMU_CHECK_HWRNG_CURRENT__:virtio_rng.0
+root@ysyx-ubuntu2204:~# <o "__NEMU_CHECK_HWRNG_AVAILABLE__:$hwrng_available"
+__NEMU_CHECK_HWRNG_AVAILABLE__:virtio_rng.0 
+root@ysyx-ubuntu2204:~# <U_CHECK_VIRTIO_RNG_MODALIAS__:$rng_virtio_modalias"
+__NEMU_CHECK_VIRTIO_RNG_MODALIAS__:virtio:d00000004v58535959
+root@ysyx-ubuntu2204:~# < /dev/hwrng ] && pass hwrng-node || fail hwrng-node
+__NEMU_CHECK_PASS__:hwrng-node
+root@ysyx-ubuntu2204:~# <rng_misc" ] && pass hwrng-sysfs || fail hwrng-sysfs
+__NEMU_CHECK_PASS__:hwrng-sysfs
+root@ysyx-ubuntu2204:~# <_current" "$hwrng_available" | grep -qi 'virtio' &&
+>   pass hwrng-virtio-selected || fail hwrng-virtio-selected
+__NEMU_CHECK_PASS__:hwrng-virtio-selected
+root@ysyx-ubuntu2204:~# <virtio_modalias" = "virtio:d00000004v58535959" ] &&
+>   pass virtio-rng-modalias || fail virtio-rng-modalias
+__NEMU_CHECK_PASS__:virtio-rng-modalias
+root@ysyx-ubuntu2204:~# hwrng_out="/tmp/nemu-hwrng.bin"
+root@ysyx-ubuntu2204:~# rm -f "$hwrng_out"
+root@ysyx-ubuntu2204:~# <0s dd if=/dev/hwrng of="$hwrng_out" bs=64 count=1 \
+>     iflag=fullblock status=none; then
+>   hwrng_bytes="$(wc -c < "$hwrng_out" 2>/dev/null || echo 0)"
+>   echo "__NEMU_CHECK_HWRNG_BYTES__:$hwrng_bytes"
+>   [ "$hwrng_bytes" = "64" ] && pass hwrng-read || fail hwrng-read
+> else
+>   fail hwrng-read
+> fi
+a__NEMU_CHECK_HWRNG_BYTES__:64
+__NEMU_CHECK_PASS__:hwrng-read
+root@ysyx-ubuntu2204:~# rm -f "$hwrng_out"
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# rtc_sys="/sys/class/rtc/rtc0"
+root@ysyx-ubuntu2204:~# rtc_name="$(cat "$rtc_sys/name" 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# <"$(cat "$rtc_sys/since_epoch" 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# rtc_date="$(cat "$rtc_sys/date" 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# rtc_time="$(cat "$rtc_sys/time" 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_RTC0_NAME__:$rtc_name"
+__NEMU_CHECK_RTC0_NAME__:goldfish_rtc 10003000.rtc
+root@ysyx-ubuntu2204:~# < "__NEMU_CHECK_RTC0_SINCE_EPOCH__:$rtc_since_epoch"
+__NEMU_CHECK_RTC0_SINCE_EPOCH__:1780800247
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_RTC0_DATE__:$rtc_date"
+__NEMU_CHECK_RTC0_DATE__:2026-06-07
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_RTC0_TIME__:$rtc_time"
+__NEMU_CHECK_RTC0_TIME__:02:44:07
+root@ysyx-ubuntu2204:~# [ -c /dev/rtc0 ] && pass rtc0-node || fail rtc0-node
+__NEMU_CHECK_PASS__:rtc0-node
+root@ysyx-ubuntu2204:~# < "$rtc_sys" ] && pass rtc0-sysfs || fail rtc0-sysfs
+__NEMU_CHECK_PASS__:rtc0-sysfs
+root@ysyx-ubuntu2204:~# echo "$rtc_name" | grep -qi 'goldfish' &&
+>   pass rtc0-goldfish-driver || fail rtc0-goldfish-driver
+__NEMU_CHECK_PASS__:rtc0-goldfish-driver
+root@ysyx-ubuntu2204:~# <tc_since_epoch:-0}" -gt 1577836800 ] 2>/dev/null &&
+>   pass rtc0-since-epoch-plausible || fail rtc0-since-epoch-plausible
+__NEMU_CHECK_PASS__:rtc0-since-epoch-plausible
+root@ysyx-ubuntu2204:~# if command -v hwclock >/dev/null 2>&1; then
+>   pass hwclock-present
+>   rtc_hwclock="$(timeout 10s hwclock --show --rtc=/dev/rtc0 2>&1)"
+>   rtc_hwclock_rc=$?
+>   echo "__NEMU_CHECK_RTC0_HWCLOCK__:$rtc_hwclock"
+> < && echo "$rtc_hwclock" | grep -Eq '[0-9]{4}'; then
+>     pass hwclock-rtc0-show
+>   else
+> < wait for update IRQ/UIE behavior that this minimal
+> <claim; sysfs rtc0 reads above remain the hard gate.
+>     echo "__NEMU_CHECK_RTC0_HWCLOCK_DIAG__:$rtc_hwclock_rc"
+>   fi
+> else
+>   echo "__NEMU_CHECK_RTC0_HWCLOCK_DIAG__:missing"
+> fi
+__NEMU_CHECK_PASS__:hwclock-present
+__NEMU_CHECK_RTC0_HWCLOCK__:
+__NEMU_CHECK_RTC0_HWCLOCK_DIAG__:124
+root@ysyx-ubuntu2204:~# 
+iroot@ysyx-ubuntu2204:~# <vda ] && pass vda-block-node || fail vda-block-node
+__NEMU_CHECK_PASS__:vda-block-node
+root@ysyx-ubuntu2204:~# <$(stat -c '%F %t:%T' /dev/vda 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_VDA_DEV_NODE__:$vda_dev_node"
+__NEMU_CHECK_VDA_DEV_NODE__:block special file fe:0
+root@ysyx-ubuntu2204:~# <blockdev --getsize64 /dev/vda 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_VDA_SIZE__:$vda_size"
+__NEMU_CHECK_VDA_SIZE__:2147483648
+root@ysyx-ubuntu2204:~# <t 0 ] 2>/dev/null && pass vda-size || fail vda-size
+__NEMU_CHECK_PASS__:vda-size
+root@ysyx-ubuntu2204:~# <U_GUEST_ROOTFS_BYTES:-0}" -gt 0 ] 2>/dev/null; then
+> <size-matches-rootfs || fail vda-size-matches-rootfs
+> fi
+__NEMU_CHECK_PASS__:vda-size-matches-rootfs
+root@ysyx-ubuntu2204:~# </vda/queue/logical_block_size 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_VDA_LOGICAL_BLOCK__:$vda_lbs"
+__NEMU_CHECK_VDA_LOGICAL_BLOCK__:512
+root@ysyx-ubuntu2204:~# <a-logical-block-size || fail vda-logical-block-size
+__NEMU_CHECK_PASS__:vda-logical-block-size
+root@ysyx-ubuntu2204:~# <vda/queue/physical_block_size 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_VDA_PHYSICAL_BLOCK__:$vda_pbs"
+__NEMU_CHECK_VDA_PHYSICAL_BLOCK__:512
+root@ysyx-ubuntu2204:~# <physical-block-size || fail vda-physical-block-size
+__NEMU_CHECK_PASS__:vda-physical-block-size
+root@ysyx-ubuntu2204:~# <ock/vda/queue/minimum_io_size 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# <ock/vda/queue/optimal_io_size 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# <ys/block/vda/alignment_offset 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_VDA_MIN_IO__:$vda_min_io"
+__NEMU_CHECK_VDA_MIN_IO__:512
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_VDA_OPT_IO__:$vda_opt_io"
+__NEMU_CHECK_VDA_OPT_IO__:0
+root@ysyx-ubuntu2204:~# <__NEMU_CHECK_VDA_ALIGNMENT_OFFSET__:$vda_alignment"
+__NEMU_CHECK_VDA_ALIGNMENT_OFFSET__:0
+root@ysyx-ubuntu2204:~# <ass vda-minimum-io-size || fail vda-minimum-io-size
+__NEMU_CHECK_PASS__:vda-minimum-io-size
+root@ysyx-ubuntu2204:~# <ass vda-optimal-io-size || fail vda-optimal-io-size
+__NEMU_CHECK_PASS__:vda-optimal-io-size
+root@ysyx-ubuntu2204:~# <s vda-alignment-offset || fail vda-alignment-offset
+__NEMU_CHECK_PASS__:vda-alignment-offset
+root@ysyx-ubuntu2204:~# <k/vda/queue/discard_max_bytes 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# <vda/queue/discard_granularity 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# </queue/write_zeroes_max_bytes 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# <o "__NEMU_CHECK_VDA_DISCARD_MAX__:$vda_discard_max"
+__NEMU_CHECK_VDA_DISCARD_MAX__:2097152
+root@ysyx-ubuntu2204:~# <VDA_DISCARD_GRANULARITY__:$vda_discard_granularity"
+__NEMU_CHECK_VDA_DISCARD_GRANULARITY__:512
+root@ysyx-ubuntu2204:~# <CHECK_VDA_WRITE_ZEROES_MAX__:$vda_write_zeroes_max"
+__NEMU_CHECK_VDA_WRITE_ZEROES_MAX__:2097152
+root@ysyx-ubuntu2204:~# [ "$vda_discard_max" = "2097152" ] &&
+>   pass vda-discard-max-bytes || fail vda-discard-max-bytes
+__NEMU_CHECK_PASS__:vda-discard-max-bytes
+root@ysyx-ubuntu2204:~# [ "$vda_discard_granularity" = "512" ] &&
+>   pass vda-discard-granularity || fail vda-discard-granularity
+__NEMU_CHECK_PASS__:vda-discard-granularity
+root@ysyx-ubuntu2204:~# [ "$vda_write_zeroes_max" = "2097152" ] &&
+>   pass vda-write-zeroes-max-bytes || fail vda-write-zeroes-max-bytes
+__NEMU_CHECK_PASS__:vda-write-zeroes-max-bytes
+root@ysyx-ubuntu2204:~# vda_cache_type_path="/sys/block/vda/cache_type"
+root@ysyx-ubuntu2204:~# <"$(cat "$vda_cache_type_path" 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_VDA_CACHE_TYPE__:$vda_cache_type"
+__NEMU_CHECK_VDA_CACHE_TYPE__:write back
+root@ysyx-ubuntu2204:~# <da_cache_type" | grep -Eq 'write (back|through)' &&
+>   pass vda-cache-type-visible || fail vda-cache-type-visible
+__NEMU_CHECK_PASS__:vda-cache-type-visible
+root@ysyx-ubuntu2204:~# if [ -w "$vda_cache_type_path" ]; then
+>   pass vda-cache-type-writable
+> else
+>   fail vda-cache-type-writable
+> fi
+__NEMU_CHECK_PASS__:vda-cache-type-writable
+root@ysyx-ubuntu2204:~# < through\n' > "$vda_cache_type_path" 2>/dev/null &&
+> <th" 2>/dev/null || true)" = "write through" ]; then
+>   pass vda-cache-type-write-through
+> else
+ER>   fail vda-cache-type-write-through
+> fi
+__NEMU_CHECK_PASS__:vda-cache-type-write-through
+root@ysyx-ubuntu2204:~# <ite back\n' > "$vda_cache_type_path" 2>/dev/null &&
+> <_path" 2>/dev/null || true)" = "write back" ]; then
+>   pass vda-cache-type-write-back
+> else
+>   fail vda-cache-type-write-back
+> fi
+__NEMU_CHECK_PASS__:vda-cache-type-write-back
+root@ysyx-ubuntu2204:~# <="$(cat /sys/block/vda/serial 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_VDA_SERIAL__:$vda_serial"
+__NEMU_CHECK_VDA_SERIAL__:ysyx-nemu-virtio-blk
+root@ysyx-ubuntu2204:~# [ "$vda_serial" = "ysyx-nemu-virtio-blk" ] &&
+>   pass vda-serial-get-id || fail vda-serial-get-id
+__NEMU_CHECK_PASS__:vda-serial-get-id
+root@ysyx-ubuntu2204:~# <(cat /sys/class/block/vda/dev 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_VDA_SYS_DEV__:$vda_sys_dev"
+__NEMU_CHECK_VDA_SYS_DEV__:254:0
+root@ysyx-ubuntu2204:~# <0-9]+$' && pass sysfs-vda-dev || fail sysfs-vda-dev
+__NEMU_CHECK_PASS__:sysfs-vda-dev
+root@ysyx-ubuntu2204:~# <a ] && pass sysfs-vda-block || fail sysfs-vda-block
+__NEMU_CHECK_PASS__:sysfs-vda-block
+root@ysyx-ubuntu2204:~# <ass/block/vda/device/driver 2>/dev/null || true)")"
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_VDA_DRIVER__:$vda_driver"
+__NEMU_CHECK_VDA_DRIVER__:virtio_blk
+root@ysyx-ubuntu2204:~# <] && pass sysfs-vda-driver || fail sysfs-vda-driver
+__NEMU_CHECK_PASS__:sysfs-vda-driver
+root@ysyx-ubuntu2204:~# <f /sys/class/block/vda/device 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_VDA_VIRTIO_DEV__:$vda_virtio_dev"
+__NEMU_CHECK_VDA_VIRTIO_DEV__:/sys/devices/platform/soc/10001000.virtio_mmio/virtio0
+root@ysyx-ubuntu2204:~# < "$vda_virtio_dev" ] && [ -d "$vda_virtio_dev" ] &&
+>   pass sysfs-vda-virtio-device || fail sysfs-vda-virtio-device
+__NEMU_CHECK_PASS__:sysfs-vda-virtio-device
+root@ysyx-ubuntu2204:~# <at "$vda_virtio_dev/modalias" 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# <(cat "$vda_virtio_dev/status" 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# < < "$vda_virtio_dev/features" 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# <o "__NEMU_CHECK_VIRTIO_MODALIAS__:$virtio_modalias"
+__NEMU_CHECK_VIRTIO_MODALIAS__:virtio:d00000002v58535959
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_VIRTIO_STATUS__:$virtio_status"
+__NEMU_CHECK_VIRTIO_STATUS__:0x0000000f
+root@ysyx-ubuntu2204:~# <o "__NEMU_CHECK_VIRTIO_FEATURES__:$virtio_features"
+__NEMU_CHECK_VIRTIO_FEATURES__:0000001001110110000000000000110010000000000000000000000000000000
+root@ysyx-ubuntu2204:~# <virtio_modalias" = "virtio:d00000002v58535959" ] &&
+>   pass virtio-vda-modalias || fail virtio-vda-modalias
+__NEMU_CHECK_PASS__:virtio-vda-modalias
+root@ysyx-ubuntu2204:~# <o "$virtio_status" | grep -Eq '^0x[0-9a-fA-F]+$' &&
+>   pass virtio-vda-status || fail virtio-vda-status
+__NEMU_CHECK_PASS__:virtio-vda-status
+root@ysyx-ubuntu2204:~# echo "$virtio_features" | grep -Eq '^[01]+$' &&
+>   pass virtio-vda-features-bitstring || fail virtio-vda-features-bitstring
+__NEMU_CHECK_PASS__:virtio-vda-features-bitstring
+root@ysyx-ubuntu2204:~# <rtio_feature_bit "$virtio_features" 32)" = "1" ] &&
+>   pass virtio-feature-version-1 || fail virtio-feature-version-1
+__NEMU_CHECK_PASS__:virtio-feature-version-1
+root@ysyx-ubuntu2204:~# <irtio_feature_bit "$virtio_features" 6)" = "1" ] &&
+>   pass virtio-blk-feature-blk-size || fail virtio-blk-feature-blk-size
+__NEMU_CHECK_PASS__:virtio-blk-feature-blk-size
+root@ysyx-ubuntu2204:~# <irtio_feature_bit "$virtio_features" 9)" = "1" ] &&
+>   pass virtio-blk-feature-flush || fail virtio-blk-feature-flush
+__NEMU_CHECK_PASS__:virtio-blk-feature-flush
+root@ysyx-ubuntu2204:~# <rtio_feature_bit "$virtio_features" 10)" = "1" ] &&
+>   pass virtio-blk-feature-topology || fail virtio-blk-feature-topology
+__NEMU_CHECK_PASS__:virtio-blk-feature-topology
+root@ysyx-ubuntu2204:~# <rtio_feature_bit "$virtio_features" 11)" = "1" ] &&
+>   pass virtio-blk-feature-config-wce || fail virtio-blk-feature-config-wce
+__NEMU_CHECK_PASS__:virtio-blk-feature-config-wce
+root@ysyx-ubuntu2204:~# <rtio_feature_bit "$virtio_features" 13)" = "1" ] &&
+>   pass virtio-blk-feature-discard || fail virtio-blk-feature-discard
+__NEMU_CHECK_PASS__:virtio-blk-feature-discard
+root@ysyx-ubuntu2204:~# <rtio_feature_bit "$virtio_features" 14)" = "1" ] &&
+> <rite-zeroes || fail virtio-blk-feature-write-zeroes
+__NEMU_CHECK_PASS__:virtio-blk-feature-write-zeroes
+root@ysyx-ubuntu2204:~# <rtio_feature_bit "$virtio_features" 28)" = "1" ] &&
+> <rect-desc || fail virtio-ring-feature-indirect-desc
+__NEMU_CHECK_PASS__:virtio-ring-feature-indirect-desc
+root@ysyx-ubuntu2204:~# <rtio_feature_bit "$virtio_features" 29)" = "1" ] &&
+>   pass virtio-ring-feature-event-idx || fail virtio-ring-feature-event-idx
+__NEMU_CHECK_PASS__:virtio-ring-feature-event-idx
+root@ysyx-ubuntu2204:~# if command -v udevadm >/dev/null 2>&1; then
+> <uery=property --name=/dev/vda 2>/dev/null || true)"
+>   if printf '%s\n' "$vda_udev_props" | grep -qx 'DEVNAME=/dev/vda' &&
+>      printf '%s\n' "$vda_udev_props" | grep -qx 'SUBSYSTEM=block' &&
+>      printf '%s\n' "$vda_udev_props" | grep -qx 'DEVTYPE=disk'; then
+>     pass udev-vda-properties
+>   else
+>     fail udev-vda-properties
+>   fi
+> fi
+__NEMU_CHECK_PASS__:udev-vda-properties
+root@ysyx-ubuntu2204:~# <l -lname '*vda*' -print -quit 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_DEV_DISK_LINK__:$dev_disk_link"
+__NEMU_CHECK_DEV_DISK_LINK__:/dev/disk/by-uuid/663821c8-d4f8-4cad-8ef9-e8a8751d9301
+root@ysyx-ubuntu2204:~# <] && pass dev-disk-symlink || fail dev-disk-symlink
+__NEMU_CHECK_PASS__:dev-disk-symlink
+root@ysyx-ubuntu2204:~# <pace:]]+[0-9]+[[:space:]]+vda$' /proc/partitions &&
+>   pass proc-partitions-vda || fail proc-partitions-vda
+__NEMU_CHECK_PASS__:proc-partitions-vda
+root@ysyx-ubuntu2204:~# 
+ root@ysyx-ubuntu2204:~# irq_total0="$(interrupts_table_sum)"
+root@ysyx-ubuntu2204:~# <0="$(interrupts_match_sum 'ttys0|serial|10000000')"
+root@ysyx-ubuntu2204:~# <io0="$(interrupts_match_sum 'virtio|vda|10001000')"
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_INTERRUPTS_TOTAL__:$irq_total0"
+__NEMU_CHECK_INTERRUPTS_TOTAL__:267028
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_IRQ_SERIAL__:$irq_serial0"
+__NEMU_CHECK_IRQ_SERIAL__:2707
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_IRQ_VIRTIO_BLK__:$irq_virtio0"
+__NEMU_CHECK_IRQ_VIRTIO_BLK__:898
+root@ysyx-ubuntu2204:~# <UPTS_LINE__:/' /proc/interrupts 2>/dev/null || true
+__NEMU_CHECK_INTERRUPTS_LINE__:           CPU0       
+__NEMU_CHECK_INTERRUPTS_LINE__:  2:       2727  SiFive PLIC   1 Edge      ttyS0
+__NEMU_CHECK_INTERRUPTS_LINE__:  3:         27  SiFive PLIC   3 Edge      virtio1
+__NEMU_CHECK_INTERRUPTS_LINE__:  4:        869  SiFive PLIC   2 Edge      virtio0
+__NEMU_CHECK_INTERRUPTS_LINE__:  5:     263872  RISC-V INTC   5 Edge      riscv-timer
+__NEMU_CHECK_INTERRUPTS_LINE__:  6:          0  SiFive PLIC   4 Edge      10003000.rtc
+root@ysyx-ubuntu2204:~# <proc-interrupts-total || fail proc-interrupts-total
+__NEMU_CHECK_PASS__:proc-interrupts-total
+root@ysyx-ubuntu2204:~# < pass irq-serial-visible || fail irq-serial-visible
+__NEMU_CHECK_PASS__:irq-serial-visible
+root@ysyx-ubuntu2204:~# <q-virtio-blk-visible || fail irq-virtio-blk-visible
+__NEMU_CHECK_PASS__:irq-virtio-blk-visible
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# <ull bs=4096 count=16 iflag=direct status=none; then
+>   pass irq-vda-direct-read
+> else
+>   fail irq-vda-direct-read
+> fi
+__NEMU_CHECK_PASS__:irq-vda-direct-read
+root@ysyx-ubuntu2204:~# sleep 1
+root@ysyx-ubuntu2204:~# irq_total1="$(interrupts_table_sum)"
+root@ysyx-ubuntu2204:~# <io1="$(interrupts_match_sum 'virtio|vda|10001000')"
+root@ysyx-ubuntu2204:~# <K_INTERRUPTS_TOTAL_GROW__:$irq_total0->$irq_total1"
+__NEMU_CHECK_INTERRUPTS_TOTAL_GROW__:267028->268271
+root@ysyx-ubuntu2204:~# <K_IRQ_VIRTIO_BLK_GROW__:$irq_virtio0->$irq_virtio1"
+__NEMU_CHECK_IRQ_VIRTIO_BLK_GROW__:898->917
+root@ysyx-ubuntu2204:~# [ "$irq_total1" -ge "$irq_total0" ] 2>/dev/null &&
+> <l-monotonic || fail proc-interrupts-total-monotonic
+__NEMU_CHECK_PASS__:proc-interrupts-total-monotonic
+root@ysyx-ubuntu2204:~# [ "$irq_virtio1" -gt "$irq_virtio0" ] 2>/dev/null &&
+>   pass irq-virtio-blk-read-growth || fail irq-virtio-blk-read-growth
+__NEMU_CHECK_PASS__:irq-virtio-blk-read-growth
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# <rce="$(findmnt -n -o SOURCE / 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_ROOT_SOURCE__:$root_source"
+__NEMU_CHECK_ROOT_SOURCE__:/dev/vda
+root@ysyx-ubuntu2204:~# case "$root_source" in
+>   /dev/vda*|/dev/root) pass rootfs-source ;;
+>   *) fail rootfs-source ;;
+> esac
+__NEMU_CHECK_PASS__:rootfs-source
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# <-guest-check.bin /root/nemu-systemd-guest-check.bin
+root@ysyx-ubuntu2204:~# rm -rf "$check_dir"
+root@ysyx-ubuntu2204:~# if mkdir -p "$check_dir/sub"; then
+>   pass fs-mkdir
+> else
+>   fail fs-mkdir
+> fi
+__NEMU_CHECK_PASS__:fs-mkdir
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# root_fstype="$(stat -f -c %T / 2>/dev/null || true)"
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_ROOT_FSTYPE__:$root_fstype"
+__NEMU_CHECK_ROOT_FSTYPE__:ext2/ext3
+root@ysyx-ubuntu2204:~# case "$root_fstype" in
+>   ext2/ext3|ext4) pass rootfs-fstype ;;
+>   *) fail rootfs-fstype ;;
+> esac
+__NEMU_CHECK_PASS__:rootfs-fstype
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# raw_vda_head="$check_dir/vda-head.bin"
+root@ysyx-ubuntu2204:~# <ad" bs=4096 count=16 iflag=direct status=none; then
+>   raw_vda_bytes="$(wc -c < "$raw_vda_head" 2>/dev/null || echo 0)"
+>   echo "__NEMU_CHECK_VDA_DIRECT_READ_BYTES__:$raw_vda_bytes"
+> <" ] && pass vda-direct-read || fail vda-direct-read
+>   rm -f "$raw_vda_head"
+k> else
+>   fail vda-direct-read
+> fi
+__NEMU_CHECK_VDA_DIRECT_READ_BYTES__:65536
+__NEMU_CHECK_PASS__:vda-direct-read
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# if [ -s "${NEMU_GUEST_VDA_HASH_EXPECT_FILE:-}" ] &&
+>    [ "${NEMU_GUEST_VDA_HASH_WINDOW_BYTES:-0}" -gt 0 ] 2>/dev/null; then
+>   vda_hash_ok=1
+>   vda_hash_count=0
+>   vda_hash_blocks=$((NEMU_GUEST_VDA_HASH_WINDOW_BYTES / 4096))
+>   while IFS=: read -r vda_hash_offset vda_hash_expected; do
+>     [ -n "$vda_hash_offset" ] || continue
+>     vda_hash_file="$check_dir/vda-window-$vda_hash_offset.bin"
+>     vda_hash_skip=$((vda_hash_offset / 4096))
+>     if dd if=/dev/vda of="$vda_hash_file" bs=4096 skip="$vda_hash_skip" \
+>         count="$vda_hash_blocks" iflag=direct,fullblock status=none; then
+> <m "$vda_hash_file" 2>/dev/null | awk '{print $1}')"
+> <da_hash_offset:$vda_hash_actual:$vda_hash_expected"
+>       if [ "$vda_hash_actual" != "$vda_hash_expected" ]; then
+>         vda_hash_ok=0
+>       fi
+>     else
+>       echo "__NEMU_CHECK_VDA_WINDOW_READ_FAIL__:$vda_hash_offset"
+>       vda_hash_ok=0
+>     fi
+>     rm -f "$vda_hash_file"
+>     vda_hash_count=$((vda_hash_count + 1))
+>   done < "$NEMU_GUEST_VDA_HASH_EXPECT_FILE"
+>   echo "__NEMU_CHECK_VDA_WINDOW_COUNT__:$vda_hash_count"
+>   if [ "$vda_hash_ok" = "1" ] && [ "$vda_hash_count" -gt 0 ]; then
+>     pass vda-direct-read-sha256-windows
+>   else
+>     fail vda-direct-read-sha256-windows
+>   fi
+> else
+AA>   fail vda-direct-read-sha256-windows
+> fi
+__NEMU_CHECK_VDA_WINDOW_SHA256__:2147418112:de2f256064a0af797747c2b97505dc0b9f3df0de4f489eac731c23ae9ca9cc31:de2f256064a0af797747c2b97505dc0b9f3df0de4f489eac731c23ae9ca9cc31
+__NEMU_CHECK_VDA_WINDOW_COUNT__:1
+__NEMU_CHECK_PASS__:vda-direct-read-sha256-windows
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# <ll 2>&1 && pass vda-flushbufs || fail vda-flushbufs
+__NEMU_CHECK_PASS__:vda-flushbufs
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# if printf 'alpha\nbeta\n' > "$check_dir/file" &&
+>    [ "$(wc -l < "$check_dir/file" 2>/dev/null || echo 0)" = "2" ]; then
+>   pass fs-small-write-read
+> else
+>   fail fs-small-write-read
+> fi
+__NEMU_CHECK_PASS__:fs-small-write-read
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# if ln -s file "$check_dir/link" &&
+>    [ "$(readlink "$check_dir/link" 2>/dev/null || true)" = "file" ]; then
+>   pass symlink-readlink
+> else
+AC>   fail symlink-readlink
+> fi
+__NEMU_CHECK_PASS__:symlink-readlink
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# if chmod 640 "$check_dir/file" &&
+>    [ "$(stat -c %a "$check_dir/file" 2>/dev/null || true)" = "640" ]; then
+>   pass chmod-stat
+> else
+>   fail chmod-stat
+> fi
+__NEMU_CHECK_PASS__:chmod-stat
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# if mv "$check_dir/file" "$check_dir/sub/file2" &&
+>    cp "$check_dir/sub/file2" "$check_dir/copy" &&
+>    cmp -s "$check_dir/sub/file2" "$check_dir/copy"; then
+>   pass rename-copy-cmp
+> else
+A>   fail rename-copy-cmp
+> fi
+__NEMU_CHECK_PASS__:rename-copy-cmp
+root@ysyx-ubuntu2204:~# 
+Aroot@ysyx-ubuntu2204:~# if [ "$NEMU_GUEST_FS_TREE_FILES" -gt 0 ]; then
+>   tree_dir="$check_dir/rootfs-metadata-tree"
+>   tree_ok=1
+>   rm -rf "$tree_dir"
+>   mkdir -p "$tree_dir/a" "$tree_dir/b" || tree_ok=0
+>   tree_i=0
+>   while [ "$tree_i" -lt "$NEMU_GUEST_FS_TREE_FILES" ]; do
+>     tree_bucket=$((tree_i % 8))
+>     tree_name="$(printf 'file-%04d' "$tree_i")"
+>     tree_payload="$(printf 'metadata-%04d' "$tree_i")"
+>     tree_src="$tree_dir/a/$tree_bucket/$tree_name"
+>     tree_hard="$tree_dir/a/$tree_bucket/hard-$tree_name"
+>     tree_dst="$tree_dir/b/$tree_bucket/$tree_name"
+>     if mkdir -p "$tree_dir/a/$tree_bucket" "$tree_dir/b/$tree_bucket" &&
+>        printf '%s\n' "$tree_payload" > "$tree_src" &&
+>        ln "$tree_src" "$tree_hard" &&
+>        mv "$tree_src" "$tree_dst"; then
+>       tree_dst_payload="$(cat "$tree_dst" 2>/dev/null || true)"
+>       tree_hard_payload="$(cat "$tree_hard" 2>/dev/null || true)"
+>       tree_dst_inode="$(stat -c %i "$tree_dst" 2>/dev/null || true)"
+>       tree_hard_inode="$(stat -c %i "$tree_hard" 2>/dev/null || true)"
+>       if [ "$tree_dst_payload" != "$tree_payload" ] ||
+>          [ "$tree_hard_payload" != "$tree_payload" ] ||
+>          [ -z "$tree_dst_inode" ] ||
+>          [ "$tree_dst_inode" != "$tree_hard_inode" ]; then
+>         tree_ok=0
+>       fi
+>     else
+>       tree_ok=0
+>     fi
+>     tree_i=$((tree_i + 1))
+>   done
+>   tree_expected=$((NEMU_GUEST_FS_TREE_FILES * 2))
+> <" -type f 2>/dev/null | wc -l | tr -d '[:space:]')"
+>   echo "__NEMU_CHECK_FS_TREE_FILES__:$tree_count/$tree_expected"
+>   sync
+>   if [ "$tree_ok" = "1" ] && [ "$tree_count" = "$tree_expected" ]; then
+>     pass rootfs-metadata-tree
+>   else
+>     fail rootfs-metadata-tree
+>   fi
+>   rm -rf "$tree_dir"
+>   sync
+> else
+>   echo "__NEMU_CHECK_FS_TREE_SKIP__"
+> fi
+__NEMU_CHECK_FS_TREE_FILES__:16/16
+__NEMU_CHECK_PASS__:rootfs-metadata-tree
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# if mkfifo "$check_dir/fifo"; then
+> <ntf '%s\n' "$fifo_line" > "$check_dir/fifo.out" ) &
+>   fifo_pid=$!
+>   printf 'fifo-ok\n' > "$check_dir/fifo"
+>   wait "$fifo_pid" || true
+> <e)" = "fifo-ok" ] && pass fifo-ipc || fail fifo-ipc
+> else
+>   fail fifo-ipc
+> fi
+[1] 595
+[1]+  Done                    ( IFS= read -r fifo_line < "$check_dir/fifo"; printf '%s\n' "$fifo_line" > "$check_dir/fifo.out" )
+__NEMU_CHECK_PASS__:fifo-ipc
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# <| wc -c 2>/dev/null | tr -d '[:space:]' || echo 0)"
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_PIPE_BYTES__:$pipe_bytes"
+__NEMU_CHECK_PIPE_BYTES__:15
+root@ysyx-ubuntu2204:~# <ipe_bytes" = "15" ] && pass pipe-wc || fail pipe-wc
+__NEMU_CHECK_PASS__:pipe-wc
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# proc_ok=1
+root@ysyx-ubuntu2204:~# proc_i=0
+root@ysyx-ubuntu2204:~# <e [ "$proc_i" -lt "$NEMU_GUEST_PROCESS_LOOPS" ]; do
+>   ( exit 0 ) &
+>   child=$!
+>   wait "$child" || proc_ok=0
+>   proc_i=$((proc_i + 1))
+> done
+[1] 602
+[1]+  Done                    ( exit 0 )
+[1] 603
+[1]+  Done                    ( exit 0 )
+[1] 604
+[1]+  Done                    ( exit 0 )
+[1] 605
+[1]+  Done                    ( exit 0 )
+root@ysyx-ubuntu2204:~# <"1" ] && pass fork-wait-loop || fail fork-wait-loop
+__NEMU_CHECK_PASS__:fork-wait-loop
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# if /bin/sh -c 'exit 0' && /usr/bin/env true; then
+>   pass execve-basic
+> else
+A>   fail execve-basic
+> fi
+__NEMU_CHECK_PASS__:execve-basic
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# if [ "$NEMU_GUEST_SYSCALL_PROBE" != "0" ]; then
+>   probe_b64="$check_dir/syscall-probe.b64"
+>   probe_bin="$check_dir/syscall-probe"
+>   cat > "$probe_b64" <<'__NEMU_SYSCALL_PROBE_B64__'
+> <wABAAAAQDwAAAAAAABAAAAAAAAAAIiBAAAAAAAABQAAAEAAOAAK
+> <AAAAABAAAAAAAAAAEAAAAAAAAAAMAIAAAAAAAAwAgAAAAAAAAgA
+> <AAAAHACAAAAAAAAcAIAAAAAAAAhAAAAAAAAACEAAAAAAAAAAQAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAFMAAAAAAAAAAAAAAAAAAAABAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAXHIAAAAAAABccgAAAAAAAAAQAAAA
+> <JiKAAAAAAAAmIoAAAAAAABwBQAAAAAAAIgFAAAAAAAAABAAAAAA
+> <IoAAAAAAACwigAAAAAAAAACAAAAAAAAAAIAAAAAAAAIAAAAAAAA
+> <gAAAAAAAJQCAAAAAAAARAAAAAAAAABEAAAAAAAAAAQAAAAAAAAA
+> <AAAAAAAiGwAAAAAAACkAAAAAAAAAKQAAAAAAAAABAAAAAAAAABR
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAFLl
+> <AAAAJiKAAAAAAAAaAUAAAAAAABoBQAAAAAAAAEAAAAAAAAAL2xp
+> <WxwNjRkLnNvLjEAAAAABAAAABQAAAADAAAAR05VACMT/8auGC+i
+> <AABAAAAR05VAAAAAAAEAAAADwAAAAAAAAACAAAAaAAAAAEAAAAG
+> <Gt/mnwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMA
+> <AEAABIAAAAAAAAAAAAAAAAAAAAAAAAAMAAAABIAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAACgIAABIAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAUwIAABIAAAAAAAAAAAAAAAAAAAAAAAAABAEAABIAAAAA
+> <BIAAAAAAAAAAAAAAAAAAAAAAAAABQMAABIAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAIwMAABIAAAAAAAAAAAAAAAAAAAAAAAAARwMA
+> <AAA2gAAABIAAAAAAAAAAAAAAAAAAAAAAAAAwgAAABIAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAlwAAABIAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAPgAAABIAAAAAAAAAAAAAAAAAAAAAAAAALQMAABIA
+> <AAAABIAAAAAAAAAAAAAAAAAAAAAAAAAZAAAABIAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAADwEAABIAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAdgEAABIAAAAAAAAAAAAAAAAAAAAAAAAA9QEAABIAAAAA
+> <BIAAAAAAAAAAAAAAAAAAAAAAAAAIgAAABIAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAngAAABIAAAAAAAAAAAAAAAAAAAAAAAAA2gEA
+> <AAAUwAAABIAAAAAAAAAAAAAAAAAAAAAAAAA4QAAABIAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAGAEAABIAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAGAAAABIAAAAAAAAAAAAAAAAAAAAAAAAAKAAAABIA
+> <QMAABIAAAAAAAAAAAAAAAAAAAAAAAAAcAEAABIAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAYQEAABIAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAZgMAABEAAAAAAAAAAAAAAAAAAAAAAAAAAQAAABIAAAAA
+> <BIAAAAAAAAAAAAAAAAAAAAAAAAA/QEAABIAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAFAMAABIAAAAAAAAAAAAAAAAAAAAAAAAAOwMA
+> <AAA3QIAABIAAAAAAAAAAAAAAAAAAAAAAAAA0wAAABIAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAASgIAABIAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAiQIAABIAAAAAAAAAAAAAAAAAAAAAAAAAQQMAABIA
+> <AIAABIAAAAAAAAAAAAAAAAAAAAAAAAAbwIAABIAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAoQIAABIAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAvAIAABIAAAAAAAAAAAAAAAAAAAAAAAAAqAAAABIAAAAA
+> <BIAAAAAAAAAAAAAAAAAAAAAAAAATAEAABIAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAARwEAABIAAAAAAAAAAAAAAAAAAAAAAAAAWAIA
+> <AAAgwEAABIAAAAAAAAAAAAAAAAAAAAAAAAADgAAABIAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAgwIAABIAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAKgEAABIAAAAAAAAAAAAAAAAAAAAAAAAA9wIAABIA
+> <AAAABIAAAAAAAAAAAAAAAAAAAAAAAAAsAAAABIAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAaAIAABIAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAqQEAABIAAAAAAAAAAAAAAAAAAAAAAAAA1QIAABIAAAAA
+> <BIAAAAAAAAAAAAAAAAAAAAAAAAAHAIAACIAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAA/wIAABIAAAAAAAAAAAAAAAAAAAAAAAAAUwEA
+> <AAAKwIAABIAAAAAAAAAAAAAAAAAAAAAAAAAoQEAABIAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAA0AMAACAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAggAAABIAAAAAAAAAAAAAAAAAAAAAAAAAzgIAABIA
+> <gMAABIAAAAAAAAAAAAAAAAAAAAAAAAAsAIAABIAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAEQEAABIAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAcQAAABIAAAAAAAAAAAAAAAAAAAAAAAAA3wIAABIAAAAA
+> <BIADAAwIgAAAAAAABAaAAAAAAAAAHRpbWVyX2RlbGV0ZQB0Y3Nl
+> <3RsAHN5c2NvbmYAdGltZXJfc2V0dGltZQBzZXRzaWQAY2xvY2tf
+> <19mYWlsAF9fcHJpbnRmX2NoawBmcmVlAF9fZmRlbHRfY2hrAG1z
+> <GV4ZWNscABzaWdhZGRzZXQAbWtkaXJhdABwdHNuYW1lAHNpZ2Fj
+> <WlyAHVubGluawBtdW5tYXAAZmZsdXNoAGZ0cnVuY2F0ZQB3YWl0
+> <F93YWl0AHRjZ2V0c2lkAGlub3RpZnlfYWRkX3dhdGNoAHRpbWVy
+> <GVucHQAZHVwMwBnZXRwaWQAaW5vdGlmeV9pbml0MQBzaWduYWxm
+> <l9jcmVhdGUAb3BlbgBtYWxsb2MAX19saWJjX3N0YXJ0X21haW4A
+> <ABzaWdwcm9jbWFzawBtaW5jb3JlAGlub3RpZnlfcm1fd2F0Y2gA
+> <W5sb2NrcHQAc2VuZG1zZwBtcmVtYXAAY2xvY2tfbmFub3NsZWVw
+> <WxpemUAdXRpbWVuc2F0AGVwb2xsX2NyZWF0ZTEAb3BlbmF0AHN0
+> <mFsbG9jYXRlAGNhbGxvYwBmc3luYwBtZW1jbXAAbWVtc2V0AGlv
+> <GNnZXRhdHRyAF9fc25wcmludGZfY2hrAHNpZ2VtcHR5c2V0AHRj
+> <mNtcABncmFudHB0AHVubGlua2F0AF9fZXJybm9fbG9jYXRpb24A
+> <WxsAHN5bmNmcwBwb3NpeF9tZW1hbGlnbgBzZXRpdGltZXIAc2Vu
+> <2VlawB0Y2dldHBncnAAc3BsaWNlAHN0cm5jbXAAcGlwZTIAX19z
+> <y5zby42AGxkLWxpbnV4LXJpc2N2NjQtbHA2NGQuc28uMQBHTElC
+> <0lUTV9kZXJlZ2lzdGVyVE1DbG9uZVRhYmxlAF9JVE1fcmVnaXN0
+> <AIAAwACAAIAAgACAAIAAwACAAEAAgACAAIAAgACAAIAAgACAAIA
+> <gACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIABAADAAIAAgAC
+> <AIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIA
+> <gACAAIAAgACAAIAAQACAAIAAgACAAIAAgACAAIAAgACAAEAAAAA
+> <ZYGAAAEAJ4DAAAAAAAAAQACAHgDAAAQAAAAAAAAALSRlgYAAAMA
+> <AAAAAAAmIoAAAAAAAADAAAAAAAAAGI8AAAAAAAAoIoAAAAAAAAD
+> <AAAAAADAAAAAAAAANg8AAAAAAAA6I8AAAAAAAADAAAAAAAAADAi
+> <AAAAACQAAAAAAAA2I8AAAAAAAACAAAACwAAAAAAAAAAAAAA4I8A
+> <AAA8I8AAAAAAAACAAAAVgAAAAAAAAAAAAAA+I8AAAAAAAACAAAA
+> <AAFAAAAAgAAAAAAAAAAAAAAyIwAAAAAAAAFAAAAAwAAAAAAAAAA
+> <AAAAAAAAAAA2IwAAAAAAAAFAAAABQAAAAAAAAAAAAAA4IwAAAAA
+> <IwAAAAAAAAFAAAABwAAAAAAAAAAAAAA8IwAAAAAAAAFAAAACAAA
+> <AAACQAAAAAAAAAAAAAAAI0AAAAAAAAFAAAACgAAAAAAAAAAAAAA
+> <AAAAAAAEI0AAAAAAAAFAAAADQAAAAAAAAAAAAAAGI0AAAAAAAAF
+> <AAAAAAFAAAADwAAAAAAAAAAAAAAKI0AAAAAAAAFAAAAEAAAAAAA
+> <QAAAAAAAAAAAAAAOI0AAAAAAAAFAAAAEgAAAAAAAAAAAAAAQI0A
+> <AAASI0AAAAAAAAFAAAAFAAAAAAAAAAAAAAAUI0AAAAAAAAFAAAA
+> <AAFAAAAFgAAAAAAAAAAAAAAYI0AAAAAAAAFAAAAFwAAAAAAAAAA
+> <AAAAAAAAAAAcI0AAAAAAAAFAAAAGQAAAAAAAAAAAAAAeI0AAAAA
+> <I0AAAAAAAAFAAAAGwAAAAAAAAAAAAAAiI0AAAAAAAAFAAAAHAAA
+> <AAAHQAAAAAAAAAAAAAAmI0AAAAAAAAFAAAAHgAAAAAAAAAAAAAA
+> <AAAAAAAqI0AAAAAAAAFAAAAIAAAAAAAAAAAAAAAsI0AAAAAAAAF
+> <AAAAAAFAAAAIgAAAAAAAAAAAAAAwI0AAAAAAAAFAAAAIwAAAAAA
+> <AAAAAAAAAAAAAAA0I0AAAAAAAAFAAAAJQAAAAAAAAAAAAAA2I0A
+> <AAA4I0AAAAAAAAFAAAAJwAAAAAAAAAAAAAA6I0AAAAAAAAFAAAA
+> <AAFAAAAKQAAAAAAAAAAAAAA+I0AAAAAAAAFAAAAKgAAAAAAAAAA
+> <AAAAAAAAAAACI4AAAAAAAAFAAAALAAAAAAAAAAAAAAAEI4AAAAA
+> <I4AAAAAAAAFAAAALwAAAAAAAAAAAAAAII4AAAAAAAAFAAAAMAAA
+> <AAAMQAAAAAAAAAAAAAAMI4AAAAAAAAFAAAAMgAAAAAAAAAAAAAA
+> <AAAAAAAQI4AAAAAAAAFAAAANAAAAAAAAAAAAAAASI4AAAAAAAAF
+> <AAAAAAFAAAANgAAAAAAAAAAAAAAWI4AAAAAAAAFAAAANwAAAAAA
+> <AAAAAAAAAAAAAAAaI4AAAAAAAAFAAAAOQAAAAAAAAAAAAAAcI4A
+> <AAAeI4AAAAAAAAFAAAAOwAAAAAAAAAAAAAAgI4AAAAAAAAFAAAA
+> <AAFAAAAPQAAAAAAAAAAAAAAkI4AAAAAAAAFAAAAPgAAAAAAAAAA
+> <AAAAAAAAAAAoI4AAAAAAAAFAAAAQAAAAAAAAAAAAAAAqI4AAAAA
+> <I4AAAAAAAAFAAAAQgAAAAAAAAAAAAAAuI4AAAAAAAAFAAAAQwAA
+> <AAARAAAAAAAAAAAAAAAyI4AAAAAAAAFAAAARQAAAAAAAAAAAAAA
+> <AAAAAAA2I4AAAAAAAAFAAAARwAAAAAAAAAAAAAA4I4AAAAAAAAF
+> <AAAAAAFAAAASQAAAAAAAAAAAAAA8I4AAAAAAAAFAAAASgAAAAAA
+> <wAAAAAAAAAAAAAAAI8AAAAAAAAFAAAATAAAAAAAAAAAAAAACI8A
+> <AAAEI8AAAAAAAAFAAAATgAAAAAAAAAAAAAAGI8AAAAAAAAFAAAA
+> <AAFAAAAUAAAAAAAAAAAAAAAKI8AAAAAAAAFAAAAUQAAAAAAAAAA
+> <AAAAAAAAAAAOI8AAAAAAAAFAAAAUwAAAAAAAAAAAAAAQI8AAAAA
+> <I8AAAAAAAAFAAAAVQAAAAAAAAAAAAAAUI8AAAAAAAAFAAAAVwAA
+> <AAAWAAAAAAAAAAAAAAAYI8AAAAAAAAFAAAAWQAAAAAAAAAAAAAA
+> <AAAAAAAcI8AAAAAAAAFAAAAWwAAAAAAAAAAAAAAeI8AAAAAAAAF
+> <AAAAAAFAAAAXgAAAAAAAAAAAAAAiI8AAAAAAAAFAAAAXwAAAAAA
+> <AAAAAAAAAAAAAAAmI8AAAAAAAAFAAAAYQAAAAAAAAAAAAAAoI8A
+> <AAAqI8AAAAAAAAFAAAAYwAAAAAAAAAAAAAAsI8AAAAAAAAFAAAA
+> <AAFAAAAZQAAAAAAAAAAAAAAwI8AAAAAAAAFAAAAZgAAAAAAAAAA
+> <AAAAAAAAAAAl3MAADMDw0EDvgMMEwND/ZOCAwwTUxMAg7KCAGcA
+> <34AAAM+jgpnAw4AEwAAABd+AAADPg4KZwMOABMAAAAXfgAAAz6O
+> <w4AEwAAABd+AAADPo4IZwMOABMAAAAXfgAAAz4OCGcDDgATAAAA
+> <AADPg4HZwMOABMAAAAXfgAAAz6OBmcDDgATAAAAF34AAAM+DgZn
+> <BMAAAAXfgAAAz4OBWcDDgATAAAAF34AAAM+jgRnAw4AEwAAABd+
+> <z6OA2cDDgATAAAAF34AAAM+DgNnAw4AEwAAABd+AAADPo4CZwMO
+> <AAAF34AAAM+jgFnAw4AEwAAABd+AAADPg4BZwMOABMAAAAXfgAA
+> <gBnAw4AEwAAABd+AAADPo7/ZwMOABMAAAAXfgAAAz4O/2cDDgAT
+> <Bd+AAADPg7+ZwMOABMAAAAXfgAAAz6O/WcDDgATAAAAF34AAAM+
+> <wMOABMAAAAXfgAAAz4O/GcDDgATAAAAF34AAAM+jvtnAw4AEwAA
+> <gAAAz6O+mcDDgATAAAAF34AAAM+DvpnAw4AEwAAABd+AAADPo75
+> <gATAAAAF34AAAM+jvhnAw4AEwAAABd+AAADPg74ZwMOABMAAAAX
+> <AM+DvdnAw4AEwAAABd+AAADPo72ZwMOABMAAAAXfgAAAz4O9mcD
+> <wAAABd+AAADPg71ZwMOABMAAAAXfgAAAz6O9GcDDgATAAAAF34A
+> <o7zZwMOABMAAAAXfgAAAz4O82cDDgATAAAAF34AAAM+jvJnAw4A
+> <AAXfgAAAz6O8WcDDgATAAAAF34AAAM+DvFnAw4AEwAAABd+AAAD
+> <GcDDgATAAAAF34AAAM+ju9nAw4AEwAAABd+AAADPg7vZwMOABMA
+> <34AAAM+Du5nAw4AEwAAABd+AAADPo7tZwMOABMAAAAXfgAAAz4O
+> <w4AEwAAABd+AAADPg7sZwMOABMAAAAXfgAAAz6O62cDDgATAAAA
+> <AADPo7qZwMOABMAAAAXfgAAAz4O6mcDDgATAAAAF34AAAM+juln
+> <BMAAAAXfgAAAz6O6GcDDgATAAAAF34AAAM+DuhnAw4AEwAAABd+
+> <z4O52cDDgATAAAAF34AAAM+juZnAw4AEwAAABd+AAADPg7mZwMO
+> <AAAF34AAAM+DuVnAw4AEwAAABd+AAADPo7kZwMOABMAAAAXfgAA
+> <uNnAw4AEwAAABd+AAADPg7jZwMOABMAAAAXfgAAAz6O4mcDDgAT
+> <Bd+AAADPo7hZwMOABMAAAAXfgAAAz4O4WcDDgATAAAAF34AAAM+
+> <wMOABMAAAAXfgAAAz6O32cDDgATAAAAF34AAAM+Dt9nAw4AEwAA
+> <gAAAz4O3mcDDgATAAAAF34AAAM+jt1nAw4AEwAAABd+AAADPg7d
+> <gATAAAAF34AAAM+DtxnAw4AEwAAABd+AAADPo7bZwMOABMAAAAX
+> <AM+jtpnAw4AEwAAACFxJveXdAAAg7TE2pxgvu6BRyL7Bv9K807v
+> <AATBGQRY9OnAIBlIoaXRQAAk4XlEAlF7/DfrCKF7xAwOYFHfVeT
+> <4FHBWVjlNkAbwDwbpPVNwCbBkcEM4b5AK2eGwdXAiMA1gCFBxN3
+> <on9V4FGAUcFZWMb+QBvANBum4ZWAgUHk/b2D2MAp1qzBekAE1Y3
+> <Jc1AACThYV4F0UAABMFBQrvEBApBUaFZUqF7/D/4IFGAUcFaBHJ
+> <wXpABNWNwCbh0YEg8UFALGfk/f3D+OO9fyXVQAAk4XliRdFAAAT
+> <QUGiWVKhe/wH5R5Re/wv6yqiWNDoACFaROZGQCBR31XkwYgAg1G
+> <QBvAFBgk9U3AJsGVwYzBvoArZ4bB1cCIwDWAIUHE3f3D+PiJ/8N
+> <SUC7xBQHpOL+f/KmzPbOwOFRVqF7/AfzqqKGeFvEEBvKobKhVKF
+> <4f6AANHBwAFi4UH4+ln/2MTB0KXRQAAk4WFABdFAAATBYX+7xAQ
+> <EA/IoXvEFBFtwUIABdFAAATBeX+7/D/vCqJtwUIABdFAAATBcX+
+> <1SpABsGBQCbBQkAY9QpAZuFCQCBRhMFQBvv8A/+4xgFKIVFSoXv
+> <KVHqopjFPsAbxCgFhdFAAATBUX7l0UAAJOFxfvvENALSoXv8P+m
+> <oXv8H+uYx8FPApVhUXv8K/7KokKVY1F7/AP+7NnqQATlwcCY08H
+> <gAAEwaG+Zc1AACThQVMCUXv8O/+GaiXRQAAk4UF9xdFAAATBYX3
+> <uRjWAVkkwUACBpVNwYIAO/wf6kqiWNCBWSTB6AFBUYMGCMI8QIj
+> <JOFBVMXRQAAEwWF8+8QgH5Khe/wv5kKVe/wX5kaVe/w/5gihe8Q
+> <xcFMJdHAACThwdilGOYRwpVg9fHAJMJgRM5Rs6FIxLxFDb+IyDh
+> <QVMF0UAABMFhe/vEIB3ClXv8L+SGlXv8F+StxUIAJOFBYABRe/w
+> <66hR6qJYw31WhdFAAATBYXulzUAAJOFBUfvEABzSoXv8D+OIoXv
+> <WNMBVa3FQgAk4UFgAVF7/Cv6KqJY0IFfgVKKoYUEIVFSoUC0gLW
+> <2iBRpAAgUVOhYLgguSC6L7s7/D/muMQBRqTBoA+BUYMGEqFAvgC
+> <Zc1AACThWVXF0UAABMF5e3vEOBoToXv8B+ESoXv8L+DtxUIAJOF
+> <4enUIO4BwIDuIcCmHucf4FGkACBRcbgwuS66L7s7/AfkyqJ4xoF
+> <wlMEU0VqIVHYxX1BINXYQKFi6HDIUbahVKFAvjv8I/uoUdjEvV2
+> <waAPoVFVoXv8F+i41EF/O/wz90cQeOFp/+XRQAAk4Ul7BdFAAAT
+> <QgAk4UFgE6F7/Cv/2MXBRDv8C/zKonjTAUYYxEFKgZV7/Av9RVF
+> </C/kYVHKoRjHfVkFUXvEEBRFlWTBzAHBUaMACMA8QTv8L+PYx+F
+> <ua8lzUAAJOFZRoJRe/wT83xvhdGAAATBma5lzUAAJOF5RgJRe/w
+> <waX+cqWKZ4bB1cCI4DGAIUHE3f3D+ORt/4XRgAAEwbmr5c1AACT
+> <u8QAFBZuRdFAAATBQW67xAgT0qF7/Cv5wm5F0UAABMFRbzvEOBN
+> <AATBQXa7xAgTO8g8FfvIPBs7xBwPDcFCAATBSUQ7/CP6SqJY0MF
+> <kqF7/Cv9+MNBUK3FQgAk4UlkO/wr+6qimNUBQBvAJBVzoXv8K/K
+> <ACVZeEHEBiThUVBVoU++O/wT+7jBwUKF0UAABMFxeDvEGBDl0cA
+> <xlG3oVKhSMP8RIjLNESIx7hEu/wj/eZRyqL4wr1UJc1AACThcUQ
+> <oXv8A/XNwUIABMFJRDv8E/cKoljQgVK7/Cv8GMeBSpKhe/wD6Bj
+> <QgAToXv8E/c4x8FSO/wz7zv8I/PqopjVAUAbwDQaxnhbxCgBhZV
+> <lXv8O/PAUaMAFaFgsDv8C+845OqOpFHY5T5AG8A0FqXRQAAk4WF
+> <D2sF0UAABMFxZjvEOAyVbIWVYVK7/Avy4ZXgUYQGIVFCBA+0FbS
+> <1dhAoWL45EHJJc1AACThUUaF0UAABMFRb/vEMArEwYACIFFZoXv
+> <RgIM4jnAAZVgzcI9JgAs5iqALPo+ACBRoFHAUbmhQUlIzAY9dbg
+> </DP5JMXNQAYCJOHBxW6lwZVA7cH9LMXqgD5j+OYBx6XNQAAk4XF
+> <gFGLAhKhQLM7/CvqmMXqRLiR0FnEwf39/mP444H1pdFAACThUW3
+> <wbmgJc1AACTheXkCUXv8M+Xb/Bv+u/wT7miZU26F0UAABMFxZHv
+> <O/4FzUAABMF5XzvEIAdb/AP9xdFAAATBWWi7xCAHOm+F0UAABMF
+> <trv8G/bqopjF0UBg1dhA4WL450HGJc1AACThSUEF0UAABMFpZHv
+> <tKFguYjKAEUIxoBFO/wL6FjGSUBOUbOhVKF7/BPiOMOBSiXNQAA
+> <Ufj+TezF0YAABMGhp2XNQAAk4UF1glF7/DviDW2F0UAABMFBaTv
+> <e/wz6gihe8QUBWBR31XkwYQAg1GkUUBRe/wT839VyqEYwL1OCMg
+> <58HOO/wD4kqiZMJAQQFSq1KkUsjIAkAAUiBR06HgUYBRqKFEwUg
+> <WOddyEcQPHbAUbOhVqFgsDv8K+NYxGrIoZHQWcTB/f3+Y/jkQco
+> <AATBUW+7xBAApFFIoXv4F/zBUaXRQAAk4VlvxMFcBHv4D/vGwQF
+> <yKHhUYNRoVl7/APwCqJ/VYBR4FHBWXjA9kgk9U3AJsGV/ozBvkA
+> </6BRgFHBWUBqJuGVgIFB5P29g9jBqcoswXpABNWNwCbh1b6g8UF
+> <hdFAAATBeXb7wBwd4VlSoXv4H/oIoXv8A+StwUIAGaF7/BvmjXp
+> <5CXRwAAk4dH3JhjGlWDx4cAJUasAiMI8RS65u/wL6ylR2MB9WYT
+> <0qF7/AvjG/wn4gXRQAAEwWll+8AUHIdtRdFAAATBUWI7wBwcRW+
+> <4UqhGNHBUBjEQUe7/APgvW/FzUAABMFJW7vAFBuToXv8M+GSoXv
+> <BMFZXXvAHBpUoXv8I+Eb/DfjBdFAAATBYWC7wCwakqF7/Avg8m0
+> <AATBcVU7wBwaEqF7/DvgE6F7/CPgG/wD9oXRQAAEwUFne8AsGYB
+> <BMFRZzvAPBkAbW3V0wAk4cHtIFFiAC+5ILg7+B/yoVHHMABSIFH
+> <+Cf6xpVEwqBFO/g//kKVUFG0oWC5oLq7+Af6yqJClXv4J/4AUaM
+> <UWg7wDwXem9FzUAABMFZWTvABBdUoXv4J/1b/DP/Rc1AAATBYVG
+> <ZfvAHBaEb0XRQAAEwXll+8AkFkihe/gH/IBtQpVBUaMAO/gX+Nj
+> <JOFBUoXNQAAEwWFSO8AkFNv8A/VF0UAABMFhYnvADBVMbMXNQAA
+> <4UFlwlF7+D/yUG7FzUAABMFhWrvADBSSoXv4L/qb/C/k6qFAUYT
+> <BMG5pmXNQAAk4XlkglF7+DfxQFHgUY9RsqFEwWAGu/g37ljFQVQ
+> <+A/w4VJEwaAPoVFiADKwM7C7/APjGMXNQGDV2EEhYtjmwd6lzUA
+> <gAIgUVmhe/wL4uRRmaGyoUNRe/gf99jGQVqyldjlocAKleJR+MC
+> <wCQQkqF7+C/3aWiFzUAABMFRSHvAPBDb/DPnhc1AAATBUVS7wDw
+> <QAAEwWFI+8AMEFv8G+pFzUAABMFhR7vADBAhWVOhe/gn65v8I+a
+> <61xvmNRIEm359YAk4e35bYHk4e3kboHk4d3aTZnsgeThzeGYxH3
+> <JOFhU4XNQAAEwUFf+8AEDdZuZVlkACThTVBVoWC4O/gf+JjHQVE
+> <QNjDfd8lzUAAJOF5e0XNQAAEwXlVO8A8DJv8C/ypnY31v/9WgaT
+> <zb9imYy+QZ2tuGqZmpIAhe25cpmEwfXrHGPPvVmhpMHABCBRVaF
+> <zUAABMFpUrvAFAvb/CP6Rc1AAATBSV27wBQLpdHAACTh2eUg7gH
+> <T1FRv4jEAEVIwHxFO/gX6lJyRc1AAATBWV67wCQKoVGQUbShRMF
+> <W4XNQAAEwXleu8AcCUMEAVF7+B/uFnlt1dMAJOHB7SBRYgAguC+
+> <B+2YxwFUkJ3gndjSPcAYxb3QmJ3ondjwudClzUAAJOFxXkXNQAA
+> <UWC5oLq7+Afn2MfBUJBRqKFUoXv4D/EYw8FKpc1AACThSXXFzUA
+> <e8A8B0TCQEDyoUFRe/gH65jHwU04nc3l5gAEwcHaLqXt9aaOz78
+> <Qeyl7qFBQfjzfb+Lvg+/JFJgUZKhoVFBUXv4L+XKoRjBwVO4wc1
+> <xdkAAATBGS6UESXNQAAk4UFdQlFMzbAAO/gP4xIRHZnnGC5jwFH
+> <mq6ahpr9ntWfLZ8Fn05YYKAFzYAABMGhmSXJQAAk4UFVQlF7+D/
+> <oEU7+B/qBpV7+AfqP2yGlXv4J+nAUaXNQAAk4WlThc1AAATBaVO
+> </4TBfAH7+C/lQZVBUaTBXEB7+D/lWMbRdsDR3EBkwcAB2MV99oX
+> <I//b/BP2gVGkwVxAe/gv5JjFUXhA0dxAZMHMAdjH/feFzYAABMG
+> <98XNQAAEwXFLO8AcARKhe/g/5xv8O/FwleFi5njb/CvliFGLAhO
+> <pc1AACThUUEFzUAABMFRQXvAMB9b/DvlCFGjABKhYLg7+BfimMV
+> <AATBeX47wDgem/wT+UXNQAAEwXlR+8AgHylRSKF7+Dv5PW8FzUA
+> <oYWlyUAAJOFhT0JRe/gb/Bv8M+zhUVOhe/gr+hjBEUBb+D/6IOn
+> <yUAAJOFJToJRe/gD+1v4J/olzUAAJOFBTgXNQAAEwUFOe8AAHJv
+> <wlF7+Dv6WGxFzUAABMFhRDvACByb/DPrhc1AAATBYUK7wAgcUqF
+> <G9Khe/gX4hv8I/fBUoTBoA+hUWIANbA0sLv4P+uYxdFAYNXYQSF
+> <cUN7wBAaW/wD60XNgAAEwZG35clAACThUUuCUXv4C/hb+A/8Bc1
+> <AATBoYhlyUAAJOFhSsJRe/gb95v8K/iFzUAABMF5T/vAIBm5bkX
+> <G/V7+Cv4SqJpUUihYMpCQDv4M/MAUaBRSKF7+Av6ZMHYAIjIDkB
+> <zYAABMGRjmXJQAAk4VFJAlF7+Av1y2xFzUAABMFxR7vAGBfIoXv
+> <BMF5RXvAOBab/Cv2Bc1AAATBWUt7wCAXAW2FzUAABMFhSnvAKBb
+> <xQXNgAAEwYGCJclAACThQUdCUXv4O/PwleJi2OCBxIXNgAAEwam
+> <2OJBxIXNgAAEwZGCJclAACThUUZCUXv4C/MhkdBZxMH9/f5j5nj
+> <QbvAGBQb/DvngFGjACCwO/gD9hjBavKb/BP7Bc1AAATBcUm7wDg
+> <wlF7+BPxm/gX84XNgAAEwZGG5clAACThcURCUXv4K/Eb/DfhBc1
+> <+Dv5EqF7+CP5G/wz7sXNgAAEwYGEZclAACThQUOCUXv4O/Ab/DP
+> <PcAJmfid2NL9xAXNgAAEwYmIpclAACThaUKCUXv4I+97byXJQAA
+> <zUAAJOFRfQXNQAAEwVF8u8AQEF9tZc1AACThWWWFzUAABMF5fTv
+> <gYPlyUAAJOFhQQJRe/gb7dv8G/7FzYAABMGZgiXJQAAk4XlAglF
+> <uaC6u/gb8hjGGUBGUbehVKF7+CPry3JlyUAAJOFpXMXNQAAEwUl
+> <QAAk4Wl/QlF7+CPsG/wb6EXNgAAEwYG2JclAACThQX8CUXv4O+u
+> <zUAAJOFBRQXNQAAEwWFEO8AADPtshc2AAATBqbYlyUAAJOFJfgJ
+> <QAAk4WF9glF7+BvqW/gH8cGVe/gz8pKhe/gb8oCzO/gD6VjWAUG
+> <QDv4E/mY1CgBCqU43aJ/hZV7+BPx2MNlAqFSlaF7+CPt5c1AACT
+> <e/gz5pv4D+U7+BPrRHF7+DvpxxB44WX+hZV7+Avw8m3twUIAIkF
+> <UDv4C/Sacnv4M+NqoSqhSKF7+AvzynJtwdRAJVl5QcQEJOFRUEi
+> <M/nlwcAAJOHRxs+8e/g7+MBRuaFcUXv4E/YBcUihe/gz7sFt2JH
+> <keT5ycAPsx5v7cHZQCVZZOHFwIQGJOFRUEihT747+BPyWnxt0QP
+> <gEEEaiBRVKFfTmC4Kbk7+Cvg2MFCQCDp4kA7deDp4kAydfiR5Pn
+> <9zjkaTy4keT5xcAPswZv+8AIAKqhxdVAAADNSU6gmUwABNxAf+B
+> <YKAAABBESLkAAgXVQAAEwVFOZdXAACTh8c4Y4qnAJdXAACDtwc1
+> <wWlNpdVAACThSU2iY1BEZPXNUD9kSLkvpUACIWFicmXVwAAg7dn
+> <CbkBuwAEJdUAACThGQyg8cEAIXjl1cAAIO3BzCRxxdVAAADNWUw
+> <WGCgEERIuQACCJkQQG1v4VHF1cAACMj9y6CgIVHF1cAACMv9yyC
+> <wckMwX1AjlxSvAXWQAAAzmJKCL4JvQG/IM3CQA+7IFHAuQgAJFE
+> <9C/6331YmeDNwkAuY8BR5nn4nBCdKJ0AnkhYYKA7+DPhEERKoau
+> <wAAEwfnJFxHomCFJ1zHQQGCgEERBuQi4CqE79B//AhB7+APlqqG
+> <AATB2chXEeiYAJkhSdcx0EBgoAJaHl3EwEB3flyEweH35MGCCEj
+> <ZMIiCAzhCYAipiXVAAAg7REGqqHCUaTBQAgFycAABMHx7WTBgAg
+> <BqTBSAkIoXv4O+cY0sFEollKoTv4C+jYxsFEIFHIoeFRg1GiWXv
+> <hYDk9U3ADMH+QAtnpuGVgIjAMcAhQeT9vYP45Kn/hFGiWVKhe/g
+> <WVKhe/QH95jGgUY+XWJZ+EVk4cHIa6XM4knAIFGCWbKhSKF7+AP
+> <BMF5bLv8P/oEWaBRSKF7+DPkGMABRIXJQAAEwVFsu/w/+mZRSKF
+> <+gihe/Q//BNxRclAAATBQWz7/A/5yKF79C//4lnk4eHIIqXmGOc
+> <AEigzSBIQM5ASETAQEjgoAXJQAAEwWFo+/wP+Mihe/Qv/vBtxcl
+> <WgJqJuGVgIFBpP29g+FBWMLBgubhxYDE1c2AAPFBQC5n5P39w/j
+> <O/w/9oFtxcmAAATBoaolyUAAJOFBaAJRe/Q/9K5txcmAAATBgae
+> <oXv4M+CBcUXJQAAEwVlo+/wH9kptxcmAAATBoaglyUAAJOFhZsJ
+> <JOFBZoJRe/Q/8zpvRclAAATBQWb7/A/1ZW1FyYAABMGppuXJQAA
+> <ZTv8N/SIoXv0F/rbb3v0P/TEwEB2CM0kSZ9d4Vk/XITB4ffk4cE
+> <CEnIzRRJSMwYSUjPHEjupcWkZOEhCIzhCcAl1kAAIO5ie6KlKqH
+> <CAihQO4CQAjsAQBAUjv0N/oEwYAGpMFICQihe/Q//BjSAUWGUaX
+> <AVnfXSTBwcjopd9djOEJwATBobdkwcHI7KXM4knACM8BNyFR0qG
+> <Nzv0H+0YwEFDhclAAATBWWX7/CfwyaF79Af3H12hWcTBobfk4cH
+> <XAb79DfrGMHBRTv0F+9GEGTB2ACYwr3GBclAAATBWWX7/Afv1KF
+> <RmThwcjypcziScAqoWFZkqGEwXQA+/QH6iqhGNGBRZjBgUSyUdj
+> <YkAg1cFAYXDPpRjzoQA1oVNBe/Qv/YR4YVLY1OUCrOHhEDjTvv8
+> <7NFoIlHSoaZRSaFIxz03O/QX6VdxRclAAATBeWJ7/CftAG/lyUA
+> <RclAAATBaWB7/BfsoVnk4eHIoqXmGODtwkAuY8BR/HnhWIWkYMw
+> <zoBJYM6gSQDOwEkgzuBIxMBASiCgGOJCwQXJgAAEwaGiJcVAACT
+> <gAAEwamg5cVAACThaVuCUXv0J+hbb0XFgAAEwamfZcVAACThSVt
+> <AATBSWD7/A/pVW/FyUAABMFxYDv8P+mqbcXFgAAEwbmfJcVAACT
+> <+/wn6RBt+/QH6YTAQHcIziBIiM8MSEgAJdZAACDuenDqocJRpMF
+> <QAjNAEhAUgjPBEi79A/vpFlEwYAGpOFJSQihe/QP8ZjTAUIIzAh
+> <oJkgUcBRIVlG4c3BxNWNACzhoQAMZ+bh1cCI4DmAAUEk/f3D+MS
+> <ACTheVqFxUAABMFZX3v8H+WJoXv0J/cSoXv0D+xgzSBIgM5ASID
+> <AEjgzmBIRMBASSCgBcVAAATBeV27/AfldG/SoXv0H+wBckXFQAA
+> <xUAABMFpXXv8L+PSoXv0N+qAzkBInm/FxYAABMGJneXFQAAk4Ul
+> <D+RIXEi+yb3IACXVAAAg7Rkr5xgPueBRyKFBv9K8+/QP82pRSKF
+> <ek3FggAooUTBgaAfVXv0L+WKoRjRwUK79AfralF79Cv8kXtTu8T
+> <DUFg1dhAIWLncsTBgAILAIihe/Q35GTBwAIYxf1AAMngRCpR2MN
+> </D/gRmolxUAAJOFBW8XFQAAEwWFb+/wn4Aihe/Qv5sBRsqFCUXv
+> <Lp0Gnk5YYKAFxUAABMFxWfv8O//+b8XFQAAEwVlaO/wD/8BRsqF
+> </0ihe/QH5YBRsqFCUXv0H+nZbcXFgAAEwYGa5cVAACThQU/CUXv
+> <iM8MWGqhJdZAACDuUmaNxUIABMFBYCDtwkAIzTxYIFHIzwRYu/Q
+> <WMqhO/Q7/oqiWNEBRQjOEFhEwqBAKaHFxcAABMHJ2eTBgAgCUaT
+> <e/Qn5mqhGNJBQwdRpcVAACThUVn79BfqJ1HYwz1AJcVAACThaVB
+> <UQTBoA+hUUKhSLAJsLv0D+vYxaVAINXYQCFi8nrlxUAAJOFJVgX
+> <SKF79BP+CKF79D/gwM3gWCDtwkAuY8BR2ORBxADNAFjgzCBYwM5
+> <oADN4Fgg7cJALmPAUdjkAcOgzCBY4M0gWKDOYFhFxUAABMFBVYT
+> <HG3JAQTBgBApoUihe/Qj+6BRwFGY1KgBhOH9wBjXqcEM4f0ABRD
+> <wUFUu/wr+ADN4Fgg7cJALmPAUel4yKFAzQBYwM5AWKDMIFjgzSB
+> <MXeBUZVvwnOFxYAABMGJlWXFQAAk4WlHwlF79CP0t29lxUAAJOF
+> <9sjOEFh79BP2yM4gWIjMCFjIzhBYe/QT9oTAQHFIzQxOZdJAACD
+> <JE4IzQROqqE79CP/GNPBRgjOCE5EwmBAyMwgToTBgAQgUUqhEqF
+> <wUwEu/QT75jHgUUg1dBBf12EWf1j2OC50CXFQAAk4VlTxcVAAAT
+> <wAaPuRhR6FHioYXFgAAEwbGTaKFEwVQGz7o79BPuZsEBQBjzQQ2
+> <wEjMEE5EwqBM1lG0oUmhSMW8TQjPAEzIzDRNCMk4TTv0H+A2Udj
+> <+/wT8UTBgAQgUVKhe/QH4rKhxMHACCBRhcWAAATBsZFooUTBTAS
+> <ACTheVLFxUAABMFZUrv8O/ANwYIAJMGABoTBiYklxUAAJOF5Usi
+> <M/aYx0FKNlHAUgBR8qGAUamhRMF0BEjPFE379APq9lHqopjDfU6
+> <7qDOoE3SoXv0K/VoaAXFQAAEwXFOe/w77t9vQM3gTaDtwkAuY8B
+> <QAAEwWlNRMBATtv8A+5FxUAABMFpUPv8E+4hUcXFwAAEwdHTKKG
+> <w8FDBcVAAATBcVL7/BvtQFGlxUAAJOFZUwihe/QT8gTBgAglxUA
+> <JOFJUwihe/QD9NNyRcVAAATBSVM7/BPsQFGlxUAAJOFRUgihe/Q
+> <8MBRpcVAACThSUuIoXv0A/CAUaXFQAAk4UlNyKF79APwQFGlxUA
+> <e/QT8QDOgE4AzeBNoO3CQC5jwFHY5sHOAM0ATqDMIE6AzkBOYM0
+> <j6XFQAAk4Ul6wlF79APnjG/AUeXFgAAk4YGPiKGlxUAAJOFZSUi
+> <UqF79AP5xMKgSMTBgAQgUVShe/QD+bKhxMHQBCBRhcWAAATBsYh
+> <UYXFgAAEwYGOKKFEwUwEu/Qr4tjAgUiFxUAABMFJTzv8M+egUYT
+> <wUSFxUAABMFZTzv8I+clycAAJOHpwODuAcAA7iHAJhrnG+BRjAI
+> <9CP0l3JFxUAABMFpTzv8M+YIoXv0E+0Yw0FEhcVAAATBUU/7/Bv
+> <QAAEwUFMu/wr5WZtRcVAAATBSUW7/DPlCKF79BPrVG9JoXv0M+v
+> <dYJRe/QL4ldsRcVAAATBUUY7/Bvkfm5FxYAABMGZg6XFQAAk4Xl
+> <QAAk4Vl0glF79BPhX2xEwYAEIFFUoXv0G/Q0ocTBwAEgUYXFgAA
+> <zeBKqJ3Ywr3FJcVAACThSUxFxUAABMFpS3v8C+HAb8TBgAQgUVS
+> <6KFEwUwEu/AX/NjEQUOg1dBJRMHABiT9/cfY4fnDpcVAACThUUo
+> <wbmK5cVAACThWXHCUXvwF/6DbMBRoFFSoXv0I+cUeEjOGE3EwsB
+> <iMSATbv0E+LYxhVAVlG0oVahe/Af/JFyZcVAACThYU2FxUAABMF
+> <zeBJWMb9wADJ4EUhUdj9ucAAyeBJGPs5wiXFQAAk4VlGRcVAAAT
+> <L/5gzqBN9G2FxUAABMF5Rnv4J/4wbMXFQAAEwUFHe/gv/f9sxcW
+> <+1puxcWAAATBiYZlxUAAJOFpbgJRe/An+t9uxcWAAATBqYDlxUA
+> <6G+FxYAABMGJg6XFQAAk4UltQlF78Af6B2zIzBBOSM8UTcjOGE3
+> <TcjOGE378B/8BMBAcwjNJEyIzAhM6QZF0kAAAM5SQ6qhwlGkwUA
+> <CM8AS8BSCM8ETLv0I+ItwUIABMGABqThSUkJoXv0G+QY04FEpcX
+> <wmBCjlGzoUjOIEyIxrxCiqENvU62e/QT525R2MH9QSXFQAAk4Ul
+> <SaF78D/+AM0ATODOYExAzeBL4M3CQC5jwFHY5YHHoMwgTODNIEy
+> </pV9bcFCAAUEQFGiQUFRe/An9lV5RwYEwdgBCMwYTETBoADBUuB
+> <TroWuyCz+/Qj5+qhwVKClW+hQIaHAhRR77gBQq8AQFG2uS+6NLp
+> <ACThYUKFxUAABMFBQvv4B/WClXvwD/xGlXvwN/wIoXvwH/wJoXv
+> <AM7ATAdtxcVAAATBeUA7+Af1SG/FxUAABMFBQTv4D/U3b28EBMG
+> <vGC9YL579DvlKqHvoUaVRwQvvzhRxMLAQ4+6QFG/VdW4VrlPsbv
+> <JcVAACThSUCFxUAABMFpQLv4D/Lib9KZ71HY/fnAKpngceYZ2MN
+> <+C/yC23lGNNR+Nz1/4DxgcBg8YXAQPHJwGDxzcBIwbBAKMG0QCj
+> <QL9gsEjEgEM78Af0rlHYxj1ADlGzoVWhe/AH7kNzZcVAACThaX8
+> <8Af3WW9IziBMiM8MTEjOEExIzRRMSMwYTHvwH/EFxYAABMGJvyX
+> <KqECWUG7O/AH7EFwSLoqoUqhIFGCWYmhe/A//GJZ2ML9QAihe/Q
+> <WUzBuQAk1U3AJuHZvwDRgYArZ+T9/cPm4ZWAgUH4xb2/JP29g/j
+> <CM8MWV5d4lp+XITB4efk4cJYiM8EWYjOIFmIzSRZiMwIWcjOEFl
+> <WO6lxaRk4iJYYqYM4QnABdJAAADOcnVqoQDOAkAI7AIAQFIqocX
+> <e/AP9B5dRMFhb8TiAliKpimhxcXAAATBwfvkwYAIAlGkwUAIDMF
+> <pQJRpMFACAXFwAAEwcn7pMGACAzhSQA78A/y7cFCAATBgAak4Ul
+> <wditpezhicAqoSBRwFEiWUbh2f8E1Y0ADGfI4DmAJuHVwIFBJP3
+> <pcJZrOFJwAmhe/A/91jAIUIlxUAAJOFZagXFQAAEwXl6O/g/6Im
+> <zOFJwDvwL+4iWeTh4dhipeYY4M3CQC5jwFHY5EHLoliFpGDMIFn
+> <WWDOoFkAzsBZIM7gWMDPAFjgzyBYhMBAWiCgCaF78Cfuj39eXWJ
+> <pOFJSQzhScA78Bfw6qJY08FDglnkwcHYoqXeXYzhIdAEwaGnpMH
+> <4ZKQSKGpoVOhe/Av41jQaAOEcXvwB+VHEHjg2f/lxUAAJOFZd0X
+> <YlnEwWF35OHB2Kql7cFCAATBgAak4UlJDOFJwDvwP+6qoljRAUM
+> <4UnAO/A/7NFzRcVAAATBQXb7+A/kU6F78C/qSaF78BfqQlkeXUT
+> <RMFhb+TBwRiqpczhScA78C/onl1EwWF35MHBGKqlzOFJwDvwH+h
+> <AATBaXM7+DfioW9KprjZ1rx4x5a84lnk4cHYoqXs4dHQYO3h55j
+> <u/g/4QBvxcVAAATBYXP7+C/hrm/AUaBRSaF78Dfn4FLJe2JZ5OH
+> </PsAAVnAyZKn4FHgUaBRSaF78DfvaqKY1sFBO/AL/8cQeONZ/2X
+> <olneXSThwdiopczhCcAAyUEn+/AP5gDJUSf78C/l06F78Bfl+m9
+> <aBN2QmMY1OAAgMlCp+BRyKHgUZOhoFF78BftuNTBf7vwM/3HEHj
+> <F+VJf1Ohe/wP7gl+RcWAAATBmbElwUAAJOFZTsJRe/AT+61t06F
+> <xYAABMGpryXBQAAk4WlOAlF78CP682z78Av9iFxVuecCJdKAACD
+> <wb/WuPvwN+0l+f//5OHx2a+5BMLAQ7vwL+wWoasADlF78AfpXnt
+> <uQC6ALsPvDvwA/bceVO77dJDwAi+yb3SvNS6xMJQAYgEBdKAAAT
+> <DGg78DP5xxBY5eXAKKFIoXvwO/QffV9OeMfCfwC9AFGooUBRSM0
+> <UXvwF+cgycKAJ3rlxUAAJOFpbkXFQAAEwWlt+/gL+NadLp0Gnn6
+> <hprOWGCgBcWAAATBua0lwUAAJOFZSYJRe/AT9nptxcVAAATBeWw
+> <UbahTlF78D/lH23Ivsm90rzTu9S6+/A7+BBcVb/HAGXOgAAg7pK
+> <1r778Cfn5fn//+Th0dSvvyRRyMg8RATCwER78Afm1qGrBgxRe/A
+> <5yqhbFHCoYFRb7A78Bv013hAmW3l5gAk4cHaIFGMAiBRRc3AAAj
+> <7dJDwCi86bvyuvS4xMJQAYXOgAAEwpKeJOJCSQgAJFEgydKAI3j
+> <oXvwO+4ffV9OeMfCfwCZe/AD98BRtqFMUXvwH+FgydKALHvlxUA
+> <P5kXmm+aR5qIagXFQAAEwVFo+/gb80BRtqFMUXvwL+BOneDtwoA
+> <AATBQWf7+Cvyvm/FxYAABMGpqKXBQAAk4UlDQlF78APwFW3FxUA
+> <TFF78Av/GW3ovOm78rrzufS4+/AL8gAAAAAAAABAAIAAAAAAF9f
+> <0ZBSUxfXzolczolcwoAAAAAAAAlcy9wcm9iZS1tbWFwLmJpbgAA
+> <QAAZnRydW5jYXRlAAAAAAAAAG1tYXAtc2hhcmVkAAAAAABtc3lu
+> <ABfX05FTVVfU1lTQ0FMTF9QUk9CRV9QQVNTX186JXMKAG11bm1h
+> <HByZWFkLW1tYXAtZmlsZQBwb3NpeC1mYWxsb2NhdGUAZmxvY2st
+> <G9jawAAAABmbG9jawAAAHN5bmNmcwAAcGF0dGVybi1taXNtYXRj
+> <2V0ZGVudHMtZW50cnkAb3Blbi1nZXRkZW50cy1lbnRyeQAAAAAA
+> <QAAAAAAd3JpdGUtZ2V0ZGVudHMtZW50cnkAAAAAZmNudGwtcmVj
+> <GwtcmVjb3JkLXVubG9jawAAAAAAZmFjY2Vzc2F0Mi1za2lwLWVu
+> <WNjZXNzAAAAAAAAb3Blbi1nZXRkZW50cy1kaXIAAAAAAAAAZ2V0
+> <WdldGRlbnRzLWVudHJ5AAAAAG1hbGZvcm1lZC1kaXJlbnQAAAAA
+> <AAlcy9wcm9iZS1vZGlyZWN0LmJpbgAAAABvcGVuLW9kaXJlY3QA
+> <W1hbGlnbgAAd3JpdGUtb2RpcmVjdAAAAGZzeW5jLW9kaXJlY3QA
+> <W5jAAAAAABzaWdwcm9jbWFzay1ibG9jawAAAAAAAABzaWduYWxm
+> <2lsbAAAAG5vdC1yZWFkYWJsZQAAAABzaWduYWxmZC1wb2xsAAAA
+> <25hbGZkLXJlYWQAAABzaWduYWxmZAAAAAAAAAAAaW5vdGlmeS1p
+> <XdhdGNoAAAAAAAAACVzL3Byb2JlLWlub3RpZnktZXZlbnQAAGlu
+> <AAAAGlub3RpZnkAaW5vdGlmeS13cml0ZS10YXJnZXQAAAAAaW5v
+> <nktY3JlYXRlLWNsb3NlAAAAAGV2ZW50LW1pc3NpbmcAAABpbm90
+> <WZzLW9wZW4tZGlyAAAAAAAAc3RhdHgtZGlyAAAAAAAAAG5vdC1k
+> <GVuYXQyLXNyYwAAAAAAAABvcGVuYXQyLWNyZWF0ZQAAd3JpdGUt
+> <3BlbmF0Mi13cml0ZS1mc3luYwAAAAAAb3BlbmF0Mi1jcmVhdGUt
+> <QAAAAAAAGJhZC1zaXplAAAAAAAAAABzdGF0eC1maWxlLXNpemUA
+> <3QAAAAAY29weS1maWxlLXJhbmdlLW9wZW4tZHN0AAAAAAAAAABj
+> <WsAAABzaG9ydC1jb3B5AAAAAAAAY29weS1maWxlLXJhbmdlAGNv
+> <HNlZWsAAAAAAAAAY29weS1maWxlLXJhbmdlLXJlYWRiYWNrAAAA
+> <DItZHN0AAAAAAByZW5hbWVhdDItbm9yZXBsYWNlAAAAAABwcm9i
+> <XJkbGluawAAAHByb2JlLW1ldGEtZGlyAABta2RpcmF0LW1ldGFk
+> <GFyZGxpbmsAc3RhdHgtaGFyZGxpbmsAAGlub2RlLW9yLW5saW5r
+> <WhhcmRsaW5rAAAAAAAAAHN0YXR4LWhhcmRsaW5rLW1vZGUAAAAA
+> <GltZW5zYXQtaGFyZGxpbmsAAAAAAABzdGF0eC1oYXJkbGluay1t
+> <XRjaAAAZGlyZWN0b3J5LWZzeW5jAG1vZGVybi1mcy1zeXNjYWxs
+> <S1yaWdodHMudHh0AHNjbS1yaWdodHMtb3BlbgB3cml0ZS1vci1s
+> <mlnaHRzLXdyaXRlAAAAAAAAAABzY20tcmlnaHRzLXNvY2tldHBh
+> <AAAc2NtLXJpZ2h0cy1zZW5kbXNnAAAAAAAAYmFkLW1lc3NhZ2UA
+> <m1zZwAAAAAAAG1pc3NpbmctZmQAAAAAAABwYXlsb2FkLW1pc21h
+> <HRzLWZkLXJlYWQAAAAAAAB1bml4LXNjbS1yaWdodHMAc2NtLXJp
+> <Xplcm9jb3B5LXNyYy5iaW4AAAAAAAAAJXMvcHJvYmUtc2VuZGZp
+> <y9wcm9iZS1zcGxpY2UtZHN0LmJpbgB6ZXJvY29weS1vcGVuLXNy
+> <ml0ZS1zcmMAAAAAAABzZW5kZmlsZS1vcGVuLWRzdAAAAAAAAABz
+> <GZpbGUtcmVndWxhci1maWxlAAAAc3BsaWNlLW9wZW4tZHN0AHNw
+> <2UtbHNlZWstc3JjAAAAAAAAAABzcGxpY2UtZmlsZS1waXBlLWZp
+> <S1mYWlsZWQAAABzaWdhY3Rpb24tc2lnYWxybQAAAAAAAABzZXRp
+> <WVyLXNpZ2Fscm0AAAAAAAAAbm90LWRlbGl2ZXJlZAAAAHBvc2l4
+> <HBvc2l4LXRpbWVyLWNyZWF0ZQAAAAAAAHBvc2l4LXRpbWVyLXNl
+> <WVyLXNpZ25hbAAAAAAAAC90bXAAAAAAX19ORU1VX1NZU0NBTExf
+> <AAAAAAAAG1tYXAtYW5vbgAAAAAAAABtcmVtYXAtYW5vbgAAAAAA
+> <GFnZQAAbXByb3RlY3QtcmVzdG9yZS1wYWdlAAAAbW1hcC1hZHZp
+> <mlzZS13aWxsbmVlZAAAAAAAAAAAYWxsb2MAAABtaW5jb3JlLXJl
+> <W5vdC1yZXNpZGVudAAAAAAAAAAvZGV2L251bGwAAAAAAAAAL2Rl
+> <XJhbmdlLW9wZW4AAAAAAAAAAGNsb3NlLXJhbmdlAAAAAABmZC1z
+> <ABwaXBlMi1mY250bAAAAAAAZmxhZ3MtbWlzc2luZwAAAHBpcGUy
+> <GR1cDMtcGlwZS13cml0ZQBiYWQtcmVhZGJhY2sAAAAAc29ja2V0
+> <XItd3JpdGUAAAAAAAAAAHNvY2tldHBhaXItcmVhZABldmVudGZk
+> <mVudGZkLXBvbGwAAAAAYmFkLXZhbHVlAAAAAAAAAGV2ZW50ZmQt
+> <GwtcmVhZAAAAAAAAABlcG9sbC1jcmVhdGUAAAAAdGltZXJmZC1j
+> <GQtdGltZXJmZAAAAHRpbWVyZmQtc2V0dGltZQBlcG9sbC10aW1l
+> <24tY291bnQAAAAAdGltZXJmZC1yZWFkAAAAAHBlcmlvZGljLXRp
+> <GljLXRpbWVyZmQtc2V0dGltZQAAAAAAAAAAcGVyaW9kaWMtdGlt
+> <WMtdGltZXJmZAAAAAAAAAAAdG9vLWZldy1leHBpcmF0aW9ucwAA
+> <XBlMgAAAAAAcHBvbGwtcHNlbGVjdC1mb3JrAAAAAAAAcHBvbGwt
+> <GlwZQAAAABwcG9sbC1wc2VsZWN0LXdhaXRwaWQAAABiYWQtZXhp
+> <GVjdC1jaGlsZAAAAAAAcG9zaXgtb3BlbnB0AAAAAGdyYW50cHQA
+> <W4tcHR5LXNsYXZlAAB0Y2dldGF0dHItcHR5AAAAdGNzZXRhdHRy
+> <AAAAABwdHktdGlvY3N3aW5zegAAcHR5LXRpb2Nnd2luc3oAAHB0
+> <WFzdGVyLXdyaXRlAAAAAAAAAABwdHktc2xhdmUtcG9sbAAAcHR5
+> <XN0ZXItc2xhdmUAAAAAAAAAAGpvYi1wdHktb3BlbnB0AABqb2It
+> <ABqb2ItcHR5LXB0c25hbWUAam9iLXB0eS1waXBlMgAAAGpvYi1w
+> <XdhaXRwaWQAbWlzc2luZy1jaGlsZC1yZXN1bHQAAAAAam9iLXB0
+> <m9sbGluZy10dHkAAAAAAG5vdC1hY3F1aXJlZAAAAABwdHktZm9y
+> <Hktc2lnd2luY2gAAAAAam9iLXB0eS1jaGlsZAAAAGZ1dGV4LW1t
+> <AAAAAAAZnV0ZXgtd2FpdAAAAAAAAGZ1dGV4LXdhaXRwaWQAAABm
+> <Xgtd2FpdC13YWtlAHdvcmQtbm90LXVwZGF0ZWQAAAAAAAAAAG5l
+> <AAAAG1lbWZkLWNyZWF0ZQAAAABtZW1mZC1mdHJ1bmNhdGUAbWVt
+> <AAAdHJ1ZQAAAAAvdXNyL2Jpbi90cnVlAAAAd2FpdHBpZABiYWQt
+> <ABmb3JrLXBpcGUAAAAAAAAAZXhlY3ZlLXRydWUAAAAAAGZvcmst
+> <HBpZGZkLWZvcmsAAAAAAABwaWRmZC1za2lwLWVub3N5cwAAAAAA
+> <GlkZmQtc2VuZC1zaWduYWwAAAAAAAAAcGlkZmQtcG9sbC1leGl0
+> <WQtc2lnaW5mbwAAAAAAcHJjdGwtc2V0LW5hbWUAAHByY3RsLWdl
+> <AAAAAAAZ2V0cmFuZG9tAAAAAAAAAGNsb2NrLWdldHRpbWUtYQBu
+> <2stZ2V0dGltZS1iAHRpbWUtbm90LWZvcndhcmQAAAAAAAAAAGNs
+> <y1hYnN0aW1lLWdldHRpbWUtYQBjbG9jay1uYW5vc2xlZXAtYWJz
+> <WdldHRpbWUtYgByZXR1cm5lZC1iZWZvcmUtdGFyZ2V0AABfX05F
+> <05FX18gcmM9JWQKAAAAAAAAbWVtZmQtcGF0dGVybgAAAHJlYWRi
+> <HNvY2tldHBhaXItb2sAAABwdHktb2sAAGNoaWxkLW9rAAAAAAAA
+> <PFTZQAAAAAVzVsHAAAAAAHxU2UAAAAAsWjeOgAAAAAAAAAAAAAA
+> <0wAAAAAAAEbAzukAAAAEwAAAKi1//+ABQAAuM///7wAAACc0P//
+> <ADA0P//DAEAACDR//84AQAAStH//1QBAACE0f//dAEAAC7U//+s
+> <KbZ//+EAgAAyNv//xADAABm4v//wAMAAD7l//80BAAAsOX//2gE
+> <AAAABAAAAAAAAAAA3pSAAF8AQEbDQIAEAAAABgAAAD0zv//IgAA
+> <AAAAAAAABAAAABAAAAAvM///wwAAAAAAAAAEAAAAFQAAAC0z///
+> </9gAAAAAE4OQEKSCE6IBIkGgQJ0CsFCyELJQtJCDgBCCxgAAACU
+> <MFGDgAcAAAAsAAAAO7P//86AAAAAEIOEESBAogEasFCyEYOADQA
+> <F4OsESIBIkGgQKSCANQAQoOsAREwUTIRMlE0kQOAEILAAAASAAA
+> <okGcA6AJYgEkwqUDIECkgiVDpYQlxID2gEKDoAFRMFEyETJRNJE
+> <ABUAQAADNX//04BAAAARA7ABEiIBJMKboECXpIIUIkGAlrJRNJS
+> <tJCiQaSCFjJ0kiJBpIIAAA8AAAAoAEAAA7W//9MAQAAAEIOwANE
+> <ULIQslC0kIOAEILAkSTCljTQpMKAAAAiAAAAOABAAAa1///IgIA
+> <FCUDAK6yETBRNJE1ETJRNNEDgBCDsAMgQKJBpMKVMFEyUTTTA4A
+> <GDIRNJEwUTJRNNEDgBEDsAMgQKIBIkGkgiTCpQMAkDURJQMRMjS
+> <LDY//+eBgAAAEQOsAdEkwpeiQaBAk6SCE6IBAKOlAwCwJUOZNVI
+> <ogEiQaSCJMKlAwD3gDUVMhEwUTSRMlE00QOAEIOsAeBAogEiQaS
+> <JUOUJYQAkbVRNZ0lQ5Q1QJOlQ6WEFrVRNZa1EyUDJUOlhBEyNLU
+> <AAcAwAAnt7//9gCAAAARA7ABkiJBpIIboECbpMKUIgEAjTIRNNU
+> <giTCmyWEFyUDJUOAmDIRNNE1ETVRNZQiASTCk6UDJUOlhADAAHI
+> <AAAAJADAAAC4f//cgAAAABCDiBCiQZGgQJIiARcyETBQslCDgBC
+> <wAAQOH//1oEAAAARA6ADUaTCngOgE2BAogEiQaSCJQMlQ6WEJcS
+> <kTTRNRE1UTWRNdE2ETZRA4AQgsAAGAAAAAYBAAARuX//1QBAAAA
+> <IkGkgiUDAJ4yELJQtJC00LUTsFC1ULWQg4AQg7AA4ECiASJBpII
+> <pIIkwqUDABcAAAAfAQAADbm//+MAQAAAEIO8ANElQ5cgQKWEAJw
+> <tNC1GYKwULVQtZCDgBCC06IBIkGkgiTCpQMWMjJ0tPUaIgEiQaS
+> </8QGgAAAEIOwANCiQZkiASBApIIkwqUDJUOlhCXEpgUmRaaGAM+
+> <0LYQtlC2kIOAEILAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAIIDAAAAAAAAIAAAAAAAAACYigAAAAAAACEAAAAAAAAA
+> <AAAAAAAGwAAAAAAAAAIAAAAAAAAABoAAAAAAAAAqIoAAAAAAAAc
+> <wAAAADYAgAAAAAAAAUAAAAAAAAA2AwAAAAAAAAGAAAAAAAAAAAD
+> <AAAAAsAAAAAAAAAGAAAAAAAAAAVAAAAAAAAAAAAAAAAAAAAAwAA
+> <AAAMAkAAAAAAAAUAAAAAAAAAAcAAAAAAAAAFwAAAAAAAADAEgAA
+> <AAIAAAAAAAAAAgKAAAAAAAACQAAAAAAAAAYAAAAAAAAAB4AAAAA
+> <AEAAAgAAAAA/v//bwAAAACYEQAAAAAAAP///28AAAAAAgAAAAAA
+> <f//bwAAAAAFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAA8BsAAAAAAADwGwAAAAAAAPAbAAAAAAAA8BsAAAAAAADw
+> <AAAAADwGwAAAAAAAPAbAAAAAAAA8BsAAAAAAADwGwAAAAAAAPAb
+> <AAAAPAbAAAAAAAA8BsAAAAAAADwGwAAAAAAAPAbAAAAAAAA8BsA
+> <AAA8BsAAAAAAADwGwAAAAAAAPAbAAAAAAAA8BsAAAAAAADwGwAA
+> <ADwGwAAAAAAAPAbAAAAAAAA8BsAAAAAAADwGwAAAAAAAPAbAAAA
+> <PAbAAAAAAAA8BsAAAAAAADwGwAAAAAAAPAbAAAAAAAA8BsAAAAA
+> <BsAAAAAAADwGwAAAAAAAPAbAAAAAAAA8BsAAAAAAADwGwAAAAAA
+> <wAAAAAAAPAbAAAAAAAA8BsAAAAAAADwGwAAAAAAAPAbAAAAAAAA
+> <AAAAAAA8BsAAAAAAADwGwAAAAAAAPAbAAAAAAAA8BsAAAAAAADw
+> <AAAAADwGwAAAAAAAPAbAAAAAAAA8BsAAAAAAADwGwAAAAAAAPAb
+> <AAAAPAbAAAAAAAA8BsAAAAAAADwGwAAAAAAAPAbAAAAAAAA8BsA
+> <AAA8BsAAAAAAADwGwAAAAAAAPAbAAAAAAAA8BsAAAAAAADwGwAA
+> <ADwGwAAAAAAAPAbAAAAAAAA8BsAAAAAAADwGwAAAAAAAPAbAAAA
+> <PAbAAAAAAAA8BsAAAAAAADwGwAAAAAAAPAbAAAAAAAA8BsAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+> <jAtNnVidW50dTJ+MjQuMDQuMSkgMTMuMy4wAEFSAAAAcmlzY3YA
+> <nAwX2EycDFfZjJwMl9kMnAyX2MycDBfemljc3IycDBfemlmZW5j
+> <HN0cnRhYgAuaW50ZXJwAC5ub3RlLmdudS5idWlsZC1pZAAubm90
+> <AAuZHluc3ltAC5keW5zdHIALmdudS52ZXJzaW9uAC5nbnUudmVy
+> <mVsYS5wbHQALnRleHQALnJvZGF0YQAuZWhfZnJhbWVfaGRyAC5l
+> <nJheQAuaW5pdF9hcnJheQAuZmluaV9hcnJheQAuZHluYW1pYwAu
+> <W1lbnQALnJpc2N2LmF0dHJpYnV0ZXMAAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALAAAAAQAA
+> <gAAAAAAACEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAlAIAAAAAAAAkAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAA
+> <AAAAAC4AgAAAAAAALgCAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAQA
+> <v//bwIAAAAAAAAA2AIAAAAAAADYAgAAAAAAACQAAAAAAAAABQAA
+> <AAAPgAAAAsAAAACAAAAAAAAAAADAAAAAAAAAAMAAAAAAADYCQAA
+> <AAYAAAAAAAAAEYAAAADAAAAAgAAAAAAAADYDAAAAAAAANgMAAAA
+> <AEAAAAAAAAAAAAAAAAAAABOAAAA////bwIAAAAAAAAAwhAAAAAA
+> <QAAAAAAAAACAAAAAAAAAAIAAAAAAAAAWwAAAP7//28CAAAAAAAA
+> <AAAAAAAAAYAAAACAAAACAAAAAAAAAAAAAAAAAAAAGoAAAAEAAAA
+> <AAAAAAA2AAAAAAAAAAFAAAAAAAAAAgAAAAAAAAAGAAAAAAAAAB0
+> <AAAAADAEgAAAAAAADAJAAAAAAAABQAAABQAAAAIAAAAAAAAABgA
+> <AAAAPAbAAAAAAAA8BsAAAAAAABABgAAAAAAAAAAAAAAAAAAEAAA
+> <AAABgAAAAAAAAAwIgAAAAAAADAiAAAAAAAAQjcAAAAAAAAAAAAA
+> <ACEAAAAAQAAAAIAAAAAAAAAeFkAAAAAAAB4WQAAAAAAABATAAAA
+> <AAAAAAAAAAAjAAAAAEAAAACAAAAAAAAAIhsAAAAAAAAiGwAAAAA
+> <AAAAAAAAAAAAAAAAAAAAJoAAAABAAAAAgAAAAAAAAAwbQAAAAAA
+> <AAAAAAAAAgAAAAAAAAAAAAAAAAAAACkAAAAEAAAAAMAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAABAAAAAAAAAAgAAAAAAAAAswAAAA4AAAAD
+> <AAAAAAIAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAIAAAAAAAAAL8A
+> <AAAAKh6AAAAAAAACAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAACAAA
+> <AAAsIoAAAAAAACwegAAAAAAAAACAAAAAAAABgAAAAAAAAAIAAAA
+> <AADAAAAAAAAALCMAAAAAAAAsHwAAAAAAABQAwAAAAAAAAAAAAAA
+> <NkAAAABAAAAAwAAAAAAAAAAkAAAAAAAAACAAAAAAAAACAAAAAAA
+> <AAAAAAAAADfAAAACAAAAAMAAAAAAAAACJAAAAAAAAAIgAAAAAAA
+> <AAAAAAAAAAAAAAAAAAA5AAAAAEAAAAwAAAAAAAAAAAAAAAAAAAA
+> <AAAAAAAAQAAAAAAAAABAAAAAAAAAO0AAAADAABwAAAAAAAAAAAA
+> <AAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAwAAAAAA
+> AAAAAAAAAAAAAAAAAACIgAAAAAAAAP8AAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAA
+> __NEMU_SYSCALL_PROBE_B64__
+>   if base64 -d "$probe_b64" > "$probe_bin" &&
+>      chmod +x "$probe_bin" &&
+>      "$probe_bin" "$check_dir"; then
+>     pass syscall-probe
+>   else
+>     fail syscall-probe
+>   fi
+> else
+>   echo "__NEMU_CHECK_SYSCALL_PROBE_SKIP__"
+> fi
+__NEMU_SYSCALL_PROBE_BEGIN__:/root/nemu-systemd-guest-check.d
+__NEMU_SYSCALL_PROBE_PASS__:mmap-msync
+__NEMU_SYSCALL_PROBE_PASS__:pread-mmap-file
+__NEMU_SYSCALL_PROBE_PASS__:posix-fallocate
+__NEMU_SYSCALL_PROBE_PASS__:flock
+__NEMU_SYSCALL_PROBE_PASS__:syncfs
+__NEMU_SYSCALL_PROBE_PASS__:mremap-anon
+__NEMU_SYSCALL_PROBE_PASS__:mprotect-readonly-page
+__NEMU_SYSCALL_PROBE_PASS__:madvise-willneed
+__NEMU_SYSCALL_PROBE_PASS__:mincore-resident
+__NEMU_SYSCALL_PROBE_PASS__:statx-dir
+__NEMU_SYSCALL_PROBE_PASS__:openat2-create-write
+__NEMU_SYSCALL_PROBE_PASS__:statx-file-size
+__NEMU_SYSCALL_PROBE_PASS__:copy-file-range
+__NEMU_SYSCALL_PROBE_PASS__:renameat2-noreplace
+__NEMU_SYSCALL_PROBE_PASS__:linkat-hardlink
+__NEMU_SYSCALL_PROBE_PASS__:fchmodat-hardlink
+__NEMU_SYSCALL_PROBE_PASS__:utimensat-hardlink
+__NEMU_SYSCALL_PROBE_PASS__:directory-fsync
+__NEMU_SYSCALL_PROBE_PASS__:fcntl-record-lock
+__NEMU_SYSCALL_PROBE_PASS__:faccessat2-eaccess
+__NEMU_SYSCALL_PROBE_PASS__:getdents64-dir
+__NEMU_SYSCALL_PROBE_PASS__:close-range
+__NEMU_SYSCALL_PROBE_PASS__:pipe2-cloexec-nonblock
+__NEMU_SYSCALL_PROBE_PASS__:dup3-pipe-write
+__NEMU_SYSCALL_PROBE_PASS__:odirect-write-fsync
+__NEMU_SYSCALL_PROBE_PASS__:socketpair
+__NEMU_SYSCALL_PROBE_PASS__:eventfd-poll-read
+__NEMU_SYSCALL_PROBE_PASS__:unix-scm-rights
+__NEMU_SYSCALL_PROBE_PASS__:sendfile-regular-file
+__NEMU_SYSCALL_PROBE_PASS__:splice-file-pipe-file
+__NEMU_SYSCALL_PROBE_PASS__:epoll-timerfd
+__NEMU_SYSCALL_PROBE_PASS__:periodic-timerfd
+__NEMU_SYSCALL_PROBE_PASS__:ppoll-pipe
+__NEMU_SYSCALL_PROBE_PASS__:pselect-pipe
+__NEMU_SYSCALL_PROBE_PASS__:setitimer-sigalrm
+__NEMU_SYSCALL_PROBE_PASS__:posix-timer-signal
+__NEMU_SYSCALL_PROBE_PASS__:signalfd
+__NEMU_SYSCALL_PROBE_PASS__:pty-termios
+__NEMU_SYSCALL_PROBE_PASS__:pty-winsize
+__NEMU_SYSCALL_PROBE_PASS__:pty-master-slave
+__NEMU_SYSCALL_PROBE_PASS__:pty-controlling-tty
+__NEMU_SYSCALL_PROBE_PASS__:pty-foreground-pgrp
+__NEMU_SYSCALL_PROBE_PASS__:pty-sigwinch
+__NEMU_SYSCALL_PROBE_PASS__:inotify-create-close
+__NEMU_SYSCALL_PROBE_PASS__:futex-wait-wake
+__NEMU_SYSCALL_PROBE_PASS__:memfd-mmap
+__NEMU_SYSCALL_PROBE_PASS__:fork-pipe-execve
+__NEMU_SYSCALL_PROBE_PASS__:pidfd-open
+__NEMU_SYSCALL_PROBE_PASS__:pidfd-send-signal
+__NEMU_SYSCALL_PROBE_PASS__:pidfd-poll-exit
+__NEMU_SYSCALL_PROBE_PASS__:waitid-pidfd
+__NEMU_SYSCALL_PROBE_PASS__:prctl-name
+__NEMU_SYSCALL_PROBE_PASS__:getrandom
+__NEMU_SYSCALL_PROBE_PASS__:clock-nanosleep
+__NEMU_SYSCALL_PROBE_PASS__:clock-nanosleep-abstime
+__NEMU_SYSCALL_PROBE_DONE__ rc=0
+__NEMU_CHECK_PASS__:syscall-probe
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# sleep 60 &
+[1] 617
+root@ysyx-ubuntu2204:~# sig_pid=$!
+root@ysyx-ubuntu2204:~# kill -TERM "$sig_pid" 2>/dev/null || true
+root@ysyx-ubuntu2204:~# wait "$sig_pid"
+[1]+  Terminated              sleep 60
+root@ysyx-ubuntu2204:~# sig_rc=$?
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_SIGNAL_RC__:$sig_rc"
+__NEMU_CHECK_SIGNAL_RC__:143
+root@ysyx-ubuntu2204:~# <l && pass signal-kill-wait || fail signal-kill-wait
+__NEMU_CHECK_PASS__:signal-kill-wait
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# write_file="$check_dir/nemu-systemd-guest-check.bin"
+root@ysyx-ubuntu2204:~# <_file" bs=4096 count=8 conv=fsync status=none; then
+>   bytes="$(wc -c < "$write_file" 2>/dev/null || echo 0)"
+>   echo "__NEMU_CHECK_WRITE_BYTES__:$bytes"
+> <&& pass rootfs-write-read || fail rootfs-write-read
+>   sha256sum "$write_file" || check_fail=1
+>   rm -f "$write_file"
+>   sync
+> else
+>   fail rootfs-write-read
+> fi
+__NEMU_CHECK_WRITE_BYTES__:32768
+__NEMU_CHECK_PASS__:rootfs-write-read
+c35020473aed1b4642cd726cad727b63fff2824ad68cedd7ffb73c7cbd890479  /root/nemu-systemd-guest-check.d/nemu-systemd-guest-check.bin
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# direct_file="$check_dir/rootfs-direct.bin"
+root@ysyx-ubuntu2204:~# direct_copy="$check_dir/rootfs-direct.copy"
+root@ysyx-ubuntu2204:~# <096 count=32 oflag=direct conv=fsync status=none &&
+> <direct_copy" bs=4096 iflag=direct status=none; then
+>   direct_bytes="$(wc -c < "$direct_copy" 2>/dev/null || echo 0)"
+>   echo "__NEMU_CHECK_ROOTFS_DIRECT_BYTES__:$direct_bytes"
+> <72" ] && cmp -s "$direct_file" "$direct_copy"; then
+>     pass rootfs-direct-io
+>   else
+r>     fail rootfs-direct-io
+>   fi
+>   rm -f "$direct_file" "$direct_copy"
+>   sync
+> else
+>   fail rootfs-direct-io
+> fi
+__NEMU_CHECK_ROOTFS_DIRECT_BYTES__:131072
+__NEMU_CHECK_PASS__:rootfs-direct-io
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# if [ "$NEMU_GUEST_BLOCK_PARALLEL_JOBS" -gt 0 ] &&
+>    [ "$NEMU_GUEST_BLOCK_JOB_MIB" -gt 0 ]; then
+>   parallel_dir="$check_dir/block-parallel"
+>   mkdir -p "$parallel_dir" || fail rootfs-parallel-direct-io
+>   parallel_ok=1
+ic>   parallel_pids=""
+>   parallel_i=0
+>   parallel_expected_job=$((NEMU_GUEST_BLOCK_JOB_MIB * 1048576))
+> <GUEST_BLOCK_PARALLEL_JOBS * parallel_expected_job))
+> 
+m>   while [ "$parallel_i" -lt "$NEMU_GUEST_BLOCK_PARALLEL_JOBS" ]; do
+>     job_id=$parallel_i
+>     (
+>       job_file="$parallel_dir/job-$job_id.bin"
+>       job_copy="$parallel_dir/job-$job_id.copy"
+> <OCK_JOB_MIB" oflag=direct conv=fsync status=none &&
+> <of="$job_copy" bs=1M iflag=direct status=none; then
+>         job_bytes="$(wc -c < "$job_copy" 2>/dev/null || echo 0)"
+>         echo "__NEMU_CHECK_BLOCK_PARALLEL_JOB__:$job_id:$job_bytes"
+>         if [ "$job_bytes" = "$parallel_expected_job" ] &&
+>            cmp -s "$job_file" "$job_copy"; then
+>           exit 0
+>         fi
+>       fi
+>       echo "__NEMU_CHECK_BLOCK_PARALLEL_JOB_FAIL__:$job_id"
+>       exit 1
+>     ) &
+>     parallel_pids="$parallel_pids $!"
+>     parallel_i=$((parallel_i + 1))
+>   done
+> 
+>   for p in $parallel_pids; do
+>     wait "$p" || parallel_ok=0
+>   done
+> 
+>   parallel_total=0
+>   parallel_i=0
+>   while [ "$parallel_i" -lt "$NEMU_GUEST_BLOCK_PARALLEL_JOBS" ]; do
+>     job_copy="$parallel_dir/job-$parallel_i.copy"
+>     job_bytes="$(wc -c < "$job_copy" 2>/dev/null || echo 0)"
+>     parallel_total=$((parallel_total + job_bytes))
+>     parallel_i=$((parallel_i + 1))
+>   done
+> <L_BYTES__:$parallel_total/$parallel_expected_total"
+>   if [ "$parallel_ok" = "1" ] &&
+>      [ "$parallel_total" = "$parallel_expected_total" ]; then
+>     pass rootfs-parallel-direct-io
+>   else
+>     fail rootfs-parallel-direct-io
+>   fi
+>   rm -rf "$parallel_dir"
+>   sync
+> else
+>   echo "__NEMU_CHECK_BLOCK_PARALLEL_SKIP__"
+> fi
+[1] 632
+__NEMU_CHECK_BLOCK_PARALLEL_JOB__:0:1048576
+[1]+  Done                    ( job_file="$parallel_dir/job-$job_id.bin"; job_copy="$parallel_dir/job-$job_id.copy"; if dd if=/dev/zero of="$job_file" bs=1M count="$NEMU_GUEST_BLOCK_JOB_MIB" oflag=direct conv=fsync status=none && dd if="$job_file" of="$job_copy" bs=1M iflag=direct status=none; then
+    job_bytes="$(wc -c < "$job_copy" 2>/dev/null || echo 0)"; echo "__NEMU_CHECK_BLOCK_PARALLEL_JOB__:$job_id:$job_bytes"; if [ "$job_bytes" = "$parallel_expected_job" ] && cmp -s "$job_file" "$job_copy"; then
+        exit 0;
+    fi;
+fi; echo "__NEMU_CHECK_BLOCK_PARALLEL_JOB_FAIL__:$job_id"; exit 1 )
+__NEMU_CHECK_BLOCK_PARALLEL_BYTES__:1048576/1048576
+__NEMU_CHECK_PASS__:rootfs-parallel-direct-io
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# stress_file="$check_dir/rootfs-stress.bin"
+root@ysyx-ubuntu2204:~# stress_copy="$check_dir/rootfs-stress.copy"
+root@ysyx-ubuntu2204:~# <U_GUEST_FS_STRESS_MIB" conv=fsync status=none; then
+>   stress_bytes="$(wc -c < "$stress_file" 2>/dev/null || echo 0)"
+>   stress_expected=$((NEMU_GUEST_FS_STRESS_MIB * 1048576))
+>   echo "__NEMU_CHECK_FS_STRESS_BYTES__:$stress_bytes/$stress_expected"
+>   if [ "$stress_bytes" = "$stress_expected" ] &&
+>      cp "$stress_file" "$stress_copy" &&
+>      cmp -s "$stress_file" "$stress_copy"; then
+>     pass rootfs-stress-copy-cmp
+>   else
+>     fail rootfs-stress-copy-cmp
+>   fi
+>   rm -f "$stress_file" "$stress_copy"
+>   sync
+> else
+>   fail rootfs-stress-copy-cmp
+> fi
+__NEMU_CHECK_FS_STRESS_BYTES__:1048576/1048576
+__NEMU_CHECK_PASS__:rootfs-stress-copy-cmp
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# <"$(cut -d. -f1 /proc/uptime 2>/dev/null || echo 0)"
+root@ysyx-ubuntu2204:~# sleep 2
+root@ysyx-ubuntu2204:~# <"$(cut -d. -f1 /proc/uptime 2>/dev/null || echo 0)"
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_UPTIME__:$uptime0->$uptime1"
+__NEMU_CHECK_UPTIME__:1209->1212
+root@ysyx-ubuntu2204:~# <2>/dev/null && pass timer-sleep || fail timer-sleep
+__NEMU_CHECK_PASS__:timer-sleep
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# <>/dev/null 2>&1 && pass proc-stat || fail proc-stat
+__NEMU_CHECK_PASS__:proc-stat
+root@ysyx-ubuntu2204:~# <1 && pass proc-fd-readlink || fail proc-fd-readlink
+__NEMU_CHECK_PASS__:proc-fd-readlink
+root@ysyx-ubuntu2204:~# <22.04.5 LTS"' && pass os-release || fail os-release
+__NEMU_CHECK_PASS__:os-release
+root@ysyx-ubuntu2204:~# <scv64$' && pass uname-riscv64 || fail uname-riscv64
+__NEMU_CHECK_PASS__:uname-riscv64
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# if [ "$NEMU_GUEST_SOAK_SECONDS" -gt 0 ]; then
+>   soak_uptime0="$(cut -d. -f1 /proc/uptime 2>/dev/null || echo 0)"
+>   soak_intr0="$(intr_sum)"
+>   soak_i=0
+>   while [ "$soak_i" -lt "$NEMU_GUEST_SOAK_SECONDS" ]; do
+>     sleep 1
+>     if [ $((soak_i % 5)) -eq 0 ]; then
+> <unning >/dev/null 2>&1 || fail systemd-soak-running
+>     fi
+>     soak_i=$((soak_i + 1))
+>   done
+>   soak_uptime1="$(cut -d. -f1 /proc/uptime 2>/dev/null || echo 0)"
+>   soak_intr1="$(intr_sum)"
+>   echo "__NEMU_CHECK_SOAK_UPTIME__:$soak_uptime0->$soak_uptime1"
+>   echo "__NEMU_CHECK_INTERRUPTS__:$soak_intr0->$soak_intr1"
+> <2>/dev/null && pass soak-uptime || fail soak-uptime
+> <ts-stat-monotonic || fail interrupts-stat-monotonic
+> else
+>   echo "__NEMU_CHECK_SOAK_SKIP__"
+> fi
+__NEMU_CHECK_SOAK_SKIP__
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# rm -rf "$check_dir"
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# <ll|segfault|kernel panic|oops' | tail -20 || true)"
+root@ysyx-ubuntu2204:~# if [ -z "$bad_dmesg" ]; then
+>   pass dmesg-no-critical
+> else
+>   echo "$bad_dmesg"
+>   fail dmesg-no-critical
+> fi
+__NEMU_CHECK_PASS__:dmesg-no-critical
+root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~# <"$(cut -d. -f1 /proc/uptime 2>/dev/null || echo 0)"
+root@ysyx-ubuntu2204:~# <NEMU_CHECK_GUEST_UPTIME_END__:$guest_check_uptime1"
+__NEMU_CHECK_GUEST_UPTIME_END__:1218
+root@ysyx-ubuntu2204:~# echo "__NEMU_SYSTEMD_CHECK_DONE__ rc=$check_fail"
+__NEMU_SYSTEMD_CHECK_DONE__ rc=0
+root@ysyx-ubuntu2204:~# <" ] && [ "${NEMU_GUEST_POWEROFF:-1}" != "0" ]; then
+> <ystemd 的真实关机路径；host 侧随后要求
+> <退出，避免把强杀当作系统收尾证据。
+>   echo "__NEMU_SYSTEMD_POWEROFF_BEGIN__"
+>   sync
+> <off -f || echo "__NEMU_SYSTEMD_POWEROFF_CMD_FAIL__"
+> fi
+__NEMU_SYSTEMD_POWEROFF_BEGIN__
+root@ysyx-ubuntu2204:~# [[0;32m  OK  [0m] Removed slice [0;1;39mSlice /system/modprobe[0m.
+[[0;32m  OK  [0m] Stopped target [0;1;39mGraphical Interface[0m.
+[[0;32m  OK  [0m] Stopped target [0;1;39mMulti-User System[0m.
+[[0;32m  OK  [0m] Stopped target [0;1;39mLogin Prompts[0m.
+[[0;32m  OK  [0m] Stopped target [0;1;39mTimer Units[0m.
+[[0;32m  OK  [0m] Stopped [0;1;39mDaily apt upgrade and clean activities[0m.
+[[0;32m  OK  [0m] Stopped [0;1;39mDaily apt download activities[0m.
+[[0;32m  OK  [0m] Stopped [0;1;39mDaily dpkg database backup timer[0m.
+[[0;32m  OK  [0m] Stopped [0;1;39mPeriodic ext4 Onli…ata Check for All Filesystems[0m.
+[[0;32m  OK  [0m] Stopped [0;1;39mDiscard unused blocks once a week[0m.
+[[0;32m  OK  [0m] Stopped [0;1;39mMessage of the Day[0m.
+[[0;32m  OK  [0m] Stopped [0;1;39mDaily Cleanup of Temporary Directories[0m.
+         Stopping [0;1;39mSerial Getty on ttyS0[0m...
+         Stopping [0;1;39mUser Login Management[0m...
+         Stopping [0;1;39mLoad/Save Random Seed[0m...
+[[0;32m  OK  [0m] Stopped [0;1;39mSerial Getty on ttyS0[0m.
+[[0;32m  OK  [0m] Stopped [0;1;39mUser Login Management[0m.
+[[0;32m  OK  [0m] Stopped [0;1;39mLoad/Save Random Seed[0m.
+[[0;32m  OK  [0m] Removed slice [0;1;39mSlice /system/serial-getty[0m.
+         Stopping [0;1;39mPermit User Sessions[0m...
+[[0;32m  OK  [0m] Stopped [0;1;39mPermit User Sessions[0m.
+[[0;32m  OK  [0m] Stopped target [0;1;39mBasic System[0m.
+[[0;32m  OK  [0m] Stopped target [0;1;39mPath Units[0m.
+[[0;32m  OK  [0m] Stopped target [0;1;39mSlice Units[0m.
+[[0;32m  OK  [0m] Removed slice [0;1;39mUser and Session Slice[0m.
+[[0;32m  OK  [0m] Stopped target [0;1;39mSocket Units[0m.
+[[0;32m  OK  [0m] Stopped target [0;1;39mSystem Initialization[0m.
+[[0;32m  OK  [0m] Stopped target [0;1;39mLocal Encrypted Volumes[0m.
+[[0;32m  OK  [0m] Stopped [0;1;39mDispatch Password …ts to Console Directory Watch[0m.
+[[0;32m  OK  [0m] Stopped [0;1;39mForward Password R…uests to Wall Directory Watch[0m.
+[[0;32m  OK  [0m] Stopped target [0;1;39mSwaps[0m.
+[[0;32m  OK  [0m] Stopped target [0;1;39mLocal Verity Protected Volumes[0m.
+[[0;32m  OK  [0m] Stopped [0;1;39mApply Kernel Variables[0m.
+[[0;32m  OK  [0m] Stopped [0;1;39mLoad Kernel Modules[0m.
+         Stopping [0;1;39mRecord System Boot/Shutdown in UTMP[0m...
+[[0;32m  OK  [0m] Stopped [0;1;39mRecord System Boot/Shutdown in UTMP[0m.
+[[0;32m  OK  [0m] Stopped [0;1;39mCreate Volatile Files and Directories[0m.
+[[0;32m  OK  [0m] Stopped target [0;1;39mLocal File Systems[0m.
+         Unmounting [0;1;39m/run/credentials/systemd-sysusers.service[0m...
+[[0;32m  OK  [0m] Unmounted [0;1;39m/run/credentials/systemd-sysusers.service[0m.
+[[0;32m  OK  [0m] Stopped target [0;1;39mPreparation for Local File Systems[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mUnmount All Filesystems[0m.
+[[0;32m  OK  [0m] Stopped [0;1;39mCreate Static Device Nodes in /dev[0m.
+[[0;32m  OK  [0m] Stopped [0;1;39mCreate System Users[0m.
+[[0;32m  OK  [0m] Stopped [0;1;39mRemount Root and Kernel File Systems[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mSystem Shutdown[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mLate Shutdown Services[0m.
+[[0;32m  OK  [0m] Finished [0;1;39mSystem Power Off[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mSystem Power Off[0m.
+[ 1247.839311] reboot: Power down
+[1;34m[src/utils/log.c:30 init_log] Log is written to /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-07-nemu-wide-ifetch-focused/nemu-ubuntu-focused/nemu.log[0m
+[1;34m[src/monitor/monitor.c:211 init_monitor] Block image requested: /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64.ext4[0m
+[1;34m[src/memory/paddr.c:66 init_mem] physical memory area [0x80000000, 0x9fffffff][0m
+[1;34m[src/device/io/mmio.c:78 add_mmio_map] Add mmio map 'serial' at [0x10000000, 0x10000fff][0m
+[1;34m[src/device/disk.c:791 open_disk_image] virtio-blk: image=/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64.ext4 size=2147483648 bytes[0m
+[1;34m[src/device/io/mmio.c:78 add_mmio_map] Add mmio map 'virtio-blk' at [0x10001000, 0x10001fff][0m
+[1;34m[src/device/io/mmio.c:78 add_mmio_map] Add mmio map 'virtio-rng' at [0x10002000, 0x10002fff][0m
+[1;34m[src/device/io/mmio.c:78 add_mmio_map] Add mmio map 'goldfish-rtc' at [0x10003000, 0x10003fff][0m
+[1;34m[src/device/io/mmio.c:78 add_mmio_map] Add mmio map 'syscon-reset' at [0x00100000, 0x00100fff][0m
+[1;34m[src/monitor/monitor.c:227 init_monitor] Boot argument a0/hartid = 0x0000000000000000[0m
+[1;34m[src/monitor/monitor.c:231 init_monitor] Boot argument a1/dtb = 0x0000000082200000[0m
+[1;34m[src/monitor/monitor.c:107 load_file_to_pmem] Load image /home/lyg/PA/ysyx-workbench/Linux/env/build/opensbi-nemu-rootfs/platform/generic/firmware/fw_jump.bin at 0x80000000, size = 275808[0m
+[1;34m[src/monitor/monitor.c:107 load_file_to_pmem] Load image /home/lyg/PA/ysyx-workbench/Linux/env/src/linux/arch/riscv/boot/Image at 0x80200000, size = 13345792[0m
+[1;34m[src/monitor/monitor.c:107 load_file_to_pmem] Load image /home/lyg/PA/ysyx-workbench/Linux/build/npc-rv64-nemu-rootfs.dtb at 0x82200000, size = 2382[0m
+[1;34m[src/monitor/monitor.c:31 welcome] Trace: [1;31mOFF[0m[0m
+[1;34m[src/monitor/monitor.c:35 welcome] Build time: 00:30:34, Jun  7 2026[0m
+Welcome to [1;33m[1;41mriscv64[0m-NEMU!
+For help, type "help"
+[1;34m[src/device/syscon.c:24 syscon_reset_io_handler] syscon-reset: poweroff requested value=0x00005555 pc=0x0000000080022546[0m
+[1;34m[src/cpu/cpu-exec.c:358 cpu_exec] nemu: [1;32mHIT GOOD TRAP[0m at pc = 0x0000000080022546[0m

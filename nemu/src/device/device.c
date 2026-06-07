@@ -28,9 +28,12 @@ void init_vga();
 void init_i8042();
 void init_audio();
 void init_disk();
+void init_virtio_rng();
+void init_goldfish_rtc();
 void init_syscon_reset();
 void init_sdcard();
 void init_alarm();
+void goldfish_rtc_update();
 
 void send_key(uint8_t, bool);
 void vga_update_screen();
@@ -39,11 +42,18 @@ void vga_update_screen();
 // 这样做不会改变 60Hz 左右的设备刷新语义，但能显著降低 get_time() 的累计开销。
 #define DEVICE_UPDATE_CHECK_INTERVAL 64
 
-void device_update() {
-  static uint32_t skip = 0;
+void device_update_after_inst(uint64_t retired) {
+  static uint64_t skip = 0;
   static uint64_t last = 0;
 
-  if (++skip < DEVICE_UPDATE_CHECK_INTERVAL) {
+  if (retired == 0) {
+    return;
+  }
+
+  // TB 批执行时一次可能退休多条指令，这里按 guest 指令数累计，
+  // 让设备刷新频率保持原语义，同时避免 CPU 热路径每条指令都调用本函数。
+  skip += retired;
+  if (skip < DEVICE_UPDATE_CHECK_INTERVAL) {
     return;
   }
   skip = 0;
@@ -56,6 +66,7 @@ void device_update() {
 
   // UART RX 来自宿主 stdin/FIFO，需要在 guest 没有主动轮询寄存器时也能触发中断。
   IFDEF(CONFIG_HAS_SERIAL, serial_poll_input());
+  IFDEF(CONFIG_HAS_GOLDFISH_RTC, goldfish_rtc_update());
   IFDEF(CONFIG_HAS_VGA, vga_update_screen());
 
 #ifndef CONFIG_TARGET_AM
@@ -81,6 +92,10 @@ void device_update() {
 #endif
 }
 
+void device_update() {
+  device_update_after_inst(1);
+}
+
 void sdl_clear_event_queue() {
 #ifndef CONFIG_TARGET_AM
   SDL_Event event;
@@ -98,6 +113,8 @@ void init_device() {
   IFDEF(CONFIG_HAS_KEYBOARD, init_i8042());
   IFDEF(CONFIG_HAS_AUDIO, init_audio());
   IFDEF(CONFIG_HAS_DISK, init_disk());
+  IFDEF(CONFIG_HAS_VIRTIO_RNG, init_virtio_rng());
+  IFDEF(CONFIG_HAS_GOLDFISH_RTC, init_goldfish_rtc());
   IFDEF(CONFIG_HAS_SYSCON_RESET, init_syscon_reset());
   IFDEF(CONFIG_HAS_SDCARD, init_sdcard());
 

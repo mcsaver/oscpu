@@ -1,0 +1,3 @@
+SKIP nemu-add-smoke
+reason=nemu/.config isa=riscv64 target=NATIVE_ELF，不是 CONFIG_TARGET_AM=y；为避免改写用户当前 NEMU 配置，本节点跳过
+next_step=若需要运行该 smoke，先手动切到 riscv32-am_defconfig/riscv64-am_defconfig，或设置 AGENT_E2E_FORCE_SMOKE=1 强制执行

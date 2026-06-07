@@ -56,6 +56,8 @@ def render(
     memory_size: str | None,
     bootargs_extra: str | None,
     reset_syscon: bool,
+    virtio_rng: bool,
+    goldfish_rtc: bool,
 ) -> str:
     mem = cfg["memory"]
     mem_size = int(memory_size, 0) if memory_size else int(mem["size"])
@@ -64,11 +66,14 @@ def render(
     plic = dev["plic"]
     clint = dev["clint"]
     virtio = dev["virtio_blk"]
+    rng = dev.get("virtio_rng")
+    rtc = dev.get("goldfish_rtc")
     bootargs = cfg["bootargs"][bootargs_key or mode]
     if bootargs_extra:
         bootargs = f"{bootargs} {bootargs_extra.strip()}"
     initrd = initrd_cells(cfg, mode, initrd_image)
     ndev = int(plic["sources_rootfs"] if mode == "rootfs" else plic["sources_initramfs"])
+    rtc_alias = "    rtc0 = &RTC0;\n" if mode == "rootfs" and goldfish_rtc else ""
 
     initrd_lines = ""
     if initrd:
@@ -89,6 +94,38 @@ def render(
       reg = <{u32_cells(int(virtio["base"]))} {u32_cells(int(virtio["size"]))}>;
       interrupt-parent = <&PLIC>;
       interrupts = <{int(virtio["irq"])}>;
+    }};"""
+
+    virtio_rng_node = ""
+    if mode == "rootfs" and virtio_rng:
+        if not rng:
+            raise SystemExit("配置缺少 devices.virtio_rng")
+        rng_base = int(rng["base"])
+        # virtio-rng 目前只在 NEMU rootfs DTB 中暴露；NPC RTL 尚无对应设备，
+        # 避免 DTB 写了设备但实际总线没有响应。
+        virtio_rng_node = f"""
+
+    virtio_rng0: virtio_mmio@{rng_base:x} {{
+      compatible = "virtio,mmio";
+      reg = <{u32_cells(rng_base)} {u32_cells(int(rng["size"]))}>;
+      interrupt-parent = <&PLIC>;
+      interrupts = <{int(rng["irq"])}>;
+    }};"""
+
+    goldfish_rtc_node = ""
+    if mode == "rootfs" and goldfish_rtc:
+        if not rtc:
+            raise SystemExit("配置缺少 devices.goldfish_rtc")
+        rtc_base = int(rtc["base"])
+        # goldfish-rtc 是 Linux 内置的简单 platform RTC；只在 NEMU rootfs
+        # DTB 暴露，避免 NPC RTL 尚无该设备时形成虚假硬件契约。
+        goldfish_rtc_node = f"""
+
+    RTC0: rtc@{rtc_base:x} {{
+      compatible = "google,goldfish-rtc";
+      reg = <{u32_cells(rtc_base)} {u32_cells(int(rtc["size"]))}>;
+      interrupt-parent = <&PLIC>;
+      interrupts = <{int(rtc["irq"])}>;
     }};"""
 
     reset_syscon_node = ""
@@ -139,6 +176,7 @@ def render(
 
   aliases {{
     serial0 = &UART0;
+{rtc_alias.rstrip()}
   }};
 
   memory@{int(mem["base"]):x} {{
@@ -197,7 +235,7 @@ def render(
       reg-io-width = <1>;
       interrupt-parent = <&PLIC>;
       interrupts = <{int(uart["irq"])}>;
-    }};{reset_syscon_node}{virtio_node}
+    }};{reset_syscon_node}{virtio_node}{virtio_rng_node}{goldfish_rtc_node}
   }};
 }};
 """
@@ -210,6 +248,8 @@ def main() -> int:
     parser.add_argument("--bootargs-key", choices=["kernel", "initramfs", "ubuntu_initramfs", "rootfs"])
     parser.add_argument("--bootargs-extra", default="")
     parser.add_argument("--reset-syscon", action="store_true")
+    parser.add_argument("--virtio-rng", action="store_true")
+    parser.add_argument("--goldfish-rtc", action="store_true")
     parser.add_argument("--initrd-image")
     parser.add_argument("--memory-size", help="覆盖 memory.reg 的 size，支持 0x... 形式")
     parser.add_argument("--output", required=True)
@@ -222,6 +262,7 @@ def main() -> int:
     text = render(
         cfg, args.mode, args.initrd_image, args.bootargs_key,
         args.memory_size, args.bootargs_extra, args.reset_syscon,
+        args.virtio_rng, args.goldfish_rtc,
     )
     output.write_text(text, encoding="utf-8")
     print(f"[gen-dts] {args.mode}: {output}")

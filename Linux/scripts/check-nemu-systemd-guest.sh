@@ -733,6 +733,63 @@ else
 fi
 systemctl --quiet is-active systemd-udevd.service && pass udevd-active || fail udevd-active
 
+hwrng_misc="/sys/class/misc/hw_random"
+hwrng_current="$(cat "$hwrng_misc/rng_current" 2>/dev/null || true)"
+hwrng_available="$(cat "$hwrng_misc/rng_available" 2>/dev/null || true)"
+rng_virtio_modalias="$(grep -h '^virtio:d00000004v58535959$' \
+  /sys/bus/virtio/devices/*/modalias 2>/dev/null | head -n 1 || true)"
+echo "__NEMU_CHECK_HWRNG_CURRENT__:$hwrng_current"
+echo "__NEMU_CHECK_HWRNG_AVAILABLE__:$hwrng_available"
+echo "__NEMU_CHECK_VIRTIO_RNG_MODALIAS__:$rng_virtio_modalias"
+[ -c /dev/hwrng ] && pass hwrng-node || fail hwrng-node
+[ -d "$hwrng_misc" ] && pass hwrng-sysfs || fail hwrng-sysfs
+printf '%s\n%s\n' "$hwrng_current" "$hwrng_available" | grep -qi 'virtio' &&
+  pass hwrng-virtio-selected || fail hwrng-virtio-selected
+[ "$rng_virtio_modalias" = "virtio:d00000004v58535959" ] &&
+  pass virtio-rng-modalias || fail virtio-rng-modalias
+hwrng_out="/tmp/nemu-hwrng.bin"
+rm -f "$hwrng_out"
+if timeout 10s dd if=/dev/hwrng of="$hwrng_out" bs=64 count=1 \
+    iflag=fullblock status=none; then
+  hwrng_bytes="$(wc -c < "$hwrng_out" 2>/dev/null || echo 0)"
+  echo "__NEMU_CHECK_HWRNG_BYTES__:$hwrng_bytes"
+  [ "$hwrng_bytes" = "64" ] && pass hwrng-read || fail hwrng-read
+else
+  fail hwrng-read
+fi
+rm -f "$hwrng_out"
+
+rtc_sys="/sys/class/rtc/rtc0"
+rtc_name="$(cat "$rtc_sys/name" 2>/dev/null || true)"
+rtc_since_epoch="$(cat "$rtc_sys/since_epoch" 2>/dev/null || true)"
+rtc_date="$(cat "$rtc_sys/date" 2>/dev/null || true)"
+rtc_time="$(cat "$rtc_sys/time" 2>/dev/null || true)"
+echo "__NEMU_CHECK_RTC0_NAME__:$rtc_name"
+echo "__NEMU_CHECK_RTC0_SINCE_EPOCH__:$rtc_since_epoch"
+echo "__NEMU_CHECK_RTC0_DATE__:$rtc_date"
+echo "__NEMU_CHECK_RTC0_TIME__:$rtc_time"
+[ -c /dev/rtc0 ] && pass rtc0-node || fail rtc0-node
+[ -d "$rtc_sys" ] && pass rtc0-sysfs || fail rtc0-sysfs
+echo "$rtc_name" | grep -qi 'goldfish' &&
+  pass rtc0-goldfish-driver || fail rtc0-goldfish-driver
+[ "${rtc_since_epoch:-0}" -gt 1577836800 ] 2>/dev/null &&
+  pass rtc0-since-epoch-plausible || fail rtc0-since-epoch-plausible
+if command -v hwclock >/dev/null 2>&1; then
+  pass hwclock-present
+  rtc_hwclock="$(timeout 10s hwclock --show --rtc=/dev/rtc0 2>&1)"
+  rtc_hwclock_rc=$?
+  echo "__NEMU_CHECK_RTC0_HWCLOCK__:$rtc_hwclock"
+  if [ "$rtc_hwclock_rc" -eq 0 ] && echo "$rtc_hwclock" | grep -Eq '[0-9]{4}'; then
+    pass hwclock-rtc0-show
+  else
+    # util-linux hwclock may wait for update IRQ/UIE behavior that this minimal
+    # RTC model does not yet claim; sysfs rtc0 reads above remain the hard gate.
+    echo "__NEMU_CHECK_RTC0_HWCLOCK_DIAG__:$rtc_hwclock_rc"
+  fi
+else
+  echo "__NEMU_CHECK_RTC0_HWCLOCK_DIAG__:missing"
+fi
+
 [ -b /dev/vda ] && pass vda-block-node || fail vda-block-node
 vda_dev_node="$(stat -c '%F %t:%T' /dev/vda 2>/dev/null || true)"
 echo "__NEMU_CHECK_VDA_DEV_NODE__:$vda_dev_node"
@@ -748,6 +805,49 @@ echo "__NEMU_CHECK_VDA_LOGICAL_BLOCK__:$vda_lbs"
 vda_pbs="$(cat /sys/block/vda/queue/physical_block_size 2>/dev/null || true)"
 echo "__NEMU_CHECK_VDA_PHYSICAL_BLOCK__:$vda_pbs"
 [ "$vda_pbs" = "512" ] && pass vda-physical-block-size || fail vda-physical-block-size
+vda_min_io="$(cat /sys/block/vda/queue/minimum_io_size 2>/dev/null || true)"
+vda_opt_io="$(cat /sys/block/vda/queue/optimal_io_size 2>/dev/null || true)"
+vda_alignment="$(cat /sys/block/vda/alignment_offset 2>/dev/null || true)"
+echo "__NEMU_CHECK_VDA_MIN_IO__:$vda_min_io"
+echo "__NEMU_CHECK_VDA_OPT_IO__:$vda_opt_io"
+echo "__NEMU_CHECK_VDA_ALIGNMENT_OFFSET__:$vda_alignment"
+[ "$vda_min_io" = "512" ] && pass vda-minimum-io-size || fail vda-minimum-io-size
+[ "$vda_opt_io" = "0" ] && pass vda-optimal-io-size || fail vda-optimal-io-size
+[ "$vda_alignment" = "0" ] && pass vda-alignment-offset || fail vda-alignment-offset
+vda_discard_max="$(cat /sys/block/vda/queue/discard_max_bytes 2>/dev/null || true)"
+vda_discard_granularity="$(cat /sys/block/vda/queue/discard_granularity 2>/dev/null || true)"
+vda_write_zeroes_max="$(cat /sys/block/vda/queue/write_zeroes_max_bytes 2>/dev/null || true)"
+echo "__NEMU_CHECK_VDA_DISCARD_MAX__:$vda_discard_max"
+echo "__NEMU_CHECK_VDA_DISCARD_GRANULARITY__:$vda_discard_granularity"
+echo "__NEMU_CHECK_VDA_WRITE_ZEROES_MAX__:$vda_write_zeroes_max"
+[ "$vda_discard_max" = "2097152" ] &&
+  pass vda-discard-max-bytes || fail vda-discard-max-bytes
+[ "$vda_discard_granularity" = "512" ] &&
+  pass vda-discard-granularity || fail vda-discard-granularity
+[ "$vda_write_zeroes_max" = "2097152" ] &&
+  pass vda-write-zeroes-max-bytes || fail vda-write-zeroes-max-bytes
+vda_cache_type_path="/sys/block/vda/cache_type"
+vda_cache_type="$(cat "$vda_cache_type_path" 2>/dev/null || true)"
+echo "__NEMU_CHECK_VDA_CACHE_TYPE__:$vda_cache_type"
+echo "$vda_cache_type" | grep -Eq 'write (back|through)' &&
+  pass vda-cache-type-visible || fail vda-cache-type-visible
+if [ -w "$vda_cache_type_path" ]; then
+  pass vda-cache-type-writable
+else
+  fail vda-cache-type-writable
+fi
+if printf 'write through\n' > "$vda_cache_type_path" 2>/dev/null &&
+   [ "$(cat "$vda_cache_type_path" 2>/dev/null || true)" = "write through" ]; then
+  pass vda-cache-type-write-through
+else
+  fail vda-cache-type-write-through
+fi
+if printf 'write back\n' > "$vda_cache_type_path" 2>/dev/null &&
+   [ "$(cat "$vda_cache_type_path" 2>/dev/null || true)" = "write back" ]; then
+  pass vda-cache-type-write-back
+else
+  fail vda-cache-type-write-back
+fi
 vda_serial="$(cat /sys/block/vda/serial 2>/dev/null || true)"
 echo "__NEMU_CHECK_VDA_SERIAL__:$vda_serial"
 [ "$vda_serial" = "ysyx-nemu-virtio-blk" ] &&
@@ -781,8 +881,18 @@ echo "$virtio_features" | grep -Eq '^[01]+$' &&
   pass virtio-blk-feature-blk-size || fail virtio-blk-feature-blk-size
 [ "$(virtio_feature_bit "$virtio_features" 9)" = "1" ] &&
   pass virtio-blk-feature-flush || fail virtio-blk-feature-flush
+[ "$(virtio_feature_bit "$virtio_features" 10)" = "1" ] &&
+  pass virtio-blk-feature-topology || fail virtio-blk-feature-topology
+[ "$(virtio_feature_bit "$virtio_features" 11)" = "1" ] &&
+  pass virtio-blk-feature-config-wce || fail virtio-blk-feature-config-wce
+[ "$(virtio_feature_bit "$virtio_features" 13)" = "1" ] &&
+  pass virtio-blk-feature-discard || fail virtio-blk-feature-discard
+[ "$(virtio_feature_bit "$virtio_features" 14)" = "1" ] &&
+  pass virtio-blk-feature-write-zeroes || fail virtio-blk-feature-write-zeroes
 [ "$(virtio_feature_bit "$virtio_features" 28)" = "1" ] &&
   pass virtio-ring-feature-indirect-desc || fail virtio-ring-feature-indirect-desc
+[ "$(virtio_feature_bit "$virtio_features" 29)" = "1" ] &&
+  pass virtio-ring-feature-event-idx || fail virtio-ring-feature-event-idx
 if command -v udevadm >/dev/null 2>&1; then
   vda_udev_props="$(udevadm info --query=property --name=/dev/vda 2>/dev/null || true)"
   if printf '%s\n' "$vda_udev_props" | grep -qx 'DEVNAME=/dev/vda' &&

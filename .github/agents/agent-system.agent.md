@@ -12,6 +12,7 @@ tools: [read, edit, search, agent, todo]
 3. 维护 `.github/instructions/*.instructions.md` 的 applyTo 范围与流程约束
 4. 维护 `.github/agentic-hardware-blueprint.md`，让工作区保有稳定的体系结构说明
 5. 维护 `.github/memory/` 中与 agent 环境相关的记忆，避免规则漂移和历史经验流失
+6. 维护 `.github/e2e/**`、`scripts/agent-e2e.sh`、`scripts/e2e/**` 与 `.github/instructions/agent-e2e-workflow.instructions.md`，让规则发现、模块合约、profile 编排、环境自检、最小 smoke 和 task-run 证据包形成可执行闭环
 
 ## 开始工作前
 
@@ -19,6 +20,7 @@ tools: [read, edit, search, agent, todo]
 2. 读取 `.github/memory/modules/agent-system.md`
 3. 读取 `.github/agentic-hardware-blueprint.md`
 4. 读取与本次任务相关的 `.github/agents/*.agent.md`、`.github/instructions/*.instructions.md`、`.github/copilot-instructions.md`
+5. 若任务涉及 e2e、自检或降低 AI 不确定性，读取 `.github/instructions/agent-e2e-workflow.instructions.md` 与 `.github/e2e/README.md`
 
 ## 设计原则
 
@@ -27,10 +29,11 @@ tools: [read, edit, search, agent, todo]
 - 新增 agent 时，必须让 `description` 能清楚暴露触发词和使用场景
 - 新增工程模块后，同时检查 coordinator 的 `agents` 列表、蓝图 Agent 分层、memory-protocol 模块清单和对应 `memory/modules/*.md`
 - 修改范围保持最小闭环：同一轮只落一组能独立生效的配置变更
+- 修改 agent 工作流入口后，至少运行 `scripts/agent-e2e.sh --list-profiles`、`scripts/agent-e2e.sh --validate-all-profiles` 与 `scripts/agent-e2e.sh --profile discovery`；若触及模块覆盖或用户要求 e2e，优先运行 `--profile agent-system`、`--profile contracts` 和 `--profile quick` 生成 task-run 证据
 
 ## 约束
 
-- 只修改 `.github/` 和 `.github/memory/` 下的文件
+- 只修改 `.github/`、`.github/memory/`、`scripts/agent-e2e.sh` 和 `scripts/e2e/**` 下与 agent 流程直接相关的文件
 - 文档与注释使用中文
 - 除非确实是全局规则，否则谨慎使用 `applyTo: "**"`
 - 修改完成后必须更新 `.github/memory/modules/agent-system.md` 与 `.github/memory/project-status.md`

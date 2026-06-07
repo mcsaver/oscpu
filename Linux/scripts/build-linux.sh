@@ -132,7 +132,10 @@ scripts/config --disable CONFIG_POWER_SUPPLY
 scripts/config --disable CONFIG_HWMON
 scripts/config --disable CONFIG_THERMAL
 scripts/config --disable CONFIG_REGULATOR
-scripts/config --disable CONFIG_RTC_CLASS
+# NEMU rootfs DTB 暴露 google,goldfish-rtc；打开 RTC class/driver，
+# 让 Ubuntu 用户态拥有 wall-clock 设备，而不是只依赖 CLINT mtime。
+scripts/config --enable CONFIG_RTC_CLASS
+scripts/config --enable CONFIG_RTC_DRV_GOLDFISH
 scripts/config --disable CONFIG_RPMSG
 scripts/config --disable CONFIG_EXTCON
 scripts/config --disable CONFIG_RESET_CONTROLLER
@@ -214,8 +217,10 @@ scripts/config --disable CONFIG_CRYPTO_USER_API_HASH
 scripts/config --disable CONFIG_CRYPTO_USER_API_SKCIPHER
 scripts/config --disable CONFIG_CRYPTO_USER_API_RNG
 scripts/config --disable CONFIG_CRYPTO_USER_API_AEAD
-scripts/config --disable CONFIG_HW_RANDOM
-scripts/config --disable CONFIG_HW_RANDOM_VIRTIO
+# NEMU rootfs DTB 现在提供 virtio-rng；打开最小 hwrng/virtio_rng，
+# 让 systemd/ssh/apt 后续能走真实设备熵源，而不是只吃 bootloader rng-seed。
+scripts/config --enable CONFIG_HW_RANDOM
+scripts/config --enable CONFIG_HW_RANDOM_VIRTIO
 scripts/config --disable CONFIG_SECURITY_SELINUX
 scripts/config --disable CONFIG_SECURITY_APPARMOR
 

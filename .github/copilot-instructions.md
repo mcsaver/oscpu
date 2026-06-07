@@ -61,13 +61,14 @@ fceux-am (NES 模拟器, 运行在 AM 上)
 ## AI 驱动硬件开发环境
 - 工作区 agent 处理复杂任务时，先把任务建模为“图任务”，而不是只列线性 TODO。节点表示子任务，边表示执行依赖或知识依赖。
 - 每个图节点至少写清：`node_id`、`owner_agent`、`depends_on`、`inputs`、`outputs`、`success_criteria`、`fallback`。
-- 优先复用静态图模板：`rv32-reference-loop`、`rv32-bringup`、`npc-sim-regression`、`soc-difftest-loop`、`am-device-loop`、`ysyx-soc-integration`、`rv64-ubuntu-probe-loop`、`rv64-ubuntu-rootfs-loop`、`linux-display-loop`、`rv64gc-userland-loop`、`verilator-tapeout-readiness-loop`、`agent-env-refactor`。只有模板不足时才动态扩图。
+- 优先复用静态图模板：`rv32-reference-loop`、`rv32-bringup`、`npc-sim-regression`、`soc-difftest-loop`、`am-device-loop`、`ysyx-soc-integration`、`rv64-ubuntu-probe-loop`、`rv64-ubuntu-rootfs-loop`、`linux-display-loop`、`rv64gc-userland-loop`、`verilator-tapeout-readiness-loop`、`modular-agent-e2e`（兼容名 `agent-e2e-loop`）、`agent-env-refactor`。只有模板不足时才动态扩图。
 - 选图顺序遵循“静态图优先，动态图补洞”：只要已有模板能覆盖任务类别、输入输出稳定且成功标准明确，就不要重新发明流程。
 - 只有在以下情况才动态扩图：现有模板缺少定位节点、节点连续失败需要插入 `reproduce/collect-log/localize/fix/rerun` 链、出现新的跨模块边界、或当前产物缺少可验证证据。
 - 图质量必须满足：没有 `evidence` 的节点不能作为下游硬依赖；没有两份可比较产物时不得创建 `compare/difftest` 节点；未来节点不能反向变成当前主闭环的硬前置。
 - 若同类动态图在多轮任务中反复以相同输入输出和成功标准复用，应把它提升为新的静态图模板，而不是长期靠临时扩图维持。
 - 对跨模块或多节点图任务，应在 `.github/task-runs/<日期-任务名>/` 下维护 `task-report.md` 与 `dispatch-log.md`；模板入口固定为 `.github/task-runs/templates/task-report.template.md` 与 `.github/task-runs/templates/dispatch-log.template.md`。
 - `.github/memory/` 只沉淀稳定结论、长期经验和设计决策；单次图执行的节点明细、阶段状态、证据链和派发历史优先写入 `.github/task-runs/`，不要把长日志整段塞进记忆文件。
+- 当任务是“搭建/验证 AI 开发环境 e2e”“降低 AI 不确定性”或检查规则发现漂移时，先读取 `.github/instructions/agent-e2e-workflow.instructions.md` 与 `.github/e2e/README.md`，用 `scripts/agent-e2e.sh --list-profiles` 和 `--validate-all-profiles` 选择模块 profile；全模块入口用 `--profile contracts`，最小 smoke 用 `--profile quick`，结果不能越级证明 target、Linux/Ubuntu 或 PPA 正确。
 - 当前默认主闭环已经推进为 `am-kernels -> abstract-machine -> npc/sim -> NPC/Verilator(target) + NEMU(reference)`；纯参考调研、AM/NEMU 平台问题或 target 不相关任务仍可截断到 `NEMU(reference)`。
 - 大任务允许并发调用多个只读子 agent 做 RECALL、资料审计和日志整理；涉及实现、验证、记录的节点仍按依赖顺序串行推进。
 - 工作区级蓝图统一维护在 `.github/agentic-hardware-blueprint.md`；处理 agent 架构、工作流编排或 AI 驱动硬件开发环境任务时优先读取。
@@ -149,3 +150,8 @@ fceux-am (NES 模拟器, 运行在 AM 上)
 ## 调度机制
 复杂任务通过 `ysyx-coordinator` 总调度 agent 处理，它先选择静态图或动态图，再执行六步调度循环：
 RECALL (加载记忆) → PLAN (分解任务) → DISPATCH (逐步派发) → VERIFY (验证结果) → ADAPT (失败恢复) → RECORD (写入记忆)
+
+## Agent 完成判定钩子
+- 在声明“完成”、关闭 goal 或写入“已完成”记录前，必须回看用户原始请求和已读文档的完整 checklist/路线图，逐项核对实际证据。
+- 若只完成路线图中的一个子项，只能表述为“本子项/本切片完成”，并列出未完成项；不得把长期目标、多阶段任务或完整 Ubuntu/完整 VM 路线越级标为整体完成。
+- 对 RV64 Linux/Ubuntu、图任务、长链调试和 agent 工作流任务，最终答复必须同时写清已闭合 gate、未闭合 gate 和下一步候选。

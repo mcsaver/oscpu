@@ -1,0 +1,33 @@
+[nemu-ubuntu] static production gate
+PASS Linux/Makefile
+PASS Linux/scripts/build-linux.sh
+PASS Linux/scripts/check-nemu-systemd-guest.sh
+PASS Linux/scripts/check-nemu-performance-config.sh
+PASS Linux/platform/gen_dts.py
+PASS Linux/platform/npc-rv64.yml
+PASS nemu/configs/riscv64-linux_defconfig
+PASS nemu/src/cpu/cpu-exec.c
+PASS nemu/src/cpu/Kconfig
+PASS nemu/src/device/serial.c
+PASS nemu/src/device/device.c
+PASS nemu/src/device/disk.c
+PASS nemu/src/memory/vaddr.c
+PASS nemu/src/isa/riscv64/system/mmu.c
+PASS nemu/include/isa.h
+PASS nemu/src/device/filelist.mk
+
+[nemu-ubuntu] script syntax
+
+[nemu-ubuntu] DTS generator syntax
+
+[nemu-ubuntu] performance config
+make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' riscv64-linux_defconfig
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu'
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/nemu'
+NEMU_PERFORMANCE_REQUIRED='1' \
+NEMU_CONFIG='/home/lyg/PA/ysyx-workbench/nemu/.config' \
+NEMU_AUTOCONF='/home/lyg/PA/ysyx-workbench/nemu/include/generated/autoconf.h' \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-nemu-performance-config.sh'
+__NEMU_PERFORMANCE_CONFIG__:ok
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/Linux'

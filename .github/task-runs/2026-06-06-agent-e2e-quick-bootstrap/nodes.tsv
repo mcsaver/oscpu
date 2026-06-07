@@ -1,0 +1,4 @@
+recall-discovery	agent-system	PASS	AGENTS/copilot/memory/task-run 模板	确认 AI 规则发现链和记录模板存在	.github/task-runs/2026-06-06-agent-e2e-quick-bootstrap/evidence/recall-discovery.log
+tool-env-check	agent-system	PASS	bash/git/make/python/gcc 等基础工具	区分 hard requirement 与 optional downstream tool	.github/task-runs/2026-06-06-agent-e2e-quick-bootstrap/evidence/tool-env-check.log
+npc-sim-status	hardware-flow	PASS	npc/sim/Makefile 与当前 Kconfig	输出 npc/sim 真实后端选择	.github/task-runs/2026-06-06-agent-e2e-quick-bootstrap/evidence/npc-sim-status.log, .github/task-runs/2026-06-06-agent-e2e-quick-bootstrap/evidence/npc-sim-status.cmd
+nemu-add-smoke	hardware-flow	SKIP	am-kernels/tests/cpu-tests/tests/add.c + NEMU AM target	nemu/.config isa=riscv64 target=NATIVE_ELF，不是 CONFIG_TARGET_AM=y；为避免改写用户当前 NEMU 配置，本节点跳过	.github/task-runs/2026-06-06-agent-e2e-quick-bootstrap/evidence/nemu-add-smoke.log

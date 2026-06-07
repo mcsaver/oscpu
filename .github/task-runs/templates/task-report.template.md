@@ -4,7 +4,7 @@
 
 - `task_id`:
 - `task_slug`:
-- `graph_template`: `rv32-reference-loop | rv32-bringup | npc-sim-regression | soc-difftest-loop | am-device-loop | ysyx-soc-integration | rv64-ubuntu-probe-loop | rv64-ubuntu-rootfs-loop | linux-display-loop | rv64gc-userland-loop | verilator-tapeout-readiness-loop | regression-debug-loop | agent-env-refactor | custom`
+- `graph_template`: `rv32-reference-loop | rv32-bringup | npc-sim-regression | soc-difftest-loop | am-device-loop | ysyx-soc-integration | rv64-ubuntu-probe-loop | rv64-ubuntu-rootfs-loop | linux-display-loop | rv64gc-userland-loop | verilator-tapeout-readiness-loop | agent-e2e-loop | regression-debug-loop | agent-env-refactor | custom`
 - `graph_mode`: `static | dynamic | static+dynamic`
 - `status`: `planned | in-progress | blocked | completed | archived`
 - `owner`:

@@ -1,0 +1,1314 @@
+[npc] command: full cpu-tests ARCH=riscv32-npc via npc/sim
+[npc] backend follows npc/sim current configuration; override with NPC_SIM_BACKEND only when the task explicitly asks for it.
+[npc] clean stale AM/cpu-tests artifacts before full run
+make: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+rm -rf Makefile.* build/
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+Makefile:5: /Makefile: No such file or directory
+make: *** No rule to make target '/Makefile'.  Stop.
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+Makefile:3: /Makefile: No such file or directory
+make: *** No rule to make target '/Makefile'.  Stop.
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+make: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building shuixianhua-run [riscv32-npc]
++ CC tests/shuixianhua.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/shuixianhua-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/shuixianhua-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/shuixianhua-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building switch-run [riscv32-npc]
++ CC tests/switch.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/switch-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/switch-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/switch-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building sv39-ras-relocate-run [riscv32-npc]
++ CC tests/sv39-ras-relocate.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/sv39-ras-relocate-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/sv39-ras-relocate-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/sv39-ras-relocate-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building stdio-format-run [riscv32-npc]
++ CC tests/stdio-format.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/stdio-format-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/klib/build/klib-riscv32-npc.a(string.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/klib/build/klib-riscv32-npc.a(string.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/stdio-format-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/stdio-format-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building plic-sirq-run [riscv32-npc]
++ CC tests/plic-sirq.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/plic-sirq-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/plic-sirq-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/plic-sirq-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building uart-plic-sirq-run [riscv32-npc]
++ CC tests/uart-plic-sirq.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/uart-plic-sirq-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/uart-plic-sirq-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/uart-plic-sirq-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building select-sort-run [riscv32-npc]
++ CC tests/select-sort.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/select-sort-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/select-sort-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/select-sort-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building min3-run [riscv32-npc]
++ CC tests/min3.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/min3-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/min3-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/min3-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building sbi-ipi-reset-hsm-run [riscv32-npc]
++ CC tests/sbi-ipi-reset-hsm.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/sbi-ipi-reset-hsm-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/sbi-ipi-reset-hsm-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/sbi-ipi-reset-hsm-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building unalign-run [riscv32-npc]
++ CC tests/unalign.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/unalign-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/unalign-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/unalign-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building branch-resolve-loop-run [riscv32-npc]
++ CC tests/branch-resolve-loop.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/branch-resolve-loop-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/branch-resolve-loop-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/branch-resolve-loop-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building char-test-run [riscv32-npc]
++ CC tests/char-test.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/char-test-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/char-test-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/char-test-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building load-store-run [riscv32-npc]
++ CC tests/load-store.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/load-store-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/load-store-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/load-store-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building sbi-base-console-run [riscv32-npc]
++ CC tests/sbi-base-console.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/sbi-base-console-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/sbi-base-console-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/sbi-base-console-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building counteren-time-run [riscv32-npc]
++ CC tests/counteren-time.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/counteren-time-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/counteren-time-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/counteren-time-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building sub-longlong-run [riscv32-npc]
++ CC tests/sub-longlong.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/sub-longlong-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/sub-longlong-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/sub-longlong-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building add-longlong-run [riscv32-npc]
++ CC tests/add-longlong.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/add-longlong-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/add-longlong-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/add-longlong-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building prime-run [riscv32-npc]
++ CC tests/prime.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/prime-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/prime-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/prime-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building max-run [riscv32-npc]
++ CC tests/max.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/max-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/max-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/max-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building hello-str-run [riscv32-npc]
++ CC tests/hello-str.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/hello-str-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/klib/build/klib-riscv32-npc.a(string.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/klib/build/klib-riscv32-npc.a(string.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/hello-str-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/hello-str-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building compressed-run [riscv32-npc]
++ CC tests/compressed.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/compressed-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/compressed-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/compressed-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building movsx-run [riscv32-npc]
++ CC tests/movsx.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/movsx-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/movsx-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/movsx-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building add-run [riscv32-npc]
++ CC tests/add.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/add-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/add-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/add-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building leap-year-run [riscv32-npc]
++ CC tests/leap-year.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/leap-year-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/leap-year-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/leap-year-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building fence-i-run [riscv32-npc]
++ CC tests/fence-i.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/fence-i-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/fence-i-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/fence-i-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building matrix-mul-run [riscv32-npc]
++ CC tests/matrix-mul.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/matrix-mul-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/matrix-mul-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/matrix-mul-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building div-run [riscv32-npc]
++ CC tests/div.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/div-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/div-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/div-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building quick-sort-run [riscv32-npc]
++ CC tests/quick-sort.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/quick-sort-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/quick-sort-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/quick-sort-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building shift-run [riscv32-npc]
++ CC tests/shift.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/shift-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/shift-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/shift-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building string-run [riscv32-npc]
++ CC tests/string.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/string-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/klib/build/klib-riscv32-npc.a(string.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/klib/build/klib-riscv32-npc.a(string.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/string-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/string-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building sv39-ad-bits-run [riscv32-npc]
++ CC tests/sv39-ad-bits.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/sv39-ad-bits-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/sv39-ad-bits-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/sv39-ad-bits-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building linux-handoff-run [riscv32-npc]
++ CC tests/linux-handoff.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/linux-handoff-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/linux-handoff-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/linux-handoff-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building recursion-run [riscv32-npc]
++ CC tests/recursion.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/recursion-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/recursion-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/recursion-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building ooo-mem-order-run [riscv32-npc]
++ CC tests/ooo-mem-order.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/ooo-mem-order-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/ooo-mem-order-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/ooo-mem-order-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building to-lower-case-run [riscv32-npc]
++ CC tests/to-lower-case.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/to-lower-case-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/to-lower-case-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/to-lower-case-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building mersenne-run [riscv32-npc]
++ CC tests/mersenne.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/mersenne-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/mersenne-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/mersenne-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building fib-run [riscv32-npc]
++ CC tests/fib.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/fib-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/fib-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/fib-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building wanshu-run [riscv32-npc]
++ CC tests/wanshu.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/wanshu-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/wanshu-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/wanshu-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building sbi-timer-run [riscv32-npc]
++ CC tests/sbi-timer.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/sbi-timer-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/sbi-timer-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/sbi-timer-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building bitmanip-run [riscv32-npc]
++ CC tests/bitmanip.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/bitmanip-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/bitmanip-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/bitmanip-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building mem-test-run [riscv32-npc]
++ CC tests/mem-test.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/mem-test-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/mem-test-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/mem-test-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building misa-priv-run [riscv32-npc]
++ CC tests/misa-priv.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/misa-priv-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/misa-priv-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/misa-priv-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building fact-run [riscv32-npc]
++ CC tests/fact.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/fact-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/fact-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/fact-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building if-else-run [riscv32-npc]
++ CC tests/if-else.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/if-else-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/if-else-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/if-else-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building bit-run [riscv32-npc]
++ CC tests/bit.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/bit-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/bit-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/bit-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building crc32-run [riscv32-npc]
++ CC tests/crc32.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/crc32-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/crc32-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/crc32-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building semihost-ebreak-run [riscv32-npc]
++ CC tests/semihost-ebreak.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/semihost-ebreak-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/semihost-ebreak-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/semihost-ebreak-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building goldbach-run [riscv32-npc]
++ CC tests/goldbach.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/goldbach-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/goldbach-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/goldbach-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building dummy-run [riscv32-npc]
++ CC tests/dummy.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/dummy-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/dummy-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/dummy-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building pascal-run [riscv32-npc]
++ CC tests/pascal.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/pascal-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/pascal-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/pascal-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building sum-run [riscv32-npc]
++ CC tests/sum.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/sum-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/sum-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/sum-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building bubble-sort-run [riscv32-npc]
++ CC tests/bubble-sort.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/bubble-sort-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/bubble-sort-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/bubble-sort-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building linux-mini-boot-run [riscv32-npc]
++ CC tests/linux-mini-boot.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/linux-mini-boot-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/linux-mini-boot-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/linux-mini-boot-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building mul-longlong-run [riscv32-npc]
++ CC tests/mul-longlong.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/mul-longlong-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/mul-longlong-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/mul-longlong-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building mov-c-run [riscv32-npc]
++ CC tests/mov-c.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/mov-c-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/mov-c-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/mov-c-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+# Building branch-fallthrough-save-run [riscv32-npc]
++ CC tests/branch-fallthrough-save.c
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+# Building am-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/am'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Building klib-archive [riscv32-npc]
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/abstract-machine/klib'
+# Creating image [riscv32-npc]
++ LD -> build/branch-fallthrough-save-riscv32-npc.elf
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o): ABI is incompatible with that of the selected emulation:
+  target emulation `elf32-littleriscv' does not match `elf64-littleriscv'
+riscv64-linux-gnu-ld: failed to merge target specific data of file /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(trm.o)
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/branch-fallthrough-save-riscv32-npc.elf(entry): relocation "_trm_init+0x0 (type R_RISCV_CALL_PLT)" goes out of range
+riscv64-linux-gnu-ld: /home/lyg/PA/ysyx-workbench/abstract-machine/am/build/am-riscv32-npc.a(start.o): file class ELFCLASS32 incompatible with ELFCLASS64
+riscv64-linux-gnu-ld: final link failed: file in wrong format
+make[1]: *** [/home/lyg/PA/ysyx-workbench/abstract-machine/Makefile:176: /home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests/build/branch-fallthrough-save-riscv32-npc.elf] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'
+test list [56 item(s)]: shuixianhua switch sv39-ras-relocate stdio-format plic-sirq uart-plic-sirq select-sort min3 sbi-ipi-reset-hsm unalign branch-resolve-loop char-test load-store sbi-base-console counteren-time sub-longlong add-longlong prime max hello-str compressed movsx add leap-year fence-i matrix-mul div quick-sort shift string sv39-ad-bits linux-handoff recursion ooo-mem-order to-lower-case mersenne fib wanshu sbi-timer bitmanip mem-test misa-priv fact if-else bit crc32 semihost-ebreak goldbach dummy pascal sum bubble-sort linux-mini-boot mul-longlong mov-c branch-fallthrough-save
+[   shuixianhua] [1;31m***FAIL***[0m
+[        switch] [1;31m***FAIL***[0m
+[sv39-ras-relocate] [1;31m***FAIL***[0m
+[  stdio-format] [1;31m***FAIL***[0m
+[     plic-sirq] [1;31m***FAIL***[0m
+[uart-plic-sirq] [1;31m***FAIL***[0m
+[   select-sort] [1;31m***FAIL***[0m
+[          min3] [1;31m***FAIL***[0m
+[sbi-ipi-reset-hsm] [1;31m***FAIL***[0m
+[       unalign] [1;31m***FAIL***[0m
+[branch-resolve-loop] [1;31m***FAIL***[0m
+[     char-test] [1;31m***FAIL***[0m
+[    load-store] [1;31m***FAIL***[0m
+[sbi-base-console] [1;31m***FAIL***[0m
+[counteren-time] [1;31m***FAIL***[0m
+[  sub-longlong] [1;31m***FAIL***[0m
+[  add-longlong] [1;31m***FAIL***[0m
+[         prime] [1;31m***FAIL***[0m
+[           max] [1;31m***FAIL***[0m
+[     hello-str] [1;31m***FAIL***[0m
+[    compressed] [1;31m***FAIL***[0m
+[         movsx] [1;31m***FAIL***[0m
+[           add] [1;31m***FAIL***[0m
+[     leap-year] [1;31m***FAIL***[0m
+[       fence-i] [1;31m***FAIL***[0m
+[    matrix-mul] [1;31m***FAIL***[0m
+[           div] [1;31m***FAIL***[0m
+[    quick-sort] [1;31m***FAIL***[0m
+[         shift] [1;31m***FAIL***[0m
+[        string] [1;31m***FAIL***[0m
+[  sv39-ad-bits] [1;31m***FAIL***[0m
+[ linux-handoff] [1;31m***FAIL***[0m
+[     recursion] [1;31m***FAIL***[0m
+[ ooo-mem-order] [1;31m***FAIL***[0m
+[ to-lower-case] [1;31m***FAIL***[0m
+[      mersenne] [1;31m***FAIL***[0m
+[           fib] [1;31m***FAIL***[0m
+[        wanshu] [1;31m***FAIL***[0m
+[     sbi-timer] [1;31m***FAIL***[0m
+[      bitmanip] [1;31m***FAIL***[0m
+[      mem-test] [1;31m***FAIL***[0m
+[     misa-priv] [1;31m***FAIL***[0m
+[          fact] [1;31m***FAIL***[0m
+[       if-else] [1;31m***FAIL***[0m
+[           bit] [1;31m***FAIL***[0m
+[         crc32] [1;31m***FAIL***[0m
+[semihost-ebreak] [1;31m***FAIL***[0m
+[      goldbach] [1;31m***FAIL***[0m
+[         dummy] [1;31m***FAIL***[0m
+[        pascal] [1;31m***FAIL***[0m
+[           sum] [1;31m***FAIL***[0m
+[   bubble-sort] [1;31m***FAIL***[0m
+[linux-mini-boot] [1;31m***FAIL***[0m
+[  mul-longlong] [1;31m***FAIL***[0m
+[         mov-c] [1;31m***FAIL***[0m
+[branch-fallthrough-save] [1;31m***FAIL***[0m
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/am-kernels/tests/cpu-tests'

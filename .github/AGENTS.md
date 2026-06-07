@@ -38,7 +38,8 @@
 6. `.github/instructions/<相关主题>.instructions.md`
 7. 若任务涉及 `npc/single/` 或 `npc/soc/` 的数据通路、译码、控制、功能仿真、SoC wrapper 或 RTL，补读对应目录下的 `design/study/README.md` 及专题笔记
 8. 若任务涉及 `ysyxSoC/`、CPU 顶层 ABI、SoC 地址图或 `ysyxSoCFull.v` 生成，补读 `.github/memory/modules/ysyx-soc.md` 与 `ysyxSoC/spec/cpu-interface.md`
-9. 若任务涉及 `npc/rv64`、OpenSBI/Linux/Ubuntu 22.04、rootfs、framebuffer/VGA、RV64GC/lp64d 或 Verilator 性能仿真，补读 `.github/agents/rv64-linux.agent.md`、`.github/agents/linux-device.agent.md`、`.github/agents/display-vga.agent.md`、`.github/agents/verilator-tapeout.agent.md` 以及相关 `.github/instructions/*.instructions.md`
+9. 若任务涉及 AI 开发环境 e2e、规则发现、agent 工作流自检或“降低 AI 不确定性”，补读 `.github/instructions/agent-e2e-workflow.instructions.md` 与 `.github/e2e/README.md`，先用 `scripts/agent-e2e.sh --list-profiles` 查看模块 profile，再按任务选择 `discovery`、`contracts`、`quick`、`agent-system`、`abstract-machine`、`am-kernels`、`hardware-flow`、`nemu`、`npc`、`rv64-linux` 等 profile 生成证据包
+10. 若任务涉及 `npc/rv64`、OpenSBI/Linux/Ubuntu 22.04、rootfs、framebuffer/VGA、RV64GC/lp64d 或 Verilator 性能仿真，补读 `.github/agents/rv64-linux.agent.md`、`.github/agents/linux-device.agent.md`、`.github/agents/display-vga.agent.md`、`.github/agents/verilator-tapeout.agent.md` 以及相关 `.github/instructions/*.instructions.md`
 
 禁止只看当前打开的单个文件就开始修改；任何“我以为”都必须先用搜索、阅读或运行结果验证。
 
@@ -63,11 +64,12 @@
 
 ## 3. 图任务与调度规则
 
-- 复杂任务先判断是否命中现有静态图模板，如 `rv32-reference-loop`、`rv32-bringup`、`npc-sim-regression`、`soc-difftest-loop`、`am-device-loop`、`ysyx-soc-integration`、`rv64-ubuntu-probe-loop`、`rv64-ubuntu-rootfs-loop`、`linux-display-loop`、`rv64gc-userland-loop`、`verilator-tapeout-readiness-loop`、`agent-env-refactor`、`regression-debug-loop`。
+- 复杂任务先判断是否命中现有静态图模板，如 `rv32-reference-loop`、`rv32-bringup`、`npc-sim-regression`、`soc-difftest-loop`、`am-device-loop`、`ysyx-soc-integration`、`rv64-ubuntu-probe-loop`、`rv64-ubuntu-rootfs-loop`、`linux-display-loop`、`rv64gc-userland-loop`、`verilator-tapeout-readiness-loop`、`modular-agent-e2e`（兼容名 `agent-e2e-loop`）、`agent-env-refactor`、`regression-debug-loop`。
 - 只有模板不足、证据链缺失、或出现新的跨模块边界时，才动态扩图。
 - 每个图节点至少写清：`node_id`、`owner_agent`、`depends_on`、`inputs`、`outputs`、`success_criteria`、`fallback`。
 - 没有 `evidence` 的节点不能作为下游硬依赖；没有两侧可比较产物时，不得创建 `compare` / `difftest` 节点。
 - 处理 `.github/`、`agents/`、`instructions/`、`memory/` 或调度体系任务时，优先读取 `.github/agentic-hardware-blueprint.md` 与 `.github/memory/modules/agent-system.md`。
+- 处理 AI 开发环境 e2e 或规则发现漂移时，优先选择 `modular-agent-e2e`：由 `.github/e2e/profiles/*.tsv` 编排 `recall-discovery → tool-env-check → backend-status → module-contract/smoke → record`；旧称 `agent-e2e-loop` 仅作为兼容标签。该图的目标是给后续判断提供证据，不得越级证明 NPC/SoC/RV64/Linux/PPA 等业务目标正确。
 
 ---
 
@@ -102,6 +104,11 @@
 
 ## 7. 记录与交付
 
+- **完成判定钩子**：在声明“完成”、关闭目标、更新 goal 状态、或把任务写入“已完成”前，必须重新展开用户原始请求和已读文档中的 checklist/路线图，逐项核对：
+  - 若用户请求是路线图、长期目标或包含多阶段建议，只能把已验证的最小闭环称为“子任务/本切片完成”，不得把整个目标标为完成。
+  - 若只完成其中一项，最终回复和 memory/task-run 必须显式写清“已完成项、未完成项、下一步候选”，并保持目标/问题在语义上未闭合。
+  - 只有当原始目标的全部硬性条目都有客观证据，且不存在未处理的用户明确要求时，才允许使用“整体完成/goal complete”的表述。
+  - RV64 Linux/Ubuntu、图任务和长链调试尤其要按 gate 分层收口，禁止用低层 gate 或单个设备子项越级声明完整 Ubuntu、完整 VM、完整性能路线或完整图目标。
 - 稳定结论、长期经验和设计决策写入 `.github/memory/`。
 - 单次任务过程、节点派发与证据链优先写入 `.github/task-runs/<日期-任务名>/`。
 - 处理 agent 架构与工作流环境任务时，相关长期结论优先沉淀到 `.github/memory/modules/agent-system.md`。

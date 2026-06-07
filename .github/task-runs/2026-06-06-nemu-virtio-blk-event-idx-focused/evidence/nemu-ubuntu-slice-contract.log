@@ -1,0 +1,25 @@
+[nemu-ubuntu] slice contract guard
+PASS nemu/src/device/rng.c
+PASS nemu/src/device/goldfish_rtc.c
+PASS .github/memory/modules/nemu.md
+PASS .github/memory/known-issues.md
+
+[nemu-ubuntu] required guest markers
+PASS marker __NEMU_CHECK_HWRNG_CURRENT__
+PASS marker __NEMU_CHECK_RTC0_NAME__
+PASS marker __NEMU_CHECK_VDA_CACHE_TYPE__
+PASS marker virtio-blk-feature-config-wce
+PASS marker virtio-blk-feature-topology
+PASS marker virtio-ring-feature-event-idx
+PASS marker vda-cache-type-write-through
+PASS marker vda-cache-type-write-back
+
+[nemu-ubuntu] required device/config hooks
+PASS disk.c VIRTIO_BLK_F_CONFIG_WCE
+PASS disk.c VIRTIO_BLK_F_TOPOLOGY
+PASS disk.c VIRTIO_RING_F_EVENT_IDX
+PASS disk.c VIRTIO_BLK_CONFIG_WCE
+PASS gen_dts.py google,goldfish-rtc
+PASS gen_dts.py virtio_mmio
+PASS Kconfig HAS_GOLDFISH_RTC
+PASS Kconfig HAS_VIRTIO_RNG

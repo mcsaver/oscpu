@@ -1,0 +1,2 @@
+[nemu] SKIP: nemu/.config isa=riscv64 target=NATIVE_ELF，不是 CONFIG_TARGET_AM=y
+[nemu] next: 需要 AM smoke 时先切 riscv32-am_defconfig/riscv64-am_defconfig，或设置 AGENT_E2E_FORCE_SMOKE=1

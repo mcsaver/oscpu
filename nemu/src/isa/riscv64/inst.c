@@ -20,6 +20,7 @@
 #include <memory/cache.h>
 #include <ftrace.h>
 #include <etrace.h>
+#include <string.h>
 
 /* 基础设施：寄存器/访存入口、字段提取和少量规范常量都放在文件开头。
  * 执行层只通过这些窄接口读写状态，后续扩指令不再到处散落位切片。 */
@@ -79,6 +80,61 @@
 
 static bool lr_reservation_valid = false;
 static word_t lr_reservation_addr = 0;
+
+#ifdef CONFIG_INTERPRETER_DECODE_CACHE
+#define RV_DECODE_CACHE_ENTRIES 8192
+
+typedef enum {
+  RV_DC_NONE = 0,
+  RV_DC_RVC,
+  RV_DC_OP_IMM,
+  RV_DC_OP_IMM_32,
+  RV_DC_LOAD,
+  RV_DC_LOAD_FP,
+  RV_DC_STORE,
+  RV_DC_STORE_FP,
+  RV_DC_AMO,
+  RV_DC_OP,
+  RV_DC_OP_32,
+  RV_DC_BRANCH,
+  RV_DC_JALR,
+  RV_DC_JAL,
+  RV_DC_LUI,
+  RV_DC_AUIPC,
+} RvDecodeCacheKind;
+
+typedef struct {
+  vaddr_t pc;
+  uint32_t inst_key;
+  word_t imm;
+  uint8_t kind;
+  uint8_t rd;
+  uint8_t rs1;
+  uint8_t rs2;
+  uint8_t funct3;
+  uint8_t funct7;
+} RvDecodeCacheEntry;
+
+static RvDecodeCacheEntry rv_decode_cache[RV_DECODE_CACHE_ENTRIES];
+
+static inline uint32_t rv_decode_cache_index(vaddr_t pc) {
+  return (pc >> 1) & (RV_DECODE_CACHE_ENTRIES - 1);
+}
+
+static inline uint32_t rv_decode_cache_inst_key(uint32_t inst) {
+#ifdef CONFIG_RISCV_EXT_C
+  return (inst & 0x3u) == 0x3u ? inst : (inst & 0xffffu);
+#else
+  return inst;
+#endif
+}
+
+static inline void rv_decode_cache_flush(void) {
+  memset(rv_decode_cache, 0, sizeof(rv_decode_cache));
+}
+#else
+#define rv_decode_cache_flush() ((void)0)
+#endif
 #ifdef CONFIG_RISCV_DEBUG_LOG
 static int csr_boot_log_budget = 8;
 #define CSR_DEBUG_LOG(...) do { \
@@ -1280,8 +1336,9 @@ static inline bool exec_misc_mem(uint32_t funct3) {
     case 0x0: // fence
       return true;
     case 0x1: // fence.i
-      // NEMU 的 cache 是透明模拟层；fence.i 时写回 DCache 并失效 ICache，保证自修改代码后能重新取指。
+      // fence.i 是自修改代码的架构同步点；硬件 cache 模型和解释器预译码缓存都在这里失效。
       IFDEF(CONFIG_CACHE, cache_flush_all());
+      rv_decode_cache_flush();
       return true;
     default:
       return false;
@@ -1869,6 +1926,196 @@ static inline bool exec_rv32c(Decode *s, uint16_t inst) {
 }
 #endif
 
+static inline void raise_illegal_inst(Decode *s, uint32_t inst) {
+  s->dnpc = isa_raise_intr_with_tval(CAUSE_ILLEGAL_INST, s->pc, inst);
+  R(0) = 0;
+}
+
+#ifdef CONFIG_INTERPRETER_DECODE_CACHE
+static inline RvDecodeCacheKind rv_decode_cache_kind(uint32_t inst) {
+#ifdef CONFIG_RISCV_EXT_C
+  if ((inst & 0x3u) != 0x3u) return RV_DC_RVC;
+#endif
+
+  switch (OPCODE(inst)) {
+    case OPC_OP_IMM: return RV_DC_OP_IMM;
+    case OPC_OP_IMM_32: return RV_DC_OP_IMM_32;
+    case OPC_LOAD: return RV_DC_LOAD;
+    case OPC_LOAD_FP: return RV_DC_LOAD_FP;
+    case OPC_STORE: return RV_DC_STORE;
+    case OPC_STORE_FP: return RV_DC_STORE_FP;
+    case OPC_AMO: return RV_DC_AMO;
+    case OPC_OP: return RV_DC_OP;
+    case OPC_OP_32: return RV_DC_OP_32;
+    case OPC_BRANCH: return RV_DC_BRANCH;
+    case OPC_JALR: return RV_DC_JALR;
+    case OPC_JAL: return RV_DC_JAL;
+    case OPC_LUI: return RV_DC_LUI;
+    case OPC_AUIPC: return RV_DC_AUIPC;
+    default: return RV_DC_NONE;
+  }
+}
+
+static inline void rv_decode_cache_fill(const Decode *s) {
+  uint32_t inst = s->isa.inst;
+  RvDecodeCacheKind kind = rv_decode_cache_kind(inst);
+  if (kind == RV_DC_NONE) return;
+
+  RvDecodeCacheEntry next = {
+    .pc = s->pc,
+    .inst_key = rv_decode_cache_inst_key(inst),
+    .imm = 0,
+    .kind = kind,
+    .rd = RD(inst),
+    .rs1 = RS1(inst),
+    .rs2 = RS2(inst),
+    .funct3 = FUNCT3(inst),
+    .funct7 = FUNCT7(inst),
+  };
+
+  switch (kind) {
+    case RV_DC_LOAD:
+    case RV_DC_LOAD_FP:
+    case RV_DC_JALR:
+      next.imm = IMM_I(inst);
+      break;
+    case RV_DC_STORE:
+    case RV_DC_STORE_FP:
+      next.imm = IMM_S(inst);
+      break;
+    case RV_DC_BRANCH:
+      next.imm = IMM_B(inst);
+      break;
+    case RV_DC_JAL:
+      next.imm = IMM_J(inst);
+      break;
+    case RV_DC_LUI:
+    case RV_DC_AUIPC:
+      next.imm = IMM_U(inst);
+      break;
+    default:
+      break;
+  }
+
+  rv_decode_cache[rv_decode_cache_index(s->pc)] = next;
+}
+
+static inline bool rv_decode_cache_exec(Decode *s) {
+  uint32_t inst_key = rv_decode_cache_inst_key(s->isa.inst);
+  RvDecodeCacheEntry *entry = &rv_decode_cache[rv_decode_cache_index(s->pc)];
+  if (entry->kind == RV_DC_NONE || entry->pc != s->pc || entry->inst_key != inst_key) {
+    return false;
+  }
+
+  uint32_t inst = s->isa.inst;
+  s->dnpc = s->snpc;
+
+  switch ((RvDecodeCacheKind)entry->kind) {
+    case RV_DC_RVC:
+#ifdef CONFIG_RISCV_EXT_C
+      if (!exec_rv32c(s, inst & 0xffffu)) goto invalid;
+      break;
+#else
+      goto invalid;
+#endif
+    case RV_DC_OP_IMM: {
+      word_t src1 = R(entry->rs1);
+      if (!exec_rv32i_op_imm(inst, entry->rd, src1)) {
+#ifdef CONFIG_RISCV_EXT_B
+        if (!exec_zb_op_imm(inst, entry->rd, src1)) goto invalid;
+#else
+        goto invalid;
+#endif
+      }
+      break;
+    }
+    case RV_DC_OP_IMM_32:
+      if (!exec_rv64i_op_imm_32(inst, entry->rd, R(entry->rs1))) goto invalid;
+      break;
+    case RV_DC_LOAD:
+      if (!exec_rv32i_load(entry->funct3, entry->rd, R(entry->rs1) + entry->imm)) goto invalid;
+      break;
+    case RV_DC_LOAD_FP:
+      if (!exec_rvf_load(entry->funct3, entry->rd, R(entry->rs1) + entry->imm)) goto invalid;
+      break;
+    case RV_DC_STORE:
+      if (!exec_rv32i_store(entry->funct3, R(entry->rs1) + entry->imm, R(entry->rs2))) goto invalid;
+      break;
+    case RV_DC_STORE_FP:
+      if (!exec_rvf_store(entry->funct3, R(entry->rs1) + entry->imm, entry->rs2)) goto invalid;
+      break;
+    case RV_DC_AMO:
+#ifdef CONFIG_RISCV_EXT_A
+      if (!exec_rva_amo(inst, entry->rd, entry->rs1, entry->rs2)) goto invalid;
+      break;
+#else
+      goto invalid;
+#endif
+    case RV_DC_OP: {
+      word_t src1 = R(entry->rs1);
+      word_t src2 = R(entry->rs2);
+      if (exec_rv32i_op(entry->funct3, entry->funct7, entry->rd, src1, src2)) break;
+#ifdef CONFIG_RISCV_EXT_M
+      if (exec_rvm_op(entry->funct3, entry->funct7, entry->rd, src1, src2)) break;
+#endif
+#ifdef CONFIG_RISCV_EXT_B
+      if (exec_zb_op(entry->funct3, entry->funct7, entry->rd, entry->rs2, src1, src2)) break;
+#endif
+      goto invalid;
+    }
+    case RV_DC_OP_32: {
+      word_t src1 = R(entry->rs1);
+      word_t src2 = R(entry->rs2);
+#ifdef CONFIG_RISCV_EXT_B
+      if (exec_zb_op_32(entry->funct3, entry->funct7, entry->rd, entry->rs2, src1, src2)) break;
+#endif
+      if (exec_rv64i_op_32(entry->funct3, entry->funct7, entry->rd, src1, src2)) break;
+#ifdef CONFIG_RISCV_EXT_M
+      if (exec_rvm_op_32(entry->funct3, entry->funct7, entry->rd, src1, src2)) break;
+#endif
+      goto invalid;
+    }
+    case RV_DC_BRANCH:
+      if (!exec_rv32i_branch(s, entry->funct3, R(entry->rs1), R(entry->rs2), entry->imm)) goto invalid;
+      break;
+    case RV_DC_JALR: {
+      if (entry->funct3 != 0x0) goto invalid;
+      word_t target = (R(entry->rs1) + entry->imm) & ~(word_t)1;
+      R(entry->rd) = s->pc + 4;
+      s->dnpc = target;
+      IFDEF(CONFIG_FTRACE, {
+        if (entry->rd == 0 && entry->rs1 == 1) ftrace_log(-1, s->pc, target);
+        else if (entry->rd == 1 || entry->rd == 5) ftrace_log(1, s->pc, target);
+      })
+      break;
+    }
+    case RV_DC_JAL:
+      R(entry->rd) = s->pc + 4;
+      s->dnpc = s->pc + entry->imm;
+      IFDEF(CONFIG_FTRACE, if (entry->rd == 1 || entry->rd == 5) ftrace_log(1, s->pc, s->dnpc));
+      break;
+    case RV_DC_LUI:
+      R(entry->rd) = entry->imm;
+      break;
+    case RV_DC_AUIPC:
+      R(entry->rd) = s->pc + entry->imm;
+      break;
+    default:
+      return false;
+  }
+
+  R(0) = 0;
+  return true;
+
+invalid:
+  raise_illegal_inst(s, inst);
+  return true;
+}
+#else
+#define rv_decode_cache_fill(s) ((void)0)
+#define rv_decode_cache_exec(s) false
+#endif
+
 static int decode_exec(Decode *s) {
   s->dnpc = s->snpc;
   uint32_t inst = s->isa.inst;
@@ -2005,8 +2252,7 @@ static int decode_exec(Decode *s) {
   return 0;
 
 invalid:
-  s->dnpc = isa_raise_intr_with_tval(CAUSE_ILLEGAL_INST, s->pc, inst);
-  R(0) = 0;
+  raise_illegal_inst(s, inst);
   return 0;
 }
 
@@ -2021,6 +2267,26 @@ static inline bool take_vaddr_fault(Decode *s) {
 
 int isa_exec_once(Decode *s) {
 #ifdef CONFIG_RISCV_EXT_C
+  uint32_t wide_inst = 0;
+  int wide_len = 0;
+  if (vaddr_ifetch_wide(s->snpc, &wide_inst, &wide_len)) {
+    if (take_vaddr_fault(s)) {
+      s->isa.inst = 0;
+      return 0;
+    }
+    s->isa.inst = wide_inst;
+    s->snpc += wide_len;
+    syscall_debug_log_user_pc(s->pc, s->isa.inst);
+    if (rv_decode_cache_exec(s)) {
+      take_vaddr_fault(s);
+      return 0;
+    }
+    int ret = decode_exec(s);
+    rv_decode_cache_fill(s);
+    take_vaddr_fault(s);
+    return ret;
+  }
+
   uint32_t inst = inst_fetch(&s->snpc, 2);
   if (take_vaddr_fault(s)) {
     s->isa.inst = 0;
@@ -2039,7 +2305,12 @@ int isa_exec_once(Decode *s) {
   if (take_vaddr_fault(s)) return 0;
 #endif
   syscall_debug_log_user_pc(s->pc, s->isa.inst);
+  if (rv_decode_cache_exec(s)) {
+    take_vaddr_fault(s);
+    return 0;
+  }
   int ret = decode_exec(s);
+  rv_decode_cache_fill(s);
   take_vaddr_fault(s);
   return ret;
 }

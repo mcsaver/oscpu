@@ -1,0 +1,13 @@
+[agent-e2e] required discovery files
+PASS AGENTS.md
+PASS .github/AGENTS.md
+PASS .github/copilot-instructions.md
+PASS .github/agentic-hardware-blueprint.md
+PASS .github/instructions/memory-protocol.instructions.md
+PASS .github/instructions/agent-e2e-workflow.instructions.md
+PASS .github/memory/project-status.md
+PASS .github/memory/known-issues.md
+PASS .github/memory/modules/agent-system.md
+PASS .github/task-runs/templates/task-report.template.md
+PASS .github/task-runs/templates/dispatch-log.template.md
+PASS scripts/agent-e2e.sh

@@ -1,0 +1,58 @@
+[nemu-ubuntu] slice contract guard
+PASS nemu/src/device/rng.c
+PASS nemu/src/device/goldfish_rtc.c
+PASS .github/memory/modules/nemu.md
+PASS .github/memory/known-issues.md
+
+[nemu-ubuntu] required guest markers
+PASS marker __NEMU_CHECK_HWRNG_CURRENT__
+PASS marker __NEMU_CHECK_RTC0_NAME__
+PASS marker __NEMU_CHECK_VDA_CACHE_TYPE__
+PASS marker __NEMU_CHECK_VDA_DISCARD_MAX__
+PASS marker __NEMU_CHECK_VDA_WRITE_ZEROES_MAX__
+PASS marker virtio-blk-feature-config-wce
+PASS marker virtio-blk-feature-discard
+PASS marker virtio-blk-feature-topology
+PASS marker virtio-blk-feature-write-zeroes
+PASS marker virtio-ring-feature-event-idx
+PASS marker vda-cache-type-write-through
+PASS marker vda-cache-type-write-back
+
+[nemu-ubuntu] required device/config hooks
+PASS disk.c VIRTIO_BLK_F_CONFIG_WCE
+PASS disk.c VIRTIO_BLK_F_DISCARD
+PASS disk.c VIRTIO_BLK_F_TOPOLOGY
+PASS disk.c VIRTIO_BLK_F_WRITE_ZEROES
+PASS disk.c VIRTIO_RING_F_EVENT_IDX
+PASS disk.c VIRTIO_BLK_T_DISCARD
+PASS disk.c VIRTIO_BLK_T_WRITE_ZEROES
+PASS disk.c VIRTIO_BLK_CONFIG_WCE
+PASS disk.c pread(
+PASS disk.c pwrite(
+PASS serial.c SERIAL_TX_BUFFER_CAP
+PASS serial.c serial_port_flush_tx
+PASS serial.c fwrite(port->tx_buffer
+PASS device.c device_update_after_inst
+PASS device.c skip += retired
+PASS cpu-exec.c INTERPRETER_TB_MAX_INST
+PASS cpu-exec.c execute_basic_block
+PASS cpu-exec.c interpreter_tb_should_stop
+PASS cpu-exec.c device_update_after_inst(retired
+PASS cpu/Kconfig config INTERPRETER_BASIC_BLOCK
+PASS riscv64-linux_defconfig CONFIG_INTERPRETER_BASIC_BLOCK=y
+PASS vaddr.c vaddr_paddr_host_fast
+PASS vaddr.c vaddr_paddr_read_fast
+PASS vaddr.c vaddr_paddr_write_fast
+PASS vaddr.c host_read(trans.host_addr
+PASS vaddr.c host_write(trans.host_addr
+PASS mmu.c isa_mmu_translate_host
+PASS mmu.c host_page
+PASS mmu.c sv39_host_page_base
+PASS mmu.c sv39_itlb
+PASS mmu.c sv39_dtlb
+PASS mmu.c sv39_tlb_set_for_type
+PASS isa.h isa_mmu_translate_host
+PASS gen_dts.py google,goldfish-rtc
+PASS gen_dts.py virtio_mmio
+PASS Kconfig HAS_GOLDFISH_RTC
+PASS Kconfig HAS_VIRTIO_RNG
