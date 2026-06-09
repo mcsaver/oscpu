@@ -1,0 +1,366 @@
+[nemu-ubuntu] focused gate log dir: .github/task-runs/2026-06-09-nemu-virtio-blk-mmap-read-chunk-delay-focused/nemu-ubuntu-focused
+make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+make ARCH=riscv64-nemu BOOT=ubuntu-rootfs __check-nemu-systemd-guest
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' riscv64-linux_defconfig
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu'
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/nemu'
+make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' -j'14'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu'
+make[3]: Entering directory '/home/lyg/PA/ysyx-workbench'
+make[3]: Leaving directory '/home/lyg/PA/ysyx-workbench'
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/nemu'
+UBUNTU_ROOTFS_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64.ext4' UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-ubuntu-rootfs.sh'
+[ubuntu-rootfs-check] image: /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64.ext4
+[ubuntu-rootfs-check] OK      stage1 init: /init
+[ubuntu-rootfs-check] OK      Ubuntu shell: /bin/sh
+[ubuntu-rootfs-check] OK      Ubuntu identity: /etc/os-release
+[ubuntu-rootfs-check] OK      systemd candidate: /lib/systemd/systemd
+[ubuntu-rootfs-check] OK      systemd basic.target: /lib/systemd/system/basic.target
+[ubuntu-rootfs-check] OK      udev daemon: /lib/systemd/systemd-udevd
+[ubuntu-rootfs-check] OK      dbus daemon: /usr/bin/dbus-daemon
+[ubuntu-rootfs-check] OK      agetty login path: /bin/login
+[ubuntu-rootfs-check] OK      root login shell: /bin/bash
+[ubuntu-rootfs-check] OK      lp64d dynamic linker: /lib/ld-linux-riscv64-lp64d.so.1
+[ubuntu-rootfs-check] OK      PAM module path: /lib/riscv64-linux-gnu/security
+[ubuntu-rootfs-check] OK      e2scrub service entrypoint: /sbin/e2scrub_all
+[ubuntu-rootfs-check] OK      unavailable hvc0 getty masked: /etc/systemd/system/serial-getty@hvc0.service
+[ubuntu-rootfs-check] rootfs readiness check passed
+NEMU_PERFORMANCE_REQUIRED='1' \
+NEMU_CONFIG='/home/lyg/PA/ysyx-workbench/nemu/.config' \
+NEMU_AUTOCONF='/home/lyg/PA/ysyx-workbench/nemu/include/generated/autoconf.h' \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-nemu-performance-config.sh'
+__NEMU_PERFORMANCE_CONFIG__:ok
+LOG_DIR='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-09-nemu-virtio-blk-mmap-read-chunk-delay-focused/nemu-ubuntu-focused' \
+LOG_FILE='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-09-nemu-virtio-blk-mmap-read-chunk-delay-focused/nemu-ubuntu-focused/nemu.log' \
+CONSOLE_LOG='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-09-nemu-virtio-blk-mmap-read-chunk-delay-focused/nemu-ubuntu-focused/console.log' \
+NEMU_SERIAL_FIFO='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-09-nemu-virtio-blk-mmap-read-chunk-delay-focused/nemu-ubuntu-focused/nemu.serial' \
+NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' \
+NEMU_SIM='/home/lyg/PA/ysyx-workbench/nemu/build/riscv64-nemu-interpreter' \
+LINUX_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/src/linux/arch/riscv/boot/Image' \
+RUN_FW='/home/lyg/PA/ysyx-workbench/Linux/env/build/opensbi-nemu-rootfs/platform/generic/firmware/fw_jump.bin' \
+RUN_DTB='/home/lyg/PA/ysyx-workbench/Linux/build/npc-rv64-nemu-rootfs.dtb' \
+RUN_ROOTFS='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64.ext4' \
+NEXT_ADDR='0x80200000' \
+DTB_ADDR='0x82200000' \
+MAX_CYCLES='25000000000' \
+NEMU_SYSTEMD_CHECK_TIMEOUT='1800' \
+NEMU_SYSTEMD_BOOT_TIMEOUT='900' \
+NEMU_SYSTEMD_SOAK_SECONDS='0' \
+NEMU_SYSTEMD_FS_STRESS_MIB='1' \
+NEMU_SYSTEMD_FS_TREE_FILES='8' \
+NEMU_SYSTEMD_PROCESS_LOOPS='4' \
+NEMU_SYSTEMD_UART_RX_STRESS_LINES='64' \
+NEMU_SYSTEMD_BLOCK_PARALLEL_JOBS='1' \
+NEMU_SYSTEMD_BLOCK_JOB_MIB='1' \
+	NEMU_SYSTEMD_MIN_MEMTOTAL_KB='900000' \
+	NEMU_SYSTEMD_INPUT_DELAY='0' \
+	NEMU_SYSTEMD_INPUT_CHUNK_BYTES='8' \
+	NEMU_SYSTEMD_INPUT_CHUNK_DELAY='0.001' \
+	  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-nemu-systemd-guest.sh'
+[nemu-systemd-check] log dir: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-09-nemu-virtio-blk-mmap-read-chunk-delay-focused/nemu-ubuntu-focused
+[nemu-systemd-check] serial fifo: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-09-nemu-virtio-blk-mmap-read-chunk-delay-focused/nemu-ubuntu-focused/nemu.serial
+[nemu-systemd-check] max cycles: 25000000000
+[nemu-systemd-check] soak seconds: 0
+[nemu-systemd-check] fs stress MiB: 1
+[nemu-systemd-check] fs tree files: 8
+[nemu-systemd-check] process loops: 4
+[nemu-systemd-check] UART RX stress lines: 64
+[nemu-systemd-check] block parallel jobs: 1
+[nemu-systemd-check] block job MiB: 1
+[nemu-systemd-check] min MemTotal KiB: 900000
+[nemu-systemd-check] systemd reload timeout: 180
+[nemu-systemd-check] input delay: 0
+[nemu-systemd-check] input chunk bytes: 8
+[nemu-systemd-check] input chunk delay: 0.001
+[nemu-systemd-check] syscall probe: 1
+[nemu-systemd-check] ICMP probe: 1
+[nemu-systemd-check] DHCP probe: 1
+[nemu-systemd-check] DNS probe: 1
+[nemu-systemd-check] TCP probe: 1
+[nemu-systemd-check] TCP burst loops: 8
+[nemu-systemd-check] poweroff: 1
+[nemu-systemd-check] poweroff timeout: 180
+[nemu-systemd-check] syscall probe bytes: 34824
+[nemu-systemd-check] ICMP probe bytes: 10248
+[nemu-systemd-check] DHCP probe bytes: 10248
+[nemu-systemd-check] DNS probe bytes: 10248
+[nemu-systemd-check] TCP probe bytes: 10248
+[nemu-systemd-check] rootfs bytes: 2147483648
+[nemu-systemd-check] vda hash window bytes: 65536
+[nemu-systemd-check] vda hash windows: 1
+[nemu-systemd-check] perf log: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-09-nemu-virtio-blk-mmap-read-chunk-delay-focused/nemu-ubuntu-focused/perf.tsv
+[nemu-systemd-check] FAIL: guest checks reported failure
+[nemu-systemd-check] ---- console tail ----
+>   done
+>
+>   for p in $parallel_pids; do
+>     wait "$p" || parallel_ok=0
+>   done
+>
+>   parallel_total=0
+>   parallel_i=0
+>   while [ "$parallel_i" -lt "$NEMU_GUEST_BLOCK_PARALLEL_JOBS" ]; do
+>     job_copy="$parallel_dir/job-$parallel_i.copy"
+>     job_bytes="$(wc -c < "$job_copy" 2>/dev/null || echo 0)"
+>     parallel_total=$((parallel_total + job_bytes))
+>     parallel_i=$((parallel_i + 1))
+>   done
+> <L_BYTES__:$parallel_total/$parallel_expected_total"
+>   if [ "$parallel_ok" = "1" ] &&
+>      [ "$parallel_total" = "$parallel_expected_total" ]; then
+>     pass rootfs-parallel-direct-io
+>   else
+>     fail rootfs-parallel-direct-io
+>   fi
+>   rm -rf "$parallel_dir"
+>   sync
+> else
+>   echo "__NEMU_CHECK_BLOCK_PARALLEL_SKIP__"
+> fi
+[1] 773
+__NEMU_CHECK_BLOCK_PARALLEL_JOB__:0:1048576
+[1]+  Done                    ( job_file="$parallel_dir/job-$job_id.bin"; job_copy="$parallel_dir/job-$job_id.copy"; if dd if=/dev/zero of="$job_file" bs=1M count="$NEMU_GUEST_BLOCK_JOB_MIB" oflag=direct conv=fsync status=none && dd if="$job_file" of="$job_copy" bs=1M iflag=direct status=none; then
+    job_bytes="$(wc -c < "$job_copy" 2>/dev/null || echo 0)"; echo "__NEMU_CHECK_BLOCK_PARALLEL_JOB__:$job_id:$job_bytes"; if [ "$job_bytes" = "$parallel_expected_job" ] && cmp -s "$job_file" "$job_copy"; then
+        exit 0;
+    fi;
+fi; echo "__NEMU_CHECK_BLOCK_PARALLEL_JOB_FAIL__:$job_id"; exit 1 )
+__NEMU_CHECK_BLOCK_PARALLEL_BYTES__:1048576/1048576
+__NEMU_CHECK_PASS__:rootfs-parallel-direct-io
+root@ysyx-ubuntu2204:~#
+root@ysyx-ubuntu2204:~# stress_file="$check_dir/rootfs-stress.bin"
+root@ysyx-ubuntu2204:~# stress_copy="$check_dir/rootfs-stress.copy"
+root@ysyx-ubuntu2204:~# <U_GUEST_FS_STRESS_MIB" conv=fsync status=none; then
+>   stress_bytes="$(wc -c < "$stress_file" 2>/dev/null || echo 0)"
+>   stress_expected=$((NEMU_GUEST_FS_STRESS_MIB * 1048576))
+>   echo "__NEMU_CHECK_FS_STRESS_BYTES__:$stress_bytes/$stress_expected"
+>   if [ "$stress_bytes" = "$stress_expected" ] &&
+>      cp "$stress_file" "$stress_copy" &&
+>      cmp -s "$stress_file" "$stress_copy"; then
+>     pass rootfs-stress-copy-cmp
+>   else
+>     fail rootfs-stress-copy-cmp
+>   fi
+>   rm -f "$stress_file" "$stress_copy"
+>   sync
+> else
+>   fail rootfs-stress-copy-cmp
+> fi
+__NEMU_CHECK_FS_STRESS_BYTES__:1048576/1048576
+__NEMU_CHECK_PASS__:rootfs-stress-copy-cmp
+root@ysyx-ubuntu2204:~#
+root@ysyx-ubuntu2204:~# <"$(cut -d. -f1 /proc/uptime 2>/dev/null || echo 0)"
+root@ysyx-ubuntu2204:~# sleep 2
+root@ysyx-ubuntu2204:~# <"$(cut -d. -f1 /proc/uptime 2>/dev/null || echo 0)"
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_UPTIME__:$uptime0->$uptime1"
+__NEMU_CHECK_UPTIME__:1398->1400
+root@ysyx-ubuntu2204:~# <2>/dev/null && pass timer-sleep || fail timer-sleep
+__NEMU_CHECK_PASS__:timer-sleep
+root@ysyx-ubuntu2204:~#
+root@ysyx-ubuntu2204:~# <>/dev/null 2>&1 && pass proc-stat || fail proc-stat
+__NEMU_CHECK_PASS__:proc-stat
+root@ysyx-ubuntu2204:~# <1 && pass proc-fd-readlink || fail proc-fd-readlink
+__NEMU_CHECK_PASS__:proc-fd-readlink
+root@ysyx-ubuntu2204:~# <22.04.5 LTS"' && pass os-release || fail os-release
+__NEMU_CHECK_PASS__:os-release
+root@ysyx-ubuntu2204:~# <scv64$' && pass uname-riscv64 || fail uname-riscv64
+__NEMU_CHECK_PASS__:uname-riscv64
+root@ysyx-ubuntu2204:~#
+root@ysyx-ubuntu2204:~# if [ "$NEMU_GUEST_SOAK_SECONDS" -gt 0 ]; then
+>   soak_uptime0="$(cut -d. -f1 /proc/uptime 2>/dev/null || echo 0)"
+>   soak_intr0="$(intr_sum)"
+>   soak_i=0
+>   while [ "$soak_i" -lt "$NEMU_GUEST_SOAK_SECONDS" ]; do
+>     sleep 1
+>     if [ $((soak_i % 5)) -eq 0 ]; then
+> <unning >/dev/null 2>&1 || fail systemd-soak-running
+>     fi
+>     soak_i=$((soak_i + 1))
+>   done
+>   soak_uptime1="$(cut -d. -f1 /proc/uptime 2>/dev/null || echo 0)"
+>   soak_intr1="$(intr_sum)"
+>   echo "__NEMU_CHECK_SOAK_UPTIME__:$soak_uptime0->$soak_uptime1"
+>   echo "__NEMU_CHECK_INTERRUPTS__:$soak_intr0->$soak_intr1"
+> <2>/dev/null && pass soak-uptime || fail soak-uptime
+> <ts-stat-monotonic || fail interrupts-stat-monotonic
+> else
+>   echo "__NEMU_CHECK_SOAK_SKIP__"
+> fi
+__NEMU_CHECK_SOAK_SKIP__
+root@ysyx-ubuntu2204:~#
+root@ysyx-ubuntu2204:~# rm -rf "$check_dir"
+root@ysyx-ubuntu2204:~#
+root@ysyx-ubuntu2204:~# <ll|segfault|kernel panic|oops' | tail -20 || true)"
+root@ysyx-ubuntu2204:~# if [ -z "$bad_dmesg" ]; then
+>   pass dmesg-no-critical
+> else
+>   echo "$bad_dmesg"
+>   fail dmesg-no-critical
+> fi
+__NEMU_CHECK_PASS__:dmesg-no-critical
+root@ysyx-ubuntu2204:~#
+root@ysyx-ubuntu2204:~# <"$(cut -d. -f1 /proc/uptime 2>/dev/null || echo 0)"
+root@ysyx-ubuntu2204:~# <NEMU_CHECK_GUEST_UPTIME_END__:$guest_check_uptime1"
+__NEMU_CHECK_GUEST_UPTIME_END__:1407
+root@ysyx-ubuntu2204:~# echo "__NEMU_SYSTEMD_CHECK_DONE__ rc=$check_fail"
+__NEMU_SYSTEMD_CHECK_DONE__ rc=1
+root@ysyx-ubuntu2204:~# <" ] && [ "${NEMU_GUEST_POWEROFF:-1}" != "0" ]; then
+> <ystemd 的真实关机路径；host 侧随后要求
+> <退出，避免把强杀当作系统收尾证据。
+>   echo "__NEMU_SYSTEMD_POWEROFF_BEGIN__"
+>   sync
+> <off -f || echo "__NEMU_SYSTEMD_POWEROFF_CMD_FAIL__"
+> fi
+root@ysyx-ubuntu2204:~# [nemu-systemd-check] ----------------------
+make[1]: *** [Makefile:470: __check-nemu-systemd-guest] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/Linux'
+make: *** [Makefile:439: check-nemu-systemd-guest] Error 2
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/Linux'
+
+[nemu-ubuntu] focused gate markers
+echo "__NEMU_CHECK_MEMTOTAL_KB__:$memtotal_kb"
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_MEMTOTAL_KB__:$memtotal_kb"
+__NEMU_CHECK_MEMTOTAL_KB__:0
+__NEMU_CHECK_MIN_MEMTOTAL_KB__:900000
+>   pass guest-memtotal-min
+>   fail guest-memtotal-min
+__NEMU_CHECK_FAIL__:guest-memtotal-min
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_HWRNG_CURRENT__:$hwrng_current"
+__NEMU_CHECK_HWRNG_CURRENT__:virtio_rng.0
+__NEMU_CHECK_VIRTIO_RNG_MODALIAS__:virtio:d00000004v58535959
+__NEMU_CHECK_VIRTIO_RNG_DRIVER__:virtio_rng
+__NEMU_CHECK_VIRTIO_RNG_STATUS__:0x0000000f
+__NEMU_CHECK_VIRTIO_RNG_FEATURES__:0000000000000000000000000000010010000000000000000000000000000000
+>   pass virtio-rng-modalias || fail virtio-rng-modalias
+__NEMU_CHECK_PASS__:virtio-rng-modalias
+>   pass virtio-rng-driver || fail virtio-rng-driver
+__NEMU_CHECK_PASS__:virtio-rng-driver
+>   pass virtio-rng-features-bitstring || fail virtio-rng-features-bitstring
+__NEMU_CHECK_PASS__:virtio-rng-features-bitstring
+>   pass virtio-rng-feature-version-1 || fail virtio-rng-feature-version-1
+__NEMU_CHECK_PASS__:virtio-rng-feature-version-1
+> <event-idx || fail virtio-rng-ring-feature-event-idx
+__NEMU_CHECK_PASS__:virtio-rng-ring-feature-event-idx
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_RTC0_NAME__:$rtc_name"
+__NEMU_CHECK_RTC0_NAME__:goldfish_rtc 10003000.rtc
+__NEMU_CHECK_VIRTIO_NET_MODALIAS__:virtio:d00000001v58535959
+>   pass virtio-net-modalias || fail virtio-net-modalias
+__NEMU_CHECK_PASS__:virtio-net-modalias
+__NEMU_CHECK_VIRTIO_NET_DRIVER__:virtio_net
+__NEMU_CHECK_VIRTIO_NET_STATUS__:0x0000000f
+__NEMU_CHECK_VIRTIO_NET_FEATURES__:0000010000000001100000000000110010000000000000000000000000000000
+>   pass virtio-net-driver || fail virtio-net-driver
+__NEMU_CHECK_PASS__:virtio-net-driver
+>   pass virtio-net-features-bitstring || fail virtio-net-features-bitstring
+__NEMU_CHECK_PASS__:virtio-net-features-bitstring
+>   pass virtio-net-feature-version-1 || fail virtio-net-feature-version-1
+__NEMU_CHECK_PASS__:virtio-net-feature-version-1
+>   pass virtio-net-feature-mac || fail virtio-net-feature-mac
+__NEMU_CHECK_PASS__:virtio-net-feature-mac
+>   pass virtio-net-feature-mrg-rxbuf || fail virtio-net-feature-mrg-rxbuf
+__NEMU_CHECK_PASS__:virtio-net-feature-mrg-rxbuf
+>   pass virtio-net-feature-status || fail virtio-net-feature-status
+__NEMU_CHECK_PASS__:virtio-net-feature-status
+> <-desc || fail virtio-net-ring-feature-indirect-desc
+__NEMU_CHECK_PASS__:virtio-net-ring-feature-indirect-desc
+> <event-idx || fail virtio-net-ring-feature-event-idx
+__NEMU_CHECK_PASS__:virtio-net-ring-feature-event-idx
+root@ysyx-ubuntu2204:~# <"__NEMU_CHECK_VIRTIO_NET_IFACE__:$virtio_net_iface"
+__NEMU_CHECK_VIRTIO_NET_IFACE__:eth0
+root@ysyx-ubuntu2204:~# <s virtio-net-interface || fail virtio-net-interface
+__NEMU_CHECK_PASS__:virtio-net-interface
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_VIRTIO_NET_MAC__:$virtio_net_mac"
+__NEMU_CHECK_VIRTIO_NET_MAC__:52:54:00:12:34:56
+>   pass virtio-net-mac || fail virtio-net-mac
+__NEMU_CHECK_PASS__:virtio-net-mac
+>         pass virtio-net-dhcp-lease
+>         fail virtio-net-dhcp-lease
+__NEMU_DHCP_PROBE_TX__:discover:eth0
+__NEMU_DHCP_PROBE_OFFER__:10.0.2.15:10.0.2.2
+__NEMU_DHCP_PROBE_TX__:request:eth0
+__NEMU_DHCP_PROBE_ACK__:10.0.2.15:10.0.2.2
+__NEMU_DHCP_PROBE_PASS__:dhcp-lease
+__NEMU_CHECK_PASS__:virtio-net-dhcp-lease
+root@ysyx-ubuntu2204:~# <o "__NEMU_CHECK_VIRTIO_NET_IPV4__:$virtio_net_ipv4"
+__NEMU_CHECK_VIRTIO_NET_IPV4__:10.0.2.15/24
+__NEMU_CHECK_VIRTIO_NET_OPERSTATE__:up
+>   pass virtio-net-ipv4-static || fail virtio-net-ipv4-static
+__NEMU_CHECK_PASS__:virtio-net-ipv4-static
+>     pass virtio-net-dns-a
+>     fail virtio-net-dns-a
+__NEMU_DNS_PROBE_TX__:nemu.local:10.0.2.2
+__NEMU_DNS_PROBE_RX__:nemu.local:10.0.2.2
+__NEMU_DNS_PROBE_PASS__:dns-a
+__NEMU_CHECK_PASS__:virtio-net-dns-a
+__NEMU_CHECK_VIRTIO_NET_TX_PACKETS_BEGIN__:4
+__NEMU_CHECK_VIRTIO_NET_RX_PACKETS_BEGIN__:4
+root@ysyx-ubuntu2204:~# <"__NEMU_CHECK_VIRTIO_NET_ROUTE__:$virtio_net_route"
+__NEMU_CHECK_VIRTIO_NET_ROUTE__:10.0.2.2 dev eth0 src 10.0.2.15 uid 0
+>     pass virtio-net-tcp-http
+J>     fail virtio-net-tcp-http
+__NEMU_TCP_PROBE_BURST__:8
+__NEMU_TCP_PROBE_ITER__:1/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:1/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:1/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:1/8
+__NEMU_TCP_PROBE_ITER__:2/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:2/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:2/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:2/8
+__NEMU_TCP_PROBE_ITER__:3/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:3/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:3/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:3/8
+__NEMU_TCP_PROBE_ITER__:4/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:4/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:4/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:4/8
+__NEMU_TCP_PROBE_ITER__:5/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:5/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:5/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:5/8
+__NEMU_TCP_PROBE_ITER__:6/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:6/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:6/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:6/8
+__NEMU_TCP_PROBE_ITER__:7/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:7/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:7/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:7/8
+__NEMU_TCP_PROBE_ITER__:8/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:8/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:8/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:8/8
+__NEMU_TCP_PROBE_PASS__:tcp-http:8
+__NEMU_CHECK_PASS__:virtio-net-tcp-http
+>     pass virtio-net-icmp-echo
+>     fail virtio-net-icmp-echo
+__NEMU_ICMP_PROBE_TX__:10.0.2.2
+__NEMU_ICMP_PROBE_RX__:10.0.2.2
+__NEMU_ICMP_PROBE_PASS__:icmp-echo
+__NEMU_CHECK_PASS__:virtio-net-icmp-echo
+__NEMU_CHECK_VIRTIO_NET_TX_PACKETS_END__:37
+__NEMU_CHECK_VIRTIO_NET_RX_PACKETS_END__:29
+root@ysyx-ubuntu2204:~# <"__NEMU_CHECK_VIRTIO_NET_NEIGH__:$virtio_net_neigh"
+__NEMU_CHECK_VIRTIO_NET_NEIGH__:10.0.2.2 lladdr 52:54:00:12:34:57 REACHABLE
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_VIRTIO_NET_ARP__:$virtio_net_arp"
+__NEMU_CHECK_VIRTIO_NET_ARP__:10.0.2.2         0x1         0x2         52:54:00:12:34:57     *        eth0
+root@ysyx-ubuntu2204:~# <o "__NEMU_CHECK_VDA_DISCARD_MAX__:$vda_discard_max"
+__NEMU_CHECK_VDA_DISCARD_MAX__:2097152
+__NEMU_CHECK_VDA_WRITE_ZEROES_MAX__:2097152
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_VDA_CACHE_TYPE__:$vda_cache_type"
+__NEMU_CHECK_VDA_CACHE_TYPE__:write back
+>   pass virtio-blk-feature-topology || fail virtio-blk-feature-topology
+__NEMU_CHECK_PASS__:virtio-blk-feature-topology
+>   pass virtio-blk-feature-config-wce || fail virtio-blk-feature-config-wce
+__NEMU_CHECK_PASS__:virtio-blk-feature-config-wce
+>   pass virtio-blk-feature-discard || fail virtio-blk-feature-discard
+__NEMU_CHECK_PASS__:virtio-blk-feature-discard
+> <rite-zeroes || fail virtio-blk-feature-write-zeroes
+__NEMU_CHECK_PASS__:virtio-blk-feature-write-zeroes
+>   pass virtio-ring-feature-event-idx || fail virtio-ring-feature-event-idx
+__NEMU_CHECK_PASS__:virtio-ring-feature-event-idx
+root@ysyx-ubuntu2204:~# echo "__NEMU_SYSTEMD_CHECK_DONE__ rc=$check_fail"
+__NEMU_SYSTEMD_CHECK_DONE__ rc=1
+FAIL focused gate command rc=2

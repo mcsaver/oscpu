@@ -1,0 +1,371 @@
+[nemu-ubuntu] slice contract guard
+PASS nemu/src/device/rng.c
+PASS nemu/src/device/net.c
+PASS nemu/src/device/goldfish_rtc.c
+PASS Linux/tools/nemu-systemd-icmp-probe.c
+PASS Linux/tools/nemu-systemd-dhcp-probe.c
+PASS Linux/tools/nemu-systemd-dns-probe.c
+PASS Linux/tools/nemu-systemd-tcp-probe.c
+PASS Linux/tools/amo-misaligned-smoke.S
+PASS Linux/tools/sv39-sfence-asid-smoke.S
+PASS nemu/src/isa/riscv64/system/mmu.c
+PASS nemu/src/isa/riscv64/inst.c
+PASS nemu/include/isa.h
+PASS nemu/src/monitor/monitor.c
+PASS nemu/src/monitor/qmp.c
+PASS nemu/src/monitor/qmp.h
+PASS nemu/src/monitor/gdbstub.c
+PASS nemu/src/monitor/gdbstub.h
+PASS nemu/src/monitor/sdb/sdb.c
+PASS nemu/src/monitor/sdb/sdb.h
+PASS nemu/include/utils.h
+PASS .github/memory/modules/nemu.md
+PASS .github/memory/known-issues.md
+
+[nemu-ubuntu] required guest markers
+PASS marker __NEMU_CHECK_HWRNG_CURRENT__
+PASS marker __NEMU_CHECK_VIRTIO_RNG_DRIVER__
+PASS marker __NEMU_CHECK_VIRTIO_RNG_STATUS__
+PASS marker __NEMU_CHECK_VIRTIO_RNG_FEATURES__
+PASS marker __NEMU_CHECK_MEMTOTAL_LINE__
+PASS marker __NEMU_CHECK_MEMTOTAL_KB__
+PASS marker __NEMU_CHECK_RTC0_NAME__
+PASS marker __NEMU_CHECK_VIRTIO_NET_MODALIAS__
+PASS marker __NEMU_CHECK_VIRTIO_NET_FEATURES__
+PASS marker __NEMU_CHECK_VIRTIO_NET_IFACE__
+PASS marker __NEMU_CHECK_VIRTIO_NET_MAC__
+PASS marker __NEMU_CHECK_VIRTIO_NET_IPV4__
+PASS marker __NEMU_CHECK_VDA_CACHE_TYPE__
+PASS marker __NEMU_CHECK_VDA_DISCARD_MAX__
+PASS marker __NEMU_CHECK_VDA_WRITE_ZEROES_MAX__
+PASS marker __NEMU_GUEST_SCRIPT_SHA256__
+PASS marker __NEMU_GUEST_SCRIPT_READY__
+PASS marker __NEMU_CHECK_INTERRUPTS_TABLE_TOTAL__
+PASS marker __NEMU_CHECK_IRQ_VISIBLE__
+PASS marker virtio-blk-feature-config-wce
+PASS marker virtio-blk-feature-mq
+PASS marker virtio-blk-feature-discard
+PASS marker virtio-blk-feature-topology
+PASS marker virtio-blk-feature-write-zeroes
+PASS marker proc-interrupts-total
+PASS marker guest-memtotal-min
+PASS marker virtio-net-driver
+PASS marker virtio-rng-ring-feature-event-idx
+PASS marker virtio-net-dhcp-lease
+PASS marker virtio-net-dns-a
+PASS marker virtio-net-tcp-http
+PASS marker virtio-net-icmp-echo
+PASS marker virtio-net-ring-feature-event-idx
+PASS marker virtio-ring-feature-event-idx
+PASS marker vda-cache-type-write-through
+PASS marker vda-cache-type-write-back
+PASS icmp-probe.c __NEMU_ICMP_PROBE_PASS__
+PASS icmp-probe.c SOCK_RAW
+PASS icmp-probe.c IPPROTO_ICMP
+PASS dhcp-probe.c __NEMU_DHCP_PROBE_PASS__
+PASS dhcp-probe.c DHCPDISCOVER
+PASS dhcp-probe.c DHCPREQUEST
+PASS dhcp-probe.c AF_PACKET
+PASS dhcp-probe.c SOCK_RAW
+PASS dns-probe.c __NEMU_DNS_PROBE_PASS__
+PASS dns-probe.c nemu.local
+PASS dns-probe.c SOCK_DGRAM
+PASS dns-probe.c SO_BINDTODEVICE
+PASS tcp-probe.c __NEMU_TCP_PROBE_PASS__
+PASS tcp-probe.c __NEMU_TCP_PROBE_BURST__
+PASS tcp-probe.c SOCK_STREAM
+PASS tcp-probe.c SO_BINDTODEVICE
+PASS tcp-probe.c /nemu-health
+PASS net.c VIRTIO_NET_DEVICE_ID
+PASS net.c VIRTIO_NET_F_MAC
+PASS net.c VIRTIO_NET_F_MRG_RXBUF
+PASS net.c VIRTIO_NET_F_STATUS
+PASS net.c VIRTIO_NET_RX_HDR_LEN
+PASS net.c VIRTIO_RING_F_INDIRECT_DESC
+PASS net.c VIRTIO_RING_F_EVENT_IDX
+PASS net.c virtio_net_event_idx_enabled
+PASS net.c virtio_net_handle_arp
+PASS net.c virtio_net_handle_icmp
+PASS net.c virtio_net_handle_dhcp
+PASS net.c virtio_net_handle_dns
+PASS net.c virtio_net_handle_tcp_http
+PASS net.c DHCPDISCOVER
+PASS net.c DHCPACK
+PASS net.c DNS_QTYPE_A
+PASS net.c TCP_HTTP_PORT
+PASS net.c virtq_collect_table
+PASS net.c virtio_net_handle_tx_chain
+PASS net.c virtio_net_process_tx_queue
+PASS net.c virtio_net_try_deliver_rx_queue
+PASS net.c virtq_need_event
+PASS net.c virtq_set_avail_event
+PASS net.c virtq_validate_queue_layout
+PASS net.c virtq_dma_range_valid
+PASS net.c CONFIG_VIRTIO_NET_MMIO
+
+[nemu-ubuntu] required host console clean hooks
+PASS check-nemu-systemd-guest.sh NEMU_SYSTEMD_NET_TCP_BURST_LOOPS
+PASS check-nemu-systemd-guest.sh NEMU_SYSTEMD_ROOTFS_OVERLAY
+PASS check-nemu-systemd-guest.sh NEMU_SYSTEMD_MIN_MEMTOTAL_KB
+PASS check-nemu-systemd-guest.sh NEMU_SYSTEMD_INPUT_DELAY:-0.001
+PASS check-nemu-systemd-guest.sh NEMU_SYSTEMD_INPUT_CHUNK_BYTES:-8
+PASS check-nemu-systemd-guest.sh NEMU_SYSTEMD_INPUT_CHUNK_DELAY:-0
+PASS check-nemu-systemd-guest.sh guest-check-upload.cmd
+PASS check-nemu-systemd-guest.sh virtio-blk-async-runtime
+PASS check-nemu-systemd-guest.sh block-overlay
+PASS check-nemu-systemd-guest.sh rootfs overlay
+PASS check-nemu-systemd-guest.sh ROOTFS_STAT_BEFORE
+PASS check-nemu-systemd-guest.sh rootfs-backing-unchanged
+PASS check-nemu-systemd-guest.sh build_guest_upload_commands
+PASS check-nemu-systemd-guest.sh stty -echo
+PASS check-nemu-systemd-guest.sh PS1=; PS2=; PS4=; export PS1 PS2 PS4
+PASS check-nemu-systemd-guest.sh base64 -d
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_IRQ_VIRTIO_BLK_GROW__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_IRQ_VIRTIO_BLK_GROW_DIAG__
+PASS check-nemu-systemd-guest.sh irq-vda-direct-read
+PASS check-nemu-systemd-guest.sh net_tcp_burst_loops
+PASS check-nemu-systemd-guest.sh input_chunk_bytes
+PASS check-nemu-systemd-guest.sh input_chunk_delay
+PASS check-nemu-systemd-guest.sh check_console_clean
+PASS check-nemu-systemd-guest.sh jobserver unavailable
+PASS check-nemu-systemd-guest.sh Failed to look up module alias 'autofs4'
+PASS check-nemu-systemd-guest.sh does not support BPF/cgroup firewalling
+PASS check-nemu-systemd-guest.sh Falling back to deprecated "riscv,isa"
+PASS check-nemu-systemd-guest.sh Kernel panic
+PASS check-nemu-systemd-guest.sh Oops
+PASS check-nemu-systemd-guest.sh Call Trace
+PASS check-nemu-systemd-guest.sh HIT BAD TRAP
+PASS check-nemu-systemd-guest.sh EXT4-fs error
+PASS check-nemu-systemd-guest.sh I/O error
+PASS Linux/Makefile NEMU_SYSTEMD_CHECK_MAX_CYCLES ?= 50000000000
+PASS Linux/Makefile NEMU_SYSTEMD_ROOTFS_OVERLAY ?= $(NEMU_SYSTEMD_CHECK_LOG_DIR)/rootfs-overlay.raw
+PASS Linux/Makefile NEMU_ROOTFS_OVERLAY_MACHINE_INFO_FILE ?= $(BUILD_DIR)/nemu-rootfs-overlay-machine-info.txt
+PASS Linux/Makefile nemu-rootfs-overlay-machine-info: sim check-ubuntu-rootfs-systemd
+PASS Linux/Makefile block-overlay='$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY)'
+PASS Linux/Makefile NEMU_MONITOR_CMD_SMOKE_LOG ?= $(BUILD_DIR)/nemu-monitor-cmd-smoke.log
+PASS Linux/Makefile nemu-monitor-cmd-smoke: sim
+PASS Linux/Makefile --monitor-cmd='$(NEMU_MONITOR_CMD_SMOKE_CMD)'
+PASS Linux/Makefile NEMU_QMP_SMOKE_LOG ?= $(BUILD_DIR)/nemu-qmp-smoke.log
+PASS Linux/Makefile nemu-qmp-smoke: sim
+PASS Linux/Makefile check-nemu-qmp-smoke.py
+PASS Linux/Makefile NEMU_GDBSTUB_SMOKE_LOG ?= $(BUILD_DIR)/nemu-gdbstub-smoke.log
+PASS Linux/Makefile nemu-gdbstub-smoke: sim
+PASS Linux/Makefile check-nemu-gdbstub-smoke.py
+PASS Linux/Makefile NEMU_SYSTEMD_INPUT_CHUNK_BYTES ?= 8
+PASS Linux/Makefile NEMU_SYSTEMD_INPUT_CHUNK_DELAY ?= 0
+PASS Linux/Makefile NEMU_SYSTEMD_ROOTFS_OVERLAY='$(NEMU_SYSTEMD_ROOTFS_OVERLAY)'
+PASS Linux/Makefile NEMU_SYSTEMD_INPUT_CHUNK_BYTES='$(NEMU_SYSTEMD_INPUT_CHUNK_BYTES)'
+PASS Linux/Makefile NEMU_SYSTEMD_INPUT_CHUNK_DELAY='$(NEMU_SYSTEMD_INPUT_CHUNK_DELAY)'
+PASS Linux/Makefile check-nemu-kernel-config
+PASS Linux/Makefile LINUX_KERNEL_CONFIG='$(ENV_ROOT)/src/linux/.config'
+PASS Linux/Makefile $(LINUX_IMAGE): $(SCRIPT_DIR)/build-linux.sh
+PASS check-nemu-systemd-guest.sh memtotal-before-uart-rx-stress
+
+[nemu-ubuntu] required device/config hooks
+PASS rng.c VIRTIO_RING_F_EVENT_IDX
+PASS rng.c virtio_rng_event_idx_enabled
+PASS rng.c virtq_used_event_addr
+PASS rng.c virtq_avail_event_addr
+PASS rng.c virtq_need_event
+PASS rng.c virtq_set_avail_event
+PASS rng.c virtq_validate_queue_layout
+PASS rng.c virtq_dma_range_valid
+PASS rng.c reject unsupported QueueNum
+PASS disk.c VIRTIO_BLK_F_CONFIG_WCE
+PASS disk.c VIRTIO_BLK_F_MQ
+PASS disk.c VIRTIO_BLK_F_DISCARD
+PASS disk.c VIRTIO_BLK_F_TOPOLOGY
+PASS disk.c VIRTIO_BLK_F_WRITE_ZEROES
+PASS disk.c VIRTIO_RING_F_EVENT_IDX
+PASS disk.c VIRTIO_BLK_T_DISCARD
+PASS disk.c VIRTIO_BLK_T_WRITE_ZEROES
+PASS disk.c VIRTIO_BLK_CONFIG_WCE
+PASS disk.c pread(
+PASS disk.c pwrite(
+PASS disk.c mmap(
+PASS disk.c disk_mmap_read
+PASS disk.c read_mmap
+PASS disk.c disk_backing_pread_all
+PASS disk.c disk_overlay_pread_all
+PASS disk.c disk_overlay_pwrite_all
+PASS disk.c disk_overlay_prepare_write
+PASS disk.c disk_overlay_dirty
+PASS disk.c write_target
+PASS disk.c overlay_dirty_sectors
+PASS disk.c VIRTIO_BLK_QUEUE_COUNT
+PASS disk.c VIRTIO_BLK_CONFIG_NUM_QUEUES
+PASS disk.c VIRTIO_BLK_ASYNC_BACKEND
+PASS disk.c VirtioBlkAsyncReq
+PASS disk.c virtio_blk_worker_main
+PASS disk.c virtio_blk_submit_request
+PASS disk.c virtio_blk_complete_request
+PASS disk.c virtio_blk_update
+PASS disk.c virtio_blk_statistic
+PASS disk.c selected_queue
+PASS disk.c virtio_blk_process_queue(value)
+PASS disk.c virtio_blk_build_request
+PASS disk.c virtio_blk_req_copy_from_guest
+PASS disk.c virtio_blk_req_copy_to_guest
+PASS disk.c virtq_validate_queue_layout
+PASS disk.c virtq_dma_range_valid
+PASS disk.c reject unsupported QueueNum
+PASS monitor.c OPT_BLOCK_OVERLAY
+PASS monitor.c block-overlay
+PASS monitor.c disk_set_overlay
+PASS monitor.c OPT_MONITOR_CMD
+PASS monitor.c monitor-cmd
+PASS monitor.c OPT_QMP
+PASS monitor.c qmp
+PASS monitor.c OPT_GDBSTUB
+PASS monitor.c gdbstub
+PASS monitor.c add_monitor_cmd
+PASS monitor.c run_monitor_cmds_and_exit
+PASS monitor.c qmp_wait_for_client_if_enabled
+PASS monitor.c gdbstub_wait_for_client_if_enabled
+PASS monitor.c sdb_exec_line
+PASS qmp.c qmp_set_port
+PASS qmp.c qmp_capability
+PASS qmp.c qmp_wait_for_client_if_enabled
+PASS qmp.c qmp_capabilities
+PASS qmp.c query-status
+PASS qmp.c query-memory-size-summary
+PASS qmp.c query-cpus-fast
+PASS qmp.c QMP listening
+PASS qmp.h qmp_wait_for_client_if_enabled prototype
+PASS gdbstub.c gdbstub_set_port
+PASS gdbstub.c gdbstub_capability
+PASS gdbstub.c gdbstub_wait_for_client_if_enabled
+PASS gdbstub.c qSupported
+PASS gdbstub.c handle_read_all_regs
+PASS gdbstub.c handle_read_memory
+PASS gdbstub.c GDB stub listening
+PASS gdbstub.h gdbstub_wait_for_client_if_enabled prototype
+PASS sdb.c sdb_exec_line
+PASS sdb.c cmd_table[i].handler
+PASS sdb.c Unknown command
+PASS sdb.h sdb_exec_line prototype
+PASS utils.h is_exit_status_bad prototype
+PASS serial.c SERIAL_TX_BUFFER_CAP
+PASS serial.c serial_port_flush_tx
+PASS serial.c fwrite(port->tx_buffer
+PASS device.c device_update_after_inst
+PASS device.c skip += retired
+PASS cpu-exec.c INTERPRETER_TB_MAX_INST
+PASS cpu-exec.c execute_basic_block
+PASS cpu-exec.c interpreter_tb_should_stop
+PASS cpu-exec.c device_update_after_inst(retired
+PASS cpu/Kconfig config INTERPRETER_BASIC_BLOCK
+PASS riscv64-linux_defconfig CONFIG_INTERPRETER_BASIC_BLOCK=y
+PASS riscv64-linux_defconfig CONFIG_INTERPRETER_WIDE_IFETCH=y
+PASS riscv64-linux_defconfig CONFIG_INTERPRETER_DECODE_CACHE=y
+PASS riscv64-linux_defconfig CONFIG_INTERPRETER_INTR_FAST_FLAG=y
+PASS riscv64-linux_defconfig CONFIG_HAS_VIRTIO_NET=y
+PASS riscv64-linux_defconfig CONFIG_MSIZE=0x40000000
+PASS build-linux.sh CONFIG_VIRTIO_NET
+PASS build-linux.sh CONFIG_AUTOFS_FS
+PASS build-linux.sh CONFIG_BPF_SYSCALL
+PASS build-linux.sh CONFIG_CGROUP_BPF
+PASS check-nemu-kernel-config.sh require_config_enabled CONFIG_AUTOFS_FS
+PASS check-nemu-kernel-config.sh require_config_enabled CONFIG_BPF_SYSCALL
+PASS check-nemu-kernel-config.sh require_config_enabled CONFIG_CGROUP_BPF
+PASS check-nemu-kernel-config.sh __NEMU_KERNEL_CONFIG__:ok
+PASS check-nemu-performance-config.sh CONFIG_INTERPRETER_BASIC_BLOCK
+PASS check-nemu-performance-config.sh CONFIG_INTERPRETER_WIDE_IFETCH
+PASS check-nemu-performance-config.sh CONFIG_INTERPRETER_DECODE_CACHE
+PASS check-nemu-performance-config.sh CONFIG_INTERPRETER_INTR_FAST_FLAG
+PASS check-nemu-performance-config.sh CONFIG_MSIZE=0x40000000
+PASS cpu/Kconfig config INTERPRETER_WIDE_IFETCH
+PASS cpu/Kconfig config INTERPRETER_DECODE_CACHE
+PASS cpu/Kconfig config INTERPRETER_INTR_FAST_FLAG
+PASS cpu-exec.c isa_riscv32_intr_pending_fast
+PASS cpu-exec.c isa_query_intr()
+PASS riscv64/system/intr.c isa_riscv32_intr_pending_fast
+PASS riscv64/system/intr.c CLINT_TIMEBASE_HZ      10000000ull
+PASS riscv64/system/intr.c isa_riscv32_clint_timebase_hz
+PASS riscv64/system/intr.c isa_riscv32_mtime_value
+PASS riscv64/system/intr.c isa_riscv32_clint_time_source
+PASS riscv64/system/intr.c return "instruction"
+PASS riscv32/system/intr.c CLINT_TIMEBASE_HZ      10000000ull
+PASS riscv32/system/intr.c isa_riscv32_mtime_value
+PASS riscv64/system/plic.c isa_riscv32_plic_maybe_pending
+PASS isa.h isa_riscv32_intr_pending_fast
+PASS isa.h isa_riscv32_clint_timebase_hz
+PASS isa.h isa_riscv32_mtime_value
+PASS isa.h isa_riscv32_clint_time_source
+PASS riscv64/inst.c CSR_TIME uses mtime
+PASS riscv32/inst.c CSR_TIME uses mtime
+PASS riscv64/inst.c vaddr_ifetch_wide
+PASS riscv64/inst.c rv_decode_cache
+PASS riscv64/inst.c rv_decode_cache_inst_key
+PASS riscv64/inst.c rv_decode_cache_exec
+PASS riscv64/inst.c rv_decode_cache_fill
+PASS riscv64/inst.c rv_decode_cache_flush
+PASS vaddr.c vaddr_set_fault
+PASS vaddr.c vaddr_ifetch_wide
+PASS vaddr.c vaddr_paddr_host_fast
+PASS vaddr.c vaddr_paddr_read_fast
+PASS vaddr.c vaddr_paddr_write_fast
+PASS vaddr.c host_read(trans.host_addr
+PASS vaddr.c host_write(trans.host_addr
+PASS vaddr.h vaddr_set_fault
+PASS riscv64/inst.c amo_raise_misaligned
+PASS riscv32/inst.c amo_raise_misaligned
+PASS riscv64/inst.c CAUSE_LOAD_MISALIGNED
+PASS riscv32/inst.c CAUSE_LOAD_MISALIGNED
+PASS riscv64/inst.c CAUSE_STORE_MISALIGNED
+PASS riscv32/inst.c CAUSE_STORE_MISALIGNED
+PASS Linux/tools/Makefile smoke-nemu-amo-misaligned
+PASS Linux/tools/Makefile amo-misaligned-smoke.S
+PASS Linux/tools/Makefile HIT GOOD TRAP
+PASS Linux/tools/Makefile smoke-nemu-sv39-sfence-asid
+PASS Linux/tools/Makefile sv39-sfence-asid-smoke.S
+PASS Linux/tools/Makefile SV39_SFENCE_ASID_BIN
+PASS Linux/tools/Makefile NEMU_SV39_SFENCE_ASID_LOG
+PASS Linux/tools/Makefile HIT GOOD TRAP
+PASS amo-misaligned-smoke.S lr.w
+PASS amo-misaligned-smoke.S sc.w
+PASS amo-misaligned-smoke.S amoadd.w
+PASS amo-misaligned-smoke.S lr.d
+PASS amo-misaligned-smoke.S sc.d
+PASS amo-misaligned-smoke.S amoadd.d
+PASS amo-misaligned-smoke.S csrr t0, mcause
+PASS amo-misaligned-smoke.S csrr t0, mtval
+PASS amo-misaligned-smoke.S SYSCON_POWEROFF_VALUE
+PASS sv39-sfence-asid-smoke.S VA_NONGLOBAL
+PASS sv39-sfence-asid-smoke.S VA_GLOBAL
+PASS sv39-sfence-asid-smoke.S SATP_ASID1
+PASS sv39-sfence-asid-smoke.S SATP_ASID2
+PASS sv39-sfence-asid-smoke.S PTE_G_VRWAD
+PASS sv39-sfence-asid-smoke.S switch_sv39_asid
+PASS sv39-sfence-asid-smoke.S csrw satp, t4
+PASS sv39-sfence-asid-smoke.S sfence.vma t0, t1
+PASS sv39-sfence-asid-smoke.S sfence.vma t0, zero
+PASS sv39-sfence-asid-smoke.S SYSCON_POWEROFF_VALUE
+PASS mmu.c isa_mmu_translate_host
+PASS mmu.c host_page
+PASS mmu.c sv39_host_page_base
+PASS mmu.c sv39_itlb
+PASS mmu.c sv39_dtlb
+PASS mmu.c sv39_tlb_set_for_type
+PASS mmu.c SATP64_ASID
+PASS mmu.c PTE_G
+PASS mmu.c root_ppn
+PASS mmu.c global
+PASS mmu.c sv39_tlb_flush_set
+PASS mmu.c isa_riscv32_mmu_tlb_flush_selective
+PASS riscv64/inst.c isa_riscv32_mmu_tlb_flush_selective
+PASS riscv64/inst.c satp 切换本身不需要粗暴全刷
+PASS riscv64/inst.c rs1 != 0
+PASS riscv64/inst.c rs2 != 0
+PASS isa.h isa_mmu_translate_host
+PASS isa.h isa_riscv32_mmu_tlb_flush_selective
+PASS gen_dts.py google,goldfish-rtc
+PASS gen_dts.py virtio_mmio
+PASS gen_dts.py virtio_net
+PASS gen_dts.py --virtio-net
+PASS gen_dts.py timebase-frequency = <10000000>
+PASS gen_dts.py riscv,isa-base
+PASS gen_dts.py riscv,isa-extensions
+PASS Kconfig HAS_GOLDFISH_RTC
+PASS Kconfig HAS_VIRTIO_RNG
+PASS Kconfig HAS_VIRTIO_NET

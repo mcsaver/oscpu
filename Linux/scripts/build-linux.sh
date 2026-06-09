@@ -62,8 +62,8 @@ fi
 make ARCH=riscv CROSS_COMPILE="$CROSS_COMPILE" defconfig
 
 # NPC 当前是单 hart bring-up；裁掉 PCI/USB/模块/调试面，避免仿真把大量周期
-# 花在通用发行版探测路径上。systemd rootfs 仍需要 AF_UNIX、netlink 和 notify socket，
-# 因此保留最小 CONFIG_NET，不等价于启用真实网卡设备。
+# 花在通用发行版探测路径上。systemd rootfs 仍需要 AF_UNIX、netlink 和 notify socket；
+# NEMU rootfs 额外打开最小 virtio-net，用于枚举接口，不代表已有 host 转发后端。
 scripts/config --disable CONFIG_SMP
 scripts/config --set-val CONFIG_NR_CPUS 1
 scripts/config --disable CONFIG_MODULES
@@ -84,7 +84,10 @@ scripts/config --disable CONFIG_INET_ESP
 scripts/config --disable CONFIG_INET_IPCOMP
 scripts/config --disable CONFIG_AUDIT
 scripts/config --disable CONFIG_AUDITSYSCALL
-scripts/config --disable CONFIG_BPF_SYSCALL
+# systemd/journald 的单位沙箱会探测 cgroup-BPF firewalling；打开最小内核
+# BPF syscall 与 cgroup-BPF，避免完整 Ubuntu 用户态把该能力报告为缺失。
+scripts/config --enable CONFIG_BPF_SYSCALL
+scripts/config --enable CONFIG_CGROUP_BPF
 scripts/config --disable CONFIG_IKCONFIG
 scripts/config --disable CONFIG_IKCONFIG_PROC
 scripts/config --disable CONFIG_IO_URING
@@ -112,7 +115,24 @@ scripts/config --disable CONFIG_VLAN_8021Q
 scripts/config --disable CONFIG_NET_SCHED
 scripts/config --disable CONFIG_NET_CLS
 scripts/config --disable CONFIG_NET_ACT
-scripts/config --disable CONFIG_NETDEVICES
+scripts/config --enable CONFIG_NETDEVICES
+scripts/config --enable CONFIG_VIRTIO_NET
+# 只保留 virtio-net 这条 Linux-visible 设备路径；其它虚拟/以太网
+# 厂商驱动会增加 probe 面和构建体积，当前 NEMU 没有对应 MMIO 设备。
+scripts/config --disable CONFIG_DUMMY
+scripts/config --disable CONFIG_MACVLAN
+scripts/config --disable CONFIG_IPVLAN
+scripts/config --disable CONFIG_VXLAN
+scripts/config --disable CONFIG_VETH
+scripts/config --disable CONFIG_NET_FAILOVER
+scripts/config --disable CONFIG_FAILOVER
+scripts/config --disable CONFIG_ETHERNET
+scripts/config --disable CONFIG_NET_VENDOR_CADENCE
+scripts/config --disable CONFIG_NET_VENDOR_STMICRO
+scripts/config --disable CONFIG_MACB
+scripts/config --disable CONFIG_STMMAC_ETH
+scripts/config --disable CONFIG_PHYLIB
+scripts/config --disable CONFIG_MII
 scripts/config --disable CONFIG_WIRELESS
 scripts/config --disable CONFIG_CFG80211
 scripts/config --disable CONFIG_MAC80211
@@ -158,7 +178,9 @@ scripts/config --disable CONFIG_ATA
 scripts/config --disable CONFIG_MD
 scripts/config --disable CONFIG_BLK_DEV_DM
 scripts/config --disable CONFIG_BTRFS_FS
-scripts/config --disable CONFIG_AUTOFS_FS
+# systemd 会用 autofs 管理部分 automount 条件；直接内建 autofs，避免
+# 无模块内核下查找 autofs4 alias 时返回 ENOSYS 噪声。
+scripts/config --enable CONFIG_AUTOFS_FS
 scripts/config --disable CONFIG_OVERLAY_FS
 scripts/config --disable CONFIG_ISO9660_FS
 scripts/config --disable CONFIG_FAT_FS

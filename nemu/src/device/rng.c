@@ -11,6 +11,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -44,6 +45,7 @@
 #define VIRTIO_MMIO_VERSION_2 2u
 #define VIRTIO_VENDOR_YSYX 0x58535959u
 #define VIRTIO_F_VERSION_1 32
+#define VIRTIO_RING_F_EVENT_IDX 29
 #define VIRTIO_MMIO_INT_USED_BUFFER 0x1u
 #define VIRTIO_STATUS_FEATURES_OK 0x08u
 #define VRING_AVAIL_F_NO_INTERRUPT 0x1u
@@ -84,6 +86,9 @@ static uint64_t rng_fallback_state = 0x797379782d726e67ull;
 static bool rng_fallback_logged;
 
 static uint32_t virtio_rng_device_features(uint32_t sel) {
+  if (sel == 0) {
+    return 1u << VIRTIO_RING_F_EVENT_IDX;
+  }
   if (sel == 1) {
     return 1u << (VIRTIO_F_VERSION_1 - 32);
   }
@@ -103,9 +108,19 @@ static bool virtio_rng_driver_features_supported(void) {
   return true;
 }
 
+static bool virtio_rng_driver_feature_enabled(uint32_t bit) {
+  uint32_t sel = bit / 32;
+  uint32_t off = bit % 32;
+  return sel < 2 && (driver_features[sel] & (1u << off)) != 0;
+}
+
+static bool virtio_rng_event_idx_enabled(void) {
+  return virtio_rng_driver_feature_enabled(VIRTIO_RING_F_EVENT_IDX);
+}
+
 static void virtio_rng_raise_irq(void) {
   IFDEF(CONFIG_ISA_riscv,
-      isa_riscv32_plic_set_irq(VIRTIO_RNG_IRQ, interrupt_status != 0));
+      isa_riscv_plic_set_irq(VIRTIO_RNG_IRQ, interrupt_status != 0));
 }
 
 static uint16_t guest_read16(paddr_t addr) {
@@ -132,6 +147,59 @@ static bool guest_range_ok(paddr_t addr, uint32_t len) {
   if (len == 0) return true;
   paddr_t end = addr + (paddr_t)len - 1;
   return end >= addr && in_pmem(addr) && in_pmem(end);
+}
+
+static paddr_t virtq_used_event_addr(void) {
+  return queue0.driver + 4 + (paddr_t)queue0.num * 2;
+}
+
+static paddr_t virtq_avail_event_addr(void) {
+  return queue0.device + 4 + (paddr_t)queue0.num * 8;
+}
+
+static bool virtq_need_event(uint16_t event_idx, uint16_t new_idx, uint16_t old_idx) {
+  return (uint16_t)(new_idx - event_idx - 1) < (uint16_t)(new_idx - old_idx);
+}
+
+static void virtq_set_avail_event(uint16_t avail_idx) {
+  if (virtio_rng_event_idx_enabled() && queue0.num != 0 &&
+      guest_range_ok(virtq_avail_event_addr(), 2)) {
+    // rng 和 blk/net 一样不主动抑制 driver kick，只把设备消费进度回写给 Linux。
+    guest_write16(queue0.device, 0);
+    guest_write16(virtq_avail_event_addr(), avail_idx);
+  }
+}
+
+static bool virtq_aligned(paddr_t addr, uint32_t align) {
+  return (addr & (paddr_t)(align - 1)) == 0;
+}
+
+static bool virtq_dma_range_valid(const char *name, paddr_t addr,
+    uint32_t len, uint32_t align) {
+  if (addr != 0 && virtq_aligned(addr, align) && guest_range_ok(addr, len)) {
+    return true;
+  }
+  Log("virtio-rng: invalid %s ring addr=0x%" PRIx64 " len=%u align=%u",
+      name, (uint64_t)addr, len, align);
+  return false;
+}
+
+static bool virtq_validate_queue_layout(void) {
+  if (queue0.num == 0 || queue0.num > VIRTIO_RNG_QUEUE_SIZE) {
+    Log("virtio-rng: invalid QueueNum=%u max=%u",
+        queue0.num, VIRTIO_RNG_QUEUE_SIZE);
+    return false;
+  }
+
+  uint32_t desc_bytes = (uint32_t)queue0.num * 16u;
+  uint32_t event_tail = virtio_rng_event_idx_enabled() ? 2u : 0u;
+  uint32_t driver_bytes = 4u + (uint32_t)queue0.num * 2u + event_tail;
+  uint32_t device_bytes = 4u + (uint32_t)queue0.num * 8u + event_tail;
+
+  // QueueReady 是 hwrng 真正收发前的边界；提前拒绝坏 vring，避免异步熵请求卡死。
+  return virtq_dma_range_valid("desc", queue0.desc, desc_bytes, 16) &&
+         virtq_dma_range_valid("driver", queue0.driver, driver_bytes, 2) &&
+         virtq_dma_range_valid("device", queue0.device, device_bytes, 4);
 }
 
 static bool guest_copy_to(paddr_t addr, const void *buf, uint32_t len) {
@@ -248,23 +316,36 @@ static void virtio_rng_process_queue(void) {
   bool used_any = false;
   uint16_t avail_flags = guest_read16(queue0.driver);
   uint16_t avail_idx = guest_read16(queue0.driver + 2);
+  uint16_t old_used_idx = guest_read16(queue0.device + 2);
+  uint16_t used_idx = old_used_idx;
   while (queue0.last_avail_idx != avail_idx) {
     uint16_t ring_off = queue0.last_avail_idx % queue0.num;
     uint16_t head = guest_read16(queue0.driver + 4 + ring_off * 2);
     uint32_t used_len = virtio_rng_handle_chain(head);
-    uint16_t used_idx = guest_read16(queue0.device + 2);
     uint16_t used_off = used_idx % queue0.num;
     guest_write32(queue0.device + 4 + used_off * 8, head);
     guest_write32(queue0.device + 4 + used_off * 8 + 4, used_len);
-    guest_write16(queue0.device + 2, used_idx + 1);
+    used_idx++;
+    guest_write16(queue0.device + 2, used_idx);
     queue0.last_avail_idx++;
     used_any = true;
   }
+  virtq_set_avail_event(queue0.last_avail_idx);
 
-  if (used_any && (avail_flags & VRING_AVAIL_F_NO_INTERRUPT) == 0) {
-    // hwrng 驱动等待 used ring 完成；通过 PLIC IRQ3 唤醒 Linux。
-    interrupt_status |= VIRTIO_MMIO_INT_USED_BUFFER;
-    virtio_rng_raise_irq();
+  if (used_any) {
+    bool notify = true;
+    if (virtio_rng_event_idx_enabled()) {
+      uint16_t used_event = guest_range_ok(virtq_used_event_addr(), 2) ?
+        guest_read16(virtq_used_event_addr()) : old_used_idx;
+      notify = virtq_need_event(used_event, used_idx, old_used_idx);
+    } else {
+      notify = (avail_flags & VRING_AVAIL_F_NO_INTERRUPT) == 0;
+    }
+    if (notify) {
+      // hwrng 驱动等待 used ring 完成；EVENT_IDX 协商后按 used_event 抑制多余 IRQ3。
+      interrupt_status |= VIRTIO_MMIO_INT_USED_BUFFER;
+      virtio_rng_raise_irq();
+    }
   }
 }
 
@@ -326,15 +407,30 @@ static void virtio_rng_write_reg(uint32_t offset, uint32_t value) {
       break;
     case VIRTIO_MMIO_QUEUE_NUM:
       if (queue_sel == 0) {
-        queue0.num =
-            value <= VIRTIO_RNG_QUEUE_SIZE ? value : VIRTIO_RNG_QUEUE_SIZE;
+        if (value <= VIRTIO_RNG_QUEUE_SIZE) {
+          queue0.num = value;
+        } else {
+          // 不能静默 clamp QueueNum；坏驱动必须在配置阶段暴露，而不是假装队列可用。
+          Log("virtio-rng: reject unsupported QueueNum=%u max=%u",
+              value, VIRTIO_RNG_QUEUE_SIZE);
+          queue0.num = 0;
+          queue0.ready = false;
+        }
       }
       break;
     case VIRTIO_MMIO_QUEUE_READY:
       if (queue_sel == 0) {
-        queue0.ready = (value & 1u) != 0;
-        queue0.last_avail_idx =
-            queue0.ready && queue0.driver != 0 ? guest_read16(queue0.driver + 2) : 0;
+        if ((value & 1u) == 0) {
+          queue0.ready = false;
+          queue0.last_avail_idx = 0;
+        } else if (virtq_validate_queue_layout()) {
+          queue0.ready = true;
+          queue0.last_avail_idx = guest_read16(queue0.driver + 2);
+          virtq_set_avail_event(queue0.last_avail_idx);
+        } else {
+          queue0.ready = false;
+          queue0.last_avail_idx = 0;
+        }
       }
       break;
     case VIRTIO_MMIO_QUEUE_NOTIFY:

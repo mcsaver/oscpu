@@ -1,0 +1,119 @@
+[nemu-ubuntu] slice contract guard
+PASS nemu/src/device/rng.c
+PASS nemu/src/device/net.c
+PASS nemu/src/device/goldfish_rtc.c
+PASS .github/memory/modules/nemu.md
+PASS .github/memory/known-issues.md
+
+[nemu-ubuntu] required guest markers
+PASS marker __NEMU_CHECK_HWRNG_CURRENT__
+PASS marker __NEMU_CHECK_RTC0_NAME__
+PASS marker __NEMU_CHECK_VIRTIO_NET_MODALIAS__
+PASS marker __NEMU_CHECK_VIRTIO_NET_IFACE__
+PASS marker __NEMU_CHECK_VIRTIO_NET_MAC__
+PASS marker __NEMU_CHECK_VDA_CACHE_TYPE__
+PASS marker __NEMU_CHECK_VDA_DISCARD_MAX__
+PASS marker __NEMU_CHECK_VDA_WRITE_ZEROES_MAX__
+PASS marker virtio-blk-feature-config-wce
+PASS marker virtio-blk-feature-discard
+PASS marker virtio-blk-feature-topology
+PASS marker virtio-blk-feature-write-zeroes
+PASS marker virtio-net-driver
+PASS marker virtio-ring-feature-event-idx
+PASS marker vda-cache-type-write-through
+PASS marker vda-cache-type-write-back
+PASS net.c VIRTIO_NET_DEVICE_ID
+PASS net.c VIRTIO_NET_F_MAC
+PASS net.c VIRTIO_NET_F_STATUS
+PASS net.c virtio_net_handle_tx_chain
+PASS net.c virtio_net_process_tx_queue
+PASS net.c virtq_validate_queue_layout
+PASS net.c virtq_dma_range_valid
+PASS net.c CONFIG_VIRTIO_NET_MMIO
+
+[nemu-ubuntu] required host console clean hooks
+PASS check-nemu-systemd-guest.sh check_console_clean
+PASS check-nemu-systemd-guest.sh jobserver unavailable
+PASS check-nemu-systemd-guest.sh Failed to look up module alias 'autofs4'
+PASS check-nemu-systemd-guest.sh does not support BPF/cgroup firewalling
+PASS check-nemu-systemd-guest.sh Falling back to deprecated "riscv,isa"
+PASS check-nemu-systemd-guest.sh Kernel panic
+PASS check-nemu-systemd-guest.sh Oops
+PASS check-nemu-systemd-guest.sh Call Trace
+PASS check-nemu-systemd-guest.sh HIT BAD TRAP
+PASS check-nemu-systemd-guest.sh EXT4-fs error
+PASS check-nemu-systemd-guest.sh I/O error
+
+[nemu-ubuntu] required device/config hooks
+PASS disk.c VIRTIO_BLK_F_CONFIG_WCE
+PASS disk.c VIRTIO_BLK_F_DISCARD
+PASS disk.c VIRTIO_BLK_F_TOPOLOGY
+PASS disk.c VIRTIO_BLK_F_WRITE_ZEROES
+PASS disk.c VIRTIO_RING_F_EVENT_IDX
+PASS disk.c VIRTIO_BLK_T_DISCARD
+PASS disk.c VIRTIO_BLK_T_WRITE_ZEROES
+PASS disk.c VIRTIO_BLK_CONFIG_WCE
+PASS disk.c pread(
+PASS disk.c pwrite(
+PASS disk.c guest_host_buffer
+PASS disk.c disk_pread_all(host_buf
+PASS disk.c disk_pwrite_all(host_buf
+PASS disk.c virtq_validate_queue_layout
+PASS disk.c virtq_dma_range_valid
+PASS disk.c reject unsupported QueueNum
+PASS serial.c SERIAL_TX_BUFFER_CAP
+PASS serial.c serial_port_flush_tx
+PASS serial.c fwrite(port->tx_buffer
+PASS device.c device_update_after_inst
+PASS device.c skip += retired
+PASS cpu-exec.c INTERPRETER_TB_MAX_INST
+PASS cpu-exec.c execute_basic_block
+PASS cpu-exec.c interpreter_tb_should_stop
+PASS cpu-exec.c device_update_after_inst(retired
+PASS cpu/Kconfig config INTERPRETER_BASIC_BLOCK
+PASS riscv64-linux_defconfig CONFIG_INTERPRETER_BASIC_BLOCK=y
+PASS riscv64-linux_defconfig CONFIG_INTERPRETER_WIDE_IFETCH=y
+PASS riscv64-linux_defconfig CONFIG_INTERPRETER_DECODE_CACHE=y
+PASS riscv64-linux_defconfig CONFIG_INTERPRETER_INTR_FAST_FLAG=y
+PASS riscv64-linux_defconfig CONFIG_HAS_VIRTIO_NET=y
+PASS build-linux.sh CONFIG_VIRTIO_NET
+PASS check-nemu-performance-config.sh CONFIG_INTERPRETER_BASIC_BLOCK
+PASS check-nemu-performance-config.sh CONFIG_INTERPRETER_WIDE_IFETCH
+PASS check-nemu-performance-config.sh CONFIG_INTERPRETER_DECODE_CACHE
+PASS check-nemu-performance-config.sh CONFIG_INTERPRETER_INTR_FAST_FLAG
+PASS cpu/Kconfig config INTERPRETER_WIDE_IFETCH
+PASS cpu/Kconfig config INTERPRETER_DECODE_CACHE
+PASS cpu/Kconfig config INTERPRETER_INTR_FAST_FLAG
+PASS cpu-exec.c isa_riscv32_intr_pending_fast
+PASS cpu-exec.c isa_query_intr()
+PASS riscv64/system/intr.c isa_riscv32_intr_pending_fast
+PASS riscv64/system/plic.c isa_riscv32_plic_maybe_pending
+PASS isa.h isa_riscv32_intr_pending_fast
+PASS riscv64/inst.c vaddr_ifetch_wide
+PASS riscv64/inst.c rv_decode_cache
+PASS riscv64/inst.c rv_decode_cache_inst_key
+PASS riscv64/inst.c rv_decode_cache_exec
+PASS riscv64/inst.c rv_decode_cache_fill
+PASS riscv64/inst.c rv_decode_cache_flush
+PASS vaddr.c vaddr_ifetch_wide
+PASS vaddr.c vaddr_paddr_host_fast
+PASS vaddr.c vaddr_paddr_read_fast
+PASS vaddr.c vaddr_paddr_write_fast
+PASS vaddr.c host_read(trans.host_addr
+PASS vaddr.c host_write(trans.host_addr
+PASS mmu.c isa_mmu_translate_host
+PASS mmu.c host_page
+PASS mmu.c sv39_host_page_base
+PASS mmu.c sv39_itlb
+PASS mmu.c sv39_dtlb
+PASS mmu.c sv39_tlb_set_for_type
+PASS isa.h isa_mmu_translate_host
+PASS gen_dts.py google,goldfish-rtc
+PASS gen_dts.py virtio_mmio
+PASS gen_dts.py virtio_net
+PASS gen_dts.py --virtio-net
+PASS gen_dts.py riscv,isa-base
+PASS gen_dts.py riscv,isa-extensions
+PASS Kconfig HAS_GOLDFISH_RTC
+PASS Kconfig HAS_VIRTIO_RNG
+PASS Kconfig HAS_VIRTIO_NET

@@ -13,7 +13,7 @@ APT_ROOT=${UBUNTU_SYSTEMD_OVERLAY_APT_ROOT:-"$WORK/apt-systemd-overlay"}
 APT_TRUSTED=${UBUNTU_SYSTEMD_OVERLAY_APT_TRUSTED:-1}
 APT_COMPONENTS=${UBUNTU_SYSTEMD_OVERLAY_COMPONENTS:-"main universe"}
 APT_NO_RECOMMENDS=${UBUNTU_SYSTEMD_OVERLAY_NO_RECOMMENDS:-1}
-OVERLAY_PACKAGES=${UBUNTU_SYSTEMD_OVERLAY_PACKAGES:-"systemd systemd-sysv udev dbus procps iproute2 kmod util-linux login passwd adduser"}
+OVERLAY_PACKAGES=${UBUNTU_SYSTEMD_OVERLAY_PACKAGES:-"systemd systemd-sysv udev dbus procps iproute2 kmod util-linux lsb-release login passwd adduser"}
 
 if [ ! -d "$ROOTFS" ] || [ ! -f "$ROOTFS/etc/os-release" ]; then
   echo "[ubuntu-systemd-overlay] missing extracted Ubuntu rootfs: $ROOTFS" >&2

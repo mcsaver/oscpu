@@ -1,0 +1,23 @@
+NEMU Ubuntu lsb-release contract summary
+
+root cause:
+- minimized Ubuntu rootfs did not include /usr/bin/lsb_release, while shell command glue such as hostnamectllsb_release was a separate serial byte-stream issue.
+
+fixed contract:
+- build-ubuntu-rootfs.sh default ROOTFS_INCLUDE includes lsb-release.
+- build-ubuntu-systemd-overlay.sh default OVERLAY_PACKAGES includes lsb-release.
+- check-ubuntu-rootfs.sh strict systemd gate requires /usr/bin/lsb_release.
+- check-nemu-systemd-guest.sh requires lsb_release -a to report Ubuntu 22.04.
+- htop remains optional and is not a hard boot/readiness gate.
+
+evidence:
+- make -C Linux ARCH=riscv64-nemu ubuntu-rootfs-systemd-image PASS.
+- make -C Linux ARCH=riscv64-nemu check-ubuntu-rootfs-systemd PASS.
+- debugfs stat /usr/bin/lsb_release PASS, inode present in ubuntu-22.04-riscv64.ext4.
+- scripts/agent-e2e.sh --validate-all-profiles PASS.
+- scripts/agent-e2e.sh --profile nemu-ubuntu --task-slug nemu-rootfs-lsb-release-contract-e2e PASS.
+- nemu-ubuntu-slice-contract.log contains PASS marker lsb-release-present and lsb-release-ubuntu2204.
+- nemu-ubuntu-slice-contract.log contains PASS package/rootfs hooks for lsb-release and /usr/bin/lsb_release.
+- make -C Linux ARCH=riscv64-nemu check-nemu-systemd-guest PASS after the rootfs rebuild.
+- focused console.log contains __NEMU_CHECK_PASS__:lsb-release-present, Description: Ubuntu 22.04.5 LTS, and __NEMU_CHECK_PASS__:lsb-release-ubuntu2204.
+- focused perf.tsv: boot=99s guest_check=457s poweroff=8s total=564s.

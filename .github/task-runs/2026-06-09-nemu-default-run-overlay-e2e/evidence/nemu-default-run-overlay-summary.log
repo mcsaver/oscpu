@@ -1,0 +1,25 @@
+NEMU default run rootfs overlay summary
+
+Change verified:
+- make ARCH=riscv64-nemu run now defaults NEMU_RUN_ROOTFS_OVERLAY to
+  Linux/env/logs/linux-front/riscv64-nemu-ubuntu-rootfs/rootfs-overlay.raw
+  when the Ubuntu rootfs block image is attached.
+- NEMU_RUN_ROOTFS_OVERLAY_RESET defaults to 1 and dry-run output includes
+  rm -f for the overlay before NEMU starts.
+- The NEMU command line includes both --block=<ubuntu ext4> and
+  --block-overlay=<log-dir/rootfs-overlay.raw>.
+
+Verification:
+- make -C Linux ARCH=riscv64-nemu -n run PASS, dry-run contains --block,
+  --block-overlay, rm -f rootfs-overlay.raw, and [Linux] overlay.
+- make -C Linux ARCH=riscv64-nemu paths PASS, prints NEMU_RUN_ROOTFS_OVERLAY
+  and NEMU_RUN_ROOTFS_OVERLAY_RESET=1.
+- scripts/agent-e2e.sh --profile nemu-ubuntu --task-slug
+  nemu-default-run-overlay-e2e PASS.
+
+Boundary:
+- This prevents ordinary daily NEMU Ubuntu rootfs run from writing directly to
+  the backing ext4 image by default.
+- It is still a raw sparse overlay first stage, not qcow2, VM snapshot,
+  checkpoint/rollback management, crash-consistency fuzzing, or full QEMU
+  block layer.

@@ -81,6 +81,16 @@ void add_mmio_map(const char *name, paddr_t addr, void *space, uint32_t len, io_
   nr_map ++;
 }
 
+#ifndef CONFIG_TARGET_AM
+void dump_mmio_maps(FILE *out) {
+  fprintf(out, "mmio.count=%d\n", nr_map);
+  for (int i = 0; i < nr_map; i++) {
+    fprintf(out, "mmio.%s=" FMT_PADDR ".." FMT_PADDR "\n",
+        maps[i].name, maps[i].low, maps[i].high);
+  }
+}
+#endif
+
 /* bus interface */
 //MMIO读总线入口，先用fetch_mmio_map找到命中的设备映射
 //再调用map_read，本身不处理设备逻辑

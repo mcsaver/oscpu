@@ -48,6 +48,13 @@ bool vaddr_has_fault(void) {
   return vaddr_fault_pending;
 }
 
+void vaddr_set_fault(word_t cause, vaddr_t tval) {
+  // 让 ISA 层的精确异常也走 vaddr fault 通道，统一在指令边界投递 trap。
+  vaddr_fault_pending = true;
+  vaddr_fault_cause = cause;
+  vaddr_fault_tval = tval;
+}
+
 static word_t vaddr_fault_cause_for_type(int type) {
   switch (type) {
     case MEM_TYPE_IFETCH: return CAUSE_INST_PAGE_FAULT;
@@ -76,26 +83,20 @@ static VaddrTranslateResult vaddr_translate_checked(vaddr_t addr, int len, int t
   }
 
   if (mmu != MMU_TRANSLATE) {
-    vaddr_fault_pending = true;
-    vaddr_fault_cause = vaddr_fault_cause_for_type(type);
-    vaddr_fault_tval = addr;
+    vaddr_set_fault(vaddr_fault_cause_for_type(type), addr);
     return result;
   }
 
 #if !defined(CONFIG_CACHE) && !defined(CONFIG_MTRACE) && \
     defined(CONFIG_ISA_riscv) && defined(CONFIG_ISA64)
   if (!isa_mmu_translate_host(addr, len, type, &result.paddr, &result.host_addr)) {
-    vaddr_fault_pending = true;
-    vaddr_fault_cause = vaddr_fault_cause_for_type(type);
-    vaddr_fault_tval = addr;
+    vaddr_set_fault(vaddr_fault_cause_for_type(type), addr);
     return result;
   }
 #else
   result.paddr = isa_mmu_translate(addr, len, type);
   if (result.paddr == (paddr_t)-1) {
-    vaddr_fault_pending = true;
-    vaddr_fault_cause = vaddr_fault_cause_for_type(type);
-    vaddr_fault_tval = addr;
+    vaddr_set_fault(vaddr_fault_cause_for_type(type), addr);
     return result;
   }
   result.host_addr = vaddr_paddr_host_fast(result.paddr);

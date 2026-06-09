@@ -44,6 +44,24 @@ require_autoconf_define() {
   fi
 }
 
+require_config_value() {
+  local opt="$1"
+  local value="$2"
+  if ! grep -qx "${opt}=${value}" "$config_path"; then
+    echo "required ${opt}=${value} in $config_path" >&2
+    exit 1
+  fi
+}
+
+require_autoconf_value() {
+  local opt="$1"
+  local value="$2"
+  if ! grep -qx "#define ${opt} ${value}" "$autoconf_path"; then
+    echo "required #define ${opt} ${value} in $autoconf_path" >&2
+    exit 1
+  fi
+}
+
 reject_autoconf_define() {
   local opt="$1"
   if grep -qx "#define ${opt} 1" "$autoconf_path"; then
@@ -62,6 +80,8 @@ require_config_enabled CONFIG_INTERPRETER_DECODE_CACHE
 require_autoconf_define CONFIG_INTERPRETER_DECODE_CACHE
 require_config_enabled CONFIG_INTERPRETER_INTR_FAST_FLAG
 require_autoconf_define CONFIG_INTERPRETER_INTR_FAST_FLAG
+require_config_value CONFIG_MSIZE 0x40000000
+require_autoconf_value CONFIG_MSIZE 0x40000000
 
 debug_opts=(
   CONFIG_TRACE

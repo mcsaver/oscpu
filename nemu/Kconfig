@@ -29,7 +29,16 @@ config ISA64
 
 
 if ISA_riscv
+config RV64
+  bool "64-bit RISC-V architecture"
+  default n
+
+if RV64
+source "src/isa/riscv64/Kconfig"
+endif
+if !RV64
 source "src/isa/riscv32/Kconfig"
+endif
 endif
 
 choice

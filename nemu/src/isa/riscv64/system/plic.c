@@ -67,7 +67,7 @@ static uint32_t plic_best_irq(bool supervisor) {
   return 0;
 }
 
-void isa_riscv32_plic_reset(void) {
+void isa_riscv64_plic_reset(void) {
   memset(plic_priority, 0, sizeof(plic_priority));
   plic_enable_m = 0;
   plic_enable_s = 0;
@@ -82,7 +82,7 @@ void isa_riscv32_plic_reset(void) {
 #endif
 }
 
-void isa_riscv32_plic_set_irq(uint32_t irq, bool level) {
+void isa_riscv64_plic_set_irq(uint32_t irq, bool level) {
   if (irq == 0 || irq > PLIC_NR_IRQS || irq >= 32) return;
   uint32_t bit = 1u << irq;
   if (level) {
@@ -94,19 +94,19 @@ void isa_riscv32_plic_set_irq(uint32_t irq, bool level) {
   }
 }
 
-bool isa_riscv32_plic_maybe_pending(void) {
+bool isa_riscv64_plic_maybe_pending(void) {
   uint32_t enabled = plic_enable_m | plic_enable_s;
   return (plic_pending & enabled) != 0;
 }
 
-word_t isa_riscv32_plic_pending_bits(void) {
+word_t isa_riscv64_plic_pending_bits(void) {
   word_t pending = 0;
   if (plic_best_irq(false) != 0) pending |= MIP_MEIP;
   if (plic_best_irq(true) != 0) pending |= MIP_SEIP;
   return pending;
 }
 
-bool isa_riscv32_plic_in_range(paddr_t addr) {
+bool isa_riscv64_plic_in_range(paddr_t addr) {
   return addr >= PLIC_BASE && addr < PLIC_BASE + PLIC_SIZE;
 }
 
@@ -197,11 +197,11 @@ static void plic_write32(uint32_t offset, uint32_t value, uint32_t mask) {
   }
 }
 
-word_t isa_riscv32_plic_read(paddr_t addr, int len) {
+word_t isa_riscv64_plic_read(paddr_t addr, int len) {
   assert(len >= 1 && len <= 8);
   if (len == 8) {
-    return isa_riscv32_plic_read(addr, 4) |
-           (isa_riscv32_plic_read(addr + 4, 4) << 32);
+    return isa_riscv64_plic_read(addr, 4) |
+           (isa_riscv64_plic_read(addr + 4, 4) << 32);
   }
   uint32_t offset = addr - PLIC_BASE;
   uint32_t shift = (offset & 0x3u) * 8u;
@@ -210,11 +210,11 @@ word_t isa_riscv32_plic_read(paddr_t addr, int len) {
   return (word >> shift) & mask;
 }
 
-void isa_riscv32_plic_write(paddr_t addr, int len, word_t data) {
+void isa_riscv64_plic_write(paddr_t addr, int len, word_t data) {
   assert(len >= 1 && len <= 8);
   if (len == 8) {
-    isa_riscv32_plic_write(addr, 4, (uint32_t)data);
-    isa_riscv32_plic_write(addr + 4, 4, (uint32_t)(data >> 32));
+    isa_riscv64_plic_write(addr, 4, (uint32_t)data);
+    isa_riscv64_plic_write(addr + 4, 4, (uint32_t)(data >> 32));
     return;
   }
   uint32_t offset = addr - PLIC_BASE;
@@ -225,7 +225,7 @@ void isa_riscv32_plic_write(paddr_t addr, int len, word_t data) {
   plic_write32(offset & ~0x3u, word_value, word_mask);
 }
 
-void isa_riscv32_plic_statistic(void) {
+void isa_riscv64_plic_statistic(void) {
 #ifdef CONFIG_STATISTIC
   for (uint32_t irq = 1; irq <= PLIC_NR_IRQS && irq < 32; irq++) {
     if (plic_claim_count[irq] == 0 && plic_complete_count[irq] == 0) continue;

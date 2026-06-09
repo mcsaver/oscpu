@@ -40,6 +40,10 @@
 
 #include <cpu/difftest.h>
 
+#ifndef CONFIG_TARGET_AM
+#include <stdio.h>
+#endif
+
 //第一个参数是设备内部偏移offset
 //第二个参数是访问长度len
 //第三个参数是是否写操作is_write
@@ -99,6 +103,12 @@ void add_pio_map(const char *name, ioaddr_t addr,
         void *space, uint32_t len, io_callback_t callback);
 void add_mmio_map(const char *name, paddr_t addr,
         void *space, uint32_t len, io_callback_t callback);
+
+#ifndef CONFIG_TARGET_AM
+// 机器清单只读导出当前已注册的设备区间，给 e2e/monitor 契约使用。
+void dump_pio_maps(FILE *out);
+void dump_mmio_maps(FILE *out);
+#endif
 
 //在map.h中声明，在map.c中实现
 //他们是真正通用的读写入口

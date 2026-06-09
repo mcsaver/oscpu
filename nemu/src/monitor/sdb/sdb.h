@@ -25,6 +25,7 @@ extern bool enable_expr_log;
 // 统一导出 SDB 的初始化/运行接口，避免 monitor 和 engine 侧再各自手写前向声明。
 void init_sdb(void);
 void sdb_mainloop(void);
+int sdb_exec_line(char *line);
 void sdb_set_batch_mode(void);
 void sdb_set_batch_limit(uint64_t limit);
 

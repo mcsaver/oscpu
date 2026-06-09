@@ -50,7 +50,8 @@ LOG_ROOT ?= $(ENV_ROOT)/logs/linux-front
 EXTRA_ARGS ?=
 BOOTARGS_EXTRA ?=
 NEMU_SYSTEMD_CHECK_LOG_DIR ?= $(LOG_ROOT)/riscv64-nemu-systemd-guest-check
-NEMU_SYSTEMD_CHECK_MAX_CYCLES ?= 25000000000
+NEMU_SYSTEMD_ROOTFS_OVERLAY ?= $(NEMU_SYSTEMD_CHECK_LOG_DIR)/rootfs-overlay.raw
+NEMU_SYSTEMD_CHECK_MAX_CYCLES ?= 50000000000
 NEMU_SYSTEMD_CHECK_TIMEOUT ?= 1800
 NEMU_SYSTEMD_BOOT_TIMEOUT ?= 900
 NEMU_SYSTEMD_SOAK_SECONDS ?= 20
@@ -58,9 +59,12 @@ NEMU_SYSTEMD_FS_STRESS_MIB ?= 4
 NEMU_SYSTEMD_FS_TREE_FILES ?= 64
 NEMU_SYSTEMD_PROCESS_LOOPS ?= 16
 NEMU_SYSTEMD_INPUT_DELAY ?= 0
+NEMU_SYSTEMD_INPUT_CHUNK_BYTES ?= 8
+NEMU_SYSTEMD_INPUT_CHUNK_DELAY ?= 0
 NEMU_SYSTEMD_UART_RX_STRESS_LINES ?= 512
 NEMU_SYSTEMD_BLOCK_PARALLEL_JOBS ?= 4
 NEMU_SYSTEMD_BLOCK_JOB_MIB ?= 1
+NEMU_SYSTEMD_MIN_MEMTOTAL_KB ?= 900000
 NEMU_SYSTEMD_LONG_CHECK_LOG_DIR ?= $(LOG_ROOT)/riscv64-nemu-systemd-guest-long-check
 NEMU_SYSTEMD_LONG_CHECK_MAX_CYCLES ?= 30000000000
 NEMU_SYSTEMD_LONG_CHECK_TIMEOUT ?= 1800
@@ -82,6 +86,28 @@ NEMU_SYSTEMD_SOAK_UART_RX_STRESS_LINES ?= 1024
 NEMU_SYSTEMD_SOAK_BLOCK_PARALLEL_JOBS ?= 4
 NEMU_SYSTEMD_SOAK_BLOCK_JOB_MIB ?= 4
 NEMU_PERFORMANCE_REQUIRED ?= 1
+NEMU_MACHINE_INFO_FILE ?= $(BUILD_DIR)/nemu-machine-info.txt
+NEMU_MACHINE_INFO_LOG ?= $(BUILD_DIR)/nemu-machine-info.log
+NEMU_ROOTFS_MACHINE_INFO_FILE ?= $(BUILD_DIR)/nemu-rootfs-machine-info.txt
+NEMU_ROOTFS_MACHINE_INFO_LOG ?= $(BUILD_DIR)/nemu-rootfs-machine-info.log
+NEMU_ROOTFS_OVERLAY_MACHINE_INFO_FILE ?= $(BUILD_DIR)/nemu-rootfs-overlay-machine-info.txt
+NEMU_ROOTFS_OVERLAY_MACHINE_INFO_LOG ?= $(BUILD_DIR)/nemu-rootfs-overlay-machine-info.log
+NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY ?= $(BUILD_DIR)/nemu-rootfs-overlay-machine-info.raw
+NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY_STAT ?= $(BUILD_DIR)/nemu-rootfs-overlay-machine-info-overlay.stat
+NEMU_MONITOR_CMD_SMOKE_LOG ?= $(BUILD_DIR)/nemu-monitor-cmd-smoke.log
+NEMU_MONITOR_CMD_SMOKE_NEMU_LOG ?= $(BUILD_DIR)/nemu-monitor-cmd-smoke-nemu.log
+NEMU_MONITOR_CMD_SMOKE_CMD ?= info r
+NEMU_QMP_SMOKE_LOG ?= $(BUILD_DIR)/nemu-qmp-smoke.log
+NEMU_QMP_SMOKE_NEMU_LOG ?= $(BUILD_DIR)/nemu-qmp-smoke-nemu.log
+NEMU_QMP_SMOKE_CONT_NEMU_LOG ?= $(BUILD_DIR)/nemu-qmp-smoke-cont-nemu.log
+NEMU_QMP_SMOKE_BLOCK_NEMU_LOG ?= $(BUILD_DIR)/nemu-qmp-smoke-block-nemu.log
+NEMU_QMP_SMOKE_RUNTIME_NEMU_LOG ?= $(BUILD_DIR)/nemu-qmp-smoke-runtime-nemu.log
+NEMU_QMP_SMOKE_OVERLAY ?= $(BUILD_DIR)/nemu-qmp-smoke-overlay.raw
+NEMU_QMP_SMOKE_RUNTIME_OVERLAY ?= $(BUILD_DIR)/nemu-qmp-smoke-runtime-overlay.raw
+NEMU_QMP_SMOKE_RUNTIME_MAX_INSTS ?= 1000000000
+NEMU_GDBSTUB_SMOKE_LOG ?= $(BUILD_DIR)/nemu-gdbstub-smoke.log
+NEMU_GDBSTUB_SMOKE_NEMU_LOG ?= $(BUILD_DIR)/nemu-gdbstub-smoke-nemu.log
+NEMU_GDBSTUB_SMOKE_CMD ?= info r
 
 LINUX_IMAGE ?= $(ENV_ROOT)/src/linux/arch/riscv/boot/Image
 BUSYBOX_INITRD ?= $(ENV_ROOT)/images/initramfs/rootfs.cpio
@@ -181,11 +207,15 @@ endif
 LOG_DIR ?= $(LOG_ROOT)/$(ARCH)-$(RUN_NAME)
 LOG_FILE ?= $(LOG_DIR)/$(if $(filter riscv64-nemu,$(ARCH)),nemu,npc).log
 CONSOLE_LOG ?= $(LOG_DIR)/console.log
+# 默认 NEMU rootfs run 使用 sparse overlay，避免日常 make run 污染基准 Ubuntu ext4。
+NEMU_RUN_ROOTFS_OVERLAY ?= $(if $(and $(filter riscv64-nemu,$(ARCH)),$(strip $(RUN_ROOTFS))),$(LOG_DIR)/rootfs-overlay.raw,)
+NEMU_RUN_ROOTFS_OVERLAY_RESET ?= 1
 RUN_SIM := $(if $(filter riscv64-nemu,$(ARCH)),$(NEMU_SIM),$(NPC_SIM))
 PROGRESS_OPT := $(if $(strip $(PROGRESS)),--progress=$(PROGRESS),--no-progress)
 EXPECT_ENV := $(if $(strip $(RUN_EXPECT)),NPC_GUEST_EXPECT='$(RUN_EXPECT)',)
 INITRD_LOAD := $(if $(strip $(RUN_INITRD)),--load=$(INITRD_ADDR):$(RUN_INITRD),)
 ROOTFS_BLOCK := $(if $(strip $(RUN_ROOTFS)),--block='$(RUN_ROOTFS)',)
+ROOTFS_OVERLAY := $(if $(strip $(NEMU_RUN_ROOTFS_OVERLAY)),--block-overlay='$(NEMU_RUN_ROOTFS_OVERLAY)',)
 
 .DEFAULT_GOAL := help
 
@@ -198,7 +228,7 @@ ROOTFS_BLOCK := $(if $(strip $(RUN_ROOTFS)),--block='$(RUN_ROOTFS)',)
         tools-build boot-tools tools-smoke tools-clean paths check ubuntu-rootfs-check \
         check-ubuntu-rootfs check-ubuntu-rootfs-systemd ubuntu-rootfs-systemd-image \
         ubuntu-rootfs-systemd-overlay check-nemu-systemd-guest check-nemu-systemd-guest-long \
-        check-nemu-systemd-guest-soak check-nemu-performance-config __check-nemu-systemd-guest clean clean-logs \
+        check-nemu-systemd-guest-soak check-nemu-performance-config check-nemu-kernel-config nemu-machine-info nemu-monitor-cmd-smoke nemu-qmp-smoke nemu-gdbstub-smoke nemu-rootfs-machine-info nemu-rootfs-overlay-machine-info __check-nemu-systemd-guest clean clean-logs \
         $(TOOL_SMOKES) $(TOOL_BOOT_SMOKES)
 
 help:
@@ -236,6 +266,14 @@ help:
 	@printf '%s\n' '      检查 ext4 rootfs 是否具备 /init、/bin/sh、os-release，并报告 systemd readiness。'
 	@printf '%s\n' '  make ARCH=riscv64-nemu check-ubuntu-rootfs-systemd'
 	@printf '%s\n' '      要求 rootfs 已包含 systemd；当前 Ubuntu Base fakeroot 镜像会明确失败。'
+	@printf '%s\n' '  make ARCH=riscv64-nemu nemu-rootfs-machine-info'
+	@printf '%s\n' '      不启动 guest，检查 NEMU 是否真实打开 Ubuntu ext4 rootfs block 镜像并导出容量/只读状态。'
+	@printf '%s\n' '  make ARCH=riscv64-nemu nemu-rootfs-overlay-machine-info'
+	@printf '%s\n' '      不启动 guest，检查 NEMU 是否真实打开 Ubuntu ext4 rootfs + sparse overlay 并导出写入目标。'
+	@printf '%s\n' '  make ARCH=riscv64-nemu nemu-monitor-cmd-smoke'
+	@printf '%s\n' '      不进入交互提示符，验证 --monitor-cmd="info r" 一次性管理入口。'
+	@printf '%s\n' '  make ARCH=riscv64-nemu nemu-qmp-smoke'
+	@printf '%s\n' '      验证 --qmp=<port> 启动前和 cont 后运行期 QMP 查询/quit 与 block/blockstats 基线。'
 	@printf '%s\n' '  make ARCH=riscv64-nemu ubuntu-rootfs-systemd-image'
 	@printf '%s\n' '      无 sudo 时用 apt/dpkg-deb overlay 把 systemd/udev/dbus 候选用户态放进 rootfs。'
 	@printf '%s\n' '  make check-nemu-systemd-guest'
@@ -261,6 +299,11 @@ run: $(RUN_DEPS)
 	@if [ -n '$(RUN_ROOTFS)' ]; then \
 	  printf '[Linux] rootfs:   %s\n' '$(RUN_ROOTFS)'; \
 	fi
+	@if [ -n '$(NEMU_RUN_ROOTFS_OVERLAY)' ]; then \
+	  mkdir -p "$$(dirname -- '$(NEMU_RUN_ROOTFS_OVERLAY)')"; \
+	  if [ '$(NEMU_RUN_ROOTFS_OVERLAY_RESET)' = '1' ]; then rm -f '$(NEMU_RUN_ROOTFS_OVERLAY)'; fi; \
+	  printf '[Linux] overlay:  %s reset=%s\n' '$(NEMU_RUN_ROOTFS_OVERLAY)' '$(NEMU_RUN_ROOTFS_OVERLAY_RESET)'; \
+	fi
 	@printf '[Linux] log:      %s\n' '$(CONSOLE_LOG)'
 ifeq ($(ARCH),riscv64-nemu)
 	NEMU_HOME='$(NEMU_HOME)' '$(NEMU_SIM)' -b --max-insts=$(MAX_CYCLES) \
@@ -272,6 +315,7 @@ ifeq ($(ARCH),riscv64-nemu)
 	  --load=$(DTB_ADDR):'$(RUN_DTB)' \
 	  $(INITRD_LOAD) \
 	  $(ROOTFS_BLOCK) \
+	  $(ROOTFS_OVERLAY) \
 	  $(EXTRA_ARGS) 2>&1 | tee '$(CONSOLE_LOG)'
 else
 	$(EXPECT_ENV) '$(NPC_SIM)' -b $(PROGRESS_OPT) --no-diff --max=$(MAX_CYCLES) \
@@ -285,19 +329,19 @@ else
 endif
 
 run-ubuntu-rootfs:
-	$(MAKE) ARCH=$(ARCH) BOOT=ubuntu-rootfs run
+	+$(MAKE) ARCH=$(ARCH) BOOT=ubuntu-rootfs run
 
 run-ubuntu-shell:
-	$(MAKE) ARCH=$(ARCH) BOOT=ubuntu-shell run
+	+$(MAKE) ARCH=$(ARCH) BOOT=ubuntu-shell run
 
 run-ubuntu-probe:
-	$(MAKE) ARCH=$(ARCH) BOOT=ubuntu-probe run
+	+$(MAKE) ARCH=$(ARCH) BOOT=ubuntu-probe run
 
 run-busybox-initramfs:
-	$(MAKE) ARCH=$(ARCH) BOOT=busybox-initramfs run
+	+$(MAKE) ARCH=$(ARCH) BOOT=busybox-initramfs run
 
 run-kernel:
-	$(MAKE) ARCH=$(ARCH) BOOT=kernel run
+	+$(MAKE) ARCH=$(ARCH) BOOT=kernel run
 
 prepare: $(RUN_DEPS)
 
@@ -354,13 +398,13 @@ linux-trace-defconfig: $(CONF) $(FIXDEP)
 
 ifeq ($(ARCH),riscv64-nemu)
 nemu-linux-defconfig:
-	$(MAKE) -C '$(NEMU_HOME)' NEMU_HOME='$(NEMU_HOME)' $(NEMU_DEFCONFIG)
+	+$(MAKE) -C '$(NEMU_HOME)' NEMU_HOME='$(NEMU_HOME)' $(NEMU_DEFCONFIG)
 
 sim: nemu-linux-defconfig
-	$(MAKE) -C '$(NEMU_HOME)' NEMU_HOME='$(NEMU_HOME)' -j'$(JOBS)'
+	+$(MAKE) -C '$(NEMU_HOME)' NEMU_HOME='$(NEMU_HOME)' -j'$(JOBS)'
 
 check-sim: nemu-linux-defconfig
-	@if [ ! -x '$(NEMU_SIM)' ]; then \
+	+@if [ ! -x '$(NEMU_SIM)' ]; then \
 	  $(MAKE) -C '$(NEMU_HOME)' NEMU_HOME='$(NEMU_HOME)' -j'$(JOBS)'; \
 	else \
 	  echo '[Linux] NEMU sim exists: $(NEMU_SIM)'; \
@@ -371,6 +415,74 @@ check-nemu-performance-config: nemu-linux-defconfig
 	NEMU_CONFIG='$(NEMU_HOME)/.config' \
 	NEMU_AUTOCONF='$(NEMU_HOME)/include/generated/autoconf.h' \
 	  bash '$(SCRIPT_DIR)/check-nemu-performance-config.sh'
+
+nemu-machine-info: sim
+	@mkdir -p '$(BUILD_DIR)'
+	NEMU_HOME='$(NEMU_HOME)' '$(NEMU_SIM)' -b \
+	  --log='$(NEMU_MACHINE_INFO_LOG)' \
+	  --machine-info='$(NEMU_MACHINE_INFO_FILE)'
+	@cat '$(NEMU_MACHINE_INFO_FILE)'
+
+nemu-monitor-cmd-smoke: sim
+	@mkdir -p '$(BUILD_DIR)'
+	NEMU_HOME='$(NEMU_HOME)' '$(NEMU_SIM)' -b \
+	  --log='$(NEMU_MONITOR_CMD_SMOKE_NEMU_LOG)' \
+	  --monitor-cmd='$(NEMU_MONITOR_CMD_SMOKE_CMD)' \
+	  > '$(NEMU_MONITOR_CMD_SMOKE_LOG)' 2>&1
+	@cat '$(NEMU_MONITOR_CMD_SMOKE_LOG)'
+
+nemu-qmp-smoke: sim check-ubuntu-rootfs-systemd $(OPENSBI_ROOTFS_FW) $(NEMU_ROOTFS_DTB) $(LINUX_IMAGE)
+	@mkdir -p '$(BUILD_DIR)'
+	$(PYTHON) '$(SCRIPT_DIR)/check-nemu-qmp-smoke.py' \
+	  --nemu '$(NEMU_SIM)' \
+	  --log '$(NEMU_QMP_SMOKE_LOG)' \
+	  --nemu-log '$(NEMU_QMP_SMOKE_NEMU_LOG)' \
+	  --cont-nemu-log '$(NEMU_QMP_SMOKE_CONT_NEMU_LOG)' \
+	  --block-nemu-log '$(NEMU_QMP_SMOKE_BLOCK_NEMU_LOG)' \
+	  --runtime-nemu-log '$(NEMU_QMP_SMOKE_RUNTIME_NEMU_LOG)' \
+	  --block-image '$(UBUNTU_ROOTFS_IMAGE)' \
+	  --overlay-image '$(NEMU_QMP_SMOKE_OVERLAY)' \
+	  --runtime-overlay-image '$(NEMU_QMP_SMOKE_RUNTIME_OVERLAY)' \
+	  --firmware '$(OPENSBI_ROOTFS_FW)' \
+	  --kernel '$(LINUX_IMAGE)' \
+	  --dtb '$(NEMU_ROOTFS_DTB)' \
+	  --next-addr '$(NEXT_ADDR)' \
+	  --dtb-addr '$(DTB_ADDR)' \
+	  --runtime-max-insts '$(NEMU_QMP_SMOKE_RUNTIME_MAX_INSTS)'
+	grep -Fq '__NEMU_QMP_SMOKE__:ok' '$(NEMU_QMP_SMOKE_LOG)'
+	@cat '$(NEMU_QMP_SMOKE_LOG)'
+
+nemu-gdbstub-smoke: sim
+	@mkdir -p '$(BUILD_DIR)'
+	$(PYTHON) '$(SCRIPT_DIR)/check-nemu-gdbstub-smoke.py' \
+	  --nemu '$(NEMU_SIM)' \
+	  --log '$(NEMU_GDBSTUB_SMOKE_LOG)' \
+	  --nemu-log '$(NEMU_GDBSTUB_SMOKE_NEMU_LOG)' \
+	  --monitor-cmd '$(NEMU_GDBSTUB_SMOKE_CMD)'
+	grep -Fq '__NEMU_GDBSTUB_SMOKE__:ok' '$(NEMU_GDBSTUB_SMOKE_LOG)'
+	@cat '$(NEMU_GDBSTUB_SMOKE_LOG)'
+
+nemu-rootfs-machine-info: sim check-ubuntu-rootfs-systemd
+	@mkdir -p '$(BUILD_DIR)'
+	NEMU_HOME='$(NEMU_HOME)' '$(NEMU_SIM)' -b \
+	  --log='$(NEMU_ROOTFS_MACHINE_INFO_LOG)' \
+	  --block='$(UBUNTU_ROOTFS_IMAGE)' \
+	  --machine-info='$(NEMU_ROOTFS_MACHINE_INFO_FILE)'
+	@cat '$(NEMU_ROOTFS_MACHINE_INFO_FILE)'
+
+nemu-rootfs-overlay-machine-info: sim check-ubuntu-rootfs-systemd
+	@mkdir -p '$(BUILD_DIR)'
+	@rm -f '$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY)' '$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY_STAT)'
+	NEMU_HOME='$(NEMU_HOME)' '$(NEMU_SIM)' -b \
+	  --log='$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_LOG)' \
+	  --block='$(UBUNTU_ROOTFS_IMAGE)' \
+	  --block-overlay='$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY)' \
+	  --machine-info='$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_FILE)'
+	@stat -c 'overlay_size=%s overlay_blocks=%b overlay_path=%n' \
+	  '$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY)' > '$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY_STAT)'
+	@cat '$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_FILE)'
+	@cat '$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY_STAT)'
+	@rm -f '$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY)'
 else
 nemu-linux-defconfig:
 	@echo '[Linux] skip NEMU defconfig for ARCH=$(ARCH)'
@@ -378,11 +490,29 @@ nemu-linux-defconfig:
 check-nemu-performance-config:
 	@echo '[Linux] skip NEMU performance config check for ARCH=$(ARCH)'
 
+nemu-machine-info:
+	@echo '[Linux] skip NEMU machine info for ARCH=$(ARCH)'
+
+nemu-monitor-cmd-smoke:
+	@echo '[Linux] skip NEMU monitor command smoke for ARCH=$(ARCH)'
+
+nemu-qmp-smoke:
+	@echo '[Linux] skip NEMU QMP smoke for ARCH=$(ARCH)'
+
+nemu-gdbstub-smoke:
+	@echo '[Linux] skip NEMU gdbstub smoke for ARCH=$(ARCH)'
+
+nemu-rootfs-machine-info:
+	@echo '[Linux] skip NEMU rootfs machine info for ARCH=$(ARCH)'
+
+nemu-rootfs-overlay-machine-info:
+	@echo '[Linux] skip NEMU rootfs overlay machine info for ARCH=$(ARCH)'
+
 sim: linux-defconfig
-	$(MAKE) -C '$(NPC_RV64)' -j'$(JOBS)'
+	+$(MAKE) -C '$(NPC_RV64)' -j'$(JOBS)'
 
 check-sim: linux-defconfig
-	@if [ ! -x '$(NPC_SIM)' ]; then \
+	+@if [ ! -x '$(NPC_SIM)' ]; then \
 	  $(MAKE) -C '$(NPC_RV64)' -j'$(JOBS)'; \
 	else \
 	  echo '[Linux] NPC sim exists: $(NPC_SIM)'; \
@@ -406,10 +536,10 @@ check-ubuntu-rootfs-systemd: $(UBUNTU_ROOTFS_IMAGE)
 	  bash '$(SCRIPT_DIR)/check-ubuntu-rootfs.sh'
 
 check-nemu-systemd-guest:
-	$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs __check-nemu-systemd-guest
+	+$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs __check-nemu-systemd-guest
 
 check-nemu-systemd-guest-long:
-	$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs \
+	+$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs \
 	  NEMU_SYSTEMD_CHECK_LOG_DIR='$(NEMU_SYSTEMD_LONG_CHECK_LOG_DIR)' \
 	  NEMU_SYSTEMD_CHECK_MAX_CYCLES='$(NEMU_SYSTEMD_LONG_CHECK_MAX_CYCLES)' \
 	  NEMU_SYSTEMD_CHECK_TIMEOUT='$(NEMU_SYSTEMD_LONG_CHECK_TIMEOUT)' \
@@ -423,7 +553,7 @@ check-nemu-systemd-guest-long:
 	  __check-nemu-systemd-guest
 
 check-nemu-systemd-guest-soak:
-	$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs \
+	+$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs \
 	  NEMU_SYSTEMD_CHECK_LOG_DIR='$(NEMU_SYSTEMD_SOAK_CHECK_LOG_DIR)' \
 	  NEMU_SYSTEMD_CHECK_MAX_CYCLES='$(NEMU_SYSTEMD_SOAK_CHECK_MAX_CYCLES)' \
 	  NEMU_SYSTEMD_CHECK_TIMEOUT='$(NEMU_SYSTEMD_SOAK_CHECK_TIMEOUT)' \
@@ -436,7 +566,11 @@ check-nemu-systemd-guest-soak:
 	  NEMU_SYSTEMD_BLOCK_JOB_MIB='$(NEMU_SYSTEMD_SOAK_BLOCK_JOB_MIB)' \
 	  __check-nemu-systemd-guest
 
-__check-nemu-systemd-guest: $(RUN_DEPS) check-ubuntu-rootfs-systemd check-nemu-performance-config
+check-nemu-kernel-config: $(LINUX_IMAGE)
+	LINUX_KERNEL_CONFIG='$(ENV_ROOT)/src/linux/.config' \
+	  bash '$(SCRIPT_DIR)/check-nemu-kernel-config.sh'
+
+__check-nemu-systemd-guest: $(RUN_DEPS) check-ubuntu-rootfs-systemd check-nemu-performance-config check-nemu-kernel-config
 	LOG_DIR='$(NEMU_SYSTEMD_CHECK_LOG_DIR)' \
 	LOG_FILE='$(NEMU_SYSTEMD_CHECK_LOG_DIR)/nemu.log' \
 	CONSOLE_LOG='$(NEMU_SYSTEMD_CHECK_LOG_DIR)/console.log' \
@@ -447,6 +581,7 @@ __check-nemu-systemd-guest: $(RUN_DEPS) check-ubuntu-rootfs-systemd check-nemu-p
 	RUN_FW='$(RUN_FW)' \
 	RUN_DTB='$(RUN_DTB)' \
 	RUN_ROOTFS='$(RUN_ROOTFS)' \
+	NEMU_SYSTEMD_ROOTFS_OVERLAY='$(NEMU_SYSTEMD_ROOTFS_OVERLAY)' \
 	NEXT_ADDR='$(NEXT_ADDR)' \
 	DTB_ADDR='$(DTB_ADDR)' \
 	MAX_CYCLES='$(NEMU_SYSTEMD_CHECK_MAX_CYCLES)' \
@@ -459,8 +594,11 @@ __check-nemu-systemd-guest: $(RUN_DEPS) check-ubuntu-rootfs-systemd check-nemu-p
 	NEMU_SYSTEMD_UART_RX_STRESS_LINES='$(NEMU_SYSTEMD_UART_RX_STRESS_LINES)' \
 	NEMU_SYSTEMD_BLOCK_PARALLEL_JOBS='$(NEMU_SYSTEMD_BLOCK_PARALLEL_JOBS)' \
 	NEMU_SYSTEMD_BLOCK_JOB_MIB='$(NEMU_SYSTEMD_BLOCK_JOB_MIB)' \
-	NEMU_SYSTEMD_INPUT_DELAY='$(NEMU_SYSTEMD_INPUT_DELAY)' \
-	  bash '$(SCRIPT_DIR)/check-nemu-systemd-guest.sh'
+		NEMU_SYSTEMD_MIN_MEMTOTAL_KB='$(NEMU_SYSTEMD_MIN_MEMTOTAL_KB)' \
+		NEMU_SYSTEMD_INPUT_DELAY='$(NEMU_SYSTEMD_INPUT_DELAY)' \
+		NEMU_SYSTEMD_INPUT_CHUNK_BYTES='$(NEMU_SYSTEMD_INPUT_CHUNK_BYTES)' \
+		NEMU_SYSTEMD_INPUT_CHUNK_DELAY='$(NEMU_SYSTEMD_INPUT_CHUNK_DELAY)' \
+		  bash '$(SCRIPT_DIR)/check-nemu-systemd-guest.sh'
 
 dtb: $(KERNEL_DTB)
 initramfs-dtb: $(BUSYBOX_INITRAMFS_DTB)
@@ -473,7 +611,7 @@ opensbi-ubuntu-probe: $(OPENSBI_UBUNTU_PROBE_FW)
 opensbi-ubuntu-shell: $(OPENSBI_UBUNTU_SHELL_FW)
 opensbi-rootfs: $(OPENSBI_ROOTFS_FW)
 
-$(LINUX_IMAGE):
+$(LINUX_IMAGE): $(SCRIPT_DIR)/build-linux.sh
 	bash '$(SCRIPT_DIR)/build-linux.sh'
 
 $(BUSYBOX_INITRD):
@@ -539,6 +677,7 @@ $(NEMU_ROOTFS_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) | $(BUILD_DIR) $(BUILD_DIR)/ge
 	$(PYTHON) '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode rootfs \
 	  --reset-syscon \
 	  --virtio-rng \
+	  --virtio-net \
 	  --goldfish-rtc \
 	  --bootargs-extra '$(BOOTARGS_EXTRA)' \
 	  --output '$(BUILD_DIR)/generated/npc-rv64-nemu-rootfs.dts'
@@ -584,28 +723,28 @@ qemu-ubuntu-shell:
 	bash '$(SCRIPT_DIR)/run-qemu-ubuntu-initramfs.sh'
 
 tools-build:
-	$(MAKE) -C '$(TOOLS_DIR)' all
+	+$(MAKE) -C '$(TOOLS_DIR)' all
 
 boot-tools:
-	$(MAKE) -C '$(TOOLS_DIR)' boot-tools
+	+$(MAKE) -C '$(TOOLS_DIR)' boot-tools
 
 tools-smoke: check-sim
-	$(MAKE) -C '$(TOOLS_DIR)' NPC_SIM='$(NPC_SIM)' $(TOOL_SMOKES)
+	+$(MAKE) -C '$(TOOLS_DIR)' NPC_SIM='$(NPC_SIM)' $(TOOL_SMOKES)
 
 $(TOOL_SMOKES): check-sim
-	$(MAKE) -C '$(TOOLS_DIR)' NPC_SIM='$(NPC_SIM)' $@
+	+$(MAKE) -C '$(TOOLS_DIR)' NPC_SIM='$(NPC_SIM)' $@
 
 smoke-dtb: check-sim
-	$(MAKE) -C '$(TOOLS_DIR)' NPC_SIM='$(NPC_SIM)' $@
+	+$(MAKE) -C '$(TOOLS_DIR)' NPC_SIM='$(NPC_SIM)' $@
 
 smoke-opensbi smoke-opensbi-sbi: check-sim opensbi
-	$(MAKE) -C '$(TOOLS_DIR)' NPC_SIM='$(NPC_SIM)' $@
+	+$(MAKE) -C '$(TOOLS_DIR)' NPC_SIM='$(NPC_SIM)' $@
 
 smoke-virtio-blk: check-sim ubuntu-rootfs-image
-	$(MAKE) -C '$(TOOLS_DIR)' NPC_SIM='$(NPC_SIM)' VIRTIO_BLK_IMAGE='$(UBUNTU_ROOTFS_IMAGE)' $@
+	+$(MAKE) -C '$(TOOLS_DIR)' NPC_SIM='$(NPC_SIM)' VIRTIO_BLK_IMAGE='$(UBUNTU_ROOTFS_IMAGE)' $@
 
 tools-clean:
-	$(MAKE) -C '$(TOOLS_DIR)' clean
+	+$(MAKE) -C '$(TOOLS_DIR)' clean
 
 paths:
 	@printf 'ARCH=%s\n' '$(ARCH)'
@@ -621,6 +760,8 @@ paths:
 	@printf 'RUN_DTB=%s\n' '$(RUN_DTB)'
 	@printf 'RUN_INITRD=%s\n' '$(RUN_INITRD)'
 	@printf 'RUN_ROOTFS=%s\n' '$(RUN_ROOTFS)'
+	@printf 'NEMU_RUN_ROOTFS_OVERLAY=%s\n' '$(NEMU_RUN_ROOTFS_OVERLAY)'
+	@printf 'NEMU_RUN_ROOTFS_OVERLAY_RESET=%s\n' '$(NEMU_RUN_ROOTFS_OVERLAY_RESET)'
 	@printf 'LOG_DIR=%s\n' '$(LOG_DIR)'
 
 check:

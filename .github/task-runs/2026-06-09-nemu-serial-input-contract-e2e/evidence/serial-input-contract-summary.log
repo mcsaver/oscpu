@@ -1,0 +1,13 @@
+PASS bash -n Linux/scripts/check-nemu-systemd-guest.sh scripts/e2e/modules/nemu.sh
+PASS git diff --check -- Linux/scripts/check-nemu-systemd-guest.sh scripts/e2e/modules/nemu.sh Linux/README.md .github/e2e/modules/nemu.md .github/e2e/README.md .github/instructions/agent-e2e-workflow.instructions.md
+PASS scripts/agent-e2e.sh --validate-all-profiles
+PASS scripts/agent-e2e.sh --profile nemu-ubuntu --task-slug nemu-serial-input-contract-e2e
+PASS slice-contract check-nemu-systemd-guest.sh NEMU_SERIAL_FIFO
+PASS slice-contract check-nemu-systemd-guest.sh serial input model
+PASS slice-contract serial.c SERIAL_HOST_RX_STAGING_CAP
+PASS slice-contract serial.c uart16550_receive
+PASS slice-contract uart16550.c uart16550_receive
+PASS slice-contract device.c serial_poll_input
+PASS slice-contract gen_dts.py stdout-path serial0:115200n8
+PASS slice-contract gen_dts.py compatible ns16550a
+BOUNDARY serial input contract only; not full UART/TTY, SSH/PTY, QEMU VM, or complete Ubuntu 22.04 goal.

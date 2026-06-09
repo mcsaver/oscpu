@@ -66,6 +66,11 @@ void isa_riscv32_plic_set_irq(uint32_t irq, bool level) {
   }
 }
 
+bool isa_riscv32_plic_maybe_pending(void) {
+  uint32_t enabled = plic_enable_m | plic_enable_s;
+  return (plic_pending & enabled) != 0;
+}
+
 word_t isa_riscv32_plic_pending_bits(void) {
   word_t pending = 0;
   if (plic_best_irq(false) != 0) pending |= MIP_MEIP;
@@ -150,8 +155,9 @@ static void plic_write32(uint32_t offset, uint32_t value, uint32_t mask) {
 word_t isa_riscv32_plic_read(paddr_t addr, int len) {
   assert(len >= 1 && len <= 8);
   if (len == 8) {
-    return isa_riscv32_plic_read(addr, 4) |
-           (isa_riscv32_plic_read(addr + 4, 4) << 32);
+    uint64_t value = (uint64_t)isa_riscv32_plic_read(addr, 4) |
+                     ((uint64_t)isa_riscv32_plic_read(addr + 4, 4) << 32);
+    return (word_t)value;
   }
   uint32_t offset = addr - PLIC_BASE;
   uint32_t shift = (offset & 0x3u) * 8u;
@@ -163,8 +169,9 @@ word_t isa_riscv32_plic_read(paddr_t addr, int len) {
 void isa_riscv32_plic_write(paddr_t addr, int len, word_t data) {
   assert(len >= 1 && len <= 8);
   if (len == 8) {
+    uint64_t value = data;
     isa_riscv32_plic_write(addr, 4, (uint32_t)data);
-    isa_riscv32_plic_write(addr + 4, 4, (uint32_t)(data >> 32));
+    isa_riscv32_plic_write(addr + 4, 4, (uint32_t)(value >> 32));
     return;
   }
   uint32_t offset = addr - PLIC_BASE;
@@ -173,4 +180,7 @@ void isa_riscv32_plic_write(paddr_t addr, int len, word_t data) {
   uint32_t word_mask = mask << shift;
   uint32_t word_value = ((uint32_t)data << shift) & word_mask;
   plic_write32(offset & ~0x3u, word_value, word_mask);
+}
+
+void isa_riscv32_plic_statistic(void) {
 }

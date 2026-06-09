@@ -3,7 +3,7 @@
 # 避免 RAM、镜像装载地址和设备中断号散落在 Makefile/DTS/C++/RTL 中。
 memory:
   base: 0x80000000
-  size: 0x20000000   # 512 MiB，给完整 Ubuntu 22.04 rootfs/systemd 留出页缓存和用户态余量
+  size: 0x40000000   # 1 GiB，给完整 Ubuntu 22.04 rootfs/systemd/apt/页缓存留出更接近 VM 的余量
 
 reset:
   pc: 0x80000000
@@ -59,6 +59,10 @@ devices:
     base: 0x10002000
     size: 0x1000
     irq: 3
+  virtio_net:
+    base: 0x10004000
+    size: 0x1000
+    irq: 5
   goldfish_rtc:
     base: 0x10003000
     size: 0x1000

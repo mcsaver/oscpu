@@ -26,7 +26,14 @@ SRCS-$(CONFIG_HAS_KEYBOARD) += src/device/keyboard.c
 SRCS-$(CONFIG_HAS_VGA) += src/device/vga.c
 SRCS-$(CONFIG_HAS_AUDIO) += src/device/audio.c
 SRCS-$(CONFIG_HAS_DISK) += src/device/disk.c
+ifdef CONFIG_HAS_DISK
+ifndef CONFIG_TARGET_AM
+CFLAGS += -pthread
+LIBS += -pthread
+endif
+endif
 SRCS-$(CONFIG_HAS_VIRTIO_RNG) += src/device/rng.c
+SRCS-$(CONFIG_HAS_VIRTIO_NET) += src/device/net.c
 SRCS-$(CONFIG_HAS_GOLDFISH_RTC) += src/device/goldfish_rtc.c
 SRCS-$(CONFIG_HAS_SYSCON_RESET) += src/device/syscon.c
 SRCS-$(CONFIG_HAS_SDCARD) += src/device/sdcard.c

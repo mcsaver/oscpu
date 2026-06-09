@@ -138,7 +138,7 @@ static void serial_flush_all(void) {
 static void serial_port_irq(void *opaque, bool level) {
   SerialPort *port = (SerialPort *)opaque;
 #ifdef CONFIG_ISA_riscv
-  isa_riscv32_plic_set_irq(port->irq, level);
+  isa_riscv_plic_set_irq(port->irq, level);
 #else
   (void)port;
   (void)level;

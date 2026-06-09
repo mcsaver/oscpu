@@ -14,9 +14,18 @@ except ImportError as exc:  # pragma: no cover - 依赖缺失时给出可执行�
     raise SystemExit("缺少 PyYAML：请先执行 `make -C Linux setup-env` 或 `python3 -m pip install --user pyyaml`") from exc
 
 
+RISCV_ISA = "rv64imafdc_zicsr_zifencei"
+RISCV_ISA_BASE = "rv64i"
+RISCV_ISA_EXTENSIONS = ("i", "m", "a", "f", "d", "c", "zicsr", "zifencei")
+
+
 def u32_cells(value: int) -> str:
     value &= (1 << 64) - 1
     return f"0x{value >> 32:x} 0x{value & 0xffffffff:x}"
+
+
+def dts_string_list(values: tuple[str, ...]) -> str:
+    return ", ".join(f'"{value}"' for value in values)
 
 
 def load_config(path: Path) -> dict:
@@ -57,6 +66,7 @@ def render(
     bootargs_extra: str | None,
     reset_syscon: bool,
     virtio_rng: bool,
+    virtio_net: bool,
     goldfish_rtc: bool,
 ) -> str:
     mem = cfg["memory"]
@@ -67,6 +77,7 @@ def render(
     clint = dev["clint"]
     virtio = dev["virtio_blk"]
     rng = dev.get("virtio_rng")
+    net = dev.get("virtio_net")
     rtc = dev.get("goldfish_rtc")
     bootargs = cfg["bootargs"][bootargs_key or mode]
     if bootargs_extra:
@@ -110,6 +121,22 @@ def render(
       reg = <{u32_cells(rng_base)} {u32_cells(int(rng["size"]))}>;
       interrupt-parent = <&PLIC>;
       interrupts = <{int(rng["irq"])}>;
+    }};"""
+
+    virtio_net_node = ""
+    if mode == "rootfs" and virtio_net:
+        if not net:
+            raise SystemExit("配置缺少 devices.virtio_net")
+        net_base = int(net["base"])
+        # virtio-net 第一阶段只在 NEMU rootfs DTB 中暴露，用于 Linux
+        # 枚举网卡接口；真实 host TAP/NAT 后端留给后续设备切片。
+        virtio_net_node = f"""
+
+    virtio_net0: virtio_mmio@{net_base:x} {{
+      compatible = "virtio,mmio";
+      reg = <{u32_cells(net_base)} {u32_cells(int(net["size"]))}>;
+      interrupt-parent = <&PLIC>;
+      interrupts = <{int(net["irq"])}>;
     }};"""
 
     goldfish_rtc_node = ""
@@ -194,7 +221,9 @@ def render(
       reg = <0>;
       status = "okay";
       compatible = "riscv";
-      riscv,isa = "rv64imafdc_zicsr_zifencei";
+      riscv,isa = "{RISCV_ISA}";
+      riscv,isa-base = "{RISCV_ISA_BASE}";
+      riscv,isa-extensions = {dts_string_list(RISCV_ISA_EXTENSIONS)};
       mmu-type = "riscv,sv39";
 
       CPU0_INTC: interrupt-controller {{
@@ -235,7 +264,7 @@ def render(
       reg-io-width = <1>;
       interrupt-parent = <&PLIC>;
       interrupts = <{int(uart["irq"])}>;
-    }};{reset_syscon_node}{virtio_node}{virtio_rng_node}{goldfish_rtc_node}
+    }};{reset_syscon_node}{virtio_node}{virtio_rng_node}{virtio_net_node}{goldfish_rtc_node}
   }};
 }};
 """
@@ -249,6 +278,7 @@ def main() -> int:
     parser.add_argument("--bootargs-extra", default="")
     parser.add_argument("--reset-syscon", action="store_true")
     parser.add_argument("--virtio-rng", action="store_true")
+    parser.add_argument("--virtio-net", action="store_true")
     parser.add_argument("--goldfish-rtc", action="store_true")
     parser.add_argument("--initrd-image")
     parser.add_argument("--memory-size", help="覆盖 memory.reg 的 size，支持 0x... 形式")
@@ -262,7 +292,7 @@ def main() -> int:
     text = render(
         cfg, args.mode, args.initrd_image, args.bootargs_key,
         args.memory_size, args.bootargs_extra, args.reset_syscon,
-        args.virtio_rng, args.goldfish_rtc,
+        args.virtio_rng, args.virtio_net, args.goldfish_rtc,
     )
     output.write_text(text, encoding="utf-8")
     print(f"[gen-dts] {args.mode}: {output}")

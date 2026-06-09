@@ -13,8 +13,8 @@
 * See the Mulan PSL v2 for more details.
 ***************************************************************************************/
 
-#ifndef __ISA_RISCV_H__
-#define __ISA_RISCV_H__
+#ifndef __ISA_RISCV32_H__
+#define __ISA_RISCV32_H__
 
 #include <common.h>
 
@@ -91,7 +91,7 @@
 #define MSTATUS_MPRV       ((word_t)1 << 17)
 #define MSTATUS_SUM        ((word_t)1 << 18)
 #define MSTATUS_MXR        ((word_t)1 << 19)
-#define MSTATUS_SXL_UXL    MUXDEF(CONFIG_ISA64, ((word_t)0xa << 32), 0)
+#define MSTATUS_SXL_UXL    0
 #define SSTATUS_MASK       (MSTATUS_SIE | MSTATUS_SPIE | MSTATUS_SPP | \
                             MSTATUS_FS_MASK | MSTATUS_SUM | MSTATUS_MXR | \
                             MSTATUS_SXL_UXL)
@@ -150,19 +150,9 @@ typedef struct {
   uint8_t priv;
 } riscv32_CPU_state;
 
-#ifdef CONFIG_RV64
-typedef struct {
-  word_t gpr[MUXDEF(CONFIG_RVE, 16, 32)];
-  uint64_t fpr[32];
-  vaddr_t pc;
-  riscv32_CSR_state csr;
-  uint8_t priv;
-} riscv64_CPU_state;
-#endif
-
 // decode
 typedef struct {
   uint32_t inst;
-} MUXDEF(CONFIG_RV64, riscv64_ISADecodeInfo, riscv32_ISADecodeInfo);
+} riscv32_ISADecodeInfo;
 
 #endif

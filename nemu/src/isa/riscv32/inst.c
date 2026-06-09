@@ -50,13 +50,11 @@
 #define OPC_LOAD_FP 0x07
 #define OPC_MISC_MEM 0x0f
 #define OPC_OP_IMM 0x13
-#define OPC_OP_IMM_32 0x1b
 #define OPC_AUIPC  0x17
 #define OPC_STORE  0x23
 #define OPC_STORE_FP 0x27
 #define OPC_AMO    0x2f
 #define OPC_OP     0x33
-#define OPC_OP_32  0x3b
 #define OPC_LUI    0x37
 #define OPC_BRANCH 0x63
 #define OPC_JALR   0x67
@@ -68,8 +66,10 @@
 #define SHAMT_XLEN(value) ((value) & (XLEN_BITS - 1))
 #define BAD_DECODE() return false
 
+#ifdef CONFIG_RISCV_EXT_A
 static bool lr_reservation_valid = false;
 static word_t lr_reservation_addr = 0;
+#endif
 #ifdef CONFIG_RISCV_DEBUG_LOG
 static int csr_boot_log_budget = 8;
 #define CSR_DEBUG_LOG(...) do { \
@@ -81,10 +81,6 @@ static int csr_boot_log_budget = 8;
 #else
 #define CSR_DEBUG_LOG(...) do {} while (0)
 #endif
-
-static inline word_t sext32(uint32_t value) {
-  return (word_t)SEXT(value, 32);
-}
 
 static inline word_t rol_xlen(word_t value, word_t shamt) {
   shamt = SHAMT_XLEN(shamt);
@@ -98,28 +94,16 @@ static inline word_t ror_xlen(word_t value, word_t shamt) {
 
 static inline word_t clz_xlen(word_t value) {
   if (value == 0) return XLEN_BITS;
-#ifdef CONFIG_ISA64
-  return (word_t)__builtin_clzll(value);
-#else
   return (word_t)__builtin_clz((uint32_t)value);
-#endif
 }
 
 static inline word_t ctz_xlen(word_t value) {
   if (value == 0) return XLEN_BITS;
-#ifdef CONFIG_ISA64
-  return (word_t)__builtin_ctzll(value);
-#else
   return (word_t)__builtin_ctz((uint32_t)value);
-#endif
 }
 
 static inline word_t cpop_xlen(word_t value) {
-#ifdef CONFIG_ISA64
-  return (word_t)__builtin_popcountll(value);
-#else
   return (word_t)__builtin_popcount((uint32_t)value);
-#endif
 }
 
 static inline word_t sext_b_xlen(word_t value) {
@@ -174,7 +158,7 @@ static inline word_t clmulr_xlen(word_t src1, word_t src2) {
 /* CSR 执行基础设施集中在这里。SYSTEM 分发只决定“是哪类系统指令”，
  * CSR 的读改写语义、misa 配置回显和 mepc 对齐规则都不散到主 switch 里。 */
 static inline word_t csr_misa_value() {
-  word_t misa = MUXDEF(CONFIG_ISA64, ((word_t)2 << 62), ((word_t)1 << 30));
+  word_t misa = (word_t)1 << 30;
 #ifdef CONFIG_RVE
   misa |= (word_t)1 << ('E' - 'A');
 #else
@@ -233,12 +217,7 @@ static inline bool csr_counter_allowed(uint32_t csr) {
 }
 
 static inline word_t csr_sanitize_satp(word_t value) {
-#ifdef CONFIG_ISA64
-  word_t mode = value >> 60;
-  return (mode == 0 || mode == 8) ? value : 0;
-#else
   return value;
-#endif
 }
 
 static inline bool csr_read(uint32_t csr, word_t *value) {
@@ -278,8 +257,9 @@ static inline bool csr_read(uint32_t csr, word_t *value) {
     case CSR_MINSTRETH:*value = (word_t)(cpu.csr.minstret >> 32); return true;
     case CSR_CYCLE:    *value = (word_t)cpu.csr.mcycle; return true;
     case CSR_CYCLEH:   *value = (word_t)(cpu.csr.mcycle >> 32); return true;
-    case CSR_TIME:     *value = (word_t)cpu.csr.mcycle; return true;
-    case CSR_TIMEH:    *value = (word_t)(cpu.csr.mcycle >> 32); return true;
+    // time/timeh 暴露平台 CLINT mtime，避免 guest 时间源和 mcycle 统计混在一起。
+    case CSR_TIME:     *value = (word_t)isa_riscv32_mtime_value(); return true;
+    case CSR_TIMEH:    *value = (word_t)(isa_riscv32_mtime_value() >> 32); return true;
     case CSR_INSTRET:  *value = (word_t)cpu.csr.minstret; return true;
     case CSR_INSTRETH: *value = (word_t)(cpu.csr.minstret >> 32); return true;
     case CSR_MISA:     *value = csr_misa_value(); return true;
@@ -449,11 +429,9 @@ static inline bool exec_csr(uint32_t inst, uint32_t funct3, int rd, int rs1) {
 static inline bool exec_rv32i_op_imm(uint32_t inst, int rd, word_t src1) {
   uint32_t funct3 = FUNCT3(inst);
   uint32_t funct7 = FUNCT7(inst);
-  uint32_t funct6 = BITS(inst, 31, 26);
   word_t imm = IMM_I(inst);
-  uint32_t shamt = MUXDEF(CONFIG_ISA64, BITS(inst, 25, 20), BITS(inst, 24, 20));
+  uint32_t shamt = BITS(inst, 24, 20);
   (void)funct7;
-  (void)funct6;
 
   switch (funct3) {
     case 0x0: R(rd) = src1 + imm; return true;                                // addi
@@ -463,15 +441,15 @@ static inline bool exec_rv32i_op_imm(uint32_t inst, int rd, word_t src1) {
     case 0x6: R(rd) = src1 | imm; return true;                                  // ori
     case 0x7: R(rd) = src1 & imm; return true;                                  // andi
     case 0x1:
-      if (MUXDEF(CONFIG_ISA64, funct6 == 0x00, funct7 == 0x00)) {
+      if (funct7 == 0x00) {
         R(rd) = src1 << shamt; return true;                                      // slli
       }
       break;
     case 0x5:
-      if (MUXDEF(CONFIG_ISA64, funct6 == 0x00, funct7 == 0x00)) {
+      if (funct7 == 0x00) {
         R(rd) = src1 >> shamt; return true;                                      // srli
       }
-      if (MUXDEF(CONFIG_ISA64, funct6 == 0x10, funct7 == 0x20)) {
+      if (funct7 == 0x20) {
         R(rd) = (sword_t)src1 >> shamt; return true;                             // srai
       }
       break;
@@ -495,13 +473,6 @@ static inline bool exec_rv32i_load(uint32_t funct3, int rd, word_t addr) {
       val = Mr(addr, 4);
       if (vaddr_has_fault()) return true;
       R(rd) = SEXT(val, 32); return true; // lw
-    case 0x3:
-      IFDEF(CONFIG_ISA64, {
-        val = Mr(addr, 8);
-        if (vaddr_has_fault()) return true;
-        R(rd) = val; return true; // ld
-      });
-      return false;
     case 0x4:
       val = Mr(addr, 1);
       if (vaddr_has_fault()) return true;
@@ -510,13 +481,6 @@ static inline bool exec_rv32i_load(uint32_t funct3, int rd, word_t addr) {
       val = Mr(addr, 2);
       if (vaddr_has_fault()) return true;
       R(rd) = val; return true;           // lhu
-    case 0x6:
-      IFDEF(CONFIG_ISA64, {
-        val = Mr(addr, 4);
-        if (vaddr_has_fault()) return true;
-        R(rd) = val; return true; // lwu
-      });
-      return false;
     default: return false;
   }
 }
@@ -526,9 +490,6 @@ static inline bool exec_rv32i_store(uint32_t funct3, word_t addr, word_t data) {
     case 0x0: Mw(addr, 1, data); return true; // sb
     case 0x1: Mw(addr, 2, data); return true; // sh
     case 0x2: Mw(addr, 4, data); return true; // sw
-    case 0x3:
-      IFDEF(CONFIG_ISA64, Mw(addr, 8, data); return true); // sd
-      return false;
     default: return false;
   }
 }
@@ -543,23 +504,24 @@ static inline void fp_mark_dirty(void) {
 
 static inline bool exec_rvf_load(uint32_t funct3, int rd, word_t addr) {
   if (!fp_state_enabled()) return false;
-  word_t val = 0;
   switch (funct3) {
 #ifdef CONFIG_RISCV_EXT_F
-    case 0x2: // flw
-      val = Mr(addr, 4);
+    case 0x2: { // flw
+      word_t val = Mr(addr, 4);
       if (vaddr_has_fault()) return true;
       F(rd) = 0xffffffff00000000ull | (uint32_t)val;
       fp_mark_dirty();
       return true;
+    }
 #endif
 #ifdef CONFIG_RISCV_EXT_D
-    case 0x3: // fld
-      val = Mr(addr, 8);
+    case 0x3: { // fld
+      word_t val = Mr(addr, 8);
       if (vaddr_has_fault()) return true;
       F(rd) = val;
       fp_mark_dirty();
       return true;
+    }
 #endif
     default:
       return false;
@@ -608,48 +570,6 @@ static inline bool exec_rv32i_op(uint32_t funct3, uint32_t funct7, int rd, word_
     case OP_KEY(0x5, 0x20): R(rd) = (sword_t)src1 >> SHAMT_XLEN(src2); return true;       // sra
     case OP_KEY(0x6, 0x00): R(rd) = src1 | src2; return true;                             // or
     case OP_KEY(0x7, 0x00): R(rd) = src1 & src2; return true;                             // and
-    default: return false;
-  }
-}
-
-static inline bool exec_rv64i_op_imm_32(uint32_t inst, int rd, word_t src1) {
-  if (!ISDEF(CONFIG_ISA64)) return false;
-
-  uint32_t funct3 = FUNCT3(inst);
-  uint32_t funct7 = FUNCT7(inst);
-  uint32_t shamt = BITS(inst, 24, 20);
-  uint32_t src32 = src1;
-
-  switch (funct3) {
-    case 0x0: R(rd) = sext32(src32 + (uint32_t)IMM_I(inst)); return true; // addiw
-    case 0x1:
-#ifdef CONFIG_RISCV_EXT_B
-      if (BITS(inst, 31, 26) == 0x02) { R(rd) = ((word_t)src32) << BITS(inst, 25, 20); return true; } // slli.uw
-#endif
-      if (funct7 == 0x00) { R(rd) = sext32(src32 << shamt); return true; } // slliw
-      break;
-    case 0x5:
-      if (funct7 == 0x00) { R(rd) = sext32(src32 >> shamt); return true; } // srliw
-      if (funct7 == 0x20) { R(rd) = sext32((uint32_t)((int32_t)src32 >> shamt)); return true; } // sraiw
-      break;
-  }
-
-  return false;
-}
-
-static inline bool exec_rv64i_op_32(uint32_t funct3, uint32_t funct7, int rd, word_t src1, word_t src2) {
-  if (!ISDEF(CONFIG_ISA64)) return false;
-
-  uint32_t a = src1;
-  uint32_t b = src2;
-  uint32_t shamt = b & 0x1f;
-
-  switch (OP_KEY(funct3, funct7)) {
-    case OP_KEY(0x0, 0x00): R(rd) = sext32(a + b); return true; // addw
-    case OP_KEY(0x0, 0x20): R(rd) = sext32(a - b); return true; // subw
-    case OP_KEY(0x1, 0x00): R(rd) = sext32(a << shamt); return true; // sllw
-    case OP_KEY(0x5, 0x00): R(rd) = sext32(a >> shamt); return true; // srlw
-    case OP_KEY(0x5, 0x20): R(rd) = sext32((uint32_t)((int32_t)a >> shamt)); return true; // sraw
     default: return false;
   }
 }
@@ -748,41 +668,11 @@ static inline bool exec_rvm_op(uint32_t funct3, uint32_t funct7, int rd, word_t 
   }
 }
 
-static inline bool exec_rvm_op_32(uint32_t funct3, uint32_t funct7, int rd, word_t src1, word_t src2) {
-  if (!ISDEF(CONFIG_ISA64) || funct7 != 0x01) return false;
-
-  uint32_t a = src1;
-  uint32_t b = src2;
-  int32_t sa = (int32_t)a;
-  int32_t sb = (int32_t)b;
-
-  switch (funct3) {
-    case 0x0: R(rd) = sext32((uint32_t)((int64_t)sa * (int64_t)sb)); return true; // mulw
-    case 0x4: // divw
-      if (b == 0) R(rd) = (word_t)-1;
-      else if (a == 0x80000000u && b == 0xffffffffu) R(rd) = sext32(0x80000000u);
-      else R(rd) = sext32((uint32_t)(sa / sb));
-      return true;
-    case 0x5: // divuw
-      R(rd) = (b == 0) ? (word_t)-1 : sext32(a / b);
-      return true;
-    case 0x6: // remw
-      if (b == 0) R(rd) = sext32(a);
-      else if (a == 0x80000000u && b == 0xffffffffu) R(rd) = 0;
-      else R(rd) = sext32((uint32_t)(sa % sb));
-      return true;
-    case 0x7: // remuw
-      R(rd) = (b == 0) ? sext32(a) : sext32(a % b);
-      return true;
-    default:
-      return false;
-  }
-}
 #endif
 
 #ifdef CONFIG_RISCV_EXT_A
 static inline word_t amo_sext_word(uint32_t value) {
-  return MUXDEF(CONFIG_ISA64, (word_t)SEXT(value, 32), (word_t)value);
+  return (word_t)value;
 }
 
 static inline bool amo_funct5_valid(uint32_t funct5) {
@@ -810,19 +700,10 @@ static inline uint32_t amo_compute_w(uint32_t old, uint32_t src, uint32_t funct5
   }
 }
 
-static inline word_t amo_compute_xlen(word_t old, word_t src, uint32_t funct5) {
-  switch (funct5) {
-    case 0x01: return src;                                      // amoswap.d
-    case 0x00: return old + src;                                // amoadd.d
-    case 0x04: return old ^ src;                                // amoxor.d
-    case 0x0c: return old & src;                                // amoand.d
-    case 0x08: return old | src;                                // amoor.d
-    case 0x10: return (sword_t)old < (sword_t)src ? old : src;  // amomin.d
-    case 0x14: return (sword_t)old > (sword_t)src ? old : src;  // amomax.d
-    case 0x18: return old < src ? old : src;                    // amominu.d
-    case 0x1c: return old > src ? old : src;                    // amomaxu.d
-    default: return old;
-  }
+static inline bool amo_raise_misaligned(word_t addr, uint32_t funct5) {
+  // AMO/LR/SC 编码有效但地址不对齐时应投递地址异常，不能退化成 illegal instruction。
+  vaddr_set_fault(funct5 == 0x02 ? CAUSE_LOAD_MISALIGNED : CAUSE_STORE_MISALIGNED, addr);
+  return true;
 }
 
 static inline bool exec_rva_amo(uint32_t inst, int rd, int rs1, int rs2) {
@@ -831,8 +712,8 @@ static inline bool exec_rva_amo(uint32_t inst, int rd, int rs1, int rs2) {
   word_t addr = R(rs1);
 
   if (funct3 == 0x2) {
-    if ((addr & 0x3) != 0) return false;
     if (funct5 == 0x02) {                                      // lr.w
+      if ((addr & 0x3) != 0) return amo_raise_misaligned(addr, funct5);
       uint32_t old = Mr(addr, 4);
       if (vaddr_has_fault()) return true;
       lr_reservation_valid = true;
@@ -841,6 +722,7 @@ static inline bool exec_rva_amo(uint32_t inst, int rd, int rs1, int rs2) {
       return true;
     }
     if (funct5 == 0x03) {                                      // sc.w
+      if ((addr & 0x3) != 0) return amo_raise_misaligned(addr, funct5);
       bool ok = lr_reservation_valid && lr_reservation_addr == addr;
       if (ok) {
         Mw(addr, 4, (uint32_t)R(rs2));
@@ -851,6 +733,7 @@ static inline bool exec_rva_amo(uint32_t inst, int rd, int rs1, int rs2) {
       return true;
     }
     if (!amo_funct5_valid(funct5)) return false;
+    if ((addr & 0x3) != 0) return amo_raise_misaligned(addr, funct5);
 
     uint32_t old = Mr(addr, 4);
     if (vaddr_has_fault()) return true;
@@ -859,38 +742,6 @@ static inline bool exec_rva_amo(uint32_t inst, int rd, int rs1, int rs2) {
     if (vaddr_has_fault()) return true;
     lr_reservation_valid = false;
     R(rd) = amo_sext_word(old);
-    return true;
-  }
-
-  if (funct3 == 0x3 && ISDEF(CONFIG_ISA64)) {
-    if ((addr & 0x7) != 0) return false;
-    if (funct5 == 0x02) {                                      // lr.d
-      word_t old = Mr(addr, 8);
-      if (vaddr_has_fault()) return true;
-      lr_reservation_valid = true;
-      lr_reservation_addr = addr;
-      R(rd) = old;
-      return true;
-    }
-    if (funct5 == 0x03) {                                      // sc.d
-      bool ok = lr_reservation_valid && lr_reservation_addr == addr;
-      if (ok) {
-        Mw(addr, 8, R(rs2));
-        if (vaddr_has_fault()) return true;
-      }
-      lr_reservation_valid = false;
-      R(rd) = ok ? 0 : 1;
-      return true;
-    }
-    if (!amo_funct5_valid(funct5)) return false;
-
-    word_t old = Mr(addr, 8);
-    if (vaddr_has_fault()) return true;
-    word_t result = amo_compute_xlen(old, R(rs2), funct5);
-    Mw(addr, 8, result);
-    if (vaddr_has_fault()) return true;
-    lr_reservation_valid = false;
-    R(rd) = old;
     return true;
   }
 
@@ -905,8 +756,8 @@ static inline bool exec_zb_op_imm(uint32_t inst, int rd, word_t src1) {
   uint32_t funct3 = FUNCT3(inst);
   uint32_t funct7 = FUNCT7(inst);
   uint32_t funct6 = BITS(inst, 31, 26);
-  uint32_t imm = MUXDEF(CONFIG_ISA64, BITS(inst, 25, 20), BITS(inst, 24, 20));
-  uint32_t imm5 = BITS(inst, 24, 20);
+  uint32_t imm = BITS(inst, 24, 20);
+  uint32_t imm5 = imm;
 
   if (funct3 == 0x1) {
     switch (funct6) {
@@ -984,23 +835,6 @@ static inline bool exec_zb_op(uint32_t funct3, uint32_t funct7, int rd, int rs2,
   }
 }
 
-static inline bool exec_zb_op_32(uint32_t funct3, uint32_t funct7, int rd, int rs2, word_t src1, word_t src2) {
-  if (!ISDEF(CONFIG_ISA64)) return false;
-
-  word_t src1_uw = (uint32_t)src1;
-  switch (OP_KEY(funct3, funct7)) {
-    case OP_KEY(0x0, 0x04): R(rd) = src1_uw + src2; return true;       // add.uw
-    case OP_KEY(0x2, 0x10): R(rd) = (src1_uw << 1) + src2; return true; // sh1add.uw
-    case OP_KEY(0x4, 0x10): R(rd) = (src1_uw << 2) + src2; return true; // sh2add.uw
-    case OP_KEY(0x6, 0x10): R(rd) = (src1_uw << 3) + src2; return true; // sh3add.uw
-    case OP_KEY(0x4, 0x04):
-      if (rs2 != 0) return false;
-      R(rd) = src1 & 0xffffu;                                           // zext.h
-      return true;
-    default:
-      return false;
-  }
-}
 #endif
 
 #ifdef CONFIG_RISCV_EXT_C
@@ -1113,12 +947,8 @@ static inline bool exec_rv32c(Decode *s, uint16_t inst) {
             BAD_DECODE();
           }
           return true;
-        case 0x3: // c.ld
-          if (!ISDEF(CONFIG_ISA64)) BAD_DECODE();
-          if (!exec_rv32i_load(0x3, C_RD(inst), R(C_RS1(inst)) + c_imm_ld_sd(inst))) {
-            BAD_DECODE();
-          }
-          return true;
+        case 0x3:
+          BAD_DECODE();
         case 0x6: // c.sw
           Mw(R(C_RS1(inst)) + c_imm_lw_sw(inst), 4, R(C_RS2(inst)));
           return true;
@@ -1128,10 +958,8 @@ static inline bool exec_rv32c(Decode *s, uint16_t inst) {
             BAD_DECODE();
           }
           return true;
-        case 0x7: // c.sd
-          if (!ISDEF(CONFIG_ISA64)) BAD_DECODE();
-          Mw(R(C_RS1(inst)) + c_imm_ld_sd(inst), 8, R(C_RS2(inst)));
-          return true;
+        case 0x7:
+          BAD_DECODE();
         default:
           BAD_DECODE();
       }
@@ -1141,14 +969,9 @@ static inline bool exec_rv32c(Decode *s, uint16_t inst) {
           R(rd) = R(rd) + c_imm_6(inst);
           return true;
         case 0x1:
-#ifdef CONFIG_ISA64
-          if (rd == 0) BAD_DECODE();
-          R(rd) = sext32((uint32_t)(R(rd) + c_imm_6(inst))); // c.addiw
-#else
           R(1) = s->pc + 2;                                  // c.jal
           s->dnpc = s->pc + c_imm_j(inst);
           IFDEF(CONFIG_FTRACE, ftrace_log(1, s->pc, s->dnpc));
-#endif
           return true;
         case 0x2: // c.li
           if (rd != 0) R(rd) = c_imm_6(inst);
@@ -1169,11 +992,11 @@ static inline bool exec_rv32c(Decode *s, uint16_t inst) {
           uint32_t rs2p = C_RS2(inst);
           switch (BITS(inst, 11, 10)) {
             case 0x0: // c.srli
-              if (!ISDEF(CONFIG_ISA64) && BITS(inst, 12, 12)) BAD_DECODE();
+              if (BITS(inst, 12, 12)) BAD_DECODE();
               R(rs1p) = R(rs1p) >> c_shamt(inst);
               return true;
             case 0x1: // c.srai
-              if (!ISDEF(CONFIG_ISA64) && BITS(inst, 12, 12)) BAD_DECODE();
+              if (BITS(inst, 12, 12)) BAD_DECODE();
               R(rs1p) = (sword_t)R(rs1p) >> c_shamt(inst);
               return true;
             case 0x2: // c.andi
@@ -1186,11 +1009,8 @@ static inline bool exec_rv32c(Decode *s, uint16_t inst) {
                 case 0x2: R(rs1p) = R(rs1p) | R(rs2p); return true; // c.or
                 case 0x3: R(rs1p) = R(rs1p) & R(rs2p); return true; // c.and
                 case 0x4:
-                  if (!ISDEF(CONFIG_ISA64)) BAD_DECODE();
-                  R(rs1p) = sext32((uint32_t)R(rs1p) - (uint32_t)R(rs2p)); return true; // c.subw
                 case 0x5:
-                  if (!ISDEF(CONFIG_ISA64)) BAD_DECODE();
-                  R(rs1p) = sext32((uint32_t)R(rs1p) + (uint32_t)R(rs2p)); return true; // c.addw
+                  BAD_DECODE();
                 default: BAD_DECODE();
               }
             default:
@@ -1212,7 +1032,7 @@ static inline bool exec_rv32c(Decode *s, uint16_t inst) {
     case 0x2:
       switch (funct3) {
         case 0x0: // c.slli
-          if (!ISDEF(CONFIG_ISA64) && BITS(inst, 12, 12)) BAD_DECODE();
+          if (BITS(inst, 12, 12)) BAD_DECODE();
           R(rd) = R(rd) << c_shamt(inst);
           return true;
         case 0x1: // c.fldsp
@@ -1227,12 +1047,8 @@ static inline bool exec_rv32c(Decode *s, uint16_t inst) {
             BAD_DECODE();
           }
           return true;
-        case 0x3: // c.ldsp
-          if (!ISDEF(CONFIG_ISA64) || rd == 0) BAD_DECODE();
-          if (!exec_rv32i_load(0x3, rd, R(2) + c_imm_ldsp(inst))) {
-            BAD_DECODE();
-          }
-          return true;
+        case 0x3:
+          BAD_DECODE();
         case 0x4:
           if (BITS(inst, 12, 12) == 0) {
             if (rs2 == 0) { // c.jr
@@ -1270,10 +1086,8 @@ static inline bool exec_rv32c(Decode *s, uint16_t inst) {
             BAD_DECODE();
           }
           return true;
-        case 0x7: // c.sdsp
-          if (!ISDEF(CONFIG_ISA64)) BAD_DECODE();
-          Mw(R(2) + c_imm_sdsp(inst), 8, R(rs2));
-          return true;
+        case 0x7:
+          BAD_DECODE();
         default:
           BAD_DECODE();
       }
@@ -1311,11 +1125,6 @@ static int decode_exec(Decode *s) {
         goto invalid;
 #endif
       }
-      break;
-    }
-    case OPC_OP_IMM_32: {
-      word_t src1 = R(rs1);
-      if (!exec_rv64i_op_imm_32(inst, rd, src1)) goto invalid;
       break;
     }
     case OPC_LOAD: {
@@ -1358,19 +1167,6 @@ static int decode_exec(Decode *s) {
 #endif
 #ifdef CONFIG_RISCV_EXT_B
       if (exec_zb_op(funct3, funct7, rd, rs2, src1, src2)) break;
-#endif
-      goto invalid;
-    }
-    case OPC_OP_32: {
-      uint32_t funct7 = FUNCT7(inst);
-      word_t src1 = R(rs1);
-      word_t src2 = R(rs2);
-#ifdef CONFIG_RISCV_EXT_B
-      if (exec_zb_op_32(funct3, funct7, rd, rs2, src1, src2)) break;
-#endif
-      if (exec_rv64i_op_32(funct3, funct7, rd, src1, src2)) break;
-#ifdef CONFIG_RISCV_EXT_M
-      if (exec_rvm_op_32(funct3, funct7, rd, src1, src2)) break;
 #endif
       goto invalid;
     }

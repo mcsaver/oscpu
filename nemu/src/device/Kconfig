@@ -157,6 +157,21 @@ config VIRTIO_RNG_MMIO
   default 0x10002000
 endif # HAS_VIRTIO_RNG
 
+menuconfig HAS_VIRTIO_NET
+  bool "Enable virtio-mmio network device"
+  default n
+  help
+    Provide a small modern virtio-mmio network device for Linux. The
+    first slice exposes a stable MAC address and consumes TX descriptors
+    so Ubuntu can enumerate a virtio_net interface; host packet forwarding
+    is a later device-backend step.
+
+if HAS_VIRTIO_NET
+config VIRTIO_NET_MMIO
+  hex "MMIO address of the virtio net controller"
+  default 0x10004000
+endif # HAS_VIRTIO_NET
+
 menuconfig HAS_GOLDFISH_RTC
   bool "Enable goldfish RTC"
   default n

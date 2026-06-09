@@ -83,14 +83,14 @@ word_t paddr_read(paddr_t addr, int len) {
 #endif
   return ret;
   }
-  if (MUXDEF(CONFIG_ISA_riscv, isa_riscv32_clint_in_range(addr), false)) {
+  if (MUXDEF(CONFIG_ISA_riscv, isa_riscv_clint_in_range(addr), false)) {
     // CLINT 是 RISC-V 平台固定 MMIO；在 paddr 层直连后，reference so 不需要走完整 device init。
     difftest_skip_ref();
-    return isa_riscv32_clint_read(addr, len);
+    return isa_riscv_clint_read(addr, len);
   }
-  if (MUXDEF(CONFIG_ISA_riscv, isa_riscv32_plic_in_range(addr), false)) {
+  if (MUXDEF(CONFIG_ISA_riscv, isa_riscv_plic_in_range(addr), false)) {
     difftest_skip_ref();
-    return isa_riscv32_plic_read(addr, len);
+    return isa_riscv_plic_read(addr, len);
   }
   if (MUXDEF(CONFIG_SOC_SIM, soc_sim_in_range(addr), false)) {
     // ysyxSoC 平台窗口不依赖 CONFIG_DEVICE；MROM/SRAM/SDRAM 是可比较内存，
@@ -114,15 +114,15 @@ void paddr_write(paddr_t addr, int len, word_t data) {
 #endif
     return;
   }
-  if (MUXDEF(CONFIG_ISA_riscv, isa_riscv32_clint_in_range(addr), false)) {
+  if (MUXDEF(CONFIG_ISA_riscv, isa_riscv_clint_in_range(addr), false)) {
     // CLINT 写会改变软件/定时器中断源；这里和读路径一起对齐 NPC 的 0x0200_0000 地址窗口。
     difftest_skip_ref();
-    isa_riscv32_clint_write(addr, len, data);
+    isa_riscv_clint_write(addr, len, data);
     return;
   }
-  if (MUXDEF(CONFIG_ISA_riscv, isa_riscv32_plic_in_range(addr), false)) {
+  if (MUXDEF(CONFIG_ISA_riscv, isa_riscv_plic_in_range(addr), false)) {
     difftest_skip_ref();
-    isa_riscv32_plic_write(addr, len, data);
+    isa_riscv_plic_write(addr, len, data);
     return;
   }
   if (MUXDEF(CONFIG_SOC_SIM, soc_sim_in_range(addr), false)) {

@@ -1,0 +1,118 @@
+[nemu-ubuntu] focused gate log dir: .github/task-runs/2026-06-08-nemu-virtio-blk-queue-layout-focused/nemu-ubuntu-focused
+make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+make ARCH=riscv64-nemu BOOT=ubuntu-rootfs __check-nemu-systemd-guest
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' riscv64-linux_defconfig
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu'
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/nemu'
+make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' -j'14'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu'
+make[3]: Entering directory '/home/lyg/PA/ysyx-workbench'
+make[3]: Leaving directory '/home/lyg/PA/ysyx-workbench'
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/nemu'
+UBUNTU_ROOTFS_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64.ext4' UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-ubuntu-rootfs.sh'
+[ubuntu-rootfs-check] image: /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64.ext4
+[ubuntu-rootfs-check] OK      stage1 init: /init
+[ubuntu-rootfs-check] OK      Ubuntu shell: /bin/sh
+[ubuntu-rootfs-check] OK      Ubuntu identity: /etc/os-release
+[ubuntu-rootfs-check] OK      systemd candidate: /lib/systemd/systemd
+[ubuntu-rootfs-check] OK      systemd basic.target: /lib/systemd/system/basic.target
+[ubuntu-rootfs-check] OK      udev daemon: /lib/systemd/systemd-udevd
+[ubuntu-rootfs-check] OK      dbus daemon: /usr/bin/dbus-daemon
+[ubuntu-rootfs-check] OK      agetty login path: /bin/login
+[ubuntu-rootfs-check] OK      root login shell: /bin/bash
+[ubuntu-rootfs-check] OK      lp64d dynamic linker: /lib/ld-linux-riscv64-lp64d.so.1
+[ubuntu-rootfs-check] OK      PAM module path: /lib/riscv64-linux-gnu/security
+[ubuntu-rootfs-check] OK      e2scrub service entrypoint: /sbin/e2scrub_all
+[ubuntu-rootfs-check] OK      unavailable hvc0 getty masked: /etc/systemd/system/serial-getty@hvc0.service
+[ubuntu-rootfs-check] rootfs readiness check passed
+NEMU_PERFORMANCE_REQUIRED='1' \
+NEMU_CONFIG='/home/lyg/PA/ysyx-workbench/nemu/.config' \
+NEMU_AUTOCONF='/home/lyg/PA/ysyx-workbench/nemu/include/generated/autoconf.h' \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-nemu-performance-config.sh'
+__NEMU_PERFORMANCE_CONFIG__:ok
+LOG_DIR='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-08-nemu-virtio-blk-queue-layout-focused/nemu-ubuntu-focused' \
+LOG_FILE='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-08-nemu-virtio-blk-queue-layout-focused/nemu-ubuntu-focused/nemu.log' \
+CONSOLE_LOG='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-08-nemu-virtio-blk-queue-layout-focused/nemu-ubuntu-focused/console.log' \
+NEMU_SERIAL_FIFO='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-08-nemu-virtio-blk-queue-layout-focused/nemu-ubuntu-focused/nemu.serial' \
+NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' \
+NEMU_SIM='/home/lyg/PA/ysyx-workbench/nemu/build/riscv64-nemu-interpreter' \
+LINUX_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/src/linux/arch/riscv/boot/Image' \
+RUN_FW='/home/lyg/PA/ysyx-workbench/Linux/env/build/opensbi-nemu-rootfs/platform/generic/firmware/fw_jump.bin' \
+RUN_DTB='/home/lyg/PA/ysyx-workbench/Linux/build/npc-rv64-nemu-rootfs.dtb' \
+RUN_ROOTFS='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64.ext4' \
+NEXT_ADDR='0x80200000' \
+DTB_ADDR='0x82200000' \
+MAX_CYCLES='25000000000' \
+NEMU_SYSTEMD_CHECK_TIMEOUT='1800' \
+NEMU_SYSTEMD_BOOT_TIMEOUT='900' \
+NEMU_SYSTEMD_SOAK_SECONDS='0' \
+NEMU_SYSTEMD_FS_STRESS_MIB='1' \
+NEMU_SYSTEMD_FS_TREE_FILES='8' \
+NEMU_SYSTEMD_PROCESS_LOOPS='4' \
+NEMU_SYSTEMD_UART_RX_STRESS_LINES='64' \
+NEMU_SYSTEMD_BLOCK_PARALLEL_JOBS='1' \
+NEMU_SYSTEMD_BLOCK_JOB_MIB='1' \
+NEMU_SYSTEMD_INPUT_DELAY='0' \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-nemu-systemd-guest.sh'
+[nemu-systemd-check] log dir: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-08-nemu-virtio-blk-queue-layout-focused/nemu-ubuntu-focused
+[nemu-systemd-check] serial fifo: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-08-nemu-virtio-blk-queue-layout-focused/nemu-ubuntu-focused/nemu.serial
+[nemu-systemd-check] max cycles: 25000000000
+[nemu-systemd-check] soak seconds: 0
+[nemu-systemd-check] fs stress MiB: 1
+[nemu-systemd-check] fs tree files: 8
+[nemu-systemd-check] process loops: 4
+[nemu-systemd-check] UART RX stress lines: 64
+[nemu-systemd-check] block parallel jobs: 1
+[nemu-systemd-check] block job MiB: 1
+[nemu-systemd-check] systemd reload timeout: 180
+[nemu-systemd-check] input delay: 0
+[nemu-systemd-check] syscall probe: 1
+[nemu-systemd-check] poweroff: 1
+[nemu-systemd-check] poweroff timeout: 180
+[nemu-systemd-check] syscall probe bytes: 34824
+[nemu-systemd-check] rootfs bytes: 2147483648
+[nemu-systemd-check] vda hash window bytes: 65536
+[nemu-systemd-check] vda hash windows: 1
+[nemu-systemd-check] perf log: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-08-nemu-virtio-blk-queue-layout-focused/nemu-ubuntu-focused/perf.tsv
+[nemu-systemd-check] poweroff exit: rc=0 seconds=10
+[nemu-systemd-check] PASS console-clean-jobserver
+[nemu-systemd-check] PASS console-clean-autofs4
+[nemu-systemd-check] PASS console-clean-bpf-cgroup
+[nemu-systemd-check] PASS console-clean-riscv-isa-fallback
+[nemu-systemd-check] PASS console-clean-panic
+[nemu-systemd-check] PASS console-clean-oops
+[nemu-systemd-check] PASS console-clean-call-trace
+[nemu-systemd-check] PASS console-clean-bad-trap
+[nemu-systemd-check] PASS console-clean-ext4-error
+[nemu-systemd-check] PASS console-clean-io-error
+[nemu-systemd-check] perf boot=92s guest_check=237s poweroff=10s total=339s
+[nemu-systemd-check] perf log: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-08-nemu-virtio-blk-queue-layout-focused/nemu-ubuntu-focused/perf.tsv
+[nemu-systemd-check] PASS
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/Linux'
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/Linux'
+
+[nemu-ubuntu] focused gate markers
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_HWRNG_CURRENT__:$hwrng_current"
+__NEMU_CHECK_HWRNG_CURRENT__:virtio_rng.0
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_RTC0_NAME__:$rtc_name"
+__NEMU_CHECK_RTC0_NAME__:goldfish_rtc 10003000.rtc
+root@ysyx-ubuntu2204:~# <o "__NEMU_CHECK_VDA_DISCARD_MAX__:$vda_discard_max"
+__NEMU_CHECK_VDA_DISCARD_MAX__:2097152
+__NEMU_CHECK_VDA_WRITE_ZEROES_MAX__:2097152
+root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_VDA_CACHE_TYPE__:$vda_cache_type"
+__NEMU_CHECK_VDA_CACHE_TYPE__:write back
+>   pass virtio-blk-feature-topology || fail virtio-blk-feature-topology
+__NEMU_CHECK_PASS__:virtio-blk-feature-topology
+>   pass virtio-blk-feature-config-wce || fail virtio-blk-feature-config-wce
+__NEMU_CHECK_PASS__:virtio-blk-feature-config-wce
+>   pass virtio-blk-feature-discard || fail virtio-blk-feature-discard
+__NEMU_CHECK_PASS__:virtio-blk-feature-discard
+> <rite-zeroes || fail virtio-blk-feature-write-zeroes
+__NEMU_CHECK_PASS__:virtio-blk-feature-write-zeroes
+>   pass virtio-ring-feature-event-idx || fail virtio-ring-feature-event-idx
+__NEMU_CHECK_PASS__:virtio-ring-feature-event-idx
+root@ysyx-ubuntu2204:~# echo "__NEMU_SYSTEMD_CHECK_DONE__ rc=$check_fail"
+__NEMU_SYSTEMD_CHECK_DONE__ rc=0
+[1;34m[src/cpu/cpu-exec.c:365 cpu_exec] nemu: [1;32mHIT GOOD TRAP[0m at pc = 0x0000000080022546[0m

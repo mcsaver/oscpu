@@ -18,6 +18,7 @@
 #include <memory/paddr.h>
 
 #define SATP64_MODE(value) ((value) >> 60)
+#define SATP64_ASID(value) ((uint16_t)(((value) >> 44) & 0xffffu))
 #define SATP64_PPN(value)  ((value) & (((word_t)1 << 44) - 1))
 
 #define PTE_V ((word_t)1 << 0)
@@ -25,6 +26,7 @@
 #define PTE_W ((word_t)1 << 2)
 #define PTE_X ((word_t)1 << 3)
 #define PTE_U ((word_t)1 << 4)
+#define PTE_G ((word_t)1 << 5)
 #define PTE_A ((word_t)1 << 6)
 #define PTE_D ((word_t)1 << 7)
 
@@ -32,11 +34,13 @@
 
 typedef struct {
   bool valid;
-  word_t satp;
   uint64_t vpn;
+  uint64_t root_ppn;
   uint64_t ppn;
+  uint16_t asid;
   uint8_t type;
   uint8_t priv;
+  bool global;
   bool mxr;
   bool sum;
   uint8_t *host_page;
@@ -49,9 +53,37 @@ static Sv39TlbEntry sv39_dtlb[SV39_TLB_SIZE];
 static int sv39_fail_log_budget = CONFIG_RISCV_FAULT_DEBUG_BUDGET;
 #endif
 
-void isa_riscv32_mmu_tlb_flush(void) {
+void isa_riscv64_mmu_tlb_flush(void) {
   memset(sv39_itlb, 0, sizeof(sv39_itlb));
   memset(sv39_dtlb, 0, sizeof(sv39_dtlb));
+}
+
+static inline void sv39_tlb_flush_set(Sv39TlbEntry *tlb,
+    bool flush_vaddr, uint64_t vpn, bool flush_asid, uint16_t asid) {
+  for (size_t i = 0; i < SV39_TLB_SIZE; i++) {
+    Sv39TlbEntry *entry = &tlb[i];
+    if (!entry->valid) continue;
+    if (flush_vaddr && entry->vpn != vpn) continue;
+    /*
+     * sfence.vma rs1, rs2 在 rs2 非 x0 时只约束该 ASID 的非 global
+     * 映射；PTE_G 路径必须留给 rs2=x0，避免进程局部 fence 误伤全局页。
+     */
+    if (flush_asid && (entry->global || entry->asid != asid)) continue;
+    entry->valid = false;
+  }
+}
+
+void isa_riscv64_mmu_tlb_flush_selective(vaddr_t vaddr, bool flush_vaddr,
+    word_t asid, bool flush_asid) {
+  if (!flush_vaddr && !flush_asid) {
+    isa_riscv64_mmu_tlb_flush();
+    return;
+  }
+
+  uint64_t vpn = (uint64_t)vaddr >> PAGE_SHIFT;
+  uint16_t asid16 = (uint16_t)(asid & 0xffffu);
+  sv39_tlb_flush_set(sv39_itlb, flush_vaddr, vpn, flush_asid, asid16);
+  sv39_tlb_flush_set(sv39_dtlb, flush_vaddr, vpn, flush_asid, asid16);
 }
 
 static paddr_t sv39_fail(vaddr_t vaddr, int type, int level,
@@ -107,9 +139,10 @@ static inline bool sv39_va_canonical(vaddr_t vaddr) {
   return top == 0 || top == ((1ull << 25) - 1);
 }
 
-static inline uint32_t sv39_tlb_index(word_t satp, uint64_t vpn,
-    int type, uint8_t priv, bool mxr, bool sum) {
-  uint64_t x = vpn ^ (vpn >> 9) ^ ((uint64_t)satp << 7) ^ ((uint64_t)satp >> 13);
+static inline uint32_t sv39_tlb_index(uint64_t root_ppn, uint16_t asid,
+    uint64_t vpn, int type, uint8_t priv, bool mxr, bool sum) {
+  uint64_t x = vpn ^ (vpn >> 9) ^ (root_ppn << 7) ^ (root_ppn >> 13);
+  x ^= (uint64_t)asid * 0x9e3779b97f4a7c15ull;
   x ^= (uint64_t)type * 0x9e3779b97f4a7c15ull;
   x ^= (uint64_t)priv << 3;
   x ^= (uint64_t)mxr << 5;
@@ -137,13 +170,33 @@ static inline uint8_t *sv39_host_page_base(paddr_t paddr) {
 static inline bool sv39_tlb_lookup(vaddr_t vaddr, int type, uint8_t priv,
     paddr_t *paddr, uint8_t **host_addr) {
   uint64_t vpn = (uint64_t)vaddr >> PAGE_SHIFT;
+  uint64_t root_ppn = SATP64_PPN(cpu.csr.satp);
+  uint16_t asid = SATP64_ASID(cpu.csr.satp);
   bool mxr = (cpu.csr.mstatus & MSTATUS_MXR) != 0;
   bool sum = (cpu.csr.mstatus & MSTATUS_SUM) != 0;
-  uint32_t index = sv39_tlb_index(cpu.csr.satp, vpn, type, priv, mxr, sum);
-  Sv39TlbEntry *entry = &sv39_tlb_set_for_type(type)[index];
+  Sv39TlbEntry *tlb = sv39_tlb_set_for_type(type);
+  uint32_t index = sv39_tlb_index(root_ppn, asid, vpn, type, priv, mxr, sum);
+  Sv39TlbEntry *entry = &tlb[index];
 
-  if (entry->valid && entry->satp == cpu.csr.satp && entry->vpn == vpn &&
-      entry->type == type && entry->priv == priv &&
+  if (entry->valid && !entry->global && entry->root_ppn == root_ppn &&
+      entry->asid == asid && entry->vpn == vpn && entry->type == type &&
+      entry->priv == priv && entry->mxr == mxr && entry->sum == sum) {
+    uint64_t page_offset = (uint64_t)vaddr & PAGE_MASK;
+    *paddr = (paddr_t)((entry->ppn << PAGE_SHIFT) | page_offset);
+    if (host_addr != NULL) {
+      *host_addr = entry->host_page != NULL ? entry->host_page + page_offset : NULL;
+    }
+    return true;
+  }
+
+  /*
+   * PTE_G 映射在 sfence.vma rs2!=x0 时不会被逐 ASID 失效。
+   * direct-mapped TLB 为了让 global 页跨 ASID 命中，单独查 asid=0 的槽位。
+   */
+  index = sv39_tlb_index(root_ppn, 0, vpn, type, priv, mxr, sum);
+  entry = &tlb[index];
+  if (entry->valid && entry->global && entry->root_ppn == root_ppn &&
+      entry->vpn == vpn && entry->type == type && entry->priv == priv &&
       entry->mxr == mxr && entry->sum == sum) {
     uint64_t page_offset = (uint64_t)vaddr & PAGE_MASK;
     *paddr = (paddr_t)((entry->ppn << PAGE_SHIFT) | page_offset);
@@ -156,18 +209,22 @@ static inline bool sv39_tlb_lookup(vaddr_t vaddr, int type, uint8_t priv,
 }
 
 static inline void sv39_tlb_fill(vaddr_t vaddr, paddr_t paddr,
-    int type, uint8_t priv) {
+    int type, uint8_t priv, bool global) {
   uint64_t vpn = (uint64_t)vaddr >> PAGE_SHIFT;
+  uint64_t root_ppn = SATP64_PPN(cpu.csr.satp);
+  uint16_t asid = global ? 0 : SATP64_ASID(cpu.csr.satp);
   bool mxr = (cpu.csr.mstatus & MSTATUS_MXR) != 0;
   bool sum = (cpu.csr.mstatus & MSTATUS_SUM) != 0;
-  uint32_t index = sv39_tlb_index(cpu.csr.satp, vpn, type, priv, mxr, sum);
+  uint32_t index = sv39_tlb_index(root_ppn, asid, vpn, type, priv, mxr, sum);
   sv39_tlb_set_for_type(type)[index] = (Sv39TlbEntry) {
     .valid = true,
-    .satp = cpu.csr.satp,
     .vpn = vpn,
+    .root_ppn = root_ppn,
     .ppn = (uint64_t)paddr >> PAGE_SHIFT,
+    .asid = asid,
     .type = type,
     .priv = priv,
+    .global = global,
     .mxr = mxr,
     .sum = sum,
     /*
@@ -225,6 +282,7 @@ static paddr_t sv39_translate(vaddr_t vaddr, int len, int type,
   uint64_t page_offset = va & 0xfff;
   uint64_t table = SATP64_PPN(cpu.csr.satp) << 12;
   uint8_t priv = mmu_effective_priv(type);
+  bool global_mapping = false;
   paddr_t cached_paddr = 0;
   if (sv39_tlb_lookup(vaddr, type, priv, &cached_paddr, host_addr)) return cached_paddr;
 
@@ -232,6 +290,7 @@ static paddr_t sv39_translate(vaddr_t vaddr, int len, int type,
     paddr_t pte_addr = (paddr_t)(table + vpn[level] * 8);
     word_t pte = paddr_read(pte_addr, 8);
     if (pte_invalid(pte)) return sv39_fail(vaddr, type, level, pte_addr, pte, "invalid-pte");
+    global_mapping = global_mapping || (pte & PTE_G);
 
     uint64_t pte_ppn = (pte >> 10) & ((1ull << 44) - 1);
     uint64_t ppn0 = pte_ppn & 0x1ff;
@@ -260,7 +319,7 @@ static paddr_t sv39_translate(vaddr_t vaddr, int len, int type,
       } else {
         pa = (pte_ppn << 12) | page_offset;
       }
-      sv39_tlb_fill(vaddr, (paddr_t)pa, type, priv);
+      sv39_tlb_fill(vaddr, (paddr_t)pa, type, priv, global_mapping);
       if (host_addr != NULL) {
         uint8_t *host_page = sv39_host_page_base((paddr_t)pa);
         *host_addr = host_page != NULL ? host_page + page_offset : NULL;

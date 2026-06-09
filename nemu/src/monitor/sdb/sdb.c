@@ -449,6 +449,33 @@ void sdb_set_batch_limit(uint64_t limit) {
   batch_inst_limit = limit == 0 ? UINT64_MAX : limit;
 }
 
+int sdb_exec_line(char *line) {
+  char *str_end = line + strlen(line);
+
+  // 一次性 monitor 命令和交互模式共用同一张命令表，避免脚本入口和 SDB 语义漂移。
+  char *cmd = strtok(line, " ");
+  if (cmd == NULL) { return 0; }
+
+  char *args = cmd + strlen(cmd) + 1;
+  if (args >= str_end) {
+    args = NULL;
+  }
+
+#ifdef CONFIG_DEVICE
+  extern void sdl_clear_event_queue();
+  sdl_clear_event_queue();
+#endif
+
+  for (int i = 0; i < NR_CMD; i ++) {
+    if (strcmp(cmd, cmd_table[i].name) == 0) {
+      return cmd_table[i].handler(args);
+    }
+  }
+
+  printf("Unknown command '%s'\n", cmd);
+  return 0;
+}
+
 //monitor的核心
 void sdb_mainloop(void) {
   if (is_batch_mode) {
@@ -458,35 +485,7 @@ void sdb_mainloop(void) {
   //如果启动的时候加了-b参数，就直接调用cmd_c直到程序结束，不接受用户输入
   //不断的显示提示符并读取用户输入保存到str中，只要没有读到EOF(即用户没有按Ctrl+D，就进入循环体处理这条命令)
   for (char *str; (str = rl_gets()) != NULL; ) {
-    char *str_end = str + strlen(str);
-
-    /* extract the first token as the command */
-    //使用strtok获得第一个单词作为命令，如c,q,si,info，剩余部分作为参数args
-    char *cmd = strtok(str, " ");
-    if (cmd == NULL) { continue; }
-
-    /* treat the remaining string as the arguments,
-     * which may need further parsing
-     */
-    char *args = cmd + strlen(cmd) + 1;
-    if (args >= str_end) {
-      args = NULL;
-    }
-
-#ifdef CONFIG_DEVICE
-    extern void sdl_clear_event_queue();
-    sdl_clear_event_queue();
-#endif
-
-    int i;
-    for (i = 0; i < NR_CMD; i ++) {//遍历cmd_table数组，查找匹配的命令名称
-      if (strcmp(cmd, cmd_table[i].name) == 0) {
-        if (cmd_table[i].handler(args) < 0) { return; }
-        break;
-      }
-    }
-
-    if (i == NR_CMD) { printf("Unknown command '%s'\n", cmd); }
+    if (sdb_exec_line(str) < 0) { return; }
   }
 }
 

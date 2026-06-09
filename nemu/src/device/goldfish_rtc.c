@@ -46,7 +46,7 @@ static uint64_t goldfish_rtc_time_ns(void) {
 
 static void goldfish_rtc_raise_irq(void) {
   IFDEF(CONFIG_ISA_riscv,
-      isa_riscv32_plic_set_irq(GOLDFISH_RTC_IRQ, interrupt_pending));
+      isa_riscv_plic_set_irq(GOLDFISH_RTC_IRQ, interrupt_pending));
 }
 
 static void goldfish_rtc_update_alarm(void) {

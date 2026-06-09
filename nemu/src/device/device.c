@@ -28,7 +28,9 @@ void init_vga();
 void init_i8042();
 void init_audio();
 void init_disk();
+void virtio_blk_update();
 void init_virtio_rng();
+void init_virtio_net();
 void init_goldfish_rtc();
 void init_syscon_reset();
 void init_sdcard();
@@ -57,6 +59,9 @@ void device_update_after_inst(uint64_t retired) {
     return;
   }
   skip = 0;
+
+  // virtio-blk worker 只做 host I/O；完成写回必须回到主线程轮询，避免并发写 guest PMEM。
+  IFDEF(CONFIG_HAS_DISK, virtio_blk_update());
 
   uint64_t now = get_time();
   if (now - last < 1000000 / TIMER_HZ) {
@@ -114,6 +119,7 @@ void init_device() {
   IFDEF(CONFIG_HAS_AUDIO, init_audio());
   IFDEF(CONFIG_HAS_DISK, init_disk());
   IFDEF(CONFIG_HAS_VIRTIO_RNG, init_virtio_rng());
+  IFDEF(CONFIG_HAS_VIRTIO_NET, init_virtio_net());
   IFDEF(CONFIG_HAS_GOLDFISH_RTC, init_goldfish_rtc());
   IFDEF(CONFIG_HAS_SYSCON_RESET, init_syscon_reset());
   IFDEF(CONFIG_HAS_SDCARD, init_sdcard());

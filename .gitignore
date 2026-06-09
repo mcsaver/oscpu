@@ -1,6 +1,8 @@
 *.o
 *.d
 *.s
+__pycache__/
+*.py[cod]
 *oss-cad-suite/
 *jcs/
 am-kernels/build/regression/
@@ -61,6 +63,11 @@ Linux/tools/initramfs/
 # AI 开发环境需要随仓库同步；这些 allowlist 用来覆盖本机或工具引入的宽泛忽略规则。
 !.github/
 !.github/**
+.github/task-runs/**/nemu-systemd-*.riscv64
+.github/task-runs/**/nemu-systemd-*.b64
+.github/task-runs/**/guest-check*.cmd
+.github/task-runs/**/rootfs-overlay.raw
+.github/task-runs/**/nemu.serial
 !AGENTS.md
 !CLAUDE.md
 !GEMINI.md

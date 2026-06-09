@@ -123,6 +123,13 @@ if [ "$REQUIRE_SYSTEMD" = "1" ] && [ -n "$systemd_bin" ]; then
     systemd_missing=1
   fi
 
+  if rootfs_has /usr/bin/lsb_release; then
+    echo "[ubuntu-rootfs-check] OK      Ubuntu identity command: /usr/bin/lsb_release"
+  else
+    echo "[ubuntu-rootfs-check] MISSING Ubuntu identity command: /usr/bin/lsb_release"
+    systemd_missing=1
+  fi
+
   if rootfs_has /lib/ld-linux-riscv64-lp64d.so.1; then
     echo "[ubuntu-rootfs-check] OK      lp64d dynamic linker: /lib/ld-linux-riscv64-lp64d.so.1"
   else

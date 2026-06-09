@@ -1,0 +1,12 @@
+[nemu-qmp-mode-ledger] manual verification
+command: make -C Linux ARCH=riscv64-nemu nemu-machine-info
+command: make -C Linux ARCH=riscv64-nemu nemu-qmp-smoke
+command: scripts/agent-e2e.sh --profile nemu-ubuntu --task-slug nemu-qmp-mode-ledger-e2e
+
+PASS machine-info monitor.qmp=startup-query-cont-runtime-query
+PASS machine-info monitor.qmp.mode=startup-query-cont-runtime-query-quit
+PASS qmp-smoke runtime-query-status running
+PASS qmp-smoke runtime-query-blockstats virtio0
+PASS qmp-smoke runtime-quit OK
+PASS e2e static machine-info mode guard
+PASS e2e slice contract atomic qmp/runtime state guards

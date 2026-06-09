@@ -316,11 +316,11 @@ Welcome to [1mUbuntu 22.04.5 LTS[0m!
 [[0;32m  OK  [0m] Finished [0;1;39mPermit User Sessions[0m.
 [[0;32m  OK  [0m] Started [0;1;39mSerial Getty on ttyS0[0m.
 [[0;32m  OK  [0m] Reached target [0;1;39mLogin Prompts[0m.
-
+
 Ubuntu 22.04.5 LTS ysyx-ubuntu2204 ttyS0
 
 ysyx-ubuntu2204 login: root (automatic login)
-
+
 Welcome to Ubuntu 22.04.5 LTS (GNU/Linux 6.6.0 riscv64)
 
  * Documentation:  https://help.ubuntu.com
@@ -492,7 +492,7 @@ root@ysyx-ubuntu2204:~# check_dir="/root/nemu-systemd-guest-check.d"
 root@ysyx-ubuntu2204:~# <"$(cut -d. -f1 /proc/uptime 2>/dev/null || echo 0)"
 root@ysyx-ubuntu2204:~# <MU_CHECK_GUEST_UPTIME_BEGIN__:$guest_check_uptime0"
 __NEMU_CHECK_GUEST_UPTIME_BEGIN__:359
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# intr_sum() {
 >   intr_try=0
 >   while [ "$intr_try" -lt 3 ]; do
@@ -509,7 +509,7 @@ root@ysyx-ubuntu2204:~# intr_sum() {
 >   done
 >   echo "$intr_value"
 > }
-d-root@ysyx-ubuntu2204:~# 
+d-root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# interrupts_table_sum() {
 >   awk '
 >     NR > 1 {
@@ -520,7 +520,7 @@ root@ysyx-ubuntu2204:~# interrupts_table_sum() {
 >     END { print sum + 0 }
 >   ' /proc/interrupts 2>/dev/null
 > }
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# interrupts_match_sum() {
 >   irq_pattern="$1"
 >   awk -v pat="$irq_pattern" '
@@ -532,7 +532,7 @@ root@ysyx-ubuntu2204:~# interrupts_match_sum() {
 >     END { print sum + 0 }
 >   ' /proc/interrupts 2>/dev/null
 > }
-groot@ysyx-ubuntu2204:~# 
+groot@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# check_mount_fstype() {
 >   mount_target="$1"
 e>   expected_fstype="$2"
@@ -544,7 +544,7 @@ e>   expected_fstype="$2"
 >     fail "mount-fstype-$mount_target"
 >   fi
 > }
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# check_systemd_unit_active() {
 >   unit="$1"
 >   marker="$2"
@@ -556,18 +556,18 @@ root@ysyx-ubuntu2204:~# check_systemd_unit_active() {
 >     fail "$marker"
 >   fi
 > }
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# virtio_feature_bit() {
 >   feature_bits="$1"
 >   feature_bit="$2"
 >   feature_pos=$((feature_bit + 1))
 >   printf '%s' "$feature_bits" | cut -c "$feature_pos"
 > }
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# systemd_daemon_reload_request() {
 >   reload_unit="$1"
 >   reload_goal="$2"
-> 
+>
 > <eply 可能很慢；reload 请求本身用短 D-Bus
 > <看到 unit”的证明交给后续 start/output。
 >   if ! timeout 5s env SYSTEMD_BUS_TIMEOUT=5s systemctl daemon-reload; then
@@ -576,11 +576,11 @@ root@ysyx-ubuntu2204:~# systemd_daemon_reload_request() {
 >   fi
 >   return 0
 > }
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# systemd_start_runtime_unit_after_reload() {
 >   runtime_unit="$1"
 >   runtime_marker="$2"
-> 
+>
 >   start_limit="$NEMU_GUEST_SYSTEMD_RELOAD_TIMEOUT"
 >   [ "$start_limit" -gt 30 ] 2>/dev/null && start_limit=30
 >   start_i=0
@@ -600,7 +600,7 @@ root@ysyx-ubuntu2204:~# systemd_start_runtime_unit_after_reload() {
 > <RUNTIME_START_TIMEOUT__:$runtime_unit:$start_limit"
 >   return 1
 > }
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# wait_i=0
 root@ysyx-ubuntu2204:~# while [ "$wait_i" -lt 150 ]; do
 >   state="$(systemctl --no-pager --plain is-system-running 2>&1 || true)"
@@ -616,52 +616,52 @@ __NEMU_CHECK_SYSTEMD_WAIT__:3:starting
 __NEMU_CHECK_SYSTEMD_WAIT__:4:starting
 __NEMU_CHECK_SYSTEMD_WAIT__:5:starting
 __NEMU_CHECK_SYSTEMD_WAIT__:6:running
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# <stemctl --no-pager --plain is-system-running 2>&1)"
 root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_SYSTEMD_STATE__:$state"
 __NEMU_CHECK_SYSTEMD_STATE__:running
 root@ysyx-ubuntu2204:~# <" ] && pass systemd-running || fail systemd-running
 __NEMU_CHECK_PASS__:systemd-running
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# <its="$(systemctl --no-pager --plain --failed 2>&1)"
 root@ysyx-ubuntu2204:~# echo "$failed_units"
 UNIT LOAD ACTIVE SUB DESCRIPTION
 0 loaded units listed.
 root@ysyx-ubuntu2204:~# <s systemd-failed-units || fail systemd-failed-units
 __NEMU_CHECK_PASS__:systemd-failed-units
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# jobs="$(systemctl --no-pager --plain list-jobs 2>&1)"
 root@ysyx-ubuntu2204:~# echo "$jobs"
 No jobs running.
 root@ysyx-ubuntu2204:~# < running" && pass systemd-jobs || fail systemd-jobs
 __NEMU_CHECK_PASS__:systemd-jobs
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# pid1="$(ps -p 1 -o comm= 2>/dev/null)"
 root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_PID1__:$pid1"
 __NEMU_CHECK_PID1__:systemd
 root@ysyx-ubuntu2204:~# <ystemd" ] && pass pid1-systemd || fail pid1-systemd
 __NEMU_CHECK_PASS__:pid1-systemd
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# <stemctl --version 2>/dev/null | head -n 1 || true)"
 root@ysyx-ubuntu2204:~# <o "__NEMU_CHECK_SYSTEMD_VERSION__:$systemd_version"
 __NEMU_CHECK_SYSTEMD_VERSION__:systemd 249 (249.11-0ubuntu3.20)
 root@ysyx-ubuntu2204:~# <]+' && pass systemd-version || fail systemd-version
 __NEMU_CHECK_PASS__:systemd-version
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 troot@ysyx-ubuntu2204:~# <-property=SystemState --value 2>/dev/null || true)"
 root@ysyx-ubuntu2204:~# <EMU_CHECK_SYSTEMD_SHOW_STATE__:$systemd_show_state"
 __NEMU_CHECK_SYSTEMD_SHOW_STATE__:running
 root@ysyx-ubuntu2204:~# [ "$systemd_show_state" = "running" ] &&
 >   pass systemd-show-system-state || fail systemd-show-system-state
 __NEMU_CHECK_PASS__:systemd-show-system-state
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# <property=NFailedUnits --value 2>/dev/null || true)"
 root@ysyx-ubuntu2204:~# <CHECK_SYSTEMD_FAILED_COUNT__:$systemd_failed_count"
 __NEMU_CHECK_SYSTEMD_FAILED_COUNT__:0
 root@ysyx-ubuntu2204:~# [ "$systemd_failed_count" = "0" ] &&
 >   pass systemd-show-failed-count || fail systemd-show-failed-count
 __NEMU_CHECK_PASS__:systemd-show-failed-count
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# <早期 init 到普通多用户态的主干，能把
 root@ysyx-ubuntu2204:~# <�”推进为“完整 target 链已经跑完”。
 root@ysyx-ubuntu2204:~# for systemd_target in \
@@ -685,7 +685,7 @@ __NEMU_CHECK_PASS__:systemd-target-getty.target
 root@ysyx-ubuntu2204:~# <erial-getty@ttyS0.service serial-getty-ttyS0-active
 __NEMU_CHECK_SYSTEMD_UNIT__:serial-getty@ttyS0.service:active
 __NEMU_CHECK_PASS__:serial-getty-ttyS0-active
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 eroot@ysyx-ubuntu2204:~# <emctl --quiet is-active systemd-journald.service &&
 >   pass journald-active || fail journald-active
 __NEMU_CHECK_PASS__:journald-active
@@ -698,7 +698,7 @@ root@ysyx-ubuntu2204:~# if command -v journalctl >/dev/null 2>&1; then
 > fi
 __NEMU_CHECK_PASS__:journalctl-present
 __NEMU_CHECK_PASS__:journalctl-boot-read
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# <bus.service && pass dbus-active || fail dbus-active
 __NEMU_CHECK_PASS__:dbus-active
 root@ysyx-ubuntu2204:~# if command -v busctl >/dev/null 2>&1; then
@@ -710,7 +710,7 @@ root@ysyx-ubuntu2204:~# if command -v busctl >/dev/null 2>&1; then
 > fi
 __NEMU_CHECK_PASS__:busctl-present
 __NEMU_CHECK_PASS__:busctl-system-list
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# transient_dir="/run/nemu-systemd-transient-check.d"
 root@ysyx-ubuntu2204:~# transient_service_name="nemu-transient-check"
 root@ysyx-ubuntu2204:~# transient_service="$transient_service_name.service"
@@ -758,7 +758,7 @@ me>   journal_i=0
 >   done
 >   [ "$journal_ok" = "1" ] &&
 > <e-journal || fail systemd-transient-service-journal
-> 
+>
 >   rm -f "$transient_dir/timer.out"
 > <run --unit="$transient_timer_name" --on-active=1s \
 >       --timer-property=AccuracySec=100ms \
@@ -800,7 +800,7 @@ __NEMU_CHECK_PASS__:systemd-transient-timer-fired
 root@ysyx-ubuntu2204:~# < "$transient_timer_service" >/dev/null 2>&1 || true
 root@ysyx-ubuntu2204:~# <rvice" "$transient_service" >/dev/null 2>&1 || true
 root@ysyx-ubuntu2204:~# rm -rf "$transient_dir"
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# runtime_unit_name="nemu-runtime-unit-check.service"
 root@ysyx-ubuntu2204:~# <e_unit_dir="/run/nemu-systemd-runtime-unit-check.d"
 root@ysyx-ubuntu2204:~# <_unit_path="/run/systemd/system/$runtime_unit_name"
@@ -813,7 +813,7 @@ root@ysyx-ubuntu2204:~# cat > "$runtime_unit_path" <<UNIT
 > [Unit]
 > Description=NEMU runtime unit lifecycle check
 > After=basic.target
-> 
+>
 > [Service]
 > Type=oneshot
 > RemainAfterExit=yes
@@ -821,7 +821,7 @@ root@ysyx-ubuntu2204:~# cat > "$runtime_unit_path" <<UNIT
 > StandardError=journal
 > <c/self/cgroup > "$runtime_unit_dir/runtime.cgroup"'
 > UNIT
-aroot@ysyx-ubuntu2204:~# 
+aroot@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# <emon_reload_request "$runtime_unit_name" present &&
 >    systemd_start_runtime_unit_after_reload "$runtime_unit_name" \
 >      "$runtime_unit_dir/runtime.out"; then
@@ -896,7 +896,7 @@ root@ysyx-ubuntu2204:~# if [ ! -e "$runtime_unit_path" ] &&
 >   fail systemd-runtime-unit-cleanup
 > fi
 __NEMU_CHECK_PASS__:systemd-runtime-unit-cleanup
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# <proc /sys /run /dev/pts /dev/shm /sys/fs/cgroup; do
 >   if mountpoint -q "$m"; then
 >     echo "__NEMU_CHECK_MOUNT_OK__:$m"
@@ -933,7 +933,7 @@ __NEMU_CHECK_PASS__:mount-fstype-/dev/shm
 root@ysyx-ubuntu2204:~# check_mount_fstype /sys/fs/cgroup cgroup2
 __NEMU_CHECK_MOUNT_FSTYPE__:/sys/fs/cgroup:cgroup2
 __NEMU_CHECK_PASS__:mount-fstype-/sys/fs/cgroup
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# < /dev/ttyS0 ] && pass ttyS0-node || fail ttyS0-node
 __NEMU_CHECK_PASS__:ttyS0-node
 root@ysyx-ubuntu2204:~# <console ] && pass console-node || fail console-node
@@ -959,7 +959,7 @@ root@ysyx-ubuntu2204:~# <_NEMU_CHECK_CONSOLE_WRITE__\n' > /dev/console; then
 > fi
 __NEMU_CHECK_CONSOLE_WRITE__
 __NEMU_CHECK_PASS__:console-write
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# if command -v udevadm >/dev/null 2>&1; then
 >   pass udevadm-present
 > <v/null 2>&1 && pass udev-settle || fail udev-settle
@@ -970,7 +970,7 @@ root@ysyx-ubuntu2204:~# if command -v udevadm >/dev/null 2>&1; then
 __NEMU_CHECK_PASS__:udev-settle
 root@ysyx-ubuntu2204:~# <d.service && pass udevd-active || fail udevd-active
 __NEMU_CHECK_PASS__:udevd-active
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# hwrng_misc="/sys/class/misc/hw_random"
 root@ysyx-ubuntu2204:~# <cat "$hwrng_misc/rng_current" 2>/dev/null || true)"
 root@ysyx-ubuntu2204:~# <t "$hwrng_misc/rng_available" 2>/dev/null || true)"
@@ -979,7 +979,7 @@ root@ysyx-ubuntu2204:~# <modalias="$(grep -h '^virtio:d00000004v58535959$' \
 root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_HWRNG_CURRENT__:$hwrng_current"
 __NEMU_CHECK_HWRNG_CURRENT__:virtio_rng.0
 root@ysyx-ubuntu2204:~# <o "__NEMU_CHECK_HWRNG_AVAILABLE__:$hwrng_available"
-__NEMU_CHECK_HWRNG_AVAILABLE__:virtio_rng.0 
+__NEMU_CHECK_HWRNG_AVAILABLE__:virtio_rng.0
 root@ysyx-ubuntu2204:~# <U_CHECK_VIRTIO_RNG_MODALIAS__:$rng_virtio_modalias"
 __NEMU_CHECK_VIRTIO_RNG_MODALIAS__:virtio:d00000004v58535959
 root@ysyx-ubuntu2204:~# < /dev/hwrng ] && pass hwrng-node || fail hwrng-node
@@ -1005,7 +1005,7 @@ y>   fail hwrng-read
 __NEMU_CHECK_HWRNG_BYTES__:64
 __NEMU_CHECK_PASS__:hwrng-read
 root@ysyx-ubuntu2204:~# rm -f "$hwrng_out"
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 rroot@ysyx-ubuntu2204:~# rtc_sys="/sys/class/rtc/rtc0"
 root@ysyx-ubuntu2204:~# rtc_name="$(cat "$rtc_sys/name" 2>/dev/null || true)"
 root@ysyx-ubuntu2204:~# <"$(cat "$rtc_sys/since_epoch" 2>/dev/null || true)"
@@ -1047,7 +1047,7 @@ vi>   echo "__NEMU_CHECK_RTC0_HWCLOCK_DIAG__:missing"
 __NEMU_CHECK_PASS__:hwclock-present
 __NEMU_CHECK_RTC0_HWCLOCK__:2026-06-06 14:25:08.865796+00:00
 __NEMU_CHECK_PASS__:hwclock-rtc0-show
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 iroot@ysyx-ubuntu2204:~# <vda ] && pass vda-block-node || fail vda-block-node
 __NEMU_CHECK_PASS__:vda-block-node
 root@ysyx-ubuntu2204:~# <$(stat -c '%F %t:%T' /dev/vda 2>/dev/null || true)"
@@ -1220,7 +1220,7 @@ __NEMU_CHECK_PASS__:dev-disk-symlink
 root@ysyx-ubuntu2204:~# <pace:]]+[0-9]+[[:space:]]+vda$' /proc/partitions &&
 >   pass proc-partitions-vda || fail proc-partitions-vda
 __NEMU_CHECK_PASS__:proc-partitions-vda
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# irq_total0="$(interrupts_table_sum)"
 root@ysyx-ubuntu2204:~# <0="$(interrupts_match_sum 'ttys0|serial|10000000')"
 root@ysyx-ubuntu2204:~# <io0="$(interrupts_match_sum 'virtio|vda|10001000')"
@@ -1231,7 +1231,7 @@ __NEMU_CHECK_IRQ_SERIAL__:2694
 root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_IRQ_VIRTIO_BLK__:$irq_virtio0"
 __NEMU_CHECK_IRQ_VIRTIO_BLK__:1940
 root@ysyx-ubuntu2204:~# <UPTS_LINE__:/' /proc/interrupts 2>/dev/null || true
-__NEMU_CHECK_INTERRUPTS_LINE__:           CPU0       
+__NEMU_CHECK_INTERRUPTS_LINE__:           CPU0
 __NEMU_CHECK_INTERRUPTS_LINE__:  2:       2714  SiFive PLIC   1 Edge      ttyS0
 __NEMU_CHECK_INTERRUPTS_LINE__:  3:         28  SiFive PLIC   3 Edge      virtio1
 __NEMU_CHECK_INTERRUPTS_LINE__:  4:       1910  SiFive PLIC   2 Edge      virtio0
@@ -1243,7 +1243,7 @@ root@ysyx-ubuntu2204:~# < pass irq-serial-visible || fail irq-serial-visible
 __NEMU_CHECK_PASS__:irq-serial-visible
 root@ysyx-ubuntu2204:~# <q-virtio-blk-visible || fail irq-virtio-blk-visible
 __NEMU_CHECK_PASS__:irq-virtio-blk-visible
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# <ull bs=4096 count=16 iflag=direct status=none; then
 >   pass irq-vda-direct-read
 > else
@@ -1263,7 +1263,7 @@ __NEMU_CHECK_PASS__:proc-interrupts-total-monotonic
 root@ysyx-ubuntu2204:~# [ "$irq_virtio1" -gt "$irq_virtio0" ] 2>/dev/null &&
 >   pass irq-virtio-blk-read-growth || fail irq-virtio-blk-read-growth
 __NEMU_CHECK_PASS__:irq-virtio-blk-read-growth
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# <rce="$(findmnt -n -o SOURCE / 2>/dev/null || true)"
 root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_ROOT_SOURCE__:$root_source"
 __NEMU_CHECK_ROOT_SOURCE__:/dev/vda
@@ -1272,7 +1272,7 @@ root@ysyx-ubuntu2204:~# case "$root_source" in
 >   *) fail rootfs-source ;;
 > esac
 __NEMU_CHECK_PASS__:rootfs-source
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# <-guest-check.bin /root/nemu-systemd-guest-check.bin
 root@ysyx-ubuntu2204:~# rm -rf "$check_dir"
 root@ysyx-ubuntu2204:~# if mkdir -p "$check_dir/sub"; then
@@ -1281,7 +1281,7 @@ root@ysyx-ubuntu2204:~# if mkdir -p "$check_dir/sub"; then
 >   fail fs-mkdir
 > fi
 __NEMU_CHECK_PASS__:fs-mkdir
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
  root@ysyx-ubuntu2204:~# root_fstype="$(stat -f -c %T / 2>/dev/null || true)"
 root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_ROOT_FSTYPE__:$root_fstype"
 __NEMU_CHECK_ROOT_FSTYPE__:ext2/ext3
@@ -1290,7 +1290,7 @@ root@ysyx-ubuntu2204:~# case "$root_fstype" in
 >   *) fail rootfs-fstype ;;
 > esac
 __NEMU_CHECK_PASS__:rootfs-fstype
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# raw_vda_head="$check_dir/vda-head.bin"
 root@ysyx-ubuntu2204:~# <ad" bs=4096 count=16 iflag=direct status=none; then
 >   raw_vda_bytes="$(wc -c < "$raw_vda_head" 2>/dev/null || echo 0)"
@@ -1302,7 +1302,7 @@ root@ysyx-ubuntu2204:~# <ad" bs=4096 count=16 iflag=direct status=none; then
 > fi
 __NEMU_CHECK_VDA_DIRECT_READ_BYTES__:65536
 __NEMU_CHECK_PASS__:vda-direct-read
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 |root@ysyx-ubuntu2204:~# if [ -s "${NEMU_GUEST_VDA_HASH_EXPECT_FILE:-}" ] &&
 >    [ "${NEMU_GUEST_VDA_HASH_WINDOW_BYTES:-0}" -gt 0 ] 2>/dev/null; then
 >   vda_hash_ok=1
@@ -1338,10 +1338,10 @@ A> else
 __NEMU_CHECK_VDA_WINDOW_SHA256__:2147418112:de2f256064a0af797747c2b97505dc0b9f3df0de4f489eac731c23ae9ca9cc31:de2f256064a0af797747c2b97505dc0b9f3df0de4f489eac731c23ae9ca9cc31
 __NEMU_CHECK_VDA_WINDOW_COUNT__:1
 __NEMU_CHECK_PASS__:vda-direct-read-sha256-windows
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# <ll 2>&1 && pass vda-flushbufs || fail vda-flushbufs
 __NEMU_CHECK_PASS__:vda-flushbufs
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# if printf 'alpha\nbeta\n' > "$check_dir/file" &&
 >    [ "$(wc -l < "$check_dir/file" 2>/dev/null || echo 0)" = "2" ]; then
 >   pass fs-small-write-read
@@ -1349,7 +1349,7 @@ root@ysyx-ubuntu2204:~# if printf 'alpha\nbeta\n' > "$check_dir/file" &&
 >   fail fs-small-write-read
 > fi
 __NEMU_CHECK_PASS__:fs-small-write-read
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# if ln -s file "$check_dir/link" &&
 >    [ "$(readlink "$check_dir/link" 2>/dev/null || true)" = "file" ]; then
 >   pass symlink-readlink
@@ -1357,7 +1357,7 @@ root@ysyx-ubuntu2204:~# if ln -s file "$check_dir/link" &&
 >   fail symlink-readlink
 > fi
 __NEMU_CHECK_PASS__:symlink-readlink
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# if chmod 640 "$check_dir/file" &&
 >    [ "$(stat -c %a "$check_dir/file" 2>/dev/null || true)" = "640" ]; then
 >   pass chmod-stat
@@ -1365,7 +1365,7 @@ root@ysyx-ubuntu2204:~# if chmod 640 "$check_dir/file" &&
 A>   fail chmod-stat
 > fi
 __NEMU_CHECK_PASS__:chmod-stat
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# if mv "$check_dir/file" "$check_dir/sub/file2" &&
 >    cp "$check_dir/sub/file2" "$check_dir/copy" &&
 >    cmp -s "$check_dir/sub/file2" "$check_dir/copy"; then
@@ -1374,7 +1374,7 @@ root@ysyx-ubuntu2204:~# if mv "$check_dir/file" "$check_dir/sub/file2" &&
 >   fail rename-copy-cmp
 > fi
 __NEMU_CHECK_PASS__:rename-copy-cmp
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# if [ "$NEMU_GUEST_FS_TREE_FILES" -gt 0 ]; then
 >   tree_dir="$check_dir/rootfs-metadata-tree"
 >   tree_ok=1
@@ -1423,7 +1423,7 @@ A>     else
 > fi
 __NEMU_CHECK_FS_TREE_FILES__:16/16
 __NEMU_CHECK_PASS__:rootfs-metadata-tree
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# if mkfifo "$check_dir/fifo"; then
 > <ntf '%s\n' "$fifo_line" > "$check_dir/fifo.out" ) &
 >   fifo_pid=$!
@@ -1436,13 +1436,13 @@ root@ysyx-ubuntu2204:~# if mkfifo "$check_dir/fifo"; then
 [1] 621
 [1]+  Done                    ( IFS= read -r fifo_line < "$check_dir/fifo"; printf '%s\n' "$fifo_line" > "$check_dir/fifo.out" )
 __NEMU_CHECK_PASS__:fifo-ipc
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# <| wc -c 2>/dev/null | tr -d '[:space:]' || echo 0)"
 root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_PIPE_BYTES__:$pipe_bytes"
 __NEMU_CHECK_PIPE_BYTES__:15
 root@ysyx-ubuntu2204:~# <ipe_bytes" = "15" ] && pass pipe-wc || fail pipe-wc
 __NEMU_CHECK_PASS__:pipe-wc
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 Aroot@ysyx-ubuntu2204:~# proc_ok=1
 root@ysyx-ubuntu2204:~# proc_i=0
 root@ysyx-ubuntu2204:~# <e [ "$proc_i" -lt "$NEMU_GUEST_PROCESS_LOOPS" ]; do
@@ -1461,14 +1461,14 @@ root@ysyx-ubuntu2204:~# <e [ "$proc_i" -lt "$NEMU_GUEST_PROCESS_LOOPS" ]; do
 [1]+  Done                    ( exit 0 )
 root@ysyx-ubuntu2204:~# <"1" ] && pass fork-wait-loop || fail fork-wait-loop
 __NEMU_CHECK_PASS__:fork-wait-loop
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# if /bin/sh -c 'exit 0' && /usr/bin/env true; then
 >   pass execve-basic
 > else
 A>   fail execve-basic
 > fi
 __NEMU_CHECK_PASS__:execve-basic
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# if [ "$NEMU_GUEST_SYSCALL_PROBE" != "0" ]; then
 >   probe_b64="$check_dir/syscall-probe.b64"
 >   probe_bin="$check_dir/syscall-probe"
@@ -2153,7 +2153,7 @@ __NEMU_SYSCALL_PROBE_PASS__:clock-nanosleep
 __NEMU_SYSCALL_PROBE_PASS__:clock-nanosleep-abstime
 __NEMU_SYSCALL_PROBE_DONE__ rc=0
 __NEMU_CHECK_PASS__:syscall-probe
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# sleep 60 &
 [1] 643
 root@ysyx-ubuntu2204:~# sig_pid=$!
@@ -2165,7 +2165,7 @@ root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_SIGNAL_RC__:$sig_rc"
 __NEMU_CHECK_SIGNAL_RC__:143
 root@ysyx-ubuntu2204:~# <l && pass signal-kill-wait || fail signal-kill-wait
 __NEMU_CHECK_PASS__:signal-kill-wait
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# write_file="$check_dir/nemu-systemd-guest-check.bin"
 root@ysyx-ubuntu2204:~# <_file" bs=4096 count=8 conv=fsync status=none; then
 >   bytes="$(wc -c < "$write_file" 2>/dev/null || echo 0)"
@@ -2180,7 +2180,7 @@ root@ysyx-ubuntu2204:~# <_file" bs=4096 count=8 conv=fsync status=none; then
 __NEMU_CHECK_WRITE_BYTES__:32768
 __NEMU_CHECK_PASS__:rootfs-write-read
 c35020473aed1b4642cd726cad727b63fff2824ad68cedd7ffb73c7cbd890479  /root/nemu-systemd-guest-check.d/nemu-systemd-guest-check.bin
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
  root@ysyx-ubuntu2204:~# direct_file="$check_dir/rootfs-direct.bin"
 root@ysyx-ubuntu2204:~# direct_copy="$check_dir/rootfs-direct.copy"
 root@ysyx-ubuntu2204:~# <096 count=32 oflag=direct conv=fsync status=none &&
@@ -2199,7 +2199,7 @@ root@ysyx-ubuntu2204:~# <096 count=32 oflag=direct conv=fsync status=none &&
 > fi
 __NEMU_CHECK_ROOTFS_DIRECT_BYTES__:131072
 __NEMU_CHECK_PASS__:rootfs-direct-io
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 Croot@ysyx-ubuntu2204:~# if [ "$NEMU_GUEST_BLOCK_PARALLEL_JOBS" -gt 0 ] &&
 >    [ "$NEMU_GUEST_BLOCK_JOB_MIB" -gt 0 ]; then
 >   parallel_dir="$check_dir/block-parallel"
@@ -2209,7 +2209,7 @@ Croot@ysyx-ubuntu2204:~# if [ "$NEMU_GUEST_BLOCK_PARALLEL_JOBS" -gt 0 ] &&
 >   parallel_i=0
 >   parallel_expected_job=$((NEMU_GUEST_BLOCK_JOB_MIB * 1048576))
 > <GUEST_BLOCK_PARALLEL_JOBS * parallel_expected_job))
-> 
+>
 >   while [ "$parallel_i" -lt "$NEMU_GUEST_BLOCK_PARALLEL_JOBS" ]; do
 >     job_id=$parallel_i
 >     (
@@ -2230,11 +2230,11 @@ Croot@ysyx-ubuntu2204:~# if [ "$NEMU_GUEST_BLOCK_PARALLEL_JOBS" -gt 0 ] &&
 >     parallel_pids="$parallel_pids $!"
 >     parallel_i=$((parallel_i + 1))
 >   done
-> 
+>
 >   for p in $parallel_pids; do
 >     wait "$p" || parallel_ok=0
 >   done
-> 
+>
 >   parallel_total=0
 >   parallel_i=0
 >   while [ "$parallel_i" -lt "$NEMU_GUEST_BLOCK_PARALLEL_JOBS" ]; do
@@ -2264,7 +2264,7 @@ __NEMU_CHECK_BLOCK_PARALLEL_JOB__:0:1048576
 fi; echo "__NEMU_CHECK_BLOCK_PARALLEL_JOB_FAIL__:$job_id"; exit 1 )
 __NEMU_CHECK_BLOCK_PARALLEL_BYTES__:1048576/1048576
 __NEMU_CHECK_PASS__:rootfs-parallel-direct-io
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# stress_file="$check_dir/rootfs-stress.bin"
 root@ysyx-ubuntu2204:~# stress_copy="$check_dir/rootfs-stress.copy"
 root@ysyx-ubuntu2204:~# <U_GUEST_FS_STRESS_MIB" conv=fsync status=none; then
@@ -2285,7 +2285,7 @@ root@ysyx-ubuntu2204:~# <U_GUEST_FS_STRESS_MIB" conv=fsync status=none; then
 > fi
 __NEMU_CHECK_FS_STRESS_BYTES__:1048576/1048576
 __NEMU_CHECK_PASS__:rootfs-stress-copy-cmp
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# <"$(cut -d. -f1 /proc/uptime 2>/dev/null || echo 0)"
 root@ysyx-ubuntu2204:~# sleep 2
 root@ysyx-ubuntu2204:~# <"$(cut -d. -f1 /proc/uptime 2>/dev/null || echo 0)"
@@ -2293,7 +2293,7 @@ root@ysyx-ubuntu2204:~# echo "__NEMU_CHECK_UPTIME__:$uptime0->$uptime1"
 __NEMU_CHECK_UPTIME__:1249->1252
 root@ysyx-ubuntu2204:~# <2>/dev/null && pass timer-sleep || fail timer-sleep
 __NEMU_CHECK_PASS__:timer-sleep
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# <>/dev/null 2>&1 && pass proc-stat || fail proc-stat
 __NEMU_CHECK_PASS__:proc-stat
 root@ysyx-ubuntu2204:~# <1 && pass proc-fd-readlink || fail proc-fd-readlink
@@ -2302,7 +2302,7 @@ root@ysyx-ubuntu2204:~# <22.04.5 LTS"' && pass os-release || fail os-release
 __NEMU_CHECK_PASS__:os-release
 root@ysyx-ubuntu2204:~# <scv64$' && pass uname-riscv64 || fail uname-riscv64
 __NEMU_CHECK_PASS__:uname-riscv64
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# if [ "$NEMU_GUEST_SOAK_SECONDS" -gt 0 ]; then
 >   soak_uptime0="$(cut -d. -f1 /proc/uptime 2>/dev/null || echo 0)"
 >   soak_intr0="$(intr_sum)"
@@ -2324,9 +2324,9 @@ root@ysyx-ubuntu2204:~# if [ "$NEMU_GUEST_SOAK_SECONDS" -gt 0 ]; then
 >   echo "__NEMU_CHECK_SOAK_SKIP__"
 > fi
 __NEMU_CHECK_SOAK_SKIP__
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# rm -rf "$check_dir"
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# <ll|segfault|kernel panic|oops' | tail -20 || true)"
 root@ysyx-ubuntu2204:~# if [ -z "$bad_dmesg" ]; then
 >   pass dmesg-no-critical
@@ -2335,7 +2335,7 @@ root@ysyx-ubuntu2204:~# if [ -z "$bad_dmesg" ]; then
 >   fail dmesg-no-critical
 > fi
 __NEMU_CHECK_PASS__:dmesg-no-critical
-root@ysyx-ubuntu2204:~# 
+root@ysyx-ubuntu2204:~#
 root@ysyx-ubuntu2204:~# <"$(cut -d. -f1 /proc/uptime 2>/dev/null || echo 0)"
 root@ysyx-ubuntu2204:~# <NEMU_CHECK_GUEST_UPTIME_END__:$guest_check_uptime1"
 __NEMU_CHECK_GUEST_UPTIME_END__:1258

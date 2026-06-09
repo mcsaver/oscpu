@@ -1,0 +1,21 @@
+NEMU ISA width boundary summary
+
+Changes verified:
+- nemu/include/isa.h delegates RISC-V platform hooks to ISA-local <isa-platform.h>.
+- riscv64/include/isa-platform.h owns isa_riscv64_* hooks and generic isa_riscv_* aliases.
+- riscv32/include/isa-platform.h owns isa_riscv32_* hooks and generic isa_riscv_* aliases.
+- riscv64 ISA files contain no RV32/RVE symbols.
+- riscv32 ISA files contain no RV64/ISA64 symbols.
+- riscv32/system/mmu.c is RV32 direct MMU only; RV64 page-table logic is no longer stored there.
+
+Verification:
+- bash -n scripts/e2e/modules/nemu.sh PASS
+- NEMU riscv32-soc_defconfig build PASS
+- NEMU riscv64-linux_defconfig build PASS
+- NEMU riscv64-npc_defconfig build PASS
+- make -C Linux ARCH=riscv64-nemu nemu-machine-info PASS
+- scripts/agent-e2e.sh --profile nemu-ubuntu --task-slug nemu-isa-width-header-boundary-e2e PASS in this -2 task-run
+
+Boundary:
+- This is an ISA naming/directory responsibility slice.
+- It does not claim complete Ubuntu 22.04, QEMU-level VM completeness, SMP/PCI, or full snapshot support.

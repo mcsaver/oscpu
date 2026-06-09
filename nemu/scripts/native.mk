@@ -13,7 +13,21 @@
 # See the Mulan PSL v2 for more details.
 #**************************************************************************************/
 
--include $(NEMU_HOME)/../Makefile
+# NEMU 只需要复用根目录的 tracer 提交入口，不应直接 include 根 Makefile，
+# 否则会把工作区级规则混入本地构建并增加递归 make/jobserver 噪声。
+NEMU_YSYX_HOME := $(abspath $(NEMU_HOME)/..)
+NEMU_YSYX_TRACE_MAKE := $(NEMU_YSYX_HOME)/Makefile
+NEMU_YSYX_TRACE_LOCK_DIR := $(NEMU_YSYX_HOME)/.git/
+
+ifneq ($(wildcard $(NEMU_YSYX_TRACE_MAKE)),)
+define git_commit
+	+@-flock $(NEMU_YSYX_TRACE_LOCK_DIR) $(MAKE) --no-print-directory -C $(NEMU_YSYX_HOME) NEMU_HOME='$(NEMU_HOME)' .git_commit MSG='$(1)'
+	-@sync $(NEMU_YSYX_TRACE_LOCK_DIR)
+endef
+else
+git_commit =
+endif
+
 include $(NEMU_HOME)/scripts/build.mk
 
 include $(NEMU_HOME)/tools/difftest.mk

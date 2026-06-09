@@ -121,7 +121,7 @@ static void soc_uart_tx(void *opaque, uint8_t ch) {
 static void soc_uart_irq(void *opaque, bool level) {
   (void)opaque;
 #ifdef CONFIG_ISA_riscv
-  isa_riscv32_plic_set_irq(1, level);
+  isa_riscv_plic_set_irq(1, level);
 #else
   (void)level;
 #endif

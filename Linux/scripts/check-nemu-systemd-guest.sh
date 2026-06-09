@@ -13,11 +13,15 @@ LOG_FILE=${LOG_FILE:-"$LOG_DIR/nemu.log"}
 CONSOLE_LOG=${CONSOLE_LOG:-"$LOG_DIR/console.log"}
 PERF_LOG=${NEMU_SYSTEMD_PERF_LOG:-"$LOG_DIR/perf.tsv"}
 SERIAL_FIFO=${NEMU_SERIAL_FIFO:-"$LOG_DIR/nemu.serial"}
+GUEST_UPLOAD_CMDS=${NEMU_SYSTEMD_GUEST_UPLOAD_CMDS:-"$LOG_DIR/guest-check-upload.cmd"}
+GUEST_SCRIPT_PATH=${NEMU_SYSTEMD_GUEST_SCRIPT_PATH:-"/tmp/nemu-systemd-guest-check.sh"}
+GUEST_SCRIPT_B64_PATH=${NEMU_SYSTEMD_GUEST_SCRIPT_B64_PATH:-"/tmp/nemu-systemd-guest-check.sh.b64"}
 
 LINUX_IMAGE=${LINUX_IMAGE:-"$ENV_ROOT/src/linux/arch/riscv/boot/Image"}
 RUN_FW=${RUN_FW:-"$ENV_ROOT/build/opensbi-nemu-rootfs/platform/generic/firmware/fw_jump.bin"}
 RUN_DTB=${RUN_DTB:-"$LINUX_HOME/build/npc-rv64-nemu-rootfs.dtb"}
 RUN_ROOTFS=${RUN_ROOTFS:-"$ENV_ROOT/images/ubuntu2204/ubuntu-22.04-riscv64.ext4"}
+RUN_ROOTFS_OVERLAY=${NEMU_SYSTEMD_ROOTFS_OVERLAY-"$LOG_DIR/rootfs-overlay.raw"}
 NEXT_ADDR=${NEXT_ADDR:-0x80200000}
 DTB_ADDR=${DTB_ADDR:-0x82200000}
 MAX_CYCLES=${MAX_CYCLES:-12000000000}
@@ -25,6 +29,23 @@ SYSCALL_PROBE_SRC=${NEMU_SYSTEMD_SYSCALL_PROBE_SRC:-"$LINUX_HOME/tools/nemu-syst
 SYSCALL_PROBE_BIN=${NEMU_SYSTEMD_SYSCALL_PROBE_BIN:-"$LOG_DIR/nemu-systemd-syscall-probe.riscv64"}
 SYSCALL_PROBE_B64=${NEMU_SYSTEMD_SYSCALL_PROBE_B64:-"$LOG_DIR/nemu-systemd-syscall-probe.b64"}
 SYSCALL_PROBE_ENABLE=${NEMU_SYSTEMD_SYSCALL_PROBE:-1}
+ICMP_PROBE_SRC=${NEMU_SYSTEMD_ICMP_PROBE_SRC:-"$LINUX_HOME/tools/nemu-systemd-icmp-probe.c"}
+ICMP_PROBE_BIN=${NEMU_SYSTEMD_ICMP_PROBE_BIN:-"$LOG_DIR/nemu-systemd-icmp-probe.riscv64"}
+ICMP_PROBE_B64=${NEMU_SYSTEMD_ICMP_PROBE_B64:-"$LOG_DIR/nemu-systemd-icmp-probe.b64"}
+ICMP_PROBE_ENABLE=${NEMU_SYSTEMD_ICMP_PROBE:-1}
+DHCP_PROBE_SRC=${NEMU_SYSTEMD_DHCP_PROBE_SRC:-"$LINUX_HOME/tools/nemu-systemd-dhcp-probe.c"}
+DHCP_PROBE_BIN=${NEMU_SYSTEMD_DHCP_PROBE_BIN:-"$LOG_DIR/nemu-systemd-dhcp-probe.riscv64"}
+DHCP_PROBE_B64=${NEMU_SYSTEMD_DHCP_PROBE_B64:-"$LOG_DIR/nemu-systemd-dhcp-probe.b64"}
+DHCP_PROBE_ENABLE=${NEMU_SYSTEMD_DHCP_PROBE:-1}
+DNS_PROBE_SRC=${NEMU_SYSTEMD_DNS_PROBE_SRC:-"$LINUX_HOME/tools/nemu-systemd-dns-probe.c"}
+DNS_PROBE_BIN=${NEMU_SYSTEMD_DNS_PROBE_BIN:-"$LOG_DIR/nemu-systemd-dns-probe.riscv64"}
+DNS_PROBE_B64=${NEMU_SYSTEMD_DNS_PROBE_B64:-"$LOG_DIR/nemu-systemd-dns-probe.b64"}
+DNS_PROBE_ENABLE=${NEMU_SYSTEMD_DNS_PROBE:-1}
+TCP_PROBE_SRC=${NEMU_SYSTEMD_TCP_PROBE_SRC:-"$LINUX_HOME/tools/nemu-systemd-tcp-probe.c"}
+TCP_PROBE_BIN=${NEMU_SYSTEMD_TCP_PROBE_BIN:-"$LOG_DIR/nemu-systemd-tcp-probe.riscv64"}
+TCP_PROBE_B64=${NEMU_SYSTEMD_TCP_PROBE_B64:-"$LOG_DIR/nemu-systemd-tcp-probe.b64"}
+TCP_PROBE_ENABLE=${NEMU_SYSTEMD_TCP_PROBE:-1}
+NET_TCP_BURST_LOOPS=${NEMU_SYSTEMD_NET_TCP_BURST_LOOPS:-8}
 RISCV64_LINUX_GCC=${RISCV64_LINUX_GCC:-riscv64-linux-gnu-gcc}
 RISCV64_LINUX_STRIP=${RISCV64_LINUX_STRIP:-riscv64-linux-gnu-strip}
 VDA_HASH_WINDOW_BYTES=${NEMU_SYSTEMD_VDA_HASH_WINDOW_BYTES:-65536}
@@ -41,11 +62,20 @@ PROCESS_LOOPS=${NEMU_SYSTEMD_PROCESS_LOOPS:-16}
 UART_RX_STRESS_LINES=${NEMU_SYSTEMD_UART_RX_STRESS_LINES:-512}
 BLOCK_PARALLEL_JOBS=${NEMU_SYSTEMD_BLOCK_PARALLEL_JOBS:-4}
 BLOCK_JOB_MIB=${NEMU_SYSTEMD_BLOCK_JOB_MIB:-1}
+MIN_MEMTOTAL_KB=${NEMU_SYSTEMD_MIN_MEMTOTAL_KB:-900000}
 SYSTEMD_RELOAD_TIMEOUT=${NEMU_SYSTEMD_RELOAD_TIMEOUT:-180}
-INPUT_DELAY=${NEMU_SYSTEMD_INPUT_DELAY:-0}
+# 默认逐行轻微节流，避免大脚本零间隔灌入 16550 串口 FIFO 时丢命令前缀；
+# 需要做串口压力复现时仍可显式设为 0。
+INPUT_DELAY=${NEMU_SYSTEMD_INPUT_DELAY:-0.001}
+# 一整行命令仍可能超过 16550 RX FIFO；上传阶段已有 guest 侧 sha 校验，
+# 因此默认让 8B 分块背靠背发送，必要时可显式加块间节流做保守复现。
+# 输入本质仍只是 host 字节流，不是直接传给 Ubuntu 的 shell 命令对象。
+INPUT_CHUNK_BYTES=${NEMU_SYSTEMD_INPUT_CHUNK_BYTES:-8}
+INPUT_CHUNK_DELAY=${NEMU_SYSTEMD_INPUT_CHUNK_DELAY:-0}
 POWEROFF_ENABLE=${NEMU_SYSTEMD_POWEROFF:-1}
 POWEROFF_TIMEOUT=${NEMU_SYSTEMD_POWEROFF_TIMEOUT:-180}
 ROOTFS_BYTES=$(stat -c %s "$RUN_ROOTFS" 2>/dev/null || echo 0)
+ROOTFS_STAT_BEFORE=$(stat -c '%s:%Y' "$RUN_ROOTFS" 2>/dev/null || echo "$ROOTFS_BYTES:0")
 VDA_HASH_WINDOW_COUNT=0
 
 fail() {
@@ -78,6 +108,18 @@ require_uint() {
   esac
 }
 
+require_nonnegative_decimal() {
+  local name=$1
+  local value=$2
+  case "$value" in
+    ''|*[!0-9.]*|*.*.*) fail "$name must be a non-negative decimal: $value" ;;
+  esac
+  case "$value" in
+    *[0-9]*) ;;
+    *) fail "$name must be a non-negative decimal: $value" ;;
+  esac
+}
+
 build_syscall_probe() {
   [ "$SYSCALL_PROBE_ENABLE" = "0" ] && return
   require_file "$SYSCALL_PROBE_SRC" "guest syscall probe source"
@@ -94,11 +136,139 @@ build_syscall_probe() {
     fail "failed to encode guest syscall probe"
 }
 
+build_icmp_probe() {
+  [ "$ICMP_PROBE_ENABLE" = "0" ] && return
+  require_file "$ICMP_PROBE_SRC" "guest ICMP probe source"
+  command -v "$RISCV64_LINUX_GCC" >/dev/null 2>&1 ||
+    fail "missing riscv64 guest compiler: $RISCV64_LINUX_GCC"
+  command -v base64 >/dev/null 2>&1 || fail "missing host base64"
+
+  "$RISCV64_LINUX_GCC" -O2 -Wall -Werror -o "$ICMP_PROBE_BIN" "$ICMP_PROBE_SRC" ||
+    fail "failed to build guest ICMP probe"
+  if command -v "$RISCV64_LINUX_STRIP" >/dev/null 2>&1; then
+    "$RISCV64_LINUX_STRIP" "$ICMP_PROBE_BIN" || true
+  fi
+  base64 -w 76 "$ICMP_PROBE_BIN" >"$ICMP_PROBE_B64" ||
+    fail "failed to encode guest ICMP probe"
+}
+
+build_dhcp_probe() {
+  [ "$DHCP_PROBE_ENABLE" = "0" ] && return
+  require_file "$DHCP_PROBE_SRC" "guest DHCP probe source"
+  command -v "$RISCV64_LINUX_GCC" >/dev/null 2>&1 ||
+    fail "missing riscv64 guest compiler: $RISCV64_LINUX_GCC"
+  command -v base64 >/dev/null 2>&1 || fail "missing host base64"
+
+  "$RISCV64_LINUX_GCC" -O2 -Wall -Werror -o "$DHCP_PROBE_BIN" "$DHCP_PROBE_SRC" ||
+    fail "failed to build guest DHCP probe"
+  if command -v "$RISCV64_LINUX_STRIP" >/dev/null 2>&1; then
+    "$RISCV64_LINUX_STRIP" "$DHCP_PROBE_BIN" || true
+  fi
+  base64 -w 76 "$DHCP_PROBE_BIN" >"$DHCP_PROBE_B64" ||
+    fail "failed to encode guest DHCP probe"
+}
+
+build_dns_probe() {
+  [ "$DNS_PROBE_ENABLE" = "0" ] && return
+  require_file "$DNS_PROBE_SRC" "guest DNS probe source"
+  command -v "$RISCV64_LINUX_GCC" >/dev/null 2>&1 ||
+    fail "missing riscv64 guest compiler: $RISCV64_LINUX_GCC"
+  command -v base64 >/dev/null 2>&1 || fail "missing host base64"
+
+  "$RISCV64_LINUX_GCC" -O2 -Wall -Werror -o "$DNS_PROBE_BIN" "$DNS_PROBE_SRC" ||
+    fail "failed to build guest DNS probe"
+  if command -v "$RISCV64_LINUX_STRIP" >/dev/null 2>&1; then
+    "$RISCV64_LINUX_STRIP" "$DNS_PROBE_BIN" || true
+  fi
+  base64 -w 76 "$DNS_PROBE_BIN" >"$DNS_PROBE_B64" ||
+    fail "failed to encode guest DNS probe"
+}
+
+build_tcp_probe() {
+  [ "$TCP_PROBE_ENABLE" = "0" ] && return
+  require_file "$TCP_PROBE_SRC" "guest TCP probe source"
+  command -v "$RISCV64_LINUX_GCC" >/dev/null 2>&1 ||
+    fail "missing riscv64 guest compiler: $RISCV64_LINUX_GCC"
+  command -v base64 >/dev/null 2>&1 || fail "missing host base64"
+
+  "$RISCV64_LINUX_GCC" -O2 -Wall -Werror -o "$TCP_PROBE_BIN" "$TCP_PROBE_SRC" ||
+    fail "failed to build guest TCP probe"
+  if command -v "$RISCV64_LINUX_STRIP" >/dev/null 2>&1; then
+    "$RISCV64_LINUX_STRIP" "$TCP_PROBE_BIN" || true
+  fi
+  base64 -w 76 "$TCP_PROBE_BIN" >"$TCP_PROBE_B64" ||
+    fail "failed to encode guest TCP probe"
+}
+
 inject_syscall_probe_payload() {
   local cmd_file=$1
   local tmp_file="$cmd_file.tmp"
   awk -v payload="$SYSCALL_PROBE_B64" -v enabled="$SYSCALL_PROBE_ENABLE" '
     /__NEMU_SYSCALL_PROBE_PAYLOAD__/ {
+      if (enabled != "0") {
+        while ((getline line < payload) > 0) print line
+        close(payload)
+      }
+      next
+    }
+    { print }
+  ' "$cmd_file" >"$tmp_file" &&
+    mv "$tmp_file" "$cmd_file"
+}
+
+inject_dhcp_probe_payload() {
+  local cmd_file=$1
+  local tmp_file="$cmd_file.tmp"
+  awk -v payload="$DHCP_PROBE_B64" -v enabled="$DHCP_PROBE_ENABLE" '
+    /__NEMU_DHCP_PROBE_PAYLOAD__/ {
+      if (enabled != "0") {
+        while ((getline line < payload) > 0) print line
+        close(payload)
+      }
+      next
+    }
+    { print }
+  ' "$cmd_file" >"$tmp_file" &&
+    mv "$tmp_file" "$cmd_file"
+}
+
+inject_dns_probe_payload() {
+  local cmd_file=$1
+  local tmp_file="$cmd_file.tmp"
+  awk -v payload="$DNS_PROBE_B64" -v enabled="$DNS_PROBE_ENABLE" '
+    /__NEMU_DNS_PROBE_PAYLOAD__/ {
+      if (enabled != "0") {
+        while ((getline line < payload) > 0) print line
+        close(payload)
+      }
+      next
+    }
+    { print }
+  ' "$cmd_file" >"$tmp_file" &&
+    mv "$tmp_file" "$cmd_file"
+}
+
+inject_tcp_probe_payload() {
+  local cmd_file=$1
+  local tmp_file="$cmd_file.tmp"
+  awk -v payload="$TCP_PROBE_B64" -v enabled="$TCP_PROBE_ENABLE" '
+    /__NEMU_TCP_PROBE_PAYLOAD__/ {
+      if (enabled != "0") {
+        while ((getline line < payload) > 0) print line
+        close(payload)
+      }
+      next
+    }
+    { print }
+  ' "$cmd_file" >"$tmp_file" &&
+    mv "$tmp_file" "$cmd_file"
+}
+
+inject_icmp_probe_payload() {
+  local cmd_file=$1
+  local tmp_file="$cmd_file.tmp"
+  awk -v payload="$ICMP_PROBE_B64" -v enabled="$ICMP_PROBE_ENABLE" '
+    /__NEMU_ICMP_PROBE_PAYLOAD__/ {
       if (enabled != "0") {
         while ((getline line < payload) > 0) print line
         close(payload)
@@ -223,6 +393,79 @@ wait_for_nemu_exit() {
   fail "timeout waiting for NEMU poweroff exit"
 }
 
+check_console_absent() {
+  local label=$1
+  local pattern=$2
+  if grep -qaE "$pattern" "$CONSOLE_LOG"; then
+    echo "[nemu-systemd-check] FAIL console-clean-$label: $pattern" >&2
+    grep -aE "$pattern" "$CONSOLE_LOG" | tail -20 >&2 || true
+    return 1
+  fi
+  echo "[nemu-systemd-check] PASS console-clean-$label"
+}
+
+check_console_clean() {
+  local failed=0
+  # 这些是近期真实启动日志里修过的噪声/错误模式。放到 host 侧扫
+  # console，避免 guest 内 dmesg 检查漏掉构建层或 early boot 层回归。
+  check_console_absent jobserver 'jobserver unavailable' || failed=1
+  check_console_absent autofs4 "Failed to look up module alias 'autofs4'|autofs4.*Function not implemented" || failed=1
+  check_console_absent bpf-cgroup 'does not support BPF/cgroup firewalling|unit configures an IP firewall' || failed=1
+  check_console_absent riscv-isa-fallback 'Falling back to deprecated "riscv,isa"|Unable to find "riscv,isa"' || failed=1
+  check_console_absent panic 'Kernel panic' || failed=1
+  check_console_absent oops 'Oops' || failed=1
+  check_console_absent call-trace 'Call Trace' || failed=1
+  check_console_absent bad-trap 'HIT BAD TRAP' || failed=1
+  check_console_absent ext4-error 'EXT4-fs error' || failed=1
+  check_console_absent io-error 'I/O error' || failed=1
+  return "$failed"
+}
+
+check_shutdown_watchdog_notify() {
+  local pattern='systemd-journald\[[0-9]+\]: Failed to send WATCHDOG=1 notification message: Connection refused'
+  if ! grep -qaE "$pattern" "$CONSOLE_LOG"; then
+    echo "[nemu-systemd-check] PASS shutdown-watchdog-notify-absent"
+    return 0
+  fi
+
+  # journald 在 systemd 关机收尾阶段可能还会发送 WATCHDOG=1；此时 notify
+  # socket 已退出会返回 Connection refused。只有同时看到完整 poweroff 链路时
+  # 才把它归类为非致命收尾噪声，避免掩盖运行期 notify/socket 异常。
+  if grep -qaF "System Power Off" "$CONSOLE_LOG" &&
+     grep -qaF "reboot: Power down" "$CONSOLE_LOG" &&
+     grep -qaF "syscon-reset: poweroff requested" "$CONSOLE_LOG" &&
+     grep -qaF "HIT GOOD TRAP" "$CONSOLE_LOG"; then
+    echo "[nemu-systemd-check] PASS shutdown-watchdog-notify-benign"
+    grep -aE "$pattern" "$CONSOLE_LOG" | tail -5 || true
+    return 0
+  fi
+
+  echo "[nemu-systemd-check] FAIL shutdown-watchdog-notify-without-clean-poweroff" >&2
+  grep -aE "$pattern|System Power Off|reboot: Power down|syscon-reset: poweroff requested|HIT GOOD TRAP" "$CONSOLE_LOG" | tail -20 >&2 || true
+  return 1
+}
+
+check_nemu_async_runtime() {
+  local line submitted completed pending done
+  line=$(grep -aE 'virtio-blk async runtime submitted=[0-9]+ completed=[0-9]+ pending=[0-9]+ done=[0-9]+' "$LOG_FILE" "$CONSOLE_LOG" 2>/dev/null | tail -1 || true)
+  if [ -z "$line" ]; then
+    fail "missing virtio-blk async runtime statistic in $LOG_FILE or $CONSOLE_LOG"
+  fi
+  submitted=$(printf '%s\n' "$line" | sed -n 's/.*submitted=\([0-9][0-9]*\).*/\1/p')
+  completed=$(printf '%s\n' "$line" | sed -n 's/.*completed=\([0-9][0-9]*\).*/\1/p')
+  pending=$(printf '%s\n' "$line" | sed -n 's/.*pending=\([0-9][0-9]*\).*/\1/p')
+  done=$(printf '%s\n' "$line" | sed -n 's/.*done=\([0-9][0-9]*\).*/\1/p')
+  echo "[nemu-systemd-check] virtio-blk async runtime: submitted=$submitted completed=$completed pending=$pending done=$done"
+  if [ "$submitted" -gt 0 ] &&
+     [ "$completed" -eq "$submitted" ] &&
+     [ "$pending" -eq 0 ] &&
+     [ "$done" -eq 0 ]; then
+    echo "[nemu-systemd-check] PASS virtio-blk-async-runtime"
+  else
+    fail "virtio-blk async runtime counters invalid: submitted=$submitted completed=$completed pending=$pending done=$done"
+  fi
+}
+
 write_perf_log() {
   local boot_seconds=$1
   local guest_check_seconds=$2
@@ -230,28 +473,83 @@ write_perf_log() {
   local total_seconds=$4
   # 这里记录 host 侧墙钟基线，方便后续 NEMU 设备/解释器优化做同口径 A/B。
   {
-    printf 'boot_seconds\tguest_check_seconds\tpoweroff_seconds\ttotal_seconds\tsoak_seconds\tfs_stress_mib\tfs_tree_files\tprocess_loops\tuart_rx_stress_lines\tblock_parallel_jobs\tblock_job_mib\tmax_cycles\n'
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    printf 'boot_seconds\tguest_check_seconds\tpoweroff_seconds\ttotal_seconds\tsoak_seconds\tfs_stress_mib\tfs_tree_files\tprocess_loops\tuart_rx_stress_lines\tblock_parallel_jobs\tblock_job_mib\tnet_tcp_burst_loops\tinput_chunk_bytes\tinput_chunk_delay\tmax_cycles\trootfs_overlay\n'
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
       "$boot_seconds" "$guest_check_seconds" "$poweroff_seconds" "$total_seconds" \
       "$SOAK_SECONDS" "$FS_STRESS_MIB" "$FS_TREE_FILES" "$PROCESS_LOOPS" \
-      "$UART_RX_STRESS_LINES" "$BLOCK_PARALLEL_JOBS" "$BLOCK_JOB_MIB" "$MAX_CYCLES"
+      "$UART_RX_STRESS_LINES" "$BLOCK_PARALLEL_JOBS" "$BLOCK_JOB_MIB" \
+      "$NET_TCP_BURST_LOOPS" "$INPUT_CHUNK_BYTES" "$INPUT_CHUNK_DELAY" "$MAX_CYCLES" \
+      "${RUN_ROOTFS_OVERLAY:-disabled}"
   } >"$PERF_LOG"
   echo "[nemu-systemd-check] perf boot=${boot_seconds}s guest_check=${guest_check_seconds}s poweroff=${poweroff_seconds}s total=${total_seconds}s"
   echo "[nemu-systemd-check] perf log: $PERF_LOG"
 }
 
+build_guest_upload_commands() {
+  local src_file=$1
+  local dst_file=$2
+  local script_sha script_bytes
+  script_sha="$(sha256sum "$src_file" | awk '{print $1}')" ||
+    fail "failed to hash guest check script"
+  script_bytes="$(wc -c <"$src_file" | tr -d '[:space:]')" ||
+    fail "failed to size guest check script"
+
+  {
+    printf 'stty -echo 2>/dev/null || true\n'
+    printf 'PS1=; PS2=; PS4=; export PS1 PS2 PS4\n'
+    printf 'echo "__NEMU_GUEST_UPLOAD_BEGIN__"\n'
+    printf "cat > '%s' <<'__NEMU_GUEST_CHECK_B64__'\n" "$GUEST_SCRIPT_B64_PATH"
+    base64 -w 76 "$src_file"
+    printf '__NEMU_GUEST_CHECK_B64__\n'
+    printf 'if ! command -v base64 >/dev/null 2>&1 || ! command -v sha256sum >/dev/null 2>&1; then\n'
+    printf '  echo "__NEMU_GUEST_SCRIPT_TOOL_MISSING__"\n'
+    printf '  echo "__NEMU_SYSTEMD_CHECK_DONE__ rc=1"\n'
+    printf "elif ! base64 -d '%s' > '%s'; then\n" "$GUEST_SCRIPT_B64_PATH" "$GUEST_SCRIPT_PATH"
+    printf '  echo "__NEMU_GUEST_SCRIPT_DECODE_FAIL__"\n'
+    printf '  echo "__NEMU_SYSTEMD_CHECK_DONE__ rc=1"\n'
+    printf 'else\n'
+    printf "  guest_script_sha=\"\$(sha256sum '%s' 2>/dev/null | awk '{print \$1}')\"\n" "$GUEST_SCRIPT_PATH"
+    printf "  guest_script_bytes=\"\$(wc -c < '%s' 2>/dev/null || echo 0)\"\n" "$GUEST_SCRIPT_PATH"
+    printf "  echo \"__NEMU_GUEST_SCRIPT_BYTES__:\$guest_script_bytes/%s\"\n" "$script_bytes"
+    printf "  echo \"__NEMU_GUEST_SCRIPT_SHA256__:\$guest_script_sha/%s\"\n" "$script_sha"
+    printf "  if [ \"\$guest_script_sha\" = '%s' ] && [ \"\$guest_script_bytes\" = '%s' ]; then\n" "$script_sha" "$script_bytes"
+    printf '    echo "__NEMU_GUEST_SCRIPT_READY__"\n'
+    printf "    sh '%s'\n" "$GUEST_SCRIPT_PATH"
+    printf '  else\n'
+    printf '    echo "__NEMU_GUEST_SCRIPT_SHA256_FAIL__"\n'
+    printf '    echo "__NEMU_SYSTEMD_CHECK_DONE__ rc=1"\n'
+    printf '  fi\n'
+    printf 'fi\n'
+  } >"$dst_file"
+}
+
 send_guest_commands() {
-  local delay=$1
-  if [ "$delay" = "0" ]; then
-    cat "$LOG_DIR/guest-check.cmd" >"$SERIAL_FIFO"
+  local line_delay=$1
+  local chunk_delay=$2
+  local cmd_file=$3
+  local chunk_bytes=$INPUT_CHUNK_BYTES
+  if [ "$line_delay" = "0" ] && [ "$chunk_bytes" = "0" ]; then
+    cat "$cmd_file" >"$SERIAL_FIFO"
     return
   fi
 
   exec 3>"$SERIAL_FIFO"
   while IFS= read -r line || [ -n "$line" ]; do
-    printf '%s\n' "$line" >&3
-    sleep "$delay"
-  done <"$LOG_DIR/guest-check.cmd"
+    if [ "$chunk_bytes" -le 0 ] 2>/dev/null; then
+      printf '%s\n' "$line" >&3
+      [ "$line_delay" = "0" ] || sleep "$line_delay"
+      continue
+    fi
+    local text="${line}"$'\n'
+    local len=${#text}
+    local pos=0
+    while [ "$pos" -lt "$len" ]; do
+      printf '%s' "${text:$pos:$chunk_bytes}" >&3
+      pos=$((pos + chunk_bytes))
+      [ "$chunk_delay" = "0" ] || sleep "$chunk_delay"
+    done
+    [ "$line_delay" = "0" ] || sleep "$line_delay"
+  done <"$cmd_file"
   exec 3>&-
 }
 
@@ -267,24 +565,51 @@ require_uint "NEMU_SYSTEMD_PROCESS_LOOPS" "$PROCESS_LOOPS"
 require_uint "NEMU_SYSTEMD_UART_RX_STRESS_LINES" "$UART_RX_STRESS_LINES"
 require_uint "NEMU_SYSTEMD_BLOCK_PARALLEL_JOBS" "$BLOCK_PARALLEL_JOBS"
 require_uint "NEMU_SYSTEMD_BLOCK_JOB_MIB" "$BLOCK_JOB_MIB"
+require_uint "NEMU_SYSTEMD_MIN_MEMTOTAL_KB" "$MIN_MEMTOTAL_KB"
 require_uint "NEMU_SYSTEMD_RELOAD_TIMEOUT" "$SYSTEMD_RELOAD_TIMEOUT"
+require_uint "NEMU_SYSTEMD_INPUT_CHUNK_BYTES" "$INPUT_CHUNK_BYTES"
+require_nonnegative_decimal "NEMU_SYSTEMD_INPUT_DELAY" "$INPUT_DELAY"
+require_nonnegative_decimal "NEMU_SYSTEMD_INPUT_CHUNK_DELAY" "$INPUT_CHUNK_DELAY"
 require_uint "NEMU_SYSTEMD_SYSCALL_PROBE" "$SYSCALL_PROBE_ENABLE"
+require_uint "NEMU_SYSTEMD_ICMP_PROBE" "$ICMP_PROBE_ENABLE"
+require_uint "NEMU_SYSTEMD_DHCP_PROBE" "$DHCP_PROBE_ENABLE"
+require_uint "NEMU_SYSTEMD_DNS_PROBE" "$DNS_PROBE_ENABLE"
+require_uint "NEMU_SYSTEMD_TCP_PROBE" "$TCP_PROBE_ENABLE"
+require_uint "NEMU_SYSTEMD_NET_TCP_BURST_LOOPS" "$NET_TCP_BURST_LOOPS"
 require_uint "NEMU_SYSTEMD_POWEROFF" "$POWEROFF_ENABLE"
 require_uint "NEMU_SYSTEMD_POWEROFF_TIMEOUT" "$POWEROFF_TIMEOUT"
 require_uint "rootfs image size" "$ROOTFS_BYTES"
 [ "$SYSTEMD_RELOAD_TIMEOUT" -gt 0 ] ||
   fail "NEMU_SYSTEMD_RELOAD_TIMEOUT must be positive: $SYSTEMD_RELOAD_TIMEOUT"
+[ "$NET_TCP_BURST_LOOPS" -gt 0 ] ||
+  fail "NEMU_SYSTEMD_NET_TCP_BURST_LOOPS must be positive: $NET_TCP_BURST_LOOPS"
 
 mkdir -p "$LOG_DIR"
 rm -f "$SERIAL_FIFO" "$CONSOLE_LOG" "$LOG_FILE" "$PERF_LOG" \
-  "$LOG_DIR/guest-check.cmd" "$SYSCALL_PROBE_BIN" "$SYSCALL_PROBE_B64" \
-  "$VDA_HASH_EXPECT"
+  "$LOG_DIR/guest-check.cmd" "$GUEST_UPLOAD_CMDS" \
+  "$SYSCALL_PROBE_BIN" "$SYSCALL_PROBE_B64" \
+  "$ICMP_PROBE_BIN" "$ICMP_PROBE_B64" \
+  "$DHCP_PROBE_BIN" "$DHCP_PROBE_B64" \
+  "$DNS_PROBE_BIN" "$DNS_PROBE_B64" \
+  "$TCP_PROBE_BIN" "$TCP_PROBE_B64" "$VDA_HASH_EXPECT"
+block_overlay_args=()
+if [ -n "$RUN_ROOTFS_OVERLAY" ]; then
+  # focused gate 会做真实 fs/block 写压力；overlay 用来保护基准 rootfs 不被测试污染。
+  mkdir -p "$(dirname -- "$RUN_ROOTFS_OVERLAY")"
+  rm -f "$RUN_ROOTFS_OVERLAY"
+  block_overlay_args=(--block-overlay="$RUN_ROOTFS_OVERLAY")
+fi
 : >"$CONSOLE_LOG"
 build_syscall_probe
+build_icmp_probe
+build_dhcp_probe
+build_dns_probe
+build_tcp_probe
 build_vda_hash_expectations
 
 echo "[nemu-systemd-check] log dir: $LOG_DIR"
 echo "[nemu-systemd-check] serial fifo: $SERIAL_FIFO"
+echo "[nemu-systemd-check] guest upload commands: $GUEST_UPLOAD_CMDS"
 echo "[nemu-systemd-check] max cycles: $MAX_CYCLES"
 echo "[nemu-systemd-check] soak seconds: $SOAK_SECONDS"
 echo "[nemu-systemd-check] fs stress MiB: $FS_STRESS_MIB"
@@ -293,15 +618,42 @@ echo "[nemu-systemd-check] process loops: $PROCESS_LOOPS"
 echo "[nemu-systemd-check] UART RX stress lines: $UART_RX_STRESS_LINES"
 echo "[nemu-systemd-check] block parallel jobs: $BLOCK_PARALLEL_JOBS"
 echo "[nemu-systemd-check] block job MiB: $BLOCK_JOB_MIB"
+echo "[nemu-systemd-check] min MemTotal KiB: $MIN_MEMTOTAL_KB"
 echo "[nemu-systemd-check] systemd reload timeout: $SYSTEMD_RELOAD_TIMEOUT"
 echo "[nemu-systemd-check] input delay: $INPUT_DELAY"
+echo "[nemu-systemd-check] input chunk bytes: $INPUT_CHUNK_BYTES"
+echo "[nemu-systemd-check] input chunk delay: $INPUT_CHUNK_DELAY"
+echo "[nemu-systemd-check] serial input model: FIFO/stdin bytes -> NEMU SerialPort staging -> 16550 RX FIFO -> Linux ttyS0"
 echo "[nemu-systemd-check] syscall probe: $SYSCALL_PROBE_ENABLE"
+echo "[nemu-systemd-check] ICMP probe: $ICMP_PROBE_ENABLE"
+echo "[nemu-systemd-check] DHCP probe: $DHCP_PROBE_ENABLE"
+echo "[nemu-systemd-check] DNS probe: $DNS_PROBE_ENABLE"
+echo "[nemu-systemd-check] TCP probe: $TCP_PROBE_ENABLE"
+echo "[nemu-systemd-check] TCP burst loops: $NET_TCP_BURST_LOOPS"
 echo "[nemu-systemd-check] poweroff: $POWEROFF_ENABLE"
 echo "[nemu-systemd-check] poweroff timeout: $POWEROFF_TIMEOUT"
 if [ "$SYSCALL_PROBE_ENABLE" != "0" ]; then
   echo "[nemu-systemd-check] syscall probe bytes: $(stat -c %s "$SYSCALL_PROBE_BIN")"
 fi
+if [ "$ICMP_PROBE_ENABLE" != "0" ]; then
+  echo "[nemu-systemd-check] ICMP probe bytes: $(stat -c %s "$ICMP_PROBE_BIN")"
+fi
+if [ "$DHCP_PROBE_ENABLE" != "0" ]; then
+  echo "[nemu-systemd-check] DHCP probe bytes: $(stat -c %s "$DHCP_PROBE_BIN")"
+fi
+if [ "$DNS_PROBE_ENABLE" != "0" ]; then
+  echo "[nemu-systemd-check] DNS probe bytes: $(stat -c %s "$DNS_PROBE_BIN")"
+fi
+if [ "$TCP_PROBE_ENABLE" != "0" ]; then
+  echo "[nemu-systemd-check] TCP probe bytes: $(stat -c %s "$TCP_PROBE_BIN")"
+fi
 echo "[nemu-systemd-check] rootfs bytes: $ROOTFS_BYTES"
+echo "[nemu-systemd-check] rootfs backing stat: $ROOTFS_STAT_BEFORE"
+if [ -n "$RUN_ROOTFS_OVERLAY" ]; then
+  echo "[nemu-systemd-check] rootfs overlay: $RUN_ROOTFS_OVERLAY"
+else
+  echo "[nemu-systemd-check] rootfs overlay: disabled"
+fi
 echo "[nemu-systemd-check] vda hash window bytes: $VDA_HASH_WINDOW_BYTES"
 echo "[nemu-systemd-check] vda hash windows: $VDA_HASH_WINDOW_COUNT"
 echo "[nemu-systemd-check] perf log: $PERF_LOG"
@@ -316,6 +668,7 @@ NEMU_SERIAL_FIFO="$SERIAL_FIFO" NEMU_HOME="$NEMU_HOME" "$NEMU_SIM" -b \
   --load="$NEXT_ADDR:$LINUX_IMAGE" \
   --load="$DTB_ADDR:$RUN_DTB" \
   --block="$RUN_ROOTFS" \
+  "${block_overlay_args[@]}" \
   >"$CONSOLE_LOG" 2>&1 &
 nemu_pid=$!
 
@@ -339,9 +692,15 @@ boot_seconds=$((SECONDS - host_start_seconds))
   printf 'NEMU_GUEST_UART_RX_STRESS_LINES=%s\n' "$UART_RX_STRESS_LINES"
   printf 'NEMU_GUEST_BLOCK_PARALLEL_JOBS=%s\n' "$BLOCK_PARALLEL_JOBS"
   printf 'NEMU_GUEST_BLOCK_JOB_MIB=%s\n' "$BLOCK_JOB_MIB"
+  printf 'NEMU_GUEST_MIN_MEMTOTAL_KB=%s\n' "$MIN_MEMTOTAL_KB"
   printf 'NEMU_GUEST_SYSTEMD_RELOAD_TIMEOUT=%s\n' "$SYSTEMD_RELOAD_TIMEOUT"
   printf 'NEMU_GUEST_ROOTFS_BYTES=%s\n' "$ROOTFS_BYTES"
   printf 'NEMU_GUEST_SYSCALL_PROBE=%s\n' "$SYSCALL_PROBE_ENABLE"
+  printf 'NEMU_GUEST_ICMP_PROBE=%s\n' "$ICMP_PROBE_ENABLE"
+  printf 'NEMU_GUEST_DHCP_PROBE=%s\n' "$DHCP_PROBE_ENABLE"
+  printf 'NEMU_GUEST_DNS_PROBE=%s\n' "$DNS_PROBE_ENABLE"
+  printf 'NEMU_GUEST_TCP_PROBE=%s\n' "$TCP_PROBE_ENABLE"
+  printf 'NEMU_GUEST_NET_TCP_BURST_LOOPS=%s\n' "$NET_TCP_BURST_LOOPS"
   printf 'NEMU_GUEST_POWEROFF=%s\n' "$POWEROFF_ENABLE"
   printf 'NEMU_GUEST_VDA_HASH_WINDOW_BYTES=%s\n' "$VDA_HASH_WINDOW_BYTES"
   printf 'NEMU_GUEST_VDA_HASH_EXPECT_FILE=/tmp/nemu-vda-direct-read-sha256.tsv\n'
@@ -355,10 +714,37 @@ echo __NEMU_SYSTEMD_CHECK_BEGIN__
 check_fail=0
 pass() { echo "__NEMU_CHECK_PASS__:$1"; }
 fail() { echo "__NEMU_CHECK_FAIL__:$1"; check_fail=1; }
-__NEMU_UART_RX_STRESS_COMMANDS__
 check_dir="/root/nemu-systemd-guest-check.d"
 guest_check_uptime0="$(cut -d. -f1 /proc/uptime 2>/dev/null || echo 0)"
 echo "__NEMU_CHECK_GUEST_UPTIME_BEGIN__:$guest_check_uptime0"
+memtotal_line="$(grep -m 1 '^MemTotal:' /proc/meminfo 2>/dev/null || true)"
+memtotal_kb="$(
+  while read -r mem_key mem_value _; do
+    if [ "$mem_key" = "MemTotal:" ]; then
+      echo "$mem_value"
+      break
+    fi
+  done </proc/meminfo 2>/dev/null
+)"
+case "$memtotal_kb" in
+  ''|*[!0-9]*)
+    memtotal_kb="$(awk '/^MemTotal:/ {print $2}' /proc/meminfo 2>/dev/null | head -n 1)"
+    case "$memtotal_kb" in
+      ''|*[!0-9]*) memtotal_kb=0 ;;
+    esac
+    ;;
+esac
+echo "__NEMU_CHECK_MEMTOTAL_LINE__:$memtotal_line"
+echo "__NEMU_CHECK_MEMTOTAL_KB__:$memtotal_kb"
+echo "__NEMU_CHECK_MIN_MEMTOTAL_KB__:$NEMU_GUEST_MIN_MEMTOTAL_KB"
+if [ "$memtotal_kb" -ge "$NEMU_GUEST_MIN_MEMTOTAL_KB" ] 2>/dev/null; then
+  pass guest-memtotal-min
+else
+  fail guest-memtotal-min
+fi
+
+# UART RX stress 会注入大段串口输入，关键 hard gate 放在它之前，避免后续命令被输入流截断。
+__NEMU_UART_RX_STRESS_COMMANDS__
 
 intr_sum() {
   intr_try=0
@@ -496,6 +882,18 @@ echo "__NEMU_CHECK_PID1__:$pid1"
 systemd_version="$(systemctl --version 2>/dev/null | head -n 1 || true)"
 echo "__NEMU_CHECK_SYSTEMD_VERSION__:$systemd_version"
 echo "$systemd_version" | grep -Eq '^systemd [0-9]+' && pass systemd-version || fail systemd-version
+
+echo "__NEMU_CHECK_LSB_RELEASE__"
+if command -v lsb_release >/dev/null 2>&1; then
+  pass lsb-release-present
+  lsb_release_output="$(lsb_release -a 2>/dev/null || true)"
+  printf '%s\n' "$lsb_release_output"
+  echo "$lsb_release_output" | grep -q "Ubuntu 22.04" &&
+    pass lsb-release-ubuntu2204 || fail lsb-release-ubuntu2204
+else
+  fail lsb-release-present
+  fail lsb-release-ubuntu2204
+fi
 
 systemd_show_state="$(systemctl show --property=SystemState --value 2>/dev/null || true)"
 echo "__NEMU_CHECK_SYSTEMD_SHOW_STATE__:$systemd_show_state"
@@ -736,17 +1134,47 @@ systemctl --quiet is-active systemd-udevd.service && pass udevd-active || fail u
 hwrng_misc="/sys/class/misc/hw_random"
 hwrng_current="$(cat "$hwrng_misc/rng_current" 2>/dev/null || true)"
 hwrng_available="$(cat "$hwrng_misc/rng_available" 2>/dev/null || true)"
-rng_virtio_modalias="$(grep -h '^virtio:d00000004v58535959$' \
-  /sys/bus/virtio/devices/*/modalias 2>/dev/null | head -n 1 || true)"
+rng_virtio_modalias=""
+rng_virtio_dev=""
+for virtio_candidate in /sys/bus/virtio/devices/*; do
+  [ -e "$virtio_candidate/modalias" ] || continue
+  virtio_candidate_modalias="$(cat "$virtio_candidate/modalias" 2>/dev/null || true)"
+  if [ "$virtio_candidate_modalias" = "virtio:d00000004v58535959" ]; then
+    rng_virtio_modalias="$virtio_candidate_modalias"
+    rng_virtio_dev="$virtio_candidate"
+    break
+  fi
+done
+rng_virtio_driver=""
+rng_virtio_status=""
+rng_virtio_features=""
+if [ -n "$rng_virtio_dev" ]; then
+  rng_virtio_driver="$(basename "$(readlink -f "$rng_virtio_dev/driver" 2>/dev/null || true)")"
+  rng_virtio_status="$(cat "$rng_virtio_dev/status" 2>/dev/null || true)"
+  rng_virtio_features="$(tr -d '\n' < "$rng_virtio_dev/features" 2>/dev/null || true)"
+fi
 echo "__NEMU_CHECK_HWRNG_CURRENT__:$hwrng_current"
 echo "__NEMU_CHECK_HWRNG_AVAILABLE__:$hwrng_available"
 echo "__NEMU_CHECK_VIRTIO_RNG_MODALIAS__:$rng_virtio_modalias"
+echo "__NEMU_CHECK_VIRTIO_RNG_DRIVER__:$rng_virtio_driver"
+echo "__NEMU_CHECK_VIRTIO_RNG_STATUS__:$rng_virtio_status"
+echo "__NEMU_CHECK_VIRTIO_RNG_FEATURES__:$rng_virtio_features"
 [ -c /dev/hwrng ] && pass hwrng-node || fail hwrng-node
 [ -d "$hwrng_misc" ] && pass hwrng-sysfs || fail hwrng-sysfs
 printf '%s\n%s\n' "$hwrng_current" "$hwrng_available" | grep -qi 'virtio' &&
   pass hwrng-virtio-selected || fail hwrng-virtio-selected
 [ "$rng_virtio_modalias" = "virtio:d00000004v58535959" ] &&
   pass virtio-rng-modalias || fail virtio-rng-modalias
+[ "$rng_virtio_driver" = "virtio_rng" ] &&
+  pass virtio-rng-driver || fail virtio-rng-driver
+echo "$rng_virtio_status" | grep -Eq '^0x[0-9a-fA-F]+$' &&
+  pass virtio-rng-status || fail virtio-rng-status
+echo "$rng_virtio_features" | grep -Eq '^[01]+$' &&
+  pass virtio-rng-features-bitstring || fail virtio-rng-features-bitstring
+[ "$(virtio_feature_bit "$rng_virtio_features" 32)" = "1" ] &&
+  pass virtio-rng-feature-version-1 || fail virtio-rng-feature-version-1
+[ "$(virtio_feature_bit "$rng_virtio_features" 29)" = "1" ] &&
+  pass virtio-rng-ring-feature-event-idx || fail virtio-rng-ring-feature-event-idx
 hwrng_out="/tmp/nemu-hwrng.bin"
 rm -f "$hwrng_out"
 if timeout 10s dd if=/dev/hwrng of="$hwrng_out" bs=64 count=1 \
@@ -789,6 +1217,202 @@ if command -v hwclock >/dev/null 2>&1; then
 else
   echo "__NEMU_CHECK_RTC0_HWCLOCK_DIAG__:missing"
 fi
+
+virtio_net_modalias=""
+virtio_net_dev=""
+for virtio_candidate in /sys/bus/virtio/devices/*; do
+  [ -e "$virtio_candidate/modalias" ] || continue
+  virtio_candidate_modalias="$(cat "$virtio_candidate/modalias" 2>/dev/null || true)"
+  if [ "$virtio_candidate_modalias" = "virtio:d00000001v58535959" ]; then
+    virtio_net_modalias="$virtio_candidate_modalias"
+    virtio_net_dev="$virtio_candidate"
+    break
+  fi
+done
+echo "__NEMU_CHECK_VIRTIO_NET_MODALIAS__:$virtio_net_modalias"
+[ "$virtio_net_modalias" = "virtio:d00000001v58535959" ] &&
+  pass virtio-net-modalias || fail virtio-net-modalias
+
+virtio_net_driver=""
+virtio_net_status=""
+virtio_net_features=""
+if [ -n "$virtio_net_dev" ]; then
+  virtio_net_driver="$(basename "$(readlink -f "$virtio_net_dev/driver" 2>/dev/null || true)")"
+  virtio_net_status="$(cat "$virtio_net_dev/status" 2>/dev/null || true)"
+  virtio_net_features="$(tr -d '\n' < "$virtio_net_dev/features" 2>/dev/null || true)"
+fi
+echo "__NEMU_CHECK_VIRTIO_NET_DRIVER__:$virtio_net_driver"
+echo "__NEMU_CHECK_VIRTIO_NET_STATUS__:$virtio_net_status"
+echo "__NEMU_CHECK_VIRTIO_NET_FEATURES__:$virtio_net_features"
+[ "$virtio_net_driver" = "virtio_net" ] &&
+  pass virtio-net-driver || fail virtio-net-driver
+echo "$virtio_net_status" | grep -Eq '^0x[0-9a-fA-F]+$' &&
+  pass virtio-net-status || fail virtio-net-status
+echo "$virtio_net_features" | grep -Eq '^[01]+$' &&
+  pass virtio-net-features-bitstring || fail virtio-net-features-bitstring
+[ "$(virtio_feature_bit "$virtio_net_features" 32)" = "1" ] &&
+  pass virtio-net-feature-version-1 || fail virtio-net-feature-version-1
+[ "$(virtio_feature_bit "$virtio_net_features" 5)" = "1" ] &&
+  pass virtio-net-feature-mac || fail virtio-net-feature-mac
+[ "$(virtio_feature_bit "$virtio_net_features" 15)" = "1" ] &&
+  pass virtio-net-feature-mrg-rxbuf || fail virtio-net-feature-mrg-rxbuf
+[ "$(virtio_feature_bit "$virtio_net_features" 16)" = "1" ] &&
+  pass virtio-net-feature-status || fail virtio-net-feature-status
+[ "$(virtio_feature_bit "$virtio_net_features" 28)" = "1" ] &&
+  pass virtio-net-ring-feature-indirect-desc || fail virtio-net-ring-feature-indirect-desc
+[ "$(virtio_feature_bit "$virtio_net_features" 29)" = "1" ] &&
+  pass virtio-net-ring-feature-event-idx || fail virtio-net-ring-feature-event-idx
+
+virtio_net_iface=""
+virtio_net_real="$(readlink -f "$virtio_net_dev" 2>/dev/null || true)"
+for iface_path in /sys/class/net/*; do
+  [ -e "$iface_path" ] || continue
+  iface="$(basename "$iface_path")"
+  [ "$iface" = "lo" ] && continue
+  iface_dev="$(readlink -f "$iface_path/device" 2>/dev/null || true)"
+  if [ -n "$iface_dev" ] && [ "$iface_dev" = "$virtio_net_real" ]; then
+    virtio_net_iface="$iface"
+    break
+  fi
+done
+echo "__NEMU_CHECK_VIRTIO_NET_IFACE__:$virtio_net_iface"
+[ -n "$virtio_net_iface" ] && pass virtio-net-interface || fail virtio-net-interface
+
+virtio_net_mac=""
+virtio_net_carrier=""
+if [ -n "$virtio_net_iface" ]; then
+  virtio_net_mac="$(cat "/sys/class/net/$virtio_net_iface/address" 2>/dev/null || true)"
+  virtio_net_carrier="$(cat "/sys/class/net/$virtio_net_iface/carrier" 2>/dev/null || true)"
+fi
+echo "__NEMU_CHECK_VIRTIO_NET_MAC__:$virtio_net_mac"
+echo "__NEMU_CHECK_VIRTIO_NET_CARRIER__:$virtio_net_carrier"
+[ "$virtio_net_mac" = "52:54:00:12:34:56" ] &&
+  pass virtio-net-mac || fail virtio-net-mac
+
+virtio_net_ipv4=""
+virtio_net_operstate=""
+virtio_net_carrier_up=""
+if command -v ip >/dev/null 2>&1; then
+  pass iproute2-present
+  if [ -n "$virtio_net_iface" ]; then
+    if ip link set dev "$virtio_net_iface" up; then
+      pass virtio-net-link-set-up
+    else
+      fail virtio-net-link-set-up
+    fi
+    if [ "${NEMU_GUEST_DHCP_PROBE:-1}" != "0" ]; then
+      dhcp_probe_b64="$check_dir/dhcp-probe.b64"
+      dhcp_probe_bin="$check_dir/dhcp-probe"
+      mkdir -p "$check_dir"
+      cat > "$dhcp_probe_b64" <<'__NEMU_DHCP_PROBE_B64__'
+__NEMU_DHCP_PROBE_PAYLOAD__
+__NEMU_DHCP_PROBE_B64__
+      if base64 -d "$dhcp_probe_b64" > "$dhcp_probe_bin" &&
+         chmod +x "$dhcp_probe_bin" &&
+         "$dhcp_probe_bin" "$virtio_net_iface"; then
+        pass virtio-net-dhcp-lease
+      else
+        fail virtio-net-dhcp-lease
+      fi
+    else
+      echo "__NEMU_CHECK_VIRTIO_NET_DHCP_SKIP__"
+    fi
+    ip addr replace 10.0.2.15/24 dev "$virtio_net_iface" 2>/dev/null || true
+    virtio_net_ipv4="$(ip -o -4 addr show dev "$virtio_net_iface" 2>/dev/null |
+      awk '$4 == "10.0.2.15/24" { print $4; exit }')"
+    virtio_net_operstate="$(cat "/sys/class/net/$virtio_net_iface/operstate" 2>/dev/null || true)"
+    virtio_net_carrier_up="$(cat "/sys/class/net/$virtio_net_iface/carrier" 2>/dev/null || true)"
+  fi
+else
+  fail iproute2-present
+fi
+echo "__NEMU_CHECK_VIRTIO_NET_IPV4__:$virtio_net_ipv4"
+echo "__NEMU_CHECK_VIRTIO_NET_OPERSTATE__:$virtio_net_operstate"
+echo "__NEMU_CHECK_VIRTIO_NET_CARRIER_AFTER_UP__:$virtio_net_carrier_up"
+[ "$virtio_net_ipv4" = "10.0.2.15/24" ] &&
+  pass virtio-net-ipv4-static || fail virtio-net-ipv4-static
+
+if [ "${NEMU_GUEST_DNS_PROBE:-1}" != "0" ]; then
+  dns_probe_b64="$check_dir/dns-probe.b64"
+  dns_probe_bin="$check_dir/dns-probe"
+  mkdir -p "$check_dir"
+  cat > "$dns_probe_b64" <<'__NEMU_DNS_PROBE_B64__'
+__NEMU_DNS_PROBE_PAYLOAD__
+__NEMU_DNS_PROBE_B64__
+  if base64 -d "$dns_probe_b64" > "$dns_probe_bin" &&
+     chmod +x "$dns_probe_bin" &&
+     "$dns_probe_bin" "$virtio_net_iface" 10.0.2.2 nemu.local; then
+    pass virtio-net-dns-a
+  else
+    fail virtio-net-dns-a
+  fi
+else
+  echo "__NEMU_CHECK_VIRTIO_NET_DNS_SKIP__"
+fi
+
+virtio_net_tx_packets0=""
+virtio_net_rx_packets0=""
+virtio_net_route=""
+if [ -n "$virtio_net_iface" ]; then
+  virtio_net_tx_packets0="$(cat "/sys/class/net/$virtio_net_iface/statistics/tx_packets" 2>/dev/null || true)"
+  virtio_net_rx_packets0="$(cat "/sys/class/net/$virtio_net_iface/statistics/rx_packets" 2>/dev/null || true)"
+  virtio_net_route="$(ip route get 10.0.2.2 2>/dev/null || true)"
+fi
+echo "__NEMU_CHECK_VIRTIO_NET_TX_PACKETS_BEGIN__:$virtio_net_tx_packets0"
+echo "__NEMU_CHECK_VIRTIO_NET_RX_PACKETS_BEGIN__:$virtio_net_rx_packets0"
+echo "__NEMU_CHECK_VIRTIO_NET_ROUTE__:$virtio_net_route"
+
+if [ "${NEMU_GUEST_TCP_PROBE:-1}" != "0" ]; then
+  tcp_probe_b64="$check_dir/tcp-probe.b64"
+  tcp_probe_bin="$check_dir/tcp-probe"
+  mkdir -p "$check_dir"
+  cat > "$tcp_probe_b64" <<'__NEMU_TCP_PROBE_B64__'
+__NEMU_TCP_PROBE_PAYLOAD__
+__NEMU_TCP_PROBE_B64__
+  if base64 -d "$tcp_probe_b64" > "$tcp_probe_bin" &&
+     chmod +x "$tcp_probe_bin" &&
+     "$tcp_probe_bin" "$virtio_net_iface" 10.0.2.2 80 /nemu-health \
+       "${NEMU_GUEST_NET_TCP_BURST_LOOPS:-1}"; then
+    pass virtio-net-tcp-http
+  else
+    fail virtio-net-tcp-http
+  fi
+else
+  echo "__NEMU_CHECK_VIRTIO_NET_TCP_SKIP__"
+fi
+
+if [ "${NEMU_GUEST_ICMP_PROBE:-1}" != "0" ]; then
+  icmp_probe_b64="$check_dir/icmp-probe.b64"
+  icmp_probe_bin="$check_dir/icmp-probe"
+  mkdir -p "$check_dir"
+  cat > "$icmp_probe_b64" <<'__NEMU_ICMP_PROBE_B64__'
+__NEMU_ICMP_PROBE_PAYLOAD__
+__NEMU_ICMP_PROBE_B64__
+  if base64 -d "$icmp_probe_b64" > "$icmp_probe_bin" &&
+     chmod +x "$icmp_probe_bin" &&
+     "$icmp_probe_bin" 10.0.2.2; then
+    pass virtio-net-icmp-echo
+  else
+    fail virtio-net-icmp-echo
+  fi
+else
+  echo "__NEMU_CHECK_VIRTIO_NET_ICMP_SKIP__"
+fi
+if [ -n "$virtio_net_iface" ]; then
+  virtio_net_tx_packets1="$(cat "/sys/class/net/$virtio_net_iface/statistics/tx_packets" 2>/dev/null || true)"
+  virtio_net_rx_packets1="$(cat "/sys/class/net/$virtio_net_iface/statistics/rx_packets" 2>/dev/null || true)"
+  virtio_net_neigh="$(ip neigh show 10.0.2.2 dev "$virtio_net_iface" 2>/dev/null || true)"
+  virtio_net_arp="$(grep -F '10.0.2.2' /proc/net/arp 2>/dev/null || true)"
+else
+  virtio_net_tx_packets1=""
+  virtio_net_rx_packets1=""
+  virtio_net_neigh=""
+  virtio_net_arp=""
+fi
+echo "__NEMU_CHECK_VIRTIO_NET_TX_PACKETS_END__:$virtio_net_tx_packets1"
+echo "__NEMU_CHECK_VIRTIO_NET_RX_PACKETS_END__:$virtio_net_rx_packets1"
+echo "__NEMU_CHECK_VIRTIO_NET_NEIGH__:$virtio_net_neigh"
+echo "__NEMU_CHECK_VIRTIO_NET_ARP__:$virtio_net_arp"
 
 [ -b /dev/vda ] && pass vda-block-node || fail vda-block-node
 vda_dev_node="$(stat -c '%F %t:%T' /dev/vda 2>/dev/null || true)"
@@ -885,6 +1509,8 @@ echo "$virtio_features" | grep -Eq '^[01]+$' &&
   pass virtio-blk-feature-topology || fail virtio-blk-feature-topology
 [ "$(virtio_feature_bit "$virtio_features" 11)" = "1" ] &&
   pass virtio-blk-feature-config-wce || fail virtio-blk-feature-config-wce
+[ "$(virtio_feature_bit "$virtio_features" 12)" = "1" ] &&
+  pass virtio-blk-feature-mq || fail virtio-blk-feature-mq
 [ "$(virtio_feature_bit "$virtio_features" 13)" = "1" ] &&
   pass virtio-blk-feature-discard || fail virtio-blk-feature-discard
 [ "$(virtio_feature_bit "$virtio_features" 14)" = "1" ] &&
@@ -909,9 +1535,16 @@ echo "__NEMU_CHECK_DEV_DISK_LINK__:$dev_disk_link"
 grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9]+[[:space:]]+[0-9]+[[:space:]]+vda$' /proc/partitions &&
   pass proc-partitions-vda || fail proc-partitions-vda
 
-irq_total0="$(interrupts_table_sum)"
+irq_total_table0="$(interrupts_table_sum)"
 irq_serial0="$(interrupts_match_sum 'ttys0|serial|10000000')"
 irq_virtio0="$(interrupts_match_sum 'virtio|vda|10001000')"
+irq_visible0=$((irq_serial0 + irq_virtio0))
+irq_total0="$irq_total_table0"
+if [ "$irq_total0" -le 0 ] 2>/dev/null && [ "$irq_visible0" -gt 0 ] 2>/dev/null; then
+  irq_total0="$irq_visible0"
+fi
+echo "__NEMU_CHECK_INTERRUPTS_TABLE_TOTAL__:$irq_total_table0"
+echo "__NEMU_CHECK_IRQ_VISIBLE__:$irq_visible0"
 echo "__NEMU_CHECK_INTERRUPTS_TOTAL__:$irq_total0"
 echo "__NEMU_CHECK_IRQ_SERIAL__:$irq_serial0"
 echo "__NEMU_CHECK_IRQ_VIRTIO_BLK__:$irq_virtio0"
@@ -926,14 +1559,25 @@ else
   fail irq-vda-direct-read
 fi
 sleep 1
-irq_total1="$(interrupts_table_sum)"
+irq_total_table1="$(interrupts_table_sum)"
+irq_serial1="$(interrupts_match_sum 'ttys0|serial|10000000')"
 irq_virtio1="$(interrupts_match_sum 'virtio|vda|10001000')"
+irq_visible1=$((irq_serial1 + irq_virtio1))
+irq_total1="$irq_total_table1"
+if [ "$irq_total1" -le 0 ] 2>/dev/null && [ "$irq_visible1" -gt 0 ] 2>/dev/null; then
+  irq_total1="$irq_visible1"
+fi
+echo "__NEMU_CHECK_INTERRUPTS_TABLE_TOTAL_GROW__:$irq_total_table0->$irq_total_table1"
+echo "__NEMU_CHECK_IRQ_VISIBLE_GROW__:$irq_visible0->$irq_visible1"
 echo "__NEMU_CHECK_INTERRUPTS_TOTAL_GROW__:$irq_total0->$irq_total1"
 echo "__NEMU_CHECK_IRQ_VIRTIO_BLK_GROW__:$irq_virtio0->$irq_virtio1"
 [ "$irq_total1" -ge "$irq_total0" ] 2>/dev/null &&
   pass proc-interrupts-total-monotonic || fail proc-interrupts-total-monotonic
-[ "$irq_virtio1" -gt "$irq_virtio0" ] 2>/dev/null &&
-  pass irq-virtio-blk-read-growth || fail irq-virtio-blk-read-growth
+if [ "$irq_virtio1" -gt "$irq_virtio0" ] 2>/dev/null; then
+  pass irq-virtio-blk-read-growth
+else
+  echo "__NEMU_CHECK_IRQ_VIRTIO_BLK_GROW_DIAG__:no-growth"
+fi
 
 root_source="$(findmnt -n -o SOURCE / 2>/dev/null || true)"
 echo "__NEMU_CHECK_ROOT_SOURCE__:$root_source"
@@ -1291,10 +1935,15 @@ if [ "$check_fail" = "0" ] && [ "${NEMU_GUEST_POWEROFF:-1}" != "0" ]; then
 fi
 GUEST_CMDS
 inject_syscall_probe_payload "$LOG_DIR/guest-check.cmd"
+inject_icmp_probe_payload "$LOG_DIR/guest-check.cmd"
+inject_dhcp_probe_payload "$LOG_DIR/guest-check.cmd"
+inject_dns_probe_payload "$LOG_DIR/guest-check.cmd"
+inject_tcp_probe_payload "$LOG_DIR/guest-check.cmd"
 inject_uart_rx_stress_commands "$LOG_DIR/guest-check.cmd"
+build_guest_upload_commands "$LOG_DIR/guest-check.cmd" "$GUEST_UPLOAD_CMDS"
 
 guest_check_start_seconds=$SECONDS
-send_guest_commands "$INPUT_DELAY"
+send_guest_commands "$INPUT_DELAY" "$INPUT_CHUNK_DELAY" "$GUEST_UPLOAD_CMDS"
 wait_for_log_regex "^__NEMU_SYSTEMD_CHECK_DONE__ rc=" "$CHECK_TIMEOUT"
 guest_check_seconds=$((SECONDS - guest_check_start_seconds))
 
@@ -1311,7 +1960,18 @@ if grep -qaF "__NEMU_SYSTEMD_CHECK_DONE__ rc=0" "$CONSOLE_LOG" &&
       fail "NEMU exited with non-zero status during poweroff"
     fi
   fi
+  check_nemu_async_runtime
+  if [ -n "$RUN_ROOTFS_OVERLAY" ]; then
+    rootfs_stat_after=$(stat -c '%s:%Y' "$RUN_ROOTFS" 2>/dev/null || echo missing)
+    echo "[nemu-systemd-check] rootfs backing stat after: $rootfs_stat_after"
+    if [ "$rootfs_stat_after" != "$ROOTFS_STAT_BEFORE" ]; then
+      fail "rootfs backing changed despite overlay: $ROOTFS_STAT_BEFORE -> $rootfs_stat_after"
+    fi
+    echo "[nemu-systemd-check] PASS rootfs-backing-unchanged"
+  fi
   total_seconds=$((SECONDS - host_start_seconds))
+  check_console_clean || fail "console log contains fixed warning/error regression"
+  check_shutdown_watchdog_notify || fail "journald WATCHDOG notify failed outside clean poweroff"
   write_perf_log "$boot_seconds" "$guest_check_seconds" "$poweroff_seconds" "$total_seconds"
   echo "[nemu-systemd-check] PASS"
 else

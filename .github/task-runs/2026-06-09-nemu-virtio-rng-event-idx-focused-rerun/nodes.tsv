@@ -1,0 +1,8 @@
+recall-discovery	agent-system	agent-system	PASS	AGENTS/copilot/instructions/memory/e2e profiles	规则发现链和 e2e 配置入口存在	.github/task-runs/2026-06-09-nemu-virtio-rng-event-idx-focused-rerun/evidence/recall-discovery.log
+tool-env-check	agent-system	toolchain	PASS	bash/git/make/python/gcc/verilator/toolchain	hard requirements 与 optional tools 可见	.github/task-runs/2026-06-09-nemu-virtio-rng-event-idx-focused-rerun/evidence/tool-env-check.log
+npc-sim-status	hardware-flow	hardware-flow	PASS	npc/sim Kconfig 与 backend mk	当前 npc/sim 后端状态	.github/task-runs/2026-06-09-nemu-virtio-rng-event-idx-focused-rerun/evidence/npc-sim-status.log
+npc-rv64-contract	npc	npc	PASS	npc/rv64 + Linux README	RV64 core/Linux 入口合约存在	.github/task-runs/2026-06-09-nemu-virtio-rng-event-idx-focused-rerun/evidence/npc-rv64-contract.log
+rv64-linux-contract	rv64-linux	rv64-linux	PASS	Linux Makefile/env/platform/instructions	RV64 Linux/Ubuntu 合约入口存在	.github/task-runs/2026-06-09-nemu-virtio-rng-event-idx-focused-rerun/evidence/rv64-linux-contract.log
+nemu-ubuntu-static	nemu	nemu	PASS	Linux/NEMU Ubuntu rootfs scripts + performance config	NEMU Ubuntu 切片静态生产守门 PASS	.github/task-runs/2026-06-09-nemu-virtio-rng-event-idx-focused-rerun/evidence/nemu-ubuntu-static.log
+nemu-ubuntu-slice-contract	nemu	nemu	PASS	recent NEMU Ubuntu device slice hooks and guest markers	近期 NEMU Ubuntu 设备切片合约仍挂入 guest gate	.github/task-runs/2026-06-09-nemu-virtio-rng-event-idx-focused-rerun/evidence/nemu-ubuntu-slice-contract.log
+nemu-ubuntu-focused-gate	nemu	nemu	PASS	optional focused Ubuntu rootfs/systemd guest gate	AGENT_E2E_NEMU_UBUNTU_GATE=1 时运行真实 guest gate，否则 SKIP	.github/task-runs/2026-06-09-nemu-virtio-rng-event-idx-focused-rerun/evidence/nemu-ubuntu-focused-gate.log

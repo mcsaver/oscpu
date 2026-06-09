@@ -1,0 +1,16 @@
+[nemu-qmp-runtime-smoke] manual verification
+command: make -C Linux ARCH=riscv64-nemu nemu-qmp-smoke
+machine-info: Linux/build/nemu-machine-info.txt
+smoke-log: Linux/build/nemu-qmp-smoke.log
+
+PASS machine-info monitor.qmp=startup-query-cont-runtime-query
+PASS qmp-log QMP runtime client active
+PASS qmp-log QMP quit requested after runtime cont
+PASS runtime-qmp-greeting ysyx-nemu
+PASS runtime-query-status-prelaunch prelaunch
+PASS runtime-cont OK
+PASS runtime-query-status running
+PASS runtime-query-blockstats virtio0
+PASS runtime-quit OK
+PASS runtime-nemu-exit rc=0
+PASS __NEMU_QMP_SMOKE__:ok

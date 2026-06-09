@@ -1,0 +1,17 @@
+task=nemu-qmp-pthread-contract-e2e
+status=PASS
+scope=QMP runtime thread build-rule contract
+
+PASS bash -n scripts/e2e/modules/nemu.sh
+PASS git diff --check -- scripts/e2e/modules/nemu.sh nemu/src/filelist.mk
+PASS scripts/agent-e2e.sh --profile nemu-ubuntu --task-slug nemu-qmp-pthread-contract-e2e
+PASS slice-contract required file nemu/src/filelist.mk
+PASS slice-contract src/filelist.mk CFLAGS += -pthread
+PASS slice-contract src/filelist.mk LIBS += -pthread
+PASS static monitor.qmp=startup-query-cont-runtime-query
+PASS static monitor.qmp.mode=startup-query-cont-runtime-query-quit
+PASS qmp smoke runtime-query-status running
+PASS qmp smoke runtime-query-blockstats virtio0
+PASS qmp smoke __NEMU_QMP_SMOKE__:ok
+
+boundary=This proves QMP runtime thread build/e2e tracking. It is not full QMP schema/events/pause-resume/blockdev/migration/SMP/PCI or complete Ubuntu 22.04.

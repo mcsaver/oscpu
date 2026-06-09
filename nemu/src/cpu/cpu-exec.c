@@ -25,6 +25,9 @@
 // 这样即使配置或旧对象文件残留异常，也不会再把监视点符号带进 AM 链接。
 #include "../monitor/sdb/watchpoint.h"
 #endif
+#if !defined(CONFIG_TARGET_AM) && !defined(CONFIG_TARGET_SHARE)
+#include "../monitor/qmp.h"
+#endif
 
 /* The assembly code of instructions executed is only output to the screen
  * when the number of instructions executed is less than this value.
@@ -115,6 +118,7 @@ static uint64_t g_timer = 0; // unit: us
 
 void device_update();
 void device_update_after_inst(uint64_t retired);
+void virtio_blk_statistic();
 
 #if defined(CONFIG_RISCV_PROGRESS_DEBUG_LOG) && defined(CONFIG_ISA_riscv)
 static inline void riscv_progress_debug_log(void) {
@@ -195,7 +199,7 @@ static void exec_once(Decode *s, vaddr_t pc) {//此处s是传入是指针,decode
 static void execute_one(Decode *s) {
   exec_once(s, cpu.pc);//单步执行
   g_nr_guest_inst ++;//记录客户指令的计数器
-  IFDEF(CONFIG_ISA_riscv, isa_riscv32_post_exec());
+  IFDEF(CONFIG_ISA_riscv, isa_riscv_post_exec());
   riscv_progress_debug_log();
 #ifdef CONFIG_ITRACE
   // 把日志构造延后到执行后，并且仅在真正需要输出时触发，减少常规运行时的额外工作。
@@ -285,9 +289,14 @@ static uint64_t execute_one_or_block(uint64_t n) {
 
 static void execute(uint64_t n) {
   while (n > 0 && nemu_state.state == NEMU_RUNNING) {
+#if !defined(CONFIG_TARGET_AM) && !defined(CONFIG_TARGET_SHARE)
+    qmp_cpu_pause_point();
+    if (nemu_state.state != NEMU_RUNNING) break;
+#endif
+
     word_t intr = INTR_EMPTY;
 #ifdef CONFIG_INTERPRETER_INTR_FAST_FLAG
-    if (isa_riscv32_intr_pending_fast()) {
+    if (isa_riscv_intr_pending_fast()) {
       intr = isa_query_intr();
     }
 #else
@@ -318,11 +327,13 @@ static void statistic() {
   if (g_timer > 0) Log("simulation frequency = " NUMBERIC_FMT " inst/s", g_nr_guest_inst * 1000000 / g_timer);
   else Log("Finish running in less than 1 us and can not calculate the simulation frequency");
   // 程序结束时统一输出 cache counter，并顺带写回 DCache 脏行，方便结束后检查 PMEM。
-  IFDEF(CONFIG_ISA_riscv, isa_riscv32_plic_statistic());
+  IFDEF(CONFIG_ISA_riscv, isa_riscv_plic_statistic());
+  IFDEF(CONFIG_HAS_DISK, virtio_blk_statistic());
   IFDEF(CONFIG_CACHE, cache_statistic());
   IFDEF(CONFIG_BPU, bpu_statistic());
 #else
   // 性能模式关闭统计输出，但 cache 模型若开启仍必须 flush 脏线，避免功能语义变化。
+  IFDEF(CONFIG_HAS_DISK, virtio_blk_statistic());
   IFDEF(CONFIG_CACHE, cache_flush_all());
 #endif
 }

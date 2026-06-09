@@ -62,8 +62,17 @@
 - `should_promote_to_static_template`: 已作为 modular-agent-e2e profile 固化
 - `reason`: profile + module library + task-run 证据包能把 agent 提示转为可执行流水线
 
+## 本轮切片说明
+
+- `implemented_slice`: NEMU virtio-blk 普通 IN/OUT 数据路径的 direct guest-buffer I/O。`disk_read_to_guest()`/`disk_write_from_guest()` 在 descriptor range 检查后尝试 `guest_host_buffer()`；PMEM 命中时直接对 `guest_to_host()` 后的 host buffer 调用 `disk_pread_all()`/`disk_pwrite_all()`，避免 4KiB 临时栈缓冲和 `pmem_read/write` 拷贝。
+- `semantic_boundary`: 不能直接映射、越界、非 PMEM 或跨设备/MMIO 的 buffer 仍回退旧分块路径；write-through 仍通过 `disk_sync_if_writethrough()` 保持同步语义。该切片不声明异步 I/O、多队列、descriptor fuzz、断电恢复、virtio-net/SMP、完整 TB cache 或 DBT/JIT。
+- `e2e_contract`: `scripts/e2e/modules/nemu.sh` 已把 `guest_host_buffer`、`disk_pread_all(host_buf` 与 `disk_pwrite_all(host_buf` 作为 `nemu-ubuntu` slice contract hook，避免后续只看到 `pread/pwrite` 后端而漏掉 direct guest-buffer 优化。
+- `focused_evidence`: 本次真实 guest gate PASS；`perf.tsv` 为 `boot_seconds=90`、`guest_check_seconds=232`、`poweroff_seconds=8`、`total_seconds=330`、`max_cycles=25000000000`。
+- `guest_markers`: console 覆盖 systemd running、failed count 0、ttyS0、virtio-rng、goldfish-rtc、virtio-blk feature gates、vda discard/write-zeroes/cache、syscon poweroff 与 `HIT GOOD TRAP`；坏模式扫描为空。
+- `remaining_scope`: 后续仍需补异步 block、多队列、malformed descriptor/indirect descriptor 压力、virtio-net、SMP、snapshot/GDB/monitor、TB cache/code-page invalidation 和 DBT/JIT。
+
 ## 收尾结论
 
-- `final_result`: profile=nemu-ubuntu-gate 通过，当前 modular e2e 证据链可复用。
-- `evidence_summary`: 详见节点表与 `evidence/`
-- `notes`: 这是模块化 e2e gate，不替代未执行模块的功能回归、DiffTest、Linux/Ubuntu 分层 gate 或 PPA/STA signoff。
+- `final_result`: profile=nemu-ubuntu-gate 通过，且 virtio-blk direct guest-buffer I/O 切片已有代码 hook、e2e contract 与真实 guest gate 证据。
+- `evidence_summary`: 详见节点表、`evidence/` 与本报告“本轮切片说明”。
+- `notes`: 这是模块化 e2e gate 和单个 block 热路径切片，不替代未执行模块的功能回归、DiffTest、Linux/Ubuntu 分层 gate、QEMU 级设备完整性或 PPA/STA signoff。

@@ -33,6 +33,16 @@ void add_pio_map(const char *name, ioaddr_t addr, void *space, uint32_t len, io_
   nr_map ++;
 }
 
+#ifndef CONFIG_TARGET_AM
+void dump_pio_maps(FILE *out) {
+  fprintf(out, "pio.count=%d\n", nr_map);
+  for (int i = 0; i < nr_map; i++) {
+    fprintf(out, "pio.%s=" FMT_PADDR ".." FMT_PADDR "\n",
+        maps[i].name, maps[i].low, maps[i].high);
+  }
+}
+#endif
+
 /* CPU interface */
 uint32_t pio_read(ioaddr_t addr, int len) {
   assert(addr + len - 1 < PORT_IO_SPACE_MAX);

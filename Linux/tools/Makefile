@@ -13,6 +13,11 @@ DTC ?= dtc
 FDTGET ?= fdtget
 BUILD_DIR ?= build
 NPC_SIM ?= ../../npc/rv64/build/NpcSimTop
+NEMU_HOME ?= ../../nemu
+NEMU_BUILD_JOBS ?= $(shell nproc 2>/dev/null || echo 1)
+NEMU := $(abspath $(NEMU_HOME)/build/riscv64-nemu-interpreter)
+NEMU_AMO_MISALIGNED_LOG ?= $(BUILD_DIR)/amo-misaligned-nemu.log
+NEMU_SV39_SFENCE_ASID_LOG ?= $(BUILD_DIR)/sv39-sfence-asid-nemu.log
 PYTHON ?= $(if $(wildcard $(ENV_ROOT)/tools/python/bin/python3),$(ENV_ROOT)/tools/python/bin/python3,python3)
 PLATFORM_CONFIG ?= ../platform/npc-rv64.yml
 GEN_DTS ?= ../platform/gen_dts.py
@@ -68,6 +73,10 @@ SRET_RESTORE_THREAD ?= 0x80000c00
 SRET_RESTORE_UVA ?= 0x0000003fb6410002
 RAS_TRAP_TEXT ?= 0x80000000
 RAS_TRAP_STACK ?= 0x87ef5000
+AMO_MISALIGNED_TEXT ?= 0x80000000
+AMO_MISALIGNED_STACK ?= 0x87eef000
+SV39_SFENCE_ASID_TEXT ?= 0x80000000
+SV39_SFENCE_ASID_STACK ?= 0x87eee000
 FP_FMV_FCLASS_TEXT ?= $(FP_SMOKE_TEXT)
 FP_FMV_FCLASS_STACK ?= 0x87efb000
 FP_CONVERT_TEXT ?= $(FP_SMOKE_TEXT)
@@ -109,6 +118,10 @@ SRET_RESTORE_ELF := $(BUILD_DIR)/sret-restore-smoke.elf
 SRET_RESTORE_BIN := $(BUILD_DIR)/sret-restore-smoke.bin
 RAS_TRAP_ELF := $(BUILD_DIR)/ras-trap-boundary-smoke.elf
 RAS_TRAP_BIN := $(BUILD_DIR)/ras-trap-boundary-smoke.bin
+AMO_MISALIGNED_ELF := $(BUILD_DIR)/amo-misaligned-smoke.elf
+AMO_MISALIGNED_BIN := $(BUILD_DIR)/amo-misaligned-smoke.bin
+SV39_SFENCE_ASID_ELF := $(BUILD_DIR)/sv39-sfence-asid-smoke.elf
+SV39_SFENCE_ASID_BIN := $(BUILD_DIR)/sv39-sfence-asid-smoke.bin
 FP_FCSR_ELF := $(BUILD_DIR)/fp-fcsr-smoke.elf
 FP_FCSR_BIN := $(BUILD_DIR)/fp-fcsr-smoke.bin
 FP_FMV_FCLASS_ELF := $(BUILD_DIR)/fp-fmv-fclass-smoke.elf
@@ -131,7 +144,7 @@ FP_SQRT_BIN := $(BUILD_DIR)/fp-sqrt-smoke.bin
 SMOKE_BINS := \
   $(JAL_LINK_BIN) $(BRANCH_RAW_BIN) $(MULDIV_SMOKE_BIN) \
   $(SRET_USER_BIN) $(SRET_USER_PF_BIN) $(SRET_USER_SV39_BIN) $(SRET_USER_SV39_HALF_BIN) \
-  $(SRET_RESTORE_BIN) $(RAS_TRAP_BIN) \
+  $(SRET_RESTORE_BIN) $(RAS_TRAP_BIN) $(AMO_MISALIGNED_BIN) $(SV39_SFENCE_ASID_BIN) \
   $(FP_SMOKE_BIN) $(FP_FCSR_BIN) $(FP_FMV_FCLASS_BIN) $(FP_CONVERT_BIN) $(FP_COMPARE_SGNJ_BIN) \
   $(FP_MINMAX_BIN) $(FP_ADDSUB_BIN) $(FP_MUL_BIN) $(FP_DIV_BIN) $(FP_SQRT_BIN)
 
@@ -141,6 +154,7 @@ BOOT_TOOL_BINS := $(TRAMPOLINE_BIN) $(DTB_SMOKE_BIN) $(MINI_LINUX_BIN) $(OPENSBI
 	smoke-dtb smoke-opensbi smoke-opensbi-sbi smoke-virtio-blk \
 	smoke-jal-link smoke-branch-raw smoke-muldiv smoke-sret-user smoke-sret-user-pagefault \
 	smoke-sret-user-sv39 smoke-sret-user-sv39-halfword smoke-sret-restore smoke-ras-trap-boundary \
+	smoke-nemu-amo-misaligned smoke-nemu-sv39-sfence-asid \
 	smoke-fp-loadstore smoke-fp-fcsr smoke-fp-fmv-fclass smoke-fp-convert \
 	smoke-fp-compare-sgnj smoke-fp-minmax smoke-fp-addsub smoke-fp-mul \
 	smoke-fp-div smoke-fp-sqrt
@@ -326,6 +340,22 @@ $(RAS_TRAP_ELF): ras-trap-boundary-smoke.S Makefile
 	  -DRAS_TRAP_STACK=$(RAS_TRAP_STACK) \
 	  $< -o $@
 
+$(AMO_MISALIGNED_ELF): amo-misaligned-smoke.S Makefile
+	mkdir -p $(BUILD_DIR)
+	$(CC) -x assembler-with-cpp -nostdlib -nostartfiles \
+	  -march=rv64ima_zicsr_zifencei -mabi=lp64 -Wl,-Ttext=$(AMO_MISALIGNED_TEXT) \
+	  -static -no-pie -Wl,--no-relax -Wl,--build-id=none \
+	  -DAMO_MISALIGNED_STACK=$(AMO_MISALIGNED_STACK) \
+	  $< -o $@
+
+$(SV39_SFENCE_ASID_ELF): sv39-sfence-asid-smoke.S Makefile
+	mkdir -p $(BUILD_DIR)
+	$(CC) -x assembler-with-cpp -nostdlib -nostartfiles \
+	  -march=rv64ima_zicsr_zifencei -mabi=lp64 -Wl,-Ttext=$(SV39_SFENCE_ASID_TEXT) \
+	  -static -no-pie -Wl,--no-relax -Wl,--build-id=none \
+	  -DSV39_SFENCE_ASID_STACK=$(SV39_SFENCE_ASID_STACK) \
+	  $< -o $@
+
 $(FP_FCSR_ELF): fp-fcsr-smoke.S Makefile
 	mkdir -p $(BUILD_DIR)
 	$(CC) -x assembler-with-cpp -nostdlib -nostartfiles \
@@ -427,6 +457,20 @@ smoke-sret-restore: $(SRET_RESTORE_BIN)
 
 smoke-ras-trap-boundary: $(RAS_TRAP_BIN)
 	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(RAS_TRAP_BIN)
+
+smoke-nemu-amo-misaligned: $(AMO_MISALIGNED_BIN)
+	NEMU_HOME=$(abspath $(NEMU_HOME)) $(MAKE) -C $(abspath $(NEMU_HOME)) riscv64-linux_defconfig
+	NEMU_HOME=$(abspath $(NEMU_HOME)) $(MAKE) -C $(abspath $(NEMU_HOME)) -j$(NEMU_BUILD_JOBS)
+	NEMU_HOME=$(abspath $(NEMU_HOME)) $(NEMU) -b --max-insts=200000 -i $(AMO_MISALIGNED_BIN) > $(NEMU_AMO_MISALIGNED_LOG) 2>&1
+	cat $(NEMU_AMO_MISALIGNED_LOG)
+	grep -q 'HIT GOOD TRAP' $(NEMU_AMO_MISALIGNED_LOG)
+
+smoke-nemu-sv39-sfence-asid: $(SV39_SFENCE_ASID_BIN)
+	NEMU_HOME=$(abspath $(NEMU_HOME)) $(MAKE) -C $(abspath $(NEMU_HOME)) riscv64-linux_defconfig
+	NEMU_HOME=$(abspath $(NEMU_HOME)) $(MAKE) -C $(abspath $(NEMU_HOME)) -j$(NEMU_BUILD_JOBS)
+	NEMU_HOME=$(abspath $(NEMU_HOME)) $(NEMU) -b --max-insts=300000 -i $(SV39_SFENCE_ASID_BIN) > $(NEMU_SV39_SFENCE_ASID_LOG) 2>&1
+	cat $(NEMU_SV39_SFENCE_ASID_LOG)
+	grep -q 'HIT GOOD TRAP' $(NEMU_SV39_SFENCE_ASID_LOG)
 
 smoke-fp-loadstore: $(FP_SMOKE_BIN)
 	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(FP_SMOKE_BIN)
