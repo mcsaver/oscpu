@@ -1,3 +1,8 @@
-@include|discovery||||
-npc-rv64-contract|npc|e2e_npc_rv64_contract|npc|npc/rv64 + Linux README|RV64 core/Linux 入口合约存在
-rv64-linux-contract|rv64-linux|e2e_rv64_linux_contract|rv64-linux|Linux Makefile/env/platform/instructions|RV64 Linux/Ubuntu 合约入口存在
+# DB-backed .github/e2e/profiles/rv64-linux.tsv
+
+> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
+> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/e2e/profiles/rv64-linux.tsv`。
+
+- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/e2e/profiles/rv64-linux.tsv`
+- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/e2e/profiles/rv64-linux.tsv --yes`
+- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/e2e/profiles/rv64-linux.tsv`

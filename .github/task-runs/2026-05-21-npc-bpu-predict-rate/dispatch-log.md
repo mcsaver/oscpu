@@ -1,20 +1,8 @@
-# Dispatch Log
+# DB-backed .github/task-runs/2026-05-21-npc-bpu-predict-rate/dispatch-log.md
 
-## 节点
+> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
+> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/task-runs/2026-05-21-npc-bpu-predict-rate/dispatch-log.md`。
 
-| node_id | depends_on | 动作 | 结果 |
-| --- | --- | --- | --- |
-| recall | - | 读取 AGENTS、Copilot 指令、project/known issues、NPC memory、RTL workflow、study 索引和 BPU 相关源码 | 完成 |
-| design | recall | 明确 IF predict / EX resolve 边界，确定 gshare index 需要随流水传递 | 完成 |
-| implement-rtl | design | 修改 `BranchPredictor`、`IfStage`、流水寄存器和 `NpcCore` | 完成 |
-| implement-stats | design | 在 `NpcSimTop` 与 `cpu-exec.cpp` 加 BPU lookup/resolve 统计 | 完成 |
-| tests | implement-rtl, implement-stats | 更新 testbench 并运行模块/RTL/AM 回归 | 完成 |
-| record | tests | 更新 memory 与 task-run 记录 | 完成 |
-
-## 关键证据
-
-- 模块级回归：`/tmp/npc-bpu-stats-tests`，21/21 PASS。
-- Verilator lint：PASS。
-- Verilator build：PASS。
-- 定向 cpu-tests：`if-else` PASS，`switch/recursion/compressed` PASS。
-- 全量 cpu-tests：38/38 PASS。
+- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/2026-05-21-npc-bpu-predict-rate/dispatch-log.md`
+- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/task-runs/2026-05-21-npc-bpu-predict-rate/dispatch-log.md --yes`
+- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/2026-05-21-npc-bpu-predict-rate/dispatch-log.md`

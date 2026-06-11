@@ -1,9 +1,8 @@
-# yosys-sta E2E Contract
+# DB-backed .github/e2e/modules/yosys-sta.md
 
-- **范围**: Yosys 综合、iEDA STA/功耗、PPA 下游节点。
-- **上游**: NPC 可综合 RTL filelist、SDC、PDK。
-- **下游**: tapeout-readiness、PPA regression。
-- **L0 gate**: `yosys-sta-contract` 检查 Makefile、memory 和工具状态。
-- **L1 gate**: 后续升级为 `make -C npc/single syn-check-env`。
-- **证据**: syn/sta env check、netlist、timing/power report。
-- **升级路线**: 将 STA 结果纳入 profile diff，跟踪频率/面积/功耗变化。
+> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
+> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/e2e/modules/yosys-sta.md`。
+
+- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/e2e/modules/yosys-sta.md`
+- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/e2e/modules/yosys-sta.md --yes`
+- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/e2e/modules/yosys-sta.md`

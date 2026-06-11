@@ -1,0 +1,9 @@
+[hardware-flow] contract
+PASS .github/agents/hardware-flow.agent.md
+PASS .github/e2e/modules/hardware-flow.md
+PASS .github/e2e/profiles/discovery.tsv
+PASS .github/e2e/profiles/quick.tsv
+PASS .github/e2e/profiles/reference.tsv
+PASS .github/e2e/profiles/full.tsv
+PASS scripts/am-regression.sh
+PASS scripts/e2e/modules/hardware_flow.sh

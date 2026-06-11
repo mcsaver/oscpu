@@ -1,0 +1,5 @@
+[npc-single] contract
+PASS npc/single/Makefile
+PASS npc/single/Kconfig
+PASS npc/single/vsrc/filelist.mk
+PASS npc/single/csrc/cpu/cpu-exec.cpp

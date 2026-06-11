@@ -1,7 +1,8 @@
-# Dispatch Log
+# DB-backed .github/task-runs/2026-05-29-ooo-control-flow-barrier/dispatch-log.md
 
-- 审计 `DecodeUnit`/`ImmGen`/`CompareUnit` 和 OoO ALU-only 前端，确认条件分支可用已提交架构态精确解析。
-- 决策：先实现 lane0 conditional branch barrier；`jal/jalr` 等待合成链接寄存器写回设计。
-- 实现 `OooAluFetchCore` lane0 branch decode、pending branch metadata、synthetic commit mux、stale fetch response drop 和 redirect 清空。
-- 扩展 `tb_ooo_alu_fetch_core`：unsupported 哨兵改为 load，新增 taken/not-taken 分支程序。
-- 补 `tb_ooo_alu_fetch_core` 的 `CompareUnit` testbench 依赖；单测、OoO testbench、实验 lint/build、默认 lint/build/full testbench、AM `cpu-tests add` 均通过。
+> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
+> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/task-runs/2026-05-29-ooo-control-flow-barrier/dispatch-log.md`。
+
+- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/2026-05-29-ooo-control-flow-barrier/dispatch-log.md`
+- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/task-runs/2026-05-29-ooo-control-flow-barrier/dispatch-log.md --yes`
+- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/2026-05-29-ooo-control-flow-barrier/dispatch-log.md`

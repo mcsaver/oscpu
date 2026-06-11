@@ -1,0 +1,4 @@
+[verilator-tapeout] contract
+PASS .github/agents/verilator-tapeout.agent.md
+PASS .github/instructions/verilator-tapeout-realism.instructions.md
+PASS npc/rv64/Makefile

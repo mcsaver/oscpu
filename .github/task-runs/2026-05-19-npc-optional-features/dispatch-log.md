@@ -1,10 +1,8 @@
-# 执行日志
+# DB-backed .github/task-runs/2026-05-19-npc-optional-features/dispatch-log.md
 
-## 2026-05-19
+> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
+> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/task-runs/2026-05-19-npc-optional-features/dispatch-log.md`。
 
-- 读取 `.github/AGENTS.md`、项目记忆、NPC/NEMU/AM/AM-Kernels/difftest 模块记录和 NPC study/instructions，确认任务需要先分析再改、跨模块改动后更新记忆。
-- 对照 NEMU 当前可选能力，确定 NPC 实现顺序为 M -> B -> C -> cache/fence.i -> BPU。
-- 每个阶段完成后先跑轻量级 cpu-test diff，再继续下一阶段。
-- 最终跑全量 `cpu-tests` 38/38 difftest PASS。
-- 按用户要求继续跑 benchmark：CoreMark、Dhrystone、MicroBench `test` 均 PASS。
-- 更新 `.github/memory/project-status.md`、`.github/memory/modules/{npc,nemu,am-kernels,difftest}.md`、`.github/memory/known-issues.md` 和本目录任务报告。
+- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/2026-05-19-npc-optional-features/dispatch-log.md`
+- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/task-runs/2026-05-19-npc-optional-features/dispatch-log.md --yes`
+- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/2026-05-19-npc-optional-features/dispatch-log.md`

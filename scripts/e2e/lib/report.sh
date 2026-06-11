@@ -41,6 +41,22 @@ e2e_sanitize_task_run_text_artifacts() {
   )
 }
 
+e2e_archive_task_run_markdown_to_db() {
+  [[ ${E2E_ARCHIVE_TASK_RUN_MARKDOWN_TO_DB:-1} = 1 ]] || return 0
+  [[ -n ${E2E_RUN_DIR:-} && -d $E2E_RUN_DIR ]] || return 0
+  [[ -f "$E2E_ROOT_DIR/scripts/github_index_db.py" ]] || return 0
+
+  local run_rel backup_dir
+  run_rel=$(e2e_relpath "$E2E_RUN_DIR")
+  backup_dir=${E2E_TASK_RUN_DB_BACKUP_DIR:-.github/db-backup/task-runs}
+  if ! python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" archive-markdown "$run_rel" \
+      --repo-root "$E2E_ROOT_DIR" \
+      --backup-dir "$backup_dir" \
+      --yes >/dev/null; then
+    printf '[e2e] WARN task-run Markdown archive failed for %s\n' "$run_rel" >&2
+  fi
+}
+
 e2e_init_dispatch_log() {
   cat > "$E2E_DISPATCH_FILE" <<EOF
 # Dispatch Log
@@ -251,4 +267,5 @@ EOF
 - \`notes\`: 这是模块化 e2e gate，不替代未执行模块的功能回归、DiffTest、Linux/Ubuntu 分层 gate 或 PPA/STA signoff。
 EOF
   e2e_sanitize_task_run_text_artifacts
+  e2e_archive_task_run_markdown_to_db
 }

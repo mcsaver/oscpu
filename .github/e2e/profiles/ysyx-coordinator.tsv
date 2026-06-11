@@ -1,2 +1,8 @@
-@include|discovery||||
-ysyx-coordinator-contract|ysyx-coordinator|e2e_ysyx_coordinator_contract|ysyx-coordinator|coordinator agent + blueprint + profile root|总调度 e2e 合约入口存在
+# DB-backed .github/e2e/profiles/ysyx-coordinator.tsv
+
+> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
+> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/e2e/profiles/ysyx-coordinator.tsv`。
+
+- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/e2e/profiles/ysyx-coordinator.tsv`
+- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/e2e/profiles/ysyx-coordinator.tsv --yes`
+- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/e2e/profiles/ysyx-coordinator.tsv`

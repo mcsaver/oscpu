@@ -58,16 +58,16 @@ e2e_agent_system_discovery() {
   fi
 
   echo "[agent-system] outer command-control hygiene"
-  local workflow_doc="$E2E_ROOT_DIR/.github/instructions/agent-e2e-workflow.instructions.md"
-  local e2e_readme="$E2E_ROOT_DIR/.github/e2e/README.md"
-  local agent_contract="$E2E_ROOT_DIR/.github/e2e/modules/agent-system.md"
+  local workflow_doc=".github/instructions/agent-e2e-workflow.instructions.md"
+  local e2e_readme=".github/e2e/README.md"
+  local agent_contract=".github/e2e/modules/agent-system.md"
   local control_hygiene_ok=1
   for doc in "$workflow_doc" "$e2e_readme" "$agent_contract"; do
-    if grep -Fq '外层工具控制符' "$doc" &&
-       grep -Fq 'rg -e' "$doc"; then
-      printf 'PASS command-control hygiene documented in %s\n' "${doc#$E2E_ROOT_DIR/}"
+    if e2e_file_contains "$doc" '外层工具控制符' &&
+       e2e_file_contains "$doc" 'rg -e'; then
+      printf 'PASS command-control hygiene documented in %s\n' "$doc"
     else
-      printf 'FAIL command-control hygiene documented in %s\n' "${doc#$E2E_ROOT_DIR/}"
+      printf 'FAIL command-control hygiene documented in %s\n' "$doc"
       control_hygiene_ok=0
     fi
   done
@@ -78,12 +78,12 @@ e2e_agent_system_discovery() {
   echo "[agent-system] WSL single-flight hygiene"
   local wsl_hygiene_ok=1
   for doc in "$workflow_doc" "$e2e_readme" "$agent_contract"; do
-    if grep -Fq '并发启动多个 `wsl.exe`' "$doc" &&
-       grep -Fq 'Wsl/Service/E_UNEXPECTED' "$doc" &&
-       grep -Fq 'scripts/agent-run.sh' "$doc"; then
-      printf 'PASS WSL single-flight hygiene documented in %s\n' "${doc#$E2E_ROOT_DIR/}"
+    if e2e_file_contains "$doc" '并发启动多个 `wsl.exe`' &&
+       e2e_file_contains "$doc" 'Wsl/Service/E_UNEXPECTED' &&
+       e2e_file_contains "$doc" 'scripts/agent-run.sh'; then
+      printf 'PASS WSL single-flight hygiene documented in %s\n' "$doc"
     else
-      printf 'FAIL WSL single-flight hygiene documented in %s\n' "${doc#$E2E_ROOT_DIR/}"
+      printf 'FAIL WSL single-flight hygiene documented in %s\n' "$doc"
       wsl_hygiene_ok=0
     fi
   done
@@ -133,6 +133,14 @@ e2e_agent_system_discovery() {
     printf 'PASS report.sh limits sanitizer to current task-run\n'
   else
     printf 'FAIL report.sh limits sanitizer to current task-run\n'
+    rc=1
+  fi
+  if grep -Fq 'e2e_archive_task_run_markdown_to_db' "$report_sh" &&
+     grep -Fq 'archive-markdown "$run_rel"' "$report_sh" &&
+     grep -Fq 'E2E_TASK_RUN_DB_BACKUP_DIR' "$report_sh"; then
+    printf 'PASS report.sh archives task-run Markdown into database-backed shims\n'
+  else
+    printf 'FAIL report.sh task-run Markdown DB archive hook missing\n'
     rc=1
   fi
   return "$rc"

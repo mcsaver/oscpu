@@ -1,0 +1,234 @@
+[github-index] contract
+PASS scripts/github_index_db.py
+PASS .github/e2e/modules/github-index.md
+PASS .github/e2e/profiles/github-index.tsv
+[github-index] tracked persistent sources
+PASS github-index persistent sources are tracked
+[github-index] filesystem source and database boundary
+PASS github-index defaults to .github source and .github/cache SQLite index
+PASS github-index database cache is ignored by git
+[github-index] chunked summary/load interface
+PASS github-index exposes chunked summary/load memory interface
+[github-index] agent entry shims included in database
+PASS github-index indexes root/multi-agent entry shims by default
+[github-index] DB-first migration interface
+PASS github-index exposes DB-first promote/migrate/restore interface
+[github-index] python syntax
+[github-index] temporary rebuild/stat/query/summary/load/show/doctor smoke
+PASS rebuild files=6162 db=/tmp/tmp.oJwdO4MtJX/github-index.sqlite
+db=/tmp/tmp.oJwdO4MtJX/github-index.sqlite
+schema_version=3
+fts5=1
+root=.github
+last_rebuild_at=2026-06-11T09:08:47+00:00
+files=6162
+indexed=5665
+chunks=13782
+token_estimate=2265821
+stored_documents=0
+stored_chunks=0
+stored_token_estimate=0
+[status]
+indexed=5665
+skipped_binary=452
+skipped_encoding=45
+[kind]
+agent=18
+agent-rule=1
+agent-shim=6
+dispatch-log=518
+e2e-module=20
+e2e-profile=32
+instruction=11
+markdown=3
+memory=3
+memory-module=10
+task-evidence=3163
+task-report=550
+task-run=1825
+task-template=2
+ls=.github/e2e dirs=2 files=1
+DIR  modules/ (20)
+DIR  profiles/ (32)
+FILE README.md [markdown indexed] size=23665 lines=95 title=Modular Agent E2E
+tree=.github/e2e rows=53 depth=2
+README.md [markdown indexed]
+modules/
+  abstract-machine.md [e2e-module indexed]
+  agent-system.md [e2e-module indexed]
+  am-kernels.md [e2e-module indexed]
+  difftest.md [e2e-module indexed]
+  digital-logic.md [e2e-module indexed]
+  display-vga.md [e2e-module indexed]
+  fceux-am.md [e2e-module indexed]
+  github-index.md [e2e-module indexed]
+  hardware-flow.md [e2e-module indexed]
+  linux-device.md [e2e-module indexed]
+  nemu.md [e2e-module indexed]
+  npc.md [e2e-module indexed]
+  nvboard.md [e2e-module indexed]
+  rv64-linux.md [e2e-module indexed]
+  software-flow.md [e2e-module indexed]
+  toolchain.md [e2e-module indexed]
+  verilator-tapeout.md [e2e-module indexed]
+  yosys-sta.md [e2e-module indexed]
+  ysyx-coordinator.md [e2e-module indexed]
+  ysyx-soc.md [e2e-module indexed]
+profiles/
+  README.md [e2e-profile indexed]
+  abstract-machine.tsv [e2e-profile indexed]
+  agent-system.tsv [e2e-profile indexed]
+  am-kernels.tsv [e2e-profile indexed]
+  contracts.tsv [e2e-profile indexed]
+  difftest.tsv [e2e-profile indexed]
+  digital-logic.tsv [e2e-profile indexed]
+  discovery.tsv [e2e-profile indexed]
+  display-vga.tsv [e2e-profile indexed]
+path=AGENTS.md
+kind=agent-shim
+index_status=indexed
+exists_flag=1
+size_bytes=1210
+mtime_ns=1780737743433717193
+sha256=02b1937859de3bc0b8d74f2703c3659c508a0949ebba0b96de77f22bb9bd9836
+line_count=14
+title=AGENTS.md
+description=
+declared_status=
+tags=agent-shim,md
+indexed_at=2026-06-11T09:08:47+00:00
+updated_at=2026-06-11T09:08:47+00:00
+query=software-flow mode=fts results=8
+.github/task-runs/2026-06-11-software-flow-methodology-guard/evidence/software-flow-contract.log:1 [task-evidence indexed] software-flow-contract.log
+  [software-flow] contract PASS .github/agents/software-flow.agent.md PASS .github/e2e/modules/software-flow.md P
+.github/task-runs/2026-06-11-software-flow-methodology-guard-2/evidence/software-flow-contract.log:1 [task-evidence indexed] software-flow-contract.log
+  [software-flow] contract PASS .github/agents/software-flow.agent.md PASS .github/e2e/modules/software-flow.md P
+.github/task-runs/2026-06-11-nemu-ubuntu-software-flow-methodology-include/evidence/software-flow-contract.log:1 [task-evidence indexed] software-flow-contract.log
+  [software-flow] contract PASS .github/agents/software-flow.agent.md PASS .github/e2e/modules/software-flow.md P
+.github/task-runs/2026-06-11-github-index-chunk-memory-contracts/evidence/software-flow-contract.log:1 [task-evidence indexed] software-flow-contract.log
+  [software-flow] contract PASS .github/agents/software-flow.agent.md PASS .github/e2e/modules/software-flow.md P
+.github/task-runs/2026-06-11-nemu-full-dpkg-ownership-contract/evidence/software-flow-contract.log:1 [task-evidence indexed] software-flow-contract.log
+  [software-flow] contract PASS .github/agents/software-flow.agent.md PASS .github/e2e/modules/software-flow.md P
+.github/task-runs/2026-06-11-github-index-agent-shim-db-contracts/evidence/software-flow-contract.log:1 [task-evidence indexed] software-flow-contract.log
+  [software-flow] contract PASS .github/agents/software-flow.agent.md PASS .github/e2e/modules/software-flow.md P
+.github/task-runs/2026-06-11-github-index-db-ops-contracts-e2e/evidence/software-flow-contract.log:1 [task-evidence indexed] software-flow-contract.log
+  [software-flow] contract PASS .github/agents/software-flow.agent.md PASS .github/e2e/modules/software-flow.md P
+.github/task-runs/2026-06-11-nemu-full-dpkg-list-valid-contract/evidence/software-flow-contract.log:1 [task-evidence indexed] software-flow-contract.log
+  [software-flow] contract PASS .github/agents/software-flow.agent.md PASS .github/e2e/modules/software-flow.md P
+PASS github-index query returns software-flow .github artifacts
+summary=.github/memory files=8 chunks=179 token_estimate=225664
+.github/memory/modules/abstract-machine.md [memory-module indexed] lines=78 chunks=8 tokens=7817 title=Abstract Machine 模块笔记
+  Abstract Machine 模块笔记
+.github/memory/modules/agent-system.md [memory-module indexed] lines=177 chunks=34 tokens=42602 title=Agent System 模块笔记
+  Agent System 模块笔记
+.github/memory/modules/am-kernels.md [memory-module indexed] lines=59 chunks=9 tokens=7378 title=AM-Kernels 模块笔记
+  AM-Kernels 模块笔记
+.github/memory/modules/difftest.md [memory-module indexed] lines=28 chunks=5 tokens=2668 title=DiffTest 模块笔记
+  DiffTest 模块笔记
+.github/memory/modules/fceux-am.md [memory-module indexed] lines=12 chunks=3 tokens=516 title=FCEUX-AM 模块笔记
+  FCEUX-AM 模块笔记
+.github/memory/modules/nemu.md [memory-module indexed] lines=277 chunks=56 tokens=76065 title=NEMU 模块笔记
+  NEMU 模块笔记
+.github/memory/modules/npc.md [memory-module indexed] lines=355 chunks=58 tokens=83845 title=NPC (RTL CPU) 模块笔记
+  NPC (RTL CPU) 模块笔记
+.github/memory/modules/software-flow.md [memory-module indexed] lines=29 chunks=6 tokens=4773 title=Software Flow 模块笔记
+  Software Flow 模块笔记
+PASS github-index summary compresses memory files into chunk/token overview
+load=software-flow mode=chunk-fts chunks=2 token_estimate=149
+--- .github/e2e/profiles/software-flow.tsv#chunk-0001 lines=1-1 tokens=42 [e2e-profile indexed]
+title=software-flow.tsv
+heading=software-flow.tsv
+summary=software-flow-contract|software-flow|e2e_software_flow_contract|software-flow|software-flow agent + profile + memory|软件开发全流程 agent 合约入口存在
+software-flow-contract|software-flow|e2e_software_flow_contract|software-flow|software-flow agent + profile + memory|软件开发全流程 agent 合约入口存在
+--- .github/e2e/profiles/nemu-ubuntu.tsv#chunk-0001 lines=1-4 tokens=107 [e2e-profile indexed]
+title=nemu-ubuntu.tsv
+heading=nemu-ubuntu.tsv
+summary=@include|rv64-linux|||| / @include|software-flow|||| / nemu-ubuntu-static|nemu|e2e_nemu_ubuntu_static_gate|nemu|Linux/NEMU Ubuntu rootfs scripts + performance config|NEMU Ubuntu 切片静态生产守门 PASS / nemu-ubuntu-slice-contract|nemu|e2e_nemu_ubuntu_slice_contract|...
+@include|rv64-linux||||
+@include|software-flow||||
+nemu-ubuntu-static|nemu|e2e_nemu_ubuntu_static_gate|nemu|Linux/NEMU Ubuntu rootfs scripts + performance config|NEMU Ubuntu 切片静态生产守门 PASS
+nemu-ubuntu-slice-contract|nemu|e2e_nemu_ubuntu_slice_contract|nemu|recent NEMU Ubuntu device slice hooks and guest markers|近期 NEMU Ubuntu 设备切片合约仍挂入 guest gate
+PASS github-index load returns bounded matching chunks
+load=AGENTS.md mode=path chunks=1 token_estimate=321
+--- AGENTS.md#chunk-0001 lines=1-14 tokens=321 [agent-shim indexed]
+title=AGENTS.md
+heading=AGENTS.md
+summary=> 完整规范统一维护在 [`.github/AGENTS.md`](./.github/AGENTS.md)。 / > / > 兼容说明：若当前 agent 只读取本文件、不继续跟随链接，则以下最小契约立即生效。 / 1. 使用中文；复杂任务先分析再动手。 / 2. 开工前读取 `.github/AGENTS.md`、`.github/copilot-instructions.md`、`.github/memory/project-status.md`、`.github/memory/known-issues...
+# AGENTS.md
+
+> 完整规范统一维护在 [`.github/AGENTS.md`](./.github/AGENTS.md)。
+>
+> 兼容说明：若当前 agent 只读取本文件、不继续跟随链接，则以下最小契约立即生效。
+
+1. 使用中文；复杂任务先分析再动手。
+2. 开工前读取 `.github/AGENTS.md`、`.github/copilot-instructions.md`、`.github/memory/project-status.md`、`.github/memory/known-issues.md` 以及相关 `modules/*.md` / `instructions/*.instructions.md`。
+3. 跨模块或涉及 `>= 3` 个文件的任务，先摸清调用链、依赖关系和数据流，再改文件。
+4. 修 bug 先定位 root cause，禁止症状级补丁；真正修改后必须给出验证证据。
+5. 完成任务后必须更新 `.github/memory/project-status.md` 和相关 `.github/memory/modules/*.md`；若任务属于跨模块、图任务或长链调试，还应同步更新 `.github/task-runs/`。
+6. 若任务是 AI 开发环境 e2e、自检或降低不确定性，读取 `.github/instructions/agent-e2e-workflow.instructions.md` 和 `.github/e2e/README.md`，先用 `scripts/agent-e2e.sh --list-profiles` 选 profile，再生成 task-run 证据包。
+
+请直接打开 [`.github/AGENTS.md`](./.github/AGENTS.md)。
+PASS github-index load returns root AGENTS shim from database
+doctor=github-index
+indexed=5665
+  .cursor/rules/agents.mdc
+  .github/AGENTS.md
+  .github/agentic-hardware-blueprint.md
+  .github/agents/abstract-machine.agent.md
+  .github/agents/agent-system.agent.md
+  .github/agents/am-kernels.agent.md
+  .github/agents/difftest.agent.md
+  .github/agents/digital-logic.agent.md
+skipped_binary=452
+  .github/task-runs/2026-06-06-nemu-goldfish-rtc-v2/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-goldfish-rtc/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-host-page-tlb-focused/nemu-ubuntu-focused/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-interpreter-tb-focused/nemu-ubuntu-focused/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-itlb-dtlb-split-focused/nemu-ubuntu-focused/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-serial-tx-buffer-focused/nemu-ubuntu-focused/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-vaddr-pmem-fast-focused/nemu-ubuntu-focused/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-virtio-blk-config-wce/nemu-systemd-syscall-probe.riscv64
+skipped_encoding=45
+  .github/task-runs/2026-06-06-nemu-goldfish-rtc-v2/console.log
+  .github/task-runs/2026-06-06-nemu-goldfish-rtc/console.log
+  .github/task-runs/2026-06-06-nemu-host-page-tlb-focused/nemu-ubuntu-focused/console.log
+  .github/task-runs/2026-06-06-nemu-interpreter-tb-focused/nemu-ubuntu-focused/console.log
+  .github/task-runs/2026-06-06-nemu-itlb-dtlb-split-focused/nemu-ubuntu-focused/console.log
+  .github/task-runs/2026-06-06-nemu-serial-tx-buffer-focused/nemu-ubuntu-focused/console.log
+  .github/task-runs/2026-06-06-nemu-vaddr-pmem-fast-focused/nemu-ubuntu-focused/console.log
+  .github/task-runs/2026-06-06-nemu-virtio-blk-config-wce/console.log
+[github-index] add/refresh/remove maintenance smoke
+PASS add .github/memory/github-index-note.md bytes=65 status=indexed
+ls=.github/memory dirs=0 files=1
+FILE github-index-note.md [memory indexed] size=65 lines=3 title=Mini github-index note
+query=github-index mode=fts results=1
+.github/memory/github-index-note.md:1 [memory indexed] Mini github-index note
+  # Mini github-index note software-flow github-index maintenance
+load=github-index mode=chunk-fts chunks=1 token_estimate=16
+--- .github/memory/github-index-note.md#chunk-0001 lines=1-3 tokens=16 [memory indexed]
+title=Mini github-index note
+heading=Mini github-index note
+summary=software-flow github-index maintenance
+# Mini github-index note
+
+software-flow github-index maintenance
+PASS refresh .github/memory/github-index-note.md status=indexed
+PASS remove .github/memory/github-index-note.md mode=file+index
+PASS github-index remove deleted source file in mini repo
+[github-index] DB-first migrate/restore mini smoke
+PASS rebuild files=2 db=/tmp/tmp.oJwdO4MtJX/mini-index.sqlite
+PASS migrate stored_documents=1 shims=1 backup_dir=.github/db-backup/test manifest_entries=1
+  AGENTS.md
+PASS github-index migrate leaves shim and backup
+load=AGENTS.md mode=stored-path chunks=1 token_estimate=11
+--- AGENTS.md#chunk-0001 lines=1-3 tokens=11 [agent-shim stored]
+title=Mini AGENTS
+heading=Mini AGENTS
+summary=mini db first source
+# Mini AGENTS
+
+mini db first source
+PASS materialize documents=1 output_root=materialized
+PASS github-index materialize restores stored document content
+PASS restore documents=1 backup_dir=.github/db-backup/test
+PASS github-index restore recovers original AGENTS file from backup

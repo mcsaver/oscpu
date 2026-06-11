@@ -1000,16 +1000,16 @@ e2e_nemu_ubuntu_slice_contract() {
 
   echo
   echo "[nemu-ubuntu] required software-flow methodology hooks"
-  local nemu_ubuntu_profile="$E2E_ROOT_DIR/.github/e2e/profiles/nemu-ubuntu.tsv"
-  local software_flow_profile="$E2E_ROOT_DIR/.github/e2e/profiles/software-flow.tsv"
-  local software_flow_agent="$E2E_ROOT_DIR/.github/agents/software-flow.agent.md"
-  if grep -Fq -- '@include|software-flow' "$nemu_ubuntu_profile"; then
+  local nemu_ubuntu_profile=".github/e2e/profiles/nemu-ubuntu.tsv"
+  local software_flow_profile=".github/e2e/profiles/software-flow.tsv"
+  local software_flow_agent=".github/agents/software-flow.agent.md"
+  if e2e_file_contains "$nemu_ubuntu_profile" '@include|software-flow'; then
     printf 'PASS nemu-ubuntu profile keeps software-flow include\n'
   else
     printf 'FAIL nemu-ubuntu profile keeps software-flow include\n'
     missing=1
   fi
-  if grep -Fq -- 'software-flow-contract' "$software_flow_profile"; then
+  if e2e_file_contains "$software_flow_profile" 'software-flow-contract'; then
     printf 'PASS software-flow profile exposes software-flow-contract\n'
   else
     printf 'FAIL software-flow profile exposes software-flow-contract\n'
@@ -1022,7 +1022,7 @@ e2e_nemu_ubuntu_slice_contract() {
     'scope-contract -> hardware-semantic-contract -> design-plan -> implement -> software-focused-test -> system-or-hardware-gate -> review-record' \
     '不把“构建通过”单独当成软件任务完成' \
     '必须扫描 FAIL marker'; do
-    if grep -Fq -- "$pattern" "$software_flow_agent"; then
+    if e2e_file_contains "$software_flow_agent" "$pattern"; then
       printf 'PASS software-flow methodology available to nemu-ubuntu %s\n' "$pattern"
     else
       printf 'FAIL software-flow methodology available to nemu-ubuntu %s\n' "$pattern"

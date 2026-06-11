@@ -1,0 +1,5 @@
+[npc-soc] contract
+PASS npc/soc/Makefile
+PASS npc/soc/Kconfig
+PASS ysyxSoC/spec/cpu-interface.md
+PASS .github/memory/modules/ysyx-soc.md

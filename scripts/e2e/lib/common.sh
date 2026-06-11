@@ -40,6 +40,31 @@ e2e_print_required_files() {
   return "$missing"
 }
 
+e2e_file_text() {
+  local file=$1
+  local abs="$E2E_ROOT_DIR/$file"
+  if [[ ! -f $abs ]]; then
+    return 1
+  fi
+  if grep -Fq -- "DB-backed $file" "$abs" 2>/dev/null; then
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" load \
+      --repo-root "$E2E_ROOT_DIR" \
+      --source stored \
+      --path "$file" \
+      --limit 10000 \
+      --max-tokens 10000000 \
+      --json |
+      python3 -c 'import json, sys; print("\n".join(item.get("text", "") for item in json.load(sys.stdin)))'
+  else
+    cat "$abs"
+  fi
+}
+
+e2e_file_contains() {
+  local file=$1 pattern=$2
+  e2e_file_text "$file" | grep -Fq -- "$pattern"
+}
+
 e2e_print_required_paths() {
   local missing=0 path
   for path in "$@"; do

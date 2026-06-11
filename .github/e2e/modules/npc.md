@@ -1,9 +1,8 @@
-# npc E2E Contract
+# DB-backed .github/e2e/modules/npc.md
 
-- **范围**: `npc/sim`、`npc/single`、`npc/soc`、`npc/rv64`。
-- **上游**: am-kernels 镜像、NEMU reference、ysyxSoC CPU ABI。
-- **下游**: DiffTest、SoC、STA/PPA、RV64 Linux。
-- **L0 gate**: `npc-sim-contract` 和 `npc-sim-status`。
-- **L1 gate**: `npc-cpu-tests-full` 通过 `riscv32-npc` 全量 `am-kernels/tests/cpu-tests` 验证 target 路径；后端跟随 `npc/sim` 当前配置，不在 e2e 中偷偷切换。
-- **证据**: backend status、全量 cpu-tests PASS 汇总、NPC log、cycles/commits/CPI；若当前后端启用 DiffTest，则同时记录 DiffTest 结果。
-- **升级路线**: 分别升级 `npc-single`、`npc-soc`、`npc-rv64` 的 smoke/regression profile。
+> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
+> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/e2e/modules/npc.md`。
+
+- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/e2e/modules/npc.md`
+- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/e2e/modules/npc.md --yes`
+- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/e2e/modules/npc.md`

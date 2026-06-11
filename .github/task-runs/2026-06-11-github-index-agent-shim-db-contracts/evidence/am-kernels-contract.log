@@ -1,0 +1,7 @@
+[am-kernels] contract
+PASS am-kernels/tests/cpu-tests/Makefile
+PASS am-kernels/tests/am-tests/Makefile
+PASS am-kernels/tests/klib-tests/Makefile
+PASS am-kernels/benchmarks/coremark/Makefile
+PASS scripts/am-regression.sh
+PASS .github/memory/modules/am-kernels.md

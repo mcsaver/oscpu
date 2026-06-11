@@ -1,23 +1,8 @@
-# E2E Profiles
+# DB-backed .github/e2e/profiles/README.md
 
-每个 `.tsv` 文件是一个可执行 profile。格式：
+> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
+> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/e2e/profiles/README.md`。
 
-```text
-node_id|module|function|owner_agent|inputs|outputs
-```
-
-特殊行：
-
-```text
-@include|profile-name||||
-```
-
-用于复用其它 profile 的节点，例如 `quick` 复用 `discovery`。
-
-改动 profile 后先跑：
-
-```bash
-scripts/agent-e2e.sh --validate-all-profiles
-```
-
-该命令只检查 profile 展开和 `scripts/e2e/modules/*.sh` 函数绑定，不执行具体 gate。
+- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/e2e/profiles/README.md`
+- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/e2e/profiles/README.md --yes`
+- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/e2e/profiles/README.md`

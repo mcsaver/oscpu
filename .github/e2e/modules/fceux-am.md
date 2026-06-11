@@ -1,9 +1,8 @@
-# fceux-am E2E Contract
+# DB-backed .github/e2e/modules/fceux-am.md
 
-- **范围**: NES emulator on AM/NEMU/NPC、ROM 生成、图形/输入/音频空桩边界。
-- **上游**: abstract-machine、am-kernels、NEMU/NPC IOE。
-- **下游**: AM device loop、游戏工作负载回归。
-- **L0 gate**: `fceux-am-contract` 检查 Makefile、agent 和 memory。
-- **L1 gate**: 后续无 ROM build smoke + 有 ROM 运行 smoke。
-- **证据**: ROM table、build log、guest output、BAD/GOOD TRAP。
-- **升级路线**: 将无 ROM/有 ROM 两类 gate 分开，避免资源缺失误判。
+> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
+> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/e2e/modules/fceux-am.md`。
+
+- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/e2e/modules/fceux-am.md`
+- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/e2e/modules/fceux-am.md --yes`
+- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/e2e/modules/fceux-am.md`

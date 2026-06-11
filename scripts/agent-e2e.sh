@@ -115,9 +115,16 @@ reset_profile_arrays() {
 
 load_profile() {
   local profile=$1
-  local profile_file="$E2E_ROOT_DIR/.github/e2e/profiles/${profile}.tsv"
+  local profile_rel=".github/e2e/profiles/${profile}.tsv"
+  local profile_file="$E2E_ROOT_DIR/$profile_rel"
   if [[ ! -f $profile_file ]]; then
     echo "找不到 e2e profile: $profile_file" >&2
+    exit 2
+  fi
+
+  local profile_content
+  if ! profile_content=$(e2e_file_text "$profile_rel"); then
+    echo "无法读取 e2e profile: $profile_file" >&2
     exit 2
   fi
 
@@ -136,7 +143,7 @@ load_profile() {
     PROFILE_OWNERS+=("$owner")
     PROFILE_INPUTS+=("$inputs")
     PROFILE_OUTPUTS+=("$outputs")
-  done < "$profile_file"
+  done <<< "$profile_content"
 }
 
 validate_loaded_profile() {

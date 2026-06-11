@@ -1,21 +1,8 @@
-# Dispatch Log
+# DB-backed .github/task-runs/2026-05-20-npc-coremark-rv32m-rebuild-analysis/dispatch-log.md
 
-## 本地执行
+> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
+> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/task-runs/2026-05-20-npc-coremark-rv32m-rebuild-analysis/dispatch-log.md`。
 
-- 检查 CoreMark 源码与现有性能日志。
-- 检查 `ICache.v`、`DCache.v`、`PipelineControl.v`、`IfStage.v`、`NpcCore.v`，确认统计采样链路与控制流/cache 行为。
-- 用 `objdump` 定位旧 progress PC `0x80003154` 到 `__mulsi3`。
-- 用 `readelf -A` 确认旧对象 attribute 只有 `rv32i_zicsr`。
-- 强制重编 CoreMark。
-- 复查新 ELF attribute 与反汇编。
-- 运行完整 CoreMark。
-- 恢复 monitor 历史长参数兼容。
-- 构建、lint、CLI 快速验证。
-
-## 关键证据
-
-- 旧热点：`80003154 <__mulsi3>`，内部包含 `beqz/bnez` 软件乘法循环。
-- 旧对象：`Tag_RISCV_arch: "rv32i2p1_zicsr2p0"`。
-- 新对象：`Tag_RISCV_arch: "rv32i2p1_m2p0_c2p0_zicsr2p0_zifencei2p0_zmmul1p0_zba1p0_zbb1p0_zbc1p0_zbs1p0"`。
-- 新反汇编：matrix 内层出现 `mul` 指令。
-- 新 CoreMark：`CoreMark PASS 13 Marks`。
+- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/2026-05-20-npc-coremark-rv32m-rebuild-analysis/dispatch-log.md`
+- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/task-runs/2026-05-20-npc-coremark-rv32m-rebuild-analysis/dispatch-log.md --yes`
+- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/2026-05-20-npc-coremark-rv32m-rebuild-analysis/dispatch-log.md`

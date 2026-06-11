@@ -1,0 +1,39 @@
+{
+  "created_at": "2026-06-11T11:40:43+00:00",
+  "updated_at": "2026-06-11T11:41:14+00:00",
+  "schema_version": "3",
+  "entries": [
+    {
+      "path": ".github/task-runs/2026-06-11-agent-system-task-run-db-archive/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 4035,
+      "sha256": "3e033a0d243adcef64f248f183804cef8d24892c03192ba6f3903d025d3518c0",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T11:41:14+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-11-agent-system-task-run-db-archive/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 3370,
+      "sha256": "2c7e36e5bbef4175210c7dfadac17e62b6621386454c83ddf10be2219632894d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T11:41:14+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-11-github-index-task-run-db-archive/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 1300,
+      "sha256": "c3dcc68582118a62f71872225290a0a80e1a24082645f66d22bdd9c370fa2672",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T11:40:43+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-11-github-index-task-run-db-archive/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 2707,
+      "sha256": "44d66d2a32bb0378e05e2a89c8dcc715fb3e173276566fb8b17c5c794f7212f0",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T11:40:43+00:00"
+    }
+  ]
+}
