@@ -1,0 +1,4 @@
+[fceux-am] contract
+PASS fceux-am/Makefile
+PASS .github/agents/fceux-am.agent.md
+PASS .github/memory/modules/fceux-am.md

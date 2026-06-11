@@ -16,8 +16,18 @@ NPC_SIM ?= ../../npc/rv64/build/NpcSimTop
 NEMU_HOME ?= ../../nemu
 NEMU_BUILD_JOBS ?= $(shell nproc 2>/dev/null || echo 1)
 NEMU := $(abspath $(NEMU_HOME)/build/riscv64-nemu-interpreter)
+NEMU_PRESERVED_RUN ?= ../../scripts/nemu-preserved-run.sh
+# NEMU system-mode smoke 会临时切 defconfig；这些路径必须在运行后恢复到用户原状态。
+NEMU_CONFIG_PATHS := .config .config.old include/config include/generated
 NEMU_AMO_MISALIGNED_LOG ?= $(BUILD_DIR)/amo-misaligned-nemu.log
+NEMU_LRSC_RESERVATION_LOG ?= $(BUILD_DIR)/lrsc-reservation-nemu.log
+NEMU_PMP_ACCESS_LOG ?= $(BUILD_DIR)/pmp-access-nemu.log
+NEMU_PMP_PAGEWALK_LOG ?= $(BUILD_DIR)/pmp-pagewalk-nemu.log
+NEMU_PMP_PAGEWALK_AD_LOG ?= $(BUILD_DIR)/pmp-pagewalk-ad-nemu.log
 NEMU_SV39_SFENCE_ASID_LOG ?= $(BUILD_DIR)/sv39-sfence-asid-nemu.log
+NEMU_FP_SQRT_LOG ?= $(BUILD_DIR)/fp-sqrt-nemu.log
+NEMU_VIRTIO_BLK_ERROR_LOG ?= $(BUILD_DIR)/virtio-blk-error-nemu.log
+NEMU_VIRTIO_NET_CTRL_LOG ?= $(BUILD_DIR)/virtio-net-ctrl-nemu.log
 PYTHON ?= $(if $(wildcard $(ENV_ROOT)/tools/python/bin/python3),$(ENV_ROOT)/tools/python/bin/python3,python3)
 PLATFORM_CONFIG ?= ../platform/npc-rv64.yml
 GEN_DTS ?= ../platform/gen_dts.py
@@ -35,8 +45,11 @@ OPENSBI_SBI_TEXT ?= $(NEXT_ADDR)
 OPENSBI_SBI_STACK ?= 0x87efd000
 VIRTIO_BLK_TEXT ?= 0x80000000
 VIRTIO_BLK_STACK ?= 0x87ef2000
+VIRTIO_NET_CTRL_STACK ?= 0x87ee8000
 VIRTIO_BLK_IMAGE ?= $(ENV_ROOT)/images/ubuntu2204/ubuntu-22.04-riscv64.ext4
 VIRTIO_BLK_MAX_CYCLES ?= 2000000
+VIRTIO_BLK_ERROR_MAX_INSTS ?= 10000000
+VIRTIO_NET_CTRL_MAX_INSTS ?= 2000000
 FP_SMOKE_TEXT ?= 0x80200000
 FP_SMOKE_STACK ?= 0x87efc000
 JAL_LINK_TEXT ?= 0x80000000
@@ -75,6 +88,14 @@ RAS_TRAP_TEXT ?= 0x80000000
 RAS_TRAP_STACK ?= 0x87ef5000
 AMO_MISALIGNED_TEXT ?= 0x80000000
 AMO_MISALIGNED_STACK ?= 0x87eef000
+LRSC_RESERVATION_TEXT ?= 0x80000000
+LRSC_RESERVATION_STACK ?= 0x87eed000
+PMP_ACCESS_TEXT ?= 0x80000000
+PMP_ACCESS_STACK ?= 0x87eec000
+PMP_PAGEWALK_TEXT ?= 0x80000000
+PMP_PAGEWALK_STACK ?= 0x87eeb000
+PMP_PAGEWALK_AD_TEXT ?= 0x80000000
+PMP_PAGEWALK_AD_STACK ?= 0x87ee9000
 SV39_SFENCE_ASID_TEXT ?= 0x80000000
 SV39_SFENCE_ASID_STACK ?= 0x87eee000
 FP_FMV_FCLASS_TEXT ?= $(FP_SMOKE_TEXT)
@@ -98,6 +119,10 @@ OPENSBI_SBI_ELF := $(BUILD_DIR)/opensbi-sbi-payload.elf
 OPENSBI_SBI_BIN := $(BUILD_DIR)/opensbi-sbi-payload.bin
 VIRTIO_BLK_ELF := $(BUILD_DIR)/virtio-blk-smoke.elf
 VIRTIO_BLK_BIN := $(BUILD_DIR)/virtio-blk-smoke.bin
+VIRTIO_BLK_ERROR_ELF := $(BUILD_DIR)/virtio-blk-error-smoke.elf
+VIRTIO_BLK_ERROR_BIN := $(BUILD_DIR)/virtio-blk-error-smoke.bin
+VIRTIO_NET_CTRL_ELF := $(BUILD_DIR)/virtio-net-ctrl-smoke.elf
+VIRTIO_NET_CTRL_BIN := $(BUILD_DIR)/virtio-net-ctrl-smoke.bin
 FP_SMOKE_ELF := $(BUILD_DIR)/fp-loadstore-smoke.elf
 FP_SMOKE_BIN := $(BUILD_DIR)/fp-loadstore-smoke.bin
 JAL_LINK_ELF := $(BUILD_DIR)/jal-link-smoke.elf
@@ -120,6 +145,14 @@ RAS_TRAP_ELF := $(BUILD_DIR)/ras-trap-boundary-smoke.elf
 RAS_TRAP_BIN := $(BUILD_DIR)/ras-trap-boundary-smoke.bin
 AMO_MISALIGNED_ELF := $(BUILD_DIR)/amo-misaligned-smoke.elf
 AMO_MISALIGNED_BIN := $(BUILD_DIR)/amo-misaligned-smoke.bin
+LRSC_RESERVATION_ELF := $(BUILD_DIR)/lrsc-reservation-smoke.elf
+LRSC_RESERVATION_BIN := $(BUILD_DIR)/lrsc-reservation-smoke.bin
+PMP_ACCESS_ELF := $(BUILD_DIR)/pmp-access-smoke.elf
+PMP_ACCESS_BIN := $(BUILD_DIR)/pmp-access-smoke.bin
+PMP_PAGEWALK_ELF := $(BUILD_DIR)/pmp-pagewalk-smoke.elf
+PMP_PAGEWALK_BIN := $(BUILD_DIR)/pmp-pagewalk-smoke.bin
+PMP_PAGEWALK_AD_ELF := $(BUILD_DIR)/pmp-pagewalk-ad-smoke.elf
+PMP_PAGEWALK_AD_BIN := $(BUILD_DIR)/pmp-pagewalk-ad-smoke.bin
 SV39_SFENCE_ASID_ELF := $(BUILD_DIR)/sv39-sfence-asid-smoke.elf
 SV39_SFENCE_ASID_BIN := $(BUILD_DIR)/sv39-sfence-asid-smoke.bin
 FP_FCSR_ELF := $(BUILD_DIR)/fp-fcsr-smoke.elf
@@ -140,21 +173,23 @@ FP_DIV_ELF := $(BUILD_DIR)/fp-div-smoke.elf
 FP_DIV_BIN := $(BUILD_DIR)/fp-div-smoke.bin
 FP_SQRT_ELF := $(BUILD_DIR)/fp-sqrt-smoke.elf
 FP_SQRT_BIN := $(BUILD_DIR)/fp-sqrt-smoke.bin
+FP_SQRT_NEMU_ELF := $(BUILD_DIR)/fp-sqrt-smoke-nemu.elf
+FP_SQRT_NEMU_BIN := $(BUILD_DIR)/fp-sqrt-smoke-nemu.bin
 
 SMOKE_BINS := \
   $(JAL_LINK_BIN) $(BRANCH_RAW_BIN) $(MULDIV_SMOKE_BIN) \
   $(SRET_USER_BIN) $(SRET_USER_PF_BIN) $(SRET_USER_SV39_BIN) $(SRET_USER_SV39_HALF_BIN) \
-  $(SRET_RESTORE_BIN) $(RAS_TRAP_BIN) $(AMO_MISALIGNED_BIN) $(SV39_SFENCE_ASID_BIN) \
+  $(SRET_RESTORE_BIN) $(RAS_TRAP_BIN) $(AMO_MISALIGNED_BIN) $(LRSC_RESERVATION_BIN) $(PMP_ACCESS_BIN) $(PMP_PAGEWALK_BIN) $(PMP_PAGEWALK_AD_BIN) $(SV39_SFENCE_ASID_BIN) \
   $(FP_SMOKE_BIN) $(FP_FCSR_BIN) $(FP_FMV_FCLASS_BIN) $(FP_CONVERT_BIN) $(FP_COMPARE_SGNJ_BIN) \
   $(FP_MINMAX_BIN) $(FP_ADDSUB_BIN) $(FP_MUL_BIN) $(FP_DIV_BIN) $(FP_SQRT_BIN)
 
-BOOT_TOOL_BINS := $(TRAMPOLINE_BIN) $(DTB_SMOKE_BIN) $(MINI_LINUX_BIN) $(OPENSBI_SBI_BIN) $(VIRTIO_BLK_BIN)
+BOOT_TOOL_BINS := $(TRAMPOLINE_BIN) $(DTB_SMOKE_BIN) $(MINI_LINUX_BIN) $(OPENSBI_SBI_BIN) $(VIRTIO_BLK_BIN) $(VIRTIO_BLK_ERROR_BIN) $(VIRTIO_NET_CTRL_BIN)
 
 .PHONY: all boot-tools dtb check-dtb clean \
-	smoke-dtb smoke-opensbi smoke-opensbi-sbi smoke-virtio-blk \
+	smoke-dtb smoke-opensbi smoke-opensbi-sbi smoke-virtio-blk smoke-nemu-virtio-blk-error smoke-nemu-virtio-net-ctrl smoke-nemu-config-preserve \
 	smoke-jal-link smoke-branch-raw smoke-muldiv smoke-sret-user smoke-sret-user-pagefault \
 	smoke-sret-user-sv39 smoke-sret-user-sv39-halfword smoke-sret-restore smoke-ras-trap-boundary \
-	smoke-nemu-amo-misaligned smoke-nemu-sv39-sfence-asid \
+	smoke-nemu-amo-misaligned smoke-nemu-lrsc-reservation smoke-nemu-pmp-access smoke-nemu-pmp-pagewalk smoke-nemu-pmp-pagewalk-ad smoke-nemu-sv39-sfence-asid \
 	smoke-fp-loadstore smoke-fp-fcsr smoke-fp-fmv-fclass smoke-fp-convert \
 	smoke-fp-compare-sgnj smoke-fp-minmax smoke-fp-addsub smoke-fp-mul \
 	smoke-fp-div smoke-fp-sqrt
@@ -212,6 +247,22 @@ $(VIRTIO_BLK_ELF): virtio-blk-smoke.S Makefile
 	  -DVIRTIO_BLK_STACK=$(VIRTIO_BLK_STACK) \
 	  $< -o $@
 
+$(VIRTIO_BLK_ERROR_ELF): virtio-blk-error-smoke.S Makefile
+	mkdir -p $(BUILD_DIR)
+	$(CC) -x assembler-with-cpp -nostdlib -nostartfiles \
+	  -march=rv64ima_zicsr_zifencei -mabi=lp64 -Wl,-Ttext=$(VIRTIO_BLK_TEXT) \
+	  -static -no-pie -Wl,--no-relax -Wl,--build-id=none \
+	  -DVIRTIO_BLK_STACK=$(VIRTIO_BLK_STACK) \
+	  $< -o $@
+
+$(VIRTIO_NET_CTRL_ELF): virtio-net-ctrl-smoke.S Makefile
+	mkdir -p $(BUILD_DIR)
+	$(CC) -x assembler-with-cpp -nostdlib -nostartfiles \
+	  -march=rv64ima_zicsr_zifencei -mabi=lp64 -Wl,-Ttext=$(VIRTIO_BLK_TEXT) \
+	  -static -no-pie -Wl,--no-relax -Wl,--build-id=none \
+	  -DVIRTIO_NET_STACK=$(VIRTIO_NET_CTRL_STACK) \
+	  $< -o $@
+
 check-dtb: $(DTB)
 	$(FDTGET) $(DTB) / model
 	$(FDTGET) $(DTB) /chosen stdout-path
@@ -243,6 +294,60 @@ smoke-virtio-blk: $(VIRTIO_BLK_BIN)
 	$(NPC_SIM) -b --no-progress --no-diff --max=$(VIRTIO_BLK_MAX_CYCLES) \
 	  --block=$(VIRTIO_BLK_IMAGE) \
 	  -i $(VIRTIO_BLK_BIN)
+
+smoke-nemu-virtio-blk-error: $(VIRTIO_BLK_ERROR_BIN)
+	test -f $(VIRTIO_BLK_IMAGE)
+	$(abspath $(NEMU_PRESERVED_RUN)) $(abspath $(NEMU_HOME)) $(NEMU_BUILD_JOBS) -- \
+	  -b --max-insts=$(VIRTIO_BLK_ERROR_MAX_INSTS) \
+	  --block=$(VIRTIO_BLK_IMAGE) -i $(VIRTIO_BLK_ERROR_BIN) > $(NEMU_VIRTIO_BLK_ERROR_LOG) 2>&1
+	cat $(NEMU_VIRTIO_BLK_ERROR_LOG)
+	grep -q 'HIT GOOD TRAP' $(NEMU_VIRTIO_BLK_ERROR_LOG)
+
+smoke-nemu-virtio-net-ctrl: $(VIRTIO_NET_CTRL_BIN)
+	$(abspath $(NEMU_PRESERVED_RUN)) $(abspath $(NEMU_HOME)) $(NEMU_BUILD_JOBS) -- \
+	  -b --max-insts=$(VIRTIO_NET_CTRL_MAX_INSTS) \
+	  -i $(VIRTIO_NET_CTRL_BIN) > $(NEMU_VIRTIO_NET_CTRL_LOG) 2>&1
+	cat $(NEMU_VIRTIO_NET_CTRL_LOG)
+	grep -q 'HIT GOOD TRAP' $(NEMU_VIRTIO_NET_CTRL_LOG)
+	grep -q 'virtio-net runtime .*ctrl=8/1' $(NEMU_VIRTIO_NET_CTRL_LOG)
+	grep -q 'virtio-net runtime .*ctrl_rx=2' $(NEMU_VIRTIO_NET_CTRL_LOG)
+	grep -q 'virtio-net runtime .*ctrl_rx_extra=1' $(NEMU_VIRTIO_NET_CTRL_LOG)
+	grep -q 'virtio-net runtime .*ctrl_vlan=2' $(NEMU_VIRTIO_NET_CTRL_LOG)
+	grep -q 'virtio-net runtime .*vlan_active=0 vlan_last=42' $(NEMU_VIRTIO_NET_CTRL_LOG)
+	grep -q 'virtio-net runtime .*ctrl_announce=1' $(NEMU_VIRTIO_NET_CTRL_LOG)
+	grep -q 'virtio-net runtime .*announce_pending=0 announce_requested=1' $(NEMU_VIRTIO_NET_CTRL_LOG)
+	grep -q 'virtio-net runtime .*alluni=1' $(NEMU_VIRTIO_NET_CTRL_LOG)
+	grep -q 'virtio-net runtime .*ctrl_mac_table=1' $(NEMU_VIRTIO_NET_CTRL_LOG)
+	grep -q 'virtio-net runtime .*ctrl_mac_addr=1' $(NEMU_VIRTIO_NET_CTRL_LOG)
+	grep -q 'virtio-net runtime .*promisc=1' $(NEMU_VIRTIO_NET_CTRL_LOG)
+	grep -q 'virtio-net runtime .*mac_uni=1 mac_multi=1' $(NEMU_VIRTIO_NET_CTRL_LOG)
+	grep -q 'virtio-net runtime .*mac=02:00:5e:00:53:02' $(NEMU_VIRTIO_NET_CTRL_LOG)
+
+smoke-nemu-config-preserve: $(VIRTIO_NET_CTRL_BIN)
+	@set -e; \
+	hash_nemu_config() { \
+	  { \
+	    for rel in $(NEMU_CONFIG_PATHS); do \
+	      if [ -e "$(abspath $(NEMU_HOME))/$$rel" ]; then \
+	        printf 'present %s\n' "$$rel"; \
+	      else \
+	        printf 'absent %s\n' "$$rel"; \
+	      fi; \
+	    done; \
+	    tar -C "$(abspath $(NEMU_HOME))" --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner --ignore-failed-read -cf - $(NEMU_CONFIG_PATHS) 2>/dev/null || true; \
+	  } | sha256sum | sed 's/ .*//'; \
+	}; \
+	before=$$(hash_nemu_config); \
+	make --no-print-directory smoke-nemu-virtio-net-ctrl; \
+	after=$$(hash_nemu_config); \
+	printf 'NEMU_CONFIG_HASH_BEFORE=%s\n' "$$before"; \
+	printf 'NEMU_CONFIG_HASH_AFTER=%s\n' "$$after"; \
+	if [ "$$before" = "$$after" ]; then \
+	  printf 'PASS nemu-config-preserve\n'; \
+	else \
+	  printf 'FAIL nemu-config-preserve\n'; \
+	  exit 1; \
+	fi
 
 $(FP_SMOKE_ELF): fp-loadstore-smoke.S Makefile
 	mkdir -p $(BUILD_DIR)
@@ -348,6 +453,38 @@ $(AMO_MISALIGNED_ELF): amo-misaligned-smoke.S Makefile
 	  -DAMO_MISALIGNED_STACK=$(AMO_MISALIGNED_STACK) \
 	  $< -o $@
 
+$(LRSC_RESERVATION_ELF): lrsc-reservation-smoke.S Makefile
+	mkdir -p $(BUILD_DIR)
+	$(CC) -x assembler-with-cpp -nostdlib -nostartfiles \
+	  -march=rv64ima_zicsr_zifencei -mabi=lp64 -Wl,-Ttext=$(LRSC_RESERVATION_TEXT) \
+	  -static -no-pie -Wl,--no-relax -Wl,--build-id=none \
+	  -DLRSC_RESERVATION_STACK=$(LRSC_RESERVATION_STACK) \
+	  $< -o $@
+
+$(PMP_ACCESS_ELF): pmp-access-smoke.S Makefile
+	mkdir -p $(BUILD_DIR)
+	$(CC) -x assembler-with-cpp -nostdlib -nostartfiles \
+	  -march=rv64ima_zicsr_zifencei -mabi=lp64 -Wl,-Ttext=$(PMP_ACCESS_TEXT) \
+	  -static -no-pie -Wl,--no-relax -Wl,--build-id=none \
+	  -DPMP_ACCESS_STACK=$(PMP_ACCESS_STACK) \
+	  $< -o $@
+
+$(PMP_PAGEWALK_ELF): pmp-pagewalk-smoke.S Makefile
+	mkdir -p $(BUILD_DIR)
+	$(CC) -x assembler-with-cpp -nostdlib -nostartfiles \
+	  -march=rv64ima_zicsr_zifencei -mabi=lp64 -Wl,-Ttext=$(PMP_PAGEWALK_TEXT) \
+	  -static -no-pie -Wl,--no-relax -Wl,--build-id=none \
+	  -DPMP_PAGEWALK_STACK=$(PMP_PAGEWALK_STACK) \
+	  $< -o $@
+
+$(PMP_PAGEWALK_AD_ELF): pmp-pagewalk-ad-smoke.S Makefile
+	mkdir -p $(BUILD_DIR)
+	$(CC) -x assembler-with-cpp -nostdlib -nostartfiles \
+	  -march=rv64ima_zicsr_zifencei -mabi=lp64 -Wl,-Ttext=$(PMP_PAGEWALK_AD_TEXT) \
+	  -static -no-pie -Wl,--no-relax -Wl,--build-id=none \
+	  -DPMP_PAGEWALK_AD_STACK=$(PMP_PAGEWALK_AD_STACK) \
+	  $< -o $@
+
 $(SV39_SFENCE_ASID_ELF): sv39-sfence-asid-smoke.S Makefile
 	mkdir -p $(BUILD_DIR)
 	$(CC) -x assembler-with-cpp -nostdlib -nostartfiles \
@@ -428,6 +565,14 @@ $(FP_SQRT_ELF): fp-sqrt-smoke.S Makefile
 	  -DFP_SMOKE_STACK=$(FP_CONVERT_STACK) \
 	  $< -o $@
 
+$(FP_SQRT_NEMU_ELF): fp-sqrt-smoke.S Makefile
+	mkdir -p $(BUILD_DIR)
+	$(CC) -x assembler-with-cpp -nostdlib -nostartfiles \
+	  -march=rv64imafdc_zicsr_zifencei -mabi=lp64d -Wl,-Ttext=0x80000000 \
+	  -static -no-pie -Wl,--no-relax -Wl,--build-id=none \
+	  -DFP_SMOKE_STACK=$(FP_CONVERT_STACK) -DFP_SMOKE_NEMU_SYSCON_EXIT=1 \
+	  $< -o $@
+
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
 
@@ -459,18 +604,46 @@ smoke-ras-trap-boundary: $(RAS_TRAP_BIN)
 	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(RAS_TRAP_BIN)
 
 smoke-nemu-amo-misaligned: $(AMO_MISALIGNED_BIN)
-	NEMU_HOME=$(abspath $(NEMU_HOME)) $(MAKE) -C $(abspath $(NEMU_HOME)) riscv64-linux_defconfig
-	NEMU_HOME=$(abspath $(NEMU_HOME)) $(MAKE) -C $(abspath $(NEMU_HOME)) -j$(NEMU_BUILD_JOBS)
-	NEMU_HOME=$(abspath $(NEMU_HOME)) $(NEMU) -b --max-insts=200000 -i $(AMO_MISALIGNED_BIN) > $(NEMU_AMO_MISALIGNED_LOG) 2>&1
+	$(abspath $(NEMU_PRESERVED_RUN)) $(abspath $(NEMU_HOME)) $(NEMU_BUILD_JOBS) -- \
+	  -b --max-insts=200000 -i $(AMO_MISALIGNED_BIN) > $(NEMU_AMO_MISALIGNED_LOG) 2>&1
 	cat $(NEMU_AMO_MISALIGNED_LOG)
 	grep -q 'HIT GOOD TRAP' $(NEMU_AMO_MISALIGNED_LOG)
 
+smoke-nemu-lrsc-reservation: $(LRSC_RESERVATION_BIN)
+	$(abspath $(NEMU_PRESERVED_RUN)) $(abspath $(NEMU_HOME)) $(NEMU_BUILD_JOBS) -- \
+	  -b --max-insts=200000 -i $(LRSC_RESERVATION_BIN) > $(NEMU_LRSC_RESERVATION_LOG) 2>&1
+	cat $(NEMU_LRSC_RESERVATION_LOG)
+	grep -q 'HIT GOOD TRAP' $(NEMU_LRSC_RESERVATION_LOG)
+
+smoke-nemu-pmp-access: $(PMP_ACCESS_BIN)
+	$(abspath $(NEMU_PRESERVED_RUN)) $(abspath $(NEMU_HOME)) $(NEMU_BUILD_JOBS) -- \
+	  -b --max-insts=200000 -i $(PMP_ACCESS_BIN) > $(NEMU_PMP_ACCESS_LOG) 2>&1
+	cat $(NEMU_PMP_ACCESS_LOG)
+	grep -q 'HIT GOOD TRAP' $(NEMU_PMP_ACCESS_LOG)
+
+smoke-nemu-pmp-pagewalk: $(PMP_PAGEWALK_BIN)
+	$(abspath $(NEMU_PRESERVED_RUN)) $(abspath $(NEMU_HOME)) $(NEMU_BUILD_JOBS) -- \
+	  -b --max-insts=300000 -i $(PMP_PAGEWALK_BIN) > $(NEMU_PMP_PAGEWALK_LOG) 2>&1
+	cat $(NEMU_PMP_PAGEWALK_LOG)
+	grep -q 'HIT GOOD TRAP' $(NEMU_PMP_PAGEWALK_LOG)
+
+smoke-nemu-pmp-pagewalk-ad: $(PMP_PAGEWALK_AD_BIN)
+	$(abspath $(NEMU_PRESERVED_RUN)) $(abspath $(NEMU_HOME)) $(NEMU_BUILD_JOBS) -- \
+	  -b --max-insts=300000 -i $(PMP_PAGEWALK_AD_BIN) > $(NEMU_PMP_PAGEWALK_AD_LOG) 2>&1
+	cat $(NEMU_PMP_PAGEWALK_AD_LOG)
+	grep -q 'HIT GOOD TRAP' $(NEMU_PMP_PAGEWALK_AD_LOG)
+
 smoke-nemu-sv39-sfence-asid: $(SV39_SFENCE_ASID_BIN)
-	NEMU_HOME=$(abspath $(NEMU_HOME)) $(MAKE) -C $(abspath $(NEMU_HOME)) riscv64-linux_defconfig
-	NEMU_HOME=$(abspath $(NEMU_HOME)) $(MAKE) -C $(abspath $(NEMU_HOME)) -j$(NEMU_BUILD_JOBS)
-	NEMU_HOME=$(abspath $(NEMU_HOME)) $(NEMU) -b --max-insts=300000 -i $(SV39_SFENCE_ASID_BIN) > $(NEMU_SV39_SFENCE_ASID_LOG) 2>&1
+	$(abspath $(NEMU_PRESERVED_RUN)) $(abspath $(NEMU_HOME)) $(NEMU_BUILD_JOBS) -- \
+	  -b --max-insts=300000 -i $(SV39_SFENCE_ASID_BIN) > $(NEMU_SV39_SFENCE_ASID_LOG) 2>&1
 	cat $(NEMU_SV39_SFENCE_ASID_LOG)
 	grep -q 'HIT GOOD TRAP' $(NEMU_SV39_SFENCE_ASID_LOG)
+
+smoke-nemu-fp-sqrt: $(FP_SQRT_NEMU_BIN)
+	$(abspath $(NEMU_PRESERVED_RUN)) $(abspath $(NEMU_HOME)) $(NEMU_BUILD_JOBS) -- \
+	  -b --max-insts=200000 -i $(FP_SQRT_NEMU_BIN) > $(NEMU_FP_SQRT_LOG) 2>&1
+	cat $(NEMU_FP_SQRT_LOG)
+	grep -q 'HIT GOOD TRAP' $(NEMU_FP_SQRT_LOG)
 
 smoke-fp-loadstore: $(FP_SMOKE_BIN)
 	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(FP_SMOKE_BIN)

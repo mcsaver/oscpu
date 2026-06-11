@@ -1,0 +1,8 @@
+[npc] sim contract
+PASS npc/sim/Makefile
+PASS npc/sim/backends/single.mk
+PASS npc/sim/backends/rv64.mk
+PASS npc/sim/backends/soc.mk
+PASS npc/single/Makefile
+PASS npc/soc/Makefile
+PASS npc/rv64/Makefile

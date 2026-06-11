@@ -1,0 +1,4 @@
+[display-vga] contract
+PASS .github/agents/display-vga.agent.md
+PASS .github/instructions/linux-framebuffer-vga.instructions.md
+PASS Linux/README.md

@@ -1,0 +1,5 @@
+[ysyx-soc] contract
+PASS ysyxSoC/Makefile
+PASS ysyxSoC/spec/cpu-interface.md
+PASS .github/agents/ysyx-soc.agent.md
+PASS .github/memory/modules/ysyx-soc.md

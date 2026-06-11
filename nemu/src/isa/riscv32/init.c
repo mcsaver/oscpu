@@ -27,7 +27,7 @@ static const uint32_t img [] = {
   0xdeadbeef,  // some data
 };
 
-static void restart() {
+void isa_riscv32_restart(void) {
   // reference so 可能被多轮 difftest 初始化复用；先清 ISA 状态，避免 CSR/CLINT 残留跨测试串味。
   memset(&cpu, 0, sizeof(cpu));
   isa_riscv32_reset();
@@ -46,5 +46,5 @@ void init_isa() {
   memcpy(guest_to_host(RESET_VECTOR), img, sizeof(img));
 
   /* Initialize this virtual computer system. */
-  restart();
+  isa_riscv32_restart();
 }

@@ -1,0 +1,9 @@
+[hardware-flow] command: make -C npc/sim status
+make: Entering directory '/home/lyg/PA/ysyx-workbench/npc/sim'
+[npc-sim] selected backend: rv64
+[npc-sim] backend directory: /home/lyg/PA/ysyx-workbench/npc/rv64
+[npc-sim] backend description: RV64 NpcSimTop self-simulation backend
+[npc-sim] config file: /home/lyg/PA/ysyx-workbench/npc/sim/.config
+[npc-sim] configured backend: rv64
+[npc-sim] supported backends: single rv64 soc
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/npc/sim'

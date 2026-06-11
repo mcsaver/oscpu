@@ -22,5 +22,8 @@ void gdbstub_set_port(int port);
 bool gdbstub_is_enabled(void);
 const char *gdbstub_capability(void);
 void gdbstub_wait_for_client_if_enabled(void);
+bool gdbstub_breakpoint_hit(vaddr_t pc);
+void gdbstub_watchpoint_after_access(vaddr_t addr, int len, bool is_write);
+bool gdbstub_async_stop_requested(void);
 
 #endif

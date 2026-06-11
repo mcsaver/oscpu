@@ -1,0 +1,7 @@
+[abstract-machine] contract
+PASS abstract-machine/Makefile
+PASS abstract-machine/am/include/am.h
+PASS abstract-machine/am/include/amdev.h
+PASS abstract-machine/scripts/riscv32-nemu.mk
+PASS abstract-machine/scripts/riscv32-npc.mk
+PASS .github/memory/modules/abstract-machine.md

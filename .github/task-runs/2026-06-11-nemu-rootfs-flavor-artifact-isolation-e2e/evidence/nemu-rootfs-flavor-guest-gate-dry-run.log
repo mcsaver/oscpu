@@ -1,0 +1,71 @@
+make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+make ARCH=riscv64-nemu BOOT=ubuntu-rootfs \
+  UBUNTU_ROOTFS_FLAVOR=full \
+  UBUNTU_ROOTFS_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4' \
+  UBUNTU_ROOTFS_CPIO_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full-rootfs.cpio' \
+  NEMU_SYSTEMD_ROOTFS_FLAVOR=full \
+  NEMU_SYSTEMD_CHECK_LOG_DIR='/home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-systemd-guest-full-check' \
+  NEMU_SYSTEMD_ROOTFS_OVERLAY='/home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-systemd-guest-full-check/rootfs-overlay.raw' \
+  __check-nemu-systemd-guest
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' riscv64-linux_defconfig
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu'
+/home/lyg/PA/ysyx-workbench/nemu/tools/kconfig/build/conf -s --defconfig=configs/riscv64-linux_defconfig /home/lyg/PA/ysyx-workbench/nemu/Kconfig
+/home/lyg/PA/ysyx-workbench/nemu/tools/kconfig/build/conf -s --syncconfig /home/lyg/PA/ysyx-workbench/nemu/Kconfig
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/nemu'
+make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' -j'14'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu'
+flock /home/lyg/PA/ysyx-workbench/.git/ make --no-print-directory -C /home/lyg/PA/ysyx-workbench NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' .git_commit MSG=' "compile NEMU"'
+while (test -e .git/index.lock); do sleep 0.1; done;               `# wait for other git instances`
+git branch tracer-ysyx -q 2>/dev/null || true                 `# create tracer branch if not existent`
+cp -a .git/index /home/lyg/PA/ysyx-workbench/nemu/../.git/index.ai                                     `# backup git index`
+git checkout --detach -q && git reset --soft  tracer-ysyx -q -- && git checkout  tracer-ysyx -q --                        `# switch to tracer branch`
+git add . -A --ignore-errors                                       `# add files to commit`
+(echo "> "compile NEMU"" && echo ysyx_26010035 李一庚 && uname -a && uptime `# generate commit msg`) \
+                | git commit -F - -q --author='tracer-ysyx <tracer@ysyx.org>' --no-verify --allow-empty                        `# commit changes in tracer branch`
+git checkout --detach -q && git reset --soft  ai -q -- && git checkout  ai -q --                          `# switch to work branch`
+mv /home/lyg/PA/ysyx-workbench/nemu/../.git/index.ai .git/index                                        `# restore git index`
+sync /home/lyg/PA/ysyx-workbench/.git/
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/nemu'
+UBUNTU_ROOTFS_FLAVOR='full' \
+UBUNTU_ROOTFS_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4' \
+UBUNTU_ROOTFS_CPIO_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full-rootfs.cpio' \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/build-ubuntu-rootfs.sh'
+UBUNTU_ROOTFS_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4' UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 UBUNTU_ROOTFS_FLAVOR=full \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-ubuntu-rootfs.sh'
+NEMU_PERFORMANCE_REQUIRED='1' \
+NEMU_CONFIG='/home/lyg/PA/ysyx-workbench/nemu/.config' \
+NEMU_AUTOCONF='/home/lyg/PA/ysyx-workbench/nemu/include/generated/autoconf.h' \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-nemu-performance-config.sh'
+LINUX_KERNEL_CONFIG='/home/lyg/PA/ysyx-workbench/Linux/env/src/linux/.config' \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-nemu-kernel-config.sh'
+LOG_DIR='/home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-systemd-guest-full-check' \
+LOG_FILE='/home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-systemd-guest-full-check/nemu.log' \
+CONSOLE_LOG='/home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-systemd-guest-full-check/console.log' \
+NEMU_SERIAL_FIFO='/home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-systemd-guest-full-check/nemu.serial' \
+NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' \
+NEMU_SIM='/home/lyg/PA/ysyx-workbench/nemu/build/riscv64-nemu-interpreter' \
+LINUX_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/src/linux/arch/riscv/boot/Image' \
+RUN_FW='/home/lyg/PA/ysyx-workbench/Linux/env/build/opensbi-nemu-rootfs/platform/generic/firmware/fw_jump.bin' \
+RUN_DTB='/home/lyg/PA/ysyx-workbench/Linux/build/npc-rv64-nemu-rootfs.dtb' \
+RUN_ROOTFS='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4' \
+NEMU_SYSTEMD_ROOTFS_OVERLAY='/home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-systemd-guest-full-check/rootfs-overlay.raw' \
+NEXT_ADDR='0x80200000' \
+DTB_ADDR='0x82200000' \
+MAX_CYCLES='50000000000' \
+NEMU_SYSTEMD_CHECK_TIMEOUT='1800' \
+NEMU_SYSTEMD_BOOT_TIMEOUT='900' \
+NEMU_SYSTEMD_SOAK_SECONDS='20' \
+NEMU_SYSTEMD_FS_STRESS_MIB='4' \
+NEMU_SYSTEMD_FS_TREE_FILES='64' \
+NEMU_SYSTEMD_PROCESS_LOOPS='16' \
+NEMU_SYSTEMD_UART_RX_STRESS_LINES='512' \
+NEMU_SYSTEMD_BLOCK_PARALLEL_JOBS='4' \
+NEMU_SYSTEMD_BLOCK_JOB_MIB='1' \
+	NEMU_SYSTEMD_MIN_MEMTOTAL_KB='900000' \
+	NEMU_SYSTEMD_INPUT_DELAY='0' \
+	NEMU_SYSTEMD_INPUT_CHUNK_BYTES='8' \
+	NEMU_SYSTEMD_INPUT_CHUNK_DELAY='0' \
+	  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-nemu-systemd-guest.sh'
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/Linux'
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/Linux'

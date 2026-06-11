@@ -30,6 +30,18 @@ void disk_set_overlay(const char *path);
 #ifdef CONFIG_HAS_DISK
 void virtio_blk_dump_machine_info(FILE *out);
 #endif
+#ifdef CONFIG_HAS_SERIAL
+void serial_dump_machine_info(FILE *out);
+#endif
+#ifdef CONFIG_HAS_VIRTIO_NET
+void virtio_net_dump_machine_info(FILE *out);
+#endif
+#ifdef CONFIG_HAS_VIRTIO_RNG
+void virtio_rng_dump_machine_info(FILE *out);
+#endif
+#ifdef CONFIG_HAS_GOLDFISH_RTC
+void goldfish_rtc_dump_machine_info(FILE *out);
+#endif
 void init_sdb();
 void init_disasm();
 
@@ -172,9 +184,25 @@ static void dump_machine_info(FILE *out) {
   machine_info_write_bool(out, "config.riscv_ext_e", ISDEF(CONFIG_RVE));
   machine_info_write_bool(out, "config.cache", ISDEF(CONFIG_CACHE));
   machine_info_write_bool(out, "config.interpreter_basic_block", ISDEF(CONFIG_INTERPRETER_BASIC_BLOCK));
+#ifdef CONFIG_INTERPRETER_BASIC_BLOCK
+  fprintf(out, "config.interpreter_tb_max_inst=%d\n", CONFIG_INTERPRETER_TB_MAX_INST);
+#else
+  fprintf(out, "config.interpreter_tb_max_inst=0\n");
+#endif
   machine_info_write_bool(out, "config.interpreter_wide_ifetch", ISDEF(CONFIG_INTERPRETER_WIDE_IFETCH));
+  machine_info_write_bool(out, "config.interpreter_ifetch_page_cache",
+      ISDEF(CONFIG_INTERPRETER_IFETCH_PAGE_CACHE));
   machine_info_write_bool(out, "config.interpreter_decode_cache", ISDEF(CONFIG_INTERPRETER_DECODE_CACHE));
+  machine_info_write_bool(out, "config.interpreter_decode_direct_dispatch",
+      ISDEF(CONFIG_INTERPRETER_DECODE_DIRECT_DISPATCH));
+#ifdef CONFIG_INTERPRETER_DECODE_CACHE
+  fprintf(out, "config.interpreter_decode_cache_entries=%d\n",
+      CONFIG_INTERPRETER_DECODE_CACHE_ENTRIES);
+#else
+  fprintf(out, "config.interpreter_decode_cache_entries=0\n");
+#endif
   machine_info_write_bool(out, "config.interpreter_intr_fast_flag", ISDEF(CONFIG_INTERPRETER_INTR_FAST_FLAG));
+  fprintf(out, "config.device_update_check_interval=%d\n", CONFIG_DEVICE_UPDATE_CHECK_INTERVAL);
 
   // 能力边界清单把 QEMU-like 缺口变成可执行 gate，避免以后把单个切片误判为完整 VM。
   fprintf(out, "platform.hart_count=1\n");
@@ -185,9 +213,9 @@ static void dump_machine_info(FILE *out) {
   fprintf(out, "monitor.machine_info=enabled\n");
   fprintf(out, "monitor.oneshot_cmd=enabled\n");
   fprintf(out, "monitor.qmp=%s\n", qmp_capability());
-  fprintf(out, "monitor.qmp.mode=startup-query-cont-stop-runtime-query-quit\n");
+  fprintf(out, "monitor.qmp.mode=startup-query-cont-stop-events-guest-shutdown-runtime-query-chardev-netdev-rng-rtc-interrupts-serial-version-kvm-pci-schema-id-echo-query-events-system-reset-system-powerdown-quit\n");
   fprintf(out, "debug.gdbstub=%s\n", gdbstub_capability());
-  fprintf(out, "debug.gdbstub.mode=startup-readonly\n");
+  fprintf(out, "debug.gdbstub.mode=startup-rw-regmem-step-cont-swbreak-hbreak-watch-vcont-async-stop-target-xml-memory-map-noack\n");
   fprintf(out, "snapshot.vm_state=unsupported\n");
   fprintf(out, "snapshot.block=raw-sparse-overlay\n");
   fprintf(out, "block.format=raw\n");
@@ -198,6 +226,12 @@ static void dump_machine_info(FILE *out) {
   fprintf(out, "time.clint.timebase_hz=%" PRIu64 "\n", isa_riscv_clint_timebase_hz());
   fprintf(out, "time.clint.source=%s\n", isa_riscv_clint_time_source());
   fprintf(out, "time.csr_time_source=clint_mtime\n");
+#ifdef CONFIG_ISA64
+  fprintf(out, "interrupt.controller=riscv-clint+plic\n");
+  isa_riscv_clint_dump_machine_info(out);
+  isa_riscv_plic_dump_machine_info(out);
+  isa_riscv_pmp_dump_machine_info(out);
+#endif
 #endif
 
   machine_info_write_hex(out, "memory.base", CONFIG_MBASE);
@@ -212,6 +246,7 @@ static void dump_machine_info(FILE *out) {
 #ifdef CONFIG_HAS_SERIAL
   machine_info_write_hex(out, "device.serial.mmio", CONFIG_SERIAL_MMIO);
   fprintf(out, "device.serial.irq=1\n");
+  serial_dump_machine_info(out);
 #endif
   machine_info_write_bool(out, "device.virtio_blk.enabled", ISDEF(CONFIG_HAS_DISK));
 #ifdef CONFIG_HAS_DISK
@@ -223,16 +258,19 @@ static void dump_machine_info(FILE *out) {
 #ifdef CONFIG_HAS_VIRTIO_RNG
   machine_info_write_hex(out, "device.virtio_rng.mmio", CONFIG_VIRTIO_RNG_MMIO);
   fprintf(out, "device.virtio_rng.irq=3\n");
+  virtio_rng_dump_machine_info(out);
 #endif
   machine_info_write_bool(out, "device.goldfish_rtc.enabled", ISDEF(CONFIG_HAS_GOLDFISH_RTC));
 #ifdef CONFIG_HAS_GOLDFISH_RTC
   machine_info_write_hex(out, "device.goldfish_rtc.mmio", CONFIG_GOLDFISH_RTC_MMIO);
   fprintf(out, "device.goldfish_rtc.irq=4\n");
+  goldfish_rtc_dump_machine_info(out);
 #endif
   machine_info_write_bool(out, "device.virtio_net.enabled", ISDEF(CONFIG_HAS_VIRTIO_NET));
 #ifdef CONFIG_HAS_VIRTIO_NET
   machine_info_write_hex(out, "device.virtio_net.mmio", CONFIG_VIRTIO_NET_MMIO);
   fprintf(out, "device.virtio_net.irq=5\n");
+  virtio_net_dump_machine_info(out);
 #endif
   machine_info_write_bool(out, "device.syscon_reset.enabled", ISDEF(CONFIG_HAS_SYSCON_RESET));
 #ifdef CONFIG_HAS_SYSCON_RESET
@@ -359,7 +397,7 @@ static int parse_args(int argc, char *argv[]) {
         printf("\t   --boot-dtb=ADDR      set boot argument a1 before guest start\n");
         printf("\t   --machine-info=FILE  dump initialized machine/device contract and exit\n");
         printf("\t   --monitor-cmd=CMD    run one SDB command after init and exit (repeatable)\n");
-        printf("\t   --qmp=PORT           wait for startup QMP, then same-socket runtime query/quit\n");
+        printf("\t   --qmp=PORT           wait for startup QMP, then same-socket runtime query/stop/cont/events/device introspection/quit\n");
         printf("\t   --gdbstub=PORT       wait for a startup GDB remote client on localhost\n");
         printf("\t   --block=FILE         attach block image (Linux path placeholder)\n");
         printf("\t   --block-overlay=FILE write block changes to sparse overlay\n");

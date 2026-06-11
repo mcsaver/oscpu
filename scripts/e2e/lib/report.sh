@@ -27,6 +27,20 @@ e2e_allocate_run_dir() {
   : > "$E2E_NODES_FILE"
 }
 
+e2e_sanitize_task_run_text_artifacts() {
+  local file
+  [[ -n ${E2E_RUN_DIR:-} && -d $E2E_RUN_DIR ]] || return 0
+
+  # 统一清理 e2e 证据包中的行尾空白和 CR，避免生成物过不了 git diff --check。
+  while IFS= read -r -d '' file; do
+    LC_ALL=C sed -i 's/[ \t\r]*$//' "$file"
+  done < <(
+    find "$E2E_RUN_DIR" -type f \
+      \( -name '*.md' -o -name '*.tsv' -o -name '*.log' -o -name '*.cmd' -o -name '*.txt' \) \
+      -print0
+  )
+}
+
 e2e_init_dispatch_log() {
   cat > "$E2E_DISPATCH_FILE" <<EOF
 # Dispatch Log
@@ -236,4 +250,5 @@ EOF
 - \`evidence_summary\`: 详见节点表与 \`evidence/\`
 - \`notes\`: 这是模块化 e2e gate，不替代未执行模块的功能回归、DiffTest、Linux/Ubuntu 分层 gate 或 PPA/STA signoff。
 EOF
+  e2e_sanitize_task_run_text_artifacts
 }

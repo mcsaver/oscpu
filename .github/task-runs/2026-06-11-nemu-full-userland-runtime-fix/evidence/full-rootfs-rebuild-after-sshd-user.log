@@ -1,0 +1,195 @@
+make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+UBUNTU_ROOTFS_FLAVOR=full \
+UBUNTU_ROOTFS_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4' \
+UBUNTU_ROOTFS_CPIO_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full-rootfs.cpio' \
+UBUNTU_ROOTFS_DIR='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/rootfs-full' \
+UBUNTU_ROOTFS_SYSTEMD_OVERLAY=1 UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/build-ubuntu-rootfs.sh'
+[ubuntu-rootfs] flavor: full
+[ubuntu-rootfs] rootfs dir: /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/rootfs-full
+[ubuntu-rootfs] image: /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4
+[ubuntu-rootfs] cpio: /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full-rootfs.cpio
+[ubuntu-rootfs] image size: 8G
+[ubuntu-rootfs] include packages: systemd,systemd-sysv,udev,dbus,procps,iproute2,kmod,util-linux,lsb-release,login,passwd,adduser,ca-certificates,curl,wget,iputils-ping,netcat-openbsd,openssh-client,htop,less,vim-tiny,nano,file,strace,psmisc,ubuntu-standard,openssh-server,sudo,locales,tzdata,bash-completion,man-db,cron,rsyslog,systemd-timesyncd
+[ubuntu-rootfs] build static rootfs init: /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ysyx-rootfs-init
+[ubuntu-rootfs] build via Ubuntu Base + fakeroot
+[ubuntu-rootfs] note: enabling apt/dpkg-deb systemd overlay without chroot second-stage
+ubuntu-base-22.04.5-base-riscv64.tar.gz: OK
+[ubuntu-systemd-overlay] flavor: full
+[ubuntu-systemd-overlay] no-recommends: 0
+[ubuntu-systemd-overlay] apt update for jammy/riscv64
+Hit:1 http://ports.ubuntu.com/ubuntu-ports jammy InRelease
+Get:2 http://ports.ubuntu.com/ubuntu-ports jammy-updates InRelease [128 kB]
+Hit:3 http://ports.ubuntu.com/ubuntu-ports jammy-security InRelease
+Get:4 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 c-n-f Metadata [18.4 kB]
+Get:5 http://ports.ubuntu.com/ubuntu-ports jammy-updates/universe riscv64 c-n-f Metadata [23.1 kB]
+Error connecting: Error sending credentials: Error sending message: Operation not permitted
+Fetched 170 kB in 6s (30.3 kB/s)
+Reading package lists...
+[ubuntu-systemd-overlay] download packages: systemd systemd-sysv udev dbus procps iproute2 kmod util-linux lsb-release login passwd adduser ca-certificates curl wget iputils-ping netcat-openbsd openssh-client htop less vim-tiny nano file strace psmisc ubuntu-standard openssh-server sudo locales tzdata bash-completion man-db cron rsyslog systemd-timesyncd
+Reading package lists...
+Building dependency tree...
+procps is already the newest version (2:3.3.17-6ubuntu2.1).
+login is already the newest version (1:4.8.1-2ubuntu2.2).
+passwd is already the newest version (1:4.8.1-2ubuntu2.2).
+adduser is already the newest version (3.118ubuntu5).
+The following additional packages will be installed:
+  apparmor bind9-dnsutils bind9-host bind9-libs bsdextrautils bsdutils
+  busybox-static command-not-found cpio distro-info distro-info-data dmidecode
+  dmsetup dosfstools ed friendly-recovery ftp fuse3 gcc-12-base gettext-base
+  gir1.2-glib-2.0 groff-base hdparm info install-info iptables
+  iputils-tracepath irqbalance iso-codes libapparmor1 libargon2-1 libatm1
+  libatomic1 libblkid1 libbpf0 libbrotli1 libbsd0 libc-bin libc6 libcap2
+  libcap2-bin libcbor0.8 libcryptsetup12 libcurl4 libdbus-1-3
+  libdevmapper1.02.1 libdrm-common libdrm2 libedit2 libelf1 libestr0 libexpat1
+  libfastjson4 libfido2-1 libfribidi0 libfuse3-3 libgcc-s1 libgdbm6
+  libgirepository-1.0-1 libglib2.0-0 libglib2.0-data libicu70 libip4tc2
+  libip6tc2 libjansson4 libjson-c5 libkmod2 libldap-2.5-0 libldap-common
+  liblmdb0 liblzma5 libmagic-mgc libmagic1 libmaxminddb0 libmd0 libmnl0
+  libmount1 libmpdec3 libnetfilter-conntrack3 libnewt0.52 libnfnetlink0
+  libnftables1 libnftnl11 libnghttp2-14 libnl-3-200 libnl-genl-3-200
+  libnss-systemd libntfs-3g89 libnuma1 libpam-cap libpam-systemd libparted2
+  libpcap0.8 libpci3 libpipeline1 libplymouth5 libpng16-16 libpopt0 libpsl5
+  libpython3-stdlib libpython3.10-minimal libpython3.10-stdlib libreadline8
+  librtmp1 libsasl2-2 libsasl2-modules libsasl2-modules-db libseccomp2
+  libslang2 libsmartcols1 libsqlite3-0 libssh-4 libssl3 libstdc++6 libsystemd0
+  libuchardet0 libudev1 libusb-1.0-0 libuuid1 libuv1 libwrap0 libx11-6
+  libx11-data libxau6 libxcb1 libxdmcp6 libxext6 libxml2 libxmuu1 libxtables12
+  libyaml-0-2 logrotate lshw lsof manpages media-types mount mtr-tiny
+  ncurses-term netbase networkd-dispatcher nftables ntfs-3g
+  openssh-sftp-server openssl parted pci.ids pciutils plymouth
+  plymouth-theme-ubuntu-text powermgmt-base publicsuffix python-apt-common
+  python3 python3-apt python3-commandnotfound python3-dbus python3-distro
+  python3-distro-info python3-distupgrade python3-gdbm python3-gi
+  python3-minimal python3-pkg-resources python3-update-manager python3-yaml
+  python3.10 python3.10-minimal readline-common rsync shared-mime-info
+  ssh-import-id systemd-hwe-hwdb tcpdump telnet time tnftp
+  ubuntu-advantage-tools ubuntu-pro-client ubuntu-pro-client-l10n
+  ubuntu-release-upgrader-core ucf ufw update-manager-core usb.ids usbutils
+  uuid-runtime vim-common whiptail xauth xdg-user-dirs xxd xz-utils
+Suggested packages:
+  apparmor-profiles-extra apparmor-utils snapd libarchive1 anacron
+  checksecurity default-mta | mail-transport-agent default-dbus-session-bus
+  | dbus-session-bus shunit2 groff lm-sensors iproute2-doc firewalld
+  traceroute isoquery glibc-doc gdbm-l10n mmdb-bin cryptsetup-bin
+  libparted-dev libparted-i18n libsasl2-modules-gssapi-mit
+  | libsasl2-modules-gssapi-heimdal libsasl2-modules-ldap libsasl2-modules-otp
+  libsasl2-modules-sql bsd-mailx | mailx perl www-browser nfs-common hunspell
+  iw | wireless-tools keychain libpam-ssh monkeysphere ssh-askpass molly-guard
+  parted-doc bzip2 desktop-base plymouth-themes python3-doc python3-tk
+  python3-venv python3-apt-dbg python-apt-doc python-dbus-doc python3-gdbm-dbg
+  python3-setuptools python3-launchpadlib python3.10-venv python3.10-doc
+  binutils binfmt-support readline-doc python3-braceexpand rsyslog-mysql
+  | rsyslog-pgsql rsyslog-mongodb rsyslog-doc rsyslog-openssl | rsyslog-gnutls
+  rsyslog-gssapi rsyslog-relp systemd-container libtss2-esys-3.0.2-0
+  libtss2-mu0 libtss2-rc0 policykit-1 kbd util-linux-locales indent
+Recommended packages:
+  libnss-nis libnss-nisplus
+The following NEW packages will be installed:
+  apparmor bash-completion bind9-dnsutils bind9-host bind9-libs bsdextrautils
+  busybox-static ca-certificates command-not-found cpio cron curl dbus
+  distro-info distro-info-data dmidecode dmsetup dosfstools ed file
+  friendly-recovery ftp fuse3 gettext-base gir1.2-glib-2.0 groff-base hdparm
+  htop info install-info iproute2 iptables iputils-ping iputils-tracepath
+  irqbalance iso-codes kmod less libapparmor1 libargon2-1 libatm1 libatomic1
+  libbpf0 libbrotli1 libbsd0 libcap2-bin libcbor0.8 libcryptsetup12 libcurl4
+  libdbus-1-3 libdevmapper1.02.1 libdrm-common libdrm2 libedit2 libelf1
+  libestr0 libexpat1 libfastjson4 libfido2-1 libfribidi0 libfuse3-3 libgdbm6
+  libgirepository-1.0-1 libglib2.0-0 libglib2.0-data libicu70 libip4tc2
+  libip6tc2 libjansson4 libjson-c5 libkmod2 libldap-2.5-0 libldap-common
+  liblmdb0 libmagic-mgc libmagic1 libmaxminddb0 libmd0 libmnl0 libmpdec3
+  libnetfilter-conntrack3 libnewt0.52 libnfnetlink0 libnftables1 libnftnl11
+  libnghttp2-14 libnl-3-200 libnl-genl-3-200 libnss-systemd libntfs-3g89
+  libnuma1 libpam-cap libpam-systemd libparted2 libpcap0.8 libpci3
+  libpipeline1 libplymouth5 libpng16-16 libpopt0 libpsl5 libpython3-stdlib
+  libpython3.10-minimal libpython3.10-stdlib libreadline8 librtmp1 libsasl2-2
+  libsasl2-modules libsasl2-modules-db libseccomp2 libslang2 libsqlite3-0
+  libssh-4 libuchardet0 libusb-1.0-0 libuv1 libwrap0 libx11-6 libx11-data
+  libxau6 libxcb1 libxdmcp6 libxext6 libxml2 libxmuu1 libxtables12 libyaml-0-2
+  locales logrotate lsb-release lshw lsof man-db manpages media-types mtr-tiny
+  nano ncurses-term netbase netcat-openbsd networkd-dispatcher nftables
+  ntfs-3g openssh-client openssh-server openssh-sftp-server openssl parted
+  pci.ids pciutils plymouth plymouth-theme-ubuntu-text powermgmt-base psmisc
+  publicsuffix python-apt-common python3 python3-apt python3-commandnotfound
+  python3-dbus python3-distro python3-distro-info python3-distupgrade
+  python3-gdbm python3-gi python3-minimal python3-pkg-resources
+  python3-update-manager python3-yaml python3.10 python3.10-minimal
+  readline-common rsync rsyslog shared-mime-info ssh-import-id strace sudo
+  systemd systemd-hwe-hwdb systemd-sysv systemd-timesyncd tcpdump telnet time
+  tnftp tzdata ubuntu-advantage-tools ubuntu-pro-client ubuntu-pro-client-l10n
+  ubuntu-release-upgrader-core ubuntu-standard ucf udev ufw
+  update-manager-core usb.ids usbutils uuid-runtime vim-common vim-tiny wget
+  whiptail xauth xdg-user-dirs xxd xz-utils
+The following packages will be upgraded:
+  bsdutils gcc-12-base libblkid1 libc-bin libc6 libcap2 libgcc-s1 liblzma5
+  libmount1 libsmartcols1 libssl3 libstdc++6 libsystemd0 libudev1 libuuid1
+  mount util-linux
+17 upgraded, 207 newly installed, 0 to remove and 18 not upgraded.
+Need to get 0 B/67.5 MB of archives.
+After this operation, 220 MB of additional disk space will be used.
+Download complete and in download only mode
+[ubuntu-systemd-overlay] unpack 229 packages into /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/rootfs-full
+[ubuntu-systemd-overlay] overlay complete
+mke2fs 1.47.0 (5-Feb-2023)
+Discarding device blocks:       0/2097152               done
+Creating filesystem with 2097152 4k blocks and 524288 inodes
+Filesystem UUID: 35efbc7c-a55e-44c2-abff-fb7d89f567cb
+Superblock backups stored on blocks:
+	32768, 98304, 163840, 229376, 294912, 819200, 884736, 1605632
+
+Allocating group tables:  0/64     done
+Writing inode tables:  0/64     done
+Creating journal (16384 blocks): done
+Copying files into the device: done
+Writing superblocks and filesystem accounting information:  0/64     done
+
+[ubuntu-rootfs] generated: /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4
+[ubuntu-rootfs] generated rootfs cpio: /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full-rootfs.cpio
+[ubuntu-rootfs-check] image: /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4
+[ubuntu-rootfs-check] flavor: full
+[ubuntu-rootfs-check] OK      stage1 init: /init
+[ubuntu-rootfs-check] OK      Ubuntu shell: /bin/sh
+[ubuntu-rootfs-check] OK      Ubuntu identity: /etc/os-release
+[ubuntu-rootfs-check] OK      systemd candidate: /lib/systemd/systemd
+[ubuntu-rootfs-check] OK      systemd basic.target: /lib/systemd/system/basic.target
+[ubuntu-rootfs-check] OK      udev daemon: /lib/systemd/systemd-udevd
+[ubuntu-rootfs-check] OK      dbus daemon: /usr/bin/dbus-daemon
+[ubuntu-rootfs-check] OK      agetty login path: /bin/login
+[ubuntu-rootfs-check] OK      root login shell: /bin/bash
+[ubuntu-rootfs-check] OK      Ubuntu identity command: /usr/bin/lsb_release
+[ubuntu-rootfs-check] OK      lp64d dynamic linker: /lib/ld-linux-riscv64-lp64d.so.1
+[ubuntu-rootfs-check] OK      PAM module path: /lib/riscv64-linux-gnu/security
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_unix.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_deny.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_permit.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_env.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_loginuid.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_limits.so
+[ubuntu-rootfs-check] OK      e2scrub service entrypoint: /sbin/e2scrub_all
+[ubuntu-rootfs-check] OK      boot-blocking e2scrub reap masked: /etc/systemd/system/e2scrub_reap.service
+[ubuntu-rootfs-check] OK      periodic e2scrub timer masked: /etc/systemd/system/e2scrub_all.timer
+[ubuntu-rootfs-check] OK      unavailable hvc0 getty masked: /etc/systemd/system/serial-getty@hvc0.service
+[ubuntu-rootfs-check] OK      OpenSSH server config: /etc/ssh/sshd_config
+[ubuntu-rootfs-check] OK      syslog passwd entry: /etc/passwd
+[ubuntu-rootfs-check] OK      syslog group entry: /etc/group
+[ubuntu-rootfs-check] OK      sshd passwd entry: /etc/passwd
+[ubuntu-rootfs-check] OK      sshd group entry: /etc/group
+[ubuntu-rootfs-check] OK      rsyslog spool directory: /var/spool/rsyslog
+[ubuntu-rootfs-check] OK      syslog service alias: /etc/systemd/system/syslog.service
+[ubuntu-rootfs-check] OK      Ubuntu interactive command curl: /usr/bin/curl
+[ubuntu-rootfs-check] OK      Ubuntu interactive command wget: /usr/bin/wget
+[ubuntu-rootfs-check] OK      Ubuntu interactive command ping: /bin/ping
+[ubuntu-rootfs-check] OK      Ubuntu interactive command ssh: /usr/bin/ssh
+[ubuntu-rootfs-check] OK      Ubuntu interactive command htop: /usr/bin/htop
+[ubuntu-rootfs-check] OK      Ubuntu interactive command less: /usr/bin/less
+[ubuntu-rootfs-check] OK      Ubuntu interactive command strace: /usr/bin/strace
+[ubuntu-rootfs-check] OK      Ubuntu full command apt-get: /usr/bin/apt-get
+[ubuntu-rootfs-check] OK      Ubuntu full command sudo: /usr/bin/sudo
+[ubuntu-rootfs-check] OK      Ubuntu full command man: /usr/bin/man
+[ubuntu-rootfs-check] OK      Ubuntu full service sshd: /usr/sbin/sshd
+[ubuntu-rootfs-check] OK      Ubuntu full service cron: /usr/sbin/cron
+[ubuntu-rootfs-check] OK      Ubuntu full service rsyslogd: /usr/sbin/rsyslogd
+[ubuntu-rootfs-check] OK      Ubuntu full timezone database: /usr/share/zoneinfo/UTC
+[ubuntu-rootfs-check] rootfs readiness check passed
+[ubuntu-rootfs] 注意：启动该 rootfs 还需要 RTL/仿真侧 virtio-mmio block、host block backend 与 IRQ2 路径。
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/Linux'

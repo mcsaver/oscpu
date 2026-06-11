@@ -17,6 +17,16 @@
 
 ## 架构决策
 
+### [37] 软件开发全流程采用独立 `software-flow` agent
+
+- **日期**: 2026-06-09
+- **状态**: 已决定
+- **上下文**: 工作区已经有硬件落地前的 `hardware-flow`、`npc`、`ysyx-soc`、`rv64-linux` 等 agent，但软件侧需求、脚本/工具链、NEMU/AM/am-kernels/Linux guest check 和 host side 软件开发仍缺一个对称的全流程入口，容易在实现、测试、回归和记录之间靠临时口头串联。
+- **决策**: 新增 `software-flow` 作为 L1 软件开发流程 agent，负责 `scope-contract -> design-plan -> implement -> unit-or-contract-test -> integration-smoke -> regression-or-e2e -> review-record` 的完整闭环，并补充 `software-bugfix-loop` 与 `software-refactor-loop`。它可以调度 `nemu`、`abstract-machine`、`am-kernels`、`fceux-am`、`rv64-linux`、`linux-device`、`agent-system` 等软件相关模块；当任务需要 RTL/Chisel/SoC/STA/PPA 或 target/difftest 证据时，必须交接给 `hardware-flow` 或对应硬件模块 agent。
+- **理由**: 这样软件任务在落地前也有清晰 owner、静态图、节点产物和 e2e contract，不再把软件开发流程混进硬件 bring-up 或 agent-system 维护任务里。
+- **影响**: 后续新增软件功能、软件 bug 修复、脚本工具链重构或软件测试补齐时，应优先判断是否命中 `software-dev-loop`、`software-bugfix-loop` 或 `software-refactor-loop`；新增/调整该 agent 时必须同步更新 `.github/e2e/modules/software-flow.md`、`.github/e2e/profiles/software-flow.tsv`、`contracts` profile、脚本 gate 和 `.github/memory/modules/software-flow.md`。
+- **2026-06-09 追加**: 对 NEMU/RV64/Linux 这类“用软件建硬件/系统模型”的任务，不能把 `software-flow` 只当环境校验；新增 `hardware-aware-software-loop` 作为组合图，先用 `software-flow` 收敛软件工程闭环，再叠加 `nemu-ubuntu`、`hardware-flow`、`rv64-linux`、`difftest` 或 target gate 做硬件/系统语义完成判定。
+
 ### [36] RV64 外部中断对 Linux S 态按 SEI delegation 建模
 
 - **日期**: 2026-06-01

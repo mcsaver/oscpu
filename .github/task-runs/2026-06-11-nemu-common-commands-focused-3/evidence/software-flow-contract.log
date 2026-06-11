@@ -1,0 +1,15 @@
+[software-flow] contract
+PASS .github/agents/software-flow.agent.md
+PASS .github/e2e/modules/software-flow.md
+PASS .github/e2e/profiles/software-flow.tsv
+PASS .github/memory/modules/software-flow.md
+PASS .github/agents/nemu.agent.md
+PASS .github/agents/abstract-machine.agent.md
+PASS .github/agents/am-kernels.agent.md
+[software-flow] production integration hooks
+PASS software-flow defines hardware-aware software loop
+PASS hardware-flow consumes software-flow for software artifacts
+PASS nemu agent requires software-flow for C-side model work
+PASS coordinator routes hardware-aware software work
+PASS blueprint documents combined software/hardware flow
+PASS e2e workflow documents software-flow plus system profile layering

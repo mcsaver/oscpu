@@ -15,6 +15,13 @@
 
 #include <isa.h>
 #include <etrace.h>
+#include <utils.h>
+#ifndef CONFIG_TARGET_AM
+#include <stdio.h>
+#endif
+#ifdef CONFIG_RISCV_CLINT_HOST_TIME
+#include <unistd.h>
+#endif
 
 #define CLINT_BASE 0x02000000u
 #define CLINT_SIZE 0x00010000u
@@ -28,21 +35,62 @@
 static bool clint_msip = false;
 static uint64_t clint_mtimecmp = ~0ull;
 static uint64_t clint_mtime = 0;
+#ifdef CONFIG_RISCV_CLINT_HOST_TIME
+static uint64_t clint_host_base_us = 0;
+static uint64_t clint_host_base_mtime = 0;
+static bool clint_host_time_initialized = false;
+#endif
 static bool host_timer_irq_pending = false;
 static bool mcycle_written_this_inst = false;
 #ifdef CONFIG_RISCV_DEBUG_LOG
 static int trap_log_budget = CONFIG_RISCV_FAULT_DEBUG_BUDGET;
 #endif
 
+static inline uint64_t clint_us_to_ticks(uint64_t us) {
+  return us * (CLINT_TIMEBASE_HZ / 1000000ull);
+}
+
+static void clint_rebase_host_time(uint64_t mtime) {
+#ifdef CONFIG_RISCV_CLINT_HOST_TIME
+  clint_host_base_us = get_time();
+  clint_host_base_mtime = mtime;
+  clint_host_time_initialized = true;
+#else
+  (void)mtime;
+#endif
+}
+
+static void clint_sync_host_time(void) {
+#ifdef CONFIG_RISCV_CLINT_HOST_TIME
+  uint64_t now_us = get_time();
+  if (!clint_host_time_initialized) {
+    clint_host_base_us = now_us;
+    clint_host_base_mtime = clint_mtime;
+    clint_host_time_initialized = true;
+  }
+  uint64_t host_mtime = clint_host_base_mtime +
+      clint_us_to_ticks(now_us - clint_host_base_us);
+  if (host_mtime > clint_mtime) {
+    clint_mtime = host_mtime;
+  }
+#endif
+}
+
 static inline word_t riscv_mepc_mask(void) {
   return MUXDEF(CONFIG_RISCV_EXT_C, ~(word_t)0x1, ~(word_t)0x3);
 }
 
 static inline word_t clint_pending_bits(void) {
+  clint_sync_host_time();
   word_t pending = 0;
   if (clint_msip) pending |= MIP_MSIP;
   if (clint_mtime >= clint_mtimecmp || host_timer_irq_pending) pending |= MIP_MTIP;
   return pending;
+}
+
+static inline bool clint_mtip_pending(void) {
+  clint_sync_host_time();
+  return clint_mtime >= clint_mtimecmp || host_timer_irq_pending;
 }
 
 // 供 CSR time 和 machine-info 复用同一份 CLINT 时间事实，避免 DTB/实现漂移。
@@ -51,12 +99,55 @@ uint64_t isa_riscv64_clint_timebase_hz(void) {
 }
 
 uint64_t isa_riscv64_mtime_value(void) {
+  clint_sync_host_time();
   return clint_mtime;
 }
 
 const char *isa_riscv64_clint_time_source(void) {
+#ifdef CONFIG_RISCV_CLINT_HOST_TIME
+  return "host-monotonic";
+#else
   return "instruction";
+#endif
 }
+
+#ifndef CONFIG_TARGET_AM
+static const char *clint_json_bool(bool value) {
+  return value ? "true" : "false";
+}
+
+void isa_riscv64_clint_dump_machine_info(FILE *out) {
+  clint_sync_host_time();
+  // 中断账本复用 CLINT 运行态快照，后续排查 Linux timer/WFI 时不用再猜 mtime 来源。
+  fprintf(out, "interrupt.clint.enabled=1\n");
+  fprintf(out, "interrupt.clint.model=riscv,clint0\n");
+  fprintf(out, "interrupt.clint.mmio=0x%08x\n", CLINT_BASE);
+  fprintf(out, "interrupt.clint.size=0x%08x\n", CLINT_SIZE);
+  fprintf(out, "interrupt.clint.timebase_hz=%" PRIu64 "\n", (uint64_t)CLINT_TIMEBASE_HZ);
+  fprintf(out, "interrupt.clint.time_source=%s\n", isa_riscv64_clint_time_source());
+  fprintf(out, "interrupt.clint.msip=%u\n", clint_msip ? 1u : 0u);
+  fprintf(out, "interrupt.clint.mtip_pending=%u\n", clint_mtip_pending() ? 1u : 0u);
+  fprintf(out, "interrupt.clint.host_timer_irq_pending=%u\n",
+      host_timer_irq_pending ? 1u : 0u);
+  fprintf(out, "interrupt.clint.mtime=%" PRIu64 "\n", clint_mtime);
+  fprintf(out, "interrupt.clint.mtimecmp=%" PRIu64 "\n", clint_mtimecmp);
+}
+
+void isa_riscv64_clint_qmp_snapshot(char *out, size_t out_size) {
+  clint_sync_host_time();
+  snprintf(out, out_size,
+      "{\"model\":\"riscv,clint0\",\"mmio\":\"0x%08x\","
+      "\"size\":%u,\"timebase-hz\":%" PRIu64 ","
+      "\"time-source\":\"%s\",\"mtime\":%" PRIu64 ","
+      "\"mtimecmp\":%" PRIu64 ",\"msip\":%s,"
+      "\"mtip-pending\":%s,\"host-timer-irq-pending\":%s,"
+      "\"pending-bits\":\"0x%016" PRIx64 "\"}",
+      CLINT_BASE, CLINT_SIZE, (uint64_t)CLINT_TIMEBASE_HZ,
+      isa_riscv64_clint_time_source(), clint_mtime, clint_mtimecmp,
+      clint_json_bool(clint_msip), clint_json_bool(clint_mtip_pending()),
+      clint_json_bool(host_timer_irq_pending), (uint64_t)clint_pending_bits());
+}
+#endif
 
 static uint32_t clint_read_word(uint32_t offset) {
   switch (offset) {
@@ -91,12 +182,14 @@ static void clint_write_word(uint32_t offset, uint32_t value, uint32_t mask) {
       uint32_t old = (uint32_t)clint_mtime;
       uint32_t lo = (old & ~mask) | (value & mask);
       clint_mtime = (clint_mtime & 0xffffffff00000000ull) | lo;
+      clint_rebase_host_time(clint_mtime);
       break;
     }
     case CLINT_MTIME_HI: {
       uint32_t old = (uint32_t)(clint_mtime >> 32);
       uint32_t hi = (old & ~mask) | (value & mask);
       clint_mtime = ((uint64_t)hi << 32) | (uint32_t)clint_mtime;
+      clint_rebase_host_time(clint_mtime);
       break;
     }
     default:
@@ -110,6 +203,7 @@ bool isa_riscv64_clint_in_range(paddr_t addr) {
 
 word_t isa_riscv64_clint_read(paddr_t addr, int len) {
   assert(len >= 1 && len <= 8);
+  clint_sync_host_time();
   if (len == 8) {
     return isa_riscv64_clint_read(addr, 4) |
            (isa_riscv64_clint_read(addr + 4, 4) << 32);
@@ -145,13 +239,18 @@ void isa_riscv64_post_exec(void) {
     cpu.csr.minstret++;
   }
   mcycle_written_this_inst = false;
+#ifdef CONFIG_RISCV_CLINT_HOST_TIME
+  clint_sync_host_time();
+#else
   clint_mtime++;
+#endif
 }
 
 void isa_riscv64_reset(void) {
   clint_msip = false;
   clint_mtimecmp = ~0ull;
   clint_mtime = 0;
+  clint_rebase_host_time(0);
   host_timer_irq_pending = false;
   mcycle_written_this_inst = false;
   isa_riscv64_plic_reset();
@@ -164,9 +263,22 @@ void isa_riscv64_wfi(void) {
   uint64_t delta = clint_mtimecmp - clint_mtime;
   if (delta <= 1) return;
 
+#ifdef CONFIG_RISCV_CLINT_HOST_TIME
+  uint64_t sleep_us = delta / (CLINT_TIMEBASE_HZ / 1000000ull);
+  if (sleep_us > 1000) {
+    sleep_us = 1000;
+  }
+  if (sleep_us > 0) {
+    usleep((useconds_t)sleep_us);
+  }
+  clint_sync_host_time();
+  return;
+#endif
+
   // WFI sleeps while platform time advances. Leave one tick for post_exec(),
   // so the next interrupt query observes mtime >= mtimecmp through normal flow.
   clint_mtime = clint_mtimecmp - 1;
+  clint_rebase_host_time(clint_mtime);
   if (!mcycle_written_this_inst && (cpu.csr.mcountinhibit & MCOUNTINHIBIT_CY) == 0) {
     cpu.csr.mcycle += delta - 1;
   }

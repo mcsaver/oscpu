@@ -9,12 +9,18 @@ BASE_URL=${UBUNTU_BASE_URL:-https://cdimages.ubuntu.com/ubuntu-base/releases/22.
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 LINUX_HOME=$(cd -- "$SCRIPT_DIR/.." && pwd)
 ENV_ROOT=${YSYX_LINUX_ENV_ROOT:-"$LINUX_HOME/env"}
+ROOTFS_FLAVOR=${UBUNTU_ROOTFS_FLAVOR:-systemd-minimal}
+ROOTFS_FLAVOR_SCRIPT=${UBUNTU_ROOTFS_FLAVOR_SCRIPT:-"$SCRIPT_DIR/ubuntu-rootfs-flavors.sh"}
+source "$ROOTFS_FLAVOR_SCRIPT"
+ROOTFS_FLAVOR=$(ubuntu_rootfs_flavor_normalize "$ROOTFS_FLAVOR")
 WORK=${UBUNTU_ROOTFS_WORK:-"$ENV_ROOT/images/ubuntu2204"}
-ROOTFS=${UBUNTU_ROOTFS_DIR:-"$WORK/rootfs"}
-IMAGE=${UBUNTU_ROOTFS_IMAGE:-"$WORK/ubuntu-22.04-riscv64.ext4"}
-CPIO=${UBUNTU_ROOTFS_CPIO_IMAGE:-"$WORK/ubuntu-22.04-riscv64-rootfs.cpio"}
-IMAGE_SIZE=${UBUNTU_ROOTFS_IMAGE_SIZE:-2G}
-ROOTFS_INCLUDE=${UBUNTU_ROOTFS_INCLUDE:-systemd-sysv,udev,dbus,procps,iproute2,kmod,util-linux,lsb-release}
+ROOTFS_ARTIFACT_SUFFIX=${UBUNTU_ROOTFS_ARTIFACT_SUFFIX:-$(ubuntu_rootfs_flavor_artifact_suffix "$ROOTFS_FLAVOR")}
+ROOTFS=${UBUNTU_ROOTFS_DIR:-"$WORK/rootfs$ROOTFS_ARTIFACT_SUFFIX"}
+IMAGE=${UBUNTU_ROOTFS_IMAGE:-"$WORK/ubuntu-22.04-riscv64$ROOTFS_ARTIFACT_SUFFIX.ext4"}
+CPIO=${UBUNTU_ROOTFS_CPIO_IMAGE:-"$WORK/ubuntu-22.04-riscv64$ROOTFS_ARTIFACT_SUFFIX-rootfs.cpio"}
+IMAGE_SIZE=${UBUNTU_ROOTFS_IMAGE_SIZE:-$(ubuntu_rootfs_flavor_image_size "$ROOTFS_FLAVOR")}
+ROOTFS_INCLUDE=${UBUNTU_ROOTFS_INCLUDE:-$(ubuntu_rootfs_flavor_include_csv "$ROOTFS_FLAVOR")}
+DEBOOTSTRAP_VARIANT=${UBUNTU_DEBOOTSTRAP_VARIANT:-$(ubuntu_rootfs_flavor_debootstrap_variant "$ROOTFS_FLAVOR")}
 ROOTFS_REQUIRE_SYSTEMD=${UBUNTU_ROOTFS_REQUIRE_SYSTEMD:-0}
 ROOTFS_SYSTEMD_OVERLAY=${UBUNTU_ROOTFS_SYSTEMD_OVERLAY:-0}
 ROOTFS_SYSTEMD_OVERLAY_SCRIPT=${UBUNTU_ROOTFS_SYSTEMD_OVERLAY_SCRIPT:-"$SCRIPT_DIR/build-ubuntu-systemd-overlay.sh"}
@@ -41,6 +47,12 @@ CROSS_COMPILE=${CROSS_COMPILE:-$DEFAULT_CROSS_COMPILE}
 CC=${CC:-"${CROSS_COMPILE}gcc"}
 
 mkdir -p "$WORK" "$(dirname "$TARBALL")"
+echo "[ubuntu-rootfs] flavor: $ROOTFS_FLAVOR"
+echo "[ubuntu-rootfs] rootfs dir: $ROOTFS"
+echo "[ubuntu-rootfs] image: $IMAGE"
+echo "[ubuntu-rootfs] cpio: $CPIO"
+echo "[ubuntu-rootfs] image size: $IMAGE_SIZE"
+echo "[ubuntu-rootfs] include packages: $ROOTFS_INCLUDE"
 
 can_sudo() {
   [ "$(id -u)" -eq 0 ] || sudo -n true >/dev/null 2>&1
@@ -229,6 +241,54 @@ install_serial_masks() {
   done
 }
 
+install_nemu_systemd_masks() {
+  local dir=$1
+  mkdir -p "$dir/etc/systemd/system"
+  # e2scrub 的工具本体保留在 full rootfs 中，但在线 ext4 scrub/reap 是宿主维护任务；
+  # 在慢速 NEMU guest 中它会阻塞 multi-user.target，不能作为 Ubuntu bring-up 前置。
+  ln -sfn /dev/null "$dir/etc/systemd/system/e2scrub_reap.service"
+  ln -sfn /dev/null "$dir/etc/systemd/system/e2scrub_all.timer"
+}
+
+install_full_runtime_defaults() {
+  local dir=$1
+  local flavor=${2:-systemd-minimal}
+  [ "$flavor" = "full" ] || return
+
+  mkdir -p "$dir/etc/ssh" "$dir/etc/systemd/system" "$dir/var/spool/rsyslog"
+  if [ ! -f "$dir/etc/ssh/sshd_config" ]; then
+    cat > "$dir/etc/ssh/sshd_config" <<'EOF'
+Include /etc/ssh/sshd_config.d/*.conf
+Port 22
+PermitRootLogin prohibit-password
+KbdInteractiveAuthentication no
+UsePAM yes
+X11Forwarding yes
+PrintMotd no
+AcceptEnv LANG LC_*
+Subsystem sftp /usr/lib/openssh/sftp-server
+EOF
+  fi
+
+  if ! grep -q '^syslog:' "$dir/etc/group" 2>/dev/null; then
+    echo 'syslog:x:101:' >> "$dir/etc/group"
+  fi
+  if ! grep -q '^syslog:' "$dir/etc/passwd" 2>/dev/null; then
+    echo 'syslog:x:101:101::/nonexistent:/usr/sbin/nologin' >> "$dir/etc/passwd"
+  fi
+  if ! grep -q '^sshd:' "$dir/etc/group" 2>/dev/null; then
+    echo 'sshd:x:102:' >> "$dir/etc/group"
+  fi
+  if ! grep -q '^sshd:' "$dir/etc/passwd" 2>/dev/null; then
+    echo 'sshd:x:102:102::/run/sshd:/usr/sbin/nologin' >> "$dir/etc/passwd"
+  fi
+  if command -v ssh-keygen >/dev/null 2>&1; then
+    ssh-keygen -A -f "$dir"
+  fi
+  chown -h 101:101 "$dir/var/spool/rsyslog" 2>/dev/null || true
+  ln -sfn /lib/systemd/system/rsyslog.service "$dir/etc/systemd/system/syslog.service"
+}
+
 build_with_sudo_debootstrap() {
   local sudo_cmd=()
   if [ "$(id -u)" -ne 0 ]; then
@@ -236,8 +296,12 @@ build_with_sudo_debootstrap() {
   fi
 
   if [ ! -d "$ROOTFS/debootstrap" ] && [ ! -x "$ROOTFS/bin/sh" ]; then
-    "${sudo_cmd[@]}" debootstrap --arch="$ARCH" --foreign --variant=minbase \
-      --include="$ROOTFS_INCLUDE" "$RELEASE" "$ROOTFS" "$MIRROR"
+    local debootstrap_args=(--arch="$ARCH" --foreign)
+    if [ -n "$DEBOOTSTRAP_VARIANT" ]; then
+      debootstrap_args+=(--variant="$DEBOOTSTRAP_VARIANT")
+    fi
+    debootstrap_args+=(--include="$ROOTFS_INCLUDE" "$RELEASE" "$ROOTFS" "$MIRROR")
+    "${sudo_cmd[@]}" debootstrap "${debootstrap_args[@]}"
   fi
 
   if [ ! -x "$ROOTFS/usr/bin/qemu-riscv64-static" ]; then
@@ -248,6 +312,8 @@ build_with_sudo_debootstrap() {
   "${sudo_cmd[@]}" bash -c "$(declare -f write_guest_config); write_guest_config '$ROOTFS'"
   "${sudo_cmd[@]}" bash -c "$(declare -f install_serial_autologin); ROOTFS_SERIAL_AUTOLOGIN='$ROOTFS_SERIAL_AUTOLOGIN' ROOTFS_SERIAL_AUTOLOGIN_USER='$ROOTFS_SERIAL_AUTOLOGIN_USER' ROOTFS_SERIAL_AUTOLOGIN_TTYS='$ROOTFS_SERIAL_AUTOLOGIN_TTYS' install_serial_autologin '$ROOTFS'"
   "${sudo_cmd[@]}" bash -c "$(declare -f install_serial_masks); ROOTFS_SERIAL_MASK_TTYS='$ROOTFS_SERIAL_MASK_TTYS' install_serial_masks '$ROOTFS'"
+  "${sudo_cmd[@]}" bash -c "$(declare -f install_nemu_systemd_masks); install_nemu_systemd_masks '$ROOTFS'"
+  "${sudo_cmd[@]}" bash -c "$(declare -f install_full_runtime_defaults); install_full_runtime_defaults '$ROOTFS' '$ROOTFS_FLAVOR'"
   "${sudo_cmd[@]}" bash -c '
 set -e
 rootfs=$1
@@ -267,8 +333,18 @@ if [ ! -e "$rootfs/sbin/e2scrub" ] && [ -e "$rootfs/usr/sbin/e2scrub" ]; then
   ln -s ../usr/sbin/e2scrub "$rootfs/sbin/e2scrub"
 fi
 mkdir -p "$rootfs/lib/riscv64-linux-gnu"
-if [ ! -e "$rootfs/lib/riscv64-linux-gnu/security" ] && [ -d "$rootfs/usr/lib/riscv64-linux-gnu/security" ]; then
-  ln -s ../../usr/lib/riscv64-linux-gnu/security "$rootfs/lib/riscv64-linux-gnu/security"
+if [ -d "$rootfs/usr/lib/riscv64-linux-gnu/security" ]; then
+  # debootstrap/Ubuntu Base 布局都可能留下双 PAM 模块目录；login 搜 /lib 路径。
+  pam_lib_dir="$rootfs/lib/riscv64-linux-gnu/security"
+  pam_usr_dir="$rootfs/usr/lib/riscv64-linux-gnu/security"
+  mkdir -p "$pam_lib_dir"
+  for module in "$pam_usr_dir"/pam_*.so; do
+    [ -e "$module" ] || continue
+    module_name=$(basename "$module")
+    if [ ! -e "$pam_lib_dir/$module_name" ]; then
+      ln -s "../../../usr/lib/riscv64-linux-gnu/security/$module_name" "$pam_lib_dir/$module_name"
+    fi
+  done
 fi
 ' _ "$ROOTFS"
   # 默认用静态 PID1 承担伪文件系统挂载，再按 cmdline 选择 systemd 或 shell。
@@ -312,6 +388,8 @@ if [ "$ROOTFS_SYSTEMD_OVERLAY" = "1" ]; then
   # 当前无 sudo/debootstrap 时，systemd overlay 至少把 PID1 与核心用户态依赖放进 rootfs，
   # 让后续 NEMU 可以进入真实 systemd gate 调试，而不是停在“镜像内没有 systemd”。
   UBUNTU_ROOTFS_DIR="$ROOTFS" \
+    UBUNTU_ROOTFS_FLAVOR="$ROOTFS_FLAVOR" \
+    UBUNTU_ROOTFS_FLAVOR_SCRIPT="$ROOTFS_FLAVOR_SCRIPT" \
     UBUNTU_ROOTFS_WORK="$WORK" \
     UBUNTU_SYSTEMD_OVERLAY_APT_ROOT="$WORK/apt-systemd-overlay" \
     bash "$ROOTFS_SYSTEMD_OVERLAY_SCRIPT"
@@ -339,8 +417,18 @@ if [ ! -e "$ROOTFS/sbin/e2scrub" ] && [ -e "$ROOTFS/usr/sbin/e2scrub" ]; then
 fi
 mkdir -p "$ROOTFS/lib"
 mkdir -p "$ROOTFS/lib/riscv64-linux-gnu"
-if [ ! -e "$ROOTFS/lib/riscv64-linux-gnu/security" ] && [ -d "$ROOTFS/usr/lib/riscv64-linux-gnu/security" ]; then
-  ln -s ../../usr/lib/riscv64-linux-gnu/security "$ROOTFS/lib/riscv64-linux-gnu/security"
+if [ -d "$ROOTFS/usr/lib/riscv64-linux-gnu/security" ]; then
+  # full overlay 可能已创建真实 /lib/.../security；补齐缺失模块而不是依赖整目录 symlink。
+  pam_lib_dir="$ROOTFS/lib/riscv64-linux-gnu/security"
+  pam_usr_dir="$ROOTFS/usr/lib/riscv64-linux-gnu/security"
+  mkdir -p "$pam_lib_dir"
+  for module in "$pam_usr_dir"/pam_*.so; do
+    [ -e "$module" ] || continue
+    module_name=$(basename "$module")
+    if [ ! -e "$pam_lib_dir/$module_name" ]; then
+      ln -s "../../../usr/lib/riscv64-linux-gnu/security/$module_name" "$pam_lib_dir/$module_name"
+    fi
+  done
 fi
 # RISC-V Ubuntu 动态 ELF 请求 /lib 下的 lp64d loader；chrootless 解包时需补 merged-/usr 兼容 symlink。
 if [ ! -e "$ROOTFS/lib/ld-linux-riscv64-lp64d.so.1" ] && [ -e "$ROOTFS/usr/lib/ld-linux-riscv64-lp64d.so.1" ]; then
@@ -473,6 +561,43 @@ for tty in $ROOTFS_SERIAL_MASK_TTYS; do
   mkdir -p "$ROOTFS/etc/systemd/system"
   ln -sfn /dev/null "$ROOTFS/etc/systemd/system/serial-getty@${tty}.service"
 done
+mkdir -p "$ROOTFS/etc/systemd/system"
+# full rootfs 保留 e2fsprogs/e2scrub 工具，但禁用会阻塞 NEMU boot 的在线 scrub 维护任务。
+ln -sfn /dev/null "$ROOTFS/etc/systemd/system/e2scrub_reap.service"
+ln -sfn /dev/null "$ROOTFS/etc/systemd/system/e2scrub_all.timer"
+if [ "$ROOTFS_FLAVOR" = "full" ]; then
+  mkdir -p "$ROOTFS/etc/ssh" "$ROOTFS/var/spool/rsyslog"
+  if [ ! -f "$ROOTFS/etc/ssh/sshd_config" ]; then
+    cat > "$ROOTFS/etc/ssh/sshd_config" <<'EOF'
+Include /etc/ssh/sshd_config.d/*.conf
+Port 22
+PermitRootLogin prohibit-password
+KbdInteractiveAuthentication no
+UsePAM yes
+X11Forwarding yes
+PrintMotd no
+AcceptEnv LANG LC_*
+Subsystem sftp /usr/lib/openssh/sftp-server
+EOF
+  fi
+  if ! grep -q '^syslog:' "$ROOTFS/etc/group" 2>/dev/null; then
+    echo 'syslog:x:101:' >> "$ROOTFS/etc/group"
+  fi
+  if ! grep -q '^syslog:' "$ROOTFS/etc/passwd" 2>/dev/null; then
+    echo 'syslog:x:101:101::/nonexistent:/usr/sbin/nologin' >> "$ROOTFS/etc/passwd"
+  fi
+  if ! grep -q '^sshd:' "$ROOTFS/etc/group" 2>/dev/null; then
+    echo 'sshd:x:102:' >> "$ROOTFS/etc/group"
+  fi
+  if ! grep -q '^sshd:' "$ROOTFS/etc/passwd" 2>/dev/null; then
+    echo 'sshd:x:102:102::/run/sshd:/usr/sbin/nologin' >> "$ROOTFS/etc/passwd"
+  fi
+  if command -v ssh-keygen >/dev/null 2>&1; then
+    ssh-keygen -A -f "$ROOTFS"
+  fi
+  chown -h 101:101 "$ROOTFS/var/spool/rsyslog" 2>/dev/null || true
+  ln -sfn /lib/systemd/system/rsyslog.service "$ROOTFS/etc/systemd/system/syslog.service"
+fi
 
 truncate -s "$IMAGE_SIZE" "$IMAGE"
 mkfs.ext4 -F -d "$ROOTFS" "$IMAGE"
@@ -483,6 +608,7 @@ FAKEROOT
     ROOTFS_STATIC_INIT="$ROOTFS_STATIC_INIT" ROOTFS_INIT_BIN="$ROOTFS_INIT_BIN" \
     ROOTFS_PROBE_ENABLE="$ROOTFS_PROBE_ENABLE" ROOTFS_PROBE_BIN="$ROOTFS_PROBE_BIN" \
     ROOTFS_SYSTEMD_OVERLAY="$ROOTFS_SYSTEMD_OVERLAY" \
+    ROOTFS_FLAVOR="$ROOTFS_FLAVOR" ROOTFS_FLAVOR_SCRIPT="$ROOTFS_FLAVOR_SCRIPT" \
     ROOTFS_SERIAL_AUTOLOGIN="$ROOTFS_SERIAL_AUTOLOGIN" \
     ROOTFS_SERIAL_AUTOLOGIN_USER="$ROOTFS_SERIAL_AUTOLOGIN_USER" \
     ROOTFS_SERIAL_AUTOLOGIN_TTYS="$ROOTFS_SERIAL_AUTOLOGIN_TTYS" \

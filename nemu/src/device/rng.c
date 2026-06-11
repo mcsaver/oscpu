@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -45,6 +46,7 @@
 #define VIRTIO_MMIO_VERSION_2 2u
 #define VIRTIO_VENDOR_YSYX 0x58535959u
 #define VIRTIO_F_VERSION_1 32
+#define VIRTIO_RING_F_INDIRECT_DESC 28
 #define VIRTIO_RING_F_EVENT_IDX 29
 #define VIRTIO_MMIO_INT_USED_BUFFER 0x1u
 #define VIRTIO_STATUS_FEATURES_OK 0x08u
@@ -87,7 +89,8 @@ static bool rng_fallback_logged;
 
 static uint32_t virtio_rng_device_features(uint32_t sel) {
   if (sel == 0) {
-    return 1u << VIRTIO_RING_F_EVENT_IDX;
+    return (1u << VIRTIO_RING_F_INDIRECT_DESC) |
+           (1u << VIRTIO_RING_F_EVENT_IDX);
   }
   if (sel == 1) {
     return 1u << (VIRTIO_F_VERSION_1 - 32);
@@ -116,6 +119,18 @@ static bool virtio_rng_driver_feature_enabled(uint32_t bit) {
 
 static bool virtio_rng_event_idx_enabled(void) {
   return virtio_rng_driver_feature_enabled(VIRTIO_RING_F_EVENT_IDX);
+}
+
+static bool virtio_rng_indirect_desc_enabled(void) {
+  return virtio_rng_driver_feature_enabled(VIRTIO_RING_F_INDIRECT_DESC);
+}
+
+static const char *virtio_rng_backend_name(void) {
+  return rng_fd >= 0 ? "host-urandom" : "deterministic-fallback";
+}
+
+static const char *json_bool(bool value) {
+  return value ? "true" : "false";
 }
 
 static void virtio_rng_raise_irq(void) {
@@ -216,9 +231,10 @@ static bool guest_copy_to(paddr_t addr, const void *buf, uint32_t len) {
   return true;
 }
 
-static bool virtq_read_desc(uint16_t idx, VirtqDesc *desc) {
-  if (idx >= queue0.num || idx >= VIRTIO_RNG_QUEUE_SIZE) return false;
-  paddr_t base = queue0.desc + (paddr_t)idx * 16;
+static bool virtq_read_desc_from(paddr_t table, uint16_t table_num,
+    uint16_t idx, VirtqDesc *desc) {
+  if (idx >= table_num) return false;
+  paddr_t base = table + (paddr_t)idx * 16;
   if (!guest_range_ok(base, 16)) return false;
   desc->addr = guest_read64(base);
   desc->len = guest_read32(base + 8);
@@ -227,18 +243,22 @@ static bool virtq_read_desc(uint16_t idx, VirtqDesc *desc) {
   return true;
 }
 
-static bool virtq_collect_chain(uint16_t head, VirtqDesc *out, int *out_count) {
-  bool seen[VIRTIO_RNG_QUEUE_SIZE] = {};
+static bool virtq_collect_table(paddr_t table, uint16_t table_num, uint16_t head,
+    VirtqDesc *out, int *out_count) {
+  if (table_num == 0 || table_num > VIRTIO_RNG_MAX_CHAIN) return false;
+
+  bool seen[VIRTIO_RNG_MAX_CHAIN] = {};
   uint16_t idx = head;
   int count = 0;
 
   while (true) {
-    if (idx >= queue0.num || idx >= VIRTIO_RNG_QUEUE_SIZE || seen[idx] ||
+    if (idx >= table_num || seen[idx] ||
         count >= (int)VIRTIO_RNG_MAX_CHAIN) {
       return false;
     }
     seen[idx] = true;
-    if (!virtq_read_desc(idx, &out[count])) return false;
+    if (!virtq_read_desc_from(table, table_num, idx, &out[count])) return false;
+    // indirect 描述符只允许出现在主队列 head，二级表内禁止再次嵌套。
     if (out[count].flags & VIRTQ_DESC_F_INDIRECT) return false;
     count++;
     if ((out[count - 1].flags & VIRTQ_DESC_F_NEXT) == 0) break;
@@ -247,6 +267,26 @@ static bool virtq_collect_chain(uint16_t head, VirtqDesc *out, int *out_count) {
 
   *out_count = count;
   return true;
+}
+
+static bool virtq_collect_chain(uint16_t head, VirtqDesc *out, int *out_count) {
+  VirtqDesc first;
+  if (!virtq_read_desc_from(queue0.desc, queue0.num, head, &first)) return false;
+
+  if (first.flags & VIRTQ_DESC_F_INDIRECT) {
+    if (!virtio_rng_indirect_desc_enabled() ||
+        (first.flags & (VIRTQ_DESC_F_NEXT | VIRTQ_DESC_F_WRITE)) ||
+        first.len == 0 || (first.len % 16) != 0 ||
+        !guest_range_ok(first.addr, first.len)) {
+      return false;
+    }
+    uint32_t indirect_num = first.len / 16;
+    if (indirect_num == 0 || indirect_num > VIRTIO_RNG_MAX_CHAIN) return false;
+    // hwrng 小请求也可能经 virtio core 合并为 indirect table；按规范展开后再填熵。
+    return virtq_collect_table(first.addr, indirect_num, 0, out, out_count);
+  }
+
+  return virtq_collect_table(queue0.desc, queue0.num, head, out, out_count);
 }
 
 static void rng_fallback_fill(uint8_t *buf, uint32_t len) {
@@ -508,4 +548,51 @@ void init_virtio_rng() {
   add_mmio_map("virtio-rng", CONFIG_VIRTIO_RNG_MMIO, rng_base, 0x1000,
       virtio_rng_io_handler);
 #endif
+}
+
+void virtio_rng_dump_machine_info(FILE *out) {
+  // machine-info 导出真实后端和协商状态，避免 e2e 只看到“设备存在”却看不到 hwrng 能力边界。
+  fprintf(out, "device.virtio_rng.model=virtio-rng-mmio\n");
+  fprintf(out, "device.virtio_rng.backend=%s\n", virtio_rng_backend_name());
+  fprintf(out, "device.virtio_rng.backend_source=%s\n",
+      rng_fd >= 0 ? "/dev/urandom" : "fallback-prng");
+  fprintf(out, "device.virtio_rng.mmio_version=%u\n", VIRTIO_MMIO_VERSION_2);
+  fprintf(out, "device.virtio_rng.device_id=%u\n", VIRTIO_RNG_DEVICE_ID);
+  fprintf(out, "device.virtio_rng.vendor_id=0x%08x\n", VIRTIO_VENDOR_YSYX);
+  fprintf(out, "device.virtio_rng.queue_count=1\n");
+  fprintf(out, "device.virtio_rng.queue_num_max=%u\n", VIRTIO_RNG_QUEUE_SIZE);
+  fprintf(out, "device.virtio_rng.features.version_1=1\n");
+  fprintf(out, "device.virtio_rng.features.indirect_desc=1\n");
+  fprintf(out, "device.virtio_rng.features.event_idx=1\n");
+  fprintf(out, "device.virtio_rng.driver_features.version_1=%d\n",
+      virtio_rng_driver_feature_enabled(VIRTIO_F_VERSION_1) ? 1 : 0);
+  fprintf(out, "device.virtio_rng.driver_features.indirect_desc=%d\n",
+      virtio_rng_indirect_desc_enabled() ? 1 : 0);
+  fprintf(out, "device.virtio_rng.driver_features.event_idx=%d\n",
+      virtio_rng_event_idx_enabled() ? 1 : 0);
+  fprintf(out, "device.virtio_rng.queue_ready=%d\n", queue0.ready ? 1 : 0);
+  fprintf(out, "device.virtio_rng.status=0x%08x\n", device_status);
+  fprintf(out, "device.virtio_rng.interrupt_status=0x%08x\n", interrupt_status);
+}
+
+void virtio_rng_qmp_query_rng(char *out, size_t out_size) {
+  snprintf(out, out_size,
+      "{\"return\":[{\"id\":\"rng0\",\"type\":\"virtio-rng\","
+      "\"model\":\"virtio-rng-mmio\",\"backend\":\"%s\","
+      "\"filename\":\"%s\",\"nemu\":{\"mmio\":\"0x%08x\",\"irq\":%u,"
+      "\"device-id\":%u,\"vendor-id\":\"0x%08x\",\"version\":%u,"
+      "\"queue-count\":1,\"queue-num-max\":%u,\"queue-ready\":%s,"
+      "\"device-status\":%u,\"interrupt-status\":%u,"
+      "\"features\":{\"version-1\":true,\"indirect-desc\":true,\"event-idx\":true},"
+      "\"driver-features\":{\"version-1\":%s,\"indirect-desc\":%s,\"event-idx\":%s},"
+      "\"last-avail-idx\":%u}}]}",
+      virtio_rng_backend_name(),
+      rng_fd >= 0 ? "/dev/urandom" : "fallback-prng",
+      CONFIG_VIRTIO_RNG_MMIO, VIRTIO_RNG_IRQ,
+      VIRTIO_RNG_DEVICE_ID, VIRTIO_VENDOR_YSYX, VIRTIO_MMIO_VERSION_2,
+      VIRTIO_RNG_QUEUE_SIZE, json_bool(queue0.ready),
+      device_status, interrupt_status,
+      json_bool(virtio_rng_driver_feature_enabled(VIRTIO_F_VERSION_1)),
+      json_bool(virtio_rng_indirect_desc_enabled()),
+      json_bool(virtio_rng_event_idx_enabled()), queue0.last_avail_idx);
 }

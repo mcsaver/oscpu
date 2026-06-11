@@ -1,0 +1,50 @@
+make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+UBUNTU_ROOTFS_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4' UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 UBUNTU_ROOTFS_FLAVOR=full \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-ubuntu-rootfs.sh'
+[ubuntu-rootfs-check] image: /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4
+[ubuntu-rootfs-check] flavor: full
+[ubuntu-rootfs-check] OK      stage1 init: /init
+[ubuntu-rootfs-check] OK      Ubuntu shell: /bin/sh
+[ubuntu-rootfs-check] OK      Ubuntu identity: /etc/os-release
+[ubuntu-rootfs-check] OK      systemd candidate: /lib/systemd/systemd
+[ubuntu-rootfs-check] OK      systemd basic.target: /lib/systemd/system/basic.target
+[ubuntu-rootfs-check] OK      udev daemon: /lib/systemd/systemd-udevd
+[ubuntu-rootfs-check] OK      dbus daemon: /usr/bin/dbus-daemon
+[ubuntu-rootfs-check] OK      agetty login path: /bin/login
+[ubuntu-rootfs-check] OK      root login shell: /bin/bash
+[ubuntu-rootfs-check] OK      Ubuntu identity command: /usr/bin/lsb_release
+[ubuntu-rootfs-check] OK      lp64d dynamic linker: /lib/ld-linux-riscv64-lp64d.so.1
+[ubuntu-rootfs-check] OK      PAM module path: /lib/riscv64-linux-gnu/security
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_unix.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_deny.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_permit.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_env.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_loginuid.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_limits.so
+[ubuntu-rootfs-check] OK      e2scrub service entrypoint: /sbin/e2scrub_all
+[ubuntu-rootfs-check] OK      boot-blocking e2scrub reap masked: /etc/systemd/system/e2scrub_reap.service
+[ubuntu-rootfs-check] OK      periodic e2scrub timer masked: /etc/systemd/system/e2scrub_all.timer
+[ubuntu-rootfs-check] OK      unavailable hvc0 getty masked: /etc/systemd/system/serial-getty@hvc0.service
+[ubuntu-rootfs-check] OK      OpenSSH server config: /etc/ssh/sshd_config
+[ubuntu-rootfs-check] OK      syslog passwd entry: /etc/passwd
+[ubuntu-rootfs-check] OK      syslog group entry: /etc/group
+[ubuntu-rootfs-check] OK      sshd passwd entry: /etc/passwd
+[ubuntu-rootfs-check] OK      sshd group entry: /etc/group
+[ubuntu-rootfs-check] OK      rsyslog spool directory: /var/spool/rsyslog
+[ubuntu-rootfs-check] OK      syslog service alias: /etc/systemd/system/syslog.service
+[ubuntu-rootfs-check] OK      Ubuntu interactive command curl: /usr/bin/curl
+[ubuntu-rootfs-check] OK      Ubuntu interactive command wget: /usr/bin/wget
+[ubuntu-rootfs-check] OK      Ubuntu interactive command ping: /bin/ping
+[ubuntu-rootfs-check] OK      Ubuntu interactive command ssh: /usr/bin/ssh
+[ubuntu-rootfs-check] OK      Ubuntu interactive command htop: /usr/bin/htop
+[ubuntu-rootfs-check] OK      Ubuntu interactive command less: /usr/bin/less
+[ubuntu-rootfs-check] OK      Ubuntu interactive command strace: /usr/bin/strace
+[ubuntu-rootfs-check] OK      Ubuntu full command apt-get: /usr/bin/apt-get
+[ubuntu-rootfs-check] OK      Ubuntu full command sudo: /usr/bin/sudo
+[ubuntu-rootfs-check] OK      Ubuntu full command man: /usr/bin/man
+[ubuntu-rootfs-check] OK      Ubuntu full service sshd: /usr/sbin/sshd
+[ubuntu-rootfs-check] OK      Ubuntu full service cron: /usr/sbin/cron
+[ubuntu-rootfs-check] OK      Ubuntu full service rsyslogd: /usr/sbin/rsyslogd
+[ubuntu-rootfs-check] OK      Ubuntu full timezone database: /usr/share/zoneinfo/UTC
+[ubuntu-rootfs-check] rootfs readiness check passed
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/Linux'

@@ -11,6 +11,18 @@ config INTERPRETER_BASIC_BLOCK
     store/AMO、fence 或压缩控制/存储指令时立即结束当前块。该选项
     不做译码缓存或 JIT，只是 basic block interpreter 的第一阶段。
 
+config INTERPRETER_TB_MAX_INST
+  depends on INTERPRETER_BASIC_BLOCK
+  int "Maximum instructions in one interpreter basic block"
+  range 1 256
+  default 32 if PERFORMANCE
+  default 16
+  help
+    单个解释器 basic block 最多连续退休的 guest 指令数。Ubuntu performance
+    配置使用 32，减少无控制流/无设备可见副作用的直线代码反复回到主循环；
+    遇到分支、跳转、SYSTEM、store/AMO、fence 或压缩控制/存储指令仍会提前
+    收束，因此该值只是保守上限，不是 TB chaining 或 JIT。
+
 config INTERPRETER_WIDE_IFETCH
   depends on INTERPRETER_BASIC_BLOCK && RISCV_EXT_C
   bool "Enable one-translation wide ifetch for RVC"
@@ -19,6 +31,17 @@ config INTERPRETER_WIDE_IFETCH
     在同页 PMEM host pointer 命中时，一次读取 4 字节并用低 2 bit 判断
     当前是 16-bit 压缩指令还是 32-bit 指令，减少 RV64C 热路径中
     两次 vaddr/MMU/TLB 取指。跨页、MMIO 或 fault 场景仍回退旧精确路径。
+
+config INTERPRETER_IFETCH_PAGE_CACHE
+  depends on INTERPRETER_WIDE_IFETCH && RV64 && !CACHE && !MTRACE
+  bool "Cache current ifetch host page"
+  default y if PERFORMANCE
+  default n
+  help
+    在 RV64 Ubuntu performance 配置下，为 wide ifetch 额外缓存当前取指
+    虚拟页对应的 PMEM host page。命中条件包含 vaddr page、satp 和当前特权级；
+    sfence.vma、fence.i、全量 TLB flush 和写入当前缓存页都会失效。该项只是
+    单页 host pointer 快路径，不是完整代码页失效体系、TB cache 或 JIT。
 
 config INTERPRETER_DECODE_CACHE
   depends on INTERPRETER_BASIC_BLOCK
@@ -29,6 +52,28 @@ config INTERPRETER_DECODE_CACHE
     load/store、AMO、分支跳转和压缩指令分发类别。命中时仍先真实取指并
     比对原始指令，保证自修改代码或页重映射后会自动回到慢路径重新译码；
     fence.i 会显式清空缓存。该选项不是完整 TB cache 或 JIT。
+
+config INTERPRETER_DECODE_DIRECT_DISPATCH
+  depends on INTERPRETER_DECODE_CACHE && RV64
+  bool "Use direct dispatch for decode cache hits"
+  default y if PERFORMANCE
+  default n
+  help
+    在 RV64 Ubuntu performance 配置下，decode-cache 命中后使用 GNU C
+    computed-goto 分发表直接跳转到对应执行块，减少二次 switch(kind)
+    分发开销。该项只优化预译码 cache 命中路径，不改变取指、译码、
+    fence.i 失效或异常语义，也不是 TB chaining、host code cache 或 JIT。
+
+config INTERPRETER_DECODE_CACHE_ENTRIES
+  depends on INTERPRETER_DECODE_CACHE
+  int "Interpreter decode cache entries"
+  range 1024 65536
+  default 32768 if PERFORMANCE
+  default 8192
+  help
+    预译码 cache 的 direct-mapped entry 数。Ubuntu performance 配置使用更大的
+    32768 项以降低大型用户态/内核工作集冲突；普通配置保持较小默认值，避免
+    无关场景增加静态内存占用。该值必须保持 2 的幂，否则编译期会拒绝。
 
 config INTERPRETER_INTR_FAST_FLAG
   depends on INTERPRETER_BASIC_BLOCK && RV64

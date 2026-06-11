@@ -1,0 +1,5 @@
+[linux-device] contract
+PASS .github/agents/linux-device.agent.md
+PASS .github/instructions/virtio-rootfs.instructions.md
+PASS Linux/scripts/check-nemu-systemd-guest.sh
+PASS Linux/platform/gen_dts.py

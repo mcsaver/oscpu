@@ -69,7 +69,43 @@
 #ifdef CONFIG_RISCV_EXT_A
 static bool lr_reservation_valid = false;
 static word_t lr_reservation_addr = 0;
+static int lr_reservation_len = 0;
+
+static inline bool lr_sc_range_overlap(paddr_t lhs_start, int lhs_len,
+    paddr_t rhs_start, int rhs_len) {
+  paddr_t lhs_end = lhs_start + (paddr_t)lhs_len;
+  paddr_t rhs_end = rhs_start + (paddr_t)rhs_len;
+  return lhs_start < rhs_end && rhs_start < lhs_end;
+}
+
+void isa_riscv32_lr_sc_invalidate(paddr_t paddr, int len) {
+  if (!lr_reservation_valid) return;
+  if (lr_sc_range_overlap((paddr_t)lr_reservation_addr, lr_reservation_len, paddr, len)) {
+    lr_reservation_valid = false;
+  }
+}
+#else
+void isa_riscv32_lr_sc_invalidate(paddr_t paddr, int len) {
+  (void)paddr;
+  (void)len;
+}
 #endif
+
+bool isa_riscv32_pmp_check(paddr_t paddr, int len, int type) {
+  (void)paddr;
+  (void)len;
+  (void)type;
+  return true;
+}
+
+word_t isa_riscv32_mmu_fault_cause(int type) {
+  switch (type) {
+    case MEM_TYPE_IFETCH: return CAUSE_INST_PAGE_FAULT;
+    case MEM_TYPE_WRITE:  return CAUSE_STORE_PAGE_FAULT;
+    case MEM_TYPE_READ:
+    default: return CAUSE_LOAD_PAGE_FAULT;
+  }
+}
 #ifdef CONFIG_RISCV_DEBUG_LOG
 static int csr_boot_log_budget = 8;
 #define CSR_DEBUG_LOG(...) do { \
@@ -718,6 +754,7 @@ static inline bool exec_rva_amo(uint32_t inst, int rd, int rs1, int rs2) {
       if (vaddr_has_fault()) return true;
       lr_reservation_valid = true;
       lr_reservation_addr = addr;
+      lr_reservation_len = 4;
       R(rd) = amo_sext_word(old);
       return true;
     }

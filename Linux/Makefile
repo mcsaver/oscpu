@@ -76,6 +76,11 @@ NEMU_SYSTEMD_LONG_UART_RX_STRESS_LINES ?= 768
 NEMU_SYSTEMD_LONG_BLOCK_PARALLEL_JOBS ?= 4
 NEMU_SYSTEMD_LONG_BLOCK_JOB_MIB ?= 2
 NEMU_SYSTEMD_SOAK_CHECK_LOG_DIR ?= $(LOG_ROOT)/riscv64-nemu-systemd-guest-soak-check
+NEMU_SYSTEMD_INTERACTIVE_CHECK_LOG_DIR ?= $(LOG_ROOT)/riscv64-nemu-systemd-guest-interactive-check
+NEMU_SYSTEMD_FULL_CHECK_LOG_DIR ?= $(LOG_ROOT)/riscv64-nemu-systemd-guest-full-check
+NEMU_SYSTEMD_FULL_SOAK_CHECK_LOG_DIR ?= $(LOG_ROOT)/riscv64-nemu-systemd-guest-full-soak-check
+NEMU_SYSTEMD_ROOTFS_FLAVOR ?= systemd-minimal
+NEMU_SYSTEMD_ROOTFS_CHECK_TARGET = $(if $(filter full,$(NEMU_SYSTEMD_ROOTFS_FLAVOR)),check-ubuntu-rootfs-full,$(if $(filter interactive,$(NEMU_SYSTEMD_ROOTFS_FLAVOR)),check-ubuntu-rootfs-interactive,check-ubuntu-rootfs-systemd))
 NEMU_SYSTEMD_SOAK_CHECK_MAX_CYCLES ?= 60000000000
 NEMU_SYSTEMD_SOAK_CHECK_TIMEOUT ?= 2400
 NEMU_SYSTEMD_SOAK_SOAK_SECONDS ?= 300
@@ -102,8 +107,12 @@ NEMU_QMP_SMOKE_NEMU_LOG ?= $(BUILD_DIR)/nemu-qmp-smoke-nemu.log
 NEMU_QMP_SMOKE_CONT_NEMU_LOG ?= $(BUILD_DIR)/nemu-qmp-smoke-cont-nemu.log
 NEMU_QMP_SMOKE_BLOCK_NEMU_LOG ?= $(BUILD_DIR)/nemu-qmp-smoke-block-nemu.log
 NEMU_QMP_SMOKE_RUNTIME_NEMU_LOG ?= $(BUILD_DIR)/nemu-qmp-smoke-runtime-nemu.log
+NEMU_QMP_SMOKE_SYSTEM_POWERDOWN_NEMU_LOG ?= $(BUILD_DIR)/nemu-qmp-smoke-system-powerdown-nemu.log
+NEMU_QMP_SMOKE_GUEST_SHUTDOWN_NEMU_LOG ?= $(BUILD_DIR)/nemu-qmp-smoke-guest-shutdown-nemu.log
 NEMU_QMP_SMOKE_OVERLAY ?= $(BUILD_DIR)/nemu-qmp-smoke-overlay.raw
 NEMU_QMP_SMOKE_RUNTIME_OVERLAY ?= $(BUILD_DIR)/nemu-qmp-smoke-runtime-overlay.raw
+NEMU_QMP_SMOKE_SYSTEM_POWERDOWN_IMAGE ?= $(BUILD_DIR)/nemu-qmp-smoke-system-powerdown.bin
+NEMU_QMP_SMOKE_GUEST_SHUTDOWN_IMAGE ?= $(BUILD_DIR)/nemu-qmp-smoke-guest-shutdown.bin
 NEMU_QMP_SMOKE_RUNTIME_MAX_INSTS ?= 1000000000
 NEMU_GDBSTUB_SMOKE_LOG ?= $(BUILD_DIR)/nemu-gdbstub-smoke.log
 NEMU_GDBSTUB_SMOKE_NEMU_LOG ?= $(BUILD_DIR)/nemu-gdbstub-smoke-nemu.log
@@ -113,7 +122,15 @@ LINUX_IMAGE ?= $(ENV_ROOT)/src/linux/arch/riscv/boot/Image
 BUSYBOX_INITRD ?= $(ENV_ROOT)/images/initramfs/rootfs.cpio
 UBUNTU_PROBE_INITRD ?= $(ENV_ROOT)/images/ubuntu2204/ubuntu-22.04-riscv64-probe.cpio
 UBUNTU_SHELL_INITRD ?= $(ENV_ROOT)/images/ubuntu2204/ubuntu-22.04-riscv64.cpio
-UBUNTU_ROOTFS_IMAGE ?= $(ENV_ROOT)/images/ubuntu2204/ubuntu-22.04-riscv64.ext4
+UBUNTU_ROOTFS_FLAVOR ?= systemd-minimal
+UBUNTU_ROOTFS_SYSTEMD_IMAGE ?= $(ENV_ROOT)/images/ubuntu2204/ubuntu-22.04-riscv64.ext4
+UBUNTU_ROOTFS_INTERACTIVE_IMAGE ?= $(ENV_ROOT)/images/ubuntu2204/ubuntu-22.04-riscv64-interactive.ext4
+UBUNTU_ROOTFS_FULL_IMAGE ?= $(ENV_ROOT)/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4
+UBUNTU_ROOTFS_SYSTEMD_CPIO_IMAGE ?= $(ENV_ROOT)/images/ubuntu2204/ubuntu-22.04-riscv64-rootfs.cpio
+UBUNTU_ROOTFS_INTERACTIVE_CPIO_IMAGE ?= $(ENV_ROOT)/images/ubuntu2204/ubuntu-22.04-riscv64-interactive-rootfs.cpio
+UBUNTU_ROOTFS_FULL_CPIO_IMAGE ?= $(ENV_ROOT)/images/ubuntu2204/ubuntu-22.04-riscv64-full-rootfs.cpio
+UBUNTU_ROOTFS_IMAGE ?= $(UBUNTU_ROOTFS_SYSTEMD_IMAGE)
+UBUNTU_ROOTFS_CPIO_IMAGE ?= $(UBUNTU_ROOTFS_SYSTEMD_CPIO_IMAGE)
 
 KERNEL_DTB ?= $(BUILD_DIR)/npc-rv64.dtb
 BUSYBOX_INITRAMFS_DTB ?= $(BUILD_DIR)/npc-rv64-initramfs.dtb
@@ -226,8 +243,13 @@ ROOTFS_OVERLAY := $(if $(strip $(NEMU_RUN_ROOTFS_OVERLAY)),--block-overlay='$(NE
         ubuntu-shell-initramfs-dtb rootfs-dtb opensbi opensbi-busybox opensbi-ubuntu-probe \
         opensbi-ubuntu-shell opensbi-rootfs qemu qemu-build qemu-ubuntu-probe qemu-ubuntu-shell \
         tools-build boot-tools tools-smoke tools-clean paths check ubuntu-rootfs-check \
+        ubuntu-rootfs-flavors-check \
         check-ubuntu-rootfs check-ubuntu-rootfs-systemd ubuntu-rootfs-systemd-image \
-        ubuntu-rootfs-systemd-overlay check-nemu-systemd-guest check-nemu-systemd-guest-long \
+        ubuntu-rootfs-systemd-overlay ubuntu-rootfs-interactive-image ubuntu-rootfs-full-image \
+        check-ubuntu-rootfs-interactive check-ubuntu-rootfs-full \
+        check-nemu-systemd-guest check-nemu-systemd-guest-long \
+        check-nemu-systemd-guest-interactive check-nemu-systemd-guest-full \
+        check-nemu-systemd-guest-full-soak \
         check-nemu-systemd-guest-soak check-nemu-performance-config check-nemu-kernel-config nemu-machine-info nemu-monitor-cmd-smoke nemu-qmp-smoke nemu-gdbstub-smoke nemu-rootfs-machine-info nemu-rootfs-overlay-machine-info __check-nemu-systemd-guest clean clean-logs \
         $(TOOL_SMOKES) $(TOOL_BOOT_SMOKES)
 
@@ -273,9 +295,21 @@ help:
 	@printf '%s\n' '  make ARCH=riscv64-nemu nemu-monitor-cmd-smoke'
 	@printf '%s\n' '      不进入交互提示符，验证 --monitor-cmd="info r" 一次性管理入口。'
 	@printf '%s\n' '  make ARCH=riscv64-nemu nemu-qmp-smoke'
-	@printf '%s\n' '      验证 --qmp=<port> 启动前和 cont 后运行期 QMP 查询/quit 与 block/blockstats 基线。'
+	@printf '%s\n' '      验证 --qmp=<port> 启动前和 cont 后运行期 QMP 查询/quit、guest poweroff 事件与 block/blockstats 基线。'
 	@printf '%s\n' '  make ARCH=riscv64-nemu ubuntu-rootfs-systemd-image'
 	@printf '%s\n' '      无 sudo 时用 apt/dpkg-deb overlay 把 systemd/udev/dbus 候选用户态放进 rootfs。'
+	@printf '%s\n' '  make ARCH=riscv64-nemu ubuntu-rootfs-flavors-check'
+	@printf '%s\n' '      不重建镜像，检查 systemd-minimal/interactive/full flavor manifest 内部一致性。'
+	@printf '%s\n' '  make ARCH=riscv64-nemu ubuntu-rootfs-interactive-image'
+	@printf '%s\n' '      构建 interactive flavor 到独立 ext4，补 curl/wget/ping/ssh/htop/less/strace 等串口调试工具。'
+	@printf '%s\n' '  make ARCH=riscv64-nemu ubuntu-rootfs-full-image'
+	@printf '%s\n' '      构建 full flavor 到独立 ext4，补 ubuntu-standard/openssh-server/sudo/locales/man-db/cron/rsyslog 等 server 用户态。'
+	@printf '%s\n' '  make ARCH=riscv64-nemu check-ubuntu-rootfs-full'
+	@printf '%s\n' '      对 full flavor 独立 ext4 执行实物检查；未重建 full 镜像时应明确失败。'
+	@printf '%s\n' '  make ARCH=riscv64-nemu check-nemu-systemd-guest-full'
+	@printf '%s\n' '      用 full flavor 独立 ext4 启动 NEMU focused guest gate；缺镜像时先构建 full rootfs。'
+	@printf '%s\n' '  make ARCH=riscv64-nemu check-nemu-systemd-guest-full-soak'
+	@printf '%s\n' '      full flavor 独立 ext4 的重型稳定性 gate，复用 300s soak/32MiB fs stress 等 soak 参数，并保留 full 用户态 runtime hard gate。'
 	@printf '%s\n' '  make check-nemu-systemd-guest'
 	@printf '%s\n' '      启动 NEMU Ubuntu rootfs，并在 guest 内检查 systemd target/getty/manager/journal/dbus、runtime unit、挂载、udev/sysfs/virtio-blk、TTY、syscall、timer、rootfs 写回和短 soak。'
 	@printf '%s\n' '      默认要求 NEMU performance 配置已生效；调试 trace 时可显式传 NEMU_PERFORMANCE_REQUIRED=0。'
@@ -440,9 +474,13 @@ nemu-qmp-smoke: sim check-ubuntu-rootfs-systemd $(OPENSBI_ROOTFS_FW) $(NEMU_ROOT
 	  --cont-nemu-log '$(NEMU_QMP_SMOKE_CONT_NEMU_LOG)' \
 	  --block-nemu-log '$(NEMU_QMP_SMOKE_BLOCK_NEMU_LOG)' \
 	  --runtime-nemu-log '$(NEMU_QMP_SMOKE_RUNTIME_NEMU_LOG)' \
+	  --system-powerdown-nemu-log '$(NEMU_QMP_SMOKE_SYSTEM_POWERDOWN_NEMU_LOG)' \
+	  --guest-shutdown-nemu-log '$(NEMU_QMP_SMOKE_GUEST_SHUTDOWN_NEMU_LOG)' \
 	  --block-image '$(UBUNTU_ROOTFS_IMAGE)' \
 	  --overlay-image '$(NEMU_QMP_SMOKE_OVERLAY)' \
 	  --runtime-overlay-image '$(NEMU_QMP_SMOKE_RUNTIME_OVERLAY)' \
+	  --system-powerdown-image '$(NEMU_QMP_SMOKE_SYSTEM_POWERDOWN_IMAGE)' \
+	  --guest-shutdown-image '$(NEMU_QMP_SMOKE_GUEST_SHUTDOWN_IMAGE)' \
 	  --firmware '$(OPENSBI_ROOTFS_FW)' \
 	  --kernel '$(LINUX_IMAGE)' \
 	  --dtb '$(NEMU_ROOTFS_DTB)' \
@@ -524,7 +562,27 @@ busybox-initramfs: $(BUSYBOX_INITRD)
 ubuntu-probe-initramfs: $(UBUNTU_PROBE_INITRD)
 ubuntu-shell-initramfs: $(UBUNTU_SHELL_INITRD)
 ubuntu-rootfs-image: $(UBUNTU_ROOTFS_IMAGE)
+ubuntu-rootfs-flavors-check:
+	bash '$(SCRIPT_DIR)/ubuntu-rootfs-flavors.sh' --check
 ubuntu-rootfs-systemd-image ubuntu-rootfs-systemd-overlay:
+	UBUNTU_ROOTFS_FLAVOR=systemd-minimal \
+	UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_SYSTEMD_IMAGE)' \
+	UBUNTU_ROOTFS_CPIO_IMAGE='$(UBUNTU_ROOTFS_SYSTEMD_CPIO_IMAGE)' \
+	UBUNTU_ROOTFS_DIR='$(ENV_ROOT)/images/ubuntu2204/rootfs' \
+	UBUNTU_ROOTFS_SYSTEMD_OVERLAY=1 UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 \
+	  bash '$(SCRIPT_DIR)/build-ubuntu-rootfs.sh'
+ubuntu-rootfs-interactive-image:
+	UBUNTU_ROOTFS_FLAVOR=interactive \
+	UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_INTERACTIVE_IMAGE)' \
+	UBUNTU_ROOTFS_CPIO_IMAGE='$(UBUNTU_ROOTFS_INTERACTIVE_CPIO_IMAGE)' \
+	UBUNTU_ROOTFS_DIR='$(ENV_ROOT)/images/ubuntu2204/rootfs-interactive' \
+	UBUNTU_ROOTFS_SYSTEMD_OVERLAY=1 UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 \
+	  bash '$(SCRIPT_DIR)/build-ubuntu-rootfs.sh'
+ubuntu-rootfs-full-image:
+	UBUNTU_ROOTFS_FLAVOR=full \
+	UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_FULL_IMAGE)' \
+	UBUNTU_ROOTFS_CPIO_IMAGE='$(UBUNTU_ROOTFS_FULL_CPIO_IMAGE)' \
+	UBUNTU_ROOTFS_DIR='$(ENV_ROOT)/images/ubuntu2204/rootfs-full' \
 	UBUNTU_ROOTFS_SYSTEMD_OVERLAY=1 UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 \
 	  bash '$(SCRIPT_DIR)/build-ubuntu-rootfs.sh'
 
@@ -532,11 +590,58 @@ ubuntu-rootfs-check check-ubuntu-rootfs: $(UBUNTU_ROOTFS_IMAGE)
 	UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_IMAGE)' bash '$(SCRIPT_DIR)/check-ubuntu-rootfs.sh'
 
 check-ubuntu-rootfs-systemd: $(UBUNTU_ROOTFS_IMAGE)
-	UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_IMAGE)' UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 \
+	UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_IMAGE)' UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 UBUNTU_ROOTFS_FLAVOR=systemd-minimal \
+	  bash '$(SCRIPT_DIR)/check-ubuntu-rootfs.sh'
+check-ubuntu-rootfs-systemd-minimal: check-ubuntu-rootfs-systemd
+
+check-ubuntu-rootfs-interactive:
+	UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_INTERACTIVE_IMAGE)' UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 UBUNTU_ROOTFS_FLAVOR=interactive \
+	  bash '$(SCRIPT_DIR)/check-ubuntu-rootfs.sh'
+check-ubuntu-rootfs-full:
+	UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_FULL_IMAGE)' UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 UBUNTU_ROOTFS_FLAVOR=full \
 	  bash '$(SCRIPT_DIR)/check-ubuntu-rootfs.sh'
 
 check-nemu-systemd-guest:
 	+$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs __check-nemu-systemd-guest
+
+check-nemu-systemd-guest-interactive:
+	+$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs \
+	  UBUNTU_ROOTFS_FLAVOR=interactive \
+	  UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_INTERACTIVE_IMAGE)' \
+	  UBUNTU_ROOTFS_CPIO_IMAGE='$(UBUNTU_ROOTFS_INTERACTIVE_CPIO_IMAGE)' \
+	  NEMU_SYSTEMD_ROOTFS_FLAVOR=interactive \
+	  NEMU_SYSTEMD_CHECK_LOG_DIR='$(NEMU_SYSTEMD_INTERACTIVE_CHECK_LOG_DIR)' \
+	  NEMU_SYSTEMD_ROOTFS_OVERLAY='$(NEMU_SYSTEMD_INTERACTIVE_CHECK_LOG_DIR)/rootfs-overlay.raw' \
+	  __check-nemu-systemd-guest
+
+check-nemu-systemd-guest-full:
+	+$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs \
+	  UBUNTU_ROOTFS_FLAVOR=full \
+	  UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_FULL_IMAGE)' \
+	  UBUNTU_ROOTFS_CPIO_IMAGE='$(UBUNTU_ROOTFS_FULL_CPIO_IMAGE)' \
+	  NEMU_SYSTEMD_ROOTFS_FLAVOR=full \
+	  NEMU_SYSTEMD_CHECK_LOG_DIR='$(NEMU_SYSTEMD_FULL_CHECK_LOG_DIR)' \
+	  NEMU_SYSTEMD_ROOTFS_OVERLAY='$(NEMU_SYSTEMD_FULL_CHECK_LOG_DIR)/rootfs-overlay.raw' \
+	  __check-nemu-systemd-guest
+
+check-nemu-systemd-guest-full-soak:
+	+$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs \
+	  UBUNTU_ROOTFS_FLAVOR=full \
+	  UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_FULL_IMAGE)' \
+	  UBUNTU_ROOTFS_CPIO_IMAGE='$(UBUNTU_ROOTFS_FULL_CPIO_IMAGE)' \
+	  NEMU_SYSTEMD_ROOTFS_FLAVOR=full \
+	  NEMU_SYSTEMD_CHECK_LOG_DIR='$(NEMU_SYSTEMD_FULL_SOAK_CHECK_LOG_DIR)' \
+	  NEMU_SYSTEMD_ROOTFS_OVERLAY='$(NEMU_SYSTEMD_FULL_SOAK_CHECK_LOG_DIR)/rootfs-overlay.raw' \
+	  NEMU_SYSTEMD_CHECK_MAX_CYCLES='$(NEMU_SYSTEMD_SOAK_CHECK_MAX_CYCLES)' \
+	  NEMU_SYSTEMD_CHECK_TIMEOUT='$(NEMU_SYSTEMD_SOAK_CHECK_TIMEOUT)' \
+	  NEMU_SYSTEMD_SOAK_SECONDS='$(NEMU_SYSTEMD_SOAK_SOAK_SECONDS)' \
+	  NEMU_SYSTEMD_FS_STRESS_MIB='$(NEMU_SYSTEMD_SOAK_FS_STRESS_MIB)' \
+	  NEMU_SYSTEMD_FS_TREE_FILES='$(NEMU_SYSTEMD_SOAK_FS_TREE_FILES)' \
+	  NEMU_SYSTEMD_PROCESS_LOOPS='$(NEMU_SYSTEMD_SOAK_PROCESS_LOOPS)' \
+	  NEMU_SYSTEMD_UART_RX_STRESS_LINES='$(NEMU_SYSTEMD_SOAK_UART_RX_STRESS_LINES)' \
+	  NEMU_SYSTEMD_BLOCK_PARALLEL_JOBS='$(NEMU_SYSTEMD_SOAK_BLOCK_PARALLEL_JOBS)' \
+	  NEMU_SYSTEMD_BLOCK_JOB_MIB='$(NEMU_SYSTEMD_SOAK_BLOCK_JOB_MIB)' \
+	  __check-nemu-systemd-guest
 
 check-nemu-systemd-guest-long:
 	+$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs \
@@ -570,7 +675,7 @@ check-nemu-kernel-config: $(LINUX_IMAGE)
 	LINUX_KERNEL_CONFIG='$(ENV_ROOT)/src/linux/.config' \
 	  bash '$(SCRIPT_DIR)/check-nemu-kernel-config.sh'
 
-__check-nemu-systemd-guest: $(RUN_DEPS) check-ubuntu-rootfs-systemd check-nemu-performance-config check-nemu-kernel-config
+__check-nemu-systemd-guest: $(RUN_DEPS) $(NEMU_SYSTEMD_ROOTFS_CHECK_TARGET) check-nemu-performance-config check-nemu-kernel-config
 	LOG_DIR='$(NEMU_SYSTEMD_CHECK_LOG_DIR)' \
 	LOG_FILE='$(NEMU_SYSTEMD_CHECK_LOG_DIR)/nemu.log' \
 	CONSOLE_LOG='$(NEMU_SYSTEMD_CHECK_LOG_DIR)/console.log' \
@@ -628,7 +733,10 @@ $(UBUNTU_SHELL_INITRD):
 	  bash '$(SCRIPT_DIR)/build-ubuntu-base-initramfs.sh'
 
 $(UBUNTU_ROOTFS_IMAGE):
-	bash '$(SCRIPT_DIR)/build-ubuntu-rootfs.sh'
+	UBUNTU_ROOTFS_FLAVOR='$(UBUNTU_ROOTFS_FLAVOR)' \
+	UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_IMAGE)' \
+	UBUNTU_ROOTFS_CPIO_IMAGE='$(UBUNTU_ROOTFS_CPIO_IMAGE)' \
+	  bash '$(SCRIPT_DIR)/build-ubuntu-rootfs.sh'
 
 $(BUILD_DIR):
 	mkdir -p '$@'
@@ -760,6 +868,11 @@ paths:
 	@printf 'RUN_DTB=%s\n' '$(RUN_DTB)'
 	@printf 'RUN_INITRD=%s\n' '$(RUN_INITRD)'
 	@printf 'RUN_ROOTFS=%s\n' '$(RUN_ROOTFS)'
+	@printf 'UBUNTU_ROOTFS_SYSTEMD_IMAGE=%s\n' '$(UBUNTU_ROOTFS_SYSTEMD_IMAGE)'
+	@printf 'UBUNTU_ROOTFS_INTERACTIVE_IMAGE=%s\n' '$(UBUNTU_ROOTFS_INTERACTIVE_IMAGE)'
+	@printf 'UBUNTU_ROOTFS_FULL_IMAGE=%s\n' '$(UBUNTU_ROOTFS_FULL_IMAGE)'
+	@printf 'NEMU_SYSTEMD_ROOTFS_FLAVOR=%s\n' '$(NEMU_SYSTEMD_ROOTFS_FLAVOR)'
+	@printf 'NEMU_SYSTEMD_ROOTFS_CHECK_TARGET=%s\n' '$(NEMU_SYSTEMD_ROOTFS_CHECK_TARGET)'
 	@printf 'NEMU_RUN_ROOTFS_OVERLAY=%s\n' '$(NEMU_RUN_ROOTFS_OVERLAY)'
 	@printf 'NEMU_RUN_ROOTFS_OVERLAY_RESET=%s\n' '$(NEMU_RUN_ROOTFS_OVERLAY_RESET)'
 	@printf 'LOG_DIR=%s\n' '$(LOG_DIR)'

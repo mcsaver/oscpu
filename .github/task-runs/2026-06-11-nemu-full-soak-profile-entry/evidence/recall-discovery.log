@@ -1,0 +1,41 @@
+[agent-system] discovery files
+PASS AGENTS.md
+PASS .github/AGENTS.md
+PASS .github/copilot-instructions.md
+PASS .github/agentic-hardware-blueprint.md
+PASS .github/instructions/memory-protocol.instructions.md
+PASS .github/instructions/agent-e2e-workflow.instructions.md
+PASS .github/e2e/README.md
+PASS .github/e2e/profiles/discovery.tsv
+PASS .github/e2e/modules/agent-system.md
+PASS .github/e2e/modules/toolchain.md
+PASS .github/memory/project-status.md
+PASS .github/memory/known-issues.md
+PASS .github/memory/modules/agent-system.md
+PASS .github/task-runs/templates/task-report.template.md
+PASS .github/task-runs/templates/dispatch-log.template.md
+PASS scripts/agent-env.sh
+PASS scripts/agent-run.sh
+PASS scripts/agent-e2e.sh
+PASS scripts/e2e/lib/common.sh
+PASS scripts/e2e/lib/report.sh
+[agent-system] non-interactive soft environment hook
+PASS agent-e2e sources scripts/agent-env.sh
+PASS agent-env exports sourced marker
+PASS agent-run sources scripts/agent-env.sh before exec
+PASS agent-env repairs incomplete inherited marker
+[agent-system] outer command-control hygiene
+PASS command-control hygiene documented in .github/instructions/agent-e2e-workflow.instructions.md
+PASS command-control hygiene documented in .github/e2e/README.md
+PASS command-control hygiene documented in .github/e2e/modules/agent-system.md
+[agent-system] WSL single-flight hygiene
+PASS WSL single-flight hygiene documented in .github/instructions/agent-e2e-workflow.instructions.md
+PASS WSL single-flight hygiene documented in .github/e2e/README.md
+PASS WSL single-flight hygiene documented in .github/e2e/modules/agent-system.md
+[agent-system] tracked persistent agent/e2e sources
+FAIL persistent agent/e2e source files are untracked
+.github/e2e/profiles/nemu-ubuntu-full-soak.tsv
+[agent-system] task-run text artifact sanitizer
+PASS report.sh sanitizer defined and called
+PASS report.sh strips trailing blanks and CR
+PASS report.sh limits sanitizer to current task-run

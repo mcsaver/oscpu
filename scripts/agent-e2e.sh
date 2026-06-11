@@ -11,6 +11,7 @@ E2E_LIST_PROFILES=0
 E2E_VALIDATE_PROFILE=0
 E2E_VALIDATE_ALL_PROFILES=0
 
+source "$E2E_ROOT_DIR/scripts/agent-env.sh"
 source "$E2E_ROOT_DIR/scripts/e2e/lib/common.sh"
 source "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh"
 for module_lib in "$E2E_ROOT_DIR"/scripts/e2e/modules/*.sh; do

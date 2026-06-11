@@ -1,0 +1,25 @@
+recall-discovery	agent-system	agent-system	PASS	AGENTS/copilot/instructions/memory/e2e profiles	规则发现链和 e2e 配置入口存在	.github/task-runs/2026-06-11-github-index-contracts-e2e/evidence/recall-discovery.log
+tool-env-check	agent-system	toolchain	PASS	agent-env + bash/git/make/python/gcc/verilator/toolchain	非交互软环境、hard requirements 与 optional tools 可见	.github/task-runs/2026-06-11-github-index-contracts-e2e/evidence/tool-env-check.log
+npc-sim-status	hardware-flow	hardware-flow	PASS	npc/sim Kconfig 与 backend mk	当前 npc/sim 后端状态	.github/task-runs/2026-06-11-github-index-contracts-e2e/evidence/npc-sim-status.log
+profile-index	agent-system	agent-system	PASS	.github/e2e/profiles	列出所有可执行 profile	.github/task-runs/2026-06-11-github-index-contracts-e2e/evidence/profile-index.log
+ysyx-coordinator-contract	ysyx-coordinator	ysyx-coordinator	PASS	coordinator agent + blueprint + profile root	总调度 e2e 合约入口存在	.github/task-runs/2026-06-11-github-index-contracts-e2e/evidence/ysyx-coordinator-contract.log
+hardware-flow-contract	hardware-flow	hardware-flow	PASS	hardware-flow agent + scripts/am-regression.sh + e2e profiles	硬件流程合约入口存在	.github/task-runs/2026-06-11-github-index-contracts-e2e/evidence/hardware-flow-contract.log
+software-flow-contract	software-flow	software-flow	PASS	software-flow agent + profile + memory	软件开发全流程 agent 合约入口存在	.github/task-runs/2026-06-11-github-index-contracts-e2e/evidence/software-flow-contract.log
+github-index-contract	agent-system	github-index	PASS	scripts/github_index_db.py + .github files	.github SQLite 索引数据库入口可构建、查询和巡检	.github/task-runs/2026-06-11-github-index-contracts-e2e/evidence/github-index-contract.log
+abstract-machine-contract	abstract-machine	abstract-machine	PASS	AM Makefile/scripts/include/memory	AM 平台合约入口存在	.github/task-runs/2026-06-11-github-index-contracts-e2e/evidence/abstract-machine-contract.log
+am-kernels-contract	am-kernels	am-kernels	PASS	cpu-tests/am-tests/klib-tests/benchmarks	测试与 benchmark 合约入口存在	.github/task-runs/2026-06-11-github-index-contracts-e2e/evidence/am-kernels-contract.log
+nemu-config-probe	nemu	nemu	PASS	nemu Kconfig/configs/device filelist	NEMU 当前配置和参考入口可见	.github/task-runs/2026-06-11-github-index-contracts-e2e/evidence/nemu-config-probe.log
+npc-sim-contract	npc	npc	PASS	npc/sim + backends	NPC 统一仿真入口合约存在	.github/task-runs/2026-06-11-github-index-contracts-e2e/evidence/npc-sim-contract.log
+npc-single-contract	npc	npc	PASS	npc/single Makefile/Kconfig/vsrc/csrc	NPC single 后端合约入口存在	.github/task-runs/2026-06-11-github-index-contracts-e2e/evidence/npc-single-contract.log
+npc-soc-contract	npc	npc	PASS	npc/soc + ysyxSoC CPU ABI	NPC SoC 后端合约入口存在	.github/task-runs/2026-06-11-github-index-contracts-e2e/evidence/npc-soc-contract.log
+npc-rv64-contract	npc	npc	PASS	npc/rv64 + Linux README	RV64 core/Linux 入口合约存在	.github/task-runs/2026-06-11-github-index-contracts-e2e/evidence/npc-rv64-contract.log
+ysyx-soc-contract	ysyx-soc	ysyx-soc	PASS	ysyxSoC Makefile/spec/agent/memory	ysyxSoC 合约入口存在	.github/task-runs/2026-06-11-github-index-contracts-e2e/evidence/ysyx-soc-contract.log
+difftest-contract	difftest	difftest	PASS	NEMU spike-diff + npc/sim difftest-ref	DiffTest 合约入口存在	.github/task-runs/2026-06-11-github-index-contracts-e2e/evidence/difftest-contract.log
+yosys-sta-contract	yosys-sta	yosys-sta	PASS	yosys-sta Makefile/tools/memory	综合/STA 合约入口和工具状态可见	.github/task-runs/2026-06-11-github-index-contracts-e2e/evidence/yosys-sta-contract.log
+rv64-linux-contract	rv64-linux	rv64-linux	PASS	Linux Makefile/env/platform/instructions	RV64 Linux/Ubuntu 合约入口存在	.github/task-runs/2026-06-11-github-index-contracts-e2e/evidence/rv64-linux-contract.log
+linux-device-contract	linux-device	linux-device	PASS	virtio-rootfs instruction + Linux scripts	Linux 设备合约入口存在	.github/task-runs/2026-06-11-github-index-contracts-e2e/evidence/linux-device-contract.log
+display-vga-contract	display-vga	display-vga	PASS	linux-framebuffer-vga instruction + Linux README	显示/fbcon 合约入口存在	.github/task-runs/2026-06-11-github-index-contracts-e2e/evidence/display-vga-contract.log
+verilator-tapeout-contract	verilator-tapeout	verilator-tapeout	PASS	verilator realism instruction + npc/rv64	Verilator-first 流片边界合约入口存在	.github/task-runs/2026-06-11-github-index-contracts-e2e/evidence/verilator-tapeout-contract.log
+fceux-am-contract	fceux-am	fceux-am	PASS	fceux-am Makefile/agent/memory	FCEUX-AM 合约入口存在	.github/task-runs/2026-06-11-github-index-contracts-e2e/evidence/fceux-am-contract.log
+nvboard-contract	nvboard	nvboard	PASS	nvboard README/scripts/example/agent	NVBoard 合约入口存在	.github/task-runs/2026-06-11-github-index-contracts-e2e/evidence/nvboard-contract.log
+digital-logic-contract	digital-logic	digital-logic	PASS	digital_logic_experiment + agent	数字逻辑实验合约入口存在	.github/task-runs/2026-06-11-github-index-contracts-e2e/evidence/digital-logic-contract.log

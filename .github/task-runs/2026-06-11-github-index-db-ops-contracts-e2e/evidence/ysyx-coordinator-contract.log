@@ -1,0 +1,5 @@
+[ysyx-coordinator] contract
+PASS .github/agents/ysyx-coordinator.agent.md
+PASS .github/agentic-hardware-blueprint.md
+PASS .github/AGENTS.md
+PASS .github/e2e/profiles/discovery.tsv

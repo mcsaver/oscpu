@@ -43,6 +43,12 @@
 #define CSR_MTVEC    0x305
 #define CSR_MCOUNTEREN 0x306
 #define CSR_MCOUNTINHIBIT 0x320
+#define CSR_PMPCFG0  0x3a0
+#define CSR_PMPCFG1  0x3a1
+#define CSR_PMPCFG2  0x3a2
+#define CSR_PMPCFG3  0x3a3
+#define CSR_PMPADDR0 0x3b0
+#define CSR_PMPADDR15 0x3bf
 #define CSR_MSCRATCH 0x340
 #define CSR_MEPC     0x341
 #define CSR_MCAUSE   0x342
@@ -126,6 +132,18 @@
 #define MCOUNTINHIBIT_CY 0x00000001u
 #define MCOUNTINHIBIT_IR 0x00000004u
 
+#define RISCV64_PMP_ENTRY_COUNT 16u
+#define PMP_CFG_R 0x01u
+#define PMP_CFG_W 0x02u
+#define PMP_CFG_X 0x04u
+#define PMP_CFG_A_MASK 0x18u
+#define PMP_CFG_A_OFF 0x00u
+#define PMP_CFG_A_TOR 0x08u
+#define PMP_CFG_A_NA4 0x10u
+#define PMP_CFG_A_NAPOT 0x18u
+#define PMP_CFG_L 0x80u
+#define PMPADDR_MASK ((word_t)((1ull << 54) - 1))
+
 //mtvec：trap入口地址，发生异常或中断后，CPU最终要跳到哪里执行，故障处理程序的起点
 //mepc：异常发生时的程序计数器，记录出事的时候执行到那一条指令了，进入trap会把当前PC存放到这里，后面mret返回时再用它恢复现场
 //mcause：trap原因码表，告诉你为何进入（ecall、非法指令、定时器中断、外部中断）
@@ -138,6 +156,9 @@ typedef struct {
   word_t stvec, sepc, scause, sscratch, stval;
   word_t medeleg, mideleg, satp;
   word_t mcounteren, scounteren, mcountinhibit;
+  uint8_t pmpcfg[RISCV64_PMP_ENTRY_COUNT];
+  word_t pmpaddr[RISCV64_PMP_ENTRY_COUNT];
+  bool pmp_active;
   uint64_t mcycle, minstret;
   uint8_t fflags, frm;
 } riscv64_CSR_state;

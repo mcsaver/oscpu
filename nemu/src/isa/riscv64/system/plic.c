@@ -5,6 +5,10 @@
 ***************************************************************************************/
 
 #include <isa.h>
+#ifndef CONFIG_TARGET_AM
+#include <stdarg.h>
+#include <stdio.h>
+#endif
 
 #define PLIC_BASE 0x0c000000u
 #define PLIC_SIZE 0x04000000u
@@ -66,6 +70,135 @@ static uint32_t plic_best_irq(bool supervisor) {
   }
   return 0;
 }
+
+#ifndef CONFIG_TARGET_AM
+typedef struct {
+  uint32_t irq;
+  const char *name;
+  const char *kind;
+  bool enabled;
+} PlicSourceInfo;
+
+static const PlicSourceInfo plic_sources[] = {
+  {1, "serial0", "uart16550", ISDEF(CONFIG_HAS_SERIAL)},
+  {2, "virtio-blk", "virtio-mmio", ISDEF(CONFIG_HAS_DISK)},
+  {3, "virtio-rng", "virtio-mmio", ISDEF(CONFIG_HAS_VIRTIO_RNG)},
+  {4, "goldfish-rtc", "platform-rtc", ISDEF(CONFIG_HAS_GOLDFISH_RTC)},
+  {5, "virtio-net", "virtio-mmio", ISDEF(CONFIG_HAS_VIRTIO_NET)},
+};
+
+static const char *plic_json_bool(bool value) {
+  return value ? "true" : "false";
+}
+
+static uint64_t plic_claim_count_value(uint32_t irq) {
+#ifdef CONFIG_STATISTIC
+  return irq <= PLIC_NR_IRQS ? plic_claim_count[irq] : 0;
+#else
+  (void)irq;
+  return 0;
+#endif
+}
+
+static uint64_t plic_complete_count_value(uint32_t irq) {
+#ifdef CONFIG_STATISTIC
+  return irq <= PLIC_NR_IRQS ? plic_complete_count[irq] : 0;
+#else
+  (void)irq;
+  return 0;
+#endif
+}
+
+static void plic_json_append(char *out, size_t out_size, size_t *used,
+    const char *fmt, ...) {
+  if (*used >= out_size) return;
+
+  va_list ap;
+  va_start(ap, fmt);
+  int n = vsnprintf(out + *used, out_size - *used, fmt, ap);
+  va_end(ap);
+
+  if (n < 0) return;
+  if ((size_t)n >= out_size - *used) {
+    *used = out_size;
+  } else {
+    *used += (size_t)n;
+  }
+}
+
+void isa_riscv64_plic_dump_machine_info(FILE *out) {
+  // source map 把“设备 IRQ 号”固定成可审计账本，避免后续只看设备局部字段而漏掉 PLIC。
+  fprintf(out, "interrupt.plic.enabled=1\n");
+  fprintf(out, "interrupt.plic.model=riscv,plic0\n");
+  fprintf(out, "interrupt.plic.mmio=0x%08x\n", PLIC_BASE);
+  fprintf(out, "interrupt.plic.size=0x%08x\n", PLIC_SIZE);
+  fprintf(out, "interrupt.plic.nr_irqs=%u\n", PLIC_NR_IRQS);
+  fprintf(out, "interrupt.plic.contexts=2\n");
+  fprintf(out, "interrupt.plic.pending=0x%08x\n", plic_pending);
+  fprintf(out, "interrupt.plic.level=0x%08x\n", plic_level);
+  fprintf(out, "interrupt.plic.in_service=0x%08x\n", plic_in_service);
+  fprintf(out, "interrupt.plic.enable_m=0x%08x\n", plic_enable_m);
+  fprintf(out, "interrupt.plic.enable_s=0x%08x\n", plic_enable_s);
+  fprintf(out, "interrupt.plic.threshold_m=%u\n", plic_threshold_m);
+  fprintf(out, "interrupt.plic.threshold_s=%u\n", plic_threshold_s);
+  fprintf(out, "interrupt.plic.best_irq_m=%u\n", plic_best_irq(false));
+  fprintf(out, "interrupt.plic.best_irq_s=%u\n", plic_best_irq(true));
+
+  for (size_t i = 0; i < ARRLEN(plic_sources); i++) {
+    const PlicSourceInfo *src = &plic_sources[i];
+    uint32_t bit = 1u << src->irq;
+    fprintf(out, "interrupt.plic.source.%u.name=%s\n", src->irq, src->name);
+    fprintf(out, "interrupt.plic.source.%u.kind=%s\n", src->irq, src->kind);
+    fprintf(out, "interrupt.plic.source.%u.enabled=%u\n",
+        src->irq, src->enabled ? 1u : 0u);
+    fprintf(out, "interrupt.plic.source.%u.priority=%u\n",
+        src->irq, plic_priority[src->irq]);
+    fprintf(out, "interrupt.plic.source.%u.level=%u\n",
+        src->irq, (plic_level & bit) != 0);
+    fprintf(out, "interrupt.plic.source.%u.pending=%u\n",
+        src->irq, (plic_pending & bit) != 0);
+    fprintf(out, "interrupt.plic.source.%u.in_service=%u\n",
+        src->irq, (plic_in_service & bit) != 0);
+  }
+}
+
+void isa_riscv64_plic_qmp_snapshot(char *out, size_t out_size) {
+  size_t used = 0;
+  plic_json_append(out, out_size, &used,
+      "{\"model\":\"riscv,plic0\",\"mmio\":\"0x%08x\","
+      "\"size\":%u,\"nr-irqs\":%u,\"contexts\":2,"
+      "\"pending\":\"0x%08x\",\"level\":\"0x%08x\","
+      "\"in-service\":\"0x%08x\",\"enable-m\":\"0x%08x\","
+      "\"enable-s\":\"0x%08x\",\"threshold-m\":%u,"
+      "\"threshold-s\":%u,\"best-irq-m\":%u,"
+      "\"best-irq-s\":%u,\"sources\":[",
+      PLIC_BASE, PLIC_SIZE, PLIC_NR_IRQS, plic_pending, plic_level,
+      plic_in_service, plic_enable_m, plic_enable_s, plic_threshold_m,
+      plic_threshold_s, plic_best_irq(false), plic_best_irq(true));
+
+  for (size_t i = 0; i < ARRLEN(plic_sources); i++) {
+    const PlicSourceInfo *src = &plic_sources[i];
+    uint32_t bit = 1u << src->irq;
+    plic_json_append(out, out_size, &used,
+        "%s{\"irq\":%u,\"name\":\"%s\",\"kind\":\"%s\","
+        "\"enabled\":%s,\"priority\":%u,\"level\":%s,"
+        "\"pending\":%s,\"in-service\":%s,\"enabled-m\":%s,"
+        "\"enabled-s\":%s,\"claim-count\":%" PRIu64 ","
+        "\"complete-count\":%" PRIu64 "}",
+        i == 0 ? "" : ",", src->irq, src->name, src->kind,
+        plic_json_bool(src->enabled), plic_priority[src->irq],
+        plic_json_bool((plic_level & bit) != 0),
+        plic_json_bool((plic_pending & bit) != 0),
+        plic_json_bool((plic_in_service & bit) != 0),
+        plic_json_bool((plic_enable_m & bit) != 0),
+        plic_json_bool((plic_enable_s & bit) != 0),
+        plic_claim_count_value(src->irq),
+        plic_complete_count_value(src->irq));
+  }
+
+  plic_json_append(out, out_size, &used, "]}");
+}
+#endif
 
 void isa_riscv64_plic_reset(void) {
   memset(plic_priority, 0, sizeof(plic_priority));

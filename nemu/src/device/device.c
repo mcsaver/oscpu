@@ -41,8 +41,8 @@ void send_key(uint8_t, bool);
 void vga_update_screen();
 
 // 先按 guest 指令数做粗粒度节流，避免每条指令都查询一次宿主时间。
-// 这样做不会改变 60Hz 左右的设备刷新语义，但能显著降低 get_time() 的累计开销。
-#define DEVICE_UPDATE_CHECK_INTERVAL 64
+// Ubuntu performance 配置会把该间隔调大；真正的可见刷新仍由下面的 60Hz host time gate 控制。
+#define DEVICE_UPDATE_CHECK_INTERVAL ((uint64_t)CONFIG_DEVICE_UPDATE_CHECK_INTERVAL)
 
 void device_update_after_inst(uint64_t retired) {
   static uint64_t skip = 0;

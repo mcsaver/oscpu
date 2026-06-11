@@ -111,6 +111,28 @@ typedef struct {
 typedef struct Uart16550 Uart16550;
 
 typedef struct {
+  uint8_t dll;
+  uint8_t dlm;
+  uint8_t ier;
+  uint8_t iir;
+  uint8_t fcr;
+  uint8_t lcr;
+  uint8_t mcr;
+  uint8_t lsr;
+  uint8_t msr;
+  uint8_t scr;
+  bool dlab;
+  bool fifo_enabled;
+  bool thr_irq_pending;
+  bool irq_level;
+  uint32_t rx_fifo_capacity;
+  uint32_t rx_fifo_visible_capacity;
+  uint32_t rx_fifo_count;
+  uint32_t rx_fifo_room;
+  uint32_t rx_trigger;
+} Uart16550Snapshot;
+
+typedef struct {
   const Uart16550Ops *ops;
   void *opaque;
   uint32_t rx_fifo_capacity;
@@ -133,5 +155,6 @@ uint32_t uart16550_rx_room(const Uart16550 *uart);
 size_t uart16550_receive(Uart16550 *uart, const uint8_t *data, size_t len);
 void uart16550_service(Uart16550 *uart);
 bool uart16550_irq_level(const Uart16550 *uart);
+void uart16550_snapshot(const Uart16550 *uart, Uart16550Snapshot *snapshot);
 
 #endif

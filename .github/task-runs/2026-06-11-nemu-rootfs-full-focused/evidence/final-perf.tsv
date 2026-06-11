@@ -1,0 +1,2 @@
+boot_seconds	guest_check_seconds	poweroff_seconds	total_seconds	soak_seconds	fs_stress_mib	fs_tree_files	process_loops	uart_rx_stress_lines	block_parallel_jobs	block_job_mib	net_tcp_burst_loops	input_chunk_bytes	input_chunk_delay	max_cycles	rootfs_overlay
+146	749	14	909	20	4	64	16	512	4	1	8	8	0	50000000000	/home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-systemd-guest-full-check/rootfs-overlay.raw

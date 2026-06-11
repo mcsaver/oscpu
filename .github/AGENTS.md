@@ -21,7 +21,7 @@
 - **NPC 后端分层**：外部模块优先通过 `npc/sim` 交互；`npc/single` 是普通 NPC 自仿真后端，`npc/soc` 是 ysyxSoC 接入后端，`ysyxSoC` 负责 Chisel SoC 与 CPU ABI/地址图。
 - **核心方法学**：涉及 RTL 正确性时，优先使用参考模型、trace、watchpoint、DiffTest 或等价证据链收敛问题，而不是直接猜修复点。
 - **构建系统**：GNU Make + Kconfig；详细命令与模块约束见 `.github/copilot-instructions.md`。
-- **长期知识入口**：`.github/memory/`、`.github/agentic-hardware-blueprint.md`、`npc/{single,soc}/design/study/README.md`、`ysyxSoC/spec/cpu-interface.md` 以及相关模块笔记。
+- **长期知识入口**：`.github/memory/`、`.github/agentic-hardware-blueprint.md`、`npc/{single,soc}/design/study/README.md`、`ysyxSoC/spec/cpu-interface.md` 以及相关模块笔记；可用 `scripts/github_index_db.py query <关键词>` 辅助定位 `.github` 资料，但索引只做检索入口，不替代必读文件和 e2e 证据。
 - **语言约定**：所有注释、文档和记录默认使用中文。
 
 ---
@@ -38,7 +38,7 @@
 6. `.github/instructions/<相关主题>.instructions.md`
 7. 若任务涉及 `npc/single/` 或 `npc/soc/` 的数据通路、译码、控制、功能仿真、SoC wrapper 或 RTL，补读对应目录下的 `design/study/README.md` 及专题笔记
 8. 若任务涉及 `ysyxSoC/`、CPU 顶层 ABI、SoC 地址图或 `ysyxSoCFull.v` 生成，补读 `.github/memory/modules/ysyx-soc.md` 与 `ysyxSoC/spec/cpu-interface.md`
-9. 若任务涉及 AI 开发环境 e2e、规则发现、agent 工作流自检或“降低 AI 不确定性”，补读 `.github/instructions/agent-e2e-workflow.instructions.md` 与 `.github/e2e/README.md`，先用 `scripts/agent-e2e.sh --list-profiles` 查看模块 profile，再按任务选择 `discovery`、`contracts`、`quick`、`agent-system`、`abstract-machine`、`am-kernels`、`hardware-flow`、`nemu`、`npc`、`rv64-linux` 等 profile 生成证据包
+9. 若任务涉及 AI 开发环境 e2e、规则发现、agent 工作流自检或“降低 AI 不确定性”，补读 `.github/instructions/agent-e2e-workflow.instructions.md` 与 `.github/e2e/README.md`，先用 `scripts/agent-e2e.sh --list-profiles` 查看模块 profile，再按任务选择 `discovery`、`contracts`、`quick`、`agent-system`、`software-flow`、`github-index`、`abstract-machine`、`am-kernels`、`hardware-flow`、`nemu`、`npc`、`rv64-linux` 等 profile 生成证据包
 10. 若任务涉及 `npc/rv64`、OpenSBI/Linux/Ubuntu 22.04、rootfs、framebuffer/VGA、RV64GC/lp64d 或 Verilator 性能仿真，补读 `.github/agents/rv64-linux.agent.md`、`.github/agents/linux-device.agent.md`、`.github/agents/display-vga.agent.md`、`.github/agents/verilator-tapeout.agent.md` 以及相关 `.github/instructions/*.instructions.md`
 
 禁止只看当前打开的单个文件就开始修改；任何“我以为”都必须先用搜索、阅读或运行结果验证。
@@ -64,7 +64,8 @@
 
 ## 3. 图任务与调度规则
 
-- 复杂任务先判断是否命中现有静态图模板，如 `rv32-reference-loop`、`rv32-bringup`、`npc-sim-regression`、`soc-difftest-loop`、`am-device-loop`、`ysyx-soc-integration`、`rv64-ubuntu-probe-loop`、`rv64-ubuntu-rootfs-loop`、`linux-display-loop`、`rv64gc-userland-loop`、`verilator-tapeout-readiness-loop`、`modular-agent-e2e`（兼容名 `agent-e2e-loop`）、`agent-env-refactor`、`regression-debug-loop`。
+- 复杂任务先判断是否命中现有静态图模板，如 `rv32-reference-loop`、`rv32-bringup`、`npc-sim-regression`、`soc-difftest-loop`、`am-device-loop`、`ysyx-soc-integration`、`software-dev-loop`、`software-bugfix-loop`、`software-refactor-loop`、`hardware-aware-software-loop`、`rv64-ubuntu-probe-loop`、`rv64-ubuntu-rootfs-loop`、`linux-display-loop`、`rv64gc-userland-loop`、`verilator-tapeout-readiness-loop`、`modular-agent-e2e`（兼容名 `agent-e2e-loop`）、`agent-env-refactor`、`regression-debug-loop`。
+- NEMU、Linux tools、guest check、host C++ harness、QMP/GDB 和设备模型属于“软件实现硬件/系统语义”的任务，默认走 `hardware-aware-software-loop`：先由 `software-flow` 收敛软件需求、契约、实现和测试，再叠加 `nemu-ubuntu`、`hardware-flow`、`rv64-linux`、`difftest` 或 target gate。
 - 只有模板不足、证据链缺失、或出现新的跨模块边界时，才动态扩图。
 - 每个图节点至少写清：`node_id`、`owner_agent`、`depends_on`、`inputs`、`outputs`、`success_criteria`、`fallback`。
 - 没有 `evidence` 的节点不能作为下游硬依赖；没有两侧可比较产物时，不得创建 `compare` / `difftest` 节点。

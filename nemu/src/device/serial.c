@@ -42,6 +42,18 @@
 #define SERIAL_HOST_RX_POLL_BUDGET 16u
 #define SERIAL_HOST_RX_STAGING_CAP 1048576u
 #define SERIAL_TX_BUFFER_CAP 4096u
+#ifdef CONFIG_SERIAL_INPUT_HOST_POLL_INTERVAL
+#define SERIAL_INPUT_HOST_POLL_INTERVAL_VALUE CONFIG_SERIAL_INPUT_HOST_POLL_INTERVAL
+#else
+#define SERIAL_INPUT_HOST_POLL_INTERVAL_VALUE 1
+#endif
+
+#if SERIAL_INPUT_HOST_POLL_INTERVAL_VALUE <= 0
+#error "CONFIG_SERIAL_INPUT_HOST_POLL_INTERVAL must be positive"
+#endif
+
+#define SERIAL_INPUT_HOST_POLL_INTERVAL \
+  ((uint32_t)SERIAL_INPUT_HOST_POLL_INTERVAL_VALUE)
 
 #if !defined(CONFIG_TARGET_AM) && \
     (defined(CONFIG_SERIAL_INPUT_STDIN) || defined(CONFIG_SERIAL_INPUT_FIFO))
@@ -96,6 +108,86 @@ static SerialPort serial0 = {
 
 #ifndef CONFIG_TARGET_AM
 static void serial_port_flush_tx(SerialPort *port);
+
+static const char *serial_json_bool(bool value) {
+  return value ? "true" : "false";
+}
+
+static const char *serial_host_backend_name(void) {
+#if defined(CONFIG_SERIAL_INPUT_STDIN) && defined(CONFIG_SERIAL_INPUT_FIFO)
+  return "stderr,stdin,fifo:/tmp/nemu.serial";
+#elif defined(CONFIG_SERIAL_INPUT_STDIN)
+  return "stderr,stdin";
+#elif defined(CONFIG_SERIAL_INPUT_FIFO)
+  return "stderr,fifo:/tmp/nemu.serial";
+#else
+  return "stderr";
+#endif
+}
+
+static uint32_t serial_host_rx_count(const SerialPort *port) {
+#ifdef SERIAL_HAS_HOST_RX
+  return port->host_rx.count;
+#else
+  (void)port;
+  return 0;
+#endif
+}
+
+static uint32_t serial_host_rx_capacity(const SerialPort *port) {
+#ifdef SERIAL_HAS_HOST_RX
+  return port->host_rx.capacity;
+#else
+  (void)port;
+  return 0;
+#endif
+}
+
+static uint64_t serial_host_rx_dropped_count(const SerialPort *port) {
+#ifdef SERIAL_HAS_HOST_RX
+  return port->host_rx_dropped;
+#else
+  (void)port;
+  return 0;
+#endif
+}
+
+void serial_dump_machine_info(FILE *out) {
+  Uart16550Snapshot snap;
+  if (serial0.uart != NULL) {
+    uart16550_snapshot(serial0.uart, &snap);
+  } else {
+    memset(&snap, 0, sizeof(snap));
+  }
+
+  // UART core 与宿主输入 staging 分开导出，避免把自动化大缓冲误读成硬件 FIFO。
+  fprintf(out, "device.serial.model=ns16550a\n");
+  fprintf(out, "device.serial.backend=nemu-16550a\n");
+  fprintf(out, "device.serial.host_backend=%s\n", serial_host_backend_name());
+  fprintf(out, "device.serial.bus_profile=8bit\n");
+  fprintf(out, "device.serial.map_size=0x%08x\n", serial0.bus_map_size);
+  fprintf(out, "device.serial.rx_fifo_capacity=%u\n", snap.rx_fifo_capacity);
+  fprintf(out, "device.serial.rx_fifo_visible_capacity=%u\n",
+      snap.rx_fifo_visible_capacity);
+  fprintf(out, "device.serial.rx_fifo_count=%u\n", snap.rx_fifo_count);
+  fprintf(out, "device.serial.rx_trigger=%u\n", snap.rx_trigger);
+  fprintf(out, "device.serial.fifo_enabled=%u\n", snap.fifo_enabled ? 1u : 0u);
+  fprintf(out, "device.serial.irq_level=%u\n", snap.irq_level ? 1u : 0u);
+  fprintf(out, "device.serial.ier=0x%02x\n", snap.ier);
+  fprintf(out, "device.serial.iir=0x%02x\n", snap.iir);
+  fprintf(out, "device.serial.lcr=0x%02x\n", snap.lcr);
+  fprintf(out, "device.serial.lsr=0x%02x\n", snap.lsr);
+  fprintf(out, "device.serial.host_rx_staging_capacity=%u\n",
+      serial_host_rx_capacity(&serial0));
+  fprintf(out, "device.serial.host_rx_staging_count=%u\n",
+      serial_host_rx_count(&serial0));
+  fprintf(out, "device.serial.host_rx_dropped=%" PRIu64 "\n",
+      serial_host_rx_dropped_count(&serial0));
+  fprintf(out, "device.serial.host_rx_poll_interval=%u\n",
+      SERIAL_INPUT_HOST_POLL_INTERVAL);
+  fprintf(out, "device.serial.tx_buffer_capacity=%u\n", SERIAL_TX_BUFFER_CAP);
+  fprintf(out, "device.serial.tx_buffer_count=%u\n", serial0.tx_count);
+}
 #endif
 
 static void serial_port_tx(void *opaque, uint8_t ch) {
@@ -132,6 +224,58 @@ static void serial_port_flush_tx(SerialPort *port) {
 
 static void serial_flush_all(void) {
   serial_port_flush_tx(&serial0);
+}
+
+void serial_qmp_query_chardev(char *out, size_t out_size) {
+  Assert(out != NULL && out_size > 0, "invalid query-chardev output buffer");
+
+  /*
+   * QMP 只暴露当前 console chardev 的只读状态，避免管理面审计时还得解析
+   * machine-info 文本；这不是 chardev-add/remove 或多串口热插拔实现。
+   */
+  snprintf(out, out_size,
+      "{\"return\":[{\"label\":\"serial0\",\"filename\":\"%s\","
+      "\"frontend-open\":true,\"backend\":\"nemu-16550a\"}]}",
+      serial_host_backend_name());
+}
+
+void serial_qmp_query_serial(char *out, size_t out_size) {
+  Assert(out != NULL && out_size > 0, "invalid query-serial output buffer");
+
+  Uart16550Snapshot snap;
+  if (serial0.uart != NULL) {
+    uart16550_snapshot(serial0.uart, &snap);
+  } else {
+    memset(&snap, 0, sizeof(snap));
+  }
+
+  snprintf(out, out_size,
+      "{\"return\":[{\"id\":\"serial0\",\"type\":\"uart\","
+      "\"model\":\"ns16550a\",\"backend\":\"nemu-16550a\","
+      "\"filename\":\"%s\",\"frontend-open\":true,"
+      "\"nemu\":{\"mmio\":\"0x%08x\",\"irq\":%u,"
+      "\"bus-profile\":\"8bit\",\"map-size\":%u,"
+      "\"registers\":{\"ier\":\"0x%02x\",\"iir\":\"0x%02x\","
+      "\"fcr\":\"0x%02x\",\"lcr\":\"0x%02x\",\"mcr\":\"0x%02x\","
+      "\"lsr\":\"0x%02x\",\"msr\":\"0x%02x\",\"scr\":\"0x%02x\","
+      "\"dll\":\"0x%02x\",\"dlm\":\"0x%02x\",\"dlab\":%s},"
+      "\"rx-fifo\":{\"capacity\":%u,\"visible-capacity\":%u,"
+      "\"count\":%u,\"room\":%u,\"trigger\":%u,"
+      "\"fifo-enabled\":%s},"
+      "\"host-rx\":{\"staging-capacity\":%u,\"staging-count\":%u,"
+      "\"poll-interval\":%u,\"dropped\":%" PRIu64 "},"
+      "\"tx-buffer\":{\"capacity\":%u,\"count\":%u},"
+      "\"irq-level\":%s,\"thr-irq-pending\":%s}}]}",
+      serial_host_backend_name(), CONFIG_SERIAL_MMIO, serial0.irq,
+      serial0.bus_map_size, snap.ier, snap.iir, snap.fcr, snap.lcr,
+      snap.mcr, snap.lsr, snap.msr, snap.scr, snap.dll, snap.dlm,
+      serial_json_bool(snap.dlab), snap.rx_fifo_capacity,
+      snap.rx_fifo_visible_capacity, snap.rx_fifo_count, snap.rx_fifo_room,
+      snap.rx_trigger, serial_json_bool(snap.fifo_enabled),
+      serial_host_rx_capacity(&serial0), serial_host_rx_count(&serial0),
+      SERIAL_INPUT_HOST_POLL_INTERVAL, serial_host_rx_dropped_count(&serial0),
+      SERIAL_TX_BUFFER_CAP, serial0.tx_count, serial_json_bool(snap.irq_level),
+      serial_json_bool(snap.thr_irq_pending));
 }
 #endif
 
@@ -301,16 +445,10 @@ static void serial_bus_store(SerialPort *port, uint32_t offset, int len,
   }
 }
 
-static void serial_port_poll_host(SerialPort *port) {
+static void serial_port_service(SerialPort *port) {
   if (port->uart == NULL) {
     return;
   }
-#if defined(SERIAL_HAS_HOST_RX) && defined(CONFIG_SERIAL_INPUT_STDIN)
-  serial_host_poll_fd(port, STDIN_FILENO, &port->stdin_eof);
-#endif
-#if defined(SERIAL_HAS_HOST_RX) && defined(CONFIG_SERIAL_INPUT_FIFO)
-  serial_host_poll_fd(port, port->fifo_fd, NULL);
-#endif
 #ifdef SERIAL_HAS_HOST_RX
   serial_host_rx_drain_to_uart(port);
 #endif
@@ -322,8 +460,38 @@ static void serial_port_poll_host(SerialPort *port) {
 #endif
 }
 
+static void serial_port_poll_host(SerialPort *port) {
+  if (port->uart == NULL) {
+    return;
+  }
+#if defined(SERIAL_HAS_HOST_RX) && defined(CONFIG_SERIAL_INPUT_STDIN)
+  serial_host_poll_fd(port, STDIN_FILENO, &port->stdin_eof);
+#endif
+#if defined(SERIAL_HAS_HOST_RX) && defined(CONFIG_SERIAL_INPUT_FIFO)
+  serial_host_poll_fd(port, port->fifo_fd, NULL);
+#endif
+  serial_port_service(port);
+}
+
 void serial_poll_input(void) {
-  serial_port_poll_host(&serial0);
+  /*
+   * 全局 device tick 只按配置轮询宿主 fd，降低 Ubuntu 空闲长跑中的
+   * select/read 频率；guest 主动读 UART 寄存器时仍会走 serial_port_poll_host()。
+   */
+  static uint32_t host_poll_skip = 0;
+#ifdef SERIAL_HAS_HOST_RX
+  if (host_poll_skip == 0) {
+    serial_port_poll_host(&serial0);
+  } else {
+    serial_port_service(&serial0);
+  }
+  host_poll_skip++;
+  if (host_poll_skip >= SERIAL_INPUT_HOST_POLL_INTERVAL) {
+    host_poll_skip = 0;
+  }
+#else
+  serial_port_service(&serial0);
+#endif
 }
 
 static void serial_io_handler(uint32_t offset, int len, bool is_write) {

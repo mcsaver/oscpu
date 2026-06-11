@@ -26,6 +26,7 @@
 #include "../monitor/sdb/watchpoint.h"
 #endif
 #if !defined(CONFIG_TARGET_AM) && !defined(CONFIG_TARGET_SHARE)
+#include "../monitor/gdbstub.h"
 #include "../monitor/qmp.h"
 #endif
 
@@ -119,6 +120,7 @@ static uint64_t g_timer = 0; // unit: us
 void device_update();
 void device_update_after_inst(uint64_t retired);
 void virtio_blk_statistic();
+void virtio_net_statistic();
 
 #if defined(CONFIG_RISCV_PROGRESS_DEBUG_LOG) && defined(CONFIG_ISA_riscv)
 static inline void riscv_progress_debug_log(void) {
@@ -210,8 +212,37 @@ static void execute_one(Decode *s) {
   trace_and_difftest(s, cpu.pc);//调用trace_and_difftest进行ltrace(指令追踪)和Difftest(与标准模型如QEMU对比状态)
 }
 
+static inline bool debug_breakpoint_stop(void) {
+#if !defined(CONFIG_TARGET_AM) && !defined(CONFIG_TARGET_SHARE)
+  // GDB Z0/Z1 执行断点按 PC 精确停在待执行指令前，basic-block 也不能越过块内断点。
+  if (gdbstub_breakpoint_hit(cpu.pc)) {
+    Log("GDB stub breakpoint hit at pc = " FMT_WORD, cpu.pc);
+    nemu_state.state = NEMU_STOP;
+    return true;
+  }
+#endif
+  return false;
+}
+
+static inline bool debug_async_stop(void) {
+#if !defined(CONFIG_TARGET_AM) && !defined(CONFIG_TARGET_SHARE)
+  // 运行中的 GDB Ctrl-C 只在 TB 边界轮询，保证 Ubuntu 长跑能被调试器打断，
+  // 同时避免每条指令都做阻塞 socket 操作。
+  if (gdbstub_async_stop_requested()) {
+    Log("GDB stub async halt at pc = " FMT_WORD, cpu.pc);
+    nemu_state.state = NEMU_STOP;
+    return true;
+  }
+#endif
+  return false;
+}
+
 #ifdef CONFIG_INTERPRETER_BASIC_BLOCK
-#define INTERPRETER_TB_MAX_INST 16
+#define INTERPRETER_TB_MAX_INST CONFIG_INTERPRETER_TB_MAX_INST
+
+#if INTERPRETER_TB_MAX_INST <= 0
+#error "CONFIG_INTERPRETER_TB_MAX_INST must be positive"
+#endif
 
 static inline bool interpreter_tb_compressed_barrier(uint32_t inst) {
 #ifdef CONFIG_RISCV_EXT_C
@@ -266,6 +297,7 @@ static uint64_t execute_basic_block(uint64_t n) {
   // 这是 basic block interpreter 的保守第一阶段：仍逐条译码执行，
   // 但把中断查询和设备轮询移到块边界，减少 Ubuntu 长跑主循环开销。
   while (retired < limit) {
+    if (debug_breakpoint_stop()) break;
     execute_one(&s);
     retired++;
     if (interpreter_tb_should_stop(&s)) break;
@@ -283,6 +315,7 @@ static uint64_t execute_one_or_block(uint64_t n) {
 #endif
 
   Decode s;
+  if (debug_breakpoint_stop()) return 0;
   execute_one(&s);
   return 1;
 }
@@ -292,7 +325,9 @@ static void execute(uint64_t n) {
 #if !defined(CONFIG_TARGET_AM) && !defined(CONFIG_TARGET_SHARE)
     qmp_cpu_pause_point();
     if (nemu_state.state != NEMU_RUNNING) break;
+    if (debug_async_stop()) break;
 #endif
+    if (debug_breakpoint_stop()) break;
 
     word_t intr = INTR_EMPTY;
 #ifdef CONFIG_INTERPRETER_INTR_FAST_FLAG
@@ -329,11 +364,13 @@ static void statistic() {
   // 程序结束时统一输出 cache counter，并顺带写回 DCache 脏行，方便结束后检查 PMEM。
   IFDEF(CONFIG_ISA_riscv, isa_riscv_plic_statistic());
   IFDEF(CONFIG_HAS_DISK, virtio_blk_statistic());
+  IFDEF(CONFIG_HAS_VIRTIO_NET, virtio_net_statistic());
   IFDEF(CONFIG_CACHE, cache_statistic());
   IFDEF(CONFIG_BPU, bpu_statistic());
 #else
   // 性能模式关闭统计输出，但 cache 模型若开启仍必须 flush 脏线，避免功能语义变化。
   IFDEF(CONFIG_HAS_DISK, virtio_blk_statistic());
+  IFDEF(CONFIG_HAS_VIRTIO_NET, virtio_net_statistic());
   IFDEF(CONFIG_CACHE, cache_flush_all());
 #endif
 }
@@ -362,6 +399,12 @@ void cpu_exec(uint64_t n) {
 
   uint64_t timer_end = get_time();
   g_timer += timer_end - timer_start;
+
+#if !defined(CONFIG_TARGET_AM) && !defined(CONFIG_TARGET_SHARE)
+  if (nemu_state.state == NEMU_END) {
+    qmp_notify_shutdown_event();
+  }
+#endif
 
   switch (nemu_state.state) {
     case NEMU_RUNNING:

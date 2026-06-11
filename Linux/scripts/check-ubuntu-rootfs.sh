@@ -4,9 +4,14 @@ set -euo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 LINUX_HOME=$(cd -- "$SCRIPT_DIR/.." && pwd)
 ENV_ROOT=${YSYX_LINUX_ENV_ROOT:-"$LINUX_HOME/env"}
-IMAGE=${UBUNTU_ROOTFS_IMAGE:-"$ENV_ROOT/images/ubuntu2204/ubuntu-22.04-riscv64.ext4"}
 REQUIRE_SYSTEMD=${UBUNTU_ROOTFS_REQUIRE_SYSTEMD:-0}
 DEBUGFS=${DEBUGFS:-debugfs}
+ROOTFS_FLAVOR=${UBUNTU_ROOTFS_FLAVOR:-systemd-minimal}
+ROOTFS_FLAVOR_SCRIPT=${UBUNTU_ROOTFS_FLAVOR_SCRIPT:-"$SCRIPT_DIR/ubuntu-rootfs-flavors.sh"}
+source "$ROOTFS_FLAVOR_SCRIPT"
+ROOTFS_FLAVOR=$(ubuntu_rootfs_flavor_normalize "$ROOTFS_FLAVOR")
+ROOTFS_ARTIFACT_SUFFIX=${UBUNTU_ROOTFS_ARTIFACT_SUFFIX:-$(ubuntu_rootfs_flavor_artifact_suffix "$ROOTFS_FLAVOR")}
+IMAGE=${UBUNTU_ROOTFS_IMAGE:-"$ENV_ROOT/images/ubuntu2204/ubuntu-22.04-riscv64$ROOTFS_ARTIFACT_SUFFIX.ext4"}
 
 if [ ! -f "$IMAGE" ]; then
   echo "[ubuntu-rootfs-check] missing rootfs image: $IMAGE" >&2
@@ -30,6 +35,79 @@ rootfs_has() {
   grep -q "Inode:" <<<"$out" && ! grep -qi "File not found" <<<"$out"
 }
 
+rootfs_symlink_points_to() {
+  local path=$1
+  local target=$2
+  local out
+  out=$(debugfs_stat "$path")
+  grep -q "Inode:" <<<"$out" &&
+    ! grep -qi "File not found" <<<"$out" &&
+    { grep -Fq "Fast link dest: $target" <<<"$out" ||
+      grep -Fq "Fast link dest: \"$target\"" <<<"$out"; }
+}
+
+rootfs_cat() {
+  local path=$1
+  "$DEBUGFS" -R "cat $path" "$IMAGE" 2>/dev/null || true
+}
+
+rootfs_file_contains() {
+  local path=$1
+  local pattern=$2
+  rootfs_cat "$path" | grep -Eq "$pattern"
+}
+
+rootfs_dpkg_status_installed() {
+  local package=$1
+  rootfs_cat /var/lib/dpkg/status | awk -v pkg="$package" '
+    BEGIN { RS = ""; found = 0 }
+    {
+      has_package = 0
+      has_status = 0
+      n = split($0, lines, "\n")
+      for (i = 1; i <= n; i++) {
+        if (lines[i] == "Package: " pkg) has_package = 1
+        if (lines[i] == "Status: install ok installed") has_status = 1
+      }
+      if (has_package && has_status) found = 1
+    }
+    END { exit found ? 0 : 1 }
+  '
+}
+
+rootfs_dpkg_info_list_contains() {
+  local package=$1
+  local path=$2
+  rootfs_cat "/var/lib/dpkg/info/$package.list" | grep -Fxq "$path"
+}
+
+rootfs_dpkg_info_list_files() {
+  "$DEBUGFS" -R "ls -p /var/lib/dpkg/info" "$IMAGE" 2>/dev/null |
+    awk -F/ '$6 ~ /\.list$/ { print $6 }'
+}
+
+rootfs_dpkg_info_list_invalid_records() {
+  local package=$1
+  rootfs_cat "/var/lib/dpkg/info/$package.list" | awk '
+    $0 == "" {
+      print "empty-line"
+      invalid = 1
+      next
+    }
+    $0 == "/" {
+      print "root-slash:/"
+      invalid = 1
+      next
+    }
+    $0 !~ /^\// {
+      print "not-absolute:" $0
+      invalid = 1
+      next
+    }
+    END { exit invalid ? 1 : 0 }
+  '
+}
+
 print_required() {
   local path=$1
   local label=$2
@@ -42,6 +120,7 @@ print_required() {
 }
 
 echo "[ubuntu-rootfs-check] image: $IMAGE"
+echo "[ubuntu-rootfs-check] flavor: $ROOTFS_FLAVOR"
 
 missing=0
 print_required /init "stage1 init" || missing=1
@@ -144,10 +223,36 @@ if [ "$REQUIRE_SYSTEMD" = "1" ] && [ -n "$systemd_bin" ]; then
     systemd_missing=1
   fi
 
+  # autologin 仍会经过 /bin/login 的 PAM 栈；目录存在但关键模块不可搜索会导致反复
+  # "Module is unknown"，因此严格 gate 必须检查 login 所需的基础模块。
+  for module in pam_unix.so pam_deny.so pam_permit.so pam_env.so pam_loginuid.so pam_limits.so; do
+    pam_module_path="/lib/riscv64-linux-gnu/security/$module"
+    if rootfs_has "$pam_module_path"; then
+      echo "[ubuntu-rootfs-check] OK      PAM login module: $pam_module_path"
+    else
+      echo "[ubuntu-rootfs-check] MISSING PAM login module: $pam_module_path"
+      systemd_missing=1
+    fi
+  done
+
   if rootfs_has /sbin/e2scrub_all; then
     echo "[ubuntu-rootfs-check] OK      e2scrub service entrypoint: /sbin/e2scrub_all"
   else
     echo "[ubuntu-rootfs-check] MISSING e2scrub service entrypoint: /sbin/e2scrub_all"
+    systemd_missing=1
+  fi
+
+  if rootfs_symlink_points_to /etc/systemd/system/e2scrub_reap.service /dev/null; then
+    echo "[ubuntu-rootfs-check] OK      boot-blocking e2scrub reap masked: /etc/systemd/system/e2scrub_reap.service"
+  else
+    echo "[ubuntu-rootfs-check] MISSING boot-blocking e2scrub reap mask"
+    systemd_missing=1
+  fi
+
+  if rootfs_symlink_points_to /etc/systemd/system/e2scrub_all.timer /dev/null; then
+    echo "[ubuntu-rootfs-check] OK      periodic e2scrub timer masked: /etc/systemd/system/e2scrub_all.timer"
+  else
+    echo "[ubuntu-rootfs-check] MISSING periodic e2scrub timer mask"
     systemd_missing=1
   fi
 
@@ -157,9 +262,146 @@ if [ "$REQUIRE_SYSTEMD" = "1" ] && [ -n "$systemd_bin" ]; then
     echo "[ubuntu-rootfs-check] MISSING unavailable hvc0 getty mask"
     systemd_missing=1
   fi
+
+  if [ "$ROOTFS_FLAVOR" = "full" ]; then
+    if rootfs_has /etc/ssh/sshd_config; then
+      echo "[ubuntu-rootfs-check] OK      OpenSSH server config: /etc/ssh/sshd_config"
+    else
+      echo "[ubuntu-rootfs-check] MISSING OpenSSH server config: /etc/ssh/sshd_config"
+      systemd_missing=1
+    fi
+
+    if rootfs_file_contains /etc/passwd '^syslog:'; then
+      echo "[ubuntu-rootfs-check] OK      syslog passwd entry: /etc/passwd"
+    else
+      echo "[ubuntu-rootfs-check] MISSING syslog passwd entry"
+      systemd_missing=1
+    fi
+
+    if rootfs_file_contains /etc/group '^syslog:'; then
+      echo "[ubuntu-rootfs-check] OK      syslog group entry: /etc/group"
+    else
+      echo "[ubuntu-rootfs-check] MISSING syslog group entry"
+      systemd_missing=1
+    fi
+
+    if rootfs_file_contains /etc/passwd '^sshd:'; then
+      echo "[ubuntu-rootfs-check] OK      sshd passwd entry: /etc/passwd"
+    else
+      echo "[ubuntu-rootfs-check] MISSING sshd passwd entry"
+      systemd_missing=1
+    fi
+
+    if rootfs_file_contains /etc/group '^sshd:'; then
+      echo "[ubuntu-rootfs-check] OK      sshd group entry: /etc/group"
+    else
+      echo "[ubuntu-rootfs-check] MISSING sshd group entry"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /etc/ssh/ssh_host_ed25519_key; then
+      echo "[ubuntu-rootfs-check] OK      OpenSSH ed25519 host key: /etc/ssh/ssh_host_ed25519_key"
+    else
+      echo "[ubuntu-rootfs-check] MISSING OpenSSH ed25519 host key"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /etc/ssh/ssh_host_rsa_key; then
+      echo "[ubuntu-rootfs-check] OK      OpenSSH rsa host key: /etc/ssh/ssh_host_rsa_key"
+    else
+      echo "[ubuntu-rootfs-check] MISSING OpenSSH rsa host key"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /var/spool/rsyslog; then
+      echo "[ubuntu-rootfs-check] OK      rsyslog spool directory: /var/spool/rsyslog"
+    else
+      echo "[ubuntu-rootfs-check] MISSING rsyslog spool directory: /var/spool/rsyslog"
+      systemd_missing=1
+    fi
+
+    if rootfs_symlink_points_to /etc/systemd/system/syslog.service /lib/systemd/system/rsyslog.service; then
+      echo "[ubuntu-rootfs-check] OK      syslog service alias: /etc/systemd/system/syslog.service"
+    else
+      echo "[ubuntu-rootfs-check] MISSING syslog service alias"
+      systemd_missing=1
+    fi
+
+    # chrootless full overlay 也必须维护 dpkg 状态库，否则 apt/dpkg 在 guest 内会
+    # 看不到由 dpkg-deb 解包出来的 server-like 用户态组件。
+    for package in ubuntu-standard openssh-server curl wget dropbear-bin rsyslog cron systemd-timesyncd; do
+      if rootfs_dpkg_status_installed "$package"; then
+        echo "[ubuntu-rootfs-check] OK      dpkg status installed: $package"
+      else
+        echo "[ubuntu-rootfs-check] MISSING dpkg status installed: $package"
+        systemd_missing=1
+      fi
+    done
+    for package in ubuntu-standard openssh-server curl wget dropbear-bin rsyslog cron systemd-timesyncd; do
+      if rootfs_has "/var/lib/dpkg/info/$package.list"; then
+        echo "[ubuntu-rootfs-check] OK      dpkg info list: $package"
+      else
+        echo "[ubuntu-rootfs-check] MISSING dpkg info list: $package"
+        systemd_missing=1
+      fi
+    done
+
+    dpkg_info_list_count=0
+    dpkg_info_list_invalid=0
+    while IFS= read -r list_name; do
+      [ -n "$list_name" ] || continue
+      package=${list_name%.list}
+      dpkg_info_list_count=$((dpkg_info_list_count + 1))
+      invalid_records=$(rootfs_dpkg_info_list_invalid_records "$package" || true)
+      if [ -n "$invalid_records" ]; then
+        echo "[ubuntu-rootfs-check] MISSING dpkg info list valid names: $package $invalid_records"
+        dpkg_info_list_invalid=1
+      fi
+    done < <(rootfs_dpkg_info_list_files)
+    if [ "$dpkg_info_list_count" -gt 0 ] && [ "$dpkg_info_list_invalid" -eq 0 ]; then
+      echo "[ubuntu-rootfs-check] OK      dpkg info list valid names: $dpkg_info_list_count list files"
+    else
+      echo "[ubuntu-rootfs-check] MISSING dpkg info list valid names"
+      systemd_missing=1
+    fi
+
+    for ownership in \
+      "curl:/usr/bin/curl" \
+      "wget:/usr/bin/wget" \
+      "openssh-server:/usr/sbin/sshd" \
+      "dropbear-bin:/usr/bin/dbclient" \
+      "dropbear-bin:/usr/sbin/dropbear" \
+      "rsyslog:/usr/sbin/rsyslogd" \
+      "cron:/usr/sbin/cron"; do
+      package=${ownership%%:*}
+      path=${ownership#*:}
+      if rootfs_dpkg_info_list_contains "$package" "$path"; then
+        echo "[ubuntu-rootfs-check] OK      dpkg info ownership: $package $path"
+      else
+        echo "[ubuntu-rootfs-check] MISSING dpkg info ownership: $package $path"
+        systemd_missing=1
+      fi
+    done
+  fi
 fi
 
 if [ "$systemd_missing" -ne 0 ]; then
+  missing=1
+fi
+
+flavor_missing=0
+while IFS='|' read -r path label; do
+  [ -n "$path" ] || continue
+  if rootfs_has "$path"; then
+    echo "[ubuntu-rootfs-check] OK      $label: $path"
+  else
+    echo "[ubuntu-rootfs-check] MISSING $label: $path"
+    flavor_missing=1
+  fi
+done < <(ubuntu_rootfs_flavor_required_paths "$ROOTFS_FLAVOR")
+
+if [ "$flavor_missing" -ne 0 ]; then
+  echo "[ubuntu-rootfs-check] flavor $ROOTFS_FLAVOR is incomplete"
   missing=1
 fi
 

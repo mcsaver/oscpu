@@ -35,9 +35,13 @@ word_t isa_riscv32_plic_pending_bits(void);
 void isa_riscv32_plic_statistic(void);
 void isa_riscv32_post_exec(void);
 void isa_riscv32_reset(void);
+void isa_riscv32_restart(void);
 void isa_riscv32_mmu_tlb_flush(void);
 void isa_riscv32_mmu_tlb_flush_selective(vaddr_t vaddr, bool flush_vaddr,
     word_t asid, bool flush_asid);
+word_t isa_riscv32_mmu_fault_cause(int type);
+bool isa_riscv32_pmp_check(paddr_t paddr, int len, int type);
+void isa_riscv32_lr_sc_invalidate(paddr_t paddr, int len);
 void isa_riscv32_wfi(void);
 
 word_t isa_riscv32_mip_value(void);
@@ -64,8 +68,12 @@ void isa_riscv32_raise_timer_intr(void);
 #define isa_riscv_plic_statistic isa_riscv32_plic_statistic
 #define isa_riscv_post_exec isa_riscv32_post_exec
 #define isa_riscv_reset isa_riscv32_reset
+#define isa_riscv_restart isa_riscv32_restart
 #define isa_riscv_mmu_tlb_flush isa_riscv32_mmu_tlb_flush
 #define isa_riscv_mmu_tlb_flush_selective isa_riscv32_mmu_tlb_flush_selective
+#define isa_riscv_mmu_fault_cause isa_riscv32_mmu_fault_cause
+#define isa_riscv_pmp_check isa_riscv32_pmp_check
+#define isa_riscv_lr_sc_invalidate isa_riscv32_lr_sc_invalidate
 #define isa_riscv_wfi isa_riscv32_wfi
 #define isa_riscv_mip_value isa_riscv32_mip_value
 #define isa_riscv_intr_pending_fast isa_riscv32_intr_pending_fast

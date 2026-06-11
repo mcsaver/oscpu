@@ -1,0 +1,8 @@
+[software-flow] contract
+PASS .github/agents/software-flow.agent.md
+PASS .github/e2e/modules/software-flow.md
+PASS .github/e2e/profiles/software-flow.tsv
+PASS .github/memory/modules/software-flow.md
+PASS .github/agents/nemu.agent.md
+PASS .github/agents/abstract-machine.agent.md
+PASS .github/agents/am-kernels.agent.md

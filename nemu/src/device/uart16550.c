@@ -504,3 +504,29 @@ bool uart16550_irq_level(const Uart16550 *uart) {
   assert(uart != NULL);
   return uart->irq_level;
 }
+
+void uart16550_snapshot(const Uart16550 *uart, Uart16550Snapshot *snapshot) {
+  assert(uart != NULL);
+  assert(snapshot != NULL);
+
+  memset(snapshot, 0, sizeof(*snapshot));
+  snapshot->dll = uart->dll;
+  snapshot->dlm = uart->dlm;
+  snapshot->ier = uart->ier;
+  snapshot->iir = uart_interrupt_id(uart) | uart_fifo_iir_bits(uart);
+  snapshot->fcr = uart->fcr;
+  snapshot->lcr = uart->lcr;
+  snapshot->mcr = uart->mcr;
+  snapshot->lsr = uart_lsr_value(uart);
+  snapshot->msr = uart->msr;
+  snapshot->scr = uart->scr;
+  snapshot->dlab = (uart->lcr & UART16550_LCR_DLAB) != 0;
+  snapshot->fifo_enabled = uart->fifo_enabled;
+  snapshot->thr_irq_pending = uart->thr_irq_pending;
+  snapshot->irq_level = uart->irq_level;
+  snapshot->rx_fifo_capacity = uart->rx_fifo.capacity;
+  snapshot->rx_fifo_visible_capacity = uart_rx_visible_capacity(uart);
+  snapshot->rx_fifo_count = uart->rx_fifo.count;
+  snapshot->rx_fifo_room = uart16550_rx_room(uart);
+  snapshot->rx_trigger = uart->rx_trigger;
+}

@@ -1,0 +1,130 @@
+[github-index] contract
+PASS scripts/github_index_db.py
+PASS .github/e2e/modules/github-index.md
+PASS .github/e2e/profiles/github-index.tsv
+[github-index] tracked persistent sources
+PASS github-index persistent sources are tracked
+[github-index] filesystem source and database boundary
+PASS github-index defaults to .github source and .github/cache SQLite index
+PASS github-index database cache is ignored by git
+[github-index] python syntax
+[github-index] temporary rebuild/stat/query/doctor smoke
+PASS rebuild files=6056 db=/tmp/tmp.DO1ikYtbIo/github-index.sqlite
+db=/tmp/tmp.DO1ikYtbIo/github-index.sqlite
+schema_version=1
+fts5=1
+root=.github
+last_rebuild_at=2026-06-11T07:33:48+00:00
+files=6056
+indexed=5559
+[status]
+indexed=5559
+skipped_binary=452
+skipped_encoding=45
+[kind]
+agent=18
+agent-rule=1
+dispatch-log=511
+e2e-module=20
+e2e-profile=32
+instruction=11
+markdown=3
+memory=3
+memory-module=10
+task-evidence=3084
+task-report=543
+task-run=1818
+task-template=2
+ls=.github/e2e dirs=2 files=1
+DIR  modules/ (20)
+DIR  profiles/ (32)
+FILE README.md [markdown indexed] size=23327 lines=95 title=Modular Agent E2E
+tree=.github/e2e rows=53 depth=2
+README.md [markdown indexed]
+modules/
+  abstract-machine.md [e2e-module indexed]
+  agent-system.md [e2e-module indexed]
+  am-kernels.md [e2e-module indexed]
+  difftest.md [e2e-module indexed]
+  digital-logic.md [e2e-module indexed]
+  display-vga.md [e2e-module indexed]
+  fceux-am.md [e2e-module indexed]
+  github-index.md [e2e-module indexed]
+  hardware-flow.md [e2e-module indexed]
+  linux-device.md [e2e-module indexed]
+  nemu.md [e2e-module indexed]
+  npc.md [e2e-module indexed]
+  nvboard.md [e2e-module indexed]
+  rv64-linux.md [e2e-module indexed]
+  software-flow.md [e2e-module indexed]
+  toolchain.md [e2e-module indexed]
+  verilator-tapeout.md [e2e-module indexed]
+  yosys-sta.md [e2e-module indexed]
+  ysyx-coordinator.md [e2e-module indexed]
+  ysyx-soc.md [e2e-module indexed]
+profiles/
+  README.md [e2e-profile indexed]
+  abstract-machine.tsv [e2e-profile indexed]
+  agent-system.tsv [e2e-profile indexed]
+  am-kernels.tsv [e2e-profile indexed]
+  contracts.tsv [e2e-profile indexed]
+  difftest.tsv [e2e-profile indexed]
+  digital-logic.tsv [e2e-profile indexed]
+  discovery.tsv [e2e-profile indexed]
+  display-vga.tsv [e2e-profile indexed]
+query=software-flow mode=fts results=8
+.github/task-runs/2026-06-11-software-flow-methodology-guard/evidence/software-flow-contract.log:1 [task-evidence indexed] software-flow-contract.log
+  [software-flow] contract PASS .github/agents/software-flow.agent.md PASS .github/e2e/modules/software-flow.md P
+.github/task-runs/2026-06-11-software-flow-methodology-guard-2/evidence/software-flow-contract.log:1 [task-evidence indexed] software-flow-contract.log
+  [software-flow] contract PASS .github/agents/software-flow.agent.md PASS .github/e2e/modules/software-flow.md P
+.github/task-runs/2026-06-11-nemu-ubuntu-software-flow-methodology-include/evidence/software-flow-contract.log:1 [task-evidence indexed] software-flow-contract.log
+  [software-flow] contract PASS .github/agents/software-flow.agent.md PASS .github/e2e/modules/software-flow.md P
+.github/task-runs/2026-06-11-nemu-full-dpkg-ownership-contract/evidence/software-flow-contract.log:1 [task-evidence indexed] software-flow-contract.log
+  [software-flow] contract PASS .github/agents/software-flow.agent.md PASS .github/e2e/modules/software-flow.md P
+.github/task-runs/2026-06-11-nemu-full-dpkg-list-valid-contract/evidence/software-flow-contract.log:1 [task-evidence indexed] software-flow-contract.log
+  [software-flow] contract PASS .github/agents/software-flow.agent.md PASS .github/e2e/modules/software-flow.md P
+.github/task-runs/2026-06-11-nemu-full-dpkg-ownership-real-run/evidence/software-flow-contract.log:1 [task-evidence indexed] software-flow-contract.log
+  [software-flow] contract PASS .github/agents/software-flow.agent.md PASS .github/e2e/modules/software-flow.md P
+.github/task-runs/2026-06-11-nemu-full-dpkg-ownership-real-run-2/evidence/software-flow-contract.log:1 [task-evidence indexed] software-flow-contract.log
+  [software-flow] contract PASS .github/agents/software-flow.agent.md PASS .github/e2e/modules/software-flow.md P
+.github/task-runs/2026-06-11-github-index-db-ops-e2e/evidence/github-index-contract.log:59 [task-evidence indexed] Software Flow 模块笔记 ## 当前状态 - 2026-06-11：`software-flow` 方法论守门已被 NEMU Ubuntu 主 profile 显式消费。此前 `nemu-ubuntu.tsv` 已 include `software-flow`，但主要靠 profile
+  dexed] npc.md [e2e-module indexed] nvboard.md [e2e-module indexed] rv64-linux.md [e2e-module indexed] software-flow.md [e2e-module indexed] toolchain.md [e2e-module indexed] verilator-tapeout.md [e2e-module i
+PASS github-index query returns software-flow .github artifacts
+doctor=github-index
+indexed=5559
+  .github/AGENTS.md
+  .github/agentic-hardware-blueprint.md
+  .github/agents/abstract-machine.agent.md
+  .github/agents/agent-system.agent.md
+  .github/agents/am-kernels.agent.md
+  .github/agents/difftest.agent.md
+  .github/agents/digital-logic.agent.md
+  .github/agents/display-vga.agent.md
+skipped_binary=452
+  .github/task-runs/2026-06-06-nemu-goldfish-rtc-v2/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-goldfish-rtc/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-host-page-tlb-focused/nemu-ubuntu-focused/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-interpreter-tb-focused/nemu-ubuntu-focused/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-itlb-dtlb-split-focused/nemu-ubuntu-focused/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-serial-tx-buffer-focused/nemu-ubuntu-focused/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-vaddr-pmem-fast-focused/nemu-ubuntu-focused/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-virtio-blk-config-wce/nemu-systemd-syscall-probe.riscv64
+skipped_encoding=45
+  .github/task-runs/2026-06-06-nemu-goldfish-rtc-v2/console.log
+  .github/task-runs/2026-06-06-nemu-goldfish-rtc/console.log
+  .github/task-runs/2026-06-06-nemu-host-page-tlb-focused/nemu-ubuntu-focused/console.log
+  .github/task-runs/2026-06-06-nemu-interpreter-tb-focused/nemu-ubuntu-focused/console.log
+  .github/task-runs/2026-06-06-nemu-itlb-dtlb-split-focused/nemu-ubuntu-focused/console.log
+  .github/task-runs/2026-06-06-nemu-serial-tx-buffer-focused/nemu-ubuntu-focused/console.log
+  .github/task-runs/2026-06-06-nemu-vaddr-pmem-fast-focused/nemu-ubuntu-focused/console.log
+  .github/task-runs/2026-06-06-nemu-virtio-blk-config-wce/console.log
+[github-index] add/refresh/remove maintenance smoke
+PASS add .github/memory/github-index-note.md bytes=65 status=indexed
+ls=.github/memory dirs=0 files=1
+FILE github-index-note.md [memory indexed] size=65 lines=3 title=Mini github-index note
+query=github-index mode=fts results=1
+.github/memory/github-index-note.md:1 [memory indexed] Mini github-index note
+  # Mini github-index note software-flow github-index maintenance
+PASS refresh .github/memory/github-index-note.md status=indexed
+PASS remove .github/memory/github-index-note.md mode=file+index
+PASS github-index remove deleted source file in mini repo

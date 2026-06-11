@@ -215,12 +215,37 @@ static VirtioBlkAsyncReq *disk_done_tail;
 static bool disk_worker_started;
 static uint64_t disk_async_submitted;
 static uint64_t disk_async_completed;
+#ifdef CONFIG_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG
+static bool disk_async_done_pending;
+#endif
 #endif
 
 static void virtio_blk_execute_request(VirtioBlkAsyncReq *req);
 static void virtio_blk_complete_request(VirtioBlkAsyncReq *req);
 static void virtio_blk_submit_request(VirtioBlkAsyncReq *req);
 static void virtio_blk_poll_async(void);
+
+#if VIRTIO_BLK_ASYNC_BACKEND
+static inline void virtio_blk_mark_done_pending(void) {
+#ifdef CONFIG_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG
+  __atomic_store_n(&disk_async_done_pending, true, __ATOMIC_RELEASE);
+#endif
+}
+
+static inline bool virtio_blk_done_maybe_pending(void) {
+#ifdef CONFIG_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG
+  return __atomic_load_n(&disk_async_done_pending, __ATOMIC_ACQUIRE);
+#else
+  return true;
+#endif
+}
+
+static inline void virtio_blk_clear_done_pending_locked(void) {
+#ifdef CONFIG_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG
+  __atomic_store_n(&disk_async_done_pending, false, __ATOMIC_RELEASE);
+#endif
+}
+#endif
 
 static void virtio_blk_free_request(VirtioBlkAsyncReq *req) {
   if (req == NULL) return;
@@ -332,6 +357,7 @@ static void *virtio_blk_worker_main(void *opaque) {
     pthread_mutex_lock(&disk_async_lock);
     disk_async_completed++;
     virtio_blk_push_req(&disk_done_head, &disk_done_tail, req);
+    virtio_blk_mark_done_pending();
     pthread_mutex_unlock(&disk_async_lock);
   }
   return NULL;
@@ -355,11 +381,17 @@ static void virtio_blk_submit_request(VirtioBlkAsyncReq *req) {
 }
 
 static void virtio_blk_poll_async(void) {
+  if (!virtio_blk_done_maybe_pending()) return;
+
   while (true) {
     pthread_mutex_lock(&disk_async_lock);
     VirtioBlkAsyncReq *req = virtio_blk_pop_req(&disk_done_head, &disk_done_tail);
+    if (req == NULL) {
+      virtio_blk_clear_done_pending_locked();
+      pthread_mutex_unlock(&disk_async_lock);
+      break;
+    }
     pthread_mutex_unlock(&disk_async_lock);
-    if (req == NULL) break;
     virtio_blk_complete_request(req);
   }
 }
@@ -470,6 +502,8 @@ void virtio_blk_dump_machine_info(FILE *out) {
   fprintf(out, "device.virtio_blk.multiqueue=enabled\n");
   fprintf(out, "device.virtio_blk.async=%s\n",
       VIRTIO_BLK_ASYNC_BACKEND ? "threaded-poll" : "unsupported");
+  fprintf(out, "device.virtio_blk.async_completion_fast_flag=%d\n",
+      ISDEF(CONFIG_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG));
   fprintf(out, "device.virtio_blk.queue_num_max=%u\n", VIRTIO_BLK_QUEUE_SIZE);
   fprintf(out, "device.virtio_blk.read_mmap=%s\n", disk_mmap != NULL ? "enabled" : "disabled");
   fprintf(out, "device.virtio_blk.read_mmap_bytes=%" PRIu64 "\n", disk_mmap_size);

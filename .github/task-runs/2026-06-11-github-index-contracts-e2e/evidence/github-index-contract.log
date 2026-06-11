@@ -1,0 +1,83 @@
+[github-index] contract
+PASS scripts/github_index_db.py
+PASS .github/e2e/modules/github-index.md
+PASS .github/e2e/profiles/github-index.tsv
+[github-index] tracked persistent sources
+PASS github-index persistent sources are tracked
+[github-index] filesystem source and database boundary
+PASS github-index defaults to .github source and .github/cache SQLite index
+PASS github-index database cache is ignored by git
+[github-index] python syntax
+[github-index] temporary rebuild/stat/query/doctor smoke
+PASS rebuild files=5899 db=/tmp/tmp.ahEJyL7pcZ/github-index.sqlite
+db=/tmp/tmp.ahEJyL7pcZ/github-index.sqlite
+schema_version=1
+fts5=1
+root=.github
+last_rebuild_at=2026-06-11T05:42:53+00:00
+files=5899
+indexed=5414
+[status]
+indexed=5414
+skipped_binary=440
+skipped_encoding=45
+[kind]
+agent=18
+agent-rule=1
+dispatch-log=502
+e2e-module=20
+e2e-profile=32
+instruction=11
+markdown=3
+memory=3
+memory-module=10
+task-evidence=2989
+task-report=534
+task-run=1774
+task-template=2
+query=software-flow results=8
+.github/AGENTS.md:41 [agent-rule indexed] AGENTS.md — YSYX 工作区 Agent 通用工作流规范
+  先用 `scripts/agent-e2e.sh --list-profiles` 查看模块 profile，再按任务选择 `discovery`、`contracts`、`quick`、`agent-system`、`software-flow`、`github-index`、`abstract-machine`、`am-kernels`、`hardware-flow`、`nemu`、`npc`、`rv64-linux` 等 prof
+.github/agents/agent-system.agent.md:32 [agent indexed] agent-system.agent.md
+  ate-all-profiles` 与 `scripts/agent-e2e.sh --profile discovery`；若触及模块覆盖或用户要求 e2e，优先运行相关模块 profile（如 `--profile software-flow`）、`--profile agent-system`、`--profile contracts` 和 `--profile quick` 生成 task-run 证据 ## 约束 - 只修
+.github/agents/hardware-flow.agent.md:2 [agent indexed] hardware-flow.agent.md
+  s/display 设备闭环、Verilator-first 流片约束、ysyxSoC SoC 接入或回归闭环时使用；若闭环中的产物是 C/C++/Python/Shell/Make/Kconfig 软件改动，应先叠加 software-flow。" tools: [read, edit, search, execute, agent, todo] agents: [software-flow, nemu, abstract-machi
+.github/agents/nemu.agent.md:2 [agent indexed] nemu.agent.md
+  调试 monitor/trace/watchpoint，或为 NPC single/soc/RV64 Linux 构建 reference 与管理面时使用；NEMU 是用软件表达硬件/系统语义的模型，C 侧开发必须叠加 software-flow。" tools: [read, edit, search, execute, agent, todo] agents: [software-flow, hardware-flow, rv64-
+.github/agents/software-flow.agent.md:23 [agent indexed] software-flow.agent.md
+  md` 2. 读取 `.github/memory/project-status.md` 与 `.github/memory/known-issues.md` 3. 读取 `.github/memory/modules/software-flow.md` 4. 按任务涉及模块补读 `.github/memory/modules/<模块>.md` 5. 若任务涉及 agent/e2e/规则发现，额外读取 `.github/memory/m
+.github/agents/ysyx-coordinator.agent.md:4 [agent indexed] ysyx-coordinator.agent.md
+  静态/动态任务图、调度循环和持久化记忆。" tools: [read, edit, search, agent, todo, execute] agents: [agent-system, hardware-flow, software-flow, rv64-linux, linux-device, display-vga, verilator-tapeout, nemu, abstract-machine, am-kernels, n
+.github/copilot-instructions.md:65 [instruction indexed] YSYX 工作区 — 全局指导规范
+  nux tools、guest check、host C++ harness、QMP/GDB 和设备模型属于“软件实现硬件/系统语义”的任务，默认走 `hardware-aware-software-loop`：先由 `software-flow` 收敛软件需求、契约、实现和测试，再叠加 `nemu-ubuntu`、`hardware-flow`、`rv64-linux`、`difftest` 或 target gate。 - 选图顺序
+.github/instructions/agent-e2e-workflow.instructions.md:29 [instruction indexed] Agent E2E Workflow
+  s/agent-e2e.sh --profile discovery scripts/agent-e2e.sh --profile agent-system scripts/agent-e2e.sh --profile software-flow scripts/agent-e2e.sh --profile github-index scripts/agent-e2e.sh --profile contracts scripts/age
+PASS github-index query returns software-flow .github artifacts
+doctor=github-index
+indexed=5414
+  .github/AGENTS.md
+  .github/agentic-hardware-blueprint.md
+  .github/agents/abstract-machine.agent.md
+  .github/agents/agent-system.agent.md
+  .github/agents/am-kernels.agent.md
+  .github/agents/difftest.agent.md
+  .github/agents/digital-logic.agent.md
+  .github/agents/display-vga.agent.md
+skipped_binary=440
+  .github/task-runs/2026-06-06-nemu-goldfish-rtc-v2/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-goldfish-rtc/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-host-page-tlb-focused/nemu-ubuntu-focused/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-interpreter-tb-focused/nemu-ubuntu-focused/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-itlb-dtlb-split-focused/nemu-ubuntu-focused/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-serial-tx-buffer-focused/nemu-ubuntu-focused/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-vaddr-pmem-fast-focused/nemu-ubuntu-focused/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-virtio-blk-config-wce/nemu-systemd-syscall-probe.riscv64
+skipped_encoding=45
+  .github/task-runs/2026-06-06-nemu-goldfish-rtc-v2/console.log
+  .github/task-runs/2026-06-06-nemu-goldfish-rtc/console.log
+  .github/task-runs/2026-06-06-nemu-host-page-tlb-focused/nemu-ubuntu-focused/console.log
+  .github/task-runs/2026-06-06-nemu-interpreter-tb-focused/nemu-ubuntu-focused/console.log
+  .github/task-runs/2026-06-06-nemu-itlb-dtlb-split-focused/nemu-ubuntu-focused/console.log
+  .github/task-runs/2026-06-06-nemu-serial-tx-buffer-focused/nemu-ubuntu-focused/console.log
+  .github/task-runs/2026-06-06-nemu-vaddr-pmem-fast-focused/nemu-ubuntu-focused/console.log
+  .github/task-runs/2026-06-06-nemu-virtio-blk-config-wce/console.log

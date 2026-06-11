@@ -16,6 +16,7 @@ applyTo: "**"
 ├── known-issues.md          — 已知问题与调试历史
 └── modules/                 — 各模块专属笔记
     ├── agent-system.md      — agent 架构与工作流环境
+    ├── software-flow.md     — 软件开发全流程
     ├── npc.md
     ├── nemu.md
     ├── abstract-machine.md

@@ -1,0 +1,1023 @@
+
+OpenSBI v1.8
+   ____                    _____ ____ _____
+  / __ \                  / ____|  _ \_   _|
+ | |  | |_ __   ___ _ __ | (___ | |_) || |
+ | |  | | '_ \ / _ \ '_ \ \___ \|  _ < | |
+ | |__| | |_) |  __/ | | |____) | |_) || |_
+  \____/| .__/ \___|_| |_|_____/|____/_____|
+        | |
+        |_|
+
+Platform Name               : YSYX NPC RV64
+Platform Features           : medeleg
+Platform HART Count         : 1
+Platform HART Protection    : pmp
+Platform IPI Device         : aclint-mswi
+Platform Timer Device       : aclint-mtimer @ 10000000Hz
+Platform Console Device     : uart8250
+Platform HSM Device         : ---
+Platform PMU Device         : ---
+Platform Reboot Device      : syscon-reboot
+Platform Shutdown Device    : syscon-poweroff
+Platform Suspend Device     : ---
+Platform CPPC Device        : ---
+Firmware Base               : 0x80000000
+Firmware Size               : 321 KB
+Firmware RW Offset          : 0x40000
+Firmware RW Size            : 65 KB
+Firmware Heap Offset        : 0x47000
+Firmware Heap Size          : 37 KB (total), 0 KB (reserved), 10 KB (used), 25 KB (free)
+Firmware Scratch Size       : 4096 B (total), 408 B (used), 3688 B (free)
+Runtime SBI Version         : 3.0
+Standard SBI Extensions     : time,rfnc,ipi,base,hsm,srst,dbcn,fwft,legacy,sse
+Experimental SBI Extensions : none
+
+Domain0 Name                : root
+Domain0 Boot HART           : 0
+Domain0 HARTs               : 0*
+Domain0 Region00            : 0x0000000080040000-0x000000008005ffff M: (F,R,W) S/U: ()
+Domain0 Region01            : 0x0000000080000000-0x000000008003ffff M: (F,R,X) S/U: ()
+Domain0 Region02            : 0x0000000000100000-0x0000000000100fff M: (I,R,W) S/U: (R,W)
+Domain0 Region03            : 0x0000000010000000-0x0000000010000fff M: (I,R,W) S/U: (R,W)
+Domain0 Region04            : 0x0000000002000000-0x000000000200ffff M: (I,R,W) S/U: ()
+Domain0 Region05            : 0x000000000c000000-0x000000000fffffff M: (I,R,W) S/U: (R,W)
+Domain0 Region06            : 0x0000000000000000-0xffffffffffffffff M: () S/U: (R,W,X)
+Domain0 Next Address        : 0x0000000080200000
+Domain0 Next Arg1           : 0x0000000082200000
+Domain0 Next Mode           : S-mode
+Domain0 SysReset            : yes
+Domain0 SysSuspend          : yes
+
+Boot HART ID                : 0
+Boot HART Domain            : root
+Boot HART Priv Version      : v1.11
+Boot HART Base ISA          : rv64imafdc
+Boot HART ISA Extensions    : zicntr
+Boot HART PMP Count         : 16
+Boot HART PMP Granularity   : 2 bits
+Boot HART PMP Address Bits  : 54
+Boot HART MHPM Info         : 0 (0x00000000)
+Boot HART Debug Triggers    : 0 triggers
+Boot HART MIDELEG           : 0x0000000000000222
+Boot HART MEDELEG           : 0x000000000004b109
+[    0.000000] Linux version 6.6.0 (lyg@lygdebug) (riscv64-linux-gnu-gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, GNU ld (GNU Binutils for Ubuntu) 2.42) #19 Mon Jun  8 11:07:33 CST 2026
+[    0.000000] random: crng init done
+[    0.000000] Machine model: YSYX NPC RV64
+[    0.000000] SBI specification v3.0 detected
+[    0.000000] SBI implementation ID=0x1 Version=0x10008
+[    0.000000] SBI TIME extension detected
+[    0.000000] SBI IPI extension detected
+[    0.000000] SBI RFENCE extension detected
+[    0.000000] SBI SRST extension detected
+[    0.000000] efi: UEFI not found.
+[    0.000000] OF: reserved mem: 0x0000000080000000..0x000000008003ffff (256 KiB) nomap non-reusable mmode_resv1@80000000
+[    0.000000] OF: reserved mem: 0x0000000080040000..0x000000008005ffff (128 KiB) nomap non-reusable mmode_resv0@80040000
+[    0.000000] Zone ranges:
+[    0.000000]   DMA32    [mem 0x0000000080000000-0x00000000bfffffff]
+[    0.000000]   Normal   empty
+[    0.000000] Movable zone start for each node
+[    0.000000] Early memory node ranges
+[    0.000000]   node   0: [mem 0x0000000080000000-0x000000008005ffff]
+[    0.000000]   node   0: [mem 0x0000000080060000-0x00000000bfffffff]
+[    0.000000] Initmem setup node 0 [mem 0x0000000080000000-0x00000000bfffffff]
+[    0.000000] riscv: base ISA extensions acdfim
+[    0.000000] riscv: ELF capabilities acdfim
+[    0.000000] Kernel command line: console=ttyS0,115200n8 root=/dev/vda rw init=/lib/systemd/systemd
+[    0.000000] Dentry cache hash table entries: 131072 (order: 8, 1048576 bytes, linear)
+[    0.000000] Inode-cache hash table entries: 65536 (order: 7, 524288 bytes, linear)
+[    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: 258048
+[    0.000000] mem auto-init: stack:off, heap alloc:off, heap free:off
+[    0.000000] Memory: 997392K/1048576K available (4284K kernel code, 4800K rwdata, 2048K rodata, 2110K init, 349K bss, 51184K reserved, 0K cma-reserved)
+[    0.000000] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
+[    0.000000] NR_IRQS: 64, nr_irqs: 64, preallocated irqs: 0
+[    0.000000] riscv-intc: 64 local interrupts mapped
+[    0.000000] plic: interrupt-controller@c000000: mapped 32 interrupts with 1 handlers for 2 contexts.
+[    0.000000] clocksource: riscv_clocksource: mask: 0xffffffffffffffff max_cycles: 0x24e6a1710, max_idle_ns: 440795202120 ns
+[    0.000025] sched_clock: 64 bits at 10MHz, resolution 100ns, wraps every 4398046511100ns
+[    0.006780] Calibrating delay loop (skipped), value calculated using timer frequency.. 20.00 BogoMIPS (lpj=40000)
+[    0.007490] pid_max: default: 32768 minimum: 301
+[    0.011049] LSM: initializing lsm=capability,integrity
+[    0.017530] Mount-cache hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[    0.018669] Mountpoint-cache hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[    0.075555] RCU Tasks Trace: Setting shift to 0 and lim to 1 rcu_task_cb_adjust=1.
+[    0.078973] riscv: ELF compat mode unsupported
+[    0.079541] ASID allocator using 16 bits (65536 entries)
+[    0.085640] EFI services will not be available.
+[    0.101606] devtmpfs: initialized
+[    0.178204] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 7645041785100000 ns
+[    0.178963] futex hash table entries: 256 (order: 1, 12288 bytes, linear)
+[    0.198017] NET: Registered PF_NETLINK/PF_ROUTE protocol family
+[    0.207217] DMA: preallocated 128 KiB GFP_KERNEL pool for atomic allocations
+[    0.208498] DMA: preallocated 128 KiB GFP_KERNEL|GFP_DMA32 pool for atomic allocations
+[    0.426722] clocksource: Switched to clocksource riscv_clocksource
+[    0.508068] NET: Registered PF_INET protocol family
+[    0.515415] IP idents hash table entries: 16384 (order: 5, 131072 bytes, linear)
+[    0.807911] tcp_listen_portaddr_hash hash table entries: 512 (order: 2, 16384 bytes, linear)
+[    0.810089] Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+[    0.811275] TCP established hash table entries: 8192 (order: 4, 65536 bytes, linear)
+[    0.821698] TCP bind hash table entries: 8192 (order: 7, 524288 bytes, linear)
+[    0.867440] TCP: Hash tables configured (established 8192 bind 8192)
+[    0.871433] UDP hash table entries: 512 (order: 3, 49152 bytes, linear)
+[    0.875999] UDP-Lite hash table entries: 512 (order: 3, 49152 bytes, linear)
+[    0.884852] NET: Registered PF_UNIX/PF_LOCAL protocol family
+[    0.930189] workingset: timestamp_bits=46 max_order=18 bucket_order=0
+[    0.960602] io scheduler mq-deadline registered
+[    3.784264] Serial: 8250/16550 driver, 4 ports, IRQ sharing disabled
+[    3.896363] printk: console [ttyS0] disabled
+[    3.913681] 10000000.serial: ttyS0 at MMIO 0x10000000 (irq = 2, base_baud = 115200) is a 16550A
+[    3.914992] printk: console [ttyS0] enabled
+[    4.263202] loop: module loaded
+[    4.265918] virtio_blk virtio0: 1/0/0 default/read/poll queues
+[    4.275430] virtio_blk virtio0: [vda] 16777216 512-byte logical blocks (8.59 GB/8.00 GiB)
+[    4.381397] goldfish_rtc 10003000.rtc: registered as rtc0
+[    4.383327] goldfish_rtc 10003000.rtc: setting system clock to 2026-06-11T00:02:26 UTC (1781136146)
+[    4.409654] NET: Registered PF_PACKET protocol family
+[    4.411647] Key type dns_resolver registered
+[    5.253064] clk: Disabling unused clocks
+[    5.494156] EXT4-fs (vda): mounted filesystem ef20b7ff-812f-4930-a85a-603dc06637f8 r/w with ordered data mode. Quota mode: disabled.
+[    5.496807] VFS: Mounted root (ext4 filesystem) on device 254:0.
+[    5.508242] devtmpfs: mounted
+[    5.565591] Freeing unused kernel image (initmem) memory: 2108K
+[    5.567653] Run /lib/systemd/systemd as init process
+[    8.329639] systemd[1]: systemd 249.11-0ubuntu3.21 running in system mode (+PAM +AUDIT +SELINUX +APPARMOR +IMA +SMACK +SECCOMP +GCRYPT +GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 -IDN +IPTC +KMOD +LIBCRYPTSETUP +LIBFDISK +PCRE2 -PWQUALITY -P11KIT -QRENCODE +BZIP2 +LZ4 +XZ +ZLIB +ZSTD -XKBCOMMON +UTMP +SYSVINIT default-hierarchy=unified)
+[    8.341432] systemd[1]: Detected architecture riscv64.
+
+Welcome to [1mUbuntu 22.04.5 LTS[0m!
+
+[    8.402102] systemd[1]: Hostname set to <ysyx-ubuntu2204>.
+[    8.476893] systemd[1]: Initializing machine ID from random generator.
+[   46.868211] systemd[1]: Queued start job for default target Graphical Interface.
+[   47.092931] systemd[1]: Created slice Slice /system/modprobe.
+[[0;32m  OK  [0m] Created slice [0;1;39mSlice /system/modprobe[0m.
+[   47.209539] systemd[1]: Created slice Slice /system/serial-getty.
+[[0;32m  OK  [0m] Created slice [0;1;39mSlice /system/serial-getty[0m.
+[   47.292144] systemd[1]: Created slice User and Session Slice.
+[[0;32m  OK  [0m] Created slice [0;1;39mUser and Session Slice[0m.
+[   47.326423] systemd[1]: Started Forward Password Requests to Wall Directory Watch.
+[[0;32m  OK  [0m] Started [0;1;39mForward Password R…uests to Wall Directory Watch[0m.
+[   47.356910] systemd[1]: Condition check resulted in Arbitrary Executable File Formats File System Automount Point being skipped.
+[   47.380713] systemd[1]: Reached target Slice Units.
+[[0;32m  OK  [0m] Reached target [0;1;39mSlice Units[0m.
+[   47.408410] systemd[1]: Reached target Swaps.
+[[0;32m  OK  [0m] Reached target [0;1;39mSwaps[0m.
+[   47.432138] systemd[1]: Reached target Local Verity Protected Volumes.
+[[0;32m  OK  [0m] Reached target [0;1;39mLocal Verity Protected Volumes[0m.
+[   47.474500] systemd[1]: Listening on fsck to fsckd communication Socket.
+[[0;32m  OK  [0m] Listening on [0;1;39mfsck to fsckd communication Socket[0m.
+[   47.508642] systemd[1]: Listening on initctl Compatibility Named Pipe.
+[[0;32m  OK  [0m] Listening on [0;1;39minitctl Compatibility Named Pipe[0m.
+[   47.562543] systemd[1]: Condition check resulted in Journal Audit Socket being skipped.
+[   47.592368] systemd[1]: Listening on Journal Socket (/dev/log).
+[[0;32m  OK  [0m] Listening on [0;1;39mJournal Socket (/dev/log)[0m.
+[   47.638598] systemd[1]: Listening on Journal Socket.
+[[0;32m  OK  [0m] Listening on [0;1;39mJournal Socket[0m.
+[   47.689716] systemd[1]: Listening on udev Control Socket.
+[[0;32m  OK  [0m] Listening on [0;1;39mudev Control Socket[0m.
+[   47.729579] systemd[1]: Listening on udev Kernel Socket.
+[[0;32m  OK  [0m] Listening on [0;1;39mudev Kernel Socket[0m.
+[   47.751973] systemd[1]: Reached target Socket Units.
+[[0;32m  OK  [0m] Reached target [0;1;39mSocket Units[0m.
+[   47.806104] systemd[1]: Condition check resulted in Huge Pages File System being skipped.
+[   48.017420] systemd[1]: Mounting POSIX Message Queue File System...
+         Mounting [0;1;39mPOSIX Message Queue File System[0m...
+[   48.133741] systemd[1]: Condition check resulted in Kernel Debug File System being skipped.
+[   48.216294] systemd[1]: Condition check resulted in Kernel Trace File System being skipped.
+[   48.983566] systemd[1]: Starting Journal Service...
+         Starting [0;1;39mJournal Service[0m...
+[   49.052950] systemd[1]: Condition check resulted in Create List of Static Device Nodes being skipped.
+[   49.621385] systemd[1]: Starting Load Kernel Module configfs...
+         Starting [0;1;39mLoad Kernel Module configfs[0m...
+[   50.441052] systemd[1]: Starting Load Kernel Module drm...
+         Starting [0;1;39mLoad Kernel Module drm[0m...
+[   51.475511] systemd[1]: Starting Load Kernel Module fuse...
+         Starting [0;1;39mLoad Kernel Module fuse[0m...
+[   51.685654] systemd[1]: Condition check resulted in File System Check on Root Device being skipped.
+[   52.738033] systemd[1]: Starting Load Kernel Modules...
+         Starting [0;1;39mLoad Kernel Modules[0m...
+[   53.576131] systemd[1]: Starting Remount Root and Kernel File Systems...
+         Starting [0;1;39mRemount Root and Kernel File Systems[0m...
+[   54.553964] systemd[1]: Starting Coldplug All udev Devices...
+         Starting [0;1;39mColdplug All udev Devices[0m...
+[   56.147788] systemd[1]: Mounted POSIX Message Queue File System.
+[[0;32m  OK  [0m] Mounted [0;1;39mPOSIX Message Queue File System[0m.
+[   56.571705] systemd[1]: modprobe@configfs.service: Deactivated successfully.
+[   56.949235] systemd[1]: Finished Load Kernel Module configfs.
+[[0;32m  OK  [0m] Finished [0;1;39mLoad Kernel Module configfs[0m.
+[   57.412082] systemd[1]: modprobe@drm.service: Deactivated successfully.
+[   57.877408] systemd[1]: Finished Load Kernel Module drm.
+[[0;32m  OK  [0m] Finished [0;1;39mLoad Kernel Module drm[0m.
+[   58.548557] systemd[1]: modprobe@fuse.service: Deactivated successfully.
+[   59.232717] systemd[1]: Finished Load Kernel Module fuse.
+[[0;32m  OK  [0m] Finished [0;1;39mLoad Kernel Module fuse[0m.
+[   60.379988] systemd[1]: Finished Load Kernel Modules.
+[[0;32m  OK  [0m] Finished [0;1;39mLoad Kernel Modules[0m.
+[   60.979758] EXT4-fs (vda): re-mounted ef20b7ff-812f-4930-a85a-603dc06637f8 r/w. Quota mode: disabled.
+[[0m[0;31m*     [0m] (1 of 4) A start job is running for… All udev Devices (16s / no limit)
+[   63.881696] systemd[1]: Condition check resulted in FUSE Control File System being skipped.
+[   63.938268] systemd[1]: Condition check resulted in Kernel Configuration File System being skipped.
+[   64.586263] systemd[1]: Starting Apply Kernel Variables...
+M[K         Starting [0;1;39mApply Kernel Variables[0m...
+[K[   65.173608] systemd[1]: Finished Remount Root and Kernel File Systems.
+[[0;32m  OK  [0m] Finished [0;1;39mRemount Root and Kernel File Systems[0m.
+[   66.109977] systemd[1]: Starting Load/Save Random Seed...
+         Starting [0;1;39mLoad/Save Random Seed[0m...
+[   67.034490] systemd[1]: Starting Create System Users...
+         Starting [0;1;39mCreate System Users[0m...
+[[0;1;31m*[0m[0;31m*    [0m] (1 of 6) A start job is running for… All udev Devices (24s / no limit)
+M[K[[0;32m  OK  [0m] Finished [0;1;39mApply Kernel Variables[0m.
+[K[[0;32m  OK  [0m] Finished [0;1;39mLoad/Save Random Seed[0m.
+[[0;32m  OK  [0m] Started [0;1;39mJournal Service[0m.
+         Starting [0;1;39mFlush Journal to Persistent Storage[0m...
+[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (1 of 4) A start job is running for… All udev Devices (29s / no limit)
+M[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] (2 of 4) A start job is running for…ersistent Storage (29s / 1min 57s)
+M[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] (2 of 4) A start job is running for…ersistent Storage (30s / 1min 57s)
+M[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] (2 of 4) A start job is running for…ersistent Storage (30s / 1min 57s)
+M[K[[0;32m  OK  [0m] Finished [0;1;39mCreate System Users[0m.
+[K         Starting [0;1;39mCreate Static Device Nodes in /dev[0m...
+[[0;32m  OK  [0m] Finished [0;1;39mFlush Journal to Persistent Storage[0m.
+[    [0;31m*[0;1;31m*[0m] (3 of 3) A start job is running for /dev/ttyS0 (34s / 1min 30s)
+M[K[     [0;31m*[0m] (3 of 3) A start job is running for /dev/ttyS0 (34s / 1min 30s)
+M[K[[0;32m  OK  [0m] Finished [0;1;39mCreate Static Device Nodes in /dev[0m.
+[K[[0;32m  OK  [0m] Reached target [0;1;39mPreparation for Local File Systems[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mLocal File Systems[0m.
+         Starting [0;1;39mTell Plymouth To Write Out Runtime Data[0m...
+         Starting [0;1;39mCreate Volatile Files and Directories[0m...
+         Starting [0;1;39mRule-based Manage…for Device Events and Files[0m...
+[[0;32m  OK  [0m] Finished [0;1;39mTell Plymouth To Write Out Runtime Data[0m.
+[    [0;31m*[0;1;31m*[0m] (3 of 4) A start job is running for…s and Directories (41s / no limit)
+M[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] (4 of 4) A start job is running for…e Events and Files (41s / 2min 8s)
+M[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] (4 of 4) A start job is running for…e Events and Files (42s / 2min 8s)
+M[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] (4 of 4) A start job is running for…e Events and Files (42s / 2min 8s)
+M[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (1 of 4) A start job is running for… All udev Devices (43s / no limit)
+M[K[[0;1;31m*[0m[0;31m*    [0m] (1 of 4) A start job is running for… All udev Devices (43s / no limit)
+M[K[[0m[0;31m*     [0m] (1 of 4) A start job is running for… All udev Devices (44s / no limit)
+M[K[[0;1;31m*[0m[0;31m*    [0m] (2 of 4) A start job is running for /dev/ttyS0 (44s / 1min 30s)
+M[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (2 of 4) A start job is running for /dev/ttyS0 (45s / 1min 30s)
+M[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] (2 of 4) A start job is running for /dev/ttyS0 (45s / 1min 30s)
+M[K[[0;32m  OK  [0m] Finished [0;1;39mCreate Volatile Files and Directories[0m.
+[K         Starting [0;1;39mRecord System Boot/Shutdown in UTMP[0m...
+[  [0;31m*[0;1;31m*[0m[0;31m* [0m] (3 of 4) A start job is running for /dev/ttyS0 (48s / 1min 30s)
+M[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] (3 of 4) A start job is running for /dev/ttyS0 (49s / 1min 30s)
+M[K[    [0;31m*[0;1;31m*[0m] (3 of 4) A start job is running for /dev/ttyS0 (49s / 1min 30s)
+M[K[     [0;31m*[0m] (4 of 4) A start job is running for…e Events and Files (53s / 2min 8s)
+M[K[[0;32m  OK  [0m] Finished [0;1;39mRecord System Boot/Shutdown in UTMP[0m.
+[K[    [0;31m*[0;1;31m*[0m] (2 of 3) A start job is running for /dev/ttyS0 (57s / 1min 30s)
+M[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] (2 of 3) A start job is running for /dev/ttyS0 (58s / 1min 30s)
+M[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] (3 of 3) A start job is running for…e Events and Files (58s / 2min 8s)
+M[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] (3 of 3) A start job is running for…e Events and Files (59s / 2min 8s)
+M[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (3 of 3) A start job is running for…e Events and Files (59s / 2min 8s)
+M[K[[0;1;31m*[0m[0;31m*    [0m] (1 of 3) A start job is running for…All udev Devices (1min / no limit)
+M[K[[0m[0;31m*     [0m] (1 of 3) A start job is running for…All udev Devices (1min / no limit)
+M[K[[0;1;31m*[0m[0;31m*    [0m] (1 of 3) A start job is running for… udev Devices (1min 1s / no limit)
+M[K[[0;32m  OK  [0m] Started [0;1;39mRule-based Manager for Device Events and Files[0m.
+[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (1 of 2) A start job is running for… udev Devices (1min 3s / no limit)
+M[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] (1 of 2) A start job is running for… udev Devices (1min 4s / no limit)
+M[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] (1 of 2) A start job is running for… udev Devices (1min 4s / no limit)
+M[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] (2 of 2) A start job is running for /dev/ttyS0 (1min 5s / 1min 30s)
+M[K[    [0;31m*[0;1;31m*[0m] (2 of 2) A start job is running for /dev/ttyS0 (1min 5s / 1min 30s)
+M[K[     [0;31m*[0m] (2 of 2) A start job is running for /dev/ttyS0 (1min 6s / 1min 30s)
+M[K[    [0;31m*[0;1;31m*[0m] (1 of 2) A start job is running for… udev Devices (1min 6s / no limit)
+M[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] (1 of 2) A start job is running for… udev Devices (1min 7s / no limit)
+M[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] (1 of 2) A start job is running for… udev Devices (1min 7s / no limit)
+M[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] (2 of 2) A start job is running for /dev/ttyS0 (1min 8s / 1min 30s)
+M[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (2 of 2) A start job is running for /dev/ttyS0 (1min 8s / 1min 30s)
+M[K[[0;1;31m*[0m[0;31m*    [0m] (2 of 2) A start job is running for /dev/ttyS0 (1min 9s / 1min 30s)
+M[K[[0m[0;31m*     [0m] (1 of 2) A start job is running for… udev Devices (1min 9s / no limit)
+M[K[[0;1;31m*[0m[0;31m*    [0m] (1 of 2) A start job is running for…udev Devices (1min 14s / no limit)
+M[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (1 of 2) A start job is running for…udev Devices (1min 25s / no limit)
+M[K[[0;32m  OK  [0m] Found device [0;1;39m/dev/ttyS0[0m.
+[K[[0;32m  OK  [0m] Finished [0;1;39mColdplug All udev Devices[0m.
+[[0;32m  OK  [0m] Started [0;1;39mDispatch Password …ts to Console Directory Watch[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mLocal Encrypted Volumes[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mPath Units[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mSystem Initialization[0m.
+[[0;32m  OK  [0m] Started [0;1;39mDaily apt download activities[0m.
+[[0;32m  OK  [0m] Started [0;1;39mDaily apt upgrade and clean activities[0m.
+[[0;32m  OK  [0m] Started [0;1;39mDaily dpkg database backup timer[0m.
+[[0;32m  OK  [0m] Started [0;1;39mDiscard unused blocks once a week[0m.
+[[0;32m  OK  [0m] Started [0;1;39mMessage of the Day[0m.
+[[0;32m  OK  [0m] Started [0;1;39mDaily Cleanup of Temporary Directories[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mBasic System[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mTimer Units[0m.
+[[0;32m  OK  [0m] Listening on [0;1;39mD-Bus System Message Bus Socket[0m.
+[[0;32m  OK  [0m] Started [0;1;39mD-Bus System Message Bus[0m.
+         Starting [0;1;39mUser Login Management[0m...
+         Starting [0;1;39mPermit User Sessions[0m...
+[[0;32m  OK  [0m] Finished [0;1;39mPermit User Sessions[0m.
+         Starting [0;1;39mHold until boot process finishes up[0m...
+         Starting [0;1;39mTerminate Plymouth Boot Screen[0m...
+[[0;32m  OK  [0m] Finished [0;1;39mHold until boot process finishes up[0m.
+[[0;32m  OK  [0m] Started [0;1;39mSerial Getty on ttyS0[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mLogin Prompts[0m.
+[[0;32m  OK  [0m] Finished [0;1;39mTerminate Plymouth Boot Screen[0m.
+
+Ubuntu 22.04.5 LTS ysyx-ubuntu2204 ttyS0
+
+ysyx-ubuntu2204 login: root (automatic login)
+
+Welcome to Ubuntu 22.04.5 LTS (GNU/Linux 6.6.0 riscv64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+This system has been minimized by removing packages and content that are
+not required on a system that users do not log into.
+
+To restore this content, you can run the 'unminimize' command.
+
+The programs included with the Ubuntu system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Ubuntu comes with ABSOLUTELY NO WARRANTY, to the extent permitted by
+applicable law.
+
+root@ysyx-ubuntu2204:~# stty -echo 2>/dev/null || true
+root@ysyx-ubuntu2204:~# __NEMU_GUEST_UPLOAD_BEGIN__
+Traceback (most recent call last):
+  File "/usr/bin/lsb_release", line 20, in <module>
+    from optparse import OptionParser
+  File "/usr/lib/python3.10/optparse.py", line 77, in <module>
+    import textwrap
+  File "/usr/lib/python3.10/textwrap.py", line 17, in <module>
+    class TextWrapper:
+  File "/usr/lib/python3.10/textwrap.py", line 81, in TextWrapper
+    wordsep_re = re.compile(r'''
+  File "/usr/lib/python3.10/re.py", line 251, in compile
+    return _compile(pattern, flags)
+  File "/usr/lib/python3.10/re.py", line 303, in _compile
+    p = sre_compile.compile(pattern, flags)
+  File "/usr/lib/python3.10/sre_compile.py", line 788, in compile
+    p = sre_parse.parse(p, flags)
+  File "/usr/lib/python3.10/sre_parse.py", line 955, in parse
+    p = _parse_sub(source, state, flags & SRE_FLAG_VERBOSE, 0)
+  File "/usr/lib/python3.10/sre_parse.py", line 444, in _parse_sub
+    itemsappend(_parse(source, state, verbose, nested + 1,
+  File "/usr/lib/python3.10/sre_parse.py", line 841, in _parse
+    p = _parse_sub(source, state, sub_verbose, nested + 1)
+  File "/usr/lib/python3.10/sre_parse.py", line 444, in _parse_sub
+    itemsappend(_parse(source, state, verbose, nested + 1,
+  File "/usr/lib/python3.10/sre_parse.py", line 653, in _parse
+    raise OverflowError("the repetition number is too large")
+OverflowError: the repetition number is too large
+__NEMU_GUEST_SCRIPT_BYTES__:171369/171369
+__NEMU_GUEST_SCRIPT_SHA256__:702f74237c49db5eea39d164dc89cb524664bfa727d3f5d82ea042ed278a8a08/702f74237c49db5eea39d164dc89cb524664bfa727d3f5d82ea042ed278a8a08
+__NEMU_GUEST_SCRIPT_READY__
+__NEMU_SYSTEMD_CHECK_BEGIN__
+__NEMU_CHECK_GUEST_UPTIME_BEGIN__:1353
+__NEMU_CHECK_MEMTOTAL_LINE__:MemTotal:         999500 kB
+__NEMU_CHECK_MEMTOTAL_KB__:999500
+__NEMU_CHECK_MIN_MEMTOTAL_KB__:900000
+__NEMU_CHECK_PASS__:guest-memtotal-min
+__NEMU_UART_RX_STRESS_LINE__:0000
+__NEMU_UART_RX_STRESS_LINE__:0001
+__NEMU_UART_RX_STRESS_LINE__:0002
+__NEMU_UART_RX_STRESS_LINE__:0003
+__NEMU_UART_RX_STRESS_LINE__:0004
+__NEMU_UART_RX_STRESS_LINE__:0005
+__NEMU_UART_RX_STRESS_LINE__:0006
+__NEMU_UART_RX_STRESS_LINE__:0007
+__NEMU_UART_RX_STRESS_LINE__:0008
+__NEMU_UART_RX_STRESS_LINE__:0009
+__NEMU_UART_RX_STRESS_LINE__:0010
+__NEMU_UART_RX_STRESS_LINE__:0011
+__NEMU_UART_RX_STRESS_LINE__:0012
+__NEMU_UART_RX_STRESS_LINE__:0013
+__NEMU_UART_RX_STRESS_LINE__:0014
+__NEMU_UART_RX_STRESS_LINE__:0015
+__NEMU_UART_RX_STRESS_LINE__:0016
+__NEMU_UART_RX_STRESS_LINE__:0017
+__NEMU_UART_RX_STRESS_LINE__:0018
+__NEMU_UART_RX_STRESS_LINE__:0019
+__NEMU_UART_RX_STRESS_LINE__:0020
+__NEMU_UART_RX_STRESS_LINE__:0021
+__NEMU_UART_RX_STRESS_LINE__:0022
+__NEMU_UART_RX_STRESS_LINE__:0023
+__NEMU_UART_RX_STRESS_LINE__:0024
+__NEMU_UART_RX_STRESS_LINE__:0025
+__NEMU_UART_RX_STRESS_LINE__:0026
+__NEMU_UART_RX_STRESS_LINE__:0027
+__NEMU_UART_RX_STRESS_LINE__:0028
+__NEMU_UART_RX_STRESS_LINE__:0029
+__NEMU_UART_RX_STRESS_LINE__:0030
+__NEMU_UART_RX_STRESS_LINE__:0031
+__NEMU_UART_RX_STRESS_LINE__:0032
+__NEMU_UART_RX_STRESS_LINE__:0033
+__NEMU_UART_RX_STRESS_LINE__:0034
+__NEMU_UART_RX_STRESS_LINE__:0035
+__NEMU_UART_RX_STRESS_LINE__:0036
+__NEMU_UART_RX_STRESS_LINE__:0037
+__NEMU_UART_RX_STRESS_LINE__:0038
+__NEMU_UART_RX_STRESS_LINE__:0039
+__NEMU_UART_RX_STRESS_LINE__:0040
+__NEMU_UART_RX_STRESS_LINE__:0041
+__NEMU_UART_RX_STRESS_LINE__:0042
+__NEMU_UART_RX_STRESS_LINE__:0043
+__NEMU_UART_RX_STRESS_LINE__:0044
+__NEMU_UART_RX_STRESS_LINE__:0045
+__NEMU_UART_RX_STRESS_LINE__:0046
+__NEMU_UART_RX_STRESS_LINE__:0047
+__NEMU_UART_RX_STRESS_LINE__:0048
+__NEMU_UART_RX_STRESS_LINE__:0049
+__NEMU_UART_RX_STRESS_LINE__:0050
+__NEMU_UART_RX_STRESS_LINE__:0051
+__NEMU_UART_RX_STRESS_LINE__:0052
+__NEMU_UART_RX_STRESS_LINE__:0053
+__NEMU_UART_RX_STRESS_LINE__:0054
+__NEMU_UART_RX_STRESS_LINE__:0055
+__NEMU_UART_RX_STRESS_LINE__:0056
+__NEMU_UART_RX_STRESS_LINE__:0057
+__NEMU_UART_RX_STRESS_LINE__:0058
+__NEMU_UART_RX_STRESS_LINE__:0059
+__NEMU_UART_RX_STRESS_LINE__:0060
+__NEMU_UART_RX_STRESS_LINE__:0061
+__NEMU_UART_RX_STRESS_LINE__:0062
+__NEMU_UART_RX_STRESS_LINE__:0063
+__NEMU_UART_RX_STRESS_COUNT__:64/64
+__NEMU_CHECK_PASS__:uart-rx-command-burst
+__NEMU_CHECK_SYSTEMD_WAIT__:0:running
+__NEMU_CHECK_SYSTEMD_STATE__:running
+__NEMU_CHECK_PASS__:systemd-running
+UNIT LOAD ACTIVE SUB DESCRIPTION
+0 loaded units listed.
+__NEMU_CHECK_PASS__:systemd-failed-units
+No jobs running.
+__NEMU_CHECK_PASS__:systemd-jobs
+__NEMU_CHECK_PID1__:systemd
+__NEMU_CHECK_PASS__:pid1-systemd
+__NEMU_CHECK_SYSTEMD_VERSION__:systemd 249 (249.11-0ubuntu3.21)
+__NEMU_CHECK_PASS__:systemd-version
+__NEMU_CHECK_LSB_RELEASE__
+__NEMU_CHECK_PASS__:lsb-release-present
+No LSB modules are available.
+Distributor ID:	Ubuntu
+Description:	Ubuntu 22.04.5 LTS
+Release:	22.04
+Codename:	jammy
+__NEMU_CHECK_PASS__:lsb-release-ubuntu2204
+__NEMU_CHECK_COMMON_COMMANDS__
+__NEMU_CHECK_PASS__:common-free-present
+               total        used        free      shared  buff/cache   available
+Mem:             976          23         900           3          52         935
+Swap:              0           0           0
+__NEMU_CHECK_PASS__:common-free-mem
+__NEMU_CHECK_PASS__:common-top-present
+__NEMU_CHECK_TOP_VERSION__:  procps-ng 3.3.17
+__NEMU_CHECK_PASS__:common-top-version
+__NEMU_CHECK_TOP_BATCH_OPTIONAL__:top-batch-no-output
+'dumb': unknown terminal type.
+__NEMU_CHECK_PASS__:common-top-batch-optional
+__NEMU_CHECK_PASS__:common-hostnamectl-present
+__NEMU_CHECK_HOSTNAMECTL_VERSION__:systemd 249 (249.11-0ubuntu3.21)
+__NEMU_CHECK_PASS__:common-hostnamectl-version
+__NEMU_CHECK_HTOP_OPTIONAL__:htop 3.0.5
+__NEMU_CHECK_PASS__:common-htop-optional-present
+__NEMU_CHECK_PASS__:common-htop-optional
+__NEMU_CHECK_ROOTFS_FLAVOR__:full
+__NEMU_CHECK_FULL_USERLAND__
+__NEMU_CHECK_PASS__:full-userland-command-apt-get
+__NEMU_CHECK_PASS__:full-userland-command-sudo
+__NEMU_CHECK_PASS__:full-userland-command-man
+__NEMU_CHECK_PASS__:full-userland-command-locale
+__NEMU_CHECK_PASS__:full-userland-command-ssh
+__NEMU_CHECK_PASS__:full-userland-command-ssh-keygen
+__NEMU_CHECK_PASS__:full-userland-command-sshd
+__NEMU_CHECK_PASS__:full-userland-command-cron
+__NEMU_CHECK_PASS__:full-userland-command-rsyslogd
+__NEMU_CHECK_FULL_APT_VERSION__:apt 2.4.13 (riscv64)
+__NEMU_CHECK_PASS__:full-userland-apt-version
+__NEMU_CHECK_FULL_SUDO_VERSION__:Sudo version 1.9.9
+__NEMU_CHECK_PASS__:full-userland-sudo-version
+__NEMU_CHECK_PASS__:full-userland-sudo-root
+__NEMU_CHECK_FULL_MAN_VERSION__:man 2.10.2
+__NEMU_CHECK_PASS__:full-userland-man-version
+__NEMU_CHECK_FULL_LOCALE_CHARMAP__:UTF-8
+__NEMU_CHECK_PASS__:full-userland-locale-charmap
+__NEMU_CHECK_PASS__:full-userland-locale-list
+__NEMU_CHECK_PASS__:full-userland-tzdata-utc
+__NEMU_CHECK_FULL_DATE_UTC__:2026-06-11T00:25:42Z
+__NEMU_CHECK_PASS__:full-userland-date-utc
+__NEMU_CHECK_FULL_TIMEDATECTL_VERSION__:systemd 249 (249.11-0ubuntu3.21)
+__NEMU_CHECK_PASS__:full-userland-timedatectl-version
+__NEMU_CHECK_FULL_SSHD_CONFIG_BEGIN__
+port 22
+addressfamily any
+listenaddress [::]:22
+listenaddress 0.0.0.0:22
+usepam yes
+logingracetime 120
+x11displayoffset 10
+maxauthtries 6
+maxsessions 10
+clientaliveinterval 0
+clientalivecountmax 3
+streamlocalbindmask 0177
+permitrootlogin without-password
+ignorerhosts yes
+ignoreuserknownhosts no
+hostbasedauthentication no
+hostbasedusesnamefrompacketonly no
+pubkeyauthentication yes
+kerberosauthentication no
+kerberosorlocalpasswd yes
+kerberosticketcleanup yes
+gssapiauthentication no
+gssapicleanupcredentials yes
+gssapikeyexchange no
+gssapistrictacceptorcheck yes
+__NEMU_CHECK_FULL_SSHD_CONFIG_END__
+__NEMU_CHECK_PASS__:full-userland-sshd-config
+__NEMU_CHECK_PASS__:full-userland-ssh-unit
+__NEMU_CHECK_FULL_SSH_ACTIVE__:active
+__NEMU_CHECK_PASS__:full-userland-ssh-active
+__NEMU_CHECK_FULL_SSH_LISTEN_SOCKET__:/proc/net/tcp:00000000:0016:0A
+__NEMU_CHECK_FULL_SSH_LISTEN__:1
+__NEMU_CHECK_PASS__:full-userland-ssh-listen
+__NEMU_CHECK_PASS__:full-userland-ssh-keygen
+__NEMU_CHECK_FULL_SSH_LOGIN_RC__:255
+__NEMU_CHECK_FULL_SSH_LOGIN_OUTPUT_BEGIN__
+OpenSSH_8.9p1 Ubuntu-3ubuntu0.15, OpenSSL 3.0.2 15 Mar 2022
+debug1: Reading configuration data /etc/ssh/ssh_config
+debug1: /etc/ssh/ssh_config line 19: include /etc/ssh/ssh_config.d/*.conf matched no files
+debug1: /etc/ssh/ssh_config line 21: Applying options for *
+debug2: resolve_canonicalize: hostname 127.0.0.1 is address
+debug1: Connecting to 127.0.0.1 [127.0.0.1] port 22.
+debug2: fd 3 setting O_NONBLOCK
+debug1: fd 3 clearing O_NONBLOCK
+debug1: Connection established.
+debug1: identity file /tmp/nemu-full-userland-ssh-login/id_ed25519 type 3
+debug1: identity file /tmp/nemu-full-userland-ssh-login/id_ed25519-cert type -1
+debug1: Local version string SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.15
+debug1: Remote protocol version 2.0, remote software version OpenSSH_8.9p1 Ubuntu-3ubuntu0.15
+debug1: compat_banner: match: OpenSSH_8.9p1 Ubuntu-3ubuntu0.15 pat OpenSSH* compat 0x04000000
+debug2: fd 3 setting O_NONBLOCK
+debug1: Authenticating to 127.0.0.1:22 as 'root'
+debug1: SSH2_MSG_KEXINIT sent
+debug1: SSH2_MSG_KEXINIT received
+debug2: local client KEXINIT proposal
+debug2: KEX algorithms: curve25519-sha256,ext-info-c,kex-strict-c-v00@openssh.com
+debug2: host key algorithms: ssh-ed25519
+debug2: ciphers ctos: chacha20-poly1305@openssh.com
+debug2: ciphers stoc: chacha20-poly1305@openssh.com
+debug2: MACs ctos: umac-64-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha1-etm@openssh.com,umac-64@openssh.com,umac-128@openssh.com,hmac-sha2-256,hmac-sha2-512,hmac-sha1
+debug2: MACs stoc: umac-64-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha1-etm@openssh.com,umac-64@openssh.com,umac-128@openssh.com,hmac-sha2-256,hmac-sha2-512,hmac-sha1
+debug2: compression ctos: none,zlib@openssh.com,zlib
+debug2: compression stoc: none,zlib@openssh.com,zlib
+debug2: languages ctos:
+debug2: languages stoc:
+debug2: first_kex_follows 0
+debug2: reserved 0
+debug2: peer server KEXINIT proposal
+debug2: KEX algorithms: curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,sntrup761x25519-sha512@openssh.com,diffie-hellman-group-exchange-sha256,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group14-sha256,kex-strict-s-v00@openssh.com
+debug2: host key algorithms: rsa-sha2-512,rsa-sha2-256,ecdsa-sha2-nistp256,ssh-ed25519
+debug2: ciphers ctos: chacha20-poly1305@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com
+debug2: ciphers stoc: chacha20-poly1305@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com
+debug2: MACs ctos: umac-64-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha1-etm@openssh.com,umac-64@openssh.com,umac-128@openssh.com,hmac-sha2-256,hmac-sha2-512,hmac-sha1
+debug2: MACs stoc: umac-64-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha1-etm@openssh.com,umac-64@openssh.com,umac-128@openssh.com,hmac-sha2-256,hmac-sha2-512,hmac-sha1
+debug2: compression ctos: none,zlib@openssh.com
+debug2: compression stoc: none,zlib@openssh.com
+debug2: languages ctos:
+debug2: languages stoc:
+debug2: first_kex_follows 0
+debug2: reserved 0
+debug1: kex: algorithm: curve25519-sha256
+debug1: kex: host key algorithm: ssh-ed25519
+debug1: kex: server->client cipher: chacha20-poly1305@openssh.com MAC: <implicit> compression: none
+debug1: kex: client->server cipher: chacha20-poly1305@openssh.com MAC: <implicit> compression: none
+debug1: expecting SSH2_MSG_KEX_ECDH_REPLY
+debug1: SSH2_MSG_KEX_ECDH_REPLY received
+debug1: Server host key: ssh-ed25519 SHA256:wB8Eo/+m4QI1/WdxBce5iSFxZCHnO4jEK0T3odTC6hk
+debug1: load_hostkeys: fopen /etc/ssh/ssh_known_hosts: No such file or directory
+debug1: load_hostkeys: fopen /etc/ssh/ssh_known_hosts2: No such file or directory
+Warning: Permanently added '127.0.0.1' (ED25519) to the list of known hosts.
+debug1: ssh_packet_send2_wrapped: resetting send seqnr 3
+debug2: ssh_set_newkeys: mode 1
+debug1: rekey out after 134217728 blocks
+debug1: SSH2_MSG_NEWKEYS sent
+debug1: expecting SSH2_MSG_NEWKEYS
+debug1: ssh_packet_read_poll2: resetting read seqnr 3
+debug1: SSH2_MSG_NEWKEYS received
+debug2: ssh_set_newkeys: mode 0
+debug1: rekey in after 134217728 blocks
+debug1: Will attempt key: /tmp/nemu-full-userland-ssh-login/id_ed25519 ED25519 SHA256:UECe8vwGNUQbOe8xjNo0sMMG5qotljKNCLteRQPbO0M explicit
+debug2: pubkey_prepare: done
+debug1: SSH2_MSG_EXT_INFO received
+debug1: kex_input_ext_info: server-sig-algs=<ssh-ed25519,sk-ssh-ed25519@openssh.com,ssh-rsa,rsa-sha2-256,rsa-sha2-512,ssh-dss,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,sk-ecdsa-sha2-nistp256@openssh.com,webauthn-sk-ecdsa-sha2-nistp256@openssh.com>
+debug1: kex_input_ext_info: publickey-hostbound@openssh.com=<0>
+debug2: service_accept: ssh-userauth
+debug1: SSH2_MSG_SERVICE_ACCEPT received
+Connection closed by 127.0.0.1 port 22
+__NEMU_CHECK_FULL_SSH_LOGIN_OUTPUT_END__
+__NEMU_CHECK_FULL_SSH_SERVER_LOG_BEGIN__
+Jun 11 00:26:03 ysyx-ubuntu2204 systemd[1]: Starting OpenBSD Secure Shell server...
+Jun 11 00:26:27 ysyx-ubuntu2204 sshd[222]: Server listening on 0.0.0.0 port 22.
+Jun 11 00:26:27 ysyx-ubuntu2204 systemd[1]: Started OpenBSD Secure Shell server.
+Jun 11 00:26:27 ysyx-ubuntu2204 sshd[222]: Server listening on 0.0.0.0 port 22.
+__NEMU_CHECK_FULL_SSH_SERVER_LOG_END__
+__NEMU_CHECK_FAIL__:full-userland-ssh-local-login
+__NEMU_CHECK_PASS__:full-userland-cron-unit
+__NEMU_CHECK_PASS__:full-userland-cron-active
+__NEMU_CHECK_FULL_RSYSLOG_CONFIG_BEGIN__
+rsyslogd: version 8.2112.0, config validation run (level 1), master config /etc/rsyslog.conf
+rsyslogd: End of config validation run. Bye.
+__NEMU_CHECK_FULL_RSYSLOG_CONFIG_END__
+__NEMU_CHECK_PASS__:full-userland-rsyslog-config
+__NEMU_CHECK_PASS__:full-userland-rsyslog-unit
+__NEMU_CHECK_PASS__:full-userland-rsyslog-active
+__NEMU_CHECK_PASS__:full-userland-timesyncd-unit
+__NEMU_CHECK_PASS__:full-userland-timesyncd-active
+__NEMU_CHECK_FAIL__:full-userland-runtime
+__NEMU_CHECK_SYSTEMD_SHOW_STATE__:running
+__NEMU_CHECK_PASS__:systemd-show-system-state
+__NEMU_CHECK_SYSTEMD_FAILED_COUNT__:0
+__NEMU_CHECK_PASS__:systemd-show-failed-count
+__NEMU_CHECK_SYSTEMD_UNIT__:local-fs.target:active
+__NEMU_CHECK_PASS__:systemd-target-local-fs.target
+__NEMU_CHECK_SYSTEMD_UNIT__:sysinit.target:active
+__NEMU_CHECK_PASS__:systemd-target-sysinit.target
+__NEMU_CHECK_SYSTEMD_UNIT__:basic.target:active
+__NEMU_CHECK_PASS__:systemd-target-basic.target
+__NEMU_CHECK_SYSTEMD_UNIT__:multi-user.target:active
+__NEMU_CHECK_PASS__:systemd-target-multi-user.target
+__NEMU_CHECK_SYSTEMD_UNIT__:getty.target:active
+__NEMU_CHECK_PASS__:systemd-target-getty.target
+__NEMU_CHECK_SYSTEMD_UNIT__:serial-getty@ttyS0.service:active
+__NEMU_CHECK_PASS__:serial-getty-ttyS0-active
+__NEMU_CHECK_PASS__:journald-active
+__NEMU_CHECK_PASS__:journalctl-present
+__NEMU_CHECK_PASS__:journalctl-boot-read
+__NEMU_CHECK_PASS__:dbus-active
+__NEMU_CHECK_PASS__:busctl-present
+__NEMU_CHECK_PASS__:busctl-system-list
+__NEMU_CHECK_PASS__:systemd-run-present
+Running as unit: nemu-transient-check.service
+Finished with result: success
+Main processes terminated with: code=exited/status=0
+Service runtime: 1.488s
+CPU time consumed: 391ms
+__NEMU_CHECK_PASS__:systemd-run-transient-service
+__NEMU_CHECK_PASS__:systemd-transient-service-output
+__NEMU_CHECK_SYSTEMD_TRANSIENT_RESULT__:success
+__NEMU_CHECK_PASS__:systemd-transient-service-result
+__NEMU_CHECK_PASS__:systemd-transient-service-cgroup
+__NEMU_CHECK_PASS__:systemd-transient-service-journal
+Running timer as unit: nemu-transient-timer-check.timer
+Will run service as unit: nemu-transient-timer-check.service
+__NEMU_CHECK_PASS__:systemd-run-transient-timer
+__NEMU_CHECK_PASS__:systemd-transient-timer-fired
+__NEMU_CHECK_SYSTEMD_RELOAD_DBUS_TIMEOUT__:nemu-runtime-unit-check.service:present
+__NEMU_CHECK_SYSTEMD_RUNTIME_START_RETRY__:nemu-runtime-unit-check.service:0
+__NEMU_CHECK_SYSTEMD_RUNTIME_START_OBSERVED__:nemu-runtime-unit-check.service:2
+__NEMU_CHECK_PASS__:systemd-runtime-daemon-reload
+__NEMU_CHECK_PASS__:systemd-runtime-unit-start
+__NEMU_CHECK_PASS__:systemd-runtime-unit-output
+__NEMU_CHECK_SYSTEMD_RUNTIME_ACTIVE__:active
+__NEMU_CHECK_SYSTEMD_RUNTIME_RESULT__:success
+__NEMU_CHECK_PASS__:systemd-runtime-unit-active
+__NEMU_CHECK_PASS__:systemd-runtime-unit-result
+__NEMU_CHECK_PASS__:systemd-runtime-unit-status
+__NEMU_CHECK_PASS__:systemd-runtime-unit-cgroup
+__NEMU_CHECK_PASS__:systemd-runtime-unit-journal
+__NEMU_CHECK_SYSTEMD_RUNTIME_CLEANUP_ACTIVE__:inactive
+__NEMU_CHECK_PASS__:systemd-runtime-unit-cleanup
+__NEMU_CHECK_MOUNT_OK__:/dev
+__NEMU_CHECK_MOUNT_OK__:/proc
+__NEMU_CHECK_MOUNT_OK__:/sys
+__NEMU_CHECK_MOUNT_OK__:/run
+__NEMU_CHECK_MOUNT_OK__:/dev/pts
+__NEMU_CHECK_MOUNT_OK__:/dev/shm
+__NEMU_CHECK_MOUNT_OK__:/sys/fs/cgroup
+__NEMU_CHECK_MOUNT_FSTYPE__:/dev:devtmpfs
+__NEMU_CHECK_PASS__:mount-fstype-/dev
+__NEMU_CHECK_MOUNT_FSTYPE__:/proc:proc
+__NEMU_CHECK_PASS__:mount-fstype-/proc
+__NEMU_CHECK_MOUNT_FSTYPE__:/sys:sysfs
+__NEMU_CHECK_PASS__:mount-fstype-/sys
+__NEMU_CHECK_MOUNT_FSTYPE__:/run:tmpfs
+__NEMU_CHECK_PASS__:mount-fstype-/run
+__NEMU_CHECK_MOUNT_FSTYPE__:/dev/pts:devpts
+__NEMU_CHECK_PASS__:mount-fstype-/dev/pts
+__NEMU_CHECK_MOUNT_FSTYPE__:/dev/shm:tmpfs
+__NEMU_CHECK_PASS__:mount-fstype-/dev/shm
+__NEMU_CHECK_MOUNT_FSTYPE__:/sys/fs/cgroup:cgroup2
+__NEMU_CHECK_PASS__:mount-fstype-/sys/fs/cgroup
+__NEMU_CHECK_PASS__:ttyS0-node
+__NEMU_CHECK_PASS__:console-node
+__NEMU_CHECK_TTY__:/dev/ttyS0
+__NEMU_CHECK_PASS__:interactive-tty
+__NEMU_CHECK_PASS__:ttyS0-stty
+__NEMU_CHECK_TTYS0_WRITE__
+__NEMU_CHECK_PASS__:ttyS0-write
+__NEMU_CHECK_CONSOLE_WRITE__
+__NEMU_CHECK_PASS__:console-write
+__NEMU_CHECK_PASS__:udevadm-present
+__NEMU_CHECK_PASS__:udev-settle
+__NEMU_CHECK_PASS__:udevd-active
+__NEMU_CHECK_HWRNG_CURRENT__:virtio_rng.0
+__NEMU_CHECK_HWRNG_AVAILABLE__:virtio_rng.0
+__NEMU_CHECK_VIRTIO_RNG_MODALIAS__:virtio:d00000004v58535959
+__NEMU_CHECK_VIRTIO_RNG_DRIVER__:virtio_rng
+__NEMU_CHECK_VIRTIO_RNG_STATUS__:0x0000000f
+__NEMU_CHECK_VIRTIO_RNG_FEATURES__:0000000000000000000000000000110010000000000000000000000000000000
+__NEMU_CHECK_PASS__:hwrng-node
+__NEMU_CHECK_PASS__:hwrng-sysfs
+__NEMU_CHECK_PASS__:hwrng-virtio-selected
+__NEMU_CHECK_PASS__:virtio-rng-modalias
+__NEMU_CHECK_PASS__:virtio-rng-driver
+__NEMU_CHECK_PASS__:virtio-rng-status
+__NEMU_CHECK_PASS__:virtio-rng-features-bitstring
+__NEMU_CHECK_PASS__:virtio-rng-feature-version-1
+__NEMU_CHECK_PASS__:virtio-rng-ring-feature-indirect-desc
+__NEMU_CHECK_PASS__:virtio-rng-ring-feature-event-idx
+__NEMU_CHECK_HWRNG_BYTES__:64
+__NEMU_CHECK_PASS__:hwrng-read
+__NEMU_CHECK_RTC0_NAME__:goldfish_rtc 10003000.rtc
+__NEMU_CHECK_RTC0_SINCE_EPOCH__:1781138371
+__NEMU_CHECK_RTC0_DATE__:2026-06-11
+__NEMU_CHECK_RTC0_TIME__:00:39:31
+__NEMU_CHECK_PASS__:rtc0-node
+__NEMU_CHECK_PASS__:rtc0-sysfs
+__NEMU_CHECK_PASS__:rtc0-goldfish-driver
+__NEMU_CHECK_PASS__:rtc0-since-epoch-plausible
+__NEMU_CHECK_PASS__:hwclock-present
+__NEMU_CHECK_RTC0_HWCLOCK__:2026-06-11 00:39:32.239198+00:00
+__NEMU_CHECK_PASS__:hwclock-rtc0-show
+__NEMU_CHECK_VIRTIO_NET_MODALIAS__:virtio:d00000001v58535959
+__NEMU_CHECK_PASS__:virtio-net-modalias
+__NEMU_CHECK_VIRTIO_NET_DRIVER__:virtio_net
+__NEMU_CHECK_VIRTIO_NET_STATUS__:0x0000000f
+__NEMU_CHECK_VIRTIO_NET_FEATURES__:0001010000000001111101010000110010000000000000000000000000000001
+__NEMU_CHECK_PASS__:virtio-net-driver
+__NEMU_CHECK_PASS__:virtio-net-status
+__NEMU_CHECK_PASS__:virtio-net-features-bitstring
+__NEMU_CHECK_PASS__:virtio-net-feature-version-1
+__NEMU_CHECK_PASS__:virtio-net-feature-mtu
+__NEMU_CHECK_PASS__:virtio-net-feature-mac
+__NEMU_CHECK_PASS__:virtio-net-feature-mrg-rxbuf
+__NEMU_CHECK_PASS__:virtio-net-feature-status
+__NEMU_CHECK_PASS__:virtio-net-feature-ctrl-vq
+__NEMU_CHECK_PASS__:virtio-net-feature-ctrl-rx
+__NEMU_CHECK_PASS__:virtio-net-feature-ctrl-vlan
+__NEMU_CHECK_INFO__:virtio-net-feature-ctrl-rx-extra-driver-not-negotiated
+__NEMU_CHECK_PASS__:virtio-net-feature-ctrl-rx-extra-driver-optional
+__NEMU_CHECK_PASS__:virtio-net-feature-guest-announce
+__NEMU_CHECK_PASS__:virtio-net-feature-ctrl-mac-addr
+__NEMU_CHECK_PASS__:virtio-net-feature-speed-duplex
+__NEMU_CHECK_PASS__:virtio-net-ring-feature-indirect-desc
+__NEMU_CHECK_PASS__:virtio-net-ring-feature-event-idx
+__NEMU_CHECK_VIRTIO_NET_IFACE__:eth0
+__NEMU_CHECK_PASS__:virtio-net-interface
+__NEMU_CHECK_VIRTIO_NET_MAC__:52:54:00:12:34:56
+__NEMU_CHECK_VIRTIO_NET_CARRIER__:
+__NEMU_CHECK_VIRTIO_NET_MTU__:1500
+__NEMU_CHECK_PASS__:virtio-net-mac
+__NEMU_CHECK_PASS__:virtio-net-mtu
+__NEMU_CHECK_PASS__:iproute2-present
+__NEMU_CHECK_PASS__:virtio-net-link-set-up
+__NEMU_DHCP_PROBE_TX__:discover:eth0
+__NEMU_DHCP_PROBE_OFFER__:10.0.2.15:10.0.2.2
+__NEMU_DHCP_PROBE_TX__:request:eth0
+__NEMU_DHCP_PROBE_ACK__:10.0.2.15:10.0.2.2
+__NEMU_DHCP_PROBE_PASS__:dhcp-lease
+__NEMU_CHECK_PASS__:virtio-net-dhcp-lease
+__NEMU_CHECK_VIRTIO_NET_IPV4__:10.0.2.15/24
+__NEMU_CHECK_VIRTIO_NET_OPERSTATE__:up
+__NEMU_CHECK_VIRTIO_NET_CARRIER_AFTER_UP__:1
+__NEMU_CHECK_VIRTIO_NET_SPEED__:1000
+__NEMU_CHECK_VIRTIO_NET_DUPLEX__:full
+__NEMU_CHECK_PASS__:virtio-net-ipv4-static
+__NEMU_CHECK_PASS__:virtio-net-speed
+__NEMU_CHECK_PASS__:virtio-net-duplex
+__NEMU_DNS_PROBE_TX__:nemu.local:10.0.2.2
+__NEMU_DNS_PROBE_RX__:nemu.local:10.0.2.2
+__NEMU_DNS_PROBE_PASS__:dns-a
+__NEMU_CHECK_PASS__:virtio-net-dns-a
+__NEMU_CHECK_VIRTIO_NET_TX_PACKETS_BEGIN__:4
+__NEMU_CHECK_VIRTIO_NET_RX_PACKETS_BEGIN__:4
+__NEMU_CHECK_VIRTIO_NET_ROUTE__:10.0.2.2 dev eth0 src 10.0.2.15 uid 0
+    cache
+__NEMU_TCP_PROBE_BURST__:8
+__NEMU_TCP_PROBE_ITER__:1/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:1/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:1/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:1/8
+__NEMU_TCP_PROBE_ITER__:2/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:2/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:2/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:2/8
+__NEMU_TCP_PROBE_ITER__:3/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:3/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:3/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:3/8
+__NEMU_TCP_PROBE_ITER__:4/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:4/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:4/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:4/8
+__NEMU_TCP_PROBE_ITER__:5/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:5/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:5/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:5/8
+__NEMU_TCP_PROBE_ITER__:6/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:6/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:6/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:6/8
+__NEMU_TCP_PROBE_ITER__:7/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:7/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:7/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:7/8
+__NEMU_TCP_PROBE_ITER__:8/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:8/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:8/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:8/8
+__NEMU_TCP_PROBE_PASS__:tcp-http:8
+__NEMU_CHECK_PASS__:virtio-net-tcp-http
+__NEMU_ICMP_PROBE_TX__:10.0.2.2
+__NEMU_ICMP_PROBE_RX__:10.0.2.2
+__NEMU_ICMP_PROBE_PASS__:icmp-echo
+__NEMU_CHECK_PASS__:virtio-net-icmp-echo
+__NEMU_CHECK_VIRTIO_NET_TX_PACKETS_END__:37
+__NEMU_CHECK_VIRTIO_NET_RX_PACKETS_END__:29
+__NEMU_CHECK_VIRTIO_NET_NEIGH__:10.0.2.2 lladdr 52:54:00:12:34:57 REACHABLE
+__NEMU_CHECK_VIRTIO_NET_ARP__:10.0.2.2         0x1         0x2         52:54:00:12:34:57     *        eth0
+__NEMU_CHECK_PASS__:vda-block-node
+__NEMU_CHECK_VDA_DEV_NODE__:block special file fe:0
+__NEMU_CHECK_VDA_SIZE__:8589934592
+__NEMU_CHECK_PASS__:vda-size
+__NEMU_CHECK_PASS__:vda-size-matches-rootfs
+__NEMU_CHECK_VDA_LOGICAL_BLOCK__:512
+__NEMU_CHECK_PASS__:vda-logical-block-size
+__NEMU_CHECK_VDA_PHYSICAL_BLOCK__:512
+__NEMU_CHECK_PASS__:vda-physical-block-size
+__NEMU_CHECK_VDA_MIN_IO__:512
+__NEMU_CHECK_VDA_OPT_IO__:0
+__NEMU_CHECK_VDA_ALIGNMENT_OFFSET__:0
+__NEMU_CHECK_PASS__:vda-minimum-io-size
+__NEMU_CHECK_PASS__:vda-optimal-io-size
+__NEMU_CHECK_PASS__:vda-alignment-offset
+__NEMU_CHECK_VDA_DISCARD_MAX__:2097152
+__NEMU_CHECK_VDA_DISCARD_GRANULARITY__:512
+__NEMU_CHECK_VDA_WRITE_ZEROES_MAX__:2097152
+__NEMU_CHECK_PASS__:vda-discard-max-bytes
+__NEMU_CHECK_PASS__:vda-discard-granularity
+__NEMU_CHECK_PASS__:vda-write-zeroes-max-bytes
+__NEMU_CHECK_VDA_CACHE_TYPE__:write back
+__NEMU_CHECK_PASS__:vda-cache-type-visible
+__NEMU_CHECK_PASS__:vda-cache-type-writable
+__NEMU_CHECK_PASS__:vda-cache-type-write-through
+__NEMU_CHECK_PASS__:vda-cache-type-write-back
+__NEMU_CHECK_VDA_SERIAL__:ysyx-nemu-virtio-blk
+__NEMU_CHECK_PASS__:vda-serial-get-id
+__NEMU_CHECK_VDA_SYS_DEV__:254:0
+__NEMU_CHECK_PASS__:sysfs-vda-dev
+__NEMU_CHECK_PASS__:sysfs-vda-block
+__NEMU_CHECK_VDA_DRIVER__:virtio_blk
+__NEMU_CHECK_PASS__:sysfs-vda-driver
+__NEMU_CHECK_VDA_VIRTIO_DEV__:/sys/devices/platform/soc/10001000.virtio_mmio/virtio0
+__NEMU_CHECK_PASS__:sysfs-vda-virtio-device
+__NEMU_CHECK_VIRTIO_MODALIAS__:virtio:d00000002v58535959
+__NEMU_CHECK_VIRTIO_STATUS__:0x0000000f
+__NEMU_CHECK_VIRTIO_FEATURES__:0000001001111110000000000000110010000000000000000000000000000000
+__NEMU_CHECK_PASS__:virtio-vda-modalias
+__NEMU_CHECK_PASS__:virtio-vda-status
+__NEMU_CHECK_PASS__:virtio-vda-features-bitstring
+__NEMU_CHECK_PASS__:virtio-feature-version-1
+__NEMU_CHECK_PASS__:virtio-blk-feature-blk-size
+__NEMU_CHECK_PASS__:virtio-blk-feature-flush
+__NEMU_CHECK_PASS__:virtio-blk-feature-topology
+__NEMU_CHECK_PASS__:virtio-blk-feature-config-wce
+__NEMU_CHECK_PASS__:virtio-blk-feature-mq
+__NEMU_CHECK_PASS__:virtio-blk-feature-discard
+__NEMU_CHECK_PASS__:virtio-blk-feature-write-zeroes
+__NEMU_CHECK_PASS__:virtio-ring-feature-indirect-desc
+__NEMU_CHECK_PASS__:virtio-ring-feature-event-idx
+__NEMU_CHECK_PASS__:udev-vda-properties
+__NEMU_CHECK_DEV_DISK_LINK__:/dev/disk/by-path/platform-10001000.virtio_mmio
+__NEMU_CHECK_PASS__:dev-disk-symlink
+__NEMU_CHECK_PASS__:proc-partitions-vda
+__NEMU_CHECK_INTERRUPTS_TABLE_TOTAL__:567708
+__NEMU_CHECK_IRQ_VISIBLE__:3672
+__NEMU_CHECK_INTERRUPTS_TOTAL__:567708
+__NEMU_CHECK_IRQ_SERIAL__:1426
+__NEMU_CHECK_IRQ_VIRTIO_BLK__:2246
+__NEMU_CHECK_INTERRUPTS_LINE__:           CPU0
+__NEMU_CHECK_INTERRUPTS_LINE__:  2:       1435  SiFive PLIC   1 Edge      ttyS0
+__NEMU_CHECK_INTERRUPTS_LINE__:  3:         47  SiFive PLIC   3 Edge      virtio1
+__NEMU_CHECK_INTERRUPTS_LINE__:  4:       2154  SiFive PLIC   2 Edge      virtio0
+__NEMU_CHECK_INTERRUPTS_LINE__:  5:     565594  RISC-V INTC   5 Edge      riscv-timer
+__NEMU_CHECK_INTERRUPTS_LINE__:  6:         39  SiFive PLIC   5 Edge      virtio2
+__NEMU_CHECK_INTERRUPTS_LINE__:  7:          1  SiFive PLIC   4 Edge      10003000.rtc
+__NEMU_CHECK_PASS__:proc-interrupts-total
+__NEMU_CHECK_PASS__:irq-serial-visible
+__NEMU_CHECK_PASS__:irq-virtio-blk-visible
+__NEMU_CHECK_PASS__:irq-vda-direct-read
+__NEMU_CHECK_INTERRUPTS_TABLE_TOTAL_GROW__:567708->569781
+__NEMU_CHECK_IRQ_VISIBLE_GROW__:3672->3725
+__NEMU_CHECK_INTERRUPTS_TOTAL_GROW__:567708->569781
+__NEMU_CHECK_IRQ_VIRTIO_BLK_GROW__:2246->2267
+__NEMU_CHECK_PASS__:proc-interrupts-total-monotonic
+__NEMU_CHECK_PASS__:irq-virtio-blk-read-growth
+__NEMU_CHECK_ROOT_SOURCE__:/dev/vda
+__NEMU_CHECK_PASS__:rootfs-source
+__NEMU_CHECK_PASS__:fs-mkdir
+__NEMU_CHECK_ROOT_FSTYPE__:ext2/ext3
+__NEMU_CHECK_PASS__:rootfs-fstype
+__NEMU_CHECK_VDA_DIRECT_READ_BYTES__:65536
+__NEMU_CHECK_PASS__:vda-direct-read
+__NEMU_CHECK_VDA_WINDOW_SHA256__:8589869056:de2f256064a0af797747c2b97505dc0b9f3df0de4f489eac731c23ae9ca9cc31:de2f256064a0af797747c2b97505dc0b9f3df0de4f489eac731c23ae9ca9cc31
+__NEMU_CHECK_VDA_WINDOW_COUNT__:1
+__NEMU_CHECK_PASS__:vda-direct-read-sha256-windows
+__NEMU_CHECK_PASS__:vda-flushbufs
+__NEMU_CHECK_PASS__:fs-small-write-read
+__NEMU_CHECK_PASS__:symlink-readlink
+__NEMU_CHECK_PASS__:chmod-stat
+__NEMU_CHECK_PASS__:rename-copy-cmp
+__NEMU_CHECK_FS_TREE_FILES__:16/16
+__NEMU_CHECK_PASS__:rootfs-metadata-tree
+__NEMU_CHECK_PASS__:fifo-ipc
+__NEMU_CHECK_PIPE_BYTES__:15
+__NEMU_CHECK_PASS__:pipe-wc
+__NEMU_CHECK_PASS__:fork-wait-loop
+__NEMU_CHECK_PASS__:execve-basic
+__NEMU_SYSCALL_PROBE_BEGIN__:/root/nemu-systemd-guest-check.d
+__NEMU_SYSCALL_PROBE_PASS__:mmap-msync
+__NEMU_SYSCALL_PROBE_PASS__:pread-mmap-file
+__NEMU_SYSCALL_PROBE_PASS__:posix-fallocate
+__NEMU_SYSCALL_PROBE_PASS__:flock
+__NEMU_SYSCALL_PROBE_PASS__:syncfs
+__NEMU_SYSCALL_PROBE_PASS__:mremap-anon
+__NEMU_SYSCALL_PROBE_PASS__:mprotect-readonly-page
+__NEMU_SYSCALL_PROBE_PASS__:madvise-willneed
+__NEMU_SYSCALL_PROBE_PASS__:mincore-resident
+__NEMU_SYSCALL_PROBE_PASS__:statx-dir
+__NEMU_SYSCALL_PROBE_PASS__:openat2-create-write
+__NEMU_SYSCALL_PROBE_PASS__:statx-file-size
+__NEMU_SYSCALL_PROBE_PASS__:copy-file-range
+__NEMU_SYSCALL_PROBE_PASS__:renameat2-noreplace
+__NEMU_SYSCALL_PROBE_PASS__:linkat-hardlink
+__NEMU_SYSCALL_PROBE_PASS__:fchmodat-hardlink
+__NEMU_SYSCALL_PROBE_PASS__:utimensat-hardlink
+__NEMU_SYSCALL_PROBE_PASS__:directory-fsync
+__NEMU_SYSCALL_PROBE_PASS__:fcntl-record-lock
+__NEMU_SYSCALL_PROBE_PASS__:faccessat2-eaccess
+__NEMU_SYSCALL_PROBE_PASS__:getdents64-dir
+__NEMU_SYSCALL_PROBE_PASS__:close-range
+__NEMU_SYSCALL_PROBE_PASS__:pipe2-cloexec-nonblock
+__NEMU_SYSCALL_PROBE_PASS__:dup3-pipe-write
+__NEMU_SYSCALL_PROBE_PASS__:odirect-write-fsync
+__NEMU_SYSCALL_PROBE_PASS__:socketpair
+__NEMU_SYSCALL_PROBE_PASS__:eventfd-poll-read
+__NEMU_SYSCALL_PROBE_PASS__:unix-scm-rights
+__NEMU_SYSCALL_PROBE_PASS__:sendfile-regular-file
+__NEMU_SYSCALL_PROBE_PASS__:splice-file-pipe-file
+__NEMU_SYSCALL_PROBE_PASS__:epoll-timerfd
+__NEMU_SYSCALL_PROBE_PASS__:periodic-timerfd
+__NEMU_SYSCALL_PROBE_PASS__:ppoll-pipe
+__NEMU_SYSCALL_PROBE_PASS__:pselect-pipe
+__NEMU_SYSCALL_PROBE_PASS__:setitimer-sigalrm
+__NEMU_SYSCALL_PROBE_PASS__:posix-timer-signal
+__NEMU_SYSCALL_PROBE_PASS__:signalfd
+__NEMU_SYSCALL_PROBE_PASS__:pty-termios
+__NEMU_SYSCALL_PROBE_PASS__:pty-winsize
+__NEMU_SYSCALL_PROBE_PASS__:pty-master-slave
+__NEMU_SYSCALL_PROBE_PASS__:pty-controlling-tty
+__NEMU_SYSCALL_PROBE_PASS__:pty-foreground-pgrp
+__NEMU_SYSCALL_PROBE_PASS__:pty-sigwinch
+__NEMU_SYSCALL_PROBE_PASS__:inotify-create-close
+__NEMU_SYSCALL_PROBE_PASS__:futex-wait-wake
+__NEMU_SYSCALL_PROBE_PASS__:memfd-mmap
+__NEMU_SYSCALL_PROBE_PASS__:fork-pipe-execve
+__NEMU_SYSCALL_PROBE_PASS__:pidfd-open
+__NEMU_SYSCALL_PROBE_PASS__:pidfd-send-signal
+__NEMU_SYSCALL_PROBE_PASS__:pidfd-poll-exit
+__NEMU_SYSCALL_PROBE_PASS__:waitid-pidfd
+__NEMU_SYSCALL_PROBE_PASS__:prctl-name
+__NEMU_SYSCALL_PROBE_PASS__:getrandom
+__NEMU_SYSCALL_PROBE_PASS__:clock-nanosleep
+__NEMU_SYSCALL_PROBE_PASS__:clock-nanosleep-abstime
+__NEMU_SYSCALL_PROBE_DONE__ rc=0
+__NEMU_CHECK_PASS__:syscall-probe
+Terminated
+__NEMU_CHECK_SIGNAL_RC__:143
+__NEMU_CHECK_PASS__:signal-kill-wait
+__NEMU_CHECK_WRITE_BYTES__:32768
+__NEMU_CHECK_PASS__:rootfs-write-read
+c35020473aed1b4642cd726cad727b63fff2824ad68cedd7ffb73c7cbd890479  /root/nemu-systemd-guest-check.d/nemu-systemd-guest-check.bin
+__NEMU_CHECK_ROOTFS_DIRECT_BYTES__:131072
+__NEMU_CHECK_PASS__:rootfs-direct-io
+__NEMU_CHECK_BLOCK_PARALLEL_JOB__:0:1048576
+__NEMU_CHECK_BLOCK_PARALLEL_BYTES__:1048576/1048576
+__NEMU_CHECK_PASS__:rootfs-parallel-direct-io
+__NEMU_CHECK_FS_STRESS_BYTES__:1048576/1048576
+__NEMU_CHECK_PASS__:rootfs-stress-copy-cmp
+__NEMU_CHECK_UPTIME__:2317->2319
+__NEMU_CHECK_PASS__:timer-sleep
+__NEMU_CHECK_PASS__:proc-stat
+__NEMU_CHECK_PASS__:proc-fd-readlink
+__NEMU_CHECK_PASS__:os-release
+__NEMU_CHECK_PASS__:uname-riscv64
+__NEMU_CHECK_SOAK_SKIP__
+__NEMU_CHECK_PASS__:dmesg-no-critical
+__NEMU_CHECK_GUEST_UPTIME_END__:2323
+__NEMU_SYSTEMD_CHECK_DONE__ rc=1

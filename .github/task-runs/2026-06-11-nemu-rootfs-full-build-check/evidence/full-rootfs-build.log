@@ -1,0 +1,394 @@
+make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+UBUNTU_ROOTFS_FLAVOR=full \
+UBUNTU_ROOTFS_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4' \
+UBUNTU_ROOTFS_CPIO_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full-rootfs.cpio' \
+UBUNTU_ROOTFS_DIR='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/rootfs-full' \
+UBUNTU_ROOTFS_SYSTEMD_OVERLAY=1 UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/build-ubuntu-rootfs.sh'
+[ubuntu-rootfs] flavor: full
+[ubuntu-rootfs] rootfs dir: /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/rootfs-full
+[ubuntu-rootfs] image: /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4
+[ubuntu-rootfs] cpio: /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full-rootfs.cpio
+[ubuntu-rootfs] image size: 8G
+[ubuntu-rootfs] include packages: systemd,systemd-sysv,udev,dbus,procps,iproute2,kmod,util-linux,lsb-release,login,passwd,adduser,ca-certificates,curl,wget,iputils-ping,netcat-openbsd,openssh-client,htop,less,vim-tiny,nano,file,strace,psmisc,ubuntu-standard,openssh-server,sudo,locales,tzdata,bash-completion,man-db,cron,rsyslog,systemd-timesyncd
+[ubuntu-rootfs] build static rootfs init: /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ysyx-rootfs-init
+[ubuntu-rootfs] build via Ubuntu Base + fakeroot
+[ubuntu-rootfs] note: enabling apt/dpkg-deb systemd overlay without chroot second-stage
+ubuntu-base-22.04.5-base-riscv64.tar.gz: OK
+[ubuntu-systemd-overlay] flavor: full
+[ubuntu-systemd-overlay] no-recommends: 0
+[ubuntu-systemd-overlay] apt update for jammy/riscv64
+Hit:1 http://ports.ubuntu.com/ubuntu-ports jammy InRelease
+Get:2 http://ports.ubuntu.com/ubuntu-ports jammy-updates InRelease [128 kB]
+Get:3 http://ports.ubuntu.com/ubuntu-ports jammy-security InRelease [129 kB]
+Get:4 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 Packages [1219 kB]
+Get:5 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main Translation-en [536 kB]
+Get:6 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 Components [106 kB]
+Get:7 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 c-n-f Metadata [18.4 kB]
+Get:8 http://ports.ubuntu.com/ubuntu-ports jammy-updates/universe riscv64 Packages [963 kB]
+Ign:8 http://ports.ubuntu.com/ubuntu-ports jammy-updates/universe riscv64 Packages
+Ign:9 http://ports.ubuntu.com/ubuntu-ports jammy-updates/universe Translation-en
+Get:10 http://ports.ubuntu.com/ubuntu-ports jammy-updates/universe riscv64 Components [351 kB]
+Ign:11 http://ports.ubuntu.com/ubuntu-ports jammy-updates/universe riscv64 c-n-f Metadata
+Get:12 http://ports.ubuntu.com/ubuntu-ports jammy-security/main riscv64 Packages [1000 kB]
+Get:13 http://ports.ubuntu.com/ubuntu-ports jammy-security/main riscv64 Components [63.1 kB]
+Get:14 http://ports.ubuntu.com/ubuntu-ports jammy-security/main riscv64 c-n-f Metadata [13.1 kB]
+Get:15 http://ports.ubuntu.com/ubuntu-ports jammy-security/universe riscv64 Packages [751 kB]
+Get:16 http://ports.ubuntu.com/ubuntu-ports jammy-security/universe riscv64 Components [127 kB]
+Get:17 http://ports.ubuntu.com/ubuntu-ports jammy-security/universe riscv64 c-n-f Metadata [16.7 kB]
+Get:8 http://ports.ubuntu.com/ubuntu-ports jammy-updates/universe riscv64 Packages [963 kB]
+Get:9 http://ports.ubuntu.com/ubuntu-ports jammy-updates/universe Translation-en [319 kB]
+Get:11 http://ports.ubuntu.com/ubuntu-ports jammy-updates/universe riscv64 c-n-f Metadata [23.1 kB]
+Error connecting: Error sending credentials: Error sending message: Operation not permitted
+Fetched 4967 kB in 3min 33s (23.3 kB/s)
+Reading package lists...
+[ubuntu-systemd-overlay] download packages: systemd systemd-sysv udev dbus procps iproute2 kmod util-linux lsb-release login passwd adduser ca-certificates curl wget iputils-ping netcat-openbsd openssh-client htop less vim-tiny nano file strace psmisc ubuntu-standard openssh-server sudo locales tzdata bash-completion man-db cron rsyslog systemd-timesyncd
+Reading package lists...
+Building dependency tree...
+procps is already the newest version (2:3.3.17-6ubuntu2.1).
+login is already the newest version (1:4.8.1-2ubuntu2.2).
+passwd is already the newest version (1:4.8.1-2ubuntu2.2).
+adduser is already the newest version (3.118ubuntu5).
+The following additional packages will be installed:
+  apparmor bind9-dnsutils bind9-host bind9-libs bsdextrautils bsdutils
+  busybox-static command-not-found cpio distro-info distro-info-data dmidecode
+  dmsetup dosfstools ed friendly-recovery ftp fuse3 gcc-12-base gettext-base
+  gir1.2-glib-2.0 groff-base hdparm info install-info iptables
+  iputils-tracepath irqbalance iso-codes libapparmor1 libargon2-1 libatm1
+  libatomic1 libblkid1 libbpf0 libbrotli1 libbsd0 libc-bin libc6 libcap2
+  libcap2-bin libcbor0.8 libcryptsetup12 libcurl4 libdbus-1-3
+  libdevmapper1.02.1 libdrm-common libdrm2 libedit2 libelf1 libestr0 libexpat1
+  libfastjson4 libfido2-1 libfribidi0 libfuse3-3 libgcc-s1 libgdbm6
+  libgirepository-1.0-1 libglib2.0-0 libglib2.0-data libicu70 libip4tc2
+  libip6tc2 libjansson4 libjson-c5 libkmod2 libldap-2.5-0 libldap-common
+  liblmdb0 liblzma5 libmagic-mgc libmagic1 libmaxminddb0 libmd0 libmnl0
+  libmount1 libmpdec3 libnetfilter-conntrack3 libnewt0.52 libnfnetlink0
+  libnftables1 libnftnl11 libnghttp2-14 libnl-3-200 libnl-genl-3-200
+  libnss-systemd libntfs-3g89 libnuma1 libpam-cap libpam-systemd libparted2
+  libpcap0.8 libpci3 libpipeline1 libplymouth5 libpng16-16 libpopt0 libpsl5
+  libpython3-stdlib libpython3.10-minimal libpython3.10-stdlib libreadline8
+  librtmp1 libsasl2-2 libsasl2-modules libsasl2-modules-db libseccomp2
+  libslang2 libsmartcols1 libsqlite3-0 libssh-4 libssl3 libstdc++6 libsystemd0
+  libuchardet0 libudev1 libusb-1.0-0 libuuid1 libuv1 libwrap0 libx11-6
+  libx11-data libxau6 libxcb1 libxdmcp6 libxext6 libxml2 libxmuu1 libxtables12
+  libyaml-0-2 logrotate lshw lsof manpages media-types mount mtr-tiny
+  ncurses-term netbase networkd-dispatcher nftables ntfs-3g
+  openssh-sftp-server openssl parted pci.ids pciutils plymouth
+  plymouth-theme-ubuntu-text powermgmt-base publicsuffix python-apt-common
+  python3 python3-apt python3-commandnotfound python3-dbus python3-distro
+  python3-distro-info python3-distupgrade python3-gdbm python3-gi
+  python3-minimal python3-pkg-resources python3-update-manager python3-yaml
+  python3.10 python3.10-minimal readline-common rsync shared-mime-info
+  ssh-import-id systemd-hwe-hwdb tcpdump telnet time tnftp
+  ubuntu-advantage-tools ubuntu-pro-client ubuntu-pro-client-l10n
+  ubuntu-release-upgrader-core ucf ufw update-manager-core usb.ids usbutils
+  uuid-runtime vim-common whiptail xauth xdg-user-dirs xxd xz-utils
+Suggested packages:
+  apparmor-profiles-extra apparmor-utils snapd libarchive1 anacron
+  checksecurity default-mta | mail-transport-agent default-dbus-session-bus
+  | dbus-session-bus shunit2 groff lm-sensors iproute2-doc firewalld
+  traceroute isoquery glibc-doc gdbm-l10n mmdb-bin cryptsetup-bin
+  libparted-dev libparted-i18n libsasl2-modules-gssapi-mit
+  | libsasl2-modules-gssapi-heimdal libsasl2-modules-ldap libsasl2-modules-otp
+  libsasl2-modules-sql bsd-mailx | mailx perl www-browser nfs-common hunspell
+  iw | wireless-tools keychain libpam-ssh monkeysphere ssh-askpass molly-guard
+  parted-doc bzip2 desktop-base plymouth-themes python3-doc python3-tk
+  python3-venv python3-apt-dbg python-apt-doc python-dbus-doc python3-gdbm-dbg
+  python3-setuptools python3-launchpadlib python3.10-venv python3.10-doc
+  binutils binfmt-support readline-doc python3-braceexpand rsyslog-mysql
+  | rsyslog-pgsql rsyslog-mongodb rsyslog-doc rsyslog-openssl | rsyslog-gnutls
+  rsyslog-gssapi rsyslog-relp systemd-container libtss2-esys-3.0.2-0
+  libtss2-mu0 libtss2-rc0 policykit-1 kbd util-linux-locales indent
+Recommended packages:
+  libnss-nis libnss-nisplus
+The following NEW packages will be installed:
+  apparmor bash-completion bind9-dnsutils bind9-host bind9-libs bsdextrautils
+  busybox-static ca-certificates command-not-found cpio cron curl dbus
+  distro-info distro-info-data dmidecode dmsetup dosfstools ed file
+  friendly-recovery ftp fuse3 gettext-base gir1.2-glib-2.0 groff-base hdparm
+  htop info install-info iproute2 iptables iputils-ping iputils-tracepath
+  irqbalance iso-codes kmod less libapparmor1 libargon2-1 libatm1 libatomic1
+  libbpf0 libbrotli1 libbsd0 libcap2-bin libcbor0.8 libcryptsetup12 libcurl4
+  libdbus-1-3 libdevmapper1.02.1 libdrm-common libdrm2 libedit2 libelf1
+  libestr0 libexpat1 libfastjson4 libfido2-1 libfribidi0 libfuse3-3 libgdbm6
+  libgirepository-1.0-1 libglib2.0-0 libglib2.0-data libicu70 libip4tc2
+  libip6tc2 libjansson4 libjson-c5 libkmod2 libldap-2.5-0 libldap-common
+  liblmdb0 libmagic-mgc libmagic1 libmaxminddb0 libmd0 libmnl0 libmpdec3
+  libnetfilter-conntrack3 libnewt0.52 libnfnetlink0 libnftables1 libnftnl11
+  libnghttp2-14 libnl-3-200 libnl-genl-3-200 libnss-systemd libntfs-3g89
+  libnuma1 libpam-cap libpam-systemd libparted2 libpcap0.8 libpci3
+  libpipeline1 libplymouth5 libpng16-16 libpopt0 libpsl5 libpython3-stdlib
+  libpython3.10-minimal libpython3.10-stdlib libreadline8 librtmp1 libsasl2-2
+  libsasl2-modules libsasl2-modules-db libseccomp2 libslang2 libsqlite3-0
+  libssh-4 libuchardet0 libusb-1.0-0 libuv1 libwrap0 libx11-6 libx11-data
+  libxau6 libxcb1 libxdmcp6 libxext6 libxml2 libxmuu1 libxtables12 libyaml-0-2
+  locales logrotate lsb-release lshw lsof man-db manpages media-types mtr-tiny
+  nano ncurses-term netbase netcat-openbsd networkd-dispatcher nftables
+  ntfs-3g openssh-client openssh-server openssh-sftp-server openssl parted
+  pci.ids pciutils plymouth plymouth-theme-ubuntu-text powermgmt-base psmisc
+  publicsuffix python-apt-common python3 python3-apt python3-commandnotfound
+  python3-dbus python3-distro python3-distro-info python3-distupgrade
+  python3-gdbm python3-gi python3-minimal python3-pkg-resources
+  python3-update-manager python3-yaml python3.10 python3.10-minimal
+  readline-common rsync rsyslog shared-mime-info ssh-import-id strace sudo
+  systemd systemd-hwe-hwdb systemd-sysv systemd-timesyncd tcpdump telnet time
+  tnftp tzdata ubuntu-advantage-tools ubuntu-pro-client ubuntu-pro-client-l10n
+  ubuntu-release-upgrader-core ubuntu-standard ucf udev ufw
+  update-manager-core usb.ids usbutils uuid-runtime vim-common vim-tiny wget
+  whiptail xauth xdg-user-dirs xxd xz-utils
+The following packages will be upgraded:
+  bsdutils gcc-12-base libblkid1 libc-bin libc6 libcap2 libgcc-s1 liblzma5
+  libmount1 libsmartcols1 libssl3 libstdc++6 libsystemd0 libudev1 libuuid1
+  mount util-linux
+17 upgraded, 207 newly installed, 0 to remove and 18 not upgraded.
+Need to get 51.5 MB/67.5 MB of archives.
+After this operation, 220 MB of additional disk space will be used.
+Get:1 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 gcc-12-base riscv64 12.3.0-1ubuntu1~22.04.3 [216 kB]
+Get:2 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libgcc-s1 riscv64 12.3.0-1ubuntu1~22.04.3 [44.3 kB]
+Get:3 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libstdc++6 riscv64 12.3.0-1ubuntu1~22.04.3 [690 kB]
+Get:4 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libc6 riscv64 2.35-0ubuntu3.13 [2640 kB]
+Get:5 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libc-bin riscv64 2.35-0ubuntu3.13 [561 kB]
+Get:6 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 install-info riscv64 6.8-4build1 [87.9 kB]
+Get:7 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libssl3 riscv64 3.0.2-0ubuntu1.25 [1467 kB]
+Get:8 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 liblzma5 riscv64 5.2.5-2ubuntu1.1 [94.1 kB]
+Get:9 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 cron riscv64 3.0pl1-137ubuntu3 [71.5 kB]
+Get:10 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libglib2.0-0 riscv64 2.72.4-0ubuntu2.9 [1316 kB]
+Get:11 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libatomic1 riscv64 12.3.0-1ubuntu1~22.04.3 [7872 B]
+Get:12 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libnuma1 riscv64 2.0.14-3ubuntu2 [20.0 kB]
+Get:13 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 irqbalance riscv64 1.8.0-1ubuntu0.2 [51.5 kB]
+Get:14 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libfuse3-3 riscv64 3.10.5-1build1 [70.5 kB]
+Get:15 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 fuse3 riscv64 3.10.5-1build1 [23.9 kB]
+Get:16 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libntfs-3g89 riscv64 1:2021.8.22-3ubuntu1.3 [157 kB]
+Get:17 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 ntfs-3g riscv64 1:2021.8.22-3ubuntu1.3 [402 kB]
+Get:18 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libpopt0 riscv64 1.18-3build1 [25.2 kB]
+Get:19 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 rsync riscv64 3.2.7-0ubuntu0.22.04.7 [424 kB]
+Get:20 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 uuid-runtime riscv64 2.37.2-4ubuntu3.5 [43.1 kB]
+Get:21 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libedit2 riscv64 3.1-20210910-1build1 [82.3 kB]
+Get:22 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libcbor0.8 riscv64 0.8.0-2ubuntu1 [20.7 kB]
+Get:23 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libfido2-1 riscv64 1.10.0-1 [72.6 kB]
+Get:24 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 openssh-client riscv64 1:8.9p1-3ubuntu0.15 [809 kB]
+Get:25 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 openssh-sftp-server riscv64 1:8.9p1-3ubuntu0.15 [60.1 kB]
+Get:26 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 ucf all 3.0043 [56.1 kB]
+Get:27 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libwrap0 riscv64 7.6.q-31build2 [45.6 kB]
+Get:28 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 openssh-server riscv64 1:8.9p1-3ubuntu0.15 [426 kB]
+Get:29 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 openssl riscv64 3.0.2-0ubuntu1.25 [1144 kB]
+Get:30 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 ca-certificates all 20240203~22.04.1 [162 kB]
+Get:31 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 distro-info riscv64 1.1ubuntu0.2 [17.6 kB]
+Get:32 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 dmsetup riscv64 2:1.02.175-2.1ubuntu5 [80.0 kB]
+Get:33 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libgirepository-1.0-1 riscv64 1.72.0-1 [80.8 kB]
+Get:34 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 gir1.2-glib-2.0 riscv64 1.72.0-1 [164 kB]
+Get:35 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 iputils-ping riscv64 3:20211215-1ubuntu0.1 [43.6 kB]
+Get:36 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 iso-codes all 4.9.0-1 [3459 kB]
+Get:37 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 less riscv64 590-1ubuntu0.22.04.3 [132 kB]
+Get:38 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libatm1 riscv64 1:2.5.1-4build2 [21.4 kB]
+Get:39 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libestr0 riscv64 0.1.10-2.1build3 [7036 B]
+Get:40 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libfastjson4 riscv64 0.99.9-1build2 [20.0 kB]
+Get:41 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libfribidi0 riscv64 1.0.8-2ubuntu3.1 [25.9 kB]
+Get:42 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libglib2.0-data all 2.72.4-0ubuntu2.9 [5088 B]
+Get:43 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libicu70 riscv64 70.1-2 [10.5 MB]
+Get:44 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libslang2 riscv64 2.3.2-5build4 [435 kB]
+Get:45 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libnewt0.52 riscv64 0.52.21-5ubuntu2 [38.9 kB]
+Get:46 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libnss-systemd riscv64 249.11-0ubuntu3.21 [125 kB]
+Get:47 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libpam-cap riscv64 1:2.44-1ubuntu0.22.04.3 [7386 B]
+Get:48 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libpam-systemd riscv64 249.11-0ubuntu3.21 [189 kB]
+Get:49 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libxml2 riscv64 2.9.13+dfsg-1ubuntu0.11 [605 kB]
+Get:50 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libyaml-0-2 riscv64 0.2.2-1build2 [49.4 kB]
+Get:51 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 locales all 2.35-0ubuntu3.13 [4248 kB]
+Get:52 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 logrotate riscv64 3.19.0-1ubuntu1.1 [50.1 kB]
+Get:53 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 netbase all 6.3 [12.9 kB]
+Get:54 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 netcat-openbsd riscv64 1.218-4ubuntu1 [39.1 kB]
+Get:55 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 python3-dbus riscv64 1.2.18-3build1 [92.4 kB]
+Get:56 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 python3-gi riscv64 3.42.1-0ubuntu1 [211 kB]
+Get:57 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 networkd-dispatcher all 2.1-2ubuntu0.22.04.2 [15.8 kB]
+Get:58 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 python-apt-common all 2.4.0ubuntu4.1 [14.7 kB]
+Get:59 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 python3-apt riscv64 2.4.0ubuntu4.1 [161 kB]
+Get:60 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 python3-pkg-resources all 59.6.0-1.2ubuntu0.22.04.3 [133 kB]
+Get:61 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 python3-yaml riscv64 5.4.1-1ubuntu1 [122 kB]
+Get:62 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 rsyslog riscv64 8.2112.0-2ubuntu2.2 [432 kB]
+Get:63 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 shared-mime-info riscv64 2.1-2 [451 kB]
+Get:64 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 sudo riscv64 1.9.9-1ubuntu2.6 [775 kB]
+Get:65 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 systemd-timesyncd riscv64 249.11-0ubuntu3.21 [28.9 kB]
+Get:66 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 tzdata all 2026a-0ubuntu0.22.04.1 [348 kB]
+Get:67 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 ubuntu-pro-client riscv64 37.2ubuntu~22.04 [240 kB]
+Get:68 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 ubuntu-advantage-tools all 37.2ubuntu~22.04 [10.9 kB]
+Get:69 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 ubuntu-pro-client-l10n riscv64 37.2ubuntu~22.04 [20.7 kB]
+Get:70 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 xxd riscv64 2:8.2.3995-1ubuntu2.31 [50.3 kB]
+Get:71 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 vim-common all 2:8.2.3995-1ubuntu2.31 [81.5 kB]
+Get:72 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 vim-tiny riscv64 2:8.2.3995-1ubuntu2.31 [635 kB]
+Get:73 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 whiptail riscv64 0.52.21-5ubuntu2 [16.4 kB]
+Get:74 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 xdg-user-dirs riscv64 0.17-2ubuntu4 [52.9 kB]
+Get:75 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 apparmor riscv64 3.0.4-2ubuntu2.5 [600 kB]
+Get:76 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 bash-completion all 1:2.11-5ubuntu1 [180 kB]
+Get:77 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 liblmdb0 riscv64 0.9.24-1build2 [46.0 kB]
+Get:78 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libmaxminddb0 riscv64 1.5.2-1build2 [23.5 kB]
+Get:79 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libnghttp2-14 riscv64 1.43.0-1ubuntu0.3 [73.9 kB]
+Get:80 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libuv1 riscv64 1.43.0-1ubuntu0.1 [78.5 kB]
+Get:81 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 bind9-libs riscv64 1:9.18.39-0ubuntu0.22.04.4 [1194 kB]
+Get:82 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 bind9-host riscv64 1:9.18.39-0ubuntu0.22.04.4 [51.2 kB]
+Ign:83 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 bind9-dnsutils riscv64 1:9.18.39-0ubuntu0.22.04.4
+Get:84 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 bsdextrautils riscv64 2.37.2-4ubuntu3.5 [81.6 kB]
+Ign:85 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 busybox-static riscv64 1:1.30.1-7ubuntu3.1
+Ign:86 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libgdbm6 riscv64 1.23-1
+Get:87 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 python3-gdbm riscv64 3.10.8-1~22.04 [15.5 kB]
+Get:88 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 python3-commandnotfound all 22.04.0 [11.3 kB]
+Get:89 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 command-not-found all 22.04.0 [5114 B]
+Get:90 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 cpio riscv64 2.13+dfsg-7ubuntu0.1 [84.5 kB]
+Ign:91 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 dmidecode riscv64 3.3-3ubuntu0.2
+Get:92 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 dosfstools riscv64 4.2-1build3 [84.6 kB]
+Get:93 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 ed riscv64 1.18-1 [52.5 kB]
+Ign:94 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libmagic-mgc riscv64 1:5.41-3ubuntu0.1
+Get:95 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libmagic1 riscv64 1:5.41-3ubuntu0.1 [88.7 kB]
+Get:96 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 file riscv64 1:5.41-3ubuntu0.1 [20.6 kB]
+Get:97 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 friendly-recovery all 0.2.42 [8888 B]
+Get:98 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 tnftp riscv64 20210827-4build1 [99.1 kB]
+Get:99 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 ftp all 20210827-4build1 [4812 B]
+Get:100 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 gettext-base riscv64 0.21-4ubuntu4 [38.7 kB]
+Get:101 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libuchardet0 riscv64 0.0.7-1build2 [78.9 kB]
+Get:102 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 groff-base riscv64 1.22.4-8build1 [925 kB]
+Get:103 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 hdparm riscv64 9.60+ds-1build3 [94.4 kB]
+Get:104 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 info riscv64 6.8-4build1 [199 kB]
+Get:105 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libip6tc2 riscv64 1.8.7-1ubuntu5.2 [18.6 kB]
+Get:106 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libnfnetlink0 riscv64 1.0.1-3build3 [13.0 kB]
+Get:107 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libnetfilter-conntrack3 riscv64 1.0.9-1 [39.5 kB]
+Get:108 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libnftnl11 riscv64 1.2.1-1build1 [59.0 kB]
+Get:109 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 iptables riscv64 1.8.7-1ubuntu5.2 [421 kB]
+Ign:109 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 iptables riscv64 1.8.7-1ubuntu5.2
+Get:110 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 iputils-tracepath riscv64 3:20211215-1ubuntu0.1 [13.9 kB]
+Ign:111 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libdrm-common all 2.4.113-2~ubuntu0.22.04.1
+Get:112 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libdrm2 riscv64 2.4.113-2~ubuntu0.22.04.1 [35.2 kB]
+Get:113 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libjansson4 riscv64 2.13.1-1.1build3 [28.3 kB]
+Ign:114 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libnftables1 riscv64 1.0.2-1ubuntu3.1
+Get:115 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libparted2 riscv64 3.4-2build1 [160 kB]
+Ign:116 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libpcap0.8 riscv64 1.10.1-4ubuntu1.22.04.1
+Get:117 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 pci.ids all 0.0~2022.01.22-1ubuntu0.1 [251 kB]
+Get:118 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libpci3 riscv64 1:3.7.0-6 [24.0 kB]
+Ign:119 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libpipeline1 riscv64 1.5.5-1
+Get:120 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libpng16-16 riscv64 1.6.37-3ubuntu0.5 [179 kB]
+Get:121 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libplymouth5 riscv64 0.9.5+git20211018-1ubuntu3 [92.8 kB]
+Ign:122 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libpsl5 riscv64 0.21.0-1.2build2
+Get:123 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libusb-1.0-0 riscv64 2:1.0.25-1ubuntu2 [46.1 kB]
+Get:124 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libxau6 riscv64 1:1.0.9-1build5 [6836 B]
+Get:125 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libxdmcp6 riscv64 1:1.1.3-0ubuntu5 [10.3 kB]
+Get:126 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libxcb1 riscv64 1.14-3ubuntu3 [42.6 kB]
+Get:127 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libx11-data all 2:1.7.5-1ubuntu0.3 [120 kB]
+Get:128 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libx11-6 riscv64 2:1.7.5-1ubuntu0.3 [622 kB]
+Get:129 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libxext6 riscv64 2:1.3.4-1build1 [27.8 kB]
+Get:130 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libxmuu1 riscv64 2:1.1.3-3 [9444 B]
+Get:131 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 lshw riscv64 02.19.git.2021.06.19.996aaad9c7-2ubuntu0.22.04.1 [297 kB]
+Get:132 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 lsof riscv64 4.93.2+dfsg-1.1build2 [257 kB]
+Get:133 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 man-db riscv64 2.10.2-1 [1144 kB]
+Get:134 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 manpages all 5.10-1ubuntu1 [1375 kB]
+Get:135 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 mtr-tiny riscv64 0.95-1 [53.3 kB]
+Get:136 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 nano riscv64 6.2-1ubuntu0.2 [268 kB]
+Get:137 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 nftables riscv64 1.0.2-1ubuntu3.1 [66.9 kB]
+Get:138 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 parted riscv64 3.4-2build1 [42.6 kB]
+Get:139 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 pciutils riscv64 1:3.7.0-6 [60.7 kB]
+Get:140 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 plymouth riscv64 0.9.5+git20211018-1ubuntu3 [119 kB]
+Get:141 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 plymouth-theme-ubuntu-text riscv64 0.9.5+git20211018-1ubuntu3 [8818 B]
+Get:142 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 powermgmt-base all 1.36ubuntu0.22.04.1 [7736 B]
+Get:143 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 psmisc riscv64 23.4-2build3 [113 kB]
+Get:144 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 publicsuffix all 20211207.1025-1 [129 kB]
+Get:145 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 python3-distro-info all 1.1ubuntu0.2 [6554 B]
+Get:146 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 python3-update-manager all 1:22.04.22 [39.2 kB]
+Get:147 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 python3-distupgrade all 1:22.04.20 [106 kB]
+Ign:148 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 strace riscv64 5.16-0ubuntu3
+Ign:149 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 tcpdump riscv64 4.99.1-3ubuntu0.2
+Get:150 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 telnet riscv64 0.17-44build1 [67.6 kB]
+Ign:151 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 time riscv64 1.9-0.1build2
+Get:152 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 ubuntu-release-upgrader-core all 1:22.04.20 [26.2 kB]
+Ign:153 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 usbutils riscv64 1:014-1build1
+Ign:154 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 wget riscv64 1.21.2-2ubuntu1.1
+Get:155 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 xz-utils riscv64 5.2.5-2ubuntu1.1 [81.4 kB]
+Ign:156 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 ubuntu-standard riscv64 1.481.5
+Get:157 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 ufw all 0.36.1-4ubuntu0.1 [162 kB]
+Get:158 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 update-manager-core all 1:22.04.22 [11.6 kB]
+Get:159 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 usb.ids all 2022.04.02-1 [219 kB]
+Ign:160 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 xauth riscv64 1:1.1-1build2
+Get:161 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libbrotli1 riscv64 1.0.9-2build6 [330 kB]
+Ign:162 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libsasl2-modules-db riscv64 2.1.27+dfsg2-3ubuntu1.2
+Get:163 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libsasl2-2 riscv64 2.1.27+dfsg2-3ubuntu1.2 [53.2 kB]
+Get:164 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libldap-2.5-0 riscv64 2.5.20+dfsg-0ubuntu0.22.04.1 [163 kB]
+Get:165 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 librtmp1 riscv64 2.4+20151223.gitfa8646d.1-2build4 [54.6 kB]
+Get:166 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libssh-4 riscv64 0.9.6-2ubuntu0.22.04.7 [165 kB]
+Get:167 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libcurl4 riscv64 7.81.0-1ubuntu1.24 [257 kB]
+Get:168 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 curl riscv64 7.81.0-1ubuntu1.24 [188 kB]
+Get:169 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libnl-3-200 riscv64 3.5.0-0.1 [50.4 kB]
+Get:170 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libnl-genl-3-200 riscv64 3.5.0-0.1 [10.4 kB]
+Get:171 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 htop riscv64 3.0.5-7build2 [107 kB]
+Get:172 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libldap-common all 2.5.20+dfsg-0ubuntu0.22.04.1 [16.4 kB]
+Get:173 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libsasl2-modules riscv64 2.1.27+dfsg2-3ubuntu1.2 [61.3 kB]
+Get:174 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 ncurses-term all 6.3-2ubuntu0.1 [267 kB]
+Get:175 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 systemd-hwe-hwdb all 249.11.6 [3668 B]
+Get:176 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 python3-distro all 1.7.0-1 [17.0 kB]
+Get:177 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 ssh-import-id all 5.11-0ubuntu1 [10.1 kB]
+Get:83 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 bind9-dnsutils riscv64 1:9.18.39-0ubuntu0.22.04.4 [154 kB]
+Get:85 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 busybox-static riscv64 1:1.30.1-7ubuntu3.1 [926 kB]
+Get:86 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libgdbm6 riscv64 1.23-1 [29.9 kB]
+Get:91 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 dmidecode riscv64 3.3-3ubuntu0.2 [54.2 kB]
+Get:94 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libmagic-mgc riscv64 1:5.41-3ubuntu0.1 [257 kB]
+Get:109 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 iptables riscv64 1.8.7-1ubuntu5.2 [421 kB]
+Get:111 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libdrm-common all 2.4.113-2~ubuntu0.22.04.1 [5450 B]
+Get:114 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libnftables1 riscv64 1.0.2-1ubuntu3.1 [288 kB]
+Get:116 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libpcap0.8 riscv64 1.10.1-4ubuntu1.22.04.1 [134 kB]
+Get:119 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libpipeline1 riscv64 1.5.5-1 [26.2 kB]
+Get:122 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 libpsl5 riscv64 0.21.0-1.2build2 [57.3 kB]
+Get:148 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 strace riscv64 5.16-0ubuntu3 [377 kB]
+Get:149 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 tcpdump riscv64 4.99.1-3ubuntu0.2 [446 kB]
+Get:151 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 time riscv64 1.9-0.1build2 [46.3 kB]
+Get:153 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 usbutils riscv64 1:014-1build1 [81.7 kB]
+Get:154 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 wget riscv64 1.21.2-2ubuntu1.1 [328 kB]
+Get:156 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 ubuntu-standard riscv64 1.481.5 [2920 B]
+Get:160 http://ports.ubuntu.com/ubuntu-ports jammy/main riscv64 xauth riscv64 1:1.1-1build2 [25.0 kB]
+Get:162 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main riscv64 libsasl2-modules-db riscv64 2.1.27+dfsg2-3ubuntu1.2 [19.3 kB]
+Fetched 51.1 MB in 24min 11s (35.2 kB/s)
+Download complete and in download only mode
+[ubuntu-systemd-overlay] unpack 229 packages into /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/rootfs-full
+[ubuntu-systemd-overlay] overlay complete
+mke2fs 1.47.0 (5-Feb-2023)
+Discarding device blocks:       0/2097152               done
+Creating filesystem with 2097152 4k blocks and 524288 inodes
+Filesystem UUID: 28664651-067b-4a42-88ab-85c18aa17819
+Superblock backups stored on blocks:
+	32768, 98304, 163840, 229376, 294912, 819200, 884736, 1605632
+
+Allocating group tables:  0/64     done
+Writing inode tables:  0/64     done
+Creating journal (16384 blocks): done
+Copying files into the device: done
+Writing superblocks and filesystem accounting information:  0/64     done
+
+[ubuntu-rootfs] generated: /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4
+[ubuntu-rootfs] generated rootfs cpio: /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full-rootfs.cpio
+[ubuntu-rootfs-check] image: /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4
+[ubuntu-rootfs-check] flavor: full
+[ubuntu-rootfs-check] OK      stage1 init: /init
+[ubuntu-rootfs-check] OK      Ubuntu shell: /bin/sh
+[ubuntu-rootfs-check] OK      Ubuntu identity: /etc/os-release
+[ubuntu-rootfs-check] OK      systemd candidate: /lib/systemd/systemd
+[ubuntu-rootfs-check] OK      systemd basic.target: /lib/systemd/system/basic.target
+[ubuntu-rootfs-check] OK      udev daemon: /lib/systemd/systemd-udevd
+[ubuntu-rootfs-check] OK      dbus daemon: /usr/bin/dbus-daemon
+[ubuntu-rootfs-check] OK      agetty login path: /bin/login
+[ubuntu-rootfs-check] OK      root login shell: /bin/bash
+[ubuntu-rootfs-check] OK      Ubuntu identity command: /usr/bin/lsb_release
+[ubuntu-rootfs-check] OK      lp64d dynamic linker: /lib/ld-linux-riscv64-lp64d.so.1
+[ubuntu-rootfs-check] OK      PAM module path: /lib/riscv64-linux-gnu/security
+[ubuntu-rootfs-check] OK      e2scrub service entrypoint: /sbin/e2scrub_all
+[ubuntu-rootfs-check] OK      unavailable hvc0 getty masked: /etc/systemd/system/serial-getty@hvc0.service
+[ubuntu-rootfs-check] OK      Ubuntu interactive command curl: /usr/bin/curl
+[ubuntu-rootfs-check] OK      Ubuntu interactive command wget: /usr/bin/wget
+[ubuntu-rootfs-check] MISSING Ubuntu interactive command ping: /usr/bin/ping
+[ubuntu-rootfs-check] OK      Ubuntu interactive command ssh: /usr/bin/ssh
+[ubuntu-rootfs-check] OK      Ubuntu interactive command htop: /usr/bin/htop
+[ubuntu-rootfs-check] OK      Ubuntu interactive command less: /usr/bin/less
+[ubuntu-rootfs-check] OK      Ubuntu interactive command strace: /usr/bin/strace
+[ubuntu-rootfs-check] OK      Ubuntu full command apt-get: /usr/bin/apt-get
+[ubuntu-rootfs-check] OK      Ubuntu full command sudo: /usr/bin/sudo
+[ubuntu-rootfs-check] OK      Ubuntu full command man: /usr/bin/man
+[ubuntu-rootfs-check] OK      Ubuntu full service sshd: /usr/sbin/sshd
+[ubuntu-rootfs-check] OK      Ubuntu full service cron: /usr/sbin/cron
+[ubuntu-rootfs-check] OK      Ubuntu full service rsyslogd: /usr/sbin/rsyslogd
+[ubuntu-rootfs-check] OK      Ubuntu full timezone database: /usr/share/zoneinfo/UTC
+[ubuntu-rootfs-check] flavor full is incomplete
+make: *** [Makefile:578: ubuntu-rootfs-full-image] Error 1
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/Linux'

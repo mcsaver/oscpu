@@ -52,10 +52,12 @@ static Sv39TlbEntry sv39_dtlb[SV39_TLB_SIZE];
 #ifdef CONFIG_RISCV_DEBUG_LOG
 static int sv39_fail_log_budget = CONFIG_RISCV_FAULT_DEBUG_BUDGET;
 #endif
+static word_t sv39_translate_fault_cause;
 
 void isa_riscv64_mmu_tlb_flush(void) {
   memset(sv39_itlb, 0, sizeof(sv39_itlb));
   memset(sv39_dtlb, 0, sizeof(sv39_dtlb));
+  vaddr_ifetch_cache_flush();
 }
 
 static inline void sv39_tlb_flush_set(Sv39TlbEntry *tlb,
@@ -84,10 +86,35 @@ void isa_riscv64_mmu_tlb_flush_selective(vaddr_t vaddr, bool flush_vaddr,
   uint16_t asid16 = (uint16_t)(asid & 0xffffu);
   sv39_tlb_flush_set(sv39_itlb, flush_vaddr, vpn, flush_asid, asid16);
   sv39_tlb_flush_set(sv39_dtlb, flush_vaddr, vpn, flush_asid, asid16);
+  vaddr_ifetch_cache_flush();
 }
 
-static paddr_t sv39_fail(vaddr_t vaddr, int type, int level,
-    paddr_t pte_addr, word_t pte, const char *reason) {
+static inline word_t mmu_page_fault_cause_for_type(int type) {
+  switch (type) {
+    case MEM_TYPE_IFETCH: return CAUSE_INST_PAGE_FAULT;
+    case MEM_TYPE_WRITE:  return CAUSE_STORE_PAGE_FAULT;
+    case MEM_TYPE_READ:
+    default: return CAUSE_LOAD_PAGE_FAULT;
+  }
+}
+
+static inline word_t mmu_access_fault_cause_for_type(int type) {
+  switch (type) {
+    case MEM_TYPE_IFETCH: return CAUSE_INST_ACCESS;
+    case MEM_TYPE_WRITE:  return CAUSE_STORE_ACCESS;
+    case MEM_TYPE_READ:
+    default: return CAUSE_LOAD_ACCESS;
+  }
+}
+
+word_t isa_riscv64_mmu_fault_cause(int type) {
+  return sv39_translate_fault_cause != 0 ?
+    sv39_translate_fault_cause : mmu_page_fault_cause_for_type(type);
+}
+
+static paddr_t sv39_fail_with_cause(vaddr_t vaddr, int type, int level,
+    paddr_t pte_addr, word_t pte, const char *reason, word_t cause) {
+  sv39_translate_fault_cause = cause;
 #ifdef CONFIG_RISCV_DEBUG_LOG
   if (sv39_fail_log_budget > 0) {
     sv39_fail_log_budget--;
@@ -108,6 +135,12 @@ static paddr_t sv39_fail(vaddr_t vaddr, int type, int level,
   return (paddr_t)-1;
 }
 
+static paddr_t sv39_fail(vaddr_t vaddr, int type, int level,
+    paddr_t pte_addr, word_t pte, const char *reason) {
+  return sv39_fail_with_cause(vaddr, type, level, pte_addr, pte,
+      reason, mmu_page_fault_cause_for_type(type));
+}
+
 static inline uint8_t mmu_effective_priv(int type) {
   if (type != MEM_TYPE_IFETCH && cpu.priv == PRIV_M && (cpu.csr.mstatus & MSTATUS_MPRV)) {
     switch (cpu.csr.mstatus & MSTATUS_MPP_MASK) {
@@ -118,6 +151,132 @@ static inline uint8_t mmu_effective_priv(int type) {
   }
   return cpu.priv;
 }
+
+typedef struct {
+  uint64_t start;
+  uint64_t end;
+} PmpRange;
+
+static inline uint8_t pmp_cfg_a(uint8_t cfg) {
+  return cfg & PMP_CFG_A_MASK;
+}
+
+static inline bool pmp_entry_active(uint32_t index) {
+  return pmp_cfg_a(cpu.csr.pmpcfg[index]) != PMP_CFG_A_OFF;
+}
+
+static inline bool pmp_any_active(void) {
+  return cpu.csr.pmp_active;
+}
+
+static inline uint64_t pmp_saturating_end(uint64_t start, uint64_t size) {
+  uint64_t max = ~(uint64_t)0;
+  if (size == 0) return start;
+  return start > max - size ? max : start + size;
+}
+
+static bool pmp_decode_napot(uint64_t raw, PmpRange *range) {
+  uint32_t ones = 0;
+  raw &= (uint64_t)PMPADDR_MASK;
+  while (ones < 54 && ((raw >> ones) & 1u)) {
+    ones++;
+  }
+
+  if (ones + 3 >= 63) {
+    range->start = 0;
+    range->end = ~(uint64_t)0;
+    return true;
+  }
+
+  uint64_t low_mask = ones == 0 ? 0 : ((1ull << ones) - 1);
+  uint64_t start = (raw & ~low_mask) << 2;
+  uint64_t size = 1ull << (ones + 3);
+  range->start = start;
+  range->end = pmp_saturating_end(start, size);
+  return range->start < range->end;
+}
+
+static bool pmp_decode_range(uint32_t index, PmpRange *range) {
+  uint8_t cfg = cpu.csr.pmpcfg[index];
+  uint64_t addr = (uint64_t)(cpu.csr.pmpaddr[index] & PMPADDR_MASK);
+
+  switch (pmp_cfg_a(cfg)) {
+    case PMP_CFG_A_OFF:
+      return false;
+    case PMP_CFG_A_TOR: {
+      uint64_t start = index == 0 ? 0 :
+        (uint64_t)(cpu.csr.pmpaddr[index - 1] & PMPADDR_MASK) << 2;
+      uint64_t end = addr << 2;
+      range->start = start;
+      range->end = end;
+      return range->start < range->end;
+    }
+    case PMP_CFG_A_NA4:
+      range->start = addr << 2;
+      range->end = pmp_saturating_end(range->start, 4);
+      return range->start < range->end;
+    case PMP_CFG_A_NAPOT:
+      return pmp_decode_napot(addr, range);
+    default:
+      return false;
+  }
+}
+
+static inline bool pmp_range_overlaps(PmpRange range, uint64_t start, uint64_t end) {
+  return start < range.end && end > range.start;
+}
+
+static inline bool pmp_range_contains(PmpRange range, uint64_t start, uint64_t end) {
+  return start >= range.start && end <= range.end;
+}
+
+static inline bool pmp_permission_ok(uint8_t cfg, int type, uint8_t priv) {
+  if (priv == PRIV_M && (cfg & PMP_CFG_L) == 0) {
+    return true;
+  }
+
+  switch (type) {
+    case MEM_TYPE_IFETCH: return (cfg & PMP_CFG_X) != 0;
+    case MEM_TYPE_WRITE:  return (cfg & PMP_CFG_W) != 0;
+    case MEM_TYPE_READ:
+    default: return (cfg & PMP_CFG_R) != 0;
+  }
+}
+
+static bool pmp_check_with_priv(paddr_t paddr, int len, int type, uint8_t priv) {
+  if (len <= 0) return false;
+  if (!pmp_any_active()) return true;
+
+  uint64_t start = (uint64_t)paddr;
+  uint64_t end = pmp_saturating_end(start, (uint64_t)len);
+  if (end <= start) return false;
+
+  for (uint32_t i = 0; i < RISCV64_PMP_ENTRY_COUNT; i++) {
+    PmpRange range;
+    if (!pmp_decode_range(i, &range)) continue;
+    if (!pmp_range_overlaps(range, start, end)) continue;
+    if (!pmp_range_contains(range, start, end)) return false;
+    return pmp_permission_ok(cpu.csr.pmpcfg[i], type, priv);
+  }
+
+  return priv == PRIV_M;
+}
+
+bool isa_riscv64_pmp_check_as_priv(paddr_t paddr, int len, int type, uint8_t priv) {
+  return pmp_check_with_priv(paddr, len, type, priv);
+}
+
+bool isa_riscv64_pmp_check(paddr_t paddr, int len, int type) {
+  return pmp_check_with_priv(paddr, len, type, mmu_effective_priv(type));
+}
+
+#ifndef CONFIG_TARGET_AM
+void isa_riscv64_pmp_dump_machine_info(FILE *out) {
+  fprintf(out, "memory.pmp.mode=rv64-basic\n");
+  fprintf(out, "memory.pmp.entries=%u\n", RISCV64_PMP_ENTRY_COUNT);
+  fprintf(out, "memory.pmp.active=%d\n", pmp_any_active() ? 1 : 0);
+}
+#endif
 
 int isa_mmu_check(vaddr_t vaddr, int len, int type) {
   (void)vaddr;
@@ -271,6 +430,7 @@ static paddr_t sv39_translate(vaddr_t vaddr, int len, int type,
 #else
   (void)len;
   if (host_addr != NULL) *host_addr = NULL;
+  sv39_translate_fault_cause = mmu_page_fault_cause_for_type(type);
   if (!sv39_va_canonical(vaddr)) return sv39_fail(vaddr, type, -1, 0, 0, "non-canonical");
 
   uint64_t va = vaddr;
@@ -288,6 +448,10 @@ static paddr_t sv39_translate(vaddr_t vaddr, int len, int type,
 
   for (int level = 2; level >= 0; level--) {
     paddr_t pte_addr = (paddr_t)(table + vpn[level] * 8);
+    if (!isa_riscv64_pmp_check_as_priv(pte_addr, 8, MEM_TYPE_READ, PRIV_S)) {
+      return sv39_fail_with_cause(vaddr, type, level, pte_addr, 0,
+          "pmp-page-table-read", mmu_access_fault_cause_for_type(type));
+    }
     word_t pte = paddr_read(pte_addr, 8);
     if (pte_invalid(pte)) return sv39_fail(vaddr, type, level, pte_addr, pte, "invalid-pte");
     global_mapping = global_mapping || (pte & PTE_G);
@@ -308,6 +472,10 @@ static paddr_t sv39_translate(vaddr_t vaddr, int len, int type,
 
       word_t needed = PTE_A | (type == MEM_TYPE_WRITE ? PTE_D : 0);
       if ((pte & needed) != needed) {
+        if (!isa_riscv64_pmp_check_as_priv(pte_addr, 8, MEM_TYPE_WRITE, PRIV_S)) {
+          return sv39_fail_with_cause(vaddr, type, level, pte_addr, pte,
+              "pmp-page-table-write", mmu_access_fault_cause_for_type(type));
+        }
         paddr_write(pte_addr, 8, pte | needed);
       }
 

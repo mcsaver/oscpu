@@ -63,6 +63,7 @@ Linux/tools/initramfs/
 # AI 开发环境需要随仓库同步；这些 allowlist 用来覆盖本机或工具引入的宽泛忽略规则。
 !.github/
 !.github/**
+.github/cache/
 .github/task-runs/**/nemu-systemd-*.riscv64
 .github/task-runs/**/nemu-systemd-*.b64
 .github/task-runs/**/guest-check*.cmd

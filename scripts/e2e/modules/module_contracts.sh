@@ -20,6 +20,105 @@ e2e_ysyx_coordinator_contract() {
     .github/e2e/profiles/discovery.tsv
 }
 
+e2e_software_flow_contract() {
+  echo "[software-flow] contract"
+  local rc=0
+  local software_agent="$E2E_ROOT_DIR/.github/agents/software-flow.agent.md"
+  e2e_print_required_files \
+    .github/agents/software-flow.agent.md \
+    .github/e2e/modules/software-flow.md \
+    .github/e2e/profiles/software-flow.tsv \
+    .github/memory/modules/software-flow.md \
+    .github/agents/nemu.agent.md \
+    .github/agents/abstract-machine.agent.md \
+    .github/agents/am-kernels.agent.md || rc=1
+
+  echo "[software-flow] production integration hooks"
+  if grep -Fq 'hardware-aware-software-loop' "$E2E_ROOT_DIR/.github/agents/software-flow.agent.md" &&
+     grep -Fq 'system-or-hardware-gate' "$E2E_ROOT_DIR/.github/agents/software-flow.agent.md"; then
+    printf 'PASS software-flow defines hardware-aware software loop\n'
+  else
+    printf 'FAIL software-flow defines hardware-aware software loop\n'
+    rc=1
+  fi
+  if grep -Fq 'software-flow' "$E2E_ROOT_DIR/.github/agents/hardware-flow.agent.md" &&
+     grep -Fq 'hardware-aware-software-loop' "$E2E_ROOT_DIR/.github/agents/hardware-flow.agent.md"; then
+    printf 'PASS hardware-flow consumes software-flow for software artifacts\n'
+  else
+    printf 'FAIL hardware-flow consumes software-flow for software artifacts\n'
+    rc=1
+  fi
+  if grep -Fq 'software-flow' "$E2E_ROOT_DIR/.github/agents/nemu.agent.md" &&
+     grep -Fq 'hardware-aware-software-loop' "$E2E_ROOT_DIR/.github/agents/nemu.agent.md"; then
+    printf 'PASS nemu agent requires software-flow for C-side model work\n'
+  else
+    printf 'FAIL nemu agent requires software-flow for C-side model work\n'
+    rc=1
+  fi
+  if grep -Fq 'hardware-aware-software-loop' "$E2E_ROOT_DIR/.github/agents/ysyx-coordinator.agent.md" &&
+     grep -Fq '软件实现硬件或系统语义' "$E2E_ROOT_DIR/.github/agents/ysyx-coordinator.agent.md"; then
+    printf 'PASS coordinator routes hardware-aware software work\n'
+  else
+    printf 'FAIL coordinator routes hardware-aware software work\n'
+    rc=1
+  fi
+  if grep -Fq 'hardware-aware-software-loop' "$E2E_ROOT_DIR/.github/agentic-hardware-blueprint.md" &&
+     grep -Fq 'NEMU 这类' "$E2E_ROOT_DIR/.github/agentic-hardware-blueprint.md"; then
+    printf 'PASS blueprint documents combined software/hardware flow\n'
+  else
+    printf 'FAIL blueprint documents combined software/hardware flow\n'
+    rc=1
+  fi
+  if grep -Fq 'hardware-aware-software-loop' "$E2E_ROOT_DIR/.github/instructions/agent-e2e-workflow.instructions.md" &&
+     grep -Fq 'nemu-ubuntu' "$E2E_ROOT_DIR/.github/instructions/agent-e2e-workflow.instructions.md"; then
+    printf 'PASS e2e workflow documents software-flow plus system profile layering\n'
+  else
+    printf 'FAIL e2e workflow documents software-flow plus system profile layering\n'
+    rc=1
+  fi
+
+  echo "[software-flow] methodology guard hooks"
+  local required_methodology_patterns=(
+    'software-dev-loop'
+    'scope-contract -> design-plan -> implement -> unit-or-contract-test -> integration-smoke -> regression-or-e2e -> review-record'
+    'software-bugfix-loop'
+    'reproduce -> collect-log -> localize-root-cause -> fix -> focused-test -> regression -> record'
+    'software-refactor-loop'
+    'inventory-callers -> preserve-contract -> mechanical-change -> focused-test -> consumer-regression -> record'
+    'hardware-aware-software-loop'
+    'scope-contract -> hardware-semantic-contract -> design-plan -> implement -> software-focused-test -> system-or-hardware-gate -> review-record'
+    '`scope-contract`'
+    '`design-plan`'
+    '`unit-or-contract-test`'
+    '`integration-smoke`'
+    '`regression-or-e2e`'
+    '`hardware-semantic-contract`'
+    '`system-or-hardware-gate`'
+    '`review-record`'
+    '不把“构建通过”单独当成软件任务完成'
+    '不把脚本外层退出码当作唯一证据'
+    '必须扫描 FAIL marker'
+    '完成后必须更新 `.github/memory/modules/software-flow.md`'
+  )
+  local pattern
+  for pattern in "${required_methodology_patterns[@]}"; do
+    if grep -Fq -- "$pattern" "$software_agent"; then
+      printf 'PASS software-flow methodology hook %s\n' "$pattern"
+    else
+      printf 'FAIL software-flow methodology hook %s\n' "$pattern"
+      rc=1
+    fi
+  done
+  if grep -Fq -- '完成判定钩子' "$E2E_ROOT_DIR/.github/AGENTS.md" &&
+     grep -Fq -- '重新展开用户原始请求' "$E2E_ROOT_DIR/.github/AGENTS.md"; then
+    printf 'PASS global completion hook guards original request checklist\n'
+  else
+    printf 'FAIL global completion hook guards original request checklist\n'
+    rc=1
+  fi
+  return "$rc"
+}
+
 e2e_am_kernels_contract() {
   echo "[am-kernels] contract"
   e2e_print_required_files \

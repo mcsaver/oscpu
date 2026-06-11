@@ -22,6 +22,7 @@ RUN_FW=${RUN_FW:-"$ENV_ROOT/build/opensbi-nemu-rootfs/platform/generic/firmware/
 RUN_DTB=${RUN_DTB:-"$LINUX_HOME/build/npc-rv64-nemu-rootfs.dtb"}
 RUN_ROOTFS=${RUN_ROOTFS:-"$ENV_ROOT/images/ubuntu2204/ubuntu-22.04-riscv64.ext4"}
 RUN_ROOTFS_OVERLAY=${NEMU_SYSTEMD_ROOTFS_OVERLAY-"$LOG_DIR/rootfs-overlay.raw"}
+ROOTFS_FLAVOR=${NEMU_SYSTEMD_ROOTFS_FLAVOR:-systemd-minimal}
 NEXT_ADDR=${NEXT_ADDR:-0x80200000}
 DTB_ADDR=${DTB_ADDR:-0x82200000}
 MAX_CYCLES=${MAX_CYCLES:-12000000000}
@@ -421,6 +422,36 @@ check_console_clean() {
   return "$failed"
 }
 
+check_efi_boot_path_context() {
+  local has_efi_message=0
+  if grep -qaF "efi: UEFI not found" "$CONSOLE_LOG" ||
+     grep -qaF "EFI services will not be available" "$CONSOLE_LOG"; then
+    has_efi_message=1
+  fi
+
+  if [ "$has_efi_message" -eq 0 ]; then
+    echo "[nemu-systemd-check] PASS efi-dtb-boot-message-absent"
+    return 0
+  fi
+
+  # 当前 NEMU Ubuntu 路线由 OpenSBI 通过 DTB handoff Linux，不提供 UEFI
+  # firmware。只有同时看到 SBI/OF/command line 上下文时，才把 EFI 缺失
+  # 消息归为预期启动路径，避免把真正的早期启动断链误判成良性噪声。
+  if grep -qaF "OpenSBI" "$CONSOLE_LOG" &&
+     grep -qaF "Machine model: YSYX NPC RV64" "$CONSOLE_LOG" &&
+     grep -qaF "SBI specification" "$CONSOLE_LOG" &&
+     grep -qaF "OF: reserved mem" "$CONSOLE_LOG" &&
+     grep -qaF "Kernel command line: console=ttyS0,115200n8 root=/dev/vda" "$CONSOLE_LOG"; then
+    echo "[nemu-systemd-check] PASS efi-dtb-boot-benign"
+    grep -aE "efi: UEFI not found|EFI services will not be available|OpenSBI|Machine model: YSYX NPC RV64|SBI specification|OF: reserved mem|Kernel command line" "$CONSOLE_LOG" | head -20 || true
+    return 0
+  fi
+
+  echo "[nemu-systemd-check] FAIL efi-message-without-opensbi-dtb-context" >&2
+  grep -aE "efi: UEFI not found|EFI services will not be available|OpenSBI|Machine model: YSYX NPC RV64|SBI specification|OF: reserved mem|Kernel command line" "$CONSOLE_LOG" | head -40 >&2 || true
+  return 1
+}
+
 check_shutdown_watchdog_notify() {
   local pattern='systemd-journald\[[0-9]+\]: Failed to send WATCHDOG=1 notification message: Connection refused'
   if ! grep -qaE "$pattern" "$CONSOLE_LOG"; then
@@ -466,6 +497,90 @@ check_nemu_async_runtime() {
   fi
 }
 
+check_nemu_net_runtime() {
+  local line tx_packets rx_packets tx_errors rx_drops rx_pending
+  local arp_req arp_rep icmp_req icmp_rep dhcp_req dhcp_rep dns_req dns_rep
+  local tcp_segments tcp_replies tcp_http_requests
+  local ctrl_commands ctrl_errors ctrl_rx_commands ctrl_rx_extra_commands
+  local ctrl_mac_table_commands ctrl_mac_addr_commands ctrl_vlan_commands ctrl_announce_commands
+  line=$(grep -aE 'virtio-net runtime tx_packets=[0-9]+' "$LOG_FILE" "$CONSOLE_LOG" 2>/dev/null | tail -1 || true)
+  if [ -z "$line" ]; then
+    fail "missing virtio-net runtime statistic in $LOG_FILE or $CONSOLE_LOG"
+  fi
+
+  tx_packets=$(printf '%s\n' "$line" | sed -n 's/.*tx_packets=\([0-9][0-9]*\).*/\1/p')
+  rx_packets=$(printf '%s\n' "$line" | sed -n 's/.*rx_packets=\([0-9][0-9]*\).*/\1/p')
+  tx_errors=$(printf '%s\n' "$line" | sed -n 's/.*tx_errors=\([0-9][0-9]*\).*/\1/p')
+  rx_drops=$(printf '%s\n' "$line" | sed -n 's/.*rx_drops=\([0-9][0-9]*\).*/\1/p')
+  rx_pending=$(printf '%s\n' "$line" | sed -n 's/.*rx_pending=\([0-9][0-9]*\).*/\1/p')
+  arp_req=$(printf '%s\n' "$line" | sed -n 's/.*arp=\([0-9][0-9]*\)\/\([0-9][0-9]*\).*/\1/p')
+  arp_rep=$(printf '%s\n' "$line" | sed -n 's/.*arp=\([0-9][0-9]*\)\/\([0-9][0-9]*\).*/\2/p')
+  icmp_req=$(printf '%s\n' "$line" | sed -n 's/.*icmp=\([0-9][0-9]*\)\/\([0-9][0-9]*\).*/\1/p')
+  icmp_rep=$(printf '%s\n' "$line" | sed -n 's/.*icmp=\([0-9][0-9]*\)\/\([0-9][0-9]*\).*/\2/p')
+  dhcp_req=$(printf '%s\n' "$line" | sed -n 's/.*dhcp=\([0-9][0-9]*\)\/\([0-9][0-9]*\).*/\1/p')
+  dhcp_rep=$(printf '%s\n' "$line" | sed -n 's/.*dhcp=\([0-9][0-9]*\)\/\([0-9][0-9]*\).*/\2/p')
+  dns_req=$(printf '%s\n' "$line" | sed -n 's/.*dns=\([0-9][0-9]*\)\/\([0-9][0-9]*\).*/\1/p')
+  dns_rep=$(printf '%s\n' "$line" | sed -n 's/.*dns=\([0-9][0-9]*\)\/\([0-9][0-9]*\).*/\2/p')
+  tcp_segments=$(printf '%s\n' "$line" | sed -n 's/.*tcp_segments=\([0-9][0-9]*\).*/\1/p')
+  tcp_replies=$(printf '%s\n' "$line" | sed -n 's/.*tcp_replies=\([0-9][0-9]*\).*/\1/p')
+  tcp_http_requests=$(printf '%s\n' "$line" | sed -n 's/.*tcp_http_requests=\([0-9][0-9]*\).*/\1/p')
+  ctrl_commands=$(printf '%s\n' "$line" | sed -n 's/.*ctrl=\([0-9][0-9]*\)\/\([0-9][0-9]*\).*/\1/p')
+  ctrl_errors=$(printf '%s\n' "$line" | sed -n 's/.*ctrl=\([0-9][0-9]*\)\/\([0-9][0-9]*\).*/\2/p')
+  ctrl_rx_commands=$(printf '%s\n' "$line" | sed -n 's/.*ctrl_rx=\([0-9][0-9]*\).*/\1/p')
+  ctrl_rx_extra_commands=$(printf '%s\n' "$line" | sed -n 's/.*ctrl_rx_extra=\([0-9][0-9]*\).*/\1/p')
+  ctrl_mac_table_commands=$(printf '%s\n' "$line" | sed -n 's/.*ctrl_mac_table=\([0-9][0-9]*\).*/\1/p')
+  ctrl_mac_addr_commands=$(printf '%s\n' "$line" | sed -n 's/.*ctrl_mac_addr=\([0-9][0-9]*\).*/\1/p')
+  ctrl_vlan_commands=$(printf '%s\n' "$line" | sed -n 's/.*ctrl_vlan=\([0-9][0-9]*\).*/\1/p')
+  ctrl_announce_commands=$(printf '%s\n' "$line" | sed -n 's/.*ctrl_announce=\([0-9][0-9]*\).*/\1/p')
+  tx_packets=${tx_packets:-0}
+  rx_packets=${rx_packets:-0}
+  tx_errors=${tx_errors:-0}
+  rx_drops=${rx_drops:-0}
+  rx_pending=${rx_pending:-0}
+  arp_req=${arp_req:-0}
+  arp_rep=${arp_rep:-0}
+  icmp_req=${icmp_req:-0}
+  icmp_rep=${icmp_rep:-0}
+  dhcp_req=${dhcp_req:-0}
+  dhcp_rep=${dhcp_rep:-0}
+  dns_req=${dns_req:-0}
+  dns_rep=${dns_rep:-0}
+  tcp_segments=${tcp_segments:-0}
+  tcp_replies=${tcp_replies:-0}
+  tcp_http_requests=${tcp_http_requests:-0}
+  ctrl_commands=${ctrl_commands:-0}
+  ctrl_errors=${ctrl_errors:-0}
+  ctrl_rx_commands=${ctrl_rx_commands:-0}
+  ctrl_rx_extra_commands=${ctrl_rx_extra_commands:-0}
+  ctrl_mac_table_commands=${ctrl_mac_table_commands:-0}
+  ctrl_mac_addr_commands=${ctrl_mac_addr_commands:-0}
+  ctrl_vlan_commands=${ctrl_vlan_commands:-0}
+  ctrl_announce_commands=${ctrl_announce_commands:-0}
+
+  echo "[nemu-systemd-check] virtio-net runtime: tx=$tx_packets rx=$rx_packets errors=$tx_errors drops=$rx_drops pending=$rx_pending arp=$arp_req/$arp_rep icmp=$icmp_req/$icmp_rep dhcp=$dhcp_req/$dhcp_rep dns=$dns_req/$dns_rep tcp=$tcp_segments/$tcp_replies http=$tcp_http_requests ctrl=$ctrl_commands/$ctrl_errors ctrl_rx=$ctrl_rx_commands ctrl_rx_extra=$ctrl_rx_extra_commands ctrl_mac_table=$ctrl_mac_table_commands ctrl_mac_addr=$ctrl_mac_addr_commands ctrl_vlan=$ctrl_vlan_commands ctrl_announce=$ctrl_announce_commands"
+  if [ "$tx_packets" -gt 0 ] &&
+     [ "$rx_packets" -gt 0 ] &&
+     [ "$tx_errors" -eq 0 ] &&
+     [ "$rx_drops" -eq 0 ] &&
+     [ "$rx_pending" -eq 0 ] &&
+     [ "$arp_rep" -gt 0 ] &&
+     [ "$icmp_rep" -gt 0 ] &&
+     [ "$dhcp_rep" -gt 0 ] &&
+     [ "$dns_rep" -gt 0 ] &&
+     [ "$tcp_segments" -gt 0 ] &&
+     [ "$tcp_replies" -gt 0 ] &&
+     [ "$tcp_http_requests" -gt 0 ] &&
+     [ "$ctrl_commands" -gt 0 ] &&
+     [ "$ctrl_errors" -eq 0 ] &&
+     [ "$ctrl_rx_commands" -gt 0 ] &&
+     [ "$ctrl_mac_table_commands" -gt 0 ] &&
+     [ "$ctrl_announce_commands" -gt 0 ]; then
+    echo "[nemu-systemd-check] PASS virtio-net-runtime"
+  else
+    fail "virtio-net runtime counters invalid: $line"
+  fi
+}
+
 write_perf_log() {
   local boot_seconds=$1
   local guest_check_seconds=$2
@@ -508,7 +623,8 @@ build_guest_upload_commands() {
     printf '  echo "__NEMU_GUEST_SCRIPT_DECODE_FAIL__"\n'
     printf '  echo "__NEMU_SYSTEMD_CHECK_DONE__ rc=1"\n'
     printf 'else\n'
-    printf "  guest_script_sha=\"\$(sha256sum '%s' 2>/dev/null | awk '{print \$1}')\"\n" "$GUEST_SCRIPT_PATH"
+    printf "  guest_script_sha=\"\$(sha256sum '%s' 2>/dev/null)\"\n" "$GUEST_SCRIPT_PATH"
+    printf '  guest_script_sha="${guest_script_sha%%%% *}"\n'
     printf "  guest_script_bytes=\"\$(wc -c < '%s' 2>/dev/null || echo 0)\"\n" "$GUEST_SCRIPT_PATH"
     printf "  echo \"__NEMU_GUEST_SCRIPT_BYTES__:\$guest_script_bytes/%s\"\n" "$script_bytes"
     printf "  echo \"__NEMU_GUEST_SCRIPT_SHA256__:\$guest_script_sha/%s\"\n" "$script_sha"
@@ -558,6 +674,10 @@ require_file "$LINUX_IMAGE" "Linux Image"
 require_file "$RUN_FW" "OpenSBI firmware"
 require_file "$RUN_DTB" "rootfs DTB"
 require_file "$RUN_ROOTFS" "Ubuntu rootfs"
+case "$ROOTFS_FLAVOR" in
+  systemd-minimal|interactive|full) ;;
+  *) fail "unsupported NEMU_SYSTEMD_ROOTFS_FLAVOR=$ROOTFS_FLAVOR" ;;
+esac
 require_uint "NEMU_SYSTEMD_SOAK_SECONDS" "$SOAK_SECONDS"
 require_uint "NEMU_SYSTEMD_FS_STRESS_MIB" "$FS_STRESS_MIB"
 require_uint "NEMU_SYSTEMD_FS_TREE_FILES" "$FS_TREE_FILES"
@@ -632,6 +752,7 @@ echo "[nemu-systemd-check] TCP probe: $TCP_PROBE_ENABLE"
 echo "[nemu-systemd-check] TCP burst loops: $NET_TCP_BURST_LOOPS"
 echo "[nemu-systemd-check] poweroff: $POWEROFF_ENABLE"
 echo "[nemu-systemd-check] poweroff timeout: $POWEROFF_TIMEOUT"
+echo "[nemu-systemd-check] rootfs flavor: $ROOTFS_FLAVOR"
 if [ "$SYSCALL_PROBE_ENABLE" != "0" ]; then
   echo "[nemu-systemd-check] syscall probe bytes: $(stat -c %s "$SYSCALL_PROBE_BIN")"
 fi
@@ -694,6 +815,7 @@ boot_seconds=$((SECONDS - host_start_seconds))
   printf 'NEMU_GUEST_BLOCK_JOB_MIB=%s\n' "$BLOCK_JOB_MIB"
   printf 'NEMU_GUEST_MIN_MEMTOTAL_KB=%s\n' "$MIN_MEMTOTAL_KB"
   printf 'NEMU_GUEST_SYSTEMD_RELOAD_TIMEOUT=%s\n' "$SYSTEMD_RELOAD_TIMEOUT"
+  printf 'NEMU_GUEST_ROOTFS_FLAVOR=%s\n' "$ROOTFS_FLAVOR"
   printf 'NEMU_GUEST_ROOTFS_BYTES=%s\n' "$ROOTFS_BYTES"
   printf 'NEMU_GUEST_SYSCALL_PROBE=%s\n' "$SYSCALL_PROBE_ENABLE"
   printf 'NEMU_GUEST_ICMP_PROBE=%s\n' "$ICMP_PROBE_ENABLE"
@@ -764,26 +886,42 @@ intr_sum() {
 }
 
 interrupts_table_sum() {
-  awk '
-    NR > 1 {
-      for (i = 2; i <= NF; i++) {
-        if ($i ~ /^[0-9]+$/) sum += $i
-      }
-    }
-    END { print sum + 0 }
-  ' /proc/interrupts 2>/dev/null
+  irq_total=0
+  while IFS= read -r irq_line; do
+    case "$irq_line" in
+      *:*)
+        irq_line_total="$(interrupts_line_sum "$irq_line")"
+        irq_total=$((irq_total + irq_line_total))
+        ;;
+    esac
+  done </proc/interrupts 2>/dev/null || true
+  echo "$irq_total"
 }
 
 interrupts_match_sum() {
   irq_pattern="$1"
-  awk -v pat="$irq_pattern" '
-    tolower($0) ~ pat {
-      for (i = 2; i <= NF; i++) {
-        if ($i ~ /^[0-9]+$/) sum += $i
-      }
-    }
-    END { print sum + 0 }
-  ' /proc/interrupts 2>/dev/null
+  irq_total=0
+  while IFS= read -r irq_line; do
+    if printf '%s\n' "$irq_line" | grep -Eiq "$irq_pattern"; then
+      irq_line_total="$(interrupts_line_sum "$irq_line")"
+      irq_total=$((irq_total + irq_line_total))
+    fi
+  done </proc/interrupts 2>/dev/null || true
+  echo "$irq_total"
+}
+
+interrupts_line_sum() {
+  irq_line="$1"
+  irq_line_total=0
+  set -- $irq_line
+  shift || true
+  for irq_field in "$@"; do
+    case "$irq_field" in
+      ''|*[!0-9]*) ;;
+      *) irq_line_total=$((irq_line_total + irq_field)) ;;
+    esac
+  done
+  echo "$irq_line_total"
 }
 
 check_mount_fstype() {
@@ -795,6 +933,554 @@ check_mount_fstype() {
     pass "mount-fstype-$mount_target"
   else
     fail "mount-fstype-$mount_target"
+  fi
+}
+
+full_userland_fail() {
+  fail "$1"
+  full_userland_ok=0
+}
+
+check_full_userland_runtime() {
+  echo "__NEMU_CHECK_ROOTFS_FLAVOR__:${NEMU_GUEST_ROOTFS_FLAVOR:-systemd-minimal}"
+  echo "__NEMU_CHECK_FULL_USERLAND__"
+  if [ "${NEMU_GUEST_ROOTFS_FLAVOR:-systemd-minimal}" != "full" ]; then
+    echo "__NEMU_CHECK_FULL_USERLAND_SKIP__:${NEMU_GUEST_ROOTFS_FLAVOR:-systemd-minimal}"
+    pass full-userland-skip
+    return
+  fi
+
+  full_userland_ok=1
+  for full_path in \
+    /usr/bin/apt-get \
+    /usr/bin/apt-cache \
+    /usr/bin/dpkg \
+    /usr/bin/dpkg-query \
+    /usr/bin/sudo \
+    /usr/bin/man \
+    /usr/bin/locale \
+    /usr/bin/curl \
+    /usr/bin/wget \
+    /usr/bin/ssh \
+    /usr/bin/ssh-keygen \
+    /usr/bin/dbclient \
+    /usr/bin/dropbearconvert \
+    /usr/bin/dropbearkey \
+    /usr/sbin/sshd \
+    /usr/sbin/dropbear \
+    /usr/sbin/cron \
+    /usr/sbin/rsyslogd; do
+    full_label=${full_path##*/}
+    if [ -x "$full_path" ]; then
+      pass "full-userland-command-$full_label"
+    else
+      full_userland_fail "full-userland-command-$full_label"
+    fi
+  done
+
+  apt_version="$(apt-get --version 2>/dev/null | sed -n '1p' || true)"
+  echo "__NEMU_CHECK_FULL_APT_VERSION__:$apt_version"
+  if echo "$apt_version" | grep -Eq '^apt [0-9]+'; then
+    pass full-userland-apt-version
+  else
+    full_userland_fail full-userland-apt-version
+  fi
+
+  dpkg_audit_rc=0
+  dpkg_audit_output="$(dpkg --audit 2>&1)" || dpkg_audit_rc=$?
+  echo "__NEMU_CHECK_FULL_DPKG_AUDIT_RC__:$dpkg_audit_rc"
+  echo "__NEMU_CHECK_FULL_DPKG_AUDIT_BEGIN__"
+  printf '%s\n' "$dpkg_audit_output" | sed -n '1,120p'
+  echo "__NEMU_CHECK_FULL_DPKG_AUDIT_END__"
+  if [ "$dpkg_audit_rc" = "0" ] && [ -z "$dpkg_audit_output" ]; then
+    pass full-userland-dpkg-audit
+  else
+    full_userland_fail full-userland-dpkg-audit
+  fi
+
+  for full_package in ubuntu-standard openssh-server curl wget dropbear-bin rsyslog cron systemd-timesyncd; do
+    dpkg_query_rc=0
+    dpkg_query_output="$(dpkg-query -W -f='${db:Status-Abbrev} ${binary:Package} ${Version}\n' "$full_package" 2>&1)" ||
+      dpkg_query_rc=$?
+    echo "__NEMU_CHECK_FULL_DPKG_QUERY__:$full_package:$dpkg_query_rc:$dpkg_query_output"
+    if [ "$dpkg_query_rc" = "0" ] &&
+       echo "$dpkg_query_output" | grep -Eq '^ii[[:space:]]'; then
+      pass "full-userland-dpkg-package-$full_package"
+    else
+      full_userland_fail "full-userland-dpkg-package-$full_package"
+    fi
+  done
+
+  for ownership in \
+    "curl:/usr/bin/curl" \
+    "wget:/usr/bin/wget" \
+    "openssh-server:/usr/sbin/sshd" \
+    "dropbear-bin:/usr/bin/dbclient" \
+    "dropbear-bin:/usr/sbin/dropbear" \
+    "rsyslog:/usr/sbin/rsyslogd" \
+    "cron:/usr/sbin/cron"; do
+    ownership_package=${ownership%%:*}
+    ownership_path=${ownership#*:}
+    ownership_label="${ownership_package}-${ownership_path##*/}"
+
+    dpkg_list_rc=0
+    dpkg_list_output="$(dpkg -L "$ownership_package" 2>&1)" || dpkg_list_rc=$?
+    echo "__NEMU_CHECK_FULL_DPKG_LIST__:$ownership_package:$ownership_path:$dpkg_list_rc"
+    if [ "$dpkg_list_rc" = "0" ] &&
+       printf '%s\n' "$dpkg_list_output" | grep -Fxq "$ownership_path"; then
+      pass "full-userland-dpkg-list-$ownership_label"
+    else
+      printf '%s\n' "$dpkg_list_output" | sed -n '1,40p'
+      full_userland_fail "full-userland-dpkg-list-$ownership_label"
+    fi
+
+    dpkg_search_rc=0
+    dpkg_search_output="$(dpkg -S "$ownership_path" 2>&1)" || dpkg_search_rc=$?
+    echo "__NEMU_CHECK_FULL_DPKG_SEARCH__:$ownership_package:$ownership_path:$dpkg_search_rc:$dpkg_search_output"
+    if [ "$dpkg_search_rc" = "0" ] &&
+       printf '%s\n' "$dpkg_search_output" | grep -Eq "(^|, )${ownership_package}(:[^:[:space:]]+)?: ${ownership_path}$"; then
+      pass "full-userland-dpkg-search-$ownership_label"
+    else
+      full_userland_fail "full-userland-dpkg-search-$ownership_label"
+    fi
+  done
+
+  apt_policy_rc=0
+  apt_policy_output="$(apt-cache policy ubuntu-standard openssh-server curl wget dropbear-bin 2>&1)" ||
+    apt_policy_rc=$?
+  echo "__NEMU_CHECK_FULL_APT_POLICY_RC__:$apt_policy_rc"
+  echo "__NEMU_CHECK_FULL_APT_POLICY_BEGIN__"
+  printf '%s\n' "$apt_policy_output" | sed -n '1,120p'
+  echo "__NEMU_CHECK_FULL_APT_POLICY_END__"
+  if [ "$apt_policy_rc" = "0" ] &&
+     echo "$apt_policy_output" | grep -q 'Installed:'; then
+    pass full-userland-apt-policy
+  else
+    full_userland_fail full-userland-apt-policy
+  fi
+
+  sudo_version="$(sudo -V 2>/dev/null | sed -n '1p' || true)"
+  echo "__NEMU_CHECK_FULL_SUDO_VERSION__:$sudo_version"
+  if echo "$sudo_version" | grep -Eiq '^Sudo version'; then
+    pass full-userland-sudo-version
+  else
+    full_userland_fail full-userland-sudo-version
+  fi
+  if sudo -n true >/dev/null 2>&1; then
+    pass full-userland-sudo-root
+  else
+    full_userland_fail full-userland-sudo-root
+  fi
+
+  man_version="$(man --version 2>&1 | sed -n '1p' || true)"
+  echo "__NEMU_CHECK_FULL_MAN_VERSION__:$man_version"
+  if echo "$man_version" | grep -Eiq '(man-db|man )'; then
+    pass full-userland-man-version
+  else
+    full_userland_fail full-userland-man-version
+  fi
+
+  locale_charmap="$(locale charmap 2>/dev/null || true)"
+  echo "__NEMU_CHECK_FULL_LOCALE_CHARMAP__:$locale_charmap"
+  if [ -n "$locale_charmap" ]; then
+    pass full-userland-locale-charmap
+  else
+    full_userland_fail full-userland-locale-charmap
+  fi
+  if locale -a 2>/dev/null | grep -Eiq '^(C|C\.utf8|C.UTF-8|POSIX)$'; then
+    pass full-userland-locale-list
+  else
+    locale -a 2>/dev/null || true
+    full_userland_fail full-userland-locale-list
+  fi
+
+  if [ -f /usr/share/zoneinfo/UTC ]; then
+    pass full-userland-tzdata-utc
+  else
+    full_userland_fail full-userland-tzdata-utc
+  fi
+  if date -u '+__NEMU_CHECK_FULL_DATE_UTC__:%Y-%m-%dT%H:%M:%SZ'; then
+    pass full-userland-date-utc
+  else
+    full_userland_fail full-userland-date-utc
+  fi
+
+  timedatectl_version="$(timedatectl --version 2>/dev/null | sed -n '1p' || true)"
+  echo "__NEMU_CHECK_FULL_TIMEDATECTL_VERSION__:$timedatectl_version"
+  if echo "$timedatectl_version" | grep -Eq '^systemd [0-9]+'; then
+    pass full-userland-timedatectl-version
+  else
+    full_userland_fail full-userland-timedatectl-version
+  fi
+
+  mkdir -p /run/sshd
+  sshd_config="$(/usr/sbin/sshd -T 2>&1 | sed -n '1,25p' || true)"
+  echo "__NEMU_CHECK_FULL_SSHD_CONFIG_BEGIN__"
+  printf '%s\n' "$sshd_config"
+  echo "__NEMU_CHECK_FULL_SSHD_CONFIG_END__"
+  if echo "$sshd_config" | grep -q '^port 22$'; then
+    pass full-userland-sshd-config
+  else
+    full_userland_fail full-userland-sshd-config
+  fi
+  if systemctl cat ssh.service >/dev/null 2>&1; then
+    pass full-userland-ssh-unit
+  else
+    full_userland_fail full-userland-ssh-unit
+  fi
+  # full rootfs 不只要求 OpenSSH 配置可解析，还要证明服务能在 guest 内实际起来。
+  ssh_start_log=/tmp/nemu-full-userland-ssh-start.log
+  if systemctl start ssh.service >"$ssh_start_log" 2>&1 &&
+     systemctl --quiet is-active ssh.service; then
+    ssh_state="$(systemctl is-active ssh.service 2>/dev/null || true)"
+    echo "__NEMU_CHECK_FULL_SSH_ACTIVE__:$ssh_state"
+    pass full-userland-ssh-active
+  else
+    ssh_state="$(systemctl is-active ssh.service 2>/dev/null || true)"
+    echo "__NEMU_CHECK_FULL_SSH_ACTIVE__:$ssh_state"
+    sed -n '1,20p' "$ssh_start_log" 2>/dev/null || true
+    systemctl status --no-pager ssh.service 2>/dev/null || true
+    full_userland_fail full-userland-ssh-active
+  fi
+  ssh_listen=0
+  for ssh_tcp_file in /proc/net/tcp /proc/net/tcp6; do
+    [ -r "$ssh_tcp_file" ] || continue
+    while read -r tcp_sl tcp_local tcp_remote tcp_state tcp_rest; do
+      case "$tcp_local:$tcp_state" in
+        *:0016:0A)
+          ssh_listen=1
+          echo "__NEMU_CHECK_FULL_SSH_LISTEN_SOCKET__:$ssh_tcp_file:$tcp_local:$tcp_state"
+          ;;
+      esac
+    done <"$ssh_tcp_file"
+  done
+  echo "__NEMU_CHECK_FULL_SSH_LISTEN__:$ssh_listen"
+  if [ "$ssh_listen" = "1" ]; then
+    pass full-userland-ssh-listen
+  else
+    full_userland_fail full-userland-ssh-listen
+  fi
+  ssh_login_user=nemu
+  ssh_login_uid=2000
+  ssh_login_gid=2000
+  ssh_login_home=/home/nemu
+  ssh_login_dir=/tmp/nemu-full-userland-ssh-login
+  ssh_auth_keys="$ssh_login_home/.ssh/authorized_keys"
+  ssh_dbclient_key="$ssh_login_dir/id_dropbear"
+  ssh_dropbear_hostkey="$ssh_login_dir/dropbear_host_ed25519"
+  ssh_dropbear_log="$ssh_login_dir/dropbear.log"
+  rm -rf "$ssh_login_dir"
+  # 只做 guest 内 loopback 登录，验证 sshd 认证/会话链路；外网/TAP/NAT 另由后续 gate 证明。
+  # root 串口 autologin 不等于 OpenSSH root 登录策略，smoke 使用 overlay 内临时普通用户。
+  if ! grep -q "^$ssh_login_user:" /etc/group 2>/dev/null; then
+    echo "$ssh_login_user:x:$ssh_login_gid:" >> /etc/group
+  fi
+  if [ -f /etc/gshadow ] && ! grep -q "^$ssh_login_user:" /etc/gshadow 2>/dev/null; then
+    echo "$ssh_login_user:!::" >> /etc/gshadow
+  fi
+  if ! grep -q "^$ssh_login_user:" /etc/passwd 2>/dev/null; then
+    echo "$ssh_login_user:x:$ssh_login_uid:$ssh_login_gid:NEMU SSH Test:$ssh_login_home:/bin/sh" >> /etc/passwd
+  fi
+  if [ -f /etc/shadow ] && ! grep -q "^$ssh_login_user:" /etc/shadow 2>/dev/null; then
+    echo "$ssh_login_user::20000:0:99999:7:::" >> /etc/shadow
+  fi
+  if grep -q "^$ssh_login_user:" /etc/passwd 2>/dev/null &&
+     mkdir -p "$ssh_login_dir" "$ssh_login_home/.ssh" &&
+     chmod 700 "$ssh_login_dir" "$ssh_login_home" "$ssh_login_home/.ssh" &&
+     ssh-keygen -q -t ed25519 -N '' -f "$ssh_login_dir/id_ed25519" >/dev/null 2>&1 &&
+     dropbearconvert openssh dropbear "$ssh_login_dir/id_ed25519" "$ssh_dbclient_key" >/dev/null 2>&1 &&
+     dropbearkey -t ed25519 -f "$ssh_dropbear_hostkey" >/dev/null 2>&1 &&
+     cat "$ssh_login_dir/id_ed25519.pub" >> "$ssh_auth_keys" &&
+     chmod 600 "$ssh_auth_keys" "$ssh_dbclient_key" "$ssh_dropbear_hostkey" &&
+     chown -R "$ssh_login_uid:$ssh_login_gid" "$ssh_login_home"; then
+    pass full-userland-ssh-test-user
+    pass full-userland-ssh-keygen
+    pass full-userland-ssh-dbclient-key
+    pass full-userland-ssh-dropbear-hostkey
+    (
+      timeout 180s /usr/sbin/dropbear -E -F \
+        -r "$ssh_dropbear_hostkey" \
+        -p 127.0.0.1:2224 \
+        -s -g
+    ) >"$ssh_dropbear_log" 2>&1 &
+    ssh_dropbear_pid=$!
+    ssh_dropbear_ready=0
+    for _ in $(seq 1 60); do
+      if grep -q ':08B0 ' /proc/net/tcp 2>/dev/null ||
+         grep -q ':08B0 ' /proc/net/tcp6 2>/dev/null; then
+        ssh_dropbear_ready=1
+        break
+      fi
+      sleep 1
+    done
+    echo "__NEMU_CHECK_FULL_SSH_DROPBEAR_READY__:$ssh_dropbear_ready"
+    ssh_login_rc=0
+    echo "__NEMU_CHECK_FULL_SSH_SERVER__:dropbear-loopback"
+    echo "__NEMU_CHECK_FULL_SSH_CLIENT__:dbclient"
+    if [ "$ssh_dropbear_ready" = "1" ]; then
+      ssh_login_output="$(
+        timeout 180s dbclient -y \
+          -i "$ssh_dbclient_key" \
+          -p 2224 \
+          "$ssh_login_user@127.0.0.1" \
+          'test "$(id -un)" = "nemu" && printf __NEMU_CHECK_FULL_SSH_LOGIN_OK__' 2>&1
+      )" || ssh_login_rc=$?
+    else
+      ssh_login_rc=124
+      ssh_login_output="dropbear loopback server did not become ready"
+    fi
+    if kill -0 "$ssh_dropbear_pid" 2>/dev/null; then
+      kill "$ssh_dropbear_pid" 2>/dev/null || true
+    fi
+    wait "$ssh_dropbear_pid" 2>/dev/null || true
+    echo "__NEMU_CHECK_FULL_SSH_LOGIN_RC__:$ssh_login_rc"
+    echo "__NEMU_CHECK_FULL_SSH_LOGIN_OUTPUT_BEGIN__"
+    printf '%s\n' "$ssh_login_output" | sed -n '1,160p'
+    echo "__NEMU_CHECK_FULL_SSH_LOGIN_OUTPUT_END__"
+    if [ "$ssh_login_rc" = "0" ] &&
+       echo "$ssh_login_output" | grep -q '__NEMU_CHECK_FULL_SSH_LOGIN_OK__'; then
+      pass full-userland-ssh-local-login
+    else
+      echo "__NEMU_CHECK_FULL_SSH_DROPBEAR_LOG_BEGIN__"
+      sed -n '1,160p' "$ssh_dropbear_log" 2>/dev/null || true
+      echo "__NEMU_CHECK_FULL_SSH_DROPBEAR_LOG_END__"
+      ssh_debug_log=/tmp/nemu-full-userland-sshd-debug.log
+      ssh_debug_output=/tmp/nemu-full-userland-ssh-debug-client.log
+      rm -f "$ssh_debug_log" "$ssh_debug_output"
+      (
+        timeout 180s /usr/sbin/sshd -D -ddd -e \
+          -p 2222 \
+          -o ListenAddress=127.0.0.1 \
+          -o PidFile=/tmp/nemu-full-userland-sshd-debug.pid \
+          -o LogLevel=DEBUG3
+      ) >"$ssh_debug_log" 2>&1 &
+      ssh_debug_pid=$!
+      ssh_debug_ready=0
+      for _ in $(seq 1 60); do
+        if grep -q ':08AE ' /proc/net/tcp 2>/dev/null ||
+           grep -q ':08AE ' /proc/net/tcp6 2>/dev/null; then
+          ssh_debug_ready=1
+          break
+        fi
+        sleep 1
+      done
+      echo "__NEMU_CHECK_FULL_SSH_DEBUG_READY__:$ssh_debug_ready"
+      ssh_debug_rc=0
+      if [ "$ssh_debug_ready" = "1" ]; then
+        timeout 180s ssh -vvv -4 \
+          -p 2222 \
+          -i "$ssh_login_dir/id_ed25519" \
+          -o BatchMode=yes \
+          -o StrictHostKeyChecking=no \
+          -o UserKnownHostsFile=/dev/null \
+          -o PasswordAuthentication=no \
+          -o KbdInteractiveAuthentication=no \
+          -o PreferredAuthentications=publickey \
+          -o KexAlgorithms=curve25519-sha256 \
+          -o HostKeyAlgorithms=ssh-ed25519 \
+          -o PubkeyAcceptedAlgorithms=ssh-ed25519 \
+          -o Ciphers=chacha20-poly1305@openssh.com \
+          -o ConnectTimeout=120 \
+          "$ssh_login_user@127.0.0.1" \
+          'test "$(id -un)" = "nemu" && printf __NEMU_CHECK_FULL_SSH_DEBUG_LOGIN_OK__' \
+          >"$ssh_debug_output" 2>&1 || ssh_debug_rc=$?
+      else
+        ssh_debug_rc=124
+      fi
+      echo "__NEMU_CHECK_FULL_SSH_DEBUG_LOGIN_RC__:$ssh_debug_rc"
+      if kill -0 "$ssh_debug_pid" 2>/dev/null; then
+        kill "$ssh_debug_pid" 2>/dev/null || true
+      fi
+      wait "$ssh_debug_pid" 2>/dev/null || true
+      echo "__NEMU_CHECK_FULL_SSH_DEBUG_CLIENT_BEGIN__"
+      sed -n '1,220p' "$ssh_debug_output" 2>/dev/null || true
+      echo "__NEMU_CHECK_FULL_SSH_DEBUG_CLIENT_END__"
+      echo "__NEMU_CHECK_FULL_SSH_DEBUGD_LOG_BEGIN__"
+      sed -n '1,500p' "$ssh_debug_log" 2>/dev/null || true
+      echo "__NEMU_CHECK_FULL_SSH_DEBUGD_LOG_END__"
+      ssh_nopam_log=/tmp/nemu-full-userland-sshd-nopam.log
+      ssh_nopam_output=/tmp/nemu-full-userland-ssh-nopam-client.log
+      rm -f "$ssh_nopam_log" "$ssh_nopam_output"
+      (
+        timeout 180s /usr/sbin/sshd -D -ddd -e \
+          -p 2223 \
+          -o ListenAddress=127.0.0.1 \
+          -o PidFile=/tmp/nemu-full-userland-sshd-nopam.pid \
+          -o LogLevel=DEBUG3 \
+          -o UsePAM=no
+      ) >"$ssh_nopam_log" 2>&1 &
+      ssh_nopam_pid=$!
+      ssh_nopam_ready=0
+      for _ in $(seq 1 60); do
+        if grep -q ':08AF ' /proc/net/tcp 2>/dev/null ||
+           grep -q ':08AF ' /proc/net/tcp6 2>/dev/null; then
+          ssh_nopam_ready=1
+          break
+        fi
+        sleep 1
+      done
+      echo "__NEMU_CHECK_FULL_SSH_NOPAM_READY__:$ssh_nopam_ready"
+      ssh_nopam_rc=0
+      if [ "$ssh_nopam_ready" = "1" ]; then
+        timeout 180s ssh -vvv -4 \
+          -p 2223 \
+          -i "$ssh_login_dir/id_ed25519" \
+          -o BatchMode=yes \
+          -o StrictHostKeyChecking=no \
+          -o UserKnownHostsFile=/dev/null \
+          -o PasswordAuthentication=no \
+          -o KbdInteractiveAuthentication=no \
+          -o PreferredAuthentications=publickey \
+          -o KexAlgorithms=curve25519-sha256 \
+          -o HostKeyAlgorithms=ssh-ed25519 \
+          -o PubkeyAcceptedAlgorithms=ssh-ed25519 \
+          -o Ciphers=chacha20-poly1305@openssh.com \
+          -o ConnectTimeout=120 \
+          "$ssh_login_user@127.0.0.1" \
+          'test "$(id -un)" = "nemu" && printf __NEMU_CHECK_FULL_SSH_NOPAM_LOGIN_OK__' \
+          >"$ssh_nopam_output" 2>&1 || ssh_nopam_rc=$?
+      else
+        ssh_nopam_rc=124
+      fi
+      echo "__NEMU_CHECK_FULL_SSH_NOPAM_LOGIN_RC__:$ssh_nopam_rc"
+      if kill -0 "$ssh_nopam_pid" 2>/dev/null; then
+        kill "$ssh_nopam_pid" 2>/dev/null || true
+      fi
+      wait "$ssh_nopam_pid" 2>/dev/null || true
+      echo "__NEMU_CHECK_FULL_SSH_NOPAM_CLIENT_BEGIN__"
+      sed -n '1,220p' "$ssh_nopam_output" 2>/dev/null || true
+      echo "__NEMU_CHECK_FULL_SSH_NOPAM_CLIENT_END__"
+      echo "__NEMU_CHECK_FULL_SSH_NOPAM_DEBUGD_LOG_BEGIN__"
+      sed -n '1,500p' "$ssh_nopam_log" 2>/dev/null || true
+      echo "__NEMU_CHECK_FULL_SSH_NOPAM_DEBUGD_LOG_END__"
+      echo "__NEMU_CHECK_FULL_SSH_SERVER_LOG_BEGIN__"
+      journalctl -u ssh.service --no-pager -n 80 2>/dev/null | sed -n '1,80p' || true
+      journalctl -t sshd --no-pager -n 80 2>/dev/null | sed -n '1,80p' || true
+      tail -80 /var/log/auth.log /var/log/syslog 2>/dev/null || true
+      echo "__NEMU_CHECK_FULL_SSH_SERVER_LOG_END__"
+      full_userland_fail full-userland-ssh-local-login
+    fi
+  else
+    full_userland_fail full-userland-ssh-test-user
+    full_userland_fail full-userland-ssh-keygen
+    full_userland_fail full-userland-ssh-local-login
+  fi
+  rm -rf "$ssh_login_dir"
+
+  if systemctl cat cron.service >/dev/null 2>&1; then
+    pass full-userland-cron-unit
+  else
+    full_userland_fail full-userland-cron-unit
+  fi
+  if systemctl start cron.service >/dev/null 2>&1 &&
+     systemctl --quiet is-active cron.service; then
+    pass full-userland-cron-active
+  else
+    systemctl status --no-pager cron.service 2>/dev/null || true
+    full_userland_fail full-userland-cron-active
+  fi
+
+  rsyslog_rc=0
+  rsyslog_check="$(/usr/sbin/rsyslogd -N1 2>&1)" || rsyslog_rc=$?
+  echo "__NEMU_CHECK_FULL_RSYSLOG_CONFIG_BEGIN__"
+  printf '%s\n' "$rsyslog_check" | sed -n '1,20p'
+  echo "__NEMU_CHECK_FULL_RSYSLOG_CONFIG_END__"
+  if [ "$rsyslog_rc" = "0" ]; then
+    pass full-userland-rsyslog-config
+  else
+    full_userland_fail full-userland-rsyslog-config
+  fi
+  if systemctl cat rsyslog.service >/dev/null 2>&1; then
+    pass full-userland-rsyslog-unit
+  else
+    full_userland_fail full-userland-rsyslog-unit
+  fi
+  systemctl start syslog.socket >/dev/null 2>&1 || true
+  if systemctl start rsyslog.service >/dev/null 2>&1 &&
+     systemctl --quiet is-active rsyslog.service; then
+    pass full-userland-rsyslog-active
+  else
+    systemctl status --no-pager syslog.socket 2>/dev/null || true
+    systemctl status --no-pager rsyslog.service 2>/dev/null || true
+    full_userland_fail full-userland-rsyslog-active
+  fi
+
+  if systemctl cat systemd-timesyncd.service >/dev/null 2>&1; then
+    pass full-userland-timesyncd-unit
+  else
+    full_userland_fail full-userland-timesyncd-unit
+  fi
+  if systemctl start systemd-timesyncd.service >/dev/null 2>&1 &&
+     systemctl --quiet is-active systemd-timesyncd.service; then
+    pass full-userland-timesyncd-active
+  else
+    systemctl status --no-pager systemd-timesyncd.service 2>/dev/null || true
+    full_userland_fail full-userland-timesyncd-active
+  fi
+
+  if [ "$full_userland_ok" = "1" ]; then
+    pass full-userland-runtime
+  else
+    fail full-userland-runtime
+  fi
+}
+
+check_full_userland_network_clients() {
+  if [ "${NEMU_GUEST_ROOTFS_FLAVOR:-systemd-minimal}" != "full" ]; then
+    pass full-userland-network-clients-skip
+    return
+  fi
+
+  # 这里验证 full rootfs 自带的真实网络客户端；DNS 指向 NEMU hostless responder，
+  # 证明的是当前 hostless virtio-net 用户态访问能力，不是 TAP/NAT/外网能力。
+  full_net_url=http://nemu.local/nemu-health
+  printf 'nameserver 10.0.2.2\noptions timeout:2 attempts:1\n' > /etc/resolv.conf
+  echo "__NEMU_CHECK_FULL_RESOLV_CONF_BEGIN__"
+  sed -n '1,20p' /etc/resolv.conf 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_RESOLV_CONF_END__"
+  pass full-userland-resolv-hostless
+
+  curl_body=/tmp/nemu-full-userland-curl.body
+  curl_err=/tmp/nemu-full-userland-curl.err
+  curl_rc=0
+  curl_code="$(
+    timeout 120s curl -4 -fsS \
+      --connect-timeout 30 \
+      --max-time 120 \
+      -o "$curl_body" \
+      -w '%{http_code}' \
+      "$full_net_url" 2>"$curl_err"
+  )" || curl_rc=$?
+  echo "__NEMU_CHECK_FULL_CURL_HTTP_CODE__:$curl_rc:$curl_code"
+  if [ "$curl_rc" = "0" ] && [ "$curl_code" = "204" ]; then
+    pass full-userland-curl-http
+  else
+    echo "__NEMU_CHECK_FULL_CURL_ERROR_BEGIN__"
+    sed -n '1,80p' "$curl_err" 2>/dev/null || true
+    echo "__NEMU_CHECK_FULL_CURL_ERROR_END__"
+    fail full-userland-curl-http
+  fi
+
+  wget_body=/tmp/nemu-full-userland-wget.body
+  wget_log=/tmp/nemu-full-userland-wget.log
+  wget_rc=0
+  timeout 120s wget \
+    --inet4-only \
+    --server-response \
+    --tries=1 \
+    --timeout=120 \
+    --output-document="$wget_body" \
+    --output-file="$wget_log" \
+    "$full_net_url" >/dev/null 2>&1 || wget_rc=$?
+  wget_code="$(sed -n 's/.*HTTP\/1\.[01] \([0-9][0-9][0-9]\).*/\1/p' "$wget_log" | tail -1)"
+  echo "__NEMU_CHECK_FULL_WGET_HTTP_CODE__:$wget_rc:$wget_code"
+  if [ "$wget_code" = "204" ]; then
+    pass full-userland-wget-http
+  else
+    echo "__NEMU_CHECK_FULL_WGET_LOG_BEGIN__"
+    sed -n '1,120p' "$wget_log" 2>/dev/null || true
+    echo "__NEMU_CHECK_FULL_WGET_LOG_END__"
+    fail full-userland-wget-http
   fi
 }
 
@@ -820,11 +1506,29 @@ virtio_feature_bit() {
 systemd_daemon_reload_request() {
   reload_unit="$1"
   reload_goal="$2"
+  reload_output=""
+  reload_rc=0
 
   # NEMU 下同步 daemon-reload reply 可能很慢；reload 请求本身用短 D-Bus
   # 尝试 + PID1 HUP 兜底，真正“PID1 已看到 unit”的证明交给后续 start/output。
-  if ! timeout 5s env SYSTEMD_BUS_TIMEOUT=5s systemctl daemon-reload; then
-    echo "__NEMU_CHECK_SYSTEMD_RELOAD_DBUS_TIMEOUT__:$reload_unit:$reload_goal"
+  reload_output="$(timeout 5s env SYSTEMD_BUS_TIMEOUT=5s systemctl daemon-reload 2>&1)" ||
+    reload_rc=$?
+  if [ "$reload_rc" -ne 0 ]; then
+    case "$reload_rc:$reload_output" in
+      124:*|*'Connection timed out'*|*'Timed out'*|*'timed out'*)
+        echo "__NEMU_CHECK_SYSTEMD_RELOAD_DBUS_TIMEOUT__:$reload_unit:$reload_goal"
+        ;;
+      *)
+        echo "__NEMU_CHECK_SYSTEMD_RELOAD_ERROR__:$reload_unit:$reload_goal:$reload_rc"
+        if [ -n "$reload_output" ]; then
+          printf '%s\n' "$reload_output" |
+            while IFS= read -r reload_line; do
+              echo "__NEMU_CHECK_SYSTEMD_RELOAD_ERROR_OUTPUT__:$reload_line"
+            done
+        fi
+        return 1
+        ;;
+    esac
     kill -HUP 1 || return 1
   fi
   return 0
@@ -886,7 +1590,7 @@ echo "$systemd_version" | grep -Eq '^systemd [0-9]+' && pass systemd-version || 
 echo "__NEMU_CHECK_LSB_RELEASE__"
 if command -v lsb_release >/dev/null 2>&1; then
   pass lsb-release-present
-  lsb_release_output="$(lsb_release -a 2>/dev/null || true)"
+  lsb_release_output="$(lsb_release -a 2>&1 || true)"
   printf '%s\n' "$lsb_release_output"
   echo "$lsb_release_output" | grep -q "Ubuntu 22.04" &&
     pass lsb-release-ubuntu2204 || fail lsb-release-ubuntu2204
@@ -894,6 +1598,61 @@ else
   fail lsb-release-present
   fail lsb-release-ubuntu2204
 fi
+
+echo "__NEMU_CHECK_COMMON_COMMANDS__"
+if command -v free >/dev/null 2>&1; then
+  pass common-free-present
+  free_output="$(free -m 2>/dev/null || true)"
+  printf '%s\n' "$free_output"
+  echo "$free_output" | grep -q '^Mem:' &&
+    pass common-free-mem || fail common-free-mem
+else
+  fail common-free-present
+  fail common-free-mem
+fi
+
+if command -v top >/dev/null 2>&1; then
+  pass common-top-present
+  top_version="$(top -v 2>&1 | sed -n '1p' || true)"
+  echo "__NEMU_CHECK_TOP_VERSION__:$top_version"
+  echo "$top_version" | grep -Eiq '(top|procps)' &&
+    pass common-top-version || fail common-top-version
+  top_output="$(timeout 10s env TERM=dumb top -b -n1 2>&1 | sed -n '1,5p' || true)"
+  if echo "$top_output" | grep -Eq '^(top|Tasks:|MiB Mem|KiB Mem)'; then
+    printf '%s\n' "$top_output"
+    pass common-top-batch-optional
+  else
+    echo "__NEMU_CHECK_TOP_BATCH_OPTIONAL__:top-batch-no-output"
+    [ -n "$top_output" ] && printf '%s\n' "$top_output"
+    pass common-top-batch-optional
+  fi
+else
+  fail common-top-present
+  fail common-top-version
+fi
+
+if command -v hostnamectl >/dev/null 2>&1; then
+  pass common-hostnamectl-present
+  hostnamectl_version="$(hostnamectl --version 2>/dev/null | head -n 1 || true)"
+  echo "__NEMU_CHECK_HOSTNAMECTL_VERSION__:$hostnamectl_version"
+  echo "$hostnamectl_version" | grep -Eq '^systemd [0-9]+' &&
+    pass common-hostnamectl-version || fail common-hostnamectl-version
+else
+  fail common-hostnamectl-present
+  fail common-hostnamectl-version
+fi
+
+if command -v htop >/dev/null 2>&1; then
+  htop_version="$(htop --version 2>/dev/null | head -n 1 || true)"
+  echo "__NEMU_CHECK_HTOP_OPTIONAL__:$htop_version"
+  pass common-htop-optional-present
+  pass common-htop-optional
+else
+  echo "__NEMU_CHECK_HTOP_OPTIONAL__:htop-optional-not-installed"
+  pass common-htop-optional
+fi
+
+check_full_userland_runtime
 
 systemd_show_state="$(systemctl show --property=SystemState --value 2>/dev/null || true)"
 echo "__NEMU_CHECK_SYSTEMD_SHOW_STATE__:$systemd_show_state"
@@ -1173,6 +1932,8 @@ echo "$rng_virtio_features" | grep -Eq '^[01]+$' &&
   pass virtio-rng-features-bitstring || fail virtio-rng-features-bitstring
 [ "$(virtio_feature_bit "$rng_virtio_features" 32)" = "1" ] &&
   pass virtio-rng-feature-version-1 || fail virtio-rng-feature-version-1
+[ "$(virtio_feature_bit "$rng_virtio_features" 28)" = "1" ] &&
+  pass virtio-rng-ring-feature-indirect-desc || fail virtio-rng-ring-feature-indirect-desc
 [ "$(virtio_feature_bit "$rng_virtio_features" 29)" = "1" ] &&
   pass virtio-rng-ring-feature-event-idx || fail virtio-rng-ring-feature-event-idx
 hwrng_out="/tmp/nemu-hwrng.bin"
@@ -1204,15 +1965,14 @@ echo "$rtc_name" | grep -qi 'goldfish' &&
   pass rtc0-since-epoch-plausible || fail rtc0-since-epoch-plausible
 if command -v hwclock >/dev/null 2>&1; then
   pass hwclock-present
-  rtc_hwclock="$(timeout 10s hwclock --show --rtc=/dev/rtc0 2>&1)"
+  rtc_hwclock="$(timeout 20s hwclock --show --rtc=/dev/rtc0 2>&1)"
   rtc_hwclock_rc=$?
   echo "__NEMU_CHECK_RTC0_HWCLOCK__:$rtc_hwclock"
   if [ "$rtc_hwclock_rc" -eq 0 ] && echo "$rtc_hwclock" | grep -Eq '[0-9]{4}'; then
     pass hwclock-rtc0-show
   else
-    # util-linux hwclock may wait for update IRQ/UIE behavior that this minimal
-    # RTC model does not yet claim; sysfs rtc0 reads above remain the hard gate.
     echo "__NEMU_CHECK_RTC0_HWCLOCK_DIAG__:$rtc_hwclock_rc"
+    fail hwclock-rtc0-show
   fi
 else
   echo "__NEMU_CHECK_RTC0_HWCLOCK_DIAG__:missing"
@@ -1252,12 +2012,32 @@ echo "$virtio_net_features" | grep -Eq '^[01]+$' &&
   pass virtio-net-features-bitstring || fail virtio-net-features-bitstring
 [ "$(virtio_feature_bit "$virtio_net_features" 32)" = "1" ] &&
   pass virtio-net-feature-version-1 || fail virtio-net-feature-version-1
+[ "$(virtio_feature_bit "$virtio_net_features" 3)" = "1" ] &&
+  pass virtio-net-feature-mtu || fail virtio-net-feature-mtu
 [ "$(virtio_feature_bit "$virtio_net_features" 5)" = "1" ] &&
   pass virtio-net-feature-mac || fail virtio-net-feature-mac
 [ "$(virtio_feature_bit "$virtio_net_features" 15)" = "1" ] &&
   pass virtio-net-feature-mrg-rxbuf || fail virtio-net-feature-mrg-rxbuf
 [ "$(virtio_feature_bit "$virtio_net_features" 16)" = "1" ] &&
   pass virtio-net-feature-status || fail virtio-net-feature-status
+[ "$(virtio_feature_bit "$virtio_net_features" 17)" = "1" ] &&
+  pass virtio-net-feature-ctrl-vq || fail virtio-net-feature-ctrl-vq
+[ "$(virtio_feature_bit "$virtio_net_features" 18)" = "1" ] &&
+  pass virtio-net-feature-ctrl-rx || fail virtio-net-feature-ctrl-rx
+[ "$(virtio_feature_bit "$virtio_net_features" 19)" = "1" ] &&
+  pass virtio-net-feature-ctrl-vlan || fail virtio-net-feature-ctrl-vlan
+if [ "$(virtio_feature_bit "$virtio_net_features" 20)" = "1" ]; then
+  pass virtio-net-feature-ctrl-rx-extra
+else
+  echo "__NEMU_CHECK_INFO__:virtio-net-feature-ctrl-rx-extra-driver-not-negotiated"
+  pass virtio-net-feature-ctrl-rx-extra-driver-optional
+fi
+[ "$(virtio_feature_bit "$virtio_net_features" 21)" = "1" ] &&
+  pass virtio-net-feature-guest-announce || fail virtio-net-feature-guest-announce
+[ "$(virtio_feature_bit "$virtio_net_features" 23)" = "1" ] &&
+  pass virtio-net-feature-ctrl-mac-addr || fail virtio-net-feature-ctrl-mac-addr
+[ "$(virtio_feature_bit "$virtio_net_features" 63)" = "1" ] &&
+  pass virtio-net-feature-speed-duplex || fail virtio-net-feature-speed-duplex
 [ "$(virtio_feature_bit "$virtio_net_features" 28)" = "1" ] &&
   pass virtio-net-ring-feature-indirect-desc || fail virtio-net-ring-feature-indirect-desc
 [ "$(virtio_feature_bit "$virtio_net_features" 29)" = "1" ] &&
@@ -1280,14 +2060,21 @@ echo "__NEMU_CHECK_VIRTIO_NET_IFACE__:$virtio_net_iface"
 
 virtio_net_mac=""
 virtio_net_carrier=""
+virtio_net_mtu=""
+virtio_net_speed=""
+virtio_net_duplex=""
 if [ -n "$virtio_net_iface" ]; then
   virtio_net_mac="$(cat "/sys/class/net/$virtio_net_iface/address" 2>/dev/null || true)"
   virtio_net_carrier="$(cat "/sys/class/net/$virtio_net_iface/carrier" 2>/dev/null || true)"
+  virtio_net_mtu="$(cat "/sys/class/net/$virtio_net_iface/mtu" 2>/dev/null || true)"
 fi
 echo "__NEMU_CHECK_VIRTIO_NET_MAC__:$virtio_net_mac"
 echo "__NEMU_CHECK_VIRTIO_NET_CARRIER__:$virtio_net_carrier"
+echo "__NEMU_CHECK_VIRTIO_NET_MTU__:$virtio_net_mtu"
 [ "$virtio_net_mac" = "52:54:00:12:34:56" ] &&
   pass virtio-net-mac || fail virtio-net-mac
+[ "$virtio_net_mtu" = "1500" ] &&
+  pass virtio-net-mtu || fail virtio-net-mtu
 
 virtio_net_ipv4=""
 virtio_net_operstate=""
@@ -1322,6 +2109,8 @@ __NEMU_DHCP_PROBE_B64__
       awk '$4 == "10.0.2.15/24" { print $4; exit }')"
     virtio_net_operstate="$(cat "/sys/class/net/$virtio_net_iface/operstate" 2>/dev/null || true)"
     virtio_net_carrier_up="$(cat "/sys/class/net/$virtio_net_iface/carrier" 2>/dev/null || true)"
+    virtio_net_speed="$(cat "/sys/class/net/$virtio_net_iface/speed" 2>/dev/null || true)"
+    virtio_net_duplex="$(cat "/sys/class/net/$virtio_net_iface/duplex" 2>/dev/null || true)"
   fi
 else
   fail iproute2-present
@@ -1329,8 +2118,14 @@ fi
 echo "__NEMU_CHECK_VIRTIO_NET_IPV4__:$virtio_net_ipv4"
 echo "__NEMU_CHECK_VIRTIO_NET_OPERSTATE__:$virtio_net_operstate"
 echo "__NEMU_CHECK_VIRTIO_NET_CARRIER_AFTER_UP__:$virtio_net_carrier_up"
+echo "__NEMU_CHECK_VIRTIO_NET_SPEED__:$virtio_net_speed"
+echo "__NEMU_CHECK_VIRTIO_NET_DUPLEX__:$virtio_net_duplex"
 [ "$virtio_net_ipv4" = "10.0.2.15/24" ] &&
   pass virtio-net-ipv4-static || fail virtio-net-ipv4-static
+[ "$virtio_net_speed" = "1000" ] &&
+  pass virtio-net-speed || fail virtio-net-speed
+[ "$virtio_net_duplex" = "full" ] &&
+  pass virtio-net-duplex || fail virtio-net-duplex
 
 if [ "${NEMU_GUEST_DNS_PROBE:-1}" != "0" ]; then
   dns_probe_b64="$check_dir/dns-probe.b64"
@@ -1380,6 +2175,8 @@ __NEMU_TCP_PROBE_B64__
 else
   echo "__NEMU_CHECK_VIRTIO_NET_TCP_SKIP__"
 fi
+
+check_full_userland_network_clients
 
 if [ "${NEMU_GUEST_ICMP_PROBE:-1}" != "0" ]; then
   icmp_probe_b64="$check_dir/icmp-probe.b64"
@@ -1961,6 +2758,7 @@ if grep -qaF "__NEMU_SYSTEMD_CHECK_DONE__ rc=0" "$CONSOLE_LOG" &&
     fi
   fi
   check_nemu_async_runtime
+  check_nemu_net_runtime
   if [ -n "$RUN_ROOTFS_OVERLAY" ]; then
     rootfs_stat_after=$(stat -c '%s:%Y' "$RUN_ROOTFS" 2>/dev/null || echo missing)
     echo "[nemu-systemd-check] rootfs backing stat after: $rootfs_stat_after"
@@ -1971,6 +2769,7 @@ if grep -qaF "__NEMU_SYSTEMD_CHECK_DONE__ rc=0" "$CONSOLE_LOG" &&
   fi
   total_seconds=$((SECONDS - host_start_seconds))
   check_console_clean || fail "console log contains fixed warning/error regression"
+  check_efi_boot_path_context || fail "EFI message appeared without OpenSBI/DTB boot context"
   check_shutdown_watchdog_notify || fail "journald WATCHDOG notify failed outside clean poweroff"
   write_perf_log "$boot_seconds" "$guest_check_seconds" "$poweroff_seconds" "$total_seconds"
   echo "[nemu-systemd-check] PASS"

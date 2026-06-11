@@ -4,6 +4,8 @@
 
 - 把当前工作区从“模块专家集合”升级为“图任务调度 + 工作流 agent + 模块专家执行 + 经验沉淀”的 AI 驱动硬件开发环境。
 - 围绕当前工作区真正可执行的后端建立闭环：`am-kernels + AbstractMachine + npc/sim + NPC/Verilator + NEMU reference`。
+- 在硬件流程之外补齐软件开发流程层：`software-flow` 负责软件需求、脚本/工具链、NEMU/AM/am-kernels/Linux guest check 与 host side 软件的全流程闭环；NEMU 这类“用软件建硬件/系统模型”的任务必须先走软件闭环，再叠加硬件/系统 gate。
+- 为 `.github` 规则、记忆、profile 和 task-run 文本证据提供轻量 SQLite 检索索引：文件系统仍保存原始产物，数据库只做索引、元数据、状态和查询入口。
 - 保留 `NEMU + AbstractMachine + am-kernels` 作为纯参考/快速定位闭环；当任务目标涉及 target 行为时，默认把 `npc/sim`、`npc/single`/`npc/soc` 和 difftest 纳入图。
 - `ysyxSoC` 作为 SoC/Chisel 集成节点接入 `npc/soc`，真实 EDA 工具仍作为后续 PPA/STA 下游节点，不替代功能验证闭环。
 
@@ -14,7 +16,7 @@
 | Graph-based task solving | 先选静态图模板，再按当前任务动态扩图 |
 | Agent config per sub-task | 每个节点指定 owner agent、输入、输出、成功标准与回退策略 |
 | Tool / skill config | 每个节点都绑定当前可用工具：Make、NEMU、Verilator、日志、study 笔记 |
-| Memory / knowledge base | `.github/memory/`、`npc/{single,soc}/design/study/`、`ysyxSoC/spec/`、README、Makefile、已有构建脚本 |
+| Memory / knowledge base | `.github/memory/`、`.github/cache/github-index.sqlite` 本地索引、`npc/{single,soc}/design/study/`、`ysyxSoC/spec/`、README、Makefile、已有构建脚本 |
 | Iterative self-debug | 采用“构建 → 运行 → 对比 → 定位 → 修复 → 回归”的循环，而不是一次性生成后结束 |
 
 ## 当前真实后端
@@ -166,6 +168,38 @@ device-contract → am-impl → nemu-device → am-test → compare → record
 
 适用场景：IOE / 设备模型 / AM 平台联调。
 
+### `software-dev-loop`
+
+```text
+scope-contract → design-plan → implement → unit-or-contract-test → integration-smoke → regression-or-e2e → review-record
+```
+
+适用场景：新增软件功能、脚本/工具链能力、NEMU/AM/am-kernels/Linux guest check、host C/C++/Python/Shell/Make/Kconfig 或可独立验证的软件重构。
+
+### `software-bugfix-loop`
+
+```text
+reproduce → collect-log → localize-root-cause → fix → focused-test → regression → record
+```
+
+适用场景：软件 bug、脚本 gate 失败、工具链配置漂移、host/guest 软件接口异常。必须先定位 root cause，再在正确抽象层修复。
+
+### `software-refactor-loop`
+
+```text
+inventory-callers → preserve-contract → mechanical-change → focused-test → consumer-regression → record
+```
+
+适用场景：拆分大软件文件、重命名入口、重构目录结构、抽取公共库、整理脚本层次。路径敏感 e2e hook、profile、文档和 memory 必须同轮更新。
+
+### `hardware-aware-software-loop`
+
+```text
+scope-contract → hardware-semantic-contract → design-plan → implement → software-focused-test → system-or-hardware-gate → review-record
+```
+
+适用场景：NEMU/RV64/Linux bring-up、ISA/CSR/中断/virtio/QMP/GDB、设备模型、性能模型、guest check、rootfs/tool 脚本等“软件实现硬件或系统语义”的任务。它把 `software-flow` 和 `hardware-flow`/`nemu-ubuntu` 有机组合：软件流程保证代码、调用链、测试和记录，硬件/系统 gate 保证架构语义、guest 可见行为和生产链路消费。
+
 ### `rv64-ubuntu-probe-loop`
 
 ```text
@@ -214,6 +248,8 @@ synth-boundary-audit → verilator-perf-run → rtl-invariant-check → focused-
 
 适用场景：验证 AI 开发环境自身是否可被稳定发现和执行，包括 AGENTS/Copilot/instructions/memory/task-run 入口、`.github/e2e/modules/*.md` 模块合约、`.github/e2e/profiles/*.tsv` profile 编排、基础工具链、`npc/sim` 后端状态，以及按 profile 选择的 NEMU/NPC smoke 或模块 contract gate。该图用于降低后续 AI 判断前提的不确定性，不替代具体模块的功能回归、DiffTest、Linux/Ubuntu gate 或 PPA/STA signoff。
 
+其中 `github-index` profile 属于开发环境检索辅助层：它验证 `scripts/github_index_db.py` 能从 `.github/**` 构建 SQLite 索引、查询结果和状态巡检；索引库不拥有原始文件，也不替代 memory/task-run 的事实记录。
+
 ### `agent-env-refactor`
 
 ```text
@@ -237,6 +273,7 @@ reproduce → collect-log-or-trace → localize-boundary → fix → rerun → r
 | L0 | `ysyx-coordinator` | 选择静态图 / 动态图，切分节点，调度与记录 |
 | L1 | `agent-system` | 重构 agent 架构、指令、记忆、蓝图 |
 | L1 | `hardware-flow` | 管理 NEMU / AM / am-kernels / npc-sim / difftest 闭环，并为 SoC、PPA 节点接入做编排 |
+| L1 | `software-flow` | 管理软件需求到验证记录的完整闭环；对 NEMU/工具/guest check 等软件硬件模型，先收敛软件流程再交接硬件/系统 gate |
 | L1 | `rv64-linux` | 管理 RV64 OpenSBI/Linux/Ubuntu 证据分层和 QEMU/NPC bring-up 闭环 |
 | L1 | `verilator-tapeout` | 管理 Verilator 真实性能仿真、仿真-only 边界和后续流片约束 |
 | L2 | `npc`、`linux-device`、`display-vga`、`ysyx-soc`、`nemu`、`abstract-machine`、`am-kernels`、`difftest` 等 | 在各自模块内实现与调试 |
@@ -254,7 +291,7 @@ reproduce → collect-log-or-trace → localize-boundary → fix → rerun → r
 - 调度结果能稳定产出结构化 task report / dispatch log
 - 任务级产物能稳定落到 `.github/task-runs/` 统一目录，并与 `memory/` 分层保存
 - `image-build` 与 `nemu-reference` 节点的命令、输入、输出、日志摘要可重复复用
-- `scripts/agent-e2e.sh --list-profiles` 能列出模块 profile；`--validate-all-profiles` 能检查全部 profile 展开和函数绑定；`--profile discovery|agent-system|contracts|quick` 能稳定生成 `modular-agent-e2e` 证据包，用于证明规则发现、profile/模块合约、工具自检、`npc/sim status`；当 NEMU 当前是 AM-compatible 配置时，`quick` 还应包含最小 NEMU reference smoke，否则以 `SKIP` 记录配置边界
+- `scripts/agent-e2e.sh --list-profiles` 能列出模块 profile；`--validate-all-profiles` 能检查全部 profile 展开和函数绑定；`--profile discovery|agent-system|software-flow|github-index|contracts|quick` 能稳定生成 `modular-agent-e2e` 证据包，用于证明规则发现、profile/模块合约、工具自检、软件流程 agent、`.github` 检索索引、`npc/sim status`；当 NEMU 当前是 AM-compatible 配置时，`quick` 还应包含最小 NEMU reference smoke，否则以 `SKIP` 记录配置边界
 
 ### Gate 3：目标路径打通
 
@@ -271,7 +308,7 @@ reproduce → collect-log-or-trace → localize-boundary → fix → rerun → r
 
 ## 分阶段路线图
 
-1. **P0 骨架期**：落地图任务协议、`agent-system`、`hardware-flow`、蓝图与记忆入口
+1. **P0 骨架期**：落地图任务协议、`agent-system`、`hardware-flow`、`software-flow`、蓝图与记忆入口
 2. **P1 参考闭环期**：稳定 `am-kernels -> AM -> NEMU` 工作流，并补结构化 task report / dispatch log
 3. **P2 目标接入期**：通过 `npc/sim` 稳定 `npc/single` 与 `npc/soc` 后端、AM `riscv32-npc` 入口和 Verilator target 运行链路
 4. **P3 对比与扩展期**：稳定 `difftest`、NEMU `CONFIG_SOC_SIM`、ysyxSoC 接入，并逐步引入 `yosys-sta`、PPA、时序诊断等更强的 EDA 节点
@@ -282,6 +319,7 @@ reproduce → collect-log-or-trace → localize-boundary → fix → rerun → r
 
 - 优先使用工作区已经具备的真实链路，而不是为了“像 EDA”而空转设计概念
 - 让 agent 围绕镜像、NEMU 参考运行、NPC target 仿真、difftest 日志与结构化记录工作；SoC/Chisel 与综合/STA 作为明确的下游或并行节点接入
+- NEMU、Linux tools、guest check、host C++ harness、QMP/GDB 和设备模型既是软件，又承载硬件/系统语义；开发时使用 `hardware-aware-software-loop`，不能只跑 `nemu-ubuntu` 而跳过软件需求/契约/测试/记录，也不能只跑软件测试而越级声明系统 gate 完成
 - RV64 Linux/Ubuntu 任务默认走 QEMU reference + NPC/Verilator target 双证据，并按 `/init`、`/etc/os-release`、官方 `/bin/sh`、rootfs 和 Linux-visible framebuffer 分层记录
 - 暂不把 Vivado/FPGA 作为 RV64 Ubuntu 功能 bring-up 前置；Verilator 平台可以有 DPI/host C++/SDL，但 core/长期 RTL 必须保留可综合边界
 - 每一轮重构都要留下明确的静态图模板、节点契约与记忆更新，避免体系再次退化成散乱规则
