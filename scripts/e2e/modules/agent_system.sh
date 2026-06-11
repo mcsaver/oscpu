@@ -143,6 +143,22 @@ e2e_agent_system_discovery() {
     printf 'FAIL report.sh task-run Markdown DB archive hook missing\n'
     rc=1
   fi
+  if grep -Fq 'e2e_generate_context_brief' "$report_sh" &&
+     grep -Fq 'E2E_CONTEXT_BRIEF_FILE' "$report_sh" &&
+     grep -Fq 'github_index_db.py" brief' "$report_sh"; then
+    printf 'PASS report.sh generates DB-backed context brief before dispatch\n'
+  else
+    printf 'FAIL report.sh context brief hook missing\n'
+    rc=1
+  fi
+  if grep -Fq 'e2e_generate_profile_resolve' "$report_sh" &&
+     grep -Fq 'E2E_PROFILE_RESOLVE_FILE' "$report_sh" &&
+     grep -Fq 'github_index_db.py" resolve-profile' "$report_sh"; then
+    printf 'PASS report.sh generates DB-backed resolved profile before dispatch\n'
+  else
+    printf 'FAIL report.sh resolved profile hook missing\n'
+    rc=1
+  fi
   return "$rc"
 }
 

@@ -1,8 +1,32 @@
 {
   "created_at": "2026-06-11T11:40:43+00:00",
-  "updated_at": "2026-06-11T11:41:14+00:00",
+  "updated_at": "2026-06-11T16:40:45+00:00",
   "schema_version": "3",
   "entries": [
+    {
+      "path": ".github/task-runs/2026-06-11-agent-system-context-brief/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 9196,
+      "sha256": "04a605fdd7a497b7b520c436d4b9a4dc2fae5f057a983a1824a22a81d6563e3a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T14:57:57+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-11-agent-system-context-brief/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 4470,
+      "sha256": "8c50e7520cfd6dbac97ab170a7ca0e710f7ca032fecda603de02997caa85197d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T14:57:57+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-11-agent-system-context-brief/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 3414,
+      "sha256": "37e38c37c68c13592d742c99c75000a77788d1d520c82d1e8d1f7e341390a4fb",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T14:57:57+00:00"
+    },
     {
       "path": ".github/task-runs/2026-06-11-agent-system-task-run-db-archive/dispatch-log.md",
       "kind": "dispatch-log",
@@ -20,6 +44,110 @@
       "archived_at": "2026-06-11T11:41:14+00:00"
     },
     {
+      "path": ".github/task-runs/2026-06-11-github-index-agent-brief/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 1268,
+      "sha256": "6ecfe0bc2a89f5059fa59fbf613d01d51777262b7e66fe2ad3eebc9c1ba75d61",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T14:46:45+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-11-github-index-agent-brief/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 2667,
+      "sha256": "206ca09db6154139eee477ef014b14e59e9d3674970d8331c77483d904ce930e",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T14:46:45+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-11-github-index-context-brief/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6344,
+      "sha256": "2319fa795290884b5ca8d0de6c17aacacb2c0dbe9c4c038af18af0c02779bec7",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T14:59:35+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-11-github-index-context-brief/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 1771,
+      "sha256": "5caf06d6db2fa231756b771ea5dc69d4f1a8f27502ec543c544279b88535c161",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T14:59:35+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-11-github-index-context-brief/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 2769,
+      "sha256": "68d42f7fc8f7ccaa8aabe4d3bdea7107f6d02d8c2be1cc8234d7d94cae616b77",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T14:59:35+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-11-github-index-profile-suggestions-shim-refresh/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6601,
+      "sha256": "61381093c923fb0542d6cf9b04eb4807da9248e981b341dd65d9ae901a419a95",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T15:54:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-11-github-index-profile-suggestions-shim-refresh/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 1885,
+      "sha256": "e7d5bf1e2a7fd5e8cc89262598ab85286d681de87f42518e5ee373153e65b0ce",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T15:54:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-11-github-index-profile-suggestions-shim-refresh/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 2883,
+      "sha256": "eff84dcf43d14e4306c3f212881dd933da5d82bd2d78ca08711e67fe3518819b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T15:54:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-11-github-index-profile-suggestions/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6588,
+      "sha256": "2f01e72b4e006a288177dc0c5815a620749203066caa8ad88906b1f969d4f92d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T15:11:39+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-11-github-index-profile-suggestions/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 1807,
+      "sha256": "fb1353acd79519f06448693450e7fa63ace4f093b4841b3fe018ec8e05748100",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T15:11:39+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-11-github-index-profile-suggestions/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 2805,
+      "sha256": "4e37e52ea89ca5169ab24d5a1cc617c699fff614c745b7d3256543d121d50cd0",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T15:11:39+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-11-github-index-rehydrate-snapshot/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 1296,
+      "sha256": "378006cab99d420e7c77bc72edce0d3e463d01895324772fe3fd2f8886c42f28",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T14:32:59+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-11-github-index-rehydrate-snapshot/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 2702,
+      "sha256": "44bfa7f02c0c9f5cc89db309ce57993fc8d47b858a55386471e4072806095dcb",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T14:32:59+00:00"
+    },
+    {
       "path": ".github/task-runs/2026-06-11-github-index-task-run-db-archive/dispatch-log.md",
       "kind": "dispatch-log",
       "size_bytes": 1300,
@@ -34,6 +162,150 @@
       "sha256": "44d66d2a32bb0378e05e2a89c8dcc715fb3e173276566fb8b17c5c794f7212f0",
       "backup_source": "filesystem",
       "archived_at": "2026-06-11T11:40:43+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-12-agent-system-profile-resolve-artifact/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 9773,
+      "sha256": "5f85f9e7654183ac1e52c5a30b56569ac028a9a1424ea3c6b46ef31b93d645a1",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T16:24:30+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-12-agent-system-profile-resolve-artifact/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5160,
+      "sha256": "f1cd40f1bbcb1f74516bc56a9928dc13c711ef901c2cc61c7ad13666f4858f58",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T16:24:30+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-12-agent-system-profile-resolve-artifact/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 933,
+      "sha256": "91e6b24a00e476f29479bfe1236ba1db403beeb9fc05e3eba06aaf6d4ce83d2a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T16:24:30+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-12-agent-system-profile-resolve-artifact/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 3620,
+      "sha256": "a5bee87a569ad7ba3c648dbda6403f344ae4b96abb51b5f590a4af425805de95",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T16:24:30+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-12-github-index-profile-catalog/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6584,
+      "sha256": "7a3de0e9d527b4a850079fca2545a69fba5fff4faa2de9027a37749373ff548d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T16:03:46+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-12-github-index-profile-catalog/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 1783,
+      "sha256": "981369969c099a4186c8bc82f93910c076d1b93365b61a17e1f1f9779503926b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T16:03:46+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-12-github-index-profile-catalog/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 2781,
+      "sha256": "8f09545a9068c126e9233f7d7f1ddf8f42951f19138b29c50ae8c50ddc462bf9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T16:03:46+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-12-github-index-profile-resolve-artifact/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6593,
+      "sha256": "9c76cf531152e9a88ff9b245496717c496e6ae9589b98b4bf0373ea1432b1d94",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T16:25:57+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-12-github-index-profile-resolve-artifact/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 2395,
+      "sha256": "28552c5bee43d5aab57858a2483118fca9a4c343f52f0ecda4237c2aecdbd222",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T16:25:57+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-12-github-index-profile-resolve-artifact/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 474,
+      "sha256": "8fe170e44e80efaa2292b971474450b39c479d888049ad998b0f1770cd724d15",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T16:25:57+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-12-github-index-profile-resolve-artifact/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 2942,
+      "sha256": "3070c6f18c78e76ea257fa3c9f1d6f7d49589386248c2d2cf26eea3282546bab",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T16:25:57+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-12-github-index-resolve-profile/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6584,
+      "sha256": "c79234b69df723172f53923210cae30f28753b02957c0bd23245a25d888094e1",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T16:15:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-12-github-index-resolve-profile/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 1783,
+      "sha256": "114cf01013303267d7f2cd998cfbc7e2e33941028a6a6d66665afab7e32b30f1",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T16:15:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-12-github-index-resolve-profile/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 2781,
+      "sha256": "25787c9ea9e0a96c559fcdfdf9bf329965c6209ef25fb58ac5744dd768309268",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T16:15:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-12-github-index-runs-catalog/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6581,
+      "sha256": "76d9093bf1332459bcdf965abe19a7aa46fa758cba387239ac14e949affdad18",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T16:40:45+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-12-github-index-runs-catalog/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 2299,
+      "sha256": "2810c41d79d368ae4a69d47fa5bade2583d36d7b52d03aec39e9733b5279c64b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T16:40:45+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-12-github-index-runs-catalog/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 474,
+      "sha256": "8fe170e44e80efaa2292b971474450b39c479d888049ad998b0f1770cd724d15",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T16:40:45+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-12-github-index-runs-catalog/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 2858,
+      "sha256": "bab7c64e0ef98377181d9647dc4d57747c96f85ec83f5c3ce985f3dd192c4f1d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-11T16:40:45+00:00"
     }
   ]
 }

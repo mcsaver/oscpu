@@ -1,0 +1,485 @@
+[github-index] contract
+PASS scripts/github_index_db.py
+PASS scripts/dev_memory/core.py
+PASS scripts/dev_memory/queries.py
+PASS scripts/dev_memory/api.py
+PASS scripts/dev_memory/maintenance.py
+PASS scripts/dev_memory/cli.py
+PASS scripts/dev_memory/__main__.py
+PASS .github/e2e/modules/github-index.md
+PASS .github/e2e/profiles/github-index.tsv
+[github-index] project layout
+PASS github-index implementation lives in dev_memory package with compatibility wrapper
+[github-index] tracked persistent sources
+PASS github-index persistent sources are tracked
+[github-index] filesystem source and database boundary
+PASS github-index defaults to .github source and .github/cache SQLite index
+PASS github-index database cache is ignored by git
+[github-index] chunked summary/load interface
+PASS github-index exposes chunked summary/load memory interface
+[github-index] agent entry shims included in database
+PASS github-index indexes root/multi-agent entry shims by default
+[github-index] DB-first migration interface
+PASS github-index exposes DB-first promote/update/migrate/restore/audit interface
+[github-index] e2e task-run archive hook
+PASS e2e report layer archives task-run Markdown into DB
+[github-index] e2e context brief hook
+PASS e2e runner generates DB-backed context brief before dispatch
+[github-index] external AI JSON API interface
+PASS github-index exposes external AI JSON/JSONL memory API
+[github-index] python syntax
+[github-index] temporary rebuild/stat/query/summary/load/show/doctor smoke
+PASS rebuild files=6365 db=/tmp/tmp.vw0CMR6blm/github-index.sqlite
+db=/tmp/tmp.vw0CMR6blm/github-index.sqlite
+schema_version=3
+fts5=1
+root=.github
+last_rebuild_at=2026-06-11T15:10:43+00:00
+files=6365
+indexed=5868
+chunks=1777
+token_estimate=383170
+stored_documents=0
+stored_chunks=0
+stored_token_estimate=0
+[status]
+indexed=5868
+skipped_binary=452
+skipped_encoding=45
+[kind]
+agent=18
+agent-rule=1
+agent-shim=6
+dispatch-log=537
+e2e-module=20
+e2e-profile=32
+instruction=11
+markdown=3
+memory=3
+memory-module=10
+task-evidence=3307
+task-report=569
+task-run=1846
+task-template=2
+ls=.github/e2e dirs=2 files=1
+DIR  modules/ (20)
+DIR  profiles/ (32)
+FILE README.md [markdown indexed] size=613 lines=8 title=DB-backed .github/e2e/README.md
+tree=.github/e2e rows=53 depth=2
+README.md [markdown indexed]
+modules/
+  abstract-machine.md [e2e-module indexed]
+  agent-system.md [e2e-module indexed]
+  am-kernels.md [e2e-module indexed]
+  difftest.md [e2e-module indexed]
+  digital-logic.md [e2e-module indexed]
+  display-vga.md [e2e-module indexed]
+  fceux-am.md [e2e-module indexed]
+  github-index.md [e2e-module indexed]
+  hardware-flow.md [e2e-module indexed]
+  linux-device.md [e2e-module indexed]
+  nemu.md [e2e-module indexed]
+  npc.md [e2e-module indexed]
+  nvboard.md [e2e-module indexed]
+  rv64-linux.md [e2e-module indexed]
+  software-flow.md [e2e-module indexed]
+  toolchain.md [e2e-module indexed]
+  verilator-tapeout.md [e2e-module indexed]
+  yosys-sta.md [e2e-module indexed]
+  ysyx-coordinator.md [e2e-module indexed]
+  ysyx-soc.md [e2e-module indexed]
+profiles/
+  README.md [e2e-profile indexed]
+  abstract-machine.tsv [e2e-profile indexed]
+  agent-system.tsv [e2e-profile indexed]
+  am-kernels.tsv [e2e-profile indexed]
+  contracts.tsv [e2e-profile indexed]
+  difftest.tsv [e2e-profile indexed]
+  digital-logic.tsv [e2e-profile indexed]
+  discovery.tsv [e2e-profile indexed]
+  display-vga.tsv [e2e-profile indexed]
+path=AGENTS.md
+kind=agent-shim
+index_status=indexed
+exists_flag=1
+size_bytes=553
+mtime_ns=1781170247835933116
+sha256=58c936551ca302eea021c5f4fe9e2e687ea1cd70eb09ba3b1ac9f7c5d2d18e86
+line_count=8
+title=DB-backed AGENTS.md
+description=
+declared_status=
+tags=agent-shim,md
+indexed_at=2026-06-11T15:10:43+00:00
+updated_at=2026-06-11T15:10:43+00:00
+query=software-flow mode=fts results=8
+.github/task-runs/2026-06-11-software-flow-methodology-guard/evidence/software-flow-contract.log:1 [task-evidence indexed] software-flow-contract.log
+  [software-flow] contract PASS .github/agents/software-flow.agent.md PASS .github/e2e/modules/software-flow.md P
+.github/task-runs/2026-06-11-software-flow-methodology-guard-2/evidence/software-flow-contract.log:1 [task-evidence indexed] software-flow-contract.log
+  [software-flow] contract PASS .github/agents/software-flow.agent.md PASS .github/e2e/modules/software-flow.md P
+.github/task-runs/2026-06-11-nemu-ubuntu-software-flow-methodology-include/evidence/software-flow-contract.log:1 [task-evidence indexed] software-flow-contract.log
+  [software-flow] contract PASS .github/agents/software-flow.agent.md PASS .github/e2e/modules/software-flow.md P
+.github/task-runs/2026-06-11-github-index-chunk-memory-contracts/evidence/software-flow-contract.log:1 [task-evidence indexed] software-flow-contract.log
+  [software-flow] contract PASS .github/agents/software-flow.agent.md PASS .github/e2e/modules/software-flow.md P
+.github/task-runs/2026-06-11-nemu-full-dpkg-ownership-contract/evidence/software-flow-contract.log:1 [task-evidence indexed] software-flow-contract.log
+  [software-flow] contract PASS .github/agents/software-flow.agent.md PASS .github/e2e/modules/software-flow.md P
+.github/task-runs/2026-06-11-github-index-agent-shim-db-contracts/evidence/software-flow-contract.log:1 [task-evidence indexed] software-flow-contract.log
+  [software-flow] contract PASS .github/agents/software-flow.agent.md PASS .github/e2e/modules/software-flow.md P
+.github/task-runs/2026-06-11-github-index-db-first-final-contracts/evidence/software-flow-contract.log:1 [task-evidence indexed] software-flow-contract.log
+  [software-flow] contract PASS .github/agents/software-flow.agent.md PASS .github/e2e/modules/software-flow.md P
+.github/task-runs/2026-06-11-github-index-db-first-migration-contracts/evidence/software-flow-contract.log:1 [task-evidence indexed] software-flow-contract.log
+  [software-flow] contract PASS .github/agents/software-flow.agent.md PASS .github/e2e/modules/software-flow.md P
+PASS github-index query returns software-flow .github artifacts
+summary=.github/memory files=8 chunks=8 token_estimate=1273
+.github/memory/modules/abstract-machine.md [memory-module indexed] lines=8 chunks=1 tokens=165 title=DB-backed .github/memory/modules/abstract-machine.md
+  > 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。 / > 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/memory/modules/abstract-machine.md`。 / - 按需加载：`python3 scripts/github_index_db.py lo...
+.github/memory/modules/agent-system.md [memory-module indexed] lines=8 chunks=1 tokens=161 title=DB-backed .github/memory/modules/agent-system.md
+  > 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。 / > 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/memory/modules/agent-system.md`。 / - 按需加载：`python3 scripts/github_index_db.py load -...
+.github/memory/modules/am-kernels.md [memory-module indexed] lines=8 chunks=1 tokens=160 title=DB-backed .github/memory/modules/am-kernels.md
+  > 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。 / > 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/memory/modules/am-kernels.md`。 / - 按需加载：`python3 scripts/github_index_db.py load --s...
+.github/memory/modules/difftest.md [memory-module indexed] lines=8 chunks=1 tokens=158 title=DB-backed .github/memory/modules/difftest.md
+  > 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。 / > 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/memory/modules/difftest.md`。 / - 按需加载：`python3 scripts/github_index_db.py load --sou...
+.github/memory/modules/fceux-am.md [memory-module indexed] lines=8 chunks=1 tokens=158 title=DB-backed .github/memory/modules/fceux-am.md
+  > 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。 / > 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/memory/modules/fceux-am.md`。 / - 按需加载：`python3 scripts/github_index_db.py load --sou...
+.github/memory/modules/nemu.md [memory-module indexed] lines=8 chunks=1 tokens=155 title=DB-backed .github/memory/modules/nemu.md
+  > 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。 / > 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/memory/modules/nemu.md`。 / - 按需加载：`python3 scripts/github_index_db.py load --source...
+.github/memory/modules/npc.md [memory-module indexed] lines=8 chunks=1 tokens=154 title=DB-backed .github/memory/modules/npc.md
+  > 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。 / > 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/memory/modules/npc.md`。 / - 按需加载：`python3 scripts/github_index_db.py load --source s...
+.github/memory/modules/software-flow.md [memory-module indexed] lines=8 chunks=1 tokens=162 title=DB-backed .github/memory/modules/software-flow.md
+  > 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。 / > 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/memory/modules/software-flow.md`。 / - 按需加载：`python3 scripts/github_index_db.py load...
+PASS github-index summary compresses memory files into chunk/token overview
+load=software-flow mode=chunk-fts chunks=1 token_estimate=161
+--- .github/e2e/profiles/software-flow.tsv#chunk-0001 lines=1-8 tokens=161 [e2e-profile indexed]
+title=DB-backed .github/e2e/profiles/software-flow.tsv
+heading=DB-backed .github/e2e/profiles/software-flow.tsv
+summary=> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。 / > 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/e2e/profiles/software-flow.tsv`。 / - 按需加载：`python3 scripts/github_index_db.py load --source stored --pat...
+# DB-backed .github/e2e/profiles/software-flow.tsv
+
+> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
+> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/e2e/profiles/software-flow.tsv`。
+
+- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/e2e/profiles/software-flow.tsv`
+- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/e2e/profiles/software-flow.tsv --yes`
+- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/e2e/profiles/software-flow.tsv`
+PASS github-index load returns bounded matching chunks
+load=AGENTS.md mode=path chunks=1 token_estimate=137
+--- AGENTS.md#chunk-0001 lines=1-8 tokens=137 [agent-shim indexed]
+title=DB-backed AGENTS.md
+heading=DB-backed AGENTS.md
+summary=> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。 / > 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/AGENTS.md`。 / - 按需加载：`python3 scripts/github_index_db.py load --source stored --path AGENTS.md` / - 从备份恢复：`pytho...
+# DB-backed AGENTS.md
+
+> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
+> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/AGENTS.md`。
+
+- 按需加载：`python3 scripts/github_index_db.py load --source stored --path AGENTS.md`
+- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path AGENTS.md --yes`
+- 重新物化：`python3 scripts/github_index_db.py materialize --path AGENTS.md`
+PASS github-index load returns root AGENTS shim from database
+doctor=github-index
+indexed=5868
+  .cursor/rules/agents.mdc
+  .github/AGENTS.md
+  .github/agentic-hardware-blueprint.md
+  .github/agents/abstract-machine.agent.md
+  .github/agents/agent-system.agent.md
+  .github/agents/am-kernels.agent.md
+  .github/agents/difftest.agent.md
+  .github/agents/digital-logic.agent.md
+skipped_binary=452
+  .github/task-runs/2026-06-06-nemu-goldfish-rtc-v2/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-goldfish-rtc/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-host-page-tlb-focused/nemu-ubuntu-focused/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-interpreter-tb-focused/nemu-ubuntu-focused/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-itlb-dtlb-split-focused/nemu-ubuntu-focused/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-serial-tx-buffer-focused/nemu-ubuntu-focused/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-vaddr-pmem-fast-focused/nemu-ubuntu-focused/nemu-systemd-syscall-probe.riscv64
+  .github/task-runs/2026-06-06-nemu-virtio-blk-config-wce/nemu-systemd-syscall-probe.riscv64
+skipped_encoding=45
+  .github/task-runs/2026-06-06-nemu-goldfish-rtc-v2/console.log
+  .github/task-runs/2026-06-06-nemu-goldfish-rtc/console.log
+  .github/task-runs/2026-06-06-nemu-host-page-tlb-focused/nemu-ubuntu-focused/console.log
+  .github/task-runs/2026-06-06-nemu-interpreter-tb-focused/nemu-ubuntu-focused/console.log
+  .github/task-runs/2026-06-06-nemu-itlb-dtlb-split-focused/nemu-ubuntu-focused/console.log
+  .github/task-runs/2026-06-06-nemu-serial-tx-buffer-focused/nemu-ubuntu-focused/console.log
+  .github/task-runs/2026-06-06-nemu-vaddr-pmem-fast-focused/nemu-ubuntu-focused/console.log
+  .github/task-runs/2026-06-06-nemu-virtio-blk-config-wce/console.log
+[github-index] add/refresh/remove maintenance smoke
+PASS add .github/memory/github-index-note.md bytes=65 status=indexed
+ls=.github/memory dirs=0 files=1
+FILE github-index-note.md [memory indexed] size=65 lines=3 title=Mini github-index note
+query=github-index mode=fts results=1
+.github/memory/github-index-note.md:1 [memory indexed] Mini github-index note
+  # Mini github-index note software-flow github-index maintenance
+load=github-index mode=chunk-fts chunks=1 token_estimate=16
+--- .github/memory/github-index-note.md#chunk-0001 lines=1-3 tokens=16 [memory indexed]
+title=Mini github-index note
+heading=Mini github-index note
+summary=software-flow github-index maintenance
+# Mini github-index note
+
+software-flow github-index maintenance
+PASS refresh .github/memory/github-index-note.md status=indexed
+PASS remove .github/memory/github-index-note.md mode=file+index
+PASS github-index remove deleted source file in mini repo
+[github-index] DB-first migrate/restore mini smoke
+PASS rebuild files=4 db=/tmp/tmp.vw0CMR6blm/mini-index.sqlite
+PASS migrate stored_documents=4 shims=4 backup_dir=.github/db-backup/test manifest_entries=4
+  .github/agents/demo.agent.md
+  .github/e2e/modules/nemu-ubuntu-full-gate.md
+  .github/e2e/profiles/nemu-ubuntu-full-gate.tsv
+  AGENTS.md
+PASS github-index migrate leaves shim and backup
+load=AGENTS.md mode=stored-path chunks=1 token_estimate=11
+--- AGENTS.md#chunk-0001 lines=1-3 tokens=11 [agent-shim stored]
+title=Mini AGENTS
+heading=Mini AGENTS
+summary=mini db first source
+# Mini AGENTS
+
+mini db first source
+PASS update-stored AGENTS.md bytes=57 chunks=1
+load=AGENTS.md mode=stored-path chunks=1 token_estimate=19
+--- AGENTS.md#chunk-0001 lines=1-3 tokens=19 [agent-shim stored]
+title=Mini AGENTS
+heading=Mini AGENTS
+summary=mini db first source updated in stored db
+# Mini AGENTS
+
+mini db first source updated in stored db
+PASS github-index update-stored changes database-owned content
+{"op":"stat","ok":true,"db":"/tmp/tmp.vw0CMR6blm/mini-index.sqlite","schema_version":"3","fts5":true,"root":".github","last_rebuild_at":"2026-06-11T15:11:38+00:00","files":4,"indexed":4,"chunks":4,"token_estimate":592,"stored_documents":4,"stored_chunks":4,"stored_token_estimate":107,"status":{"indexed":4},"kind":{"agent":1,"agent-shim":1,"e2e-module":1,"e2e-profile":1}}
+{"op":"search","ok":true,"source":"stored","terms":["updated"],"results":[{"path":"AGENTS.md","kind":"agent-shim","index_status":"stored","title":"Mini AGENTS","mode":"stored-fts","line":3,"snippet":"# Mini AGENTS mini db first source updated in stored db"}]}
+{"op":"summary","ok":true,"source":"stored","path":"AGENTS.md","files":1,"chunks":1,"token_estimate":19,"items":[{"path":"AGENTS.md","kind":"agent-shim","index_status":"stored","title":"Mini AGENTS","description":"","declared_status":"","tags":"agent-shim,md","line_count":3,"chunk_count":1,"token_estimate":19,"summary":"mini db first source updated in stored db"}]}
+{"op":"load","ok":true,"source":"stored","mode":"stored-path","terms":[],"path":"AGENTS.md","chunks":[{"chunk_id":"AGENTS.md#chunk-0001","path":"AGENTS.md","kind":"agent-shim","index_status":"stored","title":"Mini AGENTS","heading":"Mini AGENTS","start_line":1,"end_line":3,"token_estimate":19,"summary":"mini db first source updated in stored db","text":"# Mini AGENTS\n\nmini db first source updated in stored db"}],"token_estimate":19}
+{"op":"show","ok":true,"source":"stored","document":{"path":"AGENTS.md","kind":"agent-shim","title":"Mini AGENTS","description":"","tags":"agent-shim,md","sha256":"354b6696a39659e5acab1c9737bbce387a82b8f7c22b24649219f546d50064f4","line_count":3,"source_indexed_at":"2026-06-11T15:11:38+00:00","stored_at":"2026-06-11T15:11:38+00:00"}}
+PASS github-index JSONL API serves stored search/summary/load/show for external AI
+# Agent Brief
+
+- `source`: stored
+- `profile`: github-index
+- `terms`: updated
+- `token_estimate`: 19 / 700
+
+## Profile Suggestions
+- <none>
+
+## Commands
+- `python3 scripts/github_index_db.py brief <terms> --profile <profile>`
+- `python3 scripts/github_index_db.py load --source stored --path <path>`
+- `python3 scripts/github_index_db.py audit-db-first`
+- `python3 scripts/github_index_db.py audit-markdown-coverage --fail-on-live-evidence`
+- `scripts/agent-e2e.sh --list-profiles`
+- `scripts/agent-e2e.sh --profile github-index`
+
+## Missing Paths
+- `.github/AGENTS.md`
+- `.github/copilot-instructions.md`
+- `.github/memory/project-status.md`
+- `.github/memory/known-issues.md`
+- `.github/e2e/README.md`
+- `.github/e2e/profiles/github-index.tsv`
+- `.github/e2e/modules/github-index.md`
+- `.github/agents/github-index.agent.md`
+- `.github/memory/modules/github-index.md`
+
+## Chunks
+
+### AGENTS.md#chunk-0001
+
+- `kind`: agent-shim
+- `lines`: 1-3
+- `tokens`: 19
+- `heading`: Mini AGENTS
+- `summary`: mini db first source updated in stored db
+
+# Mini AGENTS
+
+mini db first source updated in stored db
+{
+  "op": "brief",
+  "ok": true,
+  "db": "/tmp/tmp.vw0CMR6blm/mini-index.sqlite",
+  "profile": "github-index",
+  "terms": [
+    "updated"
+  ],
+  "source": "stored",
+  "token_estimate": 19,
+  "max_tokens": 700,
+  "selected_paths": [
+    "AGENTS.md",
+    ".github/AGENTS.md",
+    ".github/copilot-instructions.md",
+    ".github/memory/project-status.md",
+    ".github/memory/known-issues.md",
+    ".github/e2e/README.md",
+    ".github/e2e/profiles/github-index.tsv",
+    ".github/e2e/modules/github-index.md",
+    ".github/agents/github-index.agent.md",
+    ".github/memory/modules/github-index.md"
+  ],
+  "missing_paths": [
+    ".github/AGENTS.md",
+    ".github/copilot-instructions.md",
+    ".github/memory/project-status.md",
+    ".github/memory/known-issues.md",
+    ".github/e2e/README.md",
+    ".github/e2e/profiles/github-index.tsv",
+    ".github/e2e/modules/github-index.md",
+    ".github/agents/github-index.agent.md",
+    ".github/memory/modules/github-index.md"
+  ],
+  "profile_suggestions": [],
+  "commands": [
+    "python3 scripts/github_index_db.py brief <terms> --profile <profile>",
+    "python3 scripts/github_index_db.py load --source stored --path <path>",
+    "python3 scripts/github_index_db.py audit-db-first",
+    "python3 scripts/github_index_db.py audit-markdown-coverage --fail-on-live-evidence",
+    "scripts/agent-e2e.sh --list-profiles",
+    "scripts/agent-e2e.sh --profile github-index"
+  ],
+  "chunks": [
+    {
+      "chunk_id": "AGENTS.md#chunk-0001",
+      "path": "AGENTS.md",
+      "kind": "agent-shim",
+      "index_status": "stored",
+      "title": "Mini AGENTS",
+      "heading": "Mini AGENTS",
+      "start_line": 1,
+      "end_line": 3,
+      "token_estimate": 19,
+      "summary": "mini db first source updated in stored db",
+      "text": "# Mini AGENTS\n\nmini db first source updated in stored db"
+    }
+  ]
+}
+PASS github-index brief returns DB-backed startup context for agents
+{
+  "op": "brief",
+  "ok": true,
+  "db": "/tmp/tmp.vw0CMR6blm/mini-index.sqlite",
+  "profile": "",
+  "terms": [
+    "ubuntu",
+    "full"
+  ],
+  "source": "stored",
+  "token_estimate": 95,
+  "max_tokens": 700,
+  "selected_paths": [
+    "AGENTS.md",
+    ".github/AGENTS.md",
+    ".github/copilot-instructions.md",
+    ".github/memory/project-status.md",
+    ".github/memory/known-issues.md",
+    ".github/e2e/README.md"
+  ],
+  "missing_paths": [
+    ".github/AGENTS.md",
+    ".github/copilot-instructions.md",
+    ".github/memory/project-status.md",
+    ".github/memory/known-issues.md",
+    ".github/e2e/README.md"
+  ],
+  "profile_suggestions": [
+    {
+      "profile": "nemu-ubuntu-full-gate",
+      "score": 12,
+      "matched_terms": [
+        "full",
+        "ubuntu"
+      ],
+      "source_paths": [
+        ".github/e2e/modules/nemu-ubuntu-full-gate.md",
+        ".github/e2e/profiles/nemu-ubuntu-full-gate.tsv"
+      ],
+      "command": "scripts/agent-e2e.sh --profile nemu-ubuntu-full-gate"
+    }
+  ],
+  "commands": [
+    "python3 scripts/github_index_db.py brief <terms> --profile <profile>",
+    "python3 scripts/github_index_db.py load --source stored --path <path>",
+    "python3 scripts/github_index_db.py audit-db-first",
+    "python3 scripts/github_index_db.py audit-markdown-coverage --fail-on-live-evidence",
+    "scripts/agent-e2e.sh --list-profiles",
+    "scripts/agent-e2e.sh --profile nemu-ubuntu-full-gate"
+  ],
+  "chunks": [
+    {
+      "chunk_id": "AGENTS.md#chunk-0001",
+      "path": "AGENTS.md",
+      "kind": "agent-shim",
+      "index_status": "stored",
+      "title": "Mini AGENTS",
+      "heading": "Mini AGENTS",
+      "start_line": 1,
+      "end_line": 3,
+      "token_estimate": 19,
+      "summary": "mini db first source updated in stored db",
+      "text": "# Mini AGENTS\n\nmini db first source updated in stored db"
+    },
+    {
+      "chunk_id": ".github/e2e/modules/nemu-ubuntu-full-gate.md#chunk-0001",
+      "path": ".github/e2e/modules/nemu-ubuntu-full-gate.md",
+      "kind": "e2e-module",
+      "index_status": "stored",
+      "title": "NEMU Ubuntu Full Gate",
+      "heading": "NEMU Ubuntu Full Gate",
+      "start_line": 1,
+      "end_line": 3,
+      "token_estimate": 22,
+      "summary": "full Ubuntu rootfs systemd guest gate profile",
+      "text": "# NEMU Ubuntu Full Gate\n\nfull Ubuntu rootfs systemd guest gate profile"
+    },
+    {
+      "chunk_id": ".github/e2e/profiles/nemu-ubuntu-full-gate.tsv#chunk-0001",
+      "path": ".github/e2e/profiles/nemu-ubuntu-full-gate.tsv",
+      "kind": "e2e-profile",
+      "index_status": "stored",
+      "title": "node_id|module|function|owner_agent|inputs|outputs",
+      "heading": "node_id|module|function|owner_agent|inputs|outputs",
+      "start_line": 1,
+      "end_line": 2,
+      "token_estimate": 54,
+      "summary": "nemu-ubuntu-full-focused-gate|nemu|e2e_nemu_ubuntu_full_focused_gate|nemu|optional full Ubuntu rootfs/systemd guest gate|full Ubuntu rootfs guest gate",
+      "text": "# node_id|module|function|owner_agent|inputs|outputs\nnemu-ubuntu-full-focused-gate|nemu|e2e_nemu_ubuntu_full_focused_gate|nemu|optional full Ubuntu rootfs/systemd guest gate|full Ubuntu rootfs guest gate"
+    }
+  ]
+}
+PASS github-index brief recommends matching e2e profile
+PASS snapshot-stored documents=4 backup_dir=.github/db-backup/snapshot manifest_entries=4
+PASS rehydrate stored_documents=4 refreshed=4 backup_dirs=1
+  .github/agents/demo.agent.md [agent]
+  .github/e2e/modules/nemu-ubuntu-full-gate.md [e2e-module]
+  .github/e2e/profiles/nemu-ubuntu-full-gate.tsv [e2e-profile]
+  AGENTS.md [agent-shim]
+load=AGENTS.md mode=stored-path chunks=1 token_estimate=19
+--- AGENTS.md#chunk-0001 lines=1-3 tokens=19 [agent-shim stored]
+title=Mini AGENTS
+heading=Mini AGENTS
+summary=mini db first source updated in stored db
+# Mini AGENTS
+
+mini db first source updated in stored db
+PASS github-index rehydrate restores current stored content after DB loss
+PASS archive-markdown stored_documents=3 shims=3 skipped_shims=0 backup_dir=.github/db-backup/test manifest_entries=7
+  .github/task-runs/demo/dispatch-log.md
+  .github/task-runs/demo/evidence/note.md
+  .github/task-runs/demo/task-report.md
+PASS github-index archives task-run Markdown with shim and backup
+load=.github/task-runs/demo/task-report.md mode=stored-path chunks=1 token_estimate=12
+--- .github/task-runs/demo/task-report.md#chunk-0001 lines=1-3 tokens=12 [task-report stored]
+title=Task Report
+heading=Task Report
+summary=demo task report source
+# Task Report
+
+demo task report source
+PASS db-first-audit candidates=7 stored=7 shims=7 backup_entries=7 backup_dir=.github/db-backup/test
+PASS markdown-coverage active_md=6 db_owned=6 shims=6 live_evidence=0
+PASS materialize documents=1 output_root=materialized
+PASS github-index materialize restores stored document content
+PASS restore documents=1 backup_dir=.github/db-backup/test
+PASS github-index restore recovers original AGENTS file from backup

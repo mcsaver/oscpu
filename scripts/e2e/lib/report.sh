@@ -22,6 +22,8 @@ e2e_allocate_run_dir() {
   E2E_EVIDENCE_DIR="$E2E_RUN_DIR/evidence"
   E2E_REPORT_FILE="$E2E_RUN_DIR/task-report.md"
   E2E_DISPATCH_FILE="$E2E_RUN_DIR/dispatch-log.md"
+  E2E_CONTEXT_BRIEF_FILE="$E2E_RUN_DIR/context-brief.md"
+  E2E_PROFILE_RESOLVE_FILE="$E2E_RUN_DIR/profile-resolve.md"
   E2E_NODES_FILE="$E2E_RUN_DIR/nodes.tsv"
   mkdir -p "$E2E_EVIDENCE_DIR"
   : > "$E2E_NODES_FILE"
@@ -54,6 +56,80 @@ e2e_archive_task_run_markdown_to_db() {
       --backup-dir "$backup_dir" \
       --yes >/dev/null; then
     printf '[e2e] WARN task-run Markdown archive failed for %s\n' "$run_rel" >&2
+  fi
+}
+
+e2e_generate_context_brief() {
+  [[ ${E2E_GENERATE_CONTEXT_BRIEF:-1} = 1 ]] || return 0
+  [[ -n ${E2E_RUN_DIR:-} && -d $E2E_RUN_DIR ]] || return 0
+  [[ -f "$E2E_ROOT_DIR/scripts/github_index_db.py" ]] || return 0
+
+  local max_tokens
+  max_tokens=${E2E_CONTEXT_BRIEF_MAX_TOKENS:-1800}
+  if python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" brief "$E2E_PROFILE" "$E2E_TASK_SLUG" \
+      --repo-root "$E2E_ROOT_DIR" \
+      --profile "$E2E_PROFILE" \
+      --max-tokens "$max_tokens" > "$E2E_CONTEXT_BRIEF_FILE"; then
+    e2e_append_dispatch \
+      "context-brief" \
+      "PASS" \
+      "agent-system" \
+      "github-index" \
+      "github-index brief" \
+      ".github DB stored memory" \
+      "$(e2e_relpath "$E2E_CONTEXT_BRIEF_FILE")" \
+      "$(e2e_relpath "$E2E_CONTEXT_BRIEF_FILE")" \
+      "DB-backed startup context generated before dispatch"
+  else
+    {
+      printf '# Agent Brief\n\n'
+      printf 'WARN context brief generation failed for profile `%s`.\n' "$E2E_PROFILE"
+    } > "$E2E_CONTEXT_BRIEF_FILE"
+    e2e_append_dispatch \
+      "context-brief" \
+      "WARN" \
+      "agent-system" \
+      "github-index" \
+      "github-index brief" \
+      ".github DB stored memory" \
+      "context brief unavailable" \
+      "$(e2e_relpath "$E2E_CONTEXT_BRIEF_FILE")" \
+      "继续执行 profile；查看数据库或 github-index gate"
+  fi
+}
+
+e2e_generate_profile_resolve() {
+  [[ ${E2E_GENERATE_PROFILE_RESOLVE:-1} = 1 ]] || return 0
+  [[ -n ${E2E_RUN_DIR:-} && -d $E2E_RUN_DIR ]] || return 0
+  [[ -f "$E2E_ROOT_DIR/scripts/github_index_db.py" ]] || return 0
+
+  if python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" resolve-profile "$E2E_PROFILE" \
+      --repo-root "$E2E_ROOT_DIR" > "$E2E_PROFILE_RESOLVE_FILE"; then
+    e2e_append_dispatch \
+      "profile-resolve" \
+      "PASS" \
+      "agent-system" \
+      "github-index" \
+      "github-index resolve-profile" \
+      ".github/e2e/profiles/$E2E_PROFILE.tsv" \
+      "$(e2e_relpath "$E2E_PROFILE_RESOLVE_FILE")" \
+      "$(e2e_relpath "$E2E_PROFILE_RESOLVE_FILE")" \
+      "DB-backed e2e profile include closure generated before dispatch"
+  else
+    {
+      printf '# E2E Resolved Profile\n\n'
+      printf 'WARN profile resolve generation failed for profile `%s`.\n' "$E2E_PROFILE"
+    } > "$E2E_PROFILE_RESOLVE_FILE"
+    e2e_append_dispatch \
+      "profile-resolve" \
+      "WARN" \
+      "agent-system" \
+      "github-index" \
+      "github-index resolve-profile" \
+      ".github/e2e/profiles/$E2E_PROFILE.tsv" \
+      "profile resolve unavailable" \
+      "$(e2e_relpath "$E2E_PROFILE_RESOLVE_FILE")" \
+      "继续执行 profile；查看数据库或 github-index gate"
   fi
 }
 
@@ -240,6 +316,8 @@ EOF
 
 - \`artifacts\`: $(e2e_relpath "$E2E_RUN_DIR")
 - \`logs_or_traces\`: $(e2e_relpath "$E2E_EVIDENCE_DIR")
+- \`context_brief\`: $(e2e_relpath "$E2E_CONTEXT_BRIEF_FILE")
+- \`profile_resolve\`: $(e2e_relpath "$E2E_PROFILE_RESOLVE_FILE")
 - \`profile_manifest\`: .github/e2e/profiles/$E2E_PROFILE.tsv
 - \`linked_memory_updates\`: 由 agent 在收尾阶段按本轮稳定结论更新 memory
 

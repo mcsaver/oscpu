@@ -11,6 +11,16 @@ from typing import Any, Sequence
 from .core import *
 from .queries import *
 
+BRIEF_CORE_PATHS = (
+    "AGENTS.md",
+    ".github/AGENTS.md",
+    ".github/copilot-instructions.md",
+    ".github/memory/project-status.md",
+    ".github/memory/known-issues.md",
+    ".github/e2e/README.md",
+)
+
+
 def count_by(conn: sqlite3.Connection, table: str, field: str) -> dict[str, int]:
     return {
         row[field]: row["c"]
@@ -83,6 +93,494 @@ def chunk_to_payload(row: sqlite3.Row) -> dict[str, Any]:
         "token_estimate": row["token_estimate"],
         "summary": row["summary"],
         "text": row["text"],
+    }
+
+
+def brief_profile_paths(profile: str) -> list[str]:
+    profile = profile.strip().replace("\\", "/").strip("/")
+    if not profile:
+        return []
+    return [
+        f".github/e2e/profiles/{profile}.tsv",
+        f".github/e2e/modules/{profile}.md",
+        f".github/agents/{profile}.agent.md",
+        f".github/memory/modules/{profile}.md",
+    ]
+
+
+def add_brief_rows(
+    rows_by_chunk: dict[str, sqlite3.Row],
+    rows: Sequence[sqlite3.Row],
+    token_budget: int,
+) -> int:
+    used = sum(int(row["token_estimate"] or 0) for row in rows_by_chunk.values())
+    added = 0
+    for row in rows:
+        chunk_id = row["chunk_id"]
+        tokens = int(row["token_estimate"] or 0)
+        if chunk_id in rows_by_chunk:
+            continue
+        if rows_by_chunk and used + tokens > token_budget:
+            break
+        rows_by_chunk[chunk_id] = row
+        used += tokens
+        added += 1
+    return added
+
+
+def stored_rows_for_path(conn: sqlite3.Connection, path: str, limit: int) -> list[sqlite3.Row]:
+    _, rows = path_stored_rows(conn, normalize_index_path(path), None, limit)
+    return rows
+
+
+def profile_name_from_path(path: str) -> str | None:
+    if path.startswith(".github/e2e/profiles/") and path.endswith(".tsv"):
+        return Path(path).stem
+    if path.startswith(".github/e2e/modules/") and path.endswith(".md"):
+        return Path(path).stem
+    return None
+
+
+def task_run_id_from_path(path: str) -> str | None:
+    parts = Path(path).parts
+    if len(parts) >= 3 and parts[:2] == (".github", "task-runs"):
+        return parts[2]
+    return None
+
+
+def markdown_fields(content: str) -> dict[str, str]:
+    fields: dict[str, str] = {}
+    for raw_line in content.splitlines():
+        line = raw_line.strip()
+        if not line.startswith("- `") or "`:" not in line:
+            continue
+        key_end = line.find("`:", 3)
+        if key_end == -1:
+            continue
+        fields[line[3:key_end]] = line[key_end + 2 :].strip()
+    return fields
+
+
+def profile_suggestions(
+    conn: sqlite3.Connection,
+    terms: Sequence[str],
+    requested_profile: str,
+    limit: int,
+) -> list[dict[str, Any]]:
+    rows = conn.execute(
+        """
+        SELECT path, kind, title, description, content
+        FROM db_documents
+        WHERE kind IN ('e2e-profile', 'e2e-module')
+        ORDER BY path
+        """
+    ).fetchall()
+    suggestions: dict[str, dict[str, Any]] = {}
+    normalized_terms = [term.lower() for term in terms if term]
+    for row in rows:
+        profile = profile_name_from_path(row["path"])
+        if not profile:
+            continue
+        haystack = " ".join(
+            str(row[key] or "")
+            for key in ("path", "title", "description", "content")
+        ).lower()
+        matched_terms = [term for term in normalized_terms if term in haystack]
+        name_hits = [term for term in normalized_terms if term in profile.lower()]
+        score = len(matched_terms) + (2 * len(name_hits))
+        if requested_profile and profile == requested_profile:
+            score += 8
+            matched_terms.append("requested-profile")
+        if score <= 0:
+            continue
+        entry = suggestions.setdefault(
+            profile,
+            {
+                "profile": profile,
+                "score": 0,
+                "matched_terms": [],
+                "source_paths": [],
+                "command": f"scripts/agent-e2e.sh --profile {profile}",
+            },
+        )
+        entry["score"] += score
+        entry["matched_terms"] = sorted(set(entry["matched_terms"]) | set(matched_terms) | set(name_hits))
+        if row["path"] not in entry["source_paths"]:
+            entry["source_paths"].append(row["path"])
+    return sorted(
+        suggestions.values(),
+        key=lambda item: (-int(item["score"]), item["profile"]),
+    )[:limit]
+
+
+PROFILE_NODE_FIELDS = ("node_id", "module", "function", "owner_agent", "inputs", "outputs")
+
+
+def parse_profile_entries(content: str) -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
+    for raw_line in content.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = [part.strip() for part in line.split("|")]
+        if parts[0] == "@include":
+            if len(parts) > 1 and parts[1]:
+                entries.append({"type": "include", "profile": parts[1]})
+            continue
+        if parts[0] == "node_id":
+            continue
+        values = [*parts, *([""] * len(PROFILE_NODE_FIELDS))][: len(PROFILE_NODE_FIELDS)]
+        entries.append({"type": "node", "node": dict(zip(PROFILE_NODE_FIELDS, values))})
+    return entries
+
+
+def parse_profile_rows(content: str) -> tuple[list[str], list[dict[str, str]]]:
+    includes: list[str] = []
+    nodes: list[dict[str, str]] = []
+    for entry in parse_profile_entries(content):
+        if entry["type"] == "include":
+            includes.append(entry["profile"])
+        elif entry["type"] == "node":
+            nodes.append(entry["node"])
+    return includes, nodes
+
+
+def stored_profile_row(conn: sqlite3.Connection, profile: str) -> sqlite3.Row | None:
+    path = f".github/e2e/profiles/{profile}.tsv"
+    return conn.execute(
+        """
+        SELECT path, title, description, content
+        FROM db_documents
+        WHERE path = ? AND kind = 'e2e-profile'
+        """,
+        (path,),
+    ).fetchone()
+
+
+def profile_catalog_payload(conn: sqlite3.Connection, request: dict[str, Any]) -> dict[str, Any]:
+    terms = request_terms(request)
+    include_nodes = bool(request.get("include_nodes", False))
+    limit = request_int(request, "limit", 80)
+    normalized_terms = [term.lower() for term in terms if term]
+    rows = conn.execute(
+        """
+        SELECT path, title, description, content
+        FROM db_documents
+        WHERE kind = 'e2e-profile'
+        ORDER BY path
+        """
+    ).fetchall()
+    profiles: list[dict[str, Any]] = []
+    for row in rows:
+        profile = profile_name_from_path(row["path"])
+        if not profile:
+            continue
+        includes, nodes = parse_profile_rows(row["content"] or "")
+        haystack = " ".join(
+            [
+                profile,
+                str(row["path"] or ""),
+                str(row["title"] or ""),
+                str(row["description"] or ""),
+                str(row["content"] or ""),
+            ]
+        ).lower()
+        matched_terms = [term for term in normalized_terms if term in haystack]
+        name_hits = [term for term in normalized_terms if term in profile.lower()]
+        score = len(matched_terms) + (2 * len(name_hits))
+        if normalized_terms and score <= 0:
+            continue
+        entry: dict[str, Any] = {
+            "profile": profile,
+            "path": row["path"],
+            "title": row["title"] or profile,
+            "description": row["description"] or "",
+            "includes": includes,
+            "node_count": len(nodes),
+            "modules": sorted({node["module"] for node in nodes if node.get("module")}),
+            "owners": sorted({node["owner_agent"] for node in nodes if node.get("owner_agent")}),
+            "matched_terms": sorted(set(matched_terms) | set(name_hits)),
+            "score": score,
+            "command": f"scripts/agent-e2e.sh --profile {profile}",
+        }
+        if include_nodes:
+            entry["nodes"] = nodes
+        profiles.append(entry)
+    profiles.sort(key=lambda item: (-int(item["score"]), item["profile"]))
+    return {
+        "op": "profiles",
+        "ok": True,
+        "source": "stored",
+        "terms": terms,
+        "profiles": profiles[:limit],
+    }
+
+
+def resolve_profile_payload(conn: sqlite3.Connection, request: dict[str, Any]) -> dict[str, Any]:
+    profile = str(request.get("profile", "")).strip()
+    if not profile:
+        return {"op": "resolve-profile", "ok": False, "error": "resolve-profile needs profile"}
+    include_nodes = bool(request.get("include_nodes", True))
+    max_depth = request_int(request, "max_depth", 64)
+    profile_order: list[str] = []
+    seen_profiles: set[str] = set()
+    include_edges: list[dict[str, str]] = []
+    expanded_nodes: list[dict[str, str]] = []
+    missing_profiles: list[str] = []
+    cycles: list[list[str]] = []
+    depth_exceeded: list[str] = []
+
+    def visit(current: str, stack: list[str]) -> None:
+        if len(stack) > max_depth:
+            depth_exceeded.append(current)
+            return
+        if current in stack:
+            cycle_start = stack.index(current)
+            cycles.append([*stack[cycle_start:], current])
+            return
+        row = stored_profile_row(conn, current)
+        if row is None:
+            if current not in missing_profiles:
+                missing_profiles.append(current)
+            return
+        if current not in seen_profiles:
+            seen_profiles.add(current)
+            profile_order.append(current)
+        next_stack = [*stack, current]
+        for entry in parse_profile_entries(row["content"] or ""):
+            if entry["type"] == "include":
+                included = entry["profile"]
+                include_edges.append({"from": current, "to": included})
+                visit(included, next_stack)
+            elif entry["type"] == "node":
+                node = dict(entry["node"])
+                node["source_profile"] = current
+                expanded_nodes.append(node)
+
+    visit(profile, [])
+    modules = sorted({node["module"] for node in expanded_nodes if node.get("module")})
+    owners = sorted({node["owner_agent"] for node in expanded_nodes if node.get("owner_agent")})
+    payload: dict[str, Any] = {
+        "op": "resolve-profile",
+        "ok": not missing_profiles and not cycles and not depth_exceeded,
+        "source": "stored",
+        "profile": profile,
+        "profile_order": profile_order,
+        "include_edges": include_edges,
+        "expanded_node_count": len(expanded_nodes),
+        "modules": modules,
+        "owners": owners,
+        "missing_profiles": missing_profiles,
+        "cycles": cycles,
+        "depth_exceeded": depth_exceeded,
+        "command": f"scripts/agent-e2e.sh --profile {profile}",
+        "validate_command": f"scripts/agent-e2e.sh --validate-profile --profile {profile}",
+    }
+    if include_nodes:
+        payload["nodes"] = expanded_nodes
+    return payload
+
+
+def task_run_artifacts(conn: sqlite3.Connection, run_id: str) -> dict[str, Any]:
+    prefix = f".github/task-runs/{run_id}/"
+    rows = conn.execute(
+        """
+        SELECT path, kind
+        FROM db_documents
+        WHERE path LIKE ?
+        ORDER BY path
+        """,
+        (f"{prefix}%",),
+    ).fetchall()
+    artifacts: dict[str, Any] = {
+        "report_path": "",
+        "dispatch_path": "",
+        "context_brief_path": "",
+        "profile_resolve_path": "",
+        "stored_markdown_count": len(rows),
+        "evidence_markdown_count": 0,
+    }
+    for row in rows:
+        path = row["path"]
+        if path == f"{prefix}task-report.md":
+            artifacts["report_path"] = path
+        elif path == f"{prefix}dispatch-log.md":
+            artifacts["dispatch_path"] = path
+        elif path == f"{prefix}context-brief.md":
+            artifacts["context_brief_path"] = path
+        elif path == f"{prefix}profile-resolve.md":
+            artifacts["profile_resolve_path"] = path
+        elif "/evidence/" in path:
+            artifacts["evidence_markdown_count"] += 1
+    return artifacts
+
+
+def task_run_profile_resolve_summary(conn: sqlite3.Connection, run_id: str) -> dict[str, Any]:
+    row = conn.execute(
+        "SELECT content FROM db_documents WHERE path = ?",
+        (f".github/task-runs/{run_id}/profile-resolve.md",),
+    ).fetchone()
+    if row is None:
+        return {}
+    fields = markdown_fields(row["content"] or "")
+    summary: dict[str, Any] = {}
+    if "expanded_node_count" in fields:
+        try:
+            summary["expanded_node_count"] = int(fields["expanded_node_count"])
+        except ValueError:
+            summary["expanded_node_count"] = fields["expanded_node_count"]
+    if "profile_order" in fields:
+        summary["profile_order"] = [
+            item.strip()
+            for item in fields["profile_order"].split(",")
+            if item.strip() and item.strip() != "<none>"
+        ]
+    return summary
+
+
+def task_runs_payload(conn: sqlite3.Connection, request: dict[str, Any]) -> dict[str, Any]:
+    terms = request_terms(request)
+    profile_filter = str(request.get("profile", "")).strip()
+    status_filter = str(request.get("status", "")).strip()
+    include_artifacts = bool(request.get("include_artifacts", True))
+    limit = request_int(request, "limit", 20)
+    normalized_terms = [term.lower() for term in terms if term]
+    rows = conn.execute(
+        """
+        SELECT path, title, description, content, stored_at
+        FROM db_documents
+        WHERE kind = 'task-report'
+          AND path LIKE '.github/task-runs/%/task-report.md'
+        ORDER BY path DESC
+        """
+    ).fetchall()
+    runs: list[dict[str, Any]] = []
+    for row in rows:
+        run_id = task_run_id_from_path(row["path"])
+        if not run_id:
+            continue
+        fields = markdown_fields(row["content"] or "")
+        profile = fields.get("profile", "")
+        status = fields.get("status", "")
+        if profile_filter and profile != profile_filter:
+            continue
+        if status_filter and status != status_filter:
+            continue
+        haystack = " ".join(
+            [
+                run_id,
+                row["path"] or "",
+                row["title"] or "",
+                row["description"] or "",
+                row["content"] or "",
+                profile,
+                status,
+            ]
+        ).lower()
+        matched_terms = [term for term in normalized_terms if term in haystack]
+        if normalized_terms and not matched_terms:
+            continue
+        item: dict[str, Any] = {
+            "run_id": run_id,
+            "task_slug": fields.get("task_slug", ""),
+            "profile": profile,
+            "status": status,
+            "started_at": fields.get("started_at", ""),
+            "updated_at": fields.get("updated_at", row["stored_at"] or ""),
+            "final_result": fields.get("final_result", ""),
+            "matched_terms": matched_terms,
+            "report_path": row["path"],
+        }
+        if include_artifacts:
+            item.update(task_run_artifacts(conn, run_id))
+            item.update(task_run_profile_resolve_summary(conn, run_id))
+        runs.append(item)
+    runs.sort(
+        key=lambda item: (
+            str(item.get("updated_at") or ""),
+            str(item.get("started_at") or ""),
+            str(item.get("run_id") or ""),
+        ),
+        reverse=True,
+    )
+    return {
+        "op": "runs",
+        "ok": True,
+        "source": "stored",
+        "terms": terms,
+        "profile": profile_filter,
+        "status": status_filter,
+        "runs": runs[:limit],
+    }
+
+
+def brief_payload(conn: sqlite3.Connection, db_path: Path, request: dict[str, Any]) -> dict[str, Any]:
+    terms = request_terms(request)
+    profile = str(request.get("profile", "")).strip()
+    max_tokens = request_int(request, "max_tokens", 2400, 200)
+    core_limit = request_int(request, "core_limit", 1)
+    focus_limit = request_int(request, "focus_limit", 8)
+    profile_limit = request_int(request, "profile_limit", 5)
+    extra_paths = request.get("paths", [])
+    if isinstance(extra_paths, str):
+        extra_paths = [extra_paths]
+    elif not isinstance(extra_paths, Sequence):
+        extra_paths = []
+
+    selected_paths: list[str] = []
+    for path in [*BRIEF_CORE_PATHS, *brief_profile_paths(profile), *[str(path) for path in extra_paths]]:
+        normalized = normalize_index_path(path)
+        if normalized not in selected_paths:
+            selected_paths.append(normalized)
+
+    rows_by_chunk: dict[str, sqlite3.Row] = {}
+    missing_paths: list[str] = []
+    for path in selected_paths:
+        rows = stored_rows_for_path(conn, path, core_limit)
+        if rows:
+            add_brief_rows(rows_by_chunk, rows, max_tokens)
+        else:
+            missing_paths.append(path)
+
+    if terms:
+        meta = fetch_meta(conn)
+        try:
+            if meta.get("fts5") == "1":
+                _, focus_rows = query_stored_rows_fts(conn, terms, None, None, max(focus_limit, focus_limit * 4))
+            else:
+                _, focus_rows = query_stored_rows_like(conn, terms, None, None, max(focus_limit, focus_limit * 4))
+        except sqlite3.Error:
+            _, focus_rows = query_stored_rows_like(conn, terms, None, None, max(focus_limit, focus_limit * 4))
+        add_brief_rows(rows_by_chunk, focus_rows, max_tokens)
+
+    chunks = [chunk_to_payload(row) for row in rows_by_chunk.values()]
+    token_estimate = sum(int(chunk["token_estimate"] or 0) for chunk in chunks)
+    suggestions = profile_suggestions(conn, terms, profile, profile_limit)
+    commands = [
+        "python3 scripts/github_index_db.py brief <terms> --profile <profile>",
+        "python3 scripts/github_index_db.py load --source stored --path <path>",
+        "python3 scripts/github_index_db.py audit-db-first",
+        "python3 scripts/github_index_db.py audit-markdown-coverage --fail-on-live-evidence",
+        "scripts/agent-e2e.sh --list-profiles",
+    ]
+    if profile:
+        commands.append(f"scripts/agent-e2e.sh --profile {profile}")
+    elif suggestions:
+        commands.extend(suggestion["command"] for suggestion in suggestions[:3])
+    return {
+        "op": "brief",
+        "ok": True,
+        "db": str(db_path),
+        "profile": profile,
+        "terms": terms,
+        "source": "stored",
+        "token_estimate": token_estimate,
+        "max_tokens": max_tokens,
+        "selected_paths": selected_paths,
+        "missing_paths": missing_paths,
+        "profile_suggestions": suggestions,
+        "commands": commands,
+        "chunks": chunks,
     }
 
 
@@ -395,6 +893,10 @@ def api_schema_payload() -> dict[str, Any]:
             "summary": {"fields": ["path?", "source?", "kind?", "limit?", "summary_chars?"]},
             "load": {"fields": ["terms?", "path?", "source?", "kind?", "limit?", "max_tokens?"]},
             "show": {"fields": ["path", "source?", "include_content?"]},
+            "brief": {"fields": ["terms?", "profile?", "paths?", "max_tokens?", "profile_limit?"]},
+            "profiles": {"fields": ["terms?", "limit?", "include_nodes?"]},
+            "resolve-profile": {"fields": ["profile", "include_nodes?", "max_depth?"]},
+            "runs": {"fields": ["terms?", "profile?", "status?", "limit?", "include_artifacts?"]},
             "schema": {"fields": []},
         },
     }
@@ -415,6 +917,14 @@ def execute_api_request(conn: sqlite3.Connection, db_path: Path, request: dict[s
             return api_load(conn, request)
         if op == "show":
             return api_show(conn, request)
+        if op in {"brief", "context", "context-pack"}:
+            return brief_payload(conn, db_path, request)
+        if op in {"profiles", "profile-catalog", "list-profiles"}:
+            return profile_catalog_payload(conn, request)
+        if op in {"resolve-profile", "profile", "profile-resolve"}:
+            return resolve_profile_payload(conn, request)
+        if op in {"runs", "task-runs", "run-catalog"}:
+            return task_runs_payload(conn, request)
         return {"op": op, "ok": False, "error": f"unknown op: {op}"}
     except Exception as exc:  # API mode must return structured failures.
         return {"op": op, "ok": False, "error": str(exc)}
@@ -462,3 +972,268 @@ def memory_api(args: argparse.Namespace) -> int:
     else:
         print(json.dumps(responses[0], ensure_ascii=False, indent=2))
     return 0 if all(response.get("ok") for response in responses) else 1
+
+
+def render_brief_markdown(payload: dict[str, Any]) -> str:
+    lines = [
+        "# Agent Brief",
+        "",
+        f"- `source`: {payload.get('source', '')}",
+        f"- `profile`: {payload.get('profile') or '<none>'}",
+        f"- `terms`: {' '.join(payload.get('terms') or []) or '<none>'}",
+        f"- `token_estimate`: {payload.get('token_estimate', 0)} / {payload.get('max_tokens', 0)}",
+        "",
+        "## Profile Suggestions",
+    ]
+    suggestions = payload.get("profile_suggestions") or []
+    if suggestions:
+        for suggestion in suggestions:
+            matched = ", ".join(suggestion.get("matched_terms") or [])
+            lines.append(
+                f"- `{suggestion['profile']}` score={suggestion['score']} matched={matched or '<none>'} command=`{suggestion['command']}`"
+            )
+    else:
+        lines.append("- <none>")
+    lines.extend([
+        "",
+        "## Commands",
+    ])
+    for command in payload.get("commands", []):
+        lines.append(f"- `{command}`")
+    missing = payload.get("missing_paths") or []
+    if missing:
+        lines.extend(["", "## Missing Paths"])
+        for path in missing:
+            lines.append(f"- `{path}`")
+    lines.extend(["", "## Chunks"])
+    for chunk in payload.get("chunks", []):
+        lines.extend(
+            [
+                "",
+                f"### {chunk['path']}#{chunk['chunk_id'].split('#')[-1]}",
+                "",
+                f"- `kind`: {chunk['kind']}",
+                f"- `lines`: {chunk['start_line']}-{chunk['end_line']}",
+                f"- `tokens`: {chunk['token_estimate']}",
+                f"- `heading`: {chunk['heading']}",
+            ]
+        )
+        if chunk.get("summary"):
+            lines.append(f"- `summary`: {chunk['summary']}")
+        lines.extend(["", chunk.get("text", "")])
+    lines.append("")
+    return "\n".join(lines)
+
+
+def render_profiles_markdown(payload: dict[str, Any]) -> str:
+    lines = [
+        "# E2E Profile Catalog",
+        "",
+        f"- `source`: {payload.get('source', '')}",
+        f"- `terms`: {' '.join(payload.get('terms') or []) or '<none>'}",
+        f"- `profiles`: {len(payload.get('profiles') or [])}",
+        "",
+        "## Profiles",
+    ]
+    for profile in payload.get("profiles", []):
+        includes = ", ".join(profile.get("includes") or []) or "<none>"
+        modules = ", ".join(profile.get("modules") or []) or "<none>"
+        owners = ", ".join(profile.get("owners") or []) or "<none>"
+        matched = ", ".join(profile.get("matched_terms") or []) or "<none>"
+        lines.extend(
+            [
+                "",
+                f"### {profile['profile']}",
+                "",
+                f"- `path`: {profile['path']}",
+                f"- `nodes`: {profile['node_count']}",
+                f"- `includes`: {includes}",
+                f"- `modules`: {modules}",
+                f"- `owners`: {owners}",
+                f"- `matched`: {matched}",
+                f"- `command`: {profile['command']}",
+            ]
+        )
+        if profile.get("description"):
+            lines.append(f"- `description`: {profile['description']}")
+        if profile.get("nodes"):
+            lines.append("- `node_ids`: " + ", ".join(node["node_id"] for node in profile["nodes"] if node.get("node_id")))
+    lines.append("")
+    return "\n".join(lines)
+
+
+def render_resolved_profile_markdown(payload: dict[str, Any]) -> str:
+    lines = [
+        "# E2E Resolved Profile",
+        "",
+        f"- `source`: {payload.get('source', '')}",
+        f"- `profile`: {payload.get('profile', '')}",
+        f"- `ok`: {payload.get('ok')}",
+        f"- `expanded_node_count`: {payload.get('expanded_node_count', 0)}",
+        f"- `profile_order`: {', '.join(payload.get('profile_order') or []) or '<none>'}",
+        f"- `modules`: {', '.join(payload.get('modules') or []) or '<none>'}",
+        f"- `owners`: {', '.join(payload.get('owners') or []) or '<none>'}",
+        f"- `command`: {payload.get('command', '')}",
+        f"- `validate_command`: {payload.get('validate_command', '')}",
+    ]
+    if payload.get("include_edges"):
+        lines.extend(["", "## Include Edges"])
+        for edge in payload["include_edges"]:
+            lines.append(f"- `{edge['from']}` -> `{edge['to']}`")
+    if payload.get("missing_profiles"):
+        lines.extend(["", "## Missing Profiles"])
+        for missing in payload["missing_profiles"]:
+            lines.append(f"- `{missing}`")
+    if payload.get("cycles"):
+        lines.extend(["", "## Cycles"])
+        for cycle in payload["cycles"]:
+            lines.append("- " + " -> ".join(f"`{item}`" for item in cycle))
+    if payload.get("depth_exceeded"):
+        lines.extend(["", "## Depth Exceeded"])
+        for profile in payload["depth_exceeded"]:
+            lines.append(f"- `{profile}`")
+    if payload.get("nodes"):
+        lines.extend(["", "## Nodes"])
+        for index, node in enumerate(payload["nodes"], start=1):
+            lines.append(
+                f"{index}. `{node['node_id']}` source=`{node['source_profile']}` "
+                f"module=`{node['module']}` owner=`{node['owner_agent']}` function=`{node['function']}`"
+            )
+    lines.append("")
+    return "\n".join(lines)
+
+
+def render_runs_markdown(payload: dict[str, Any]) -> str:
+    lines = [
+        "# E2E Task Runs",
+        "",
+        f"- `source`: {payload.get('source', '')}",
+        f"- `profile`: {payload.get('profile') or '<any>'}",
+        f"- `status`: {payload.get('status') or '<any>'}",
+        f"- `terms`: {' '.join(payload.get('terms') or []) or '<none>'}",
+        f"- `runs`: {len(payload.get('runs') or [])}",
+        "",
+        "## Runs",
+    ]
+    for run in payload.get("runs", []):
+        lines.extend(
+            [
+                "",
+                f"### {run['run_id']}",
+                "",
+                f"- `task_slug`: {run.get('task_slug', '')}",
+                f"- `profile`: {run.get('profile', '')}",
+                f"- `status`: {run.get('status', '')}",
+                f"- `started_at`: {run.get('started_at', '')}",
+                f"- `updated_at`: {run.get('updated_at', '')}",
+                f"- `report_path`: {run.get('report_path', '')}",
+            ]
+        )
+        if run.get("dispatch_path"):
+            lines.append(f"- `dispatch_path`: {run['dispatch_path']}")
+        if run.get("context_brief_path"):
+            lines.append(f"- `context_brief_path`: {run['context_brief_path']}")
+        if run.get("profile_resolve_path"):
+            lines.append(f"- `profile_resolve_path`: {run['profile_resolve_path']}")
+        if "expanded_node_count" in run:
+            lines.append(f"- `expanded_node_count`: {run.get('expanded_node_count', '')}")
+        if run.get("profile_order"):
+            lines.append("- `profile_order`: " + ", ".join(run["profile_order"]))
+        if run.get("final_result"):
+            lines.append(f"- `final_result`: {run['final_result']}")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def agent_brief(args: argparse.Namespace) -> int:
+    repo_root = resolve_repo_path(args.repo_root)
+    db_path = (repo_root / args.db).resolve()
+    request = {
+        "op": "brief",
+        "terms": args.terms,
+        "profile": args.profile,
+        "paths": args.path,
+        "max_tokens": args.max_tokens,
+        "core_limit": args.core_limit,
+        "focus_limit": args.focus_limit,
+        "profile_limit": args.profile_limit,
+    }
+    conn = open_db(db_path)
+    init_schema(conn)
+    try:
+        payload = brief_payload(conn, db_path, request)
+    finally:
+        conn.close()
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        print(render_brief_markdown(payload))
+    return 0 if payload.get("ok") else 1
+
+
+def agent_runs(args: argparse.Namespace) -> int:
+    repo_root = resolve_repo_path(args.repo_root)
+    db_path = (repo_root / args.db).resolve()
+    request = {
+        "op": "runs",
+        "terms": args.terms,
+        "profile": args.profile,
+        "status": args.status,
+        "limit": args.limit,
+        "include_artifacts": args.include_artifacts,
+    }
+    conn = open_db(db_path)
+    init_schema(conn)
+    try:
+        payload = task_runs_payload(conn, request)
+    finally:
+        conn.close()
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        print(render_runs_markdown(payload))
+    return 0 if payload.get("ok") else 1
+
+
+def agent_profiles(args: argparse.Namespace) -> int:
+    repo_root = resolve_repo_path(args.repo_root)
+    db_path = (repo_root / args.db).resolve()
+    request = {
+        "op": "profiles",
+        "terms": args.terms,
+        "limit": args.limit,
+        "include_nodes": args.include_nodes,
+    }
+    conn = open_db(db_path)
+    init_schema(conn)
+    try:
+        payload = profile_catalog_payload(conn, request)
+    finally:
+        conn.close()
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        print(render_profiles_markdown(payload))
+    return 0 if payload.get("ok") else 1
+
+
+def agent_resolve_profile(args: argparse.Namespace) -> int:
+    repo_root = resolve_repo_path(args.repo_root)
+    db_path = (repo_root / args.db).resolve()
+    request = {
+        "op": "resolve-profile",
+        "profile": args.profile,
+        "include_nodes": args.include_nodes,
+        "max_depth": args.max_depth,
+    }
+    conn = open_db(db_path)
+    init_schema(conn)
+    try:
+        payload = resolve_profile_payload(conn, request)
+    finally:
+        conn.close()
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        print(render_resolved_profile_markdown(payload))
+    return 0 if payload.get("ok") else 1

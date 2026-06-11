@@ -356,6 +356,35 @@ def select_live_document_rows(
     ).fetchall()
 
 
+def select_stored_document_rows(
+    conn: sqlite3.Connection,
+    paths: Sequence[str],
+    kinds: Sequence[str],
+) -> list[sqlite3.Row]:
+    if paths:
+        normalized = [normalize_index_path(path) for path in paths]
+        placeholders = ",".join("?" for _ in normalized)
+        return conn.execute(
+            f"""
+            SELECT path, kind, content
+            FROM db_documents
+            WHERE path IN ({placeholders})
+            ORDER BY path
+            """,
+            normalized,
+        ).fetchall()
+    placeholders = ",".join("?" for _ in kinds)
+    return conn.execute(
+        f"""
+        SELECT path, kind, content
+        FROM db_documents
+        WHERE kind IN ({placeholders})
+        ORDER BY path
+        """,
+        list(kinds),
+    ).fetchall()
+
+
 def row_to_indexed_file(row: sqlite3.Row) -> IndexedFile:
     return IndexedFile(
         path=row["path"],
@@ -507,12 +536,22 @@ def write_backup_files(
         ensure_inside_root(repo_root, src)
         dst = files_dir / rel_path
         dst.parent.mkdir(parents=True, exist_ok=True)
+        row_content = row["content"] or ""
         if src.exists():
-            shutil.copy2(src, dst)
             raw = src.read_bytes()
-            backup_source = "filesystem"
+            try:
+                live_content = raw.decode("utf-8")
+            except UnicodeDecodeError:
+                live_content = ""
+            if row_content and is_db_backed_shim(rel_path, live_content):
+                raw = row_content.encode("utf-8")
+                dst.write_bytes(raw)
+                backup_source = "database"
+            else:
+                shutil.copy2(src, dst)
+                backup_source = "filesystem"
         else:
-            raw = (row["content"] or "").encode("utf-8")
+            raw = row_content.encode("utf-8")
             dst.write_bytes(raw)
             backup_source = "database"
         entries_by_path[rel_path] = {
@@ -562,11 +601,40 @@ def backup_documents(args: argparse.Namespace) -> int:
     return 0
 
 
+def snapshot_stored_documents(args: argparse.Namespace) -> int:
+    if not args.yes:
+        print("FAIL snapshot-stored requires --yes", file=sys.stderr)
+        return 2
+    repo_root = resolve_repo_path(args.repo_root)
+    db_path = (repo_root / args.db).resolve()
+    backup_dir = resolve_backup_dir(repo_root, args.backup_dir)
+    conn = open_db(db_path)
+    init_schema(conn)
+    rows = select_stored_document_rows(conn, args.path, document_kinds(args))
+    if not rows:
+        print("FAIL snapshot-stored found no stored documents", file=sys.stderr)
+        conn.close()
+        return 1
+    manifest = write_backup_files(repo_root, backup_dir, rows)
+    with conn:
+        record_event(
+            conn,
+            "snapshot-stored-documents",
+            {"backup_dir": repo_path(backup_dir.relative_to(repo_root)), "count": len(rows)},
+        )
+    conn.close()
+    print(
+        f"PASS snapshot-stored documents={len(rows)} backup_dir={repo_path(backup_dir.relative_to(repo_root))} "
+        f"manifest_entries={len(manifest['entries'])}"
+    )
+    return 0
+
+
 def db_backed_shim(path: str, backup_dir: str) -> str:
     return f"""# DB-backed {path}
 
 > 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文件备份位于 `{backup_dir}/files/{path}`。
+> 原文备份由 `{backup_dir}/manifest.json` 管理；恢复请使用下方命令。
 
 - 按需加载：`python3 scripts/github_index_db.py load --source stored --path {path}`
 - 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir {backup_dir} --path {path} --yes`
@@ -841,7 +909,8 @@ def load_backup_manifest(backup_dir: Path | None) -> tuple[dict[str, object] | N
 def load_backup_manifests(backup_dirs: Sequence[Path]) -> tuple[list[dict[str, object]], dict[str, dict[str, object]]]:
     manifests: list[dict[str, object]] = []
     entries: dict[str, dict[str, object]] = {}
-    for backup_dir in backup_dirs:
+    ordered_dirs = sorted(backup_dirs, key=lambda path: (path.stat().st_mtime_ns, str(path)) if path.exists() else (0, str(path)))
+    for backup_dir in ordered_dirs:
         manifest, manifest_entries = load_backup_manifest(backup_dir)
         if manifest is None:
             continue
@@ -851,6 +920,72 @@ def load_backup_manifests(backup_dirs: Sequence[Path]) -> tuple[list[dict[str, o
             merged["_backup_dir"] = backup_dir
             entries[path] = merged
     return manifests, entries
+
+
+def rehydrate_stored_documents(args: argparse.Namespace) -> int:
+    if not args.yes:
+        print("FAIL rehydrate requires --yes", file=sys.stderr)
+        return 2
+    repo_root = resolve_repo_path(args.repo_root)
+    db_path = (repo_root / args.db).resolve()
+    backup_dirs = resolve_audit_backup_dirs(repo_root, args.backup_dir)
+    manifests, backup_entries = load_backup_manifests(backup_dirs)
+    if not manifests:
+        print("FAIL rehydrate found no backup manifests", file=sys.stderr)
+        return 1
+
+    wanted = {normalize_index_path(path) for path in args.path}
+    selected_paths = sorted(wanted or backup_entries.keys())
+    missing = sorted(path for path in selected_paths if path not in backup_entries)
+    if missing:
+        print(f"FAIL rehydrate missing backup entries: {missing[: args.limit]}", file=sys.stderr)
+        return 1
+
+    items: list[IndexedFile] = []
+    for rel_path in selected_paths:
+        entry = backup_entries[rel_path]
+        backup_dir = entry.get("_backup_dir")
+        backup_file = backup_dir / "files" / rel_path if isinstance(backup_dir, Path) else None
+        if backup_file is None or not backup_file.is_file():
+            print(f"FAIL rehydrate missing backup file: {rel_path}", file=sys.stderr)
+            return 1
+        try:
+            content = backup_file.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            print(f"FAIL rehydrate non-utf8 backup file: {rel_path}", file=sys.stderr)
+            return 2
+        items.append(indexed_file_from_content(rel_path, content))
+
+    conn = open_db(db_path)
+    has_fts5 = init_schema(conn)
+    now = utc_now()
+    with conn:
+        for item in items:
+            upsert_stored_document(conn, item, has_fts5, now)
+        record_event(
+            conn,
+            "rehydrate-stored-documents",
+            {
+                "count": len(items),
+                "backup_dirs": [repo_path(path.relative_to(repo_root)) for path in backup_dirs],
+                "paths": [item.path for item in items[:20]],
+            },
+        )
+    refreshed = 0
+    for item in items:
+        if (repo_root / item.path).exists():
+            refresh_one(conn, repo_root, db_path, item.path, args.max_bytes)
+            refreshed += 1
+    conn.close()
+    print(
+        f"PASS rehydrate stored_documents={len(items)} refreshed={refreshed} "
+        f"backup_dirs={len(backup_dirs)}"
+    )
+    for item in items[: args.limit]:
+        print(f"  {item.path} [{item.kind}]")
+    if len(items) > args.limit:
+        print(f"  ... {len(items) - args.limit} more")
+    return 0
 
 
 def select_db_first_candidate_rows(conn: sqlite3.Connection, kinds: Sequence[str]) -> list[sqlite3.Row]:

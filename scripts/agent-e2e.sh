@@ -233,6 +233,8 @@ main() {
   E2E_SKIP_COUNT=0
   e2e_allocate_run_dir
   e2e_init_dispatch_log
+  e2e_generate_context_brief
+  e2e_generate_profile_resolve
 
   echo "[agent-e2e] profile=$E2E_PROFILE"
   echo "[agent-e2e] run_dir=$(e2e_relpath "$E2E_RUN_DIR")"

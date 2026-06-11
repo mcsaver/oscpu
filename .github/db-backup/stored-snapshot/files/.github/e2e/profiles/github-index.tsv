@@ -1,0 +1,2 @@
+# node_id|module|function|owner_agent|inputs|outputs
+github-index-contract|github-index|e2e_github_index_contract|agent-system|scripts/github_index_db.py + .github files|SQLite index can build, query and doctor .github metadata without owning originals

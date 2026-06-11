@@ -5,7 +5,7 @@ import argparse
 import sys
 from typing import Sequence
 
-from .api import memory_api
+from .api import agent_brief, agent_profiles, agent_resolve_profile, agent_runs, memory_api
 from .core import *
 from .maintenance import *
 from .queries import *
@@ -117,6 +117,64 @@ def build_parser() -> argparse.ArgumentParser:
     load_cmd.add_argument("--json", action="store_true")
     load_cmd.set_defaults(func=load_chunks)
 
+    brief_cmd = subparsers.add_parser(
+        "brief",
+        aliases=["context", "context-pack"],
+        help="build a bounded DB-backed startup context pack for an agent",
+    )
+    add_common_db_args(brief_cmd)
+    brief_cmd.add_argument("terms", nargs="*", help="focus terms for relevant chunks")
+    brief_cmd.add_argument("--profile", default="", help="e2e profile or module name to include")
+    brief_cmd.add_argument("--path", action="append", default=[], help="extra stored document path to include")
+    brief_cmd.add_argument("--max-tokens", type=int, default=2400)
+    brief_cmd.add_argument("--core-limit", type=int, default=1)
+    brief_cmd.add_argument("--focus-limit", type=int, default=8)
+    brief_cmd.add_argument("--profile-limit", type=int, default=5)
+    brief_cmd.add_argument("--json", action="store_true")
+    brief_cmd.set_defaults(func=agent_brief)
+
+    profiles_cmd = subparsers.add_parser(
+        "profiles",
+        aliases=["profile-catalog", "list-profiles"],
+        help="list DB-backed e2e profiles for agent/e2e selection",
+    )
+    add_common_db_args(profiles_cmd)
+    profiles_cmd.add_argument("terms", nargs="*", help="optional terms to filter profile catalog")
+    profiles_cmd.add_argument("--limit", type=int, default=80)
+    profiles_cmd.add_argument("--include-nodes", action="store_true")
+    profiles_cmd.add_argument("--json", action="store_true")
+    profiles_cmd.set_defaults(func=agent_profiles)
+
+    resolve_profile_cmd = subparsers.add_parser(
+        "resolve-profile",
+        aliases=["profile", "profile-resolve"],
+        help="expand one DB-backed e2e profile including transitive includes",
+    )
+    add_common_db_args(resolve_profile_cmd)
+    resolve_profile_cmd.add_argument("profile")
+    resolve_profile_cmd.add_argument("--include-nodes", dest="include_nodes", action="store_true")
+    resolve_profile_cmd.add_argument("--no-include-nodes", dest="include_nodes", action="store_false")
+    resolve_profile_cmd.set_defaults(include_nodes=True)
+    resolve_profile_cmd.add_argument("--max-depth", type=int, default=64)
+    resolve_profile_cmd.add_argument("--json", action="store_true")
+    resolve_profile_cmd.set_defaults(func=agent_resolve_profile)
+
+    runs_cmd = subparsers.add_parser(
+        "runs",
+        aliases=["task-runs", "run-catalog"],
+        help="list DB-backed e2e task-run reports and linked artifacts",
+    )
+    add_common_db_args(runs_cmd)
+    runs_cmd.add_argument("terms", nargs="*", help="optional terms to filter task runs")
+    runs_cmd.add_argument("--profile", default="")
+    runs_cmd.add_argument("--status", default="")
+    runs_cmd.add_argument("--limit", type=int, default=20)
+    runs_cmd.add_argument("--include-artifacts", dest="include_artifacts", action="store_true")
+    runs_cmd.add_argument("--no-include-artifacts", dest="include_artifacts", action="store_false")
+    runs_cmd.set_defaults(include_artifacts=True)
+    runs_cmd.add_argument("--json", action="store_true")
+    runs_cmd.set_defaults(func=agent_runs)
+
     api_cmd = subparsers.add_parser(
         "api",
         help="read-only JSON/JSONL API for external AI memory clients",
@@ -190,6 +248,17 @@ def build_parser() -> argparse.ArgumentParser:
     backup_cmd.add_argument("--backup-dir", default=DEFAULT_DB_BACKUP_ROOT)
     backup_cmd.set_defaults(func=backup_documents)
 
+    snapshot_cmd = subparsers.add_parser(
+        "snapshot-stored",
+        help="copy current database-owned stored documents into a rehydratable backup manifest",
+    )
+    add_common_db_args(snapshot_cmd)
+    snapshot_cmd.add_argument("--path", action="append", default=[])
+    snapshot_cmd.add_argument("--kind", action="append", default=[])
+    snapshot_cmd.add_argument("--backup-dir", default=f"{DEFAULT_DB_BACKUP_ROOT}/stored-snapshot")
+    snapshot_cmd.add_argument("--yes", action="store_true")
+    snapshot_cmd.set_defaults(func=snapshot_stored_documents)
+
     migrate_cmd = subparsers.add_parser(
         "migrate",
         help="promote documents into the DB, back up originals, and leave compatibility shims",
@@ -231,6 +300,19 @@ def build_parser() -> argparse.ArgumentParser:
     restore_cmd.add_argument("--max-bytes", type=int, default=DEFAULT_MAX_BYTES)
     restore_cmd.add_argument("--yes", action="store_true")
     restore_cmd.set_defaults(func=restore_backup)
+
+    rehydrate_cmd = subparsers.add_parser(
+        "rehydrate",
+        aliases=["import-backup"],
+        help="recreate stored documents from backup manifests after the cache DB is missing",
+    )
+    add_common_db_args(rehydrate_cmd)
+    rehydrate_cmd.add_argument("--backup-dir", default="")
+    rehydrate_cmd.add_argument("--path", action="append", default=[])
+    rehydrate_cmd.add_argument("--max-bytes", type=int, default=DEFAULT_MAX_BYTES)
+    rehydrate_cmd.add_argument("--limit", type=int, default=20)
+    rehydrate_cmd.add_argument("--yes", action="store_true")
+    rehydrate_cmd.set_defaults(func=rehydrate_stored_documents)
 
     audit_cmd = subparsers.add_parser(
         "audit-db-first",

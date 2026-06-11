@@ -93,10 +93,14 @@ e2e_github_index_contract() {
      grep -Fq -- 'def update_stored_document' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'def migrate_to_db' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'def restore_backup' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'def snapshot_stored_documents' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'def rehydrate_stored_documents' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'def audit_db_first' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'def audit_markdown_coverage' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'def archive_markdown_files' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'archive-markdown' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
+     grep -Fq -- 'snapshot-stored' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
+     grep -Fq -- 'rehydrate' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
      grep -Fq -- 'choices=["auto", "live", "stored"]' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py"; then
     printf 'PASS github-index exposes DB-first promote/update/migrate/restore/audit interface\n'
   else
@@ -114,12 +118,51 @@ e2e_github_index_contract() {
     rc=1
   fi
 
+  echo "[github-index] e2e context brief hook"
+  if grep -Fq -- 'e2e_generate_context_brief' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh" &&
+     grep -Fq -- 'E2E_CONTEXT_BRIEF_FILE' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh" &&
+     grep -Fq -- 'github_index_db.py" brief' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh" &&
+     grep -Fq -- 'e2e_generate_context_brief' "$E2E_ROOT_DIR/scripts/agent-e2e.sh"; then
+    printf 'PASS e2e runner generates DB-backed context brief before dispatch\n'
+  else
+    printf 'FAIL e2e runner context brief hook missing\n'
+    rc=1
+  fi
+
+  echo "[github-index] e2e resolved profile hook"
+  if grep -Fq -- 'e2e_generate_profile_resolve' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh" &&
+     grep -Fq -- 'E2E_PROFILE_RESOLVE_FILE' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh" &&
+     grep -Fq -- 'github_index_db.py" resolve-profile' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh" &&
+     grep -Fq -- 'e2e_generate_profile_resolve' "$E2E_ROOT_DIR/scripts/agent-e2e.sh"; then
+    printf 'PASS e2e runner generates DB-backed resolved profile before dispatch\n'
+  else
+    printf 'FAIL e2e runner resolved profile hook missing\n'
+    rc=1
+  fi
+
   echo "[github-index] external AI JSON API interface"
   if grep -Fq -- 'def memory_api' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
      grep -Fq -- 'github-index-jsonl-v1' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
      grep -Fq -- 'api_search' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
      grep -Fq -- 'api_summary' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
-     grep -Fq -- 'api_load' "$E2E_ROOT_DIR/scripts/dev_memory/api.py"; then
+     grep -Fq -- 'api_load' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
+     grep -Fq -- 'def brief_payload' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
+     grep -Fq -- 'def profile_suggestions' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
+     grep -Fq -- 'def profile_catalog_payload' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
+     grep -Fq -- 'def resolve_profile_payload' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
+     grep -Fq -- 'def task_runs_payload' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
+     grep -Fq -- 'def agent_brief' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
+     grep -Fq -- 'def agent_profiles' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
+     grep -Fq -- 'def agent_resolve_profile' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
+     grep -Fq -- 'def agent_runs' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
+     grep -Fq -- '--profile-limit' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
+     grep -Fq -- 'profile-catalog' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
+     grep -Fq -- 'resolve-profile' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
+     grep -Fq -- 'run-catalog' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
+     grep -Fq -- '"profiles": {"fields"' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
+     grep -Fq -- '"resolve-profile": {"fields"' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
+     grep -Fq -- '"runs": {"fields"' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
+     grep -Fq -- 'brief' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py"; then
     printf 'PASS github-index exposes external AI JSON/JSONL memory API\n'
   else
     printf 'FAIL github-index external AI API interface drifted\n'
@@ -284,6 +327,21 @@ EOF
 
 demo stored agent config
 EOF
+  mkdir -p "$mini_repo/.github/e2e/profiles" "$mini_repo/.github/e2e/modules"
+  cat > "$mini_repo/.github/e2e/profiles/base-gate.tsv" <<'EOF'
+# node_id|module|function|owner_agent|inputs|outputs
+base-smoke|agent-system|e2e_base_smoke|agent-system|base profile input|base profile output
+EOF
+  cat > "$mini_repo/.github/e2e/profiles/nemu-ubuntu-full-gate.tsv" <<'EOF'
+# node_id|module|function|owner_agent|inputs|outputs
+@include|base-gate||||
+nemu-ubuntu-full-focused-gate|nemu|e2e_nemu_ubuntu_full_focused_gate|nemu|optional full Ubuntu rootfs/systemd guest gate|full Ubuntu rootfs guest gate
+EOF
+  cat > "$mini_repo/.github/e2e/modules/nemu-ubuntu-full-gate.md" <<'EOF'
+# NEMU Ubuntu Full Gate
+
+full Ubuntu rootfs systemd guest gate profile
+EOF
   python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" rebuild \
     --repo-root "$mini_repo" \
     --db "$mini_db" || rc=1
@@ -358,16 +416,177 @@ EOF
     printf 'FAIL github-index JSONL API did not serve expected stored memory data\n'
     rc=1
   fi
+  local brief_out brief_api_out
+  brief_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" brief updated \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --profile github-index \
+      --max-tokens 700
+  ) || rc=1
+  printf '%s\n' "$brief_out"
+  brief_api_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" api \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --request '{"op":"brief","terms":"updated","profile":"github-index","max_tokens":700}'
+  ) || rc=1
+  printf '%s\n' "$brief_api_out"
+  if grep -Fq -- '# Agent Brief' <<< "$brief_out" &&
+     grep -Fq -- 'updated in stored db' <<< "$brief_out" &&
+     grep -Fq -- '"op": "brief"' <<< "$brief_api_out" &&
+     grep -Fq -- '"ok": true' <<< "$brief_api_out"; then
+    printf 'PASS github-index brief returns DB-backed startup context for agents\n'
+  else
+    printf 'FAIL github-index brief did not return expected startup context\n'
+    rc=1
+  fi
+  local suggest_out
+  suggest_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" brief ubuntu full \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --max-tokens 700 \
+      --json
+  ) || rc=1
+  printf '%s\n' "$suggest_out"
+  if grep -Fq -- '"profile_suggestions":' <<< "$suggest_out" &&
+     grep -Fq -- '"profile": "nemu-ubuntu-full-gate"' <<< "$suggest_out"; then
+    printf 'PASS github-index brief recommends matching e2e profile\n'
+  else
+    printf 'FAIL github-index brief did not recommend expected e2e profile\n'
+    rc=1
+  fi
+  local profiles_out profiles_api_out
+  profiles_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" profiles ubuntu full \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --include-nodes \
+      --json
+  ) || rc=1
+  printf '%s\n' "$profiles_out"
+  profiles_api_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" api \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --request '{"op":"profiles","terms":"ubuntu full","include_nodes":true,"limit":4}'
+  ) || rc=1
+  printf '%s\n' "$profiles_api_out"
+  if grep -Fq -- '"op": "profiles"' <<< "$profiles_out" &&
+     grep -Fq -- '"profile": "nemu-ubuntu-full-gate"' <<< "$profiles_out" &&
+     grep -Fq -- '"node_count": 1' <<< "$profiles_out" &&
+     grep -Fq -- '"nodes":' <<< "$profiles_out" &&
+     grep -Fq -- '"op": "profiles"' <<< "$profiles_api_out" &&
+     grep -Fq -- '"profile": "nemu-ubuntu-full-gate"' <<< "$profiles_api_out"; then
+    printf 'PASS github-index profiles catalog lists matching e2e profile\n'
+  else
+    printf 'FAIL github-index profiles catalog did not list expected e2e profile\n'
+    rc=1
+  fi
+  local resolved_out resolved_api_out
+  resolved_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" resolve-profile nemu-ubuntu-full-gate \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --json
+  ) || rc=1
+  printf '%s\n' "$resolved_out"
+  resolved_api_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" api \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --request '{"op":"resolve-profile","profile":"nemu-ubuntu-full-gate","include_nodes":true}'
+  ) || rc=1
+  printf '%s\n' "$resolved_api_out"
+  if grep -Fq -- '"op": "resolve-profile"' <<< "$resolved_out" &&
+     grep -Fq -- '"ok": true' <<< "$resolved_out" &&
+     grep -Fq -- '"expanded_node_count": 2' <<< "$resolved_out" &&
+     grep -Fq -- '"to": "base-gate"' <<< "$resolved_out" &&
+     grep -Fq -- '"source_profile": "base-gate"' <<< "$resolved_out" &&
+     grep -Fq -- '"source_profile": "nemu-ubuntu-full-gate"' <<< "$resolved_out" &&
+     grep -Fq -- '"op": "resolve-profile"' <<< "$resolved_api_out" &&
+     grep -Fq -- '"expanded_node_count": 2' <<< "$resolved_api_out"; then
+    printf 'PASS github-index resolve-profile expands e2e include closure\n'
+  else
+    printf 'FAIL github-index resolve-profile did not expand expected include closure\n'
+    rc=1
+  fi
+  python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" snapshot-stored \
+    --repo-root "$mini_repo" \
+    --db "$mini_db" \
+    --backup-dir .github/db-backup/snapshot \
+    --yes || rc=1
+  rm -f "$mini_db"
+  python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" rehydrate \
+    --repo-root "$mini_repo" \
+    --db "$mini_db" \
+    --backup-dir .github/db-backup/snapshot \
+    --yes || rc=1
+  local rehydrate_out
+  rehydrate_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" load \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --source stored \
+      --path AGENTS.md \
+      --limit 1 \
+      --max-tokens 200
+  ) || rc=1
+  printf '%s\n' "$rehydrate_out"
+  if grep -Fq -- 'updated in stored db' <<< "$rehydrate_out"; then
+    printf 'PASS github-index rehydrate restores current stored content after DB loss\n'
+  else
+    printf 'FAIL github-index rehydrate did not restore current stored content\n'
+    rc=1
+  fi
   mkdir -p "$mini_repo/.github/task-runs/demo/evidence"
   cat > "$mini_repo/.github/task-runs/demo/dispatch-log.md" <<'EOF'
 # Dispatch Log
 
-demo dispatch log source
+## 基本信息
+
+- `task_id`: demo
+- `task_slug`: demo-run
+- `graph_template`: modular-agent-e2e
+- `profile`: github-index
 EOF
   cat > "$mini_repo/.github/task-runs/demo/task-report.md" <<'EOF'
 # Task Report
 
-demo task report source
+## 基本信息
+
+- `task_id`: demo
+- `task_slug`: demo-run
+- `graph_template`: modular-agent-e2e
+- `profile`: github-index
+- `graph_mode`: static
+- `status`: completed
+- `started_at`: 2026-06-12 00:00:00 +0800
+- `updated_at`: 2026-06-12 00:00:02 +0800
+
+## 关键产物
+
+- `context_brief`: .github/task-runs/demo/context-brief.md
+- `profile_resolve`: .github/task-runs/demo/profile-resolve.md
+
+## 收尾结论
+
+- `final_result`: demo run completed
+EOF
+  cat > "$mini_repo/.github/task-runs/demo/context-brief.md" <<'EOF'
+# Agent Brief
+
+demo context brief source
+EOF
+  cat > "$mini_repo/.github/task-runs/demo/profile-resolve.md" <<'EOF'
+# E2E Resolved Profile
+
+- `source`: stored
+- `profile`: github-index
+- `ok`: True
+- `expanded_node_count`: 1
+- `profile_order`: github-index
 EOF
   cat > "$mini_repo/.github/task-runs/demo/evidence/note.md" <<'EOF'
 # Evidence Note
@@ -393,6 +612,35 @@ EOF
     --path .github/task-runs/demo/task-report.md \
     --limit 1 \
     --max-tokens 200 || rc=1
+  local runs_out runs_api_out
+  runs_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" runs \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --profile github-index \
+      --json
+  ) || rc=1
+  printf '%s\n' "$runs_out"
+  runs_api_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" api \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --request '{"op":"runs","profile":"github-index","limit":4}'
+  ) || rc=1
+  printf '%s\n' "$runs_api_out"
+  if grep -Fq -- '"op": "runs"' <<< "$runs_out" &&
+     grep -Fq -- '"run_id": "demo"' <<< "$runs_out" &&
+     grep -Fq -- '"profile": "github-index"' <<< "$runs_out" &&
+     grep -Fq -- '"status": "completed"' <<< "$runs_out" &&
+     grep -Fq -- '"profile_resolve_path": ".github/task-runs/demo/profile-resolve.md"' <<< "$runs_out" &&
+     grep -Fq -- '"expanded_node_count": 1' <<< "$runs_out" &&
+     grep -Fq -- '"op": "runs"' <<< "$runs_api_out" &&
+     grep -Fq -- '"run_id": "demo"' <<< "$runs_api_out"; then
+    printf 'PASS github-index runs catalog lists archived task-run evidence\n'
+  else
+    printf 'FAIL github-index runs catalog did not list expected archived task-run\n'
+    rc=1
+  fi
   python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" audit-db-first \
     --repo-root "$mini_repo" \
     --db "$mini_db" \

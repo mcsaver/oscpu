@@ -1,8 +1,8 @@
 # DB-backed .github/instructions/agent-e2e-workflow.instructions.md
 
 > 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/instructions/agent-e2e-workflow.instructions.md`。
+> 原文备份由 `.github/db-backup/manifest.json` 管理；恢复请使用下方命令。
 
 - 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/instructions/agent-e2e-workflow.instructions.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/instructions/agent-e2e-workflow.instructions.md --yes`
+- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup --path .github/instructions/agent-e2e-workflow.instructions.md --yes`
 - 重新物化：`python3 scripts/github_index_db.py materialize --path .github/instructions/agent-e2e-workflow.instructions.md`
