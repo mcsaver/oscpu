@@ -1,0 +1,218 @@
+make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+make ARCH=riscv64-nemu BOOT=ubuntu-rootfs \
+  UBUNTU_ROOTFS_FLAVOR=full \
+  UBUNTU_ROOTFS_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4' \
+  UBUNTU_ROOTFS_CPIO_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full-rootfs.cpio' \
+  NEMU_SYSTEMD_ROOTFS_FLAVOR=full \
+  NEMU_SYSTEMD_CHECK_LOG_DIR='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-install-actual-real-run/nemu-ubuntu-full-focused' \
+  NEMU_SYSTEMD_ROOTFS_OVERLAY='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-install-actual-real-run/nemu-ubuntu-full-focused/rootfs-overlay.raw' \
+  NEMU_SYSTEMD_CHECK_MAX_CYCLES='80000000000' \
+  NEMU_SYSTEMD_CHECK_TIMEOUT='3000' \
+  __check-nemu-systemd-guest
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' riscv64-linux_defconfig
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu'
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/nemu'
+make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' -j'14'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu'
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/nemu'
+UBUNTU_ROOTFS_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4' UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 UBUNTU_ROOTFS_FLAVOR=full \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-ubuntu-rootfs.sh'
+[ubuntu-rootfs-check] image: /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4
+[ubuntu-rootfs-check] flavor: full
+[ubuntu-rootfs-check] OK      stage1 init: /init
+[ubuntu-rootfs-check] OK      Ubuntu shell: /bin/sh
+[ubuntu-rootfs-check] OK      Ubuntu identity: /etc/os-release
+[ubuntu-rootfs-check] OK      systemd candidate: /lib/systemd/systemd
+[ubuntu-rootfs-check] OK      systemd basic.target: /lib/systemd/system/basic.target
+[ubuntu-rootfs-check] OK      udev daemon: /lib/systemd/systemd-udevd
+[ubuntu-rootfs-check] OK      dbus daemon: /usr/bin/dbus-daemon
+[ubuntu-rootfs-check] OK      agetty login path: /bin/login
+[ubuntu-rootfs-check] OK      root login shell: /bin/bash
+[ubuntu-rootfs-check] OK      Ubuntu identity command: /usr/bin/lsb_release
+[ubuntu-rootfs-check] OK      lp64d dynamic linker: /lib/ld-linux-riscv64-lp64d.so.1
+[ubuntu-rootfs-check] OK      PAM module path: /lib/riscv64-linux-gnu/security
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_unix.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_deny.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_permit.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_env.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_loginuid.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_limits.so
+[ubuntu-rootfs-check] OK      e2scrub service entrypoint: /sbin/e2scrub_all
+[ubuntu-rootfs-check] OK      boot-blocking e2scrub reap masked: /etc/systemd/system/e2scrub_reap.service
+[ubuntu-rootfs-check] OK      periodic e2scrub timer masked: /etc/systemd/system/e2scrub_all.timer
+[ubuntu-rootfs-check] OK      unavailable hvc0 getty masked: /etc/systemd/system/serial-getty@hvc0.service
+[ubuntu-rootfs-check] OK      OpenSSH server config: /etc/ssh/sshd_config
+[ubuntu-rootfs-check] OK      syslog passwd entry: /etc/passwd
+[ubuntu-rootfs-check] OK      syslog group entry: /etc/group
+[ubuntu-rootfs-check] OK      sshd passwd entry: /etc/passwd
+[ubuntu-rootfs-check] OK      sshd group entry: /etc/group
+[ubuntu-rootfs-check] OK      OpenSSH ed25519 host key: /etc/ssh/ssh_host_ed25519_key
+[ubuntu-rootfs-check] OK      OpenSSH rsa host key: /etc/ssh/ssh_host_rsa_key
+[ubuntu-rootfs-check] OK      rsyslog spool directory: /var/spool/rsyslog
+[ubuntu-rootfs-check] OK      syslog service alias: /etc/systemd/system/syslog.service
+[ubuntu-rootfs-check] OK      dpkg status installed: ubuntu-standard
+[ubuntu-rootfs-check] OK      dpkg status installed: openssh-server
+[ubuntu-rootfs-check] OK      dpkg status installed: curl
+[ubuntu-rootfs-check] OK      dpkg status installed: wget
+[ubuntu-rootfs-check] OK      dpkg status installed: dropbear-bin
+[ubuntu-rootfs-check] OK      dpkg status installed: rsyslog
+[ubuntu-rootfs-check] OK      dpkg status installed: cron
+[ubuntu-rootfs-check] OK      dpkg status installed: systemd-timesyncd
+[ubuntu-rootfs-check] OK      dpkg info list: ubuntu-standard
+[ubuntu-rootfs-check] OK      dpkg info list: openssh-server
+[ubuntu-rootfs-check] OK      dpkg info list: curl
+[ubuntu-rootfs-check] OK      dpkg info list: wget
+[ubuntu-rootfs-check] OK      dpkg info list: dropbear-bin
+[ubuntu-rootfs-check] OK      dpkg info list: rsyslog
+[ubuntu-rootfs-check] OK      dpkg info list: cron
+[ubuntu-rootfs-check] OK      dpkg info list: systemd-timesyncd
+[ubuntu-rootfs-check] OK      dpkg info list valid names: 310 list files
+[ubuntu-rootfs-check] OK      dpkg info ownership: curl /usr/bin/curl
+[ubuntu-rootfs-check] OK      dpkg info ownership: wget /usr/bin/wget
+[ubuntu-rootfs-check] OK      dpkg info ownership: openssh-server /usr/sbin/sshd
+[ubuntu-rootfs-check] OK      dpkg info ownership: dropbear-bin /usr/bin/dbclient
+[ubuntu-rootfs-check] OK      dpkg info ownership: dropbear-bin /usr/sbin/dropbear
+[ubuntu-rootfs-check] OK      dpkg info ownership: rsyslog /usr/sbin/rsyslogd
+[ubuntu-rootfs-check] OK      dpkg info ownership: cron /usr/sbin/cron
+[ubuntu-rootfs-check] OK      Ubuntu interactive command curl: /usr/bin/curl
+[ubuntu-rootfs-check] OK      Ubuntu interactive command wget: /usr/bin/wget
+[ubuntu-rootfs-check] OK      Ubuntu interactive command ping: /bin/ping
+[ubuntu-rootfs-check] OK      Ubuntu interactive command ssh: /usr/bin/ssh
+[ubuntu-rootfs-check] OK      Ubuntu interactive command htop: /usr/bin/htop
+[ubuntu-rootfs-check] OK      Ubuntu interactive command less: /usr/bin/less
+[ubuntu-rootfs-check] OK      Ubuntu interactive command strace: /usr/bin/strace
+[ubuntu-rootfs-check] OK      Ubuntu full command apt-get: /usr/bin/apt-get
+[ubuntu-rootfs-check] OK      Ubuntu full command apt-cache: /usr/bin/apt-cache
+[ubuntu-rootfs-check] OK      Ubuntu full command dpkg: /usr/bin/dpkg
+[ubuntu-rootfs-check] OK      Ubuntu full command dpkg-query: /usr/bin/dpkg-query
+[ubuntu-rootfs-check] OK      Ubuntu full command sudo: /usr/bin/sudo
+[ubuntu-rootfs-check] OK      Ubuntu full command man: /usr/bin/man
+[ubuntu-rootfs-check] OK      Ubuntu full command dbclient: /usr/bin/dbclient
+[ubuntu-rootfs-check] OK      Ubuntu full command dropbearconvert: /usr/bin/dropbearconvert
+[ubuntu-rootfs-check] OK      Ubuntu full command dropbearkey: /usr/bin/dropbearkey
+[ubuntu-rootfs-check] OK      Ubuntu full service sshd: /usr/sbin/sshd
+[ubuntu-rootfs-check] OK      Ubuntu full service dropbear: /usr/sbin/dropbear
+[ubuntu-rootfs-check] OK      Ubuntu full service cron: /usr/sbin/cron
+[ubuntu-rootfs-check] OK      Ubuntu full service rsyslogd: /usr/sbin/rsyslogd
+[ubuntu-rootfs-check] OK      Ubuntu full timezone database: /usr/share/zoneinfo/UTC
+[ubuntu-rootfs-check] rootfs readiness check passed
+NEMU_PERFORMANCE_REQUIRED='1' \
+NEMU_CONFIG='/home/lyg/PA/ysyx-workbench/nemu/.config' \
+NEMU_AUTOCONF='/home/lyg/PA/ysyx-workbench/nemu/include/generated/autoconf.h' \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-nemu-performance-config.sh'
+__NEMU_PERFORMANCE_CONFIG__:ok
+LINUX_KERNEL_CONFIG='/home/lyg/PA/ysyx-workbench/Linux/env/src/linux/.config' \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-nemu-kernel-config.sh'
+[linux-kernel-config] PASS CONFIG_MODULES=disabled
+[linux-kernel-config] PASS CONFIG_AUTOFS_FS=y
+[linux-kernel-config] PASS CONFIG_BPF=y
+[linux-kernel-config] PASS CONFIG_BPF_SYSCALL=y
+[linux-kernel-config] PASS CONFIG_CGROUPS=y
+[linux-kernel-config] PASS CONFIG_CGROUP_BPF=y
+[linux-kernel-config] PASS CONFIG_SECCOMP=y
+[linux-kernel-config] PASS CONFIG_SECCOMP_FILTER=y
+__NEMU_KERNEL_CONFIG__:ok
+LOG_DIR='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-install-actual-real-run/nemu-ubuntu-full-focused' \
+LOG_FILE='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-install-actual-real-run/nemu-ubuntu-full-focused/nemu.log' \
+CONSOLE_LOG='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-install-actual-real-run/nemu-ubuntu-full-focused/console.log' \
+NEMU_SERIAL_FIFO='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-install-actual-real-run/nemu-ubuntu-full-focused/nemu.serial' \
+NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' \
+NEMU_SIM='/home/lyg/PA/ysyx-workbench/nemu/build/riscv64-nemu-interpreter' \
+LINUX_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/src/linux/arch/riscv/boot/Image' \
+RUN_FW='/home/lyg/PA/ysyx-workbench/Linux/env/build/opensbi-nemu-rootfs/platform/generic/firmware/fw_jump.bin' \
+RUN_DTB='/home/lyg/PA/ysyx-workbench/Linux/build/npc-rv64-nemu-rootfs.dtb' \
+RUN_ROOTFS='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4' \
+NEMU_SYSTEMD_ROOTFS_OVERLAY='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-install-actual-real-run/nemu-ubuntu-full-focused/rootfs-overlay.raw' \
+NEXT_ADDR='0x80200000' \
+DTB_ADDR='0x82200000' \
+MAX_CYCLES='80000000000' \
+NEMU_SYSTEMD_CHECK_TIMEOUT='3000' \
+NEMU_SYSTEMD_BOOT_TIMEOUT='900' \
+NEMU_SYSTEMD_SOAK_SECONDS='0' \
+NEMU_SYSTEMD_FS_STRESS_MIB='1' \
+NEMU_SYSTEMD_FS_TREE_FILES='8' \
+NEMU_SYSTEMD_PROCESS_LOOPS='4' \
+NEMU_SYSTEMD_UART_RX_STRESS_LINES='64' \
+NEMU_SYSTEMD_BLOCK_PARALLEL_JOBS='1' \
+NEMU_SYSTEMD_BLOCK_JOB_MIB='1' \
+	NEMU_SYSTEMD_MIN_MEMTOTAL_KB='900000' \
+	NEMU_SYSTEMD_INPUT_DELAY='0' \
+	NEMU_SYSTEMD_INPUT_CHUNK_BYTES='8' \
+	NEMU_SYSTEMD_INPUT_CHUNK_DELAY='0' \
+	NEMU_SYSTEMD_APT_INSTALL_DIAG='1' \
+	NEMU_SYSTEMD_APT_INSTALL_ACTUAL='1' \
+	NEMU_SYSTEMD_APT_INSTALL_DIAG_TIMEOUT='300' \
+	  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-nemu-systemd-guest.sh'
+[nemu-systemd-check] log dir: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-install-actual-real-run/nemu-ubuntu-full-focused
+[nemu-systemd-check] serial fifo: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-install-actual-real-run/nemu-ubuntu-full-focused/nemu.serial
+[nemu-systemd-check] guest upload commands: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-install-actual-real-run/nemu-ubuntu-full-focused/guest-check-upload.cmd
+[nemu-systemd-check] max cycles: 80000000000
+[nemu-systemd-check] soak seconds: 0
+[nemu-systemd-check] fs stress MiB: 1
+[nemu-systemd-check] fs tree files: 8
+[nemu-systemd-check] process loops: 4
+[nemu-systemd-check] UART RX stress lines: 64
+[nemu-systemd-check] block parallel jobs: 1
+[nemu-systemd-check] block job MiB: 1
+[nemu-systemd-check] min MemTotal KiB: 900000
+[nemu-systemd-check] systemd reload timeout: 180
+[nemu-systemd-check] input delay: 0
+[nemu-systemd-check] input chunk bytes: 8
+[nemu-systemd-check] input chunk delay: 0
+[nemu-systemd-check] apt install diag: 1
+[nemu-systemd-check] apt install actual: 1
+[nemu-systemd-check] apt install diag timeout: 300
+[nemu-systemd-check] serial input model: FIFO/stdin bytes -> NEMU SerialPort staging -> 16550 RX FIFO -> Linux ttyS0
+[nemu-systemd-check] syscall probe: 1
+[nemu-systemd-check] ICMP probe: 1
+[nemu-systemd-check] DHCP probe: 1
+[nemu-systemd-check] DNS probe: 1
+[nemu-systemd-check] TCP probe: 1
+[nemu-systemd-check] TCP burst loops: 8
+[nemu-systemd-check] poweroff: 1
+[nemu-systemd-check] poweroff timeout: 180
+[nemu-systemd-check] rootfs flavor: full
+[nemu-systemd-check] syscall probe bytes: 34824
+[nemu-systemd-check] ICMP probe bytes: 10248
+[nemu-systemd-check] DHCP probe bytes: 10248
+[nemu-systemd-check] DNS probe bytes: 10248
+[nemu-systemd-check] TCP probe bytes: 10248
+[nemu-systemd-check] rootfs bytes: 8589934592
+[nemu-systemd-check] rootfs backing stat: 8589934592:1781160740
+[nemu-systemd-check] rootfs overlay: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-install-actual-real-run/nemu-ubuntu-full-focused/rootfs-overlay.raw
+[nemu-systemd-check] vda hash window bytes: 65536
+[nemu-systemd-check] vda hash windows: 1
+[nemu-systemd-check] perf log: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-install-actual-real-run/nemu-ubuntu-full-focused/perf.tsv
+[nemu-systemd-check] poweroff exit: rc=0 seconds=16
+[nemu-systemd-check] virtio-blk async runtime: submitted=17363 completed=17363 pending=0 done=0
+[nemu-systemd-check] PASS virtio-blk-async-runtime
+[nemu-systemd-check] virtio-net runtime: tx=835 rx=91 errors=0 drops=0 pending=0 arp=19/19 icmp=1/1 dhcp=2/2 dns=9/9 tcp=83/60 http=19 head=1 not_found=3 apt=4 apt_deb=2 large=1 segmented=1 segments=22 ctrl=7/0 ctrl_rx=4 ctrl_rx_extra=0 ctrl_mac_table=2 ctrl_mac_addr=0 ctrl_vlan=0 ctrl_announce=1
+[nemu-systemd-check] PASS virtio-net-runtime
+[nemu-systemd-check] rootfs backing stat after: 8589934592:1781160740
+[nemu-systemd-check] PASS rootfs-backing-unchanged
+[nemu-systemd-check] PASS console-clean-jobserver
+[nemu-systemd-check] PASS console-clean-autofs4
+[nemu-systemd-check] PASS console-clean-bpf-cgroup
+[nemu-systemd-check] PASS console-clean-riscv-isa-fallback
+[nemu-systemd-check] PASS console-clean-panic
+[nemu-systemd-check] PASS console-clean-oops
+[nemu-systemd-check] PASS console-clean-call-trace
+[nemu-systemd-check] PASS console-clean-bad-trap
+[nemu-systemd-check] PASS console-clean-ext4-error
+[nemu-systemd-check] PASS console-clean-io-error
+[nemu-systemd-check] PASS efi-dtb-boot-benign
+OpenSBI v1.8
+[    0.000000] Machine model: YSYX NPC RV64
+[    0.000000] SBI specification v3.0 detected
+[    0.000000] efi: UEFI not found.
+[    0.000000] OF: reserved mem: 0x0000000080000000..0x000000008003ffff (256 KiB) nomap non-reusable mmode_resv1@80000000
+[    0.000000] OF: reserved mem: 0x0000000080040000..0x000000008005ffff (128 KiB) nomap non-reusable mmode_resv0@80040000
+[    0.000000] Kernel command line: console=ttyS0,115200n8 root=/dev/vda rw init=/lib/systemd/systemd
+[    0.085640] EFI services will not be available.
+[nemu-systemd-check] PASS shutdown-watchdog-notify-absent
+[nemu-systemd-check] perf boot=143s guest_check=978s poweroff=16s total=1137s
+[nemu-systemd-check] perf log: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-install-actual-real-run/nemu-ubuntu-full-focused/perf.tsv
+[nemu-systemd-check] PASS
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/Linux'
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/Linux'

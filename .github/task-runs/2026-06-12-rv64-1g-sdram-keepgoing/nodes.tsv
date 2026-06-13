@@ -1,0 +1,7 @@
+recall-discovery	agent-system	agent-system	PASS	AGENTS/copilot/instructions/memory/e2e profiles	规则发现链和 e2e 配置入口存在	.github/task-runs/2026-06-12-rv64-1g-sdram-keepgoing/evidence/recall-discovery.log
+tool-env-check	agent-system	toolchain	FAIL	agent-env + bash/git/make/python/gcc/verilator/toolchain	exit=1	.github/task-runs/2026-06-12-rv64-1g-sdram-keepgoing/evidence/tool-env-check.log
+npc-sim-status	hardware-flow	hardware-flow	PASS	npc/sim Kconfig 与 backend mk	当前 npc/sim 后端状态	.github/task-runs/2026-06-12-rv64-1g-sdram-keepgoing/evidence/npc-sim-status.log
+npc-rv64-contract	npc	npc	PASS	npc/rv64 + Linux README	RV64 core/Linux 入口合约存在	.github/task-runs/2026-06-12-rv64-1g-sdram-keepgoing/evidence/npc-rv64-contract.log
+npc-rv64-sv39-sret-u-mode	npc	npc	PASS	npc/rv64 Sv39 + SRET U-mode + U pagefault focused TB	NPC RV64 SRET 到 U-mode、U 页取指、U ecall、U load page fault 回 S 并 sret 回 U 的回归 PASS	.github/task-runs/2026-06-12-rv64-1g-sdram-keepgoing/evidence/npc-rv64-sv39-sret-u-mode.log
+npc-rv64-linux-focused-smokes	npc	npc	PASS	Linux/tools SRET/Sv39/pagefault/virtio focused smokes on NPC	NPC RV64 Linux focused smokes 覆盖 SRET/Sv39、ret_from_exception、U pagefault 与 virtio-blk	.github/task-runs/2026-06-12-rv64-1g-sdram-keepgoing/evidence/npc-rv64-linux-focused-smokes.log
+rv64-linux-contract	rv64-linux	rv64-linux	PASS	Linux Makefile/env/platform/instructions	RV64 Linux/Ubuntu 合约入口存在	.github/task-runs/2026-06-12-rv64-1g-sdram-keepgoing/evidence/rv64-linux-contract.log

@@ -1,0 +1,41 @@
+[e2e] required tools
+PASS bash                         /usr/bin/bash
+PASS git                          /usr/bin/git
+PASS make                         /usr/bin/make
+PASS python3                      /usr/bin/python3
+PASS gcc                          /usr/bin/gcc
+PASS g++                          /usr/bin/g++
+PASS timeout                      /usr/bin/timeout
+
+[e2e] optional tools
+PASS rg                           /usr/bin/rg
+PASS verilator                    /usr/bin/verilator
+PASS riscv64-linux-gnu-gcc        /usr/bin/riscv64-linux-gnu-gcc
+PASS riscv64-unknown-elf-gcc      /home/lyg/riscv-toolchain/riscv/bin/riscv64-unknown-elf-gcc
+PASS java                         /home/lyg/.local/bin/java
+PASS javac                        /home/lyg/.local/bin/javac
+PASS mill                         /home/lyg/.local/bin/mill
+PASS dtc                          /usr/bin/dtc
+WARN qemu-system-riscv64          <missing>
+PASS yosys                        /home/lyg/oss-cad-suite/bin/yosys
+
+[toolchain] agent soft environment
+PASS YSYX_AGENT_ENV_SOURCED       /home/lyg/PA/ysyx-workbench/scripts/agent-env.sh
+PASS YSYX_HOME                    /home/lyg/PA/ysyx-workbench
+PASS AM_HOME                      /home/lyg/PA/ysyx-workbench/abstract-machine
+PASS NEMU_HOME                    /home/lyg/PA/ysyx-workbench/nemu
+PASS NPC_HOME                     /home/lyg/PA/ysyx-workbench/npc
+PASS NVBOARD_HOME                 /home/lyg/PA/ysyx-workbench/nvboard
+PASS local mill/java wrappers     /home/lyg/.local/bin/mill
+PASS riscv baremetal toolchain    /home/lyg/riscv-toolchain/riscv/bin/riscv64-unknown-elf-gcc
+PASS oss-cad-suite yosys          /home/lyg/oss-cad-suite/bin/yosys
+PASS JAVA_HOME java               /home/lyg/.local/bin/java -> /home/lyg/.cache/coursier/arc/https/cdn.azul.com/zulu/bin/zulu21.48.15-ca-jdk21.0.10-linux_x64.tar.gz/zulu21.48.15-ca-jdk21.0.10-linux_x64/bin/java
+
+[toolchain] key environment
+ROOT_DIR=/home/lyg/PA/ysyx-workbench
+YSYX_HOME=/home/lyg/PA/ysyx-workbench
+AM_HOME=/home/lyg/PA/ysyx-workbench/abstract-machine
+NEMU_HOME=/home/lyg/PA/ysyx-workbench/nemu
+NPC_HOME=/home/lyg/PA/ysyx-workbench/npc
+RISCV_TOOLCHAIN_HOME=/home/lyg/riscv-toolchain/riscv
+JAVA_HOME=/home/lyg/.cache/coursier/arc/https/cdn.azul.com/zulu/bin/zulu21.48.15-ca-jdk21.0.10-linux_x64.tar.gz/zulu21.48.15-ca-jdk21.0.10-linux_x64

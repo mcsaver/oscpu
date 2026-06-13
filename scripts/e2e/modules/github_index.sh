@@ -89,8 +89,10 @@ e2e_github_index_contract() {
 
   echo "[github-index] DB-first migration interface"
   if grep -Fq -- 'CREATE TABLE IF NOT EXISTS db_documents' "$E2E_ROOT_DIR/scripts/dev_memory/core.py" &&
+     grep -Fq -- 'CREATE TABLE IF NOT EXISTS evidence_assets' "$E2E_ROOT_DIR/scripts/dev_memory/core.py" &&
      grep -Fq -- 'def promote_documents' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'def update_stored_document' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'refusing to store DB-backed shim payload' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'def migrate_to_db' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'def restore_backup' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'def snapshot_stored_documents' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
@@ -98,7 +100,9 @@ e2e_github_index_contract() {
      grep -Fq -- 'def audit_db_first' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'def audit_markdown_coverage' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'def archive_markdown_files' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'def index_evidence_assets' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'archive-markdown' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
+     grep -Fq -- 'index-evidence' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
      grep -Fq -- 'snapshot-stored' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
      grep -Fq -- 'rehydrate' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
      grep -Fq -- 'choices=["auto", "live", "stored"]' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py"; then
@@ -110,11 +114,13 @@ e2e_github_index_contract() {
 
   echo "[github-index] e2e task-run archive hook"
   if grep -Fq -- 'e2e_archive_task_run_markdown_to_db' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh" &&
+     grep -Fq -- 'e2e_index_task_run_evidence_assets' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh" &&
+     grep -Fq -- 'index-evidence "$run_rel"' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh" &&
      grep -Fq -- 'archive-markdown "$run_rel"' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh" &&
      grep -Fq -- 'E2E_TASK_RUN_DB_BACKUP_DIR' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh"; then
-    printf 'PASS e2e report layer archives task-run Markdown into DB\n'
+    printf 'PASS e2e report layer indexes raw evidence and archives task-run Markdown into DB\n'
   else
-    printf 'FAIL e2e report layer does not archive task-run Markdown into DB\n'
+    printf 'FAIL e2e report layer does not index evidence and archive task-run Markdown into DB\n'
     rc=1
   fi
 
@@ -151,17 +157,27 @@ e2e_github_index_contract() {
      grep -Fq -- 'def profile_catalog_payload' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
      grep -Fq -- 'def resolve_profile_payload' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
      grep -Fq -- 'def task_runs_payload' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
+     grep -Fq -- 'def evidence_assets_payload' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
+     grep -Fq -- 'CREATE TABLE IF NOT EXISTS access_log' "$E2E_ROOT_DIR/scripts/dev_memory/core.py" &&
+     grep -Fq -- 'def record_access' "$E2E_ROOT_DIR/scripts/dev_memory/core.py" &&
+     grep -Fq -- 'def usage_payload' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
      grep -Fq -- 'def agent_brief' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
      grep -Fq -- 'def agent_profiles' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
      grep -Fq -- 'def agent_resolve_profile' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
      grep -Fq -- 'def agent_runs' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
+     grep -Fq -- 'def agent_evidence' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
+     grep -Fq -- 'def agent_usage' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
      grep -Fq -- '--profile-limit' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
      grep -Fq -- 'profile-catalog' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
      grep -Fq -- 'resolve-profile' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
      grep -Fq -- 'run-catalog' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
+     grep -Fq -- 'evidence-assets' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
+     grep -Fq -- 'access-log' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
      grep -Fq -- '"profiles": {"fields"' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
      grep -Fq -- '"resolve-profile": {"fields"' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
      grep -Fq -- '"runs": {"fields"' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
+     grep -Fq -- '"evidence": {"fields"' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
+     grep -Fq -- '"usage": {"fields"' "$E2E_ROOT_DIR/scripts/dev_memory/api.py" &&
      grep -Fq -- 'brief' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py"; then
     printf 'PASS github-index exposes external AI JSON/JSONL memory API\n'
   else
@@ -390,6 +406,129 @@ EOF
     printf 'FAIL github-index update-stored did not change stored content\n'
     rc=1
   fi
+  local shim_update_out shim_update_rc
+  shim_update_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" update-stored AGENTS.md \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --from-file AGENTS.md 2>&1
+  )
+  shim_update_rc=$?
+  printf '%s\n' "$shim_update_out"
+  if [[ $shim_update_rc -ne 0 ]] &&
+     grep -Fq -- 'refusing to store DB-backed shim payload' <<< "$shim_update_out"; then
+    printf 'PASS github-index update-stored refuses DB-backed shim payload\n'
+  else
+    printf 'FAIL github-index update-stored accepted DB-backed shim payload\n'
+    rc=1
+  fi
+  local readonly_lock_out
+  readonly_lock_out=$(
+    python3 - "$E2E_ROOT_DIR" "$mini_repo" "$mini_db" <<'PY'
+import sqlite3
+import subprocess
+import sys
+from pathlib import Path
+
+e2e_root = Path(sys.argv[1])
+mini_repo = Path(sys.argv[2])
+mini_db = Path(sys.argv[3])
+
+conn = sqlite3.connect(str(mini_db), timeout=30)
+conn.execute("BEGIN IMMEDIATE")
+try:
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(e2e_root / "scripts/github_index_db.py"),
+            "load",
+            "--source",
+            "stored",
+            "--path",
+            "AGENTS.md",
+            "--db",
+            str(mini_db),
+            "--limit",
+            "1",
+            "--max-tokens",
+            "200",
+        ],
+        cwd=mini_repo,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=10,
+    )
+    print(f"rc={result.returncode}")
+    if result.stdout:
+        print(result.stdout)
+    if result.stderr:
+        print("stderr=" + result.stderr.strip())
+    raise SystemExit(result.returncode)
+finally:
+    conn.rollback()
+    conn.close()
+PY
+  ) || rc=1
+  printf '%s\n' "$readonly_lock_out"
+  if grep -Fq -- 'rc=0' <<< "$readonly_lock_out" &&
+     grep -Fq -- 'updated in stored db' <<< "$readonly_lock_out"; then
+    printf 'PASS github-index stored load remains available while access log write is locked\n'
+  else
+    printf 'FAIL github-index stored load blocked behind access-log/write lock\n'
+    rc=1
+  fi
+  local api_readonly_lock_out
+  api_readonly_lock_out=$(
+    python3 - "$E2E_ROOT_DIR" "$mini_repo" "$mini_db" <<'PY'
+import sqlite3
+import subprocess
+import sys
+from pathlib import Path
+
+e2e_root = Path(sys.argv[1])
+mini_repo = Path(sys.argv[2])
+mini_db = Path(sys.argv[3])
+
+conn = sqlite3.connect(str(mini_db), timeout=30)
+conn.execute("BEGIN IMMEDIATE")
+try:
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(e2e_root / "scripts/github_index_db.py"),
+            "api",
+            "--db",
+            str(mini_db),
+            "--request",
+            '{"op":"load","path":"AGENTS.md","source":"stored","limit":1,"max_tokens":200}',
+        ],
+        cwd=mini_repo,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=10,
+    )
+    print(f"rc={result.returncode}")
+    if result.stdout:
+        print(result.stdout)
+    if result.stderr:
+        print("stderr=" + result.stderr.strip())
+    raise SystemExit(result.returncode)
+finally:
+    conn.rollback()
+    conn.close()
+PY
+  ) || rc=1
+  printf '%s\n' "$api_readonly_lock_out"
+  if grep -Fq -- 'rc=0' <<< "$api_readonly_lock_out" &&
+     grep -Fq -- '"op": "load"' <<< "$api_readonly_lock_out" &&
+     grep -Fq -- 'updated in stored db' <<< "$api_readonly_lock_out"; then
+    printf 'PASS github-index API load remains available while access log write is locked\n'
+  else
+    printf 'FAIL github-index API load blocked behind access-log/write lock\n'
+    rc=1
+  fi
   local api_out
   api_out=$(
     printf '%s\n' \
@@ -593,6 +732,33 @@ EOF
 
 demo markdown evidence source
 EOF
+  cat > "$mini_repo/.github/task-runs/demo/evidence/demo.log" <<'EOF'
+PASS demo raw evidence
+__DEMO_MARKER__
+WARN demo bounded summary
+EOF
+  cat > "$mini_repo/.github/task-runs/demo/evidence/demo.cmd" <<'EOF'
+echo demo command
+EOF
+  local evidence_index_out
+  evidence_index_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" index-evidence .github/task-runs/demo \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --write-index \
+      --yes \
+      --json
+  ) || rc=1
+  printf '%s\n' "$evidence_index_out"
+  if grep -Fq -- '"op": "index-evidence"' <<< "$evidence_index_out" &&
+     grep -Fq -- '"assets": 2' <<< "$evidence_index_out" &&
+     grep -Fq -- '.github/task-runs/demo/evidence-index.md' <<< "$evidence_index_out" &&
+     grep -Fq -- '__DEMO_MARKER__' "$mini_repo/.github/task-runs/demo/evidence-index.md"; then
+    printf 'PASS github-index indexes raw evidence assets without storing full logs\n'
+  else
+    printf 'FAIL github-index raw evidence asset index did not produce expected summary\n'
+    rc=1
+  fi
   python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" archive-markdown .github/task-runs/demo \
     --repo-root "$mini_repo" \
     --db "$mini_db" \
@@ -633,12 +799,68 @@ EOF
      grep -Fq -- '"profile": "github-index"' <<< "$runs_out" &&
      grep -Fq -- '"status": "completed"' <<< "$runs_out" &&
      grep -Fq -- '"profile_resolve_path": ".github/task-runs/demo/profile-resolve.md"' <<< "$runs_out" &&
+     grep -Fq -- '"evidence_index_path": ".github/task-runs/demo/evidence-index.md"' <<< "$runs_out" &&
+     grep -Fq -- '"evidence_asset_count": 2' <<< "$runs_out" &&
      grep -Fq -- '"expanded_node_count": 1' <<< "$runs_out" &&
      grep -Fq -- '"op": "runs"' <<< "$runs_api_out" &&
      grep -Fq -- '"run_id": "demo"' <<< "$runs_api_out"; then
     printf 'PASS github-index runs catalog lists archived task-run evidence\n'
   else
     printf 'FAIL github-index runs catalog did not list expected archived task-run\n'
+    rc=1
+  fi
+  local evidence_out evidence_api_out
+  evidence_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" evidence DEMO_MARKER \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --run-id demo \
+      --json
+  ) || rc=1
+  printf '%s\n' "$evidence_out"
+  evidence_api_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" api \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --request '{"op":"evidence","run_id":"demo","terms":"DEMO_MARKER","limit":4}'
+  ) || rc=1
+  printf '%s\n' "$evidence_api_out"
+  if grep -Fq -- '"op": "evidence"' <<< "$evidence_out" &&
+     grep -Fq -- '"path": ".github/task-runs/demo/evidence/demo.log"' <<< "$evidence_out" &&
+     grep -Fq -- '"DEMO_MARKER"' <<< "$evidence_out" &&
+     grep -Fq -- '"op": "evidence"' <<< "$evidence_api_out" &&
+     grep -Fq -- '"size_bytes":' <<< "$evidence_api_out"; then
+    printf 'PASS github-index evidence query returns structured raw log summaries\n'
+  else
+    printf 'FAIL github-index evidence query did not return expected raw log summary\n'
+    rc=1
+  fi
+  local usage_out usage_api_out
+  usage_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" usage \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --surface api \
+      --json
+  ) || rc=1
+  printf '%s\n' "$usage_out"
+  usage_api_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" api \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --request '{"op":"usage","surface":"cli","limit":8}'
+  ) || rc=1
+  printf '%s\n' "$usage_api_out"
+  if grep -Fq -- '"op": "usage"' <<< "$usage_out" &&
+     grep -Fq -- '"last_used_at": "20' <<< "$usage_out" &&
+     grep -Fq -- '"surface": "api"' <<< "$usage_out" &&
+     grep -Fq -- '"op": "runs"' <<< "$usage_out" &&
+     grep -Fq -- '"op": "usage"' <<< "$usage_api_out" &&
+     grep -Fq -- '"surface": "cli"' <<< "$usage_api_out" &&
+     grep -Fq -- '"op": "runs"' <<< "$usage_api_out"; then
+    printf 'PASS github-index usage log records CLI/API database access time\n'
+  else
+    printf 'FAIL github-index usage log did not record expected database access time\n'
     rc=1
   fi
   python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" audit-db-first \

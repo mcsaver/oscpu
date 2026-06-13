@@ -2,10 +2,19 @@
 from __future__ import annotations
 
 import argparse
+import sqlite3
 import sys
 from typing import Sequence
 
-from .api import agent_brief, agent_profiles, agent_resolve_profile, agent_runs, memory_api
+from .api import (
+    agent_brief,
+    agent_evidence,
+    agent_profiles,
+    agent_resolve_profile,
+    agent_runs,
+    agent_usage,
+    memory_api,
+)
 from .core import *
 from .maintenance import *
 from .queries import *
@@ -23,7 +32,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     init_cmd = subparsers.add_parser("init", help="create database schema")
     add_common_db_args(init_cmd)
-    init_cmd.set_defaults(func=lambda args: (open_db((resolve_repo_path(args.repo_root) / args.db).resolve()).close() or 0))
+    def init_database(args: argparse.Namespace) -> int:
+        conn = open_db((resolve_repo_path(args.repo_root) / args.db).resolve())
+        try:
+            init_schema(conn)
+        finally:
+            conn.close()
+        return 0
+
+    init_cmd.set_defaults(func=init_database)
 
     rebuild_cmd = subparsers.add_parser("rebuild", aliases=["build", "update"], help="rebuild index")
     add_common_db_args(rebuild_cmd)
@@ -175,6 +192,32 @@ def build_parser() -> argparse.ArgumentParser:
     runs_cmd.add_argument("--json", action="store_true")
     runs_cmd.set_defaults(func=agent_runs)
 
+    evidence_cmd = subparsers.add_parser(
+        "evidence",
+        aliases=["evidence-assets", "asset-index"],
+        help="list structured summaries for raw task-run evidence assets",
+    )
+    add_common_db_args(evidence_cmd)
+    evidence_cmd.add_argument("terms", nargs="*", help="optional terms to filter evidence summaries")
+    evidence_cmd.add_argument("--run-id", default="")
+    evidence_cmd.add_argument("--profile", default="")
+    evidence_cmd.add_argument("--kind", default="")
+    evidence_cmd.add_argument("--limit", type=int, default=40)
+    evidence_cmd.add_argument("--json", action="store_true")
+    evidence_cmd.set_defaults(func=agent_evidence)
+
+    usage_cmd = subparsers.add_parser(
+        "usage",
+        aliases=["used", "access-log"],
+        help="show when this SQLite memory database was used",
+    )
+    add_common_db_args(usage_cmd)
+    usage_cmd.add_argument("--limit", type=int, default=20)
+    usage_cmd.add_argument("--surface", choices=["", "cli", "api"], default="")
+    usage_cmd.add_argument("--filter-op", default="")
+    usage_cmd.add_argument("--json", action="store_true")
+    usage_cmd.set_defaults(func=agent_usage)
+
     api_cmd = subparsers.add_parser(
         "api",
         help="read-only JSON/JSONL API for external AI memory clients",
@@ -284,6 +327,21 @@ def build_parser() -> argparse.ArgumentParser:
     archive_markdown_cmd.add_argument("--yes", action="store_true")
     archive_markdown_cmd.set_defaults(func=archive_markdown_files)
 
+    index_evidence_cmd = subparsers.add_parser(
+        "index-evidence",
+        aliases=["evidence-index", "archive-evidence"],
+        help="index raw task-run evidence assets without storing full logs in the DB",
+    )
+    add_common_db_args(index_evidence_cmd)
+    index_evidence_cmd.add_argument("path", nargs="+")
+    index_evidence_cmd.add_argument("--write-index", action="store_true")
+    index_evidence_cmd.add_argument("--sample-bytes", type=int, default=65536)
+    index_evidence_cmd.add_argument("--excerpt-chars", type=int, default=500)
+    index_evidence_cmd.add_argument("--limit", type=int, default=20)
+    index_evidence_cmd.add_argument("--json", action="store_true")
+    index_evidence_cmd.add_argument("--yes", action="store_true")
+    index_evidence_cmd.set_defaults(func=index_evidence_assets)
+
     materialize_cmd = subparsers.add_parser(
         "materialize",
         help="write stored database documents back to files under an output root",
@@ -354,6 +412,62 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def cli_access_details(args: argparse.Namespace) -> dict[str, object]:
+    details: dict[str, object] = {}
+    for key, value in vars(args).items():
+        if key == "func":
+            continue
+        if key in {"content", "stdin"}:
+            details[key] = "<redacted>" if value else value
+        else:
+            details[key] = value
+    return details
+
+
+def cli_access_target(args: argparse.Namespace) -> str:
+    for key in ("path", "profile", "backup_dir"):
+        value = getattr(args, key, "")
+        if value:
+            return str(value)
+    paths = getattr(args, "paths", None)
+    if paths:
+        return " ".join(str(path) for path in paths)
+    terms = getattr(args, "terms", None)
+    if terms:
+        return " ".join(str(term) for term in terms)
+    return ""
+
+
+def record_cli_access(args: argparse.Namespace, exit_code: int) -> None:
+    command = str(getattr(args, "command", ""))
+    if command in {"api", "usage", "used", "access-log", "smoke"}:
+        return
+    if not hasattr(args, "repo_root") or not hasattr(args, "db"):
+        return
+    repo_root = resolve_repo_path(args.repo_root)
+    db_path = (repo_root / args.db).resolve()
+    conn = None
+    try:
+        conn = open_db(db_path, timeout=0.2, busy_timeout_ms=200)
+        init_schema(conn)
+        record_access(
+            conn,
+            surface="cli",
+            op=command,
+            source=str(getattr(args, "source", "")),
+            target=cli_access_target(args),
+            ok=exit_code == 0,
+            result_count=0,
+            details={"args": cli_access_details(args)},
+        )
+        conn.commit()
+    except sqlite3.Error as exc:
+        print(f"WARN skip cli access log: {exc}", file=sys.stderr)
+    finally:
+        if conn is not None:
+            conn.close()
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -364,12 +478,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         try:
             has_fts5 = init_schema(conn)
             record_event(conn, "init", {"db": str(db_path), "fts5": has_fts5})
+            record_access(
+                conn,
+                surface="cli",
+                op="init",
+                target=str(db_path),
+                ok=True,
+                result_count=0,
+                details={"db": str(db_path), "fts5": has_fts5},
+            )
             conn.commit()
         finally:
             conn.close()
         print(f"PASS init db={db_path}")
         return 0
-    return args.func(args)
+    exit_code = args.func(args)
+    record_cli_access(args, exit_code)
+    return exit_code
 
 
 if __name__ == "__main__":

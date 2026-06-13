@@ -1,0 +1,5 @@
+[TEST] tb_uart
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_uart -o build/tb_uart.vvp tests/tb_uart.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/Uart.v
+[PASS] tb_uart
+common/tb_common.svh:32: $finish called at 78 (1s)
+[RESULT] PASS

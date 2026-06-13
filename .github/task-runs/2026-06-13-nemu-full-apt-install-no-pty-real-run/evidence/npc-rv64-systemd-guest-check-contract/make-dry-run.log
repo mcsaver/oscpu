@@ -1,0 +1,20 @@
+97:NPC_SYSTEMD_CHECK_LOG_DIR ?= $(LOG_ROOT)/riscv64-npc-systemd-guest-check
+98:NPC_SYSTEMD_CHECK_MAX_CYCLES ?= 3000000000
+99:NPC_SYSTEMD_HOST_TIMEOUT ?= 10800
+100:NPC_SYSTEMD_PROMPT ?= root@ysyx-ubuntu2204:~\#
+101:NPC_SYSTEMD_UART_TRACE_LIMIT ?= 128
+102:NPC_SYSTEMD_PROGRESS ?= 0
+267:        check-npc-systemd-guest __check-npc-systemd-guest \
+329:	@printf '%s\n' '  make check-npc-systemd-guest'
+624:check-npc-systemd-guest:
+625:	+$(MAKE) ARCH=riscv64-npc BOOT=ubuntu-rootfs __check-npc-systemd-guest
+703:__check-npc-systemd-guest: $(RUN_DEPS) check-ubuntu-rootfs-systemd
+704:	LOG_DIR='$(NPC_SYSTEMD_CHECK_LOG_DIR)' \
+705:	CONSOLE_LOG='$(NPC_SYSTEMD_CHECK_LOG_DIR)/console.log' \
+706:	NPC_LOG='$(NPC_SYSTEMD_CHECK_LOG_DIR)/npc.log' \
+707:	NPC_SYSTEMD_CHECK_MAX_CYCLES='$(NPC_SYSTEMD_CHECK_MAX_CYCLES)' \
+708:	NPC_SYSTEMD_HOST_TIMEOUT='$(NPC_SYSTEMD_HOST_TIMEOUT)' \
+709:	NPC_SYSTEMD_PROMPT='$(NPC_SYSTEMD_PROMPT)' \
+710:	NPC_SYSTEMD_UART_TRACE_LIMIT='$(NPC_SYSTEMD_UART_TRACE_LIMIT)' \
+711:	NPC_SYSTEMD_PROGRESS='$(NPC_SYSTEMD_PROGRESS)' \
+712:	  bash '$(SCRIPT_DIR)/check-npc-systemd-guest.sh'

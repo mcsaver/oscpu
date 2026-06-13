@@ -72,6 +72,8 @@ module tb_ooo_sv39_boot;
   localparam [`XLEN-1:0] BASE_PC = 64'h0000_0000_8000_0000;
   localparam [`XLEN-1:0] S_ENTRY_PC = 64'h0000_0000_8000_0080;
   localparam [`XLEN-1:0] S_HANDLER_PC = 64'h0000_0000_8000_0100;
+  localparam [`XLEN-1:0] USER_ENTRY_VA = 64'h0000_0000_c000_0200;
+  localparam [`XLEN-1:0] USER_ENTRY_PA = 64'h0000_0000_8000_0200;
   localparam [`XLEN-1:0] ROOT_PT = 64'h0000_0000_8000_2000;
   localparam [`XLEN-1:0] DATA_PA = 64'h0000_0000_8000_3000;
   localparam [`XLEN-1:0] DATA_VALUE = 64'h1122_3344_5566_7788;
@@ -80,6 +82,8 @@ module tb_ooo_sv39_boot;
   localparam [`XLEN-1:0] LEAF_FLAGS = 64'h0cf;
   localparam [`XLEN-1:0] SUPERPAGE_PTE =
       (SUPERPAGE_PPN << 10) | LEAF_FLAGS;
+  localparam [`XLEN-1:0] USER_SUPERPAGE_PTE =
+      (SUPERPAGE_PPN << 10) | LEAF_FLAGS | 64'h010;
 
   integer cycle_count;
   integer ifu_page_walk_reads;
@@ -212,6 +216,16 @@ module tb_ooo_sv39_boot;
     input [4:0] rs2;
     begin
       inst_or = rv32_r(`FUNCT7_STD, rs2, rs1, `FUNCT3_OR, rd, `OPCODE_OP);
+    end
+  endfunction
+
+  function [`INST_W-1:0] inst_and;
+    input [4:0] rd;
+    input [4:0] rs1;
+    input [4:0] rs2;
+    begin
+      inst_and = rv32_r(`FUNCT7_STD, rs2, rs1, `FUNCT3_AND, rd,
+                        `OPCODE_OP);
     end
   endfunction
 
@@ -359,7 +373,23 @@ module tb_ooo_sv39_boot;
         S_ENTRY_PC + 64'h050: program_word = inst_jalr(5'd0, 5'd12, 12'h000);
         S_ENTRY_PC + 64'h054: program_word = inst_addi(5'd18, 5'd0, 12'hee);
         S_ENTRY_PC + 64'h058: program_word = inst_addi(5'd19, 5'd0, 12'h099);
-        S_ENTRY_PC + 64'h05c: program_word = inst_ebreak();
+        S_ENTRY_PC + 64'h05c: program_word = inst_addi(5'd26, 5'd0, 12'h003);
+        S_ENTRY_PC + 64'h060: program_word = inst_slli(5'd26, 5'd26, 6'd30);
+        S_ENTRY_PC + 64'h064: program_word = inst_addi(5'd26, 5'd26, 12'h200);
+        S_ENTRY_PC + 64'h068: program_word = inst_csrrw(5'd0, `CSR_SEPC, 5'd26);
+        S_ENTRY_PC + 64'h06c: program_word = inst_addi(5'd27, 5'd0, 12'h020);
+        S_ENTRY_PC + 64'h070: program_word = inst_csrrw(5'd0, `CSR_SSTATUS, 5'd27);
+        S_ENTRY_PC + 64'h074: program_word = inst_sret();
+        S_ENTRY_PC + 64'h078: program_word = inst_ebreak();
+
+        USER_ENTRY_PA + 64'h000: program_word = inst_addi(5'd26, 5'd0, 12'hab);
+        USER_ENTRY_PA + 64'h004: program_word = inst_ecall();
+        USER_ENTRY_PA + 64'h008: program_word = inst_addi(5'd30, 5'd0, 12'hcd);
+        USER_ENTRY_PA + 64'h00c: program_word = inst_addi(5'd12, 5'd0, 12'h001);
+        USER_ENTRY_PA + 64'h010: program_word = inst_slli(5'd12, 5'd12, 6'd30);
+        USER_ENTRY_PA + 64'h014: program_word = inst_ld(5'd3, 5'd12, 12'h000);
+        USER_ENTRY_PA + 64'h018: program_word = inst_addi(5'd4, 5'd0, 12'hef);
+        USER_ENTRY_PA + 64'h01c: program_word = inst_ebreak();
 
         S_HANDLER_PC + 64'h000: program_word = inst_csrrs(5'd8, `CSR_SCAUSE, 5'd0);
         S_HANDLER_PC + 64'h004: program_word = inst_csrrs(5'd9, `CSR_SEPC, 5'd0);
@@ -370,21 +400,19 @@ module tb_ooo_sv39_boot;
         S_HANDLER_PC + 64'h018: program_word = inst_beq(5'd8, 5'd15, 13'h02c);
         S_HANDLER_PC + 64'h01c: program_word = inst_addi(5'd15, 5'd0, 12'h00c);
         S_HANDLER_PC + 64'h020: program_word = inst_beq(5'd8, 5'd15, 13'h040);
-        S_HANDLER_PC + 64'h024: program_word = inst_addi(5'd10, 5'd0, 12'h07f);
-        S_HANDLER_PC + 64'h028: program_word = inst_sret();
+        S_HANDLER_PC + 64'h024: program_word = inst_addi(5'd15, 5'd0, 12'h008);
+        S_HANDLER_PC + 64'h028: program_word = inst_beq(5'd8, 5'd15, 13'h058);
         S_HANDLER_PC + 64'h02c: program_word = inst_addi(5'd16, 5'd8, 12'h000);
         S_HANDLER_PC + 64'h030: program_word = inst_addi(5'd17, 5'd9, 12'h000);
         S_HANDLER_PC + 64'h034: program_word = inst_addi(5'd9, 5'd9, 12'h004);
         S_HANDLER_PC + 64'h038: program_word = inst_csrrw(5'd0, `CSR_SEPC, 5'd9);
         S_HANDLER_PC + 64'h03c: program_word = inst_addi(5'd10, 5'd0, 12'h066);
         S_HANDLER_PC + 64'h040: program_word = inst_sret();
-        S_HANDLER_PC + 64'h044: program_word = inst_addi(5'd20, 5'd8, 12'h000);
-        S_HANDLER_PC + 64'h048: program_word = inst_addi(5'd21, 5'd9, 12'h000);
-        S_HANDLER_PC + 64'h04c: program_word = inst_addi(5'd22, 5'd14, 12'h000);
-        S_HANDLER_PC + 64'h050: program_word = inst_addi(5'd9, 5'd9, 12'h004);
-        S_HANDLER_PC + 64'h054: program_word = inst_csrrw(5'd0, `CSR_SEPC, 5'd9);
-        S_HANDLER_PC + 64'h058: program_word = inst_addi(5'd10, 5'd0, 12'h055);
-        S_HANDLER_PC + 64'h05c: program_word = inst_sret();
+        S_HANDLER_PC + 64'h044: program_word = inst_csrrs(5'd27, `CSR_SSTATUS, 5'd0);
+        S_HANDLER_PC + 64'h048: program_word = inst_addi(5'd15, 5'd0, 12'h100);
+        S_HANDLER_PC + 64'h04c: program_word = inst_and(5'd15, 5'd27, 5'd15);
+        S_HANDLER_PC + 64'h050: program_word = inst_beq(5'd15, 5'd0, 13'h050);
+        S_HANDLER_PC + 64'h054: program_word = inst_beq(5'd0, 5'd0, 13'h06c);
         S_HANDLER_PC + 64'h060: program_word = inst_addi(5'd23, 5'd8, 12'h000);
         S_HANDLER_PC + 64'h064: program_word = inst_addi(5'd24, 5'd9, 12'h000);
         S_HANDLER_PC + 64'h068: program_word = inst_addi(5'd25, 5'd14, 12'h000);
@@ -393,6 +421,27 @@ module tb_ooo_sv39_boot;
         S_HANDLER_PC + 64'h074: program_word = inst_csrrw(5'd0, `CSR_SEPC, 5'd9);
         S_HANDLER_PC + 64'h078: program_word = inst_addi(5'd10, 5'd0, 12'h044);
         S_HANDLER_PC + 64'h07c: program_word = inst_sret();
+        S_HANDLER_PC + 64'h080: program_word = inst_csrrs(5'd5, `CSR_SSTATUS, 5'd0);
+        S_HANDLER_PC + 64'h084: program_word = inst_addi(5'd28, 5'd8, 12'h000);
+        S_HANDLER_PC + 64'h088: program_word = inst_addi(5'd29, 5'd9, 12'h000);
+        S_HANDLER_PC + 64'h08c: program_word = inst_addi(5'd9, 5'd9, 12'h004);
+        S_HANDLER_PC + 64'h090: program_word = inst_csrrw(5'd0, `CSR_SEPC, 5'd9);
+        S_HANDLER_PC + 64'h094: program_word = inst_addi(5'd31, 5'd0, 12'h033);
+        S_HANDLER_PC + 64'h098: program_word = inst_sret();
+        S_HANDLER_PC + 64'h0a0: program_word = inst_addi(5'd11, 5'd8, 12'h000);
+        S_HANDLER_PC + 64'h0a4: program_word = inst_addi(5'd12, 5'd9, 12'h000);
+        S_HANDLER_PC + 64'h0a8: program_word = inst_addi(5'd13, 5'd14, 12'h000);
+        S_HANDLER_PC + 64'h0ac: program_word = inst_addi(5'd9, 5'd9, 12'h004);
+        S_HANDLER_PC + 64'h0b0: program_word = inst_csrrw(5'd0, `CSR_SEPC, 5'd9);
+        S_HANDLER_PC + 64'h0b4: program_word = inst_addi(5'd1, 5'd0, 12'h05a);
+        S_HANDLER_PC + 64'h0b8: program_word = inst_sret();
+        S_HANDLER_PC + 64'h0c0: program_word = inst_addi(5'd20, 5'd8, 12'h000);
+        S_HANDLER_PC + 64'h0c4: program_word = inst_addi(5'd21, 5'd9, 12'h000);
+        S_HANDLER_PC + 64'h0c8: program_word = inst_addi(5'd22, 5'd14, 12'h000);
+        S_HANDLER_PC + 64'h0cc: program_word = inst_addi(5'd9, 5'd9, 12'h004);
+        S_HANDLER_PC + 64'h0d0: program_word = inst_csrrw(5'd0, `CSR_SEPC, 5'd9);
+        S_HANDLER_PC + 64'h0d4: program_word = inst_addi(5'd10, 5'd0, 12'h055);
+        S_HANDLER_PC + 64'h0d8: program_word = inst_sret();
         default: begin end
       endcase
     end
@@ -402,8 +451,11 @@ module tb_ooo_sv39_boot;
     input [`XLEN-1:0] addr;
     begin
       if ((addr >= ROOT_PT) && (addr < (ROOT_PT + 64'h1000))) begin
-        read64 = (addr == (ROOT_PT + 64'd16)) ? SUPERPAGE_PTE :
-                                                   {`XLEN{1'b0}};
+        case (addr)
+          ROOT_PT + 64'd16: read64 = SUPERPAGE_PTE;
+          ROOT_PT + 64'd24: read64 = USER_SUPERPAGE_PTE;
+          default:          read64 = {`XLEN{1'b0}};
+        endcase
       end else if (addr == DATA_PA) begin
         read64 = DATA_VALUE;
       end else if (addr == (DATA_PA + 64'd8)) begin
@@ -564,11 +616,12 @@ module tb_ooo_sv39_boot;
     tb_check1("sret commit observed", saw_sret_commit, 1'b1);
     tb_check64("sv39 load value", gpr(5'd6), DATA_VALUE);
     tb_check64("sv39 store value", stored_data_q, DATA_VALUE);
-    tb_check64("s-mode final scause", gpr(5'd8),
+    tb_check64("s-mode final scause snapshot", gpr(5'd23),
                {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, `EXC_INST_PAGE_FAULT});
-    tb_check64("s-mode final sepc redirected", gpr(5'd9),
-               S_ENTRY_PC + 64'h058);
-    tb_check64("s-mode final stval", gpr(5'd14), 64'h0000_0000_4000_0000);
+    tb_check64("s-mode final sepc snapshot", gpr(5'd24),
+               64'h0000_0000_4000_0000);
+    tb_check64("s-mode final stval snapshot", gpr(5'd25),
+               64'h0000_0000_4000_0000);
     tb_check64("s-mode ecall scause snapshot", gpr(5'd16),
                {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, `EXC_ECALL_SMODE});
     tb_check64("s-mode ecall sepc snapshot", gpr(5'd17),
@@ -589,6 +642,24 @@ module tb_ooo_sv39_boot;
     tb_check64("post sret body executed", gpr(5'd7), 64'h77);
     tb_check64("post load page fault body executed", gpr(5'd18), 64'h88);
     tb_check64("post inst page fault body executed", gpr(5'd19), 64'h99);
+    tb_check64("u-mode body executed before ecall", gpr(5'd26), 64'hab);
+    tb_check64("u-mode ecall scause", gpr(5'd28),
+               {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, `EXC_ECALL_UMODE});
+    tb_check64("u-mode ecall sepc", gpr(5'd29), USER_ENTRY_VA + 64'h004);
+    tb_check64("u-mode ecall recorded spp clear",
+               gpr(5'd5) & `MSTATUS_SPP, 64'h0);
+    tb_check64("u-mode returned after sret", gpr(5'd30), 64'hcd);
+    tb_check64("u-mode handler marker", gpr(5'd31), 64'h33);
+    tb_check64("u-mode load page fault scause", gpr(5'd11),
+               {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, `EXC_LOAD_PAGE_FAULT});
+    tb_check64("u-mode load page fault sepc", gpr(5'd12),
+               USER_ENTRY_VA + 64'h014);
+    tb_check64("u-mode load page fault stval", gpr(5'd13),
+               64'h0000_0000_4000_0000);
+    tb_check64("u-mode load page fault recorded spp clear",
+               gpr(5'd27) & `MSTATUS_SPP, 64'h0);
+    tb_check64("u-mode returned after load page fault", gpr(5'd4), 64'hef);
+    tb_check64("u-mode load fault handler marker", gpr(5'd1), 64'h5a);
     if (ifu_page_walk_reads == 0) begin
       tb_errors = tb_errors + 1;
       $display("[CHECK-FAIL] IFU page-table walk was not observed");
@@ -618,7 +689,7 @@ module tb_ooo_sv39_boot;
       $display("[CHECK-FAIL] DTLB should let translated store reuse load translation, lsu_walk=%0d",
                lsu_page_walk_reads);
     end
-    if (ifu_page_walk_reads > 3) begin
+    if (ifu_page_walk_reads > 4) begin
       tb_errors = tb_errors + 1;
       $display("[CHECK-FAIL] ITLB should bound same-superpage instruction walks, ifu_walk=%0d",
                ifu_page_walk_reads);

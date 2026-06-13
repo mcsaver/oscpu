@@ -1,0 +1,313 @@
+make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+make ARCH=riscv64-nemu BOOT=ubuntu-rootfs \
+  UBUNTU_ROOTFS_FLAVOR=full \
+  UBUNTU_ROOTFS_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4' \
+  UBUNTU_ROOTFS_CPIO_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full-rootfs.cpio' \
+  NEMU_SYSTEMD_ROOTFS_FLAVOR=full \
+  NEMU_SYSTEMD_CHECK_LOG_DIR='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-2/nemu-ubuntu-full-focused' \
+  NEMU_SYSTEMD_ROOTFS_OVERLAY='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-2/nemu-ubuntu-full-focused/rootfs-overlay.raw' \
+  NEMU_SYSTEMD_CHECK_MAX_CYCLES='80000000000' \
+  NEMU_SYSTEMD_CHECK_TIMEOUT='3000' \
+  __check-nemu-systemd-guest
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' riscv64-linux_defconfig
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu'
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/nemu'
+make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' -j'14'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu'
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/nemu'
+UBUNTU_ROOTFS_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4' UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 UBUNTU_ROOTFS_FLAVOR=full \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-ubuntu-rootfs.sh'
+[ubuntu-rootfs-check] image: /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4
+[ubuntu-rootfs-check] flavor: full
+[ubuntu-rootfs-check] OK      stage1 init: /init
+[ubuntu-rootfs-check] OK      Ubuntu shell: /bin/sh
+[ubuntu-rootfs-check] OK      Ubuntu identity: /etc/os-release
+[ubuntu-rootfs-check] OK      systemd candidate: /lib/systemd/systemd
+[ubuntu-rootfs-check] OK      systemd basic.target: /lib/systemd/system/basic.target
+[ubuntu-rootfs-check] OK      udev daemon: /lib/systemd/systemd-udevd
+[ubuntu-rootfs-check] OK      dbus daemon: /usr/bin/dbus-daemon
+[ubuntu-rootfs-check] OK      agetty login path: /bin/login
+[ubuntu-rootfs-check] OK      root login shell: /bin/bash
+[ubuntu-rootfs-check] OK      Ubuntu identity command: /usr/bin/lsb_release
+[ubuntu-rootfs-check] OK      lp64d dynamic linker: /lib/ld-linux-riscv64-lp64d.so.1
+[ubuntu-rootfs-check] OK      PAM module path: /lib/riscv64-linux-gnu/security
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_unix.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_deny.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_permit.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_env.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_loginuid.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_limits.so
+[ubuntu-rootfs-check] OK      e2scrub service entrypoint: /sbin/e2scrub_all
+[ubuntu-rootfs-check] OK      boot-blocking e2scrub reap masked: /etc/systemd/system/e2scrub_reap.service
+[ubuntu-rootfs-check] OK      periodic e2scrub timer masked: /etc/systemd/system/e2scrub_all.timer
+[ubuntu-rootfs-check] OK      unavailable hvc0 getty masked: /etc/systemd/system/serial-getty@hvc0.service
+[ubuntu-rootfs-check] OK      OpenSSH server config: /etc/ssh/sshd_config
+[ubuntu-rootfs-check] OK      syslog passwd entry: /etc/passwd
+[ubuntu-rootfs-check] OK      syslog group entry: /etc/group
+[ubuntu-rootfs-check] OK      sshd passwd entry: /etc/passwd
+[ubuntu-rootfs-check] OK      sshd group entry: /etc/group
+[ubuntu-rootfs-check] OK      OpenSSH ed25519 host key: /etc/ssh/ssh_host_ed25519_key
+[ubuntu-rootfs-check] OK      OpenSSH rsa host key: /etc/ssh/ssh_host_rsa_key
+[ubuntu-rootfs-check] OK      rsyslog spool directory: /var/spool/rsyslog
+[ubuntu-rootfs-check] OK      syslog service alias: /etc/systemd/system/syslog.service
+[ubuntu-rootfs-check] OK      dpkg status installed: ubuntu-standard
+[ubuntu-rootfs-check] OK      dpkg status installed: openssh-server
+[ubuntu-rootfs-check] OK      dpkg status installed: curl
+[ubuntu-rootfs-check] OK      dpkg status installed: wget
+[ubuntu-rootfs-check] OK      dpkg status installed: dropbear-bin
+[ubuntu-rootfs-check] OK      dpkg status installed: rsyslog
+[ubuntu-rootfs-check] OK      dpkg status installed: cron
+[ubuntu-rootfs-check] OK      dpkg status installed: systemd-timesyncd
+[ubuntu-rootfs-check] OK      dpkg info list: ubuntu-standard
+[ubuntu-rootfs-check] OK      dpkg info list: openssh-server
+[ubuntu-rootfs-check] OK      dpkg info list: curl
+[ubuntu-rootfs-check] OK      dpkg info list: wget
+[ubuntu-rootfs-check] OK      dpkg info list: dropbear-bin
+[ubuntu-rootfs-check] OK      dpkg info list: rsyslog
+[ubuntu-rootfs-check] OK      dpkg info list: cron
+[ubuntu-rootfs-check] OK      dpkg info list: systemd-timesyncd
+[ubuntu-rootfs-check] OK      dpkg info list valid names: 310 list files
+[ubuntu-rootfs-check] OK      dpkg info ownership: curl /usr/bin/curl
+[ubuntu-rootfs-check] OK      dpkg info ownership: wget /usr/bin/wget
+[ubuntu-rootfs-check] OK      dpkg info ownership: openssh-server /usr/sbin/sshd
+[ubuntu-rootfs-check] OK      dpkg info ownership: dropbear-bin /usr/bin/dbclient
+[ubuntu-rootfs-check] OK      dpkg info ownership: dropbear-bin /usr/sbin/dropbear
+[ubuntu-rootfs-check] OK      dpkg info ownership: rsyslog /usr/sbin/rsyslogd
+[ubuntu-rootfs-check] OK      dpkg info ownership: cron /usr/sbin/cron
+[ubuntu-rootfs-check] OK      Ubuntu interactive command curl: /usr/bin/curl
+[ubuntu-rootfs-check] OK      Ubuntu interactive command wget: /usr/bin/wget
+[ubuntu-rootfs-check] OK      Ubuntu interactive command ping: /bin/ping
+[ubuntu-rootfs-check] OK      Ubuntu interactive command ssh: /usr/bin/ssh
+[ubuntu-rootfs-check] OK      Ubuntu interactive command htop: /usr/bin/htop
+[ubuntu-rootfs-check] OK      Ubuntu interactive command less: /usr/bin/less
+[ubuntu-rootfs-check] OK      Ubuntu interactive command strace: /usr/bin/strace
+[ubuntu-rootfs-check] OK      Ubuntu full command apt-get: /usr/bin/apt-get
+[ubuntu-rootfs-check] OK      Ubuntu full command apt-cache: /usr/bin/apt-cache
+[ubuntu-rootfs-check] OK      Ubuntu full command dpkg: /usr/bin/dpkg
+[ubuntu-rootfs-check] OK      Ubuntu full command dpkg-query: /usr/bin/dpkg-query
+[ubuntu-rootfs-check] OK      Ubuntu full command sudo: /usr/bin/sudo
+[ubuntu-rootfs-check] OK      Ubuntu full command man: /usr/bin/man
+[ubuntu-rootfs-check] OK      Ubuntu full command dbclient: /usr/bin/dbclient
+[ubuntu-rootfs-check] OK      Ubuntu full command dropbearconvert: /usr/bin/dropbearconvert
+[ubuntu-rootfs-check] OK      Ubuntu full command dropbearkey: /usr/bin/dropbearkey
+[ubuntu-rootfs-check] OK      Ubuntu full service sshd: /usr/sbin/sshd
+[ubuntu-rootfs-check] OK      Ubuntu full service dropbear: /usr/sbin/dropbear
+[ubuntu-rootfs-check] OK      Ubuntu full service cron: /usr/sbin/cron
+[ubuntu-rootfs-check] OK      Ubuntu full service rsyslogd: /usr/sbin/rsyslogd
+[ubuntu-rootfs-check] OK      Ubuntu full timezone database: /usr/share/zoneinfo/UTC
+[ubuntu-rootfs-check] rootfs readiness check passed
+NEMU_PERFORMANCE_REQUIRED='1' \
+NEMU_CONFIG='/home/lyg/PA/ysyx-workbench/nemu/.config' \
+NEMU_AUTOCONF='/home/lyg/PA/ysyx-workbench/nemu/include/generated/autoconf.h' \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-nemu-performance-config.sh'
+__NEMU_PERFORMANCE_CONFIG__:ok
+LINUX_KERNEL_CONFIG='/home/lyg/PA/ysyx-workbench/Linux/env/src/linux/.config' \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-nemu-kernel-config.sh'
+[linux-kernel-config] PASS CONFIG_MODULES=disabled
+[linux-kernel-config] PASS CONFIG_AUTOFS_FS=y
+[linux-kernel-config] PASS CONFIG_BPF=y
+[linux-kernel-config] PASS CONFIG_BPF_SYSCALL=y
+[linux-kernel-config] PASS CONFIG_CGROUPS=y
+[linux-kernel-config] PASS CONFIG_CGROUP_BPF=y
+[linux-kernel-config] PASS CONFIG_SECCOMP=y
+[linux-kernel-config] PASS CONFIG_SECCOMP_FILTER=y
+__NEMU_KERNEL_CONFIG__:ok
+LOG_DIR='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-2/nemu-ubuntu-full-focused' \
+LOG_FILE='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-2/nemu-ubuntu-full-focused/nemu.log' \
+CONSOLE_LOG='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-2/nemu-ubuntu-full-focused/console.log' \
+NEMU_SERIAL_FIFO='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-2/nemu-ubuntu-full-focused/nemu.serial' \
+NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' \
+NEMU_SIM='/home/lyg/PA/ysyx-workbench/nemu/build/riscv64-nemu-interpreter' \
+LINUX_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/src/linux/arch/riscv/boot/Image' \
+RUN_FW='/home/lyg/PA/ysyx-workbench/Linux/env/build/opensbi-nemu-rootfs/platform/generic/firmware/fw_jump.bin' \
+RUN_DTB='/home/lyg/PA/ysyx-workbench/Linux/build/npc-rv64-nemu-rootfs.dtb' \
+RUN_ROOTFS='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4' \
+NEMU_SYSTEMD_ROOTFS_OVERLAY='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-2/nemu-ubuntu-full-focused/rootfs-overlay.raw' \
+NEXT_ADDR='0x80200000' \
+DTB_ADDR='0x82200000' \
+MAX_CYCLES='80000000000' \
+NEMU_SYSTEMD_CHECK_TIMEOUT='3000' \
+NEMU_SYSTEMD_BOOT_TIMEOUT='900' \
+NEMU_SYSTEMD_SOAK_SECONDS='0' \
+NEMU_SYSTEMD_FS_STRESS_MIB='1' \
+NEMU_SYSTEMD_FS_TREE_FILES='8' \
+NEMU_SYSTEMD_PROCESS_LOOPS='4' \
+NEMU_SYSTEMD_UART_RX_STRESS_LINES='64' \
+NEMU_SYSTEMD_BLOCK_PARALLEL_JOBS='1' \
+NEMU_SYSTEMD_BLOCK_JOB_MIB='1' \
+	NEMU_SYSTEMD_MIN_MEMTOTAL_KB='900000' \
+	NEMU_SYSTEMD_INPUT_DELAY='0' \
+	NEMU_SYSTEMD_INPUT_CHUNK_BYTES='8' \
+	NEMU_SYSTEMD_INPUT_CHUNK_DELAY='0' \
+	NEMU_SYSTEMD_APT_INSTALL_DIAG='1' \
+	NEMU_SYSTEMD_APT_INSTALL_ACTUAL='1' \
+	NEMU_SYSTEMD_APT_INSTALL_DIAG_TIMEOUT='300' \
+	  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-nemu-systemd-guest.sh'
+[nemu-systemd-check] log dir: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-2/nemu-ubuntu-full-focused
+[nemu-systemd-check] serial fifo: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-2/nemu-ubuntu-full-focused/nemu.serial
+[nemu-systemd-check] guest upload commands: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-2/nemu-ubuntu-full-focused/guest-check-upload.cmd
+[nemu-systemd-check] max cycles: 80000000000
+[nemu-systemd-check] soak seconds: 0
+[nemu-systemd-check] fs stress MiB: 1
+[nemu-systemd-check] fs tree files: 8
+[nemu-systemd-check] process loops: 4
+[nemu-systemd-check] UART RX stress lines: 64
+[nemu-systemd-check] block parallel jobs: 1
+[nemu-systemd-check] block job MiB: 1
+[nemu-systemd-check] min MemTotal KiB: 900000
+[nemu-systemd-check] systemd reload timeout: 180
+[nemu-systemd-check] input delay: 0
+[nemu-systemd-check] input chunk bytes: 8
+[nemu-systemd-check] input chunk delay: 0
+[nemu-systemd-check] apt install diag: 1
+[nemu-systemd-check] apt install actual: 1
+[nemu-systemd-check] apt install diag timeout: 300
+[nemu-systemd-check] serial input model: FIFO/stdin bytes -> NEMU SerialPort staging -> 16550 RX FIFO -> Linux ttyS0
+[nemu-systemd-check] syscall probe: 1
+[nemu-systemd-check] ICMP probe: 1
+[nemu-systemd-check] DHCP probe: 1
+[nemu-systemd-check] DNS probe: 1
+[nemu-systemd-check] TCP probe: 1
+[nemu-systemd-check] TCP burst loops: 8
+[nemu-systemd-check] poweroff: 1
+[nemu-systemd-check] poweroff timeout: 180
+[nemu-systemd-check] rootfs flavor: full
+[nemu-systemd-check] syscall probe bytes: 34824
+[nemu-systemd-check] ICMP probe bytes: 10248
+[nemu-systemd-check] DHCP probe bytes: 10248
+[nemu-systemd-check] DNS probe bytes: 10248
+[nemu-systemd-check] TCP probe bytes: 10248
+[nemu-systemd-check] rootfs bytes: 8589934592
+[nemu-systemd-check] rootfs backing stat: 8589934592:1781160740
+[nemu-systemd-check] rootfs overlay: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-2/nemu-ubuntu-full-focused/rootfs-overlay.raw
+[nemu-systemd-check] vda hash window bytes: 65536
+[nemu-systemd-check] vda hash windows: 1
+[nemu-systemd-check] perf log: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-2/nemu-ubuntu-full-focused/perf.tsv
+[nemu-systemd-check] FAIL: NEMU exited before log marker: ^__NEMU_SYSTEMD_CHECK_DONE__ rc=
+[nemu-systemd-check] ---- console tail ----
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_POSTINST_SNAPSHOT__:postinst from NEMU hostless meta
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_DPKG_STATUS_SNAPSHOT__:install ok installed 1.0 riscv64
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_DPKG_STATUS_SNAPSHOT__:install ok installed 1.0 riscv64
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_DEADLINE_RC__:0
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_SAMPLE__:final
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_PS_BEGIN__
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_PS_END__
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_LOG_TAIL_BEGIN__
+Reading package lists...
+Building dependency tree...
+Reading state information...
+The following additional packages will be installed:
+  nemu-hostless-hello
+The following NEW packages will be installed:
+  nemu-hostless-hello nemu-hostless-meta
+Useless use of a constant (1) in void context at /usr/lib/riscv64-linux-gnu/perl-base/base.pm line 131.
+debconf: Perl may be unconfigured (Can't use string ("Text::Wrap::VERSION") as a SCALAR ref while "strict refs" in use at /usr/lib/riscv64-linux-gnu/perl-base/vars.pm line 35.
+BEGIN failed--compilation aborted at /usr/lib/riscv64-linux-gnu/perl-base/Text/Wrap.pm line 15.
+Compilation failed in require at /usr/share/perl5/Debconf/Template.pm line 10.
+BEGIN failed--compilation aborted at /usr/share/perl5/Debconf/Template.pm line 10.
+Compilation failed in require at /usr/share/perl5/Debconf/Question.pm line 8.
+BEGIN failed--compilation aborted at /usr/share/perl5/Debconf/Question.pm line 8.
+Compilation failed in require at /usr/share/perl5/Debconf/Config.pm line 7.
+BEGIN failed--compilation aborted at /usr/share/perl5/Debconf/Config.pm line 7.
+Compilation failed in require at /usr/share/perl5/Debconf/Log.pm line 10.
+Compilation failed in require at (eval 1) line 4.
+BEGIN failed--compilation aborted at (eval 1) line 4.
+) -- aborting
+0 upgraded, 2 newly installed, 0 to remove and 0 not upgraded.
+Need to get 0 B/1618 B of archives.
+After this operation, 2048 B of additional disk space will be used.
+Selecting previously unselected package nemu-hostless-hello.
+(Reading database ... 18751 files and directories currently installed.)
+Preparing to unpack .../nemu-hostless-hello_1.0_riscv64.deb ...
+Unpacking nemu-hostless-hello (1.0) ...
+Selecting previously unselected package nemu-hostless-meta.
+Preparing to unpack .../nemu-hostless-meta_1.0_riscv64.deb ...
+Unpacking nemu-hostless-meta (1.0) ...
+Setting up nemu-hostless-hello (1.0) ...
+Setting up nemu-hostless-meta (1.0) ...
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_LOG_TAIL_END__
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_LOCKS_BEGIN__
+-rw-r----- 1 root root 0 Sep 11  2024 /var/cache/apt/archives/lock
+-rw-r----- 1 root root 0 Jun 13 06:46 /var/lib/dpkg/lock
+-rw-r----- 1 root root 0 Sep 11  2024 /var/lib/dpkg/lock-frontend
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_LOCKS_END__
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_MESSAGE_SNAPSHOT__:hello from NEMU hostless apt
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_MESSAGE_SNAPSHOT__:hello from NEMU hostless meta
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_PREINST_SNAPSHOT__:preinst from NEMU hostless meta
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_POSTINST_SNAPSHOT__:postinst from NEMU hostless meta
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_DPKG_STATUS_SNAPSHOT__:install ok installed 1.0 riscv64
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_DPKG_STATUS_SNAPSHOT__:install ok installed 1.0 riscv64
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_RC__:0
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_MESSAGE__:hello from NEMU hostless apt
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_DPKG_STATUS__:install ok installed 1.0 riscv64
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_MESSAGE__:hello from NEMU hostless meta
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_PREINST__:preinst from NEMU hostless meta
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_POSTINST__:postinst from NEMU hostless meta
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_DPKG_STATUS__:install ok installed 1.0 riscv64
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_LOG_BEGIN__
+Reading package lists...
+Building dependency tree...
+Reading state information...
+The following additional packages will be installed:
+  nemu-hostless-hello
+The following NEW packages will be installed:
+  nemu-hostless-hello nemu-hostless-meta
+Useless use of a constant (1) in void context at /usr/lib/riscv64-linux-gnu/perl-base/base.pm line 131.
+debconf: Perl may be unconfigured (Can't use string ("Text::Wrap::VERSION") as a SCALAR ref while "strict refs" in use at /usr/lib/riscv64-linux-gnu/perl-base/vars.pm line 35.
+BEGIN failed--compilation aborted at /usr/lib/riscv64-linux-gnu/perl-base/Text/Wrap.pm line 15.
+Compilation failed in require at /usr/share/perl5/Debconf/Template.pm line 10.
+BEGIN failed--compilation aborted at /usr/share/perl5/Debconf/Template.pm line 10.
+Compilation failed in require at /usr/share/perl5/Debconf/Question.pm line 8.
+BEGIN failed--compilation aborted at /usr/share/perl5/Debconf/Question.pm line 8.
+Compilation failed in require at /usr/share/perl5/Debconf/Config.pm line 7.
+BEGIN failed--compilation aborted at /usr/share/perl5/Debconf/Config.pm line 7.
+Compilation failed in require at /usr/share/perl5/Debconf/Log.pm line 10.
+Compilation failed in require at (eval 1) line 4.
+BEGIN failed--compilation aborted at (eval 1) line 4.
+) -- aborting
+0 upgraded, 2 newly installed, 0 to remove and 0 not upgraded.
+Need to get 0 B/1618 B of archives.
+After this operation, 2048 B of additional disk space will be used.
+Selecting previously unselected package nemu-hostless-hello.
+(Reading database ... 18751 files and directories currently installed.)
+Preparing to unpack .../nemu-hostless-hello_1.0_riscv64.deb ...
+Unpacking nemu-hostless-hello (1.0) ...
+Selecting previously unselected package nemu-hostless-meta.
+Preparing to unpack .../nemu-hostless-meta_1.0_riscv64.deb ...
+Unpacking nemu-hostless-meta (1.0) ...
+Setting up nemu-hostless-hello (1.0) ...
+Setting up nemu-hostless-meta (1.0) ...
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_LOG_END__
+__NEMU_CHECK_PASS__:full-userland-apt-direct-full-status-install
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_START__
+__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_TARGET__:nemu-hostless-meta
+[1;34m[src/utils/log.c:30 init_log] Log is written to /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-2/nemu-ubuntu-full-focused/nemu.log[0m
+[1;34m[src/monitor/monitor.c:429 init_monitor] Block image requested: /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4[0m
+[1;34m[src/monitor/monitor.c:433 init_monitor] Block overlay requested: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-2/nemu-ubuntu-full-focused/rootfs-overlay.raw[0m
+[1;34m[src/memory/paddr.c:66 init_mem] physical memory area [0x80000000, 0xbfffffff][0m
+[1;34m[src/device/io/mmio.c:78 add_mmio_map] Add mmio map 'serial' at [0x10000000, 0x10000fff][0m
+[1;34m[src/device/disk.c:1633 open_disk_overlay] virtio-blk: overlay=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-2/nemu-ubuntu-full-focused/rootfs-overlay.raw sectors=16777216 backing_readonly=0[0m
+[1;34m[src/device/disk.c:1673 open_disk_image] virtio-blk: image=/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4 size=8589934592 bytes read_mmap=enabled write_target=overlay[0m
+[1;34m[src/device/io/mmio.c:78 add_mmio_map] Add mmio map 'virtio-blk' at [0x10001000, 0x10001fff][0m
+[1;34m[src/device/io/mmio.c:78 add_mmio_map] Add mmio map 'virtio-rng' at [0x10002000, 0x10002fff][0m
+[1;34m[src/device/io/mmio.c:78 add_mmio_map] Add mmio map 'virtio-net' at [0x10004000, 0x10004fff][0m
+[1;34m[src/device/io/mmio.c:78 add_mmio_map] Add mmio map 'goldfish-rtc' at [0x10003000, 0x10003fff][0m
+[1;34m[src/device/io/mmio.c:78 add_mmio_map] Add mmio map 'syscon-reset' at [0x00100000, 0x00100fff][0m
+[1;34m[src/monitor/monitor.c:449 init_monitor] Boot argument a0/hartid = 0x0000000000000000[0m
+[1;34m[src/monitor/monitor.c:453 init_monitor] Boot argument a1/dtb = 0x0000000082200000[0m
+[1;34m[src/monitor/monitor.c:141 load_file_to_pmem] Load image /home/lyg/PA/ysyx-workbench/Linux/env/build/opensbi-nemu-rootfs/platform/generic/firmware/fw_jump.bin at 0x80000000, size = 275808[0m
+[1;34m[src/monitor/monitor.c:141 load_file_to_pmem] Load image /home/lyg/PA/ysyx-workbench/Linux/env/src/linux/arch/riscv/boot/Image at 0x80200000, size = 15465472[0m
+[1;34m[src/monitor/monitor.c:141 load_file_to_pmem] Load image /home/lyg/PA/ysyx-workbench/Linux/build/npc-rv64-nemu-rootfs.dtb at 0x82200000, size = 2594[0m
+[1;34m[src/monitor/monitor.c:49 welcome] Trace: [1;31mOFF[0m[0m
+[1;34m[src/monitor/monitor.c:53 welcome] Build time: 15:14:05, Jun 10 2026[0m
+Welcome to [1;33m[1;41mriscv64[0m-NEMU!
+For help, type "help"
+[1;34m[src/cpu/cpu-exec.c:413 cpu_exec] nemu: STOP after requested budget at pc = 0x0000002aaef601b6[0m
+[1;34m[src/device/disk.c:422 virtio_blk_statistic] virtio-blk async runtime submitted=15331 completed=15331 pending=0 done=0[0m
+[1;34m[src/device/net.c:2180 virtio_net_statistic] virtio-net runtime tx_packets=4484 tx_bytes=329243 rx_packets=187 rx_bytes=19907 tx_errors=0 rx_drops=0 arp=117/117 icmp=0/0 dhcp=2/2 dns=8/8 tcp_segments=83 tcp_replies=60 tcp_http_requests=19 tcp_http_head_requests=1 tcp_http_not_found=3 tcp_http_apt_requests=4 tcp_http_apt_deb_requests=2 tcp_http_large_requests=1 tcp_http_segmented_responses=1 tcp_http_response_segments=22 ctrl=7/0 ctrl_rx=4 ctrl_rx_extra=0 promisc=0 allmulti=0 alluni=0 nomulti=0 nouni=0 nobcast=0 ctrl_mac_table=2 ctrl_mac_addr=0 ctrl_vlan=0 vlan_active=0 vlan_last=0 vlan_last_cmd=0 ctrl_announce=1 announce_pending=0 announce_requested=1 mac_uni=0 mac_multi=1 mac=52:54:00:12:34:56 rx_pending=0[0m
+[nemu-systemd-check] ----------------------
+make[1]: *** [Makefile:716: __check-nemu-systemd-guest] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/Linux'
+make: *** [Makefile:642: check-nemu-systemd-guest-full] Error 2
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/Linux'

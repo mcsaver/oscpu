@@ -1,0 +1,13 @@
+[npc] sim contract
+PASS npc/sim/Makefile
+PASS npc/sim/backends/single.mk
+PASS npc/sim/backends/rv64.mk
+PASS npc/sim/backends/soc.mk
+PASS npc/single/Makefile
+PASS npc/soc/Makefile
+PASS npc/rv64/Makefile
+PASS .github/e2e/profiles/npc-dev.tsv
+PASS .github/e2e/profiles/nemu-dev.tsv
+[npc] dev profile isolation
+PASS npc-dev profile exposes NPC-only contract set
+PASS npc-dev profile avoids NEMU Ubuntu gates

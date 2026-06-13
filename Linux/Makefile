@@ -53,6 +53,8 @@ NEMU_SYSTEMD_CHECK_LOG_DIR ?= $(LOG_ROOT)/riscv64-nemu-systemd-guest-check
 NEMU_SYSTEMD_ROOTFS_OVERLAY ?= $(NEMU_SYSTEMD_CHECK_LOG_DIR)/rootfs-overlay.raw
 NEMU_SYSTEMD_CHECK_MAX_CYCLES ?= 50000000000
 NEMU_SYSTEMD_CHECK_TIMEOUT ?= 1800
+NEMU_SYSTEMD_FULL_CHECK_MAX_CYCLES ?= 80000000000
+NEMU_SYSTEMD_FULL_CHECK_TIMEOUT ?= 3000
 NEMU_SYSTEMD_BOOT_TIMEOUT ?= 900
 NEMU_SYSTEMD_SOAK_SECONDS ?= 20
 NEMU_SYSTEMD_FS_STRESS_MIB ?= 4
@@ -61,6 +63,10 @@ NEMU_SYSTEMD_PROCESS_LOOPS ?= 16
 NEMU_SYSTEMD_INPUT_DELAY ?= 0
 NEMU_SYSTEMD_INPUT_CHUNK_BYTES ?= 8
 NEMU_SYSTEMD_INPUT_CHUNK_DELAY ?= 0
+NEMU_SYSTEMD_APT_INSTALL_DIAG ?= 0
+NEMU_SYSTEMD_APT_INSTALL_ACTUAL ?= 0
+NEMU_SYSTEMD_APT_INSTALL_DIAG_TIMEOUT ?= 300
+NEMU_SYSTEMD_APT_REMOVE_DIAG_TIMEOUT ?= 600
 NEMU_SYSTEMD_UART_RX_STRESS_LINES ?= 512
 NEMU_SYSTEMD_BLOCK_PARALLEL_JOBS ?= 4
 NEMU_SYSTEMD_BLOCK_JOB_MIB ?= 1
@@ -81,8 +87,8 @@ NEMU_SYSTEMD_FULL_CHECK_LOG_DIR ?= $(LOG_ROOT)/riscv64-nemu-systemd-guest-full-c
 NEMU_SYSTEMD_FULL_SOAK_CHECK_LOG_DIR ?= $(LOG_ROOT)/riscv64-nemu-systemd-guest-full-soak-check
 NEMU_SYSTEMD_ROOTFS_FLAVOR ?= systemd-minimal
 NEMU_SYSTEMD_ROOTFS_CHECK_TARGET = $(if $(filter full,$(NEMU_SYSTEMD_ROOTFS_FLAVOR)),check-ubuntu-rootfs-full,$(if $(filter interactive,$(NEMU_SYSTEMD_ROOTFS_FLAVOR)),check-ubuntu-rootfs-interactive,check-ubuntu-rootfs-systemd))
-NEMU_SYSTEMD_SOAK_CHECK_MAX_CYCLES ?= 60000000000
-NEMU_SYSTEMD_SOAK_CHECK_TIMEOUT ?= 2400
+NEMU_SYSTEMD_SOAK_CHECK_MAX_CYCLES ?= 90000000000
+NEMU_SYSTEMD_SOAK_CHECK_TIMEOUT ?= 3600
 NEMU_SYSTEMD_SOAK_SOAK_SECONDS ?= 300
 NEMU_SYSTEMD_SOAK_FS_STRESS_MIB ?= 32
 NEMU_SYSTEMD_SOAK_FS_TREE_FILES ?= 256
@@ -90,6 +96,12 @@ NEMU_SYSTEMD_SOAK_PROCESS_LOOPS ?= 128
 NEMU_SYSTEMD_SOAK_UART_RX_STRESS_LINES ?= 1024
 NEMU_SYSTEMD_SOAK_BLOCK_PARALLEL_JOBS ?= 4
 NEMU_SYSTEMD_SOAK_BLOCK_JOB_MIB ?= 4
+NPC_SYSTEMD_CHECK_LOG_DIR ?= $(LOG_ROOT)/riscv64-npc-systemd-guest-check
+NPC_SYSTEMD_CHECK_MAX_CYCLES ?= 3000000000
+NPC_SYSTEMD_HOST_TIMEOUT ?= 10800
+NPC_SYSTEMD_PROMPT ?= root@ysyx-ubuntu2204:~\#
+NPC_SYSTEMD_UART_TRACE_LIMIT ?= 128
+NPC_SYSTEMD_PROGRESS ?= 0
 NEMU_PERFORMANCE_REQUIRED ?= 1
 NEMU_MACHINE_INFO_FILE ?= $(BUILD_DIR)/nemu-machine-info.txt
 NEMU_MACHINE_INFO_LOG ?= $(BUILD_DIR)/nemu-machine-info.log
@@ -139,6 +151,13 @@ UBUNTU_SHELL_DTB ?= $(BUILD_DIR)/npc-rv64-ubuntu-shell-initramfs.dtb
 NPC_ROOTFS_DTB ?= $(BUILD_DIR)/npc-rv64-rootfs.dtb
 NEMU_ROOTFS_DTB ?= $(BUILD_DIR)/npc-rv64-nemu-rootfs.dtb
 ROOTFS_DTB ?= $(if $(filter riscv64-nemu,$(ARCH)),$(NEMU_ROOTFS_DTB),$(NPC_ROOTFS_DTB))
+DTB_BOOTARGS_STAMP_DIR ?= $(BUILD_DIR)/generated/.dtb-bootargs
+KERNEL_DTB_BOOTARGS_STAMP := $(DTB_BOOTARGS_STAMP_DIR)/npc-rv64.stamp
+BUSYBOX_INITRAMFS_DTB_BOOTARGS_STAMP := $(DTB_BOOTARGS_STAMP_DIR)/npc-rv64-initramfs.stamp
+UBUNTU_PROBE_DTB_BOOTARGS_STAMP := $(DTB_BOOTARGS_STAMP_DIR)/npc-rv64-ubuntu-initramfs.stamp
+UBUNTU_SHELL_DTB_BOOTARGS_STAMP := $(DTB_BOOTARGS_STAMP_DIR)/npc-rv64-ubuntu-shell-initramfs.stamp
+NPC_ROOTFS_DTB_BOOTARGS_STAMP := $(DTB_BOOTARGS_STAMP_DIR)/npc-rv64-rootfs.stamp
+NEMU_ROOTFS_DTB_BOOTARGS_STAMP := $(DTB_BOOTARGS_STAMP_DIR)/npc-rv64-nemu-rootfs.stamp
 
 OPENSBI_PROFILE ?= $(if $(filter riscv64-nemu,$(ARCH)),nemu,npc)
 OPENSBI_BUILD_DIR ?= $(ENV_ROOT)/build/opensbi-$(OPENSBI_PROFILE)
@@ -247,11 +266,12 @@ ROOTFS_OVERLAY := $(if $(strip $(NEMU_RUN_ROOTFS_OVERLAY)),--block-overlay='$(NE
         check-ubuntu-rootfs check-ubuntu-rootfs-systemd ubuntu-rootfs-systemd-image \
         ubuntu-rootfs-systemd-overlay ubuntu-rootfs-interactive-image ubuntu-rootfs-full-image \
         check-ubuntu-rootfs-interactive check-ubuntu-rootfs-full \
+        check-npc-systemd-guest __check-npc-systemd-guest \
         check-nemu-systemd-guest check-nemu-systemd-guest-long \
         check-nemu-systemd-guest-interactive check-nemu-systemd-guest-full \
         check-nemu-systemd-guest-full-soak \
         check-nemu-systemd-guest-soak check-nemu-performance-config check-nemu-kernel-config nemu-machine-info nemu-monitor-cmd-smoke nemu-qmp-smoke nemu-gdbstub-smoke nemu-rootfs-machine-info nemu-rootfs-overlay-machine-info __check-nemu-systemd-guest clean clean-logs \
-        $(TOOL_SMOKES) $(TOOL_BOOT_SMOKES)
+        FORCE $(TOOL_SMOKES) $(TOOL_BOOT_SMOKES)
 
 help:
 	@printf '%s\n' 'RV64 Linux/Ubuntu 顶层入口'
@@ -308,6 +328,8 @@ help:
 	@printf '%s\n' '      对 full flavor 独立 ext4 执行实物检查；未重建 full 镜像时应明确失败。'
 	@printf '%s\n' '  make ARCH=riscv64-nemu check-nemu-systemd-guest-full'
 	@printf '%s\n' '      用 full flavor 独立 ext4 启动 NEMU focused guest gate；缺镜像时先构建 full rootfs。'
+	@printf '%s\n' '  make check-npc-systemd-guest'
+	@printf '%s\n' '      启动 NPC Ubuntu rootfs，等待 root 串口提示符后通过 NPC_UART_RX_FILE 注入最小 guest 检查脚本。'
 	@printf '%s\n' '  make ARCH=riscv64-nemu check-nemu-systemd-guest-full-soak'
 	@printf '%s\n' '      full flavor 独立 ext4 的重型稳定性 gate，复用 300s soak/32MiB fs stress 等 soak 参数，并保留 full 用户态 runtime hard gate。'
 	@printf '%s\n' '  make check-nemu-systemd-guest'
@@ -601,6 +623,9 @@ check-ubuntu-rootfs-full:
 	UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_FULL_IMAGE)' UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 UBUNTU_ROOTFS_FLAVOR=full \
 	  bash '$(SCRIPT_DIR)/check-ubuntu-rootfs.sh'
 
+check-npc-systemd-guest:
+	+$(MAKE) ARCH=riscv64-npc BOOT=ubuntu-rootfs __check-npc-systemd-guest
+
 check-nemu-systemd-guest:
 	+$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs __check-nemu-systemd-guest
 
@@ -622,6 +647,8 @@ check-nemu-systemd-guest-full:
 	  NEMU_SYSTEMD_ROOTFS_FLAVOR=full \
 	  NEMU_SYSTEMD_CHECK_LOG_DIR='$(NEMU_SYSTEMD_FULL_CHECK_LOG_DIR)' \
 	  NEMU_SYSTEMD_ROOTFS_OVERLAY='$(NEMU_SYSTEMD_FULL_CHECK_LOG_DIR)/rootfs-overlay.raw' \
+	  NEMU_SYSTEMD_CHECK_MAX_CYCLES='$(NEMU_SYSTEMD_FULL_CHECK_MAX_CYCLES)' \
+	  NEMU_SYSTEMD_CHECK_TIMEOUT='$(NEMU_SYSTEMD_FULL_CHECK_TIMEOUT)' \
 	  __check-nemu-systemd-guest
 
 check-nemu-systemd-guest-full-soak:
@@ -675,6 +702,17 @@ check-nemu-kernel-config: $(LINUX_IMAGE)
 	LINUX_KERNEL_CONFIG='$(ENV_ROOT)/src/linux/.config' \
 	  bash '$(SCRIPT_DIR)/check-nemu-kernel-config.sh'
 
+__check-npc-systemd-guest: $(RUN_DEPS) check-ubuntu-rootfs-systemd
+	LOG_DIR='$(NPC_SYSTEMD_CHECK_LOG_DIR)' \
+	CONSOLE_LOG='$(NPC_SYSTEMD_CHECK_LOG_DIR)/console.log' \
+	NPC_LOG='$(NPC_SYSTEMD_CHECK_LOG_DIR)/npc.log' \
+	NPC_SYSTEMD_CHECK_MAX_CYCLES='$(NPC_SYSTEMD_CHECK_MAX_CYCLES)' \
+	NPC_SYSTEMD_HOST_TIMEOUT='$(NPC_SYSTEMD_HOST_TIMEOUT)' \
+	NPC_SYSTEMD_PROMPT='$(NPC_SYSTEMD_PROMPT)' \
+	NPC_SYSTEMD_UART_TRACE_LIMIT='$(NPC_SYSTEMD_UART_TRACE_LIMIT)' \
+	NPC_SYSTEMD_PROGRESS='$(NPC_SYSTEMD_PROGRESS)' \
+	  bash '$(SCRIPT_DIR)/check-npc-systemd-guest.sh'
+
 __check-nemu-systemd-guest: $(RUN_DEPS) $(NEMU_SYSTEMD_ROOTFS_CHECK_TARGET) check-nemu-performance-config check-nemu-kernel-config
 	LOG_DIR='$(NEMU_SYSTEMD_CHECK_LOG_DIR)' \
 	LOG_FILE='$(NEMU_SYSTEMD_CHECK_LOG_DIR)/nemu.log' \
@@ -703,6 +741,10 @@ __check-nemu-systemd-guest: $(RUN_DEPS) $(NEMU_SYSTEMD_ROOTFS_CHECK_TARGET) chec
 		NEMU_SYSTEMD_INPUT_DELAY='$(NEMU_SYSTEMD_INPUT_DELAY)' \
 		NEMU_SYSTEMD_INPUT_CHUNK_BYTES='$(NEMU_SYSTEMD_INPUT_CHUNK_BYTES)' \
 		NEMU_SYSTEMD_INPUT_CHUNK_DELAY='$(NEMU_SYSTEMD_INPUT_CHUNK_DELAY)' \
+		NEMU_SYSTEMD_APT_INSTALL_DIAG='$(NEMU_SYSTEMD_APT_INSTALL_DIAG)' \
+		NEMU_SYSTEMD_APT_INSTALL_ACTUAL='$(NEMU_SYSTEMD_APT_INSTALL_ACTUAL)' \
+		NEMU_SYSTEMD_APT_INSTALL_DIAG_TIMEOUT='$(NEMU_SYSTEMD_APT_INSTALL_DIAG_TIMEOUT)' \
+		NEMU_SYSTEMD_APT_REMOVE_DIAG_TIMEOUT='$(NEMU_SYSTEMD_APT_REMOVE_DIAG_TIMEOUT)' \
 		  bash '$(SCRIPT_DIR)/check-nemu-systemd-guest.sh'
 
 dtb: $(KERNEL_DTB)
@@ -744,20 +786,27 @@ $(BUILD_DIR):
 $(BUILD_DIR)/generated:
 	mkdir -p '$@'
 
-$(KERNEL_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) | $(BUILD_DIR) $(BUILD_DIR)/generated
+$(DTB_BOOTARGS_STAMP_DIR):
+	mkdir -p '$@'
+
+$(DTB_BOOTARGS_STAMP_DIR)/%.stamp: FORCE | $(DTB_BOOTARGS_STAMP_DIR)
+	@printf '%s\n' 'BOOTARGS_EXTRA=$(BOOTARGS_EXTRA)' > '$@.tmp'
+	@if cmp -s '$@.tmp' '$@'; then rm -f '$@.tmp'; else mv '$@.tmp' '$@'; fi
+
+$(KERNEL_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(KERNEL_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
 	$(PYTHON) '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode kernel \
 	  --bootargs-extra '$(BOOTARGS_EXTRA)' \
 	  --output '$(BUILD_DIR)/generated/npc-rv64.dts'
 	$(DTC) -I dts -O dtb -o '$@' '$(BUILD_DIR)/generated/npc-rv64.dts'
 
-$(BUSYBOX_INITRAMFS_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(BUSYBOX_INITRD) | $(BUILD_DIR) $(BUILD_DIR)/generated
+$(BUSYBOX_INITRAMFS_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(BUSYBOX_INITRD) $(BUSYBOX_INITRAMFS_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
 	$(PYTHON) '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode initramfs \
 	  --bootargs-extra '$(BOOTARGS_EXTRA)' \
 	  --initrd-image '$(BUSYBOX_INITRD)' \
 	  --output '$(BUILD_DIR)/generated/npc-rv64-initramfs.dts'
 	$(DTC) -I dts -O dtb -o '$@' '$(BUILD_DIR)/generated/npc-rv64-initramfs.dts'
 
-$(UBUNTU_PROBE_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(UBUNTU_PROBE_INITRD) | $(BUILD_DIR) $(BUILD_DIR)/generated
+$(UBUNTU_PROBE_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(UBUNTU_PROBE_INITRD) $(UBUNTU_PROBE_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
 	$(PYTHON) '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode initramfs \
 	  --bootargs-key ubuntu_initramfs \
 	  --bootargs-extra '$(BOOTARGS_EXTRA)' \
@@ -766,7 +815,7 @@ $(UBUNTU_PROBE_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(UBUNTU_PROBE_INITRD) | $(BU
 	  --output '$(BUILD_DIR)/generated/npc-rv64-ubuntu-initramfs.dts'
 	$(DTC) -I dts -O dtb -o '$@' '$(BUILD_DIR)/generated/npc-rv64-ubuntu-initramfs.dts'
 
-$(UBUNTU_SHELL_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(UBUNTU_SHELL_INITRD) | $(BUILD_DIR) $(BUILD_DIR)/generated
+$(UBUNTU_SHELL_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(UBUNTU_SHELL_INITRD) $(UBUNTU_SHELL_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
 	$(PYTHON) '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode initramfs \
 	  --bootargs-key ubuntu_initramfs \
 	  --bootargs-extra '$(BOOTARGS_EXTRA)' \
@@ -775,13 +824,13 @@ $(UBUNTU_SHELL_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(UBUNTU_SHELL_INITRD) | $(BU
 	  --output '$(BUILD_DIR)/generated/npc-rv64-ubuntu-shell-initramfs.dts'
 	$(DTC) -I dts -O dtb -o '$@' '$(BUILD_DIR)/generated/npc-rv64-ubuntu-shell-initramfs.dts'
 
-$(NPC_ROOTFS_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) | $(BUILD_DIR) $(BUILD_DIR)/generated
+$(NPC_ROOTFS_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(NPC_ROOTFS_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
 	$(PYTHON) '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode rootfs \
 	  --bootargs-extra '$(BOOTARGS_EXTRA)' \
 	  --output '$(BUILD_DIR)/generated/npc-rv64-rootfs.dts'
 	$(DTC) -I dts -O dtb -o '$@' '$(BUILD_DIR)/generated/npc-rv64-rootfs.dts'
 
-$(NEMU_ROOTFS_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) | $(BUILD_DIR) $(BUILD_DIR)/generated
+$(NEMU_ROOTFS_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(NEMU_ROOTFS_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
 	$(PYTHON) '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode rootfs \
 	  --reset-syscon \
 	  --virtio-rng \

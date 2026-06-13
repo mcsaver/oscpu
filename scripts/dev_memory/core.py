@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 
-SCHEMA_VERSION = "3"
+SCHEMA_VERSION = "4"
 DEFAULT_ROOT = ".github"
 DEFAULT_DB = ".github/cache/github-index.sqlite"
 DEFAULT_DB_BACKUP_ROOT = ".github/db-backup"
@@ -150,12 +150,30 @@ def normalize_index_path(value: str, root: str = DEFAULT_ROOT) -> str:
     return f"{root}/{normalized}"
 
 
-def open_db(db_path: Path) -> sqlite3.Connection:
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(db_path))
+def open_db(
+    db_path: Path,
+    *,
+    readonly: bool = False,
+    timeout: float = 30.0,
+    busy_timeout_ms: int | None = None,
+) -> sqlite3.Connection:
+    if readonly:
+        uri = db_path.resolve().as_uri() + "?mode=ro"
+        conn = sqlite3.connect(uri, uri=True, timeout=timeout)
+    else:
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(str(db_path), timeout=timeout)
     conn.row_factory = sqlite3.Row
+    if busy_timeout_ms is None:
+        busy_timeout_ms = int(timeout * 1000)
+    conn.execute(f"PRAGMA busy_timeout = {int(busy_timeout_ms)}")
     conn.execute("PRAGMA foreign_keys = ON")
-    conn.execute("PRAGMA journal_mode = WAL")
+    if readonly:
+        # 只读 recall/load/query 路径不能尝试切换 WAL，否则会在已有写者或
+        # UNC/WSL 混合访问时拿写锁，反而让 DB-first 记忆入口不可用。
+        conn.execute("PRAGMA query_only = ON")
+    else:
+        conn.execute("PRAGMA journal_mode = WAL")
     return conn
 
 
@@ -243,6 +261,36 @@ def init_schema(conn: sqlite3.Connection) -> bool:
           details TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS access_log (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          used_at TEXT NOT NULL,
+          surface TEXT NOT NULL,
+          op TEXT NOT NULL,
+          source TEXT NOT NULL,
+          target TEXT NOT NULL,
+          ok INTEGER NOT NULL,
+          result_count INTEGER NOT NULL,
+          details TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS evidence_assets (
+          path TEXT PRIMARY KEY,
+          run_id TEXT NOT NULL,
+          task_slug TEXT NOT NULL,
+          profile TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          size_bytes INTEGER NOT NULL,
+          mtime_ns INTEGER NOT NULL,
+          sha256 TEXT NOT NULL,
+          line_count INTEGER NOT NULL,
+          encoding TEXT NOT NULL,
+          summary TEXT NOT NULL,
+          head_excerpt TEXT NOT NULL,
+          tail_excerpt TEXT NOT NULL,
+          markers TEXT NOT NULL,
+          indexed_at TEXT NOT NULL
+        );
+
         CREATE INDEX IF NOT EXISTS idx_files_kind ON files(kind);
         CREATE INDEX IF NOT EXISTS idx_files_status ON files(index_status, exists_flag);
         CREATE INDEX IF NOT EXISTS idx_files_declared_status ON files(declared_status);
@@ -250,6 +298,11 @@ def init_schema(conn: sqlite3.Connection) -> bool:
         CREATE INDEX IF NOT EXISTS idx_file_chunks_heading ON file_chunks(heading);
         CREATE INDEX IF NOT EXISTS idx_db_documents_kind ON db_documents(kind);
         CREATE INDEX IF NOT EXISTS idx_db_document_chunks_path ON db_document_chunks(path, ordinal);
+        CREATE INDEX IF NOT EXISTS idx_access_log_used_at ON access_log(used_at);
+        CREATE INDEX IF NOT EXISTS idx_access_log_op ON access_log(op, used_at);
+        CREATE INDEX IF NOT EXISTS idx_evidence_assets_run ON evidence_assets(run_id, path);
+        CREATE INDEX IF NOT EXISTS idx_evidence_assets_profile ON evidence_assets(profile, indexed_at);
+        CREATE INDEX IF NOT EXISTS idx_evidence_assets_kind ON evidence_assets(kind);
         """
     )
     if has_fts5:
@@ -305,6 +358,35 @@ def record_event(conn: sqlite3.Connection, action: str, details: dict[str, objec
     conn.execute(
         "INSERT INTO events(ts, action, details) VALUES(?, ?, ?)",
         (utc_now(), action, json.dumps(details, ensure_ascii=False, sort_keys=True)),
+    )
+
+
+def record_access(
+    conn: sqlite3.Connection,
+    *,
+    surface: str,
+    op: str,
+    source: str = "",
+    target: str = "",
+    ok: bool = True,
+    result_count: int = 0,
+    details: dict[str, object] | None = None,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO access_log(used_at, surface, op, source, target, ok, result_count, details)
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            utc_now(),
+            surface,
+            op,
+            source,
+            target,
+            1 if ok else 0,
+            int(result_count),
+            json.dumps(details or {}, ensure_ascii=False, sort_keys=True),
+        ),
     )
 
 
@@ -949,8 +1031,7 @@ def fetch_meta(conn: sqlite3.Connection) -> dict[str, str]:
 def print_stat(args: argparse.Namespace) -> int:
     repo_root = resolve_repo_path(args.repo_root)
     db_path = (repo_root / args.db).resolve()
-    conn = open_db(db_path)
-    init_schema(conn)
+    conn = open_db(db_path, readonly=True)
     meta = fetch_meta(conn)
     total = conn.execute("SELECT COUNT(*) AS c FROM files").fetchone()["c"]
     indexed = conn.execute("SELECT COUNT(*) AS c FROM files WHERE index_status='indexed'").fetchone()["c"]
@@ -959,11 +1040,16 @@ def print_stat(args: argparse.Namespace) -> int:
     stored = conn.execute("SELECT COUNT(*) AS c FROM db_documents").fetchone()["c"]
     stored_chunks = conn.execute("SELECT COUNT(*) AS c FROM db_document_chunks").fetchone()["c"]
     stored_tokens = conn.execute("SELECT COALESCE(SUM(token_estimate), 0) AS c FROM db_document_chunks").fetchone()["c"]
+    evidence_assets = conn.execute("SELECT COUNT(*) AS c FROM evidence_assets").fetchone()["c"]
+    access = conn.execute(
+        "SELECT COUNT(*) AS c, MAX(used_at) AS last_used_at FROM access_log"
+    ).fetchone()
     print(f"db={db_path}")
     print(f"schema_version={meta.get('schema_version', '')}")
     print(f"fts5={meta.get('fts5', '0')}")
     print(f"root={meta.get('root', '')}")
     print(f"last_rebuild_at={meta.get('last_rebuild_at', '')}")
+    print(f"last_used_at={access['last_used_at'] or ''}")
     print(f"files={total}")
     print(f"indexed={indexed}")
     print(f"chunks={chunks}")
@@ -971,6 +1057,8 @@ def print_stat(args: argparse.Namespace) -> int:
     print(f"stored_documents={stored}")
     print(f"stored_chunks={stored_chunks}")
     print(f"stored_token_estimate={stored_tokens}")
+    print(f"evidence_assets={evidence_assets}")
+    print(f"access_log_entries={access['c']}")
     print("[status]")
     for row in conn.execute(
         "SELECT index_status, COUNT(*) AS c FROM files GROUP BY index_status ORDER BY index_status"

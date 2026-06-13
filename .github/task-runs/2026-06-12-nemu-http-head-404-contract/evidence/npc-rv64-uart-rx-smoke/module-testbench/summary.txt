@@ -1,0 +1,11 @@
+# NPC single module testbench summary
+
+- result_dir: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-12-nemu-http-head-404-contract/evidence/npc-rv64-uart-rx-smoke/module-testbench
+- tool: Icarus Verilog version 12.0 (stable) ()
+
+- PASS tb_uart
+- PASS tb_axi_lite_to_uart
+
+- total: 2
+- passed: 2
+- failed: 0

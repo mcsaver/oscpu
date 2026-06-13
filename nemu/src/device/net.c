@@ -107,6 +107,7 @@
 #define VIRTIO_NET_ETH_MIN_FRAME 60u
 #define VIRTIO_NET_FRAME_MAX 1514u
 #define VIRTIO_NET_RX_PENDING_CAP 8u
+#define VIRTIO_NET_TCP_HTTP_SEGMENT_PAYLOAD_MAX 1200u
 #define VIRTIO_NET_VLAN_COUNT 4096u
 
 #define ETH_P_IP 0x0800u
@@ -192,6 +193,13 @@ typedef struct {
   uint64_t tcp_segments;
   uint64_t tcp_replies;
   uint64_t tcp_http_requests;
+  uint64_t tcp_http_head_requests;
+  uint64_t tcp_http_not_found;
+  uint64_t tcp_http_apt_requests;
+  uint64_t tcp_http_apt_deb_requests;
+  uint64_t tcp_http_large_requests;
+  uint64_t tcp_http_segmented_responses;
+  uint64_t tcp_http_response_segments;
   uint64_t ctrl_commands;
   uint64_t ctrl_rx_commands;
   uint64_t ctrl_rx_extra_commands;
@@ -1029,13 +1037,283 @@ static bool virtio_net_send_tcp_reply(const uint8_t *frame, const uint8_t *ip,
   return queued;
 }
 
+static bool virtio_net_send_tcp_payload(const uint8_t *frame, const uint8_t *ip,
+    const uint8_t *tcp, uint32_t seq, uint32_t ack,
+    const uint8_t *payload, uint32_t payload_len) {
+  if (payload_len == 0) {
+    return virtio_net_send_tcp_reply(frame, ip, tcp,
+        TCP_FLAG_PSH | TCP_FLAG_ACK | TCP_FLAG_FIN,
+        seq, ack, NULL, 0);
+  }
+
+  uint32_t offset = 0;
+  uint32_t segments = 0;
+  while (offset < payload_len) {
+    uint32_t chunk_len = payload_len - offset;
+    if (chunk_len > VIRTIO_NET_TCP_HTTP_SEGMENT_PAYLOAD_MAX) {
+      chunk_len = VIRTIO_NET_TCP_HTTP_SEGMENT_PAYLOAD_MAX;
+    }
+    uint8_t flags = TCP_FLAG_PSH | TCP_FLAG_ACK;
+    if (offset + chunk_len == payload_len) {
+      flags |= TCP_FLAG_FIN;
+    }
+    if (!virtio_net_send_tcp_reply(frame, ip, tcp, flags,
+          seq + offset, ack, payload + offset, chunk_len)) {
+      return false;
+    }
+    offset += chunk_len;
+    segments++;
+  }
+  if (segments > 1) {
+    net_stats.tcp_http_segmented_responses++;
+  }
+  net_stats.tcp_http_response_segments += segments;
+  return true;
+}
+
+static bool virtio_net_send_http_response(const uint8_t *frame, const uint8_t *ip,
+    const uint8_t *tcp, uint32_t seq, uint32_t ack, const char *status,
+    const char *content_type, const uint8_t *body, uint32_t body_len,
+    bool include_body) {
+  static uint8_t response[8192];
+  int header_len;
+  if (content_type != NULL) {
+    header_len = snprintf((char *)response, sizeof(response),
+        "HTTP/1.0 %s\r\n"
+        "Content-Type: %s\r\n"
+        "Content-Length: %u\r\n"
+        "Connection: close\r\n"
+        "\r\n",
+        status, content_type, body_len);
+  } else {
+    header_len = snprintf((char *)response, sizeof(response),
+        "HTTP/1.0 %s\r\n"
+        "Content-Length: %u\r\n"
+        "Connection: close\r\n"
+        "\r\n",
+        status, body_len);
+  }
+  if (header_len < 0 || (uint32_t)header_len >= sizeof(response)) {
+    return false;
+  }
+
+  uint32_t response_len = (uint32_t)header_len;
+  if (include_body && body_len != 0) {
+    if (body == NULL || response_len + body_len > sizeof(response)) {
+      return false;
+    }
+    memcpy(response + response_len, body, body_len);
+    response_len += body_len;
+  }
+  return virtio_net_send_tcp_payload(frame, ip, tcp, seq, ack,
+      response, response_len);
+}
+
 static bool virtio_net_handle_tcp_http(const uint8_t *frame, uint32_t len) {
-  static const uint8_t http_response[] =
-    "HTTP/1.0 204 No Content\r\n"
-    "Content-Length: 0\r\n"
-    "Connection: close\r\n"
-    "\r\n";
-  static const char http_get_prefix[] = "GET /nemu-health ";
+#define NEMU_HTTP_LARGE_64 \
+    "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ._"
+#define NEMU_HTTP_LARGE_256 \
+    NEMU_HTTP_LARGE_64 NEMU_HTTP_LARGE_64 NEMU_HTTP_LARGE_64 NEMU_HTTP_LARGE_64
+#define NEMU_HTTP_LARGE_1024 \
+    NEMU_HTTP_LARGE_256 NEMU_HTTP_LARGE_256 NEMU_HTTP_LARGE_256 NEMU_HTTP_LARGE_256
+#define NEMU_HTTP_LARGE_4096 \
+    NEMU_HTTP_LARGE_1024 NEMU_HTTP_LARGE_1024 NEMU_HTTP_LARGE_1024 NEMU_HTTP_LARGE_1024
+  static const uint8_t http_empty_body[] = "";
+  static const uint8_t http_not_found_body[] = "not found\n";
+  static const uint8_t http_large_body[] = NEMU_HTTP_LARGE_4096;
+  static const uint8_t nemu_apt_release[] =
+    "Suite: jammy\n"
+    "Codename: jammy\n"
+    "Components: main\n"
+    "Architectures: riscv64\n"
+    "Date: Fri, 12 Jun 2026 00:00:00 UTC\n"
+    "MD5Sum:\n"
+    " 438d0b474f7d0dd6a4eb1258a9803309 1041 main/binary-riscv64/Packages\n"
+    " d50ff3b8de523a6d8af6e204dedac9e3 484 main/binary-riscv64/Packages.gz\n"
+    "SHA256:\n"
+    " 5ab350d54205a6164abb316eca97414ba3596d47e48fb926ced0ad73958bb3e1 1041 main/binary-riscv64/Packages\n"
+    " 707ca8cf2ad64e7e26708f3e92ea67c205b3a6f97f3caabbe4aeab56906b9b8c 484 main/binary-riscv64/Packages.gz\n";
+  static const uint8_t nemu_apt_packages[] =
+    "Package: nemu-hostless-hello\n"
+    "Version: 1.0\n"
+    "Architecture: riscv64\n"
+    "Maintainer: NEMU Hostless Apt <nemu@example.invalid>\n"
+    "Installed-Size: 1\n"
+    "Filename: pool/main/n/nemu-hostless-hello/nemu-hostless-hello_1.0_riscv64.deb\n"
+    "Size: 722\n"
+    "MD5sum: 1c2cb7034d8dc6f5d1ef3b5edfa38bd9\n"
+    "SHA256: 073216e022c5d7f98d7d07279921a2576920784a0895d870c5f962cb07647187\n"
+    "Section: base\n"
+    "Priority: optional\n"
+    "Description: NEMU hostless apt install smoke package\n"
+    " This package proves that NEMU hostless APT can fetch and install a real deb.\n"
+    "\n"
+    "Package: nemu-hostless-meta\n"
+    "Version: 1.0\n"
+    "Architecture: riscv64\n"
+    "Maintainer: NEMU Hostless Apt <nemu@example.invalid>\n"
+    "Depends: nemu-hostless-hello (= 1.0)\n"
+    "Installed-Size: 1\n"
+    "Filename: pool/main/n/nemu-hostless-meta/nemu-hostless-meta_1.0_riscv64.deb\n"
+    "Size: 896\n"
+    "MD5sum: 887bf63847b0ea00d1eb86287b3999d9\n"
+    "SHA256: b40a91a80a056423051d440ef614d76d36666f88b29ed8a2a86aa76716e3d0e5\n"
+    "Section: base\n"
+    "Priority: optional\n"
+    "Description: NEMU hostless apt dependency smoke package\n"
+    " This package depends on nemu-hostless-hello to prove apt dependency install.\n"
+    "\n";
+  static const uint8_t nemu_apt_packages_gz[] =
+    "\037\213\010\000\000\000\000\000\002\003\265\222\115\217\323\060"
+    "\020\206\357\376\025\076\302\241\135\307\111\374\121\001\242\122"
+    "\101\313\241\250\122\167\271\256\046\366\204\130\353\070\121\354"
+    "\126\054\277\036\167\323\135\241\245\160\000\221\050\122\062\032"
+    "\075\236\274\363\354\300\334\303\127\134\321\200\375\141\321\015"
+    "\061\171\214\161\321\241\367\003\371\202\123\164\103\130\321\142"
+    "\311\310\172\062\235\113\150\322\141\312\355\223\213\346\050\052"
+    "\262\005\027\122\176\160\132\321\317\037\266\267\364\372\214\240"
+    "\353\061\321\067\047\352\173\374\006\375\350\161\351\302\021\274"
+    "\263\357\310\247\020\023\170\217\166\261\167\337\063\254\040\037"
+    "\235\307\000\175\176\037\207\301\137\365\231\170\225\357\137\147"
+    "\272\124\273\313\343\335\235\007\132\132\154\310\114\225\234\223"
+    "\355\246\216\207\076\237\140\270\151\044\053\053\253\254\021\155"
+    "\155\013\154\313\246\106\333\102\251\032\253\311\376\172\315\153"
+    "\261\242\114\226\274\020\310\070\067\265\225\255\126\126\132\046"
+    "\271\324\232\027\300\153\051\064\147\122\125\300\224\256\255\222"
+    "\314\324\255\026\231\315\244\250\144\241\044\331\347\204\036\063"
+    "\153\040\042\331\115\156\230\134\172\130\321\141\074\225\301\223"
+    "\015\106\063\271\161\156\172\214\354\351\157\050\344\310\334\234"
+    "\015\215\375\160\217\164\234\327\103\350\115\347\342\323\027\035"
+    "\247\341\210\221\246\016\322\013\302\172\167\103\015\004\332\142"
+    "\062\035\205\140\237\171\100\047\004\117\163\074\113\102\166\227"
+    "\267\336\143\202\377\266\364\015\216\030\154\274\150\032\175\365"
+    "\366\164\334\353\277\064\343\064\367\205\322\157\274\120\132\074"
+    "\173\241\224\154\132\121\252\112\066\014\201\261\354\105\243\004"
+    "\317\325\122\153\375\223\027\115\305\100\027\240\030\260\132\124"
+    "\274\144\165\141\253\212\141\053\212\312\112\141\113\221\257\126"
+    "\251\206\153\264\012\070\050\001\040\205\314\056\225\226\141\375"
+    "\317\136\330\307\370\060\230\207\077\252\061\267\105\072\204\213"
+    "\071\247\141\226\347\045\362\154\111\126\343\007\376\373\060\051"
+    "\021\004\000\000";
+  static const uint8_t nemu_apt_hello_deb[] =
+    "\041\074\141\162\143\150\076\012\144\145\142\151\141\156\055\142"
+    "\151\156\141\162\171\040\040\040\061\067\070\061\062\062\062\064"
+    "\060\060\040\040\060\040\040\040\040\040\060\040\040\040\040\040"
+    "\061\060\060\066\064\064\040\040\064\040\040\040\040\040\040\040"
+    "\040\040\140\012\062\056\060\012\143\157\156\164\162\157\154\056"
+    "\164\141\162\056\147\172\040\040\061\067\070\061\062\062\062\064"
+    "\060\060\040\040\060\040\040\040\040\040\060\040\040\040\040\040"
+    "\061\060\060\066\064\064\040\040\063\062\064\040\040\040\040\040"
+    "\040\040\140\012\037\213\010\000\000\000\000\000\002\003\355\321"
+    "\337\112\303\060\024\006\360\136\347\051\316\013\254\153\267\266"
+    "\203\042\342\100\301\233\311\300\351\175\226\035\155\130\226\224"
+    "\044\033\372\366\166\235\023\034\250\127\023\205\357\007\045\177"
+    "\232\234\323\362\245\303\344\354\262\316\244\054\373\261\163\072"
+    "\366\363\274\034\345\243\252\250\016\373\223\111\126\046\124\046"
+    "\277\140\033\242\364\104\211\167\056\176\167\356\247\367\377\124"
+    "\072\124\316\106\357\314\231\363\257\212\342\313\374\213\161\376"
+    "\071\377\074\037\147\125\102\031\362\077\273\271\124\153\371\314"
+    "\065\131\336\154\007\215\013\321\160\010\203\206\215\161\342\221"
+    "\175\320\316\326\224\247\231\270\147\025\373\305\122\006\026\163"
+    "\257\235\327\361\265\046\327\356\267\245\021\123\257\032\035\273"
+    "\123\133\337\325\363\072\250\135\125\210\231\324\066\166\017\373"
+    "\232\356\156\146\017\164\373\336\203\246\155\244\213\175\333\053"
+    "\176\221\233\326\160\252\355\116\032\275\272\024\327\034\224\327"
+    "\355\241\137\177\353\370\145\044\273\133\332\166\241\031\103\141"
+    "\343\326\114\355\341\027\004\055\032\035\216\053\152\275\333\161"
+    "\240\330\310\170\122\141\072\137\220\222\226\236\070\252\206\244"
+    "\135\175\324\223\344\131\032\132\361\062\025\011\000\000\000\000"
+    "\000\000\000\000\000\000\000\000\000\000\000\000\300\337\367\006"
+    "\077\031\213\103\000\050\000\000\144\141\164\141\056\164\141\162"
+    "\056\147\172\040\040\040\040\040\061\067\070\061\062\062\062\064"
+    "\060\060\040\040\060\040\040\040\040\040\060\040\040\040\040\040"
+    "\061\060\060\066\064\064\040\040\062\060\066\040\040\040\040\040"
+    "\040\040\140\012\037\213\010\000\000\000\000\000\002\003\355\321"
+    "\061\216\302\060\020\100\121\327\234\302\027\000\333\331\214\175"
+    "\202\055\227\216\003\244\360\222\042\301\053\073\271\377\106\101"
+    "\064\110\100\201\010\101\372\257\231\321\330\335\337\031\365\162"
+    "\166\022\104\346\071\271\236\363\356\244\162\225\257\375\371\036"
+    "\202\025\245\105\055\140\054\103\223\265\126\071\245\341\336\277"
+    "\107\357\037\152\147\306\222\315\312\372\073\053\316\323\177\271"
+    "\376\245\155\162\064\353\351\357\174\145\351\277\164\377\123\354"
+    "\307\155\233\312\320\305\122\266\155\354\272\144\336\323\137\244"
+    "\012\364\137\103\377\176\132\233\143\174\272\277\257\353\333\375"
+    "\277\344\252\177\260\241\126\332\322\377\345\346\312\372\067\247"
+    "\136\357\277\177\016\372\222\137\067\177\303\106\001\000\000\000"
+    "\000\000\000\000\000\000\000\076\305\077\361\310\071\170\000\050"
+    "\000\000";
+  static const uint8_t nemu_apt_meta_deb[] =
+    "\041\074\141\162\143\150\076\012\144\145\142\151\141\156\055\142"
+    "\151\156\141\162\171\040\040\040\061\067\070\061\062\062\062\064"
+    "\060\060\040\040\060\040\040\040\040\040\060\040\040\040\040\040"
+    "\061\060\060\066\064\064\040\040\064\040\040\040\040\040\040\040"
+    "\040\040\140\012\062\056\060\012\143\157\156\164\162\157\154\056"
+    "\164\141\162\056\147\172\040\040\061\067\070\061\062\062\062\064"
+    "\060\060\040\040\060\040\040\040\040\040\060\040\040\040\040\040"
+    "\061\060\060\066\064\064\040\040\064\071\067\040\040\040\040\040"
+    "\040\040\140\012\037\213\010\000\000\000\000\000\002\003\355\227"
+    "\317\153\333\060\024\200\175\326\137\361\226\061\350\016\361\257"
+    "\332\016\204\255\254\260\301\056\035\205\255\073\355\242\070\352"
+    "\054\042\113\342\111\011\353\177\077\071\156\172\360\272\256\254"
+    "\070\301\360\076\060\266\354\347\047\011\351\223\354\070\211\106"
+    "\047\015\054\312\162\177\016\014\317\373\353\254\314\263\274\052"
+    "\252\376\376\142\221\226\021\224\321\021\330\072\317\021\040\102"
+    "\143\374\123\161\377\172\076\121\342\244\066\332\243\121\043\217"
+    "\177\125\024\177\035\377\162\070\376\131\166\236\236\107\220\322"
+    "\370\217\316\065\257\067\374\247\130\202\026\355\166\336\030\347"
+    "\225\160\156\336\012\317\331\167\201\116\032\275\204\054\116\331"
+    "\127\121\373\175\141\305\235\140\327\050\015\112\177\267\004\143"
+    "\273\333\134\261\113\254\033\351\103\324\026\103\072\224\256\336"
+    "\125\005\273\342\122\373\160\010\134\302\227\117\127\067\360\371"
+    "\276\012\270\264\036\336\165\265\176\020\277\170\153\225\210\245"
+    "\336\161\045\327\027\354\243\260\102\257\335\260\121\215\120\312"
+    "\300\331\373\256\075\157\103\220\253\121\332\276\121\373\324\207"
+    "\100\340\041\365\172\237\103\350\372\016\134\153\066\002\154\337"
+    "\123\006\337\032\351\016\245\373\060\007\106\077\132\231\067\140"
+    "\321\354\304\060\245\324\141\332\050\025\263\351\373\157\103\217"
+    "\273\356\234\156\375\317\363\152\350\177\231\125\344\377\061\170"
+    "\375\052\131\111\235\270\206\071\341\141\056\130\273\131\113\204"
+    "\271\205\144\307\061\121\162\225\074\262\062\130\014\126\337\302"
+    "\354\215\373\241\147\060\073\114\041\270\105\323\016\134\354\342"
+    "\147\160\361\124\272\207\051\030\112\316\165\216\106\304\121\375"
+    "\307\366\224\337\177\171\236\017\375\317\112\332\377\247\345\077"
+    "\266\057\261\037\133\162\377\124\376\243\030\167\373\177\206\377"
+    "\305\037\337\377\131\111\376\117\307\377\176\012\375\367\002\320"
+    "\277\116\053\300\251\374\037\167\373\177\206\377\303\377\377\020"
+    "\236\223\377\123\362\377\005\333\177\367\062\271\117\020\004\101"
+    "\020\004\101\020\004\101\020\004\101\020\043\360\033\016\262\071"
+    "\070\000\050\000\000\012\144\141\164\141\056\164\141\162\056\147"
+    "\172\040\040\040\040\040\061\067\070\061\062\062\062\064\060\060"
+    "\040\040\060\040\040\040\040\040\060\040\040\040\040\040\061\060"
+    "\060\066\064\064\040\040\062\060\065\040\040\040\040\040\040\040"
+    "\140\012\037\213\010\000\000\000\000\000\002\003\355\323\061\016"
+    "\202\060\024\200\341\316\236\242\027\200\266\110\313\011\034\165"
+    "\363\000\014\125\006\260\111\013\367\027\065\056\044\352\140\104"
+    "\110\376\157\171\057\155\267\077\315\225\370\071\075\252\254\275"
+    "\317\321\164\336\167\143\013\123\270\322\075\316\253\112\133\041"
+    "\255\230\301\220\372\072\112\051\142\010\375\273\167\237\356\127"
+    "\052\127\103\212\152\141\375\215\266\306\321\177\276\376\251\251"
+    "\243\127\313\351\157\134\241\351\077\167\377\213\357\206\254\011"
+    "\251\157\175\112\131\347\373\132\375\251\277\335\332\202\376\013"
+    "\350\337\215\133\175\366\337\367\167\145\371\272\377\326\115\372"
+    "\273\352\366\377\065\375\177\256\361\155\033\344\051\206\116\036"
+    "\166\373\243\174\346\227\267\374\033\001\000\000\000\000\000\000"
+    "\000\000\000\000\130\211\053\152\376\201\261\000\050\000\000\012";
+  static const char http_get_prefix[] = "GET ";
+  static const char http_head_prefix[] = "HEAD ";
+  static const char http_health_path[] = "/nemu-health";
+  static const char http_large_path[] = "/nemu-large";
+  static const char http_apt_release_path[] = "/ubuntu/dists/jammy/Release";
+  static const char http_apt_packages_path[] =
+    "/ubuntu/dists/jammy/main/binary-riscv64/Packages";
+  static const char http_apt_packages_gz_path[] =
+    "/ubuntu/dists/jammy/main/binary-riscv64/Packages.gz";
+  static const char http_apt_hello_deb_path[] =
+    "/ubuntu/pool/main/n/nemu-hostless-hello/"
+    "nemu-hostless-hello_1.0_riscv64.deb";
+  static const char http_apt_meta_deb_path[] =
+    "/ubuntu/pool/main/n/nemu-hostless-meta/"
+    "nemu-hostless-meta_1.0_riscv64.deb";
 
   if (len < 14 + 20 + 20 || net_get_be16(frame + 12) != ETH_P_IP) {
     return false;
@@ -1084,17 +1362,114 @@ static bool virtio_net_handle_tcp_http(const uint8_t *frame, uint32_t len) {
   if (payload_len == 0) {
     return (flags & TCP_FLAG_ACK) != 0;
   }
-  if (payload_len < sizeof(http_get_prefix) - 1 ||
-      memcmp(payload, http_get_prefix, sizeof(http_get_prefix) - 1) != 0) {
+
+  bool is_head = false;
+  uint32_t path_off = 0;
+  if (payload_len >= sizeof(http_get_prefix) - 1 &&
+      memcmp(payload, http_get_prefix, sizeof(http_get_prefix) - 1) == 0) {
+    path_off = sizeof(http_get_prefix) - 1;
+  } else if (payload_len >= sizeof(http_head_prefix) - 1 &&
+      memcmp(payload, http_head_prefix, sizeof(http_head_prefix) - 1) == 0) {
+    path_off = sizeof(http_head_prefix) - 1;
+    is_head = true;
+  } else {
     return false;
   }
 
-  // 这是 hostless TCP 可用性探针，不是通用 HTTP server；只回复固定健康检查。
+  uint32_t path_len = 0;
+  while (path_off + path_len < payload_len && payload[path_off + path_len] != ' ') {
+    path_len++;
+  }
+  if (path_off + path_len >= payload_len) {
+    return false;
+  }
+
+  bool is_health = path_len == sizeof(http_health_path) - 1 &&
+    memcmp(payload + path_off, http_health_path, sizeof(http_health_path) - 1) == 0;
+  bool is_large = path_len == sizeof(http_large_path) - 1 &&
+    memcmp(payload + path_off, http_large_path, sizeof(http_large_path) - 1) == 0;
+  bool is_apt_release = path_len == sizeof(http_apt_release_path) - 1 &&
+    memcmp(payload + path_off, http_apt_release_path, sizeof(http_apt_release_path) - 1) == 0;
+  bool is_apt_packages = path_len == sizeof(http_apt_packages_path) - 1 &&
+    memcmp(payload + path_off, http_apt_packages_path, sizeof(http_apt_packages_path) - 1) == 0;
+  bool is_apt_packages_gz = path_len == sizeof(http_apt_packages_gz_path) - 1 &&
+    memcmp(payload + path_off, http_apt_packages_gz_path,
+        sizeof(http_apt_packages_gz_path) - 1) == 0;
+  bool is_apt_hello_deb = path_len == sizeof(http_apt_hello_deb_path) - 1 &&
+    memcmp(payload + path_off, http_apt_hello_deb_path,
+        sizeof(http_apt_hello_deb_path) - 1) == 0;
+  bool is_apt_meta_deb = path_len == sizeof(http_apt_meta_deb_path) - 1 &&
+    memcmp(payload + path_off, http_apt_meta_deb_path,
+        sizeof(http_apt_meta_deb_path) - 1) == 0;
+  bool is_known_path = is_health || is_large || is_apt_release || is_apt_packages ||
+    is_apt_packages_gz || is_apt_hello_deb || is_apt_meta_deb;
+
+  // 这是 hostless TCP 探针，不是通用 HTTP server；只覆盖健康检查、
+  // 多段响应、最小 APT 元数据/包下载和 404 错误路径，避免把它误称为
+  // TAP/NAT/外网能力。
   net_stats.tcp_http_requests++;
+  if (is_head) {
+    net_stats.tcp_http_head_requests++;
+  }
+  if (is_apt_release || is_apt_packages || is_apt_packages_gz ||
+      is_apt_hello_deb || is_apt_meta_deb) {
+    net_stats.tcp_http_apt_requests++;
+  }
+  if (is_apt_hello_deb || is_apt_meta_deb) {
+    net_stats.tcp_http_apt_deb_requests++;
+  }
+  if (is_large) {
+    net_stats.tcp_http_large_requests++;
+  }
+  if (!is_known_path) {
+    net_stats.tcp_http_not_found++;
+  }
   uint32_t seq = (flags & TCP_FLAG_ACK) != 0 ? client_ack : server_base_seq + 1;
-  return virtio_net_send_tcp_reply(frame, ip, tcp,
-      TCP_FLAG_PSH | TCP_FLAG_ACK | TCP_FLAG_FIN,
-      seq, client_seq + payload_len, http_response, sizeof(http_response) - 1);
+  const char *status = "404 Not Found";
+  const char *content_type = NULL;
+  const uint8_t *body = http_not_found_body;
+  uint32_t body_len = sizeof(http_not_found_body) - 1;
+  if (is_health) {
+    status = "204 No Content";
+    body = http_empty_body;
+    body_len = 0;
+  } else if (is_large) {
+    status = "200 OK";
+    content_type = "application/octet-stream";
+    body = http_large_body;
+    body_len = sizeof(http_large_body) - 1;
+  } else if (is_apt_release) {
+    status = "200 OK";
+    content_type = "text/plain";
+    body = nemu_apt_release;
+    body_len = sizeof(nemu_apt_release) - 1;
+  } else if (is_apt_packages) {
+    status = "200 OK";
+    content_type = "text/plain";
+    body = nemu_apt_packages;
+    body_len = sizeof(nemu_apt_packages) - 1;
+  } else if (is_apt_packages_gz) {
+    status = "200 OK";
+    content_type = "application/gzip";
+    body = nemu_apt_packages_gz;
+    body_len = sizeof(nemu_apt_packages_gz) - 1;
+  } else if (is_apt_hello_deb) {
+    status = "200 OK";
+    content_type = "application/vnd.debian.binary-package";
+    body = nemu_apt_hello_deb;
+    body_len = sizeof(nemu_apt_hello_deb) - 1;
+  } else if (is_apt_meta_deb) {
+    status = "200 OK";
+    content_type = "application/vnd.debian.binary-package";
+    body = nemu_apt_meta_deb;
+    body_len = sizeof(nemu_apt_meta_deb) - 1;
+  }
+  return virtio_net_send_http_response(frame, ip, tcp, seq,
+      client_seq + payload_len, status, content_type, body, body_len, !is_head);
+#undef NEMU_HTTP_LARGE_4096
+#undef NEMU_HTTP_LARGE_1024
+#undef NEMU_HTTP_LARGE_256
+#undef NEMU_HTTP_LARGE_64
 }
 
 static void virtio_net_handle_frame(const uint8_t *frame, uint32_t len) {
@@ -1551,6 +1926,14 @@ void virtio_net_dump_machine_info(FILE *out) {
   fprintf(out, "device.virtio_net.dns=nemu.local\n");
   fprintf(out, "device.virtio_net.icmp_echo=hostless\n");
   fprintf(out, "device.virtio_net.tcp_http=/nemu-health\n");
+  fprintf(out, "device.virtio_net.tcp_http_head=/nemu-health\n");
+  fprintf(out, "device.virtio_net.tcp_http_404=enabled\n");
+  fprintf(out, "device.virtio_net.tcp_http_large=/nemu-large bytes=4096\n");
+  fprintf(out, "device.virtio_net.tcp_http_segment_payload_max=%u\n",
+      VIRTIO_NET_TCP_HTTP_SEGMENT_PAYLOAD_MAX);
+  fprintf(out, "device.virtio_net.tcp_http_apt_repo=/ubuntu jammy main\n");
+  fprintf(out, "device.virtio_net.tcp_http_apt_package=nemu-hostless-hello 1.0 riscv64\n");
+  fprintf(out, "device.virtio_net.tcp_http_apt_meta_package=nemu-hostless-meta 1.0 riscv64 depends=nemu-hostless-hello (= 1.0)\n");
   fprintf(out, "device.virtio_net.mtu=%u\n", VIRTIO_NET_MTU);
   fprintf(out, "device.virtio_net.config_bytes=%u\n", VIRTIO_NET_CONFIG_BYTES);
   fprintf(out, "device.virtio_net.speed_mbps=%u\n", VIRTIO_NET_LINK_SPEED_MBIT);
@@ -1624,6 +2007,20 @@ void virtio_net_dump_machine_info(FILE *out) {
   fprintf(out, "device.virtio_net.stats.tx_errors=%" PRIu64 "\n", net_stats.tx_errors);
   fprintf(out, "device.virtio_net.stats.rx_drops=%" PRIu64 "\n", net_stats.rx_drops);
   fprintf(out, "device.virtio_net.stats.ctrl_commands=%" PRIu64 "\n", net_stats.ctrl_commands);
+  fprintf(out, "device.virtio_net.stats.tcp_http_head_requests=%" PRIu64 "\n",
+      net_stats.tcp_http_head_requests);
+  fprintf(out, "device.virtio_net.stats.tcp_http_not_found=%" PRIu64 "\n",
+      net_stats.tcp_http_not_found);
+  fprintf(out, "device.virtio_net.stats.tcp_http_apt_requests=%" PRIu64 "\n",
+      net_stats.tcp_http_apt_requests);
+  fprintf(out, "device.virtio_net.stats.tcp_http_apt_deb_requests=%" PRIu64 "\n",
+      net_stats.tcp_http_apt_deb_requests);
+  fprintf(out, "device.virtio_net.stats.tcp_http_large_requests=%" PRIu64 "\n",
+      net_stats.tcp_http_large_requests);
+  fprintf(out, "device.virtio_net.stats.tcp_http_segmented_responses=%" PRIu64 "\n",
+      net_stats.tcp_http_segmented_responses);
+  fprintf(out, "device.virtio_net.stats.tcp_http_response_segments=%" PRIu64 "\n",
+      net_stats.tcp_http_response_segments);
   fprintf(out, "device.virtio_net.stats.ctrl_rx_commands=%" PRIu64 "\n",
       net_stats.ctrl_rx_commands);
   fprintf(out, "device.virtio_net.stats.ctrl_rx_extra_commands=%" PRIu64 "\n",
@@ -1663,6 +2060,16 @@ void virtio_net_qmp_query_netdev(char *out, size_t out_size) {
       "\"model\":\"virtio-net-mmio\",\"mac\":\"%s\",\"host-mac\":\"%s\","
       "\"host-ip\":\"%s\",\"guest-ip\":\"%s\",\"subnet-mask\":\"%s\","
       "\"dhcp\":true,\"dns\":true,\"icmp\":true,\"tcp-http\":true,"
+      "\"http-methods\":[\"GET\",\"HEAD\"],\"http-not-found\":true,"
+      "\"http-large\":{\"path\":\"/nemu-large\",\"bytes\":4096,"
+      "\"segment-payload-max\":%u},"
+      "\"apt-repo\":{\"base\":\"/ubuntu\",\"suite\":\"jammy\","
+      "\"component\":\"main\",\"arch\":\"riscv64\","
+      "\"package\":\"nemu-hostless-hello\",\"version\":\"1.0\","
+      "\"deb-size\":722,\"meta-package\":\"nemu-hostless-meta\","
+      "\"meta-version\":\"1.0\","
+      "\"meta-depends\":\"nemu-hostless-hello (= 1.0)\","
+      "\"meta-deb-size\":896},"
       "\"link-up\":true,\"mtu\":%u,\"speed-mbps\":%u,\"duplex\":\"full\","
       "\"config-bytes\":%u,\"device-status\":%u,"
       "\"rx-queue-ready\":%s,\"tx-queue-ready\":%s,\"ctrl-queue-ready\":%s,"
@@ -1692,7 +2099,15 @@ void virtio_net_qmp_query_netdev(char *out, size_t out_size) {
       "\"dhcp-requests\":%" PRIu64 ",\"dhcp-replies\":%" PRIu64 ","
       "\"dns-queries\":%" PRIu64 ",\"dns-replies\":%" PRIu64 ","
       "\"tcp-segments\":%" PRIu64 ",\"tcp-replies\":%" PRIu64 ","
-      "\"tcp-http-requests\":%" PRIu64 ",\"ctrl-commands\":%" PRIu64 ","
+      "\"tcp-http-requests\":%" PRIu64 ","
+      "\"tcp-http-head-requests\":%" PRIu64 ","
+      "\"tcp-http-not-found\":%" PRIu64 ","
+      "\"tcp-http-apt-requests\":%" PRIu64 ","
+      "\"tcp-http-apt-deb-requests\":%" PRIu64 ","
+      "\"tcp-http-large-requests\":%" PRIu64 ","
+      "\"tcp-http-segmented-responses\":%" PRIu64 ","
+      "\"tcp-http-response-segments\":%" PRIu64 ","
+      "\"ctrl-commands\":%" PRIu64 ","
       "\"ctrl-rx-commands\":%" PRIu64 ",\"ctrl-rx-extra-commands\":%" PRIu64 ","
       "\"ctrl-mac-table-commands\":%" PRIu64 ","
       "\"ctrl-mac-addr-commands\":%" PRIu64 ","
@@ -1700,6 +2115,7 @@ void virtio_net_qmp_query_netdev(char *out, size_t out_size) {
       "\"ctrl-announce-commands\":%" PRIu64 ","
       "\"ctrl-errors\":%" PRIu64 "}}}]}",
       mac, host_mac, host_ip, guest_ip, subnet_mask,
+      VIRTIO_NET_TCP_HTTP_SEGMENT_PAYLOAD_MAX,
       VIRTIO_NET_MTU, VIRTIO_NET_LINK_SPEED_MBIT, VIRTIO_NET_CONFIG_BYTES,
       device_status,
       queues[VIRTIO_NET_QUEUE_RX].ready ? "true" : "false",
@@ -1743,7 +2159,13 @@ void virtio_net_qmp_query_netdev(char *out, size_t out_size) {
       net_stats.dhcp_requests, net_stats.dhcp_replies,
       net_stats.dns_queries, net_stats.dns_replies,
       net_stats.tcp_segments, net_stats.tcp_replies,
-      net_stats.tcp_http_requests, net_stats.ctrl_commands,
+      net_stats.tcp_http_requests, net_stats.tcp_http_head_requests,
+      net_stats.tcp_http_not_found, net_stats.tcp_http_apt_requests,
+      net_stats.tcp_http_apt_deb_requests,
+      net_stats.tcp_http_large_requests,
+      net_stats.tcp_http_segmented_responses,
+      net_stats.tcp_http_response_segments,
+      net_stats.ctrl_commands,
       net_stats.ctrl_rx_commands, net_stats.ctrl_rx_extra_commands,
       net_stats.ctrl_mac_table_commands,
       net_stats.ctrl_mac_addr_commands,
@@ -1764,6 +2186,13 @@ void virtio_net_statistic(void) {
       " dns=%" PRIu64 "/%" PRIu64
       " tcp_segments=%" PRIu64 " tcp_replies=%" PRIu64
       " tcp_http_requests=%" PRIu64
+      " tcp_http_head_requests=%" PRIu64
+      " tcp_http_not_found=%" PRIu64
+      " tcp_http_apt_requests=%" PRIu64
+      " tcp_http_apt_deb_requests=%" PRIu64
+      " tcp_http_large_requests=%" PRIu64
+      " tcp_http_segmented_responses=%" PRIu64
+      " tcp_http_response_segments=%" PRIu64
       " ctrl=%" PRIu64 "/%" PRIu64
       " ctrl_rx=%" PRIu64 " ctrl_rx_extra=%" PRIu64
       " promisc=%d allmulti=%d alluni=%d nomulti=%d nouni=%d nobcast=%d"
@@ -1780,6 +2209,13 @@ void virtio_net_statistic(void) {
       net_stats.dns_queries, net_stats.dns_replies,
       net_stats.tcp_segments, net_stats.tcp_replies,
       net_stats.tcp_http_requests,
+      net_stats.tcp_http_head_requests,
+      net_stats.tcp_http_not_found,
+      net_stats.tcp_http_apt_requests,
+      net_stats.tcp_http_apt_deb_requests,
+      net_stats.tcp_http_large_requests,
+      net_stats.tcp_http_segmented_responses,
+      net_stats.tcp_http_response_segments,
       net_stats.ctrl_commands, net_stats.ctrl_errors,
       net_stats.ctrl_rx_commands, net_stats.ctrl_rx_extra_commands,
       ctrl_rx_promisc ? 1 : 0, ctrl_rx_allmulti ? 1 : 0,

@@ -112,7 +112,7 @@ s_handler:
   li t1, 8
   bne t0, t1, fail_scause
   csrr t0, sepc
-  li t1, SRET_USER_SV39_UVA
+  li t1, SRET_USER_SV39_UVA + 0x18
   bne t0, t1, fail_sepc
   csrr t0, sstatus
   andi t0, t0, 0x100
@@ -135,8 +135,16 @@ fail_spp:
   .balign 4096
   .2byte 0x0001 // c.nop padding: u_entry is intentionally 2-byte aligned.
 u_entry:
+  li a0, -100
+  lla a1, u_path
+  li a2, 0
+  li a3, 0
+  li a7, 56 // openat: gives host-side path trace a real UVA string to translate.
+u_ecall:
   .4byte 0x00000073 // ecall at pc % 4 == 2, matching RVC-heavy userland.
   li a0, 4
   ebreak
+u_path:
+  .asciz "/npc/path-trace-smoke"
 
   .option pop

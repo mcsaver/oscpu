@@ -1,0 +1,4 @@
+@include|rv64-linux||||
+@include|software-flow||||
+nemu-ubuntu-static|nemu|e2e_nemu_ubuntu_static_gate|nemu|Linux/NEMU Ubuntu rootfs scripts + performance config|NEMU Ubuntu 切片静态生产守门 PASS
+nemu-ubuntu-slice-contract|nemu|e2e_nemu_ubuntu_slice_contract|nemu|recent NEMU Ubuntu device slice hooks and guest markers|近期 NEMU Ubuntu 设备切片合约仍挂入 guest gate

@@ -73,6 +73,10 @@ INPUT_DELAY=${NEMU_SYSTEMD_INPUT_DELAY:-0.001}
 # 输入本质仍只是 host 字节流，不是直接传给 Ubuntu 的 shell 命令对象。
 INPUT_CHUNK_BYTES=${NEMU_SYSTEMD_INPUT_CHUNK_BYTES:-8}
 INPUT_CHUNK_DELAY=${NEMU_SYSTEMD_INPUT_CHUNK_DELAY:-0}
+APT_INSTALL_DIAG=${NEMU_SYSTEMD_APT_INSTALL_DIAG:-0}
+APT_INSTALL_ACTUAL=${NEMU_SYSTEMD_APT_INSTALL_ACTUAL:-0}
+APT_INSTALL_DIAG_TIMEOUT=${NEMU_SYSTEMD_APT_INSTALL_DIAG_TIMEOUT:-300}
+APT_REMOVE_DIAG_TIMEOUT=${NEMU_SYSTEMD_APT_REMOVE_DIAG_TIMEOUT:-600}
 POWEROFF_ENABLE=${NEMU_SYSTEMD_POWEROFF:-1}
 POWEROFF_TIMEOUT=${NEMU_SYSTEMD_POWEROFF_TIMEOUT:-180}
 ROOTFS_BYTES=$(stat -c %s "$RUN_ROOTFS" 2>/dev/null || echo 0)
@@ -500,7 +504,9 @@ check_nemu_async_runtime() {
 check_nemu_net_runtime() {
   local line tx_packets rx_packets tx_errors rx_drops rx_pending
   local arp_req arp_rep icmp_req icmp_rep dhcp_req dhcp_rep dns_req dns_rep
-  local tcp_segments tcp_replies tcp_http_requests
+  local tcp_segments tcp_replies tcp_http_requests tcp_http_head_requests tcp_http_not_found
+  local tcp_http_apt_requests tcp_http_apt_deb_requests
+  local tcp_http_large_requests tcp_http_segmented_responses tcp_http_response_segments
   local ctrl_commands ctrl_errors ctrl_rx_commands ctrl_rx_extra_commands
   local ctrl_mac_table_commands ctrl_mac_addr_commands ctrl_vlan_commands ctrl_announce_commands
   line=$(grep -aE 'virtio-net runtime tx_packets=[0-9]+' "$LOG_FILE" "$CONSOLE_LOG" 2>/dev/null | tail -1 || true)
@@ -524,6 +530,13 @@ check_nemu_net_runtime() {
   tcp_segments=$(printf '%s\n' "$line" | sed -n 's/.*tcp_segments=\([0-9][0-9]*\).*/\1/p')
   tcp_replies=$(printf '%s\n' "$line" | sed -n 's/.*tcp_replies=\([0-9][0-9]*\).*/\1/p')
   tcp_http_requests=$(printf '%s\n' "$line" | sed -n 's/.*tcp_http_requests=\([0-9][0-9]*\).*/\1/p')
+  tcp_http_head_requests=$(printf '%s\n' "$line" | sed -n 's/.*tcp_http_head_requests=\([0-9][0-9]*\).*/\1/p')
+  tcp_http_not_found=$(printf '%s\n' "$line" | sed -n 's/.*tcp_http_not_found=\([0-9][0-9]*\).*/\1/p')
+  tcp_http_apt_requests=$(printf '%s\n' "$line" | sed -n 's/.*tcp_http_apt_requests=\([0-9][0-9]*\).*/\1/p')
+  tcp_http_apt_deb_requests=$(printf '%s\n' "$line" | sed -n 's/.*tcp_http_apt_deb_requests=\([0-9][0-9]*\).*/\1/p')
+  tcp_http_large_requests=$(printf '%s\n' "$line" | sed -n 's/.*tcp_http_large_requests=\([0-9][0-9]*\).*/\1/p')
+  tcp_http_segmented_responses=$(printf '%s\n' "$line" | sed -n 's/.*tcp_http_segmented_responses=\([0-9][0-9]*\).*/\1/p')
+  tcp_http_response_segments=$(printf '%s\n' "$line" | sed -n 's/.*tcp_http_response_segments=\([0-9][0-9]*\).*/\1/p')
   ctrl_commands=$(printf '%s\n' "$line" | sed -n 's/.*ctrl=\([0-9][0-9]*\)\/\([0-9][0-9]*\).*/\1/p')
   ctrl_errors=$(printf '%s\n' "$line" | sed -n 's/.*ctrl=\([0-9][0-9]*\)\/\([0-9][0-9]*\).*/\2/p')
   ctrl_rx_commands=$(printf '%s\n' "$line" | sed -n 's/.*ctrl_rx=\([0-9][0-9]*\).*/\1/p')
@@ -548,6 +561,13 @@ check_nemu_net_runtime() {
   tcp_segments=${tcp_segments:-0}
   tcp_replies=${tcp_replies:-0}
   tcp_http_requests=${tcp_http_requests:-0}
+  tcp_http_head_requests=${tcp_http_head_requests:-0}
+  tcp_http_not_found=${tcp_http_not_found:-0}
+  tcp_http_apt_requests=${tcp_http_apt_requests:-0}
+  tcp_http_apt_deb_requests=${tcp_http_apt_deb_requests:-0}
+  tcp_http_large_requests=${tcp_http_large_requests:-0}
+  tcp_http_segmented_responses=${tcp_http_segmented_responses:-0}
+  tcp_http_response_segments=${tcp_http_response_segments:-0}
   ctrl_commands=${ctrl_commands:-0}
   ctrl_errors=${ctrl_errors:-0}
   ctrl_rx_commands=${ctrl_rx_commands:-0}
@@ -557,7 +577,7 @@ check_nemu_net_runtime() {
   ctrl_vlan_commands=${ctrl_vlan_commands:-0}
   ctrl_announce_commands=${ctrl_announce_commands:-0}
 
-  echo "[nemu-systemd-check] virtio-net runtime: tx=$tx_packets rx=$rx_packets errors=$tx_errors drops=$rx_drops pending=$rx_pending arp=$arp_req/$arp_rep icmp=$icmp_req/$icmp_rep dhcp=$dhcp_req/$dhcp_rep dns=$dns_req/$dns_rep tcp=$tcp_segments/$tcp_replies http=$tcp_http_requests ctrl=$ctrl_commands/$ctrl_errors ctrl_rx=$ctrl_rx_commands ctrl_rx_extra=$ctrl_rx_extra_commands ctrl_mac_table=$ctrl_mac_table_commands ctrl_mac_addr=$ctrl_mac_addr_commands ctrl_vlan=$ctrl_vlan_commands ctrl_announce=$ctrl_announce_commands"
+  echo "[nemu-systemd-check] virtio-net runtime: tx=$tx_packets rx=$rx_packets errors=$tx_errors drops=$rx_drops pending=$rx_pending arp=$arp_req/$arp_rep icmp=$icmp_req/$icmp_rep dhcp=$dhcp_req/$dhcp_rep dns=$dns_req/$dns_rep tcp=$tcp_segments/$tcp_replies http=$tcp_http_requests head=$tcp_http_head_requests not_found=$tcp_http_not_found apt=$tcp_http_apt_requests apt_deb=$tcp_http_apt_deb_requests large=$tcp_http_large_requests segmented=$tcp_http_segmented_responses segments=$tcp_http_response_segments ctrl=$ctrl_commands/$ctrl_errors ctrl_rx=$ctrl_rx_commands ctrl_rx_extra=$ctrl_rx_extra_commands ctrl_mac_table=$ctrl_mac_table_commands ctrl_mac_addr=$ctrl_mac_addr_commands ctrl_vlan=$ctrl_vlan_commands ctrl_announce=$ctrl_announce_commands"
   if [ "$tx_packets" -gt 0 ] &&
      [ "$rx_packets" -gt 0 ] &&
      [ "$tx_errors" -eq 0 ] &&
@@ -570,6 +590,14 @@ check_nemu_net_runtime() {
      [ "$tcp_segments" -gt 0 ] &&
      [ "$tcp_replies" -gt 0 ] &&
      [ "$tcp_http_requests" -gt 0 ] &&
+     { [ "${NEMU_GUEST_ROOTFS_FLAVOR:-systemd-minimal}" != "full" ] || {
+       [ "$tcp_http_head_requests" -gt 0 ] &&
+       [ "$tcp_http_not_found" -gt 0 ] &&
+       [ "$tcp_http_apt_requests" -gt 0 ] &&
+       [ "$tcp_http_apt_deb_requests" -gt 0 ] &&
+       [ "$tcp_http_large_requests" -gt 0 ] &&
+       [ "$tcp_http_segmented_responses" -gt 0 ] &&
+       [ "$tcp_http_response_segments" -gt 0 ]; }; } &&
      [ "$ctrl_commands" -gt 0 ] &&
      [ "$ctrl_errors" -eq 0 ] &&
      [ "$ctrl_rx_commands" -gt 0 ] &&
@@ -690,6 +718,10 @@ require_uint "NEMU_SYSTEMD_RELOAD_TIMEOUT" "$SYSTEMD_RELOAD_TIMEOUT"
 require_uint "NEMU_SYSTEMD_INPUT_CHUNK_BYTES" "$INPUT_CHUNK_BYTES"
 require_nonnegative_decimal "NEMU_SYSTEMD_INPUT_DELAY" "$INPUT_DELAY"
 require_nonnegative_decimal "NEMU_SYSTEMD_INPUT_CHUNK_DELAY" "$INPUT_CHUNK_DELAY"
+require_uint "NEMU_SYSTEMD_APT_INSTALL_DIAG" "$APT_INSTALL_DIAG"
+require_uint "NEMU_SYSTEMD_APT_INSTALL_ACTUAL" "$APT_INSTALL_ACTUAL"
+require_uint "NEMU_SYSTEMD_APT_INSTALL_DIAG_TIMEOUT" "$APT_INSTALL_DIAG_TIMEOUT"
+require_uint "NEMU_SYSTEMD_APT_REMOVE_DIAG_TIMEOUT" "$APT_REMOVE_DIAG_TIMEOUT"
 require_uint "NEMU_SYSTEMD_SYSCALL_PROBE" "$SYSCALL_PROBE_ENABLE"
 require_uint "NEMU_SYSTEMD_ICMP_PROBE" "$ICMP_PROBE_ENABLE"
 require_uint "NEMU_SYSTEMD_DHCP_PROBE" "$DHCP_PROBE_ENABLE"
@@ -743,6 +775,10 @@ echo "[nemu-systemd-check] systemd reload timeout: $SYSTEMD_RELOAD_TIMEOUT"
 echo "[nemu-systemd-check] input delay: $INPUT_DELAY"
 echo "[nemu-systemd-check] input chunk bytes: $INPUT_CHUNK_BYTES"
 echo "[nemu-systemd-check] input chunk delay: $INPUT_CHUNK_DELAY"
+echo "[nemu-systemd-check] apt install diag: $APT_INSTALL_DIAG"
+echo "[nemu-systemd-check] apt install actual: $APT_INSTALL_ACTUAL"
+echo "[nemu-systemd-check] apt install diag timeout: $APT_INSTALL_DIAG_TIMEOUT"
+echo "[nemu-systemd-check] apt remove diag timeout: $APT_REMOVE_DIAG_TIMEOUT"
 echo "[nemu-systemd-check] serial input model: FIFO/stdin bytes -> NEMU SerialPort staging -> 16550 RX FIFO -> Linux ttyS0"
 echo "[nemu-systemd-check] syscall probe: $SYSCALL_PROBE_ENABLE"
 echo "[nemu-systemd-check] ICMP probe: $ICMP_PROBE_ENABLE"
@@ -823,6 +859,10 @@ boot_seconds=$((SECONDS - host_start_seconds))
   printf 'NEMU_GUEST_DNS_PROBE=%s\n' "$DNS_PROBE_ENABLE"
   printf 'NEMU_GUEST_TCP_PROBE=%s\n' "$TCP_PROBE_ENABLE"
   printf 'NEMU_GUEST_NET_TCP_BURST_LOOPS=%s\n' "$NET_TCP_BURST_LOOPS"
+  printf 'NEMU_GUEST_APT_INSTALL_DIAG=%s\n' "$APT_INSTALL_DIAG"
+  printf 'NEMU_GUEST_APT_INSTALL_ACTUAL=%s\n' "$APT_INSTALL_ACTUAL"
+  printf 'NEMU_GUEST_APT_INSTALL_DIAG_TIMEOUT=%s\n' "$APT_INSTALL_DIAG_TIMEOUT"
+  printf 'NEMU_GUEST_APT_REMOVE_DIAG_TIMEOUT=%s\n' "$APT_REMOVE_DIAG_TIMEOUT"
   printf 'NEMU_GUEST_POWEROFF=%s\n' "$POWEROFF_ENABLE"
   printf 'NEMU_GUEST_VDA_HASH_WINDOW_BYTES=%s\n' "$VDA_HASH_WINDOW_BYTES"
   printf 'NEMU_GUEST_VDA_HASH_EXPECT_FILE=/tmp/nemu-vda-direct-read-sha256.tsv\n'
@@ -1425,6 +1465,500 @@ check_full_userland_runtime() {
   fi
 }
 
+check_full_userland_apt_install_diag() {
+  apt_diag_root=$1
+  apt_diag_source=$2
+  if [ "${NEMU_GUEST_APT_INSTALL_DIAG:-0}" = "0" ] &&
+     [ "${NEMU_GUEST_APT_INSTALL_ACTUAL:-0}" != "1" ]; then
+    pass full-userland-apt-direct-install-diag-skip
+    return
+  fi
+
+  apt_diag_timeout=${NEMU_GUEST_APT_INSTALL_DIAG_TIMEOUT:-300}
+  apt_remove_timeout=${NEMU_GUEST_APT_REMOVE_DIAG_TIMEOUT:-600}
+  apt_diag_dir="$apt_diag_root/direct-install-diag"
+  apt_diag_archives="$apt_diag_dir/archives"
+  apt_diag_empty_sim_status="$apt_diag_dir/status-empty-simulate"
+  apt_diag_empty_download_status="$apt_diag_dir/status-empty-download"
+  apt_diag_empty_install_status="$apt_diag_dir/status-empty-install"
+  mkdir -p "$apt_diag_archives/partial"
+  : > "$apt_diag_empty_sim_status"
+  : > "$apt_diag_empty_download_status"
+  : > "$apt_diag_empty_install_status"
+
+  apt_direct_full_log="$apt_diag_dir/full-status-simulate.log"
+  apt_direct_full_rc=0
+  DEBIAN_FRONTEND=noninteractive timeout "${apt_diag_timeout}s" \
+    apt-get -s install -y --no-install-recommends nemu-hostless-meta:riscv64 \
+      -o "Dir::Etc::sourcelist=$apt_diag_source" \
+      -o "Dir::Etc::sourceparts=-" \
+      -o "Dir::State::lists=$apt_diag_root/lists" \
+      -o "Dir::Cache::archives=$apt_diag_archives" \
+      -o "APT::Architecture=riscv64" \
+      -o "Acquire::Languages=none" \
+      -o "Acquire::Retries=0" \
+      -o "Acquire::http::Timeout=60" \
+      -o "APT::Get::List-Cleanup=0" \
+      >"$apt_direct_full_log" 2>&1 || apt_direct_full_rc=$?
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_SIM_RC__:$apt_direct_full_rc"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_SIM_LOG_BEGIN__"
+  sed -n '1,120p' "$apt_direct_full_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_SIM_LOG_END__"
+  if [ "$apt_direct_full_rc" = "0" ] &&
+     grep -Eq '^(Inst|Conf) nemu-hostless-hello' "$apt_direct_full_log" &&
+     grep -Eq '^(Inst|Conf) nemu-hostless-meta' "$apt_direct_full_log"; then
+    pass full-userland-apt-direct-full-status-simulate
+  elif [ "$apt_direct_full_rc" = "124" ]; then
+    pass full-userland-apt-direct-full-status-timeout-observed
+  else
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_SIM_NONZERO__:$apt_direct_full_rc"
+  fi
+
+  apt_direct_empty_sim_log="$apt_diag_dir/empty-status-simulate.log"
+  apt_direct_empty_sim_rc=0
+  DEBIAN_FRONTEND=noninteractive timeout "${apt_diag_timeout}s" \
+    apt-get -s install -y --no-install-recommends nemu-hostless-meta:riscv64 \
+      -o "Dir::Etc::sourcelist=$apt_diag_source" \
+      -o "Dir::Etc::sourceparts=-" \
+      -o "Dir::State::lists=$apt_diag_root/lists" \
+      -o "Dir::State::status=$apt_diag_empty_sim_status" \
+      -o "Dir::Cache::archives=$apt_diag_archives" \
+      -o "APT::Architecture=riscv64" \
+      -o "Acquire::Languages=none" \
+      -o "Acquire::Retries=0" \
+      -o "Acquire::http::Timeout=60" \
+      -o "APT::Get::List-Cleanup=0" \
+      >"$apt_direct_empty_sim_log" 2>&1 || apt_direct_empty_sim_rc=$?
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_SIM_RC__:$apt_direct_empty_sim_rc"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_SIM_LOG_BEGIN__"
+  sed -n '1,120p' "$apt_direct_empty_sim_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_SIM_LOG_END__"
+  if [ "$apt_direct_empty_sim_rc" = "0" ] &&
+     grep -Eq '^(Inst|Conf) nemu-hostless-hello' "$apt_direct_empty_sim_log" &&
+     grep -Eq '^(Inst|Conf) nemu-hostless-meta' "$apt_direct_empty_sim_log"; then
+    pass full-userland-apt-direct-empty-status-simulate
+  else
+    fail full-userland-apt-direct-empty-status-simulate
+  fi
+
+  rm -f "$apt_diag_archives"/nemu-hostless-hello_1.0_riscv64.deb \
+    "$apt_diag_archives"/nemu-hostless-meta_1.0_riscv64.deb
+  apt_direct_download_log="$apt_diag_dir/empty-status-download-only.log"
+  apt_direct_download_rc=0
+  apt_direct_download_sha256=
+  apt_direct_download_meta_sha256=
+  apt_direct_download_targets="nemu-hostless-hello:riscv64 nemu-hostless-meta:riscv64"
+  DEBIAN_FRONTEND=noninteractive timeout "${apt_diag_timeout}s" \
+    apt-get --download-only install -y --no-install-recommends \
+      nemu-hostless-hello:riscv64 nemu-hostless-meta:riscv64 \
+      -o "Dir::Etc::sourcelist=$apt_diag_source" \
+      -o "Dir::Etc::sourceparts=-" \
+      -o "Dir::State::lists=$apt_diag_root/lists" \
+      -o "Dir::State::status=$apt_diag_empty_download_status" \
+      -o "Dir::Cache::archives=$apt_diag_archives" \
+      -o "APT::Architecture=riscv64" \
+      -o "Acquire::Languages=none" \
+      -o "Acquire::Retries=0" \
+      -o "Acquire::http::Timeout=60" \
+      -o "APT::Get::List-Cleanup=0" \
+      >"$apt_direct_download_log" 2>&1 || apt_direct_download_rc=$?
+  if [ -f "$apt_diag_archives/nemu-hostless-hello_1.0_riscv64.deb" ]; then
+    apt_direct_download_sha256="$(
+      sha256sum "$apt_diag_archives/nemu-hostless-hello_1.0_riscv64.deb" | awk '{print $1}'
+    )"
+  fi
+  if [ -f "$apt_diag_archives/nemu-hostless-meta_1.0_riscv64.deb" ]; then
+    apt_direct_download_meta_sha256="$(
+      sha256sum "$apt_diag_archives/nemu-hostless-meta_1.0_riscv64.deb" | awk '{print $1}'
+    )"
+  fi
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_TARGETS__:$apt_direct_download_targets"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_RC__:$apt_direct_download_rc"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_SHA256__:$apt_direct_download_sha256"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_META_SHA256__:$apt_direct_download_meta_sha256"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_LOG_BEGIN__"
+  sed -n '1,160p' "$apt_direct_download_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_LOG_END__"
+  if [ "$apt_direct_download_rc" = "0" ] &&
+     [ "$apt_direct_download_sha256" = "073216e022c5d7f98d7d07279921a2576920784a0895d870c5f962cb07647187" ] &&
+     [ "$apt_direct_download_meta_sha256" = "b40a91a80a056423051d440ef614d76d36666f88b29ed8a2a86aa76716e3d0e5" ]; then
+    pass full-userland-apt-direct-empty-status-download
+  else
+    fail full-userland-apt-direct-empty-status-download
+  fi
+
+  apt_direct_install_snapshot() {
+    apt_direct_snapshot_label=$1
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_SAMPLE__:$apt_direct_snapshot_label"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_PS_BEGIN__"
+    ps -eo pid,ppid,stat,etime,args 2>/dev/null | grep -E 'apt-get|dpkg|timeout' | grep -v grep || true
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_PS_END__"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_LOG_TAIL_BEGIN__"
+    if [ -s "$apt_direct_install_log" ]; then
+      tail -n 80 "$apt_direct_install_log" 2>/dev/null || true
+    else
+      echo "(install-log-empty)"
+    fi
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_LOG_TAIL_END__"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_LOCKS_BEGIN__"
+    ls -l /var/lib/dpkg/lock /var/lib/dpkg/lock-frontend \
+      /var/cache/apt/archives/lock 2>/dev/null || true
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_LOCKS_END__"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_MESSAGE_SNAPSHOT__:$(cat /usr/share/nemu-hostless-hello/message 2>/dev/null || true)"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_MESSAGE_SNAPSHOT__:$(cat /usr/share/nemu-hostless-meta/message 2>/dev/null || true)"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_PREINST_SNAPSHOT__:$(cat /var/lib/nemu-hostless-meta/preinst-message 2>/dev/null || true)"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_POSTINST_SNAPSHOT__:$(cat /var/lib/nemu-hostless-meta/postinst-message 2>/dev/null || true)"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_DPKG_STATUS_SNAPSHOT__:$(
+      dpkg-query -W -f='${Status} ${Version} ${Architecture}' nemu-hostless-hello 2>/dev/null || true
+    )"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_DPKG_STATUS_SNAPSHOT__:$(
+      dpkg-query -W -f='${Status} ${Version} ${Architecture}' nemu-hostless-meta 2>/dev/null || true
+    )"
+  }
+
+  if [ "${NEMU_GUEST_APT_INSTALL_ACTUAL:-0}" != "1" ]; then
+    pass full-userland-apt-direct-actual-install-skip
+    return
+  fi
+
+  apt_direct_install_log="$apt_diag_dir/full-status-install-no-pty.log"
+  apt_direct_install_rc=0
+  rm -f "$apt_direct_install_log"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_START__"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_TARGET__:nemu-hostless-meta"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_APT_STATE__:empty-status-real-dpkg"
+  (
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends nemu-hostless-meta:riscv64 \
+      -o "Dir::Etc::sourcelist=$apt_diag_source" \
+      -o "Dir::Etc::sourceparts=-" \
+      -o "Dir::State::lists=$apt_diag_root/lists" \
+      -o "Dir::State::status=$apt_diag_empty_install_status" \
+      -o "Dir::Cache::archives=$apt_diag_archives" \
+      -o "APT::Architecture=riscv64" \
+      -o "Acquire::Languages=none" \
+      -o "Acquire::Retries=0" \
+      -o "Acquire::http::Timeout=60" \
+      -o "APT::Get::List-Cleanup=0" \
+      -o "Dpkg::Use-Pty=0" \
+      >"$apt_direct_install_log" 2>&1
+  ) &
+  apt_direct_install_pid=$!
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_PID__:$apt_direct_install_pid"
+  apt_direct_install_snapshot "start"
+  (
+    apt_direct_monitor_i=0
+    while kill -0 "$apt_direct_install_pid" 2>/dev/null; do
+      sleep 15
+      apt_direct_monitor_i=$((apt_direct_monitor_i + 1))
+      apt_direct_install_snapshot "monitor-$apt_direct_monitor_i"
+    done
+  ) &
+  apt_direct_monitor_pid=$!
+  apt_direct_deadline_rc=0
+  timeout "${apt_diag_timeout}s" sh -c "while kill -0 $apt_direct_install_pid 2>/dev/null; do sleep 1; done" || apt_direct_deadline_rc=$?
+  if kill -0 "$apt_direct_install_pid" 2>/dev/null; then
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_TIMEOUT__:$apt_diag_timeout"
+    apt_direct_install_snapshot "timeout"
+    kill "$apt_direct_install_pid" 2>/dev/null || true
+    sleep 5
+    if kill -0 "$apt_direct_install_pid" 2>/dev/null; then
+      kill -KILL "$apt_direct_install_pid" 2>/dev/null || true
+    fi
+    wait "$apt_direct_install_pid" 2>/dev/null || true
+    apt_direct_install_rc=124
+  else
+    wait "$apt_direct_install_pid" || apt_direct_install_rc=$?
+  fi
+  kill "$apt_direct_monitor_pid" 2>/dev/null || true
+  wait "$apt_direct_monitor_pid" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_DEADLINE_RC__:$apt_direct_deadline_rc"
+  apt_direct_install_snapshot "final"
+  apt_direct_install_message="$(cat /usr/share/nemu-hostless-hello/message 2>/dev/null || true)"
+  apt_direct_install_meta_message="$(cat /usr/share/nemu-hostless-meta/message 2>/dev/null || true)"
+  apt_direct_install_meta_preinst="$(cat /var/lib/nemu-hostless-meta/preinst-message 2>/dev/null || true)"
+  apt_direct_install_meta_postinst="$(cat /var/lib/nemu-hostless-meta/postinst-message 2>/dev/null || true)"
+  apt_direct_install_status="$(
+    dpkg-query -W -f='${Status} ${Version} ${Architecture}' nemu-hostless-hello 2>/dev/null || true
+  )"
+  apt_direct_install_meta_status="$(
+    dpkg-query -W -f='${Status} ${Version} ${Architecture}' nemu-hostless-meta 2>/dev/null || true
+  )"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_RC__:$apt_direct_install_rc"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_MESSAGE__:$apt_direct_install_message"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_DPKG_STATUS__:$apt_direct_install_status"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_MESSAGE__:$apt_direct_install_meta_message"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_PREINST__:$apt_direct_install_meta_preinst"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_POSTINST__:$apt_direct_install_meta_postinst"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_DPKG_STATUS__:$apt_direct_install_meta_status"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_LOG_BEGIN__"
+  sed -n '1,180p' "$apt_direct_install_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_LOG_END__"
+  apt_direct_install_effect_ok=0
+  if [ "$apt_direct_install_message" = "hello from NEMU hostless apt" ] &&
+     [ "$apt_direct_install_status" = "install ok installed 1.0 riscv64" ] &&
+     [ "$apt_direct_install_meta_message" = "hello from NEMU hostless meta" ] &&
+     [ "$apt_direct_install_meta_preinst" = "preinst from NEMU hostless meta" ] &&
+     [ "$apt_direct_install_meta_postinst" = "postinst from NEMU hostless meta" ] &&
+     [ "$apt_direct_install_meta_status" = "install ok installed 1.0 riscv64" ]; then
+    apt_direct_install_effect_ok=1
+  fi
+  if [ "$apt_direct_install_rc" = "0" ] &&
+     [ "$apt_direct_install_effect_ok" = "1" ]; then
+    pass full-userland-apt-direct-full-status-install
+  elif [ "$apt_direct_install_rc" = "124" ] &&
+       [ "$apt_direct_install_effect_ok" = "1" ]; then
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_EFFECT_OK_AFTER_TIMEOUT__:124"
+    pass full-userland-apt-direct-full-status-install
+  else
+    fail full-userland-apt-direct-full-status-install
+  fi
+
+  apt_direct_remove_snapshot() {
+    apt_direct_remove_snapshot_label=$1
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_SAMPLE__:$apt_direct_remove_snapshot_label"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_PS_BEGIN__"
+    ps -eo pid,ppid,stat,etime,args 2>/dev/null | grep -E 'apt-get|dpkg|timeout' | grep -v grep || true
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_PS_END__"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_LOG_TAIL_BEGIN__"
+    if [ -s "$apt_direct_remove_log" ]; then
+      tail -n 80 "$apt_direct_remove_log" 2>/dev/null || true
+    else
+      echo "(remove-log-empty)"
+    fi
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_LOG_TAIL_END__"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_LOCKS_BEGIN__"
+    ls -l /var/lib/dpkg/lock /var/lib/dpkg/lock-frontend \
+      /var/cache/apt/archives/lock 2>/dev/null || true
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_LOCKS_END__"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_META_PRERM_SNAPSHOT__:$(cat /var/lib/nemu-hostless-meta/prerm-message 2>/dev/null || true)"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_META_POSTRM_SNAPSHOT__:$(cat /var/lib/nemu-hostless-meta/postrm-message 2>/dev/null || true)"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_META_STATUS_SNAPSHOT__:$(
+      dpkg-query -W -f='${Status} ${Version} ${Architecture}' nemu-hostless-meta 2>/dev/null || true
+    )"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_HELLO_STATUS_SNAPSHOT__:$(
+      dpkg-query -W -f='${Status} ${Version} ${Architecture}' nemu-hostless-hello 2>/dev/null || true
+    )"
+  }
+
+  apt_direct_remove_log="$apt_diag_dir/full-status-remove-no-pty.log"
+  apt_direct_remove_status="$apt_diag_dir/status-remove-installed"
+  apt_direct_remove_rc=0
+  rm -f "$apt_direct_remove_log"
+  dpkg-query -s nemu-hostless-hello nemu-hostless-meta >"$apt_direct_remove_status" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_START__"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_TARGET__:nemu-hostless-meta"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_APT_STATE__:installed-target-status-real-dpkg"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_STATUS_BEGIN__"
+  sed -n '1,120p' "$apt_direct_remove_status" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_STATUS_END__"
+  if [ "$apt_direct_install_effect_ok" = "1" ]; then
+    (
+      DEBIAN_FRONTEND=noninteractive \
+      apt-get remove -y nemu-hostless-meta:riscv64 \
+        -o "Dir::Etc::sourcelist=$apt_diag_source" \
+        -o "Dir::Etc::sourceparts=-" \
+        -o "Dir::State::lists=$apt_diag_root/lists" \
+        -o "Dir::State::status=$apt_direct_remove_status" \
+        -o "Dir::Cache::archives=$apt_diag_archives" \
+        -o "APT::Architecture=riscv64" \
+        -o "Acquire::Languages=none" \
+        -o "Acquire::Retries=0" \
+        -o "Acquire::http::Timeout=60" \
+        -o "APT::Get::List-Cleanup=0" \
+        -o "Dpkg::Use-Pty=0" \
+        >"$apt_direct_remove_log" 2>&1
+    ) &
+    apt_direct_remove_pid=$!
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_PID__:$apt_direct_remove_pid"
+    apt_direct_remove_snapshot "start"
+    (
+      apt_direct_remove_monitor_i=0
+      while kill -0 "$apt_direct_remove_pid" 2>/dev/null; do
+        sleep 15
+        apt_direct_remove_monitor_i=$((apt_direct_remove_monitor_i + 1))
+        apt_direct_remove_snapshot "monitor-$apt_direct_remove_monitor_i"
+      done
+    ) &
+    apt_direct_remove_monitor_pid=$!
+    apt_direct_remove_deadline_rc=0
+    timeout "${apt_remove_timeout}s" sh -c "while kill -0 $apt_direct_remove_pid 2>/dev/null; do sleep 1; done" || apt_direct_remove_deadline_rc=$?
+    if kill -0 "$apt_direct_remove_pid" 2>/dev/null; then
+      echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_TIMEOUT__:$apt_remove_timeout"
+      apt_direct_remove_snapshot "timeout"
+      kill "$apt_direct_remove_pid" 2>/dev/null || true
+      sleep 5
+      if kill -0 "$apt_direct_remove_pid" 2>/dev/null; then
+        kill -KILL "$apt_direct_remove_pid" 2>/dev/null || true
+      fi
+      wait "$apt_direct_remove_pid" 2>/dev/null || true
+      apt_direct_remove_rc=124
+    else
+      wait "$apt_direct_remove_pid" || apt_direct_remove_rc=$?
+    fi
+    kill "$apt_direct_remove_monitor_pid" 2>/dev/null || true
+    wait "$apt_direct_remove_monitor_pid" 2>/dev/null || true
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_DEADLINE_RC__:$apt_direct_remove_deadline_rc"
+    apt_direct_remove_snapshot "final"
+  else
+    apt_direct_remove_rc=125
+    echo "skip remove because install effect was not complete" >"$apt_direct_remove_log"
+  fi
+  apt_direct_remove_meta_prerm="$(cat /var/lib/nemu-hostless-meta/prerm-message 2>/dev/null || true)"
+  apt_direct_remove_meta_postrm="$(cat /var/lib/nemu-hostless-meta/postrm-message 2>/dev/null || true)"
+  apt_direct_remove_meta_status="$(
+    dpkg-query -W -f='${Status} ${Version} ${Architecture}' nemu-hostless-meta 2>/dev/null || true
+  )"
+  apt_direct_remove_meta_message="$(cat /usr/share/nemu-hostless-meta/message 2>/dev/null || true)"
+  apt_direct_remove_hello_status="$(
+    dpkg-query -W -f='${Status} ${Version} ${Architecture}' nemu-hostless-hello 2>/dev/null || true
+  )"
+  apt_direct_remove_hello_message="$(cat /usr/share/nemu-hostless-hello/message 2>/dev/null || true)"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_RC__:$apt_direct_remove_rc"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_PRERM__:$apt_direct_remove_meta_prerm"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_POSTRM__:$apt_direct_remove_meta_postrm"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_DPKG_STATUS_AFTER_REMOVE__:$apt_direct_remove_meta_status"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_MESSAGE_AFTER_REMOVE__:$apt_direct_remove_meta_message"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_HELLO_DPKG_STATUS_AFTER_REMOVE__:$apt_direct_remove_hello_status"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_HELLO_MESSAGE_AFTER_REMOVE__:$apt_direct_remove_hello_message"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_LOG_BEGIN__"
+  sed -n '1,180p' "$apt_direct_remove_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_LOG_END__"
+  if [ "$apt_direct_remove_rc" = "0" ] &&
+     [ "$apt_direct_remove_meta_prerm" = "prerm from NEMU hostless meta" ] &&
+     [ "$apt_direct_remove_meta_postrm" = "postrm from NEMU hostless meta" ] &&
+     [ "$apt_direct_remove_meta_status" = "deinstall ok config-files 1.0 riscv64" ] &&
+     [ -z "$apt_direct_remove_meta_message" ] &&
+     [ "$apt_direct_remove_hello_status" = "install ok installed 1.0 riscv64" ] &&
+     [ "$apt_direct_remove_hello_message" = "hello from NEMU hostless apt" ]; then
+    pass full-userland-apt-direct-full-status-remove
+  elif [ "$apt_direct_remove_rc" = "124" ] &&
+       [ "$apt_direct_remove_meta_prerm" = "prerm from NEMU hostless meta" ] &&
+       [ "$apt_direct_remove_meta_postrm" = "postrm from NEMU hostless meta" ] &&
+       [ -z "$apt_direct_remove_meta_status" ] &&
+       [ -z "$apt_direct_remove_meta_message" ] &&
+       [ "$apt_direct_remove_hello_status" = "install ok installed 1.0 riscv64" ] &&
+       [ "$apt_direct_remove_hello_message" = "hello from NEMU hostless apt" ]; then
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_EFFECT_OK_AFTER_TIMEOUT__:124"
+    pass full-userland-apt-direct-full-status-remove
+  else
+    fail full-userland-apt-direct-full-status-remove
+  fi
+
+  apt_direct_purge_snapshot() {
+    apt_direct_purge_snapshot_label=$1
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_SAMPLE__:$apt_direct_purge_snapshot_label"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_PS_BEGIN__"
+    ps -eo pid,ppid,stat,etime,args 2>/dev/null | grep -E 'apt-get|dpkg|timeout' | grep -v grep || true
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_PS_END__"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_LOG_TAIL_BEGIN__"
+    if [ -s "$apt_direct_purge_log" ]; then
+      tail -n 80 "$apt_direct_purge_log" 2>/dev/null || true
+    else
+      echo "(purge-log-empty)"
+    fi
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_LOG_TAIL_END__"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_LOCKS_BEGIN__"
+    ls -l /var/lib/dpkg/lock /var/lib/dpkg/lock-frontend \
+      /var/cache/apt/archives/lock 2>/dev/null || true
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_LOCKS_END__"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_META_STATUS_SNAPSHOT__:$(
+      dpkg-query -W -f='${Status} ${Version} ${Architecture}' nemu-hostless-meta 2>/dev/null || true
+    )"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_HELLO_STATUS_SNAPSHOT__:$(
+      dpkg-query -W -f='${Status} ${Version} ${Architecture}' nemu-hostless-hello 2>/dev/null || true
+    )"
+  }
+
+  apt_direct_purge_log="$apt_diag_dir/full-status-purge-no-pty.log"
+  apt_direct_purge_status="$apt_diag_dir/status-purge-config-files"
+  apt_direct_purge_rc=0
+  rm -f "$apt_direct_purge_log"
+  dpkg-query -s nemu-hostless-meta nemu-hostless-hello >"$apt_direct_purge_status" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_START__"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_TARGET__:nemu-hostless-meta"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_APT_STATE__:config-files-target-status-real-dpkg"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_STATUS_BEGIN__"
+  sed -n '1,120p' "$apt_direct_purge_status" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_STATUS_END__"
+  if [ "$apt_direct_remove_rc" = "0" ]; then
+    (
+      DEBIAN_FRONTEND=noninteractive \
+      apt-get purge -y nemu-hostless-meta:riscv64 \
+        -o "Dir::Etc::sourcelist=$apt_diag_source" \
+        -o "Dir::Etc::sourceparts=-" \
+        -o "Dir::State::lists=$apt_diag_root/lists" \
+        -o "Dir::State::status=$apt_direct_purge_status" \
+        -o "Dir::Cache::archives=$apt_diag_archives" \
+        -o "APT::Architecture=riscv64" \
+        -o "Acquire::Languages=none" \
+        -o "Acquire::Retries=0" \
+        -o "Acquire::http::Timeout=60" \
+        -o "APT::Get::List-Cleanup=0" \
+        -o "Dpkg::Use-Pty=0" \
+        >"$apt_direct_purge_log" 2>&1
+    ) &
+    apt_direct_purge_pid=$!
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_PID__:$apt_direct_purge_pid"
+    apt_direct_purge_snapshot "start"
+    (
+      apt_direct_purge_monitor_i=0
+      while kill -0 "$apt_direct_purge_pid" 2>/dev/null; do
+        sleep 15
+        apt_direct_purge_monitor_i=$((apt_direct_purge_monitor_i + 1))
+        apt_direct_purge_snapshot "monitor-$apt_direct_purge_monitor_i"
+      done
+    ) &
+    apt_direct_purge_monitor_pid=$!
+    apt_direct_purge_deadline_rc=0
+    timeout "${apt_remove_timeout}s" sh -c "while kill -0 $apt_direct_purge_pid 2>/dev/null; do sleep 1; done" || apt_direct_purge_deadline_rc=$?
+    if kill -0 "$apt_direct_purge_pid" 2>/dev/null; then
+      echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_TIMEOUT__:$apt_remove_timeout"
+      apt_direct_purge_snapshot "timeout"
+      kill "$apt_direct_purge_pid" 2>/dev/null || true
+      sleep 5
+      if kill -0 "$apt_direct_purge_pid" 2>/dev/null; then
+        kill -KILL "$apt_direct_purge_pid" 2>/dev/null || true
+      fi
+      wait "$apt_direct_purge_pid" 2>/dev/null || true
+      apt_direct_purge_rc=124
+    else
+      wait "$apt_direct_purge_pid" || apt_direct_purge_rc=$?
+    fi
+    kill "$apt_direct_purge_monitor_pid" 2>/dev/null || true
+    wait "$apt_direct_purge_monitor_pid" 2>/dev/null || true
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_DEADLINE_RC__:$apt_direct_purge_deadline_rc"
+    apt_direct_purge_snapshot "final"
+  else
+    apt_direct_purge_rc=125
+    echo "skip purge because remove did not complete" >"$apt_direct_purge_log"
+  fi
+  apt_direct_purge_meta_status="$(
+    dpkg-query -W -f='${Status} ${Version} ${Architecture}' nemu-hostless-meta 2>/dev/null || true
+  )"
+  apt_direct_purge_meta_message="$(cat /usr/share/nemu-hostless-meta/message 2>/dev/null || true)"
+  apt_direct_purge_hello_status="$(
+    dpkg-query -W -f='${Status} ${Version} ${Architecture}' nemu-hostless-hello 2>/dev/null || true
+  )"
+  apt_direct_purge_hello_message="$(cat /usr/share/nemu-hostless-hello/message 2>/dev/null || true)"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_RC__:$apt_direct_purge_rc"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_DPKG_STATUS_AFTER_PURGE__:$apt_direct_purge_meta_status"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_MESSAGE_AFTER_PURGE__:$apt_direct_purge_meta_message"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_HELLO_DPKG_STATUS_AFTER_PURGE__:$apt_direct_purge_hello_status"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_HELLO_MESSAGE_AFTER_PURGE__:$apt_direct_purge_hello_message"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_LOG_BEGIN__"
+  sed -n '1,180p' "$apt_direct_purge_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_LOG_END__"
+  if [ "$apt_direct_purge_rc" = "0" ] &&
+     [ -z "$apt_direct_purge_meta_status" ] &&
+     [ -z "$apt_direct_purge_meta_message" ] &&
+     [ "$apt_direct_purge_hello_status" = "install ok installed 1.0 riscv64" ] &&
+     [ "$apt_direct_purge_hello_message" = "hello from NEMU hostless apt" ]; then
+    pass full-userland-apt-direct-full-status-purge
+  else
+    fail full-userland-apt-direct-full-status-purge
+  fi
+}
+
 check_full_userland_network_clients() {
   if [ "${NEMU_GUEST_ROOTFS_FLAVOR:-systemd-minimal}" != "full" ]; then
     pass full-userland-network-clients-skip
@@ -1481,6 +2015,186 @@ check_full_userland_network_clients() {
     sed -n '1,120p' "$wget_log" 2>/dev/null || true
     echo "__NEMU_CHECK_FULL_WGET_LOG_END__"
     fail full-userland-wget-http
+  fi
+
+  curl_head_headers=/tmp/nemu-full-userland-curl-head.headers
+  curl_head_err=/tmp/nemu-full-userland-curl-head.err
+  curl_head_rc=0
+  curl_head_code="$(
+    timeout 120s curl -4 -fsS \
+      --head \
+      --connect-timeout 30 \
+      --max-time 120 \
+      --dump-header "$curl_head_headers" \
+      -o /tmp/nemu-full-userland-curl-head.body \
+      -w '%{http_code}' \
+      "$full_net_url" 2>"$curl_head_err"
+  )" || curl_head_rc=$?
+  echo "__NEMU_CHECK_FULL_CURL_HEAD_HTTP_CODE__:$curl_head_rc:$curl_head_code"
+  if [ "$curl_head_rc" = "0" ] && [ "$curl_head_code" = "204" ] &&
+     grep -qi '^Content-Length: 0' "$curl_head_headers"; then
+    pass full-userland-curl-head-http
+  else
+    echo "__NEMU_CHECK_FULL_CURL_HEAD_ERROR_BEGIN__"
+    sed -n '1,80p' "$curl_head_err" 2>/dev/null || true
+    sed -n '1,80p' "$curl_head_headers" 2>/dev/null || true
+    echo "__NEMU_CHECK_FULL_CURL_HEAD_ERROR_END__"
+    fail full-userland-curl-head-http
+  fi
+
+  curl_404_body=/tmp/nemu-full-userland-curl-404.body
+  curl_404_err=/tmp/nemu-full-userland-curl-404.err
+  curl_404_rc=0
+  curl_404_code="$(
+    timeout 120s curl -4 -fsS \
+      --connect-timeout 30 \
+      --max-time 120 \
+      -o "$curl_404_body" \
+      -w '%{http_code}' \
+      http://nemu.local/nemu-missing 2>"$curl_404_err"
+  )" || curl_404_rc=$?
+  echo "__NEMU_CHECK_FULL_CURL_404_HTTP_CODE__:$curl_404_rc:$curl_404_code"
+  if [ "$curl_404_rc" = "22" ] && [ "$curl_404_code" = "404" ]; then
+    pass full-userland-curl-404-http
+  else
+    echo "__NEMU_CHECK_FULL_CURL_404_ERROR_BEGIN__"
+    sed -n '1,80p' "$curl_404_err" 2>/dev/null || true
+    echo "__NEMU_CHECK_FULL_CURL_404_ERROR_END__"
+    fail full-userland-curl-404-http
+  fi
+
+  curl_large_body=/tmp/nemu-full-userland-curl-large.body
+  curl_large_err=/tmp/nemu-full-userland-curl-large.err
+  curl_large_rc=0
+  curl_large_bytes=0
+  curl_large_sha256=
+  timeout 180s curl -4 -fsS \
+    --connect-timeout 30 \
+    --max-time 180 \
+    -o "$curl_large_body" \
+    http://nemu.local/nemu-large 2>"$curl_large_err" || curl_large_rc=$?
+  if [ -f "$curl_large_body" ]; then
+    curl_large_bytes="$(wc -c < "$curl_large_body" 2>/dev/null | tr -d ' ')"
+    curl_large_sha256="$(sha256sum "$curl_large_body" 2>/dev/null | awk '{print $1}')"
+  fi
+  echo "__NEMU_CHECK_FULL_CURL_LARGE_RC__:$curl_large_rc"
+  echo "__NEMU_CHECK_FULL_CURL_LARGE_BYTES__:$curl_large_bytes"
+  echo "__NEMU_CHECK_FULL_CURL_LARGE_SHA256__:$curl_large_sha256"
+  if [ "$curl_large_rc" = "0" ] &&
+     [ "$curl_large_bytes" = "4096" ] &&
+     [ "$curl_large_sha256" = "8b186a8da3ad0c154cd7b0f2b57fd7c3ca7d4dc767ec45d27bcb155739be90b8" ]; then
+    pass full-userland-curl-large-http
+  else
+    echo "__NEMU_CHECK_FULL_CURL_LARGE_ERROR_BEGIN__"
+    sed -n '1,80p' "$curl_large_err" 2>/dev/null || true
+    echo "__NEMU_CHECK_FULL_CURL_LARGE_ERROR_END__"
+    fail full-userland-curl-large-http
+  fi
+
+  apt_hostless_root=/tmp/nemu-full-userland-apt-hostless
+  apt_hostless_source="$apt_hostless_root/sources.list"
+  apt_hostless_log="$apt_hostless_root/update.log"
+  rm -rf "$apt_hostless_root"
+  mkdir -p "$apt_hostless_root/lists/partial" "$apt_hostless_root/cache/archives/partial"
+  printf 'deb [trusted=yes arch=riscv64] http://nemu.local/ubuntu jammy main\n' > "$apt_hostless_source"
+  apt_hostless_rc=0
+  timeout 240s apt-get update \
+    -o "Dir::Etc::sourcelist=$apt_hostless_source" \
+    -o "Dir::Etc::sourceparts=-" \
+    -o "Dir::State::lists=$apt_hostless_root/lists" \
+    -o "Dir::Cache::archives=$apt_hostless_root/cache/archives" \
+    -o "APT::Architecture=riscv64" \
+    -o "Acquire::Languages=none" \
+    -o "Acquire::Retries=0" \
+    -o "Acquire::http::Timeout=60" \
+    -o "APT::Get::List-Cleanup=0" \
+    >"$apt_hostless_log" 2>&1 || apt_hostless_rc=$?
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_UPDATE_RC__:$apt_hostless_rc"
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_UPDATE_LOG_BEGIN__"
+  sed -n '1,120p' "$apt_hostless_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_UPDATE_LOG_END__"
+  if [ "$apt_hostless_rc" = "0" ] &&
+     grep -q 'http://nemu.local/ubuntu jammy Release' "$apt_hostless_log" &&
+     grep -q 'Reading package lists' "$apt_hostless_log"; then
+    pass full-userland-apt-hostless-update
+  else
+    fail full-userland-apt-hostless-update
+  fi
+
+  if [ "$apt_hostless_rc" = "0" ]; then
+    check_full_userland_apt_install_diag "$apt_hostless_root" "$apt_hostless_source"
+  fi
+
+  apt_hostless_install_log="$apt_hostless_root/install.log"
+  apt_hostless_download_log="$apt_hostless_root/download.log"
+  apt_hostless_dpkg_log="$apt_hostless_root/dpkg-install.log"
+  apt_hostless_download_dir="$apt_hostless_root/download"
+  apt_hostless_download_status="$apt_hostless_root/download-status-empty"
+  apt_hostless_deb="$apt_hostless_download_dir/nemu-hostless-hello_1.0_riscv64.deb"
+  apt_hostless_deb_sha256=
+  apt_hostless_download_rc=0
+  apt_hostless_dpkg_rc=0
+  apt_hostless_install_rc=0
+  if [ "$apt_hostless_rc" = "0" ]; then
+    mkdir -p "$apt_hostless_download_dir"
+    : > "$apt_hostless_download_status"
+    (
+      cd "$apt_hostless_download_dir" &&
+      timeout 240s apt-get download nemu-hostless-hello:riscv64 \
+        -o "Dir::Etc::sourcelist=$apt_hostless_source" \
+        -o "Dir::Etc::sourceparts=-" \
+        -o "Dir::State::lists=$apt_hostless_root/lists" \
+        -o "Dir::State::status=$apt_hostless_download_status" \
+        -o "Dir::Cache::archives=$apt_hostless_root/cache/archives" \
+        -o "APT::Architecture=riscv64" \
+        -o "Acquire::Languages=none" \
+        -o "Acquire::Retries=0" \
+        -o "Acquire::http::Timeout=60" \
+        -o "APT::Get::List-Cleanup=0"
+    ) >"$apt_hostless_download_log" 2>&1 || apt_hostless_download_rc=$?
+    if [ -f "$apt_hostless_deb" ]; then
+      apt_hostless_deb_sha256="$(sha256sum "$apt_hostless_deb" | awk '{print $1}')"
+    fi
+    if [ "$apt_hostless_download_rc" = "0" ] &&
+       [ "$apt_hostless_deb_sha256" = "073216e022c5d7f98d7d07279921a2576920784a0895d870c5f962cb07647187" ]; then
+      DEBIAN_FRONTEND=noninteractive timeout 240s dpkg -i "$apt_hostless_deb" \
+        >"$apt_hostless_dpkg_log" 2>&1 || apt_hostless_dpkg_rc=$?
+    else
+      apt_hostless_dpkg_rc=125
+      echo "skip dpkg install because download rc=$apt_hostless_download_rc sha256=$apt_hostless_deb_sha256" \
+        >"$apt_hostless_dpkg_log"
+    fi
+    cat "$apt_hostless_download_log" "$apt_hostless_dpkg_log" >"$apt_hostless_install_log"
+    if [ "$apt_hostless_download_rc" != "0" ] || [ "$apt_hostless_dpkg_rc" != "0" ]; then
+      apt_hostless_install_rc=1
+    fi
+  else
+    apt_hostless_install_rc=125
+    apt_hostless_download_rc=125
+    apt_hostless_dpkg_rc=125
+    echo "skip install because apt-get update rc=$apt_hostless_rc" \
+      >"$apt_hostless_install_log"
+    cp "$apt_hostless_install_log" "$apt_hostless_download_log"
+    cp "$apt_hostless_install_log" "$apt_hostless_dpkg_log"
+  fi
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_DOWNLOAD_RC__:$apt_hostless_download_rc"
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_DOWNLOAD_SHA256__:$apt_hostless_deb_sha256"
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_DPKG_RC__:$apt_hostless_dpkg_rc"
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_INSTALL_RC__:$apt_hostless_install_rc"
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_INSTALL_LOG_BEGIN__"
+  sed -n '1,160p' "$apt_hostless_install_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_INSTALL_LOG_END__"
+  apt_hostless_message=/usr/share/nemu-hostless-hello/message
+  apt_hostless_message_value="$(cat "$apt_hostless_message" 2>/dev/null || true)"
+  apt_hostless_dpkg_status="$(dpkg-query -W -f='${Status} ${Version} ${Architecture}' nemu-hostless-hello 2>/dev/null || true)"
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_INSTALL_MESSAGE__:$apt_hostless_message_value"
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_DPKG_STATUS__:$apt_hostless_dpkg_status"
+  if [ "$apt_hostless_install_rc" = "0" ] &&
+     [ "$apt_hostless_message_value" = "hello from NEMU hostless apt" ] &&
+     [ "$apt_hostless_dpkg_status" = "install ok installed 1.0 riscv64" ]; then
+    pass full-userland-apt-hostless-install
+  else
+    fail full-userland-apt-hostless-install
   fi
 }
 

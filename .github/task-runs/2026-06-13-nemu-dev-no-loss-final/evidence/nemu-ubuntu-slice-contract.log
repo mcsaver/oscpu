@@ -1,0 +1,1426 @@
+[nemu-ubuntu] slice contract guard
+PASS nemu/src/device/rng.c
+PASS nemu/src/device/net.c
+PASS nemu/src/device/goldfish_rtc.c
+PASS Linux/tools/nemu-systemd-icmp-probe.c
+PASS Linux/tools/nemu-systemd-dhcp-probe.c
+PASS Linux/tools/nemu-systemd-dns-probe.c
+PASS Linux/tools/nemu-systemd-tcp-probe.c
+PASS Linux/tools/amo-misaligned-smoke.S
+PASS Linux/tools/lrsc-reservation-smoke.S
+PASS Linux/tools/pmp-access-smoke.S
+PASS Linux/tools/pmp-pagewalk-smoke.S
+PASS Linux/tools/pmp-pagewalk-ad-smoke.S
+PASS Linux/tools/sv39-sfence-asid-smoke.S
+PASS Linux/tools/virtio-blk-error-smoke.S
+PASS nemu/src/isa/riscv64/system/mmu.c
+PASS nemu/src/isa/riscv64/inst.c
+PASS nemu/src/isa/riscv64/filelist.mk
+PASS nemu/src/isa/riscv64/inst/common.c
+PASS nemu/src/isa/riscv64/inst/csr.c
+PASS nemu/src/isa/riscv64/inst/rv64i.c
+PASS nemu/src/isa/riscv64/inst/fp.c
+PASS nemu/src/isa/riscv64/inst/muldiv.c
+PASS nemu/src/isa/riscv64/inst/amo.c
+PASS nemu/src/isa/riscv64/inst/bitmanip.c
+PASS nemu/src/isa/riscv64/inst/compressed.c
+PASS nemu/src/isa/riscv64/inst/decode_cache.c
+PASS nemu/src/isa/riscv64/inst/decode.c
+PASS nemu/include/isa.h
+PASS nemu/src/monitor/monitor.c
+PASS nemu/src/monitor/qmp.c
+PASS nemu/src/monitor/qmp.h
+PASS nemu/src/monitor/gdbstub.c
+PASS nemu/src/monitor/gdbstub.h
+PASS nemu/src/monitor/sdb/sdb.c
+PASS nemu/src/monitor/sdb/sdb.h
+PASS nemu/scripts/native.mk
+PASS nemu/src/filelist.mk
+PASS Linux/scripts/build-ubuntu-rootfs.sh
+PASS Linux/scripts/build-ubuntu-systemd-overlay.sh
+PASS Linux/scripts/ubuntu-rootfs-flavors.sh
+PASS Linux/scripts/check-ubuntu-rootfs.sh
+PASS nemu/include/utils.h
+PASS .github/memory/modules/nemu.md
+PASS .github/memory/known-issues.md
+PASS .github/e2e/profiles/nemu-dev.tsv
+PASS .github/e2e/profiles/nemu-dev-gate.tsv
+PASS .github/e2e/profiles/nemu-dev-full-gate.tsv
+PASS .github/e2e/profiles/nemu-dev-full-soak.tsv
+PASS .github/e2e/profiles/npc-dev.tsv
+PASS .github/e2e/profiles/nemu-ubuntu.tsv
+PASS .github/e2e/profiles/nemu-ubuntu-focused.tsv
+PASS .github/e2e/profiles/nemu-ubuntu-gate.tsv
+PASS .github/e2e/profiles/nemu-ubuntu-full-gate.tsv
+PASS .github/e2e/profiles/nemu-ubuntu-full-soak.tsv
+PASS .github/e2e/profiles/software-flow.tsv
+PASS .github/agents/software-flow.agent.md
+PASS .github/e2e/modules/software-flow.md
+
+[nemu-ubuntu] required software-flow methodology hooks
+PASS nemu-ubuntu profile keeps software-flow include
+PASS nemu-dev profile includes nemu-ubuntu-focused
+PASS nemu-ubuntu-focused profile keeps NEMU-only static contract
+PASS nemu-ubuntu-focused profile avoids rv64-linux/NPC nodes
+PASS NEMU/NPC dev profiles keep scenario isolation
+PASS NEMU dev gate profiles include nemu-dev
+PASS NEMU Ubuntu integration gate profiles keep nemu-ubuntu include
+PASS software-flow profile exposes software-flow-contract
+PASS software-flow methodology available to NEMU dev/integration software-dev-loop
+PASS software-flow methodology available to NEMU dev/integration software-bugfix-loop
+PASS software-flow methodology available to NEMU dev/integration hardware-aware-software-loop
+PASS software-flow methodology available to NEMU dev/integration scope-contract -> hardware-semantic-contract -> design-plan -> implement -> software-focused-test -> system-or-hardware-gate -> review-record
+PASS software-flow methodology available to NEMU dev/integration 不把“构建通过”单独当成软件任务完成
+PASS software-flow methodology available to NEMU dev/integration 必须扫描 FAIL marker
+
+[nemu-ubuntu] required host build jobserver hooks
+PASS Linux/Makefile +$(MAKE) -C '$(NEMU_HOME)' NEMU_HOME='$(NEMU_HOME)' -j'$(JOBS)'
+PASS Linux/Makefile +$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs __check-nemu-systemd-guest
+PASS Linux/Makefile +$(MAKE) -C '$(TOOLS_DIR)'
+PASS native.mk NEMU_YSYX_TRACE_MAKE
+PASS native.mk 不应直接 include 根 Makefile
+PASS native.mk +@-flock $(NEMU_YSYX_TRACE_LOCK_DIR) $(MAKE) --no-print-directory -C $(NEMU_YSYX_HOME)
+PASS native.mk include $(NEMU_HOME)/scripts/build.mk
+PASS native.mk has no direct workspace root Makefile include
+
+[nemu-ubuntu] required guest markers
+PASS marker __NEMU_CHECK_HWRNG_CURRENT__
+PASS marker __NEMU_CHECK_VIRTIO_RNG_DRIVER__
+PASS marker __NEMU_CHECK_VIRTIO_RNG_STATUS__
+PASS marker __NEMU_CHECK_VIRTIO_RNG_FEATURES__
+PASS marker __NEMU_CHECK_MEMTOTAL_LINE__
+PASS marker __NEMU_CHECK_MEMTOTAL_KB__
+PASS marker __NEMU_CHECK_RTC0_NAME__
+PASS marker __NEMU_CHECK_VIRTIO_NET_MODALIAS__
+PASS marker __NEMU_CHECK_VIRTIO_NET_FEATURES__
+PASS marker __NEMU_CHECK_VIRTIO_NET_IFACE__
+PASS marker __NEMU_CHECK_VIRTIO_NET_MAC__
+PASS marker __NEMU_CHECK_VIRTIO_NET_MTU__
+PASS marker __NEMU_CHECK_VIRTIO_NET_SPEED__
+PASS marker __NEMU_CHECK_VIRTIO_NET_DUPLEX__
+PASS marker __NEMU_CHECK_VIRTIO_NET_IPV4__
+PASS marker __NEMU_CHECK_VDA_CACHE_TYPE__
+PASS marker __NEMU_CHECK_VDA_DISCARD_MAX__
+PASS marker __NEMU_CHECK_VDA_WRITE_ZEROES_MAX__
+PASS marker __NEMU_CHECK_LSB_RELEASE__
+PASS marker __NEMU_CHECK_COMMON_COMMANDS__
+PASS marker __NEMU_CHECK_TOP_VERSION__
+PASS marker __NEMU_CHECK_TOP_BATCH_OPTIONAL__
+PASS marker __NEMU_CHECK_HOSTNAMECTL_VERSION__
+PASS marker __NEMU_CHECK_HTOP_OPTIONAL__
+PASS marker __NEMU_CHECK_SYSTEMD_RELOAD_DBUS_TIMEOUT__
+PASS marker __NEMU_CHECK_SYSTEMD_RELOAD_ERROR__
+PASS marker __NEMU_CHECK_SYSTEMD_RELOAD_ERROR_OUTPUT__
+PASS marker __NEMU_GUEST_SCRIPT_SHA256__
+PASS marker __NEMU_GUEST_SCRIPT_READY__
+PASS marker __NEMU_CHECK_INTERRUPTS_TABLE_TOTAL__
+PASS marker __NEMU_CHECK_IRQ_VISIBLE__
+PASS marker virtio-blk-feature-config-wce
+PASS marker virtio-blk-feature-mq
+PASS marker virtio-blk-feature-discard
+PASS marker virtio-blk-feature-topology
+PASS marker virtio-blk-feature-write-zeroes
+PASS marker proc-interrupts-total
+PASS marker guest-memtotal-min
+PASS marker lsb-release-present
+PASS marker lsb-release-ubuntu2204
+PASS marker common-free-present
+PASS marker common-free-mem
+PASS marker common-top-present
+PASS marker common-top-version
+PASS marker common-top-batch-optional
+PASS marker common-hostnamectl-present
+PASS marker common-hostnamectl-version
+PASS marker common-htop-optional
+PASS marker virtio-net-driver
+PASS marker virtio-net-feature-mtu
+PASS marker virtio-net-feature-ctrl-vq
+PASS marker virtio-net-feature-ctrl-rx
+PASS marker virtio-net-feature-ctrl-vlan
+PASS marker virtio-net-feature-ctrl-rx-extra
+PASS marker virtio-net-feature-guest-announce
+PASS marker virtio-net-feature-ctrl-mac-addr
+PASS marker virtio-net-feature-speed-duplex
+PASS marker virtio-rng-ring-feature-indirect-desc
+PASS marker virtio-rng-ring-feature-event-idx
+PASS marker virtio-net-dhcp-lease
+PASS marker virtio-net-dns-a
+PASS marker virtio-net-tcp-http
+PASS marker virtio-net-icmp-echo
+PASS marker virtio-net-mtu
+PASS marker virtio-net-speed
+PASS marker virtio-net-duplex
+PASS marker virtio-net-ring-feature-event-idx
+PASS marker virtio-ring-feature-event-idx
+PASS marker vda-cache-type-write-through
+PASS marker vda-cache-type-write-back
+PASS icmp-probe.c __NEMU_ICMP_PROBE_PASS__
+PASS icmp-probe.c SOCK_RAW
+PASS icmp-probe.c IPPROTO_ICMP
+PASS dhcp-probe.c __NEMU_DHCP_PROBE_PASS__
+PASS dhcp-probe.c DHCPDISCOVER
+PASS dhcp-probe.c DHCPREQUEST
+PASS dhcp-probe.c AF_PACKET
+PASS dhcp-probe.c SOCK_RAW
+PASS dns-probe.c __NEMU_DNS_PROBE_PASS__
+PASS dns-probe.c nemu.local
+PASS dns-probe.c SOCK_DGRAM
+PASS dns-probe.c SO_BINDTODEVICE
+PASS tcp-probe.c __NEMU_TCP_PROBE_PASS__
+PASS tcp-probe.c __NEMU_TCP_PROBE_BURST__
+PASS tcp-probe.c SOCK_STREAM
+PASS tcp-probe.c SO_BINDTODEVICE
+PASS tcp-probe.c /nemu-health
+PASS net.c VIRTIO_NET_DEVICE_ID
+PASS net.c VIRTIO_NET_F_MTU
+PASS net.c VIRTIO_NET_MTU
+PASS net.c VIRTIO_NET_F_SPEED_DUPLEX
+PASS net.c VIRTIO_NET_LINK_SPEED_MBIT
+PASS net.c VIRTIO_NET_LINK_DUPLEX_FULL
+PASS net.c VIRTIO_NET_F_MAC
+PASS net.c VIRTIO_NET_F_MRG_RXBUF
+PASS net.c VIRTIO_NET_F_STATUS
+PASS net.c VIRTIO_NET_F_CTRL_VQ
+PASS net.c VIRTIO_NET_F_CTRL_RX
+PASS net.c VIRTIO_NET_F_CTRL_VLAN
+PASS net.c VIRTIO_NET_F_CTRL_RX_EXTRA
+PASS net.c VIRTIO_NET_F_GUEST_ANNOUNCE
+PASS net.c VIRTIO_NET_F_CTRL_MAC_ADDR
+PASS net.c VIRTIO_NET_QUEUE_CTRL
+PASS net.c virtio_net_ctrl_vq_enabled
+PASS net.c virtio_net_ctrl_rx_enabled
+PASS net.c virtio_net_ctrl_vlan_enabled
+PASS net.c virtio_net_ctrl_rx_extra_enabled
+PASS net.c virtio_net_ctrl_rx_extra_cmd
+PASS net.c virtio_net_guest_announce_enabled
+PASS net.c virtio_net_request_guest_announce
+PASS net.c virtio_net_ctrl_mac_addr_enabled
+PASS net.c VIRTIO_NET_CTRL_RX_PROMISC
+PASS net.c VIRTIO_NET_CTRL_RX_ALLMULTI
+PASS net.c VIRTIO_NET_CTRL_RX_ALLUNI
+PASS net.c VIRTIO_NET_CTRL_RX_NOMULTI
+PASS net.c VIRTIO_NET_CTRL_RX_NOUNI
+PASS net.c VIRTIO_NET_CTRL_RX_NOBCAST
+PASS net.c VIRTIO_NET_CTRL_VLAN_ADD
+PASS net.c VIRTIO_NET_CTRL_VLAN_DEL
+PASS net.c VIRTIO_NET_CTRL_ANNOUNCE_ACK
+PASS net.c VIRTIO_NET_CTRL_MAC_TABLE_SET
+PASS net.c VIRTIO_NET_CTRL_MAC_ADDR_SET
+PASS net.c virtio_net_parse_ctrl_mac_table
+PASS net.c virtio_net_parse_ctrl_mac_addr
+PASS net.c virtio_net_parse_ctrl_vlan
+PASS net.c virtio_net_parse_ctrl_no_payload
+PASS net.c virtio_net_process_ctrl_queue
+PASS net.c virtio_net_handle_ctrl_chain
+PASS net.c device.virtio_net.features.version_1
+PASS net.c device.virtio_net.features.mtu
+PASS net.c device.virtio_net.features.ctrl_vq
+PASS net.c device.virtio_net.features.ctrl_rx
+PASS net.c device.virtio_net.features.ctrl_vlan
+PASS net.c device.virtio_net.features.ctrl_rx_extra
+PASS net.c device.virtio_net.features.guest_announce
+PASS net.c device.virtio_net.features.ctrl_mac_addr
+PASS net.c device.virtio_net.features.speed_duplex
+PASS net.c device.virtio_net.driver_features.version_1
+PASS net.c device.virtio_net.driver_features.mtu
+PASS net.c device.virtio_net.driver_features.ctrl_vq
+PASS net.c device.virtio_net.driver_features.ctrl_rx
+PASS net.c device.virtio_net.driver_features.ctrl_vlan
+PASS net.c device.virtio_net.driver_features.ctrl_rx_extra
+PASS net.c device.virtio_net.driver_features.guest_announce
+PASS net.c device.virtio_net.driver_features.ctrl_mac_addr
+PASS net.c device.virtio_net.driver_features.speed_duplex
+PASS net.c device.virtio_net.ctrl_rx.promisc
+PASS net.c device.virtio_net.ctrl_rx.alluni
+PASS net.c device.virtio_net.stats.ctrl_rx_commands
+PASS net.c device.virtio_net.stats.ctrl_rx_extra_commands
+PASS net.c device.virtio_net.ctrl_mac.table_set
+PASS net.c device.virtio_net.stats.ctrl_mac_table_commands
+PASS net.c device.virtio_net.ctrl_mac.addr_set
+PASS net.c device.virtio_net.stats.ctrl_mac_addr_commands
+PASS net.c device.virtio_net.ctrl_vlan.filter_count
+PASS net.c device.virtio_net.stats.ctrl_vlan_commands
+PASS net.c device.virtio_net.ctrl_announce.pending
+PASS net.c device.virtio_net.stats.ctrl_announce_commands
+PASS net.c VIRTIO_NET_RX_HDR_LEN
+PASS net.c VIRTIO_RING_F_INDIRECT_DESC
+PASS net.c VIRTIO_RING_F_EVENT_IDX
+PASS net.c virtio_net_event_idx_enabled
+PASS net.c virtio_net_handle_arp
+PASS net.c virtio_net_handle_icmp
+PASS net.c virtio_net_handle_dhcp
+PASS net.c virtio_net_handle_dns
+PASS net.c virtio_net_handle_tcp_http
+PASS net.c virtio_net_send_tcp_payload
+PASS net.c VIRTIO_NET_TCP_HTTP_SEGMENT_PAYLOAD_MAX
+PASS net.c VirtioNetStats
+PASS net.c virtio_net_statistic
+PASS net.c tcp_http_requests
+PASS net.c tcp_http_head_requests
+PASS net.c tcp_http_not_found
+PASS net.c tcp_http_apt_requests
+PASS net.c tcp_http_apt_deb_requests
+PASS net.c tcp_http_large_requests
+PASS net.c tcp_http_segmented_responses
+PASS net.c tcp_http_response_segments
+PASS net.c HEAD
+PASS net.c 404 Not Found
+PASS net.c NEMU_HTTP_LARGE_4096
+PASS net.c /nemu-large
+PASS net.c nemu_apt_release
+PASS net.c nemu-hostless-hello_1.0_riscv64.deb
+PASS net.c nemu-hostless-meta_1.0_riscv64.deb
+PASS net.c Depends: nemu-hostless-hello (= 1.0)
+PASS net.c /ubuntu/dists/jammy/Release
+PASS net.c /ubuntu/dists/jammy/main/binary-riscv64/Packages.gz
+PASS net.c http-methods
+PASS net.c http-not-found
+PASS net.c http-large
+PASS net.c apt-repo
+PASS net.c DHCPDISCOVER
+PASS net.c DHCPACK
+PASS net.c DNS_QTYPE_A
+PASS net.c TCP_HTTP_PORT
+PASS net.c virtq_collect_table
+PASS net.c virtio_net_handle_tx_chain
+PASS net.c virtio_net_process_tx_queue
+PASS net.c virtio_net_try_deliver_rx_queue
+PASS net.c virtq_need_event
+PASS net.c virtq_set_avail_event
+PASS net.c virtq_validate_queue_layout
+PASS net.c virtq_dma_range_valid
+PASS net.c CONFIG_VIRTIO_NET_MMIO
+
+[nemu-ubuntu] required host console clean hooks
+PASS check-nemu-systemd-guest.sh NEMU_SYSTEMD_NET_TCP_BURST_LOOPS
+PASS check-nemu-systemd-guest.sh NEMU_SYSTEMD_ROOTFS_OVERLAY
+PASS check-nemu-systemd-guest.sh NEMU_SYSTEMD_MIN_MEMTOTAL_KB
+PASS check-nemu-systemd-guest.sh NEMU_SYSTEMD_INPUT_DELAY:-0.001
+PASS check-nemu-systemd-guest.sh NEMU_SYSTEMD_INPUT_CHUNK_BYTES:-8
+PASS check-nemu-systemd-guest.sh NEMU_SYSTEMD_INPUT_CHUNK_DELAY:-0
+PASS check-nemu-systemd-guest.sh serial input model: FIFO/stdin bytes -> NEMU SerialPort staging -> 16550 RX FIFO -> Linux ttyS0
+PASS check-nemu-systemd-guest.sh guest-check-upload.cmd
+PASS check-nemu-systemd-guest.sh virtio-blk-async-runtime
+PASS check-nemu-systemd-guest.sh virtio-net-runtime
+PASS check-nemu-systemd-guest.sh PASS rootfs-backing-unchanged
+PASS check-nemu-systemd-guest.sh NEMU_SYSTEMD_ROOTFS_FLAVOR
+PASS check-nemu-systemd-guest.sh NEMU_GUEST_ROOTFS_FLAVOR
+PASS check-nemu-systemd-guest.sh NEMU_GUEST_APT_INSTALL_DIAG
+PASS check-nemu-systemd-guest.sh NEMU_GUEST_APT_INSTALL_ACTUAL
+PASS check-nemu-systemd-guest.sh NEMU_GUEST_APT_INSTALL_DIAG_TIMEOUT
+PASS check-nemu-systemd-guest.sh NEMU_GUEST_APT_REMOVE_DIAG_TIMEOUT
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_ROOTFS_FLAVOR__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_USERLAND__
+PASS check-nemu-systemd-guest.sh full-userland-runtime
+PASS check-nemu-systemd-guest.sh full-userland-apt-version
+PASS check-nemu-systemd-guest.sh full-userland-dpkg-audit
+PASS check-nemu-systemd-guest.sh full-userland-dpkg-package-
+PASS check-nemu-systemd-guest.sh ubuntu-standard openssh-server curl wget dropbear-bin rsyslog cron systemd-timesyncd
+PASS check-nemu-systemd-guest.sh full-userland-apt-policy
+PASS check-nemu-systemd-guest.sh full-userland-sudo-root
+PASS check-nemu-systemd-guest.sh full-userland-sshd-config
+PASS check-nemu-systemd-guest.sh full-userland-ssh-active
+PASS check-nemu-systemd-guest.sh full-userland-ssh-listen
+PASS check-nemu-systemd-guest.sh full-userland-ssh-test-user
+PASS check-nemu-systemd-guest.sh full-userland-ssh-keygen
+PASS check-nemu-systemd-guest.sh full-userland-ssh-dbclient-key
+PASS check-nemu-systemd-guest.sh full-userland-ssh-dropbear-hostkey
+PASS check-nemu-systemd-guest.sh full-userland-ssh-local-login
+PASS check-nemu-systemd-guest.sh full-userland-resolv-hostless
+PASS check-nemu-systemd-guest.sh full-userland-curl-http
+PASS check-nemu-systemd-guest.sh full-userland-wget-http
+PASS check-nemu-systemd-guest.sh full-userland-curl-head-http
+PASS check-nemu-systemd-guest.sh full-userland-curl-404-http
+PASS check-nemu-systemd-guest.sh full-userland-curl-large-http
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_CURL_LARGE_RC__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_CURL_LARGE_BYTES__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_CURL_LARGE_SHA256__
+PASS check-nemu-systemd-guest.sh http://nemu.local/nemu-large
+PASS check-nemu-systemd-guest.sh full-userland-apt-hostless-update
+PASS check-nemu-systemd-guest.sh full-userland-apt-hostless-install
+PASS check-nemu-systemd-guest.sh full-userland-apt-direct-install-diag-skip
+PASS check-nemu-systemd-guest.sh full-userland-apt-direct-empty-status-simulate
+PASS check-nemu-systemd-guest.sh full-userland-apt-direct-empty-status-download
+PASS check-nemu-systemd-guest.sh full-userland-apt-direct-actual-install-skip
+PASS check-nemu-systemd-guest.sh full-userland-apt-direct-full-status-install
+PASS check-nemu-systemd-guest.sh full-userland-apt-direct-full-status-remove
+PASS check-nemu-systemd-guest.sh full-userland-cron-active
+PASS check-nemu-systemd-guest.sh full-userland-rsyslog-active
+PASS check-nemu-systemd-guest.sh full-userland-timesyncd-active
+PASS check-nemu-systemd-guest.sh full_userland_fail
+PASS check-nemu-systemd-guest.sh full_userland_ok
+PASS check-nemu-systemd-guest.sh systemctl start syslog.socket
+PASS check-nemu-systemd-guest.sh rsyslogd -N1
+PASS check-nemu-systemd-guest.sh dpkg --audit
+PASS check-nemu-systemd-guest.sh dpkg-query -W
+PASS check-nemu-systemd-guest.sh dpkg -L
+PASS check-nemu-systemd-guest.sh dpkg -S
+PASS check-nemu-systemd-guest.sh apt-cache policy
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_DPKG_AUDIT_RC__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_DPKG_QUERY__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_DPKG_LIST__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_DPKG_SEARCH__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_POLICY_RC__
+PASS check-nemu-systemd-guest.sh full-userland-dpkg-list-
+PASS check-nemu-systemd-guest.sh full-userland-dpkg-search-
+PASS check-nemu-systemd-guest.sh sshd -T
+PASS check-nemu-systemd-guest.sh systemctl start ssh.service
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_SSH_LISTEN_SOCKET__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_SSH_DROPBEAR_READY__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_SSH_SERVER__:dropbear-loopback
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_SSH_CLIENT__:dbclient
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_SSH_LOGIN_OK__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_SSH_DROPBEAR_LOG_BEGIN__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_CURL_HTTP_CODE__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_WGET_HTTP_CODE__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_CURL_HEAD_HTTP_CODE__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_CURL_404_HTTP_CODE__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_HOSTLESS_UPDATE_RC__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_HOSTLESS_DOWNLOAD_RC__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_HOSTLESS_DOWNLOAD_SHA256__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_HOSTLESS_DPKG_RC__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_HOSTLESS_INSTALL_RC__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_HOSTLESS_INSTALL_MESSAGE__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_HOSTLESS_DPKG_STATUS__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_SIM_RC__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_SIM_RC__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_RC__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_SHA256__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_META_SHA256__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_START__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_TARGET__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_APT_STATE__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_PID__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_SAMPLE__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_PS_BEGIN__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_LOG_TAIL_BEGIN__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_LOCKS_BEGIN__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_TIMEOUT__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_DEADLINE_RC__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_MESSAGE_SNAPSHOT__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_DPKG_STATUS_SNAPSHOT__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_MESSAGE_SNAPSHOT__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_PREINST_SNAPSHOT__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_POSTINST_SNAPSHOT__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_DPKG_STATUS_SNAPSHOT__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_RC__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_EFFECT_OK_AFTER_TIMEOUT__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_MESSAGE__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_DPKG_STATUS__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_MESSAGE__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_PREINST__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_POSTINST__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_DPKG_STATUS__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_START__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_TARGET__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_RC__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_PRERM__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_POSTRM__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_DPKG_STATUS_AFTER_REMOVE__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_MESSAGE_AFTER_REMOVE__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_HELLO_DPKG_STATUS_AFTER_REMOVE__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_HELLO_MESSAGE_AFTER_REMOVE__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_LOG_BEGIN__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_RESOLV_CONF_BEGIN__
+PASS check-nemu-systemd-guest.sh http://nemu.local/nemu-health
+PASS check-nemu-systemd-guest.sh http://nemu.local/nemu-missing
+PASS check-nemu-systemd-guest.sh http://nemu.local/ubuntu
+PASS check-nemu-systemd-guest.sh apt-get download nemu-hostless-hello:riscv64
+PASS check-nemu-systemd-guest.sh nemu-hostless-meta:riscv64
+PASS check-nemu-systemd-guest.sh preinst from NEMU hostless meta
+PASS check-nemu-systemd-guest.sh postinst from NEMU hostless meta
+PASS check-nemu-systemd-guest.sh prerm from NEMU hostless meta
+PASS check-nemu-systemd-guest.sh postrm from NEMU hostless meta
+PASS check-nemu-systemd-guest.sh preinst-message
+PASS check-nemu-systemd-guest.sh postinst-message
+PASS check-nemu-systemd-guest.sh prerm-message
+PASS check-nemu-systemd-guest.sh postrm-message
+PASS check-nemu-systemd-guest.sh apt-get -s install
+PASS check-nemu-systemd-guest.sh apt-get --download-only install
+PASS check-nemu-systemd-guest.sh apt-get remove -y
+PASS check-nemu-systemd-guest.sh Dir::State::status
+PASS check-nemu-systemd-guest.sh download-status-empty
+PASS check-nemu-systemd-guest.sh Dpkg::Use-Pty=0
+PASS check-nemu-systemd-guest.sh ps -eo pid,ppid,stat,etime,args
+PASS check-nemu-systemd-guest.sh tail -n 80
+PASS check-nemu-systemd-guest.sh kill -KILL
+PASS check-nemu-systemd-guest.sh dpkg -i
+PASS check-nemu-systemd-guest.sh curl -4 -fsS
+PASS check-nemu-systemd-guest.sh --head
+PASS check-nemu-systemd-guest.sh apt-get update
+PASS check-nemu-systemd-guest.sh Dir::Etc::sourcelist
+PASS check-nemu-systemd-guest.sh --inet4-only
+PASS check-nemu-systemd-guest.sh --server-response
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_SSH_DEBUG_READY__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_SSH_DEBUG_LOGIN_RC__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_SSH_DEBUG_CLIENT_BEGIN__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_SSH_DEBUGD_LOG_BEGIN__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_SSH_NOPAM_READY__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_SSH_NOPAM_LOGIN_RC__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_SSH_NOPAM_CLIENT_BEGIN__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_SSH_NOPAM_DEBUGD_LOG_BEGIN__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_SSH_NOPAM_LOGIN_OK__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_SSH_SERVER_LOG_BEGIN__
+PASS check-nemu-systemd-guest.sh sshd -D -ddd -e
+PASS check-nemu-systemd-guest.sh p 2222
+PASS check-nemu-systemd-guest.sh p 2223
+PASS check-nemu-systemd-guest.sh UsePAM=no
+PASS check-nemu-systemd-guest.sh PreferredAuthentications=publickey
+PASS check-nemu-systemd-guest.sh KexAlgorithms=curve25519-sha256
+PASS check-nemu-systemd-guest.sh HostKeyAlgorithms=ssh-ed25519
+PASS check-nemu-systemd-guest.sh PubkeyAcceptedAlgorithms=ssh-ed25519
+PASS check-nemu-systemd-guest.sh Ciphers=chacha20-poly1305@openssh.com
+PASS check-nemu-systemd-guest.sh dropbearconvert openssh dropbear
+PASS check-nemu-systemd-guest.sh dropbearkey -t ed25519
+PASS check-nemu-systemd-guest.sh /usr/sbin/dropbear -E -F
+PASS check-nemu-systemd-guest.sh 127.0.0.1:2224
+PASS check-nemu-systemd-guest.sh p 2224
+PASS check-nemu-systemd-guest.sh dbclient -y
+PASS check-nemu-systemd-guest.sh id_dropbear
+PASS check-nemu-systemd-guest.sh NEMU SSH Test
+PASS check-nemu-systemd-guest.sh ssh_login_user=nemu
+PASS check-nemu-systemd-guest.sh ssh_login_uid=2000
+PASS check-nemu-systemd-guest.sh ssh_login_gid=2000
+PASS check-nemu-systemd-guest.sh >> /etc/passwd
+PASS check-nemu-systemd-guest.sh BatchMode=yes
+PASS check-nemu-systemd-guest.sh ConnectTimeout=120
+PASS check-nemu-systemd-guest.sh authorized_keys
+PASS check-nemu-systemd-guest.sh /proc/net/tcp6
+PASS check-nemu-systemd-guest.sh check_nemu_net_runtime
+PASS check-nemu-systemd-guest.sh guest_script_sha="${guest_script_sha%%%% *}"
+PASS check-nemu-systemd-guest.sh block-overlay
+PASS check-nemu-systemd-guest.sh rootfs overlay
+PASS check-nemu-systemd-guest.sh ROOTFS_STAT_BEFORE
+PASS check-nemu-systemd-guest.sh rootfs-backing-unchanged
+PASS check-nemu-systemd-guest.sh build_guest_upload_commands
+PASS check-nemu-systemd-guest.sh stty -echo
+PASS check-nemu-systemd-guest.sh PS1=; PS2=; PS4=; export PS1 PS2 PS4
+PASS check-nemu-systemd-guest.sh base64 -d
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_IRQ_VIRTIO_BLK_GROW__
+PASS check-nemu-systemd-guest.sh __NEMU_CHECK_IRQ_VIRTIO_BLK_GROW_DIAG__
+PASS check-nemu-systemd-guest.sh irq-vda-direct-read
+PASS check-nemu-systemd-guest.sh net_tcp_burst_loops
+PASS check-nemu-systemd-guest.sh input_chunk_bytes
+PASS check-nemu-systemd-guest.sh input_chunk_delay
+PASS check-nemu-systemd-guest.sh check_console_clean
+PASS check-nemu-systemd-guest.sh check_efi_boot_path_context
+PASS check-nemu-systemd-guest.sh efi-dtb-boot-benign
+PASS check-nemu-systemd-guest.sh efi: UEFI not found
+PASS check-nemu-systemd-guest.sh EFI services will not be available
+PASS check-nemu-systemd-guest.sh Machine model: YSYX NPC RV64
+PASS check-nemu-systemd-guest.sh Kernel command line: console=ttyS0,115200n8 root=/dev/vda
+PASS check-nemu-systemd-guest.sh check_shutdown_watchdog_notify
+PASS check-nemu-systemd-guest.sh shutdown-watchdog-notify-benign
+PASS check-nemu-systemd-guest.sh Failed to send WATCHDOG=1 notification message: Connection refused
+PASS check-nemu-systemd-guest.sh jobserver unavailable
+PASS check-nemu-systemd-guest.sh Failed to look up module alias 'autofs4'
+PASS check-nemu-systemd-guest.sh does not support BPF/cgroup firewalling
+PASS check-nemu-systemd-guest.sh Falling back to deprecated "riscv,isa"
+PASS check-nemu-systemd-guest.sh System Power Off
+PASS check-nemu-systemd-guest.sh reboot: Power down
+PASS check-nemu-systemd-guest.sh syscon-reset: poweroff requested
+PASS check-nemu-systemd-guest.sh Kernel panic
+PASS check-nemu-systemd-guest.sh Oops
+PASS check-nemu-systemd-guest.sh Call Trace
+PASS check-nemu-systemd-guest.sh HIT BAD TRAP
+PASS check-nemu-systemd-guest.sh EXT4-fs error
+PASS check-nemu-systemd-guest.sh I/O error
+
+[nemu-ubuntu] required focused wrapper host marker hooks
+PASS nemu.sh focused-make.log
+PASS nemu.sh PASS focused host marker
+PASS nemu.sh FAIL focused host marker
+PASS nemu.sh PASS focused full userland marker
+PASS nemu.sh FAIL focused full userland marker
+PASS nemu.sh PASS focused soak marker
+PASS nemu.sh FAIL focused soak marker
+PASS nemu.sh __NEMU_CHECK_PASS__:full-userland-runtime
+PASS nemu.sh __NEMU_CHECK_PASS__:soak-uptime
+PASS nemu.sh __NEMU_CHECK_PASS__:interrupts-stat-monotonic
+PASS nemu.sh check-nemu-systemd-guest-full
+PASS nemu.sh check-nemu-systemd-guest-full-soak
+PASS nemu.sh AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_DIAG
+PASS nemu.sh AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_ACTUAL
+PASS nemu.sh AGENT_E2E_NEMU_UBUNTU_FULL_CHECK_MAX_CYCLES
+PASS nemu.sh 120000000000
+PASS nemu.sh AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_GATE
+PASS nemu.sh [nemu-systemd-check] PASS virtio-blk-async-runtime
+PASS nemu.sh [nemu-systemd-check] PASS virtio-net-runtime
+PASS nemu.sh [nemu-systemd-check] PASS rootfs-backing-unchanged
+
+[nemu-ubuntu] required serial console input path hooks
+PASS check-nemu-systemd-guest.sh NEMU_SERIAL_FIFO
+PASS check-nemu-systemd-guest.sh send_guest_commands
+PASS check-nemu-systemd-guest.sh INPUT_CHUNK_BYTES
+PASS check-nemu-systemd-guest.sh exec 3>"$SERIAL_FIFO"
+PASS check-nemu-systemd-guest.sh printf '%s' "${text:$pos:$chunk_bytes}"
+PASS check-nemu-systemd-guest.sh serial input model: FIFO/stdin bytes -> NEMU SerialPort staging -> 16550 RX FIFO -> Linux ttyS0
+PASS serial.c SERIAL_HOST_RX_STAGING_CAP
+PASS serial.c serial_host_rx_drain_to_uart
+PASS serial.c uart16550_rx_room
+PASS serial.c uart16550_receive
+PASS serial.c serial_dump_machine_info
+PASS serial.c serial_qmp_query_serial
+PASS serial.c serial_host_backend_name
+PASS serial.c CONFIG_SERIAL_INPUT_HOST_POLL_INTERVAL
+PASS serial.c SERIAL_INPUT_HOST_POLL_INTERVAL
+PASS serial.c serial_port_service
+PASS serial.c host_rx_dropped
+PASS serial.c NEMU_SERIAL_FIFO
+PASS serial.c serial_port_poll_host
+PASS uart16550.c uart16550_rx_room
+PASS uart16550.c uart16550_receive
+PASS uart16550.c uart16550_snapshot
+PASS uart16550.h Uart16550Snapshot
+PASS uart16550.h uart16550_snapshot
+PASS device.c device_update_after_inst
+PASS device.c serial_poll_input
+PASS gen_dts.py stdout-path = "serial0:115200n8";
+PASS gen_dts.py serial0 = &UART0;
+PASS gen_dts.py compatible = "ns16550a";
+PASS build-ubuntu-rootfs.sh ROOTFS_FLAVOR=${UBUNTU_ROOTFS_FLAVOR:-systemd-minimal}
+PASS build-ubuntu-rootfs.sh ubuntu_rootfs_flavor_artifact_suffix
+PASS build-ubuntu-rootfs.sh ROOTFS_ARTIFACT_SUFFIX
+PASS build-ubuntu-rootfs.sh ubuntu_rootfs_flavor_include_csv
+PASS build-ubuntu-rootfs.sh ubuntu_rootfs_flavor_image_size
+PASS build-ubuntu-rootfs.sh UBUNTU_DEBOOTSTRAP_VARIANT
+PASS build-ubuntu-rootfs.sh pam_usr_dir
+PASS build-ubuntu-rootfs.sh install_full_runtime_defaults
+PASS build-ubuntu-rootfs.sh sshd_config
+PASS build-ubuntu-rootfs.sh syslog:x:101:101
+PASS build-ubuntu-rootfs.sh sshd:x:102:102
+PASS build-ubuntu-rootfs.sh ssh-keygen -A
+PASS build-ubuntu-rootfs.sh syslog.service
+PASS build-ubuntu-rootfs.sh e2scrub_reap.service
+PASS build-ubuntu-rootfs.sh e2scrub_all.timer
+PASS build-ubuntu-rootfs.sh ../../../usr/lib/riscv64-linux-gnu/security
+PASS build-ubuntu-systemd-overlay.sh ubuntu_rootfs_flavor_packages
+PASS build-ubuntu-systemd-overlay.sh ubuntu_rootfs_flavor_no_recommends
+PASS build-ubuntu-systemd-overlay.sh UBUNTU_ROOTFS_FLAVOR
+PASS build-ubuntu-systemd-overlay.sh dpkg_status_mark_installed
+PASS build-ubuntu-systemd-overlay.sh dpkg_info_install_records
+PASS build-ubuntu-systemd-overlay.sh print "/."
+PASS build-ubuntu-systemd-overlay.sh Status: install ok installed
+PASS build-ubuntu-systemd-overlay.sh dpkg-deb -c
+PASS build-ubuntu-systemd-overlay.sh dpkg-deb -e
+PASS build-ubuntu-systemd-overlay.sh refresh dpkg status for unpacked packages
+PASS build-ubuntu-systemd-overlay.sh pam_usr_dir
+PASS build-ubuntu-systemd-overlay.sh sshd_config
+PASS build-ubuntu-systemd-overlay.sh syslog:x:101:101
+PASS build-ubuntu-systemd-overlay.sh sshd:x:102:102
+PASS build-ubuntu-systemd-overlay.sh ssh-keygen -A
+PASS build-ubuntu-systemd-overlay.sh syslog.service
+PASS build-ubuntu-systemd-overlay.sh e2scrub_reap.service
+PASS build-ubuntu-systemd-overlay.sh e2scrub_all.timer
+PASS build-ubuntu-systemd-overlay.sh ../../../usr/lib/riscv64-linux-gnu/security
+PASS ubuntu-rootfs-flavors.sh ubuntu_rootfs_flavor_packages
+PASS ubuntu-rootfs-flavors.sh systemd-minimal
+PASS ubuntu-rootfs-flavors.sh interactive
+PASS ubuntu-rootfs-flavors.sh /bin/ping
+PASS ubuntu-rootfs-flavors.sh ubuntu-standard
+PASS ubuntu-rootfs-flavors.sh openssh-server
+PASS ubuntu-rootfs-flavors.sh dropbear-bin
+PASS ubuntu-rootfs-flavors.sh /usr/bin/apt-cache
+PASS ubuntu-rootfs-flavors.sh /usr/bin/dpkg
+PASS ubuntu-rootfs-flavors.sh /usr/bin/dpkg-query
+PASS ubuntu-rootfs-flavors.sh /usr/bin/dbclient
+PASS ubuntu-rootfs-flavors.sh /usr/bin/dropbearconvert
+PASS ubuntu-rootfs-flavors.sh /usr/bin/dropbearkey
+PASS ubuntu-rootfs-flavors.sh /usr/sbin/dropbear
+PASS ubuntu-rootfs-flavors.sh ubuntu_rootfs_flavor_check
+PASS ubuntu-rootfs-flavors.sh PASS rootfs-flavor manifest
+PASS ubuntu-rootfs-flavors.sh ubuntu_rootfs_flavor_required_paths
+PASS check-ubuntu-rootfs.sh /usr/bin/lsb_release
+PASS check-ubuntu-rootfs.sh Ubuntu identity command
+PASS check-ubuntu-rootfs.sh UBUNTU_ROOTFS_FLAVOR
+PASS check-ubuntu-rootfs.sh ubuntu_rootfs_flavor_artifact_suffix
+PASS check-ubuntu-rootfs.sh ROOTFS_ARTIFACT_SUFFIX
+PASS check-ubuntu-rootfs.sh ubuntu_rootfs_flavor_required_paths
+PASS check-ubuntu-rootfs.sh PAM login module
+PASS check-ubuntu-rootfs.sh pam_unix.so
+PASS check-ubuntu-rootfs.sh OpenSSH server config
+PASS check-ubuntu-rootfs.sh syslog passwd entry
+PASS check-ubuntu-rootfs.sh sshd passwd entry
+PASS check-ubuntu-rootfs.sh OpenSSH ed25519 host key
+PASS check-ubuntu-rootfs.sh OpenSSH rsa host key
+PASS check-ubuntu-rootfs.sh syslog service alias
+PASS check-ubuntu-rootfs.sh rootfs_dpkg_status_installed
+PASS check-ubuntu-rootfs.sh rootfs_dpkg_info_list_contains
+PASS check-ubuntu-rootfs.sh rootfs_dpkg_info_list_files
+PASS check-ubuntu-rootfs.sh rootfs_dpkg_info_list_invalid_records
+PASS check-ubuntu-rootfs.sh dpkg status installed
+PASS check-ubuntu-rootfs.sh dpkg info list
+PASS check-ubuntu-rootfs.sh dpkg info list valid names
+PASS check-ubuntu-rootfs.sh root-slash:/
+PASS check-ubuntu-rootfs.sh dpkg info ownership
+PASS check-ubuntu-rootfs.sh ubuntu-standard openssh-server curl wget dropbear-bin rsyslog cron systemd-timesyncd
+PASS check-ubuntu-rootfs.sh boot-blocking e2scrub reap masked
+PASS check-ubuntu-rootfs.sh periodic e2scrub timer masked
+PASS check-ubuntu-rootfs.sh flavor_missing
+PASS Linux/Makefile NEMU_SYSTEMD_CHECK_MAX_CYCLES ?= 50000000000
+PASS Linux/Makefile NEMU_SYSTEMD_FULL_CHECK_MAX_CYCLES ?= 80000000000
+PASS Linux/Makefile NEMU_SYSTEMD_FULL_CHECK_TIMEOUT ?= 3000
+PASS Linux/Makefile NEMU_SYSTEMD_APT_INSTALL_DIAG ?= 0
+PASS Linux/Makefile NEMU_SYSTEMD_APT_INSTALL_ACTUAL ?= 0
+PASS Linux/Makefile NEMU_SYSTEMD_APT_INSTALL_DIAG_TIMEOUT ?= 300
+PASS Linux/Makefile NEMU_SYSTEMD_APT_REMOVE_DIAG_TIMEOUT ?= 600
+PASS Linux/Makefile NEMU_SYSTEMD_SOAK_CHECK_MAX_CYCLES ?= 90000000000
+PASS Linux/Makefile NEMU_SYSTEMD_SOAK_CHECK_TIMEOUT ?= 3600
+PASS Linux/Makefile NEMU_SYSTEMD_ROOTFS_OVERLAY ?= $(NEMU_SYSTEMD_CHECK_LOG_DIR)/rootfs-overlay.raw
+PASS Linux/Makefile NEMU_SYSTEMD_ROOTFS_FLAVOR ?= systemd-minimal
+PASS Linux/Makefile NEMU_SYSTEMD_ROOTFS_CHECK_TARGET =
+PASS Linux/Makefile NEMU_SYSTEMD_FULL_CHECK_LOG_DIR ?= $(LOG_ROOT)/riscv64-nemu-systemd-guest-full-check
+PASS Linux/Makefile NEMU_SYSTEMD_FULL_SOAK_CHECK_LOG_DIR ?= $(LOG_ROOT)/riscv64-nemu-systemd-guest-full-soak-check
+PASS Linux/Makefile UBUNTU_ROOTFS_FLAVOR ?= systemd-minimal
+PASS Linux/Makefile UBUNTU_ROOTFS_INTERACTIVE_IMAGE ?= $(ENV_ROOT)/images/ubuntu2204/ubuntu-22.04-riscv64-interactive.ext4
+PASS Linux/Makefile UBUNTU_ROOTFS_FULL_IMAGE ?= $(ENV_ROOT)/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4
+PASS Linux/Makefile UBUNTU_ROOTFS_CPIO_IMAGE ?= $(UBUNTU_ROOTFS_SYSTEMD_CPIO_IMAGE)
+PASS Linux/Makefile NEMU_RUN_ROOTFS_OVERLAY ?=
+PASS Linux/Makefile NEMU_RUN_ROOTFS_OVERLAY_RESET ?= 1
+PASS Linux/Makefile --block-overlay='$(NEMU_RUN_ROOTFS_OVERLAY)'
+PASS Linux/Makefile ubuntu-rootfs-flavors-check:
+PASS Linux/Makefile ubuntu-rootfs-flavors.sh' --check
+PASS Linux/Makefile ubuntu-rootfs-interactive-image:
+PASS Linux/Makefile UBUNTU_ROOTFS_FLAVOR=interactive
+PASS Linux/Makefile UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_INTERACTIVE_IMAGE)'
+PASS Linux/Makefile UBUNTU_ROOTFS_DIR='$(ENV_ROOT)/images/ubuntu2204/rootfs-interactive'
+PASS Linux/Makefile ubuntu-rootfs-full-image:
+PASS Linux/Makefile UBUNTU_ROOTFS_FLAVOR=full
+PASS Linux/Makefile UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_FULL_IMAGE)'
+PASS Linux/Makefile UBUNTU_ROOTFS_DIR='$(ENV_ROOT)/images/ubuntu2204/rootfs-full'
+PASS Linux/Makefile check-ubuntu-rootfs-interactive:
+PASS Linux/Makefile UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_INTERACTIVE_IMAGE)' UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 UBUNTU_ROOTFS_FLAVOR=interactive
+PASS Linux/Makefile check-ubuntu-rootfs-full:
+PASS Linux/Makefile UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_FULL_IMAGE)' UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 UBUNTU_ROOTFS_FLAVOR=full
+PASS Linux/Makefile UBUNTU_ROOTFS_FLAVOR='$(UBUNTU_ROOTFS_FLAVOR)'
+PASS Linux/Makefile UBUNTU_ROOTFS_CPIO_IMAGE='$(UBUNTU_ROOTFS_CPIO_IMAGE)'
+PASS Linux/Makefile check-nemu-systemd-guest-full:
+PASS Linux/Makefile NEMU_SYSTEMD_ROOTFS_FLAVOR=full
+PASS Linux/Makefile UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_FULL_IMAGE)'
+PASS Linux/Makefile NEMU_SYSTEMD_CHECK_LOG_DIR='$(NEMU_SYSTEMD_FULL_CHECK_LOG_DIR)'
+PASS Linux/Makefile check-nemu-systemd-guest-full-soak:
+PASS Linux/Makefile NEMU_SYSTEMD_CHECK_LOG_DIR='$(NEMU_SYSTEMD_FULL_SOAK_CHECK_LOG_DIR)'
+PASS Linux/Makefile NEMU_SYSTEMD_SOAK_SECONDS='$(NEMU_SYSTEMD_SOAK_SOAK_SECONDS)'
+PASS Linux/Makefile NEMU_SYSTEMD_FS_STRESS_MIB='$(NEMU_SYSTEMD_SOAK_FS_STRESS_MIB)'
+PASS Linux/Makefile NEMU_ROOTFS_OVERLAY_MACHINE_INFO_FILE ?= $(BUILD_DIR)/nemu-rootfs-overlay-machine-info.txt
+PASS Linux/Makefile nemu-rootfs-overlay-machine-info: sim check-ubuntu-rootfs-systemd
+PASS Linux/Makefile block-overlay='$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY)'
+PASS Linux/Makefile NEMU_MONITOR_CMD_SMOKE_LOG ?= $(BUILD_DIR)/nemu-monitor-cmd-smoke.log
+PASS Linux/Makefile nemu-monitor-cmd-smoke: sim
+PASS Linux/Makefile --monitor-cmd='$(NEMU_MONITOR_CMD_SMOKE_CMD)'
+PASS Linux/Makefile NEMU_QMP_SMOKE_LOG ?= $(BUILD_DIR)/nemu-qmp-smoke.log
+PASS Linux/Makefile NEMU_QMP_SMOKE_CONT_NEMU_LOG ?= $(BUILD_DIR)/nemu-qmp-smoke-cont-nemu.log
+PASS Linux/Makefile NEMU_QMP_SMOKE_BLOCK_NEMU_LOG ?= $(BUILD_DIR)/nemu-qmp-smoke-block-nemu.log
+PASS Linux/Makefile NEMU_QMP_SMOKE_RUNTIME_NEMU_LOG ?= $(BUILD_DIR)/nemu-qmp-smoke-runtime-nemu.log
+PASS Linux/Makefile NEMU_QMP_SMOKE_SYSTEM_POWERDOWN_NEMU_LOG ?= $(BUILD_DIR)/nemu-qmp-smoke-system-powerdown-nemu.log
+PASS Linux/Makefile NEMU_QMP_SMOKE_GUEST_SHUTDOWN_NEMU_LOG ?= $(BUILD_DIR)/nemu-qmp-smoke-guest-shutdown-nemu.log
+PASS Linux/Makefile NEMU_QMP_SMOKE_OVERLAY ?= $(BUILD_DIR)/nemu-qmp-smoke-overlay.raw
+PASS Linux/Makefile NEMU_QMP_SMOKE_RUNTIME_OVERLAY ?= $(BUILD_DIR)/nemu-qmp-smoke-runtime-overlay.raw
+PASS Linux/Makefile NEMU_QMP_SMOKE_SYSTEM_POWERDOWN_IMAGE ?= $(BUILD_DIR)/nemu-qmp-smoke-system-powerdown.bin
+PASS Linux/Makefile NEMU_QMP_SMOKE_GUEST_SHUTDOWN_IMAGE ?= $(BUILD_DIR)/nemu-qmp-smoke-guest-shutdown.bin
+PASS Linux/Makefile NEMU_QMP_SMOKE_RUNTIME_MAX_INSTS ?= 1000000000
+PASS Linux/Makefile nemu-qmp-smoke: sim check-ubuntu-rootfs-systemd $(OPENSBI_ROOTFS_FW) $(NEMU_ROOTFS_DTB) $(LINUX_IMAGE)
+PASS Linux/Makefile check-nemu-qmp-smoke.py
+PASS Linux/Makefile --block-image '$(UBUNTU_ROOTFS_IMAGE)'
+PASS Linux/Makefile --overlay-image '$(NEMU_QMP_SMOKE_OVERLAY)'
+PASS Linux/Makefile --runtime-overlay-image '$(NEMU_QMP_SMOKE_RUNTIME_OVERLAY)'
+PASS Linux/Makefile --system-powerdown-nemu-log '$(NEMU_QMP_SMOKE_SYSTEM_POWERDOWN_NEMU_LOG)'
+PASS Linux/Makefile --system-powerdown-image '$(NEMU_QMP_SMOKE_SYSTEM_POWERDOWN_IMAGE)'
+PASS Linux/Makefile --guest-shutdown-nemu-log '$(NEMU_QMP_SMOKE_GUEST_SHUTDOWN_NEMU_LOG)'
+PASS Linux/Makefile --guest-shutdown-image '$(NEMU_QMP_SMOKE_GUEST_SHUTDOWN_IMAGE)'
+PASS Linux/Makefile --firmware '$(OPENSBI_ROOTFS_FW)'
+PASS Linux/Makefile --kernel '$(LINUX_IMAGE)'
+PASS Linux/Makefile --dtb '$(NEMU_ROOTFS_DTB)'
+PASS Linux/Makefile --runtime-max-insts '$(NEMU_QMP_SMOKE_RUNTIME_MAX_INSTS)'
+PASS Linux/Makefile NEMU_GDBSTUB_SMOKE_LOG ?= $(BUILD_DIR)/nemu-gdbstub-smoke.log
+PASS Linux/Makefile nemu-gdbstub-smoke: sim
+PASS Linux/Makefile check-nemu-gdbstub-smoke.py
+PASS Linux/Makefile NEMU_SYSTEMD_INPUT_CHUNK_BYTES ?= 8
+PASS Linux/Makefile NEMU_SYSTEMD_INPUT_CHUNK_DELAY ?= 0
+PASS Linux/Makefile NEMU_SYSTEMD_ROOTFS_OVERLAY='$(NEMU_SYSTEMD_ROOTFS_OVERLAY)'
+PASS Linux/Makefile NEMU_SYSTEMD_INPUT_CHUNK_BYTES='$(NEMU_SYSTEMD_INPUT_CHUNK_BYTES)'
+PASS Linux/Makefile NEMU_SYSTEMD_INPUT_CHUNK_DELAY='$(NEMU_SYSTEMD_INPUT_CHUNK_DELAY)'
+
+[nemu-ubuntu] default run overlay dry-run
+PASS make -n run
+PASS run dry --block='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64.ext4'
+PASS run dry --block-overlay='/home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-ubuntu-rootfs/rootfs-overlay.raw'
+PASS run dry rm -f '/home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-ubuntu-rootfs/rootfs-overlay.raw'
+PASS run dry [Linux] overlay:
+PASS Linux/Makefile check-nemu-kernel-config
+PASS Linux/Makefile LINUX_KERNEL_CONFIG='$(ENV_ROOT)/src/linux/.config'
+PASS Linux/Makefile $(LINUX_IMAGE): $(SCRIPT_DIR)/build-linux.sh
+PASS check-nemu-systemd-guest.sh memtotal-before-uart-rx-stress
+
+[nemu-ubuntu] required device/config hooks
+PASS rng.c VIRTIO_RING_F_INDIRECT_DESC
+PASS rng.c VIRTIO_RING_F_EVENT_IDX
+PASS rng.c virtio_rng_indirect_desc_enabled
+PASS rng.c virtio_rng_event_idx_enabled
+PASS rng.c virtq_collect_table
+PASS rng.c virtq_used_event_addr
+PASS rng.c virtq_avail_event_addr
+PASS rng.c virtq_need_event
+PASS rng.c virtq_set_avail_event
+PASS rng.c virtq_validate_queue_layout
+PASS rng.c virtq_dma_range_valid
+PASS rng.c virtio_rng_dump_machine_info
+PASS rng.c virtio_rng_qmp_query_rng
+PASS rng.c indirect-desc
+PASS rng.c host-urandom
+PASS rng.c queue-num-max
+PASS rng.c reject unsupported QueueNum
+PASS goldfish_rtc.c host_realtime_ns
+PASS goldfish_rtc.c goldfish_rtc_time_ns
+PASS goldfish_rtc.c goldfish_rtc_arm_alarm
+PASS goldfish_rtc.c alarm_running
+PASS goldfish_rtc.c irq_enabled
+PASS goldfish_rtc.c interrupt_pending && irq_enabled
+PASS goldfish_rtc.c goldfish_rtc_update_alarm
+PASS goldfish_rtc.c goldfish_rtc_dump_machine_info
+PASS goldfish_rtc.c goldfish_rtc_qmp_query_rtc
+PASS goldfish_rtc.c host-realtime-epoch+clint-mtime
+PASS goldfish_rtc.c low-then-high
+PASS disk.c VIRTIO_BLK_F_CONFIG_WCE
+PASS disk.c VIRTIO_BLK_F_MQ
+PASS disk.c VIRTIO_BLK_F_DISCARD
+PASS disk.c VIRTIO_BLK_F_TOPOLOGY
+PASS disk.c VIRTIO_BLK_F_WRITE_ZEROES
+PASS disk.c VIRTIO_RING_F_EVENT_IDX
+PASS disk.c VIRTIO_BLK_T_DISCARD
+PASS disk.c VIRTIO_BLK_T_WRITE_ZEROES
+PASS disk.c VIRTIO_BLK_CONFIG_WCE
+PASS disk.c pread(
+PASS disk.c pwrite(
+PASS disk.c mmap(
+PASS disk.c disk_mmap_read
+PASS disk.c read_mmap
+PASS disk.c disk_backing_pread_all
+PASS disk.c disk_overlay_pread_all
+PASS disk.c disk_overlay_pwrite_all
+PASS disk.c disk_overlay_prepare_write
+PASS disk.c disk_overlay_dirty
+PASS disk.c write_target
+PASS disk.c overlay_dirty_sectors
+PASS disk.c VIRTIO_BLK_QUEUE_COUNT
+PASS disk.c VIRTIO_BLK_CONFIG_NUM_QUEUES
+PASS disk.c VIRTIO_BLK_ASYNC_BACKEND
+PASS disk.c CONFIG_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG
+PASS disk.c VirtioBlkAsyncReq
+PASS disk.c virtio_blk_worker_main
+PASS disk.c virtio_blk_submit_request
+PASS disk.c virtio_blk_complete_request
+PASS disk.c virtio_blk_mark_done_pending
+PASS disk.c virtio_blk_done_maybe_pending
+PASS disk.c virtio_blk_clear_done_pending_locked
+PASS disk.c __atomic_load_n
+PASS disk.c __atomic_store_n
+PASS disk.c async_completion_fast_flag
+PASS disk.c virtio_blk_update
+PASS disk.c virtio_blk_statistic
+PASS disk.c selected_queue
+PASS disk.c virtio_blk_process_queue(value)
+PASS disk.c virtio_blk_build_request
+PASS disk.c virtio_blk_req_copy_from_guest
+PASS disk.c virtio_blk_req_copy_to_guest
+PASS disk.c VIRTIO_BLK_S_IOERR
+PASS disk.c VIRTIO_BLK_S_UNSUPP
+PASS disk.c disk_range_ok
+PASS disk.c guest_range_ok
+PASS disk.c VIRTQ_DESC_F_INDIRECT
+PASS disk.c virtq_collect_table
+PASS disk.c virtq_collect_chain
+PASS disk.c seen\[idx\]
+PASS disk.c virtq_validate_queue_layout
+PASS disk.c virtq_dma_range_valid
+PASS disk.c reject unsupported QueueNum
+PASS monitor.c OPT_BLOCK_OVERLAY
+PASS monitor.c block-overlay
+PASS monitor.c disk_set_overlay
+PASS monitor.c OPT_MONITOR_CMD
+PASS monitor.c monitor-cmd
+PASS monitor.c OPT_QMP
+PASS monitor.c qmp
+PASS monitor.c OPT_GDBSTUB
+PASS monitor.c gdbstub
+PASS monitor.c add_monitor_cmd
+PASS monitor.c run_monitor_cmds_and_exit
+PASS monitor.c qmp_wait_for_client_if_enabled
+PASS monitor.c gdbstub_wait_for_client_if_enabled
+PASS monitor.c monitor.qmp.mode=startup-query-cont-stop-events-guest-shutdown-runtime-query-chardev-netdev-rng-rtc-interrupts-serial-version-kvm-pci-schema-id-echo-query-events-system-reset-system-powerdown-quit
+PASS monitor.c serial_dump_machine_info
+PASS monitor.c isa_riscv_clint_dump_machine_info
+PASS monitor.c isa_riscv_plic_dump_machine_info
+PASS monitor.c sdb_exec_line
+PASS qmp.c qmp_set_port
+PASS qmp.c qmp_capability
+PASS qmp.c startup-query-cont-stop-events-guest-shutdown-runtime-query-chardev-netdev-rng-rtc-interrupts-serial-version-kvm-pci-schema-id-echo-query-events-system-reset-system-powerdown
+PASS qmp.c qmp_wait_for_client_if_enabled
+PASS qmp.c atomic_bool qmp_cont_requested
+PASS qmp.c atomic_bool qmp_stop_requested
+PASS qmp.c atomic_bool qmp_shutdown_event_sent
+PASS qmp.c atomic_int qmp_runtime_client_fd
+PASS qmp.c pthread_cond_t qmp_pause_cond
+PASS qmp.c pthread_mutex_t qmp_write_lock
+PASS qmp.c atomic_exchange_explicit
+PASS qmp.c atomic_compare_exchange_strong_explicit
+PASS qmp.c MSG_NOSIGNAL
+PASS qmp.c qmp_write_event
+PASS qmp.c qmp_emit_shutdown_event
+PASS qmp.c qmp_notify_shutdown_event
+PASS qmp.c CLOCK_REALTIME
+PASS qmp.c qmp_cpu_pause_point
+PASS qmp.c pthread_cond_wait
+PASS qmp.c qmp_capabilities
+PASS qmp.c query-status
+PASS qmp.c query-memory-size-summary
+PASS qmp.c query-block
+PASS qmp.c virtio_blk_qmp_query_block
+PASS qmp.c query-blockstats
+PASS qmp.c virtio_blk_qmp_query_blockstats
+PASS qmp.c query-chardev
+PASS qmp.c serial_qmp_query_chardev
+PASS qmp.c query-serial
+PASS qmp.c serial_qmp_query_serial
+PASS qmp.c query-netdev
+PASS qmp.c virtio_net_qmp_query_netdev
+PASS qmp.c query-rng
+PASS qmp.c virtio_rng_qmp_query_rng
+PASS qmp.c query-rtc
+PASS qmp.c goldfish_rtc_qmp_query_rtc
+PASS qmp.c query-interrupts
+PASS qmp.c qmp_query_interrupts
+PASS qmp.c isa_riscv64_clint_qmp_snapshot
+PASS qmp.c isa_riscv64_plic_qmp_snapshot
+PASS qmp.c query-pci
+PASS qmp.c query-version
+PASS qmp.c query-kvm
+PASS qmp.c query-qmp-schema
+PASS qmp.c query-events
+PASS qmp.c system_reset
+PASS qmp.c qmp_request_system_reset
+PASS qmp.c isa_riscv_restart
+PASS qmp.c system_powerdown
+PASS qmp.c qmp_request_powerdown
+PASS qmp.c qmp_extract_execute
+PASS qmp.c qmp_extract_request_id
+PASS qmp.c qmp_write_reply
+PASS qmp.c qmp_format_schema
+PASS qmp.c qmp_format_event_list
+PASS qmp.c EventInfoList
+PASS qmp.c SchemaInfoList
+PASS qmp.c meta-type
+PASS qmp.c ysyx-nemu
+PASS qmp.c query-cpus-fast
+PASS qmp.c cont
+PASS qmp.c stop
+PASS qmp.c RESUME
+PASS qmp.c RESET
+PASS qmp.c STOP
+PASS qmp.c SHUTDOWN
+PASS qmp.c qmp_start_runtime_client
+PASS qmp.c qmp_runtime_client_main
+PASS qmp.c QMP runtime client active
+PASS qmp.c QMP cont requested
+PASS qmp.c QMP stop requested
+PASS qmp.c QMP guest shutdown event emitted
+PASS qmp.c QMP CPU paused
+PASS qmp.c QMP listening
+PASS cpu-exec.c qmp-pause ../monitor/qmp.h
+PASS cpu-exec.c qmp-pause qmp_cpu_pause_point
+PASS cpu-exec.c qmp-pause qmp_notify_shutdown_event
+PASS utils.h _Atomic int state
+PASS src/filelist.mk CFLAGS += -pthread
+PASS src/filelist.mk LIBS += -pthread
+PASS disk.c qmp-block virtio_blk_qmp_query_block
+PASS disk.c qmp-block virtio_blk_qmp_query_blockstats
+PASS disk.c qmp-block VirtioBlkStats
+PASS disk.c qmp-block capacity-bytes
+PASS disk.c qmp-block overlay-dirty-sectors
+PASS disk.c qmp-block read-mmap
+PASS disk.c qmp-block async-submitted
+PASS disk.c qmp-block rd_bytes
+PASS disk.c qmp-block wr_operations
+PASS disk.c qmp-block failed-operations
+PASS qmp.h qmp_wait_for_client_if_enabled prototype
+PASS qmp.h qmp_cpu_pause_point prototype
+PASS qmp.h qmp_notify_shutdown_event prototype
+PASS gdbstub.c gdbstub_set_port
+PASS gdbstub.c gdbstub_capability
+PASS gdbstub.c gdbstub_wait_for_client_if_enabled
+PASS gdbstub.c qSupported
+PASS gdbstub.c QStartNoAckMode+
+PASS gdbstub.c QStartNoAckMode
+PASS gdbstub.c gdbstub_no_ack_mode
+PASS gdbstub.c GDB stub no-ack mode enabled
+PASS gdbstub.c payload_len > 0
+PASS gdbstub.c qXfer:features:read
+PASS gdbstub.c gdbstub_target_xml
+PASS gdbstub.c handle_qxfer_features_read
+PASS gdbstub.c qXfer:memory-map:read
+PASS gdbstub.c gdbstub_memory_map_xml
+PASS gdbstub.c handle_qxfer_memory_map_read
+PASS gdbstub.c CONFIG_MBASE
+PASS gdbstub.c CONFIG_MSIZE
+PASS gdbstub.c riscv:rv64
+PASS gdbstub.c handle_read_all_regs
+PASS gdbstub.c handle_write_one_reg
+PASS gdbstub.c handle_read_memory
+PASS gdbstub.c handle_write_memory
+PASS gdbstub.c handle_single_step
+PASS gdbstub.c handle_continue
+PASS gdbstub.c handle_breakpoint_packet
+PASS gdbstub.c gdbstub_breakpoint_hit
+PASS gdbstub.c GDBSTUB_MAX_BREAKPOINTS
+PASS gdbstub.c swbreak+
+PASS gdbstub.c hwbreak+
+PASS gdbstub.c watchpoint+
+PASS gdbstub.c GDBSTUB_POINT_HW_BREAK
+PASS gdbstub.c GDBSTUB_POINT_SW_BREAK
+PASS gdbstub.c GDBSTUB_POINT_WRITE_WATCH
+PASS gdbstub.c GDBSTUB_POINT_READ_WATCH
+PASS gdbstub.c GDBSTUB_POINT_ACCESS_WATCH
+PASS gdbstub.c gdbstub_watchpoint_after_access
+PASS gdbstub.c gdbstub_range_overlap
+PASS gdbstub.c GDB stub %s hit
+PASS gdbstub.c vContSupported+
+PASS gdbstub.c handle_vcont_packet
+PASS gdbstub.c parse_vcont_segment
+PASS gdbstub.c handle_thread_info_packet
+PASS gdbstub.c qfThreadInfo
+PASS gdbstub.c qThreadExtraInfo
+PASS gdbstub.c async-stop+
+PASS gdbstub.c gdbstub_async_stop_requested
+PASS gdbstub.c MSG_DONTWAIT
+PASS gdbstub.c cpu_exec(1)
+PASS gdbstub.c cpu_exec(UINT64_MAX)
+PASS gdbstub.c parse_word_le_hex
+PASS gdbstub.c remote-startup-rw-step-cont-swbreak-hbreak-watch-vcont-async-stop-target-xml-memory-map-noack
+PASS gdbstub.c GDB stub listening
+PASS gdbstub.h gdbstub_wait_for_client_if_enabled prototype
+PASS gdbstub.h gdbstub_breakpoint_hit prototype
+PASS gdbstub.h gdbstub_watchpoint_after_access prototype
+PASS gdbstub.h gdbstub_async_stop_requested prototype
+PASS sdb.c sdb_exec_line
+PASS sdb.c cmd_table[i].handler
+PASS sdb.c Unknown command
+PASS sdb.h sdb_exec_line prototype
+PASS utils.h is_exit_status_bad prototype
+PASS serial.c SERIAL_TX_BUFFER_CAP
+PASS serial.c serial_port_flush_tx
+PASS serial.c fwrite(port->tx_buffer
+PASS device.c device_update_after_inst
+PASS device.c CONFIG_DEVICE_UPDATE_CHECK_INTERVAL
+PASS device.c skip += retired
+PASS cpu-exec.c INTERPRETER_TB_MAX_INST
+PASS cpu-exec.c CONFIG_INTERPRETER_TB_MAX_INST
+PASS cpu-exec.c execute_basic_block
+PASS cpu-exec.c interpreter_tb_should_stop
+PASS cpu-exec.c debug_breakpoint_stop
+PASS cpu-exec.c gdbstub_breakpoint_hit
+PASS cpu-exec.c gdbstub_async_stop_requested
+PASS cpu-exec.c GDB stub breakpoint hit at pc
+PASS cpu-exec.c GDB stub async halt at pc
+PASS cpu-exec.c device_update_after_inst(retired
+PASS cpu/Kconfig config INTERPRETER_BASIC_BLOCK
+PASS cpu/Kconfig config INTERPRETER_TB_MAX_INST
+PASS cpu/Kconfig config INTERPRETER_IFETCH_PAGE_CACHE
+PASS riscv64-linux_defconfig CONFIG_INTERPRETER_BASIC_BLOCK=y
+PASS riscv64-linux_defconfig CONFIG_INTERPRETER_TB_MAX_INST=32
+PASS riscv64-linux_defconfig CONFIG_INTERPRETER_WIDE_IFETCH=y
+PASS riscv64-linux_defconfig CONFIG_INTERPRETER_IFETCH_PAGE_CACHE=y
+PASS riscv64-linux_defconfig CONFIG_INTERPRETER_DECODE_CACHE=y
+PASS riscv64-linux_defconfig CONFIG_INTERPRETER_DECODE_DIRECT_DISPATCH=y
+PASS riscv64-linux_defconfig CONFIG_INTERPRETER_DECODE_CACHE_ENTRIES=32768
+PASS riscv64-linux_defconfig CONFIG_INTERPRETER_INTR_FAST_FLAG=y
+PASS riscv64-linux_defconfig CONFIG_DEVICE_UPDATE_CHECK_INTERVAL=512
+PASS riscv64-linux_defconfig CONFIG_SERIAL_INPUT_HOST_POLL_INTERVAL=4
+PASS riscv64-linux_defconfig CONFIG_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG=y
+PASS riscv64-linux_defconfig CONFIG_HAS_VIRTIO_NET=y
+PASS riscv64-linux_defconfig CONFIG_MSIZE=0x40000000
+PASS build-linux.sh CONFIG_VIRTIO_NET
+PASS build-linux.sh CONFIG_AUTOFS_FS
+PASS build-linux.sh CONFIG_BPF_SYSCALL
+PASS build-linux.sh CONFIG_CGROUP_BPF
+PASS check-nemu-kernel-config.sh require_config_enabled CONFIG_AUTOFS_FS
+PASS check-nemu-kernel-config.sh require_config_enabled CONFIG_BPF_SYSCALL
+PASS check-nemu-kernel-config.sh require_config_enabled CONFIG_CGROUP_BPF
+PASS check-nemu-kernel-config.sh __NEMU_KERNEL_CONFIG__:ok
+PASS check-nemu-performance-config.sh CONFIG_INTERPRETER_BASIC_BLOCK
+PASS check-nemu-performance-config.sh CONFIG_INTERPRETER_TB_MAX_INST=32
+PASS check-nemu-performance-config.sh CONFIG_INTERPRETER_WIDE_IFETCH
+PASS check-nemu-performance-config.sh CONFIG_INTERPRETER_IFETCH_PAGE_CACHE
+PASS check-nemu-performance-config.sh CONFIG_INTERPRETER_DECODE_CACHE
+PASS check-nemu-performance-config.sh CONFIG_INTERPRETER_DECODE_DIRECT_DISPATCH
+PASS check-nemu-performance-config.sh CONFIG_INTERPRETER_DECODE_CACHE_ENTRIES=32768
+PASS check-nemu-performance-config.sh CONFIG_INTERPRETER_INTR_FAST_FLAG
+PASS check-nemu-performance-config.sh CONFIG_DEVICE_UPDATE_CHECK_INTERVAL=512
+PASS check-nemu-performance-config.sh CONFIG_SERIAL_INPUT_HOST_POLL_INTERVAL=4
+PASS check-nemu-performance-config.sh CONFIG_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG
+PASS check-nemu-performance-config.sh CONFIG_MSIZE=0x40000000
+PASS cpu/Kconfig config INTERPRETER_WIDE_IFETCH
+PASS cpu/Kconfig config INTERPRETER_DECODE_CACHE
+PASS cpu/Kconfig config INTERPRETER_DECODE_DIRECT_DISPATCH
+PASS cpu/Kconfig config INTERPRETER_DECODE_CACHE_ENTRIES
+PASS cpu/Kconfig config INTERPRETER_INTR_FAST_FLAG
+PASS device/Kconfig config DEVICE_UPDATE_CHECK_INTERVAL
+PASS device/Kconfig config SERIAL_INPUT_HOST_POLL_INTERVAL
+PASS device/Kconfig config VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG
+PASS cpu-exec.c isa_riscv_intr_pending_fast
+PASS cpu-exec.c isa_query_intr()
+PASS riscv64/system/intr.c isa_riscv64_intr_pending_fast
+PASS riscv64/system/intr.c CONFIG_RISCV_CLINT_HOST_TIME
+PASS riscv64/system/intr.c clint_sync_host_time
+PASS riscv64/system/intr.c clint_rebase_host_time
+PASS riscv64/system/intr.c host-monotonic
+PASS nemu/Kconfig width-specific riscv Kconfig sources
+PASS riscv32/riscv64 Kconfig menu split
+PASS riscv64-only Kconfig CONFIG_RISCV_CLINT_HOST_TIME
+PASS riscv32-only Kconfig options stay out of riscv64 Kconfig
+PASS riscv64/system/intr.c CLINT_TIMEBASE_HZ      10000000ull
+PASS riscv64/system/intr.c isa_riscv64_clint_timebase_hz
+PASS riscv64/system/intr.c isa_riscv64_mtime_value
+PASS riscv64/system/intr.c isa_riscv64_clint_time_source
+PASS riscv64/system/intr.c isa_riscv64_clint_dump_machine_info
+PASS riscv64/system/intr.c isa_riscv64_clint_qmp_snapshot
+PASS riscv64/system/intr.c return "instruction"
+PASS riscv32/system/intr.c CLINT_TIMEBASE_HZ      10000000ull
+PASS riscv32/system/intr.c isa_riscv32_mtime_value
+PASS riscv64/system/plic.c plic introspection hooks
+PASS riscv64 ISA files contain no RV32/RVE symbols
+PASS riscv64 inst files helper names are RV64-specific
+PASS riscv64/inst.c unity top stays small lines=39
+PASS riscv64/inst.c only orchestrates inst fragments
+PASS riscv64/inst.c includes inst/amo.c
+PASS riscv64/inst.c includes inst/bitmanip.c
+PASS riscv64/inst.c includes inst/common.c
+PASS riscv64/inst.c includes inst/compressed.c
+PASS riscv64/inst.c includes inst/csr.c
+PASS riscv64/inst.c includes inst/decode.c
+PASS riscv64/inst.c includes inst/decode_cache.c
+PASS riscv64/inst.c includes inst/fp.c
+PASS riscv64/inst.c includes inst/muldiv.c
+PASS riscv64/inst.c includes inst/rv64i.c
+PASS riscv64/inst.c covers all inst fragments count=10
+PASS riscv64/filelist.mk blacklists unity-included inst fragments
+PASS riscv32 ISA files contain no RV64/ISA64 symbols
+PASS riscv64 isa-def.h exports only riscv64 types
+PASS riscv32 isa-def.h exports only riscv32 types
+PASS isa.h delegates RISC-V platform hooks to ISA-local header
+PASS riscv64 isa-platform.h isa_riscv64_clint_timebase_hz
+PASS riscv64 isa-platform.h isa_riscv_clint_timebase_hz
+PASS riscv64 isa-platform.h isa_riscv64_mtime_value
+PASS riscv64 isa-platform.h isa_riscv_mtime_value
+PASS riscv64 isa-platform.h isa_riscv64_clint_time_source
+PASS riscv64 isa-platform.h isa_riscv_clint_time_source
+PASS riscv64 isa-platform.h isa_riscv64_clint_dump_machine_info
+PASS riscv64 isa-platform.h isa_riscv_clint_dump_machine_info
+PASS riscv64 isa-platform.h isa_riscv64_clint_qmp_snapshot
+PASS riscv64 isa-platform.h isa_riscv_clint_qmp_snapshot
+PASS riscv64 isa-platform.h isa_riscv64_plic_dump_machine_info
+PASS riscv64 isa-platform.h isa_riscv_plic_dump_machine_info
+PASS riscv64 isa-platform.h isa_riscv64_plic_qmp_snapshot
+PASS riscv64 isa-platform.h isa_riscv_plic_qmp_snapshot
+PASS riscv64 isa-platform.h isa_riscv64_mmu_fault_cause
+PASS riscv64 isa-platform.h isa_riscv_mmu_fault_cause
+PASS riscv64 isa-platform.h isa_riscv64_pmp_check
+PASS riscv64 isa-platform.h isa_riscv64_pmp_check_as_priv
+PASS riscv64 isa-platform.h isa_riscv_pmp_check
+PASS riscv64 isa-platform.h isa_riscv64_pmp_dump_machine_info
+PASS riscv64 isa-platform.h isa_riscv_pmp_dump_machine_info
+PASS riscv64 isa-platform.h isa_mmu_translate_host
+PASS riscv32 isa-platform.h isa_riscv32_clint_timebase_hz
+PASS riscv32 isa-platform.h isa_riscv_clint_timebase_hz
+PASS riscv32 isa-platform.h isa_riscv32_mtime_value
+PASS riscv32 isa-platform.h isa_riscv_mtime_value
+PASS riscv32 isa-platform.h isa_riscv32_clint_time_source
+PASS riscv32 isa-platform.h isa_riscv_clint_time_source
+PASS riscv32 isa-platform.h isa_riscv32_mmu_fault_cause
+PASS riscv32 isa-platform.h isa_riscv_mmu_fault_cause
+PASS riscv32 isa-platform.h isa_riscv32_pmp_check
+PASS riscv32 isa-platform.h isa_riscv_pmp_check
+PASS riscv64 inst files CSR_TIME uses mtime
+PASS riscv32/inst.c CSR_TIME uses mtime
+PASS riscv64 inst files vaddr_ifetch_wide
+PASS riscv64 inst files rv_decode_cache
+PASS riscv64 inst files rv_decode_cache_inst_key
+PASS riscv64 inst files rv_decode_cache_exec
+PASS riscv64 inst files rv_decode_cache_dispatch
+PASS riscv64 inst files RV_DECODE_CACHE_USE_DIRECT_DISPATCH
+PASS riscv64 inst files CONFIG_INTERPRETER_DECODE_DIRECT_DISPATCH
+PASS riscv64 inst files rv_decode_cache_fill
+PASS riscv64 inst files rv_decode_cache_flush
+PASS riscv64 inst files CONFIG_INTERPRETER_DECODE_CACHE_ENTRIES
+PASS vaddr.c vaddr_set_fault
+PASS vaddr.c vaddr_ifetch_wide
+PASS vaddr.c vaddr_ifetch_cache_lookup
+PASS vaddr.c vaddr_ifetch_cache_fill
+PASS vaddr.c vaddr_ifetch_cache_flush
+PASS vaddr.c vaddr_ifetch_cache_invalidate_write
+PASS vaddr.c vaddr_paddr_host_fast
+PASS vaddr.c vaddr_paddr_read_fast
+PASS vaddr.c vaddr_paddr_write_fast
+PASS vaddr.c vaddr_gdbstub_watchpoint_after_access
+PASS vaddr.c gdbstub_watchpoint_after_access
+PASS vaddr.c vaddr_notify_write_committed
+PASS vaddr.c isa_riscv_lr_sc_invalidate
+PASS vaddr.c host_read(trans.host_addr
+PASS vaddr.c host_write(trans.host_addr
+PASS vaddr.h vaddr_set_fault
+PASS riscv64 inst files amo_raise_misaligned
+PASS riscv32/inst.c amo_raise_misaligned
+PASS riscv64 inst files CAUSE_LOAD_MISALIGNED
+PASS riscv32/inst.c CAUSE_LOAD_MISALIGNED
+PASS riscv64 inst files CAUSE_STORE_MISALIGNED
+PASS riscv32/inst.c CAUSE_STORE_MISALIGNED
+PASS riscv64 LR/SC reservation amo_translate_paddr
+PASS riscv64 LR/SC reservation lr_reservation_paddr
+PASS riscv64 LR/SC reservation lr_reservation_len
+PASS riscv64 LR/SC reservation lr_sc_reservation_matches
+PASS riscv64 LR/SC reservation isa_riscv64_lr_sc_invalidate
+PASS riscv32 LR/SC reservation isa_riscv32_lr_sc_invalidate
+PASS riscv32 LR/SC reservation lr_reservation_len
+PASS riscv64 PMP CSR_PMPCFG0
+PASS riscv64 PMP CSR_PMPCFG2
+PASS riscv64 PMP CSR_PMPADDR0
+PASS riscv64 PMP CSR_PMPADDR15
+PASS riscv64 PMP RISCV64_PMP_ENTRY_COUNT
+PASS riscv64 PMP PMP_CFG_A_TOR
+PASS riscv64 PMP PMP_CFG_A_NA4
+PASS riscv64 PMP PMP_CFG_A_NAPOT
+PASS riscv64 PMP CSR csr_pmpcfg_base
+PASS riscv64 PMP CSR csr_read_pmpcfg
+PASS riscv64 PMP CSR csr_write_pmpcfg
+PASS riscv64 PMP CSR csr_write_pmpaddr
+PASS riscv64 PMP CSR csr_pmpaddr_write_locked
+PASS riscv64 PMP CSR PMP_CFG_L
+PASS riscv64 PMP CSR isa_riscv64_mmu_tlb_flush
+PASS mmu.c PMP isa_riscv64_pmp_check
+PASS mmu.c PMP isa_riscv64_pmp_check_as_priv
+PASS mmu.c PMP pmp_check_with_priv
+PASS mmu.c PMP pmp_decode_range
+PASS mmu.c PMP pmp_decode_napot
+PASS mmu.c PMP pmp_permission_ok
+PASS mmu.c PMP pmp_any_active
+PASS mmu.c PMP mmu_effective_priv(type)
+PASS mmu.c PMP pmp-page-table-read
+PASS mmu.c PMP pmp-page-table-write
+PASS mmu.c PMP sv39_translate_fault_cause
+PASS mmu.c PMP isa_riscv64_mmu_fault_cause
+PASS mmu.c PMP isa_riscv64_pmp_dump_machine_info
+PASS vaddr.c PMP/access-fault vaddr_translate_fault_cause_for_type
+PASS vaddr.c PMP/access-fault vaddr_access_fault_cause_for_type
+PASS vaddr.c PMP/access-fault CAUSE_INST_ACCESS
+PASS vaddr.c PMP/access-fault CAUSE_LOAD_ACCESS
+PASS vaddr.c PMP/access-fault CAUSE_STORE_ACCESS
+PASS vaddr.c PMP/access-fault isa_riscv_mmu_fault_cause
+PASS vaddr.c PMP/access-fault isa_riscv_pmp_check
+PASS vaddr.c PMP/access-fault vaddr_pmp_check_or_fault
+PASS riscv32 PMP/MMU neutral stub
+PASS Linux/tools/Makefile smoke-nemu-amo-misaligned
+PASS Linux/tools/Makefile amo-misaligned-smoke.S
+PASS Linux/tools/Makefile HIT GOOD TRAP
+PASS Linux/tools/Makefile smoke-nemu-pmp-access
+PASS Linux/tools/Makefile pmp-access-smoke.S
+PASS Linux/tools/Makefile PMP_ACCESS_BIN
+PASS Linux/tools/Makefile NEMU_PMP_ACCESS_LOG
+PASS Linux/tools/Makefile HIT GOOD TRAP
+PASS Linux/tools/Makefile smoke-nemu-pmp-pagewalk
+PASS Linux/tools/Makefile pmp-pagewalk-smoke.S
+PASS Linux/tools/Makefile PMP_PAGEWALK_BIN
+PASS Linux/tools/Makefile NEMU_PMP_PAGEWALK_LOG
+PASS Linux/tools/Makefile HIT GOOD TRAP
+PASS Linux/tools/Makefile smoke-nemu-pmp-pagewalk-ad
+PASS Linux/tools/Makefile pmp-pagewalk-ad-smoke.S
+PASS Linux/tools/Makefile PMP_PAGEWALK_AD_BIN
+PASS Linux/tools/Makefile NEMU_PMP_PAGEWALK_AD_LOG
+PASS Linux/tools/Makefile HIT GOOD TRAP
+PASS Linux/tools/Makefile smoke-nemu-lrsc-reservation
+PASS Linux/tools/Makefile lrsc-reservation-smoke.S
+PASS Linux/tools/Makefile LRSC_RESERVATION_BIN
+PASS Linux/tools/Makefile NEMU_LRSC_RESERVATION_LOG
+PASS Linux/tools/Makefile HIT GOOD TRAP
+PASS Linux/tools/Makefile smoke-nemu-sv39-sfence-asid
+PASS Linux/tools/Makefile sv39-sfence-asid-smoke.S
+PASS Linux/tools/Makefile SV39_SFENCE_ASID_BIN
+PASS Linux/tools/Makefile NEMU_SV39_SFENCE_ASID_LOG
+PASS Linux/tools/Makefile HIT GOOD TRAP
+PASS Linux/tools/Makefile smoke-nemu-fp-sqrt
+PASS Linux/tools/Makefile fp-sqrt-smoke.S
+PASS Linux/tools/Makefile FP_SQRT_NEMU_BIN
+PASS Linux/tools/Makefile NEMU_FP_SQRT_LOG
+PASS Linux/tools/Makefile FP_SMOKE_NEMU_SYSCON_EXIT=1
+PASS Linux/tools/Makefile HIT GOOD TRAP
+PASS Linux/tools/Makefile smoke-nemu-virtio-blk-error
+PASS Linux/tools/Makefile virtio-blk-error-smoke.S
+PASS Linux/tools/Makefile VIRTIO_BLK_ERROR_BIN
+PASS Linux/tools/Makefile NEMU_VIRTIO_BLK_ERROR_LOG
+PASS Linux/tools/Makefile VIRTIO_BLK_ERROR_MAX_INSTS
+PASS Linux/tools/Makefile HIT GOOD TRAP
+PASS Linux/tools/Makefile smoke-nemu-virtio-net-ctrl
+PASS Linux/tools/Makefile virtio-net-ctrl-smoke.S
+PASS Linux/tools/Makefile VIRTIO_NET_CTRL_BIN
+PASS Linux/tools/Makefile NEMU_VIRTIO_NET_CTRL_LOG
+PASS Linux/tools/Makefile VIRTIO_NET_CTRL_MAX_INSTS
+PASS Linux/tools/Makefile NEMU_PRESERVED_RUN
+PASS Linux/tools/Makefile HIT GOOD TRAP
+PASS Linux/tools/Makefile ctrl=8/1
+PASS Linux/tools/Makefile ctrl_rx=2
+PASS Linux/tools/Makefile ctrl_rx_extra=1
+PASS Linux/tools/Makefile ctrl_vlan=2
+PASS Linux/tools/Makefile vlan_active=0 vlan_last=42
+PASS Linux/tools/Makefile ctrl_announce=1
+PASS Linux/tools/Makefile announce_pending=0 announce_requested=1
+PASS Linux/tools/Makefile alluni=1
+PASS Linux/tools/Makefile ctrl_mac_table=1
+PASS Linux/tools/Makefile ctrl_mac_addr=1
+PASS Linux/tools/Makefile mac_uni=1 mac_multi=1
+PASS Linux/tools/Makefile mac=02:00:5e:00:53:02
+PASS Linux/tools/Makefile promisc=1
+PASS Linux/tools/Makefile config-preserve NEMU_CONFIG_PATHS
+PASS Linux/tools/Makefile config-preserve smoke-nemu-config-preserve
+PASS Linux/tools/Makefile config-preserve NEMU_CONFIG_HASH_BEFORE
+PASS Linux/tools/Makefile config-preserve NEMU_CONFIG_HASH_AFTER
+PASS Linux/tools/Makefile config-preserve PASS nemu-config-preserve
+PASS nemu-preserved-run.sh .config
+PASS nemu-preserved-run.sh .config.old
+PASS nemu-preserved-run.sh include/config
+PASS nemu-preserved-run.sh include/generated
+PASS nemu-preserved-run.sh riscv64-linux_defconfig
+PASS nemu-preserved-run.sh restore_configs
+PASS nemu-preserved-run.sh trap cleanup EXIT INT TERM
+PASS nemu-preserved-run.sh build/riscv64-nemu-interpreter
+PASS amo-misaligned-smoke.S lr.w
+PASS amo-misaligned-smoke.S sc.w
+PASS amo-misaligned-smoke.S amoadd.w
+PASS amo-misaligned-smoke.S lr.d
+PASS amo-misaligned-smoke.S sc.d
+PASS amo-misaligned-smoke.S amoadd.d
+PASS amo-misaligned-smoke.S csrr t0, mcause
+PASS amo-misaligned-smoke.S csrr t0, mtval
+PASS amo-misaligned-smoke.S SYSCON_POWEROFF_VALUE
+PASS lrsc-reservation-smoke.S lr.w
+PASS lrsc-reservation-smoke.S sc.w
+PASS lrsc-reservation-smoke.S lr.d
+PASS lrsc-reservation-smoke.S sc.d
+PASS lrsc-reservation-smoke.S sw t0, 0(s0)
+PASS lrsc-reservation-smoke.S sb t0, 1(s0)
+PASS lrsc-reservation-smoke.S sw zero, 4(s1)
+PASS lrsc-reservation-smoke.S SYSCON_POWEROFF_VALUE
+PASS pmp-access-smoke.S pmpaddr0
+PASS pmp-access-smoke.S pmpaddr1
+PASS pmp-access-smoke.S pmpcfg0
+PASS pmp-access-smoke.S CAUSE_LOAD_ACCESS
+PASS pmp-access-smoke.S CAUSE_STORE_ACCESS
+PASS pmp-access-smoke.S CAUSE_INST_ACCESS
+PASS pmp-access-smoke.S mret
+PASS pmp-access-smoke.S mcause
+PASS pmp-access-smoke.S mtval
+PASS pmp-access-smoke.S SYSCON_POWEROFF_VALUE
+PASS pmp-pagewalk-smoke.S TEST_VA
+PASS pmp-pagewalk-smoke.S l0_test_table
+PASS pmp-pagewalk-smoke.S pmpaddr0
+PASS pmp-pagewalk-smoke.S pmpaddr1
+PASS pmp-pagewalk-smoke.S pmpcfg0
+PASS pmp-pagewalk-smoke.S csrw satp
+PASS pmp-pagewalk-smoke.S sfence.vma
+PASS pmp-pagewalk-smoke.S CAUSE_LOAD_ACCESS
+PASS pmp-pagewalk-smoke.S mcause
+PASS pmp-pagewalk-smoke.S mtval
+PASS pmp-pagewalk-smoke.S SYSCON_POWEROFF_VALUE
+PASS pmp-pagewalk-ad-smoke.S TEST_VA
+PASS pmp-pagewalk-ad-smoke.S l0_test_table
+PASS pmp-pagewalk-ad-smoke.S PMP_CFG_R_NAPOT
+PASS pmp-pagewalk-ad-smoke.S PTE_VR
+PASS pmp-pagewalk-ad-smoke.S pmpaddr0
+PASS pmp-pagewalk-ad-smoke.S pmpaddr1
+PASS pmp-pagewalk-ad-smoke.S pmpcfg0
+PASS pmp-pagewalk-ad-smoke.S csrw satp
+PASS pmp-pagewalk-ad-smoke.S sfence.vma
+PASS pmp-pagewalk-ad-smoke.S CAUSE_LOAD_ACCESS
+PASS pmp-pagewalk-ad-smoke.S mcause
+PASS pmp-pagewalk-ad-smoke.S mtval
+PASS pmp-pagewalk-ad-smoke.S SYSCON_POWEROFF_VALUE
+PASS sv39-sfence-asid-smoke.S VA_NONGLOBAL
+PASS sv39-sfence-asid-smoke.S VA_GLOBAL
+PASS sv39-sfence-asid-smoke.S SATP_ASID1
+PASS sv39-sfence-asid-smoke.S SATP_ASID2
+PASS sv39-sfence-asid-smoke.S PTE_G_VRWAD
+PASS sv39-sfence-asid-smoke.S switch_sv39_asid
+PASS sv39-sfence-asid-smoke.S csrw satp, t4
+PASS sv39-sfence-asid-smoke.S sfence.vma t0, t1
+PASS sv39-sfence-asid-smoke.S sfence.vma t0, zero
+PASS sv39-sfence-asid-smoke.S SYSCON_POWEROFF_VALUE
+PASS virtio-blk-error-smoke.S VIRTIO_BLK_S_IOERR
+PASS virtio-blk-error-smoke.S VIRTIO_BLK_S_UNSUPP
+PASS virtio-blk-error-smoke.S setup_bad_read_direction
+PASS virtio-blk-error-smoke.S setup_bad_dma_range
+PASS virtio-blk-error-smoke.S setup_beyond_capacity
+PASS virtio-blk-error-smoke.S setup_unsupported_request
+PASS virtio-blk-error-smoke.S setup_cycle_chain
+PASS virtio-blk-error-smoke.S setup_nested_indirect
+PASS virtio-blk-error-smoke.S submit_expect_malformed_completion
+PASS virtio-blk-error-smoke.S VIRTIO_RING_F_INDIRECT_DESC_MASK
+PASS virtio-blk-error-smoke.S VIRTQ_DESC_F_INDIRECT
+PASS virtio-blk-error-smoke.S VIRTIO_INDIRECT_ADDR
+PASS virtio-blk-error-smoke.S REG_INTERRUPT_ACK
+PASS virtio-blk-error-smoke.S fail_used_len
+PASS virtio-blk-error-smoke.S fail_status_touched
+PASS virtio-blk-error-smoke.S SYSCON_POWEROFF_VALUE
+PASS virtio-net-ctrl-smoke.S VIRTIO_NET_F_CTRL_VQ_MASK
+PASS virtio-net-ctrl-smoke.S VIRTIO_NET_F_CTRL_RX_MASK
+PASS virtio-net-ctrl-smoke.S VIRTIO_NET_F_CTRL_VLAN_MASK
+PASS virtio-net-ctrl-smoke.S VIRTIO_NET_F_CTRL_RX_EXTRA_MASK
+PASS virtio-net-ctrl-smoke.S VIRTIO_NET_F_GUEST_ANNOUNCE_MASK
+PASS virtio-net-ctrl-smoke.S VIRTIO_NET_F_CTRL_MAC_ADDR_MASK
+PASS virtio-net-ctrl-smoke.S VIRTIO_NET_CTRL_QUEUE
+PASS virtio-net-ctrl-smoke.S VIRTIO_NET_CTRL_ACK_OK
+PASS virtio-net-ctrl-smoke.S VIRTIO_NET_CTRL_ACK_ERR
+PASS virtio-net-ctrl-smoke.S VIRTIO_NET_CTRL_RX_PROMISC
+PASS virtio-net-ctrl-smoke.S VIRTIO_NET_CTRL_RX_ALLUNI
+PASS virtio-net-ctrl-smoke.S VIRTIO_NET_CTRL_VLAN_ADD
+PASS virtio-net-ctrl-smoke.S VIRTIO_NET_CTRL_VLAN_DEL
+PASS virtio-net-ctrl-smoke.S VIRTIO_NET_CTRL_ANNOUNCE_ACK
+PASS virtio-net-ctrl-smoke.S VIRTIO_NET_CTRL_MAC_TABLE_SET
+PASS virtio-net-ctrl-smoke.S VIRTIO_NET_CTRL_MAC_ADDR_SET
+PASS virtio-net-ctrl-smoke.S setup_ctrl_rx_promisc_cmd
+PASS virtio-net-ctrl-smoke.S setup_ctrl_rx_alluni_cmd
+PASS virtio-net-ctrl-smoke.S setup_vlan_add_cmd
+PASS virtio-net-ctrl-smoke.S setup_vlan_del_cmd
+PASS virtio-net-ctrl-smoke.S setup_announce_ack_cmd
+PASS virtio-net-ctrl-smoke.S setup_mac_table_cmd
+PASS virtio-net-ctrl-smoke.S setup_mac_addr_cmd
+PASS virtio-net-ctrl-smoke.S REG_QUEUE_NOTIFY
+PASS virtio-net-ctrl-smoke.S REG_INTERRUPT_ACK
+PASS virtio-net-ctrl-smoke.S fail_used_len
+PASS virtio-net-ctrl-smoke.S fail_ack
+PASS virtio-net-ctrl-smoke.S SYSCON_POWEROFF_VALUE
+PASS mmu.c isa_mmu_translate_host
+PASS mmu.c host_page
+PASS mmu.c sv39_host_page_base
+PASS mmu.c vaddr_ifetch_cache_flush
+PASS mmu.c sv39_itlb
+PASS mmu.c sv39_dtlb
+PASS mmu.c sv39_tlb_set_for_type
+PASS mmu.c SATP64_ASID
+PASS mmu.c PTE_G
+PASS mmu.c root_ppn
+PASS mmu.c global
+PASS mmu.c sv39_tlb_flush_set
+PASS mmu.c isa_riscv64_mmu_tlb_flush_selective
+PASS riscv64 inst files isa_riscv64_mmu_tlb_flush_selective
+PASS riscv64 inst files satp 切换本身不需要粗暴全刷
+PASS riscv64 inst files rs1 != 0
+PASS riscv64 inst files rs2 != 0
+PASS riscv64 isa-platform.h isa_mmu_translate_host
+PASS ISA-local platform headers isa_riscv_mmu_tlb_flush_selective
+PASS gen_dts.py google,goldfish-rtc
+PASS gen_dts.py virtio_mmio
+PASS gen_dts.py virtio_net
+PASS gen_dts.py --virtio-net
+PASS gen_dts.py timebase-frequency = <10000000>
+PASS gen_dts.py riscv,isa-base
+PASS gen_dts.py riscv,isa-extensions
+PASS Kconfig HAS_GOLDFISH_RTC
+PASS Kconfig HAS_VIRTIO_RNG
+PASS Kconfig HAS_VIRTIO_NET

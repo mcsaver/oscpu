@@ -1,0 +1,2 @@
+@include|npc-sim||||
+npc-soc-contract|npc|e2e_npc_soc_contract|npc|npc/soc + ysyxSoC CPU ABI|NPC SoC 后端合约入口存在

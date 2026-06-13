@@ -70,6 +70,7 @@ e2e_software_flow_contract() {
     rc=1
   fi
   if e2e_file_contains .github/instructions/agent-e2e-workflow.instructions.md 'hardware-aware-software-loop' &&
+     e2e_file_contains .github/instructions/agent-e2e-workflow.instructions.md 'nemu-dev' &&
      e2e_file_contains .github/instructions/agent-e2e-workflow.instructions.md 'nemu-ubuntu'; then
     printf 'PASS e2e workflow documents software-flow plus system profile layering\n'
   else

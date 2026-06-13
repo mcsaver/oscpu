@@ -1,0 +1,6 @@
+[npc-rv64] contract
+PASS npc/rv64/Makefile
+PASS npc/rv64/Kconfig
+PASS npc/rv64/README.md
+PASS npc/rv64/design/study/README.md
+PASS Linux/README.md

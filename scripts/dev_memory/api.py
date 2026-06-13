@@ -32,6 +32,9 @@ def count_by(conn: sqlite3.Connection, table: str, field: str) -> dict[str, int]
 
 def stats_payload(conn: sqlite3.Connection, db_path: Path) -> dict[str, Any]:
     meta = fetch_meta(conn)
+    access = conn.execute(
+        "SELECT COUNT(*) AS c, MAX(used_at) AS last_used_at FROM access_log"
+    ).fetchone()
     return {
         "op": "stat",
         "ok": True,
@@ -40,6 +43,7 @@ def stats_payload(conn: sqlite3.Connection, db_path: Path) -> dict[str, Any]:
         "fts5": meta.get("fts5", "0") == "1",
         "root": meta.get("root", ""),
         "last_rebuild_at": meta.get("last_rebuild_at", ""),
+        "last_used_at": access["last_used_at"] or "",
         "files": conn.execute("SELECT COUNT(*) AS c FROM files").fetchone()["c"],
         "indexed": conn.execute("SELECT COUNT(*) AS c FROM files WHERE index_status='indexed'").fetchone()["c"],
         "chunks": conn.execute("SELECT COUNT(*) AS c FROM file_chunks").fetchone()["c"],
@@ -51,6 +55,8 @@ def stats_payload(conn: sqlite3.Connection, db_path: Path) -> dict[str, Any]:
         "stored_token_estimate": conn.execute(
             "SELECT COALESCE(SUM(token_estimate), 0) AS c FROM db_document_chunks"
         ).fetchone()["c"],
+        "evidence_assets": conn.execute("SELECT COUNT(*) AS c FROM evidence_assets").fetchone()["c"],
+        "access_log_entries": access["c"],
         "status": count_by(conn, "files", "index_status"),
         "kind": count_by(conn, "files", "kind"),
     }
@@ -397,8 +403,13 @@ def task_run_artifacts(conn: sqlite3.Connection, run_id: str) -> dict[str, Any]:
         "dispatch_path": "",
         "context_brief_path": "",
         "profile_resolve_path": "",
+        "evidence_index_path": "",
         "stored_markdown_count": len(rows),
         "evidence_markdown_count": 0,
+        "evidence_asset_count": conn.execute(
+            "SELECT COUNT(*) AS c FROM evidence_assets WHERE run_id = ?",
+            (run_id,),
+        ).fetchone()["c"],
     }
     for row in rows:
         path = row["path"]
@@ -410,6 +421,8 @@ def task_run_artifacts(conn: sqlite3.Connection, run_id: str) -> dict[str, Any]:
             artifacts["context_brief_path"] = path
         elif path == f"{prefix}profile-resolve.md":
             artifacts["profile_resolve_path"] = path
+        elif path == f"{prefix}evidence-index.md":
+            artifacts["evidence_index_path"] = path
         elif "/evidence/" in path:
             artifacts["evidence_markdown_count"] += 1
     return artifacts
@@ -881,6 +894,143 @@ def api_show(conn: sqlite3.Connection, request: dict[str, Any]) -> dict[str, Any
     return {"op": "show", "ok": True, "source": "live", "document": data}
 
 
+def usage_payload(conn: sqlite3.Connection, request: dict[str, Any]) -> dict[str, Any]:
+    limit = request_int(request, "limit", 20)
+    op_filter = str(request.get("filter_op") or request.get("command") or "").strip()
+    surface_filter = str(request.get("surface") or "").strip()
+    where: list[str] = []
+    params: list[object] = []
+    if op_filter:
+        where.append("op = ?")
+        params.append(op_filter)
+    if surface_filter:
+        where.append("surface = ?")
+        params.append(surface_filter)
+    params.append(limit)
+    rows = conn.execute(
+        f"""
+        SELECT id, used_at, surface, op, source, target, ok, result_count, details
+        FROM access_log
+        {'WHERE ' + ' AND '.join(where) if where else ''}
+        ORDER BY used_at DESC, id DESC
+        LIMIT ?
+        """,
+        params,
+    ).fetchall()
+    total = conn.execute("SELECT COUNT(*) AS c FROM access_log").fetchone()["c"]
+    last = conn.execute("SELECT MAX(used_at) AS v FROM access_log").fetchone()["v"] or ""
+    by_op = {
+        row["op"]: row["c"]
+        for row in conn.execute("SELECT op, COUNT(*) AS c FROM access_log GROUP BY op ORDER BY op")
+    }
+    by_surface = {
+        row["surface"]: row["c"]
+        for row in conn.execute(
+            "SELECT surface, COUNT(*) AS c FROM access_log GROUP BY surface ORDER BY surface"
+        )
+    }
+    entries = []
+    for row in rows:
+        try:
+            details = json.loads(row["details"] or "{}")
+        except json.JSONDecodeError:
+            details = {}
+        entries.append(
+            {
+                "id": row["id"],
+                "used_at": row["used_at"],
+                "surface": row["surface"],
+                "op": row["op"],
+                "source": row["source"],
+                "target": row["target"],
+                "ok": bool(row["ok"]),
+                "result_count": row["result_count"],
+                "details": details,
+            }
+        )
+    return {
+        "op": "usage",
+        "ok": True,
+        "source": "access_log",
+        "last_used_at": last,
+        "total": total,
+        "by_op": by_op,
+        "by_surface": by_surface,
+        "entries": entries,
+    }
+
+
+def evidence_assets_payload(conn: sqlite3.Connection, request: dict[str, Any]) -> dict[str, Any]:
+    terms = request_terms(request)
+    run_id = str(request.get("run_id") or request.get("run") or "").strip()
+    profile = str(request.get("profile") or "").strip()
+    kind = str(request.get("kind") or "").strip()
+    limit = request_int(request, "limit", 40)
+    where: list[str] = []
+    params: list[object] = []
+    if run_id:
+        where.append("run_id = ?")
+        params.append(run_id)
+    if profile:
+        where.append("profile = ?")
+        params.append(profile)
+    if kind:
+        where.append("kind = ?")
+        params.append(kind)
+    for term in terms:
+        like = f"%{term}%"
+        where.append(
+            "(path LIKE ? OR run_id LIKE ? OR task_slug LIKE ? OR profile LIKE ? OR summary LIKE ? OR markers LIKE ?)"
+        )
+        params.extend([like, like, like, like, like, like])
+    params.append(limit)
+    rows = conn.execute(
+        f"""
+        SELECT *
+        FROM evidence_assets
+        {'WHERE ' + ' AND '.join(where) if where else ''}
+        ORDER BY indexed_at DESC, run_id DESC, path
+        LIMIT ?
+        """,
+        params,
+    ).fetchall()
+    assets = []
+    for row in rows:
+        try:
+            markers = json.loads(row["markers"] or "{}")
+        except json.JSONDecodeError:
+            markers = {}
+        assets.append(
+            {
+                "path": row["path"],
+                "run_id": row["run_id"],
+                "task_slug": row["task_slug"],
+                "profile": row["profile"],
+                "kind": row["kind"],
+                "size_bytes": row["size_bytes"],
+                "mtime_ns": row["mtime_ns"],
+                "sha256": row["sha256"],
+                "line_count": row["line_count"],
+                "encoding": row["encoding"],
+                "summary": row["summary"],
+                "head_excerpt": row["head_excerpt"],
+                "tail_excerpt": row["tail_excerpt"],
+                "markers": markers,
+                "indexed_at": row["indexed_at"],
+            }
+        )
+    return {
+        "op": "evidence",
+        "ok": True,
+        "source": "evidence_assets",
+        "terms": terms,
+        "run_id": run_id,
+        "profile": profile,
+        "kind": kind,
+        "assets": assets,
+    }
+
+
 def api_schema_payload() -> dict[str, Any]:
     return {
         "op": "schema",
@@ -897,6 +1047,8 @@ def api_schema_payload() -> dict[str, Any]:
             "profiles": {"fields": ["terms?", "limit?", "include_nodes?"]},
             "resolve-profile": {"fields": ["profile", "include_nodes?", "max_depth?"]},
             "runs": {"fields": ["terms?", "profile?", "status?", "limit?", "include_artifacts?"]},
+            "evidence": {"fields": ["terms?", "run_id?", "profile?", "kind?", "limit?"]},
+            "usage": {"fields": ["limit?", "surface?", "filter_op?"]},
             "schema": {"fields": []},
         },
     }
@@ -905,6 +1057,8 @@ def api_schema_payload() -> dict[str, Any]:
 def execute_api_request(conn: sqlite3.Connection, db_path: Path, request: dict[str, Any]) -> dict[str, Any]:
     op = str(request.get("op", "schema"))
     try:
+        if op in {"usage", "access-log", "used"}:
+            return usage_payload(conn, request)
         if op in {"schema", "help"}:
             return api_schema_payload()
         if op in {"stat", "stats"}:
@@ -925,9 +1079,43 @@ def execute_api_request(conn: sqlite3.Connection, db_path: Path, request: dict[s
             return resolve_profile_payload(conn, request)
         if op in {"runs", "task-runs", "run-catalog"}:
             return task_runs_payload(conn, request)
+        if op in {"evidence", "evidence-assets", "asset-index"}:
+            return evidence_assets_payload(conn, request)
         return {"op": op, "ok": False, "error": f"unknown op: {op}"}
     except Exception as exc:  # API mode must return structured failures.
         return {"op": op, "ok": False, "error": str(exc)}
+
+
+def api_result_count(response: dict[str, Any]) -> int:
+    for key in ("results", "chunks", "profiles", "nodes", "runs", "assets", "entries"):
+        value = response.get(key)
+        if isinstance(value, list):
+            return len(value)
+    document = response.get("document")
+    if isinstance(document, dict):
+        return 1
+    if response.get("ok"):
+        return 1
+    return 0
+
+
+def api_request_target(request: dict[str, Any]) -> str:
+    for key in ("path", "profile", "kind", "status"):
+        value = request.get(key)
+        if value:
+            return str(value)
+    terms = request_terms(request)
+    return " ".join(terms)
+
+
+def sanitized_api_request(request: dict[str, Any]) -> dict[str, object]:
+    clean: dict[str, object] = {}
+    for key, value in request.items():
+        if key in {"content", "text"}:
+            clean[key] = "<redacted>"
+        else:
+            clean[key] = value
+    return clean
 
 
 def read_api_requests(args: argparse.Namespace) -> tuple[list[dict[str, Any]], bool]:
@@ -959,12 +1147,39 @@ def memory_api(args: argparse.Namespace) -> int:
     if not all(isinstance(request, dict) for request in requests):
         print(json.dumps({"ok": False, "error": "api requests must be JSON objects"}, ensure_ascii=False))
         return 2
-    conn = open_db(db_path)
-    init_schema(conn)
+    conn = open_db(db_path, readonly=True)
     try:
         responses = [execute_api_request(conn, db_path, request) for request in requests]
     finally:
         conn.close()
+    access_rows = []
+    for request, response in zip(requests, responses):
+        op = str(response.get("op") or request.get("op") or "schema")
+        if op == "usage":
+            continue
+        access_rows.append((request, response, op))
+    if access_rows:
+        log_conn = None
+        try:
+            log_conn = open_db(db_path, timeout=0.2, busy_timeout_ms=200)
+            init_schema(log_conn)
+            for request, response, op in access_rows:
+                record_access(
+                    log_conn,
+                    surface="api",
+                    op=op,
+                    source=str(response.get("source") or request.get("source") or ""),
+                    target=api_request_target(request),
+                    ok=bool(response.get("ok")),
+                    result_count=api_result_count(response),
+                    details={"request": sanitized_api_request(request)},
+                )
+            log_conn.commit()
+        except sqlite3.Error as exc:
+            print(f"WARN skip api access log: {exc}", file=sys.stderr)
+        finally:
+            if log_conn is not None:
+                log_conn.close()
     jsonl = args.jsonl or force_jsonl or len(responses) > 1
     if jsonl:
         for response in responses:
@@ -1135,6 +1350,10 @@ def render_runs_markdown(payload: dict[str, Any]) -> str:
             lines.append(f"- `context_brief_path`: {run['context_brief_path']}")
         if run.get("profile_resolve_path"):
             lines.append(f"- `profile_resolve_path`: {run['profile_resolve_path']}")
+        if run.get("evidence_index_path"):
+            lines.append(f"- `evidence_index_path`: {run['evidence_index_path']}")
+        if "evidence_asset_count" in run:
+            lines.append(f"- `evidence_asset_count`: {run.get('evidence_asset_count', 0)}")
         if "expanded_node_count" in run:
             lines.append(f"- `expanded_node_count`: {run.get('expanded_node_count', '')}")
         if run.get("profile_order"):
@@ -1143,6 +1362,121 @@ def render_runs_markdown(payload: dict[str, Any]) -> str:
             lines.append(f"- `final_result`: {run['final_result']}")
     lines.append("")
     return "\n".join(lines)
+
+
+def render_usage_markdown(payload: dict[str, Any]) -> str:
+    lines = [
+        "# DB Usage",
+        "",
+        f"- `source`: {payload.get('source', '')}",
+        f"- `last_used_at`: {payload.get('last_used_at') or '<none>'}",
+        f"- `total`: {payload.get('total', 0)}",
+        "",
+        "## Recent Access",
+    ]
+    entries = payload.get("entries") or []
+    if not entries:
+        lines.append("- <none>")
+    for entry in entries:
+        target = entry.get("target") or "<none>"
+        source = entry.get("source") or "<none>"
+        lines.extend(
+            [
+                "",
+                f"### {entry.get('used_at', '')}",
+                "",
+                f"- `surface`: {entry.get('surface', '')}",
+                f"- `op`: {entry.get('op', '')}",
+                f"- `source`: {source}",
+                f"- `target`: {target}",
+                f"- `ok`: {entry.get('ok')}",
+                f"- `result_count`: {entry.get('result_count', 0)}",
+            ]
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
+def render_evidence_markdown(payload: dict[str, Any]) -> str:
+    lines = [
+        "# Evidence Assets",
+        "",
+        f"- `source`: {payload.get('source', '')}",
+        f"- `run_id`: {payload.get('run_id') or '<any>'}",
+        f"- `profile`: {payload.get('profile') or '<any>'}",
+        f"- `kind`: {payload.get('kind') or '<any>'}",
+        f"- `terms`: {' '.join(payload.get('terms') or []) or '<none>'}",
+        f"- `assets`: {len(payload.get('assets') or [])}",
+        "",
+        "## Assets",
+    ]
+    assets = payload.get("assets") or []
+    if not assets:
+        lines.append("- <none>")
+    for asset in assets:
+        markers = json.dumps(asset.get("markers") or {}, ensure_ascii=False, sort_keys=True)
+        lines.extend(
+            [
+                "",
+                f"### {asset.get('path', '')}",
+                "",
+                f"- `run_id`: {asset.get('run_id', '')}",
+                f"- `profile`: {asset.get('profile', '')}",
+                f"- `kind`: {asset.get('kind', '')}",
+                f"- `size_bytes`: {asset.get('size_bytes', 0)}",
+                f"- `line_count`: {asset.get('line_count', 0)}",
+                f"- `sha256`: {asset.get('sha256', '')}",
+                f"- `indexed_at`: {asset.get('indexed_at', '')}",
+                f"- `markers`: {markers}",
+                f"- `summary`: {asset.get('summary', '')}",
+            ]
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
+def agent_evidence(args: argparse.Namespace) -> int:
+    repo_root = resolve_repo_path(args.repo_root)
+    db_path = (repo_root / args.db).resolve()
+    request = {
+        "op": "evidence",
+        "terms": args.terms,
+        "run_id": args.run_id,
+        "profile": args.profile,
+        "kind": args.kind,
+        "limit": args.limit,
+    }
+    conn = open_db(db_path, readonly=True)
+    try:
+        payload = evidence_assets_payload(conn, request)
+    finally:
+        conn.close()
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        print(render_evidence_markdown(payload))
+    return 0 if payload.get("ok") else 1
+
+
+def agent_usage(args: argparse.Namespace) -> int:
+    repo_root = resolve_repo_path(args.repo_root)
+    db_path = (repo_root / args.db).resolve()
+    request = {
+        "op": "usage",
+        "limit": args.limit,
+        "surface": args.surface,
+        "filter_op": args.filter_op,
+    }
+    conn = open_db(db_path, readonly=True)
+    try:
+        payload = usage_payload(conn, request)
+    finally:
+        conn.close()
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        print(render_usage_markdown(payload))
+    return 0 if payload.get("ok") else 1
 
 
 def agent_brief(args: argparse.Namespace) -> int:
@@ -1158,8 +1492,7 @@ def agent_brief(args: argparse.Namespace) -> int:
         "focus_limit": args.focus_limit,
         "profile_limit": args.profile_limit,
     }
-    conn = open_db(db_path)
-    init_schema(conn)
+    conn = open_db(db_path, readonly=True)
     try:
         payload = brief_payload(conn, db_path, request)
     finally:
@@ -1182,8 +1515,7 @@ def agent_runs(args: argparse.Namespace) -> int:
         "limit": args.limit,
         "include_artifacts": args.include_artifacts,
     }
-    conn = open_db(db_path)
-    init_schema(conn)
+    conn = open_db(db_path, readonly=True)
     try:
         payload = task_runs_payload(conn, request)
     finally:
@@ -1204,8 +1536,7 @@ def agent_profiles(args: argparse.Namespace) -> int:
         "limit": args.limit,
         "include_nodes": args.include_nodes,
     }
-    conn = open_db(db_path)
-    init_schema(conn)
+    conn = open_db(db_path, readonly=True)
     try:
         payload = profile_catalog_payload(conn, request)
     finally:

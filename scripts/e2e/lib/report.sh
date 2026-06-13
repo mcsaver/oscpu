@@ -24,6 +24,7 @@ e2e_allocate_run_dir() {
   E2E_DISPATCH_FILE="$E2E_RUN_DIR/dispatch-log.md"
   E2E_CONTEXT_BRIEF_FILE="$E2E_RUN_DIR/context-brief.md"
   E2E_PROFILE_RESOLVE_FILE="$E2E_RUN_DIR/profile-resolve.md"
+  E2E_EVIDENCE_INDEX_FILE="$E2E_RUN_DIR/evidence-index.md"
   E2E_NODES_FILE="$E2E_RUN_DIR/nodes.tsv"
   mkdir -p "$E2E_EVIDENCE_DIR"
   : > "$E2E_NODES_FILE"
@@ -56,6 +57,21 @@ e2e_archive_task_run_markdown_to_db() {
       --backup-dir "$backup_dir" \
       --yes >/dev/null; then
     printf '[e2e] WARN task-run Markdown archive failed for %s\n' "$run_rel" >&2
+  fi
+}
+
+e2e_index_task_run_evidence_assets() {
+  [[ ${E2E_INDEX_TASK_RUN_EVIDENCE_ASSETS:-1} = 1 ]] || return 0
+  [[ -n ${E2E_RUN_DIR:-} && -d $E2E_RUN_DIR ]] || return 0
+  [[ -f "$E2E_ROOT_DIR/scripts/github_index_db.py" ]] || return 0
+
+  local run_rel
+  run_rel=$(e2e_relpath "$E2E_RUN_DIR")
+  if ! python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" index-evidence "$run_rel" \
+      --repo-root "$E2E_ROOT_DIR" \
+      --write-index \
+      --yes >/dev/null; then
+    printf '[e2e] WARN task-run evidence asset index failed for %s\n' "$run_rel" >&2
   fi
 }
 
@@ -318,6 +334,7 @@ EOF
 - \`logs_or_traces\`: $(e2e_relpath "$E2E_EVIDENCE_DIR")
 - \`context_brief\`: $(e2e_relpath "$E2E_CONTEXT_BRIEF_FILE")
 - \`profile_resolve\`: $(e2e_relpath "$E2E_PROFILE_RESOLVE_FILE")
+- \`evidence_index\`: $(e2e_relpath "$E2E_EVIDENCE_INDEX_FILE")
 - \`profile_manifest\`: .github/e2e/profiles/$E2E_PROFILE.tsv
 - \`linked_memory_updates\`: 由 agent 在收尾阶段按本轮稳定结论更新 memory
 
@@ -345,5 +362,6 @@ EOF
 - \`notes\`: 这是模块化 e2e gate，不替代未执行模块的功能回归、DiffTest、Linux/Ubuntu 分层 gate 或 PPA/STA signoff。
 EOF
   e2e_sanitize_task_run_text_artifacts
+  e2e_index_task_run_evidence_assets
   e2e_archive_task_run_markdown_to_db
 }

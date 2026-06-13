@@ -12,6 +12,15 @@ e2e_agent_system_discovery() {
     .github/instructions/agent-e2e-workflow.instructions.md \
     .github/e2e/README.md \
     .github/e2e/profiles/discovery.tsv \
+    .github/e2e/profiles/nemu-dev.tsv \
+    .github/e2e/profiles/nemu-dev-gate.tsv \
+    .github/e2e/profiles/nemu-dev-full-gate.tsv \
+    .github/e2e/profiles/nemu-dev-full-soak.tsv \
+    .github/e2e/profiles/npc-dev.tsv \
+    .github/e2e/profiles/nemu-ubuntu-focused.tsv \
+    .github/e2e/profiles/nemu-ubuntu-gate.tsv \
+    .github/e2e/profiles/nemu-ubuntu-full-gate.tsv \
+    .github/e2e/profiles/nemu-ubuntu-full-soak.tsv \
     .github/e2e/modules/agent-system.md \
     .github/e2e/modules/toolchain.md \
     .github/memory/project-status.md \
@@ -88,6 +97,40 @@ e2e_agent_system_discovery() {
     fi
   done
   if [[ $wsl_hygiene_ok -ne 1 ]]; then
+    rc=1
+  fi
+
+  echo "[agent-system] scenario profile isolation"
+  local profile_isolation_ok=1
+  for doc in "$workflow_doc" "$e2e_readme"; do
+    if e2e_file_contains "$doc" 'nemu-dev' &&
+       e2e_file_contains "$doc" 'npc-dev' &&
+       e2e_file_contains "$doc" '场景隔离'; then
+      printf 'PASS scenario profile isolation documented in %s\n' "$doc"
+    else
+      printf 'FAIL scenario profile isolation documented in %s\n' "$doc"
+      profile_isolation_ok=0
+    fi
+  done
+  if e2e_file_contains .github/e2e/profiles/nemu-dev.tsv '@include|nemu-ubuntu-focused' &&
+     e2e_file_contains .github/e2e/profiles/nemu-dev-full-gate.tsv '@include|nemu-dev' &&
+     e2e_file_contains .github/e2e/profiles/npc-dev.tsv 'npc-sim-contract|npc|e2e_npc_sim_contract' &&
+     ! e2e_file_contains .github/e2e/profiles/nemu-dev.tsv 'npc-' &&
+     ! e2e_file_contains .github/e2e/profiles/npc-dev.tsv 'nemu-ubuntu'; then
+    printf 'PASS scenario dev profiles are split\n'
+  else
+    printf 'FAIL scenario dev profiles are split\n'
+    profile_isolation_ok=0
+  fi
+  if e2e_file_contains .github/e2e/profiles/nemu-ubuntu-gate.tsv '@include|nemu-ubuntu' &&
+     e2e_file_contains .github/e2e/profiles/nemu-ubuntu-full-gate.tsv '@include|nemu-ubuntu' &&
+     e2e_file_contains .github/e2e/profiles/nemu-ubuntu-full-soak.tsv '@include|nemu-ubuntu'; then
+    printf 'PASS existing NEMU Ubuntu integration profiles are preserved\n'
+  else
+    printf 'FAIL existing NEMU Ubuntu integration profiles are preserved\n'
+    profile_isolation_ok=0
+  fi
+  if [[ $profile_isolation_ok -ne 1 ]]; then
     rc=1
   fi
 

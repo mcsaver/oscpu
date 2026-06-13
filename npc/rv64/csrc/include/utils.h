@@ -85,8 +85,8 @@ typedef uint64_t npc_paddr_t;
 
 #define NPC_RESET_PC            UINT64_C(0x80000000)
 #define NPC_PMEM_BASE           UINT64_C(0x80000000)
-/* Linux/Ubuntu bring-up 默认需要比旧 smoke 更大的 RAM；与 npc-rv64.yml/DTS 保持 256 MiB 一致。 */
-#define NPC_PMEM_SIZE           (256ull * 1024ull * 1024ull)
+/* 与 Linux/npc-rv64 rootfs DTS 的 1 GiB RAM 声明保持一致。 */
+#define NPC_PMEM_SIZE           (1024ull * 1024ull * 1024ull)
 #define NPC_DEVICE_BASE         UINT64_C(0xa0000000)
 #define NPC_SERIAL_PORT         (NPC_DEVICE_BASE + UINT64_C(0x000003f8))
 #define NPC_RTC_ADDR            (NPC_DEVICE_BASE + UINT64_C(0x00000048))

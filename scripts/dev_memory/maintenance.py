@@ -476,6 +476,14 @@ def update_stored_document(args: argparse.Namespace) -> int:
     except (OSError, ValueError, UnicodeDecodeError) as exc:
         print(f"FAIL update-stored {rel_path}: {exc}", file=sys.stderr)
         return 2
+    if is_db_backed_shim(rel_path, content) or (
+        content.lstrip().startswith("# DB-backed ") and "load --source stored" in content
+    ):
+        print(
+            f"FAIL update-stored {rel_path}: refusing to store DB-backed shim payload",
+            file=sys.stderr,
+        )
+        return 2
 
     item = indexed_file_from_content(rel_path, content)
     conn = open_db(db_path)
@@ -793,6 +801,354 @@ def archive_markdown_files(args: argparse.Namespace) -> int:
         print(f"  {rel_path}")
     if len(shim_paths) > args.limit:
         print(f"  ... {len(shim_paths) - args.limit} more")
+    return 0
+
+
+EVIDENCE_TEXT_SUFFIXES = {
+    ".cmd",
+    ".csv",
+    ".err",
+    ".json",
+    ".jsonl",
+    ".log",
+    ".out",
+    ".text",
+    ".tsv",
+    ".txt",
+}
+
+
+def task_run_id_from_rel_path(rel_path: str) -> str:
+    parts = Path(rel_path).parts
+    if len(parts) >= 3 and parts[0] == ".github" and parts[1] == "task-runs":
+        return parts[2]
+    return ""
+
+
+def parse_markdown_fields(content: str) -> dict[str, str]:
+    fields: dict[str, str] = {}
+    for line in content.splitlines():
+        match = re.match(r"^-\s+`([^`]+)`:\s*(.*)$", line.strip())
+        if match:
+            fields[match.group(1)] = match.group(2).strip()
+    return fields
+
+
+def task_run_report_fields(repo_root: Path, conn: sqlite3.Connection, run_id: str) -> dict[str, str]:
+    rel_path = f".github/task-runs/{run_id}/task-report.md"
+    target = repo_root / rel_path
+    content = ""
+    if target.exists():
+        try:
+            content = target.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            content = ""
+        if content and is_db_backed_shim(rel_path, content):
+            content = ""
+    if not content:
+        row = conn.execute("SELECT content FROM db_documents WHERE path = ?", (rel_path,)).fetchone()
+        if row is not None:
+            content = row["content"] or ""
+    return parse_markdown_fields(content)
+
+
+def evidence_asset_kind(path: Path) -> str:
+    suffix = path.suffix.lower()
+    if suffix:
+        return suffix.lstrip(".")
+    return "file"
+
+
+def read_evidence_sample(path: Path, sample_bytes: int) -> dict[str, object]:
+    digest = hashlib.sha256()
+    head = bytearray()
+    tail = bytearray()
+    line_count = 0
+    total = 0
+    last_byte = b""
+    with path.open("rb") as handle:
+        while True:
+            chunk = handle.read(65536)
+            if not chunk:
+                break
+            digest.update(chunk)
+            total += len(chunk)
+            line_count += chunk.count(b"\n")
+            last_byte = chunk[-1:]
+            if len(head) < sample_bytes:
+                head.extend(chunk[: sample_bytes - len(head)])
+            tail.extend(chunk)
+            if len(tail) > sample_bytes:
+                del tail[: len(tail) - sample_bytes]
+    if total and last_byte != b"\n":
+        line_count += 1
+    encoding = "utf-8"
+    try:
+        head_text = bytes(head).decode("utf-8")
+        tail_text = bytes(tail).decode("utf-8")
+    except UnicodeDecodeError:
+        encoding = "binary-or-non-utf8"
+        head_text = bytes(head).decode("utf-8", errors="replace")
+        tail_text = bytes(tail).decode("utf-8", errors="replace")
+    return {
+        "sha256": digest.hexdigest(),
+        "line_count": line_count,
+        "encoding": encoding,
+        "head_text": head_text,
+        "tail_text": tail_text,
+    }
+
+
+def evidence_markers(text: str) -> dict[str, int | list[str]]:
+    markers: dict[str, int | list[str]] = {}
+    for name, pattern in {
+        "PASS": r"\bPASS\b",
+        "FAIL": r"\bFAIL\b",
+        "SKIP": r"\bSKIP\b",
+        "WARN": r"\bWARN(?:ING)?\b",
+        "ERROR": r"\bERROR\b",
+        "GOOD_TRAP": r"HIT GOOD TRAP",
+        "BAD_TRAP": r"HIT BAD TRAP",
+        "PANIC": r"\bpanic\b|\bPANIC\b|Kernel panic",
+        "OOPS": r"\bOops\b|\bOOPS\b",
+    }.items():
+        count = len(re.findall(pattern, text))
+        if count:
+            markers[name] = count
+    symbolic = sorted(set(re.findall(r"__[A-Z0-9_]+__", text)))
+    if symbolic:
+        markers["symbolic"] = symbolic[:20]
+    return markers
+
+
+def evidence_summary(kind: str, size_bytes: int, line_count: int, markers: dict[str, object], tail: str) -> str:
+    marker_bits = []
+    for key in ("FAIL", "ERROR", "WARN", "SKIP", "PASS", "GOOD_TRAP", "BAD_TRAP", "PANIC", "OOPS"):
+        if key in markers:
+            marker_bits.append(f"{key}={markers[key]}")
+    if "symbolic" in markers:
+        values = markers["symbolic"]
+        if isinstance(values, list):
+            marker_bits.append("symbolic=" + ",".join(str(value) for value in values[:5]))
+    marker_text = "; ".join(marker_bits) if marker_bits else "markers=<none>"
+    tail_text = compact_text(tail, 260)
+    return compact_text(
+        f"{kind} evidence; size={size_bytes} bytes; lines={line_count}; {marker_text}; tail={tail_text}",
+        700,
+    )
+
+
+def evidence_asset_candidates(repo_root: Path, requested_paths: Sequence[str]) -> list[Path]:
+    candidates: list[Path] = []
+    seen: set[str] = set()
+    for raw_path in requested_paths:
+        source = Path(raw_path)
+        if not source.is_absolute():
+            source = repo_root / source
+        source = source.resolve()
+        ensure_inside_root(repo_root, source)
+        if source.is_dir():
+            paths = sorted(path for path in source.rglob("*") if path.is_file())
+        elif source.is_file():
+            paths = [source]
+        else:
+            continue
+        for path in paths:
+            rel_path = repo_path(path.relative_to(repo_root))
+            if (
+                rel_path.startswith(".github/cache/")
+                or rel_path.startswith(".github/db-backup/")
+                or rel_path.startswith(".github/tmp/")
+                or rel_path.endswith(".md")
+            ):
+                continue
+            if ".git/" in rel_path or rel_path in seen:
+                continue
+            run_id = task_run_id_from_rel_path(rel_path)
+            if not run_id:
+                continue
+            seen.add(rel_path)
+            candidates.append(path)
+    return candidates
+
+
+def build_evidence_asset(
+    repo_root: Path,
+    conn: sqlite3.Connection,
+    path: Path,
+    indexed_at: str,
+    sample_bytes: int,
+    excerpt_chars: int,
+) -> dict[str, object]:
+    rel_path = repo_path(path.relative_to(repo_root))
+    run_id = task_run_id_from_rel_path(rel_path)
+    fields = task_run_report_fields(repo_root, conn, run_id)
+    stat = path.stat()
+    sample = read_evidence_sample(path, sample_bytes)
+    head = compact_text(str(sample["head_text"]), excerpt_chars)
+    tail = compact_text(str(sample["tail_text"]), excerpt_chars)
+    marker_source = f"{sample['head_text']}\n{sample['tail_text']}"
+    markers = evidence_markers(marker_source)
+    kind = evidence_asset_kind(path)
+    summary = evidence_summary(kind, stat.st_size, int(sample["line_count"]), markers, tail)
+    return {
+        "path": rel_path,
+        "run_id": run_id,
+        "task_slug": fields.get("task_slug", ""),
+        "profile": fields.get("profile", ""),
+        "kind": kind,
+        "size_bytes": stat.st_size,
+        "mtime_ns": stat.st_mtime_ns,
+        "sha256": sample["sha256"],
+        "line_count": int(sample["line_count"]),
+        "encoding": sample["encoding"],
+        "summary": summary,
+        "head_excerpt": head,
+        "tail_excerpt": tail,
+        "markers": json.dumps(markers, ensure_ascii=False, sort_keys=True),
+        "indexed_at": indexed_at,
+    }
+
+
+def write_evidence_index_markdown(repo_root: Path, run_id: str, assets: Sequence[dict[str, object]]) -> str:
+    target = repo_root / ".github" / "task-runs" / run_id / "evidence-index.md"
+    fields: dict[str, str] = {}
+    if assets:
+        fields = {
+            "task_slug": str(assets[0].get("task_slug", "")),
+            "profile": str(assets[0].get("profile", "")),
+        }
+    total_bytes = sum(int(asset.get("size_bytes", 0)) for asset in assets)
+    lines = [
+        "# Evidence Index",
+        "",
+        "## 基本信息",
+        "",
+        f"- `task_id`: {run_id}",
+        f"- `task_slug`: {fields.get('task_slug', '')}",
+        f"- `profile`: {fields.get('profile', '')}",
+        f"- `asset_count`: {len(assets)}",
+        f"- `total_size_bytes`: {total_bytes}",
+        "",
+        "## 证据资产",
+        "",
+    ]
+    for asset in sorted(assets, key=lambda item: str(item["path"])):
+        markers = json.loads(str(asset.get("markers") or "{}"))
+        marker_text = json.dumps(markers, ensure_ascii=False, sort_keys=True)
+        lines.extend(
+            [
+                f"### {asset['path']}",
+                "",
+                f"- `kind`: {asset.get('kind', '')}",
+                f"- `size_bytes`: {asset.get('size_bytes', 0)}",
+                f"- `line_count`: {asset.get('line_count', 0)}",
+                f"- `sha256`: {asset.get('sha256', '')}",
+                f"- `encoding`: {asset.get('encoding', '')}",
+                f"- `indexed_at`: {asset.get('indexed_at', '')}",
+                f"- `markers`: {marker_text}",
+                f"- `summary`: {asset.get('summary', '')}",
+                "",
+            ]
+        )
+    target.write_text("\n".join(lines), encoding="utf-8")
+    return repo_path(target.relative_to(repo_root))
+
+
+def index_evidence_assets(args: argparse.Namespace) -> int:
+    if not args.yes:
+        print("FAIL index-evidence requires --yes", file=sys.stderr)
+        return 2
+    repo_root = resolve_repo_path(args.repo_root)
+    db_path = (repo_root / args.db).resolve()
+    paths = evidence_asset_candidates(repo_root, args.path)
+    if not paths:
+        print("FAIL index-evidence found no task-run evidence assets", file=sys.stderr)
+        return 1
+    conn = open_db(db_path)
+    init_schema(conn)
+    indexed_at = utc_now()
+    assets = [
+        build_evidence_asset(repo_root, conn, path, indexed_at, args.sample_bytes, args.excerpt_chars)
+        for path in paths
+    ]
+    run_ids = sorted({str(asset["run_id"]) for asset in assets if asset.get("run_id")})
+    current_paths = {str(asset["path"]) for asset in assets}
+    with conn:
+        for run_id in run_ids:
+            placeholders = ",".join("?" for _ in current_paths) if current_paths else "''"
+            params: list[object] = [run_id]
+            if current_paths:
+                params.extend(sorted(current_paths))
+                conn.execute(
+                    f"DELETE FROM evidence_assets WHERE run_id = ? AND path NOT IN ({placeholders})",
+                    params,
+                )
+            else:
+                conn.execute("DELETE FROM evidence_assets WHERE run_id = ?", (run_id,))
+        for asset in assets:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO evidence_assets(
+                  path, run_id, task_slug, profile, kind, size_bytes, mtime_ns, sha256,
+                  line_count, encoding, summary, head_excerpt, tail_excerpt, markers, indexed_at
+                )
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    asset["path"],
+                    asset["run_id"],
+                    asset["task_slug"],
+                    asset["profile"],
+                    asset["kind"],
+                    asset["size_bytes"],
+                    asset["mtime_ns"],
+                    asset["sha256"],
+                    asset["line_count"],
+                    asset["encoding"],
+                    asset["summary"],
+                    asset["head_excerpt"],
+                    asset["tail_excerpt"],
+                    asset["markers"],
+                    asset["indexed_at"],
+                ),
+            )
+        record_event(
+            conn,
+            "index-evidence-assets",
+            {"assets": len(assets), "runs": run_ids, "write_index": bool(args.write_index)},
+        )
+    index_docs: list[str] = []
+    if args.write_index:
+        assets_by_run: dict[str, list[dict[str, object]]] = {}
+        for asset in assets:
+            assets_by_run.setdefault(str(asset["run_id"]), []).append(asset)
+        for run_id, run_assets in sorted(assets_by_run.items()):
+            index_docs.append(write_evidence_index_markdown(repo_root, run_id, run_assets))
+    conn.close()
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "op": "index-evidence",
+                    "ok": True,
+                    "assets": len(assets),
+                    "runs": run_ids,
+                    "index_docs": index_docs,
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+    else:
+        print(
+            f"PASS index-evidence assets={len(assets)} runs={len(run_ids)} "
+            f"index_docs={len(index_docs)}"
+        )
+        for asset in sorted(assets, key=lambda item: str(item["path"]))[: args.limit]:
+            print(f"  {asset['path']} [{asset['kind']}] {asset['summary']}")
+        if len(assets) > args.limit:
+            print(f"  ... {len(assets) - args.limit} more")
     return 0
 
 

@@ -1,0 +1,4 @@
+[npc-rv64] command: focused Sv39 SRET-to-U-mode regression
+make: Entering directory '/home/lyg/PA/ysyx-workbench/npc/rv64/testbench'
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/npc/rv64/testbench'
+[npc-rv64] evidence=.github/task-runs/2026-06-13-nemu-apt-install-diag-split-contract/evidence/npc-rv64-sv39-sret-u-mode/logs/tb_ooo_sv39_boot.log

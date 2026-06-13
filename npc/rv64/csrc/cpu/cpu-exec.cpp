@@ -117,6 +117,20 @@ static uint64_t    g_commit_watch_post_deadline = 0;
 static bool        g_commit_watch_matched = false;
 static bool        g_trap_watch_inited = false;
 static bool        g_trap_watch_enabled = false;
+static bool        g_user_trace_inited = false;
+static bool        g_user_ecall_trace_enabled = false;
+static bool        g_user_ecall_trace_priv_enabled = false;
+static bool        g_user_progress_enabled = false;
+static bool        g_user_ecall_path_trace_enabled = false;
+static uint64_t    g_user_trace_min_commit = 0;
+static uint64_t    g_user_ecall_min_commit = 0;
+static uint64_t    g_user_ecall_trace_limit = 128;
+static uint64_t    g_user_ecall_path_max = 96;
+static uint64_t    g_user_progress_interval = 0;
+static uint64_t    g_user_progress_limit = 64;
+static uint64_t    g_user_ecall_trace_count = 0;
+static uint64_t    g_user_progress_count = 0;
+static uint64_t    g_user_progress_next_commit = 0;
 
 struct SimPerfStats {
   uint64_t icache_access;
@@ -390,6 +404,326 @@ static void read_guest_cstr(npc_word_t addr, char *buf, size_t size) {
   buf[size - 1] = '\0';
 }
 
+static bool sv39_canonical_va(npc_word_t vaddr) {
+  uint64_t sign = (vaddr >> 38) & 1u;
+  uint64_t high = vaddr >> 39;
+  return sign ? (high == ((1ull << 25) - 1ull)) : (high == 0);
+}
+
+static bool translate_debug_sv39(npc_word_t vaddr, npc_paddr_t *paddr) {
+  if (!paddr || !g_top) return false;
+  uint64_t satp = (uint64_t)g_top->debug_ooo_satp_o;
+  if ((satp >> 60) != 8u) {
+    *paddr = (npc_paddr_t)vaddr;
+    return true;
+  }
+  if (!sv39_canonical_va(vaddr)) return false;
+
+  uint64_t vpn[3] = {
+    (vaddr >> 12) & 0x1ffu,
+    (vaddr >> 21) & 0x1ffu,
+    (vaddr >> 30) & 0x1ffu,
+  };
+  uint64_t ppn = satp & ((1ull << 44) - 1ull);
+
+  for (int level = 2; level >= 0; --level) {
+    npc_word_t pte = 0;
+    npc_paddr_t pte_addr = (npc_paddr_t)((ppn << 12) + vpn[level] * 8u);
+    if (!npc_paddr_read(pte_addr, &pte, NPC_BUS_LOAD)) return false;
+
+    bool valid = (pte & 0x1u) != 0;
+    bool readable = (pte & 0x2u) != 0;
+    bool writable = (pte & 0x4u) != 0;
+    bool executable = (pte & 0x8u) != 0;
+    if (!valid || (!readable && writable)) return false;
+
+    if (readable || executable) {
+      uint64_t pte_ppn0 = (pte >> 10) & 0x1ffu;
+      uint64_t pte_ppn1 = (pte >> 19) & 0x1ffu;
+      uint64_t pte_ppn2 = (pte >> 28) & ((1ull << 26) - 1ull);
+      if (level == 2) {
+        if (pte_ppn0 != 0 || pte_ppn1 != 0) return false;
+        *paddr = (npc_paddr_t)((pte_ppn2 << 30) | (vaddr & ((1ull << 30) - 1ull)));
+        return true;
+      }
+      if (level == 1) {
+        if (pte_ppn0 != 0) return false;
+        *paddr = (npc_paddr_t)((pte_ppn2 << 30) | (pte_ppn1 << 21) |
+                               (vaddr & ((1ull << 21) - 1ull)));
+        return true;
+      }
+      *paddr = (npc_paddr_t)((pte_ppn2 << 30) | (pte_ppn1 << 21) |
+                             (pte_ppn0 << 12) | (vaddr & 0xfffull));
+      return true;
+    }
+
+    ppn = (pte >> 10) & ((1ull << 44) - 1ull);
+  }
+  return false;
+}
+
+static bool read_guest_user_u8(npc_word_t vaddr, uint8_t *byte) {
+  npc_paddr_t paddr = 0;
+  return translate_debug_sv39(vaddr, &paddr) && read_guest_u8(paddr, byte);
+}
+
+static bool read_guest_user_cstr(npc_word_t vaddr, char *buf, size_t size) {
+  if (!buf || size == 0 || vaddr == 0) return false;
+  buf[0] = '\0';
+  for (size_t i = 0; i + 1 < size; ++i) {
+    uint8_t ch = 0;
+    if (!read_guest_user_u8(vaddr + i, &ch)) {
+      buf[i] = '\0';
+      return i > 0;
+    }
+    if (ch == 0) {
+      buf[i] = '\0';
+      return true;
+    }
+    if (ch == '"' || ch == '\\') {
+      buf[i] = '?';
+    } else {
+      buf[i] = (ch >= 32 && ch < 127) ? (char)ch : '.';
+    }
+  }
+  buf[size - 1] = '\0';
+  return true;
+}
+
+static bool env_enabled(const char *name) {
+  const char *s = std::getenv(name);
+  return s != nullptr && s[0] != '\0' && s[0] != '0';
+}
+
+static uint64_t env_u64_or(const char *name, uint64_t fallback) {
+  const char *s = std::getenv(name);
+  if (!s || s[0] == '\0') return fallback;
+  char *end = nullptr;
+  uint64_t value = std::strtoull(s, &end, 0);
+  return (end != s) ? value : fallback;
+}
+
+static void init_user_trace(void) {
+  if (g_user_trace_inited) return;
+  g_user_trace_inited = true;
+
+  g_user_trace_min_commit = env_u64_or("NPC_USER_TRACE_MIN_COMMIT", 0);
+  g_user_ecall_trace_enabled = env_enabled("NPC_USER_ECALL_TRACE");
+  g_user_ecall_trace_priv_enabled = env_enabled("NPC_USER_ECALL_TRACE_PRIV");
+  g_user_ecall_path_trace_enabled = env_enabled("NPC_USER_ECALL_PATH_TRACE");
+  g_user_ecall_min_commit =
+      env_u64_or("NPC_USER_ECALL_MIN_COMMIT", g_user_trace_min_commit);
+  g_user_ecall_trace_limit = env_u64_or("NPC_USER_ECALL_TRACE_LIMIT", 128);
+  g_user_ecall_path_max = env_u64_or("NPC_USER_ECALL_PATH_MAX", 96);
+  if (g_user_ecall_path_max < 16) g_user_ecall_path_max = 16;
+  if (g_user_ecall_path_max > 240) g_user_ecall_path_max = 240;
+  g_user_progress_interval = env_u64_or("NPC_USER_PROGRESS_INTERVAL", 0);
+  g_user_progress_limit = env_u64_or("NPC_USER_PROGRESS_LIMIT", 64);
+  g_user_progress_enabled = g_user_progress_interval > 0;
+  g_user_progress_next_commit = g_user_trace_min_commit;
+
+  if (g_user_ecall_trace_enabled || g_user_progress_enabled) {
+    LogBothTag("user_trace",
+               "enabled ecall=%u ecall_priv=%u path_trace=%u ecall_limit=%llu "
+               "ecall_min_commit=%llu progress_interval=%llu "
+               "progress_limit=%llu min_commit=%llu path_max=%llu",
+               g_user_ecall_trace_enabled ? 1u : 0u,
+               g_user_ecall_trace_priv_enabled ? 1u : 0u,
+               g_user_ecall_path_trace_enabled ? 1u : 0u,
+               (unsigned long long)g_user_ecall_trace_limit,
+               (unsigned long long)g_user_ecall_min_commit,
+               (unsigned long long)g_user_progress_interval,
+               (unsigned long long)g_user_progress_limit,
+               (unsigned long long)g_user_trace_min_commit,
+               (unsigned long long)g_user_ecall_path_max);
+  }
+}
+
+static void reset_user_trace_counters(void) {
+  init_user_trace();
+  g_user_ecall_trace_count = 0;
+  g_user_progress_count = 0;
+  g_user_progress_next_commit = g_user_trace_min_commit;
+}
+
+static bool sv39_lower_user_va(npc_word_t pc) {
+  return pc >= 0x1000ull && pc < 0x0000004000000000ull;
+}
+
+static bool dynamic_user_va(npc_word_t pc) {
+  return pc >= 0x0000000100000000ull && pc < 0x0000004000000000ull;
+}
+
+static void append_text_field(char *buf, size_t size, const char *text) {
+  if (!buf || size == 0 || !text) return;
+  size_t used = strlen(buf);
+  if (used + 1 >= size) return;
+  snprintf(buf + used, size - used, "%s", text);
+}
+
+static void append_user_path_field(char *buf, size_t size,
+                                   const char *name, npc_word_t vaddr) {
+  if (!buf || size == 0 || !name) return;
+  char value[256];
+  size_t max_len = (size_t)g_user_ecall_path_max;
+  if (max_len >= sizeof(value)) max_len = sizeof(value) - 1;
+  bool ok = read_guest_user_cstr(vaddr, value, max_len + 1);
+  size_t used = strlen(buf);
+  if (used + 1 >= size) return;
+  if (ok) {
+    snprintf(buf + used, size - used, " %s=\"%s\"", name, value);
+  } else {
+    snprintf(buf + used, size - used, " %s=<unreadable:0x%016" NPC_PRIxWORD ">",
+             name, vaddr);
+  }
+}
+
+static void format_ecall_path_fields(char *buf, size_t size) {
+  if (!buf || size == 0) return;
+  buf[0] = '\0';
+  if (!g_user_ecall_path_trace_enabled) return;
+
+  uint64_t syscall = g_shadow_gpr[17];
+  switch (syscall) {
+    case 27:  // inotify_add_watch(fd, pathname, mask)
+    case 33:  // mknodat(dirfd, pathname, ...)
+    case 34:  // mkdirat(dirfd, pathname, ...)
+    case 35:  // unlinkat(dirfd, pathname, ...)
+    case 48:  // faccessat(dirfd, pathname, ...)
+    case 53:  // fchmodat(dirfd, pathname, ...)
+    case 54:  // fchownat(dirfd, pathname, ...)
+    case 56:  // openat(dirfd, pathname, ...)
+    case 78:  // readlinkat(dirfd, pathname, ...)
+    case 79:  // newfstatat(dirfd, pathname, ...)
+    case 88:  // utimensat(dirfd, pathname, ...)
+    case 291: // statx(dirfd, pathname, ...)
+    case 437: // openat2(dirfd, pathname, ...)
+    case 439: // faccessat2(dirfd, pathname, ...)
+      append_user_path_field(buf, size, "path", g_shadow_gpr[11]);
+      break;
+    case 36:  // symlinkat(target, newdirfd, linkpath)
+      append_user_path_field(buf, size, "target", g_shadow_gpr[10]);
+      append_user_path_field(buf, size, "linkpath", g_shadow_gpr[12]);
+      break;
+    case 37:  // linkat(olddirfd, oldpath, newdirfd, newpath, flags)
+    case 38:  // renameat(olddirfd, oldpath, newdirfd, newpath)
+    case 276: // renameat2(olddirfd, oldpath, newdirfd, newpath, flags)
+      append_user_path_field(buf, size, "oldpath", g_shadow_gpr[11]);
+      append_user_path_field(buf, size, "newpath", g_shadow_gpr[13]);
+      break;
+    case 40:  // mount(source, target, filesystemtype, ...)
+      append_user_path_field(buf, size, "source", g_shadow_gpr[10]);
+      append_user_path_field(buf, size, "target", g_shadow_gpr[11]);
+      append_user_path_field(buf, size, "fstype", g_shadow_gpr[12]);
+      break;
+    case 49:  // chdir(path)
+      append_user_path_field(buf, size, "path", g_shadow_gpr[10]);
+      break;
+    default:
+      break;
+  }
+
+  if (buf[0] != '\0') append_text_field(buf, size, " path_trace=sv39");
+}
+
+static void maybe_log_user_trace(npc_word_t pc, uint32_t inst, npc_word_t next_pc) {
+  init_user_trace();
+  if (!g_user_ecall_trace_enabled && !g_user_progress_enabled) return;
+
+  uint64_t commit = npc_stats()->commits;
+  if (commit < g_user_trace_min_commit &&
+      commit < g_user_ecall_min_commit) {
+    return;
+  }
+
+  uint64_t flags = g_top ? (uint64_t)g_top->debug_ooo_flags_o : 0;
+  uint64_t priv = (flags >> 27) & 0x3u;
+  bool sv39 = ((flags >> 29) & 0x1u) != 0;
+  bool user_pc = sv39_lower_user_va(pc);
+  bool dynamic_user_pc = dynamic_user_va(pc);
+  bool user_context = (sv39 && user_pc) || dynamic_user_pc;
+  if (!user_context) return;
+
+  if (g_user_progress_enabled && (priv == 0 || dynamic_user_pc) &&
+      g_user_progress_count < g_user_progress_limit &&
+      commit >= g_user_progress_next_commit) {
+    LogBothTag("user_progress",
+               "sample=%llu commit=%llu pc=0x%016" NPC_PRIxWORD
+               " inst=0x%08x next=0x%016" NPC_PRIxWORD
+               " priv=%llu sv39=%u ra=0x%016" NPC_PRIxWORD
+               " sp=0x%016" NPC_PRIxWORD " a0=0x%016" NPC_PRIxWORD
+               " a1=0x%016" NPC_PRIxWORD " a2=0x%016" NPC_PRIxWORD
+               " a3=0x%016" NPC_PRIxWORD " a4=0x%016" NPC_PRIxWORD
+               " a5=0x%016" NPC_PRIxWORD " a7=0x%016" NPC_PRIxWORD,
+               (unsigned long long)(g_user_progress_count + 1),
+               (unsigned long long)commit, pc, inst, next_pc,
+               (unsigned long long)priv, sv39 ? 1u : 0u,
+               g_shadow_gpr[1], g_shadow_gpr[2], g_shadow_gpr[10],
+               g_shadow_gpr[11], g_shadow_gpr[12], g_shadow_gpr[13],
+               g_shadow_gpr[14], g_shadow_gpr[15], g_shadow_gpr[17]);
+    g_user_progress_count++;
+    g_user_progress_next_commit = commit + g_user_progress_interval;
+  }
+
+  if (g_user_ecall_trace_enabled && inst == 0x00000073u &&
+      commit >= g_user_ecall_min_commit &&
+      g_user_ecall_trace_count < g_user_ecall_trace_limit) {
+    LogBothTag("user_ecall",
+               "hit=%llu commit=%llu pc=0x%016" NPC_PRIxWORD
+               " next=0x%016" NPC_PRIxWORD " priv=%llu sv39=%u"
+               " syscall=%llu ra=0x%016" NPC_PRIxWORD
+               " sp=0x%016" NPC_PRIxWORD " a0=0x%016" NPC_PRIxWORD
+               " a1=0x%016" NPC_PRIxWORD " a2=0x%016" NPC_PRIxWORD
+               " a3=0x%016" NPC_PRIxWORD " a4=0x%016" NPC_PRIxWORD
+               " a5=0x%016" NPC_PRIxWORD " a6=0x%016" NPC_PRIxWORD
+               " a7=0x%016" NPC_PRIxWORD,
+               (unsigned long long)(g_user_ecall_trace_count + 1),
+               (unsigned long long)commit, pc, next_pc,
+               (unsigned long long)priv, sv39 ? 1u : 0u,
+               (unsigned long long)g_shadow_gpr[17],
+               g_shadow_gpr[1], g_shadow_gpr[2], g_shadow_gpr[10],
+               g_shadow_gpr[11], g_shadow_gpr[12], g_shadow_gpr[13],
+               g_shadow_gpr[14], g_shadow_gpr[15], g_shadow_gpr[16],
+               g_shadow_gpr[17]);
+    g_user_ecall_trace_count++;
+  }
+}
+
+static void maybe_log_ecall_trap(uint32_t kind, uint32_t cause,
+                                 npc_word_t pc, npc_word_t tval) {
+  init_user_trace();
+  uint64_t commit = npc_stats()->commits;
+  if (!g_user_ecall_trace_enabled ||
+      commit < g_user_ecall_min_commit ||
+      g_user_ecall_trace_count >= g_user_ecall_trace_limit) {
+    return;
+  }
+
+  if (cause != 8u && cause != 9u && cause != 11u) return;
+  if (cause != 8u && !g_user_ecall_trace_priv_enabled) return;
+  const char *kind_name = (kind == 0) ? "mem" : (kind == 1) ? "ex" : "irq";
+  const char *mode_name = (cause == 8u) ? "u" : (cause == 9u) ? "s" : "m";
+  char path_fields[768];
+  format_ecall_path_fields(path_fields, sizeof(path_fields));
+  LogBothTag("user_ecall",
+             "trap_hit=%llu commit=%llu kind=%s mode=%s cause=%u"
+             " pc=0x%016" NPC_PRIxWORD " tval=0x%016" NPC_PRIxWORD
+             " syscall=%llu ra=0x%016" NPC_PRIxWORD
+             " sp=0x%016" NPC_PRIxWORD " a0=0x%016" NPC_PRIxWORD
+             " a1=0x%016" NPC_PRIxWORD " a2=0x%016" NPC_PRIxWORD
+             " a3=0x%016" NPC_PRIxWORD " a4=0x%016" NPC_PRIxWORD
+             " a5=0x%016" NPC_PRIxWORD " a6=0x%016" NPC_PRIxWORD
+             " a7=0x%016" NPC_PRIxWORD "%s",
+             (unsigned long long)(g_user_ecall_trace_count + 1),
+             (unsigned long long)commit, kind_name, mode_name,
+             cause, pc, tval, (unsigned long long)g_shadow_gpr[17],
+             g_shadow_gpr[1], g_shadow_gpr[2], g_shadow_gpr[10],
+             g_shadow_gpr[11], g_shadow_gpr[12], g_shadow_gpr[13],
+             g_shadow_gpr[14], g_shadow_gpr[15], g_shadow_gpr[16],
+             g_shadow_gpr[17], path_fields);
+  g_user_ecall_trace_count++;
+}
+
 static void on_sigint(int) { g_stop_requested = 1; }
 
 static void clear_cycle_events(void) {
@@ -453,6 +787,7 @@ extern "C" void npc_commit_event(npc_word_t pc, uint32_t inst, npc_word_t next_p
 
   record_ooo_control_flow_commit(pc, inst, next_pc);
   maybe_log_commit_watch(pc, inst, next_pc, rd_en, rd_addr, rd_data);
+  maybe_log_user_trace(pc, inst, next_pc);
 
   static const bool linux_probe_enabled = [] {
     const char *enabled = std::getenv("NPC_LINUX_HANG_PROBE");
@@ -615,6 +950,8 @@ extern "C" void npc_trap_event(uint32_t cause, npc_word_t pc, npc_word_t tval) {
 
 extern "C" void npc_handled_trap_event(uint32_t kind, uint32_t cause,
                                        npc_word_t pc, npc_word_t tval) {
+  maybe_log_ecall_trap(kind, cause, pc, tval);
+
   if (!g_trap_watch_inited) {
     g_trap_watch_inited = true;
     const char *enabled = std::getenv("NPC_TRAPWATCH");
@@ -1697,6 +2034,7 @@ int npc_cpu_exec(uint64_t max_instructions) {
   uint64_t executed = 0;
   ProgressReporter progress = make_progress_reporter(max_instructions);
   npc_reset_guest_expect();
+  reset_user_trace_counters();
   g_commit_watch_matched = false;
   g_commit_watch_match_count = 0;
   g_commit_watch_post_active = false;

@@ -111,6 +111,10 @@ import "DPI-C" function void npc_uart_event(
   input longint unsigned access_rdata
 );
 
+import "DPI-C" function int npc_uart_rx_pop(
+  output int unsigned data
+);
+
 import "DPI-C" function void npc_irq_event(
   input int unsigned uart_irq,
   input int unsigned plic_irq
@@ -123,6 +127,7 @@ module NpcSimTop (
   output logic [`XLEN-1:0] debug_pc_o,
   output logic [`CORE_STATE_W-1:0] debug_state_o,
   output logic [63:0] debug_ooo_flags_o,
+  output logic [63:0] debug_ooo_satp_o,
   output logic [63:0] debug_bus_flags_o,
   output logic [63:0] debug_bus2_flags_o,
   output logic [63:0] debug_fetch_addr_o,
@@ -155,6 +160,25 @@ module NpcSimTop (
   logic psram_axi_bvalid_w;
   logic psram_axi_bready_w;
   logic [1:0] psram_axi_bresp_w;
+
+  logic sdram_axi_arvalid_w;
+  logic sdram_axi_arready_w;
+  logic [`XLEN-1:0] sdram_axi_araddr_w;
+  logic sdram_axi_aruser_w;
+  logic sdram_axi_rvalid_w;
+  logic sdram_axi_rready_w;
+  logic [`XLEN-1:0] sdram_axi_rdata_w;
+  logic [1:0] sdram_axi_rresp_w;
+  logic sdram_axi_awvalid_w;
+  logic sdram_axi_awready_w;
+  logic [`XLEN-1:0] sdram_axi_awaddr_w;
+  logic sdram_axi_wvalid_w;
+  logic sdram_axi_wready_w;
+  logic [`XLEN-1:0] sdram_axi_wdata_w;
+  logic [`STRB_W-1:0] sdram_axi_wstrb_w;
+  logic sdram_axi_bvalid_w;
+  logic sdram_axi_bready_w;
+  logic [1:0] sdram_axi_bresp_w;
 
   logic legacy_mmio_axi_arvalid_w;
   logic legacy_mmio_axi_arready_w;
@@ -202,6 +226,9 @@ module NpcSimTop (
   logic [`XLEN-1:0] uart_access_wdata_w;
   logic [`STRB_W-1:0] uart_access_wstrb_w;
   logic [`XLEN-1:0] uart_access_rdata_w;
+  logic uart_rx_valid_q;
+  logic [7:0] uart_rx_data_q;
+  logic uart_rx_ready_w;
   logic [63:0] clint_mtime_w;
   logic plic_external_irq_w;
   logic uart_irq_w;
@@ -287,6 +314,25 @@ module NpcSimTop (
     .psram_axi_bready_o(psram_axi_bready_w),
     .psram_axi_bresp_i(psram_axi_bresp_w),
 
+    .sdram_axi_arvalid_o(sdram_axi_arvalid_w),
+    .sdram_axi_arready_i(sdram_axi_arready_w),
+    .sdram_axi_araddr_o(sdram_axi_araddr_w),
+    .sdram_axi_aruser_o(sdram_axi_aruser_w),
+    .sdram_axi_rvalid_i(sdram_axi_rvalid_w),
+    .sdram_axi_rready_o(sdram_axi_rready_w),
+    .sdram_axi_rdata_i(sdram_axi_rdata_w),
+    .sdram_axi_rresp_i(sdram_axi_rresp_w),
+    .sdram_axi_awvalid_o(sdram_axi_awvalid_w),
+    .sdram_axi_awready_i(sdram_axi_awready_w),
+    .sdram_axi_awaddr_o(sdram_axi_awaddr_w),
+    .sdram_axi_wvalid_o(sdram_axi_wvalid_w),
+    .sdram_axi_wready_i(sdram_axi_wready_w),
+    .sdram_axi_wdata_o(sdram_axi_wdata_w),
+    .sdram_axi_wstrb_o(sdram_axi_wstrb_w),
+    .sdram_axi_bvalid_i(sdram_axi_bvalid_w),
+    .sdram_axi_bready_o(sdram_axi_bready_w),
+    .sdram_axi_bresp_i(sdram_axi_bresp_w),
+
     .legacy_mmio_axi_arvalid_o(legacy_mmio_axi_arvalid_w),
     .legacy_mmio_axi_arready_i(legacy_mmio_axi_arready_w),
     .legacy_mmio_axi_araddr_o(legacy_mmio_axi_araddr_w),
@@ -326,6 +372,9 @@ module NpcSimTop (
     .virtio_blk_axi_bresp_i(virtio_blk_axi_bresp_w),
     .virtio_blk_irq_i(virtio_blk_irq_w),
 
+    .uart_rx_valid_i(uart_rx_valid_q),
+    .uart_rx_data_i(uart_rx_data_q),
+    .uart_rx_ready_o(uart_rx_ready_w),
     .uart_tx_valid_o(uart_tx_valid_w),
     .uart_tx_data_o(uart_tx_data_w),
     .uart_access_valid_o(uart_access_valid_w),
@@ -381,6 +430,7 @@ module NpcSimTop (
       virtio_blk_axi_aruser_w;
 
   assign debug_clint_mtime_o = clint_mtime_w;
+  assign debug_ooo_satp_o = u_top.u_core.u_ooo_core.csr_satp_w;
   assign debug_ooo_flags_o = {
     23'd0,
     u_top.u_core.u_ooo_core.direct_frontend_flush_w,
@@ -527,6 +577,29 @@ module NpcSimTop (
     .s_axi_bvalid_o(psram_axi_bvalid_w),
     .s_axi_bready_i(psram_axi_bready_w),
     .s_axi_bresp_o(psram_axi_bresp_w)
+  );
+
+  AxiDpiSlave u_sdram_slave (
+    .clk(clk),
+    .rst(rst),
+    .s_axi_arvalid_i(sdram_axi_arvalid_w),
+    .s_axi_arready_o(sdram_axi_arready_w),
+    .s_axi_araddr_i(sdram_axi_araddr_w),
+    .s_axi_aruser_i(sdram_axi_aruser_w),
+    .s_axi_rvalid_o(sdram_axi_rvalid_w),
+    .s_axi_rready_i(sdram_axi_rready_w),
+    .s_axi_rdata_o(sdram_axi_rdata_w),
+    .s_axi_rresp_o(sdram_axi_rresp_w),
+    .s_axi_awvalid_i(sdram_axi_awvalid_w),
+    .s_axi_awready_o(sdram_axi_awready_w),
+    .s_axi_awaddr_i(sdram_axi_awaddr_w),
+    .s_axi_wvalid_i(sdram_axi_wvalid_w),
+    .s_axi_wready_o(sdram_axi_wready_w),
+    .s_axi_wdata_i(sdram_axi_wdata_w),
+    .s_axi_wstrb_i(sdram_axi_wstrb_w),
+    .s_axi_bvalid_o(sdram_axi_bvalid_w),
+    .s_axi_bready_i(sdram_axi_bready_w),
+    .s_axi_bresp_o(sdram_axi_bresp_w)
   );
 
   AxiDpiSlave u_legacy_mmio_slave (
@@ -677,6 +750,20 @@ module NpcSimTop (
       sim_ooo_hazard_busy_w | sim_ooo_branch_flush_w |
       sim_ooo_exception_busy_w |
       (|sim_ooo_execute_count_w) | (|sim_ooo_dispatch_count_w);
+
+  always_ff @(posedge clk) begin
+    int unsigned uart_rx_data_v;
+    int uart_rx_has_data_v;
+
+    if (rst) begin
+      uart_rx_valid_q <= 1'b0;
+      uart_rx_data_q <= 8'h00;
+    end else if (!uart_rx_valid_q || uart_rx_ready_w) begin
+      uart_rx_has_data_v = npc_uart_rx_pop(uart_rx_data_v);
+      uart_rx_valid_q <= (uart_rx_has_data_v != 0);
+      uart_rx_data_q <= uart_rx_data_v[7:0];
+    end
+  end
 
   // 仿真事件仍集中在顶层；真实 PMEM/MMIO 请求已经下沉到 AxiDpiSlave。
   always_ff @(posedge clk) begin

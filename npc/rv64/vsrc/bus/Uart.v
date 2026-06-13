@@ -17,6 +17,9 @@ module Uart #(
   input [DATA_W-1:0] reg_write_data_i,
   input [STRB_W-1:0] reg_write_strb_i,
 
+  input rx_valid_i,
+  input [7:0] rx_data_i,
+  output rx_ready_o,
   output tx_valid_o,
   output [7:0] tx_data_o,
   output access_valid_o,
@@ -36,10 +39,18 @@ module Uart #(
   reg [7:0] dlm_q = 8'h00;
   reg [7:0] fcr_q = 8'h00;
   reg [7:0] lcr_q = 8'h00;
+  reg rx_valid_q = 1'b0;
+  reg [7:0] rx_data_q = 8'h00;
 
   wire dlab_w = lcr_q[7];
   wire fifo_enabled_w = fcr_q[0];
   wire thre_ready_w = 1'b1;
+  wire rbr_read_fire_w =
+      reg_read_valid_i &&
+      (reg_read_addr_i == UART_RBR_THR_DLL_OFFSET) &&
+      !dlab_w;
+  wire rx_irq_pending_w = ier_q[0] && rx_valid_q;
+  wire thre_irq_pending_w = ier_q[1] && thre_ready_w;
 
   // 当前 LSU 会把 AXI 地址按 word 对齐，真实 byte lane 由 WSTRB 表达。
   // 只有 lane0 覆盖 TX offset 0 时才产生一个字符输出脉冲。
@@ -48,9 +59,10 @@ module Uart #(
                       reg_write_strb_i[0] &&
                       !dlab_w;
   assign tx_data_o = reg_write_data_i[7:0];
+  assign rx_ready_o = !rx_valid_q || rbr_read_fire_w;
   assign access_valid_o = reg_read_valid_i || reg_write_valid_i;
   assign access_write_o = reg_write_valid_i;
-  assign irq_o = ier_q[1] && thre_ready_w;
+  assign irq_o = rx_irq_pending_w || thre_irq_pending_w;
 
   wire [63:0] reg_write_data_pad_w;
   wire [7:0] reg_write_strb_pad_w;
@@ -74,23 +86,28 @@ module Uart #(
     input [12:0] byte_addr;
     input dlab;
     input fifo_enabled;
-    input irq;
     input [7:0] ier;
     input [7:0] dll;
     input [7:0] dlm;
     input [7:0] lcr;
+    input rx_valid;
+    input [7:0] rx_data;
+    input rx_irq_pending;
+    input thre_irq_pending;
     begin
       case (byte_addr)
         {1'b0, UART_RBR_THR_DLL_OFFSET}:
-          uart_read_byte = dlab ? dll : 8'h00;
+          uart_read_byte = dlab ? dll : (rx_valid ? rx_data : 8'h00);
         {1'b0, UART_IER_DLM_OFFSET}:
           uart_read_byte = dlab ? dlm : ier;
         {1'b0, UART_IIR_FCR_OFFSET}:
           uart_read_byte =
-              (fifo_enabled ? 8'hc0 : 8'h00) | (irq ? 8'h02 : 8'h01);
+              (fifo_enabled ? 8'hc0 : 8'h00) |
+              (rx_irq_pending ? 8'h04 :
+               (thre_irq_pending ? 8'h02 : 8'h01));
         {1'b0, UART_LCR_OFFSET}: uart_read_byte = lcr;
         {1'b0, UART_COMPAT_STAT_OFFSET}: uart_read_byte = 8'h01;
-        {1'b0, UART_LSR_OFFSET}: uart_read_byte = 8'h60;
+        {1'b0, UART_LSR_OFFSET}: uart_read_byte = 8'h60 | {7'b0, rx_valid};
         default: uart_read_byte = 8'h00;
       endcase
     end
@@ -100,31 +117,47 @@ module Uart #(
   // byte loop 更容易审查每个 byte 对应的寄存器副作用。
   assign reg_read_data_o[7:0] =
       uart_read_byte({1'b0, reg_read_addr_i} + 13'd0, dlab_w,
-                     fifo_enabled_w, irq_o, ier_q, dll_q, dlm_q, lcr_q);
+                     fifo_enabled_w, ier_q, dll_q, dlm_q, lcr_q,
+                     rx_valid_q, rx_data_q,
+                     rx_irq_pending_w, thre_irq_pending_w);
   assign reg_read_data_o[15:8] =
       uart_read_byte({1'b0, reg_read_addr_i} + 13'd1, dlab_w,
-                     fifo_enabled_w, irq_o, ier_q, dll_q, dlm_q, lcr_q);
+                     fifo_enabled_w, ier_q, dll_q, dlm_q, lcr_q,
+                     rx_valid_q, rx_data_q,
+                     rx_irq_pending_w, thre_irq_pending_w);
   assign reg_read_data_o[23:16] =
       uart_read_byte({1'b0, reg_read_addr_i} + 13'd2, dlab_w,
-                     fifo_enabled_w, irq_o, ier_q, dll_q, dlm_q, lcr_q);
+                     fifo_enabled_w, ier_q, dll_q, dlm_q, lcr_q,
+                     rx_valid_q, rx_data_q,
+                     rx_irq_pending_w, thre_irq_pending_w);
   assign reg_read_data_o[31:24] =
       uart_read_byte({1'b0, reg_read_addr_i} + 13'd3, dlab_w,
-                     fifo_enabled_w, irq_o, ier_q, dll_q, dlm_q, lcr_q);
+                     fifo_enabled_w, ier_q, dll_q, dlm_q, lcr_q,
+                     rx_valid_q, rx_data_q,
+                     rx_irq_pending_w, thre_irq_pending_w);
 
   generate
     if (STRB_W > 4) begin : gen_uart_read_high_lanes
       assign reg_read_data_o[39:32] =
           uart_read_byte({1'b0, reg_read_addr_i} + 13'd4, dlab_w,
-                         fifo_enabled_w, irq_o, ier_q, dll_q, dlm_q, lcr_q);
+                         fifo_enabled_w, ier_q, dll_q, dlm_q, lcr_q,
+                         rx_valid_q, rx_data_q,
+                         rx_irq_pending_w, thre_irq_pending_w);
       assign reg_read_data_o[47:40] =
           uart_read_byte({1'b0, reg_read_addr_i} + 13'd5, dlab_w,
-                         fifo_enabled_w, irq_o, ier_q, dll_q, dlm_q, lcr_q);
+                         fifo_enabled_w, ier_q, dll_q, dlm_q, lcr_q,
+                         rx_valid_q, rx_data_q,
+                         rx_irq_pending_w, thre_irq_pending_w);
       assign reg_read_data_o[55:48] =
           uart_read_byte({1'b0, reg_read_addr_i} + 13'd6, dlab_w,
-                         fifo_enabled_w, irq_o, ier_q, dll_q, dlm_q, lcr_q);
+                         fifo_enabled_w, ier_q, dll_q, dlm_q, lcr_q,
+                         rx_valid_q, rx_data_q,
+                         rx_irq_pending_w, thre_irq_pending_w);
       assign reg_read_data_o[63:56] =
           uart_read_byte({1'b0, reg_read_addr_i} + 13'd7, dlab_w,
-                         fifo_enabled_w, irq_o, ier_q, dll_q, dlm_q, lcr_q);
+                         fifo_enabled_w, ier_q, dll_q, dlm_q, lcr_q,
+                         rx_valid_q, rx_data_q,
+                         rx_irq_pending_w, thre_irq_pending_w);
     end
   endgenerate
 
@@ -310,6 +343,8 @@ module Uart #(
       dlm_q <= 8'h00;
       fcr_q <= 8'h00;
       lcr_q <= 8'h00;
+      rx_valid_q <= 1'b0;
+      rx_data_q <= 8'h00;
     end else begin
       if (reg_write_valid_i) begin
         ier_q <= ier_next_r;
@@ -317,6 +352,12 @@ module Uart #(
         dlm_q <= dlm_next_r;
         fcr_q <= fcr_next_r;
         lcr_q <= lcr_next_r;
+      end
+      if (rx_valid_i && rx_ready_o) begin
+        rx_valid_q <= 1'b1;
+        rx_data_q <= rx_data_i;
+      end else if (rbr_read_fire_w) begin
+        rx_valid_q <= 1'b0;
       end
     end
   end

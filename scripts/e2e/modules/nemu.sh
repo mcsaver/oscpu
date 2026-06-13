@@ -439,6 +439,13 @@ e2e_nemu_ubuntu_static_gate() {
     "device.virtio_net.dhcp=hostless" \
     "device.virtio_net.dns=nemu.local" \
     "device.virtio_net.tcp_http=/nemu-health" \
+    "device.virtio_net.tcp_http_head=/nemu-health" \
+    "device.virtio_net.tcp_http_404=enabled" \
+    "device.virtio_net.tcp_http_large=/nemu-large bytes=4096" \
+    "device.virtio_net.tcp_http_segment_payload_max=1200" \
+    "device.virtio_net.tcp_http_apt_repo=/ubuntu jammy main" \
+    "device.virtio_net.tcp_http_apt_package=nemu-hostless-hello 1.0 riscv64" \
+    "device.virtio_net.tcp_http_apt_meta_package=nemu-hostless-meta 1.0 riscv64 depends=nemu-hostless-hello (= 1.0)" \
     "device.virtio_net.mtu=1500" \
     "device.virtio_net.config_bytes=17" \
     "device.virtio_net.speed_mbps=1000" \
@@ -494,6 +501,9 @@ e2e_nemu_ubuntu_static_gate() {
     "device.virtio_net.stats.tx_errors=0" \
     "device.virtio_net.stats.rx_drops=0" \
     "device.virtio_net.stats.ctrl_commands=0" \
+    "device.virtio_net.stats.tcp_http_large_requests=0" \
+    "device.virtio_net.stats.tcp_http_segmented_responses=0" \
+    "device.virtio_net.stats.tcp_http_response_segments=0" \
     "device.virtio_net.stats.ctrl_rx_commands=0" \
     "device.virtio_net.stats.ctrl_rx_extra_commands=0" \
     "device.virtio_net.stats.ctrl_mac_table_commands=0" \
@@ -925,7 +935,16 @@ e2e_nemu_ubuntu_slice_contract() {
     nemu/include/utils.h \
     .github/memory/modules/nemu.md \
     .github/memory/known-issues.md \
+    .github/e2e/profiles/nemu-dev.tsv \
+    .github/e2e/profiles/nemu-dev-gate.tsv \
+    .github/e2e/profiles/nemu-dev-full-gate.tsv \
+    .github/e2e/profiles/nemu-dev-full-soak.tsv \
+    .github/e2e/profiles/npc-dev.tsv \
     .github/e2e/profiles/nemu-ubuntu.tsv \
+    .github/e2e/profiles/nemu-ubuntu-focused.tsv \
+    .github/e2e/profiles/nemu-ubuntu-gate.tsv \
+    .github/e2e/profiles/nemu-ubuntu-full-gate.tsv \
+    .github/e2e/profiles/nemu-ubuntu-full-soak.tsv \
     .github/e2e/profiles/software-flow.tsv \
     .github/agents/software-flow.agent.md \
     .github/e2e/modules/software-flow.md
@@ -1000,13 +1019,67 @@ e2e_nemu_ubuntu_slice_contract() {
 
   echo
   echo "[nemu-ubuntu] required software-flow methodology hooks"
+  local nemu_dev_profile=".github/e2e/profiles/nemu-dev.tsv"
+  local nemu_dev_gate_profile=".github/e2e/profiles/nemu-dev-gate.tsv"
+  local nemu_dev_full_gate_profile=".github/e2e/profiles/nemu-dev-full-gate.tsv"
+  local nemu_dev_full_soak_profile=".github/e2e/profiles/nemu-dev-full-soak.tsv"
+  local npc_dev_profile=".github/e2e/profiles/npc-dev.tsv"
   local nemu_ubuntu_profile=".github/e2e/profiles/nemu-ubuntu.tsv"
+  local nemu_ubuntu_focused_profile=".github/e2e/profiles/nemu-ubuntu-focused.tsv"
+  local nemu_ubuntu_gate_profile=".github/e2e/profiles/nemu-ubuntu-gate.tsv"
+  local nemu_ubuntu_full_gate_profile=".github/e2e/profiles/nemu-ubuntu-full-gate.tsv"
+  local nemu_ubuntu_full_soak_profile=".github/e2e/profiles/nemu-ubuntu-full-soak.tsv"
   local software_flow_profile=".github/e2e/profiles/software-flow.tsv"
   local software_flow_agent=".github/agents/software-flow.agent.md"
   if e2e_file_contains "$nemu_ubuntu_profile" '@include|software-flow'; then
     printf 'PASS nemu-ubuntu profile keeps software-flow include\n'
   else
     printf 'FAIL nemu-ubuntu profile keeps software-flow include\n'
+    missing=1
+  fi
+  if e2e_file_contains "$nemu_dev_profile" '@include|nemu-ubuntu-focused'; then
+    printf 'PASS nemu-dev profile includes nemu-ubuntu-focused\n'
+  else
+    printf 'FAIL nemu-dev profile includes nemu-ubuntu-focused\n'
+    missing=1
+  fi
+  if e2e_file_contains "$nemu_ubuntu_focused_profile" '@include|software-flow' &&
+     e2e_file_contains "$nemu_ubuntu_focused_profile" 'nemu-ubuntu-static|nemu|e2e_nemu_ubuntu_static_gate' &&
+     e2e_file_contains "$nemu_ubuntu_focused_profile" 'nemu-ubuntu-slice-contract|nemu|e2e_nemu_ubuntu_slice_contract'; then
+    printf 'PASS nemu-ubuntu-focused profile keeps NEMU-only static contract\n'
+  else
+    printf 'FAIL nemu-ubuntu-focused profile keeps NEMU-only static contract\n'
+    missing=1
+  fi
+  if e2e_file_contains "$nemu_ubuntu_focused_profile" '@include|rv64-linux'; then
+    printf 'FAIL nemu-ubuntu-focused profile must not include rv64-linux/NPC nodes\n'
+    missing=1
+  else
+    printf 'PASS nemu-ubuntu-focused profile avoids rv64-linux/NPC nodes\n'
+  fi
+  if e2e_file_contains "$nemu_dev_profile" '@include|rv64-linux' ||
+     e2e_file_contains "$nemu_dev_profile" 'npc-' ||
+     e2e_file_contains "$nemu_ubuntu_focused_profile" 'npc-' ||
+     e2e_file_contains "$npc_dev_profile" 'nemu-ubuntu-full-gate'; then
+    printf 'FAIL NEMU/NPC dev profiles are not isolated\n'
+    missing=1
+  else
+    printf 'PASS NEMU/NPC dev profiles keep scenario isolation\n'
+  fi
+  if e2e_file_contains "$nemu_dev_gate_profile" '@include|nemu-dev' &&
+     e2e_file_contains "$nemu_dev_full_gate_profile" '@include|nemu-dev' &&
+     e2e_file_contains "$nemu_dev_full_soak_profile" '@include|nemu-dev'; then
+    printf 'PASS NEMU dev gate profiles include nemu-dev\n'
+  else
+    printf 'FAIL NEMU dev gate profiles include nemu-dev\n'
+    missing=1
+  fi
+  if e2e_file_contains "$nemu_ubuntu_gate_profile" '@include|nemu-ubuntu' &&
+     e2e_file_contains "$nemu_ubuntu_full_gate_profile" '@include|nemu-ubuntu' &&
+     e2e_file_contains "$nemu_ubuntu_full_soak_profile" '@include|nemu-ubuntu'; then
+    printf 'PASS NEMU Ubuntu integration gate profiles keep nemu-ubuntu include\n'
+  else
+    printf 'FAIL NEMU Ubuntu integration gate profiles keep nemu-ubuntu include\n'
     missing=1
   fi
   if e2e_file_contains "$software_flow_profile" 'software-flow-contract'; then
@@ -1023,9 +1096,9 @@ e2e_nemu_ubuntu_slice_contract() {
     '不把“构建通过”单独当成软件任务完成' \
     '必须扫描 FAIL marker'; do
     if e2e_file_contains "$software_flow_agent" "$pattern"; then
-      printf 'PASS software-flow methodology available to nemu-ubuntu %s\n' "$pattern"
+      printf 'PASS software-flow methodology available to NEMU dev/integration %s\n' "$pattern"
     else
-      printf 'FAIL software-flow methodology available to nemu-ubuntu %s\n' "$pattern"
+      printf 'FAIL software-flow methodology available to NEMU dev/integration %s\n' "$pattern"
       missing=1
     fi
   done
@@ -1273,9 +1346,32 @@ e2e_nemu_ubuntu_slice_contract() {
     "virtio_net_handle_dhcp" \
     "virtio_net_handle_dns" \
     "virtio_net_handle_tcp_http" \
+    "virtio_net_send_tcp_payload" \
+    "VIRTIO_NET_TCP_HTTP_SEGMENT_PAYLOAD_MAX" \
     "VirtioNetStats" \
     "virtio_net_statistic" \
     "tcp_http_requests" \
+    "tcp_http_head_requests" \
+    "tcp_http_not_found" \
+    "tcp_http_apt_requests" \
+    "tcp_http_apt_deb_requests" \
+    "tcp_http_large_requests" \
+    "tcp_http_segmented_responses" \
+    "tcp_http_response_segments" \
+    "HEAD " \
+    "404 Not Found" \
+    "NEMU_HTTP_LARGE_4096" \
+    "/nemu-large" \
+    "nemu_apt_release" \
+    "nemu-hostless-hello_1.0_riscv64.deb" \
+    "nemu-hostless-meta_1.0_riscv64.deb" \
+    "Depends: nemu-hostless-hello (= 1.0)" \
+    "/ubuntu/dists/jammy/Release" \
+    "/ubuntu/dists/jammy/main/binary-riscv64/Packages.gz" \
+    "http-methods" \
+    "http-not-found" \
+    "http-large" \
+    "apt-repo" \
     "DHCPDISCOVER" \
     "DHCPACK" \
     "DNS_QTYPE_A" \
@@ -1313,6 +1409,11 @@ e2e_nemu_ubuntu_slice_contract() {
     "PASS rootfs-backing-unchanged" \
     "NEMU_SYSTEMD_ROOTFS_FLAVOR" \
     "NEMU_GUEST_ROOTFS_FLAVOR" \
+    "NEMU_GUEST_APT_INSTALL_DIAG" \
+    "NEMU_GUEST_APT_INSTALL_ACTUAL" \
+    'NEMU_GUEST_APT_INSTALL_ACTUAL:-0' \
+    "NEMU_GUEST_APT_INSTALL_DIAG_TIMEOUT" \
+    "NEMU_GUEST_APT_REMOVE_DIAG_TIMEOUT" \
     "__NEMU_CHECK_ROOTFS_FLAVOR__" \
     "__NEMU_CHECK_FULL_USERLAND__" \
     "full-userland-runtime" \
@@ -1333,6 +1434,21 @@ e2e_nemu_ubuntu_slice_contract() {
     "full-userland-resolv-hostless" \
     "full-userland-curl-http" \
     "full-userland-wget-http" \
+    "full-userland-curl-head-http" \
+    "full-userland-curl-404-http" \
+    "full-userland-curl-large-http" \
+    "__NEMU_CHECK_FULL_CURL_LARGE_RC__" \
+    "__NEMU_CHECK_FULL_CURL_LARGE_BYTES__" \
+    "__NEMU_CHECK_FULL_CURL_LARGE_SHA256__" \
+    "http://nemu.local/nemu-large" \
+    "full-userland-apt-hostless-update" \
+    "full-userland-apt-hostless-install" \
+    "full-userland-apt-direct-install-diag-skip" \
+    "full-userland-apt-direct-empty-status-simulate" \
+    "full-userland-apt-direct-empty-status-download" \
+    "full-userland-apt-direct-actual-install-skip" \
+    "full-userland-apt-direct-full-status-install" \
+    "full-userland-apt-direct-full-status-remove" \
     "full-userland-cron-active" \
     "full-userland-rsyslog-active" \
     "full-userland-timesyncd-active" \
@@ -1362,9 +1478,126 @@ e2e_nemu_ubuntu_slice_contract() {
     "__NEMU_CHECK_FULL_SSH_DROPBEAR_LOG_BEGIN__" \
     "__NEMU_CHECK_FULL_CURL_HTTP_CODE__" \
     "__NEMU_CHECK_FULL_WGET_HTTP_CODE__" \
+    "__NEMU_CHECK_FULL_CURL_HEAD_HTTP_CODE__" \
+    "__NEMU_CHECK_FULL_CURL_404_HTTP_CODE__" \
+    "__NEMU_CHECK_FULL_APT_HOSTLESS_UPDATE_RC__" \
+    "__NEMU_CHECK_FULL_APT_HOSTLESS_DOWNLOAD_RC__" \
+    "__NEMU_CHECK_FULL_APT_HOSTLESS_DOWNLOAD_SHA256__" \
+    "__NEMU_CHECK_FULL_APT_HOSTLESS_DPKG_RC__" \
+    "__NEMU_CHECK_FULL_APT_HOSTLESS_INSTALL_RC__" \
+    "__NEMU_CHECK_FULL_APT_HOSTLESS_INSTALL_MESSAGE__" \
+    "__NEMU_CHECK_FULL_APT_HOSTLESS_DPKG_STATUS__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_SIM_RC__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_SIM_RC__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_TARGETS__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_RC__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_SHA256__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_META_SHA256__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_START__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_TARGET__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_APT_STATE__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_PID__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_SAMPLE__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_PS_BEGIN__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_LOG_TAIL_BEGIN__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_LOCKS_BEGIN__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_TIMEOUT__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_DEADLINE_RC__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_MESSAGE_SNAPSHOT__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_DPKG_STATUS_SNAPSHOT__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_MESSAGE_SNAPSHOT__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_PREINST_SNAPSHOT__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_POSTINST_SNAPSHOT__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_DPKG_STATUS_SNAPSHOT__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_RC__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_EFFECT_OK_AFTER_TIMEOUT__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_MESSAGE__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_DPKG_STATUS__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_MESSAGE__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_PREINST__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_POSTINST__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_DPKG_STATUS__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_START__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_TARGET__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_APT_STATE__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_STATUS_BEGIN__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_PID__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_SAMPLE__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_PS_BEGIN__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_LOG_TAIL_BEGIN__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_LOCKS_BEGIN__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_TIMEOUT__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_DEADLINE_RC__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_META_PRERM_SNAPSHOT__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_META_POSTRM_SNAPSHOT__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_META_STATUS_SNAPSHOT__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_HELLO_STATUS_SNAPSHOT__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_RC__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_EFFECT_OK_AFTER_TIMEOUT__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_PRERM__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_POSTRM__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_DPKG_STATUS_AFTER_REMOVE__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_MESSAGE_AFTER_REMOVE__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_HELLO_DPKG_STATUS_AFTER_REMOVE__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_HELLO_MESSAGE_AFTER_REMOVE__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_LOG_BEGIN__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_START__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_TARGET__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_APT_STATE__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_STATUS_BEGIN__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_PID__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_SAMPLE__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_PS_BEGIN__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_LOG_TAIL_BEGIN__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_LOCKS_BEGIN__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_TIMEOUT__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_DEADLINE_RC__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_META_STATUS_SNAPSHOT__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_HELLO_STATUS_SNAPSHOT__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_RC__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_DPKG_STATUS_AFTER_PURGE__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_MESSAGE_AFTER_PURGE__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_HELLO_DPKG_STATUS_AFTER_PURGE__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_HELLO_MESSAGE_AFTER_PURGE__" \
+    "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_LOG_BEGIN__" \
     "__NEMU_CHECK_FULL_RESOLV_CONF_BEGIN__" \
     "http://nemu.local/nemu-health" \
+    "http://nemu.local/nemu-missing" \
+    "http://nemu.local/ubuntu" \
+    "apt-get download nemu-hostless-hello:riscv64" \
+    "nemu-hostless-meta:riscv64" \
+    "nemu-hostless-hello:riscv64 nemu-hostless-meta:riscv64" \
+    "preinst from NEMU hostless meta" \
+    "postinst from NEMU hostless meta" \
+    "prerm from NEMU hostless meta" \
+    "postrm from NEMU hostless meta" \
+    "preinst-message" \
+    "postinst-message" \
+    "prerm-message" \
+    "postrm-message" \
+    "apt-get -s install" \
+    "apt-get --download-only install" \
+    "apt-get remove -y" \
+    "Dir::State::status" \
+    "status-empty-simulate" \
+    "status-empty-download" \
+    "status-empty-install" \
+    "status-remove-installed" \
+    "status-purge-config-files" \
+    "installed-target-status-real-dpkg" \
+    "config-files-target-status-real-dpkg" \
+    "dpkg-query -s nemu-hostless-hello nemu-hostless-meta" \
+    "apt-get purge -y" \
+    "download-status-empty" \
+    "Dpkg::Use-Pty=0" \
+    "ps -eo pid,ppid,stat,etime,args" \
+    "tail -n 80" \
+    "kill -KILL" \
+    "dpkg -i" \
     "curl -4 -fsS" \
+    "--head" \
+    "apt-get update" \
+    "Dir::Etc::sourcelist" \
     "--inet4-only" \
     "--server-response" \
     "__NEMU_CHECK_FULL_SSH_DEBUG_READY__" \
@@ -1464,6 +1697,10 @@ e2e_nemu_ubuntu_slice_contract() {
     "__NEMU_CHECK_PASS__:interrupts-stat-monotonic" \
     "check-nemu-systemd-guest-full" \
     "check-nemu-systemd-guest-full-soak" \
+    "AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_DIAG" \
+    "AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_ACTUAL" \
+    "AGENT_E2E_NEMU_UBUNTU_FULL_CHECK_MAX_CYCLES" \
+    "120000000000" \
     "AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_GATE" \
     "[nemu-systemd-check] PASS virtio-blk-async-runtime" \
     "[nemu-systemd-check] PASS virtio-net-runtime" \
@@ -1668,6 +1905,14 @@ e2e_nemu_ubuntu_slice_contract() {
   done
   for pattern in \
     "NEMU_SYSTEMD_CHECK_MAX_CYCLES ?= 50000000000" \
+    "NEMU_SYSTEMD_FULL_CHECK_MAX_CYCLES ?= 80000000000" \
+    "NEMU_SYSTEMD_FULL_CHECK_TIMEOUT ?= 3000" \
+    "NEMU_SYSTEMD_APT_INSTALL_DIAG ?= 0" \
+    "NEMU_SYSTEMD_APT_INSTALL_ACTUAL ?= 0" \
+    "NEMU_SYSTEMD_APT_INSTALL_DIAG_TIMEOUT ?= 300" \
+    "NEMU_SYSTEMD_APT_REMOVE_DIAG_TIMEOUT ?= 600" \
+    "NEMU_SYSTEMD_SOAK_CHECK_MAX_CYCLES ?= 90000000000" \
+    "NEMU_SYSTEMD_SOAK_CHECK_TIMEOUT ?= 3600" \
     "NEMU_SYSTEMD_ROOTFS_OVERLAY ?= \$(NEMU_SYSTEMD_CHECK_LOG_DIR)/rootfs-overlay.raw" \
     "NEMU_SYSTEMD_ROOTFS_FLAVOR ?= systemd-minimal" \
     "NEMU_SYSTEMD_ROOTFS_CHECK_TARGET =" \
@@ -3310,11 +3555,18 @@ e2e_nemu_ubuntu_focused_gate_impl() {
   local make_log="$gate_dir/focused-make.log"
   local gate_rc=0
   local gate_timeout="${!timeout_var:-${AGENT_E2E_NEMU_UBUNTU_TIMEOUT:-1700}}"
+  local full_check_max_cycles="${AGENT_E2E_NEMU_UBUNTU_FULL_CHECK_MAX_CYCLES:-}"
+  if [[ -z "$full_check_max_cycles" \
+    && "$make_target" == check-nemu-systemd-guest-full \
+    && "${AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_ACTUAL:-0}" == 1 ]]; then
+    full_check_max_cycles=120000000000
+  fi
   timeout "${gate_timeout}s" \
     make -C "$E2E_ROOT_DIR/Linux" ARCH=riscv64-nemu \
       NEMU_SYSTEMD_CHECK_LOG_DIR="$gate_dir" \
       NEMU_SYSTEMD_FULL_CHECK_LOG_DIR="$gate_dir" \
       NEMU_SYSTEMD_FULL_SOAK_CHECK_LOG_DIR="$gate_dir" \
+      NEMU_SYSTEMD_FULL_CHECK_MAX_CYCLES="${full_check_max_cycles:-80000000000}" \
       NEMU_SYSTEMD_SOAK_SECONDS="${AGENT_E2E_NEMU_UBUNTU_SOAK_SECONDS:-0}" \
       NEMU_SYSTEMD_FS_STRESS_MIB="${AGENT_E2E_NEMU_UBUNTU_FS_STRESS_MIB:-1}" \
       NEMU_SYSTEMD_FS_TREE_FILES="${AGENT_E2E_NEMU_UBUNTU_FS_TREE_FILES:-8}" \
@@ -3322,6 +3574,10 @@ e2e_nemu_ubuntu_focused_gate_impl() {
       NEMU_SYSTEMD_UART_RX_STRESS_LINES="${AGENT_E2E_NEMU_UBUNTU_UART_RX_STRESS_LINES:-64}" \
       NEMU_SYSTEMD_INPUT_CHUNK_BYTES="${AGENT_E2E_NEMU_UBUNTU_INPUT_CHUNK_BYTES:-8}" \
       NEMU_SYSTEMD_INPUT_CHUNK_DELAY="${AGENT_E2E_NEMU_UBUNTU_INPUT_CHUNK_DELAY:-0}" \
+      NEMU_SYSTEMD_APT_INSTALL_DIAG="${AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_DIAG:-0}" \
+      NEMU_SYSTEMD_APT_INSTALL_ACTUAL="${AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_ACTUAL:-0}" \
+      NEMU_SYSTEMD_APT_INSTALL_DIAG_TIMEOUT="${AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_DIAG_TIMEOUT:-300}" \
+      NEMU_SYSTEMD_APT_REMOVE_DIAG_TIMEOUT="${AGENT_E2E_NEMU_UBUNTU_APT_REMOVE_DIAG_TIMEOUT:-600}" \
       NEMU_SYSTEMD_BLOCK_PARALLEL_JOBS="${AGENT_E2E_NEMU_UBUNTU_BLOCK_PARALLEL_JOBS:-1}" \
       NEMU_SYSTEMD_BLOCK_JOB_MIB="${AGENT_E2E_NEMU_UBUNTU_BLOCK_JOB_MIB:-1}" \
       "$make_target" >"$make_log" 2>&1 || gate_rc=$?
@@ -3368,6 +3624,11 @@ e2e_nemu_ubuntu_focused_gate_impl() {
       "__NEMU_CHECK_PASS__:full-userland-resolv-hostless" \
       "__NEMU_CHECK_PASS__:full-userland-curl-http" \
       "__NEMU_CHECK_PASS__:full-userland-wget-http" \
+      "__NEMU_CHECK_PASS__:full-userland-curl-head-http" \
+      "__NEMU_CHECK_PASS__:full-userland-curl-404-http" \
+      "__NEMU_CHECK_PASS__:full-userland-curl-large-http" \
+      "__NEMU_CHECK_PASS__:full-userland-apt-hostless-update" \
+      "__NEMU_CHECK_PASS__:full-userland-apt-hostless-install" \
       "__NEMU_CHECK_PASS__:full-userland-runtime"; do
       if grep -aFq "$full_marker" "$gate_dir/console.log"; then
         printf 'PASS focused full userland marker %s\n' "$full_marker"
@@ -3376,6 +3637,75 @@ e2e_nemu_ubuntu_focused_gate_impl() {
         return 1
       fi
     done
+    if [[ ${AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_DIAG:-0} == 1 ]]; then
+      local apt_diag_marker
+      for apt_diag_marker in \
+        "__NEMU_CHECK_PASS__:full-userland-apt-direct-empty-status-simulate" \
+        "__NEMU_CHECK_PASS__:full-userland-apt-direct-empty-status-download"; do
+        if grep -aFq "$apt_diag_marker" "$gate_dir/console.log"; then
+          printf 'PASS focused apt install diagnostic marker %s\n' "$apt_diag_marker"
+        else
+          printf 'FAIL focused apt install diagnostic marker %s\n' "$apt_diag_marker"
+          return 1
+        fi
+      done
+      if [[ ${AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_ACTUAL:-0} == 1 ]]; then
+        apt_diag_marker="__NEMU_CHECK_PASS__:full-userland-apt-direct-full-status-install"
+      else
+        apt_diag_marker="__NEMU_CHECK_PASS__:full-userland-apt-direct-actual-install-skip"
+      fi
+      if grep -aFq "$apt_diag_marker" "$gate_dir/console.log"; then
+        printf 'PASS focused apt install diagnostic marker %s\n' "$apt_diag_marker"
+      else
+        printf 'FAIL focused apt install diagnostic marker %s\n' "$apt_diag_marker"
+        return 1
+      fi
+      local apt_diag_detail
+      for apt_diag_detail in \
+        "__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_META_SHA256__:b40a91a80a056423051d440ef614d76d36666f88b29ed8a2a86aa76716e3d0e5"; do
+        if grep -aFq "$apt_diag_detail" "$gate_dir/console.log"; then
+          printf 'PASS focused apt install diagnostic detail %s\n' "$apt_diag_detail"
+        else
+          printf 'FAIL focused apt install diagnostic detail %s\n' "$apt_diag_detail"
+          return 1
+        fi
+      done
+      if [[ ${AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_ACTUAL:-0} == 1 ]]; then
+        for apt_diag_detail in \
+          "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_TARGET__:nemu-hostless-meta" \
+          "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_APT_STATE__:empty-status-real-dpkg" \
+          "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_MESSAGE__:hello from NEMU hostless meta" \
+          "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_PREINST__:preinst from NEMU hostless meta" \
+          "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_POSTINST__:postinst from NEMU hostless meta" \
+          "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_DPKG_STATUS__:install ok installed 1.0 riscv64" \
+          "__NEMU_CHECK_PASS__:full-userland-apt-direct-full-status-remove" \
+          "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_TARGET__:nemu-hostless-meta" \
+          "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_APT_STATE__:installed-target-status-real-dpkg" \
+          "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_PRERM__:prerm from NEMU hostless meta" \
+          "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_POSTRM__:postrm from NEMU hostless meta" \
+          "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_DPKG_STATUS_AFTER_REMOVE__:deinstall ok config-files 1.0 riscv64" \
+          "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_HELLO_DPKG_STATUS_AFTER_REMOVE__:install ok installed 1.0 riscv64" \
+          "__NEMU_CHECK_PASS__:full-userland-apt-direct-full-status-purge" \
+          "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_TARGET__:nemu-hostless-meta" \
+          "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_APT_STATE__:config-files-target-status-real-dpkg" \
+          "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_RC__:0" \
+          "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_HELLO_DPKG_STATUS_AFTER_PURGE__:install ok installed 1.0 riscv64"; do
+          if grep -aFq "$apt_diag_detail" "$gate_dir/console.log"; then
+            printf 'PASS focused apt install actual detail %s\n' "$apt_diag_detail"
+          else
+            printf 'FAIL focused apt install actual detail %s\n' "$apt_diag_detail"
+            return 1
+          fi
+        done
+        if grep -aFq "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_RC__:0" "$gate_dir/console.log" ||
+           grep -aFq "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_EFFECT_OK_AFTER_TIMEOUT__:124" "$gate_dir/console.log"; then
+          printf 'PASS focused apt remove rc/effect diagnostic\n'
+        else
+          printf 'FAIL focused apt remove rc/effect diagnostic\n'
+          return 1
+        fi
+      fi
+    fi
   fi
   if [[ "$make_target" == *soak ]]; then
     for soak_marker in \
@@ -3409,6 +3739,7 @@ e2e_nemu_ubuntu_focused_gate() {
 }
 
 e2e_nemu_ubuntu_full_focused_gate() {
+  local AGENT_E2E_NEMU_UBUNTU_FULL_TIMEOUT="${AGENT_E2E_NEMU_UBUNTU_FULL_TIMEOUT:-4200}"
   e2e_nemu_ubuntu_focused_gate_impl \
     AGENT_E2E_NEMU_UBUNTU_FULL_GATE \
     nemu-ubuntu-full-gate \
@@ -3418,7 +3749,7 @@ e2e_nemu_ubuntu_full_focused_gate() {
 }
 
 e2e_nemu_ubuntu_full_soak_gate() {
-  local AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_TIMEOUT="${AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_TIMEOUT:-2400}"
+  local AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_TIMEOUT="${AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_TIMEOUT:-5400}"
   e2e_nemu_ubuntu_focused_gate_impl \
     AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_GATE \
     nemu-ubuntu-full-soak \

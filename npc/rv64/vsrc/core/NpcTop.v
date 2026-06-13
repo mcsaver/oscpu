@@ -26,6 +26,25 @@ module NpcTop (
   output psram_axi_bready_o,
   input [1:0] psram_axi_bresp_i,
 
+  output sdram_axi_arvalid_o,
+  input sdram_axi_arready_i,
+  output [`XLEN-1:0] sdram_axi_araddr_o,
+  output sdram_axi_aruser_o,
+  input sdram_axi_rvalid_i,
+  output sdram_axi_rready_o,
+  input [`XLEN-1:0] sdram_axi_rdata_i,
+  input [1:0] sdram_axi_rresp_i,
+  output sdram_axi_awvalid_o,
+  input sdram_axi_awready_i,
+  output [`XLEN-1:0] sdram_axi_awaddr_o,
+  output sdram_axi_wvalid_o,
+  input sdram_axi_wready_i,
+  output [`XLEN-1:0] sdram_axi_wdata_o,
+  output [`STRB_W-1:0] sdram_axi_wstrb_o,
+  input sdram_axi_bvalid_i,
+  output sdram_axi_bready_o,
+  input [1:0] sdram_axi_bresp_i,
+
   output legacy_mmio_axi_arvalid_o,
   input legacy_mmio_axi_arready_i,
   output [`XLEN-1:0] legacy_mmio_axi_araddr_o,
@@ -65,6 +84,9 @@ module NpcTop (
   input [1:0] virtio_blk_axi_bresp_i,
   input virtio_blk_irq_i,
 
+  input uart_rx_valid_i,
+  input [7:0] uart_rx_data_i,
+  output uart_rx_ready_o,
   output uart_tx_valid_o,
   output [7:0] uart_tx_data_o,
   output uart_access_valid_o,
@@ -134,6 +156,7 @@ module NpcTop (
   localparam [3:0] AXI_S_DEFAULT = 4'd15;
   localparam AXI_S_DEFAULT_PARAM = 15;
   localparam AXI_S_COUNT = 16;
+  localparam [31:0] CLINT_MTIME_DIVISOR = 32'd10;
 
   function [AXI_S_COUNT-1:0] axi_slave_bit;
     input [3:0] idx;
@@ -151,7 +174,6 @@ module NpcTop (
       axi_slave_bit(AXI_S_VGA) |
       axi_slave_bit(AXI_S_FLASH) |
       axi_slave_bit(AXI_S_CHIPLINK_MMIO) |
-      axi_slave_bit(AXI_S_SDRAM) |
       axi_slave_bit(AXI_S_CHIPLINK_MEM) |
       axi_slave_bit(AXI_S_DEFAULT);
 
@@ -387,13 +409,17 @@ module NpcTop (
     .uart_access_wdata_o(uart_access_wdata_o),
     .uart_access_wstrb_o(uart_access_wstrb_o),
     .uart_access_rdata_o(uart_access_rdata_o),
+    .uart_rx_valid_i(uart_rx_valid_i),
+    .uart_rx_data_i(uart_rx_data_i),
+    .uart_rx_ready_o(uart_rx_ready_o),
     .uart_irq_o(uart_irq_w)
   );
 
   AxiLiteClint #(
     .ADDR_W(`XLEN),
     .DATA_W(`XLEN),
-    .STRB_W(`STRB_W)
+    .STRB_W(`STRB_W),
+    .MTIME_DIVISOR(CLINT_MTIME_DIVISOR)
   ) u_clint_axi (
     .clk(clk),
     .rst(rst),
@@ -471,6 +497,28 @@ module NpcTop (
   assign bus_axi_bvalid_w[AXI_S_PSRAM] = psram_axi_bvalid_i;
   assign psram_axi_bready_o = bus_axi_bready_w[AXI_S_PSRAM];
   assign bus_axi_bresp_w[AXI_S_PSRAM*2 +: 2] = psram_axi_bresp_i;
+
+  assign sdram_axi_arvalid_o = bus_axi_arvalid_w[AXI_S_SDRAM];
+  assign bus_axi_arready_w[AXI_S_SDRAM] = sdram_axi_arready_i;
+  assign sdram_axi_araddr_o =
+      bus_axi_araddr_w[AXI_S_SDRAM*`XLEN +: `XLEN];
+  assign sdram_axi_aruser_o = bus_axi_aruser_w[AXI_S_SDRAM];
+  assign bus_axi_rvalid_w[AXI_S_SDRAM] = sdram_axi_rvalid_i;
+  assign sdram_axi_rready_o = bus_axi_rready_w[AXI_S_SDRAM];
+  assign bus_axi_rdata_w[AXI_S_SDRAM*`XLEN +: `XLEN] = sdram_axi_rdata_i;
+  assign bus_axi_rresp_w[AXI_S_SDRAM*2 +: 2] = sdram_axi_rresp_i;
+  assign sdram_axi_awvalid_o = bus_axi_awvalid_w[AXI_S_SDRAM];
+  assign bus_axi_awready_w[AXI_S_SDRAM] = sdram_axi_awready_i;
+  assign sdram_axi_awaddr_o =
+      bus_axi_awaddr_w[AXI_S_SDRAM*`XLEN +: `XLEN];
+  assign sdram_axi_wvalid_o = bus_axi_wvalid_w[AXI_S_SDRAM];
+  assign bus_axi_wready_w[AXI_S_SDRAM] = sdram_axi_wready_i;
+  assign sdram_axi_wdata_o = bus_axi_wdata_w[AXI_S_SDRAM*`XLEN +: `XLEN];
+  assign sdram_axi_wstrb_o =
+      bus_axi_wstrb_w[AXI_S_SDRAM*`STRB_W +: `STRB_W];
+  assign bus_axi_bvalid_w[AXI_S_SDRAM] = sdram_axi_bvalid_i;
+  assign sdram_axi_bready_o = bus_axi_bready_w[AXI_S_SDRAM];
+  assign bus_axi_bresp_w[AXI_S_SDRAM*2 +: 2] = sdram_axi_bresp_i;
 
   assign legacy_mmio_axi_arvalid_o = bus_axi_arvalid_w[AXI_S_LEGACY_MMIO];
   assign bus_axi_arready_w[AXI_S_LEGACY_MMIO] = legacy_mmio_axi_arready_i;

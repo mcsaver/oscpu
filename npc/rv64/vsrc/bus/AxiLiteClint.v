@@ -5,7 +5,8 @@ module AxiLiteClint #(
   parameter ADDR_W = 32,
   parameter DATA_W = 32,
   parameter STRB_W = DATA_W / 8,
-  parameter [63:0] MTIME_INCREMENT = 64'd1
+  parameter [63:0] MTIME_INCREMENT = 64'd1,
+  parameter [31:0] MTIME_DIVISOR = 32'd1
 ) (
   input clk,
   input rst,
@@ -39,6 +40,7 @@ module AxiLiteClint #(
   localparam [15:0] CLINT_MTIMECMP_HI      = 16'h4004;
   localparam [15:0] CLINT_MTIME_LO         = 16'hbff8;
   localparam [15:0] CLINT_MTIME_HI         = 16'hbffc;
+  localparam [31:0] MTIME_DIVISOR_SAFE     = (MTIME_DIVISOR == 32'd0) ? 32'd1 : MTIME_DIVISOR;
 
   reg [15:0] awaddr_low_q;
   reg aw_seen_q;
@@ -48,10 +50,12 @@ module AxiLiteClint #(
   reg msip_q;
   reg [63:0] mtimecmp_q;
   reg [63:0] mtime_q;
+  reg [31:0] mtime_div_q;
 
   wire ar_fire_w = s_axi_arvalid_i && s_axi_arready_o;
   wire aw_fire_w = s_axi_awvalid_i && s_axi_awready_o;
   wire w_fire_w = s_axi_wvalid_i && s_axi_wready_o;
+  wire mtime_tick_w = (mtime_div_q >= (MTIME_DIVISOR_SAFE - 32'd1));
   wire write_done_w = !s_axi_bvalid_o &&
                       (aw_seen_q || aw_fire_w) &&
                       (w_seen_q || w_fire_w);
@@ -171,8 +175,14 @@ module AxiLiteClint #(
       msip_q <= 1'b0;
       mtimecmp_q <= 64'hffff_ffff_ffff_ffff;
       mtime_q <= 64'h0;
+      mtime_div_q <= 32'h0;
     end else begin
-      mtime_q <= mtime_q + MTIME_INCREMENT;
+      if (mtime_tick_w) begin
+        mtime_div_q <= 32'h0;
+        mtime_q <= mtime_q + MTIME_INCREMENT;
+      end else begin
+        mtime_div_q <= mtime_div_q + 32'd1;
+      end
 
       if (s_axi_rvalid_o && s_axi_rready_i)
         s_axi_rvalid_o <= 1'b0;

@@ -1,0 +1,29 @@
+[npc-rv64] contract: NPC systemd guest prompt/script gate
+PASS Linux/scripts/check-npc-systemd-guest.sh
+PASS Linux/Makefile
+PASS npc/rv64/vsrc/bus/AxiLiteClint.v
+PASS npc/rv64/vsrc/core/NpcTop.v
+PASS npc/rv64/csrc/dpi.c
+PASS npc/rv64/csrc/cpu/cpu-exec.cpp
+PASS npc/rv64/csrc/monitor/log.c
+93:NPC_SYSTEMD_CHECK_LOG_DIR ?= $(LOG_ROOT)/riscv64-npc-systemd-guest-check
+94:NPC_SYSTEMD_CHECK_MAX_CYCLES ?= 3000000000
+95:NPC_SYSTEMD_HOST_TIMEOUT ?= 10800
+96:NPC_SYSTEMD_PROMPT ?= root@ysyx-ubuntu2204:~\#
+97:NPC_SYSTEMD_UART_TRACE_LIMIT ?= 128
+98:NPC_SYSTEMD_PROGRESS ?= 0
+263:        check-npc-systemd-guest __check-npc-systemd-guest \
+325:	@printf '%s\n' '  make check-npc-systemd-guest'
+620:check-npc-systemd-guest:
+621:	+$(MAKE) ARCH=riscv64-npc BOOT=ubuntu-rootfs __check-npc-systemd-guest
+697:__check-npc-systemd-guest: $(RUN_DEPS) check-ubuntu-rootfs-systemd
+698:	LOG_DIR='$(NPC_SYSTEMD_CHECK_LOG_DIR)' \
+699:	CONSOLE_LOG='$(NPC_SYSTEMD_CHECK_LOG_DIR)/console.log' \
+700:	NPC_LOG='$(NPC_SYSTEMD_CHECK_LOG_DIR)/npc.log' \
+701:	NPC_SYSTEMD_CHECK_MAX_CYCLES='$(NPC_SYSTEMD_CHECK_MAX_CYCLES)' \
+702:	NPC_SYSTEMD_HOST_TIMEOUT='$(NPC_SYSTEMD_HOST_TIMEOUT)' \
+703:	NPC_SYSTEMD_PROMPT='$(NPC_SYSTEMD_PROMPT)' \
+704:	NPC_SYSTEMD_UART_TRACE_LIMIT='$(NPC_SYSTEMD_UART_TRACE_LIMIT)' \
+705:	NPC_SYSTEMD_PROGRESS='$(NPC_SYSTEMD_PROGRESS)' \
+706:	  bash '$(SCRIPT_DIR)/check-npc-systemd-guest.sh'
+[npc-rv64] evidence=.github/task-runs/2026-06-12-nemu-full-hostless-apt-update-real-run/evidence/npc-rv64-systemd-guest-check-contract/make-dry-run.log

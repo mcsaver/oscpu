@@ -131,8 +131,7 @@ def query(args: argparse.Namespace) -> int:
         return 2
     repo_root = resolve_repo_path(args.repo_root)
     db_path = (repo_root / args.db).resolve()
-    conn = open_db(db_path)
-    init_schema(conn)
+    conn = open_db(db_path, readonly=True)
     meta = fetch_meta(conn)
     used_mode = "like"
     rows: list[sqlite3.Row]
@@ -181,8 +180,7 @@ def query(args: argparse.Namespace) -> int:
 def summary(args: argparse.Namespace) -> int:
     repo_root = resolve_repo_path(args.repo_root)
     db_path = (repo_root / args.db).resolve()
-    conn = open_db(db_path)
-    init_schema(conn)
+    conn = open_db(db_path, readonly=True)
     prefix = normalize_index_path(args.path, args.root)
     where = ["(f.path = ? OR f.path LIKE ?)"]
     params: list[object] = [prefix, prefix.rstrip("/") + "/%"]
@@ -269,8 +267,7 @@ def summary(args: argparse.Namespace) -> int:
 def show(args: argparse.Namespace) -> int:
     repo_root = resolve_repo_path(args.repo_root)
     db_path = (repo_root / args.db).resolve()
-    conn = open_db(db_path)
-    init_schema(conn)
+    conn = open_db(db_path, readonly=True)
     target = args.path.replace("\\", "/")
     row = conn.execute(
         """
@@ -535,8 +532,7 @@ def load_chunks(args: argparse.Namespace) -> int:
         return 2
     repo_root = resolve_repo_path(args.repo_root)
     db_path = (repo_root / args.db).resolve()
-    conn = open_db(db_path)
-    init_schema(conn)
+    conn = open_db(db_path, readonly=True)
     meta = fetch_meta(conn)
     fetch_limit = max(args.limit, args.limit * 4)
     used_mode = "path"

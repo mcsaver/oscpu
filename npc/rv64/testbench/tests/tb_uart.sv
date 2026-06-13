@@ -10,6 +10,9 @@ module tb_uart;
   reg [11:0] write_addr;
   reg [31:0] write_data;
   reg [3:0] write_strb;
+  reg rx_valid;
+  reg [7:0] rx_data;
+  wire rx_ready;
   wire tx_valid;
   wire [7:0] tx_data;
   wire access_valid;
@@ -23,6 +26,9 @@ module tb_uart;
   reg [11:0] write_addr64;
   reg [63:0] write_data64;
   reg [7:0] write_strb64;
+  reg rx_valid64;
+  reg [7:0] rx_data64;
+  wire rx_ready64;
   wire tx_valid64;
   wire [7:0] tx_data64;
   wire access_valid64;
@@ -39,6 +45,9 @@ module tb_uart;
     .reg_write_addr_i(write_addr),
     .reg_write_data_i(write_data),
     .reg_write_strb_i(write_strb),
+    .rx_valid_i(rx_valid),
+    .rx_data_i(rx_data),
+    .rx_ready_o(rx_ready),
     .tx_valid_o(tx_valid),
     .tx_data_o(tx_data),
     .access_valid_o(access_valid),
@@ -59,6 +68,9 @@ module tb_uart;
     .reg_write_addr_i(write_addr64),
     .reg_write_data_i(write_data64),
     .reg_write_strb_i(write_strb64),
+    .rx_valid_i(rx_valid64),
+    .rx_data_i(rx_data64),
+    .rx_ready_o(rx_ready64),
     .tx_valid_o(tx_valid64),
     .tx_data_o(tx_data64),
     .access_valid_o(access_valid64),
@@ -89,12 +101,16 @@ module tb_uart;
       write_addr = 12'h000;
       write_data = 32'h0;
       write_strb = 4'h0;
+      rx_valid = 1'b0;
+      rx_data = 8'h00;
       read_valid64 = 1'b0;
       read_addr64 = 12'h000;
       write_valid64 = 1'b0;
       write_addr64 = 12'h000;
       write_data64 = 64'h0;
       write_strb64 = 8'h0;
+      rx_valid64 = 1'b0;
+      rx_data64 = 8'h00;
       `TB_TICK(clk);
       `TB_TICK(clk);
       rst = 1'b0;
@@ -158,6 +174,59 @@ module tb_uart;
     write_valid = 1'b0;
     #1;
     tb_check1("ier disable drops irq", irq, 1'b0);
+
+    tb_check1("rx ready when empty", rx_ready, 1'b1);
+    rx_valid = 1'b1;
+    rx_data = 8'h5a;
+    #1;
+    tb_check1("rx accepts first byte", rx_ready, 1'b1);
+    `TB_TICK(clk);
+    rx_valid = 1'b0;
+    rx_data = 8'h00;
+    #1;
+    tb_check1("rx holding byte is not ready", rx_ready, 1'b0);
+    tb_check1("rx data without ier has no irq", irq, 1'b0);
+
+    read_valid = 1'b1;
+    read_addr = 12'h004;
+    #1;
+    tb_check32("rx lsr reports data ready", read_data, 32'h0000_6101);
+    tb_check1("lsr read keeps rx byte", rx_ready, 1'b0);
+    read_addr = 12'h000;
+    #1;
+    tb_check32("rx rbr read returns byte", read_data, 32'h0001_005a);
+    tb_check1("rbr read opens rx ready", rx_ready, 1'b1);
+    `TB_TICK(clk);
+    read_valid = 1'b0;
+    #1;
+    tb_check1("rx ready after consume", rx_ready, 1'b1);
+    read_valid = 1'b1;
+    read_addr = 12'h004;
+    #1;
+    tb_check32("rx lsr clears after consume", read_data, 32'h0000_6001);
+    read_valid = 1'b0;
+
+    write_valid = 1'b1;
+    write_addr = 12'h000;
+    write_data = 32'h0000_0100;
+    write_strb = 4'b0010;
+    `TB_TICK(clk);
+    write_valid = 1'b0;
+    rx_valid = 1'b1;
+    rx_data = 8'h5b;
+    `TB_TICK(clk);
+    rx_valid = 1'b0;
+    rx_data = 8'h00;
+    #1;
+    tb_check1("rx ier raises irq", irq, 1'b1);
+    read_valid = 1'b1;
+    read_addr = 12'h000;
+    #1;
+    tb_check32("rx iir reports rda", read_data, 32'h0004_015b);
+    `TB_TICK(clk);
+    read_valid = 1'b0;
+    #1;
+    tb_check1("rx irq clears after rbr", irq, 1'b0);
 
     write_valid = 1'b1;
     write_data = 32'h0001_0000;
@@ -235,6 +304,20 @@ module tb_uart;
     #1;
     tb_check64_local("uart64 status window reset", read_data64,
                      64'h0000_0000_0000_6001);
+    read_valid64 = 1'b0;
+
+    tb_check1("uart64 rx ready when empty", rx_ready64, 1'b1);
+    rx_valid64 = 1'b1;
+    rx_data64 = 8'ha5;
+    `TB_TICK(clk);
+    rx_valid64 = 1'b0;
+    rx_data64 = 8'h00;
+    read_valid64 = 1'b1;
+    read_addr64 = 12'h000;
+    #1;
+    tb_check64_local("uart64 rx rbr window", read_data64,
+                     64'h0000_6101_0001_00a5);
+    `TB_TICK(clk);
     read_valid64 = 1'b0;
 
     write_valid64 = 1'b1;

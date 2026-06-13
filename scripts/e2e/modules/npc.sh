@@ -2,6 +2,7 @@
 
 e2e_npc_sim_contract() {
   echo "[npc] sim contract"
+  local rc=0
   e2e_print_required_files \
     npc/sim/Makefile \
     npc/sim/backends/single.mk \
@@ -9,7 +10,30 @@ e2e_npc_sim_contract() {
     npc/sim/backends/soc.mk \
     npc/single/Makefile \
     npc/soc/Makefile \
-    npc/rv64/Makefile
+    npc/rv64/Makefile \
+    .github/e2e/profiles/npc-dev.tsv \
+    .github/e2e/profiles/nemu-dev.tsv || rc=1
+
+  echo "[npc] dev profile isolation"
+  if e2e_file_contains .github/e2e/profiles/npc-dev.tsv '@include|software-flow' &&
+     e2e_file_contains .github/e2e/profiles/npc-dev.tsv 'npc-sim-contract|npc|e2e_npc_sim_contract' &&
+     e2e_file_contains .github/e2e/profiles/npc-dev.tsv 'npc-single-contract|npc|e2e_npc_single_contract' &&
+     e2e_file_contains .github/e2e/profiles/npc-dev.tsv 'npc-soc-contract|npc|e2e_npc_soc_contract' &&
+     e2e_file_contains .github/e2e/profiles/npc-dev.tsv 'npc-rv64-contract|npc|e2e_npc_rv64_contract'; then
+    printf 'PASS npc-dev profile exposes NPC-only contract set\n'
+  else
+    printf 'FAIL npc-dev profile exposes NPC-only contract set\n'
+    rc=1
+  fi
+  if e2e_file_contains .github/e2e/profiles/npc-dev.tsv 'nemu-dev' ||
+     e2e_file_contains .github/e2e/profiles/npc-dev.tsv 'nemu-ubuntu' ||
+     e2e_file_contains .github/e2e/profiles/npc-dev.tsv 'nemu-ubuntu-full-gate'; then
+    printf 'FAIL npc-dev profile must not include NEMU Ubuntu gates\n'
+    rc=1
+  else
+    printf 'PASS npc-dev profile avoids NEMU Ubuntu gates\n'
+  fi
+  return "$rc"
 }
 
 e2e_npc_single_contract() {
@@ -38,6 +62,183 @@ e2e_npc_rv64_contract() {
     npc/rv64/README.md \
     npc/rv64/design/study/README.md \
     Linux/README.md
+}
+
+e2e_npc_rv64_sv39_sret_u_mode() {
+  echo "[npc-rv64] command: focused Sv39 SRET-to-U-mode regression"
+  local result_dir target_log
+  result_dir="$E2E_EVIDENCE_DIR/npc-rv64-sv39-sret-u-mode"
+  target_log="$result_dir/logs/tb_ooo_sv39_boot.log"
+
+  make -C "$E2E_ROOT_DIR/npc/rv64/testbench" \
+    RESULT_DIR="$result_dir" \
+    "$target_log"
+
+  echo "[npc-rv64] evidence=$(e2e_relpath "$target_log")"
+  grep -q '\[PASS\] tb_ooo_sv39_boot' "$target_log"
+  grep -q 'sv39 page walks ifu=' "$target_log"
+  grep -q '\[RESULT\] PASS' "$target_log"
+}
+
+e2e_npc_rv64_linux_focused_smokes() {
+  echo "[npc-rv64] command: Linux bring-up focused smokes on NpcSimTop"
+  local log_file pass_count
+  log_file="$E2E_EVIDENCE_DIR/npc-rv64-linux-focused-smokes.log"
+  mkdir -p "$(dirname "$log_file")"
+
+  set -o pipefail
+  make -C "$E2E_ROOT_DIR/Linux" ARCH=riscv64-npc \
+    smoke-sret-user-sv39 \
+    smoke-sret-user-sv39-halfword \
+    smoke-sret-restore \
+    smoke-sret-user-pagefault \
+    smoke-virtio-blk 2>&1 | tee "$log_file"
+
+  echo "[npc-rv64] evidence=$(e2e_relpath "$log_file")"
+  pass_count=$(grep -c 'HIT GOOD TRAP' "$log_file" || true)
+  if [[ "$pass_count" -lt 5 ]]; then
+    echo "[npc-rv64] expected at least 5 GOOD TRAP markers, saw $pass_count" >&2
+    return 1
+  fi
+  grep -q 'smoke-sret-user-sv39' "$log_file"
+  grep -q 'smoke-sret-user-sv39-halfword' "$log_file"
+  grep -q 'smoke-sret-restore' "$log_file"
+  grep -q 'smoke-sret-user-pagefault' "$log_file"
+  grep -q 'smoke-virtio-blk' "$log_file"
+  grep -q 'virtio-blk.*capacity=4194304 sectors' "$log_file"
+}
+
+e2e_npc_rv64_uart_rx_smoke() {
+  echo "[npc-rv64] command: 16550 UART RX register and gated DPI injection smoke"
+  local result_dir tb_log run_log runtime_dir max_cycles
+  result_dir="$E2E_EVIDENCE_DIR/npc-rv64-uart-rx-smoke"
+  tb_log="$result_dir/module-testbench.log"
+  runtime_dir="$result_dir/runtime"
+  run_log="$result_dir/runtime.log"
+  max_cycles="${AGENT_E2E_NPC_UART_RX_MAX_CYCLES:-8000000}"
+  mkdir -p "$result_dir" "$runtime_dir"
+
+  set -o pipefail
+  make -C "$E2E_ROOT_DIR/npc/rv64/testbench" \
+    TESTS="tb_uart tb_axi_lite_to_uart" \
+    RESULT_DIR="$result_dir/module-testbench" run 2>&1 | tee "$tb_log"
+  local tb_rc=${PIPESTATUS[0]}
+  if [[ $tb_rc -ne 0 ]]; then
+    return "$tb_rc"
+  fi
+
+  NPC_OOO_WINDOW=0 NPC_UART_RX_TEXT=xy NPC_UART_RX_WAIT=OpenSBI \
+    NPC_UART_RX_TRACE=1 NPC_UART_RX_TRACE_LIMIT=8 \
+    make -C "$E2E_ROOT_DIR/Linux" ARCH=riscv64-npc BOOT=ubuntu-rootfs \
+      MAX_CYCLES="$max_cycles" PROGRESS=0 LOG_DIR="$runtime_dir" run \
+      2>&1 | tee "$run_log"
+  local run_rc=${PIPESTATUS[0]}
+  if [[ $run_rc -ne 0 ]]; then
+    return "$run_rc"
+  fi
+
+  echo "[npc-rv64] evidence=$(e2e_relpath "$tb_log")"
+  echo "[npc-rv64] evidence=$(e2e_relpath "$run_log")"
+  echo "[npc-rv64] evidence=$(e2e_relpath "$runtime_dir/console.log")"
+  echo "[npc-rv64] evidence=$(e2e_relpath "$runtime_dir/npc.log")"
+
+  grep -q -- '- PASS tb_uart' "$tb_log"
+  grep -q -- '- PASS tb_axi_lite_to_uart' "$tb_log"
+  grep -q "uart-rx.*loaded bytes=2.*wait='OpenSBI'" "$run_log"
+  grep -q "uart-rx.*waiting for guest output pattern='OpenSBI'" "$run_log"
+  grep -q 'OpenSBI' "$run_log"
+  grep -q 'uart-rx.*wait pattern matched; releasing input' "$run_log"
+  grep -q "uart-rx.*pop=1.*data=0x78" "$run_log"
+  grep -q "uart-rx.*pop=2.*data=0x79" "$run_log"
+}
+
+e2e_npc_rv64_linux_rootfs_mount_smoke() {
+  echo "[npc-rv64] command: Ubuntu rootfs mount + systemd banner smoke on NpcSimTop"
+  local result_dir run_log console_log npc_log max_cycles timeout_s
+  result_dir="$E2E_EVIDENCE_DIR/npc-rv64-linux-rootfs-mount-smoke"
+  run_log="$result_dir/run.log"
+  console_log="$result_dir/console.log"
+  npc_log="$result_dir/npc.log"
+  max_cycles="${AGENT_E2E_NPC_ROOTFS_MOUNT_MAX_CYCLES:-340000000}"
+  timeout_s="${AGENT_E2E_NPC_ROOTFS_MOUNT_TIMEOUT:-1200}"
+  mkdir -p "$result_dir"
+
+  set -o pipefail
+  NPC_OOO_WINDOW=0 timeout "${timeout_s}s" \
+    make -C "$E2E_ROOT_DIR/Linux" ARCH=riscv64-npc BOOT=ubuntu-rootfs \
+      MAX_CYCLES="$max_cycles" PROGRESS=0 LOG_DIR="$result_dir" run 2>&1 | tee "$run_log"
+  local pipe_rc=${PIPESTATUS[0]}
+  if [[ $pipe_rc -ne 0 ]]; then
+    return "$pipe_rc"
+  fi
+
+  echo "[npc-rv64] evidence=$(e2e_relpath "$run_log")"
+  echo "[npc-rv64] evidence=$(e2e_relpath "$console_log")"
+  echo "[npc-rv64] evidence=$(e2e_relpath "$npc_log")"
+
+  if grep -Eqi 'panic|Oops|Bad trap|HIT BAD TRAP' "$console_log" "$npc_log"; then
+    return 1
+  fi
+  grep -q 'Kernel command line: console=ttyS0,115200n8 root=/dev/vda rw init=/lib/systemd/systemd' "$console_log"
+  grep -q 'Serial: 8250/16550 driver' "$console_log"
+  grep -q 'printk: console \[ttyS0\] enabled' "$console_log"
+  grep -q 'virtio_blk virtio0: \[vda\] 4194304 512-byte logical blocks' "$console_log"
+  grep -q 'EXT4-fs (vda): mounted filesystem' "$console_log"
+  grep -q 'VFS: Mounted root (ext4 filesystem) on device 254:0.' "$console_log"
+  grep -q 'Run /lib/systemd/systemd as init process' "$console_log"
+  grep -q 'systemd .* running in system mode' "$console_log"
+  grep -q 'Ubuntu 22.04' "$console_log"
+  grep -q 'Hostname set to <ysyx-ubuntu2204>' "$console_log"
+}
+
+e2e_npc_rv64_systemd_guest_check_contract() {
+  echo "[npc-rv64] contract: NPC systemd guest prompt/script gate"
+  local result_dir dry_log
+  result_dir="$E2E_EVIDENCE_DIR/npc-rv64-systemd-guest-check-contract"
+  dry_log="$result_dir/make-dry-run.log"
+  mkdir -p "$result_dir"
+
+  e2e_print_required_files \
+    Linux/scripts/check-npc-systemd-guest.sh \
+    Linux/Makefile \
+    npc/rv64/vsrc/bus/AxiLiteClint.v \
+    npc/rv64/vsrc/core/NpcTop.v \
+    npc/rv64/csrc/dpi.c \
+    npc/rv64/csrc/cpu/cpu-exec.cpp \
+    npc/rv64/csrc/monitor/log.c
+
+  bash -n "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
+  grep -nE 'check-npc-systemd-guest|NPC_SYSTEMD_|check-npc-systemd-guest\.sh' \
+    "$E2E_ROOT_DIR/Linux/Makefile" | tee "$dry_log"
+
+  echo "[npc-rv64] evidence=$(e2e_relpath "$dry_log")"
+  grep -q 'check-npc-systemd-guest.sh' "$dry_log"
+  grep -q 'NPC_SYSTEMD_CHECK_MAX_CYCLES' "$dry_log"
+  grep -q 'NPC_SYSTEMD_PROMPT' "$dry_log"
+  grep -q 'NPC_SYSTEMD_PROGRESS' "$dry_log"
+  grep -q 'NPC_UART_RX_FILE' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
+  grep -q 'NPC_UART_RX_WAIT' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
+  grep -q 'NPC_GUEST_EXPECT' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
+  grep -q 'NPC_SYSTEMD_CHECK_LOG_DIR' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
+  grep -q 'PROGRESS="$PROGRESS_INTERVAL"' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
+  grep -q 'abspath_from_cwd' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
+  grep -q 'LOG_DIR=$(abspath_from_cwd "$LOG_DIR")' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
+  grep -q 'Timed out waiting for device .*ttyS0' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
+  grep -q 'Failed to start .*Create System Users' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
+  grep -q 'MTIME_DIVISOR' "$E2E_ROOT_DIR/npc/rv64/vsrc/bus/AxiLiteClint.v"
+  grep -q "CLINT_MTIME_DIVISOR = 32'd10" "$E2E_ROOT_DIR/npc/rv64/vsrc/core/NpcTop.v"
+  grep -q 'NPC_USER_ECALL_TRACE' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
+  grep -q 'NPC_USER_ECALL_TRACE_PRIV' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
+  grep -q 'NPC_USER_ECALL_MIN_COMMIT' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
+  grep -q 'NPC_USER_ECALL_PATH_TRACE' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
+  grep -q 'debug_ooo_satp_o' "$E2E_ROOT_DIR/npc/rv64/vsrc/sim/NpcSimTop.sv"
+  grep -q 'NPC_USER_PROGRESS_INTERVAL' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
+  grep -q 'maybe_log_ecall_trap' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
+  grep -q 'trap_hit=' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
+  grep -q 'LogBothTag("user_ecall"' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
+  grep -q 'LogBothTag("user_progress"' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
+  grep -q '__NPC_SYSTEMD_CHECK_DONE__ rc=0' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
+  grep -q 'root@ysyx-ubuntu2204:~#' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
 }
 
 e2e_npc_add_smoke() {

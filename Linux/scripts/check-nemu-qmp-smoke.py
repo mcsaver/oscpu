@@ -106,6 +106,32 @@ def require_netdevs(netdevs, label: str, log):
     for key in {"dhcp", "dns", "icmp", "tcp-http", "link-up"}:
         if nemu.get(key) is not True:
             raise RuntimeError(f"query-netdev missing enabled {key}: {entry}")
+    if nemu.get("http-methods") != ["GET", "HEAD"] or nemu.get("http-not-found") is not True:
+        raise RuntimeError(f"query-netdev unexpected hostless HTTP surface: {entry}")
+    http_large = nemu.get("http-large")
+    if (
+        not isinstance(http_large, dict)
+        or http_large.get("path") != "/nemu-large"
+        or http_large.get("bytes") != 4096
+        or http_large.get("segment-payload-max") != 1200
+    ):
+        raise RuntimeError(f"query-netdev unexpected hostless large HTTP surface: {entry}")
+    apt_repo = nemu.get("apt-repo")
+    if (
+        not isinstance(apt_repo, dict)
+        or apt_repo.get("base") != "/ubuntu"
+        or apt_repo.get("suite") != "jammy"
+        or apt_repo.get("component") != "main"
+        or apt_repo.get("arch") != "riscv64"
+        or apt_repo.get("package") != "nemu-hostless-hello"
+        or apt_repo.get("version") != "1.0"
+        or apt_repo.get("deb-size") != 722
+        or apt_repo.get("meta-package") != "nemu-hostless-meta"
+        or apt_repo.get("meta-version") != "1.0"
+        or apt_repo.get("meta-depends") != "nemu-hostless-hello (= 1.0)"
+        or apt_repo.get("meta-deb-size") != 896
+    ):
+        raise RuntimeError(f"query-netdev unexpected hostless apt repo: {entry}")
     features = nemu.get("features")
     if not isinstance(features, dict):
         raise RuntimeError(f"query-netdev missing features object: {entry}")
@@ -176,6 +202,10 @@ def require_netdevs(netdevs, label: str, log):
         "dhcp-requests", "dhcp-replies",
         "dns-queries", "dns-replies",
         "tcp-segments", "tcp-replies", "tcp-http-requests",
+        "tcp-http-head-requests", "tcp-http-not-found",
+        "tcp-http-apt-requests", "tcp-http-apt-deb-requests",
+        "tcp-http-large-requests", "tcp-http-segmented-responses",
+        "tcp-http-response-segments",
         "ctrl-commands", "ctrl-rx-commands", "ctrl-rx-extra-commands",
         "ctrl-mac-table-commands",
         "ctrl-mac-addr-commands", "ctrl-vlan-commands",

@@ -15,6 +15,9 @@ static int   g_guest_buf_len = 0;
 static bool  g_guest_expect_inited = false;
 static bool  g_guest_expect_matched = false;
 static const char *g_guest_expect = NULL;
+static bool  g_uart_rx_wait_inited = false;
+static bool  g_uart_rx_wait_matched = false;
+static const char *g_uart_rx_wait = NULL;
 
 static const char *short_file_name(const char *file) {
   const char *slash = strrchr(file, '/');
@@ -36,10 +39,22 @@ static void init_guest_expect(void) {
   }
 }
 
+static void init_uart_rx_wait(void) {
+  if (g_uart_rx_wait_inited) return;
+  g_uart_rx_wait_inited = true;
+  g_uart_rx_wait = getenv("NPC_UART_RX_WAIT");
+  if (g_uart_rx_wait && g_uart_rx_wait[0] == '\0') {
+    g_uart_rx_wait = NULL;
+  }
+}
+
 void npc_reset_guest_expect(void) {
   g_guest_expect_inited = false;
   g_guest_expect_matched = false;
   g_guest_expect = NULL;
+  g_uart_rx_wait_inited = false;
+  g_uart_rx_wait_matched = false;
+  g_uart_rx_wait = NULL;
 }
 
 bool npc_guest_expect_matched(void) {
@@ -52,6 +67,16 @@ const char *npc_guest_expect_text(void) {
   return g_guest_expect ? g_guest_expect : "";
 }
 
+bool npc_uart_rx_wait_satisfied(void) {
+  init_uart_rx_wait();
+  return !g_uart_rx_wait || g_uart_rx_wait_matched;
+}
+
+const char *npc_uart_rx_wait_text(void) {
+  init_uart_rx_wait();
+  return g_uart_rx_wait ? g_uart_rx_wait : "";
+}
+
 static void check_guest_expect_line(const char *line) {
   init_guest_expect();
   if (!g_guest_expect || g_guest_expect_matched) return;
@@ -60,10 +85,23 @@ static void check_guest_expect_line(const char *line) {
   }
 }
 
+static void check_uart_rx_wait_line(const char *line) {
+  init_uart_rx_wait();
+  if (!g_uart_rx_wait || g_uart_rx_wait_matched) return;
+  if (strstr(line, g_uart_rx_wait)) {
+    g_uart_rx_wait_matched = true;
+  }
+}
+
+static void check_guest_output_watchers(const char *line) {
+  check_guest_expect_line(line);
+  check_uart_rx_wait_line(line);
+}
+
 static void flush_guest_line_buffer(void) {
   if (g_guest_buf_len == 0) return;
   g_guest_buf[g_guest_buf_len] = '\0';
-  check_guest_expect_line(g_guest_buf);
+  check_guest_output_watchers(g_guest_buf);
   if (g_log_file) {
     fprintf(g_log_file, "[guest] %s\n", g_guest_buf);
     fflush(g_log_file);
@@ -128,7 +166,7 @@ void npc_log_putchar(char ch) {
   }
   g_guest_buf[g_guest_buf_len++] = ch;
   g_guest_buf[g_guest_buf_len] = '\0';
-  check_guest_expect_line(g_guest_buf);
+  check_guest_output_watchers(g_guest_buf);
 }
 
 void npc_log_impl(const char *file, int line, const char *func, const char *fmt, ...) {

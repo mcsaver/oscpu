@@ -41,6 +41,18 @@ module tb_axi_lite_clint;
   wire inc_msip_irq;
   wire inc_mtip_irq;
 
+  wire div_arready;
+  wire div_rvalid;
+  wire [31:0] div_rdata;
+  wire [1:0] div_rresp;
+  wire div_awready;
+  wire div_wready;
+  wire div_bvalid;
+  wire [1:0] div_bresp;
+  wire [63:0] div_mtime;
+  wire div_msip_irq;
+  wire div_mtip_irq;
+
   reg axi64_arvalid;
   wire axi64_arready;
   reg [63:0] axi64_araddr;
@@ -121,6 +133,39 @@ module tb_axi_lite_clint;
       inc_arready, inc_rvalid, inc_rdata, inc_rresp,
       inc_awready, inc_wready, inc_bvalid, inc_bresp,
       inc_msip_irq, inc_mtip_irq
+  };
+
+  AxiLiteClint #(
+    .MTIME_INCREMENT(64'd1),
+    .MTIME_DIVISOR(32'd4)
+  ) div_dut (
+    .clk(clk),
+    .rst(rst),
+    .s_axi_arvalid_i(1'b0),
+    .s_axi_arready_o(div_arready),
+    .s_axi_araddr_i(32'h0),
+    .s_axi_rvalid_o(div_rvalid),
+    .s_axi_rready_i(1'b0),
+    .s_axi_rdata_o(div_rdata),
+    .s_axi_rresp_o(div_rresp),
+    .s_axi_awvalid_i(1'b0),
+    .s_axi_awready_o(div_awready),
+    .s_axi_awaddr_i(32'h0),
+    .s_axi_wvalid_i(1'b0),
+    .s_axi_wready_o(div_wready),
+    .s_axi_wdata_i(32'h0),
+    .s_axi_wstrb_i(4'h0),
+    .s_axi_bvalid_o(div_bvalid),
+    .s_axi_bready_i(1'b0),
+    .s_axi_bresp_o(div_bresp),
+    .mtime_o(div_mtime),
+    .msip_irq_o(div_msip_irq),
+    .mtip_irq_o(div_mtip_irq)
+  );
+  wire unused_div_outputs_w = |{
+      div_arready, div_rvalid, div_rdata, div_rresp,
+      div_awready, div_wready, div_bvalid, div_bresp,
+      div_msip_irq, div_mtip_irq
   };
 
   AxiLiteClint #(
@@ -332,9 +377,13 @@ module tb_axi_lite_clint;
     tb_check1("msip irq reset low", msip_irq, 1'b0);
     tb_check1("mtip irq reset low", mtip_irq, 1'b0);
     tb_check32("incrementing mtime after reset", inc_mtime[31:0], 32'd1);
+    tb_check32("divided mtime holds after reset", div_mtime[31:0], 32'd0);
     `TB_TICK(clk);
     `TB_TICK(clk);
     tb_check32("mtime increments", inc_mtime[31:0], 32'd3);
+    tb_check32("divided mtime holds before divisor", div_mtime[31:0], 32'd0);
+    `TB_TICK(clk);
+    tb_check32("divided mtime increments on divisor", div_mtime[31:0], 32'd1);
 
     axi_read_word(`NPC_AXI_CLINT_BASE + 32'h0000_bff8, 32'h0000_0000);
     axi_read_word(`NPC_AXI_CLINT_BASE + 32'h0000_bffc, 32'h0000_0000);

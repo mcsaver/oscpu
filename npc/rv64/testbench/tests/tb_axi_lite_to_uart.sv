@@ -31,6 +31,9 @@ module tb_axi_lite_to_uart;
   wire [31:0] access_wdata;
   wire [3:0] access_wstrb;
   wire [31:0] access_rdata;
+  reg rx_valid;
+  reg [7:0] rx_data;
+  wire rx_ready;
   wire irq;
 
   AxiLiteToUart dut (
@@ -61,6 +64,9 @@ module tb_axi_lite_to_uart;
     .uart_access_wdata_o(access_wdata),
     .uart_access_wstrb_o(access_wstrb),
     .uart_access_rdata_o(access_rdata),
+    .uart_rx_valid_i(rx_valid),
+    .uart_rx_data_i(rx_data),
+    .uart_rx_ready_o(rx_ready),
     .uart_irq_o(irq)
   );
 
@@ -77,6 +83,8 @@ module tb_axi_lite_to_uart;
       wdata = 32'h0;
       wstrb = 4'h0;
       bready = 1'b0;
+      rx_valid = 1'b0;
+      rx_data = 8'h00;
       `TB_TICK(clk);
       `TB_TICK(clk);
       rst = 1'b0;
@@ -160,6 +168,31 @@ module tb_axi_lite_to_uart;
     axi_write_word(32'h1000_0000, 32'h0000_0000, 4'b0010, 1'b0, 8'h00);
     #1;
     tb_check1("ier disable drops irq", irq, 1'b0);
+    tb_check1("rx ready when empty", rx_ready, 1'b1);
+    rx_valid = 1'b1;
+    rx_data = 8'h5a;
+    `TB_TICK(clk);
+    rx_valid = 1'b0;
+    rx_data = 8'h00;
+    #1;
+    tb_check1("rx holding byte is not ready", rx_ready, 1'b0);
+    axi_read_word(32'h1000_0004, 32'h0000_6101);
+    #1;
+    tb_check1("lsr axi read keeps rx byte", rx_ready, 1'b0);
+    axi_read_word(32'h1000_0000, 32'h0001_005a);
+    #1;
+    tb_check1("rbr axi read consumes rx byte", rx_ready, 1'b1);
+    axi_write_word(32'h1000_0000, 32'h0000_0100, 4'b0010, 1'b0, 8'h00);
+    rx_valid = 1'b1;
+    rx_data = 8'h5b;
+    `TB_TICK(clk);
+    rx_valid = 1'b0;
+    rx_data = 8'h00;
+    #1;
+    tb_check1("rx ier raises irq", irq, 1'b1);
+    axi_read_word(32'h1000_0000, 32'h0004_015b);
+    #1;
+    tb_check1("rx irq clears after axi rbr", irq, 1'b0);
     axi_write_word(32'h1000_0000, 32'h0001_0000, 4'b0100, 1'b0, 8'h00);
     axi_write_word(32'h1000_0000, 32'h0000_0200, 4'b0010, 1'b0, 8'h00);
     axi_read_word(32'h1000_0000, 32'h00c2_0200);

@@ -20,6 +20,8 @@ bool npc_log_enable(void);
 void npc_log_putchar(char ch);
 bool npc_guest_expect_matched(void);
 const char *npc_guest_expect_text(void);
+bool npc_uart_rx_wait_satisfied(void);
+const char *npc_uart_rx_wait_text(void);
 void npc_reset_guest_expect(void);
 void npc_log_impl(const char *file, int line, const char *func, const char *fmt, ...);
 void npc_log_both_impl(const char *file, int line, const char *func, const char *fmt, ...);
