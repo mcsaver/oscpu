@@ -2831,8 +2831,7 @@ PY
   python_re_source_diag_i=1
   while [ "$python_re_source_diag_i" -le "$python_re_source_diag_loops" ]; do
     python_re_source_diag_rc=0
-    timeout 120s python3 - >>"$python_re_source_diag_log" 2>&1 <<'PY' ||
-      python_re_source_diag_rc=$?
+    if timeout 120s python3 - >>"$python_re_source_diag_log" 2>&1 <<'PY'
 import hashlib
 import pathlib
 import traceback
@@ -2876,6 +2875,11 @@ except BaseException as exc:
     emit("TEXTWRAP_SOURCE_EXEC_ERROR", "%s:%s" % (type(exc).__name__, exc))
     traceback.print_exc()
 PY
+    then
+      :
+    else
+      python_re_source_diag_rc=$?
+    fi
     echo "__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_RC__:$python_re_source_diag_i:$python_re_source_diag_rc"
     python_re_source_diag_i=$((python_re_source_diag_i + 1))
   done

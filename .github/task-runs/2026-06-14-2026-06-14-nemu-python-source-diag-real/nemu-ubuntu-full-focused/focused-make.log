@@ -232,3 +232,35 @@ NEMU_SYSTEMD_BLOCK_JOB_MIB='1' \
 [nemu-systemd-check] vda hash window bytes: 65536
 [nemu-systemd-check] vda hash windows: 1
 [nemu-systemd-check] perf log: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-14-2026-06-14-nemu-python-source-diag-real/nemu-ubuntu-full-focused/perf.tsv
+[nemu-systemd-check] poweroff exit: rc=0 seconds=21
+[nemu-systemd-check] virtio-blk async runtime: submitted=17234 completed=17234 pending=0 done=0
+[nemu-systemd-check] PASS virtio-blk-async-runtime
+[nemu-systemd-check] virtio-net runtime: tx=690 rx=90 errors=0 drops=0 pending=0 arp=16/16 icmp=1/1 dhcp=2/2 dns=11/11 tcp=83/60 http=19 head=1 not_found=1 apt=6 apt_deb=1 large=1 segmented=1 segments=22 ctrl=7/0 ctrl_rx=4 ctrl_rx_extra=0 ctrl_mac_table=2 ctrl_mac_addr=0 ctrl_vlan=0 ctrl_announce=1
+[nemu-systemd-check] PASS virtio-net-runtime
+[nemu-systemd-check] rootfs backing stat after: 8589934592:1781160740
+[nemu-systemd-check] PASS rootfs-backing-unchanged
+[nemu-systemd-check] PASS console-clean-jobserver
+[nemu-systemd-check] PASS console-clean-autofs4
+[nemu-systemd-check] PASS console-clean-bpf-cgroup
+[nemu-systemd-check] PASS console-clean-riscv-isa-fallback
+[nemu-systemd-check] PASS console-clean-panic
+[nemu-systemd-check] PASS console-clean-oops
+[nemu-systemd-check] PASS console-clean-call-trace
+[nemu-systemd-check] PASS console-clean-bad-trap
+[nemu-systemd-check] PASS console-clean-ext4-error
+[nemu-systemd-check] PASS console-clean-io-error
+[nemu-systemd-check] PASS efi-dtb-boot-benign
+OpenSBI v1.8
+[    0.000000] Machine model: YSYX NPC RV64
+[    0.000000] SBI specification v3.0 detected
+[    0.000000] efi: UEFI not found.
+[    0.000000] OF: reserved mem: 0x0000000080000000..0x000000008003ffff (256 KiB) nomap non-reusable mmode_resv1@80000000
+[    0.000000] OF: reserved mem: 0x0000000080040000..0x000000008005ffff (128 KiB) nomap non-reusable mmode_resv0@80040000
+[    0.000000] Kernel command line: console=ttyS0,115200n8 root=/dev/vda rw init=/lib/systemd/systemd
+[    0.085640] EFI services will not be available.
+[nemu-systemd-check] PASS shutdown-watchdog-notify-absent
+[nemu-systemd-check] perf boot=145s guest_check=1741s poweroff=21s total=1907s
+[nemu-systemd-check] perf log: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-14-2026-06-14-nemu-python-source-diag-real/nemu-ubuntu-full-focused/perf.tsv
+[nemu-systemd-check] PASS
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/Linux'
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/Linux'

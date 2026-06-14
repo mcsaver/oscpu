@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T11:40:43+00:00",
-  "updated_at": "2026-06-14T06:28:27+00:00",
+  "updated_at": "2026-06-14T07:03:02+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -6794,6 +6794,86 @@
       "sha256": "f4e039aee27fe424c9eb61a186376ceb5f92c78eb533fc80127db979096ea574",
       "backup_source": "filesystem",
       "archived_at": "2026-06-14T06:26:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-source-diag-heredoc-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6131,
+      "sha256": "e50d6eb430a845baa22f9523df969631bab33742c6c6046fb702f32a22adb0de",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T07:03:02+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-source-diag-heredoc-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 4588,
+      "sha256": "19d50a0e91c5c8b6138ae5e5f6132b137a6b5cdd5b2fb481babe1f277cf152fd",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T07:03:02+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-source-diag-heredoc-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 8937,
+      "sha256": "e696ff5127b2e7709587d32f6654f3feef34bafc758240db0acc3e22d0eaaf3c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T07:03:02+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-source-diag-heredoc-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 876,
+      "sha256": "580d742f4efe969c4c25447f1ea48f7ac50449ed0651e3491e01e89563bcfd02",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T07:03:02+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-source-diag-heredoc-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4253,
+      "sha256": "f17dd405bf99eed4c83313c32c619e99af92ff132478e66ec9a51c0ebb94bcbf",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T07:03:02+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-source-diag-real/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6161,
+      "sha256": "9481bb75d31f4c2d2d6f143e4d15ba562ab82e2ee1adbb54fdb421719d23224a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T07:01:32+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-source-diag-real/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5641,
+      "sha256": "7a90b3ec4d8ef6d5cc7b103d6d36c6006ae2e192041ad1bd95c79c0bb06c2f22",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T07:01:32+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-source-diag-real/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26714,
+      "sha256": "37718468e3490edbe704c69f8df76534c9196fc7392817c0a1b68d8ee293e807",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T07:01:32+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-source-diag-real/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T07:01:32+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-source-diag-real/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4460,
+      "sha256": "6c28923ad2b4dc17e9e4645baec85d5ba116865e20b13f253001d77a17de1d67",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T07:01:32+00:00"
     },
     {
       "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/context-brief.md",

@@ -1,0 +1,21 @@
+# Dispatch Log
+
+- 读取项目约束：`.github/AGENTS.md`、`.github/copilot-instructions.md`、memory 与 NPC/RV64 相关说明。
+- 审计现有数据流：
+  - `CsrFile` 已有 `trap_mem_*` / `trap_ex_*` 和 delegation 写 CSR 能力。
+  - `OooIntBackend/OooRob` 已产生 memory exception 的 `cause/tval`，但 `OooAluCoreSlice` 未向外透出。
+  - `OooAluFetchCore` 的 fetch fault 仍在 drain 后进入 fatal `trap_valid_q`。
+- 实现路径：
+  - 透出 commit `cause/tval`。
+  - commit exception -> `trap_mem_*`，front-end pending arch trap -> `trap_ex_*`。
+  - commit exception 后使用打一拍 local flush，修复直接组合 flush 造成的仿真 0-time 卡住。
+- 测试扩展：
+  - `tb_ooo_sv39_boot` 新增未映射 VA `0x4000_0000` 的 LSU load fault 与 IFU instruction fault。
+  - handler 分支保存 ecall/load-fault/inst-fault 的 `scause/sepc/stval`。
+- 验证结果：
+  - focused Sv39 fault 单测 PASS。
+  - focused 3-test 回归 PASS。
+  - rv64 lint/build PASS。
+  - `riscv64-npc` cpu-tests 40/40 PASS。
+- 外部环境：
+  - CoreMark 长跑两次触发 WSL 服务 `E_UNEXPECTED`/崩溃；已执行 `wsl --shutdown` 后恢复轻量命令。

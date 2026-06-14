@@ -1,0 +1,2 @@
+[nemu-ubuntu] focused gate target: check-nemu-systemd-guest-full
+[nemu-ubuntu] focused gate log dir: .github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-python-source-real-final/nemu-ubuntu-full-focused
