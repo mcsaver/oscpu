@@ -1,0 +1,75 @@
+[agent-system] three-layer AI environment contract
+PASS .github/instructions/agent-env-layer-contract.instructions.md
+PASS .github/agent-env-policy.json
+PASS .github/agent-env-rebuild-matrix.json
+PASS .github/agent-env-schema-contract.json
+PASS .github/agent-env-review-routing.json
+PASS .github/agent-env-branch-health.json
+PASS .github/instructions/agent-env-state-machine.instructions.md
+PASS .github/skills/agent-env-maintenance/SKILL.md
+PASS .github/workflows/agent-maintain.yml
+PASS scripts/agent-maintain.sh
+PASS layer contract documents Database/Skill/Agent boundaries
+PASS agent environment policy captures tools, retention, branch health, and CI contract
+PASS explicit schema/API contract covers DB tables and read-only API operations
+PASS report-derived rebuild matrix tracks implemented and partial requirements
+PASS review routing contract covers Database/Skill/Agent and R1-R9 routes
+PASS branch health dashboard contract exposes required signals and commands
+PASS state machine instruction captures rollback and inspector rules
+PASS agent-env-maintenance skill exposes three-layer workflow
+PASS agent-maintain check covers policy, DB, Skill, markdown, and Agent profile gates
+PASS agent-maintain workflow rehydrates DB memory and runs nightly gate
+PASS report-audit matrix=.github/agent-env-rebuild-matrix.json requirements=9 implemented=6,partial=3
+PASS schema-audit contract=.github/agent-env-schema-contract.json runtime_schema=4 tables=9 api_ops=12
+PASS policy-audit policy=.github/agent-env-policy.json agents=18 workflow=.github/workflows/agent-maintain.yml
+PASS .github/agents/abstract-machine.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/agent-system.agent.md tools=read,edit,search,agent,todo
+PASS .github/agents/am-kernels.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/difftest.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/digital-logic.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/display-vga.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/fceux-am.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/hardware-flow.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/linux-device.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/nemu.agent.md tools=<missing> exempted
+PASS .github/agents/npc.agent.md tools=<missing> exempted
+PASS .github/agents/nvboard.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/rv64-linux.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/software-flow.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/verilator-tapeout.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/yosys-sta.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/ysyx-coordinator.agent.md tools=read,edit,search,agent,todo,execute
+PASS .github/agents/ysyx-soc.agent.md tools=read,edit,search,execute,agent,todo
+PASS skill-audit path=.github/skills skills=1
+PASS .github/skills/agent-env-maintenance/SKILL.md name=agent-env-maintenance
+PASS branch-health-report branch=ai head=694a84454 upstream=myfork/ai staged=292 unstaged=2 untracked=3 routes=3 matrix=implemented=6,partial=3
+[staged]
+  .github/agent-env-branch-health.json
+  .github/agent-env-policy.json
+  .github/agent-env-rebuild-matrix.json
+  .github/agent-env-review-routing.json
+  .github/agent-env-schema-contract.json
+  .github/db-backup/files/.github/e2e/modules/agent-system.md
+  .github/db-backup/files/.github/instructions/agent-env-layer-contract.instructions.md
+  .github/db-backup/files/.github/instructions/agent-env-state-machine.instructions.md
+  .github/db-backup/files/.github/memory/modules/agent-system.md
+  .github/db-backup/files/.github/memory/project-status.md
+  .github/db-backup/manifest.json
+  .github/db-backup/stored-snapshot/files/.github/agentic-hardware-blueprint.md
+  .github/db-backup/stored-snapshot/files/.github/agents/agent-system.agent.md
+  .github/db-backup/stored-snapshot/files/.github/agents/nemu.agent.md
+  .github/db-backup/stored-snapshot/files/.github/agents/npc.agent.md
+  .github/db-backup/stored-snapshot/files/.github/agents/ysyx-coordinator.agent.md
+  .github/db-backup/stored-snapshot/files/.github/e2e/README.md
+  .github/db-backup/stored-snapshot/files/.github/e2e/modules/agent-system.md
+  .github/db-backup/stored-snapshot/files/.github/e2e/modules/software-flow.md
+  .github/db-backup/stored-snapshot/files/.github/e2e/profiles/agent-system.tsv
+[unstaged]
+  .github/db-backup/task-runs/manifest.json
+  scripts/e2e/modules/agent_system.sh
+[untracked]
+  .github/db-backup/task-runs/files/.github/task-runs/2026-06-13-agent-env-branch-health-routing/
+  .github/task-runs/2026-06-13-agent-env-branch-health-routing-2/
+  .github/task-runs/2026-06-13-agent-env-branch-health-routing/
+PASS branch-health-audit dashboard=.github/agent-env-branch-health.json routes=3 signals=7 gates=9
+PASS markdown-coverage active_md=1690 db_owned=1689 shims=1689 live_evidence=0 live_rules=1

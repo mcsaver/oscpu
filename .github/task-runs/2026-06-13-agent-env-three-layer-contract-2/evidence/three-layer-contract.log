@@ -1,0 +1,10 @@
+[agent-system] three-layer AI environment contract
+PASS .github/instructions/agent-env-layer-contract.instructions.md
+PASS .github/skills/agent-env-maintenance/SKILL.md
+PASS scripts/agent-maintain.sh
+PASS layer contract documents Database/Skill/Agent boundaries
+PASS agent-env-maintenance skill exposes three-layer workflow
+PASS agent-maintain check covers DB, Skill, markdown, and Agent profile gates
+PASS skill-audit path=.github/skills skills=1
+PASS .github/skills/agent-env-maintenance/SKILL.md name=agent-env-maintenance
+PASS markdown-coverage active_md=1664 db_owned=1663 shims=1663 live_evidence=0 live_rules=1

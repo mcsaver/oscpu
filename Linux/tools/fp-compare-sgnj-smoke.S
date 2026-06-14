@@ -5,6 +5,18 @@
 #define FP_SMOKE_STACK 0x87ef8000
 #endif
 
+#ifndef FP_SMOKE_NEMU_SYSCON_EXIT
+#define FP_SMOKE_NEMU_SYSCON_EXIT 0
+#endif
+
+#ifndef SYSCON_RESET_MMIO
+#define SYSCON_RESET_MMIO 0x00100000
+#endif
+
+#ifndef SYSCON_POWEROFF_VALUE
+#define SYSCON_POWEROFF_VALUE 0x5555
+#endif
+
   .section .text, "ax", @progbits
   .globl _start
   .option push
@@ -12,6 +24,8 @@
   .align 2
 _start:
   li sp, FP_SMOKE_STACK
+  li t0, (3 << 13)
+  csrs mstatus, t0
 
   li t0, 0x3ff0000000000000
   fmv.d.x ft0, t0
@@ -113,6 +127,21 @@ fail_fle_s:
 
   .align 2
 done:
+#if FP_SMOKE_NEMU_SYSCON_EXIT
+  beqz a0, nemu_pass
+  li t0, 0x10000000
+  li t1, 0x46
+  sb t1, 0(t0)
+nemu_fail_spin:
+  j nemu_fail_spin
+nemu_pass:
+  li t0, SYSCON_RESET_MMIO
+  li t1, SYSCON_POWEROFF_VALUE
+  sw t1, 0(t0)
+nemu_pass_spin:
+  j nemu_pass_spin
+#else
   ebreak
+#endif
 
   .option pop

@@ -1,0 +1,104 @@
+{
+  "artifacts": {
+    "context_brief": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-contract-2/context-brief.md",
+    "dispatch_log": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-contract-2/dispatch-log.md",
+    "evidence_dir": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-contract-2/evidence",
+    "evidence_index": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-contract-2/evidence-index.md",
+    "nodes": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-contract-2/nodes.tsv",
+    "profile_resolve": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-contract-2/profile-resolve.md",
+    "run_dir": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-contract-2",
+    "run_manifest": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-contract-2/run-manifest.json",
+    "task_report": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-contract-2/task-report.md"
+  },
+  "db": {
+    "markdown_archive": true,
+    "raw_evidence_index_only": true
+  },
+  "evidence": {
+    "asset_count": 10,
+    "by_kind": {
+      "log": 9,
+      "tsv": 1
+    },
+    "total_size_bytes": 305729
+  },
+  "final_result": "profile=nemu-dev-gate 无 hard fail，但有 1 个节点因当前环境配置或依赖边界跳过；不能把 SKIP 节点当作已验证。",
+  "git": {
+    "branch": "ai",
+    "head": "694a84454",
+    "upstream": "myfork/ai"
+  },
+  "graph_mode": "static",
+  "graph_template": "modular-agent-e2e",
+  "node_counts": {
+    "by_status": {
+      "PASS": 3,
+      "SKIP": 1
+    },
+    "total": 4
+  },
+  "nodes": [
+    {
+      "evidence": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-contract-2/evidence/software-flow-contract.log",
+      "inputs": "software-flow agent + profile + memory",
+      "module": "software-flow",
+      "node_id": "software-flow-contract",
+      "outputs": "软件开发全流程 agent 合约入口存在",
+      "owner_agent": "software-flow",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-contract-2/evidence/nemu-ubuntu-static.log",
+      "inputs": "Linux/NEMU Ubuntu rootfs scripts + performance config",
+      "module": "nemu",
+      "node_id": "nemu-ubuntu-static",
+      "outputs": "NEMU Ubuntu 切片静态生产守门 PASS",
+      "owner_agent": "nemu",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-contract-2/evidence/nemu-ubuntu-slice-contract.log",
+      "inputs": "recent NEMU Ubuntu device slice hooks and guest markers",
+      "module": "nemu",
+      "node_id": "nemu-ubuntu-slice-contract",
+      "outputs": "近期 NEMU Ubuntu 设备切片合约仍挂入 guest gate",
+      "owner_agent": "nemu",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-contract-2/evidence/nemu-dev-focused-gate.log",
+      "inputs": "optional NEMU-only Ubuntu rootfs/systemd guest gate",
+      "module": "nemu",
+      "node_id": "nemu-dev-focused-gate",
+      "outputs": "AGENT_E2E_NEMU_UBUNTU_GATE=1 时运行 NEMU-only minimized guest gate，否则 SKIP",
+      "owner_agent": "nemu",
+      "status": "SKIP"
+    }
+  ],
+  "profile": "nemu-dev-gate",
+  "run_id": "2026-06-14-2026-06-14-nemu-full-machine-id-contract-2",
+  "schema_version": 1,
+  "started_at": "2026-06-14 07:47:17 +0800",
+  "state_traceback": {
+    "current_state": "persist",
+    "evidence_policy": "task-report + dispatch-log + run-manifest + evidence-index",
+    "failure_reason": "",
+    "failure_state": "",
+    "inspector": "agent-system",
+    "reviewer": "ysyx-coordinator",
+    "rollback_target": "",
+    "state_sequence": [
+      "recall_context",
+      "classify_layer",
+      "plan_graph",
+      "implement",
+      "verify",
+      "inspect",
+      "persist"
+    ]
+  },
+  "status": "completed",
+  "task_slug": "2026-06-14-nemu-full-machine-id-contract-2",
+  "trace_id": "e2e:2026-06-14-2026-06-14-nemu-full-machine-id-contract-2",
+  "updated_at": "2026-06-14 07:47:50 +0800"
+}

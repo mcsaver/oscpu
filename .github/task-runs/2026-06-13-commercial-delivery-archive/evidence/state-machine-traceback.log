@@ -1,0 +1,7 @@
+[agent-system] state machine traceback
+PASS .github/instructions/agent-env-state-machine.instructions.md
+PASS .github/agent-env-state-traceability.json
+PASS scripts/e2e/lib/report.sh
+PASS state machine instruction covers executable states and state_traceback
+PASS report.sh emits state_traceback fields into task-run artifacts
+PASS state-audit contract=.github/agent-env-state-traceability.json states=7 nodes=2

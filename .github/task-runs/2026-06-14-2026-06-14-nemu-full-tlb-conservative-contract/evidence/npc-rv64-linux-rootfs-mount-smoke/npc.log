@@ -1,0 +1,156 @@
+[log.c:145 npc_init_log] Log is written to /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-conservative-contract/evidence/npc-rv64-linux-rootfs-mount-smoke/npc.log
+[paddr.c:85 npc_init_mem] physical memory area [0x0000000080000000, 0x00000000bfffffff]
+[paddr.c:144 npc_load_img_at] The image is /home/lyg/PA/ysyx-workbench/Linux/env/build/opensbi-npc-rootfs/platform/generic/firmware/fw_jump.bin, size = 275888
+[paddr.c:146 npc_load_img_at] Load image /home/lyg/PA/ysyx-workbench/Linux/env/src/linux/arch/riscv/boot/Image at 0x0000000080200000, size = 15465472
+[paddr.c:146 npc_load_img_at] Load image /home/lyg/PA/ysyx-workbench/Linux/build/npc-rv64-rootfs.dtb at 0x0000000082200000, size = 1836
+[map.c:76 npc_add_mmio_map] Add mmio map 'serial' at [0xa00003f8, 0xa00003ff]
+[map.c:76 npc_add_mmio_map] Add mmio map 'rtc' at [0xa0000048, 0xa000004f]
+[map.c:76 npc_add_mmio_map] Add mmio map 'keyboard' at [0xa0000060, 0xa0000063]
+[vga.c:186 npc_vga_init] NPC VGA disabled; GPU_CONFIG will report present=false.
+[map.c:76 npc_add_mmio_map] Add mmio map 'vgactl' at [0xa0000100, 0xa0000107]
+[map.c:76 npc_add_mmio_map] Add mmio map 'framebuffer' at [0xa1000000, 0xa11fffff]
+[virtio_blk.c:545 virtio-blk] image=/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64.ext4 capacity=4194304 sectors (2048 MiB)
+[monitor.c:41 welcome] Wave Trace: [1;31mOFF[0m
+[monitor.c:42 welcome] Text Trace: [1;31mOFF[0m (itrace=off, mtrace=off, dtrace=off)
+[monitor.c:44 welcome] Difftest: [1;31mOFF[0m
+[monitor.c:45 welcome] Build time: 15:22:50, Jun 12 2026
+[guest] OpenSBI v1.8
+[guest]    ____                    _____ ____ _____
+[guest]   / __ \                  / ____|  _ \_   _|
+[guest]  | |  | |_ __   ___ _ __ | (___ | |_) || |
+[guest]  | |  | | '_ \ / _ \ '_ \ \___ \|  _ < | |
+[guest]  | |__| | |_) |  __/ | | |____) | |_) || |_
+[guest]   \____/| .__/ \___|_| |_|_____/|____/_____|
+[guest]         | |
+[guest]         |_|
+[guest] Platform Name               : YSYX NPC RV64
+[guest] Platform Features           : medeleg
+[guest] Platform HART Count         : 1
+[guest] Platform HART Protection    : ---
+[guest] Platform IPI Device         : aclint-mswi
+[guest] Platform Timer Device       : aclint-mtimer @ 10000000Hz
+[guest] Platform Console Device     : uart8250
+[guest] Platform HSM Device         : ---
+[guest] Platform PMU Device         : ---
+[guest] Platform Reboot Device      : ---
+[guest] Platform Shutdown Device    : ---
+[guest] Platform Suspend Device     : ---
+[guest] Platform CPPC Device        : ---
+[guest] Firmware Base               : 0x80000000
+[guest] Firmware Size               : 321 KB
+[guest] Firmware RW Offset          : 0x40000
+[guest] Firmware RW Size            : 65 KB
+[guest] Firmware Heap Offset        : 0x47000
+[guest] Firmware Heap Size          : 37 KB (total), 0 KB (reserved), 10 KB (used), 25 KB (free)
+[guest] Firmware Scratch Size       : 4096 B (total), 408 B (used), 3688 B (free)
+[guest] Runtime SBI Version         : 3.0
+[guest] Standard SBI Extensions     : time,rfnc,ipi,base,hsm,pmu,dbcn,fwft,legacy,sse
+[guest] Experimental SBI Extensions : none
+[guest] Domain0 Name                : root
+[guest] Domain0 Boot HART           : 0
+[guest] Domain0 HARTs               : 0*
+[guest] Domain0 Region00            : 0x0000000080040000-0x000000008005ffff M: (F,R,W) S/U: ()
+[guest] Domain0 Region01            : 0x0000000080000000-0x000000008003ffff M: (F,R,X) S/U: ()
+[guest] Domain0 Region02            : 0x0000000010000000-0x0000000010000fff M: (I,R,W) S/U: (R,W)
+[guest] Domain0 Region03            : 0x0000000002000000-0x000000000200ffff M: (I,R,W) S/U: ()
+[guest] Domain0 Region04            : 0x000000000c000000-0x000000000fffffff M: (I,R,W) S/U: (R,W)
+[guest] Domain0 Region05            : 0x0000000000000000-0xffffffffffffffff M: () S/U: (R,W,X)
+[guest] Domain0 Next Address        : 0x0000000080200000
+[guest] Domain0 Next Arg1           : 0x0000000082200000
+[guest] Domain0 Next Mode           : S-mode
+[guest] Domain0 SysReset            : yes
+[guest] Domain0 SysSuspend          : yes
+[guest] Boot HART ID                : 0
+[guest] Boot HART Domain            : root
+[guest] Boot HART Priv Version      : v1.11
+[guest] Boot HART Base ISA          : rv64imafdc
+[guest] Boot HART ISA Extensions    : zicntr
+[guest] Boot HART PMP Count         : 0
+[guest] Boot HART PMP Granularity   : 0 bits
+[guest] Boot HART PMP Address Bits  : 0
+[guest] Boot HART MHPM Info         : 0 (0x00000000)
+[guest] Boot HART Debug Triggers    : 0 triggers
+[guest] Boot HART MIDELEG           : 0x0000000000000222
+[guest] Boot HART MEDELEG           : 0x000000000004b109
+[guest] [    0.000000] Linux version 6.6.0 (lyg@lygdebug) (riscv64-linux-gnu-gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, GNU ld (GNU Binutils for Ubuntu) 2.42) #19 Mon Jun  8 11:07:33 CST 2026
+[guest] [    0.000000] random: crng init done
+[guest] [    0.000000] Machine model: YSYX NPC RV64
+[guest] [    0.000000] SBI specification v3.0 detected
+[guest] [    0.000000] SBI implementation ID=0x1 Version=0x10008
+[guest] [    0.000000] SBI TIME extension detected
+[guest] [    0.000000] SBI IPI extension detected
+[guest] [    0.000000] SBI RFENCE extension detected
+[guest] [    0.000000] efi: UEFI not found.
+[guest] [    0.000000] OF: reserved mem: 0x0000000080000000..0x000000008003ffff (256 KiB) nomap non-reusable mmode_resv1@80000000
+[guest] [    0.000000] OF: reserved mem: 0x0000000080040000..0x000000008005ffff (128 KiB) nomap non-reusable mmode_resv0@80040000
+[guest] [    0.000000] Zone ranges:
+[guest] [    0.000000]   DMA32    [mem 0x0000000080000000-0x00000000bfffffff]
+[guest] [    0.000000]   Normal   empty
+[guest] [    0.000000] Movable zone start for each node
+[guest] [    0.000000] Early memory node ranges
+[guest] [    0.000000]   node   0: [mem 0x0000000080000000-0x000000008005ffff]
+[guest] [    0.000000]   node   0: [mem 0x0000000080060000-0x00000000bfffffff]
+[guest] [    0.000000] Initmem setup node 0 [mem 0x0000000080000000-0x00000000bfffffff]
+[guest] [    0.000000] riscv: base ISA extensions acdfim
+[guest] [    0.000000] riscv: ELF capabilities acdfim
+[guest] [    0.000000] Kernel command line: console=ttyS0,115200n8 root=/dev/vda rw init=/lib/systemd/systemd
+[guest] [    0.000000] Dentry cache hash table entries: 131072 (order: 8, 1048576 bytes, linear)
+[guest] [    0.000000] Inode-cache hash table entries: 65536 (order: 7, 524288 bytes, linear)
+[guest] [    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: 258048
+[guest] [    0.000000] mem auto-init: stack:off, heap alloc:off, heap free:off
+[guest] [    0.000000] Memory: 997396K/1048576K available (4284K kernel code, 4800K rwdata, 2048K rodata, 2110K init, 349K bss, 51180K reserved, 0K cma-reserved)
+[guest] [    0.000000] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
+[guest] [    0.000000] NR_IRQS: 64, nr_irqs: 64, preallocated irqs: 0
+[guest] [    0.000000] riscv-intc: 64 local interrupts mapped
+[guest] [    0.000000] plic: interrupt-controller@c000000: mapped 32 interrupts with 1 handlers for 2 contexts.
+[guest] [    0.000000] clocksource: riscv_clocksource: mask: 0xffffffffffffffff max_cycles: 0x24e6a1710, max_idle_ns: 440795202120 ns
+[guest] [    0.000007] sched_clock: 64 bits at 10MHz, resolution 100ns, wraps every 4398046511100ns
+[guest] [    0.001160] Calibrating delay loop (skipped), value calculated using timer frequency.. 20.00 BogoMIPS (lpj=40000)
+[guest] [    0.001288] pid_max: default: 32768 minimum: 301
+[guest] [    0.001862] LSM: initializing lsm=capability,integrity
+[guest] [    0.003051] Mount-cache hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[guest] [    0.003289] Mountpoint-cache hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[guest] [    0.015767] RCU Tasks Trace: Setting shift to 0 and lim to 1 rcu_task_cb_adjust=1.
+[guest] [    0.016676] riscv: ELF compat mode unsupported
+[guest] [    0.016848] ASID allocator using 16 bits (65536 entries)
+[guest] [    0.018195] EFI services will not be available.
+[guest] [    0.021094] devtmpfs: initialized
+[guest] [    0.032547] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 7645041785100000 ns
+[guest] [    0.032769] futex hash table entries: 256 (order: 1, 12288 bytes, linear)
+[guest] [    0.036448] NET: Registered PF_NETLINK/PF_ROUTE protocol family
+[guest] [    0.038195] DMA: preallocated 128 KiB GFP_KERNEL pool for atomic allocations
+[guest] [    0.038471] DMA: preallocated 128 KiB GFP_KERNEL|GFP_DMA32 pool for atomic allocations
+[guest] [    0.071583] clocksource: Switched to clocksource riscv_clocksource
+[guest] [    0.086782] NET: Registered PF_INET protocol family
+[guest] [    0.088628] IP idents hash table entries: 16384 (order: 5, 131072 bytes, linear)
+[guest] [    0.111473] tcp_listen_portaddr_hash hash table entries: 512 (order: 2, 16384 bytes, linear)
+[guest] [    0.111947] Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+[guest] [    0.112086] TCP established hash table entries: 8192 (order: 4, 65536 bytes, linear)
+[guest] [    0.113276] TCP bind hash table entries: 8192 (order: 7, 524288 bytes, linear)
+[guest] [    0.121451] TCP: Hash tables configured (established 8192 bind 8192)
+[guest] [    0.122827] UDP hash table entries: 512 (order: 3, 49152 bytes, linear)
+[guest] [    0.123705] UDP-Lite hash table entries: 512 (order: 3, 49152 bytes, linear)
+[guest] [    0.125285] NET: Registered PF_UNIX/PF_LOCAL protocol family
+[guest] [    0.134152] workingset: timestamp_bits=46 max_order=18 bucket_order=0
+[guest] [    0.139693] io scheduler mq-deadline registered
+[guest] [    0.681506] Serial: 8250/16550 driver, 4 ports, IRQ sharing disabled
+[guest] [    0.701934] printk: console [ttyS0] disabled
+[guest] [    0.705091] 10000000.serial: ttyS0 at MMIO 0x10000000 (irq = 2, base_baud = 115200) is a 16550A
+[guest] [    0.705290] printk: console [ttyS0] enabled
+[guest] [    0.769613] loop: module loaded
+[guest] [    0.770146] virtio_blk virtio0: 1/0/0 default/read/poll queues
+[guest] [    0.772357] virtio_blk virtio0: [vda] 4194304 512-byte logical blocks (2.15 GB/2.00 GiB)
+[guest] [    0.786177] NET: Registered PF_PACKET protocol family
+[guest] [    0.786531] Key type dns_resolver registered
+[guest] [    0.927850] clk: Disabling unused clocks
+[guest] [    0.953607] EXT4-fs (vda): recovery complete
+[guest] [    0.953827] EXT4-fs (vda): mounted filesystem 289d9f07-e9e5-4a8a-ac67-2ec671abbf3f r/w with ordered data mode. Quota mode: disabled.
+[guest] [    0.954305] VFS: Mounted root (ext4 filesystem) on device 254:0.
+[guest] [    0.955720] devtmpfs: mounted
+[guest] [    0.976952] Freeing unused kernel image (initmem) memory: 2108K
+[guest] [    0.977332] Run /lib/systemd/systemd as init process
+[guest] [    1.390516] systemd[1]: System time before build time, advancing clock.
+[guest] [    1.480566] systemd[1]: systemd 249.11-0ubuntu3.21 running in system mode (+PAM +AUDIT +SELINUX +APPARMOR +IMA +SMACK +SECCOMP +GCRYPT +GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 -IDN +IPTC +KMOD +LIBCRYPTSETUP +LIBFDISK +PCRE2 -PWQUALITY -P11KIT -QRENCODE +BZIP2 +LZ4 +XZ +ZLIB +ZSTD -XKBCOMMON +UTMP +SYSVINIT default-hierarchy=unified)
+[guest] [    1.482546] systemd[1]: Detected architecture riscv64.
+[guest] Welcome to [1mUbuntu 22.04.5 LTS[0m!
+[guest] [    1.494013] systemd[1]: Hostname set to <ysyx-ubuntu2204>.

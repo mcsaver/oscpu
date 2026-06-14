@@ -1,0 +1,4 @@
+software-flow-contract	software-flow	software-flow	PASS	software-flow agent + profile + memory	软件开发全流程 agent 合约入口存在	.github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-stress-contract/evidence/software-flow-contract.log
+nemu-ubuntu-static	nemu	nemu	PASS	Linux/NEMU Ubuntu rootfs scripts + performance config	NEMU Ubuntu 切片静态生产守门 PASS	.github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-stress-contract/evidence/nemu-ubuntu-static.log
+nemu-ubuntu-slice-contract	nemu	nemu	PASS	recent NEMU Ubuntu device slice hooks and guest markers	近期 NEMU Ubuntu 设备切片合约仍挂入 guest gate	.github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-stress-contract/evidence/nemu-ubuntu-slice-contract.log
+nemu-dev-focused-gate	nemu	nemu	SKIP	optional NEMU-only Ubuntu rootfs/systemd guest gate	AGENT_E2E_NEMU_UBUNTU_GATE=1 时运行 NEMU-only minimized guest gate，否则 SKIP	.github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-stress-contract/evidence/nemu-dev-focused-gate.log

@@ -77,6 +77,8 @@ APT_INSTALL_DIAG=${NEMU_SYSTEMD_APT_INSTALL_DIAG:-0}
 APT_INSTALL_ACTUAL=${NEMU_SYSTEMD_APT_INSTALL_ACTUAL:-0}
 APT_INSTALL_DIAG_TIMEOUT=${NEMU_SYSTEMD_APT_INSTALL_DIAG_TIMEOUT:-300}
 APT_REMOVE_DIAG_TIMEOUT=${NEMU_SYSTEMD_APT_REMOVE_DIAG_TIMEOUT:-600}
+PYTHON_CNF_DIAG_HARD=${NEMU_SYSTEMD_PYTHON_CNF_DIAG_HARD:-1}
+PYTHON_RE_DIAG_LOOPS=${NEMU_SYSTEMD_PYTHON_RE_DIAG_LOOPS:-20}
 POWEROFF_ENABLE=${NEMU_SYSTEMD_POWEROFF:-1}
 POWEROFF_TIMEOUT=${NEMU_SYSTEMD_POWEROFF_TIMEOUT:-180}
 ROOTFS_BYTES=$(stat -c %s "$RUN_ROOTFS" 2>/dev/null || echo 0)
@@ -722,6 +724,8 @@ require_uint "NEMU_SYSTEMD_APT_INSTALL_DIAG" "$APT_INSTALL_DIAG"
 require_uint "NEMU_SYSTEMD_APT_INSTALL_ACTUAL" "$APT_INSTALL_ACTUAL"
 require_uint "NEMU_SYSTEMD_APT_INSTALL_DIAG_TIMEOUT" "$APT_INSTALL_DIAG_TIMEOUT"
 require_uint "NEMU_SYSTEMD_APT_REMOVE_DIAG_TIMEOUT" "$APT_REMOVE_DIAG_TIMEOUT"
+require_uint "NEMU_SYSTEMD_PYTHON_CNF_DIAG_HARD" "$PYTHON_CNF_DIAG_HARD"
+require_uint "NEMU_SYSTEMD_PYTHON_RE_DIAG_LOOPS" "$PYTHON_RE_DIAG_LOOPS"
 require_uint "NEMU_SYSTEMD_SYSCALL_PROBE" "$SYSCALL_PROBE_ENABLE"
 require_uint "NEMU_SYSTEMD_ICMP_PROBE" "$ICMP_PROBE_ENABLE"
 require_uint "NEMU_SYSTEMD_DHCP_PROBE" "$DHCP_PROBE_ENABLE"
@@ -779,6 +783,8 @@ echo "[nemu-systemd-check] apt install diag: $APT_INSTALL_DIAG"
 echo "[nemu-systemd-check] apt install actual: $APT_INSTALL_ACTUAL"
 echo "[nemu-systemd-check] apt install diag timeout: $APT_INSTALL_DIAG_TIMEOUT"
 echo "[nemu-systemd-check] apt remove diag timeout: $APT_REMOVE_DIAG_TIMEOUT"
+echo "[nemu-systemd-check] python/cnf diag hard: $PYTHON_CNF_DIAG_HARD"
+echo "[nemu-systemd-check] python re diag loops: $PYTHON_RE_DIAG_LOOPS"
 echo "[nemu-systemd-check] serial input model: FIFO/stdin bytes -> NEMU SerialPort staging -> 16550 RX FIFO -> Linux ttyS0"
 echo "[nemu-systemd-check] syscall probe: $SYSCALL_PROBE_ENABLE"
 echo "[nemu-systemd-check] ICMP probe: $ICMP_PROBE_ENABLE"
@@ -863,6 +869,8 @@ boot_seconds=$((SECONDS - host_start_seconds))
   printf 'NEMU_GUEST_APT_INSTALL_ACTUAL=%s\n' "$APT_INSTALL_ACTUAL"
   printf 'NEMU_GUEST_APT_INSTALL_DIAG_TIMEOUT=%s\n' "$APT_INSTALL_DIAG_TIMEOUT"
   printf 'NEMU_GUEST_APT_REMOVE_DIAG_TIMEOUT=%s\n' "$APT_REMOVE_DIAG_TIMEOUT"
+  printf 'NEMU_GUEST_PYTHON_CNF_DIAG_HARD=%s\n' "$PYTHON_CNF_DIAG_HARD"
+  printf 'NEMU_GUEST_PYTHON_RE_DIAG_LOOPS=%s\n' "$PYTHON_RE_DIAG_LOOPS"
   printf 'NEMU_GUEST_POWEROFF=%s\n' "$POWEROFF_ENABLE"
   printf 'NEMU_GUEST_VDA_HASH_WINDOW_BYTES=%s\n' "$VDA_HASH_WINDOW_BYTES"
   printf 'NEMU_GUEST_VDA_HASH_EXPECT_FILE=/tmp/nemu-vda-direct-read-sha256.tsv\n'
@@ -994,6 +1002,14 @@ check_full_userland_runtime() {
   for full_path in \
     /usr/bin/apt-get \
     /usr/bin/apt-cache \
+    /usr/bin/gpgv \
+    /bin/journalctl \
+    /bin/systemd-machine-id-setup \
+    /bin/systemd-sysusers \
+    /bin/systemd-tmpfiles \
+    /usr/bin/systemd-cat \
+    /usr/bin/hostnamectl \
+    /lib/systemd/systemd-hostnamed \
     /usr/bin/dpkg \
     /usr/bin/dpkg-query \
     /usr/bin/sudo \
@@ -1001,6 +1017,7 @@ check_full_userland_runtime() {
     /usr/bin/locale \
     /usr/bin/curl \
     /usr/bin/wget \
+    /usr/bin/logger \
     /usr/bin/ssh \
     /usr/bin/ssh-keygen \
     /usr/bin/dbclient \
@@ -1026,6 +1043,27 @@ check_full_userland_runtime() {
     full_userland_fail full-userland-apt-version
   fi
 
+  gpgv_version="$(gpgv --version 2>/dev/null | sed -n '1p' || true)"
+  echo "__NEMU_CHECK_FULL_GPGV_VERSION__:$gpgv_version"
+  if echo "$gpgv_version" | grep -Eq '^gpgv '; then
+    pass full-userland-gpgv-version
+  else
+    full_userland_fail full-userland-gpgv-version
+  fi
+
+  ubuntu_archive_keyring=/usr/share/keyrings/ubuntu-archive-keyring.gpg
+  ubuntu_archive_keyring_sha256=
+  if [ -r "$ubuntu_archive_keyring" ]; then
+    ubuntu_archive_keyring_sha256="$(sha256sum "$ubuntu_archive_keyring" | awk '{print $1}')"
+  fi
+  echo "__NEMU_CHECK_FULL_APT_KEYRING__:$ubuntu_archive_keyring"
+  echo "__NEMU_CHECK_FULL_APT_KEYRING_SHA256__:$ubuntu_archive_keyring_sha256"
+  if [ "$ubuntu_archive_keyring_sha256" = "1a4dd63e5c76728960a2edddae22e2e0fc53df8e8b87806deb971030ac704eb0" ]; then
+    pass full-userland-apt-archive-keyring
+  else
+    full_userland_fail full-userland-apt-archive-keyring
+  fi
+
   dpkg_audit_rc=0
   dpkg_audit_output="$(dpkg --audit 2>&1)" || dpkg_audit_rc=$?
   echo "__NEMU_CHECK_FULL_DPKG_AUDIT_RC__:$dpkg_audit_rc"
@@ -1038,7 +1076,7 @@ check_full_userland_runtime() {
     full_userland_fail full-userland-dpkg-audit
   fi
 
-  for full_package in ubuntu-standard openssh-server curl wget dropbear-bin rsyslog cron systemd-timesyncd; do
+  for full_package in systemd ubuntu-standard openssh-server curl wget dropbear-bin rsyslog cron systemd-timesyncd gpgv ubuntu-keyring; do
     dpkg_query_rc=0
     dpkg_query_output="$(dpkg-query -W -f='${db:Status-Abbrev} ${binary:Package} ${Version}\n' "$full_package" 2>&1)" ||
       dpkg_query_rc=$?
@@ -1058,7 +1096,18 @@ check_full_userland_runtime() {
     "dropbear-bin:/usr/bin/dbclient" \
     "dropbear-bin:/usr/sbin/dropbear" \
     "rsyslog:/usr/sbin/rsyslogd" \
-    "cron:/usr/sbin/cron"; do
+    "cron:/usr/sbin/cron" \
+    "systemd:/bin/journalctl" \
+    "systemd:/bin/systemd-machine-id-setup" \
+    "systemd:/bin/systemd-sysusers" \
+    "systemd:/bin/systemd-tmpfiles" \
+    "systemd:/usr/bin/systemd-cat" \
+    "systemd:/usr/bin/hostnamectl" \
+    "systemd:/lib/systemd/systemd-hostnamed" \
+    "systemd:/lib/systemd/system/systemd-machine-id-commit.service" \
+    "systemd:/lib/systemd/system/systemd-hostnamed.service" \
+    "gpgv:/usr/bin/gpgv" \
+    "ubuntu-keyring:/usr/share/keyrings/ubuntu-archive-keyring.gpg"; do
     ownership_package=${ownership%%:*}
     ownership_path=${ownership#*:}
     ownership_label="${ownership_package}-${ownership_path##*/}"
@@ -1086,7 +1135,7 @@ check_full_userland_runtime() {
   done
 
   apt_policy_rc=0
-  apt_policy_output="$(apt-cache policy ubuntu-standard openssh-server curl wget dropbear-bin 2>&1)" ||
+  apt_policy_output="$(apt-cache policy ubuntu-standard openssh-server curl wget dropbear-bin gpgv ubuntu-keyring 2>&1)" ||
     apt_policy_rc=$?
   echo "__NEMU_CHECK_FULL_APT_POLICY_RC__:$apt_policy_rc"
   echo "__NEMU_CHECK_FULL_APT_POLICY_BEGIN__"
@@ -1151,6 +1200,231 @@ check_full_userland_runtime() {
     pass full-userland-timedatectl-version
   else
     full_userland_fail full-userland-timedatectl-version
+  fi
+
+  machine_id_setup_version="$(/bin/systemd-machine-id-setup --version 2>/dev/null | sed -n '1p' || true)"
+  echo "__NEMU_CHECK_FULL_MACHINE_ID_SETUP_VERSION__:$machine_id_setup_version"
+  if echo "$machine_id_setup_version" | grep -Eq '^systemd [0-9]+'; then
+    pass full-userland-machine-id-setup-version
+  else
+    full_userland_fail full-userland-machine-id-setup-version
+  fi
+  machine_id_value="$(cat /etc/machine-id 2>/dev/null | tr -d '\n' || true)"
+  machine_id_size=0
+  if [ -r /etc/machine-id ]; then
+    machine_id_size="$(wc -c < /etc/machine-id 2>/dev/null | tr -d ' ' || true)"
+  fi
+  machine_id_commit_state="$(systemctl show -p ActiveState -p Result systemd-machine-id-commit.service 2>/dev/null | tr '\n' ' ' || true)"
+  echo "__NEMU_CHECK_FULL_MACHINE_ID__:$machine_id_value"
+  echo "__NEMU_CHECK_FULL_MACHINE_ID_SIZE__:$machine_id_size"
+  echo "__NEMU_CHECK_FULL_MACHINE_ID_COMMIT_STATE__:$machine_id_commit_state"
+  if [ "$machine_id_size" = "33" ] &&
+     echo "$machine_id_value" | grep -Eq '^[0-9a-f]{32}$' &&
+     systemctl cat systemd-machine-id-commit.service >/dev/null 2>&1; then
+    pass full-userland-machine-id-committed
+  else
+    full_userland_fail full-userland-machine-id-committed
+  fi
+
+  hostnamed_unit_state="$(systemctl show -p ActiveState -p Result systemd-hostnamed.service 2>/dev/null | tr '\n' ' ' || true)"
+  hostnamed_start_log=/tmp/nemu-full-hostnamed-start.log
+  hostnamed_start_rc=0
+  if systemctl cat systemd-hostnamed.service >/dev/null 2>&1 &&
+     systemctl start systemd-hostnamed.service >"$hostnamed_start_log" 2>&1; then
+    :
+  else
+    hostnamed_start_rc=$?
+  fi
+  hostnamed_unit_state_after="$(systemctl show -p ActiveState -p Result systemd-hostnamed.service 2>/dev/null | tr '\n' ' ' || true)"
+  echo "__NEMU_CHECK_FULL_HOSTNAMED_UNIT_STATE__:$hostnamed_unit_state"
+  echo "__NEMU_CHECK_FULL_HOSTNAMED_START_RC__:$hostnamed_start_rc"
+  echo "__NEMU_CHECK_FULL_HOSTNAMED_UNIT_STATE_AFTER__:$hostnamed_unit_state_after"
+  echo "__NEMU_CHECK_FULL_HOSTNAMED_START_LOG_BEGIN__"
+  sed -n '1,80p' "$hostnamed_start_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_HOSTNAMED_START_LOG_END__"
+  if [ "$hostnamed_start_rc" = "0" ]; then
+    pass full-userland-hostnamed-active
+  else
+    full_userland_fail full-userland-hostnamed-active
+  fi
+
+  hostnamectl_stdout=/tmp/nemu-full-hostnamectl.out
+  hostnamectl_stderr=/tmp/nemu-full-hostnamectl.err
+  hostnamectl_rc=0
+  /usr/bin/hostnamectl status >"$hostnamectl_stdout" 2>"$hostnamectl_stderr" ||
+    hostnamectl_rc=$?
+  hostnamectl_status="$(cat "$hostnamectl_stdout" 2>/dev/null || true)"
+  hostnamectl_error="$(cat "$hostnamectl_stderr" 2>/dev/null || true)"
+  hostnamectl_hostname="$(printf '%s\n' "$hostnamectl_status" | sed -n 's/^[[:space:]]*Static hostname:[[:space:]]*//p' | sed -n '1p')"
+  echo "__NEMU_CHECK_FULL_HOSTNAMECTL_RC__:$hostnamectl_rc"
+  echo "__NEMU_CHECK_FULL_HOSTNAMECTL_STATUS_BEGIN__"
+  printf '%s\n' "$hostnamectl_status" | sed -n '1,40p'
+  echo "__NEMU_CHECK_FULL_HOSTNAMECTL_STATUS_END__"
+  echo "__NEMU_CHECK_FULL_HOSTNAMECTL_ERROR_BEGIN__"
+  printf '%s\n' "$hostnamectl_error" | sed -n '1,80p'
+  echo "__NEMU_CHECK_FULL_HOSTNAMECTL_ERROR_END__"
+  echo "__NEMU_CHECK_FULL_HOSTNAMECTL_HOSTNAME__:$hostnamectl_hostname"
+  if [ "$hostnamectl_rc" = "0" ] && [ "$hostnamectl_hostname" = "ysyx-ubuntu2204" ]; then
+    pass full-userland-hostnamectl-status
+  else
+    full_userland_fail full-userland-hostnamectl-status
+  fi
+
+  sysusers_version="$(/bin/systemd-sysusers --version 2>/dev/null | sed -n '1p' || true)"
+  echo "__NEMU_CHECK_FULL_SYSUSERS_VERSION__:$sysusers_version"
+  if echo "$sysusers_version" | grep -Eq '^systemd [0-9]+'; then
+    pass full-userland-sysusers-version
+  else
+    full_userland_fail full-userland-sysusers-version
+  fi
+  sysusers_setup_state="$(systemctl show -p ActiveState -p Result systemd-sysusers.service 2>/dev/null | tr '\n' ' ' || true)"
+  echo "__NEMU_CHECK_FULL_SYSUSERS_SETUP_STATE__:$sysusers_setup_state"
+  if systemctl cat systemd-sysusers.service >/dev/null 2>&1; then
+    pass full-userland-sysusers-unit
+  else
+    full_userland_fail full-userland-sysusers-unit
+  fi
+  sysusers_conf=/etc/sysusers.d/nemu-full-sysusers-check.conf
+  sysusers_log=/tmp/nemu-full-sysusers.log
+  sysusers_user=nemufullsysusers
+  sysusers_group=nemufullsysusers
+  sysusers_uid=611
+  sysusers_gid=611
+  mkdir -p /etc/sysusers.d
+  cat >"$sysusers_conf" <<EOF
+g $sysusers_group $sysusers_gid -
+u $sysusers_user $sysusers_uid:$sysusers_gid "NEMU Full Sysusers" /nonexistent /usr/sbin/nologin
+EOF
+  echo "__NEMU_CHECK_FULL_SYSUSERS_CONF__:$sysusers_conf:$sysusers_user:$sysusers_uid:$sysusers_group:$sysusers_gid"
+  sysusers_create_rc=0
+  /bin/systemd-sysusers "$sysusers_conf" >"$sysusers_log" 2>&1 ||
+    sysusers_create_rc=$?
+  sysusers_passwd_line="$(grep "^$sysusers_user:" /etc/passwd 2>/dev/null || true)"
+  sysusers_group_line="$(grep "^$sysusers_group:" /etc/group 2>/dev/null || true)"
+  echo "__NEMU_CHECK_FULL_SYSUSERS_CREATE_RC__:$sysusers_create_rc"
+  echo "__NEMU_CHECK_FULL_SYSUSERS_PASSWD__:$sysusers_passwd_line"
+  echo "__NEMU_CHECK_FULL_SYSUSERS_GROUP__:$sysusers_group_line"
+  echo "__NEMU_CHECK_FULL_SYSUSERS_LOG_BEGIN__"
+  sed -n '1,80p' "$sysusers_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_SYSUSERS_LOG_END__"
+  if [ "$sysusers_create_rc" = "0" ] &&
+     [ "$sysusers_passwd_line" = "$sysusers_user:x:$sysusers_uid:$sysusers_gid:NEMU Full Sysusers:/nonexistent:/usr/sbin/nologin" ] &&
+     [ "$sysusers_group_line" = "$sysusers_group:x:$sysusers_gid:" ]; then
+    pass full-userland-sysusers-create
+  else
+    full_userland_fail full-userland-sysusers-create
+  fi
+
+  tmpfiles_version="$(/bin/systemd-tmpfiles --version 2>/dev/null | sed -n '1p' || true)"
+  echo "__NEMU_CHECK_FULL_TMPFILES_VERSION__:$tmpfiles_version"
+  if echo "$tmpfiles_version" | grep -Eq '^systemd [0-9]+'; then
+    pass full-userland-tmpfiles-version
+  else
+    full_userland_fail full-userland-tmpfiles-version
+  fi
+  tmpfiles_setup_state="$(systemctl show -p ActiveState -p Result systemd-tmpfiles-setup.service 2>/dev/null | tr '\n' ' ' || true)"
+  echo "__NEMU_CHECK_FULL_TMPFILES_SETUP_STATE__:$tmpfiles_setup_state"
+  if systemctl cat systemd-tmpfiles-setup.service >/dev/null 2>&1; then
+    pass full-userland-tmpfiles-unit
+  else
+    full_userland_fail full-userland-tmpfiles-unit
+  fi
+  tmpfiles_conf=/etc/tmpfiles.d/nemu-full-tmpfiles-check.conf
+  tmpfiles_dir=/run/nemu-full-tmpfiles
+  tmpfiles_file="$tmpfiles_dir/probe"
+  tmpfiles_log=/tmp/nemu-full-tmpfiles.log
+  rm -rf "$tmpfiles_dir"
+  cat >"$tmpfiles_conf" <<EOF
+d $tmpfiles_dir 0755 root root -
+f $tmpfiles_file 0644 root root -
+w $tmpfiles_file - - - - nemu-full-tmpfiles-ok
+EOF
+  echo "__NEMU_CHECK_FULL_TMPFILES_CONF__:$tmpfiles_conf:$tmpfiles_dir:$tmpfiles_file"
+  tmpfiles_create_rc=0
+  /bin/systemd-tmpfiles --create "$tmpfiles_conf" >"$tmpfiles_log" 2>&1 ||
+    tmpfiles_create_rc=$?
+  tmpfiles_file_value="$(cat "$tmpfiles_file" 2>/dev/null || true)"
+  tmpfiles_dir_mode="$(stat -c '%a:%U:%G' "$tmpfiles_dir" 2>/dev/null || true)"
+  tmpfiles_file_mode="$(stat -c '%a:%U:%G' "$tmpfiles_file" 2>/dev/null || true)"
+  echo "__NEMU_CHECK_FULL_TMPFILES_CREATE_RC__:$tmpfiles_create_rc"
+  echo "__NEMU_CHECK_FULL_TMPFILES_DIR__:$tmpfiles_dir_mode:$tmpfiles_dir"
+  echo "__NEMU_CHECK_FULL_TMPFILES_FILE__:$tmpfiles_file_mode:$tmpfiles_file:$tmpfiles_file_value"
+  echo "__NEMU_CHECK_FULL_TMPFILES_LOG_BEGIN__"
+  sed -n '1,80p' "$tmpfiles_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_TMPFILES_LOG_END__"
+  if [ "$tmpfiles_create_rc" = "0" ] &&
+     [ "$tmpfiles_dir_mode" = "755:root:root" ] &&
+     [ "$tmpfiles_file_mode" = "644:root:root" ] &&
+     [ "$tmpfiles_file_value" = "nemu-full-tmpfiles-ok" ]; then
+    pass full-userland-tmpfiles-create
+  else
+    full_userland_fail full-userland-tmpfiles-create
+  fi
+
+  journald_state="$(systemctl is-active systemd-journald.service 2>/dev/null || true)"
+  echo "__NEMU_CHECK_FULL_JOURNALD_ACTIVE__:$journald_state"
+  if [ "$journald_state" = "active" ]; then
+    pass full-userland-journald-active
+  else
+    systemctl status --no-pager systemd-journald.service 2>/dev/null || true
+    full_userland_fail full-userland-journald-active
+  fi
+
+  echo "__NEMU_CHECK_FULL_JOURNAL_DIR_BEGIN__"
+  ls -ld \
+    /run/systemd/journal \
+    /run/systemd/journal/stdout \
+    /run/systemd/journal/socket \
+    /run/systemd/journal/dev-log \
+    2>&1 || true
+  echo "__NEMU_CHECK_FULL_JOURNAL_DIR_END__"
+  journal_probe_tag=nemu-full-journal
+  journal_probe_msg="nemu-full-journal-ok-$(date +%s)"
+  journal_cat_log=/tmp/nemu-full-systemd-cat.log
+  journal_cat_rc=0
+  systemd-cat -t "$journal_probe_tag" -p info \
+    /bin/sh -c 'printf "%s\n" "$1"' nemu-full-journal-probe "$journal_probe_msg" \
+    >"$journal_cat_log" 2>&1 ||
+    journal_cat_rc=$?
+  echo "__NEMU_CHECK_FULL_JOURNAL_CAT_RC__:$journal_cat_rc"
+  echo "__NEMU_CHECK_FULL_JOURNAL_CAT_LOG_BEGIN__"
+  sed -n '1,80p' "$journal_cat_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_JOURNAL_CAT_LOG_END__"
+  if [ "$journal_cat_rc" = "0" ]; then
+    pass full-userland-systemd-cat
+  else
+    full_userland_fail full-userland-systemd-cat
+  fi
+
+  journal_sync_rc=0
+  journalctl --sync >/dev/null 2>&1 || journal_sync_rc=$?
+  echo "__NEMU_CHECK_FULL_JOURNALCTL_SYNC_RC__:$journal_sync_rc"
+  journalctl_rc=0
+  journalctl_output=
+  journal_probe_i=0
+  while [ "$journal_probe_i" -lt 20 ]; do
+    journalctl_rc=0
+    journalctl_output="$(journalctl -t "$journal_probe_tag" --no-pager -n 20 2>&1)" ||
+      journalctl_rc=$?
+    if [ "$journalctl_rc" = "0" ] &&
+       printf '%s\n' "$journalctl_output" | grep -Fq "$journal_probe_msg"; then
+      break
+    fi
+    sleep 1
+    journal_probe_i=$((journal_probe_i + 1))
+  done
+  echo "__NEMU_CHECK_FULL_JOURNALCTL_RC__:$journalctl_rc"
+  echo "__NEMU_CHECK_FULL_JOURNALCTL_TAG__:$journal_probe_tag"
+  echo "__NEMU_CHECK_FULL_JOURNALCTL_EXPECT__:$journal_probe_msg"
+  echo "__NEMU_CHECK_FULL_JOURNALCTL_OUTPUT_BEGIN__"
+  printf '%s\n' "$journalctl_output" | sed -n '1,80p'
+  echo "__NEMU_CHECK_FULL_JOURNALCTL_OUTPUT_END__"
+  if [ "$journalctl_rc" = "0" ] &&
+     printf '%s\n' "$journalctl_output" | grep -Fq "$journal_probe_msg"; then
+    pass full-userland-journalctl-query
+  else
+    systemctl status --no-pager systemd-journald.service 2>/dev/null || true
+    full_userland_fail full-userland-journalctl-query
   fi
 
   mkdir -p /run/sshd
@@ -1419,7 +1693,55 @@ check_full_userland_runtime() {
     systemctl status --no-pager cron.service 2>/dev/null || true
     full_userland_fail full-userland-cron-active
   fi
+  cron_probe_job=/etc/cron.d/nemu-full-cron-check
+  cron_probe_file=/run/nemu-full-cron.out
+  rm -f "$cron_probe_file"
+  cat >"$cron_probe_job" <<'EOF'
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+* * * * * root printf 'nemu-full-cron-ok\n' > /run/nemu-full-cron.out
+EOF
+  chmod 0644 "$cron_probe_job"
+  cron_probe_i=0
+  cron_probe_ok=0
+  while [ "$cron_probe_i" -lt 50 ]; do
+    if [ "$(cat "$cron_probe_file" 2>/dev/null || true)" = "nemu-full-cron-ok" ]; then
+      cron_probe_ok=1
+      break
+    fi
+    sleep 2
+    cron_probe_i=$((cron_probe_i + 1))
+  done
+  echo "__NEMU_CHECK_FULL_CRON_EXEC_FILE__:$cron_probe_ok:$cron_probe_file"
+  if [ "$cron_probe_ok" = "1" ]; then
+    pass full-userland-cron-exec
+  else
+    echo "__NEMU_CHECK_FULL_CRON_STATUS_BEGIN__"
+    systemctl status --no-pager cron.service 2>/dev/null || true
+    journalctl -u cron.service --no-pager -n 80 2>/dev/null | sed -n '1,80p' || true
+    tail -80 /var/log/syslog 2>/dev/null || true
+    echo "__NEMU_CHECK_FULL_CRON_STATUS_END__"
+    full_userland_fail full-userland-cron-exec
+  fi
+  rm -f "$cron_probe_job"
 
+  rsyslog_probe_tag=nemu-full-rsyslog
+  rsyslog_probe_file=/var/log/nemu-full-rsyslog.log
+  rsyslog_probe_conf=/etc/rsyslog.d/99-nemu-full-rsyslog-check.conf
+  rm -f "$rsyslog_probe_file"
+  mkdir -p /etc/rsyslog.d
+  : >"$rsyslog_probe_file"
+  if getent group adm >/dev/null 2>&1; then
+    chown syslog:adm "$rsyslog_probe_file" 2>/dev/null || true
+  else
+    chown syslog:syslog "$rsyslog_probe_file" 2>/dev/null || true
+  fi
+  chmod 0640 "$rsyslog_probe_file" 2>/dev/null || true
+  {
+    printf "if \$programname == '%s' then %s\n" "$rsyslog_probe_tag" "$rsyslog_probe_file"
+    printf '& stop\n'
+  } >"$rsyslog_probe_conf"
+  echo "__NEMU_CHECK_FULL_RSYSLOG_PROBE_CONF__:$rsyslog_probe_conf:$rsyslog_probe_file"
   rsyslog_rc=0
   rsyslog_check="$(/usr/sbin/rsyslogd -N1 2>&1)" || rsyslog_rc=$?
   echo "__NEMU_CHECK_FULL_RSYSLOG_CONFIG_BEGIN__"
@@ -1436,13 +1758,42 @@ check_full_userland_runtime() {
     full_userland_fail full-userland-rsyslog-unit
   fi
   systemctl start syslog.socket >/dev/null 2>&1 || true
-  if systemctl start rsyslog.service >/dev/null 2>&1 &&
+  if systemctl restart rsyslog.service >/dev/null 2>&1 &&
      systemctl --quiet is-active rsyslog.service; then
     pass full-userland-rsyslog-active
   else
     systemctl status --no-pager syslog.socket 2>/dev/null || true
     systemctl status --no-pager rsyslog.service 2>/dev/null || true
     full_userland_fail full-userland-rsyslog-active
+  fi
+  rsyslog_probe_msg="nemu-full-rsyslog-ok-$(date +%s)"
+  rsyslog_probe_rc=0
+  logger -p user.notice -t "$rsyslog_probe_tag" "$rsyslog_probe_msg" ||
+    rsyslog_probe_rc=$?
+  rsyslog_probe_i=0
+  rsyslog_probe_log=
+  while [ "$rsyslog_probe_i" -lt 30 ]; do
+    if grep -Fq "$rsyslog_probe_msg" "$rsyslog_probe_file" 2>/dev/null; then
+      rsyslog_probe_log=$rsyslog_probe_file
+      break
+    fi
+    sleep 1
+    rsyslog_probe_i=$((rsyslog_probe_i + 1))
+  done
+  echo "__NEMU_CHECK_FULL_RSYSLOG_LOGGER_RC__:$rsyslog_probe_rc"
+  echo "__NEMU_CHECK_FULL_RSYSLOG_LOGGER_FILE__:$rsyslog_probe_log"
+  if [ "$rsyslog_probe_rc" = "0" ] && [ -n "$rsyslog_probe_log" ]; then
+    pass full-userland-rsyslog-logger
+  else
+    echo "__NEMU_CHECK_FULL_RSYSLOG_LOGGER_LOG_BEGIN__"
+    cat "$rsyslog_probe_conf" 2>/dev/null || true
+    tail -80 "$rsyslog_probe_file" 2>/dev/null || true
+    systemctl status --no-pager syslog.socket 2>/dev/null || true
+    systemctl status --no-pager rsyslog.service 2>/dev/null || true
+    tail -80 /var/log/syslog /var/log/messages 2>/dev/null || true
+    journalctl -t "$rsyslog_probe_tag" --no-pager -n 40 2>/dev/null | sed -n '1,40p' || true
+    echo "__NEMU_CHECK_FULL_RSYSLOG_LOGGER_LOG_END__"
+    full_userland_fail full-userland-rsyslog-logger
   fi
 
   if systemctl cat systemd-timesyncd.service >/dev/null 2>&1; then
@@ -1457,6 +1808,98 @@ check_full_userland_runtime() {
     systemctl status --no-pager systemd-timesyncd.service 2>/dev/null || true
     full_userland_fail full-userland-timesyncd-active
   fi
+
+  enable_unit_name=nemu-full-enable-check.service
+  enable_unit_path=/etc/systemd/system/$enable_unit_name
+  enable_unit_output=/run/nemu-full-enable-check.out
+  enable_unit_wants=/etc/systemd/system/multi-user.target.wants/$enable_unit_name
+  enable_unit_log=/tmp/nemu-full-systemctl-enable.log
+  rm -f "$enable_unit_output" "$enable_unit_log"
+  systemctl disable --now "$enable_unit_name" >/dev/null 2>&1 || true
+  systemctl reset-failed "$enable_unit_name" >/dev/null 2>&1 || true
+  rm -f "$enable_unit_wants" "$enable_unit_path"
+  mkdir -p /etc/systemd/system /etc/systemd/system/multi-user.target.wants
+  cat >"$enable_unit_path" <<'UNIT'
+[Unit]
+Description=NEMU full Ubuntu systemctl enable smoke
+After=basic.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'printf systemctl-enable-ok > /run/nemu-full-enable-check.out'
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+  echo "__NEMU_CHECK_FULL_SYSTEMCTL_ENABLE_UNIT__:$enable_unit_path:$enable_unit_wants"
+  if systemd_daemon_reload_request "$enable_unit_name" enable-check; then
+    pass full-userland-systemctl-enable-daemon-reload
+  else
+    full_userland_fail full-userland-systemctl-enable-daemon-reload
+  fi
+  systemctl_enable_rc=0
+  echo "__NEMU_CHECK_FULL_SYSTEMCTL_ENABLE_ROOT__:/"
+  systemctl --root=/ enable "$enable_unit_name" >"$enable_unit_log" 2>&1 ||
+    systemctl_enable_rc=$?
+  systemctl_enabled_state="$(systemctl --root=/ is-enabled "$enable_unit_name" 2>/dev/null || true)"
+  systemctl_enabled_link="$(readlink "$enable_unit_wants" 2>/dev/null || true)"
+  systemctl_enabled_link_target="$(readlink -f "$enable_unit_wants" 2>/dev/null || true)"
+  echo "__NEMU_CHECK_FULL_SYSTEMCTL_ENABLE_RC__:$systemctl_enable_rc"
+  echo "__NEMU_CHECK_FULL_SYSTEMCTL_ENABLE_STATE__:$systemctl_enabled_state"
+  echo "__NEMU_CHECK_FULL_SYSTEMCTL_ENABLE_LINK__:$systemctl_enabled_link"
+  echo "__NEMU_CHECK_FULL_SYSTEMCTL_ENABLE_LINK_TARGET__:$systemctl_enabled_link_target"
+  echo "__NEMU_CHECK_FULL_SYSTEMCTL_ENABLE_LOG_BEGIN__"
+  sed -n '1,80p' "$enable_unit_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_SYSTEMCTL_ENABLE_LOG_END__"
+  if [ "$systemctl_enable_rc" = "0" ] &&
+     [ "$systemctl_enabled_state" = "enabled" ]; then
+    pass full-userland-systemctl-enable
+  else
+    full_userland_fail full-userland-systemctl-enable
+  fi
+  if [ -L "$enable_unit_wants" ] &&
+     [ "$systemctl_enabled_link_target" = "$enable_unit_path" ]; then
+    pass full-userland-systemctl-enable-wants-link
+  else
+    full_userland_fail full-userland-systemctl-enable-wants-link
+  fi
+  systemctl_start_rc=0
+  systemd_start_runtime_unit_after_reload "$enable_unit_name" "$enable_unit_output" \
+    >>"$enable_unit_log" 2>&1 || systemctl_start_rc=$?
+  enable_unit_value="$(cat "$enable_unit_output" 2>/dev/null || true)"
+  enable_unit_active="$(systemctl show --property=ActiveState --value "$enable_unit_name" 2>/dev/null || true)"
+  enable_unit_result="$(systemctl show --property=Result --value "$enable_unit_name" 2>/dev/null || true)"
+  echo "__NEMU_CHECK_FULL_SYSTEMCTL_ENABLE_START_RC__:$systemctl_start_rc"
+  echo "__NEMU_CHECK_FULL_SYSTEMCTL_ENABLE_OUTPUT__:$enable_unit_value"
+  echo "__NEMU_CHECK_FULL_SYSTEMCTL_ENABLE_ACTIVE__:$enable_unit_active"
+  echo "__NEMU_CHECK_FULL_SYSTEMCTL_ENABLE_RESULT__:$enable_unit_result"
+  if [ "$systemctl_start_rc" = "0" ] &&
+     [ "$enable_unit_value" = "systemctl-enable-ok" ] &&
+     [ "$enable_unit_active" = "active" ] &&
+     [ "$enable_unit_result" = "success" ]; then
+    pass full-userland-systemctl-enable-start
+  else
+    systemctl status "$enable_unit_name" --no-pager 2>/dev/null || true
+    full_userland_fail full-userland-systemctl-enable-start
+  fi
+  systemctl_disable_rc=0
+  systemctl --root=/ disable "$enable_unit_name" >>"$enable_unit_log" 2>&1 ||
+    systemctl_disable_rc=$?
+  systemctl_disabled_state="$(systemctl is-enabled "$enable_unit_name" 2>/dev/null || true)"
+  echo "__NEMU_CHECK_FULL_SYSTEMCTL_DISABLE_RC__:$systemctl_disable_rc"
+  echo "__NEMU_CHECK_FULL_SYSTEMCTL_DISABLE_STATE__:$systemctl_disabled_state"
+  if [ "$systemctl_disable_rc" = "0" ] &&
+     [ ! -e "$enable_unit_wants" ] &&
+     [ "$systemctl_disabled_state" = "disabled" ]; then
+    pass full-userland-systemctl-disable
+  else
+    full_userland_fail full-userland-systemctl-disable
+  fi
+  systemctl stop "$enable_unit_name" >/dev/null 2>&1 || true
+  systemctl reset-failed "$enable_unit_name" >/dev/null 2>&1 || true
+  rm -f "$enable_unit_path" "$enable_unit_wants" "$enable_unit_output"
+  systemd_daemon_reload_request "$enable_unit_name" cleanup >/dev/null 2>&1 || true
 
   if [ "$full_userland_ok" = "1" ]; then
     pass full-userland-runtime
@@ -1489,9 +1932,11 @@ check_full_userland_apt_install_diag() {
   apt_direct_full_log="$apt_diag_dir/full-status-simulate.log"
   apt_direct_full_rc=0
   DEBIAN_FRONTEND=noninteractive timeout "${apt_diag_timeout}s" \
-    apt-get -s install -y --no-install-recommends nemu-hostless-meta:riscv64 \
+    apt-get -s install -y --no-install-recommends \
+      nemu-hostless-hello:riscv64=1.0 nemu-hostless-meta:riscv64=1.0 \
       -o "Dir::Etc::sourcelist=$apt_diag_source" \
       -o "Dir::Etc::sourceparts=-" \
+      -o "Dir::Etc::parts=-" \
       -o "Dir::State::lists=$apt_diag_root/lists" \
       -o "Dir::Cache::archives=$apt_diag_archives" \
       -o "APT::Architecture=riscv64" \
@@ -1517,9 +1962,11 @@ check_full_userland_apt_install_diag() {
   apt_direct_empty_sim_log="$apt_diag_dir/empty-status-simulate.log"
   apt_direct_empty_sim_rc=0
   DEBIAN_FRONTEND=noninteractive timeout "${apt_diag_timeout}s" \
-    apt-get -s install -y --no-install-recommends nemu-hostless-meta:riscv64 \
+    apt-get -s install -y --no-install-recommends \
+      nemu-hostless-hello:riscv64=1.0 nemu-hostless-meta:riscv64=1.0 \
       -o "Dir::Etc::sourcelist=$apt_diag_source" \
       -o "Dir::Etc::sourceparts=-" \
+      -o "Dir::Etc::parts=-" \
       -o "Dir::State::lists=$apt_diag_root/lists" \
       -o "Dir::State::status=$apt_diag_empty_sim_status" \
       -o "Dir::Cache::archives=$apt_diag_archives" \
@@ -1542,17 +1989,20 @@ check_full_userland_apt_install_diag() {
   fi
 
   rm -f "$apt_diag_archives"/nemu-hostless-hello_1.0_riscv64.deb \
-    "$apt_diag_archives"/nemu-hostless-meta_1.0_riscv64.deb
+    "$apt_diag_archives"/nemu-hostless-meta_1.0_riscv64.deb \
+    "$apt_diag_archives"/nemu-hostless-hello_1.1_riscv64.deb \
+    "$apt_diag_archives"/nemu-hostless-meta_1.1_riscv64.deb
   apt_direct_download_log="$apt_diag_dir/empty-status-download-only.log"
   apt_direct_download_rc=0
   apt_direct_download_sha256=
   apt_direct_download_meta_sha256=
-  apt_direct_download_targets="nemu-hostless-hello:riscv64 nemu-hostless-meta:riscv64"
+  apt_direct_download_targets="nemu-hostless-hello:riscv64=1.0 nemu-hostless-meta:riscv64=1.0"
   DEBIAN_FRONTEND=noninteractive timeout "${apt_diag_timeout}s" \
     apt-get --download-only install -y --no-install-recommends \
-      nemu-hostless-hello:riscv64 nemu-hostless-meta:riscv64 \
+      nemu-hostless-hello:riscv64=1.0 nemu-hostless-meta:riscv64=1.0 \
       -o "Dir::Etc::sourcelist=$apt_diag_source" \
       -o "Dir::Etc::sourceparts=-" \
+      -o "Dir::Etc::parts=-" \
       -o "Dir::State::lists=$apt_diag_root/lists" \
       -o "Dir::State::status=$apt_diag_empty_download_status" \
       -o "Dir::Cache::archives=$apt_diag_archives" \
@@ -1580,8 +2030,8 @@ check_full_userland_apt_install_diag() {
   sed -n '1,160p' "$apt_direct_download_log" 2>/dev/null || true
   echo "__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_LOG_END__"
   if [ "$apt_direct_download_rc" = "0" ] &&
-     [ "$apt_direct_download_sha256" = "073216e022c5d7f98d7d07279921a2576920784a0895d870c5f962cb07647187" ] &&
-     [ "$apt_direct_download_meta_sha256" = "b40a91a80a056423051d440ef614d76d36666f88b29ed8a2a86aa76716e3d0e5" ]; then
+     [ "$apt_direct_download_sha256" = "49f963a8d5e812279f07b29e9e6df366ccabd08c4c3402f6a89724f20811cbe7" ] &&
+     [ "$apt_direct_download_meta_sha256" = "045eea5e02492c3ea2b05729b8feef54f51044d24f5b752012335b4d82de2d67" ]; then
     pass full-userland-apt-direct-empty-status-download
   else
     fail full-userland-apt-direct-empty-status-download
@@ -1625,12 +2075,14 @@ check_full_userland_apt_install_diag() {
   apt_direct_install_rc=0
   rm -f "$apt_direct_install_log"
   echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_START__"
-  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_TARGET__:nemu-hostless-meta"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_TARGET__:nemu-hostless-hello=1.0 nemu-hostless-meta=1.0"
   echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_APT_STATE__:empty-status-real-dpkg"
   (
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends nemu-hostless-meta:riscv64 \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      nemu-hostless-hello:riscv64=1.0 nemu-hostless-meta:riscv64=1.0 \
       -o "Dir::Etc::sourcelist=$apt_diag_source" \
       -o "Dir::Etc::sourceparts=-" \
+      -o "Dir::Etc::parts=-" \
       -o "Dir::State::lists=$apt_diag_root/lists" \
       -o "Dir::State::status=$apt_diag_empty_install_status" \
       -o "Dir::Cache::archives=$apt_diag_archives" \
@@ -1713,6 +2165,223 @@ check_full_userland_apt_install_diag() {
     fail full-userland-apt-direct-full-status-install
   fi
 
+  apt_direct_hello_list_log="$apt_diag_dir/full-status-dpkg-list-hello.log"
+  apt_direct_hello_search_log="$apt_diag_dir/full-status-dpkg-search-hello.log"
+  apt_direct_meta_list_log="$apt_diag_dir/full-status-dpkg-list-meta.log"
+  apt_direct_meta_search_log="$apt_diag_dir/full-status-dpkg-search-meta.log"
+  apt_direct_hello_list_rc=0
+  apt_direct_hello_search_rc=0
+  apt_direct_meta_list_rc=0
+  apt_direct_meta_search_rc=0
+  if [ "$apt_direct_install_effect_ok" = "1" ]; then
+    dpkg -L nemu-hostless-hello >"$apt_direct_hello_list_log" 2>&1 || apt_direct_hello_list_rc=$?
+    dpkg -S /usr/share/nemu-hostless-hello/message >"$apt_direct_hello_search_log" 2>&1 || apt_direct_hello_search_rc=$?
+    dpkg -L nemu-hostless-meta >"$apt_direct_meta_list_log" 2>&1 || apt_direct_meta_list_rc=$?
+    dpkg -S /usr/share/nemu-hostless-meta/message >"$apt_direct_meta_search_log" 2>&1 || apt_direct_meta_search_rc=$?
+  else
+    apt_direct_hello_list_rc=125
+    apt_direct_hello_search_rc=125
+    apt_direct_meta_list_rc=125
+    apt_direct_meta_search_rc=125
+  fi
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_DPKG_LIST_HELLO_RC__:$apt_direct_hello_list_rc"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_DPKG_SEARCH_HELLO_RC__:$apt_direct_hello_search_rc"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_DPKG_LIST_META_RC__:$apt_direct_meta_list_rc"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_DPKG_SEARCH_META_RC__:$apt_direct_meta_search_rc"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_DPKG_OWNERSHIP_LOG_BEGIN__"
+  sed -n '1,80p' "$apt_direct_hello_list_log" 2>/dev/null || true
+  sed -n '1,40p' "$apt_direct_hello_search_log" 2>/dev/null || true
+  sed -n '1,80p' "$apt_direct_meta_list_log" 2>/dev/null || true
+  sed -n '1,40p' "$apt_direct_meta_search_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_DPKG_OWNERSHIP_LOG_END__"
+  if [ "$apt_direct_hello_list_rc" = "0" ] &&
+     [ "$apt_direct_hello_search_rc" = "0" ] &&
+     [ "$apt_direct_meta_list_rc" = "0" ] &&
+     [ "$apt_direct_meta_search_rc" = "0" ] &&
+     grep -Fxq /usr/share/nemu-hostless-hello/message "$apt_direct_hello_list_log" &&
+     grep -Fq "nemu-hostless-hello: /usr/share/nemu-hostless-hello/message" "$apt_direct_hello_search_log" &&
+     grep -Fxq /usr/share/nemu-hostless-meta/message "$apt_direct_meta_list_log" &&
+     grep -Fq "nemu-hostless-meta: /usr/share/nemu-hostless-meta/message" "$apt_direct_meta_search_log"; then
+    pass full-userland-apt-direct-full-status-dpkg-ownership
+  else
+    fail full-userland-apt-direct-full-status-dpkg-ownership
+  fi
+
+  apt_direct_upgrade_log="$apt_diag_dir/full-status-upgrade-no-pty.log"
+  apt_direct_upgrade_status="$apt_diag_dir/status-upgrade-installed-v1"
+  apt_direct_upgrade_rc=0
+  apt_direct_upgrade_effect_ok=0
+  apt_direct_upgrade_snapshot() {
+    apt_direct_upgrade_snapshot_label=$1
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_SAMPLE__:$apt_direct_upgrade_snapshot_label"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_PS_BEGIN__"
+    ps -eo pid,ppid,stat,etime,args 2>/dev/null | grep -E 'apt-get|dpkg|timeout' | grep -v grep || true
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_PS_END__"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_LOG_TAIL_BEGIN__"
+    if [ -s "$apt_direct_upgrade_log" ]; then
+      tail -n 80 "$apt_direct_upgrade_log" 2>/dev/null || true
+    else
+      echo "(upgrade-log-empty)"
+    fi
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_LOG_TAIL_END__"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_LOCKS_BEGIN__"
+    ls -l /var/lib/dpkg/lock /var/lib/dpkg/lock-frontend \
+      /var/cache/apt/archives/lock 2>/dev/null || true
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_LOCKS_END__"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_MESSAGE_SNAPSHOT__:$(cat /usr/share/nemu-hostless-hello/message 2>/dev/null || true)"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_META_MESSAGE_SNAPSHOT__:$(cat /usr/share/nemu-hostless-meta/message 2>/dev/null || true)"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_META_PREINST_SNAPSHOT__:$(cat /var/lib/nemu-hostless-meta/preinst-message 2>/dev/null || true)"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_META_POSTINST_SNAPSHOT__:$(cat /var/lib/nemu-hostless-meta/postinst-message 2>/dev/null || true)"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_DPKG_STATUS_SNAPSHOT__:$(
+      dpkg-query -W -f='${Status} ${Version} ${Architecture}' nemu-hostless-hello 2>/dev/null || true
+    )"
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_META_DPKG_STATUS_SNAPSHOT__:$(
+      dpkg-query -W -f='${Status} ${Version} ${Architecture}' nemu-hostless-meta 2>/dev/null || true
+    )"
+  }
+  rm -f "$apt_direct_upgrade_log"
+  dpkg-query -s nemu-hostless-hello nemu-hostless-meta >"$apt_direct_upgrade_status" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_START__"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_TARGET__:nemu-hostless-hello=1.1 nemu-hostless-meta=1.1"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_APT_STATE__:installed-v1-target-status-real-dpkg"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_STATUS_BEGIN__"
+  sed -n '1,120p' "$apt_direct_upgrade_status" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_STATUS_END__"
+  if [ "$apt_direct_install_effect_ok" = "1" ]; then
+    (
+      DEBIAN_FRONTEND=noninteractive \
+      apt-get install -y --no-install-recommends \
+          nemu-hostless-hello:riscv64=1.1 nemu-hostless-meta:riscv64=1.1 \
+          -o "Dir::Etc::sourcelist=$apt_diag_source" \
+          -o "Dir::Etc::sourceparts=-" \
+          -o "Dir::Etc::parts=-" \
+          -o "Dir::State::lists=$apt_diag_root/lists" \
+          -o "Dir::State::status=$apt_direct_upgrade_status" \
+          -o "Dir::Cache::archives=$apt_diag_archives" \
+          -o "APT::Architecture=riscv64" \
+          -o "Acquire::Languages=none" \
+          -o "Acquire::Retries=0" \
+          -o "Acquire::http::Timeout=60" \
+          -o "APT::Get::List-Cleanup=0" \
+          -o "Dpkg::Use-Pty=0" \
+          >"$apt_direct_upgrade_log" 2>&1
+    ) &
+    apt_direct_upgrade_pid=$!
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_PID__:$apt_direct_upgrade_pid"
+    apt_direct_upgrade_snapshot "start"
+    (
+      apt_direct_upgrade_monitor_i=0
+      while kill -0 "$apt_direct_upgrade_pid" 2>/dev/null; do
+        sleep 15
+        apt_direct_upgrade_monitor_i=$((apt_direct_upgrade_monitor_i + 1))
+        apt_direct_upgrade_snapshot "monitor-$apt_direct_upgrade_monitor_i"
+      done
+    ) &
+    apt_direct_upgrade_monitor_pid=$!
+    apt_direct_upgrade_deadline_rc=0
+    timeout "${apt_diag_timeout}s" sh -c "while kill -0 $apt_direct_upgrade_pid 2>/dev/null; do sleep 1; done" || apt_direct_upgrade_deadline_rc=$?
+    if kill -0 "$apt_direct_upgrade_pid" 2>/dev/null; then
+      echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_TIMEOUT__:$apt_diag_timeout"
+      apt_direct_upgrade_snapshot "timeout"
+      kill "$apt_direct_upgrade_pid" 2>/dev/null || true
+      sleep 5
+      if kill -0 "$apt_direct_upgrade_pid" 2>/dev/null; then
+        kill -KILL "$apt_direct_upgrade_pid" 2>/dev/null || true
+      fi
+      wait "$apt_direct_upgrade_pid" 2>/dev/null || true
+      apt_direct_upgrade_rc=124
+    else
+      wait "$apt_direct_upgrade_pid" || apt_direct_upgrade_rc=$?
+    fi
+    kill "$apt_direct_upgrade_monitor_pid" 2>/dev/null || true
+    wait "$apt_direct_upgrade_monitor_pid" 2>/dev/null || true
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_DEADLINE_RC__:$apt_direct_upgrade_deadline_rc"
+    apt_direct_upgrade_snapshot "final"
+  else
+    apt_direct_upgrade_rc=125
+    echo "skip upgrade because install effect was not complete" >"$apt_direct_upgrade_log"
+  fi
+  apt_direct_upgrade_message="$(cat /usr/share/nemu-hostless-hello/message 2>/dev/null || true)"
+  apt_direct_upgrade_meta_message="$(cat /usr/share/nemu-hostless-meta/message 2>/dev/null || true)"
+  apt_direct_upgrade_meta_preinst="$(cat /var/lib/nemu-hostless-meta/preinst-message 2>/dev/null || true)"
+  apt_direct_upgrade_meta_postinst="$(cat /var/lib/nemu-hostless-meta/postinst-message 2>/dev/null || true)"
+  apt_direct_upgrade_status_value="$(
+    dpkg-query -W -f='${Status} ${Version} ${Architecture}' nemu-hostless-hello 2>/dev/null || true
+  )"
+  apt_direct_upgrade_meta_status="$(
+    dpkg-query -W -f='${Status} ${Version} ${Architecture}' nemu-hostless-meta 2>/dev/null || true
+  )"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_RC__:$apt_direct_upgrade_rc"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_MESSAGE__:$apt_direct_upgrade_message"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_DPKG_STATUS__:$apt_direct_upgrade_status_value"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_META_MESSAGE__:$apt_direct_upgrade_meta_message"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_META_PREINST__:$apt_direct_upgrade_meta_preinst"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_META_POSTINST__:$apt_direct_upgrade_meta_postinst"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_META_DPKG_STATUS__:$apt_direct_upgrade_meta_status"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_LOG_BEGIN__"
+  sed -n '1,180p' "$apt_direct_upgrade_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_LOG_END__"
+  if [ "$apt_direct_upgrade_message" = "hello from NEMU hostless apt v1.1" ] &&
+     [ "$apt_direct_upgrade_status_value" = "install ok installed 1.1 riscv64" ] &&
+     [ "$apt_direct_upgrade_meta_message" = "hello from NEMU hostless meta v1.1" ] &&
+     [ "$apt_direct_upgrade_meta_preinst" = "preinst from NEMU hostless meta v1.1" ] &&
+     [ "$apt_direct_upgrade_meta_postinst" = "postinst from NEMU hostless meta v1.1" ] &&
+     [ "$apt_direct_upgrade_meta_status" = "install ok installed 1.1 riscv64" ]; then
+    apt_direct_upgrade_effect_ok=1
+  fi
+  if [ "$apt_direct_upgrade_rc" = "0" ] &&
+     [ "$apt_direct_upgrade_effect_ok" = "1" ]; then
+    pass full-userland-apt-direct-full-status-upgrade
+  elif [ "$apt_direct_upgrade_rc" = "124" ] &&
+       [ "$apt_direct_upgrade_effect_ok" = "1" ]; then
+    echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_EFFECT_OK_AFTER_TIMEOUT__:124"
+    pass full-userland-apt-direct-full-status-upgrade
+  else
+    fail full-userland-apt-direct-full-status-upgrade
+  fi
+
+  apt_direct_upgrade_hello_list_log="$apt_diag_dir/full-status-upgrade-dpkg-list-hello.log"
+  apt_direct_upgrade_hello_search_log="$apt_diag_dir/full-status-upgrade-dpkg-search-hello.log"
+  apt_direct_upgrade_meta_list_log="$apt_diag_dir/full-status-upgrade-dpkg-list-meta.log"
+  apt_direct_upgrade_meta_search_log="$apt_diag_dir/full-status-upgrade-dpkg-search-meta.log"
+  apt_direct_upgrade_hello_list_rc=0
+  apt_direct_upgrade_hello_search_rc=0
+  apt_direct_upgrade_meta_list_rc=0
+  apt_direct_upgrade_meta_search_rc=0
+  if [ "$apt_direct_upgrade_effect_ok" = "1" ]; then
+    dpkg -L nemu-hostless-hello >"$apt_direct_upgrade_hello_list_log" 2>&1 || apt_direct_upgrade_hello_list_rc=$?
+    dpkg -S /usr/share/nemu-hostless-hello/message >"$apt_direct_upgrade_hello_search_log" 2>&1 || apt_direct_upgrade_hello_search_rc=$?
+    dpkg -L nemu-hostless-meta >"$apt_direct_upgrade_meta_list_log" 2>&1 || apt_direct_upgrade_meta_list_rc=$?
+    dpkg -S /usr/share/nemu-hostless-meta/message >"$apt_direct_upgrade_meta_search_log" 2>&1 || apt_direct_upgrade_meta_search_rc=$?
+  else
+    apt_direct_upgrade_hello_list_rc=125
+    apt_direct_upgrade_hello_search_rc=125
+    apt_direct_upgrade_meta_list_rc=125
+    apt_direct_upgrade_meta_search_rc=125
+  fi
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_DPKG_LIST_HELLO_RC__:$apt_direct_upgrade_hello_list_rc"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_DPKG_SEARCH_HELLO_RC__:$apt_direct_upgrade_hello_search_rc"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_DPKG_LIST_META_RC__:$apt_direct_upgrade_meta_list_rc"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_DPKG_SEARCH_META_RC__:$apt_direct_upgrade_meta_search_rc"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_DPKG_OWNERSHIP_LOG_BEGIN__"
+  sed -n '1,80p' "$apt_direct_upgrade_hello_list_log" 2>/dev/null || true
+  sed -n '1,40p' "$apt_direct_upgrade_hello_search_log" 2>/dev/null || true
+  sed -n '1,80p' "$apt_direct_upgrade_meta_list_log" 2>/dev/null || true
+  sed -n '1,40p' "$apt_direct_upgrade_meta_search_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_UPGRADE_DPKG_OWNERSHIP_LOG_END__"
+  if [ "$apt_direct_upgrade_hello_list_rc" = "0" ] &&
+     [ "$apt_direct_upgrade_hello_search_rc" = "0" ] &&
+     [ "$apt_direct_upgrade_meta_list_rc" = "0" ] &&
+     [ "$apt_direct_upgrade_meta_search_rc" = "0" ] &&
+     grep -Fxq /usr/share/nemu-hostless-hello/message "$apt_direct_upgrade_hello_list_log" &&
+     grep -Fq "nemu-hostless-hello: /usr/share/nemu-hostless-hello/message" "$apt_direct_upgrade_hello_search_log" &&
+     grep -Fxq /usr/share/nemu-hostless-meta/message "$apt_direct_upgrade_meta_list_log" &&
+     grep -Fq "nemu-hostless-meta: /usr/share/nemu-hostless-meta/message" "$apt_direct_upgrade_meta_search_log"; then
+    pass full-userland-apt-direct-full-status-upgrade-ownership
+  else
+    fail full-userland-apt-direct-full-status-upgrade-ownership
+  fi
+
   apt_direct_remove_snapshot() {
     apt_direct_remove_snapshot_label=$1
     echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_SAMPLE__:$apt_direct_remove_snapshot_label"
@@ -1747,16 +2416,17 @@ check_full_userland_apt_install_diag() {
   dpkg-query -s nemu-hostless-hello nemu-hostless-meta >"$apt_direct_remove_status" 2>/dev/null || true
   echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_START__"
   echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_TARGET__:nemu-hostless-meta"
-  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_APT_STATE__:installed-target-status-real-dpkg"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_APT_STATE__:installed-v1.1-target-status-real-dpkg"
   echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_STATUS_BEGIN__"
   sed -n '1,120p' "$apt_direct_remove_status" 2>/dev/null || true
   echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_STATUS_END__"
-  if [ "$apt_direct_install_effect_ok" = "1" ]; then
+  if [ "$apt_direct_upgrade_effect_ok" = "1" ]; then
     (
       DEBIAN_FRONTEND=noninteractive \
       apt-get remove -y nemu-hostless-meta:riscv64 \
         -o "Dir::Etc::sourcelist=$apt_diag_source" \
         -o "Dir::Etc::sourceparts=-" \
+        -o "Dir::Etc::parts=-" \
         -o "Dir::State::lists=$apt_diag_root/lists" \
         -o "Dir::State::status=$apt_direct_remove_status" \
         -o "Dir::Cache::archives=$apt_diag_archives" \
@@ -1801,7 +2471,7 @@ check_full_userland_apt_install_diag() {
     apt_direct_remove_snapshot "final"
   else
     apt_direct_remove_rc=125
-    echo "skip remove because install effect was not complete" >"$apt_direct_remove_log"
+    echo "skip remove because upgrade effect was not complete" >"$apt_direct_remove_log"
   fi
   apt_direct_remove_meta_prerm="$(cat /var/lib/nemu-hostless-meta/prerm-message 2>/dev/null || true)"
   apt_direct_remove_meta_postrm="$(cat /var/lib/nemu-hostless-meta/postrm-message 2>/dev/null || true)"
@@ -1824,20 +2494,20 @@ check_full_userland_apt_install_diag() {
   sed -n '1,180p' "$apt_direct_remove_log" 2>/dev/null || true
   echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_LOG_END__"
   if [ "$apt_direct_remove_rc" = "0" ] &&
-     [ "$apt_direct_remove_meta_prerm" = "prerm from NEMU hostless meta" ] &&
-     [ "$apt_direct_remove_meta_postrm" = "postrm from NEMU hostless meta" ] &&
-     [ "$apt_direct_remove_meta_status" = "deinstall ok config-files 1.0 riscv64" ] &&
+     [ "$apt_direct_remove_meta_prerm" = "prerm from NEMU hostless meta v1.1" ] &&
+     [ "$apt_direct_remove_meta_postrm" = "postrm from NEMU hostless meta v1.1" ] &&
+     [ "$apt_direct_remove_meta_status" = "deinstall ok config-files 1.1 riscv64" ] &&
      [ -z "$apt_direct_remove_meta_message" ] &&
-     [ "$apt_direct_remove_hello_status" = "install ok installed 1.0 riscv64" ] &&
-     [ "$apt_direct_remove_hello_message" = "hello from NEMU hostless apt" ]; then
+     [ "$apt_direct_remove_hello_status" = "install ok installed 1.1 riscv64" ] &&
+     [ "$apt_direct_remove_hello_message" = "hello from NEMU hostless apt v1.1" ]; then
     pass full-userland-apt-direct-full-status-remove
   elif [ "$apt_direct_remove_rc" = "124" ] &&
-       [ "$apt_direct_remove_meta_prerm" = "prerm from NEMU hostless meta" ] &&
-       [ "$apt_direct_remove_meta_postrm" = "postrm from NEMU hostless meta" ] &&
+       [ "$apt_direct_remove_meta_prerm" = "prerm from NEMU hostless meta v1.1" ] &&
+       [ "$apt_direct_remove_meta_postrm" = "postrm from NEMU hostless meta v1.1" ] &&
        [ -z "$apt_direct_remove_meta_status" ] &&
        [ -z "$apt_direct_remove_meta_message" ] &&
-       [ "$apt_direct_remove_hello_status" = "install ok installed 1.0 riscv64" ] &&
-       [ "$apt_direct_remove_hello_message" = "hello from NEMU hostless apt" ]; then
+       [ "$apt_direct_remove_hello_status" = "install ok installed 1.1 riscv64" ] &&
+       [ "$apt_direct_remove_hello_message" = "hello from NEMU hostless apt v1.1" ]; then
     echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_REMOVE_EFFECT_OK_AFTER_TIMEOUT__:124"
     pass full-userland-apt-direct-full-status-remove
   else
@@ -1876,7 +2546,7 @@ check_full_userland_apt_install_diag() {
   dpkg-query -s nemu-hostless-meta nemu-hostless-hello >"$apt_direct_purge_status" 2>/dev/null || true
   echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_START__"
   echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_TARGET__:nemu-hostless-meta"
-  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_APT_STATE__:config-files-target-status-real-dpkg"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_APT_STATE__:config-files-v1.1-target-status-real-dpkg"
   echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_STATUS_BEGIN__"
   sed -n '1,120p' "$apt_direct_purge_status" 2>/dev/null || true
   echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_STATUS_END__"
@@ -1886,6 +2556,7 @@ check_full_userland_apt_install_diag() {
       apt-get purge -y nemu-hostless-meta:riscv64 \
         -o "Dir::Etc::sourcelist=$apt_diag_source" \
         -o "Dir::Etc::sourceparts=-" \
+        -o "Dir::Etc::parts=-" \
         -o "Dir::State::lists=$apt_diag_root/lists" \
         -o "Dir::State::status=$apt_direct_purge_status" \
         -o "Dir::Cache::archives=$apt_diag_archives" \
@@ -1940,23 +2611,355 @@ check_full_userland_apt_install_diag() {
     dpkg-query -W -f='${Status} ${Version} ${Architecture}' nemu-hostless-hello 2>/dev/null || true
   )"
   apt_direct_purge_hello_message="$(cat /usr/share/nemu-hostless-hello/message 2>/dev/null || true)"
+  apt_direct_purge_meta_search_log="$apt_diag_dir/full-status-dpkg-search-meta-after-purge.log"
+  apt_direct_purge_hello_search_log="$apt_diag_dir/full-status-dpkg-search-hello-after-purge.log"
+  apt_direct_purge_meta_search_rc=0
+  apt_direct_purge_hello_search_rc=0
+  dpkg -S /usr/share/nemu-hostless-meta/message >"$apt_direct_purge_meta_search_log" 2>&1 || apt_direct_purge_meta_search_rc=$?
+  dpkg -S /usr/share/nemu-hostless-hello/message >"$apt_direct_purge_hello_search_log" 2>&1 || apt_direct_purge_hello_search_rc=$?
   echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_RC__:$apt_direct_purge_rc"
   echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_DPKG_STATUS_AFTER_PURGE__:$apt_direct_purge_meta_status"
   echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_MESSAGE_AFTER_PURGE__:$apt_direct_purge_meta_message"
   echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_HELLO_DPKG_STATUS_AFTER_PURGE__:$apt_direct_purge_hello_status"
   echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_HELLO_MESSAGE_AFTER_PURGE__:$apt_direct_purge_hello_message"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_META_SEARCH_AFTER_PURGE_RC__:$apt_direct_purge_meta_search_rc"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_HELLO_SEARCH_AFTER_PURGE_RC__:$apt_direct_purge_hello_search_rc"
   echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_LOG_BEGIN__"
   sed -n '1,180p' "$apt_direct_purge_log" 2>/dev/null || true
   echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_LOG_END__"
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_OWNERSHIP_LOG_BEGIN__"
+  sed -n '1,40p' "$apt_direct_purge_meta_search_log" 2>/dev/null || true
+  sed -n '1,40p' "$apt_direct_purge_hello_search_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_OWNERSHIP_LOG_END__"
   if [ "$apt_direct_purge_rc" = "0" ] &&
      [ -z "$apt_direct_purge_meta_status" ] &&
      [ -z "$apt_direct_purge_meta_message" ] &&
-     [ "$apt_direct_purge_hello_status" = "install ok installed 1.0 riscv64" ] &&
-     [ "$apt_direct_purge_hello_message" = "hello from NEMU hostless apt" ]; then
+     [ "$apt_direct_purge_hello_status" = "install ok installed 1.1 riscv64" ] &&
+     [ "$apt_direct_purge_hello_message" = "hello from NEMU hostless apt v1.1" ]; then
     pass full-userland-apt-direct-full-status-purge
   else
     fail full-userland-apt-direct-full-status-purge
   fi
+  if [ "$apt_direct_purge_rc" = "0" ] &&
+     [ "$apt_direct_purge_meta_search_rc" != "0" ] &&
+     [ "$apt_direct_purge_hello_search_rc" = "0" ] &&
+     grep -Fq "nemu-hostless-hello: /usr/share/nemu-hostless-hello/message" "$apt_direct_purge_hello_search_log"; then
+    pass full-userland-apt-direct-full-status-purge-ownership
+  else
+    fail full-userland-apt-direct-full-status-purge-ownership
+  fi
+}
+
+check_full_userland_python_cnf_diag() {
+  if [ "${NEMU_GUEST_ROOTFS_FLAVOR:-systemd-minimal}" != "full" ]; then
+    pass full-userland-python-cnf-diag-skip
+    return
+  fi
+
+  python_cnf_dir=/tmp/nemu-full-userland-python-cnf
+  python_cnf_log="$python_cnf_dir/python-cnf.log"
+  python_stdlib_loop_log="$python_cnf_dir/python-stdlib-loop.log"
+  lsb_release_loop_log="$python_cnf_dir/lsb-release-loop.log"
+  cnf_update_log="$python_cnf_dir/cnf-update-db.log"
+  rm -rf "$python_cnf_dir"
+  mkdir -p "$python_cnf_dir"
+
+  python_cnf_rc=0
+  timeout 120s python3 - >"$python_cnf_log" 2>&1 <<'PY' || python_cnf_rc=$?
+import sys
+
+def emit(name, value):
+    print("__PYTHON_CNF_DIAG_%s__:%s" % (name, value))
+
+def run_expr(name, fn):
+    try:
+        emit(name, repr(fn()))
+    except BaseException as exc:
+        emit(name + "_ERROR", "%s:%s" % (type(exc).__name__, exc))
+
+emit("VERSION", sys.version.split()[0])
+run_expr("DIVMOD_NEG_US", lambda: divmod(-1, 1000000))
+run_expr("ABS_MICROSECONDS_LT_FLOAT", lambda: abs(999999) < 3.1e6)
+run_expr("ABS_NEG_ONE_LT_FLOAT", lambda: abs(-1) < 3.1e6)
+run_expr("RE_REPEAT_COMPILE", lambda: __import__("re").compile(r"(?=-{2,}\w)").pattern)
+
+try:
+    import textwrap
+    emit("TEXTWRAP_IMPORT", "ok")
+    emit("TEXTWRAP_WORDSEP_LEN", len(textwrap.TextWrapper.wordsep_re.pattern))
+except BaseException as exc:
+    emit("TEXTWRAP_IMPORT_ERROR", "%s:%s" % (type(exc).__name__, exc))
+
+try:
+    import optparse
+    emit("OPTPARSE_IMPORT", "ok")
+except BaseException as exc:
+    emit("OPTPARSE_IMPORT_ERROR", "%s:%s" % (type(exc).__name__, exc))
+
+try:
+    import datetime
+    emit("DATETIME_IMPORT", "ok")
+    run_expr(
+        "DATETIME_MAXOFFSET",
+        lambda: datetime.timedelta(hours=24, microseconds=-1),
+    )
+except BaseException as exc:
+    emit("DATETIME_IMPORT_ERROR", "%s:%s" % (type(exc).__name__, exc))
+
+try:
+    import sqlite3
+    emit("SQLITE3_IMPORT", "ok")
+except BaseException as exc:
+    emit("SQLITE3_IMPORT_ERROR", "%s:%s" % (type(exc).__name__, exc))
+
+try:
+    from CommandNotFound.db.creator import DbCreator  # noqa: F401
+    emit("COMMAND_NOT_FOUND_CREATOR_IMPORT", "ok")
+except BaseException as exc:
+    emit(
+        "COMMAND_NOT_FOUND_CREATOR_IMPORT_ERROR",
+        "%s:%s" % (type(exc).__name__, exc),
+    )
+PY
+
+  python_textwrap_sha_expected=e1541a31ac906294f915cadd0d780e1e5b256dc1897b560cdaf3fbf46d104cf0
+  python_lsb_release_sha_expected=484b6a9de8b41aa9310a305b64c092e473ee73bead994e52c4271c66df9ba3c8
+  python_textwrap_pyc=/usr/lib/python3.10/__pycache__/textwrap.cpython-310.pyc
+  python_hash_ok=1
+  python_hash_i=1
+  while [ "$python_hash_i" -le 3 ]; do
+    python_textwrap_sha="$(sha256sum /usr/lib/python3.10/textwrap.py 2>/dev/null | awk '{print $1}')"
+    python_lsb_release_sha="$(sha256sum /usr/bin/lsb_release 2>/dev/null | awk '{print $1}')"
+    python_textwrap_pyc_sha=missing
+    if [ -e "$python_textwrap_pyc" ]; then
+      python_textwrap_pyc_sha="$(sha256sum "$python_textwrap_pyc" 2>/dev/null | awk '{print $1}')"
+    fi
+    echo "__NEMU_CHECK_FULL_PYTHON_TEXTWRAP_SHA256__:$python_hash_i:$python_textwrap_sha"
+    echo "__NEMU_CHECK_FULL_PYTHON_TEXTWRAP_PYC_SHA256__:$python_hash_i:$python_textwrap_pyc_sha"
+    echo "__NEMU_CHECK_FULL_LSB_RELEASE_SHA256__:$python_hash_i:$python_lsb_release_sha"
+    if [ "$python_textwrap_sha" != "$python_textwrap_sha_expected" ] ||
+       [ "$python_lsb_release_sha" != "$python_lsb_release_sha_expected" ]; then
+      python_hash_ok=0
+    fi
+    python_hash_i=$((python_hash_i + 1))
+  done
+  if [ "$python_hash_ok" = "1" ]; then
+    pass full-userland-python-stdlib-file-sha256
+  else
+    fail full-userland-python-stdlib-file-sha256
+  fi
+
+  : >"$python_stdlib_loop_log"
+  python_stdlib_loop_ok=1
+  python_stdlib_loop_i=1
+  while [ "$python_stdlib_loop_i" -le 3 ]; do
+    python_stdlib_loop_rc=0
+    timeout 120s python3 -c \
+      'import re, textwrap, optparse; print("stdlib-import-ok", len(textwrap.TextWrapper.wordsep_re.pattern))' \
+      >>"$python_stdlib_loop_log" 2>&1 || python_stdlib_loop_rc=$?
+    echo "__NEMU_CHECK_FULL_PYTHON_STDLIB_IMPORT_RC__:$python_stdlib_loop_i:$python_stdlib_loop_rc"
+    if [ "$python_stdlib_loop_rc" != "0" ]; then
+      python_stdlib_loop_ok=0
+    fi
+    python_stdlib_loop_i=$((python_stdlib_loop_i + 1))
+  done
+  echo "__NEMU_CHECK_FULL_PYTHON_STDLIB_IMPORT_LOG_BEGIN__"
+  sed -n '1,160p' "$python_stdlib_loop_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_PYTHON_STDLIB_IMPORT_LOG_END__"
+  if [ "$python_stdlib_loop_ok" = "1" ]; then
+    pass full-userland-python-stdlib-import-loop
+  elif [ "${NEMU_GUEST_PYTHON_CNF_DIAG_HARD:-0}" = "1" ]; then
+    fail full-userland-python-stdlib-import-loop
+  else
+    echo "__NEMU_CHECK_FULL_PYTHON_STDLIB_IMPORT_SOFT_FAIL__"
+  fi
+
+  : >"$lsb_release_loop_log"
+  lsb_release_loop_ok=1
+  lsb_release_loop_i=1
+  while [ "$lsb_release_loop_i" -le 3 ]; do
+    lsb_release_loop_rc=0
+    timeout 120s lsb_release -a >>"$lsb_release_loop_log" 2>&1 || lsb_release_loop_rc=$?
+    echo "__NEMU_CHECK_FULL_LSB_RELEASE_RETRY_RC__:$lsb_release_loop_i:$lsb_release_loop_rc"
+    if [ "$lsb_release_loop_rc" != "0" ]; then
+      lsb_release_loop_ok=0
+    fi
+    lsb_release_loop_i=$((lsb_release_loop_i + 1))
+  done
+  echo "__NEMU_CHECK_FULL_LSB_RELEASE_RETRY_LOG_BEGIN__"
+  sed -n '1,160p' "$lsb_release_loop_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_LSB_RELEASE_RETRY_LOG_END__"
+  if [ "$lsb_release_loop_ok" = "1" ]; then
+    pass full-userland-lsb-release-retry-loop
+  elif [ "${NEMU_GUEST_PYTHON_CNF_DIAG_HARD:-0}" = "1" ]; then
+    fail full-userland-lsb-release-retry-loop
+  else
+    echo "__NEMU_CHECK_FULL_LSB_RELEASE_RETRY_SOFT_FAIL__"
+  fi
+
+  lsb_release_pycacheprefix_log="$python_cnf_dir/lsb-release-pycacheprefix-loop.log"
+  rm -rf /tmp/nemu-python-pycacheprefix
+  mkdir -p /tmp/nemu-python-pycacheprefix
+  : >"$lsb_release_pycacheprefix_log"
+  lsb_release_pycacheprefix_ok=1
+  lsb_release_pycacheprefix_i=1
+  while [ "$lsb_release_pycacheprefix_i" -le 3 ]; do
+    lsb_release_pycacheprefix_rc=0
+    PYTHONPYCACHEPREFIX=/tmp/nemu-python-pycacheprefix \
+      timeout 120s lsb_release -a >>"$lsb_release_pycacheprefix_log" 2>&1 ||
+      lsb_release_pycacheprefix_rc=$?
+    echo "__NEMU_CHECK_FULL_LSB_RELEASE_PYCACHEPREFIX_RC__:$lsb_release_pycacheprefix_i:$lsb_release_pycacheprefix_rc"
+    if [ "$lsb_release_pycacheprefix_rc" != "0" ]; then
+      lsb_release_pycacheprefix_ok=0
+    fi
+    lsb_release_pycacheprefix_i=$((lsb_release_pycacheprefix_i + 1))
+  done
+  echo "__NEMU_CHECK_FULL_LSB_RELEASE_PYCACHEPREFIX_LOG_BEGIN__"
+  sed -n '1,160p' "$lsb_release_pycacheprefix_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_LSB_RELEASE_PYCACHEPREFIX_LOG_END__"
+  if [ "$lsb_release_pycacheprefix_ok" = "1" ]; then
+    pass full-userland-lsb-release-pycacheprefix-loop
+  elif [ "${NEMU_GUEST_PYTHON_CNF_DIAG_HARD:-0}" = "1" ]; then
+    fail full-userland-lsb-release-pycacheprefix-loop
+  else
+    echo "__NEMU_CHECK_FULL_LSB_RELEASE_PYCACHEPREFIX_SOFT_FAIL__"
+  fi
+
+  python_re_source_diag_log="$python_cnf_dir/python-re-source-exec.log"
+  python_re_source_diag_loops="${NEMU_GUEST_PYTHON_RE_DIAG_LOOPS:-20}"
+  : >"$python_re_source_diag_log"
+  python_re_source_diag_i=1
+  while [ "$python_re_source_diag_i" -le "$python_re_source_diag_loops" ]; do
+    python_re_source_diag_rc=0
+    timeout 120s python3 - >>"$python_re_source_diag_log" 2>&1 <<'PY' ||
+      python_re_source_diag_rc=$?
+import hashlib
+import pathlib
+import traceback
+
+def emit(name, value):
+    print("__PYTHON_RE_SOURCE_DIAG_%s__:%s" % (name, value))
+
+path = pathlib.Path("/usr/lib/python3.10/textwrap.py")
+src = path.read_bytes()
+emit("TEXTWRAP_BYTES", len(src))
+emit("TEXTWRAP_SHA256", hashlib.sha256(src).hexdigest())
+idx = src.find(b"{2,}")
+emit("TEXTWRAP_REPEAT_TOKEN_OFFSET", idx)
+if idx >= 0:
+    start = max(0, idx - 40)
+    end = min(len(src), idx + 40)
+    emit("TEXTWRAP_REPEAT_TOKEN_WINDOW_HEX", src[start:end].hex())
+
+try:
+    import _sre
+    import sre_constants
+    import sre_parse
+    emit("_SRE_MAXREPEAT", repr(_sre.MAXREPEAT))
+    emit("SRE_CONSTANTS_MAXREPEAT", repr(sre_constants.MAXREPEAT))
+    emit("SRE_PARSE_MAXREPEAT", repr(sre_parse.MAXREPEAT))
+    emit("SRE_PARSE_MAXREPEAT_INT", int(sre_parse.MAXREPEAT))
+except BaseException as exc:
+    emit("SRE_MAXREPEAT_ERROR", "%s:%s" % (type(exc).__name__, exc))
+    traceback.print_exc()
+
+try:
+    code = compile(src, str(path), "exec")
+    ns = {"__name__": "__nemu_textwrap_source_diag__"}
+    exec(code, ns)
+    wrapper = ns["TextWrapper"]
+    pattern = wrapper.wordsep_re.pattern
+    emit("TEXTWRAP_SOURCE_EXEC", "ok")
+    emit("TEXTWRAP_PATTERN_LEN", len(pattern))
+    emit("TEXTWRAP_PATTERN_SHA256", hashlib.sha256(pattern.encode()).hexdigest())
+except BaseException as exc:
+    emit("TEXTWRAP_SOURCE_EXEC_ERROR", "%s:%s" % (type(exc).__name__, exc))
+    traceback.print_exc()
+PY
+    echo "__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_RC__:$python_re_source_diag_i:$python_re_source_diag_rc"
+    python_re_source_diag_i=$((python_re_source_diag_i + 1))
+  done
+  echo "__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_LOG_BEGIN__"
+  sed -n '1,260p' "$python_re_source_diag_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_LOG_END__"
+  pass full-userland-python-re-source-exec-recorded
+
+  python_stdlib_stress_log="$python_cnf_dir/python-stdlib-stress.log"
+  : >"$python_stdlib_stress_log"
+  python_stdlib_stress_ok=1
+  python_stdlib_stress_i=1
+  while [ "$python_stdlib_stress_i" -le 5 ]; do
+    python_stdlib_stress_rc=0
+    if timeout 120s python3 - >>"$python_stdlib_stress_log" 2>&1 <<'PY'
+import _sre
+import datetime
+import re
+import textwrap
+
+print("__PYTHON_STDLIB_STRESS_MAXREPEAT__:%s" % (_sre.MAXREPEAT,))
+assert _sre.MAXREPEAT >= 4294967295
+assert datetime.timedelta(-999999999).days == -999999999
+assert re.compile(r"(?=-{2,}\w)").pattern == r"(?=-{2,}\w)"
+assert re.compile(textwrap.TextWrapper.wordsep_re.pattern, re.VERBOSE).pattern
+print("__PYTHON_STDLIB_STRESS_OK__")
+PY
+    then
+      :
+    else
+      python_stdlib_stress_rc=$?
+    fi
+    echo "__NEMU_CHECK_FULL_PYTHON_STDLIB_STRESS_RC__:$python_stdlib_stress_i:$python_stdlib_stress_rc"
+    if [ "$python_stdlib_stress_rc" != "0" ]; then
+      python_stdlib_stress_ok=0
+    fi
+    python_stdlib_stress_i=$((python_stdlib_stress_i + 1))
+  done
+  echo "__NEMU_CHECK_FULL_PYTHON_STDLIB_STRESS_LOG_BEGIN__"
+  sed -n '1,220p' "$python_stdlib_stress_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_PYTHON_STDLIB_STRESS_LOG_END__"
+  if [ "$python_stdlib_stress_ok" = "1" ]; then
+    pass full-userland-python-stdlib-stress-loop
+  elif [ "${NEMU_GUEST_PYTHON_CNF_DIAG_HARD:-0}" = "1" ]; then
+    fail full-userland-python-stdlib-stress-loop
+  else
+    echo "__NEMU_CHECK_FULL_PYTHON_STDLIB_STRESS_SOFT_FAIL__"
+  fi
+
+  cnf_update_rc=127
+  if [ -x /usr/lib/cnf-update-db ]; then
+    cnf_update_rc=0
+    timeout 180s /usr/lib/cnf-update-db >"$cnf_update_log" 2>&1 || cnf_update_rc=$?
+  else
+    echo "/usr/lib/cnf-update-db is not executable" >"$cnf_update_log"
+  fi
+
+  echo "__NEMU_CHECK_FULL_PYTHON_CNF_DIAG_RC__:$python_cnf_rc"
+  echo "__NEMU_CHECK_FULL_PYTHON_CNF_DIAG_LOG_BEGIN__"
+  sed -n '1,160p' "$python_cnf_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_PYTHON_CNF_DIAG_LOG_END__"
+  echo "__NEMU_CHECK_FULL_CNF_UPDATE_DB_RC__:$cnf_update_rc"
+  echo "__NEMU_CHECK_FULL_CNF_UPDATE_DB_LOG_BEGIN__"
+  sed -n '1,160p' "$cnf_update_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_CNF_UPDATE_DB_LOG_END__"
+
+  if [ "$python_cnf_rc" = "0" ] &&
+     grep -Fq "__PYTHON_CNF_DIAG_DATETIME_IMPORT__:ok" "$python_cnf_log" &&
+     grep -Fq "__PYTHON_CNF_DIAG_SQLITE3_IMPORT__:ok" "$python_cnf_log"; then
+    pass full-userland-python-datetime-sqlite3
+  elif [ "${NEMU_GUEST_PYTHON_CNF_DIAG_HARD:-0}" = "1" ]; then
+    fail full-userland-python-datetime-sqlite3
+  else
+    echo "__NEMU_CHECK_FULL_PYTHON_CNF_DIAG_SOFT_FAIL__:datetime-sqlite3"
+  fi
+
+  if [ "$cnf_update_rc" = "0" ]; then
+    pass full-userland-command-not-found-update-db
+  elif [ "${NEMU_GUEST_PYTHON_CNF_DIAG_HARD:-0}" = "1" ]; then
+    fail full-userland-command-not-found-update-db
+  else
+    echo "__NEMU_CHECK_FULL_CNF_UPDATE_DB_SOFT_FAIL__:$cnf_update_rc"
+  fi
+  pass full-userland-python-cnf-diag-recorded
 }
 
 check_full_userland_network_clients() {
@@ -2093,14 +3096,89 @@ check_full_userland_network_clients() {
 
   apt_hostless_root=/tmp/nemu-full-userland-apt-hostless
   apt_hostless_source="$apt_hostless_root/sources.list"
+  apt_hostless_source_line=
+  apt_hostless_clear_conf=/etc/apt/apt.conf.d/99nemu-hostless-clear-hooks
+  apt_hostless_keyring="$apt_hostless_root/nemu-hostless-archive-keyring.gpg"
+  apt_hostless_keyring_log="$apt_hostless_root/keyring.log"
+  apt_hostless_inrelease="$apt_hostless_root/InRelease"
+  apt_hostless_inrelease_log="$apt_hostless_root/inrelease.log"
+  apt_hostless_gpgv_log="$apt_hostless_root/gpgv.log"
   apt_hostless_log="$apt_hostless_root/update.log"
   rm -rf "$apt_hostless_root"
   mkdir -p "$apt_hostless_root/lists/partial" "$apt_hostless_root/cache/archives/partial"
-  printf 'deb [trusted=yes arch=riscv64] http://nemu.local/ubuntu jammy main\n' > "$apt_hostless_source"
+  mkdir -p /etc/apt/apt.conf.d
+  cat >"$apt_hostless_clear_conf" <<'EOF'
+#clear APT::Update::Post-Invoke-Success;
+#clear DPkg::Post-Invoke;
+APT::Update::Post-Invoke-Success "";
+DPkg::Post-Invoke "";
+EOF
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_CLEAR_HOOKS__:$apt_hostless_clear_conf"
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_CLEAR_HOOKS_BEGIN__"
+  sed -n '1,20p' "$apt_hostless_clear_conf" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_CLEAR_HOOKS_END__"
+  apt_hostless_keyring_rc=0
+  timeout 120s curl -4 -fsS \
+    --connect-timeout 30 \
+    --max-time 120 \
+    -o "$apt_hostless_keyring" \
+    http://nemu.local/ubuntu/keyrings/nemu-hostless-archive-keyring.gpg \
+    >"$apt_hostless_keyring_log" 2>&1 || apt_hostless_keyring_rc=$?
+  chmod 0644 "$apt_hostless_keyring" 2>/dev/null || true
+  apt_hostless_keyring_sha256=
+  if [ -f "$apt_hostless_keyring" ]; then
+    apt_hostless_keyring_sha256="$(sha256sum "$apt_hostless_keyring" | awk '{print $1}')"
+  fi
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_KEYRING_RC__:$apt_hostless_keyring_rc"
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_KEYRING_SHA256__:$apt_hostless_keyring_sha256"
+  if [ "$apt_hostless_keyring_rc" = "0" ] &&
+     [ "$apt_hostless_keyring_sha256" = "e99cff1585af5ae2587b50efeffd562cac5d3fb383145a4c79b8046f38159045" ]; then
+    pass full-userland-apt-hostless-keyring
+  else
+    echo "__NEMU_CHECK_FULL_APT_HOSTLESS_KEYRING_LOG_BEGIN__"
+    sed -n '1,80p' "$apt_hostless_keyring_log" 2>/dev/null || true
+    echo "__NEMU_CHECK_FULL_APT_HOSTLESS_KEYRING_LOG_END__"
+    fail full-userland-apt-hostless-keyring
+  fi
+  apt_hostless_inrelease_rc=0
+  timeout 120s curl -4 -fsS \
+    --connect-timeout 30 \
+    --max-time 120 \
+    -o "$apt_hostless_inrelease" \
+    http://nemu.local/ubuntu/dists/jammy/InRelease \
+    >"$apt_hostless_inrelease_log" 2>&1 || apt_hostless_inrelease_rc=$?
+  apt_hostless_inrelease_sha256=
+  if [ -f "$apt_hostless_inrelease" ]; then
+    apt_hostless_inrelease_sha256="$(sha256sum "$apt_hostless_inrelease" | awk '{print $1}')"
+  fi
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_INRELEASE_RC__:$apt_hostless_inrelease_rc"
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_INRELEASE_SHA256__:$apt_hostless_inrelease_sha256"
+  apt_hostless_gpgv_rc=0
+  gpgv --keyring "$apt_hostless_keyring" "$apt_hostless_inrelease" \
+    >"$apt_hostless_gpgv_log" 2>&1 || apt_hostless_gpgv_rc=$?
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_GPGV_RC__:$apt_hostless_gpgv_rc"
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_GPGV_LOG_BEGIN__"
+  sed -n '1,80p' "$apt_hostless_gpgv_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_GPGV_LOG_END__"
+  if [ "$apt_hostless_inrelease_rc" = "0" ] &&
+     [ "$apt_hostless_inrelease_sha256" = "8b1d4ef06eaea91ce7e2cbc2a22d8b3feeadb5ab539dc79067f8e26a3729b363" ] &&
+     [ "$apt_hostless_gpgv_rc" = "0" ]; then
+    pass full-userland-apt-hostless-inrelease-gpgv
+  else
+    echo "__NEMU_CHECK_FULL_APT_HOSTLESS_INRELEASE_LOG_BEGIN__"
+    sed -n '1,80p' "$apt_hostless_inrelease_log" 2>/dev/null || true
+    echo "__NEMU_CHECK_FULL_APT_HOSTLESS_INRELEASE_LOG_END__"
+    fail full-userland-apt-hostless-inrelease-gpgv
+  fi
+  apt_hostless_source_line="deb [signed-by=$apt_hostless_keyring arch=riscv64] http://nemu.local/ubuntu jammy main"
+  printf '%s\n' "$apt_hostless_source_line" > "$apt_hostless_source"
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_SOURCE__:$apt_hostless_source_line"
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_ETC_PARTS__:Dir::Etc::parts=-"
   apt_hostless_rc=0
   timeout 240s apt-get update \
     -o "Dir::Etc::sourcelist=$apt_hostless_source" \
     -o "Dir::Etc::sourceparts=-" \
+    -o "Dir::Etc::parts=-" \
     -o "Dir::State::lists=$apt_hostless_root/lists" \
     -o "Dir::Cache::archives=$apt_hostless_root/cache/archives" \
     -o "APT::Architecture=riscv64" \
@@ -2114,11 +3192,52 @@ check_full_userland_network_clients() {
   sed -n '1,120p' "$apt_hostless_log" 2>/dev/null || true
   echo "__NEMU_CHECK_FULL_APT_HOSTLESS_UPDATE_LOG_END__"
   if [ "$apt_hostless_rc" = "0" ] &&
-     grep -q 'http://nemu.local/ubuntu jammy Release' "$apt_hostless_log" &&
+     grep -q 'http://nemu.local/ubuntu jammy InRelease' "$apt_hostless_log" &&
      grep -q 'Reading package lists' "$apt_hostless_log"; then
     pass full-userland-apt-hostless-update
+    pass full-userland-apt-hostless-signed-update
   else
     fail full-userland-apt-hostless-update
+    fail full-userland-apt-hostless-signed-update
+  fi
+
+  apt_hostless_unsigned_root="$apt_hostless_root/unsigned-no-key"
+  apt_hostless_unsigned_source="$apt_hostless_unsigned_root/sources.list"
+  apt_hostless_unsigned_log="$apt_hostless_unsigned_root/update.log"
+  apt_hostless_unsigned_empty_trusted="$apt_hostless_unsigned_root/empty-trusted.gpg"
+  rm -rf "$apt_hostless_unsigned_root"
+  mkdir -p \
+    "$apt_hostless_unsigned_root/lists/partial" \
+    "$apt_hostless_unsigned_root/cache/archives/partial"
+  : >"$apt_hostless_unsigned_empty_trusted"
+  apt_hostless_unsigned_source_line="deb [arch=riscv64] http://nemu.local/ubuntu jammy main"
+  printf '%s\n' "$apt_hostless_unsigned_source_line" >"$apt_hostless_unsigned_source"
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_UNSIGNED_SOURCE__:$apt_hostless_unsigned_source_line"
+  apt_hostless_unsigned_rc=0
+  timeout 240s apt-get update \
+    -o "Dir::Etc::sourcelist=$apt_hostless_unsigned_source" \
+    -o "Dir::Etc::sourceparts=-" \
+    -o "Dir::Etc::parts=-" \
+    -o "Dir::Etc::trusted=$apt_hostless_unsigned_empty_trusted" \
+    -o "Dir::Etc::trustedparts=-" \
+    -o "Dir::State::lists=$apt_hostless_unsigned_root/lists" \
+    -o "Dir::Cache::archives=$apt_hostless_unsigned_root/cache/archives" \
+    -o "APT::Architecture=riscv64" \
+    -o "Acquire::Languages=none" \
+    -o "Acquire::Retries=0" \
+    -o "Acquire::http::Timeout=60" \
+    -o "APT::Get::List-Cleanup=0" \
+    >"$apt_hostless_unsigned_log" 2>&1 || apt_hostless_unsigned_rc=$?
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_UNSIGNED_UPDATE_RC__:$apt_hostless_unsigned_rc"
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_UNSIGNED_UPDATE_LOG_BEGIN__"
+  sed -n '1,120p' "$apt_hostless_unsigned_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_APT_HOSTLESS_UNSIGNED_UPDATE_LOG_END__"
+  if [ "$apt_hostless_unsigned_rc" != "0" ] &&
+     grep -Eq 'NO_PUBKEY|public key is not available|repository .* is not signed|signatures.*verified' \
+       "$apt_hostless_unsigned_log"; then
+    pass full-userland-apt-hostless-unsigned-reject
+  else
+    fail full-userland-apt-hostless-unsigned-reject
   fi
 
   if [ "$apt_hostless_rc" = "0" ]; then
@@ -2140,9 +3259,10 @@ check_full_userland_network_clients() {
     : > "$apt_hostless_download_status"
     (
       cd "$apt_hostless_download_dir" &&
-      timeout 240s apt-get download nemu-hostless-hello:riscv64 \
+      timeout 240s apt-get download nemu-hostless-hello:riscv64=1.0 \
         -o "Dir::Etc::sourcelist=$apt_hostless_source" \
         -o "Dir::Etc::sourceparts=-" \
+        -o "Dir::Etc::parts=-" \
         -o "Dir::State::lists=$apt_hostless_root/lists" \
         -o "Dir::State::status=$apt_hostless_download_status" \
         -o "Dir::Cache::archives=$apt_hostless_root/cache/archives" \
@@ -2156,7 +3276,7 @@ check_full_userland_network_clients() {
       apt_hostless_deb_sha256="$(sha256sum "$apt_hostless_deb" | awk '{print $1}')"
     fi
     if [ "$apt_hostless_download_rc" = "0" ] &&
-       [ "$apt_hostless_deb_sha256" = "073216e022c5d7f98d7d07279921a2576920784a0895d870c5f962cb07647187" ]; then
+       [ "$apt_hostless_deb_sha256" = "49f963a8d5e812279f07b29e9e6df366ccabd08c4c3402f6a89724f20811cbe7" ]; then
       DEBIAN_FRONTEND=noninteractive timeout 240s dpkg -i "$apt_hostless_deb" \
         >"$apt_hostless_dpkg_log" 2>&1 || apt_hostless_dpkg_rc=$?
     else
@@ -2196,6 +3316,7 @@ check_full_userland_network_clients() {
   else
     fail full-userland-apt-hostless-install
   fi
+  rm -f "$apt_hostless_clear_conf"
 }
 
 check_systemd_unit_active() {
@@ -2367,6 +3488,7 @@ else
 fi
 
 check_full_userland_runtime
+check_full_userland_python_cnf_diag
 
 systemd_show_state="$(systemctl show --property=SystemState --value 2>/dev/null || true)"
 echo "__NEMU_CHECK_SYSTEMD_SHOW_STATE__:$systemd_show_state"

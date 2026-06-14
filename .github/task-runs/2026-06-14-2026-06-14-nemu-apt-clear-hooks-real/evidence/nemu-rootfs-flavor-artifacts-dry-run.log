@@ -1,0 +1,8 @@
+make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+UBUNTU_ROOTFS_FLAVOR=full \
+UBUNTU_ROOTFS_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4' \
+UBUNTU_ROOTFS_CPIO_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full-rootfs.cpio' \
+UBUNTU_ROOTFS_DIR='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/rootfs-full' \
+UBUNTU_ROOTFS_SYSTEMD_OVERLAY=1 UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/build-ubuntu-rootfs.sh'
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/Linux'

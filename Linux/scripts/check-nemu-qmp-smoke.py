@@ -123,13 +123,22 @@ def require_netdevs(netdevs, label: str, log):
         or apt_repo.get("suite") != "jammy"
         or apt_repo.get("component") != "main"
         or apt_repo.get("arch") != "riscv64"
+        or apt_repo.get("signed") is not True
+        or apt_repo.get("inrelease") != "/ubuntu/dists/jammy/InRelease"
+        or apt_repo.get("signed-by") != "/ubuntu/keyrings/nemu-hostless-archive-keyring.gpg"
+        or apt_repo.get("key-fingerprint") != "E6742789E6F3AAEAD748589209108C9EAFAA6C14"
         or apt_repo.get("package") != "nemu-hostless-hello"
         or apt_repo.get("version") != "1.0"
-        or apt_repo.get("deb-size") != 722
+        or apt_repo.get("deb-size") != 676
+        or apt_repo.get("upgrade-version") != "1.1"
+        or apt_repo.get("upgrade-deb-size") != 674
         or apt_repo.get("meta-package") != "nemu-hostless-meta"
         or apt_repo.get("meta-version") != "1.0"
         or apt_repo.get("meta-depends") != "nemu-hostless-hello (= 1.0)"
-        or apt_repo.get("meta-deb-size") != 896
+        or apt_repo.get("meta-deb-size") != 868
+        or apt_repo.get("meta-upgrade-version") != "1.1"
+        or apt_repo.get("meta-upgrade-depends") != "nemu-hostless-hello (= 1.1)"
+        or apt_repo.get("meta-upgrade-deb-size") != 886
     ):
         raise RuntimeError(f"query-netdev unexpected hostless apt repo: {entry}")
     features = nemu.get("features")

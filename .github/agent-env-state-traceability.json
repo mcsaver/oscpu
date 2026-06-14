@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "purpose": "Executable state-machine, rollback, reviewer, and inspector contract for the three-layer AI development environment.",
+  "state_machine_doc": ".github/instructions/agent-env-state-machine.instructions.md",
+  "profile": ".github/e2e/profiles/agent-system.tsv",
+  "audit_command": "python3 scripts/github_index_db.py state-audit",
+  "required_states": [
+    "recall_context",
+    "classify_layer",
+    "plan_graph",
+    "implement",
+    "verify",
+    "inspect",
+    "persist"
+  ],
+  "required_traceback_fields": [
+    "state_sequence",
+    "current_state",
+    "failure_state",
+    "rollback_target",
+    "failure_reason",
+    "reviewer",
+    "inspector",
+    "evidence_policy"
+  ],
+  "reviewer_inspector_nodes": [
+    {
+      "node_id": "state-machine-traceback",
+      "function": "e2e_agent_system_state_traceback",
+      "owner_agent": "agent-system",
+      "module": "agent-system",
+      "checks": [
+        "state_traceback in task-report.md",
+        "state_traceback in run-manifest.json",
+        "state-audit"
+      ]
+    },
+    {
+      "node_id": "reviewer-inspector-gate",
+      "function": "e2e_agent_system_reviewer_inspector_gate",
+      "owner_agent": "agent-system",
+      "module": "agent-system",
+      "checks": [
+        "review routing maps R7 to agent-layer",
+        "agent-layer has ysyx-coordinator reviewer and agent-system inspector",
+        "agent-system profile executes the reviewer/inspector gate"
+      ]
+    }
+  ],
+  "rollback_rules": [
+    {
+      "from_state": "verify",
+      "to_state": "implement",
+      "evidence_field": "failure_reason"
+    },
+    {
+      "from_state": "inspect",
+      "to_state": "plan_graph",
+      "evidence_field": "rollback_target"
+    },
+    {
+      "from_state": "persist",
+      "to_state": "implement",
+      "evidence_field": "failure_state"
+    }
+  ],
+  "completion_gate": {
+    "matrix_requirement": "R7",
+    "required_status": "implemented",
+    "required_profile": "agent-system",
+    "required_run_manifest_field": "state_traceback"
+  }
+}

@@ -253,10 +253,10 @@ synth-boundary-audit → verilator-perf-run → rtl-invariant-check → focused-
 ### `agent-env-refactor`
 
 ```text
-audit → blueprint → file-edits → validate-discovery → record
+db-audit → skill-contract → agent-flow → validate-discovery → record
 ```
 
-适用场景：重构 `.github/` 下的 agent、instructions、记忆协议与工作流环境。
+适用场景：重构 `.github/` 下的 Database/Skill/Agent 三层环境。`db-audit` 负责 DB-first shim、stored documents、memory/task-run/evidence 与备份 manifest；`skill-contract` 负责 `.github/skills/*/SKILL.md` live 标准规则和 `.github/instructions` 的流程契约；`agent-flow` 负责 `.github/agents`、`scripts/agent-e2e.sh`、`scripts/agent-maintain.sh`、profile 与 task-run 证据包。最低验证是 `scripts/agent-maintain.sh --mode check`，触及 profile 时追加 `scripts/agent-e2e.sh --profile agent-system`。
 
 ### `regression-debug-loop`
 
@@ -277,7 +277,8 @@ reproduce → collect-log-or-trace → localize-boundary → fix → rerun → r
 | L1 | `rv64-linux` | 管理 RV64 OpenSBI/Linux/Ubuntu 证据分层和 QEMU/NPC bring-up 闭环 |
 | L1 | `verilator-tapeout` | 管理 Verilator 真实性能仿真、仿真-only 边界和后续流片约束 |
 | L2 | `npc`、`linux-device`、`display-vga`、`ysyx-soc`、`nemu`、`abstract-machine`、`am-kernels`、`difftest` 等 | 在各自模块内实现与调试 |
-| L3 | `.github/memory/` 与 `study/` | 提供长期知识、经验和稳定入口 |
+| L2 | `.github/skills/*/SKILL.md` | 提供可直接读取的标准化处理规则，保持 live 可用并通过 `skill-audit` 检查 |
+| L3 | `.github/cache/github-index.sqlite`、`.github/memory/`、`.github/task-runs/` 与 `study/` | 提供长期知识、证据索引、经验和稳定入口 |
 
 ## 当前阶段门槛
 

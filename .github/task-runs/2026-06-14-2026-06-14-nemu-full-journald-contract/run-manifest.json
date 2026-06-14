@@ -1,0 +1,95 @@
+{
+  "artifacts": {
+    "context_brief": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-contract/context-brief.md",
+    "dispatch_log": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-contract/dispatch-log.md",
+    "evidence_dir": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-contract/evidence",
+    "evidence_index": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-contract/evidence-index.md",
+    "nodes": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-contract/nodes.tsv",
+    "profile_resolve": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-contract/profile-resolve.md",
+    "run_dir": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-contract",
+    "run_manifest": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-contract/run-manifest.json",
+    "task_report": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-contract/task-report.md"
+  },
+  "db": {
+    "markdown_archive": true,
+    "raw_evidence_index_only": true
+  },
+  "evidence": {
+    "asset_count": 9,
+    "by_kind": {
+      "log": 8,
+      "tsv": 1
+    },
+    "total_size_bytes": 301491
+  },
+  "final_result": "profile=nemu-dev-gate 存在失败节点；不能把后续工程判断建立在该节点上。",
+  "git": {
+    "branch": "ai",
+    "head": "694a84454",
+    "upstream": "myfork/ai"
+  },
+  "graph_mode": "static",
+  "graph_template": "modular-agent-e2e",
+  "node_counts": {
+    "by_status": {
+      "FAIL": 1,
+      "PASS": 2
+    },
+    "total": 3
+  },
+  "nodes": [
+    {
+      "evidence": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-contract/evidence/software-flow-contract.log",
+      "inputs": "software-flow agent + profile + memory",
+      "module": "software-flow",
+      "node_id": "software-flow-contract",
+      "outputs": "软件开发全流程 agent 合约入口存在",
+      "owner_agent": "software-flow",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-contract/evidence/nemu-ubuntu-static.log",
+      "inputs": "Linux/NEMU Ubuntu rootfs scripts + performance config",
+      "module": "nemu",
+      "node_id": "nemu-ubuntu-static",
+      "outputs": "NEMU Ubuntu 切片静态生产守门 PASS",
+      "owner_agent": "nemu",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-contract/evidence/nemu-ubuntu-slice-contract.log",
+      "inputs": "recent NEMU Ubuntu device slice hooks and guest markers",
+      "module": "nemu",
+      "node_id": "nemu-ubuntu-slice-contract",
+      "outputs": "exit=1",
+      "owner_agent": "nemu",
+      "status": "FAIL"
+    }
+  ],
+  "profile": "nemu-dev-gate",
+  "run_id": "2026-06-14-2026-06-14-nemu-full-journald-contract",
+  "schema_version": 1,
+  "started_at": "2026-06-14 05:23:55 +0800",
+  "state_traceback": {
+    "current_state": "verify",
+    "evidence_policy": "task-report + dispatch-log + run-manifest + evidence-index",
+    "failure_reason": "profile=nemu-dev-gate 存在失败节点；不能把后续工程判断建立在该节点上。",
+    "failure_state": "verify",
+    "inspector": "agent-system",
+    "reviewer": "ysyx-coordinator",
+    "rollback_target": "implement",
+    "state_sequence": [
+      "recall_context",
+      "classify_layer",
+      "plan_graph",
+      "implement",
+      "verify",
+      "inspect",
+      "persist"
+    ]
+  },
+  "status": "blocked",
+  "task_slug": "2026-06-14-nemu-full-journald-contract",
+  "trace_id": "e2e:2026-06-14-2026-06-14-nemu-full-journald-contract",
+  "updated_at": "2026-06-14 05:24:29 +0800"
+}

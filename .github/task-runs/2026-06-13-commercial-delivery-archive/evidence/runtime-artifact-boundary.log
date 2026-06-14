@@ -1,0 +1,13 @@
+[agent-system] runtime artifact boundary
+PASS .github/agent-env-runtime-artifacts.json
+PASS .github/agent-env-policy.json
+PASS .github/agent-env-schema-contract.json
+PASS .github/agent-env-observability.json
+PASS scripts/e2e/lib/report.sh
+PASS scripts/agent-maintain.sh
+PASS .github/e2e/profiles/agent-system.tsv
+PASS runtime artifact contract declares payload roots and retention limits
+PASS .gitignore keeps runtime artifact store and heavy evidence out of source
+PASS report.sh emits manifest pointers and DB evidence asset indexes
+PASS agent-system profile and maintenance gate execute artifact-audit
+PASS artifact-audit contract=.github/agent-env-runtime-artifacts.json roots=2 ignore_patterns=17 tracked_runtime_files=4940 tracked_heavy_files=0

@@ -1,0 +1,94 @@
+{
+  "artifacts": {
+    "context_brief": ".github/task-runs/2026-06-13-agent-env-observability-trace/context-brief.md",
+    "dispatch_log": ".github/task-runs/2026-06-13-agent-env-observability-trace/dispatch-log.md",
+    "evidence_dir": ".github/task-runs/2026-06-13-agent-env-observability-trace/evidence",
+    "evidence_index": ".github/task-runs/2026-06-13-agent-env-observability-trace/evidence-index.md",
+    "nodes": ".github/task-runs/2026-06-13-agent-env-observability-trace/nodes.tsv",
+    "profile_resolve": ".github/task-runs/2026-06-13-agent-env-observability-trace/profile-resolve.md",
+    "run_dir": ".github/task-runs/2026-06-13-agent-env-observability-trace",
+    "run_manifest": ".github/task-runs/2026-06-13-agent-env-observability-trace/run-manifest.json",
+    "task_report": ".github/task-runs/2026-06-13-agent-env-observability-trace/task-report.md"
+  },
+  "db": {
+    "markdown_archive": true,
+    "raw_evidence_index_only": true
+  },
+  "evidence": {
+    "asset_count": 6,
+    "by_kind": {
+      "log": 5,
+      "tsv": 1
+    },
+    "total_size_bytes": 13162
+  },
+  "final_result": "profile=agent-system 通过，当前 modular e2e 证据链可复用。",
+  "git": {
+    "branch": "ai",
+    "head": "694a84454",
+    "upstream": "myfork/ai"
+  },
+  "graph_mode": "static",
+  "graph_template": "modular-agent-e2e",
+  "node_counts": {
+    "by_status": {
+      "PASS": 5
+    },
+    "total": 5
+  },
+  "nodes": [
+    {
+      "evidence": ".github/task-runs/2026-06-13-agent-env-observability-trace/evidence/recall-discovery.log",
+      "inputs": "AGENTS/copilot/instructions/memory/e2e profiles",
+      "module": "agent-system",
+      "node_id": "recall-discovery",
+      "outputs": "规则发现链和 e2e 配置入口存在",
+      "owner_agent": "agent-system",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-06-13-agent-env-observability-trace/evidence/tool-env-check.log",
+      "inputs": "agent-env + bash/git/make/python/gcc/verilator/toolchain",
+      "module": "toolchain",
+      "node_id": "tool-env-check",
+      "outputs": "非交互软环境、hard requirements 与 optional tools 可见",
+      "owner_agent": "agent-system",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-06-13-agent-env-observability-trace/evidence/npc-sim-status.log",
+      "inputs": "npc/sim Kconfig 与 backend mk",
+      "module": "hardware-flow",
+      "node_id": "npc-sim-status",
+      "outputs": "当前 npc/sim 后端状态",
+      "owner_agent": "hardware-flow",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-06-13-agent-env-observability-trace/evidence/three-layer-contract.log",
+      "inputs": ".github/instructions/agent-env-layer-contract.instructions.md;.github/skills/agent-env-maintenance/SKILL.md;scripts/agent-maintain.sh",
+      "module": "agent-system",
+      "node_id": "three-layer-contract",
+      "outputs": "验证 Database/Skill/Agent 三层契约与维护入口",
+      "owner_agent": "agent-system",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-06-13-agent-env-observability-trace/evidence/profile-index.log",
+      "inputs": ".github/e2e/profiles",
+      "module": "agent-system",
+      "node_id": "profile-index",
+      "outputs": "列出所有可执行 profile",
+      "owner_agent": "agent-system",
+      "status": "PASS"
+    }
+  ],
+  "profile": "agent-system",
+  "run_id": "2026-06-13-agent-env-observability-trace",
+  "schema_version": 1,
+  "started_at": "2026-06-13 21:28:59 +0800",
+  "status": "completed",
+  "task_slug": "agent-env-observability-trace",
+  "trace_id": "e2e:2026-06-13-agent-env-observability-trace",
+  "updated_at": "2026-06-13 21:29:02 +0800"
+}

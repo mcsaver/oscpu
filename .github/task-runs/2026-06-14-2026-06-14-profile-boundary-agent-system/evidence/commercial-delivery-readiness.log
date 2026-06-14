@@ -1,0 +1,26 @@
+[agent-system] commercial delivery readiness
+PASS .github/agent-env-delivery.json
+PASS scripts/package-ai-dev-env.sh
+PASS deliverables/ai-dev-env-commercial-v1/README.md
+PASS deliverables/ai-dev-env-commercial-v1/PACKAGING_MANIFEST.md
+PASS deliverables/ai-dev-env-commercial-v1/COMMERCIAL_READINESS.md
+PASS deliverables/ai-dev-env-commercial-v1/docs/ARCHITECTURE.md
+PASS deliverables/ai-dev-env-commercial-v1/docs/OPERATIONS.md
+PASS deliverables/ai-dev-env-commercial-v1/docs/QUALITY_GATES.md
+PASS .github/archive/legacy-ai-dev-env-2026-06-13/ARCHIVE_MANIFEST.md
+PASS package-ai-dev-env package_root=deliverables/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial files=131
+PASS deliverables/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/README.md
+PASS deliverables/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/PACKAGING_MANIFEST.md
+PASS deliverables/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/.github/AGENTS.md
+PASS deliverables/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/.github/agent-env-delivery.json
+PASS deliverables/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/.github/agent-env-policy.json
+PASS deliverables/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/.github/skills/agent-env-maintenance/SKILL.md
+PASS deliverables/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/scripts/agent-maintain.sh
+PASS deliverables/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/scripts/github_index_db.py
+PASS deliverables/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/PACKAGE_FILELIST.txt
+PASS legacy active outputs are absent from the live workspace
+PASS archive manifest records moved legacy output roots
+PASS package filelist is relative and contains required delivery entries
+PASS package e2e directories are not nested twice
+PASS package contains no local/private marker scan hits
+PASS delivery-audit contract=.github/agent-env-delivery.json delivery_root=deliverables/ai-dev-env-commercial-v1 package_files=131 archive=.github/archive/legacy-ai-dev-env-2026-06-13

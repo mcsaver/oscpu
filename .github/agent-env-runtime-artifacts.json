@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "purpose": "Runtime artifact boundary contract for separating source-controlled AI environment files from volatile execution payloads.",
+  "owner_layer": "database",
+  "audit_command": "python3 scripts/github_index_db.py artifact-audit",
+  "source_surface": {
+    "tracked_contracts": [
+      ".github/agent-env-policy.json",
+      ".github/agent-env-rebuild-matrix.json",
+      ".github/agent-env-schema-contract.json",
+      ".github/agent-env-observability.json",
+      ".github/agent-env-state-traceability.json",
+      ".github/agent-env-runtime-artifacts.json"
+    ],
+    "tracked_task_run_payloads": [
+      "task-report.md",
+      "dispatch-log.md",
+      "context-brief.md",
+      "profile-resolve.md",
+      "evidence-index.md",
+      "nodes.tsv",
+      "run-manifest.json"
+    ],
+    "rule": "Source control keeps contracts, scripts, DB-backed markdown shims, task-run manifests, and bounded text evidence. Large or volatile runtime payloads stay in ignored artifact roots and are represented by evidence_assets rows plus manifest/index pointers."
+  },
+  "artifact_store": {
+    "local_root": ".github/runtime-artifacts",
+    "gitignore_required": true,
+    "pointer_formats": [
+      "run-manifest.json",
+      "evidence-index.md",
+      "evidence_assets"
+    ],
+    "external_store_ready": true
+  },
+  "runtime_payload_roots": [
+    ".github/task-runs/*/evidence",
+    ".github/runtime-artifacts"
+  ],
+  "retention": {
+    "raw_evidence_fulltext_in_db": false,
+    "raw_evidence_index_table": "evidence_assets",
+    "raw_evidence_index_required": true,
+    "large_artifacts_externalized": true,
+    "waveform_artifacts_externalized": true,
+    "max_tracked_evidence_bytes": 1048576
+  },
+  "heavy_artifact_suffixes": [
+    ".vcd",
+    ".fst",
+    ".fsdb",
+    ".wlf",
+    ".vpd",
+    ".ghw",
+    ".pcap",
+    ".qcow2",
+    ".img",
+    ".raw",
+    ".dump",
+    ".trace",
+    ".itrace",
+    ".elf",
+    ".bin"
+  ],
+  "ignore_patterns_required": [
+    ".github/runtime-artifacts/**",
+    "!.github/runtime-artifacts/.gitkeep",
+    ".github/task-runs/**/evidence/*.vcd",
+    ".github/task-runs/**/evidence/*.fst",
+    ".github/task-runs/**/evidence/*.fsdb",
+    ".github/task-runs/**/evidence/*.wlf",
+    ".github/task-runs/**/evidence/*.vpd",
+    ".github/task-runs/**/evidence/*.ghw",
+    ".github/task-runs/**/evidence/*.pcap",
+    ".github/task-runs/**/evidence/*.qcow2",
+    ".github/task-runs/**/evidence/*.img",
+    ".github/task-runs/**/evidence/*.raw",
+    ".github/task-runs/**/evidence/*.dump",
+    ".github/task-runs/**/evidence/*.trace",
+    ".github/task-runs/**/evidence/*.itrace",
+    ".github/task-runs/**/evidence/*.elf",
+    ".github/task-runs/**/evidence/*.bin"
+  ],
+  "report_hooks": [
+    "e2e_index_task_run_evidence_assets",
+    "raw_evidence_index_only",
+    "run-manifest.json",
+    "archive-markdown"
+  ],
+  "maintenance": {
+    "required_gates": [
+      "artifact-audit"
+    ],
+    "required_profile_nodes": [
+      "runtime-artifact-boundary"
+    ]
+  },
+  "completion_gate": {
+    "matrix_requirement": "R3",
+    "status_required": "implemented",
+    "run_manifest_field": "db.raw_evidence_index_only"
+  }
+}

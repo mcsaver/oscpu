@@ -1,2 +1,2 @@
 @include|nemu-ubuntu||||
-nemu-ubuntu-full-soak-gate|nemu|e2e_nemu_ubuntu_full_soak_gate|nemu|optional full Ubuntu rootfs/systemd soak gate|AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_GATE=1 时运行真实 full rootfs soak guest gate，否则 SKIP
+nemu-ubuntu-full-soak-gate|nemu|e2e_nemu_ubuntu_full_soak_gate|nemu|optional full Ubuntu rootfs soak gate|AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_GATE=1 时运行真实 full rootfs soak gate，否则 SKIP

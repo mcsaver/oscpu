@@ -191,10 +191,11 @@ static inline bool exec_system(Decode *s, uint32_t inst, uint32_t funct3, int rd
     default:
       if ((inst & 0xfe007fffu) == 0x12000073u) { // sfence.vma
         /*
-         * Linux 进程切换常用 sfence.vma va,asid。按 rs1/rs2 精细失效后，
-         * PTE_G 和其他 ASID 的 TLB 项不会被粗暴清空，保持 Ubuntu 热路径收益。
+         * Ubuntu full userspace exposed transient Python module corruption with the
+         * selective TLB fast path. Prefer the architecturally conservative barrier
+         * until the ASID/global invalidation model is re-proven under full rootfs.
          */
-        isa_riscv64_mmu_tlb_flush_selective(R(rs1), rs1 != 0, R(rs2), rs2 != 0);
+        isa_riscv64_mmu_tlb_flush();
         return true;
       }
       return false;

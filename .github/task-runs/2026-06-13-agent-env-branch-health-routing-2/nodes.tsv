@@ -1,0 +1,5 @@
+recall-discovery	agent-system	agent-system	PASS	AGENTS/copilot/instructions/memory/e2e profiles	规则发现链和 e2e 配置入口存在	.github/task-runs/2026-06-13-agent-env-branch-health-routing-2/evidence/recall-discovery.log
+tool-env-check	agent-system	toolchain	PASS	agent-env + bash/git/make/python/gcc/verilator/toolchain	非交互软环境、hard requirements 与 optional tools 可见	.github/task-runs/2026-06-13-agent-env-branch-health-routing-2/evidence/tool-env-check.log
+npc-sim-status	hardware-flow	hardware-flow	PASS	npc/sim Kconfig 与 backend mk	当前 npc/sim 后端状态	.github/task-runs/2026-06-13-agent-env-branch-health-routing-2/evidence/npc-sim-status.log
+three-layer-contract	agent-system	agent-system	PASS	.github/instructions/agent-env-layer-contract.instructions.md;.github/skills/agent-env-maintenance/SKILL.md;scripts/agent-maintain.sh	验证 Database/Skill/Agent 三层契约与维护入口	.github/task-runs/2026-06-13-agent-env-branch-health-routing-2/evidence/three-layer-contract.log
+profile-index	agent-system	agent-system	PASS	.github/e2e/profiles	列出所有可执行 profile	.github/task-runs/2026-06-13-agent-env-branch-health-routing-2/evidence/profile-index.log

@@ -327,9 +327,122 @@ if [ "$REQUIRE_SYSTEMD" = "1" ] && [ -n "$systemd_bin" ]; then
       systemd_missing=1
     fi
 
+    if rootfs_has /usr/bin/gpgv; then
+      echo "[ubuntu-rootfs-check] OK      apt signature verifier: /usr/bin/gpgv"
+    else
+      echo "[ubuntu-rootfs-check] MISSING apt signature verifier: /usr/bin/gpgv"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /bin/journalctl; then
+      echo "[ubuntu-rootfs-check] OK      journal query tool: /bin/journalctl"
+    else
+      echo "[ubuntu-rootfs-check] MISSING journal query tool: /bin/journalctl"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /bin/systemd-machine-id-setup; then
+      echo "[ubuntu-rootfs-check] OK      machine-id setup tool: /bin/systemd-machine-id-setup"
+    else
+      echo "[ubuntu-rootfs-check] MISSING machine-id setup tool: /bin/systemd-machine-id-setup"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /usr/bin/hostnamectl; then
+      echo "[ubuntu-rootfs-check] OK      hostnamectl tool: /usr/bin/hostnamectl"
+    else
+      echo "[ubuntu-rootfs-check] MISSING hostnamectl tool: /usr/bin/hostnamectl"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /lib/systemd/systemd-hostnamed; then
+      echo "[ubuntu-rootfs-check] OK      hostnamed service binary: /lib/systemd/systemd-hostnamed"
+    else
+      echo "[ubuntu-rootfs-check] MISSING hostnamed service binary: /lib/systemd/systemd-hostnamed"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /etc/machine-id; then
+      echo "[ubuntu-rootfs-check] OK      machine-id seed file: /etc/machine-id"
+    else
+      echo "[ubuntu-rootfs-check] MISSING machine-id seed file: /etc/machine-id"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /etc/hostname; then
+      echo "[ubuntu-rootfs-check] OK      hostname seed file: /etc/hostname"
+    else
+      echo "[ubuntu-rootfs-check] MISSING hostname seed file: /etc/hostname"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /lib/systemd/system/systemd-machine-id-commit.service; then
+      echo "[ubuntu-rootfs-check] OK      machine-id commit unit: /lib/systemd/system/systemd-machine-id-commit.service"
+    else
+      echo "[ubuntu-rootfs-check] MISSING machine-id commit unit: /lib/systemd/system/systemd-machine-id-commit.service"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /lib/systemd/system/systemd-hostnamed.service; then
+      echo "[ubuntu-rootfs-check] OK      hostnamed unit: /lib/systemd/system/systemd-hostnamed.service"
+    else
+      echo "[ubuntu-rootfs-check] MISSING hostnamed unit: /lib/systemd/system/systemd-hostnamed.service"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /bin/systemd-sysusers; then
+      echo "[ubuntu-rootfs-check] OK      sysusers tool: /bin/systemd-sysusers"
+    else
+      echo "[ubuntu-rootfs-check] MISSING sysusers tool: /bin/systemd-sysusers"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /lib/systemd/system/systemd-sysusers.service; then
+      echo "[ubuntu-rootfs-check] OK      sysusers setup unit: /lib/systemd/system/systemd-sysusers.service"
+    else
+      echo "[ubuntu-rootfs-check] MISSING sysusers setup unit: /lib/systemd/system/systemd-sysusers.service"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /usr/lib/sysusers.d/basic.conf; then
+      echo "[ubuntu-rootfs-check] OK      sysusers base config: /usr/lib/sysusers.d/basic.conf"
+    else
+      echo "[ubuntu-rootfs-check] MISSING sysusers base config: /usr/lib/sysusers.d/basic.conf"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /bin/systemd-tmpfiles; then
+      echo "[ubuntu-rootfs-check] OK      tmpfiles tool: /bin/systemd-tmpfiles"
+    else
+      echo "[ubuntu-rootfs-check] MISSING tmpfiles tool: /bin/systemd-tmpfiles"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /lib/systemd/system/systemd-tmpfiles-setup.service; then
+      echo "[ubuntu-rootfs-check] OK      tmpfiles setup unit: /lib/systemd/system/systemd-tmpfiles-setup.service"
+    else
+      echo "[ubuntu-rootfs-check] MISSING tmpfiles setup unit: /lib/systemd/system/systemd-tmpfiles-setup.service"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /usr/bin/systemd-cat; then
+      echo "[ubuntu-rootfs-check] OK      journal stdin tool: /usr/bin/systemd-cat"
+    else
+      echo "[ubuntu-rootfs-check] MISSING journal stdin tool: /usr/bin/systemd-cat"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /usr/share/keyrings/ubuntu-archive-keyring.gpg; then
+      ubuntu_keyring_sha256="$(rootfs_cat /usr/share/keyrings/ubuntu-archive-keyring.gpg | sha256sum | awk '{print $1}')"
+      echo "[ubuntu-rootfs-check] OK      Ubuntu archive keyring: /usr/share/keyrings/ubuntu-archive-keyring.gpg sha256=$ubuntu_keyring_sha256"
+    else
+      echo "[ubuntu-rootfs-check] MISSING Ubuntu archive keyring: /usr/share/keyrings/ubuntu-archive-keyring.gpg"
+      systemd_missing=1
+    fi
+
     # chrootless full overlay 也必须维护 dpkg 状态库，否则 apt/dpkg 在 guest 内会
     # 看不到由 dpkg-deb 解包出来的 server-like 用户态组件。
-    for package in ubuntu-standard openssh-server curl wget dropbear-bin rsyslog cron systemd-timesyncd; do
+    for package in systemd ubuntu-standard openssh-server curl wget dropbear-bin rsyslog cron systemd-timesyncd gpgv ubuntu-keyring; do
       if rootfs_dpkg_status_installed "$package"; then
         echo "[ubuntu-rootfs-check] OK      dpkg status installed: $package"
       else
@@ -337,7 +450,7 @@ if [ "$REQUIRE_SYSTEMD" = "1" ] && [ -n "$systemd_bin" ]; then
         systemd_missing=1
       fi
     done
-    for package in ubuntu-standard openssh-server curl wget dropbear-bin rsyslog cron systemd-timesyncd; do
+    for package in systemd ubuntu-standard openssh-server curl wget dropbear-bin rsyslog cron systemd-timesyncd gpgv ubuntu-keyring; do
       if rootfs_has "/var/lib/dpkg/info/$package.list"; then
         echo "[ubuntu-rootfs-check] OK      dpkg info list: $package"
       else
@@ -372,7 +485,18 @@ if [ "$REQUIRE_SYSTEMD" = "1" ] && [ -n "$systemd_bin" ]; then
       "dropbear-bin:/usr/bin/dbclient" \
       "dropbear-bin:/usr/sbin/dropbear" \
       "rsyslog:/usr/sbin/rsyslogd" \
-      "cron:/usr/sbin/cron"; do
+      "cron:/usr/sbin/cron" \
+      "systemd:/bin/journalctl" \
+      "systemd:/bin/systemd-machine-id-setup" \
+      "systemd:/bin/systemd-sysusers" \
+      "systemd:/bin/systemd-tmpfiles" \
+      "systemd:/usr/bin/systemd-cat" \
+      "systemd:/usr/bin/hostnamectl" \
+      "systemd:/lib/systemd/systemd-hostnamed" \
+      "systemd:/lib/systemd/system/systemd-machine-id-commit.service" \
+      "systemd:/lib/systemd/system/systemd-hostnamed.service" \
+      "gpgv:/usr/bin/gpgv" \
+      "ubuntu-keyring:/usr/share/keyrings/ubuntu-archive-keyring.gpg"; do
       package=${ownership%%:*}
       path=${ownership#*:}
       if rootfs_dpkg_info_list_contains "$package" "$path"; then

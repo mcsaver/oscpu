@@ -86,7 +86,7 @@ fceux-am (NES 模拟器, 运行在 AM 上)
 ## Agent ysyxSoC / Chisel 约束
 - 处理 `ysyxSoC/`、CPU 顶层 ABI、AXI4 端口命名、SoC 地址图或 `ysyxSoCFull.v` 生成任务时，优先读取 `.github/agents/ysyx-soc.agent.md`、`.github/memory/modules/ysyx-soc.md` 与 `ysyxSoC/spec/cpu-interface.md`。
 - `ysyxSoC/build/ysyxSoCFull.v` 是生成物；除非任务明确要求临时补丁，否则优先修改 `ysyxSoC/src/` 后用 `make -C ysyxSoC verilog` 重新生成。
-- 当前 Mill/Chisel 环境依赖用户级 JDK 21 与 `/home/lyg/.local/bin/mill` wrapper；不要用系统 OpenJDK 8 失败来判断源码错误。
+- 当前 Mill/Chisel 环境依赖用户级 JDK 21 与用户本地 `mill` wrapper；不要用系统 OpenJDK 8 失败来判断源码错误。
 
 ## Agent RV64 Linux / Ubuntu 约束
 - 处理 `npc/rv64`、OpenSBI、Linux kernel、DTB、initramfs/rootfs、Ubuntu Base、QEMU reference 或 NPC/Verilator Linux 启动任务时，优先读取 `.github/agents/rv64-linux.agent.md` 与 `.github/instructions/rv64-linux-bringup.instructions.md`。

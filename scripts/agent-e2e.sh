@@ -103,6 +103,7 @@ PROFILE_FUNCTIONS=()
 PROFILE_OWNERS=()
 PROFILE_INPUTS=()
 PROFILE_OUTPUTS=()
+PROFILE_SOURCES=()
 
 reset_profile_arrays() {
   PROFILE_NODE_IDS=()
@@ -111,6 +112,7 @@ reset_profile_arrays() {
   PROFILE_OWNERS=()
   PROFILE_INPUTS=()
   PROFILE_OUTPUTS=()
+  PROFILE_SOURCES=()
 }
 
 load_profile() {
@@ -143,7 +145,103 @@ load_profile() {
     PROFILE_OWNERS+=("$owner")
     PROFILE_INPUTS+=("$inputs")
     PROFILE_OUTPUTS+=("$outputs")
+    PROFILE_SOURCES+=("$profile")
   done <<< "$profile_content"
+}
+
+validate_profile_boundary_value() {
+  local profile=$1 field=$2 value=$3 expected=$4
+  if [[ $value = "$expected" ]]; then
+    return 0
+  fi
+  printf '[agent-e2e] FAIL profile-boundary profile=%s field=%s value=%s expected=%s\n' \
+    "$profile" "$field" "$value" "$expected" >&2
+  return 1
+}
+
+validate_nemu_dev_boundary() {
+  local profile=$1
+  local i node module function owner source rc=0
+  printf '[agent-e2e] profile-boundary=%s mode=NEMU-only\n' "$profile"
+  for i in "${!PROFILE_NODE_IDS[@]}"; do
+    node=${PROFILE_NODE_IDS[$i]}
+    module=${PROFILE_MODULES[$i]}
+    function=${PROFILE_FUNCTIONS[$i]}
+    owner=${PROFILE_OWNERS[$i]}
+    source=${PROFILE_SOURCES[$i]}
+
+    case "$module" in
+      nemu|software-flow) ;;
+      *) validate_profile_boundary_value "$profile" "module" "$module" "nemu|software-flow" || rc=1 ;;
+    esac
+    case "$owner" in
+      nemu|software-flow) ;;
+      *) validate_profile_boundary_value "$profile" "owner" "$owner" "nemu|software-flow" || rc=1 ;;
+    esac
+    case "$source" in
+      nemu-dev|nemu-dev-gate|nemu-dev-full-gate|nemu-dev-full-soak|nemu-ubuntu|nemu-ubuntu-focused|nemu-ubuntu-gate|nemu-ubuntu-full-gate|nemu-ubuntu-full-soak|software-flow) ;;
+      *) validate_profile_boundary_value "$profile" "source_profile" "$source" "NEMU dev closure" || rc=1 ;;
+    esac
+    if [[ $node = npc-* || $function = e2e_npc_* || $module = npc || $owner = npc ]]; then
+      printf '[agent-e2e] FAIL profile-boundary profile=%s node=%s: NEMU-only dev profile pulled NPC work\n' \
+        "$profile" "$node" >&2
+      rc=1
+    fi
+  done
+  if [[ $rc -eq 0 ]]; then
+    printf '[agent-e2e] PASS profile-boundary %s NEMU-only closure\n' "$profile"
+  fi
+  return "$rc"
+}
+
+validate_npc_dev_boundary() {
+  local profile=$1
+  local i node module function owner source rc=0
+  printf '[agent-e2e] profile-boundary=%s mode=NPC-only\n' "$profile"
+  for i in "${!PROFILE_NODE_IDS[@]}"; do
+    node=${PROFILE_NODE_IDS[$i]}
+    module=${PROFILE_MODULES[$i]}
+    function=${PROFILE_FUNCTIONS[$i]}
+    owner=${PROFILE_OWNERS[$i]}
+    source=${PROFILE_SOURCES[$i]}
+
+    case "$module" in
+      npc|software-flow) ;;
+      *) validate_profile_boundary_value "$profile" "module" "$module" "npc|software-flow" || rc=1 ;;
+    esac
+    case "$owner" in
+      npc|software-flow) ;;
+      *) validate_profile_boundary_value "$profile" "owner" "$owner" "npc|software-flow" || rc=1 ;;
+    esac
+    case "$source" in
+      npc-dev|software-flow) ;;
+      *) validate_profile_boundary_value "$profile" "source_profile" "$source" "NPC dev closure" || rc=1 ;;
+    esac
+    if [[ $node = nemu-* || $function = e2e_nemu_* || $module = nemu || $owner = nemu ]]; then
+      printf '[agent-e2e] FAIL profile-boundary profile=%s node=%s: NPC-only dev profile pulled NEMU work\n' \
+        "$profile" "$node" >&2
+      rc=1
+    fi
+  done
+  if [[ $rc -eq 0 ]]; then
+    printf '[agent-e2e] PASS profile-boundary %s NPC-only closure\n' "$profile"
+  fi
+  return "$rc"
+}
+
+validate_profile_boundary() {
+  local profile=$1
+  case "$profile" in
+    nemu-dev|nemu-dev-gate|nemu-dev-full-gate|nemu-dev-full-soak|nemu-ubuntu|nemu-ubuntu-focused|nemu-ubuntu-gate|nemu-ubuntu-full-gate|nemu-ubuntu-full-soak)
+      validate_nemu_dev_boundary "$profile"
+      ;;
+    npc-dev)
+      validate_npc_dev_boundary "$profile"
+      ;;
+    *)
+      return 0
+      ;;
+  esac
 }
 
 validate_loaded_profile() {
@@ -178,6 +276,7 @@ validate_all_profiles() {
     reset_profile_arrays
     load_profile "$profile"
     validate_loaded_profile "$profile" || rc=1
+    validate_profile_boundary "$profile" || rc=1
   done < <(list_profiles)
   return "$rc"
 }
@@ -222,6 +321,7 @@ main() {
 
   reset_profile_arrays
   load_profile "$E2E_PROFILE"
+  validate_profile_boundary "$E2E_PROFILE" || exit 2
 
   if [[ $E2E_VALIDATE_PROFILE -eq 1 ]]; then
     validate_loaded_profile "$E2E_PROFILE"

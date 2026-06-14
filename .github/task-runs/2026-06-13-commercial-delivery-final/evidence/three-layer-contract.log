@@ -1,0 +1,85 @@
+[agent-system] three-layer AI environment contract
+PASS .github/instructions/agent-env-layer-contract.instructions.md
+PASS .github/agent-env-policy.json
+PASS .github/agent-env-rebuild-matrix.json
+PASS .github/agent-env-schema-contract.json
+PASS .github/agent-env-observability.json
+PASS .github/agent-env-state-traceability.json
+PASS .github/agent-env-runtime-artifacts.json
+PASS .github/agent-env-review-routing.json
+PASS .github/agent-env-branch-health.json
+PASS .github/agent-env-delivery.json
+PASS .github/instructions/agent-env-state-machine.instructions.md
+PASS .github/skills/agent-env-maintenance/SKILL.md
+PASS .github/workflows/agent-maintain.yml
+PASS scripts/agent-maintain.sh
+PASS layer contract documents Database/Skill/Agent boundaries
+PASS agent environment policy captures tools, retention, delivery, branch health, and CI contract
+PASS state traceability contract defines traceback fields and reviewer/inspector nodes
+PASS observability contract defines trace id, run manifest, and DB mapping
+PASS explicit schema/API contract covers DB tables and read-only API operations
+PASS report-derived rebuild matrix tracks all implemented requirements
+PASS runtime artifact contract defines source/runtime retention boundary
+PASS review routing contract covers Database/Skill/Agent and R1-R9 routes
+PASS branch health dashboard contract exposes required signals and commands
+PASS delivery contract defines archive, package, and active legacy boundaries
+PASS state machine instruction captures rollback and inspector rules
+PASS agent-env-maintenance skill exposes three-layer workflow
+PASS agent-maintain check covers policy, DB, Skill, markdown, and Agent profile gates
+PASS agent-maintain workflow rehydrates DB memory and runs nightly gate
+PASS report-audit matrix=.github/agent-env-rebuild-matrix.json requirements=9 implemented=9
+PASS schema-audit contract=.github/agent-env-schema-contract.json runtime_schema=4 tables=9 api_ops=12
+PASS artifact-audit contract=.github/agent-env-runtime-artifacts.json roots=2 ignore_patterns=17 tracked_runtime_files=4957 tracked_heavy_files=0
+PASS delivery-audit contract=.github/agent-env-delivery.json delivery_root=deliverables/ai-dev-env-commercial-v1 package_files=131 archive=.github/archive/legacy-ai-dev-env-2026-06-13
+PASS trace-audit contract=.github/agent-env-observability.json fields=9
+PASS state-audit contract=.github/agent-env-state-traceability.json states=7 nodes=2
+PASS policy-audit policy=.github/agent-env-policy.json agents=18 workflow=.github/workflows/agent-maintain.yml
+PASS .github/agents/abstract-machine.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/agent-system.agent.md tools=read,edit,search,agent,todo
+PASS .github/agents/am-kernels.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/difftest.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/digital-logic.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/display-vga.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/fceux-am.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/hardware-flow.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/linux-device.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/nemu.agent.md tools=<missing> exempted
+PASS .github/agents/npc.agent.md tools=<missing> exempted
+PASS .github/agents/nvboard.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/rv64-linux.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/software-flow.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/verilator-tapeout.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/yosys-sta.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/ysyx-coordinator.agent.md tools=read,edit,search,agent,todo,execute
+PASS .github/agents/ysyx-soc.agent.md tools=read,edit,search,execute,agent,todo
+PASS skill-audit path=.github/skills skills=1
+PASS .github/skills/agent-env-maintenance/SKILL.md name=agent-env-maintenance
+PASS branch-health-report branch=ai head=694a84454 upstream=myfork/ai staged=649 unstaged=1 untracked=2 routes=3 matrix=implemented=9
+[staged]
+  .github/agent-env-branch-health.json
+  .github/agent-env-delivery.json
+  .github/agent-env-observability.json
+  .github/agent-env-policy.json
+  .github/agent-env-rebuild-matrix.json
+  .github/agent-env-review-routing.json
+  .github/agent-env-runtime-artifacts.json
+  .github/agent-env-schema-contract.json
+  .github/agent-env-state-traceability.json
+  .github/archive/legacy-ai-dev-env-2026-06-13/ARCHIVE_MANIFEST.md
+  .github/e2e/_manual/nemu-full-apt-lifecycle-real-run-5.err -> .github/archive/legacy-ai-dev-env-2026-06-13/e2e-manual/nemu-full-apt-lifecycle-real-run-5.err
+  .github/e2e/_manual/nemu-full-apt-lifecycle-real-run-5.out -> .github/archive/legacy-ai-dev-env-2026-06-13/e2e-manual/nemu-full-apt-lifecycle-real-run-5.out
+  .github/e2e/_manual/nemu-full-apt-lifecycle-real-run-5.pid -> .github/archive/legacy-ai-dev-env-2026-06-13/e2e-manual/nemu-full-apt-lifecycle-real-run-5.pid
+  .github/e2e/_manual/npc-rv64-systemd-guest-check-contract-ecall-trap-final/npc-rv64-systemd-guest-check-contract/make-dry-run.log -> .github/archive/legacy-ai-dev-env-2026-06-13/e2e-manual/npc-rv64-systemd-guest-check-contract-ecall-trap-final/npc-rv64-systemd-guest-check-contract/make-dry-run.log
+  .github/e2e/_manual/npc-rv64-systemd-guest-check-contract-ecall-trap/npc-rv64-systemd-guest-check-contract/make-dry-run.log -> .github/archive/legacy-ai-dev-env-2026-06-13/e2e-manual/npc-rv64-systemd-guest-check-contract-ecall-trap/npc-rv64-systemd-guest-check-contract/make-dry-run.log
+  .github/e2e/_manual/npc-rv64-systemd-guest-check-contract-late-ecall/npc-rv64-systemd-guest-check-contract/make-dry-run.log -> .github/archive/legacy-ai-dev-env-2026-06-13/e2e-manual/npc-rv64-systemd-guest-check-contract-late-ecall/npc-rv64-systemd-guest-check-contract/make-dry-run.log
+  .github/e2e/_manual/npc-rv64-systemd-guest-check-contract-user-trace-final/npc-rv64-systemd-guest-check-contract/make-dry-run.log -> .github/archive/legacy-ai-dev-env-2026-06-13/e2e-manual/npc-rv64-systemd-guest-check-contract-user-trace-final/npc-rv64-systemd-guest-check-contract/make-dry-run.log
+  .github/e2e/_manual/npc-rv64-systemd-guest-check-contract-user-trace/npc-rv64-systemd-guest-check-contract/make-dry-run.log -> .github/archive/legacy-ai-dev-env-2026-06-13/e2e-manual/npc-rv64-systemd-guest-check-contract-user-trace/npc-rv64-systemd-guest-check-contract/make-dry-run.log
+  outputs/manual-20260528-ai-dev-env-package/latest-package-path.txt -> .github/archive/legacy-ai-dev-env-2026-06-13/outputs/manual-20260528-ai-dev-env-package/latest-package-path.txt
+  outputs/manual-20260528-ai-dev-env-package/ysyx-ai-hardware-env-portable/.cursor/rules/agents.mdc -> .github/archive/legacy-ai-dev-env-2026-06-13/outputs/manual-20260528-ai-dev-env-package/ysyx-ai-hardware-env-portable/.cursor/rules/agents.mdc
+[unstaged]
+  .github/db-backup/task-runs/manifest.json
+[untracked]
+  .github/db-backup/task-runs/files/.github/task-runs/2026-06-13-commercial-delivery-package-2/
+  .github/task-runs/2026-06-13-commercial-delivery-final/
+PASS branch-health-audit dashboard=.github/agent-env-branch-health.json routes=3 signals=7 gates=11
+PASS markdown-coverage active_md=1730 db_owned=1729 shims=1729 live_evidence=0 live_rules=1

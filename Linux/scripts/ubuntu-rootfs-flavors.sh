@@ -29,7 +29,7 @@ ubuntu_rootfs_flavor_packages() {
 
   local systemd_minimal="systemd systemd-sysv udev dbus procps iproute2 kmod util-linux lsb-release login passwd adduser"
   local interactive="$systemd_minimal ca-certificates curl wget iputils-ping netcat-openbsd openssh-client htop less vim-tiny nano file strace psmisc"
-  local full="$interactive ubuntu-standard openssh-server dropbear-bin sudo locales tzdata bash-completion man-db cron rsyslog systemd-timesyncd"
+  local full="$interactive ubuntu-standard openssh-server dropbear-bin sudo locales tzdata bash-completion man-db cron rsyslog systemd-timesyncd gpgv ubuntu-keyring"
 
   case "$flavor" in
     systemd-minimal)
@@ -129,6 +129,14 @@ EOF
       cat <<'EOF'
 /usr/bin/apt-get|Ubuntu full command apt-get
 /usr/bin/apt-cache|Ubuntu full command apt-cache
+/usr/bin/gpgv|Ubuntu full command gpgv
+/bin/journalctl|Ubuntu full command journalctl
+/bin/systemd-machine-id-setup|Ubuntu full command systemd-machine-id-setup
+/bin/systemd-sysusers|Ubuntu full command systemd-sysusers
+/bin/systemd-tmpfiles|Ubuntu full command systemd-tmpfiles
+/usr/bin/systemd-cat|Ubuntu full command systemd-cat
+/usr/bin/hostnamectl|Ubuntu full command hostnamectl
+/usr/bin/logger|Ubuntu full command logger
 /usr/bin/dpkg|Ubuntu full command dpkg
 /usr/bin/dpkg-query|Ubuntu full command dpkg-query
 /usr/bin/sudo|Ubuntu full command sudo
@@ -140,6 +148,9 @@ EOF
 /usr/sbin/dropbear|Ubuntu full service dropbear
 /usr/sbin/cron|Ubuntu full service cron
 /usr/sbin/rsyslogd|Ubuntu full service rsyslogd
+/lib/systemd/systemd-hostnamed|Ubuntu full service systemd-hostnamed
+/lib/systemd/system/systemd-hostnamed.service|Ubuntu full unit systemd-hostnamed
+/usr/share/keyrings/ubuntu-archive-keyring.gpg|Ubuntu full apt archive keyring
 /usr/share/zoneinfo/UTC|Ubuntu full timezone database
 EOF
       ;;
@@ -227,7 +238,7 @@ ubuntu_rootfs_flavor_check() {
   for package in curl wget iputils-ping openssh-client htop strace; do
     ubuntu_rootfs_flavor_check_contains_package interactive "$package" || missing=1
   done
-  for package in ubuntu-standard openssh-server sudo locales man-db cron rsyslog; do
+  for package in ubuntu-standard openssh-server sudo locales man-db cron rsyslog gpgv ubuntu-keyring; do
     ubuntu_rootfs_flavor_check_contains_package full "$package" || missing=1
   done
 

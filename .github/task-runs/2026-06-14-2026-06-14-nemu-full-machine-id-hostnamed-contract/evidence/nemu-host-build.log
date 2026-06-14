@@ -1,0 +1,8 @@
+make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' riscv64-linux_defconfig
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu'
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/nemu'
+make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' -j'14'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu'
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/nemu'
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/Linux'

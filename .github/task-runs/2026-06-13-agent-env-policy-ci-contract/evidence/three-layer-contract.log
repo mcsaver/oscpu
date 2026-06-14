@@ -1,0 +1,33 @@
+[agent-system] three-layer AI environment contract
+PASS .github/instructions/agent-env-layer-contract.instructions.md
+PASS .github/agent-env-policy.json
+PASS .github/skills/agent-env-maintenance/SKILL.md
+PASS .github/workflows/agent-maintain.yml
+PASS scripts/agent-maintain.sh
+PASS layer contract documents Database/Skill/Agent boundaries
+PASS agent environment policy captures tools, retention, and CI contract
+PASS agent-env-maintenance skill exposes three-layer workflow
+PASS agent-maintain check covers policy, DB, Skill, markdown, and Agent profile gates
+PASS agent-maintain workflow rehydrates DB memory and runs nightly gate
+PASS policy-audit policy=.github/agent-env-policy.json agents=18 workflow=.github/workflows/agent-maintain.yml
+PASS .github/agents/abstract-machine.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/agent-system.agent.md tools=read,edit,search,agent,todo
+PASS .github/agents/am-kernels.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/difftest.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/digital-logic.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/display-vga.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/fceux-am.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/hardware-flow.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/linux-device.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/nemu.agent.md tools=<missing> exempted
+PASS .github/agents/npc.agent.md tools=<missing> exempted
+PASS .github/agents/nvboard.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/rv64-linux.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/software-flow.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/verilator-tapeout.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/yosys-sta.agent.md tools=read,edit,search,execute,agent,todo
+PASS .github/agents/ysyx-coordinator.agent.md tools=read,edit,search,agent,todo,execute
+PASS .github/agents/ysyx-soc.agent.md tools=read,edit,search,execute,agent,todo
+PASS skill-audit path=.github/skills skills=1
+PASS .github/skills/agent-env-maintenance/SKILL.md name=agent-env-maintenance
+PASS markdown-coverage active_md=1669 db_owned=1668 shims=1668 live_evidence=0 live_rules=1

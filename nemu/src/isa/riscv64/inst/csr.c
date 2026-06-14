@@ -255,9 +255,11 @@ static inline bool csr_write(uint32_t csr, word_t value) {
     case CSR_SATP:
       cpu.csr.satp = csr_sanitize_satp(value);
       /*
-       * Sv39 TLB 已按 root_ppn+ASID 标记，satp 切换本身不需要粗暴全刷；
-       * 页表内容变化由后续 sfence.vma 精确失效，保留进程切换时的 ASID 热项。
+       * Keep satp as a hard address-space boundary for Linux full-rootfs runs.
+       * The root_ppn+ASID fast path is useful, but Python/CNF stress exposed
+       * transient stale translations before the selective model was fully proven.
        */
+      isa_riscv64_mmu_tlb_flush();
       CSR_DEBUG_LOG("CSR write satp=" FMT_WORD " raw=" FMT_WORD " pc=" FMT_WORD
           " priv=%u", cpu.csr.satp, value, cpu.pc, cpu.priv);
       return true;

@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T11:40:43+00:00",
-  "updated_at": "2026-06-13T10:36:22+00:00",
+  "updated_at": "2026-06-14T06:28:27+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -1596,6 +1596,566 @@
       "archived_at": "2026-06-11T19:28:25+00:00"
     },
     {
+      "path": ".github/task-runs/2026-06-13-2026-06-13-nemu-apt-upgrade-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6059,
+      "sha256": "08775c48830009427d3b46fa9aecfbfe256917601a6f24530df7bb42dd899d4d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T15:59:32+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-2026-06-13-nemu-apt-upgrade-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5509,
+      "sha256": "2c6e7a2ad4e6cf34dd64fc03e0b712edffd92de2f30d2a3a5c5b7e0087e4c15b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T15:59:32+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-2026-06-13-nemu-apt-upgrade-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9539,
+      "sha256": "72919bf990d6665b40ab4b6e77e1753964aab9292bc94cde9b91ba867eca3efc",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T15:59:32+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-2026-06-13-nemu-apt-upgrade-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T15:59:32+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-2026-06-13-nemu-apt-upgrade-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4463,
+      "sha256": "1b70e175eeedaeb9c4d3df647bc74472a89f8c9df46983be34a178e9c18a88dd",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T15:59:32+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-branch-health-routing-2/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 10109,
+      "sha256": "9539473b4a5128a0e6bbd76e3984ff6ae06735e442791f68a5bb35dcdadb70cc",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:18:48+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-branch-health-routing-2/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 6319,
+      "sha256": "79b95a0e3661626b2f8faa53f624e80be7e31a32acb7484b91eb540e87887e23",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:18:48+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-branch-health-routing-2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4122,
+      "sha256": "1c1b1c867796b3e64c8ce4b14255e8a6193e6f964a1a9572cb97ba4287c84206",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:18:48+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-branch-health-routing-2/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1073,
+      "sha256": "0d178614ffdd7a0b01d4b214a922821cce0808b1f939ab3cbb0869536ef096bb",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:18:48+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-branch-health-routing-2/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4044,
+      "sha256": "0d69e773b0cb58bd1b73be7583f733124db1f268b7293347f058debe14f46aae",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:18:48+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-branch-health-routing/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 10107,
+      "sha256": "21b0ace205175e5d393495bd4f6289107c72673b59ae1e9ddd643129f350be44",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:18:16+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-branch-health-routing/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 6267,
+      "sha256": "f24840dfd8b9a19cda0fd5836bd0513a3637e6654e73a60be5c57a06725d6f3c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:18:16+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-branch-health-routing/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4142,
+      "sha256": "82f65a92abb0e6e95846436b16aa8e24699d500e1a41ca8daa89a3aff982e6b0",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:18:16+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-branch-health-routing/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1073,
+      "sha256": "0d178614ffdd7a0b01d4b214a922821cce0808b1f939ab3cbb0869536ef096bb",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:18:16+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-branch-health-routing/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4029,
+      "sha256": "92c5965ab34552f2f6aaa8fd906892f4a2fd0bf71a39821f02f9271a1e4db6d5",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:18:16+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-observability-trace-2/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 12769,
+      "sha256": "4eb6c3b986e91277856f081f7f65eb9444ed80713c84d24018a3dbbe5f06d00d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:29:58+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-observability-trace-2/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 6346,
+      "sha256": "49c7d159a3281c6cbacfb67711dd144a8b02d57b5aee7eaaae063efa0609c47a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:29:58+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-observability-trace-2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4739,
+      "sha256": "dd1e770a4b41591730c1a68fd9d94be11b0e225ac17453663f4dcdebf12ca2fb",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:29:58+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-observability-trace-2/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1073,
+      "sha256": "0d178614ffdd7a0b01d4b214a922821cce0808b1f939ab3cbb0869536ef096bb",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:29:58+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-observability-trace-2/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4176,
+      "sha256": "949914e122e3d75ed9fa9b4b1b24d7043ca1fccb457e699a33c809277acae956",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:29:58+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-observability-trace/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 10222,
+      "sha256": "271600eba2f39a24b02625d3920654aec3d611db47bf417c62eebbef97627cea",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:29:03+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-observability-trace/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 6314,
+      "sha256": "aecd733e7f39f237371de54ad0d85b64ac3d545eb831b7c0a3fdf76b55499dbc",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:29:03+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-observability-trace/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4723,
+      "sha256": "a4b89d56e603416e05e5a3525291a4c5eb210155d872d8e18d880d30851dc23b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:29:03+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-observability-trace/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1073,
+      "sha256": "0d178614ffdd7a0b01d4b214a922821cce0808b1f939ab3cbb0869536ef096bb",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:29:03+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-observability-trace/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4091,
+      "sha256": "a70db52e110f4af88a9437482379ccdd691b80280332f39848b99b3b663d558e",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:29:03+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-policy-ci-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 9724,
+      "sha256": "af1789a1c94b3e23c3ab36077467899de69c41d34f893922db0805095ead4ff7",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T12:50:49+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-policy-ci-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 6239,
+      "sha256": "e62c06e719abcb7469bddbc56b23bea38b898d69ad29f3f001bb156f1de05eaf",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T12:50:49+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-policy-ci-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4081,
+      "sha256": "a3a5b64a95bc2f6e163038384539643af89a702c8b99173981e6cec300f56dbd",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T12:50:49+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-policy-ci-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1073,
+      "sha256": "0d178614ffdd7a0b01d4b214a922821cce0808b1f939ab3cbb0869536ef096bb",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T12:50:49+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-policy-ci-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 3984,
+      "sha256": "4bb18781eeada661e807cfb8e2c9b7bfe53fc5409a69d57c1f02932433077e3f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T12:50:49+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-report-traceability-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 9734,
+      "sha256": "ebbd21f1ed1aa60778685d88bed66209bb7ba85d231a00cb2b8d3d153677c3eb",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:00:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-report-traceability-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 6399,
+      "sha256": "77394d1a300d2fc38c22ffe4e1e424369cc52993a2c9c2bf22280d3efe3bfd1f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:00:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-report-traceability-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4162,
+      "sha256": "9e5a59ee4003764341c893dcbc50257401a15064392ec23fc5b1dc5b0f676bdd",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:00:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-report-traceability-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1073,
+      "sha256": "0d178614ffdd7a0b01d4b214a922821cce0808b1f939ab3cbb0869536ef096bb",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:00:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-report-traceability-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4104,
+      "sha256": "7a8fcedaf56122d59ca76d3f826f4c25edbda65e548200a9022a7a7cf8827ccb",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:00:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-runtime-artifact-boundary-2/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 10704,
+      "sha256": "b98c68179488fe4ace377bb763e9b5e6b155bda74e81bf2d519f56bb60734aaf",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T14:01:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-runtime-artifact-boundary-2/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 10045,
+      "sha256": "22c392070ed3de7869dde1c6c3e11e78e7fc5f8ba9d544848e6339b03c383cc6",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T14:01:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-runtime-artifact-boundary-2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 6766,
+      "sha256": "0d240d4d9c9d9422a7bf002141dc2fa5565d35251d83ee214fb612c663fe8c00",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T14:01:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-runtime-artifact-boundary-2/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1507,
+      "sha256": "98823cf3a7ee76cfc0b191babfda59a3895e368a3d67e35e3530c6426c6cee37",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T14:01:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-runtime-artifact-boundary-2/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 5691,
+      "sha256": "6c5c46593ef0b4cf796b07ca15f3fbb678cc29a32ded65217ddd20ab64d29633",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T14:01:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-runtime-artifact-boundary/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 10702,
+      "sha256": "d1cbbfeefa279e4b3993bca374f83d08b22be3c9aa9a4719d5350dfe65219751",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T14:00:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-runtime-artifact-boundary/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 9999,
+      "sha256": "691dede66b92de5a5cb502d1a253e29bcc44696a42422af1c319a0123c0cac5a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T14:00:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-runtime-artifact-boundary/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 6742,
+      "sha256": "b091b9da4bb464a6a09a2babfe4df49f6325a416e9a6b4e7a7fe356571122636",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T14:00:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-runtime-artifact-boundary/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1507,
+      "sha256": "98823cf3a7ee76cfc0b191babfda59a3895e368a3d67e35e3530c6426c6cee37",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T14:00:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-runtime-artifact-boundary/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 5657,
+      "sha256": "e7449dc970c6639cc2dd003d14655a14ad72c0d5bbd3ad1105eb0703278cae9c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T14:00:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-schema-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 11495,
+      "sha256": "1c7ba73b48b29f3fa3266e7b7e1723583aa132ab2ca6d4e83e8c32420c366930",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:08:37+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-schema-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 6191,
+      "sha256": "1f8d2f0daa3c41b38d0dfa288a15bf9d948823d704d2de36fd1585b461b81cc0",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:08:37+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-schema-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4058,
+      "sha256": "9a3f62f58cb09b707b72f19e1778fc94c92f9ec75bc1dda8bd3c2e971f284e05",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:08:37+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-schema-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1073,
+      "sha256": "0d178614ffdd7a0b01d4b214a922821cce0808b1f939ab3cbb0869536ef096bb",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:08:37+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-schema-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 3948,
+      "sha256": "2b6e8f8b035334108562149bb38eb4be4e961be0c53a907776b42580e04a210b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:08:37+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-state-reviewer-inspector-2/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 11900,
+      "sha256": "c5d430722833245decb369bde4a773fd4c825c394efe731c1df525689a917c90",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:41:33+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-state-reviewer-inspector-2/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 8843,
+      "sha256": "5ca57b34d7e12f71c6e0b74d2b54335b17237899480399980a688058a02e7324",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:41:33+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-state-reviewer-inspector-2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 6094,
+      "sha256": "e86103a3f091be216059373295894e037fe0afae29bd0c988b3ebfa8d516db79",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:41:33+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-state-reviewer-inspector-2/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1357,
+      "sha256": "0177c0413f71eb4c303d46f587a88f5963e10e027908ed94d66bcaa6f257899f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:41:33+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-state-reviewer-inspector-2/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 5333,
+      "sha256": "3e33878ab7c5e23beab332bc75a9c65d8d0fe8626b7771ad5caafac0e6dd298a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:41:33+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-state-reviewer-inspector/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 11161,
+      "sha256": "901b4b1111e13d46412a960ca1276be17748f566e61e43f7574a3263e6cb1d1a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:40:56+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-state-reviewer-inspector/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 8803,
+      "sha256": "280c127946a5ef2eb732e69818b02ee45636cccf51c0c6b97978b48c743a3bfd",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:40:56+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-state-reviewer-inspector/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 6074,
+      "sha256": "1aa6e7be8c266e7283ed0f8e6b54eec58f9e318f7fac98c424aba4ee0f21a8ea",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:40:56+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-state-reviewer-inspector/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1357,
+      "sha256": "0177c0413f71eb4c303d46f587a88f5963e10e027908ed94d66bcaa6f257899f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:40:56+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-state-reviewer-inspector/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 5303,
+      "sha256": "3daefae9055bf030bf3d28b643c14d4e72d78de65356c86a4ee82fd4ae9737f7",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T13:40:56+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-three-layer-contract-2/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 13240,
+      "sha256": "0e8ad4869e8070b13c025185f1246c5a3457e868d33c4de08529110f0a44bac4",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T12:38:33+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-three-layer-contract-2/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 6301,
+      "sha256": "93d3f895e803326fd10025e2ba2edeed29296831d4b60af679dcefd429f1405b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T12:38:33+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-three-layer-contract-2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4109,
+      "sha256": "a32b2b9ee8bbb17df20c533ddfa8e36e9d147711bc8fa5029fa93c3b44669ce6",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T12:38:33+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-three-layer-contract-2/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1073,
+      "sha256": "0d178614ffdd7a0b01d4b214a922821cce0808b1f939ab3cbb0869536ef096bb",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T12:38:33+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-three-layer-contract-2/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4030,
+      "sha256": "25db4198528a1a0bf1d14eb7f1fe0f2a1e843fcd7286c3fe6895b8055c04315a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T12:38:33+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-three-layer-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 9726,
+      "sha256": "da1ffaf450f94dbce489dec9fae911c7b8fc2f4761860768609e32c5b6401e24",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T12:36:42+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-three-layer-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 6265,
+      "sha256": "266f7c84bb5ffadabc818d0c8180b97d205bbfa16b6bd553d535f5da9a5a5e27",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T12:36:42+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-three-layer-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4107,
+      "sha256": "aa9bdd9ef05517a9ad75e2cb4dc511732a2bd6b387312f158f3318153271cee6",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T12:36:42+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-three-layer-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1073,
+      "sha256": "0d178614ffdd7a0b01d4b214a922821cce0808b1f939ab3cbb0869536ef096bb",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T12:36:42+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-agent-env-three-layer-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4031,
+      "sha256": "c540edadca438f7d760125846040f0c3b485e6c970ac331ed9a79704dbc17d0e",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T12:36:42+00:00"
+    },
+    {
       "path": ".github/task-runs/2026-06-13-agent-system-dev-isolation-final/context-brief.md",
       "kind": "task-run",
       "size_bytes": 9317,
@@ -1634,6 +2194,86 @@
       "sha256": "bed87c7ebaee0decf6860027314fe7749f49d3e0731ff99029f76345bff9d06a",
       "backup_source": "filesystem",
       "archived_at": "2026-06-13T07:58:28+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-commercial-delivery-final/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 8860,
+      "sha256": "c1ce76b5286528363e03b2506603ab3b07407191f9c5938aa3b16e837e00bc50",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T14:28:15+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-commercial-delivery-final/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 10964,
+      "sha256": "4f663755ade19db7b2748d6670c702b7e4360531137d9c866f5fb39449de22db",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T14:28:15+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-commercial-delivery-final/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 7274,
+      "sha256": "f8b57cc8719af23e6594c1e47474ffd8e70d4bbfe201a7474496e3a9bd083012",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T14:28:15+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-commercial-delivery-final/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1665,
+      "sha256": "33b39a43509e6c87e8932ae751f60f9ae99db025862526738424f9e7bfab3247",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T14:28:15+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-commercial-delivery-final/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 5831,
+      "sha256": "5a6523bdf58d3175517de62ea1d2ca0725a9b0d68c6505de9c5090724ce15052",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T14:28:15+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-commercial-delivery-package-2/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 8864,
+      "sha256": "f671d61e69e8b2ae0c32b4854a37f17f4707360fb763f5c6884ba7119b9ab095",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T14:27:51+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-commercial-delivery-package-2/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11064,
+      "sha256": "0767d9c6e8818e652d7bb80eed7fe9132f26f1a9e89a2e50baf00f62805de9a5",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T14:27:51+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-commercial-delivery-package-2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 7326,
+      "sha256": "67dda1e0da95734c955948d8bcfa2948564cd5ff54854f560b7d2c615464716f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T14:27:51+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-commercial-delivery-package-2/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1665,
+      "sha256": "33b39a43509e6c87e8932ae751f60f9ae99db025862526738424f9e7bfab3247",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T14:27:51+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-commercial-delivery-package-2/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 5903,
+      "sha256": "31ef5c5097b7c14e862f5c20a7482c77b69c5b8574dd45b1fd0a347cc353555b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T14:27:51+00:00"
     },
     {
       "path": ".github/task-runs/2026-06-13-github-index-shim-guard-final/context-brief.md",
@@ -1754,6 +2394,46 @@
       "sha256": "2c9cef869f00c933b652a25debc000b6c3a230f924e3f83217f8520519d530c5",
       "backup_source": "filesystem",
       "archived_at": "2026-06-13T00:27:28+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-nemu-apt-dpkg-ownership-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6037,
+      "sha256": "ba0cce212420d13a49a43a8ba4f14b3c7d4d1849887c13b78d5011147055b0b9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T15:15:44+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-nemu-apt-dpkg-ownership-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 4311,
+      "sha256": "197d87ac0e8361d397845756cb593470d3fe37311125f270f59b4c95a86eeac1",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T15:15:44+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-nemu-apt-dpkg-ownership-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 8707,
+      "sha256": "6ce56115396d0a54486399a41f223959bf6f9556c7ebec08a18d7780a8bb9d39",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T15:15:44+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-nemu-apt-dpkg-ownership-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 861,
+      "sha256": "cc91c831c8664fb64d0a9ca6582e101745e0069c9bd2b022044d69a2e5dc5dc8",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T15:15:44+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-nemu-apt-dpkg-ownership-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4013,
+      "sha256": "576c178707c150236f3b35f9ffc681f224c832d1fcf7308031de4f40a08b8b9f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T15:15:44+00:00"
     },
     {
       "path": ".github/task-runs/2026-06-13-nemu-apt-install-actual-instrument-contract/context-brief.md",
@@ -2674,6 +3354,46 @@
       "sha256": "09965864335aeee8f6450cf65cd1440ab5d3c1eb4f21cec4785210f1c91576a0",
       "backup_source": "filesystem",
       "archived_at": "2026-06-13T01:04:23+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-nemu-full-apt-dpkg-ownership-real-run/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6159,
+      "sha256": "c71e8d2e93656e9b67f9bb28313f7a4908d4dc1433f95ea4e4c89edd82ad9f72",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T15:39:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-nemu-full-apt-dpkg-ownership-real-run/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5611,
+      "sha256": "8fa84d3ed35306ccc6ee93eaedbffcfdcc62cbbc21179c66936fdecb212a5141",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T15:39:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-nemu-full-apt-dpkg-ownership-real-run/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 27259,
+      "sha256": "52b8c5922a7b87fdc9e1733275b7d7ff88f2bddd32f3c11b8c6a4064da85bd59",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T15:39:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-nemu-full-apt-dpkg-ownership-real-run/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T15:39:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-13-nemu-full-apt-dpkg-ownership-real-run/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4434,
+      "sha256": "9b9a5dac176a1e4460c448c20ce0b55112f69b1ac77a08473df90956199b36eb",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T15:39:24+00:00"
     },
     {
       "path": ".github/task-runs/2026-06-13-nemu-full-apt-install-actual-instrument-real-run/context-brief.md",
@@ -3674,6 +4394,2766 @@
       "sha256": "64c87af999ec9d65574261c84de0816f32ab102a4f0c34ec288ff926c95a68c3",
       "backup_source": "filesystem",
       "archived_at": "2026-06-13T07:52:00+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-apt-upgrade-contract-2/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6061,
+      "sha256": "3af73b138739126e67df84b3d42e104cd6c1f9b8bc4f48d64fae17962fffb53f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T16:29:19+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-apt-upgrade-contract-2/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5539,
+      "sha256": "9f2d7cb7053ac66ef376488b5dbd9eddf032dd3e0901985526e565a81e2e39d5",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T16:29:19+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-apt-upgrade-contract-2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9453,
+      "sha256": "bae4f363a771e4edea34be01afa2a9425114926c083f0be4736fac11272bb462",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T16:29:19+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-apt-upgrade-contract-2/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T16:29:19+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-apt-upgrade-contract-2/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4489,
+      "sha256": "e78a6b9c8422e56b6a0a0c26155e6e0cf9ca24cc6bcd69fac959496105cd17e3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T16:29:19+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-apt-upgrade-contract-3/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6061,
+      "sha256": "cdf19ebbe555628e8a55cc327a1acf47af8548d04e9dd5e75458c15b2e0a3b90",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T17:11:48+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-apt-upgrade-contract-3/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5539,
+      "sha256": "4a12412b1baaac1f36ae89e828534b9b1c4261a37716b293cc00faf7c37eb8f8",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T17:11:48+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-apt-upgrade-contract-3/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9453,
+      "sha256": "c981548b9542bfa0aeda86796ec8d8f835a801c82f0a0d8e679b042b49091b5f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T17:11:48+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-apt-upgrade-contract-3/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T17:11:48+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-apt-upgrade-contract-3/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4489,
+      "sha256": "7e864cc8bff9da4f9dd2e408a3c7673c1f8fbb1aee1d5baab2cfc4d9cb25a7c8",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T17:11:48+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-apt-upgrade-contract-4/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6061,
+      "sha256": "9e9b8a3f55d423a7e16a6d9b2410d8b37369b617ca2fad07a8f43883b3c531d2",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T17:36:44+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-apt-upgrade-contract-4/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5539,
+      "sha256": "f0efa82331537b8e14774e258c9ce4b8bfc840d1d9208a1155eff8d04e529868",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T17:36:44+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-apt-upgrade-contract-4/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9453,
+      "sha256": "7627a937f70ee406bd249fc5c7db2fdc237833eba2959fb0e853d5a63270aff9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T17:36:44+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-apt-upgrade-contract-4/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T17:36:44+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-apt-upgrade-contract-4/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4489,
+      "sha256": "4442b4e437365ccaf9c27c11bdde82e867b8a4702308a37ad7a30ceabced8d04",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T17:36:44+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-full-apt-upgrade-real-run-2/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6165,
+      "sha256": "d4ac9bebd8fcb248c77a4dc462316a780772037c59f58f5d74e44128813e8561",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T17:10:12+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-full-apt-upgrade-real-run-2/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5646,
+      "sha256": "e7b3670c5aa12f9a50842b05945462f519875a1122067cb6befc9576e55dc78b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T17:10:12+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-full-apt-upgrade-real-run-2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 28476,
+      "sha256": "ba586655f38a78051c478c2624c42160ef07b62bc92eff3e8589ee503143bb2b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T17:10:12+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-full-apt-upgrade-real-run-2/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T17:10:12+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-full-apt-upgrade-real-run-2/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4590,
+      "sha256": "7f718504cb111d421c34e0178f99791f9ce82878b36e3e3823f67cbe2c65e38f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T17:10:12+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-full-apt-upgrade-real-run-3/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6165,
+      "sha256": "1eb5199820e7a3d0098d8c051ad02f56dba38b58c21447308f19cbbfad561d5d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T17:33:10+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-full-apt-upgrade-real-run-3/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5646,
+      "sha256": "436d0edff274d22040f76e04c6db9091171b85d7a3a283e2f40309876699636c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T17:33:10+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-full-apt-upgrade-real-run-3/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26620,
+      "sha256": "6d30c764a4411c122f546800ea3461c5327df822d138fdfa4a66fe2fb746264f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T17:33:10+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-full-apt-upgrade-real-run-3/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T17:33:10+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-full-apt-upgrade-real-run-3/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4590,
+      "sha256": "1f41a2331295f41ac7bd705752a4d9c72f705592ed9df89eff15720185d81fd9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T17:33:10+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-full-apt-upgrade-real-run-4/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6165,
+      "sha256": "67a14cc9862f2a0f14e9f127c9252a9a11382e5b1681051f02d1e6842a2946be",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:00:48+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-full-apt-upgrade-real-run-4/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5701,
+      "sha256": "e3324d75ed0f4c1a5bddccd3327b450d407069bb8801490c87d384e09cc5d25c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:00:48+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-full-apt-upgrade-real-run-4/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 27450,
+      "sha256": "285911c59fd46d753a42b1cf33f67444cff20c562c70ea6e1cd18b66b851c032",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:00:48+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-full-apt-upgrade-real-run-4/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:00:48+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-full-apt-upgrade-real-run-4/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4512,
+      "sha256": "d5853c0e7bf634c28e1abf069adfff7cb9476747f5cf8fd8c25dc38743fc409b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:00:48+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-full-apt-upgrade-real-run/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6163,
+      "sha256": "b737571ec7aeb438ce6ed9bf6e3c822969916ca4656d50ac356b2b38940761e5",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T16:22:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-full-apt-upgrade-real-run/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5616,
+      "sha256": "b65f3068c2ebd18c88544b9f525512ff483a73ff919ce6652b71ee57344aec03",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T16:22:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-full-apt-upgrade-real-run/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26554,
+      "sha256": "24adb89225efff295cc9cecc1d1b595c8ea7a35c32bcd43738156ec986b7ff14",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T16:22:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-full-apt-upgrade-real-run/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T16:22:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-13-nemu-full-apt-upgrade-real-run/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4564,
+      "sha256": "c1060b75a140c66590a0196af9d926e594f53a1ff67119c95e7b4c42b71f023f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T16:22:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-apt-clear-hooks-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6063,
+      "sha256": "a770649d5e1b64e6d84a983f87e81f21c10d0493f376f6e42edaa5233381fe75",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T04:56:14+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-apt-clear-hooks-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5569,
+      "sha256": "64dbd0008ce2a47b14a8f4ee2e3a4f9a45f408beac79582c28aebaa29f7e6822",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T04:56:14+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-apt-clear-hooks-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9479,
+      "sha256": "dce1758d3a64bb3eac08ea604d6f629640d4428996921b078b4dd1f2427c3fe9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T04:56:14+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-apt-clear-hooks-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T04:56:14+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-apt-clear-hooks-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4515,
+      "sha256": "eac7089ce8c69a0a985868dc753141d62cf5abc578f93642e7537129f876db1e",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T04:56:14+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-apt-clear-hooks-real/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6158,
+      "sha256": "b0e7c676090c65b1126faa6d6a3c139d900d0986757db0a81c288e59aef21c56",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T05:26:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-apt-clear-hooks-real/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5541,
+      "sha256": "26aef064bd937a8dfd65dc8a41b5549e1fd6c148d50203add5792970b530c6e8",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T05:26:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-apt-clear-hooks-real/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26494,
+      "sha256": "a1a244b610f351d66d0120c3c3f05437b9c134ba3494f8e155367c01cfb4b976",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T05:26:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-apt-clear-hooks-real/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T05:26:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-apt-clear-hooks-real/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4499,
+      "sha256": "d4d7a0b7d8afb514be03b29836e8288eae4edca14f8527f8c41e1188f8be7dfb",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T05:26:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-dev-profile-boundary-runtime/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6067,
+      "sha256": "7a2fe4c4294202e1018d87c5ede4b5160a95c75496d45699e875c9f9df7e29aa",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:14:48+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-dev-profile-boundary-runtime/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5629,
+      "sha256": "46beb1af5db38950c3bb55f9eb696048d08844f21e80965ca5657bc07a66ada8",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:14:48+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-dev-profile-boundary-runtime/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9531,
+      "sha256": "8b1c9ad79c93043bfa87510edb0cc90cd3bb8e85f7d3a6f467033ab33dda7b6a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:14:48+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-dev-profile-boundary-runtime/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:14:48+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-dev-profile-boundary-runtime/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4567,
+      "sha256": "a90bca183eb474c2068cffe824a415cf8dbdbbedaaee9a049c3a78a7753cacf2",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:14:48+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-apt-trust-foundation-contract-2/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6075,
+      "sha256": "b2ccac9da8cc618fa173660cba42ece4946ea012758c86527c9297ab7725c203",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:45:22+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-apt-trust-foundation-contract-2/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5749,
+      "sha256": "1cb4ae8b36f437a8e7fa5df78225e5026af2f5ab3285ad4c102e5f714f930c7a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:45:22+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-apt-trust-foundation-contract-2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9635,
+      "sha256": "f601db8073ec1245dda3fac8c401601ab4ef4062e91affc6a217b25cb2b8e175",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:45:22+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-apt-trust-foundation-contract-2/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:45:22+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-apt-trust-foundation-contract-2/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4671,
+      "sha256": "9c81c631c5d16792c1f3a43c4f049ff87e187a08fd71b6572e1109195ff893da",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:45:22+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-apt-trust-foundation-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6073,
+      "sha256": "65d0952c014be658ae6dbdd8b2b239c6855d6f148e5ff4d0886e2606cf0db36f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:23:21+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-apt-trust-foundation-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5719,
+      "sha256": "2a505fbe89767dd587ffa670b1d5f960c280814bb3d7e7845112618839148f30",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:23:21+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-apt-trust-foundation-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9609,
+      "sha256": "dd3c85c368e39d88cc0dcc474cc25515f630fc3130222aceb3ea00ee78598af1",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:23:21+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-apt-trust-foundation-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:23:21+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-apt-trust-foundation-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4645,
+      "sha256": "66dd5d3e2fbcc94536dfc79852f5db67eb016c5ebfd05a7a25d149eac69265d0",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:23:21+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-apt-trust-foundation-real-run/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6172,
+      "sha256": "ef852a1382d8bd7518a20047857740092b978246310e64a72a52693c0e9ef4a0",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:42:35+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-apt-trust-foundation-real-run/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5806,
+      "sha256": "b30e3ed02b21d1c82c2948de26a0ea957594df149d879df9db9829b3a896699f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:42:35+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-apt-trust-foundation-real-run/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26621,
+      "sha256": "f1bf0514900a69cf7550db47ed5138dc78e738e9f30c2ec5d19448ebf504ca5b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:42:35+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-apt-trust-foundation-real-run/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:42:35+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-apt-trust-foundation-real-run/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4603,
+      "sha256": "82615260cfbc59b56138f4631b0335343303b889ba4295946f511489ec19810f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:42:35+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-agent-system-sync/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 8882,
+      "sha256": "87f3b196e4fd3b1fd25c0ed922d0ebce216a648c80a1be57b7911631c16a8f23",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T22:44:44+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-agent-system-sync/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11514,
+      "sha256": "02cecc62935a7b6286605d07a792bc958fc8ad001b29b66c7b8c59821a664cab",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T22:44:44+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-agent-system-sync/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 7564,
+      "sha256": "1f91f9dc7a16049c15669948ddddc5b5c5f85f0782856b38da34a5c469ead08d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T22:44:44+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-agent-system-sync/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1665,
+      "sha256": "33b39a43509e6c87e8932ae751f60f9ae99db025862526738424f9e7bfab3247",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T22:44:44+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-agent-system-sync/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6227,
+      "sha256": "b96583f476d2bd60edeef4379150b9241baf370eaf4ad1d2db3eed6dfeffd834",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T22:44:44+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-command-mode-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6074,
+      "sha256": "6a04b77d2a47892602b5c56e1047569fd6971e677b5dea7afacb52b33f8d3460",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:55:40+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-command-mode-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5734,
+      "sha256": "f0f1e786336a631d5cf7061684662f56e6b5b952a98cecb779361fb730db9064",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:55:40+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-command-mode-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9621,
+      "sha256": "74b14ea0e819d50ffa18edb644f122cb8c570daef40fb9b0be53ab7ba1e66dc8",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:55:40+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-command-mode-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:55:40+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-command-mode-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4658,
+      "sha256": "ee18c86c22f7b61d40c64987b707b1a96044b88ed337506d87e6db80a3d9007d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:55:40+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-command-mode-real-run/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6173,
+      "sha256": "aa71626b3e31d928f49278ac24ff4cb584f2481befad4fae447acb12d2b04a26",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T22:17:56+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-command-mode-real-run/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5766,
+      "sha256": "57edc2e3ee55c783fe6502f38166933198f909f2bc7b498039ed7c2d21511dbe",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T22:17:56+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-command-mode-real-run/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26695,
+      "sha256": "31dcfe5b82096a8c4663ab747643e547bd828e175db7dc52eec4d30a5d3123e5",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T22:17:56+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-command-mode-real-run/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T22:17:56+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-command-mode-real-run/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4694,
+      "sha256": "96a4dc7f4393f840f4f0f04b95ff5b2e7cfa84c7c6e2434f71ed2cd28e7f6acc",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T22:17:56+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-contract-2/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6063,
+      "sha256": "b2fe677d7001ba1aa3a384db1714d38fcc6222d665de450aa743de0568ddf379",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:25:35+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-contract-2/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5569,
+      "sha256": "745dd11edb10f35167718d16216a5c5f5c0ff85f2fef592d38446ea6ce8bfa67",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:25:35+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-contract-2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9479,
+      "sha256": "46965650ba954098abe518f3ad323b792c84fb572664f70861cfe3d82bf8587b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:25:35+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-contract-2/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:25:35+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-contract-2/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4515,
+      "sha256": "749aad3904daefc42b1fa0321997a48bca279840aca438766b68faa71bdd1c3c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:25:35+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6061,
+      "sha256": "3ceb4f83599b072ea30b7ec116dbcd48619f38f566aa57549372771727663d26",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:24:29+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 4417,
+      "sha256": "4825c4912b67aae1c64a9354ebe06c9a7295af8e3c835d980049446fb2d4f301",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:24:29+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 8820,
+      "sha256": "d953175aafde2d0f235e5b03927faa24a5c8c677cb2fbbadf684b8750b3e2f0f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:24:29+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:24:29+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4211,
+      "sha256": "3e822fea9274317b2f99bb7a6d3fad97ebb3a75d382e87fd1238b840c0b59a2c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:24:29+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-real-run/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6160,
+      "sha256": "c05f7e9691247c6b8fd60a67450e5376d1a59383ef480903e09af7d30ccff799",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:49:49+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-real-run/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5571,
+      "sha256": "73daa07a8512d75b78797fcc370253a9d31318a7f82d0f830f8c7b0d98a80c41",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:49:49+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-real-run/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26304,
+      "sha256": "f67ca599edd96ba0b681c2ce0963e98ffceef9acdf5cd26752315e200599f50f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:49:49+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-real-run/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:49:49+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-real-run/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4525,
+      "sha256": "e1673777db75c05fe6fae3332278eff5e02964e8762eef1c141da351ff9eb091",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:49:49+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-sh-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6064,
+      "sha256": "4a8ae259938d73633b3b99c5adb0a043269038bbc8883b4938de3a2e36ee77a6",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T22:19:14+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-sh-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5584,
+      "sha256": "618da5134cd8e94655663d16ac89bbb3bc7c4686aa0bcbc40e4593935306425f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T22:19:14+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-sh-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9491,
+      "sha256": "de9e6c8bc70406064caf05030a1b34b762fc8acd7abe134ad234b38ab9177a78",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T22:19:14+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-sh-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T22:19:14+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-sh-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4528,
+      "sha256": "53a25893ec59bc6c54a9e759af287c8adbfd04e1d9c3dde5ec0e9e8d6bba1244",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T22:19:14+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-sh-real-run/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6163,
+      "sha256": "1da78fa897b0c7eff1bc19983f6631c439186f5a31eb5eb4f8e5397dc39f685a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T22:41:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-sh-real-run/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5671,
+      "sha256": "36f4d746d18817064ad8fe94f7766783f4a53b96b26ee21ee431e864e3142470",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T22:41:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-sh-real-run/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26360,
+      "sha256": "b5e2880c6c415407bb10be4d86f29b6dfc1f1b301e8bed59ded85fbcd5449301",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T22:41:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-sh-real-run/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T22:41:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-journald-sh-real-run/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4486,
+      "sha256": "1dbed3e44425e18aaab38ad6cf0dbefefdb0a498648eb8e5b088ed6f7b1282d2",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T22:41:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-agent-system-sync/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 8884,
+      "sha256": "7188500d02a5726863580536257c228081ab26a6786eed850ba4669ac8e71a0f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:43:00+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-agent-system-sync/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11564,
+      "sha256": "f2ce30d71a4f3f0095c20029db1e34b94ebea373664136d8b3b2a79f32107def",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:43:00+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-agent-system-sync/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 7590,
+      "sha256": "f08266d5bcb6f771340378ebbde3fba2ba78742c16e8eefabe220b652f7c593d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:43:00+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-agent-system-sync/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1665,
+      "sha256": "33b39a43509e6c87e8932ae751f60f9ae99db025862526738424f9e7bfab3247",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:43:00+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-agent-system-sync/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6263,
+      "sha256": "b81a96ecaa0faa3d6e231a57ca0b3adc1490f3bf7f5291a13b2935fc36e1b32b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:43:00+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-contract-2/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6065,
+      "sha256": "9761f8293d0f494f23fa189870dce8c741e2ca4a4a6c22678f06b0fd22c70162",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:47:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-contract-2/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5599,
+      "sha256": "b5874a7a94fed380ff1f9c1131cdc09a3311b31d1952e212b7ad18f2713950af",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:47:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-contract-2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9505,
+      "sha256": "8e00165f62a97a6cde72b9674cf86766bf3563a8d7ecce08db2fb1e536d72939",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:47:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-contract-2/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:47:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-contract-2/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4541,
+      "sha256": "bf09e00f3484af38c47324e7c9729d00d2f4af7a725c54a40daf60057fd916cc",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:47:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6063,
+      "sha256": "5ed8dcbb4b92878ccee6dc704c5cd99a9dd3c5b6055e78695ddc6d5225a601a6",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:46:27+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 4443,
+      "sha256": "bd16d511db4f531db8f80cd1bcdb54d2259325aeb0eead63eae25fa594b60fff",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:46:27+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 8846,
+      "sha256": "c2b00f27b71b4aa253c90c1788d68c491ebf9dc508e52ac02c481ba75436c8a0",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:46:27+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:46:27+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4235,
+      "sha256": "4da8bcf548bff74513c7f452e317814a08dde070e2801dc4c5c8755d2f52c24d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:46:27+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-hostnamed-apt-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6077,
+      "sha256": "852d8c108d8005505f313fc99252c86b100c2a65f6e80e512b0c44d0e7d4a4fa",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:17:01+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-hostnamed-apt-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5779,
+      "sha256": "69a2c6cc5a34a5ffc44506d1e4cad9c29ccced53b3ce9b7e0d0a7f92cc7a8c4e",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:17:01+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-hostnamed-apt-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9660,
+      "sha256": "89bbb3eb72ec3d15260730f4f6d3648b57a461fe2ed87290e6cb62511f277a29",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:17:01+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-hostnamed-apt-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:17:01+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-hostnamed-apt-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4697,
+      "sha256": "0e53a82a9ca8b815e4028cda8d4093a4d7153a32f3180ef320bd1b19a2956ce4",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:17:01+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-hostnamed-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6073,
+      "sha256": "a0efcc5045faef13d86d4497ffe0daf7c54335e87fa9880e795c5923b7cd8aa9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:12:39+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-hostnamed-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5719,
+      "sha256": "ff9ac9c59527a5c5be7a9c70a9f8fa0632b27887f44887015bb9594b39c4035c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:12:39+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-hostnamed-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9609,
+      "sha256": "c72e8cc4781107a7691d95a15e2dde3620624d6c4b8f40956ed9f07f6f14883d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:12:39+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-hostnamed-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:12:39+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-hostnamed-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4645,
+      "sha256": "ef2c45c9d343e2677dd895b0a054ef54a0e3fe00b00f766314055e0fe22655a7",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:12:39+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-hostnamed-real-run/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6172,
+      "sha256": "32de7cd1172cca3189cf68f402ebd2315e020a9ba85a76459966c77bb46bab3b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:40:03+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-hostnamed-real-run/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5806,
+      "sha256": "d6ff75c48a2aeede967ced5a9d3eb26d39e98dcca30000a2f9655108686fe71d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:40:03+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-hostnamed-real-run/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26639,
+      "sha256": "2c48f261901405c120789e807d4ce8e38cc66bdf6a1bde80c6a5e04b642f6d04",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:40:03+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-hostnamed-real-run/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:40:03+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-hostnamed-real-run/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4603,
+      "sha256": "b0a4be37a69351d9a8293d4e4e79c8b43b647b65ac44fc692fc22e0af84b8938",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:40:03+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-real-run/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6162,
+      "sha256": "2948a58366c4779f42df71b5bec9b4b71bf454dab7b9feb8aa6a6e01646c7a9f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:10:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-real-run/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5601,
+      "sha256": "6b14716cf2cea6b1ce05b8f09784375e111c906ab740864e64e342c23c560c29",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:10:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-real-run/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26362,
+      "sha256": "d9d9d30c3228d6f700b40a06c2ea65704e79c7bbc5a6391f749cfa9d76f7c0d3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:10:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-real-run/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:10:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-machine-id-real-run/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4551,
+      "sha256": "43c6836bafd2d3d4c08de66b5ff218584bc4a186776f7a7d9e1b10f90b206cce",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:10:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-contract-rsyslog-fix/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6081,
+      "sha256": "df9a4d5ec75338909fba920f9f0f7f03bd7dae839a5edd4ae03abd8a7f7de94f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T19:19:00+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-contract-rsyslog-fix/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5839,
+      "sha256": "531109f5210046eae0086b6e9ed0609e89f7a32f2dc2d95093e4cd7a51a2471a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T19:19:00+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-contract-rsyslog-fix/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9713,
+      "sha256": "1ddda6c3a327ca32e8cdcf9784b38c8b08030c3e5e89e3612a0765ed3a02bad2",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T19:19:00+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-contract-rsyslog-fix/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T19:19:00+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-contract-rsyslog-fix/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4749,
+      "sha256": "be722d83f1c8c5c92729671106fb711137e2f35cb90ab42f9c257e9809c15a6a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T19:19:00+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-contract-rsyslog-permission/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6088,
+      "sha256": "91bb82772d46d9c56e8d5c1a36d692d76baaf8f707bbbccdc659bdd49871934d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T19:40:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-contract-rsyslog-permission/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5944,
+      "sha256": "957564601316ac505309f1bdd95b82ad228455fe5bcd3e44f41b3f8638658b8b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T19:40:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-contract-rsyslog-permission/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9804,
+      "sha256": "809e9aed0b8a4a9142639a90374bd9ce0a12f50fc541aae060de5e60e96dfe9d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T19:40:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-contract-rsyslog-permission/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T19:40:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-contract-rsyslog-permission/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4840,
+      "sha256": "977a2b9285f0bb320b121add700822842463c3146b413669942dadb44fbea627",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T19:40:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6069,
+      "sha256": "ef31fa2cf26ab0b6e50a2ce11fdb7a8a97a93db35eace010e1f11c4ad8b01e9c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:51:29+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5659,
+      "sha256": "0c698ced67da8671713f1b16930c35b632c0b0d20b418513ad9a74f4330dd4a7",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:51:29+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9555,
+      "sha256": "069c13a8ac9914f54458861d38170e40e22af3fce5119f87fba12b84967d99b7",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:51:29+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:51:29+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4593,
+      "sha256": "b418fb153bccf723b447e9117b02ffba9ce12a75086322e9db3ddf354b6dbd44",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:51:29+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-real-run-2/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6170,
+      "sha256": "ba332dc71041973bb1664bb9595efeb469879dac7f71721e77611e5c3f98e56f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T19:39:35+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-real-run-2/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5721,
+      "sha256": "db023bc922a39b3704f790cbc71d6010d725c5653e2303b63601d1c7e27df458",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T19:39:35+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-real-run-2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26597,
+      "sha256": "e2ee0fdf3bb3cc7d7370a8cc5878d54e498581d2e1da527670ce389c54f67d0c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T19:39:35+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-real-run-2/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T19:39:35+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-real-run-2/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4655,
+      "sha256": "d4591ce7653f6e2004bb300aa5c5e072c9829866e4f31ef19c9a7402164158a7",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T19:39:35+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-real-run-3/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6170,
+      "sha256": "93549ab2692206cff6ae1f4baafffac55ffcb0c3d90025007931e22ff9c6fe69",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T20:01:39+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-real-run-3/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5776,
+      "sha256": "ab755d23374854acde0366079178be84fe71165b383655cc3c952cda9d737cdf",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T20:01:39+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-real-run-3/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26559,
+      "sha256": "bdf9c0bd0434ba0852e1eca95be2169b91cbf5163f781d947023fcf968e67b5b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T20:01:39+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-real-run-3/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T20:01:39+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-real-run-3/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4577,
+      "sha256": "f4695c88eb89a8527f5cf5ce4424fb90240d24c1e7bc3020991af188cee6de92",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T20:01:39+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-real-run/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6168,
+      "sha256": "6b479e4d10411da6b74d9c48d5d0688d7d7ddc21a4fbccfff562eb5b1789074c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T19:15:04+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-real-run/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5691,
+      "sha256": "d67e707f3d9dd80c236764be76847845867560867ab9ff25cfcde4c10535e494",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T19:15:04+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-real-run/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26535,
+      "sha256": "4f7e98b3dcc9e96d442d9e42a933b778d054b6e0ccf30a77069118f538642ce9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T19:15:04+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-real-run/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T19:15:04+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-service-workload-real-run/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4629,
+      "sha256": "4efb52eaf6d5177552bfced1db4c53e6acb7f3e36652a39122d5229106957b94",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T19:15:04+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract-rerun/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6075,
+      "sha256": "c0ebd0360c780cfaf158d240a5fc6bed12cc2db44154a3d0471ff8d933c4831c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T03:15:04+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract-rerun/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5749,
+      "sha256": "e7222fe6e303d23efaf15afb866471ab9a8f932a103f691a8fe99e5eb954b37f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T03:15:04+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract-rerun/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9635,
+      "sha256": "3f5de4912b6b4c7410a2e906c619b345b916a33a60333b10668856f75b1102da",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T03:15:04+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract-rerun/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T03:15:04+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract-rerun/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4671,
+      "sha256": "4fc01bb436e2e380b0610691ee6829121aee82f379e859e2c4e2b5f9aa208a29",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T03:15:04+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6069,
+      "sha256": "09b4d7cf3fab414d1c54cd63a647f383cd8642e077b2a07875677b13439b11ef",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T02:40:57+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5659,
+      "sha256": "8a452e36815c87c808c3fac11468908f15c1354593c4136df888d76ed84e807a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T02:40:57+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9555,
+      "sha256": "3fdddca590f7ac88dc988d3ba26cefb7ec5ac300be656a0b0c83d7593dbbaabf",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T02:40:57+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T02:40:57+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4593,
+      "sha256": "0a5f5721c4a8ce678a1675131b1f24f0d2369272f97189c0c31a49b564fee6ac",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T02:40:57+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-real-rerun/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6170,
+      "sha256": "522310a65f65aefac4a4864d8b48a72aaefb2cb0ecd246771410c3b550a03759",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T03:44:30+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-real-rerun/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5721,
+      "sha256": "2d1372519a0c657beda4dfe309deac51cfe2cdfb542245e557492d651f27e137",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T03:44:30+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-real-rerun/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26859,
+      "sha256": "75ae6464ce7cbe7185d0643e270b79925da8a065c1b34d6767d7c589d18be629",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T03:44:30+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-real-rerun/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T03:44:30+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-real-rerun/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4655,
+      "sha256": "733001e58a0ecdf2598eca4f4e24e285f27c5e01a67915e94de6058d3e11056b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T03:44:30+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-real/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6164,
+      "sha256": "af45dc7150ac0247c4d1fd19693f8b1479c87e33ed7422f3269efb87540ec5d1",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T03:11:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-real/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5631,
+      "sha256": "f7e90b5fe1afbd017eff0476cf304db86819ca98fbea1a4e365133634065b248",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T03:11:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-real/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26624,
+      "sha256": "e242033e598acdbe067d5d3805af74fcd2acd4af289205046b6827f65e5e4eb5",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T03:11:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-real/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T03:11:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-real/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4577,
+      "sha256": "4e3751db1d59f5749dee4788cd9f8cdf78215c7188310e5301492dd5b58a0249",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T03:11:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-sysusers-agent-system-sync/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 8882,
+      "sha256": "c4725590abca7f0758972424d68eb02410340cd514a9fe7146a5c3e632eb7bfc",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:40:38+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-sysusers-agent-system-sync/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11514,
+      "sha256": "f32d611595265b8661ab9e84c792605a738c46d42e9b4f80fccc8e9fd083df9e",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:40:38+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-sysusers-agent-system-sync/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 7564,
+      "sha256": "0dcca89c8262c38adce7d3a91f27567b751f48b2d4dd9a34d8bb7cceea64b930",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:40:38+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-sysusers-agent-system-sync/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1665,
+      "sha256": "33b39a43509e6c87e8932ae751f60f9ae99db025862526738424f9e7bfab3247",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:40:38+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-sysusers-agent-system-sync/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6227,
+      "sha256": "4210103a0b16b9360221562d3d0e9b09baaee9f26e38ac8955c9068b35830164",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:40:38+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-sysusers-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6061,
+      "sha256": "148a4c85a873857fb9ba2fd87b952c6b26e07cf992eaaeccca2151fdcb8b34b2",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:17:02+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-sysusers-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5539,
+      "sha256": "aa3d3b9f53414c330a8393703ff9e1139fdaeb1f73d9a966222f5bec8ad945dc",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:17:02+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-sysusers-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9453,
+      "sha256": "9de8cb6f5ec94513ad2d831fff3b3bd543a4e688efd704f2ca73b84644d89a8b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:17:02+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-sysusers-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:17:02+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-sysusers-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4489,
+      "sha256": "f73a0a5f56828f3aecaed27fdbbe3a980de3a49c810f6873fa2fb6ef3c021541",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:17:02+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-sysusers-real-run/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6160,
+      "sha256": "3c1e55c5be9b880a749f26fdd5735d5eb5c806deb2202e824d25f93dcd307c47",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:38:52+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-sysusers-real-run/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5626,
+      "sha256": "cfdbd567c2accd64877d97cb2891a40193d396689636fd0a6df036e7123d0bb4",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:38:52+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-sysusers-real-run/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26268,
+      "sha256": "759486ee75f8c523a64f4a14bde379a86529a208c43ef643bfeaedaf2467b2b9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:38:52+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-sysusers-real-run/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:38:52+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-sysusers-real-run/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4447,
+      "sha256": "9e53a5edadc71d8d6f66514f37007db874cee692d6792d79796bb1872831de60",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:38:52+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-conservative-contract-rerun/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6132,
+      "sha256": "04a4a84aee786b3bbfa81aef7a95e8afb7ef3cf21a3992c5a1b7a08f39985d90",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T05:49:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-conservative-contract-rerun/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 4601,
+      "sha256": "be5b28e474ec0a5ade14e03abeb15b9c5d464025e991a76f2c11e1b101913594",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T05:49:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-conservative-contract-rerun/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 8950,
+      "sha256": "35507c54f1b75a165a270439415cdc56425912ceeeac08a315b597396645645d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T05:49:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-conservative-contract-rerun/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 876,
+      "sha256": "580d742f4efe969c4c25447f1ea48f7ac50449ed0651e3491e01e89563bcfd02",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T05:49:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-conservative-contract-rerun/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4265,
+      "sha256": "1090d070f8d64a58cc95dfe8175768da9702354fa29b72a2b4dab0c74cd64bba",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T05:49:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-conservative-real-fg/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6167,
+      "sha256": "4fd88f99babb1e06e25f4dbb857cba800afe8ba0666281f6dee18babb9e63fcf",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T06:21:30+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-conservative-real-fg/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5676,
+      "sha256": "484555034e59c08ca687259b769a5fc202c6f2078370980e71ba74d5e26008fc",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T06:21:30+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-conservative-real-fg/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26764,
+      "sha256": "0c4d8615daefd5725daece3a8d70196ed6a5f38d322d0ba5d2e2179b833d1f7d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T06:21:30+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-conservative-real-fg/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T06:21:30+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-conservative-real-fg/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4616,
+      "sha256": "06752861450c06e13015ef6501650ea58dbb0fc91f2947ea94cb3865fd8fbba4",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T06:21:30+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-tmpfiles-agent-system-sync/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 8882,
+      "sha256": "7502c39238ab4b216789bbe38d0d4b9ff5cac26e2263d50ea9cfc0fe51df5676",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:13:01+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-tmpfiles-agent-system-sync/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11514,
+      "sha256": "33b799a5524580e56054ff5485edb5bb9ff0bc44c4f9f448f73492a7ede4b463",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:13:01+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-tmpfiles-agent-system-sync/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 7564,
+      "sha256": "71832e2e987e0b5ca4f36f6c1615fd4f9381857b877882f159f6aac02bffcc25",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:13:01+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-tmpfiles-agent-system-sync/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1665,
+      "sha256": "33b39a43509e6c87e8932ae751f60f9ae99db025862526738424f9e7bfab3247",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:13:01+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-tmpfiles-agent-system-sync/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6227,
+      "sha256": "751d4c6a5200982dd66fe1ac3c6ad3c5e2c17c92f22298a5bdaabcc1de072f76",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:13:01+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-tmpfiles-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6061,
+      "sha256": "27ca01a969e62f4b54c1b53c83f51e21c72bcbe65c763574c1f0af2b3c555ff4",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T22:49:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-tmpfiles-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5539,
+      "sha256": "44da5f70567387759373256982a51c84e957496657209e15859a8f04db9ffcf2",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T22:49:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-tmpfiles-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9453,
+      "sha256": "4a6c479296984c14142ec2e7f92b5279a7cb46b2c62b85f8361720c2bdaa9cca",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T22:49:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-tmpfiles-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T22:49:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-tmpfiles-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4489,
+      "sha256": "d3f3c57278e371d09c72a5e2e809e15fd32278729f5688abc64611cd75c2643f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T22:49:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-tmpfiles-real-run/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6160,
+      "sha256": "45364328d97be6e374beb5bef2e199f95dc64033b0f3c7a8b68bdab172338bdd",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:11:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-tmpfiles-real-run/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5626,
+      "sha256": "ce3f2fed39c1486e5159e4d5960ebdd289750254353234febfd66c76bd3f33d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:11:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-tmpfiles-real-run/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26267,
+      "sha256": "ba78fc3be42113bd295ce2c0f40af2772714fe28f526c943a0fdeeb353036b61",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:11:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-tmpfiles-real-run/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:11:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-full-tmpfiles-real-run/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4447,
+      "sha256": "a72bec352c5f2eb0e8a5775f8cf2faf86bb1c4289c1d0fb3487b567c918cd523",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T23:11:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-generator-guard-2/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6069,
+      "sha256": "b868446bc4331cfda57ab636faedf6d5fb5222b891262c11244938e2b1235d93",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:13:56+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-generator-guard-2/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5659,
+      "sha256": "03092d4c6db88fb4693cda8fdf79c18b0fa304d99c48108621e10f9e0a56d9c3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:13:56+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-generator-guard-2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9555,
+      "sha256": "8591948d84166041767659b90887b96698168ad8e79d736c64c85a751bdadf2f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:13:56+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-generator-guard-2/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:13:56+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-generator-guard-2/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4593,
+      "sha256": "9405e26b202799d389ee589d4f7622e8f6e27ce529d1337923716f7d71dfa9d0",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:13:56+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-generator-guard/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6067,
+      "sha256": "5ce05b97c1970628c3a65d684c68100fcc199c668b560317b21f00ee5f8670a5",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:12:18+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-generator-guard/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 4495,
+      "sha256": "e265251c807ea2850754c545ffa3263ea0b8aa1588560a6587f5631e4643301a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:12:18+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-generator-guard/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 8892,
+      "sha256": "da99d7b26bbbf65a3bc8d74f245ed8f5f5dafbedd7cb5ed4592f422c57a6daf6",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:12:18+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-generator-guard/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:12:18+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-generator-guard/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4283,
+      "sha256": "291b41e60b438cb96a7750ee7ccf3351ec6b84db85e7263b9ac4a32e11d48b32",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T18:12:18+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-signed-repo-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6072,
+      "sha256": "9e9edd73d3f62de872060c563f9a620c3332322e4c5e6f19f7198b33a002f174",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T20:15:01+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-signed-repo-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5704,
+      "sha256": "6038de0da2aec891954d7e525f60ff6561e7de4a7a403b5aaf914e3be970e4db",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T20:15:01+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-signed-repo-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9596,
+      "sha256": "6b8057c10db82fb4439c2bd964ac616ece770a38f1371fd21884861bf6622016",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T20:15:01+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-signed-repo-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T20:15:01+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-signed-repo-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4632,
+      "sha256": "13e9cdab3337b247f82c840c3a062f77e89e985a31f9cc9984d0c10c5f19ba2a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T20:15:01+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-signed-repo-real-run/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6171,
+      "sha256": "6ffd1183d420a767c359d6f66fa7f6ca3e7ae3795c5becd53deff48b74db3d04",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T20:36:02+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-signed-repo-real-run/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5791,
+      "sha256": "e69a5330fed6cb4a7377747b9ea3167ab108eedf2a55d55a523014f4306ed40d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T20:36:02+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-signed-repo-real-run/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26609,
+      "sha256": "757cfc2502d254897893e4f6ef9ebfe494fbd2dddbe830824ee1af3a1cc5a2f2",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T20:36:02+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-signed-repo-real-run/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T20:36:02+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-signed-repo-real-run/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4590,
+      "sha256": "8e49fbb5b930181de7d3c306240bf2473ac1d6ea7180088200cf8cea09b94e7e",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T20:36:02+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-unsigned-reject-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6076,
+      "sha256": "3d7ba73b2f620f341fbfe27c65779b054f722d3198529032cb2f98920efa8c86",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T20:41:21+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-unsigned-reject-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5764,
+      "sha256": "b3dd357905eee90ed7e58fdd219b603b4bc9c9c29b2e7a3491a8738066ded923",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T20:41:21+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-unsigned-reject-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9648,
+      "sha256": "7d1e4aa8840a9aa1f691af998e0e0290c7e8e9d7592f5d0437e13c3dbb970a79",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T20:41:21+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-unsigned-reject-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T20:41:21+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-unsigned-reject-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4684,
+      "sha256": "dd07733b1a8c2b3a29170c27d92677094a47012ede1edae3aaed00c1f3fe2918",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T20:41:21+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-unsigned-reject-real-run/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6175,
+      "sha256": "410bd433c6d4caeecfb59d7926de7ddfc91381ad18550ec12fd0956904dc6399",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:02:54+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-unsigned-reject-real-run/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5851,
+      "sha256": "1677a10ede977d37b25e40dad986159d817753cf7665899c916353fa4e2dff51",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:02:54+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-unsigned-reject-real-run/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26733,
+      "sha256": "5c106b6a5c84ae474db470cbdc798cf0c21b5970522cb51cc56651c7c47bd0b6",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:02:54+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-unsigned-reject-real-run/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:02:54+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-hostless-apt-unsigned-reject-real-run/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4642,
+      "sha256": "d1cebc3f0c18c08dd5ae8c583913e11ff0580e679e075f6bef30b12bfe11253b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:02:54+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-diag-real/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6158,
+      "sha256": "b5da0b5a73be79066a8d8be0447c14f6163037bed2d247ff24716b785d4ba6c6",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T01:23:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-diag-real/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5541,
+      "sha256": "771f5e710234aebab32216641481fa3c8af613321b56617d99002df0877d28c1",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T01:23:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-diag-real/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26339,
+      "sha256": "6097494bec1a6b5bd09aa83c97f782a8a5aa8f25553243f8d86e128e07a6c3be",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T01:23:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-diag-real/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T01:23:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-diag-real/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4499,
+      "sha256": "13c6c257ad56c7e667f473dc07482607001b35d88843c80aaaae7ce11b052dcc",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T01:23:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-diag-static-rerun/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6067,
+      "sha256": "9251c79329ac3ffe34ce3184b0ef3c47f6ab073542067adfbc59c1d61b25a6ab",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:55:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-diag-static-rerun/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5629,
+      "sha256": "1a7df3d55b64454da9146a280c131070e45443a23daa8d54d8ce13bb3d888c01",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:55:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-diag-static-rerun/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9531,
+      "sha256": "d21e7dc4157c223ff503d8344293a630f5498a45ac1ac423c63580f5d756bb61",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:55:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-diag-static-rerun/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:55:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-diag-static-rerun/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4567,
+      "sha256": "a6dbd7c3cdd2e047c2f67996ce40882a6a3cdf62ca83a1e6b77b85e93f501286",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:55:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-diag-static/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6061,
+      "sha256": "58e2a03dcf6f7ea4c03c2dd97a386028bdfc79c56adfffd6eed029d3325d4f1b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:54:23+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-diag-static/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 4417,
+      "sha256": "1d5487913b64cc0deeb3147d89687be87155b9cc31576a0b246c3a6707615d8c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:54:23+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-diag-static/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 8820,
+      "sha256": "ba7991a1da717bc0df453143ecde51fb7cb9b61754a78569ff7ed6579f075d7a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:54:23+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-diag-static/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:54:23+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-diag-static/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4211,
+      "sha256": "288901112c4462c9aee36f89573c3b2fbe9ee98cb5c11231eea4dfcfe5654a59",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T00:54:23+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-hard-agent-system-sync/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 8884,
+      "sha256": "c83aa1c6d775d7f8b9ad5a63ffcff58d2754d1ad280c25c336650dbc326869e8",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T02:29:21+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-hard-agent-system-sync/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11564,
+      "sha256": "9120141a3ef95cc71353a64e7e9d2ffef74ad04ce2b628cf57d78334d0284aec",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T02:29:21+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-hard-agent-system-sync/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 7590,
+      "sha256": "19005709385a0cecad33b9c61766f4ddadf79ad3e15b9635ce5692b0462d7538",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T02:29:21+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-hard-agent-system-sync/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1665,
+      "sha256": "33b39a43509e6c87e8932ae751f60f9ae99db025862526738424f9e7bfab3247",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T02:29:21+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-hard-agent-system-sync/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6263,
+      "sha256": "a0e54cb9e4d4216e6f0ec8135d320b0a09cdc6da6f3688373bc881982791791d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T02:29:21+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-hard-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6063,
+      "sha256": "4203d30c410960bc30fc460bb16219e3b9f17389696d991d3a4468408b2a625f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T02:01:43+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-hard-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5569,
+      "sha256": "9a6767222e79ab454f59c5e16902d10d7bc5ef59a4f82722f2a91712ace45930",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T02:01:43+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-hard-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9479,
+      "sha256": "19b06b4a9ea0945e1295daac197f9e105b7a012c94be412ba8d2c2dc11704ad7",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T02:01:43+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-hard-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T02:01:43+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-hard-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4515,
+      "sha256": "53b4129e1f38839962b2df117c3a3be1451acd46979cb0d51bf35be07685c8fa",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T02:01:43+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-hard-real/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6158,
+      "sha256": "3d59af00f10df2a173f471db0fb6c00ae15470a24857cad1abf1cbc8abd56479",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T02:25:57+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-hard-real/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5596,
+      "sha256": "6d26f0f778c1dd332c9be178f94c347c91c459f46400a2e545ac94a4c3a80236",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T02:25:57+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-hard-real/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26465,
+      "sha256": "76f6257e0154b201ae79b94d51e3d697dcf29fbb3308bced6e4926350a4981be",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T02:25:57+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-hard-real/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T02:25:57+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-cnf-hard-real/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4421,
+      "sha256": "f8ca277da24fd153d93e45d4dfcd842e0bf6e5999a151d2ea3759e9fc4281b46",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T02:25:57+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-source-diag-contract-rerun/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6129,
+      "sha256": "3a3e70b88d95bf677baa3228613b003d1413f9309677f7775368b9a43604c989",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T06:28:27+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-source-diag-contract-rerun/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 4562,
+      "sha256": "7fbf9afd4b86fd081661a00803e30fe4fa026c762c9278ed93fc3f9b378dceb0",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T06:28:27+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-source-diag-contract-rerun/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 8914,
+      "sha256": "cbd0a390dde114fac3a6a8d92ed234785c8c4ee5bffd83cef3e4cef6ae875548",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T06:28:27+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-source-diag-contract-rerun/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 876,
+      "sha256": "580d742f4efe969c4c25447f1ea48f7ac50449ed0651e3491e01e89563bcfd02",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T06:28:27+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-source-diag-contract-rerun/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4229,
+      "sha256": "10dc2f6578e7e364699a1336227b13d618bee66bb05d093533b5619c25ec7a9f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T06:28:27+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-source-diag-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6123,
+      "sha256": "6dbd50059ea86e64fc6331ac8f6286235a006eb7d967b1ae0857377c967ad67d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T06:26:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-source-diag-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 4462,
+      "sha256": "c7d769115f136dc48e6ac5fbed18502a88c277d30760b8a1de5d64c71243c848",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T06:26:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-source-diag-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 8880,
+      "sha256": "3421b5974ce2489fadc5e72432b0699d6e2322ea5266c5d0f7f74bded785e1df",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T06:26:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-source-diag-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 876,
+      "sha256": "580d742f4efe969c4c25447f1ea48f7ac50449ed0651e3491e01e89563bcfd02",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T06:26:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-source-diag-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4261,
+      "sha256": "f4e039aee27fe424c9eb61a186376ceb5f92c78eb533fc80127db979096ea574",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T06:26:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 8882,
+      "sha256": "8a09062cb40142540a9fb56724708d2d6a9927de63c6fab0102da07bac5ab26c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T01:56:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11514,
+      "sha256": "7e2994b80d32202099c7d258a901661be7bb41659d9bac6e320ef7f3045836b2",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T01:56:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 7564,
+      "sha256": "55fa2f521214d399483a9d622e5e7eedfab5b3c35312a9df34dde0fc82ea72d6",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T01:56:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1665,
+      "sha256": "33b39a43509e6c87e8932ae751f60f9ae99db025862526738424f9e7bfab3247",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T01:56:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6227,
+      "sha256": "4a1cfe7cbea584a08d08159f94ad1cd94564ff12bbc0931a4d7e00a34b6d93dc",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T01:56:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-diag-real/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6161,
+      "sha256": "6445b1bafb39c65356757b3c45c1f1080745d789f7481933e23543eb77218c16",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T01:51:37+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-diag-real/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5641,
+      "sha256": "71719d0475869630c691705298fd63e6ee2033d7aa3690b89a1d592cd1166247",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T01:51:37+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-diag-real/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26557,
+      "sha256": "79fb9e1f7f7c780682bdacab1e500f99898c6f389f1f877c682f24f7911cf4f8",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T01:51:37+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-diag-real/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T01:51:37+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-diag-real/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4460,
+      "sha256": "0d0be4e0b2d249b15859b9e17c87509c4542b065d779d2cd1533fe0aca23f132",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T01:51:37+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-diag-static/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6064,
+      "sha256": "728b326859ffe08358bded85ef96cd48d6b40d80814488849dbe5ba57ca72c4f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T01:27:08+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-diag-static/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5584,
+      "sha256": "a11749b3de789c84dca923b400e3def377107b11a82418a3b5714fc443bb38ca",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T01:27:08+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-diag-static/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9491,
+      "sha256": "1fb4f8be63421a4ff4f916eec9370744d9c3fd85515912c45dc81e6a275f148e",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T01:27:08+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-diag-static/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T01:27:08+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-diag-static/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4528,
+      "sha256": "e7792453cd865fc75bd8f7a731ddc30ba0054f8157c2feaa00a82fbe0d0b0769",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T01:27:08+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-stress-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6068,
+      "sha256": "c69940d867e2cababd3de0aaaac6a9c897a44db8d5d5a3511f2b6d3abbfb8dd1",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T03:46:52+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-stress-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5644,
+      "sha256": "2df462c97c26b4699dffe3d3af7e8d5034936b35573bdb360db3586fdbf1ba14",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T03:46:52+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-stress-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9544,
+      "sha256": "23328c3d6cf7717adaaa81c85d75da4dfa802b55a240ab0c35534575d80db4ad",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T03:46:52+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-stress-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T03:46:52+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-stress-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4580,
+      "sha256": "17bf4097975de1980a2a6515aa7a962ab2b4ea344bb50d7f42fd8d8102505d66",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T03:46:52+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-stress-real/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6163,
+      "sha256": "d4bbaa31370aee3b86fe938b9d0113389349080b60235f1c46f5076f2c09f3d5",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T04:17:04+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-stress-real/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5616,
+      "sha256": "0f9884f5e7e2c61f878437853e412a8f17333f2ad42e531eef1f646f32eb0ce4",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T04:17:04+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-stress-real/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26648,
+      "sha256": "8959a523fbd519878c2c3fcb1f6b11cb98d332822fac916f07f277fffd4d84e9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T04:17:04+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-stress-real/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T04:17:04+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-stress-real/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4564,
+      "sha256": "586c8551daa878f89a310262716e98f6a8750a773501980333815b930548b099",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T04:17:04+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-systemctl-apt-python-agent-sync/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 8882,
+      "sha256": "6413ea67c324fbfd036f10d053f2aff91df3910b54b4b874966f69f69b12b93c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T05:30:35+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-systemctl-apt-python-agent-sync/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11514,
+      "sha256": "2f4502449d3cca2884da6b4d510427064bc850c9c22ea44916090a8557b45d6b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T05:30:35+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-systemctl-apt-python-agent-sync/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 7564,
+      "sha256": "fafcaa80e81e35e7f9381e7ac5737781c5bbcaf00544fef23337f8dbe129add8",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T05:30:35+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-systemctl-apt-python-agent-sync/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1665,
+      "sha256": "33b39a43509e6c87e8932ae751f60f9ae99db025862526738424f9e7bfab3247",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T05:30:35+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-systemctl-apt-python-agent-sync/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6227,
+      "sha256": "b0a41580227947a370b9139b63d30a91231a3088cff98efa7d8b0581b607d9ca",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T05:30:35+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-systemctl-root-enable-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6069,
+      "sha256": "16a0252a4acdb7e877e1cb978f12b81474126cf105e1e3e8aa5d824257097b47",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T04:18:33+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-systemctl-root-enable-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5659,
+      "sha256": "f857b05c5fbc410a454119dd06ebe0634c16ec3055499e8ad5e72dab3909d3a5",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T04:18:33+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-systemctl-root-enable-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9555,
+      "sha256": "161b3490f3ba2a74205daa023a4ea49701a5a3482aa6a62d4c394ec434d0e896",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T04:18:33+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-systemctl-root-enable-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1040,
+      "sha256": "2961e60f5932b349ce86a58e1beaa842372fa8a798f991e23b9f2fc65bdfb5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T04:18:33+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-systemctl-root-enable-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4593,
+      "sha256": "b21e705b3bec5b6d82ccbf87543d7cff4b9a8152a1d5259c050fe40d4776db0f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T04:18:33+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-systemctl-root-enable-real/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6164,
+      "sha256": "30bd29ab0cbf331198c123d0b2f75bbfdc1ed208b0cb30eb71a094a1f022957b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T04:53:20+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-systemctl-root-enable-real/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5631,
+      "sha256": "11ea8780cb629374623d38662c2ff867ff57affbd29ccdfaf55e764d4bf426ea",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T04:53:20+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-systemctl-root-enable-real/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 26679,
+      "sha256": "e63d34d8508cb3627043fc499818ad9414d27de4fdff275d47ac25b90bc1218b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T04:53:20+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-systemctl-root-enable-real/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1080,
+      "sha256": "93b46859a26f7f4721dd74380bc5b3c7450a4b91993b71c6d15c4914eb7bb9d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T04:53:20+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-nemu-systemctl-root-enable-real/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4577,
+      "sha256": "445224f63f963669e1c41b2b06e7cb14646727a6cd8c8eaa802587113ad9e211",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-14T04:53:20+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-profile-boundary-agent-system/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 8875,
+      "sha256": "255a3d020a92fa4d53246acc8921afd5fc1e0544b43b620b5fcde1b372a5404c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:13:58+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-profile-boundary-agent-system/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11339,
+      "sha256": "762335dba865abaf29b5fa9cc6342b0f9744b64b045476b01d90f3e5008f8c56",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:13:58+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-profile-boundary-agent-system/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 7472,
+      "sha256": "aa32b91e6abbefc30bc0b007427cfaed8da467f29714629f45531285d853ec39",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:13:58+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-profile-boundary-agent-system/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1665,
+      "sha256": "33b39a43509e6c87e8932ae751f60f9ae99db025862526738424f9e7bfab3247",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:13:58+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-14-2026-06-14-profile-boundary-agent-system/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6101,
+      "sha256": "ec30df529fec65341c8dc2656ce6baff51dc64e9d12f80179045ace13687b6d1",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-13T21:13:58+00:00"
     }
   ]
 }

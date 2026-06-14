@@ -25,6 +25,8 @@ NEMU_PMP_ACCESS_LOG ?= $(BUILD_DIR)/pmp-access-nemu.log
 NEMU_PMP_PAGEWALK_LOG ?= $(BUILD_DIR)/pmp-pagewalk-nemu.log
 NEMU_PMP_PAGEWALK_AD_LOG ?= $(BUILD_DIR)/pmp-pagewalk-ad-nemu.log
 NEMU_SV39_SFENCE_ASID_LOG ?= $(BUILD_DIR)/sv39-sfence-asid-nemu.log
+NEMU_FP_CONVERT_LOG ?= $(BUILD_DIR)/fp-convert-nemu.log
+NEMU_FP_COMPARE_SGNJ_LOG ?= $(BUILD_DIR)/fp-compare-sgnj-nemu.log
 NEMU_FP_SQRT_LOG ?= $(BUILD_DIR)/fp-sqrt-nemu.log
 NEMU_VIRTIO_BLK_ERROR_LOG ?= $(BUILD_DIR)/virtio-blk-error-nemu.log
 NEMU_VIRTIO_NET_CTRL_LOG ?= $(BUILD_DIR)/virtio-net-ctrl-nemu.log
@@ -161,8 +163,12 @@ FP_FMV_FCLASS_ELF := $(BUILD_DIR)/fp-fmv-fclass-smoke.elf
 FP_FMV_FCLASS_BIN := $(BUILD_DIR)/fp-fmv-fclass-smoke.bin
 FP_CONVERT_ELF := $(BUILD_DIR)/fp-convert-smoke.elf
 FP_CONVERT_BIN := $(BUILD_DIR)/fp-convert-smoke.bin
+FP_CONVERT_NEMU_ELF := $(BUILD_DIR)/fp-convert-smoke-nemu.elf
+FP_CONVERT_NEMU_BIN := $(BUILD_DIR)/fp-convert-smoke-nemu.bin
 FP_COMPARE_SGNJ_ELF := $(BUILD_DIR)/fp-compare-sgnj-smoke.elf
 FP_COMPARE_SGNJ_BIN := $(BUILD_DIR)/fp-compare-sgnj-smoke.bin
+FP_COMPARE_SGNJ_NEMU_ELF := $(BUILD_DIR)/fp-compare-sgnj-smoke-nemu.elf
+FP_COMPARE_SGNJ_NEMU_BIN := $(BUILD_DIR)/fp-compare-sgnj-smoke-nemu.bin
 FP_MINMAX_ELF := $(BUILD_DIR)/fp-minmax-smoke.elf
 FP_MINMAX_BIN := $(BUILD_DIR)/fp-minmax-smoke.bin
 FP_ADDSUB_ELF := $(BUILD_DIR)/fp-addsub-smoke.elf
@@ -190,6 +196,7 @@ BOOT_TOOL_BINS := $(TRAMPOLINE_BIN) $(DTB_SMOKE_BIN) $(MINI_LINUX_BIN) $(OPENSBI
 	smoke-jal-link smoke-branch-raw smoke-muldiv smoke-sret-user smoke-sret-user-pagefault \
 	smoke-sret-user-sv39 smoke-sret-user-sv39-halfword smoke-sret-restore smoke-ras-trap-boundary \
 	smoke-nemu-amo-misaligned smoke-nemu-lrsc-reservation smoke-nemu-pmp-access smoke-nemu-pmp-pagewalk smoke-nemu-pmp-pagewalk-ad smoke-nemu-sv39-sfence-asid \
+	smoke-nemu-fp-convert smoke-nemu-fp-compare-sgnj \
 	smoke-fp-loadstore smoke-fp-fcsr smoke-fp-fmv-fclass smoke-fp-convert \
 	smoke-fp-compare-sgnj smoke-fp-minmax smoke-fp-addsub smoke-fp-mul \
 	smoke-fp-div smoke-fp-sqrt
@@ -517,12 +524,28 @@ $(FP_CONVERT_ELF): fp-convert-smoke.S Makefile
 	  -DFP_SMOKE_STACK=$(FP_CONVERT_STACK) \
 	  $< -o $@
 
+$(FP_CONVERT_NEMU_ELF): fp-convert-smoke.S Makefile
+	mkdir -p $(BUILD_DIR)
+	$(CC) -x assembler-with-cpp -nostdlib -nostartfiles \
+	  -march=rv64imafdc_zicsr_zifencei -mabi=lp64d -Wl,-Ttext=0x80000000 \
+	  -static -no-pie -Wl,--no-relax -Wl,--build-id=none \
+	  -DFP_SMOKE_STACK=$(FP_CONVERT_STACK) -DFP_SMOKE_NEMU_SYSCON_EXIT=1 \
+	  $< -o $@
+
 $(FP_COMPARE_SGNJ_ELF): fp-compare-sgnj-smoke.S Makefile
 	mkdir -p $(BUILD_DIR)
 	$(CC) -x assembler-with-cpp -nostdlib -nostartfiles \
 	  -march=rv64imafdc_zicsr_zifencei -mabi=lp64d -Wl,-Ttext=$(FP_CONVERT_TEXT) \
 	  -static -no-pie -Wl,--no-relax -Wl,--build-id=none \
 	  -DFP_SMOKE_STACK=$(FP_CONVERT_STACK) \
+	  $< -o $@
+
+$(FP_COMPARE_SGNJ_NEMU_ELF): fp-compare-sgnj-smoke.S Makefile
+	mkdir -p $(BUILD_DIR)
+	$(CC) -x assembler-with-cpp -nostdlib -nostartfiles \
+	  -march=rv64imafdc_zicsr_zifencei -mabi=lp64d -Wl,-Ttext=0x80000000 \
+	  -static -no-pie -Wl,--no-relax -Wl,--build-id=none \
+	  -DFP_SMOKE_STACK=$(FP_CONVERT_STACK) -DFP_SMOKE_NEMU_SYSCON_EXIT=1 \
 	  $< -o $@
 
 $(FP_MINMAX_ELF): fp-minmax-smoke.S Makefile
@@ -638,6 +661,18 @@ smoke-nemu-sv39-sfence-asid: $(SV39_SFENCE_ASID_BIN)
 	  -b --max-insts=300000 -i $(SV39_SFENCE_ASID_BIN) > $(NEMU_SV39_SFENCE_ASID_LOG) 2>&1
 	cat $(NEMU_SV39_SFENCE_ASID_LOG)
 	grep -q 'HIT GOOD TRAP' $(NEMU_SV39_SFENCE_ASID_LOG)
+
+smoke-nemu-fp-convert: $(FP_CONVERT_NEMU_BIN)
+	$(abspath $(NEMU_PRESERVED_RUN)) $(abspath $(NEMU_HOME)) $(NEMU_BUILD_JOBS) -- \
+	  -b --max-insts=200000 -i $(FP_CONVERT_NEMU_BIN) > $(NEMU_FP_CONVERT_LOG) 2>&1
+	cat $(NEMU_FP_CONVERT_LOG)
+	grep -q 'HIT GOOD TRAP' $(NEMU_FP_CONVERT_LOG)
+
+smoke-nemu-fp-compare-sgnj: $(FP_COMPARE_SGNJ_NEMU_BIN)
+	$(abspath $(NEMU_PRESERVED_RUN)) $(abspath $(NEMU_HOME)) $(NEMU_BUILD_JOBS) -- \
+	  -b --max-insts=200000 -i $(FP_COMPARE_SGNJ_NEMU_BIN) > $(NEMU_FP_COMPARE_SGNJ_LOG) 2>&1
+	cat $(NEMU_FP_COMPARE_SGNJ_LOG)
+	grep -q 'HIT GOOD TRAP' $(NEMU_FP_COMPARE_SGNJ_LOG)
 
 smoke-nemu-fp-sqrt: $(FP_SQRT_NEMU_BIN)
 	$(abspath $(NEMU_PRESERVED_RUN)) $(abspath $(NEMU_HOME)) $(NEMU_BUILD_JOBS) -- \

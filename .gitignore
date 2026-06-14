@@ -64,6 +64,25 @@ Linux/tools/initramfs/
 !.github/
 !.github/**
 .github/cache/
+
+# AI runtime artifact store: keep large or volatile payloads outside source.
+.github/runtime-artifacts/**
+!.github/runtime-artifacts/.gitkeep
+.github/task-runs/**/evidence/*.vcd
+.github/task-runs/**/evidence/*.fst
+.github/task-runs/**/evidence/*.fsdb
+.github/task-runs/**/evidence/*.wlf
+.github/task-runs/**/evidence/*.vpd
+.github/task-runs/**/evidence/*.ghw
+.github/task-runs/**/evidence/*.pcap
+.github/task-runs/**/evidence/*.qcow2
+.github/task-runs/**/evidence/*.img
+.github/task-runs/**/evidence/*.raw
+.github/task-runs/**/evidence/*.dump
+.github/task-runs/**/evidence/*.trace
+.github/task-runs/**/evidence/*.itrace
+.github/task-runs/**/evidence/*.elf
+.github/task-runs/**/evidence/*.bin
 .github/task-runs/**/nemu-systemd-*.riscv64
 .github/task-runs/**/nemu-systemd-*.b64
 .github/task-runs/**/guest-check*.cmd
@@ -78,7 +97,10 @@ Linux/tools/initramfs/
 !.cursor/rules/
 !.cursor/rules/agents.mdc
 
-# 已脱敏的 AI 环境便携包也需要能被 Git 发现，方便压缩前先审计和提交。
-!outputs/
-!outputs/manual-20260528-ai-dev-env-package/
-!outputs/manual-20260528-ai-dev-env-package/**
+# 旧手工 AI 环境产物已移入归档；新版商业交付面只保留 deliverables/。
+!.github/archive/
+!.github/archive/legacy-ai-dev-env-2026-06-13/
+!.github/archive/legacy-ai-dev-env-2026-06-13/**
+!deliverables/
+!deliverables/ai-dev-env-commercial-v1/
+!deliverables/ai-dev-env-commercial-v1/**

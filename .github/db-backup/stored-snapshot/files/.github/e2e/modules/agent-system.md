@@ -1,9 +1,13 @@
 # agent-system E2E Contract
 
-- **范围**: `.github/AGENTS.md`、入口 shim、agents、instructions、memory、task-runs、e2e profile、非交互软环境入口。
+- **范围**: `.github/AGENTS.md`、入口 shim、agents、instructions、memory、task-runs、e2e profile、review routing、branch-health dashboard、observability/run-manifest、runtime artifact/source boundary、commercial delivery package、state traceback、Reviewer/Inspector gate、非交互软环境入口。
 - **上游**: 用户目标、已有 memory、蓝图。
 - **下游**: 所有模块 profile 与跨模块图。
-- **L0 gate**: `e2e_agent_system_discovery` 检查规则入口、e2e 目录、task-run 模板、memory、`scripts/agent-env.sh` 与 runner source hook、半初始化 `YSYX_AGENT_ENV_SOURCED` 继承自修复钩子、外层工具控制符命令卫生文档钩子（例如 `rg -e` 替代正则中的 `|`）、Codex/WSL single-flight 文档钩子（不要并发启动多个 `wsl.exe` 做工程命令；`Wsl/Service/E_UNEXPECTED` 先按宿主 WSL 健康问题处理；工程命令回到 `scripts/agent-run.sh` 入口）、持久 agent/e2e 源文件是否已被 Git 跟踪，以及 `report.sh` 的 context brief、task-run 文本 artifact sanitizer 和 Markdown DB 归档 hook 是否定义、调用并限制在当前 run dir。
+- **L0 gate**: `e2e_agent_system_discovery` 检查规则入口、e2e 目录、task-run 模板、memory、delivery contract、商业交付文档、`scripts/package-ai-dev-env.sh`、`scripts/agent-env.sh` 与 runner source hook、半初始化 `YSYX_AGENT_ENV_SOURCED` 继承自修复钩子、外层工具控制符命令卫生文档钩子（例如 `rg -e` 替代正则中的 `|`）、Codex/WSL single-flight 文档钩子（不要并发启动多个 `wsl.exe` 做工程命令；`Wsl/Service/E_UNEXPECTED` 先按宿主 WSL 健康问题处理；工程命令回到 `scripts/agent-run.sh` 入口）、NEMU/NPC 场景隔离运行时边界（`nemu-dev*` 只能展开到 `nemu`/`software-flow`，`npc-dev` 只能展开到 `npc`/`software-flow`，旧 `nemu-ubuntu*` 集成 profile 保留跨模块节点）、持久 agent/e2e/review-routing/branch-health/observability/state-traceability/runtime-artifacts/delivery 源文件是否已被 Git 跟踪，以及 `report.sh` 的 context brief、run manifest、state_traceback、task-run 文本 artifact sanitizer、runtime evidence index-only 和 Markdown DB 归档 hook 是否定义、调用并限制在当前 run dir。
+- **三层 gate**: `e2e_agent_system_three_layer_contract` 检查 Database/Skill/Agent 边界、report matrix、schema contract、observability contract、runtime artifact contract、delivery contract、state traceability contract、review routing、branch-health dashboard、policy、workflow、skill、`agent-maintain` 和对应 audit/report 命令。
+- **R3 gate**: `runtime-artifact-boundary` 检查 `.github/agent-env-runtime-artifacts.json`、`.gitignore` 重型 artifact pattern、`report.sh` 的 raw evidence index-only 钩子、`artifact-audit` 维护门禁和 `agent-system` profile 节点。
+- **R7 gate**: `state-machine-traceback` 检查 `state_traceback` 字段进入 task report 和 run manifest；`reviewer-inspector-gate` 检查 R7 review routing、`ysyx-coordinator` reviewer 与 `agent-system` inspector 已落成 profile 节点。
+- **商业交付 gate**: `commercial-delivery-readiness` 重新生成 `deliverables/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial`，检查旧 `outputs/` 与 `.github/e2e/_manual` 已离开 active surface、归档 manifest 完整、包清单为相对路径、e2e 目录无重复嵌套、包内无本机路径/私有标记，并执行 `delivery-audit`。
 - **L1 gate**: `agent-system` profile 列出全部 profile，证明配置可发现。
-- **证据**: task-run context-brief、report、dispatch-log、profile 列表、agent-env PASS marker、sanitizer PASS marker、task-run Markdown DB 归档 marker、diff check。
+- **证据**: task-run context-brief、report、dispatch-log、`run-manifest.json`、`state_traceback` 字段、profile 列表、agent-env PASS marker、sanitizer PASS marker、task-run Markdown DB 归档 marker、trace-audit PASS marker、artifact-audit PASS marker、delivery-audit PASS marker、state-audit PASS marker、branch-health-report 输出、branch-health-audit PASS marker、diff check。
 - **升级路线**: 增加 profile schema 校验、重复 node 检测、agent/module 覆盖率检查。

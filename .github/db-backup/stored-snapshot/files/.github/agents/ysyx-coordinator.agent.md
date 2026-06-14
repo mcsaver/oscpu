@@ -262,8 +262,10 @@ synth-boundary-audit → verilator-perf-run → rtl-invariant-check → focused-
 
 ### `agent-env-refactor`
 ```
-audit → blueprint → file-edits → validate-discovery → record
+db-audit → skill-contract → agent-flow → validate-discovery → record
 ```
+
+用于重构 AI 开发环境三层架构：Database 长期记忆、Skill 标准化规则、Agent 自动维护流程。最低验证使用 `scripts/agent-maintain.sh --mode check`；触及 profile 或 e2e gate 时追加 `scripts/agent-e2e.sh --profile agent-system`。
 
 ---
 

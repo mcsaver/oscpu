@@ -1,0 +1,9 @@
+[agent-system] reviewer/inspector execution gate
+PASS .github/e2e/profiles/agent-system.tsv
+PASS .github/agent-env-review-routing.json
+PASS .github/agent-env-policy.json
+PASS .github/agent-env-state-traceability.json
+PASS agent-system profile executes state traceback and reviewer/inspector nodes
+PASS review routing maps R7 to reviewer/inspector gate
+PASS policy requires reviewer/inspector profile nodes
+PASS state-audit contract=.github/agent-env-state-traceability.json states=7 nodes=2

@@ -1,0 +1,60 @@
+make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' riscv64-linux_defconfig
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu'
+/home/lyg/PA/ysyx-workbench/nemu/tools/kconfig/build/conf -s --defconfig=configs/riscv64-linux_defconfig /home/lyg/PA/ysyx-workbench/nemu/Kconfig
+/home/lyg/PA/ysyx-workbench/nemu/tools/kconfig/build/conf -s --syncconfig /home/lyg/PA/ysyx-workbench/nemu/Kconfig
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/nemu'
+make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' -j'14'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu'
+flock /home/lyg/PA/ysyx-workbench/.git/ make --no-print-directory -C /home/lyg/PA/ysyx-workbench NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' .git_commit MSG=' "compile NEMU"'
+while (test -e .git/index.lock); do sleep 0.1; done;               `# wait for other git instances`
+git branch tracer-ysyx -q 2>/dev/null || true                 `# create tracer branch if not existent`
+cp -a .git/index /home/lyg/PA/ysyx-workbench/nemu/../.git/index.ai                                     `# backup git index`
+git checkout --detach -q && git reset --soft  tracer-ysyx -q -- && git checkout  tracer-ysyx -q --                        `# switch to tracer branch`
+git add . -A --ignore-errors                                       `# add files to commit`
+(echo "> "compile NEMU"" && echo ysyx_26010035 李一庚 && uname -a && uptime `# generate commit msg`) \
+                | git commit -F - -q --author='tracer-ysyx <tracer@ysyx.org>' --no-verify --allow-empty                        `# commit changes in tracer branch`
+git checkout --detach -q && git reset --soft  ai -q -- && git checkout  ai -q --                          `# switch to work branch`
+mv /home/lyg/PA/ysyx-workbench/nemu/../.git/index.ai .git/index                                        `# restore git index`
+sync /home/lyg/PA/ysyx-workbench/.git/
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/nemu'
+printf '%s\n' 'BOOTARGS_EXTRA=' > '/home/lyg/PA/ysyx-workbench/Linux/build/generated/.dtb-bootargs/npc-rv64-nemu-rootfs.stamp.tmp'
+if cmp -s '/home/lyg/PA/ysyx-workbench/Linux/build/generated/.dtb-bootargs/npc-rv64-nemu-rootfs.stamp.tmp' '/home/lyg/PA/ysyx-workbench/Linux/build/generated/.dtb-bootargs/npc-rv64-nemu-rootfs.stamp'; then rm -f '/home/lyg/PA/ysyx-workbench/Linux/build/generated/.dtb-bootargs/npc-rv64-nemu-rootfs.stamp.tmp'; else mv '/home/lyg/PA/ysyx-workbench/Linux/build/generated/.dtb-bootargs/npc-rv64-nemu-rootfs.stamp.tmp' '/home/lyg/PA/ysyx-workbench/Linux/build/generated/.dtb-bootargs/npc-rv64-nemu-rootfs.stamp'; fi
+/home/lyg/PA/ysyx-workbench/Linux/env/tools/python/bin/python3 '/home/lyg/PA/ysyx-workbench/Linux/platform/gen_dts.py' --config '/home/lyg/PA/ysyx-workbench/Linux/platform/npc-rv64.yml' --mode rootfs \
+  --reset-syscon \
+  --virtio-rng \
+  --virtio-net \
+  --goldfish-rtc \
+  --bootargs-extra '' \
+  --output '/home/lyg/PA/ysyx-workbench/Linux/build/generated/npc-rv64-nemu-rootfs.dts'
+dtc -I dts -O dtb -o '/home/lyg/PA/ysyx-workbench/Linux/build/npc-rv64-nemu-rootfs.dtb' '/home/lyg/PA/ysyx-workbench/Linux/build/generated/npc-rv64-nemu-rootfs.dts'
+OPENSBI_DTB='/home/lyg/PA/ysyx-workbench/Linux/build/npc-rv64-nemu-rootfs.dtb' OPENSBI_BUILD_DIR='/home/lyg/PA/ysyx-workbench/Linux/env/build/opensbi-nemu-rootfs' \
+  OPENSBI_DISABLE_PMU='1' \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/build-opensbi.sh'
+mkdir -p '/home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-ubuntu-rootfs'
+printf '[Linux] ARCH=%s BOOT=%s\n' 'riscv64-nemu' 'ubuntu-rootfs'
+printf '[Linux] firmware: %s\n' '/home/lyg/PA/ysyx-workbench/Linux/env/build/opensbi-nemu-rootfs/platform/generic/firmware/fw_jump.bin'
+printf '[Linux] kernel:   %s\n' '/home/lyg/PA/ysyx-workbench/Linux/env/src/linux/arch/riscv/boot/Image'
+printf '[Linux] dtb:      %s\n' '/home/lyg/PA/ysyx-workbench/Linux/build/npc-rv64-nemu-rootfs.dtb'
+if [ -n '' ]; then printf '[Linux] initrd:   %s\n' ''; fi
+if [ -n '/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64.ext4' ]; then \
+  printf '[Linux] rootfs:   %s\n' '/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64.ext4'; \
+fi
+if [ -n '/home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-ubuntu-rootfs/rootfs-overlay.raw' ]; then \
+  mkdir -p "$(dirname -- '/home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-ubuntu-rootfs/rootfs-overlay.raw')"; \
+  if [ '1' = '1' ]; then rm -f '/home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-ubuntu-rootfs/rootfs-overlay.raw'; fi; \
+  printf '[Linux] overlay:  %s reset=%s\n' '/home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-ubuntu-rootfs/rootfs-overlay.raw' '1'; \
+fi
+printf '[Linux] log:      %s\n' '/home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-ubuntu-rootfs/console.log'
+NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' '/home/lyg/PA/ysyx-workbench/nemu/build/riscv64-nemu-interpreter' -b --max-insts=0 \
+  --log='/home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-ubuntu-rootfs/nemu.log' \
+  --boot-hartid=0 \
+  --boot-dtb=0x82200000 \
+  -i '/home/lyg/PA/ysyx-workbench/Linux/env/build/opensbi-nemu-rootfs/platform/generic/firmware/fw_jump.bin' \
+  --load=0x80200000:'/home/lyg/PA/ysyx-workbench/Linux/env/src/linux/arch/riscv/boot/Image' \
+  --load=0x82200000:'/home/lyg/PA/ysyx-workbench/Linux/build/npc-rv64-nemu-rootfs.dtb' \
+   \
+  --block='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64.ext4' \
+  --block-overlay='/home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-ubuntu-rootfs/rootfs-overlay.raw' \
+   2>&1 | tee '/home/lyg/PA/ysyx-workbench/Linux/env/logs/linux-front/riscv64-nemu-ubuntu-rootfs/console.log'
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/Linux'

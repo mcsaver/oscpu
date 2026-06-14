@@ -1,0 +1,36 @@
+name: Agent Environment Maintenance
+
+on:
+  pull_request:
+    paths:
+      - ".github/**"
+      - "scripts/agent-*.sh"
+      - "scripts/dev_memory/**"
+      - "scripts/e2e/**"
+  push:
+    branches:
+      - main
+      - master
+      - ai
+    paths:
+      - ".github/**"
+      - "scripts/agent-*.sh"
+      - "scripts/dev_memory/**"
+      - "scripts/e2e/**"
+  schedule:
+    - cron: "17 19 * * *"
+  workflow_dispatch:
+
+jobs:
+  agent-maintain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rehydrate DB-first memory
+        run: |
+          python3 scripts/github_index_db.py rehydrate --backup-dir .github/db-backup/stored-snapshot --yes
+          python3 scripts/github_index_db.py rehydrate --backup-dir .github/db-backup/task-runs --yes
+
+      - name: Run agent environment maintenance gate
+        run: scripts/agent-maintain.sh --mode check

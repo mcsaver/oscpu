@@ -1,0 +1,37 @@
+[software-flow] contract
+PASS .github/agents/software-flow.agent.md
+PASS .github/e2e/modules/software-flow.md
+PASS .github/e2e/profiles/software-flow.tsv
+PASS .github/memory/modules/software-flow.md
+PASS .github/agents/nemu.agent.md
+PASS .github/agents/abstract-machine.agent.md
+PASS .github/agents/am-kernels.agent.md
+[software-flow] production integration hooks
+PASS software-flow defines hardware-aware software loop
+PASS hardware-flow consumes software-flow for software artifacts
+PASS nemu agent requires software-flow for C-side model work
+PASS coordinator routes hardware-aware software work
+PASS blueprint documents combined software/hardware flow
+PASS e2e workflow documents software-flow plus system profile layering
+[software-flow] methodology guard hooks
+PASS software-flow methodology hook software-dev-loop
+PASS software-flow methodology hook scope-contract -> design-plan -> implement -> unit-or-contract-test -> integration-smoke -> regression-or-e2e -> review-record
+PASS software-flow methodology hook software-bugfix-loop
+PASS software-flow methodology hook reproduce -> collect-log -> localize-root-cause -> fix -> focused-test -> regression -> record
+PASS software-flow methodology hook software-refactor-loop
+PASS software-flow methodology hook inventory-callers -> preserve-contract -> mechanical-change -> focused-test -> consumer-regression -> record
+PASS software-flow methodology hook hardware-aware-software-loop
+PASS software-flow methodology hook scope-contract -> hardware-semantic-contract -> design-plan -> implement -> software-focused-test -> system-or-hardware-gate -> review-record
+PASS software-flow methodology hook `scope-contract`
+PASS software-flow methodology hook `design-plan`
+PASS software-flow methodology hook `unit-or-contract-test`
+PASS software-flow methodology hook `integration-smoke`
+PASS software-flow methodology hook `regression-or-e2e`
+PASS software-flow methodology hook `hardware-semantic-contract`
+PASS software-flow methodology hook `system-or-hardware-gate`
+PASS software-flow methodology hook `review-record`
+PASS software-flow methodology hook 不把“构建通过”单独当成软件任务完成
+PASS software-flow methodology hook 不把脚本外层退出码当作唯一证据
+PASS software-flow methodology hook 必须扫描 FAIL marker
+PASS software-flow methodology hook 完成后必须更新 `.github/memory/modules/software-flow.md`
+PASS global completion hook guards original request checklist
