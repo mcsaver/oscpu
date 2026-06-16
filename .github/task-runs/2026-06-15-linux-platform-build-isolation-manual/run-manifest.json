@@ -1,0 +1,27 @@
+{
+  "task_id": "2026-06-15-linux-platform-build-isolation-manual",
+  "trace_id": "manual:2026-06-15-linux-platform-build-isolation",
+  "task_slug": "linux-platform-build-isolation-manual",
+  "status": "completed",
+  "profile": "manual",
+  "started_at": "2026-06-15T16:20:00+08:00",
+  "updated_at": "2026-06-15T17:20:00+08:00",
+  "commands": [
+    "bash -n Linux/scripts/build-linux.sh Linux/scripts/build-opensbi.sh Linux/scripts/check-nemu-systemd-guest.sh Linux/scripts/check-npc-systemd-guest.sh Linux/scripts/profile-nemu-ubuntu.sh Linux/scripts/run-qemu-ubuntu-initramfs.sh scripts/e2e/modules/nemu.sh scripts/e2e/modules/module_contracts.sh",
+    "make -C Linux ARCH=riscv64-nemu paths",
+    "make -C Linux ARCH=riscv64-npc paths",
+    "make -C Linux ARCH=riscv64-nemu rootfs-dtb",
+    "make -C Linux ARCH=riscv64-npc rootfs-dtb",
+    "make -C Linux ARCH=riscv64-nemu opensbi-rootfs",
+    "make -C Linux ARCH=riscv64-npc opensbi-rootfs",
+    "make -C Linux ARCH=riscv64-nemu JOBS=4 linux-image",
+    "make -C Linux ARCH=riscv64-npc JOBS=4 linux-image",
+    "make -C Linux ARCH=riscv64-nemu check-nemu-kernel-config",
+    "scripts/agent-e2e.sh --validate-profile --profile contracts",
+    "scripts/agent-e2e.sh --validate-profile --profile rv64-linux",
+    "source scripts/e2e/lib/common.sh; source scripts/e2e/modules/module_contracts.sh; E2E_ROOT_DIR=$PWD; e2e_rv64_linux_contract"
+  ],
+  "known_blockers": [
+    "Full contracts dispatch is blocked by existing untracked persistent agent/e2e source hygiene."
+  ]
+}

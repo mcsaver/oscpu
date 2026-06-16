@@ -165,6 +165,8 @@ e2e_rv64_linux_contract() {
     Linux/README.md \
     Linux/env/README.md \
     Linux/Makefile \
+    Linux/scripts/platform/nemu.mk \
+    Linux/scripts/platform/npc.mk \
     Linux/platform/npc-rv64.yml \
     .github/agents/rv64-linux.agent.md \
     .github/instructions/rv64-linux-bringup.instructions.md

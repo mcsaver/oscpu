@@ -1,0 +1,721 @@
+start: 2026-06-16T15:22:16+08:00
+cmd_file: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-16-npc-systemd-real-shell-uart-check/evidence/npc-systemd-tty-reader-raw-bytes-loop/npc-tty-reader.cmd
+reader_mode: raw-bytes
+diag_image: /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64-tty-reader-raw-bytes.ext4
+diag_rootfs: /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/rootfs-tty-reader-raw-bytes
+skip_build: 1
+skip_image_check: 0
+max_cycles: 760000000
+host_timeout: 4200
+progress_interval: 25000000
+uart_cycle_gap: 100000
+uart_access_trace: 0
+irq_trace: 0
+reuse existing diagnostic image
+[ubuntu-rootfs-check] image: /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64-tty-reader-raw-bytes.ext4
+[ubuntu-rootfs-check] flavor: systemd-minimal
+[ubuntu-rootfs-check] OK      stage1 init: /init
+[ubuntu-rootfs-check] OK      Ubuntu shell: /bin/sh
+[ubuntu-rootfs-check] OK      Ubuntu identity: /etc/os-release
+[ubuntu-rootfs-check] OK      systemd candidate: /lib/systemd/systemd
+[ubuntu-rootfs-check] OK      systemd basic.target: /lib/systemd/system/basic.target
+[ubuntu-rootfs-check] OK      udev daemon: /lib/systemd/systemd-udevd
+[ubuntu-rootfs-check] OK      dbus daemon: /usr/bin/dbus-daemon
+[ubuntu-rootfs-check] OK      agetty login path: /bin/login
+[ubuntu-rootfs-check] OK      root login shell: /bin/bash
+[ubuntu-rootfs-check] OK      Ubuntu identity command: /usr/bin/lsb_release
+[ubuntu-rootfs-check] OK      lp64d dynamic linker: /lib/ld-linux-riscv64-lp64d.so.1
+[ubuntu-rootfs-check] OK      PAM module path: /lib/riscv64-linux-gnu/security
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_unix.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_deny.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_permit.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_env.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_loginuid.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_limits.so
+[ubuntu-rootfs-check] OK      e2scrub service entrypoint: /sbin/e2scrub_all
+[ubuntu-rootfs-check] OK      boot-blocking e2scrub reap masked: /etc/systemd/system/e2scrub_reap.service
+[ubuntu-rootfs-check] OK      periodic e2scrub timer masked: /etc/systemd/system/e2scrub_all.timer
+[ubuntu-rootfs-check] OK      deterministic machine-id seed: /etc/machine-id
+[ubuntu-rootfs-check] OK      NPC console shell hook: /usr/local/sbin/ysyx-npc-console-shell
+[ubuntu-rootfs-check] OK      NPC console shell ready marker
+[ubuntu-rootfs-check] OK      NPC systemd wrapper: /usr/local/sbin/ysyx-npc-systemd-wrapper
+[ubuntu-rootfs-check] OK      NPC systemd autocheck: /usr/local/sbin/ysyx-npc-systemd-autocheck
+[ubuntu-rootfs-check] OK      NPC tty reader diagnostic: /usr/local/sbin/ysyx-npc-tty-reader
+[ubuntu-rootfs-check] OK      NPC tty reader markers
+[ubuntu-rootfs-check] OK      NPC systemd autocheck done marker
+[ubuntu-rootfs-check] OK      NPC systemd autocheck unit: /etc/systemd/system/ysyx-npc-systemd-autocheck.service
+[ubuntu-rootfs-check] OK      NPC tty reader unit: /etc/systemd/system/ysyx-npc-tty-reader.service
+[ubuntu-rootfs-check] OK      NPC tty reader ttyS0 ordering
+[ubuntu-rootfs-check] OK      NPC systemd autocheck early ttyS0 ordering
+[ubuntu-rootfs-check] OK      NPC systemd autocheck enabled for sysinit.target
+[ubuntu-rootfs-check] OK      NPC tty reader enabled for sysinit.target
+[ubuntu-rootfs-check] OK      NPC console shell ordered before early sysinit blockers
+[ubuntu-rootfs-check] OK      NPC console shell bound to ttyS0
+[ubuntu-rootfs-check] OK      NPC systemd generators disabled for staged gate
+[ubuntu-rootfs-check] OK      unavailable hvc0 getty masked: /etc/systemd/system/serial-getty@hvc0.service
+[ubuntu-rootfs-check] rootfs readiness check passed
+[npc-systemd-check] log dir: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-16-npc-systemd-real-shell-uart-check/evidence/npc-systemd-tty-reader-raw-bytes-loop
+[npc-systemd-check] prompt wait: __NPC_TTY_READER_READY__
+[npc-systemd-check] max cycles: 760000000
+[npc-systemd-check] host timeout: 4200s
+[npc-systemd-check] guest command mode: uart
+[npc-systemd-check] done marker: __NPC_TTY_READER_DONE__ rc=0
+[npc-systemd-check] UART wait: __NPC_TTY_READER_READY__
+[npc-systemd-check] UART RX cycle gap: 100000
+[npc-systemd-check] progress interval: 25000000
+[npc-systemd-check] guest commands: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-16-npc-systemd-real-shell-uart-check/evidence/npc-systemd-tty-reader-raw-bytes-loop/npc-tty-reader.cmd
+make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+[Linux] rv64 linux defconfig up to date
+make -C '/home/lyg/PA/ysyx-workbench/npc/rv64' -j'14'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/npc/rv64'
+make[1]: Nothing to be done for 'default'.
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/npc/rv64'
+[ubuntu-rootfs-check] image: /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64-tty-reader-raw-bytes.ext4
+[ubuntu-rootfs-check] flavor: systemd-minimal
+[ubuntu-rootfs-check] OK      stage1 init: /init
+[ubuntu-rootfs-check] OK      Ubuntu shell: /bin/sh
+[ubuntu-rootfs-check] OK      Ubuntu identity: /etc/os-release
+[ubuntu-rootfs-check] OK      systemd candidate: /lib/systemd/systemd
+[ubuntu-rootfs-check] OK      systemd basic.target: /lib/systemd/system/basic.target
+[ubuntu-rootfs-check] OK      udev daemon: /lib/systemd/systemd-udevd
+[ubuntu-rootfs-check] OK      dbus daemon: /usr/bin/dbus-daemon
+[ubuntu-rootfs-check] OK      agetty login path: /bin/login
+[ubuntu-rootfs-check] OK      root login shell: /bin/bash
+[ubuntu-rootfs-check] OK      Ubuntu identity command: /usr/bin/lsb_release
+[ubuntu-rootfs-check] OK      lp64d dynamic linker: /lib/ld-linux-riscv64-lp64d.so.1
+[ubuntu-rootfs-check] OK      PAM module path: /lib/riscv64-linux-gnu/security
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_unix.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_deny.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_permit.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_env.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_loginuid.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_limits.so
+[ubuntu-rootfs-check] OK      e2scrub service entrypoint: /sbin/e2scrub_all
+[ubuntu-rootfs-check] OK      boot-blocking e2scrub reap masked: /etc/systemd/system/e2scrub_reap.service
+[ubuntu-rootfs-check] OK      periodic e2scrub timer masked: /etc/systemd/system/e2scrub_all.timer
+[ubuntu-rootfs-check] OK      deterministic machine-id seed: /etc/machine-id
+[ubuntu-rootfs-check] OK      NPC console shell hook: /usr/local/sbin/ysyx-npc-console-shell
+[ubuntu-rootfs-check] OK      NPC console shell ready marker
+[ubuntu-rootfs-check] OK      NPC systemd wrapper: /usr/local/sbin/ysyx-npc-systemd-wrapper
+[ubuntu-rootfs-check] OK      NPC systemd autocheck: /usr/local/sbin/ysyx-npc-systemd-autocheck
+[ubuntu-rootfs-check] OK      NPC tty reader diagnostic: /usr/local/sbin/ysyx-npc-tty-reader
+[ubuntu-rootfs-check] OK      NPC tty reader markers
+[ubuntu-rootfs-check] OK      NPC systemd autocheck done marker
+[ubuntu-rootfs-check] OK      NPC systemd autocheck unit: /etc/systemd/system/ysyx-npc-systemd-autocheck.service
+[ubuntu-rootfs-check] OK      NPC tty reader unit: /etc/systemd/system/ysyx-npc-tty-reader.service
+[ubuntu-rootfs-check] OK      NPC tty reader ttyS0 ordering
+[ubuntu-rootfs-check] OK      NPC systemd autocheck early ttyS0 ordering
+[ubuntu-rootfs-check] OK      NPC systemd autocheck enabled for sysinit.target
+[ubuntu-rootfs-check] OK      NPC tty reader enabled for sysinit.target
+[ubuntu-rootfs-check] OK      NPC console shell ordered before early sysinit blockers
+[ubuntu-rootfs-check] OK      NPC console shell bound to ttyS0
+[ubuntu-rootfs-check] OK      NPC systemd generators disabled for staged gate
+[ubuntu-rootfs-check] OK      unavailable hvc0 getty masked: /etc/systemd/system/serial-getty@hvc0.service
+[ubuntu-rootfs-check] rootfs readiness check passed
+[Linux] ARCH=riscv64-npc BOOT=ubuntu-rootfs
+[Linux] firmware: /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/build/opensbi/rootfs/platform/generic/firmware/fw_jump.bin
+[Linux] kernel:   /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/build/linux/arch/riscv/boot/Image
+[Linux] dtb:      /home/lyg/PA/ysyx-workbench/Linux/build/riscv64-npc/npc-rv64-rootfs.dtb
+[Linux] rootfs:   /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64-tty-reader-raw-bytes.ext4
+[Linux] log:      /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-16-npc-systemd-real-shell-uart-check/evidence/npc-systemd-tty-reader-raw-bytes-loop/console.log
+'/home/lyg/PA/ysyx-workbench/npc/rv64/build/NpcSimTop' -b --progress=25000000 --no-diff --max=760000000 \
+  --log='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-16-npc-systemd-real-shell-uart-check/evidence/npc-systemd-tty-reader-raw-bytes-loop/npc.log' \
+  -i '/home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/build/opensbi/rootfs/platform/generic/firmware/fw_jump.bin' \
+  --load=0x80200000:'/home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/build/linux/arch/riscv/boot/Image' \
+  --load=0x82200000:'/home/lyg/PA/ysyx-workbench/Linux/build/riscv64-npc/npc-rv64-rootfs.dtb' \
+   \
+  --block='/home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64-tty-reader-raw-bytes.ext4' \
+   2>&1 | tee '/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-16-npc-systemd-real-shell-uart-check/evidence/npc-systemd-tty-reader-raw-bytes-loop/console.log'
+[1;34m[log.c:145 npc_init_log] Log is written to /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-16-npc-systemd-real-shell-uart-check/evidence/npc-systemd-tty-reader-raw-bytes-loop/npc.log[0m
+[1;34m[paddr.c:85 npc_init_mem] physical memory area [0x0000000080000000, 0x00000000bfffffff][0m
+[1;34m[paddr.c:144 npc_load_img_at] The image is /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/build/opensbi/rootfs/platform/generic/firmware/fw_jump.bin, size = 275888[0m
+[1;34m[paddr.c:146 npc_load_img_at] Load image /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/build/linux/arch/riscv/boot/Image at 0x0000000080200000, size = 15465472[0m
+[1;34m[paddr.c:146 npc_load_img_at] Load image /home/lyg/PA/ysyx-workbench/Linux/build/riscv64-npc/npc-rv64-rootfs.dtb at 0x0000000082200000, size = 1856[0m
+[1;34m[map.c:76 npc_add_mmio_map] Add mmio map 'serial' at [0xa00003f8, 0xa00003ff][0m
+[1;34m[map.c:76 npc_add_mmio_map] Add mmio map 'rtc' at [0xa0000048, 0xa000004f][0m
+[1;34m[map.c:76 npc_add_mmio_map] Add mmio map 'keyboard' at [0xa0000060, 0xa0000063][0m
+[1;34m[vga.c:186 npc_vga_init] NPC VGA disabled; GPU_CONFIG will report present=false.[0m
+[1;34m[map.c:76 npc_add_mmio_map] Add mmio map 'vgactl' at [0xa0000100, 0xa0000107][0m
+[1;34m[map.c:76 npc_add_mmio_map] Add mmio map 'framebuffer' at [0xa1000000, 0xa11fffff][0m
+[1;34m[virtio_blk.c:545 virtio-blk] image=/home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64-tty-reader-raw-bytes.ext4 capacity=4194304 sectors (2048 MiB)[0m
+***reset***
+[1;34m[monitor.c:41 welcome] Wave Trace: [1;31mOFF[0m[0m
+[1;34m[monitor.c:42 welcome] Text Trace: [1;31mOFF[0m (itrace=off, mtrace=off, dtrace=off)[0m
+[1;34m[monitor.c:44 welcome] Difftest: [1;31mOFF[0m[0m
+[1;34m[monitor.c:45 welcome] Build time: 21:48:30, Jun 15 2026[0m
+Welcome to [1;33m[1;41mriscv64[0m-NPC!
+For help, type "help"
+[1;34m[dpi.c:135 uart-rx] loaded bytes=24 file_bytes=24 text_bytes=0 trace=1 min_commit=0 limit=128 cycle_gap=100000 wait='__NPC_TTY_READER_READY__'[0m
+[1;34m[dpi.c:353 uart-rx] waiting for guest output pattern='__NPC_TTY_READER_READY__' before releasing bytes=24[0m
+
+OpenSBI v1.8
+   ____                    _____ ____ _____
+  / __ \                  / ____|  _ \_   _|
+ | |  | |_ __   ___ _ __ | (___ | |_) || |
+ | |  | | '_ \ / _ \ '_ \ \___ \|  _ < | |
+ | |__| | |_) |  __/ | | |____) | |_) || |_
+  \____/| .__/ \___|_| |_|_____/|____/_____|
+        | |
+        |_|
+
+Platform Name               : YSYX NPC RV64
+Platform Features           : medeleg
+Platform HART Count         : 1
+Platform HART Protection    : ---
+Platform IPI Device         : aclint-mswi
+Platform Timer Device       : aclint-mtimer @ 10000000Hz
+Platform Console Device     : uart8250
+Platform HSM Device         : ---
+Platform PMU Device         : ---
+Platform Reboot Device      : ---
+Platform Shutdown Device    : ---
+Platform Suspend Device     : ---
+Platform CPPC Device        : ---
+Firmware Base               : 0x80000000
+Firmware Size               : 321 KB
+Firmware RW Offset          : 0x40000
+Firmware RW Size            : 65 KB
+Firmware Heap Offset        : 0x47000
+Firmware Heap Size          : 37 KB (total), 0 KB (reserved), 10 KB (used), 25 KB (free)
+Firmware Scratch Size       : 4096 B (total), 408 B (used), 3688 B (free)
+Runtime SBI Version         : 3.0
+Standard SBI Extensions     : time,rfnc,ipi,base,hsm,pmu,dbcn,fwft,legacy,sse
+Experimental SBI Extensions : none
+
+Domain0 Name                : root
+Domain0 Boot HART           : 0
+Domain0 HARTs               : 0*
+Domain0 Region00            : 0x0000000080040000-0x000000008005ffff M: (F,R,W) S/U: ()
+Domain0 Region01            : 0x0000000080000000-0x000000008003ffff M: (F,R,X) S/U: ()
+Domain0 Region02            : 0x0000000010000000-0x0000000010000fff M: (I,R,W) S/U: (R,W)
+Domain0 Region03            : 0x0000000002000000-0x000000000200ffff M: (I,R,W) S/U: ()
+Domain0 Region04            : 0x000000000c000000-0x000000000fffffff M: (I,R,W) S/U: (R,W)
+Domain0 Region05            : 0x0000000000000000-0xffffffffffffffff M: () S/U: (R,W,X)
+Domain0 Next Address        : 0x0000000080200000
+Domain0 Next Arg1           : 0x0000000082200000
+Domain0 Next Mode           : S-mode
+Domain0 SysReset            : yes
+Domain0 SysSuspend          : yes
+
+Boot HART ID                : 0
+Boot HART Domain            : root
+Boot HART Priv Version      : v1.11
+Boot HART Base ISA          : rv64imafdc
+Boot HART ISA Extensions    : zicntr
+Boot HART PMP Count         : 0
+Boot HART PMP Granularity   : 0 bits
+Boot HART PMP Address Bits  : 0
+Boot HART MHPM Info         : 0 (0x00000000)
+Boot HART Debug Triggers    : 0 triggers
+Boot HART MIDELEG           : 0x0000000000000222
+Boot HART MEDELEG           : 0x000000000004b109
+[progress] 25000001 insts, pc=0xffffffff801092b0, 223679 inst/s
+[progress] 50000000 insts, pc=0xffffffff8042e5dc, 217920 inst/s
+[    0.000000] Linux version 6.6.0 (lyg@lygdebug) (riscv64-linux-gnu-gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, GNU ld (GNU Binutils for Ubuntu) 2.42) #1 Mon Jun 15 16:55:17 CST 2026
+[    0.000000] random: crng init done
+[    0.000000] Machine model: YSYX NPC RV64
+[    0.000000] SBI specification v3.0 detected
+[    0.000000] SBI implementation ID=0x1 Version=0x10008
+[    0.000000] SBI TIME extension detected
+[    0.000000] SBI IPI extension detected
+[    0.000000] SBI RFENCE extension detected
+[    0.000000] efi: UEFI not found.
+[    0.000000] OF: reserved mem: 0x0000000080000000..0x000000008003ffff (256 KiB) nomap non-reusable mmode_resv1@80000000
+[    0.000000] OF: reserved mem: 0x0000000080040000..0x000000008005ffff (128 KiB) nomap non-reusable mmode_resv0@80040000
+[    0.000000] Zone ranges:
+[    0.000000]   DMA32    [mem 0x0000000080000000-0x00000000bfffffff]
+[    0.000000]   Normal   empty
+[    0.000000] Movable zone start for each node
+[    0.000000] Early memory node ranges
+[    0.000000]   node   0: [mem 0x0000000080000000-0x000000008005ffff]
+[    0.000000]   node   0: [mem 0x0000000080060000-0x00000000bfffffff]
+[    0.000000] Initmem setup node 0 [mem 0x0000000080000000-0x00000000bfffffff]
+[    0.000000] riscv: base ISA extensions acdfim
+[    0.000000] riscv: ELF capabilities acdfim
+[    0.000000] Kernel command line: console=ttyS0,115200n8 root=/dev/vda rw init=/usr/local/sbin/ysyx-npc-systemd-wrapper
+[    0.000000] Dentry cache hash table entries: 131072 (order: 8, 1048576 bytes, linear)
+[    0.000000] Inode-cache hash table entries: 65536 (order: 7, 524288 bytes, linear)
+[    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: 258048
+[    0.000000] mem auto-init: stack:off, heap alloc:off, heap free:off
+[    0.000000] Memory: 997396K/1048576K available (4284K kernel code, 4800K rwdata, 2048K rodata, 2110K init, 349K bss, 51180K reserved, 0K cma-reserved)
+[    0.000000] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
+[    0.000000] NR_IRQS: 64, nr_irqs: 64, preallocated irqs: 0
+[    0.000000] riscv-intc: 64 local interrupts mapped
+[    0.000000] plic: interrupt-controller@c000000: mapped 32 interrupts with 1 handlers for 2 contexts.
+[    0.000000] clocksource: riscv_clocksource: mask: 0xffffffffffffffff max_cycles: 0x24e6a1710, max_idle_ns: 440795202120 ns
+[    0.000007] sched_clock: 64 bits at 10MHz, resolution 100ns, wraps every 4398046511100ns
+[    0.001160] Calibrating delay loop (skipped), value calculated using timer frequency.. 20.00 BogoMIPS (lpj=40000)
+[    0.001288] pid_max: default: 32768 minimum: 301
+[    0.001862] LSM: initializing lsm=capability,integrity
+[    0.003051] Mount-cache hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[    0.003289] Mountpoint-cache hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[    0.015767] RCU Tasks Trace: Setting shift to 0 and lim to 1 rcu_task_cb_adjust=1.
+[    0.016676] riscv: ELF compat mode unsupported
+[    0.016848] ASID allocator using 16 bits (65536 entries)
+[    0.018195] EFI services will not be available.
+[    0.021094] devtmpfs: initialized
+[    0.032556] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 7645041785100000 ns
+[    0.032778] futex hash table entries: 256 (order: 1, 12288 bytes, linear)
+[    0.036457] NET: Registered PF_NETLINK/PF_ROUTE protocol family
+[    0.038207] DMA: preallocated 128 KiB GFP_KERNEL pool for atomic allocations
+[    0.038483] DMA: preallocated 128 KiB GFP_KERNEL|GFP_DMA32 pool for atomic allocations
+[    0.071607] clocksource: Switched to clocksource riscv_clocksource
+[    0.086806] NET: Registered PF_INET protocol family
+[    0.088652] IP idents hash table entries: 16384 (order: 5, 131072 bytes, linear)
+[    0.111497] tcp_listen_portaddr_hash hash table entries: 512 (order: 2, 16384 bytes, linear)
+[    0.111971] Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+[    0.112110] TCP established hash table entries: 8192 (order: 4, 65536 bytes, linear)
+[    0.113300] TCP bind hash table entries: 8192 (order: 7, 524288 bytes, linear)
+[    0.121474] TCP: Hash tables configured (established 8192 bind 8192)
+[    0.122851] UDP hash table entries: 512 (order: 3, 49152 bytes, linear)
+[    0.123729] UDP-Lite hash table entries: 512 (order: 3, 49152 bytes, linear)
+[    0.125309] NET: Registered PF_UNIX/PF_LOCAL protocol family
+[    0.134180] workingset: timestamp_bits=46 max_order=18 bucket_order=0
+[    0.139721] io scheduler mq-deadline registered
+[    0.681527] Serial: 8250/16550 driver, 4 ports, IRQ sharing disabled
+[    0.701957] printk: console [ttyS0] disabled
+[    0.705114] 10000000.serial: ttyS0 at MMIO 0x10000000 (irq = 2, base_baud = 115200) is a 16550A
+[    0.705313] printk: console [ttyS0] enabled
+[    0.769683] loop: module loaded
+[    0.770217] virtio_blk virtio0: 1/0/0 default/read/poll queues
+[    0.772428] virtio_blk virtio0: [vda] 4194304 512-byte logical blocks (2.15 GB/2.00 GiB)
+[    0.786247] NET: Registered PF_PACKET protocol family
+[    0.786625] Key type dns_resolver registered
+[progress] 75000001 insts, pc=0xffffffff8026b89c, 210050 inst/s
+[    0.927876] clk: Disabling unused clocks
+[    0.953618] EXT4-fs (vda): mounted filesystem d5a58620-876a-4a88-ac9b-fe16bc984275 r/w with ordered data mode. Quota mode: disabled.
+[    0.954117] VFS: Mounted root (ext4 filesystem) on device 254:0.
+[    0.955435] devtmpfs: mounted
+[    0.976763] Freeing unused kernel image (initmem) memory: 2108K
+[    0.977148] Run /usr/local/sbin/ysyx-npc-systemd-wrapper as init process
+[ysyx-npc-systemd-wrapper] begin
+__NPC_SYSTEMD_CHECK_BEGIN__
+__NPC_CHECK_PASS__:os-release-ubuntu-2204
+__NPC_CHECK_PASS__:bin-sh
+__NPC_CHECK_PASS__:bin-bash
+__NPC_CHECK_PASS__:systemd-binary
+__NPC_CHECK_PASS__:systemd-autocheck-script
+__NPC_CHECK_SYSTEMD_STATE__:wrapper-pre-systemd
+__NPC_CHECK_PASS__:systemd-wrapper-preflight
+__NPC_SYSTEMD_CHECK_DONE__ rc=0
+[ysyx-npc-systemd-wrapper] console prompt marker
+root@ysyx-ubuntu2204:~# [ysyx-npc-systemd-wrapper] exec systemd: /lib/systemd/systemd
+[    1.442081] systemd[1]: System time before build time, advancing clock.
+[progress] 100000001 insts, pc=0xffffffff800d3324, 200918 inst/s
+[    1.525175] systemd[1]: systemd 249.11-0ubuntu3.21 running in system mode (+PAM +AUDIT +SELINUX +APPARMOR +IMA +SMACK +SECCOMP +GCRYPT +GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 -IDN +IPTC +KMOD +LIBCRYPTSETUP +LIBFDISK +PCRE2 -PWQUALITY -P11KIT -QRENCODE +BZIP2 +LZ4 +XZ +ZLIB +ZSTD -XKBCOMMON +UTMP +SYSVINIT default-hierarchy=unified)
+[    1.527153] systemd[1]: Detected architecture riscv64.
+
+Welcome to [1mUbuntu 22.04.5 LTS[0m!
+
+[    1.537666] systemd[1]: Hostname set to <ysyx-ubuntu2204>.
+[progress] 125000001 insts, pc=0x0000003f8ab54210, 226549 inst/s
+[progress] 150000000 insts, pc=0x0000003f8a8a768e, 283526 inst/s
+[progress] 175000001 insts, pc=0x0000003f8a8bd426, 302055 inst/s
+[progress] 200000000 insts, pc=0x0000003f8ab4e8ee, 305059 inst/s
+[progress] 225000000 insts, pc=0x0000003f8ab62b96, 294964 inst/s
+[progress] 250000000 insts, pc=0x0000003f8ab5c40e, 281580 inst/s
+[progress] 275000000 insts, pc=0x0000003f8ab510da, 281045 inst/s
+[progress] 300000001 insts, pc=0x0000003f8a8bd432, 293359 inst/s
+[    4.589850] systemd[1]: Queued start job for default target Graphical Interface.
+[    4.628957] systemd[1]: Created slice Slice /system/modprobe.
+[[0;32m  OK  [0m] Created slice [0;1;39mSlice /system/modprobe[0m.
+[    4.646936] systemd[1]: Created slice User and Session Slice.
+[[0;32m  OK  [0m] Created slice [0;1;39mUser and Session Slice[0m.
+[    4.653590] systemd[1]: Started Dispatch Password Requests to Console Directory Watch.
+[[0;32m  OK  [0m] Started [0;1;39mDispatch Password …ts to Console Directory Watch[0m.
+[    4.660394] systemd[1]: Started Forward Password Requests to Wall Directory Watch.
+[[0;32m  OK  [0m] Started [0;1;39mForward Password R…uests to Wall Directory Watch[0m.
+[    4.666140] systemd[1]: Condition check resulted in Arbitrary Executable File Formats File System Automount Point being skipped.
+[    4.667378] systemd[1]: Reached target Local Encrypted Volumes.
+[[0;32m  OK  [0m] Reached target [0;1;39mLocal Encrypted Volumes[0m.
+[    4.672596] systemd[1]: Reached target Local File Systems.
+[[0;32m  OK  [0m] Reached target [0;1;39mLocal File Systems[0m.
+[    4.677031] systemd[1]: Reached target Path Units.
+[[0;32m  OK  [0m] Reached target [0;1;39mPath Units[0m.
+[    4.681720] systemd[1]: Reached target Slice Units.
+[[0;32m  OK  [0m] Reached target [0;1;39mSlice Units[0m.
+[    4.686507] systemd[1]: Reached target Swaps.
+[[0;32m  OK  [0m] Reached target [0;1;39mSwaps[0m.
+[    4.690971] systemd[1]: Reached target Local Verity Protected Volumes.
+[[0;32m  OK  [0m] Reached target [0;1;39mLocal Verity Protected Volumes[0m.
+[    4.697816] systemd[1]: Listening on initctl Compatibility Named Pipe.
+[[0;32m  OK  [0m] Listening on [0;1;39minitctl Compatibility Named Pipe[0m.
+[    4.708725] systemd[1]: Condition check resulted in Journal Audit Socket being skipped.
+[    4.714252] systemd[1]: Listening on Journal Socket (/dev/log).
+[[0;32m  OK  [0m] Listening on [0;1;39mJournal Socket (/dev/log)[0m.
+[    4.723386] systemd[1]: Listening on Journal Socket.
+[[0;32m  OK  [0m] Listening on [0;1;39mJournal Socket[0m.
+[    4.732686] systemd[1]: Listening on udev Control Socket.
+[[0;32m  OK  [0m] Listening on [0;1;39mudev Control Socket[0m.
+[    4.740180] systemd[1]: Listening on udev Kernel Socket.
+[[0;32m  OK  [0m] Listening on [0;1;39mudev Kernel Socket[0m.
+[    4.744441] systemd[1]: Reached target Socket Units.
+[[0;32m  OK  [0m] Reached target [0;1;39mSocket Units[0m.
+[    4.754801] systemd[1]: Condition check resulted in Huge Pages File System being skipped.
+[    4.794047] systemd[1]: Mounting POSIX Message Queue File System...
+         Mounting [0;1;39mPOSIX Message Queue File System[0m...
+[    4.821200] systemd[1]: Condition check resulted in Kernel Debug File System being skipped.
+[    4.836219] systemd[1]: Condition check resulted in Kernel Trace File System being skipped.
+[    4.844305] systemd[1]: Condition check resulted in Create List of Static Device Nodes being skipped.
+[    4.935861] systemd[1]: Starting Load Kernel Module configfs...
+         Starting [0;1;39mLoad Kernel Module configfs[0m...
+[progress] 325000001 insts, pc=0xffffffff80422392, 218040 inst/s
+[    5.096130] systemd[1]: Starting Load Kernel Module drm...
+         Starting [0;1;39mLoad Kernel Module drm[0m...
+[    5.244577] systemd[1]: Starting Load Kernel Module fuse...
+         Starting [0;1;39mLoad Kernel Module fuse[0m...
+[    5.269840] systemd[1]: Condition check resulted in Set Up Additional Binary Formats being skipped.
+[    5.391823] systemd[1]: Starting Load/Save Random Seed...
+         Starting [0;1;39mLoad/Save Random Seed[0m...
+[progress] 350000001 insts, pc=0xffffffff8040c840, 191074 inst/s
+[    5.522133] systemd[1]: Started YSYX NPC ttyS0 input reader diagnostic.
+[[0;32m  OK  [0m] Started [0;1;39mYSYX NPC ttyS0 input reader diagnostic[0m.
+__NPC_TTY_READER_MODE__:raw-bytes
+[    5.663579] systemd[1]: Starting YSYX NPC systemd guest autocheck...
+         Starting [0;1;39mYSYX NPC systemd guest autocheck[0m...
+__NPC_SYSTEMD_CHECK_BEGIN__
+__NPC_TTY_READER_STDIN__:/dev/ttyS0
+[    5.912554] systemd[1]: Mounted POSIX Message Queue File System.
+[[0;32m  OK  [0m] Mounted [0;1;39mPOSIX Message Queue File System[0m.
+[    5.965832] systemd[1]: modprobe@configfs.service: Deactivated successfully.
+[progress] 375000000 insts, pc=0xffffffff80430aa8, 199593 inst/s
+__NPC_CHECK_UNAME__:riscv64
+__NPC_CHECK_PASS__:uname-riscv64
+[    6.047264] systemd[1]: Finished Load Kernel Module configfs.
+[[0;32m  OK  [0m] Finished [0;1;39mLoad Kernel Module configfs[0m.
+[    6.093672] systemd[1]: modprobe@drm.service: Deactivated successfully.
+__NPC_CHECK_PASS__:os-release-ubuntu-2204
+__NPC_TTY_READER_STTY_BEFORE__:speed 115200 baud; rows 0; columns 0; line = 0;
+__NPC_TTY_READER_STTY_BEFORE__:intr = ^C; quit = ^\; erase = ^?; kill = ^U; eof = ^D; eol = <undef>;
+__NPC_TTY_READER_STTY_BEFORE__:eol2 = <undef>; swtch = <undef>; start = ^Q; stop = ^S; susp = ^Z; rprnt = ^R;
+__NPC_TTY_READER_STTY_BEFORE__:werase = ^W; lnext = ^V; discard = ^O; min = 1; time = 0;
+__NPC_TTY_READER_STTY_BEFORE__:-parenb -parodd -cmspar cs8 hupcl -cstopb cread clocal -crtscts
+__NPC_TTY_READER_STTY_BEFORE__:-ignbrk -brkint -ignpar -parmrk -inpck -istrip -inlcr -igncr icrnl ixon -ixoff
+[    6.168737] systemd[1]: Finished Load Kernel Module drm.
+[[0;32m  OK  [0m] Finished [0;1;39mLoad Kernel Module drm[0m.
+__NPC_TTY_READER_STTY_BEFORE__:-iuclc -ixany imaxbel iutf8
+__NPC_TTY_READER_STTY_BEFORE__:opost -olcuc -ocrnl onlcr -onocr -onlret -ofill -ofdel nl0 cr0 tab0 bs0 vt0 ff0
+__NPC_TTY_READER_STTY_BEFORE__:isig icanon iexten echo echoe echok -echonl -noflsh -xcase -tostop echoprt
+__NPC_TTY_READER_STTY_BEFORE__:echoctl echoke -flusho -extproc
+[    6.219338] systemd[1]: modprobe@fuse.service: Deactivated successfully.
+[    6.266026] systemd[1]: Finished Load Kernel Module fuse.
+[[0;32m  OK  [0m] Finished [0;1;39mLoad Kernel Module fuse[0m.
+__NPC_CHECK_PASS__:root-context
+__NPC_CHECK_PASS__:bin-sh
+__NPC_CHECK_PASS__:bin-bash
+__NPC_CHECK_SYSTEMD_STATE__:pid1-systemd
+__NPC_CHECK_PASS__:systemd-state
+__NPC_SYSTEMD_AUTOCHECK_DONE__ rc=0
+[    6.325180] systemd[1]: Finished Load/Save Random Seed.
+[[0;32m  OK  [0m] Finished [0;1;39mLoad/Save Random Seed[0m.
+[    6.356532] systemd[1]: ysyx-npc-systemd-autocheck.service: Deactivated successfully.
+[    6.386429] systemd[1]: Finished YSYX NPC systemd guest autocheck.
+[[0;32m  OK  [0m] Finished [0;1;39mYSYX NPC systemd guest autocheck[0m.
+[    6.413504] systemd[1]: Condition check resulted in First Boot Complete being skipped.
+[    6.434180] systemd[1]: Condition check resulted in FUSE Control File System being skipped.
+[    6.456368] systemd[1]: Condition check resulted in Kernel Configuration File System being skipped.
+__NPC_TTY_READER_STTY_RAW__:speed 115200 baud; rows 0; columns 0; line = 0;
+__NPC_TTY_READER_STTY_RAW__:intr = ^C; quit = ^\; erase = ^?; kill = ^U; eof = ^D; eol = <undef>;
+__NPC_TTY_READER_STTY_RAW__:eol2 = <undef>; swtch = <undef>; start = ^Q; stop = ^S; susp = ^Z; rprnt = ^R;
+__NPC_TTY_READER_STTY_RAW__:werase = ^W; lnext = ^V; discard = ^O; min = 0; time = 20;
+__NPC_TTY_READER_STTY_RAW__:-parenb -parodd -cmspar cs8 hupcl -cstopb cread clocal -crtscts
+__NPC_TTY_READER_STTY_RAW__:-ignbrk -brkint -ignpar -parmrk -inpck -istrip -inlcr -igncr icrnl ixon -ixoff
+__NPC_TTY_READER_STTY_RAW__:-iuclc -ixany imaxbel iutf8
+__NPC_TTY_READER_STTY_RAW__:opost -olcuc -ocrnl onlcr -onocr -onlret -ofill -ofdel nl0 cr0 tab0 bs0 vt0 ff0
+__NPC_TTY_READER_STTY_RAW__:isig -icanon iexten -echo echoe echok -echonl -noflsh -xcase -tostop echoprt
+__NPC_TTY_READER_STTY_RAW__:echoctl echoke -flusho -extproc
+[progress] 400000000 insts, pc=0xffffffff800870f0, 196475 inst/s
+__NPC_TTY_READER_READY__[1;34m[dpi.c:364 uart-rx] wait pattern matched; releasing input at cycle=708238193 commit=400280356[0m
+[1;34m[dpi.c:160 uart-rx] pop=1 cycle=708238193 commit=400280356 data=0x5f char='_'[0m
+
+[1;34m[dpi.c:160 uart-rx] pop=2 cycle=708338193 commit=400323799 data=0x5f char='_'[0m
+[1;34m[dpi.c:160 uart-rx] pop=3 cycle=708438193 commit=400366964 data=0x4e char='N'[0m
+[1;34m[dpi.c:160 uart-rx] pop=4 cycle=708538193 commit=400407233 data=0x50 char='P'[0m
+[1;34m[dpi.c:160 uart-rx] pop=5 cycle=708638193 commit=400451275 data=0x43 char='C'[0m
+[1;34m[dpi.c:160 uart-rx] pop=6 cycle=708738193 commit=400495912 data=0x5f char='_'[0m
+[1;34m[dpi.c:160 uart-rx] pop=7 cycle=708838193 commit=400535460 data=0x54 char='T'[0m
+[1;34m[dpi.c:160 uart-rx] pop=8 cycle=708938193 commit=400575196 data=0x54 char='T'[0m
+[1;34m[dpi.c:160 uart-rx] pop=9 cycle=709038193 commit=400616771 data=0x59 char='Y'[0m
+[1;34m[dpi.c:160 uart-rx] pop=10 cycle=709138193 commit=400656300 data=0x5f char='_'[0m
+[1;34m[dpi.c:160 uart-rx] pop=11 cycle=709238193 commit=400698228 data=0x52 char='R'[0m
+[1;34m[dpi.c:160 uart-rx] pop=12 cycle=709338193 commit=400748649 data=0x45 char='E'[0m
+[1;34m[dpi.c:160 uart-rx] pop=13 cycle=709438193 commit=400794413 data=0x41 char='A'[0m
+[1;34m[dpi.c:160 uart-rx] pop=14 cycle=709538193 commit=400834876 data=0x44 char='D'[0m
+[1;34m[dpi.c:160 uart-rx] pop=15 cycle=709638193 commit=400873400 data=0x45 char='E'[0m
+[1;34m[dpi.c:160 uart-rx] pop=16 cycle=709738193 commit=400914269 data=0x52 char='R'[0m
+[1;34m[dpi.c:160 uart-rx] pop=17 cycle=709838193 commit=400954820 data=0x5f char='_'[0m
+[1;34m[dpi.c:160 uart-rx] pop=18 cycle=709938193 commit=400992515 data=0x50 char='P'[0m
+[1;34m[dpi.c:160 uart-rx] pop=19 cycle=710038193 commit=401028735 data=0x49 char='I'[0m
+[1;34m[dpi.c:160 uart-rx] pop=20 cycle=710138193 commit=401073594 data=0x4e char='N'[0m
+[1;34m[dpi.c:160 uart-rx] pop=21 cycle=710238193 commit=401118086 data=0x47 char='G'[0m
+[1;34m[dpi.c:160 uart-rx] pop=22 cycle=710338193 commit=401157992 data=0x5f char='_'[0m
+[1;34m[dpi.c:160 uart-rx] pop=23 cycle=710438193 commit=401196715 data=0x5f char='_'[0m
+[1;34m[dpi.c:160 uart-rx] pop=24 cycle=710538193 commit=401237080 data=0x0a char='.'[0m
+[    6.640686] systemd[1]: Starting Journal Service...
+         Starting [0;1;39mJournal Service[0m...
+[    6.643324] systemd[1]: Condition check resulted in Store a System Token in an EFI Variable being skipped.
+[    6.650079] systemd[1]: Condition check resulted in Commit a transient machine-id on disk being skipped.
+[    6.771975] systemd[1]: Starting Load Kernel Modules...
+         Starting [0;1;39mLoad Kernel Modules[0m...
+[    6.908290] systemd[1]: Starting Create System Users...
+         Starting [0;1;39mCreate System Users[0m...
+[1;34m[cpu-exec.cpp:1872 cpu_exec] npc: [1;31mABORT[0m at pc = 0xffffffff8040e3d8[0m
+[1;34m[cpu-exec.cpp:1873 report_run_result] cycles=760000000, commits=424862415, core-state=0x00000001[0m
+[1;34m[cpu-exec.cpp:1725 cpu_exec] ooo flags=0x8a00208013 stop=1 owner=1 orphan=0 exit=0 branch=1 jump=0 mem=0 arch_trap=0 system=0 irq=0 csr=0 csr_dispatched=0 irq_pending=0 drained_q=0 drained=0 dispatch_ready=1 csr_dispatch_valid=0 csr_dispatch_fire=0 csr_commit=0 can_run=0 fifo=0 trap_cause=1 head_resp=0 head_fetch_fault=0 dispatch_arch_trap=0 csr_illegal=0 dispatch_system=0 priv=1 satp_sv39=1 arch_trap_fire=0 csr_trap_ex=0 drain_complete=0 replay_wait=1 direct_flush=0[0m
+[1;34m[cpu-exec.cpp:1769 cpu_exec] bus flags=0x0000000400058c0a fetch_req=0/1 fetch_rsp=0/1 out=0 discard=0 fetch_state=0 paging=1 wl=1 ws=0 mem_state=6 mem_wr=1 mem_port=0 mem_drop=0 ifu_ar=0/0 ifu_r=0/0 lsu_ar=0/0 lsu_r=0/0 lsu_aw=0/0 lsu_w=0/0 lsu_b=0/1 xbar_busy=0x0 xbar_resp=0x0 xbar_active=0x0[0m
+[1;34m[cpu-exec.cpp:1808 cpu_exec] bus2=0x0000000000000220 mmu_flush=0 mem_flush=0 ifu_abort=0 lsu_abort=0 sram_ar=0/1 sram_r=0/0 owners clint/uart/sram/default=0/1/0/0 xbar_ar_sent=0x0000 xbar_drop=0x0000 fetch_addr=0xffffffff8040e3d8 mem_addr=0xffffffc8001d3cb8 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1675 cpu_exec] recent debug cycles before stop:[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999969 commits=424862396 pc=0xffffffff8002e020 state=3 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8002e020 mem_addr=0xffffffc8001d3cc0 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999970 commits=424862397 pc=0xffffffff8002e020 state=3 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8002e020 mem_addr=0xffffffc8001d3cb8 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999971 commits=424862399 pc=0xffffffff8002e020 state=3 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8002e112 mem_addr=0xffffffc8001d3cb8 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999972 commits=424862399 pc=0xffffffff8002e020 state=3 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8002e112 mem_addr=0xffffffc8001d3cb8 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999973 commits=424862399 pc=0xffffffff800fada6 state=3 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff800fada6 mem_addr=0xffffffc8001d3cb8 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999974 commits=424862400 pc=0xffffffff800fadae state=1 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff800fada6 mem_addr=0xffffffc8001d3cb8 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999975 commits=424862401 pc=0xffffffff8042ba04 state=2 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8042ba04 mem_addr=0xffffffc8001d3cb8 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999976 commits=424862401 pc=0xffffffff8042ba04 state=1 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8042ba04 mem_addr=0xffffffc8001d3cb8 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999977 commits=424862401 pc=0xffffffff8042ba04 state=3 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8042ba04 mem_addr=0xffffffc8001d3cb8 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999978 commits=424862401 pc=0xffffffff8042ba0a state=1 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8042ba04 mem_addr=0xffffffd801ee9f88 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999979 commits=424862403 pc=0xffffffff8042ba0e state=3 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8042ba0e mem_addr=0xffffffd801ee9f88 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999980 commits=424862404 pc=0xffffffff8042ba14 state=3 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8042ba14 mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999981 commits=424862405 pc=0xffffffff8042ba0a state=3 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8042ba0a mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999982 commits=424862407 pc=0xffffffff8042ba0e state=1 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8042ba0a mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999983 commits=424862408 pc=0xffffffff8042ba0e state=1 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8042ba0a mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999984 commits=424862408 pc=0xffffffff8042ba0e state=1 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8042ba0a mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999985 commits=424862408 pc=0xffffffff800fadae state=3 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff800fadae mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999986 commits=424862409 pc=0xffffffff800fadb4 state=3 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff800fadb4 mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999987 commits=424862411 pc=0xffffffff800fadbc state=1 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff800fadb4 mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999988 commits=424862412 pc=0xffffffff8040e382 state=2 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e382 mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999989 commits=424862412 pc=0xffffffff8040e382 state=1 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e382 mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999990 commits=424862412 pc=0xffffffff8040e382 state=3 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e382 mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999991 commits=424862412 pc=0xffffffff8040e386 state=1 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e382 mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999992 commits=424862414 pc=0xffffffff8040e386 state=3 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e386 mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999993 commits=424862414 pc=0xffffffff8040e38a state=3 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e38a mem_addr=0xffffffc8001d3cc0 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999994 commits=424862414 pc=0xffffffff8040e38e state=3 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e38e mem_addr=0xffffffc8001d3cc0 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999995 commits=424862414 pc=0xffffffff8040e392 state=3 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e392 mem_addr=0xffffffc8001d3cc0 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999996 commits=424862414 pc=0xffffffff8040e396 state=1 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e392 mem_addr=0xffffffc8001d3cc0 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999997 commits=424862414 pc=0xffffffff8040e3d8 state=2 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e3d8 mem_addr=0xffffffc8001d3cc0 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999998 commits=424862415 pc=0xffffffff8040e3d8 state=1 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e3d8 mem_addr=0xffffffc8001d3cc0 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999999 commits=424862415 pc=0xffffffff8040e3d8 state=1 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e3d8 mem_addr=0xffffffc8001d3cb8 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=760000000 commits=424862415 pc=0xffffffff8040e3d8 state=1 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e3d8 mem_addr=0xffffffc8001d3cb8 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1649 cpu_exec] recent commits before stop:[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862383 pc=0xffffffff8002dfdc inst=0x00822783 next=0xffffffff8002dfe0 x15(a5)<=0x0000000000000000[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862384 pc=0xffffffff8002dfe0 inst=0x00c004b3 next=0xffffffff8002dfe2 x9(s1)<=0x0000000000000000[0m
+[1;34m[cpu-exec.cpp:1662 cpu_exec]   #424862385 pc=0xffffffff8002dfe2 inst=0x04f60063 next=0xffffffff8002dfe6[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862386 pc=0xffffffff8002e022 inst=0x100027f3 next=0xffffffff8002e026 x15(a5)<=0x0000000a00000022[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862387 pc=0xffffffff8002e026 inst=0x0027f793 next=0xffffffff8002e028 x15(a5)<=0x0000000000000002[0m
+[1;34m[cpu-exec.cpp:1662 cpu_exec]   #424862388 pc=0xffffffff8002e028 inst=0xfa078fe3 next=0xffffffff8002e02a[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862389 pc=0xffffffff8002e02a inst=0x04422783 next=0xffffffff8002e02e x15(a5)<=0x000000000040014c[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862390 pc=0xffffffff8002e02e inst=0x0027f793 next=0xffffffff8002e030 x15(a5)<=0x0000000000000000[0m
+[1;34m[cpu-exec.cpp:1662 cpu_exec]   #424862391 pc=0xffffffff8002e030 inst=0xfa079be3 next=0xffffffff8002e032[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862392 pc=0xffffffff8002e032 inst=0x6e022783 next=0xffffffff8002e036 x15(a5)<=0x0000000000000000[0m
+[1;34m[cpu-exec.cpp:1662 cpu_exec]   #424862393 pc=0xffffffff8002e036 inst=0xfa0798e3 next=0xffffffff8002e038[0m
+[1;34m[cpu-exec.cpp:1662 cpu_exec]   #424862394 pc=0xffffffff8002e038 inst=0xfe1ff06f next=0xffffffff8002e018[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862395 pc=0xffffffff8002e018 inst=0x01813083 next=0xffffffff8002e01a x1(ra)<=0xffffffff800fada6[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862396 pc=0xffffffff8002e01a inst=0x01013403 next=0xffffffff8002e01c x8(s0)<=0xffffffc8001d3de0[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862397 pc=0xffffffff8002e01c inst=0x00813483 next=0xffffffff8002e01e x9(s1)<=0xffffffd802562770[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862398 pc=0xffffffff8002e01e inst=0x02010113 next=0xffffffff8002e020 x2(sp)<=0xffffffc8001d3cd0[0m
+[1;34m[cpu-exec.cpp:1662 cpu_exec]   #424862399 pc=0xffffffff8002e020 inst=0x00008067 next=0xffffffff800fada6[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862400 pc=0xffffffff800fada6 inst=0x00331097 next=0xffffffff800fadaa x1(ra)<=0xffffffff8042bda6[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862401 pc=0xffffffff800fadaa inst=0xc5e080e7 next=0xffffffff800fadae x1(ra)<=0xffffffff800fadae[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862402 pc=0xffffffff8042ba04 inst=0x00822703 next=0xffffffff8042ba08 x14(a4)<=0x0000000000000000[0m
+[1;34m[cpu-exec.cpp:1662 cpu_exec]   #424862403 pc=0xffffffff8042ba08 inst=0x00070363 next=0xffffffff8042ba0a[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862404 pc=0xffffffff8042ba0e inst=0x00023783 next=0xffffffff8042ba12 x15(a5)<=0x0000000000000000[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862405 pc=0xffffffff8042ba12 inst=0x0087f793 next=0xffffffff8042ba14 x15(a5)<=0x0000000000000000[0m
+[1;34m[cpu-exec.cpp:1662 cpu_exec]   #424862406 pc=0xffffffff8042ba14 inst=0xfe078be3 next=0xffffffff8042ba16[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862407 pc=0xffffffff8042ba0a inst=0x00000513 next=0xffffffff8042ba0c x10(a0)<=0x0000000000000000[0m
+[1;34m[cpu-exec.cpp:1662 cpu_exec]   #424862408 pc=0xffffffff8042ba0c inst=0x00008067 next=0xffffffff8042ba0e[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862409 pc=0xffffffff800fadae inst=0xfff00593 next=0xffffffff800fadb0 x11(a1)<=0xffffffffffffffff[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862410 pc=0xffffffff800fadb0 inst=0xef040513 next=0xffffffff800fadb4 x10(a0)<=0xffffffc8001d3cd0[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862411 pc=0xffffffff800fadb4 inst=0x00313097 next=0xffffffff800fadb8 x1(ra)<=0xffffffff8040ddb4[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862412 pc=0xffffffff800fadb8 inst=0x5ce080e7 next=0xffffffff800fadbc x1(ra)<=0xffffffff800fadbc[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862413 pc=0xffffffff8040e382 inst=0xfd010113 next=0xffffffff8040e384 x2(sp)<=0xffffffc8001d3ca0[0m
+[1;34m[cpu-exec.cpp:1662 cpu_exec]   #424862414 pc=0xffffffff8040e384 inst=0x02813023 next=0xffffffff8040e386[0m
+[1;34m[cpu-exec.cpp:1618 statistic] host time spent = 1804091473 us[0m
+[1;34m[cpu-exec.cpp:1620 statistic] total guest instructions = 424862415[0m
+[1;34m[cpu-exec.cpp:1623 statistic] total guest cycles = 760000000[0m
+[1;34m[cpu-exec.cpp:1625 statistic] CLINT mtime = 76000000 (mtime-cycles=-684000000, match=no)[0m
+[1;34m[cpu-exec.cpp:1630 statistic] CPI (cycles/instruction) = 1.789[0m
+[1;34m[cpu-exec.cpp:1634 statistic] simulation frequency = 235499 inst/s[0m
+[1;34m[cpu-exec.cpp:1425 statistic] === Branch/Jump Statistics ===[0m
+[1;34m[cpu-exec.cpp:1426 statistic]   conditional branch  = 59636103 (taken 371, not-taken 59635732, taken rate 0.0%)[0m
+[1;34m[cpu-exec.cpp:1430 statistic]   JAL  (unconditional) = 11630872[0m
+[1;34m[cpu-exec.cpp:1431 statistic]   JALR (indirect/ret)  = 12988680[0m
+[1;34m[cpu-exec.cpp:1432 statistic]   total jump/branch    = 84255655 (19.8% of all instructions)[0m
+[1;34m[cpu-exec.cpp:1434 statistic] === BPU Prediction Statistics ===[0m
+[1;34m[cpu-exec.cpp:1435 statistic]   branch accuracy      = 53955639/59639339 correct, 5683700 mispredict (90.5%)[0m
+[1;34m[cpu-exec.cpp:1440 statistic]   branch direction     = 53955639/59639339 correct (90.5%), dir miss=5683700, gshare cold=4096[0m
+[1;34m[cpu-exec.cpp:1446 statistic]   JAL accuracy         = 11630872/11630872 correct (100.0%)[0m
+[1;34m[cpu-exec.cpp:1450 statistic]   JALR accuracy        = 12988680/12988680 correct (100.0%)[0m
+[1;34m[cpu-exec.cpp:1454 statistic]   return accuracy      = 8872428/8872428 correct (100.0%)[0m
+[1;34m[cpu-exec.cpp:1458 statistic]   BTB JALR lookup      = hit 8996013, miss 1995029[0m
+[1;34m[cpu-exec.cpp:1461 statistic]   direction predictor  = correct 53955639, miss 5683700[0m
+[1;34m[cpu-exec.cpp:1464 statistic]   RAS lookup           = hit 1997638, miss/underflow 6874790, overflow 0[0m
+[1;34m[cpu-exec.cpp:1468 statistic]   top branch miss PCs  =[0m
+[1;34m[cpu-exec.cpp:1480 statistic]     #1 pc=0x800194ec miss=1961[0m
+[1;34m[cpu-exec.cpp:1480 statistic]     #2 pc=0x8000ba74 miss=1257[0m
+[1;34m[cpu-exec.cpp:1480 statistic]     #3 pc=0x8000b9c6 miss=1255[0m
+[1;34m[cpu-exec.cpp:1480 statistic]     #4 pc=0x8000b8a4 miss=786[0m
+[1;34m[cpu-exec.cpp:1480 statistic]     #5 pc=0x8001519c miss=757[0m
+[1;34m[cpu-exec.cpp:1480 statistic]     #6 pc=0x800152a6 miss=712[0m
+[1;34m[cpu-exec.cpp:1480 statistic]     #7 pc=0x8001528c miss=438[0m
+[1;34m[cpu-exec.cpp:1480 statistic]     #8 pc=0x8000ba3a miss=401[0m
+[1;34m[cpu-exec.cpp:1488 statistic] === Cache Statistics ===[0m
+[1;34m[cpu-exec.cpp:1489 statistic] icache: access=254428830, hit=210670187, miss=43758643[0m
+[1;34m[cpu-exec.cpp:1493 statistic] dcache: access=143814976, hit=108700418, miss=19580943[0m
+[1;34m[cpu-exec.cpp:1497 statistic] dcache load: access=88022974, hit=68442031, miss=19580943[0m
+[1;34m[cpu-exec.cpp:1501 statistic] dcache store: access=55792002, hit=40258387, miss=0[0m
+[1;34m[cpu-exec.cpp:1505 statistic] dcache writeback = 0, write-through store = 0[0m
+[1;34m[cpu-exec.cpp:1512 statistic] === OoO Pipeline Statistics ===[0m
+[1;34m[cpu-exec.cpp:1513 statistic] ooo cycles observed = 760000000[0m
+[1;34m[cpu-exec.cpp:1515 statistic] retire hist 0/1/2 = 464329364/166475340/129195296[0m
+[1;34m[cpu-exec.cpp:1519 statistic] execute hist 0/1/2 = 430647497/241095370/88257133[0m
+[1;34m[cpu-exec.cpp:1523 statistic] dispatch hist 0/1/2 = 525791538/50795945/183412517[0m
+[1;34m[cpu-exec.cpp:1527 statistic] fetch req valid/fire = 254470405/254428830, rsp fire=254428830, enqueue=45020490, bypass=179787815[0m
+[1;34m[cpu-exec.cpp:1533 statistic] control wait cycles: stop=274214867, branch=160695480, jump=100606371, mem=0, synth-ret=0, commit1-block=0[0m
+[1;34m[cpu-exec.cpp:1540 statistic] cycle buckets (overlap): fetch=476887929(62.7%), mem=541736237(71.3%), axi_wait=184441365(24.3%), hazard=128057295(16.8%), branch_flush=98205283(12.9%), exception=46158(0.0%)[0m
+[1;34m[cpu-exec.cpp:1558 statistic] branch prefetch fire/hit = 23392344/19261947[0m
+[1;34m[cpu-exec.cpp:1561 statistic] top branch wait PCs =[0m
+[1;34m[cpu-exec.cpp:1578 statistic]   pc=0xffffffff80424f18 cycles=166064[0m
+[1;34m[cpu-exec.cpp:1578 statistic]   pc=0x00000000800193bc cycles=155672[0m
+[1;34m[cpu-exec.cpp:1578 statistic]   pc=0x0000000080019458 cycles=155667[0m
+[1;34m[cpu-exec.cpp:1578 statistic]   pc=0x00000000800193f0 cycles=155653[0m
+[1;34m[cpu-exec.cpp:1578 statistic]   pc=0xffffffff8061f640 cycles=67897[0m
+[1;34m[cpu-exec.cpp:1578 statistic]   pc=0xffffffff8061f5b6 cycles=57475[0m
+[1;34m[cpu-exec.cpp:1578 statistic]   pc=0x000000008000b894 cycles=19635[0m
+[1;34m[cpu-exec.cpp:1578 statistic]   pc=0xffffffff8040e392 cycles=4[0m
+[1;34m[cpu-exec.cpp:1583 statistic] top jump wait PCs =[0m
+[1;34m[cpu-exec.cpp:1599 statistic]   pc=0x0000000080019468 cycles=77833[0m
+[1;34m[cpu-exec.cpp:1599 statistic]   pc=0xffffffff80073ea6 cycles=64015[0m
+[1;34m[cpu-exec.cpp:1599 statistic]   pc=0x00000000800194e6 cycles=53776[0m
+[1;34m[cpu-exec.cpp:1599 statistic]   pc=0x0000000080019512 cycles=53776[0m
+[1;34m[cpu-exec.cpp:1599 statistic]   pc=0x0000000080002564 cycles=20952[0m
+[1;34m[cpu-exec.cpp:1599 statistic]   pc=0x0000000080019a54 cycles=16347[0m
+[1;34m[cpu-exec.cpp:1599 statistic]   pc=0x0000000080019b5a cycles=12719[0m
+[1;34m[cpu-exec.cpp:1599 statistic]   pc=0xffffffff800fadb8 cycles=3[0m
+[1;34m[cpu-exec.cpp:1604 statistic] mem req0/req1/rsp0/rsp1 = 143814976/0/143814726/0[0m
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/Linux'
+[npc-systemd-check] FAIL: done marker not reached (rc=0)
+[npc-systemd-check] ---- console tail ----
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999977 commits=424862401 pc=0xffffffff8042ba04 state=3 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8042ba04 mem_addr=0xffffffc8001d3cb8 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999978 commits=424862401 pc=0xffffffff8042ba0a state=1 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8042ba04 mem_addr=0xffffffd801ee9f88 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999979 commits=424862403 pc=0xffffffff8042ba0e state=3 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8042ba0e mem_addr=0xffffffd801ee9f88 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999980 commits=424862404 pc=0xffffffff8042ba14 state=3 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8042ba14 mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999981 commits=424862405 pc=0xffffffff8042ba0a state=3 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8042ba0a mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999982 commits=424862407 pc=0xffffffff8042ba0e state=1 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8042ba0a mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999983 commits=424862408 pc=0xffffffff8042ba0e state=1 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8042ba0a mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999984 commits=424862408 pc=0xffffffff8042ba0e state=1 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8042ba0a mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999985 commits=424862408 pc=0xffffffff800fadae state=3 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff800fadae mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999986 commits=424862409 pc=0xffffffff800fadb4 state=3 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff800fadb4 mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999987 commits=424862411 pc=0xffffffff800fadbc state=1 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff800fadb4 mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999988 commits=424862412 pc=0xffffffff8040e382 state=2 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e382 mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999989 commits=424862412 pc=0xffffffff8040e382 state=1 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e382 mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999990 commits=424862412 pc=0xffffffff8040e382 state=3 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e382 mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999991 commits=424862412 pc=0xffffffff8040e386 state=1 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e382 mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999992 commits=424862414 pc=0xffffffff8040e386 state=3 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e386 mem_addr=0xffffffd801ee9f80 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999993 commits=424862414 pc=0xffffffff8040e38a state=3 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e38a mem_addr=0xffffffc8001d3cc0 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999994 commits=424862414 pc=0xffffffff8040e38e state=3 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e38e mem_addr=0xffffffc8001d3cc0 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999995 commits=424862414 pc=0xffffffff8040e392 state=3 stop=0 arch=0 sys=0 trap_ex=0 cause=1 fifo=1 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e392 mem_addr=0xffffffc8001d3cc0 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999996 commits=424862414 pc=0xffffffff8040e396 state=1 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e392 mem_addr=0xffffffc8001d3cc0 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999997 commits=424862414 pc=0xffffffff8040e3d8 state=2 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=7 frsp=1/1 out=1 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e3d8 mem_addr=0xffffffc8001d3cc0 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999998 commits=424862415 pc=0xffffffff8040e3d8 state=1 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e3d8 mem_addr=0xffffffc8001d3cc0 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=759999999 commits=424862415 pc=0xffffffff8040e3d8 state=1 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e3d8 mem_addr=0xffffffc8001d3cb8 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1682 cpu_exec]   cyc=760000000 commits=424862415 pc=0xffffffff8040e3d8 state=1 stop=1 arch=0 sys=0 trap_ex=0 cause=1 fifo=0 fetch_state=0 frsp=0/1 out=0 ifu_ar=0/0 ifu_r=0/0 active=0x0000 ar_sent=0x0000 fetch_addr=0xffffffff8040e3d8 mem_addr=0xffffffc8001d3cb8 pte_addr=0x00000000bfffd000 pte=0x00000000200800eb pte_meta=0x1[0m
+[1;34m[cpu-exec.cpp:1649 cpu_exec] recent commits before stop:[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862383 pc=0xffffffff8002dfdc inst=0x00822783 next=0xffffffff8002dfe0 x15(a5)<=0x0000000000000000[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862384 pc=0xffffffff8002dfe0 inst=0x00c004b3 next=0xffffffff8002dfe2 x9(s1)<=0x0000000000000000[0m
+[1;34m[cpu-exec.cpp:1662 cpu_exec]   #424862385 pc=0xffffffff8002dfe2 inst=0x04f60063 next=0xffffffff8002dfe6[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862386 pc=0xffffffff8002e022 inst=0x100027f3 next=0xffffffff8002e026 x15(a5)<=0x0000000a00000022[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862387 pc=0xffffffff8002e026 inst=0x0027f793 next=0xffffffff8002e028 x15(a5)<=0x0000000000000002[0m
+[1;34m[cpu-exec.cpp:1662 cpu_exec]   #424862388 pc=0xffffffff8002e028 inst=0xfa078fe3 next=0xffffffff8002e02a[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862389 pc=0xffffffff8002e02a inst=0x04422783 next=0xffffffff8002e02e x15(a5)<=0x000000000040014c[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862390 pc=0xffffffff8002e02e inst=0x0027f793 next=0xffffffff8002e030 x15(a5)<=0x0000000000000000[0m
+[1;34m[cpu-exec.cpp:1662 cpu_exec]   #424862391 pc=0xffffffff8002e030 inst=0xfa079be3 next=0xffffffff8002e032[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862392 pc=0xffffffff8002e032 inst=0x6e022783 next=0xffffffff8002e036 x15(a5)<=0x0000000000000000[0m
+[1;34m[cpu-exec.cpp:1662 cpu_exec]   #424862393 pc=0xffffffff8002e036 inst=0xfa0798e3 next=0xffffffff8002e038[0m
+[1;34m[cpu-exec.cpp:1662 cpu_exec]   #424862394 pc=0xffffffff8002e038 inst=0xfe1ff06f next=0xffffffff8002e018[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862395 pc=0xffffffff8002e018 inst=0x01813083 next=0xffffffff8002e01a x1(ra)<=0xffffffff800fada6[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862396 pc=0xffffffff8002e01a inst=0x01013403 next=0xffffffff8002e01c x8(s0)<=0xffffffc8001d3de0[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862397 pc=0xffffffff8002e01c inst=0x00813483 next=0xffffffff8002e01e x9(s1)<=0xffffffd802562770[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862398 pc=0xffffffff8002e01e inst=0x02010113 next=0xffffffff8002e020 x2(sp)<=0xffffffc8001d3cd0[0m
+[1;34m[cpu-exec.cpp:1662 cpu_exec]   #424862399 pc=0xffffffff8002e020 inst=0x00008067 next=0xffffffff800fada6[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862400 pc=0xffffffff800fada6 inst=0x00331097 next=0xffffffff800fadaa x1(ra)<=0xffffffff8042bda6[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862401 pc=0xffffffff800fadaa inst=0xc5e080e7 next=0xffffffff800fadae x1(ra)<=0xffffffff800fadae[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862402 pc=0xffffffff8042ba04 inst=0x00822703 next=0xffffffff8042ba08 x14(a4)<=0x0000000000000000[0m
+[1;34m[cpu-exec.cpp:1662 cpu_exec]   #424862403 pc=0xffffffff8042ba08 inst=0x00070363 next=0xffffffff8042ba0a[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862404 pc=0xffffffff8042ba0e inst=0x00023783 next=0xffffffff8042ba12 x15(a5)<=0x0000000000000000[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862405 pc=0xffffffff8042ba12 inst=0x0087f793 next=0xffffffff8042ba14 x15(a5)<=0x0000000000000000[0m
+[1;34m[cpu-exec.cpp:1662 cpu_exec]   #424862406 pc=0xffffffff8042ba14 inst=0xfe078be3 next=0xffffffff8042ba16[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862407 pc=0xffffffff8042ba0a inst=0x00000513 next=0xffffffff8042ba0c x10(a0)<=0x0000000000000000[0m
+[1;34m[cpu-exec.cpp:1662 cpu_exec]   #424862408 pc=0xffffffff8042ba0c inst=0x00008067 next=0xffffffff8042ba0e[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862409 pc=0xffffffff800fadae inst=0xfff00593 next=0xffffffff800fadb0 x11(a1)<=0xffffffffffffffff[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862410 pc=0xffffffff800fadb0 inst=0xef040513 next=0xffffffff800fadb4 x10(a0)<=0xffffffc8001d3cd0[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862411 pc=0xffffffff800fadb4 inst=0x00313097 next=0xffffffff800fadb8 x1(ra)<=0xffffffff8040ddb4[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862412 pc=0xffffffff800fadb8 inst=0x5ce080e7 next=0xffffffff800fadbc x1(ra)<=0xffffffff800fadbc[0m
+[1;34m[cpu-exec.cpp:1655 cpu_exec]   #424862413 pc=0xffffffff8040e382 inst=0xfd010113 next=0xffffffff8040e384 x2(sp)<=0xffffffc8001d3ca0[0m
+[1;34m[cpu-exec.cpp:1662 cpu_exec]   #424862414 pc=0xffffffff8040e384 inst=0x02813023 next=0xffffffff8040e386[0m
+[1;34m[cpu-exec.cpp:1618 statistic] host time spent = 1804091473 us[0m
+[1;34m[cpu-exec.cpp:1620 statistic] total guest instructions = 424862415[0m
+[1;34m[cpu-exec.cpp:1623 statistic] total guest cycles = 760000000[0m
+[1;34m[cpu-exec.cpp:1625 statistic] CLINT mtime = 76000000 (mtime-cycles=-684000000, match=no)[0m
+[1;34m[cpu-exec.cpp:1630 statistic] CPI (cycles/instruction) = 1.789[0m
+[1;34m[cpu-exec.cpp:1634 statistic] simulation frequency = 235499 inst/s[0m
+[1;34m[cpu-exec.cpp:1425 statistic] === Branch/Jump Statistics ===[0m
+[1;34m[cpu-exec.cpp:1426 statistic]   conditional branch  = 59636103 (taken 371, not-taken 59635732, taken rate 0.0%)[0m
+[1;34m[cpu-exec.cpp:1430 statistic]   JAL  (unconditional) = 11630872[0m
+[1;34m[cpu-exec.cpp:1431 statistic]   JALR (indirect/ret)  = 12988680[0m
+[1;34m[cpu-exec.cpp:1432 statistic]   total jump/branch    = 84255655 (19.8% of all instructions)[0m
+[1;34m[cpu-exec.cpp:1434 statistic] === BPU Prediction Statistics ===[0m
+[1;34m[cpu-exec.cpp:1435 statistic]   branch accuracy      = 53955639/59639339 correct, 5683700 mispredict (90.5%)[0m
+[1;34m[cpu-exec.cpp:1440 statistic]   branch direction     = 53955639/59639339 correct (90.5%), dir miss=5683700, gshare cold=4096[0m
+[1;34m[cpu-exec.cpp:1446 statistic]   JAL accuracy         = 11630872/11630872 correct (100.0%)[0m
+[1;34m[cpu-exec.cpp:1450 statistic]   JALR accuracy        = 12988680/12988680 correct (100.0%)[0m
+[1;34m[cpu-exec.cpp:1454 statistic]   return accuracy      = 8872428/8872428 correct (100.0%)[0m
+[1;34m[cpu-exec.cpp:1458 statistic]   BTB JALR lookup      = hit 8996013, miss 1995029[0m
+[1;34m[cpu-exec.cpp:1461 statistic]   direction predictor  = correct 53955639, miss 5683700[0m
+[1;34m[cpu-exec.cpp:1464 statistic]   RAS lookup           = hit 1997638, miss/underflow 6874790, overflow 0[0m
+[1;34m[cpu-exec.cpp:1468 statistic]   top branch miss PCs  =[0m
+[1;34m[cpu-exec.cpp:1480 statistic]     #1 pc=0x800194ec miss=1961[0m
+[1;34m[cpu-exec.cpp:1480 statistic]     #2 pc=0x8000ba74 miss=1257[0m
+[1;34m[cpu-exec.cpp:1480 statistic]     #3 pc=0x8000b9c6 miss=1255[0m
+[1;34m[cpu-exec.cpp:1480 statistic]     #4 pc=0x8000b8a4 miss=786[0m
+[1;34m[cpu-exec.cpp:1480 statistic]     #5 pc=0x8001519c miss=757[0m
+[1;34m[cpu-exec.cpp:1480 statistic]     #6 pc=0x800152a6 miss=712[0m
+[1;34m[cpu-exec.cpp:1480 statistic]     #7 pc=0x8001528c miss=438[0m
+[1;34m[cpu-exec.cpp:1480 statistic]     #8 pc=0x8000ba3a miss=401[0m
+[1;34m[cpu-exec.cpp:1488 statistic] === Cache Statistics ===[0m
+[1;34m[cpu-exec.cpp:1489 statistic] icache: access=254428830, hit=210670187, miss=43758643[0m
+[1;34m[cpu-exec.cpp:1493 statistic] dcache: access=143814976, hit=108700418, miss=19580943[0m
+[1;34m[cpu-exec.cpp:1497 statistic] dcache load: access=88022974, hit=68442031, miss=19580943[0m
+[1;34m[cpu-exec.cpp:1501 statistic] dcache store: access=55792002, hit=40258387, miss=0[0m
+[1;34m[cpu-exec.cpp:1505 statistic] dcache writeback = 0, write-through store = 0[0m
+[1;34m[cpu-exec.cpp:1512 statistic] === OoO Pipeline Statistics ===[0m
+[1;34m[cpu-exec.cpp:1513 statistic] ooo cycles observed = 760000000[0m
+[1;34m[cpu-exec.cpp:1515 statistic] retire hist 0/1/2 = 464329364/166475340/129195296[0m
+[1;34m[cpu-exec.cpp:1519 statistic] execute hist 0/1/2 = 430647497/241095370/88257133[0m
+[1;34m[cpu-exec.cpp:1523 statistic] dispatch hist 0/1/2 = 525791538/50795945/183412517[0m
+[1;34m[cpu-exec.cpp:1527 statistic] fetch req valid/fire = 254470405/254428830, rsp fire=254428830, enqueue=45020490, bypass=179787815[0m
+[1;34m[cpu-exec.cpp:1533 statistic] control wait cycles: stop=274214867, branch=160695480, jump=100606371, mem=0, synth-ret=0, commit1-block=0[0m
+[1;34m[cpu-exec.cpp:1540 statistic] cycle buckets (overlap): fetch=476887929(62.7%), mem=541736237(71.3%), axi_wait=184441365(24.3%), hazard=128057295(16.8%), branch_flush=98205283(12.9%), exception=46158(0.0%)[0m
+[1;34m[cpu-exec.cpp:1558 statistic] branch prefetch fire/hit = 23392344/19261947[0m
+[1;34m[cpu-exec.cpp:1561 statistic] top branch wait PCs =[0m
+[1;34m[cpu-exec.cpp:1578 statistic]   pc=0xffffffff80424f18 cycles=166064[0m
+[1;34m[cpu-exec.cpp:1578 statistic]   pc=0x00000000800193bc cycles=155672[0m
+[1;34m[cpu-exec.cpp:1578 statistic]   pc=0x0000000080019458 cycles=155667[0m
+[1;34m[cpu-exec.cpp:1578 statistic]   pc=0x00000000800193f0 cycles=155653[0m
+[1;34m[cpu-exec.cpp:1578 statistic]   pc=0xffffffff8061f640 cycles=67897[0m
+[1;34m[cpu-exec.cpp:1578 statistic]   pc=0xffffffff8061f5b6 cycles=57475[0m
+[1;34m[cpu-exec.cpp:1578 statistic]   pc=0x000000008000b894 cycles=19635[0m
+[1;34m[cpu-exec.cpp:1578 statistic]   pc=0xffffffff8040e392 cycles=4[0m
+[1;34m[cpu-exec.cpp:1583 statistic] top jump wait PCs =[0m
+[1;34m[cpu-exec.cpp:1599 statistic]   pc=0x0000000080019468 cycles=77833[0m
+[1;34m[cpu-exec.cpp:1599 statistic]   pc=0xffffffff80073ea6 cycles=64015[0m
+[1;34m[cpu-exec.cpp:1599 statistic]   pc=0x00000000800194e6 cycles=53776[0m
+[1;34m[cpu-exec.cpp:1599 statistic]   pc=0x0000000080019512 cycles=53776[0m
+[1;34m[cpu-exec.cpp:1599 statistic]   pc=0x0000000080002564 cycles=20952[0m
+[1;34m[cpu-exec.cpp:1599 statistic]   pc=0x0000000080019a54 cycles=16347[0m
+[1;34m[cpu-exec.cpp:1599 statistic]   pc=0x0000000080019b5a cycles=12719[0m
+[1;34m[cpu-exec.cpp:1599 statistic]   pc=0xffffffff800fadb8 cycles=3[0m
+[1;34m[cpu-exec.cpp:1604 statistic] mem req0/req1/rsp0/rsp1 = 143814976/0/143814726/0[0m
+[npc-systemd-check] ----------------------
+run.rc=1
+end: 2026-06-16T15:52:20+08:00

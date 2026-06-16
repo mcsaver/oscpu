@@ -1,8 +1,179 @@
-# DB-backed .github/task-runs/2026-06-13-npc-dev-isolation-contract/dispatch-log.md
+# Dispatch Log
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文备份由 `.github/db-backup/task-runs/manifest.json` 管理；恢复请使用下方命令。
+## 基本信息
 
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/2026-06-13-npc-dev-isolation-contract/dispatch-log.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/task-runs --path .github/task-runs/2026-06-13-npc-dev-isolation-contract/dispatch-log.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/2026-06-13-npc-dev-isolation-contract/dispatch-log.md`
+- `task_id`: 2026-06-13-npc-dev-isolation-contract
+- `task_slug`: npc-dev-isolation-contract
+- `graph_template`: modular-agent-e2e
+- `profile`: npc-dev
+- `log_policy`: append-only
+
+---
+
+### [2026-06-13 15:09:53 +0800] `context-brief` - `PASS`
+
+- `owner_agent`: agent-system
+- `module`: github-index
+- `trigger`: e2e:npc-dev
+- `depends_on`:
+- `inputs`: .github DB stored memory
+- `action`: github-index brief
+- `outputs`: .github/task-runs/2026-06-13-npc-dev-isolation-contract/context-brief.md
+- `evidence`: .github/task-runs/2026-06-13-npc-dev-isolation-contract/context-brief.md
+- `handoff_to`:
+- `next_step`: DB-backed startup context generated before dispatch
+- `notes`:
+
+### [2026-06-13 15:09:53 +0800] `profile-resolve` - `PASS`
+
+- `owner_agent`: agent-system
+- `module`: github-index
+- `trigger`: e2e:npc-dev
+- `depends_on`:
+- `inputs`: .github/e2e/profiles/npc-dev.tsv
+- `action`: github-index resolve-profile
+- `outputs`: .github/task-runs/2026-06-13-npc-dev-isolation-contract/profile-resolve.md
+- `evidence`: .github/task-runs/2026-06-13-npc-dev-isolation-contract/profile-resolve.md
+- `handoff_to`:
+- `next_step`: DB-backed e2e profile include closure generated before dispatch
+- `notes`:
+
+### [2026-06-13 15:09:53 +0800] `software-flow-contract` - `in-progress`
+
+- `owner_agent`: software-flow
+- `module`: software-flow
+- `trigger`: e2e:npc-dev
+- `depends_on`:
+- `inputs`: software-flow agent + profile + memory
+- `action`: e2e_software_flow_contract
+- `outputs`: 软件开发全流程 agent 合约入口存在
+- `evidence`: .github/task-runs/2026-06-13-npc-dev-isolation-contract/evidence/software-flow-contract.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-13 15:09:55 +0800] `software-flow-contract` - `PASS`
+
+- `owner_agent`: software-flow
+- `module`: software-flow
+- `trigger`: e2e:npc-dev
+- `depends_on`:
+- `inputs`: software-flow agent + profile + memory
+- `action`: e2e_software_flow_contract
+- `outputs`: 软件开发全流程 agent 合约入口存在
+- `evidence`: .github/task-runs/2026-06-13-npc-dev-isolation-contract/evidence/software-flow-contract.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:
+
+### [2026-06-13 15:09:55 +0800] `npc-sim-contract` - `in-progress`
+
+- `owner_agent`: npc
+- `module`: npc
+- `trigger`: e2e:npc-dev
+- `depends_on`:
+- `inputs`: npc/sim + backend manifests
+- `action`: e2e_npc_sim_contract
+- `outputs`: NPC 开发环境入口只检查 NPC 仿真后端合同
+- `evidence`: .github/task-runs/2026-06-13-npc-dev-isolation-contract/evidence/npc-sim-contract.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-13 15:09:55 +0800] `npc-sim-contract` - `PASS`
+
+- `owner_agent`: npc
+- `module`: npc
+- `trigger`: e2e:npc-dev
+- `depends_on`:
+- `inputs`: npc/sim + backend manifests
+- `action`: e2e_npc_sim_contract
+- `outputs`: NPC 开发环境入口只检查 NPC 仿真后端合同
+- `evidence`: .github/task-runs/2026-06-13-npc-dev-isolation-contract/evidence/npc-sim-contract.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:
+
+### [2026-06-13 15:09:55 +0800] `npc-single-contract` - `in-progress`
+
+- `owner_agent`: npc
+- `module`: npc
+- `trigger`: e2e:npc-dev
+- `depends_on`:
+- `inputs`: npc/single Makefile/Kconfig/vsrc/csrc
+- `action`: e2e_npc_single_contract
+- `outputs`: NPC single 后端合约入口存在
+- `evidence`: .github/task-runs/2026-06-13-npc-dev-isolation-contract/evidence/npc-single-contract.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-13 15:09:55 +0800] `npc-single-contract` - `PASS`
+
+- `owner_agent`: npc
+- `module`: npc
+- `trigger`: e2e:npc-dev
+- `depends_on`:
+- `inputs`: npc/single Makefile/Kconfig/vsrc/csrc
+- `action`: e2e_npc_single_contract
+- `outputs`: NPC single 后端合约入口存在
+- `evidence`: .github/task-runs/2026-06-13-npc-dev-isolation-contract/evidence/npc-single-contract.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:
+
+### [2026-06-13 15:09:55 +0800] `npc-soc-contract` - `in-progress`
+
+- `owner_agent`: npc
+- `module`: npc
+- `trigger`: e2e:npc-dev
+- `depends_on`:
+- `inputs`: npc/soc + ysyxSoC CPU ABI
+- `action`: e2e_npc_soc_contract
+- `outputs`: NPC SoC 后端合约入口存在
+- `evidence`: .github/task-runs/2026-06-13-npc-dev-isolation-contract/evidence/npc-soc-contract.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-13 15:09:55 +0800] `npc-soc-contract` - `PASS`
+
+- `owner_agent`: npc
+- `module`: npc
+- `trigger`: e2e:npc-dev
+- `depends_on`:
+- `inputs`: npc/soc + ysyxSoC CPU ABI
+- `action`: e2e_npc_soc_contract
+- `outputs`: NPC SoC 后端合约入口存在
+- `evidence`: .github/task-runs/2026-06-13-npc-dev-isolation-contract/evidence/npc-soc-contract.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:
+
+### [2026-06-13 15:09:55 +0800] `npc-rv64-contract` - `in-progress`
+
+- `owner_agent`: npc
+- `module`: npc
+- `trigger`: e2e:npc-dev
+- `depends_on`:
+- `inputs`: npc/rv64 + Linux README
+- `action`: e2e_npc_rv64_contract
+- `outputs`: NPC RV64 Linux 入口合约存在但不跑 NEMU Ubuntu gate
+- `evidence`: .github/task-runs/2026-06-13-npc-dev-isolation-contract/evidence/npc-rv64-contract.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-13 15:09:55 +0800] `npc-rv64-contract` - `PASS`
+
+- `owner_agent`: npc
+- `module`: npc
+- `trigger`: e2e:npc-dev
+- `depends_on`:
+- `inputs`: npc/rv64 + Linux README
+- `action`: e2e_npc_rv64_contract
+- `outputs`: NPC RV64 Linux 入口合约存在但不跑 NEMU Ubuntu gate
+- `evidence`: .github/task-runs/2026-06-13-npc-dev-isolation-contract/evidence/npc-rv64-contract.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:

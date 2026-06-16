@@ -1,8 +1,22 @@
-# DB-backed .github/task-runs/2026-06-13-npc-dev-no-loss-final/profile-resolve.md
+# E2E Resolved Profile
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文备份由 `.github/db-backup/task-runs/manifest.json` 管理；恢复请使用下方命令。
+- `source`: stored
+- `profile`: npc-dev
+- `ok`: True
+- `expanded_node_count`: 5
+- `profile_order`: npc-dev, software-flow
+- `modules`: npc, software-flow
+- `owners`: npc, software-flow
+- `command`: scripts/agent-e2e.sh --profile npc-dev
+- `validate_command`: scripts/agent-e2e.sh --validate-profile --profile npc-dev
 
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/2026-06-13-npc-dev-no-loss-final/profile-resolve.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/task-runs --path .github/task-runs/2026-06-13-npc-dev-no-loss-final/profile-resolve.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/2026-06-13-npc-dev-no-loss-final/profile-resolve.md`
+## Include Edges
+- `npc-dev` -> `software-flow`
+
+## Nodes
+1. `software-flow-contract` source=`software-flow` module=`software-flow` owner=`software-flow` function=`e2e_software_flow_contract`
+2. `npc-sim-contract` source=`npc-dev` module=`npc` owner=`npc` function=`e2e_npc_sim_contract`
+3. `npc-single-contract` source=`npc-dev` module=`npc` owner=`npc` function=`e2e_npc_single_contract`
+4. `npc-soc-contract` source=`npc-dev` module=`npc` owner=`npc` function=`e2e_npc_soc_contract`
+5. `npc-rv64-contract` source=`npc-dev` module=`npc` owner=`npc` function=`e2e_npc_rv64_contract`
+

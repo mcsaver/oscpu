@@ -55,6 +55,7 @@ void goldfish_rtc_qmp_query_rtc(char *out, size_t out_size);
 #endif
 
 static int qmp_port = 0;
+bool qmp_runtime_enabled = false;
 static atomic_bool qmp_cont_requested;
 static atomic_bool qmp_stop_requested;
 static atomic_bool qmp_cpu_paused;
@@ -67,6 +68,7 @@ static pthread_mutex_t qmp_write_lock = PTHREAD_MUTEX_INITIALIZER;
 void qmp_set_port(int port) {
   Assert(port > 0 && port <= 65535, "invalid --qmp port: %d", port);
   qmp_port = port;
+  qmp_runtime_enabled = true;
 }
 
 bool qmp_is_enabled(void) {

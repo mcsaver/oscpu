@@ -19,6 +19,8 @@
 #include <common.h>
 
 void cpu_exec(uint64_t n);
+bool cpu_interpreter_basic_block_runtime_enabled(void);
+uint64_t cpu_interpreter_tb_max_inst_runtime(void);
 
 void set_nemu_state(int state, vaddr_t pc, int halt_ret);
 void invalid_inst(vaddr_t thispc);

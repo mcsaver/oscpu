@@ -1,2 +1,0 @@
-@include|abstract-machine||||
-am-kernels-contract|am-kernels|e2e_am_kernels_contract|am-kernels|cpu-tests/am-tests/klib-tests/benchmarks|测试与 benchmark 合约入口存在

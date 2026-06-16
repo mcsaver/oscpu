@@ -1,0 +1,30 @@
+name: Agent Maintain
+
+on:
+  pull_request:
+  schedule:
+    - cron: "17 21 * * *"
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: Agent environment check
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Rehydrate stored DB memory
+        run: python3 scripts/github_index_db.py rehydrate --backup-dir .github/db-backup/stored-snapshot --yes
+
+      - name: Rehydrate task-run DB evidence
+        run: python3 scripts/github_index_db.py rehydrate --backup-dir .github/db-backup/task-runs --yes
+
+      - name: Run maintenance gate
+        run: scripts/agent-maintain.sh --mode check
+
+      - name: Validate all e2e profiles
+        run: scripts/agent-e2e.sh --validate-all-profiles
+
+      - name: Run delivery audit
+        run: python3 scripts/github_index_db.py delivery-audit

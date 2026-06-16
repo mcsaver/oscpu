@@ -4,6 +4,8 @@
 # privilege、control-flow 和 rv64gc 用户态边界定位。
 
 ENV_ROOT ?= ../env
+TOOL_PLATFORM ?= npc
+PLATFORM_ROOT ?= $(ENV_ROOT)/platforms/$(TOOL_PLATFORM)
 LOCAL_ELF_TOOLCHAIN := $(abspath $(ENV_ROOT)/toolchains/riscv)
 CROSS_COMPILE ?= $(if $(wildcard $(LOCAL_ELF_TOOLCHAIN)/bin/riscv64-unknown-elf-gcc),$(LOCAL_ELF_TOOLCHAIN)/bin/riscv64-unknown-elf-,riscv64-linux-gnu-)
 
@@ -104,7 +106,7 @@ FP_FMV_FCLASS_TEXT ?= $(FP_SMOKE_TEXT)
 FP_FMV_FCLASS_STACK ?= 0x87efb000
 FP_CONVERT_TEXT ?= $(FP_SMOKE_TEXT)
 FP_CONVERT_STACK ?= 0x87efa000
-OPENSBI_FW_JUMP_BIN ?= $(ENV_ROOT)/build/opensbi-npc/platform/generic/firmware/fw_jump.bin
+OPENSBI_FW_JUMP_BIN ?= $(PLATFORM_ROOT)/build/opensbi/rootfs/platform/generic/firmware/fw_jump.bin
 OPENSBI_NEXT_DTB_ADDR ?= 0x82200000
 OPENSBI_MAX_CYCLES ?= 5000000
 OPENSBI_SBI_MAX_CYCLES ?= 8000000

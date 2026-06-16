@@ -179,7 +179,7 @@ validate_nemu_dev_boundary() {
       *) validate_profile_boundary_value "$profile" "owner" "$owner" "nemu|software-flow" || rc=1 ;;
     esac
     case "$source" in
-      nemu-dev|nemu-dev-gate|nemu-dev-full-gate|nemu-dev-full-soak|nemu-ubuntu|nemu-ubuntu-focused|nemu-ubuntu-gate|nemu-ubuntu-full-gate|nemu-ubuntu-full-soak|software-flow) ;;
+      nemu-dev|nemu-dev-gate|nemu-dev-full-gate|nemu-dev-full-soak|nemu-ubuntu|nemu-ubuntu-focused|nemu-ubuntu-profile|nemu-ubuntu-gate|nemu-ubuntu-full-gate|nemu-ubuntu-full-soak|software-flow) ;;
       *) validate_profile_boundary_value "$profile" "source_profile" "$source" "NEMU dev closure" || rc=1 ;;
     esac
     if [[ $node = npc-* || $function = e2e_npc_* || $module = npc || $owner = npc ]]; then
@@ -232,7 +232,7 @@ validate_npc_dev_boundary() {
 validate_profile_boundary() {
   local profile=$1
   case "$profile" in
-    nemu-dev|nemu-dev-gate|nemu-dev-full-gate|nemu-dev-full-soak|nemu-ubuntu|nemu-ubuntu-focused|nemu-ubuntu-gate|nemu-ubuntu-full-gate|nemu-ubuntu-full-soak)
+    nemu-dev|nemu-dev-gate|nemu-dev-full-gate|nemu-dev-full-soak|nemu-ubuntu|nemu-ubuntu-focused|nemu-ubuntu-profile|nemu-ubuntu-gate|nemu-ubuntu-full-gate|nemu-ubuntu-full-soak)
       validate_nemu_dev_boundary "$profile"
       ;;
     npc-dev)
@@ -327,6 +327,8 @@ main() {
     validate_loaded_profile "$E2E_PROFILE"
     exit $?
   fi
+
+  e2e_validate_scenario_runtime_isolation "$E2E_PROFILE" || exit 2
 
   E2E_STARTED_AT=$(e2e_now)
   E2E_OVERALL_RC=0

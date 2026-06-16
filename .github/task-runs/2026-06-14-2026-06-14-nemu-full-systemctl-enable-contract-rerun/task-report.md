@@ -1,8 +1,81 @@
-# DB-backed .github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract-rerun/task-report.md
+# Task Report
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文备份由 `.github/db-backup/task-runs/manifest.json` 管理；恢复请使用下方命令。
+## 基本信息
 
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract-rerun/task-report.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/task-runs --path .github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract-rerun/task-report.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract-rerun/task-report.md`
+- `task_id`: 2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract-rerun
+- `trace_id`: e2e:2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract-rerun
+- `task_slug`: 2026-06-14-nemu-full-systemctl-enable-contract-rerun
+- `graph_template`: modular-agent-e2e
+- `profile`: nemu-dev-gate
+- `graph_mode`: static
+- `status`: completed
+- `owner`: agent-system + hardware-flow + module agents
+- `started_at`: 2026-06-14 11:14:29 +0800
+- `updated_at`: 2026-06-14 11:15:04 +0800
+
+## 任务目标
+
+- `source_request`: 将 agent 系统从纯语言提示升级为分层、分模块、可闭环和可优化的 e2e 流水线
+- `goal`: 依据 profile 执行模块化 e2e 节点，生成可复核证据包
+- `scope`: profile=nemu-dev-gate；不越级声明未执行模块或业务 gate 已完成
+
+## 选图说明
+
+- `selected_template`: modular-agent-e2e
+- `why_this_graph`: 本 profile 从 `.github/e2e/profiles/` 读取节点，把 agent/instructions/memory 中的模块职责转换为可执行 gate。
+- `dynamic_nodes_added`: 无
+- `why_dynamic_nodes_were_needed`: 无
+
+## 状态回溯
+
+- `state_sequence`: recall_context -> classify_layer -> plan_graph -> implement -> verify -> inspect -> persist
+- `current_state`: persist
+- `failure_state`: 无
+- `rollback_target`: 无
+- `failure_reason`: 无
+- `reviewer`: ysyx-coordinator
+- `inspector`: agent-system
+- `evidence_policy`: task-report + dispatch-log + run-manifest + evidence-index
+
+## 节点概览
+
+| node_id | owner_agent | module | status | inputs | outputs | evidence |
+| ------- | ----------- | ------ | ------ | ------ | ------- | -------- |
+| `software-flow-contract` | `software-flow` | `software-flow` | `PASS` | software-flow agent + profile + memory | 软件开发全流程 agent 合约入口存在 | .github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract-rerun/evidence/software-flow-contract.log |
+| `nemu-ubuntu-static` | `nemu` | `nemu` | `PASS` | Linux/NEMU Ubuntu rootfs scripts + performance config | NEMU Ubuntu 切片静态生产守门 PASS | .github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract-rerun/evidence/nemu-ubuntu-static.log |
+| `nemu-ubuntu-slice-contract` | `nemu` | `nemu` | `PASS` | recent NEMU Ubuntu device slice hooks and guest markers | 近期 NEMU Ubuntu 设备切片合约仍挂入 guest gate | .github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract-rerun/evidence/nemu-ubuntu-slice-contract.log |
+| `nemu-dev-focused-gate` | `nemu` | `nemu` | `SKIP` | optional NEMU-only Ubuntu rootfs/systemd guest gate | AGENT_E2E_NEMU_UBUNTU_GATE=1 时运行 NEMU-only minimized guest gate，否则 SKIP | .github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract-rerun/evidence/nemu-dev-focused-gate.log |
+
+## 关键产物
+
+- `artifacts`: .github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract-rerun
+- `logs_or_traces`: .github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract-rerun/evidence
+- `context_brief`: .github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract-rerun/context-brief.md
+- `profile_resolve`: .github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract-rerun/profile-resolve.md
+- `evidence_index`: .github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract-rerun/evidence-index.md
+- `run_manifest`: .github/task-runs/2026-06-14-2026-06-14-nemu-full-systemctl-enable-contract-rerun/run-manifest.json
+- `profile_manifest`: .github/e2e/profiles/nemu-dev-gate.tsv
+- `linked_memory_updates`: 由 agent 在收尾阶段按本轮稳定结论更新 memory
+
+## 当前阻塞点
+
+- `blockers`: 无
+- `missing_dependencies`: 见对应 tool/env 节点日志
+- `risk_assessment`: 无 hard fail；SKIP 节点和 optional tool 缺失只作为后续节点风险。
+
+## 下一步建议
+
+1. 按模块或跨模块目标选择更深 profile，或进入具体静态图。
+2. 对含 `SKIP` 的模块，先补依赖或切换到合适配置，再把该模块提升到 PASS 证据。
+
+## 模板升级候选
+
+- `repeated_dynamic_subgraph`: 无
+- `should_promote_to_static_template`: 已作为 modular-agent-e2e profile 固化
+- `reason`: profile + module library + task-run 证据包能把 agent 提示转为可执行流水线
+
+## 收尾结论
+
+- `final_result`: profile=nemu-dev-gate 无 hard fail，但有 1 个节点因当前环境配置或依赖边界跳过；不能把 SKIP 节点当作已验证。
+- `evidence_summary`: 详见节点表与 `evidence/`
+- `notes`: 这是模块化 e2e gate，不替代未执行模块的功能回归、DiffTest、Linux/Ubuntu 分层 gate 或 PPA/STA signoff。

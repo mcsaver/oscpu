@@ -1,8 +1,15 @@
-# DB-backed .github/task-runs/2026-06-12-github-index-evidence-assets-final/profile-resolve.md
+# E2E Resolved Profile
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文备份由 `.github/db-backup/task-runs/manifest.json` 管理；恢复请使用下方命令。
+- `source`: stored
+- `profile`: github-index
+- `ok`: True
+- `expanded_node_count`: 1
+- `profile_order`: github-index
+- `modules`: github-index
+- `owners`: agent-system
+- `command`: scripts/agent-e2e.sh --profile github-index
+- `validate_command`: scripts/agent-e2e.sh --validate-profile --profile github-index
 
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/2026-06-12-github-index-evidence-assets-final/profile-resolve.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/task-runs --path .github/task-runs/2026-06-12-github-index-evidence-assets-final/profile-resolve.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/2026-06-12-github-index-evidence-assets-final/profile-resolve.md`
+## Nodes
+1. `github-index-contract` source=`github-index` module=`github-index` owner=`agent-system` function=`e2e_github_index_contract`
+

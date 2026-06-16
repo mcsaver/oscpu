@@ -1,0 +1,94 @@
+{
+  "artifacts": {
+    "context_brief": ".github/task-runs/2026-06-14-2026-06-14-nemu-decode-cache-sync-contract/context-brief.md",
+    "dispatch_log": ".github/task-runs/2026-06-14-2026-06-14-nemu-decode-cache-sync-contract/dispatch-log.md",
+    "evidence_dir": ".github/task-runs/2026-06-14-2026-06-14-nemu-decode-cache-sync-contract/evidence",
+    "evidence_index": ".github/task-runs/2026-06-14-2026-06-14-nemu-decode-cache-sync-contract/evidence-index.md",
+    "nodes": ".github/task-runs/2026-06-14-2026-06-14-nemu-decode-cache-sync-contract/nodes.tsv",
+    "profile_resolve": ".github/task-runs/2026-06-14-2026-06-14-nemu-decode-cache-sync-contract/profile-resolve.md",
+    "run_dir": ".github/task-runs/2026-06-14-2026-06-14-nemu-decode-cache-sync-contract",
+    "run_manifest": ".github/task-runs/2026-06-14-2026-06-14-nemu-decode-cache-sync-contract/run-manifest.json",
+    "task_report": ".github/task-runs/2026-06-14-2026-06-14-nemu-decode-cache-sync-contract/task-report.md"
+  },
+  "db": {
+    "markdown_archive": true,
+    "raw_evidence_index_only": true
+  },
+  "evidence": {
+    "asset_count": 9,
+    "by_kind": {
+      "log": 8,
+      "tsv": 1
+    },
+    "total_size_bytes": 314922
+  },
+  "final_result": "profile=nemu-ubuntu 通过，当前 modular e2e 证据链可复用。",
+  "git": {
+    "branch": "ai",
+    "head": "c3a8f42d4",
+    "upstream": "myfork/ai"
+  },
+  "graph_mode": "static",
+  "graph_template": "modular-agent-e2e",
+  "node_counts": {
+    "by_status": {
+      "PASS": 3
+    },
+    "total": 3
+  },
+  "nodes": [
+    {
+      "evidence": ".github/task-runs/2026-06-14-2026-06-14-nemu-decode-cache-sync-contract/evidence/software-flow-contract.log",
+      "inputs": "software-flow agent + profile + memory",
+      "module": "software-flow",
+      "node_id": "software-flow-contract",
+      "outputs": "软件开发全流程 agent 合约入口存在",
+      "owner_agent": "software-flow",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-06-14-2026-06-14-nemu-decode-cache-sync-contract/evidence/nemu-ubuntu-static.log",
+      "inputs": "Linux/NEMU Ubuntu rootfs scripts + performance config",
+      "module": "nemu",
+      "node_id": "nemu-ubuntu-static",
+      "outputs": "NEMU Ubuntu 切片静态生产守门 PASS",
+      "owner_agent": "nemu",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-06-14-2026-06-14-nemu-decode-cache-sync-contract/evidence/nemu-ubuntu-slice-contract.log",
+      "inputs": "recent NEMU Ubuntu device slice hooks and guest markers",
+      "module": "nemu",
+      "node_id": "nemu-ubuntu-slice-contract",
+      "outputs": "近期 NEMU Ubuntu 设备切片合约仍挂入 guest gate",
+      "owner_agent": "nemu",
+      "status": "PASS"
+    }
+  ],
+  "profile": "nemu-ubuntu",
+  "run_id": "2026-06-14-2026-06-14-nemu-decode-cache-sync-contract",
+  "schema_version": 1,
+  "started_at": "2026-06-14 17:42:35 +0800",
+  "state_traceback": {
+    "current_state": "persist",
+    "evidence_policy": "task-report + dispatch-log + run-manifest + evidence-index",
+    "failure_reason": "",
+    "failure_state": "",
+    "inspector": "agent-system",
+    "reviewer": "ysyx-coordinator",
+    "rollback_target": "",
+    "state_sequence": [
+      "recall_context",
+      "classify_layer",
+      "plan_graph",
+      "implement",
+      "verify",
+      "inspect",
+      "persist"
+    ]
+  },
+  "status": "completed",
+  "task_slug": "2026-06-14-nemu-decode-cache-sync-contract",
+  "trace_id": "e2e:2026-06-14-2026-06-14-nemu-decode-cache-sync-contract",
+  "updated_at": "2026-06-14 17:43:09 +0800"
+}

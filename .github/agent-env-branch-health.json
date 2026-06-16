@@ -1,34 +1,6 @@
 {
   "schema_version": 1,
-  "purpose": "Lightweight branch health dashboard contract for the AI development environment.",
-  "review_routing": ".github/agent-env-review-routing.json",
-  "report_command": "python3 scripts/github_index_db.py branch-health-report",
-  "audit_command": "python3 scripts/github_index_db.py branch-health-audit",
-  "required_signals": [
-    "current_branch",
-    "head_commit",
-    "upstream",
-    "git_status_counts",
-    "review_routes",
-    "matrix_status",
-    "maintenance_gates"
-  ],
-  "maintenance_gates": [
-    "report-audit",
-    "schema-audit",
-    "artifact-audit",
-    "delivery-audit",
-    "policy-audit",
-    "skill-audit",
-    "branch-health-report",
-    "branch-health-audit",
-    "audit-db-first",
-    "audit-markdown-coverage",
-    "validate-all-profiles"
-  ],
-  "status_policy": {
-    "clean_required_for_completion_claim": true,
-    "dirty_worktree_allowed_during_codex_iteration": true,
-    "untracked_persistent_agent_sources_fail_agent_system_profile": true
-  }
+  "kind": "ai-env-contract-shim",
+  "shim_for": ".github/ai-env/contracts/agent-env-branch-health.json",
+  "note": "Compatibility shim. Canonical contract lives under .github/ai-env/contracts/."
 }

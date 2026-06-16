@@ -1,8 +1,9 @@
-# DB-backed .github/e2e/modules/ysyx-soc.md
+# ysyx-soc E2E Contract
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/e2e/modules/ysyx-soc.md`。
-
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/e2e/modules/ysyx-soc.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/e2e/modules/ysyx-soc.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/e2e/modules/ysyx-soc.md`
+- **范围**: Chisel SoC、CPU ABI、地址图、`ysyxSoCFull.v` 生成。
+- **上游**: CPU wrapper、JDK21/mill、SoC spec。
+- **下游**: `npc/soc`、SOC_SIM DiffTest、SoC lint。
+- **L0 gate**: `ysyx-soc-contract` 检查 Makefile、spec、agent 和 memory。
+- **L1 gate**: 后续升级为 `make -C ysyxSoC verilog` smoke。
+- **证据**: CPU interface spec、生成日志、soc-lint。
+- **升级路线**: 生成物 hash + wrapper ABI diff audit。

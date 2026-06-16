@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """SQLite-backed development memory for .github sources.
 
-The live filesystem is indexed for compatibility, while DB-first migrations
-store selected Markdown sources as database-owned documents behind shims.
-Agents can query, summarize, and load bounded context from either source.
+The live filesystem remains the source for rules, agents, profiles, contracts,
+and docs. The database retains fixed-format memory/log documents and indexes
+the rest so agents can query, summarize, and load bounded context.
 """
 
 from __future__ import annotations
@@ -74,22 +74,15 @@ CHUNK_KINDS = {
     "markdown",
 }
 CHUNK_SUFFIXES = {".md", ".instructions", ".tsv", ".yaml", ".yml"}
-DB_FIRST_KINDS = {
-    "agent",
-    "agent-rule",
-    "agent-shim",
-    "instruction",
+DB_RETAINED_KINDS = {
     "memory",
     "memory-module",
-    "e2e-module",
-    "e2e-profile",
-    "markdown",
-    "task-template",
     "task-report",
     "dispatch-log",
     "task-run",
     "task-evidence",
 }
+DB_FIRST_KINDS = set(DB_RETAINED_KINDS)
 
 
 @dataclass(frozen=True)
@@ -171,7 +164,7 @@ def open_db(
     conn.execute("PRAGMA foreign_keys = ON")
     if readonly:
         # 只读 recall/load/query 路径不能尝试切换 WAL，否则会在已有写者或
-        # UNC/WSL 混合访问时拿写锁，反而让 DB-first 记忆入口不可用。
+        # UNC/WSL 混合访问时拿写锁，反而让 DB/index 记忆入口不可用。
         conn.execute("PRAGMA query_only = ON")
     else:
         conn.execute("PRAGMA journal_mode = WAL")

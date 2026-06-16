@@ -10,16 +10,16 @@ reset:
   boot_hartid: 0
 
 opensbi:
-  fw_jump: Linux/env/build/opensbi-npc/platform/generic/firmware/fw_jump.bin
+  fw_jump: Linux/env/platforms/npc/build/opensbi/rootfs/platform/generic/firmware/fw_jump.bin
   fw_jump_addr: 0x80000000
 
 kernel:
   load_addr: 0x80200000
-  image: Linux/env/src/linux/arch/riscv/boot/Image
+  image: Linux/env/platforms/npc/build/linux/arch/riscv/boot/Image
 
 dtb:
   load_addr: 0x82200000
-  build_dir: Linux/build
+  build_dir: Linux/build/riscv64-npc
 
 # NEMU/NPC 没有真实硬件 RNG；用 DTB rng-seed 走 Linux 官方 bootloader
 # 随机种子入口，避免 systemd 早期 getrandom 在无熵状态下停住。
@@ -28,13 +28,13 @@ chosen:
 
 initrd:
   load_addr: 0x84000000
-  image: Linux/env/images/initramfs/rootfs.cpio
+  image: Linux/env/platforms/npc/images/initramfs/rootfs.cpio
 
 ubuntu_initrd:
-  image: Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-probe.cpio
+  image: Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64-probe.cpio
 
 rootfs:
-  image: Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64.ext4
+  image: Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64.ext4
 
 devices:
   clint:

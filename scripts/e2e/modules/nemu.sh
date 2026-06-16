@@ -40,7 +40,7 @@ e2e_nemu_am_add_smoke() {
   return "$rc"
 }
 
-e2e_nemu_ubuntu_static_gate() {
+e2e_nemu_ubuntu_static_gate_impl() {
   echo "[nemu-ubuntu] static production gate"
   e2e_print_required_files \
     Linux/Makefile \
@@ -50,6 +50,7 @@ e2e_nemu_ubuntu_static_gate() {
     Linux/scripts/gen-nemu-hostless-apt-assets.py \
     Linux/scripts/ubuntu-rootfs-flavors.sh \
     Linux/scripts/check-ubuntu-rootfs.sh \
+    Linux/scripts/profile-nemu-ubuntu.sh \
     Linux/scripts/check-nemu-systemd-guest.sh \
     Linux/scripts/check-nemu-performance-config.sh \
     Linux/scripts/check-nemu-kernel-config.sh \
@@ -81,6 +82,7 @@ e2e_nemu_ubuntu_static_gate() {
     nemu/src/device/io/mmio.c \
     nemu/src/device/io/port-io.c \
     nemu/src/device/disk.c \
+    nemu/src/device/rng.c \
     nemu/src/device/net.c \
     nemu/src/monitor/monitor.c \
     nemu/src/monitor/qmp.c \
@@ -90,8 +92,13 @@ e2e_nemu_ubuntu_static_gate() {
     nemu/src/monitor/sdb/sdb.c \
     nemu/src/monitor/sdb/sdb.h \
     nemu/include/utils.h \
+    nemu/include/utils/profile.h \
+    nemu/src/utils/profile.c \
     nemu/include/device/map.h \
+    nemu/include/memory/host.h \
+    nemu/include/memory/paddr.h \
     nemu/include/memory/vaddr.h \
+    nemu/src/memory/paddr.c \
     nemu/src/memory/vaddr.c \
     nemu/src/isa/riscv64/inst.c \
     nemu/src/isa/riscv64/filelist.mk \
@@ -289,7 +296,7 @@ e2e_nemu_ubuntu_static_gate() {
   echo
   echo "[nemu-ubuntu] machine info contract"
   make -C "$E2E_ROOT_DIR/Linux" ARCH=riscv64-nemu nemu-machine-info
-  local machine_info="$E2E_ROOT_DIR/Linux/build/nemu-machine-info.txt"
+  local machine_info="$E2E_ROOT_DIR/Linux/build/riscv64-nemu/nemu-machine-info.txt"
   for pattern in \
     "nemu.machine_info.version=1" \
     "config.isa=riscv64" \
@@ -300,11 +307,22 @@ e2e_nemu_ubuntu_static_gate() {
     "config.riscv_ext_e=0" \
     "config.cache=0" \
     "config.interpreter_basic_block=1" \
+    "runtime.interpreter_basic_block.enabled=1" \
+    "runtime.interpreter_basic_block.disable_env=NEMU_INTERPRETER_BASIC_BLOCK=0" \
     "config.interpreter_tb_max_inst=32" \
+    "runtime.interpreter_tb_max_inst=32" \
+    "runtime.interpreter_tb_max_inst.env=NEMU_INTERPRETER_TB_MAX_INST" \
     "config.interpreter_wide_ifetch=1" \
     "config.interpreter_ifetch_page_cache=1" \
     "config.interpreter_decode_cache=1" \
     "config.interpreter_decode_direct_dispatch=1" \
+    "runtime.interpreter_wide_ifetch.enabled=1" \
+    "runtime.interpreter_wide_ifetch.disable_env=NEMU_INTERPRETER_WIDE_IFETCH=0" \
+    "runtime.interpreter_ifetch_page_cache.enabled=1" \
+    "runtime.interpreter_decode_cache.enabled=1" \
+    "runtime.interpreter_decode_cache.disable_env=NEMU_INTERPRETER_DECODE_CACHE=0" \
+    "runtime.vaddr_host_fast.enabled=1" \
+    "runtime.vaddr_host_fast.disable_env=NEMU_VADDR_HOST_FAST=0" \
     "config.interpreter_decode_cache_entries=32768" \
     "config.interpreter_intr_fast_flag=1" \
     "config.device_update_check_interval=512" \
@@ -324,7 +342,7 @@ e2e_nemu_ubuntu_static_gate() {
     "block.format=raw" \
     "time.clint.enabled=1" \
     "time.clint.timebase_hz=10000000" \
-    "time.clint.source=instruction" \
+    "time.clint.source=host-monotonic" \
     "time.csr_time_source=clint_mtime" \
     "interrupt.controller=riscv-clint+plic" \
     "interrupt.clint.enabled=1" \
@@ -332,7 +350,8 @@ e2e_nemu_ubuntu_static_gate() {
     "interrupt.clint.mmio=0x02000000" \
     "interrupt.clint.size=0x00010000" \
     "interrupt.clint.timebase_hz=10000000" \
-    "interrupt.clint.time_source=instruction" \
+    "interrupt.clint.time_source=host-monotonic" \
+    "interrupt.clint.host_sync_interval=512" \
     "interrupt.clint.msip=0" \
     "interrupt.clint.mtip_pending=0" \
     "interrupt.plic.enabled=1" \
@@ -362,12 +381,17 @@ e2e_nemu_ubuntu_static_gate() {
     "memory.pmp.mode=rv64-basic" \
     "memory.pmp.entries=16" \
     "memory.pmp.active=0" \
+    "memory.sv39_tlb.enabled=1" \
+    "memory.sv39_tlb.entries=4096" \
+    "memory.sv39_tlb.disable_env=NEMU_RISCV_MMU_TLB=0" \
     "device.serial.enabled=1" \
     "device.serial.mmio=0x10000000" \
     "device.serial.irq=1" \
     "device.serial.model=ns16550a" \
     "device.serial.backend=nemu-16550a" \
     "device.serial.host_backend=stderr,stdin,fifo:/tmp/nemu.serial" \
+    "device.serial.host_stdin_enabled=1" \
+    "device.serial.host_fifo_path=/tmp/nemu.serial" \
     "device.serial.bus_profile=8bit" \
     "device.serial.map_size=0x00001000" \
     "device.serial.rx_fifo_capacity=16" \
@@ -398,6 +422,7 @@ e2e_nemu_ubuntu_static_gate() {
     "device.virtio_blk.queue_count=4" \
     "device.virtio_blk.multiqueue=enabled" \
     "device.virtio_blk.async=threaded-poll" \
+    "device.virtio_blk.force_sync=0" \
     "device.virtio_blk.async_completion_fast_flag=1" \
     "device.virtio_blk.queue_num_max=64" \
     "device.virtio_blk.read_mmap=disabled" \
@@ -537,6 +562,55 @@ e2e_nemu_ubuntu_static_gate() {
       printf 'PASS machine-info %s\n' "$pattern"
     else
       printf 'FAIL machine-info %s\n' "$pattern"
+      missing=1
+    fi
+  done
+
+  echo
+  echo "[nemu-ubuntu] interpreter fast-path disable diagnostic machine info contract"
+  NEMU_INTERPRETER_BASIC_BLOCK=0 \
+  NEMU_INTERPRETER_WIDE_IFETCH=0 \
+  NEMU_INTERPRETER_DECODE_CACHE=0 \
+  NEMU_VADDR_HOST_FAST=0 \
+    make -C "$E2E_ROOT_DIR/Linux" ARCH=riscv64-nemu nemu-machine-info
+  for pattern in \
+    "runtime.interpreter_basic_block.enabled=0" \
+    "runtime.interpreter_wide_ifetch.enabled=0" \
+    "runtime.interpreter_ifetch_page_cache.enabled=0" \
+    "runtime.interpreter_decode_cache.enabled=0" \
+    "runtime.vaddr_host_fast.enabled=0"; do
+    if grep -Fxq "$pattern" "$machine_info"; then
+      printf 'PASS interpreter-fast-disable machine-info %s\n' "$pattern"
+    else
+      printf 'FAIL interpreter-fast-disable machine-info %s\n' "$pattern"
+      missing=1
+    fi
+  done
+
+  echo
+  echo "[nemu-ubuntu] virtio-blk forced-sync diagnostic machine info contract"
+  NEMU_VIRTIO_BLK_SYNC=1 make -C "$E2E_ROOT_DIR/Linux" ARCH=riscv64-nemu nemu-machine-info
+  for pattern in \
+    "device.virtio_blk.async=forced-synchronous" \
+    "device.virtio_blk.force_sync=1"; do
+    if grep -Fxq "$pattern" "$machine_info"; then
+      printf 'PASS forced-sync machine-info %s\n' "$pattern"
+    else
+      printf 'FAIL forced-sync machine-info %s\n' "$pattern"
+      missing=1
+    fi
+  done
+
+  echo
+  echo "[nemu-ubuntu] Sv39 TLB disable diagnostic machine info contract"
+  NEMU_RISCV_MMU_TLB=0 make -C "$E2E_ROOT_DIR/Linux" ARCH=riscv64-nemu nemu-machine-info
+  for pattern in \
+    "memory.sv39_tlb.enabled=0" \
+    "memory.sv39_tlb.disable_env=NEMU_RISCV_MMU_TLB=0"; do
+    if grep -Fxq "$pattern" "$machine_info"; then
+      printf 'PASS sv39-tlb-disable machine-info %s\n' "$pattern"
+    else
+      printf 'FAIL sv39-tlb-disable machine-info %s\n' "$pattern"
       missing=1
     fi
   done
@@ -744,10 +818,10 @@ e2e_nemu_ubuntu_static_gate() {
 
   echo
   echo "[nemu-ubuntu] rootfs-attached machine info contract"
-  local rootfs_image="$E2E_ROOT_DIR/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64.ext4"
+  local rootfs_image="$E2E_ROOT_DIR/Linux/env/platforms/nemu/images/ubuntu2204/ubuntu-22.04-riscv64.ext4"
   if [[ -f "$rootfs_image" ]]; then
     make -C "$E2E_ROOT_DIR/Linux" ARCH=riscv64-nemu nemu-rootfs-machine-info
-    local rootfs_machine_info="$E2E_ROOT_DIR/Linux/build/nemu-rootfs-machine-info.txt"
+    local rootfs_machine_info="$E2E_ROOT_DIR/Linux/build/riscv64-nemu/nemu-rootfs-machine-info.txt"
     local rootfs_size rootfs_sectors
     rootfs_size=$(stat -c '%s' "$rootfs_image")
     if (( rootfs_size > 0 && rootfs_size % 512 == 0 )); then
@@ -791,9 +865,9 @@ e2e_nemu_ubuntu_static_gate() {
     echo
     echo "[nemu-ubuntu] rootfs-overlay machine info contract"
     make -C "$E2E_ROOT_DIR/Linux" ARCH=riscv64-nemu nemu-rootfs-overlay-machine-info
-    local rootfs_overlay_machine_info="$E2E_ROOT_DIR/Linux/build/nemu-rootfs-overlay-machine-info.txt"
-    local rootfs_overlay_stat_file="$E2E_ROOT_DIR/Linux/build/nemu-rootfs-overlay-machine-info-overlay.stat"
-    local rootfs_overlay_file="$E2E_ROOT_DIR/Linux/build/nemu-rootfs-overlay-machine-info.raw"
+    local rootfs_overlay_machine_info="$E2E_ROOT_DIR/Linux/build/riscv64-nemu/nemu-rootfs-overlay-machine-info.txt"
+    local rootfs_overlay_stat_file="$E2E_ROOT_DIR/Linux/build/riscv64-nemu/nemu-rootfs-overlay-machine-info-overlay.stat"
+    local rootfs_overlay_file="$E2E_ROOT_DIR/Linux/build/riscv64-nemu/nemu-rootfs-overlay-machine-info.raw"
     for pattern in \
       "device.virtio_blk.enabled=1" \
       "device.virtio_blk.mmio=0x10001000" \
@@ -847,7 +921,7 @@ e2e_nemu_ubuntu_static_gate() {
   echo
   echo "[nemu-ubuntu] rootfs DTB memory/ISA properties"
   make -C "$E2E_ROOT_DIR/Linux" ARCH=riscv64-nemu rootfs-dtb
-  local rootfs_dtb="$E2E_ROOT_DIR/Linux/build/npc-rv64-nemu-rootfs.dtb"
+  local rootfs_dtb="$E2E_ROOT_DIR/Linux/build/riscv64-nemu/npc-rv64-nemu-rootfs.dtb"
   local isa_base isa_exts ext mem_reg
   mem_reg=$(fdtget -t x "$rootfs_dtb" /memory@80000000 reg)
   if [[ "$mem_reg" == "0 80000000 0 40000000" ]]; then
@@ -902,6 +976,238 @@ e2e_nemu_ubuntu_static_gate() {
   return "$missing"
 }
 
+e2e_nemu_ubuntu_static_gate() {
+  (
+    if [[ ${NEMU_INTERPRETER_BASIC_BLOCK+x} ]]; then
+      printf '[nemu-ubuntu] default static contracts ignore outer NEMU_INTERPRETER_BASIC_BLOCK=%s\n' \
+        "$NEMU_INTERPRETER_BASIC_BLOCK"
+      unset NEMU_INTERPRETER_BASIC_BLOCK
+    fi
+    if [[ ${NEMU_INTERPRETER_TB_MAX_INST+x} ]]; then
+      printf '[nemu-ubuntu] default static contracts ignore outer NEMU_INTERPRETER_TB_MAX_INST=%s\n' \
+        "$NEMU_INTERPRETER_TB_MAX_INST"
+      unset NEMU_INTERPRETER_TB_MAX_INST
+    fi
+    if [[ ${NEMU_VIRTIO_BLK_SYNC+x} ]]; then
+      printf '[nemu-ubuntu] default static contracts ignore outer NEMU_VIRTIO_BLK_SYNC=%s\n' \
+        "$NEMU_VIRTIO_BLK_SYNC"
+      unset NEMU_VIRTIO_BLK_SYNC
+    fi
+    if [[ ${NEMU_RISCV_MMU_TLB+x} ]]; then
+      printf '[nemu-ubuntu] default static contracts ignore outer NEMU_RISCV_MMU_TLB=%s\n' \
+        "$NEMU_RISCV_MMU_TLB"
+      unset NEMU_RISCV_MMU_TLB
+    fi
+    if [[ ${NEMU_INTERPRETER_WIDE_IFETCH+x} ]]; then
+      printf '[nemu-ubuntu] default static contracts ignore outer NEMU_INTERPRETER_WIDE_IFETCH=%s\n' \
+        "$NEMU_INTERPRETER_WIDE_IFETCH"
+      unset NEMU_INTERPRETER_WIDE_IFETCH
+    fi
+    if [[ ${NEMU_INTERPRETER_DECODE_CACHE+x} ]]; then
+      printf '[nemu-ubuntu] default static contracts ignore outer NEMU_INTERPRETER_DECODE_CACHE=%s\n' \
+        "$NEMU_INTERPRETER_DECODE_CACHE"
+      unset NEMU_INTERPRETER_DECODE_CACHE
+    fi
+    if [[ ${NEMU_VADDR_HOST_FAST+x} ]]; then
+      printf '[nemu-ubuntu] default static contracts ignore outer NEMU_VADDR_HOST_FAST=%s\n' \
+        "$NEMU_VADDR_HOST_FAST"
+      unset NEMU_VADDR_HOST_FAST
+    fi
+    e2e_nemu_ubuntu_static_gate_impl
+  )
+}
+
+e2e_nemu_ubuntu_profile_gate() {
+  echo "[nemu-ubuntu] heavy performance profile gate"
+  if [[ ${AGENT_E2E_NEMU_PROFILE_GATE:-0} != 1 ]]; then
+    echo "[nemu-ubuntu] SKIP: set AGENT_E2E_NEMU_PROFILE_GATE=1 to run heavy NEMU Ubuntu profile"
+    return 77
+  fi
+
+  local out_dir="$E2E_EVIDENCE_DIR/nemu-profile"
+  local guest_counters="${AGENT_E2E_NEMU_PROFILE_GUEST_COUNTERS:-${NEMU_PROFILE_GUEST_COUNTERS:-1}}"
+  mkdir -p "$out_dir"
+  NEMU_PROFILE_OUTPUT_DIR="$out_dir" \
+  NEMU_PROFILE_MAX_CYCLES="${AGENT_E2E_NEMU_PROFILE_MAX_CYCLES:-${NEMU_PROFILE_MAX_CYCLES:-1000000000}}" \
+  NEMU_PROFILE_PROGRESS="${AGENT_E2E_NEMU_PROFILE_PROGRESS:-${NEMU_PROFILE_PROGRESS:-50000000}}" \
+  NEMU_PROFILE_ROOTFS_FLAVOR="${AGENT_E2E_NEMU_PROFILE_ROOTFS_FLAVOR:-${NEMU_PROFILE_ROOTFS_FLAVOR:-full}}" \
+  NEMU_PROFILE_TB_MAX_INST="${AGENT_E2E_NEMU_PROFILE_TB_MAX_INST:-${NEMU_PROFILE_TB_MAX_INST:-32}}" \
+  NEMU_PROFILE_OPCODE_MIX="${AGENT_E2E_NEMU_PROFILE_OPCODE_MIX:-${NEMU_PROFILE_OPCODE_MIX:-0}}" \
+  NEMU_PROFILE_STOP_DETAIL="${AGENT_E2E_NEMU_PROFILE_STOP_DETAIL:-${NEMU_PROFILE_STOP_DETAIL:-0}}" \
+  NEMU_PROFILE_DECODE_CACHE="${AGENT_E2E_NEMU_PROFILE_DECODE_CACHE:-${NEMU_PROFILE_DECODE_CACHE:-0}}" \
+  NEMU_PROFILE_RVC_DETAIL="${AGENT_E2E_NEMU_PROFILE_RVC_DETAIL:-${NEMU_PROFILE_RVC_DETAIL:-0}}" \
+  NEMU_PROFILE_HOST_PERF_RECORD="${AGENT_E2E_NEMU_PROFILE_HOST_PERF_RECORD:-${NEMU_PROFILE_HOST_PERF_RECORD:-0}}" \
+  NEMU_PROFILE_HOST_PERF_ANNOTATE="${AGENT_E2E_NEMU_PROFILE_HOST_PERF_ANNOTATE:-${NEMU_PROFILE_HOST_PERF_ANNOTATE:-0}}" \
+  NEMU_PROFILE_HOST_PERF_ANNOTATE_TOP="${AGENT_E2E_NEMU_PROFILE_HOST_PERF_ANNOTATE_TOP:-${NEMU_PROFILE_HOST_PERF_ANNOTATE_TOP:-3}}" \
+  NEMU_PROFILE_GUEST_COUNTERS="$guest_counters" \
+    bash "$E2E_ROOT_DIR/Linux/scripts/profile-nemu-ubuntu.sh"
+
+  local summary="$out_dir/profile-summary.txt"
+  local command_file="$out_dir/profile-command.txt"
+  if [[ ! -s $summary ]]; then
+    echo "[nemu-ubuntu] FAIL missing profile summary: $summary"
+    return 1
+  fi
+  if [[ "$guest_counters" == 0 ]]; then
+    if ! grep -q '^profile.available=0$' "$summary"; then
+      echo "[nemu-ubuntu] FAIL host-only profile unexpectedly captured guest counters"
+      return 1
+    fi
+    if ! grep -q '^guest_counters=0$' "$command_file"; then
+      echo "[nemu-ubuntu] FAIL host-only profile command did not record guest_counters=0"
+      return 1
+    fi
+    if grep -q '^host_perf_record=1$' "$command_file"; then
+      if ! grep -q '^host_perf.available=1$' "$summary"; then
+        echo "[nemu-ubuntu] FAIL host-only host perf summary is missing"
+        return 1
+      fi
+      if ! grep -Eq '^host_perf\.top1_pct_x100=[1-9][0-9]*$' "$summary" ||
+         ! grep -Eq '^host_perf\.top1_symbol=[A-Za-z0-9_.$@-]+$' "$summary"; then
+        echo "[nemu-ubuntu] FAIL host-only host perf top symbol is missing"
+        return 1
+      fi
+      if grep -q '^host_perf_annotate=1$' "$command_file"; then
+        if ! grep -q '^host_perf\.annotate\.available=1$' "$summary"; then
+          echo "[nemu-ubuntu] FAIL host perf annotate summary is missing"
+          return 1
+        fi
+        if ! grep -Eq '^host_perf\.annotate\.top1_symbol=[A-Za-z0-9_.$@-]+$' "$summary" ||
+           ! grep -Eq '^host_perf\.annotate\.top1_hot1_pct_x100=[1-9][0-9]*$' "$summary" ||
+           ! grep -Eq '^host_perf\.annotate\.top1_hot1_asm=.+$' "$summary"; then
+          echo "[nemu-ubuntu] FAIL host perf annotate top instruction is missing"
+          return 1
+        fi
+      fi
+    fi
+    printf '[nemu-ubuntu] PASS host-only profile summary %s\n' "$(e2e_relpath "$summary")"
+    return 0
+  fi
+  if ! grep -q '^profile.available=1$' "$summary"; then
+    echo "[nemu-ubuntu] FAIL profile summary did not capture metrics"
+    return 1
+  fi
+  if ! grep -q '^profile.enabled=1$' "$summary"; then
+    echo "[nemu-ubuntu] FAIL NEMU_PROFILE did not reach NEMU runtime"
+    return 1
+  fi
+  if ! grep -q '^profile.mmu.tlb_disabled=0$' "$summary"; then
+    echo "[nemu-ubuntu] FAIL profile did not run with Sv39 TLB enabled"
+    return 1
+  fi
+  local tb_key
+  for tb_key in control system memory_order io_write limit control_fallback fence_i amo system_csr system_wfi system_sfence_vma system_other; do
+    if ! grep -q "^profile\\.cpu\\.tb_stop_${tb_key}=" "$summary"; then
+      echo "[nemu-ubuntu] FAIL profile did not capture TB stop reason counter: $tb_key"
+      return 1
+    fi
+  done
+  if ! grep -q '^profile.cpu.tb_stop_store_conservative=0$' "$summary"; then
+    echo "[nemu-ubuntu] FAIL ordinary store still acts as conservative TB barrier"
+    return 1
+  fi
+  if ! grep -Eq '^profile\.cpu\.tb_stop_io_write=[1-9][0-9]*$' "$summary"; then
+    echo "[nemu-ubuntu] FAIL profile did not observe MMIO/device write TB barriers"
+    return 1
+  fi
+  if ! grep -q '^profile.cpu.tb_continue_compressed_misc=' "$summary"; then
+    echo "[nemu-ubuntu] FAIL profile did not capture compressed misc TB continuation counter"
+    return 1
+  fi
+  if ! grep -q '^profile.cpu.tb_continue_branch_taken=' "$summary"; then
+    echo "[nemu-ubuntu] FAIL profile did not capture taken branch TB continuation counter"
+    return 1
+  fi
+  if ! grep -q '^profile.cpu.tb_continue_jump_direct=' "$summary"; then
+    echo "[nemu-ubuntu] FAIL profile did not capture direct jump TB continuation counter"
+    return 1
+  fi
+  if ! grep -q '^profile.cpu.tb_continue_jalr=' "$summary"; then
+    echo "[nemu-ubuntu] FAIL profile did not capture JALR TB continuation counter"
+    return 1
+  fi
+  if ! grep -q '^profile.cpu.tb_continue_fence=' "$summary"; then
+    echo "[nemu-ubuntu] FAIL profile did not capture ordinary fence TB continuation counter"
+    return 1
+  fi
+  if ! grep -q '^profile.cpu.tb_continue_csr_readonly=' "$summary"; then
+    echo "[nemu-ubuntu] FAIL profile did not capture read-only CSR TB continuation counter"
+    return 1
+  fi
+  if [[ ${AGENT_E2E_NEMU_PROFILE_DECODE_CACHE:-${NEMU_PROFILE_DECODE_CACHE:-0}} != 0 ]]; then
+    if ! grep -Eq '^profile\.cpu\.decode_cache\.lookups=[1-9][0-9]*$' "$summary"; then
+      echo "[nemu-ubuntu] FAIL decode-cache profile was requested but lookup counter stayed empty"
+      return 1
+    fi
+    if ! grep -q '^profile.cpu.decode_cache.hits=' "$summary"; then
+      echo "[nemu-ubuntu] FAIL profile did not capture decode-cache hit counter"
+      return 1
+    fi
+    if ! grep -q '^profile.cpu.decode_cache.misses=' "$summary"; then
+      echo "[nemu-ubuntu] FAIL profile did not capture decode-cache miss counter"
+      return 1
+    fi
+    if ! grep -q '^derived.decode_cache_hit_rate_x100=' "$summary"; then
+      echo "[nemu-ubuntu] FAIL profile did not derive decode-cache hit rate"
+      return 1
+    fi
+  fi
+  if ! grep -Eq '^profile\.cpu\.tb_continue_branch_not_taken=[1-9][0-9]*$' "$summary"; then
+    echo "[nemu-ubuntu] FAIL profile did not observe not-taken branch TB continuation"
+    return 1
+  fi
+  if [[ ${AGENT_E2E_NEMU_PROFILE_OPCODE_MIX:-${NEMU_PROFILE_OPCODE_MIX:-0}} != 0 ]]; then
+    if ! grep -q '^profile.cpu.opcode_mix.enabled=1$' "$summary"; then
+      echo "[nemu-ubuntu] FAIL opcode mix profile was requested but not enabled"
+      return 1
+    fi
+    local opcode_key
+    for opcode_key in rvc load store op_imm op branch jalr jal system; do
+      if ! grep -q "^profile\\.cpu\\.opcode\\.${opcode_key}=" "$summary"; then
+        echo "[nemu-ubuntu] FAIL opcode mix counter missing: $opcode_key"
+        return 1
+      fi
+    done
+  fi
+  if [[ ${AGENT_E2E_NEMU_PROFILE_STOP_DETAIL:-${NEMU_PROFILE_STOP_DETAIL:-0}} != 0 ]]; then
+    if ! grep -q '^profile.cpu.stop_detail.enabled=1$' "$summary"; then
+      echo "[nemu-ubuntu] FAIL stop detail profile was requested but not enabled"
+      return 1
+    fi
+    local detail_key
+    for detail_key in \
+      'tb_stop_amo.add' \
+      'tb_stop_amo.lr' \
+      'tb_stop_amo.sc' \
+      'tb_stop_system_csr.sstatus' \
+      'tb_stop_system_csr.sscratch' \
+      'tb_stop_system_csr.satp'; do
+      if ! grep -q "^profile\\.cpu\\.${detail_key}=" "$summary"; then
+        echo "[nemu-ubuntu] FAIL stop detail counter missing: $detail_key"
+        return 1
+      fi
+    done
+  fi
+  if [[ ${AGENT_E2E_NEMU_PROFILE_RVC_DETAIL:-${NEMU_PROFILE_RVC_DETAIL:-0}} != 0 ]]; then
+    if ! grep -q '^profile.cpu.rvc_detail.enabled=1$' "$summary"; then
+      echo "[nemu-ubuntu] FAIL RVC detail profile was requested but not enabled"
+      return 1
+    fi
+    if ! grep -Eq '^derived\.rvc_detail_total=[1-9][0-9]*$' "$summary"; then
+      echo "[nemu-ubuntu] FAIL RVC detail profile did not derive total compressed instructions"
+      return 1
+    fi
+    local rvc_key
+    for rvc_key in addi lw ld addi16sp lui addi addiw beqz bnez lwsp ldsp mv add swsp sdsp; do
+      if ! grep -q "^profile\\.cpu\\.rvc\\.${rvc_key}=" "$summary"; then
+        echo "[nemu-ubuntu] FAIL RVC detail counter missing: $rvc_key"
+        return 1
+      fi
+    done
+  fi
+  printf '[nemu-ubuntu] PASS profile summary %s\n' "$(e2e_relpath "$summary")"
+}
+
 e2e_nemu_ubuntu_slice_contract() {
   echo "[nemu-ubuntu] slice contract guard"
   e2e_print_required_files \
@@ -912,6 +1218,7 @@ e2e_nemu_ubuntu_slice_contract() {
     Linux/tools/nemu-systemd-dhcp-probe.c \
     Linux/tools/nemu-systemd-dns-probe.c \
     Linux/tools/nemu-systemd-tcp-probe.c \
+    Linux/tools/nemu-python-int-preflight.py \
     Linux/tools/amo-misaligned-smoke.S \
     Linux/tools/lrsc-reservation-smoke.S \
     Linux/tools/pmp-access-smoke.S \
@@ -949,7 +1256,11 @@ e2e_nemu_ubuntu_slice_contract() {
     Linux/scripts/build-ubuntu-systemd-overlay.sh \
     Linux/scripts/ubuntu-rootfs-flavors.sh \
     Linux/scripts/check-ubuntu-rootfs.sh \
+    Linux/scripts/check-nemu-python-int-preflight.sh \
+    Linux/scripts/profile-nemu-ubuntu.sh \
     nemu/include/utils.h \
+    nemu/include/utils/profile.h \
+    nemu/src/utils/profile.c \
     .github/memory/modules/nemu.md \
     .github/memory/known-issues.md \
     .github/e2e/profiles/nemu-dev.tsv \
@@ -960,6 +1271,7 @@ e2e_nemu_ubuntu_slice_contract() {
     .github/e2e/profiles/nemu-ubuntu.tsv \
     .github/e2e/profiles/nemu-ubuntu-integrated.tsv \
     .github/e2e/profiles/nemu-ubuntu-focused.tsv \
+    .github/e2e/profiles/nemu-ubuntu-profile.tsv \
     .github/e2e/profiles/nemu-ubuntu-gate.tsv \
     .github/e2e/profiles/nemu-ubuntu-full-gate.tsv \
     .github/e2e/profiles/nemu-ubuntu-full-soak.tsv \
@@ -968,18 +1280,21 @@ e2e_nemu_ubuntu_slice_contract() {
     .github/e2e/modules/software-flow.md
 
   local check_script="$E2E_ROOT_DIR/Linux/scripts/check-nemu-systemd-guest.sh"
+  local python_int_check_script="$E2E_ROOT_DIR/Linux/scripts/check-nemu-python-int-preflight.sh"
   local linux_makefile="$E2E_ROOT_DIR/Linux/Makefile"
   local build_ubuntu_rootfs_sh="$E2E_ROOT_DIR/Linux/scripts/build-ubuntu-rootfs.sh"
   local build_ubuntu_systemd_overlay_sh="$E2E_ROOT_DIR/Linux/scripts/build-ubuntu-systemd-overlay.sh"
   local gen_nemu_hostless_apt_assets_py="$E2E_ROOT_DIR/Linux/scripts/gen-nemu-hostless-apt-assets.py"
   local ubuntu_rootfs_flavors_sh="$E2E_ROOT_DIR/Linux/scripts/ubuntu-rootfs-flavors.sh"
   local check_ubuntu_rootfs_sh="$E2E_ROOT_DIR/Linux/scripts/check-ubuntu-rootfs.sh"
+  local profile_nemu_ubuntu_sh="$E2E_ROOT_DIR/Linux/scripts/profile-nemu-ubuntu.sh"
   local nemu_module_sh="$E2E_ROOT_DIR/scripts/e2e/modules/nemu.sh"
   local agent_e2e_sh="$E2E_ROOT_DIR/scripts/agent-e2e.sh"
   local icmp_probe_c="$E2E_ROOT_DIR/Linux/tools/nemu-systemd-icmp-probe.c"
   local dhcp_probe_c="$E2E_ROOT_DIR/Linux/tools/nemu-systemd-dhcp-probe.c"
   local dns_probe_c="$E2E_ROOT_DIR/Linux/tools/nemu-systemd-dns-probe.c"
   local tcp_probe_c="$E2E_ROOT_DIR/Linux/tools/nemu-systemd-tcp-probe.c"
+  local python_int_probe_py="$E2E_ROOT_DIR/Linux/tools/nemu-python-int-preflight.py"
   local linux_tools_mk="$E2E_ROOT_DIR/Linux/tools/Makefile"
   local amo_misaligned_smoke_s="$E2E_ROOT_DIR/Linux/tools/amo-misaligned-smoke.S"
   local lrsc_reservation_smoke_s="$E2E_ROOT_DIR/Linux/tools/lrsc-reservation-smoke.S"
@@ -1014,6 +1329,7 @@ e2e_nemu_ubuntu_slice_contract() {
   local linux_defconfig="$E2E_ROOT_DIR/nemu/configs/riscv64-linux_defconfig"
   local rv64_inst_c="$E2E_ROOT_DIR/nemu/src/isa/riscv64/inst.c"
   local rv64_inst_dir="$E2E_ROOT_DIR/nemu/src/isa/riscv64/inst"
+  local rv64_decode_c="$E2E_ROOT_DIR/nemu/src/isa/riscv64/inst/decode.c"
   local rv64_inst_filelist="$E2E_ROOT_DIR/nemu/src/isa/riscv64/filelist.mk"
   local rv64_inst_files=("$rv64_inst_c" "$rv64_inst_dir"/*.c)
   local rv32_inst_c="$E2E_ROOT_DIR/nemu/src/isa/riscv32/inst.c"
@@ -1025,6 +1341,9 @@ e2e_nemu_ubuntu_slice_contract() {
   local rv32_intr_c="$E2E_ROOT_DIR/nemu/src/isa/riscv32/system/intr.c"
   local rv64_plic_c="$E2E_ROOT_DIR/nemu/src/isa/riscv64/system/plic.c"
   local vaddr_c="$E2E_ROOT_DIR/nemu/src/memory/vaddr.c"
+  local host_h="$E2E_ROOT_DIR/nemu/include/memory/host.h"
+  local paddr_h="$E2E_ROOT_DIR/nemu/include/memory/paddr.h"
+  local paddr_c="$E2E_ROOT_DIR/nemu/src/memory/paddr.c"
   local vaddr_h="$E2E_ROOT_DIR/nemu/include/memory/vaddr.h"
   local mmu_c="$E2E_ROOT_DIR/nemu/src/isa/riscv64/system/mmu.c"
   local rv32_mmu_c="$E2E_ROOT_DIR/nemu/src/isa/riscv32/system/mmu.c"
@@ -1035,6 +1354,8 @@ e2e_nemu_ubuntu_slice_contract() {
   local gen_dts="$E2E_ROOT_DIR/Linux/platform/gen_dts.py"
   local perf_config_sh="$E2E_ROOT_DIR/Linux/scripts/check-nemu-performance-config.sh"
   local kernel_config_sh="$E2E_ROOT_DIR/Linux/scripts/check-nemu-kernel-config.sh"
+  local profile_h="$E2E_ROOT_DIR/nemu/include/utils/profile.h"
+  local profile_c="$E2E_ROOT_DIR/nemu/src/utils/profile.c"
   local kconfig="$E2E_ROOT_DIR/nemu/src/device/Kconfig"
 
   echo
@@ -1047,6 +1368,7 @@ e2e_nemu_ubuntu_slice_contract() {
   local nemu_ubuntu_profile=".github/e2e/profiles/nemu-ubuntu.tsv"
   local nemu_ubuntu_integrated_profile=".github/e2e/profiles/nemu-ubuntu-integrated.tsv"
   local nemu_ubuntu_focused_profile=".github/e2e/profiles/nemu-ubuntu-focused.tsv"
+  local nemu_ubuntu_perf_profile=".github/e2e/profiles/nemu-ubuntu-profile.tsv"
   local nemu_ubuntu_gate_profile=".github/e2e/profiles/nemu-ubuntu-gate.tsv"
   local nemu_ubuntu_full_gate_profile=".github/e2e/profiles/nemu-ubuntu-full-gate.tsv"
   local nemu_ubuntu_full_soak_profile=".github/e2e/profiles/nemu-ubuntu-full-soak.tsv"
@@ -1084,6 +1406,15 @@ e2e_nemu_ubuntu_slice_contract() {
     missing=1
   else
     printf 'PASS nemu-ubuntu-focused profile avoids rv64-linux/NPC nodes\n'
+  fi
+  if e2e_file_contains "$nemu_ubuntu_perf_profile" '@include|nemu-ubuntu-focused' &&
+     e2e_file_contains "$nemu_ubuntu_perf_profile" 'nemu-ubuntu-profile|nemu|e2e_nemu_ubuntu_profile_gate' &&
+     ! e2e_file_contains "$nemu_ubuntu_perf_profile" '@include|rv64-linux' &&
+     ! e2e_file_contains "$nemu_ubuntu_perf_profile" 'npc-'; then
+    printf 'PASS nemu-ubuntu-profile keeps heavy performance profile NEMU-only\n'
+  else
+    printf 'FAIL nemu-ubuntu-profile must stay NEMU-only and expose profile gate\n'
+    missing=1
   fi
   if e2e_file_contains "$nemu_dev_profile" '@include|rv64-linux' ||
      e2e_file_contains "$nemu_dev_profile" 'npc-' ||
@@ -1201,11 +1532,17 @@ e2e_nemu_ubuntu_slice_contract() {
     "__NEMU_CHECK_TOP_BATCH_OPTIONAL__" \
     "__NEMU_CHECK_HOSTNAMECTL_VERSION__" \
     "__NEMU_CHECK_HTOP_OPTIONAL__" \
+    "__NEMU_CHECK_SYSTEMD_RELOAD_RC__" \
     "__NEMU_CHECK_SYSTEMD_RELOAD_DBUS_TIMEOUT__" \
+    "__NEMU_CHECK_SYSTEMD_RELOAD_HUP_RC__" \
     "__NEMU_CHECK_SYSTEMD_RELOAD_ERROR__" \
     "__NEMU_CHECK_SYSTEMD_RELOAD_ERROR_OUTPUT__" \
+    "__NEMU_CHECK_FULL_SYSTEMCTL_RELOAD_DIAG_STOP__" \
     "__NEMU_GUEST_SCRIPT_SHA256__" \
     "__NEMU_GUEST_SCRIPT_READY__" \
+    "__NEMU_GUEST_UPLOAD_MODE__:append-lines" \
+    "__NEMU_GUEST_UPLOAD_GROUP__" \
+    "__NEMU_GUEST_UPLOAD_APPEND_DONE__" \
     "__NEMU_CHECK_INTERRUPTS_TABLE_TOTAL__" \
     "__NEMU_CHECK_IRQ_VISIBLE__" \
     "virtio-blk-feature-config-wce" \
@@ -1447,7 +1784,7 @@ e2e_nemu_ubuntu_slice_contract() {
     "NEMU_SYSTEMD_INPUT_DELAY:-0.001" \
     "NEMU_SYSTEMD_INPUT_CHUNK_BYTES:-8" \
     "NEMU_SYSTEMD_INPUT_CHUNK_DELAY:-0" \
-    "serial input model: FIFO/stdin bytes -> NEMU SerialPort staging -> 16550 RX FIFO -> Linux ttyS0" \
+    "serial input model: FIFO bytes -> NEMU SerialPort staging -> 16550 RX FIFO -> Linux ttyS0 (stdin disabled by default)" \
     "guest-check-upload.cmd" \
     "virtio-blk-async-runtime" \
     "virtio-net-runtime" \
@@ -1510,9 +1847,31 @@ e2e_nemu_ubuntu_slice_contract() {
     "full-userland-curl-404-http" \
     "full-userland-curl-large-http" \
     "NEMU_GUEST_PYTHON_CNF_DIAG_HARD" \
+    "NEMU_GUEST_STOP_AFTER_SYSTEMCTL_RELOAD_DIAG" \
+    "NEMU_SYSTEMD_STOP_AFTER_SYSTEMCTL_RELOAD_DIAG" \
     "full-userland-python-cnf-diag-skip" \
     "full-userland-python-cnf-diag-recorded" \
     "full-userland-python-datetime-sqlite3" \
+    "full-userland-python-int-preflight-before-runtime-loop" \
+    "full-userland-python-int-preflight-runtime-after-core-tools-loop" \
+    "full-userland-python-int-preflight-runtime-after-identity-loop" \
+    "full-userland-python-int-preflight-runtime-after-systemd-files-loop" \
+    "full-userland-python-int-preflight-runtime-after-journal-loop" \
+    "full-userland-python-int-preflight-runtime-after-ssh-loop" \
+    "full-userland-python-int-preflight-runtime-after-daemons-loop" \
+    "full-userland-python-int-preflight-runtime-after-systemctl-pre-cleanup-loop" \
+    "full-userland-python-int-preflight-runtime-after-systemctl-daemon-reload-command-loop" \
+    "full-userland-python-int-preflight-runtime-after-systemctl-daemon-reload-timeout-loop" \
+    "full-userland-python-int-preflight-runtime-after-systemctl-daemon-reload-before-hup-loop" \
+    "full-userland-python-int-preflight-runtime-after-systemctl-daemon-reload-after-hup-loop" \
+    "full-userland-python-int-preflight-runtime-after-systemctl-daemon-reload-loop" \
+    "full-userland-python-int-preflight-runtime-after-systemctl-root-enable-loop" \
+    "full-userland-python-int-preflight-runtime-after-systemctl-root-is-enabled-loop" \
+    "full-userland-python-int-preflight-runtime-after-systemctl-runtime-start-loop" \
+    "full-userland-python-int-preflight-runtime-after-systemctl-root-disable-loop" \
+    "full-userland-python-int-preflight-runtime-after-systemctl-cleanup-loop" \
+    "full-userland-python-int-preflight-runtime-after-systemctl-loop" \
+    "full-userland-python-int-preflight-after-runtime-loop" \
     "full-userland-python-stdlib-file-sha256" \
     "full-userland-python-stdlib-import-loop" \
     "full-userland-lsb-release-retry-loop" \
@@ -1534,6 +1893,10 @@ e2e_nemu_ubuntu_slice_contract() {
     "__NEMU_CHECK_FULL_LSB_RELEASE_PYCACHEPREFIX_LOG_BEGIN__" \
     "__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_RC__" \
     "__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_LOG_BEGIN__" \
+    "__NEMU_CHECK_FULL_PYTHON_INT_PREFLIGHT_RC__" \
+    "__NEMU_CHECK_FULL_PYTHON_INT_PREFLIGHT_LOG_BEGIN__" \
+    "__PYTHON_INT_PREFLIGHT_OK__" \
+    "INT_FROM_BYTES_MAP" \
     "__NEMU_CHECK_FULL_PYTHON_STDLIB_STRESS_RC__" \
     "__NEMU_CHECK_FULL_PYTHON_STDLIB_STRESS_LOG_BEGIN__" \
     "__NEMU_CHECK_FULL_LSB_RELEASE_RETRY_LOG_BEGIN__" \
@@ -1547,6 +1910,14 @@ e2e_nemu_ubuntu_slice_contract() {
     "OPTPARSE_IMPORT" \
     "TEXTWRAP_SHA256" \
     "_SRE_MAXREPEAT" \
+    "IPADDRESS_LOCAL_OCTET_LEN" \
+    "IPADDRESS_LOCAL_OCTET_ORDS" \
+    "IPADDRESS_LOCAL_INT_FROM_BYTES_BYTES" \
+    "IPADDRESS_LOCAL_INT_FROM_BYTES_LIST" \
+    "IPADDRESS_LOCAL_INT_FROM_BYTES_MAP" \
+    "IPADDRESS_SHA256" \
+    "IPADDRESS_IMPORT" \
+    "IPADDRESS_LINKLOCAL_NETWORK_INT" \
     "TEXTWRAP_SOURCE_EXEC" \
     "__PYTHON_CNF_DIAG_DATETIME_IMPORT__" \
     "__PYTHON_CNF_DIAG_SQLITE3_IMPORT__" \
@@ -1974,6 +2345,9 @@ e2e_nemu_ubuntu_slice_contract() {
     "AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_DIAG" \
     "AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_ACTUAL" \
     "AGENT_E2E_NEMU_UBUNTU_FULL_CHECK_MAX_CYCLES" \
+    "focused gate input chunk bytes" \
+    "input_chunk_bytes=512" \
+    "AGENT_E2E_NEMU_UBUNTU_STOP_AFTER_SYSTEMCTL_RELOAD_DIAG" \
     "240000000000" \
     "1200" \
     "AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_GATE" \
@@ -1992,15 +2366,101 @@ e2e_nemu_ubuntu_slice_contract() {
   echo "[nemu-ubuntu] required serial console input path hooks"
   for pattern in \
     'NEMU_SERIAL_FIFO' \
+    'NEMU_SERIAL_INPUT_STDIN="${NEMU_SERIAL_INPUT_STDIN:-0}"' \
+    'NEMU_SYSTEMD_GUEST_UPLOAD_GROUP_LINES' \
+    'GUEST_UPLOAD_GROUP_LINES' \
+    'STOP_AFTER_SYSTEMCTL_RELOAD_DIAG' \
+    'NEMU_VIRTIO_BLK_SYNC' \
+    'SYSCALL_PROBE_ENABLE=${NEMU_SYSTEMD_SYSCALL_PROBE:-0}' \
+    'TCP_PROBE_ENABLE=${NEMU_SYSTEMD_TCP_PROBE:-0}' \
+    'emit_b64_group' \
+    '__NEMU_GUEST_UPLOAD_MODE__:append-lines' \
+    '__NEMU_GUEST_UPLOAD_GROUP__' \
+    '__NEMU_GUEST_UPLOAD_APPEND_DONE__' \
     'send_guest_commands' \
     'INPUT_CHUNK_BYTES' \
     'exec 3>"$SERIAL_FIFO"' \
     'printf '\''%s'\'' "${text:$pos:$chunk_bytes}"' \
-    'serial input model: FIFO/stdin bytes -> NEMU SerialPort staging -> 16550 RX FIFO -> Linux ttyS0'; do
+    'serial input model: FIFO bytes -> NEMU SerialPort staging -> 16550 RX FIFO -> Linux ttyS0 (stdin disabled by default)'; do
     if grep -Fq -- "$pattern" "$check_script"; then
       printf 'PASS check-nemu-systemd-guest.sh %s\n' "$pattern"
     else
       printf 'FAIL check-nemu-systemd-guest.sh %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  echo
+  echo "[nemu-ubuntu] required PyLong focused preflight hooks"
+  for pattern in \
+    "NEMU_PYTHON_INT_LOOPS" \
+    "NEMU_PYTHON_INT_STAGE_MODE" \
+    "NEMU_PYTHON_INT_STAGE_TIMEOUT" \
+    "NEMU_PYTHON_INT_STAGE_PREWARM" \
+    "NEMU_PYTHON_INT_TAGS" \
+    "NEMU_PYTHON_INT_POWEROFF" \
+    "NEMU_PYTHON_INT_ROOTFS_OVERLAY" \
+    "NEMU_PYTHON_INT_PROBE_SRC" \
+    "NEMU_PYTHON_INT_SUMMARY" \
+    "nemu-python-int-preflight.py" \
+    "python-int-preflight-summary.tsv" \
+    "full-lite" \
+    "systemctl-lite" \
+    "before-runtime,runtime-after-core-tools" \
+    "__NEMU_PYTHON_INT_FOCUSED_BEGIN__" \
+    "__NEMU_PYTHON_INT_PROBE_SHA256__" \
+    "__NEMU_CHECK_FULL_PYTHON_INT_PREFLIGHT_LOG_BEGIN__" \
+    "__NEMU_PYTHON_INT_STAGE_PREWARM_BEGIN__" \
+    "__NEMU_PYTHON_INT_STAGE_RC__" \
+    "__NEMU_PYTHON_INT_STAGE_COUNT__" \
+    "__NEMU_PYTHON_INT_PREFLIGHT_DONE__ rc=0" \
+    "python-int-preflight-focused-loop" \
+    "python-int-preflight-focused-stage-" \
+    "append_summary_result" \
+    "SUMMARY_FINALIZED" \
+    "fail_reason" \
+    "stage_mode" \
+    "stage_tags" \
+    "stage_count" \
+    "stage_rc." \
+    "runtime.wide_ifetch" \
+    "runtime.vaddr_host_fast" \
+    "boot_seconds" \
+    "done_line" \
+    "runtime wide_ifetch" \
+    "runtime vaddr_host_fast"; do
+    if grep -Fq -- "$pattern" "$python_int_check_script"; then
+      printf 'PASS check-nemu-python-int-preflight.sh %s\n' "$pattern"
+    else
+      printf 'FAIL check-nemu-python-int-preflight.sh %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  for pattern in \
+    "__PYTHON_INT_PREFLIGHT_OK__" \
+    "__PYTHON_INT_PREFLIGHT_ITER_OK__" \
+    "__NEMU_CHECK_FULL_PYTHON_INT_PREFLIGHT_RC__" \
+    "INT_FROM_BYTES_%s" \
+    "VALUE_%s" \
+    "%s_BIT_LENGTH" \
+    "import sys" \
+    "import ctypes" \
+    "emit_pylong_baseline" \
+    "emit_pylong_object" \
+    "check_int_value" \
+    "PYLONG_LAYOUT_AVAILABLE" \
+    "PYLONG_%s_OB_SIZE" \
+    "PYLONG_%s_OB_DIGIT%d" \
+    "PYLONG_%s_EXPECTED_DIGIT%d" \
+    "PYLONG_%s_REFCOUNT" \
+    "PYLONG_%s_TYPE_PTR" \
+    "BIT_LENGTH_MISMATCH_%s" \
+    "VALUE_MISMATCH_%s" \
+    "STR_ERROR_%s" \
+    "bit_length"; do
+    if grep -Fq -- "$pattern" "$python_int_probe_py"; then
+      printf 'PASS nemu-python-int-preflight.py %s\n' "$pattern"
+    else
+      printf 'FAIL nemu-python-int-preflight.py %s\n' "$pattern"
       missing=1
     fi
   done
@@ -2017,6 +2477,10 @@ e2e_nemu_ubuntu_slice_contract() {
     "serial_port_service" \
     "host_rx_dropped" \
     "NEMU_SERIAL_FIFO" \
+    "NEMU_SERIAL_INPUT_STDIN" \
+    "stdin_enabled" \
+    "host_stdin_enabled" \
+    "host_fifo_path" \
     "serial_port_poll_host"; do
     if grep -Fq -- "$pattern" "$serial_c"; then
       printf 'PASS serial.c %s\n' "$pattern"
@@ -2232,11 +2696,17 @@ e2e_nemu_ubuntu_slice_contract() {
     "NEMU_SYSTEMD_ROOTFS_OVERLAY ?= \$(NEMU_SYSTEMD_CHECK_LOG_DIR)/rootfs-overlay.raw" \
     "NEMU_SYSTEMD_ROOTFS_FLAVOR ?= systemd-minimal" \
     "NEMU_SYSTEMD_ROOTFS_CHECK_TARGET =" \
+    "UBUNTU_ROOTFS_CHECK_TARGET =" \
+    "RUN_DEPS += \$(RUN_FW) \$(RUN_DTB) \$(RUN_ROOTFS) \$(UBUNTU_ROOTFS_CHECK_TARGET)" \
+    "__check-nemu-systemd-guest: \$(RUN_DEPS) \$(NEMU_SYSTEMD_ROOTFS_CHECK_TARGET)" \
     "NEMU_SYSTEMD_FULL_CHECK_LOG_DIR ?= \$(LOG_ROOT)/riscv64-nemu-systemd-guest-full-check" \
     "NEMU_SYSTEMD_FULL_SOAK_CHECK_LOG_DIR ?= \$(LOG_ROOT)/riscv64-nemu-systemd-guest-full-soak-check" \
+    "UBUNTU_IMAGE_DIR ?= \$(PLATFORM_IMAGE_ROOT)/ubuntu2204" \
     "UBUNTU_ROOTFS_FLAVOR ?= systemd-minimal" \
-    "UBUNTU_ROOTFS_INTERACTIVE_IMAGE ?= \$(ENV_ROOT)/images/ubuntu2204/ubuntu-22.04-riscv64-interactive.ext4" \
-    "UBUNTU_ROOTFS_FULL_IMAGE ?= \$(ENV_ROOT)/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4" \
+    "UBUNTU_ROOTFS_INTERACTIVE_IMAGE ?= \$(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64-interactive.ext4" \
+    "UBUNTU_ROOTFS_FULL_IMAGE ?= \$(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64-full.ext4" \
+    "UBUNTU_ROOTFS_INTERACTIVE_DIR ?= \$(UBUNTU_IMAGE_DIR)/rootfs-interactive" \
+    "UBUNTU_ROOTFS_FULL_DIR ?= \$(UBUNTU_IMAGE_DIR)/rootfs-full" \
     "UBUNTU_ROOTFS_CPIO_IMAGE ?= \$(UBUNTU_ROOTFS_SYSTEMD_CPIO_IMAGE)" \
     "NEMU_RUN_ROOTFS_OVERLAY ?=" \
     "NEMU_RUN_ROOTFS_OVERLAY_RESET ?= 1" \
@@ -2246,27 +2716,45 @@ e2e_nemu_ubuntu_slice_contract() {
     "ubuntu-rootfs-interactive-image:" \
     "UBUNTU_ROOTFS_FLAVOR=interactive" \
     "UBUNTU_ROOTFS_IMAGE='\$(UBUNTU_ROOTFS_INTERACTIVE_IMAGE)'" \
-    "UBUNTU_ROOTFS_DIR='\$(ENV_ROOT)/images/ubuntu2204/rootfs-interactive'" \
+    "UBUNTU_ROOTFS_DIR='\$(UBUNTU_ROOTFS_INTERACTIVE_DIR)'" \
     "ubuntu-rootfs-full-image:" \
     "UBUNTU_ROOTFS_FLAVOR=full" \
     "UBUNTU_ROOTFS_IMAGE='\$(UBUNTU_ROOTFS_FULL_IMAGE)'" \
-    "UBUNTU_ROOTFS_DIR='\$(ENV_ROOT)/images/ubuntu2204/rootfs-full'" \
+    "UBUNTU_ROOTFS_DIR='\$(UBUNTU_ROOTFS_FULL_DIR)'" \
+    "UBUNTU_ROOTFS_IMAGE='\$(UBUNTU_ROOTFS_SYSTEMD_IMAGE)' UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL='\$(UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL)' UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER='\$(UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER)' UBUNTU_ROOTFS_FLAVOR=systemd-minimal" \
+    '"$${MAKE:-make}" ubuntu-rootfs-systemd-image' \
     "check-ubuntu-rootfs-interactive:" \
-    "UBUNTU_ROOTFS_IMAGE='\$(UBUNTU_ROOTFS_INTERACTIVE_IMAGE)' UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 UBUNTU_ROOTFS_FLAVOR=interactive" \
+    "UBUNTU_ROOTFS_IMAGE='\$(UBUNTU_ROOTFS_INTERACTIVE_IMAGE)' UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL='\$(UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL)' UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER='\$(UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER)' UBUNTU_ROOTFS_FLAVOR=interactive" \
+    '"$${MAKE:-make}" ubuntu-rootfs-interactive-image' \
     "check-ubuntu-rootfs-full:" \
-    "UBUNTU_ROOTFS_IMAGE='\$(UBUNTU_ROOTFS_FULL_IMAGE)' UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 UBUNTU_ROOTFS_FLAVOR=full" \
+    "UBUNTU_ROOTFS_IMAGE='\$(UBUNTU_ROOTFS_FULL_IMAGE)' UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL='\$(UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL)' UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER='\$(UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER)' UBUNTU_ROOTFS_FLAVOR=full" \
+    '"$${MAKE:-make}" ubuntu-rootfs-full-image' \
     "UBUNTU_ROOTFS_FLAVOR='\$(UBUNTU_ROOTFS_FLAVOR)'" \
     "UBUNTU_ROOTFS_CPIO_IMAGE='\$(UBUNTU_ROOTFS_CPIO_IMAGE)'" \
     "check-nemu-systemd-guest-full:" \
     "NEMU_SYSTEMD_ROOTFS_FLAVOR=full" \
     "UBUNTU_ROOTFS_IMAGE='\$(UBUNTU_ROOTFS_FULL_IMAGE)'" \
     "NEMU_SYSTEMD_CHECK_LOG_DIR='\$(NEMU_SYSTEMD_FULL_CHECK_LOG_DIR)'" \
+    "NEMU_PYTHON_INT_CHECK_LOG_DIR ?= \$(LOG_ROOT)/riscv64-nemu-python-int-preflight" \
+    "NEMU_PYTHON_INT_STAGE_MODE ?= focused" \
+    "NEMU_PYTHON_INT_STAGE_TIMEOUT ?= 120" \
+    "NEMU_PYTHON_INT_STAGE_PREWARM ?= auto" \
+    "NEMU_PYTHON_INT_TAGS ?=" \
+    "check-nemu-python-int-preflight:" \
+    "NEMU_PYTHON_INT_ROOTFS_OVERLAY='\$(NEMU_PYTHON_INT_ROOTFS_OVERLAY)'" \
+    "NEMU_PYTHON_INT_STAGE_MODE='\$(NEMU_PYTHON_INT_STAGE_MODE)'" \
+    "NEMU_PYTHON_INT_STAGE_TIMEOUT='\$(NEMU_PYTHON_INT_STAGE_TIMEOUT)'" \
+    "NEMU_PYTHON_INT_STAGE_PREWARM='\$(NEMU_PYTHON_INT_STAGE_PREWARM)'" \
+    "NEMU_PYTHON_INT_TAGS='\$(NEMU_PYTHON_INT_TAGS)'" \
+    "__check-nemu-python-int-preflight:" \
+    "check-nemu-python-int-preflight.sh" \
     "check-nemu-systemd-guest-full-soak:" \
     "NEMU_SYSTEMD_CHECK_LOG_DIR='\$(NEMU_SYSTEMD_FULL_SOAK_CHECK_LOG_DIR)'" \
     "NEMU_SYSTEMD_SOAK_SECONDS='\$(NEMU_SYSTEMD_SOAK_SOAK_SECONDS)'" \
     "NEMU_SYSTEMD_FS_STRESS_MIB='\$(NEMU_SYSTEMD_SOAK_FS_STRESS_MIB)'" \
     "NEMU_ROOTFS_OVERLAY_MACHINE_INFO_FILE ?= \$(BUILD_DIR)/nemu-rootfs-overlay-machine-info.txt" \
-    "nemu-rootfs-overlay-machine-info: sim check-ubuntu-rootfs-systemd" \
+    "nemu-rootfs-machine-info: sim check-ubuntu-rootfs" \
+    "nemu-rootfs-overlay-machine-info: sim check-ubuntu-rootfs" \
     "block-overlay='\$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY)'" \
     "NEMU_MONITOR_CMD_SMOKE_LOG ?= \$(BUILD_DIR)/nemu-monitor-cmd-smoke.log" \
     "nemu-monitor-cmd-smoke: sim" \
@@ -2310,6 +2798,189 @@ e2e_nemu_ubuntu_slice_contract() {
       missing=1
     fi
   done
+  for pattern in \
+    "ROOTFS_IMAGE_MAKE_VAR=UBUNTU_ROOTFS_FULL_IMAGE" \
+    "ROOTFS_CPIO_MAKE_VAR=UBUNTU_ROOTFS_FULL_CPIO_IMAGE" \
+    "TB_MAX_INST=\${NEMU_PROFILE_TB_MAX_INST:-32}" \
+    "OPCODE_MIX=\${NEMU_PROFILE_OPCODE_MIX:-0}" \
+    "STOP_DETAIL=\${NEMU_PROFILE_STOP_DETAIL:-0}" \
+    "DECODE_CACHE_DETAIL=\${NEMU_PROFILE_DECODE_CACHE:-0}" \
+    "RVC_DETAIL=\${NEMU_PROFILE_RVC_DETAIL:-0}" \
+    "GUEST_COUNTERS=\${NEMU_PROFILE_GUEST_COUNTERS:-1}" \
+    "RUNTIME_BASIC_BLOCK=\${NEMU_INTERPRETER_BASIC_BLOCK:-1}" \
+    "RUNTIME_WIDE_IFETCH=\${NEMU_INTERPRETER_WIDE_IFETCH:-1}" \
+    "RUNTIME_DECODE_CACHE=\${NEMU_INTERPRETER_DECODE_CACHE:-1}" \
+    "RUNTIME_VADDR_HOST_FAST=\${NEMU_VADDR_HOST_FAST:-1}" \
+    "RUNTIME_MMU_TLB=\${NEMU_RISCV_MMU_TLB:-1}" \
+    "RUNTIME_VIRTIO_BLK_SYNC=\${NEMU_VIRTIO_BLK_SYNC:-0}" \
+    "HOST_PERF_RECORD=\${NEMU_PROFILE_HOST_PERF_RECORD:-0}" \
+    "HOST_PERF_CACHE=\${NEMU_PROFILE_HOST_PERF_CACHE:-\"\$NEMU_PLATFORM_ROOT/tools/host-perf\"}" \
+    "HOST_PERF_ANNOTATE=\${NEMU_PROFILE_HOST_PERF_ANNOTATE:-0}" \
+    "HOST_PERF_ANNOTATE_TOP=\${NEMU_PROFILE_HOST_PERF_ANNOTATE_TOP:-3}" \
+    "tb_max_inst=%s" \
+    "opcode_mix=%s" \
+    "stop_detail=%s" \
+    "decode_cache_detail=%s" \
+    "rvc_detail=%s" \
+    "guest_counters=%s" \
+    "runtime.wide_ifetch=%s" \
+    "runtime.vaddr_host_fast=%s" \
+    "runtime.mmu_tlb=%s" \
+    "host_perf_record=%s" \
+    "host_perf_annotate=%s" \
+    "host_perf_annotate_top=%s" \
+    "host_perf_try_local_cache" \
+    "apt-get download \"\$base_pkg\" libtraceevent1" \
+    "perf.local.status=available" \
+    "run_profile_command" \
+    "perf.record.status=captured" \
+    "host_perf_cmd report --stdio --no-children" \
+    "host_perf_cmd annotate --stdio" \
+    "perf-annotate-manifest.tsv" \
+    "host_perf.available=" \
+    "host_perf.top{idx}_symbol" \
+    "host_perf.annotate.available=" \
+    "host_perf.annotate.top{idx}_hot{hot_idx}_pct_x100" \
+    "NEMU_PROFILE_OPCODE_MIX=\"\$OPCODE_MIX\"" \
+    "NEMU_PROFILE_STOP_DETAIL=\"\$STOP_DETAIL\"" \
+    "NEMU_PROFILE_DECODE_CACHE=\"\$DECODE_CACHE_DETAIL\"" \
+    "NEMU_PROFILE_RVC_DETAIL=\"\$RVC_DETAIL\"" \
+    "NEMU_PROFILE=\"\$GUEST_COUNTERS\"" \
+    "NEMU_INTERPRETER_WIDE_IFETCH=\"\$RUNTIME_WIDE_IFETCH\"" \
+    "NEMU_INTERPRETER_DECODE_CACHE=\"\$RUNTIME_DECODE_CACHE\"" \
+    "NEMU_VADDR_HOST_FAST=\"\$RUNTIME_VADDR_HOST_FAST\"" \
+    "NEMU_RISCV_MMU_TLB=\"\$RUNTIME_MMU_TLB\"" \
+    "NEMU_VIRTIO_BLK_SYNC=\"\$RUNTIME_VIRTIO_BLK_SYNC\"" \
+    "derived.decode_cache_hit_rate_x100" \
+    "derived.decode_cache_rvc_hit_pct_x100" \
+    "derived.rvc_detail_total=" \
+    "derived.rvc_{key}_pct_x100" \
+    "derived.opcode_mix_total=" \
+    "tb_stop_amo_{key}_pct_x100" \
+    "tb_continue_amo_{key}_pct_x100" \
+    "tb_stop_system_csr_{key}_pct_x100" \
+    "NEMU_INTERPRETER_TB_MAX_INST=\"\$TB_MAX_INST\"" \
+    "NEMU_SYSTEMD_ROOTFS_FLAVOR=\"\$ROOTFS_FLAVOR\"" \
+    "\"\$ROOTFS_IMAGE_MAKE_VAR=\$ROOTFS_IMAGE\"" \
+    "\"\$ROOTFS_CPIO_MAKE_VAR=\$ROOTFS_CPIO_IMAGE\""; do
+    if grep -Fq -- "$pattern" "$profile_nemu_ubuntu_sh"; then
+      printf 'PASS profile-nemu-ubuntu.sh %s\n' "$pattern"
+    else
+      printf 'FAIL profile-nemu-ubuntu.sh %s\n' "$pattern"
+      missing=1
+    fi
+  done
+
+  for pattern in \
+    "extern uint64_t nemu_profile_counters" \
+    "static inline void nemu_profile_count" \
+    "nemu_profile_counters[counter] += amount" \
+    "NEMU_PROFILE_CPU_RVC_DETAIL_ENABLED" \
+    "extern bool nemu_profile_rvc_detail_is_enabled" \
+    "static inline bool nemu_profile_rvc_detail_enabled"; do
+    if grep -Fq -- "$pattern" "$profile_h"; then
+      printf 'PASS profile.h inline counter %s\n' "$pattern"
+    else
+      printf 'FAIL profile.h inline counter %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  if grep -Fq "uint64_t nemu_profile_counters" "$profile_c" &&
+     ! grep -Fq "void nemu_profile_count(" "$profile_c"; then
+    printf 'PASS profile.c counter storage without hot function call\n'
+  else
+    printf 'FAIL profile.c counter storage without hot function call\n'
+    missing=1
+  fi
+  for pattern in \
+    "typedef uint64_t VaddrIfetchWideResult" \
+    "static inline VaddrIfetchWideResult vaddr_ifetch_wide_pack" \
+    "static inline uint32_t vaddr_ifetch_wide_inst" \
+    "static inline int vaddr_ifetch_wide_len" \
+    "VaddrIfetchWideResult vaddr_ifetch_wide(vaddr_t addr)" \
+    "extern bool vaddr_ifetch_wide_is_enabled" \
+    "static inline bool vaddr_ifetch_wide_runtime_enabled" \
+    "extern bool vaddr_host_fast_is_enabled" \
+    "static inline bool vaddr_host_fast_runtime_enabled" \
+    "extern bool vaddr_fault_pending" \
+    "static inline bool vaddr_has_fault"; do
+    if grep -Fq -- "$pattern" "$vaddr_h"; then
+      printf 'PASS vaddr.h inline runtime flag %s\n' "$pattern"
+    else
+      printf 'FAIL vaddr.h inline runtime flag %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  for pattern in \
+    "vaddr_runtime_config_init" \
+    "bool vaddr_fault_pending = false" \
+    "NEMU_INTERPRETER_WIDE_IFETCH" \
+    "NEMU_VADDR_HOST_FAST"; do
+    if grep -Fq -- "$pattern" "$vaddr_c"; then
+      printf 'PASS vaddr.c runtime flag storage %s\n' "$pattern"
+    else
+      printf 'FAIL vaddr.c runtime flag storage %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  if grep -Fq -- "if (likely(!vaddr_has_fault())) return false;" "$rv64_decode_c" &&
+     grep -Fq -- "take_vaddr_fault_slow" "$rv64_decode_c" &&
+     grep -Fq -- "__attribute__((noinline, cold))" "$rv64_decode_c" &&
+     ! grep -Fq -- "bool vaddr_has_fault(void)" "$vaddr_c"; then
+    printf 'PASS vaddr fault pending check stays inline on ISA hot path\n'
+  else
+    printf 'FAIL vaddr fault pending check inline contract drifted\n'
+    missing=1
+  fi
+  for pattern in \
+    "extern bool isa_riscv64_decode_cache_is_enabled" \
+    "static inline bool isa_riscv64_decode_cache_runtime_enabled"; do
+    if grep -Fq -- "$pattern" "$rv64_platform_h"; then
+      printf 'PASS isa-platform.h decode-cache inline flag %s\n' "$pattern"
+    else
+      printf 'FAIL isa-platform.h decode-cache inline flag %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  for pattern in \
+    "bool isa_riscv64_decode_cache_is_enabled = true" \
+    "rv_runtime_config_init" \
+    "NEMU_INTERPRETER_DECODE_CACHE"; do
+    if grep -Fq -- "$pattern" "$rv64_inst_dir/common.c"; then
+      printf 'PASS riscv64/inst/common.c decode-cache runtime storage %s\n' "$pattern"
+    else
+      printf 'FAIL riscv64/inst/common.c decode-cache runtime storage %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  if ! grep -Fq "bool isa_riscv64_decode_cache_runtime_enabled(" "$rv64_inst_dir/common.c"; then
+    printf 'PASS riscv64/inst/common.c avoids decode-cache hot function definition\n'
+  else
+    printf 'FAIL riscv64/inst/common.c avoids decode-cache hot function definition\n'
+    missing=1
+  fi
+  for pattern in \
+    "static bool sv39_tlb_is_enabled" \
+    "sv39_runtime_config_init" \
+    "NEMU_RISCV_MMU_TLB" \
+    "static inline bool sv39_tlb_runtime_enabled"; do
+    if grep -Fq -- "$pattern" "$mmu_c"; then
+      printf 'PASS riscv64/system/mmu.c inline TLB runtime flag %s\n' "$pattern"
+    else
+      printf 'FAIL riscv64/system/mmu.c inline TLB runtime flag %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  if grep -Fq -- "uint64_t vpn0 = (va >> 12) & 0x1ff;" "$mmu_c" &&
+     grep -Fq -- "uint64_t vpn1 = (va >> 21) & 0x1ff;" "$mmu_c" &&
+     grep -Fq -- "uint64_t vpn2 = (va >> 30) & 0x1ff;" "$mmu_c" &&
+     grep -Fq -- "vpn_at_level = level == 2 ? vpn2" "$mmu_c" &&
+     ! grep -Fq -- "uint64_t vpn[3]" "$mmu_c"; then
+    printf 'PASS riscv64/system/mmu.c sv39_translate avoids hot VPN local array\n'
+  else
+    printf 'FAIL riscv64/system/mmu.c sv39_translate VPN scalar contract drifted\n'
+    missing=1
+  fi
 
   echo
   echo "[nemu-ubuntu] default run overlay dry-run"
@@ -2322,9 +2993,9 @@ e2e_nemu_ubuntu_slice_contract() {
     missing=1
   fi
   for pattern in \
-    "--block='$E2E_ROOT_DIR/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64.ext4'" \
-    "--block-overlay='$E2E_ROOT_DIR/Linux/env/logs/linux-front/riscv64-nemu-ubuntu-rootfs/rootfs-overlay.raw'" \
-    "rm -f '$E2E_ROOT_DIR/Linux/env/logs/linux-front/riscv64-nemu-ubuntu-rootfs/rootfs-overlay.raw'" \
+    "--block='$E2E_ROOT_DIR/Linux/env/platforms/nemu/images/ubuntu2204/ubuntu-22.04-riscv64.ext4'" \
+    "--block-overlay='$E2E_ROOT_DIR/Linux/env/platforms/nemu/logs/linux-front/riscv64-nemu-ubuntu-rootfs/rootfs-overlay.raw'" \
+    "rm -f '$E2E_ROOT_DIR/Linux/env/platforms/nemu/logs/linux-front/riscv64-nemu-ubuntu-rootfs/rootfs-overlay.raw'" \
     "[Linux] overlay:"; do
     if grep -Fq -- "$pattern" "$run_dry_log"; then
       printf 'PASS run dry %s\n' "$pattern"
@@ -2335,7 +3006,7 @@ e2e_nemu_ubuntu_slice_contract() {
   done
   for pattern in \
     "check-nemu-kernel-config" \
-    "LINUX_KERNEL_CONFIG='\$(ENV_ROOT)/src/linux/.config'" \
+    "LINUX_KERNEL_CONFIG='\$(LINUX_BUILD_DIR)/.config'" \
     "\$(LINUX_IMAGE): \$(SCRIPT_DIR)/build-linux.sh"; do
     if grep -Fq -- "$pattern" "$linux_makefile"; then
       printf 'PASS Linux/Makefile %s\n' "$pattern"
@@ -2425,6 +3096,9 @@ e2e_nemu_ubuntu_slice_contract() {
     "VIRTIO_BLK_QUEUE_COUNT" \
     "VIRTIO_BLK_CONFIG_NUM_QUEUES" \
     "VIRTIO_BLK_ASYNC_BACKEND" \
+    "NEMU_VIRTIO_BLK_SYNC" \
+    "disk_force_sync_backend" \
+    "forced-synchronous" \
     "CONFIG_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG" \
     "VirtioBlkAsyncReq" \
     "virtio_blk_worker_main" \
@@ -2489,6 +3163,7 @@ e2e_nemu_ubuntu_slice_contract() {
   done
   for pattern in \
     "qmp_set_port" \
+    "qmp_runtime_enabled" \
     "qmp_capability" \
     "startup-query-cont-stop-events-guest-shutdown-runtime-query-chardev-netdev-rng-rtc-interrupts-serial-version-kvm-pci-schema-id-echo-query-events-system-reset-system-powerdown" \
     "qmp_wait_for_client_if_enabled" \
@@ -2572,6 +3247,7 @@ e2e_nemu_ubuntu_slice_contract() {
 
   for pattern in \
     "../monitor/qmp.h" \
+    "qmp_fast_enabled" \
     "qmp_cpu_pause_point" \
     "qmp_notify_shutdown_event"; do
     if grep -q "$pattern" "$cpu_exec_c"; then
@@ -2637,8 +3313,15 @@ e2e_nemu_ubuntu_slice_contract() {
     printf 'FAIL qmp.h qmp_notify_shutdown_event prototype\n'
     missing=1
   fi
+  if grep -q "qmp_fast_enabled" "$qmp_h" && grep -q "extern bool qmp_runtime_enabled;" "$qmp_h"; then
+    printf 'PASS qmp.h runtime fast flag\n'
+  else
+    printf 'FAIL qmp.h runtime fast flag\n'
+    missing=1
+  fi
   for pattern in \
     "gdbstub_set_port" \
+    "gdbstub_runtime_enabled" \
     "gdbstub_capability" \
     "gdbstub_wait_for_client_if_enabled" \
     "qSupported" \
@@ -2721,6 +3404,12 @@ e2e_nemu_ubuntu_slice_contract() {
     printf 'FAIL gdbstub.h gdbstub_async_stop_requested prototype\n'
     missing=1
   fi
+  if grep -q "gdbstub_fast_enabled" "$gdbstub_h" && grep -q "extern bool gdbstub_runtime_enabled;" "$gdbstub_h"; then
+    printf 'PASS gdbstub.h runtime fast flag\n'
+  else
+    printf 'FAIL gdbstub.h runtime fast flag\n'
+    missing=1
+  fi
   for pattern in \
     "sdb_exec_line" \
     "cmd_table[i].handler" \
@@ -2769,9 +3458,40 @@ e2e_nemu_ubuntu_slice_contract() {
   for pattern in \
     "INTERPRETER_TB_MAX_INST" \
     "CONFIG_INTERPRETER_TB_MAX_INST" \
+    "cpu_interpreter_tb_max_inst_runtime" \
+    "NEMU_INTERPRETER_TB_MAX_INST" \
+    "runtime_cap = 4096" \
+    "profile_opcode_mix" \
+    "nemu_profile_opcode_mix_enabled" \
+    "nemu_profile_stop_detail_enabled" \
+    "NEMU_PROFILE_CPU_OPCODE_SYSTEM" \
     "execute_basic_block" \
-    "interpreter_tb_should_stop" \
+    "interpreter_tb_static_stop_reason" \
+    "INTERPRETER_TB_STOP_IO_WRITE" \
+    "NEMU_PROFILE_CPU_TB_STOP_CONTROL_FALLBACK" \
+    "NEMU_PROFILE_CPU_TB_CONTINUE_BRANCH_TAKEN" \
+    "NEMU_PROFILE_CPU_TB_CONTINUE_BRANCH_NOT_TAKEN" \
+    "NEMU_PROFILE_CPU_TB_CONTINUE_JUMP_DIRECT" \
+    "NEMU_PROFILE_CPU_TB_CONTINUE_JALR" \
+    "NEMU_PROFILE_CPU_TB_CONTINUE_COMPRESSED_MISC" \
+    "NEMU_PROFILE_CPU_TB_CONTINUE_FENCE" \
+    "NEMU_PROFILE_CPU_TB_CONTINUE_CSR_READONLY" \
+    "NEMU_PROFILE_CPU_TB_CONTINUE_AMO" \
+    "interpreter_tb_profile_continue_amo_detail" \
+    "NEMU_PROFILE_CPU_TB_STOP_FENCE_I" \
+    "NEMU_PROFILE_CPU_TB_STOP_AMO" \
+    "NEMU_PROFILE_CPU_TB_STOP_AMO_LR" \
+    "interpreter_tb_profile_amo_detail" \
+    "NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR" \
+    "NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SATP" \
+    "interpreter_tb_profile_system_csr_detail" \
+    "NEMU_PROFILE_CPU_TB_STOP_SYSTEM_WFI" \
+    "NEMU_PROFILE_CPU_TB_STOP_SYSTEM_SFENCE_VMA" \
+    "NEMU_PROFILE_CPU_TB_STOP_SYSTEM_OTHER" \
+    "paddr_has_device_write" \
+    "paddr_take_device_write" \
     "debug_breakpoint_stop" \
+    "gdbstub_fast_enabled" \
     "gdbstub_breakpoint_hit" \
     "gdbstub_async_stop_requested" \
     "GDB stub breakpoint hit at pc" \
@@ -2806,6 +3526,12 @@ e2e_nemu_ubuntu_slice_contract() {
     printf 'PASS riscv64-linux_defconfig CONFIG_INTERPRETER_BASIC_BLOCK=y\n'
   else
     printf 'FAIL riscv64-linux_defconfig CONFIG_INTERPRETER_BASIC_BLOCK=y\n'
+    missing=1
+  fi
+  if grep -q "CONFIG_RISCV_CLINT_HOST_TIME=y" "$linux_defconfig"; then
+    printf 'PASS riscv64-linux_defconfig CONFIG_RISCV_CLINT_HOST_TIME=y\n'
+  else
+    printf 'FAIL riscv64-linux_defconfig CONFIG_RISCV_CLINT_HOST_TIME=y\n'
     missing=1
   fi
   if grep -q "CONFIG_INTERPRETER_TB_MAX_INST=32" "$linux_defconfig"; then
@@ -3031,7 +3757,8 @@ e2e_nemu_ubuntu_slice_contract() {
   fi
   for pattern in \
     "isa_riscv_intr_pending_fast" \
-    "isa_query_intr()"; do
+    "isa_query_intr()" \
+    "funct3 == 0x5 || funct3 == 0x6 || funct3 == 0x7"; do
     if grep -q "$pattern" "$cpu_exec_c"; then
       printf 'PASS cpu-exec.c %s\n' "$pattern"
     else
@@ -3048,7 +3775,11 @@ e2e_nemu_ubuntu_slice_contract() {
   for pattern in \
     "CONFIG_RISCV_CLINT_HOST_TIME" \
     "clint_sync_host_time" \
+    "clint_sync_host_time_lazy" \
     "clint_rebase_host_time" \
+    "clint_post_exec_tick" \
+    "NEMU_RISCV_CLINT_HOST_SYNC_INTERVAL" \
+    "NEMU_PROFILE_CLINT_HOST_TIME_READS" \
     "host-monotonic"; do
     if grep -q "$pattern" "$rv64_intr_c"; then
       printf 'PASS riscv64/system/intr.c %s\n' "$pattern"
@@ -3275,6 +4006,15 @@ e2e_nemu_ubuntu_slice_contract() {
     printf 'FAIL riscv64 inst files vaddr_ifetch_wide\n'
     missing=1
   fi
+  if grep -q "VaddrIfetchWideResult wide = vaddr_ifetch_wide(s->snpc)" "${rv64_inst_files[@]}" &&
+     grep -q "vaddr_ifetch_wide_inst(wide)" "${rv64_inst_files[@]}" &&
+     grep -q "vaddr_ifetch_wide_len(wide)" "${rv64_inst_files[@]}" &&
+     ! grep -q "vaddr_ifetch_wide(s->snpc, &" "${rv64_inst_files[@]}"; then
+    printf 'PASS riscv64 wide-ifetch packed result avoids output-pointer locals\n'
+  else
+    printf 'FAIL riscv64 wide-ifetch packed result contract drifted\n'
+    missing=1
+  fi
   for pattern in \
     "rv_decode_cache" \
     "rv_decode_cache_inst_key" \
@@ -3282,6 +4022,14 @@ e2e_nemu_ubuntu_slice_contract() {
     "rv_decode_cache_dispatch" \
     "RV_DECODE_CACHE_USE_DIRECT_DISPATCH" \
     "CONFIG_INTERPRETER_DECODE_DIRECT_DISPATCH" \
+    "NEMU_PROFILE_CPU_DECODE_CACHE_LOOKUPS" \
+    "NEMU_PROFILE_CPU_DECODE_CACHE_HITS" \
+    "NEMU_PROFILE_CPU_DECODE_CACHE_MISSES" \
+    "NEMU_PROFILE_CPU_DECODE_CACHE_HIT_RVC" \
+    "profile_rvc_detail_inst" \
+    "NEMU_PROFILE_CPU_RVC_ADDI" \
+    "NEMU_PROFILE_CPU_RVC_LWSP" \
+    "NEMU_PROFILE_CPU_RVC_SDSP" \
     "rv_decode_cache_fill" \
     "rv_decode_cache_flush" \
     "CONFIG_INTERPRETER_DECODE_CACHE_ENTRIES"; do
@@ -3298,11 +4046,13 @@ e2e_nemu_ubuntu_slice_contract() {
     "vaddr_ifetch_cache_lookup" \
     "vaddr_ifetch_cache_fill" \
     "vaddr_ifetch_cache_flush" \
+    "vaddr_ifetch_cache_invalidate_paddr" \
     "vaddr_ifetch_cache_invalidate_write" \
     "vaddr_paddr_host_fast" \
     "vaddr_paddr_read_fast" \
     "vaddr_paddr_write_fast" \
     "vaddr_gdbstub_watchpoint_after_access" \
+    "gdbstub_fast_enabled" \
     "gdbstub_watchpoint_after_access" \
     "vaddr_notify_write_committed" \
     "isa_riscv_lr_sc_invalidate" \
@@ -3315,6 +4065,83 @@ e2e_nemu_ubuntu_slice_contract() {
       missing=1
     fi
   done
+  for pattern in \
+    "memcpy(&ret, addr" \
+    "memcpy(addr, &value" \
+    "strict-aliasing UB"; do
+    if grep -q "$pattern" "$host_h"; then
+      printf 'PASS host.h %s\n' "$pattern"
+    else
+      printf 'FAIL host.h %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  for pattern in \
+    "paddr_dma_write" \
+    "paddr_dma_write_value" \
+    "paddr_take_device_write"; do
+    if grep -Fq "$pattern" "$paddr_h" && grep -Fq "$pattern" "$paddr_c"; then
+      printf 'PASS paddr DMA API %s\n' "$pattern"
+    else
+      printf 'FAIL paddr DMA API %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  for pattern in \
+    "extern bool paddr_device_write_seen" \
+    "static inline bool paddr_has_device_write"; do
+    if grep -Fq "$pattern" "$paddr_h"; then
+      printf 'PASS paddr.h device-write hot guard %s\n' "$pattern"
+    else
+      printf 'FAIL paddr.h device-write hot guard %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  for pattern in \
+    "bool paddr_device_write_seen = false" \
+    "paddr_note_device_write" \
+    "isa_riscv_clint_in_range" \
+    "isa_riscv_plic_in_range" \
+    "mmio_write(addr, len, data)"; do
+    if grep -Fq "$pattern" "$paddr_c"; then
+      printf 'PASS paddr.c device-write TB barrier %s\n' "$pattern"
+    else
+      printf 'FAIL paddr.c device-write TB barrier %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  for pattern in \
+    "paddr_dma_notify_cpu" \
+    "isa_riscv_lr_sc_invalidate" \
+    "vaddr_ifetch_cache_invalidate_paddr" \
+    "memcpy(guest_to_host(addr), buf, len)"; do
+    if grep -Fq "$pattern" "$paddr_c"; then
+      printf 'PASS paddr.c DMA coherence %s\n' "$pattern"
+    else
+      printf 'FAIL paddr.c DMA coherence %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  local dma_device_file dma_device_name
+  for dma_device_file in "$disk_c" "$rng_c" "$net_c"; do
+    dma_device_name="${dma_device_file##*/}"
+    for pattern in \
+      "paddr_dma_write(" \
+      "paddr_dma_write_value"; do
+      if grep -Fq "$pattern" "$dma_device_file"; then
+        printf 'PASS %s DMA coherence %s\n' "$dma_device_name" "$pattern"
+      else
+        printf 'FAIL %s DMA coherence %s\n' "$dma_device_name" "$pattern"
+        missing=1
+      fi
+    done
+  done
+  if grep -Eq 'memcpy\(guest_to_host|paddr_write\(' "$disk_c" "$rng_c" "$net_c"; then
+    printf 'FAIL virtio DMA devices bypass paddr DMA coherence API\n'
+    missing=1
+  else
+    printf 'PASS virtio DMA devices use paddr DMA coherence API\n'
+  fi
   if grep -q "vaddr_set_fault" "$vaddr_h"; then
     printf 'PASS vaddr.h vaddr_set_fault\n'
   else
@@ -3383,6 +4210,7 @@ e2e_nemu_ubuntu_slice_contract() {
     "csr_write_pmpcfg" \
     "csr_write_pmpaddr" \
     "csr_pmpaddr_write_locked" \
+    "isa_riscv64_pmp_mark_dirty" \
     "PMP_CFG_L" \
     "isa_riscv64_mmu_tlb_flush"; do
     if grep -q "$pattern" "${rv64_inst_files[@]}"; then
@@ -3396,6 +4224,11 @@ e2e_nemu_ubuntu_slice_contract() {
     "isa_riscv64_pmp_check" \
     "isa_riscv64_pmp_check_as_priv" \
     "pmp_check_with_priv" \
+    "PmpCachedEntry" \
+    "pmp_cached_entries" \
+    "pmp_cache_valid" \
+    "pmp_cache_refresh" \
+    "isa_riscv64_pmp_mark_dirty" \
     "pmp_decode_range" \
     "pmp_decode_napot" \
     "pmp_permission_ok" \
@@ -3805,9 +4638,10 @@ e2e_nemu_ubuntu_slice_contract() {
     fi
   done
   for pattern in \
-    "isa_riscv64_mmu_tlb_flush();" \
-    "transient stale translations" \
-    "architecturally conservative barrier"; do
+    "isa_riscv64_mmu_tlb_flush_selective(R(rs1), rs1 != 0, R(rs2), rs2 != 0)" \
+    "satp writes are not implicit fences" \
+    "TLB entries are keyed by root_ppn" \
+    "guest software uses sfence.vma"; do
     if grep -q "$pattern" "${rv64_inst_files[@]}"; then
       printf 'PASS riscv64 inst files %s\n' "$pattern"
     else
@@ -3892,8 +4726,37 @@ e2e_nemu_ubuntu_focused_gate_impl() {
     && "${AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_ACTUAL:-0}" == 1 ]]; then
     full_check_max_cycles=240000000000
   fi
+  local bootargs_extra="${AGENT_E2E_NEMU_UBUNTU_BOOTARGS_EXTRA:-${BOOTARGS_EXTRA:-}}"
+  local slow_diag_env=0
+  for slow_env in \
+    NEMU_INTERPRETER_BASIC_BLOCK \
+    NEMU_RISCV_MMU_TLB \
+    NEMU_INTERPRETER_WIDE_IFETCH \
+    NEMU_INTERPRETER_DECODE_CACHE \
+    NEMU_VADDR_HOST_FAST; do
+    if [[ ${!slow_env:-} == 0 ]]; then
+      slow_diag_env=1
+    fi
+  done
+  if [[ -z "$bootargs_extra" && "$slow_diag_env" == 1 \
+    && "$make_target" == check-nemu-systemd-guest-full* ]]; then
+    bootargs_extra="systemd.default_timeout_start_sec=300s"
+  fi
+  if [[ -n "$bootargs_extra" ]]; then
+    printf '[nemu-ubuntu] focused gate bootargs extra: %s\n' "$bootargs_extra"
+  fi
+  local input_chunk_bytes="${AGENT_E2E_NEMU_UBUNTU_INPUT_CHUNK_BYTES:-}"
+  if [[ -z "$input_chunk_bytes" ]]; then
+    if [[ "$slow_diag_env" == 1 && "$make_target" == check-nemu-systemd-guest-full* ]]; then
+      input_chunk_bytes=512
+    else
+      input_chunk_bytes=64
+    fi
+  fi
+  printf '[nemu-ubuntu] focused gate input chunk bytes: %s\n' "$input_chunk_bytes"
   timeout "${gate_timeout}s" \
     make -C "$E2E_ROOT_DIR/Linux" ARCH=riscv64-nemu \
+      BOOTARGS_EXTRA="$bootargs_extra" \
       NEMU_SYSTEMD_CHECK_LOG_DIR="$gate_dir" \
       NEMU_SYSTEMD_FULL_CHECK_LOG_DIR="$gate_dir" \
       NEMU_SYSTEMD_FULL_SOAK_CHECK_LOG_DIR="$gate_dir" \
@@ -3903,13 +4766,14 @@ e2e_nemu_ubuntu_focused_gate_impl() {
       NEMU_SYSTEMD_FS_TREE_FILES="${AGENT_E2E_NEMU_UBUNTU_FS_TREE_FILES:-8}" \
       NEMU_SYSTEMD_PROCESS_LOOPS="${AGENT_E2E_NEMU_UBUNTU_PROCESS_LOOPS:-4}" \
       NEMU_SYSTEMD_UART_RX_STRESS_LINES="${AGENT_E2E_NEMU_UBUNTU_UART_RX_STRESS_LINES:-64}" \
-      NEMU_SYSTEMD_INPUT_CHUNK_BYTES="${AGENT_E2E_NEMU_UBUNTU_INPUT_CHUNK_BYTES:-8}" \
+      NEMU_SYSTEMD_INPUT_CHUNK_BYTES="$input_chunk_bytes" \
       NEMU_SYSTEMD_INPUT_CHUNK_DELAY="${AGENT_E2E_NEMU_UBUNTU_INPUT_CHUNK_DELAY:-0}" \
       NEMU_SYSTEMD_APT_INSTALL_DIAG="${AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_DIAG:-0}" \
       NEMU_SYSTEMD_APT_INSTALL_ACTUAL="${AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_ACTUAL:-0}" \
       NEMU_SYSTEMD_APT_INSTALL_DIAG_TIMEOUT="$apt_install_diag_timeout" \
       NEMU_SYSTEMD_APT_REMOVE_DIAG_TIMEOUT="${AGENT_E2E_NEMU_UBUNTU_APT_REMOVE_DIAG_TIMEOUT:-600}" \
       NEMU_SYSTEMD_PYTHON_RE_DIAG_LOOPS="${AGENT_E2E_NEMU_UBUNTU_PYTHON_RE_DIAG_LOOPS:-20}" \
+      NEMU_SYSTEMD_STOP_AFTER_SYSTEMCTL_RELOAD_DIAG="${AGENT_E2E_NEMU_UBUNTU_STOP_AFTER_SYSTEMCTL_RELOAD_DIAG:-0}" \
       NEMU_SYSTEMD_BLOCK_PARALLEL_JOBS="${AGENT_E2E_NEMU_UBUNTU_BLOCK_PARALLEL_JOBS:-1}" \
       NEMU_SYSTEMD_BLOCK_JOB_MIB="${AGENT_E2E_NEMU_UBUNTU_BLOCK_JOB_MIB:-1}" \
       "$make_target" >"$make_log" 2>&1 || gate_rc=$?
@@ -3918,7 +4782,7 @@ e2e_nemu_ubuntu_focused_gate_impl() {
   echo
   echo "[nemu-ubuntu] focused gate markers"
   grep -aE \
-    "__NEMU_CHECK_(MEMTOTAL_KB|MIN_MEMTOTAL_KB|VDA_CACHE_TYPE|VDA_DISCARD_MAX|VDA_WRITE_ZEROES_MAX|RTC0_(NAME|HWCLOCK)|HWRNG_CURRENT|VIRTIO_RNG_(MODALIAS|DRIVER|STATUS|FEATURES)|VIRTIO_NET_(MODALIAS|DRIVER|STATUS|FEATURES|IFACE|MAC|MTU|SPEED|DUPLEX|IPV4|OPERSTATE|TX_PACKETS_(BEGIN|END)|RX_PACKETS_(BEGIN|END)|ROUTE|NEIGH|ARP)|FULL_(PYTHON_CNF|CNF_UPDATE_DB|PYTHON_TEXTWRAP|PYTHON_STDLIB|PYTHON_RE_SOURCE|LSB_RELEASE))|__PYTHON_CNF_DIAG_|__PYTHON_RE_SOURCE_DIAG_|__NEMU_(ICMP|DHCP|DNS|TCP)_PROBE_(BURST|ITER|CONNECT|TX|RX|OFFER|ACK|PASS|FAIL)__|virtio-(blk-feature-(config-wce|topology|discard|write-zeroes)|rng-(modalias|driver|features-bitstring|feature-version-1|ring-feature-(indirect-desc|event-idx))|net-(modalias|driver|features-bitstring|feature-(version-1|mtu|mac|mrg-rxbuf|status|ctrl-vq|ctrl-rx|ctrl-vlan|ctrl-rx-extra|guest-announce|ctrl-mac-addr|speed-duplex)|ring-feature-(indirect-desc|event-idx)|interface|mac|mtu|speed|duplex|ipv4-static|icmp-echo|dhcp-lease|dns-a|tcp-http|runtime))|hwclock-rtc0-show|guest-memtotal-min|virtio-ring-feature-event-idx|__NEMU_SYSTEMD_CHECK_DONE__|HIT GOOD TRAP" \
+    "__NEMU_CHECK_(MEMTOTAL_KB|MIN_MEMTOTAL_KB|VDA_CACHE_TYPE|VDA_DISCARD_MAX|VDA_WRITE_ZEROES_MAX|RTC0_(NAME|HWCLOCK)|HWRNG_CURRENT|VIRTIO_RNG_(MODALIAS|DRIVER|STATUS|FEATURES)|VIRTIO_NET_(MODALIAS|DRIVER|STATUS|FEATURES|IFACE|MAC|MTU|SPEED|DUPLEX|IPV4|OPERSTATE|TX_PACKETS_(BEGIN|END)|RX_PACKETS_(BEGIN|END)|ROUTE|NEIGH|ARP)|FULL_(PYTHON_CNF|CNF_UPDATE_DB|PYTHON_TEXTWRAP|PYTHON_STDLIB|PYTHON_RE_SOURCE|PYTHON_INT_PREFLIGHT|LSB_RELEASE))|__PYTHON_CNF_DIAG_|__PYTHON_RE_SOURCE_DIAG_|__PYTHON_INT_PREFLIGHT_|__NEMU_(ICMP|DHCP|DNS|TCP)_PROBE_(BURST|ITER|CONNECT|TX|RX|OFFER|ACK|PASS|FAIL)__|virtio-(blk-feature-(config-wce|topology|discard|write-zeroes)|rng-(modalias|driver|features-bitstring|feature-version-1|ring-feature-(indirect-desc|event-idx))|net-(modalias|driver|features-bitstring|feature-(version-1|mtu|mac|mrg-rxbuf|status|ctrl-vq|ctrl-rx|ctrl-vlan|ctrl-rx-extra|guest-announce|ctrl-mac-addr|speed-duplex)|ring-feature-(indirect-desc|event-idx)|interface|mac|mtu|speed|duplex|ipv4-static|icmp-echo|dhcp-lease|dns-a|tcp-http|runtime))|hwclock-rtc0-show|guest-memtotal-min|virtio-ring-feature-event-idx|__NEMU_SYSTEMD_CHECK_DONE__|HIT GOOD TRAP" \
     "$gate_dir/console.log" || true
   grep -aE "virtio-blk async runtime|virtio-blk-async-runtime|virtio-net runtime|virtio-net-runtime" \
     "$gate_dir/nemu.log" "$gate_dir/console.log" "$make_log" 2>/dev/null || true
@@ -3987,6 +4851,26 @@ e2e_nemu_ubuntu_focused_gate_impl() {
       "__NEMU_CHECK_PASS__:full-userland-curl-head-http" \
       "__NEMU_CHECK_PASS__:full-userland-curl-404-http" \
       "__NEMU_CHECK_PASS__:full-userland-curl-large-http" \
+      "__NEMU_CHECK_PASS__:full-userland-python-int-preflight-before-runtime-loop" \
+      "__NEMU_CHECK_PASS__:full-userland-python-int-preflight-runtime-after-core-tools-loop" \
+      "__NEMU_CHECK_PASS__:full-userland-python-int-preflight-runtime-after-identity-loop" \
+      "__NEMU_CHECK_PASS__:full-userland-python-int-preflight-runtime-after-systemd-files-loop" \
+      "__NEMU_CHECK_PASS__:full-userland-python-int-preflight-runtime-after-journal-loop" \
+      "__NEMU_CHECK_PASS__:full-userland-python-int-preflight-runtime-after-ssh-loop" \
+      "__NEMU_CHECK_PASS__:full-userland-python-int-preflight-runtime-after-daemons-loop" \
+      "__NEMU_CHECK_PASS__:full-userland-python-int-preflight-runtime-after-systemctl-pre-cleanup-loop" \
+      "__NEMU_CHECK_PASS__:full-userland-python-int-preflight-runtime-after-systemctl-daemon-reload-command-loop" \
+      "__NEMU_CHECK_PASS__:full-userland-python-int-preflight-runtime-after-systemctl-daemon-reload-timeout-loop" \
+      "__NEMU_CHECK_PASS__:full-userland-python-int-preflight-runtime-after-systemctl-daemon-reload-before-hup-loop" \
+      "__NEMU_CHECK_PASS__:full-userland-python-int-preflight-runtime-after-systemctl-daemon-reload-after-hup-loop" \
+      "__NEMU_CHECK_PASS__:full-userland-python-int-preflight-runtime-after-systemctl-daemon-reload-loop" \
+      "__NEMU_CHECK_PASS__:full-userland-python-int-preflight-runtime-after-systemctl-root-enable-loop" \
+      "__NEMU_CHECK_PASS__:full-userland-python-int-preflight-runtime-after-systemctl-root-is-enabled-loop" \
+      "__NEMU_CHECK_PASS__:full-userland-python-int-preflight-runtime-after-systemctl-runtime-start-loop" \
+      "__NEMU_CHECK_PASS__:full-userland-python-int-preflight-runtime-after-systemctl-root-disable-loop" \
+      "__NEMU_CHECK_PASS__:full-userland-python-int-preflight-runtime-after-systemctl-cleanup-loop" \
+      "__NEMU_CHECK_PASS__:full-userland-python-int-preflight-runtime-after-systemctl-loop" \
+      "__NEMU_CHECK_PASS__:full-userland-python-int-preflight-after-runtime-loop" \
       "__NEMU_CHECK_PASS__:full-userland-python-stdlib-file-sha256" \
       "__NEMU_CHECK_PASS__:full-userland-python-stdlib-import-loop" \
       "__NEMU_CHECK_PASS__:full-userland-lsb-release-retry-loop" \

@@ -140,7 +140,7 @@ invalid:
   return 0;
 }
 
-static inline bool take_vaddr_fault(Decode *s) {
+static bool __attribute__((noinline, cold)) take_vaddr_fault_slow(Decode *s) {
   word_t cause;
   vaddr_t tval;
   if (!vaddr_take_fault(&cause, &tval)) return false;
@@ -149,17 +149,21 @@ static inline bool take_vaddr_fault(Decode *s) {
   return true;
 }
 
+static inline bool take_vaddr_fault(Decode *s) {
+  if (likely(!vaddr_has_fault())) return false;
+  return take_vaddr_fault_slow(s);
+}
+
 int isa_exec_once(Decode *s) {
 #ifdef CONFIG_RISCV_EXT_C
-  uint32_t wide_inst = 0;
-  int wide_len = 0;
-  if (vaddr_ifetch_wide(s->snpc, &wide_inst, &wide_len)) {
+  VaddrIfetchWideResult wide = vaddr_ifetch_wide(s->snpc);
+  if (wide != VADDR_IFETCH_WIDE_MISS) {
     if (take_vaddr_fault(s)) {
       s->isa.inst = 0;
       return 0;
     }
-    s->isa.inst = wide_inst;
-    s->snpc += wide_len;
+    s->isa.inst = vaddr_ifetch_wide_inst(wide);
+    s->snpc += vaddr_ifetch_wide_len(wide);
     syscall_debug_log_user_pc(s->pc, s->isa.inst);
     if (rv_decode_cache_exec(s)) {
       take_vaddr_fault(s);

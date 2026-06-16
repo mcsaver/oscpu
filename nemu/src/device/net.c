@@ -364,11 +364,11 @@ static uint64_t guest_read64(paddr_t addr) {
 }
 
 static void guest_write16(paddr_t addr, uint16_t value) {
-  paddr_write(addr, 2, value);
+  paddr_dma_write_value(addr, 2, value);
 }
 
 static void guest_write32(paddr_t addr, uint32_t value) {
-  paddr_write(addr, 4, value);
+  paddr_dma_write_value(addr, 4, value);
 }
 
 static bool guest_range_ok(paddr_t addr, uint32_t len) {
@@ -608,7 +608,7 @@ static bool virtq_write_to_writable_chain(const VirtqDesc *descs, int count,
       }
       uint32_t avail = descs[i].len - desc_off;
       uint32_t take = left < avail ? left : avail;
-      memcpy(guest_to_host(descs[i].addr + desc_off), src, take);
+      if (!paddr_dma_write(descs[i].addr + desc_off, src, take)) return false;
       desc_off += take;
       written += take;
     }
@@ -1768,7 +1768,7 @@ static bool virtio_net_write_ctrl_ack(const VirtqDesc *descs, int count, uint8_t
   for (int i = count - 1; i >= 0; i--) {
     if ((descs[i].flags & VIRTQ_DESC_F_WRITE) != 0 &&
         descs[i].len >= 1 && guest_range_ok(descs[i].addr, 1)) {
-      paddr_write(descs[i].addr, 1, ack);
+      paddr_dma_write_value(descs[i].addr, 1, ack);
       return true;
     }
   }

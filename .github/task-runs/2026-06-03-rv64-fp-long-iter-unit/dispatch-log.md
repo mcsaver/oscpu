@@ -1,8 +1,15 @@
-# DB-backed .github/task-runs/2026-06-03-rv64-fp-long-iter-unit/dispatch-log.md
+# Dispatch Log
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/task-runs/2026-06-03-rv64-fp-long-iter-unit/dispatch-log.md`。
-
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/2026-06-03-rv64-fp-long-iter-unit/dispatch-log.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/task-runs/2026-06-03-rv64-fp-long-iter-unit/dispatch-log.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/2026-06-03-rv64-fp-long-iter-unit/dispatch-log.md`
+- 需求：`OooAluFetchCore` 中 FDIV/FSQRT 不应继续依赖功能仿真式单周期宽组合 `/`、`%`、integer sqrt/square compare。
+- 协议：pending_fp 是精确串行边界，后端 drain 后才允许 FP 副作用；长操作 done 前必须继续停在 pending_fp。
+- 状态机：父级新增 `pending_fp_long_pending_q/done_q/result_q`；子级 div/sqrt 各自 idle/busy/done。
+- 不变量：
+  - FP load/store 只走 memory 子流程。
+  - 非 div/sqrt FP 指令仍走原组合 helper 并在 drain_complete 提交。
+  - div/sqrt done 后只读锁存结果提交，避免提交组合锥重新穿过迭代单元输出。
+  - reset/flush/新 pending 捕获清空 long 状态。
+- 数据通路：
+  - `OooFpDivIter`: dividend/divisor -> quotient/remainder_nonzero。
+  - `OooFpSqrtIter`: radicand -> root/remainder_nonzero。
+  - 原 FP helper 保留特例、规格化、舍入、pack。
+- 验证证据：见 `task-report.md`。

@@ -1,8 +1,9 @@
-# DB-backed .github/e2e/modules/abstract-machine.md
+# abstract-machine E2E Contract
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/e2e/modules/abstract-machine.md`。
-
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/e2e/modules/abstract-machine.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/e2e/modules/abstract-machine.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/e2e/modules/abstract-machine.md`
+- **范围**: AM 平台抽象、链接脚本、`riscv32-nemu`/`riscv32-npc`/`riscv64-npc` 架构脚本。
+- **上游**: NEMU/NPC 配置、工具链。
+- **下游**: am-kernels 镜像、NEMU reference、NPC target。
+- **L0 gate**: `abstract-machine-contract` 检查 Makefile、AM headers、架构脚本和 memory。
+- **L1 gate**: 通过 am-kernels profile 构建/运行最小镜像。
+- **证据**: 架构脚本存在、镜像路径、构建日志。
+- **升级路线**: 增加 `hello` image-only smoke，不依赖当前 NEMU 配置。

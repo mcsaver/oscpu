@@ -1,52 +1,6 @@
 {
   "schema_version": 1,
-  "purpose": "Commercial delivery readiness contract for the AI development environment.",
-  "owner_layer": "agent",
-  "audit_command": "python3 scripts/github_index_db.py delivery-audit",
-  "delivery_root": "deliverables/ai-dev-env-commercial-v1",
-  "package_script": "scripts/package-ai-dev-env.sh",
-  "package_root": "deliverables/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial",
-  "archive_root": ".github/archive/legacy-ai-dev-env-2026-06-13",
-  "active_legacy_roots_must_be_absent": [
-    "outputs",
-    ".github/e2e/_manual"
-  ],
-  "archive_required_paths": [
-    ".github/archive/legacy-ai-dev-env-2026-06-13/ARCHIVE_MANIFEST.md",
-    ".github/archive/legacy-ai-dev-env-2026-06-13/outputs",
-    ".github/archive/legacy-ai-dev-env-2026-06-13/e2e-manual"
-  ],
-  "required_delivery_docs": [
-    "deliverables/ai-dev-env-commercial-v1/README.md",
-    "deliverables/ai-dev-env-commercial-v1/PACKAGING_MANIFEST.md",
-    "deliverables/ai-dev-env-commercial-v1/COMMERCIAL_READINESS.md",
-    "deliverables/ai-dev-env-commercial-v1/docs/ARCHITECTURE.md",
-    "deliverables/ai-dev-env-commercial-v1/docs/OPERATIONS.md",
-    "deliverables/ai-dev-env-commercial-v1/docs/QUALITY_GATES.md",
-    "deliverables/ai-dev-env-commercial-v1/templates/env.example.sh"
-  ],
-  "required_package_paths": [
-    "deliverables/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/README.md",
-    "deliverables/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/PACKAGING_MANIFEST.md",
-    "deliverables/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/.github/AGENTS.md",
-    "deliverables/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/.github/agent-env-policy.json",
-    "deliverables/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/.github/skills/agent-env-maintenance/SKILL.md",
-    "deliverables/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/scripts/agent-maintain.sh",
-    "deliverables/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/scripts/github_index_db.py"
-  ],
-  "quality_gates": [
-    "python3 scripts/github_index_db.py delivery-audit",
-    "scripts/agent-maintain.sh --mode check",
-    "scripts/agent-e2e.sh --profile agent-system"
-  ],
-  "commercial_boundaries": {
-    "source_of_truth": "DB/Skill/Agent three-layer contracts",
-    "excluded_payloads": [
-      "historical task-run raw logs",
-      "local cache databases",
-      "runtime artifacts",
-      "manual legacy outputs"
-    ],
-    "support_model": "package plus maintenance/e2e gates; customer-specific hardware profiles are scoped add-ons"
-  }
+  "kind": "ai-env-contract-shim",
+  "shim_for": ".github/ai-env/contracts/agent-env-delivery.json",
+  "note": "Compatibility shim. Canonical contract lives under .github/ai-env/contracts/."
 }

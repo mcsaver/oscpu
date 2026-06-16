@@ -134,6 +134,7 @@ static inline void csr_write_pmpcfg(uint32_t base, word_t value) {
   }
   if (changed) {
     csr_update_pmp_active();
+    isa_riscv64_pmp_mark_dirty();
     isa_riscv64_mmu_tlb_flush();
   }
 }
@@ -143,6 +144,7 @@ static inline void csr_write_pmpaddr(uint32_t index, word_t value) {
   word_t next = value & PMPADDR_MASK;
   if (cpu.csr.pmpaddr[index] != next) {
     cpu.csr.pmpaddr[index] = next;
+    isa_riscv64_pmp_mark_dirty();
     isa_riscv64_mmu_tlb_flush();
   }
 }
@@ -255,11 +257,10 @@ static inline bool csr_write(uint32_t csr, word_t value) {
     case CSR_SATP:
       cpu.csr.satp = csr_sanitize_satp(value);
       /*
-       * Keep satp as a hard address-space boundary for Linux full-rootfs runs.
-       * The root_ppn+ASID fast path is useful, but Python/CNF stress exposed
-       * transient stale translations before the selective model was fully proven.
+       * satp writes are not implicit fences. TLB entries are keyed by root_ppn,
+       * ASID, privilege and status bits; guest software uses sfence.vma for
+       * page-table ordering when it reuses an address space.
        */
-      isa_riscv64_mmu_tlb_flush();
       CSR_DEBUG_LOG("CSR write satp=" FMT_WORD " raw=" FMT_WORD " pc=" FMT_WORD
           " priv=%u", cpu.csr.satp, value, cpu.pc, cpu.priv);
       return true;

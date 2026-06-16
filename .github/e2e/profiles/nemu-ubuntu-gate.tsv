@@ -1,8 +1,2 @@
-# DB-backed .github/e2e/profiles/nemu-ubuntu-gate.tsv
-
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文备份由 `.github/db-backup/manifest.json` 管理；恢复请使用下方命令。
-
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/e2e/profiles/nemu-ubuntu-gate.tsv`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup --path .github/e2e/profiles/nemu-ubuntu-gate.tsv --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/e2e/profiles/nemu-ubuntu-gate.tsv`
+@include|nemu-ubuntu||||
+nemu-ubuntu-focused-gate|nemu|e2e_nemu_ubuntu_focused_gate|nemu|optional focused Ubuntu rootfs/systemd guest gate|AGENT_E2E_NEMU_UBUNTU_GATE=1 时运行真实 guest gate，否则 SKIP

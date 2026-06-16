@@ -64,6 +64,7 @@ def render(
     bootargs_key: str | None,
     memory_size: str | None,
     bootargs_extra: str | None,
+    bootargs_override: str | None,
     reset_syscon: bool,
     virtio_rng: bool,
     virtio_net: bool,
@@ -79,7 +80,7 @@ def render(
     rng = dev.get("virtio_rng")
     net = dev.get("virtio_net")
     rtc = dev.get("goldfish_rtc")
-    bootargs = cfg["bootargs"][bootargs_key or mode]
+    bootargs = bootargs_override.strip() if bootargs_override else cfg["bootargs"][bootargs_key or mode]
     if bootargs_extra:
         bootargs = f"{bootargs} {bootargs_extra.strip()}"
     initrd = initrd_cells(cfg, mode, initrd_image)
@@ -276,6 +277,7 @@ def main() -> int:
     parser.add_argument("--mode", choices=["kernel", "initramfs", "rootfs"], default="kernel")
     parser.add_argument("--bootargs-key", choices=["kernel", "initramfs", "ubuntu_initramfs", "rootfs"])
     parser.add_argument("--bootargs-extra", default="")
+    parser.add_argument("--bootargs-override", default="")
     parser.add_argument("--reset-syscon", action="store_true")
     parser.add_argument("--virtio-rng", action="store_true")
     parser.add_argument("--virtio-net", action="store_true")
@@ -291,7 +293,8 @@ def main() -> int:
     output.parent.mkdir(parents=True, exist_ok=True)
     text = render(
         cfg, args.mode, args.initrd_image, args.bootargs_key,
-        args.memory_size, args.bootargs_extra, args.reset_syscon,
+        args.memory_size, args.bootargs_extra, args.bootargs_override,
+        args.reset_syscon,
         args.virtio_rng, args.virtio_net, args.goldfish_rtc,
     )
     output.write_text(text, encoding="utf-8")

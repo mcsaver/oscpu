@@ -1,0 +1,4 @@
+recall-discovery	agent-system	agent-system	FAIL	AGENTS/copilot/instructions/memory/e2e profiles	exit=1	.github/task-runs/2026-06-14-agent-e2e-quick/evidence/recall-discovery.log
+tool-env-check	agent-system	toolchain	PASS	agent-env + bash/git/make/python/gcc/verilator/toolchain	非交互软环境、hard requirements 与 optional tools 可见	.github/task-runs/2026-06-14-agent-e2e-quick/evidence/tool-env-check.log
+npc-sim-status	hardware-flow	hardware-flow	PASS	npc/sim Kconfig 与 backend mk	当前 npc/sim 后端状态	.github/task-runs/2026-06-14-agent-e2e-quick/evidence/npc-sim-status.log
+nemu-add-smoke	nemu	nemu	SKIP	当前 NEMU AM-compatible 配置 + cpu-tests add	NEMU reference 最小 smoke PASS 或配置边界 SKIP	.github/task-runs/2026-06-14-agent-e2e-quick/evidence/nemu-add-smoke.log

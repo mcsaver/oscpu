@@ -1,2 +1,0 @@
-@include|nemu-dev||||
-nemu-dev-full-soak-gate|nemu|e2e_nemu_ubuntu_full_soak_gate|nemu|optional NEMU-only full Ubuntu rootfs soak gate|AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_GATE=1 时运行 NEMU-only full rootfs soak gate，否则 SKIP

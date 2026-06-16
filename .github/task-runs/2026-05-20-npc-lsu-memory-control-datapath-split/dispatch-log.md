@@ -1,8 +1,27 @@
-# DB-backed .github/task-runs/2026-05-20-npc-lsu-memory-control-datapath-split/dispatch-log.md
+# 调度日志
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/task-runs/2026-05-20-npc-lsu-memory-control-datapath-split/dispatch-log.md`。
+## 节点
 
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/2026-05-20-npc-lsu-memory-control-datapath-split/dispatch-log.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/task-runs/2026-05-20-npc-lsu-memory-control-datapath-split/dispatch-log.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/2026-05-20-npc-lsu-memory-control-datapath-split/dispatch-log.md`
+- `recall`
+  - 输入：`.github/AGENTS.md`、`.github/copilot-instructions.md`、`.github/memory/project-status.md`、`.github/memory/known-issues.md`、`.github/memory/modules/npc.md`、RTL 工作流、NPC study 笔记。
+  - 输出：确认本轮需要按 RTL 四段式推导并更新 task-runs/memory。
+
+- `inspect-memory-path`
+  - 输入：`LSU.v`、`MemoryStage.v`、`NpcCore.v`、`DCache.v`、`Makefile`。
+  - 输出：确认当前主要混合点是 LSU lane 控制与数据搬移、MemoryStage pending 控制与 LSU 数据路径。
+
+- `split-lsu`
+  - 输入：旧 `LSU.v` 组合逻辑。
+  - 输出：新增 `LSUControl.v`、`LSUDataPath.v`，`LSU.v` 保留外部接口并实例化两个子模块。
+
+- `split-memory-stage-control`
+  - 输入：旧 `MemoryStage.v` pending/response 逻辑。
+  - 输出：新增 `MemoryStageControl.v`，`MemoryStage.v` 保留数据接线和外部接口。
+
+- `verify`
+  - 输入：修改后的 RTL 与 Makefile。
+  - 输出：lint/build/add/load-store difftest 均通过；并记录 cpu-tests 并行 `.result` 竞态。
+
+- `record`
+  - 输入：最终变更与验证结果。
+  - 输出：更新本任务记录与 `.github/memory/`。

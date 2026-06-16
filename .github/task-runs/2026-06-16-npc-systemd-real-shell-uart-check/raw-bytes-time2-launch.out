@@ -1,0 +1,432 @@
+start: 2026-06-16T15:56:35+08:00
+cmd_file: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-16-npc-systemd-real-shell-uart-check/evidence/npc-systemd-tty-reader-raw-bytes-time2/npc-tty-reader.cmd
+reader_mode: raw-bytes
+diag_image: /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64-tty-reader-raw-bytes.ext4
+diag_rootfs: /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/rootfs-tty-reader-raw-bytes
+skip_build: 0
+skip_image_check: 0
+max_cycles: 760000000
+host_timeout: 4200
+progress_interval: 25000000
+uart_cycle_gap: 100000
+uart_access_trace: 0
+irq_trace: 0
+[ubuntu-rootfs] flavor: systemd-minimal
+[ubuntu-rootfs] rootfs dir: /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/rootfs-tty-reader-raw-bytes
+[ubuntu-rootfs] image: /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64-tty-reader-raw-bytes.ext4
+[ubuntu-rootfs] cpio: /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64-tty-reader-raw-bytes-rootfs.cpio
+[ubuntu-rootfs] image size: 2G
+[ubuntu-rootfs] include packages: systemd,systemd-sysv,udev,dbus,procps,iproute2,kmod,util-linux,lsb-release,login,passwd,adduser
+[ubuntu-rootfs] build static rootfs init: /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ysyx-rootfs-init
+[ubuntu-rootfs] build via Ubuntu Base + fakeroot
+[ubuntu-rootfs] note: enabling apt/dpkg-deb systemd overlay without chroot second-stage
+ubuntu-base-22.04.5-base-riscv64.tar.gz: OK
+[ubuntu-systemd-overlay] flavor: systemd-minimal
+[ubuntu-systemd-overlay] no-recommends: 1
+[ubuntu-systemd-overlay] apt update for jammy/riscv64
+Hit:1 http://ports.ubuntu.com/ubuntu-ports jammy InRelease
+Hit:2 http://ports.ubuntu.com/ubuntu-ports jammy-updates InRelease
+Hit:3 http://ports.ubuntu.com/ubuntu-ports jammy-security InRelease
+Error connecting: Error sending credentials: Error sending message: Operation not permitted
+Reading package lists...
+[ubuntu-systemd-overlay] download packages: systemd systemd-sysv udev dbus procps iproute2 kmod util-linux lsb-release login passwd adduser
+Reading package lists...
+Building dependency tree...
+procps is already the newest version (2:3.3.17-6ubuntu2.1).
+login is already the newest version (1:4.8.1-2ubuntu2.2).
+passwd is already the newest version (1:4.8.1-2ubuntu2.2).
+adduser is already the newest version (3.118ubuntu5).
+The following additional packages will be installed:
+  bsdutils distro-info-data libapparmor1 libargon2-1 libblkid1 libbpf0 libbsd0
+  libcap2 libcap2-bin libcryptsetup12 libdbus-1-3 libdevmapper1.02.1 libelf1
+  libexpat1 libip4tc2 libjson-c5 libkmod2 libmd0 libmnl0 libmount1 libmpdec3
+  libpython3-stdlib libpython3.10-minimal libpython3.10-stdlib libreadline8
+  libseccomp2 libsmartcols1 libsqlite3-0 libsystemd0 libudev1 libuuid1
+  libxtables12 media-types mount python3 python3-minimal python3.10
+  python3.10-minimal readline-common
+Suggested packages:
+  default-dbus-session-bus | dbus-session-bus iproute2-doc cryptsetup-bin
+  nfs-common python3-doc python3-tk python3-venv python3.10-venv
+  python3.10-doc binutils binfmt-support readline-doc systemd-container
+  libfido2-1 libtss2-esys-3.0.2-0 libtss2-mu0 libtss2-rc0 policykit-1
+  dosfstools kbd util-linux-locales
+Recommended packages:
+  bsdextrautils libatm1 libpam-cap dmsetup uuid-runtime networkd-dispatcher
+  systemd-timesyncd | time-daemon libpam-systemd libnss-systemd
+  systemd-hwe-hwdb
+The following NEW packages will be installed:
+  dbus distro-info-data iproute2 kmod libapparmor1 libargon2-1 libbpf0 libbsd0
+  libcap2-bin libcryptsetup12 libdbus-1-3 libdevmapper1.02.1 libelf1 libexpat1
+  libip4tc2 libjson-c5 libkmod2 libmd0 libmnl0 libmpdec3 libpython3-stdlib
+  libpython3.10-minimal libpython3.10-stdlib libreadline8 libseccomp2
+  libsqlite3-0 libxtables12 lsb-release media-types python3 python3-minimal
+  python3.10 python3.10-minimal readline-common systemd systemd-sysv udev
+The following packages will be upgraded:
+  bsdutils libblkid1 libcap2 libmount1 libsmartcols1 libsystemd0 libudev1
+  libuuid1 mount util-linux
+10 upgraded, 37 newly installed, 0 to remove and 25 not upgraded.
+Need to get 0 B/16.0 MB of archives.
+After this operation, 50.1 MB of additional disk space will be used.
+Download complete and in download only mode
+[ubuntu-systemd-overlay] unpack 47 packages into /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/rootfs-tty-reader-raw-bytes
+[ubuntu-systemd-overlay] refresh dpkg status for unpacked packages
+[ubuntu-systemd-overlay] overlay complete
+mke2fs 1.47.0 (5-Feb-2023)
+Discarding device blocks:      0/524288             done                            
+Creating filesystem with 524288 4k blocks and 131072 inodes
+Filesystem UUID: e2d74807-97a9-4b37-a8c4-11fddb231887
+Superblock backups stored on blocks: 
+	32768, 98304, 163840, 229376, 294912
+
+Allocating group tables:  0/16     done                            
+Writing inode tables:  0/16     done                            
+Creating journal (16384 blocks): done
+Copying files into the device: done
+Writing superblocks and filesystem accounting information:  0/16     done
+
+[ubuntu-rootfs] generated: /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64-tty-reader-raw-bytes.ext4
+[ubuntu-rootfs] generated rootfs cpio: /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64-tty-reader-raw-bytes-rootfs.cpio
+[ubuntu-rootfs-check] image: /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64-tty-reader-raw-bytes.ext4
+[ubuntu-rootfs-check] flavor: systemd-minimal
+[ubuntu-rootfs-check] OK      stage1 init: /init
+[ubuntu-rootfs-check] OK      Ubuntu shell: /bin/sh
+[ubuntu-rootfs-check] OK      Ubuntu identity: /etc/os-release
+[ubuntu-rootfs-check] OK      systemd candidate: /lib/systemd/systemd
+[ubuntu-rootfs-check] OK      systemd basic.target: /lib/systemd/system/basic.target
+[ubuntu-rootfs-check] OK      udev daemon: /lib/systemd/systemd-udevd
+[ubuntu-rootfs-check] OK      dbus daemon: /usr/bin/dbus-daemon
+[ubuntu-rootfs-check] OK      agetty login path: /bin/login
+[ubuntu-rootfs-check] OK      root login shell: /bin/bash
+[ubuntu-rootfs-check] OK      Ubuntu identity command: /usr/bin/lsb_release
+[ubuntu-rootfs-check] OK      lp64d dynamic linker: /lib/ld-linux-riscv64-lp64d.so.1
+[ubuntu-rootfs-check] OK      PAM module path: /lib/riscv64-linux-gnu/security
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_unix.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_deny.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_permit.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_env.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_loginuid.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_limits.so
+[ubuntu-rootfs-check] OK      e2scrub service entrypoint: /sbin/e2scrub_all
+[ubuntu-rootfs-check] OK      boot-blocking e2scrub reap masked: /etc/systemd/system/e2scrub_reap.service
+[ubuntu-rootfs-check] OK      periodic e2scrub timer masked: /etc/systemd/system/e2scrub_all.timer
+[ubuntu-rootfs-check] OK      deterministic machine-id seed: /etc/machine-id
+[ubuntu-rootfs-check] OK      NPC console shell hook: /usr/local/sbin/ysyx-npc-console-shell
+[ubuntu-rootfs-check] OK      NPC console shell ready marker
+[ubuntu-rootfs-check] OK      NPC systemd wrapper: /usr/local/sbin/ysyx-npc-systemd-wrapper
+[ubuntu-rootfs-check] OK      NPC systemd autocheck: /usr/local/sbin/ysyx-npc-systemd-autocheck
+[ubuntu-rootfs-check] OK      NPC tty reader diagnostic: /usr/local/sbin/ysyx-npc-tty-reader
+[ubuntu-rootfs-check] OK      NPC tty reader markers
+[ubuntu-rootfs-check] OK      NPC systemd autocheck done marker
+[ubuntu-rootfs-check] OK      NPC systemd autocheck unit: /etc/systemd/system/ysyx-npc-systemd-autocheck.service
+[ubuntu-rootfs-check] OK      NPC tty reader unit: /etc/systemd/system/ysyx-npc-tty-reader.service
+[ubuntu-rootfs-check] OK      NPC tty reader ttyS0 ordering
+[ubuntu-rootfs-check] OK      NPC systemd autocheck early ttyS0 ordering
+[ubuntu-rootfs-check] OK      NPC systemd autocheck enabled for sysinit.target
+[ubuntu-rootfs-check] OK      NPC tty reader enabled for sysinit.target
+[ubuntu-rootfs-check] OK      NPC console shell ordered before early sysinit blockers
+[ubuntu-rootfs-check] OK      NPC console shell bound to ttyS0
+[ubuntu-rootfs-check] OK      NPC systemd generators disabled for staged gate
+[ubuntu-rootfs-check] OK      unavailable hvc0 getty masked: /etc/systemd/system/serial-getty@hvc0.service
+[ubuntu-rootfs-check] rootfs readiness check passed
+[ubuntu-rootfs] 注意：启动该 rootfs 还需要 RTL/仿真侧 virtio-mmio block、host block backend 与 IRQ2 路径。
+[ubuntu-rootfs-check] image: /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64-tty-reader-raw-bytes.ext4
+[ubuntu-rootfs-check] flavor: systemd-minimal
+[ubuntu-rootfs-check] OK      stage1 init: /init
+[ubuntu-rootfs-check] OK      Ubuntu shell: /bin/sh
+[ubuntu-rootfs-check] OK      Ubuntu identity: /etc/os-release
+[ubuntu-rootfs-check] OK      systemd candidate: /lib/systemd/systemd
+[ubuntu-rootfs-check] OK      systemd basic.target: /lib/systemd/system/basic.target
+[ubuntu-rootfs-check] OK      udev daemon: /lib/systemd/systemd-udevd
+[ubuntu-rootfs-check] OK      dbus daemon: /usr/bin/dbus-daemon
+[ubuntu-rootfs-check] OK      agetty login path: /bin/login
+[ubuntu-rootfs-check] OK      root login shell: /bin/bash
+[ubuntu-rootfs-check] OK      Ubuntu identity command: /usr/bin/lsb_release
+[ubuntu-rootfs-check] OK      lp64d dynamic linker: /lib/ld-linux-riscv64-lp64d.so.1
+[ubuntu-rootfs-check] OK      PAM module path: /lib/riscv64-linux-gnu/security
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_unix.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_deny.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_permit.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_env.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_loginuid.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_limits.so
+[ubuntu-rootfs-check] OK      e2scrub service entrypoint: /sbin/e2scrub_all
+[ubuntu-rootfs-check] OK      boot-blocking e2scrub reap masked: /etc/systemd/system/e2scrub_reap.service
+[ubuntu-rootfs-check] OK      periodic e2scrub timer masked: /etc/systemd/system/e2scrub_all.timer
+[ubuntu-rootfs-check] OK      deterministic machine-id seed: /etc/machine-id
+[ubuntu-rootfs-check] OK      NPC console shell hook: /usr/local/sbin/ysyx-npc-console-shell
+[ubuntu-rootfs-check] OK      NPC console shell ready marker
+[ubuntu-rootfs-check] OK      NPC systemd wrapper: /usr/local/sbin/ysyx-npc-systemd-wrapper
+[ubuntu-rootfs-check] OK      NPC systemd autocheck: /usr/local/sbin/ysyx-npc-systemd-autocheck
+[ubuntu-rootfs-check] OK      NPC tty reader diagnostic: /usr/local/sbin/ysyx-npc-tty-reader
+[ubuntu-rootfs-check] OK      NPC tty reader markers
+[ubuntu-rootfs-check] OK      NPC systemd autocheck done marker
+[ubuntu-rootfs-check] OK      NPC systemd autocheck unit: /etc/systemd/system/ysyx-npc-systemd-autocheck.service
+[ubuntu-rootfs-check] OK      NPC tty reader unit: /etc/systemd/system/ysyx-npc-tty-reader.service
+[ubuntu-rootfs-check] OK      NPC tty reader ttyS0 ordering
+[ubuntu-rootfs-check] OK      NPC systemd autocheck early ttyS0 ordering
+[ubuntu-rootfs-check] OK      NPC systemd autocheck enabled for sysinit.target
+[ubuntu-rootfs-check] OK      NPC tty reader enabled for sysinit.target
+[ubuntu-rootfs-check] OK      NPC console shell ordered before early sysinit blockers
+[ubuntu-rootfs-check] OK      NPC console shell bound to ttyS0
+[ubuntu-rootfs-check] OK      NPC systemd generators disabled for staged gate
+[ubuntu-rootfs-check] OK      unavailable hvc0 getty masked: /etc/systemd/system/serial-getty@hvc0.service
+[ubuntu-rootfs-check] rootfs readiness check passed
+[npc-systemd-check] log dir: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-16-npc-systemd-real-shell-uart-check/evidence/npc-systemd-tty-reader-raw-bytes-time2
+[npc-systemd-check] prompt wait: __NPC_TTY_READER_READY__
+[npc-systemd-check] max cycles: 760000000
+[npc-systemd-check] host timeout: 4200s
+[npc-systemd-check] guest command mode: uart
+[npc-systemd-check] done marker: __NPC_TTY_READER_DONE__ rc=0
+[npc-systemd-check] UART wait: __NPC_TTY_READER_READY__
+[npc-systemd-check] UART RX cycle gap: 100000
+[npc-systemd-check] progress interval: 25000000
+[npc-systemd-check] guest commands: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-16-npc-systemd-real-shell-uart-check/evidence/npc-systemd-tty-reader-raw-bytes-time2/npc-tty-reader.cmd
+make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+[Linux] rv64 linux defconfig up to date
+make -C '/home/lyg/PA/ysyx-workbench/npc/rv64' -j'14'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/npc/rv64'
+make[1]: Nothing to be done for 'default'.
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/npc/rv64'
+[ubuntu-rootfs-check] image: /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64-tty-reader-raw-bytes.ext4
+[ubuntu-rootfs-check] flavor: systemd-minimal
+[ubuntu-rootfs-check] OK      stage1 init: /init
+[ubuntu-rootfs-check] OK      Ubuntu shell: /bin/sh
+[ubuntu-rootfs-check] OK      Ubuntu identity: /etc/os-release
+[ubuntu-rootfs-check] OK      systemd candidate: /lib/systemd/systemd
+[ubuntu-rootfs-check] OK      systemd basic.target: /lib/systemd/system/basic.target
+[ubuntu-rootfs-check] OK      udev daemon: /lib/systemd/systemd-udevd
+[ubuntu-rootfs-check] OK      dbus daemon: /usr/bin/dbus-daemon
+[ubuntu-rootfs-check] OK      agetty login path: /bin/login
+[ubuntu-rootfs-check] OK      root login shell: /bin/bash
+[ubuntu-rootfs-check] OK      Ubuntu identity command: /usr/bin/lsb_release
+[ubuntu-rootfs-check] OK      lp64d dynamic linker: /lib/ld-linux-riscv64-lp64d.so.1
+[ubuntu-rootfs-check] OK      PAM module path: /lib/riscv64-linux-gnu/security
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_unix.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_deny.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_permit.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_env.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_loginuid.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_limits.so
+[ubuntu-rootfs-check] OK      e2scrub service entrypoint: /sbin/e2scrub_all
+[ubuntu-rootfs-check] OK      boot-blocking e2scrub reap masked: /etc/systemd/system/e2scrub_reap.service
+[ubuntu-rootfs-check] OK      periodic e2scrub timer masked: /etc/systemd/system/e2scrub_all.timer
+[ubuntu-rootfs-check] OK      deterministic machine-id seed: /etc/machine-id
+[ubuntu-rootfs-check] OK      NPC console shell hook: /usr/local/sbin/ysyx-npc-console-shell
+[ubuntu-rootfs-check] OK      NPC console shell ready marker
+[ubuntu-rootfs-check] OK      NPC systemd wrapper: /usr/local/sbin/ysyx-npc-systemd-wrapper
+[ubuntu-rootfs-check] OK      NPC systemd autocheck: /usr/local/sbin/ysyx-npc-systemd-autocheck
+[ubuntu-rootfs-check] OK      NPC tty reader diagnostic: /usr/local/sbin/ysyx-npc-tty-reader
+[ubuntu-rootfs-check] OK      NPC tty reader markers
+[ubuntu-rootfs-check] OK      NPC systemd autocheck done marker
+[ubuntu-rootfs-check] OK      NPC systemd autocheck unit: /etc/systemd/system/ysyx-npc-systemd-autocheck.service
+[ubuntu-rootfs-check] OK      NPC tty reader unit: /etc/systemd/system/ysyx-npc-tty-reader.service
+[ubuntu-rootfs-check] OK      NPC tty reader ttyS0 ordering
+[ubuntu-rootfs-check] OK      NPC systemd autocheck early ttyS0 ordering
+[ubuntu-rootfs-check] OK      NPC systemd autocheck enabled for sysinit.target
+[ubuntu-rootfs-check] OK      NPC tty reader enabled for sysinit.target
+[ubuntu-rootfs-check] OK      NPC console shell ordered before early sysinit blockers
+[ubuntu-rootfs-check] OK      NPC console shell bound to ttyS0
+[ubuntu-rootfs-check] OK      NPC systemd generators disabled for staged gate
+[ubuntu-rootfs-check] OK      unavailable hvc0 getty masked: /etc/systemd/system/serial-getty@hvc0.service
+[ubuntu-rootfs-check] rootfs readiness check passed
+[Linux] ARCH=riscv64-npc BOOT=ubuntu-rootfs
+[Linux] firmware: /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/build/opensbi/rootfs/platform/generic/firmware/fw_jump.bin
+[Linux] kernel:   /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/build/linux/arch/riscv/boot/Image
+[Linux] dtb:      /home/lyg/PA/ysyx-workbench/Linux/build/riscv64-npc/npc-rv64-rootfs.dtb
+[Linux] rootfs:   /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64-tty-reader-raw-bytes.ext4
+[Linux] log:      /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-16-npc-systemd-real-shell-uart-check/evidence/npc-systemd-tty-reader-raw-bytes-time2/console.log
+'/home/lyg/PA/ysyx-workbench/npc/rv64/build/NpcSimTop' -b --progress=25000000 --no-diff --max=760000000 \
+  --log='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-16-npc-systemd-real-shell-uart-check/evidence/npc-systemd-tty-reader-raw-bytes-time2/npc.log' \
+  -i '/home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/build/opensbi/rootfs/platform/generic/firmware/fw_jump.bin' \
+  --load=0x80200000:'/home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/build/linux/arch/riscv/boot/Image' \
+  --load=0x82200000:'/home/lyg/PA/ysyx-workbench/Linux/build/riscv64-npc/npc-rv64-rootfs.dtb' \
+   \
+  --block='/home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64-tty-reader-raw-bytes.ext4' \
+   2>&1 | tee '/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-16-npc-systemd-real-shell-uart-check/evidence/npc-systemd-tty-reader-raw-bytes-time2/console.log'
+[1;34m[log.c:145 npc_init_log] Log is written to /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-16-npc-systemd-real-shell-uart-check/evidence/npc-systemd-tty-reader-raw-bytes-time2/npc.log[0m
+[1;34m[paddr.c:85 npc_init_mem] physical memory area [0x0000000080000000, 0x00000000bfffffff][0m
+[1;34m[paddr.c:144 npc_load_img_at] The image is /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/build/opensbi/rootfs/platform/generic/firmware/fw_jump.bin, size = 275888[0m
+[1;34m[paddr.c:146 npc_load_img_at] Load image /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/build/linux/arch/riscv/boot/Image at 0x0000000080200000, size = 15465472[0m
+[1;34m[paddr.c:146 npc_load_img_at] Load image /home/lyg/PA/ysyx-workbench/Linux/build/riscv64-npc/npc-rv64-rootfs.dtb at 0x0000000082200000, size = 1856[0m
+[1;34m[map.c:76 npc_add_mmio_map] Add mmio map 'serial' at [0xa00003f8, 0xa00003ff][0m
+[1;34m[map.c:76 npc_add_mmio_map] Add mmio map 'rtc' at [0xa0000048, 0xa000004f][0m
+[1;34m[map.c:76 npc_add_mmio_map] Add mmio map 'keyboard' at [0xa0000060, 0xa0000063][0m
+[1;34m[vga.c:186 npc_vga_init] NPC VGA disabled; GPU_CONFIG will report present=false.[0m
+[1;34m[map.c:76 npc_add_mmio_map] Add mmio map 'vgactl' at [0xa0000100, 0xa0000107][0m
+[1;34m[map.c:76 npc_add_mmio_map] Add mmio map 'framebuffer' at [0xa1000000, 0xa11fffff][0m
+[1;34m[virtio_blk.c:545 virtio-blk] image=/home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64-tty-reader-raw-bytes.ext4 capacity=4194304 sectors (2048 MiB)[0m
+***reset***
+[1;34m[monitor.c:41 welcome] Wave Trace: [1;31mOFF[0m[0m
+[1;34m[monitor.c:42 welcome] Text Trace: [1;31mOFF[0m (itrace=off, mtrace=off, dtrace=off)[0m
+[1;34m[monitor.c:44 welcome] Difftest: [1;31mOFF[0m[0m
+[1;34m[monitor.c:45 welcome] Build time: 21:48:30, Jun 15 2026[0m
+Welcome to [1;33m[1;41mriscv64[0m-NPC!
+For help, type "help"
+[1;34m[dpi.c:135 uart-rx] loaded bytes=24 file_bytes=24 text_bytes=0 trace=1 min_commit=0 limit=128 cycle_gap=100000 wait='__NPC_TTY_READER_READY__'[0m
+[1;34m[dpi.c:353 uart-rx] waiting for guest output pattern='__NPC_TTY_READER_READY__' before releasing bytes=24[0m
+
+OpenSBI v1.8
+   ____                    _____ ____ _____
+  / __ \                  / ____|  _ \_   _|
+ | |  | |_ __   ___ _ __ | (___ | |_) || |
+ | |  | | '_ \ / _ \ '_ \ \___ \|  _ < | |
+ | |__| | |_) |  __/ | | |____) | |_) || |_
+  \____/| .__/ \___|_| |_|_____/|____/_____|
+        | |
+        |_|
+
+Platform Name               : YSYX NPC RV64
+Platform Features           : medeleg
+Platform HART Count         : 1
+Platform HART Protection    : ---
+Platform IPI Device         : aclint-mswi
+Platform Timer Device       : aclint-mtimer @ 10000000Hz
+Platform Console Device     : uart8250
+Platform HSM Device         : ---
+Platform PMU Device         : ---
+Platform Reboot Device      : ---
+Platform Shutdown Device    : ---
+Platform Suspend Device     : ---
+Platform CPPC Device        : ---
+Firmware Base               : 0x80000000
+Firmware Size               : 321 KB
+Firmware RW Offset          : 0x40000
+Firmware RW Size            : 65 KB
+Firmware Heap Offset        : 0x47000
+Firmware Heap Size          : 37 KB (total), 0 KB (reserved), 10 KB (used), 25 KB (free)
+Firmware Scratch Size       : 4096 B (total), 408 B (used), 3688 B (free)
+Runtime SBI Version         : 3.0
+Standard SBI Extensions     : time,rfnc,ipi,base,hsm,pmu,dbcn,fwft,legacy,sse
+Experimental SBI Extensions : none
+
+Domain0 Name                : root
+Domain0 Boot HART           : 0
+Domain0 HARTs               : 0*
+Domain0 Region00            : 0x0000000080040000-0x000000008005ffff M: (F,R,W) S/U: ()
+Domain0 Region01            : 0x0000000080000000-0x000000008003ffff M: (F,R,X) S/U: ()
+Domain0 Region02            : 0x0000000010000000-0x0000000010000fff M: (I,R,W) S/U: (R,W)
+Domain0 Region03            : 0x0000000002000000-0x000000000200ffff M: (I,R,W) S/U: ()
+Domain0 Region04            : 0x000000000c000000-0x000000000fffffff M: (I,R,W) S/U: (R,W)
+Domain0 Region05            : 0x0000000000000000-0xffffffffffffffff M: () S/U: (R,W,X)
+Domain0 Next Address        : 0x0000000080200000
+Domain0 Next Arg1           : 0x0000000082200000
+Domain0 Next Mode           : S-mode
+Domain0 SysReset            : yes
+Domain0 SysSuspend          : yes
+
+Boot HART ID                : 0
+Boot HART Domain            : root
+Boot HART Priv Version      : v1.11
+Boot HART Base ISA          : rv64imafdc
+Boot HART ISA Extensions    : zicntr
+Boot HART PMP Count         : 0
+Boot HART PMP Granularity   : 0 bits
+Boot HART PMP Address Bits  : 0
+Boot HART MHPM Info         : 0 (0x00000000)
+Boot HART Debug Triggers    : 0 triggers
+Boot HART MIDELEG           : 0x0000000000000222
+Boot HART MEDELEG           : 0x000000000004b109
+[progress] 25000001 insts, pc=0xffffffff801092b0, 221688 inst/s
+[progress] 50000000 insts, pc=0xffffffff8042e5dc, 219391 inst/s
+[    0.000000] Linux version 6.6.0 (lyg@lygdebug) (riscv64-linux-gnu-gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, GNU ld (GNU Binutils for Ubuntu) 2.42) #1 Mon Jun 15 16:55:17 CST 2026
+[    0.000000] random: crng init done
+[    0.000000] Machine model: YSYX NPC RV64
+[    0.000000] SBI specification v3.0 detected
+[    0.000000] SBI implementation ID=0x1 Version=0x10008
+[    0.000000] SBI TIME extension detected
+[    0.000000] SBI IPI extension detected
+[    0.000000] SBI RFENCE extension detected
+[    0.000000] efi: UEFI not found.
+[    0.000000] OF: reserved mem: 0x0000000080000000..0x000000008003ffff (256 KiB) nomap non-reusable mmode_resv1@80000000
+[    0.000000] OF: reserved mem: 0x0000000080040000..0x000000008005ffff (128 KiB) nomap non-reusable mmode_resv0@80040000
+[    0.000000] Zone ranges:
+[    0.000000]   DMA32    [mem 0x0000000080000000-0x00000000bfffffff]
+[    0.000000]   Normal   empty
+[    0.000000] Movable zone start for each node
+[    0.000000] Early memory node ranges
+[    0.000000]   node   0: [mem 0x0000000080000000-0x000000008005ffff]
+[    0.000000]   node   0: [mem 0x0000000080060000-0x00000000bfffffff]
+[    0.000000] Initmem setup node 0 [mem 0x0000000080000000-0x00000000bfffffff]
+[    0.000000] riscv: base ISA extensions acdfim
+[    0.000000] riscv: ELF capabilities acdfim
+[    0.000000] Kernel command line: console=ttyS0,115200n8 root=/dev/vda rw init=/usr/local/sbin/ysyx-npc-systemd-wrapper
+[    0.000000] Dentry cache hash table entries: 131072 (order: 8, 1048576 bytes, linear)
+[    0.000000] Inode-cache hash table entries: 65536 (order: 7, 524288 bytes, linear)
+[    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: 258048
+[    0.000000] mem auto-init: stack:off, heap alloc:off, heap free:off
+[    0.000000] Memory: 997396K/1048576K available (4284K kernel code, 4800K rwdata, 2048K rodata, 2110K init, 349K bss, 51180K reserved, 0K cma-reserved)
+[    0.000000] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
+[    0.000000] NR_IRQS: 64, nr_irqs: 64, preallocated irqs: 0
+[    0.000000] riscv-intc: 64 local interrupts mapped
+[    0.000000] plic: interrupt-controller@c000000: mapped 32 interrupts with 1 handlers for 2 contexts.
+[    0.000000] clocksource: riscv_clocksource: mask: 0xffffffffffffffff max_cycles: 0x24e6a1710, max_idle_ns: 440795202120 ns
+[    0.000007] sched_clock: 64 bits at 10MHz, resolution 100ns, wraps every 4398046511100ns
+[    0.001160] Calibrating delay loop (skipped), value calculated using timer frequency.. 20.00 BogoMIPS (lpj=40000)
+[    0.001288] pid_max: default: 32768 minimum: 301
+[    0.001862] LSM: initializing lsm=capability,integrity
+[    0.003051] Mount-cache hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[    0.003289] Mountpoint-cache hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[    0.015767] RCU Tasks Trace: Setting shift to 0 and lim to 1 rcu_task_cb_adjust=1.
+[    0.016676] riscv: ELF compat mode unsupported
+[    0.016848] ASID allocator using 16 bits (65536 entries)
+[    0.018195] EFI services will not be available.
+[    0.021094] devtmpfs: initialized
+[    0.032556] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 7645041785100000 ns
+[    0.032778] futex hash table entries: 256 (order: 1, 12288 bytes, linear)
+[    0.036457] NET: Registered PF_NETLINK/PF_ROUTE protocol family
+[    0.038207] DMA: preallocated 128 KiB GFP_KERNEL pool for atomic allocations
+[    0.038483] DMA: preallocated 128 KiB GFP_KERNEL|GFP_DMA32 pool for atomic allocations
+[    0.071607] clocksource: Switched to clocksource riscv_clocksource
+[    0.086806] NET: Registered PF_INET protocol family
+[    0.088652] IP idents hash table entries: 16384 (order: 5, 131072 bytes, linear)
+[    0.111497] tcp_listen_portaddr_hash hash table entries: 512 (order: 2, 16384 bytes, linear)
+[    0.111971] Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+[    0.112110] TCP established hash table entries: 8192 (order: 4, 65536 bytes, linear)
+[    0.113300] TCP bind hash table entries: 8192 (order: 7, 524288 bytes, linear)
+[    0.121474] TCP: Hash tables configured (established 8192 bind 8192)
+[    0.122851] UDP hash table entries: 512 (order: 3, 49152 bytes, linear)
+[    0.123729] UDP-Lite hash table entries: 512 (order: 3, 49152 bytes, linear)
+[    0.125309] NET: Registered PF_UNIX/PF_LOCAL protocol family
+[    0.134180] workingset: timestamp_bits=46 max_order=18 bucket_order=0
+[    0.139721] io scheduler mq-deadline registered
+[    0.681527] Serial: 8250/16550 driver, 4 ports, IRQ sharing disabled
+[    0.701957] printk: console [ttyS0] disabled
+[    0.705114] 10000000.serial: ttyS0 at MMIO 0x10000000 (irq = 2, base_baud = 115200) is a 16550A
+[    0.705313] printk: console [ttyS0] enabled
+[    0.769683] loop: module loaded
+[    0.770217] virtio_blk virtio0: 1/0/0 default/read/poll queues
+[    0.772428] virtio_blk virtio0: [vda] 4194304 512-byte logical blocks (2.15 GB/2.00 GiB)
+[    0.786247] NET: Registered PF_PACKET protocol family
+[    0.786625] Key type dns_resolver registered
+[progress] 75000001 insts, pc=0xffffffff8026b89c, 211020 inst/s
+[    0.927876] clk: Disabling unused clocks
+[    0.953617] EXT4-fs (vda): mounted filesystem e2d74807-97a9-4b37-a8c4-11fddb231887 r/w with ordered data mode. Quota mode: disabled.
+[    0.954116] VFS: Mounted root (ext4 filesystem) on device 254:0.
+[    0.955434] devtmpfs: mounted
+[    0.976763] Freeing unused kernel image (initmem) memory: 2108K
+[    0.977148] Run /usr/local/sbin/ysyx-npc-systemd-wrapper as init process
+[ysyx-npc-systemd-wrapper] begin
+__NPC_SYSTEMD_CHECK_BEGIN__
+__NPC_CHECK_PASS__:os-release-ubuntu-2204
+__NPC_CHECK_PASS__:bin-sh
+__NPC_CHECK_PASS__:bin-bash
+__NPC_CHECK_PASS__:systemd-binary
+__NPC_CHECK_PASS__:systemd-autocheck-script
+__NPC_CHECK_SYSTEMD_STATE__:wrapper-pre-systemd
+__NPC_CHECK_PASS__:systemd-wrapper-preflight
+__NPC_SYSTEMD_CHECK_DONE__ rc=0
+[ysyx-npc-systemd-wrapper] console prompt marker
+root@ysyx-ubuntu2204:~# [ysyx-npc-systemd-wrapper] exec systemd: /lib/systemd/systemd
+[    1.442802] systemd[1]: System time before build time, advancing clock.
+[progress] 100000000 insts, pc=0xffffffff8026b636, 200496 inst/s
+[    1.525996] systemd[1]: systemd 249.11-0ubuntu3.21 running in system mode (+PAM +AUDIT +SELINUX +APPARMOR +IMA +SMACK +SECCOMP +GCRYPT +GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 -IDN +IPTC +KMOD +LIBCRYPTSETUP +LIBFDISK +PCRE2 -PWQUALITY -P11KIT -QRENCODE +BZIP2 +LZ4 +XZ +ZLIB +ZSTD -XKBCOMMON +UTMP +SYSVINIT default-hierarchy=unified)
+[    1.528174] systemd[1]: Detected architecture riscv64.
+
+Welcome to [1mUbuntu 22.04.5 LTS[0m!
+
+[    1.538883] systemd[1]: Hostname set to <ysyx-ubuntu2204>.
+[progress] 125000000 insts, pc=0x0000003fa20b30aa, 221949 inst/s
+[progress] 150000001 insts, pc=0x0000003fa1ff0ed8, 275786 inst/s
+[progress] 175000000 insts, pc=0xffffffff8013a64e, 287166 inst/s
+[progress] 200000000 insts, pc=0x0000003fa209a43c, 266762 inst/s
+[progress] 225000000 insts, pc=0xffffffff80033112, 274632 inst/s

@@ -1,5 +1,7 @@
 /* RV64C 压缩指令扩展。 */
 
+#include <utils/profile.h>
+
 #ifdef CONFIG_RISCV_EXT_C
 /* RV64C 扩展：可变长取指只负责拿到 16/32 位原始指令，压缩语义全部收口在本块。 */
 #define C_FUNCT3(i) BITS(i, 15, 13)
@@ -85,7 +87,94 @@ static inline word_t c_shamt(uint16_t inst) {
   return (BITS(inst, 12, 12) << 5) | BITS(inst, 6, 2);
 }
 
+static inline void profile_rvc_detail_inst(uint16_t inst) {
+  NemuProfileCounter counter = NEMU_PROFILE_CPU_RVC_OTHER;
+  uint32_t funct3 = C_FUNCT3(inst);
+  uint32_t rd = BITS(inst, 11, 7);
+  uint32_t rs2 = BITS(inst, 6, 2);
+
+  switch (BITS(inst, 1, 0)) {
+    case 0x0:
+      switch (funct3) {
+        case 0x0: counter = NEMU_PROFILE_CPU_RVC_ADDI4SPN; break;
+        case 0x1: counter = NEMU_PROFILE_CPU_RVC_FLD; break;
+        case 0x2: counter = NEMU_PROFILE_CPU_RVC_LW; break;
+        case 0x3: counter = NEMU_PROFILE_CPU_RVC_LD; break;
+        case 0x5: counter = NEMU_PROFILE_CPU_RVC_FSD; break;
+        case 0x6: counter = NEMU_PROFILE_CPU_RVC_SW; break;
+        case 0x7: counter = NEMU_PROFILE_CPU_RVC_SD; break;
+        default: break;
+      }
+      break;
+    case 0x1:
+      switch (funct3) {
+        case 0x0: counter = NEMU_PROFILE_CPU_RVC_ADDI; break;
+        case 0x1: counter = NEMU_PROFILE_CPU_RVC_ADDIW; break;
+        case 0x2: counter = NEMU_PROFILE_CPU_RVC_LI; break;
+        case 0x3:
+          counter = (rd == 2) ? NEMU_PROFILE_CPU_RVC_ADDI16SP
+                              : NEMU_PROFILE_CPU_RVC_LUI;
+          break;
+        case 0x4:
+          switch (BITS(inst, 11, 10)) {
+            case 0x0: counter = NEMU_PROFILE_CPU_RVC_SRLI; break;
+            case 0x1: counter = NEMU_PROFILE_CPU_RVC_SRAI; break;
+            case 0x2: counter = NEMU_PROFILE_CPU_RVC_ANDI; break;
+            case 0x3:
+              switch ((BITS(inst, 12, 12) << 2) | BITS(inst, 6, 5)) {
+                case 0x0: counter = NEMU_PROFILE_CPU_RVC_SUB; break;
+                case 0x1: counter = NEMU_PROFILE_CPU_RVC_XOR; break;
+                case 0x2: counter = NEMU_PROFILE_CPU_RVC_OR; break;
+                case 0x3: counter = NEMU_PROFILE_CPU_RVC_AND; break;
+                case 0x4: counter = NEMU_PROFILE_CPU_RVC_SUBW; break;
+                case 0x5: counter = NEMU_PROFILE_CPU_RVC_ADDW; break;
+                default: break;
+              }
+              break;
+            default: break;
+          }
+          break;
+        case 0x5: counter = NEMU_PROFILE_CPU_RVC_J; break;
+        case 0x6: counter = NEMU_PROFILE_CPU_RVC_BEQZ; break;
+        case 0x7: counter = NEMU_PROFILE_CPU_RVC_BNEZ; break;
+        default: break;
+      }
+      break;
+    case 0x2:
+      switch (funct3) {
+        case 0x0: counter = NEMU_PROFILE_CPU_RVC_SLLI; break;
+        case 0x1: counter = NEMU_PROFILE_CPU_RVC_FLDSP; break;
+        case 0x2: counter = NEMU_PROFILE_CPU_RVC_LWSP; break;
+        case 0x3: counter = NEMU_PROFILE_CPU_RVC_LDSP; break;
+        case 0x4:
+          if (BITS(inst, 12, 12) == 0) {
+            counter = (rs2 == 0) ? NEMU_PROFILE_CPU_RVC_JR
+                                 : (rd != 0 ? NEMU_PROFILE_CPU_RVC_MV
+                                            : NEMU_PROFILE_CPU_RVC_OTHER);
+          } else if (rs2 == 0) {
+            counter = (rd == 0) ? NEMU_PROFILE_CPU_RVC_EBREAK
+                                : NEMU_PROFILE_CPU_RVC_JALR;
+          } else {
+            counter = (rd != 0) ? NEMU_PROFILE_CPU_RVC_ADD
+                                : NEMU_PROFILE_CPU_RVC_OTHER;
+          }
+          break;
+        case 0x5: counter = NEMU_PROFILE_CPU_RVC_FSDSP; break;
+        case 0x6: counter = NEMU_PROFILE_CPU_RVC_SWSP; break;
+        case 0x7: counter = NEMU_PROFILE_CPU_RVC_SDSP; break;
+        default: break;
+      }
+      break;
+    default:
+      break;
+  }
+  nemu_profile_count(counter, 1);
+}
+
 static inline bool exec_rv64c(Decode *s, uint16_t inst) {
+  if (unlikely(nemu_profile_rvc_detail_enabled())) {
+    profile_rvc_detail_inst(inst);
+  }
   uint32_t funct3 = C_FUNCT3(inst);
   uint32_t rd = BITS(inst, 11, 7);
   uint32_t rs2 = BITS(inst, 6, 2);

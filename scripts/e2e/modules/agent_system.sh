@@ -5,23 +5,26 @@ e2e_agent_system_discovery() {
   local rc=0
   e2e_print_required_files \
     AGENTS.md \
+    AI_ENVIRONMENT.md \
     .github/AGENTS.md \
     .github/copilot-instructions.md \
-    .github/agent-env-policy.json \
-    .github/agent-env-rebuild-matrix.json \
-    .github/agent-env-schema-contract.json \
-    .github/agent-env-observability.json \
-    .github/agent-env-state-traceability.json \
-    .github/agent-env-runtime-artifacts.json \
-    .github/agent-env-review-routing.json \
-    .github/agent-env-branch-health.json \
-    .github/agent-env-delivery.json \
+    .github/ai-env/README.md \
+    .github/ai-env/contracts/agent-env-policy.json \
+    .github/ai-env/contracts/agent-env-rebuild-matrix.json \
+    .github/ai-env/contracts/agent-env-schema-contract.json \
+    .github/ai-env/contracts/agent-env-observability.json \
+    .github/ai-env/contracts/agent-env-state-traceability.json \
+    .github/ai-env/contracts/agent-env-runtime-artifacts.json \
+    .github/ai-env/contracts/agent-env-review-routing.json \
+    .github/ai-env/contracts/agent-env-branch-health.json \
+    .github/ai-env/contracts/agent-env-delivery.json \
     .github/agentic-hardware-blueprint.md \
     .github/instructions/agent-env-layer-contract.instructions.md \
     .github/instructions/agent-env-state-machine.instructions.md \
     .github/instructions/memory-protocol.instructions.md \
     .github/instructions/agent-e2e-workflow.instructions.md \
     .github/skills/agent-env-maintenance/SKILL.md \
+    .github/agents/AGENT_INDEX.md \
     .github/workflows/agent-maintain.yml \
     .github/e2e/README.md \
     .github/e2e/profiles/discovery.tsv \
@@ -45,6 +48,7 @@ e2e_agent_system_discovery() {
     deliverables/ai-dev-env-commercial-v1/PACKAGING_MANIFEST.md \
     deliverables/ai-dev-env-commercial-v1/COMMERCIAL_READINESS.md \
     scripts/package-ai-dev-env.sh \
+    scripts/README.md \
     scripts/agent-env.sh \
     scripts/agent-run.sh \
     scripts/agent-maintain.sh \
@@ -158,6 +162,48 @@ e2e_agent_system_discovery() {
     printf 'FAIL agent-e2e enforces runtime scenario profile boundary\n'
     profile_isolation_ok=0
   fi
+  local scenario_runtime_sh="$E2E_ROOT_DIR/scripts/e2e/lib/common.sh"
+  if grep -Fq 'e2e_validate_scenario_runtime_isolation' "$runner_sh" &&
+     grep -Fq 'e2e_profile_runtime_scenario' "$scenario_runtime_sh" &&
+     grep -Fq 'AGENT_E2E_SCENARIO_RUNTIME_ISOLATION' "$scenario_runtime_sh" &&
+     grep -Fq 'E2E_SCENARIO_RUNTIME_PS_FILE' "$scenario_runtime_sh" &&
+     grep -Fq 'run-guest-uart-ping' "$scenario_runtime_sh" &&
+     grep -Fq 'nemu-python-int' "$scenario_runtime_sh"; then
+    printf 'PASS agent-e2e exposes configurable active scenario runtime isolation\n'
+  else
+    printf 'FAIL agent-e2e active scenario runtime isolation hook missing\n'
+    profile_isolation_ok=0
+  fi
+  local scenario_ps_file
+  scenario_ps_file=$(mktemp)
+  printf '%s\n' \
+    '123 bash .github/task-runs/2026-06-16-npc-systemd-real-shell-uart-check/run-guest-uart-ping-slow.sh' \
+    '456 bash .github/task-runs/2026-06-16-nemu-python-int-full-lite-wide-ifetch-off/run.sh' \
+    > "$scenario_ps_file"
+  if AGENT_E2E_SCENARIO_RUNTIME_ISOLATION=warn E2E_SCENARIO_RUNTIME_PS_FILE="$scenario_ps_file" e2e_validate_scenario_runtime_isolation nemu-dev >/dev/null 2>&1 &&
+     AGENT_E2E_SCENARIO_RUNTIME_ISOLATION=warn E2E_SCENARIO_RUNTIME_PS_FILE="$scenario_ps_file" e2e_validate_scenario_runtime_isolation npc-dev >/dev/null 2>&1; then
+    printf 'PASS scenario runtime guard warns but allows conflicting fake processes by default\n'
+  else
+    printf 'FAIL scenario runtime guard blocks default parallel fake processes\n'
+    profile_isolation_ok=0
+  fi
+  if AGENT_E2E_SCENARIO_RUNTIME_ISOLATION=strict E2E_SCENARIO_RUNTIME_PS_FILE="$scenario_ps_file" e2e_validate_scenario_runtime_isolation nemu-dev >/dev/null 2>&1 ||
+     AGENT_E2E_SCENARIO_RUNTIME_ISOLATION=strict E2E_SCENARIO_RUNTIME_PS_FILE="$scenario_ps_file" e2e_validate_scenario_runtime_isolation npc-dev >/dev/null 2>&1; then
+    printf 'FAIL scenario runtime strict guard accepts conflicting fake processes\n'
+    profile_isolation_ok=0
+  else
+    printf 'PASS scenario runtime strict guard rejects conflicting fake processes\n'
+  fi
+  printf '%s\n' \
+    '789 bash .github/task-runs/2026-06-16-nemu-python-int-full-lite-wide-ifetch-off/run.sh' \
+    > "$scenario_ps_file"
+  if AGENT_E2E_SCENARIO_RUNTIME_ISOLATION=strict E2E_SCENARIO_RUNTIME_PS_FILE="$scenario_ps_file" e2e_validate_scenario_runtime_isolation nemu-dev >/dev/null 2>&1; then
+    printf 'PASS scenario runtime strict guard accepts same-scenario fake process\n'
+  else
+    printf 'FAIL scenario runtime strict guard rejects same-scenario fake process\n'
+    profile_isolation_ok=0
+  fi
+  rm -f "$scenario_ps_file"
   if [[ $profile_isolation_ok -ne 1 ]]; then
     rc=1
   fi
@@ -167,7 +213,9 @@ e2e_agent_system_discovery() {
   untracked_agent_sources=$(
     git -C "$E2E_ROOT_DIR" ls-files --others --exclude-standard -- \
       AGENTS.md \
+      AI_ENVIRONMENT.md \
       .github/AGENTS.md \
+      .github/ai-env \
       .github/agents \
       .github/e2e/README.md \
       .github/e2e/modules \
@@ -175,17 +223,18 @@ e2e_agent_system_discovery() {
       .github/instructions \
       .github/skills \
       .github/workflows \
-      .github/agent-env-policy.json \
-      .github/agent-env-rebuild-matrix.json \
-      .github/agent-env-schema-contract.json \
-      .github/agent-env-observability.json \
-      .github/agent-env-state-traceability.json \
-      .github/agent-env-runtime-artifacts.json \
-      .github/agent-env-review-routing.json \
-      .github/agent-env-branch-health.json \
-      .github/agent-env-delivery.json \
+      .github/ai-env/contracts/agent-env-policy.json \
+      .github/ai-env/contracts/agent-env-rebuild-matrix.json \
+      .github/ai-env/contracts/agent-env-schema-contract.json \
+      .github/ai-env/contracts/agent-env-observability.json \
+      .github/ai-env/contracts/agent-env-state-traceability.json \
+      .github/ai-env/contracts/agent-env-runtime-artifacts.json \
+      .github/ai-env/contracts/agent-env-review-routing.json \
+      .github/ai-env/contracts/agent-env-branch-health.json \
+      .github/ai-env/contracts/agent-env-delivery.json \
       .github/memory/modules \
       deliverables/ai-dev-env-commercial-v1 \
+      scripts/README.md \
       scripts/agent-env.sh \
       scripts/agent-run.sh \
       scripts/agent-maintain.sh \
@@ -223,7 +272,7 @@ e2e_agent_system_discovery() {
   if grep -Fq 'e2e_archive_task_run_markdown_to_db' "$report_sh" &&
      grep -Fq 'archive-markdown "$run_rel"' "$report_sh" &&
      grep -Fq 'E2E_TASK_RUN_DB_BACKUP_DIR' "$report_sh"; then
-    printf 'PASS report.sh archives task-run Markdown into database-backed shims\n'
+    printf 'PASS report.sh archives task-run Markdown into retained database\n'
   else
     printf 'FAIL report.sh task-run Markdown DB archive hook missing\n'
     rc=1
@@ -231,7 +280,7 @@ e2e_agent_system_discovery() {
   if grep -Fq 'e2e_generate_context_brief' "$report_sh" &&
      grep -Fq 'E2E_CONTEXT_BRIEF_FILE' "$report_sh" &&
      grep -Fq 'github_index_db.py" brief' "$report_sh"; then
-    printf 'PASS report.sh generates DB-backed context brief before dispatch\n'
+    printf 'PASS report.sh generates DB-indexed context brief before dispatch\n'
   else
     printf 'FAIL report.sh context brief hook missing\n'
     rc=1
@@ -239,7 +288,7 @@ e2e_agent_system_discovery() {
   if grep -Fq 'e2e_generate_profile_resolve' "$report_sh" &&
      grep -Fq 'E2E_PROFILE_RESOLVE_FILE' "$report_sh" &&
      grep -Fq 'github_index_db.py" resolve-profile' "$report_sh"; then
-    printf 'PASS report.sh generates DB-backed resolved profile before dispatch\n'
+    printf 'PASS report.sh generates live/indexed resolved profile before dispatch\n'
   else
     printf 'FAIL report.sh resolved profile hook missing\n'
     rc=1
@@ -251,15 +300,15 @@ e2e_agent_system_three_layer_contract() {
   echo "[agent-system] three-layer AI environment contract"
   local rc=0
   local layer_doc=".github/instructions/agent-env-layer-contract.instructions.md"
-  local policy_doc=".github/agent-env-policy.json"
-  local matrix_doc=".github/agent-env-rebuild-matrix.json"
-  local schema_doc=".github/agent-env-schema-contract.json"
-  local observability_doc=".github/agent-env-observability.json"
-  local state_trace_doc=".github/agent-env-state-traceability.json"
-  local artifact_doc=".github/agent-env-runtime-artifacts.json"
-  local review_doc=".github/agent-env-review-routing.json"
-  local branch_doc=".github/agent-env-branch-health.json"
-  local delivery_doc=".github/agent-env-delivery.json"
+  local policy_doc=".github/ai-env/contracts/agent-env-policy.json"
+  local matrix_doc=".github/ai-env/contracts/agent-env-rebuild-matrix.json"
+  local schema_doc=".github/ai-env/contracts/agent-env-schema-contract.json"
+  local observability_doc=".github/ai-env/contracts/agent-env-observability.json"
+  local state_trace_doc=".github/ai-env/contracts/agent-env-state-traceability.json"
+  local artifact_doc=".github/ai-env/contracts/agent-env-runtime-artifacts.json"
+  local review_doc=".github/ai-env/contracts/agent-env-review-routing.json"
+  local branch_doc=".github/ai-env/contracts/agent-env-branch-health.json"
+  local delivery_doc=".github/ai-env/contracts/agent-env-delivery.json"
   local state_doc=".github/instructions/agent-env-state-machine.instructions.md"
   local skill_doc=".github/skills/agent-env-maintenance/SKILL.md"
   local workflow_yml=".github/workflows/agent-maintain.yml"
@@ -296,18 +345,18 @@ e2e_agent_system_three_layer_contract() {
      e2e_file_contains "$policy_doc" '"retention"' &&
      e2e_file_contains "$policy_doc" '"raw_evidence_policy": "index-only"' &&
      e2e_file_contains "$policy_doc" '"traceability"' &&
-     e2e_file_contains "$policy_doc" '"schema_contract": ".github/agent-env-schema-contract.json"' &&
-     e2e_file_contains "$policy_doc" '"observability_contract": ".github/agent-env-observability.json"' &&
-     e2e_file_contains "$policy_doc" '"state_traceability_contract": ".github/agent-env-state-traceability.json"' &&
-     e2e_file_contains "$policy_doc" '"runtime_artifact_contract": ".github/agent-env-runtime-artifacts.json"' &&
-     e2e_file_contains "$policy_doc" '"delivery_contract": ".github/agent-env-delivery.json"' &&
+     e2e_file_contains "$policy_doc" '"schema_contract": ".github/ai-env/contracts/agent-env-schema-contract.json"' &&
+     e2e_file_contains "$policy_doc" '"observability_contract": ".github/ai-env/contracts/agent-env-observability.json"' &&
+     e2e_file_contains "$policy_doc" '"state_traceability_contract": ".github/ai-env/contracts/agent-env-state-traceability.json"' &&
+     e2e_file_contains "$policy_doc" '"runtime_artifact_contract": ".github/ai-env/contracts/agent-env-runtime-artifacts.json"' &&
+     e2e_file_contains "$policy_doc" '"delivery_contract": ".github/ai-env/contracts/agent-env-delivery.json"' &&
      e2e_file_contains "$policy_doc" '"trace_id_required": true' &&
      e2e_file_contains "$policy_doc" '"run_manifest_required": true' &&
      e2e_file_contains "$policy_doc" '"traceback_required": true' &&
      e2e_file_contains "$policy_doc" '"runtime_artifacts"' &&
      e2e_file_contains "$policy_doc" '"artifact_store_root": ".github/runtime-artifacts"' &&
-     e2e_file_contains "$policy_doc" '"review_routing": ".github/agent-env-review-routing.json"' &&
-     e2e_file_contains "$policy_doc" '"branch_health_dashboard": ".github/agent-env-branch-health.json"' &&
+     e2e_file_contains "$policy_doc" '"review_routing": ".github/ai-env/contracts/agent-env-review-routing.json"' &&
+     e2e_file_contains "$policy_doc" '"branch_health_dashboard": ".github/ai-env/contracts/agent-env-branch-health.json"' &&
      e2e_file_contains "$policy_doc" '"state_machine"' &&
      e2e_file_contains "$policy_doc" '"branch_health"' &&
      e2e_file_contains "$policy_doc" '"delivery"' &&
@@ -335,7 +384,7 @@ e2e_agent_system_three_layer_contract() {
      e2e_file_contains "$observability_doc" '"run_manifest_path": ".github/task-runs/<run_id>/run-manifest.json"' &&
      e2e_file_contains "$observability_doc" '"required_manifest_fields"' &&
      e2e_file_contains "$observability_doc" '"database_mapping"' &&
-     e2e_file_contains "$observability_doc" '"runtime_artifact_contract": ".github/agent-env-runtime-artifacts.json"' &&
+     e2e_file_contains "$observability_doc" '"runtime_artifact_contract": ".github/ai-env/contracts/agent-env-runtime-artifacts.json"' &&
      e2e_file_contains "$observability_doc" '"run_manifest_index"'; then
     printf 'PASS observability contract defines trace id, run manifest, and DB mapping\n'
   else
@@ -348,7 +397,7 @@ e2e_agent_system_three_layer_contract() {
      e2e_file_contains "$schema_doc" '"db_documents"' &&
      e2e_file_contains "$schema_doc" '"evidence_assets"' &&
      e2e_file_contains "$schema_doc" '"runtime_artifacts"' &&
-     e2e_file_contains "$schema_doc" '"runtime_artifact_contract": ".github/agent-env-runtime-artifacts.json"' &&
+     e2e_file_contains "$schema_doc" '"runtime_artifact_contract": ".github/ai-env/contracts/agent-env-runtime-artifacts.json"' &&
      e2e_file_contains "$schema_doc" '"required_operations"' &&
      e2e_file_contains "$schema_doc" '"resolve-profile"'; then
     printf 'PASS explicit schema/API contract covers DB tables and read-only API operations\n'
@@ -411,6 +460,7 @@ e2e_agent_system_three_layer_contract() {
 
   if e2e_file_contains "$delivery_doc" '"audit_command": "python3 scripts/github_index_db.py delivery-audit"' &&
      e2e_file_contains "$delivery_doc" '"delivery_root": "deliverables/ai-dev-env-commercial-v1"' &&
+     e2e_file_contains "$delivery_doc" '"package_root": "dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial"' &&
      e2e_file_contains "$delivery_doc" '"archive_root": ".github/archive/legacy-ai-dev-env-2026-06-13"' &&
      e2e_file_contains "$delivery_doc" '"active_legacy_roots_must_be_absent"' &&
      e2e_file_contains "$delivery_doc" '"required_package_paths"'; then
@@ -447,6 +497,7 @@ e2e_agent_system_three_layer_contract() {
   if grep -Fq 'report-audit' "$E2E_ROOT_DIR/$maintain_sh" &&
      grep -Fq 'schema-audit' "$E2E_ROOT_DIR/$maintain_sh" &&
      grep -Fq 'artifact-audit' "$E2E_ROOT_DIR/$maintain_sh" &&
+     grep -Fq 'package-ai-dev-env.sh' "$E2E_ROOT_DIR/$maintain_sh" &&
      grep -Fq 'delivery-audit' "$E2E_ROOT_DIR/$maintain_sh" &&
      grep -Fq 'trace-audit' "$E2E_ROOT_DIR/$maintain_sh" &&
      grep -Fq 'state-audit' "$E2E_ROOT_DIR/$maintain_sh" &&
@@ -466,6 +517,8 @@ e2e_agent_system_three_layer_contract() {
   if grep -Fq 'rehydrate --backup-dir .github/db-backup/stored-snapshot --yes' "$E2E_ROOT_DIR/$workflow_yml" &&
      grep -Fq 'rehydrate --backup-dir .github/db-backup/task-runs --yes' "$E2E_ROOT_DIR/$workflow_yml" &&
      grep -Fq 'scripts/agent-maintain.sh --mode check' "$E2E_ROOT_DIR/$workflow_yml" &&
+     grep -Fq 'scripts/agent-e2e.sh --validate-all-profiles' "$E2E_ROOT_DIR/$workflow_yml" &&
+     grep -Fq 'python3 scripts/github_index_db.py delivery-audit' "$E2E_ROOT_DIR/$workflow_yml" &&
      grep -Fq 'schedule:' "$E2E_ROOT_DIR/$workflow_yml"; then
     printf 'PASS agent-maintain workflow rehydrates DB memory and runs nightly gate\n'
   else
@@ -490,10 +543,10 @@ e2e_agent_system_three_layer_contract() {
 e2e_agent_system_runtime_artifact_boundary() {
   echo "[agent-system] runtime artifact boundary"
   local rc=0
-  local artifact_doc=".github/agent-env-runtime-artifacts.json"
-  local policy_doc=".github/agent-env-policy.json"
-  local schema_doc=".github/agent-env-schema-contract.json"
-  local observability_doc=".github/agent-env-observability.json"
+  local artifact_doc=".github/ai-env/contracts/agent-env-runtime-artifacts.json"
+  local policy_doc=".github/ai-env/contracts/agent-env-policy.json"
+  local schema_doc=".github/ai-env/contracts/agent-env-schema-contract.json"
+  local observability_doc=".github/ai-env/contracts/agent-env-observability.json"
   local report_sh="scripts/e2e/lib/report.sh"
   local maintain_sh="scripts/agent-maintain.sh"
   local profile_doc=".github/e2e/profiles/agent-system.tsv"
@@ -555,7 +608,7 @@ e2e_agent_system_state_traceback() {
   echo "[agent-system] state machine traceback"
   local rc=0
   local state_doc=".github/instructions/agent-env-state-machine.instructions.md"
-  local state_trace_doc=".github/agent-env-state-traceability.json"
+  local state_trace_doc=".github/ai-env/contracts/agent-env-state-traceability.json"
   local report_sh="scripts/e2e/lib/report.sh"
 
   e2e_print_required_files \
@@ -595,9 +648,9 @@ e2e_agent_system_reviewer_inspector_gate() {
   echo "[agent-system] reviewer/inspector execution gate"
   local rc=0
   local profile_doc=".github/e2e/profiles/agent-system.tsv"
-  local review_doc=".github/agent-env-review-routing.json"
-  local policy_doc=".github/agent-env-policy.json"
-  local state_trace_doc=".github/agent-env-state-traceability.json"
+  local review_doc=".github/ai-env/contracts/agent-env-review-routing.json"
+  local policy_doc=".github/ai-env/contracts/agent-env-policy.json"
+  local state_trace_doc=".github/ai-env/contracts/agent-env-state-traceability.json"
 
   e2e_print_required_files \
     "$profile_doc" \
@@ -639,11 +692,13 @@ e2e_agent_system_reviewer_inspector_gate() {
 e2e_agent_system_commercial_delivery_readiness() {
   echo "[agent-system] commercial delivery readiness"
   local rc=0
-  local delivery_doc=".github/agent-env-delivery.json"
+  local delivery_doc=".github/ai-env/contracts/agent-env-delivery.json"
   local package_script="scripts/package-ai-dev-env.sh"
   local delivery_root="deliverables/ai-dev-env-commercial-v1"
-  local package_root="$delivery_root/package/ysyx-ai-dev-env-commercial"
+  local package_root="dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial"
   local archive_manifest=".github/archive/legacy-ai-dev-env-2026-06-13/ARCHIVE_MANIFEST.md"
+  local archive_checksums=".github/archive/legacy-ai-dev-env-2026-06-13/CHECKSUMS.txt"
+  local archive_pointers=".github/archive/legacy-ai-dev-env-2026-06-13/POINTERS.md"
   local package_filelist="$package_root/PACKAGE_FILELIST.txt"
   local sensitive_log
   local marker_home="/home/""lyg"
@@ -662,17 +717,23 @@ e2e_agent_system_commercial_delivery_readiness() {
     "$delivery_root/docs/ARCHITECTURE.md" \
     "$delivery_root/docs/OPERATIONS.md" \
     "$delivery_root/docs/QUALITY_GATES.md" \
-    "$archive_manifest" || rc=1
+    "$archive_manifest" \
+    "$archive_checksums" \
+    "$archive_pointers" || rc=1
 
   bash "$E2E_ROOT_DIR/$package_script" || rc=1
 
   e2e_print_required_files \
     "$package_root/README.md" \
+    "$package_root/AI_ENVIRONMENT.md" \
     "$package_root/PACKAGING_MANIFEST.md" \
     "$package_root/.github/AGENTS.md" \
-    "$package_root/.github/agent-env-delivery.json" \
-    "$package_root/.github/agent-env-policy.json" \
+    "$package_root/.github/ai-env/README.md" \
+    "$package_root/.github/ai-env/contracts/agent-env-delivery.json" \
+    "$package_root/.github/ai-env/contracts/agent-env-policy.json" \
+    "$package_root/.github/agents/AGENT_INDEX.md" \
     "$package_root/.github/skills/agent-env-maintenance/SKILL.md" \
+    "$package_root/scripts/README.md" \
     "$package_root/scripts/agent-maintain.sh" \
     "$package_root/scripts/github_index_db.py" \
     "$package_filelist" || rc=1
@@ -693,7 +754,11 @@ e2e_agent_system_commercial_delivery_readiness() {
   fi
 
   if grep -Fq 'README.md' "$E2E_ROOT_DIR/$package_filelist" &&
-     grep -Fq '.github/agent-env-delivery.json' "$E2E_ROOT_DIR/$package_filelist" &&
+     grep -Fq 'AI_ENVIRONMENT.md' "$E2E_ROOT_DIR/$package_filelist" &&
+     grep -Fq '.github/ai-env/README.md' "$E2E_ROOT_DIR/$package_filelist" &&
+     grep -Fq '.github/ai-env/contracts/agent-env-delivery.json' "$E2E_ROOT_DIR/$package_filelist" &&
+     grep -Fq '.github/agents/AGENT_INDEX.md' "$E2E_ROOT_DIR/$package_filelist" &&
+     grep -Fq 'scripts/README.md' "$E2E_ROOT_DIR/$package_filelist" &&
      grep -Fq 'scripts/agent-maintain.sh' "$E2E_ROOT_DIR/$package_filelist" &&
      grep -Fq 'scripts/github_index_db.py' "$E2E_ROOT_DIR/$package_filelist" &&
      ! grep -Fq "$marker_home" "$E2E_ROOT_DIR/$package_filelist"; then

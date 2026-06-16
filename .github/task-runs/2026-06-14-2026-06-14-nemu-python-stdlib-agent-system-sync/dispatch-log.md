@@ -1,8 +1,292 @@
-# DB-backed .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/dispatch-log.md
+# Dispatch Log
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文备份由 `.github/db-backup/task-runs/manifest.json` 管理；恢复请使用下方命令。
+## 基本信息
 
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/dispatch-log.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/task-runs --path .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/dispatch-log.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/dispatch-log.md`
+- `task_id`: 2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync
+- `trace_id`: e2e:2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync
+- `task_slug`: 2026-06-14-nemu-python-stdlib-agent-system-sync
+- `graph_template`: modular-agent-e2e
+- `profile`: agent-system
+- `log_policy`: append-only
+
+---
+
+### [2026-06-14 09:56:46 +0800] `context-brief` - `PASS`
+
+- `owner_agent`: agent-system
+- `module`: github-index
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: .github DB stored memory
+- `action`: github-index brief
+- `outputs`: .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/context-brief.md
+- `evidence`: .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/context-brief.md
+- `handoff_to`:
+- `next_step`: DB-backed startup context generated before dispatch
+- `notes`:
+
+### [2026-06-14 09:56:46 +0800] `profile-resolve` - `PASS`
+
+- `owner_agent`: agent-system
+- `module`: github-index
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: .github/e2e/profiles/agent-system.tsv
+- `action`: github-index resolve-profile
+- `outputs`: .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/profile-resolve.md
+- `evidence`: .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/profile-resolve.md
+- `handoff_to`:
+- `next_step`: DB-backed e2e profile include closure generated before dispatch
+- `notes`:
+
+### [2026-06-14 09:56:46 +0800] `recall-discovery` - `in-progress`
+
+- `owner_agent`: agent-system
+- `module`: agent-system
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: AGENTS/copilot/instructions/memory/e2e profiles
+- `action`: e2e_agent_system_discovery
+- `outputs`: 规则发现链和 e2e 配置入口存在
+- `evidence`: .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/evidence/recall-discovery.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-14 09:56:47 +0800] `recall-discovery` - `PASS`
+
+- `owner_agent`: agent-system
+- `module`: agent-system
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: AGENTS/copilot/instructions/memory/e2e profiles
+- `action`: e2e_agent_system_discovery
+- `outputs`: 规则发现链和 e2e 配置入口存在
+- `evidence`: .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/evidence/recall-discovery.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:
+
+### [2026-06-14 09:56:47 +0800] `tool-env-check` - `in-progress`
+
+- `owner_agent`: agent-system
+- `module`: toolchain
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: agent-env + bash/git/make/python/gcc/verilator/toolchain
+- `action`: e2e_toolchain_check
+- `outputs`: 非交互软环境、hard requirements 与 optional tools 可见
+- `evidence`: .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/evidence/tool-env-check.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-14 09:56:47 +0800] `tool-env-check` - `PASS`
+
+- `owner_agent`: agent-system
+- `module`: toolchain
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: agent-env + bash/git/make/python/gcc/verilator/toolchain
+- `action`: e2e_toolchain_check
+- `outputs`: 非交互软环境、hard requirements 与 optional tools 可见
+- `evidence`: .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/evidence/tool-env-check.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:
+
+### [2026-06-14 09:56:47 +0800] `npc-sim-status` - `in-progress`
+
+- `owner_agent`: hardware-flow
+- `module`: hardware-flow
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: npc/sim Kconfig 与 backend mk
+- `action`: e2e_hardware_flow_npc_sim_status
+- `outputs`: 当前 npc/sim 后端状态
+- `evidence`: .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/evidence/npc-sim-status.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-14 09:56:47 +0800] `npc-sim-status` - `PASS`
+
+- `owner_agent`: hardware-flow
+- `module`: hardware-flow
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: npc/sim Kconfig 与 backend mk
+- `action`: e2e_hardware_flow_npc_sim_status
+- `outputs`: 当前 npc/sim 后端状态
+- `evidence`: .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/evidence/npc-sim-status.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:
+
+### [2026-06-14 09:56:47 +0800] `three-layer-contract` - `in-progress`
+
+- `owner_agent`: agent-system
+- `module`: agent-system
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: .github/instructions/agent-env-layer-contract.instructions.md;.github/skills/agent-env-maintenance/SKILL.md;scripts/agent-maintain.sh
+- `action`: e2e_agent_system_three_layer_contract
+- `outputs`: 验证 Database/Skill/Agent 三层契约与维护入口
+- `evidence`: .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/evidence/three-layer-contract.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-14 09:56:49 +0800] `three-layer-contract` - `PASS`
+
+- `owner_agent`: agent-system
+- `module`: agent-system
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: .github/instructions/agent-env-layer-contract.instructions.md;.github/skills/agent-env-maintenance/SKILL.md;scripts/agent-maintain.sh
+- `action`: e2e_agent_system_three_layer_contract
+- `outputs`: 验证 Database/Skill/Agent 三层契约与维护入口
+- `evidence`: .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/evidence/three-layer-contract.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:
+
+### [2026-06-14 09:56:49 +0800] `runtime-artifact-boundary` - `in-progress`
+
+- `owner_agent`: agent-system
+- `module`: agent-system
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: .github/agent-env-runtime-artifacts.json;.github/agent-env-policy.json;scripts/agent-maintain.sh
+- `action`: e2e_agent_system_runtime_artifact_boundary
+- `outputs`: 验证源码面与运行态 artifact/store 分层边界
+- `evidence`: .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/evidence/runtime-artifact-boundary.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-14 09:56:49 +0800] `runtime-artifact-boundary` - `PASS`
+
+- `owner_agent`: agent-system
+- `module`: agent-system
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: .github/agent-env-runtime-artifacts.json;.github/agent-env-policy.json;scripts/agent-maintain.sh
+- `action`: e2e_agent_system_runtime_artifact_boundary
+- `outputs`: 验证源码面与运行态 artifact/store 分层边界
+- `evidence`: .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/evidence/runtime-artifact-boundary.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:
+
+### [2026-06-14 09:56:49 +0800] `state-machine-traceback` - `in-progress`
+
+- `owner_agent`: agent-system
+- `module`: agent-system
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: .github/instructions/agent-env-state-machine.instructions.md;.github/agent-env-state-traceability.json;scripts/e2e/lib/report.sh
+- `action`: e2e_agent_system_state_traceback
+- `outputs`: 验证状态机回退和 task-run state_traceback 字段
+- `evidence`: .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/evidence/state-machine-traceback.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-14 09:56:50 +0800] `state-machine-traceback` - `PASS`
+
+- `owner_agent`: agent-system
+- `module`: agent-system
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: .github/instructions/agent-env-state-machine.instructions.md;.github/agent-env-state-traceability.json;scripts/e2e/lib/report.sh
+- `action`: e2e_agent_system_state_traceback
+- `outputs`: 验证状态机回退和 task-run state_traceback 字段
+- `evidence`: .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/evidence/state-machine-traceback.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:
+
+### [2026-06-14 09:56:50 +0800] `reviewer-inspector-gate` - `in-progress`
+
+- `owner_agent`: agent-system
+- `module`: agent-system
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: .github/agent-env-review-routing.json;.github/agent-env-policy.json;.github/e2e/profiles/agent-system.tsv
+- `action`: e2e_agent_system_reviewer_inspector_gate
+- `outputs`: 验证 Reviewer/Inspector 路由已落成 profile 执行节点
+- `evidence`: .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/evidence/reviewer-inspector-gate.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-14 09:56:50 +0800] `reviewer-inspector-gate` - `PASS`
+
+- `owner_agent`: agent-system
+- `module`: agent-system
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: .github/agent-env-review-routing.json;.github/agent-env-policy.json;.github/e2e/profiles/agent-system.tsv
+- `action`: e2e_agent_system_reviewer_inspector_gate
+- `outputs`: 验证 Reviewer/Inspector 路由已落成 profile 执行节点
+- `evidence`: .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/evidence/reviewer-inspector-gate.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:
+
+### [2026-06-14 09:56:50 +0800] `commercial-delivery-readiness` - `in-progress`
+
+- `owner_agent`: agent-system
+- `module`: agent-system
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: .github/agent-env-delivery.json;deliverables/ai-dev-env-commercial-v1;scripts/package-ai-dev-env.sh
+- `action`: e2e_agent_system_commercial_delivery_readiness
+- `outputs`: 验证商业交付包装、旧产物归档和 delivery audit
+- `evidence`: .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/evidence/commercial-delivery-readiness.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-14 09:56:50 +0800] `commercial-delivery-readiness` - `PASS`
+
+- `owner_agent`: agent-system
+- `module`: agent-system
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: .github/agent-env-delivery.json;deliverables/ai-dev-env-commercial-v1;scripts/package-ai-dev-env.sh
+- `action`: e2e_agent_system_commercial_delivery_readiness
+- `outputs`: 验证商业交付包装、旧产物归档和 delivery audit
+- `evidence`: .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/evidence/commercial-delivery-readiness.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:
+
+### [2026-06-14 09:56:50 +0800] `profile-index` - `in-progress`
+
+- `owner_agent`: agent-system
+- `module`: agent-system
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: .github/e2e/profiles
+- `action`: e2e_agent_system_profile_index
+- `outputs`: 列出所有可执行 profile
+- `evidence`: .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/evidence/profile-index.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-14 09:56:50 +0800] `profile-index` - `PASS`
+
+- `owner_agent`: agent-system
+- `module`: agent-system
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: .github/e2e/profiles
+- `action`: e2e_agent_system_profile_index
+- `outputs`: 列出所有可执行 profile
+- `evidence`: .github/task-runs/2026-06-14-2026-06-14-nemu-python-stdlib-agent-system-sync/evidence/profile-index.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:

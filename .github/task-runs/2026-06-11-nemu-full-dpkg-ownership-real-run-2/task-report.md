@@ -1,8 +1,77 @@
-# DB-backed .github/task-runs/2026-06-11-nemu-full-dpkg-ownership-real-run-2/task-report.md
+# Task Report
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/task-runs/2026-06-11-nemu-full-dpkg-ownership-real-run-2/task-report.md`。
+## 基本信息
 
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/2026-06-11-nemu-full-dpkg-ownership-real-run-2/task-report.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/task-runs/2026-06-11-nemu-full-dpkg-ownership-real-run-2/task-report.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/2026-06-11-nemu-full-dpkg-ownership-real-run-2/task-report.md`
+- `task_id`: 2026-06-11-nemu-full-dpkg-ownership-real-run-2
+- `task_slug`: nemu-full-dpkg-ownership-real-run-2
+- `graph_template`: modular-agent-e2e
+- `profile`: nemu-ubuntu-full-gate
+- `graph_mode`: static
+- `status`: completed
+- `owner`: agent-system + hardware-flow + module agents
+- `started_at`: 2026-06-11 14:53:19 +0800
+- `updated_at`: 2026-06-11 15:09:00 +0800
+
+## 任务目标
+
+- `source_request`: 将 agent 系统从纯语言提示升级为分层、分模块、可闭环和可优化的 e2e 流水线
+- `goal`: 依据 profile 执行模块化 e2e 节点，生成可复核证据包
+- `scope`: profile=nemu-ubuntu-full-gate；不越级声明未执行模块或业务 gate 已完成
+
+## 选图说明
+
+- `selected_template`: modular-agent-e2e
+- `why_this_graph`: 本 profile 从 `.github/e2e/profiles/` 读取节点，把 agent/instructions/memory 中的模块职责转换为可执行 gate。
+- `dynamic_nodes_added`: 无
+- `why_dynamic_nodes_were_needed`: 无
+
+## 节点概览
+
+| node_id | owner_agent | module | status | inputs | outputs | evidence |
+| ------- | ----------- | ------ | ------ | ------ | ------- | -------- |
+| `recall-discovery` | `agent-system` | `agent-system` | `PASS` | AGENTS/copilot/instructions/memory/e2e profiles | 规则发现链和 e2e 配置入口存在 | .github/task-runs/2026-06-11-nemu-full-dpkg-ownership-real-run-2/evidence/recall-discovery.log |
+| `tool-env-check` | `agent-system` | `toolchain` | `PASS` | agent-env + bash/git/make/python/gcc/verilator/toolchain | 非交互软环境、hard requirements 与 optional tools 可见 | .github/task-runs/2026-06-11-nemu-full-dpkg-ownership-real-run-2/evidence/tool-env-check.log |
+| `npc-sim-status` | `hardware-flow` | `hardware-flow` | `PASS` | npc/sim Kconfig 与 backend mk | 当前 npc/sim 后端状态 | .github/task-runs/2026-06-11-nemu-full-dpkg-ownership-real-run-2/evidence/npc-sim-status.log |
+| `npc-rv64-contract` | `npc` | `npc` | `PASS` | npc/rv64 + Linux README | RV64 core/Linux 入口合约存在 | .github/task-runs/2026-06-11-nemu-full-dpkg-ownership-real-run-2/evidence/npc-rv64-contract.log |
+| `rv64-linux-contract` | `rv64-linux` | `rv64-linux` | `PASS` | Linux Makefile/env/platform/instructions | RV64 Linux/Ubuntu 合约入口存在 | .github/task-runs/2026-06-11-nemu-full-dpkg-ownership-real-run-2/evidence/rv64-linux-contract.log |
+| `software-flow-contract` | `software-flow` | `software-flow` | `PASS` | software-flow agent + profile + memory | 软件开发全流程 agent 合约入口存在 | .github/task-runs/2026-06-11-nemu-full-dpkg-ownership-real-run-2/evidence/software-flow-contract.log |
+| `nemu-ubuntu-static` | `nemu` | `nemu` | `PASS` | Linux/NEMU Ubuntu rootfs scripts + performance config | NEMU Ubuntu 切片静态生产守门 PASS | .github/task-runs/2026-06-11-nemu-full-dpkg-ownership-real-run-2/evidence/nemu-ubuntu-static.log |
+| `nemu-ubuntu-slice-contract` | `nemu` | `nemu` | `PASS` | recent NEMU Ubuntu device slice hooks and guest markers | 近期 NEMU Ubuntu 设备切片合约仍挂入 guest gate | .github/task-runs/2026-06-11-nemu-full-dpkg-ownership-real-run-2/evidence/nemu-ubuntu-slice-contract.log |
+| `nemu-ubuntu-full-focused-gate` | `nemu` | `nemu` | `PASS` | optional full Ubuntu rootfs/systemd guest gate | AGENT_E2E_NEMU_UBUNTU_FULL_GATE=1 时运行真实 full rootfs guest gate，否则 SKIP | .github/task-runs/2026-06-11-nemu-full-dpkg-ownership-real-run-2/evidence/nemu-ubuntu-full-focused-gate.log |
+
+## 关键产物
+
+- `artifacts`: .github/task-runs/2026-06-11-nemu-full-dpkg-ownership-real-run-2
+- `logs_or_traces`: .github/task-runs/2026-06-11-nemu-full-dpkg-ownership-real-run-2/evidence
+- `profile_manifest`: .github/e2e/profiles/nemu-ubuntu-full-gate.tsv
+- `linked_memory_updates`: 由 agent 在收尾阶段按本轮稳定结论更新 memory
+
+## 当前阻塞点
+
+- `blockers`: 无
+- `missing_dependencies`: 见对应 tool/env 节点日志
+- `risk_assessment`: 无 hard fail；optional tool 缺失只作为后续节点风险。
+
+## 下一步建议
+
+1. 按模块或跨模块目标选择更深 profile，或进入具体静态图。
+2. 对含 `SKIP` 的模块，先补依赖或切换到合适配置，再把该模块提升到 PASS 证据。
+
+## 模板升级候选
+
+- `repeated_dynamic_subgraph`: 无
+- `should_promote_to_static_template`: 已作为 modular-agent-e2e profile 固化
+- `reason`: profile + module library + task-run 证据包能把 agent 提示转为可执行流水线
+
+## 本轮人工结论
+
+- root cause: chrootless overlay 生成的 dpkg `.list` 把 `./` 写成单独 `/`，dpkg-query 将其解析为空文件名，导致 `dpkg -L`/`dpkg -S` fatal。
+- fix: `.list` 生成改为根目录 `/.`，目录项去尾部 `/`；rootfs readiness 遍历全部 `.list`，禁止空行、单独 `/` 和非绝对路径。
+- evidence: focused make log 含 `OK dpkg info list valid names: 310 list files`；guest console 中 curl、wget、openssh-server、dropbear-bin、rsyslog、cron 的 `__NEMU_CHECK_FULL_DPKG_LIST__` 与 `__NEMU_CHECK_FULL_DPKG_SEARCH__` 均 rc=0；host marker `virtio-blk-async-runtime`、`virtio-net-runtime`、`rootfs-backing-unchanged` 通过；负向扫描无 `__NEMU_CHECK_FAIL__`、BAD TRAP、kernel panic、I/O error、SIGILL 或 unhandled signal。
+- boundary: 本轮证明 full rootfs 本地 dpkg file ownership database 可用，不代表外部 apt 源、在线安装/升级、maintainer scripts 完整执行、桌面 Ubuntu、QEMU 等价或长期 soak。
+
+## 收尾结论
+
+- `final_result`: profile=nemu-ubuntu-full-gate 通过，当前 modular e2e 证据链可复用。
+- `evidence_summary`: 详见节点表与 `evidence/`
+- `notes`: 这是模块化 e2e gate，不替代未执行模块的功能回归、DiffTest、Linux/Ubuntu 分层 gate 或 PPA/STA signoff。

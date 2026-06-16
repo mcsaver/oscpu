@@ -167,20 +167,63 @@ def markdown_fields(content: str) -> dict[str, str]:
     return fields
 
 
+def is_db_backed_payload(path: str, content: str) -> bool:
+    return f"DB-backed {path}" in content and "load --source stored" in content
+
+
+def merged_document_rows(
+    conn: sqlite3.Connection,
+    kinds: Sequence[str],
+    paths: Sequence[str] | None = None,
+) -> list[dict[str, Any]]:
+    kind_placeholders = ",".join("?" for _ in kinds)
+    live_where = [f"f.kind IN ({kind_placeholders})", "f.index_status = 'indexed'"]
+    live_params: list[object] = list(kinds)
+    stored_where = [f"kind IN ({kind_placeholders})"]
+    stored_params: list[object] = list(kinds)
+    if paths:
+        normalized = [normalize_index_path(path) for path in paths]
+        path_placeholders = ",".join("?" for _ in normalized)
+        live_where.append(f"f.path IN ({path_placeholders})")
+        live_params.extend(normalized)
+        stored_where.append(f"path IN ({path_placeholders})")
+        stored_params.extend(normalized)
+
+    stored_rows = conn.execute(
+        f"""
+        SELECT path, kind, title, description, content, 'stored' AS source
+        FROM db_documents
+        WHERE {' AND '.join(stored_where)}
+        ORDER BY path
+        """,
+        stored_params,
+    ).fetchall()
+    merged: dict[str, dict[str, Any]] = {row["path"]: dict(row) for row in stored_rows}
+
+    live_rows = conn.execute(
+        f"""
+        SELECT f.path, f.kind, f.title, f.description, t.content, 'live' AS source
+        FROM files f
+        JOIN file_text t ON t.path = f.path
+        WHERE {' AND '.join(live_where)}
+        ORDER BY f.path
+        """,
+        live_params,
+    ).fetchall()
+    for row in live_rows:
+        content = row["content"] or ""
+        if not is_db_backed_payload(row["path"], content):
+            merged[row["path"]] = dict(row)
+    return [merged[path] for path in sorted(merged)]
+
+
 def profile_suggestions(
     conn: sqlite3.Connection,
     terms: Sequence[str],
     requested_profile: str,
     limit: int,
 ) -> list[dict[str, Any]]:
-    rows = conn.execute(
-        """
-        SELECT path, kind, title, description, content
-        FROM db_documents
-        WHERE kind IN ('e2e-profile', 'e2e-module')
-        ORDER BY path
-        """
-    ).fetchall()
+    rows = merged_document_rows(conn, ("e2e-profile", "e2e-module"))
     suggestions: dict[str, dict[str, Any]] = {}
     normalized_terms = [term.lower() for term in terms if term]
     for row in rows:
@@ -251,16 +294,10 @@ def parse_profile_rows(content: str) -> tuple[list[str], list[dict[str, str]]]:
     return includes, nodes
 
 
-def stored_profile_row(conn: sqlite3.Connection, profile: str) -> sqlite3.Row | None:
+def stored_profile_row(conn: sqlite3.Connection, profile: str) -> dict[str, Any] | None:
     path = f".github/e2e/profiles/{profile}.tsv"
-    return conn.execute(
-        """
-        SELECT path, title, description, content
-        FROM db_documents
-        WHERE path = ? AND kind = 'e2e-profile'
-        """,
-        (path,),
-    ).fetchone()
+    rows = merged_document_rows(conn, ("e2e-profile",), [path])
+    return rows[0] if rows else None
 
 
 def profile_catalog_payload(conn: sqlite3.Connection, request: dict[str, Any]) -> dict[str, Any]:
@@ -268,14 +305,7 @@ def profile_catalog_payload(conn: sqlite3.Connection, request: dict[str, Any]) -
     include_nodes = bool(request.get("include_nodes", False))
     limit = request_int(request, "limit", 80)
     normalized_terms = [term.lower() for term in terms if term]
-    rows = conn.execute(
-        """
-        SELECT path, title, description, content
-        FROM db_documents
-        WHERE kind = 'e2e-profile'
-        ORDER BY path
-        """
-    ).fetchall()
+    rows = merged_document_rows(conn, ("e2e-profile",))
     profiles: list[dict[str, Any]] = []
     for row in rows:
         profile = profile_name_from_path(row["path"])
@@ -316,7 +346,7 @@ def profile_catalog_payload(conn: sqlite3.Connection, request: dict[str, Any]) -
     return {
         "op": "profiles",
         "ok": True,
-        "source": "stored",
+        "source": "live-or-stored",
         "terms": terms,
         "profiles": profiles[:limit],
     }
@@ -369,7 +399,7 @@ def resolve_profile_payload(conn: sqlite3.Connection, request: dict[str, Any]) -
     payload: dict[str, Any] = {
         "op": "resolve-profile",
         "ok": not missing_profiles and not cycles and not depth_exceeded,
-        "source": "stored",
+        "source": "live-or-stored",
         "profile": profile,
         "profile_order": profile_order,
         "include_edges": include_edges,
@@ -550,6 +580,8 @@ def brief_payload(conn: sqlite3.Connection, db_path: Path, request: dict[str, An
     missing_paths: list[str] = []
     for path in selected_paths:
         rows = stored_rows_for_path(conn, path, core_limit)
+        if not rows:
+            _, rows = path_chunk_rows(conn, path, None, "indexed", core_limit)
         if rows:
             add_brief_rows(rows_by_chunk, rows, max_tokens)
         else:
@@ -557,6 +589,7 @@ def brief_payload(conn: sqlite3.Connection, db_path: Path, request: dict[str, An
 
     if terms:
         meta = fetch_meta(conn)
+        focus_rows: list[sqlite3.Row] = []
         try:
             if meta.get("fts5") == "1":
                 _, focus_rows = query_stored_rows_fts(conn, terms, None, None, max(focus_limit, focus_limit * 4))
@@ -565,13 +598,42 @@ def brief_payload(conn: sqlite3.Connection, db_path: Path, request: dict[str, An
         except sqlite3.Error:
             _, focus_rows = query_stored_rows_like(conn, terms, None, None, max(focus_limit, focus_limit * 4))
         add_brief_rows(rows_by_chunk, focus_rows, max_tokens)
+        try:
+            if meta.get("fts5") == "1":
+                _, live_focus_rows = query_chunk_rows_fts(
+                    conn,
+                    terms,
+                    None,
+                    None,
+                    "indexed",
+                    max(focus_limit, focus_limit * 4),
+                )
+            else:
+                _, live_focus_rows = query_chunk_rows_like(
+                    conn,
+                    terms,
+                    None,
+                    None,
+                    "indexed",
+                    max(focus_limit, focus_limit * 4),
+                )
+        except sqlite3.Error:
+            _, live_focus_rows = query_chunk_rows_like(
+                conn,
+                terms,
+                None,
+                None,
+                "indexed",
+                max(focus_limit, focus_limit * 4),
+            )
+        add_brief_rows(rows_by_chunk, live_focus_rows, max_tokens)
 
     chunks = [chunk_to_payload(row) for row in rows_by_chunk.values()]
     token_estimate = sum(int(chunk["token_estimate"] or 0) for chunk in chunks)
     suggestions = profile_suggestions(conn, terms, profile, profile_limit)
     commands = [
         "python3 scripts/github_index_db.py brief <terms> --profile <profile>",
-        "python3 scripts/github_index_db.py load --source stored --path <path>",
+        "python3 scripts/github_index_db.py load --source auto --path <path>",
         "python3 scripts/github_index_db.py audit-db-first",
         "python3 scripts/github_index_db.py audit-markdown-coverage --fail-on-live-evidence",
         "scripts/agent-e2e.sh --list-profiles",
@@ -586,7 +648,7 @@ def brief_payload(conn: sqlite3.Connection, db_path: Path, request: dict[str, An
         "db": str(db_path),
         "profile": profile,
         "terms": terms,
-        "source": "stored",
+        "source": "live-or-stored",
         "token_estimate": token_estimate,
         "max_tokens": max_tokens,
         "selected_paths": selected_paths,

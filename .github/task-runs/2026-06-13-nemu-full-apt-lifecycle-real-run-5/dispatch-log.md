@@ -1,8 +1,151 @@
-# DB-backed .github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-5/dispatch-log.md
+# Dispatch Log
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文备份由 `.github/db-backup/task-runs/manifest.json` 管理；恢复请使用下方命令。
+## 基本信息
 
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-5/dispatch-log.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/task-runs --path .github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-5/dispatch-log.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-5/dispatch-log.md`
+- `task_id`: 2026-06-13-nemu-full-apt-lifecycle-real-run-5
+- `task_slug`: nemu-full-apt-lifecycle-real-run-5
+- `graph_template`: modular-agent-e2e
+- `profile`: nemu-dev-full-gate
+- `log_policy`: append-only
+
+---
+
+### [2026-06-13 16:35:57 +0800] `context-brief` - `PASS`
+
+- `owner_agent`: agent-system
+- `module`: github-index
+- `trigger`: e2e:nemu-dev-full-gate
+- `depends_on`:
+- `inputs`: .github DB stored memory
+- `action`: github-index brief
+- `outputs`: .github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-5/context-brief.md
+- `evidence`: .github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-5/context-brief.md
+- `handoff_to`:
+- `next_step`: DB-backed startup context generated before dispatch
+- `notes`:
+
+### [2026-06-13 16:35:57 +0800] `profile-resolve` - `PASS`
+
+- `owner_agent`: agent-system
+- `module`: github-index
+- `trigger`: e2e:nemu-dev-full-gate
+- `depends_on`:
+- `inputs`: .github/e2e/profiles/nemu-dev-full-gate.tsv
+- `action`: github-index resolve-profile
+- `outputs`: .github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-5/profile-resolve.md
+- `evidence`: .github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-5/profile-resolve.md
+- `handoff_to`:
+- `next_step`: DB-backed e2e profile include closure generated before dispatch
+- `notes`:
+
+### [2026-06-13 16:35:57 +0800] `software-flow-contract` - `in-progress`
+
+- `owner_agent`: software-flow
+- `module`: software-flow
+- `trigger`: e2e:nemu-dev-full-gate
+- `depends_on`:
+- `inputs`: software-flow agent + profile + memory
+- `action`: e2e_software_flow_contract
+- `outputs`: 软件开发全流程 agent 合约入口存在
+- `evidence`: .github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-5/evidence/software-flow-contract.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-13 16:35:59 +0800] `software-flow-contract` - `PASS`
+
+- `owner_agent`: software-flow
+- `module`: software-flow
+- `trigger`: e2e:nemu-dev-full-gate
+- `depends_on`:
+- `inputs`: software-flow agent + profile + memory
+- `action`: e2e_software_flow_contract
+- `outputs`: 软件开发全流程 agent 合约入口存在
+- `evidence`: .github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-5/evidence/software-flow-contract.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:
+
+### [2026-06-13 16:35:59 +0800] `nemu-ubuntu-static` - `in-progress`
+
+- `owner_agent`: nemu
+- `module`: nemu
+- `trigger`: e2e:nemu-dev-full-gate
+- `depends_on`:
+- `inputs`: Linux/NEMU Ubuntu rootfs scripts + performance config
+- `action`: e2e_nemu_ubuntu_static_gate
+- `outputs`: NEMU Ubuntu 切片静态生产守门 PASS
+- `evidence`: .github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-5/evidence/nemu-ubuntu-static.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-13 16:36:29 +0800] `nemu-ubuntu-static` - `PASS`
+
+- `owner_agent`: nemu
+- `module`: nemu
+- `trigger`: e2e:nemu-dev-full-gate
+- `depends_on`:
+- `inputs`: Linux/NEMU Ubuntu rootfs scripts + performance config
+- `action`: e2e_nemu_ubuntu_static_gate
+- `outputs`: NEMU Ubuntu 切片静态生产守门 PASS
+- `evidence`: .github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-5/evidence/nemu-ubuntu-static.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:
+
+### [2026-06-13 16:36:29 +0800] `nemu-ubuntu-slice-contract` - `in-progress`
+
+- `owner_agent`: nemu
+- `module`: nemu
+- `trigger`: e2e:nemu-dev-full-gate
+- `depends_on`:
+- `inputs`: recent NEMU Ubuntu device slice hooks and guest markers
+- `action`: e2e_nemu_ubuntu_slice_contract
+- `outputs`: 近期 NEMU Ubuntu 设备切片合约仍挂入 guest gate
+- `evidence`: .github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-5/evidence/nemu-ubuntu-slice-contract.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-13 16:36:32 +0800] `nemu-ubuntu-slice-contract` - `PASS`
+
+- `owner_agent`: nemu
+- `module`: nemu
+- `trigger`: e2e:nemu-dev-full-gate
+- `depends_on`:
+- `inputs`: recent NEMU Ubuntu device slice hooks and guest markers
+- `action`: e2e_nemu_ubuntu_slice_contract
+- `outputs`: 近期 NEMU Ubuntu 设备切片合约仍挂入 guest gate
+- `evidence`: .github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-5/evidence/nemu-ubuntu-slice-contract.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:
+
+### [2026-06-13 16:36:32 +0800] `nemu-dev-full-focused-gate` - `in-progress`
+
+- `owner_agent`: nemu
+- `module`: nemu
+- `trigger`: e2e:nemu-dev-full-gate
+- `depends_on`:
+- `inputs`: optional NEMU-only full Ubuntu rootfs/systemd guest gate
+- `action`: e2e_nemu_ubuntu_full_focused_gate
+- `outputs`: AGENT_E2E_NEMU_UBUNTU_FULL_GATE=1 时运行 NEMU-only full rootfs guest gate，否则 SKIP
+- `evidence`: .github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-5/evidence/nemu-dev-full-focused-gate.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-13 16:58:29 +0800] `nemu-dev-full-focused-gate` - `PASS`
+
+- `owner_agent`: nemu
+- `module`: nemu
+- `trigger`: e2e:nemu-dev-full-gate
+- `depends_on`:
+- `inputs`: optional NEMU-only full Ubuntu rootfs/systemd guest gate
+- `action`: e2e_nemu_ubuntu_full_focused_gate
+- `outputs`: AGENT_E2E_NEMU_UBUNTU_FULL_GATE=1 时运行 NEMU-only full rootfs guest gate，否则 SKIP
+- `evidence`: .github/task-runs/2026-06-13-nemu-full-apt-lifecycle-real-run-5/evidence/nemu-dev-full-focused-gate.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:

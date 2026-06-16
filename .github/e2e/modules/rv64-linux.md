@@ -1,8 +1,9 @@
-# DB-backed .github/e2e/modules/rv64-linux.md
+# rv64-linux E2E Contract
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/e2e/modules/rv64-linux.md`。
-
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/e2e/modules/rv64-linux.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/e2e/modules/rv64-linux.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/e2e/modules/rv64-linux.md`
+- **范围**: `Linux/`、OpenSBI、Linux kernel、Ubuntu initramfs/rootfs、QEMU/NPC gate。
+- **上游**: npc/rv64 core、Linux env、device contracts。
+- **下游**: linux-device、display-vga、verilator-tapeout。
+- **L0 gate**: `rv64-linux-contract` 检查 Linux 入口、platform yaml 和 instructions。
+- **L1 gate**: 后续按 `rv64-ubuntu-probe-loop` 跑 QEMU/NPC probe。
+- **证据**: `/init`、`/etc/os-release`、`/bin/sh`、rootfs mount、poweroff。
+- **升级路线**: 按 gate 分层生成机器可读 boot status。

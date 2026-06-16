@@ -20,6 +20,7 @@
 #include <memory/cache.h>
 #include <ftrace.h>
 #include <etrace.h>
+#include <stdlib.h>
 #include <string.h>
 
 /*

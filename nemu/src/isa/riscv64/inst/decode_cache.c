@@ -1,5 +1,7 @@
 /* 解释器预译码 cache：缓存可直接执行的常见指令形态。 */
 
+#include <utils/profile.h>
+
 static inline void raise_illegal_inst(Decode *s, uint32_t inst) {
   s->dnpc = isa_raise_intr_with_tval(CAUSE_ILLEGAL_INST, s->pc, inst);
   R(0) = 0;
@@ -40,9 +42,17 @@ static inline RvDecodeCacheKind rv_decode_cache_kind(uint32_t inst) {
 #endif
 
 static inline void rv_decode_cache_fill(const Decode *s) {
+  if (unlikely(!isa_riscv64_decode_cache_runtime_enabled())) return;
+
   uint32_t inst = s->isa.inst;
   RvDecodeCacheKind kind = rv_decode_cache_kind(inst);
   if (kind == RV_DC_NONE) return;
+  if (nemu_profile_decode_cache_enabled()) {
+    nemu_profile_count(NEMU_PROFILE_CPU_DECODE_CACHE_FILLS, 1);
+    if (kind == RV_DC_RVC) {
+      nemu_profile_count(NEMU_PROFILE_CPU_DECODE_CACHE_FILL_RVC, 1);
+    }
+  }
 
   RvDecodeCacheEntry next = {
     .pc = s->pc,
@@ -84,10 +94,25 @@ static inline void rv_decode_cache_fill(const Decode *s) {
 }
 
 static inline bool rv_decode_cache_exec(Decode *s) {
+  if (unlikely(!isa_riscv64_decode_cache_runtime_enabled())) return false;
+
+  bool profile_decode_cache = nemu_profile_decode_cache_enabled();
+  if (profile_decode_cache) {
+    nemu_profile_count(NEMU_PROFILE_CPU_DECODE_CACHE_LOOKUPS, 1);
+  }
   uint32_t inst_key = rv_decode_cache_inst_key(s->isa.inst);
   RvDecodeCacheEntry *entry = &rv_decode_cache[rv_decode_cache_index(s->pc)];
   if (entry->kind == RV_DC_NONE || entry->pc != s->pc || entry->inst_key != inst_key) {
+    if (profile_decode_cache) {
+      nemu_profile_count(NEMU_PROFILE_CPU_DECODE_CACHE_MISSES, 1);
+    }
     return false;
+  }
+  if (profile_decode_cache) {
+    nemu_profile_count(NEMU_PROFILE_CPU_DECODE_CACHE_HITS, 1);
+    if (entry->kind == RV_DC_RVC) {
+      nemu_profile_count(NEMU_PROFILE_CPU_DECODE_CACHE_HIT_RVC, 1);
+    }
   }
 
   uint32_t inst = s->isa.inst;

@@ -16,8 +16,10 @@
 #include <isa.h>
 #include <etrace.h>
 #include <utils.h>
+#include <utils/profile.h>
 #ifndef CONFIG_TARGET_AM
 #include <stdio.h>
+#include <stdlib.h>
 #endif
 #ifdef CONFIG_RISCV_CLINT_HOST_TIME
 #include <unistd.h>
@@ -31,6 +33,7 @@
 #define CLINT_MTIME_LO         0xbff8u
 #define CLINT_MTIME_HI         0xbffcu
 #define CLINT_TIMEBASE_HZ      10000000ull
+#define CLINT_HOST_SYNC_DEFAULT_INTERVAL 512ull
 
 static bool clint_msip = false;
 static uint64_t clint_mtimecmp = ~0ull;
@@ -38,6 +41,7 @@ static uint64_t clint_mtime = 0;
 #ifdef CONFIG_RISCV_CLINT_HOST_TIME
 static uint64_t clint_host_base_us = 0;
 static uint64_t clint_host_base_mtime = 0;
+static uint64_t clint_host_sync_countdown = 0;
 static bool clint_host_time_initialized = false;
 #endif
 static bool host_timer_irq_pending = false;
@@ -50,10 +54,37 @@ static inline uint64_t clint_us_to_ticks(uint64_t us) {
   return us * (CLINT_TIMEBASE_HZ / 1000000ull);
 }
 
+#ifdef CONFIG_RISCV_CLINT_HOST_TIME
+static uint64_t clint_host_sync_interval(void) {
+  static bool initialized = false;
+  static uint64_t interval = CLINT_HOST_SYNC_DEFAULT_INTERVAL;
+  if (!initialized) {
+#ifndef CONFIG_TARGET_AM
+    const char *env = getenv("NEMU_RISCV_CLINT_HOST_SYNC_INTERVAL");
+    if (env != NULL && env[0] != '\0') {
+      char *end = NULL;
+      unsigned long long parsed = strtoull(env, &end, 0);
+      if (end != env && *end == '\0' && parsed > 0) {
+        interval = parsed;
+      }
+    }
+#endif
+    initialized = true;
+  }
+  return interval;
+}
+
+static inline void clint_reset_host_sync_countdown(void) {
+  clint_host_sync_countdown = clint_host_sync_interval();
+}
+#endif
+
 static void clint_rebase_host_time(uint64_t mtime) {
 #ifdef CONFIG_RISCV_CLINT_HOST_TIME
+  nemu_profile_count_if(NEMU_PROFILE_CLINT_HOST_TIME_READS, 1);
   clint_host_base_us = get_time();
   clint_host_base_mtime = mtime;
+  clint_reset_host_sync_countdown();
   clint_host_time_initialized = true;
 #else
   (void)mtime;
@@ -62,6 +93,7 @@ static void clint_rebase_host_time(uint64_t mtime) {
 
 static void clint_sync_host_time(void) {
 #ifdef CONFIG_RISCV_CLINT_HOST_TIME
+  nemu_profile_count_if(NEMU_PROFILE_CLINT_HOST_TIME_READS, 1);
   uint64_t now_us = get_time();
   if (!clint_host_time_initialized) {
     clint_host_base_us = now_us;
@@ -73,6 +105,28 @@ static void clint_sync_host_time(void) {
   if (host_mtime > clint_mtime) {
     clint_mtime = host_mtime;
   }
+  clint_reset_host_sync_countdown();
+#endif
+}
+
+static inline void clint_sync_host_time_lazy(void) {
+#ifdef CONFIG_RISCV_CLINT_HOST_TIME
+  if (clint_host_sync_countdown == 0) {
+    clint_sync_host_time();
+  }
+#endif
+}
+
+static inline void clint_post_exec_tick(void) {
+#ifdef CONFIG_RISCV_CLINT_HOST_TIME
+  if (clint_host_sync_countdown > 0) {
+    clint_host_sync_countdown--;
+  }
+  if (clint_host_sync_countdown == 0) {
+    clint_sync_host_time();
+  }
+#else
+  clint_mtime++;
 #endif
 }
 
@@ -81,7 +135,7 @@ static inline word_t riscv_mepc_mask(void) {
 }
 
 static inline word_t clint_pending_bits(void) {
-  clint_sync_host_time();
+  clint_sync_host_time_lazy();
   word_t pending = 0;
   if (clint_msip) pending |= MIP_MSIP;
   if (clint_mtime >= clint_mtimecmp || host_timer_irq_pending) pending |= MIP_MTIP;
@@ -89,7 +143,7 @@ static inline word_t clint_pending_bits(void) {
 }
 
 static inline bool clint_mtip_pending(void) {
-  clint_sync_host_time();
+  clint_sync_host_time_lazy();
   return clint_mtime >= clint_mtimecmp || host_timer_irq_pending;
 }
 
@@ -125,6 +179,12 @@ void isa_riscv64_clint_dump_machine_info(FILE *out) {
   fprintf(out, "interrupt.clint.size=0x%08x\n", CLINT_SIZE);
   fprintf(out, "interrupt.clint.timebase_hz=%" PRIu64 "\n", (uint64_t)CLINT_TIMEBASE_HZ);
   fprintf(out, "interrupt.clint.time_source=%s\n", isa_riscv64_clint_time_source());
+#ifdef CONFIG_RISCV_CLINT_HOST_TIME
+  fprintf(out, "interrupt.clint.host_sync_interval=%" PRIu64 "\n",
+      clint_host_sync_interval());
+#else
+  fprintf(out, "interrupt.clint.host_sync_interval=0\n");
+#endif
   fprintf(out, "interrupt.clint.msip=%u\n", clint_msip ? 1u : 0u);
   fprintf(out, "interrupt.clint.mtip_pending=%u\n", clint_mtip_pending() ? 1u : 0u);
   fprintf(out, "interrupt.clint.host_timer_irq_pending=%u\n",
@@ -239,14 +299,11 @@ void isa_riscv64_post_exec(void) {
     cpu.csr.minstret++;
   }
   mcycle_written_this_inst = false;
-#ifdef CONFIG_RISCV_CLINT_HOST_TIME
-  clint_sync_host_time();
-#else
-  clint_mtime++;
-#endif
+  clint_post_exec_tick();
 }
 
 void isa_riscv64_reset(void) {
+  isa_riscv64_pmp_mark_dirty();
   clint_msip = false;
   clint_mtimecmp = ~0ull;
   clint_mtime = 0;

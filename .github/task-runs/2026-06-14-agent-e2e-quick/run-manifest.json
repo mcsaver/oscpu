@@ -1,0 +1,105 @@
+{
+  "artifacts": {
+    "context_brief": ".github/task-runs/2026-06-14-agent-e2e-quick/context-brief.md",
+    "dispatch_log": ".github/task-runs/2026-06-14-agent-e2e-quick/dispatch-log.md",
+    "evidence_dir": ".github/task-runs/2026-06-14-agent-e2e-quick/evidence",
+    "evidence_index": ".github/task-runs/2026-06-14-agent-e2e-quick/evidence-index.md",
+    "nodes": ".github/task-runs/2026-06-14-agent-e2e-quick/nodes.tsv",
+    "profile_resolve": ".github/task-runs/2026-06-14-agent-e2e-quick/profile-resolve.md",
+    "run_dir": ".github/task-runs/2026-06-14-agent-e2e-quick",
+    "run_manifest": ".github/task-runs/2026-06-14-agent-e2e-quick/run-manifest.json",
+    "task_report": ".github/task-runs/2026-06-14-agent-e2e-quick/task-report.md"
+  },
+  "db": {
+    "markdown_archive": true,
+    "raw_evidence_index_only": true
+  },
+  "evidence": {
+    "asset_count": 5,
+    "by_kind": {
+      "log": 4,
+      "tsv": 1
+    },
+    "total_size_bytes": 7772
+  },
+  "final_result": "profile=quick 存在失败节点；不能把后续工程判断建立在该节点上。",
+  "git": {
+    "branch": "ai",
+    "head": "c3a8f42d4",
+    "upstream": "myfork/ai"
+  },
+  "graph_mode": "static",
+  "graph_template": "modular-agent-e2e",
+  "node_counts": {
+    "by_status": {
+      "FAIL": 1,
+      "PASS": 2,
+      "SKIP": 1
+    },
+    "total": 4
+  },
+  "nodes": [
+    {
+      "evidence": ".github/task-runs/2026-06-14-agent-e2e-quick/evidence/recall-discovery.log",
+      "inputs": "AGENTS/copilot/instructions/memory/e2e profiles",
+      "module": "agent-system",
+      "node_id": "recall-discovery",
+      "outputs": "exit=1",
+      "owner_agent": "agent-system",
+      "status": "FAIL"
+    },
+    {
+      "evidence": ".github/task-runs/2026-06-14-agent-e2e-quick/evidence/tool-env-check.log",
+      "inputs": "agent-env + bash/git/make/python/gcc/verilator/toolchain",
+      "module": "toolchain",
+      "node_id": "tool-env-check",
+      "outputs": "非交互软环境、hard requirements 与 optional tools 可见",
+      "owner_agent": "agent-system",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-06-14-agent-e2e-quick/evidence/npc-sim-status.log",
+      "inputs": "npc/sim Kconfig 与 backend mk",
+      "module": "hardware-flow",
+      "node_id": "npc-sim-status",
+      "outputs": "当前 npc/sim 后端状态",
+      "owner_agent": "hardware-flow",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-06-14-agent-e2e-quick/evidence/nemu-add-smoke.log",
+      "inputs": "当前 NEMU AM-compatible 配置 + cpu-tests add",
+      "module": "nemu",
+      "node_id": "nemu-add-smoke",
+      "outputs": "NEMU reference 最小 smoke PASS 或配置边界 SKIP",
+      "owner_agent": "nemu",
+      "status": "SKIP"
+    }
+  ],
+  "profile": "quick",
+  "run_id": "2026-06-14-agent-e2e-quick",
+  "schema_version": 1,
+  "started_at": "2026-06-14 20:24:21 +0800",
+  "state_traceback": {
+    "current_state": "verify",
+    "evidence_policy": "task-report + dispatch-log + run-manifest + evidence-index",
+    "failure_reason": "profile=quick 存在失败节点；不能把后续工程判断建立在该节点上。",
+    "failure_state": "verify",
+    "inspector": "agent-system",
+    "reviewer": "ysyx-coordinator",
+    "rollback_target": "implement",
+    "state_sequence": [
+      "recall_context",
+      "classify_layer",
+      "plan_graph",
+      "implement",
+      "verify",
+      "inspect",
+      "persist"
+    ]
+  },
+  "status": "blocked",
+  "task_slug": "agent-e2e-quick",
+  "trace_id": "e2e:2026-06-14-agent-e2e-quick",
+  "updated_at": "2026-06-14 20:24:22 +0800"
+}

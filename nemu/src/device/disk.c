@@ -16,6 +16,7 @@
 #include <pthread.h>
 #endif
 #include <stdlib.h>
+#include <string.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
@@ -202,6 +203,7 @@ static VirtqState queues[VIRTIO_BLK_QUEUE_COUNT];
 static uint32_t virtio_blk_generation;
 static int disk_log_budget = 16;
 static VirtioBlkStats disk_stats;
+static bool disk_force_sync_backend;
 
 #if VIRTIO_BLK_ASYNC_BACKEND
 static pthread_t disk_worker_thread;
@@ -372,6 +374,11 @@ static void virtio_blk_start_worker(void) {
 }
 
 static void virtio_blk_submit_request(VirtioBlkAsyncReq *req) {
+  if (unlikely(disk_force_sync_backend)) {
+    virtio_blk_execute_request(req);
+    virtio_blk_complete_request(req);
+    return;
+  }
   virtio_blk_start_worker();
   pthread_mutex_lock(&disk_async_lock);
   disk_async_submitted++;
@@ -501,7 +508,9 @@ void virtio_blk_dump_machine_info(FILE *out) {
   fprintf(out, "device.virtio_blk.queue_count=%u\n", VIRTIO_BLK_QUEUE_COUNT);
   fprintf(out, "device.virtio_blk.multiqueue=enabled\n");
   fprintf(out, "device.virtio_blk.async=%s\n",
-      VIRTIO_BLK_ASYNC_BACKEND ? "threaded-poll" : "unsupported");
+      disk_force_sync_backend ? "forced-synchronous" :
+      (VIRTIO_BLK_ASYNC_BACKEND ? "threaded-poll" : "unsupported"));
+  fprintf(out, "device.virtio_blk.force_sync=%d\n", disk_force_sync_backend ? 1 : 0);
   fprintf(out, "device.virtio_blk.async_completion_fast_flag=%d\n",
       ISDEF(CONFIG_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG));
   fprintf(out, "device.virtio_blk.queue_num_max=%u\n", VIRTIO_BLK_QUEUE_SIZE);
@@ -680,11 +689,11 @@ static uint64_t guest_read64(paddr_t addr) {
 }
 
 static void guest_write16(paddr_t addr, uint16_t value) {
-  paddr_write(addr, 2, value);
+  paddr_dma_write_value(addr, 2, value);
 }
 
 static void guest_write32(paddr_t addr, uint32_t value) {
-  paddr_write(addr, 4, value);
+  paddr_dma_write_value(addr, 4, value);
 }
 
 static bool guest_range_ok(paddr_t addr, uint32_t len);
@@ -765,13 +774,7 @@ static bool guest_copy_from(paddr_t addr, void *buf, uint32_t len) {
 static bool guest_copy_to(paddr_t addr, const void *buf, uint32_t len) {
   if (len == 0) return true;
   if (!guest_range_ok(addr, len)) return false;
-  if (in_pmem(addr) && in_pmem(addr + len - 1)) {
-    memcpy(guest_to_host(addr), buf, len);
-    return true;
-  }
-  const uint8_t *in = buf;
-  for (uint32_t i = 0; i < len; i++) paddr_write(addr + i, 1, in[i]);
-  return true;
+  return paddr_dma_write(addr, buf, len);
 }
 
 static bool virtq_read_desc_from(paddr_t table, uint16_t table_num, uint16_t idx, VirtqDesc *desc) {
@@ -1679,6 +1682,9 @@ static void open_disk_image(void) {
 
 void init_disk() {
   virtio_base = new_space(0x1000);
+  const char *force_sync = getenv("NEMU_VIRTIO_BLK_SYNC");
+  disk_force_sync_backend = force_sync != NULL && force_sync[0] != '\0' &&
+    strcmp(force_sync, "0") != 0;
   virtio_blk_reset();
   open_disk_image();
 #ifdef CONFIG_HAS_PORT_IO

@@ -1,0 +1,4 @@
+[agent-e2e] profile-boundary=nemu-ubuntu-full-gate mode=NEMU-only
+[agent-e2e] PASS profile-boundary nemu-ubuntu-full-gate NEMU-only closure
+[agent-e2e] profile=nemu-ubuntu-full-gate
+[agent-e2e] run_dir=.github/task-runs/2026-06-15-2026-06-14-nemu-basic-block-off-reload-diag-real-2

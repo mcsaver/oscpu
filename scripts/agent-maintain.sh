@@ -62,6 +62,7 @@ main() {
   run_step "report traceability audit" "$PYTHON_BIN" scripts/github_index_db.py report-audit || rc=1
   run_step "schema contract audit" "$PYTHON_BIN" scripts/github_index_db.py schema-audit || rc=1
   run_step "runtime artifact boundary audit" "$PYTHON_BIN" scripts/github_index_db.py artifact-audit || rc=1
+  run_step "commercial package build" scripts/package-ai-dev-env.sh || rc=1
   run_step "commercial delivery audit" "$PYTHON_BIN" scripts/github_index_db.py delivery-audit || rc=1
   run_step "policy audit" "$PYTHON_BIN" scripts/github_index_db.py policy-audit || rc=1
   run_step "skill audit" "$PYTHON_BIN" scripts/github_index_db.py skill-audit || rc=1

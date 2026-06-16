@@ -63,11 +63,22 @@ Linux/tools/initramfs/
 # AI 开发环境需要随仓库同步；这些 allowlist 用来覆盖本机或工具引入的宽泛忽略规则。
 !.github/
 !.github/**
-.github/cache/
+
+# AI runtime cache
+.github/cache/**
+!.github/cache/.gitkeep
 
 # AI runtime artifact store: keep large or volatile payloads outside source.
 .github/runtime-artifacts/**
 !.github/runtime-artifacts/.gitkeep
+
+# 一次性审计目录和重型 task-run evidence 不进入 tracked source。
+.github/shujuku_aireview/**
+.github/task-runs/.async/**
+.github/task-runs/*.log
+.github/task-runs/**/evidence/**
+!.github/task-runs/**/evidence-index.md
+!.github/task-runs/**/run-manifest.json
 .github/task-runs/**/evidence/*.vcd
 .github/task-runs/**/evidence/*.fst
 .github/task-runs/**/evidence/*.fsdb
@@ -88,19 +99,39 @@ Linux/tools/initramfs/
 .github/task-runs/**/guest-check*.cmd
 .github/task-runs/**/rootfs-overlay.raw
 .github/task-runs/**/nemu.serial
-!AGENTS.md
-!CLAUDE.md
-!GEMINI.md
-!CONVENTIONS.md
-!.windsurfrules
-!.cursor/
-!.cursor/rules/
-!.cursor/rules/agents.mdc
 
-# 旧手工 AI 环境产物已移入归档；新版商业交付面只保留 deliverables/。
+# Legacy archive: Git 只保留索引，不保留旧产物实体。
+.github/archive/**
+!.github/archive/
+!.github/archive/**/
+!.github/archive/**/ARCHIVE_MANIFEST.md
+!.github/archive/**/CHECKSUMS.txt
+!.github/archive/**/POINTERS.md
+
+# DB backups: 只保留 manifest/snapshot 指针，不保留 volatile dump。
+.github/db-backup/**
+!.github/db-backup/
+!.github/db-backup/manifest.json
+!.github/db-backup/stored-snapshot/
+!.github/db-backup/stored-snapshot/manifest.json
+!.github/db-backup/task-runs/
+!.github/db-backup/task-runs/manifest.json
+
+!/AGENTS.md
+!/CLAUDE.md
+!/GEMINI.md
+!/CONVENTIONS.md
+!/.windsurfrules
+!/.cursor/
+!/.cursor/rules/
+!/.cursor/rules/agents.mdc
+
+# 商业交付：deliverables 只放交付源；生成包放 dist 且不进 Git。
 !.github/archive/
 !.github/archive/legacy-ai-dev-env-2026-06-13/
-!.github/archive/legacy-ai-dev-env-2026-06-13/**
 !deliverables/
 !deliverables/ai-dev-env-commercial-v1/
 !deliverables/ai-dev-env-commercial-v1/**
+deliverables/**/package/**
+dist/**
+build/**

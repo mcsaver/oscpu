@@ -4,21 +4,27 @@
 
 默认布局：
 
-- `src/opensbi/`：OpenSBI 源码
-- `src/linux/`：Linux kernel 源码与构建产物
+- `src/opensbi/`：OpenSBI 源码；NEMU/NPC 共享源码，不在这里放平台构建输出
+- `src/linux/`：Linux kernel 源码；内核使用 `O=` 输出到平台目录，不在源码树内生成 `.config`
 - `src/busybox-<version>/`：BusyBox 源码与静态 busybox
 - `downloads/`：Linux、Ubuntu Base、BusyBox 等下载包和校验文件
-- `build/opensbi-npc/`：OpenSBI for NPC 构建目录
-- `images/initramfs/`：BusyBox initramfs
-- `images/ubuntu2204/`：Ubuntu 22.04 rootfs/initramfs 镜像
+- `platforms/npc/build/linux/`：NPC 平台 Linux `O=` 构建目录
+- `platforms/npc/build/opensbi/`：NPC 平台 OpenSBI 构建目录
+- `platforms/npc/images/`：NPC 平台 BusyBox initramfs 与 Ubuntu 22.04 rootfs/initramfs 镜像
+- `platforms/npc/logs/`：NPC 平台 Linux/NPC/QEMU 运行日志
+- `platforms/nemu/build/linux/`：NEMU 平台 Linux `O=` 构建目录
+- `platforms/nemu/build/opensbi/`：NEMU 平台 OpenSBI 构建目录，默认 no-PMU
+- `platforms/nemu/images/`：NEMU 平台 BusyBox initramfs 与 Ubuntu 22.04 rootfs/initramfs 镜像
+- `platforms/nemu/logs/`：NEMU 平台 Linux/NEMU 运行日志和 rootfs overlay
 - `tools/python/`：RV64 bring-up 脚本使用的本地 Python venv
 - `tools/qemu/`：可选的本地 `qemu-system-riscv64` 安装目录
 - `toolchains/`：可选的本地 RISC-V 交叉工具链目录
 - `tmp/`：构建脚本的短生命周期临时文件
-- `logs/`：Linux/Ubuntu smoke 日志
 
 这些内容通常很大且可重新生成，因此默认被 `.gitignore` 忽略；仓库只跟踪脚本、配置和本说明。
 如果本机已经有系统级 `riscv64-linux-gnu-*`、`dtc`、`verilator` 等基础命令，脚本会直接复用；若要把自带工具链也收进工作区，可放到 `toolchains/riscv64-linux-gnu/` 或 `toolchains/riscv/` 下，对应脚本会优先使用这里的前缀。
+
+平台隔离规则：`ARCH=riscv64-npc` 默认只写 `platforms/npc/`，`ARCH=riscv64-nemu` 默认只写 `platforms/nemu/`；共享目录只放源码、下载缓存和工具链。这样可以同时构建 NEMU/NPC，不会互相覆盖 Linux `.config`、OpenSBI `.config`、Ubuntu rootfs overlay 或 smoke 日志。确实需要复用旧共享镜像时，可在命令行显式覆盖 `UBUNTU_IMAGE_DIR`、`UBUNTU_ROOTFS_IMAGE` 或 `RUN_ROOTFS`。
 
 常用入口：
 

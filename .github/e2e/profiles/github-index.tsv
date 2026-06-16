@@ -1,8 +1,2 @@
-# DB-backed .github/e2e/profiles/github-index.tsv
-
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/e2e/profiles/github-index.tsv`。
-
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/e2e/profiles/github-index.tsv`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/e2e/profiles/github-index.tsv --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/e2e/profiles/github-index.tsv`
+# node_id|module|function|owner_agent|inputs|outputs
+github-index-contract|github-index|e2e_github_index_contract|agent-system|scripts/github_index_db.py + .github files|SQLite index can build, query and doctor .github metadata without owning originals

@@ -1,8 +1,9 @@
-# DB-backed .github/e2e/modules/nvboard.md
+# nvboard E2E Contract
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/e2e/modules/nvboard.md`。
-
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/e2e/modules/nvboard.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/e2e/modules/nvboard.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/e2e/modules/nvboard.md`
+- **范围**: 虚拟开发板、SDL、引脚绑定、数字逻辑实验可视化。
+- **上游**: digital_logic_experiment、SDL toolchain。
+- **下游**: 实验外设 smoke。
+- **L0 gate**: `nvboard-contract` 检查 README、Makefile 和 agent。
+- **L1 gate**: 后续 example build/run smoke。
+- **证据**: build log、SDL/window 状态、引脚绑定文件。
+- **升级路线**: headless/SDL 两种 profile 分离。

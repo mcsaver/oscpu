@@ -1,8 +1,110 @@
-# DB-backed .github/task-runs/2026-06-13-nemu-dev-isolation-contract/evidence-index.md
+# Evidence Index
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文备份由 `.github/db-backup/task-runs/manifest.json` 管理；恢复请使用下方命令。
+## 基本信息
 
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/2026-06-13-nemu-dev-isolation-contract/evidence-index.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/task-runs --path .github/task-runs/2026-06-13-nemu-dev-isolation-contract/evidence-index.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/2026-06-13-nemu-dev-isolation-contract/evidence-index.md`
+- `task_id`: 2026-06-13-nemu-dev-isolation-contract
+- `task_slug`: nemu-dev-isolation-contract
+- `profile`: nemu-dev
+- `asset_count`: 9
+- `total_size_bytes`: 285446
+
+## 证据资产
+
+### .github/task-runs/2026-06-13-nemu-dev-isolation-contract/evidence/nemu-host-build.log
+
+- `kind`: log
+- `size_bytes`: 578
+- `line_count`: 8
+- `sha256`: 76a924046263f6e502b07a6883cd199e993ea2b9f2d9678e573c50912a0539ad
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-13T07:09:52+00:00
+- `markers`: {}
+- `summary`: log evidence; size=578 bytes; lines=8; markers=<none>; tail=make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux' make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' riscv64-linux_defconfig make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu' make[1]: Leaving dire...
+
+### .github/task-runs/2026-06-13-nemu-dev-isolation-contract/evidence/nemu-rootfs-flavor-artifacts-dry-run.log
+
+- `kind`: log
+- `size_bytes`: 613
+- `line_count`: 8
+- `sha256`: eefab15ba45fbfab7c2fc99ef5e28764016a7e608958f09ae3982cbbb21f8890
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-13T07:09:52+00:00
+- `markers`: {}
+- `summary`: log evidence; size=613 bytes; lines=8; markers=<none>; tail=make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux' UBUNTU_ROOTFS_FLAVOR=full \ UBUNTU_ROOTFS_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4' \ UBUNTU_ROOTFS_CPIO_IMAGE='/home/lyg/PA/ysyx-workbench/Lin...
+
+### .github/task-runs/2026-06-13-nemu-dev-isolation-contract/evidence/nemu-rootfs-flavor-full-soak-gate-dry-run.log
+
+- `kind`: log
+- `size_bytes`: 7286
+- `line_count`: 92
+- `sha256`: dcc5e2880647f41967b1e9af5477195c181e26bebb761996e8cfef5ba75bbbba
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-13T07:09:52+00:00
+- `markers`: {}
+- `summary`: log evidence; size=7286 bytes; lines=92; markers=<none>; tail=make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux' make ARCH=riscv64-nemu BOOT=ubuntu-rootfs \ UBUNTU_ROOTFS_FLAVOR=full \ UBUNTU_ROOTFS_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4' \ UBUNTU_ROOTFS...
+
+### .github/task-runs/2026-06-13-nemu-dev-isolation-contract/evidence/nemu-rootfs-flavor-guest-gate-dry-run.log
+
+- `kind`: log
+- `size_bytes`: 6979
+- `line_count`: 85
+- `sha256`: 85994e22d6a2aef8c993d4170638dc8df74b93d43f4e578286c8613709dd7f06
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-13T07:09:52+00:00
+- `markers`: {}
+- `summary`: log evidence; size=6979 bytes; lines=85; markers=<none>; tail=make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux' make ARCH=riscv64-nemu BOOT=ubuntu-rootfs \ UBUNTU_ROOTFS_FLAVOR=full \ UBUNTU_ROOTFS_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4' \ UBUNTU_ROOTFS...
+
+### .github/task-runs/2026-06-13-nemu-dev-isolation-contract/evidence/nemu-run-overlay-dry.log
+
+- `kind`: log
+- `size_bytes`: 5971
+- `line_count`: 60
+- `sha256`: aa61ead693f25971204a828af1c768f48595d100b60ab144dbae57e9112ccb6d
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-13T07:09:52+00:00
+- `markers`: {}
+- `summary`: log evidence; size=5971 bytes; lines=60; markers=<none>; tail=make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux' make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' riscv64-linux_defconfig make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu' /home/lyg/PA/ysyx-wor...
+
+### .github/task-runs/2026-06-13-nemu-dev-isolation-contract/evidence/nemu-ubuntu-slice-contract.log
+
+- `kind`: log
+- `size_bytes`: 69817
+- `line_count`: 1419
+- `sha256`: 004bb1befa8107714ab6f2bb060f1e1e6a1ea3c9543860f26be82cda6519643c
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-13T07:09:52+00:00
+- `markers`: {"BAD_TRAP": 2, "FAIL": 7, "GOOD_TRAP": 18, "OOPS": 2, "PANIC": 2, "PASS": 2639, "symbolic": ["__NEMU_CHECK_COMMON_COMMANDS__", "__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_META_SHA256__", "__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_RC__", "__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_SHA256__", "__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_SIM_RC__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_DPKG_STATUS_SNAPSHOT__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_DPKG_STATUS__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_HELLO_DPKG_STATUS_AFTER_REMOVE__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_HELLO_MESSAGE_AFTER_REMOVE__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_APT_STATE__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_DEADLINE_RC__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_EFFECT_OK_AFTER_TIMEOUT__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_LOCKS_BEGIN__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_LOG_TAIL_BEGIN__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_MESSAGE_SNAPSHOT__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_MESSAGE__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_PID__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_PS_BEGIN__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_RC__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_SAMPLE__"]}
+- `summary`: log evidence; size=69817 bytes; lines=1419; FAIL=7; PASS=2639; GOOD_TRAP=18; BAD_TRAP=2; PANIC=2; OOPS=2; symbolic=__NEMU_CHECK_COMMON_COMMANDS__,__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_META_SHA256__,__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_RC__,__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_SHA256__,__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_SIM_RC__; tail=NEMU_CHECK_VIRTIO_NET_SPEED__ PASS marker __NEMU_CHECK_VIRTIO_NET_DUPLEX__ PASS marker __NEMU_CHECK_VIRTIO_NET_IPV4__ PASS marker __NEMU_CHECK_VDA_CACHE_TYPE__ PASS marker __NEMU_CHECK_VDA_DISCARD_MAX__ PASS marker __NEMU_CHECK_VDA_WRITE_ZEROES_MAX__ PASS m...
+
+### .github/task-runs/2026-06-13-nemu-dev-isolation-contract/evidence/nemu-ubuntu-static.log
+
+- `kind`: log
+- `size_bytes`: 191026
+- `line_count`: 3138
+- `sha256`: 9cb8915f259993a955577ab4123c234a511580ab702463997afa94e80e6cded9
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-13T07:09:52+00:00
+- `markers`: {"GOOD_TRAP": 23, "PASS": 411, "symbolic": ["__NEMU_GDBSTUB_SMOKE__", "__NEMU_KERNEL_CONFIG__", "__NEMU_PERFORMANCE_CONFIG__"]}
+- `summary`: log evidence; size=191026 bytes; lines=3138; PASS=411; GOOD_TRAP=23; symbolic=__NEMU_GDBSTUB_SMOKE__,__NEMU_KERNEL_CONFIG__,__NEMU_PERFORMANCE_CONFIG__; tail=moke-nemu.log.hbreak[0m [1;34m[src/memory/paddr.c:66 init_mem] physical memory area [0x80000000, 0xbfffffff][0m [1;34m[src/device/io/mmio.c:78 add_mmio_map] Add mmio map 'serial' at [0x10000000, 0x10000fff][0m [1;34m[src/device/disk.c:1643 open_disk_i...
+
+### .github/task-runs/2026-06-13-nemu-dev-isolation-contract/evidence/software-flow-contract.log
+
+- `kind`: log
+- `size_bytes`: 2469
+- `line_count`: 37
+- `sha256`: d7fd15a4d6e627594d6f61c6ae2d8d3e88c330a4b37fbe2868bb28f81205103b
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-13T07:09:52+00:00
+- `markers`: {"FAIL": 2, "PASS": 68}
+- `summary`: log evidence; size=2469 bytes; lines=37; FAIL=2; PASS=68; tail=[software-flow] contract PASS .github/agents/software-flow.agent.md PASS .github/e2e/modules/software-flow.md PASS .github/e2e/profiles/software-flow.tsv PASS .github/memory/modules/software-flow.md PASS .github/agents/nemu.agent.md PASS .github/agents/abst...
+
+### .github/task-runs/2026-06-13-nemu-dev-isolation-contract/nodes.tsv
+
+- `kind`: tsv
+- `size_bytes`: 707
+- `line_count`: 3
+- `sha256`: 93fe5701bb39a7ba139a46390ffa5d1436f66b694f8cfeb738dd6fcd3f15aaff
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-13T07:09:52+00:00
+- `markers`: {"PASS": 8}
+- `summary`: tsv evidence; size=707 bytes; lines=3; PASS=8; tail=software-flow-contract software-flow software-flow PASS software-flow agent + profile + memory 软件开发全流程 agent 合约入口存在 .github/task-runs/2026-06-13-nemu-dev-isolation-contract/evidence/software-flow-contract.log nemu-ubuntu-static nemu nemu PASS Linux/NEMU Ubu...

@@ -20,6 +20,6 @@
 不能只看单个 PASS。商业交付完成必须同时满足：
 
 - 旧手工产物已归档，active roots 不再混杂旧 package。
-- `deliverables/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/` 可重新生成。
+- `dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/` 可重新生成。
 - `scripts/agent-maintain.sh --mode check` PASS。
-- 至少两轮 `agent-system` delivery task-run PASS，并带 `delivery-audit` evidence。
+- `agent-system` profile 和 `delivery-audit` 能在本轮维护 gate 中闭合。

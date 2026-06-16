@@ -1,8 +1,28 @@
-# DB-backed .github/task-runs/2026-06-12-rv64-uart-rx-wait-smoke-manual/task-report.md
+# RV64 UART RX Wait Smoke
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文备份由 `.github/db-backup/task-runs/manifest.json` 管理；恢复请使用下方命令。
+- date: 2026-06-12
+- scope: NPC rv64core UART RX host injection gate
+- result: PASS
 
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/2026-06-12-rv64-uart-rx-wait-smoke-manual/task-report.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/task-runs --path .github/task-runs/2026-06-12-rv64-uart-rx-wait-smoke-manual/task-report.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/2026-06-12-rv64-uart-rx-wait-smoke-manual/task-report.md`
+## What Changed
+
+- `NPC_UART_RX_WAIT=<pattern>` now holds host-provided UART RX bytes until the guest console output contains the pattern.
+- The UART RX e2e smoke now waits for `OpenSBI` before releasing `NPC_UART_RX_TEXT=xy`, making it closer to NEMU's FIFO/prompt-gated guest command flow.
+
+## Evidence
+
+- `evidence/npc-rv64-uart-rx-smoke/module-testbench.log`
+  - `PASS tb_uart`
+  - `PASS tb_axi_lite_to_uart`
+- `evidence/npc-rv64-uart-rx-smoke/runtime.log`
+  - `loaded bytes=2 ... wait='OpenSBI'`
+  - `waiting for guest output pattern='OpenSBI' before releasing bytes=2`
+  - guest output contains `OpenSBI`
+  - `wait pattern matched; releasing input`
+  - `pop=1 ... data=0x78`
+  - `pop=2 ... data=0x79`
+
+## Limits
+
+- This smoke proves gated UART RX release during OpenSBI/Linux startup.
+- It does not claim a full Ubuntu 22.04 login shell; the runtime intentionally stops at the configured 8,000,000-cycle budget.

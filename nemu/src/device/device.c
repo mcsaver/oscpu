@@ -15,6 +15,7 @@
 
 #include <common.h>
 #include <utils.h>
+#include <utils/profile.h>
 #include <device/alarm.h>
 #ifndef CONFIG_TARGET_AM
 #include <SDL2/SDL.h>
@@ -51,23 +52,48 @@ void device_update_after_inst(uint64_t retired) {
   if (retired == 0) {
     return;
   }
+  bool profile_on = unlikely(nemu_profile_enabled());
+  if (profile_on) {
+    nemu_profile_count(NEMU_PROFILE_DEVICE_UPDATE_CALLS, 1);
+    nemu_profile_count(NEMU_PROFILE_DEVICE_UPDATE_RETIRED, retired);
+  }
 
   // TB 批执行时一次可能退休多条指令，这里按 guest 指令数累计，
   // 让设备刷新频率保持原语义，同时避免 CPU 热路径每条指令都调用本函数。
   skip += retired;
   if (skip < DEVICE_UPDATE_CHECK_INTERVAL) {
+    if (profile_on) {
+      nemu_profile_count(NEMU_PROFILE_DEVICE_INTERVAL_SKIPS, 1);
+    }
     return;
   }
   skip = 0;
+  uint64_t interval_start = profile_on ? get_time() : 0;
+  if (profile_on) {
+    nemu_profile_count(NEMU_PROFILE_DEVICE_INTERVAL_FIRES, 1);
+  }
 
   // virtio-blk worker 只做 host I/O；完成写回必须回到主线程轮询，避免并发写 guest PMEM。
-  IFDEF(CONFIG_HAS_DISK, virtio_blk_update());
+#ifdef CONFIG_HAS_DISK
+  uint64_t virtio_start = profile_on ? get_time() : 0;
+  virtio_blk_update();
+  if (profile_on) {
+    nemu_profile_count(NEMU_PROFILE_DEVICE_VIRTIO_BLK_US,
+        get_time() - virtio_start);
+  }
+#endif
 
   uint64_t now = get_time();
   if (now - last < 1000000 / TIMER_HZ) {
+    if (profile_on) {
+      nemu_profile_count(NEMU_PROFILE_DEVICE_TIME_SKIPS, 1);
+      nemu_profile_count(NEMU_PROFILE_DEVICE_INTERVAL_US,
+          get_time() - interval_start);
+    }
     return;
   }
   last = now;
+  uint64_t visible_start = profile_on ? get_time() : 0;
 
   // UART RX 来自宿主 stdin/FIFO，需要在 guest 没有主动轮询寄存器时也能触发中断。
   IFDEF(CONFIG_HAS_SERIAL, serial_poll_input());
@@ -95,6 +121,12 @@ void device_update_after_inst(uint64_t retired) {
     }
   }
 #endif
+  if (profile_on) {
+    nemu_profile_count(NEMU_PROFILE_DEVICE_VISIBLE_TICKS, 1);
+    nemu_profile_count(NEMU_PROFILE_DEVICE_VISIBLE_US, get_time() - visible_start);
+    nemu_profile_count(NEMU_PROFILE_DEVICE_INTERVAL_US,
+        get_time() - interval_start);
+  }
 }
 
 void device_update() {

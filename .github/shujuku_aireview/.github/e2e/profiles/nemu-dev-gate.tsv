@@ -1,2 +1,0 @@
-@include|nemu-dev||||
-nemu-dev-focused-gate|nemu|e2e_nemu_ubuntu_focused_gate|nemu|optional NEMU-only Ubuntu rootfs/systemd guest gate|AGENT_E2E_NEMU_UBUNTU_GATE=1 时运行 NEMU-only minimized guest gate，否则 SKIP

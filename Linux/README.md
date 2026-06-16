@@ -4,7 +4,8 @@
 
 命令规范：
 
-- `ARCH` 表示仿真/目标架构，当前基准是 `riscv64-npc`。
+- `ARCH` 表示 ISA + 平台命名空间，格式为 `riscv64-<platform>`；当前支持 `riscv64-npc` 和 `riscv64-nemu`。
+- `riscv64-npc` 与 `riscv64-nemu` 共享 `Linux/env/src/` 源码、`Linux/env/downloads/` 下载缓存和可选本地工具链；Linux `O=` 构建、OpenSBI 构建、initramfs/rootfs 镜像和日志默认完全分到 `Linux/env/platforms/npc/` 与 `Linux/env/platforms/nemu/`。
 - `BOOT` 表示启动场景，默认是 `ubuntu-rootfs`。
 - `make ARCH=riscv64-npc run` 必须表示完整 Ubuntu rootfs 路线，不会偷偷降级成 shell initramfs gate。
 - `make ARCH=riscv64-nemu run` 使用同一套 kernel/DTB/rootfs 启动 NEMU 参考入口，默认构建 no-PMU OpenSBI，且 `MAX_CYCLES=0` 表示无限预算。
@@ -139,13 +140,21 @@ make ARCH=riscv64-nemu run-ubuntu-rootfs
 
 当前资源布局：
 
-- `Linux/env/`：外部源码、下载缓存、OpenSBI/Linux/QEMU 构建产物、Ubuntu 镜像和日志。
-- `Linux/build/`：DTB/DTS 等 Linux 启动相关中间产物。
+- `Linux/env/src/`：OpenSBI、Linux、BusyBox、QEMU 等外部源码；源码共享，不放平台构建输出。
+- `Linux/env/downloads/`：Linux、Ubuntu Base、BusyBox 等下载缓存；NEMU/NPC 共享，避免重复下载。
+- `Linux/env/platforms/<platform>/build/linux/`：该平台 Linux kernel `O=` 构建目录，例如 `.config`、`vmlinux`、`arch/riscv/boot/Image`。
+- `Linux/env/platforms/<platform>/build/opensbi/`：该平台 OpenSBI 构建目录，`rootfs/`、`busybox-initramfs/` 等场景互不覆盖。
+- `Linux/env/platforms/<platform>/images/`：该平台 initramfs、Ubuntu rootfs、flavor 镜像和 rootfs workdir。
+- `Linux/env/platforms/<platform>/logs/`：该平台 Linux/NEMU/NPC/QEMU 运行日志和 overlay。
+- `Linux/build/<ARCH>/`：DTB/DTS、machine-info 等 Linux 启动相关轻量中间产物。
 - `Linux/scripts/`：OpenSBI/Linux/Ubuntu/QEMU 构建和运行脚本。
+- `Linux/scripts/platform/`：平台默认值入口；`nemu.mk` 固定 no-PMU OpenSBI 和无限默认预算，`npc.mk` 固定 NPC 长跑预算与 PMU 默认值。
 - `Linux/platform/`：平台 YAML 与 DTB 生成器。
 - `Linux/configs/`：Linux boot/trace 用的 RV64 仿真器 profile。
 - `Linux/tools/`：Linux bring-up 专用 focused gates、小 payload 和 Ubuntu init 源码。
 - `npc/rv64/`：RV64 core RTL、testbench、Kconfig 和 Verilator 仿真本体。
+
+若需要临时复用旧的共享镜像或外部镜像，可以显式传 `UBUNTU_IMAGE_DIR=...`、`UBUNTU_ROOTFS_IMAGE=...`、`RUN_ROOTFS=...` 或 `LINUX_BUILD_DIR=...`；默认路径保持平台隔离，避免同时开发 NEMU/NPC 时互相覆盖 `.config`、OpenSBI `.config`、rootfs overlay 或日志。
 
 UART 架构边界：NEMU 的 ttyS0 路线现在使用 opaque `Uart16550 *` 设备对象，公共头只暴露 config/ops/bus profile、FIFO room 和读写/service/receive API；寄存器、真实 16B RX FIFO 与 IRQ pending 状态由 `uart16550.c` 私有维护，1MiB host 输入 staging 和 4KiB 串口 TX 宿主缓冲属于 `SerialPort` 前端，前端按 `uart16550_rx_room()` 分批送入 core，TX 缓冲按行、按块或设备轮询 flush 到 stderr，SoC adapter 仍只负责映射、TX 与 PLIC IRQ1 接线。
 

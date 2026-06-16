@@ -1,8 +1,9 @@
-# DB-backed .github/e2e/modules/linux-device.md
+# linux-device E2E Contract
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/e2e/modules/linux-device.md`。
-
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/e2e/modules/linux-device.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/e2e/modules/linux-device.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/e2e/modules/linux-device.md`
+- **范围**: UART、CLINT、PLIC、virtio-mmio、rootfs、Linux driver probe。
+- **上游**: rv64-linux rootfs/device tree。
+- **下游**: Ubuntu rootfs loop、systemd gate。
+- **L0 gate**: `linux-device-contract` 检查 virtio-rootfs instruction、DTS 生成器和 guest-check。
+- **L1 gate**: 后续 focused virtio/PLIC/UART guest marker。
+- **证据**: DTB nodes、`/proc/interrupts`、`/dev/vda`、virtio modalias。
+- **升级路线**: 将设备契约拆成 UART/PLIC/virtio-blk/virtio-rng 子 profile。

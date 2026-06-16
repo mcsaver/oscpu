@@ -34,7 +34,7 @@ scripts/package-ai-dev-env.sh
 生成目录：
 
 ```text
-deliverables/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/
+dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/
 ```
 
 旧手工产物已经归档到 `.github/archive/legacy-ai-dev-env-2026-06-13/`，不再作为 active delivery surface。

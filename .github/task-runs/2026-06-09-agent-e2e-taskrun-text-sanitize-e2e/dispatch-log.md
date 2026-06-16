@@ -1,8 +1,123 @@
-# DB-backed .github/task-runs/2026-06-09-agent-e2e-taskrun-text-sanitize-e2e/dispatch-log.md
+# Dispatch Log
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/task-runs/2026-06-09-agent-e2e-taskrun-text-sanitize-e2e/dispatch-log.md`。
+## 基本信息
 
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/2026-06-09-agent-e2e-taskrun-text-sanitize-e2e/dispatch-log.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/task-runs/2026-06-09-agent-e2e-taskrun-text-sanitize-e2e/dispatch-log.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/2026-06-09-agent-e2e-taskrun-text-sanitize-e2e/dispatch-log.md`
+- `task_id`: 2026-06-09-agent-e2e-taskrun-text-sanitize-e2e
+- `task_slug`: agent-e2e-taskrun-text-sanitize-e2e
+- `graph_template`: modular-agent-e2e
+- `profile`: agent-system
+- `log_policy`: append-only
+
+---
+
+### [2026-06-09 16:51:35 +0800] `recall-discovery` - `in-progress`
+
+- `owner_agent`: agent-system
+- `module`: agent-system
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: AGENTS/copilot/instructions/memory/e2e profiles
+- `action`: e2e_agent_system_discovery
+- `outputs`: 规则发现链和 e2e 配置入口存在
+- `evidence`: .github/task-runs/2026-06-09-agent-e2e-taskrun-text-sanitize-e2e/evidence/recall-discovery.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-09 16:51:35 +0800] `recall-discovery` - `PASS`
+
+- `owner_agent`: agent-system
+- `module`: agent-system
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: AGENTS/copilot/instructions/memory/e2e profiles
+- `action`: e2e_agent_system_discovery
+- `outputs`: 规则发现链和 e2e 配置入口存在
+- `evidence`: .github/task-runs/2026-06-09-agent-e2e-taskrun-text-sanitize-e2e/evidence/recall-discovery.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:
+
+### [2026-06-09 16:51:35 +0800] `tool-env-check` - `in-progress`
+
+- `owner_agent`: agent-system
+- `module`: toolchain
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: bash/git/make/python/gcc/verilator/toolchain
+- `action`: e2e_toolchain_check
+- `outputs`: hard requirements 与 optional tools 可见
+- `evidence`: .github/task-runs/2026-06-09-agent-e2e-taskrun-text-sanitize-e2e/evidence/tool-env-check.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-09 16:51:35 +0800] `tool-env-check` - `PASS`
+
+- `owner_agent`: agent-system
+- `module`: toolchain
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: bash/git/make/python/gcc/verilator/toolchain
+- `action`: e2e_toolchain_check
+- `outputs`: hard requirements 与 optional tools 可见
+- `evidence`: .github/task-runs/2026-06-09-agent-e2e-taskrun-text-sanitize-e2e/evidence/tool-env-check.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:
+
+### [2026-06-09 16:51:35 +0800] `npc-sim-status` - `in-progress`
+
+- `owner_agent`: hardware-flow
+- `module`: hardware-flow
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: npc/sim Kconfig 与 backend mk
+- `action`: e2e_hardware_flow_npc_sim_status
+- `outputs`: 当前 npc/sim 后端状态
+- `evidence`: .github/task-runs/2026-06-09-agent-e2e-taskrun-text-sanitize-e2e/evidence/npc-sim-status.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-09 16:51:35 +0800] `npc-sim-status` - `PASS`
+
+- `owner_agent`: hardware-flow
+- `module`: hardware-flow
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: npc/sim Kconfig 与 backend mk
+- `action`: e2e_hardware_flow_npc_sim_status
+- `outputs`: 当前 npc/sim 后端状态
+- `evidence`: .github/task-runs/2026-06-09-agent-e2e-taskrun-text-sanitize-e2e/evidence/npc-sim-status.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:
+
+### [2026-06-09 16:51:35 +0800] `profile-index` - `in-progress`
+
+- `owner_agent`: agent-system
+- `module`: agent-system
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: .github/e2e/profiles
+- `action`: e2e_agent_system_profile_index
+- `outputs`: 列出所有可执行 profile
+- `evidence`: .github/task-runs/2026-06-09-agent-e2e-taskrun-text-sanitize-e2e/evidence/profile-index.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-09 16:51:35 +0800] `profile-index` - `PASS`
+
+- `owner_agent`: agent-system
+- `module`: agent-system
+- `trigger`: e2e:agent-system
+- `depends_on`:
+- `inputs`: .github/e2e/profiles
+- `action`: e2e_agent_system_profile_index
+- `outputs`: 列出所有可执行 profile
+- `evidence`: .github/task-runs/2026-06-09-agent-e2e-taskrun-text-sanitize-e2e/evidence/profile-index.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:

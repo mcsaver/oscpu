@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "run_id": "2026-06-15-db-review-cleanup",
+  "task_slug": "db-review-cleanup",
+  "profile": "agent-system",
+  "status": "PASS",
+  "trace_id": "e2e:2026-06-15-db-review-cleanup",
+  "summary": ".github/shujuku_aireview 被归类为一次性审计材料并移出 tracked source。原始 payload 本地保留且由 .gitignore 忽略；Git 只保留本 manifest 和 evidence index。",
+  "db": {
+    "raw_evidence_index_only": true
+  },
+  "state_traceback": {
+    "recall_context": "读取 AI 环境 contract 和用户清理要求。",
+    "classify_layer": "agent",
+    "plan_graph": "拆分 source contract、生成物和审计 payload。",
+    "implement": "忽略并取消跟踪一次性审计 payload。",
+    "verify": "由 artifact、delivery、policy 和 e2e 维护 gate 覆盖。",
+    "inspect": "payload 只通过 pointer metadata 表示。",
+    "persist": "以 bounded source 形式保留 manifest 和 evidence index。"
+  }
+}

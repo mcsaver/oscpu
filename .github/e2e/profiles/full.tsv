@@ -1,8 +1,2 @@
-# DB-backed .github/e2e/profiles/full.tsv
-
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/e2e/profiles/full.tsv`。
-
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/e2e/profiles/full.tsv`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/e2e/profiles/full.tsv --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/e2e/profiles/full.tsv`
+@include|discovery||||
+am-full-regression|hardware-flow|e2e_hardware_flow_full_regression|hardware-flow|scripts/am-regression.sh full|AM/NEMU 完整参考回归证据

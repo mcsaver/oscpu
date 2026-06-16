@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-13T07:57:11+00:00",
-  "updated_at": "2026-06-13T15:41:41+00:00",
+  "updated_at": "2026-06-16T08:08:08+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -14202,6 +14202,110 @@
       "sha256": "64c87af999ec9d65574261c84de0816f32ab102a4f0c34ec288ff926c95a68c3",
       "backup_source": "database",
       "archived_at": "2026-06-13T15:41:41+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-16-2026-06-16-nemu-python-int-pylong-object-sentinel-contract-rerun/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6093,
+      "sha256": "26f0bfc9b5742e69e3fe4262e13296a0fb744e121ace51d35680384b0f355529",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-16T08:08:08+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-16-2026-06-16-nemu-python-int-pylong-object-sentinel-contract-rerun/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5949,
+      "sha256": "c1104b9188bdf2453af9a340da0e8a124edc2dd088b9b3b56abbe887af2334b6",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-16T08:08:08+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-16-2026-06-16-nemu-python-int-pylong-object-sentinel-contract-rerun/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 11720,
+      "sha256": "db23bfb0251ecb1f8985e6f80bfcecc90d9feab16630e8c854d90563d5e7750f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-16T08:08:08+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-16-2026-06-16-nemu-python-int-pylong-object-sentinel-contract-rerun/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1048,
+      "sha256": "d441edbcb17a247533da857f82577ea37922ddfba155d56b9e7ab6d70f4a137e",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-16T08:08:08+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-16-2026-06-16-nemu-python-int-pylong-object-sentinel-contract-rerun/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 5575,
+      "sha256": "ecf6b01aadcf32853a40296605b7f2d0a951fe7577ef0749d608f020fdeb87cb",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-16T08:08:08+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-16-2026-06-16-nemu-ubuntu-decode-profile-branch-split-smoke/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 9587,
+      "sha256": "3533efab78ac628549e776da6c798f5d232a6e5122561a67c25c2d4dbc450c28",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-15T23:23:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-16-nemu-python-int-focused-gate/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 1622,
+      "sha256": "f65814555c56c86dac6ed198c7b525555e268a03fd5712bac6961462c3caed77",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-16T00:15:00+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-16-nemu-python-int-focused-gate/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4842,
+      "sha256": "92d965696b259f90d74d07f9e97c79e60b5f67dd053ceb2ed4878a8a5914698b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-16T00:15:05+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-16-nemu-python-int-focused-gate/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 2729,
+      "sha256": "b543aa65cd09983de47817469ad70f2ba4a08b1b841c322422bb5109bfd6e355",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-16T00:14:55+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-16-nemu-ubuntu-current-after-decode-negatives-1b/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 13643,
+      "sha256": "05a703f81fcc1e7b2f6035f4ca0133743288f63ab144eadd41ffa07f12587943",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-15T23:24:53+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-16-nemu-ubuntu-decode-profile-branch-split-1b-rerun/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 13676,
+      "sha256": "ef34ce2b76a270934738883dcacb8128488804e8cd396b023f27561538eb5f74",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-15T23:23:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-16-nemu-ubuntu-decode-profile-branch-split-1b/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 13519,
+      "sha256": "9e61b0b1fedd6c55d2f25e6257c7af84be3e548e401a17b9bd584a61526c31b1",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-15T23:23:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-16-nemu-ubuntu-decode-switch-dispatch-1b/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 13511,
+      "sha256": "69efda2e9f96f6d118e472bea20139c8382437564806243cd9ee543ed58f5584",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-15T23:16:51+00:00"
     },
     {
       "path": ".github/task-runs/README.md",

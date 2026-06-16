@@ -1,0 +1,338 @@
+
+OpenSBI v1.8
+   ____                    _____ ____ _____
+  / __ \                  / ____|  _ \_   _|
+ | |  | |_ __   ___ _ __ | (___ | |_) || |
+ | |  | | '_ \ / _ \ '_ \ \___ \|  _ < | |
+ | |__| | |_) |  __/ | | |____) | |_) || |_
+  \____/| .__/ \___|_| |_|_____/|____/_____|
+        | |
+        |_|
+
+Platform Name               : YSYX NPC RV64
+Platform Features           : medeleg
+Platform HART Count         : 1
+Platform HART Protection    : pmp
+Platform IPI Device         : aclint-mswi
+Platform Timer Device       : aclint-mtimer @ 10000000Hz
+Platform Console Device     : uart8250
+Platform HSM Device         : ---
+Platform PMU Device         : ---
+Platform Reboot Device      : syscon-reboot
+Platform Shutdown Device    : syscon-poweroff
+Platform Suspend Device     : ---
+Platform CPPC Device        : ---
+Firmware Base               : 0x80000000
+Firmware Size               : 321 KB
+Firmware RW Offset          : 0x40000
+Firmware RW Size            : 65 KB
+Firmware Heap Offset        : 0x47000
+Firmware Heap Size          : 37 KB (total), 0 KB (reserved), 10 KB (used), 25 KB (free)
+Firmware Scratch Size       : 4096 B (total), 408 B (used), 3688 B (free)
+Runtime SBI Version         : 3.0
+Standard SBI Extensions     : time,rfnc,ipi,base,hsm,srst,dbcn,fwft,legacy,sse
+Experimental SBI Extensions : none
+
+Domain0 Name                : root
+Domain0 Boot HART           : 0
+Domain0 HARTs               : 0*
+Domain0 Region00            : 0x0000000080040000-0x000000008005ffff M: (F,R,W) S/U: ()
+Domain0 Region01            : 0x0000000080000000-0x000000008003ffff M: (F,R,X) S/U: ()
+Domain0 Region02            : 0x0000000000100000-0x0000000000100fff M: (I,R,W) S/U: (R,W)
+Domain0 Region03            : 0x0000000010000000-0x0000000010000fff M: (I,R,W) S/U: (R,W)
+Domain0 Region04            : 0x0000000002000000-0x000000000200ffff M: (I,R,W) S/U: ()
+Domain0 Region05            : 0x000000000c000000-0x000000000fffffff M: (I,R,W) S/U: (R,W)
+Domain0 Region06            : 0x0000000000000000-0xffffffffffffffff M: () S/U: (R,W,X)
+Domain0 Next Address        : 0x0000000080200000
+Domain0 Next Arg1           : 0x0000000082200000
+Domain0 Next Mode           : S-mode
+Domain0 SysReset            : yes
+Domain0 SysSuspend          : yes
+
+Boot HART ID                : 0
+Boot HART Domain            : root
+Boot HART Priv Version      : v1.11
+Boot HART Base ISA          : rv64imafdc
+Boot HART ISA Extensions    : zicntr
+Boot HART PMP Count         : 16
+Boot HART PMP Granularity   : 2 bits
+Boot HART PMP Address Bits  : 54
+Boot HART MHPM Info         : 0 (0x00000000)
+Boot HART Debug Triggers    : 0 triggers
+Boot HART MIDELEG           : 0x0000000000000222
+Boot HART MEDELEG           : 0x000000000004b109
+[    0.000000] Linux version 6.6.0 (lyg@lygdebug) (riscv64-linux-gnu-gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, GNU ld (GNU Binutils for Ubuntu) 2.42) #19 Mon Jun  8 11:07:33 CST 2026
+[    0.000000] random: crng init done
+[    0.000000] Machine model: YSYX NPC RV64
+[    0.000000] SBI specification v3.0 detected
+[    0.000000] SBI implementation ID=0x1 Version=0x10008
+[    0.000000] SBI TIME extension detected
+[    0.000000] SBI IPI extension detected
+[    0.000000] SBI RFENCE extension detected
+[    0.000000] SBI SRST extension detected
+[    0.000000] efi: UEFI not found.
+[    0.000000] OF: reserved mem: 0x0000000080000000..0x000000008003ffff (256 KiB) nomap non-reusable mmode_resv1@80000000
+[    0.000000] OF: reserved mem: 0x0000000080040000..0x000000008005ffff (128 KiB) nomap non-reusable mmode_resv0@80040000
+[    0.000000] Zone ranges:
+[    0.000000]   DMA32    [mem 0x0000000080000000-0x00000000bfffffff]
+[    0.000000]   Normal   empty
+[    0.000000] Movable zone start for each node
+[    0.000000] Early memory node ranges
+[    0.000000]   node   0: [mem 0x0000000080000000-0x000000008005ffff]
+[    0.000000]   node   0: [mem 0x0000000080060000-0x00000000bfffffff]
+[    0.000000] Initmem setup node 0 [mem 0x0000000080000000-0x00000000bfffffff]
+[    0.000000] riscv: base ISA extensions acdfim
+[    0.000000] riscv: ELF capabilities acdfim
+[    0.000000] Kernel command line: console=ttyS0,115200n8 root=/dev/vda rw init=/lib/systemd/systemd
+[    0.000000] Dentry cache hash table entries: 131072 (order: 8, 1048576 bytes, linear)
+[    0.000000] Inode-cache hash table entries: 65536 (order: 7, 524288 bytes, linear)
+[    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: 258048
+[    0.000000] mem auto-init: stack:off, heap alloc:off, heap free:off
+[    0.000000] Memory: 997392K/1048576K available (4284K kernel code, 4800K rwdata, 2048K rodata, 2110K init, 349K bss, 51184K reserved, 0K cma-reserved)
+[    0.000000] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
+[    0.000000] NR_IRQS: 64, nr_irqs: 64, preallocated irqs: 0
+[    0.000000] riscv-intc: 64 local interrupts mapped
+[    0.000000] plic: interrupt-controller@c000000: mapped 32 interrupts with 1 handlers for 2 contexts.
+[    0.000000] clocksource: riscv_clocksource: mask: 0xffffffffffffffff max_cycles: 0x24e6a1710, max_idle_ns: 440795202120 ns
+[    0.000030] sched_clock: 64 bits at 10MHz, resolution 100ns, wraps every 4398046511100ns
+[    0.006324] Calibrating delay loop (skipped), value calculated using timer frequency.. 20.00 BogoMIPS (lpj=40000)
+[    0.007008] pid_max: default: 32768 minimum: 301
+[    0.011547] LSM: initializing lsm=capability,integrity
+[    0.018046] Mount-cache hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[    0.019410] Mountpoint-cache hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[    0.088552] RCU Tasks Trace: Setting shift to 0 and lim to 1 rcu_task_cb_adjust=1.
+[    0.093019] riscv: ELF compat mode unsupported
+[    0.093774] ASID allocator using 16 bits (65536 entries)
+[    0.101633] EFI services will not be available.
+[    0.118855] devtmpfs: initialized
+[    0.213232] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 7645041785100000 ns
+[    0.214031] futex hash table entries: 256 (order: 1, 12288 bytes, linear)
+[    0.236713] NET: Registered PF_NETLINK/PF_ROUTE protocol family
+[    0.247902] DMA: preallocated 128 KiB GFP_KERNEL pool for atomic allocations
+[    0.249822] DMA: preallocated 128 KiB GFP_KERNEL|GFP_DMA32 pool for atomic allocations
+[    0.522810] clocksource: Switched to clocksource riscv_clocksource
+[    0.627571] NET: Registered PF_INET protocol family
+[    0.636690] IP idents hash table entries: 16384 (order: 5, 131072 bytes, linear)
+[    0.793400] tcp_listen_portaddr_hash hash table entries: 512 (order: 2, 16384 bytes, linear)
+[    0.796044] Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+[    0.796926] TCP established hash table entries: 8192 (order: 4, 65536 bytes, linear)
+[    0.805104] TCP bind hash table entries: 8192 (order: 7, 524288 bytes, linear)
+[    0.857196] TCP: Hash tables configured (established 8192 bind 8192)
+[    0.863397] UDP hash table entries: 512 (order: 3, 49152 bytes, linear)
+[    0.868696] UDP-Lite hash table entries: 512 (order: 3, 49152 bytes, linear)
+[    0.878454] NET: Registered PF_UNIX/PF_LOCAL protocol family
+[    0.933473] workingset: timestamp_bits=46 max_order=18 bucket_order=0
+[    0.972800] io scheduler mq-deadline registered
+[    4.646534] Serial: 8250/16550 driver, 4 ports, IRQ sharing disabled
+[    4.790701] printk: console [ttyS0] disabled
+[    4.811848] 10000000.serial: ttyS0 at MMIO 0x10000000 (irq = 2, base_baud = 115200) is a 16550A
+[    4.812913] printk: console [ttyS0] enabled
+[    5.253096] loop: module loaded
+[    5.256498] virtio_blk virtio0: 1/0/0 default/read/poll queues
+[    5.268996] virtio_blk virtio0: [vda] 16777216 512-byte logical blocks (8.59 GB/8.00 GiB)
+[    5.408292] goldfish_rtc 10003000.rtc: registered as rtc0
+[    5.410354] goldfish_rtc 10003000.rtc: setting system clock to 2026-06-14T15:38:58 UTC (1781451538)
+[    5.437456] NET: Registered PF_PACKET protocol family
+[    5.439734] Key type dns_resolver registered
+[    6.478100] clk: Disabling unused clocks
+[    6.687780] EXT4-fs (vda): mounted filesystem c7819491-e650-4c7e-95b6-6f969614915a r/w with ordered data mode. Quota mode: disabled.
+[    6.690499] VFS: Mounted root (ext4 filesystem) on device 254:0.
+[    6.700160] devtmpfs: mounted
+[    6.790632] Freeing unused kernel image (initmem) memory: 2108K
+[    6.793563] Run /lib/systemd/systemd as init process
+[   10.664755] systemd[1]: systemd 249.11-0ubuntu3.21 running in system mode (+PAM +AUDIT +SELINUX +APPARMOR +IMA +SMACK +SECCOMP +GCRYPT +GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 -IDN +IPTC +KMOD +LIBCRYPTSETUP +LIBFDISK +PCRE2 -PWQUALITY -P11KIT -QRENCODE +BZIP2 +LZ4 +XZ +ZLIB +ZSTD -XKBCOMMON +UTMP +SYSVINIT default-hierarchy=unified)
+[   10.680733] systemd[1]: Detected architecture riscv64.
+
+Welcome to [1mUbuntu 22.04.5 LTS[0m!
+
+[   10.753209] systemd[1]: Hostname set to <ysyx-ubuntu2204>.
+[   10.845216] systemd[1]: Initializing machine ID from random generator.
+[   54.665011] systemd[1]: Queued start job for default target Graphical Interface.
+[   54.965919] systemd[1]: Created slice Slice /system/modprobe.
+[[0;32m  OK  [0m] Created slice [0;1;39mSlice /system/modprobe[0m.
+[   55.174285] systemd[1]: Created slice Slice /system/serial-getty.
+[[0;32m  OK  [0m] Created slice [0;1;39mSlice /system/serial-getty[0m.
+[   55.292897] systemd[1]: Created slice User and Session Slice.
+[[0;32m  OK  [0m] Created slice [0;1;39mUser and Session Slice[0m.
+[   55.341873] systemd[1]: Started Forward Password Requests to Wall Directory Watch.
+[[0;32m  OK  [0m] Started [0;1;39mForward Password R…uests to Wall Directory Watch[0m.
+[   55.389188] systemd[1]: Condition check resulted in Arbitrary Executable File Formats File System Automount Point being skipped.
+[   55.425228] systemd[1]: Reached target Slice Units.
+[[0;32m  OK  [0m] Reached target [0;1;39mSlice Units[0m.
+[   55.461553] systemd[1]: Reached target Swaps.
+[[0;32m  OK  [0m] Reached target [0;1;39mSwaps[0m.
+[   55.498481] systemd[1]: Reached target Local Verity Protected Volumes.
+[[0;32m  OK  [0m] Reached target [0;1;39mLocal Verity Protected Volumes[0m.
+[   55.559143] systemd[1]: Listening on fsck to fsckd communication Socket.
+[[0;32m  OK  [0m] Listening on [0;1;39mfsck to fsckd communication Socket[0m.
+[   55.605528] systemd[1]: Listening on initctl Compatibility Named Pipe.
+[[0;32m  OK  [0m] Listening on [0;1;39minitctl Compatibility Named Pipe[0m.
+[   55.685671] systemd[1]: Condition check resulted in Journal Audit Socket being skipped.
+[   55.726011] systemd[1]: Listening on Journal Socket (/dev/log).
+[[0;32m  OK  [0m] Listening on [0;1;39mJournal Socket (/dev/log)[0m.
+[   55.790491] systemd[1]: Listening on Journal Socket.
+[[0;32m  OK  [0m] Listening on [0;1;39mJournal Socket[0m.
+[   55.861775] systemd[1]: Listening on udev Control Socket.
+[[0;32m  OK  [0m] Listening on [0;1;39mudev Control Socket[0m.
+[   55.915978] systemd[1]: Listening on udev Kernel Socket.
+[[0;32m  OK  [0m] Listening on [0;1;39mudev Kernel Socket[0m.
+[   55.946481] systemd[1]: Reached target Socket Units.
+[[0;32m  OK  [0m] Reached target [0;1;39mSocket Units[0m.
+[   56.025053] systemd[1]: Condition check resulted in Huge Pages File System being skipped.
+[   56.308404] systemd[1]: Mounting POSIX Message Queue File System...
+         Mounting [0;1;39mPOSIX Message Queue File System[0m...
+[   56.478731] systemd[1]: Condition check resulted in Kernel Debug File System being skipped.
+[   56.582230] systemd[1]: Condition check resulted in Kernel Trace File System being skipped.
+[   57.622700] systemd[1]: Starting Journal Service...
+         Starting [0;1;39mJournal Service[0m...
+[   57.720312] systemd[1]: Condition check resulted in Create List of Static Device Nodes being skipped.
+[   58.459765] systemd[1]: Starting Load Kernel Module configfs...
+         Starting [0;1;39mLoad Kernel Module configfs[0m...
+[   59.593054] systemd[1]: Starting Load Kernel Module drm...
+         Starting [0;1;39mLoad Kernel Module drm[0m...
+[   60.976463] systemd[1]: Starting Load Kernel Module fuse...
+         Starting [0;1;39mLoad Kernel Module fuse[0m...
+[   61.255867] systemd[1]: Condition check resulted in File System Check on Root Device being skipped.
+[   62.577510] systemd[1]: Starting Load Kernel Modules...
+         Starting [0;1;39mLoad Kernel Modules[0m...
+[   63.722271] systemd[1]: Starting Remount Root and Kernel File Systems...
+         Starting [0;1;39mRemount Root and Kernel File Systems[0m...
+[   65.097428] systemd[1]: Starting Coldplug All udev Devices...
+         Starting [0;1;39mColdplug All udev Devices[0m...
+[   67.301112] systemd[1]: Mounted POSIX Message Queue File System.
+[[0;32m  OK  [0m] Mounted [0;1;39mPOSIX Message Queue File System[0m.
+[   67.881441] systemd[1]: modprobe@configfs.service: Deactivated successfully.
+[   68.393173] systemd[1]: Finished Load Kernel Module configfs.
+[[0;32m  OK  [0m] Finished [0;1;39mLoad Kernel Module configfs[0m.
+[   69.036350] systemd[1]: modprobe@drm.service: Deactivated successfully.
+[   69.713329] systemd[1]: Finished Load Kernel Module drm.
+[[0;32m  OK  [0m] Finished [0;1;39mLoad Kernel Module drm[0m.
+[   70.701370] systemd[1]: modprobe@fuse.service: Deactivated successfully.
+[   71.702027] systemd[1]: Finished Load Kernel Module fuse.
+[[0;32m  OK  [0m] Finished [0;1;39mLoad Kernel Module fuse[0m.
+[   73.392467] systemd[1]: Finished Load Kernel Modules.
+[   73.615775] EXT4-fs (vda): re-mounted c7819491-e650-4c7e-95b6-6f969614915a r/w. Quota mode: disabled.
+[[0;32m  OK  [0m] Finished [0;1;39mLoad Kernel Modules[0m.
+[   77.721226] systemd[1]: Finished Remount Root and Kernel File Systems.
+[[0;32m  OK  [0m] Finished [0;1;39mRemount Root and Kernel File Systems[0m.
+[   78.156206] systemd[1]: Condition check resulted in FUSE Control File System being skipped.
+[   78.246619] systemd[1]: Condition check resulted in Kernel Configuration File System being skipped.
+[   79.109364] systemd[1]: Starting Load/Save Random Seed...
+         Starting [0;1;39mLoad/Save Random Seed[0m...
+[   80.329862] systemd[1]: Starting Apply Kernel Variables...
+         Starting [0;1;39mApply Kernel Variables[0m...
+[   81.624912] systemd[1]: Starting Create System Users...
+         Starting [0;1;39mCreate System Users[0m...
+[   86.909492] systemd[1]: Finished Load/Save Random Seed.
+[[0;32m  OK  [0m] Finished [0;1;39mLoad/Save Random Seed[0m.
+[   87.230098] systemd[1]: Condition check resulted in First Boot Complete being skipped.
+[[0m[0;31m*     [0m] (1 of 5) A start job is running for… All udev Devices (34s / no limit)
+M[K[[0;32m  OK  [0m] Finished [0;1;39mApply Kernel Variables[0m.
+[K[[0;32m  OK  [0m] Started [0;1;39mJournal Service[0m.
+         Starting [0;1;39mFlush Journal to Persistent Storage[0m...
+[[0;1;31m*[0m[0;31m*    [0m] (1 of 4) A start job is running for… All udev Devices (39s / no limit)
+M[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (1 of 4) A start job is running for… All udev Devices (39s / no limit)
+M[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] (2 of 4) A start job is running for /dev/ttyS0 (40s / 1min 30s)
+M[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] (2 of 4) A start job is running for /dev/ttyS0 (40s / 1min 30s)
+M[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] (2 of 4) A start job is running for /dev/ttyS0 (40s / 1min 30s)
+M[K[[0;32m  OK  [0m] Finished [0;1;39mCreate System Users[0m.
+[K         Starting [0;1;39mCreate Static Device Nodes in /dev[0m...
+[[0;32m  OK  [0m] Finished [0;1;39mFlush Journal to Persistent Storage[0m.
+[    [0;31m*[0;1;31m*[0m] (3 of 3) A start job is running for…ice Nodes in /dev (46s / no limit)
+M[K[     [0;31m*[0m] (3 of 3) A start job is running for…ice Nodes in /dev (46s / no limit)
+M[K[    [0;31m*[0;1;31m*[0m] (3 of 3) A start job is running for…ice Nodes in /dev (47s / no limit)
+M[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] (1 of 3) A start job is running for… All udev Devices (47s / no limit)
+M[K[[0;32m  OK  [0m] Finished [0;1;39mCreate Static Device Nodes in /dev[0m.
+[K[[0;32m  OK  [0m] Reached target [0;1;39mPreparation for Local File Systems[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mLocal File Systems[0m.
+         Starting [0;1;39mTell Plymouth To Write Out Runtime Data[0m...
+         Starting [0;1;39mCreate Volatile Files and Directories[0m...
+         Starting [0;1;39mRule-based Manage…for Device Events and Files[0m...
+[[0;32m  OK  [0m] Finished [0;1;39mTell Plymouth To Write Out Runtime Data[0m.
+[  [0;31m*[0;1;31m*[0m[0;31m* [0m] (4 of 4) A start job is running for… Events and Files (55s / 2min 21s)
+M[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] (4 of 4) A start job is running for… Events and Files (55s / 2min 21s)
+M[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (1 of 4) A start job is running for… All udev Devices (56s / no limit)
+M[K[[0;1;31m*[0m[0;31m*    [0m] (1 of 4) A start job is running for… All udev Devices (56s / no limit)
+M[K[[0m[0;31m*     [0m] (1 of 4) A start job is running for… All udev Devices (57s / no limit)
+M[K[[0;1;31m*[0m[0;31m*    [0m] (2 of 4) A start job is running for /dev/ttyS0 (57s / 1min 30s)
+M[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (2 of 4) A start job is running for /dev/ttyS0 (58s / 1min 30s)
+M[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] (2 of 4) A start job is running for /dev/ttyS0 (58s / 1min 30s)
+M[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] (3 of 4) A start job is running for…s and Directories (59s / no limit)
+M[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] (3 of 4) A start job is running for…s and Directories (59s / no limit)
+M[K[    [0;31m*[0;1;31m*[0m] (3 of 4) A start job is running for… and Directories (1min / no limit)
+M[K[     [0;31m*[0m] (4 of 4) A start job is running for…Events and Files (1min / 2min 21s)
+M[K[    [0;31m*[0;1;31m*[0m] (4 of 4) A start job is running for…nts and Files (1min 1s / 2min 21s)
+M[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] (4 of 4) A start job is running for…nts and Files (1min 1s / 2min 21s)
+M[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] (1 of 4) A start job is running for… udev Devices (1min 2s / no limit)
+M[K[[0;32m  OK  [0m] Finished [0;1;39mCreate Volatile Files and Directories[0m.
+[K         Starting [0;1;39mRecord System Boot/Shutdown in UTMP[0m...
+[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] (1 of 4) A start job is running for…tdown in UTMP (1min 4s / no limit)
+M[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (1 of 4) A start job is running for…tdown in UTMP (1min 5s / no limit)
+M[K[[0;1;31m*[0m[0;31m*    [0m] (2 of 4) A start job is running for… udev Devices (1min 5s / no limit)
+M[K[[0m[0;31m*     [0m] (2 of 4) A start job is running for… udev Devices (1min 6s / no limit)
+M[K[[0;1;31m*[0m[0;31m*    [0m] (2 of 4) A start job is running for… udev Devices (1min 6s / no limit)
+M[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (3 of 4) A start job is running for /dev/ttyS0 (1min 10s / 1min 30s)
+M[K[[0;32m  OK  [0m] Finished [0;1;39mRecord System Boot/Shutdown in UTMP[0m.
+[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] (2 of 3) A start job is running for /dev/ttyS0 (1min 15s / 1min 30s)
+M[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] (2 of 3) A start job is running for /dev/ttyS0 (1min 16s / 1min 30s)
+M[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] (3 of 3) A start job is running for…ts and Files (1min 16s / 2min 21s)
+M[K[    [0;31m*[0;1;31m*[0m] (3 of 3) A start job is running for…ts and Files (1min 16s / 2min 21s)
+M[K[     [0;31m*[0m] (3 of 3) A start job is running for…ts and Files (1min 17s / 2min 21s)
+M[K[    [0;31m*[0;1;31m*[0m] (1 of 3) A start job is running for…udev Devices (1min 18s / no limit)
+M[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] (1 of 3) A start job is running for…udev Devices (1min 18s / no limit)
+M[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] (1 of 3) A start job is running for…udev Devices (1min 18s / no limit)
+M[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] (2 of 3) A start job is running for /dev/ttyS0 (1min 19s / 1min 30s)
+M[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (2 of 3) A start job is running for /dev/ttyS0 (1min 19s / 1min 30s)
+M[K[[0;1;31m*[0m[0;31m*    [0m] (2 of 3) A start job is running for /dev/ttyS0 (1min 20s / 1min 30s)
+M[K[[0m[0;31m*     [0m] (3 of 3) A start job is running for…ts and Files (1min 20s / 2min 21s)
+M[K[[0;1;31m*[0m[0;31m*    [0m] (3 of 3) A start job is running for…ts and Files (1min 21s / 2min 21s)
+M[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (3 of 3) A start job is running for…ts and Files (1min 21s / 2min 21s)
+M[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] (1 of 3) A start job is running for…udev Devices (1min 22s / no limit)
+M[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] (1 of 3) A start job is running for…udev Devices (1min 22s / no limit)
+M[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] (1 of 3) A start job is running for…udev Devices (1min 23s / no limit)
+M[K[    [0;31m*[0;1;31m*[0m] (2 of 3) A start job is running for /dev/ttyS0 (1min 23s / 1min 30s)
+M[K[[0;32m  OK  [0m] Started [0;1;39mRule-based Manager for Device Events and Files[0m.
+[K[     [0;31m*[0m] (1 of 2) A start job is running for…udev Devices (1min 26s / no limit)
+M[K[    [0;31m*[0;1;31m*[0m] (1 of 2) A start job is running for…udev Devices (1min 26s / no limit)
+M[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] (2 of 2) A start job is running for /dev/ttyS0 (1min 27s / 1min 30s)
+M[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] (2 of 2) A start job is running for /dev/ttyS0 (1min 27s / 1min 30s)
+M[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] (2 of 2) A start job is running for /dev/ttyS0 (1min 28s / 1min 30s)
+M[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (1 of 2) A start job is running for…udev Devices (1min 28s / no limit)
+M[K[[0;1;31m*[0m[0;31m*    [0m] (1 of 2) A start job is running for…udev Devices (1min 29s / no limit)
+M[K[[0m[0;31m*     [0m] (1 of 2) A start job is running for…udev Devices (1min 29s / no limit)
+M[K[[0;1;31m*[0m[0;31m*    [0m] (2 of 2) A start job is running for /dev/ttyS0 (1min 30s / 1min 30s)
+M[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (2 of 2) A start job is running for /dev/ttyS0 (1min 30s / 1min 30s)
+M[K[[0;1;31m TIME [0m] Timed out waiting for device [0;1;39m/dev/ttyS0[0m.
+[K[[0;1;38;5;185mDEPEND[0m] Dependency failed for [0;1;39mSerial Getty on ttyS0[0m.
+[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] A start job is running for Coldplug…udev Devices (1min 33s / no limit)
+M[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] A start job is running for Coldplug…udev Devices (1min 34s / no limit)
+M[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] A start job is running for Coldplug…udev Devices (1min 34s / no limit)
+M[K[    [0;31m*[0;1;31m*[0m] A start job is running for Coldplug…udev Devices (1min 35s / no limit)
+M[K[     [0;31m*[0m] A start job is running for Coldplug…udev Devices (1min 35s / no limit)
+M[K[    [0;31m*[0;1;31m*[0m] A start job is running for Coldplug…udev Devices (1min 36s / no limit)
+M[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] A start job is running for Coldplug…udev Devices (1min 41s / no limit)
+M[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] A start job is running for Coldplug…udev Devices (1min 52s / no limit)
+M[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] A start job is running for Coldplug…udev Devices (1min 58s / no limit)
+M[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] A start job is running for Coldplug…udev Devices (1min 58s / no limit)
+M[K[[0;1;31m*[0m[0;31m*    [0m] A start job is running for Coldplug…udev Devices (1min 59s / no limit)
+M[K[[0;32m  OK  [0m] Finished [0;1;39mColdplug All udev Devices[0m.
+[K[[0;32m  OK  [0m] Started [0;1;39mDispatch Password …ts to Console Directory Watch[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mLocal Encrypted Volumes[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mPath Units[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mSystem Initialization[0m.
+[[0;32m  OK  [0m] Started [0;1;39mDaily apt download activities[0m.
+[[0;32m  OK  [0m] Started [0;1;39mDaily apt upgrade and clean activities[0m.
+[[0;32m  OK  [0m] Started [0;1;39mDaily dpkg database backup timer[0m.
+[[0;32m  OK  [0m] Started [0;1;39mDiscard unused blocks once a week[0m.
+[[0;32m  OK  [0m] Started [0;1;39mMessage of the Day[0m.
+[[0;32m  OK  [0m] Started [0;1;39mDaily Cleanup of Temporary Directories[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mBasic System[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mTimer Units[0m.
+[[0;32m  OK  [0m] Listening on [0;1;39mD-Bus System Message Bus Socket[0m.
+[[0;32m  OK  [0m] Started [0;1;39mD-Bus System Message Bus[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mLogin Prompts[0m.
+         Starting [0;1;39mUser Login Management[0m...
+         Starting [0;1;39mPermit User Sessions[0m...
+[[0;32m  OK  [0m] Finished [0;1;39mPermit User Sessions[0m.
+[[0m[0;31m*     [0m] A start job is running for User Login Management (3min 32s / 4min 39s)
+M[K[[0;1;31m*[0m[0;31m*    [0m] A start job is running for User Login Management (3min 41s / 4min 39s)

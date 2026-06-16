@@ -1,0 +1,7 @@
+# Legacy AI dev environment archive checksums
+
+本归档目录在 Git 中只保留轻量清单。
+
+旧手工输出、大体积 e2e 证据、生成包等 payload 已外置，不在 tracked
+source tree 内记录 checksum。发布外部 bundle 时，在这里登记 filename、
+sha256、size 和 storage URL。

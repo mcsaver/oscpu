@@ -39,5 +39,14 @@ static inline bool in_pmem(paddr_t addr) {
 //物理层的读写入口（负责分发到pmem或mmio）
 word_t paddr_read(paddr_t addr, int len);
 void paddr_write(paddr_t addr, int len, word_t data);
+bool paddr_dma_write(paddr_t addr, const void *buf, uint32_t len);
+bool paddr_dma_write_value(paddr_t addr, int len, word_t data);
+extern bool paddr_device_write_seen;
+bool paddr_take_device_write(void);
+
+// 热路径先用 inline guard 判空，只有真的写过设备/MMIO 时才进入清标志函数。
+static inline bool paddr_has_device_write(void) {
+  return unlikely(paddr_device_write_seen);
+}
 
 #endif

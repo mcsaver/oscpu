@@ -5,6 +5,8 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 LINUX_HOME=$(cd -- "$SCRIPT_DIR/.." && pwd)
 ENV_ROOT=${YSYX_LINUX_ENV_ROOT:-"$LINUX_HOME/env"}
 REQUIRE_SYSTEMD=${UBUNTU_ROOTFS_REQUIRE_SYSTEMD:-0}
+REQUIRE_NPC_CONSOLE_SHELL=${UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL:-0}
+REQUIRE_NPC_TTY_READER=${UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER:-0}
 DEBUGFS=${DEBUGFS:-debugfs}
 ROOTFS_FLAVOR=${UBUNTU_ROOTFS_FLAVOR:-systemd-minimal}
 ROOTFS_FLAVOR_SCRIPT=${UBUNTU_ROOTFS_FLAVOR_SCRIPT:-"$SCRIPT_DIR/ubuntu-rootfs-flavors.sh"}
@@ -254,6 +256,150 @@ if [ "$REQUIRE_SYSTEMD" = "1" ] && [ -n "$systemd_bin" ]; then
   else
     echo "[ubuntu-rootfs-check] MISSING periodic e2scrub timer mask"
     systemd_missing=1
+  fi
+
+  if rootfs_file_contains /etc/machine-id '^[0-9a-f]{32}$'; then
+    echo "[ubuntu-rootfs-check] OK      deterministic machine-id seed: /etc/machine-id"
+  else
+    echo "[ubuntu-rootfs-check] MISSING deterministic machine-id seed"
+    systemd_missing=1
+  fi
+
+  if [ "$REQUIRE_NPC_CONSOLE_SHELL" = "1" ]; then
+    if rootfs_has /usr/local/sbin/ysyx-npc-console-shell; then
+      echo "[ubuntu-rootfs-check] OK      NPC console shell hook: /usr/local/sbin/ysyx-npc-console-shell"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NPC console shell hook"
+      systemd_missing=1
+    fi
+
+    if rootfs_file_contains /usr/local/sbin/ysyx-npc-console-shell '^echo __NPC_CONSOLE_SHELL_READY__$'; then
+      echo "[ubuntu-rootfs-check] OK      NPC console shell ready marker"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NPC console shell ready marker"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /usr/local/sbin/ysyx-npc-systemd-wrapper; then
+      echo "[ubuntu-rootfs-check] OK      NPC systemd wrapper: /usr/local/sbin/ysyx-npc-systemd-wrapper"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NPC systemd wrapper"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /usr/local/sbin/ysyx-npc-systemd-autocheck; then
+      echo "[ubuntu-rootfs-check] OK      NPC systemd autocheck: /usr/local/sbin/ysyx-npc-systemd-autocheck"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NPC systemd autocheck"
+      systemd_missing=1
+    fi
+
+    npc_tty_reader_present=0
+    if rootfs_has /usr/local/sbin/ysyx-npc-tty-reader; then
+      npc_tty_reader_present=1
+      echo "[ubuntu-rootfs-check] OK      NPC tty reader diagnostic: /usr/local/sbin/ysyx-npc-tty-reader"
+    elif [ "$REQUIRE_NPC_TTY_READER" = "1" ]; then
+      echo "[ubuntu-rootfs-check] MISSING NPC tty reader diagnostic"
+      systemd_missing=1
+    fi
+
+    if [ "$npc_tty_reader_present" = "1" ] || [ "$REQUIRE_NPC_TTY_READER" = "1" ]; then
+      if rootfs_file_contains /usr/local/sbin/ysyx-npc-tty-reader '^[[:space:]]*echo __NPC_TTY_READER_READY__$' &&
+         rootfs_file_contains /usr/local/sbin/ysyx-npc-tty-reader '^[[:space:]]*echo "__NPC_TTY_READER_DONE__ rc=0"$'; then
+        echo "[ubuntu-rootfs-check] OK      NPC tty reader markers"
+      else
+        echo "[ubuntu-rootfs-check] MISSING NPC tty reader markers"
+        systemd_missing=1
+      fi
+    fi
+
+    if rootfs_file_contains /usr/local/sbin/ysyx-npc-systemd-autocheck '^echo "__NPC_SYSTEMD_AUTOCHECK_DONE__ rc=\$check_fail"$'; then
+      echo "[ubuntu-rootfs-check] OK      NPC systemd autocheck done marker"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NPC systemd autocheck done marker"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /etc/systemd/system/ysyx-npc-systemd-autocheck.service; then
+      echo "[ubuntu-rootfs-check] OK      NPC systemd autocheck unit: /etc/systemd/system/ysyx-npc-systemd-autocheck.service"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NPC systemd autocheck unit"
+      systemd_missing=1
+    fi
+
+    npc_tty_reader_unit_present=0
+    if rootfs_has /etc/systemd/system/ysyx-npc-tty-reader.service; then
+      npc_tty_reader_unit_present=1
+      echo "[ubuntu-rootfs-check] OK      NPC tty reader unit: /etc/systemd/system/ysyx-npc-tty-reader.service"
+    elif [ "$REQUIRE_NPC_TTY_READER" = "1" ]; then
+      echo "[ubuntu-rootfs-check] MISSING NPC tty reader unit"
+      systemd_missing=1
+    fi
+
+    if [ "$npc_tty_reader_unit_present" = "1" ] || [ "$REQUIRE_NPC_TTY_READER" = "1" ]; then
+      if rootfs_file_contains /etc/systemd/system/ysyx-npc-tty-reader.service '^StandardInput=tty-force$' &&
+         rootfs_file_contains /etc/systemd/system/ysyx-npc-tty-reader.service '^TTYPath=/dev/ttyS0$' &&
+         rootfs_file_contains /etc/systemd/system/ysyx-npc-tty-reader.service '^Before=.*ysyx-npc-systemd-autocheck\.service'; then
+        echo "[ubuntu-rootfs-check] OK      NPC tty reader ttyS0 ordering"
+      else
+        echo "[ubuntu-rootfs-check] MISSING NPC tty reader ttyS0 ordering"
+        systemd_missing=1
+      fi
+    fi
+
+    if rootfs_file_contains /etc/systemd/system/ysyx-npc-systemd-autocheck.service '^Before=.*systemd-sysusers\.service' &&
+       rootfs_file_contains /etc/systemd/system/ysyx-npc-systemd-autocheck.service '^Before=.*systemd-udev-trigger\.service' &&
+       rootfs_file_contains /etc/systemd/system/ysyx-npc-systemd-autocheck.service '^StandardOutput=tty$' &&
+       rootfs_file_contains /etc/systemd/system/ysyx-npc-systemd-autocheck.service '^TTYPath=/dev/ttyS0$'; then
+      echo "[ubuntu-rootfs-check] OK      NPC systemd autocheck early ttyS0 ordering"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NPC systemd autocheck early ttyS0 ordering"
+      systemd_missing=1
+    fi
+
+    if rootfs_symlink_points_to /etc/systemd/system/sysinit.target.wants/ysyx-npc-systemd-autocheck.service ../ysyx-npc-systemd-autocheck.service; then
+      echo "[ubuntu-rootfs-check] OK      NPC systemd autocheck enabled for sysinit.target"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NPC systemd autocheck sysinit.target enablement"
+      systemd_missing=1
+    fi
+
+    if [ "$REQUIRE_NPC_TTY_READER" = "1" ]; then
+      if rootfs_symlink_points_to /etc/systemd/system/sysinit.target.wants/ysyx-npc-tty-reader.service ../ysyx-npc-tty-reader.service; then
+        echo "[ubuntu-rootfs-check] OK      NPC tty reader enabled for sysinit.target"
+      else
+        echo "[ubuntu-rootfs-check] MISSING NPC tty reader sysinit.target enablement"
+        systemd_missing=1
+      fi
+    elif rootfs_symlink_points_to /etc/systemd/system/sysinit.target.wants/ysyx-npc-console-shell.service ../ysyx-npc-console-shell.service; then
+      echo "[ubuntu-rootfs-check] OK      NPC console shell enabled for sysinit.target"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NPC console shell sysinit.target enablement"
+      systemd_missing=1
+    fi
+
+    if rootfs_file_contains /etc/systemd/system/ysyx-npc-console-shell.service '^Before=.*systemd-sysusers\.service' &&
+       rootfs_file_contains /etc/systemd/system/ysyx-npc-console-shell.service '^Before=.*systemd-udev-trigger\.service'; then
+      echo "[ubuntu-rootfs-check] OK      NPC console shell ordered before early sysinit blockers"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NPC console shell early sysinit ordering"
+      systemd_missing=1
+    fi
+
+    if rootfs_file_contains /etc/systemd/system/ysyx-npc-console-shell.service '^TTYPath=/dev/ttyS0$'; then
+      echo "[ubuntu-rootfs-check] OK      NPC console shell bound to ttyS0"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NPC console shell ttyS0 binding"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /usr/local/share/ysyx-disabled-system-generators/systemd-fstab-generator &&
+       ! rootfs_has /lib/systemd/system-generators/systemd-fstab-generator; then
+      echo "[ubuntu-rootfs-check] OK      NPC systemd generators disabled for staged gate"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NPC systemd generator disablement"
+      systemd_missing=1
+    fi
   fi
 
   if rootfs_has /etc/systemd/system/serial-getty@hvc0.service; then

@@ -1,0 +1,76 @@
+{
+  "artifacts": {
+    "context_brief": ".github/task-runs/2026-06-16-2026-06-16-db-doctor-nonblocking-drift-contract/context-brief.md",
+    "dispatch_log": ".github/task-runs/2026-06-16-2026-06-16-db-doctor-nonblocking-drift-contract/dispatch-log.md",
+    "evidence_dir": ".github/task-runs/2026-06-16-2026-06-16-db-doctor-nonblocking-drift-contract/evidence",
+    "evidence_index": ".github/task-runs/2026-06-16-2026-06-16-db-doctor-nonblocking-drift-contract/evidence-index.md",
+    "nodes": ".github/task-runs/2026-06-16-2026-06-16-db-doctor-nonblocking-drift-contract/nodes.tsv",
+    "profile_resolve": ".github/task-runs/2026-06-16-2026-06-16-db-doctor-nonblocking-drift-contract/profile-resolve.md",
+    "run_dir": ".github/task-runs/2026-06-16-2026-06-16-db-doctor-nonblocking-drift-contract",
+    "run_manifest": ".github/task-runs/2026-06-16-2026-06-16-db-doctor-nonblocking-drift-contract/run-manifest.json",
+    "task_report": ".github/task-runs/2026-06-16-2026-06-16-db-doctor-nonblocking-drift-contract/task-report.md"
+  },
+  "db": {
+    "markdown_archive": true,
+    "raw_evidence_index_only": true
+  },
+  "evidence": {
+    "asset_count": 2,
+    "by_kind": {
+      "log": 1,
+      "tsv": 1
+    },
+    "total_size_bytes": 46878
+  },
+  "final_result": "profile=github-index 存在失败节点；不能把后续工程判断建立在该节点上。",
+  "git": {
+    "branch": "ai",
+    "head": "c3a8f42d4",
+    "upstream": "myfork/ai"
+  },
+  "graph_mode": "static",
+  "graph_template": "modular-agent-e2e",
+  "node_counts": {
+    "by_status": {
+      "FAIL": 1
+    },
+    "total": 1
+  },
+  "nodes": [
+    {
+      "evidence": ".github/task-runs/2026-06-16-2026-06-16-db-doctor-nonblocking-drift-contract/evidence/github-index-contract.log",
+      "inputs": "scripts/github_index_db.py + .github files",
+      "module": "github-index",
+      "node_id": "github-index-contract",
+      "outputs": "exit=1",
+      "owner_agent": "agent-system",
+      "status": "FAIL"
+    }
+  ],
+  "profile": "github-index",
+  "run_id": "2026-06-16-2026-06-16-db-doctor-nonblocking-drift-contract",
+  "schema_version": 1,
+  "started_at": "2026-06-16 01:08:53 +0800",
+  "state_traceback": {
+    "current_state": "verify",
+    "evidence_policy": "task-report + dispatch-log + run-manifest + evidence-index",
+    "failure_reason": "profile=github-index 存在失败节点；不能把后续工程判断建立在该节点上。",
+    "failure_state": "verify",
+    "inspector": "agent-system",
+    "reviewer": "ysyx-coordinator",
+    "rollback_target": "implement",
+    "state_sequence": [
+      "recall_context",
+      "classify_layer",
+      "plan_graph",
+      "implement",
+      "verify",
+      "inspect",
+      "persist"
+    ]
+  },
+  "status": "blocked",
+  "task_slug": "2026-06-16-db-doctor-nonblocking-drift-contract",
+  "trace_id": "e2e:2026-06-16-2026-06-16-db-doctor-nonblocking-drift-contract",
+  "updated_at": "2026-06-16 01:21:41 +0800"
+}

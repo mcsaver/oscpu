@@ -1,2 +1,0 @@
-@include|discovery||||
-nemu-add-smoke|nemu|e2e_nemu_am_add_smoke|nemu|当前 NEMU AM-compatible 配置 + cpu-tests add|NEMU reference 最小 smoke PASS 或配置边界 SKIP

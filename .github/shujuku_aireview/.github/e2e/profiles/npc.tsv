@@ -1,3 +1,0 @@
-@include|am-kernels||||
-npc-sim-contract|npc|e2e_npc_sim_contract|npc|npc/sim + backends|NPC 统一仿真入口合约存在
-npc-cpu-tests-full|npc|e2e_npc_cpu_tests_full|npc|riscv32-npc full cpu-tests + npc/sim current backend|NPC target 全量 cpu-tests PASS

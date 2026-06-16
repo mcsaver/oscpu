@@ -1,0 +1,2 @@
+@include|nemu-ubuntu-focused||||
+nemu-ubuntu-profile|nemu|e2e_nemu_ubuntu_profile_gate|nemu|NEMU_PROFILE=1 full Ubuntu boot budget with guest tests off|profile-summary.txt console.log nemu.log

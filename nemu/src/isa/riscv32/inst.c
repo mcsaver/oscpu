@@ -1249,6 +1249,7 @@ invalid:
 }
 
 static inline bool take_vaddr_fault(Decode *s) {
+  if (likely(!vaddr_has_fault())) return false;
   word_t cause;
   vaddr_t tval;
   if (!vaddr_take_fault(&cause, &tval)) return false;

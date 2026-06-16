@@ -28,6 +28,10 @@ ROOTFS_SERIAL_AUTOLOGIN=${UBUNTU_ROOTFS_SERIAL_AUTOLOGIN:-1}
 ROOTFS_SERIAL_AUTOLOGIN_USER=${UBUNTU_ROOTFS_SERIAL_AUTOLOGIN_USER:-root}
 ROOTFS_SERIAL_AUTOLOGIN_TTYS=${UBUNTU_ROOTFS_SERIAL_AUTOLOGIN_TTYS:-ttyS0}
 ROOTFS_SERIAL_MASK_TTYS=${UBUNTU_ROOTFS_SERIAL_MASK_TTYS:-hvc0}
+ROOTFS_NPC_CONSOLE_SHELL=${UBUNTU_ROOTFS_NPC_CONSOLE_SHELL:-0}
+ROOTFS_NPC_TTY_READER=${UBUNTU_ROOTFS_NPC_TTY_READER:-0}
+ROOTFS_NPC_TTY_READER_MODE=${UBUNTU_ROOTFS_NPC_TTY_READER_MODE:-line}
+ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS=${UBUNTU_ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS:-$ROOTFS_NPC_CONSOLE_SHELL}
 FILENAME="ubuntu-base-$VERSION-base-$ARCH.tar.gz"
 TARBALL=${UBUNTU_BASE_TARBALL:-"$ENV_ROOT/downloads/$FILENAME"}
 SHA_FILE=${UBUNTU_BASE_SHA_FILE:-"$ENV_ROOT/downloads/SHA256SUMS"}
@@ -127,6 +131,11 @@ EOF
   cat > "$dir/etc/hostname" <<'EOF'
 ysyx-ubuntu2204
 EOF
+  cat > "$dir/etc/machine-id" <<'EOF'
+9f5e2a4d8c7b4a13a6d2e9f001122334
+EOF
+  mkdir -p "$dir/var/lib/dbus"
+  ln -sfn /etc/machine-id "$dir/var/lib/dbus/machine-id"
 
   cat > "$dir/init" <<'INIT'
 #!/bin/sh
@@ -195,6 +204,17 @@ if [ -r /etc/os-release ]; then
 fi
 uname -a 2>/dev/null || true
 
+if [ -x /usr/local/sbin/ysyx-npc-console-shell ]; then
+  echo "[ysyx-rootfs] starting NPC console shell hook"
+  if command -v setsid >/dev/null 2>&1; then
+    (setsid -c /usr/local/sbin/ysyx-npc-console-shell || \
+      setsid /usr/local/sbin/ysyx-npc-console-shell || \
+      /usr/local/sbin/ysyx-npc-console-shell) </dev/console >/dev/console 2>&1 &
+  else
+    /usr/local/sbin/ysyx-npc-console-shell </dev/console >/dev/console 2>&1 &
+  fi
+fi
+
 if [ "$init_mode" = systemd ] || { [ "$init_mode" = auto ] && [ -n "$systemd_bin" ]; }; then
   if [ -n "$systemd_bin" ]; then
     echo "[ysyx-rootfs] launching systemd: $systemd_bin"
@@ -248,6 +268,299 @@ install_nemu_systemd_masks() {
   # 在慢速 NEMU guest 中它会阻塞 multi-user.target，不能作为 Ubuntu bring-up 前置。
   ln -sfn /dev/null "$dir/etc/systemd/system/e2scrub_reap.service"
   ln -sfn /dev/null "$dir/etc/systemd/system/e2scrub_all.timer"
+}
+
+install_npc_console_shell() {
+  local dir=$1
+  if [ "$ROOTFS_NPC_CONSOLE_SHELL" != "1" ]; then
+    return
+  fi
+
+  mkdir -p "$dir/usr/local/sbin" "$dir/etc/systemd/system/sysinit.target.wants"
+  cat > "$dir/usr/local/sbin/ysyx-npc-console-shell" <<'EOF'
+#!/bin/sh
+export HOME=/root
+export USER=root
+export LOGNAME=root
+export SHELL=/bin/bash
+export TERM="${TERM:-vt100}"
+export PS1='root@ysyx-ubuntu2204:~# '
+cd /root 2>/dev/null || cd /
+echo __NPC_CONSOLE_SHELL_READY__
+exec /bin/bash --noprofile --norc -i
+EOF
+  chmod 0755 "$dir/usr/local/sbin/ysyx-npc-console-shell"
+
+  cat > "$dir/usr/local/sbin/ysyx-npc-systemd-autocheck" <<'EOF'
+#!/bin/sh
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+
+echo __NPC_SYSTEMD_CHECK_BEGIN__
+check_fail=0
+pass() { echo "__NPC_CHECK_PASS__:$1"; }
+fail() { echo "__NPC_CHECK_FAIL__:$1"; check_fail=1; }
+
+uname_arch="$(uname -m 2>/dev/null || true)"
+echo "__NPC_CHECK_UNAME__:$uname_arch"
+[ "$uname_arch" = "riscv64" ] && pass uname-riscv64 || fail uname-riscv64
+
+os_name=0
+os_version=0
+if [ -r /etc/os-release ]; then
+  while IFS= read -r line; do
+    case "$line" in
+      'NAME="Ubuntu"'|'NAME=Ubuntu') os_name=1 ;;
+      'VERSION_ID="22.04"'|'VERSION_ID=22.04') os_version=1 ;;
+    esac
+  done </etc/os-release
+fi
+if [ "$os_name" = 1 ] && [ "$os_version" = 1 ]; then
+  pass os-release-ubuntu-2204
+else
+  cat /etc/os-release 2>/dev/null || true
+  fail os-release-ubuntu-2204
+fi
+
+[ "$(id -u 2>/dev/null)" = "0" ] && pass root-context || fail root-context
+[ -x /bin/sh ] && pass bin-sh || fail bin-sh
+[ -x /bin/bash ] && pass bin-bash || fail bin-bash
+
+pid1_comm=
+[ -r /proc/1/comm ] && IFS= read -r pid1_comm </proc/1/comm || true
+if [ "$pid1_comm" = "systemd" ] && [ -d /run/systemd/system ]; then
+  systemd_state=pid1-systemd
+else
+  systemd_state="pid1-${pid1_comm:-unknown}"
+fi
+echo "__NPC_CHECK_SYSTEMD_STATE__:$systemd_state"
+case "$systemd_state" in
+  pid1-systemd|running|degraded|starting|initializing) pass systemd-state ;;
+  *) fail systemd-state ;;
+esac
+
+echo "__NPC_SYSTEMD_AUTOCHECK_DONE__ rc=$check_fail"
+EOF
+  chmod 0755 "$dir/usr/local/sbin/ysyx-npc-systemd-autocheck"
+
+  cat > "$dir/usr/local/sbin/ysyx-npc-tty-reader" <<'EOF'
+#!/bin/sh
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+export TERM="${TERM:-vt100}"
+
+reader_mode=${YSYX_NPC_TTY_READER_MODE:-line}
+echo "__NPC_TTY_READER_MODE__:$reader_mode"
+tty_name=$(tty 2>/dev/null || true)
+echo "__NPC_TTY_READER_STDIN__:${tty_name:-unknown}"
+if command -v stty >/dev/null 2>&1; then
+  stty -a 2>/dev/null | sed 's/^/__NPC_TTY_READER_STTY_BEFORE__:/' || true
+fi
+
+run_line_reader() {
+  stty -echo 2>/dev/null || true
+  echo __NPC_TTY_READER_READY__
+  if IFS= read -r line; then
+    printf '__NPC_TTY_READER_LINE__:%s\n' "$line"
+    if [ "$line" = "__NPC_TTY_READER_PING__" ]; then
+      echo "__NPC_TTY_READER_DONE__ rc=0"
+    else
+      echo "__NPC_TTY_READER_DONE__ rc=1"
+    fi
+  else
+    echo "__NPC_TTY_READER_DONE__ rc=2"
+  fi
+}
+
+run_raw_bytes_reader() {
+  tmp=/run/ysyx-npc-tty-reader.raw
+  err=/run/ysyx-npc-tty-reader.dd.err
+  rm -f "$tmp" "$err"
+  # 这一模式只取消输入 canonical/echo，保留输出侧行规程，便于继续观察 console marker。
+  # time=2 让“无字节进入用户态”在当前 NPC cycle budget 内可见，而不是继续卡到 max-cycle。
+  stty -icanon -echo min 0 time 2 2>/dev/null || true
+  if command -v stty >/dev/null 2>&1; then
+    stty -a 2>/dev/null | sed 's/^/__NPC_TTY_READER_STTY_RAW__:/' || true
+  fi
+  echo __NPC_TTY_READER_READY__
+  if dd bs=1 count=24 of="$tmp" 2>"$err"; then
+    set -- $(wc -c <"$tmp" 2>/dev/null || echo 0)
+    bytes=${1:-0}
+    hex=
+    if command -v od >/dev/null 2>&1; then
+      for byte in $(od -An -tx1 -v "$tmp" 2>/dev/null); do
+        hex="${hex}${hex:+ }$byte"
+      done
+    fi
+    payload=$(cat "$tmp" 2>/dev/null || true)
+    echo "__NPC_TTY_READER_BYTES__:$bytes"
+    echo "__NPC_TTY_READER_HEX__:$hex"
+    printf '__NPC_TTY_READER_LINE__:%s\n' "$payload"
+    if [ "$payload" = "__NPC_TTY_READER_PING__" ]; then
+      echo "__NPC_TTY_READER_DONE__ rc=0"
+    else
+      echo "__NPC_TTY_READER_DONE__ rc=3"
+    fi
+  else
+    rc=$?
+    echo "__NPC_TTY_READER_DD_RC__:$rc"
+    sed 's/^/__NPC_TTY_READER_DD_ERR__:/' "$err" 2>/dev/null || true
+    echo "__NPC_TTY_READER_DONE__ rc=2"
+  fi
+}
+
+case "$reader_mode" in
+  raw|raw-bytes) run_raw_bytes_reader ;;
+  *) run_line_reader ;;
+esac
+EOF
+  chmod 0755 "$dir/usr/local/sbin/ysyx-npc-tty-reader"
+
+  cat > "$dir/usr/local/sbin/ysyx-npc-systemd-wrapper" <<'EOF'
+#!/bin/sh
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+
+echo "[ysyx-npc-systemd-wrapper] begin"
+
+systemd_bin=
+for candidate in /lib/systemd/systemd /usr/lib/systemd/systemd /sbin/init /usr/sbin/init; do
+  if [ -x "$candidate" ]; then
+    systemd_bin="$candidate"
+    break
+  fi
+done
+
+echo __NPC_SYSTEMD_CHECK_BEGIN__
+check_fail=0
+pass() { echo "__NPC_CHECK_PASS__:$1"; }
+fail() { echo "__NPC_CHECK_FAIL__:$1"; check_fail=1; }
+
+os_name=0
+os_version=0
+if [ -r /etc/os-release ]; then
+  while IFS= read -r line; do
+    case "$line" in
+      'NAME="Ubuntu"'|'NAME=Ubuntu') os_name=1 ;;
+      'VERSION_ID="22.04"'|'VERSION_ID=22.04') os_version=1 ;;
+    esac
+  done </etc/os-release
+fi
+[ "$os_name" = 1 ] && [ "$os_version" = 1 ] && pass os-release-ubuntu-2204 || fail os-release-ubuntu-2204
+[ -x /bin/sh ] && pass bin-sh || fail bin-sh
+[ -x /bin/bash ] && pass bin-bash || fail bin-bash
+[ -n "$systemd_bin" ] && pass systemd-binary || fail systemd-binary
+[ -x /usr/local/sbin/ysyx-npc-systemd-autocheck ] && pass systemd-autocheck-script || fail systemd-autocheck-script
+echo "__NPC_CHECK_SYSTEMD_STATE__:wrapper-pre-systemd"
+pass systemd-wrapper-preflight
+echo "__NPC_SYSTEMD_CHECK_DONE__ rc=$check_fail"
+
+if [ -n "$systemd_bin" ]; then
+  echo "[ysyx-npc-systemd-wrapper] console prompt marker"
+  printf 'root@ysyx-ubuntu2204:~# '
+  echo "[ysyx-npc-systemd-wrapper] exec systemd: $systemd_bin"
+  exec "$systemd_bin"
+fi
+
+echo "[ysyx-npc-systemd-wrapper] no systemd binary found; fallback shell"
+exec /bin/sh -i </dev/console >/dev/console 2>&1
+EOF
+  chmod 0755 "$dir/usr/local/sbin/ysyx-npc-systemd-wrapper"
+
+  cat > "$dir/etc/systemd/system/ysyx-npc-systemd-autocheck.service" <<'EOF'
+[Unit]
+Description=YSYX NPC systemd guest autocheck
+DefaultDependencies=no
+After=ysyx-npc-console-shell.service ysyx-npc-tty-reader.service
+Before=systemd-journald.service systemd-sysusers.service systemd-udev-trigger.service systemd-modules-load.service sysinit.target
+ConditionPathExists=/usr/local/sbin/ysyx-npc-systemd-autocheck
+
+[Service]
+Type=oneshot
+StandardInput=null
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/ttyS0
+TTYReset=no
+TTYVHangup=no
+TTYVTDisallocate=no
+ExecStart=/usr/local/sbin/ysyx-npc-systemd-autocheck
+TimeoutStartSec=0
+
+[Install]
+WantedBy=sysinit.target
+EOF
+  ln -sfn ../ysyx-npc-systemd-autocheck.service "$dir/etc/systemd/system/sysinit.target.wants/ysyx-npc-systemd-autocheck.service"
+
+  cat > "$dir/etc/systemd/system/ysyx-npc-tty-reader.service" <<'EOF'
+[Unit]
+Description=YSYX NPC ttyS0 input reader diagnostic
+DefaultDependencies=no
+Before=ysyx-npc-systemd-autocheck.service systemd-sysusers.service systemd-udev-trigger.service systemd-modules-load.service sysinit.target
+ConditionPathExists=/dev/ttyS0
+ConditionPathExists=/usr/local/sbin/ysyx-npc-tty-reader
+
+[Service]
+Type=simple
+Environment=TERM=vt100
+Environment=YSYX_NPC_TTY_READER_MODE=__NPC_TTY_READER_MODE__
+WorkingDirectory=/root
+StandardInput=tty-force
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/ttyS0
+TTYReset=no
+TTYVHangup=no
+TTYVTDisallocate=no
+ExecStart=/usr/local/sbin/ysyx-npc-tty-reader
+Restart=no
+TimeoutStartSec=0
+
+[Install]
+WantedBy=sysinit.target
+EOF
+  sed -i "s/__NPC_TTY_READER_MODE__/$ROOTFS_NPC_TTY_READER_MODE/g" "$dir/etc/systemd/system/ysyx-npc-tty-reader.service"
+
+  cat > "$dir/etc/systemd/system/ysyx-npc-console-shell.service" <<'EOF'
+[Unit]
+Description=YSYX NPC automated root console shell
+DefaultDependencies=no
+Before=systemd-sysusers.service systemd-udev-trigger.service systemd-modules-load.service sysinit.target
+ConditionPathExists=/dev/ttyS0
+
+[Service]
+Type=simple
+Environment=TERM=vt100
+WorkingDirectory=/root
+StandardInput=tty-force
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/ttyS0
+TTYReset=no
+TTYVHangup=no
+TTYVTDisallocate=no
+ExecStart=-/usr/local/sbin/ysyx-npc-console-shell
+Restart=always
+RestartSec=0
+
+[Install]
+WantedBy=sysinit.target
+EOF
+  if [ "$ROOTFS_NPC_TTY_READER" = "1" ]; then
+    rm -f "$dir/etc/systemd/system/sysinit.target.wants/ysyx-npc-console-shell.service"
+    ln -sfn ../ysyx-npc-tty-reader.service "$dir/etc/systemd/system/sysinit.target.wants/ysyx-npc-tty-reader.service"
+  else
+    rm -f "$dir/etc/systemd/system/sysinit.target.wants/ysyx-npc-tty-reader.service"
+    ln -sfn ../ysyx-npc-console-shell.service "$dir/etc/systemd/system/sysinit.target.wants/ysyx-npc-console-shell.service"
+  fi
+
+  if [ "$ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS" = "1" ]; then
+    mkdir -p "$dir/usr/local/share/ysyx-disabled-system-generators" "$dir/lib/systemd/system-generators"
+    for generator in "$dir"/lib/systemd/system-generators/*; do
+      [ -e "$generator" ] || continue
+      mv "$generator" "$dir/usr/local/share/ysyx-disabled-system-generators/"
+    done
+  fi
 }
 
 install_full_runtime_defaults() {
@@ -313,6 +626,7 @@ build_with_sudo_debootstrap() {
   "${sudo_cmd[@]}" bash -c "$(declare -f install_serial_autologin); ROOTFS_SERIAL_AUTOLOGIN='$ROOTFS_SERIAL_AUTOLOGIN' ROOTFS_SERIAL_AUTOLOGIN_USER='$ROOTFS_SERIAL_AUTOLOGIN_USER' ROOTFS_SERIAL_AUTOLOGIN_TTYS='$ROOTFS_SERIAL_AUTOLOGIN_TTYS' install_serial_autologin '$ROOTFS'"
   "${sudo_cmd[@]}" bash -c "$(declare -f install_serial_masks); ROOTFS_SERIAL_MASK_TTYS='$ROOTFS_SERIAL_MASK_TTYS' install_serial_masks '$ROOTFS'"
   "${sudo_cmd[@]}" bash -c "$(declare -f install_nemu_systemd_masks); install_nemu_systemd_masks '$ROOTFS'"
+  "${sudo_cmd[@]}" bash -c "$(declare -f install_npc_console_shell); ROOTFS_NPC_CONSOLE_SHELL='$ROOTFS_NPC_CONSOLE_SHELL' ROOTFS_NPC_TTY_READER='$ROOTFS_NPC_TTY_READER' ROOTFS_NPC_TTY_READER_MODE='$ROOTFS_NPC_TTY_READER_MODE' ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS='$ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS' install_npc_console_shell '$ROOTFS'"
   "${sudo_cmd[@]}" bash -c "$(declare -f install_full_runtime_defaults); install_full_runtime_defaults '$ROOTFS' '$ROOTFS_FLAVOR'"
   "${sudo_cmd[@]}" bash -c '
 set -e
@@ -454,6 +768,11 @@ EOF
 cat > "$ROOTFS/etc/hostname" <<'EOF'
 ysyx-ubuntu2204
 EOF
+cat > "$ROOTFS/etc/machine-id" <<'EOF'
+9f5e2a4d8c7b4a13a6d2e9f001122334
+EOF
+mkdir -p "$ROOTFS/var/lib/dbus"
+ln -sfn /etc/machine-id "$ROOTFS/var/lib/dbus/machine-id"
 
 cat > "$ROOTFS/init" <<'INIT'
 #!/bin/sh
@@ -522,6 +841,17 @@ if [ -r /etc/os-release ]; then
 fi
 uname -a 2>/dev/null || true
 
+if [ -x /usr/local/sbin/ysyx-npc-console-shell ]; then
+  echo "[ysyx-rootfs] starting NPC console shell hook"
+  if command -v setsid >/dev/null 2>&1; then
+    (setsid -c /usr/local/sbin/ysyx-npc-console-shell || \
+      setsid /usr/local/sbin/ysyx-npc-console-shell || \
+      /usr/local/sbin/ysyx-npc-console-shell) </dev/console >/dev/console 2>&1 &
+  else
+    /usr/local/sbin/ysyx-npc-console-shell </dev/console >/dev/console 2>&1 &
+  fi
+fi
+
 if [ "$init_mode" = systemd ] || { [ "$init_mode" = auto ] && [ -n "$systemd_bin" ]; }; then
   if [ -n "$systemd_bin" ]; then
     echo "[ysyx-rootfs] launching systemd: $systemd_bin"
@@ -565,6 +895,287 @@ mkdir -p "$ROOTFS/etc/systemd/system"
 # full rootfs 保留 e2fsprogs/e2scrub 工具，但禁用会阻塞 NEMU boot 的在线 scrub 维护任务。
 ln -sfn /dev/null "$ROOTFS/etc/systemd/system/e2scrub_reap.service"
 ln -sfn /dev/null "$ROOTFS/etc/systemd/system/e2scrub_all.timer"
+if [ "$ROOTFS_NPC_CONSOLE_SHELL" = "1" ]; then
+  mkdir -p "$ROOTFS/usr/local/sbin" "$ROOTFS/etc/systemd/system/sysinit.target.wants"
+  cat > "$ROOTFS/usr/local/sbin/ysyx-npc-console-shell" <<'EOF'
+#!/bin/sh
+export HOME=/root
+export USER=root
+export LOGNAME=root
+export SHELL=/bin/bash
+export TERM="${TERM:-vt100}"
+export PS1='root@ysyx-ubuntu2204:~# '
+cd /root 2>/dev/null || cd /
+echo __NPC_CONSOLE_SHELL_READY__
+exec /bin/bash --noprofile --norc -i
+EOF
+  chmod 0755 "$ROOTFS/usr/local/sbin/ysyx-npc-console-shell"
+  cat > "$ROOTFS/usr/local/sbin/ysyx-npc-systemd-autocheck" <<'EOF'
+#!/bin/sh
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+
+echo __NPC_SYSTEMD_CHECK_BEGIN__
+check_fail=0
+pass() { echo "__NPC_CHECK_PASS__:$1"; }
+fail() { echo "__NPC_CHECK_FAIL__:$1"; check_fail=1; }
+
+uname_arch="$(uname -m 2>/dev/null || true)"
+echo "__NPC_CHECK_UNAME__:$uname_arch"
+[ "$uname_arch" = "riscv64" ] && pass uname-riscv64 || fail uname-riscv64
+
+os_name=0
+os_version=0
+if [ -r /etc/os-release ]; then
+  while IFS= read -r line; do
+    case "$line" in
+      'NAME="Ubuntu"'|'NAME=Ubuntu') os_name=1 ;;
+      'VERSION_ID="22.04"'|'VERSION_ID=22.04') os_version=1 ;;
+    esac
+  done </etc/os-release
+fi
+if [ "$os_name" = 1 ] && [ "$os_version" = 1 ]; then
+  pass os-release-ubuntu-2204
+else
+  cat /etc/os-release 2>/dev/null || true
+  fail os-release-ubuntu-2204
+fi
+
+[ "$(id -u 2>/dev/null)" = "0" ] && pass root-context || fail root-context
+[ -x /bin/sh ] && pass bin-sh || fail bin-sh
+[ -x /bin/bash ] && pass bin-bash || fail bin-bash
+
+pid1_comm=
+[ -r /proc/1/comm ] && IFS= read -r pid1_comm </proc/1/comm || true
+if [ "$pid1_comm" = "systemd" ] && [ -d /run/systemd/system ]; then
+  systemd_state=pid1-systemd
+else
+  systemd_state="pid1-${pid1_comm:-unknown}"
+fi
+echo "__NPC_CHECK_SYSTEMD_STATE__:$systemd_state"
+case "$systemd_state" in
+  pid1-systemd|running|degraded|starting|initializing) pass systemd-state ;;
+  *) fail systemd-state ;;
+esac
+
+echo "__NPC_SYSTEMD_AUTOCHECK_DONE__ rc=$check_fail"
+EOF
+  chmod 0755 "$ROOTFS/usr/local/sbin/ysyx-npc-systemd-autocheck"
+  cat > "$ROOTFS/usr/local/sbin/ysyx-npc-tty-reader" <<'EOF'
+#!/bin/sh
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+export TERM="${TERM:-vt100}"
+
+reader_mode=${YSYX_NPC_TTY_READER_MODE:-line}
+echo "__NPC_TTY_READER_MODE__:$reader_mode"
+tty_name=$(tty 2>/dev/null || true)
+echo "__NPC_TTY_READER_STDIN__:${tty_name:-unknown}"
+if command -v stty >/dev/null 2>&1; then
+  stty -a 2>/dev/null | sed 's/^/__NPC_TTY_READER_STTY_BEFORE__:/' || true
+fi
+
+run_line_reader() {
+  stty -echo 2>/dev/null || true
+  echo __NPC_TTY_READER_READY__
+  if IFS= read -r line; then
+    printf '__NPC_TTY_READER_LINE__:%s\n' "$line"
+    if [ "$line" = "__NPC_TTY_READER_PING__" ]; then
+      echo "__NPC_TTY_READER_DONE__ rc=0"
+    else
+      echo "__NPC_TTY_READER_DONE__ rc=1"
+    fi
+  else
+    echo "__NPC_TTY_READER_DONE__ rc=2"
+  fi
+}
+
+run_raw_bytes_reader() {
+  tmp=/run/ysyx-npc-tty-reader.raw
+  err=/run/ysyx-npc-tty-reader.dd.err
+  rm -f "$tmp" "$err"
+  # 这一模式只取消输入 canonical/echo，保留输出侧行规程，便于继续观察 console marker。
+  # time=2 让“无字节进入用户态”在当前 NPC cycle budget 内可见，而不是继续卡到 max-cycle。
+  stty -icanon -echo min 0 time 2 2>/dev/null || true
+  if command -v stty >/dev/null 2>&1; then
+    stty -a 2>/dev/null | sed 's/^/__NPC_TTY_READER_STTY_RAW__:/' || true
+  fi
+  echo __NPC_TTY_READER_READY__
+  if dd bs=1 count=24 of="$tmp" 2>"$err"; then
+    set -- $(wc -c <"$tmp" 2>/dev/null || echo 0)
+    bytes=${1:-0}
+    hex=
+    if command -v od >/dev/null 2>&1; then
+      for byte in $(od -An -tx1 -v "$tmp" 2>/dev/null); do
+        hex="${hex}${hex:+ }$byte"
+      done
+    fi
+    payload=$(cat "$tmp" 2>/dev/null || true)
+    echo "__NPC_TTY_READER_BYTES__:$bytes"
+    echo "__NPC_TTY_READER_HEX__:$hex"
+    printf '__NPC_TTY_READER_LINE__:%s\n' "$payload"
+    if [ "$payload" = "__NPC_TTY_READER_PING__" ]; then
+      echo "__NPC_TTY_READER_DONE__ rc=0"
+    else
+      echo "__NPC_TTY_READER_DONE__ rc=3"
+    fi
+  else
+    rc=$?
+    echo "__NPC_TTY_READER_DD_RC__:$rc"
+    sed 's/^/__NPC_TTY_READER_DD_ERR__:/' "$err" 2>/dev/null || true
+    echo "__NPC_TTY_READER_DONE__ rc=2"
+  fi
+}
+
+case "$reader_mode" in
+  raw|raw-bytes) run_raw_bytes_reader ;;
+  *) run_line_reader ;;
+esac
+EOF
+  chmod 0755 "$ROOTFS/usr/local/sbin/ysyx-npc-tty-reader"
+  cat > "$ROOTFS/usr/local/sbin/ysyx-npc-systemd-wrapper" <<'EOF'
+#!/bin/sh
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+
+echo "[ysyx-npc-systemd-wrapper] begin"
+
+systemd_bin=
+for candidate in /lib/systemd/systemd /usr/lib/systemd/systemd /sbin/init /usr/sbin/init; do
+  if [ -x "$candidate" ]; then
+    systemd_bin="$candidate"
+    break
+  fi
+done
+
+echo __NPC_SYSTEMD_CHECK_BEGIN__
+check_fail=0
+pass() { echo "__NPC_CHECK_PASS__:$1"; }
+fail() { echo "__NPC_CHECK_FAIL__:$1"; check_fail=1; }
+
+os_name=0
+os_version=0
+if [ -r /etc/os-release ]; then
+  while IFS= read -r line; do
+    case "$line" in
+      'NAME="Ubuntu"'|'NAME=Ubuntu') os_name=1 ;;
+      'VERSION_ID="22.04"'|'VERSION_ID=22.04') os_version=1 ;;
+    esac
+  done </etc/os-release
+fi
+[ "$os_name" = 1 ] && [ "$os_version" = 1 ] && pass os-release-ubuntu-2204 || fail os-release-ubuntu-2204
+[ -x /bin/sh ] && pass bin-sh || fail bin-sh
+[ -x /bin/bash ] && pass bin-bash || fail bin-bash
+[ -n "$systemd_bin" ] && pass systemd-binary || fail systemd-binary
+[ -x /usr/local/sbin/ysyx-npc-systemd-autocheck ] && pass systemd-autocheck-script || fail systemd-autocheck-script
+echo "__NPC_CHECK_SYSTEMD_STATE__:wrapper-pre-systemd"
+pass systemd-wrapper-preflight
+echo "__NPC_SYSTEMD_CHECK_DONE__ rc=$check_fail"
+
+if [ -n "$systemd_bin" ]; then
+  echo "[ysyx-npc-systemd-wrapper] console prompt marker"
+  printf 'root@ysyx-ubuntu2204:~# '
+  echo "[ysyx-npc-systemd-wrapper] exec systemd: $systemd_bin"
+  exec "$systemd_bin"
+fi
+
+echo "[ysyx-npc-systemd-wrapper] no systemd binary found; fallback shell"
+exec /bin/sh -i </dev/console >/dev/console 2>&1
+EOF
+  chmod 0755 "$ROOTFS/usr/local/sbin/ysyx-npc-systemd-wrapper"
+  cat > "$ROOTFS/etc/systemd/system/ysyx-npc-systemd-autocheck.service" <<'EOF'
+[Unit]
+Description=YSYX NPC systemd guest autocheck
+DefaultDependencies=no
+After=ysyx-npc-console-shell.service ysyx-npc-tty-reader.service
+Before=systemd-journald.service systemd-sysusers.service systemd-udev-trigger.service systemd-modules-load.service sysinit.target
+ConditionPathExists=/usr/local/sbin/ysyx-npc-systemd-autocheck
+
+[Service]
+Type=oneshot
+StandardInput=null
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/ttyS0
+TTYReset=no
+TTYVHangup=no
+TTYVTDisallocate=no
+ExecStart=/usr/local/sbin/ysyx-npc-systemd-autocheck
+TimeoutStartSec=0
+
+[Install]
+WantedBy=sysinit.target
+EOF
+  ln -sfn ../ysyx-npc-systemd-autocheck.service "$ROOTFS/etc/systemd/system/sysinit.target.wants/ysyx-npc-systemd-autocheck.service"
+  cat > "$ROOTFS/etc/systemd/system/ysyx-npc-tty-reader.service" <<'EOF'
+[Unit]
+Description=YSYX NPC ttyS0 input reader diagnostic
+DefaultDependencies=no
+Before=ysyx-npc-systemd-autocheck.service systemd-sysusers.service systemd-udev-trigger.service systemd-modules-load.service sysinit.target
+ConditionPathExists=/dev/ttyS0
+ConditionPathExists=/usr/local/sbin/ysyx-npc-tty-reader
+
+[Service]
+Type=simple
+Environment=TERM=vt100
+Environment=YSYX_NPC_TTY_READER_MODE=__NPC_TTY_READER_MODE__
+WorkingDirectory=/root
+StandardInput=tty-force
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/ttyS0
+TTYReset=no
+TTYVHangup=no
+TTYVTDisallocate=no
+ExecStart=/usr/local/sbin/ysyx-npc-tty-reader
+Restart=no
+TimeoutStartSec=0
+
+[Install]
+WantedBy=sysinit.target
+EOF
+  sed -i "s/__NPC_TTY_READER_MODE__/$ROOTFS_NPC_TTY_READER_MODE/g" "$ROOTFS/etc/systemd/system/ysyx-npc-tty-reader.service"
+  cat > "$ROOTFS/etc/systemd/system/ysyx-npc-console-shell.service" <<'EOF'
+[Unit]
+Description=YSYX NPC automated root console shell
+DefaultDependencies=no
+Before=systemd-sysusers.service systemd-udev-trigger.service systemd-modules-load.service sysinit.target
+ConditionPathExists=/dev/ttyS0
+
+[Service]
+Type=simple
+Environment=TERM=vt100
+WorkingDirectory=/root
+StandardInput=tty-force
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/ttyS0
+TTYReset=no
+TTYVHangup=no
+TTYVTDisallocate=no
+ExecStart=-/usr/local/sbin/ysyx-npc-console-shell
+Restart=always
+RestartSec=0
+
+[Install]
+WantedBy=sysinit.target
+EOF
+  if [ "$ROOTFS_NPC_TTY_READER" = "1" ]; then
+    rm -f "$ROOTFS/etc/systemd/system/sysinit.target.wants/ysyx-npc-console-shell.service"
+    ln -sfn ../ysyx-npc-tty-reader.service "$ROOTFS/etc/systemd/system/sysinit.target.wants/ysyx-npc-tty-reader.service"
+  else
+    rm -f "$ROOTFS/etc/systemd/system/sysinit.target.wants/ysyx-npc-tty-reader.service"
+    ln -sfn ../ysyx-npc-console-shell.service "$ROOTFS/etc/systemd/system/sysinit.target.wants/ysyx-npc-console-shell.service"
+  fi
+
+  if [ "$ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS" = "1" ]; then
+    mkdir -p "$ROOTFS/usr/local/share/ysyx-disabled-system-generators" "$ROOTFS/lib/systemd/system-generators"
+    for generator in "$ROOTFS"/lib/systemd/system-generators/*; do
+      [ -e "$generator" ] || continue
+      mv "$generator" "$ROOTFS/usr/local/share/ysyx-disabled-system-generators/"
+    done
+  fi
+fi
 if [ "$ROOTFS_FLAVOR" = "full" ]; then
   mkdir -p "$ROOTFS/etc/ssh" "$ROOTFS/var/spool/rsyslog"
   if [ ! -f "$ROOTFS/etc/ssh/sshd_config" ]; then
@@ -613,6 +1224,10 @@ FAKEROOT
     ROOTFS_SERIAL_AUTOLOGIN_USER="$ROOTFS_SERIAL_AUTOLOGIN_USER" \
     ROOTFS_SERIAL_AUTOLOGIN_TTYS="$ROOTFS_SERIAL_AUTOLOGIN_TTYS" \
     ROOTFS_SERIAL_MASK_TTYS="$ROOTFS_SERIAL_MASK_TTYS" \
+    ROOTFS_NPC_CONSOLE_SHELL="$ROOTFS_NPC_CONSOLE_SHELL" \
+    ROOTFS_NPC_TTY_READER="$ROOTFS_NPC_TTY_READER" \
+    ROOTFS_NPC_TTY_READER_MODE="$ROOTFS_NPC_TTY_READER_MODE" \
+    ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS="$ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS" \
     ROOTFS_SYSTEMD_OVERLAY_SCRIPT="$ROOTFS_SYSTEMD_OVERLAY_SCRIPT" \
     fakeroot -- bash "$helper"
 }
@@ -642,6 +1257,8 @@ echo "[ubuntu-rootfs] generated: $IMAGE"
 echo "[ubuntu-rootfs] generated rootfs cpio: $CPIO"
 if [ "$ROOTFS_REQUIRE_SYSTEMD" = "1" ] && [ -f "$SCRIPT_DIR/check-ubuntu-rootfs.sh" ]; then
   UBUNTU_ROOTFS_IMAGE="$IMAGE" UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 \
+    UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL="$ROOTFS_NPC_CONSOLE_SHELL" \
+    UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER="$ROOTFS_NPC_TTY_READER" \
     bash "$SCRIPT_DIR/check-ubuntu-rootfs.sh"
 fi
 echo "[ubuntu-rootfs] 注意：启动该 rootfs 还需要 RTL/仿真侧 virtio-mmio block、host block backend 与 IRQ2 路径。"

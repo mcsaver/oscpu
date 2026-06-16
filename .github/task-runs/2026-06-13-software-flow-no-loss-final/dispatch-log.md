@@ -1,8 +1,67 @@
-# DB-backed .github/task-runs/2026-06-13-software-flow-no-loss-final/dispatch-log.md
+# Dispatch Log
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文备份由 `.github/db-backup/task-runs/manifest.json` 管理；恢复请使用下方命令。
+## 基本信息
 
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/2026-06-13-software-flow-no-loss-final/dispatch-log.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/task-runs --path .github/task-runs/2026-06-13-software-flow-no-loss-final/dispatch-log.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/2026-06-13-software-flow-no-loss-final/dispatch-log.md`
+- `task_id`: 2026-06-13-software-flow-no-loss-final
+- `task_slug`: software-flow-no-loss-final
+- `graph_template`: modular-agent-e2e
+- `profile`: software-flow
+- `log_policy`: append-only
+
+---
+
+### [2026-06-13 15:51:58 +0800] `context-brief` - `PASS`
+
+- `owner_agent`: agent-system
+- `module`: github-index
+- `trigger`: e2e:software-flow
+- `depends_on`:
+- `inputs`: .github DB stored memory
+- `action`: github-index brief
+- `outputs`: .github/task-runs/2026-06-13-software-flow-no-loss-final/context-brief.md
+- `evidence`: .github/task-runs/2026-06-13-software-flow-no-loss-final/context-brief.md
+- `handoff_to`:
+- `next_step`: DB-backed startup context generated before dispatch
+- `notes`:
+
+### [2026-06-13 15:51:58 +0800] `profile-resolve` - `PASS`
+
+- `owner_agent`: agent-system
+- `module`: github-index
+- `trigger`: e2e:software-flow
+- `depends_on`:
+- `inputs`: .github/e2e/profiles/software-flow.tsv
+- `action`: github-index resolve-profile
+- `outputs`: .github/task-runs/2026-06-13-software-flow-no-loss-final/profile-resolve.md
+- `evidence`: .github/task-runs/2026-06-13-software-flow-no-loss-final/profile-resolve.md
+- `handoff_to`:
+- `next_step`: DB-backed e2e profile include closure generated before dispatch
+- `notes`:
+
+### [2026-06-13 15:51:58 +0800] `software-flow-contract` - `in-progress`
+
+- `owner_agent`: software-flow
+- `module`: software-flow
+- `trigger`: e2e:software-flow
+- `depends_on`:
+- `inputs`: software-flow agent + profile + memory
+- `action`: e2e_software_flow_contract
+- `outputs`: 软件开发全流程 agent 合约入口存在
+- `evidence`: .github/task-runs/2026-06-13-software-flow-no-loss-final/evidence/software-flow-contract.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-13 15:52:00 +0800] `software-flow-contract` - `PASS`
+
+- `owner_agent`: software-flow
+- `module`: software-flow
+- `trigger`: e2e:software-flow
+- `depends_on`:
+- `inputs`: software-flow agent + profile + memory
+- `action`: e2e_software_flow_contract
+- `outputs`: 软件开发全流程 agent 合约入口存在
+- `evidence`: .github/task-runs/2026-06-13-software-flow-no-loss-final/evidence/software-flow-contract.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:

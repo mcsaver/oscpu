@@ -1,2 +1,0 @@
-@include|nemu||||
-difftest-contract|difftest|e2e_difftest_contract|difftest|NEMU spike-diff + npc/sim difftest-ref|DiffTest 合约入口存在

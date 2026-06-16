@@ -8,7 +8,8 @@ REPO_ROOT=$(cd -- "$LINUX_HOME/.." && pwd)
 NEMU_HOME=${NEMU_HOME:-"$REPO_ROOT/nemu"}
 NEMU_SIM=${NEMU_SIM:-"$NEMU_HOME/build/riscv64-nemu-interpreter"}
 ENV_ROOT=${YSYX_LINUX_ENV_ROOT:-"$LINUX_HOME/env"}
-LOG_DIR=${LOG_DIR:-"$ENV_ROOT/logs/linux-front/riscv64-nemu-systemd-guest-check"}
+NEMU_PLATFORM_ROOT=${NEMU_PLATFORM_ROOT:-"$ENV_ROOT/platforms/nemu"}
+LOG_DIR=${LOG_DIR:-"$NEMU_PLATFORM_ROOT/logs/linux-front/riscv64-nemu-systemd-guest-check"}
 LOG_FILE=${LOG_FILE:-"$LOG_DIR/nemu.log"}
 CONSOLE_LOG=${CONSOLE_LOG:-"$LOG_DIR/console.log"}
 PERF_LOG=${NEMU_SYSTEMD_PERF_LOG:-"$LOG_DIR/perf.tsv"}
@@ -16,11 +17,12 @@ SERIAL_FIFO=${NEMU_SERIAL_FIFO:-"$LOG_DIR/nemu.serial"}
 GUEST_UPLOAD_CMDS=${NEMU_SYSTEMD_GUEST_UPLOAD_CMDS:-"$LOG_DIR/guest-check-upload.cmd"}
 GUEST_SCRIPT_PATH=${NEMU_SYSTEMD_GUEST_SCRIPT_PATH:-"/tmp/nemu-systemd-guest-check.sh"}
 GUEST_SCRIPT_B64_PATH=${NEMU_SYSTEMD_GUEST_SCRIPT_B64_PATH:-"/tmp/nemu-systemd-guest-check.sh.b64"}
+GUEST_UPLOAD_GROUP_LINES=${NEMU_SYSTEMD_GUEST_UPLOAD_GROUP_LINES:-32}
 
-LINUX_IMAGE=${LINUX_IMAGE:-"$ENV_ROOT/src/linux/arch/riscv/boot/Image"}
-RUN_FW=${RUN_FW:-"$ENV_ROOT/build/opensbi-nemu-rootfs/platform/generic/firmware/fw_jump.bin"}
-RUN_DTB=${RUN_DTB:-"$LINUX_HOME/build/npc-rv64-nemu-rootfs.dtb"}
-RUN_ROOTFS=${RUN_ROOTFS:-"$ENV_ROOT/images/ubuntu2204/ubuntu-22.04-riscv64.ext4"}
+LINUX_IMAGE=${LINUX_IMAGE:-"$NEMU_PLATFORM_ROOT/build/linux/arch/riscv/boot/Image"}
+RUN_FW=${RUN_FW:-"$NEMU_PLATFORM_ROOT/build/opensbi/rootfs/platform/generic/firmware/fw_jump.bin"}
+RUN_DTB=${RUN_DTB:-"$LINUX_HOME/build/riscv64-nemu/npc-rv64-nemu-rootfs.dtb"}
+RUN_ROOTFS=${RUN_ROOTFS:-"$NEMU_PLATFORM_ROOT/images/ubuntu2204/ubuntu-22.04-riscv64.ext4"}
 RUN_ROOTFS_OVERLAY=${NEMU_SYSTEMD_ROOTFS_OVERLAY-"$LOG_DIR/rootfs-overlay.raw"}
 ROOTFS_FLAVOR=${NEMU_SYSTEMD_ROOTFS_FLAVOR:-systemd-minimal}
 NEXT_ADDR=${NEXT_ADDR:-0x80200000}
@@ -79,6 +81,14 @@ APT_INSTALL_DIAG_TIMEOUT=${NEMU_SYSTEMD_APT_INSTALL_DIAG_TIMEOUT:-300}
 APT_REMOVE_DIAG_TIMEOUT=${NEMU_SYSTEMD_APT_REMOVE_DIAG_TIMEOUT:-600}
 PYTHON_CNF_DIAG_HARD=${NEMU_SYSTEMD_PYTHON_CNF_DIAG_HARD:-1}
 PYTHON_RE_DIAG_LOOPS=${NEMU_SYSTEMD_PYTHON_RE_DIAG_LOOPS:-20}
+STOP_AFTER_SYSTEMCTL_RELOAD_DIAG=${NEMU_SYSTEMD_STOP_AFTER_SYSTEMCTL_RELOAD_DIAG:-0}
+if [ "$STOP_AFTER_SYSTEMCTL_RELOAD_DIAG" != "0" ]; then
+  SYSCALL_PROBE_ENABLE=${NEMU_SYSTEMD_SYSCALL_PROBE:-0}
+  ICMP_PROBE_ENABLE=${NEMU_SYSTEMD_ICMP_PROBE:-0}
+  DHCP_PROBE_ENABLE=${NEMU_SYSTEMD_DHCP_PROBE:-0}
+  DNS_PROBE_ENABLE=${NEMU_SYSTEMD_DNS_PROBE:-0}
+  TCP_PROBE_ENABLE=${NEMU_SYSTEMD_TCP_PROBE:-0}
+fi
 POWEROFF_ENABLE=${NEMU_SYSTEMD_POWEROFF:-1}
 POWEROFF_TIMEOUT=${NEMU_SYSTEMD_POWEROFF_TIMEOUT:-180}
 ROOTFS_BYTES=$(stat -c %s "$RUN_ROOTFS" 2>/dev/null || echo 0)
@@ -633,19 +643,51 @@ write_perf_log() {
 build_guest_upload_commands() {
   local src_file=$1
   local dst_file=$2
-  local script_sha script_bytes
+  local script_sha script_bytes upload_group_lines b64_line
+  local -a b64_group=()
+  local b64_line_count=0
+  local upload_group_count=0
   script_sha="$(sha256sum "$src_file" | awk '{print $1}')" ||
     fail "failed to hash guest check script"
   script_bytes="$(wc -c <"$src_file" | tr -d '[:space:]')" ||
     fail "failed to size guest check script"
+  upload_group_lines="$GUEST_UPLOAD_GROUP_LINES"
+
+  emit_b64_group() {
+    local group_index=$1
+    local group_count=$2
+    shift 2
+    printf "printf '%%s\\\\n'"
+    for b64_line in "$@"; do
+      printf " '%s'" "$b64_line"
+    done
+    printf " >> '%s'\n" "$GUEST_SCRIPT_B64_PATH"
+    if [ "$group_index" = "1" ] || [ "$((group_index % 16))" = "0" ]; then
+      printf 'echo "__NEMU_GUEST_UPLOAD_GROUP__:%s:%s"\n' "$group_index" "$group_count"
+    fi
+  }
 
   {
-    printf 'stty -echo 2>/dev/null || true\n'
+    printf 'stty -echo -ixon -ixoff 2>/dev/null || true\n'
     printf 'PS1=; PS2=; PS4=; export PS1 PS2 PS4\n'
     printf 'echo "__NEMU_GUEST_UPLOAD_BEGIN__"\n'
-    printf "cat > '%s' <<'__NEMU_GUEST_CHECK_B64__'\n" "$GUEST_SCRIPT_B64_PATH"
-    base64 -w 76 "$src_file"
-    printf '__NEMU_GUEST_CHECK_B64__\n'
+    printf 'echo "__NEMU_GUEST_UPLOAD_MODE__:append-lines:%s"\n' "$upload_group_lines"
+    printf ": > '%s'\n" "$GUEST_SCRIPT_B64_PATH"
+    while IFS= read -r b64_line || [ -n "$b64_line" ]; do
+      b64_group+=("$b64_line")
+      b64_line_count=$((b64_line_count + 1))
+      if [ "${#b64_group[@]}" -ge "$upload_group_lines" ]; then
+        upload_group_count=$((upload_group_count + 1))
+        emit_b64_group "$upload_group_count" "$b64_line_count" "${b64_group[@]}"
+        b64_group=()
+      fi
+    done < <(base64 -w 76 "$src_file")
+    if [ "${#b64_group[@]}" -gt 0 ]; then
+      upload_group_count=$((upload_group_count + 1))
+      emit_b64_group "$upload_group_count" "$b64_line_count" "${b64_group[@]}"
+    fi
+    printf 'echo "__NEMU_GUEST_UPLOAD_APPEND_DONE__:%s:%s"\n' \
+      "$upload_group_count" "$b64_line_count"
     printf 'if ! command -v base64 >/dev/null 2>&1 || ! command -v sha256sum >/dev/null 2>&1; then\n'
     printf '  echo "__NEMU_GUEST_SCRIPT_TOOL_MISSING__"\n'
     printf '  echo "__NEMU_SYSTEMD_CHECK_DONE__ rc=1"\n'
@@ -718,14 +760,18 @@ require_uint "NEMU_SYSTEMD_BLOCK_JOB_MIB" "$BLOCK_JOB_MIB"
 require_uint "NEMU_SYSTEMD_MIN_MEMTOTAL_KB" "$MIN_MEMTOTAL_KB"
 require_uint "NEMU_SYSTEMD_RELOAD_TIMEOUT" "$SYSTEMD_RELOAD_TIMEOUT"
 require_uint "NEMU_SYSTEMD_INPUT_CHUNK_BYTES" "$INPUT_CHUNK_BYTES"
+require_uint "NEMU_SYSTEMD_GUEST_UPLOAD_GROUP_LINES" "$GUEST_UPLOAD_GROUP_LINES"
 require_nonnegative_decimal "NEMU_SYSTEMD_INPUT_DELAY" "$INPUT_DELAY"
 require_nonnegative_decimal "NEMU_SYSTEMD_INPUT_CHUNK_DELAY" "$INPUT_CHUNK_DELAY"
+[ "$GUEST_UPLOAD_GROUP_LINES" -gt 0 ] ||
+  fail "NEMU_SYSTEMD_GUEST_UPLOAD_GROUP_LINES must be positive: $GUEST_UPLOAD_GROUP_LINES"
 require_uint "NEMU_SYSTEMD_APT_INSTALL_DIAG" "$APT_INSTALL_DIAG"
 require_uint "NEMU_SYSTEMD_APT_INSTALL_ACTUAL" "$APT_INSTALL_ACTUAL"
 require_uint "NEMU_SYSTEMD_APT_INSTALL_DIAG_TIMEOUT" "$APT_INSTALL_DIAG_TIMEOUT"
 require_uint "NEMU_SYSTEMD_APT_REMOVE_DIAG_TIMEOUT" "$APT_REMOVE_DIAG_TIMEOUT"
 require_uint "NEMU_SYSTEMD_PYTHON_CNF_DIAG_HARD" "$PYTHON_CNF_DIAG_HARD"
 require_uint "NEMU_SYSTEMD_PYTHON_RE_DIAG_LOOPS" "$PYTHON_RE_DIAG_LOOPS"
+require_uint "NEMU_SYSTEMD_STOP_AFTER_SYSTEMCTL_RELOAD_DIAG" "$STOP_AFTER_SYSTEMCTL_RELOAD_DIAG"
 require_uint "NEMU_SYSTEMD_SYSCALL_PROBE" "$SYSCALL_PROBE_ENABLE"
 require_uint "NEMU_SYSTEMD_ICMP_PROBE" "$ICMP_PROBE_ENABLE"
 require_uint "NEMU_SYSTEMD_DHCP_PROBE" "$DHCP_PROBE_ENABLE"
@@ -766,6 +812,7 @@ build_vda_hash_expectations
 echo "[nemu-systemd-check] log dir: $LOG_DIR"
 echo "[nemu-systemd-check] serial fifo: $SERIAL_FIFO"
 echo "[nemu-systemd-check] guest upload commands: $GUEST_UPLOAD_CMDS"
+echo "[nemu-systemd-check] guest upload group lines: $GUEST_UPLOAD_GROUP_LINES"
 echo "[nemu-systemd-check] max cycles: $MAX_CYCLES"
 echo "[nemu-systemd-check] soak seconds: $SOAK_SECONDS"
 echo "[nemu-systemd-check] fs stress MiB: $FS_STRESS_MIB"
@@ -785,7 +832,8 @@ echo "[nemu-systemd-check] apt install diag timeout: $APT_INSTALL_DIAG_TIMEOUT"
 echo "[nemu-systemd-check] apt remove diag timeout: $APT_REMOVE_DIAG_TIMEOUT"
 echo "[nemu-systemd-check] python/cnf diag hard: $PYTHON_CNF_DIAG_HARD"
 echo "[nemu-systemd-check] python re diag loops: $PYTHON_RE_DIAG_LOOPS"
-echo "[nemu-systemd-check] serial input model: FIFO/stdin bytes -> NEMU SerialPort staging -> 16550 RX FIFO -> Linux ttyS0"
+echo "[nemu-systemd-check] virtio blk sync: ${NEMU_VIRTIO_BLK_SYNC:-0}"
+echo "[nemu-systemd-check] serial input model: FIFO bytes -> NEMU SerialPort staging -> 16550 RX FIFO -> Linux ttyS0 (stdin disabled by default)"
 echo "[nemu-systemd-check] syscall probe: $SYSCALL_PROBE_ENABLE"
 echo "[nemu-systemd-check] ICMP probe: $ICMP_PROBE_ENABLE"
 echo "[nemu-systemd-check] DHCP probe: $DHCP_PROBE_ENABLE"
@@ -822,7 +870,9 @@ echo "[nemu-systemd-check] vda hash windows: $VDA_HASH_WINDOW_COUNT"
 echo "[nemu-systemd-check] perf log: $PERF_LOG"
 
 host_start_seconds=$SECONDS
-NEMU_SERIAL_FIFO="$SERIAL_FIFO" NEMU_HOME="$NEMU_HOME" "$NEMU_SIM" -b \
+NEMU_SERIAL_FIFO="$SERIAL_FIFO" \
+NEMU_SERIAL_INPUT_STDIN="${NEMU_SERIAL_INPUT_STDIN:-0}" \
+NEMU_HOME="$NEMU_HOME" "$NEMU_SIM" -b \
   --max-insts="$MAX_CYCLES" \
   --log="$LOG_FILE" \
   --boot-hartid=0 \
@@ -871,6 +921,7 @@ boot_seconds=$((SECONDS - host_start_seconds))
   printf 'NEMU_GUEST_APT_REMOVE_DIAG_TIMEOUT=%s\n' "$APT_REMOVE_DIAG_TIMEOUT"
   printf 'NEMU_GUEST_PYTHON_CNF_DIAG_HARD=%s\n' "$PYTHON_CNF_DIAG_HARD"
   printf 'NEMU_GUEST_PYTHON_RE_DIAG_LOOPS=%s\n' "$PYTHON_RE_DIAG_LOOPS"
+  printf 'NEMU_GUEST_STOP_AFTER_SYSTEMCTL_RELOAD_DIAG=%s\n' "$STOP_AFTER_SYSTEMCTL_RELOAD_DIAG"
   printf 'NEMU_GUEST_POWEROFF=%s\n' "$POWEROFF_ENABLE"
   printf 'NEMU_GUEST_VDA_HASH_WINDOW_BYTES=%s\n' "$VDA_HASH_WINDOW_BYTES"
   printf 'NEMU_GUEST_VDA_HASH_EXPECT_FILE=/tmp/nemu-vda-direct-read-sha256.tsv\n'
@@ -1201,6 +1252,7 @@ check_full_userland_runtime() {
   else
     full_userland_fail full-userland-timedatectl-version
   fi
+  check_full_userland_python_int_preflight runtime-after-core-tools
 
   machine_id_setup_version="$(/bin/systemd-machine-id-setup --version 2>/dev/null | sed -n '1p' || true)"
   echo "__NEMU_CHECK_FULL_MACHINE_ID_SETUP_VERSION__:$machine_id_setup_version"
@@ -1269,6 +1321,7 @@ check_full_userland_runtime() {
   else
     full_userland_fail full-userland-hostnamectl-status
   fi
+  check_full_userland_python_int_preflight runtime-after-identity
 
   sysusers_version="$(/bin/systemd-sysusers --version 2>/dev/null | sed -n '1p' || true)"
   echo "__NEMU_CHECK_FULL_SYSUSERS_VERSION__:$sysusers_version"
@@ -1360,6 +1413,7 @@ EOF
   else
     full_userland_fail full-userland-tmpfiles-create
   fi
+  check_full_userland_python_int_preflight runtime-after-systemd-files
 
   journald_state="$(systemctl is-active systemd-journald.service 2>/dev/null || true)"
   echo "__NEMU_CHECK_FULL_JOURNALD_ACTIVE__:$journald_state"
@@ -1426,6 +1480,7 @@ EOF
     systemctl status --no-pager systemd-journald.service 2>/dev/null || true
     full_userland_fail full-userland-journalctl-query
   fi
+  check_full_userland_python_int_preflight runtime-after-journal
 
   mkdir -p /run/sshd
   sshd_config="$(/usr/sbin/sshd -T 2>&1 | sed -n '1,25p' || true)"
@@ -1679,6 +1734,7 @@ EOF
     full_userland_fail full-userland-ssh-keygen
     full_userland_fail full-userland-ssh-local-login
   fi
+  check_full_userland_python_int_preflight runtime-after-ssh
   rm -rf "$ssh_login_dir"
 
   if systemctl cat cron.service >/dev/null 2>&1; then
@@ -1808,6 +1864,7 @@ EOF
     systemctl status --no-pager systemd-timesyncd.service 2>/dev/null || true
     full_userland_fail full-userland-timesyncd-active
   fi
+  check_full_userland_python_int_preflight runtime-after-daemons
 
   enable_unit_name=nemu-full-enable-check.service
   enable_unit_path=/etc/systemd/system/$enable_unit_name
@@ -1819,6 +1876,7 @@ EOF
   systemctl reset-failed "$enable_unit_name" >/dev/null 2>&1 || true
   rm -f "$enable_unit_wants" "$enable_unit_path"
   mkdir -p /etc/systemd/system /etc/systemd/system/multi-user.target.wants
+  check_full_userland_python_int_preflight runtime-after-systemctl-pre-cleanup
   cat >"$enable_unit_path" <<'UNIT'
 [Unit]
 Description=NEMU full Ubuntu systemctl enable smoke
@@ -1838,10 +1896,17 @@ UNIT
   else
     full_userland_fail full-userland-systemctl-enable-daemon-reload
   fi
+  check_full_userland_python_int_preflight runtime-after-systemctl-daemon-reload
+  if [ "${NEMU_GUEST_STOP_AFTER_SYSTEMCTL_RELOAD_DIAG:-0}" != "0" ]; then
+    echo "__NEMU_CHECK_FULL_SYSTEMCTL_RELOAD_DIAG_STOP__"
+    echo "__NEMU_SYSTEMD_CHECK_DONE__ rc=77"
+    exit 0
+  fi
   systemctl_enable_rc=0
   echo "__NEMU_CHECK_FULL_SYSTEMCTL_ENABLE_ROOT__:/"
   systemctl --root=/ enable "$enable_unit_name" >"$enable_unit_log" 2>&1 ||
     systemctl_enable_rc=$?
+  check_full_userland_python_int_preflight runtime-after-systemctl-root-enable
   systemctl_enabled_state="$(systemctl --root=/ is-enabled "$enable_unit_name" 2>/dev/null || true)"
   systemctl_enabled_link="$(readlink "$enable_unit_wants" 2>/dev/null || true)"
   systemctl_enabled_link_target="$(readlink -f "$enable_unit_wants" 2>/dev/null || true)"
@@ -1864,6 +1929,7 @@ UNIT
   else
     full_userland_fail full-userland-systemctl-enable-wants-link
   fi
+  check_full_userland_python_int_preflight runtime-after-systemctl-root-is-enabled
   systemctl_start_rc=0
   systemd_start_runtime_unit_after_reload "$enable_unit_name" "$enable_unit_output" \
     >>"$enable_unit_log" 2>&1 || systemctl_start_rc=$?
@@ -1883,9 +1949,11 @@ UNIT
     systemctl status "$enable_unit_name" --no-pager 2>/dev/null || true
     full_userland_fail full-userland-systemctl-enable-start
   fi
+  check_full_userland_python_int_preflight runtime-after-systemctl-runtime-start
   systemctl_disable_rc=0
   systemctl --root=/ disable "$enable_unit_name" >>"$enable_unit_log" 2>&1 ||
     systemctl_disable_rc=$?
+  check_full_userland_python_int_preflight runtime-after-systemctl-root-disable
   systemctl_disabled_state="$(systemctl is-enabled "$enable_unit_name" 2>/dev/null || true)"
   echo "__NEMU_CHECK_FULL_SYSTEMCTL_DISABLE_RC__:$systemctl_disable_rc"
   echo "__NEMU_CHECK_FULL_SYSTEMCTL_DISABLE_STATE__:$systemctl_disabled_state"
@@ -1900,6 +1968,8 @@ UNIT
   systemctl reset-failed "$enable_unit_name" >/dev/null 2>&1 || true
   rm -f "$enable_unit_path" "$enable_unit_wants" "$enable_unit_output"
   systemd_daemon_reload_request "$enable_unit_name" cleanup >/dev/null 2>&1 || true
+  check_full_userland_python_int_preflight runtime-after-systemctl-cleanup
+  check_full_userland_python_int_preflight runtime-after-systemctl
 
   if [ "$full_userland_ok" = "1" ]; then
     pass full-userland-runtime
@@ -2650,6 +2720,111 @@ check_full_userland_apt_install_diag() {
   fi
 }
 
+check_full_userland_python_int_preflight() {
+  preflight_tag="$1"
+  python_int_dir=/tmp/nemu-full-userland-python-int
+  python_int_log="$python_int_dir/$preflight_tag.log"
+  mkdir -p "$python_int_dir"
+  : >"$python_int_log"
+
+  python_int_ok=1
+  python_int_i=1
+  while [ "$python_int_i" -le 5 ]; do
+    python_int_rc=0
+    if timeout 60s python3 - >>"$python_int_log" 2>&1 <<'PY'
+import traceback
+
+def emit(name, value):
+    try:
+        text = str(value)
+    except BaseException as exc:
+        print("__PYTHON_INT_PREFLIGHT_%s_STR_ERROR__:%s:%s" % (
+            name, type(exc).__name__, exc))
+        print("__PYTHON_INT_PREFLIGHT_%s_TYPE__:%s" % (name, type(value).__name__))
+        if isinstance(value, int):
+            try:
+                print("__PYTHON_INT_PREFLIGHT_%s_BIT_LENGTH__:%s" % (
+                    name, value.bit_length()))
+            except BaseException as bit_exc:
+                print("__PYTHON_INT_PREFLIGHT_%s_BIT_LENGTH_ERROR__:%s:%s" % (
+                    name, type(bit_exc).__name__, bit_exc))
+        return
+    print("__PYTHON_INT_PREFLIGHT_%s__:%s" % (name, text))
+
+try:
+    for text, expected in (("0", 0), ("2", 2), ("169", 169), ("254", 254), ("4294967295", 4294967295)):
+        emit("TEXT_%s_REPR" % text, repr(text))
+        emit("TEXT_%s_LEN" % text, len(text))
+        emit("TEXT_%s_ORDS" % text, ",".join(str(ord(ch)) for ch in text))
+        value = int(text, 10)
+        emit("VALUE_%s" % text, value)
+        emit("VALUE_%s_BIT_LENGTH" % text, value.bit_length())
+        if value != expected:
+            raise AssertionError("int(%r)=%r expected=%r" % (text, value, expected))
+
+    octets = [169, 254, 0, 0]
+    octet_bytes = bytes(octets)
+    emit("OCTET_BYTES_HEX", octet_bytes.hex())
+    for name, source in (
+        ("BYTES", octet_bytes),
+        ("LIST", octets),
+        ("MAP", map(lambda octet: octet, octets)),
+    ):
+        value = int.from_bytes(source, "big")
+        emit("INT_FROM_BYTES_%s" % name, value)
+        emit("INT_FROM_BYTES_%s_BIT_LENGTH" % name, value.bit_length())
+        if value != 2851995648:
+            raise AssertionError("int.from_bytes(%s)=%r" % (name, value))
+    print("__PYTHON_INT_PREFLIGHT_OK__")
+except BaseException:
+    traceback.print_exc()
+    raise
+PY
+    then
+      :
+    else
+      python_int_rc=$?
+      python_int_ok=0
+    fi
+    echo "__NEMU_CHECK_FULL_PYTHON_INT_PREFLIGHT_RC__:$preflight_tag:$python_int_i:$python_int_rc"
+    python_int_i=$((python_int_i + 1))
+  done
+
+  echo "__NEMU_CHECK_FULL_PYTHON_INT_PREFLIGHT_LOG_BEGIN__:$preflight_tag"
+  sed -n '1,220p' "$python_int_log" 2>/dev/null || true
+  echo "__NEMU_CHECK_FULL_PYTHON_INT_PREFLIGHT_LOG_END__:$preflight_tag"
+  case "$preflight_tag" in
+    before-runtime) python_int_marker=full-userland-python-int-preflight-before-runtime-loop ;;
+    runtime-after-core-tools) python_int_marker=full-userland-python-int-preflight-runtime-after-core-tools-loop ;;
+    runtime-after-identity) python_int_marker=full-userland-python-int-preflight-runtime-after-identity-loop ;;
+    runtime-after-systemd-files) python_int_marker=full-userland-python-int-preflight-runtime-after-systemd-files-loop ;;
+    runtime-after-journal) python_int_marker=full-userland-python-int-preflight-runtime-after-journal-loop ;;
+    runtime-after-ssh) python_int_marker=full-userland-python-int-preflight-runtime-after-ssh-loop ;;
+    runtime-after-daemons) python_int_marker=full-userland-python-int-preflight-runtime-after-daemons-loop ;;
+    runtime-after-systemctl-pre-cleanup) python_int_marker=full-userland-python-int-preflight-runtime-after-systemctl-pre-cleanup-loop ;;
+    runtime-after-systemctl-daemon-reload-command) python_int_marker=full-userland-python-int-preflight-runtime-after-systemctl-daemon-reload-command-loop ;;
+    runtime-after-systemctl-daemon-reload-timeout) python_int_marker=full-userland-python-int-preflight-runtime-after-systemctl-daemon-reload-timeout-loop ;;
+    runtime-after-systemctl-daemon-reload-before-hup) python_int_marker=full-userland-python-int-preflight-runtime-after-systemctl-daemon-reload-before-hup-loop ;;
+    runtime-after-systemctl-daemon-reload-after-hup) python_int_marker=full-userland-python-int-preflight-runtime-after-systemctl-daemon-reload-after-hup-loop ;;
+    runtime-after-systemctl-daemon-reload) python_int_marker=full-userland-python-int-preflight-runtime-after-systemctl-daemon-reload-loop ;;
+    runtime-after-systemctl-root-enable) python_int_marker=full-userland-python-int-preflight-runtime-after-systemctl-root-enable-loop ;;
+    runtime-after-systemctl-root-is-enabled) python_int_marker=full-userland-python-int-preflight-runtime-after-systemctl-root-is-enabled-loop ;;
+    runtime-after-systemctl-runtime-start) python_int_marker=full-userland-python-int-preflight-runtime-after-systemctl-runtime-start-loop ;;
+    runtime-after-systemctl-root-disable) python_int_marker=full-userland-python-int-preflight-runtime-after-systemctl-root-disable-loop ;;
+    runtime-after-systemctl-cleanup) python_int_marker=full-userland-python-int-preflight-runtime-after-systemctl-cleanup-loop ;;
+    runtime-after-systemctl) python_int_marker=full-userland-python-int-preflight-runtime-after-systemctl-loop ;;
+    after-runtime) python_int_marker=full-userland-python-int-preflight-after-runtime-loop ;;
+    *) python_int_marker=full-userland-python-int-preflight-unknown-loop ;;
+  esac
+  if [ "$python_int_ok" = "1" ]; then
+    pass "$python_int_marker"
+  elif [ "${NEMU_GUEST_PYTHON_CNF_DIAG_HARD:-0}" = "1" ]; then
+    fail "$python_int_marker"
+  else
+    echo "__NEMU_CHECK_FULL_PYTHON_INT_PREFLIGHT_SOFT_FAIL__:$preflight_tag"
+  fi
+}
+
 check_full_userland_python_cnf_diag() {
   if [ "${NEMU_GUEST_ROOTFS_FLAVOR:-systemd-minimal}" != "full" ]; then
     pass full-userland-python-cnf-diag-skip
@@ -2831,24 +3006,95 @@ PY
   python_re_source_diag_i=1
   while [ "$python_re_source_diag_i" -le "$python_re_source_diag_loops" ]; do
     python_re_source_diag_rc=0
-    if timeout 120s python3 - >>"$python_re_source_diag_log" 2>&1 <<'PY'
+if timeout 120s python3 - >>"$python_re_source_diag_log" 2>&1 <<'PY'
 import hashlib
-import pathlib
 import traceback
 
 def emit(name, value):
-    print("__PYTHON_RE_SOURCE_DIAG_%s__:%s" % (name, value))
+    try:
+        text = str(value)
+    except BaseException as exc:
+        print("__PYTHON_RE_SOURCE_DIAG_%s_STR_ERROR__:%s:%s" % (
+            name, type(exc).__name__, exc))
+        print("__PYTHON_RE_SOURCE_DIAG_%s_TYPE__:%s" % (name, type(value).__name__))
+        if isinstance(value, int):
+            try:
+                print("__PYTHON_RE_SOURCE_DIAG_%s_BIT_LENGTH__:%s" % (
+                    name, value.bit_length()))
+            except BaseException as bit_exc:
+                print("__PYTHON_RE_SOURCE_DIAG_%s_BIT_LENGTH_ERROR__:%s:%s" % (
+                    name, type(bit_exc).__name__, bit_exc))
+        return
+    print("__PYTHON_RE_SOURCE_DIAG_%s__:%s" % (name, text))
 
-path = pathlib.Path("/usr/lib/python3.10/textwrap.py")
-src = path.read_bytes()
-emit("TEXTWRAP_BYTES", len(src))
-emit("TEXTWRAP_SHA256", hashlib.sha256(src).hexdigest())
-idx = src.find(b"{2,}")
-emit("TEXTWRAP_REPEAT_TOKEN_OFFSET", idx)
-if idx >= 0:
-    start = max(0, idx - 40)
-    end = min(len(src), idx + 40)
-    emit("TEXTWRAP_REPEAT_TOKEN_WINDOW_HEX", src[start:end].hex())
+def emit_exc(name, exc):
+    emit(name, "%s:%s" % (type(exc).__name__, exc))
+
+def read_bytes_for_diag(path):
+    try:
+        with open(path, "rb") as fp:
+            return fp.read()
+    except BaseException as exc:
+        emit_exc("%s_READ_ERROR" % (path.rsplit("/", 1)[-1].upper().replace(".", "_")), exc)
+        traceback.print_exc()
+        return None
+
+try:
+    parts = "169.254.0.0".split(".")
+    emit("IPADDRESS_LOCAL_SPLIT", ",".join(parts))
+    octets = []
+    for index, part in enumerate(parts):
+        emit("IPADDRESS_LOCAL_OCTET_TEXT_%d" % index, repr(part))
+        emit("IPADDRESS_LOCAL_OCTET_LEN_%d" % index, len(part))
+        emit("IPADDRESS_LOCAL_OCTET_ORDS_%d" % index, ",".join(str(ord(ch)) for ch in part))
+        octet = int(part, 10)
+        emit("IPADDRESS_LOCAL_OCTET_VALUE_%d" % index, octet)
+        if octet > 255:
+            raise ValueError("local octet %d (> 255) not permitted" % octet)
+        octets.append(octet)
+    emit("IPADDRESS_LOCAL_OCTETS", ",".join(str(octet) for octet in octets))
+    local_bytes = bytes(octets)
+    emit("IPADDRESS_LOCAL_BYTES_HEX", local_bytes.hex())
+    emit("IPADDRESS_LOCAL_INT_FROM_BYTES_BYTES", int.from_bytes(local_bytes, "big"))
+    emit("IPADDRESS_LOCAL_INT_FROM_BYTES_LIST", int.from_bytes(octets, "big"))
+    emit("IPADDRESS_LOCAL_INT_FROM_BYTES_MAP", int.from_bytes(map(lambda octet: octet, octets), "big"))
+except BaseException as exc:
+    emit_exc("IPADDRESS_LOCAL_ERROR", exc)
+    traceback.print_exc()
+
+ipaddress_path = "/usr/lib/python3.10/ipaddress.py"
+ipaddress_src = read_bytes_for_diag(ipaddress_path)
+if ipaddress_src is not None:
+    emit("IPADDRESS_BYTES", len(ipaddress_src))
+    emit("IPADDRESS_SHA256", hashlib.sha256(ipaddress_src).hexdigest())
+    idx_ip = ipaddress_src.find(b"int.from_bytes(map(cls._parse_octet")
+    emit("IPADDRESS_INT_FROM_BYTES_TOKEN_OFFSET", idx_ip)
+    if idx_ip >= 0:
+        start_ip = max(0, idx_ip - 40)
+        end_ip = min(len(ipaddress_src), idx_ip + 80)
+        emit("IPADDRESS_INT_FROM_BYTES_WINDOW_HEX", ipaddress_src[start_ip:end_ip].hex())
+
+try:
+    import ipaddress
+    emit("IPADDRESS_IMPORT", "ok")
+    network = ipaddress.IPv4Network("169.254.0.0/16")
+    emit("IPADDRESS_LINKLOCAL_NETWORK", str(network))
+    emit("IPADDRESS_LINKLOCAL_NETWORK_INT", int(network.network_address))
+except BaseException as exc:
+    emit_exc("IPADDRESS_IMPORT_ERROR", exc)
+    traceback.print_exc()
+
+path = "/usr/lib/python3.10/textwrap.py"
+src = read_bytes_for_diag(path)
+if src is not None:
+    emit("TEXTWRAP_BYTES", len(src))
+    emit("TEXTWRAP_SHA256", hashlib.sha256(src).hexdigest())
+    idx = src.find(b"{2,}")
+    emit("TEXTWRAP_REPEAT_TOKEN_OFFSET", idx)
+    if idx >= 0:
+        start = max(0, idx - 40)
+        end = min(len(src), idx + 40)
+        emit("TEXTWRAP_REPEAT_TOKEN_WINDOW_HEX", src[start:end].hex())
 
 try:
     import _sre
@@ -2863,7 +3109,9 @@ except BaseException as exc:
     traceback.print_exc()
 
 try:
-    code = compile(src, str(path), "exec")
+    if src is None:
+        raise RuntimeError("textwrap source unavailable")
+    code = compile(src, path, "exec")
     ns = {"__name__": "__nemu_textwrap_source_diag__"}
     exec(code, ns)
     wrapper = ns["TextWrapper"]
@@ -3352,10 +3600,13 @@ systemd_daemon_reload_request() {
   # 尝试 + PID1 HUP 兜底，真正“PID1 已看到 unit”的证明交给后续 start/output。
   reload_output="$(timeout 5s env SYSTEMD_BUS_TIMEOUT=5s systemctl daemon-reload 2>&1)" ||
     reload_rc=$?
+  echo "__NEMU_CHECK_SYSTEMD_RELOAD_RC__:$reload_unit:$reload_goal:$reload_rc"
+  check_full_userland_python_int_preflight runtime-after-systemctl-daemon-reload-command
   if [ "$reload_rc" -ne 0 ]; then
     case "$reload_rc:$reload_output" in
       124:*|*'Connection timed out'*|*'Timed out'*|*'timed out'*)
         echo "__NEMU_CHECK_SYSTEMD_RELOAD_DBUS_TIMEOUT__:$reload_unit:$reload_goal"
+        check_full_userland_python_int_preflight runtime-after-systemctl-daemon-reload-timeout
         ;;
       *)
         echo "__NEMU_CHECK_SYSTEMD_RELOAD_ERROR__:$reload_unit:$reload_goal:$reload_rc"
@@ -3368,7 +3619,15 @@ systemd_daemon_reload_request() {
         return 1
         ;;
     esac
-    kill -HUP 1 || return 1
+    check_full_userland_python_int_preflight runtime-after-systemctl-daemon-reload-before-hup
+    if kill -HUP 1; then
+      echo "__NEMU_CHECK_SYSTEMD_RELOAD_HUP_RC__:$reload_unit:$reload_goal:0"
+    else
+      reload_hup_rc=$?
+      echo "__NEMU_CHECK_SYSTEMD_RELOAD_HUP_RC__:$reload_unit:$reload_goal:$reload_hup_rc"
+      return 1
+    fi
+    check_full_userland_python_int_preflight runtime-after-systemctl-daemon-reload-after-hup
   fi
   return 0
 }
@@ -3491,7 +3750,9 @@ else
   pass common-htop-optional
 fi
 
+check_full_userland_python_int_preflight before-runtime
 check_full_userland_runtime
+check_full_userland_python_int_preflight after-runtime
 check_full_userland_python_cnf_diag
 
 systemd_show_state="$(systemctl show --property=SystemState --value 2>/dev/null || true)"
@@ -4584,8 +4845,21 @@ send_guest_commands "$INPUT_DELAY" "$INPUT_CHUNK_DELAY" "$GUEST_UPLOAD_CMDS"
 wait_for_log_regex "^__NEMU_SYSTEMD_CHECK_DONE__ rc=" "$CHECK_TIMEOUT"
 guest_check_seconds=$((SECONDS - guest_check_start_seconds))
 
-if grep -qaF "__NEMU_SYSTEMD_CHECK_DONE__ rc=0" "$CONSOLE_LOG" &&
-   ! grep -qaE "^__NEMU_CHECK_FAIL__:" "$CONSOLE_LOG"; then
+guest_done_rc="$(sed -n 's/^__NEMU_SYSTEMD_CHECK_DONE__ rc=//p' "$CONSOLE_LOG" | tail -n 1)"
+diag_stop_reached=0
+if [ "$STOP_AFTER_SYSTEMCTL_RELOAD_DIAG" != "0" ] &&
+   [ "$guest_done_rc" = "77" ] &&
+   grep -qaF "__NEMU_CHECK_FULL_SYSTEMCTL_RELOAD_DIAG_STOP__" "$CONSOLE_LOG"; then
+  diag_stop_reached=1
+fi
+if grep -qaE "^__NEMU_CHECK_FAIL__:" "$CONSOLE_LOG"; then
+  if [ "$diag_stop_reached" = "1" ]; then
+    fail "diagnostic stop reached with guest check failure"
+  fi
+  fail "guest checks reported failure"
+fi
+
+if [ "$guest_done_rc" = "0" ]; then
   poweroff_seconds=0
   if [ "$POWEROFF_ENABLE" != "0" ]; then
     poweroff_start_seconds=$SECONDS
@@ -4613,6 +4887,12 @@ if grep -qaF "__NEMU_SYSTEMD_CHECK_DONE__ rc=0" "$CONSOLE_LOG" &&
   check_shutdown_watchdog_notify || fail "journald WATCHDOG notify failed outside clean poweroff"
   write_perf_log "$boot_seconds" "$guest_check_seconds" "$poweroff_seconds" "$total_seconds"
   echo "[nemu-systemd-check] PASS"
+elif [ "$diag_stop_reached" = "1" ]; then
+  poweroff_seconds=0
+  total_seconds=$((SECONDS - host_start_seconds))
+  check_console_clean || fail "console log contains fixed warning/error regression"
+  write_perf_log "$boot_seconds" "$guest_check_seconds" "$poweroff_seconds" "$total_seconds"
+  echo "[nemu-systemd-check] PASS diagnostic-stop systemctl-reload"
 else
-  fail "guest checks reported failure"
+  fail "guest checks reported failure rc=$guest_done_rc"
 fi

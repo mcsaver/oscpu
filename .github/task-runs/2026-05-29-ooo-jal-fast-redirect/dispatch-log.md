@@ -1,8 +1,7 @@
-# DB-backed .github/task-runs/2026-05-29-ooo-jal-fast-redirect/dispatch-log.md
+# Dispatch Log
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/task-runs/2026-05-29-ooo-jal-fast-redirect/dispatch-log.md`。
+## 2026-05-29
 
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/2026-05-29-ooo-jal-fast-redirect/dispatch-log.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/task-runs/2026-05-29-ooo-jal-fast-redirect/dispatch-log.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/2026-05-29-ooo-jal-fast-redirect/dispatch-log.md`
+- 任务：把目标已知的 JAL 从 OoO 实验核 control drain barrier 中拆出来，改成 dispatch 后立即前端 redirect。
+- 依据：RVC 后实验核 `cpu-tests add` 功能通过但 `CPI=4.347`；默认主线同一程序控制流约 35%，其中 JAL 目标不依赖寄存器，没必要等待整个后端排空。
+- 范围边界：本轮只处理 JAL；JALR 仍需 rs1 目标，条件分支仍需方向解析，memory 仍涉及精确 side effect，均保留 drain barrier。

@@ -1,8 +1,7 @@
-# DB-backed .github/task-runs/2026-06-03-rv64-csrfile-epc-warl-cleanup/dispatch-log.md
+# Dispatch Log
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/task-runs/2026-06-03-rv64-csrfile-epc-warl-cleanup/dispatch-log.md`。
-
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/2026-06-03-rv64-csrfile-epc-warl-cleanup/dispatch-log.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/task-runs/2026-06-03-rv64-csrfile-epc-warl-cleanup/dispatch-log.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/2026-06-03-rv64-csrfile-epc-warl-cleanup/dispatch-log.md`
+- 2026-06-03: 复核 `CsrFile.v` 中 `UNUSEDSIGNAL` waiver，确认 root cause 是 EPC bit0 被分散切片强制为 0，导致 trap PC 输入 bit0 只能通过 dummy wire 消耗。
+- 2026-06-03: 按需求、协议规则、状态机、不变量和数据通路约束推导，决定将 EPC bit0 对齐收敛为 `epc_warl_value()` helper。
+- 2026-06-03: 修改 `CsrFile.v`，删除局部 waiver wire，所有 trap/CSR EPC 写入统一走 `EPC_WARL_MASK`。
+- 2026-06-03: 完成 focused lint、focused testbench、项目级 lint/build、SRET/半字边界 smoke 与 diff check。
+- 2026-06-03: 更新 `.github/memory/project-status.md` 与 `.github/memory/modules/npc.md`。

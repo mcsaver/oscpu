@@ -20,6 +20,16 @@
 
 void gdbstub_set_port(int port);
 bool gdbstub_is_enabled(void);
+extern bool gdbstub_runtime_enabled;
+
+static inline bool gdbstub_fast_enabled(void) {
+#ifndef CONFIG_TARGET_AM
+  return unlikely(gdbstub_runtime_enabled);
+#else
+  return false;
+#endif
+}
+
 const char *gdbstub_capability(void);
 void gdbstub_wait_for_client_if_enabled(void);
 bool gdbstub_breakpoint_hit(vaddr_t pc);

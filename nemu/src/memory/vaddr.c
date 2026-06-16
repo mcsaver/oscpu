@@ -21,15 +21,20 @@
 #include <memory/vaddr.h>
 #include <memory/cache.h>
 #include <memory/paddr.h>
+#include <utils/profile.h>
+#include <stdlib.h>
+#include <string.h>
 #if !defined(CONFIG_TARGET_AM) && !defined(CONFIG_TARGET_SHARE)
 #include "../monitor/gdbstub.h"
 #endif
 
 //添加MTRACE标志，以免每次取值都写入log
 bool g_in_ifetch = false;
-static bool vaddr_fault_pending = false;
+bool vaddr_fault_pending = false;
 static word_t vaddr_fault_cause = 0;
 static vaddr_t vaddr_fault_tval = 0;
+bool vaddr_ifetch_wide_is_enabled = true;
+bool vaddr_host_fast_is_enabled = true;
 
 //vaddr是虚拟地址，是cpu执行的时候看到的地址
 //paddr是物理地址，是MMU转换过后的结果，直接对应内存芯片
@@ -38,6 +43,24 @@ typedef struct {
   paddr_t paddr;
   uint8_t *host_addr;
 } VaddrTranslateResult;
+
+static bool runtime_env_enabled_default_true(const char *name) {
+#ifndef CONFIG_TARGET_AM
+  const char *env = getenv(name);
+  return !(env != NULL && env[0] != '\0' && strcmp(env, "0") == 0);
+#else
+  (void)name;
+  return true;
+#endif
+}
+
+__attribute__((constructor))
+static void vaddr_runtime_config_init(void) {
+  vaddr_ifetch_wide_is_enabled =
+    runtime_env_enabled_default_true("NEMU_INTERPRETER_WIDE_IFETCH");
+  vaddr_host_fast_is_enabled =
+    runtime_env_enabled_default_true("NEMU_VADDR_HOST_FAST");
+}
 
 #if defined(CONFIG_INTERPRETER_IFETCH_PAGE_CACHE) && defined(CONFIG_ISA_riscv) && \
     defined(CONFIG_ISA64) && !defined(CONFIG_CACHE) && !defined(CONFIG_MTRACE)
@@ -53,7 +76,20 @@ typedef struct {
 static VaddrIfetchPageCache ifetch_page_cache;
 
 void vaddr_ifetch_cache_flush(void) {
+  nemu_profile_count_if(NEMU_PROFILE_VADDR_IFETCH_CACHE_FLUSHES, 1);
   ifetch_page_cache.valid = false;
+}
+
+void vaddr_ifetch_cache_invalidate_paddr(paddr_t addr, uint32_t len) {
+  if (!ifetch_page_cache.valid || len == 0) return;
+  paddr_t write_start = addr;
+  paddr_t write_end = addr + (paddr_t)len - 1;
+  paddr_t cache_start = ifetch_page_cache.ppage;
+  paddr_t cache_end = ifetch_page_cache.ppage + PAGE_SIZE - 1;
+  if (write_end < write_start || (write_start <= cache_end && write_end >= cache_start)) {
+    nemu_profile_count_if(NEMU_PROFILE_VADDR_IFETCH_CACHE_INVALIDATES, 1);
+    vaddr_ifetch_cache_flush();
+  }
 }
 
 static inline bool vaddr_ifetch_cache_lookup(vaddr_t addr, uint8_t **host_addr) {
@@ -61,8 +97,10 @@ static inline bool vaddr_ifetch_cache_lookup(vaddr_t addr, uint8_t **host_addr) 
   if (likely(ifetch_page_cache.valid && ifetch_page_cache.vpage == vpage &&
       ifetch_page_cache.satp == cpu.csr.satp && ifetch_page_cache.priv == cpu.priv)) {
     *host_addr = ifetch_page_cache.host_page + (addr & PAGE_MASK);
+    nemu_profile_count_if(NEMU_PROFILE_VADDR_IFETCH_CACHE_HITS, 1);
     return true;
   }
+  nemu_profile_count_if(NEMU_PROFILE_VADDR_IFETCH_CACHE_MISSES, 1);
   return false;
 }
 
@@ -81,20 +119,20 @@ static inline void vaddr_ifetch_cache_fill(vaddr_t addr, VaddrTranslateResult tr
     .priv = cpu.priv,
     .host_page = trans.host_addr - page_offset,
   };
+  nemu_profile_count_if(NEMU_PROFILE_VADDR_IFETCH_CACHE_FILLS, 1);
 }
 
 static inline void vaddr_ifetch_cache_invalidate_write(VaddrTranslateResult trans, int len) {
-  if (!ifetch_page_cache.valid) return;
-  paddr_t write_start = trans.paddr;
-  paddr_t write_end = trans.paddr + len;
-  paddr_t cache_start = ifetch_page_cache.ppage;
-  paddr_t cache_end = ifetch_page_cache.ppage + PAGE_SIZE;
-  if (write_start < cache_end && write_end > cache_start) {
-    vaddr_ifetch_cache_flush();
-  }
+  if (len <= 0) return;
+  vaddr_ifetch_cache_invalidate_paddr(trans.paddr, (uint32_t)len);
 }
 #else
 void vaddr_ifetch_cache_flush(void) {}
+
+void vaddr_ifetch_cache_invalidate_paddr(paddr_t addr, uint32_t len) {
+  (void)addr;
+  (void)len;
+}
 
 static inline bool vaddr_ifetch_cache_lookup(vaddr_t addr, uint8_t **host_addr) {
   (void)addr;
@@ -121,15 +159,12 @@ bool vaddr_take_fault(word_t *cause, vaddr_t *tval) {
   return true;
 }
 
-bool vaddr_has_fault(void) {
-  return vaddr_fault_pending;
-}
-
 void vaddr_set_fault(word_t cause, vaddr_t tval) {
   // 让 ISA 层的精确异常也走 vaddr fault 通道，统一在指令边界投递 trap。
   vaddr_fault_pending = true;
   vaddr_fault_cause = cause;
   vaddr_fault_tval = tval;
+  nemu_profile_count_if(NEMU_PROFILE_VADDR_FAULTS, 1);
 }
 
 static word_t vaddr_fault_cause_for_type(int type) {
@@ -160,6 +195,9 @@ static word_t vaddr_access_fault_cause_for_type(int type) {
 
 static inline uint8_t *vaddr_paddr_host_fast(paddr_t paddr) {
 #if !defined(CONFIG_CACHE) && !defined(CONFIG_MTRACE)
+  if (unlikely(!vaddr_host_fast_runtime_enabled())) {
+    return NULL;
+  }
   if (likely(in_pmem(paddr))) {
     return guest_to_host(paddr);
   }
@@ -229,16 +267,18 @@ static inline word_t vaddr_paddr_read_fast(VaddrTranslateResult trans, int len) 
    * PMEM host_addr；命中时直接落到 host buffer，非 PMEM 仍回落 paddr 层。
    */
   if (likely(trans.host_addr != NULL)) {
+    nemu_profile_count_if(NEMU_PROFILE_VADDR_HOST_FAST_READS, 1);
     return host_read(trans.host_addr, len);
   }
 #endif
+  nemu_profile_count_if(NEMU_PROFILE_VADDR_PADDR_FALLBACK_READS, 1);
   return paddr_read(trans.paddr, len);
 }
 
 static inline void vaddr_gdbstub_watchpoint_after_access(vaddr_t addr, int len,
     bool is_write) {
 #if !defined(CONFIG_TARGET_AM) && !defined(CONFIG_TARGET_SHARE)
-  if (unlikely(gdbstub_is_enabled())) {
+  if (gdbstub_fast_enabled()) {
     gdbstub_watchpoint_after_access(addr, len, is_write);
   }
 #else
@@ -251,10 +291,12 @@ static inline void vaddr_gdbstub_watchpoint_after_access(vaddr_t addr, int len,
 static inline void vaddr_paddr_write_fast(VaddrTranslateResult trans, int len, word_t data) {
 #if !defined(CONFIG_CACHE) && !defined(CONFIG_MTRACE)
   if (likely(trans.host_addr != NULL)) {
+    nemu_profile_count_if(NEMU_PROFILE_VADDR_HOST_FAST_WRITES, 1);
     host_write(trans.host_addr, len, data);
     return;
   }
 #endif
+  nemu_profile_count_if(NEMU_PROFILE_VADDR_PADDR_FALLBACK_WRITES, 1);
   paddr_write(trans.paddr, len, data);
 }
 
@@ -274,6 +316,7 @@ static inline void vaddr_notify_write_committed(VaddrTranslateResult trans, int 
 
 static word_t vaddr_read_translated(vaddr_t addr, int len, int type) {
   if (((addr & PAGE_MASK) + len) > PAGE_SIZE) {
+    nemu_profile_count_if(NEMU_PROFILE_VADDR_CROSS_PAGE_READS, 1);
     word_t ret = 0;
     for (int i = 0; i < len; i++) {
       ret |= vaddr_read_translated(addr + i, 1, type) << (i * 8);
@@ -292,6 +335,7 @@ static word_t vaddr_read_translated(vaddr_t addr, int len, int type) {
 }
 
 word_t vaddr_ifetch(vaddr_t addr, int len) {
+  nemu_profile_count_if(NEMU_PROFILE_VADDR_IFETCH_CALLS, 1);
   g_in_ifetch = true;
   // 取指和数据访存从这里分流，便于分别统计 ICache/DCache，同时保留 paddr 层的 MMIO 处理。
   word_t ret = vaddr_read_translated(addr, len, MEM_TYPE_IFETCH);
@@ -299,30 +343,38 @@ word_t vaddr_ifetch(vaddr_t addr, int len) {
   return ret;
 }
 
-bool vaddr_ifetch_wide(vaddr_t addr, uint32_t *inst, int *len) {
+VaddrIfetchWideResult vaddr_ifetch_wide(vaddr_t addr) {
 #if defined(CONFIG_INTERPRETER_WIDE_IFETCH) && defined(CONFIG_RISCV_EXT_C) && \
     !defined(CONFIG_CACHE) && !defined(CONFIG_MTRACE)
+  nemu_profile_count_if(NEMU_PROFILE_VADDR_IFETCH_WIDE_ATTEMPTS, 1);
+  if (unlikely(!vaddr_ifetch_wide_runtime_enabled())) {
+    nemu_profile_count_if(NEMU_PROFILE_VADDR_IFETCH_WIDE_DISABLED, 1);
+    return VADDR_IFETCH_WIDE_MISS;
+  }
+
   if (((addr & PAGE_MASK) + 4) > PAGE_SIZE) {
-    return false;
+    nemu_profile_count_if(NEMU_PROFILE_VADDR_IFETCH_WIDE_CROSS_PAGE, 1);
+    return VADDR_IFETCH_WIDE_MISS;
   }
 
   uint8_t *cached_host_addr = NULL;
   if (vaddr_ifetch_cache_lookup(addr, &cached_host_addr)) {
     uint32_t raw = 0;
     memcpy(&raw, cached_host_addr, sizeof(raw));
-    *inst = raw;
-    *len = (raw & 0x3u) == 0x3u ? 4 : 2;
-    return true;
+    nemu_profile_count_if(NEMU_PROFILE_VADDR_IFETCH_WIDE_HITS, 1);
+    return vaddr_ifetch_wide_pack(raw);
   }
 
   g_in_ifetch = true;
   VaddrTranslateResult trans = vaddr_translate_checked(addr, 4, MEM_TYPE_IFETCH);
   g_in_ifetch = false;
   if (vaddr_fault_pending) {
-    return true;
+    nemu_profile_count_if(NEMU_PROFILE_VADDR_IFETCH_WIDE_FAULTS, 1);
+    return VADDR_IFETCH_WIDE_FAULT;
   }
   if (trans.host_addr == NULL) {
-    return false;
+    nemu_profile_count_if(NEMU_PROFILE_VADDR_IFETCH_WIDE_PADDR_FALLBACKS, 1);
+    return VADDR_IFETCH_WIDE_MISS;
   }
   vaddr_ifetch_cache_fill(addr, trans);
 
@@ -333,11 +385,11 @@ bool vaddr_ifetch_wide(vaddr_t addr, uint32_t *inst, int *len) {
    */
   uint32_t raw = 0;
   memcpy(&raw, trans.host_addr, sizeof(raw));
-  *inst = raw;
-  *len = (raw & 0x3u) == 0x3u ? 4 : 2;
-  return true;
+  nemu_profile_count_if(NEMU_PROFILE_VADDR_IFETCH_WIDE_HITS, 1);
+  return vaddr_ifetch_wide_pack(raw);
 #else
-  return false;
+  (void)addr;
+  return VADDR_IFETCH_WIDE_MISS;
 #endif
 }
 
@@ -347,6 +399,7 @@ word_t vaddr_read(vaddr_t addr, int len) {
 
 void vaddr_write(vaddr_t addr, int len, word_t data) {
   if (((addr & PAGE_MASK) + len) > PAGE_SIZE) {
+    nemu_profile_count_if(NEMU_PROFILE_VADDR_CROSS_PAGE_WRITES, 1);
     VaddrTranslateResult translations[8];
     assert(len <= (int)ARRLEN(translations));
     /* 跨页 store 必须先完成全部翻译，再真正写内存；否则后半截 page fault

@@ -1,0 +1,437 @@
+make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+make ARCH=riscv64-npc BOOT=ubuntu-rootfs __check-npc-systemd-guest
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+[Linux] rv64 linux defconfig up to date
+make -C '/home/lyg/PA/ysyx-workbench/npc/rv64' -j'14'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/npc/rv64'
+make[2]: Nothing to be done for 'default'.
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/npc/rv64'
+[ubuntu-rootfs-check] image: /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64.ext4
+[ubuntu-rootfs-check] flavor: systemd-minimal
+[ubuntu-rootfs-check] OK      stage1 init: /init
+[ubuntu-rootfs-check] OK      Ubuntu shell: /bin/sh
+[ubuntu-rootfs-check] OK      Ubuntu identity: /etc/os-release
+[ubuntu-rootfs-check] OK      systemd candidate: /lib/systemd/systemd
+[ubuntu-rootfs-check] OK      systemd basic.target: /lib/systemd/system/basic.target
+[ubuntu-rootfs-check] OK      udev daemon: /lib/systemd/systemd-udevd
+[ubuntu-rootfs-check] OK      dbus daemon: /usr/bin/dbus-daemon
+[ubuntu-rootfs-check] OK      agetty login path: /bin/login
+[ubuntu-rootfs-check] OK      root login shell: /bin/bash
+[ubuntu-rootfs-check] OK      Ubuntu identity command: /usr/bin/lsb_release
+[ubuntu-rootfs-check] OK      lp64d dynamic linker: /lib/ld-linux-riscv64-lp64d.so.1
+[ubuntu-rootfs-check] OK      PAM module path: /lib/riscv64-linux-gnu/security
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_unix.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_deny.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_permit.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_env.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_loginuid.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_limits.so
+[ubuntu-rootfs-check] OK      e2scrub service entrypoint: /sbin/e2scrub_all
+[ubuntu-rootfs-check] OK      boot-blocking e2scrub reap masked: /etc/systemd/system/e2scrub_reap.service
+[ubuntu-rootfs-check] OK      periodic e2scrub timer masked: /etc/systemd/system/e2scrub_all.timer
+[ubuntu-rootfs-check] OK      NPC console shell hook: /usr/local/sbin/ysyx-npc-console-shell
+[ubuntu-rootfs-check] OK      NPC systemd wrapper: /usr/local/sbin/ysyx-npc-systemd-wrapper
+[ubuntu-rootfs-check] OK      NPC console shell unit disabled: wrapper owns the automated console
+[ubuntu-rootfs-check] OK      unavailable hvc0 getty masked: /etc/systemd/system/serial-getty@hvc0.service
+[ubuntu-rootfs-check] rootfs readiness check passed
+LOG_DIR='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-15-npc-systemd-guest-wrapper-pacing/evidence/npc-systemd-guest' \
+CONSOLE_LOG='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-15-npc-systemd-guest-wrapper-pacing/evidence/npc-systemd-guest/console.log' \
+NPC_LOG='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-15-npc-systemd-guest-wrapper-pacing/evidence/npc-systemd-guest/npc.log' \
+NPC_SYSTEMD_CHECK_MAX_CYCLES='1200000000' \
+NPC_SYSTEMD_HOST_TIMEOUT='7200' \
+NPC_SYSTEMD_PROMPT='root@ysyx-ubuntu2204:~#' \
+NPC_SYSTEMD_UART_TRACE_LIMIT='160' \
+NPC_SYSTEMD_UART_CYCLE_GAP='10000' \
+NPC_SYSTEMD_PROGRESS='50000000' \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-npc-systemd-guest.sh'
+[npc-systemd-check] log dir: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-15-npc-systemd-guest-wrapper-pacing/evidence/npc-systemd-guest
+[npc-systemd-check] prompt wait: root@ysyx-ubuntu2204:~#
+[npc-systemd-check] max cycles: 1200000000
+[npc-systemd-check] host timeout: 7200s
+[npc-systemd-check] UART RX cycle gap: 10000
+[npc-systemd-check] progress interval: 50000000
+[npc-systemd-check] guest commands: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-15-npc-systemd-guest-wrapper-pacing/evidence/npc-systemd-guest/npc-guest-check.cmd
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+[Linux] rv64 linux defconfig up to date
+make -C '/home/lyg/PA/ysyx-workbench/npc/rv64' -j'14'
+make[3]: Entering directory '/home/lyg/PA/ysyx-workbench/npc/rv64'
+make[3]: Nothing to be done for 'default'.
+make[3]: Leaving directory '/home/lyg/PA/ysyx-workbench/npc/rv64'
+[ubuntu-rootfs-check] image: /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64.ext4
+[ubuntu-rootfs-check] flavor: systemd-minimal
+[ubuntu-rootfs-check] OK      stage1 init: /init
+[ubuntu-rootfs-check] OK      Ubuntu shell: /bin/sh
+[ubuntu-rootfs-check] OK      Ubuntu identity: /etc/os-release
+[ubuntu-rootfs-check] OK      systemd candidate: /lib/systemd/systemd
+[ubuntu-rootfs-check] OK      systemd basic.target: /lib/systemd/system/basic.target
+[ubuntu-rootfs-check] OK      udev daemon: /lib/systemd/systemd-udevd
+[ubuntu-rootfs-check] OK      dbus daemon: /usr/bin/dbus-daemon
+[ubuntu-rootfs-check] OK      agetty login path: /bin/login
+[ubuntu-rootfs-check] OK      root login shell: /bin/bash
+[ubuntu-rootfs-check] OK      Ubuntu identity command: /usr/bin/lsb_release
+[ubuntu-rootfs-check] OK      lp64d dynamic linker: /lib/ld-linux-riscv64-lp64d.so.1
+[ubuntu-rootfs-check] OK      PAM module path: /lib/riscv64-linux-gnu/security
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_unix.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_deny.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_permit.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_env.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_loginuid.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_limits.so
+[ubuntu-rootfs-check] OK      e2scrub service entrypoint: /sbin/e2scrub_all
+[ubuntu-rootfs-check] OK      boot-blocking e2scrub reap masked: /etc/systemd/system/e2scrub_reap.service
+[ubuntu-rootfs-check] OK      periodic e2scrub timer masked: /etc/systemd/system/e2scrub_all.timer
+[ubuntu-rootfs-check] OK      NPC console shell hook: /usr/local/sbin/ysyx-npc-console-shell
+[ubuntu-rootfs-check] OK      NPC systemd wrapper: /usr/local/sbin/ysyx-npc-systemd-wrapper
+[ubuntu-rootfs-check] OK      NPC console shell unit disabled: wrapper owns the automated console
+[ubuntu-rootfs-check] OK      unavailable hvc0 getty masked: /etc/systemd/system/serial-getty@hvc0.service
+[ubuntu-rootfs-check] rootfs readiness check passed
+[Linux] ARCH=riscv64-npc BOOT=ubuntu-rootfs
+[Linux] firmware: /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/build/opensbi/rootfs/platform/generic/firmware/fw_jump.bin
+[Linux] kernel:   /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/build/linux/arch/riscv/boot/Image
+[Linux] dtb:      /home/lyg/PA/ysyx-workbench/Linux/build/riscv64-npc/npc-rv64-rootfs.dtb
+[Linux] rootfs:   /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64.ext4
+[Linux] log:      /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-15-npc-systemd-guest-wrapper-pacing/evidence/npc-systemd-guest/console.log
+'/home/lyg/PA/ysyx-workbench/npc/rv64/build/NpcSimTop' -b --progress=50000000 --no-diff --max=1200000000 \
+  --log='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-15-npc-systemd-guest-wrapper-pacing/evidence/npc-systemd-guest/npc.log' \
+  -i '/home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/build/opensbi/rootfs/platform/generic/firmware/fw_jump.bin' \
+  --load=0x80200000:'/home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/build/linux/arch/riscv/boot/Image' \
+  --load=0x82200000:'/home/lyg/PA/ysyx-workbench/Linux/build/riscv64-npc/npc-rv64-rootfs.dtb' \
+   \
+  --block='/home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64.ext4' \
+   2>&1 | tee '/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-15-npc-systemd-guest-wrapper-pacing/evidence/npc-systemd-guest/console.log'
+[1;34m[log.c:145 npc_init_log] Log is written to /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-15-npc-systemd-guest-wrapper-pacing/evidence/npc-systemd-guest/npc.log[0m
+[1;34m[paddr.c:85 npc_init_mem] physical memory area [0x0000000080000000, 0x00000000bfffffff][0m
+[1;34m[paddr.c:144 npc_load_img_at] The image is /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/build/opensbi/rootfs/platform/generic/firmware/fw_jump.bin, size = 275888[0m
+[1;34m[paddr.c:146 npc_load_img_at] Load image /home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/build/linux/arch/riscv/boot/Image at 0x0000000080200000, size = 15465472[0m
+[1;34m[paddr.c:146 npc_load_img_at] Load image /home/lyg/PA/ysyx-workbench/Linux/build/riscv64-npc/npc-rv64-rootfs.dtb at 0x0000000082200000, size = 1856[0m
+[1;34m[map.c:76 npc_add_mmio_map] Add mmio map 'serial' at [0xa00003f8, 0xa00003ff][0m
+[1;34m[map.c:76 npc_add_mmio_map] Add mmio map 'rtc' at [0xa0000048, 0xa000004f][0m
+[1;34m[map.c:76 npc_add_mmio_map] Add mmio map 'keyboard' at [0xa0000060, 0xa0000063][0m
+[1;34m[vga.c:186 npc_vga_init] NPC VGA disabled; GPU_CONFIG will report present=false.[0m
+[1;34m[map.c:76 npc_add_mmio_map] Add mmio map 'vgactl' at [0xa0000100, 0xa0000107][0m
+[1;34m[map.c:76 npc_add_mmio_map] Add mmio map 'framebuffer' at [0xa1000000, 0xa11fffff][0m
+[1;34m[virtio_blk.c:545 virtio-blk] image=/home/lyg/PA/ysyx-workbench/Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64.ext4 capacity=4194304 sectors (2048 MiB)[0m
+***reset***
+[1;34m[monitor.c:41 welcome] Wave Trace: [1;31mOFF[0m[0m
+[1;34m[monitor.c:42 welcome] Text Trace: [1;31mOFF[0m (itrace=off, mtrace=off, dtrace=off)[0m
+[1;34m[monitor.c:44 welcome] Difftest: [1;31mOFF[0m[0m
+[1;34m[monitor.c:45 welcome] Build time: 21:48:30, Jun 15 2026[0m
+Welcome to [1;33m[1;41mriscv64[0m-NPC!
+For help, type "help"
+[1;34m[dpi.c:135 uart-rx] loaded bytes=1235 file_bytes=1235 text_bytes=0 trace=1 min_commit=0 limit=160 cycle_gap=10000 wait='root@ysyx-ubuntu2204:~#'[0m
+[1;34m[dpi.c:353 uart-rx] waiting for guest output pattern='root@ysyx-ubuntu2204:~#' before releasing bytes=1235[0m
+
+OpenSBI v1.8
+   ____                    _____ ____ _____
+  / __ \                  / ____|  _ \_   _|
+ | |  | |_ __   ___ _ __ | (___ | |_) || |
+ | |  | | '_ \ / _ \ '_ \ \___ \|  _ < | |
+ | |__| | |_) |  __/ | | |____) | |_) || |_
+  \____/| .__/ \___|_| |_|_____/|____/_____|
+        | |
+        |_|
+
+Platform Name               : YSYX NPC RV64
+Platform Features           : medeleg
+Platform HART Count         : 1
+Platform HART Protection    : ---
+Platform IPI Device         : aclint-mswi
+Platform Timer Device       : aclint-mtimer @ 10000000Hz
+Platform Console Device     : uart8250
+Platform HSM Device         : ---
+Platform PMU Device         : ---
+Platform Reboot Device      : ---
+Platform Shutdown Device    : ---
+Platform Suspend Device     : ---
+Platform CPPC Device        : ---
+Firmware Base               : 0x80000000
+Firmware Size               : 321 KB
+Firmware RW Offset          : 0x40000
+Firmware RW Size            : 65 KB
+Firmware Heap Offset        : 0x47000
+Firmware Heap Size          : 37 KB (total), 0 KB (reserved), 10 KB (used), 25 KB (free)
+Firmware Scratch Size       : 4096 B (total), 408 B (used), 3688 B (free)
+Runtime SBI Version         : 3.0
+Standard SBI Extensions     : time,rfnc,ipi,base,hsm,pmu,dbcn,fwft,legacy,sse
+Experimental SBI Extensions : none
+
+Domain0 Name                : root
+Domain0 Boot HART           : 0
+Domain0 HARTs               : 0*
+Domain0 Region00            : 0x0000000080040000-0x000000008005ffff M: (F,R,W) S/U: ()
+Domain0 Region01            : 0x0000000080000000-0x000000008003ffff M: (F,R,X) S/U: ()
+Domain0 Region02            : 0x0000000010000000-0x0000000010000fff M: (I,R,W) S/U: (R,W)
+Domain0 Region03            : 0x0000000002000000-0x000000000200ffff M: (I,R,W) S/U: ()
+Domain0 Region04            : 0x000000000c000000-0x000000000fffffff M: (I,R,W) S/U: (R,W)
+Domain0 Region05            : 0x0000000000000000-0xffffffffffffffff M: () S/U: (R,W,X)
+Domain0 Next Address        : 0x0000000080200000
+Domain0 Next Arg1           : 0x0000000082200000
+Domain0 Next Mode           : S-mode
+Domain0 SysReset            : yes
+Domain0 SysSuspend          : yes
+
+Boot HART ID                : 0
+Boot HART Domain            : root
+Boot HART Priv Version      : v1.11
+Boot HART Base ISA          : rv64imafdc
+Boot HART ISA Extensions    : zicntr
+Boot HART PMP Count         : 0
+Boot HART PMP Granularity   : 0 bits
+Boot HART PMP Address Bits  : 0
+Boot HART MHPM Info         : 0 (0x00000000)
+Boot HART Debug Triggers    : 0 triggers
+Boot HART MIDELEG           : 0x0000000000000222
+Boot HART MEDELEG           : 0x000000000004b109
+[progress] 50000000 insts, pc=0xffffffff8042e5dc, 226939 inst/s
+[    0.000000] Linux version 6.6.0 (lyg@lygdebug) (riscv64-linux-gnu-gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, GNU ld (GNU Binutils for Ubuntu) 2.42) #1 Mon Jun 15 16:55:17 CST 2026
+[    0.000000] random: crng init done
+[    0.000000] Machine model: YSYX NPC RV64
+[    0.000000] SBI specification v3.0 detected
+[    0.000000] SBI implementation ID=0x1 Version=0x10008
+[    0.000000] SBI TIME extension detected
+[    0.000000] SBI IPI extension detected
+[    0.000000] SBI RFENCE extension detected
+[    0.000000] efi: UEFI not found.
+[    0.000000] OF: reserved mem: 0x0000000080000000..0x000000008003ffff (256 KiB) nomap non-reusable mmode_resv1@80000000
+[    0.000000] OF: reserved mem: 0x0000000080040000..0x000000008005ffff (128 KiB) nomap non-reusable mmode_resv0@80040000
+[    0.000000] Zone ranges:
+[    0.000000]   DMA32    [mem 0x0000000080000000-0x00000000bfffffff]
+[    0.000000]   Normal   empty
+[    0.000000] Movable zone start for each node
+[    0.000000] Early memory node ranges
+[    0.000000]   node   0: [mem 0x0000000080000000-0x000000008005ffff]
+[    0.000000]   node   0: [mem 0x0000000080060000-0x00000000bfffffff]
+[    0.000000] Initmem setup node 0 [mem 0x0000000080000000-0x00000000bfffffff]
+[    0.000000] riscv: base ISA extensions acdfim
+[    0.000000] riscv: ELF capabilities acdfim
+[    0.000000] Kernel command line: console=ttyS0,115200n8 root=/dev/vda rw init=/usr/local/sbin/ysyx-npc-systemd-wrapper
+[    0.000000] Dentry cache hash table entries: 131072 (order: 8, 1048576 bytes, linear)
+[    0.000000] Inode-cache hash table entries: 65536 (order: 7, 524288 bytes, linear)
+[    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: 258048
+[    0.000000] mem auto-init: stack:off, heap alloc:off, heap free:off
+[    0.000000] Memory: 997396K/1048576K available (4284K kernel code, 4800K rwdata, 2048K rodata, 2110K init, 349K bss, 51180K reserved, 0K cma-reserved)
+[    0.000000] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
+[    0.000000] NR_IRQS: 64, nr_irqs: 64, preallocated irqs: 0
+[    0.000000] riscv-intc: 64 local interrupts mapped
+[    0.000000] plic: interrupt-controller@c000000: mapped 32 interrupts with 1 handlers for 2 contexts.
+[    0.000000] clocksource: riscv_clocksource: mask: 0xffffffffffffffff max_cycles: 0x24e6a1710, max_idle_ns: 440795202120 ns
+[    0.000007] sched_clock: 64 bits at 10MHz, resolution 100ns, wraps every 4398046511100ns
+[    0.001160] Calibrating delay loop (skipped), value calculated using timer frequency.. 20.00 BogoMIPS (lpj=40000)
+[    0.001288] pid_max: default: 32768 minimum: 301
+[    0.001862] LSM: initializing lsm=capability,integrity
+[    0.003051] Mount-cache hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[    0.003289] Mountpoint-cache hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[    0.015767] RCU Tasks Trace: Setting shift to 0 and lim to 1 rcu_task_cb_adjust=1.
+[    0.016676] riscv: ELF compat mode unsupported
+[    0.016848] ASID allocator using 16 bits (65536 entries)
+[    0.018195] EFI services will not be available.
+[    0.021094] devtmpfs: initialized
+[    0.032556] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 7645041785100000 ns
+[    0.032778] futex hash table entries: 256 (order: 1, 12288 bytes, linear)
+[    0.036457] NET: Registered PF_NETLINK/PF_ROUTE protocol family
+[    0.038207] DMA: preallocated 128 KiB GFP_KERNEL pool for atomic allocations
+[    0.038483] DMA: preallocated 128 KiB GFP_KERNEL|GFP_DMA32 pool for atomic allocations
+[    0.071607] clocksource: Switched to clocksource riscv_clocksource
+[    0.086806] NET: Registered PF_INET protocol family
+[    0.088652] IP idents hash table entries: 16384 (order: 5, 131072 bytes, linear)
+[    0.111497] tcp_listen_portaddr_hash hash table entries: 512 (order: 2, 16384 bytes, linear)
+[    0.111971] Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+[    0.112110] TCP established hash table entries: 8192 (order: 4, 65536 bytes, linear)
+[    0.113300] TCP bind hash table entries: 8192 (order: 7, 524288 bytes, linear)
+[    0.121474] TCP: Hash tables configured (established 8192 bind 8192)
+[    0.122851] UDP hash table entries: 512 (order: 3, 49152 bytes, linear)
+[    0.123729] UDP-Lite hash table entries: 512 (order: 3, 49152 bytes, linear)
+[    0.125309] NET: Registered PF_UNIX/PF_LOCAL protocol family
+[    0.134180] workingset: timestamp_bits=46 max_order=18 bucket_order=0
+[    0.139721] io scheduler mq-deadline registered
+[    0.681527] Serial: 8250/16550 driver, 4 ports, IRQ sharing disabled
+[    0.701957] printk: console [ttyS0] disabled
+[    0.705114] 10000000.serial: ttyS0 at MMIO 0x10000000 (irq = 2, base_baud = 115200) is a 16550A
+[    0.705313] printk: console [ttyS0] enabled
+[    0.769683] loop: module loaded
+[    0.770217] virtio_blk virtio0: 1/0/0 default/read/poll queues
+[    0.772428] virtio_blk virtio0: [vda] 4194304 512-byte logical blocks (2.15 GB/2.00 GiB)
+[    0.786247] NET: Registered PF_PACKET protocol family
+[    0.786625] Key type dns_resolver registered
+[    0.927876] clk: Disabling unused clocks
+[    0.953604] EXT4-fs (vda): recovery complete
+[    0.953824] EXT4-fs (vda): mounted filesystem 18a376a2-e141-49a4-9805-1b0b7110f814 r/w with ordered data mode. Quota mode: disabled.
+[    0.954302] VFS: Mounted root (ext4 filesystem) on device 254:0.
+[    0.955715] devtmpfs: mounted
+[    0.976948] Freeing unused kernel image (initmem) memory: 2108K
+[    0.977333] Run /usr/local/sbin/ysyx-npc-systemd-wrapper as init process
+[ysyx-npc-systemd-wrapper] begin
+[ysyx-npc-systemd-wrapper] starting console shell hook
+[ysyx-npc-systemd-wrapper] exec systemd: /lib/systemd/systemd
+root@ysyx-ubuntu2204:~#[1;34m[dpi.c:364 uart-rx] wait pattern matched; releasing input at cycle=191194758 commit=96679416[0m
+[1;34m[dpi.c:160 uart-rx] pop=1 cycle=191194758 commit=96679416 data=0x73 char='s'[0m
+ [1;34m[dpi.c:160 uart-rx] pop=2 cycle=191204758 commit=96683352 data=0x74 char='t'[0m
+[1;34m[dpi.c:160 uart-rx] pop=3 cycle=191214758 commit=96688250 data=0x74 char='t'[0m
+[1;34m[dpi.c:160 uart-rx] pop=4 cycle=191224758 commit=96693214 data=0x79 char='y'[0m
+[1;34m[dpi.c:160 uart-rx] pop=5 cycle=191234758 commit=96698044 data=0x20 char=' '[0m
+[1;34m[dpi.c:160 uart-rx] pop=6 cycle=191244758 commit=96702396 data=0x2d char='-'[0m
+[1;34m[dpi.c:160 uart-rx] pop=7 cycle=191254758 commit=96706698 data=0x65 char='e'[0m
+[1;34m[dpi.c:160 uart-rx] pop=8 cycle=191264758 commit=96710766 data=0x63 char='c'[0m
+[1;34m[dpi.c:160 uart-rx] pop=9 cycle=191274758 commit=96715665 data=0x68 char='h'[0m
+[1;34m[dpi.c:160 uart-rx] pop=10 cycle=191284758 commit=96720051 data=0x6f char='o'[0m
+[1;34m[dpi.c:160 uart-rx] pop=11 cycle=191294758 commit=96723670 data=0x20 char=' '[0m
+[1;34m[dpi.c:160 uart-rx] pop=12 cycle=191304758 commit=96727704 data=0x32 char='2'[0m
+[1;34m[dpi.c:160 uart-rx] pop=13 cycle=191314758 commit=96732005 data=0x3e char='>'[0m
+[1;34m[dpi.c:160 uart-rx] pop=14 cycle=191324758 commit=96736385 data=0x2f char='/'[0m
+[1;34m[dpi.c:160 uart-rx] pop=15 cycle=191334758 commit=96741318 data=0x64 char='d'[0m
+[1;34m[dpi.c:160 uart-rx] pop=16 cycle=191344758 commit=96746311 data=0x65 char='e'[0m
+[1;34m[dpi.c:160 uart-rx] pop=17 cycle=191354758 commit=96751464 data=0x76 char='v'[0m
+[1;34m[dpi.c:160 uart-rx] pop=18 cycle=191364758 commit=96756449 data=0x2f char='/'[0m
+[1;34m[dpi.c:160 uart-rx] pop=19 cycle=191374758 commit=96761384 data=0x6e char='n'[0m
+[1;34m[dpi.c:160 uart-rx] pop=20 cycle=191384758 commit=96766385 data=0x75 char='u'[0m
+[1;34m[dpi.c:160 uart-rx] pop=21 cycle=191394758 commit=96771387 data=0x6c char='l'[0m
+[1;34m[dpi.c:160 uart-rx] pop=22 cycle=191404758 commit=96776560 data=0x6c char='l'[0m
+[1;34m[dpi.c:160 uart-rx] pop=23 cycle=191414758 commit=96782819 data=0x20 char=' '[0m
+[1;34m[dpi.c:160 uart-rx] pop=24 cycle=191424758 commit=96787894 data=0x7c char='|'[0m
+[1;34m[dpi.c:160 uart-rx] pop=25 cycle=191434758 commit=96792494 data=0x7c char='|'[0m
+[1;34m[dpi.c:160 uart-rx] pop=26 cycle=191444758 commit=96797551 data=0x20 char=' '[0m
+[1;34m[dpi.c:160 uart-rx] pop=27 cycle=191454758 commit=96802696 data=0x74 char='t'[0m
+[1;34m[dpi.c:160 uart-rx] pop=28 cycle=191464758 commit=96807185 data=0x72 char='r'[0m
+[1;34m[dpi.c:160 uart-rx] pop=29 cycle=191474758 commit=96811212 data=0x75 char='u'[0m
+[1;34m[dpi.c:160 uart-rx] pop=30 cycle=191484758 commit=96816178 data=0x65 char='e'[0m
+[1;34m[dpi.c:160 uart-rx] pop=31 cycle=191494758 commit=96821125 data=0x0a char='.'[0m
+[1;34m[dpi.c:160 uart-rx] pop=32 cycle=191504758 commit=96825987 data=0x50 char='P'[0m
+[1;34m[dpi.c:160 uart-rx] pop=33 cycle=191514758 commit=96832266 data=0x53 char='S'[0m
+[1;34m[dpi.c:160 uart-rx] pop=34 cycle=191524758 commit=96838794 data=0x31 char='1'[0m
+[1;34m[dpi.c:160 uart-rx] pop=35 cycle=191534758 commit=96843013 data=0x3d char='='[0m
+[1;34m[dpi.c:160 uart-rx] pop=36 cycle=191544758 commit=96847383 data=0x3b char=';'[0m
+[1;34m[dpi.c:160 uart-rx] pop=37 cycle=191554758 commit=96851454 data=0x20 char=' '[0m
+[1;34m[dpi.c:160 uart-rx] pop=38 cycle=191564758 commit=96855959 data=0x50 char='P'[0m
+[1;34m[dpi.c:160 uart-rx] pop=39 cycle=191574758 commit=96859671 data=0x53 char='S'[0m
+[1;34m[dpi.c:160 uart-rx] pop=40 cycle=191584758 commit=96863269 data=0x32 char='2'[0m
+[1;34m[dpi.c:160 uart-rx] pop=41 cycle=191594758 commit=96867174 data=0x3d char='='[0m
+[1;34m[dpi.c:160 uart-rx] pop=42 cycle=191604758 commit=96870754 data=0x3b char=';'[0m
+[1;34m[dpi.c:160 uart-rx] pop=43 cycle=191614758 commit=96874675 data=0x20 char=' '[0m
+[1;34m[dpi.c:160 uart-rx] pop=44 cycle=191624758 commit=96878792 data=0x50 char='P'[0m
+[1;34m[dpi.c:160 uart-rx] pop=45 cycle=191634758 commit=96882742 data=0x53 char='S'[0m
+[1;34m[dpi.c:160 uart-rx] pop=46 cycle=191644758 commit=96886556 data=0x34 char='4'[0m
+[1;34m[dpi.c:160 uart-rx] pop=47 cycle=191654758 commit=96889656 data=0x3d char='='[0m
+[1;34m[dpi.c:160 uart-rx] pop=48 cycle=191664758 commit=96893764 data=0x3b char=';'[0m
+[1;34m[dpi.c:160 uart-rx] pop=49 cycle=191674758 commit=96896866 data=0x20 char=' '[0m
+[1;34m[dpi.c:160 uart-rx] pop=50 cycle=191684758 commit=96901145 data=0x65 char='e'[0m
+[1;34m[dpi.c:160 uart-rx] pop=51 cycle=191694758 commit=96904388 data=0x78 char='x'[0m
+[1;34m[dpi.c:160 uart-rx] pop=52 cycle=191704758 commit=96908401 data=0x70 char='p'[0m
+[1;34m[dpi.c:160 uart-rx] pop=53 cycle=191714758 commit=96912319 data=0x6f char='o'[0m
+[1;34m[dpi.c:160 uart-rx] pop=54 cycle=191724758 commit=96916971 data=0x72 char='r'[0m
+[1;34m[dpi.c:160 uart-rx] pop=55 cycle=191734758 commit=96922161 data=0x74 char='t'[0m
+[1;34m[dpi.c:160 uart-rx] pop=56 cycle=191744758 commit=96927149 data=0x20 char=' '[0m
+[1;34m[dpi.c:160 uart-rx] pop=57 cycle=191754758 commit=96932071 data=0x50 char='P'[0m
+[1;34m[dpi.c:160 uart-rx] pop=58 cycle=191764758 commit=96937038 data=0x53 char='S'[0m
+[1;34m[dpi.c:160 uart-rx] pop=59 cycle=191774758 commit=96941962 data=0x31 char='1'[0m
+[1;34m[dpi.c:160 uart-rx] pop=60 cycle=191784758 commit=96946946 data=0x20 char=' '[0m
+[1;34m[dpi.c:160 uart-rx] pop=61 cycle=191794758 commit=96951924 data=0x50 char='P'[0m
+[1;34m[dpi.c:160 uart-rx] pop=62 cycle=191804758 commit=96957132 data=0x53 char='S'[0m
+[1;34m[dpi.c:160 uart-rx] pop=63 cycle=191814758 commit=96962110 data=0x32 char='2'[0m
+[1;34m[dpi.c:160 uart-rx] pop=64 cycle=191824758 commit=96967037 data=0x20 char=' '[0m
+[1;34m[dpi.c:160 uart-rx] pop=65 cycle=191834758 commit=96972015 data=0x50 char='P'[0m
+[1;34m[dpi.c:160 uart-rx] pop=66 cycle=191844758 commit=96976914 data=0x53 char='S'[0m
+[1;34m[dpi.c:160 uart-rx] pop=67 cycle=191854758 commit=96981891 data=0x34 char='4'[0m
+[1;34m[dpi.c:160 uart-rx] pop=68 cycle=191864758 commit=96986411 data=0x0a char='.'[0m
+[1;34m[dpi.c:160 uart-rx] pop=69 cycle=191874758 commit=96990332 data=0x65 char='e'[0m
+[1;34m[dpi.c:160 uart-rx] pop=70 cycle=191884758 commit=96995694 data=0x63 char='c'[0m
+[1;34m[dpi.c:160 uart-rx] pop=71 cycle=191894758 commit=97001278 data=0x68 char='h'[0m
+[1;34m[dpi.c:160 uart-rx] pop=72 cycle=191904758 commit=97008615 data=0x6f char='o'[0m
+[1;34m[dpi.c:160 uart-rx] pop=73 cycle=191914758 commit=97012750 data=0x20 char=' '[0m
+[1;34m[dpi.c:160 uart-rx] pop=74 cycle=191924758 commit=97016916 data=0x5f char='_'[0m
+[1;34m[dpi.c:160 uart-rx] pop=75 cycle=191934758 commit=97021199 data=0x5f char='_'[0m
+[1;34m[dpi.c:160 uart-rx] pop=76 cycle=191944758 commit=97025076 data=0x4e char='N'[0m
+[1;34m[dpi.c:160 uart-rx] pop=77 cycle=191954758 commit=97028789 data=0x50 char='P'[0m
+[1;34m[dpi.c:160 uart-rx] pop=78 cycle=191964758 commit=97032285 data=0x43 char='C'[0m
+[1;34m[dpi.c:160 uart-rx] pop=79 cycle=191974758 commit=97035843 data=0x5f char='_'[0m
+[1;34m[dpi.c:160 uart-rx] pop=80 cycle=191984758 commit=97039470 data=0x53 char='S'[0m
+[1;34m[dpi.c:160 uart-rx] pop=81 cycle=191994758 commit=97042883 data=0x59 char='Y'[0m
+[1;34m[dpi.c:160 uart-rx] pop=82 cycle=192004758 commit=97046314 data=0x53 char='S'[0m
+[1;34m[dpi.c:160 uart-rx] pop=83 cycle=192014758 commit=97049841 data=0x54 char='T'[0m
+[1;34m[dpi.c:160 uart-rx] pop=84 cycle=192024758 commit=97053142 data=0x45 char='E'[0m
+[1;34m[dpi.c:160 uart-rx] pop=85 cycle=192034758 commit=97056794 data=0x4d char='M'[0m
+[1;34m[dpi.c:160 uart-rx] pop=86 cycle=192044758 commit=97059943 data=0x44 char='D'[0m
+[1;34m[dpi.c:160 uart-rx] pop=87 cycle=192054758 commit=97063795 data=0x5f char='_'[0m
+[1;34m[dpi.c:160 uart-rx] pop=88 cycle=192064758 commit=97066920 data=0x43 char='C'[0m
+[1;34m[dpi.c:160 uart-rx] pop=89 cycle=192074758 commit=97070755 data=0x48 char='H'[0m
+[1;34m[dpi.c:160 uart-rx] pop=90 cycle=192084758 commit=97073840 data=0x45 char='E'[0m
+[1;34m[dpi.c:160 uart-rx] pop=91 cycle=192094758 commit=97077568 data=0x43 char='C'[0m
+[1;34m[dpi.c:160 uart-rx] pop=92 cycle=192104758 commit=97082207 data=0x4b char='K'[0m
+[1;34m[dpi.c:160 uart-rx] pop=93 cycle=192114758 commit=97087203 data=0x5f char='_'[0m
+[1;34m[dpi.c:160 uart-rx] pop=94 cycle=192124758 commit=97092809 data=0x42 char='B'[0m
+[1;34m[dpi.c:160 uart-rx] pop=95 cycle=192134758 commit=97097493 data=0x45 char='E'[0m
+[1;34m[dpi.c:160 uart-rx] pop=96 cycle=192144758 commit=97101794 data=0x47 char='G'[0m
+[1;34m[dpi.c:160 uart-rx] pop=97 cycle=192154758 commit=97106292 data=0x49 char='I'[0m
+[1;34m[dpi.c:160 uart-rx] pop=98 cycle=192164758 commit=97111524 data=0x4e char='N'[0m
+[1;34m[dpi.c:160 uart-rx] pop=99 cycle=192174758 commit=97116398 data=0x5f char='_'[0m
+[1;34m[dpi.c:160 uart-rx] pop=100 cycle=192184758 commit=97121393 data=0x5f char='_'[0m
+[1;34m[dpi.c:160 uart-rx] pop=101 cycle=192194758 commit=97126294 data=0x0a char='.'[0m
+[1;34m[dpi.c:160 uart-rx] pop=102 cycle=192204758 commit=97131275 data=0x63 char='c'[0m
+[1;34m[dpi.c:160 uart-rx] pop=103 cycle=192214758 commit=97136219 data=0x68 char='h'[0m
+[1;34m[dpi.c:160 uart-rx] pop=104 cycle=192224758 commit=97141151 data=0x65 char='e'[0m
+[1;34m[dpi.c:160 uart-rx] pop=105 cycle=192234758 commit=97146463 data=0x63 char='c'[0m
+[1;34m[dpi.c:160 uart-rx] pop=106 cycle=192244758 commit=97152420 data=0x6b char='k'[0m
+[1;34m[dpi.c:160 uart-rx] pop=107 cycle=192254758 commit=97157770 data=0x5f char='_'[0m
+[1;34m[dpi.c:160 uart-rx] pop=108 cycle=192264758 commit=97161824 data=0x66 char='f'[0m
+[1;34m[dpi.c:160 uart-rx] pop=109 cycle=192274758 commit=97165782 data=0x61 char='a'[0m
+[1;34m[dpi.c:160 uart-rx] pop=110 cycle=192284758 commit=97170176 data=0x69 char='i'[0m
+[1;34m[dpi.c:160 uart-rx] pop=111 cycle=192294758 commit=97174329 data=0x6c char='l'[0m
+[1;34m[dpi.c:160 uart-rx] pop=112 cycle=192304758 commit=97178649 data=0x3d char='='[0m
+[1;34m[dpi.c:160 uart-rx] pop=113 cycle=192314758 commit=97181912 data=0x30 char='0'[0m
+[1;34m[dpi.c:160 uart-rx] pop=114 cycle=192324758 commit=97185525 data=0x0a char='.'[0m
+[1;34m[dpi.c:160 uart-rx] pop=115 cycle=192334758 commit=97189588 data=0x70 char='p'[0m
+[1;34m[dpi.c:160 uart-rx] pop=116 cycle=192344758 commit=97193594 data=0x61 char='a'[0m
+[1;34m[dpi.c:160 uart-rx] pop=117 cycle=192354758 commit=97197242 data=0x73 char='s'[0m
+[1;34m[dpi.c:160 uart-rx] pop=118 cycle=192364758 commit=97201074 data=0x73 char='s'[0m
+[1;34m[dpi.c:160 uart-rx] pop=119 cycle=192374758 commit=97205181 data=0x28 char='('[0m
+[1;34m[dpi.c:160 uart-rx] pop=120 cycle=192384758 commit=97209040 data=0x29 char=')'[0m
+[1;34m[dpi.c:160 uart-rx] pop=121 cycle=192394758 commit=97212244 data=0x20 char=' '[0m
+[1;34m[dpi.c:160 uart-rx] pop=122 cycle=192404758 commit=97215864 data=0x7b char='{'[0m
+[1;34m[dpi.c:160 uart-rx] pop=123 cycle=192414758 commit=97220790 data=0x20 char=' '[0m
+[1;34m[dpi.c:160 uart-rx] pop=124 cycle=192424758 commit=97225393 data=0x65 char='e'[0m
+[1;34m[dpi.c:160 uart-rx] pop=125 cycle=192434758 commit=97230295 data=0x63 char='c'[0m
+[1;34m[dpi.c:160 uart-rx] pop=126 cycle=192444758 commit=97235128 data=0x68 char='h'[0m
+[1;34m[dpi.c:160 uart-rx] pop=127 cycle=192454758 commit=97239702 data=0x6f char='o'[0m
+[1;34m[dpi.c:160 uart-rx] pop=128 cycle=192464758 commit=97244233 data=0x20 char=' '[0m
+[1;34m[dpi.c:160 uart-rx] pop=129 cycle=192474758 commit=97248996 data=0x22 char='"'[0m
+[1;34m[dpi.c:160 uart-rx] pop=130 cycle=192484758 commit=97253712 data=0x5f char='_'[0m
+[1;34m[dpi.c:160 uart-rx] pop=131 cycle=192494758 commit=97258299 data=0x5f char='_'[0m
+[1;34m[dpi.c:160 uart-rx] pop=132 cycle=192504758 commit=97262929 data=0x4e char='N'[0m
+[1;34m[dpi.c:160 uart-rx] pop=133 cycle=192514758 commit=97267550 data=0x50 char='P'[0m
+[1;34m[dpi.c:160 uart-rx] pop=134 cycle=192524758 commit=97272105 data=0x43 char='C'[0m
+[1;34m[dpi.c:160 uart-rx] pop=135 cycle=192534758 commit=97276772 data=0x5f char='_'[0m
+[1;34m[dpi.c:160 uart-rx] pop=136 cycle=192544758 commit=97281375 data=0x43 char='C'[0m
+[1;34m[dpi.c:160 uart-rx] pop=137 cycle=192554758 commit=97285950 data=0x48 char='H'[0m
+[1;34m[dpi.c:160 uart-rx] pop=138 cycle=192564758 commit=97290545 data=0x45 char='E'[0m
+[1;34m[dpi.c:160 uart-rx] pop=139 cycle=192574758 commit=97295165 data=0x43 char='C'[0m
+[1;34m[dpi.c:160 uart-rx] pop=140 cycle=192584758 commit=97299916 data=0x4b char='K'[0m
+[1;34m[dpi.c:160 uart-rx] pop=141 cycle=192594758 commit=97306196 data=0x5f char='_'[0m
+[1;34m[dpi.c:160 uart-rx] pop=142 cycle=192604758 commit=97311490 data=0x50 char='P'[0m
+[1;34m[dpi.c:160 uart-rx] pop=143 cycle=192614758 commit=97315731 data=0x41 char='A'[0m
+[1;34m[dpi.c:160 uart-rx] pop=144 cycle=192624758 commit=97320015 data=0x53 char='S'[0m
+[1;34m[dpi.c:160 uart-rx] pop=145 cycle=192634758 commit=97324382 data=0x53 char='S'[0m
+[1;34m[dpi.c:160 uart-rx] pop=146 cycle=192644758 commit=97328940 data=0x5f char='_'[0m
+[1;34m[dpi.c:160 uart-rx] pop=147 cycle=192654758 commit=97332290 data=0x5f char='_'[0m
+[1;34m[dpi.c:160 uart-rx] pop=148 cycle=192664758 commit=97335659 data=0x3a char=':'[0m
+[1;34m[dpi.c:160 uart-rx] pop=149 cycle=192674758 commit=97339308 data=0x24 char='$'[0m
+[1;34m[dpi.c:160 uart-rx] pop=150 cycle=192684758 commit=97343405 data=0x31 char='1'[0m
+[1;34m[dpi.c:160 uart-rx] pop=151 cycle=192694758 commit=97346636 data=0x22 char='"'[0m
+[1;34m[dpi.c:160 uart-rx] pop=152 cycle=192704758 commit=97350735 data=0x3b char=';'[0m
+[1;34m[dpi.c:160 uart-rx] pop=153 cycle=192714758 commit=97354037 data=0x20 char=' '[0m
+[1;34m[dpi.c:160 uart-rx] pop=154 cycle=192724758 commit=97358127 data=0x7d char='}'[0m
+[1;34m[dpi.c:160 uart-rx] pop=155 cycle=192734758 commit=97361873 data=0x0a char='.'[0m
+[1;34m[dpi.c:160 uart-rx] pop=156 cycle=192744758 commit=97365577 data=0x66 char='f'[0m
+[1;34m[dpi.c:160 uart-rx] pop=157 cycle=192754758 commit=97369303 data=0x61 char='a'[0m
+[1;34m[dpi.c:160 uart-rx] pop=158 cycle=192764758 commit=97372991 data=0x69 char='i'[0m
+[1;34m[dpi.c:160 uart-rx] pop=159 cycle=192774758 commit=97376060 data=0x6c char='l'[0m
+[1;34m[dpi.c:160 uart-rx] pop=160 cycle=192784758 commit=97380368 data=0x28 char='('[0m
+[progress] 100000000 insts, pc=0x0000003fbec3295a, 206787 inst/s
+[    1.602942] systemd[1]: System time before build time, advancing clock.
+[    1.684150] systemd[1]: systemd 249.11-0ubuntu3.21 running in system mode (+PAM +AUDIT +SELINUX +APPARMOR +IMA +SMACK +SECCOMP +GCRYPT +GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 -IDN +IPTC +KMOD +LIBCRYPTSETUP +LIBFDISK +PCRE2 -PWQUALITY -P11KIT -QRENCODE +BZIP2 +LZ4 +XZ +ZLIB +ZSTD -XKBCOMMON +UTMP +SYSVINIT default-hierarchy=unified)
+[    1.686149] systemd[1]: Detected architecture riscv64.
+
+Welcome to [1mUbuntu 22.04.5 LTS[0m!
+
+[    1.694764] systemd[1]: Hostname set to <ysyx-ubuntu2204>.
+[    1.699959] systemd[1]: Initializing machine ID from random generator.
+[progress] 150000001 insts, pc=0xffffffff800f2e26, 200121 inst/s
+[progress] 200000000 insts, pc=0xffffffff8011093c, 202966 inst/s

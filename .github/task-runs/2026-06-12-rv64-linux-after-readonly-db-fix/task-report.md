@@ -1,8 +1,74 @@
-# DB-backed .github/task-runs/2026-06-12-rv64-linux-after-readonly-db-fix/task-report.md
+# Task Report
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文备份由 `.github/db-backup/task-runs/manifest.json` 管理；恢复请使用下方命令。
+## 基本信息
 
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/2026-06-12-rv64-linux-after-readonly-db-fix/task-report.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/task-runs --path .github/task-runs/2026-06-12-rv64-linux-after-readonly-db-fix/task-report.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/2026-06-12-rv64-linux-after-readonly-db-fix/task-report.md`
+- `task_id`: 2026-06-12-rv64-linux-after-readonly-db-fix
+- `task_slug`: rv64-linux-after-readonly-db-fix
+- `graph_template`: modular-agent-e2e
+- `profile`: rv64-linux
+- `graph_mode`: static
+- `status`: completed
+- `owner`: agent-system + hardware-flow + module agents
+- `started_at`: 2026-06-12 17:30:24 +0800
+- `updated_at`: 2026-06-12 17:44:12 +0800
+
+## 任务目标
+
+- `source_request`: 将 agent 系统从纯语言提示升级为分层、分模块、可闭环和可优化的 e2e 流水线
+- `goal`: 依据 profile 执行模块化 e2e 节点，生成可复核证据包
+- `scope`: profile=rv64-linux；不越级声明未执行模块或业务 gate 已完成
+
+## 选图说明
+
+- `selected_template`: modular-agent-e2e
+- `why_this_graph`: 本 profile 从 `.github/e2e/profiles/` 读取节点，把 agent/instructions/memory 中的模块职责转换为可执行 gate。
+- `dynamic_nodes_added`: 无
+- `why_dynamic_nodes_were_needed`: 无
+
+## 节点概览
+
+| node_id | owner_agent | module | status | inputs | outputs | evidence |
+| ------- | ----------- | ------ | ------ | ------ | ------- | -------- |
+| `recall-discovery` | `agent-system` | `agent-system` | `PASS` | AGENTS/copilot/instructions/memory/e2e profiles | 规则发现链和 e2e 配置入口存在 | .github/task-runs/2026-06-12-rv64-linux-after-readonly-db-fix/evidence/recall-discovery.log |
+| `tool-env-check` | `agent-system` | `toolchain` | `PASS` | agent-env + bash/git/make/python/gcc/verilator/toolchain | 非交互软环境、hard requirements 与 optional tools 可见 | .github/task-runs/2026-06-12-rv64-linux-after-readonly-db-fix/evidence/tool-env-check.log |
+| `npc-sim-status` | `hardware-flow` | `hardware-flow` | `PASS` | npc/sim Kconfig 与 backend mk | 当前 npc/sim 后端状态 | .github/task-runs/2026-06-12-rv64-linux-after-readonly-db-fix/evidence/npc-sim-status.log |
+| `npc-rv64-contract` | `npc` | `npc` | `PASS` | npc/rv64 + Linux README | RV64 core/Linux 入口合约存在 | .github/task-runs/2026-06-12-rv64-linux-after-readonly-db-fix/evidence/npc-rv64-contract.log |
+| `npc-rv64-sv39-sret-u-mode` | `npc` | `npc` | `PASS` | npc/rv64 Sv39 + SRET U-mode + U pagefault focused TB | NPC RV64 SRET 到 U-mode、U 页取指、U ecall、U load page fault 回 S 并 sret 回 U 的回归 PASS | .github/task-runs/2026-06-12-rv64-linux-after-readonly-db-fix/evidence/npc-rv64-sv39-sret-u-mode.log |
+| `npc-rv64-linux-focused-smokes` | `npc` | `npc` | `PASS` | Linux/tools SRET/Sv39/pagefault/virtio focused smokes on NPC | NPC RV64 Linux focused smokes 覆盖 SRET/Sv39、ret_from_exception、U pagefault 与 virtio-blk | .github/task-runs/2026-06-12-rv64-linux-after-readonly-db-fix/evidence/npc-rv64-linux-focused-smokes.log |
+| `npc-rv64-uart-rx-smoke` | `npc` | `npc` | `PASS` | NPC 16550 UART RX register + gated DPI injection smoke | NPC RV64 UART RX 支持 RBR/LSR/IIR/IER[0]，并支持 NPC_UART_RX_WAIT 按 guest 输出 marker 释放宿主输入 | .github/task-runs/2026-06-12-rv64-linux-after-readonly-db-fix/evidence/npc-rv64-uart-rx-smoke.log |
+| `npc-rv64-linux-rootfs-mount-smoke` | `npc` | `npc` | `PASS` | Ubuntu rootfs mount + systemd banner smoke on NPC | NPC RV64 Ubuntu rootfs 至少完成 ttyS0 console、virtio-blk、EXT4/VFS root mount，并进入 systemd PID1 打印 Ubuntu 22.04 banner | .github/task-runs/2026-06-12-rv64-linux-after-readonly-db-fix/evidence/npc-rv64-linux-rootfs-mount-smoke.log |
+| `npc-rv64-systemd-guest-check-contract` | `npc` | `npc` | `PASS` | NPC systemd guest prompt/script gate contract | NPC RV64 具备等待 root 串口 prompt 后用 NPC_UART_RX_FILE 注入 guest-side 检查脚本并等待 NPC_GUEST_EXPECT marker 的 gate 入口 | .github/task-runs/2026-06-12-rv64-linux-after-readonly-db-fix/evidence/npc-rv64-systemd-guest-check-contract.log |
+| `rv64-linux-contract` | `rv64-linux` | `rv64-linux` | `PASS` | Linux Makefile/env/platform/instructions | RV64 Linux/Ubuntu 合约入口存在 | .github/task-runs/2026-06-12-rv64-linux-after-readonly-db-fix/evidence/rv64-linux-contract.log |
+
+## 关键产物
+
+- `artifacts`: .github/task-runs/2026-06-12-rv64-linux-after-readonly-db-fix
+- `logs_or_traces`: .github/task-runs/2026-06-12-rv64-linux-after-readonly-db-fix/evidence
+- `context_brief`: .github/task-runs/2026-06-12-rv64-linux-after-readonly-db-fix/context-brief.md
+- `profile_resolve`: .github/task-runs/2026-06-12-rv64-linux-after-readonly-db-fix/profile-resolve.md
+- `evidence_index`: .github/task-runs/2026-06-12-rv64-linux-after-readonly-db-fix/evidence-index.md
+- `profile_manifest`: .github/e2e/profiles/rv64-linux.tsv
+- `linked_memory_updates`: 由 agent 在收尾阶段按本轮稳定结论更新 memory
+
+## 当前阻塞点
+
+- `blockers`: 无
+- `missing_dependencies`: 见对应 tool/env 节点日志
+- `risk_assessment`: 无 hard fail；optional tool 缺失只作为后续节点风险。
+
+## 下一步建议
+
+1. 按模块或跨模块目标选择更深 profile，或进入具体静态图。
+2. 对含 `SKIP` 的模块，先补依赖或切换到合适配置，再把该模块提升到 PASS 证据。
+
+## 模板升级候选
+
+- `repeated_dynamic_subgraph`: 无
+- `should_promote_to_static_template`: 已作为 modular-agent-e2e profile 固化
+- `reason`: profile + module library + task-run 证据包能把 agent 提示转为可执行流水线
+
+## 收尾结论
+
+- `final_result`: profile=rv64-linux 通过，当前 modular e2e 证据链可复用。
+- `evidence_summary`: 详见节点表与 `evidence/`
+- `notes`: 这是模块化 e2e gate，不替代未执行模块的功能回归、DiffTest、Linux/Ubuntu 分层 gate 或 PPA/STA signoff。

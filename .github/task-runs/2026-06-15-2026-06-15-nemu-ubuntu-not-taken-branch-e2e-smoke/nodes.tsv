@@ -1,0 +1,2 @@
+software-flow-contract	software-flow	software-flow	PASS	software-flow agent + profile + memory	软件开发全流程 agent 合约入口存在	.github/task-runs/2026-06-15-2026-06-15-nemu-ubuntu-not-taken-branch-e2e-smoke/evidence/software-flow-contract.log
+nemu-ubuntu-static	nemu	nemu	FAIL	Linux/NEMU Ubuntu rootfs scripts + performance config	exit=1	.github/task-runs/2026-06-15-2026-06-15-nemu-ubuntu-not-taken-branch-e2e-smoke/evidence/nemu-ubuntu-static.log

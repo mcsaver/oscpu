@@ -14,6 +14,7 @@
 ***************************************************************************************/
 
 #include <utils.h>
+#include <utils/profile.h>
 #include <device/map.h>
 #include <device/uart16550.h>
 #include <isa.h>
@@ -85,6 +86,7 @@ typedef struct {
 #endif
 #if defined(SERIAL_HAS_HOST_RX) && defined(CONFIG_SERIAL_INPUT_STDIN)
   bool stdin_eof;
+  bool stdin_enabled;
 #endif
 #if defined(SERIAL_HAS_HOST_RX) && defined(CONFIG_SERIAL_INPUT_FIFO)
   int fifo_fd;
@@ -100,6 +102,9 @@ static SerialPort serial0 = {
   .name = "serial",
   .irq = SERIAL_UART0_IRQ,
   .bus_profile = UART16550_BUS_PROFILE_8BIT,
+#if !defined(CONFIG_TARGET_AM) && defined(CONFIG_SERIAL_INPUT_STDIN)
+  .stdin_enabled = true,
+#endif
 #if !defined(CONFIG_TARGET_AM) && defined(CONFIG_SERIAL_INPUT_FIFO)
   .fifo_fd = -1,
   .fifo_path = "/tmp/nemu.serial",
@@ -115,14 +120,33 @@ static const char *serial_json_bool(bool value) {
 
 static const char *serial_host_backend_name(void) {
 #if defined(CONFIG_SERIAL_INPUT_STDIN) && defined(CONFIG_SERIAL_INPUT_FIFO)
-  return "stderr,stdin,fifo:/tmp/nemu.serial";
+  static char backend[512];
+  const char *fifo_path = serial0.fifo_path != NULL ? serial0.fifo_path : "/tmp/nemu.serial";
+  if (serial0.stdin_enabled) {
+    snprintf(backend, sizeof(backend), "stderr,stdin,fifo:%s", fifo_path);
+  } else {
+    snprintf(backend, sizeof(backend), "stderr,fifo:%s", fifo_path);
+  }
+  return backend;
 #elif defined(CONFIG_SERIAL_INPUT_STDIN)
-  return "stderr,stdin";
+  return serial0.stdin_enabled ? "stderr,stdin" : "stderr";
 #elif defined(CONFIG_SERIAL_INPUT_FIFO)
-  return "stderr,fifo:/tmp/nemu.serial";
+  static char backend[512];
+  const char *fifo_path = serial0.fifo_path != NULL ? serial0.fifo_path : "/tmp/nemu.serial";
+  snprintf(backend, sizeof(backend), "stderr,fifo:%s", fifo_path);
+  return backend;
 #else
   return "stderr";
 #endif
+}
+
+static bool serial_env_false(const char *value) {
+  return value != NULL &&
+    (strcmp(value, "0") == 0 ||
+     strcmp(value, "false") == 0 ||
+     strcmp(value, "FALSE") == 0 ||
+     strcmp(value, "no") == 0 ||
+     strcmp(value, "NO") == 0);
 }
 
 static uint32_t serial_host_rx_count(const SerialPort *port) {
@@ -164,6 +188,14 @@ void serial_dump_machine_info(FILE *out) {
   fprintf(out, "device.serial.model=ns16550a\n");
   fprintf(out, "device.serial.backend=nemu-16550a\n");
   fprintf(out, "device.serial.host_backend=%s\n", serial_host_backend_name());
+#if defined(CONFIG_SERIAL_INPUT_STDIN)
+  fprintf(out, "device.serial.host_stdin_enabled=%u\n",
+      serial0.stdin_enabled ? 1u : 0u);
+#endif
+#if defined(CONFIG_SERIAL_INPUT_FIFO)
+  fprintf(out, "device.serial.host_fifo_path=%s\n",
+      serial0.fifo_path != NULL ? serial0.fifo_path : "");
+#endif
   fprintf(out, "device.serial.bus_profile=8bit\n");
   fprintf(out, "device.serial.map_size=0x%08x\n", serial0.bus_map_size);
   fprintf(out, "device.serial.rx_fifo_capacity=%u\n", snap.rx_fifo_capacity);
@@ -212,6 +244,9 @@ static void serial_port_flush_tx(SerialPort *port) {
   if (port->tx_count == 0) {
     return;
   }
+  bool profile_on = unlikely(nemu_profile_enabled());
+  uint32_t bytes = port->tx_count;
+  uint64_t profile_start = profile_on ? get_time() : 0;
 
   /*
    * Ubuntu 启动日志会经 8250 驱动逐字节写 THR；缓冲只属于宿主前端，
@@ -220,6 +255,12 @@ static void serial_port_flush_tx(SerialPort *port) {
   (void)fwrite(port->tx_buffer, 1, port->tx_count, stderr);
   port->tx_count = 0;
   fflush(stderr);
+  if (profile_on) {
+    nemu_profile_count(NEMU_PROFILE_SERIAL_TX_FLUSHES, 1);
+    nemu_profile_count(NEMU_PROFILE_SERIAL_TX_BYTES, bytes);
+    nemu_profile_count(NEMU_PROFILE_SERIAL_TX_FLUSH_US,
+        get_time() - profile_start);
+  }
 }
 
 static void serial_flush_all(void) {
@@ -263,7 +304,8 @@ void serial_qmp_query_serial(char *out, size_t out_size) {
       "\"count\":%u,\"room\":%u,\"trigger\":%u,"
       "\"fifo-enabled\":%s},"
       "\"host-rx\":{\"staging-capacity\":%u,\"staging-count\":%u,"
-      "\"poll-interval\":%u,\"dropped\":%" PRIu64 "},"
+      "\"poll-interval\":%u,\"dropped\":%" PRIu64 ","
+      "\"stdin-enabled\":%s},"
       "\"tx-buffer\":{\"capacity\":%u,\"count\":%u},"
       "\"irq-level\":%s,\"thr-irq-pending\":%s}}]}",
       serial_host_backend_name(), CONFIG_SERIAL_MMIO, serial0.irq,
@@ -274,6 +316,7 @@ void serial_qmp_query_serial(char *out, size_t out_size) {
       snap.rx_trigger, serial_json_bool(snap.fifo_enabled),
       serial_host_rx_capacity(&serial0), serial_host_rx_count(&serial0),
       SERIAL_INPUT_HOST_POLL_INTERVAL, serial_host_rx_dropped_count(&serial0),
+      MUXDEF(CONFIG_SERIAL_INPUT_STDIN, serial_json_bool(serial0.stdin_enabled), "false"),
       SERIAL_TX_BUFFER_CAP, serial0.tx_count, serial_json_bool(snap.irq_level),
       serial_json_bool(snap.thr_irq_pending));
 }
@@ -397,6 +440,7 @@ static void serial_host_poll_fd(SerialPort *port, int fd, bool *eof_seen) {
     uint8_t buf[SERIAL_HOST_RX_POLL_CHUNK];
     ssize_t nread = read(fd, buf, sizeof(buf));
     if (nread > 0) {
+      nemu_profile_count_if(NEMU_PROFILE_SERIAL_RX_BYTES, (uint64_t)nread);
       serial_host_rx_enqueue(port, buf, (size_t)nread);
     } else if (nread == 0 && eof_seen != NULL) {
       *eof_seen = true;
@@ -464,8 +508,11 @@ static void serial_port_poll_host(SerialPort *port) {
   if (port->uart == NULL) {
     return;
   }
+  nemu_profile_count_if(NEMU_PROFILE_SERIAL_RX_POLLS, 1);
 #if defined(SERIAL_HAS_HOST_RX) && defined(CONFIG_SERIAL_INPUT_STDIN)
-  serial_host_poll_fd(port, STDIN_FILENO, &port->stdin_eof);
+  if (port->stdin_enabled) {
+    serial_host_poll_fd(port, STDIN_FILENO, &port->stdin_eof);
+  }
 #endif
 #if defined(SERIAL_HAS_HOST_RX) && defined(CONFIG_SERIAL_INPUT_FIFO)
   serial_host_poll_fd(port, port->fifo_fd, NULL);
@@ -540,6 +587,11 @@ static void serial_register_bus(SerialPort *port) {
 }
 
 static void serial_open_host_inputs(SerialPort *port) {
+#if defined(SERIAL_HAS_HOST_RX) && defined(CONFIG_SERIAL_INPUT_STDIN)
+  const char *stdin_env = getenv("NEMU_SERIAL_INPUT_STDIN");
+  port->stdin_enabled = !serial_env_false(stdin_env);
+  port->stdin_eof = !port->stdin_enabled;
+#endif
 #if defined(SERIAL_HAS_HOST_RX) && defined(CONFIG_SERIAL_INPUT_FIFO)
   const char *fifo_env = getenv("NEMU_SERIAL_FIFO");
   if (fifo_env != NULL && fifo_env[0] != '\0') {

@@ -18,25 +18,58 @@
 #define __MEMORY_HOST_H__
 
 #include <common.h>
+#include <string.h>
 
-//根据len(1/2/4/8)做合适宽度的读取并返回word_t
+// 根据 len(1/2/4/8) 做小端读写；使用 memcpy 避免 uint8_t pmem 上的未对齐/strict-aliasing UB。
 static inline word_t host_read(void *addr, int len) {
   switch (len) {
-    case 1: return *(uint8_t  *)addr;
-    case 2: return *(uint16_t *)addr;
-    case 4: return *(uint32_t *)addr;
-    IFDEF(CONFIG_ISA64, case 8: return *(uint64_t *)addr);
+    case 1: {
+      uint8_t ret = 0;
+      memcpy(&ret, addr, sizeof(ret));
+      return ret;
+    }
+    case 2: {
+      uint16_t ret = 0;
+      memcpy(&ret, addr, sizeof(ret));
+      return ret;
+    }
+    case 4: {
+      uint32_t ret = 0;
+      memcpy(&ret, addr, sizeof(ret));
+      return ret;
+    }
+    IFDEF(CONFIG_ISA64, case 8: {
+      uint64_t ret = 0;
+      memcpy(&ret, addr, sizeof(ret));
+      return ret;
+    });
     default: MUXDEF(CONFIG_RT_CHECK, assert(0), return 0);
   }
 }
 
-//对应的写入
+// 对应的写入。
 static inline void host_write(void *addr, int len, word_t data) {
   switch (len) {
-    case 1: *(uint8_t  *)addr = data; return;
-    case 2: *(uint16_t *)addr = data; return;
-    case 4: *(uint32_t *)addr = data; return;
-    IFDEF(CONFIG_ISA64, case 8: *(uint64_t *)addr = data; return);
+    case 1: {
+      uint8_t value = data;
+      memcpy(addr, &value, sizeof(value));
+      return;
+    }
+    case 2: {
+      uint16_t value = data;
+      memcpy(addr, &value, sizeof(value));
+      return;
+    }
+    case 4: {
+      uint32_t value = data;
+      memcpy(addr, &value, sizeof(value));
+      return;
+    }
+    IFDEF(CONFIG_ISA64, case 8: {
+      uint64_t value = data;
+      memcpy(addr, &value, sizeof(value));
+      return;
+    });
     IFDEF(CONFIG_RT_CHECK, default: assert(0));
   }
 }

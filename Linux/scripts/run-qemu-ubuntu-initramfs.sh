@@ -4,14 +4,16 @@ set -euo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 LINUX_HOME=$(cd -- "$SCRIPT_DIR/.." && pwd)
 ENV_ROOT=${YSYX_LINUX_ENV_ROOT:-"$LINUX_HOME/env"}
+QEMU_PLATFORM=${QEMU_PLATFORM:-npc}
+QEMU_PLATFORM_ROOT=${QEMU_PLATFORM_ROOT:-"$ENV_ROOT/platforms/$QEMU_PLATFORM"}
 
 QEMU_BIN=${QEMU_BIN:-"$ENV_ROOT/tools/qemu/bin/qemu-system-riscv64"}
-LINUX_IMAGE=${LINUX_IMAGE:-"$ENV_ROOT/src/linux/arch/riscv/boot/Image"}
-UBUNTU_INITRD_IMAGE=${UBUNTU_INITRD_IMAGE:-"$ENV_ROOT/images/ubuntu2204/ubuntu-22.04-riscv64-probe.cpio"}
+LINUX_IMAGE=${LINUX_IMAGE:-"$QEMU_PLATFORM_ROOT/build/linux/arch/riscv/boot/Image"}
+UBUNTU_INITRD_IMAGE=${UBUNTU_INITRD_IMAGE:-"$QEMU_PLATFORM_ROOT/images/ubuntu2204/ubuntu-22.04-riscv64-probe.cpio"}
 QEMU_MEMORY=${QEMU_MEMORY:-128M}
 QEMU_TIMEOUT=${QEMU_TIMEOUT:-60s}
 QEMU_GUEST_EXPECT=${QEMU_GUEST_EXPECT:-"[ysyx-init]"}
-LOG_DIR=${LOG_DIR:-"$ENV_ROOT/logs/qemu"}
+LOG_DIR=${LOG_DIR:-"$QEMU_PLATFORM_ROOT/logs/qemu"}
 LOG_FILE=${LOG_FILE:-"$LOG_DIR/ubuntu-initramfs.log"}
 
 if [ ! -x "$QEMU_BIN" ]; then

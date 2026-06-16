@@ -1,8 +1,21 @@
-# DB-backed .github/task-runs/2026-06-13-nemu-dev-isolation-contract/profile-resolve.md
+# E2E Resolved Profile
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文备份由 `.github/db-backup/task-runs/manifest.json` 管理；恢复请使用下方命令。
+- `source`: stored
+- `profile`: nemu-dev
+- `ok`: True
+- `expanded_node_count`: 3
+- `profile_order`: nemu-dev, nemu-ubuntu-focused, software-flow
+- `modules`: nemu, software-flow
+- `owners`: nemu, software-flow
+- `command`: scripts/agent-e2e.sh --profile nemu-dev
+- `validate_command`: scripts/agent-e2e.sh --validate-profile --profile nemu-dev
 
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/2026-06-13-nemu-dev-isolation-contract/profile-resolve.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/task-runs --path .github/task-runs/2026-06-13-nemu-dev-isolation-contract/profile-resolve.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/2026-06-13-nemu-dev-isolation-contract/profile-resolve.md`
+## Include Edges
+- `nemu-dev` -> `nemu-ubuntu-focused`
+- `nemu-ubuntu-focused` -> `software-flow`
+
+## Nodes
+1. `software-flow-contract` source=`software-flow` module=`software-flow` owner=`software-flow` function=`e2e_software_flow_contract`
+2. `nemu-ubuntu-static` source=`nemu-ubuntu-focused` module=`nemu` owner=`nemu` function=`e2e_nemu_ubuntu_static_gate`
+3. `nemu-ubuntu-slice-contract` source=`nemu-ubuntu-focused` module=`nemu` owner=`nemu` function=`e2e_nemu_ubuntu_slice_contract`
+

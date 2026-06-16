@@ -1,8 +1,3 @@
-# DB-backed .github/e2e/profiles/hardware-flow.tsv
-
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/e2e/profiles/hardware-flow.tsv`。
-
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/e2e/profiles/hardware-flow.tsv`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/e2e/profiles/hardware-flow.tsv --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/e2e/profiles/hardware-flow.tsv`
+# node_id|module|function|owner_agent|inputs|outputs
+@include|discovery||||
+hardware-flow-contract|hardware-flow|e2e_hardware_flow_contract|hardware-flow|hardware-flow agent + scripts/am-regression.sh + e2e profiles|硬件流程合约入口存在

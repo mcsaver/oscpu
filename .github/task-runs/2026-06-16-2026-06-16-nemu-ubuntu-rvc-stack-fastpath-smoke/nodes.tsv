@@ -1,0 +1,4 @@
+software-flow-contract	software-flow	software-flow	PASS	software-flow agent + profile + memory	软件开发全流程 agent 合约入口存在	.github/task-runs/2026-06-16-2026-06-16-nemu-ubuntu-rvc-stack-fastpath-smoke/evidence/software-flow-contract.log
+nemu-ubuntu-static	nemu	nemu	PASS	Linux/NEMU Ubuntu rootfs scripts + performance config	NEMU Ubuntu 切片静态生产守门 PASS	.github/task-runs/2026-06-16-2026-06-16-nemu-ubuntu-rvc-stack-fastpath-smoke/evidence/nemu-ubuntu-static.log
+nemu-ubuntu-slice-contract	nemu	nemu	PASS	recent NEMU Ubuntu device slice hooks and guest markers	近期 NEMU Ubuntu 设备切片合约仍挂入 guest gate	.github/task-runs/2026-06-16-2026-06-16-nemu-ubuntu-rvc-stack-fastpath-smoke/evidence/nemu-ubuntu-slice-contract.log
+nemu-ubuntu-profile	nemu	nemu	PASS	NEMU_PROFILE=1 full Ubuntu boot budget with guest tests off	profile-summary.txt console.log nemu.log	.github/task-runs/2026-06-16-2026-06-16-nemu-ubuntu-rvc-stack-fastpath-smoke/evidence/nemu-ubuntu-profile.log

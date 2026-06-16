@@ -1,0 +1,21 @@
+{
+  "artifacts": {
+    "dispatch_log": ".github/task-runs/2026-06-16-nemu-npc-parallel-runtime-policy/dispatch-log.md",
+    "evidence_dir": ".github/task-runs/2026-06-16-nemu-npc-parallel-runtime-policy/evidence",
+    "evidence_index": ".github/task-runs/2026-06-16-nemu-npc-parallel-runtime-policy/evidence-index.md",
+    "run_dir": ".github/task-runs/2026-06-16-nemu-npc-parallel-runtime-policy",
+    "run_manifest": ".github/task-runs/2026-06-16-nemu-npc-parallel-runtime-policy/run-manifest.json",
+    "task_report": ".github/task-runs/2026-06-16-nemu-npc-parallel-runtime-policy/task-report.md"
+  },
+  "final_result": "NEMU/NPC active runtime guard now defaults to warn for parallel development; strict/off modes remain available.",
+  "graph_mode": "static",
+  "graph_template": "agent-env-refactor",
+  "profile": "agent-system + nemu-dev + npc-dev",
+  "run_id": "2026-06-16-nemu-npc-parallel-runtime-policy",
+  "schema_version": 1,
+  "started_at": "2026-06-16 13:55:31 +0800",
+  "status": "completed",
+  "task_slug": "nemu-npc-parallel-runtime-policy",
+  "trace_id": "manual:2026-06-16-nemu-npc-parallel-runtime-policy",
+  "updated_at": "2026-06-16 13:55:31 +0800"
+}

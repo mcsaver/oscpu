@@ -1,8 +1,9 @@
-# DB-backed .github/e2e/modules/ysyx-coordinator.md
+# ysyx-coordinator E2E Contract
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/e2e/modules/ysyx-coordinator.md`。
-
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/e2e/modules/ysyx-coordinator.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/e2e/modules/ysyx-coordinator.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/e2e/modules/ysyx-coordinator.md`
+- **范围**: 总调度、静态图选择、动态图扩展、模块 handoff、完成判定。
+- **上游**: 用户目标、AGENTS、蓝图、memory。
+- **下游**: 所有模块 profile 与跨模块图。
+- **L0 gate**: `ysyx-coordinator-contract` 检查 coordinator agent、蓝图和 profile root。
+- **L1 gate**: 通过 `discovery` 和具体模块 profile 验证路由结果。
+- **证据**: 选图说明、profile manifest、dispatch-log、完成前语义核对。
+- **升级路线**: 增加“目标 -> profile”映射表和未覆盖 agent 检查。

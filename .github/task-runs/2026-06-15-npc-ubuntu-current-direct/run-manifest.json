@@ -1,0 +1,18 @@
+{
+  "task_id": "2026-06-15-npc-ubuntu-current-direct",
+  "profile": "rv64-linux direct NPC slice",
+  "status": "pass",
+  "artifacts": [
+    "task-report.md",
+    "dispatch-log.md",
+    "evidence-index.md",
+    "evidence/rebuild-systemd-rootfs/rebuild.log",
+    "evidence/rebuild-systemd-rootfs/rebuild.rc",
+    "rootfs-smoke-script.start.stdout.log",
+    "evidence/npc-rv64-linux-rootfs-mount-smoke-script/run.log",
+    "evidence/npc-rv64-linux-rootfs-mount-smoke-script/console.log",
+    "evidence/npc-rv64-linux-rootfs-mount-smoke-script/npc.log",
+    "evidence/npc-rv64-linux-rootfs-mount-smoke-script/run.rc"
+  ],
+  "result": "NPC Ubuntu rootfs mount + systemd banner smoke passes after enforcing systemd rootfs readiness."
+}

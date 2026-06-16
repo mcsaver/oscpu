@@ -87,8 +87,9 @@ e2e_github_index_contract() {
     rc=1
   fi
 
-  echo "[github-index] DB-first migration interface"
+  echo "[github-index] retained memory/log interface"
   if grep -Fq -- 'CREATE TABLE IF NOT EXISTS db_documents' "$E2E_ROOT_DIR/scripts/dev_memory/core.py" &&
+     grep -Fq -- 'DB_RETAINED_KINDS' "$E2E_ROOT_DIR/scripts/dev_memory/core.py" &&
      grep -Fq -- 'CREATE TABLE IF NOT EXISTS evidence_assets' "$E2E_ROOT_DIR/scripts/dev_memory/core.py" &&
      grep -Fq -- 'def promote_documents' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'def update_stored_document' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
@@ -98,17 +99,35 @@ e2e_github_index_contract() {
      grep -Fq -- 'def snapshot_stored_documents' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'def rehydrate_stored_documents' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'def audit_db_first' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'DB_FIRST_STRICT_LIVE_KINDS' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'def doctor_is_blocking_drift_state' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'def doctor_is_nonblocking_drift_state' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'def doctor_should_print_state' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'def doctor_should_print_samples' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'show_nonblocking_drift' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'show_status_samples' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'blocking_drift=' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'nonblocking_drift=' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'nonblocking_db_first_drift=' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'nonblocking_live_drift=' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- '--show-nonblocking-drift' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
+     grep -Fq -- '--show-status-samples' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
+     grep -Fq -- 'archived_stored_only' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'def audit_markdown_coverage' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'def archive_markdown_files' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'def index_evidence_assets' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'stored_index_docs' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'store-evidence-index-documents' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'archive-markdown' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
      grep -Fq -- 'index-evidence' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
+     grep -Fq -- '--backup-dir' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
      grep -Fq -- 'snapshot-stored' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
      grep -Fq -- 'rehydrate' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
+     grep -Fq -- 'prune-non-retained' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
      grep -Fq -- 'choices=["auto", "live", "stored"]' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py"; then
-    printf 'PASS github-index exposes DB-first promote/update/migrate/restore/audit interface\n'
+    printf 'PASS github-index exposes retained memory/log promote/update/migrate/restore/audit interface\n'
   else
-    printf 'FAIL github-index DB-first migration interface drifted\n'
+    printf 'FAIL github-index retained memory/log interface drifted\n'
     rc=1
   fi
 
@@ -116,6 +135,7 @@ e2e_github_index_contract() {
   if grep -Fq -- 'e2e_archive_task_run_markdown_to_db' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh" &&
      grep -Fq -- 'e2e_index_task_run_evidence_assets' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh" &&
      grep -Fq -- 'index-evidence "$run_rel"' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh" &&
+     grep -Fq -- '--backup-dir "$backup_dir"' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh" &&
      grep -Fq -- 'archive-markdown "$run_rel"' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh" &&
      grep -Fq -- 'E2E_TASK_RUN_DB_BACKUP_DIR' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh"; then
     printf 'PASS e2e report layer indexes raw evidence and archives task-run Markdown into DB\n'
@@ -129,7 +149,7 @@ e2e_github_index_contract() {
      grep -Fq -- 'E2E_CONTEXT_BRIEF_FILE' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh" &&
      grep -Fq -- 'github_index_db.py" brief' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh" &&
      grep -Fq -- 'e2e_generate_context_brief' "$E2E_ROOT_DIR/scripts/agent-e2e.sh"; then
-    printf 'PASS e2e runner generates DB-backed context brief before dispatch\n'
+    printf 'PASS e2e runner generates DB-indexed context brief before dispatch\n'
   else
     printf 'FAIL e2e runner context brief hook missing\n'
     rc=1
@@ -140,7 +160,7 @@ e2e_github_index_contract() {
      grep -Fq -- 'E2E_PROFILE_RESOLVE_FILE' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh" &&
      grep -Fq -- 'github_index_db.py" resolve-profile' "$E2E_ROOT_DIR/scripts/e2e/lib/report.sh" &&
      grep -Fq -- 'e2e_generate_profile_resolve' "$E2E_ROOT_DIR/scripts/agent-e2e.sh"; then
-    printf 'PASS e2e runner generates DB-backed resolved profile before dispatch\n'
+    printf 'PASS e2e runner generates live/indexed resolved profile before dispatch\n'
   else
     printf 'FAIL e2e runner resolved profile hook missing\n'
     rc=1
@@ -194,8 +214,10 @@ e2e_github_index_contract() {
   tmp_db="$tmp_dir/github-index.sqlite"
   python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" rebuild \
     --repo-root "$E2E_ROOT_DIR" \
-    --root .github \
+    --root .github/e2e \
     --db "$tmp_db" \
+    --include .github/memory \
+    --include .github/agents \
     --exclude "$(e2e_relpath "$E2E_RUN_DIR")" \
     --max-bytes 1048576 || rc=1
   python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" stat \
@@ -331,11 +353,17 @@ e2e_github_index_contract() {
     printf 'PASS github-index remove deleted source file in mini repo\n'
   fi
 
-  echo "[github-index] DB-first migrate/restore mini smoke"
+  echo "[github-index] retained memory/log migrate/restore mini smoke"
   cat > "$mini_repo/AGENTS.md" <<'EOF'
 # Mini AGENTS
 
-mini db first source
+mini live source
+EOF
+  mkdir -p "$mini_repo/.github/memory"
+  cat > "$mini_repo/.github/memory/project-status.md" <<'EOF'
+# Mini Project Status
+
+mini retained memory source
 EOF
   mkdir -p "$mini_repo/.github/agents"
   cat > "$mini_repo/.github/agents/demo.agent.md" <<'EOF'
@@ -361,41 +389,45 @@ EOF
   python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" rebuild \
     --repo-root "$mini_repo" \
     --db "$mini_db" || rc=1
+  python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" refresh .github/agents/demo.agent.md \
+    --repo-root "$mini_repo" \
+    --db "$mini_db" || rc=1
   python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" migrate \
     --repo-root "$mini_repo" \
     --db "$mini_db" \
+    --path .github/memory/project-status.md \
     --backup-dir .github/db-backup/test \
     --yes || rc=1
-  if grep -Fq -- 'DB-backed AGENTS.md' "$mini_repo/AGENTS.md" &&
-     [[ -f "$mini_repo/.github/db-backup/test/files/AGENTS.md" ]]; then
-    printf 'PASS github-index migrate leaves shim and backup\n'
+  if grep -Fq -- 'DB-backed .github/memory/project-status.md' "$mini_repo/.github/memory/project-status.md" &&
+     [[ -f "$mini_repo/.github/db-backup/test/files/.github/memory/project-status.md" ]]; then
+    printf 'PASS github-index migrate leaves retained memory shim and backup\n'
   else
-    printf 'FAIL github-index migrate did not leave shim and backup\n'
+    printf 'FAIL github-index migrate did not leave retained memory shim and backup\n'
     rc=1
   fi
   python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" load \
     --repo-root "$mini_repo" \
     --db "$mini_db" \
     --source stored \
-    --path AGENTS.md \
+    --path .github/memory/project-status.md \
     --limit 1 \
     --max-tokens 200 || rc=1
-  cat > "$mini_repo/updated-agents.md" <<'EOF'
-# Mini AGENTS
+  cat > "$mini_repo/updated-memory.md" <<'EOF'
+# Mini Project Status
 
-mini db first source updated in stored db
+mini retained memory updated in stored db
 EOF
   local stored_update_out
-  python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" update-stored AGENTS.md \
+  python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" update-stored .github/memory/project-status.md \
     --repo-root "$mini_repo" \
     --db "$mini_db" \
-    --from-file updated-agents.md || rc=1
+    --from-file updated-memory.md || rc=1
   stored_update_out=$(
     python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" load \
       --repo-root "$mini_repo" \
       --db "$mini_db" \
       --source stored \
-      --path AGENTS.md \
+      --path .github/memory/project-status.md \
       --limit 1 \
       --max-tokens 200
   ) || rc=1
@@ -406,12 +438,17 @@ EOF
     printf 'FAIL github-index update-stored did not change stored content\n'
     rc=1
   fi
+  cat > "$mini_repo/shim-payload.md" <<'EOF'
+# DB-backed .github/memory/project-status.md
+
+- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/memory/project-status.md`
+EOF
   local shim_update_out shim_update_rc
   shim_update_out=$(
-    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" update-stored AGENTS.md \
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" update-stored .github/memory/project-status.md \
       --repo-root "$mini_repo" \
       --db "$mini_db" \
-      --from-file AGENTS.md 2>&1
+      --from-file shim-payload.md 2>&1
   )
   shim_update_rc=$?
   printf '%s\n' "$shim_update_out"
@@ -445,7 +482,7 @@ try:
             "--source",
             "stored",
             "--path",
-            "AGENTS.md",
+            ".github/memory/project-status.md",
             "--db",
             str(mini_db),
             "--limit",
@@ -501,7 +538,7 @@ try:
             "--db",
             str(mini_db),
             "--request",
-            '{"op":"load","path":"AGENTS.md","source":"stored","limit":1,"max_tokens":200}',
+            '{"op":"load","path":".github/memory/project-status.md","source":"stored","limit":1,"max_tokens":200}',
         ],
         cwd=mini_repo,
         text=True,
@@ -534,9 +571,9 @@ PY
     printf '%s\n' \
       '{"op":"stat"}' \
       '{"op":"search","terms":"updated","source":"stored","limit":2}' \
-      '{"op":"summary","path":"AGENTS.md","source":"stored","limit":1}' \
-      '{"op":"load","path":"AGENTS.md","source":"stored","limit":1,"max_tokens":200}' \
-      '{"op":"show","path":"AGENTS.md","source":"stored"}' |
+      '{"op":"summary","path":".github/memory/project-status.md","source":"stored","limit":1}' \
+      '{"op":"load","path":".github/memory/project-status.md","source":"stored","limit":1,"max_tokens":200}' \
+      '{"op":"show","path":".github/memory/project-status.md","source":"stored"}' |
       python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" api \
         --repo-root "$mini_repo" \
         --db "$mini_db" \
@@ -575,7 +612,7 @@ PY
      grep -Fq -- 'updated in stored db' <<< "$brief_out" &&
      grep -Fq -- '"op": "brief"' <<< "$brief_api_out" &&
      grep -Fq -- '"ok": true' <<< "$brief_api_out"; then
-    printf 'PASS github-index brief returns DB-backed startup context for agents\n'
+    printf 'PASS github-index brief returns live-or-stored startup context for agents\n'
   else
     printf 'FAIL github-index brief did not return expected startup context\n'
     rc=1
@@ -668,7 +705,7 @@ PY
       --repo-root "$mini_repo" \
       --db "$mini_db" \
       --source stored \
-      --path AGENTS.md \
+      --path .github/memory/project-status.md \
       --limit 1 \
       --max-tokens 200
   ) || rc=1
@@ -753,10 +790,12 @@ EOF
   if grep -Fq -- '"op": "index-evidence"' <<< "$evidence_index_out" &&
      grep -Fq -- '"assets": 2' <<< "$evidence_index_out" &&
      grep -Fq -- '.github/task-runs/demo/evidence-index.md' <<< "$evidence_index_out" &&
+     grep -Fq -- '"stored_index_docs": [' <<< "$evidence_index_out" &&
+     [[ -f "$mini_repo/.github/db-backup/stored-snapshot/files/.github/task-runs/demo/evidence-index.md" ]] &&
      grep -Fq -- '__DEMO_MARKER__' "$mini_repo/.github/task-runs/demo/evidence-index.md"; then
-    printf 'PASS github-index indexes raw evidence assets without storing full logs\n'
+    printf 'PASS github-index indexes raw evidence assets and stores generated evidence-index docs\n'
   else
-    printf 'FAIL github-index raw evidence asset index did not produce expected summary\n'
+    printf 'FAIL github-index raw evidence asset index did not produce stored evidence-index summary\n'
     rc=1
   fi
   python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" archive-markdown .github/task-runs/demo \
@@ -764,11 +803,12 @@ EOF
     --db "$mini_db" \
     --backup-dir .github/db-backup/test \
     --yes || rc=1
-  if grep -Fq -- 'DB-backed .github/task-runs/demo/task-report.md' "$mini_repo/.github/task-runs/demo/task-report.md" &&
+  if grep -Fq -- 'demo run completed' "$mini_repo/.github/task-runs/demo/task-report.md" &&
+     ! grep -Fq -- 'DB-backed .github/task-runs/demo/task-report.md' "$mini_repo/.github/task-runs/demo/task-report.md" &&
      [[ -f "$mini_repo/.github/db-backup/test/files/.github/task-runs/demo/task-report.md" ]]; then
-    printf 'PASS github-index archives task-run Markdown with shim and backup\n'
+    printf 'PASS github-index archives task-run Markdown to DB while keeping live file and backup\n'
   else
-    printf 'FAIL github-index archive-markdown did not preserve task-run Markdown\n'
+    printf 'FAIL github-index archive-markdown did not preserve live task-run Markdown\n'
     rc=1
   fi
   python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" load \
@@ -835,6 +875,228 @@ EOF
     printf 'FAIL github-index evidence query did not return expected raw log summary\n'
     rc=1
   fi
+  rm -f "$mini_repo/.github/task-runs/demo/task-report.md"
+  printf '\nlocal historical task-run drift\n' >> "$mini_repo/.github/task-runs/demo/context-brief.md"
+  local doctor_archived_out
+  if doctor_archived_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" doctor \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --fail-on-drift
+  ); then
+    printf '%s\n' "$doctor_archived_out"
+    if grep -Fq -- 'blocking_drift=0' <<< "$doctor_archived_out" &&
+       ! grep -Fq -- 'nonblocking_drift=' <<< "$doctor_archived_out" &&
+       ! grep -Fq -- 'hidden_historical_drift=' <<< "$doctor_archived_out" &&
+       ! grep -Fq -- 'historical_drift_details=hidden' <<< "$doctor_archived_out" &&
+       ! grep -Fq -- 'archived_missing=' <<< "$doctor_archived_out" &&
+       ! grep -Fq -- '.github/task-runs/demo/task-report.md' <<< "$doctor_archived_out" &&
+       ! grep -Fq -- 'archived_stale=' <<< "$doctor_archived_out" &&
+       ! grep -Fq -- '.github/task-runs/demo/context-brief.md' <<< "$doctor_archived_out"; then
+      printf 'PASS github-index doctor hides historical task-run drift in default output\n'
+    else
+      printf 'FAIL github-index doctor default output leaked historical task-run drift details\n'
+      rc=1
+    fi
+  else
+    printf '%s\n' "$doctor_archived_out"
+    printf 'FAIL github-index doctor rejected historical task-run missing/stale drift\n'
+    rc=1
+  fi
+  local doctor_archived_verbose_out
+  if doctor_archived_verbose_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" doctor \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --fail-on-drift \
+      --show-nonblocking-drift
+  ); then
+    printf '%s\n' "$doctor_archived_verbose_out"
+    if grep -Fq -- 'blocking_drift=0' <<< "$doctor_archived_verbose_out" &&
+       grep -Fq -- 'nonblocking_drift=2' <<< "$doctor_archived_verbose_out" &&
+       grep -Fq -- 'archived_missing=' <<< "$doctor_archived_verbose_out" &&
+       grep -Fq -- '.github/task-runs/demo/task-report.md' <<< "$doctor_archived_verbose_out" &&
+       grep -Fq -- 'archived_stale=' <<< "$doctor_archived_verbose_out" &&
+       grep -Fq -- '.github/task-runs/demo/context-brief.md' <<< "$doctor_archived_verbose_out"; then
+      printf 'PASS github-index doctor can explicitly show historical task-run drift details\n'
+    else
+      printf 'FAIL github-index doctor verbose non-blocking drift output was not actionable\n'
+      rc=1
+    fi
+  else
+    printf '%s\n' "$doctor_archived_verbose_out"
+    printf 'FAIL github-index doctor verbose rejected historical task-run missing/stale drift\n'
+    rc=1
+  fi
+  python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" refresh AGENTS.md \
+    --repo-root "$mini_repo" \
+    --db "$mini_db" || rc=1
+  printf '\nlocal old agent shim stale drift\n' >> "$mini_repo/AGENTS.md"
+  local doctor_shim_default_out
+  if doctor_shim_default_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" doctor \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --fail-on-drift
+  ); then
+    printf '%s\n' "$doctor_shim_default_out"
+    if grep -Fq -- 'blocking_drift=0' <<< "$doctor_shim_default_out" &&
+       ! grep -Fq -- 'nonblocking_drift=' <<< "$doctor_shim_default_out" &&
+       ! grep -Fq -- 'live_index_stale=' <<< "$doctor_shim_default_out" &&
+       ! grep -Fq -- 'AGENTS.md' <<< "$doctor_shim_default_out"; then
+      printf 'PASS github-index doctor hides old agent shim stale drift in default output\n'
+    else
+      printf 'FAIL github-index doctor default output leaked old agent shim stale drift\n'
+      rc=1
+    fi
+  else
+    printf '%s\n' "$doctor_shim_default_out"
+    printf 'FAIL github-index doctor rejected old agent shim stale drift\n'
+    rc=1
+  fi
+  local doctor_shim_verbose_out
+  if doctor_shim_verbose_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" doctor \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --fail-on-drift \
+      --show-nonblocking-drift
+  ); then
+    printf '%s\n' "$doctor_shim_verbose_out"
+    if grep -Fq -- 'blocking_drift=0' <<< "$doctor_shim_verbose_out" &&
+       grep -Fq -- 'nonblocking_drift=3' <<< "$doctor_shim_verbose_out" &&
+       grep -Fq -- 'live_index_stale=' <<< "$doctor_shim_verbose_out" &&
+       grep -Fq -- 'AGENTS.md' <<< "$doctor_shim_verbose_out"; then
+      printf 'PASS github-index doctor can explicitly show old agent shim stale drift details\n'
+    else
+      printf 'FAIL github-index doctor verbose old agent shim stale output was not actionable\n'
+      rc=1
+    fi
+  else
+    printf '%s\n' "$doctor_shim_verbose_out"
+    printf 'FAIL github-index doctor verbose rejected old agent shim stale drift\n'
+    rc=1
+  fi
+  local audit_archived_out
+  audit_archived_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" audit-db-first \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --backup-dir .github/db-backup/test \
+      --json
+  ) || rc=1
+  printf '%s\n' "$audit_archived_out"
+  if grep -Fq -- '"ok": true' <<< "$audit_archived_out" &&
+     grep -Fq -- '"archived_stored_only": [' <<< "$audit_archived_out" &&
+     grep -Fq -- '.github/task-runs/demo/task-report.md' <<< "$audit_archived_out"; then
+    printf 'PASS github-index audit treats stored-only historical task-run logs as archived evidence\n'
+  else
+    printf 'FAIL github-index audit rejected stored-only historical task-run logs\n'
+    rc=1
+  fi
+  local audit_archived_default_out
+  if audit_archived_default_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" audit-db-first \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --backup-dir .github/db-backup/test
+  ); then
+    printf '%s\n' "$audit_archived_default_out"
+    if ! grep -Fq -- 'nonblocking_archived_stored_only=' <<< "$audit_archived_default_out" &&
+       ! grep -Fq -- 'nonblocking_live_drift=' <<< "$audit_archived_default_out" &&
+       ! grep -Fq -- 'hidden_nonblocking_db_first_drift=' <<< "$audit_archived_default_out" &&
+       ! grep -Fq -- 'nonblocking_db_first_drift_details=hidden' <<< "$audit_archived_default_out" &&
+       ! grep -Fq -- 'nonblocking_db_first_drift=' <<< "$audit_archived_default_out" &&
+       ! grep -Fq -- ' live_drift=' <<< "$audit_archived_default_out" &&
+       ! grep -Fq -- '.github/task-runs/demo/task-report.md' <<< "$audit_archived_default_out" &&
+       ! grep -Fq -- '.github/task-runs/demo/context-brief.md' <<< "$audit_archived_default_out"; then
+      printf 'PASS github-index audit default hides non-blocking DB-first drift details\n'
+    else
+      printf 'FAIL github-index audit default leaked or mislabeled non-blocking drift\n'
+      rc=1
+    fi
+  else
+    printf '%s\n' "$audit_archived_default_out"
+    printf 'FAIL github-index audit default rejected non-blocking historical drift\n'
+    rc=1
+  fi
+  local audit_archived_verbose_out
+  if audit_archived_verbose_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" audit-db-first \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --backup-dir .github/db-backup/test \
+      --show-nonblocking-drift
+  ); then
+    printf '%s\n' "$audit_archived_verbose_out"
+    if grep -Fq -- 'nonblocking_db_first_drift=2' <<< "$audit_archived_verbose_out" &&
+       grep -Fq -- 'nonblocking_archived_stored_only=1' <<< "$audit_archived_verbose_out" &&
+       grep -Fq -- 'nonblocking_live_drift=1' <<< "$audit_archived_verbose_out" &&
+       grep -Fq -- '[nonblocking_archived_stored_only]' <<< "$audit_archived_verbose_out" &&
+       grep -Fq -- '[nonblocking_live_drift]' <<< "$audit_archived_verbose_out" &&
+       grep -Fq -- '.github/task-runs/demo/task-report.md' <<< "$audit_archived_verbose_out" &&
+       grep -Fq -- '.github/task-runs/demo/context-brief.md' <<< "$audit_archived_verbose_out"; then
+      printf 'PASS github-index audit verbose can show non-blocking DB-first drift details\n'
+    else
+      printf 'FAIL github-index audit verbose did not show non-blocking drift details\n'
+      rc=1
+    fi
+  else
+    printf '%s\n' "$audit_archived_verbose_out"
+    printf 'FAIL github-index audit verbose rejected non-blocking historical drift\n'
+    rc=1
+  fi
+  printf '\nlocal strict live drift\n' >> "$mini_repo/.github/memory/project-status.md"
+  local doctor_strict_out
+  if doctor_strict_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" doctor \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --fail-on-drift
+  ); then
+    printf '%s\n' "$doctor_strict_out"
+    printf 'FAIL github-index doctor allowed strict memory live drift\n'
+    rc=1
+  else
+    printf '%s\n' "$doctor_strict_out"
+    if grep -Fq -- 'stale=' <<< "$doctor_strict_out" &&
+       grep -Fq -- 'blocking_drift=1' <<< "$doctor_strict_out" &&
+       ! grep -Fq -- 'nonblocking_drift=' <<< "$doctor_strict_out" &&
+       ! grep -Fq -- 'hidden_historical_drift=' <<< "$doctor_strict_out" &&
+       ! grep -Fq -- 'historical_drift_details=hidden' <<< "$doctor_strict_out" &&
+       grep -Fq -- '.github/memory/project-status.md' <<< "$doctor_strict_out"; then
+      printf 'PASS github-index doctor still rejects strict memory live drift\n'
+    else
+      printf 'FAIL github-index doctor strict memory drift output was not actionable\n'
+      rc=1
+    fi
+  fi
+  local audit_strict_out
+  if audit_strict_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" audit-db-first \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --backup-dir .github/db-backup/test \
+      --json
+  ); then
+    printf '%s\n' "$audit_strict_out"
+    printf 'FAIL github-index audit allowed strict memory live drift\n'
+    rc=1
+  else
+    printf '%s\n' "$audit_strict_out"
+    if grep -Fq -- '"ok": false' <<< "$audit_strict_out" &&
+       grep -Fq -- '"content_mismatch": [' <<< "$audit_strict_out" &&
+       grep -Fq -- '.github/memory/project-status.md' <<< "$audit_strict_out"; then
+      printf 'PASS github-index audit still rejects strict memory live drift\n'
+    else
+      printf 'FAIL github-index audit strict memory drift output was not actionable\n'
+      rc=1
+    fi
+  fi
+  python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" update-stored .github/memory/project-status.md \
+    --repo-root "$mini_repo" \
+    --db "$mini_db" \
+    --from-file .github/memory/project-status.md || rc=1
   local usage_out usage_api_out
   usage_out=$(
     python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" usage \
@@ -848,7 +1110,7 @@ EOF
     python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" api \
       --repo-root "$mini_repo" \
       --db "$mini_db" \
-      --request '{"op":"usage","surface":"cli","limit":8}'
+      --request '{"op":"usage","surface":"cli","limit":20}'
   ) || rc=1
   printf '%s\n' "$usage_api_out"
   if grep -Fq -- '"op": "usage"' <<< "$usage_out" &&
@@ -874,9 +1136,9 @@ EOF
   python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" materialize \
     --repo-root "$mini_repo" \
     --db "$mini_db" \
-    --path AGENTS.md \
+    --path .github/memory/project-status.md \
     --output-root materialized || rc=1
-  if grep -Fq -- 'updated in stored db' "$mini_repo/materialized/AGENTS.md"; then
+  if grep -Fq -- 'updated in stored db' "$mini_repo/materialized/.github/memory/project-status.md"; then
     printf 'PASS github-index materialize restores stored document content\n'
   else
     printf 'FAIL github-index materialize did not restore stored content\n'
@@ -886,12 +1148,12 @@ EOF
     --repo-root "$mini_repo" \
     --db "$mini_db" \
     --backup-dir .github/db-backup/test \
-    --path AGENTS.md \
+    --path .github/memory/project-status.md \
     --yes || rc=1
-  if grep -Fq -- '# Mini AGENTS' "$mini_repo/AGENTS.md"; then
-    printf 'PASS github-index restore recovers original AGENTS file from backup\n'
+  if grep -Fq -- 'mini retained memory source' "$mini_repo/.github/memory/project-status.md"; then
+    printf 'PASS github-index restore recovers original retained memory file from backup\n'
   else
-    printf 'FAIL github-index restore did not recover original AGENTS file\n'
+    printf 'FAIL github-index restore did not recover original retained memory file\n'
     rc=1
   fi
 

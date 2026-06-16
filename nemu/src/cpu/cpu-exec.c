@@ -18,8 +18,12 @@
 #include <cpu/decode.h>
 #include <cpu/difftest.h>
 #include <memory/cache.h>
+#include <memory/paddr.h>
 #include <memory/vaddr.h>
+#include <utils/profile.h>
 #include <locale.h>
+#include <stdlib.h>
+#include <string.h>
 #if defined(CONFIG_WATCHPOINT) && !defined(CONFIG_TARGET_AM)
 // AM 目标不会编译 sdb/watchpoint 模块，这里同步收紧编译条件，
 // 这样即使配置或旧对象文件残留异常，也不会再把监视点符号带进 AM 链接。
@@ -41,6 +45,49 @@
 // 这里把 g_print_step 提前定义到 ITRACE 辅助函数之前。
 // 这样改完后，无论是否打开 ITRACE/ITRACE_COND，need_itrace_logbuf() 都能在同一份源码下稳定看到它。
 static bool g_print_step = false;
+
+static bool cpu_runtime_env_enabled_default_true(const char *name) {
+#ifndef CONFIG_TARGET_AM
+  const char *env = getenv(name);
+  return !(env != NULL && env[0] != '\0' && strcmp(env, "0") == 0);
+#else
+  (void)name;
+  return true;
+#endif
+}
+
+bool cpu_interpreter_basic_block_runtime_enabled(void) {
+  static int enabled = -1;
+  if (enabled < 0) {
+    enabled = cpu_runtime_env_enabled_default_true("NEMU_INTERPRETER_BASIC_BLOCK") ? 1 : 0;
+  }
+  return enabled != 0;
+}
+
+uint64_t cpu_interpreter_tb_max_inst_runtime(void) {
+#ifdef CONFIG_INTERPRETER_BASIC_BLOCK
+  enum { runtime_cap = 4096 };
+  static int initialized = 0;
+  static uint64_t max_inst = CONFIG_INTERPRETER_TB_MAX_INST;
+
+  if (!initialized) {
+#ifndef CONFIG_TARGET_AM
+    const char *env = getenv("NEMU_INTERPRETER_TB_MAX_INST");
+    if (env != NULL && env[0] != '\0') {
+      char *end = NULL;
+      unsigned long long parsed = strtoull(env, &end, 0);
+      if (end != env && *end == '\0' && parsed > 0) {
+        max_inst = parsed > runtime_cap ? runtime_cap : parsed;
+      }
+    }
+#endif
+    initialized = 1;
+  }
+  return max_inst;
+#else
+  return 0;
+#endif
+}
 
 #ifdef CONFIG_ITRACE
 #define IRINGBUF_MAX 16
@@ -198,8 +245,45 @@ static void exec_once(Decode *s, vaddr_t pc) {//此处s是传入是指针,decode
   cpu.pc = s->dnpc;
 }
 
+static inline void profile_opcode_mix_inst(uint32_t inst) {
+#ifdef CONFIG_ISA_riscv
+#ifdef CONFIG_RISCV_EXT_C
+  if ((inst & 0x3u) != 0x3u) {
+    nemu_profile_count(NEMU_PROFILE_CPU_OPCODE_RVC, 1);
+    return;
+  }
+#endif
+  switch (inst & 0x7fu) {
+    case 0x03: nemu_profile_count(NEMU_PROFILE_CPU_OPCODE_LOAD, 1); break;
+    case 0x07: nemu_profile_count(NEMU_PROFILE_CPU_OPCODE_LOAD_FP, 1); break;
+    case 0x0f: nemu_profile_count(NEMU_PROFILE_CPU_OPCODE_MISC_MEM, 1); break;
+    case 0x13: nemu_profile_count(NEMU_PROFILE_CPU_OPCODE_OP_IMM, 1); break;
+    case 0x1b: nemu_profile_count(NEMU_PROFILE_CPU_OPCODE_OP_IMM_32, 1); break;
+    case 0x17: nemu_profile_count(NEMU_PROFILE_CPU_OPCODE_AUIPC, 1); break;
+    case 0x23: nemu_profile_count(NEMU_PROFILE_CPU_OPCODE_STORE, 1); break;
+    case 0x27: nemu_profile_count(NEMU_PROFILE_CPU_OPCODE_STORE_FP, 1); break;
+    case 0x2f: nemu_profile_count(NEMU_PROFILE_CPU_OPCODE_AMO, 1); break;
+    case 0x33: nemu_profile_count(NEMU_PROFILE_CPU_OPCODE_OP, 1); break;
+    case 0x3b: nemu_profile_count(NEMU_PROFILE_CPU_OPCODE_OP_32, 1); break;
+    case 0x53: nemu_profile_count(NEMU_PROFILE_CPU_OPCODE_FP, 1); break;
+    case 0x63: nemu_profile_count(NEMU_PROFILE_CPU_OPCODE_BRANCH, 1); break;
+    case 0x67: nemu_profile_count(NEMU_PROFILE_CPU_OPCODE_JALR, 1); break;
+    case 0x6f: nemu_profile_count(NEMU_PROFILE_CPU_OPCODE_JAL, 1); break;
+    case 0x37: nemu_profile_count(NEMU_PROFILE_CPU_OPCODE_LUI, 1); break;
+    case 0x73: nemu_profile_count(NEMU_PROFILE_CPU_OPCODE_SYSTEM, 1); break;
+    default: nemu_profile_count(NEMU_PROFILE_CPU_OPCODE_OTHER, 1); break;
+  }
+#else
+  (void)inst;
+#endif
+}
+
 static void execute_one(Decode *s) {
   exec_once(s, cpu.pc);//单步执行
+  // 可选 opcode mix profile 用来定位真实 Ubuntu 用户态热点；默认关闭，避免扰动常规 profile。
+  if (unlikely(nemu_profile_opcode_mix_enabled())) {
+    profile_opcode_mix_inst(s->isa.inst);
+  }
   g_nr_guest_inst ++;//记录客户指令的计数器
   IFDEF(CONFIG_ISA_riscv, isa_riscv_post_exec());
   riscv_progress_debug_log();
@@ -215,6 +299,7 @@ static void execute_one(Decode *s) {
 static inline bool debug_breakpoint_stop(void) {
 #if !defined(CONFIG_TARGET_AM) && !defined(CONFIG_TARGET_SHARE)
   // GDB Z0/Z1 执行断点按 PC 精确停在待执行指令前，basic-block 也不能越过块内断点。
+  if (!gdbstub_fast_enabled()) return false;
   if (gdbstub_breakpoint_hit(cpu.pc)) {
     Log("GDB stub breakpoint hit at pc = " FMT_WORD, cpu.pc);
     nemu_state.state = NEMU_STOP;
@@ -228,6 +313,7 @@ static inline bool debug_async_stop(void) {
 #if !defined(CONFIG_TARGET_AM) && !defined(CONFIG_TARGET_SHARE)
   // 运行中的 GDB Ctrl-C 只在 TB 边界轮询，保证 Ubuntu 长跑能被调试器打断，
   // 同时避免每条指令都做阻塞 socket 操作。
+  if (!gdbstub_fast_enabled()) return false;
   if (gdbstub_async_stop_requested()) {
     Log("GDB stub async halt at pc = " FMT_WORD, cpu.pc);
     nemu_state.state = NEMU_STOP;
@@ -244,63 +330,318 @@ static inline bool debug_async_stop(void) {
 #error "CONFIG_INTERPRETER_TB_MAX_INST must be positive"
 #endif
 
-static inline bool interpreter_tb_compressed_barrier(uint32_t inst) {
+typedef enum {
+  INTERPRETER_TB_STOP_NONE = 0,
+  INTERPRETER_TB_STOP_STATE,
+  INTERPRETER_TB_STOP_CONTROL,
+  INTERPRETER_TB_STOP_SYSTEM,
+  INTERPRETER_TB_STOP_MEMORY_ORDER,
+  INTERPRETER_TB_STOP_IO_WRITE,
+  INTERPRETER_TB_STOP_STORE_CONSERVATIVE,
+  INTERPRETER_TB_STOP_LIMIT,
+} InterpreterTbStopReason;
+
+static inline void interpreter_tb_profile_stop(InterpreterTbStopReason reason) {
+  switch (reason) {
+    case INTERPRETER_TB_STOP_STATE:
+      nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_STATE, 1);
+      break;
+    case INTERPRETER_TB_STOP_CONTROL:
+      nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_CONTROL, 1);
+      break;
+    case INTERPRETER_TB_STOP_SYSTEM:
+      nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM, 1);
+      break;
+    case INTERPRETER_TB_STOP_MEMORY_ORDER:
+      nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_MEMORY_ORDER, 1);
+      break;
+    case INTERPRETER_TB_STOP_IO_WRITE:
+      nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_IO_WRITE, 1);
+      break;
+    case INTERPRETER_TB_STOP_STORE_CONSERVATIVE:
+      nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_STORE_CONSERVATIVE, 1);
+      break;
+    case INTERPRETER_TB_STOP_LIMIT:
+      nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_LIMIT, 1);
+      break;
+    case INTERPRETER_TB_STOP_NONE:
+    default:
+      break;
+  }
+}
+
+static inline InterpreterTbStopReason interpreter_tb_compressed_stop_reason(uint32_t inst) {
 #ifdef CONFIG_RISCV_EXT_C
   uint32_t op = inst & 0x3u;
   uint32_t funct3 = BITS(inst, 15, 13);
 
   if (op == 0x0) {
-    return funct3 == 0x6 || funct3 == 0x7; // c.sw/c.sd 一类压缩 store。
+    if (funct3 == 0x5 || funct3 == 0x6 || funct3 == 0x7) {
+#ifdef CONFIG_CACHE
+      return INTERPRETER_TB_STOP_STORE_CONSERVATIVE;
+#else
+      return INTERPRETER_TB_STOP_NONE;
+#endif
+    }
   }
   if (op == 0x1) {
-    return funct3 == 0x1 || funct3 == 0x4 || funct3 == 0x5 ||
-           funct3 == 0x6 || funct3 == 0x7; // c.j/c.beqz/c.bnez/c.jr/csr-like。
+    if (funct3 == 0x5) {
+      nemu_profile_count_if(NEMU_PROFILE_CPU_TB_CONTINUE_JUMP_DIRECT, 1);
+      return INTERPRETER_TB_STOP_NONE; // c.j 的目标已写入 dnpc，解释器可继续从目标取指。
+    }
+    if (funct3 == 0x6 || funct3 == 0x7) {
+      return INTERPRETER_TB_STOP_NONE; // c.beqz/c.bnez 在动态 helper 中按 taken/not-taken 计数。
+    }
+#ifndef CONFIG_ISA64
+    if (funct3 == 0x1) {
+      nemu_profile_count_if(NEMU_PROFILE_CPU_TB_CONTINUE_JUMP_DIRECT, 1);
+      return INTERPRETER_TB_STOP_NONE; // RV32 c.jal。
+    }
+#endif
   }
   if (op == 0x2) {
-    return funct3 == 0x4 || funct3 == 0x6 || funct3 == 0x7; // c.jr/c.jalr/c.ebreak 与 sp store。
+    if (funct3 == 0x4) {
+      return INTERPRETER_TB_STOP_NONE; // c.mv/c.add/c.jr/c.jalr 由动态 helper 细分；c.ebreak 仍会停块。
+    }
+    if (funct3 == 0x5 || funct3 == 0x6 || funct3 == 0x7) {
+#ifdef CONFIG_CACHE
+      return INTERPRETER_TB_STOP_STORE_CONSERVATIVE;
+#else
+      return INTERPRETER_TB_STOP_NONE;
+#endif
+    }
   }
 #endif
+  return INTERPRETER_TB_STOP_NONE;
+}
+
+static inline bool interpreter_tb_compressed_dynamic_stop_reason(
+    const Decode *s, uint32_t inst, InterpreterTbStopReason *reason) {
+#ifdef CONFIG_RISCV_EXT_C
+  uint32_t op = inst & 0x3u;
+  uint32_t funct3 = BITS(inst, 15, 13);
+
+  if (op == 0x1) {
+    if (funct3 == 0x5) {
+      nemu_profile_count_if(NEMU_PROFILE_CPU_TB_CONTINUE_JUMP_DIRECT, 1);
+      *reason = INTERPRETER_TB_STOP_NONE;
+      return true;
+    }
+    if (funct3 == 0x6 || funct3 == 0x7) {
+      nemu_profile_count_if(s->dnpc != s->snpc ?
+          NEMU_PROFILE_CPU_TB_CONTINUE_BRANCH_TAKEN :
+          NEMU_PROFILE_CPU_TB_CONTINUE_BRANCH_NOT_TAKEN, 1);
+      *reason = INTERPRETER_TB_STOP_NONE;
+      return true;
+    }
+#ifndef CONFIG_ISA64
+    if (funct3 == 0x1) {
+      nemu_profile_count_if(NEMU_PROFILE_CPU_TB_CONTINUE_JUMP_DIRECT, 1);
+      *reason = INTERPRETER_TB_STOP_NONE;
+      return true;
+    }
+#endif
+  }
+
+  if (op == 0x2 && funct3 == 0x4) {
+    uint32_t rd = BITS(inst, 11, 7);
+    uint32_t rs2 = BITS(inst, 6, 2);
+    bool bit12 = BITS(inst, 12, 12) != 0;
+    if (bit12 && rd == 0 && rs2 == 0) {
+      nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_CONTROL_FALLBACK, 1);
+      *reason = INTERPRETER_TB_STOP_CONTROL; // c.ebreak/trap 不是普通可串接控制流。
+      return true;
+    }
+    if (s->dnpc != s->snpc) {
+      nemu_profile_count_if(NEMU_PROFILE_CPU_TB_CONTINUE_JALR, 1);
+    } else {
+      nemu_profile_count_if(NEMU_PROFILE_CPU_TB_CONTINUE_COMPRESSED_MISC, 1);
+    }
+    *reason = INTERPRETER_TB_STOP_NONE;
+    return true;
+  }
+#else
+  (void)s;
+  (void)inst;
+#endif
+  (void)reason;
   return false;
 }
 
-static inline bool interpreter_tb_should_stop(const Decode *s) {
-  if (nemu_state.state != NEMU_RUNNING) return true;
-  if (s->dnpc != s->snpc) return true;
+static inline bool interpreter_tb_csr_readonly(uint32_t inst) {
+  uint32_t funct3 = BITS(inst, 14, 12);
+  uint32_t rs1_or_uimm = BITS(inst, 19, 15);
+
+  switch (funct3) {
+    case 0x2: // csrrs rd, csr, x0
+    case 0x3: // csrrc rd, csr, x0
+    case 0x6: // csrrsi rd, csr, 0
+    case 0x7: // csrrci rd, csr, 0
+      return rs1_or_uimm == 0;
+    default:
+      return false;
+  }
+}
+
+static inline void interpreter_tb_profile_amo_detail(uint32_t inst) {
+  uint32_t funct5 = BITS(inst, 31, 27);
+  switch (funct5) {
+    case 0x02: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_AMO_LR, 1); break;
+    case 0x03: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_AMO_SC, 1); break;
+    case 0x01: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_AMO_SWAP, 1); break;
+    case 0x00: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_AMO_ADD, 1); break;
+    default: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_AMO_OTHER, 1); break;
+  }
+}
+
+static inline void interpreter_tb_profile_continue_amo_detail(uint32_t inst) {
+  uint32_t funct5 = BITS(inst, 31, 27);
+  switch (funct5) {
+    case 0x02: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_CONTINUE_AMO_LR, 1); break;
+    case 0x03: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_CONTINUE_AMO_SC, 1); break;
+    case 0x01: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_CONTINUE_AMO_SWAP, 1); break;
+    case 0x00: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_CONTINUE_AMO_ADD, 1); break;
+    default: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_CONTINUE_AMO_OTHER, 1); break;
+  }
+}
+
+static inline void interpreter_tb_profile_system_csr_detail(uint32_t inst) {
+  uint32_t csr = BITS(inst, 31, 20);
+  switch (csr) {
+    case 0x100: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SSTATUS, 1); break;
+    case 0x104: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SIE, 1); break;
+    case 0x105: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_STVEC, 1); break;
+    case 0x140: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SSCRATCH, 1); break;
+    case 0x141: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SEPC, 1); break;
+    case 0x142: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SCAUSE, 1); break;
+    case 0x143: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_STVAL, 1); break;
+    case 0x144: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SIP, 1); break;
+    case 0x180: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SATP, 1); break;
+    case 0x300: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_MSTATUS, 1); break;
+    case 0x302: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_MEDELEG, 1); break;
+    case 0x303: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_MIDELEG, 1); break;
+    case 0x304: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_MIE, 1); break;
+    case 0x305: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_MTVEC, 1); break;
+    case 0x306: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_MCOUNTEREN, 1); break;
+    case 0x340: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_MSCRATCH, 1); break;
+    case 0x341: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_MEPC, 1); break;
+    case 0x342: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_MCAUSE, 1); break;
+    case 0x343: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_MTVAL, 1); break;
+    case 0x344: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_MIP, 1); break;
+    default: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_OTHER, 1); break;
+  }
+}
+
+static inline InterpreterTbStopReason interpreter_tb_static_stop_reason(const Decode *s) {
+  if (nemu_state.state != NEMU_RUNNING) return INTERPRETER_TB_STOP_STATE;
 
   uint32_t inst = s->isa.inst;
 #ifdef CONFIG_RISCV_EXT_C
   if ((inst & 0x3u) != 0x3u) {
-    return interpreter_tb_compressed_barrier(inst);
+    InterpreterTbStopReason dynamic_reason = INTERPRETER_TB_STOP_NONE;
+    if (interpreter_tb_compressed_dynamic_stop_reason(s, inst, &dynamic_reason)) {
+      return dynamic_reason;
+    }
+    if (s->dnpc != s->snpc) {
+      nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_CONTROL_FALLBACK, 1);
+      return INTERPRETER_TB_STOP_CONTROL;
+    }
+    return interpreter_tb_compressed_stop_reason(inst);
   }
 #endif
 
   switch (inst & 0x7fu) {
-    case 0x0f: // fence/fence.i：让自修改代码和外部可见顺序自然形成 TB 边界。
-    case 0x23: // store 可能写 CLINT/PLIC/virtio/UART，下一条前应重新观察中断。
-    case 0x27: // floating-point store。
+    case 0x0f: { // fence/fence.i。
+      uint32_t funct3 = BITS(inst, 14, 12);
+      if (funct3 == 0x0) {
+        nemu_profile_count_if(NEMU_PROFILE_CPU_TB_CONTINUE_FENCE, 1);
+        return INTERPRETER_TB_STOP_NONE; // 普通 fence 在顺序解释器中不需要截断 TB。
+      }
+      if (funct3 == 0x1) {
+        nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_FENCE_I, 1);
+      }
+      return INTERPRETER_TB_STOP_MEMORY_ORDER;
+    }
     case 0x2f: // AMO/LR/SC 保守收束，避免把同步原语跨块重排。
-    case 0x63: // branch，即使未跳转也结束当前 basic block。
+      nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_AMO, 1);
+      if (unlikely(nemu_profile_stop_detail_enabled())) {
+        interpreter_tb_profile_amo_detail(inst);
+      }
+      return INTERPRETER_TB_STOP_MEMORY_ORDER;
+#ifdef CONFIG_CACHE
+    case 0x23: // cache 模型下 store 可延迟写回，先保留旧式保守边界。
+    case 0x27: // floating-point store。
+      return INTERPRETER_TB_STOP_STORE_CONSERVATIVE;
+#endif
     case 0x67: // jalr。
+      nemu_profile_count_if(NEMU_PROFILE_CPU_TB_CONTINUE_JALR, 1);
+      return INTERPRETER_TB_STOP_NONE;
     case 0x6f: // jal。
-    case 0x73: // SYSTEM/CSR/WFI/sret/mret/sfence.vma。
-      return true;
+      nemu_profile_count_if(NEMU_PROFILE_CPU_TB_CONTINUE_JUMP_DIRECT, 1);
+      return INTERPRETER_TB_STOP_NONE;
+    case 0x63: // conditional branch。
+      nemu_profile_count_if(s->dnpc != s->snpc ?
+          NEMU_PROFILE_CPU_TB_CONTINUE_BRANCH_TAKEN :
+          NEMU_PROFILE_CPU_TB_CONTINUE_BRANCH_NOT_TAKEN, 1);
+      return INTERPRETER_TB_STOP_NONE;
+    case 0x73: { // SYSTEM/CSR/WFI/sret/mret/sfence.vma。
+      uint32_t funct3 = BITS(inst, 14, 12);
+      if (funct3 != 0) {
+        if (interpreter_tb_csr_readonly(inst)) {
+          nemu_profile_count_if(NEMU_PROFILE_CPU_TB_CONTINUE_CSR_READONLY, 1);
+          return INTERPRETER_TB_STOP_NONE;
+        }
+        nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR, 1);
+        if (unlikely(nemu_profile_stop_detail_enabled())) {
+          interpreter_tb_profile_system_csr_detail(inst);
+        }
+      } else if (inst == 0x10500073u) {
+        nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_WFI, 1);
+      } else if ((inst & 0xfe007fffu) == 0x12000073u) {
+        nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_SFENCE_VMA, 1);
+      } else {
+        nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_OTHER, 1);
+      }
+      return INTERPRETER_TB_STOP_SYSTEM;
+    }
     default:
-      return false;
+      if (s->dnpc != s->snpc) {
+        nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_CONTROL_FALLBACK, 1);
+        return INTERPRETER_TB_STOP_CONTROL;
+      }
+      return INTERPRETER_TB_STOP_NONE;
   }
 }
 
 static uint64_t execute_basic_block(uint64_t n) {
   Decode s;
   uint64_t retired = 0;
-  uint64_t limit = n < INTERPRETER_TB_MAX_INST ? n : INTERPRETER_TB_MAX_INST;
+  uint64_t tb_max_inst = cpu_interpreter_tb_max_inst_runtime();
+  uint64_t limit = n < tb_max_inst ? n : tb_max_inst;
+  bool stopped_by_reason = false;
 
   // 这是 basic block interpreter 的保守第一阶段：仍逐条译码执行，
   // 但把中断查询和设备轮询移到块边界，减少 Ubuntu 长跑主循环开销。
+  if (unlikely(paddr_has_device_write())) {
+    paddr_take_device_write();
+  }
   while (retired < limit) {
     if (debug_breakpoint_stop()) break;
     execute_one(&s);
     retired++;
-    if (interpreter_tb_should_stop(&s)) break;
+    InterpreterTbStopReason reason = interpreter_tb_static_stop_reason(&s);
+    if (reason == INTERPRETER_TB_STOP_NONE &&
+        unlikely(paddr_has_device_write()) && paddr_take_device_write()) {
+      reason = INTERPRETER_TB_STOP_IO_WRITE;
+    }
+    if (reason != INTERPRETER_TB_STOP_NONE) {
+      interpreter_tb_profile_stop(reason);
+      stopped_by_reason = true;
+      break;
+    }
+  }
+  if (retired == limit && nemu_state.state == NEMU_RUNNING && !stopped_by_reason) {
+    interpreter_tb_profile_stop(INTERPRETER_TB_STOP_LIMIT);
   }
 
   return retired;
@@ -309,22 +650,30 @@ static uint64_t execute_basic_block(uint64_t n) {
 
 static uint64_t execute_one_or_block(uint64_t n) {
 #ifdef CONFIG_INTERPRETER_BASIC_BLOCK
-  if (!g_print_step) {
-    return execute_basic_block(n);
+  if (!g_print_step && cpu_interpreter_basic_block_runtime_enabled()) {
+    uint64_t retired = execute_basic_block(n);
+    if (unlikely(nemu_profile_enabled()) && retired > 0) {
+      nemu_profile_count(NEMU_PROFILE_CPU_BASIC_BLOCKS, 1);
+      nemu_profile_count(NEMU_PROFILE_CPU_BASIC_BLOCK_INST, retired);
+    }
+    return retired;
   }
 #endif
 
   Decode s;
   if (debug_breakpoint_stop()) return 0;
   execute_one(&s);
+  nemu_profile_count_if(NEMU_PROFILE_CPU_SINGLE_STEPS, 1);
   return 1;
 }
 
 static void execute(uint64_t n) {
   while (n > 0 && nemu_state.state == NEMU_RUNNING) {
 #if !defined(CONFIG_TARGET_AM) && !defined(CONFIG_TARGET_SHARE)
-    qmp_cpu_pause_point();
-    if (nemu_state.state != NEMU_RUNNING) break;
+    if (qmp_fast_enabled()) {
+      qmp_cpu_pause_point();
+      if (nemu_state.state != NEMU_RUNNING) break;
+    }
     if (debug_async_stop()) break;
 #endif
     if (debug_breakpoint_stop()) break;
@@ -354,6 +703,7 @@ static void execute(uint64_t n) {
 }
 
 static void statistic() {
+  nemu_profile_dump(g_nr_guest_inst, g_timer);
 #ifdef CONFIG_STATISTIC
   IFNDEF(CONFIG_TARGET_AM, setlocale(LC_NUMERIC, ""));
 #define NUMBERIC_FMT MUXDEF(CONFIG_TARGET_AM, "%", "%'") PRIu64
@@ -398,7 +748,12 @@ void cpu_exec(uint64_t n) {
   execute(n);
 
   uint64_t timer_end = get_time();
-  g_timer += timer_end - timer_start;
+  uint64_t elapsed = timer_end - timer_start;
+  g_timer += elapsed;
+  if (unlikely(nemu_profile_enabled())) {
+    nemu_profile_count(NEMU_PROFILE_CPU_EXEC_WINDOWS, 1);
+    nemu_profile_count(NEMU_PROFILE_CPU_EXEC_US, elapsed);
+  }
 
 #if !defined(CONFIG_TARGET_AM) && !defined(CONFIG_TARGET_SHARE)
   if (nemu_state.state == NEMU_END) {

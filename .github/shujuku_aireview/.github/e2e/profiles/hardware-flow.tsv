@@ -1,3 +1,0 @@
-# node_id|module|function|owner_agent|inputs|outputs
-@include|discovery||||
-hardware-flow-contract|hardware-flow|e2e_hardware_flow_contract|hardware-flow|hardware-flow agent + scripts/am-regression.sh + e2e profiles|硬件流程合约入口存在

@@ -4,15 +4,16 @@
 
 | path | purpose |
 | --- | --- |
-| `.github/agent-env-policy.json` | 三层策略、权限、retention、CI/nightly 入口 |
-| `.github/agent-env-schema-contract.json` | SQLite schema/API contract |
-| `.github/agent-env-runtime-artifacts.json` | 源码面与运行态 artifact 边界 |
-| `.github/agent-env-delivery.json` | 商业交付 readiness contract |
+| `.github/ai-env/contracts/agent-env-policy.json` | 三层策略、权限、retention、CI/nightly 入口 |
+| `.github/ai-env/contracts/agent-env-schema-contract.json` | SQLite schema/API contract |
+| `.github/ai-env/contracts/agent-env-runtime-artifacts.json` | 源码面与运行态 artifact 边界 |
+| `.github/ai-env/contracts/agent-env-delivery.json` | 商业交付 readiness contract |
 | `.github/skills/agent-env-maintenance/SKILL.md` | 标准化维护规则 |
 | `.github/e2e/profiles/agent-system.tsv` | 交付验收 profile |
 | `scripts/agent-maintain.sh` | 维护总门禁 |
 | `scripts/package-ai-dev-env.sh` | 可交付包生成器 |
-| `deliverables/ai-dev-env-commercial-v1/` | 当前商业交付根目录 |
+| `deliverables/ai-dev-env-commercial-v1/` | 当前商业交付源文档、模板和验收定义 |
+| `dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/` | 本地生成包输出目录，不进入 Git |
 
 ## Excluded From Package
 
@@ -23,4 +24,4 @@
 
 ## Package Build Rule
 
-`scripts/package-ai-dev-env.sh` 从当前源码面和 DB-backed stored documents 生成 `package/ysyx-ai-dev-env-commercial/`。包内应包含可读规则、契约、脚本、e2e profile、模板和交付文档，不携带旧手工输出或本机调试日志。
+`scripts/package-ai-dev-env.sh` 从当前 live source 和 retained memory/log 边界生成 `dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/`。包内应包含可读规则、契约、脚本、e2e profile、模板和交付文档，不携带旧手工输出或本机调试日志。

@@ -1,0 +1,32 @@
+make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+make ARCH=riscv64-nemu BOOT=ubuntu-rootfs \
+  UBUNTU_ROOTFS_FLAVOR=full \
+  UBUNTU_ROOTFS_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4' \
+  UBUNTU_ROOTFS_CPIO_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full-rootfs.cpio' \
+  NEMU_SYSTEMD_ROOTFS_FLAVOR=full \
+  NEMU_SYSTEMD_CHECK_LOG_DIR='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-15-2026-06-14-nemu-fastpaths-off-timeout-reload-diag-real/nemu-ubuntu-full-focused' \
+  NEMU_SYSTEMD_ROOTFS_OVERLAY='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-15-2026-06-14-nemu-fastpaths-off-timeout-reload-diag-real/nemu-ubuntu-full-focused/rootfs-overlay.raw' \
+  NEMU_SYSTEMD_CHECK_MAX_CYCLES='80000000000' \
+  NEMU_SYSTEMD_CHECK_TIMEOUT='3000' \
+  __check-nemu-systemd-guest
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' riscv64-linux_defconfig
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu'
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/nemu'
+make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' -j'14'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu'
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/nemu'
+/home/lyg/PA/ysyx-workbench/Linux/env/tools/python/bin/python3 '/home/lyg/PA/ysyx-workbench/Linux/platform/gen_dts.py' --config '/home/lyg/PA/ysyx-workbench/Linux/platform/npc-rv64.yml' --mode rootfs \
+  --reset-syscon \
+  --virtio-rng \
+  --virtio-net \
+  --goldfish-rtc \
+  --bootargs-extra 'systemd.default_timeout_start_sec=300s' \
+  --output '/home/lyg/PA/ysyx-workbench/Linux/build/generated/npc-rv64-nemu-rootfs.dts'
+[gen-dts] rootfs: /home/lyg/PA/ysyx-workbench/Linux/build/generated/npc-rv64-nemu-rootfs.dts
+dtc -I dts -O dtb -o '/home/lyg/PA/ysyx-workbench/Linux/build/npc-rv64-nemu-rootfs.dtb' '/home/lyg/PA/ysyx-workbench/Linux/build/generated/npc-rv64-nemu-rootfs.dts'
+OPENSBI_DTB='/home/lyg/PA/ysyx-workbench/Linux/build/npc-rv64-nemu-rootfs.dtb' OPENSBI_BUILD_DIR='/home/lyg/PA/ysyx-workbench/Linux/env/build/opensbi-nemu-rootfs' \
+  OPENSBI_DISABLE_PMU='1' \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/build-opensbi.sh'
+make[1]: *** [Makefile:864: /home/lyg/PA/ysyx-workbench/Linux/env/build/opensbi-nemu-rootfs/platform/generic/firmware/fw_jump.bin] Terminated
+make: *** [Makefile:643: check-nemu-systemd-guest-full] Terminated

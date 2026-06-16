@@ -190,12 +190,7 @@ static inline bool exec_system(Decode *s, uint32_t inst, uint32_t funct3, int rd
       return true;
     default:
       if ((inst & 0xfe007fffu) == 0x12000073u) { // sfence.vma
-        /*
-         * Ubuntu full userspace exposed transient Python module corruption with the
-         * selective TLB fast path. Prefer the architecturally conservative barrier
-         * until the ASID/global invalidation model is re-proven under full rootfs.
-         */
-        isa_riscv64_mmu_tlb_flush();
+        isa_riscv64_mmu_tlb_flush_selective(R(rs1), rs1 != 0, R(rs2), rs2 != 0);
         return true;
       }
       return false;

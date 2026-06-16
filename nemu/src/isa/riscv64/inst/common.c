@@ -56,6 +56,30 @@
 #define SHAMT_XLEN(value) ((value) & (XLEN_BITS - 1))
 #define BAD_DECODE() return false
 
+static inline bool rv_runtime_env_enabled_default_true(const char *name) {
+#ifndef CONFIG_TARGET_AM
+  const char *env = getenv(name);
+  return !(env != NULL && env[0] != '\0' && strcmp(env, "0") == 0);
+#else
+  (void)name;
+  return true;
+#endif
+}
+
+#ifdef CONFIG_INTERPRETER_DECODE_CACHE
+bool isa_riscv64_decode_cache_is_enabled = true;
+#else
+bool isa_riscv64_decode_cache_is_enabled = false;
+#endif
+
+__attribute__((constructor))
+static void rv_runtime_config_init(void) {
+#ifdef CONFIG_INTERPRETER_DECODE_CACHE
+  isa_riscv64_decode_cache_is_enabled =
+    rv_runtime_env_enabled_default_true("NEMU_INTERPRETER_DECODE_CACHE");
+#endif
+}
+
 #ifdef CONFIG_RISCV_EXT_A
 static bool lr_reservation_valid = false;
 static paddr_t lr_reservation_paddr = 0;

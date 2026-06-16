@@ -1,8 +1,10 @@
-# DB-backed .github/e2e/modules/npc.md
+# npc E2E Contract
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文备份由 `.github/db-backup/stored-snapshot/manifest.json` 管理；恢复请使用下方命令。
-
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/e2e/modules/npc.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/stored-snapshot --path .github/e2e/modules/npc.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/e2e/modules/npc.md`
+- **范围**: `npc/sim`、`npc/single`、`npc/soc`、`npc/rv64`。
+- **上游**: am-kernels 镜像、NEMU reference、ysyxSoC CPU ABI。
+- **下游**: DiffTest、SoC、STA/PPA、RV64 Linux。
+- **L0 gate**: `npc-sim-contract` 和 `npc-sim-status`。
+- **L1 gate**: `npc-cpu-tests-full` 通过 `riscv32-npc` 全量 `am-kernels/tests/cpu-tests` 验证 target 路径；后端跟随 `npc/sim` 当前配置，不在 e2e 中偷偷切换。
+- **RV64 Linux gate**: `rv64-linux` profile 中的 NPC rootfs gate 至少覆盖 ttyS0 console、virtio-blk、EXT4/VFS root mount、`/lib/systemd/systemd` handoff，以及 systemd PID1/Ubuntu 22.04 banner；`npc-rv64-systemd-guest-check-contract` 节点静态守住 `make check-npc-systemd-guest`、`NPC_UART_RX_FILE`、`NPC_UART_RX_WAIT`、`NPC_GUEST_EXPECT`、绝对路径归一化、`NPC_SYSTEMD_PROGRESS` 透传，以及 `NPC_USER_PROGRESS_INTERVAL`/`NPC_USER_ECALL_TRACE`/`NPC_USER_ECALL_TRACE_PRIV`/`NPC_USER_ECALL_MIN_COMMIT`、trap-layer `trap_hit=` 观测开关。完整 NEMU 等价 gate 仍需继续让真实 NPC 长跑到 root prompt、释放 guest 检查脚本并命中完整 Ubuntu runtime marker。
+- **证据**: backend status、全量 cpu-tests PASS 汇总、NPC log、cycles/commits/CPI；若当前后端启用 DiffTest，则同时记录 DiffTest 结果。
+- **升级路线**: 分别升级 `npc-single`、`npc-soc`、`npc-rv64` 的 smoke/regression profile。

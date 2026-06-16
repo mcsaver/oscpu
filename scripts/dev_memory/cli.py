@@ -137,7 +137,7 @@ def build_parser() -> argparse.ArgumentParser:
     brief_cmd = subparsers.add_parser(
         "brief",
         aliases=["context", "context-pack"],
-        help="build a bounded DB-backed startup context pack for an agent",
+        help="build a bounded live-or-stored startup context pack for an agent",
     )
     add_common_db_args(brief_cmd)
     brief_cmd.add_argument("terms", nargs="*", help="focus terms for relevant chunks")
@@ -153,7 +153,7 @@ def build_parser() -> argparse.ArgumentParser:
     profiles_cmd = subparsers.add_parser(
         "profiles",
         aliases=["profile-catalog", "list-profiles"],
-        help="list DB-backed e2e profiles for agent/e2e selection",
+        help="list live-or-stored e2e profiles for agent/e2e selection",
     )
     add_common_db_args(profiles_cmd)
     profiles_cmd.add_argument("terms", nargs="*", help="optional terms to filter profile catalog")
@@ -165,7 +165,7 @@ def build_parser() -> argparse.ArgumentParser:
     resolve_profile_cmd = subparsers.add_parser(
         "resolve-profile",
         aliases=["profile", "profile-resolve"],
-        help="expand one DB-backed e2e profile including transitive includes",
+        help="expand one live-or-stored e2e profile including transitive includes",
     )
     add_common_db_args(resolve_profile_cmd)
     resolve_profile_cmd.add_argument("profile")
@@ -179,7 +179,7 @@ def build_parser() -> argparse.ArgumentParser:
     runs_cmd = subparsers.add_parser(
         "runs",
         aliases=["task-runs", "run-catalog"],
-        help="list DB-backed e2e task-run reports and linked artifacts",
+        help="list retained e2e task-run reports and linked artifacts",
     )
     add_common_db_args(runs_cmd)
     runs_cmd.add_argument("terms", nargs="*", help="optional terms to filter task runs")
@@ -236,6 +236,16 @@ def build_parser() -> argparse.ArgumentParser:
     doctor_cmd.add_argument("--max-bytes", type=int, default=DEFAULT_MAX_BYTES)
     doctor_cmd.add_argument("--write-status", action="store_true")
     doctor_cmd.add_argument("--fail-on-drift", action="store_true")
+    doctor_cmd.add_argument(
+        "--show-nonblocking-drift",
+        action="store_true",
+        help="show archived/live-index drift counters and samples that do not affect --fail-on-drift",
+    )
+    doctor_cmd.add_argument(
+        "--show-status-samples",
+        action="store_true",
+        help="show sample paths for ordinary indexed/skipped status buckets",
+    )
     doctor_cmd.add_argument("--sample-limit", type=int, default=8)
     doctor_cmd.set_defaults(func=doctor)
 
@@ -263,7 +273,7 @@ def build_parser() -> argparse.ArgumentParser:
     remove_cmd.add_argument("--yes", action="store_true")
     remove_cmd.set_defaults(func=remove_entry)
 
-    promote_cmd = subparsers.add_parser("promote", help="store indexed agent/memory documents inside the database")
+    promote_cmd = subparsers.add_parser("promote", help="store indexed memory/log documents inside the database")
     add_common_db_args(promote_cmd)
     promote_cmd.add_argument("--path", action="append", default=[])
     promote_cmd.add_argument("--kind", action="append", default=[])
@@ -284,7 +294,7 @@ def build_parser() -> argparse.ArgumentParser:
     update_stored_cmd.add_argument("--max-bytes", type=int, default=DEFAULT_MAX_BYTES)
     update_stored_cmd.set_defaults(func=update_stored_document)
 
-    backup_cmd = subparsers.add_parser("backup", help="copy indexed agent/memory documents into a backup directory")
+    backup_cmd = subparsers.add_parser("backup", help="copy indexed memory/log documents into a backup directory")
     add_common_db_args(backup_cmd)
     backup_cmd.add_argument("--path", action="append", default=[])
     backup_cmd.add_argument("--kind", action="append", default=[])
@@ -317,13 +327,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     archive_markdown_cmd = subparsers.add_parser(
         "archive-markdown",
-        help="store live Markdown files in the DB, back up originals, and leave compatibility shims",
+        help="store live memory/log Markdown files in the DB, back up originals, and leave compatibility shims",
     )
     add_common_db_args(archive_markdown_cmd)
     archive_markdown_cmd.add_argument("path", nargs="+")
     archive_markdown_cmd.add_argument("--backup-dir", default=DEFAULT_DB_BACKUP_ROOT)
     archive_markdown_cmd.add_argument("--max-bytes", type=int, default=DEFAULT_MAX_BYTES)
     archive_markdown_cmd.add_argument("--limit", type=int, default=20)
+    archive_markdown_cmd.add_argument("--write-shim", action="store_true")
     archive_markdown_cmd.add_argument("--yes", action="store_true")
     archive_markdown_cmd.set_defaults(func=archive_markdown_files)
 
@@ -335,6 +346,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_common_db_args(index_evidence_cmd)
     index_evidence_cmd.add_argument("path", nargs="+")
     index_evidence_cmd.add_argument("--write-index", action="store_true")
+    index_evidence_cmd.add_argument("--backup-dir", default=f"{DEFAULT_DB_BACKUP_ROOT}/stored-snapshot")
     index_evidence_cmd.add_argument("--sample-bytes", type=int, default=65536)
     index_evidence_cmd.add_argument("--excerpt-chars", type=int, default=500)
     index_evidence_cmd.add_argument("--limit", type=int, default=20)
@@ -349,6 +361,12 @@ def build_parser() -> argparse.ArgumentParser:
     add_common_db_args(materialize_cmd)
     materialize_cmd.add_argument("--path", action="append", default=[])
     materialize_cmd.add_argument("--output-root", default=".")
+    materialize_cmd.add_argument("--max-bytes", type=int, default=DEFAULT_MAX_BYTES)
+    materialize_cmd.add_argument(
+        "--prune-non-retained",
+        action="store_true",
+        help="after materializing, remove non memory/log stored documents from the DB",
+    )
     materialize_cmd.set_defaults(func=materialize_documents)
 
     restore_cmd = subparsers.add_parser("restore", help="restore files from a backup directory manifest")
@@ -381,6 +399,11 @@ def build_parser() -> argparse.ArgumentParser:
     audit_cmd.add_argument("--backup-dir", default="")
     audit_cmd.add_argument("--limit", type=int, default=20)
     audit_cmd.add_argument("--json", action="store_true")
+    audit_cmd.add_argument(
+        "--show-nonblocking-drift",
+        action="store_true",
+        help="show archived/live task-run drift samples that do not affect audit success",
+    )
     audit_cmd.set_defaults(func=audit_db_first)
 
     markdown_audit_cmd = subparsers.add_parser(
@@ -409,7 +432,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="verify agent environment policy, tool scopes, retention roots, and CI gate wiring",
     )
     add_common_db_args(policy_audit_cmd)
-    policy_audit_cmd.add_argument("--policy", default=".github/agent-env-policy.json")
+    policy_audit_cmd.add_argument("--policy", default=".github/ai-env/contracts/agent-env-policy.json")
     policy_audit_cmd.add_argument("--limit", type=int, default=40)
     policy_audit_cmd.add_argument("--json", action="store_true")
     policy_audit_cmd.set_defaults(func=policy_audit)
@@ -419,7 +442,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="verify the report-derived AI environment rebuild traceability matrix",
     )
     report_audit_cmd.add_argument("--repo-root", default=".")
-    report_audit_cmd.add_argument("--matrix", default=".github/agent-env-rebuild-matrix.json")
+    report_audit_cmd.add_argument("--matrix", default=".github/ai-env/contracts/agent-env-rebuild-matrix.json")
     report_audit_cmd.add_argument("--requirement-id", action="append", default=[])
     report_audit_cmd.add_argument("--limit", type=int, default=40)
     report_audit_cmd.add_argument("--json", action="store_true")
@@ -430,7 +453,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="verify the explicit DB schema and read-only API contract against the live SQLite database",
     )
     add_common_db_args(schema_audit_cmd)
-    schema_audit_cmd.add_argument("--contract", default=".github/agent-env-schema-contract.json")
+    schema_audit_cmd.add_argument("--contract", default=".github/ai-env/contracts/agent-env-schema-contract.json")
     schema_audit_cmd.add_argument("--limit", type=int, default=40)
     schema_audit_cmd.add_argument("--json", action="store_true")
     schema_audit_cmd.set_defaults(func=schema_audit)
@@ -441,10 +464,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="verify runtime/source artifact boundaries and raw evidence index-only retention",
     )
     add_common_db_args(artifact_audit_cmd)
-    artifact_audit_cmd.add_argument("--contract", default=".github/agent-env-runtime-artifacts.json")
-    artifact_audit_cmd.add_argument("--policy", default=".github/agent-env-policy.json")
-    artifact_audit_cmd.add_argument("--schema-contract", default=".github/agent-env-schema-contract.json")
-    artifact_audit_cmd.add_argument("--observability-contract", default=".github/agent-env-observability.json")
+    artifact_audit_cmd.add_argument("--contract", default=".github/ai-env/contracts/agent-env-runtime-artifacts.json")
+    artifact_audit_cmd.add_argument("--policy", default=".github/ai-env/contracts/agent-env-policy.json")
+    artifact_audit_cmd.add_argument("--schema-contract", default=".github/ai-env/contracts/agent-env-schema-contract.json")
+    artifact_audit_cmd.add_argument("--observability-contract", default=".github/ai-env/contracts/agent-env-observability.json")
     artifact_audit_cmd.add_argument("--run-id", default="")
     artifact_audit_cmd.add_argument("--latest", action="store_true")
     artifact_audit_cmd.add_argument("--limit", type=int, default=40)
@@ -457,8 +480,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="verify commercial delivery package, legacy archive, and packaging boundaries",
     )
     add_common_db_args(delivery_audit_cmd)
-    delivery_audit_cmd.add_argument("--contract", default=".github/agent-env-delivery.json")
-    delivery_audit_cmd.add_argument("--policy", default=".github/agent-env-policy.json")
+    delivery_audit_cmd.add_argument("--contract", default=".github/ai-env/contracts/agent-env-delivery.json")
+    delivery_audit_cmd.add_argument("--policy", default=".github/ai-env/contracts/agent-env-policy.json")
     delivery_audit_cmd.add_argument("--limit", type=int, default=40)
     delivery_audit_cmd.add_argument("--json", action="store_true")
     delivery_audit_cmd.set_defaults(func=delivery_audit)
@@ -469,9 +492,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="print the lightweight branch health dashboard for the AI environment",
     )
     add_common_db_args(branch_health_report_cmd)
-    branch_health_report_cmd.add_argument("--dashboard", default=".github/agent-env-branch-health.json")
+    branch_health_report_cmd.add_argument("--dashboard", default=".github/ai-env/contracts/agent-env-branch-health.json")
     branch_health_report_cmd.add_argument("--review-routing", default="")
-    branch_health_report_cmd.add_argument("--matrix", default=".github/agent-env-rebuild-matrix.json")
+    branch_health_report_cmd.add_argument("--matrix", default=".github/ai-env/contracts/agent-env-rebuild-matrix.json")
     branch_health_report_cmd.add_argument("--limit", type=int, default=20)
     branch_health_report_cmd.add_argument("--json", action="store_true")
     branch_health_report_cmd.set_defaults(func=branch_health_report)
@@ -482,9 +505,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="verify review routing and branch health dashboard contracts",
     )
     add_common_db_args(branch_health_audit_cmd)
-    branch_health_audit_cmd.add_argument("--dashboard", default=".github/agent-env-branch-health.json")
+    branch_health_audit_cmd.add_argument("--dashboard", default=".github/ai-env/contracts/agent-env-branch-health.json")
     branch_health_audit_cmd.add_argument("--review-routing", default="")
-    branch_health_audit_cmd.add_argument("--policy", default=".github/agent-env-policy.json")
+    branch_health_audit_cmd.add_argument("--policy", default=".github/ai-env/contracts/agent-env-policy.json")
     branch_health_audit_cmd.add_argument("--limit", type=int, default=40)
     branch_health_audit_cmd.add_argument("--json", action="store_true")
     branch_health_audit_cmd.set_defaults(func=branch_health_audit)
@@ -495,8 +518,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="verify task-run trace IDs, run manifests, and observability contract wiring",
     )
     add_common_db_args(trace_audit_cmd)
-    trace_audit_cmd.add_argument("--contract", default=".github/agent-env-observability.json")
-    trace_audit_cmd.add_argument("--policy", default=".github/agent-env-policy.json")
+    trace_audit_cmd.add_argument("--contract", default=".github/ai-env/contracts/agent-env-observability.json")
+    trace_audit_cmd.add_argument("--policy", default=".github/ai-env/contracts/agent-env-policy.json")
     trace_audit_cmd.add_argument("--run-id", default="")
     trace_audit_cmd.add_argument("--latest", action="store_true")
     trace_audit_cmd.add_argument("--limit", type=int, default=40)
@@ -509,9 +532,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="verify state-machine traceback fields and reviewer/inspector profile gates",
     )
     add_common_db_args(state_audit_cmd)
-    state_audit_cmd.add_argument("--contract", default=".github/agent-env-state-traceability.json")
-    state_audit_cmd.add_argument("--policy", default=".github/agent-env-policy.json")
-    state_audit_cmd.add_argument("--review-routing", default=".github/agent-env-review-routing.json")
+    state_audit_cmd.add_argument("--contract", default=".github/ai-env/contracts/agent-env-state-traceability.json")
+    state_audit_cmd.add_argument("--policy", default=".github/ai-env/contracts/agent-env-policy.json")
+    state_audit_cmd.add_argument("--review-routing", default=".github/ai-env/contracts/agent-env-review-routing.json")
     state_audit_cmd.add_argument("--run-id", default="")
     state_audit_cmd.add_argument("--latest", action="store_true")
     state_audit_cmd.add_argument("--limit", type=int, default=40)

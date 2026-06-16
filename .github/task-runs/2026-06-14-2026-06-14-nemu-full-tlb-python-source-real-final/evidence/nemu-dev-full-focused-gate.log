@@ -1,2 +1,705 @@
 [nemu-ubuntu] focused gate target: check-nemu-systemd-guest-full
 [nemu-ubuntu] focused gate log dir: .github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-python-source-real-final/nemu-ubuntu-full-focused
+make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+make ARCH=riscv64-nemu BOOT=ubuntu-rootfs \
+  UBUNTU_ROOTFS_FLAVOR=full \
+  UBUNTU_ROOTFS_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4' \
+  UBUNTU_ROOTFS_CPIO_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full-rootfs.cpio' \
+  NEMU_SYSTEMD_ROOTFS_FLAVOR=full \
+  NEMU_SYSTEMD_CHECK_LOG_DIR='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-python-source-real-final/nemu-ubuntu-full-focused' \
+  NEMU_SYSTEMD_ROOTFS_OVERLAY='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-python-source-real-final/nemu-ubuntu-full-focused/rootfs-overlay.raw' \
+  NEMU_SYSTEMD_CHECK_MAX_CYCLES='80000000000' \
+  NEMU_SYSTEMD_CHECK_TIMEOUT='3000' \
+  __check-nemu-systemd-guest
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' riscv64-linux_defconfig
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu'
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/nemu'
+make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' -j'14'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu'
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/nemu'
+UBUNTU_ROOTFS_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4' UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 UBUNTU_ROOTFS_FLAVOR=full \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-ubuntu-rootfs.sh'
+[ubuntu-rootfs-check] image: /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4
+[ubuntu-rootfs-check] flavor: full
+[ubuntu-rootfs-check] OK      stage1 init: /init
+[ubuntu-rootfs-check] OK      Ubuntu shell: /bin/sh
+[ubuntu-rootfs-check] OK      Ubuntu identity: /etc/os-release
+[ubuntu-rootfs-check] OK      systemd candidate: /lib/systemd/systemd
+[ubuntu-rootfs-check] OK      systemd basic.target: /lib/systemd/system/basic.target
+[ubuntu-rootfs-check] OK      udev daemon: /lib/systemd/systemd-udevd
+[ubuntu-rootfs-check] OK      dbus daemon: /usr/bin/dbus-daemon
+[ubuntu-rootfs-check] OK      agetty login path: /bin/login
+[ubuntu-rootfs-check] OK      root login shell: /bin/bash
+[ubuntu-rootfs-check] OK      Ubuntu identity command: /usr/bin/lsb_release
+[ubuntu-rootfs-check] OK      lp64d dynamic linker: /lib/ld-linux-riscv64-lp64d.so.1
+[ubuntu-rootfs-check] OK      PAM module path: /lib/riscv64-linux-gnu/security
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_unix.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_deny.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_permit.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_env.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_loginuid.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_limits.so
+[ubuntu-rootfs-check] OK      e2scrub service entrypoint: /sbin/e2scrub_all
+[ubuntu-rootfs-check] OK      boot-blocking e2scrub reap masked: /etc/systemd/system/e2scrub_reap.service
+[ubuntu-rootfs-check] OK      periodic e2scrub timer masked: /etc/systemd/system/e2scrub_all.timer
+[ubuntu-rootfs-check] OK      unavailable hvc0 getty masked: /etc/systemd/system/serial-getty@hvc0.service
+[ubuntu-rootfs-check] OK      OpenSSH server config: /etc/ssh/sshd_config
+[ubuntu-rootfs-check] OK      syslog passwd entry: /etc/passwd
+[ubuntu-rootfs-check] OK      syslog group entry: /etc/group
+[ubuntu-rootfs-check] OK      sshd passwd entry: /etc/passwd
+[ubuntu-rootfs-check] OK      sshd group entry: /etc/group
+[ubuntu-rootfs-check] OK      OpenSSH ed25519 host key: /etc/ssh/ssh_host_ed25519_key
+[ubuntu-rootfs-check] OK      OpenSSH rsa host key: /etc/ssh/ssh_host_rsa_key
+[ubuntu-rootfs-check] OK      rsyslog spool directory: /var/spool/rsyslog
+[ubuntu-rootfs-check] OK      syslog service alias: /etc/systemd/system/syslog.service
+[ubuntu-rootfs-check] OK      apt signature verifier: /usr/bin/gpgv
+[ubuntu-rootfs-check] OK      journal query tool: /bin/journalctl
+[ubuntu-rootfs-check] OK      machine-id setup tool: /bin/systemd-machine-id-setup
+[ubuntu-rootfs-check] OK      hostnamectl tool: /usr/bin/hostnamectl
+[ubuntu-rootfs-check] OK      hostnamed service binary: /lib/systemd/systemd-hostnamed
+[ubuntu-rootfs-check] OK      machine-id seed file: /etc/machine-id
+[ubuntu-rootfs-check] OK      hostname seed file: /etc/hostname
+[ubuntu-rootfs-check] OK      machine-id commit unit: /lib/systemd/system/systemd-machine-id-commit.service
+[ubuntu-rootfs-check] OK      hostnamed unit: /lib/systemd/system/systemd-hostnamed.service
+[ubuntu-rootfs-check] OK      sysusers tool: /bin/systemd-sysusers
+[ubuntu-rootfs-check] OK      sysusers setup unit: /lib/systemd/system/systemd-sysusers.service
+[ubuntu-rootfs-check] OK      sysusers base config: /usr/lib/sysusers.d/basic.conf
+[ubuntu-rootfs-check] OK      tmpfiles tool: /bin/systemd-tmpfiles
+[ubuntu-rootfs-check] OK      tmpfiles setup unit: /lib/systemd/system/systemd-tmpfiles-setup.service
+[ubuntu-rootfs-check] OK      journal stdin tool: /usr/bin/systemd-cat
+[ubuntu-rootfs-check] OK      Ubuntu archive keyring: /usr/share/keyrings/ubuntu-archive-keyring.gpg sha256=1a4dd63e5c76728960a2edddae22e2e0fc53df8e8b87806deb971030ac704eb0
+[ubuntu-rootfs-check] OK      dpkg status installed: systemd
+[ubuntu-rootfs-check] OK      dpkg status installed: ubuntu-standard
+[ubuntu-rootfs-check] OK      dpkg status installed: openssh-server
+[ubuntu-rootfs-check] OK      dpkg status installed: curl
+[ubuntu-rootfs-check] OK      dpkg status installed: wget
+[ubuntu-rootfs-check] OK      dpkg status installed: dropbear-bin
+[ubuntu-rootfs-check] OK      dpkg status installed: rsyslog
+[ubuntu-rootfs-check] OK      dpkg status installed: cron
+[ubuntu-rootfs-check] OK      dpkg status installed: systemd-timesyncd
+[ubuntu-rootfs-check] OK      dpkg status installed: gpgv
+[ubuntu-rootfs-check] OK      dpkg status installed: ubuntu-keyring
+[ubuntu-rootfs-check] OK      dpkg info list: systemd
+[ubuntu-rootfs-check] OK      dpkg info list: ubuntu-standard
+[ubuntu-rootfs-check] OK      dpkg info list: openssh-server
+[ubuntu-rootfs-check] OK      dpkg info list: curl
+[ubuntu-rootfs-check] OK      dpkg info list: wget
+[ubuntu-rootfs-check] OK      dpkg info list: dropbear-bin
+[ubuntu-rootfs-check] OK      dpkg info list: rsyslog
+[ubuntu-rootfs-check] OK      dpkg info list: cron
+[ubuntu-rootfs-check] OK      dpkg info list: systemd-timesyncd
+[ubuntu-rootfs-check] OK      dpkg info list: gpgv
+[ubuntu-rootfs-check] OK      dpkg info list: ubuntu-keyring
+[ubuntu-rootfs-check] OK      dpkg info list valid names: 310 list files
+[ubuntu-rootfs-check] OK      dpkg info ownership: curl /usr/bin/curl
+[ubuntu-rootfs-check] OK      dpkg info ownership: wget /usr/bin/wget
+[ubuntu-rootfs-check] OK      dpkg info ownership: openssh-server /usr/sbin/sshd
+[ubuntu-rootfs-check] OK      dpkg info ownership: dropbear-bin /usr/bin/dbclient
+[ubuntu-rootfs-check] OK      dpkg info ownership: dropbear-bin /usr/sbin/dropbear
+[ubuntu-rootfs-check] OK      dpkg info ownership: rsyslog /usr/sbin/rsyslogd
+[ubuntu-rootfs-check] OK      dpkg info ownership: cron /usr/sbin/cron
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /bin/journalctl
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /bin/systemd-machine-id-setup
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /bin/systemd-sysusers
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /bin/systemd-tmpfiles
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /usr/bin/systemd-cat
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /usr/bin/hostnamectl
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /lib/systemd/systemd-hostnamed
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /lib/systemd/system/systemd-machine-id-commit.service
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /lib/systemd/system/systemd-hostnamed.service
+[ubuntu-rootfs-check] OK      dpkg info ownership: gpgv /usr/bin/gpgv
+[ubuntu-rootfs-check] OK      dpkg info ownership: ubuntu-keyring /usr/share/keyrings/ubuntu-archive-keyring.gpg
+[ubuntu-rootfs-check] OK      Ubuntu interactive command curl: /usr/bin/curl
+[ubuntu-rootfs-check] OK      Ubuntu interactive command wget: /usr/bin/wget
+[ubuntu-rootfs-check] OK      Ubuntu interactive command ping: /bin/ping
+[ubuntu-rootfs-check] OK      Ubuntu interactive command ssh: /usr/bin/ssh
+[ubuntu-rootfs-check] OK      Ubuntu interactive command htop: /usr/bin/htop
+[ubuntu-rootfs-check] OK      Ubuntu interactive command less: /usr/bin/less
+[ubuntu-rootfs-check] OK      Ubuntu interactive command strace: /usr/bin/strace
+[ubuntu-rootfs-check] OK      Ubuntu full command apt-get: /usr/bin/apt-get
+[ubuntu-rootfs-check] OK      Ubuntu full command apt-cache: /usr/bin/apt-cache
+[ubuntu-rootfs-check] OK      Ubuntu full command gpgv: /usr/bin/gpgv
+[ubuntu-rootfs-check] OK      Ubuntu full command journalctl: /bin/journalctl
+[ubuntu-rootfs-check] OK      Ubuntu full command systemd-machine-id-setup: /bin/systemd-machine-id-setup
+[ubuntu-rootfs-check] OK      Ubuntu full command systemd-sysusers: /bin/systemd-sysusers
+[ubuntu-rootfs-check] OK      Ubuntu full command systemd-tmpfiles: /bin/systemd-tmpfiles
+[ubuntu-rootfs-check] OK      Ubuntu full command systemd-cat: /usr/bin/systemd-cat
+[ubuntu-rootfs-check] OK      Ubuntu full command hostnamectl: /usr/bin/hostnamectl
+[ubuntu-rootfs-check] OK      Ubuntu full command logger: /usr/bin/logger
+[ubuntu-rootfs-check] OK      Ubuntu full command dpkg: /usr/bin/dpkg
+[ubuntu-rootfs-check] OK      Ubuntu full command dpkg-query: /usr/bin/dpkg-query
+[ubuntu-rootfs-check] OK      Ubuntu full command sudo: /usr/bin/sudo
+[ubuntu-rootfs-check] OK      Ubuntu full command man: /usr/bin/man
+[ubuntu-rootfs-check] OK      Ubuntu full command dbclient: /usr/bin/dbclient
+[ubuntu-rootfs-check] OK      Ubuntu full command dropbearconvert: /usr/bin/dropbearconvert
+[ubuntu-rootfs-check] OK      Ubuntu full command dropbearkey: /usr/bin/dropbearkey
+[ubuntu-rootfs-check] OK      Ubuntu full service sshd: /usr/sbin/sshd
+[ubuntu-rootfs-check] OK      Ubuntu full service dropbear: /usr/sbin/dropbear
+[ubuntu-rootfs-check] OK      Ubuntu full service cron: /usr/sbin/cron
+[ubuntu-rootfs-check] OK      Ubuntu full service rsyslogd: /usr/sbin/rsyslogd
+[ubuntu-rootfs-check] OK      Ubuntu full service systemd-hostnamed: /lib/systemd/systemd-hostnamed
+[ubuntu-rootfs-check] OK      Ubuntu full unit systemd-hostnamed: /lib/systemd/system/systemd-hostnamed.service
+[ubuntu-rootfs-check] OK      Ubuntu full apt archive keyring: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+[ubuntu-rootfs-check] OK      Ubuntu full timezone database: /usr/share/zoneinfo/UTC
+[ubuntu-rootfs-check] rootfs readiness check passed
+NEMU_PERFORMANCE_REQUIRED='1' \
+NEMU_CONFIG='/home/lyg/PA/ysyx-workbench/nemu/.config' \
+NEMU_AUTOCONF='/home/lyg/PA/ysyx-workbench/nemu/include/generated/autoconf.h' \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-nemu-performance-config.sh'
+__NEMU_PERFORMANCE_CONFIG__:ok
+LINUX_KERNEL_CONFIG='/home/lyg/PA/ysyx-workbench/Linux/env/src/linux/.config' \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-nemu-kernel-config.sh'
+[linux-kernel-config] PASS CONFIG_MODULES=disabled
+[linux-kernel-config] PASS CONFIG_AUTOFS_FS=y
+[linux-kernel-config] PASS CONFIG_BPF=y
+[linux-kernel-config] PASS CONFIG_BPF_SYSCALL=y
+[linux-kernel-config] PASS CONFIG_CGROUPS=y
+[linux-kernel-config] PASS CONFIG_CGROUP_BPF=y
+[linux-kernel-config] PASS CONFIG_SECCOMP=y
+[linux-kernel-config] PASS CONFIG_SECCOMP_FILTER=y
+__NEMU_KERNEL_CONFIG__:ok
+LOG_DIR='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-python-source-real-final/nemu-ubuntu-full-focused' \
+LOG_FILE='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-python-source-real-final/nemu-ubuntu-full-focused/nemu.log' \
+CONSOLE_LOG='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-python-source-real-final/nemu-ubuntu-full-focused/console.log' \
+NEMU_SERIAL_FIFO='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-python-source-real-final/nemu-ubuntu-full-focused/nemu.serial' \
+NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' \
+NEMU_SIM='/home/lyg/PA/ysyx-workbench/nemu/build/riscv64-nemu-interpreter' \
+LINUX_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/src/linux/arch/riscv/boot/Image' \
+RUN_FW='/home/lyg/PA/ysyx-workbench/Linux/env/build/opensbi-nemu-rootfs/platform/generic/firmware/fw_jump.bin' \
+RUN_DTB='/home/lyg/PA/ysyx-workbench/Linux/build/npc-rv64-nemu-rootfs.dtb' \
+RUN_ROOTFS='/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4' \
+NEMU_SYSTEMD_ROOTFS_OVERLAY='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-python-source-real-final/nemu-ubuntu-full-focused/rootfs-overlay.raw' \
+NEXT_ADDR='0x80200000' \
+DTB_ADDR='0x82200000' \
+MAX_CYCLES='80000000000' \
+NEMU_SYSTEMD_CHECK_TIMEOUT='3000' \
+NEMU_SYSTEMD_BOOT_TIMEOUT='900' \
+NEMU_SYSTEMD_SOAK_SECONDS='0' \
+NEMU_SYSTEMD_FS_STRESS_MIB='1' \
+NEMU_SYSTEMD_FS_TREE_FILES='8' \
+NEMU_SYSTEMD_PROCESS_LOOPS='4' \
+NEMU_SYSTEMD_UART_RX_STRESS_LINES='64' \
+NEMU_SYSTEMD_BLOCK_PARALLEL_JOBS='1' \
+NEMU_SYSTEMD_BLOCK_JOB_MIB='1' \
+	NEMU_SYSTEMD_MIN_MEMTOTAL_KB='900000' \
+	NEMU_SYSTEMD_INPUT_DELAY='0' \
+	NEMU_SYSTEMD_INPUT_CHUNK_BYTES='8' \
+	NEMU_SYSTEMD_INPUT_CHUNK_DELAY='0' \
+	NEMU_SYSTEMD_APT_INSTALL_DIAG='0' \
+	NEMU_SYSTEMD_APT_INSTALL_ACTUAL='0' \
+	NEMU_SYSTEMD_APT_INSTALL_DIAG_TIMEOUT='300' \
+	NEMU_SYSTEMD_APT_REMOVE_DIAG_TIMEOUT='600' \
+	  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-nemu-systemd-guest.sh'
+[nemu-systemd-check] log dir: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-python-source-real-final/nemu-ubuntu-full-focused
+[nemu-systemd-check] serial fifo: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-python-source-real-final/nemu-ubuntu-full-focused/nemu.serial
+[nemu-systemd-check] guest upload commands: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-python-source-real-final/nemu-ubuntu-full-focused/guest-check-upload.cmd
+[nemu-systemd-check] max cycles: 80000000000
+[nemu-systemd-check] soak seconds: 0
+[nemu-systemd-check] fs stress MiB: 1
+[nemu-systemd-check] fs tree files: 8
+[nemu-systemd-check] process loops: 4
+[nemu-systemd-check] UART RX stress lines: 64
+[nemu-systemd-check] block parallel jobs: 1
+[nemu-systemd-check] block job MiB: 1
+[nemu-systemd-check] min MemTotal KiB: 900000
+[nemu-systemd-check] systemd reload timeout: 180
+[nemu-systemd-check] input delay: 0
+[nemu-systemd-check] input chunk bytes: 8
+[nemu-systemd-check] input chunk delay: 0
+[nemu-systemd-check] apt install diag: 0
+[nemu-systemd-check] apt install actual: 0
+[nemu-systemd-check] apt install diag timeout: 300
+[nemu-systemd-check] apt remove diag timeout: 600
+[nemu-systemd-check] python/cnf diag hard: 1
+[nemu-systemd-check] python re diag loops: 20
+[nemu-systemd-check] serial input model: FIFO/stdin bytes -> NEMU SerialPort staging -> 16550 RX FIFO -> Linux ttyS0
+[nemu-systemd-check] syscall probe: 1
+[nemu-systemd-check] ICMP probe: 1
+[nemu-systemd-check] DHCP probe: 1
+[nemu-systemd-check] DNS probe: 1
+[nemu-systemd-check] TCP probe: 1
+[nemu-systemd-check] TCP burst loops: 8
+[nemu-systemd-check] poweroff: 1
+[nemu-systemd-check] poweroff timeout: 180
+[nemu-systemd-check] rootfs flavor: full
+[nemu-systemd-check] syscall probe bytes: 34824
+[nemu-systemd-check] ICMP probe bytes: 10248
+[nemu-systemd-check] DHCP probe bytes: 10248
+[nemu-systemd-check] DNS probe bytes: 10248
+[nemu-systemd-check] TCP probe bytes: 10248
+[nemu-systemd-check] rootfs bytes: 8589934592
+[nemu-systemd-check] rootfs backing stat: 8589934592:1781160740
+[nemu-systemd-check] rootfs overlay: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-python-source-real-final/nemu-ubuntu-full-focused/rootfs-overlay.raw
+[nemu-systemd-check] vda hash window bytes: 65536
+[nemu-systemd-check] vda hash windows: 1
+[nemu-systemd-check] perf log: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-python-source-real-final/nemu-ubuntu-full-focused/perf.tsv
+[nemu-systemd-check] FAIL: NEMU exited before log marker: ^__NEMU_SYSTEMD_CHECK_DONE__ rc=
+[nemu-systemd-check] ---- console tail ----
+__NEMU_CHECK_VIRTIO_NET_ROUTE__:10.0.2.2 dev eth0 src 10.0.2.15 uid 0
+    cache
+__NEMU_TCP_PROBE_BURST__:8
+__NEMU_TCP_PROBE_ITER__:1/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:1/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:1/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:1/8
+__NEMU_TCP_PROBE_ITER__:2/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:2/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:2/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:2/8
+__NEMU_TCP_PROBE_ITER__:3/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:3/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:3/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:3/8
+__NEMU_TCP_PROBE_ITER__:4/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:4/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:4/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:4/8
+__NEMU_TCP_PROBE_ITER__:5/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:5/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:5/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:5/8
+__NEMU_TCP_PROBE_ITER__:6/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:6/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:6/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:6/8
+__NEMU_TCP_PROBE_ITER__:7/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:7/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:7/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:7/8
+__NEMU_TCP_PROBE_ITER__:8/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:8/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:8/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:8/8
+__NEMU_TCP_PROBE_PASS__:tcp-http:8
+__NEMU_CHECK_PASS__:virtio-net-tcp-http
+__NEMU_CHECK_FULL_RESOLV_CONF_BEGIN__
+nameserver 10.0.2.2
+options timeout:2 attempts:1
+__NEMU_CHECK_FULL_RESOLV_CONF_END__
+__NEMU_CHECK_PASS__:full-userland-resolv-hostless
+__NEMU_CHECK_FULL_CURL_HTTP_CODE__:0:204
+__NEMU_CHECK_PASS__:full-userland-curl-http
+__NEMU_CHECK_FULL_WGET_HTTP_CODE__:0:204
+__NEMU_CHECK_PASS__:full-userland-wget-http
+__NEMU_CHECK_FULL_CURL_HEAD_HTTP_CODE__:0:204
+__NEMU_CHECK_PASS__:full-userland-curl-head-http
+__NEMU_CHECK_FULL_CURL_404_HTTP_CODE__:22:404
+__NEMU_CHECK_PASS__:full-userland-curl-404-http
+__NEMU_CHECK_FULL_CURL_LARGE_RC__:0
+__NEMU_CHECK_FULL_CURL_LARGE_BYTES__:4096
+__NEMU_CHECK_FULL_CURL_LARGE_SHA256__:8b186a8da3ad0c154cd7b0f2b57fd7c3ca7d4dc767ec45d27bcb155739be90b8
+__NEMU_CHECK_PASS__:full-userland-curl-large-http
+__NEMU_CHECK_FULL_APT_HOSTLESS_CLEAR_HOOKS__:/etc/apt/apt.conf.d/99nemu-hostless-clear-hooks
+__NEMU_CHECK_FULL_APT_HOSTLESS_CLEAR_HOOKS_BEGIN__
+#clear APT::Update::Post-Invoke-Success;
+#clear DPkg::Post-Invoke;
+APT::Update::Post-Invoke-Success "";
+DPkg::Post-Invoke "";
+__NEMU_CHECK_FULL_APT_HOSTLESS_CLEAR_HOOKS_END__
+__NEMU_CHECK_FULL_APT_HOSTLESS_KEYRING_RC__:0
+__NEMU_CHECK_FULL_APT_HOSTLESS_KEYRING_SHA256__:e99cff1585af5ae2587b50efeffd562cac5d3fb383145a4c79b8046f38159045
+__NEMU_CHECK_PASS__:full-userland-apt-hostless-keyring
+__NEMU_CHECK_FULL_APT_HOSTLESS_INRELEASE_RC__:0
+__NEMU_CHECK_FULL_APT_HOSTLESS_INRELEASE_SHA256__:8b1d4ef06eaea91ce7e2cbc2a22d8b3feeadb5ab539dc79067f8e26a3729b363
+__NEMU_CHECK_FULL_APT_HOSTLESS_GPGV_RC__:0
+__NEMU_CHECK_FULL_APT_HOSTLESS_GPGV_LOG_BEGIN__
+gpgv: Signature made Sat Jun 13 20:26:40 2026 UTC
+gpgv:                using RSA key E6742789E6F3AAEAD748589209108C9EAFAA6C14
+gpgv: Good signature from "NEMU Hostless Apt Test <nemu@example.invalid>"
+__NEMU_CHECK_FULL_APT_HOSTLESS_GPGV_LOG_END__
+__NEMU_CHECK_PASS__:full-userland-apt-hostless-inrelease-gpgv
+__NEMU_CHECK_FULL_APT_HOSTLESS_SOURCE__:deb [signed-by=/tmp/nemu-full-userland-apt-hostless/nemu-hostless-archive-keyring.gpg arch=riscv64] http://nemu.local/ubuntu jammy main
+__NEMU_CHECK_FULL_APT_HOSTLESS_ETC_PARTS__:Dir::Etc::parts=-
+__NEMU_CHECK_FULL_APT_HOSTLESS_UPDATE_RC__:0
+__NEMU_CHECK_FULL_APT_HOSTLESS_UPDATE_LOG_BEGIN__
+Get:1 http://nemu.local/ubuntu jammy InRelease [994 B]
+Get:2 http://nemu.local/ubuntu jammy/main riscv64 Packages [680 B]
+Fetched 1674 B in 1min 19s (21 B/s)
+Reading package lists...
+__NEMU_CHECK_FULL_APT_HOSTLESS_UPDATE_LOG_END__
+__NEMU_CHECK_PASS__:full-userland-apt-hostless-update
+__NEMU_CHECK_PASS__:full-userland-apt-hostless-signed-update
+__NEMU_CHECK_FULL_APT_HOSTLESS_UNSIGNED_SOURCE__:deb [arch=riscv64] http://nemu.local/ubuntu jammy main
+__NEMU_CHECK_FULL_APT_HOSTLESS_UNSIGNED_UPDATE_RC__:100
+__NEMU_CHECK_FULL_APT_HOSTLESS_UNSIGNED_UPDATE_LOG_BEGIN__
+Get:1 http://nemu.local/ubuntu jammy InRelease [994 B]
+Err:1 http://nemu.local/ubuntu jammy InRelease
+  The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 09108C9EAFAA6C14
+Reading package lists...
+W: GPG error: http://nemu.local/ubuntu jammy InRelease: The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 09108C9EAFAA6C14
+E: The repository 'http://nemu.local/ubuntu jammy InRelease' is not signed.
+__NEMU_CHECK_FULL_APT_HOSTLESS_UNSIGNED_UPDATE_LOG_END__
+__NEMU_CHECK_PASS__:full-userland-apt-hostless-unsigned-reject
+__NEMU_CHECK_PASS__:full-userland-apt-direct-install-diag-skip
+[1;34m[src/utils/log.c:30 init_log] Log is written to /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-python-source-real-final/nemu-ubuntu-full-focused/nemu.log[0m
+[1;34m[src/monitor/monitor.c:429 init_monitor] Block image requested: /home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4[0m
+[1;34m[src/monitor/monitor.c:433 init_monitor] Block overlay requested: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-python-source-real-final/nemu-ubuntu-full-focused/rootfs-overlay.raw[0m
+[1;34m[src/memory/paddr.c:66 init_mem] physical memory area [0x80000000, 0xbfffffff][0m
+[1;34m[src/device/io/mmio.c:78 add_mmio_map] Add mmio map 'serial' at [0x10000000, 0x10000fff][0m
+[1;34m[src/device/disk.c:1633 open_disk_overlay] virtio-blk: overlay=/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-python-source-real-final/nemu-ubuntu-full-focused/rootfs-overlay.raw sectors=16777216 backing_readonly=0[0m
+[1;34m[src/device/disk.c:1673 open_disk_image] virtio-blk: image=/home/lyg/PA/ysyx-workbench/Linux/env/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4 size=8589934592 bytes read_mmap=enabled write_target=overlay[0m
+[1;34m[src/device/io/mmio.c:78 add_mmio_map] Add mmio map 'virtio-blk' at [0x10001000, 0x10001fff][0m
+[1;34m[src/device/io/mmio.c:78 add_mmio_map] Add mmio map 'virtio-rng' at [0x10002000, 0x10002fff][0m
+[1;34m[src/device/io/mmio.c:78 add_mmio_map] Add mmio map 'virtio-net' at [0x10004000, 0x10004fff][0m
+[1;34m[src/device/io/mmio.c:78 add_mmio_map] Add mmio map 'goldfish-rtc' at [0x10003000, 0x10003fff][0m
+[1;34m[src/device/io/mmio.c:78 add_mmio_map] Add mmio map 'syscon-reset' at [0x00100000, 0x00100fff][0m
+[1;34m[src/monitor/monitor.c:449 init_monitor] Boot argument a0/hartid = 0x0000000000000000[0m
+[1;34m[src/monitor/monitor.c:453 init_monitor] Boot argument a1/dtb = 0x0000000082200000[0m
+[1;34m[src/monitor/monitor.c:141 load_file_to_pmem] Load image /home/lyg/PA/ysyx-workbench/Linux/env/build/opensbi-nemu-rootfs/platform/generic/firmware/fw_jump.bin at 0x80000000, size = 275808[0m
+[1;34m[src/monitor/monitor.c:141 load_file_to_pmem] Load image /home/lyg/PA/ysyx-workbench/Linux/env/src/linux/arch/riscv/boot/Image at 0x80200000, size = 15465472[0m
+[1;34m[src/monitor/monitor.c:141 load_file_to_pmem] Load image /home/lyg/PA/ysyx-workbench/Linux/build/npc-rv64-nemu-rootfs.dtb at 0x82200000, size = 2594[0m
+[1;34m[src/monitor/monitor.c:49 welcome] Trace: [1;31mOFF[0m[0m
+[1;34m[src/monitor/monitor.c:53 welcome] Build time: 15:14:05, Jun 10 2026[0m
+Welcome to [1;33m[1;41mriscv64[0m-NEMU!
+For help, type "help"
+[1;34m[src/cpu/cpu-exec.c:413 cpu_exec] nemu: STOP after requested budget at pc = 0x0000002ac38dad28[0m
+[1;34m[src/device/disk.c:422 virtio_blk_statistic] virtio-blk async runtime submitted=14163 completed=14163 pending=0 done=0[0m
+[1;34m[src/device/net.c:2391 virtio_net_statistic] virtio-net runtime tx_packets=579 tx_bytes=43441 rx_packets=87 rx_bytes=16426 tx_errors=0 rx_drops=0 arp=14/14 icmp=0/0 dhcp=2/2 dns=11/11 tcp_segments=83 tcp_replies=60 tcp_http_requests=19 tcp_http_head_requests=1 tcp_http_not_found=1 tcp_http_apt_requests=6 tcp_http_apt_deb_requests=1 tcp_http_large_requests=1 tcp_http_segmented_responses=1 tcp_http_response_segments=22 ctrl=7/0 ctrl_rx=4 ctrl_rx_extra=0 promisc=0 allmulti=0 alluni=0 nomulti=0 nouni=0 nobcast=0 ctrl_mac_table=2 ctrl_mac_addr=0 ctrl_vlan=0 vlan_active=0 vlan_last=0 vlan_last_cmd=0 ctrl_announce=1 announce_pending=0 announce_requested=1 mac_uni=0 mac_multi=1 mac=52:54:00:12:34:56 rx_pending=0[0m
+[nemu-systemd-check] ----------------------
+make[1]: *** [Makefile:717: __check-nemu-systemd-guest] Error 1
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/Linux'
+make: *** [Makefile:643: check-nemu-systemd-guest-full] Error 2
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/Linux'
+
+[nemu-ubuntu] focused gate markers
+__NEMU_CHECK_MEMTOTAL_KB__:999500
+__NEMU_CHECK_MIN_MEMTOTAL_KB__:900000
+__NEMU_CHECK_PASS__:guest-memtotal-min
+__NEMU_CHECK_FULL_PYTHON_TEXTWRAP_SHA256__:1:e1541a31ac906294f915cadd0d780e1e5b256dc1897b560cdaf3fbf46d104cf0
+__NEMU_CHECK_FULL_PYTHON_TEXTWRAP_PYC_SHA256__:1:ae5bc9dfcdfb742e0f7db2f8804c2793e2b2c07c2c81135c47ff798a3eabd23b
+__NEMU_CHECK_FULL_LSB_RELEASE_SHA256__:1:484b6a9de8b41aa9310a305b64c092e473ee73bead994e52c4271c66df9ba3c8
+__NEMU_CHECK_FULL_PYTHON_TEXTWRAP_SHA256__:2:e1541a31ac906294f915cadd0d780e1e5b256dc1897b560cdaf3fbf46d104cf0
+__NEMU_CHECK_FULL_PYTHON_TEXTWRAP_PYC_SHA256__:2:ae5bc9dfcdfb742e0f7db2f8804c2793e2b2c07c2c81135c47ff798a3eabd23b
+__NEMU_CHECK_FULL_LSB_RELEASE_SHA256__:2:484b6a9de8b41aa9310a305b64c092e473ee73bead994e52c4271c66df9ba3c8
+__NEMU_CHECK_FULL_PYTHON_TEXTWRAP_SHA256__:3:e1541a31ac906294f915cadd0d780e1e5b256dc1897b560cdaf3fbf46d104cf0
+__NEMU_CHECK_FULL_PYTHON_TEXTWRAP_PYC_SHA256__:3:ae5bc9dfcdfb742e0f7db2f8804c2793e2b2c07c2c81135c47ff798a3eabd23b
+__NEMU_CHECK_FULL_LSB_RELEASE_SHA256__:3:484b6a9de8b41aa9310a305b64c092e473ee73bead994e52c4271c66df9ba3c8
+__NEMU_CHECK_FULL_PYTHON_STDLIB_IMPORT_RC__:1:0
+__NEMU_CHECK_FULL_PYTHON_STDLIB_IMPORT_RC__:2:0
+__NEMU_CHECK_FULL_PYTHON_STDLIB_IMPORT_RC__:3:0
+__NEMU_CHECK_FULL_PYTHON_STDLIB_IMPORT_LOG_BEGIN__
+__NEMU_CHECK_FULL_PYTHON_STDLIB_IMPORT_LOG_END__
+__NEMU_CHECK_FULL_LSB_RELEASE_RETRY_RC__:1:1
+__NEMU_CHECK_FULL_LSB_RELEASE_RETRY_RC__:2:0
+__NEMU_CHECK_FULL_LSB_RELEASE_RETRY_RC__:3:0
+__NEMU_CHECK_FULL_LSB_RELEASE_RETRY_LOG_BEGIN__
+__NEMU_CHECK_FULL_LSB_RELEASE_RETRY_LOG_END__
+__NEMU_CHECK_FULL_LSB_RELEASE_PYCACHEPREFIX_RC__:1:0
+__NEMU_CHECK_FULL_LSB_RELEASE_PYCACHEPREFIX_RC__:2:1
+__NEMU_CHECK_FULL_LSB_RELEASE_PYCACHEPREFIX_RC__:3:0
+__NEMU_CHECK_FULL_LSB_RELEASE_PYCACHEPREFIX_LOG_BEGIN__
+__NEMU_CHECK_FULL_LSB_RELEASE_PYCACHEPREFIX_LOG_END__
+__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_RC__:1:0
+__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_RC__:2:1
+__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_RC__:3:1
+__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_RC__:4:1
+__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_RC__:5:0
+__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_RC__:6:0
+__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_RC__:7:1
+__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_RC__:8:0
+__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_RC__:9:0
+__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_RC__:10:0
+__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_RC__:11:0
+__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_RC__:12:1
+__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_RC__:13:0
+__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_RC__:14:0
+__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_RC__:15:0
+__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_RC__:16:0
+__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_RC__:17:0
+__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_RC__:18:0
+__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_RC__:19:0
+__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_RC__:20:0
+__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_LOG_BEGIN__
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_BYTES__:19772
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SHA256__:e1541a31ac906294f915cadd0d780e1e5b256dc1897b560cdaf3fbf46d104cf0
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_OFFSET__:3566
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_WINDOW_HEX__:7368206265747765656e20776f7264730a20202020202020202020283f3c3d25287770297329202d7b322c7d20283f3d5c77290a20202020202020207c202320776f72642c20706f737369626c792068
+__PYTHON_RE_SOURCE_DIAG__SRE_MAXREPEAT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_SRE_CONSTANTS_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT_INT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SOURCE_EXEC__:ok
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_LEN__:483
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_SHA256__:989bdcb79eb605335071f8b8987fa99dc0d123e110d796c82d72328b246b9339
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_BYTES__:19772
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SHA256__:e1541a31ac906294f915cadd0d780e1e5b256dc1897b560cdaf3fbf46d104cf0
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_OFFSET__:3566
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_WINDOW_HEX__:7368206265747765656e20776f7264730a20202020202020202020283f3c3d25287770297329202d7b322c7d20283f3d5c77290a20202020202020207c202320776f72642c20706f737369626c792068
+__PYTHON_RE_SOURCE_DIAG__SRE_MAXREPEAT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_SRE_CONSTANTS_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT_INT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SOURCE_EXEC__:ok
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_LEN__:483
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_SHA256__:989bdcb79eb605335071f8b8987fa99dc0d123e110d796c82d72328b246b9339
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_BYTES__:19772
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SHA256__:e1541a31ac906294f915cadd0d780e1e5b256dc1897b560cdaf3fbf46d104cf0
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_OFFSET__:3566
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_WINDOW_HEX__:7368206265747765656e20776f7264730a20202020202020202020283f3c3d25287770297329202d7b322c7d20283f3d5c77290a20202020202020207c202320776f72642c20706f737369626c792068
+__PYTHON_RE_SOURCE_DIAG__SRE_MAXREPEAT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_SRE_CONSTANTS_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT_INT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SOURCE_EXEC__:ok
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_LEN__:483
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_SHA256__:989bdcb79eb605335071f8b8987fa99dc0d123e110d796c82d72328b246b9339
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_BYTES__:19772
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SHA256__:e1541a31ac906294f915cadd0d780e1e5b256dc1897b560cdaf3fbf46d104cf0
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_OFFSET__:3566
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_WINDOW_HEX__:7368206265747765656e20776f7264730a20202020202020202020283f3c3d25287770297329202d7b322c7d20283f3d5c77290a20202020202020207c202320776f72642c20706f737369626c792068
+__PYTHON_RE_SOURCE_DIAG__SRE_MAXREPEAT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_SRE_CONSTANTS_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT_INT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SOURCE_EXEC__:ok
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_LEN__:483
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_SHA256__:989bdcb79eb605335071f8b8987fa99dc0d123e110d796c82d72328b246b9339
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_BYTES__:19772
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SHA256__:e1541a31ac906294f915cadd0d780e1e5b256dc1897b560cdaf3fbf46d104cf0
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_OFFSET__:3566
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_WINDOW_HEX__:7368206265747765656e20776f7264730a20202020202020202020283f3c3d25287770297329202d7b322c7d20283f3d5c77290a20202020202020207c202320776f72642c20706f737369626c792068
+__PYTHON_RE_SOURCE_DIAG__SRE_MAXREPEAT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_SRE_CONSTANTS_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT_INT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SOURCE_EXEC__:ok
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_LEN__:483
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_SHA256__:989bdcb79eb605335071f8b8987fa99dc0d123e110d796c82d72328b246b9339
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_BYTES__:19772
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SHA256__:e1541a31ac906294f915cadd0d780e1e5b256dc1897b560cdaf3fbf46d104cf0
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_OFFSET__:3566
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_WINDOW_HEX__:7368206265747765656e20776f7264730a20202020202020202020283f3c3d25287770297329202d7b322c7d20283f3d5c77290a20202020202020207c202320776f72642c20706f737369626c792068
+__PYTHON_RE_SOURCE_DIAG__SRE_MAXREPEAT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_SRE_CONSTANTS_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT_INT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SOURCE_EXEC__:ok
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_LEN__:483
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_SHA256__:989bdcb79eb605335071f8b8987fa99dc0d123e110d796c82d72328b246b9339
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_BYTES__:19772
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SHA256__:e1541a31ac906294f915cadd0d780e1e5b256dc1897b560cdaf3fbf46d104cf0
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_OFFSET__:3566
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_WINDOW_HEX__:7368206265747765656e20776f7264730a20202020202020202020283f3c3d25287770297329202d7b322c7d20283f3d5c77290a20202020202020207c202320776f72642c20706f737369626c792068
+__PYTHON_RE_SOURCE_DIAG__SRE_MAXREPEAT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_SRE_CONSTANTS_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT_INT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SOURCE_EXEC__:ok
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_LEN__:483
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_SHA256__:989bdcb79eb605335071f8b8987fa99dc0d123e110d796c82d72328b246b9339
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_BYTES__:19772
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SHA256__:e1541a31ac906294f915cadd0d780e1e5b256dc1897b560cdaf3fbf46d104cf0
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_OFFSET__:3566
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_WINDOW_HEX__:7368206265747765656e20776f7264730a20202020202020202020283f3c3d25287770297329202d7b322c7d20283f3d5c77290a20202020202020207c202320776f72642c20706f737369626c792068
+__PYTHON_RE_SOURCE_DIAG__SRE_MAXREPEAT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_SRE_CONSTANTS_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT_INT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SOURCE_EXEC__:ok
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_LEN__:483
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_SHA256__:989bdcb79eb605335071f8b8987fa99dc0d123e110d796c82d72328b246b9339
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_BYTES__:19772
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SHA256__:e1541a31ac906294f915cadd0d780e1e5b256dc1897b560cdaf3fbf46d104cf0
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_OFFSET__:3566
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_WINDOW_HEX__:7368206265747765656e20776f7264730a20202020202020202020283f3c3d25287770297329202d7b322c7d20283f3d5c77290a20202020202020207c202320776f72642c20706f737369626c792068
+__PYTHON_RE_SOURCE_DIAG__SRE_MAXREPEAT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_SRE_CONSTANTS_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT_INT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SOURCE_EXEC__:ok
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_LEN__:483
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_SHA256__:989bdcb79eb605335071f8b8987fa99dc0d123e110d796c82d72328b246b9339
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_BYTES__:19772
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SHA256__:e1541a31ac906294f915cadd0d780e1e5b256dc1897b560cdaf3fbf46d104cf0
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_OFFSET__:3566
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_WINDOW_HEX__:7368206265747765656e20776f7264730a20202020202020202020283f3c3d25287770297329202d7b322c7d20283f3d5c77290a20202020202020207c202320776f72642c20706f737369626c792068
+__PYTHON_RE_SOURCE_DIAG__SRE_MAXREPEAT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_SRE_CONSTANTS_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT_INT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SOURCE_EXEC__:ok
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_LEN__:483
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_SHA256__:989bdcb79eb605335071f8b8987fa99dc0d123e110d796c82d72328b246b9339
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_BYTES__:19772
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SHA256__:e1541a31ac906294f915cadd0d780e1e5b256dc1897b560cdaf3fbf46d104cf0
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_OFFSET__:3566
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_WINDOW_HEX__:7368206265747765656e20776f7264730a20202020202020202020283f3c3d25287770297329202d7b322c7d20283f3d5c77290a20202020202020207c202320776f72642c20706f737369626c792068
+__PYTHON_RE_SOURCE_DIAG__SRE_MAXREPEAT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_SRE_CONSTANTS_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT_INT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SOURCE_EXEC__:ok
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_LEN__:483
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_SHA256__:989bdcb79eb605335071f8b8987fa99dc0d123e110d796c82d72328b246b9339
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_BYTES__:19772
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SHA256__:e1541a31ac906294f915cadd0d780e1e5b256dc1897b560cdaf3fbf46d104cf0
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_OFFSET__:3566
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_WINDOW_HEX__:7368206265747765656e20776f7264730a20202020202020202020283f3c3d25287770297329202d7b322c7d20283f3d5c77290a20202020202020207c202320776f72642c20706f737369626c792068
+__PYTHON_RE_SOURCE_DIAG__SRE_MAXREPEAT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_SRE_CONSTANTS_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT_INT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SOURCE_EXEC__:ok
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_LEN__:483
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_SHA256__:989bdcb79eb605335071f8b8987fa99dc0d123e110d796c82d72328b246b9339
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_BYTES__:19772
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SHA256__:e1541a31ac906294f915cadd0d780e1e5b256dc1897b560cdaf3fbf46d104cf0
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_OFFSET__:3566
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_WINDOW_HEX__:7368206265747765656e20776f7264730a20202020202020202020283f3c3d25287770297329202d7b322c7d20283f3d5c77290a20202020202020207c202320776f72642c20706f737369626c792068
+__PYTHON_RE_SOURCE_DIAG__SRE_MAXREPEAT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_SRE_CONSTANTS_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT_INT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SOURCE_EXEC__:ok
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_LEN__:483
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_SHA256__:989bdcb79eb605335071f8b8987fa99dc0d123e110d796c82d72328b246b9339
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_BYTES__:19772
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SHA256__:e1541a31ac906294f915cadd0d780e1e5b256dc1897b560cdaf3fbf46d104cf0
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_OFFSET__:3566
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_WINDOW_HEX__:7368206265747765656e20776f7264730a20202020202020202020283f3c3d25287770297329202d7b322c7d20283f3d5c77290a20202020202020207c202320776f72642c20706f737369626c792068
+__PYTHON_RE_SOURCE_DIAG__SRE_MAXREPEAT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_SRE_CONSTANTS_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT_INT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SOURCE_EXEC__:ok
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_LEN__:483
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_SHA256__:989bdcb79eb605335071f8b8987fa99dc0d123e110d796c82d72328b246b9339
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_BYTES__:19772
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SHA256__:e1541a31ac906294f915cadd0d780e1e5b256dc1897b560cdaf3fbf46d104cf0
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_OFFSET__:3566
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_REPEAT_TOKEN_WINDOW_HEX__:7368206265747765656e20776f7264730a20202020202020202020283f3c3d25287770297329202d7b322c7d20283f3d5c77290a20202020202020207c202320776f72642c20706f737369626c792068
+__PYTHON_RE_SOURCE_DIAG__SRE_MAXREPEAT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_SRE_CONSTANTS_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT__:MAXREPEAT
+__PYTHON_RE_SOURCE_DIAG_SRE_PARSE_MAXREPEAT_INT__:4294967295
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_SOURCE_EXEC__:ok
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_LEN__:483
+__PYTHON_RE_SOURCE_DIAG_TEXTWRAP_PATTERN_SHA256__:989bdcb79eb605335071f8b8987fa99dc0d123e110d796c82d72328b246b9339
+__NEMU_CHECK_FULL_PYTHON_RE_SOURCE_EXEC_LOG_END__
+__NEMU_CHECK_FULL_PYTHON_STDLIB_STRESS_RC__:1:1
+__NEMU_CHECK_FULL_PYTHON_STDLIB_STRESS_RC__:2:0
+__NEMU_CHECK_FULL_PYTHON_STDLIB_STRESS_RC__:3:0
+__NEMU_CHECK_FULL_PYTHON_STDLIB_STRESS_RC__:4:0
+__NEMU_CHECK_FULL_PYTHON_STDLIB_STRESS_RC__:5:0
+__NEMU_CHECK_FULL_PYTHON_STDLIB_STRESS_LOG_BEGIN__
+__NEMU_CHECK_FULL_PYTHON_STDLIB_STRESS_LOG_END__
+__NEMU_CHECK_FULL_PYTHON_CNF_DIAG_RC__:0
+__NEMU_CHECK_FULL_PYTHON_CNF_DIAG_LOG_BEGIN__
+__PYTHON_CNF_DIAG_VERSION__:3.10.12
+__PYTHON_CNF_DIAG_DIVMOD_NEG_US__:(-1, 999999)
+__PYTHON_CNF_DIAG_ABS_MICROSECONDS_LT_FLOAT__:True
+__PYTHON_CNF_DIAG_ABS_NEG_ONE_LT_FLOAT__:True
+__PYTHON_CNF_DIAG_RE_REPEAT_COMPILE_ERROR__:OverflowError:the repetition number is too large
+__PYTHON_CNF_DIAG_TEXTWRAP_IMPORT_ERROR__:OverflowError:the repetition number is too large
+__PYTHON_CNF_DIAG_OPTPARSE_IMPORT_ERROR__:OverflowError:the repetition number is too large
+__PYTHON_CNF_DIAG_DATETIME_IMPORT__:ok
+__PYTHON_CNF_DIAG_DATETIME_MAXOFFSET__:datetime.timedelta(seconds=86399, microseconds=999999)
+__PYTHON_CNF_DIAG_SQLITE3_IMPORT__:ok
+__PYTHON_CNF_DIAG_COMMAND_NOT_FOUND_CREATOR_IMPORT__:ok
+__NEMU_CHECK_FULL_PYTHON_CNF_DIAG_LOG_END__
+__NEMU_CHECK_FULL_CNF_UPDATE_DB_RC__:0
+__NEMU_CHECK_FULL_CNF_UPDATE_DB_LOG_BEGIN__
+__NEMU_CHECK_FULL_CNF_UPDATE_DB_LOG_END__
+__NEMU_CHECK_HWRNG_CURRENT__:virtio_rng.0
+__NEMU_CHECK_VIRTIO_RNG_MODALIAS__:virtio:d00000004v58535959
+__NEMU_CHECK_VIRTIO_RNG_DRIVER__:virtio_rng
+__NEMU_CHECK_VIRTIO_RNG_STATUS__:0x0000000f
+__NEMU_CHECK_VIRTIO_RNG_FEATURES__:0000000000000000000000000000110010000000000000000000000000000000
+__NEMU_CHECK_PASS__:virtio-rng-modalias
+__NEMU_CHECK_PASS__:virtio-rng-driver
+__NEMU_CHECK_PASS__:virtio-rng-features-bitstring
+__NEMU_CHECK_PASS__:virtio-rng-feature-version-1
+__NEMU_CHECK_PASS__:virtio-rng-ring-feature-indirect-desc
+__NEMU_CHECK_PASS__:virtio-rng-ring-feature-event-idx
+__NEMU_CHECK_RTC0_NAME__:goldfish_rtc 10003000.rtc
+__NEMU_CHECK_RTC0_HWCLOCK__:2026-06-14 09:08:23.480478+00:00
+__NEMU_CHECK_PASS__:hwclock-rtc0-show
+__NEMU_CHECK_VIRTIO_NET_MODALIAS__:virtio:d00000001v58535959
+__NEMU_CHECK_PASS__:virtio-net-modalias
+__NEMU_CHECK_VIRTIO_NET_DRIVER__:virtio_net
+__NEMU_CHECK_VIRTIO_NET_STATUS__:0x0000000f
+__NEMU_CHECK_VIRTIO_NET_FEATURES__:0001010000000001111101010000110010000000000000000000000000000001
+__NEMU_CHECK_PASS__:virtio-net-driver
+__NEMU_CHECK_PASS__:virtio-net-features-bitstring
+__NEMU_CHECK_PASS__:virtio-net-feature-version-1
+__NEMU_CHECK_PASS__:virtio-net-feature-mtu
+__NEMU_CHECK_PASS__:virtio-net-feature-mac
+__NEMU_CHECK_PASS__:virtio-net-feature-mrg-rxbuf
+__NEMU_CHECK_PASS__:virtio-net-feature-status
+__NEMU_CHECK_PASS__:virtio-net-feature-ctrl-vq
+__NEMU_CHECK_PASS__:virtio-net-feature-ctrl-rx
+__NEMU_CHECK_PASS__:virtio-net-feature-ctrl-vlan
+__NEMU_CHECK_INFO__:virtio-net-feature-ctrl-rx-extra-driver-not-negotiated
+__NEMU_CHECK_PASS__:virtio-net-feature-ctrl-rx-extra-driver-optional
+__NEMU_CHECK_PASS__:virtio-net-feature-guest-announce
+__NEMU_CHECK_PASS__:virtio-net-feature-ctrl-mac-addr
+__NEMU_CHECK_PASS__:virtio-net-feature-speed-duplex
+__NEMU_CHECK_PASS__:virtio-net-ring-feature-indirect-desc
+__NEMU_CHECK_PASS__:virtio-net-ring-feature-event-idx
+__NEMU_CHECK_VIRTIO_NET_IFACE__:eth0
+__NEMU_CHECK_PASS__:virtio-net-interface
+__NEMU_CHECK_VIRTIO_NET_MAC__:52:54:00:12:34:56
+__NEMU_CHECK_VIRTIO_NET_MTU__:1500
+__NEMU_CHECK_PASS__:virtio-net-mac
+__NEMU_CHECK_PASS__:virtio-net-mtu
+__NEMU_DHCP_PROBE_TX__:discover:eth0
+__NEMU_DHCP_PROBE_OFFER__:10.0.2.15:10.0.2.2
+__NEMU_DHCP_PROBE_TX__:request:eth0
+__NEMU_DHCP_PROBE_ACK__:10.0.2.15:10.0.2.2
+__NEMU_DHCP_PROBE_PASS__:dhcp-lease
+__NEMU_CHECK_PASS__:virtio-net-dhcp-lease
+__NEMU_CHECK_VIRTIO_NET_IPV4__:10.0.2.15/24
+__NEMU_CHECK_VIRTIO_NET_OPERSTATE__:up
+__NEMU_CHECK_VIRTIO_NET_SPEED__:1000
+__NEMU_CHECK_VIRTIO_NET_DUPLEX__:full
+__NEMU_CHECK_PASS__:virtio-net-ipv4-static
+__NEMU_CHECK_PASS__:virtio-net-speed
+__NEMU_CHECK_PASS__:virtio-net-duplex
+__NEMU_DNS_PROBE_TX__:nemu.local:10.0.2.2
+__NEMU_DNS_PROBE_RX__:nemu.local:10.0.2.2
+__NEMU_DNS_PROBE_PASS__:dns-a
+__NEMU_CHECK_PASS__:virtio-net-dns-a
+__NEMU_CHECK_VIRTIO_NET_TX_PACKETS_BEGIN__:4
+__NEMU_CHECK_VIRTIO_NET_RX_PACKETS_BEGIN__:4
+__NEMU_CHECK_VIRTIO_NET_ROUTE__:10.0.2.2 dev eth0 src 10.0.2.15 uid 0
+__NEMU_TCP_PROBE_BURST__:8
+__NEMU_TCP_PROBE_ITER__:1/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:1/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:1/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:1/8
+__NEMU_TCP_PROBE_ITER__:2/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:2/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:2/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:2/8
+__NEMU_TCP_PROBE_ITER__:3/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:3/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:3/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:3/8
+__NEMU_TCP_PROBE_ITER__:4/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:4/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:4/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:4/8
+__NEMU_TCP_PROBE_ITER__:5/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:5/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:5/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:5/8
+__NEMU_TCP_PROBE_ITER__:6/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:6/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:6/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:6/8
+__NEMU_TCP_PROBE_ITER__:7/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:7/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:7/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:7/8
+__NEMU_TCP_PROBE_ITER__:8/8
+__NEMU_TCP_PROBE_CONNECT__:10.0.2.2:80:8/8
+__NEMU_TCP_PROBE_TX__:GET:/nemu-health:8/8
+__NEMU_TCP_PROBE_RX__:HTTP/1.0 204 No Content:8/8
+__NEMU_TCP_PROBE_PASS__:tcp-http:8
+__NEMU_CHECK_PASS__:virtio-net-tcp-http
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-python-source-real-final/nemu-ubuntu-full-focused/console.log:[1;34m[src/device/disk.c:422 virtio_blk_statistic] virtio-blk async runtime submitted=14163 completed=14163 pending=0 done=0[0m
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-python-source-real-final/nemu-ubuntu-full-focused/console.log:[1;34m[src/device/net.c:2391 virtio_net_statistic] virtio-net runtime tx_packets=579 tx_bytes=43441 rx_packets=87 rx_bytes=16426 tx_errors=0 rx_drops=0 arp=14/14 icmp=0/0 dhcp=2/2 dns=11/11 tcp_segments=83 tcp_replies=60 tcp_http_requests=19 tcp_http_head_requests=1 tcp_http_not_found=1 tcp_http_apt_requests=6 tcp_http_apt_deb_requests=1 tcp_http_large_requests=1 tcp_http_segmented_responses=1 tcp_http_response_segments=22 ctrl=7/0 ctrl_rx=4 ctrl_rx_extra=0 promisc=0 allmulti=0 alluni=0 nomulti=0 nouni=0 nobcast=0 ctrl_mac_table=2 ctrl_mac_addr=0 ctrl_vlan=0 vlan_active=0 vlan_last=0 vlan_last_cmd=0 ctrl_announce=1 announce_pending=0 announce_requested=1 mac_uni=0 mac_multi=1 mac=52:54:00:12:34:56 rx_pending=0[0m
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-python-source-real-final/nemu-ubuntu-full-focused/focused-make.log:[1;34m[src/device/disk.c:422 virtio_blk_statistic] virtio-blk async runtime submitted=14163 completed=14163 pending=0 done=0[0m
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-14-2026-06-14-nemu-full-tlb-python-source-real-final/nemu-ubuntu-full-focused/focused-make.log:[1;34m[src/device/net.c:2391 virtio_net_statistic] virtio-net runtime tx_packets=579 tx_bytes=43441 rx_packets=87 rx_bytes=16426 tx_errors=0 rx_drops=0 arp=14/14 icmp=0/0 dhcp=2/2 dns=11/11 tcp_segments=83 tcp_replies=60 tcp_http_requests=19 tcp_http_head_requests=1 tcp_http_not_found=1 tcp_http_apt_requests=6 tcp_http_apt_deb_requests=1 tcp_http_large_requests=1 tcp_http_segmented_responses=1 tcp_http_response_segments=22 ctrl=7/0 ctrl_rx=4 ctrl_rx_extra=0 promisc=0 allmulti=0 alluni=0 nomulti=0 nouni=0 nobcast=0 ctrl_mac_table=2 ctrl_mac_addr=0 ctrl_vlan=0 vlan_active=0 vlan_last=0 vlan_last_cmd=0 ctrl_announce=1 announce_pending=0 announce_requested=1 mac_uni=0 mac_multi=1 mac=52:54:00:12:34:56 rx_pending=0[0m
+FAIL focused gate command rc=2

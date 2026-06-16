@@ -16,6 +16,10 @@ from typing import Iterable, Sequence
 from .core import *
 from .queries import *
 
+_EVIDENCE_UNSAFE_TEXT_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+DB_FIRST_STRICT_LIVE_KINDS = {"memory", "memory-module"}
+DOCTOR_RAW_DRIFT_STATES = {"missing", "stale", "read_error"}
+
 
 def classify_drift(repo_root: Path, row: sqlite3.Row, max_bytes: int) -> str:
     path = repo_root / row["path"]
@@ -34,36 +38,83 @@ def classify_drift(repo_root: Path, row: sqlite3.Row, max_bytes: int) -> str:
     return row["index_status"]
 
 
+def doctor_visible_state(row: sqlite3.Row, raw_state: str) -> str:
+    if raw_state not in DOCTOR_RAW_DRIFT_STATES:
+        return raw_state
+    kind = row["kind"]
+    if is_strict_db_first_live_kind(kind):
+        return raw_state
+    if kind in DB_FIRST_KINDS:
+        return f"archived_{raw_state}"
+    return f"live_index_{raw_state}"
+
+
+def doctor_is_blocking_drift_state(state: str) -> bool:
+    return state in DOCTOR_RAW_DRIFT_STATES
+
+
+def doctor_is_nonblocking_drift_state(state: str) -> bool:
+    return state.startswith("archived_") or state.startswith("live_index_")
+
+
+def doctor_should_print_state(args: argparse.Namespace, state: str) -> bool:
+    if doctor_is_nonblocking_drift_state(state):
+        return bool(args.show_nonblocking_drift)
+    return True
+
+
+def doctor_should_print_samples(args: argparse.Namespace, state: str) -> bool:
+    if doctor_is_blocking_drift_state(state):
+        return True
+    if doctor_is_nonblocking_drift_state(state):
+        return bool(args.show_nonblocking_drift)
+    return bool(args.show_status_samples)
+
+
 def doctor(args: argparse.Namespace) -> int:
     repo_root = resolve_repo_path(args.repo_root)
     db_path = (repo_root / args.db).resolve()
     conn = open_db(db_path)
-    init_schema(conn)
+    has_fts5 = init_schema(conn)
     rows = conn.execute("SELECT * FROM files ORDER BY path").fetchall()
     counts: dict[str, int] = {}
     samples: dict[str, list[str]] = {}
     now = utc_now()
     with conn:
         for row in rows:
-            state = classify_drift(repo_root, row, args.max_bytes)
+            raw_state = classify_drift(repo_root, row, args.max_bytes)
+            state = doctor_visible_state(row, raw_state)
             counts[state] = counts.get(state, 0) + 1
             samples.setdefault(state, [])
             if len(samples[state]) < args.sample_limit:
                 samples[state].append(row["path"])
-            if args.write_status and state in {"missing", "stale", "read_error"}:
+            if args.write_status and raw_state in DOCTOR_RAW_DRIFT_STATES:
                 conn.execute(
                     "UPDATE files SET exists_flag=?, index_status=?, updated_at=? WHERE path=?",
-                    (0 if state == "missing" else 1, state, now, row["path"]),
+                    (0 if raw_state == "missing" else 1, raw_state, now, row["path"]),
                 )
         if args.write_status:
             record_event(conn, "doctor-write-status", {"counts": counts})
+    blocking_drift = sum(
+        count for state, count in counts.items() if doctor_is_blocking_drift_state(state)
+    )
+    nonblocking_drift = sum(
+        count for state, count in counts.items() if doctor_is_nonblocking_drift_state(state)
+    )
     print("doctor=github-index")
+    print(f"blocking_drift={blocking_drift}")
+    if args.show_nonblocking_drift:
+        print(f"nonblocking_drift={nonblocking_drift}")
     for status in sorted(counts):
+        if not doctor_should_print_state(args, status):
+            continue
         print(f"{status}={counts[status]}")
+        if not doctor_should_print_samples(args, status):
+            continue
         for sample in samples.get(status, []):
             print(f"  {sample}")
     conn.close()
-    if args.fail_on_drift and any(counts.get(key, 0) for key in ("missing", "stale", "read_error")):
+    if args.fail_on_drift and blocking_drift:
         return 1
     return 0
 
@@ -101,7 +152,7 @@ def list_dir(args: argparse.Namespace) -> int:
     repo_root = resolve_repo_path(args.repo_root)
     db_path = (repo_root / args.db).resolve()
     conn = open_db(db_path)
-    init_schema(conn)
+    has_fts5 = init_schema(conn)
     prefix = normalize_index_path(args.path, args.root)
     dirs, files = child_rows(conn, prefix)
     print(f"ls={prefix} dirs={len(dirs)} files={len(files)}")
@@ -431,8 +482,9 @@ def promote_documents(args: argparse.Namespace) -> int:
     has_fts5 = init_schema(conn)
     rows = select_live_document_rows(conn, args.path, document_kinds(args))
     rows = [row for row in rows if not is_db_backed_shim(row["path"], row["content"] or "")]
+    rows = [row for row in rows if row["kind"] in DB_FIRST_KINDS]
     if not rows:
-        print("FAIL promote found no indexed documents", file=sys.stderr)
+        print("FAIL promote found no retained memory/log documents", file=sys.stderr)
         conn.close()
         return 1
     now = utc_now()
@@ -488,6 +540,12 @@ def update_stored_document(args: argparse.Namespace) -> int:
         return 2
 
     item = indexed_file_from_content(rel_path, content)
+    if item.kind not in DB_FIRST_KINDS:
+        print(
+            f"FAIL update-stored {rel_path}: only memory/log kinds may be database-owned (kind={item.kind})",
+            file=sys.stderr,
+        )
+        return 2
     conn = open_db(db_path)
     has_fts5 = init_schema(conn)
     now = utc_now()
@@ -498,17 +556,20 @@ def update_stored_document(args: argparse.Namespace) -> int:
             "update-stored-document",
             {"path": rel_path, "size_bytes": item.size_bytes, "sha256": item.sha256},
         )
+    target = (repo_root / rel_path).resolve()
+    try:
+        ensure_inside_root(repo_root, target)
+    except ValueError as exc:
+        conn.close()
+        print(f"FAIL update-stored {rel_path}: {exc}", file=sys.stderr)
+        return 2
     if args.refresh_shim:
-        target = (repo_root / rel_path).resolve()
-        try:
-            ensure_inside_root(repo_root, target)
-        except ValueError as exc:
-            conn.close()
-            print(f"FAIL update-stored {rel_path}: {exc}", file=sys.stderr)
-            return 2
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(db_backed_shim(rel_path, args.backup_dir), encoding="utf-8")
-        refresh_one(conn, repo_root, db_path, rel_path, args.max_bytes)
+    else:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+    refresh_one(conn, repo_root, db_path, rel_path, args.max_bytes)
     conn.close()
     print(f"PASS update-stored {rel_path} bytes={item.size_bytes} chunks={len(build_file_chunks(rel_path, item.title, content))}")
     return 0
@@ -667,8 +728,9 @@ def migrate_to_db(args: argparse.Namespace) -> int:
     has_fts5 = init_schema(conn)
     rows = select_live_document_rows(conn, args.path, document_kinds(args))
     rows = [row for row in rows if not is_db_backed_shim(row["path"], row["content"] or "")]
+    rows = [row for row in rows if row["kind"] in DB_FIRST_KINDS]
     if not rows:
-        print("FAIL migrate found no indexed documents", file=sys.stderr)
+        print("FAIL migrate found no retained memory/log documents", file=sys.stderr)
         conn.close()
         return 1
     now = utc_now()
@@ -733,6 +795,8 @@ def archive_markdown_candidates(repo_root: Path, requested_paths: Sequence[str])
                 continue
             if rel_path in seen:
                 continue
+            if infer_kind(rel_path) not in DB_FIRST_KINDS:
+                continue
             seen.add(rel_path)
             candidates.append(path)
     return candidates
@@ -747,7 +811,7 @@ def archive_markdown_files(args: argparse.Namespace) -> int:
     backup_dir = resolve_backup_dir(repo_root, args.backup_dir)
     paths = archive_markdown_candidates(repo_root, args.path)
     if not paths:
-        print("FAIL archive-markdown found no Markdown files", file=sys.stderr)
+        print("FAIL archive-markdown found no retained memory/log Markdown files", file=sys.stderr)
         return 1
 
     rows: list[dict[str, object]] = []
@@ -786,23 +850,27 @@ def archive_markdown_files(args: argparse.Namespace) -> int:
         )
 
     shim_paths: list[str] = []
+    live_paths: list[str] = []
     for row in rows:
         rel_path = str(row["path"])
         target = (repo_root / rel_path).resolve()
         ensure_inside_root(repo_root, target)
-        target.write_text(db_backed_shim(rel_path, repo_path(backup_dir.relative_to(repo_root))), encoding="utf-8")
-        shim_paths.append(rel_path)
+        if args.write_shim:
+            target.write_text(db_backed_shim(rel_path, repo_path(backup_dir.relative_to(repo_root))), encoding="utf-8")
+            shim_paths.append(rel_path)
+        else:
+            live_paths.append(rel_path)
         refresh_one(conn, repo_root, db_path, rel_path, args.max_bytes)
     conn.close()
     print(
-        f"PASS archive-markdown stored_documents={len(rows)} shims={len(shim_paths)} "
+        f"PASS archive-markdown stored_documents={len(rows)} live_files={len(live_paths)} shims={len(shim_paths)} "
         f"skipped_shims={len(skipped_shims)} backup_dir={repo_path(backup_dir.relative_to(repo_root))} "
         f"manifest_entries={len(manifest['entries'])}"
     )
-    for rel_path in shim_paths[: args.limit]:
+    for rel_path in [*live_paths, *shim_paths][: args.limit]:
         print(f"  {rel_path}")
-    if len(shim_paths) > args.limit:
-        print(f"  ... {len(shim_paths) - args.limit} more")
+    if len(live_paths) + len(shim_paths) > args.limit:
+        print(f"  ... {len(live_paths) + len(shim_paths) - args.limit} more")
     return 0
 
 
@@ -901,6 +969,10 @@ def read_evidence_sample(path: Path, sample_bytes: int) -> dict[str, object]:
     }
 
 
+def sanitize_evidence_text(value: str) -> str:
+    return _EVIDENCE_UNSAFE_TEXT_RE.sub(" ", value)
+
+
 def evidence_markers(text: str) -> dict[str, int | list[str]]:
     markers: dict[str, int | list[str]] = {}
     for name, pattern in {
@@ -933,7 +1005,7 @@ def evidence_summary(kind: str, size_bytes: int, line_count: int, markers: dict[
         if isinstance(values, list):
             marker_bits.append("symbolic=" + ",".join(str(value) for value in values[:5]))
     marker_text = "; ".join(marker_bits) if marker_bits else "markers=<none>"
-    tail_text = compact_text(tail, 260)
+    tail_text = compact_text(sanitize_evidence_text(tail), 260)
     return compact_text(
         f"{kind} evidence; size={size_bytes} bytes; lines={line_count}; {marker_text}; tail={tail_text}",
         700,
@@ -987,9 +1059,11 @@ def build_evidence_asset(
     fields = task_run_report_fields(repo_root, conn, run_id)
     stat = path.stat()
     sample = read_evidence_sample(path, sample_bytes)
-    head = compact_text(str(sample["head_text"]), excerpt_chars)
-    tail = compact_text(str(sample["tail_text"]), excerpt_chars)
-    marker_source = f"{sample['head_text']}\n{sample['tail_text']}"
+    head_text = sanitize_evidence_text(str(sample["head_text"]))
+    tail_text = sanitize_evidence_text(str(sample["tail_text"]))
+    head = compact_text(head_text, excerpt_chars)
+    tail = compact_text(tail_text, excerpt_chars)
+    marker_source = f"{head_text}\n{tail_text}"
     markers = evidence_markers(marker_source)
     kind = evidence_asset_kind(path)
     summary = evidence_summary(kind, stat.st_size, int(sample["line_count"]), markers, tail)
@@ -1068,7 +1142,7 @@ def index_evidence_assets(args: argparse.Namespace) -> int:
         print("FAIL index-evidence found no task-run evidence assets", file=sys.stderr)
         return 1
     conn = open_db(db_path)
-    init_schema(conn)
+    has_fts5 = init_schema(conn)
     indexed_at = utc_now()
     assets = [
         build_evidence_asset(repo_root, conn, path, indexed_at, args.sample_bytes, args.excerpt_chars)
@@ -1121,12 +1195,55 @@ def index_evidence_assets(args: argparse.Namespace) -> int:
             {"assets": len(assets), "runs": run_ids, "write_index": bool(args.write_index)},
         )
     index_docs: list[str] = []
+    index_doc_statuses: dict[str, str] = {}
+    stored_index_docs: list[str] = []
+    backup_entries_written = 0
     if args.write_index:
         assets_by_run: dict[str, list[dict[str, object]]] = {}
         for asset in assets:
             assets_by_run.setdefault(str(asset["run_id"]), []).append(asset)
+        stored_items: list[IndexedFile] = []
         for run_id, run_assets in sorted(assets_by_run.items()):
-            index_docs.append(write_evidence_index_markdown(repo_root, run_id, run_assets))
+            index_doc = write_evidence_index_markdown(repo_root, run_id, run_assets)
+            index_docs.append(index_doc)
+            index_content = (repo_root / index_doc).read_text(encoding="utf-8")
+            index_item = indexed_file_from_content(index_doc, index_content)
+            if index_item.kind in DB_FIRST_KINDS:
+                stored_items.append(index_item)
+            index_doc_statuses[index_doc] = refresh_one(
+                conn,
+                repo_root,
+                db_path,
+                index_doc,
+                DEFAULT_MAX_BYTES,
+            )
+        if stored_items:
+            now = utc_now()
+            with conn:
+                for item in stored_items:
+                    # evidence-index.md 是 task-run 摘要文档，必须跟随 retained DB/backup，
+                    # 否则刚生成的证据索引会在 DB-first audit 中变成当前缺口。
+                    upsert_stored_document(conn, item, has_fts5, now)
+                record_event(
+                    conn,
+                    "store-evidence-index-documents",
+                    {"count": len(stored_items), "paths": [item.path for item in stored_items]},
+                )
+            backup_dir = resolve_backup_dir(repo_root, args.backup_dir)
+            manifest = write_backup_files(
+                repo_root,
+                backup_dir,
+                [
+                    {
+                        "path": item.path,
+                        "kind": item.kind,
+                        "content": item.content,
+                    }
+                    for item in stored_items
+                ],
+            )
+            stored_index_docs = [item.path for item in stored_items]
+            backup_entries_written = len(manifest.get("entries", []))
     conn.close()
     if args.json:
         print(
@@ -1137,6 +1254,10 @@ def index_evidence_assets(args: argparse.Namespace) -> int:
                     "assets": len(assets),
                     "runs": run_ids,
                     "index_docs": index_docs,
+                    "index_doc_statuses": index_doc_statuses,
+                    "stored_index_docs": stored_index_docs,
+                    "backup_dir": args.backup_dir,
+                    "backup_entries": backup_entries_written,
                 },
                 ensure_ascii=False,
                 indent=2,
@@ -1145,8 +1266,12 @@ def index_evidence_assets(args: argparse.Namespace) -> int:
     else:
         print(
             f"PASS index-evidence assets={len(assets)} runs={len(run_ids)} "
-            f"index_docs={len(index_docs)}"
+            f"index_docs={len(index_docs)} stored_index_docs={len(stored_index_docs)}"
         )
+        if stored_index_docs:
+            print(f"  evidence-index backup_dir={args.backup_dir} entries={backup_entries_written}")
+        for path, status in sorted(index_doc_statuses.items()):
+            print(f"  {path} [index-doc] refreshed status={status}")
         for asset in sorted(assets, key=lambda item: str(item["path"]))[: args.limit]:
             print(f"  {asset['path']} [{asset['kind']}] {asset['summary']}")
         if len(assets) > args.limit:
@@ -1160,7 +1285,7 @@ def materialize_documents(args: argparse.Namespace) -> int:
     dest_root = (repo_root / args.output_root).resolve()
     ensure_inside_root(repo_root, dest_root)
     conn = open_db(db_path)
-    init_schema(conn)
+    has_fts5 = init_schema(conn)
     paths = [normalize_index_path(path) for path in args.path]
     if paths:
         placeholders = ",".join("?" for _ in paths)
@@ -1179,8 +1304,33 @@ def materialize_documents(args: argparse.Namespace) -> int:
         ensure_inside_root(dest_root, target)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(row["content"], encoding="utf-8")
+        if dest_root == repo_root:
+            refresh_one(conn, repo_root, db_path, row["path"], args.max_bytes)
+    pruned: list[str] = []
+    if args.prune_non_retained:
+        if paths:
+            prune_rows = [row for row in rows if row["kind"] not in DB_FIRST_KINDS]
+        else:
+            prune_rows = conn.execute(
+                "SELECT path, kind FROM db_documents ORDER BY path"
+            ).fetchall()
+            prune_rows = [row for row in prune_rows if row["kind"] not in DB_FIRST_KINDS]
+        with conn:
+            for row in prune_rows:
+                delete_document_chunks_for_path(conn, row["path"], has_fts5)
+                conn.execute("DELETE FROM db_documents WHERE path = ?", (row["path"],))
+                pruned.append(row["path"])
+            if pruned:
+                record_event(
+                    conn,
+                    "materialize-prune-non-retained",
+                    {"count": len(pruned), "paths": pruned[:20]},
+                )
     conn.close()
-    print(f"PASS materialize documents={len(rows)} output_root={repo_path(dest_root.relative_to(repo_root))}")
+    print(
+        f"PASS materialize documents={len(rows)} output_root={repo_path(dest_root.relative_to(repo_root))} "
+        f"pruned_non_retained={len(pruned)}"
+    )
     return 0
 
 
@@ -1293,10 +1443,22 @@ def rehydrate_stored_documents(args: argparse.Namespace) -> int:
         return 1
 
     wanted = {normalize_index_path(path) for path in args.path}
-    selected_paths = sorted(wanted or backup_entries.keys())
+    if wanted:
+        rejected = sorted(path for path in wanted if infer_kind(path) not in DB_FIRST_KINDS)
+        if rejected:
+            print(f"FAIL rehydrate non-retained requested paths: {rejected[: args.limit]}", file=sys.stderr)
+            return 2
+        selected_paths = sorted(wanted)
+    else:
+        selected_paths = sorted(
+            path for path in backup_entries.keys() if infer_kind(path) in DB_FIRST_KINDS
+        )
     missing = sorted(path for path in selected_paths if path not in backup_entries)
     if missing:
         print(f"FAIL rehydrate missing backup entries: {missing[: args.limit]}", file=sys.stderr)
+        return 1
+    if not selected_paths:
+        print("FAIL rehydrate found no retained memory/log backup entries", file=sys.stderr)
         return 1
 
     items: list[IndexedFile] = []
@@ -1368,30 +1530,88 @@ def select_db_first_candidate_rows(conn: sqlite3.Connection, kinds: Sequence[str
     ).fetchall()
 
 
+def read_live_db_first_candidates(
+    repo_root: Path,
+    indexed_rows: Sequence[sqlite3.Row],
+) -> tuple[dict[str, dict[str, str]], list[str]]:
+    candidates: dict[str, dict[str, str]] = {}
+    read_errors: list[str] = []
+    for row in indexed_rows:
+        rel_path = row["path"]
+        target = (repo_root / rel_path).resolve()
+        try:
+            ensure_inside_root(repo_root, target)
+        except ValueError:
+            read_errors.append(rel_path)
+            continue
+        if not target.is_file():
+            continue
+        try:
+            content = target.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            read_errors.append(rel_path)
+            continue
+        candidates[rel_path] = {"path": rel_path, "kind": row["kind"], "content": content}
+    return candidates, read_errors
+
+
+def is_strict_db_first_live_kind(kind: str) -> bool:
+    return kind in DB_FIRST_STRICT_LIVE_KINDS
+
+
 def audit_db_first(args: argparse.Namespace) -> int:
     repo_root = resolve_repo_path(args.repo_root)
     db_path = (repo_root / args.db).resolve()
     conn = open_db(db_path)
     init_schema(conn)
     kinds = document_kinds(args)
-    candidates = select_db_first_candidate_rows(conn, kinds)
+    indexed_candidates = select_db_first_candidate_rows(conn, kinds)
+    candidate_by_path, live_read_errors = read_live_db_first_candidates(repo_root, indexed_candidates)
+    candidates = list(candidate_by_path.values())
     placeholders = ",".join("?" for _ in kinds)
     stored_rows = conn.execute(
-        f"SELECT path, kind FROM db_documents WHERE kind IN ({placeholders}) ORDER BY path",
+        f"SELECT path, kind, sha256, content FROM db_documents WHERE kind IN ({placeholders}) ORDER BY path",
         list(kinds),
     ).fetchall()
-    stored = {row["path"]: row["kind"] for row in stored_rows}
+    stored = {row["path"]: row for row in stored_rows}
+    unexpected_stored_rows = conn.execute(
+        f"SELECT path, kind FROM db_documents WHERE kind NOT IN ({placeholders}) ORDER BY path",
+        list(kinds),
+    ).fetchall()
+    unexpected_stored = [f"{row['path']} [{row['kind']}]" for row in unexpected_stored_rows]
     backup_dirs = resolve_audit_backup_dirs(repo_root, args.backup_dir)
     manifests, backup_entries = load_backup_manifests(backup_dirs)
 
-    candidate_paths = {row["path"] for row in candidates}
+    candidate_paths = set(candidate_by_path)
     missing_stored = sorted(path for path in candidate_paths if path not in stored)
-    missing_live = sorted(path for path in stored if path not in candidate_paths)
-    not_shim = sorted(
-        row["path"]
-        for row in candidates
-        if row["path"] in stored and not is_db_backed_shim(row["path"], row["content"] or "")
-    )
+    missing_live: list[str] = []
+    archived_stored_only: list[str] = []
+    for path, row in stored.items():
+        if path in candidate_paths:
+            continue
+        if is_strict_db_first_live_kind(row["kind"]):
+            missing_live.append(path)
+        else:
+            archived_stored_only.append(path)
+    live_materialized = 0
+    db_backed_shims = 0
+    content_mismatch: list[str] = []
+    live_content_drift: list[str] = []
+    for row in candidates:
+        path = row["path"]
+        if path not in stored:
+            continue
+        content = row["content"] or ""
+        if is_db_backed_shim(path, content):
+            db_backed_shims += 1
+            continue
+        if sha256_bytes(content.encode("utf-8")) != stored[path]["sha256"]:
+            if is_strict_db_first_live_kind(row["kind"]):
+                content_mismatch.append(path)
+            else:
+                live_content_drift.append(path)
+        else:
+            live_materialized += 1
     missing_backup = sorted(path for path in stored if path not in backup_entries)
     backup_hash_mismatch: list[str] = []
     for path, entry in backup_entries.items():
@@ -1408,37 +1628,73 @@ def audit_db_first(args: argparse.Namespace) -> int:
             backup_hash_mismatch.append(path)
     missing_backup = sorted(set(missing_backup))
     backup_hash_mismatch = sorted(set(backup_hash_mismatch))
-    ok = not (missing_stored or missing_live or not_shim or missing_backup or backup_hash_mismatch or not manifests)
+    ok = not (
+        unexpected_stored
+        or missing_stored
+        or missing_live
+        or content_mismatch
+        or live_read_errors
+        or missing_backup
+        or backup_hash_mismatch
+        or not manifests
+    )
     payload = {
         "ok": ok,
         "db": str(db_path),
         "kinds": kinds,
         "active_candidates": len(candidates),
+        "indexed_candidates": len(indexed_candidates),
         "stored_documents": len(stored),
-        "db_backed_shims": len(candidates) - len(missing_stored) - len(not_shim),
+        "live_materialized": live_materialized,
+        "db_backed_shims": db_backed_shims,
         "backup_dir": args.backup_dir or DEFAULT_DB_BACKUP_ROOT,
         "backup_dirs": [repo_path(path.relative_to(repo_root)) for path in backup_dirs],
         "backup_entries": len(backup_entries),
+        "unexpected_stored": unexpected_stored,
         "missing_stored": missing_stored,
         "missing_live": missing_live,
-        "not_db_backed_shim": not_shim,
+        "archived_stored_only": archived_stored_only,
+        "content_mismatch": content_mismatch,
+        "live_content_drift": live_content_drift,
+        "live_read_errors": sorted(live_read_errors),
         "missing_backup": missing_backup,
         "backup_hash_mismatch": backup_hash_mismatch,
+        "strict_live_kinds": sorted(DB_FIRST_STRICT_LIVE_KINDS),
     }
     conn.close()
     if args.json:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
     else:
         status = "PASS" if ok else "FAIL"
+        nonblocking_db_first_drift = len(archived_stored_only) + len(live_content_drift)
         print(
             f"{status} db-first-audit candidates={payload['active_candidates']} "
-            f"stored={payload['stored_documents']} shims={payload['db_backed_shims']} "
+            f"stored={payload['stored_documents']} materialized={payload['live_materialized']} "
+            f"shims={payload['db_backed_shims']} "
             f"backup_entries={payload['backup_entries']} backup_dir={payload['backup_dir']}"
         )
+        if nonblocking_db_first_drift:
+            if args.show_nonblocking_drift:
+                print(f"nonblocking_db_first_drift={nonblocking_db_first_drift}")
+                print(f"nonblocking_archived_stored_only={len(archived_stored_only)}")
+                print(f"nonblocking_live_drift={len(live_content_drift)}")
+                for key, label in (
+                    ("archived_stored_only", "nonblocking_archived_stored_only"),
+                    ("live_content_drift", "nonblocking_live_drift"),
+                ):
+                    values = payload[key]
+                    if values:
+                        print(f"[{label}]")
+                        for value in values[: args.limit]:
+                            print(f"  {value}")
+                        if len(values) > args.limit:
+                            print(f"  ... {len(values) - args.limit} more")
         for key in (
+            "unexpected_stored",
             "missing_stored",
             "missing_live",
-            "not_db_backed_shim",
+            "content_mismatch",
+            "live_read_errors",
             "missing_backup",
             "backup_hash_mismatch",
         ):
@@ -1476,12 +1732,13 @@ def audit_markdown_coverage(args: argparse.Namespace) -> int:
         ORDER BY f.path
         """
     ).fetchall()
-    stored = {row["path"] for row in conn.execute("SELECT path FROM db_documents")}
+    stored = {row["path"]: row["kind"] for row in conn.execute("SELECT path, kind FROM db_documents")}
     by_kind: dict[str, int] = {}
     evidence_paths: list[str] = []
     live_rule_paths: list[str] = []
     unowned_non_evidence: list[str] = []
     stored_not_shim: list[str] = []
+    stored_unexpected: list[str] = []
     db_owned = 0
     db_owned_non_evidence = 0
     db_shims = 0
@@ -1493,6 +1750,8 @@ def audit_markdown_coverage(args: argparse.Namespace) -> int:
             db_owned += 1
             if kind not in EVIDENCE_MARKDOWN_KINDS:
                 db_owned_non_evidence += 1
+            if stored[path] not in DB_FIRST_KINDS:
+                stored_unexpected.append(path)
             if is_db_backed_shim(path, row["content"] or ""):
                 db_shims += 1
             else:
@@ -1504,7 +1763,7 @@ def audit_markdown_coverage(args: argparse.Namespace) -> int:
             live_rule_paths.append(path)
         else:
             unowned_non_evidence.append(path)
-    ok = not unowned_non_evidence and not stored_not_shim
+    ok = not stored_unexpected
     if args.fail_on_live_evidence and evidence_paths:
         ok = False
     payload = {
@@ -1520,6 +1779,7 @@ def audit_markdown_coverage(args: argparse.Namespace) -> int:
         "evidence_kinds": sorted(EVIDENCE_MARKDOWN_KINDS),
         "live_rule_kinds": sorted(LIVE_RULE_MARKDOWN_KINDS),
         "unowned_non_evidence_markdown": unowned_non_evidence,
+        "stored_unexpected_markdown": stored_unexpected,
         "stored_not_db_backed_shim": stored_not_shim,
         "live_evidence_samples": evidence_paths[: args.limit],
         "live_rule_samples": live_rule_paths[: args.limit],
@@ -1535,18 +1795,12 @@ def audit_markdown_coverage(args: argparse.Namespace) -> int:
             f"shims={payload['db_backed_shims']} live_evidence={payload['live_evidence_markdown']} "
             f"live_rules={payload['live_rule_markdown']}"
         )
-        if unowned_non_evidence:
-            print("[unowned_non_evidence_markdown]")
-            for path in unowned_non_evidence[: args.limit]:
+        if stored_unexpected:
+            print("[stored_unexpected_markdown]")
+            for path in stored_unexpected[: args.limit]:
                 print(f"  {path}")
-            if len(unowned_non_evidence) > args.limit:
-                print(f"  ... {len(unowned_non_evidence) - args.limit} more")
-        if stored_not_shim:
-            print("[stored_not_db_backed_shim]")
-            for path in stored_not_shim[: args.limit]:
-                print(f"  {path}")
-            if len(stored_not_shim) > args.limit:
-                print(f"  ... {len(stored_not_shim) - args.limit} more")
+            if len(stored_unexpected) > args.limit:
+                print(f"  ... {len(stored_unexpected) - args.limit} more")
         if args.show_evidence and evidence_paths:
             print("[live_evidence_markdown]")
             for path in evidence_paths[: args.limit]:
@@ -1669,6 +1923,21 @@ def load_policy(repo_root: Path, path: str) -> tuple[dict[str, object], Path]:
         data = json.load(fh)
     if not isinstance(data, dict):
         raise ValueError("policy root must be a JSON object")
+
+    shim_target = str(data.get("shim_for", "")).strip()
+    if shim_target:
+        target_path = (repo_root / shim_target).resolve()
+        ensure_inside_root(repo_root, target_path)
+        if not target_path.is_file():
+            raise FileNotFoundError(f"contract shim target missing: {shim_target}")
+        if target_path == policy_path:
+            raise ValueError(f"contract shim points to itself: {path}")
+        with target_path.open("r", encoding="utf-8") as fh:
+            target_data = json.load(fh)
+        if not isinstance(target_data, dict):
+            raise ValueError("contract shim target root must be a JSON object")
+        return target_data, target_path
+
     return data, policy_path
 
 
@@ -1943,10 +2212,16 @@ def audit_agent_tool_policy(
         errors.append("agent_tools.allowed_tools must not be empty")
 
     rows = conn.execute(
-        "SELECT path, content FROM db_documents WHERE kind = 'agent' ORDER BY path"
+        """
+        SELECT f.path, t.content
+        FROM files f
+        JOIN file_text t ON t.path = f.path
+        WHERE f.kind = 'agent' AND f.index_status = 'indexed'
+        ORDER BY f.path
+        """
     ).fetchall()
     if not rows:
-        errors.append("no stored agent documents found")
+        errors.append("no live indexed agent documents found")
         return results, errors
 
     for row in rows:
@@ -2363,7 +2638,7 @@ def validate_branch_health_dashboard_payload(
     if isinstance(traceability, dict):
         if str(traceability.get("review_routing", "")) != routing_rel:
             errors.append("policy traceability.review_routing does not match dashboard")
-        expected_dashboard = ".github/agent-env-branch-health.json"
+        expected_dashboard = ".github/ai-env/contracts/agent-env-branch-health.json"
         if str(traceability.get("branch_health_dashboard", "")) != expected_dashboard:
             errors.append("policy traceability.branch_health_dashboard missing or mismatched")
     else:
@@ -2373,7 +2648,7 @@ def validate_branch_health_dashboard_payload(
     if isinstance(branch_health, dict):
         if str(branch_health.get("review_routing", "")) != routing_rel:
             errors.append("policy branch_health.review_routing does not match dashboard")
-        if str(branch_health.get("dashboard", "")) != ".github/agent-env-branch-health.json":
+        if str(branch_health.get("dashboard", "")) != ".github/ai-env/contracts/agent-env-branch-health.json":
             errors.append("policy branch_health.dashboard missing or mismatched")
         if str(branch_health.get("report_command", "")) != "python3 scripts/github_index_db.py branch-health-report":
             errors.append("policy branch_health.report_command missing or mismatched")
@@ -2579,7 +2854,7 @@ def validate_delivery_contract(
             errors.append(f"package script missing: {package_script}")
         else:
             script_text = script_path.read_text(encoding="utf-8")
-            for token in ("PACKAGE_ROOT", "materialize", "PACKAGE_FILELIST.txt", "ysyx-ai-dev-env-commercial"):
+            for token in ("PACKAGE_ROOT", "copy_file", "sanitize_package_text", "PACKAGE_FILELIST.txt", "ysyx-ai-dev-env-commercial"):
                 if token not in script_text:
                     errors.append(f"package script missing token: {token}")
     if package_root and not (repo_root / package_root).is_dir():
@@ -2632,8 +2907,8 @@ def validate_delivery_contract(
             for entry in (
                 "README.md",
                 "PACKAGING_MANIFEST.md",
-                ".github/agent-env-delivery.json",
-                ".github/agent-env-policy.json",
+                ".github/ai-env/contracts/agent-env-delivery.json",
+                ".github/ai-env/contracts/agent-env-policy.json",
                 "scripts/agent-maintain.sh",
                 "scripts/github_index_db.py",
             ):
@@ -3410,7 +3685,7 @@ def validate_state_traceability_contract(
 
     state_machine = policy.get("state_machine", {})
     if isinstance(state_machine, dict):
-        if str(state_machine.get("contract", "")) != ".github/agent-env-state-traceability.json":
+        if str(state_machine.get("contract", "")) != ".github/ai-env/contracts/agent-env-state-traceability.json":
             errors.append("policy state_machine.contract missing or mismatched")
         if str(state_machine.get("audit_command", "")) != "python3 scripts/github_index_db.py state-audit":
             errors.append("policy state_machine.audit_command missing or mismatched")

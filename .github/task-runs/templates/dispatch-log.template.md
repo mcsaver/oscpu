@@ -1,8 +1,27 @@
-# DB-backed .github/task-runs/templates/dispatch-log.template.md
+# Dispatch Log
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/task-runs/templates/dispatch-log.template.md`。
+## 基本信息
 
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/templates/dispatch-log.template.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/task-runs/templates/dispatch-log.template.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/templates/dispatch-log.template.md`
+- `task_id`:
+- `task_slug`:
+- `graph_template`:
+- `log_policy`: `append-only`
+
+## 记录格式
+
+每次节点派发、状态变化、失败恢复、handoff 或证据补充时，追加一个条目。
+
+---
+
+### [YYYY-MM-DD HH:MM] `node_id` - `status`
+
+- `owner_agent`:
+- `trigger`:
+- `depends_on`:
+- `inputs`:
+- `action`:
+- `outputs`:
+- `evidence`:
+- `handoff_to`:
+- `next_step`:
+- `notes`:

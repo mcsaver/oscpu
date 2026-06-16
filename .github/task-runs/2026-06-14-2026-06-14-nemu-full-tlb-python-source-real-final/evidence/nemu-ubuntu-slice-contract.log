@@ -269,7 +269,7 @@ PASS net.c tcp_http_apt_deb_requests
 PASS net.c tcp_http_large_requests
 PASS net.c tcp_http_segmented_responses
 PASS net.c tcp_http_response_segments
-PASS net.c HEAD 
+PASS net.c HEAD
 PASS net.c 404 Not Found
 PASS net.c NEMU_HTTP_LARGE_4096
 PASS net.c /nemu-large

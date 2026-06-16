@@ -28,6 +28,7 @@
 #include <netinet/in.h>
 
 static int gdbstub_port = 0;
+bool gdbstub_runtime_enabled = false;
 static int gdbstub_client_fd = -1;
 // no-ack 是单个 GDB remote 连接的协商状态，不能跨连接继承。
 static bool gdbstub_no_ack_mode = false;
@@ -51,6 +52,7 @@ static GdbstubBreakpoint gdbstub_breakpoints[GDBSTUB_MAX_BREAKPOINTS];
 void gdbstub_set_port(int port) {
   Assert(port > 0 && port <= 65535, "invalid --gdbstub port: %d", port);
   gdbstub_port = port;
+  gdbstub_runtime_enabled = true;
 }
 
 bool gdbstub_is_enabled(void) {

@@ -1,8 +1,9 @@
-# DB-backed .github/task-runs/2026-05-30-rv64-linux-handoff/dispatch-log.md
+# Dispatch Log
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/task-runs/2026-05-30-rv64-linux-handoff/dispatch-log.md`。
-
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/2026-05-30-rv64-linux-handoff/dispatch-log.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/task-runs/2026-05-30-rv64-linux-handoff/dispatch-log.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/2026-05-30-rv64-linux-handoff/dispatch-log.md`
+- 复核当前缺口，确认多镜像 loader 已有，下一块是 Linux boot protocol 的 `a0=hartid`、`a1=DTB paddr` handoff。
+- 新增 `linux-handoff.c`，用 M-mode firmware `mret` 到 S-mode payload，并传入 hartid/DTB 指针。
+- 在 payload 中解析 fake FDT big-endian header，并用测试 SBI `ecall` 回 M-mode。
+- M-mode trap handler 记录 `mcause/a0/a1/a7`，payload 验证 ecall cause 为 S-mode。
+- 串行运行 `linux-handoff` 单测，确认 PASS。
+- 串行合跑 `linux-handoff sbi-base-console counteren-time sbi-timer`，确认四条 Linux/SBI early path smoke 互不破坏。
+- 更新 memory 与 task-run，记录 handoff 能力和真实 Linux 启动剩余缺口。

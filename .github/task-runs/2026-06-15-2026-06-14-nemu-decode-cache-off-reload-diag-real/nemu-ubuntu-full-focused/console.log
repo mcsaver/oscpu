@@ -1,0 +1,707 @@
+
+OpenSBI v1.8
+   ____                    _____ ____ _____
+  / __ \                  / ____|  _ \_   _|
+ | |  | |_ __   ___ _ __ | (___ | |_) || |
+ | |  | | '_ \ / _ \ '_ \ \___ \|  _ < | |
+ | |__| | |_) |  __/ | | |____) | |_) || |_
+  \____/| .__/ \___|_| |_|_____/|____/_____|
+        | |
+        |_|
+
+Platform Name               : YSYX NPC RV64
+Platform Features           : medeleg
+Platform HART Count         : 1
+Platform HART Protection    : pmp
+Platform IPI Device         : aclint-mswi
+Platform Timer Device       : aclint-mtimer @ 10000000Hz
+Platform Console Device     : uart8250
+Platform HSM Device         : ---
+Platform PMU Device         : ---
+Platform Reboot Device      : syscon-reboot
+Platform Shutdown Device    : syscon-poweroff
+Platform Suspend Device     : ---
+Platform CPPC Device        : ---
+Firmware Base               : 0x80000000
+Firmware Size               : 321 KB
+Firmware RW Offset          : 0x40000
+Firmware RW Size            : 65 KB
+Firmware Heap Offset        : 0x47000
+Firmware Heap Size          : 37 KB (total), 0 KB (reserved), 10 KB (used), 25 KB (free)
+Firmware Scratch Size       : 4096 B (total), 408 B (used), 3688 B (free)
+Runtime SBI Version         : 3.0
+Standard SBI Extensions     : time,rfnc,ipi,base,hsm,srst,dbcn,fwft,legacy,sse
+Experimental SBI Extensions : none
+
+Domain0 Name                : root
+Domain0 Boot HART           : 0
+Domain0 HARTs               : 0*
+Domain0 Region00            : 0x0000000080040000-0x000000008005ffff M: (F,R,W) S/U: ()
+Domain0 Region01            : 0x0000000080000000-0x000000008003ffff M: (F,R,X) S/U: ()
+Domain0 Region02            : 0x0000000000100000-0x0000000000100fff M: (I,R,W) S/U: (R,W)
+Domain0 Region03            : 0x0000000010000000-0x0000000010000fff M: (I,R,W) S/U: (R,W)
+Domain0 Region04            : 0x0000000002000000-0x000000000200ffff M: (I,R,W) S/U: ()
+Domain0 Region05            : 0x000000000c000000-0x000000000fffffff M: (I,R,W) S/U: (R,W)
+Domain0 Region06            : 0x0000000000000000-0xffffffffffffffff M: () S/U: (R,W,X)
+Domain0 Next Address        : 0x0000000080200000
+Domain0 Next Arg1           : 0x0000000082200000
+Domain0 Next Mode           : S-mode
+Domain0 SysReset            : yes
+Domain0 SysSuspend          : yes
+
+Boot HART ID                : 0
+Boot HART Domain            : root
+Boot HART Priv Version      : v1.11
+Boot HART Base ISA          : rv64imafdc
+Boot HART ISA Extensions    : zicntr
+Boot HART PMP Count         : 16
+Boot HART PMP Granularity   : 2 bits
+Boot HART PMP Address Bits  : 54
+Boot HART MHPM Info         : 0 (0x00000000)
+Boot HART Debug Triggers    : 0 triggers
+Boot HART MIDELEG           : 0x0000000000000222
+Boot HART MEDELEG           : 0x000000000004b109
+[    0.000000] Linux version 6.6.0 (lyg@lygdebug) (riscv64-linux-gnu-gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, GNU ld (GNU Binutils for Ubuntu) 2.42) #19 Mon Jun  8 11:07:33 CST 2026
+[    0.000000] random: crng init done
+[    0.000000] Machine model: YSYX NPC RV64
+[    0.000000] SBI specification v3.0 detected
+[    0.000000] SBI implementation ID=0x1 Version=0x10008
+[    0.000000] SBI TIME extension detected
+[    0.000000] SBI IPI extension detected
+[    0.000000] SBI RFENCE extension detected
+[    0.000000] SBI SRST extension detected
+[    0.000000] efi: UEFI not found.
+[    0.000000] OF: reserved mem: 0x0000000080000000..0x000000008003ffff (256 KiB) nomap non-reusable mmode_resv1@80000000
+[    0.000000] OF: reserved mem: 0x0000000080040000..0x000000008005ffff (128 KiB) nomap non-reusable mmode_resv0@80040000
+[    0.000000] Zone ranges:
+[    0.000000]   DMA32    [mem 0x0000000080000000-0x00000000bfffffff]
+[    0.000000]   Normal   empty
+[    0.000000] Movable zone start for each node
+[    0.000000] Early memory node ranges
+[    0.000000]   node   0: [mem 0x0000000080000000-0x000000008005ffff]
+[    0.000000]   node   0: [mem 0x0000000080060000-0x00000000bfffffff]
+[    0.000000] Initmem setup node 0 [mem 0x0000000080000000-0x00000000bfffffff]
+[    0.000000] riscv: base ISA extensions acdfim
+[    0.000000] riscv: ELF capabilities acdfim
+[    0.000000] Kernel command line: console=ttyS0,115200n8 root=/dev/vda rw init=/lib/systemd/systemd systemd.default_timeout_start_sec=300s
+[    0.000000] Dentry cache hash table entries: 131072 (order: 8, 1048576 bytes, linear)
+[    0.000000] Inode-cache hash table entries: 65536 (order: 7, 524288 bytes, linear)
+[    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: 258048
+[    0.000000] mem auto-init: stack:off, heap alloc:off, heap free:off
+[    0.000000] Memory: 997392K/1048576K available (4284K kernel code, 4800K rwdata, 2048K rodata, 2110K init, 349K bss, 51184K reserved, 0K cma-reserved)
+[    0.000000] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
+[    0.000000] NR_IRQS: 64, nr_irqs: 64, preallocated irqs: 0
+[    0.000000] riscv-intc: 64 local interrupts mapped
+[    0.000000] plic: interrupt-controller@c000000: mapped 32 interrupts with 1 handlers for 2 contexts.
+[    0.000000] clocksource: riscv_clocksource: mask: 0xffffffffffffffff max_cycles: 0x24e6a1710, max_idle_ns: 440795202120 ns
+[    0.000018] sched_clock: 64 bits at 10MHz, resolution 100ns, wraps every 4398046511100ns
+[    0.004833] Calibrating delay loop (skipped), value calculated using timer frequency.. 20.00 BogoMIPS (lpj=40000)
+[    0.006031] pid_max: default: 32768 minimum: 301
+[    0.008140] LSM: initializing lsm=capability,integrity
+[    0.012385] Mount-cache hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[    0.013017] Mountpoint-cache hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[    0.053285] RCU Tasks Trace: Setting shift to 0 and lim to 1 rcu_task_cb_adjust=1.
+[    0.056056] riscv: ELF compat mode unsupported
+[    0.056554] ASID allocator using 16 bits (65536 entries)
+[    0.060906] EFI services will not be available.
+[    0.071160] devtmpfs: initialized
+[    0.124242] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 7645041785100000 ns
+[    0.124729] futex hash table entries: 256 (order: 1, 12288 bytes, linear)
+[    0.136779] NET: Registered PF_NETLINK/PF_ROUTE protocol family
+[    0.142958] DMA: preallocated 128 KiB GFP_KERNEL pool for atomic allocations
+[    0.143996] DMA: preallocated 128 KiB GFP_KERNEL|GFP_DMA32 pool for atomic allocations
+[    0.289863] clocksource: Switched to clocksource riscv_clocksource
+[    0.345572] NET: Registered PF_INET protocol family
+[    0.350721] IP idents hash table entries: 16384 (order: 5, 131072 bytes, linear)
+[    0.467653] tcp_listen_portaddr_hash hash table entries: 512 (order: 2, 16384 bytes, linear)
+[    0.468927] Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+[    0.469448] TCP established hash table entries: 8192 (order: 4, 65536 bytes, linear)
+[    0.475738] TCP bind hash table entries: 8192 (order: 7, 524288 bytes, linear)
+[    0.504995] TCP: Hash tables configured (established 8192 bind 8192)
+[    0.508714] UDP hash table entries: 512 (order: 3, 49152 bytes, linear)
+[    0.511958] UDP-Lite hash table entries: 512 (order: 3, 49152 bytes, linear)
+[    0.517373] NET: Registered PF_UNIX/PF_LOCAL protocol family
+[    0.546200] workingset: timestamp_bits=46 max_order=18 bucket_order=0
+[    0.567096] io scheduler mq-deadline registered
+[    2.480219] Serial: 8250/16550 driver, 4 ports, IRQ sharing disabled
+[    2.554630] printk: console [ttyS0] disabled
+[    2.566416] 10000000.serial: ttyS0 at MMIO 0x10000000 (irq = 2, base_baud = 115200) is a 16550A
+[    2.567180] printk: console [ttyS0] enabled
+[    2.804263] loop: module loaded
+[    2.807046] virtio_blk virtio0: 1/0/0 default/read/poll queues
+[    2.814440] virtio_blk virtio0: [vda] 16777216 512-byte logical blocks (8.59 GB/8.00 GiB)
+[    2.886578] goldfish_rtc 10003000.rtc: registered as rtc0
+[    2.887817] goldfish_rtc 10003000.rtc: setting system clock to 2026-06-14T16:41:00 UTC (1781455260)
+[    2.904296] NET: Registered PF_PACKET protocol family
+[    2.905495] Key type dns_resolver registered
+[    3.456948] clk: Disabling unused clocks
+[    3.615471] EXT4-fs (vda): mounted filesystem c7819491-e650-4c7e-95b6-6f969614915a r/w with ordered data mode. Quota mode: disabled.
+[    3.617416] VFS: Mounted root (ext4 filesystem) on device 254:0.
+[    3.623527] devtmpfs: mounted
+[    3.669479] Freeing unused kernel image (initmem) memory: 2108K
+[    3.671722] Run /lib/systemd/systemd as init process
+[    5.586266] systemd[1]: systemd 249.11-0ubuntu3.21 running in system mode (+PAM +AUDIT +SELINUX +APPARMOR +IMA +SMACK +SECCOMP +GCRYPT +GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 -IDN +IPTC +KMOD +LIBCRYPTSETUP +LIBFDISK +PCRE2 -PWQUALITY -P11KIT -QRENCODE +BZIP2 +LZ4 +XZ +ZLIB +ZSTD -XKBCOMMON +UTMP +SYSVINIT default-hierarchy=unified)
+[    5.593377] systemd[1]: Detected architecture riscv64.
+
+Welcome to [1mUbuntu 22.04.5 LTS[0m!
+
+[    5.633108] systemd[1]: Hostname set to <ysyx-ubuntu2204>.
+[    5.688087] systemd[1]: Initializing machine ID from random generator.
+[   28.733349] systemd[1]: Queued start job for default target Graphical Interface.
+[   28.884469] systemd[1]: Created slice Slice /system/modprobe.
+[[0;32m  OK  [0m] Created slice [0;1;39mSlice /system/modprobe[0m.
+[   28.963167] systemd[1]: Created slice Slice /system/serial-getty.
+[[0;32m  OK  [0m] Created slice [0;1;39mSlice /system/serial-getty[0m.
+[   29.024362] systemd[1]: Created slice User and Session Slice.
+[[0;32m  OK  [0m] Created slice [0;1;39mUser and Session Slice[0m.
+[   29.049214] systemd[1]: Started Forward Password Requests to Wall Directory Watch.
+[[0;32m  OK  [0m] Started [0;1;39mForward Password R…uests to Wall Directory Watch[0m.
+[   29.070939] systemd[1]: Condition check resulted in Arbitrary Executable File Formats File System Automount Point being skipped.
+[   29.085699] systemd[1]: Reached target Slice Units.
+[[0;32m  OK  [0m] Reached target [0;1;39mSlice Units[0m.
+[   29.103322] systemd[1]: Reached target Swaps.
+[[0;32m  OK  [0m] Reached target [0;1;39mSwaps[0m.
+[   29.120731] systemd[1]: Reached target Local Verity Protected Volumes.
+[[0;32m  OK  [0m] Reached target [0;1;39mLocal Verity Protected Volumes[0m.
+[   29.152062] systemd[1]: Listening on fsck to fsckd communication Socket.
+[[0;32m  OK  [0m] Listening on [0;1;39mfsck to fsckd communication Socket[0m.
+[   29.176587] systemd[1]: Listening on initctl Compatibility Named Pipe.
+[[0;32m  OK  [0m] Listening on [0;1;39minitctl Compatibility Named Pipe[0m.
+[   29.213017] systemd[1]: Condition check resulted in Journal Audit Socket being skipped.
+[   29.232475] systemd[1]: Listening on Journal Socket (/dev/log).
+[[0;32m  OK  [0m] Listening on [0;1;39mJournal Socket (/dev/log)[0m.
+[   29.266140] systemd[1]: Listening on Journal Socket.
+[[0;32m  OK  [0m] Listening on [0;1;39mJournal Socket[0m.
+[   29.303051] systemd[1]: Listening on udev Control Socket.
+[[0;32m  OK  [0m] Listening on [0;1;39mudev Control Socket[0m.
+[   29.328255] systemd[1]: Listening on udev Kernel Socket.
+[[0;32m  OK  [0m] Listening on [0;1;39mudev Kernel Socket[0m.
+[   29.343804] systemd[1]: Reached target Socket Units.
+[[0;32m  OK  [0m] Reached target [0;1;39mSocket Units[0m.
+[   29.382067] systemd[1]: Condition check resulted in Huge Pages File System being skipped.
+[   29.527406] systemd[1]: Mounting POSIX Message Queue File System...
+         Mounting [0;1;39mPOSIX Message Queue File System[0m...
+[   29.600414] systemd[1]: Condition check resulted in Kernel Debug File System being skipped.
+[   29.661278] systemd[1]: Condition check resulted in Kernel Trace File System being skipped.
+[   30.190189] systemd[1]: Starting Journal Service...
+         Starting [0;1;39mJournal Service[0m...
+[   30.241112] systemd[1]: Condition check resulted in Create List of Static Device Nodes being skipped.
+[   30.626560] systemd[1]: Starting Load Kernel Module configfs...
+         Starting [0;1;39mLoad Kernel Module configfs[0m...
+[   31.198130] systemd[1]: Starting Load Kernel Module drm...
+         Starting [0;1;39mLoad Kernel Module drm[0m...
+[   31.915049] systemd[1]: Starting Load Kernel Module fuse...
+         Starting [0;1;39mLoad Kernel Module fuse[0m...
+[   32.062858] systemd[1]: Condition check resulted in File System Check on Root Device being skipped.
+[   32.767493] systemd[1]: Starting Load Kernel Modules...
+         Starting [0;1;39mLoad Kernel Modules[0m...
+[   33.372774] systemd[1]: Starting Remount Root and Kernel File Systems...
+         Starting [0;1;39mRemount Root and Kernel File Systems[0m...
+[   34.072035] systemd[1]: Starting Coldplug All udev Devices...
+         Starting [0;1;39mColdplug All udev Devices[0m...
+[   35.140388] systemd[1]: Mounted POSIX Message Queue File System.
+[[0;32m  OK  [0m] Mounted [0;1;39mPOSIX Message Queue File System[0m.
+[   35.453609] systemd[1]: modprobe@configfs.service: Deactivated successfully.
+[   35.700113] systemd[1]: Finished Load Kernel Module configfs.
+[[0;32m  OK  [0m] Finished [0;1;39mLoad Kernel Module configfs[0m.
+[   36.013113] systemd[1]: modprobe@drm.service: Deactivated successfully.
+[   36.323356] systemd[1]: Finished Load Kernel Module drm.
+[[0;32m  OK  [0m] Finished [0;1;39mLoad Kernel Module drm[0m.
+[   36.763239] systemd[1]: modprobe@fuse.service: Deactivated successfully.
+[   37.236680] systemd[1]: Finished Load Kernel Module fuse.
+[[0;32m  OK  [0m] Finished [0;1;39mLoad Kernel Module fuse[0m.
+[   38.095425] systemd[1]: Finished Load Kernel Modules.
+[[0;32m  OK  [0m] Finished [0;1;39mLoad Kernel Modules[0m.
+[   38.246756] EXT4-fs (vda): re-mounted c7819491-e650-4c7e-95b6-6f969614915a r/w. Quota mode: disabled.
+[[0m[0;31m*     [0m] (1 of 4) A start job is running for Journal Service (11s / 5min 1s)
+[   40.374788] systemd[1]: Condition check resulted in FUSE Control File System being skipped.
+[   40.445446] systemd[1]: Condition check resulted in Kernel Configuration File System being skipped.
+[   40.931765] systemd[1]: Starting Apply Kernel Variables...
+M[K         Starting [0;1;39mApply Kernel Variables[0m...
+[K[   41.336760] systemd[1]: Finished Remount Root and Kernel File Systems.
+[[0;32m  OK  [0m] Finished [0;1;39mRemount Root and Kernel File Systems[0m.
+[   41.963166] systemd[1]: Starting Load/Save Random Seed...
+         Starting [0;1;39mLoad/Save Random Seed[0m...
+[   42.643633] systemd[1]: Starting Create System Users...
+         Starting [0;1;39mCreate System Users[0m...
+[[0;1;31m*[0m[0;31m*    [0m] (1 of 6) A start job is running for… Kernel Variables (16s / 1min 41s)
+M[K[[0;32m  OK  [0m] Finished [0;1;39mApply Kernel Variables[0m.
+[K[[0;32m  OK  [0m] Finished [0;1;39mLoad/Save Random Seed[0m.
+[[0;32m  OK  [0m] Started [0;1;39mJournal Service[0m.
+         Starting [0;1;39mFlush Journal to Persistent Storage[0m...
+[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (1 of 4) A start job is running for… All udev Devices (20s / no limit)
+M[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] (2 of 4) A start job is running for…ersistent Storage (20s / 1min 48s)
+M[K[[0;32m  OK  [0m] Finished [0;1;39mCreate System Users[0m.
+[K         Starting [0;1;39mCreate Static Device Nodes in /dev[0m...
+[[0;32m  OK  [0m] Finished [0;1;39mFlush Journal to Persistent Storage[0m.
+[[0;32m  OK  [0m] Finished [0;1;39mCreate Static Device Nodes in /dev[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mPreparation for Local File Systems[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mLocal File Systems[0m.
+         Starting [0;1;39mTell Plymouth To Write Out Runtime Data[0m...
+         Starting [0;1;39mCreate Volatile Files and Directories[0m...
+         Starting [0;1;39mRule-based Manage…for Device Events and Files[0m...
+[[0;32m  OK  [0m] Finished [0;1;39mTell Plymouth To Write Out Runtime Data[0m.
+[  [0;31m*[0;1;31m*[0m[0;31m* [0m] (2 of 4) A start job is running for… Events and Files (28s / 5min 25s)
+M[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] (2 of 4) A start job is running for… Events and Files (28s / 5min 25s)
+M[K[    [0;31m*[0;1;31m*[0m] (3 of 4) A start job is running for… All udev Devices (29s / no limit)
+M[K[     [0;31m*[0m] (3 of 4) A start job is running for… All udev Devices (29s / no limit)
+M[K[    [0;31m*[0;1;31m*[0m] (3 of 4) A start job is running for… All udev Devices (30s / no limit)
+M[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] (4 of 4) A start job is running for /dev/ttyS0 (30s / 5min)
+M[K[[0;32m  OK  [0m] Finished [0;1;39mCreate Volatile Files and Directories[0m.
+[K         Starting [0;1;39mRecord System Boot/Shutdown in UTMP[0m...
+[  [0;31m*[0;1;31m*[0m[0;31m* [0m] (4 of 4) A start job is running for…/Shutdown in UTMP (35s / no limit)
+M[K[[0;32m  OK  [0m] Finished [0;1;39mRecord System Boot/Shutdown in UTMP[0m.
+[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] (1 of 3) A start job is running for… Events and Files (38s / 5min 25s)
+M[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (2 of 3) A start job is running for… All udev Devices (39s / no limit)
+M[K[[0;1;31m*[0m[0;31m*    [0m] (2 of 3) A start job is running for… All udev Devices (39s / no limit)
+M[K[[0;32m  OK  [0m] Started [0;1;39mRule-based Manager for Device Events and Files[0m.
+[K[[0m[0;31m*     [0m] (1 of 2) A start job is running for… All udev Devices (42s / no limit)
+M[K[[0;1;31m*[0m[0;31m*    [0m] (2 of 2) A start job is running for /dev/ttyS0 (42s / 5min)
+M[K[[0;31m*[0;1;31m*[0m[0;31m*   [0m] (2 of 2) A start job is running for /dev/ttyS0 (43s / 5min)
+M[K[ [0;31m*[0;1;31m*[0m[0;31m*  [0m] (2 of 2) A start job is running for /dev/ttyS0 (43s / 5min)
+M[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] (1 of 2) A start job is running for… All udev Devices (44s / no limit)
+M[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] (1 of 2) A start job is running for… All udev Devices (44s / no limit)
+M[K[    [0;31m*[0;1;31m*[0m] (1 of 2) A start job is running for… All udev Devices (45s / no limit)
+M[K[     [0;31m*[0m] (2 of 2) A start job is running for /dev/ttyS0 (45s / 5min)
+M[K[    [0;31m*[0;1;31m*[0m] (2 of 2) A start job is running for /dev/ttyS0 (46s / 5min)
+M[K[   [0;31m*[0;1;31m*[0m[0;31m*[0m] (2 of 2) A start job is running for /dev/ttyS0 (49s / 5min)
+M[K[  [0;31m*[0;1;31m*[0m[0;31m* [0m] (1 of 2) A start job is running for… All udev Devices (55s / no limit)
+M[K[[0;32m  OK  [0m] Found device [0;1;39m/dev/ttyS0[0m.
+[K[[0;32m  OK  [0m] Finished [0;1;39mColdplug All udev Devices[0m.
+[[0;32m  OK  [0m] Started [0;1;39mDispatch Password …ts to Console Directory Watch[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mLocal Encrypted Volumes[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mPath Units[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mSystem Initialization[0m.
+[[0;32m  OK  [0m] Started [0;1;39mDaily apt download activities[0m.
+[[0;32m  OK  [0m] Started [0;1;39mDaily apt upgrade and clean activities[0m.
+[[0;32m  OK  [0m] Started [0;1;39mDaily dpkg database backup timer[0m.
+[[0;32m  OK  [0m] Started [0;1;39mDiscard unused blocks once a week[0m.
+[[0;32m  OK  [0m] Started [0;1;39mMessage of the Day[0m.
+[[0;32m  OK  [0m] Started [0;1;39mDaily Cleanup of Temporary Directories[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mBasic System[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mTimer Units[0m.
+[[0;32m  OK  [0m] Listening on [0;1;39mD-Bus System Message Bus Socket[0m.
+[[0;32m  OK  [0m] Started [0;1;39mD-Bus System Message Bus[0m.
+         Starting [0;1;39mUser Login Management[0m...
+         Starting [0;1;39mPermit User Sessions[0m...
+[[0;32m  OK  [0m] Finished [0;1;39mPermit User Sessions[0m.
+         Starting [0;1;39mHold until boot process finishes up[0m...
+         Starting [0;1;39mTerminate Plymouth Boot Screen[0m...
+[[0;32m  OK  [0m] Finished [0;1;39mHold until boot process finishes up[0m.
+[[0;32m  OK  [0m] Started [0;1;39mSerial Getty on ttyS0[0m.
+[[0;32m  OK  [0m] Reached target [0;1;39mLogin Prompts[0m.
+[[0;32m  OK  [0m] Finished [0;1;39mTerminate Plymouth Boot Screen[0m.
+
+Ubuntu 22.04.5 LTS ysyx-ubuntu2204 ttyS0
+
+ysyx-ubuntu2204 login: root (automatic login)
+
+Welcome to Ubuntu 22.04.5 LTS (GNU/Linux 6.6.0 riscv64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+This system has been minimized by removing packages and content that are
+not required on a system that users do not log into.
+
+To restore this content, you can run the 'unminimize' command.
+
+The programs included with the Ubuntu system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Ubuntu comes with ABSOLUTELY NO WARRANTY, to the extent permitted by
+applicable law.
+
+root@ysyx-ubuntu2204:~# stty -echo -ixon -ixoff 2>/dev/null || true
+sgMSkpOyBlY2hv' 'ICJfX05FTVVfVUFSVF9SWF9TVFJroot@ysyx-ubuntu2204:~# __NEMU_GUEST_UPLOAD_BEGIN__
+__NEMU_GUEST_UPLOAD_MODE__:append-lines:32
+__NEMU_GUEST_UPLOAD_GROUP__:1:32
+__NEMU_GUEST_UPLOAD_GROUP__:16:512
+__NEMU_GUEST_UPLOAD_GROUP__:32:1024
+__NEMU_GUEST_UPLOAD_GROUP__:48:1536
+__NEMU_GUEST_UPLOAD_GROUP__:64:2048
+__NEMU_GUEST_UPLOAD_GROUP__:80:2560
+__NEMU_GUEST_UPLOAD_GROUP__:96:3072
+__NEMU_GUEST_UPLOAD_APPEND_DONE__:99:3165
+__NEMU_GUEST_SCRIPT_BYTES__:180402/180402
+__NEMU_GUEST_SCRIPT_SHA256__:e40a8449968e5b79876924ae1132b947d2a3319ad9dfbd51645f008d0e12ec22/e40a8449968e5b79876924ae1132b947d2a3319ad9dfbd51645f008d0e12ec22
+__NEMU_GUEST_SCRIPT_READY__
+__NEMU_SYSTEMD_CHECK_BEGIN__
+__NEMU_CHECK_GUEST_UPTIME_BEGIN__:678
+__NEMU_CHECK_MEMTOTAL_LINE__:MemTotal:         999500 kB
+__NEMU_CHECK_MEMTOTAL_KB__:999500
+__NEMU_CHECK_MIN_MEMTOTAL_KB__:900000
+__NEMU_CHECK_PASS__:guest-memtotal-min
+__NEMU_UART_RX_STRESS_LINE__:0000
+__NEMU_UART_RX_STRESS_LINE__:0001
+__NEMU_UART_RX_STRESS_LINE__:0002
+__NEMU_UART_RX_STRESS_LINE__:0003
+__NEMU_UART_RX_STRESS_LINE__:0004
+__NEMU_UART_RX_STRESS_LINE__:0005
+__NEMU_UART_RX_STRESS_LINE__:0006
+__NEMU_UART_RX_STRESS_LINE__:0007
+__NEMU_UART_RX_STRESS_LINE__:0008
+__NEMU_UART_RX_STRESS_LINE__:0009
+__NEMU_UART_RX_STRESS_LINE__:0010
+__NEMU_UART_RX_STRESS_LINE__:0011
+__NEMU_UART_RX_STRESS_LINE__:0012
+__NEMU_UART_RX_STRESS_LINE__:0013
+__NEMU_UART_RX_STRESS_LINE__:0014
+__NEMU_UART_RX_STRESS_LINE__:0015
+__NEMU_UART_RX_STRESS_LINE__:0016
+__NEMU_UART_RX_STRESS_LINE__:0017
+__NEMU_UART_RX_STRESS_LINE__:0018
+__NEMU_UART_RX_STRESS_LINE__:0019
+__NEMU_UART_RX_STRESS_LINE__:0020
+__NEMU_UART_RX_STRESS_LINE__:0021
+__NEMU_UART_RX_STRESS_LINE__:0022
+__NEMU_UART_RX_STRESS_LINE__:0023
+__NEMU_UART_RX_STRESS_LINE__:0024
+__NEMU_UART_RX_STRESS_LINE__:0025
+__NEMU_UART_RX_STRESS_LINE__:0026
+__NEMU_UART_RX_STRESS_LINE__:0027
+__NEMU_UART_RX_STRESS_LINE__:0028
+__NEMU_UART_RX_STRESS_LINE__:0029
+__NEMU_UART_RX_STRESS_LINE__:0030
+__NEMU_UART_RX_STRESS_LINE__:0031
+__NEMU_UART_RX_STRESS_LINE__:0032
+__NEMU_UART_RX_STRESS_LINE__:0033
+__NEMU_UART_RX_STRESS_LINE__:0034
+__NEMU_UART_RX_STRESS_LINE__:0035
+__NEMU_UART_RX_STRESS_LINE__:0036
+__NEMU_UART_RX_STRESS_LINE__:0037
+__NEMU_UART_RX_STRESS_LINE__:0038
+__NEMU_UART_RX_STRESS_LINE__:0039
+__NEMU_UART_RX_STRESS_LINE__:0040
+__NEMU_UART_RX_STRESS_LINE__:0041
+__NEMU_UART_RX_STRESS_LINE__:0042
+__NEMU_UART_RX_STRESS_LINE__:0043
+__NEMU_UART_RX_STRESS_LINE__:0044
+__NEMU_UART_RX_STRESS_LINE__:0045
+__NEMU_UART_RX_STRESS_LINE__:0046
+__NEMU_UART_RX_STRESS_LINE__:0047
+__NEMU_UART_RX_STRESS_LINE__:0048
+__NEMU_UART_RX_STRESS_LINE__:0049
+__NEMU_UART_RX_STRESS_LINE__:0050
+__NEMU_UART_RX_STRESS_LINE__:0051
+__NEMU_UART_RX_STRESS_LINE__:0052
+__NEMU_UART_RX_STRESS_LINE__:0053
+__NEMU_UART_RX_STRESS_LINE__:0054
+__NEMU_UART_RX_STRESS_LINE__:0055
+__NEMU_UART_RX_STRESS_LINE__:0056
+__NEMU_UART_RX_STRESS_LINE__:0057
+__NEMU_UART_RX_STRESS_LINE__:0058
+__NEMU_UART_RX_STRESS_LINE__:0059
+__NEMU_UART_RX_STRESS_LINE__:0060
+__NEMU_UART_RX_STRESS_LINE__:0061
+__NEMU_UART_RX_STRESS_LINE__:0062
+__NEMU_UART_RX_STRESS_LINE__:0063
+__NEMU_UART_RX_STRESS_COUNT__:64/64
+__NEMU_CHECK_PASS__:uart-rx-command-burst
+__NEMU_CHECK_SYSTEMD_WAIT__:0:running
+__NEMU_CHECK_SYSTEMD_STATE__:running
+__NEMU_CHECK_PASS__:systemd-running
+UNIT LOAD ACTIVE SUB DESCRIPTION
+0 loaded units listed.
+__NEMU_CHECK_PASS__:systemd-failed-units
+No jobs running.
+__NEMU_CHECK_PASS__:systemd-jobs
+__NEMU_CHECK_PID1__:systemd
+__NEMU_CHECK_PASS__:pid1-systemd
+__NEMU_CHECK_SYSTEMD_VERSION__:systemd 249 (249.11-0ubuntu3.21)
+__NEMU_CHECK_PASS__:systemd-version
+__NEMU_CHECK_LSB_RELEASE__
+__NEMU_CHECK_PASS__:lsb-release-present
+No LSB modules are available.
+Distributor ID:	Ubuntu
+Description:	Ubuntu 22.04.5 LTS
+Release:	22.04
+Codename:	jammy
+__NEMU_CHECK_PASS__:lsb-release-ubuntu2204
+__NEMU_CHECK_COMMON_COMMANDS__
+__NEMU_CHECK_PASS__:common-free-present
+               total        used        free      shared  buff/cache   available
+Mem:             976          39         884           3          52         919
+Swap:              0           0           0
+__NEMU_CHECK_PASS__:common-free-mem
+__NEMU_CHECK_PASS__:common-top-present
+__NEMU_CHECK_TOP_VERSION__:  procps-ng 3.3.17
+__NEMU_CHECK_PASS__:common-top-version
+__NEMU_CHECK_TOP_BATCH_OPTIONAL__:top-batch-no-output
+'dumb': unknown terminal type.
+__NEMU_CHECK_PASS__:common-top-batch-optional
+__NEMU_CHECK_PASS__:common-hostnamectl-present
+__NEMU_CHECK_HOSTNAMECTL_VERSION__:systemd 249 (249.11-0ubuntu3.21)
+__NEMU_CHECK_PASS__:common-hostnamectl-version
+__NEMU_CHECK_HTOP_OPTIONAL__:htop 3.0.5
+__NEMU_CHECK_PASS__:common-htop-optional-present
+__NEMU_CHECK_PASS__:common-htop-optional
+__NEMU_CHECK_FULL_PYTHON_INT_PREFLIGHT_RC__:before-runtime:1:0
+__NEMU_CHECK_FULL_PYTHON_INT_PREFLIGHT_RC__:before-runtime:2:0
+__NEMU_CHECK_FULL_PYTHON_INT_PREFLIGHT_RC__:before-runtime:3:1
+Traceback (most recent call last):
+  File "/usr/bin/lsb_release", line 20, in <module>
+    from optparse import OptionParser
+  File "/usr/lib/python3.10/optparse.py", line 77, in <module>
+    import textwrap
+  File "/usr/lib/python3.10/textwrap.py", line 17, in <module>
+    class TextWrapper:
+  File "/usr/lib/python3.10/textwrap.py", line 81, in TextWrapper
+    wordsep_re = re.compile(r'''
+  File "/usr/lib/python3.10/re.py", line 251, in compile
+    return _compile(pattern, flags)
+  File "/usr/lib/python3.10/re.py", line 303, in _compile
+    p = sre_compile.compile(pattern, flags)
+  File "/usr/lib/python3.10/sre_compile.py", line 788, in compile
+    p = sre_parse.parse(p, flags)
+  File "/usr/lib/python3.10/sre_parse.py", line 955, in parse
+    p = _parse_sub(source, state, flags & SRE_FLAG_VERBOSE, 0)
+  File "/usr/lib/python3.10/sre_parse.py", line 444, in _parse_sub
+    itemsappend(_parse(source, state, verbose, nested + 1,
+  File "/usr/lib/python3.10/sre_parse.py", line 841, in _parse
+    p = _parse_sub(source, state, sub_verbose, nested + 1)
+  File "/usr/lib/python3.10/sre_parse.py", line 444, in _parse_sub
+    itemsappend(_parse(source, state, verbose, nested + 1,
+  File "/usr/lib/python3.10/sre_parse.py", line 653, in _parse
+    raise OverflowError("the repetition number is too large")
+OverflowError: the repetition number is too large
+__NEMU_CHECK_FULL_PYTHON_INT_PREFLIGHT_RC__:before-runtime:4:0
+lsb_release returned exitcode: 1
+Traceback (most recent call last):
+  File "/usr/bin/lsb_release", line 20, in <module>
+    from optparse import OptionParser
+  File "/usr/lib/python3.10/optparse.py", line 77, in <module>
+    import textwrap
+  File "/usr/lib/python3.10/textwrap.py", line 17, in <module>
+    class TextWrapper:
+  File "/usr/lib/python3.10/textwrap.py", line 81, in TextWrapper
+    wordsep_re = re.compile(r'''
+  File "/usr/lib/python3.10/re.py", line 251, in compile
+    return _compile(pattern, flags)
+  File "/usr/lib/python3.10/re.py", line 303, in _compile
+    p = sre_compile.compile(pattern, flags)
+  File "/usr/lib/python3.10/sre_compile.py", line 788, in compile
+    p = sre_parse.parse(p, flags)
+  File "/usr/lib/python3.10/sre_parse.py", line 955, in parse
+    p = _parse_sub(source, state, flags & SRE_FLAG_VERBOSE, 0)
+  File "/usr/lib/python3.10/sre_parse.py", line 444, in _parse_sub
+    itemsappend(_parse(source, state, verbose, nested + 1,
+  File "/usr/lib/python3.10/sre_parse.py", line 841, in _parse
+    p = _parse_sub(source, state, sub_verbose, nested + 1)
+  File "/usr/lib/python3.10/sre_parse.py", line 444, in _parse_sub
+    itemsappend(_parse(source, state, verbose, nested + 1,
+  File "/usr/lib/python3.10/sre_parse.py", line 653, in _parse
+    raise OverflowError("the repetition number is too large")
+OverflowError: the repetition number is too large
+lsb_release returned exitcode: 1
+__NEMU_CHECK_FULL_PYTHON_INT_PREFLIGHT_RC__:before-runtime:5:0
+__NEMU_CHECK_FULL_PYTHON_INT_PREFLIGHT_LOG_BEGIN__:before-runtime
+__PYTHON_INT_PREFLIGHT_TEXT_0_REPR__:'0'
+__PYTHON_INT_PREFLIGHT_TEXT_0_LEN__:1
+__PYTHON_INT_PREFLIGHT_TEXT_0_ORDS__:48
+__PYTHON_INT_PREFLIGHT_VALUE_0__:0
+__PYTHON_INT_PREFLIGHT_VALUE_0_BIT_LENGTH__:0
+__PYTHON_INT_PREFLIGHT_TEXT_2_REPR__:'2'
+__PYTHON_INT_PREFLIGHT_TEXT_2_LEN__:1
+__PYTHON_INT_PREFLIGHT_TEXT_2_ORDS__:50
+__PYTHON_INT_PREFLIGHT_VALUE_2__:2
+__PYTHON_INT_PREFLIGHT_VALUE_2_BIT_LENGTH__:2
+__PYTHON_INT_PREFLIGHT_TEXT_169_REPR__:'169'
+__PYTHON_INT_PREFLIGHT_TEXT_169_LEN__:3
+__PYTHON_INT_PREFLIGHT_TEXT_169_ORDS__:49,54,57
+__PYTHON_INT_PREFLIGHT_VALUE_169__:169
+__PYTHON_INT_PREFLIGHT_VALUE_169_BIT_LENGTH__:8
+__PYTHON_INT_PREFLIGHT_TEXT_254_REPR__:'254'
+__PYTHON_INT_PREFLIGHT_TEXT_254_LEN__:3
+__PYTHON_INT_PREFLIGHT_TEXT_254_ORDS__:50,53,52
+__PYTHON_INT_PREFLIGHT_VALUE_254__:254
+__PYTHON_INT_PREFLIGHT_VALUE_254_BIT_LENGTH__:8
+__PYTHON_INT_PREFLIGHT_TEXT_4294967295_REPR__:'4294967295'
+__PYTHON_INT_PREFLIGHT_TEXT_4294967295_LEN__:10
+__PYTHON_INT_PREFLIGHT_TEXT_4294967295_ORDS__:52,50,57,52,57,54,55,50,57,53
+__PYTHON_INT_PREFLIGHT_VALUE_4294967295__:4294967295
+__PYTHON_INT_PREFLIGHT_VALUE_4294967295_BIT_LENGTH__:32
+__PYTHON_INT_PREFLIGHT_OCTET_BYTES_HEX__:a9fe0000
+__PYTHON_INT_PREFLIGHT_INT_FROM_BYTES_BYTES__:2851995648
+__PYTHON_INT_PREFLIGHT_INT_FROM_BYTES_BYTES_BIT_LENGTH__:32
+__PYTHON_INT_PREFLIGHT_INT_FROM_BYTES_LIST__:2851995648
+__PYTHON_INT_PREFLIGHT_INT_FROM_BYTES_LIST_BIT_LENGTH__:32
+__PYTHON_INT_PREFLIGHT_INT_FROM_BYTES_MAP__:2851995648
+__PYTHON_INT_PREFLIGHT_INT_FROM_BYTES_MAP_BIT_LENGTH__:32
+__PYTHON_INT_PREFLIGHT_OK__
+__PYTHON_INT_PREFLIGHT_TEXT_0_REPR__:'0'
+__PYTHON_INT_PREFLIGHT_TEXT_0_LEN__:1
+__PYTHON_INT_PREFLIGHT_TEXT_0_ORDS__:48
+__PYTHON_INT_PREFLIGHT_VALUE_0__:0
+__PYTHON_INT_PREFLIGHT_VALUE_0_BIT_LENGTH__:0
+__PYTHON_INT_PREFLIGHT_TEXT_2_REPR__:'2'
+__PYTHON_INT_PREFLIGHT_TEXT_2_LEN__:1
+__PYTHON_INT_PREFLIGHT_TEXT_2_ORDS__:50
+__PYTHON_INT_PREFLIGHT_VALUE_2__:2
+__PYTHON_INT_PREFLIGHT_VALUE_2_BIT_LENGTH__:2
+__PYTHON_INT_PREFLIGHT_TEXT_169_REPR__:'169'
+__PYTHON_INT_PREFLIGHT_TEXT_169_LEN__:3
+__PYTHON_INT_PREFLIGHT_TEXT_169_ORDS__:49,54,57
+__PYTHON_INT_PREFLIGHT_VALUE_169__:169
+__PYTHON_INT_PREFLIGHT_VALUE_169_BIT_LENGTH__:8
+__PYTHON_INT_PREFLIGHT_TEXT_254_REPR__:'254'
+__PYTHON_INT_PREFLIGHT_TEXT_254_LEN__:3
+__PYTHON_INT_PREFLIGHT_TEXT_254_ORDS__:50,53,52
+__PYTHON_INT_PREFLIGHT_VALUE_254__:254
+__PYTHON_INT_PREFLIGHT_VALUE_254_BIT_LENGTH__:8
+__PYTHON_INT_PREFLIGHT_TEXT_4294967295_REPR__:'4294967295'
+__PYTHON_INT_PREFLIGHT_TEXT_4294967295_LEN__:10
+__PYTHON_INT_PREFLIGHT_TEXT_4294967295_ORDS__:52,50,57,52,57,54,55,50,57,53
+__PYTHON_INT_PREFLIGHT_VALUE_4294967295__:4294967295
+__PYTHON_INT_PREFLIGHT_VALUE_4294967295_BIT_LENGTH__:32
+__PYTHON_INT_PREFLIGHT_OCTET_BYTES_HEX__:a9fe0000
+__PYTHON_INT_PREFLIGHT_INT_FROM_BYTES_BYTES__:2851995648
+__PYTHON_INT_PREFLIGHT_INT_FROM_BYTES_BYTES_BIT_LENGTH__:32
+__PYTHON_INT_PREFLIGHT_INT_FROM_BYTES_LIST__:2851995648
+__PYTHON_INT_PREFLIGHT_INT_FROM_BYTES_LIST_BIT_LENGTH__:32
+__PYTHON_INT_PREFLIGHT_INT_FROM_BYTES_MAP__:2851995648
+__PYTHON_INT_PREFLIGHT_INT_FROM_BYTES_MAP_BIT_LENGTH__:32
+__PYTHON_INT_PREFLIGHT_OK__
+Traceback (most recent call last):
+  File "<stdin>", line 29, in <module>
+ValueError: Exceeds the limit (4300) for integer string conversion; use sys.set_int_max_str_digits() to increase the limit
+__PYTHON_INT_PREFLIGHT_TEXT_0_REPR__:'0'
+__PYTHON_INT_PREFLIGHT_TEXT_0_LEN__:1
+__PYTHON_INT_PREFLIGHT_TEXT_0_ORDS__:48
+__PYTHON_INT_PREFLIGHT_VALUE_0__:0
+__PYTHON_INT_PREFLIGHT_VALUE_0_BIT_LENGTH__:0
+__PYTHON_INT_PREFLIGHT_TEXT_2_REPR__:'2'
+__PYTHON_INT_PREFLIGHT_TEXT_2_LEN__:1
+__PYTHON_INT_PREFLIGHT_TEXT_2_ORDS__:50
+__PYTHON_INT_PREFLIGHT_VALUE_2_STR_ERROR__:ValueError:Exceeds the limit (4300) for integer string conversion; use sys.set_int_max_str_digits() to increase the limit
+__PYTHON_INT_PREFLIGHT_VALUE_2_TYPE__:int
+__PYTHON_INT_PREFLIGHT_VALUE_2_BIT_LENGTH__:276701161105643274181
+__PYTHON_INT_PREFLIGHT_VALUE_2_BIT_LENGTH__:276701161105643274181
+Traceback (most recent call last):
+  File "<stdin>", line 29, in <module>
+ValueError: Exceeds the limit (4300) for integer string conversion; use sys.set_int_max_str_digits() to increase the limit
+__PYTHON_INT_PREFLIGHT_TEXT_0_REPR__:'0'
+__PYTHON_INT_PREFLIGHT_TEXT_0_LEN__:1
+__PYTHON_INT_PREFLIGHT_TEXT_0_ORDS__:48
+__PYTHON_INT_PREFLIGHT_VALUE_0__:0
+__PYTHON_INT_PREFLIGHT_VALUE_0_BIT_LENGTH__:0
+__PYTHON_INT_PREFLIGHT_TEXT_2_REPR__:'2'
+__PYTHON_INT_PREFLIGHT_TEXT_2_LEN__:1
+__PYTHON_INT_PREFLIGHT_TEXT_2_ORDS__:50
+__PYTHON_INT_PREFLIGHT_VALUE_2__:2
+__PYTHON_INT_PREFLIGHT_VALUE_2_BIT_LENGTH__:2
+__PYTHON_INT_PREFLIGHT_TEXT_169_REPR__:'169'
+__PYTHON_INT_PREFLIGHT_TEXT_169_LEN__:3
+__PYTHON_INT_PREFLIGHT_TEXT_169_ORDS__:49,54,57
+__PYTHON_INT_PREFLIGHT_VALUE_169__:169
+__PYTHON_INT_PREFLIGHT_VALUE_169_BIT_LENGTH__:8
+__PYTHON_INT_PREFLIGHT_TEXT_254_REPR__:'254'
+__PYTHON_INT_PREFLIGHT_TEXT_254_LEN__:3
+__PYTHON_INT_PREFLIGHT_TEXT_254_ORDS__:50,53,52
+__PYTHON_INT_PREFLIGHT_VALUE_254__:254
+__PYTHON_INT_PREFLIGHT_VALUE_254_BIT_LENGTH__:8
+__PYTHON_INT_PREFLIGHT_TEXT_4294967295_REPR__:'4294967295'
+__PYTHON_INT_PREFLIGHT_TEXT_4294967295_LEN__:10
+__PYTHON_INT_PREFLIGHT_TEXT_4294967295_ORDS__:52,50,57,52,57,54,55,50,57,53
+__PYTHON_INT_PREFLIGHT_VALUE_4294967295__:4294967295
+__PYTHON_INT_PREFLIGHT_VALUE_4294967295_BIT_LENGTH__:32
+__PYTHON_INT_PREFLIGHT_OCTET_BYTES_HEX__:a9fe0000
+__PYTHON_INT_PREFLIGHT_INT_FROM_BYTES_BYTES__:2851995648
+__PYTHON_INT_PREFLIGHT_INT_FROM_BYTES_BYTES_BIT_LENGTH__:32
+__PYTHON_INT_PREFLIGHT_INT_FROM_BYTES_LIST__:2851995648
+__PYTHON_INT_PREFLIGHT_INT_FROM_BYTES_LIST_BIT_LENGTH__:32
+__PYTHON_INT_PREFLIGHT_INT_FROM_BYTES_MAP__:2851995648
+__PYTHON_INT_PREFLIGHT_INT_FROM_BYTES_MAP_BIT_LENGTH__:32
+__PYTHON_INT_PREFLIGHT_OK__
+__PYTHON_INT_PREFLIGHT_TEXT_0_REPR__:'0'
+__PYTHON_INT_PREFLIGHT_TEXT_0_LEN__:1
+__PYTHON_INT_PREFLIGHT_TEXT_0_ORDS__:48
+__PYTHON_INT_PREFLIGHT_VALUE_0__:0
+__PYTHON_INT_PREFLIGHT_VALUE_0_BIT_LENGTH__:0
+__PYTHON_INT_PREFLIGHT_TEXT_2_REPR__:'2'
+__PYTHON_INT_PREFLIGHT_TEXT_2_LEN__:1
+__PYTHON_INT_PREFLIGHT_TEXT_2_ORDS__:50
+__PYTHON_INT_PREFLIGHT_VALUE_2__:2
+__PYTHON_INT_PREFLIGHT_VALUE_2_BIT_LENGTH__:2
+__PYTHON_INT_PREFLIGHT_TEXT_169_REPR__:'169'
+__PYTHON_INT_PREFLIGHT_TEXT_169_LEN__:3
+__PYTHON_INT_PREFLIGHT_TEXT_169_ORDS__:49,54,57
+__PYTHON_INT_PREFLIGHT_VALUE_169__:169
+__PYTHON_INT_PREFLIGHT_VALUE_169_BIT_LENGTH__:8
+__PYTHON_INT_PREFLIGHT_TEXT_254_REPR__:'254'
+__PYTHON_INT_PREFLIGHT_TEXT_254_LEN__:3
+__PYTHON_INT_PREFLIGHT_TEXT_254_ORDS__:50,53,52
+__PYTHON_INT_PREFLIGHT_VALUE_254__:254
+__PYTHON_INT_PREFLIGHT_VALUE_254_BIT_LENGTH__:8
+__PYTHON_INT_PREFLIGHT_TEXT_4294967295_REPR__:'4294967295'
+__PYTHON_INT_PREFLIGHT_TEXT_4294967295_LEN__:10
+__PYTHON_INT_PREFLIGHT_TEXT_4294967295_ORDS__:52,50,57,52,57,54,55,50,57,53
+__PYTHON_INT_PREFLIGHT_VALUE_4294967295__:4294967295
+__PYTHON_INT_PREFLIGHT_VALUE_4294967295_BIT_LENGTH__:32
+__PYTHON_INT_PREFLIGHT_OCTET_BYTES_HEX__:a9fe0000
+__PYTHON_INT_PREFLIGHT_INT_FROM_BYTES_BYTES__:2851995648
+__PYTHON_INT_PREFLIGHT_INT_FROM_BYTES_BYTES_BIT_LENGTH__:32
+__PYTHON_INT_PREFLIGHT_INT_FROM_BYTES_LIST__:2851995648
+__PYTHON_INT_PREFLIGHT_INT_FROM_BYTES_LIST_BIT_LENGTH__:32
+__PYTHON_INT_PREFLIGHT_INT_FROM_BYTES_MAP__:2851995648
+__PYTHON_INT_PREFLIGHT_INT_FROM_BYTES_MAP_BIT_LENGTH__:32
+__PYTHON_INT_PREFLIGHT_OK__
+__NEMU_CHECK_FULL_PYTHON_INT_PREFLIGHT_LOG_END__:before-runtime
+__NEMU_CHECK_FAIL__:full-userland-python-int-preflight-before-runtime-loop
+__NEMU_CHECK_ROOTFS_FLAVOR__:full
+__NEMU_CHECK_FULL_USERLAND__
+__NEMU_CHECK_PASS__:full-userland-command-apt-get
+__NEMU_CHECK_PASS__:full-userland-command-apt-cache
+__NEMU_CHECK_PASS__:full-userland-command-gpgv
+__NEMU_CHECK_PASS__:full-userland-command-journalctl
+__NEMU_CHECK_PASS__:full-userland-command-systemd-machine-id-setup
+__NEMU_CHECK_PASS__:full-userland-command-systemd-sysusers
+__NEMU_CHECK_PASS__:full-userland-command-systemd-tmpfiles
+__NEMU_CHECK_PASS__:full-userland-command-systemd-cat
+__NEMU_CHECK_PASS__:full-userland-command-hostnamectl
+__NEMU_CHECK_PASS__:full-userland-command-systemd-hostnamed
+__NEMU_CHECK_PASS__:full-userland-command-dpkg
+__NEMU_CHECK_PASS__:full-userland-command-dpkg-query
+__NEMU_CHECK_PASS__:full-userland-command-sudo
+__NEMU_CHECK_PASS__:full-userland-command-man
+__NEMU_CHECK_PASS__:full-userland-command-locale
+__NEMU_CHECK_PASS__:full-userland-command-curl
+__NEMU_CHECK_PASS__:full-userland-command-wget
+__NEMU_CHECK_PASS__:full-userland-command-logger
+__NEMU_CHECK_PASS__:full-userland-command-ssh
+__NEMU_CHECK_PASS__:full-userland-command-ssh-keygen
+__NEMU_CHECK_PASS__:full-userland-command-dbclient
+__NEMU_CHECK_PASS__:full-userland-command-dropbearconvert
+__NEMU_CHECK_PASS__:full-userland-command-dropbearkey
+__NEMU_CHECK_PASS__:full-userland-command-sshd
+__NEMU_CHECK_PASS__:full-userland-command-dropbear
+__NEMU_CHECK_PASS__:full-userland-command-cron
+__NEMU_CHECK_PASS__:full-userland-command-rsyslogd
+__NEMU_CHECK_FULL_APT_VERSION__:apt 2.4.13 (riscv64)
+__NEMU_CHECK_PASS__:full-userland-apt-version
+__NEMU_CHECK_FULL_GPGV_VERSION__:gpgv (GnuPG) 2.2.27
+__NEMU_CHECK_PASS__:full-userland-gpgv-version
+__NEMU_CHECK_FULL_APT_KEYRING__:/usr/share/keyrings/ubuntu-archive-keyring.gpg
+__NEMU_CHECK_FULL_APT_KEYRING_SHA256__:1a4dd63e5c76728960a2edddae22e2e0fc53df8e8b87806deb971030ac704eb0
+__NEMU_CHECK_PASS__:full-userland-apt-archive-keyring
+__NEMU_CHECK_FULL_DPKG_AUDIT_RC__:0
+__NEMU_CHECK_FULL_DPKG_AUDIT_BEGIN__
+
+__NEMU_CHECK_FULL_DPKG_AUDIT_END__
+__NEMU_CHECK_PASS__:full-userland-dpkg-audit
+__NEMU_CHECK_FULL_DPKG_QUERY__:systemd:0:ii  systemd 249.11-0ubuntu3.21
+__NEMU_CHECK_PASS__:full-userland-dpkg-package-systemd
+__NEMU_CHECK_FULL_DPKG_QUERY__:ubuntu-standard:0:ii  ubuntu-standard 1.481.5
+__NEMU_CHECK_PASS__:full-userland-dpkg-package-ubuntu-standard
+__NEMU_CHECK_FULL_DPKG_QUERY__:openssh-server:0:ii  openssh-server 1:8.9p1-3ubuntu0.15
+__NEMU_CHECK_PASS__:full-userland-dpkg-package-openssh-server
+__NEMU_CHECK_FULL_DPKG_QUERY__:curl:0:ii  curl 7.81.0-1ubuntu1.24
+__NEMU_CHECK_PASS__:full-userland-dpkg-package-curl
+__NEMU_CHECK_FULL_DPKG_QUERY__:wget:0:ii  wget 1.21.2-2ubuntu1.1
+__NEMU_CHECK_PASS__:full-userland-dpkg-package-wget
+__NEMU_CHECK_FULL_DPKG_QUERY__:dropbear-bin:0:ii  dropbear-bin 2020.81-5ubuntu0.1
+__NEMU_CHECK_PASS__:full-userland-dpkg-package-dropbear-bin
+__NEMU_CHECK_FULL_DPKG_QUERY__:rsyslog:0:ii  rsyslog 8.2112.0-2ubuntu2.2
+__NEMU_CHECK_PASS__:full-userland-dpkg-package-rsyslog

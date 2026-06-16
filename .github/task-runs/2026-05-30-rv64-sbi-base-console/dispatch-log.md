@@ -1,8 +1,8 @@
-# DB-backed .github/task-runs/2026-05-30-rv64-sbi-base-console/dispatch-log.md
+# Dispatch Log
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/task-runs/2026-05-30-rv64-sbi-base-console/dispatch-log.md`。
-
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/2026-05-30-rv64-sbi-base-console/dispatch-log.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/task-runs/2026-05-30-rv64-sbi-base-console/dispatch-log.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/2026-05-30-rv64-sbi-base-console/dispatch-log.md`
+- 复核当前 SBI/console 与 UART 路径，确认 `Uart` TX offset 0、`NpcSimTop` UART event 和真实 UART base `0x10000000` 可用于 mini console 输出。
+- 新增 `sbi-base-console.c`，用 M-mode trap handler 模拟最小 SBI base extension 与 legacy console putchar。
+- 串行运行 `sbi-base-console`，确认 PASS，且 guest 串口输出 `OK`。
+- 串行合跑 `sbi-base-console counteren-time sbi-timer`，确认 base/console 不破坏 counter/time/timer 早期路径。
+- 串行执行 rv64 lint、rv64 build smoke 和 `add` smoke。
+- 更新 `.github/memory/` 与本 task-run，记录已覆盖能力和真实 Linux boot 剩余缺口。

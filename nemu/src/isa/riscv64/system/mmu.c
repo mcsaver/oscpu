@@ -16,6 +16,10 @@
 #include <isa.h>
 #include <memory/vaddr.h>
 #include <memory/paddr.h>
+#include <utils/profile.h>
+
+#include <stdlib.h>
+#include <string.h>
 
 #define SATP64_MODE(value) ((value) >> 60)
 #define SATP64_ASID(value) ((uint16_t)(((value) >> 44) & 0xffffu))
@@ -53,10 +57,31 @@ static Sv39TlbEntry sv39_dtlb[SV39_TLB_SIZE];
 static int sv39_fail_log_budget = CONFIG_RISCV_FAULT_DEBUG_BUDGET;
 #endif
 static word_t sv39_translate_fault_cause;
+static bool sv39_tlb_is_enabled = true;
+
+static bool runtime_env_enabled_default_true(const char *name) {
+#ifndef CONFIG_TARGET_AM
+  const char *env = getenv(name);
+  return !(env != NULL && env[0] != '\0' && strcmp(env, "0") == 0);
+#else
+  (void)name;
+  return true;
+#endif
+}
+
+__attribute__((constructor))
+static void sv39_runtime_config_init(void) {
+  sv39_tlb_is_enabled = runtime_env_enabled_default_true("NEMU_RISCV_MMU_TLB");
+}
+
+static inline bool sv39_tlb_runtime_enabled(void) {
+  return likely(sv39_tlb_is_enabled);
+}
 
 void isa_riscv64_mmu_tlb_flush(void) {
   memset(sv39_itlb, 0, sizeof(sv39_itlb));
   memset(sv39_dtlb, 0, sizeof(sv39_dtlb));
+  nemu_profile_count_if(NEMU_PROFILE_MMU_TLB_FLUSH_FULL, 1);
   vaddr_ifetch_cache_flush();
 }
 
@@ -86,6 +111,7 @@ void isa_riscv64_mmu_tlb_flush_selective(vaddr_t vaddr, bool flush_vaddr,
   uint16_t asid16 = (uint16_t)(asid & 0xffffu);
   sv39_tlb_flush_set(sv39_itlb, flush_vaddr, vpn, flush_asid, asid16);
   sv39_tlb_flush_set(sv39_dtlb, flush_vaddr, vpn, flush_asid, asid16);
+  nemu_profile_count_if(NEMU_PROFILE_MMU_TLB_FLUSH_SELECTIVE, 1);
   vaddr_ifetch_cache_flush();
 }
 
@@ -115,6 +141,7 @@ word_t isa_riscv64_mmu_fault_cause(int type) {
 static paddr_t sv39_fail_with_cause(vaddr_t vaddr, int type, int level,
     paddr_t pte_addr, word_t pte, const char *reason, word_t cause) {
   sv39_translate_fault_cause = cause;
+  nemu_profile_count_if(NEMU_PROFILE_MMU_FAULTS, 1);
 #ifdef CONFIG_RISCV_DEBUG_LOG
   if (sv39_fail_log_budget > 0) {
     sv39_fail_log_budget--;
@@ -157,6 +184,16 @@ typedef struct {
   uint64_t end;
 } PmpRange;
 
+typedef struct {
+  PmpRange range;
+  uint8_t cfg;
+  bool active;
+} PmpCachedEntry;
+
+static PmpCachedEntry pmp_cached_entries[RISCV64_PMP_ENTRY_COUNT];
+static bool pmp_cache_valid = false;
+static bool pmp_cache_any_active = false;
+
 static inline uint8_t pmp_cfg_a(uint8_t cfg) {
   return cfg & PMP_CFG_A_MASK;
 }
@@ -167,6 +204,10 @@ static inline bool pmp_entry_active(uint32_t index) {
 
 static inline bool pmp_any_active(void) {
   return cpu.csr.pmp_active;
+}
+
+void isa_riscv64_pmp_mark_dirty(void) {
+  pmp_cache_valid = false;
 }
 
 static inline uint64_t pmp_saturating_end(uint64_t start, uint64_t size) {
@@ -243,20 +284,34 @@ static inline bool pmp_permission_ok(uint8_t cfg, int type, uint8_t priv) {
   }
 }
 
+static void pmp_cache_refresh(void) {
+  pmp_cache_any_active = pmp_any_active();
+  for (uint32_t i = 0; i < RISCV64_PMP_ENTRY_COUNT; i++) {
+    pmp_cached_entries[i].cfg = cpu.csr.pmpcfg[i];
+    pmp_cached_entries[i].active =
+      pmp_cache_any_active && pmp_decode_range(i, &pmp_cached_entries[i].range);
+  }
+  pmp_cache_valid = true;
+}
+
 static bool pmp_check_with_priv(paddr_t paddr, int len, int type, uint8_t priv) {
   if (len <= 0) return false;
   if (!pmp_any_active()) return true;
+  if (unlikely(!pmp_cache_valid)) {
+    pmp_cache_refresh();
+  }
+  if (!pmp_cache_any_active) return true;
 
   uint64_t start = (uint64_t)paddr;
   uint64_t end = pmp_saturating_end(start, (uint64_t)len);
   if (end <= start) return false;
 
   for (uint32_t i = 0; i < RISCV64_PMP_ENTRY_COUNT; i++) {
-    PmpRange range;
-    if (!pmp_decode_range(i, &range)) continue;
+    if (!pmp_cached_entries[i].active) continue;
+    PmpRange range = pmp_cached_entries[i].range;
     if (!pmp_range_overlaps(range, start, end)) continue;
     if (!pmp_range_contains(range, start, end)) return false;
-    return pmp_permission_ok(cpu.csr.pmpcfg[i], type, priv);
+    return pmp_permission_ok(pmp_cached_entries[i].cfg, type, priv);
   }
 
   return priv == PRIV_M;
@@ -275,6 +330,9 @@ void isa_riscv64_pmp_dump_machine_info(FILE *out) {
   fprintf(out, "memory.pmp.mode=rv64-basic\n");
   fprintf(out, "memory.pmp.entries=%u\n", RISCV64_PMP_ENTRY_COUNT);
   fprintf(out, "memory.pmp.active=%d\n", pmp_any_active() ? 1 : 0);
+  fprintf(out, "memory.sv39_tlb.enabled=%d\n", sv39_tlb_runtime_enabled() ? 1 : 0);
+  fprintf(out, "memory.sv39_tlb.entries=%u\n", SV39_TLB_SIZE);
+  fprintf(out, "memory.sv39_tlb.disable_env=NEMU_RISCV_MMU_TLB=0\n");
 }
 #endif
 
@@ -319,6 +377,9 @@ static inline Sv39TlbEntry *sv39_tlb_set_for_type(int type) {
 }
 
 static inline uint8_t *sv39_host_page_base(paddr_t paddr) {
+  if (!vaddr_host_fast_runtime_enabled()) {
+    return NULL;
+  }
   paddr_t page_base = paddr & ~(paddr_t)PAGE_MASK;
   if (page_base >= PMEM_LEFT && page_base <= PMEM_RIGHT - PAGE_MASK) {
     return guest_to_host(page_base);
@@ -328,6 +389,12 @@ static inline uint8_t *sv39_host_page_base(paddr_t paddr) {
 
 static inline bool sv39_tlb_lookup(vaddr_t vaddr, int type, uint8_t priv,
     paddr_t *paddr, uint8_t **host_addr) {
+  if (!sv39_tlb_runtime_enabled()) {
+    nemu_profile_count_if(NEMU_PROFILE_MMU_TLB_DISABLED, 1);
+    return false;
+  }
+  nemu_profile_count_if(NEMU_PROFILE_MMU_TLB_LOOKUPS, 1);
+
   uint64_t vpn = (uint64_t)vaddr >> PAGE_SHIFT;
   uint64_t root_ppn = SATP64_PPN(cpu.csr.satp);
   uint16_t asid = SATP64_ASID(cpu.csr.satp);
@@ -345,6 +412,7 @@ static inline bool sv39_tlb_lookup(vaddr_t vaddr, int type, uint8_t priv,
     if (host_addr != NULL) {
       *host_addr = entry->host_page != NULL ? entry->host_page + page_offset : NULL;
     }
+    nemu_profile_count_if(NEMU_PROFILE_MMU_TLB_HITS, 1);
     return true;
   }
 
@@ -362,13 +430,17 @@ static inline bool sv39_tlb_lookup(vaddr_t vaddr, int type, uint8_t priv,
     if (host_addr != NULL) {
       *host_addr = entry->host_page != NULL ? entry->host_page + page_offset : NULL;
     }
+    nemu_profile_count_if(NEMU_PROFILE_MMU_TLB_HITS, 1);
     return true;
   }
+  nemu_profile_count_if(NEMU_PROFILE_MMU_TLB_MISSES, 1);
   return false;
 }
 
 static inline void sv39_tlb_fill(vaddr_t vaddr, paddr_t paddr,
     int type, uint8_t priv, bool global) {
+  if (!sv39_tlb_runtime_enabled()) return;
+
   uint64_t vpn = (uint64_t)vaddr >> PAGE_SHIFT;
   uint64_t root_ppn = SATP64_PPN(cpu.csr.satp);
   uint16_t asid = global ? 0 : SATP64_ASID(cpu.csr.satp);
@@ -389,9 +461,10 @@ static inline void sv39_tlb_fill(vaddr_t vaddr, paddr_t paddr,
     /*
      * Ubuntu 性能路径常在同一页内反复命中 TLB。TLB 同时缓存 PMEM 的 host
      * page base，让 vaddr 层命中后直接 host_read/write；MMIO 页保持 NULL。
-     */
+    */
     .host_page = sv39_host_page_base(paddr),
   };
+  nemu_profile_count_if(NEMU_PROFILE_MMU_TLB_FILLS, 1);
 }
 
 static inline bool pte_invalid(word_t pte) {
@@ -434,11 +507,13 @@ static paddr_t sv39_translate(vaddr_t vaddr, int len, int type,
   if (!sv39_va_canonical(vaddr)) return sv39_fail(vaddr, type, -1, 0, 0, "non-canonical");
 
   uint64_t va = vaddr;
-  uint64_t vpn[3] = {
-    (va >> 12) & 0x1ff,
-    (va >> 21) & 0x1ff,
-    (va >> 30) & 0x1ff,
-  };
+  /*
+   * sv39_translate 是 Ubuntu 热路径；避免局部 VPN 数组触发
+   * -fstack-protector-strong 给每次翻译插入 stack canary。
+   */
+  uint64_t vpn0 = (va >> 12) & 0x1ff;
+  uint64_t vpn1 = (va >> 21) & 0x1ff;
+  uint64_t vpn2 = (va >> 30) & 0x1ff;
   uint64_t page_offset = va & 0xfff;
   uint64_t table = SATP64_PPN(cpu.csr.satp) << 12;
   uint8_t priv = mmu_effective_priv(type);
@@ -446,12 +521,15 @@ static paddr_t sv39_translate(vaddr_t vaddr, int len, int type,
   paddr_t cached_paddr = 0;
   if (sv39_tlb_lookup(vaddr, type, priv, &cached_paddr, host_addr)) return cached_paddr;
 
+  nemu_profile_count_if(NEMU_PROFILE_MMU_WALKS, 1);
   for (int level = 2; level >= 0; level--) {
-    paddr_t pte_addr = (paddr_t)(table + vpn[level] * 8);
+    uint64_t vpn_at_level = level == 2 ? vpn2 : (level == 1 ? vpn1 : vpn0);
+    paddr_t pte_addr = (paddr_t)(table + vpn_at_level * 8);
     if (!isa_riscv64_pmp_check_as_priv(pte_addr, 8, MEM_TYPE_READ, PRIV_S)) {
       return sv39_fail_with_cause(vaddr, type, level, pte_addr, 0,
           "pmp-page-table-read", mmu_access_fault_cause_for_type(type));
     }
+    nemu_profile_count_if(NEMU_PROFILE_MMU_PTE_READS, 1);
     word_t pte = paddr_read(pte_addr, 8);
     if (pte_invalid(pte)) return sv39_fail(vaddr, type, level, pte_addr, pte, "invalid-pte");
     global_mapping = global_mapping || (pte & PTE_G);
@@ -476,14 +554,15 @@ static paddr_t sv39_translate(vaddr_t vaddr, int len, int type,
           return sv39_fail_with_cause(vaddr, type, level, pte_addr, pte,
               "pmp-page-table-write", mmu_access_fault_cause_for_type(type));
         }
+        nemu_profile_count_if(NEMU_PROFILE_MMU_PTE_UPDATES, 1);
         paddr_write(pte_addr, 8, pte | needed);
       }
 
       uint64_t pa;
       if (level == 2) {
-        pa = (ppn2 << 30) | (vpn[1] << 21) | (vpn[0] << 12) | page_offset;
+        pa = (ppn2 << 30) | (vpn1 << 21) | (vpn0 << 12) | page_offset;
       } else if (level == 1) {
-        pa = (ppn2 << 30) | (ppn1 << 21) | (vpn[0] << 12) | page_offset;
+        pa = (ppn2 << 30) | (ppn1 << 21) | (vpn0 << 12) | page_offset;
       } else {
         pa = (pte_ppn << 12) | page_offset;
       }

@@ -370,7 +370,7 @@ def require_interrupts(interrupts, label: str, log):
     for key, value in {
         "model": "riscv,clint0",
         "mmio": "0x02000000",
-        "time-source": "instruction",
+        "time-source": "host-monotonic",
         "timebase-hz": 10_000_000,
     }.items():
         if clint.get(key) != value:

@@ -204,11 +204,13 @@ e2e_index_task_run_evidence_assets() {
   [[ -n ${E2E_RUN_DIR:-} && -d $E2E_RUN_DIR ]] || return 0
   [[ -f "$E2E_ROOT_DIR/scripts/github_index_db.py" ]] || return 0
 
-  local run_rel
+  local run_rel backup_dir
   run_rel=$(e2e_relpath "$E2E_RUN_DIR")
+  backup_dir=${E2E_TASK_RUN_DB_BACKUP_DIR:-.github/db-backup/task-runs}
   if ! python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" index-evidence "$run_rel" \
       --repo-root "$E2E_ROOT_DIR" \
       --write-index \
+      --backup-dir "$backup_dir" \
       --yes >/dev/null; then
     printf '[e2e] WARN task-run evidence asset index failed for %s\n' "$run_rel" >&2
   fi
@@ -231,10 +233,10 @@ e2e_generate_context_brief() {
       "agent-system" \
       "github-index" \
       "github-index brief" \
-      ".github DB stored memory" \
+      ".github live index + retained memory/log" \
       "$(e2e_relpath "$E2E_CONTEXT_BRIEF_FILE")" \
       "$(e2e_relpath "$E2E_CONTEXT_BRIEF_FILE")" \
-      "DB-backed startup context generated before dispatch"
+      "DB-indexed startup context generated before dispatch"
   else
     {
       printf '# Agent Brief\n\n'
@@ -246,7 +248,7 @@ e2e_generate_context_brief() {
       "agent-system" \
       "github-index" \
       "github-index brief" \
-      ".github DB stored memory" \
+      ".github live index + retained memory/log" \
       "context brief unavailable" \
       "$(e2e_relpath "$E2E_CONTEXT_BRIEF_FILE")" \
       "继续执行 profile；查看数据库或 github-index gate"
@@ -269,7 +271,7 @@ e2e_generate_profile_resolve() {
       ".github/e2e/profiles/$E2E_PROFILE.tsv" \
       "$(e2e_relpath "$E2E_PROFILE_RESOLVE_FILE")" \
       "$(e2e_relpath "$E2E_PROFILE_RESOLVE_FILE")" \
-      "DB-backed e2e profile include closure generated before dispatch"
+      "live/indexed e2e profile include closure generated before dispatch"
   else
     {
       printf '# E2E Resolved Profile\n\n'

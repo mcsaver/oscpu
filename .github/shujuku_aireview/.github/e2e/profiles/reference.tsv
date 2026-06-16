@@ -1,2 +1,0 @@
-@include|discovery||||
-am-reference-regression|hardware-flow|e2e_hardware_flow_reference_regression|hardware-flow|scripts/am-regression.sh --no-bench --skip-devscan|AM/NEMU 参考回归证据

@@ -1,0 +1,44 @@
+{
+  "artifacts": {
+    "dispatch_log": ".github/task-runs/2026-06-16-agent-maintain-no-push-trigger/dispatch-log.md",
+    "evidence_dir": ".github/task-runs/2026-06-16-agent-maintain-no-push-trigger/evidence",
+    "evidence_index": ".github/task-runs/2026-06-16-agent-maintain-no-push-trigger/evidence-index.md",
+    "run_dir": ".github/task-runs/2026-06-16-agent-maintain-no-push-trigger",
+    "run_manifest": ".github/task-runs/2026-06-16-agent-maintain-no-push-trigger/run-manifest.json",
+    "task_report": ".github/task-runs/2026-06-16-agent-maintain-no-push-trigger/task-report.md"
+  },
+  "db": {
+    "markdown_archive": true,
+    "raw_evidence_index_only": true
+  },
+  "evidence": {
+    "asset_count": 1,
+    "by_kind": {
+      "log": 1
+    },
+    "total_size_bytes": 0
+  },
+  "final_result": "直接 push 到 GitHub 不再触发 agent-maintain workflow；targeted checks、policy-audit 与 agent-system profile PASS；完整维护门禁仍被既有 npc.md DB drift 阻断。",
+  "git": {
+    "branch": "ai",
+    "head": "c3a8f42d4",
+    "upstream": "myfork/ai"
+  },
+  "graph_mode": "static",
+  "graph_template": "agent-env-refactor",
+  "node_counts": {
+    "by_status": {
+      "BLOCKED": 1,
+      "PASS": 4
+    },
+    "total": 5
+  },
+  "profile": "agent-system",
+  "run_id": "2026-06-16-agent-maintain-no-push-trigger",
+  "schema_version": 1,
+  "started_at": "2026-06-16 00:18:26 +0800",
+  "status": "completed",
+  "task_slug": "agent-maintain-no-push-trigger",
+  "trace_id": "manual:2026-06-16-agent-maintain-no-push-trigger",
+  "updated_at": "2026-06-16 00:18:26 +0800"
+}

@@ -1,2 +1,0 @@
-@include|nemu-ubuntu||||
-nemu-ubuntu-focused-gate|nemu|e2e_nemu_ubuntu_focused_gate|nemu|optional focused Ubuntu rootfs/systemd guest gate|AGENT_E2E_NEMU_UBUNTU_GATE=1 时运行真实 guest gate，否则 SKIP

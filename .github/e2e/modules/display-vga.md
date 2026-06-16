@@ -1,8 +1,9 @@
-# DB-backed .github/e2e/modules/display-vga.md
+# display-vga E2E Contract
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/e2e/modules/display-vga.md`。
-
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/e2e/modules/display-vga.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/e2e/modules/display-vga.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/e2e/modules/display-vga.md`
+- **范围**: Linux-visible framebuffer/simplefb/simpledrm/fbcon 与 SDL scanout。
+- **上游**: rv64-linux DTB/kernel config、display agent。
+- **下游**: Ubuntu 可视化文本输出。
+- **L0 gate**: `display-vga-contract` 检查 display agent 和 framebuffer instruction。
+- **L1 gate**: 后续 simplefb DTB + fbcon smoke。
+- **证据**: kernel config、DTB framebuffer node、SDL scanout/fbcon marker。
+- **升级路线**: 自动截图/文本检测进入 task-run artifact。

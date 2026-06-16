@@ -1,8 +1,23 @@
-# DB-backed .github/task-runs/2026-06-12-rv64-uart-rx-smoke-manual/task-report.md
+# Task Report: rv64-uart-rx-smoke-manual
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文备份由 `.github/db-backup/task-runs/manifest.json` 管理；恢复请使用下方命令。
+- **profile**: manual targeted node check for `npc-rv64-uart-rx-smoke`
+- **status**: PASS
+- **date**: 2026-06-12
+- **purpose**: 验证 NPC RV64 16550 UART RX 寄存器语义和 DPI 宿主输入注入链路。
 
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/2026-06-12-rv64-uart-rx-smoke-manual/task-report.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/task-runs --path .github/task-runs/2026-06-12-rv64-uart-rx-smoke-manual/task-report.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/2026-06-12-rv64-uart-rx-smoke-manual/task-report.md`
+## Evidence
+
+- `evidence/npc-rv64-uart-rx-smoke/module-testbench.log`
+- `evidence/npc-rv64-uart-rx-smoke/runtime.log`
+- `evidence/npc-rv64-uart-rx-smoke/runtime/console.log`
+- `evidence/npc-rv64-uart-rx-smoke/runtime/npc.log`
+
+## Result
+
+- `tb_uart` PASS
+- `tb_axi_lite_to_uart` PASS
+- Runtime smoke PASS: `NPC_UART_RX_TEXT=xy NPC_UART_RX_TRACE=1` 在 1000-cycle NPC run 中记录 `loaded bytes=2`、`pop=1 data=0x78`、`pop=2 data=0x79`。
+
+## Boundary
+
+该 run 只证明 UART RX/RDA/DPI 注入链路可用，不声明 Ubuntu systemd userspace、login 或 shell 已完成。

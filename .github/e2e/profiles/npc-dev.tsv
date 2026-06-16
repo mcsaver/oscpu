@@ -1,8 +1,5 @@
-# DB-backed .github/e2e/profiles/npc-dev.tsv
-
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文备份由 `.github/db-backup/manifest.json` 管理；恢复请使用下方命令。
-
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/e2e/profiles/npc-dev.tsv`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup --path .github/e2e/profiles/npc-dev.tsv --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/e2e/profiles/npc-dev.tsv`
+@include|software-flow||||
+npc-sim-contract|npc|e2e_npc_sim_contract|npc|npc/sim + backend manifests|NPC 开发环境入口只检查 NPC 仿真后端合同
+npc-single-contract|npc|e2e_npc_single_contract|npc|npc/single Makefile/Kconfig/vsrc/csrc|NPC single 后端合约入口存在
+npc-soc-contract|npc|e2e_npc_soc_contract|npc|npc/soc + ysyxSoC CPU ABI|NPC SoC 后端合约入口存在
+npc-rv64-contract|npc|e2e_npc_rv64_contract|npc|npc/rv64 + Linux README|NPC RV64 Linux 入口合约存在但不跑 NEMU Ubuntu gate

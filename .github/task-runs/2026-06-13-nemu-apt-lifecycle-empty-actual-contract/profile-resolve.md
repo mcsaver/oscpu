@@ -1,8 +1,32 @@
-# DB-backed .github/task-runs/2026-06-13-nemu-apt-lifecycle-empty-actual-contract/profile-resolve.md
+# E2E Resolved Profile
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文备份由 `.github/db-backup/task-runs/manifest.json` 管理；恢复请使用下方命令。
+- `source`: stored
+- `profile`: nemu-ubuntu
+- `ok`: True
+- `expanded_node_count`: 13
+- `profile_order`: nemu-ubuntu, rv64-linux, discovery, software-flow
+- `modules`: agent-system, hardware-flow, nemu, npc, rv64-linux, software-flow, toolchain
+- `owners`: agent-system, hardware-flow, nemu, npc, rv64-linux, software-flow
+- `command`: scripts/agent-e2e.sh --profile nemu-ubuntu
+- `validate_command`: scripts/agent-e2e.sh --validate-profile --profile nemu-ubuntu
 
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/task-runs/2026-06-13-nemu-apt-lifecycle-empty-actual-contract/profile-resolve.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/task-runs --path .github/task-runs/2026-06-13-nemu-apt-lifecycle-empty-actual-contract/profile-resolve.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/task-runs/2026-06-13-nemu-apt-lifecycle-empty-actual-contract/profile-resolve.md`
+## Include Edges
+- `nemu-ubuntu` -> `rv64-linux`
+- `rv64-linux` -> `discovery`
+- `nemu-ubuntu` -> `software-flow`
+
+## Nodes
+1. `recall-discovery` source=`discovery` module=`agent-system` owner=`agent-system` function=`e2e_agent_system_discovery`
+2. `tool-env-check` source=`discovery` module=`toolchain` owner=`agent-system` function=`e2e_toolchain_check`
+3. `npc-sim-status` source=`discovery` module=`hardware-flow` owner=`hardware-flow` function=`e2e_hardware_flow_npc_sim_status`
+4. `npc-rv64-contract` source=`rv64-linux` module=`npc` owner=`npc` function=`e2e_npc_rv64_contract`
+5. `npc-rv64-sv39-sret-u-mode` source=`rv64-linux` module=`npc` owner=`npc` function=`e2e_npc_rv64_sv39_sret_u_mode`
+6. `npc-rv64-linux-focused-smokes` source=`rv64-linux` module=`npc` owner=`npc` function=`e2e_npc_rv64_linux_focused_smokes`
+7. `npc-rv64-uart-rx-smoke` source=`rv64-linux` module=`npc` owner=`npc` function=`e2e_npc_rv64_uart_rx_smoke`
+8. `npc-rv64-linux-rootfs-mount-smoke` source=`rv64-linux` module=`npc` owner=`npc` function=`e2e_npc_rv64_linux_rootfs_mount_smoke`
+9. `npc-rv64-systemd-guest-check-contract` source=`rv64-linux` module=`npc` owner=`npc` function=`e2e_npc_rv64_systemd_guest_check_contract`
+10. `rv64-linux-contract` source=`rv64-linux` module=`rv64-linux` owner=`rv64-linux` function=`e2e_rv64_linux_contract`
+11. `software-flow-contract` source=`software-flow` module=`software-flow` owner=`software-flow` function=`e2e_software_flow_contract`
+12. `nemu-ubuntu-static` source=`nemu-ubuntu` module=`nemu` owner=`nemu` function=`e2e_nemu_ubuntu_static_gate`
+13. `nemu-ubuntu-slice-contract` source=`nemu-ubuntu` module=`nemu` owner=`nemu` function=`e2e_nemu_ubuntu_slice_contract`
+

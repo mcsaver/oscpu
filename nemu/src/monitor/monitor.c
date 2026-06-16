@@ -14,8 +14,10 @@
 ***************************************************************************************/
 
 #include <isa.h>
+#include <cpu/cpu.h>
 #include <cpu/bpu.h>
 #include <memory/paddr.h>
+#include <memory/vaddr.h>
 #include <device/map.h>
 #include <ftrace.h>
 #include <utils.h>
@@ -184,10 +186,17 @@ static void dump_machine_info(FILE *out) {
   machine_info_write_bool(out, "config.riscv_ext_e", ISDEF(CONFIG_RVE));
   machine_info_write_bool(out, "config.cache", ISDEF(CONFIG_CACHE));
   machine_info_write_bool(out, "config.interpreter_basic_block", ISDEF(CONFIG_INTERPRETER_BASIC_BLOCK));
+  machine_info_write_bool(out, "runtime.interpreter_basic_block.enabled",
+      ISDEF(CONFIG_INTERPRETER_BASIC_BLOCK) && cpu_interpreter_basic_block_runtime_enabled());
+  fprintf(out, "runtime.interpreter_basic_block.disable_env=NEMU_INTERPRETER_BASIC_BLOCK=0\n");
 #ifdef CONFIG_INTERPRETER_BASIC_BLOCK
   fprintf(out, "config.interpreter_tb_max_inst=%d\n", CONFIG_INTERPRETER_TB_MAX_INST);
+  fprintf(out, "runtime.interpreter_tb_max_inst=%" PRIu64 "\n",
+      cpu_interpreter_tb_max_inst_runtime());
+  fprintf(out, "runtime.interpreter_tb_max_inst.env=NEMU_INTERPRETER_TB_MAX_INST\n");
 #else
   fprintf(out, "config.interpreter_tb_max_inst=0\n");
+  fprintf(out, "runtime.interpreter_tb_max_inst=0\n");
 #endif
   machine_info_write_bool(out, "config.interpreter_wide_ifetch", ISDEF(CONFIG_INTERPRETER_WIDE_IFETCH));
   machine_info_write_bool(out, "config.interpreter_ifetch_page_cache",
@@ -195,6 +204,17 @@ static void dump_machine_info(FILE *out) {
   machine_info_write_bool(out, "config.interpreter_decode_cache", ISDEF(CONFIG_INTERPRETER_DECODE_CACHE));
   machine_info_write_bool(out, "config.interpreter_decode_direct_dispatch",
       ISDEF(CONFIG_INTERPRETER_DECODE_DIRECT_DISPATCH));
+  machine_info_write_bool(out, "runtime.interpreter_wide_ifetch.enabled",
+      ISDEF(CONFIG_INTERPRETER_WIDE_IFETCH) && vaddr_ifetch_wide_runtime_enabled());
+  fprintf(out, "runtime.interpreter_wide_ifetch.disable_env=NEMU_INTERPRETER_WIDE_IFETCH=0\n");
+  machine_info_write_bool(out, "runtime.interpreter_ifetch_page_cache.enabled",
+      ISDEF(CONFIG_INTERPRETER_IFETCH_PAGE_CACHE) &&
+      vaddr_ifetch_wide_runtime_enabled() && vaddr_host_fast_runtime_enabled());
+  machine_info_write_bool(out, "runtime.interpreter_decode_cache.enabled",
+      ISDEF(CONFIG_INTERPRETER_DECODE_CACHE) && isa_riscv_decode_cache_runtime_enabled());
+  fprintf(out, "runtime.interpreter_decode_cache.disable_env=NEMU_INTERPRETER_DECODE_CACHE=0\n");
+  machine_info_write_bool(out, "runtime.vaddr_host_fast.enabled", vaddr_host_fast_runtime_enabled());
+  fprintf(out, "runtime.vaddr_host_fast.disable_env=NEMU_VADDR_HOST_FAST=0\n");
 #ifdef CONFIG_INTERPRETER_DECODE_CACHE
   fprintf(out, "config.interpreter_decode_cache_entries=%d\n",
       CONFIG_INTERPRETER_DECODE_CACHE_ENTRIES);

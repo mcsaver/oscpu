@@ -33,6 +33,8 @@ static bool g_uart_rx_trace_enabled = false;
 static uint64_t g_uart_rx_trace_min_commit = 0;
 static uint64_t g_uart_rx_trace_limit = 128;
 static uint64_t g_uart_rx_trace_count = 0;
+static uint64_t g_uart_rx_cycle_gap = 0;
+static uint64_t g_uart_rx_next_cycle = 0;
 static uint8_t *g_uart_rx_buf = NULL;
 static size_t g_uart_rx_len = 0;
 static size_t g_uart_rx_pos = 0;
@@ -114,6 +116,12 @@ static void init_uart_rx_source(void) {
     uint64_t value = strtoull(limit_s, &end, 0);
     if (end != limit_s) g_uart_rx_trace_limit = value;
   }
+  const char *cycle_gap_s = getenv("NPC_UART_RX_CYCLE_GAP");
+  if (cycle_gap_s && cycle_gap_s[0] != '\0') {
+    char *end = NULL;
+    uint64_t value = strtoull(cycle_gap_s, &end, 0);
+    if (end != cycle_gap_s) g_uart_rx_cycle_gap = value;
+  }
 
   size_t file_bytes = append_uart_rx_file(getenv("NPC_UART_RX_FILE"));
   const char *text = getenv("NPC_UART_RX_TEXT");
@@ -126,13 +134,15 @@ static void init_uart_rx_source(void) {
   if (g_uart_rx_len > 0 || g_uart_rx_trace_enabled) {
     LogBothTag("uart-rx",
                "loaded bytes=%llu file_bytes=%llu text_bytes=%llu "
-               "trace=%u min_commit=%llu limit=%llu wait='%s'",
+               "trace=%u min_commit=%llu limit=%llu cycle_gap=%llu "
+               "wait='%s'",
                (unsigned long long)g_uart_rx_len,
                (unsigned long long)file_bytes,
                (unsigned long long)text_bytes,
                g_uart_rx_trace_enabled ? 1u : 0u,
                (unsigned long long)g_uart_rx_trace_min_commit,
                (unsigned long long)g_uart_rx_trace_limit,
+               (unsigned long long)g_uart_rx_cycle_gap,
                npc_uart_rx_wait_text());
   }
 }
@@ -362,9 +372,17 @@ int npc_uart_rx_pop(uint32_t *data) {
     *data = 0;
     return 0;
   }
+  if (g_uart_rx_cycle_gap > 0 &&
+      npc_stats()->cycles < g_uart_rx_next_cycle) {
+    *data = 0;
+    return 0;
+  }
 
   uint32_t ch = g_uart_rx_buf[g_uart_rx_pos++];
   *data = ch;
+  if (g_uart_rx_cycle_gap > 0) {
+    g_uart_rx_next_cycle = npc_stats()->cycles + g_uart_rx_cycle_gap;
+  }
   maybe_trace_uart_rx(ch);
   return 1;
 }

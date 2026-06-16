@@ -1,8 +1,9 @@
-# DB-backed .github/e2e/modules/verilator-tapeout.md
+# verilator-tapeout E2E Contract
 
-> 本文件是兼容 shim：完整原文已提升到 `.github/cache/github-index.sqlite` 的 stored document。
-> 原文件备份位于 `.github/db-backup/2026-06-11-agent-env-db-first/files/.github/e2e/modules/verilator-tapeout.md`。
-
-- 按需加载：`python3 scripts/github_index_db.py load --source stored --path .github/e2e/modules/verilator-tapeout.md`
-- 从备份恢复：`python3 scripts/github_index_db.py restore --backup-dir .github/db-backup/2026-06-11-agent-env-db-first --path .github/e2e/modules/verilator-tapeout.md --yes`
-- 重新物化：`python3 scripts/github_index_db.py materialize --path .github/e2e/modules/verilator-tapeout.md`
+- **范围**: Verilator-first 性能仿真、仿真-only 边界、可综合审计。
+- **上游**: npc/rv64 core、Linux system gates、STA/PPA。
+- **下游**: 流片水准收敛。
+- **L0 gate**: `verilator-tapeout-contract` 检查 realism instruction 和 npc/rv64 Makefile。
+- **L1 gate**: 后续 perf run + RTL invariant check。
+- **证据**: host time、guest cycles/commits/CPI、仿真-only 边界记录。
+- **升级路线**: 自动生成 tapeout readiness risk table。

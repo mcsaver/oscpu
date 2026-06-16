@@ -72,6 +72,8 @@ reject_autoconf_define() {
 
 require_config_enabled CONFIG_PERFORMANCE
 require_autoconf_define CONFIG_PERFORMANCE
+require_config_enabled CONFIG_RISCV_CLINT_HOST_TIME
+require_autoconf_define CONFIG_RISCV_CLINT_HOST_TIME
 require_config_enabled CONFIG_INTERPRETER_BASIC_BLOCK
 require_autoconf_define CONFIG_INTERPRETER_BASIC_BLOCK
 require_config_value CONFIG_INTERPRETER_TB_MAX_INST 32

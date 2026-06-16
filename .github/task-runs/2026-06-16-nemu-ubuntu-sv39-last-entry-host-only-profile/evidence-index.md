@@ -1,0 +1,220 @@
+# Evidence Index
+
+## 基本信息
+
+- `task_id`: 2026-06-16-nemu-ubuntu-sv39-last-entry-host-only-profile
+- `task_slug`: nemu-ubuntu-sv39-last-entry-host-only-profile
+- `profile`: nemu-ubuntu-profile
+- `asset_count`: 19
+- `total_size_bytes`: 8590411644
+
+## 证据资产
+
+### .github/task-runs/2026-06-16-nemu-ubuntu-sv39-last-entry-host-only-profile/evidence/nemu-host-build.log
+
+- `kind`: log
+- `size_bytes`: 578
+- `line_count`: 8
+- `sha256`: 76a924046263f6e502b07a6883cd199e993ea2b9f2d9678e573c50912a0539ad
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-15T21:27:34+00:00
+- `markers`: {}
+- `summary`: log evidence; size=578 bytes; lines=8; markers=<none>; tail=make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux' make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' riscv64-linux_defconfig make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu' make[1]: Leaving dire...
+
+### .github/task-runs/2026-06-16-nemu-ubuntu-sv39-last-entry-host-only-profile/evidence/nemu-profile/console.log
+
+- `kind`: log
+- `size_bytes`: 19207
+- `line_count`: 265
+- `sha256`: 8cd43bed0a5f2d4360f27f75510c7a777497779f935112415f81922398206feb
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-15T21:27:34+00:00
+- `markers`: {"symbolic": ["_____"]}
+- `summary`: log evidence; size=19207 bytes; lines=265; symbolic=_____; tail=OpenSBI v1.8 ____ _____ ____ _____ / __ \ / ____| _ \_ _| | | | |_ __ ___ _ __ | (___ | |_) || | | | | | '_ \ / _ \ '_ \ \___ \| _ < | | | |__| | |_) | __/ | | |____) | |_) || |_ \____/| .__/ \___|_| |_|_____/|____/_____| | | |_| Platform Name : YSYX NPC RV...
+
+### .github/task-runs/2026-06-16-nemu-ubuntu-sv39-last-entry-host-only-profile/evidence/nemu-profile/host-profiler.txt
+
+- `kind`: txt
+- `size_bytes`: 1163
+- `line_count`: 32
+- `sha256`: bc41670705f26b1eb1189b9d7cb9d2f913e6b52f6534f42926acc5fc409058ba
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-15T21:27:34+00:00
+- `markers`: {"WARN": 2}
+- `summary`: txt evidence; size=1163 bytes; lines=32; WARN=2; tail=perf.record.requested=0 perf.record.freq=99 perf.source=system perf.path=/usr/bin/perf perf.status=unavailable WARNING: perf not found for kernel 6.6.87.2-microsoft You may need to install the following packages for this specific kernel: linux-tools-6.6.87....
+
+### .github/task-runs/2026-06-16-nemu-ubuntu-sv39-last-entry-host-only-profile/evidence/nemu-profile/nemu.log
+
+- `kind`: log
+- `size_bytes`: 0
+- `line_count`: 0
+- `sha256`: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-15T21:27:34+00:00
+- `markers`: {}
+- `summary`: log evidence; size=0 bytes; lines=0; markers=<none>; tail=
+
+### .github/task-runs/2026-06-16-nemu-ubuntu-sv39-last-entry-host-only-profile/evidence/nemu-profile/perf-smoke.out
+
+- `kind`: out
+- `size_bytes`: 243
+- `line_count`: 11
+- `sha256`: 5cdafe1de06ecdffae052a5da9cf2c9de5e006c2249313eadd60a1b7f9e9e267
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-15T21:27:34+00:00
+- `markers`: {}
+- `summary`: out evidence; size=243 bytes; lines=11; markers=<none>; tail=Performance counter stats for 'true': 0.35 msec task-clock:u # 0.447 CPUs utilized 0.000783961 seconds time elapsed 0.000905000 seconds user 0.000000000 seconds sys
+
+### .github/task-runs/2026-06-16-nemu-ubuntu-sv39-last-entry-host-only-profile/evidence/nemu-profile/profile-command.txt
+
+- `kind`: txt
+- `size_bytes`: 533
+- `line_count`: 21
+- `sha256`: 5b7fc36f2398737410b75b9c5dd29be7bad10a3fd3d6050f5d6f00b9bd63eccf
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-15T21:27:34+00:00
+- `markers`: {}
+- `summary`: txt evidence; size=533 bytes; lines=21; markers=<none>; tail=repo_root=/home/lyg/PA/ysyx-workbench rootfs_flavor=full rootfs_image=/home/lyg/PA/ysyx-workbench/Linux/env/platforms/nemu/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4 max_cycles=1000000000 progress=50000000 tb_max_inst=32 opcode_mix=0 stop_detail=0 dec...
+
+### .github/task-runs/2026-06-16-nemu-ubuntu-sv39-last-entry-host-only-profile/evidence/nemu-profile/profile-run.log
+
+- `kind`: log
+- `size_bytes`: 33357
+- `line_count`: 438
+- `sha256`: a6b45731fd1f762a846d68c2df0525ced15bb89e02106e960f5d1cb010cc76fc
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-15T21:27:34+00:00
+- `markers`: {"symbolic": ["_____"]}
+- `summary`: log evidence; size=33357 bytes; lines=438; symbolic=_____; tail=make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux' make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' riscv64-linux_defconfig make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu' make[1]: Leaving dire...
+
+### .github/task-runs/2026-06-16-nemu-ubuntu-sv39-last-entry-host-only-profile/evidence/nemu-profile/profile-summary.txt
+
+- `kind`: txt
+- `size_bytes`: 51
+- `line_count`: 3
+- `sha256`: 4901c46eec32391cdf9f62a413750402b7624d1c58acd405f535ba36027bf0ec
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-15T21:27:34+00:00
+- `markers`: {}
+- `summary`: txt evidence; size=51 bytes; lines=3; markers=<none>; tail=# NEMU Ubuntu Profile Summary profile.available=0
+
+### .github/task-runs/2026-06-16-nemu-ubuntu-sv39-last-entry-host-only-profile/evidence/nemu-profile/rootfs-overlay.raw
+
+- `kind`: raw
+- `size_bytes`: 8589934592
+- `line_count`: 2667
+- `sha256`: 98d101d14fcb506870adcb5bbab11812da989d232ad3865e5fc21b42fbf44a0a
+- `encoding`: binary-or-non-utf8
+- `indexed_at`: 2026-06-15T21:27:34+00:00
+- `markers`: {}
+- `summary`: raw evidence; size=8589934592 bytes; lines=2667; markers=<none>; tail=
+
+### .github/task-runs/2026-06-16-nemu-ubuntu-sv39-last-entry-host-only-profile/evidence/nemu-rootfs-flavor-artifacts-dry-run.log
+
+- `kind`: log
+- `size_bytes`: 887
+- `line_count`: 12
+- `sha256`: 6e02a626a684c2dd233c354025c28b8c8dd35eb9e15410e06f1ad94ff0525983
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-15T21:27:34+00:00
+- `markers`: {}
+- `summary`: log evidence; size=887 bytes; lines=12; markers=<none>; tail=make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux' UBUNTU_ROOTFS_FLAVOR=full \ UBUNTU_ROOTFS_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/platforms/nemu/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4' \ UBUNTU_ROOTFS_CPIO_IMAGE='/home/lyg/PA/ysy...
+
+### .github/task-runs/2026-06-16-nemu-ubuntu-sv39-last-entry-host-only-profile/evidence/nemu-rootfs-flavor-full-soak-gate-dry-run.log
+
+- `kind`: log
+- `size_bytes`: 8304
+- `line_count`: 99
+- `sha256`: a9ffcb3618cc8797db14514404c0dfa65094ccb4584c47a0808044ff27548c30
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-15T21:27:34+00:00
+- `markers`: {}
+- `summary`: log evidence; size=8304 bytes; lines=99; markers=<none>; tail=make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux' make ARCH=riscv64-nemu BOOT=ubuntu-rootfs \ UBUNTU_ROOTFS_FLAVOR=full \ UBUNTU_ROOTFS_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/platforms/nemu/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4'...
+
+### .github/task-runs/2026-06-16-nemu-ubuntu-sv39-last-entry-host-only-profile/evidence/nemu-rootfs-flavor-guest-gate-dry-run.log
+
+- `kind`: log
+- `size_bytes`: 7997
+- `line_count`: 92
+- `sha256`: 4c6fe4e3d54b61a0289a6302ae13ca4403dce4062b8b604c1ee1550cf7178b25
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-15T21:27:34+00:00
+- `markers`: {}
+- `summary`: log evidence; size=7997 bytes; lines=92; markers=<none>; tail=make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux' make ARCH=riscv64-nemu BOOT=ubuntu-rootfs \ UBUNTU_ROOTFS_FLAVOR=full \ UBUNTU_ROOTFS_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/platforms/nemu/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4'...
+
+### .github/task-runs/2026-06-16-nemu-ubuntu-sv39-last-entry-host-only-profile/evidence/nemu-run-overlay-dry.log
+
+- `kind`: log
+- `size_bytes`: 7265
+- `line_count`: 68
+- `sha256`: 0bc3f8ef6b545a96ad51b2dcb6e50d200a02ddb089cb3b1f47fdca17521fb1cd
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-15T21:27:34+00:00
+- `markers`: {}
+- `summary`: log evidence; size=7265 bytes; lines=68; markers=<none>; tail=make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux' make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' riscv64-linux_defconfig make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu' /home/lyg/PA/ysyx-wor...
+
+### .github/task-runs/2026-06-16-nemu-ubuntu-sv39-last-entry-host-only-profile/evidence/nemu-ubuntu-profile.log
+
+- `kind`: log
+- `size_bytes`: 33726
+- `line_count`: 441
+- `sha256`: 556f5edd3636aca09c0882f28ec6671de83fbf278be16a44714401a8f71abc36
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-15T21:27:34+00:00
+- `markers`: {"PASS": 2, "symbolic": ["_____"]}
+- `summary`: log evidence; size=33726 bytes; lines=441; PASS=2; symbolic=_____; tail=[nemu-ubuntu] heavy performance profile gate make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux' make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' riscv64-linux_defconfig make[1]: Entering directory '/home/lyg/...
+
+### .github/task-runs/2026-06-16-nemu-ubuntu-sv39-last-entry-host-only-profile/evidence/nemu-ubuntu-slice-contract.log
+
+- `kind`: log
+- `size_bytes`: 109447
+- `line_count`: 1993
+- `sha256`: 4f594187b5d44ce16a904281a8ffdfbd94bc9f5cde9af8b3037f4ec87a2d4124
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-15T21:27:34+00:00
+- `markers`: {"BAD_TRAP": 2, "FAIL": 7, "GOOD_TRAP": 9, "OOPS": 2, "PANIC": 2, "PASS": 2352, "symbolic": ["__NEMU_CHECK_COMMON_COMMANDS__", "__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_META_SHA256__", "__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_RC__", "__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_SHA256__", "__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_TARGETS__", "__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_SIM_RC__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_DPKG_LIST_HELLO_RC__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_DPKG_LIST_META_RC__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_DPKG_OWNERSHIP_LOG_BEGIN__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_DPKG_SEARCH_HELLO_RC__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_DPKG_SEARCH_META_RC__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_DPKG_STATUS_SNAPSHOT__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_DPKG_STATUS__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_HELLO_DPKG_STATUS_AFTER_PURGE__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_HELLO_DPKG_STATUS_AFTER_REMOVE__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_HELLO_MESSAGE_AFTER_PURGE__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_HELLO_MESSAGE_AFTER_REMOVE__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_HELLO_SEARCH_AFTER_PURGE_RC__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_APT_STATE__", "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_DEADLINE_RC__"]}
+- `summary`: log evidence; size=109447 bytes; lines=1993; FAIL=7; PASS=2352; GOOD_TRAP=9; BAD_TRAP=2; PANIC=2; OOPS=2; symbolic=__NEMU_CHECK_COMMON_COMMANDS__,__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_META_SHA256__,__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_RC__,__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_SHA256__,__NEMU_CHECK_FULL_APT_DIRECT_EMPTY_STATUS_DOWNLOAD_TARGETS__; tail=IRECT_FULL_STATUS_PURGE_META_STATUS_SNAPSHOT__ PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_HELLO_STATUS_SNAPSHOT__ PASS check-nemu-systemd-guest.sh __NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_PURGE_RC__ PASS check-nemu-syste...
+
+### .github/task-runs/2026-06-16-nemu-ubuntu-sv39-last-entry-host-only-profile/evidence/nemu-ubuntu-static.log
+
+- `kind`: log
+- `size_bytes`: 246715
+- `line_count`: 4322
+- `sha256`: 4e253b101ce33e3b7ab94a44de42ce5538bb7cc1c4ff0de340b9b1cea83347db
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-15T21:27:34+00:00
+- `markers`: {"GOOD_TRAP": 27, "PASS": 378, "symbolic": ["__NEMU_GDBSTUB_SMOKE__", "__NEMU_KERNEL_CONFIG__", "__NEMU_PERFORMANCE_CONFIG__"]}
+- `summary`: log evidence; size=246715 bytes; lines=4322; PASS=378; GOOD_TRAP=27; symbolic=__NEMU_GDBSTUB_SMOKE__,__NEMU_KERNEL_CONFIG__,__NEMU_PERFORMANCE_CONFIG__; tail=features:read+;qXfer:memory-map:read+;swbreak+;hwbreak+;watchpoint+;vContSupported+;async-stop+;QStartNoAckMode+ PASS swbreak-insert OK PASS swbreak-hit S05 PASS swbreak-vcont-hit S05 PASS swbreak-pc 0800008000000000 PASS swbreak-remove OK PASS swbreak-cont...
+
+### .github/task-runs/2026-06-16-nemu-ubuntu-sv39-last-entry-host-only-profile/evidence/software-flow-contract.log
+
+- `kind`: log
+- `size_bytes`: 2469
+- `line_count`: 37
+- `sha256`: d7fd15a4d6e627594d6f61c6ae2d8d3e88c330a4b37fbe2868bb28f81205103b
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-15T21:27:34+00:00
+- `markers`: {"FAIL": 2, "PASS": 68}
+- `summary`: log evidence; size=2469 bytes; lines=37; FAIL=2; PASS=68; tail=[software-flow] contract PASS .github/agents/software-flow.agent.md PASS .github/e2e/modules/software-flow.md PASS .github/e2e/profiles/software-flow.tsv PASS .github/memory/modules/software-flow.md PASS .github/agents/nemu.agent.md PASS .github/agents/abst...
+
+### .github/task-runs/2026-06-16-nemu-ubuntu-sv39-last-entry-host-only-profile/nodes.tsv
+
+- `kind`: tsv
+- `size_bytes`: 1005
+- `line_count`: 4
+- `sha256`: 5773571e9ec1d58f64dde695e6d7674cd849bb867727ce16420401ecf431aa0b
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-15T21:27:34+00:00
+- `markers`: {"PASS": 10}
+- `summary`: tsv evidence; size=1005 bytes; lines=4; PASS=10; tail=software-flow-contract software-flow software-flow PASS software-flow agent + profile + memory 软件开发全流程 agent 合约入口存在 .github/task-runs/2026-06-16-nemu-ubuntu-sv39-last-entry-host-only-profile/evidence/software-flow-contract.log nemu-ubuntu-static nemu nemu P...
+
+### .github/task-runs/2026-06-16-nemu-ubuntu-sv39-last-entry-host-only-profile/run-manifest.json
+
+- `kind`: json
+- `size_bytes`: 4105
+- `line_count`: 106
+- `sha256`: 7a79ec7dca18355ed06dbf49371887d9dc768541866eb5c5fd5e55f9671335dc
+- `encoding`: utf-8
+- `indexed_at`: 2026-06-15T21:27:34+00:00
+- `markers`: {"PASS": 12}
+- `summary`: json evidence; size=4105 bytes; lines=106; PASS=12; tail={ "artifacts": { "context_brief": ".github/task-runs/2026-06-16-nemu-ubuntu-sv39-last-entry-host-only-profile/context-brief.md", "dispatch_log": ".github/task-runs/2026-06-16-nemu-ubuntu-sv39-last-entry-host-only-profile/dispatch-log.md", "evidence_dir": "....
