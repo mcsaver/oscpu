@@ -1,0 +1,106 @@
+{
+  "artifacts": {
+    "context_brief": ".github/task-runs/2026-06-22-2026-06-22-nemu-rvc-detail-gate-hoist-profile-5b/context-brief.md",
+    "dispatch_log": ".github/task-runs/2026-06-22-2026-06-22-nemu-rvc-detail-gate-hoist-profile-5b/dispatch-log.md",
+    "evidence_dir": ".github/task-runs/2026-06-22-2026-06-22-nemu-rvc-detail-gate-hoist-profile-5b/evidence",
+    "evidence_index": ".github/task-runs/2026-06-22-2026-06-22-nemu-rvc-detail-gate-hoist-profile-5b/evidence-index.md",
+    "nodes": ".github/task-runs/2026-06-22-2026-06-22-nemu-rvc-detail-gate-hoist-profile-5b/nodes.tsv",
+    "profile_resolve": ".github/task-runs/2026-06-22-2026-06-22-nemu-rvc-detail-gate-hoist-profile-5b/profile-resolve.md",
+    "run_dir": ".github/task-runs/2026-06-22-2026-06-22-nemu-rvc-detail-gate-hoist-profile-5b",
+    "run_manifest": ".github/task-runs/2026-06-22-2026-06-22-nemu-rvc-detail-gate-hoist-profile-5b/run-manifest.json",
+    "task_report": ".github/task-runs/2026-06-22-2026-06-22-nemu-rvc-detail-gate-hoist-profile-5b/task-report.md"
+  },
+  "db": {
+    "markdown_archive": true,
+    "raw_evidence_index_only": true
+  },
+  "evidence": {
+    "asset_count": 18,
+    "by_kind": {
+      "log": 12,
+      "out": 1,
+      "raw": 1,
+      "tsv": 1,
+      "txt": 3
+    },
+    "total_size_bytes": 8590542911
+  },
+  "final_result": "profile=nemu-ubuntu-profile 通过，当前 modular e2e 证据链可复用。",
+  "git": {
+    "branch": "ai",
+    "head": "4ae9a8c1f",
+    "upstream": "myfork/ai"
+  },
+  "graph_mode": "static",
+  "graph_template": "modular-agent-e2e",
+  "node_counts": {
+    "by_status": {
+      "PASS": 4
+    },
+    "total": 4
+  },
+  "nodes": [
+    {
+      "evidence": ".github/task-runs/2026-06-22-2026-06-22-nemu-rvc-detail-gate-hoist-profile-5b/evidence/software-flow-contract.log",
+      "inputs": "software-flow agent + profile + memory",
+      "module": "software-flow",
+      "node_id": "software-flow-contract",
+      "outputs": "软件开发全流程 agent 合约入口存在",
+      "owner_agent": "software-flow",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-06-22-2026-06-22-nemu-rvc-detail-gate-hoist-profile-5b/evidence/nemu-ubuntu-static.log",
+      "inputs": "Linux/NEMU Ubuntu rootfs scripts + performance config",
+      "module": "nemu",
+      "node_id": "nemu-ubuntu-static",
+      "outputs": "NEMU Ubuntu 切片静态生产守门 PASS",
+      "owner_agent": "nemu",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-06-22-2026-06-22-nemu-rvc-detail-gate-hoist-profile-5b/evidence/nemu-ubuntu-slice-contract.log",
+      "inputs": "recent NEMU Ubuntu device slice hooks and guest markers",
+      "module": "nemu",
+      "node_id": "nemu-ubuntu-slice-contract",
+      "outputs": "近期 NEMU Ubuntu 设备切片合约仍挂入 guest gate",
+      "owner_agent": "nemu",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-06-22-2026-06-22-nemu-rvc-detail-gate-hoist-profile-5b/evidence/nemu-ubuntu-profile.log",
+      "inputs": "NEMU_PROFILE=1 full Ubuntu boot budget with guest tests off",
+      "module": "nemu",
+      "node_id": "nemu-ubuntu-profile",
+      "outputs": "profile-summary.txt console.log nemu.log",
+      "owner_agent": "nemu",
+      "status": "PASS"
+    }
+  ],
+  "profile": "nemu-ubuntu-profile",
+  "run_id": "2026-06-22-2026-06-22-nemu-rvc-detail-gate-hoist-profile-5b",
+  "schema_version": 1,
+  "started_at": "2026-06-22 08:31:52 +0800",
+  "state_traceback": {
+    "current_state": "persist",
+    "evidence_policy": "task-report + dispatch-log + run-manifest + evidence-index",
+    "failure_reason": "",
+    "failure_state": "",
+    "inspector": "agent-system",
+    "reviewer": "ysyx-coordinator",
+    "rollback_target": "",
+    "state_sequence": [
+      "recall_context",
+      "classify_layer",
+      "plan_graph",
+      "implement",
+      "verify",
+      "inspect",
+      "persist"
+    ]
+  },
+  "status": "completed",
+  "task_slug": "2026-06-22-nemu-rvc-detail-gate-hoist-profile-5b",
+  "trace_id": "e2e:2026-06-22-2026-06-22-nemu-rvc-detail-gate-hoist-profile-5b",
+  "updated_at": "2026-06-22 08:34:09 +0800"
+}

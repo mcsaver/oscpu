@@ -25,10 +25,19 @@ HOST_TIMEOUT=${NPC_SYSTEMD_HOST_TIMEOUT:-10800}
 UART_TRACE=${NPC_SYSTEMD_UART_TRACE:-1}
 UART_TRACE_LIMIT=${NPC_SYSTEMD_UART_TRACE_LIMIT:-128}
 UART_CYCLE_GAP=${NPC_SYSTEMD_UART_CYCLE_GAP:-${NPC_UART_RX_CYCLE_GAP:-0}}
+UART_RELEASE_DELAY=${NPC_SYSTEMD_UART_RELEASE_DELAY_CYCLES:-${NPC_UART_RX_RELEASE_DELAY_CYCLES:-}}
 UART_WAIT=${NPC_SYSTEMD_UART_WAIT:-$PROMPT}
 GUEST_COMMAND_MODE=${NPC_SYSTEMD_GUEST_COMMAND_MODE:-autocheck}
 GUEST_CMDS_PRESERVE=${NPC_SYSTEMD_GUEST_CMDS_PRESERVE:-0}
+REQUIRE_PROMPT=${NPC_SYSTEMD_REQUIRE_PROMPT:-1}
 PROGRESS_INTERVAL=${NPC_SYSTEMD_PROGRESS:-0}
+if [ -z "$UART_RELEASE_DELAY" ]; then
+  UART_RELEASE_DELAY=0
+  if [ "$GUEST_COMMAND_MODE" = "uart" ] &&
+     [ "$UART_WAIT" = "__NPC_CONSOLE_SHELL_READY__" ]; then
+    UART_RELEASE_DELAY=${NPC_SYSTEMD_CONSOLE_SHELL_RELEASE_DELAY_CYCLES:-20000000}
+  fi
+fi
 
 if [ -z "$DONE_MARKER" ]; then
   if [ "$GUEST_COMMAND_MODE" = "uart" ]; then
@@ -139,12 +148,14 @@ echo "[npc-systemd-check] max cycles: $MAX_CYCLES"
 echo "[npc-systemd-check] host timeout: ${HOST_TIMEOUT}s"
 echo "[npc-systemd-check] guest command mode: $GUEST_COMMAND_MODE"
 echo "[npc-systemd-check] done marker: $DONE_MARKER"
+echo "[npc-systemd-check] require prompt: $REQUIRE_PROMPT"
 if [ "$GUEST_COMMAND_MODE" != "uart" ]; then
   echo "[npc-systemd-check] autocheck stop expect: $AUTOCHECK_EXPECT"
 else
   echo "[npc-systemd-check] UART wait: $UART_WAIT"
 fi
 echo "[npc-systemd-check] UART RX cycle gap: $UART_CYCLE_GAP"
+echo "[npc-systemd-check] UART RX release delay cycles: $UART_RELEASE_DELAY"
 echo "[npc-systemd-check] progress interval: $PROGRESS_INTERVAL"
 echo "[npc-systemd-check] guest commands: $GUEST_CMDS"
 
@@ -156,6 +167,7 @@ if [ "$GUEST_COMMAND_MODE" = "uart" ]; then
     NPC_UART_RX_TRACE="$UART_TRACE" \
     NPC_UART_RX_TRACE_LIMIT="$UART_TRACE_LIMIT" \
     NPC_UART_RX_CYCLE_GAP="$UART_CYCLE_GAP" \
+    NPC_UART_RX_RELEASE_DELAY_CYCLES="$UART_RELEASE_DELAY" \
     NPC_GUEST_EXPECT="$DONE_MARKER" \
     timeout "${HOST_TIMEOUT}s" \
       make -C "$LINUX_HOME" ARCH=riscv64-npc BOOT=ubuntu-rootfs \
@@ -174,7 +186,7 @@ set -e
 
 check_console_clean || fail "console contains critical kernel/NPC failure"
 
-if ! grep -qaF "$PROMPT" "$CONSOLE_LOG"; then
+if [ "$REQUIRE_PROMPT" = "1" ] && ! grep -qaF "$PROMPT" "$CONSOLE_LOG"; then
   fail "guest root prompt was not observed (rc=$run_rc)"
 fi
 

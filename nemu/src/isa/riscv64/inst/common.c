@@ -68,8 +68,12 @@ static inline bool rv_runtime_env_enabled_default_true(const char *name) {
 
 #ifdef CONFIG_INTERPRETER_DECODE_CACHE
 bool isa_riscv64_decode_cache_is_enabled = true;
+bool isa_riscv64_decode_cache_rvc_fast_is_enabled = true;
+bool isa_riscv64_decode_cache_int_fast_is_enabled = true;
 #else
 bool isa_riscv64_decode_cache_is_enabled = false;
+bool isa_riscv64_decode_cache_rvc_fast_is_enabled = false;
+bool isa_riscv64_decode_cache_int_fast_is_enabled = false;
 #endif
 
 __attribute__((constructor))
@@ -77,6 +81,10 @@ static void rv_runtime_config_init(void) {
 #ifdef CONFIG_INTERPRETER_DECODE_CACHE
   isa_riscv64_decode_cache_is_enabled =
     rv_runtime_env_enabled_default_true("NEMU_INTERPRETER_DECODE_CACHE");
+  isa_riscv64_decode_cache_rvc_fast_is_enabled =
+    rv_runtime_env_enabled_default_true("NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST");
+  isa_riscv64_decode_cache_int_fast_is_enabled =
+    rv_runtime_env_enabled_default_true("NEMU_INTERPRETER_DECODE_CACHE_INT_FAST");
 #endif
 }
 
@@ -132,11 +140,80 @@ typedef enum {
   RV_DC_KIND_COUNT,
 } RvDecodeCacheKind;
 
+typedef enum {
+  RV_DC_RVC_FALLBACK = 0,
+  RV_DC_RVC_ADDI4SPN,
+  RV_DC_RVC_ADDI,
+  RV_DC_RVC_ADDIW,
+  RV_DC_RVC_ADDI16SP,
+  RV_DC_RVC_LI,
+  RV_DC_RVC_LUI,
+  RV_DC_RVC_SRLI,
+  RV_DC_RVC_SRAI,
+  RV_DC_RVC_ANDI,
+  RV_DC_RVC_SUB,
+  RV_DC_RVC_XOR,
+  RV_DC_RVC_OR,
+  RV_DC_RVC_AND,
+  RV_DC_RVC_SUBW,
+  RV_DC_RVC_ADDW,
+  RV_DC_RVC_J,
+  RV_DC_RVC_JR,
+  RV_DC_RVC_SLLI,
+  RV_DC_RVC_MV,
+  RV_DC_RVC_ADD,
+  RV_DC_RVC_BEQZ,
+  RV_DC_RVC_BNEZ,
+  RV_DC_RVC_LW,
+  RV_DC_RVC_LD,
+  RV_DC_RVC_LWSP,
+  RV_DC_RVC_LDSP,
+  RV_DC_RVC_SW,
+  RV_DC_RVC_SD,
+  RV_DC_RVC_SWSP,
+  RV_DC_RVC_SDSP,
+  RV_DC_RVC_OP_COUNT,
+} RvDecodeCacheRvcOp;
+
+typedef enum {
+  RV_DC_INT_FALLBACK = 0,
+  RV_DC_INT_ADDI,
+  RV_DC_INT_SLTI,
+  RV_DC_INT_SLTIU,
+  RV_DC_INT_XORI,
+  RV_DC_INT_ORI,
+  RV_DC_INT_ANDI,
+  RV_DC_INT_SLLI,
+  RV_DC_INT_SRLI,
+  RV_DC_INT_SRAI,
+  RV_DC_INT_ADDIW,
+  RV_DC_INT_SLLIW,
+  RV_DC_INT_SRLIW,
+  RV_DC_INT_SRAIW,
+  RV_DC_INT_ADD,
+  RV_DC_INT_SUB,
+  RV_DC_INT_SLL,
+  RV_DC_INT_SLT,
+  RV_DC_INT_SLTU,
+  RV_DC_INT_XOR,
+  RV_DC_INT_SRL,
+  RV_DC_INT_SRA,
+  RV_DC_INT_OR,
+  RV_DC_INT_AND,
+  RV_DC_INT_ADDW,
+  RV_DC_INT_SUBW,
+  RV_DC_INT_SLLW,
+  RV_DC_INT_SRLW,
+  RV_DC_INT_SRAW,
+} RvDecodeCacheIntOp;
+
 typedef struct {
   vaddr_t pc;
   uint32_t inst_key;
   word_t imm;
   uint8_t kind;
+  uint8_t rvc_op;
+  uint8_t int_op;
   uint8_t rd;
   uint8_t rs1;
   uint8_t rs2;

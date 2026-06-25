@@ -46,6 +46,7 @@ VaddrIfetchWideResult vaddr_ifetch_wide(vaddr_t addr);
 // Ubuntu 诊断用 runtime 开关；默认保持性能快路径，显式设 env=0 才关闭。
 extern bool vaddr_ifetch_wide_is_enabled;
 extern bool vaddr_host_fast_is_enabled;
+extern bool vaddr_write_trace_is_enabled;
 extern bool vaddr_fault_pending;
 
 static inline bool vaddr_ifetch_wide_runtime_enabled(void) {
@@ -55,6 +56,21 @@ static inline bool vaddr_ifetch_wide_runtime_enabled(void) {
 static inline bool vaddr_host_fast_runtime_enabled(void) {
   return likely(vaddr_host_fast_is_enabled);
 }
+
+static inline bool vaddr_write_trace_runtime_enabled(void) {
+  return unlikely(vaddr_write_trace_is_enabled);
+}
+
+void vaddr_write_trace_arm_range(vaddr_t start, vaddr_t end,
+    uint64_t max_count, bool user_only, const char *reason);
+void vaddr_write_trace_disarm(const char *reason);
+void vaddr_write_value_trace_arm(word_t value, word_t mask,
+    uint64_t max_count, const char *reason);
+void vaddr_write_value_trace_set_user_only(bool user_only);
+void vaddr_write_value_trace_disarm(const char *reason);
+void vaddr_write_trace_dump_machine_info(FILE *out);
+// 最近一次 vaddr_read 的译址元数据只供诊断 trace 读取，不会再次访问 guest 内存。
+bool vaddr_last_read_paddr(vaddr_t addr, int len, paddr_t *paddr);
 // 取指 host-page cache 的统一失效入口，供 sfence.vma/fence.i/TLB flush 调用。
 void vaddr_ifetch_cache_flush(void);
 // 物理内存被设备 DMA 写入时，只失效受影响的取指 host-page cache。

@@ -38,8 +38,10 @@ LOOPS=${NEMU_PYTHON_INT_LOOPS:-5}
 POWEROFF_ENABLE=${NEMU_PYTHON_INT_POWEROFF:-1}
 POWEROFF_TIMEOUT=${NEMU_PYTHON_INT_POWEROFF_TIMEOUT:-180}
 STAGE_MODE=${NEMU_PYTHON_INT_STAGE_MODE:-focused}
+PROBE_MODE=${NEMU_PYTHON_INT_PROBE_MODE:-args}
 STAGE_TIMEOUT=${NEMU_PYTHON_INT_STAGE_TIMEOUT:-120}
 STAGE_PREWARM=${NEMU_PYTHON_INT_STAGE_PREWARM:-auto}
+DISABLE_ASLR=${NEMU_PYTHON_INT_DISABLE_ASLR:-0}
 
 SUMMARY_INITIALIZED=0
 SUMMARY_FINALIZED=0
@@ -232,11 +234,16 @@ require_uint "NEMU_PYTHON_INT_FIFO_TIMEOUT" "$FIFO_TIMEOUT"
 require_uint "NEMU_PYTHON_INT_LOOPS" "$LOOPS"
 require_uint "NEMU_PYTHON_INT_STAGE_TIMEOUT" "$STAGE_TIMEOUT"
 require_uint "NEMU_PYTHON_INT_POWEROFF" "$POWEROFF_ENABLE"
+require_uint "NEMU_PYTHON_INT_DISABLE_ASLR" "$DISABLE_ASLR"
 require_uint "NEMU_PYTHON_INT_INPUT_CHUNK_BYTES" "$INPUT_CHUNK_BYTES"
 require_nonnegative_decimal "NEMU_PYTHON_INT_INPUT_DELAY" "$INPUT_DELAY"
 require_nonnegative_decimal "NEMU_PYTHON_INT_INPUT_CHUNK_DELAY" "$INPUT_CHUNK_DELAY"
 [ "$LOOPS" -gt 0 ] || fail "NEMU_PYTHON_INT_LOOPS must be positive: $LOOPS"
 [ "$STAGE_TIMEOUT" -gt 0 ] || fail "NEMU_PYTHON_INT_STAGE_TIMEOUT must be positive: $STAGE_TIMEOUT"
+case "$DISABLE_ASLR" in
+  0|1) ;;
+  *) fail "NEMU_PYTHON_INT_DISABLE_ASLR must be 0 or 1: $DISABLE_ASLR" ;;
+esac
 
 case "$STAGE_MODE" in
   focused)
@@ -259,6 +266,10 @@ case "$STAGE_MODE" in
   *)
     fail "unknown NEMU_PYTHON_INT_STAGE_MODE: $STAGE_MODE"
     ;;
+esac
+case "$PROBE_MODE" in
+  args|int10-create) ;;
+  *) fail "unknown NEMU_PYTHON_INT_PROBE_MODE: $PROBE_MODE" ;;
 esac
 
 stage_tags_raw=${NEMU_PYTHON_INT_TAGS:-"$default_stage_tags"}
@@ -300,10 +311,12 @@ base64 -w 76 "$PROBE_SRC" >"$PROBE_B64" ||
 {
   printf 'NEMU_GUEST_PYTHON_INT_LOOPS=%s\n' "$LOOPS"
   printf 'NEMU_GUEST_PYTHON_INT_STAGE_MODE=%s\n' "$STAGE_MODE"
+  printf 'NEMU_GUEST_PYTHON_INT_PROBE_MODE=%s\n' "$PROBE_MODE"
   printf 'NEMU_GUEST_PYTHON_INT_STAGE_TIMEOUT=%s\n' "$STAGE_TIMEOUT"
   printf 'NEMU_GUEST_PYTHON_INT_STAGE_PREWARM=%s\n' "$stage_prewarm_effective"
   printf "NEMU_GUEST_PYTHON_INT_TAGS='%s'\n" "$stage_tags_space"
   printf 'NEMU_GUEST_POWEROFF=%s\n' "$POWEROFF_ENABLE"
+  printf 'NEMU_GUEST_DISABLE_ASLR=%s\n' "$DISABLE_ASLR"
   printf 'NEMU_GUEST_PROBE_SHA=%s\n' "$probe_sha"
   printf 'NEMU_GUEST_PROBE_BYTES=%s\n' "$probe_bytes"
   cat <<'GUEST_CMDS_HEAD'
@@ -313,6 +326,21 @@ echo "__NEMU_PYTHON_INT_FOCUSED_BEGIN__"
 check_fail=0
 pass() { echo "__NEMU_CHECK_PASS__:$1"; }
 fail() { echo "__NEMU_CHECK_FAIL__:$1"; check_fail=1; }
+if [ "${NEMU_GUEST_DISABLE_ASLR:-0}" = "1" ]; then
+  if [ -w /proc/sys/kernel/randomize_va_space ]; then
+    old_aslr="$(cat /proc/sys/kernel/randomize_va_space 2>/dev/null || echo unknown)"
+    if echo 0 > /proc/sys/kernel/randomize_va_space 2>/dev/null; then
+      new_aslr="$(cat /proc/sys/kernel/randomize_va_space 2>/dev/null || echo unknown)"
+      echo "__NEMU_PYTHON_INT_DISABLE_ASLR__:$old_aslr:$new_aslr"
+    else
+      echo "__NEMU_PYTHON_INT_DISABLE_ASLR_FAIL__:write"
+      fail python-int-preflight-disable-aslr
+    fi
+  else
+    echo "__NEMU_PYTHON_INT_DISABLE_ASLR_FAIL__:unwritable"
+    fail python-int-preflight-disable-aslr
+  fi
+fi
 probe_py=/tmp/nemu-python-int-preflight.py
 probe_b64=/tmp/nemu-python-int-preflight.py.b64
 probe_log_dir=/tmp/nemu-python-int-preflight-logs
@@ -375,16 +403,32 @@ PY
       stage_tag="$1"
       stage_log="$probe_log_dir/$stage_tag.log"
       : >"$stage_log"
+      prewarm_rc=0
+      probe_rc=0
+      run_python_int_stage_prewarm "$stage_tag" >>"$stage_log" 2>&1 || prewarm_rc=$?
+      if [ "$prewarm_rc" != "0" ]; then
+        echo "__NEMU_PYTHON_INT_STAGE_PREWARM_FAILED_PROBE_CONTINUE__:$stage_tag:$prewarm_rc" \
+          >>"$stage_log"
+      fi
+      timeout "$NEMU_GUEST_PYTHON_INT_STAGE_TIMEOUT"s python3 "$probe_py" \
+        --mode "$NEMU_GUEST_PYTHON_INT_PROBE_MODE" \
+        --tag "$stage_tag" --loops "$NEMU_GUEST_PYTHON_INT_LOOPS" \
+        >>"$stage_log" 2>&1 || probe_rc=$?
+      echo "__NEMU_PYTHON_INT_STAGE_PROBE_RC__:$stage_tag:$probe_rc" >>"$stage_log"
       stage_rc=0
-      run_python_int_stage_prewarm "$stage_tag" >>"$stage_log" 2>&1 || stage_rc=$?
-      if [ "$stage_rc" = "0" ]; then
-        timeout "$NEMU_GUEST_PYTHON_INT_STAGE_TIMEOUT"s python3 "$probe_py" \
-          --tag "$stage_tag" --loops "$NEMU_GUEST_PYTHON_INT_LOOPS" \
-          >>"$stage_log" 2>&1 || stage_rc=$?
+      if [ "$prewarm_rc" != "0" ]; then
+        stage_rc=$prewarm_rc
+      fi
+      if [ "$probe_rc" != "0" ]; then
+        stage_rc=$probe_rc
       fi
       echo "__NEMU_CHECK_FULL_PYTHON_INT_PREFLIGHT_LOG_BEGIN__:$stage_tag"
       sed -n '1,220p' "$stage_log" 2>/dev/null || true
       echo "__NEMU_CHECK_FULL_PYTHON_INT_PREFLIGHT_LOG_END__:$stage_tag"
+      if [ "$prewarm_rc" != "0" ]; then
+        echo "__NEMU_PYTHON_INT_STAGE_PREWARM_FAILED_PROBE_CONTINUE__:$stage_tag:$prewarm_rc"
+      fi
+      echo "__NEMU_PYTHON_INT_STAGE_PROBE_RC__:$stage_tag:$probe_rc"
       echo "__NEMU_PYTHON_INT_STAGE_RC__:$stage_tag:$stage_rc"
       if [ "$stage_tag" = "focused" ]; then
         echo "__NEMU_PYTHON_INT_FOCUSED_RC__:$stage_rc"
@@ -432,10 +476,12 @@ echo "[nemu-python-int] guest commands: $GUEST_CMDS"
 echo "[nemu-python-int] max cycles: $MAX_CYCLES"
 echo "[nemu-python-int] loops: $LOOPS"
 echo "[nemu-python-int] stage mode: $STAGE_MODE"
+echo "[nemu-python-int] probe mode: $PROBE_MODE"
 echo "[nemu-python-int] stage tags: $stage_tags_csv"
 echo "[nemu-python-int] stage prewarm: $stage_prewarm_effective"
 echo "[nemu-python-int] stage timeout: $STAGE_TIMEOUT"
 echo "[nemu-python-int] poweroff: $POWEROFF_ENABLE"
+echo "[nemu-python-int] disable aslr: $DISABLE_ASLR"
 echo "[nemu-python-int] input chunk bytes: $INPUT_CHUNK_BYTES"
 echo "[nemu-python-int] probe bytes: $probe_bytes"
 echo "[nemu-python-int] probe sha256: $probe_sha"
@@ -445,17 +491,51 @@ echo "[nemu-python-int] runtime wide_ifetch: ${NEMU_INTERPRETER_WIDE_IFETCH:-1}"
 echo "[nemu-python-int] runtime decode_cache: ${NEMU_INTERPRETER_DECODE_CACHE:-1}"
 echo "[nemu-python-int] runtime vaddr_host_fast: ${NEMU_VADDR_HOST_FAST:-1}"
 echo "[nemu-python-int] runtime mmu_tlb: ${NEMU_RISCV_MMU_TLB:-1}"
+echo "[nemu-python-int] runtime pc_gpr_trace: ${NEMU_PC_GPR_TRACE:-0}"
+echo "[nemu-python-int] runtime pc_gpr_trace_start: ${NEMU_PC_GPR_TRACE_START:-}"
+echo "[nemu-python-int] runtime pc_gpr_trace_end: ${NEMU_PC_GPR_TRACE_END:-}"
+echo "[nemu-python-int] runtime pc_gpr_trace_max: ${NEMU_PC_GPR_TRACE_MAX:-4096}"
+echo "[nemu-python-int] runtime pc_gpr_trace_user_only: ${NEMU_PC_GPR_TRACE_USER_ONLY:-1}"
+echo "[nemu-python-int] runtime fp_load_trace: ${NEMU_FP_LOAD_TRACE:-0}"
+echo "[nemu-python-int] runtime fp_load_trace_pc_start: ${NEMU_FP_LOAD_TRACE_PC_START:-}"
+echo "[nemu-python-int] runtime fp_load_trace_pc_end: ${NEMU_FP_LOAD_TRACE_PC_END:-}"
+echo "[nemu-python-int] runtime fp_load_trace_addr_start: ${NEMU_FP_LOAD_TRACE_ADDR_START:-}"
+echo "[nemu-python-int] runtime fp_load_trace_addr_end: ${NEMU_FP_LOAD_TRACE_ADDR_END:-}"
+echo "[nemu-python-int] runtime fp_load_trace_max: ${NEMU_FP_LOAD_TRACE_MAX:-4096}"
+echo "[nemu-python-int] runtime fp_load_trace_user_only: ${NEMU_FP_LOAD_TRACE_USER_ONLY:-1}"
+echo "[nemu-python-int] runtime vaddr_write_trace: ${NEMU_VADDR_WRITE_TRACE:-0}"
+echo "[nemu-python-int] runtime vaddr_write_trace_start: ${NEMU_VADDR_WRITE_TRACE_START:-}"
+echo "[nemu-python-int] runtime vaddr_write_trace_end: ${NEMU_VADDR_WRITE_TRACE_END:-}"
+echo "[nemu-python-int] runtime vaddr_write_trace_start2: ${NEMU_VADDR_WRITE_TRACE_START2:-}"
+echo "[nemu-python-int] runtime vaddr_write_trace_end2: ${NEMU_VADDR_WRITE_TRACE_END2:-}"
+echo "[nemu-python-int] runtime vaddr_write_trace_max: ${NEMU_VADDR_WRITE_TRACE_MAX:-4096}"
+echo "[nemu-python-int] runtime vaddr_write_trace_user_only: ${NEMU_VADDR_WRITE_TRACE_USER_ONLY:-1}"
+echo "[nemu-python-int] runtime vaddr_write_value_trace: ${NEMU_VADDR_WRITE_VALUE_TRACE:-${NEMU_SERIAL_TRACE_PYLONG_VALUE:-0}}"
+echo "[nemu-python-int] runtime vaddr_write_value_trace_value: ${NEMU_VADDR_WRITE_VALUE_TRACE_VALUE:-${NEMU_SERIAL_TRACE_PYLONG_VALUE_WORD:-}}"
+echo "[nemu-python-int] runtime vaddr_write_value_trace_mask: ${NEMU_VADDR_WRITE_VALUE_TRACE_MASK:-${NEMU_SERIAL_TRACE_PYLONG_VALUE_MASK:-}}"
+echo "[nemu-python-int] runtime vaddr_write_value_trace_max: ${NEMU_VADDR_WRITE_VALUE_TRACE_MAX:-4096}"
+echo "[nemu-python-int] runtime vaddr_write_value_trace_user_only: ${NEMU_VADDR_WRITE_VALUE_TRACE_USER_ONLY:-1}"
+echo "[nemu-python-int] runtime paddr_write_trace: ${NEMU_PADDR_WRITE_TRACE:-0}"
+echo "[nemu-python-int] runtime paddr_write_trace_start: ${NEMU_PADDR_WRITE_TRACE_START:-}"
+echo "[nemu-python-int] runtime paddr_write_trace_end: ${NEMU_PADDR_WRITE_TRACE_END:-}"
+echo "[nemu-python-int] runtime paddr_write_trace_max: ${NEMU_PADDR_WRITE_TRACE_MAX:-4096}"
+echo "[nemu-python-int] runtime paddr_write_value_trace: ${NEMU_PADDR_WRITE_VALUE_TRACE:-0}"
+echo "[nemu-python-int] runtime paddr_write_value_trace_value: ${NEMU_PADDR_WRITE_VALUE_TRACE_VALUE:-}"
+echo "[nemu-python-int] runtime paddr_write_value_trace_mask: ${NEMU_PADDR_WRITE_VALUE_TRACE_MASK:-}"
+echo "[nemu-python-int] runtime paddr_write_value_trace_max: ${NEMU_PADDR_WRITE_VALUE_TRACE_MAX:-4096}"
 {
   printf 'key\tvalue\n'
   printf 'status\tstarted\n'
   printf 'max_cycles\t%s\n' "$MAX_CYCLES"
   printf 'loops\t%s\n' "$LOOPS"
   printf 'stage_mode\t%s\n' "$STAGE_MODE"
+  printf 'probe_mode\t%s\n' "$PROBE_MODE"
   printf 'stage_tags\t%s\n' "$stage_tags_csv"
   printf 'stage_count\t%s\n' "${#stage_tags[@]}"
   printf 'stage_prewarm\t%s\n' "$stage_prewarm_effective"
   printf 'stage_timeout\t%s\n' "$STAGE_TIMEOUT"
   printf 'poweroff\t%s\n' "$POWEROFF_ENABLE"
+  printf 'disable_aslr\t%s\n' "$DISABLE_ASLR"
   printf 'input_chunk_bytes\t%s\n' "$INPUT_CHUNK_BYTES"
   printf 'probe_bytes\t%s\n' "$probe_bytes"
   printf 'probe_sha256\t%s\n' "$probe_sha"
@@ -463,6 +543,38 @@ echo "[nemu-python-int] runtime mmu_tlb: ${NEMU_RISCV_MMU_TLB:-1}"
   printf 'runtime.decode_cache\t%s\n' "${NEMU_INTERPRETER_DECODE_CACHE:-1}"
   printf 'runtime.vaddr_host_fast\t%s\n' "${NEMU_VADDR_HOST_FAST:-1}"
   printf 'runtime.mmu_tlb\t%s\n' "${NEMU_RISCV_MMU_TLB:-1}"
+  printf 'runtime.pc_gpr_trace\t%s\n' "${NEMU_PC_GPR_TRACE:-0}"
+  printf 'runtime.pc_gpr_trace_start\t%s\n' "${NEMU_PC_GPR_TRACE_START:-}"
+  printf 'runtime.pc_gpr_trace_end\t%s\n' "${NEMU_PC_GPR_TRACE_END:-}"
+  printf 'runtime.pc_gpr_trace_max\t%s\n' "${NEMU_PC_GPR_TRACE_MAX:-4096}"
+  printf 'runtime.pc_gpr_trace_user_only\t%s\n' "${NEMU_PC_GPR_TRACE_USER_ONLY:-1}"
+  printf 'runtime.fp_load_trace\t%s\n' "${NEMU_FP_LOAD_TRACE:-0}"
+  printf 'runtime.fp_load_trace_pc_start\t%s\n' "${NEMU_FP_LOAD_TRACE_PC_START:-}"
+  printf 'runtime.fp_load_trace_pc_end\t%s\n' "${NEMU_FP_LOAD_TRACE_PC_END:-}"
+  printf 'runtime.fp_load_trace_addr_start\t%s\n' "${NEMU_FP_LOAD_TRACE_ADDR_START:-}"
+  printf 'runtime.fp_load_trace_addr_end\t%s\n' "${NEMU_FP_LOAD_TRACE_ADDR_END:-}"
+  printf 'runtime.fp_load_trace_max\t%s\n' "${NEMU_FP_LOAD_TRACE_MAX:-4096}"
+  printf 'runtime.fp_load_trace_user_only\t%s\n' "${NEMU_FP_LOAD_TRACE_USER_ONLY:-1}"
+  printf 'runtime.vaddr_write_trace\t%s\n' "${NEMU_VADDR_WRITE_TRACE:-0}"
+  printf 'runtime.vaddr_write_trace_start\t%s\n' "${NEMU_VADDR_WRITE_TRACE_START:-}"
+  printf 'runtime.vaddr_write_trace_end\t%s\n' "${NEMU_VADDR_WRITE_TRACE_END:-}"
+  printf 'runtime.vaddr_write_trace_start2\t%s\n' "${NEMU_VADDR_WRITE_TRACE_START2:-}"
+  printf 'runtime.vaddr_write_trace_end2\t%s\n' "${NEMU_VADDR_WRITE_TRACE_END2:-}"
+  printf 'runtime.vaddr_write_trace_max\t%s\n' "${NEMU_VADDR_WRITE_TRACE_MAX:-4096}"
+  printf 'runtime.vaddr_write_trace_user_only\t%s\n' "${NEMU_VADDR_WRITE_TRACE_USER_ONLY:-1}"
+  printf 'runtime.vaddr_write_value_trace\t%s\n' "${NEMU_VADDR_WRITE_VALUE_TRACE:-${NEMU_SERIAL_TRACE_PYLONG_VALUE:-0}}"
+  printf 'runtime.vaddr_write_value_trace_value\t%s\n' "${NEMU_VADDR_WRITE_VALUE_TRACE_VALUE:-${NEMU_SERIAL_TRACE_PYLONG_VALUE_WORD:-}}"
+  printf 'runtime.vaddr_write_value_trace_mask\t%s\n' "${NEMU_VADDR_WRITE_VALUE_TRACE_MASK:-${NEMU_SERIAL_TRACE_PYLONG_VALUE_MASK:-}}"
+  printf 'runtime.vaddr_write_value_trace_max\t%s\n' "${NEMU_VADDR_WRITE_VALUE_TRACE_MAX:-4096}"
+  printf 'runtime.vaddr_write_value_trace_user_only\t%s\n' "${NEMU_VADDR_WRITE_VALUE_TRACE_USER_ONLY:-1}"
+  printf 'runtime.paddr_write_trace\t%s\n' "${NEMU_PADDR_WRITE_TRACE:-0}"
+  printf 'runtime.paddr_write_trace_start\t%s\n' "${NEMU_PADDR_WRITE_TRACE_START:-}"
+  printf 'runtime.paddr_write_trace_end\t%s\n' "${NEMU_PADDR_WRITE_TRACE_END:-}"
+  printf 'runtime.paddr_write_trace_max\t%s\n' "${NEMU_PADDR_WRITE_TRACE_MAX:-4096}"
+  printf 'runtime.paddr_write_value_trace\t%s\n' "${NEMU_PADDR_WRITE_VALUE_TRACE:-0}"
+  printf 'runtime.paddr_write_value_trace_value\t%s\n' "${NEMU_PADDR_WRITE_VALUE_TRACE_VALUE:-}"
+  printf 'runtime.paddr_write_value_trace_mask\t%s\n' "${NEMU_PADDR_WRITE_VALUE_TRACE_MASK:-}"
+  printf 'runtime.paddr_write_value_trace_max\t%s\n' "${NEMU_PADDR_WRITE_VALUE_TRACE_MAX:-4096}"
 } >"$SUMMARY_FILE"
 SUMMARY_INITIALIZED=1
 
@@ -501,7 +613,7 @@ done_line="$(grep -aE '^__NEMU_PYTHON_INT_PREFLIGHT_DONE__ rc=' "$CONSOLE_LOG" |
 echo "[nemu-python-int] done: $done_line"
 case "$done_line" in
   "__NEMU_PYTHON_INT_PREFLIGHT_DONE__ rc=0") ;;
-  *) fail "PyLong preflight focused gate failed: $done_line" ;;
+  *) fail "Python int/PyLong staged preflight failed: $done_line" ;;
 esac
 
 if [ "$POWEROFF_ENABLE" != "0" ]; then

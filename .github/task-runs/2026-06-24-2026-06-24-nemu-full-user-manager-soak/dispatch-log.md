@@ -1,0 +1,152 @@
+# Dispatch Log
+
+## 基本信息
+
+- `task_id`: 2026-06-24-2026-06-24-nemu-full-user-manager-soak
+- `trace_id`: e2e:2026-06-24-2026-06-24-nemu-full-user-manager-soak
+- `task_slug`: 2026-06-24-nemu-full-user-manager-soak
+- `graph_template`: modular-agent-e2e
+- `profile`: nemu-dev-full-soak
+- `log_policy`: append-only
+
+---
+
+### [2026-06-24 12:11:47 +0800] `context-brief` - `PASS`
+
+- `owner_agent`: agent-system
+- `module`: github-index
+- `trigger`: e2e:nemu-dev-full-soak
+- `depends_on`:
+- `inputs`: .github live index + retained memory/log
+- `action`: github-index brief
+- `outputs`: .github/task-runs/2026-06-24-2026-06-24-nemu-full-user-manager-soak/context-brief.md
+- `evidence`: .github/task-runs/2026-06-24-2026-06-24-nemu-full-user-manager-soak/context-brief.md
+- `handoff_to`:
+- `next_step`: DB-indexed startup context generated before dispatch
+- `notes`:
+
+### [2026-06-24 12:11:47 +0800] `profile-resolve` - `PASS`
+
+- `owner_agent`: agent-system
+- `module`: github-index
+- `trigger`: e2e:nemu-dev-full-soak
+- `depends_on`:
+- `inputs`: .github/e2e/profiles/nemu-dev-full-soak.tsv
+- `action`: github-index resolve-profile
+- `outputs`: .github/task-runs/2026-06-24-2026-06-24-nemu-full-user-manager-soak/profile-resolve.md
+- `evidence`: .github/task-runs/2026-06-24-2026-06-24-nemu-full-user-manager-soak/profile-resolve.md
+- `handoff_to`:
+- `next_step`: live/indexed e2e profile include closure generated before dispatch
+- `notes`:
+
+### [2026-06-24 12:11:47 +0800] `software-flow-contract` - `in-progress`
+
+- `owner_agent`: software-flow
+- `module`: software-flow
+- `trigger`: e2e:nemu-dev-full-soak
+- `depends_on`:
+- `inputs`: software-flow agent + profile + memory
+- `action`: e2e_software_flow_contract
+- `outputs`: 软件开发全流程 agent 合约入口存在
+- `evidence`: .github/task-runs/2026-06-24-2026-06-24-nemu-full-user-manager-soak/evidence/software-flow-contract.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-24 12:11:47 +0800] `software-flow-contract` - `PASS`
+
+- `owner_agent`: software-flow
+- `module`: software-flow
+- `trigger`: e2e:nemu-dev-full-soak
+- `depends_on`:
+- `inputs`: software-flow agent + profile + memory
+- `action`: e2e_software_flow_contract
+- `outputs`: 软件开发全流程 agent 合约入口存在
+- `evidence`: .github/task-runs/2026-06-24-2026-06-24-nemu-full-user-manager-soak/evidence/software-flow-contract.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:
+
+### [2026-06-24 12:11:47 +0800] `nemu-ubuntu-static` - `in-progress`
+
+- `owner_agent`: nemu
+- `module`: nemu
+- `trigger`: e2e:nemu-dev-full-soak
+- `depends_on`:
+- `inputs`: Linux/NEMU Ubuntu rootfs scripts + performance config
+- `action`: e2e_nemu_ubuntu_static_gate
+- `outputs`: NEMU Ubuntu 切片静态生产守门 PASS
+- `evidence`: .github/task-runs/2026-06-24-2026-06-24-nemu-full-user-manager-soak/evidence/nemu-ubuntu-static.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-24 12:12:22 +0800] `nemu-ubuntu-static` - `PASS`
+
+- `owner_agent`: nemu
+- `module`: nemu
+- `trigger`: e2e:nemu-dev-full-soak
+- `depends_on`:
+- `inputs`: Linux/NEMU Ubuntu rootfs scripts + performance config
+- `action`: e2e_nemu_ubuntu_static_gate
+- `outputs`: NEMU Ubuntu 切片静态生产守门 PASS
+- `evidence`: .github/task-runs/2026-06-24-2026-06-24-nemu-full-user-manager-soak/evidence/nemu-ubuntu-static.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:
+
+### [2026-06-24 12:12:22 +0800] `nemu-ubuntu-slice-contract` - `in-progress`
+
+- `owner_agent`: nemu
+- `module`: nemu
+- `trigger`: e2e:nemu-dev-full-soak
+- `depends_on`:
+- `inputs`: recent NEMU Ubuntu device slice hooks and guest markers
+- `action`: e2e_nemu_ubuntu_slice_contract
+- `outputs`: 近期 NEMU Ubuntu 设备切片合约仍挂入 guest gate
+- `evidence`: .github/task-runs/2026-06-24-2026-06-24-nemu-full-user-manager-soak/evidence/nemu-ubuntu-slice-contract.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-24 12:12:25 +0800] `nemu-ubuntu-slice-contract` - `PASS`
+
+- `owner_agent`: nemu
+- `module`: nemu
+- `trigger`: e2e:nemu-dev-full-soak
+- `depends_on`:
+- `inputs`: recent NEMU Ubuntu device slice hooks and guest markers
+- `action`: e2e_nemu_ubuntu_slice_contract
+- `outputs`: 近期 NEMU Ubuntu 设备切片合约仍挂入 guest gate
+- `evidence`: .github/task-runs/2026-06-24-2026-06-24-nemu-full-user-manager-soak/evidence/nemu-ubuntu-slice-contract.log
+- `handoff_to`:
+- `next_step`: 进入下一节点
+- `notes`:
+
+### [2026-06-24 12:12:25 +0800] `nemu-dev-full-soak-gate` - `in-progress`
+
+- `owner_agent`: nemu
+- `module`: nemu
+- `trigger`: e2e:nemu-dev-full-soak
+- `depends_on`:
+- `inputs`: optional NEMU-only full Ubuntu rootfs soak gate
+- `action`: e2e_nemu_ubuntu_full_soak_gate
+- `outputs`: AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_GATE=1 时运行 NEMU-only full rootfs soak gate，否则 SKIP
+- `evidence`: .github/task-runs/2026-06-24-2026-06-24-nemu-full-user-manager-soak/evidence/nemu-dev-full-soak-gate.log
+- `handoff_to`:
+- `next_step`: 等待节点结果
+- `notes`:
+
+### [2026-06-24 12:40:54 +0800] `nemu-dev-full-soak-gate` - `FAIL`
+
+- `owner_agent`: nemu
+- `module`: nemu
+- `trigger`: e2e:nemu-dev-full-soak
+- `depends_on`:
+- `inputs`: optional NEMU-only full Ubuntu rootfs soak gate
+- `action`: e2e_nemu_ubuntu_full_soak_gate
+- `outputs`: exit=2
+- `evidence`: .github/task-runs/2026-06-24-2026-06-24-nemu-full-user-manager-soak/evidence/nemu-dev-full-soak-gate.log
+- `handoff_to`:
+- `next_step`: 检查日志并按 regression-debug-loop 扩图
+- `notes`:

@@ -188,6 +188,7 @@ module NpcTop (
   wire lsu_axi_arvalid_w;
   wire lsu_axi_arready_w;
   wire [`XLEN-1:0] lsu_axi_araddr_w;
+  wire [`STRB_W-1:0] lsu_axi_arstrb_w;
   wire lsu_axi_rvalid_w;
   wire lsu_axi_rready_w;
   wire [`XLEN-1:0] lsu_axi_rdata_w;
@@ -208,6 +209,7 @@ module NpcTop (
   wire [AXI_S_COUNT-1:0] bus_axi_arvalid_w;
   wire [AXI_S_COUNT-1:0] bus_axi_arready_w;
   wire [AXI_S_COUNT*`XLEN-1:0] bus_axi_araddr_w;
+  wire [AXI_S_COUNT*`STRB_W-1:0] bus_axi_arstrb_w;
   wire [AXI_S_COUNT-1:0] bus_axi_aruser_w;
   wire [AXI_S_COUNT-1:0] bus_axi_rvalid_w;
   wire [AXI_S_COUNT-1:0] bus_axi_rready_w;
@@ -246,6 +248,7 @@ module NpcTop (
     .lsu_axi_arvalid_o(lsu_axi_arvalid_w),
     .lsu_axi_arready_i(lsu_axi_arready_w),
     .lsu_axi_araddr_o(lsu_axi_araddr_w),
+    .lsu_axi_arstrb_o(lsu_axi_arstrb_w),
     .lsu_axi_abort_o(lsu_axi_abort_w),
     .lsu_axi_rvalid_i(lsu_axi_rvalid_w),
     .lsu_axi_rready_o(lsu_axi_rready_w),
@@ -342,6 +345,7 @@ module NpcTop (
     .lsu_axi_arvalid_i(lsu_axi_arvalid_w),
     .lsu_axi_arready_o(lsu_axi_arready_w),
     .lsu_axi_araddr_i(lsu_axi_araddr_w),
+    .lsu_axi_arstrb_i(lsu_axi_arstrb_w),
     .lsu_axi_abort_i(lsu_axi_abort_w),
     .lsu_axi_rvalid_o(lsu_axi_rvalid_w),
     .lsu_axi_rready_i(lsu_axi_rready_w),
@@ -360,6 +364,7 @@ module NpcTop (
     .s_axi_arvalid_o(bus_axi_arvalid_w),
     .s_axi_arready_i(bus_axi_arready_w),
     .s_axi_araddr_o(bus_axi_araddr_w),
+    .s_axi_arstrb_o(bus_axi_arstrb_w),
     .s_axi_aruser_o(bus_axi_aruser_w),
     .s_axi_rvalid_i(bus_axi_rvalid_w),
     .s_axi_rready_o(bus_axi_rready_w),
@@ -387,6 +392,7 @@ module NpcTop (
     .s_axi_arvalid_i(bus_axi_arvalid_w[AXI_S_UART]),
     .s_axi_arready_o(bus_axi_arready_w[AXI_S_UART]),
     .s_axi_araddr_i(bus_axi_araddr_w[AXI_S_UART*`XLEN +: `XLEN]),
+    .s_axi_arstrb_i(bus_axi_arstrb_w[AXI_S_UART*`STRB_W +: `STRB_W]),
     .s_axi_rvalid_o(bus_axi_rvalid_w[AXI_S_UART]),
     .s_axi_rready_i(bus_axi_rready_w[AXI_S_UART]),
     .s_axi_rdata_o(bus_axi_rdata_w[AXI_S_UART*`XLEN +: `XLEN]),

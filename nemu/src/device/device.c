@@ -32,6 +32,7 @@ void init_disk();
 void virtio_blk_update();
 void init_virtio_rng();
 void init_virtio_net();
+void virtio_net_update();
 void init_goldfish_rtc();
 void init_syscon_reset();
 void init_sdcard();
@@ -82,6 +83,7 @@ void device_update_after_inst(uint64_t retired) {
         get_time() - virtio_start);
   }
 #endif
+  IFDEF(CONFIG_HAS_VIRTIO_NET, virtio_net_update());
 
   uint64_t now = get_time();
   if (now - last < 1000000 / TIMER_HZ) {

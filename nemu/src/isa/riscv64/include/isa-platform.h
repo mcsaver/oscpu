@@ -51,9 +51,19 @@ void isa_riscv64_mmu_tlb_flush(void);
 void isa_riscv64_mmu_tlb_flush_selective(vaddr_t vaddr, bool flush_vaddr,
     word_t asid, bool flush_asid);
 extern bool isa_riscv64_decode_cache_is_enabled;
+extern bool isa_riscv64_decode_cache_rvc_fast_is_enabled;
+extern bool isa_riscv64_decode_cache_int_fast_is_enabled;
 
 static inline bool isa_riscv64_decode_cache_runtime_enabled(void) {
   return likely(isa_riscv64_decode_cache_is_enabled);
+}
+
+static inline bool isa_riscv64_decode_cache_rvc_fast_runtime_enabled(void) {
+  return likely(isa_riscv64_decode_cache_rvc_fast_is_enabled);
+}
+
+static inline bool isa_riscv64_decode_cache_int_fast_runtime_enabled(void) {
+  return likely(isa_riscv64_decode_cache_int_fast_is_enabled);
 }
 
 word_t isa_riscv64_mmu_fault_cause(int type);
@@ -65,6 +75,8 @@ void isa_riscv64_pmp_dump_machine_info(FILE *out);
 #endif
 bool isa_mmu_translate_host(vaddr_t vaddr, int len, int type,
     paddr_t *paddr, uint8_t **host_addr);
+bool isa_riscv64_mmu_debug_translate_user(vaddr_t vaddr, int len, int type,
+    paddr_t *paddr);
 void isa_riscv64_lr_sc_invalidate(paddr_t paddr, int len);
 void isa_riscv64_wfi(void);
 
@@ -75,6 +87,10 @@ void isa_riscv64_write_mip(word_t value);
 void isa_riscv64_write_mcycle_lo(word_t value);
 void isa_riscv64_write_mcycle_hi(word_t value);
 void isa_riscv64_raise_timer_intr(void);
+bool isa_riscv64_last_sstatus_write_was_unchanged(void);
+bool isa_riscv64_last_sstatus_write_only_cleared_sie(void);
+bool isa_riscv64_last_sstatus_write_delta(word_t *old_status,
+    word_t *new_status, word_t *delta);
 
 #define isa_riscv_clint_in_range isa_riscv64_clint_in_range
 #define isa_riscv_clint_read isa_riscv64_clint_read
@@ -104,6 +120,8 @@ void isa_riscv64_raise_timer_intr(void);
 #define isa_riscv_mmu_tlb_flush isa_riscv64_mmu_tlb_flush
 #define isa_riscv_mmu_tlb_flush_selective isa_riscv64_mmu_tlb_flush_selective
 #define isa_riscv_decode_cache_runtime_enabled isa_riscv64_decode_cache_runtime_enabled
+#define isa_riscv_decode_cache_rvc_fast_runtime_enabled isa_riscv64_decode_cache_rvc_fast_runtime_enabled
+#define isa_riscv_decode_cache_int_fast_runtime_enabled isa_riscv64_decode_cache_int_fast_runtime_enabled
 #define isa_riscv_mmu_fault_cause isa_riscv64_mmu_fault_cause
 #define isa_riscv_pmp_check isa_riscv64_pmp_check
 #ifndef CONFIG_TARGET_AM
@@ -118,5 +136,8 @@ void isa_riscv64_raise_timer_intr(void);
 #define isa_riscv_write_mcycle_lo isa_riscv64_write_mcycle_lo
 #define isa_riscv_write_mcycle_hi isa_riscv64_write_mcycle_hi
 #define isa_riscv_raise_timer_intr isa_riscv64_raise_timer_intr
+#define isa_riscv_last_sstatus_write_was_unchanged isa_riscv64_last_sstatus_write_was_unchanged
+#define isa_riscv_last_sstatus_write_only_cleared_sie isa_riscv64_last_sstatus_write_only_cleared_sie
+#define isa_riscv_last_sstatus_write_delta isa_riscv64_last_sstatus_write_delta
 
 #endif

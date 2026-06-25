@@ -41,12 +41,24 @@ word_t paddr_read(paddr_t addr, int len);
 void paddr_write(paddr_t addr, int len, word_t data);
 bool paddr_dma_write(paddr_t addr, const void *buf, uint32_t len);
 bool paddr_dma_write_value(paddr_t addr, int len, word_t data);
+extern bool paddr_write_trace_is_enabled;
+void paddr_write_trace_arm_range(paddr_t start, paddr_t end,
+    uint64_t max_count, const char *reason);
+void paddr_write_trace_disarm(const char *reason);
+void paddr_write_trace_dump_machine_info(FILE *out);
+void paddr_write_value_trace_arm(word_t value, word_t mask,
+    uint64_t max_count, const char *reason);
+void paddr_write_value_trace_disarm(const char *reason);
 extern bool paddr_device_write_seen;
 bool paddr_take_device_write(void);
 
 // 热路径先用 inline guard 判空，只有真的写过设备/MMIO 时才进入清标志函数。
 static inline bool paddr_has_device_write(void) {
   return unlikely(paddr_device_write_seen);
+}
+
+static inline bool paddr_write_trace_runtime_enabled(void) {
+  return unlikely(paddr_write_trace_is_enabled);
 }
 
 #endif

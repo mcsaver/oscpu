@@ -19,6 +19,7 @@ module AxiLiteXbar #(
   input [M_COUNT-1:0] m_arvalid_i,
   output [M_COUNT-1:0] m_arready_o,
   input [M_COUNT*ADDR_W-1:0] m_araddr_i,
+  input [M_COUNT*STRB_W-1:0] m_arstrb_i,
   input [M_COUNT*ARUSER_W-1:0] m_aruser_i,
   input [M_COUNT-1:0] m_read_abort_i,
   output [M_COUNT-1:0] m_rvalid_o,
@@ -40,6 +41,7 @@ module AxiLiteXbar #(
   output [S_COUNT-1:0] s_arvalid_o,
   input [S_COUNT-1:0] s_arready_i,
   output [S_COUNT*ADDR_W-1:0] s_araddr_o,
+  output [S_COUNT*STRB_W-1:0] s_arstrb_o,
   output [S_COUNT*ARUSER_W-1:0] s_aruser_o,
   input [S_COUNT-1:0] s_rvalid_i,
   output [S_COUNT-1:0] s_rready_o,
@@ -162,6 +164,7 @@ module AxiLiteXbar #(
 
   reg [S_COUNT-1:0] s_arvalid_r;
   reg [S_COUNT*ADDR_W-1:0] s_araddr_r;
+  reg [S_COUNT*STRB_W-1:0] s_arstrb_r;
   reg [S_COUNT*ARUSER_W-1:0] s_aruser_r;
   reg [S_COUNT-1:0] s_rready_r;
   reg [S_COUNT-1:0] s_awvalid_r;
@@ -181,6 +184,7 @@ module AxiLiteXbar #(
   reg [MASTER_W-1:0] rd_owner_q [0:S_COUNT-1];
   reg [MASTER_W-1:0] rd_rr_q [0:S_COUNT-1];
   reg [ADDR_W-1:0] rd_addr_q [0:S_COUNT-1];
+  reg [STRB_W-1:0] rd_strb_q [0:S_COUNT-1];
   reg [ARUSER_W-1:0] rd_user_q [0:S_COUNT-1];
 
   reg [M_COUNT-1:0] wr_master_busy_q;
@@ -218,6 +222,7 @@ module AxiLiteXbar #(
 
   assign s_arvalid_o = s_arvalid_r;
   assign s_araddr_o = s_araddr_r;
+  assign s_arstrb_o = s_arstrb_r;
   assign s_aruser_o = s_aruser_r;
   assign s_rready_o = s_rready_r;
   assign s_awvalid_o = s_awvalid_r;
@@ -245,6 +250,7 @@ module AxiLiteXbar #(
 
     s_arvalid_r = {S_COUNT{1'b0}};
     s_araddr_r = {S_COUNT*ADDR_W{1'b0}};
+    s_arstrb_r = {S_COUNT*STRB_W{1'b0}};
     s_aruser_r = {S_COUNT*ARUSER_W{1'b0}};
     s_rready_r = {S_COUNT{1'b0}};
     s_awvalid_r = {S_COUNT{1'b0}};
@@ -324,6 +330,7 @@ module AxiLiteXbar #(
       if (rd_active_q[s] && !rd_ar_sent_q[s]) begin
         s_arvalid_r[s] = 1'b1;
         s_araddr_r[s*ADDR_W +: ADDR_W] = rd_addr_q[s];
+        s_arstrb_r[s*STRB_W +: STRB_W] = rd_strb_q[s];
         s_aruser_r[s*ARUSER_W +: ARUSER_W] = rd_user_q[s];
       end
 
@@ -432,6 +439,7 @@ module AxiLiteXbar #(
         rd_owner_q[s] <= {MASTER_W{1'b0}};
         rd_rr_q[s] <= {MASTER_W{1'b0}};
         rd_addr_q[s] <= {ADDR_W{1'b0}};
+        rd_strb_q[s] <= {STRB_W{1'b0}};
         rd_user_q[s] <= {ARUSER_W{1'b0}};
         wr_owner_q[s] <= {MASTER_W{1'b0}};
         wr_rr_q[s] <= {MASTER_W{1'b0}};
@@ -493,6 +501,7 @@ module AxiLiteXbar #(
           rd_drop_q[s] <= 1'b0;
           rd_owner_q[s] <= rd_grant_master_r[s];
           rd_addr_q[s] <= m_addr_slice(m_araddr_i, master_int(rd_grant_master_r[s]));
+          rd_strb_q[s] <= m_strb_slice(m_arstrb_i, master_int(rd_grant_master_r[s]));
           rd_user_q[s] <= m_user_slice(m_aruser_i, master_int(rd_grant_master_r[s]));
           rd_master_busy_q[master_int(rd_grant_master_r[s])] <= 1'b1;
           rd_rr_q[s] <= (master_int(rd_grant_master_r[s]) == (M_COUNT - 1)) ?

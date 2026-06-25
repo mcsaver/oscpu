@@ -22,6 +22,7 @@
 #include <memory/cache.h>
 #include <memory/paddr.h>
 #include <utils/profile.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #if !defined(CONFIG_TARGET_AM) && !defined(CONFIG_TARGET_SHARE)
@@ -35,6 +36,27 @@ static word_t vaddr_fault_cause = 0;
 static vaddr_t vaddr_fault_tval = 0;
 bool vaddr_ifetch_wide_is_enabled = true;
 bool vaddr_host_fast_is_enabled = true;
+bool vaddr_write_trace_is_enabled = false;
+#define VADDR_WRITE_TRACE_MAX_RANGES 4
+static vaddr_t vaddr_write_trace_start = 0;
+static vaddr_t vaddr_write_trace_end = 0;
+static vaddr_t vaddr_write_trace_extra_start[VADDR_WRITE_TRACE_MAX_RANGES];
+static vaddr_t vaddr_write_trace_extra_end[VADDR_WRITE_TRACE_MAX_RANGES];
+static uint32_t vaddr_write_trace_range_count = 0;
+static uint64_t vaddr_write_trace_max = 4096;
+static uint64_t vaddr_write_trace_count = 0;
+static bool vaddr_write_trace_user_only = true;
+static bool vaddr_write_value_trace_is_enabled = false;
+static word_t vaddr_write_value_trace_value = 0;
+static word_t vaddr_write_value_trace_mask = (word_t)-1;
+static uint64_t vaddr_write_value_trace_max = 4096;
+static uint64_t vaddr_write_value_trace_count = 0;
+static bool vaddr_write_value_trace_user_only = true;
+// 最近一次 vaddr_read 的译址元数据只服务诊断 trace，不参与访存语义。
+static bool vaddr_last_read_trace_valid = false;
+static vaddr_t vaddr_last_read_trace_vaddr = 0;
+static int vaddr_last_read_trace_len = 0;
+static paddr_t vaddr_last_read_trace_paddr = 0;
 
 //vaddr是虚拟地址，是cpu执行的时候看到的地址
 //paddr是物理地址，是MMU转换过后的结果，直接对应内存芯片
@@ -54,12 +76,208 @@ static bool runtime_env_enabled_default_true(const char *name) {
 #endif
 }
 
+static bool runtime_env_u64(const char *name, uint64_t *value) {
+#ifndef CONFIG_TARGET_AM
+  const char *env = getenv(name);
+  if (env == NULL || env[0] == '\0') {
+    return false;
+  }
+  errno = 0;
+  char *end = NULL;
+  uint64_t parsed = strtoull(env, &end, 0);
+  Assert(errno == 0 && end != env && *end == '\0',
+      "invalid %s=%s, expect an integer", name, env);
+  *value = parsed;
+  return true;
+#else
+  (void)name;
+  (void)value;
+  return false;
+#endif
+}
+
+static inline void vaddr_last_read_trace_clear(void) {
+  vaddr_last_read_trace_valid = false;
+}
+
+static inline void vaddr_last_read_trace_record(vaddr_t addr, int len,
+    paddr_t paddr) {
+  vaddr_last_read_trace_valid = true;
+  vaddr_last_read_trace_vaddr = addr;
+  vaddr_last_read_trace_len = len;
+  vaddr_last_read_trace_paddr = paddr;
+}
+
+bool vaddr_last_read_paddr(vaddr_t addr, int len, paddr_t *paddr) {
+  if (!vaddr_last_read_trace_valid ||
+      vaddr_last_read_trace_vaddr != addr ||
+      vaddr_last_read_trace_len != len) {
+    return false;
+  }
+  if (paddr != NULL) {
+    *paddr = vaddr_last_read_trace_paddr;
+  }
+  return true;
+}
+
+void vaddr_write_trace_arm_range(vaddr_t start, vaddr_t end,
+    uint64_t max_count, bool user_only, const char *reason) {
+  Assert(end >= start, "vaddr write trace range end must be >= start");
+  vaddr_write_trace_is_enabled = true;
+  vaddr_write_trace_start = start;
+  vaddr_write_trace_end = end;
+  vaddr_write_trace_extra_start[0] = start;
+  vaddr_write_trace_extra_end[0] = end;
+  vaddr_write_trace_range_count = 1;
+  vaddr_write_trace_max = max_count;
+  vaddr_write_trace_count = 0;
+  vaddr_write_trace_user_only = user_only;
+  if (reason != NULL) {
+    Log("vaddr-write-trace armed start=" FMT_WORD " end=" FMT_WORD
+        " max=%" PRIu64 " user_only=%d reason=%s",
+        (word_t)start, (word_t)end, max_count, user_only ? 1 : 0, reason);
+  }
+}
+
+static void vaddr_write_trace_add_range(vaddr_t start, vaddr_t end,
+    const char *reason) {
+  Assert(end >= start, "vaddr write trace range end must be >= start");
+  Assert(vaddr_write_trace_range_count < VADDR_WRITE_TRACE_MAX_RANGES,
+      "too many vaddr write trace ranges");
+  uint32_t index = vaddr_write_trace_range_count++;
+  vaddr_write_trace_extra_start[index] = start;
+  vaddr_write_trace_extra_end[index] = end;
+  if (reason != NULL) {
+    Log("vaddr-write-trace add-range index=%u start=" FMT_WORD
+        " end=" FMT_WORD " reason=%s",
+        index, (word_t)start, (word_t)end, reason);
+  }
+}
+
+void vaddr_write_trace_disarm(const char *reason) {
+  if (!vaddr_write_trace_is_enabled) return;
+  vaddr_write_trace_is_enabled = false;
+  if (reason != NULL) {
+    Log("vaddr-write-trace disarmed reason=%s count=%" PRIu64,
+        reason, vaddr_write_trace_count);
+  }
+}
+
+void vaddr_write_value_trace_arm(word_t value, word_t mask,
+    uint64_t max_count, const char *reason) {
+  vaddr_write_value_trace_is_enabled = true;
+  vaddr_write_value_trace_value = value;
+  vaddr_write_value_trace_mask = mask;
+  vaddr_write_value_trace_max = max_count;
+  vaddr_write_value_trace_count = 0;
+  Log("vaddr-write-value-trace armed value=" FMT_WORD " mask=" FMT_WORD
+      " max=%" PRIu64 " reason=%s",
+      value, mask, max_count, reason != NULL ? reason : "-");
+}
+
+void vaddr_write_value_trace_set_user_only(bool user_only) {
+  vaddr_write_value_trace_user_only = user_only;
+}
+
+void vaddr_write_value_trace_disarm(const char *reason) {
+  if (!vaddr_write_value_trace_is_enabled) return;
+  vaddr_write_value_trace_is_enabled = false;
+  Log("vaddr-write-value-trace disarmed reason=%s count=%" PRIu64,
+      reason != NULL ? reason : "-", vaddr_write_value_trace_count);
+}
+
 __attribute__((constructor))
 static void vaddr_runtime_config_init(void) {
   vaddr_ifetch_wide_is_enabled =
     runtime_env_enabled_default_true("NEMU_INTERPRETER_WIDE_IFETCH");
   vaddr_host_fast_is_enabled =
     runtime_env_enabled_default_true("NEMU_VADDR_HOST_FAST");
+
+  uint64_t start = 0;
+  uint64_t end = 0;
+  bool has_start = runtime_env_u64("NEMU_VADDR_WRITE_TRACE_START", &start);
+  bool has_end = runtime_env_u64("NEMU_VADDR_WRITE_TRACE_END", &end);
+  const char *trace_env = getenv("NEMU_VADDR_WRITE_TRACE");
+  bool requested = trace_env != NULL && trace_env[0] != '\0' &&
+    strcmp(trace_env, "0") != 0;
+  if (requested || has_start || has_end) {
+    Assert(has_start && has_end,
+        "NEMU_VADDR_WRITE_TRACE requires START and END");
+    Assert(end >= start,
+        "NEMU_VADDR_WRITE_TRACE range end must be >= start");
+    runtime_env_u64("NEMU_VADDR_WRITE_TRACE_MAX", &vaddr_write_trace_max);
+    vaddr_write_trace_user_only =
+      runtime_env_enabled_default_true("NEMU_VADDR_WRITE_TRACE_USER_ONLY");
+    vaddr_write_trace_arm_range((vaddr_t)start, (vaddr_t)end,
+        vaddr_write_trace_max, vaddr_write_trace_user_only, NULL);
+    for (uint32_t i = 2; i <= VADDR_WRITE_TRACE_MAX_RANGES; i++) {
+      char start_name[64];
+      char end_name[64];
+      snprintf(start_name, sizeof(start_name),
+          "NEMU_VADDR_WRITE_TRACE_START%u", i);
+      snprintf(end_name, sizeof(end_name),
+          "NEMU_VADDR_WRITE_TRACE_END%u", i);
+      uint64_t extra_start = 0;
+      uint64_t extra_end = 0;
+      bool has_extra_start = runtime_env_u64(start_name, &extra_start);
+      bool has_extra_end = runtime_env_u64(end_name, &extra_end);
+      if (has_extra_start || has_extra_end) {
+        Assert(has_extra_start && has_extra_end,
+            "extra NEMU_VADDR_WRITE_TRACE range requires STARTn and ENDn");
+        vaddr_write_trace_add_range((vaddr_t)extra_start,
+            (vaddr_t)extra_end, NULL);
+      }
+    }
+  }
+
+  uint64_t value = 0;
+  uint64_t mask = UINT64_MAX;
+  bool has_value = runtime_env_u64("NEMU_VADDR_WRITE_VALUE_TRACE_VALUE", &value);
+  bool has_mask = runtime_env_u64("NEMU_VADDR_WRITE_VALUE_TRACE_MASK", &mask);
+  const char *value_trace_env = getenv("NEMU_VADDR_WRITE_VALUE_TRACE");
+  bool value_requested = value_trace_env != NULL && value_trace_env[0] != '\0' &&
+    strcmp(value_trace_env, "0") != 0;
+  if (value_requested || has_value || has_mask) {
+    Assert(has_value, "NEMU_VADDR_WRITE_VALUE_TRACE requires VALUE");
+    runtime_env_u64("NEMU_VADDR_WRITE_VALUE_TRACE_MAX",
+        &vaddr_write_value_trace_max);
+    vaddr_write_value_trace_user_only =
+      runtime_env_enabled_default_true("NEMU_VADDR_WRITE_VALUE_TRACE_USER_ONLY");
+    vaddr_write_value_trace_arm((word_t)value, (word_t)mask,
+        vaddr_write_value_trace_max, "env");
+  }
+}
+
+void vaddr_write_trace_dump_machine_info(FILE *out) {
+  fprintf(out, "runtime.vaddr_write_trace.enabled=%d\n",
+      vaddr_write_trace_is_enabled ? 1 : 0);
+  fprintf(out, "runtime.vaddr_write_trace.env=NEMU_VADDR_WRITE_TRACE\n");
+  fprintf(out, "runtime.vaddr_write_trace.start_env=NEMU_VADDR_WRITE_TRACE_START\n");
+  fprintf(out, "runtime.vaddr_write_trace.end_env=NEMU_VADDR_WRITE_TRACE_END\n");
+  fprintf(out, "runtime.vaddr_write_trace.max_env=NEMU_VADDR_WRITE_TRACE_MAX\n");
+  fprintf(out, "runtime.vaddr_write_trace.user_only_env=NEMU_VADDR_WRITE_TRACE_USER_ONLY\n");
+  fprintf(out, "runtime.vaddr_write_trace.extra_start_env=NEMU_VADDR_WRITE_TRACE_START2..4\n");
+  fprintf(out, "runtime.vaddr_write_trace.extra_end_env=NEMU_VADDR_WRITE_TRACE_END2..4\n");
+  fprintf(out, "runtime.vaddr_write_value_trace.enabled=%d\n",
+      vaddr_write_value_trace_is_enabled ? 1 : 0);
+  if (vaddr_write_trace_is_enabled) {
+    fprintf(out, "runtime.vaddr_write_trace.start=0x%016" PRIx64 "\n",
+        (uint64_t)vaddr_write_trace_start);
+    fprintf(out, "runtime.vaddr_write_trace.end=0x%016" PRIx64 "\n",
+        (uint64_t)vaddr_write_trace_end);
+    fprintf(out, "runtime.vaddr_write_trace.max=%" PRIu64 "\n",
+        vaddr_write_trace_max);
+    fprintf(out, "runtime.vaddr_write_trace.user_only=%d\n",
+        vaddr_write_trace_user_only ? 1 : 0);
+    fprintf(out, "runtime.vaddr_write_trace.range_count=%u\n",
+        vaddr_write_trace_range_count);
+    for (uint32_t i = 0; i < vaddr_write_trace_range_count; i++) {
+      fprintf(out, "runtime.vaddr_write_trace.range%u=0x%016" PRIx64
+          "-0x%016" PRIx64 "\n", i,
+          (uint64_t)vaddr_write_trace_extra_start[i],
+          (uint64_t)vaddr_write_trace_extra_end[i]);
+    }
+  }
 }
 
 #if defined(CONFIG_INTERPRETER_IFETCH_PAGE_CACHE) && defined(CONFIG_ISA_riscv) && \
@@ -300,6 +518,107 @@ static inline void vaddr_paddr_write_fast(VaddrTranslateResult trans, int len, w
   paddr_write(trans.paddr, len, data);
 }
 
+static inline bool vaddr_write_host_fast_hit(VaddrTranslateResult trans) {
+#if !defined(CONFIG_CACHE) && !defined(CONFIG_MTRACE)
+  return trans.host_addr != NULL;
+#else
+  (void)trans;
+  return false;
+#endif
+}
+
+static bool vaddr_write_trace_range_overlap(vaddr_t addr, int len) {
+  if (len <= 0) return false;
+  uint64_t access_start = (uint64_t)addr;
+  uint64_t access_end = access_start + (uint64_t)len - 1;
+  if (access_end < access_start) access_end = UINT64_MAX;
+  for (uint32_t i = 0; i < vaddr_write_trace_range_count; i++) {
+    if (access_start <= (uint64_t)vaddr_write_trace_extra_end[i] &&
+        access_end >= (uint64_t)vaddr_write_trace_extra_start[i]) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static inline word_t vaddr_write_trace_data_mask(word_t data, int len) {
+  if (len <= 0) return 0;
+  if ((size_t)len >= sizeof(word_t)) return data;
+  word_t mask = (((word_t)1) << (len * 8)) - 1;
+  return data & mask;
+}
+
+static bool vaddr_write_value_trace_match_byte(word_t data, int len,
+    uint32_t *byte_offset) {
+  if (vaddr_write_value_trace_mask > 0xff ||
+      vaddr_write_value_trace_value > 0xff) {
+    return false;
+  }
+  int checked_len = len < (int)sizeof(word_t) ? len : (int)sizeof(word_t);
+  for (int i = 0; i < checked_len; i++) {
+    word_t byte = (data >> (i * 8)) & 0xffu;
+    if ((byte & vaddr_write_value_trace_mask) ==
+        (vaddr_write_value_trace_value & vaddr_write_value_trace_mask)) {
+      *byte_offset = (uint32_t)i;
+      return true;
+    }
+  }
+  return false;
+}
+
+static void vaddr_write_trace_after_write(vaddr_t addr, int len, word_t data,
+    VaddrTranslateResult trans, bool host_fast) {
+  if (unlikely(vaddr_write_value_trace_is_enabled)) {
+#ifdef CONFIG_ISA_riscv
+    if (vaddr_write_value_trace_user_only && cpu.priv != PRIV_U) {
+      goto skip_value_trace;
+    }
+#endif
+    word_t masked_data = vaddr_write_trace_data_mask(data, len);
+    bool exact_match = (masked_data & vaddr_write_value_trace_mask) ==
+      (vaddr_write_value_trace_value & vaddr_write_value_trace_mask);
+    uint32_t byte_offset = UINT32_MAX;
+    bool byte_match =
+      vaddr_write_value_trace_match_byte(masked_data, len, &byte_offset);
+    if ((vaddr_write_value_trace_max == 0 ||
+          vaddr_write_value_trace_count < vaddr_write_value_trace_max) &&
+        (exact_match || byte_match)) {
+      vaddr_write_value_trace_count++;
+      Log("vaddr-write-value-trace count=%" PRIu64
+          " match=%s byte_offset=%u vaddr=" FMT_WORD " paddr=" FMT_PADDR
+          " len=%d data=" FMT_WORD " value=" FMT_WORD " mask=" FMT_WORD
+          " pc=" FMT_WORD " priv=%u satp=" FMT_WORD " host_fast=%d",
+          vaddr_write_value_trace_count, exact_match ? "exact" : "byte",
+          exact_match ? 0 : byte_offset, (word_t)addr, trans.paddr, len, masked_data,
+          vaddr_write_value_trace_value, vaddr_write_value_trace_mask, cpu.pc,
+          cpu.priv, MUXDEF(CONFIG_ISA_riscv, cpu.csr.satp, 0),
+          host_fast ? 1 : 0);
+    }
+  }
+skip_value_trace:
+  if (likely(!vaddr_write_trace_runtime_enabled())) return;
+  if (vaddr_write_trace_max != 0 &&
+      vaddr_write_trace_count >= vaddr_write_trace_max) {
+    return;
+  }
+#ifdef CONFIG_ISA_riscv
+  if (vaddr_write_trace_user_only && cpu.priv != PRIV_U) {
+    return;
+  }
+#endif
+  if (!vaddr_write_trace_range_overlap(addr, len)) {
+    return;
+  }
+  vaddr_write_trace_count++;
+  // 该 trace 只在显式 env 打开时生效，用来追 PyLongObject header 等 guest 用户态写坏来源。
+  Log("vaddr-write-trace count=%" PRIu64 " vaddr=" FMT_WORD
+      " len=%d data=" FMT_WORD " paddr=" FMT_PADDR
+      " pc=" FMT_WORD " priv=%u satp=" FMT_WORD " host_fast=%d",
+      vaddr_write_trace_count, (word_t)addr, len,
+      vaddr_write_trace_data_mask(data, len), trans.paddr, cpu.pc,
+      cpu.priv, MUXDEF(CONFIG_ISA_riscv, cpu.csr.satp, 0), host_fast ? 1 : 0);
+}
+
 static inline void vaddr_notify_write_committed(VaddrTranslateResult trans, int len) {
 #ifdef CONFIG_ISA_riscv
   /*
@@ -315,6 +634,7 @@ static inline void vaddr_notify_write_committed(VaddrTranslateResult trans, int 
 }
 
 static word_t vaddr_read_translated(vaddr_t addr, int len, int type) {
+  vaddr_last_read_trace_clear();
   if (((addr & PAGE_MASK) + len) > PAGE_SIZE) {
     nemu_profile_count_if(NEMU_PROFILE_VADDR_CROSS_PAGE_READS, 1);
     word_t ret = 0;
@@ -325,6 +645,7 @@ static word_t vaddr_read_translated(vaddr_t addr, int len, int type) {
   }
   VaddrTranslateResult trans = vaddr_translate_checked(addr, len, type);
   if (vaddr_fault_pending) return 0;
+  vaddr_last_read_trace_record(addr, len, trans.paddr);
   word_t ret = MUXDEF(CONFIG_CACHE,
       (type == MEM_TYPE_IFETCH ? icache_read(trans.paddr, len) : dcache_read(trans.paddr, len)),
       vaddr_paddr_read_fast(trans, len));
@@ -411,11 +732,15 @@ void vaddr_write(vaddr_t addr, int len, word_t data) {
     for (int i = 0; i < len; i++) {
 #ifdef CONFIG_CACHE
       dcache_write(translations[i].paddr, 1, data >> (i * 8));
+      bool host_fast = false;
 #else
       vaddr_ifetch_cache_invalidate_write(translations[i], 1);
+      bool host_fast = vaddr_write_host_fast_hit(translations[i]);
       vaddr_paddr_write_fast(translations[i], 1, data >> (i * 8));
 #endif
       vaddr_notify_write_committed(translations[i], 1);
+      vaddr_write_trace_after_write(addr + i, 1, data >> (i * 8),
+          translations[i], host_fast);
     }
     vaddr_gdbstub_watchpoint_after_access(addr, len, true);
     return;
@@ -424,10 +749,13 @@ void vaddr_write(vaddr_t addr, int len, word_t data) {
   if (vaddr_fault_pending) return;
 #ifdef CONFIG_CACHE
   dcache_write(trans.paddr, len, data);
+  bool host_fast = false;
 #else
   vaddr_ifetch_cache_invalidate_write(trans, len);
+  bool host_fast = vaddr_write_host_fast_hit(trans);
   vaddr_paddr_write_fast(trans, len, data);
 #endif
   vaddr_notify_write_committed(trans, len);
+  vaddr_write_trace_after_write(addr, len, data, trans, host_fast);
   vaddr_gdbstub_watchpoint_after_access(addr, len, true);
 }

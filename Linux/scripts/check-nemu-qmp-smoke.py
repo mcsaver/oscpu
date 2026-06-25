@@ -100,12 +100,25 @@ def require_netdevs(netdevs, label: str, log):
         "speed-mbps": 1000,
         "duplex": "full",
         "config-bytes": 17,
+        "tap-ifname": "none",
     }.items():
         if nemu.get(key) != value:
             raise RuntimeError(f"query-netdev unexpected {key}: {entry}")
-    for key in {"dhcp", "dns", "icmp", "tcp-http", "link-up"}:
+    for key in {"dhcp", "dns", "ntp", "icmp", "tcp-http", "link-up"}:
         if nemu.get(key) is not True:
             raise RuntimeError(f"query-netdev missing enabled {key}: {entry}")
+    if nemu.get("ntp-server") != "10.0.2.2":
+        raise RuntimeError(f"query-netdev unexpected hostless NTP server: {entry}")
+    for key in {
+        "host-packet-backend",
+        "tap",
+        "slirp-nat",
+        "host-port-forward",
+        "external-network",
+        "external-mirror",
+    }:
+        if nemu.get(key) is not False:
+            raise RuntimeError(f"query-netdev boundary ledger should keep {key}=false: {entry}")
     if nemu.get("http-methods") != ["GET", "HEAD"] or nemu.get("http-not-found") is not True:
         raise RuntimeError(f"query-netdev unexpected hostless HTTP surface: {entry}")
     http_large = nemu.get("http-large")
@@ -210,11 +223,14 @@ def require_netdevs(netdevs, label: str, log):
         "icmp-echo-requests", "icmp-echo-replies",
         "dhcp-requests", "dhcp-replies",
         "dns-queries", "dns-replies",
+        "ntp-requests", "ntp-replies",
         "tcp-segments", "tcp-replies", "tcp-http-requests",
         "tcp-http-head-requests", "tcp-http-not-found",
         "tcp-http-apt-requests", "tcp-http-apt-deb-requests",
         "tcp-http-large-requests", "tcp-http-segmented-responses",
         "tcp-http-response-segments",
+        "tap-tx-packets", "tap-tx-bytes", "tap-tx-errors",
+        "tap-rx-packets", "tap-rx-bytes", "tap-rx-errors",
         "ctrl-commands", "ctrl-rx-commands", "ctrl-rx-extra-commands",
         "ctrl-mac-table-commands",
         "ctrl-mac-addr-commands", "ctrl-vlan-commands",
@@ -223,6 +239,7 @@ def require_netdevs(netdevs, label: str, log):
         if stats.get(key) != 0:
             raise RuntimeError(f"query-netdev unexpected nonzero stat {key}: {entry}")
     log.write(f"PASS {label} net0\n")
+    log.write(f"PASS {label}-host-network-boundary-ledger\n")
     log.write(f"PASS {label}-features\n")
     log.write(f"PASS {label}-driver-features-zero-baseline\n")
     log.write(f"PASS {label}-stats-zero-baseline\n")

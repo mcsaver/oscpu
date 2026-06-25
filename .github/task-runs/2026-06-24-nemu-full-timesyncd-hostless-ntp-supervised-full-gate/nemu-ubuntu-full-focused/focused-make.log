@@ -1,0 +1,416 @@
+make: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+make ARCH=riscv64-nemu BOOT=ubuntu-rootfs \
+  UBUNTU_ROOTFS_FLAVOR=full \
+  UBUNTU_ROOTFS_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/platforms/nemu/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4' \
+  UBUNTU_ROOTFS_CPIO_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/platforms/nemu/images/ubuntu2204/ubuntu-22.04-riscv64-full-rootfs.cpio' \
+  NEMU_SYSTEMD_ROOTFS_FLAVOR=full \
+  NEMU_SYSTEMD_CHECK_LOG_DIR='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-24-nemu-full-timesyncd-hostless-ntp-supervised-full-gate/nemu-ubuntu-full-focused' \
+  NEMU_SYSTEMD_ROOTFS_OVERLAY='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-24-nemu-full-timesyncd-hostless-ntp-supervised-full-gate/nemu-ubuntu-full-focused/rootfs-overlay.raw' \
+  NEMU_SYSTEMD_CHECK_MAX_CYCLES='240000000000' \
+  NEMU_SYSTEMD_CHECK_TIMEOUT='7200' \
+  __check-nemu-systemd-guest
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/Linux'
+make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' riscv64-linux_defconfig
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu'
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/nemu'
+make -C '/home/lyg/PA/ysyx-workbench/nemu' NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' -j'14'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/nemu'
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/nemu'
+[ubuntu-rootfs-check] image: /home/lyg/PA/ysyx-workbench/Linux/env/platforms/nemu/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4
+[ubuntu-rootfs-check] flavor: full
+[ubuntu-rootfs-check] OK      stage1 init: /init
+[ubuntu-rootfs-check] OK      Ubuntu shell: /bin/sh
+[ubuntu-rootfs-check] OK      Ubuntu identity: /etc/os-release
+[ubuntu-rootfs-check] OK      systemd candidate: /lib/systemd/systemd
+[ubuntu-rootfs-check] OK      systemd basic.target: /lib/systemd/system/basic.target
+[ubuntu-rootfs-check] OK      udev daemon: /lib/systemd/systemd-udevd
+[ubuntu-rootfs-check] OK      dbus daemon: /usr/bin/dbus-daemon
+[ubuntu-rootfs-check] OK      agetty login path: /bin/login
+[ubuntu-rootfs-check] OK      root login shell: /bin/bash
+[ubuntu-rootfs-check] OK      Ubuntu identity command: /usr/bin/lsb_release
+[ubuntu-rootfs-check] OK      lp64d dynamic linker: /lib/ld-linux-riscv64-lp64d.so.1
+[ubuntu-rootfs-check] OK      PAM module path: /lib/riscv64-linux-gnu/security
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_unix.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_deny.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_permit.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_env.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_loginuid.so
+[ubuntu-rootfs-check] OK      PAM login module: /lib/riscv64-linux-gnu/security/pam_limits.so
+[ubuntu-rootfs-check] OK      NEMU login shell marker: /root/.profile
+[ubuntu-rootfs-check] OK      NEMU login ttyS0 assertion
+[ubuntu-rootfs-check] OK      NEMU serial-getty autologin drop-in
+[ubuntu-rootfs-check] OK      e2scrub service entrypoint: /sbin/e2scrub_all
+[ubuntu-rootfs-check] OK      boot-blocking e2scrub reap masked: /etc/systemd/system/e2scrub_reap.service
+[ubuntu-rootfs-check] OK      periodic e2scrub timer masked: /etc/systemd/system/e2scrub_all.timer
+[ubuntu-rootfs-check] OK      deterministic machine-id seed: /etc/machine-id
+[ubuntu-rootfs-check] OK      unavailable hvc0 getty masked: /etc/systemd/system/serial-getty@hvc0.service
+[ubuntu-rootfs-check] OK      PAM su command: /bin/su
+[ubuntu-rootfs-check] OK      PAM su config: /etc/pam.d/su
+[ubuntu-rootfs-check] OK      account groupadd command: /usr/sbin/groupadd
+[ubuntu-rootfs-check] OK      account groupdel command: /usr/sbin/groupdel
+[ubuntu-rootfs-check] OK      account useradd command: /usr/sbin/useradd
+[ubuntu-rootfs-check] OK      account userdel command: /usr/sbin/userdel
+[ubuntu-rootfs-check] OK      account passwd command: /usr/bin/passwd
+[ubuntu-rootfs-check] OK      account useradd defaults: /etc/default/useradd
+[ubuntu-rootfs-check] OK      login defaults: /etc/login.defs
+[ubuntu-rootfs-check] OK      OpenSSH server config: /etc/ssh/sshd_config
+[ubuntu-rootfs-check] OK      OpenSSH client command: /usr/bin/ssh
+[ubuntu-rootfs-check] OK      OpenSSH keygen command: /usr/bin/ssh-keygen
+[ubuntu-rootfs-check] OK      OpenSSH scp command: /usr/bin/scp
+[ubuntu-rootfs-check] OK      OpenSSH sftp command: /usr/bin/sftp
+[ubuntu-rootfs-check] OK      OpenSSH sftp server: /usr/lib/openssh/sftp-server
+[ubuntu-rootfs-check] OK      syslog passwd entry: /etc/passwd
+[ubuntu-rootfs-check] OK      syslog group entry: /etc/group
+[ubuntu-rootfs-check] OK      sshd passwd entry: /etc/passwd
+[ubuntu-rootfs-check] OK      sshd group entry: /etc/group
+[ubuntu-rootfs-check] OK      OpenSSH ed25519 host key: /etc/ssh/ssh_host_ed25519_key
+[ubuntu-rootfs-check] OK      OpenSSH rsa host key: /etc/ssh/ssh_host_rsa_key
+[ubuntu-rootfs-check] OK      rsyslog spool directory: /var/spool/rsyslog
+[ubuntu-rootfs-check] OK      syslog service alias: /etc/systemd/system/syslog.service
+[ubuntu-rootfs-check] OK      apt signature verifier: /usr/bin/gpgv
+[ubuntu-rootfs-check] OK      journal query tool: /bin/journalctl
+[ubuntu-rootfs-check] OK      machine-id setup tool: /bin/systemd-machine-id-setup
+[ubuntu-rootfs-check] OK      hostnamectl tool: /usr/bin/hostnamectl
+[ubuntu-rootfs-check] OK      timedatectl tool: /usr/bin/timedatectl
+[ubuntu-rootfs-check] OK      timedated service binary: /lib/systemd/systemd-timedated
+[ubuntu-rootfs-check] OK      timedated service unit: /lib/systemd/system/systemd-timedated.service
+[ubuntu-rootfs-check] OK      hostnamed service binary: /lib/systemd/systemd-hostnamed
+[ubuntu-rootfs-check] OK      machine-id seed file: /etc/machine-id
+[ubuntu-rootfs-check] OK      hostname seed file: /etc/hostname
+[ubuntu-rootfs-check] OK      machine-id commit unit: /lib/systemd/system/systemd-machine-id-commit.service
+[ubuntu-rootfs-check] OK      hostnamed unit: /lib/systemd/system/systemd-hostnamed.service
+[ubuntu-rootfs-check] OK      sysusers tool: /bin/systemd-sysusers
+[ubuntu-rootfs-check] OK      sysusers setup unit: /lib/systemd/system/systemd-sysusers.service
+[ubuntu-rootfs-check] OK      sysusers base config: /usr/lib/sysusers.d/basic.conf
+[ubuntu-rootfs-check] OK      tmpfiles tool: /bin/systemd-tmpfiles
+[ubuntu-rootfs-check] OK      tmpfiles setup unit: /lib/systemd/system/systemd-tmpfiles-setup.service
+[ubuntu-rootfs-check] OK      journal stdin tool: /usr/bin/systemd-cat
+[ubuntu-rootfs-check] OK      Ubuntu archive keyring: /usr/share/keyrings/ubuntu-archive-keyring.gpg sha256=1a4dd63e5c76728960a2edddae22e2e0fc53df8e8b87806deb971030ac704eb0
+[ubuntu-rootfs-check] OK      dpkg status installed: systemd
+[ubuntu-rootfs-check] OK      dpkg status installed: ubuntu-standard
+[ubuntu-rootfs-check] OK      dpkg status installed: openssh-client
+[ubuntu-rootfs-check] OK      dpkg status installed: openssh-server
+[ubuntu-rootfs-check] OK      dpkg status installed: openssh-sftp-server
+[ubuntu-rootfs-check] OK      dpkg status installed: curl
+[ubuntu-rootfs-check] OK      dpkg status installed: wget
+[ubuntu-rootfs-check] OK      dpkg status installed: dropbear-bin
+[ubuntu-rootfs-check] OK      dpkg status installed: rsyslog
+[ubuntu-rootfs-check] OK      dpkg status installed: cron
+[ubuntu-rootfs-check] OK      dpkg status installed: anacron
+[ubuntu-rootfs-check] OK      dpkg status installed: logrotate
+[ubuntu-rootfs-check] OK      dpkg status installed: systemd-timesyncd
+[ubuntu-rootfs-check] OK      dpkg status installed: systemd-oomd
+[ubuntu-rootfs-check] OK      dpkg status installed: dbus-user-session
+[ubuntu-rootfs-check] OK      dpkg status installed: gpgv
+[ubuntu-rootfs-check] OK      dpkg status installed: ubuntu-keyring
+[ubuntu-rootfs-check] OK      dpkg status installed: passwd
+[ubuntu-rootfs-check] OK      dpkg status installed: locales
+[ubuntu-rootfs-check] OK      dpkg status installed: libc-bin
+[ubuntu-rootfs-check] OK      dpkg info list: systemd
+[ubuntu-rootfs-check] OK      dpkg info list: ubuntu-standard
+[ubuntu-rootfs-check] OK      dpkg info list: openssh-client
+[ubuntu-rootfs-check] OK      dpkg info list: openssh-server
+[ubuntu-rootfs-check] OK      dpkg info list: openssh-sftp-server
+[ubuntu-rootfs-check] OK      dpkg info list: curl
+[ubuntu-rootfs-check] OK      dpkg info list: wget
+[ubuntu-rootfs-check] OK      dpkg info list: dropbear-bin
+[ubuntu-rootfs-check] OK      dpkg info list: rsyslog
+[ubuntu-rootfs-check] OK      dpkg info list: cron
+[ubuntu-rootfs-check] OK      dpkg info list: anacron
+[ubuntu-rootfs-check] OK      dpkg info list: logrotate
+[ubuntu-rootfs-check] OK      dpkg info list: systemd-timesyncd
+[ubuntu-rootfs-check] OK      dpkg info list: systemd-oomd
+[ubuntu-rootfs-check] OK      dpkg info list: dbus-user-session
+[ubuntu-rootfs-check] OK      dpkg info list: gpgv
+[ubuntu-rootfs-check] OK      dpkg info list: ubuntu-keyring
+[ubuntu-rootfs-check] OK      dpkg info list: passwd
+[ubuntu-rootfs-check] OK      dpkg info list: locales
+[ubuntu-rootfs-check] OK      dpkg info list: libc-bin
+[ubuntu-rootfs-check] OK      dpkg info list valid names: 313 list files
+[ubuntu-rootfs-check] OK      dpkg info ownership: curl /usr/bin/curl
+[ubuntu-rootfs-check] OK      dpkg info ownership: wget /usr/bin/wget
+[ubuntu-rootfs-check] OK      dpkg info ownership: openssh-client /usr/bin/ssh
+[ubuntu-rootfs-check] OK      dpkg info ownership: openssh-client /usr/bin/ssh-keygen
+[ubuntu-rootfs-check] OK      dpkg info ownership: openssh-client /usr/bin/scp
+[ubuntu-rootfs-check] OK      dpkg info ownership: openssh-client /usr/bin/sftp
+[ubuntu-rootfs-check] OK      dpkg info ownership: openssh-server /usr/sbin/sshd
+[ubuntu-rootfs-check] OK      dpkg info ownership: openssh-sftp-server /usr/lib/openssh/sftp-server
+[ubuntu-rootfs-check] OK      dpkg info ownership: dropbear-bin /usr/bin/dbclient
+[ubuntu-rootfs-check] OK      dpkg info ownership: dropbear-bin /usr/sbin/dropbear
+[ubuntu-rootfs-check] OK      dpkg info ownership: rsyslog /usr/sbin/rsyslogd
+[ubuntu-rootfs-check] OK      dpkg info ownership: cron /usr/sbin/cron
+[ubuntu-rootfs-check] OK      dpkg info ownership: cron /etc/crontab
+[ubuntu-rootfs-check] OK      dpkg info ownership: cron /etc/cron.d
+[ubuntu-rootfs-check] OK      dpkg info ownership: cron /etc/cron.daily
+[ubuntu-rootfs-check] OK      dpkg info ownership: anacron /usr/sbin/anacron
+[ubuntu-rootfs-check] OK      dpkg info ownership: anacron /etc/anacrontab
+[ubuntu-rootfs-check] OK      dpkg info ownership: anacron /etc/cron.d/anacron
+[ubuntu-rootfs-check] OK      dpkg info ownership: anacron /etc/cron.daily/0anacron
+[ubuntu-rootfs-check] OK      dpkg info ownership: anacron /etc/cron.weekly/0anacron
+[ubuntu-rootfs-check] OK      dpkg info ownership: anacron /etc/cron.monthly/0anacron
+[ubuntu-rootfs-check] OK      dpkg info ownership: anacron /var/spool/anacron
+[ubuntu-rootfs-check] OK      dpkg info ownership: anacron /lib/systemd/system/anacron.service
+[ubuntu-rootfs-check] OK      dpkg info ownership: anacron /lib/systemd/system/anacron.timer
+[ubuntu-rootfs-check] OK      dpkg info ownership: logrotate /usr/sbin/logrotate
+[ubuntu-rootfs-check] OK      dpkg info ownership: logrotate /etc/logrotate.conf
+[ubuntu-rootfs-check] OK      dpkg info ownership: logrotate /lib/systemd/system/logrotate.service
+[ubuntu-rootfs-check] OK      dpkg info ownership: logrotate /lib/systemd/system/logrotate.timer
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd-oomd /lib/systemd/systemd-oomd
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd-oomd /lib/systemd/system/systemd-oomd.service
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd-oomd /usr/bin/oomctl
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd-oomd /etc/systemd/oomd.conf
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd-oomd /usr/lib/systemd/oomd.conf.d/10-oomd-defaults.conf
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd-oomd /usr/lib/systemd/system/-.slice.d/10-oomd-root-slice-defaults.conf
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd-oomd /usr/lib/systemd/system/user@.service.d/10-oomd-user-service-defaults.conf
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd-oomd /usr/lib/sysusers.d/systemd-oom.conf
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd-oomd /usr/share/dbus-1/system-services/org.freedesktop.oom1.service
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd-oomd /usr/share/dbus-1/system.d/org.freedesktop.oom1.conf
+[ubuntu-rootfs-check] OK      dpkg info ownership: locales /usr/sbin/locale-gen
+[ubuntu-rootfs-check] OK      dpkg info ownership: locales /usr/share/i18n/SUPPORTED
+[ubuntu-rootfs-check] OK      dpkg info ownership: libc-bin /usr/bin/localedef
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /bin/journalctl
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /bin/systemd-machine-id-setup
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /bin/systemd-sysusers
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /bin/systemd-tmpfiles
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /usr/bin/systemd-run
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /usr/bin/systemd-cat
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /usr/bin/hostnamectl
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /usr/bin/timedatectl
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /bin/loginctl
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /lib/systemd/systemd-logind
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /lib/systemd/systemd-hostnamed
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /lib/systemd/systemd-timedated
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /lib/systemd/system/systemd-logind.service
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /lib/systemd/system/systemd-machine-id-commit.service
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /lib/systemd/system/systemd-hostnamed.service
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /lib/systemd/system/systemd-timedated.service
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /lib/systemd/system/user@.service
+[ubuntu-rootfs-check] OK      dpkg info ownership: systemd /lib/systemd/system/user-runtime-dir@.service
+[ubuntu-rootfs-check] OK      dpkg info ownership: dbus-user-session /usr/lib/systemd/user/dbus.socket
+[ubuntu-rootfs-check] OK      dpkg info ownership: dbus-user-session /usr/lib/systemd/user/dbus.service
+[ubuntu-rootfs-check] OK      dpkg info ownership: dbus-user-session /usr/lib/systemd/user/sockets.target.wants/dbus.socket
+[ubuntu-rootfs-check] OK      dpkg info ownership: gpgv /usr/bin/gpgv
+[ubuntu-rootfs-check] OK      dpkg info ownership: ubuntu-keyring /usr/share/keyrings/ubuntu-archive-keyring.gpg
+[ubuntu-rootfs-check] OK      dpkg info ownership: passwd /usr/sbin/groupadd
+[ubuntu-rootfs-check] OK      dpkg info ownership: passwd /usr/sbin/groupdel
+[ubuntu-rootfs-check] OK      dpkg info ownership: passwd /usr/sbin/useradd
+[ubuntu-rootfs-check] OK      dpkg info ownership: passwd /usr/sbin/userdel
+[ubuntu-rootfs-check] OK      dpkg info ownership: passwd /usr/bin/passwd
+[ubuntu-rootfs-check] OK      dpkg info ownership: passwd /etc/default/useradd
+[ubuntu-rootfs-check] OK      Ubuntu interactive command curl: /usr/bin/curl
+[ubuntu-rootfs-check] OK      Ubuntu interactive command wget: /usr/bin/wget
+[ubuntu-rootfs-check] OK      Ubuntu interactive command ping: /bin/ping
+[ubuntu-rootfs-check] OK      Ubuntu interactive command ssh: /usr/bin/ssh
+[ubuntu-rootfs-check] OK      Ubuntu interactive command scp: /usr/bin/scp
+[ubuntu-rootfs-check] OK      Ubuntu interactive command sftp: /usr/bin/sftp
+[ubuntu-rootfs-check] OK      Ubuntu interactive command htop: /usr/bin/htop
+[ubuntu-rootfs-check] OK      Ubuntu interactive command less: /usr/bin/less
+[ubuntu-rootfs-check] OK      Ubuntu interactive command strace: /usr/bin/strace
+[ubuntu-rootfs-check] OK      Ubuntu full command apt-get: /usr/bin/apt-get
+[ubuntu-rootfs-check] OK      Ubuntu full command apt-cache: /usr/bin/apt-cache
+[ubuntu-rootfs-check] OK      Ubuntu full command gpgv: /usr/bin/gpgv
+[ubuntu-rootfs-check] OK      Ubuntu full command journalctl: /bin/journalctl
+[ubuntu-rootfs-check] OK      Ubuntu full command systemd-machine-id-setup: /bin/systemd-machine-id-setup
+[ubuntu-rootfs-check] OK      Ubuntu full command systemd-sysusers: /bin/systemd-sysusers
+[ubuntu-rootfs-check] OK      Ubuntu full command systemd-tmpfiles: /bin/systemd-tmpfiles
+[ubuntu-rootfs-check] OK      Ubuntu full command systemd-run: /usr/bin/systemd-run
+[ubuntu-rootfs-check] OK      Ubuntu full command systemd-cat: /usr/bin/systemd-cat
+[ubuntu-rootfs-check] OK      Ubuntu full command hostnamectl: /usr/bin/hostnamectl
+[ubuntu-rootfs-check] OK      Ubuntu full command timedatectl: /usr/bin/timedatectl
+[ubuntu-rootfs-check] OK      Ubuntu full command loginctl: /bin/loginctl
+[ubuntu-rootfs-check] OK      Ubuntu full service systemd-logind: /lib/systemd/systemd-logind
+[ubuntu-rootfs-check] OK      Ubuntu full unit systemd-logind: /lib/systemd/system/systemd-logind.service
+[ubuntu-rootfs-check] OK      Ubuntu full service systemd-timedated: /lib/systemd/systemd-timedated
+[ubuntu-rootfs-check] OK      Ubuntu full unit systemd-timedated: /lib/systemd/system/systemd-timedated.service
+[ubuntu-rootfs-check] OK      Ubuntu full unit systemd user manager: /lib/systemd/system/user@.service
+[ubuntu-rootfs-check] OK      Ubuntu full unit systemd user runtime dir: /lib/systemd/system/user-runtime-dir@.service
+[ubuntu-rootfs-check] OK      Ubuntu full systemd user bus socket: /usr/lib/systemd/user/dbus.socket
+[ubuntu-rootfs-check] OK      Ubuntu full systemd user bus service: /usr/lib/systemd/user/dbus.service
+[ubuntu-rootfs-check] OK      Ubuntu full systemd user bus default socket: /usr/lib/systemd/user/sockets.target.wants/dbus.socket
+[ubuntu-rootfs-check] OK      Ubuntu full command logger: /usr/bin/logger
+[ubuntu-rootfs-check] OK      Ubuntu full command dpkg: /usr/bin/dpkg
+[ubuntu-rootfs-check] OK      Ubuntu full command dpkg-query: /usr/bin/dpkg-query
+[ubuntu-rootfs-check] OK      Ubuntu full command sudo: /usr/bin/sudo
+[ubuntu-rootfs-check] OK      Ubuntu full command su: /bin/su
+[ubuntu-rootfs-check] OK      Ubuntu full PAM su config: /etc/pam.d/su
+[ubuntu-rootfs-check] OK      Ubuntu full account command groupadd: /usr/sbin/groupadd
+[ubuntu-rootfs-check] OK      Ubuntu full account command groupdel: /usr/sbin/groupdel
+[ubuntu-rootfs-check] OK      Ubuntu full account command useradd: /usr/sbin/useradd
+[ubuntu-rootfs-check] OK      Ubuntu full account command userdel: /usr/sbin/userdel
+[ubuntu-rootfs-check] OK      Ubuntu full account command passwd: /usr/bin/passwd
+[ubuntu-rootfs-check] OK      Ubuntu full account defaults: /etc/default/useradd
+[ubuntu-rootfs-check] OK      Ubuntu full login defaults: /etc/login.defs
+[ubuntu-rootfs-check] OK      Ubuntu full command ssh-keygen: /usr/bin/ssh-keygen
+[ubuntu-rootfs-check] OK      Ubuntu full command man: /usr/bin/man
+[ubuntu-rootfs-check] OK      Ubuntu full locale command locale-gen: /usr/sbin/locale-gen
+[ubuntu-rootfs-check] OK      Ubuntu full locale command localedef: /usr/bin/localedef
+[ubuntu-rootfs-check] OK      Ubuntu full locale supported database: /usr/share/i18n/SUPPORTED
+[ubuntu-rootfs-check] OK      Ubuntu full command dbclient: /usr/bin/dbclient
+[ubuntu-rootfs-check] OK      Ubuntu full command dropbearconvert: /usr/bin/dropbearconvert
+[ubuntu-rootfs-check] OK      Ubuntu full command dropbearkey: /usr/bin/dropbearkey
+[ubuntu-rootfs-check] OK      Ubuntu full service sshd: /usr/sbin/sshd
+[ubuntu-rootfs-check] OK      Ubuntu full service OpenSSH sftp-server: /usr/lib/openssh/sftp-server
+[ubuntu-rootfs-check] OK      Ubuntu full service dropbear: /usr/sbin/dropbear
+[ubuntu-rootfs-check] OK      Ubuntu full service cron: /usr/sbin/cron
+[ubuntu-rootfs-check] OK      Ubuntu full cron system crontab: /etc/crontab
+[ubuntu-rootfs-check] OK      Ubuntu full cron.d directory: /etc/cron.d
+[ubuntu-rootfs-check] OK      Ubuntu full cron.daily directory: /etc/cron.daily
+[ubuntu-rootfs-check] OK      Ubuntu full maintenance anacron: /usr/sbin/anacron
+[ubuntu-rootfs-check] OK      Ubuntu full anacron table: /etc/anacrontab
+[ubuntu-rootfs-check] OK      Ubuntu full anacron cron entry: /etc/cron.d/anacron
+[ubuntu-rootfs-check] OK      Ubuntu full anacron daily stamp entry: /etc/cron.daily/0anacron
+[ubuntu-rootfs-check] OK      Ubuntu full anacron weekly stamp entry: /etc/cron.weekly/0anacron
+[ubuntu-rootfs-check] OK      Ubuntu full anacron monthly stamp entry: /etc/cron.monthly/0anacron
+[ubuntu-rootfs-check] OK      Ubuntu full anacron spool directory: /var/spool/anacron
+[ubuntu-rootfs-check] OK      Ubuntu full anacron service: /lib/systemd/system/anacron.service
+[ubuntu-rootfs-check] OK      Ubuntu full anacron timer: /lib/systemd/system/anacron.timer
+[ubuntu-rootfs-check] OK      Ubuntu full service rsyslogd: /usr/sbin/rsyslogd
+[ubuntu-rootfs-check] OK      Ubuntu full maintenance logrotate: /usr/sbin/logrotate
+[ubuntu-rootfs-check] OK      Ubuntu full logrotate config: /etc/logrotate.conf
+[ubuntu-rootfs-check] OK      Ubuntu full logrotate cron entry: /etc/cron.daily/logrotate
+[ubuntu-rootfs-check] OK      Ubuntu full logrotate service: /lib/systemd/system/logrotate.service
+[ubuntu-rootfs-check] OK      Ubuntu full logrotate timer: /lib/systemd/system/logrotate.timer
+[ubuntu-rootfs-check] OK      Ubuntu full service systemd-oomd: /lib/systemd/systemd-oomd
+[ubuntu-rootfs-check] OK      Ubuntu full unit systemd-oomd: /lib/systemd/system/systemd-oomd.service
+[ubuntu-rootfs-check] OK      Ubuntu full command oomctl: /usr/bin/oomctl
+[ubuntu-rootfs-check] OK      Ubuntu full oomd config: /etc/systemd/oomd.conf
+[ubuntu-rootfs-check] OK      Ubuntu full oomd defaults: /usr/lib/systemd/oomd.conf.d/10-oomd-defaults.conf
+[ubuntu-rootfs-check] OK      Ubuntu full oomd root slice defaults: /usr/lib/systemd/system/-.slice.d/10-oomd-root-slice-defaults.conf
+[ubuntu-rootfs-check] OK      Ubuntu full oomd user service defaults: /usr/lib/systemd/system/user@.service.d/10-oomd-user-service-defaults.conf
+[ubuntu-rootfs-check] OK      Ubuntu full oomd sysusers config: /usr/lib/sysusers.d/systemd-oom.conf
+[ubuntu-rootfs-check] OK      Ubuntu full oomd dbus service: /usr/share/dbus-1/system-services/org.freedesktop.oom1.service
+[ubuntu-rootfs-check] OK      Ubuntu full oomd dbus policy: /usr/share/dbus-1/system.d/org.freedesktop.oom1.conf
+[ubuntu-rootfs-check] OK      Ubuntu full service systemd-hostnamed: /lib/systemd/systemd-hostnamed
+[ubuntu-rootfs-check] OK      Ubuntu full unit systemd-hostnamed: /lib/systemd/system/systemd-hostnamed.service
+[ubuntu-rootfs-check] OK      Ubuntu full apt archive keyring: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+[ubuntu-rootfs-check] OK      Ubuntu full timezone database: /usr/share/zoneinfo/UTC
+[ubuntu-rootfs-check] rootfs readiness check passed
+NEMU_PERFORMANCE_REQUIRED='1' \
+NEMU_CONFIG='/home/lyg/PA/ysyx-workbench/nemu/.config' \
+NEMU_AUTOCONF='/home/lyg/PA/ysyx-workbench/nemu/include/generated/autoconf.h' \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-nemu-performance-config.sh'
+__NEMU_PERFORMANCE_CONFIG__:ok
+LINUX_KERNEL_CONFIG='/home/lyg/PA/ysyx-workbench/Linux/env/platforms/nemu/build/linux/.config' \
+  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-nemu-kernel-config.sh'
+[linux-kernel-config] PASS CONFIG_MODULES=disabled
+[linux-kernel-config] PASS CONFIG_AUTOFS_FS=y
+[linux-kernel-config] PASS CONFIG_BPF=y
+[linux-kernel-config] PASS CONFIG_BPF_SYSCALL=y
+[linux-kernel-config] PASS CONFIG_CGROUPS=y
+[linux-kernel-config] PASS CONFIG_CGROUP_BPF=y
+[linux-kernel-config] PASS CONFIG_PSI=y
+[linux-kernel-config] PASS CONFIG_PSI_DEFAULT_DISABLED=disabled
+[linux-kernel-config] PASS CONFIG_SECCOMP=y
+[linux-kernel-config] PASS CONFIG_SECCOMP_FILTER=y
+__NEMU_KERNEL_CONFIG__:ok
+LOG_DIR='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-24-nemu-full-timesyncd-hostless-ntp-supervised-full-gate/nemu-ubuntu-full-focused' \
+LOG_FILE='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-24-nemu-full-timesyncd-hostless-ntp-supervised-full-gate/nemu-ubuntu-full-focused/nemu.log' \
+CONSOLE_LOG='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-24-nemu-full-timesyncd-hostless-ntp-supervised-full-gate/nemu-ubuntu-full-focused/console.log' \
+NEMU_SERIAL_FIFO='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-24-nemu-full-timesyncd-hostless-ntp-supervised-full-gate/nemu-ubuntu-full-focused/nemu.serial' \
+NEMU_HOME='/home/lyg/PA/ysyx-workbench/nemu' \
+NEMU_SIM='/home/lyg/PA/ysyx-workbench/nemu/build/riscv64-nemu-interpreter' \
+LINUX_IMAGE='/home/lyg/PA/ysyx-workbench/Linux/env/platforms/nemu/build/linux/arch/riscv/boot/Image' \
+RUN_FW='/home/lyg/PA/ysyx-workbench/Linux/env/platforms/nemu/build/opensbi/rootfs/platform/generic/firmware/fw_jump.bin' \
+RUN_DTB='/home/lyg/PA/ysyx-workbench/Linux/build/riscv64-nemu/npc-rv64-nemu-rootfs.dtb' \
+RUN_ROOTFS='/home/lyg/PA/ysyx-workbench/Linux/env/platforms/nemu/images/ubuntu2204/ubuntu-22.04-riscv64-full.ext4' \
+NEMU_SYSTEMD_ROOTFS_OVERLAY='/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-24-nemu-full-timesyncd-hostless-ntp-supervised-full-gate/nemu-ubuntu-full-focused/rootfs-overlay.raw' \
+NEMU_SYSTEMD_NET_BACKEND='hostless' \
+NEMU_SYSTEMD_NET_TAP='' \
+NEMU_SYSTEMD_TAP_IPV4_CIDR='' \
+NEMU_SYSTEMD_TAP_GATEWAY='' \
+NEMU_SYSTEMD_TAP_DNS='' \
+NEMU_SYSTEMD_TAP_PING_TARGET='' \
+NEMU_SYSTEMD_TAP_HTTP_URL='' \
+NEMU_SYSTEMD_TAP_REQUIRE_EXTERNAL='0' \
+NEMU_SYSTEMD_TAP_REQUIRE_PACKETS='0' \
+NEXT_ADDR='0x80200000' \
+DTB_ADDR='0x82200000' \
+MAX_CYCLES='240000000000' \
+NEMU_SYSTEMD_CHECK_TIMEOUT='7200' \
+NEMU_SYSTEMD_BOOT_TIMEOUT='900' \
+NEMU_SYSTEMD_SOAK_SECONDS='0' \
+NEMU_SYSTEMD_FS_STRESS_MIB='1' \
+NEMU_SYSTEMD_FS_TREE_FILES='8' \
+NEMU_SYSTEMD_PROCESS_LOOPS='4' \
+NEMU_SYSTEMD_UART_RX_STRESS_LINES='64' \
+NEMU_SYSTEMD_BLOCK_PARALLEL_JOBS='1' \
+NEMU_SYSTEMD_BLOCK_JOB_MIB='1' \
+	NEMU_SYSTEMD_MIN_MEMTOTAL_KB='900000' \
+	NEMU_SYSTEMD_INPUT_DELAY='0' \
+	NEMU_SYSTEMD_INPUT_CHUNK_BYTES='64' \
+	NEMU_SYSTEMD_INPUT_CHUNK_DELAY='0' \
+	NEMU_SYSTEMD_APT_INSTALL_DIAG='1' \
+	NEMU_SYSTEMD_APT_INSTALL_ACTUAL='1' \
+	NEMU_SYSTEMD_APT_INSTALL_DIAG_TIMEOUT='1200' \
+	NEMU_SYSTEMD_APT_REMOVE_DIAG_TIMEOUT='600' \
+	NEMU_SYSTEMD_CRON_JOB_TIMEOUT='180' \
+	NEMU_SYSTEMD_ANACRON_TIMEOUT='120' \
+	NEMU_SYSTEMD_CALENDAR_TIMER_TIMEOUT='90' \
+	NEMU_SYSTEMD_LOCALE_GEN_TIMEOUT='600' \
+	NEMU_SYSTEMD_TIMEDATECTL_TIMEOUT='120' \
+	NEMU_SYSTEMD_TIMESYNCD_NTP_TIMEOUT='120' \
+	  bash '/home/lyg/PA/ysyx-workbench/Linux/scripts/check-nemu-systemd-guest.sh'
+[nemu-systemd-check] log dir: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-24-nemu-full-timesyncd-hostless-ntp-supervised-full-gate/nemu-ubuntu-full-focused
+[nemu-systemd-check] serial fifo: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-24-nemu-full-timesyncd-hostless-ntp-supervised-full-gate/nemu-ubuntu-full-focused/nemu.serial
+[nemu-systemd-check] guest upload commands: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-24-nemu-full-timesyncd-hostless-ntp-supervised-full-gate/nemu-ubuntu-full-focused/guest-check-upload.cmd
+[nemu-systemd-check] guest upload group lines: 32
+[nemu-systemd-check] max cycles: 240000000000
+[nemu-systemd-check] soak seconds: 0
+[nemu-systemd-check] fs stress MiB: 1
+[nemu-systemd-check] fs tree files: 8
+[nemu-systemd-check] process loops: 4
+[nemu-systemd-check] UART RX stress lines: 64
+[nemu-systemd-check] block parallel jobs: 1
+[nemu-systemd-check] block job MiB: 1
+[nemu-systemd-check] min MemTotal KiB: 900000
+[nemu-systemd-check] systemd reload timeout: 180
+[nemu-systemd-check] input delay: 0
+[nemu-systemd-check] input chunk bytes: 64
+[nemu-systemd-check] input chunk delay: 0
+[nemu-systemd-check] apt install diag: 1
+[nemu-systemd-check] apt install actual: 1
+[nemu-systemd-check] apt install diag timeout: 1200
+[nemu-systemd-check] apt remove diag timeout: 600
+[nemu-systemd-check] cron job timeout: 180
+[nemu-systemd-check] anacron timeout: 120
+[nemu-systemd-check] calendar timer timeout: 90
+[nemu-systemd-check] locale-gen timeout: 600
+[nemu-systemd-check] timedatectl timeout: 120
+[nemu-systemd-check] timesyncd NTP timeout: 120
+[nemu-systemd-check] python/cnf diag hard: 1
+[nemu-systemd-check] python re diag loops: 20
+[nemu-systemd-check] virtio blk sync: 0
+[nemu-systemd-check] serial input model: FIFO bytes -> NEMU SerialPort staging -> 16550 RX FIFO -> Linux ttyS0 (stdin disabled by default)
+[nemu-systemd-check] syscall probe: 1
+[nemu-systemd-check] ICMP probe: 1
+[nemu-systemd-check] DHCP probe: 1
+[nemu-systemd-check] DNS probe: 1
+[nemu-systemd-check] TCP probe: 1
+[nemu-systemd-check] TCP burst loops: 8
+[nemu-systemd-check] net backend: hostless
+[nemu-systemd-check] net tap: none
+[nemu-systemd-check] TAP ipv4 cidr: none
+[nemu-systemd-check] TAP gateway: none
+[nemu-systemd-check] TAP dns: none
+[nemu-systemd-check] TAP ping target: none
+[nemu-systemd-check] TAP http url: none
+[nemu-systemd-check] TAP require external: 0
+[nemu-systemd-check] TAP require packets: 0
+[nemu-systemd-check] poweroff: 1
+[nemu-systemd-check] poweroff timeout: 180
+[nemu-systemd-check] rootfs flavor: full
+[nemu-systemd-check] syscall probe bytes: 34824
+[nemu-systemd-check] ICMP probe bytes: 10248
+[nemu-systemd-check] DHCP probe bytes: 10248
+[nemu-systemd-check] DNS probe bytes: 10248
+[nemu-systemd-check] TCP probe bytes: 10248
+[nemu-systemd-check] oomd pressure probe bytes: 10256
+[nemu-systemd-check] rootfs bytes: 8589934592
+[nemu-systemd-check] rootfs backing stat: 8589934592:1782266084
+[nemu-systemd-check] rootfs overlay: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-24-nemu-full-timesyncd-hostless-ntp-supervised-full-gate/nemu-ubuntu-full-focused/rootfs-overlay.raw
+[nemu-systemd-check] vda hash window bytes: 65536
+[nemu-systemd-check] vda hash windows: 1
+[nemu-systemd-check] perf log: /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-24-nemu-full-timesyncd-hostless-ntp-supervised-full-gate/nemu-ubuntu-full-focused/perf.tsv
+[nemu-systemd-check] serial login marker rc: 0
+make[1]: *** [Makefile:984: __check-nemu-systemd-guest] Terminated
+make: *** [Makefile:888: check-nemu-systemd-guest-full] Terminated

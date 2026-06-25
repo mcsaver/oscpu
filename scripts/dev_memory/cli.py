@@ -239,7 +239,12 @@ def build_parser() -> argparse.ArgumentParser:
     doctor_cmd.add_argument(
         "--show-nonblocking-drift",
         action="store_true",
-        help="show archived/live-index drift counters and samples that do not affect --fail-on-drift",
+        help="show historical archive/live-index-cache diagnostic counters that do not affect --fail-on-drift",
+    )
+    doctor_cmd.add_argument(
+        "--show-diagnostic-details",
+        action="store_true",
+        help="show nonblocking diagnostic state buckets and sample paths for maintenance triage",
     )
     doctor_cmd.add_argument(
         "--show-status-samples",
@@ -609,7 +614,8 @@ def record_cli_access(args: argparse.Namespace, exit_code: int) -> None:
         )
         conn.commit()
     except sqlite3.Error as exc:
-        print(f"WARN skip cli access log: {exc}", file=sys.stderr)
+        if "database is locked" not in str(exc).lower():
+            print(f"WARN skip cli access log: {exc}", file=sys.stderr)
     finally:
         if conn is not None:
             conn.close()

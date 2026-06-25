@@ -22,6 +22,7 @@ max_cycles=${NPC_TTY_READER_MAX_CYCLES:-900000000}
 host_timeout=${NPC_TTY_READER_HOST_TIMEOUT:-4200}
 progress_interval=${NPC_TTY_READER_PROGRESS:-50000000}
 uart_cycle_gap=${NPC_TTY_READER_UART_CYCLE_GAP:-100000}
+done_marker=${NPC_TTY_READER_DONE_MARKER:-__NPC_TTY_READER_DONE__ rc=0}
 mkdir -p "$log_dir" "$(dirname "$diag_image")" "$(dirname "$diag_cpio")" "$diag_rootfs"
 
 printf '%s\n' '__NPC_TTY_READER_PING__' >"$cmd_file"
@@ -39,6 +40,7 @@ printf '%s\n' '__NPC_TTY_READER_PING__' >"$cmd_file"
   echo "host_timeout: $host_timeout"
   echo "progress_interval: $progress_interval"
   echo "uart_cycle_gap: $uart_cycle_gap"
+  echo "done_marker: $done_marker"
   echo "uart_access_trace: ${NPC_UART_ACCESS_TRACE:-0}"
   echo "irq_trace: ${NPC_IRQ_TRACE:-0}"
 
@@ -89,7 +91,7 @@ printf '%s\n' '__NPC_TTY_READER_PING__' >"$cmd_file"
   NPC_SYSTEMD_GUEST_COMMAND_MODE=uart \
   NPC_SYSTEMD_GUEST_CMDS="$cmd_file" \
   NPC_SYSTEMD_GUEST_CMDS_PRESERVE=1 \
-  NPC_SYSTEMD_DONE_MARKER="__NPC_TTY_READER_DONE__ rc=0" \
+  NPC_SYSTEMD_DONE_MARKER="$done_marker" \
   NPC_SYSTEMD_UART_WAIT="__NPC_TTY_READER_READY__" \
   NPC_SYSTEMD_UART_CYCLE_GAP="$uart_cycle_gap" \
   NPC_SYSTEMD_CHECK_MAX_CYCLES="$max_cycles" \

@@ -593,3 +593,67 @@ bool isa_mmu_translate_host(vaddr_t vaddr, int len, int type,
   if (host_addr != NULL) *host_addr = translated_host;
   return translated != (paddr_t)-1;
 }
+
+bool isa_riscv64_mmu_debug_translate_user(vaddr_t vaddr, int len, int type,
+    paddr_t *paddr) {
+#ifndef CONFIG_ISA64
+  if (paddr != NULL) *paddr = (paddr_t)vaddr;
+  (void)len;
+  (void)type;
+  return true;
+#else
+  if (paddr != NULL) *paddr = 0;
+  if (len <= 0 || ((vaddr & PAGE_MASK) + len) > PAGE_SIZE) return false;
+
+  word_t mode = SATP64_MODE(cpu.csr.satp);
+  if (mode == 0) {
+    if (paddr != NULL) *paddr = (paddr_t)vaddr;
+    return true;
+  }
+  if (mode != 8 || !sv39_va_canonical(vaddr)) return false;
+
+  uint64_t va = vaddr;
+  uint64_t vpn0 = (va >> 12) & 0x1ff;
+  uint64_t vpn1 = (va >> 21) & 0x1ff;
+  uint64_t vpn2 = (va >> 30) & 0x1ff;
+  uint64_t page_offset = va & 0xfff;
+  uint64_t table = SATP64_PPN(cpu.csr.satp) << 12;
+
+  for (int level = 2; level >= 0; level--) {
+    uint64_t vpn_at_level = level == 2 ? vpn2 : (level == 1 ? vpn1 : vpn0);
+    paddr_t pte_addr = (paddr_t)(table + vpn_at_level * 8);
+    if (!isa_riscv64_pmp_check_as_priv(pte_addr, 8, MEM_TYPE_READ, PRIV_S)) {
+      return false;
+    }
+    word_t pte = paddr_read(pte_addr, 8);
+    if (pte_invalid(pte)) return false;
+
+    uint64_t pte_ppn = (pte >> 10) & ((1ull << 44) - 1);
+    uint64_t ppn0 = pte_ppn & 0x1ff;
+    uint64_t ppn1 = (pte_ppn >> 9) & 0x1ff;
+    uint64_t ppn2 = (pte_ppn >> 18) & ((1ull << 26) - 1);
+
+    if (pte_leaf(pte)) {
+      if ((level == 2 && (ppn0 != 0 || ppn1 != 0)) ||
+          (level == 1 && ppn0 != 0)) {
+        return false;
+      }
+      if (!pte_permission_ok(pte, type, PRIV_U)) return false;
+
+      uint64_t pa;
+      if (level == 2) {
+        pa = (ppn2 << 30) | (vpn1 << 21) | (vpn0 << 12) | page_offset;
+      } else if (level == 1) {
+        pa = (ppn2 << 30) | (ppn1 << 21) | (vpn0 << 12) | page_offset;
+      } else {
+        pa = (pte_ppn << 12) | page_offset;
+      }
+      if (paddr != NULL) *paddr = (paddr_t)pa;
+      return true;
+    }
+
+    table = pte_ppn << 12;
+  }
+  return false;
+#endif
+}

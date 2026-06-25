@@ -1,0 +1,2 @@
+software-flow-contract	software-flow	software-flow	PASS	software-flow agent + profile + memory	软件开发全流程 agent 合约入口存在	.github/task-runs/2026-06-24-2026-06-23-nemu-full-systemd-user-manager-contract-gitbash/evidence/software-flow-contract.log
+nemu-ubuntu-static	nemu	nemu	FAIL	Linux/NEMU Ubuntu rootfs scripts + performance config	exit=127	.github/task-runs/2026-06-24-2026-06-23-nemu-full-systemd-user-manager-contract-gitbash/evidence/nemu-ubuntu-static.log

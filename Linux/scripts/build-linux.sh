@@ -96,6 +96,10 @@ kconfig --disable CONFIG_AUDITSYSCALL
 # BPF syscall 与 cgroup-BPF，避免完整 Ubuntu 用户态把该能力报告为缺失。
 kconfig --enable CONFIG_BPF_SYSCALL
 kconfig --enable CONFIG_CGROUP_BPF
+# full Ubuntu 的 systemd/resource-control 路线需要 PSI 作为压力反馈接口，
+# 同时保持默认启用，避免只靠启动参数才出现 /proc/pressure。
+kconfig --enable CONFIG_PSI
+kconfig --disable CONFIG_PSI_DEFAULT_DISABLED
 kconfig --disable CONFIG_IKCONFIG
 kconfig --disable CONFIG_IKCONFIG_PROC
 kconfig --disable CONFIG_IO_URING

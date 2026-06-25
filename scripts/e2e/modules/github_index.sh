@@ -104,13 +104,25 @@ e2e_github_index_contract() {
      grep -Fq -- 'def doctor_is_nonblocking_drift_state' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'def doctor_should_print_state' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'def doctor_should_print_samples' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'getattr(args, "show_nonblocking_drift", False)' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'getattr(args, "show_diagnostic_details", False)' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'getattr(args, "show_status_samples", False)' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'show_status_samples=False' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'show_diagnostic_details=False' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'show_nonblocking_drift' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'show_diagnostic_details' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'show_status_samples' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- '"database is locked" not in str(exc).lower()' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'blocking_drift=' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
-     grep -Fq -- 'nonblocking_drift=' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'def doctor_display_state' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'historical_archive_diagnostics=' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'live_index_cache_diagnostics=' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'diagnostic_only=' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
+     grep -Fq -- 'diagnostic_only_note=ignored_by_fail_on_drift' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'nonblocking_db_first_drift=' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'nonblocking_live_drift=' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- '--show-nonblocking-drift' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
+     grep -Fq -- '--show-diagnostic-details' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
      grep -Fq -- '--show-status-samples' "$E2E_ROOT_DIR/scripts/dev_memory/cli.py" &&
      grep -Fq -- 'archived_stored_only' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
      grep -Fq -- 'def audit_markdown_coverage' "$E2E_ROOT_DIR/scripts/dev_memory/maintenance.py" &&
@@ -886,12 +898,14 @@ EOF
   ); then
     printf '%s\n' "$doctor_archived_out"
     if grep -Fq -- 'blocking_drift=0' <<< "$doctor_archived_out" &&
-       ! grep -Fq -- 'nonblocking_drift=' <<< "$doctor_archived_out" &&
+       ! grep -Fq -- 'diagnostic_only=' <<< "$doctor_archived_out" &&
+       ! grep -Fq -- 'historical_archive_diagnostics=' <<< "$doctor_archived_out" &&
+       ! grep -Fq -- 'live_index_cache_diagnostics=' <<< "$doctor_archived_out" &&
        ! grep -Fq -- 'hidden_historical_drift=' <<< "$doctor_archived_out" &&
        ! grep -Fq -- 'historical_drift_details=hidden' <<< "$doctor_archived_out" &&
-       ! grep -Fq -- 'archived_missing=' <<< "$doctor_archived_out" &&
+       ! grep -Fq -- 'historical_archive_missing=' <<< "$doctor_archived_out" &&
        ! grep -Fq -- '.github/task-runs/demo/task-report.md' <<< "$doctor_archived_out" &&
-       ! grep -Fq -- 'archived_stale=' <<< "$doctor_archived_out" &&
+       ! grep -Fq -- 'historical_archive_stale=' <<< "$doctor_archived_out" &&
        ! grep -Fq -- '.github/task-runs/demo/context-brief.md' <<< "$doctor_archived_out"; then
       printf 'PASS github-index doctor hides historical task-run drift in default output\n'
     else
@@ -913,14 +927,17 @@ EOF
   ); then
     printf '%s\n' "$doctor_archived_verbose_out"
     if grep -Fq -- 'blocking_drift=0' <<< "$doctor_archived_verbose_out" &&
-       grep -Fq -- 'nonblocking_drift=2' <<< "$doctor_archived_verbose_out" &&
-       grep -Fq -- 'archived_missing=' <<< "$doctor_archived_verbose_out" &&
-       grep -Fq -- '.github/task-runs/demo/task-report.md' <<< "$doctor_archived_verbose_out" &&
-       grep -Fq -- 'archived_stale=' <<< "$doctor_archived_verbose_out" &&
-       grep -Fq -- '.github/task-runs/demo/context-brief.md' <<< "$doctor_archived_verbose_out"; then
-      printf 'PASS github-index doctor can explicitly show historical task-run drift details\n'
+       grep -Fq -- 'historical_archive_diagnostics=2' <<< "$doctor_archived_verbose_out" &&
+       grep -Fq -- 'live_index_cache_diagnostics=0' <<< "$doctor_archived_verbose_out" &&
+       grep -Fq -- 'diagnostic_only=2' <<< "$doctor_archived_verbose_out" &&
+       grep -Fq -- 'diagnostic_only_note=ignored_by_fail_on_drift' <<< "$doctor_archived_verbose_out" &&
+       ! grep -Fq -- 'historical_archive_missing=' <<< "$doctor_archived_verbose_out" &&
+       ! grep -Fq -- '.github/task-runs/demo/task-report.md' <<< "$doctor_archived_verbose_out" &&
+       ! grep -Fq -- 'historical_archive_stale=' <<< "$doctor_archived_verbose_out" &&
+       ! grep -Fq -- '.github/task-runs/demo/context-brief.md' <<< "$doctor_archived_verbose_out"; then
+      printf 'PASS github-index doctor summarizes historical task-run diagnostics without path noise\n'
     else
-      printf 'FAIL github-index doctor verbose non-blocking drift output was not actionable\n'
+      printf 'FAIL github-index doctor verbose non-blocking summary leaked path noise\n'
       rc=1
     fi
   else
@@ -928,9 +945,63 @@ EOF
     printf 'FAIL github-index doctor verbose rejected historical task-run missing/stale drift\n'
     rc=1
   fi
+  local doctor_archived_details_out
+  if doctor_archived_details_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" doctor \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --fail-on-drift \
+      --show-diagnostic-details
+  ); then
+    printf '%s\n' "$doctor_archived_details_out"
+    if grep -Fq -- 'blocking_drift=0' <<< "$doctor_archived_details_out" &&
+       grep -Fq -- 'historical_archive_diagnostics=2' <<< "$doctor_archived_details_out" &&
+       grep -Fq -- 'live_index_cache_diagnostics=0' <<< "$doctor_archived_details_out" &&
+       grep -Fq -- 'diagnostic_only=2' <<< "$doctor_archived_details_out" &&
+       grep -Fq -- 'diagnostic_only_note=ignored_by_fail_on_drift' <<< "$doctor_archived_details_out" &&
+       grep -Fq -- 'historical_archive_missing=' <<< "$doctor_archived_details_out" &&
+       grep -Fq -- '.github/task-runs/demo/task-report.md' <<< "$doctor_archived_details_out" &&
+       grep -Fq -- 'historical_archive_stale=' <<< "$doctor_archived_details_out" &&
+       grep -Fq -- '.github/task-runs/demo/context-brief.md' <<< "$doctor_archived_details_out"; then
+      printf 'PASS github-index doctor diagnostic details explicitly show historical task-run drift paths\n'
+    else
+      printf 'FAIL github-index doctor diagnostic details did not show actionable historical paths\n'
+      rc=1
+    fi
+  else
+    printf '%s\n' "$doctor_archived_details_out"
+    printf 'FAIL github-index doctor diagnostic details rejected historical task-run missing/stale drift\n'
+    rc=1
+  fi
   python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" refresh AGENTS.md \
     --repo-root "$mini_repo" \
     --db "$mini_db" || rc=1
+  python3 -c 'import os, sys, time; ts = time.time() + 5; os.utime(sys.argv[1], (ts, ts))' "$mini_repo/AGENTS.md" || rc=1
+  local doctor_shim_mtime_out
+  if doctor_shim_mtime_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" doctor \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --fail-on-drift \
+      --show-nonblocking-drift
+  ); then
+    printf '%s\n' "$doctor_shim_mtime_out"
+    if grep -Fq -- 'blocking_drift=0' <<< "$doctor_shim_mtime_out" &&
+       grep -Fq -- 'historical_archive_diagnostics=2' <<< "$doctor_shim_mtime_out" &&
+       grep -Fq -- 'live_index_cache_diagnostics=0' <<< "$doctor_shim_mtime_out" &&
+       grep -Fq -- 'diagnostic_only=2' <<< "$doctor_shim_mtime_out" &&
+       ! grep -Fq -- 'live_index_cache_stale=' <<< "$doctor_shim_mtime_out" &&
+       ! grep -Fq -- 'AGENTS.md' <<< "$doctor_shim_mtime_out"; then
+      printf 'PASS github-index doctor ignores indexed shim mtime-only cache drift\n'
+    else
+      printf 'FAIL github-index doctor reported indexed shim mtime-only cache drift\n'
+      rc=1
+    fi
+  else
+    printf '%s\n' "$doctor_shim_mtime_out"
+    printf 'FAIL github-index doctor rejected indexed shim mtime-only cache drift\n'
+    rc=1
+  fi
   printf '\nlocal old agent shim stale drift\n' >> "$mini_repo/AGENTS.md"
   local doctor_shim_default_out
   if doctor_shim_default_out=$(
@@ -941,8 +1012,11 @@ EOF
   ); then
     printf '%s\n' "$doctor_shim_default_out"
     if grep -Fq -- 'blocking_drift=0' <<< "$doctor_shim_default_out" &&
-       ! grep -Fq -- 'nonblocking_drift=' <<< "$doctor_shim_default_out" &&
-       ! grep -Fq -- 'live_index_stale=' <<< "$doctor_shim_default_out" &&
+       ! grep -Fq -- 'diagnostic_drift=' <<< "$doctor_shim_default_out" &&
+       ! grep -Fq -- 'diagnostic_only=' <<< "$doctor_shim_default_out" &&
+       ! grep -Fq -- 'historical_archive_diagnostics=' <<< "$doctor_shim_default_out" &&
+       ! grep -Fq -- 'live_index_cache_diagnostics=' <<< "$doctor_shim_default_out" &&
+       ! grep -Fq -- 'live_index_cache_stale=' <<< "$doctor_shim_default_out" &&
        ! grep -Fq -- 'AGENTS.md' <<< "$doctor_shim_default_out"; then
       printf 'PASS github-index doctor hides old agent shim stale drift in default output\n'
     else
@@ -964,17 +1038,99 @@ EOF
   ); then
     printf '%s\n' "$doctor_shim_verbose_out"
     if grep -Fq -- 'blocking_drift=0' <<< "$doctor_shim_verbose_out" &&
-       grep -Fq -- 'nonblocking_drift=3' <<< "$doctor_shim_verbose_out" &&
-       grep -Fq -- 'live_index_stale=' <<< "$doctor_shim_verbose_out" &&
-       grep -Fq -- 'AGENTS.md' <<< "$doctor_shim_verbose_out"; then
-      printf 'PASS github-index doctor can explicitly show old agent shim stale drift details\n'
+       grep -Fq -- 'historical_archive_diagnostics=2' <<< "$doctor_shim_verbose_out" &&
+       grep -Fq -- 'live_index_cache_diagnostics=1' <<< "$doctor_shim_verbose_out" &&
+       grep -Fq -- 'diagnostic_only=3' <<< "$doctor_shim_verbose_out" &&
+       grep -Fq -- 'diagnostic_only_note=ignored_by_fail_on_drift' <<< "$doctor_shim_verbose_out" &&
+       ! grep -Fq -- 'live_index_cache_stale=' <<< "$doctor_shim_verbose_out" &&
+       ! grep -Fq -- 'AGENTS.md' <<< "$doctor_shim_verbose_out"; then
+      printf 'PASS github-index doctor summarizes old agent shim stale diagnostics without path noise\n'
     else
-      printf 'FAIL github-index doctor verbose old agent shim stale output was not actionable\n'
+      printf 'FAIL github-index doctor verbose old agent shim summary leaked path noise\n'
       rc=1
     fi
   else
     printf '%s\n' "$doctor_shim_verbose_out"
     printf 'FAIL github-index doctor verbose rejected old agent shim stale drift\n'
+    rc=1
+  fi
+  local doctor_shim_details_out
+  if doctor_shim_details_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" doctor \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --fail-on-drift \
+      --show-diagnostic-details
+  ); then
+    printf '%s\n' "$doctor_shim_details_out"
+    if grep -Fq -- 'blocking_drift=0' <<< "$doctor_shim_details_out" &&
+       grep -Fq -- 'historical_archive_diagnostics=2' <<< "$doctor_shim_details_out" &&
+       grep -Fq -- 'live_index_cache_diagnostics=1' <<< "$doctor_shim_details_out" &&
+       grep -Fq -- 'diagnostic_only=3' <<< "$doctor_shim_details_out" &&
+       grep -Fq -- 'diagnostic_only_note=ignored_by_fail_on_drift' <<< "$doctor_shim_details_out" &&
+       grep -Fq -- 'live_index_cache_stale=' <<< "$doctor_shim_details_out" &&
+       grep -Fq -- 'AGENTS.md' <<< "$doctor_shim_details_out"; then
+      printf 'PASS github-index doctor diagnostic details explicitly show old agent shim stale path\n'
+    else
+      printf 'FAIL github-index doctor diagnostic details old agent shim output was not actionable\n'
+      rc=1
+    fi
+  else
+    printf '%s\n' "$doctor_shim_details_out"
+    printf 'FAIL github-index doctor diagnostic details rejected old agent shim stale drift\n'
+    rc=1
+  fi
+  local doctor_readonly_lock_out
+  doctor_readonly_lock_out=$(
+    python3 - "$E2E_ROOT_DIR" "$mini_repo" "$mini_db" <<'PY'
+import sqlite3
+import subprocess
+import sys
+from pathlib import Path
+
+e2e_root = Path(sys.argv[1])
+mini_repo = Path(sys.argv[2])
+mini_db = Path(sys.argv[3])
+
+conn = sqlite3.connect(str(mini_db), timeout=30)
+conn.execute("BEGIN IMMEDIATE")
+try:
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(e2e_root / "scripts/github_index_db.py"),
+            "doctor",
+            "--repo-root",
+            str(mini_repo),
+            "--db",
+            str(mini_db),
+            "--fail-on-drift",
+        ],
+        cwd=mini_repo,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=10,
+    )
+    print(f"rc={result.returncode}")
+    if result.stdout:
+        print(result.stdout)
+    if result.stderr:
+        print("stderr=" + result.stderr.strip())
+    raise SystemExit(result.returncode)
+finally:
+    conn.rollback()
+    conn.close()
+PY
+  ) || rc=1
+  printf '%s\n' "$doctor_readonly_lock_out"
+  if grep -Fq -- 'rc=0' <<< "$doctor_readonly_lock_out" &&
+     grep -Fq -- 'blocking_drift=0' <<< "$doctor_readonly_lock_out" &&
+     ! grep -Fq -- 'db_status=locked' <<< "$doctor_readonly_lock_out" &&
+     ! grep -Fq -- 'db_error=database is locked' <<< "$doctor_readonly_lock_out"; then
+    printf 'PASS github-index doctor default read path avoids WAL write lock\n'
+  else
+    printf 'FAIL github-index doctor default path was blocked by DB write lock\n'
     rc=1
   fi
   local audit_archived_out
@@ -1061,7 +1217,9 @@ EOF
     printf '%s\n' "$doctor_strict_out"
     if grep -Fq -- 'stale=' <<< "$doctor_strict_out" &&
        grep -Fq -- 'blocking_drift=1' <<< "$doctor_strict_out" &&
-       ! grep -Fq -- 'nonblocking_drift=' <<< "$doctor_strict_out" &&
+       ! grep -Fq -- 'diagnostic_drift=' <<< "$doctor_strict_out" &&
+       ! grep -Fq -- 'historical_archive_diagnostics=' <<< "$doctor_strict_out" &&
+       ! grep -Fq -- 'live_index_cache_diagnostics=' <<< "$doctor_strict_out" &&
        ! grep -Fq -- 'hidden_historical_drift=' <<< "$doctor_strict_out" &&
        ! grep -Fq -- 'historical_drift_details=hidden' <<< "$doctor_strict_out" &&
        grep -Fq -- '.github/memory/project-status.md' <<< "$doctor_strict_out"; then

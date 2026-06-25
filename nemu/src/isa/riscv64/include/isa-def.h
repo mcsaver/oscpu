@@ -98,6 +98,7 @@
 #define MSTATUS_SUM        ((word_t)1 << 18)
 #define MSTATUS_MXR        ((word_t)1 << 19)
 #define MSTATUS_SXL_UXL    MUXDEF(CONFIG_ISA64, ((word_t)0xa << 32), 0)
+#define MSTATUS_SD         MUXDEF(CONFIG_ISA64, ((word_t)1 << 63), ((word_t)1 << 31))
 #define SSTATUS_MASK       (MSTATUS_SIE | MSTATUS_SPIE | MSTATUS_SPP | \
                             MSTATUS_FS_MASK | MSTATUS_SUM | MSTATUS_MXR | \
                             MSTATUS_SXL_UXL)

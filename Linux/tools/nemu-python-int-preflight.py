@@ -10,6 +10,11 @@ import argparse
 import sys
 import traceback
 
+try:
+    sys.stdout.reconfigure(line_buffering=True, write_through=True)
+except AttributeError:  # pragma: no cover - old Python fallback
+    pass
+
 _PYLONG_LAYOUT = None
 _PYLONG_LAYOUT_READY = False
 
@@ -46,6 +51,55 @@ def emit_call(name, fn):
         return None
     emit(name, value)
     return value
+
+
+def _pagemap_paddr(vaddr):
+    try:
+        import os
+
+        page_size = os.sysconf("SC_PAGE_SIZE")
+        if page_size <= 0:
+            return None
+        vpn = vaddr // page_size
+        with open("/proc/self/pagemap", "rb", buffering=0) as f:
+            f.seek(vpn * 8)
+            entry_bytes = f.read(8)
+        if len(entry_bytes) != 8:
+            return None
+        entry = int.from_bytes(entry_bytes, "little")
+        present = (entry >> 63) & 1
+        pfn = entry & ((1 << 55) - 1)
+        if present == 0 or pfn == 0:
+            return None
+        return pfn * page_size + (vaddr % page_size)
+    except BaseException:
+        return None
+
+
+def emit_pylong_ob_size_paddr(name, value):
+    try:
+        layout = _pylong_layout()
+        if layout is None:
+            emit("%s_OB_SIZE_PADDR_AVAILABLE" % name, 0)
+            return None
+        ctypes, PyLongHead, _digit_type, layout_mode = layout
+        if layout_mode != "legacy":
+            emit("%s_OB_SIZE_PADDR_AVAILABLE" % name, 0)
+            emit("%s_OB_SIZE_PADDR_LAYOUT_MODE" % name, layout_mode)
+            return None
+        field_addr = id(value) + PyLongHead.ob_size.offset
+        paddr = _pagemap_paddr(field_addr)
+        if paddr is None:
+            emit("%s_OB_SIZE_PADDR_AVAILABLE" % name, 0)
+            return None
+        emit("%s_OB_SIZE_VADDR" % name, "0x%x" % field_addr)
+        emit("%s_OB_SIZE_PADDR" % name, "0x%x" % paddr)
+        return paddr
+    except BaseException as exc:  # pragma: no cover - corruption path
+        print("__PYTHON_INT_PREFLIGHT_%s_OB_SIZE_PADDR_ERROR__:%s:%s" % (
+            name, type(exc).__name__, exc))
+        traceback.print_exc()
+        return None
 
 
 def _pylong_layout():
@@ -253,6 +307,94 @@ def check_int_value(name, value, expected, emit_layout=False):
             include_repr=False)
 
 
+def emit_pylong_error_state(name, value):
+    if not isinstance(value, int):
+        return
+    emit_pylong_object(
+        "%s_ERROR_STATE" % name, value, enforce=False,
+        include_repr=False)
+
+
+def validate_loop_count(name, value, paddr_marker_prefix,
+                        loop_stop_error_name=None):
+    """检查循环次数对象，避免坏 PyLong 在 range() 中先丢失诊断现场。"""
+    emit("%s_TYPE" % name, type(value).__name__)
+    emit_call("PYLONG_%s_EARLY_ID" % paddr_marker_prefix,
+              lambda: "0x%x" % id(value))
+    emit_pylong_ob_size_paddr("PYLONG_%s_EARLY" % paddr_marker_prefix, value)
+    value_repr = emit_call("%s_REPR" % name, lambda: repr(value))
+    bit_length = emit_call("%s_BIT_LENGTH" % name, lambda: value.bit_length())
+    loop_stop = emit_call("%s_PLUS_ONE" % name, lambda: value + 1)
+
+    state_bad = value_repr is None or bit_length is None
+    if bit_length is not None:
+        try:
+            if bit_length > 63:
+                emit("%s_MAX_REASONABLE_BIT_LENGTH" % name, 63)
+                state_bad = True
+        except BaseException as exc:  # pragma: no cover - corruption path
+            print("__PYTHON_INT_PREFLIGHT_%s_BIT_LENGTH_CMP_ERROR__:%s:%s" % (
+                name, type(exc).__name__, exc))
+            state_bad = True
+    if loop_stop is None:
+        state_bad = True
+
+    if state_bad:
+        emit_pylong_error_state(name, value)
+        if isinstance(loop_stop, int):
+            stop_name = loop_stop_error_name or ("%s_LOOP_STOP" % name)
+            emit_pylong_error_state(stop_name, loop_stop)
+        return None
+
+    return loop_stop
+
+
+def _manual_arg(name, default):
+    prefix = name + "="
+    args = sys.argv[1:]
+    for index, item in enumerate(args):
+        if item == name and index + 1 < len(args):
+            return args[index + 1]
+        if item.startswith(prefix):
+            return item[len(prefix):]
+    return default
+
+
+def run_int10_create_mode(tag, loops, preparse_probe_loops=None):
+    print("__NEMU_CHECK_FULL_PYTHON_INT_PREFLIGHT_LOG_BEGIN__:%s" % tag)
+    emit("ARGS_TAG", tag)
+    emit("PROBE_MODE", "int10-create")
+    if preparse_probe_loops is not None:
+        emit("PROBE_LOOPS_PREPARSE_ID_MATCH",
+             int(id(loops) == id(preparse_probe_loops)))
+    loop_stop = validate_loop_count(
+        "PROBE_LOOPS", loops, "PROBE_LOOPS")
+    if loop_stop is None:
+        return 1
+    ok = True
+    for iteration in range(1, loop_stop):
+        emit("INT10_CREATE_ITER", iteration)
+        value = None
+        try:
+            value = int("10", 10)
+            emit_call("PYLONG_INT10_CREATE_EARLY_ID",
+                      lambda: "0x%x" % id(value))
+            emit_pylong_ob_size_paddr("PYLONG_INT10_CREATE_EARLY", value)
+            check_int_value(
+                "INT10_CREATE", value, 10, emit_layout=(iteration == 1))
+            print("__PYTHON_INT_PREFLIGHT_INT10_CREATE_OK__:%d" % iteration)
+            print("__NEMU_CHECK_FULL_PYTHON_INT_PREFLIGHT_RC__:%s:%d:%d" % (
+                tag, iteration, 0))
+        except BaseException:
+            traceback.print_exc()
+            if isinstance(value, int):
+                emit_pylong_error_state("INT10_CREATE", value)
+            print("__NEMU_CHECK_FULL_PYTHON_INT_PREFLIGHT_RC__:%s:%d:%d" % (
+                tag, iteration, 1))
+            ok = False
+    return 0 if ok else 1
+
+
 def emit_pylong_baseline(args_loops, loop_stop):
     layout = emit_pylong_layout()
     if layout is None:
@@ -307,17 +449,40 @@ def run_once(iteration):
 
 
 def main():
+    preparse_loops = 10
+    emit("PYLONG_ARGS_LOOPS_PREPARSE_CANDIDATE", preparse_loops)
+    emit_call("PYLONG_ARGS_LOOPS_EARLY_ID",
+              lambda: "0x%x" % id(preparse_loops))
+    emit_pylong_ob_size_paddr("PYLONG_ARGS_LOOPS_EARLY", preparse_loops)
+    preparse_probe_loops = 20
+    emit("PYLONG_PROBE_LOOPS_PREPARSE_CANDIDATE", preparse_probe_loops)
+    emit_call("PYLONG_PROBE_LOOPS_PREPARSE_ID",
+              lambda: "0x%x" % id(preparse_probe_loops))
+    emit_pylong_ob_size_paddr("PYLONG_PROBE_LOOPS_PREPARSE",
+                              preparse_probe_loops)
+
+    probe_mode = _manual_arg("--mode", "args")
+    if probe_mode == "int10-create":
+        tag = _manual_arg("--tag", "focused")
+        loops = int(_manual_arg("--loops", "5"))
+        return run_int10_create_mode(tag, loops, preparse_probe_loops)
+    if probe_mode != "args":
+        raise AssertionError("unknown probe mode: %s" % probe_mode)
+
     parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", default="args")
     parser.add_argument("--tag", default="focused")
     parser.add_argument("--loops", type=int, default=5)
     args = parser.parse_args()
 
     print("__NEMU_CHECK_FULL_PYTHON_INT_PREFLIGHT_LOG_BEGIN__:%s" % args.tag)
     emit("ARGS_TAG", args.tag)
-    emit("ARGS_LOOPS_TYPE", type(args.loops).__name__)
-    emit_call("ARGS_LOOPS_REPR", lambda: repr(args.loops))
-    emit_call("ARGS_LOOPS_BIT_LENGTH", lambda: args.loops.bit_length())
-    loop_stop = emit_call("ARGS_LOOPS_PLUS_ONE", lambda: args.loops + 1)
+    emit("PROBE_MODE", args.mode)
+    emit("ARGS_LOOPS_PREPARSE_ID_MATCH",
+         int(id(args.loops) == id(preparse_loops)))
+    loop_stop = validate_loop_count(
+        "ARGS_LOOPS", args.loops, "ARGS_LOOPS",
+        loop_stop_error_name="ARGS_LOOP_STOP")
     if loop_stop is None:
         return 1
     try:

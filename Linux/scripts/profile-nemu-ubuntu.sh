@@ -15,7 +15,7 @@ esac
 MAX_CYCLES=${NEMU_PROFILE_MAX_CYCLES:-1000000000}
 PROGRESS=${NEMU_PROFILE_PROGRESS:-50000000}
 ROOTFS_FLAVOR=${NEMU_PROFILE_ROOTFS_FLAVOR:-full}
-TB_MAX_INST=${NEMU_PROFILE_TB_MAX_INST:-32}
+TB_MAX_INST=${NEMU_PROFILE_TB_MAX_INST:-256}
 OPCODE_MIX=${NEMU_PROFILE_OPCODE_MIX:-0}
 STOP_DETAIL=${NEMU_PROFILE_STOP_DETAIL:-0}
 DECODE_CACHE_DETAIL=${NEMU_PROFILE_DECODE_CACHE:-0}
@@ -23,8 +23,11 @@ RVC_DETAIL=${NEMU_PROFILE_RVC_DETAIL:-0}
 GUEST_COUNTERS=${NEMU_PROFILE_GUEST_COUNTERS:-1}
 TIMEOUT_SECONDS=${NEMU_PROFILE_TIMEOUT_SECONDS:-0}
 RUNTIME_BASIC_BLOCK=${NEMU_INTERPRETER_BASIC_BLOCK:-1}
+RUNTIME_TB_AMO_CONTINUE=${NEMU_INTERPRETER_TB_AMO_CONTINUE:-1}
 RUNTIME_WIDE_IFETCH=${NEMU_INTERPRETER_WIDE_IFETCH:-1}
 RUNTIME_DECODE_CACHE=${NEMU_INTERPRETER_DECODE_CACHE:-1}
+RUNTIME_DECODE_CACHE_RVC_FAST=${NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST:-1}
+RUNTIME_DECODE_CACHE_INT_FAST=${NEMU_INTERPRETER_DECODE_CACHE_INT_FAST:-1}
 RUNTIME_VADDR_HOST_FAST=${NEMU_VADDR_HOST_FAST:-1}
 RUNTIME_MMU_TLB=${NEMU_RISCV_MMU_TLB:-1}
 RUNTIME_VIRTIO_BLK_SYNC=${NEMU_VIRTIO_BLK_SYNC:-0}
@@ -38,6 +41,7 @@ HOST_PERF_BIN=${NEMU_PROFILE_HOST_PERF_BIN:-}
 HOST_PERF_LD_LIBRARY_PATH=${NEMU_PROFILE_HOST_PERF_LD_LIBRARY_PATH:-}
 HOST_PERF_ANNOTATE=${NEMU_PROFILE_HOST_PERF_ANNOTATE:-0}
 HOST_PERF_ANNOTATE_TOP=${NEMU_PROFILE_HOST_PERF_ANNOTATE_TOP:-3}
+HOST_PERF_AVAILABLE=0
 
 case "$ROOTFS_FLAVOR" in
   full)
@@ -92,8 +96,11 @@ mkdir -p "$OUT_DIR" "$RUN_DIR"
   printf 'host_perf_annotate_top=%s\n' "$HOST_PERF_ANNOTATE_TOP"
   printf 'timeout_seconds=%s\n' "$TIMEOUT_SECONDS"
   printf 'runtime.basic_block=%s\n' "$RUNTIME_BASIC_BLOCK"
+  printf 'runtime.tb_amo_continue=%s\n' "$RUNTIME_TB_AMO_CONTINUE"
   printf 'runtime.wide_ifetch=%s\n' "$RUNTIME_WIDE_IFETCH"
   printf 'runtime.decode_cache=%s\n' "$RUNTIME_DECODE_CACHE"
+  printf 'runtime.decode_cache_rvc_fast=%s\n' "$RUNTIME_DECODE_CACHE_RVC_FAST"
+  printf 'runtime.decode_cache_int_fast=%s\n' "$RUNTIME_DECODE_CACHE_INT_FAST"
   printf 'runtime.vaddr_host_fast=%s\n' "$RUNTIME_VADDR_HOST_FAST"
   printf 'runtime.mmu_tlb=%s\n' "$RUNTIME_MMU_TLB"
   printf 'runtime.virtio_blk_sync=%s\n' "$RUNTIME_VIRTIO_BLK_SYNC"
@@ -113,6 +120,7 @@ host_perf_try_bin() {
   local candidate=$1
   local ld_path=${2:-}
   local smoke="$OUT_DIR/perf-smoke.out"
+  HOST_PERF_AVAILABLE=0
   if [[ ! -x $candidate ]]; then
     return 1
   fi
@@ -123,6 +131,7 @@ host_perf_try_bin() {
     printf 'perf.ld_library_path=%s\n' "$HOST_PERF_LD_LIBRARY_PATH"
   fi
   if host_perf_cmd stat -e task-clock true >"$smoke" 2>&1; then
+    HOST_PERF_AVAILABLE=1
     printf 'perf.status=available\n'
     cat "$smoke"
     return 0
@@ -183,6 +192,7 @@ host_perf_try_local_cache() {
 }
 
 host_perf_resolve() {
+  HOST_PERF_AVAILABLE=0
   printf 'perf.record.requested=%s\n' "$HOST_PERF_RECORD"
   printf 'perf.record.freq=%s\n' "$HOST_PERF_FREQ"
   if [[ -n "$HOST_PERF_BIN" ]]; then
@@ -212,8 +222,11 @@ run_make_profile() {
     NEMU_PROFILE_RVC_DETAIL="$RVC_DETAIL" \
     NEMU_INTERPRETER_BASIC_BLOCK="$RUNTIME_BASIC_BLOCK" \
     NEMU_INTERPRETER_TB_MAX_INST="$TB_MAX_INST" \
+    NEMU_INTERPRETER_TB_AMO_CONTINUE="$RUNTIME_TB_AMO_CONTINUE" \
     NEMU_INTERPRETER_WIDE_IFETCH="$RUNTIME_WIDE_IFETCH" \
     NEMU_INTERPRETER_DECODE_CACHE="$RUNTIME_DECODE_CACHE" \
+    NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST="$RUNTIME_DECODE_CACHE_RVC_FAST" \
+    NEMU_INTERPRETER_DECODE_CACHE_INT_FAST="$RUNTIME_DECODE_CACHE_INT_FAST" \
     NEMU_VADDR_HOST_FAST="$RUNTIME_VADDR_HOST_FAST" \
     NEMU_RISCV_MMU_TLB="$RUNTIME_MMU_TLB" \
     NEMU_VIRTIO_BLK_SYNC="$RUNTIME_VIRTIO_BLK_SYNC" \
@@ -237,12 +250,13 @@ run_make_profile() {
 export LINUX_HOME ROOTFS_FLAVOR ROOTFS_IMAGE ROOTFS_CPIO_IMAGE ROOTFS_IMAGE_MAKE_VAR ROOTFS_CPIO_MAKE_VAR RUN_DIR NEMU_LOG
 export CONSOLE_LOG OVERLAY MAX_CYCLES PROGRESS TB_MAX_INST OPCODE_MIX DECODE_CACHE_DETAIL RVC_DETAIL
 export GUEST_COUNTERS
-export RUNTIME_BASIC_BLOCK RUNTIME_WIDE_IFETCH RUNTIME_DECODE_CACHE
+export RUNTIME_BASIC_BLOCK RUNTIME_TB_AMO_CONTINUE RUNTIME_WIDE_IFETCH RUNTIME_DECODE_CACHE RUNTIME_DECODE_CACHE_RVC_FAST RUNTIME_DECODE_CACHE_INT_FAST
 export RUNTIME_VADDR_HOST_FAST RUNTIME_MMU_TLB RUNTIME_VIRTIO_BLK_SYNC
 export -f run_make_profile
 
 run_profile_command() {
-  if [[ "$HOST_PERF_RECORD" != 0 && -n "$HOST_PERF_BIN" ]]; then
+  # perf 包/权限不可用时降级为 NEMU 内建 counters，避免宿主环境缺口让 profile 假失败。
+  if [[ "$HOST_PERF_RECORD" != 0 && "$HOST_PERF_AVAILABLE" == 1 && -n "$HOST_PERF_BIN" ]]; then
     host_perf_cmd record -F "$HOST_PERF_FREQ" -g \
       -o "$OUT_DIR/perf.data" -- bash -c 'run_make_profile'
   else
@@ -250,6 +264,7 @@ run_profile_command() {
   fi
 }
 export OUT_DIR HOST_PERF_BIN HOST_PERF_LD_LIBRARY_PATH HOST_PERF_RECORD HOST_PERF_FREQ
+export HOST_PERF_AVAILABLE
 export -f host_perf_cmd run_profile_command
 
 set +e
@@ -264,7 +279,9 @@ set -e
 
 {
   if [[ "$HOST_PERF_RECORD" != 0 ]]; then
-    if [[ -s "$OUT_DIR/perf.data" && -n "$HOST_PERF_BIN" ]]; then
+    if [[ "$HOST_PERF_AVAILABLE" != 1 ]]; then
+      printf 'perf.record.status=unavailable\n'
+    elif [[ -s "$OUT_DIR/perf.data" && -n "$HOST_PERF_BIN" ]]; then
       printf 'perf.record.status=captured\n'
       printf 'perf.record.data=%s\n' "$OUT_DIR/perf.data"
       if host_perf_cmd report --stdio --no-children \
@@ -466,6 +483,51 @@ if metrics:
             f"derived.tb_stop_system_csr_{key}_pct_x100="
             f"{value * 10000 // system_csr_total if system_csr_total else 0}"
         )
+    for key in ("csrrw", "csrrs", "csrrc", "csrrwi", "csrrsi", "csrrci", "other"):
+        value = get(f"cpu.tb_stop_system_csr.op.{key}")
+        lines.append(
+            f"derived.tb_stop_system_csr_op_{key}_pct_x100="
+            f"{value * 10000 // system_csr_total if system_csr_total else 0}"
+        )
+    sstatus_stop_total = get("cpu.tb_stop_system_csr.sstatus")
+    for key in (
+        "sie_set",
+        "sie_clear",
+        "sum_set",
+        "sum_clear",
+        "fs_to_off",
+        "fs_to_initial",
+        "fs_to_clean",
+        "fs_to_dirty",
+        "only_sie_set",
+        "only_sie_clear",
+        "only_sum_set",
+        "only_sum_clear",
+        "only_fs",
+        "other_or_multi",
+    ):
+        value = get(f"cpu.tb_stop_system_csr.sstatus_delta.{key}")
+        lines.append(
+            f"derived.tb_stop_system_csr_sstatus_delta_{key}_pct_x100="
+            f"{value * 10000 // sstatus_stop_total if sstatus_stop_total else 0}"
+        )
+    sstatus_write_total = get("cpu.csr.sstatus.write.total")
+    sstatus_write_changed = get("cpu.csr.sstatus.write.changed")
+    sstatus_write_unchanged = get("cpu.csr.sstatus.write.unchanged")
+    lines.append(
+        "derived.csr_sstatus_write_changed_pct_x100="
+        f"{sstatus_write_changed * 10000 // sstatus_write_total if sstatus_write_total else 0}"
+    )
+    lines.append(
+        "derived.csr_sstatus_write_unchanged_pct_x100="
+        f"{sstatus_write_unchanged * 10000 // sstatus_write_total if sstatus_write_total else 0}"
+    )
+    for key in ("sie", "spie", "spp", "fs", "sum", "mxr", "sxl_uxl", "other"):
+        value = get(f"cpu.csr.sstatus.write_delta.{key}")
+        lines.append(
+            f"derived.csr_sstatus_write_delta_{key}_pct_x100="
+            f"{value * 10000 // sstatus_write_changed if sstatus_write_changed else 0}"
+        )
     for key in (
         "branch_taken",
         "branch_not_taken",
@@ -474,6 +536,10 @@ if metrics:
         "compressed_misc",
         "fence",
         "csr_readonly",
+        "csr_sstatus_imm_clear",
+        "csr_sstatus_unchanged",
+        "csr_sstatus_sie_clear",
+        "csr_trap_metadata",
         "amo",
     ):
         value = get(f"cpu.tb_continue_{key}")

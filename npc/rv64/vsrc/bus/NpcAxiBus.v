@@ -24,6 +24,7 @@ module NpcAxiBus #(
   input lsu_axi_arvalid_i,
   output lsu_axi_arready_o,
   input [`XLEN-1:0] lsu_axi_araddr_i,
+  input [`STRB_W-1:0] lsu_axi_arstrb_i,
   input lsu_axi_abort_i,
   output lsu_axi_rvalid_o,
   input lsu_axi_rready_i,
@@ -43,6 +44,7 @@ module NpcAxiBus #(
   output [S_COUNT-1:0] s_axi_arvalid_o,
   input [S_COUNT-1:0] s_axi_arready_i,
   output [S_COUNT*`XLEN-1:0] s_axi_araddr_o,
+  output [S_COUNT*`STRB_W-1:0] s_axi_arstrb_o,
   output [S_COUNT-1:0] s_axi_aruser_o,
   input [S_COUNT-1:0] s_axi_rvalid_i,
   output [S_COUNT-1:0] s_axi_rready_o,
@@ -70,6 +72,7 @@ module NpcAxiBus #(
   wire [M_COUNT-1:0] m_arvalid_w;
   wire [M_COUNT-1:0] m_arready_w;
   wire [M_COUNT*`XLEN-1:0] m_araddr_w;
+  wire [M_COUNT*`STRB_W-1:0] m_arstrb_w;
   wire [M_COUNT-1:0] m_aruser_w;
   wire [M_COUNT-1:0] m_read_abort_w;
   wire [M_COUNT-1:0] m_rvalid_w;
@@ -92,6 +95,8 @@ module NpcAxiBus #(
   assign m_arvalid_w[M_LSU] = lsu_axi_arvalid_i;
   assign m_araddr_w[M_IFU*`XLEN +: `XLEN] = ifu_axi_araddr_i;
   assign m_araddr_w[M_LSU*`XLEN +: `XLEN] = lsu_axi_araddr_i;
+  assign m_arstrb_w[M_IFU*`STRB_W +: `STRB_W] = {`STRB_W{1'b1}};
+  assign m_arstrb_w[M_LSU*`STRB_W +: `STRB_W] = lsu_axi_arstrb_i;
   assign m_aruser_w[M_IFU] = ARUSER_IFETCH;
   assign m_aruser_w[M_LSU] = ARUSER_LOAD;
   assign m_read_abort_w[M_IFU] = ifu_axi_abort_i;
@@ -143,6 +148,7 @@ module NpcAxiBus #(
     .m_arvalid_i(m_arvalid_w),
     .m_arready_o(m_arready_w),
     .m_araddr_i(m_araddr_w),
+    .m_arstrb_i(m_arstrb_w),
     .m_aruser_i(m_aruser_w),
     .m_read_abort_i(m_read_abort_w),
     .m_rvalid_o(m_rvalid_w),
@@ -162,6 +168,7 @@ module NpcAxiBus #(
     .s_arvalid_o(s_axi_arvalid_o),
     .s_arready_i(s_axi_arready_i),
     .s_araddr_o(s_axi_araddr_o),
+    .s_arstrb_o(s_axi_arstrb_o),
     .s_aruser_o(s_axi_aruser_o),
     .s_rvalid_i(s_axi_rvalid_i),
     .s_rready_o(s_axi_rready_o),

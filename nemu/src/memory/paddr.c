@@ -24,6 +24,8 @@
 #include <cpu/difftest.h>
 #include <utils/profile.h>
 #include <isa.h>
+#include <errno.h>
+#include <stdlib.h>
 
 #ifdef CONFIG_MTRACE
   #define CONFIG_MTRACE_START 0x80000000
@@ -37,6 +39,315 @@ static uint8_t pmem[CONFIG_MSIZE] PG_ALIGN = {};
 #endif
 
 bool paddr_device_write_seen = false;
+bool paddr_write_trace_is_enabled = false;
+static paddr_t paddr_write_trace_start = 0;
+static paddr_t paddr_write_trace_end = 0;
+static uint64_t paddr_write_trace_max = 4096;
+static uint64_t paddr_write_trace_count = 0;
+static bool paddr_write_value_trace_is_enabled = false;
+static word_t paddr_write_value_trace_value = 0;
+static word_t paddr_write_value_trace_mask = (word_t)-1;
+static uint64_t paddr_write_value_trace_max = 4096;
+static uint64_t paddr_write_value_trace_count = 0;
+
+static bool paddr_trace_snapshot_range_ok(paddr_t addr, uint32_t len) {
+  if (len == 0) return false;
+  paddr_t end = addr + (paddr_t)len - 1;
+  return end >= addr && in_pmem(addr) && in_pmem(end);
+}
+
+static void paddr_write_trace_log_snapshot(const char *phase,
+    const char *reason) {
+  uint64_t raw_len = (uint64_t)paddr_write_trace_end -
+    (uint64_t)paddr_write_trace_start + 1;
+  uint32_t len = raw_len > 32 ? 32 : (uint32_t)raw_len;
+  if (!paddr_trace_snapshot_range_ok(paddr_write_trace_start, len)) {
+    Log("paddr-write-trace snapshot phase=%s reason=%s ok=0 paddr=" FMT_PADDR
+        " len=%u",
+        phase != NULL ? phase : "-",
+        reason != NULL ? reason : "-",
+        paddr_write_trace_start, len);
+    return;
+  }
+
+  const uint8_t *src = guest_to_host(paddr_write_trace_start);
+  word_t first = 0;
+  uint32_t take = len < sizeof(first) ? len : (uint32_t)sizeof(first);
+  memcpy(&first, src, take);
+  char bytes[32 * 2 + 1];
+  for (uint32_t i = 0; i < len; i++) {
+    snprintf(bytes + i * 2, sizeof(bytes) - i * 2, "%02x", src[i]);
+  }
+  bytes[len * 2] = '\0';
+
+  Log("paddr-write-trace snapshot phase=%s reason=%s ok=1 paddr=" FMT_PADDR
+      " len=%u first=" FMT_WORD " bytes=%s pc=" FMT_WORD
+      " priv=%u satp=" FMT_WORD,
+      phase != NULL ? phase : "-",
+      reason != NULL ? reason : "-",
+      paddr_write_trace_start, len, first, bytes, cpu.pc,
+      MUXDEF(CONFIG_ISA_riscv, cpu.priv, 0),
+      MUXDEF(CONFIG_ISA_riscv, cpu.csr.satp, 0));
+}
+
+static bool paddr_runtime_env_u64(const char *name, uint64_t *value) {
+#ifndef CONFIG_TARGET_AM
+  const char *env = getenv(name);
+  if (env == NULL || env[0] == '\0') {
+    return false;
+  }
+  errno = 0;
+  char *end = NULL;
+  uint64_t parsed = strtoull(env, &end, 0);
+  Assert(errno == 0 && end != env && *end == '\0',
+      "invalid %s=%s, expect an integer", name, env);
+  *value = parsed;
+  return true;
+#else
+  (void)name;
+  (void)value;
+  return false;
+#endif
+}
+
+void paddr_write_trace_arm_range(paddr_t start, paddr_t end,
+    uint64_t max_count, const char *reason) {
+  Assert(end >= start, "paddr write trace range end must be >= start");
+  paddr_write_trace_is_enabled = true;
+  paddr_write_trace_start = start;
+  paddr_write_trace_end = end;
+  paddr_write_trace_max = max_count;
+  paddr_write_trace_count = 0;
+  if (reason != NULL) {
+    Log("paddr-write-trace armed start=" FMT_PADDR " end=" FMT_PADDR
+        " max=%" PRIu64 " reason=%s",
+        start, end, max_count, reason);
+  }
+  paddr_write_trace_log_snapshot("arm", reason);
+}
+
+void paddr_write_trace_disarm(const char *reason) {
+  if (!paddr_write_trace_is_enabled) return;
+  paddr_write_trace_log_snapshot("disarm", reason);
+  paddr_write_trace_is_enabled = false;
+  if (reason != NULL) {
+    Log("paddr-write-trace disarmed reason=%s count=%" PRIu64,
+        reason, paddr_write_trace_count);
+  }
+}
+
+void paddr_write_value_trace_arm(word_t value, word_t mask,
+    uint64_t max_count, const char *reason) {
+  paddr_write_value_trace_is_enabled = true;
+  paddr_write_value_trace_value = value;
+  paddr_write_value_trace_mask = mask;
+  paddr_write_value_trace_max = max_count;
+  paddr_write_value_trace_count = 0;
+  Log("paddr-write-value-trace armed value=" FMT_WORD " mask=" FMT_WORD
+      " max=%" PRIu64 " reason=%s",
+      value, mask, max_count, reason != NULL ? reason : "-");
+}
+
+void paddr_write_value_trace_disarm(const char *reason) {
+  if (!paddr_write_value_trace_is_enabled) return;
+  paddr_write_value_trace_is_enabled = false;
+  Log("paddr-write-value-trace disarmed reason=%s count=%" PRIu64,
+      reason != NULL ? reason : "-", paddr_write_value_trace_count);
+}
+
+__attribute__((constructor))
+static void paddr_runtime_config_init(void) {
+#ifndef CONFIG_TARGET_AM
+  uint64_t start = 0;
+  uint64_t end = 0;
+  bool has_start = paddr_runtime_env_u64("NEMU_PADDR_WRITE_TRACE_START", &start);
+  bool has_end = paddr_runtime_env_u64("NEMU_PADDR_WRITE_TRACE_END", &end);
+  const char *trace_env = getenv("NEMU_PADDR_WRITE_TRACE");
+  bool requested = trace_env != NULL && trace_env[0] != '\0' &&
+    strcmp(trace_env, "0") != 0;
+  if (requested || has_start || has_end) {
+    Assert(has_start && has_end,
+        "NEMU_PADDR_WRITE_TRACE requires START and END");
+    Assert(end >= start,
+        "NEMU_PADDR_WRITE_TRACE range end must be >= start");
+    paddr_runtime_env_u64("NEMU_PADDR_WRITE_TRACE_MAX", &paddr_write_trace_max);
+    paddr_write_trace_arm_range((paddr_t)start, (paddr_t)end,
+        paddr_write_trace_max, NULL);
+  }
+
+  uint64_t value = 0;
+  uint64_t mask = UINT64_MAX;
+  bool has_value = paddr_runtime_env_u64("NEMU_PADDR_WRITE_VALUE_TRACE_VALUE", &value);
+  bool has_mask = paddr_runtime_env_u64("NEMU_PADDR_WRITE_VALUE_TRACE_MASK", &mask);
+  const char *value_trace_env = getenv("NEMU_PADDR_WRITE_VALUE_TRACE");
+  bool value_requested = value_trace_env != NULL && value_trace_env[0] != '\0' &&
+    strcmp(value_trace_env, "0") != 0;
+  if (value_requested || has_value || has_mask) {
+    Assert(has_value, "NEMU_PADDR_WRITE_VALUE_TRACE requires VALUE");
+    paddr_runtime_env_u64("NEMU_PADDR_WRITE_VALUE_TRACE_MAX",
+        &paddr_write_value_trace_max);
+    paddr_write_value_trace_arm((word_t)value, (word_t)mask,
+        paddr_write_value_trace_max, "env");
+  }
+#endif
+}
+
+void paddr_write_trace_dump_machine_info(FILE *out) {
+  fprintf(out, "runtime.paddr_write_trace.enabled=%d\n",
+      paddr_write_trace_is_enabled ? 1 : 0);
+  fprintf(out, "runtime.paddr_write_trace.env=NEMU_PADDR_WRITE_TRACE\n");
+  fprintf(out, "runtime.paddr_write_trace.start_env=NEMU_PADDR_WRITE_TRACE_START\n");
+  fprintf(out, "runtime.paddr_write_trace.end_env=NEMU_PADDR_WRITE_TRACE_END\n");
+  fprintf(out, "runtime.paddr_write_trace.max_env=NEMU_PADDR_WRITE_TRACE_MAX\n");
+  if (paddr_write_trace_is_enabled) {
+    fprintf(out, "runtime.paddr_write_trace.start=0x%016" PRIx64 "\n",
+        (uint64_t)paddr_write_trace_start);
+    fprintf(out, "runtime.paddr_write_trace.end=0x%016" PRIx64 "\n",
+        (uint64_t)paddr_write_trace_end);
+    fprintf(out, "runtime.paddr_write_trace.max=%" PRIu64 "\n",
+        paddr_write_trace_max);
+  }
+  fprintf(out, "runtime.paddr_write_value_trace.enabled=%d\n",
+      paddr_write_value_trace_is_enabled ? 1 : 0);
+}
+
+static bool paddr_write_trace_range_overlap(paddr_t addr, uint32_t len) {
+  if (len == 0) return false;
+  uint64_t access_start = (uint64_t)addr;
+  uint64_t access_end = access_start + (uint64_t)len - 1;
+  if (access_end < access_start) access_end = UINT64_MAX;
+  return access_start <= (uint64_t)paddr_write_trace_end &&
+    access_end >= (uint64_t)paddr_write_trace_start;
+}
+
+static word_t paddr_write_trace_first_word(const void *buf, uint32_t len) {
+  if (buf == NULL || len == 0) return 0;
+  word_t ret = 0;
+  uint32_t take = len < sizeof(ret) ? len : (uint32_t)sizeof(ret);
+  memcpy(&ret, buf, take);
+  return ret;
+}
+
+static bool paddr_write_value_trace_match_byte(word_t first_word, uint32_t len,
+    uint32_t *byte_offset) {
+  if (paddr_write_value_trace_mask > 0xff ||
+      paddr_write_value_trace_value > 0xff) {
+    return false;
+  }
+  uint32_t take = len < sizeof(first_word) ? len : (uint32_t)sizeof(first_word);
+  for (uint32_t i = 0; i < take; i++) {
+    word_t byte = (first_word >> (i * 8)) & 0xffu;
+    if ((byte & paddr_write_value_trace_mask) ==
+        (paddr_write_value_trace_value & paddr_write_value_trace_mask)) {
+      if (byte_offset != NULL) *byte_offset = i;
+      return true;
+    }
+  }
+  return false;
+}
+
+static bool paddr_write_value_trace_match_buffer(const void *buf, uint32_t len,
+    word_t first_word, uint32_t *match_offset, word_t *match_word,
+    bool *is_byte_match) {
+  if (len == 0) return false;
+
+  if (paddr_write_value_trace_mask <= 0xff &&
+      paddr_write_value_trace_value <= 0xff) {
+    uint32_t byte_offset = 0;
+    if (buf != NULL) {
+      const uint8_t *bytes = (const uint8_t *)buf;
+      for (uint32_t i = 0; i < len; i++) {
+        if ((bytes[i] & paddr_write_value_trace_mask) ==
+            (paddr_write_value_trace_value & paddr_write_value_trace_mask)) {
+          if (match_offset != NULL) *match_offset = i;
+          if (match_word != NULL) {
+            word_t word = 0;
+            uint32_t take = len - i < sizeof(word) ? len - i : (uint32_t)sizeof(word);
+            memcpy(&word, bytes + i, take);
+            *match_word = word;
+          }
+          if (is_byte_match != NULL) *is_byte_match = true;
+          return true;
+        }
+      }
+      return false;
+    }
+    if (paddr_write_value_trace_match_byte(first_word, len, &byte_offset)) {
+      if (match_offset != NULL) *match_offset = byte_offset;
+      if (match_word != NULL) *match_word = first_word;
+      if (is_byte_match != NULL) *is_byte_match = true;
+      return true;
+    }
+    return false;
+  }
+
+  if (buf != NULL && len >= sizeof(word_t)) {
+    const uint8_t *bytes = (const uint8_t *)buf;
+    for (uint32_t i = 0; i + sizeof(word_t) <= len; i++) {
+      word_t word = 0;
+      memcpy(&word, bytes + i, sizeof(word));
+      if ((word & paddr_write_value_trace_mask) ==
+          (paddr_write_value_trace_value & paddr_write_value_trace_mask)) {
+        if (match_offset != NULL) *match_offset = i;
+        if (match_word != NULL) *match_word = word;
+        if (is_byte_match != NULL) *is_byte_match = false;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  if ((first_word & paddr_write_value_trace_mask) ==
+      (paddr_write_value_trace_value & paddr_write_value_trace_mask)) {
+    if (match_offset != NULL) *match_offset = 0;
+    if (match_word != NULL) *match_word = first_word;
+    if (is_byte_match != NULL) *is_byte_match = false;
+    return true;
+  }
+  return false;
+}
+
+static void paddr_write_trace_after_write(paddr_t addr, uint32_t len,
+    word_t first_word, const void *buf, const char *source) {
+  if (unlikely(paddr_write_value_trace_is_enabled)) {
+    uint32_t match_offset = 0;
+    word_t match_word = first_word;
+    bool byte_match = false;
+    bool matched = paddr_write_value_trace_match_buffer(buf, len, first_word,
+        &match_offset, &match_word, &byte_match);
+    if ((paddr_write_value_trace_max == 0 ||
+          paddr_write_value_trace_count < paddr_write_value_trace_max) &&
+        matched) {
+      paddr_write_value_trace_count++;
+      Log("paddr-write-value-trace count=%" PRIu64
+          " match=%s match_offset=%u source=%s paddr="
+          FMT_PADDR " match_paddr=" FMT_PADDR
+          " len=%u first=" FMT_WORD " matched=" FMT_WORD " value=" FMT_WORD
+          " mask=" FMT_WORD " pc=" FMT_WORD " priv=%u satp=" FMT_WORD,
+          paddr_write_value_trace_count, byte_match ? "byte" : "exact",
+          match_offset,
+          source, addr, addr + (paddr_t)match_offset, len, first_word,
+          match_word,
+          paddr_write_value_trace_value, paddr_write_value_trace_mask, cpu.pc,
+          MUXDEF(CONFIG_ISA_riscv, cpu.priv, 0),
+          MUXDEF(CONFIG_ISA_riscv, cpu.csr.satp, 0));
+    }
+  }
+  if (likely(!paddr_write_trace_runtime_enabled())) return;
+  if (paddr_write_trace_max != 0 &&
+      paddr_write_trace_count >= paddr_write_trace_max) {
+    return;
+  }
+  if (!paddr_write_trace_range_overlap(addr, len)) {
+    return;
+  }
+  paddr_write_trace_count++;
+  Log("paddr-write-trace count=%" PRIu64 " source=%s paddr=" FMT_PADDR
+      " len=%u first=" FMT_WORD " pc=" FMT_WORD " priv=%u satp=" FMT_WORD,
+      paddr_write_trace_count, source, addr, len, first_word, cpu.pc,
+      MUXDEF(CONFIG_ISA_riscv, cpu.priv, 0),
+      MUXDEF(CONFIG_ISA_riscv, cpu.csr.satp, 0));
+}
 
 static inline void paddr_note_device_write(void) {
   paddr_device_write_seen = true;
@@ -84,6 +395,8 @@ bool paddr_dma_write(paddr_t addr, const void *buf, uint32_t len) {
   if (!pmem_range_ok(addr, len)) return false;
   memcpy(guest_to_host(addr), buf, len);
   paddr_dma_notify_cpu(addr, len);
+  paddr_write_trace_after_write(addr, len,
+      paddr_write_trace_first_word(buf, len), buf, "dma-buffer");
   nemu_profile_count_if(NEMU_PROFILE_PADDR_DMA_WRITES, 1);
   nemu_profile_count_if(NEMU_PROFILE_PADDR_DMA_WRITE_BYTES, len);
   return true;
@@ -94,6 +407,7 @@ bool paddr_dma_write_value(paddr_t addr, int len, word_t data) {
   if (!pmem_range_ok(addr, (uint32_t)len)) return false;
   pmem_write(addr, len, data);
   paddr_dma_notify_cpu(addr, (uint32_t)len);
+  paddr_write_trace_after_write(addr, (uint32_t)len, data, &data, "dma-value");
   nemu_profile_count_if(NEMU_PROFILE_PADDR_DMA_WRITES, 1);
   nemu_profile_count_if(NEMU_PROFILE_PADDR_DMA_WRITE_BYTES, (uint64_t)len);
   return true;
@@ -162,6 +476,7 @@ void paddr_write(paddr_t addr, int len, word_t data) {
     nemu_profile_count_if(NEMU_PROFILE_PADDR_PMEM_WRITES, 1);
     nemu_profile_count_if(NEMU_PROFILE_PADDR_PMEM_WRITE_BYTES, (uint64_t)len);
     pmem_write(addr, len, data);
+    paddr_write_trace_after_write(addr, (uint32_t)len, data, &data, "paddr-pmem");
 #ifdef CONFIG_MTRACE
     extern bool g_in_ifetch;
     if(!g_in_ifetch && cpu.pc >= CONFIG_MTRACE_START && cpu.pc <= CONFIG_MTRACE_END)

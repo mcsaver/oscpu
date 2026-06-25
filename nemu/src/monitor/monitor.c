@@ -37,6 +37,7 @@ void serial_dump_machine_info(FILE *out);
 #endif
 #ifdef CONFIG_HAS_VIRTIO_NET
 void virtio_net_dump_machine_info(FILE *out);
+void virtio_net_set_tap(const char *ifname);
 #endif
 #ifdef CONFIG_HAS_VIRTIO_RNG
 void virtio_rng_dump_machine_info(FILE *out);
@@ -198,6 +199,10 @@ static void dump_machine_info(FILE *out) {
   fprintf(out, "config.interpreter_tb_max_inst=0\n");
   fprintf(out, "runtime.interpreter_tb_max_inst=0\n");
 #endif
+  machine_info_write_bool(out, "runtime.interpreter_tb_amo_continue.enabled",
+      ISDEF(CONFIG_INTERPRETER_BASIC_BLOCK) && cpu_interpreter_basic_block_runtime_enabled() &&
+      cpu_interpreter_tb_amo_continue_runtime_enabled());
+  fprintf(out, "runtime.interpreter_tb_amo_continue.disable_env=NEMU_INTERPRETER_TB_AMO_CONTINUE=0\n");
   machine_info_write_bool(out, "config.interpreter_wide_ifetch", ISDEF(CONFIG_INTERPRETER_WIDE_IFETCH));
   machine_info_write_bool(out, "config.interpreter_ifetch_page_cache",
       ISDEF(CONFIG_INTERPRETER_IFETCH_PAGE_CACHE));
@@ -213,8 +218,20 @@ static void dump_machine_info(FILE *out) {
   machine_info_write_bool(out, "runtime.interpreter_decode_cache.enabled",
       ISDEF(CONFIG_INTERPRETER_DECODE_CACHE) && isa_riscv_decode_cache_runtime_enabled());
   fprintf(out, "runtime.interpreter_decode_cache.disable_env=NEMU_INTERPRETER_DECODE_CACHE=0\n");
+  machine_info_write_bool(out, "runtime.interpreter_decode_cache.rvc_fast.enabled",
+      ISDEF(CONFIG_INTERPRETER_DECODE_CACHE) && isa_riscv_decode_cache_runtime_enabled() &&
+      isa_riscv_decode_cache_rvc_fast_runtime_enabled());
+  fprintf(out,
+      "runtime.interpreter_decode_cache.rvc_fast.disable_env=NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST=0\n");
+  machine_info_write_bool(out, "runtime.interpreter_decode_cache.int_fast.enabled",
+      ISDEF(CONFIG_INTERPRETER_DECODE_CACHE) && isa_riscv_decode_cache_runtime_enabled() &&
+      isa_riscv_decode_cache_int_fast_runtime_enabled());
+  fprintf(out,
+      "runtime.interpreter_decode_cache.int_fast.disable_env=NEMU_INTERPRETER_DECODE_CACHE_INT_FAST=0\n");
   machine_info_write_bool(out, "runtime.vaddr_host_fast.enabled", vaddr_host_fast_runtime_enabled());
   fprintf(out, "runtime.vaddr_host_fast.disable_env=NEMU_VADDR_HOST_FAST=0\n");
+  vaddr_write_trace_dump_machine_info(out);
+  paddr_write_trace_dump_machine_info(out);
 #ifdef CONFIG_INTERPRETER_DECODE_CACHE
   fprintf(out, "config.interpreter_decode_cache_entries=%d\n",
       CONFIG_INTERPRETER_DECODE_CACHE_ENTRIES);
@@ -357,6 +374,7 @@ static int parse_args(int argc, char *argv[]) {
     OPT_MONITOR_CMD,
     OPT_QMP,
     OPT_GDBSTUB,
+    OPT_NET_TAP,
   };
   const struct option table[] = {
     {"batch"    , no_argument      , NULL, 'b'},
@@ -376,6 +394,7 @@ static int parse_args(int argc, char *argv[]) {
     {"monitor-cmd", required_argument, NULL, OPT_MONITOR_CMD},
     {"qmp"      , required_argument, NULL, OPT_QMP},
     {"gdbstub"  , required_argument, NULL, OPT_GDBSTUB},
+    {"net-tap"  , required_argument, NULL, OPT_NET_TAP},
     {"help"     , no_argument      , NULL, 'h'},
     {"elf"      , required_argument, NULL, 'e'},
     {0          , 0                , NULL,  0 },
@@ -406,6 +425,14 @@ static int parse_args(int argc, char *argv[]) {
       case OPT_MONITOR_CMD: add_monitor_cmd(optarg); break;
       case OPT_QMP: qmp_set_port(atoi(optarg)); break;
       case OPT_GDBSTUB: gdbstub_set_port(atoi(optarg)); break;
+      case OPT_NET_TAP:
+#ifdef CONFIG_HAS_VIRTIO_NET
+        virtio_net_set_tap(optarg);
+#else
+        printf("--net-tap requires CONFIG_HAS_VIRTIO_NET\n");
+        exit(1);
+#endif
+        break;
       case 1: img_file = optarg; return 0;                                  //镜像文件
       default:
         printf("Usage: %s [OPTION...] IMAGE [args]\n\n", argv[0]);
@@ -419,6 +446,7 @@ static int parse_args(int argc, char *argv[]) {
         printf("\t   --monitor-cmd=CMD    run one SDB command after init and exit (repeatable)\n");
         printf("\t   --qmp=PORT           wait for startup QMP, then same-socket runtime query/stop/cont/events/device introspection/quit\n");
         printf("\t   --gdbstub=PORT       wait for a startup GDB remote client on localhost\n");
+        printf("\t   --net-tap=IFNAME     attach virtio-net to an existing host TAP interface\n");
         printf("\t   --block=FILE         attach block image (Linux path placeholder)\n");
         printf("\t   --block-overlay=FILE write block changes to sparse overlay\n");
         printf("\t-l,--log=FILE           output log to FILE\n");

@@ -35,10 +35,13 @@ static uint64_t g_uart_rx_trace_limit = 128;
 static uint64_t g_uart_rx_trace_count = 0;
 static uint64_t g_uart_rx_cycle_gap = 0;
 static uint64_t g_uart_rx_next_cycle = 0;
+static uint64_t g_uart_rx_release_delay_cycles = 0;
+static uint64_t g_uart_rx_release_cycle = 0;
 static uint8_t *g_uart_rx_buf = NULL;
 static size_t g_uart_rx_len = 0;
 static size_t g_uart_rx_pos = 0;
 static bool g_uart_rx_wait_logged = false;
+static bool g_uart_rx_wait_release_armed = false;
 static bool g_uart_rx_wait_release_logged = false;
 
 static void append_uart_rx_bytes(const uint8_t *data, size_t len) {
@@ -122,6 +125,12 @@ static void init_uart_rx_source(void) {
     uint64_t value = strtoull(cycle_gap_s, &end, 0);
     if (end != cycle_gap_s) g_uart_rx_cycle_gap = value;
   }
+  const char *release_delay_s = getenv("NPC_UART_RX_RELEASE_DELAY_CYCLES");
+  if (release_delay_s && release_delay_s[0] != '\0') {
+    char *end = NULL;
+    uint64_t value = strtoull(release_delay_s, &end, 0);
+    if (end != release_delay_s) g_uart_rx_release_delay_cycles = value;
+  }
 
   size_t file_bytes = append_uart_rx_file(getenv("NPC_UART_RX_FILE"));
   const char *text = getenv("NPC_UART_RX_TEXT");
@@ -135,7 +144,7 @@ static void init_uart_rx_source(void) {
     LogBothTag("uart-rx",
                "loaded bytes=%llu file_bytes=%llu text_bytes=%llu "
                "trace=%u min_commit=%llu limit=%llu cycle_gap=%llu "
-               "wait='%s'",
+               "release_delay=%llu wait='%s'",
                (unsigned long long)g_uart_rx_len,
                (unsigned long long)file_bytes,
                (unsigned long long)text_bytes,
@@ -143,6 +152,7 @@ static void init_uart_rx_source(void) {
                (unsigned long long)g_uart_rx_trace_min_commit,
                (unsigned long long)g_uart_rx_trace_limit,
                (unsigned long long)g_uart_rx_cycle_gap,
+               (unsigned long long)g_uart_rx_release_delay_cycles,
                npc_uart_rx_wait_text());
   }
 }
@@ -357,6 +367,23 @@ int npc_uart_rx_pop(uint32_t *data) {
                  (unsigned long long)g_uart_rx_len);
       g_uart_rx_wait_logged = true;
     }
+    *data = 0;
+    return 0;
+  }
+  if (!g_uart_rx_wait_release_armed) {
+    g_uart_rx_wait_release_armed = true;
+    g_uart_rx_release_cycle =
+        npc_stats()->cycles + g_uart_rx_release_delay_cycles;
+    if (g_uart_rx_release_delay_cycles > 0) {
+      LogBothTag("uart-rx",
+                 "wait pattern matched; delaying input release by %llu "
+                 "cycles until cycle=%llu commit=%llu",
+                 (unsigned long long)g_uart_rx_release_delay_cycles,
+                 (unsigned long long)g_uart_rx_release_cycle,
+                 (unsigned long long)npc_stats()->commits);
+    }
+  }
+  if (npc_stats()->cycles < g_uart_rx_release_cycle) {
     *data = 0;
     return 0;
   }

@@ -21,6 +21,7 @@
 void cpu_exec(uint64_t n);
 bool cpu_interpreter_basic_block_runtime_enabled(void);
 uint64_t cpu_interpreter_tb_max_inst_runtime(void);
+bool cpu_interpreter_tb_amo_continue_runtime_enabled(void);
 
 void set_nemu_state(int state, vaddr_t pc, int halt_ret);
 void invalid_inst(vaddr_t thispc);

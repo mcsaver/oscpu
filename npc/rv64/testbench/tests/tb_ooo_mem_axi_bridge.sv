@@ -39,6 +39,7 @@ module tb_ooo_mem_axi_bridge;
   wire lsu_axi_arvalid;
   reg lsu_axi_arready;
   wire [`XLEN-1:0] lsu_axi_araddr;
+  wire [`STRB_W-1:0] lsu_axi_arstrb;
   reg lsu_axi_rvalid;
   wire lsu_axi_rready;
   reg [`XLEN-1:0] lsu_axi_rdata;
@@ -96,6 +97,7 @@ module tb_ooo_mem_axi_bridge;
     .lsu_axi_arvalid_o(lsu_axi_arvalid),
     .lsu_axi_arready_i(lsu_axi_arready),
     .lsu_axi_araddr_o(lsu_axi_araddr),
+    .lsu_axi_arstrb_o(lsu_axi_arstrb),
     .lsu_axi_rvalid_i(lsu_axi_rvalid),
     .lsu_axi_rready_o(lsu_axi_rready),
     .lsu_axi_rdata_i(lsu_axi_rdata),
@@ -164,17 +166,43 @@ module tb_ooo_mem_axi_bridge;
   task automatic issue_mem0_read;
     input [`XLEN-1:0] addr;
     begin
+      issue_mem0_read_strb(addr, {`STRB_W{1'b1}});
+    end
+  endtask
+
+  task automatic issue_mem0_read_strb;
+    input [`XLEN-1:0] addr;
+    input [`STRB_W-1:0] strb;
+    begin
       mem0_req_valid = 1'b1;
       mem0_req_write = 1'b0;
       mem0_req_addr = addr;
+      mem0_req_wstrb = strb;
       lsu_axi_arready = 1'b1;
       #1;
       tb_check1("mem0 read request ready", mem0_req_ready, 1'b1);
       tb_check1("mem0 read issues AR", lsu_axi_arvalid, 1'b1);
       tb_check64("mem0 read AR address", lsu_axi_araddr, addr);
+      tb_check64("mem0 read AR strb", {{(`XLEN-`STRB_W){1'b0}}, lsu_axi_arstrb},
+                 {{(`XLEN-`STRB_W){1'b0}}, strb});
       tick();
       mem0_req_valid = 1'b0;
       lsu_axi_arready = 1'b0;
+    end
+  endtask
+
+  task automatic read_arstrb_tracks_load_mask;
+    begin
+      issue_mem0_read_strb(64'h0000_0000_8000_1005, 8'b0010_0000);
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'h0102_0304_0506_0708;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("masked read response valid", mem0_rsp_valid, 1'b1);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
     end
   endtask
 
@@ -442,6 +470,7 @@ module tb_ooo_mem_axi_bridge;
       mem0_req_valid = 1'b1;
       mem0_req_write = 1'b0;
       mem0_req_addr = DATA_VA;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
       #1;
       tb_check1("sv39 first request ready", mem0_req_ready, 1'b1);
       tb_check1("sv39 first request no direct data AR", lsu_axi_arvalid, 1'b0);
@@ -452,6 +481,9 @@ module tb_ooo_mem_axi_bridge;
       tb_check1("sv39 first walk AR valid", lsu_axi_arvalid, 1'b1);
       tb_check64("sv39 first walk PTE address", lsu_axi_araddr,
                  ROOT_PT + 64'd16);
+      tb_check64("sv39 first walk AR strb",
+                 {{(`XLEN-`STRB_W){1'b0}}, lsu_axi_arstrb},
+                 {{(`XLEN-`STRB_W){1'b0}}, {`STRB_W{1'b1}}});
       lsu_axi_arready = 1'b1;
       tick();
       lsu_axi_arready = 1'b0;
@@ -466,6 +498,9 @@ module tb_ooo_mem_axi_bridge;
       #1;
       tb_check1("sv39 translated data AR valid", lsu_axi_arvalid, 1'b1);
       tb_check64("sv39 translated data AR physical", lsu_axi_araddr, DATA_PA);
+      tb_check64("sv39 translated data AR strb",
+                 {{(`XLEN-`STRB_W){1'b0}}, lsu_axi_arstrb},
+                 {{(`XLEN-`STRB_W){1'b0}}, {`STRB_W{1'b1}}});
       lsu_axi_arready = 1'b1;
       tick();
       lsu_axi_arready = 1'b0;
@@ -488,6 +523,7 @@ module tb_ooo_mem_axi_bridge;
       mem0_req_valid = 1'b1;
       mem0_req_write = 1'b0;
       mem0_req_addr = DATA_VA;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
       lsu_axi_arready = 1'b1;
       #1;
       tb_check1("sv39 repeat request ready", mem0_req_ready, 1'b1);
@@ -529,6 +565,7 @@ module tb_ooo_mem_axi_bridge;
 
     held_response_flush_drop();
     inflight_read_flush_abort();
+    read_arstrb_tracks_load_mask();
     partial_write_flush_drain();
     flushed_store_does_not_poison_dcache();
     sv39_dtlb_and_paddr_cache_hit();

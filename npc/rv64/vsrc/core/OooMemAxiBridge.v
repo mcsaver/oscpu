@@ -37,6 +37,7 @@ module OooMemAxiBridge (
   output lsu_axi_arvalid_o,
   input lsu_axi_arready_i,
   output [`XLEN-1:0] lsu_axi_araddr_o,
+  output [`STRB_W-1:0] lsu_axi_arstrb_o,
   input lsu_axi_rvalid_i,
   output lsu_axi_rready_o,
   input [`XLEN-1:0] lsu_axi_rdata_i,
@@ -343,6 +344,9 @@ module OooMemAxiBridge (
   assign lsu_axi_araddr_o =
       (state_q == S_WALK_AR) ? walk_pte_addr_w :
       req_read_miss_fire_w ? req_cache_addr_w : paddr_q;
+  assign lsu_axi_arstrb_o =
+      (state_q == S_WALK_AR) ? {`STRB_W{1'b1}} :
+      req_read_miss_fire_w ? req_wstrb_w : wstrb_q;
   assign lsu_axi_rready_o = (state_q == S_WALK_R) || (state_q == S_READ_DATA);
   wire write_drain_w =
       drop_rsp_q || (flush_i && (aw_done_q || w_done_q));

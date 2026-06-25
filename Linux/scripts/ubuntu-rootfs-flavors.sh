@@ -29,7 +29,7 @@ ubuntu_rootfs_flavor_packages() {
 
   local systemd_minimal="systemd systemd-sysv udev dbus procps iproute2 kmod util-linux lsb-release login passwd adduser"
   local interactive="$systemd_minimal ca-certificates curl wget iputils-ping netcat-openbsd openssh-client htop less vim-tiny nano file strace psmisc"
-  local full="$interactive ubuntu-standard openssh-server dropbear-bin sudo locales tzdata bash-completion man-db cron rsyslog systemd-timesyncd gpgv ubuntu-keyring"
+  local full="$interactive ubuntu-standard openssh-server openssh-sftp-server dropbear-bin sudo locales tzdata bash-completion man-db cron anacron rsyslog logrotate systemd-timesyncd systemd-oomd dbus-user-session libpam-systemd gpgv ubuntu-keyring netplan.io netplan-generator"
 
   case "$flavor" in
     systemd-minimal)
@@ -119,6 +119,8 @@ ubuntu_rootfs_flavor_required_paths() {
 /usr/bin/wget|Ubuntu interactive command wget
 /bin/ping|Ubuntu interactive command ping
 /usr/bin/ssh|Ubuntu interactive command ssh
+/usr/bin/scp|Ubuntu interactive command scp
+/usr/bin/sftp|Ubuntu interactive command sftp
 /usr/bin/htop|Ubuntu interactive command htop
 /usr/bin/less|Ubuntu interactive command less
 /usr/bin/strace|Ubuntu interactive command strace
@@ -134,20 +136,89 @@ EOF
 /bin/systemd-machine-id-setup|Ubuntu full command systemd-machine-id-setup
 /bin/systemd-sysusers|Ubuntu full command systemd-sysusers
 /bin/systemd-tmpfiles|Ubuntu full command systemd-tmpfiles
+/usr/bin/systemd-analyze|Ubuntu full command systemd-analyze
+/usr/bin/systemd-run|Ubuntu full command systemd-run
 /usr/bin/systemd-cat|Ubuntu full command systemd-cat
 /usr/bin/hostnamectl|Ubuntu full command hostnamectl
+/usr/bin/timedatectl|Ubuntu full command timedatectl
+/usr/sbin/netplan|Ubuntu full command netplan
+/usr/share/netplan/netplan.script|Ubuntu full netplan command script
+/etc/netplan|Ubuntu full netplan config directory
+/lib/netplan/generate|Ubuntu full netplan generator binary
+/lib/systemd/system-generators/netplan|Ubuntu full netplan systemd generator
+/bin/networkctl|Ubuntu full command networkctl
+/bin/loginctl|Ubuntu full command loginctl
+/lib/systemd/systemd-logind|Ubuntu full service systemd-logind
+/lib/systemd/system/systemd-logind.service|Ubuntu full unit systemd-logind
+/lib/riscv64-linux-gnu/security/pam_systemd.so|Ubuntu full PAM systemd session module
+/etc/pam.d/common-session|Ubuntu full PAM common session config
+/lib/systemd/systemd-networkd|Ubuntu full service systemd-networkd
+/lib/systemd/system/systemd-networkd.service|Ubuntu full unit systemd-networkd
+/lib/systemd/systemd-networkd-wait-online|Ubuntu full service systemd-networkd-wait-online
+/lib/systemd/system/systemd-networkd-wait-online.service|Ubuntu full unit systemd-networkd-wait-online
+/lib/systemd/system/network-online.target|Ubuntu full unit network-online target
+/lib/systemd/system/graphical.target|Ubuntu full unit graphical target
+/etc/systemd/network|Ubuntu full systemd-networkd config directory
+/lib/systemd/systemd-timedated|Ubuntu full service systemd-timedated
+/lib/systemd/system/systemd-timedated.service|Ubuntu full unit systemd-timedated
+/lib/systemd/system/user@.service|Ubuntu full unit systemd user manager
+/lib/systemd/system/user-runtime-dir@.service|Ubuntu full unit systemd user runtime dir
+/usr/lib/systemd/user/dbus.socket|Ubuntu full systemd user bus socket
+/usr/lib/systemd/user/dbus.service|Ubuntu full systemd user bus service
+/usr/lib/systemd/user/sockets.target.wants/dbus.socket|Ubuntu full systemd user bus default socket
 /usr/bin/logger|Ubuntu full command logger
 /usr/bin/dpkg|Ubuntu full command dpkg
 /usr/bin/dpkg-query|Ubuntu full command dpkg-query
 /usr/bin/sudo|Ubuntu full command sudo
+/bin/su|Ubuntu full command su
+/etc/pam.d/su|Ubuntu full PAM su config
+/usr/sbin/groupadd|Ubuntu full account command groupadd
+/usr/sbin/groupdel|Ubuntu full account command groupdel
+/usr/sbin/useradd|Ubuntu full account command useradd
+/usr/sbin/userdel|Ubuntu full account command userdel
+/usr/bin/passwd|Ubuntu full account command passwd
+/etc/default/useradd|Ubuntu full account defaults
+/etc/login.defs|Ubuntu full login defaults
+/usr/bin/ssh-keygen|Ubuntu full command ssh-keygen
 /usr/bin/man|Ubuntu full command man
+/usr/sbin/locale-gen|Ubuntu full locale command locale-gen
+/usr/bin/localedef|Ubuntu full locale command localedef
+/usr/share/i18n/SUPPORTED|Ubuntu full locale supported database
 /usr/bin/dbclient|Ubuntu full command dbclient
 /usr/bin/dropbearconvert|Ubuntu full command dropbearconvert
 /usr/bin/dropbearkey|Ubuntu full command dropbearkey
 /usr/sbin/sshd|Ubuntu full service sshd
+/usr/lib/openssh/sftp-server|Ubuntu full service OpenSSH sftp-server
 /usr/sbin/dropbear|Ubuntu full service dropbear
 /usr/sbin/cron|Ubuntu full service cron
+/etc/crontab|Ubuntu full cron system crontab
+/etc/cron.d|Ubuntu full cron.d directory
+/etc/cron.daily|Ubuntu full cron.daily directory
+/usr/sbin/anacron|Ubuntu full maintenance anacron
+/etc/anacrontab|Ubuntu full anacron table
+/etc/cron.d/anacron|Ubuntu full anacron cron entry
+/etc/cron.daily/0anacron|Ubuntu full anacron daily stamp entry
+/etc/cron.weekly/0anacron|Ubuntu full anacron weekly stamp entry
+/etc/cron.monthly/0anacron|Ubuntu full anacron monthly stamp entry
+/var/spool/anacron|Ubuntu full anacron spool directory
+/lib/systemd/system/anacron.service|Ubuntu full anacron service
+/lib/systemd/system/anacron.timer|Ubuntu full anacron timer
 /usr/sbin/rsyslogd|Ubuntu full service rsyslogd
+/usr/sbin/logrotate|Ubuntu full maintenance logrotate
+/etc/logrotate.conf|Ubuntu full logrotate config
+/etc/cron.daily/logrotate|Ubuntu full logrotate cron entry
+/lib/systemd/system/logrotate.service|Ubuntu full logrotate service
+/lib/systemd/system/logrotate.timer|Ubuntu full logrotate timer
+/lib/systemd/systemd-oomd|Ubuntu full service systemd-oomd
+/lib/systemd/system/systemd-oomd.service|Ubuntu full unit systemd-oomd
+/usr/bin/oomctl|Ubuntu full command oomctl
+/etc/systemd/oomd.conf|Ubuntu full oomd config
+/usr/lib/systemd/oomd.conf.d/10-oomd-defaults.conf|Ubuntu full oomd defaults
+/usr/lib/systemd/system/-.slice.d/10-oomd-root-slice-defaults.conf|Ubuntu full oomd root slice defaults
+/usr/lib/systemd/system/user@.service.d/10-oomd-user-service-defaults.conf|Ubuntu full oomd user service defaults
+/usr/lib/sysusers.d/systemd-oom.conf|Ubuntu full oomd sysusers config
+/usr/share/dbus-1/system-services/org.freedesktop.oom1.service|Ubuntu full oomd dbus service
+/usr/share/dbus-1/system.d/org.freedesktop.oom1.conf|Ubuntu full oomd dbus policy
 /lib/systemd/systemd-hostnamed|Ubuntu full service systemd-hostnamed
 /lib/systemd/system/systemd-hostnamed.service|Ubuntu full unit systemd-hostnamed
 /usr/share/keyrings/ubuntu-archive-keyring.gpg|Ubuntu full apt archive keyring
@@ -238,7 +309,7 @@ ubuntu_rootfs_flavor_check() {
   for package in curl wget iputils-ping openssh-client htop strace; do
     ubuntu_rootfs_flavor_check_contains_package interactive "$package" || missing=1
   done
-  for package in ubuntu-standard openssh-server sudo locales man-db cron rsyslog gpgv ubuntu-keyring; do
+  for package in ubuntu-standard openssh-server openssh-sftp-server sudo locales man-db cron anacron rsyslog logrotate systemd-oomd dbus-user-session libpam-systemd gpgv ubuntu-keyring; do
     ubuntu_rootfs_flavor_check_contains_package full "$package" || missing=1
   done
 

@@ -26,8 +26,11 @@ def classify_drift(repo_root: Path, row: sqlite3.Row, max_bytes: int) -> str:
     if not path.exists():
         return "missing"
     stat = path.stat()
-    if stat.st_size != row["size_bytes"] or stat.st_mtime_ns != row["mtime_ns"]:
-        return "stale"
+    metadata_changed = (
+        stat.st_size != row["size_bytes"] or stat.st_mtime_ns != row["mtime_ns"]
+    )
+    if not metadata_changed:
+        return row["index_status"]
     if row["index_status"] == "indexed" and stat.st_size <= max_bytes:
         try:
             current_hash = sha256_bytes(path.read_bytes())
@@ -35,6 +38,9 @@ def classify_drift(repo_root: Path, row: sqlite3.Row, max_bytes: int) -> str:
             return "read_error"
         if current_hash != row["sha256"]:
             return "stale"
+        return row["index_status"]
+    if metadata_changed:
+        return "stale"
     return row["index_status"]
 
 
@@ -57,9 +63,21 @@ def doctor_is_nonblocking_drift_state(state: str) -> bool:
     return state.startswith("archived_") or state.startswith("live_index_")
 
 
+def doctor_drift_prefix_count(counts: dict[str, int], prefix: str) -> int:
+    return sum(count for state, count in counts.items() if state.startswith(prefix))
+
+
+def doctor_display_state(state: str) -> str:
+    if state.startswith("archived_"):
+        return "historical_archive_" + state.removeprefix("archived_")
+    if state.startswith("live_index_"):
+        return "live_index_cache_" + state.removeprefix("live_index_")
+    return state
+
+
 def doctor_should_print_state(args: argparse.Namespace, state: str) -> bool:
     if doctor_is_nonblocking_drift_state(state):
-        return bool(args.show_nonblocking_drift)
+        return bool(getattr(args, "show_diagnostic_details", False))
     return True
 
 
@@ -67,16 +85,36 @@ def doctor_should_print_samples(args: argparse.Namespace, state: str) -> bool:
     if doctor_is_blocking_drift_state(state):
         return True
     if doctor_is_nonblocking_drift_state(state):
-        return bool(args.show_nonblocking_drift)
-    return bool(args.show_status_samples)
+        return bool(getattr(args, "show_diagnostic_details", False))
+    return bool(getattr(args, "show_status_samples", False))
 
 
 def doctor(args: argparse.Namespace) -> int:
     repo_root = resolve_repo_path(args.repo_root)
     db_path = (repo_root / args.db).resolve()
-    conn = open_db(db_path)
-    has_fts5 = init_schema(conn)
-    rows = conn.execute("SELECT * FROM files ORDER BY path").fetchall()
+    # 默认 doctor 只是巡检当前索引和文件系统状态，不应主动切 WAL/拿写锁。
+    # 只有 --write-status 需要维护索引状态，才使用可写连接并确保 schema。
+    write_status = bool(getattr(args, "write_status", False))
+    conn = open_db(
+        db_path,
+        readonly=not write_status,
+        timeout=30.0 if write_status else 1.0,
+        busy_timeout_ms=None if write_status else 1000,
+    )
+    if write_status:
+        init_schema(conn)
+    try:
+        rows = conn.execute("SELECT * FROM files ORDER BY path").fetchall()
+    except sqlite3.OperationalError as exc:
+        if write_status or "database is locked" not in str(exc).lower():
+            conn.close()
+            raise
+        conn.close()
+        print("doctor=github-index")
+        print("blocking_drift=unknown")
+        print("db_status=locked")
+        print("db_error=database is locked")
+        return 2
     counts: dict[str, int] = {}
     samples: dict[str, list[str]] = {}
     now = utc_now()
@@ -88,12 +126,12 @@ def doctor(args: argparse.Namespace) -> int:
             samples.setdefault(state, [])
             if len(samples[state]) < args.sample_limit:
                 samples[state].append(row["path"])
-            if args.write_status and raw_state in DOCTOR_RAW_DRIFT_STATES:
+            if write_status and raw_state in DOCTOR_RAW_DRIFT_STATES:
                 conn.execute(
                     "UPDATE files SET exists_flag=?, index_status=?, updated_at=? WHERE path=?",
                     (0 if raw_state == "missing" else 1, raw_state, now, row["path"]),
                 )
-        if args.write_status:
+        if write_status:
             record_event(conn, "doctor-write-status", {"counts": counts})
     blocking_drift = sum(
         count for state, count in counts.items() if doctor_is_blocking_drift_state(state)
@@ -101,14 +139,21 @@ def doctor(args: argparse.Namespace) -> int:
     nonblocking_drift = sum(
         count for state, count in counts.items() if doctor_is_nonblocking_drift_state(state)
     )
+    archived_drift = doctor_drift_prefix_count(counts, "archived_")
+    live_index_drift = doctor_drift_prefix_count(counts, "live_index_")
     print("doctor=github-index")
     print(f"blocking_drift={blocking_drift}")
-    if args.show_nonblocking_drift:
-        print(f"nonblocking_drift={nonblocking_drift}")
+    if getattr(args, "show_nonblocking_drift", False) or getattr(args, "show_diagnostic_details", False):
+        # Verbose diagnostics split historical archive state from live-first index cache state.
+        # The summary stays path-free; use --show-diagnostic-details only for maintenance triage.
+        print(f"historical_archive_diagnostics={archived_drift}")
+        print(f"live_index_cache_diagnostics={live_index_drift}")
+        print(f"diagnostic_only={nonblocking_drift}")
+        print("diagnostic_only_note=ignored_by_fail_on_drift")
     for status in sorted(counts):
         if not doctor_should_print_state(args, status):
             continue
-        print(f"{status}={counts[status]}")
+        print(f"{doctor_display_state(status)}={counts[status]}")
         if not doctor_should_print_samples(args, status):
             continue
         for sample in samples.get(status, []):
@@ -3970,6 +4015,9 @@ def smoke(args: argparse.Namespace) -> int:
                 max_bytes=args.max_bytes,
                 write_status=False,
                 fail_on_drift=True,
+                show_nonblocking_drift=False,
+                show_diagnostic_details=False,
+                show_status_samples=False,
                 sample_limit=5,
             )
         )

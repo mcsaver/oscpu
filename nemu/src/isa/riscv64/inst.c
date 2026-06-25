@@ -18,8 +18,10 @@
 #include <cpu/ifetch.h>
 #include <cpu/decode.h>
 #include <memory/cache.h>
+#include <memory/vaddr.h>
 #include <ftrace.h>
 #include <etrace.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 

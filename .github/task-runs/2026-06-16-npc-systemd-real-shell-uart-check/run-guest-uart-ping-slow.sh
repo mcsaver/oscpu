@@ -6,6 +6,9 @@ cd /home/lyg/PA/ysyx-workbench
 run_dir=.github/task-runs/2026-06-16-npc-systemd-real-shell-uart-check
 log_name=${NPC_UART_PING_LOG_NAME:-npc-systemd-uart-ping-slow}
 rc_name=${NPC_UART_PING_RC_NAME:-uart-ping-slow.rc}
+max_cycles=${NPC_UART_PING_MAX_CYCLES:-1200000000}
+host_timeout=${NPC_UART_PING_HOST_TIMEOUT:-4200}
+release_delay=${NPC_UART_PING_RELEASE_DELAY_CYCLES:-${NPC_SYSTEMD_UART_RELEASE_DELAY_CYCLES:-}}
 log_dir="$run_dir/evidence/$log_name"
 cmd_file="$PWD/$log_dir/npc-uart-ping.cmd"
 mkdir -p "$log_dir"
@@ -20,6 +23,9 @@ GUEST_CMDS_EOF
 {
   echo "start: $(date -Is)"
   echo "cmd_file: $cmd_file"
+  echo "max_cycles: $max_cycles"
+  echo "host_timeout: $host_timeout"
+  echo "release_delay_cycles: ${release_delay:-auto}"
   NPC_SYSTEMD_CHECK_LOG_DIR="$PWD/$log_dir" \
   NPC_SYSTEMD_PROMPT="__NPC_CONSOLE_SHELL_READY__" \
   NPC_SYSTEMD_GUEST_COMMAND_MODE=uart \
@@ -28,8 +34,9 @@ GUEST_CMDS_EOF
   NPC_SYSTEMD_DONE_MARKER="__NPC_UART_PING_DONE__ rc=0" \
   NPC_SYSTEMD_UART_WAIT="__NPC_CONSOLE_SHELL_READY__" \
   NPC_SYSTEMD_UART_CYCLE_GAP=100000 \
-  NPC_SYSTEMD_CHECK_MAX_CYCLES=900000000 \
-  NPC_SYSTEMD_HOST_TIMEOUT=4200 \
+  NPC_SYSTEMD_UART_RELEASE_DELAY_CYCLES="$release_delay" \
+  NPC_SYSTEMD_CHECK_MAX_CYCLES="$max_cycles" \
+  NPC_SYSTEMD_HOST_TIMEOUT="$host_timeout" \
   NPC_SYSTEMD_PROGRESS=50000000 \
     make -C Linux ARCH=riscv64-npc check-npc-systemd-guest
   rc=$?

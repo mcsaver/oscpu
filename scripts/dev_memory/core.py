@@ -152,8 +152,11 @@ def open_db(
     busy_timeout_ms: int | None = None,
 ) -> sqlite3.Connection:
     if readonly:
-        uri = db_path.resolve().as_uri() + "?mode=ro"
-        conn = sqlite3.connect(uri, uri=True, timeout=timeout)
+        if not db_path.exists():
+            raise sqlite3.OperationalError(f"unable to open database file: {db_path}")
+        # UNC 路径（例如 \\wsl$）经 Path.as_uri() 会带 authority，SQLite URI 会拒绝。
+        # 只读调用不切 WAL，并在打开后用 query_only 禁写即可避免创建/修改 DB。
+        conn = sqlite3.connect(str(db_path), timeout=timeout)
     else:
         db_path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(str(db_path), timeout=timeout)

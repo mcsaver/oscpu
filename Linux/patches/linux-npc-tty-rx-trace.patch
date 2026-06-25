@@ -1,0 +1,414 @@
+diff --git a/drivers/tty/n_tty.c b/drivers/tty/n_tty.c
+index 6c9a408..e4eccdd 100644
+--- a/drivers/tty/n_tty.c
++++ b/drivers/tty/n_tty.c
+@@ -28,6 +28,7 @@
+  *		EAGAIN
+  */
+ 
++#include <linux/atomic.h>
+ #include <linux/bitmap.h>
+ #include <linux/bitops.h>
+ #include <linux/ctype.h>
+@@ -129,6 +130,87 @@ struct n_tty_data {
+ 	struct mutex output_lock;
+ };
+ 
++atomic64_t npc_tty_rx_trace_8250_chars = ATOMIC64_INIT(0);
++atomic64_t npc_tty_rx_trace_8250_pushes = ATOMIC64_INIT(0);
++atomic64_t npc_tty_rx_trace_8250_irq_calls = ATOMIC64_INIT(0);
++atomic64_t npc_tty_rx_trace_8250_irq_no_int = ATOMIC64_INIT(0);
++atomic64_t npc_tty_rx_trace_8250_irq_handled = ATOMIC64_INIT(0);
++atomic64_t npc_tty_rx_trace_8250_iir_rdi = ATOMIC64_INIT(0);
++atomic64_t npc_tty_rx_trace_8250_iir_rlsi = ATOMIC64_INIT(0);
++atomic64_t npc_tty_rx_trace_8250_iir_timeout = ATOMIC64_INIT(0);
++atomic64_t npc_tty_rx_trace_8250_iir_thri = ATOMIC64_INIT(0);
++atomic64_t npc_tty_rx_trace_8250_lsr_dr = ATOMIC64_INIT(0);
++atomic64_t npc_tty_rx_trace_8250_lsr_oe = ATOMIC64_INIT(0);
++atomic64_t npc_tty_rx_trace_8250_last_iir = ATOMIC64_INIT(0);
++atomic64_t npc_tty_rx_trace_8250_last_lsr = ATOMIC64_INIT(0);
++atomic64_t npc_tty_rx_trace_8250_last_ier = ATOMIC64_INIT(0);
++atomic64_t npc_tty_rx_trace_uart_insert_calls = ATOMIC64_INIT(0);
++atomic64_t npc_tty_rx_trace_uart_inserted = ATOMIC64_INIT(0);
++atomic64_t npc_tty_rx_trace_uart_ignored = ATOMIC64_INIT(0);
++atomic64_t npc_tty_rx_trace_uart_overrun = ATOMIC64_INIT(0);
++atomic64_t npc_tty_rx_trace_flip_pushes = ATOMIC64_INIT(0);
++atomic64_t npc_tty_rx_trace_flush_calls = ATOMIC64_INIT(0);
++atomic64_t npc_tty_rx_trace_ldisc_rcvd = ATOMIC64_INIT(0);
++atomic64_t npc_tty_rx_trace_ntty_receive_calls = ATOMIC64_INIT(0);
++atomic64_t npc_tty_rx_trace_ntty_rcvd = ATOMIC64_INIT(0);
++EXPORT_SYMBOL_GPL(npc_tty_rx_trace_8250_chars);
++EXPORT_SYMBOL_GPL(npc_tty_rx_trace_8250_pushes);
++EXPORT_SYMBOL_GPL(npc_tty_rx_trace_8250_irq_calls);
++EXPORT_SYMBOL_GPL(npc_tty_rx_trace_8250_irq_no_int);
++EXPORT_SYMBOL_GPL(npc_tty_rx_trace_8250_irq_handled);
++EXPORT_SYMBOL_GPL(npc_tty_rx_trace_8250_iir_rdi);
++EXPORT_SYMBOL_GPL(npc_tty_rx_trace_8250_iir_rlsi);
++EXPORT_SYMBOL_GPL(npc_tty_rx_trace_8250_iir_timeout);
++EXPORT_SYMBOL_GPL(npc_tty_rx_trace_8250_iir_thri);
++EXPORT_SYMBOL_GPL(npc_tty_rx_trace_8250_lsr_dr);
++EXPORT_SYMBOL_GPL(npc_tty_rx_trace_8250_lsr_oe);
++EXPORT_SYMBOL_GPL(npc_tty_rx_trace_8250_last_iir);
++EXPORT_SYMBOL_GPL(npc_tty_rx_trace_8250_last_lsr);
++EXPORT_SYMBOL_GPL(npc_tty_rx_trace_8250_last_ier);
++EXPORT_SYMBOL_GPL(npc_tty_rx_trace_uart_insert_calls);
++EXPORT_SYMBOL_GPL(npc_tty_rx_trace_uart_inserted);
++EXPORT_SYMBOL_GPL(npc_tty_rx_trace_uart_ignored);
++EXPORT_SYMBOL_GPL(npc_tty_rx_trace_uart_overrun);
++EXPORT_SYMBOL_GPL(npc_tty_rx_trace_flip_pushes);
++EXPORT_SYMBOL_GPL(npc_tty_rx_trace_flush_calls);
++EXPORT_SYMBOL_GPL(npc_tty_rx_trace_ldisc_rcvd);
++EXPORT_SYMBOL_GPL(npc_tty_rx_trace_ntty_receive_calls);
++EXPORT_SYMBOL_GPL(npc_tty_rx_trace_ntty_rcvd);
++
++static void npc_tty_rx_trace_dump(const char *tag, struct tty_struct *tty,
++				  struct n_tty_data *ldata, long value0,
++				  long value1)
++{
++	pr_info("%s: tty=%s value0=%ld value1=%ld 8250_chars=%lld 8250_pushes=%lld 8250_irq_calls=%lld 8250_irq_no_int=%lld 8250_irq_handled=%lld 8250_iir_rdi=%lld 8250_iir_rlsi=%lld 8250_iir_timeout=%lld 8250_iir_thri=%lld 8250_lsr_dr=%lld 8250_lsr_oe=%lld 8250_last_iir=0x%llx 8250_last_lsr=0x%llx 8250_last_ier=0x%llx uart_calls=%lld uart_inserted=%lld uart_ignored=%lld uart_overrun=%lld flip_pushes=%lld flush_calls=%lld ldisc_rcvd=%lld ntty_calls=%lld ntty_rcvd=%lld read_head=%zu commit_head=%zu canon_head=%zu read_tail=%zu raw=%u real_raw=%u icanon=%u\n",
++		tag, tty->name, value0, value1,
++		(long long)atomic64_read(&npc_tty_rx_trace_8250_chars),
++		(long long)atomic64_read(&npc_tty_rx_trace_8250_pushes),
++		(long long)atomic64_read(&npc_tty_rx_trace_8250_irq_calls),
++		(long long)atomic64_read(&npc_tty_rx_trace_8250_irq_no_int),
++		(long long)atomic64_read(&npc_tty_rx_trace_8250_irq_handled),
++		(long long)atomic64_read(&npc_tty_rx_trace_8250_iir_rdi),
++		(long long)atomic64_read(&npc_tty_rx_trace_8250_iir_rlsi),
++		(long long)atomic64_read(&npc_tty_rx_trace_8250_iir_timeout),
++		(long long)atomic64_read(&npc_tty_rx_trace_8250_iir_thri),
++		(long long)atomic64_read(&npc_tty_rx_trace_8250_lsr_dr),
++		(long long)atomic64_read(&npc_tty_rx_trace_8250_lsr_oe),
++		(long long)atomic64_read(&npc_tty_rx_trace_8250_last_iir),
++		(long long)atomic64_read(&npc_tty_rx_trace_8250_last_lsr),
++		(long long)atomic64_read(&npc_tty_rx_trace_8250_last_ier),
++		(long long)atomic64_read(&npc_tty_rx_trace_uart_insert_calls),
++		(long long)atomic64_read(&npc_tty_rx_trace_uart_inserted),
++		(long long)atomic64_read(&npc_tty_rx_trace_uart_ignored),
++		(long long)atomic64_read(&npc_tty_rx_trace_uart_overrun),
++		(long long)atomic64_read(&npc_tty_rx_trace_flip_pushes),
++		(long long)atomic64_read(&npc_tty_rx_trace_flush_calls),
++		(long long)atomic64_read(&npc_tty_rx_trace_ldisc_rcvd),
++		(long long)atomic64_read(&npc_tty_rx_trace_ntty_receive_calls),
++		(long long)atomic64_read(&npc_tty_rx_trace_ntty_rcvd),
++		ldata->read_head, ldata->commit_head, ldata->canon_head,
++		ldata->read_tail, ldata->raw ? 1 : 0,
++		ldata->real_raw ? 1 : 0, ldata->icanon ? 1 : 0);
++}
++
+ #define MASK(x) ((x) & (N_TTY_BUF_SIZE - 1))
+ 
+ static inline size_t read_cnt(struct n_tty_data *ldata)
+@@ -1694,6 +1776,7 @@ n_tty_receive_buf_common(struct tty_struct *tty, const u8 *cp, const u8 *fp,
+ 	size_t n, rcvd = 0;
+ 	int room, overflow;
+ 
++	atomic64_inc(&npc_tty_rx_trace_ntty_receive_calls);
+ 	down_read(&tty->termios_rwsem);
+ 
+ 	do {
+@@ -1765,6 +1848,7 @@ n_tty_receive_buf_common(struct tty_struct *tty, const u8 *cp, const u8 *fp,
+ 
+ 	up_read(&tty->termios_rwsem);
+ 
++	atomic64_add(rcvd, &npc_tty_rx_trace_ntty_rcvd);
+ 	return rcvd;
+ }
+ 
+@@ -2176,11 +2260,23 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file, u8 *kbuf,
+ 			 */
+ 			if (!nr)
+ 				canon_skip_eof(ldata);
+-			else if (canon_copy_from_read_buf(tty, &kb, &nr))
+-				return kb - kbuf;
++			else if (canon_copy_from_read_buf(tty, &kb, &nr)) {
++				ssize_t copied = kb - kbuf;
++
++				npc_tty_rx_trace_dump("__NPC_TTY_RX_NTTY_READ_RET__",
++						       tty, ldata, copied,
++						       read_cnt(ldata));
++				return copied;
++			}
+ 		} else {
+-			if (copy_from_read_buf(tty, &kb, &nr))
+-				return kb - kbuf;
++			if (copy_from_read_buf(tty, &kb, &nr)) {
++				ssize_t copied = kb - kbuf;
++
++				npc_tty_rx_trace_dump("__NPC_TTY_RX_NTTY_READ_RET__",
++						       tty, ldata, copied,
++						       read_cnt(ldata));
++				return copied;
++			}
+ 		}
+ 
+ 		/* No more data - release locks and stop retries */
+@@ -2189,7 +2285,10 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file, u8 *kbuf,
+ 		up_read(&tty->termios_rwsem);
+ 		mutex_unlock(&ldata->atomic_read_lock);
+ 		*cookie = NULL;
+-		return kb - kbuf;
++		retval = kb - kbuf;
++		npc_tty_rx_trace_dump("__NPC_TTY_RX_NTTY_READ_RET__", tty,
++				       ldata, retval, read_cnt(ldata));
++		return retval;
+ 	}
+ 
+ 	c = job_control(tty, file);
+@@ -2200,11 +2299,19 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file, u8 *kbuf,
+ 	 *	Internal serialization of reads.
+ 	 */
+ 	if (file->f_flags & O_NONBLOCK) {
+-		if (!mutex_trylock(&ldata->atomic_read_lock))
++		if (!mutex_trylock(&ldata->atomic_read_lock)) {
++			npc_tty_rx_trace_dump("__NPC_TTY_RX_NTTY_READ_RET__",
++					       tty, ldata, -EAGAIN,
++					       read_cnt(ldata));
+ 			return -EAGAIN;
++		}
+ 	} else {
+-		if (mutex_lock_interruptible(&ldata->atomic_read_lock))
++		if (mutex_lock_interruptible(&ldata->atomic_read_lock)) {
++			npc_tty_rx_trace_dump("__NPC_TTY_RX_NTTY_READ_RET__",
++					       tty, ldata, -ERESTARTSYS,
++					       read_cnt(ldata));
+ 			return -ERESTARTSYS;
++		}
+ 	}
+ 
+ 	down_read(&tty->termios_rwsem);
+@@ -2298,9 +2405,13 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file, u8 *kbuf,
+ 			 */
+ 			if (copy_from_read_buf(tty, &kb, &nr) && kb - kbuf >= minimum) {
+ more_to_be_read:
++				retval = kb - kbuf;
+ 				remove_wait_queue(&tty->read_wait, &wait);
+ 				*cookie = cookie;
+-				return kb - kbuf;
++				npc_tty_rx_trace_dump("__NPC_TTY_RX_NTTY_READ_RET__",
++						       tty, ldata, retval,
++						       read_cnt(ldata));
++				return retval;
+ 			}
+ 		}
+ 
+@@ -2327,6 +2438,8 @@ more_to_be_read:
+ 	if (kb - kbuf)
+ 		retval = kb - kbuf;
+ 
++	npc_tty_rx_trace_dump("__NPC_TTY_RX_NTTY_READ_RET__", tty, ldata,
++			       retval, read_cnt(ldata));
+ 	return retval;
+ }
+ 
+@@ -2452,6 +2565,7 @@ break_out:
+ static __poll_t n_tty_poll(struct tty_struct *tty, struct file *file,
+ 							poll_table *wait)
+ {
++	struct n_tty_data *ldata = tty->disc_data;
+ 	__poll_t mask = 0;
+ 
+ 	poll_wait(file, &tty->read_wait, wait);
+@@ -2473,6 +2587,8 @@ static __poll_t n_tty_poll(struct tty_struct *tty, struct file *file,
+ 			tty_chars_in_buffer(tty) < WAKEUP_CHARS &&
+ 			tty_write_room(tty) > 0)
+ 		mask |= EPOLLOUT | EPOLLWRNORM;
++	npc_tty_rx_trace_dump("__NPC_TTY_RX_NTTY_POLL__", tty, ldata,
++			       (long)mask, read_cnt(ldata));
+ 	return mask;
+ }
+ 
+@@ -2510,6 +2626,8 @@ static int n_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
+ 			retval = inq_canon(ldata);
+ 		else
+ 			retval = read_cnt(ldata);
++		npc_tty_rx_trace_dump("__NPC_TTY_RX_NTTY_IOCTL_TIOCINQ__",
++				       tty, ldata, retval, read_cnt(ldata));
+ 		up_write(&tty->termios_rwsem);
+ 		return put_user(retval, (unsigned int __user *) arg);
+ 	default:
+diff --git a/drivers/tty/serial/8250/8250_port.c b/drivers/tty/serial/8250/8250_port.c
+index 1416273..44d60b0 100644
+--- a/drivers/tty/serial/8250/8250_port.c
++++ b/drivers/tty/serial/8250/8250_port.c
+@@ -11,6 +11,7 @@
+  *  membase is an 'ioremapped' cookie.
+  */
+ 
++#include <linux/atomic.h>
+ #include <linux/module.h>
+ #include <linux/moduleparam.h>
+ #include <linux/ioport.h>
+@@ -38,6 +39,21 @@
+ 
+ #include "8250.h"
+ 
++extern atomic64_t npc_tty_rx_trace_8250_chars;
++extern atomic64_t npc_tty_rx_trace_8250_pushes;
++extern atomic64_t npc_tty_rx_trace_8250_irq_calls;
++extern atomic64_t npc_tty_rx_trace_8250_irq_no_int;
++extern atomic64_t npc_tty_rx_trace_8250_irq_handled;
++extern atomic64_t npc_tty_rx_trace_8250_iir_rdi;
++extern atomic64_t npc_tty_rx_trace_8250_iir_rlsi;
++extern atomic64_t npc_tty_rx_trace_8250_iir_timeout;
++extern atomic64_t npc_tty_rx_trace_8250_iir_thri;
++extern atomic64_t npc_tty_rx_trace_8250_lsr_dr;
++extern atomic64_t npc_tty_rx_trace_8250_lsr_oe;
++extern atomic64_t npc_tty_rx_trace_8250_last_iir;
++extern atomic64_t npc_tty_rx_trace_8250_last_lsr;
++extern atomic64_t npc_tty_rx_trace_8250_last_ier;
++
+ /* Nuvoton NPCM timeout register */
+ #define UART_NPCM_TOR          7
+ #define UART_NPCM_TOIE         BIT(7)  /* Timeout Interrupt Enable */
+@@ -1765,6 +1781,7 @@ void serial8250_read_char(struct uart_8250_port *up, u16 lsr)
+ 	if (uart_prepare_sysrq_char(port, ch))
+ 		return;
+ 
++	atomic64_inc(&npc_tty_rx_trace_8250_chars);
+ 	uart_insert_char(port, lsr, UART_LSR_OE, ch, flag);
+ }
+ EXPORT_SYMBOL_GPL(serial8250_read_char);
+@@ -1788,6 +1805,7 @@ u16 serial8250_rx_chars(struct uart_8250_port *up, u16 lsr)
+ 		lsr = serial_in(up, UART_LSR);
+ 	} while (lsr & (UART_LSR_DR | UART_LSR_BI));
+ 
++	atomic64_inc(&npc_tty_rx_trace_8250_pushes);
+ 	tty_flip_buffer_push(&port->state->port);
+ 	return lsr;
+ }
+@@ -1915,12 +1933,40 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
+ 	unsigned long flags;
+ 	u16 status;
+ 
+-	if (iir & UART_IIR_NO_INT)
++	atomic64_inc(&npc_tty_rx_trace_8250_irq_calls);
++	atomic64_set(&npc_tty_rx_trace_8250_last_iir, iir);
++
++	switch (iir & UART_IIR_ID) {
++	case UART_IIR_RDI:
++		atomic64_inc(&npc_tty_rx_trace_8250_iir_rdi);
++		break;
++	case UART_IIR_RLSI:
++		atomic64_inc(&npc_tty_rx_trace_8250_iir_rlsi);
++		break;
++	case UART_IIR_RX_TIMEOUT:
++		atomic64_inc(&npc_tty_rx_trace_8250_iir_timeout);
++		break;
++	case UART_IIR_THRI:
++		atomic64_inc(&npc_tty_rx_trace_8250_iir_thri);
++		break;
++	}
++
++	if (iir & UART_IIR_NO_INT) {
++		atomic64_inc(&npc_tty_rx_trace_8250_irq_no_int);
+ 		return 0;
++	}
++
++	atomic64_inc(&npc_tty_rx_trace_8250_irq_handled);
+ 
+ 	spin_lock_irqsave(&port->lock, flags);
+ 
+ 	status = serial_lsr_in(up);
++	atomic64_set(&npc_tty_rx_trace_8250_last_lsr, status);
++	atomic64_set(&npc_tty_rx_trace_8250_last_ier, up->ier);
++	if (status & UART_LSR_DR)
++		atomic64_inc(&npc_tty_rx_trace_8250_lsr_dr);
++	if (status & UART_LSR_OE)
++		atomic64_inc(&npc_tty_rx_trace_8250_lsr_oe);
+ 
+ 	/*
+ 	 * If port is stopped and there are no error conditions in the
+diff --git a/drivers/tty/serial/serial_core.c b/drivers/tty/serial/serial_core.c
+index d5ba6e9..9a7d880 100644
+--- a/drivers/tty/serial/serial_core.c
++++ b/drivers/tty/serial/serial_core.c
+@@ -7,6 +7,7 @@
+  *  Copyright 1999 ARM Limited
+  *  Copyright (C) 2000-2001 Deep Blue Solutions Ltd.
+  */
++#include <linux/atomic.h>
+ #include <linux/module.h>
+ #include <linux/tty.h>
+ #include <linux/tty_flip.h>
+@@ -34,6 +35,11 @@
+ 
+ #include "serial_base.h"
+ 
++extern atomic64_t npc_tty_rx_trace_uart_insert_calls;
++extern atomic64_t npc_tty_rx_trace_uart_inserted;
++extern atomic64_t npc_tty_rx_trace_uart_ignored;
++extern atomic64_t npc_tty_rx_trace_uart_overrun;
++
+ /*
+  * This is used to lock changes in serial line configuration.
+  */
+@@ -3489,17 +3495,26 @@ void uart_insert_char(struct uart_port *port, unsigned int status,
+ {
+ 	struct tty_port *tport = &port->state->port;
+ 
+-	if ((status & port->ignore_status_mask & ~overrun) == 0)
++	atomic64_inc(&npc_tty_rx_trace_uart_insert_calls);
++
++	if ((status & port->ignore_status_mask & ~overrun) == 0) {
+ 		if (tty_insert_flip_char(tport, ch, flag) == 0)
+ 			++port->icount.buf_overrun;
++		else
++			atomic64_inc(&npc_tty_rx_trace_uart_inserted);
++	} else {
++		atomic64_inc(&npc_tty_rx_trace_uart_ignored);
++	}
+ 
+ 	/*
+ 	 * Overrun is special.  Since it's reported immediately,
+ 	 * it doesn't affect the current character.
+ 	 */
+-	if (status & ~port->ignore_status_mask & overrun)
++	if (status & ~port->ignore_status_mask & overrun) {
++		atomic64_inc(&npc_tty_rx_trace_uart_overrun);
+ 		if (tty_insert_flip_char(tport, 0, TTY_OVERRUN) == 0)
+ 			++port->icount.buf_overrun;
++	}
+ }
+ EXPORT_SYMBOL_GPL(uart_insert_char);
+ 
+diff --git a/drivers/tty/tty_buffer.c b/drivers/tty/tty_buffer.c
+index 5f6d0cf..7f96243 100644
+--- a/drivers/tty/tty_buffer.c
++++ b/drivers/tty/tty_buffer.c
+@@ -3,6 +3,7 @@
+  * Tty buffer allocation management
+  */
+ 
++#include <linux/atomic.h>
+ #include <linux/types.h>
+ #include <linux/errno.h>
+ #include <linux/minmax.h>
+@@ -20,6 +21,10 @@
+ #include <linux/ratelimit.h>
+ #include "tty.h"
+ 
++extern atomic64_t npc_tty_rx_trace_flip_pushes;
++extern atomic64_t npc_tty_rx_trace_flush_calls;
++extern atomic64_t npc_tty_rx_trace_ldisc_rcvd;
++
+ #define MIN_TTYB_SIZE	256
+ #define TTYB_ALIGN_MASK	0xff
+ 
+@@ -442,7 +447,9 @@ receive_buf(struct tty_port *port, struct tty_buffer *head, size_t count)
+ 	if (head->flags)
+ 		f = flag_buf_ptr(head, head->read);
+ 
++	atomic64_inc(&npc_tty_rx_trace_flush_calls);
+ 	n = port->client_ops->receive_buf(port, p, f, count);
++	atomic64_add(n, &npc_tty_rx_trace_ldisc_rcvd);
+ 	if (n > 0)
+ 		memset(p, 0, n);
+ 	return n;
+@@ -531,6 +538,7 @@ void tty_flip_buffer_push(struct tty_port *port)
+ 	struct tty_bufhead *buf = &port->buf;
+ 
+ 	tty_flip_buffer_commit(buf->tail);
++	atomic64_inc(&npc_tty_rx_trace_flip_pushes);
+ 	queue_work(system_unbound_wq, &buf->work);
+ }
+ EXPORT_SYMBOL(tty_flip_buffer_push);

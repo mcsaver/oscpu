@@ -1,0 +1,2 @@
+boot_seconds	guest_check_seconds	poweroff_seconds	total_seconds	soak_seconds	fs_stress_mib	fs_tree_files	process_loops	uart_rx_stress_lines	block_parallel_jobs	block_job_mib	net_tcp_burst_loops	input_chunk_bytes	input_chunk_delay	locale_gen_timeout	max_cycles	rootfs_overlay
+69	1312	8	1390	0	1	8	4	64	1	1	8	64	0	600	240000000000	/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-22-2026-06-22-nemu-full-locale-gen-timeout-full-gate/nemu-ubuntu-full-focused/rootfs-overlay.raw

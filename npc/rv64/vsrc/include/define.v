@@ -244,6 +244,10 @@
 `define OPCODE_OP          7'b0110011
 `define OPCODE_OP_32       7'b0111011
 `define OPCODE_LUI         7'b0110111
+`define OPCODE_MADD        7'b1000011
+`define OPCODE_MSUB        7'b1000111
+`define OPCODE_NMSUB       7'b1001011
+`define OPCODE_NMADD       7'b1001111
 `define OPCODE_OP_FP       7'b1010011
 `define OPCODE_BRANCH      7'b1100011
 `define OPCODE_JALR        7'b1100111

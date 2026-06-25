@@ -2,6 +2,34 @@
 
 /* CSR 执行基础设施集中在这里。SYSTEM 分发只决定“是哪类系统指令”，
  * CSR 的读改写语义、misa 配置回显和 mepc 对齐规则都不散到主 switch 里。 */
+#include <utils/profile.h>
+
+static bool csr_last_sstatus_write_valid = false;
+static bool csr_last_sstatus_write_changed = true;
+static bool csr_last_sstatus_write_only_cleared_sie = false;
+static word_t csr_last_sstatus_write_old = 0;
+static word_t csr_last_sstatus_write_new = 0;
+static word_t csr_last_sstatus_write_delta = 0;
+
+bool isa_riscv64_last_sstatus_write_was_unchanged(void) {
+  return csr_last_sstatus_write_valid && !csr_last_sstatus_write_changed;
+}
+
+bool isa_riscv64_last_sstatus_write_only_cleared_sie(void) {
+  return csr_last_sstatus_write_valid && csr_last_sstatus_write_only_cleared_sie;
+}
+
+bool isa_riscv64_last_sstatus_write_delta(word_t *old_status,
+    word_t *new_status, word_t *delta) {
+  if (!csr_last_sstatus_write_valid) {
+    return false;
+  }
+  if (old_status) *old_status = csr_last_sstatus_write_old;
+  if (new_status) *new_status = csr_last_sstatus_write_new;
+  if (delta) *delta = csr_last_sstatus_write_delta;
+  return true;
+}
+
 static inline word_t csr_misa_value() {
   word_t misa = (word_t)2 << 62;
   // RV64 文件只描述 RV64I 基线；RV32E 由 riscv32 目录单独管理。
@@ -62,6 +90,72 @@ static inline bool csr_counter_allowed(uint32_t csr) {
   word_t bit = csr_counter_bit(csr);
   if (cpu.priv == PRIV_S) return (cpu.csr.mcounteren & bit) != 0;
   return (cpu.csr.mcounteren & bit) != 0 && (cpu.csr.scounteren & bit) != 0;
+}
+
+static inline word_t csr_status_sd_bit(void) {
+  return (cpu.csr.mstatus & MSTATUS_FS_MASK) == MSTATUS_FS_DIRTY
+           ? MSTATUS_SD : 0;
+}
+
+static inline word_t csr_mstatus_read_value(void) {
+  return (cpu.csr.mstatus | MSTATUS_SXL_UXL | csr_status_sd_bit());
+}
+
+static inline word_t csr_sstatus_read_value(void) {
+  return (csr_mstatus_read_value() & SSTATUS_MASK) | csr_status_sd_bit();
+}
+
+static inline void csr_profile_sstatus_write_delta(word_t old_status,
+    word_t new_status) {
+  word_t delta = (old_status ^ new_status) & SSTATUS_MASK;
+  // TB 边界判断消费真实写后 delta：只允许无变化或仅关 SIE 的窄安全子集继续。
+  csr_last_sstatus_write_valid = true;
+  csr_last_sstatus_write_changed = delta != 0;
+  csr_last_sstatus_write_only_cleared_sie =
+      delta == MSTATUS_SIE &&
+      (old_status & MSTATUS_SIE) != 0 &&
+      (new_status & MSTATUS_SIE) == 0;
+  csr_last_sstatus_write_old = old_status;
+  csr_last_sstatus_write_new = new_status;
+  csr_last_sstatus_write_delta = delta;
+
+  if (!nemu_profile_stop_detail_enabled()) return;
+
+  nemu_profile_count(NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_TOTAL, 1);
+  if (delta == 0) {
+    nemu_profile_count(NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_UNCHANGED, 1);
+    return;
+  }
+
+  nemu_profile_count(NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_CHANGED, 1);
+  if (delta & MSTATUS_SIE) {
+    nemu_profile_count(NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_DELTA_SIE, 1);
+  }
+  if (delta & MSTATUS_SPIE) {
+    nemu_profile_count(NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_DELTA_SPIE, 1);
+  }
+  if (delta & MSTATUS_SPP) {
+    nemu_profile_count(NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_DELTA_SPP, 1);
+  }
+  if (delta & MSTATUS_FS_MASK) {
+    nemu_profile_count(NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_DELTA_FS, 1);
+  }
+  if (delta & MSTATUS_SUM) {
+    nemu_profile_count(NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_DELTA_SUM, 1);
+  }
+  if (delta & MSTATUS_MXR) {
+    nemu_profile_count(NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_DELTA_MXR, 1);
+  }
+  if (delta & MSTATUS_SXL_UXL) {
+    nemu_profile_count(NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_DELTA_SXL_UXL, 1);
+  }
+
+  word_t known = MSTATUS_SIE | MSTATUS_SPIE | MSTATUS_SPP |
+                 MSTATUS_FS_MASK | MSTATUS_SUM | MSTATUS_MXR |
+                 MSTATUS_SXL_UXL;
+  if (delta & ~known) {
+    nemu_profile_count(NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_DELTA_OTHER, 1);
+  }
 }
 
 static inline word_t csr_sanitize_satp(word_t value) {
@@ -168,7 +262,7 @@ static inline bool csr_read(uint32_t csr, word_t *value) {
     case CSR_FFLAGS:    *value = cpu.csr.fflags; return true;
     case CSR_FRM:       *value = cpu.csr.frm; return true;
     case CSR_FCSR:      *value = ((word_t)cpu.csr.frm << 5) | cpu.csr.fflags; return true;
-    case CSR_SSTATUS:  *value = (cpu.csr.mstatus | MSTATUS_SXL_UXL) & SSTATUS_MASK; return true;
+    case CSR_SSTATUS:  *value = csr_sstatus_read_value(); return true;
     case CSR_SIE:      *value = cpu.csr.mie & MIP_SUPERVISOR_MASK; return true;
     case CSR_STVEC:    *value = cpu.csr.stvec; return true;
     case CSR_SCOUNTEREN: *value = cpu.csr.scounteren; return true;
@@ -178,7 +272,7 @@ static inline bool csr_read(uint32_t csr, word_t *value) {
     case CSR_STVAL:    *value = cpu.csr.stval; return true;
     case CSR_SIP:      *value = isa_riscv64_mip_value() & MIP_SUPERVISOR_MASK; return true;
     case CSR_SATP:     *value = cpu.csr.satp; return true;
-    case CSR_MSTATUS:  *value = cpu.csr.mstatus; return true;
+    case CSR_MSTATUS:  *value = csr_mstatus_read_value(); return true;
     case CSR_MEDELEG:  *value = cpu.csr.medeleg; return true;
     case CSR_MIDELEG:  *value = cpu.csr.mideleg; return true;
     case CSR_MIE:      *value = cpu.csr.mie; return true;
@@ -226,10 +320,13 @@ static inline bool csr_write(uint32_t csr, word_t value) {
       cpu.csr.fflags = value & 0x1f;
       cpu.csr.frm = (value >> 5) & 0x7;
       return true;
-    case CSR_SSTATUS:
-      cpu.csr.mstatus = (cpu.csr.mstatus & ~SSTATUS_MASK) |
-                        (value & SSTATUS_MASK) | MSTATUS_SXL_UXL;
+    case CSR_SSTATUS: {
+      word_t old_status = cpu.csr.mstatus & SSTATUS_MASK;
+      word_t new_status = (value & SSTATUS_MASK) | MSTATUS_SXL_UXL;
+      csr_profile_sstatus_write_delta(old_status, new_status);
+      cpu.csr.mstatus = (cpu.csr.mstatus & ~SSTATUS_MASK) | new_status;
       return true;
+    }
     case CSR_SIE:
       cpu.csr.mie = (cpu.csr.mie & ~MIP_SUPERVISOR_MASK) |
                     (value & MIP_SUPERVISOR_MASK);
@@ -380,6 +477,13 @@ static inline bool exec_csr(uint32_t inst, uint32_t funct3, int rd, int rs1) {
   word_t new_val = 0;
   word_t write_mask = 0;
   bool need_write = false;
+
+  csr_last_sstatus_write_valid = false;
+  csr_last_sstatus_write_changed = true;
+  csr_last_sstatus_write_only_cleared_sie = false;
+  csr_last_sstatus_write_old = 0;
+  csr_last_sstatus_write_new = 0;
+  csr_last_sstatus_write_delta = 0;
 
   if (cpu.priv < BITS(csr, 9, 8)) return false;
   if (!csr_counter_allowed(csr)) return false;

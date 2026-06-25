@@ -20,7 +20,9 @@
 #include <memory/cache.h>
 #include <memory/paddr.h>
 #include <memory/vaddr.h>
+#include <isa.h>
 #include <utils/profile.h>
+#include <errno.h>
 #include <locale.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,6 +58,124 @@ static bool cpu_runtime_env_enabled_default_true(const char *name) {
 #endif
 }
 
+#if defined(CONFIG_ISA_riscv)
+static bool cpu_runtime_env_u64(const char *name, uint64_t *value) {
+#ifndef CONFIG_TARGET_AM
+  const char *env = getenv(name);
+  if (env == NULL || env[0] == '\0') {
+    return false;
+  }
+  errno = 0;
+  char *end = NULL;
+  uint64_t parsed = strtoull(env, &end, 0);
+  Assert(errno == 0 && end != env && *end == '\0',
+      "invalid %s=%s, expect an integer", name, env);
+  *value = parsed;
+  return true;
+#else
+  (void)name;
+  (void)value;
+  return false;
+#endif
+}
+
+static bool pc_gpr_trace_is_enabled = false;
+static word_t pc_gpr_trace_start = 0;
+static word_t pc_gpr_trace_end = 0;
+static uint64_t pc_gpr_trace_max = 4096;
+static uint64_t pc_gpr_trace_count = 0;
+static bool pc_gpr_trace_user_only = true;
+
+__attribute__((constructor))
+static void cpu_pc_gpr_trace_config_init(void) {
+#ifndef CONFIG_TARGET_AM
+  uint64_t start = 0;
+  uint64_t end = 0;
+  bool has_start = cpu_runtime_env_u64("NEMU_PC_GPR_TRACE_START", &start);
+  bool has_end = cpu_runtime_env_u64("NEMU_PC_GPR_TRACE_END", &end);
+  const char *trace_env = getenv("NEMU_PC_GPR_TRACE");
+  bool requested = trace_env != NULL && trace_env[0] != '\0' &&
+    strcmp(trace_env, "0") != 0;
+  if (requested || has_start || has_end) {
+    Assert(has_start && has_end,
+        "NEMU_PC_GPR_TRACE requires START and END");
+    Assert(end >= start,
+        "NEMU_PC_GPR_TRACE range end must be >= start");
+    cpu_runtime_env_u64("NEMU_PC_GPR_TRACE_MAX", &pc_gpr_trace_max);
+    pc_gpr_trace_user_only =
+      cpu_runtime_env_enabled_default_true("NEMU_PC_GPR_TRACE_USER_ONLY");
+    pc_gpr_trace_start = (word_t)start;
+    pc_gpr_trace_end = (word_t)end;
+    pc_gpr_trace_count = 0;
+    pc_gpr_trace_is_enabled = true;
+    Log("pc-gpr-trace armed start=" FMT_WORD " end=" FMT_WORD
+        " max=%" PRIu64 " user_only=%d",
+        pc_gpr_trace_start, pc_gpr_trace_end, pc_gpr_trace_max,
+        pc_gpr_trace_user_only ? 1 : 0);
+  }
+#endif
+}
+
+static inline void pc_gpr_trace_after_exec(const Decode *s) {
+  if (likely(!pc_gpr_trace_is_enabled)) return;
+  if (pc_gpr_trace_max != 0 && pc_gpr_trace_count >= pc_gpr_trace_max) {
+    return;
+  }
+  if (pc_gpr_trace_user_only && cpu.priv != PRIV_U) {
+    return;
+  }
+  if (s->pc < pc_gpr_trace_start || s->pc > pc_gpr_trace_end) {
+    return;
+  }
+  pc_gpr_trace_count++;
+  Log("pc-gpr-trace count=%" PRIu64 " pc=" FMT_WORD
+      " inst=0x%08x snpc=" FMT_WORD " dnpc=" FMT_WORD
+      " priv=%u satp=" FMT_WORD
+      " ra=" FMT_WORD " sp=" FMT_WORD " t0=" FMT_WORD
+      " a0=" FMT_WORD " a1=" FMT_WORD " a3=" FMT_WORD
+      " a5=" FMT_WORD " s2=" FMT_WORD " s3=" FMT_WORD
+      " s7=" FMT_WORD " s10=" FMT_WORD
+#if defined(CONFIG_RISCV_EXT_D)
+      " ft0_raw=0x%016" PRIx64 " ft0=%a"
+      " ft1_raw=0x%016" PRIx64 " ft1=%a"
+      " ft2_raw=0x%016" PRIx64 " ft2=%a"
+      " ft3_raw=0x%016" PRIx64 " ft3=%a"
+      " ft4_raw=0x%016" PRIx64 " ft4=%a"
+      " ft5_raw=0x%016" PRIx64 " ft5=%a"
+      " fa0_raw=0x%016" PRIx64 " fa0=%a"
+      " fa2_raw=0x%016" PRIx64 " fa2=%a"
+      " fa3_raw=0x%016" PRIx64 " fa3=%a"
+      " fa4_raw=0x%016" PRIx64 " fa4=%a"
+      " fa5_raw=0x%016" PRIx64 " fa5=%a"
+#endif
+      ,
+      pc_gpr_trace_count, s->pc, s->isa.inst, s->snpc, s->dnpc,
+      cpu.priv, cpu.csr.satp,
+      cpu.gpr[1], cpu.gpr[2], cpu.gpr[5],
+      cpu.gpr[10], cpu.gpr[11], cpu.gpr[13],
+      cpu.gpr[15], cpu.gpr[18], cpu.gpr[19],
+      cpu.gpr[23], cpu.gpr[26]
+#if defined(CONFIG_RISCV_EXT_D)
+      , cpu.fpr[0], (union { uint64_t u; double d; }){ .u = cpu.fpr[0] }.d
+      , cpu.fpr[1], (union { uint64_t u; double d; }){ .u = cpu.fpr[1] }.d
+      , cpu.fpr[2], (union { uint64_t u; double d; }){ .u = cpu.fpr[2] }.d
+      , cpu.fpr[3], (union { uint64_t u; double d; }){ .u = cpu.fpr[3] }.d
+      , cpu.fpr[4], (union { uint64_t u; double d; }){ .u = cpu.fpr[4] }.d
+      , cpu.fpr[5], (union { uint64_t u; double d; }){ .u = cpu.fpr[5] }.d
+      , cpu.fpr[10], (union { uint64_t u; double d; }){ .u = cpu.fpr[10] }.d
+      , cpu.fpr[12], (union { uint64_t u; double d; }){ .u = cpu.fpr[12] }.d
+      , cpu.fpr[13], (union { uint64_t u; double d; }){ .u = cpu.fpr[13] }.d
+      , cpu.fpr[14], (union { uint64_t u; double d; }){ .u = cpu.fpr[14] }.d
+      , cpu.fpr[15], (union { uint64_t u; double d; }){ .u = cpu.fpr[15] }.d
+#endif
+      );
+}
+#else
+static inline void pc_gpr_trace_after_exec(const Decode *s) {
+  (void)s;
+}
+#endif
+
 bool cpu_interpreter_basic_block_runtime_enabled(void) {
   static int enabled = -1;
   if (enabled < 0) {
@@ -86,6 +206,18 @@ uint64_t cpu_interpreter_tb_max_inst_runtime(void) {
   return max_inst;
 #else
   return 0;
+#endif
+}
+
+bool cpu_interpreter_tb_amo_continue_runtime_enabled(void) {
+#ifdef CONFIG_INTERPRETER_BASIC_BLOCK
+  static int enabled = -1;
+  if (enabled < 0) {
+    enabled = cpu_runtime_env_enabled_default_true("NEMU_INTERPRETER_TB_AMO_CONTINUE") ? 1 : 0;
+  }
+  return enabled != 0;
+#else
+  return false;
 #endif
 }
 
@@ -286,6 +418,7 @@ static void execute_one(Decode *s) {
   }
   g_nr_guest_inst ++;//记录客户指令的计数器
   IFDEF(CONFIG_ISA_riscv, isa_riscv_post_exec());
+  pc_gpr_trace_after_exec(s);
   riscv_progress_debug_log();
 #ifdef CONFIG_ITRACE
   // 把日志构造延后到执行后，并且仅在真正需要输出时触发，减少常规运行时的额外工作。
@@ -483,6 +616,79 @@ static inline bool interpreter_tb_csr_readonly(uint32_t inst) {
   }
 }
 
+static inline bool interpreter_tb_csr_sstatus_imm_clear_can_continue(const Decode *s, uint32_t inst) {
+  enum { csr_sstatus = 0x100u, sstatus_imm_sie = 0x2u };
+  uint32_t funct3 = BITS(inst, 14, 12);
+  uint32_t csr = BITS(inst, 31, 20);
+  uint32_t uimm = BITS(inst, 19, 15);
+
+  // csrrci 的 5-bit 立即数在 sstatus 可写位中只能清 SIE；清位不会暴露新的异步中断。
+  if (funct3 != 0x7 || csr != csr_sstatus || uimm == 0) {
+    return false;
+  }
+  if (s->dnpc != s->snpc) {
+    return false;
+  }
+  if ((uimm & sstatus_imm_sie) == 0) {
+    return false;
+  }
+
+  nemu_profile_count_if(NEMU_PROFILE_CPU_TB_CONTINUE_CSR_SSTATUS_IMM_CLEAR, 1);
+  return true;
+}
+
+static inline bool interpreter_tb_csr_trap_metadata_can_continue(const Decode *s, uint32_t inst) {
+  uint32_t csr = BITS(inst, 31, 20);
+
+  if (s->dnpc != s->snpc) {
+    return false;
+  }
+  // 这些 CSR 只是 trap 元数据寄存器；不改变当前 TB 内的取指、翻译、权限或中断使能。
+  switch (csr) {
+    case 0x140u: // sscratch
+    case 0x141u: // sepc
+    case 0x142u: // scause
+    case 0x143u: // stval
+    case 0x340u: // mscratch
+    case 0x341u: // mepc
+    case 0x342u: // mcause
+    case 0x343u: // mtval
+      nemu_profile_count_if(NEMU_PROFILE_CPU_TB_CONTINUE_CSR_TRAP_METADATA, 1);
+      return true;
+    default:
+      return false;
+  }
+}
+
+static inline bool interpreter_tb_csr_sstatus_unchanged_can_continue(const Decode *s, uint32_t inst) {
+  uint32_t csr = BITS(inst, 31, 20);
+
+  if (csr != 0x100u || s->dnpc != s->snpc) {
+    return false;
+  }
+  if (!isa_riscv_last_sstatus_write_was_unchanged()) {
+    return false;
+  }
+
+  nemu_profile_count_if(NEMU_PROFILE_CPU_TB_CONTINUE_CSR_SSTATUS_UNCHANGED, 1);
+  return true;
+}
+
+static inline bool interpreter_tb_csr_sstatus_sie_clear_can_continue(const Decode *s, uint32_t inst) {
+  uint32_t csr = BITS(inst, 31, 20);
+
+  if (csr != 0x100u || s->dnpc != s->snpc) {
+    return false;
+  }
+  // 真实写后只把 SIE 从 1 清到 0 才继续；设置 SIE 或改 SUM/FS/MXR/SPP 仍作为 TB 边界。
+  if (!isa_riscv_last_sstatus_write_only_cleared_sie()) {
+    return false;
+  }
+
+  nemu_profile_count_if(NEMU_PROFILE_CPU_TB_CONTINUE_CSR_SSTATUS_SIE_CLEAR, 1);
+  return true;
+}
+
 static inline void interpreter_tb_profile_amo_detail(uint32_t inst) {
   uint32_t funct5 = BITS(inst, 31, 27);
   switch (funct5) {
@@ -505,10 +711,93 @@ static inline void interpreter_tb_profile_continue_amo_detail(uint32_t inst) {
   }
 }
 
+static inline bool interpreter_tb_amo_can_continue(const Decode *s, uint32_t inst) {
+  if (!cpu_interpreter_tb_amo_continue_runtime_enabled()) {
+    return false;
+  }
+  if (s->dnpc != s->snpc) {
+    return false;
+  }
+  if (unlikely(paddr_has_device_write())) {
+    return false;
+  }
+
+  // AMO/LR/SC 已按顺序解释执行；只有真实落在 PMEM 且没有触发设备写时才合并进当前 TB。
+  nemu_profile_count_if(NEMU_PROFILE_CPU_TB_CONTINUE_AMO, 1);
+  if (unlikely(nemu_profile_stop_detail_enabled())) {
+    interpreter_tb_profile_continue_amo_detail(inst);
+  }
+  return true;
+}
+
+static inline void interpreter_tb_profile_sstatus_stop_delta(void) {
+  word_t old_status = 0;
+  word_t new_status = 0;
+  word_t delta = 0;
+  if (!isa_riscv_last_sstatus_write_delta(&old_status, &new_status, &delta)) {
+    return;
+  }
+
+  if (delta & MSTATUS_SIE) {
+    nemu_profile_count_if((new_status & MSTATUS_SIE) ?
+        NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SSTATUS_DELTA_SIE_SET :
+        NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SSTATUS_DELTA_SIE_CLEAR, 1);
+  }
+  if (delta & MSTATUS_SUM) {
+    nemu_profile_count_if((new_status & MSTATUS_SUM) ?
+        NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SSTATUS_DELTA_SUM_SET :
+        NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SSTATUS_DELTA_SUM_CLEAR, 1);
+  }
+  if (delta & MSTATUS_FS_MASK) {
+    switch (new_status & MSTATUS_FS_MASK) {
+      case 0:
+        nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SSTATUS_DELTA_FS_TO_OFF, 1);
+        break;
+      case (word_t)1 << 13:
+        nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SSTATUS_DELTA_FS_TO_INITIAL, 1);
+        break;
+      case (word_t)2 << 13:
+        nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SSTATUS_DELTA_FS_TO_CLEAN, 1);
+        break;
+      case MSTATUS_FS_DIRTY:
+        nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SSTATUS_DELTA_FS_TO_DIRTY, 1);
+        break;
+    }
+  }
+
+  // 这里专门统计“剩余停块”里的单字段形态，用于判断下一轮是否还有安全 CSR 子类可放行。
+  if (delta == MSTATUS_SIE) {
+    nemu_profile_count_if((new_status & MSTATUS_SIE) ?
+        NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SSTATUS_DELTA_ONLY_SIE_SET :
+        NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SSTATUS_DELTA_ONLY_SIE_CLEAR, 1);
+  } else if (delta == MSTATUS_SUM) {
+    nemu_profile_count_if((new_status & MSTATUS_SUM) ?
+        NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SSTATUS_DELTA_ONLY_SUM_SET :
+        NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SSTATUS_DELTA_ONLY_SUM_CLEAR, 1);
+  } else if ((delta & MSTATUS_FS_MASK) != 0 &&
+             (delta & ~MSTATUS_FS_MASK) == 0) {
+    nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SSTATUS_DELTA_ONLY_FS, 1);
+  } else if (delta != 0) {
+    nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SSTATUS_DELTA_OTHER_OR_MULTI, 1);
+  }
+}
+
 static inline void interpreter_tb_profile_system_csr_detail(uint32_t inst) {
+  switch (BITS(inst, 14, 12)) {
+    case 0x1: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_OP_CSRRW, 1); break;
+    case 0x2: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_OP_CSRRS, 1); break;
+    case 0x3: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_OP_CSRRC, 1); break;
+    case 0x5: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_OP_CSRRWI, 1); break;
+    case 0x6: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_OP_CSRRSI, 1); break;
+    case 0x7: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_OP_CSRRCI, 1); break;
+    default: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_OP_OTHER, 1); break;
+  }
   uint32_t csr = BITS(inst, 31, 20);
   switch (csr) {
-    case 0x100: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SSTATUS, 1); break;
+    case 0x100:
+      nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SSTATUS, 1);
+      interpreter_tb_profile_sstatus_stop_delta();
+      break;
     case 0x104: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SIE, 1); break;
     case 0x105: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_STVEC, 1); break;
     case 0x140: nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SSCRATCH, 1); break;
@@ -562,7 +851,10 @@ static inline InterpreterTbStopReason interpreter_tb_static_stop_reason(const De
       }
       return INTERPRETER_TB_STOP_MEMORY_ORDER;
     }
-    case 0x2f: // AMO/LR/SC 保守收束，避免把同步原语跨块重排。
+    case 0x2f: // AMO/LR/SC：PMEM 顺序路径可继续，trap/设备写仍形成 TB 边界。
+      if (interpreter_tb_amo_can_continue(s, inst)) {
+        return INTERPRETER_TB_STOP_NONE;
+      }
       nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_AMO, 1);
       if (unlikely(nemu_profile_stop_detail_enabled())) {
         interpreter_tb_profile_amo_detail(inst);
@@ -589,6 +881,18 @@ static inline InterpreterTbStopReason interpreter_tb_static_stop_reason(const De
       if (funct3 != 0) {
         if (interpreter_tb_csr_readonly(inst)) {
           nemu_profile_count_if(NEMU_PROFILE_CPU_TB_CONTINUE_CSR_READONLY, 1);
+          return INTERPRETER_TB_STOP_NONE;
+        }
+        if (interpreter_tb_csr_sstatus_imm_clear_can_continue(s, inst)) {
+          return INTERPRETER_TB_STOP_NONE;
+        }
+        if (interpreter_tb_csr_trap_metadata_can_continue(s, inst)) {
+          return INTERPRETER_TB_STOP_NONE;
+        }
+        if (interpreter_tb_csr_sstatus_unchanged_can_continue(s, inst)) {
+          return INTERPRETER_TB_STOP_NONE;
+        }
+        if (interpreter_tb_csr_sstatus_sie_clear_can_continue(s, inst)) {
           return INTERPRETER_TB_STOP_NONE;
         }
         nemu_profile_count_if(NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR, 1);

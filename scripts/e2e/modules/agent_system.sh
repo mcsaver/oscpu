@@ -166,7 +166,9 @@ e2e_agent_system_discovery() {
   if grep -Fq 'e2e_validate_scenario_runtime_isolation' "$runner_sh" &&
      grep -Fq 'e2e_profile_runtime_scenario' "$scenario_runtime_sh" &&
      grep -Fq 'AGENT_E2E_SCENARIO_RUNTIME_ISOLATION' "$scenario_runtime_sh" &&
+     grep -Fq 'AGENT_E2E_SCENARIO_RUNTIME_STALE_SECONDS' "$scenario_runtime_sh" &&
      grep -Fq 'E2E_SCENARIO_RUNTIME_PS_FILE' "$scenario_runtime_sh" &&
+     grep -Fq 'ps -eo pid=,etimes=,args=' "$scenario_runtime_sh" &&
      grep -Fq 'run-guest-uart-ping' "$scenario_runtime_sh" &&
      grep -Fq 'nemu-python-int' "$scenario_runtime_sh"; then
     printf 'PASS agent-e2e exposes configurable active scenario runtime isolation\n'
@@ -201,6 +203,21 @@ e2e_agent_system_discovery() {
     printf 'PASS scenario runtime strict guard accepts same-scenario fake process\n'
   else
     printf 'FAIL scenario runtime strict guard rejects same-scenario fake process\n'
+    profile_isolation_ok=0
+  fi
+  printf '%s\n' \
+    '321 90000 bash .github/task-runs/2026-06-16-npc-systemd-real-shell-uart-check/run-login-generators-enabled.sh' \
+    > "$scenario_ps_file"
+  if AGENT_E2E_SCENARIO_RUNTIME_ISOLATION=warn E2E_SCENARIO_RUNTIME_PS_FILE="$scenario_ps_file" e2e_validate_scenario_runtime_isolation nemu-dev >/dev/null 2>&1; then
+    printf 'FAIL scenario runtime guard allows stale conflicting fake process by default\n'
+    profile_isolation_ok=0
+  else
+    printf 'PASS scenario runtime guard rejects stale conflicting fake process by default\n'
+  fi
+  if AGENT_E2E_SCENARIO_RUNTIME_ISOLATION=warn AGENT_E2E_SCENARIO_RUNTIME_STALE_SECONDS=0 E2E_SCENARIO_RUNTIME_PS_FILE="$scenario_ps_file" e2e_validate_scenario_runtime_isolation nemu-dev >/dev/null 2>&1; then
+    printf 'PASS scenario runtime stale guard can be disabled for explicit parallel long-runs\n'
+  else
+    printf 'FAIL scenario runtime stale guard ignores disable override\n'
     profile_isolation_ok=0
   fi
   rm -f "$scenario_ps_file"

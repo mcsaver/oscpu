@@ -25,6 +25,7 @@ module tb_axi_lite_xbar;
   reg [M_COUNT-1:0] m_arvalid;
   wire [M_COUNT-1:0] m_arready;
   reg [M_COUNT*ADDR_W-1:0] m_araddr;
+  reg [M_COUNT*STRB_W-1:0] m_arstrb;
   reg [M_COUNT*ARUSER_W-1:0] m_aruser;
   reg [M_COUNT-1:0] m_read_abort;
   wire [M_COUNT-1:0] m_rvalid;
@@ -46,6 +47,7 @@ module tb_axi_lite_xbar;
   wire [S_COUNT-1:0] s_arvalid;
   reg [S_COUNT-1:0] s_arready;
   wire [S_COUNT*ADDR_W-1:0] s_araddr;
+  wire [S_COUNT*STRB_W-1:0] s_arstrb;
   wire [S_COUNT*ARUSER_W-1:0] s_aruser;
   reg [S_COUNT-1:0] s_rvalid;
   wire [S_COUNT-1:0] s_rready;
@@ -79,6 +81,7 @@ module tb_axi_lite_xbar;
     .m_arvalid_i(m_arvalid),
     .m_arready_o(m_arready),
     .m_araddr_i(m_araddr),
+    .m_arstrb_i(m_arstrb),
     .m_aruser_i(m_aruser),
     .m_read_abort_i(m_read_abort),
     .m_rvalid_o(m_rvalid),
@@ -98,6 +101,7 @@ module tb_axi_lite_xbar;
     .s_arvalid_o(s_arvalid),
     .s_arready_i(s_arready),
     .s_araddr_o(s_araddr),
+    .s_arstrb_o(s_arstrb),
     .s_aruser_o(s_aruser),
     .s_rvalid_i(s_rvalid),
     .s_rready_o(s_rready),
@@ -119,6 +123,7 @@ module tb_axi_lite_xbar;
     begin
       m_arvalid = {M_COUNT{1'b0}};
       m_araddr = {M_COUNT*ADDR_W{1'b0}};
+      m_arstrb = {M_COUNT*STRB_W{1'b0}};
       m_aruser = {M_COUNT*ARUSER_W{1'b0}};
       m_read_abort = {M_COUNT{1'b0}};
       m_rready = {M_COUNT{1'b0}};
@@ -156,7 +161,18 @@ module tb_axi_lite_xbar;
     input [ADDR_W-1:0] addr;
     input user;
     begin
+      drive_read_strb(mid, addr, user, {STRB_W{1'b1}});
+    end
+  endtask
+
+  task automatic drive_read_strb;
+    input integer mid;
+    input [ADDR_W-1:0] addr;
+    input user;
+    input [STRB_W-1:0] strb;
+    begin
       m_araddr[mid*ADDR_W +: ADDR_W] = addr;
+      m_arstrb[mid*STRB_W +: STRB_W] = strb;
       m_aruser[mid*ARUSER_W +: ARUSER_W] = user;
       m_arvalid[mid] = 1'b1;
     end
@@ -179,8 +195,21 @@ module tb_axi_lite_xbar;
     input [ADDR_W-1:0] addr;
     input user;
     begin
+      check_slave_read_addr_strb(what, sid, addr, user, {STRB_W{1'b1}});
+    end
+  endtask
+
+  task automatic check_slave_read_addr_strb;
+    input [1023:0] what;
+    input integer sid;
+    input [ADDR_W-1:0] addr;
+    input user;
+    input [STRB_W-1:0] strb;
+    begin
       tb_check1({what, " arvalid"}, s_arvalid[sid], 1'b1);
       tb_check32({what, " araddr"}, s_araddr[sid*ADDR_W +: ADDR_W], addr);
+      tb_check32({what, " arstrb"}, {28'h0, s_arstrb[sid*STRB_W +: STRB_W]},
+                 {28'h0, strb});
       tb_check1({what, " aruser"}, s_aruser[sid], user);
     end
   endtask
@@ -201,7 +230,7 @@ module tb_axi_lite_xbar;
     tb_errors = 0;
     reset_dut();
 
-    drive_read(0, 32'h3000_0010, 1'b1);
+    drive_read_strb(0, 32'h3000_0010, 1'b1, 4'h5);
     m_rready[0] = 1'b1;
     s_arready[2] = 1'b1;
     #1;
@@ -209,7 +238,7 @@ module tb_axi_lite_xbar;
     `TB_TICK(clk);
     m_arvalid[0] = 1'b0;
     #1;
-    check_slave_read_addr("default read", 2, 32'h3000_0010, 1'b1);
+    check_slave_read_addr_strb("default read", 2, 32'h3000_0010, 1'b1, 4'h5);
     `TB_TICK(clk);
     s_arready[2] = 1'b0;
     drive_read_response(2, 32'hd00d_0001, 2'b10);

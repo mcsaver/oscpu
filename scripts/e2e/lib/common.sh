@@ -84,7 +84,7 @@ e2e_scenario_runtime_ps() {
     cat "$E2E_SCENARIO_RUNTIME_PS_FILE"
     return
   fi
-  ps -eo pid=,args=
+  ps -eo pid=,etimes=,args=
 }
 
 e2e_scenario_runtime_isolation_policy() {
@@ -101,6 +101,21 @@ e2e_scenario_runtime_isolation_policy() {
       ;;
     *)
       printf 'warn\n'
+      ;;
+  esac
+}
+
+e2e_scenario_runtime_stale_seconds() {
+  local seconds=${AGENT_E2E_SCENARIO_RUNTIME_STALE_SECONDS:-${E2E_SCENARIO_RUNTIME_STALE_SECONDS:-86400}}
+  case "$seconds" in
+    ''|off|disable|disabled|none)
+      printf '0\n'
+      ;;
+    *[!0-9]*)
+      printf '86400\n'
+      ;;
+    *)
+      printf '%s\n' "$seconds"
       ;;
   esac
 }
@@ -161,19 +176,35 @@ e2e_validate_scenario_runtime_isolation() {
     level=FAIL
   fi
 
-  local line trimmed pid args rc=0 shown=0
+  local line trimmed pid rest maybe_etime etimes args rc=0 shown=0 stale_shown=0 stale_threshold
+  stale_threshold=$(e2e_scenario_runtime_stale_seconds)
   while IFS= read -r line || [[ -n $line ]]; do
     trimmed=${line#"${line%%[![:space:]]*}"}
     [[ -z $trimmed ]] && continue
     pid=${trimmed%%[[:space:]]*}
-    args=${trimmed#"$pid"}
+    rest=${trimmed#"$pid"}
+    rest=${rest#"${rest%%[![:space:]]*}"}
+    maybe_etime=${rest%%[[:space:]]*}
+    etimes=
+    if [[ $maybe_etime =~ ^[0-9]+$ ]]; then
+      etimes=$maybe_etime
+      args=${rest#"$maybe_etime"}
+    else
+      args=$rest
+    fi
     args=${args#"${args%%[![:space:]]*}"}
     [[ -z $pid || -z $args ]] && continue
     [[ $pid = $$ ]] && continue
     if e2e_args_match_scenario_conflict "$scenario" "$args"; then
+      local conflict_level=$level stale_note=
+      if [[ $stale_threshold -gt 0 && -n $etimes && $etimes -ge $stale_threshold ]]; then
+        conflict_level=FAIL
+        stale_note=" stale_seconds=$etimes stale_threshold=$stale_threshold"
+        stale_shown=$((stale_shown + 1))
+      fi
       if [[ $shown -lt 8 ]]; then
-        printf '[agent-e2e] %s scenario-runtime-isolation profile=%s mode=%s policy=%s conflict_pid=%s args=%s\n' \
-          "$level" "$profile" "$scenario" "$policy" "$pid" "$args" >&2
+        printf '[agent-e2e] %s scenario-runtime-isolation profile=%s mode=%s policy=%s conflict_pid=%s%s args=%s\n' \
+          "$conflict_level" "$profile" "$scenario" "$policy" "$pid" "$stale_note" "$args" >&2
       fi
       shown=$((shown + 1))
       rc=1
@@ -182,6 +213,9 @@ e2e_validate_scenario_runtime_isolation() {
 
   if [[ $rc -eq 0 ]]; then
     printf '[agent-e2e] PASS scenario-runtime-isolation profile=%s mode=%s policy=%s\n' "$profile" "$scenario" "$policy"
+  elif [[ $stale_shown -gt 0 ]]; then
+    printf '[agent-e2e] FAIL scenario-runtime-isolation profile=%s mode=%s policy=%s stale_conflicts=%s stale_threshold=%s; stop stale conflicting task-run clients before dispatch\n' \
+      "$profile" "$scenario" "$policy" "$stale_shown" "$stale_threshold" >&2
   elif [[ $policy = strict ]]; then
     printf '[agent-e2e] FAIL scenario-runtime-isolation profile=%s mode=%s policy=strict conflicts=%s; finish or stop the conflicting scenario before dispatch\n' \
       "$profile" "$scenario" "$shown" >&2

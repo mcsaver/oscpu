@@ -1,0 +1,3 @@
+software-flow-contract	software-flow	software-flow	PASS	software-flow agent + profile + memory	软件开发全流程 agent 合约入口存在	.github/task-runs/2026-06-22-2026-06-22-nemu-sstatus-write-delta-contract/evidence/software-flow-contract.log
+nemu-ubuntu-static	nemu	nemu	PASS	Linux/NEMU Ubuntu rootfs scripts + performance config	NEMU Ubuntu 切片静态生产守门 PASS	.github/task-runs/2026-06-22-2026-06-22-nemu-sstatus-write-delta-contract/evidence/nemu-ubuntu-static.log
+nemu-ubuntu-slice-contract	nemu	nemu	FAIL	recent NEMU Ubuntu device slice hooks and guest markers	exit=1	.github/task-runs/2026-06-22-2026-06-22-nemu-sstatus-write-delta-contract/evidence/nemu-ubuntu-slice-contract.log

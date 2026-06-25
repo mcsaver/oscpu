@@ -11,6 +11,7 @@ module OooFpDecode (
   output fp_sgnj_o,
   output fp_addsub_o,
   output fp_mul_o,
+  output fp_fma_o,
   output fp_div_o,
   output fp_sqrt_o,
   output fp_minmax_o,
@@ -46,8 +47,15 @@ module OooFpDecode (
   localparam [6:0] FP_FUNCT7_FMV_X_D    = 7'b1110001;
 
   wire op_fp_w = (inst_i[6:0] == `OPCODE_OP_FP);
+  wire op_fma_w =
+      (inst_i[6:0] == `OPCODE_MADD) ||
+      (inst_i[6:0] == `OPCODE_MSUB) ||
+      (inst_i[6:0] == `OPCODE_NMSUB) ||
+      (inst_i[6:0] == `OPCODE_NMADD);
   wire fp_rounding_arith_w =
       (inst_i[14:12] <= 3'b100) || (inst_i[14:12] == 3'b111);
+  wire fp_fma_fmt_w =
+      (inst_i[26:25] == 2'b00) || (inst_i[26:25] == 2'b01);
   wire fp_cmp_funct3_w =
       (inst_i[14:12] == 3'b000) ||
       (inst_i[14:12] == 3'b001) ||
@@ -95,6 +103,9 @@ module OooFpDecode (
       decode_valid_i && op_fp_w && fp_rounding_arith_w &&
       ((inst_i[31:25] == FP_FUNCT7_FMUL_S) ||
        (inst_i[31:25] == FP_FUNCT7_FMUL_D));
+  assign fp_fma_o =
+      decode_valid_i && op_fma_w && fp_rounding_arith_w &&
+      fp_fma_fmt_w;
   assign fp_div_o =
       decode_valid_i && op_fp_w && fp_rounding_arith_w &&
       ((inst_i[31:25] == FP_FUNCT7_FDIV_S) ||
@@ -126,12 +137,13 @@ module OooFpDecode (
 
   assign fp_o = fp_load_o || fp_store_o ||
                 fp_move_to_fpr_o || fp_move_to_gpr_o || fp_class_o ||
-                fp_sgnj_o || fp_addsub_o || fp_mul_o || fp_div_o ||
+                fp_sgnj_o || fp_addsub_o || fp_mul_o || fp_fma_o || fp_div_o ||
                 fp_sqrt_o || fp_minmax_o || fp_compare_o ||
                 fp_convert_to_fpr_o || fp_convert_to_gpr_o;
   assign fp_double_o =
       (inst_i[14:12] == `FUNCT3_LD) ||
       (inst_i[14:12] == `FUNCT3_SD) ||
+      (op_fma_w && (inst_i[26:25] == 2'b01)) ||
       (inst_i[31:25] == FP_FUNCT7_FMV_X_D) ||
       (inst_i[31:25] == FP_FUNCT7_FMV_D_X) ||
       (inst_i[31:25] == FP_FUNCT7_FSGNJ_D) ||

@@ -1,0 +1,76 @@
+{
+  "artifacts": {
+    "context_brief": ".github/task-runs/2026-06-22-2026-06-22-db-doctor-unrelated-history-shim-fix/context-brief.md",
+    "dispatch_log": ".github/task-runs/2026-06-22-2026-06-22-db-doctor-unrelated-history-shim-fix/dispatch-log.md",
+    "evidence_dir": ".github/task-runs/2026-06-22-2026-06-22-db-doctor-unrelated-history-shim-fix/evidence",
+    "evidence_index": ".github/task-runs/2026-06-22-2026-06-22-db-doctor-unrelated-history-shim-fix/evidence-index.md",
+    "nodes": ".github/task-runs/2026-06-22-2026-06-22-db-doctor-unrelated-history-shim-fix/nodes.tsv",
+    "profile_resolve": ".github/task-runs/2026-06-22-2026-06-22-db-doctor-unrelated-history-shim-fix/profile-resolve.md",
+    "run_dir": ".github/task-runs/2026-06-22-2026-06-22-db-doctor-unrelated-history-shim-fix",
+    "run_manifest": ".github/task-runs/2026-06-22-2026-06-22-db-doctor-unrelated-history-shim-fix/run-manifest.json",
+    "task_report": ".github/task-runs/2026-06-22-2026-06-22-db-doctor-unrelated-history-shim-fix/task-report.md"
+  },
+  "db": {
+    "markdown_archive": true,
+    "raw_evidence_index_only": true
+  },
+  "evidence": {
+    "asset_count": 2,
+    "by_kind": {
+      "log": 1,
+      "tsv": 1
+    },
+    "total_size_bytes": 53321
+  },
+  "final_result": "profile=github-index 通过，当前 modular e2e 证据链可复用。",
+  "git": {
+    "branch": "ai",
+    "head": "4ae9a8c1f",
+    "upstream": "myfork/ai"
+  },
+  "graph_mode": "static",
+  "graph_template": "modular-agent-e2e",
+  "node_counts": {
+    "by_status": {
+      "PASS": 1
+    },
+    "total": 1
+  },
+  "nodes": [
+    {
+      "evidence": ".github/task-runs/2026-06-22-2026-06-22-db-doctor-unrelated-history-shim-fix/evidence/github-index-contract.log",
+      "inputs": "scripts/github_index_db.py + .github files",
+      "module": "github-index",
+      "node_id": "github-index-contract",
+      "outputs": "SQLite index can build, query and doctor .github metadata without owning originals",
+      "owner_agent": "agent-system",
+      "status": "PASS"
+    }
+  ],
+  "profile": "github-index",
+  "run_id": "2026-06-22-2026-06-22-db-doctor-unrelated-history-shim-fix",
+  "schema_version": 1,
+  "started_at": "2026-06-22 11:13:57 +0800",
+  "state_traceback": {
+    "current_state": "persist",
+    "evidence_policy": "task-report + dispatch-log + run-manifest + evidence-index",
+    "failure_reason": "",
+    "failure_state": "",
+    "inspector": "agent-system",
+    "reviewer": "ysyx-coordinator",
+    "rollback_target": "",
+    "state_sequence": [
+      "recall_context",
+      "classify_layer",
+      "plan_graph",
+      "implement",
+      "verify",
+      "inspect",
+      "persist"
+    ]
+  },
+  "status": "completed",
+  "task_slug": "2026-06-22-db-doctor-unrelated-history-shim-fix",
+  "trace_id": "e2e:2026-06-22-2026-06-22-db-doctor-unrelated-history-shim-fix",
+  "updated_at": "2026-06-22 11:14:05 +0800"
+}

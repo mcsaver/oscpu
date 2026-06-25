@@ -410,6 +410,7 @@ module OooAluFetchCore #(
   wire head0_fp_sgnj_raw_w;
   wire head0_fp_addsub_raw_w;
   wire head0_fp_mul_raw_w;
+  wire head0_fp_fma_raw_w;
   wire head0_fp_div_raw_w;
   wire head0_fp_sqrt_raw_w;
   wire head0_fp_minmax_raw_w;
@@ -431,6 +432,7 @@ module OooAluFetchCore #(
     .fp_sgnj_o(head0_fp_sgnj_raw_w),
     .fp_addsub_o(head0_fp_addsub_raw_w),
     .fp_mul_o(head0_fp_mul_raw_w),
+    .fp_fma_o(head0_fp_fma_raw_w),
     .fp_div_o(head0_fp_div_raw_w),
     .fp_sqrt_o(head0_fp_sqrt_raw_w),
     .fp_minmax_o(head0_fp_minmax_raw_w),
@@ -510,6 +512,7 @@ module OooAluFetchCore #(
   wire head1_fp_sgnj_raw_w;
   wire head1_fp_addsub_raw_w;
   wire head1_fp_mul_raw_w;
+  wire head1_fp_fma_raw_w;
   wire head1_fp_div_raw_w;
   wire head1_fp_sqrt_raw_w;
   wire head1_fp_minmax_raw_w;
@@ -531,6 +534,7 @@ module OooAluFetchCore #(
     .fp_sgnj_o(head1_fp_sgnj_raw_w),
     .fp_addsub_o(head1_fp_addsub_raw_w),
     .fp_mul_o(head1_fp_mul_raw_w),
+    .fp_fma_o(head1_fp_fma_raw_w),
     .fp_div_o(head1_fp_div_raw_w),
     .fp_sqrt_o(head1_fp_sqrt_raw_w),
     .fp_minmax_o(head1_fp_minmax_raw_w),
@@ -1658,8 +1662,9 @@ module OooAluFetchCore #(
                                      !pending_mem_dispatched_q &&
                                      backend_drained_q;
   wire mem_dispatch_valid_w = pending_mem_resolve_ready_w;
+  wire pending_fp_op_fp_w = pending_fp_inst_q[6:0] == `OPCODE_OP_FP;
   wire pending_fp_long_op_w =
-      pending_fp_q && !pending_fp_gpr_write_q &&
+      pending_fp_q && pending_fp_op_fp_w && !pending_fp_gpr_write_q &&
       ((pending_fp_inst_q[31:25] == FP_FUNCT7_FDIV_S) ||
        (pending_fp_inst_q[31:25] == FP_FUNCT7_FDIV_D) ||
        (pending_fp_inst_q[31:25] == FP_FUNCT7_FSQRT_S) ||
@@ -3185,6 +3190,35 @@ module OooAluFetchCore #(
     end
   endfunction
 
+  function [`XLEN-1:0] fp_neg_value;
+    input [`XLEN-1:0] value;
+    input is_double;
+    begin
+      fp_neg_value = is_double ?
+          (value ^ 64'h8000_0000_0000_0000) :
+          (value ^ 64'h0000_0000_8000_0000);
+    end
+  endfunction
+
+  function [`XLEN-1:0] fp_fma_value;
+    input [`XLEN-1:0] rs1_value;
+    input [`XLEN-1:0] rs2_value;
+    input [`XLEN-1:0] rs3_value;
+    input is_double;
+    input negate_product;
+    input subtract_addend;
+    input [2:0] rm;
+    reg [`XLEN-1:0] mul_value;
+    reg [`XLEN-1:0] lhs_value;
+    begin
+      mul_value = fp_mul_value(rs1_value, rs2_value, is_double, rm);
+      lhs_value = negate_product ? fp_neg_value(mul_value, is_double) :
+                                  mul_value;
+      fp_fma_value = fp_addsub_value(lhs_value, rs3_value, is_double,
+                                     subtract_addend, rm);
+    end
+  endfunction
+
   function [`XLEN-1:0] fp_div_d_value;
     input [`XLEN-1:0] rs1_value;
     input [`XLEN-1:0] rs2_value;
@@ -3723,6 +3757,7 @@ module OooAluFetchCore #(
 
   wire [`REG_ADDR_W-1:0] pending_fp_rs1_idx_w = pending_fp_inst_q[19:15];
   wire [`REG_ADDR_W-1:0] pending_fp_rs2_idx_w = pending_fp_inst_q[24:20];
+  wire [`REG_ADDR_W-1:0] pending_fp_rs3_idx_w = pending_fp_inst_q[31:27];
   wire [`XLEN-1:0] pending_fp_int_rs1_value_w =
       arch_gpr(core_debug_gprs_w, pending_fp_rs1_idx_w);
   wire [`XLEN-1:0] pending_fp_mem_addr_w =
@@ -3741,45 +3776,53 @@ module OooAluFetchCore #(
       {32'hffff_ffff, pending_fp_int_rs1_value_w[31:0]};
   wire [`XLEN-1:0] pending_fp_frs1_value_w = fpr_q[pending_fp_rs1_idx_w];
   wire [`XLEN-1:0] pending_fp_frs2_value_w = fpr_q[pending_fp_rs2_idx_w];
+  wire [`XLEN-1:0] pending_fp_frs3_value_w = fpr_q[pending_fp_rs3_idx_w];
   wire pending_fp_class_w =
-      pending_fp_gpr_write_q && (pending_fp_inst_q[14:12] == 3'b001) &&
+      pending_fp_op_fp_w && pending_fp_gpr_write_q &&
+      (pending_fp_inst_q[14:12] == 3'b001) &&
       ((pending_fp_inst_q[31:25] == FP_FUNCT7_FMV_X_W) ||
        (pending_fp_inst_q[31:25] == FP_FUNCT7_FMV_X_D));
   wire pending_fp_compare_w =
-      pending_fp_gpr_write_q &&
+      pending_fp_op_fp_w && pending_fp_gpr_write_q &&
       ((pending_fp_inst_q[31:25] == FP_FUNCT7_FCMP_S) ||
        (pending_fp_inst_q[31:25] == FP_FUNCT7_FCMP_D));
   wire pending_fp_sgnj_w =
-      !pending_fp_gpr_write_q &&
+      pending_fp_op_fp_w && !pending_fp_gpr_write_q &&
       ((pending_fp_inst_q[31:25] == FP_FUNCT7_FSGNJ_S) ||
        (pending_fp_inst_q[31:25] == FP_FUNCT7_FSGNJ_D));
   wire pending_fp_addsub_w =
-      !pending_fp_gpr_write_q &&
+      pending_fp_op_fp_w && !pending_fp_gpr_write_q &&
       ((pending_fp_inst_q[31:25] == FP_FUNCT7_FADD_S) ||
        (pending_fp_inst_q[31:25] == FP_FUNCT7_FADD_D) ||
        (pending_fp_inst_q[31:25] == FP_FUNCT7_FSUB_S) ||
        (pending_fp_inst_q[31:25] == FP_FUNCT7_FSUB_D));
   wire pending_fp_mul_w =
-      !pending_fp_gpr_write_q &&
+      pending_fp_op_fp_w && !pending_fp_gpr_write_q &&
       ((pending_fp_inst_q[31:25] == FP_FUNCT7_FMUL_S) ||
        (pending_fp_inst_q[31:25] == FP_FUNCT7_FMUL_D));
-  wire pending_fp_div_w =
+  wire pending_fp_fma_w =
       !pending_fp_gpr_write_q &&
+      ((pending_fp_inst_q[6:0] == `OPCODE_MADD) ||
+       (pending_fp_inst_q[6:0] == `OPCODE_MSUB) ||
+       (pending_fp_inst_q[6:0] == `OPCODE_NMSUB) ||
+       (pending_fp_inst_q[6:0] == `OPCODE_NMADD));
+  wire pending_fp_div_w =
+      pending_fp_op_fp_w && !pending_fp_gpr_write_q &&
       ((pending_fp_inst_q[31:25] == FP_FUNCT7_FDIV_S) ||
        (pending_fp_inst_q[31:25] == FP_FUNCT7_FDIV_D));
   wire pending_fp_sqrt_w =
-      !pending_fp_gpr_write_q &&
+      pending_fp_op_fp_w && !pending_fp_gpr_write_q &&
       ((pending_fp_inst_q[31:25] == FP_FUNCT7_FSQRT_S) ||
        (pending_fp_inst_q[31:25] == FP_FUNCT7_FSQRT_D));
   wire pending_fp_minmax_w =
-      !pending_fp_gpr_write_q &&
+      pending_fp_op_fp_w && !pending_fp_gpr_write_q &&
       ((pending_fp_inst_q[31:25] == FP_FUNCT7_FMINMAX_S) ||
        (pending_fp_inst_q[31:25] == FP_FUNCT7_FMINMAX_D));
   wire pending_fp_convert_to_gpr_w =
-      pending_fp_gpr_write_q &&
+      pending_fp_op_fp_w && pending_fp_gpr_write_q &&
       (pending_fp_inst_q[31:25] == FP_FUNCT7_FCVT_D_INT);
   wire pending_fp_convert_to_fpr_w =
-      !pending_fp_gpr_write_q &&
+      pending_fp_op_fp_w && !pending_fp_gpr_write_q &&
       (pending_fp_inst_q[31:25] == FP_FUNCT7_FCVT_INT_D);
   wire pending_fp_long_start_w =
       stop_pending_q && pending_fp_q && backend_drained_q &&
@@ -3859,6 +3902,16 @@ module OooAluFetchCore #(
                    pending_fp_frs2_value_w,
                    pending_fp_double_q,
                    pending_fp_inst_q[14:12]);
+  wire [`XLEN-1:0] pending_fp_fma_value_w =
+      fp_fma_value(pending_fp_frs1_value_w,
+                   pending_fp_frs2_value_w,
+                   pending_fp_frs3_value_w,
+                   pending_fp_double_q,
+                   (pending_fp_inst_q[6:0] == `OPCODE_NMSUB) ||
+                   (pending_fp_inst_q[6:0] == `OPCODE_NMADD),
+                   (pending_fp_inst_q[6:0] == `OPCODE_MSUB) ||
+                   (pending_fp_inst_q[6:0] == `OPCODE_NMADD),
+                   pending_fp_inst_q[14:12]);
   wire [`XLEN-1:0] pending_fp_div_value_w =
       fp_div_value(pending_fp_frs1_value_w,
                    pending_fp_frs2_value_w,
@@ -3895,6 +3948,7 @@ module OooAluFetchCore #(
       pending_fp_sgnj_w ? pending_fp_sgnj_value_w :
       pending_fp_addsub_w ? pending_fp_addsub_value_w :
       pending_fp_mul_w ? pending_fp_mul_value_w :
+      pending_fp_fma_w ? pending_fp_fma_value_w :
       pending_fp_minmax_w ? pending_fp_minmax_value_w :
                                pending_fp_move_to_fpr_value_w;
   wire [`XLEN-1:0] pending_fp_result_value_w =

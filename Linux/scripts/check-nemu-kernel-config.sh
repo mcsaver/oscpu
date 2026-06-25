@@ -39,6 +39,8 @@ require_config_enabled CONFIG_BPF
 require_config_enabled CONFIG_BPF_SYSCALL
 require_config_enabled CONFIG_CGROUPS
 require_config_enabled CONFIG_CGROUP_BPF
+require_config_enabled CONFIG_PSI
+require_config_disabled CONFIG_PSI_DEFAULT_DISABLED
 require_config_enabled CONFIG_SECCOMP
 require_config_enabled CONFIG_SECCOMP_FILTER
 

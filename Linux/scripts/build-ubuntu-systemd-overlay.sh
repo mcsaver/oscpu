@@ -267,4 +267,14 @@ if [ -d "$pam_usr_dir" ]; then
   done
 fi
 
+if [ "$ROOTFS_FLAVOR" = "full" ] &&
+   [ -e "$pam_lib_dir/pam_systemd.so" ] &&
+   [ -f "$ROOTFS/etc/pam.d/common-session" ] &&
+   ! grep -Eq '^[[:space:]]*session[[:space:]]+optional[[:space:]]+pam_systemd\.so([[:space:]]|$)' \
+      "$ROOTFS/etc/pam.d/common-session"; then
+  # chrootless 解包不会运行 libpam-systemd 的 pam-auth-update；手工补齐后，
+  # serial-getty/login 才会为当前 ttyS0 root 登录创建 logind session。
+  printf '\nsession optional pam_systemd.so\n' >> "$ROOTFS/etc/pam.d/common-session"
+fi
+
 echo "[ubuntu-systemd-overlay] overlay complete"

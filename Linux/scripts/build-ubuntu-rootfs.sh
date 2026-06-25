@@ -31,6 +31,14 @@ ROOTFS_SERIAL_MASK_TTYS=${UBUNTU_ROOTFS_SERIAL_MASK_TTYS:-hvc0}
 ROOTFS_NPC_CONSOLE_SHELL=${UBUNTU_ROOTFS_NPC_CONSOLE_SHELL:-0}
 ROOTFS_NPC_TTY_READER=${UBUNTU_ROOTFS_NPC_TTY_READER:-0}
 ROOTFS_NPC_TTY_READER_MODE=${UBUNTU_ROOTFS_NPC_TTY_READER_MODE:-line}
+ROOTFS_NPC_LOGIN_MARKER=${UBUNTU_ROOTFS_NPC_LOGIN_MARKER:-0}
+ROOTFS_NPC_LOGIN_TRACE=${UBUNTU_ROOTFS_NPC_LOGIN_TRACE:-0}
+ROOTFS_NPC_GENERATOR_TRACE=${UBUNTU_ROOTFS_NPC_GENERATOR_TRACE:-0}
+ROOTFS_NPC_GENERATOR_SKIP=${UBUNTU_ROOTFS_NPC_GENERATOR_SKIP:-}
+ROOTFS_NPC_GENERATOR_SKIP_MODE=${UBUNTU_ROOTFS_NPC_GENERATOR_SKIP_MODE:-shell}
+ROOTFS_NPC_GENERATOR_REAL_MODE=${UBUNTU_ROOTFS_NPC_GENERATOR_REAL_MODE:-exec}
+ROOTFS_NEMU_LOGIN_MARKER=${UBUNTU_ROOTFS_NEMU_LOGIN_MARKER:-0}
+ROOTFS_NPC_PRESEED_SYSTEMD_UPDATE=${UBUNTU_ROOTFS_NPC_PRESEED_SYSTEMD_UPDATE:-0}
 ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS=${UBUNTU_ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS:-$ROOTFS_NPC_CONSOLE_SHELL}
 FILENAME="ubuntu-base-$VERSION-base-$ARCH.tar.gz"
 TARBALL=${UBUNTU_BASE_TARBALL:-"$ENV_ROOT/downloads/$FILENAME"}
@@ -41,6 +49,10 @@ ROOTFS_STATIC_INIT=${UBUNTU_ROOTFS_STATIC_INIT:-1}
 ROOTFS_PROBE_SRC=${UBUNTU_ROOTFS_PROBE_SRC:-"$LINUX_HOME/tools/ysyx-ubuntu-init.c"}
 ROOTFS_PROBE_BIN=${UBUNTU_ROOTFS_PROBE_BIN:-"$WORK/ysyx-rootfs-probe"}
 ROOTFS_PROBE_ENABLE=${UBUNTU_ROOTFS_PROBE:-0}
+ROOTFS_NPC_TTY_PROBE_SRC=${UBUNTU_ROOTFS_NPC_TTY_PROBE_SRC:-"$LINUX_HOME/tools/ysyx-npc-tty-probe.c"}
+ROOTFS_NPC_TTY_PROBE_BIN=${UBUNTU_ROOTFS_NPC_TTY_PROBE_BIN:-"$WORK/ysyx-npc-tty-probe"}
+ROOTFS_NPC_GENERATOR_SKIP_SRC=${UBUNTU_ROOTFS_NPC_GENERATOR_SKIP_SRC:-"$LINUX_HOME/tools/ysyx-npc-generator-skip.c"}
+ROOTFS_NPC_GENERATOR_SKIP_BIN=${UBUNTU_ROOTFS_NPC_GENERATOR_SKIP_BIN:-"$WORK/ysyx-npc-generator-skip"}
 LOCAL_LINUX_PREFIX="$ENV_ROOT/toolchains/riscv64-linux-gnu/bin/riscv64-linux-gnu-"
 if [ -x "${LOCAL_LINUX_PREFIX}gcc" ]; then
   DEFAULT_CROSS_COMPILE="$LOCAL_LINUX_PREFIX"
@@ -113,6 +125,55 @@ build_rootfs_probe() {
     -march=rv64imac_zicsr_zifencei -mabi=lp64 -mcmodel=medany \
     -Wl,--no-relax -Wl,--build-id=none -Wl,-e,_start \
     -o "$ROOTFS_PROBE_BIN" "$ROOTFS_PROBE_SRC"
+}
+
+npc_tty_probe_mode_required() {
+  case "$ROOTFS_NPC_TTY_READER_MODE" in
+    c-probe|tty-probe) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+build_npc_tty_probe() {
+  if ! npc_tty_probe_mode_required; then
+    return
+  fi
+  if [ ! -f "$ROOTFS_NPC_TTY_PROBE_SRC" ]; then
+    echo "[ubuntu-rootfs] missing NPC tty probe source: $ROOTFS_NPC_TTY_PROBE_SRC" >&2
+    exit 1
+  fi
+  if ! command -v "$CC" >/dev/null; then
+    echo "[ubuntu-rootfs] missing compiler for NPC tty probe: $CC" >&2
+    exit 1
+  fi
+  echo "[ubuntu-rootfs] build NPC tty probe: $ROOTFS_NPC_TTY_PROBE_BIN"
+  "$CC" -O2 -Wall -Wextra -static -march=rv64gc -mabi=lp64d \
+    -o "$ROOTFS_NPC_TTY_PROBE_BIN" "$ROOTFS_NPC_TTY_PROBE_SRC"
+}
+
+npc_generator_static_skip_required() {
+  [ "$ROOTFS_NPC_GENERATOR_TRACE" = "1" ] &&
+    [ "$ROOTFS_NPC_GENERATOR_SKIP_MODE" = "static" ]
+}
+
+build_npc_generator_skip_wrapper() {
+  if ! npc_generator_static_skip_required; then
+    return
+  fi
+  if [ ! -f "$ROOTFS_NPC_GENERATOR_SKIP_SRC" ]; then
+    echo "[ubuntu-rootfs] missing NPC generator skip source: $ROOTFS_NPC_GENERATOR_SKIP_SRC" >&2
+    exit 1
+  fi
+  if ! command -v "$CC" >/dev/null; then
+    echo "[ubuntu-rootfs] missing compiler for NPC generator skip wrapper: $CC" >&2
+    exit 1
+  fi
+  echo "[ubuntu-rootfs] build NPC static generator skip wrapper: $ROOTFS_NPC_GENERATOR_SKIP_BIN"
+  "$CC" -Os -ffreestanding -fno-builtin -fno-pic -fno-pie \
+    -fno-stack-protector -nostdlib -nostartfiles -static -no-pie \
+    -march=rv64imac_zicsr_zifencei -mabi=lp64 -mcmodel=medany \
+    -Wl,--no-relax -Wl,--build-id=none -Wl,-e,_start \
+    -o "$ROOTFS_NPC_GENERATOR_SKIP_BIN" "$ROOTFS_NPC_GENERATOR_SKIP_SRC"
 }
 
 write_guest_config() {
@@ -234,6 +295,132 @@ INIT
   chmod 0755 "$dir/init"
 }
 
+install_npc_login_trace_wrapper() {
+  local dir=$1
+  if [ "${ROOTFS_NPC_LOGIN_TRACE:-0}" != "1" ]; then
+    return
+  fi
+
+  mkdir -p "$dir/usr/local/sbin"
+  cat > "$dir/usr/local/sbin/ysyx-npc-login-trace" <<\EOF
+#!/bin/sh
+echo "__NPC_LOGIN_TRACE_BEGIN__ argc=$# argv=$*" >/dev/console
+echo "__NPC_LOGIN_TRACE_TTY__:$(tty 2>/dev/null || echo unknown)" >/dev/console
+echo "__NPC_LOGIN_TRACE_LOGIN_BIN__:$(command -v login 2>/dev/null || echo /bin/login)" >/dev/console
+if command -v strace >/dev/null 2>&1; then
+  rm -f /run/ysyx-npc-login-strace.*
+  strace -ff -qq -s 128 -o /run/ysyx-npc-login-strace /bin/login "$@"
+  rc=$?
+  echo "__NPC_LOGIN_TRACE_LOGIN_RC__:$rc" >/dev/console
+  for f in /run/ysyx-npc-login-strace*; do
+    [ -f "$f" ] || continue
+    echo "__NPC_LOGIN_TRACE_FILE__:$f" >/dev/console
+    tail -n 40 "$f" >/dev/console 2>&1 || true
+  done
+  exit "$rc"
+fi
+/bin/login "$@"
+rc=$?
+echo "__NPC_LOGIN_TRACE_LOGIN_RC__:$rc" >/dev/console
+exit "$rc"
+EOF
+  chmod 0755 "$dir/usr/local/sbin/ysyx-npc-login-trace"
+}
+
+install_npc_generator_trace() {
+  local dir=$1
+  if [ "${ROOTFS_NPC_GENERATOR_TRACE:-0}" != "1" ]; then
+    return
+  fi
+
+  local gen_dir gen gen_name real_bucket real_root real_gen real_gen_guest skip_list skip_mode has_wrapper
+  local stale stale_name stale_real
+  skip_list=${ROOTFS_NPC_GENERATOR_SKIP:-}
+  skip_mode=${ROOTFS_NPC_GENERATOR_SKIP_MODE:-shell}
+  if [ "$skip_mode" = "static" ]; then
+    if [ ! -f "${ROOTFS_NPC_GENERATOR_SKIP_BIN:-}" ]; then
+      echo "[ubuntu-rootfs] missing NPC static generator skip wrapper: ${ROOTFS_NPC_GENERATOR_SKIP_BIN:-unset}" >&2
+      exit 1
+    fi
+    mkdir -p "$dir/usr/local/sbin" "$dir/etc"
+    cp "$ROOTFS_NPC_GENERATOR_SKIP_BIN" "$dir/usr/local/sbin/ysyx-npc-generator-skip"
+    chmod 0755 "$dir/usr/local/sbin/ysyx-npc-generator-skip"
+    printf '%s\n' "$skip_list" > "$dir/etc/ysyx-npc-generator-skip-list"
+    printf '%s\n' "${ROOTFS_NPC_GENERATOR_REAL_MODE:-exec}" > "$dir/etc/ysyx-npc-generator-real-mode"
+  fi
+  for gen_dir in "$dir/lib/systemd/system-generators" "$dir/usr/lib/systemd/system-generators"; do
+    [ -d "$gen_dir" ] || continue
+    case "$gen_dir" in
+      "$dir/lib/systemd/system-generators") real_bucket=lib ;;
+      "$dir/usr/lib/systemd/system-generators") real_bucket=usr-lib ;;
+      *) real_bucket=other ;;
+    esac
+    real_root="$dir/usr/local/lib/ysyx-npc-system-generators/$real_bucket"
+    mkdir -p "$real_root"
+    for stale in "$gen_dir"/*.ysyx-real; do
+      [ -f "$stale" ] || continue
+      stale_name=$(basename "$stale" .ysyx-real)
+      stale_real="$real_root/$stale_name"
+      if [ ! -e "$stale_real" ]; then
+        mv "$stale" "$stale_real"
+      else
+        rm -f "$stale"
+      fi
+      chmod 0755 "$stale_real" 2>/dev/null || true
+    done
+    for gen in "$gen_dir"/*; do
+      [ -f "$gen" ] || continue
+      [ -x "$gen" ] || continue
+      case "$gen" in
+        *.ysyx-real) continue ;;
+      esac
+      gen_name=$(basename "$gen")
+      real_gen="$real_root/$gen_name"
+      real_gen_guest="/usr/local/lib/ysyx-npc-system-generators/$real_bucket/$gen_name"
+      has_wrapper=0
+      if grep -aq '__NPC_GENERATOR_BEGIN__' "$gen" 2>/dev/null; then
+        has_wrapper=1
+      fi
+      if [ "$has_wrapper" = "1" ] && [ ! -e "$real_gen" ]; then
+        continue
+      fi
+      if [ "$has_wrapper" != "1" ] && [ ! -e "$real_gen" ]; then
+        mv "$gen" "$real_gen"
+      fi
+      if [ "$skip_mode" = "static" ]; then
+        cp "$dir/usr/local/sbin/ysyx-npc-generator-skip" "$gen"
+        chmod 0755 "$gen"
+      else
+        cat > "$gen" <<EOF
+#!/bin/sh
+name="$gen_name"
+skip_list="$skip_list"
+echo "__NPC_GENERATOR_BEGIN__:\$name argc=\$# argv=\$*" >/dev/console
+case " \$skip_list " in
+  *" all "*|*" \$name "*)
+    echo "__NPC_GENERATOR_SKIP__:\$name match=space-list" >/dev/console
+    echo "__NPC_GENERATOR_END__:\$name rc=0 skipped=1" >/dev/console
+    exit 0
+    ;;
+esac
+case ",\$skip_list," in
+  *,all,*|*,\$name,*)
+    echo "__NPC_GENERATOR_SKIP__:\$name match=comma-list" >/dev/console
+    echo "__NPC_GENERATOR_END__:\$name rc=0 skipped=1" >/dev/console
+    exit 0
+    ;;
+esac
+"$real_gen_guest" "\$@"
+rc=\$?
+echo "__NPC_GENERATOR_END__:\$name rc=\$rc" >/dev/console
+exit "\$rc"
+EOF
+        chmod 0755 "$gen"
+      fi
+    done
+  done
+}
+
 install_serial_autologin() {
   local dir=$1
   if [ "$ROOTFS_SERIAL_AUTOLOGIN" != "1" ]; then
@@ -243,13 +430,61 @@ install_serial_autologin() {
   for tty in $ROOTFS_SERIAL_AUTOLOGIN_TTYS; do
     local dropin_dir="$dir/etc/systemd/system/serial-getty@${tty}.service.d"
     mkdir -p "$dropin_dir"
+    local serial_after="systemd-logind.service systemd-user-sessions.service plymouth-quit-wait.service getty-pre.target rc-local.service"
+    local serial_wants="systemd-logind.service"
+    if [ "${ROOTFS_NPC_LOGIN_MARKER:-0}" = "1" ]; then
+      serial_after="getty-pre.target systemd-remount-fs.service systemd-tmpfiles-setup-dev.service systemd-udevd.service"
+      serial_wants=""
+    fi
+    local login_program_args=""
+    if [ "${ROOTFS_NPC_LOGIN_MARKER:-0}" = "1" ] && [ "${ROOTFS_NPC_LOGIN_TRACE:-0}" = "1" ]; then
+      install_npc_login_trace_wrapper "$dir"
+      login_program_args="--login-program /usr/local/sbin/ysyx-npc-login-trace"
+    fi
     cat > "$dropin_dir/autologin.conf" <<EOF
+[Unit]
+# NPC 的 16550 串口已经作为 kernel console 可用；当前设备模型不会稳定地产生
+# dev-ttyS0.device，因此 login gate 不能依赖 systemd device unit。
+BindsTo=
+Wants=
+Wants=${serial_wants}
+After=
+After=${serial_after}
+
 [Service]
 # NEMU/Linux bring-up 需要自动化验证长期 console session；这里只覆盖串口 getty，
 # PID1、PAM session、/dev/pts 和真实 Ubuntu 用户态仍然走 systemd 路线。
 ExecStart=
-ExecStart=-/sbin/agetty --autologin ${ROOTFS_SERIAL_AUTOLOGIN_USER} --keep-baud 115200,57600,38400,9600 %I \$TERM
+ExecStart=-/sbin/agetty --autologin ${ROOTFS_SERIAL_AUTOLOGIN_USER} ${login_program_args} --keep-baud 115200,57600,38400,9600 %I \$TERM
 EOF
+    if [ "${ROOTFS_NPC_LOGIN_MARKER:-0}" = "1" ]; then
+      cat > "$dir/etc/systemd/system/serial-getty@${tty}.service" <<EOF
+[Unit]
+Description=Serial Getty on %I for NPC login gate
+Documentation=man:agetty(8) man:systemd-getty-generator(8)
+DefaultDependencies=no
+After=getty-pre.target systemd-remount-fs.service systemd-tmpfiles-setup-dev.service systemd-udevd.service
+Before=systemd-udev-trigger.service sysinit.target getty.target
+IgnoreOnIsolate=yes
+Conflicts=rescue.service
+Before=rescue.service
+
+[Service]
+# Keep the login/PAM path real while avoiding template device and late boot waits on NPC.
+ExecStart=-/sbin/agetty --autologin ${ROOTFS_SERIAL_AUTOLOGIN_USER} ${login_program_args} --keep-baud 115200,57600,38400,9600 %I \$TERM
+Type=simple
+Restart=always
+UtmpIdentifier=%I
+IgnoreSIGPIPE=no
+SendSIGHUP=yes
+
+[Install]
+WantedBy=sysinit.target getty.target
+EOF
+      mkdir -p "$dir/etc/systemd/system/getty.target.wants" "$dir/etc/systemd/system/sysinit.target.wants"
+      ln -sfn "../serial-getty@${tty}.service" "$dir/etc/systemd/system/getty.target.wants/serial-getty@${tty}.service"
+      ln -sfn "../serial-getty@${tty}.service" "$dir/etc/systemd/system/sysinit.target.wants/serial-getty@${tty}.service"
+    fi
   done
 }
 
@@ -259,6 +494,174 @@ install_serial_masks() {
     mkdir -p "$dir/etc/systemd/system"
     ln -sfn /dev/null "$dir/etc/systemd/system/serial-getty@${tty}.service"
   done
+}
+
+install_npc_login_marker() {
+  local dir=$1
+  if [ "$ROOTFS_NPC_LOGIN_MARKER" != "1" ]; then
+    return
+  fi
+
+  mkdir -p "$dir/root"
+  cat > "$dir/root/.bash_profile" <<'EOF'
+# Marker-only profile for NPC serial-getty login/session gates.
+if [ "${YSYX_NPC_LOGIN_MARKER_EMITTED:-0}" != "1" ]; then
+  export YSYX_NPC_LOGIN_MARKER_EMITTED=1
+  echo __NPC_LOGIN_CHECK_BEGIN__
+  check_fail=0
+  pass() { echo "__NPC_LOGIN_CHECK_PASS__:$1"; }
+  fail() { echo "__NPC_LOGIN_CHECK_FAIL__:$1"; check_fail=1; }
+
+  uid="$(id -u 2>/dev/null || echo unknown)"
+  tty_path="$(tty 2>/dev/null || echo unknown)"
+  pid1_comm=unknown
+  [ -r /proc/1/comm ] && IFS= read -r pid1_comm </proc/1/comm || true
+  loginuid=unknown
+  [ -r /proc/self/loginuid ] && loginuid="$(cat /proc/self/loginuid 2>/dev/null || echo unknown)"
+
+  echo "__NPC_LOGIN_UID__:$uid"
+  echo "__NPC_LOGIN_TTY__:$tty_path"
+  echo "__NPC_LOGIN_PID1__:$pid1_comm"
+  echo "__NPC_LOGIN_LOGINUID__:$loginuid"
+
+  [ "$uid" = "0" ] && pass root-login || fail root-login
+  [ "$tty_path" = "/dev/ttyS0" ] && pass ttyS0-login || fail ttyS0-login
+  [ "$pid1_comm" = "systemd" ] && pass pid1-systemd || fail pid1-systemd
+  [ -d /run/systemd/system ] && pass systemd-runtime || fail systemd-runtime
+  [ -x /bin/login ] && pass login-binary || fail login-binary
+  [ -d /lib/riscv64-linux-gnu/security ] && pass pam-module-path || fail pam-module-path
+
+  echo "__NPC_LOGIN_CHECK_DONE__ rc=$check_fail"
+fi
+
+[ -r /root/.profile ] && . /root/.profile
+EOF
+  : > "$dir/root/.hushlogin"
+  chmod 0644 "$dir/root/.bash_profile"
+  chmod 0644 "$dir/root/.hushlogin"
+}
+
+install_npc_login_profile() {
+  local dir=$1
+  if [ "$ROOTFS_NPC_LOGIN_MARKER" != "1" ]; then
+    return
+  fi
+
+  if [ -f "$dir/etc/profile" ] && [ ! -f "$dir/etc/profile.ysyx-original" ]; then
+    cp -a "$dir/etc/profile" "$dir/etc/profile.ysyx-original"
+  fi
+  cat > "$dir/etc/profile" <<\EOF
+# NPC_LOGIN_MARKER_MINIMAL_ETC_PROFILE
+# Keep login-shell startup deterministic on NPC; /root/.bash_profile owns the marker checks.
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+if [ -z "${TERM:-}" ]; then
+  TERM=vt102
+fi
+export TERM
+EOF
+  chmod 0644 "$dir/etc/profile"
+}
+
+trim_npc_login_pam() {
+  local dir=$1
+  if [ "$ROOTFS_NPC_LOGIN_MARKER" != "1" ]; then
+    return
+  fi
+
+  local pam_login="$dir/etc/pam.d/login"
+  if [ ! -f "$pam_login" ]; then
+    return
+  fi
+
+  # NPC 目前的 full-login gate 只需要真实 agetty/login/PAM/bash 链路。
+  # Ubuntu login 的失败延迟/公告/邮箱/lastlog 非核心路径会在 NPC 上触发 glibc
+  # longjmp 检查，导致 shell marker 前退出；在专用镜像里禁用它们。
+  sed -i \
+    -e 's/^\([[:space:]]*auth[[:space:]]\+optional[[:space:]]\+pam_faildelay\.so.*\)$/# NPC_LOGIN_MARKER_DISABLED \1/' \
+    -e 's/^\([[:space:]]*session[[:space:]]\+optional[[:space:]]\+pam_motd\.so.*\)$/# NPC_LOGIN_MARKER_DISABLED \1/' \
+    -e 's/^\([[:space:]]*session[[:space:]]\+optional[[:space:]]\+pam_lastlog\.so.*\)$/# NPC_LOGIN_MARKER_DISABLED \1/' \
+    -e 's/^\([[:space:]]*session[[:space:]]\+optional[[:space:]]\+pam_mail\.so.*\)$/# NPC_LOGIN_MARKER_DISABLED \1/' \
+    "$pam_login"
+}
+
+install_nemu_login_marker() {
+  local dir=$1
+  if [ "$ROOTFS_NEMU_LOGIN_MARKER" != "1" ]; then
+    return
+  fi
+
+  mkdir -p "$dir/root"
+  # NEMU 使用 /root/.profile 追加串口登录 marker，避免和 NPC 专用 .bash_profile 互相覆盖。
+  if ! grep -q '__NEMU_LOGIN_CHECK_BEGIN__' "$dir/root/.profile" 2>/dev/null; then
+    cat >> "$dir/root/.profile" <<'EOF'
+
+# Marker-only profile for NEMU serial-getty login/session gates.
+if [ "${YSYX_NEMU_LOGIN_MARKER_EMITTED:-0}" != "1" ]; then
+  export YSYX_NEMU_LOGIN_MARKER_EMITTED=1
+  echo __NEMU_LOGIN_CHECK_BEGIN__
+  check_fail=0
+  pass() { echo "__NEMU_LOGIN_CHECK_PASS__:$1"; }
+  fail() { echo "__NEMU_LOGIN_CHECK_FAIL__:$1"; check_fail=1; }
+
+  uid="$(id -u 2>/dev/null || echo unknown)"
+  tty_path="$(tty 2>/dev/null || echo unknown)"
+  pid1_comm=unknown
+  [ -r /proc/1/comm ] && IFS= read -r pid1_comm </proc/1/comm || true
+  loginuid=unknown
+  [ -r /proc/self/loginuid ] && loginuid="$(cat /proc/self/loginuid 2>/dev/null || echo unknown)"
+
+  echo "__NEMU_LOGIN_UID__:$uid"
+  echo "__NEMU_LOGIN_TTY__:$tty_path"
+  echo "__NEMU_LOGIN_PID1__:$pid1_comm"
+  echo "__NEMU_LOGIN_LOGINUID__:$loginuid"
+
+  [ "$uid" = "0" ] && pass root-login || fail root-login
+  [ "$tty_path" = "/dev/ttyS0" ] && pass ttyS0-login || fail ttyS0-login
+  [ "$pid1_comm" = "systemd" ] && pass pid1-systemd || fail pid1-systemd
+  [ -d /run/systemd/system ] && pass systemd-runtime || fail systemd-runtime
+  [ -x /bin/login ] && pass login-binary || fail login-binary
+  [ -d /lib/riscv64-linux-gnu/security ] && pass pam-module-path || fail pam-module-path
+
+  echo "__NEMU_LOGIN_CHECK_DONE__ rc=$check_fail"
+fi
+EOF
+  fi
+  chmod 0644 "$dir/root/.profile"
+}
+
+install_npc_login_boot_profile() {
+  local dir=$1
+  if [ "$ROOTFS_NPC_LOGIN_MARKER" != "1" ]; then
+    return
+  fi
+
+  mkdir -p "$dir/etc/systemd/system"
+  ln -sfn /lib/systemd/system/multi-user.target "$dir/etc/systemd/system/default.target"
+
+  for unit in \
+    plymouth-read-write.service \
+    plymouth-start.service \
+    plymouth-quit.service \
+    plymouth-quit-wait.service; do
+    ln -sfn /dev/null "$dir/etc/systemd/system/$unit"
+  done
+}
+
+preseed_systemd_update_done() {
+  local dir=$1
+  if [ "${ROOTFS_NPC_PRESEED_SYSTEMD_UPDATE:-0}" != "1" ]; then
+    return
+  fi
+  if ! command -v systemd-sysusers >/dev/null 2>&1; then
+    echo "[ubuntu-rootfs] missing host systemd-sysusers for NPC update preseed" >&2
+    exit 1
+  fi
+
+  echo "[ubuntu-rootfs] preseed systemd sysusers/update-done stamps"
+  systemd-sysusers --root="$dir"
+  mkdir -p "$dir/etc" "$dir/var"
+  touch "$dir/etc/.updated" "$dir/var/.updated"
 }
 
 install_nemu_systemd_masks() {
@@ -277,6 +680,17 @@ install_npc_console_shell() {
   fi
 
   mkdir -p "$dir/usr/local/sbin" "$dir/etc/systemd/system/sysinit.target.wants"
+  case "$ROOTFS_NPC_TTY_READER_MODE" in
+    c-probe|tty-probe)
+      if [ ! -f "${ROOTFS_NPC_TTY_PROBE_BIN:-}" ]; then
+        echo "[ubuntu-rootfs] missing built NPC tty probe: ${ROOTFS_NPC_TTY_PROBE_BIN:-unset}" >&2
+        exit 1
+      fi
+      cp "$ROOTFS_NPC_TTY_PROBE_BIN" "$dir/usr/local/sbin/ysyx-npc-tty-probe"
+      chmod 0755 "$dir/usr/local/sbin/ysyx-npc-tty-probe"
+      ;;
+  esac
+
   cat > "$dir/usr/local/sbin/ysyx-npc-console-shell" <<'EOF'
 #!/bin/sh
 export HOME=/root
@@ -353,9 +767,30 @@ reader_mode=${YSYX_NPC_TTY_READER_MODE:-line}
 echo "__NPC_TTY_READER_MODE__:$reader_mode"
 tty_name=$(tty 2>/dev/null || true)
 echo "__NPC_TTY_READER_STDIN__:${tty_name:-unknown}"
+reader_input=${YSYX_NPC_TTY_READER_INPUT:-$tty_name}
+case "$reader_input" in
+  /dev/*) ;;
+  *) reader_input=/dev/ttyS0 ;;
+esac
+echo "__NPC_TTY_READER_INPUT__:$reader_input"
 if command -v stty >/dev/null 2>&1; then
   stty -a 2>/dev/null | sed 's/^/__NPC_TTY_READER_STTY_BEFORE__:/' || true
 fi
+
+print_proc_marker() {
+  proc_label=$1
+  proc_pid=$2
+  proc_stat=$(cat "/proc/$proc_pid/stat" 2>/dev/null || true)
+  if [ -n "$proc_stat" ]; then
+    proc_after=${proc_stat#*) }
+    proc_fd0=$(readlink "/proc/$proc_pid/fd/0" 2>/dev/null || true)
+    [ -n "$proc_fd0" ] || proc_fd0=unknown
+    set -- $proc_after
+    echo "__NPC_TTY_READER_PROC__:$proc_label:pid=$proc_pid state=${1:-?} pgrp=${3:-?} session=${4:-?} tty_nr=${5:-?} tpgid=${6:-?} fd0=$proc_fd0"
+  else
+    echo "__NPC_TTY_READER_PROC__:$proc_label:pid=$proc_pid missing"
+  fi
+}
 
 run_line_reader() {
   stty -echo 2>/dev/null || true
@@ -379,11 +814,47 @@ run_raw_bytes_reader() {
   # 这一模式只取消输入 canonical/echo，保留输出侧行规程，便于继续观察 console marker。
   # time=2 让“无字节进入用户态”在当前 NPC cycle budget 内可见，而不是继续卡到 max-cycle。
   stty -icanon -echo min 0 time 2 2>/dev/null || true
+  print_proc_marker shell $$
   if command -v stty >/dev/null 2>&1; then
     stty -a 2>/dev/null | sed 's/^/__NPC_TTY_READER_STTY_RAW__:/' || true
   fi
   echo __NPC_TTY_READER_READY__
-  if dd bs=1 count=24 of="$tmp" 2>"$err"; then
+  dd_rc=0
+  dd_watchdog=0
+  case "$reader_mode" in raw-proc|raw-proc-fast) dd_watchdog=1 ;; esac
+  if [ "$dd_watchdog" = "1" ]; then
+    dd if="$reader_input" bs=1 count=24 of="$tmp" 2>"$err" &
+    dd_pid=$!
+    echo "__NPC_TTY_READER_DD_PID__:$dd_pid"
+    dd_sample=0
+    dd_limit=${YSYX_NPC_TTY_READER_DD_WATCHDOG_SAMPLES:-8}
+    dd_sleep=${YSYX_NPC_TTY_READER_DD_WATCHDOG_SLEEP:-0.2}
+    if [ "$reader_mode" = "raw-proc-fast" ]; then
+      dd_limit=${YSYX_NPC_TTY_READER_DD_WATCHDOG_SAMPLES:-64}
+      dd_sleep=${YSYX_NPC_TTY_READER_DD_WATCHDOG_SLEEP:-0}
+    fi
+    while kill -0 "$dd_pid" 2>/dev/null; do
+      print_proc_marker dd "$dd_pid"
+      dd_sample=$((dd_sample + 1))
+      [ "$dd_sample" -ge "$dd_limit" ] && break
+      if [ "$dd_sleep" != "0" ]; then
+        sleep "$dd_sleep" 2>/dev/null || sleep 1
+      fi
+    done
+    if kill -0 "$dd_pid" 2>/dev/null; then
+      echo "__NPC_TTY_READER_DD_TIMEOUT__:samples=$dd_sample"
+      kill "$dd_pid" 2>/dev/null || true
+      wait "$dd_pid" 2>/dev/null || true
+      dd_rc=124
+    else
+      wait "$dd_pid"
+      dd_rc=$?
+    fi
+  else
+    dd if="$reader_input" bs=1 count=24 of="$tmp" 2>"$err"
+    dd_rc=$?
+  fi
+  if [ "$dd_rc" = 0 ]; then
     set -- $(wc -c <"$tmp" 2>/dev/null || echo 0)
     bytes=${1:-0}
     hex=
@@ -402,15 +873,29 @@ run_raw_bytes_reader() {
       echo "__NPC_TTY_READER_DONE__ rc=3"
     fi
   else
-    rc=$?
-    echo "__NPC_TTY_READER_DD_RC__:$rc"
+    echo "__NPC_TTY_READER_DD_RC__:$dd_rc"
     sed 's/^/__NPC_TTY_READER_DD_ERR__:/' "$err" 2>/dev/null || true
-    echo "__NPC_TTY_READER_DONE__ rc=2"
+    if [ "$dd_rc" = 124 ]; then
+      echo "__NPC_TTY_READER_DONE__ rc=4"
+    else
+      echo "__NPC_TTY_READER_DONE__ rc=2"
+    fi
   fi
 }
 
+run_c_probe_reader() {
+  if [ ! -x /usr/local/sbin/ysyx-npc-tty-probe ]; then
+    echo "__NPC_TTY_READER_C_PROBE_MISSING__"
+    echo "__NPC_TTY_READER_DONE__ rc=5"
+    return
+  fi
+  print_proc_marker shell $$
+  /usr/local/sbin/ysyx-npc-tty-probe "$reader_input"
+}
+
 case "$reader_mode" in
-  raw|raw-bytes) run_raw_bytes_reader ;;
+  c-probe|tty-probe) run_c_probe_reader ;;
+  raw|raw-bytes|raw-proc|raw-proc-fast) run_raw_bytes_reader ;;
   *) run_line_reader ;;
 esac
 EOF
@@ -501,7 +986,7 @@ ConditionPathExists=/dev/ttyS0
 ConditionPathExists=/usr/local/sbin/ysyx-npc-tty-reader
 
 [Service]
-Type=simple
+Type=oneshot
 Environment=TERM=vt100
 Environment=YSYX_NPC_TTY_READER_MODE=__NPC_TTY_READER_MODE__
 WorkingDirectory=/root
@@ -623,11 +1108,17 @@ build_with_sudo_debootstrap() {
 
   "${sudo_cmd[@]}" chroot "$ROOTFS" /debootstrap/debootstrap --second-stage
   "${sudo_cmd[@]}" bash -c "$(declare -f write_guest_config); write_guest_config '$ROOTFS'"
-  "${sudo_cmd[@]}" bash -c "$(declare -f install_serial_autologin); ROOTFS_SERIAL_AUTOLOGIN='$ROOTFS_SERIAL_AUTOLOGIN' ROOTFS_SERIAL_AUTOLOGIN_USER='$ROOTFS_SERIAL_AUTOLOGIN_USER' ROOTFS_SERIAL_AUTOLOGIN_TTYS='$ROOTFS_SERIAL_AUTOLOGIN_TTYS' install_serial_autologin '$ROOTFS'"
+  "${sudo_cmd[@]}" bash -c "$(declare -f install_npc_login_trace_wrapper); $(declare -f install_serial_autologin); ROOTFS_SERIAL_AUTOLOGIN='$ROOTFS_SERIAL_AUTOLOGIN' ROOTFS_SERIAL_AUTOLOGIN_USER='$ROOTFS_SERIAL_AUTOLOGIN_USER' ROOTFS_SERIAL_AUTOLOGIN_TTYS='$ROOTFS_SERIAL_AUTOLOGIN_TTYS' ROOTFS_NPC_LOGIN_MARKER='$ROOTFS_NPC_LOGIN_MARKER' ROOTFS_NPC_LOGIN_TRACE='$ROOTFS_NPC_LOGIN_TRACE' install_serial_autologin '$ROOTFS'"
   "${sudo_cmd[@]}" bash -c "$(declare -f install_serial_masks); ROOTFS_SERIAL_MASK_TTYS='$ROOTFS_SERIAL_MASK_TTYS' install_serial_masks '$ROOTFS'"
+  "${sudo_cmd[@]}" bash -c "$(declare -f install_npc_login_marker); ROOTFS_NPC_LOGIN_MARKER='$ROOTFS_NPC_LOGIN_MARKER' install_npc_login_marker '$ROOTFS'"
+  "${sudo_cmd[@]}" bash -c "$(declare -f trim_npc_login_pam); ROOTFS_NPC_LOGIN_MARKER='$ROOTFS_NPC_LOGIN_MARKER' trim_npc_login_pam '$ROOTFS'"
+  "${sudo_cmd[@]}" bash -c "$(declare -f install_npc_login_profile); ROOTFS_NPC_LOGIN_MARKER='$ROOTFS_NPC_LOGIN_MARKER' install_npc_login_profile '$ROOTFS'"
+  "${sudo_cmd[@]}" bash -c "$(declare -f install_nemu_login_marker); ROOTFS_NEMU_LOGIN_MARKER='$ROOTFS_NEMU_LOGIN_MARKER' install_nemu_login_marker '$ROOTFS'"
+  "${sudo_cmd[@]}" bash -c "$(declare -f install_npc_login_boot_profile); ROOTFS_NPC_LOGIN_MARKER='$ROOTFS_NPC_LOGIN_MARKER' install_npc_login_boot_profile '$ROOTFS'"
   "${sudo_cmd[@]}" bash -c "$(declare -f install_nemu_systemd_masks); install_nemu_systemd_masks '$ROOTFS'"
   "${sudo_cmd[@]}" bash -c "$(declare -f install_npc_console_shell); ROOTFS_NPC_CONSOLE_SHELL='$ROOTFS_NPC_CONSOLE_SHELL' ROOTFS_NPC_TTY_READER='$ROOTFS_NPC_TTY_READER' ROOTFS_NPC_TTY_READER_MODE='$ROOTFS_NPC_TTY_READER_MODE' ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS='$ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS' install_npc_console_shell '$ROOTFS'"
   "${sudo_cmd[@]}" bash -c "$(declare -f install_full_runtime_defaults); install_full_runtime_defaults '$ROOTFS' '$ROOTFS_FLAVOR'"
+  "${sudo_cmd[@]}" bash -c "$(declare -f install_npc_generator_trace); ROOTFS_NPC_GENERATOR_TRACE='$ROOTFS_NPC_GENERATOR_TRACE' ROOTFS_NPC_GENERATOR_SKIP='$ROOTFS_NPC_GENERATOR_SKIP' ROOTFS_NPC_GENERATOR_SKIP_MODE='$ROOTFS_NPC_GENERATOR_SKIP_MODE' ROOTFS_NPC_GENERATOR_REAL_MODE='$ROOTFS_NPC_GENERATOR_REAL_MODE' ROOTFS_NPC_GENERATOR_SKIP_BIN='$ROOTFS_NPC_GENERATOR_SKIP_BIN' install_npc_generator_trace '$ROOTFS'"
   "${sudo_cmd[@]}" bash -c '
 set -e
 rootfs=$1
@@ -661,6 +1152,7 @@ if [ -d "$rootfs/usr/lib/riscv64-linux-gnu/security" ]; then
   done
 fi
 ' _ "$ROOTFS"
+  "${sudo_cmd[@]}" bash -c "$(declare -f preseed_systemd_update_done); ROOTFS_NPC_PRESEED_SYSTEMD_UPDATE='$ROOTFS_NPC_PRESEED_SYSTEMD_UPDATE' preseed_systemd_update_done '$ROOTFS'"
   # 默认用静态 PID1 承担伪文件系统挂载，再按 cmdline 选择 systemd 或 shell。
   if [ "$ROOTFS_STATIC_INIT" = "1" ]; then
     "${sudo_cmd[@]}" cp "$ROOTFS_INIT_BIN" "$ROOTFS/init"
@@ -874,29 +1366,224 @@ if [ "$ROOTFS_STATIC_INIT" = "1" ]; then
   cp "$ROOTFS_INIT_BIN" "$ROOTFS/init"
   chmod 0755 "$ROOTFS/init"
 fi
+if [ "$ROOTFS_NPC_LOGIN_MARKER" = "1" ] && [ "$ROOTFS_NPC_LOGIN_TRACE" = "1" ]; then
+  mkdir -p "$ROOTFS/usr/local/sbin"
+  cat > "$ROOTFS/usr/local/sbin/ysyx-npc-login-trace" <<\EOF
+#!/bin/sh
+echo "__NPC_LOGIN_TRACE_BEGIN__ argc=$# argv=$*" >/dev/console
+echo "__NPC_LOGIN_TRACE_TTY__:$(tty 2>/dev/null || echo unknown)" >/dev/console
+echo "__NPC_LOGIN_TRACE_LOGIN_BIN__:$(command -v login 2>/dev/null || echo /bin/login)" >/dev/console
+if command -v strace >/dev/null 2>&1; then
+  rm -f /run/ysyx-npc-login-strace.*
+  strace -ff -qq -s 128 -o /run/ysyx-npc-login-strace /bin/login "$@"
+  rc=$?
+  echo "__NPC_LOGIN_TRACE_LOGIN_RC__:$rc" >/dev/console
+  for f in /run/ysyx-npc-login-strace*; do
+    [ -f "$f" ] || continue
+    echo "__NPC_LOGIN_TRACE_FILE__:$f" >/dev/console
+    tail -n 40 "$f" >/dev/console 2>&1 || true
+  done
+  exit "$rc"
+fi
+/bin/login "$@"
+rc=$?
+echo "__NPC_LOGIN_TRACE_LOGIN_RC__:$rc" >/dev/console
+exit "$rc"
+EOF
+  chmod 0755 "$ROOTFS/usr/local/sbin/ysyx-npc-login-trace"
+fi
 if [ "$ROOTFS_SERIAL_AUTOLOGIN" = "1" ]; then
   for tty in $ROOTFS_SERIAL_AUTOLOGIN_TTYS; do
     dropin_dir="$ROOTFS/etc/systemd/system/serial-getty@${tty}.service.d"
     mkdir -p "$dropin_dir"
+    serial_after="systemd-logind.service systemd-user-sessions.service plymouth-quit-wait.service getty-pre.target rc-local.service"
+    serial_wants="systemd-logind.service"
+    if [ "$ROOTFS_NPC_LOGIN_MARKER" = "1" ]; then
+      serial_after="getty-pre.target systemd-remount-fs.service systemd-tmpfiles-setup-dev.service systemd-udevd.service"
+      serial_wants=""
+    fi
+    login_program_args=""
+    if [ "$ROOTFS_NPC_LOGIN_MARKER" = "1" ] && [ "$ROOTFS_NPC_LOGIN_TRACE" = "1" ]; then
+      login_program_args="--login-program /usr/local/sbin/ysyx-npc-login-trace"
+    fi
     cat > "$dropin_dir/autologin.conf" <<EOF
+[Unit]
+# NPC 的 16550 串口已经作为 kernel console 可用；当前设备模型不会稳定地产生
+# dev-ttyS0.device，因此 login gate 不能依赖 systemd device unit。
+BindsTo=
+Wants=
+Wants=${serial_wants}
+After=
+After=${serial_after}
+
 [Service]
 # NEMU/Linux bring-up 需要自动化验证长期 console session；这里只覆盖串口 getty，
 # PID1、PAM session、/dev/pts 和真实 Ubuntu 用户态仍然走 systemd 路线。
 ExecStart=
-ExecStart=-/sbin/agetty --autologin ${ROOTFS_SERIAL_AUTOLOGIN_USER} --keep-baud 115200,57600,38400,9600 %I \$TERM
+ExecStart=-/sbin/agetty --autologin ${ROOTFS_SERIAL_AUTOLOGIN_USER} ${login_program_args} --keep-baud 115200,57600,38400,9600 %I \$TERM
 EOF
+    if [ "$ROOTFS_NPC_LOGIN_MARKER" = "1" ]; then
+      cat > "$ROOTFS/etc/systemd/system/serial-getty@${tty}.service" <<EOF
+[Unit]
+Description=Serial Getty on %I for NPC login gate
+Documentation=man:agetty(8) man:systemd-getty-generator(8)
+DefaultDependencies=no
+After=getty-pre.target systemd-remount-fs.service systemd-tmpfiles-setup-dev.service systemd-udevd.service
+Before=systemd-udev-trigger.service sysinit.target getty.target
+IgnoreOnIsolate=yes
+Conflicts=rescue.service
+Before=rescue.service
+
+[Service]
+# Keep the login/PAM path real while avoiding template device and late boot waits on NPC.
+ExecStart=-/sbin/agetty --autologin ${ROOTFS_SERIAL_AUTOLOGIN_USER} ${login_program_args} --keep-baud 115200,57600,38400,9600 %I \$TERM
+Type=simple
+Restart=always
+UtmpIdentifier=%I
+IgnoreSIGPIPE=no
+SendSIGHUP=yes
+
+[Install]
+WantedBy=sysinit.target getty.target
+EOF
+      mkdir -p "$ROOTFS/etc/systemd/system/getty.target.wants" "$ROOTFS/etc/systemd/system/sysinit.target.wants"
+      ln -sfn "../serial-getty@${tty}.service" "$ROOTFS/etc/systemd/system/getty.target.wants/serial-getty@${tty}.service"
+      ln -sfn "../serial-getty@${tty}.service" "$ROOTFS/etc/systemd/system/sysinit.target.wants/serial-getty@${tty}.service"
+    fi
   done
 fi
 for tty in $ROOTFS_SERIAL_MASK_TTYS; do
   mkdir -p "$ROOTFS/etc/systemd/system"
   ln -sfn /dev/null "$ROOTFS/etc/systemd/system/serial-getty@${tty}.service"
 done
+if [ "$ROOTFS_NPC_LOGIN_MARKER" = "1" ]; then
+  mkdir -p "$ROOTFS/root"
+  cat > "$ROOTFS/root/.bash_profile" <<'EOF'
+# Marker-only profile for NPC serial-getty login/session gates.
+if [ "${YSYX_NPC_LOGIN_MARKER_EMITTED:-0}" != "1" ]; then
+  export YSYX_NPC_LOGIN_MARKER_EMITTED=1
+  echo __NPC_LOGIN_CHECK_BEGIN__
+  check_fail=0
+  pass() { echo "__NPC_LOGIN_CHECK_PASS__:$1"; }
+  fail() { echo "__NPC_LOGIN_CHECK_FAIL__:$1"; check_fail=1; }
+
+  uid="$(id -u 2>/dev/null || echo unknown)"
+  tty_path="$(tty 2>/dev/null || echo unknown)"
+  pid1_comm=unknown
+  [ -r /proc/1/comm ] && IFS= read -r pid1_comm </proc/1/comm || true
+  loginuid=unknown
+  [ -r /proc/self/loginuid ] && loginuid="$(cat /proc/self/loginuid 2>/dev/null || echo unknown)"
+
+  echo "__NPC_LOGIN_UID__:$uid"
+  echo "__NPC_LOGIN_TTY__:$tty_path"
+  echo "__NPC_LOGIN_PID1__:$pid1_comm"
+  echo "__NPC_LOGIN_LOGINUID__:$loginuid"
+
+  [ "$uid" = "0" ] && pass root-login || fail root-login
+  [ "$tty_path" = "/dev/ttyS0" ] && pass ttyS0-login || fail ttyS0-login
+  [ "$pid1_comm" = "systemd" ] && pass pid1-systemd || fail pid1-systemd
+  [ -d /run/systemd/system ] && pass systemd-runtime || fail systemd-runtime
+  [ -x /bin/login ] && pass login-binary || fail login-binary
+  [ -d /lib/riscv64-linux-gnu/security ] && pass pam-module-path || fail pam-module-path
+
+  echo "__NPC_LOGIN_CHECK_DONE__ rc=$check_fail"
+fi
+
+[ -r /root/.profile ] && . /root/.profile
+EOF
+  : > "$ROOTFS/root/.hushlogin"
+  chmod 0644 "$ROOTFS/root/.bash_profile"
+  chmod 0644 "$ROOTFS/root/.hushlogin"
+  if [ -f "$ROOTFS/etc/profile" ] && [ ! -f "$ROOTFS/etc/profile.ysyx-original" ]; then
+    cp -a "$ROOTFS/etc/profile" "$ROOTFS/etc/profile.ysyx-original"
+  fi
+  cat > "$ROOTFS/etc/profile" <<\EOF
+# NPC_LOGIN_MARKER_MINIMAL_ETC_PROFILE
+# Keep login-shell startup deterministic on NPC; /root/.bash_profile owns the marker checks.
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+if [ -z "${TERM:-}" ]; then
+  TERM=vt102
+fi
+export TERM
+EOF
+  chmod 0644 "$ROOTFS/etc/profile"
+  if [ -f "$ROOTFS/etc/pam.d/login" ]; then
+    sed -i \
+      -e 's/^\([[:space:]]*auth[[:space:]]\+optional[[:space:]]\+pam_faildelay\.so.*\)$/# NPC_LOGIN_MARKER_DISABLED \1/' \
+      -e 's/^\([[:space:]]*session[[:space:]]\+optional[[:space:]]\+pam_motd\.so.*\)$/# NPC_LOGIN_MARKER_DISABLED \1/' \
+      -e 's/^\([[:space:]]*session[[:space:]]\+optional[[:space:]]\+pam_lastlog\.so.*\)$/# NPC_LOGIN_MARKER_DISABLED \1/' \
+      -e 's/^\([[:space:]]*session[[:space:]]\+optional[[:space:]]\+pam_mail\.so.*\)$/# NPC_LOGIN_MARKER_DISABLED \1/' \
+      "$ROOTFS/etc/pam.d/login"
+  fi
+fi
+if [ "$ROOTFS_NEMU_LOGIN_MARKER" = "1" ]; then
+  mkdir -p "$ROOTFS/root"
+  # NEMU marker 追加到 .profile；NPC .bash_profile 会在末尾 source 它，二者保持隔离。
+  if ! grep -q '__NEMU_LOGIN_CHECK_BEGIN__' "$ROOTFS/root/.profile" 2>/dev/null; then
+    cat >> "$ROOTFS/root/.profile" <<'EOF'
+
+# Marker-only profile for NEMU serial-getty login/session gates.
+if [ "${YSYX_NEMU_LOGIN_MARKER_EMITTED:-0}" != "1" ]; then
+  export YSYX_NEMU_LOGIN_MARKER_EMITTED=1
+  echo __NEMU_LOGIN_CHECK_BEGIN__
+  check_fail=0
+  pass() { echo "__NEMU_LOGIN_CHECK_PASS__:$1"; }
+  fail() { echo "__NEMU_LOGIN_CHECK_FAIL__:$1"; check_fail=1; }
+
+  uid="$(id -u 2>/dev/null || echo unknown)"
+  tty_path="$(tty 2>/dev/null || echo unknown)"
+  pid1_comm=unknown
+  [ -r /proc/1/comm ] && IFS= read -r pid1_comm </proc/1/comm || true
+  loginuid=unknown
+  [ -r /proc/self/loginuid ] && loginuid="$(cat /proc/self/loginuid 2>/dev/null || echo unknown)"
+
+  echo "__NEMU_LOGIN_UID__:$uid"
+  echo "__NEMU_LOGIN_TTY__:$tty_path"
+  echo "__NEMU_LOGIN_PID1__:$pid1_comm"
+  echo "__NEMU_LOGIN_LOGINUID__:$loginuid"
+
+  [ "$uid" = "0" ] && pass root-login || fail root-login
+  [ "$tty_path" = "/dev/ttyS0" ] && pass ttyS0-login || fail ttyS0-login
+  [ "$pid1_comm" = "systemd" ] && pass pid1-systemd || fail pid1-systemd
+  [ -d /run/systemd/system ] && pass systemd-runtime || fail systemd-runtime
+  [ -x /bin/login ] && pass login-binary || fail login-binary
+  [ -d /lib/riscv64-linux-gnu/security ] && pass pam-module-path || fail pam-module-path
+
+  echo "__NEMU_LOGIN_CHECK_DONE__ rc=$check_fail"
+fi
+EOF
+  fi
+  chmod 0644 "$ROOTFS/root/.profile"
+fi
+if [ "$ROOTFS_NPC_LOGIN_MARKER" = "1" ]; then
+  mkdir -p "$ROOTFS/etc/systemd/system"
+  ln -sfn /lib/systemd/system/multi-user.target "$ROOTFS/etc/systemd/system/default.target"
+  for unit in \
+    plymouth-read-write.service \
+    plymouth-start.service \
+    plymouth-quit.service \
+    plymouth-quit-wait.service; do
+    ln -sfn /dev/null "$ROOTFS/etc/systemd/system/$unit"
+  done
+fi
 mkdir -p "$ROOTFS/etc/systemd/system"
 # full rootfs 保留 e2fsprogs/e2scrub 工具，但禁用会阻塞 NEMU boot 的在线 scrub 维护任务。
 ln -sfn /dev/null "$ROOTFS/etc/systemd/system/e2scrub_reap.service"
 ln -sfn /dev/null "$ROOTFS/etc/systemd/system/e2scrub_all.timer"
 if [ "$ROOTFS_NPC_CONSOLE_SHELL" = "1" ]; then
   mkdir -p "$ROOTFS/usr/local/sbin" "$ROOTFS/etc/systemd/system/sysinit.target.wants"
+  case "$ROOTFS_NPC_TTY_READER_MODE" in
+    c-probe|tty-probe)
+      if [ ! -f "${ROOTFS_NPC_TTY_PROBE_BIN:-}" ]; then
+        echo "[ubuntu-rootfs] missing built NPC tty probe: ${ROOTFS_NPC_TTY_PROBE_BIN:-unset}" >&2
+        exit 1
+      fi
+      cp "$ROOTFS_NPC_TTY_PROBE_BIN" "$ROOTFS/usr/local/sbin/ysyx-npc-tty-probe"
+      chmod 0755 "$ROOTFS/usr/local/sbin/ysyx-npc-tty-probe"
+      ;;
+  esac
+
   cat > "$ROOTFS/usr/local/sbin/ysyx-npc-console-shell" <<'EOF'
 #!/bin/sh
 export HOME=/root
@@ -971,9 +1658,30 @@ reader_mode=${YSYX_NPC_TTY_READER_MODE:-line}
 echo "__NPC_TTY_READER_MODE__:$reader_mode"
 tty_name=$(tty 2>/dev/null || true)
 echo "__NPC_TTY_READER_STDIN__:${tty_name:-unknown}"
+reader_input=${YSYX_NPC_TTY_READER_INPUT:-$tty_name}
+case "$reader_input" in
+  /dev/*) ;;
+  *) reader_input=/dev/ttyS0 ;;
+esac
+echo "__NPC_TTY_READER_INPUT__:$reader_input"
 if command -v stty >/dev/null 2>&1; then
   stty -a 2>/dev/null | sed 's/^/__NPC_TTY_READER_STTY_BEFORE__:/' || true
 fi
+
+print_proc_marker() {
+  proc_label=$1
+  proc_pid=$2
+  proc_stat=$(cat "/proc/$proc_pid/stat" 2>/dev/null || true)
+  if [ -n "$proc_stat" ]; then
+    proc_after=${proc_stat#*) }
+    proc_fd0=$(readlink "/proc/$proc_pid/fd/0" 2>/dev/null || true)
+    [ -n "$proc_fd0" ] || proc_fd0=unknown
+    set -- $proc_after
+    echo "__NPC_TTY_READER_PROC__:$proc_label:pid=$proc_pid state=${1:-?} pgrp=${3:-?} session=${4:-?} tty_nr=${5:-?} tpgid=${6:-?} fd0=$proc_fd0"
+  else
+    echo "__NPC_TTY_READER_PROC__:$proc_label:pid=$proc_pid missing"
+  fi
+}
 
 run_line_reader() {
   stty -echo 2>/dev/null || true
@@ -997,11 +1705,47 @@ run_raw_bytes_reader() {
   # 这一模式只取消输入 canonical/echo，保留输出侧行规程，便于继续观察 console marker。
   # time=2 让“无字节进入用户态”在当前 NPC cycle budget 内可见，而不是继续卡到 max-cycle。
   stty -icanon -echo min 0 time 2 2>/dev/null || true
+  print_proc_marker shell $$
   if command -v stty >/dev/null 2>&1; then
     stty -a 2>/dev/null | sed 's/^/__NPC_TTY_READER_STTY_RAW__:/' || true
   fi
   echo __NPC_TTY_READER_READY__
-  if dd bs=1 count=24 of="$tmp" 2>"$err"; then
+  dd_rc=0
+  dd_watchdog=0
+  case "$reader_mode" in raw-proc|raw-proc-fast) dd_watchdog=1 ;; esac
+  if [ "$dd_watchdog" = "1" ]; then
+    dd if="$reader_input" bs=1 count=24 of="$tmp" 2>"$err" &
+    dd_pid=$!
+    echo "__NPC_TTY_READER_DD_PID__:$dd_pid"
+    dd_sample=0
+    dd_limit=${YSYX_NPC_TTY_READER_DD_WATCHDOG_SAMPLES:-8}
+    dd_sleep=${YSYX_NPC_TTY_READER_DD_WATCHDOG_SLEEP:-0.2}
+    if [ "$reader_mode" = "raw-proc-fast" ]; then
+      dd_limit=${YSYX_NPC_TTY_READER_DD_WATCHDOG_SAMPLES:-64}
+      dd_sleep=${YSYX_NPC_TTY_READER_DD_WATCHDOG_SLEEP:-0}
+    fi
+    while kill -0 "$dd_pid" 2>/dev/null; do
+      print_proc_marker dd "$dd_pid"
+      dd_sample=$((dd_sample + 1))
+      [ "$dd_sample" -ge "$dd_limit" ] && break
+      if [ "$dd_sleep" != "0" ]; then
+        sleep "$dd_sleep" 2>/dev/null || sleep 1
+      fi
+    done
+    if kill -0 "$dd_pid" 2>/dev/null; then
+      echo "__NPC_TTY_READER_DD_TIMEOUT__:samples=$dd_sample"
+      kill "$dd_pid" 2>/dev/null || true
+      wait "$dd_pid" 2>/dev/null || true
+      dd_rc=124
+    else
+      wait "$dd_pid"
+      dd_rc=$?
+    fi
+  else
+    dd if="$reader_input" bs=1 count=24 of="$tmp" 2>"$err"
+    dd_rc=$?
+  fi
+  if [ "$dd_rc" = 0 ]; then
     set -- $(wc -c <"$tmp" 2>/dev/null || echo 0)
     bytes=${1:-0}
     hex=
@@ -1020,15 +1764,29 @@ run_raw_bytes_reader() {
       echo "__NPC_TTY_READER_DONE__ rc=3"
     fi
   else
-    rc=$?
-    echo "__NPC_TTY_READER_DD_RC__:$rc"
+    echo "__NPC_TTY_READER_DD_RC__:$dd_rc"
     sed 's/^/__NPC_TTY_READER_DD_ERR__:/' "$err" 2>/dev/null || true
-    echo "__NPC_TTY_READER_DONE__ rc=2"
+    if [ "$dd_rc" = 124 ]; then
+      echo "__NPC_TTY_READER_DONE__ rc=4"
+    else
+      echo "__NPC_TTY_READER_DONE__ rc=2"
+    fi
   fi
 }
 
+run_c_probe_reader() {
+  if [ ! -x /usr/local/sbin/ysyx-npc-tty-probe ]; then
+    echo "__NPC_TTY_READER_C_PROBE_MISSING__"
+    echo "__NPC_TTY_READER_DONE__ rc=5"
+    return
+  fi
+  print_proc_marker shell $$
+  /usr/local/sbin/ysyx-npc-tty-probe "$reader_input"
+}
+
 case "$reader_mode" in
-  raw|raw-bytes) run_raw_bytes_reader ;;
+  c-probe|tty-probe) run_c_probe_reader ;;
+  raw|raw-bytes|raw-proc|raw-proc-fast) run_raw_bytes_reader ;;
   *) run_line_reader ;;
 esac
 EOF
@@ -1116,7 +1874,7 @@ ConditionPathExists=/dev/ttyS0
 ConditionPathExists=/usr/local/sbin/ysyx-npc-tty-reader
 
 [Service]
-Type=simple
+Type=oneshot
 Environment=TERM=vt100
 Environment=YSYX_NPC_TTY_READER_MODE=__NPC_TTY_READER_MODE__
 WorkingDirectory=/root
@@ -1210,6 +1968,104 @@ EOF
   ln -sfn /lib/systemd/system/rsyslog.service "$ROOTFS/etc/systemd/system/syslog.service"
 fi
 
+if [ "$ROOTFS_NPC_GENERATOR_TRACE" = "1" ]; then
+  skip_list=${ROOTFS_NPC_GENERATOR_SKIP:-}
+  skip_mode=${ROOTFS_NPC_GENERATOR_SKIP_MODE:-shell}
+  if [ "$skip_mode" = "static" ]; then
+    if [ ! -f "${ROOTFS_NPC_GENERATOR_SKIP_BIN:-}" ]; then
+      echo "[ubuntu-rootfs] missing NPC static generator skip wrapper: ${ROOTFS_NPC_GENERATOR_SKIP_BIN:-unset}" >&2
+      exit 1
+    fi
+    mkdir -p "$ROOTFS/usr/local/sbin" "$ROOTFS/etc"
+    cp "$ROOTFS_NPC_GENERATOR_SKIP_BIN" "$ROOTFS/usr/local/sbin/ysyx-npc-generator-skip"
+    chmod 0755 "$ROOTFS/usr/local/sbin/ysyx-npc-generator-skip"
+    printf '%s\n' "$skip_list" > "$ROOTFS/etc/ysyx-npc-generator-skip-list"
+    printf '%s\n' "${ROOTFS_NPC_GENERATOR_REAL_MODE:-exec}" > "$ROOTFS/etc/ysyx-npc-generator-real-mode"
+  fi
+  for gen_dir in "$ROOTFS/lib/systemd/system-generators" "$ROOTFS/usr/lib/systemd/system-generators"; do
+    [ -d "$gen_dir" ] || continue
+    case "$gen_dir" in
+      "$ROOTFS/lib/systemd/system-generators") real_bucket=lib ;;
+      "$ROOTFS/usr/lib/systemd/system-generators") real_bucket=usr-lib ;;
+      *) real_bucket=other ;;
+    esac
+    real_root="$ROOTFS/usr/local/lib/ysyx-npc-system-generators/$real_bucket"
+    mkdir -p "$real_root"
+    for stale in "$gen_dir"/*.ysyx-real; do
+      [ -f "$stale" ] || continue
+      stale_name=$(basename "$stale" .ysyx-real)
+      stale_real="$real_root/$stale_name"
+      if [ ! -e "$stale_real" ]; then
+        mv "$stale" "$stale_real"
+      else
+        rm -f "$stale"
+      fi
+      chmod 0755 "$stale_real" 2>/dev/null || true
+    done
+    for gen in "$gen_dir"/*; do
+      [ -f "$gen" ] || continue
+      [ -x "$gen" ] || continue
+      case "$gen" in
+        *.ysyx-real) continue ;;
+      esac
+      gen_name=$(basename "$gen")
+      real_gen="$real_root/$gen_name"
+      real_gen_guest="/usr/local/lib/ysyx-npc-system-generators/$real_bucket/$gen_name"
+      has_wrapper=0
+      if grep -aq '__NPC_GENERATOR_BEGIN__' "$gen" 2>/dev/null; then
+        has_wrapper=1
+      fi
+      if [ "$has_wrapper" = "1" ] && [ ! -e "$real_gen" ]; then
+        continue
+      fi
+      if [ "$has_wrapper" != "1" ] && [ ! -e "$real_gen" ]; then
+        mv "$gen" "$real_gen"
+      fi
+      if [ "$skip_mode" = "static" ]; then
+        cp "$ROOTFS/usr/local/sbin/ysyx-npc-generator-skip" "$gen"
+        chmod 0755 "$gen"
+      else
+        cat > "$gen" <<EOF
+#!/bin/sh
+name="$gen_name"
+skip_list="$skip_list"
+echo "__NPC_GENERATOR_BEGIN__:\$name argc=\$# argv=\$*" >/dev/console
+case " \$skip_list " in
+  *" all "*|*" \$name "*)
+    echo "__NPC_GENERATOR_SKIP__:\$name match=space-list" >/dev/console
+    echo "__NPC_GENERATOR_END__:\$name rc=0 skipped=1" >/dev/console
+    exit 0
+    ;;
+esac
+case ",\$skip_list," in
+  *,all,*|*,\$name,*)
+    echo "__NPC_GENERATOR_SKIP__:\$name match=comma-list" >/dev/console
+    echo "__NPC_GENERATOR_END__:\$name rc=0 skipped=1" >/dev/console
+    exit 0
+    ;;
+esac
+"$real_gen_guest" "\$@"
+rc=\$?
+echo "__NPC_GENERATOR_END__:\$name rc=\$rc" >/dev/console
+exit "\$rc"
+EOF
+        chmod 0755 "$gen"
+      fi
+    done
+  done
+fi
+
+if [ "$ROOTFS_NPC_PRESEED_SYSTEMD_UPDATE" = "1" ]; then
+  if ! command -v systemd-sysusers >/dev/null 2>&1; then
+    echo "[ubuntu-rootfs] missing host systemd-sysusers for NPC update preseed" >&2
+    exit 1
+  fi
+  echo "[ubuntu-rootfs] preseed systemd sysusers/update-done stamps"
+  systemd-sysusers --root="$ROOTFS"
+  mkdir -p "$ROOTFS/etc" "$ROOTFS/var"
+  touch "$ROOTFS/etc/.updated" "$ROOTFS/var/.updated"
+fi
+
 truncate -s "$IMAGE_SIZE" "$IMAGE"
 mkfs.ext4 -F -d "$ROOTFS" "$IMAGE"
 (cd "$ROOTFS" && find . -print0 | sort -z | cpio --quiet --null -o --format=newc > "$CPIO")
@@ -1227,6 +2083,16 @@ FAKEROOT
     ROOTFS_NPC_CONSOLE_SHELL="$ROOTFS_NPC_CONSOLE_SHELL" \
     ROOTFS_NPC_TTY_READER="$ROOTFS_NPC_TTY_READER" \
     ROOTFS_NPC_TTY_READER_MODE="$ROOTFS_NPC_TTY_READER_MODE" \
+    ROOTFS_NPC_TTY_PROBE_BIN="$ROOTFS_NPC_TTY_PROBE_BIN" \
+    ROOTFS_NPC_LOGIN_MARKER="$ROOTFS_NPC_LOGIN_MARKER" \
+    ROOTFS_NPC_LOGIN_TRACE="$ROOTFS_NPC_LOGIN_TRACE" \
+    ROOTFS_NPC_GENERATOR_TRACE="$ROOTFS_NPC_GENERATOR_TRACE" \
+    ROOTFS_NPC_GENERATOR_SKIP="$ROOTFS_NPC_GENERATOR_SKIP" \
+    ROOTFS_NPC_GENERATOR_SKIP_MODE="$ROOTFS_NPC_GENERATOR_SKIP_MODE" \
+    ROOTFS_NPC_GENERATOR_REAL_MODE="$ROOTFS_NPC_GENERATOR_REAL_MODE" \
+    ROOTFS_NPC_GENERATOR_SKIP_BIN="$ROOTFS_NPC_GENERATOR_SKIP_BIN" \
+    ROOTFS_NEMU_LOGIN_MARKER="$ROOTFS_NEMU_LOGIN_MARKER" \
+    ROOTFS_NPC_PRESEED_SYSTEMD_UPDATE="$ROOTFS_NPC_PRESEED_SYSTEMD_UPDATE" \
     ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS="$ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS" \
     ROOTFS_SYSTEMD_OVERLAY_SCRIPT="$ROOTFS_SYSTEMD_OVERLAY_SCRIPT" \
     fakeroot -- bash "$helper"
@@ -1234,6 +2100,8 @@ FAKEROOT
 
 build_rootfs_static_init
 build_rootfs_probe
+build_npc_tty_probe
+build_npc_generator_skip_wrapper
 
 if can_sudo && command -v debootstrap >/dev/null && command -v qemu-riscv64-static >/dev/null; then
   echo "[ubuntu-rootfs] build via debootstrap"
@@ -1259,6 +2127,14 @@ if [ "$ROOTFS_REQUIRE_SYSTEMD" = "1" ] && [ -f "$SCRIPT_DIR/check-ubuntu-rootfs.
   UBUNTU_ROOTFS_IMAGE="$IMAGE" UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 \
     UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL="$ROOTFS_NPC_CONSOLE_SHELL" \
     UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER="$ROOTFS_NPC_TTY_READER" \
+    UBUNTU_ROOTFS_REQUIRE_NPC_LOGIN_MARKER="$ROOTFS_NPC_LOGIN_MARKER" \
+    UBUNTU_ROOTFS_REQUIRE_NPC_LOGIN_TRACE="$ROOTFS_NPC_LOGIN_TRACE" \
+    UBUNTU_ROOTFS_REQUIRE_NPC_GENERATOR_TRACE="$ROOTFS_NPC_GENERATOR_TRACE" \
+    UBUNTU_ROOTFS_REQUIRE_NPC_GENERATOR_SKIP="$ROOTFS_NPC_GENERATOR_SKIP" \
+    UBUNTU_ROOTFS_REQUIRE_NPC_GENERATOR_SKIP_MODE="$ROOTFS_NPC_GENERATOR_SKIP_MODE" \
+    UBUNTU_ROOTFS_REQUIRE_NPC_GENERATOR_REAL_MODE="$ROOTFS_NPC_GENERATOR_REAL_MODE" \
+    UBUNTU_ROOTFS_REQUIRE_NEMU_LOGIN_MARKER="$ROOTFS_NEMU_LOGIN_MARKER" \
+    UBUNTU_ROOTFS_REQUIRE_NPC_PRESEED_SYSTEMD_UPDATE="$ROOTFS_NPC_PRESEED_SYSTEMD_UPDATE" \
     bash "$SCRIPT_DIR/check-ubuntu-rootfs.sh"
 fi
 echo "[ubuntu-rootfs] 注意：启动该 rootfs 还需要 RTL/仿真侧 virtio-mmio block、host block backend 与 IRQ2 路径。"

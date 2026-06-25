@@ -52,6 +52,7 @@ e2e_nemu_ubuntu_static_gate_impl() {
     Linux/scripts/check-ubuntu-rootfs.sh \
     Linux/scripts/profile-nemu-ubuntu.sh \
     Linux/scripts/check-nemu-systemd-guest.sh \
+    Linux/scripts/check-nemu-tap-host.sh \
     Linux/scripts/check-nemu-performance-config.sh \
     Linux/scripts/check-nemu-kernel-config.sh \
     Linux/scripts/check-nemu-qmp-smoke.py \
@@ -134,6 +135,7 @@ e2e_nemu_ubuntu_static_gate_impl() {
     "$E2E_ROOT_DIR/Linux/scripts/ubuntu-rootfs-flavors.sh" \
     "$E2E_ROOT_DIR/Linux/scripts/check-ubuntu-rootfs.sh" \
     "$E2E_ROOT_DIR/Linux/scripts/check-nemu-systemd-guest.sh" \
+    "$E2E_ROOT_DIR/Linux/scripts/check-nemu-tap-host.sh" \
     "$E2E_ROOT_DIR/Linux/scripts/check-nemu-performance-config.sh" \
     "$E2E_ROOT_DIR/Linux/scripts/check-nemu-kernel-config.sh" \
     "$E2E_ROOT_DIR/Linux/scripts/check-ubuntu-rootfs.sh" \
@@ -309,9 +311,11 @@ e2e_nemu_ubuntu_static_gate_impl() {
     "config.interpreter_basic_block=1" \
     "runtime.interpreter_basic_block.enabled=1" \
     "runtime.interpreter_basic_block.disable_env=NEMU_INTERPRETER_BASIC_BLOCK=0" \
-    "config.interpreter_tb_max_inst=32" \
-    "runtime.interpreter_tb_max_inst=32" \
+    "config.interpreter_tb_max_inst=256" \
+    "runtime.interpreter_tb_max_inst=256" \
     "runtime.interpreter_tb_max_inst.env=NEMU_INTERPRETER_TB_MAX_INST" \
+    "runtime.interpreter_tb_amo_continue.enabled=1" \
+    "runtime.interpreter_tb_amo_continue.disable_env=NEMU_INTERPRETER_TB_AMO_CONTINUE=0" \
     "config.interpreter_wide_ifetch=1" \
     "config.interpreter_ifetch_page_cache=1" \
     "config.interpreter_decode_cache=1" \
@@ -321,6 +325,10 @@ e2e_nemu_ubuntu_static_gate_impl() {
     "runtime.interpreter_ifetch_page_cache.enabled=1" \
     "runtime.interpreter_decode_cache.enabled=1" \
     "runtime.interpreter_decode_cache.disable_env=NEMU_INTERPRETER_DECODE_CACHE=0" \
+    "runtime.interpreter_decode_cache.rvc_fast.enabled=1" \
+    "runtime.interpreter_decode_cache.rvc_fast.disable_env=NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST=0" \
+    "runtime.interpreter_decode_cache.int_fast.enabled=1" \
+    "runtime.interpreter_decode_cache.int_fast.disable_env=NEMU_INTERPRETER_DECODE_CACHE_INT_FAST=0" \
     "runtime.vaddr_host_fast.enabled=1" \
     "runtime.vaddr_host_fast.disable_env=NEMU_VADDR_HOST_FAST=0" \
     "config.interpreter_decode_cache_entries=32768" \
@@ -470,11 +478,19 @@ e2e_nemu_ubuntu_static_gate_impl() {
     "device.virtio_net.mmio=0x10004000" \
     "device.virtio_net.irq=5" \
     "device.virtio_net.backend=hostless-responder" \
+    "device.virtio_net.host_packet_backend=unsupported" \
+    "device.virtio_net.tap=unsupported" \
+    "device.virtio_net.tap.ifname=none" \
+    "device.virtio_net.slirp_nat=unsupported" \
+    "device.virtio_net.host_port_forward=unsupported" \
+    "device.virtio_net.external_network=unsupported" \
+    "device.virtio_net.external_mirror=unsupported" \
     "device.virtio_net.mac=52:54:00:12:34:56" \
     "device.virtio_net.host_ip=10.0.2.2" \
     "device.virtio_net.guest_ip=10.0.2.15" \
     "device.virtio_net.dhcp=hostless" \
     "device.virtio_net.dns=nemu.local" \
+    "device.virtio_net.ntp=hostless 10.0.2.2:123" \
     "device.virtio_net.tcp_http=/nemu-health" \
     "device.virtio_net.tcp_http_head=/nemu-health" \
     "device.virtio_net.tcp_http_404=enabled" \
@@ -543,6 +559,12 @@ e2e_nemu_ubuntu_static_gate_impl() {
     "device.virtio_net.stats.tcp_http_large_requests=0" \
     "device.virtio_net.stats.tcp_http_segmented_responses=0" \
     "device.virtio_net.stats.tcp_http_response_segments=0" \
+    "device.virtio_net.stats.tap_tx_packets=0" \
+    "device.virtio_net.stats.tap_tx_bytes=0" \
+    "device.virtio_net.stats.tap_tx_errors=0" \
+    "device.virtio_net.stats.tap_rx_packets=0" \
+    "device.virtio_net.stats.tap_rx_bytes=0" \
+    "device.virtio_net.stats.tap_rx_errors=0" \
     "device.virtio_net.stats.ctrl_rx_commands=0" \
     "device.virtio_net.stats.ctrl_rx_extra_commands=0" \
     "device.virtio_net.stats.ctrl_mac_table_commands=0" \
@@ -569,15 +591,20 @@ e2e_nemu_ubuntu_static_gate_impl() {
   echo
   echo "[nemu-ubuntu] interpreter fast-path disable diagnostic machine info contract"
   NEMU_INTERPRETER_BASIC_BLOCK=0 \
+  NEMU_INTERPRETER_TB_AMO_CONTINUE=0 \
   NEMU_INTERPRETER_WIDE_IFETCH=0 \
   NEMU_INTERPRETER_DECODE_CACHE=0 \
+  NEMU_INTERPRETER_DECODE_CACHE_INT_FAST=0 \
   NEMU_VADDR_HOST_FAST=0 \
     make -C "$E2E_ROOT_DIR/Linux" ARCH=riscv64-nemu nemu-machine-info
   for pattern in \
     "runtime.interpreter_basic_block.enabled=0" \
+    "runtime.interpreter_tb_amo_continue.enabled=0" \
     "runtime.interpreter_wide_ifetch.enabled=0" \
     "runtime.interpreter_ifetch_page_cache.enabled=0" \
     "runtime.interpreter_decode_cache.enabled=0" \
+    "runtime.interpreter_decode_cache.rvc_fast.enabled=0" \
+    "runtime.interpreter_decode_cache.int_fast.enabled=0" \
     "runtime.vaddr_host_fast.enabled=0"; do
     if grep -Fxq "$pattern" "$machine_info"; then
       printf 'PASS interpreter-fast-disable machine-info %s\n' "$pattern"
@@ -618,7 +645,7 @@ e2e_nemu_ubuntu_static_gate_impl() {
   echo
   echo "[nemu-ubuntu] monitor one-shot command smoke"
   make -C "$E2E_ROOT_DIR/Linux" ARCH=riscv64-nemu nemu-monitor-cmd-smoke
-  local monitor_cmd_log="$E2E_ROOT_DIR/Linux/build/nemu-monitor-cmd-smoke.log"
+  local monitor_cmd_log="$E2E_ROOT_DIR/Linux/build/riscv64-nemu/nemu-monitor-cmd-smoke.log"
   for pattern in \
     "[monitor-cmd] info r" \
     "x0  (" \
@@ -634,7 +661,7 @@ e2e_nemu_ubuntu_static_gate_impl() {
   echo
   echo "[nemu-ubuntu] QMP startup query smoke"
   make -C "$E2E_ROOT_DIR/Linux" ARCH=riscv64-nemu nemu-qmp-smoke
-  local qmp_log="$E2E_ROOT_DIR/Linux/build/nemu-qmp-smoke.log"
+  local qmp_log="$E2E_ROOT_DIR/Linux/build/riscv64-nemu/nemu-qmp-smoke.log"
   for pattern in \
     "PASS qmp-greeting" \
     "PASS qmp_capabilities" \
@@ -646,6 +673,7 @@ e2e_nemu_ubuntu_static_gate_impl() {
     "PASS query-chardev serial0" \
     "PASS query-serial serial0" \
     "PASS query-netdev net0" \
+    "PASS query-netdev-host-network-boundary-ledger" \
     "PASS query-netdev-features" \
     "PASS query-netdev-driver-features-zero-baseline" \
     "PASS query-netdev-stats-zero-baseline" \
@@ -691,6 +719,7 @@ e2e_nemu_ubuntu_static_gate_impl() {
     "PASS runtime-query-chardev serial0" \
     "PASS runtime-query-serial serial0" \
     "PASS runtime-query-netdev net0" \
+    "PASS runtime-query-netdev-host-network-boundary-ledger" \
     "PASS runtime-query-netdev-features" \
     "PASS runtime-query-netdev-driver-features-zero-baseline" \
     "PASS runtime-query-netdev-stats-zero-baseline" \
@@ -733,7 +762,7 @@ e2e_nemu_ubuntu_static_gate_impl() {
   echo
   echo "[nemu-ubuntu] GDB remote stub smoke"
   make -C "$E2E_ROOT_DIR/Linux" ARCH=riscv64-nemu nemu-gdbstub-smoke
-  local gdbstub_log="$E2E_ROOT_DIR/Linux/build/nemu-gdbstub-smoke.log"
+  local gdbstub_log="$E2E_ROOT_DIR/Linux/build/riscv64-nemu/nemu-gdbstub-smoke.log"
   for pattern in \
     "PASS qSupported" \
     "PASS vCont-query" \
@@ -988,6 +1017,11 @@ e2e_nemu_ubuntu_static_gate() {
         "$NEMU_INTERPRETER_TB_MAX_INST"
       unset NEMU_INTERPRETER_TB_MAX_INST
     fi
+    if [[ ${NEMU_INTERPRETER_TB_AMO_CONTINUE+x} ]]; then
+      printf '[nemu-ubuntu] default static contracts ignore outer NEMU_INTERPRETER_TB_AMO_CONTINUE=%s\n' \
+        "$NEMU_INTERPRETER_TB_AMO_CONTINUE"
+      unset NEMU_INTERPRETER_TB_AMO_CONTINUE
+    fi
     if [[ ${NEMU_VIRTIO_BLK_SYNC+x} ]]; then
       printf '[nemu-ubuntu] default static contracts ignore outer NEMU_VIRTIO_BLK_SYNC=%s\n' \
         "$NEMU_VIRTIO_BLK_SYNC"
@@ -1007,6 +1041,16 @@ e2e_nemu_ubuntu_static_gate() {
       printf '[nemu-ubuntu] default static contracts ignore outer NEMU_INTERPRETER_DECODE_CACHE=%s\n' \
         "$NEMU_INTERPRETER_DECODE_CACHE"
       unset NEMU_INTERPRETER_DECODE_CACHE
+    fi
+    if [[ ${NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST+x} ]]; then
+      printf '[nemu-ubuntu] default static contracts ignore outer NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST=%s\n' \
+        "$NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST"
+      unset NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST
+    fi
+    if [[ ${NEMU_INTERPRETER_DECODE_CACHE_INT_FAST+x} ]]; then
+      printf '[nemu-ubuntu] default static contracts ignore outer NEMU_INTERPRETER_DECODE_CACHE_INT_FAST=%s\n' \
+        "$NEMU_INTERPRETER_DECODE_CACHE_INT_FAST"
+      unset NEMU_INTERPRETER_DECODE_CACHE_INT_FAST
     fi
     if [[ ${NEMU_VADDR_HOST_FAST+x} ]]; then
       printf '[nemu-ubuntu] default static contracts ignore outer NEMU_VADDR_HOST_FAST=%s\n' \
@@ -1031,11 +1075,13 @@ e2e_nemu_ubuntu_profile_gate() {
   NEMU_PROFILE_MAX_CYCLES="${AGENT_E2E_NEMU_PROFILE_MAX_CYCLES:-${NEMU_PROFILE_MAX_CYCLES:-1000000000}}" \
   NEMU_PROFILE_PROGRESS="${AGENT_E2E_NEMU_PROFILE_PROGRESS:-${NEMU_PROFILE_PROGRESS:-50000000}}" \
   NEMU_PROFILE_ROOTFS_FLAVOR="${AGENT_E2E_NEMU_PROFILE_ROOTFS_FLAVOR:-${NEMU_PROFILE_ROOTFS_FLAVOR:-full}}" \
-  NEMU_PROFILE_TB_MAX_INST="${AGENT_E2E_NEMU_PROFILE_TB_MAX_INST:-${NEMU_PROFILE_TB_MAX_INST:-32}}" \
+  NEMU_PROFILE_TB_MAX_INST="${AGENT_E2E_NEMU_PROFILE_TB_MAX_INST:-${NEMU_PROFILE_TB_MAX_INST:-256}}" \
   NEMU_PROFILE_OPCODE_MIX="${AGENT_E2E_NEMU_PROFILE_OPCODE_MIX:-${NEMU_PROFILE_OPCODE_MIX:-0}}" \
   NEMU_PROFILE_STOP_DETAIL="${AGENT_E2E_NEMU_PROFILE_STOP_DETAIL:-${NEMU_PROFILE_STOP_DETAIL:-0}}" \
   NEMU_PROFILE_DECODE_CACHE="${AGENT_E2E_NEMU_PROFILE_DECODE_CACHE:-${NEMU_PROFILE_DECODE_CACHE:-0}}" \
   NEMU_PROFILE_RVC_DETAIL="${AGENT_E2E_NEMU_PROFILE_RVC_DETAIL:-${NEMU_PROFILE_RVC_DETAIL:-0}}" \
+  NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST="${AGENT_E2E_NEMU_PROFILE_DECODE_CACHE_RVC_FAST:-${NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST:-1}}" \
+  NEMU_INTERPRETER_DECODE_CACHE_INT_FAST="${AGENT_E2E_NEMU_PROFILE_DECODE_CACHE_INT_FAST:-${NEMU_INTERPRETER_DECODE_CACHE_INT_FAST:-1}}" \
   NEMU_PROFILE_HOST_PERF_RECORD="${AGENT_E2E_NEMU_PROFILE_HOST_PERF_RECORD:-${NEMU_PROFILE_HOST_PERF_RECORD:-0}}" \
   NEMU_PROFILE_HOST_PERF_ANNOTATE="${AGENT_E2E_NEMU_PROFILE_HOST_PERF_ANNOTATE:-${NEMU_PROFILE_HOST_PERF_ANNOTATE:-0}}" \
   NEMU_PROFILE_HOST_PERF_ANNOTATE_TOP="${AGENT_E2E_NEMU_PROFILE_HOST_PERF_ANNOTATE_TOP:-${NEMU_PROFILE_HOST_PERF_ANNOTATE_TOP:-3}}" \
@@ -1179,9 +1225,34 @@ e2e_nemu_ubuntu_profile_gate() {
       'tb_stop_amo.add' \
       'tb_stop_amo.lr' \
       'tb_stop_amo.sc' \
+      'tb_continue_amo.add' \
+      'tb_continue_amo.lr' \
+      'tb_continue_amo.sc' \
+      'tb_continue_amo.swap' \
+      'tb_continue_amo.other' \
       'tb_stop_system_csr.sstatus' \
       'tb_stop_system_csr.sscratch' \
-      'tb_stop_system_csr.satp'; do
+      'tb_stop_system_csr.satp' \
+      'tb_stop_system_csr.op.csrrw' \
+      'tb_stop_system_csr.op.csrrs' \
+      'tb_stop_system_csr.op.csrrc' \
+      'csr.sstatus.write.total' \
+      'csr.sstatus.write.changed' \
+      'csr.sstatus.write.unchanged' \
+      'csr.sstatus.write_delta.sie' \
+      'csr.sstatus.write_delta.fs' \
+      'csr.sstatus.write_delta.sum' \
+      'csr.sstatus.write_delta.mxr' \
+      'tb_stop_system_csr.sstatus_delta.sie_set' \
+      'tb_stop_system_csr.sstatus_delta.sie_clear' \
+      'tb_stop_system_csr.sstatus_delta.sum_set' \
+      'tb_stop_system_csr.sstatus_delta.sum_clear' \
+      'tb_stop_system_csr.sstatus_delta.only_sie_set' \
+      'tb_stop_system_csr.sstatus_delta.only_sie_clear' \
+      'tb_stop_system_csr.sstatus_delta.only_sum_set' \
+      'tb_stop_system_csr.sstatus_delta.only_sum_clear' \
+      'tb_stop_system_csr.sstatus_delta.only_fs' \
+      'tb_stop_system_csr.sstatus_delta.other_or_multi'; do
       if ! grep -q "^profile\\.cpu\\.${detail_key}=" "$summary"; then
         echo "[nemu-ubuntu] FAIL stop detail counter missing: $detail_key"
         return 1
@@ -1263,6 +1334,9 @@ e2e_nemu_ubuntu_slice_contract() {
     nemu/src/utils/profile.c \
     .github/memory/modules/nemu.md \
     .github/memory/known-issues.md \
+    .github/instructions/agent-e2e-workflow.instructions.md \
+    .github/e2e/README.md \
+    .github/e2e/modules/nemu.md \
     .github/e2e/profiles/nemu-dev.tsv \
     .github/e2e/profiles/nemu-dev-gate.tsv \
     .github/e2e/profiles/nemu-dev-full-gate.tsv \
@@ -1280,6 +1354,7 @@ e2e_nemu_ubuntu_slice_contract() {
     .github/e2e/modules/software-flow.md
 
   local check_script="$E2E_ROOT_DIR/Linux/scripts/check-nemu-systemd-guest.sh"
+  local tap_host_script="$E2E_ROOT_DIR/Linux/scripts/check-nemu-tap-host.sh"
   local python_int_check_script="$E2E_ROOT_DIR/Linux/scripts/check-nemu-python-int-preflight.sh"
   local linux_makefile="$E2E_ROOT_DIR/Linux/Makefile"
   local build_ubuntu_rootfs_sh="$E2E_ROOT_DIR/Linux/scripts/build-ubuntu-rootfs.sh"
@@ -1295,6 +1370,7 @@ e2e_nemu_ubuntu_slice_contract() {
   local dns_probe_c="$E2E_ROOT_DIR/Linux/tools/nemu-systemd-dns-probe.c"
   local tcp_probe_c="$E2E_ROOT_DIR/Linux/tools/nemu-systemd-tcp-probe.c"
   local python_int_probe_py="$E2E_ROOT_DIR/Linux/tools/nemu-python-int-preflight.py"
+  local python_int_trace_correlate_py="$E2E_ROOT_DIR/Linux/tools/nemu-python-int-trace-correlate.py"
   local linux_tools_mk="$E2E_ROOT_DIR/Linux/tools/Makefile"
   local amo_misaligned_smoke_s="$E2E_ROOT_DIR/Linux/tools/amo-misaligned-smoke.S"
   local lrsc_reservation_smoke_s="$E2E_ROOT_DIR/Linux/tools/lrsc-reservation-smoke.S"
@@ -1329,6 +1405,7 @@ e2e_nemu_ubuntu_slice_contract() {
   local linux_defconfig="$E2E_ROOT_DIR/nemu/configs/riscv64-linux_defconfig"
   local rv64_inst_c="$E2E_ROOT_DIR/nemu/src/isa/riscv64/inst.c"
   local rv64_inst_dir="$E2E_ROOT_DIR/nemu/src/isa/riscv64/inst"
+  local rv64_fp_c="$E2E_ROOT_DIR/nemu/src/isa/riscv64/inst/fp.c"
   local rv64_decode_c="$E2E_ROOT_DIR/nemu/src/isa/riscv64/inst/decode.c"
   local rv64_inst_filelist="$E2E_ROOT_DIR/nemu/src/isa/riscv64/filelist.mk"
   local rv64_inst_files=("$rv64_inst_c" "$rv64_inst_dir"/*.c)
@@ -1374,6 +1451,9 @@ e2e_nemu_ubuntu_slice_contract() {
   local nemu_ubuntu_full_soak_profile=".github/e2e/profiles/nemu-ubuntu-full-soak.tsv"
   local software_flow_profile=".github/e2e/profiles/software-flow.tsv"
   local software_flow_agent=".github/agents/software-flow.agent.md"
+  local agent_workflow_doc=".github/instructions/agent-e2e-workflow.instructions.md"
+  local e2e_readme_doc=".github/e2e/README.md"
+  local nemu_e2e_doc=".github/e2e/modules/nemu.md"
   if e2e_file_contains "$nemu_ubuntu_profile" '@include|nemu-ubuntu-focused'; then
     printf 'PASS nemu-ubuntu profile aliases NEMU-only focused profile\n'
   else
@@ -1473,6 +1553,30 @@ e2e_nemu_ubuntu_slice_contract() {
   done
 
   echo
+  echo "[nemu-ubuntu] PyLong resolved-status documentation contract"
+  for doc in "$agent_workflow_doc" "$e2e_readme_doc" "$nemu_e2e_doc"; do
+    if e2e_file_contains "$doc" '2026-06-21' &&
+       e2e_file_contains "$doc" '已修根因' &&
+       e2e_file_contains "$doc" '回归观察' &&
+       e2e_file_contains "$doc" 'PyLongObject' &&
+       e2e_file_contains "$doc" 'sentinel' &&
+       e2e_file_contains "$doc" '按新问题重新定位'; then
+      printf 'PASS PyLong resolved-status documented in %s\n' "$doc"
+    else
+      printf 'FAIL PyLong resolved-status documented in %s\n' "$doc"
+      missing=1
+    fi
+    if e2e_file_contains "$doc" '当前 Python/PyLong blocker' ||
+       e2e_file_contains "$doc" 'wide ifetch、guest memory 与 Python object state 仍需对象级证据继续切分' ||
+       e2e_file_contains "$doc" '不代表 PyLong 根因已定位'; then
+      printf 'FAIL stale PyLong blocker wording remains in %s\n' "$doc"
+      missing=1
+    else
+      printf 'PASS no stale PyLong blocker wording in %s\n' "$doc"
+    fi
+  done
+
+  echo
   echo "[nemu-ubuntu] required host build jobserver hooks"
   for pattern in \
     '+$(MAKE) -C '\''$(NEMU_HOME)'\'' NEMU_HOME='\''$(NEMU_HOME)'\'' -j'\''$(JOBS)'\''' \
@@ -1516,6 +1620,7 @@ e2e_nemu_ubuntu_slice_contract() {
     "__NEMU_CHECK_MEMTOTAL_KB__" \
     "__NEMU_CHECK_RTC0_NAME__" \
     "__NEMU_CHECK_VIRTIO_NET_MODALIAS__" \
+    "__NEMU_CHECK_VIRTIO_NET_BACKEND__" \
     "__NEMU_CHECK_VIRTIO_NET_FEATURES__" \
     "__NEMU_CHECK_VIRTIO_NET_IFACE__" \
     "__NEMU_CHECK_VIRTIO_NET_MAC__" \
@@ -1523,6 +1628,8 @@ e2e_nemu_ubuntu_slice_contract() {
     "__NEMU_CHECK_VIRTIO_NET_SPEED__" \
     "__NEMU_CHECK_VIRTIO_NET_DUPLEX__" \
     "__NEMU_CHECK_VIRTIO_NET_IPV4__" \
+    "__NEMU_CHECK_VIRTIO_NET_TAP_IFNAME__" \
+    "__NEMU_CHECK_VIRTIO_NET_TAP_EXTERNAL__" \
     "__NEMU_CHECK_VDA_CACHE_TYPE__" \
     "__NEMU_CHECK_VDA_DISCARD_MAX__" \
     "__NEMU_CHECK_VDA_WRITE_ZEROES_MAX__" \
@@ -1577,6 +1684,12 @@ e2e_nemu_ubuntu_slice_contract() {
     "virtio-net-dns-a" \
     "virtio-net-tcp-http" \
     "virtio-net-icmp-echo" \
+    "virtio-net-tap-ipv4-static" \
+    "virtio-net-tap-default-route" \
+    "virtio-net-tap-dns-config" \
+    "virtio-net-tap-ping" \
+    "virtio-net-tap-http" \
+    "virtio-net-tap-external" \
     "virtio-net-mtu" \
     "virtio-net-speed" \
     "virtio-net-duplex" \
@@ -1657,6 +1770,16 @@ e2e_nemu_ubuntu_slice_contract() {
     "VIRTIO_NET_F_GUEST_ANNOUNCE" \
     "VIRTIO_NET_F_CTRL_MAC_ADDR" \
     "VIRTIO_NET_QUEUE_CTRL" \
+    "virtio_net_set_tap" \
+    "virtio_net_tap_open_if_requested" \
+    "TUNSETIFF" \
+    "IFF_TAP" \
+    "IFF_NO_PI" \
+    "virtio_net_tap_tx" \
+    "virtio_net_update" \
+    "device.virtio_net.tap.ifname" \
+    "tap-tx-packets" \
+    "tap-rx-packets" \
     "virtio_net_ctrl_vq_enabled" \
     "virtio_net_ctrl_rx_enabled" \
     "virtio_net_ctrl_vlan_enabled" \
@@ -1720,6 +1843,7 @@ e2e_nemu_ubuntu_slice_contract() {
     "virtio_net_handle_icmp" \
     "virtio_net_handle_dhcp" \
     "virtio_net_handle_dns" \
+    "virtio_net_handle_ntp" \
     "virtio_net_handle_tcp_http" \
     "virtio_net_send_tcp_payload" \
     "VIRTIO_NET_TCP_HTTP_SEGMENT_PAYLOAD_MAX" \
@@ -1733,6 +1857,11 @@ e2e_nemu_ubuntu_slice_contract() {
     "tcp_http_large_requests" \
     "tcp_http_segmented_responses" \
     "tcp_http_response_segments" \
+    "ntp_requests" \
+    "ntp_replies" \
+    "NTP_SERVER_PORT" \
+    "NTP_PACKET_LEN" \
+    "NTP_UNIX_EPOCH_DELTA" \
     "HEAD " \
     "404 Not Found" \
     "NEMU_HTTP_LARGE_4096" \
@@ -1753,9 +1882,11 @@ e2e_nemu_ubuntu_slice_contract() {
     "http-methods" \
     "http-not-found" \
     "http-large" \
+    "ntp-server" \
     "apt-repo" \
     "DHCPDISCOVER" \
     "DHCPACK" \
+    "DHCP_OPT_NTP" \
     "DNS_QTYPE_A" \
     "TCP_HTTP_PORT" \
     "virtq_collect_table" \
@@ -1779,6 +1910,19 @@ e2e_nemu_ubuntu_slice_contract() {
   echo "[nemu-ubuntu] required host console clean hooks"
   for pattern in \
     "NEMU_SYSTEMD_NET_TCP_BURST_LOOPS" \
+    "NEMU_SYSTEMD_NET_BACKEND" \
+    "NEMU_SYSTEMD_NET_TAP" \
+    "NEMU_SYSTEMD_TAP_IPV4_CIDR" \
+    "NEMU_SYSTEMD_TAP_GATEWAY" \
+    "NEMU_SYSTEMD_TAP_DNS" \
+    "NEMU_SYSTEMD_TAP_PING_TARGET" \
+    "NEMU_SYSTEMD_TAP_HTTP_URL" \
+    "NEMU_SYSTEMD_TAP_REQUIRE_EXTERNAL" \
+    "NEMU_SYSTEMD_TAP_REQUIRE_PACKETS" \
+    "DEFAULT_NET_PROBE_ENABLE=0" \
+    "net_backend_args=(--net-tap=\"\$NET_TAP\")" \
+    "tap_tx=" \
+    "tap_rx=" \
     "NEMU_SYSTEMD_ROOTFS_OVERLAY" \
     "NEMU_SYSTEMD_MIN_MEMTOTAL_KB" \
     "NEMU_SYSTEMD_INPUT_DELAY:-0.001" \
@@ -1786,11 +1930,22 @@ e2e_nemu_ubuntu_slice_contract() {
     "NEMU_SYSTEMD_INPUT_CHUNK_DELAY:-0" \
     "serial input model: FIFO bytes -> NEMU SerialPort staging -> 16550 RX FIFO -> Linux ttyS0 (stdin disabled by default)" \
     "guest-check-upload.cmd" \
+    "read_nemu_login_done_rc" \
+    "__NEMU_LOGIN_CHECK_DONE__ rc=[0-9]" \
+    "serial login marker rc" \
     "virtio-blk-async-runtime" \
     "virtio-net-runtime" \
     "PASS rootfs-backing-unchanged" \
     "NEMU_SYSTEMD_ROOTFS_FLAVOR" \
     "NEMU_GUEST_ROOTFS_FLAVOR" \
+    "NEMU_GUEST_NET_BACKEND" \
+    "NEMU_GUEST_NET_TAP_IFNAME" \
+    "NEMU_GUEST_TAP_IPV4_CIDR" \
+    "NEMU_GUEST_TAP_GATEWAY" \
+    "NEMU_GUEST_TAP_DNS" \
+    "NEMU_GUEST_TAP_PING_TARGET" \
+    "NEMU_GUEST_TAP_HTTP_URL" \
+    "NEMU_GUEST_TAP_REQUIRE_EXTERNAL" \
     "NEMU_GUEST_APT_INSTALL_DIAG" \
     "NEMU_GUEST_APT_INSTALL_ACTUAL" \
     'NEMU_GUEST_APT_INSTALL_ACTUAL:-0' \
@@ -1800,32 +1955,439 @@ e2e_nemu_ubuntu_slice_contract() {
     "NEMU_GUEST_PYTHON_CNF_DIAG_HARD" \
     "NEMU_SYSTEMD_PYTHON_RE_DIAG_LOOPS" \
     "NEMU_GUEST_PYTHON_RE_DIAG_LOOPS" \
+    "NEMU_SYSTEMD_OOMD_PRESSURE_TIMEOUT" \
+    "NEMU_GUEST_OOMD_PRESSURE_TIMEOUT" \
+    "NEMU_SYSTEMD_TIMEDATECTL_TIMEOUT" \
+    "NEMU_GUEST_TIMEDATECTL_TIMEOUT" \
+    "NEMU_SYSTEMD_NETWORKD_DHCP_TIMEOUT" \
+    "NEMU_GUEST_NETWORKD_DHCP_TIMEOUT" \
+    "NEMU_SYSTEMD_NETWORKD_WAIT_ONLINE_TIMEOUT" \
+    "NEMU_GUEST_NETWORKD_WAIT_ONLINE_TIMEOUT" \
+    "full-userland-netplan-version" \
+    "full-userland-netplan-generate-networkd" \
+    "full-userland-netplan-networkd-hostless-dhcp" \
+    "full-userland-systemd-networkd-wait-online-hostless" \
+    "full-userland-systemd-network-online-target" \
+    "10-nemu-hostless.yaml" \
+    "renderer: networkd" \
+    "dhcp4: true" \
+    "dhcp-identifier: mac" \
+    "10-netplan-nemu-hostless.network" \
+    "__NEMU_CHECK_FULL_NETPLAN_VERSION__" \
+    "__NEMU_CHECK_FULL_NETPLAN_CONF__" \
+    "__NEMU_CHECK_FULL_NETPLAN_GENERATE_RC__" \
+    "__NEMU_CHECK_FULL_NETPLAN_GENERATED_NETWORK__" \
+    "__NEMU_CHECK_FULL_NETPLAN_NETWORKD_FILE_SEEN__" \
+    "NEMU_SYSTEMD_TIMESYNCD_NTP_TIMEOUT" \
+    "NEMU_GUEST_TIMESYNCD_NTP_TIMEOUT" \
+    "NEMU_SYSTEMD_RESOLVED_DNS_TIMEOUT" \
+    "NEMU_GUEST_RESOLVED_DNS_TIMEOUT" \
     "python/cnf diag hard" \
     "python re diag loops" \
     "__NEMU_CHECK_ROOTFS_FLAVOR__" \
+    "__NEMU_CHECK_VIRTIO_NET_BACKEND__" \
+    "__NEMU_CHECK_VIRTIO_NET_TAP_IFNAME__" \
+    "__NEMU_CHECK_VIRTIO_NET_TAP_EXTERNAL__" \
     "__NEMU_CHECK_FULL_USERLAND__" \
     "full-userland-runtime" \
+    "full-userland-network-clients-hostless-skip" \
     "full-userland-apt-version" \
     "full-userland-gpgv-version" \
     "full-userland-machine-id-setup-version" \
     "full-userland-machine-id-committed" \
     "full-userland-hostnamed-active" \
     "full-userland-hostnamectl-status" \
+    "full-userland-command-systemd-analyze" \
+    "systemd-analyze --no-pager time" \
+    "systemd-analyze --no-pager critical-chain multi-user.target" \
+    "systemd-analyze --no-pager critical-chain graphical.target" \
+    "systemctl get-default" \
+    "systemd-default-target-graphical" \
+    "__NEMU_CHECK_FULL_SYSTEMD_ANALYZE_TIME_RC__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_ANALYZE_TIME_STARTUP_SEEN__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_ANALYZE_CRITICAL_CHAIN_TARGET_SEEN__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_ANALYZE_GRAPHICAL_CRITICAL_CHAIN_TARGET_SEEN__" \
+    "full-userland-systemd-analyze-time" \
+    "full-userland-systemd-analyze-critical-chain" \
+    "full-userland-systemd-analyze-graphical-critical-chain" \
+    "systemd-target-graphical.target" \
+    "full-userland-timedatectl-timezone-utc" \
+    "full-userland-netplan-version" \
+    "full-userland-netplan-generate-networkd" \
+    "full-userland-netplan-networkd-hostless-dhcp" \
+    "full-userland-networkctl-version" \
+    "full-userland-systemd-networkd-unit" \
+    "full-userland-systemd-networkd-active" \
+    "full-userland-command-systemd-networkd-wait-online" \
+    "full-userland-systemd-networkd-hostless-dhcp" \
+    "10-nemu-hostless.yaml" \
+    "10-netplan-nemu-hostless.network" \
+    "macaddress: \"52:54:00:12:34:56\"" \
+    "dhcp4: true" \
+    "__NEMU_CHECK_FULL_NETWORKD_DHCP_TIMEOUT__" \
+    "__NEMU_CHECK_FULL_NETWORKD_DHCP_CONF__" \
+    "__NEMU_CHECK_FULL_NETWORKD_DHCP_DEFERRED__" \
+    "__NEMU_CHECK_FULL_NETWORKD_START_RC__" \
+    "__NEMU_CHECK_FULL_NETWORKD_ACTIVE__" \
+    "__NEMU_CHECK_FULL_NETWORKD_DHCP_IPV4__" \
+    "__NEMU_CHECK_FULL_NETWORKD_DHCP_ROUTE__" \
+    "__NEMU_CHECK_FULL_NETWORKD_DHCP_LEASE_SEEN__" \
+    "__NEMU_CHECK_FULL_NETWORKD_DHCP_LEASE_BEGIN__" \
+    "__NEMU_CHECK_FULL_NETWORKD_DHCP_STATUS_BEGIN__" \
+    "__NEMU_CHECK_FULL_NETWORKD_WAIT_ONLINE_TIMEOUT__" \
+    "__NEMU_CHECK_FULL_NETWORKD_WAIT_ONLINE_RC__" \
+    "__NEMU_CHECK_FULL_NETWORKD_WAIT_ONLINE_STATE__" \
+    "__NEMU_CHECK_FULL_NETWORK_ONLINE_TARGET_ACTIVE__" \
+    "__NEMU_CHECK_FULL_NETWORKD_WAIT_ONLINE_UNIT_RESULT__" \
+    "__NEMU_CHECK_FULL_NETWORK_ONLINE_SERVICE_OUTPUT__" \
+    "network-online-target-ok" \
+    "full-userland-hostless-ntp-probe" \
     "full-userland-sysusers-version" \
     "full-userland-sysusers-unit" \
     "full-userland-sysusers-create" \
     "full-userland-tmpfiles-version" \
     "full-userland-tmpfiles-unit" \
     "full-userland-tmpfiles-create" \
+    "__NEMU_CHECK_SYSTEMD_STALE_FAILED_SESSION_SCOPES__" \
+    "__NEMU_CHECK_SYSTEMD_STALE_FAILED_SESSION_RESET_RC__" \
+    "list-units --failed --type=scope --state=failed" \
+    "systemctl reset-failed" \
+    "session-[^[:space:]]+\\.scope" \
     "full-userland-journald-active" \
     "full-userland-systemd-cat" \
     "full-userland-journalctl-query" \
+    "full-userland-systemd-run-version" \
+    "full-userland-systemd-run-transient-service" \
+    "full-userland-systemd-run-transient-timer" \
+    "full-userland-systemd-calendar-timer" \
+    "full-userland-systemd-resource-control" \
+    "full-userland-systemd-cpu-quota" \
+    "full-userland-systemd-pressure-feedback" \
+    "full-userland-systemd-oom-policy" \
+    "full-userland-systemd-oomd-service" \
+    "full-userland-systemd-oomd-pressure-kill" \
+    "full-userland-systemd-slice-delegation" \
+    "full-userland-logind-root-serial-session" \
+    "full-userland-logind-root-user-manager-session" \
+    "__NEMU_CHECK_FULL_LOGIND_ROOT_SESSION_TTY_OK__" \
+    "__NEMU_CHECK_FULL_LOGIND_ROOT_SESSION_SCOPE_OK__" \
+    "__NEMU_CHECK_FULL_LOGIND_LIST_SEATS_RC__" \
+    "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_MANAGER_ENV_XDG_RUNTIME_DIR_OK__" \
+    "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_MANAGER_ACTIVE__" \
+    "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_RUNTIME_DIR__" \
+    "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_MANAGER_PRIVATE_SOCKET__" \
+    "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_BUS_SOCKET__" \
+    "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_SESSION_SEEN__" \
+    "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_BUSCTL_HAS_SYSTEMD__" \
+    "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_SERVICE_CGROUP_OK__" \
+    "loginctl list-sessions" \
+    "loginctl show-session" \
+    "loginctl list-seats" \
+    "loginctl show-user root" \
+    "busctl --user --no-pager list" \
+    "user@0.service" \
+    "full-userland-systemd-user-manager-service" \
+    "__NEMU_CHECK_FULL_SYSTEMD_RUN_VERSION__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_RUN_SERVICE_UNIT__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_RUN_SERVICE_RC__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_RUN_SERVICE_OUTPUT__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_RUN_TIMER_UNIT__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_RUN_TIMER_RC__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_RUN_TIMER_WAIT_SECONDS__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_RUN_TIMER_OUTPUT__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_CALENDAR_TIMER_TIMEOUT__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_CALENDAR_TIMER_UNIT__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_CALENDAR_TIMER_RELOAD_OK__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_CALENDAR_TIMER_RC__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_CALENDAR_TIMER_WAIT_SECONDS__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_CALENDAR_TIMER_OUTPUT__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_RESOURCE_CONTROL_UNIT__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_RESOURCE_CONTROL_RELOAD_OK__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_RESOURCE_CONTROL_START_OK__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_RESOURCE_CONTROL_ACTIVE__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_RESOURCE_CONTROL_OUTPUT__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_RESOURCE_CONTROL_CGROUP__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_RESOURCE_CONTROL_MEMORY_MAX__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_RESOURCE_CONTROL_PIDS_MAX__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_RESOURCE_CONTROL_SHOW__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_CPU_QUOTA_UNIT__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_CPU_QUOTA_RELOAD_OK__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_CPU_QUOTA_START_OK__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_CPU_QUOTA_ACTIVE__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_CPU_QUOTA_OUTPUT__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_CPU_QUOTA_CGROUP__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_CPU_QUOTA_CPU_MAX__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_CPU_QUOTA_CPU_STAT_READABLE__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_CPU_QUOTA_SHOW__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_UNIT__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_RELOAD_OK__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_START_OK__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_ACTIVE__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_OUTPUT__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_CGROUP__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_PROC_CPU_READABLE__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_PROC_MEMORY_READABLE__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_PROC_IO_READABLE__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_CGROUP_CPU_READABLE__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_CGROUP_MEMORY_READABLE__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_CGROUP_IO_READABLE__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_PROC_CPU_SOME__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_PROC_MEMORY_SOME__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_PROC_IO_SOME__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_CGROUP_CPU_SOME__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_CGROUP_MEMORY_SOME__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_CGROUP_IO_SOME__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_SHOW__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_UNIT__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_RELOAD_OK__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_START_OK__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_WAIT_SECONDS__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_DONE__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_OUTPUT__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_CGROUP__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_ACTIVE__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_RESULT__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_SHOW__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_STOP_POST__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_MEMORY_EVENTS_OOM__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_MEMORY_EVENTS_OOM_KILL__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_MEMORY_EVENTS_MAX__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_STOPPED__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_FILES__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_USER__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_CONFIG__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_UNIT__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_RELOAD_OK__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_START_RC__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_START_OK__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_WAIT_SECONDS__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_ACTIVE__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_SUBSTATE__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_MAINPID__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_SHOW__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_OOMCTL_RC__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_OOMCTL_NONEMPTY__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_OOMCTL_BEGIN__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_OOMCTL_END__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_TIMEOUT__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_UNITS__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_CONF__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_RELOAD_OK__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_OOMD_RESTART_RC__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_OOMD_READY__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_START_OK__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_OUTPUT__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_CGROUP__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_PROBE_OK__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_OOM_GROUP_BEFORE__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_OOM_GROUP_WRITE_OK__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_OOM_GROUP_AFTER__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_SLICE_SHOW__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_SERVICE_SHOW__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_OOMCTL_RC__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_OOMCTL_HAS_SLICE__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_WAIT_SECONDS__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_ACTIVE__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_SUBSTATE__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_RESULT__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_STOPPED__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_KILLED__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_JOURNAL_KILL__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_STOP_POST__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_MEMORY_EVENTS_OOM__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_MEMORY_EVENTS_OOM_KILL__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_MEMORY_EVENTS_HIGH__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_MEMORY_CURRENT__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_MEMORY_SOME__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_SLICE_MEMORY_EVENTS_HIGH__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_SLICE_MEMORY_CURRENT__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_SLICE_MEMORY_SOME__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_ALLOC_STARTED__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_ALLOC_REACHED__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_OOMCTL_BEFORE_BEGIN__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_OOMCTL_AFTER_END__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_ALLOC_LOG_BEGIN__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_ALLOC_LOG_END__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_FILES__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_UNITS__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_RELOAD_OK__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_START_OK__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_ACTIVE__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_OUTPUT__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_CGROUP__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_GUEST_CGROUP__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_SHOW_CGROUP__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_SLICE__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_DELEGATE__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_SHOW__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_CONTROLLERS_READABLE__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_CONTROLLERS__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_SUBTREE_CONTROL__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_LOGIND_ACTIVE__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_LINGER__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_USER_SERVICE_ACTIVE__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_RUNTIME_DIR__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_PRIVATE_SOCKET__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_BUS_SOCKET__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_SCRIPT_RC__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_OUTPUT__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_CGROUP__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_SCRIPT_SHOW__" \
+    "__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_CONTROLLERS_READABLE__" \
+    "__NEMU_CHECK_FULL_TIMEDATECTL_TIMEOUT__" \
+    "__NEMU_CHECK_FULL_TIMEDATED_START_RC__" \
+    "__NEMU_CHECK_FULL_TIMEDATECTL_SET_TIMEZONE_RC__" \
+    "__NEMU_CHECK_FULL_TIMEDATECTL_TIMEZONE__" \
+    "timedatectl set-timezone UTC" \
+    "timedatectl show --property=Timezone --value" \
+    "__NEMU_CHECK_FULL_TIMESYNCD_NTP_TIMEOUT__" \
+    "__NEMU_CHECK_FULL_TIMESYNCD_NTP_CONF__" \
+    "__NEMU_CHECK_FULL_TIMESYNCD_NTP_ACTIVE__" \
+    "__NEMU_CHECK_FULL_HOSTLESS_NTP_PROBE_RC__" \
+    "__NEMU_CHECK_FULL_HOSTLESS_NTP_PROBE_SERVER__" \
+    "__NEMU_CHECK_FULL_HOSTLESS_NTP_PROBE_PEER__" \
+    "__NEMU_CHECK_FULL_HOSTLESS_NTP_PROBE_MODE__" \
+    "__NEMU_CHECK_FULL_HOSTLESS_NTP_PROBE_STRATUM__" \
+    "__NEMU_CHECK_FULL_HOSTLESS_NTP_PROBE_ORIGIN_MATCH__" \
+    "__NEMU_CHECK_FULL_HOSTLESS_NTP_PROBE_TX_NONZERO__" \
+    "__NEMU_CHECK_FULL_HOSTLESS_NTP_PROBE_OUTPUT_BEGIN__" \
+    "timedatectl show-timesync --all --no-pager" \
+    "__NEMU_CHECK_FULL_TIMESYNCD_NTP_STATUS_RC__" \
+    "__NEMU_CHECK_FULL_TIMESYNCD_NTP_STATUS_WAIT_SECONDS__" \
+    "__NEMU_CHECK_FULL_TIMESYNCD_NTP_SERVER_NAME__" \
+    "__NEMU_CHECK_FULL_TIMESYNCD_NTP_SERVER_ADDRESS__" \
+    "__NEMU_CHECK_FULL_TIMESYNCD_NTP_MESSAGE_SEEN__" \
+    "__NEMU_CHECK_FULL_TIMESYNCD_NTP_SYNCHRONIZED__" \
+    "__NEMU_CHECK_FULL_TIMESYNCD_NTP_STATUS_BEGIN__" \
+    "NTP=10.0.2.2" \
+    "__NEMU_CHECK_FULL_RESOLVECTL_VERSION__" \
+    "systemd-resolved.service" \
+    "__NEMU_CHECK_FULL_RESOLVED_DNS_TIMEOUT__" \
+    "__NEMU_CHECK_FULL_RESOLVED_DNS_CONF__" \
+    "__NEMU_CHECK_FULL_RESOLVED_DNS_ACTIVE__" \
+    "__NEMU_CHECK_FULL_RESOLVED_DNS_QUERY_DEFERRED__" \
+    "resolvectl dns" \
+    "resolvectl domain" \
+    "resolvectl query -4 nemu.local" \
+    "__NEMU_CHECK_FULL_RESOLVED_DNS_LINK_RC__" \
+    "__NEMU_CHECK_FULL_RESOLVED_DNS_DOMAIN_RC__" \
+    "__NEMU_CHECK_FULL_RESOLVED_DNS_QUERY_RC__" \
+    "__NEMU_CHECK_FULL_RESOLVED_DNS_WAIT_SECONDS__" \
+    "__NEMU_CHECK_FULL_RESOLVED_DNS_ADDRESS_SEEN__" \
+    "__NEMU_CHECK_FULL_RESOLVED_DNS_QUERY_BEGIN__" \
+    "__NEMU_CHECK_FULL_RESOLVED_DNS_STATUS_BEGIN__" \
+    "full-userland-systemd-resolved-hostless-dns" \
+    "systemd-run-service-ok" \
+    "systemd-run-timer-ok" \
+    "systemd-calendar-timer-ok" \
+    "systemd-resource-control-ok" \
+    "systemd-cpu-quota-ok" \
+    "systemd-pressure-feedback-ok" \
+    "systemd-oom-policy-started" \
+    "systemd-oom-policy-stop-post" \
+    "systemd-oomd.service" \
+    "nemuoomdpressure.slice" \
+    "nemuoomdpressure-victim.service" \
+    "DefaultMemoryPressureLimit=1%" \
+    "DefaultMemoryPressureDurationSec=1s" \
+    "ManagedOOMMemoryPressure=kill" \
+    "ManagedOOMMemoryPressureLimit=1%" \
+    "MemoryHigh=32M" \
+    "ManagedOOMPreference=none" \
+    "memory.oom.group" \
+    "nemu-systemd-oomd-pressure-probe.c" \
+    "build_oomd_pressure_probe" \
+    "inject_oomd_pressure_probe_payload" \
+    "__NEMU_OOMD_PRESSURE_PROBE_PAYLOAD__" \
+    "oomd-pressure-probe-start" \
+    "oomd-pressure-probe-cache-start" \
+    "oomd-pressure-probe-cache-write" \
+    "/var/tmp/nemu-full-oomd-pressure-cache.bin" \
+    "systemd-oomd-pressure-started" \
+    "systemd-oomd-pressure-stop-post" \
+    "org.freedesktop.oom1" \
+    "oomctl --no-pager dump" \
+    "systemd-slice-delegation-ok" \
+    "nemu-full-cpu-quota.service" \
+    "nemu-full-pressure-feedback.service" \
+    "nemu-full-oom-policy.service" \
+    "nemu.slice" \
+    "nemu-full-delegated.service" \
+    "systemd-logind.service" \
+    "user@.service" \
+    "dbus-user-session" \
+    "libpam-systemd" \
+    "pam_systemd.so" \
+    "common-session" \
+    "full-userland-pam-systemd-module" \
+    "full-userland-pam-systemd-session-hook" \
+    "__NEMU_CHECK_FULL_PAM_COMMON_SESSION_SYSTEMD_HOOK__" \
+    "dbus.socket" \
+    "loginctl enable-linger" \
+    "systemctl --user" \
+    "nemu-full-user-manager.service" \
+    "systemd-user-manager-ok" \
+    "--on-active=5s" \
+    "OnCalendar=*-*-* *:*:*" \
+    "Slice=nemu.slice" \
+    "Delegate=yes" \
+    "MemoryAccounting=yes" \
+    "MemoryMax=64M" \
+    "OOMPolicy=stop" \
+    "CPUAccounting=yes" \
+    "CPUQuota=50%" \
+    "CPUQuotaPeriodSec=100ms" \
+    "TasksAccounting=yes" \
+    "TasksMax=64" \
+    "cpu.max" \
+    "50000 100000" \
+    "/proc/pressure/cpu" \
+    "/proc/pressure/memory" \
+    "/proc/pressure/io" \
+    "cpu.pressure" \
+    "memory.pressure" \
+    "io.pressure" \
+    "memory.events" \
+    "oom_kill" \
+    "cgroup.controllers" \
     "full-userland-apt-archive-keyring" \
     "full-userland-dpkg-audit" \
     "full-userland-dpkg-package-" \
-    "systemd ubuntu-standard openssh-server curl wget dropbear-bin rsyslog cron systemd-timesyncd gpgv ubuntu-keyring" \
+    "systemd ubuntu-standard openssh-client openssh-server openssh-sftp-server curl wget dropbear-bin rsyslog cron anacron logrotate systemd-timesyncd systemd-oomd dbus-user-session libpam-systemd gpgv ubuntu-keyring locales libc-bin netplan.io netplan-generator" \
     "full-userland-apt-policy" \
     "full-userland-sudo-root" \
+    "full-userland-locale-gen-en-us-utf8" \
+    "__NEMU_CHECK_FULL_LOCALE_GEN_RC__" \
+    "__NEMU_CHECK_FULL_LOCALE_GEN_TIMEOUT__" \
+    "__NEMU_CHECK_FULL_LOCALE_GEN_LOCALE__" \
+    "__NEMU_CHECK_FULL_LOCALE_GEN_CHARMAP__" \
+    "locale-gen en_US.UTF-8" \
+    "NEMU_SYSTEMD_CRON_JOB_TIMEOUT" \
+    "NEMU_GUEST_CRON_JOB_TIMEOUT" \
+    "__NEMU_CHECK_FULL_CRON_JOB_TIMEOUT__" \
+    "NEMU_SYSTEMD_ANACRON_TIMEOUT" \
+    "NEMU_GUEST_ANACRON_TIMEOUT" \
+    "__NEMU_CHECK_FULL_ANACRON_VERSION__" \
+    "__NEMU_CHECK_FULL_ANACRON_TIMEOUT__" \
+    "__NEMU_CHECK_FULL_ANACRON_UNITS__" \
+    "__NEMU_CHECK_FULL_ANACRON_TAB__" \
+    "__NEMU_CHECK_FULL_ANACRON_RC__" \
+    "__NEMU_CHECK_FULL_ANACRON_OUTPUT__" \
+    "full-userland-anacron-units" \
+    "full-userland-anacron-run" \
+    "nemu-full-anacron-ok" \
+    "NEMU_SYSTEMD_CALENDAR_TIMER_TIMEOUT" \
+    "NEMU_GUEST_CALENDAR_TIMER_TIMEOUT" \
+    "NEMU_SYSTEMD_LOCALE_GEN_TIMEOUT" \
+    "NEMU_SYSTEMD_TIMEDATECTL_TIMEOUT" \
+    "NEMU_GUEST_TIMEDATECTL_TIMEOUT" \
+    "NEMU_SYSTEMD_NETWORKD_DHCP_TIMEOUT" \
+    "NEMU_GUEST_NETWORKD_DHCP_TIMEOUT" \
+    "NEMU_SYSTEMD_OOMD_PRESSURE_TIMEOUT" \
+    "NEMU_GUEST_OOMD_PRESSURE_TIMEOUT" \
+    "full-userland-sudo-nonroot-nopasswd" \
+    "__NEMU_CHECK_FULL_SUDO_NONROOT_OK__" \
+    "__NEMU_CHECK_FULL_SUDOERS_FILE__" \
     "full-userland-sshd-config" \
     "full-userland-ssh-active" \
     "full-userland-ssh-listen" \
@@ -1833,7 +2395,46 @@ e2e_nemu_ubuntu_slice_contract() {
     "full-userland-ssh-keygen" \
     "full-userland-ssh-dbclient-key" \
     "full-userland-ssh-dropbear-hostkey" \
+    "full-userland-account-useradd-su-session" \
+    "__NEMU_CHECK_FULL_ACCOUNT_GROUPADD_RC__" \
+    "__NEMU_CHECK_FULL_ACCOUNT_USERADD_RC__" \
+    "__NEMU_CHECK_FULL_ACCOUNT_PASSWD_STATUS_RC__" \
+    "__NEMU_CHECK_FULL_ACCOUNT_SU_RC__" \
+    "__NEMU_CHECK_FULL_ACCOUNT_SU_LOGIN_OK__" \
+    "full-userland-pam-su-session" \
+    "__NEMU_CHECK_FULL_PAM_SU_RC__" \
+    "__NEMU_CHECK_FULL_PAM_SU_LOGIN_OK__" \
     "full-userland-ssh-local-login" \
+    "full-userland-openssh-local-login" \
+    "__NEMU_CHECK_FULL_OPENSSH_SERVER__:ssh.service" \
+    "__NEMU_CHECK_FULL_OPENSSH_CLIENT__:ssh" \
+    "__NEMU_CHECK_FULL_OPENSSH_LOGIN_RC__" \
+    "__NEMU_CHECK_FULL_OPENSSH_LOGIN_OK__" \
+    "full-userland-openssh-scp-transfer" \
+    "__NEMU_CHECK_FULL_OPENSSH_SCP_CLIENT__:scp" \
+    "__NEMU_CHECK_FULL_OPENSSH_SCP_RC__" \
+    "__NEMU_CHECK_FULL_OPENSSH_SCP_VERIFY_RC__" \
+    "__NEMU_CHECK_FULL_OPENSSH_SCP_OK__" \
+    "full-userland-openssh-sftp-transfer" \
+    "__NEMU_CHECK_FULL_OPENSSH_SFTP_SERVER__:/usr/lib/openssh/sftp-server" \
+    "__NEMU_CHECK_FULL_OPENSSH_SFTP_CLIENT__:sftp" \
+    "__NEMU_CHECK_FULL_OPENSSH_SFTP_RC__" \
+    "__NEMU_CHECK_FULL_OPENSSH_SFTP_VERIFY_RC__" \
+    "__NEMU_CHECK_FULL_OPENSSH_SFTP_OK__" \
+    "full-userland-openssh-local-forward" \
+    "openssh_forward_port=2226" \
+    "__NEMU_CHECK_FULL_OPENSSH_LOCAL_FORWARD_PORT__" \
+    "__NEMU_CHECK_FULL_OPENSSH_LOCAL_FORWARD_READY__" \
+    "__NEMU_CHECK_FULL_OPENSSH_LOCAL_FORWARD_CLIENT__:ssh-L" \
+    "__NEMU_CHECK_FULL_OPENSSH_LOCAL_FORWARD_RC__" \
+    "__NEMU_CHECK_FULL_OPENSSH_LOCAL_FORWARD_OK__" \
+    "full-userland-openssh-remote-forward" \
+    "openssh_remote_forward_port=2227" \
+    "__NEMU_CHECK_FULL_OPENSSH_REMOTE_FORWARD_PORT__" \
+    "__NEMU_CHECK_FULL_OPENSSH_REMOTE_FORWARD_READY__" \
+    "__NEMU_CHECK_FULL_OPENSSH_REMOTE_FORWARD_CLIENT__:ssh-R" \
+    "__NEMU_CHECK_FULL_OPENSSH_REMOTE_FORWARD_RC__" \
+    "__NEMU_CHECK_FULL_OPENSSH_REMOTE_FORWARD_OK__" \
     "full-userland-systemctl-enable-daemon-reload" \
     "__NEMU_CHECK_FULL_SYSTEMCTL_ENABLE_ROOT__" \
     "full-userland-systemctl-enable" \
@@ -1964,10 +2565,19 @@ e2e_nemu_ubuntu_slice_contract() {
     "full-userland-apt-direct-full-status-remove" \
     "full-userland-apt-direct-full-status-purge-ownership" \
     "full-userland-cron-active" \
+    "__NEMU_CHECK_FULL_CRON_JOB__" \
+    "__NEMU_CHECK_FULL_CRON_EXEC_WAIT_SECONDS__" \
     "full-userland-cron-exec" \
+    "/usr/sbin/anacron" \
+    "-d -f -n -s" \
+    '-t "$anacron_probe_tab"' \
+    '-S "$anacron_probe_spool"' \
     "full-userland-rsyslog-active" \
     "full-userland-rsyslog-logger" \
+    "full-userland-logrotate-version" \
+    "full-userland-logrotate-rotate" \
     "full-userland-timesyncd-active" \
+    "full-userland-hostless-ntp-probe" \
     "__NEMU_CHECK_FULL_SYSUSERS_VERSION__" \
     "__NEMU_CHECK_FULL_MACHINE_ID_SETUP_VERSION__" \
     "__NEMU_CHECK_FULL_MACHINE_ID__" \
@@ -2037,7 +2647,12 @@ e2e_nemu_ubuntu_slice_contract() {
     "__NEMU_CHECK_FULL_RSYSLOG_PROBE_CONF__" \
     "__NEMU_CHECK_FULL_RSYSLOG_LOGGER_RC__" \
     "__NEMU_CHECK_FULL_RSYSLOG_LOGGER_FILE__" \
+    "__NEMU_CHECK_FULL_LOGROTATE_RC__" \
+    "__NEMU_CHECK_FULL_LOGROTATE_ROTATED__" \
+    "__NEMU_CHECK_FULL_LOGROTATE_OUTPUT_BEGIN__" \
     "logger -p user.notice" \
+    "logrotate -vf -s" \
+    "nemu-full-logrotate-before" \
     "nemu-full-cron-check" \
     "99-nemu-full-rsyslog-check.conf" \
     "/var/log/nemu-full-rsyslog.log" \
@@ -2290,6 +2905,9 @@ e2e_nemu_ubuntu_slice_contract() {
     "input_chunk_bytes" \
     "input_chunk_delay" \
     "check_console_clean" \
+    "read_guest_done_rc" \
+    "missing complete guest check rc marker" \
+    "^__NEMU_SYSTEMD_CHECK_DONE__ rc=[0-9]" \
     "check_efi_boot_path_context" \
     "efi-dtb-boot-benign" \
     "efi: UEFI not found" \
@@ -2328,6 +2946,35 @@ e2e_nemu_ubuntu_slice_contract() {
   fi
 
   echo
+  echo "[nemu-ubuntu] required TAP host preflight hooks"
+  for pattern in \
+    "NEMU_TAP_HOST_ACTION" \
+    "NEMU_TAP_IFNAME" \
+    "NEMU_TAP_REQUIRE_READY" \
+    "CAP_NET_ADMIN" \
+    "__NEMU_TAP_HOST_TUN_CHARDEV__" \
+    "__NEMU_TAP_HOST_CAP_NET_ADMIN__" \
+    "__NEMU_TAP_HOST_IFACE_EXISTS__" \
+    "__NEMU_TAP_HOST_IPV4_READY__" \
+    "__NEMU_TAP_HOST_NAT_READY__" \
+    "__NEMU_TAP_HOST_READY__" \
+    "__NEMU_TAP_HOST_%s_CMD__" \
+    "print_plan_cmd SETUP" \
+    "print_plan_cmd TEARDOWN" \
+    "__NEMU_TAP_HOST_GUEST_GATE_ARGS__" \
+    "setup-plan" \
+    "teardown-plan" \
+    "ip tuntap add dev" \
+    "iptables -t nat -A POSTROUTING"; do
+    if grep -Fq -- "$pattern" "$tap_host_script"; then
+      printf 'PASS check-nemu-tap-host.sh %s\n' "$pattern"
+    else
+      printf 'FAIL check-nemu-tap-host.sh %s\n' "$pattern"
+      missing=1
+    fi
+  done
+
+  echo
   echo "[nemu-ubuntu] required focused wrapper host marker hooks"
   for pattern in \
     "focused-make.log" \
@@ -2344,10 +2991,36 @@ e2e_nemu_ubuntu_slice_contract() {
     "check-nemu-systemd-guest-full-soak" \
     "AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_DIAG" \
     "AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_ACTUAL" \
+    "apt_install_diag=1" \
+    "apt_install_actual=1" \
     "AGENT_E2E_NEMU_UBUNTU_FULL_CHECK_MAX_CYCLES" \
+    "AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_CHECK_MAX_CYCLES" \
+    "AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_CHECK_TIMEOUT" \
+    "AGENT_E2E_NEMU_UBUNTU_CRON_JOB_TIMEOUT" \
+    "AGENT_E2E_NEMU_UBUNTU_ANACRON_TIMEOUT" \
+    "AGENT_E2E_NEMU_UBUNTU_CALENDAR_TIMER_TIMEOUT" \
+    "AGENT_E2E_NEMU_UBUNTU_LOCALE_GEN_TIMEOUT" \
+    "AGENT_E2E_NEMU_UBUNTU_TIMEDATECTL_TIMEOUT" \
+    "AGENT_E2E_NEMU_UBUNTU_OOMD_PRESSURE_TIMEOUT" \
+    "NEMU_SYSTEMD_OOMD_PRESSURE_TIMEOUT" \
+    "NEMU_SYSTEMD_SOAK_SOAK_SECONDS" \
+    "NEMU_SYSTEMD_SOAK_FS_STRESS_MIB" \
+    "NEMU_SYSTEMD_SOAK_UART_RX_STRESS_LINES" \
+    "focused gate soak overrides" \
     "focused gate input chunk bytes" \
     "input_chunk_bytes=512" \
     "AGENT_E2E_NEMU_UBUNTU_STOP_AFTER_SYSTEMCTL_RELOAD_DIAG" \
+    "AGENT_E2E_NEMU_UBUNTU_NET_BACKEND" \
+    "AGENT_E2E_NEMU_UBUNTU_NET_TAP" \
+    "AGENT_E2E_NEMU_UBUNTU_TAP_IPV4_CIDR" \
+    "AGENT_E2E_NEMU_UBUNTU_TAP_GATEWAY" \
+    "AGENT_E2E_NEMU_UBUNTU_TAP_DNS" \
+    "AGENT_E2E_NEMU_UBUNTU_TAP_PING_TARGET" \
+    "AGENT_E2E_NEMU_UBUNTU_TAP_HTTP_URL" \
+    "AGENT_E2E_NEMU_UBUNTU_TAP_REQUIRE_EXTERNAL" \
+    "AGENT_E2E_NEMU_UBUNTU_TAP_REQUIRE_PACKETS" \
+    "focused gate net overrides" \
+    "net_make_args" \
     "240000000000" \
     "1200" \
     "AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_GATE" \
@@ -2394,10 +3067,12 @@ e2e_nemu_ubuntu_slice_contract() {
   for pattern in \
     "NEMU_PYTHON_INT_LOOPS" \
     "NEMU_PYTHON_INT_STAGE_MODE" \
+    "NEMU_PYTHON_INT_PROBE_MODE" \
     "NEMU_PYTHON_INT_STAGE_TIMEOUT" \
     "NEMU_PYTHON_INT_STAGE_PREWARM" \
     "NEMU_PYTHON_INT_TAGS" \
     "NEMU_PYTHON_INT_POWEROFF" \
+    "NEMU_PYTHON_INT_DISABLE_ASLR" \
     "NEMU_PYTHON_INT_ROOTFS_OVERLAY" \
     "NEMU_PYTHON_INT_PROBE_SRC" \
     "NEMU_PYTHON_INT_SUMMARY" \
@@ -2407,9 +3082,12 @@ e2e_nemu_ubuntu_slice_contract() {
     "systemctl-lite" \
     "before-runtime,runtime-after-core-tools" \
     "__NEMU_PYTHON_INT_FOCUSED_BEGIN__" \
+    "__NEMU_PYTHON_INT_DISABLE_ASLR__" \
     "__NEMU_PYTHON_INT_PROBE_SHA256__" \
     "__NEMU_CHECK_FULL_PYTHON_INT_PREFLIGHT_LOG_BEGIN__" \
     "__NEMU_PYTHON_INT_STAGE_PREWARM_BEGIN__" \
+    "__NEMU_PYTHON_INT_STAGE_PREWARM_FAILED_PROBE_CONTINUE__" \
+    "__NEMU_PYTHON_INT_STAGE_PROBE_RC__" \
     "__NEMU_PYTHON_INT_STAGE_RC__" \
     "__NEMU_PYTHON_INT_STAGE_COUNT__" \
     "__NEMU_PYTHON_INT_PREFLIGHT_DONE__ rc=0" \
@@ -2419,11 +3097,41 @@ e2e_nemu_ubuntu_slice_contract() {
     "SUMMARY_FINALIZED" \
     "fail_reason" \
     "stage_mode" \
+    "probe_mode" \
     "stage_tags" \
     "stage_count" \
     "stage_rc." \
+    "disable_aslr" \
     "runtime.wide_ifetch" \
     "runtime.vaddr_host_fast" \
+    "runtime.vaddr_write_trace" \
+    "runtime.vaddr_write_value_trace" \
+    "runtime.paddr_write_trace" \
+    "runtime.paddr_write_value_trace" \
+    "runtime.pc_gpr_trace" \
+    "runtime pc_gpr_trace" \
+    "runtime.fp_load_trace" \
+    "runtime fp_load_trace" \
+    "runtime vaddr_write_trace" \
+    "runtime paddr_write_trace" \
+    "NEMU_PC_GPR_TRACE_START" \
+    "NEMU_PC_GPR_TRACE_END" \
+    "NEMU_FP_LOAD_TRACE_PC_START" \
+    "NEMU_FP_LOAD_TRACE_PC_END" \
+    "NEMU_FP_LOAD_TRACE_ADDR_START" \
+    "NEMU_FP_LOAD_TRACE_ADDR_END" \
+    "NEMU_VADDR_WRITE_TRACE_START" \
+    "NEMU_VADDR_WRITE_TRACE_END" \
+    "NEMU_VADDR_WRITE_TRACE_START2" \
+    "NEMU_VADDR_WRITE_TRACE_END2" \
+    "NEMU_VADDR_WRITE_VALUE_TRACE_VALUE" \
+    "NEMU_VADDR_WRITE_VALUE_TRACE_MASK" \
+    "NEMU_VADDR_WRITE_VALUE_TRACE_USER_ONLY" \
+    "NEMU_PADDR_WRITE_TRACE_START" \
+    "NEMU_PADDR_WRITE_TRACE_END" \
+    "NEMU_PADDR_WRITE_VALUE_TRACE_VALUE" \
+    "NEMU_PADDR_WRITE_VALUE_TRACE_MASK" \
+    "NEMU_PADDR_WRITE_VALUE_TRACE_MAX" \
     "boot_seconds" \
     "done_line" \
     "runtime wide_ifetch" \
@@ -2446,7 +3154,34 @@ e2e_nemu_ubuntu_slice_contract() {
     "import ctypes" \
     "emit_pylong_baseline" \
     "emit_pylong_object" \
+    "emit_pylong_error_state" \
+    "validate_loop_count" \
     "check_int_value" \
+    "sys.stdout.reconfigure" \
+    "write_through=True" \
+    "loop_stop_error_name=\"ARGS_LOOP_STOP\"" \
+    "\"ARGS_LOOPS\", args.loops" \
+    "PYLONG_ARGS_LOOPS_EARLY_ID" \
+    "PYLONG_ARGS_LOOPS_PREPARSE_CANDIDATE" \
+    "ARGS_LOOPS_PREPARSE_ID_MATCH" \
+    "PYLONG_PROBE_LOOPS_PREPARSE_CANDIDATE" \
+    "PYLONG_PROBE_LOOPS_PREPARSE_ID" \
+    "PYLONG_PROBE_LOOPS_PREPARSE" \
+    "PROBE_LOOPS_PREPARSE_ID_MATCH" \
+    "run_int10_create_mode" \
+    "PROBE_MODE" \
+    "PROBE_LOOPS" \
+    "\"PROBE_LOOPS\", loops, \"PROBE_LOOPS\"" \
+    "PYLONG_%s_EARLY_ID" \
+    "PYLONG_INT10_CREATE_EARLY" \
+    "INT10_CREATE" \
+    "PYLONG_ARGS_LOOPS_EARLY" \
+    "%s_OB_SIZE_PADDR" \
+    "emit_pylong_ob_size_paddr" \
+    "/proc/self/pagemap" \
+    "%s_ERROR_STATE" \
+    "%s_MAX_REASONABLE_BIT_LENGTH" \
+    "%s_BIT_LENGTH_CMP_ERROR" \
     "PYLONG_LAYOUT_AVAILABLE" \
     "PYLONG_%s_OB_SIZE" \
     "PYLONG_%s_OB_DIGIT%d" \
@@ -2461,6 +3196,22 @@ e2e_nemu_ubuntu_slice_contract() {
       printf 'PASS nemu-python-int-preflight.py %s\n' "$pattern"
     else
       printf 'FAIL nemu-python-int-preflight.py %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  for pattern in \
+    "vaddr-write-value-trace count=" \
+    "TRACE_CORRELATE_TARGETS" \
+    "TRACE_CORRELATE_TARGET_HITS" \
+    "TRACE_CORRELATE_HIT" \
+    "PREFLIGHT_RE" \
+    "VALUE_TRACE_RE" \
+    "early_prefix_for" \
+    "correlate(targets, value_hits)"; do
+    if grep -Fq -- "$pattern" "$python_int_trace_correlate_py"; then
+      printf 'PASS nemu-python-int-trace-correlate.py %s\n' "$pattern"
+    else
+      printf 'FAIL nemu-python-int-trace-correlate.py %s\n' "$pattern"
       missing=1
     fi
   done
@@ -2481,6 +3232,28 @@ e2e_nemu_ubuntu_slice_contract() {
     "stdin_enabled" \
     "host_stdin_enabled" \
     "host_fifo_path" \
+    "NEMU_SERIAL_TRACE_PYLONG_ID" \
+    "NEMU_SERIAL_TRACE_PYLONG_PADDR_MARKER" \
+    "NEMU_SERIAL_TRACE_PYLONG_VALUE" \
+    "NEMU_SERIAL_TRACE_PYLONG_VALUE_MARKER" \
+    "NEMU_SERIAL_TRACE_PYLONG_VALUE_WORD" \
+    "NEMU_SERIAL_TRACE_PYLONG_VALUE_MASK" \
+    "NEMU_SERIAL_TRACE_PYLONG_END_MARKER" \
+    "__NEMU_CHECK_FULL_PYTHON_INT_PREFLIGHT_LOG_END__" \
+    "__PYTHON_INT_PREFLIGHT_PYLONG_ARGS_LOOPS_PREPARSE_CANDIDATE__" \
+    "serial_trace_marker_consume" \
+    "避免 trace 日志插进 Python marker 行" \
+    "serial trace marker armed" \
+    "serial paddr trace marker armed" \
+    "paddr_write_value_trace_arm" \
+    "paddr_write_value_trace_disarm" \
+    "vaddr_write_value_trace_arm" \
+    "vaddr_write_value_trace_disarm" \
+    "paddr_armed" \
+    "paddr_write_trace_arm_range" \
+    "paddr_write_trace_disarm" \
+    "vaddr_write_trace_disarm" \
+    "isa_riscv64_mmu_debug_translate_user" \
     "serial_port_poll_host"; do
     if grep -Fq -- "$pattern" "$serial_c"; then
       printf 'PASS serial.c %s\n' "$pattern"
@@ -2512,7 +3285,8 @@ e2e_nemu_ubuntu_slice_contract() {
   done
   for pattern in \
     "device_update_after_inst" \
-    "serial_poll_input"; do
+    "serial_poll_input" \
+    "virtio_net_update"; do
     if grep -Fq -- "$pattern" "$device_c"; then
       printf 'PASS device.c %s\n' "$pattern"
     else
@@ -2559,6 +3333,10 @@ e2e_nemu_ubuntu_slice_contract() {
     "ubuntu_rootfs_flavor_image_size" \
     "UBUNTU_DEBOOTSTRAP_VARIANT" \
     "pam_usr_dir" \
+    "ROOTFS_NEMU_LOGIN_MARKER" \
+    "__NEMU_LOGIN_CHECK_BEGIN__" \
+    "serial_wants=\"systemd-logind.service\"" \
+    "serial_after=\"systemd-logind.service systemd-user-sessions.service plymouth-quit-wait.service getty-pre.target rc-local.service\"" \
     "install_full_runtime_defaults" \
     "sshd_config" \
     "syslog:x:101:101" \
@@ -2587,6 +3365,9 @@ e2e_nemu_ubuntu_slice_contract() {
     "dpkg-deb -e" \
     "refresh dpkg status for unpacked packages" \
     "pam_usr_dir" \
+    "pam_systemd.so" \
+    "common-session" \
+    "pam-auth-update" \
     "sshd_config" \
     "syslog:x:101:101" \
     "sshd:x:102:102" \
@@ -2607,23 +3388,79 @@ e2e_nemu_ubuntu_slice_contract() {
     "systemd-minimal" \
     "interactive" \
     "/bin/ping" \
+    "openssh-client" \
+    "/usr/bin/ssh" \
+    "/usr/bin/scp" \
+    "/usr/bin/sftp" \
     "ubuntu-standard" \
     "openssh-server" \
+    "openssh-sftp-server" \
     "dropbear-bin" \
     "/usr/bin/apt-cache" \
     "/usr/bin/gpgv" \
     "/bin/journalctl" \
     "/bin/systemd-sysusers" \
     "/bin/systemd-tmpfiles" \
+    "/usr/bin/systemd-run" \
     "/usr/bin/systemd-cat" \
+    "/usr/bin/timedatectl" \
+    "/bin/loginctl" \
+    "/lib/systemd/systemd-logind" \
+    "/lib/systemd/system/systemd-logind.service" \
+    "/lib/riscv64-linux-gnu/security/pam_systemd.so" \
+    "/etc/pam.d/common-session" \
+    "/lib/systemd/systemd-timedated" \
+    "/lib/systemd/system/systemd-timedated.service" \
+    "/lib/systemd/system/user@.service" \
+    "/lib/systemd/system/user-runtime-dir@.service" \
+    "/usr/lib/systemd/user/dbus.socket" \
+    "/usr/lib/systemd/user/dbus.service" \
+    "/usr/lib/systemd/user/sockets.target.wants/dbus.socket" \
+    "libpam-systemd" \
+    "pam_systemd.so" \
     "/usr/bin/logger" \
     "/usr/bin/dpkg" \
     "/usr/bin/dpkg-query" \
     "ubuntu-keyring" \
+    "/bin/su" \
+    "/etc/pam.d/su" \
+    "/usr/sbin/groupadd" \
+    "/usr/sbin/groupdel" \
+    "/usr/sbin/useradd" \
+    "/usr/sbin/userdel" \
+    "/usr/bin/passwd" \
+    "/etc/default/useradd" \
+    "/etc/login.defs" \
+    "/usr/bin/ssh-keygen" \
     "/usr/bin/dbclient" \
     "/usr/bin/dropbearconvert" \
     "/usr/bin/dropbearkey" \
+    "/usr/lib/openssh/sftp-server" \
     "/usr/sbin/dropbear" \
+    "/usr/sbin/cron" \
+    "/etc/crontab" \
+    "/etc/cron.d" \
+    "/etc/cron.daily" \
+    "/usr/sbin/anacron" \
+    "/etc/anacrontab" \
+    "/etc/cron.d/anacron" \
+    "/etc/cron.daily/0anacron" \
+    "/etc/cron.weekly/0anacron" \
+    "/etc/cron.monthly/0anacron" \
+    "/var/spool/anacron" \
+    "/lib/systemd/system/anacron.service" \
+    "/lib/systemd/system/anacron.timer" \
+    "systemd-oomd" \
+    "/lib/systemd/systemd-oomd" \
+    "/lib/systemd/system/systemd-oomd.service" \
+    "/usr/bin/oomctl" \
+    "/etc/systemd/oomd.conf" \
+    "/usr/lib/systemd/oomd.conf.d/10-oomd-defaults.conf" \
+    "/usr/lib/systemd/system/-.slice.d/10-oomd-root-slice-defaults.conf" \
+    "/usr/lib/systemd/system/user@.service.d/10-oomd-user-service-defaults.conf" \
+    "/usr/lib/sysusers.d/systemd-oom.conf" \
+    "/usr/share/dbus-1/system-services/org.freedesktop.oom1.service" \
+    "/usr/share/dbus-1/system.d/org.freedesktop.oom1.conf" \
     "/usr/share/keyrings/ubuntu-archive-keyring.gpg" \
     "ubuntu_rootfs_flavor_check" \
     "PASS rootfs-flavor manifest" \
@@ -2641,10 +3478,32 @@ e2e_nemu_ubuntu_slice_contract() {
     "UBUNTU_ROOTFS_FLAVOR" \
     "ubuntu_rootfs_flavor_artifact_suffix" \
     "ROOTFS_ARTIFACT_SUFFIX" \
+    "ROOTFS_ARCH" \
     "ubuntu_rootfs_flavor_required_paths" \
     "PAM login module" \
+    "PAM systemd session module" \
+    "PAM common-session systemd hook" \
+    "REQUIRE_NEMU_LOGIN_MARKER" \
+    "NEMU login shell marker" \
+    "NEMU login ttyS0 assertion" \
+    "NEMU serial-getty waits for logind before autologin" \
+    "systemd-logind\\.service systemd-user-sessions\\.service plymouth-quit-wait\\.service getty-pre\\.target rc-local\\.service" \
     "pam_unix.so" \
+    "PAM su command" \
+    "PAM su config" \
+    "account groupadd command" \
+    "account groupdel command" \
+    "account useradd command" \
+    "account userdel command" \
+    "account passwd command" \
+    "account useradd defaults" \
+    "login defaults" \
     "OpenSSH server config" \
+    "OpenSSH client command" \
+    "OpenSSH keygen command" \
+    "OpenSSH scp command" \
+    "OpenSSH sftp command" \
+    "OpenSSH sftp server" \
     "syslog passwd entry" \
     "sshd passwd entry" \
     "OpenSSH ed25519 host key" \
@@ -2652,6 +3511,22 @@ e2e_nemu_ubuntu_slice_contract() {
     "syslog service alias" \
     "apt signature verifier" \
     "journal query tool" \
+    "systemd-analyze tool" \
+    "timedatectl tool" \
+    "netplan tool" \
+    "netplan command script" \
+    "netplan config directory" \
+    "netplan generator binary" \
+    "netplan systemd generator" \
+    "networkctl tool" \
+    "networkd service binary" \
+    "networkd service unit" \
+    "networkd wait-online binary" \
+    "networkd wait-online unit" \
+    "graphical target unit" \
+    "networkd config directory" \
+    "timedated service binary" \
+    "timedated service unit" \
     "sysusers tool" \
     "sysusers setup unit" \
     "sysusers base config" \
@@ -2660,6 +3535,7 @@ e2e_nemu_ubuntu_slice_contract() {
     "journal stdin tool" \
     "Ubuntu archive keyring" \
     "rootfs_dpkg_status_installed" \
+    "rootfs_dpkg_info_list_exists" \
     "rootfs_dpkg_info_list_contains" \
     "rootfs_dpkg_info_list_files" \
     "rootfs_dpkg_info_list_invalid_records" \
@@ -2671,8 +3547,74 @@ e2e_nemu_ubuntu_slice_contract() {
     "systemd:/bin/journalctl" \
     "systemd:/bin/systemd-sysusers" \
     "systemd:/bin/systemd-tmpfiles" \
+    "systemd:/usr/bin/systemd-analyze" \
+    "systemd:/usr/bin/systemd-run" \
     "systemd:/usr/bin/systemd-cat" \
-    "ubuntu-standard openssh-server curl wget dropbear-bin rsyslog cron systemd-timesyncd gpgv ubuntu-keyring" \
+    "systemd:/usr/bin/timedatectl" \
+    "netplan.io:/usr/sbin/netplan" \
+    "netplan.io:/usr/share/netplan/netplan.script" \
+    "netplan-generator:/etc/netplan" \
+    "netplan-generator:/lib/netplan/generate" \
+    "netplan-generator:/lib/systemd/system-generators/netplan" \
+    "systemd:/bin/networkctl" \
+    "systemd:/usr/bin/resolvectl" \
+    "systemd:/bin/loginctl" \
+    "systemd:/lib/systemd/systemd-logind" \
+    "systemd:/lib/systemd/systemd-networkd" \
+    "systemd:/lib/systemd/systemd-networkd-wait-online" \
+    "systemd:/lib/systemd/systemd-resolved" \
+    "systemd:/lib/systemd/systemd-timedated" \
+    "systemd:/lib/systemd/system/systemd-logind.service" \
+    "systemd:/lib/systemd/system/systemd-networkd.service" \
+    "systemd:/lib/systemd/system/systemd-networkd-wait-online.service" \
+    "systemd:/lib/systemd/system/network-online.target" \
+    "systemd:/lib/systemd/system/graphical.target" \
+    "systemd:/lib/systemd/system/systemd-resolved.service" \
+    "systemd:/lib/systemd/system/systemd-timedated.service" \
+    "systemd:/etc/systemd/resolved.conf" \
+    "systemd:/lib/systemd/system/user@.service" \
+    "systemd:/lib/systemd/system/user-runtime-dir@.service" \
+    "dbus-user-session:/usr/lib/systemd/user/dbus.socket" \
+    "dbus-user-session:/usr/lib/systemd/user/dbus.service" \
+    "dbus-user-session:/usr/lib/systemd/user/sockets.target.wants/dbus.socket" \
+    "libpam-systemd:/lib/riscv64-linux-gnu/security/pam_systemd.so" \
+    "ubuntu-standard openssh-client openssh-server openssh-sftp-server curl wget dropbear-bin rsyslog cron anacron logrotate systemd-timesyncd systemd-oomd dbus-user-session libpam-systemd gpgv ubuntu-keyring netplan.io netplan-generator" \
+    "openssh-client:/usr/bin/ssh" \
+    "openssh-client:/usr/bin/ssh-keygen" \
+    "openssh-client:/usr/bin/scp" \
+    "openssh-client:/usr/bin/sftp" \
+    "openssh-sftp-server:/usr/lib/openssh/sftp-server" \
+    "cron:/usr/sbin/cron" \
+    "cron:/etc/crontab" \
+    "cron:/etc/cron.d" \
+    "cron:/etc/cron.daily" \
+    "anacron:/usr/sbin/anacron" \
+    "anacron:/etc/anacrontab" \
+    "anacron:/etc/cron.d/anacron" \
+    "anacron:/etc/cron.daily/0anacron" \
+    "anacron:/etc/cron.weekly/0anacron" \
+    "anacron:/etc/cron.monthly/0anacron" \
+    "anacron:/var/spool/anacron" \
+    "anacron:/lib/systemd/system/anacron.service" \
+    "anacron:/lib/systemd/system/anacron.timer" \
+    "logrotate:/usr/sbin/logrotate" \
+    "logrotate:/etc/logrotate.conf" \
+    "systemd-oomd:/lib/systemd/systemd-oomd" \
+    "systemd-oomd:/lib/systemd/system/systemd-oomd.service" \
+    "systemd-oomd:/usr/bin/oomctl" \
+    "systemd-oomd:/etc/systemd/oomd.conf" \
+    "systemd-oomd:/usr/lib/systemd/oomd.conf.d/10-oomd-defaults.conf" \
+    "systemd-oomd:/usr/lib/systemd/system/-.slice.d/10-oomd-root-slice-defaults.conf" \
+    "systemd-oomd:/usr/lib/systemd/system/user@.service.d/10-oomd-user-service-defaults.conf" \
+    "systemd-oomd:/usr/lib/sysusers.d/systemd-oom.conf" \
+    "systemd-oomd:/usr/share/dbus-1/system-services/org.freedesktop.oom1.service" \
+    "systemd-oomd:/usr/share/dbus-1/system.d/org.freedesktop.oom1.conf" \
+    "passwd:/usr/sbin/groupadd" \
+    "passwd:/usr/sbin/groupdel" \
+    "passwd:/usr/sbin/useradd" \
+    "passwd:/usr/sbin/userdel" \
+    "passwd:/usr/bin/passwd" \
+    "passwd:/etc/default/useradd" \
     "boot-blocking e2scrub reap masked" \
     "periodic e2scrub timer masked" \
     "flavor_missing"; do
@@ -2685,14 +3627,39 @@ e2e_nemu_ubuntu_slice_contract() {
   done
   for pattern in \
     "NEMU_SYSTEMD_CHECK_MAX_CYCLES ?= 50000000000" \
+    "NEMU_SYSTEMD_NET_TAP ?=" \
+    "NEMU_SYSTEMD_NET_BACKEND ?= \$(if \$(strip \$(NEMU_SYSTEMD_NET_TAP)),tap,hostless)" \
+    "NEMU_SYSTEMD_TAP_IPV4_CIDR ?=" \
+    "NEMU_SYSTEMD_TAP_GATEWAY ?=" \
+    "NEMU_SYSTEMD_TAP_DNS ?=" \
+    "NEMU_SYSTEMD_TAP_PING_TARGET ?=" \
+    "NEMU_SYSTEMD_TAP_HTTP_URL ?=" \
+    "NEMU_SYSTEMD_TAP_REQUIRE_EXTERNAL ?= 0" \
+    "NEMU_SYSTEMD_TAP_REQUIRE_PACKETS ?= 0" \
+    "NEMU_TAP_IFNAME ?=" \
+    "NEMU_TAP_HOST_IPV4_CIDR ?= 10.0.3.1/24" \
+    "NEMU_TAP_GUEST_IPV4_CIDR ?= 10.0.3.15/24" \
+    "NEMU_TAP_NAT_SOURCE_CIDR ?= 10.0.3.0/24" \
+    "NEMU_TAP_REQUIRE_READY ?= 0" \
     "NEMU_SYSTEMD_FULL_CHECK_MAX_CYCLES ?= 80000000000" \
-    "NEMU_SYSTEMD_FULL_CHECK_TIMEOUT ?= 3000" \
+    "NEMU_SYSTEMD_FULL_CHECK_TIMEOUT ?= 7200" \
     "NEMU_SYSTEMD_APT_INSTALL_DIAG ?= 0" \
     "NEMU_SYSTEMD_APT_INSTALL_ACTUAL ?= 0" \
     "NEMU_SYSTEMD_APT_INSTALL_DIAG_TIMEOUT ?= 300" \
     "NEMU_SYSTEMD_APT_REMOVE_DIAG_TIMEOUT ?= 600" \
-    "NEMU_SYSTEMD_SOAK_CHECK_MAX_CYCLES ?= 90000000000" \
-    "NEMU_SYSTEMD_SOAK_CHECK_TIMEOUT ?= 3600" \
+    "NEMU_SYSTEMD_CRON_JOB_TIMEOUT ?= 180" \
+    "NEMU_SYSTEMD_ANACRON_TIMEOUT ?= 120" \
+    "NEMU_SYSTEMD_CALENDAR_TIMER_TIMEOUT ?= 90" \
+    "NEMU_SYSTEMD_LOCALE_GEN_TIMEOUT ?= 600" \
+    "NEMU_SYSTEMD_TIMEDATECTL_TIMEOUT ?= 120" \
+    "NEMU_SYSTEMD_NETWORKD_DHCP_TIMEOUT ?= 90" \
+    "NEMU_SYSTEMD_NETWORKD_WAIT_ONLINE_TIMEOUT ?= 90" \
+    "NEMU_SYSTEMD_TIMESYNCD_NTP_TIMEOUT ?= 120" \
+    "NEMU_SYSTEMD_RESOLVED_DNS_TIMEOUT ?= 90" \
+    "UBUNTU_ROOTFS_NEMU_LOGIN_MARKER ?= \$(if \$(filter nemu,\$(LINUX_PLATFORM)),1,0)" \
+    "UBUNTU_ROOTFS_REQUIRE_NEMU_LOGIN_MARKER ?= \$(UBUNTU_ROOTFS_NEMU_LOGIN_MARKER)" \
+    "NEMU_SYSTEMD_SOAK_CHECK_MAX_CYCLES ?= 300000000000" \
+    "NEMU_SYSTEMD_SOAK_CHECK_TIMEOUT ?= 7200" \
     "NEMU_SYSTEMD_ROOTFS_OVERLAY ?= \$(NEMU_SYSTEMD_CHECK_LOG_DIR)/rootfs-overlay.raw" \
     "NEMU_SYSTEMD_ROOTFS_FLAVOR ?= systemd-minimal" \
     "NEMU_SYSTEMD_ROOTFS_CHECK_TARGET =" \
@@ -2721,13 +3688,17 @@ e2e_nemu_ubuntu_slice_contract() {
     "UBUNTU_ROOTFS_FLAVOR=full" \
     "UBUNTU_ROOTFS_IMAGE='\$(UBUNTU_ROOTFS_FULL_IMAGE)'" \
     "UBUNTU_ROOTFS_DIR='\$(UBUNTU_ROOTFS_FULL_DIR)'" \
-    "UBUNTU_ROOTFS_IMAGE='\$(UBUNTU_ROOTFS_SYSTEMD_IMAGE)' UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL='\$(UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL)' UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER='\$(UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER)' UBUNTU_ROOTFS_FLAVOR=systemd-minimal" \
+    "UBUNTU_ROOTFS_IMAGE='\$(UBUNTU_ROOTFS_SYSTEMD_IMAGE)'" \
+    "UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1" \
+    "UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL='\$(UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL)'" \
+    "UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER='\$(UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER)'" \
+    "UBUNTU_ROOTFS_REQUIRE_NPC_LOGIN_MARKER='\$(UBUNTU_ROOTFS_REQUIRE_NPC_LOGIN_MARKER)'" \
+    "UBUNTU_ROOTFS_REQUIRE_NPC_PRESEED_SYSTEMD_UPDATE='\$(UBUNTU_ROOTFS_REQUIRE_NPC_PRESEED_SYSTEMD_UPDATE)'" \
+    "UBUNTU_ROOTFS_EXPECT_NPC_SYSTEMD_GENERATORS='\$(UBUNTU_ROOTFS_EXPECT_NPC_SYSTEMD_GENERATORS)'" \
     '"$${MAKE:-make}" ubuntu-rootfs-systemd-image' \
     "check-ubuntu-rootfs-interactive:" \
-    "UBUNTU_ROOTFS_IMAGE='\$(UBUNTU_ROOTFS_INTERACTIVE_IMAGE)' UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL='\$(UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL)' UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER='\$(UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER)' UBUNTU_ROOTFS_FLAVOR=interactive" \
     '"$${MAKE:-make}" ubuntu-rootfs-interactive-image' \
     "check-ubuntu-rootfs-full:" \
-    "UBUNTU_ROOTFS_IMAGE='\$(UBUNTU_ROOTFS_FULL_IMAGE)' UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL='\$(UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL)' UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER='\$(UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER)' UBUNTU_ROOTFS_FLAVOR=full" \
     '"$${MAKE:-make}" ubuntu-rootfs-full-image' \
     "UBUNTU_ROOTFS_FLAVOR='\$(UBUNTU_ROOTFS_FLAVOR)'" \
     "UBUNTU_ROOTFS_CPIO_IMAGE='\$(UBUNTU_ROOTFS_CPIO_IMAGE)'" \
@@ -2737,12 +3708,14 @@ e2e_nemu_ubuntu_slice_contract() {
     "NEMU_SYSTEMD_CHECK_LOG_DIR='\$(NEMU_SYSTEMD_FULL_CHECK_LOG_DIR)'" \
     "NEMU_PYTHON_INT_CHECK_LOG_DIR ?= \$(LOG_ROOT)/riscv64-nemu-python-int-preflight" \
     "NEMU_PYTHON_INT_STAGE_MODE ?= focused" \
+    "NEMU_PYTHON_INT_PROBE_MODE ?= args" \
     "NEMU_PYTHON_INT_STAGE_TIMEOUT ?= 120" \
     "NEMU_PYTHON_INT_STAGE_PREWARM ?= auto" \
     "NEMU_PYTHON_INT_TAGS ?=" \
     "check-nemu-python-int-preflight:" \
     "NEMU_PYTHON_INT_ROOTFS_OVERLAY='\$(NEMU_PYTHON_INT_ROOTFS_OVERLAY)'" \
     "NEMU_PYTHON_INT_STAGE_MODE='\$(NEMU_PYTHON_INT_STAGE_MODE)'" \
+    "NEMU_PYTHON_INT_PROBE_MODE='\$(NEMU_PYTHON_INT_PROBE_MODE)'" \
     "NEMU_PYTHON_INT_STAGE_TIMEOUT='\$(NEMU_PYTHON_INT_STAGE_TIMEOUT)'" \
     "NEMU_PYTHON_INT_STAGE_PREWARM='\$(NEMU_PYTHON_INT_STAGE_PREWARM)'" \
     "NEMU_PYTHON_INT_TAGS='\$(NEMU_PYTHON_INT_TAGS)'" \
@@ -2789,8 +3762,25 @@ e2e_nemu_ubuntu_slice_contract() {
     "NEMU_SYSTEMD_INPUT_CHUNK_BYTES ?= 8" \
     "NEMU_SYSTEMD_INPUT_CHUNK_DELAY ?= 0" \
     "NEMU_SYSTEMD_ROOTFS_OVERLAY='\$(NEMU_SYSTEMD_ROOTFS_OVERLAY)'" \
+    "NEMU_SYSTEMD_NET_BACKEND='\$(NEMU_SYSTEMD_NET_BACKEND)'" \
+    "NEMU_SYSTEMD_NET_TAP='\$(NEMU_SYSTEMD_NET_TAP)'" \
+    "NEMU_SYSTEMD_TAP_IPV4_CIDR='\$(NEMU_SYSTEMD_TAP_IPV4_CIDR)'" \
+    "NEMU_SYSTEMD_TAP_GATEWAY='\$(NEMU_SYSTEMD_TAP_GATEWAY)'" \
+    "NEMU_SYSTEMD_TAP_DNS='\$(NEMU_SYSTEMD_TAP_DNS)'" \
+    "NEMU_SYSTEMD_TAP_PING_TARGET='\$(NEMU_SYSTEMD_TAP_PING_TARGET)'" \
+    "NEMU_SYSTEMD_TAP_HTTP_URL='\$(NEMU_SYSTEMD_TAP_HTTP_URL)'" \
+    "NEMU_SYSTEMD_TAP_REQUIRE_EXTERNAL='\$(NEMU_SYSTEMD_TAP_REQUIRE_EXTERNAL)'" \
+    "NEMU_SYSTEMD_TAP_REQUIRE_PACKETS='\$(NEMU_SYSTEMD_TAP_REQUIRE_PACKETS)'" \
     "NEMU_SYSTEMD_INPUT_CHUNK_BYTES='\$(NEMU_SYSTEMD_INPUT_CHUNK_BYTES)'" \
-    "NEMU_SYSTEMD_INPUT_CHUNK_DELAY='\$(NEMU_SYSTEMD_INPUT_CHUNK_DELAY)'"; do
+    "NEMU_SYSTEMD_INPUT_CHUNK_DELAY='\$(NEMU_SYSTEMD_INPUT_CHUNK_DELAY)'" \
+    "check-nemu-tap-host:" \
+    "show-nemu-tap-setup:" \
+    "show-nemu-tap-teardown:" \
+    "check-nemu-systemd-guest-tap:" \
+    "check-nemu-systemd-guest-full-tap:" \
+    "NEMU_TAP_REQUIRE_READY=1" \
+    "NEMU_SYSTEMD_NET_TAP='\$(NEMU_TAP_IFNAME)'" \
+    "NEMU_SYSTEMD_TAP_IPV4_CIDR='\$(NEMU_TAP_GUEST_IPV4_CIDR)'"; do
     if grep -Fq -- "$pattern" "$linux_makefile"; then
       printf 'PASS Linux/Makefile %s\n' "$pattern"
     else
@@ -2801,19 +3791,23 @@ e2e_nemu_ubuntu_slice_contract() {
   for pattern in \
     "ROOTFS_IMAGE_MAKE_VAR=UBUNTU_ROOTFS_FULL_IMAGE" \
     "ROOTFS_CPIO_MAKE_VAR=UBUNTU_ROOTFS_FULL_CPIO_IMAGE" \
-    "TB_MAX_INST=\${NEMU_PROFILE_TB_MAX_INST:-32}" \
+    "TB_MAX_INST=\${NEMU_PROFILE_TB_MAX_INST:-256}" \
     "OPCODE_MIX=\${NEMU_PROFILE_OPCODE_MIX:-0}" \
     "STOP_DETAIL=\${NEMU_PROFILE_STOP_DETAIL:-0}" \
     "DECODE_CACHE_DETAIL=\${NEMU_PROFILE_DECODE_CACHE:-0}" \
     "RVC_DETAIL=\${NEMU_PROFILE_RVC_DETAIL:-0}" \
     "GUEST_COUNTERS=\${NEMU_PROFILE_GUEST_COUNTERS:-1}" \
     "RUNTIME_BASIC_BLOCK=\${NEMU_INTERPRETER_BASIC_BLOCK:-1}" \
+    "RUNTIME_TB_AMO_CONTINUE=\${NEMU_INTERPRETER_TB_AMO_CONTINUE:-1}" \
     "RUNTIME_WIDE_IFETCH=\${NEMU_INTERPRETER_WIDE_IFETCH:-1}" \
     "RUNTIME_DECODE_CACHE=\${NEMU_INTERPRETER_DECODE_CACHE:-1}" \
+    "RUNTIME_DECODE_CACHE_RVC_FAST=\${NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST:-1}" \
+    "RUNTIME_DECODE_CACHE_INT_FAST=\${NEMU_INTERPRETER_DECODE_CACHE_INT_FAST:-1}" \
     "RUNTIME_VADDR_HOST_FAST=\${NEMU_VADDR_HOST_FAST:-1}" \
     "RUNTIME_MMU_TLB=\${NEMU_RISCV_MMU_TLB:-1}" \
     "RUNTIME_VIRTIO_BLK_SYNC=\${NEMU_VIRTIO_BLK_SYNC:-0}" \
     "HOST_PERF_RECORD=\${NEMU_PROFILE_HOST_PERF_RECORD:-0}" \
+    "HOST_PERF_AVAILABLE=0" \
     "HOST_PERF_CACHE=\${NEMU_PROFILE_HOST_PERF_CACHE:-\"\$NEMU_PLATFORM_ROOT/tools/host-perf\"}" \
     "HOST_PERF_ANNOTATE=\${NEMU_PROFILE_HOST_PERF_ANNOTATE:-0}" \
     "HOST_PERF_ANNOTATE_TOP=\${NEMU_PROFILE_HOST_PERF_ANNOTATE_TOP:-3}" \
@@ -2824,6 +3818,9 @@ e2e_nemu_ubuntu_slice_contract() {
     "rvc_detail=%s" \
     "guest_counters=%s" \
     "runtime.wide_ifetch=%s" \
+    "runtime.tb_amo_continue=%s" \
+    "runtime.decode_cache_rvc_fast=%s" \
+    "runtime.decode_cache_int_fast=%s" \
     "runtime.vaddr_host_fast=%s" \
     "runtime.mmu_tlb=%s" \
     "host_perf_record=%s" \
@@ -2833,6 +3830,8 @@ e2e_nemu_ubuntu_slice_contract() {
     "apt-get download \"\$base_pkg\" libtraceevent1" \
     "perf.local.status=available" \
     "run_profile_command" \
+    "HOST_PERF_AVAILABLE\" == 1" \
+    "perf.record.status=unavailable" \
     "perf.record.status=captured" \
     "host_perf_cmd report --stdio --no-children" \
     "host_perf_cmd annotate --stdio" \
@@ -2848,6 +3847,8 @@ e2e_nemu_ubuntu_slice_contract() {
     "NEMU_PROFILE=\"\$GUEST_COUNTERS\"" \
     "NEMU_INTERPRETER_WIDE_IFETCH=\"\$RUNTIME_WIDE_IFETCH\"" \
     "NEMU_INTERPRETER_DECODE_CACHE=\"\$RUNTIME_DECODE_CACHE\"" \
+    "NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST=\"\$RUNTIME_DECODE_CACHE_RVC_FAST\"" \
+    "NEMU_INTERPRETER_DECODE_CACHE_INT_FAST=\"\$RUNTIME_DECODE_CACHE_INT_FAST\"" \
     "NEMU_VADDR_HOST_FAST=\"\$RUNTIME_VADDR_HOST_FAST\"" \
     "NEMU_RISCV_MMU_TLB=\"\$RUNTIME_MMU_TLB\"" \
     "NEMU_VIRTIO_BLK_SYNC=\"\$RUNTIME_VIRTIO_BLK_SYNC\"" \
@@ -2858,8 +3859,18 @@ e2e_nemu_ubuntu_slice_contract() {
     "derived.opcode_mix_total=" \
     "tb_stop_amo_{key}_pct_x100" \
     "tb_continue_amo_{key}_pct_x100" \
+    "derived.tb_continue_{key}_per_block_x100" \
+    "csr_sstatus_imm_clear" \
+    "csr_sstatus_unchanged" \
+    "csr_sstatus_sie_clear" \
+    "csr_trap_metadata" \
     "tb_stop_system_csr_{key}_pct_x100" \
+    "tb_stop_system_csr_op_{key}_pct_x100" \
+    "tb_stop_system_csr_sstatus_delta_{key}_pct_x100" \
+    "derived.csr_sstatus_write_changed_pct_x100" \
+    "derived.csr_sstatus_write_delta_{key}_pct_x100" \
     "NEMU_INTERPRETER_TB_MAX_INST=\"\$TB_MAX_INST\"" \
+    "NEMU_INTERPRETER_TB_AMO_CONTINUE=\"\$RUNTIME_TB_AMO_CONTINUE\"" \
     "NEMU_SYSTEMD_ROOTFS_FLAVOR=\"\$ROOTFS_FLAVOR\"" \
     "\"\$ROOTFS_IMAGE_MAKE_VAR=\$ROOTFS_IMAGE\"" \
     "\"\$ROOTFS_CPIO_MAKE_VAR=\$ROOTFS_CPIO_IMAGE\""; do
@@ -2876,6 +3887,11 @@ e2e_nemu_ubuntu_slice_contract() {
     "static inline void nemu_profile_count" \
     "nemu_profile_counters[counter] += amount" \
     "NEMU_PROFILE_CPU_RVC_DETAIL_ENABLED" \
+    "NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_TOTAL" \
+    "NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_DELTA_SIE" \
+    "NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_DELTA_FS" \
+    "NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SSTATUS_DELTA_ONLY_SIE_SET" \
+    "NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SSTATUS_DELTA_OTHER_OR_MULTI" \
     "extern bool nemu_profile_rvc_detail_is_enabled" \
     "static inline bool nemu_profile_rvc_detail_enabled"; do
     if grep -Fq -- "$pattern" "$profile_h"; then
@@ -2893,6 +3909,23 @@ e2e_nemu_ubuntu_slice_contract() {
     missing=1
   fi
   for pattern in \
+    "cpu.csr.sstatus.write.total" \
+    "cpu.csr.sstatus.write.changed" \
+    "cpu.csr.sstatus.write_delta.sie" \
+    "cpu.csr.sstatus.write_delta.fs" \
+    "cpu.csr.sstatus.write_delta.sum" \
+    "cpu.csr.sstatus.write_delta.mxr" \
+    "cpu.tb_stop_system_csr.sstatus_delta.sie_set" \
+    "cpu.tb_stop_system_csr.sstatus_delta.only_sie_set" \
+    "cpu.tb_stop_system_csr.sstatus_delta.other_or_multi"; do
+    if grep -Fq -- "$pattern" "$profile_c"; then
+      printf 'PASS profile.c sstatus delta counter name %s\n' "$pattern"
+    else
+      printf 'FAIL profile.c sstatus delta counter name %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  for pattern in \
     "typedef uint64_t VaddrIfetchWideResult" \
     "static inline VaddrIfetchWideResult vaddr_ifetch_wide_pack" \
     "static inline uint32_t vaddr_ifetch_wide_inst" \
@@ -2902,6 +3935,14 @@ e2e_nemu_ubuntu_slice_contract() {
     "static inline bool vaddr_ifetch_wide_runtime_enabled" \
     "extern bool vaddr_host_fast_is_enabled" \
     "static inline bool vaddr_host_fast_runtime_enabled" \
+    "extern bool vaddr_write_trace_is_enabled" \
+    "static inline bool vaddr_write_trace_runtime_enabled" \
+    "void vaddr_write_trace_arm_range" \
+    "void vaddr_write_trace_disarm" \
+    "void vaddr_write_value_trace_arm" \
+    "void vaddr_write_value_trace_set_user_only" \
+    "void vaddr_write_value_trace_disarm" \
+    "void vaddr_write_trace_dump_machine_info" \
     "extern bool vaddr_fault_pending" \
     "static inline bool vaddr_has_fault"; do
     if grep -Fq -- "$pattern" "$vaddr_h"; then
@@ -2915,7 +3956,28 @@ e2e_nemu_ubuntu_slice_contract() {
     "vaddr_runtime_config_init" \
     "bool vaddr_fault_pending = false" \
     "NEMU_INTERPRETER_WIDE_IFETCH" \
-    "NEMU_VADDR_HOST_FAST"; do
+    "NEMU_VADDR_HOST_FAST" \
+    "NEMU_VADDR_WRITE_TRACE" \
+    "NEMU_VADDR_WRITE_TRACE_START" \
+    "NEMU_VADDR_WRITE_TRACE_END" \
+    "NEMU_VADDR_WRITE_TRACE_START2" \
+    "NEMU_VADDR_WRITE_TRACE_END2" \
+    "NEMU_VADDR_WRITE_VALUE_TRACE" \
+    "NEMU_VADDR_WRITE_VALUE_TRACE_VALUE" \
+    "NEMU_VADDR_WRITE_VALUE_TRACE_MASK" \
+    "NEMU_VADDR_WRITE_VALUE_TRACE_USER_ONLY" \
+    "vaddr_write_trace_arm_range" \
+    "VADDR_WRITE_TRACE_MAX_RANGES" \
+    "vaddr_write_trace_add_range" \
+    "runtime.vaddr_write_trace.range_count" \
+    "vaddr_write_trace_disarm" \
+    "vaddr_write_value_trace_arm" \
+    "vaddr_write_value_trace_set_user_only" \
+    "vaddr_write_value_trace_disarm" \
+    "vaddr-write-value-trace count=" \
+    "vaddr_write_value_trace_match_byte" \
+    "vaddr-write-trace count=" \
+    "vaddr_write_trace_after_write"; do
     if grep -Fq -- "$pattern" "$vaddr_c"; then
       printf 'PASS vaddr.c runtime flag storage %s\n' "$pattern"
     else
@@ -2934,6 +3996,8 @@ e2e_nemu_ubuntu_slice_contract() {
   fi
   for pattern in \
     "extern bool isa_riscv64_decode_cache_is_enabled" \
+    "extern bool isa_riscv64_decode_cache_rvc_fast_is_enabled" \
+    "extern bool isa_riscv64_decode_cache_int_fast_is_enabled" \
     "static inline bool isa_riscv64_decode_cache_runtime_enabled"; do
     if grep -Fq -- "$pattern" "$rv64_platform_h"; then
       printf 'PASS isa-platform.h decode-cache inline flag %s\n' "$pattern"
@@ -2944,8 +4008,12 @@ e2e_nemu_ubuntu_slice_contract() {
   done
   for pattern in \
     "bool isa_riscv64_decode_cache_is_enabled = true" \
+    "bool isa_riscv64_decode_cache_rvc_fast_is_enabled = true" \
+    "bool isa_riscv64_decode_cache_int_fast_is_enabled = true" \
     "rv_runtime_config_init" \
-    "NEMU_INTERPRETER_DECODE_CACHE"; do
+    "NEMU_INTERPRETER_DECODE_CACHE" \
+    "NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST" \
+    "NEMU_INTERPRETER_DECODE_CACHE_INT_FAST"; do
     if grep -Fq -- "$pattern" "$rv64_inst_dir/common.c"; then
       printf 'PASS riscv64/inst/common.c decode-cache runtime storage %s\n' "$pattern"
     else
@@ -3145,6 +4213,9 @@ e2e_nemu_ubuntu_slice_contract() {
     "qmp" \
     "OPT_GDBSTUB" \
     "gdbstub" \
+    "OPT_NET_TAP" \
+    "net-tap" \
+    "virtio_net_set_tap" \
     "add_monitor_cmd" \
     "run_monitor_cmds_and_exit" \
     "qmp_wait_for_client_if_enabled" \
@@ -3460,6 +4531,8 @@ e2e_nemu_ubuntu_slice_contract() {
     "CONFIG_INTERPRETER_TB_MAX_INST" \
     "cpu_interpreter_tb_max_inst_runtime" \
     "NEMU_INTERPRETER_TB_MAX_INST" \
+    "cpu_interpreter_tb_amo_continue_runtime_enabled" \
+    "NEMU_INTERPRETER_TB_AMO_CONTINUE" \
     "runtime_cap = 4096" \
     "profile_opcode_mix" \
     "nemu_profile_opcode_mix_enabled" \
@@ -3476,15 +4549,45 @@ e2e_nemu_ubuntu_slice_contract() {
     "NEMU_PROFILE_CPU_TB_CONTINUE_COMPRESSED_MISC" \
     "NEMU_PROFILE_CPU_TB_CONTINUE_FENCE" \
     "NEMU_PROFILE_CPU_TB_CONTINUE_CSR_READONLY" \
+    "NEMU_PROFILE_CPU_TB_CONTINUE_CSR_SSTATUS_IMM_CLEAR" \
+    "NEMU_PROFILE_CPU_TB_CONTINUE_CSR_SSTATUS_UNCHANGED" \
     "NEMU_PROFILE_CPU_TB_CONTINUE_AMO" \
     "interpreter_tb_profile_continue_amo_detail" \
+    "interpreter_tb_amo_can_continue" \
+    "cpu_interpreter_tb_amo_continue_runtime_enabled()" \
+    "interpreter_tb_profile_continue_amo_detail(inst)" \
+    "NEMU_PROFILE_CPU_TB_CONTINUE_AMO, 1" \
+    "if (unlikely(paddr_has_device_write()))" \
+    "AMO/LR/SC：PMEM 顺序路径可继续" \
     "NEMU_PROFILE_CPU_TB_STOP_FENCE_I" \
     "NEMU_PROFILE_CPU_TB_STOP_AMO" \
     "NEMU_PROFILE_CPU_TB_STOP_AMO_LR" \
     "interpreter_tb_profile_amo_detail" \
     "NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR" \
     "NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SATP" \
+    "NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_OP_CSRRW" \
+    "NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_OP_CSRRS" \
+    "NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_OP_CSRRC" \
     "interpreter_tb_profile_system_csr_detail" \
+    "interpreter_tb_profile_sstatus_stop_delta" \
+    "interpreter_tb_csr_sstatus_imm_clear_can_continue" \
+    "interpreter_tb_csr_trap_metadata_can_continue" \
+    "interpreter_tb_csr_sstatus_unchanged_can_continue" \
+    "interpreter_tb_csr_sstatus_sie_clear_can_continue" \
+    "NEMU_PROFILE_CPU_TB_CONTINUE_CSR_SSTATUS_IMM_CLEAR" \
+    "NEMU_PROFILE_CPU_TB_CONTINUE_CSR_SSTATUS_UNCHANGED" \
+    "NEMU_PROFILE_CPU_TB_CONTINUE_CSR_SSTATUS_SIE_CLEAR" \
+    "NEMU_PROFILE_CPU_TB_CONTINUE_CSR_TRAP_METADATA" \
+    "isa_riscv_last_sstatus_write_was_unchanged" \
+    "isa_riscv_last_sstatus_write_only_cleared_sie" \
+    "isa_riscv_last_sstatus_write_delta" \
+    "NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SSTATUS_DELTA_ONLY_SIE_SET" \
+    "NEMU_PROFILE_CPU_TB_STOP_SYSTEM_CSR_SSTATUS_DELTA_OTHER_OR_MULTI" \
+    "不改变当前 TB 内的取指、翻译、权限或中断使能" \
+    "funct3 != 0x7" \
+    "csr_sstatus = 0x100u" \
+    "sstatus_imm_sie = 0x2u" \
+    "s->dnpc != s->snpc" \
     "NEMU_PROFILE_CPU_TB_STOP_SYSTEM_WFI" \
     "NEMU_PROFILE_CPU_TB_STOP_SYSTEM_SFENCE_VMA" \
     "NEMU_PROFILE_CPU_TB_STOP_SYSTEM_OTHER" \
@@ -3496,11 +4599,51 @@ e2e_nemu_ubuntu_slice_contract() {
     "gdbstub_async_stop_requested" \
     "GDB stub breakpoint hit at pc" \
     "GDB stub async halt at pc" \
+    "NEMU_PC_GPR_TRACE" \
+    "NEMU_PC_GPR_TRACE_START" \
+    "NEMU_PC_GPR_TRACE_END" \
+    "pc-gpr-trace count=" \
+    "s2=" \
+    "s3=" \
+    "ft0_raw" \
+    "ft5_raw" \
+    "fa0_raw" \
+    "fa5_raw" \
+    "pc_gpr_trace_after_exec" \
     "device_update_after_inst(retired"; do
     if grep -q "$pattern" "$cpu_exec_c"; then
       printf 'PASS cpu-exec.c %s\n' "$pattern"
     else
       printf 'FAIL cpu-exec.c %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  for pattern in \
+    "NEMU_FP_LOAD_TRACE" \
+    "NEMU_FP_LOAD_TRACE_PC_START" \
+    "NEMU_FP_LOAD_TRACE_PC_END" \
+    "NEMU_FP_LOAD_TRACE_ADDR_START" \
+    "NEMU_FP_LOAD_TRACE_ADDR_END" \
+    "NEMU_FP_LOAD_TRACE_USER_ONLY" \
+    "fp-load-trace count=" \
+    "has_paddr" \
+    "fp_load_trace_after_load" \
+    "避免 trace 自己再次访问 guest 内存"; do
+    if grep -q "$pattern" "$rv64_fp_c"; then
+      printf 'PASS fp.c %s\n' "$pattern"
+    else
+      printf 'FAIL fp.c %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  for pattern in \
+    "vaddr_last_read_paddr" \
+    "vaddr_last_read_trace_record" \
+    "最近一次 vaddr_read 的译址元数据"; do
+    if grep -q "$pattern" "$vaddr_c"; then
+      printf 'PASS vaddr.c %s\n' "$pattern"
+    else
+      printf 'FAIL vaddr.c %s\n' "$pattern"
       missing=1
     fi
   done
@@ -3534,10 +4677,10 @@ e2e_nemu_ubuntu_slice_contract() {
     printf 'FAIL riscv64-linux_defconfig CONFIG_RISCV_CLINT_HOST_TIME=y\n'
     missing=1
   fi
-  if grep -q "CONFIG_INTERPRETER_TB_MAX_INST=32" "$linux_defconfig"; then
-    printf 'PASS riscv64-linux_defconfig CONFIG_INTERPRETER_TB_MAX_INST=32\n'
+  if grep -q "CONFIG_INTERPRETER_TB_MAX_INST=256" "$linux_defconfig"; then
+    printf 'PASS riscv64-linux_defconfig CONFIG_INTERPRETER_TB_MAX_INST=256\n'
   else
-    printf 'FAIL riscv64-linux_defconfig CONFIG_INTERPRETER_TB_MAX_INST=32\n'
+    printf 'FAIL riscv64-linux_defconfig CONFIG_INTERPRETER_TB_MAX_INST=256\n'
     missing=1
   fi
   if grep -q "CONFIG_INTERPRETER_WIDE_IFETCH=y" "$linux_defconfig"; then
@@ -3615,7 +4758,9 @@ e2e_nemu_ubuntu_slice_contract() {
   for pattern in \
     "CONFIG_AUTOFS_FS" \
     "CONFIG_BPF_SYSCALL" \
-    "CONFIG_CGROUP_BPF"; do
+    "CONFIG_CGROUP_BPF" \
+    "CONFIG_PSI" \
+    "CONFIG_PSI_DEFAULT_DISABLED"; do
     if grep -q "$pattern" "$build_linux_sh"; then
       printf 'PASS build-linux.sh %s\n' "$pattern"
     else
@@ -3627,6 +4772,8 @@ e2e_nemu_ubuntu_slice_contract() {
     "require_config_enabled CONFIG_AUTOFS_FS" \
     "require_config_enabled CONFIG_BPF_SYSCALL" \
     "require_config_enabled CONFIG_CGROUP_BPF" \
+    "require_config_enabled CONFIG_PSI" \
+    "require_config_disabled CONFIG_PSI_DEFAULT_DISABLED" \
     "__NEMU_KERNEL_CONFIG__:ok"; do
     if grep -q "$pattern" "$kernel_config_sh"; then
       printf 'PASS check-nemu-kernel-config.sh %s\n' "$pattern"
@@ -3641,10 +4788,10 @@ e2e_nemu_ubuntu_slice_contract() {
     printf 'FAIL check-nemu-performance-config.sh CONFIG_INTERPRETER_BASIC_BLOCK\n'
     missing=1
   fi
-  if grep -q "require_config_value CONFIG_INTERPRETER_TB_MAX_INST 32" "$perf_config_sh"; then
-    printf 'PASS check-nemu-performance-config.sh CONFIG_INTERPRETER_TB_MAX_INST=32\n'
+  if grep -q "require_config_value CONFIG_INTERPRETER_TB_MAX_INST 256" "$perf_config_sh"; then
+    printf 'PASS check-nemu-performance-config.sh CONFIG_INTERPRETER_TB_MAX_INST=256\n'
   else
-    printf 'FAIL check-nemu-performance-config.sh CONFIG_INTERPRETER_TB_MAX_INST=32\n'
+    printf 'FAIL check-nemu-performance-config.sh CONFIG_INTERPRETER_TB_MAX_INST=256\n'
     missing=1
   fi
   if grep -q "require_config_enabled CONFIG_INTERPRETER_WIDE_IFETCH" "$perf_config_sh"; then
@@ -4020,6 +5167,31 @@ e2e_nemu_ubuntu_slice_contract() {
     "rv_decode_cache_inst_key" \
     "rv_decode_cache_exec" \
     "rv_decode_cache_dispatch" \
+    "RvDecodeCacheRvcOp" \
+    "RvDecodeCacheIntOp" \
+    "entry->rvc_op" \
+    "entry->int_op" \
+    "RV_DC_RVC_OP_COUNT" \
+    "RV_DC_RVC_ADDI4SPN" \
+    "RV_DC_RVC_ADDI16SP" \
+    "RV_DC_RVC_ANDI" \
+    "RV_DC_RVC_J" \
+    "RV_DC_RVC_JR" \
+    "RV_DC_RVC_SLLI" \
+    "RV_DC_RVC_LW" \
+    "RV_DC_RVC_BEQZ" \
+    "RV_DC_RVC_LDSP" \
+    "RV_DC_RVC_SW" \
+    "RV_DC_RVC_SDSP" \
+    "RV_DC_INT_ADDI" \
+    "RV_DC_INT_ANDI" \
+    "RV_DC_INT_SRAI" \
+    "RV_DC_INT_ADDIW" \
+    "RV_DC_INT_ADD" \
+    "RV_DC_INT_SUBW" \
+    "rv_decode_cache_rvc_op_is_direct" \
+    "isa_riscv64_decode_cache_int_fast_runtime_enabled" \
+    "profile_rvc_detail_inst(inst & 0xffffu)" \
     "RV_DECODE_CACHE_USE_DIRECT_DISPATCH" \
     "CONFIG_INTERPRETER_DECODE_DIRECT_DISPATCH" \
     "NEMU_PROFILE_CPU_DECODE_CACHE_LOOKUPS" \
@@ -4040,6 +5212,15 @@ e2e_nemu_ubuntu_slice_contract() {
       missing=1
     fi
   done
+  local rvc_detail_gate_count
+  rvc_detail_gate_count=$(grep -c "nemu_profile_rvc_detail_enabled" "$rv64_inst_dir/decode_cache.c" || :)
+  if [ "$rvc_detail_gate_count" -eq 1 ] &&
+     grep -q "rv_decode_cache_rvc_op_is_direct(entry->rvc_op)" "$rv64_inst_dir/decode_cache.c"; then
+    printf 'PASS riscv64 decode-cache RVC detail profiling single direct gate count=%s\n' "$rvc_detail_gate_count"
+  else
+    printf 'FAIL riscv64 decode-cache RVC detail profiling gate count=%s\n' "$rvc_detail_gate_count"
+    missing=1
+  fi
   for pattern in \
     "vaddr_set_fault" \
     "vaddr_ifetch_wide" \
@@ -4079,6 +5260,11 @@ e2e_nemu_ubuntu_slice_contract() {
   for pattern in \
     "paddr_dma_write" \
     "paddr_dma_write_value" \
+    "paddr_write_trace_arm_range" \
+    "paddr_write_trace_disarm" \
+    "paddr_write_value_trace_arm" \
+    "paddr_write_value_trace_disarm" \
+    "paddr_write_trace_dump_machine_info" \
     "paddr_take_device_write"; do
     if grep -Fq "$pattern" "$paddr_h" && grep -Fq "$pattern" "$paddr_c"; then
       printf 'PASS paddr DMA API %s\n' "$pattern"
@@ -4089,6 +5275,8 @@ e2e_nemu_ubuntu_slice_contract() {
   done
   for pattern in \
     "extern bool paddr_device_write_seen" \
+    "extern bool paddr_write_trace_is_enabled" \
+    "static inline bool paddr_write_trace_runtime_enabled" \
     "static inline bool paddr_has_device_write"; do
     if grep -Fq "$pattern" "$paddr_h"; then
       printf 'PASS paddr.h device-write hot guard %s\n' "$pattern"
@@ -4099,6 +5287,25 @@ e2e_nemu_ubuntu_slice_contract() {
   done
   for pattern in \
     "bool paddr_device_write_seen = false" \
+    "bool paddr_write_trace_is_enabled = false" \
+    "NEMU_PADDR_WRITE_TRACE" \
+    "paddr-write-trace count=" \
+    "paddr-write-trace snapshot" \
+    "paddr-write-value-trace count=" \
+    "paddr_write_value_trace_match_byte" \
+    "paddr_write_value_trace_match_buffer" \
+    "NEMU_PADDR_WRITE_VALUE_TRACE" \
+    "NEMU_PADDR_WRITE_VALUE_TRACE_VALUE" \
+    "NEMU_PADDR_WRITE_VALUE_TRACE_MASK" \
+    "NEMU_PADDR_WRITE_VALUE_TRACE_MAX" \
+    "match=%s match_offset=%u" \
+    "match_paddr=" \
+    "paddr_write_trace_log_snapshot" \
+    "paddr_write_trace_disarm" \
+    "paddr_write_value_trace_arm" \
+    "paddr_write_value_trace_disarm" \
+    "paddr_write_trace_after_write" \
+    "guest_to_host(paddr_write_trace_start)" \
     "paddr_note_device_write" \
     "isa_riscv_clint_in_range" \
     "isa_riscv_plic_in_range" \
@@ -4217,6 +5424,46 @@ e2e_nemu_ubuntu_slice_contract() {
       printf 'PASS riscv64 PMP CSR %s\n' "$pattern"
     else
       printf 'FAIL riscv64 PMP CSR %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  for pattern in \
+    "MSTATUS_SD" \
+    "csr_status_sd_bit" \
+    "csr_mstatus_read_value" \
+    "csr_sstatus_read_value"; do
+    if grep -q "$pattern" "$rv64_isa_def_h" "${rv64_inst_files[@]}"; then
+      printf 'PASS riscv64 status SD CSR %s\n' "$pattern"
+    else
+      printf 'FAIL riscv64 status SD CSR %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  for pattern in \
+    "csr_profile_sstatus_write_delta" \
+    "csr_last_sstatus_write_valid" \
+    "csr_last_sstatus_write_changed" \
+    "csr_last_sstatus_write_only_cleared_sie" \
+    "csr_last_sstatus_write_old" \
+    "csr_last_sstatus_write_new" \
+    "csr_last_sstatus_write_delta" \
+    "isa_riscv64_last_sstatus_write_was_unchanged" \
+    "isa_riscv64_last_sstatus_write_only_cleared_sie" \
+    "isa_riscv64_last_sstatus_write_delta" \
+    "nemu_profile_stop_detail_enabled" \
+    "NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_TOTAL" \
+    "NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_CHANGED" \
+    "NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_UNCHANGED" \
+    "NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_DELTA_SIE" \
+    "NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_DELTA_FS" \
+    "NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_DELTA_SUM" \
+    "NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_DELTA_MXR" \
+    "old_status = cpu.csr.mstatus & SSTATUS_MASK" \
+    "new_status = (value & SSTATUS_MASK) | MSTATUS_SXL_UXL"; do
+    if grep -Fq -- "$pattern" "$rv64_inst_dir/csr.c"; then
+      printf 'PASS riscv64 csr.c sstatus write delta %s\n' "$pattern"
+    else
+      printf 'FAIL riscv64 csr.c sstatus write delta %s\n' "$pattern"
       missing=1
     fi
   done
@@ -4712,9 +5959,23 @@ e2e_nemu_ubuntu_focused_gate_impl() {
   local make_log="$gate_dir/focused-make.log"
   local gate_rc=0
   local gate_timeout="${!timeout_var:-${AGENT_E2E_NEMU_UBUNTU_TIMEOUT:-1700}}"
+  local apt_install_diag=0
+  local apt_install_actual=0
+  if [[ "$make_target" == check-nemu-systemd-guest-full ]]; then
+    # agent full gate 默认覆盖真实 apt install/upgrade/remove/purge 生命周期；
+    # 调试时仍可用 AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_ACTUAL=0 显式降级。
+    apt_install_diag=1
+    apt_install_actual=1
+  fi
+  if [[ ${AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_DIAG+x} ]]; then
+    apt_install_diag="${AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_DIAG}"
+  fi
+  if [[ ${AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_ACTUAL+x} ]]; then
+    apt_install_actual="${AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_ACTUAL}"
+  fi
   local apt_install_diag_timeout="${AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_DIAG_TIMEOUT:-}"
   if [[ -z "$apt_install_diag_timeout" ]]; then
-    if [[ "${AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_ACTUAL:-0}" == 1 ]]; then
+    if [[ "$apt_install_actual" == 1 ]]; then
       apt_install_diag_timeout=1200
     else
       apt_install_diag_timeout=300
@@ -4723,7 +5984,7 @@ e2e_nemu_ubuntu_focused_gate_impl() {
   local full_check_max_cycles="${AGENT_E2E_NEMU_UBUNTU_FULL_CHECK_MAX_CYCLES:-}"
   if [[ -z "$full_check_max_cycles" \
     && "$make_target" == check-nemu-systemd-guest-full \
-    && "${AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_ACTUAL:-0}" == 1 ]]; then
+    && "$apt_install_actual" == 1 ]]; then
     full_check_max_cycles=240000000000
   fi
   local bootargs_extra="${AGENT_E2E_NEMU_UBUNTU_BOOTARGS_EXTRA:-${BOOTARGS_EXTRA:-}}"
@@ -4744,6 +6005,79 @@ e2e_nemu_ubuntu_focused_gate_impl() {
   fi
   if [[ -n "$bootargs_extra" ]]; then
     printf '[nemu-ubuntu] focused gate bootargs extra: %s\n' "$bootargs_extra"
+  fi
+  local focused_net_backend="${AGENT_E2E_NEMU_UBUNTU_NET_BACKEND:-}"
+  local focused_net_tap="${AGENT_E2E_NEMU_UBUNTU_NET_TAP:-}"
+  local focused_net_backend_effective="${focused_net_backend:-hostless}"
+  if [[ -z "$focused_net_backend" && -n "$focused_net_tap" ]]; then
+    focused_net_backend_effective=tap
+  fi
+  local net_make_args=()
+  if [[ -n "$focused_net_backend" ]]; then
+    net_make_args+=("NEMU_SYSTEMD_NET_BACKEND=$focused_net_backend")
+  fi
+  if [[ -n "$focused_net_tap" ]]; then
+    net_make_args+=("NEMU_SYSTEMD_NET_TAP=$focused_net_tap")
+  fi
+  if [[ -n "${AGENT_E2E_NEMU_UBUNTU_TAP_IPV4_CIDR:-}" ]]; then
+    net_make_args+=("NEMU_SYSTEMD_TAP_IPV4_CIDR=${AGENT_E2E_NEMU_UBUNTU_TAP_IPV4_CIDR}")
+  fi
+  if [[ -n "${AGENT_E2E_NEMU_UBUNTU_TAP_GATEWAY:-}" ]]; then
+    net_make_args+=("NEMU_SYSTEMD_TAP_GATEWAY=${AGENT_E2E_NEMU_UBUNTU_TAP_GATEWAY}")
+  fi
+  if [[ -n "${AGENT_E2E_NEMU_UBUNTU_TAP_DNS:-}" ]]; then
+    net_make_args+=("NEMU_SYSTEMD_TAP_DNS=${AGENT_E2E_NEMU_UBUNTU_TAP_DNS}")
+  fi
+  if [[ -n "${AGENT_E2E_NEMU_UBUNTU_TAP_PING_TARGET:-}" ]]; then
+    net_make_args+=("NEMU_SYSTEMD_TAP_PING_TARGET=${AGENT_E2E_NEMU_UBUNTU_TAP_PING_TARGET}")
+  fi
+  if [[ -n "${AGENT_E2E_NEMU_UBUNTU_TAP_HTTP_URL:-}" ]]; then
+    net_make_args+=("NEMU_SYSTEMD_TAP_HTTP_URL=${AGENT_E2E_NEMU_UBUNTU_TAP_HTTP_URL}")
+  fi
+  if [[ -n "${AGENT_E2E_NEMU_UBUNTU_TAP_REQUIRE_EXTERNAL:-}" ]]; then
+    net_make_args+=("NEMU_SYSTEMD_TAP_REQUIRE_EXTERNAL=${AGENT_E2E_NEMU_UBUNTU_TAP_REQUIRE_EXTERNAL}")
+  fi
+  if [[ -n "${AGENT_E2E_NEMU_UBUNTU_TAP_REQUIRE_PACKETS:-}" ]]; then
+    net_make_args+=("NEMU_SYSTEMD_TAP_REQUIRE_PACKETS=${AGENT_E2E_NEMU_UBUNTU_TAP_REQUIRE_PACKETS}")
+  fi
+  if ((${#net_make_args[@]})); then
+    printf '[nemu-ubuntu] focused gate net overrides: effective=%s %s\n' \
+      "$focused_net_backend_effective" "${net_make_args[*]}"
+  fi
+  local soak_make_args=()
+  if [[ "$make_target" == *soak ]]; then
+    if [[ -n "${AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_CHECK_MAX_CYCLES:-}" ]]; then
+      soak_make_args+=("NEMU_SYSTEMD_SOAK_CHECK_MAX_CYCLES=${AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_CHECK_MAX_CYCLES}")
+    elif [[ -n "${AGENT_E2E_NEMU_UBUNTU_FULL_CHECK_MAX_CYCLES:-}" ]]; then
+      soak_make_args+=("NEMU_SYSTEMD_SOAK_CHECK_MAX_CYCLES=${AGENT_E2E_NEMU_UBUNTU_FULL_CHECK_MAX_CYCLES}")
+    fi
+    if [[ -n "${AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_CHECK_TIMEOUT:-}" ]]; then
+      soak_make_args+=("NEMU_SYSTEMD_SOAK_CHECK_TIMEOUT=${AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_CHECK_TIMEOUT}")
+    fi
+    if [[ -n "${AGENT_E2E_NEMU_UBUNTU_SOAK_SECONDS:-}" ]]; then
+      soak_make_args+=("NEMU_SYSTEMD_SOAK_SOAK_SECONDS=${AGENT_E2E_NEMU_UBUNTU_SOAK_SECONDS}")
+    fi
+    if [[ -n "${AGENT_E2E_NEMU_UBUNTU_FS_STRESS_MIB:-}" ]]; then
+      soak_make_args+=("NEMU_SYSTEMD_SOAK_FS_STRESS_MIB=${AGENT_E2E_NEMU_UBUNTU_FS_STRESS_MIB}")
+    fi
+    if [[ -n "${AGENT_E2E_NEMU_UBUNTU_FS_TREE_FILES:-}" ]]; then
+      soak_make_args+=("NEMU_SYSTEMD_SOAK_FS_TREE_FILES=${AGENT_E2E_NEMU_UBUNTU_FS_TREE_FILES}")
+    fi
+    if [[ -n "${AGENT_E2E_NEMU_UBUNTU_PROCESS_LOOPS:-}" ]]; then
+      soak_make_args+=("NEMU_SYSTEMD_SOAK_PROCESS_LOOPS=${AGENT_E2E_NEMU_UBUNTU_PROCESS_LOOPS}")
+    fi
+    if [[ -n "${AGENT_E2E_NEMU_UBUNTU_UART_RX_STRESS_LINES:-}" ]]; then
+      soak_make_args+=("NEMU_SYSTEMD_SOAK_UART_RX_STRESS_LINES=${AGENT_E2E_NEMU_UBUNTU_UART_RX_STRESS_LINES}")
+    fi
+    if [[ -n "${AGENT_E2E_NEMU_UBUNTU_BLOCK_PARALLEL_JOBS:-}" ]]; then
+      soak_make_args+=("NEMU_SYSTEMD_SOAK_BLOCK_PARALLEL_JOBS=${AGENT_E2E_NEMU_UBUNTU_BLOCK_PARALLEL_JOBS}")
+    fi
+    if [[ -n "${AGENT_E2E_NEMU_UBUNTU_BLOCK_JOB_MIB:-}" ]]; then
+      soak_make_args+=("NEMU_SYSTEMD_SOAK_BLOCK_JOB_MIB=${AGENT_E2E_NEMU_UBUNTU_BLOCK_JOB_MIB}")
+    fi
+    if ((${#soak_make_args[@]})); then
+      printf '[nemu-ubuntu] focused gate soak overrides: %s\n' "${soak_make_args[*]}"
+    fi
   fi
   local input_chunk_bytes="${AGENT_E2E_NEMU_UBUNTU_INPUT_CHUNK_BYTES:-}"
   if [[ -z "$input_chunk_bytes" ]]; then
@@ -4768,21 +6102,33 @@ e2e_nemu_ubuntu_focused_gate_impl() {
       NEMU_SYSTEMD_UART_RX_STRESS_LINES="${AGENT_E2E_NEMU_UBUNTU_UART_RX_STRESS_LINES:-64}" \
       NEMU_SYSTEMD_INPUT_CHUNK_BYTES="$input_chunk_bytes" \
       NEMU_SYSTEMD_INPUT_CHUNK_DELAY="${AGENT_E2E_NEMU_UBUNTU_INPUT_CHUNK_DELAY:-0}" \
-      NEMU_SYSTEMD_APT_INSTALL_DIAG="${AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_DIAG:-0}" \
-      NEMU_SYSTEMD_APT_INSTALL_ACTUAL="${AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_ACTUAL:-0}" \
+      NEMU_SYSTEMD_APT_INSTALL_DIAG="$apt_install_diag" \
+      NEMU_SYSTEMD_APT_INSTALL_ACTUAL="$apt_install_actual" \
       NEMU_SYSTEMD_APT_INSTALL_DIAG_TIMEOUT="$apt_install_diag_timeout" \
       NEMU_SYSTEMD_APT_REMOVE_DIAG_TIMEOUT="${AGENT_E2E_NEMU_UBUNTU_APT_REMOVE_DIAG_TIMEOUT:-600}" \
+      NEMU_SYSTEMD_CRON_JOB_TIMEOUT="${AGENT_E2E_NEMU_UBUNTU_CRON_JOB_TIMEOUT:-180}" \
+      NEMU_SYSTEMD_ANACRON_TIMEOUT="${AGENT_E2E_NEMU_UBUNTU_ANACRON_TIMEOUT:-120}" \
+      NEMU_SYSTEMD_CALENDAR_TIMER_TIMEOUT="${AGENT_E2E_NEMU_UBUNTU_CALENDAR_TIMER_TIMEOUT:-90}" \
+      NEMU_SYSTEMD_LOCALE_GEN_TIMEOUT="${AGENT_E2E_NEMU_UBUNTU_LOCALE_GEN_TIMEOUT:-600}" \
+      NEMU_SYSTEMD_TIMEDATECTL_TIMEOUT="${AGENT_E2E_NEMU_UBUNTU_TIMEDATECTL_TIMEOUT:-120}" \
+      NEMU_SYSTEMD_NETWORKD_DHCP_TIMEOUT="${AGENT_E2E_NEMU_UBUNTU_NETWORKD_DHCP_TIMEOUT:-90}" \
+      NEMU_SYSTEMD_NETWORKD_WAIT_ONLINE_TIMEOUT="${AGENT_E2E_NEMU_UBUNTU_NETWORKD_WAIT_ONLINE_TIMEOUT:-90}" \
+      NEMU_SYSTEMD_TIMESYNCD_NTP_TIMEOUT="${AGENT_E2E_NEMU_UBUNTU_TIMESYNCD_NTP_TIMEOUT:-120}" \
+      NEMU_SYSTEMD_RESOLVED_DNS_TIMEOUT="${AGENT_E2E_NEMU_UBUNTU_RESOLVED_DNS_TIMEOUT:-90}" \
+      NEMU_SYSTEMD_OOMD_PRESSURE_TIMEOUT="${AGENT_E2E_NEMU_UBUNTU_OOMD_PRESSURE_TIMEOUT:-180}" \
       NEMU_SYSTEMD_PYTHON_RE_DIAG_LOOPS="${AGENT_E2E_NEMU_UBUNTU_PYTHON_RE_DIAG_LOOPS:-20}" \
       NEMU_SYSTEMD_STOP_AFTER_SYSTEMCTL_RELOAD_DIAG="${AGENT_E2E_NEMU_UBUNTU_STOP_AFTER_SYSTEMCTL_RELOAD_DIAG:-0}" \
       NEMU_SYSTEMD_BLOCK_PARALLEL_JOBS="${AGENT_E2E_NEMU_UBUNTU_BLOCK_PARALLEL_JOBS:-1}" \
       NEMU_SYSTEMD_BLOCK_JOB_MIB="${AGENT_E2E_NEMU_UBUNTU_BLOCK_JOB_MIB:-1}" \
+      "${net_make_args[@]}" \
+      "${soak_make_args[@]}" \
       "$make_target" >"$make_log" 2>&1 || gate_rc=$?
   cat "$make_log"
 
   echo
   echo "[nemu-ubuntu] focused gate markers"
   grep -aE \
-    "__NEMU_CHECK_(MEMTOTAL_KB|MIN_MEMTOTAL_KB|VDA_CACHE_TYPE|VDA_DISCARD_MAX|VDA_WRITE_ZEROES_MAX|RTC0_(NAME|HWCLOCK)|HWRNG_CURRENT|VIRTIO_RNG_(MODALIAS|DRIVER|STATUS|FEATURES)|VIRTIO_NET_(MODALIAS|DRIVER|STATUS|FEATURES|IFACE|MAC|MTU|SPEED|DUPLEX|IPV4|OPERSTATE|TX_PACKETS_(BEGIN|END)|RX_PACKETS_(BEGIN|END)|ROUTE|NEIGH|ARP)|FULL_(PYTHON_CNF|CNF_UPDATE_DB|PYTHON_TEXTWRAP|PYTHON_STDLIB|PYTHON_RE_SOURCE|PYTHON_INT_PREFLIGHT|LSB_RELEASE))|__PYTHON_CNF_DIAG_|__PYTHON_RE_SOURCE_DIAG_|__PYTHON_INT_PREFLIGHT_|__NEMU_(ICMP|DHCP|DNS|TCP)_PROBE_(BURST|ITER|CONNECT|TX|RX|OFFER|ACK|PASS|FAIL)__|virtio-(blk-feature-(config-wce|topology|discard|write-zeroes)|rng-(modalias|driver|features-bitstring|feature-version-1|ring-feature-(indirect-desc|event-idx))|net-(modalias|driver|features-bitstring|feature-(version-1|mtu|mac|mrg-rxbuf|status|ctrl-vq|ctrl-rx|ctrl-vlan|ctrl-rx-extra|guest-announce|ctrl-mac-addr|speed-duplex)|ring-feature-(indirect-desc|event-idx)|interface|mac|mtu|speed|duplex|ipv4-static|icmp-echo|dhcp-lease|dns-a|tcp-http|runtime))|hwclock-rtc0-show|guest-memtotal-min|virtio-ring-feature-event-idx|__NEMU_SYSTEMD_CHECK_DONE__|HIT GOOD TRAP" \
+    "__NEMU_LOGIN_|__NEMU_CHECK_(MEMTOTAL_KB|MIN_MEMTOTAL_KB|VDA_CACHE_TYPE|VDA_DISCARD_MAX|VDA_WRITE_ZEROES_MAX|RTC0_(NAME|HWCLOCK)|HWRNG_CURRENT|VIRTIO_RNG_(MODALIAS|DRIVER|STATUS|FEATURES)|VIRTIO_NET_(MODALIAS|DRIVER|STATUS|FEATURES|BACKEND|IFACE|MAC|MTU|SPEED|DUPLEX|IPV4|OPERSTATE|TX_PACKETS_(BEGIN|END)|RX_PACKETS_(BEGIN|END)|ROUTE|NEIGH|ARP|TAP_(IFNAME|IPV4_STATIC_SKIP|GATEWAY_SKIP|DNS_SKIP|PING_RC|HTTP_CODE|EXTERNAL|EXTERNAL_SKIP))|FULL_(ACCOUNT|SUDO|OPENSSH|PAM_SU|ANACRON|LOGROTATE|LOCALE_GEN|TIMEDATECTL|NETWORKD|TIMESYNCD|RESOLVED|CRON|SYSTEMD|PYTHON_CNF|CNF_UPDATE_DB|PYTHON_TEXTWRAP|PYTHON_STDLIB|PYTHON_RE_SOURCE|PYTHON_INT_PREFLIGHT|LSB_RELEASE))|__PYTHON_CNF_DIAG_|__PYTHON_RE_SOURCE_DIAG_|__PYTHON_INT_PREFLIGHT_|__NEMU_(ICMP|DHCP|DNS|TCP)_PROBE_(BURST|ITER|CONNECT|TX|RX|OFFER|ACK|PASS|FAIL)__|virtio-(blk-feature-(config-wce|topology|discard|write-zeroes)|rng-(modalias|driver|features-bitstring|feature-version-1|ring-feature-(indirect-desc|event-idx))|net-(modalias|driver|features-bitstring|feature-(version-1|mtu|mac|mrg-rxbuf|status|ctrl-vq|ctrl-rx|ctrl-vlan|ctrl-rx-extra|guest-announce|ctrl-mac-addr|speed-duplex)|ring-feature-(indirect-desc|event-idx)|interface|mac|mtu|speed|duplex|ipv4-static|icmp-echo|dhcp-lease|dns-a|tcp-http|tap-(ipv4-static|default-route|dns-config|ping|http|external)|runtime))|hwclock-rtc0-show|guest-memtotal-min|virtio-ring-feature-event-idx|__NEMU_SYSTEMD_CHECK_DONE__|HIT GOOD TRAP" \
     "$gate_dir/console.log" || true
   grep -aE "virtio-blk async runtime|virtio-blk-async-runtime|virtio-net runtime|virtio-net-runtime" \
     "$gate_dir/nemu.log" "$gate_dir/console.log" "$make_log" 2>/dev/null || true
@@ -4806,14 +6152,57 @@ e2e_nemu_ubuntu_focused_gate_impl() {
     for full_marker in \
       "__NEMU_CHECK_PASS__:full-userland-ssh-active" \
       "__NEMU_CHECK_PASS__:full-userland-ssh-listen" \
+      "__NEMU_LOGIN_CHECK_PASS__:root-login" \
+      "__NEMU_LOGIN_CHECK_PASS__:ttyS0-login" \
+      "__NEMU_LOGIN_CHECK_PASS__:pid1-systemd" \
+      "__NEMU_LOGIN_CHECK_PASS__:login-binary" \
+      "__NEMU_LOGIN_CHECK_PASS__:pam-module-path" \
+      "__NEMU_LOGIN_CHECK_DONE__ rc=0" \
+      "__NEMU_CHECK_PASS__:full-userland-sudo-nonroot-nopasswd" \
+      "__NEMU_CHECK_PASS__:full-userland-account-useradd-su-session" \
+      "__NEMU_CHECK_PASS__:full-userland-pam-su-session" \
       "__NEMU_CHECK_PASS__:full-userland-ssh-local-login" \
+      "__NEMU_CHECK_PASS__:full-userland-openssh-local-login" \
+      "__NEMU_CHECK_PASS__:full-userland-openssh-scp-transfer" \
+      "__NEMU_CHECK_PASS__:full-userland-openssh-sftp-transfer" \
+      "__NEMU_CHECK_PASS__:full-userland-openssh-local-forward" \
+      "__NEMU_CHECK_PASS__:full-userland-openssh-remote-forward" \
       "__NEMU_CHECK_PASS__:full-userland-dpkg-audit" \
       "__NEMU_CHECK_PASS__:full-userland-dpkg-package-ubuntu-standard" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-package-openssh-client" \
       "__NEMU_CHECK_PASS__:full-userland-dpkg-package-openssh-server" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-package-openssh-sftp-server" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-package-anacron" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-package-logrotate" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-package-netplan.io" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-package-netplan-generator" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-package-locales" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-package-libc-bin" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-package-libpam-systemd" \
       "__NEMU_CHECK_PASS__:full-userland-dpkg-list-curl-curl" \
       "__NEMU_CHECK_PASS__:full-userland-dpkg-search-curl-curl" \
       "__NEMU_CHECK_PASS__:full-userland-dpkg-list-openssh-server-sshd" \
       "__NEMU_CHECK_PASS__:full-userland-dpkg-search-openssh-server-sshd" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-list-openssh-client-ssh" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-search-openssh-client-ssh" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-list-openssh-client-ssh-keygen" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-search-openssh-client-ssh-keygen" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-list-openssh-client-scp" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-search-openssh-client-scp" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-list-openssh-client-sftp" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-search-openssh-client-sftp" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-list-openssh-sftp-server-sftp-server" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-search-openssh-sftp-server-sftp-server" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-list-logrotate-logrotate" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-search-logrotate-logrotate" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-list-anacron-anacron" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-search-anacron-anacron" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-list-locales-locale-gen" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-search-locales-locale-gen" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-list-libc-bin-localedef" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-search-libc-bin-localedef" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-list-libpam-systemd-pam_systemd.so" \
+      "__NEMU_CHECK_PASS__:full-userland-dpkg-search-libpam-systemd-pam_systemd.so" \
       "__NEMU_CHECK_PASS__:full-userland-dpkg-list-dropbear-bin-dbclient" \
       "__NEMU_CHECK_PASS__:full-userland-dpkg-search-dropbear-bin-dbclient" \
       "__NEMU_CHECK_PASS__:full-userland-gpgv-version" \
@@ -4829,17 +6218,235 @@ e2e_nemu_ubuntu_focused_gate_impl() {
       "__NEMU_CHECK_PASS__:full-userland-machine-id-committed" \
       "__NEMU_CHECK_PASS__:full-userland-hostnamed-active" \
       "__NEMU_CHECK_PASS__:full-userland-hostnamectl-status" \
+      "__NEMU_CHECK_PASS__:full-userland-command-systemd-analyze" \
+      "__NEMU_CHECK_FULL_SYSTEMD_ANALYZE_TIME_RC__:0" \
+      "__NEMU_CHECK_FULL_SYSTEMD_ANALYZE_TIME_NONEMPTY__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_ANALYZE_TIME_STARTUP_SEEN__:1" \
+      "__NEMU_CHECK_PASS__:full-userland-systemd-analyze-time" \
+      "__NEMU_CHECK_FULL_SYSTEMD_ANALYZE_CRITICAL_CHAIN_RC__:0" \
+      "__NEMU_CHECK_FULL_SYSTEMD_ANALYZE_CRITICAL_CHAIN_NONEMPTY__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_ANALYZE_CRITICAL_CHAIN_TARGET_SEEN__:1" \
+      "__NEMU_CHECK_PASS__:full-userland-systemd-analyze-critical-chain" \
+      "__NEMU_CHECK_FULL_SYSTEMD_ANALYZE_GRAPHICAL_CRITICAL_CHAIN_RC__:0" \
+      "__NEMU_CHECK_FULL_SYSTEMD_ANALYZE_GRAPHICAL_CRITICAL_CHAIN_NONEMPTY__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_ANALYZE_GRAPHICAL_CRITICAL_CHAIN_TARGET_SEEN__:1" \
+      "__NEMU_CHECK_PASS__:full-userland-systemd-analyze-graphical-critical-chain" \
+      "__NEMU_CHECK_SYSTEMD_DEFAULT_TARGET_RC__:0" \
+      "__NEMU_CHECK_SYSTEMD_DEFAULT_TARGET__:graphical.target" \
+      "__NEMU_CHECK_PASS__:systemd-default-target-graphical" \
+      "__NEMU_CHECK_SYSTEMD_UNIT__:graphical.target:active" \
+      "__NEMU_CHECK_PASS__:systemd-target-graphical.target" \
+      "__NEMU_CHECK_FULL_TIMEDATECTL_TIMEOUT__:120" \
+      "__NEMU_CHECK_FULL_TIMEDATED_START_RC__:0" \
+      "__NEMU_CHECK_FULL_TIMEDATECTL_SET_TIMEZONE_RC__:0" \
+      "__NEMU_CHECK_FULL_TIMEDATECTL_TIMEZONE_RC__:0" \
+      "__NEMU_CHECK_FULL_TIMEDATECTL_TIMEZONE__:" \
+      "__NEMU_CHECK_PASS__:full-userland-timedatectl-timezone-utc" \
+      "__NEMU_CHECK_PASS__:full-userland-command-netplan" \
+      "__NEMU_CHECK_PASS__:full-userland-netplan-version" \
+      "__NEMU_CHECK_FULL_NETPLAN_CONF__:1:/etc/netplan/10-nemu-hostless.yaml" \
+      "__NEMU_CHECK_FULL_NETPLAN_GENERATE_RC__:0" \
+      "__NEMU_CHECK_FULL_NETPLAN_GENERATED_NETWORK__:1:/run/systemd/network/10-netplan-nemu-hostless.network" \
+      "__NEMU_CHECK_PASS__:full-userland-netplan-generate-networkd" \
+      "__NEMU_CHECK_PASS__:full-userland-command-networkctl" \
+      "__NEMU_CHECK_PASS__:full-userland-command-systemd-networkd" \
+      "__NEMU_CHECK_PASS__:full-userland-command-systemd-networkd-wait-online" \
+      "__NEMU_CHECK_PASS__:full-userland-networkctl-version" \
+      "__NEMU_CHECK_PASS__:full-userland-systemd-networkd-unit" \
+      "__NEMU_CHECK_PASS__:full-userland-systemd-networkd-active" \
+      "__NEMU_CHECK_FULL_NETWORKD_DHCP_TIMEOUT__:90" \
+      "__NEMU_CHECK_FULL_NETWORKD_DHCP_CONF__:1:/run/systemd/network/10-netplan-nemu-hostless.network" \
+      "__NEMU_CHECK_FULL_NETWORKD_START_RC__:0" \
+      "__NEMU_CHECK_FULL_NETWORKD_ACTIVE__:active" \
+      "__NEMU_CHECK_FULL_NETWORKD_DHCP_IPV4__:10.0.2.15/24" \
+      "__NEMU_CHECK_FULL_NETWORKD_DHCP_LEASE_SEEN__:1" \
+      "__NEMU_CHECK_FULL_NETPLAN_NETWORKD_FILE_SEEN__:1" \
+      "__NEMU_CHECK_FULL_NETWORKD_WAIT_ONLINE_TIMEOUT__:90" \
+      "__NEMU_CHECK_FULL_NETWORKD_WAIT_ONLINE_RC__:0" \
+      "__NEMU_CHECK_FULL_NETWORKD_WAIT_ONLINE_STATE__:online" \
+      "__NEMU_CHECK_PASS__:full-userland-systemd-networkd-wait-online-hostless" \
+      "__NEMU_CHECK_FULL_NETWORK_ONLINE_RELOAD_OK__:1" \
+      "__NEMU_CHECK_FULL_NETWORK_ONLINE_SERVICE_RC__:0" \
+      "__NEMU_CHECK_FULL_NETWORK_ONLINE_TARGET_ACTIVE__:active" \
+      "__NEMU_CHECK_FULL_NETWORKD_WAIT_ONLINE_UNIT_RESULT__:success" \
+      "__NEMU_CHECK_FULL_NETWORK_ONLINE_SERVICE_RESULT__:success" \
+      "__NEMU_CHECK_FULL_NETWORK_ONLINE_SERVICE_OUTPUT__:network-online-target-ok" \
+      "__NEMU_CHECK_PASS__:full-userland-systemd-network-online-target" \
+      "__NEMU_CHECK_PASS__:full-userland-netplan-networkd-hostless-dhcp" \
+      "__NEMU_CHECK_PASS__:full-userland-systemd-networkd-hostless-dhcp" \
+      "__NEMU_CHECK_FULL_TIMESYNCD_NTP_TIMEOUT__:120" \
+      "__NEMU_CHECK_FULL_TIMESYNCD_NTP_CONF__:1:/etc/systemd/timesyncd.conf.d/99-nemu-hostless-ntp.conf" \
+      "__NEMU_CHECK_FULL_TIMESYNCD_NTP_ACTIVE__:active" \
+      "__NEMU_CHECK_FULL_HOSTLESS_NTP_PROBE_RC__:0" \
+      "__NEMU_CHECK_FULL_HOSTLESS_NTP_PROBE_SERVER__:10.0.2.2" \
+      "__NEMU_CHECK_FULL_HOSTLESS_NTP_PROBE_PEER__:10.0.2.2:123" \
+      "__NEMU_CHECK_FULL_HOSTLESS_NTP_PROBE_MODE__:4" \
+      "__NEMU_CHECK_FULL_HOSTLESS_NTP_PROBE_ORIGIN_MATCH__:1" \
+      "__NEMU_CHECK_FULL_HOSTLESS_NTP_PROBE_TX_NONZERO__:1" \
+      "__NEMU_CHECK_FULL_TIMESYNCD_NTP_STATUS_RC__:0" \
+      "__NEMU_CHECK_FULL_TIMESYNCD_NTP_SERVER_NAME__:10.0.2.2" \
+      "__NEMU_CHECK_FULL_TIMESYNCD_NTP_MESSAGE_SEEN__:1" \
+      "__NEMU_CHECK_PASS__:full-userland-hostless-ntp-probe" \
+      "__NEMU_CHECK_PASS__:full-userland-timesyncd-hostless-status" \
+      "__NEMU_CHECK_PASS__:full-userland-command-resolvectl" \
+      "__NEMU_CHECK_PASS__:full-userland-resolvectl-version" \
+      "__NEMU_CHECK_PASS__:full-userland-systemd-resolved-unit" \
+      "__NEMU_CHECK_PASS__:full-userland-systemd-resolved-active" \
+      "__NEMU_CHECK_FULL_RESOLVED_DNS_TIMEOUT__:90" \
+      "__NEMU_CHECK_FULL_RESOLVED_DNS_CONF__:1:/etc/systemd/resolved.conf.d/99-nemu-hostless-dns.conf" \
+      "__NEMU_CHECK_FULL_RESOLVED_DNS_ACTIVE__:active" \
+      "__NEMU_CHECK_FULL_RESOLVED_DNS_LINK_RC__:0" \
+      "__NEMU_CHECK_FULL_RESOLVED_DNS_DOMAIN_RC__:0" \
+      "__NEMU_CHECK_FULL_RESOLVED_DNS_QUERY_RC__:0" \
+      "__NEMU_CHECK_FULL_RESOLVED_DNS_ADDRESS_SEEN__:1" \
+      "__NEMU_CHECK_PASS__:full-userland-systemd-resolved-hostless-dns" \
       "__NEMU_CHECK_PASS__:full-userland-sysusers-version" \
       "__NEMU_CHECK_PASS__:full-userland-sysusers-unit" \
       "__NEMU_CHECK_PASS__:full-userland-sysusers-create" \
+      "__NEMU_CHECK_PASS__:full-userland-locale-gen-en-us-utf8" \
       "__NEMU_CHECK_PASS__:full-userland-tmpfiles-version" \
       "__NEMU_CHECK_PASS__:full-userland-tmpfiles-unit" \
       "__NEMU_CHECK_PASS__:full-userland-tmpfiles-create" \
       "__NEMU_CHECK_PASS__:full-userland-journald-active" \
       "__NEMU_CHECK_PASS__:full-userland-systemd-cat" \
       "__NEMU_CHECK_PASS__:full-userland-journalctl-query" \
+      "__NEMU_CHECK_FULL_SYSTEMD_RUN_SERVICE_OUTPUT__:systemd-run-service-ok" \
+      "__NEMU_CHECK_PASS__:full-userland-systemd-run-transient-service" \
+      "__NEMU_CHECK_FULL_SYSTEMD_RUN_TIMER_OUTPUT__:systemd-run-timer-ok" \
+      "__NEMU_CHECK_PASS__:full-userland-systemd-run-transient-timer" \
+      "__NEMU_CHECK_FULL_SYSTEMD_CALENDAR_TIMER_OUTPUT__:systemd-calendar-timer-ok" \
+      "__NEMU_CHECK_PASS__:full-userland-systemd-calendar-timer" \
+      "__NEMU_CHECK_FULL_SYSTEMD_RESOURCE_CONTROL_OUTPUT__:systemd-resource-control-ok" \
+      "__NEMU_CHECK_FULL_SYSTEMD_RESOURCE_CONTROL_MEMORY_MAX__:67108864" \
+      "__NEMU_CHECK_FULL_SYSTEMD_RESOURCE_CONTROL_PIDS_MAX__:64" \
+      "__NEMU_CHECK_PASS__:full-userland-systemd-resource-control" \
+      "__NEMU_CHECK_FULL_SYSTEMD_CPU_QUOTA_OUTPUT__:systemd-cpu-quota-ok" \
+      "__NEMU_CHECK_FULL_SYSTEMD_CPU_QUOTA_CGROUP__:/system.slice/nemu-full-cpu-quota.service" \
+      "__NEMU_CHECK_FULL_SYSTEMD_CPU_QUOTA_CPU_MAX__:50000 100000" \
+      "__NEMU_CHECK_FULL_SYSTEMD_CPU_QUOTA_CPU_STAT_READABLE__:1" \
+      "__NEMU_CHECK_PASS__:full-userland-systemd-cpu-quota" \
+      "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_OUTPUT__:systemd-pressure-feedback-ok" \
+      "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_CGROUP__:/system.slice/nemu-full-pressure-feedback.service" \
+      "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_PROC_CPU_READABLE__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_PROC_MEMORY_READABLE__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_PROC_IO_READABLE__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_CGROUP_CPU_READABLE__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_CGROUP_MEMORY_READABLE__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_CGROUP_IO_READABLE__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_PROC_CPU_SOME__:some avg10=" \
+      "__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_CGROUP_MEMORY_SOME__:some avg10=" \
+      "__NEMU_CHECK_PASS__:full-userland-systemd-pressure-feedback" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_OUTPUT__:systemd-oom-policy-started" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_CGROUP__:/system.slice/nemu-full-oom-policy.service" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_DONE__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_SHOW__:stop:yes:67108864" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_STOP_POST__:1:systemd-oom-policy-stop-post" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_STOPPED__:1" \
+      "__NEMU_CHECK_PASS__:full-userland-systemd-oom-policy" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_FILES__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_USER__:systemd-oom" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_CONFIG__:1:1:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_UNIT__:systemd-oomd.service" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_RELOAD_OK__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_START_OK__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_ACTIVE__:active" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_SUBSTATE__:running" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_MAINPID__:" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_SHOW__:systemd-oom:org.freedesktop.oom1:67108864:67108864" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_OOMCTL_RC__:0" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_OOMCTL_NONEMPTY__:1" \
+      "__NEMU_CHECK_PASS__:full-userland-systemd-oomd-service" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_CONF__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_RELOAD_OK__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_OOMD_READY__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_START_OK__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_OUTPUT__:systemd-oomd-pressure-started" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_CGROUP__:/nemuoomdpressure.slice/nemuoomdpressure-victim.service" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_PROBE_OK__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_OOM_GROUP_AFTER__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_SLICE_SHOW__:kill:" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_SERVICE_SHOW__:yes:" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_OOMCTL_HAS_SLICE__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_STOPPED__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_KILLED__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_JOURNAL_KILL__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_STOP_POST__:1:systemd-oomd-pressure-stop-post" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_MEMORY_EVENTS_HIGH__:" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_MEMORY_CURRENT__:" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_SLICE_MEMORY_EVENTS_HIGH__:" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_SLICE_MEMORY_CURRENT__:" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_SLICE_MEMORY_SOME__:some avg10=" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_ALLOC_STARTED__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_CACHE_STARTED__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_CACHE_WRITE_SEEN__:1" \
+      "__NEMU_CHECK_PASS__:full-userland-systemd-oomd-pressure-kill" \
+      "__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_OUTPUT__:systemd-slice-delegation-ok" \
+      "__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_CGROUP__:/nemu.slice/nemu-full-delegated.service" \
+      "__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_SHOW__:nemu.slice:yes:yes:yes:yes" \
+      "__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_CONTROLLERS_READABLE__:1" \
+      "__NEMU_CHECK_PASS__:full-userland-systemd-slice-delegation" \
+      "__NEMU_CHECK_PASS__:full-userland-pam-systemd-module" \
+      "__NEMU_CHECK_PASS__:full-userland-pam-common-session-config" \
+      "__NEMU_CHECK_FULL_PAM_SYSTEMD_MODULE__:1" \
+      "__NEMU_CHECK_FULL_PAM_COMMON_SESSION_SYSTEMD_HOOK__:1" \
+      "__NEMU_CHECK_PASS__:full-userland-pam-systemd-session-hook" \
+      "__NEMU_CHECK_FULL_LOGIND_ACTIVE__:active" \
+      "__NEMU_CHECK_FULL_LOGIND_LIST_SESSIONS_RC__:0" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_SESSION_NAME__:root" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_SESSION_USER__:0" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_SESSION_TTY_OK__:1" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_SESSION_TYPE__:tty" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_SESSION_CLASS__:user" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_SESSION_REMOTE__:no" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_SESSION_ACTIVE__:yes" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_SESSION_STATE_OK__:1" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_SESSION_SCOPE_OK__:1" \
+      "__NEMU_CHECK_FULL_LOGIND_LIST_SEATS_RC__:0" \
+      "__NEMU_CHECK_PASS__:full-userland-logind-root-serial-session" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_MANAGER_ENV_XDG_RUNTIME_DIR__:/run/user/0" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_MANAGER_ENV_XDG_RUNTIME_DIR_OK__:1" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_MANAGER_ACTIVE__:active" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_RUNTIME_DIR__:root:root:700:/run/user/0" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_MANAGER_PRIVATE_SOCKET__:1" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_BUS_SOCKET__:1" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_SHOW_RC__:0" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_NAME__:root" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_UID__:0" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_STATE_OK__:1" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_RUNTIME_PATH__:/run/user/0" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_SESSION_SEEN__:1" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_BUSCTL_RC__:0" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_BUSCTL_HAS_DBUS__:1" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_BUSCTL_HAS_SYSTEMD__:1" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_UNIT_RELOAD_RC__:0" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_UNIT_START_RC__:0" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_SERVICE_ACTIVE__:active" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_SERVICE_OUTPUT__:root-user-manager-ok" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_SERVICE_CGROUP__:/user.slice/user-0.slice/user@0.service/" \
+      "__NEMU_CHECK_FULL_LOGIND_ROOT_USER_SERVICE_CGROUP_OK__:1" \
+      "__NEMU_CHECK_PASS__:full-userland-logind-root-user-manager-session" \
+      "__NEMU_CHECK_PASS__:full-userland-systemd-user-bus-socket" \
+      "__NEMU_CHECK_PASS__:full-userland-systemd-user-bus-service" \
+      "__NEMU_CHECK_PASS__:full-userland-systemd-user-bus-default-socket" \
+      "__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_LOGIND_ACTIVE__:active" \
+      "__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_LINGER__:0:1:/var/lib/systemd/linger/nemuacct" \
+      "__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_USER_SERVICE_ACTIVE__:active" \
+      "__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_PRIVATE_SOCKET__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_BUS_SOCKET__:1" \
+      "__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_SCRIPT_RC__:0" \
+      "__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_OUTPUT__:systemd-user-manager-ok" \
+      "__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_CGROUP__:/user.slice/user-2010.slice/user@2010.service/" \
+      "__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_SCRIPT_SHOW__:yes:yes:yes:yes" \
+      "__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_CONTROLLERS_READABLE__:1" \
+      "__NEMU_CHECK_PASS__:full-userland-systemd-user-manager-service" \
+      "__NEMU_CHECK_FULL_CRON_JOB_TIMEOUT__" \
       "__NEMU_CHECK_PASS__:full-userland-cron-exec" \
+      "__NEMU_CHECK_FULL_ANACRON_TIMEOUT__" \
+      "__NEMU_CHECK_FULL_ANACRON_OUTPUT__:nemu-full-anacron-ok" \
+      "__NEMU_CHECK_PASS__:full-userland-anacron-units" \
+      "__NEMU_CHECK_PASS__:full-userland-anacron-run" \
       "__NEMU_CHECK_PASS__:full-userland-rsyslog-logger" \
+      "__NEMU_CHECK_PASS__:full-userland-logrotate-rotate" \
       "__NEMU_CHECK_PASS__:full-userland-systemctl-enable-daemon-reload" \
       "__NEMU_CHECK_PASS__:full-userland-systemctl-enable" \
       "__NEMU_CHECK_PASS__:full-userland-systemctl-enable-wants-link" \
@@ -4888,6 +6495,14 @@ e2e_nemu_ubuntu_focused_gate_impl() {
       "__NEMU_CHECK_PASS__:full-userland-apt-hostless-update" \
       "__NEMU_CHECK_PASS__:full-userland-apt-hostless-install" \
       "__NEMU_CHECK_PASS__:full-userland-runtime"; do
+      if [[ "$focused_net_backend_effective" != "hostless" ]]; then
+        case "$full_marker" in
+          *full-userland-resolv-hostless*|*full-userland-netplan-networkd-hostless-dhcp*|*full-userland-systemd-networkd-hostless-dhcp*|*full-userland-systemd-networkd-wait-online-hostless*|*full-userland-systemd-network-online-target*|*full-userland-systemd-resolved-hostless-dns*|*full-userland-curl-http*|*full-userland-wget-http*|*full-userland-curl-head-http*|*full-userland-curl-404-http*|*full-userland-curl-large-http*|*full-userland-hostless-ntp-probe*|*NEMU_CHECK_FULL_NETPLAN*|*NEMU_CHECK_FULL_NETWORKD_DHCP*|*NEMU_CHECK_FULL_NETWORKD_WAIT_ONLINE*|*NEMU_CHECK_FULL_NETWORK_ONLINE*|*NEMU_CHECK_FULL_TIMESYNCD_NTP*|*NEMU_CHECK_FULL_RESOLVED_DNS*|*NEMU_CHECK_FULL_HOSTLESS_NTP_PROBE*|*full-userland-apt-hostless*|*NEMU_CHECK_FULL_APT_HOSTLESS*|*full-userland-apt-direct*|*NEMU_CHECK_FULL_APT_DIRECT*)
+            printf 'SKIP focused full userland hostless marker %s\n' "$full_marker"
+            continue
+            ;;
+        esac
+      fi
       if grep -aFq "$full_marker" "$gate_dir/console.log"; then
         printf 'PASS focused full userland marker %s\n' "$full_marker"
       else
@@ -4895,7 +6510,15 @@ e2e_nemu_ubuntu_focused_gate_impl() {
         return 1
       fi
     done
-    if [[ ${AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_DIAG:-0} == 1 ]]; then
+    if [[ "$focused_net_backend_effective" != "hostless" ]]; then
+      local tap_full_marker="__NEMU_CHECK_PASS__:full-userland-network-clients-hostless-skip"
+      if grep -aFq "$tap_full_marker" "$gate_dir/console.log"; then
+        printf 'PASS focused full userland marker %s\n' "$tap_full_marker"
+      else
+        printf 'FAIL focused full userland marker %s\n' "$tap_full_marker"
+        return 1
+      fi
+    elif [[ $apt_install_diag == 1 ]]; then
       local apt_diag_marker
       for apt_diag_marker in \
         "__NEMU_CHECK_PASS__:full-userland-apt-direct-empty-status-simulate" \
@@ -4907,7 +6530,7 @@ e2e_nemu_ubuntu_focused_gate_impl() {
           return 1
         fi
       done
-      if [[ ${AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_ACTUAL:-0} == 1 ]]; then
+      if [[ $apt_install_actual == 1 ]]; then
         apt_diag_marker="__NEMU_CHECK_PASS__:full-userland-apt-direct-full-status-install"
       else
         apt_diag_marker="__NEMU_CHECK_PASS__:full-userland-apt-direct-actual-install-skip"
@@ -4929,7 +6552,7 @@ e2e_nemu_ubuntu_focused_gate_impl() {
           return 1
         fi
       done
-      if [[ ${AGENT_E2E_NEMU_UBUNTU_APT_INSTALL_ACTUAL:-0} == 1 ]]; then
+      if [[ $apt_install_actual == 1 ]]; then
         for apt_diag_detail in \
           "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_TARGET__:nemu-hostless-hello=1.0 nemu-hostless-meta=1.0" \
           "__NEMU_CHECK_FULL_APT_DIRECT_FULL_STATUS_INSTALL_APT_STATE__:empty-status-real-dpkg" \
@@ -5020,7 +6643,7 @@ e2e_nemu_ubuntu_focused_gate() {
 }
 
 e2e_nemu_ubuntu_full_focused_gate() {
-  local AGENT_E2E_NEMU_UBUNTU_FULL_TIMEOUT="${AGENT_E2E_NEMU_UBUNTU_FULL_TIMEOUT:-4200}"
+  local AGENT_E2E_NEMU_UBUNTU_FULL_TIMEOUT="${AGENT_E2E_NEMU_UBUNTU_FULL_TIMEOUT:-7200}"
   e2e_nemu_ubuntu_focused_gate_impl \
     AGENT_E2E_NEMU_UBUNTU_FULL_GATE \
     nemu-ubuntu-full-gate \
@@ -5030,7 +6653,7 @@ e2e_nemu_ubuntu_full_focused_gate() {
 }
 
 e2e_nemu_ubuntu_full_soak_gate() {
-  local AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_TIMEOUT="${AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_TIMEOUT:-5400}"
+  local AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_TIMEOUT="${AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_TIMEOUT:-7200}"
   e2e_nemu_ubuntu_focused_gate_impl \
     AGENT_E2E_NEMU_UBUNTU_FULL_SOAK_GATE \
     nemu-ubuntu-full-soak \

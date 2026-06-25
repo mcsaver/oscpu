@@ -18,6 +18,8 @@
 #include <device/map.h>
 #include <device/uart16550.h>
 #include <isa.h>
+#include <memory/paddr.h>
+#include <memory/vaddr.h>
 
 #ifndef CONFIG_TARGET_AM
 #include <errno.h>
@@ -43,6 +45,7 @@
 #define SERIAL_HOST_RX_POLL_BUDGET 16u
 #define SERIAL_HOST_RX_STAGING_CAP 1048576u
 #define SERIAL_TX_BUFFER_CAP 4096u
+#define SERIAL_TRACE_MARKER_LINE_CAP 512u
 #ifdef CONFIG_SERIAL_INPUT_HOST_POLL_INTERVAL
 #define SERIAL_INPUT_HOST_POLL_INTERVAL_VALUE CONFIG_SERIAL_INPUT_HOST_POLL_INTERVAL
 #else
@@ -149,6 +152,177 @@ static bool serial_env_false(const char *value) {
      strcmp(value, "NO") == 0);
 }
 
+static bool serial_env_true(const char *value) {
+  return value != NULL && value[0] != '\0' && !serial_env_false(value);
+}
+
+static bool serial_env_u64(const char *name, uint64_t *value) {
+  const char *env = getenv(name);
+  if (env == NULL || env[0] == '\0') {
+    return false;
+  }
+  errno = 0;
+  char *end = NULL;
+  uint64_t parsed = strtoull(env, &end, 0);
+  Assert(errno == 0 && end != env && *end == '\0',
+      "invalid %s=%s, expect an integer", name, env);
+  *value = parsed;
+  return true;
+}
+
+static bool serial_trace_marker_enabled = false;
+static const char *serial_trace_marker =
+  "__PYTHON_INT_PREFLIGHT_PYLONG_ARGS_LOOPS_EARLY_ID__:";
+static const char *serial_trace_paddr_marker =
+  "__PYTHON_INT_PREFLIGHT_PYLONG_ARGS_LOOPS_EARLY_OB_SIZE_PADDR__:";
+static const char *serial_trace_value_marker =
+  "__PYTHON_INT_PREFLIGHT_PYLONG_ARGS_LOOPS_PREPARSE_CANDIDATE__:";
+static const char *serial_trace_end_marker =
+  "__NEMU_CHECK_FULL_PYTHON_INT_PREFLIGHT_LOG_END__:";
+static uint64_t serial_trace_marker_offset = 16;
+static uint64_t serial_trace_marker_bytes = 8;
+static uint64_t serial_trace_marker_max = 4096;
+static bool serial_trace_marker_user_only = true;
+static bool serial_trace_value_enabled = false;
+static uint64_t serial_trace_value = 0x8000000000000001ull;
+static uint64_t serial_trace_value_mask = UINT64_MAX;
+static char serial_trace_marker_line[SERIAL_TRACE_MARKER_LINE_CAP];
+static uint32_t serial_trace_marker_line_len = 0;
+
+static void serial_trace_marker_init(void) {
+  serial_trace_marker_enabled =
+    serial_env_true(getenv("NEMU_SERIAL_TRACE_PYLONG_ID"));
+  const char *marker_env = getenv("NEMU_SERIAL_TRACE_PYLONG_ID_MARKER");
+  if (marker_env != NULL && marker_env[0] != '\0') {
+    serial_trace_marker = marker_env;
+  }
+  const char *paddr_marker_env = getenv("NEMU_SERIAL_TRACE_PYLONG_PADDR_MARKER");
+  if (paddr_marker_env != NULL && paddr_marker_env[0] != '\0') {
+    serial_trace_paddr_marker = paddr_marker_env;
+  }
+  const char *value_marker_env = getenv("NEMU_SERIAL_TRACE_PYLONG_VALUE_MARKER");
+  if (value_marker_env != NULL && value_marker_env[0] != '\0') {
+    serial_trace_value_marker = value_marker_env;
+  }
+  const char *end_marker_env = getenv("NEMU_SERIAL_TRACE_PYLONG_END_MARKER");
+  if (end_marker_env != NULL && end_marker_env[0] != '\0') {
+    serial_trace_end_marker = end_marker_env;
+  }
+  serial_env_u64("NEMU_SERIAL_TRACE_PYLONG_ID_OFFSET",
+      &serial_trace_marker_offset);
+  serial_env_u64("NEMU_SERIAL_TRACE_PYLONG_ID_BYTES",
+      &serial_trace_marker_bytes);
+  serial_env_u64("NEMU_SERIAL_TRACE_PYLONG_ID_MAX",
+      &serial_trace_marker_max);
+  serial_trace_marker_user_only =
+    !serial_env_false(getenv("NEMU_SERIAL_TRACE_PYLONG_ID_USER_ONLY"));
+  serial_trace_value_enabled =
+    serial_env_true(getenv("NEMU_SERIAL_TRACE_PYLONG_VALUE"));
+  serial_env_u64("NEMU_SERIAL_TRACE_PYLONG_VALUE_WORD",
+      &serial_trace_value);
+  serial_env_u64("NEMU_SERIAL_TRACE_PYLONG_VALUE_MASK",
+      &serial_trace_value_mask);
+  if (serial_trace_marker_enabled) {
+    Assert(serial_trace_marker_bytes > 0,
+        "NEMU_SERIAL_TRACE_PYLONG_ID_BYTES must be positive");
+  }
+}
+
+static void serial_trace_marker_process_line(void) {
+  if (!serial_trace_marker_enabled || serial_trace_marker_line_len == 0) {
+    return;
+  }
+  serial_trace_marker_line[serial_trace_marker_line_len] = '\0';
+  if (strstr(serial_trace_marker_line, serial_trace_end_marker) != NULL) {
+    vaddr_write_trace_disarm("serial-end-marker");
+    vaddr_write_value_trace_disarm("serial-end-marker");
+    paddr_write_trace_disarm("serial-end-marker");
+    paddr_write_value_trace_disarm("serial-end-marker");
+    return;
+  }
+  if (serial_trace_value_enabled &&
+      strstr(serial_trace_marker_line, serial_trace_value_marker) != NULL) {
+    vaddr_write_value_trace_set_user_only(serial_trace_marker_user_only);
+    vaddr_write_value_trace_arm((word_t)serial_trace_value,
+        (word_t)serial_trace_value_mask, serial_trace_marker_max,
+        "serial-value-marker");
+    paddr_write_value_trace_arm((word_t)serial_trace_value,
+        (word_t)serial_trace_value_mask, serial_trace_marker_max,
+        "serial-value-marker");
+    return;
+  }
+  const char *paddr_hit = strstr(serial_trace_marker_line, serial_trace_paddr_marker);
+  if (paddr_hit != NULL) {
+    const char *value_text = paddr_hit + strlen(serial_trace_paddr_marker);
+    errno = 0;
+    char *end = NULL;
+    uint64_t paddr_value = strtoull(value_text, &end, 0);
+    if (errno != 0 || end == value_text) {
+      Log("serial paddr trace marker parse failed line=%s",
+          serial_trace_marker_line);
+      return;
+    }
+    uint64_t paddr_end = paddr_value + serial_trace_marker_bytes - 1;
+    Assert(paddr_end >= paddr_value, "serial paddr trace marker range overflow");
+    paddr_write_trace_arm_range((paddr_t)paddr_value, (paddr_t)paddr_end,
+        serial_trace_marker_max, "serial-paddr-marker");
+    Log("serial paddr trace marker armed paddr_start=0x%016" PRIx64
+        " paddr_end=0x%016" PRIx64,
+        paddr_value, paddr_end);
+    return;
+  }
+  const char *hit = strstr(serial_trace_marker_line, serial_trace_marker);
+  if (hit == NULL) {
+    return;
+  }
+  const char *value_text = hit + strlen(serial_trace_marker);
+  errno = 0;
+  char *end = NULL;
+  uint64_t object_addr = strtoull(value_text, &end, 0);
+  if (errno != 0 || end == value_text) {
+    Log("serial trace marker parse failed line=%s", serial_trace_marker_line);
+    return;
+  }
+  uint64_t start = object_addr + serial_trace_marker_offset;
+  uint64_t end_addr = start + serial_trace_marker_bytes - 1;
+  Assert(end_addr >= start, "serial trace marker range overflow");
+  vaddr_write_trace_arm_range((vaddr_t)start, (vaddr_t)end_addr,
+      serial_trace_marker_max, serial_trace_marker_user_only, "serial-marker");
+  bool paddr_armed = false;
+  paddr_t paddr_start = 0;
+#if defined(CONFIG_ISA_riscv) && defined(CONFIG_ISA64)
+  if (isa_riscv64_mmu_debug_translate_user((vaddr_t)start,
+        (int)serial_trace_marker_bytes, MEM_TYPE_READ, &paddr_start)) {
+    paddr_t paddr_end = paddr_start + (paddr_t)serial_trace_marker_bytes - 1;
+    if (paddr_end >= paddr_start) {
+      paddr_write_trace_arm_range(paddr_start, paddr_end,
+          serial_trace_marker_max, "serial-marker");
+      paddr_armed = true;
+    }
+  }
+#endif
+  Log("serial trace marker armed object=0x%016" PRIx64
+      " trace_start=0x%016" PRIx64 " trace_end=0x%016" PRIx64
+      " paddr_armed=%d paddr_start=" FMT_PADDR,
+      object_addr, start, end_addr, paddr_armed ? 1 : 0, paddr_start);
+}
+
+static void serial_trace_marker_consume(uint8_t ch) {
+  if (!serial_trace_marker_enabled) {
+    return;
+  }
+  if (ch == '\r' || ch == '\n') {
+    serial_trace_marker_process_line();
+    serial_trace_marker_line_len = 0;
+    return;
+  }
+  if (serial_trace_marker_line_len + 1u < SERIAL_TRACE_MARKER_LINE_CAP) {
+    serial_trace_marker_line[serial_trace_marker_line_len++] = (char)ch;
+  } else {
+    serial_trace_marker_line_len = 0;
+  }
+}
+
 static uint32_t serial_host_rx_count(const SerialPort *port) {
 #ifdef SERIAL_HAS_HOST_RX
   return port->host_rx.count;
@@ -252,7 +426,11 @@ static void serial_port_flush_tx(SerialPort *port) {
    * Ubuntu 启动日志会经 8250 驱动逐字节写 THR；缓冲只属于宿主前端，
    * 不改变 guest 可见的 16550A THRE/TEMT/IRQ 语义，却能减少 host write 次数。
    */
-  (void)fwrite(port->tx_buffer, 1, port->tx_count, stderr);
+  (void)fwrite(port->tx_buffer, 1, bytes, stderr);
+  // marker 处理会写 NEMU Log；放在 guest 文本之后，避免 trace 日志插进 Python marker 行。
+  for (uint32_t i = 0; i < bytes; i++) {
+    serial_trace_marker_consume(port->tx_buffer[i]);
+  }
   port->tx_count = 0;
   fflush(stderr);
   if (profile_on) {
@@ -629,6 +807,7 @@ void init_serial() {
   serial_register_bus(port);
   serial_open_host_inputs(port);
 #ifndef CONFIG_TARGET_AM
+  serial_trace_marker_init();
   atexit(serial_flush_all);
 #endif
   uart16550_service(port->uart);

@@ -1,0 +1,2 @@
+boot_seconds	guest_check_seconds	poweroff_seconds	total_seconds	soak_seconds	fs_stress_mib	fs_tree_files	process_loops	uart_rx_stress_lines	block_parallel_jobs	block_job_mib	net_tcp_burst_loops	input_chunk_bytes	input_chunk_delay	max_cycles	rootfs_overlay
+72	1603	8	1683	300	32	256	128	1024	4	4	8	64	0	90000000000	/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-06-22-2026-06-22-nemu-full-soak-after-guest-rc-fix/nemu-ubuntu-full-soak/rootfs-overlay.raw

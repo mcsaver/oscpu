@@ -7,8 +7,18 @@ ENV_ROOT=${YSYX_LINUX_ENV_ROOT:-"$LINUX_HOME/env"}
 REQUIRE_SYSTEMD=${UBUNTU_ROOTFS_REQUIRE_SYSTEMD:-0}
 REQUIRE_NPC_CONSOLE_SHELL=${UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL:-0}
 REQUIRE_NPC_TTY_READER=${UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER:-0}
+REQUIRE_NPC_LOGIN_MARKER=${UBUNTU_ROOTFS_REQUIRE_NPC_LOGIN_MARKER:-0}
+REQUIRE_NPC_LOGIN_TRACE=${UBUNTU_ROOTFS_REQUIRE_NPC_LOGIN_TRACE:-0}
+REQUIRE_NPC_GENERATOR_TRACE=${UBUNTU_ROOTFS_REQUIRE_NPC_GENERATOR_TRACE:-0}
+REQUIRE_NPC_GENERATOR_SKIP=${UBUNTU_ROOTFS_REQUIRE_NPC_GENERATOR_SKIP:-}
+REQUIRE_NPC_GENERATOR_SKIP_MODE=${UBUNTU_ROOTFS_REQUIRE_NPC_GENERATOR_SKIP_MODE:-shell}
+REQUIRE_NPC_GENERATOR_REAL_MODE=${UBUNTU_ROOTFS_REQUIRE_NPC_GENERATOR_REAL_MODE:-}
+REQUIRE_NEMU_LOGIN_MARKER=${UBUNTU_ROOTFS_REQUIRE_NEMU_LOGIN_MARKER:-0}
+REQUIRE_NPC_PRESEED_SYSTEMD_UPDATE=${UBUNTU_ROOTFS_REQUIRE_NPC_PRESEED_SYSTEMD_UPDATE:-0}
+EXPECT_NPC_SYSTEMD_GENERATORS=${UBUNTU_ROOTFS_EXPECT_NPC_SYSTEMD_GENERATORS:-disabled}
 DEBUGFS=${DEBUGFS:-debugfs}
 ROOTFS_FLAVOR=${UBUNTU_ROOTFS_FLAVOR:-systemd-minimal}
+ROOTFS_ARCH=${UBUNTU_ARCH:-riscv64}
 ROOTFS_FLAVOR_SCRIPT=${UBUNTU_ROOTFS_FLAVOR_SCRIPT:-"$SCRIPT_DIR/ubuntu-rootfs-flavors.sh"}
 source "$ROOTFS_FLAVOR_SCRIPT"
 ROOTFS_FLAVOR=$(ubuntu_rootfs_flavor_normalize "$ROOTFS_FLAVOR")
@@ -56,7 +66,13 @@ rootfs_cat() {
 rootfs_file_contains() {
   local path=$1
   local pattern=$2
-  rootfs_cat "$path" | grep -Eq "$pattern"
+  rootfs_cat "$path" | grep -Eq -- "$pattern"
+}
+
+rootfs_file_contains_binary() {
+  local path=$1
+  local pattern=$2
+  rootfs_cat "$path" | grep -aEq -- "$pattern"
 }
 
 rootfs_dpkg_status_installed() {
@@ -80,7 +96,18 @@ rootfs_dpkg_status_installed() {
 rootfs_dpkg_info_list_contains() {
   local package=$1
   local path=$2
-  rootfs_cat "/var/lib/dpkg/info/$package.list" | grep -Fxq "$path"
+  local info_package
+  for info_package in "$package" "$package:$ROOTFS_ARCH"; do
+    rootfs_cat "/var/lib/dpkg/info/$info_package.list" | grep -Fxq "$path" &&
+      return 0
+  done
+  return 1
+}
+
+rootfs_dpkg_info_list_exists() {
+  local package=$1
+  rootfs_has "/var/lib/dpkg/info/$package.list" ||
+    rootfs_has "/var/lib/dpkg/info/$package:$ROOTFS_ARCH.list"
 }
 
 rootfs_dpkg_info_list_files() {
@@ -236,6 +263,220 @@ if [ "$REQUIRE_SYSTEMD" = "1" ] && [ -n "$systemd_bin" ]; then
       systemd_missing=1
     fi
   done
+  if [ "$ROOTFS_FLAVOR" = "full" ]; then
+    if rootfs_has /lib/riscv64-linux-gnu/security/pam_systemd.so; then
+      echo "[ubuntu-rootfs-check] OK      PAM systemd session module: /lib/riscv64-linux-gnu/security/pam_systemd.so"
+    else
+      echo "[ubuntu-rootfs-check] MISSING PAM systemd session module: /lib/riscv64-linux-gnu/security/pam_systemd.so"
+      systemd_missing=1
+    fi
+    if rootfs_file_contains /etc/pam.d/common-session '^[[:space:]]*session[[:space:]]+optional[[:space:]]+pam_systemd\.so([[:space:]]|$)'; then
+      echo "[ubuntu-rootfs-check] OK      PAM common-session systemd hook"
+    else
+      echo "[ubuntu-rootfs-check] MISSING PAM common-session systemd hook"
+      systemd_missing=1
+    fi
+  fi
+
+  if [ "$REQUIRE_NEMU_LOGIN_MARKER" = "1" ]; then
+    if rootfs_file_contains /root/.profile '^  echo __NEMU_LOGIN_CHECK_BEGIN__$' &&
+       rootfs_file_contains /root/.profile '^  echo "__NEMU_LOGIN_CHECK_DONE__ rc=\$check_fail"$'; then
+      echo "[ubuntu-rootfs-check] OK      NEMU login shell marker: /root/.profile"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NEMU login shell marker"
+      systemd_missing=1
+    fi
+
+    if rootfs_file_contains /root/.profile 'pass ttyS0-login'; then
+      echo "[ubuntu-rootfs-check] OK      NEMU login ttyS0 assertion"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NEMU login ttyS0 assertion"
+      systemd_missing=1
+    fi
+
+    if rootfs_file_contains /etc/systemd/system/serial-getty@ttyS0.service.d/autologin.conf '^ExecStart=-/sbin/agetty --autologin root '; then
+      echo "[ubuntu-rootfs-check] OK      NEMU serial-getty autologin drop-in"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NEMU serial-getty autologin drop-in"
+      systemd_missing=1
+    fi
+
+    if rootfs_file_contains /etc/systemd/system/serial-getty@ttyS0.service.d/autologin.conf '^Wants=systemd-logind\.service$' &&
+       rootfs_file_contains /etc/systemd/system/serial-getty@ttyS0.service.d/autologin.conf '^After=systemd-logind\.service systemd-user-sessions\.service plymouth-quit-wait\.service getty-pre\.target rc-local\.service$'; then
+      echo "[ubuntu-rootfs-check] OK      NEMU serial-getty waits for logind before autologin"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NEMU serial-getty logind ordering"
+      systemd_missing=1
+    fi
+  fi
+
+  if [ "$REQUIRE_NPC_LOGIN_MARKER" = "1" ]; then
+    if rootfs_file_contains /root/.bash_profile '^  echo __NPC_LOGIN_CHECK_BEGIN__$' &&
+       rootfs_file_contains /root/.bash_profile '^  echo "__NPC_LOGIN_CHECK_DONE__ rc=\$check_fail"$'; then
+      echo "[ubuntu-rootfs-check] OK      NPC login shell marker: /root/.bash_profile"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NPC login shell marker"
+      systemd_missing=1
+    fi
+
+    if rootfs_file_contains /root/.bash_profile 'pass ttyS0-login'; then
+      echo "[ubuntu-rootfs-check] OK      NPC login ttyS0 assertion"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NPC login ttyS0 assertion"
+      systemd_missing=1
+    fi
+
+    if rootfs_file_contains /etc/profile '^# NPC_LOGIN_MARKER_MINIMAL_ETC_PROFILE$'; then
+      echo "[ubuntu-rootfs-check] OK      NPC login minimal /etc/profile"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NPC login minimal /etc/profile"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /root/.hushlogin; then
+      echo "[ubuntu-rootfs-check] OK      NPC login MOTD suppressed: /root/.hushlogin"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NPC login MOTD suppression"
+      systemd_missing=1
+    fi
+
+    if rootfs_file_contains /etc/pam.d/login '^# NPC_LOGIN_MARKER_DISABLED[[:space:]]+auth[[:space:]]+optional[[:space:]]+pam_faildelay\.so[[:space:]]+delay=3000000$' &&
+       rootfs_file_contains /etc/pam.d/login '^# NPC_LOGIN_MARKER_DISABLED[[:space:]]+session[[:space:]]+optional[[:space:]]+pam_motd\.so motd=/run/motd\.dynamic$' &&
+       rootfs_file_contains /etc/pam.d/login '^# NPC_LOGIN_MARKER_DISABLED[[:space:]]+session[[:space:]]+optional[[:space:]]+pam_motd\.so noupdate$' &&
+       rootfs_file_contains /etc/pam.d/login '^# NPC_LOGIN_MARKER_DISABLED[[:space:]]+session[[:space:]]+optional[[:space:]]+pam_lastlog\.so$' &&
+       rootfs_file_contains /etc/pam.d/login '^# NPC_LOGIN_MARKER_DISABLED[[:space:]]+session[[:space:]]+optional[[:space:]]+pam_mail\.so standard$'; then
+      echo "[ubuntu-rootfs-check] OK      NPC login PAM faildelay/motd/mail/lastlog disabled"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NPC login PAM faildelay/optional-module trim"
+      systemd_missing=1
+    fi
+
+    if rootfs_file_contains /etc/systemd/system/serial-getty@ttyS0.service.d/autologin.conf '^ExecStart=-/sbin/agetty --autologin root '; then
+      echo "[ubuntu-rootfs-check] OK      ttyS0 serial-getty autologin drop-in"
+    else
+      echo "[ubuntu-rootfs-check] MISSING ttyS0 serial-getty autologin drop-in"
+      systemd_missing=1
+    fi
+
+    if [ "$REQUIRE_NPC_LOGIN_TRACE" = "1" ]; then
+      if rootfs_has /usr/local/sbin/ysyx-npc-login-trace &&
+         rootfs_file_contains /etc/systemd/system/serial-getty@ttyS0.service.d/autologin.conf '--login-program /usr/local/sbin/ysyx-npc-login-trace' &&
+         rootfs_file_contains /etc/systemd/system/serial-getty@ttyS0.service '--login-program /usr/local/sbin/ysyx-npc-login-trace'; then
+        echo "[ubuntu-rootfs-check] OK      NPC login trace wrapper"
+      else
+        echo "[ubuntu-rootfs-check] MISSING NPC login trace wrapper"
+        systemd_missing=1
+      fi
+    fi
+
+    if [ "$REQUIRE_NPC_GENERATOR_TRACE" = "1" ]; then
+      if rootfs_has /usr/local/lib/ysyx-npc-system-generators/lib/systemd-fstab-generator &&
+         ! rootfs_has /lib/systemd/system-generators/systemd-fstab-generator.ysyx-real &&
+         ! rootfs_has /usr/lib/systemd/system-generators/systemd-fstab-generator.ysyx-real &&
+         rootfs_file_contains /lib/systemd/system-generators/systemd-fstab-generator '__NPC_GENERATOR_BEGIN__'; then
+        echo "[ubuntu-rootfs-check] OK      NPC systemd generator trace wrappers"
+      else
+        echo "[ubuntu-rootfs-check] MISSING NPC systemd generator trace wrappers"
+        systemd_missing=1
+      fi
+      if [ -n "$REQUIRE_NPC_GENERATOR_SKIP" ]; then
+        if [ "$REQUIRE_NPC_GENERATOR_SKIP_MODE" = "static" ]; then
+          if rootfs_has /usr/local/sbin/ysyx-npc-generator-skip &&
+             rootfs_file_contains /etc/ysyx-npc-generator-skip-list "^$REQUIRE_NPC_GENERATOR_SKIP$" &&
+             rootfs_file_contains_binary /lib/systemd/system-generators/systemd-fstab-generator '__NPC_GENERATOR_STATIC_SKIP__' &&
+             rootfs_file_contains_binary /lib/systemd/system-generators/systemd-fstab-generator '__NPC_GENERATOR_SKIP__'; then
+            echo "[ubuntu-rootfs-check] OK      NPC systemd generator static skip wrappers"
+          else
+            echo "[ubuntu-rootfs-check] MISSING NPC systemd generator static skip wrappers"
+            systemd_missing=1
+          fi
+          if [ -n "$REQUIRE_NPC_GENERATOR_REAL_MODE" ]; then
+            if rootfs_file_contains /etc/ysyx-npc-generator-real-mode "^$REQUIRE_NPC_GENERATOR_REAL_MODE$"; then
+              echo "[ubuntu-rootfs-check] OK      NPC systemd generator static real mode: $REQUIRE_NPC_GENERATOR_REAL_MODE"
+            else
+              echo "[ubuntu-rootfs-check] MISSING NPC systemd generator static real mode: $REQUIRE_NPC_GENERATOR_REAL_MODE"
+              systemd_missing=1
+            fi
+          fi
+        else
+          if rootfs_file_contains /lib/systemd/system-generators/systemd-fstab-generator '__NPC_GENERATOR_SKIP__' &&
+             rootfs_file_contains /lib/systemd/system-generators/systemd-fstab-generator "skip_list=\"$REQUIRE_NPC_GENERATOR_SKIP\""; then
+            echo "[ubuntu-rootfs-check] OK      NPC systemd generator skip wrappers"
+          else
+            echo "[ubuntu-rootfs-check] MISSING NPC systemd generator skip wrappers"
+            systemd_missing=1
+          fi
+        fi
+      fi
+    fi
+
+    if rootfs_file_contains /etc/systemd/system/serial-getty@ttyS0.service.d/autologin.conf '^BindsTo=$' &&
+       rootfs_file_contains /etc/systemd/system/serial-getty@ttyS0.service.d/autologin.conf '^After=$' &&
+       rootfs_file_contains /etc/systemd/system/serial-getty@ttyS0.service.d/autologin.conf '^After=getty-pre.target systemd-remount-fs.service systemd-tmpfiles-setup-dev.service systemd-udevd.service$'; then
+      echo "[ubuntu-rootfs-check] OK      ttyS0 serial-getty skips device and late boot waits"
+    else
+      echo "[ubuntu-rootfs-check] MISSING ttyS0 serial-getty early-login override"
+      systemd_missing=1
+    fi
+
+    if rootfs_file_contains /etc/systemd/system/serial-getty@ttyS0.service '^ExecStart=-/sbin/agetty --autologin root ' &&
+       rootfs_file_contains /etc/systemd/system/serial-getty@ttyS0.service '^DefaultDependencies=no$' &&
+       rootfs_file_contains /etc/systemd/system/serial-getty@ttyS0.service '^After=getty-pre.target systemd-remount-fs.service systemd-tmpfiles-setup-dev.service systemd-udevd.service$' &&
+       rootfs_file_contains /etc/systemd/system/serial-getty@ttyS0.service '^Before=systemd-udev-trigger.service sysinit.target getty.target$' &&
+       rootfs_file_contains /etc/systemd/system/serial-getty@ttyS0.service '^Type=simple$' &&
+       ! rootfs_file_contains /etc/systemd/system/serial-getty@ttyS0.service 'dev-%i\.device|^TTYPath=|systemd-user-sessions.service|plymouth-quit-wait.service|rc-local.service' &&
+       rootfs_symlink_points_to /etc/systemd/system/getty.target.wants/serial-getty@ttyS0.service ../serial-getty@ttyS0.service &&
+       rootfs_symlink_points_to /etc/systemd/system/sysinit.target.wants/serial-getty@ttyS0.service ../serial-getty@ttyS0.service; then
+      echo "[ubuntu-rootfs-check] OK      ttyS0 serial-getty instance starts early without device-unit dependency"
+    else
+      echo "[ubuntu-rootfs-check] MISSING ttyS0 serial-getty early instance"
+      systemd_missing=1
+    fi
+
+    if rootfs_symlink_points_to /etc/systemd/system/default.target /lib/systemd/system/multi-user.target; then
+      echo "[ubuntu-rootfs-check] OK      NPC login default target: multi-user.target"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NPC login multi-user default target"
+      systemd_missing=1
+    fi
+
+    plymouth_mask_missing=0
+    for unit in \
+      plymouth-read-write.service \
+      plymouth-start.service \
+      plymouth-quit.service \
+      plymouth-quit-wait.service; do
+      if ! rootfs_symlink_points_to "/etc/systemd/system/$unit" /dev/null; then
+        plymouth_mask_missing=1
+      fi
+    done
+    if [ "$plymouth_mask_missing" -eq 0 ]; then
+      echo "[ubuntu-rootfs-check] OK      NPC login plymouth splash units masked"
+    else
+      echo "[ubuntu-rootfs-check] MISSING NPC login plymouth unit masks"
+      systemd_missing=1
+    fi
+  fi
+
+  if [ "$REQUIRE_NPC_PRESEED_SYSTEMD_UPDATE" = "1" ]; then
+    if rootfs_has /etc/.updated && rootfs_has /var/.updated; then
+      echo "[ubuntu-rootfs-check] OK      systemd update-done stamps preseeded"
+    else
+      echo "[ubuntu-rootfs-check] MISSING systemd update-done preseed stamps"
+      systemd_missing=1
+    fi
+
+    if rootfs_file_contains /etc/passwd '^systemd-network:' &&
+       rootfs_file_contains /etc/passwd '^messagebus:' &&
+       rootfs_file_contains /etc/passwd '^systemd-timesync:' &&
+       rootfs_file_contains /etc/passwd '^systemd-resolve:' &&
+       rootfs_file_contains /etc/group '^systemd-journal:'; then
+      echo "[ubuntu-rootfs-check] OK      sysusers entries preseeded"
+    else
+      echo "[ubuntu-rootfs-check] MISSING sysusers preseeded passwd/group entries"
+      systemd_missing=1
+    fi
+  fi
 
   if rootfs_has /sbin/e2scrub_all; then
     echo "[ubuntu-rootfs-check] OK      e2scrub service entrypoint: /sbin/e2scrub_all"
@@ -393,13 +634,40 @@ if [ "$REQUIRE_SYSTEMD" = "1" ] && [ -n "$systemd_bin" ]; then
       systemd_missing=1
     fi
 
-    if rootfs_has /usr/local/share/ysyx-disabled-system-generators/systemd-fstab-generator &&
-       ! rootfs_has /lib/systemd/system-generators/systemd-fstab-generator; then
-      echo "[ubuntu-rootfs-check] OK      NPC systemd generators disabled for staged gate"
-    else
-      echo "[ubuntu-rootfs-check] MISSING NPC systemd generator disablement"
-      systemd_missing=1
-    fi
+    case "$EXPECT_NPC_SYSTEMD_GENERATORS" in
+      disabled)
+        if rootfs_has /usr/local/share/ysyx-disabled-system-generators/systemd-fstab-generator &&
+           ! rootfs_has /lib/systemd/system-generators/systemd-fstab-generator; then
+          echo "[ubuntu-rootfs-check] OK      NPC systemd generators disabled for staged gate"
+        else
+          echo "[ubuntu-rootfs-check] MISSING NPC systemd generator disablement"
+          systemd_missing=1
+        fi
+        ;;
+      enabled)
+        if rootfs_has /lib/systemd/system-generators/systemd-fstab-generator &&
+           ! rootfs_has /usr/local/share/ysyx-disabled-system-generators/systemd-fstab-generator; then
+          echo "[ubuntu-rootfs-check] OK      NPC systemd generators enabled"
+        else
+          echo "[ubuntu-rootfs-check] MISSING NPC systemd generator enablement"
+          systemd_missing=1
+        fi
+        ;;
+      any)
+        if rootfs_has /lib/systemd/system-generators/systemd-fstab-generator; then
+          echo "[ubuntu-rootfs-check] OK      NPC systemd generators present"
+        elif rootfs_has /usr/local/share/ysyx-disabled-system-generators/systemd-fstab-generator; then
+          echo "[ubuntu-rootfs-check] OK      NPC systemd generators disabled for staged gate"
+        else
+          echo "[ubuntu-rootfs-check] MISSING NPC systemd generator state"
+          systemd_missing=1
+        fi
+        ;;
+      *)
+        echo "[ubuntu-rootfs-check] invalid UBUNTU_ROOTFS_EXPECT_NPC_SYSTEMD_GENERATORS=$EXPECT_NPC_SYSTEMD_GENERATORS" >&2
+        exit 1
+        ;;
+    esac
   fi
 
   if rootfs_has /etc/systemd/system/serial-getty@hvc0.service; then
@@ -410,10 +678,108 @@ if [ "$REQUIRE_SYSTEMD" = "1" ] && [ -n "$systemd_bin" ]; then
   fi
 
   if [ "$ROOTFS_FLAVOR" = "full" ]; then
+    if rootfs_has /bin/su; then
+      echo "[ubuntu-rootfs-check] OK      PAM su command: /bin/su"
+    else
+      echo "[ubuntu-rootfs-check] MISSING PAM su command: /bin/su"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /etc/pam.d/su; then
+      echo "[ubuntu-rootfs-check] OK      PAM su config: /etc/pam.d/su"
+    else
+      echo "[ubuntu-rootfs-check] MISSING PAM su config: /etc/pam.d/su"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /usr/sbin/groupadd; then
+      echo "[ubuntu-rootfs-check] OK      account groupadd command: /usr/sbin/groupadd"
+    else
+      echo "[ubuntu-rootfs-check] MISSING account groupadd command: /usr/sbin/groupadd"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /usr/sbin/groupdel; then
+      echo "[ubuntu-rootfs-check] OK      account groupdel command: /usr/sbin/groupdel"
+    else
+      echo "[ubuntu-rootfs-check] MISSING account groupdel command: /usr/sbin/groupdel"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /usr/sbin/useradd; then
+      echo "[ubuntu-rootfs-check] OK      account useradd command: /usr/sbin/useradd"
+    else
+      echo "[ubuntu-rootfs-check] MISSING account useradd command: /usr/sbin/useradd"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /usr/sbin/userdel; then
+      echo "[ubuntu-rootfs-check] OK      account userdel command: /usr/sbin/userdel"
+    else
+      echo "[ubuntu-rootfs-check] MISSING account userdel command: /usr/sbin/userdel"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /usr/bin/passwd; then
+      echo "[ubuntu-rootfs-check] OK      account passwd command: /usr/bin/passwd"
+    else
+      echo "[ubuntu-rootfs-check] MISSING account passwd command: /usr/bin/passwd"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /etc/default/useradd; then
+      echo "[ubuntu-rootfs-check] OK      account useradd defaults: /etc/default/useradd"
+    else
+      echo "[ubuntu-rootfs-check] MISSING account useradd defaults: /etc/default/useradd"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /etc/login.defs; then
+      echo "[ubuntu-rootfs-check] OK      login defaults: /etc/login.defs"
+    else
+      echo "[ubuntu-rootfs-check] MISSING login defaults: /etc/login.defs"
+      systemd_missing=1
+    fi
+
     if rootfs_has /etc/ssh/sshd_config; then
       echo "[ubuntu-rootfs-check] OK      OpenSSH server config: /etc/ssh/sshd_config"
     else
       echo "[ubuntu-rootfs-check] MISSING OpenSSH server config: /etc/ssh/sshd_config"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /usr/bin/ssh; then
+      echo "[ubuntu-rootfs-check] OK      OpenSSH client command: /usr/bin/ssh"
+    else
+      echo "[ubuntu-rootfs-check] MISSING OpenSSH client command: /usr/bin/ssh"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /usr/bin/ssh-keygen; then
+      echo "[ubuntu-rootfs-check] OK      OpenSSH keygen command: /usr/bin/ssh-keygen"
+    else
+      echo "[ubuntu-rootfs-check] MISSING OpenSSH keygen command: /usr/bin/ssh-keygen"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /usr/bin/scp; then
+      echo "[ubuntu-rootfs-check] OK      OpenSSH scp command: /usr/bin/scp"
+    else
+      echo "[ubuntu-rootfs-check] MISSING OpenSSH scp command: /usr/bin/scp"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /usr/bin/sftp; then
+      echo "[ubuntu-rootfs-check] OK      OpenSSH sftp command: /usr/bin/sftp"
+    else
+      echo "[ubuntu-rootfs-check] MISSING OpenSSH sftp command: /usr/bin/sftp"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /usr/lib/openssh/sftp-server; then
+      echo "[ubuntu-rootfs-check] OK      OpenSSH sftp server: /usr/lib/openssh/sftp-server"
+    else
+      echo "[ubuntu-rootfs-check] MISSING OpenSSH sftp server: /usr/lib/openssh/sftp-server"
       systemd_missing=1
     fi
 
@@ -498,6 +864,125 @@ if [ "$REQUIRE_SYSTEMD" = "1" ] && [ -n "$systemd_bin" ]; then
       echo "[ubuntu-rootfs-check] OK      hostnamectl tool: /usr/bin/hostnamectl"
     else
       echo "[ubuntu-rootfs-check] MISSING hostnamectl tool: /usr/bin/hostnamectl"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /usr/bin/systemd-analyze; then
+      echo "[ubuntu-rootfs-check] OK      systemd-analyze tool: /usr/bin/systemd-analyze"
+    else
+      echo "[ubuntu-rootfs-check] MISSING systemd-analyze tool: /usr/bin/systemd-analyze"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /usr/bin/timedatectl; then
+      echo "[ubuntu-rootfs-check] OK      timedatectl tool: /usr/bin/timedatectl"
+    else
+      echo "[ubuntu-rootfs-check] MISSING timedatectl tool: /usr/bin/timedatectl"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /usr/sbin/netplan; then
+      echo "[ubuntu-rootfs-check] OK      netplan tool: /usr/sbin/netplan"
+    else
+      echo "[ubuntu-rootfs-check] MISSING netplan tool: /usr/sbin/netplan"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /usr/share/netplan/netplan.script; then
+      echo "[ubuntu-rootfs-check] OK      netplan command script: /usr/share/netplan/netplan.script"
+    else
+      echo "[ubuntu-rootfs-check] MISSING netplan command script: /usr/share/netplan/netplan.script"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /etc/netplan; then
+      echo "[ubuntu-rootfs-check] OK      netplan config directory: /etc/netplan"
+    else
+      echo "[ubuntu-rootfs-check] MISSING netplan config directory: /etc/netplan"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /lib/netplan/generate; then
+      echo "[ubuntu-rootfs-check] OK      netplan generator binary: /lib/netplan/generate"
+    else
+      echo "[ubuntu-rootfs-check] MISSING netplan generator binary: /lib/netplan/generate"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /lib/systemd/system-generators/netplan; then
+      echo "[ubuntu-rootfs-check] OK      netplan systemd generator: /lib/systemd/system-generators/netplan"
+    else
+      echo "[ubuntu-rootfs-check] MISSING netplan systemd generator: /lib/systemd/system-generators/netplan"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /bin/networkctl; then
+      echo "[ubuntu-rootfs-check] OK      networkctl tool: /bin/networkctl"
+    else
+      echo "[ubuntu-rootfs-check] MISSING networkctl tool: /bin/networkctl"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /lib/systemd/systemd-networkd; then
+      echo "[ubuntu-rootfs-check] OK      networkd service binary: /lib/systemd/systemd-networkd"
+    else
+      echo "[ubuntu-rootfs-check] MISSING networkd service binary: /lib/systemd/systemd-networkd"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /lib/systemd/system/systemd-networkd.service; then
+      echo "[ubuntu-rootfs-check] OK      networkd service unit: /lib/systemd/system/systemd-networkd.service"
+    else
+      echo "[ubuntu-rootfs-check] MISSING networkd service unit: /lib/systemd/system/systemd-networkd.service"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /lib/systemd/systemd-networkd-wait-online; then
+      echo "[ubuntu-rootfs-check] OK      networkd wait-online binary: /lib/systemd/systemd-networkd-wait-online"
+    else
+      echo "[ubuntu-rootfs-check] MISSING networkd wait-online binary: /lib/systemd/systemd-networkd-wait-online"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /lib/systemd/system/systemd-networkd-wait-online.service; then
+      echo "[ubuntu-rootfs-check] OK      networkd wait-online unit: /lib/systemd/system/systemd-networkd-wait-online.service"
+    else
+      echo "[ubuntu-rootfs-check] MISSING networkd wait-online unit: /lib/systemd/system/systemd-networkd-wait-online.service"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /lib/systemd/system/network-online.target; then
+      echo "[ubuntu-rootfs-check] OK      network-online target unit: /lib/systemd/system/network-online.target"
+    else
+      echo "[ubuntu-rootfs-check] MISSING network-online target unit: /lib/systemd/system/network-online.target"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /lib/systemd/system/graphical.target; then
+      echo "[ubuntu-rootfs-check] OK      graphical target unit: /lib/systemd/system/graphical.target"
+    else
+      echo "[ubuntu-rootfs-check] MISSING graphical target unit: /lib/systemd/system/graphical.target"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /etc/systemd/network; then
+      echo "[ubuntu-rootfs-check] OK      networkd config directory: /etc/systemd/network"
+    else
+      echo "[ubuntu-rootfs-check] MISSING networkd config directory: /etc/systemd/network"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /lib/systemd/systemd-timedated; then
+      echo "[ubuntu-rootfs-check] OK      timedated service binary: /lib/systemd/systemd-timedated"
+    else
+      echo "[ubuntu-rootfs-check] MISSING timedated service binary: /lib/systemd/systemd-timedated"
+      systemd_missing=1
+    fi
+
+    if rootfs_has /lib/systemd/system/systemd-timedated.service; then
+      echo "[ubuntu-rootfs-check] OK      timedated service unit: /lib/systemd/system/systemd-timedated.service"
+    else
+      echo "[ubuntu-rootfs-check] MISSING timedated service unit: /lib/systemd/system/systemd-timedated.service"
       systemd_missing=1
     fi
 
@@ -588,7 +1073,7 @@ if [ "$REQUIRE_SYSTEMD" = "1" ] && [ -n "$systemd_bin" ]; then
 
     # chrootless full overlay 也必须维护 dpkg 状态库，否则 apt/dpkg 在 guest 内会
     # 看不到由 dpkg-deb 解包出来的 server-like 用户态组件。
-    for package in systemd ubuntu-standard openssh-server curl wget dropbear-bin rsyslog cron systemd-timesyncd gpgv ubuntu-keyring; do
+    for package in systemd ubuntu-standard openssh-client openssh-server openssh-sftp-server curl wget dropbear-bin rsyslog cron anacron logrotate systemd-timesyncd systemd-oomd dbus-user-session libpam-systemd gpgv ubuntu-keyring netplan.io netplan-generator passwd locales libc-bin; do
       if rootfs_dpkg_status_installed "$package"; then
         echo "[ubuntu-rootfs-check] OK      dpkg status installed: $package"
       else
@@ -596,8 +1081,8 @@ if [ "$REQUIRE_SYSTEMD" = "1" ] && [ -n "$systemd_bin" ]; then
         systemd_missing=1
       fi
     done
-    for package in systemd ubuntu-standard openssh-server curl wget dropbear-bin rsyslog cron systemd-timesyncd gpgv ubuntu-keyring; do
-      if rootfs_has "/var/lib/dpkg/info/$package.list"; then
+    for package in systemd ubuntu-standard openssh-client openssh-server openssh-sftp-server curl wget dropbear-bin rsyslog cron anacron logrotate systemd-timesyncd systemd-oomd dbus-user-session libpam-systemd gpgv ubuntu-keyring netplan.io netplan-generator passwd locales libc-bin; do
+      if rootfs_dpkg_info_list_exists "$package"; then
         echo "[ubuntu-rootfs-check] OK      dpkg info list: $package"
       else
         echo "[ubuntu-rootfs-check] MISSING dpkg info list: $package"
@@ -627,22 +1112,92 @@ if [ "$REQUIRE_SYSTEMD" = "1" ] && [ -n "$systemd_bin" ]; then
     for ownership in \
       "curl:/usr/bin/curl" \
       "wget:/usr/bin/wget" \
+      "openssh-client:/usr/bin/ssh" \
+      "openssh-client:/usr/bin/ssh-keygen" \
+      "openssh-client:/usr/bin/scp" \
+      "openssh-client:/usr/bin/sftp" \
       "openssh-server:/usr/sbin/sshd" \
+      "openssh-sftp-server:/usr/lib/openssh/sftp-server" \
       "dropbear-bin:/usr/bin/dbclient" \
       "dropbear-bin:/usr/sbin/dropbear" \
       "rsyslog:/usr/sbin/rsyslogd" \
       "cron:/usr/sbin/cron" \
+      "cron:/etc/crontab" \
+      "cron:/etc/cron.d" \
+      "cron:/etc/cron.daily" \
+      "anacron:/usr/sbin/anacron" \
+      "anacron:/etc/anacrontab" \
+      "anacron:/etc/cron.d/anacron" \
+      "anacron:/etc/cron.daily/0anacron" \
+      "anacron:/etc/cron.weekly/0anacron" \
+      "anacron:/etc/cron.monthly/0anacron" \
+      "anacron:/var/spool/anacron" \
+      "anacron:/lib/systemd/system/anacron.service" \
+      "anacron:/lib/systemd/system/anacron.timer" \
+      "logrotate:/usr/sbin/logrotate" \
+      "logrotate:/etc/logrotate.conf" \
+      "logrotate:/lib/systemd/system/logrotate.service" \
+      "logrotate:/lib/systemd/system/logrotate.timer" \
+      "systemd-oomd:/lib/systemd/systemd-oomd" \
+      "systemd-oomd:/lib/systemd/system/systemd-oomd.service" \
+      "systemd-oomd:/usr/bin/oomctl" \
+      "systemd-oomd:/etc/systemd/oomd.conf" \
+      "systemd-oomd:/usr/lib/systemd/oomd.conf.d/10-oomd-defaults.conf" \
+      "systemd-oomd:/usr/lib/systemd/system/-.slice.d/10-oomd-root-slice-defaults.conf" \
+      "systemd-oomd:/usr/lib/systemd/system/user@.service.d/10-oomd-user-service-defaults.conf" \
+      "systemd-oomd:/usr/lib/sysusers.d/systemd-oom.conf" \
+      "systemd-oomd:/usr/share/dbus-1/system-services/org.freedesktop.oom1.service" \
+      "systemd-oomd:/usr/share/dbus-1/system.d/org.freedesktop.oom1.conf" \
+      "locales:/usr/sbin/locale-gen" \
+      "locales:/usr/share/i18n/SUPPORTED" \
+      "libc-bin:/usr/bin/localedef" \
       "systemd:/bin/journalctl" \
       "systemd:/bin/systemd-machine-id-setup" \
       "systemd:/bin/systemd-sysusers" \
       "systemd:/bin/systemd-tmpfiles" \
+      "systemd:/usr/bin/systemd-analyze" \
+      "systemd:/usr/bin/systemd-run" \
       "systemd:/usr/bin/systemd-cat" \
       "systemd:/usr/bin/hostnamectl" \
+      "systemd:/usr/bin/timedatectl" \
+      "netplan.io:/usr/sbin/netplan" \
+      "netplan.io:/usr/share/netplan/netplan.script" \
+      "netplan-generator:/etc/netplan" \
+      "netplan-generator:/lib/netplan/generate" \
+      "netplan-generator:/lib/systemd/system-generators/netplan" \
+      "systemd:/bin/networkctl" \
+      "systemd:/usr/bin/resolvectl" \
+      "systemd:/bin/loginctl" \
+      "systemd:/lib/systemd/systemd-logind" \
+      "systemd:/lib/systemd/systemd-networkd" \
+      "systemd:/lib/systemd/systemd-resolved" \
       "systemd:/lib/systemd/systemd-hostnamed" \
+      "systemd:/lib/systemd/systemd-timedated" \
+      "systemd:/lib/systemd/system/systemd-logind.service" \
+      "systemd:/lib/systemd/system/systemd-networkd.service" \
+      "systemd:/lib/systemd/systemd-networkd-wait-online" \
+      "systemd:/lib/systemd/system/systemd-networkd-wait-online.service" \
+      "systemd:/lib/systemd/system/network-online.target" \
+      "systemd:/lib/systemd/system/graphical.target" \
+      "systemd:/lib/systemd/system/systemd-resolved.service" \
       "systemd:/lib/systemd/system/systemd-machine-id-commit.service" \
       "systemd:/lib/systemd/system/systemd-hostnamed.service" \
+      "systemd:/lib/systemd/system/systemd-timedated.service" \
+      "systemd:/etc/systemd/resolved.conf" \
+      "systemd:/lib/systemd/system/user@.service" \
+      "systemd:/lib/systemd/system/user-runtime-dir@.service" \
+      "dbus-user-session:/usr/lib/systemd/user/dbus.socket" \
+      "dbus-user-session:/usr/lib/systemd/user/dbus.service" \
+      "dbus-user-session:/usr/lib/systemd/user/sockets.target.wants/dbus.socket" \
+      "libpam-systemd:/lib/riscv64-linux-gnu/security/pam_systemd.so" \
       "gpgv:/usr/bin/gpgv" \
-      "ubuntu-keyring:/usr/share/keyrings/ubuntu-archive-keyring.gpg"; do
+      "ubuntu-keyring:/usr/share/keyrings/ubuntu-archive-keyring.gpg" \
+      "passwd:/usr/sbin/groupadd" \
+      "passwd:/usr/sbin/groupdel" \
+      "passwd:/usr/sbin/useradd" \
+      "passwd:/usr/sbin/userdel" \
+      "passwd:/usr/bin/passwd" \
+      "passwd:/etc/default/useradd"; do
       package=${ownership%%:*}
       path=${ownership#*:}
       if rootfs_dpkg_info_list_contains "$package" "$path"; then

@@ -10,8 +10,15 @@
 #include <memory/paddr.h>
 
 #include <inttypes.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <linux/if_tun.h>
+#include <net/if.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/ioctl.h>
+#include <time.h>
+#include <unistd.h>
 
 // 当前 virtio-net 先闭合 hostless 最小数据路径：Linux 可枚举的 modern
 // virtio-mmio 网卡、稳定 MAC/link-up、TX/RX vring，以及固定 10.0.2.2
@@ -110,8 +117,12 @@
 #define VIRTIO_NET_TCP_HTTP_SEGMENT_PAYLOAD_MAX 1200u
 #define VIRTIO_NET_VLAN_COUNT 4096u
 
+#ifndef ETH_P_IP
 #define ETH_P_IP 0x0800u
+#endif
+#ifndef ETH_P_ARP
 #define ETH_P_ARP 0x0806u
+#endif
 #define ARP_HTYPE_ETHERNET 1u
 #define ARP_OPER_REQUEST 1u
 #define ARP_OPER_REPLY 2u
@@ -130,6 +141,7 @@
 #define DHCP_OPT_SUBNET_MASK 1u
 #define DHCP_OPT_ROUTER 3u
 #define DHCP_OPT_DNS 6u
+#define DHCP_OPT_NTP 42u
 #define DHCP_OPT_REQUESTED_IP 50u
 #define DHCP_OPT_LEASE_TIME 51u
 #define DHCP_OPT_MSG_TYPE 53u
@@ -146,6 +158,9 @@
 #define DNS_QTYPE_A 1u
 #define DNS_QCLASS_IN 1u
 #define DNS_TTL_SECONDS 60u
+#define NTP_SERVER_PORT 123u
+#define NTP_PACKET_LEN 48u
+#define NTP_UNIX_EPOCH_DELTA 2208988800ull
 #define TCP_HTTP_PORT 80u
 #define TCP_WINDOW_SIZE 4096u
 #define TCP_FLAG_FIN 0x01u
@@ -190,6 +205,8 @@ typedef struct {
   uint64_t dhcp_replies;
   uint64_t dns_queries;
   uint64_t dns_replies;
+  uint64_t ntp_requests;
+  uint64_t ntp_replies;
   uint64_t tcp_segments;
   uint64_t tcp_replies;
   uint64_t tcp_http_requests;
@@ -200,6 +217,12 @@ typedef struct {
   uint64_t tcp_http_large_requests;
   uint64_t tcp_http_segmented_responses;
   uint64_t tcp_http_response_segments;
+  uint64_t tap_tx_packets;
+  uint64_t tap_tx_bytes;
+  uint64_t tap_tx_errors;
+  uint64_t tap_rx_packets;
+  uint64_t tap_rx_bytes;
+  uint64_t tap_rx_errors;
   uint64_t ctrl_commands;
   uint64_t ctrl_rx_commands;
   uint64_t ctrl_rx_extra_commands;
@@ -245,6 +268,10 @@ static uint16_t ctrl_vlan_last_vid;
 static uint8_t ctrl_vlan_last_cmd;
 static bool ctrl_announce_pending;
 static bool ctrl_announce_requested;
+static bool tap_requested;
+static bool tap_active;
+static int tap_fd = -1;
+static char tap_ifname[IFNAMSIZ];
 static VirtioNetStats net_stats;
 
 static void virtio_net_format_mac(const uint8_t *mac, char *out, size_t out_size) {
@@ -254,6 +281,59 @@ static void virtio_net_format_mac(const uint8_t *mac, char *out, size_t out_size
 
 static void virtio_net_format_ip(const uint8_t *ip, char *out, size_t out_size) {
   snprintf(out, out_size, "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
+}
+
+static bool virtio_net_tap_enabled(void) {
+  return tap_active && tap_fd >= 0;
+}
+
+static const char *virtio_net_backend_name(void) {
+  return virtio_net_tap_enabled() ? "tap" : "hostless-responder";
+}
+
+void virtio_net_set_tap(const char *ifname) {
+  Assert(ifname != NULL && ifname[0] != '\0',
+      "--net-tap requires a TAP interface name");
+  size_t ifname_len = strlen(ifname);
+  Assert(ifname_len < sizeof(tap_ifname),
+      "--net-tap interface name is too long: %s", ifname);
+  for (const char *p = ifname; *p != '\0'; p++) {
+    bool ok = (*p >= 'a' && *p <= 'z') ||
+              (*p >= 'A' && *p <= 'Z') ||
+              (*p >= '0' && *p <= '9') ||
+              *p == '_' || *p == '-' || *p == '.';
+    Assert(ok, "--net-tap interface name contains unsupported char: %s", ifname);
+  }
+  memcpy(tap_ifname, ifname, ifname_len + 1);
+  tap_requested = true;
+}
+
+static void virtio_net_tap_open_if_requested(void) {
+  if (!tap_requested || virtio_net_tap_enabled()) return;
+
+  int fd = open("/dev/net/tun", O_RDWR | O_NONBLOCK);
+  Assert(fd >= 0, "virtio-net: can not open /dev/net/tun for --net-tap=%s: %s",
+      tap_ifname, strerror(errno));
+
+  struct ifreq ifr;
+  memset(&ifr, 0, sizeof(ifr));
+  ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
+  size_t ifname_len = strlen(tap_ifname);
+  Assert(ifname_len < IFNAMSIZ, "virtio-net: TAP interface name is too long: %s",
+      tap_ifname);
+  memcpy(ifr.ifr_name, tap_ifname, ifname_len + 1);
+  Assert(ioctl(fd, TUNSETIFF, (void *)&ifr) >= 0,
+      "virtio-net: TUNSETIFF failed for --net-tap=%s: %s",
+      tap_ifname, strerror(errno));
+
+  int flags = fcntl(fd, F_GETFL, 0);
+  Assert(flags >= 0 && fcntl(fd, F_SETFL, flags | O_NONBLOCK) >= 0,
+      "virtio-net: can not set TAP fd non-blocking: %s", strerror(errno));
+  tap_fd = fd;
+  tap_active = true;
+  memset(tap_ifname, 0, sizeof(tap_ifname));
+  memcpy(tap_ifname, ifr.ifr_name, strnlen(ifr.ifr_name, sizeof(tap_ifname) - 1));
+  Log("virtio-net: TAP backend attached ifname=%s", tap_ifname);
 }
 
 static uint32_t virtio_net_device_features(uint32_t sel) {
@@ -664,6 +744,49 @@ static bool virtio_net_enqueue_rx_frame(const uint8_t *frame, uint32_t len) {
   return true;
 }
 
+static void virtio_net_tap_tx(const uint8_t *frame, uint32_t len) {
+  if (!virtio_net_tap_enabled()) return;
+
+  ssize_t written = write(tap_fd, frame, len);
+  if (written == (ssize_t)len) {
+    net_stats.tap_tx_packets++;
+    net_stats.tap_tx_bytes += len;
+    return;
+  }
+  net_stats.tap_tx_errors++;
+  if (written < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
+    Log("virtio-net: TAP TX failed ifname=%s errno=%d (%s)",
+        tap_ifname, errno, strerror(errno));
+  }
+}
+
+void virtio_net_update(void) {
+  if (!virtio_net_tap_enabled()) return;
+
+  for (int i = 0; i < VIRTIO_NET_RX_PENDING_CAP; i++) {
+    if (rx_pending_count >= VIRTIO_NET_RX_PENDING_CAP) return;
+
+    uint8_t frame[VIRTIO_NET_FRAME_MAX];
+    ssize_t nread = read(tap_fd, frame, sizeof(frame));
+    if (nread < 0) {
+      if (errno != EAGAIN && errno != EWOULDBLOCK) {
+        net_stats.tap_rx_errors++;
+        Log("virtio-net: TAP RX failed ifname=%s errno=%d (%s)",
+            tap_ifname, errno, strerror(errno));
+      }
+      return;
+    }
+    if (nread == 0) return;
+    if (nread < 14 || nread > VIRTIO_NET_FRAME_MAX) {
+      net_stats.tap_rx_errors++;
+      continue;
+    }
+    net_stats.tap_rx_packets++;
+    net_stats.tap_rx_bytes += (uint32_t)nread;
+    virtio_net_enqueue_rx_frame(frame, (uint32_t)nread);
+  }
+}
+
 static bool virtio_net_handle_arp(const uint8_t *frame, uint32_t len) {
   if (len < 42) return false;
   const uint8_t *arp = frame + 14;
@@ -856,6 +979,8 @@ static bool virtio_net_handle_dhcp(const uint8_t *frame, uint32_t len) {
       virtio_net_host_ip, sizeof(virtio_net_host_ip));
   opt_off = dhcp_put_opt(opts, opt_off, DHCP_OPT_DNS,
       virtio_net_host_ip, sizeof(virtio_net_host_ip));
+  opt_off = dhcp_put_opt(opts, opt_off, DHCP_OPT_NTP,
+      virtio_net_host_ip, sizeof(virtio_net_host_ip));
   opts[opt_off++] = DHCP_OPT_END;
 
   uint32_t reply_dhcp_len = DHCP_FIXED_LEN + opt_off;
@@ -982,6 +1107,95 @@ static bool virtio_net_handle_dns(const uint8_t *frame, uint32_t len) {
   net_stats.dns_queries++;
   bool queued = virtio_net_enqueue_rx_frame(reply, reply_len);
   if (queued) net_stats.dns_replies++;
+  return queued;
+}
+
+static void ntp_put_timestamp(uint8_t *p, const struct timespec *ts) {
+  uint64_t seconds = (uint64_t)ts->tv_sec + NTP_UNIX_EPOCH_DELTA;
+  uint64_t fraction = ((uint64_t)ts->tv_nsec << 32) / 1000000000ull;
+  net_put_be32(p, (uint32_t)seconds);
+  net_put_be32(p + 4, (uint32_t)fraction);
+}
+
+static bool virtio_net_handle_ntp(const uint8_t *frame, uint32_t len) {
+  if (len < 14 + 20 + 8 + NTP_PACKET_LEN || net_get_be16(frame + 12) != ETH_P_IP) {
+    return false;
+  }
+  const uint8_t *ip = frame + 14;
+  uint32_t ihl = (ip[0] & 0x0fu) * 4u;
+  if ((ip[0] >> 4) != 4 || ihl < 20 || ip[9] != IPPROTO_UDP ||
+      memcmp(ip + 16, virtio_net_host_ip, sizeof(virtio_net_host_ip)) != 0) {
+    return false;
+  }
+
+  uint32_t total_len = net_get_be16(ip + 2);
+  if (total_len < ihl + 8 + NTP_PACKET_LEN || total_len > VIRTIO_NET_FRAME_MAX - 14 ||
+      len < 14 + total_len) {
+    return false;
+  }
+  const uint8_t *udp = ip + ihl;
+  uint32_t udp_len = net_get_be16(udp + 4);
+  if (udp_len < 8 + NTP_PACKET_LEN || ihl + udp_len > total_len ||
+      net_get_be16(udp + 2) != NTP_SERVER_PORT) {
+    return false;
+  }
+
+  const uint8_t *ntp = udp + 8;
+  uint8_t mode = ntp[0] & 0x07u;
+  uint8_t version = (ntp[0] >> 3) & 0x07u;
+  if (mode != 3) {
+    return false;
+  }
+  if (version == 0) version = 4;
+
+  struct timespec now;
+  if (clock_gettime(CLOCK_REALTIME, &now) != 0) {
+    return false;
+  }
+
+  uint8_t reply[VIRTIO_NET_FRAME_MAX] = {};
+  uint32_t reply_udp_len = 8 + NTP_PACKET_LEN;
+  uint32_t reply_total_len = 20 + reply_udp_len;
+
+  memcpy(reply, frame + 6, 6);
+  memcpy(reply + 6, virtio_net_host_mac, 6);
+  net_put_be16(reply + 12, ETH_P_IP);
+
+  uint8_t *reply_ip = reply + 14;
+  reply_ip[0] = 0x45;
+  reply_ip[8] = 64;
+  reply_ip[9] = IPPROTO_UDP;
+  net_put_be16(reply_ip + 2, reply_total_len);
+  memcpy(reply_ip + 12, virtio_net_host_ip, sizeof(virtio_net_host_ip));
+  memcpy(reply_ip + 16, ip + 12, 4);
+  net_put_be16(reply_ip + 10, net_checksum(reply_ip, 20));
+
+  uint8_t *reply_udp = reply_ip + 20;
+  net_put_be16(reply_udp, NTP_SERVER_PORT);
+  net_put_be16(reply_udp + 2, net_get_be16(udp));
+  net_put_be16(reply_udp + 4, reply_udp_len);
+  net_put_be16(reply_udp + 6, 0);
+
+  uint8_t *reply_ntp = reply_udp + 8;
+  reply_ntp[0] = (uint8_t)((version << 3) | 4u);
+  reply_ntp[1] = 2;
+  reply_ntp[2] = ntp[2];
+  reply_ntp[3] = 0xec;
+  net_put_be32(reply_ntp + 4, 1u << 16);
+  net_put_be32(reply_ntp + 8, 1u << 16);
+  memcpy(reply_ntp + 12, "NEMU", 4);
+  ntp_put_timestamp(reply_ntp + 16, &now);
+  memcpy(reply_ntp + 24, ntp + 40, 8);
+  ntp_put_timestamp(reply_ntp + 32, &now);
+  ntp_put_timestamp(reply_ntp + 40, &now);
+
+  uint32_t reply_len = 14 + reply_total_len;
+  if (reply_len < VIRTIO_NET_ETH_MIN_FRAME) {
+    reply_len = VIRTIO_NET_ETH_MIN_FRAME;
+  }
+  net_stats.ntp_requests++;
+  bool queued = virtio_net_enqueue_rx_frame(reply, reply_len);
+  if (queued) net_stats.ntp_replies++;
   return queued;
 }
 
@@ -1683,7 +1897,8 @@ static void virtio_net_handle_frame(const uint8_t *frame, uint32_t len) {
   } else if (eth_type == ETH_P_IP) {
     if (!virtio_net_handle_icmp(frame, len) &&
         !virtio_net_handle_dhcp(frame, len) &&
-        !virtio_net_handle_dns(frame, len)) {
+        !virtio_net_handle_dns(frame, len) &&
+        !virtio_net_handle_ntp(frame, len)) {
       virtio_net_handle_tcp_http(frame, len);
     }
   }
@@ -1735,7 +1950,11 @@ static uint32_t virtio_net_handle_tx_chain(VirtqState *q, uint16_t head) {
   if (copied) {
     net_stats.tx_packets++;
     net_stats.tx_bytes += frame_len;
-    virtio_net_handle_frame(frame, frame_len);
+    if (virtio_net_tap_enabled()) {
+      virtio_net_tap_tx(frame, frame_len);
+    } else {
+      virtio_net_handle_frame(frame, frame_len);
+    }
   } else {
     net_stats.tx_errors++;
   }
@@ -2118,7 +2337,19 @@ void virtio_net_dump_machine_info(FILE *out) {
   virtio_net_format_ip(virtio_net_guest_ip, guest_ip, sizeof(guest_ip));
   virtio_net_format_ip(virtio_net_subnet_mask, subnet_mask, sizeof(subnet_mask));
 
-  fprintf(out, "device.virtio_net.backend=hostless-responder\n");
+  bool tap_enabled = virtio_net_tap_enabled();
+  fprintf(out, "device.virtio_net.backend=%s\n", virtio_net_backend_name());
+  fprintf(out, "device.virtio_net.host_packet_backend=%s\n",
+      tap_enabled ? "tap" : "unsupported");
+  fprintf(out, "device.virtio_net.tap=%s\n", tap_enabled ? "enabled" : "unsupported");
+  fprintf(out, "device.virtio_net.tap.ifname=%s\n",
+      tap_enabled ? tap_ifname : "none");
+  fprintf(out, "device.virtio_net.slirp_nat=unsupported\n");
+  fprintf(out, "device.virtio_net.host_port_forward=unsupported\n");
+  fprintf(out, "device.virtio_net.external_network=%s\n",
+      tap_enabled ? "tap-config-dependent" : "unsupported");
+  fprintf(out, "device.virtio_net.external_mirror=%s\n",
+      tap_enabled ? "tap-config-dependent" : "unsupported");
   fprintf(out, "device.virtio_net.mac=%s\n", mac);
   fprintf(out, "device.virtio_net.host_mac=%s\n", host_mac);
   fprintf(out, "device.virtio_net.host_ip=%s\n", host_ip);
@@ -2127,6 +2358,7 @@ void virtio_net_dump_machine_info(FILE *out) {
   fprintf(out, "device.virtio_net.link_up=1\n");
   fprintf(out, "device.virtio_net.dhcp=hostless\n");
   fprintf(out, "device.virtio_net.dns=nemu.local\n");
+  fprintf(out, "device.virtio_net.ntp=hostless 10.0.2.2:123\n");
   fprintf(out, "device.virtio_net.icmp_echo=hostless\n");
   fprintf(out, "device.virtio_net.tcp_http=/nemu-health\n");
   fprintf(out, "device.virtio_net.tcp_http_head=/nemu-health\n");
@@ -2214,6 +2446,10 @@ void virtio_net_dump_machine_info(FILE *out) {
   fprintf(out, "device.virtio_net.stats.ctrl_commands=%" PRIu64 "\n", net_stats.ctrl_commands);
   fprintf(out, "device.virtio_net.stats.tcp_http_head_requests=%" PRIu64 "\n",
       net_stats.tcp_http_head_requests);
+  fprintf(out, "device.virtio_net.stats.ntp_requests=%" PRIu64 "\n",
+      net_stats.ntp_requests);
+  fprintf(out, "device.virtio_net.stats.ntp_replies=%" PRIu64 "\n",
+      net_stats.ntp_replies);
   fprintf(out, "device.virtio_net.stats.tcp_http_not_found=%" PRIu64 "\n",
       net_stats.tcp_http_not_found);
   fprintf(out, "device.virtio_net.stats.tcp_http_apt_requests=%" PRIu64 "\n",
@@ -2226,6 +2462,18 @@ void virtio_net_dump_machine_info(FILE *out) {
       net_stats.tcp_http_segmented_responses);
   fprintf(out, "device.virtio_net.stats.tcp_http_response_segments=%" PRIu64 "\n",
       net_stats.tcp_http_response_segments);
+  fprintf(out, "device.virtio_net.stats.tap_tx_packets=%" PRIu64 "\n",
+      net_stats.tap_tx_packets);
+  fprintf(out, "device.virtio_net.stats.tap_tx_bytes=%" PRIu64 "\n",
+      net_stats.tap_tx_bytes);
+  fprintf(out, "device.virtio_net.stats.tap_tx_errors=%" PRIu64 "\n",
+      net_stats.tap_tx_errors);
+  fprintf(out, "device.virtio_net.stats.tap_rx_packets=%" PRIu64 "\n",
+      net_stats.tap_rx_packets);
+  fprintf(out, "device.virtio_net.stats.tap_rx_bytes=%" PRIu64 "\n",
+      net_stats.tap_rx_bytes);
+  fprintf(out, "device.virtio_net.stats.tap_rx_errors=%" PRIu64 "\n",
+      net_stats.tap_rx_errors);
   fprintf(out, "device.virtio_net.stats.ctrl_rx_commands=%" PRIu64 "\n",
       net_stats.ctrl_rx_commands);
   fprintf(out, "device.virtio_net.stats.ctrl_rx_extra_commands=%" PRIu64 "\n",
@@ -2255,16 +2503,24 @@ void virtio_net_qmp_query_netdev(char *out, size_t out_size) {
   virtio_net_format_ip(virtio_net_guest_ip, guest_ip, sizeof(guest_ip));
   virtio_net_format_ip(virtio_net_subnet_mask, subnet_mask, sizeof(subnet_mask));
 
+  bool tap_enabled = virtio_net_tap_enabled();
+  const char *hostless_bool = tap_enabled ? "false" : "true";
+
   /*
-   * 这里故意把 backend 写成 hostless-responder：当前网卡只闭合 guest
-   * 可见的 DHCP/DNS/ICMP/固定 HTTP 健康检查，不冒充 TAP/NAT 或外网能力。
+   * 默认 backend 仍是 hostless-responder；只有显式 --net-tap 成功打开后，
+   * QMP 才报告 TAP packet backend，避免把未配置的宿主网络写成已完成。
    */
   snprintf(out, out_size,
-      "{\"return\":[{\"id\":\"net0\",\"type\":\"hostless\","
-      "\"peer\":\"virtio-net0\",\"nemu\":{\"backend\":\"hostless-responder\","
+      "{\"return\":[{\"id\":\"net0\",\"type\":\"%s\","
+      "\"peer\":\"virtio-net0\",\"nemu\":{\"backend\":\"%s\","
+      "\"host-packet-backend\":%s,\"tap\":%s,\"tap-ifname\":\"%s\","
+      "\"slirp-nat\":false,"
+      "\"host-port-forward\":false,\"external-network\":false,"
+      "\"external-mirror\":false,"
       "\"model\":\"virtio-net-mmio\",\"mac\":\"%s\",\"host-mac\":\"%s\","
       "\"host-ip\":\"%s\",\"guest-ip\":\"%s\",\"subnet-mask\":\"%s\","
-      "\"dhcp\":true,\"dns\":true,\"icmp\":true,\"tcp-http\":true,"
+      "\"dhcp\":%s,\"dns\":%s,\"ntp\":%s,\"ntp-server\":\"10.0.2.2\","
+      "\"icmp\":%s,\"tcp-http\":%s,"
       "\"http-methods\":[\"GET\",\"HEAD\"],\"http-not-found\":true,"
       "\"http-large\":{\"path\":\"/nemu-large\",\"bytes\":4096,"
       "\"segment-payload-max\":%u},"
@@ -2309,6 +2565,7 @@ void virtio_net_qmp_query_netdev(char *out, size_t out_size) {
       "\"icmp-echo-requests\":%" PRIu64 ",\"icmp-echo-replies\":%" PRIu64 ","
       "\"dhcp-requests\":%" PRIu64 ",\"dhcp-replies\":%" PRIu64 ","
       "\"dns-queries\":%" PRIu64 ",\"dns-replies\":%" PRIu64 ","
+      "\"ntp-requests\":%" PRIu64 ",\"ntp-replies\":%" PRIu64 ","
       "\"tcp-segments\":%" PRIu64 ",\"tcp-replies\":%" PRIu64 ","
       "\"tcp-http-requests\":%" PRIu64 ","
       "\"tcp-http-head-requests\":%" PRIu64 ","
@@ -2318,6 +2575,9 @@ void virtio_net_qmp_query_netdev(char *out, size_t out_size) {
       "\"tcp-http-large-requests\":%" PRIu64 ","
       "\"tcp-http-segmented-responses\":%" PRIu64 ","
       "\"tcp-http-response-segments\":%" PRIu64 ","
+      "\"tap-tx-packets\":%" PRIu64 ",\"tap-tx-bytes\":%" PRIu64 ","
+      "\"tap-tx-errors\":%" PRIu64 ",\"tap-rx-packets\":%" PRIu64 ","
+      "\"tap-rx-bytes\":%" PRIu64 ",\"tap-rx-errors\":%" PRIu64 ","
       "\"ctrl-commands\":%" PRIu64 ","
       "\"ctrl-rx-commands\":%" PRIu64 ",\"ctrl-rx-extra-commands\":%" PRIu64 ","
       "\"ctrl-mac-table-commands\":%" PRIu64 ","
@@ -2325,7 +2585,13 @@ void virtio_net_qmp_query_netdev(char *out, size_t out_size) {
       "\"ctrl-vlan-commands\":%" PRIu64 ","
       "\"ctrl-announce-commands\":%" PRIu64 ","
       "\"ctrl-errors\":%" PRIu64 "}}}]}",
+      tap_enabled ? "tap" : "hostless",
+      virtio_net_backend_name(),
+      tap_enabled ? "true" : "false",
+      tap_enabled ? "true" : "false",
+      tap_enabled ? tap_ifname : "none",
       mac, host_mac, host_ip, guest_ip, subnet_mask,
+      hostless_bool, hostless_bool, hostless_bool, hostless_bool, hostless_bool,
       VIRTIO_NET_TCP_HTTP_SEGMENT_PAYLOAD_MAX,
       VIRTIO_NET_MTU, VIRTIO_NET_LINK_SPEED_MBIT, VIRTIO_NET_CONFIG_BYTES,
       device_status,
@@ -2369,6 +2635,7 @@ void virtio_net_qmp_query_netdev(char *out, size_t out_size) {
       net_stats.icmp_echo_requests, net_stats.icmp_echo_replies,
       net_stats.dhcp_requests, net_stats.dhcp_replies,
       net_stats.dns_queries, net_stats.dns_replies,
+      net_stats.ntp_requests, net_stats.ntp_replies,
       net_stats.tcp_segments, net_stats.tcp_replies,
       net_stats.tcp_http_requests, net_stats.tcp_http_head_requests,
       net_stats.tcp_http_not_found, net_stats.tcp_http_apt_requests,
@@ -2376,6 +2643,9 @@ void virtio_net_qmp_query_netdev(char *out, size_t out_size) {
       net_stats.tcp_http_large_requests,
       net_stats.tcp_http_segmented_responses,
       net_stats.tcp_http_response_segments,
+      net_stats.tap_tx_packets, net_stats.tap_tx_bytes,
+      net_stats.tap_tx_errors, net_stats.tap_rx_packets,
+      net_stats.tap_rx_bytes, net_stats.tap_rx_errors,
       net_stats.ctrl_commands,
       net_stats.ctrl_rx_commands, net_stats.ctrl_rx_extra_commands,
       net_stats.ctrl_mac_table_commands,
@@ -2395,6 +2665,7 @@ void virtio_net_statistic(void) {
       " icmp=%" PRIu64 "/%" PRIu64
       " dhcp=%" PRIu64 "/%" PRIu64
       " dns=%" PRIu64 "/%" PRIu64
+      " ntp=%" PRIu64 "/%" PRIu64
       " tcp_segments=%" PRIu64 " tcp_replies=%" PRIu64
       " tcp_http_requests=%" PRIu64
       " tcp_http_head_requests=%" PRIu64
@@ -2404,6 +2675,8 @@ void virtio_net_statistic(void) {
       " tcp_http_large_requests=%" PRIu64
       " tcp_http_segmented_responses=%" PRIu64
       " tcp_http_response_segments=%" PRIu64
+      " tap_tx=%" PRIu64 "/%" PRIu64 "/%" PRIu64
+      " tap_rx=%" PRIu64 "/%" PRIu64 "/%" PRIu64
       " ctrl=%" PRIu64 "/%" PRIu64
       " ctrl_rx=%" PRIu64 " ctrl_rx_extra=%" PRIu64
       " promisc=%d allmulti=%d alluni=%d nomulti=%d nouni=%d nobcast=%d"
@@ -2418,6 +2691,7 @@ void virtio_net_statistic(void) {
       net_stats.icmp_echo_requests, net_stats.icmp_echo_replies,
       net_stats.dhcp_requests, net_stats.dhcp_replies,
       net_stats.dns_queries, net_stats.dns_replies,
+      net_stats.ntp_requests, net_stats.ntp_replies,
       net_stats.tcp_segments, net_stats.tcp_replies,
       net_stats.tcp_http_requests,
       net_stats.tcp_http_head_requests,
@@ -2427,6 +2701,8 @@ void virtio_net_statistic(void) {
       net_stats.tcp_http_large_requests,
       net_stats.tcp_http_segmented_responses,
       net_stats.tcp_http_response_segments,
+      net_stats.tap_tx_packets, net_stats.tap_tx_bytes, net_stats.tap_tx_errors,
+      net_stats.tap_rx_packets, net_stats.tap_rx_bytes, net_stats.tap_rx_errors,
       net_stats.ctrl_commands, net_stats.ctrl_errors,
       net_stats.ctrl_rx_commands, net_stats.ctrl_rx_extra_commands,
       ctrl_rx_promisc ? 1 : 0, ctrl_rx_allmulti ? 1 : 0,
@@ -2620,6 +2896,7 @@ static void virtio_net_io_handler(uint32_t offset, int len, bool is_write) {
 void init_virtio_net() {
   net_base = new_space(0x1000);
   virtio_net_reset();
+  virtio_net_tap_open_if_requested();
 #ifdef CONFIG_HAS_PORT_IO
   add_pio_map("virtio-net", CONFIG_VIRTIO_NET_MMIO, net_base, 0x1000,
       virtio_net_io_handler);
