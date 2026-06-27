@@ -54,7 +54,9 @@ module/core 回归和性能样本分析。
 - `control/OooPendingDispatchArbiter.v` 承接 fetch/dispatch facts 到 pending
   branch/jump/memory/FP/SYSTEM/trap-exit capture/clear 的纯组合仲裁；当前已接入
   `dispatch0_facts_i/head1_facts_i` packed bus 作为内部判定主路径，旧散线端口仍保留
-  作为渐进迁移兼容层。
+  作为渐进迁移兼容层；lane1 branch/jump/memory/FP/SYSTEM capture 已按
+  `head1_facts_i` 显式分型输出，trap-exit lane1 capture 保留 scrub stale valid
+  bit 的旧语义。
 - `memory/OooMemAxiBridge.v` 与 `frontend/OooFetchAxiBridge.v` 已按 Sv39
   leaf PTE 检查 A/D 位：A=0 或 store 且 D=0 返回 page fault，不把该 PTE
   填入 TLB。

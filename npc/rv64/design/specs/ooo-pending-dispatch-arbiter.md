@@ -23,8 +23,12 @@
   fetch fault -> architectural trap -> exit -> FP -> SYSTEM/CSR -> branch
   serialized boundary -> jump serialized boundary -> lane1 barrier ->
   unsupported trap。
-- lane1 barrier 只生成通用 lane1 capture 事件；是否成为 branch/jump/mem/FP/
-  SYSTEM/trap/exit valid entry，仍由下游 sequencer 的 lane1 raw/valid 输入决定。
+- lane1 barrier 先形成 `lane1_barrier_base`；branch/jump/mem/FP/SYSTEM
+  capture 输出必须再由 `head1_facts_i` 对应 bit 分型，不再对所有 owner
+  同时拉高 generic capture。
+- trap-exit lane1 capture 保留旧 scrub 语义：任意 lane1 barrier 都会触发
+  trap/exit sequencer capture，具体是否留下 exit/arch valid 由 lane1 exit/trap
+  facts 决定；这样非 trap/exit owner 仍会清掉 stale trap/exit valid bit。
 - clear 事件继续保留旧语义差异：
   branch clear 不由 direct flush 直接触发；
   jump/memory/system clear 会被 direct flush 触发；
@@ -41,7 +45,7 @@
 | `capture_base && csr_irq_pending` | system IRQ capture，清 stale branch/jump/mem/trap-exit |
 | `capture_base && head0 fetch fault` | trap-exit architectural capture |
 | `capture_base && lane0 arch trap/exit/FP/system/branch/jump` | 对应 pending capture 或 trap capture |
-| `capture_base && lane1 barrier` | lane1 generic capture |
+| `capture_base && lane1 barrier` | lane1 typed owner capture；trap-exit scrub/capture |
 | `capture_base && unsupported` | illegal-instruction trap capture |
 | resolve/drain/system CSR commit | 对应 pending clear |
 
@@ -50,11 +54,14 @@
 - I1：普通 capture 必须被 `csr_trap_mem` 和 direct frontend flush 阻断。
 - I2：IRQ capture 与 lane0/lane1 指令 capture 互斥。
 - I3：lane0 branch serialized capture 与 lane0 jump serialized capture 互斥。
-- I4：lane1 generic capture 只能在 lane0 不需要 pending owner 时产生。
+- I4：lane1 typed capture 只能在 lane0 不需要 pending owner 且对应 lane1 fact
+  为真时产生。
 - I5：unsupported trap capture 只能在 lane0/lane1 都未被更高优先级分类消费时产生。
 - I6：trap cause/tval mux 必须保持旧优先级：
   fetch fault > lane0 arch trap > lane0 CSR illegal > lane1 barrier >
   unsupported。
+- I6a：trap-exit lane1 capture 是 scrub/capture 边界，不等同于
+  branch/jump/mem/FP/SYSTEM typed owner capture。
 - I7：本模块不得引入任何时序状态；所有 precise boundary 仍由现有 sequencer
   的寄存器和 `late_clear_i` 保证。
 
@@ -62,6 +69,8 @@
 
 - 数据通路只有组合 priority network 和 trap/exit payload mux。
 - 位宽来自 `define.v`：`XLEN`、`INST_W`、`TRAP_CAUSE_W`。
+- lane1 owner capture 类型来自 `common/OooSlotFacts.vh` 的
+  `OOO_SLOT_FACT_BRANCH/JUMP/MEM/FP_ENABLED/SYSTEM`。
 - 不向 dispatch ready、memory ready、CSR ready 形成新的反向组合环。
 - 下游 payload 寄存器仍属于 `OooPendingBranchSequencer`、
   `OooPendingJumpSequencer`、`OooPendingMemorySequencer`、

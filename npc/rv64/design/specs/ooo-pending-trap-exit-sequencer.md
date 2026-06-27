@@ -51,7 +51,8 @@ The parent must derive capture inputs using the dispatch priority order:
 5. lane0 FP serialized boundary,
 6. lane0 illegal CSR/system trap or legal system boundary,
 7. lane0 branch/jump serialized boundary,
-8. lane1 barrier,
+8. lane1 barrier trap/exit capture 或 scrub；非 trap/exit lane1 owner 也可用
+   `capture_*_i=1`、`capture_*_valid_i=0` 清掉 stale valid bit，
 9. unsupported instruction trap.
 
 The parent remains responsible for `stop_pending_q`, drain completion, CSR trap

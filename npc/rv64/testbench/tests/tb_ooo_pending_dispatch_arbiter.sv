@@ -48,6 +48,10 @@ module tb_ooo_pending_dispatch_arbiter;
   reg head0_csr_illegal;
   reg head0_semihost_ebreak;
   reg head1_system_raw;
+  reg head1_branch_raw;
+  reg head1_jump_raw;
+  reg head1_mem_raw;
+  reg head1_fp_enabled;
   reg head1_exit_raw;
   reg head1_ecall_raw;
   reg head1_ebreak_raw;
@@ -194,6 +198,10 @@ module tb_ooo_pending_dispatch_arbiter;
 
     head1_facts = {`OOO_SLOT_FACTS_W{1'b0}};
     head1_facts[`OOO_SLOT_FACT_SYSTEM] = head1_system_raw;
+    head1_facts[`OOO_SLOT_FACT_BRANCH] = head1_branch_raw;
+    head1_facts[`OOO_SLOT_FACT_JUMP] = head1_jump_raw;
+    head1_facts[`OOO_SLOT_FACT_MEM] = head1_mem_raw;
+    head1_facts[`OOO_SLOT_FACT_FP_ENABLED] = head1_fp_enabled;
     head1_facts[`OOO_SLOT_FACT_EXIT] = head1_exit_raw;
     head1_facts[`OOO_SLOT_FACT_ECALL] = head1_ecall_raw;
     head1_facts[`OOO_SLOT_FACT_EBREAK] = head1_ebreak_raw;
@@ -278,6 +286,10 @@ module tb_ooo_pending_dispatch_arbiter;
       head0_csr_illegal = 1'b0;
       head0_semihost_ebreak = 1'b0;
       head1_system_raw = 1'b0;
+      head1_branch_raw = 1'b0;
+      head1_jump_raw = 1'b0;
+      head1_mem_raw = 1'b0;
+      head1_fp_enabled = 1'b0;
       head1_exit_raw = 1'b0;
       head1_ecall_raw = 1'b0;
       head1_ebreak_raw = 1'b0;
@@ -356,14 +368,70 @@ module tb_ooo_pending_dispatch_arbiter;
     reset_inputs();
     dispatch1_barrier_fire = 1'b1;
     #1;
-    tb_check1("lane1 barrier opens branch capture", pending_branch_capture_lane1, 1'b1);
-    tb_check1("lane1 barrier opens jump capture", pending_jump_capture_lane1, 1'b1);
-    tb_check1("lane1 barrier opens fp capture", pending_fp_capture_lane1, 1'b1);
-    tb_check1("lane1 barrier opens mem capture", pending_mem_capture_lane1, 1'b1);
+    tb_check1("lane1 empty barrier does not open branch capture",
+              pending_branch_capture_lane1, 1'b0);
+    tb_check1("lane1 empty barrier does not open jump capture",
+              pending_jump_capture_lane1, 1'b0);
+    tb_check1("lane1 empty barrier does not open fp capture",
+              pending_fp_capture_lane1, 1'b0);
+    tb_check1("lane1 empty barrier does not open mem capture",
+              pending_mem_capture_lane1, 1'b0);
     tb_check1("lane1 empty barrier capture exit invalid",
               pending_trap_exit_capture_exit_valid, 1'b0);
     tb_check1("lane1 empty barrier capture arch invalid",
               pending_trap_exit_capture_arch_valid, 1'b0);
+
+    reset_inputs();
+    dispatch1_barrier_fire = 1'b1;
+    head1_branch_raw = 1'b1;
+    #1;
+    tb_check1("lane1 branch opens only branch capture",
+              pending_branch_capture_lane1, 1'b1);
+    tb_check1("lane1 branch keeps jump capture closed",
+              pending_jump_capture_lane1, 1'b0);
+    tb_check1("lane1 branch keeps fp capture closed",
+              pending_fp_capture_lane1, 1'b0);
+    tb_check1("lane1 branch keeps mem capture closed",
+              pending_mem_capture_lane1, 1'b0);
+
+    reset_inputs();
+    dispatch1_barrier_fire = 1'b1;
+    head1_jump_raw = 1'b1;
+    #1;
+    tb_check1("lane1 jump opens only jump capture",
+              pending_jump_capture_lane1, 1'b1);
+    tb_check1("lane1 jump keeps branch capture closed",
+              pending_branch_capture_lane1, 1'b0);
+    tb_check1("lane1 jump keeps fp capture closed",
+              pending_fp_capture_lane1, 1'b0);
+    tb_check1("lane1 jump keeps mem capture closed",
+              pending_mem_capture_lane1, 1'b0);
+
+    reset_inputs();
+    dispatch1_barrier_fire = 1'b1;
+    head1_fp_enabled = 1'b1;
+    #1;
+    tb_check1("lane1 fp opens only fp capture",
+              pending_fp_capture_lane1, 1'b1);
+    tb_check1("lane1 fp keeps branch capture closed",
+              pending_branch_capture_lane1, 1'b0);
+    tb_check1("lane1 fp keeps jump capture closed",
+              pending_jump_capture_lane1, 1'b0);
+    tb_check1("lane1 fp keeps mem capture closed",
+              pending_mem_capture_lane1, 1'b0);
+
+    reset_inputs();
+    dispatch1_barrier_fire = 1'b1;
+    head1_mem_raw = 1'b1;
+    #1;
+    tb_check1("lane1 mem opens only mem capture",
+              pending_mem_capture_lane1, 1'b1);
+    tb_check1("lane1 mem keeps branch capture closed",
+              pending_branch_capture_lane1, 1'b0);
+    tb_check1("lane1 mem keeps jump capture closed",
+              pending_jump_capture_lane1, 1'b0);
+    tb_check1("lane1 mem keeps fp capture closed",
+              pending_fp_capture_lane1, 1'b0);
 
     reset_inputs();
     dispatch1_barrier_fire = 1'b1;
