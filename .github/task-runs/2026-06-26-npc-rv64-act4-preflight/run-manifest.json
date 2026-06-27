@@ -1,0 +1,40 @@
+{
+  "task": "npc-rv64-act4-preflight",
+  "date": "2026-06-26",
+  "scope": "npc/rv64 RISC-V Architecture Tests ACT4 preflight and testsuite relocation",
+  "linux_rootfs_run": false,
+  "testsuite_root": "npc/rv64/testsuites/core-tests",
+  "script_root": "npc/rv64/testsuites/scripts",
+  "arch_test_commit": "49cdd65",
+  "sail_riscv_sim": "0.12",
+  "bundler": "4.0.15",
+  "xpack_gcc": "15.2.0-1",
+  "checks": [
+    {
+      "name": "testsuite-relocation",
+      "result": "PASS",
+      "from": ".github/runtime-artifacts/npc-rv64-core-tests",
+      "to": "npc/rv64/testsuites/core-tests"
+    },
+    {
+      "name": "act4-probe-elfs-I-fast",
+      "command": "npc/rv64/testsuites/scripts/npc-rv64-act4-preflight.sh --probe-elfs --extensions I",
+      "result": "PASS",
+      "build_tasks_succeeded": 204
+    },
+    {
+      "name": "act4-final-elfs-I",
+      "command": "npc/rv64/testsuites/scripts/npc-rv64-act4-preflight.sh --final-elfs --extensions I",
+      "result": "PASS",
+      "build_tasks_succeeded": 255
+    },
+    {
+      "name": "act4-final-I-add-00-npc-smoke",
+      "elf": "npc/rv64/testsuites/core-tests/act4-npc-final-work-script/sail-rv64-max/elfs/rv64i/I/I-add-00.elf",
+      "tohost": "0x0000000080039300",
+      "result": "PASS",
+      "npc_result": "TOHOST PASS"
+    }
+  ],
+  "not_full_industrial_cpu_signoff": true
+}

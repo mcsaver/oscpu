@@ -9,6 +9,7 @@ module tb_ooo_fetch_axi_bridge;
   reg [`XLEN-1:0] invalidate_addr;
   reg [1:0] priv_mode;
   reg [`XLEN-1:0] satp;
+  reg svpbmt_en;
   reg fetch_req_valid;
   wire fetch_req_ready;
   reg [`XLEN-1:0] fetch_req_pc;
@@ -39,16 +40,22 @@ module tb_ooo_fetch_axi_bridge;
   localparam [`XLEN-1:0] CROSS_PA1 = 64'h0000_0000_8200_9000;
   localparam [`XLEN-1:0] SUP_VA = 64'h0000_0000_0000_8000;
   localparam [`XLEN-1:0] SUP_PA = 64'h0000_0000_8200_8000;
+  localparam [`XLEN-1:0] NO_ACCESS_VA = 64'h0000_0000_0000_c000;
+  localparam [`XLEN-1:0] NO_ACCESS_PA = 64'h0000_0000_8200_c000;
   localparam [`XLEN-1:0] SATP_VALUE =
       64'h8000_0000_0000_0000 | (ROOT_PT >> 12);
   localparam [`XLEN-1:0] PTE_NONLEAF_FLAGS = 64'h001;
   localparam [`XLEN-1:0] PTE_USER_X_FLAGS = 64'h0df;
+  localparam [`XLEN-1:0] PTE_USER_X_NO_ACCESS_FLAGS = 64'h09f;
   localparam [`XLEN-1:0] PTE_SUP_X_FLAGS = 64'h0cf;
   localparam [`XLEN-1:0] USER_INST_BEAT = 64'h0010_0093_0000_0013;
   localparam [`XLEN-1:0] CROSS_FIRST_BEAT = 64'hcccc_cccc_97de_1693;
   localparam [`XLEN-1:0] CROSS_SECOND_BEAT = 64'h0073_0016_8693_0024;
   localparam [`XLEN-1:0] CROSS_MERGED_BEAT = 64'h0016_8693_0024_1693;
   localparam [`XLEN-1:0] SUP_INST_BEAT = 64'h0020_0113_0000_0013;
+  localparam [`PMP_CFG_BUS_W-1:0] PMP_ALLOW_ALL_CFG =
+      {{(`PMP_ENTRY_COUNT-1){8'h00}}, 8'h1f};
+  localparam [`PMP_ADDR_BUS_W-1:0] PMP_ALLOW_ALL_ADDR = {`PMP_ADDR_BUS_W{1'b1}};
 
   OooFetchAxiBridge dut (
     .clk(clk),
@@ -58,6 +65,9 @@ module tb_ooo_fetch_axi_bridge;
     .invalidate_addr_i(invalidate_addr),
     .priv_mode_i(priv_mode),
     .satp_i(satp),
+    .svpbmt_en_i(svpbmt_en),
+    .pmpcfg_i(PMP_ALLOW_ALL_CFG),
+    .pmpaddr_i(PMP_ALLOW_ALL_ADDR),
     .fetch_req_valid_i(fetch_req_valid),
     .fetch_req_ready_o(fetch_req_ready),
     .fetch_req_pc_i(fetch_req_pc),
@@ -161,6 +171,7 @@ module tb_ooo_fetch_axi_bridge;
       invalidate_addr = {`XLEN{1'b0}};
       priv_mode = `PRIV_M;
       satp = {`XLEN{1'b0}};
+      svpbmt_en = 1'b0;
       fetch_req_valid = 1'b0;
       fetch_req_pc = {`XLEN{1'b0}};
       fetch_rsp_ready = 1'b0;
@@ -248,6 +259,21 @@ module tb_ooo_fetch_axi_bridge;
     end
   endtask
 
+  task automatic walk_to_fetch_page_fault;
+    input [1023:0] what;
+    input [`XLEN-1:0] vaddr;
+    input [`XLEN-1:0] paddr;
+    input [`XLEN-1:0] leaf_flags;
+    begin
+      expect_ar(what, pte_addr(ROOT_PT, vaddr, 2'd2));
+      drive_r(pte_for_page(L1_PT, PTE_NONLEAF_FLAGS), RESP_OK);
+      expect_ar(what, pte_addr(L1_PT, vaddr, 2'd1));
+      drive_r(pte_for_page(L0_PT, PTE_NONLEAF_FLAGS), RESP_OK);
+      expect_ar(what, pte_addr(L0_PT, vaddr, 2'd0));
+      drive_r(pte_for_page(paddr, leaf_flags), RESP_OK);
+    end
+  endtask
+
   task automatic walk_to_cross_fetch;
     input [1023:0] what;
     begin
@@ -269,6 +295,31 @@ module tb_ooo_fetch_axi_bridge;
       drive_r(CROSS_FIRST_BEAT, RESP_OK);
       expect_ar(what, CROSS_PA1);
       drive_r(CROSS_SECOND_BEAT, RESP_OK);
+    end
+  endtask
+
+  task automatic check_svpbmt_pte_reserved_policy;
+    reg [`XLEN-1:0] pbmt1_leaf;
+    reg [`XLEN-1:0] pbmt2_leaf;
+    reg [`XLEN-1:0] pbmt3_leaf;
+    reg [`XLEN-1:0] pbmt1_nonleaf;
+    begin
+      pbmt1_leaf = pte_for_page(USER_PA, PTE_USER_X_FLAGS) | (64'd1 << 61);
+      pbmt2_leaf = pte_for_page(USER_PA, PTE_USER_X_FLAGS) | (64'd2 << 61);
+      pbmt3_leaf = pte_for_page(USER_PA, PTE_USER_X_FLAGS) | (64'd3 << 61);
+      pbmt1_nonleaf =
+          pte_for_page(L1_PT, PTE_NONLEAF_FLAGS) | (64'd1 << 61);
+
+      tb_check1("fetch PBMT=1 leaf faults while Svpbmt disabled",
+                dut.pte_reserved_fault(pbmt1_leaf, 1'b0), 1'b1);
+      tb_check1("fetch PBMT=1 leaf is legal when Svpbmt enabled",
+                dut.pte_reserved_fault(pbmt1_leaf, 1'b1), 1'b0);
+      tb_check1("fetch PBMT=2 leaf is legal when Svpbmt enabled",
+                dut.pte_reserved_fault(pbmt2_leaf, 1'b1), 1'b0);
+      tb_check1("fetch PBMT=3 leaf remains reserved",
+                dut.pte_reserved_fault(pbmt3_leaf, 1'b1), 1'b1);
+      tb_check1("fetch non-leaf PBMT remains reserved",
+                dut.pte_reserved_fault(pbmt1_nonleaf, 1'b1), 1'b1);
     end
   endtask
 
@@ -304,6 +355,7 @@ module tb_ooo_fetch_axi_bridge;
   initial begin
     tb_errors = 0;
     reset_dut();
+    check_svpbmt_pte_reserved_policy();
 
     start_fetch("user fetch request accepted", USER_VA, `PRIV_U);
     priv_mode = `PRIV_S;
@@ -321,6 +373,16 @@ module tb_ooo_fetch_axi_bridge;
 
     start_fetch("supervisor cannot execute user page", USER_VA, `PRIV_S);
     expect_rsp("itlb permissions use current request privilege",
+               RESP_PAGE_FAULT, RESP_PAGE_FAULT, {`XLEN{1'b0}});
+
+    start_fetch("user fetch with A=0 request accepted", NO_ACCESS_VA,
+                `PRIV_U);
+    walk_to_fetch_page_fault("user fetch A=0 page fault", NO_ACCESS_VA,
+                             NO_ACCESS_PA, PTE_USER_X_NO_ACCESS_FLAGS);
+    #1;
+    tb_check1("user fetch A=0 does not issue instruction AR",
+              ifu_axi_arvalid, 1'b0);
+    expect_rsp("user fetch A=0 reports page fault",
                RESP_PAGE_FAULT, RESP_PAGE_FAULT, {`XLEN{1'b0}});
 
     mmu_flush = 1'b1;

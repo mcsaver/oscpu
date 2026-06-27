@@ -154,19 +154,21 @@ e2e_npc_rv64_uart_rx_smoke() {
 
 e2e_npc_rv64_linux_rootfs_mount_smoke() {
   echo "[npc-rv64] command: Ubuntu rootfs mount + systemd banner smoke on NpcSimTop"
-  local result_dir run_log console_log npc_log max_cycles timeout_s
+  local result_dir run_log console_log npc_log max_cycles timeout_s expect_marker
   result_dir="$E2E_EVIDENCE_DIR/npc-rv64-linux-rootfs-mount-smoke"
   run_log="$result_dir/run.log"
   console_log="$result_dir/console.log"
   npc_log="$result_dir/npc.log"
   max_cycles="${AGENT_E2E_NPC_ROOTFS_MOUNT_MAX_CYCLES:-340000000}"
   timeout_s="${AGENT_E2E_NPC_ROOTFS_MOUNT_TIMEOUT:-1200}"
+  expect_marker='Hostname set to <ysyx-ubuntu2204>'
   mkdir -p "$result_dir"
 
   set -o pipefail
   NPC_OOO_WINDOW=0 timeout "${timeout_s}s" \
     make -C "$E2E_ROOT_DIR/Linux" ARCH=riscv64-npc BOOT=ubuntu-rootfs \
-      MAX_CYCLES="$max_cycles" PROGRESS=0 LOG_DIR="$result_dir" run 2>&1 | tee "$run_log"
+      MAX_CYCLES="$max_cycles" PROGRESS=0 LOG_DIR="$result_dir" \
+      RUN_EXPECT="$expect_marker" run 2>&1 | tee "$run_log"
   local pipe_rc=${PIPESTATUS[0]}
   if [[ $pipe_rc -ne 0 ]]; then
     return "$pipe_rc"
@@ -176,19 +178,66 @@ e2e_npc_rv64_linux_rootfs_mount_smoke() {
   echo "[npc-rv64] evidence=$(e2e_relpath "$console_log")"
   echo "[npc-rv64] evidence=$(e2e_relpath "$npc_log")"
 
-  if grep -Eqi 'panic|Oops|Bad trap|HIT BAD TRAP' "$console_log" "$npc_log"; then
+  if grep -Eqi 'panic|Oops|Bad trap|HIT BAD TRAP|ABORT|STOP after requested budget|max cycles|TIMEOUT' "$console_log" "$npc_log"; then
     return 1
   fi
-  grep -q 'Kernel command line: console=ttyS0,115200n8 root=/dev/vda rw init=/lib/systemd/systemd' "$console_log"
-  grep -q 'Serial: 8250/16550 driver' "$console_log"
-  grep -q 'printk: console \[ttyS0\] enabled' "$console_log"
-  grep -q 'virtio_blk virtio0: \[vda\] 4194304 512-byte logical blocks' "$console_log"
-  grep -q 'EXT4-fs (vda): mounted filesystem' "$console_log"
-  grep -q 'VFS: Mounted root (ext4 filesystem) on device 254:0.' "$console_log"
-  grep -q 'Run /lib/systemd/systemd as init process' "$console_log"
-  grep -q 'systemd .* running in system mode' "$console_log"
-  grep -q 'Ubuntu 22.04' "$console_log"
-  grep -q 'Hostname set to <ysyx-ubuntu2204>' "$console_log"
+
+  local rc=0
+  if ! grep -Eq 'Kernel command line: console=ttyS0,115200n8 root=/dev/vda rw init=(/lib/systemd/systemd|/usr/local/sbin/ysyx-npc-systemd-wrapper)' "$console_log"; then
+    echo "[npc-rv64] missing Linux command line rootfs init marker" >&2
+    rc=1
+  fi
+  if ! grep -q 'Serial: 8250/16550 driver' "$console_log"; then
+    echo "[npc-rv64] missing 16550 driver marker" >&2
+    rc=1
+  fi
+  if ! grep -q 'printk: console \[ttyS0\] enabled' "$console_log"; then
+    echo "[npc-rv64] missing ttyS0 console marker" >&2
+    rc=1
+  fi
+  if ! grep -q 'virtio_blk virtio0: \[vda\] 4194304 512-byte logical blocks' "$console_log"; then
+    echo "[npc-rv64] missing virtio-blk rootfs capacity marker" >&2
+    rc=1
+  fi
+  if ! grep -q 'EXT4-fs (vda): mounted filesystem' "$console_log"; then
+    echo "[npc-rv64] missing EXT4 mount marker" >&2
+    rc=1
+  fi
+  if ! grep -q 'VFS: Mounted root (ext4 filesystem) on device 254:0.' "$console_log"; then
+    echo "[npc-rv64] missing VFS root mount marker" >&2
+    rc=1
+  fi
+  if ! grep -Eq 'Run (/lib/systemd/systemd|/usr/local/sbin/ysyx-npc-systemd-wrapper) as init process' "$console_log"; then
+    echo "[npc-rv64] missing init process marker" >&2
+    rc=1
+  fi
+  if grep -q 'Run /usr/local/sbin/ysyx-npc-systemd-wrapper as init process' "$console_log"; then
+    if ! grep -q '__NPC_SYSTEMD_CHECK_DONE__ rc=0' "$console_log"; then
+      echo "[npc-rv64] missing NPC systemd wrapper preflight marker" >&2
+      rc=1
+    fi
+    if ! grep -q 'exec systemd: /lib/systemd/systemd' "$console_log"; then
+      echo "[npc-rv64] missing NPC wrapper exec systemd marker" >&2
+      rc=1
+    fi
+  fi
+  if ! grep -q 'systemd .* running in system mode' "$console_log"; then
+    echo "[npc-rv64] missing systemd PID1 marker" >&2
+    rc=1
+  fi
+  if ! grep -q 'Ubuntu 22.04' "$console_log"; then
+    echo "[npc-rv64] missing Ubuntu banner marker" >&2
+    rc=1
+  fi
+  if ! grep -q "$expect_marker" "$console_log"; then
+    echo "[npc-rv64] missing hostname marker" >&2
+    rc=1
+  fi
+  if ! grep -q 'GUEST EXPECT MATCH' "$console_log" "$npc_log"; then
+    echo "[npc-rv64] missing guest-watch clean exit marker" >&2
+    rc=1
+  fi
+  return "$rc"
 }
 
 e2e_npc_rv64_systemd_guest_check_contract() {

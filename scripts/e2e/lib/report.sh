@@ -292,7 +292,7 @@ e2e_generate_profile_resolve() {
 
 e2e_init_dispatch_log() {
   cat > "$E2E_DISPATCH_FILE" <<EOF
-# Dispatch Log
+# 派发日志
 
 ## 基本信息
 
@@ -444,7 +444,7 @@ e2e_render_report() {
   fi
 
   cat > "$E2E_REPORT_FILE" <<EOF
-# Task Report
+# 任务报告
 
 ## 基本信息
 
@@ -485,8 +485,8 @@ e2e_render_report() {
 
 ## 节点概览
 
-| node_id | owner_agent | module | status | inputs | outputs | evidence |
-| ------- | ----------- | ------ | ------ | ------ | ------- | -------- |
+| 节点ID (\`node_id\`) | 负责 Agent (\`owner_agent\`) | 模块 (\`module\`) | 状态 (\`status\`) | 输入 (\`inputs\`) | 输出 (\`outputs\`) | 证据 (\`evidence\`) |
+| ------------------ | -------------------------- | --------------- | --------------- | --------------- | ----------------- | ----------------- |
 EOF
 
   while IFS=$'\t' read -r node owner module node_status inputs outputs evidence; do

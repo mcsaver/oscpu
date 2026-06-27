@@ -286,6 +286,15 @@ e2e_agent_system_discovery() {
     printf 'FAIL report.sh limits sanitizer to current task-run\n'
     rc=1
   fi
+  if grep -Fq '# 任务报告' "$report_sh" &&
+     grep -Fq '# 派发日志' "$report_sh" &&
+     grep -Fq '# 任务报告' "$E2E_ROOT_DIR/.github/task-runs/templates/task-report.template.md" &&
+     grep -Fq '# 派发日志' "$E2E_ROOT_DIR/.github/task-runs/templates/dispatch-log.template.md"; then
+    printf 'PASS task-run human-readable report titles are localized in Chinese\n'
+  else
+    printf 'FAIL task-run human-readable report titles are not localized in Chinese\n'
+    rc=1
+  fi
   if grep -Fq 'e2e_archive_task_run_markdown_to_db' "$report_sh" &&
      grep -Fq 'archive-markdown "$run_rel"' "$report_sh" &&
      grep -Fq 'E2E_TASK_RUN_DB_BACKUP_DIR' "$report_sh"; then

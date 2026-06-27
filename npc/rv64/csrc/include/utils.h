@@ -176,6 +176,8 @@ typedef struct {
   npc_word_t trap_tval;
   bool exit_is_ebreak;
   bool exit_is_ecall;
+  bool exit_is_tohost;
+  npc_word_t tohost_value;
   int watchpoint_id;
   npc_word_t watchpoint_old_value;
   npc_word_t watchpoint_new_value;
@@ -211,6 +213,8 @@ typedef struct {
   char diff_so_path[NPC_PATH_MAX];
   int diff_port;
   char block_path[NPC_PATH_MAX];
+  bool tohost_enable;
+  npc_paddr_t tohost_addr;
 } NpcSimConfig;
 
 /* ---- 全局状态访问 ----

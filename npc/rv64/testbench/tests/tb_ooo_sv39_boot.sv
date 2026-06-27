@@ -102,6 +102,7 @@ module tb_ooo_sv39_boot;
   reg saw_satp_commit;
   reg saw_sfence_commit;
   reg saw_sret_commit;
+  reg debug_sv39;
 
   NpcCoreTop dut (
     .clk(clk),
@@ -347,10 +348,15 @@ module tb_ooo_sv39_boot;
         BASE_PC + 64'h014: program_word = inst_auipc(5'd3, 20'h00000);
         BASE_PC + 64'h018: program_word = inst_addi(5'd3, 5'd3, 12'h06c);
         BASE_PC + 64'h01c: program_word = inst_csrrw(5'd0, `CSR_MEPC, 5'd3);
-        BASE_PC + 64'h020: program_word = inst_addi(5'd4, 5'd0, 12'h001);
-        BASE_PC + 64'h024: program_word = inst_slli(5'd4, 5'd4, 6'd11);
-        BASE_PC + 64'h028: program_word = inst_csrrw(5'd0, `CSR_MSTATUS, 5'd4);
-        BASE_PC + 64'h02c: program_word = inst_mret();
+        // 进入 S-mode 前必须显式打开 PMP，否则无匹配 PMP 项会按规范拒绝 S/U 取指。
+        BASE_PC + 64'h020: program_word = inst_addi(5'd4, 5'd0, 12'hfff);
+        BASE_PC + 64'h024: program_word = inst_csrrw(5'd0, `CSR_PMPADDR0, 5'd4);
+        BASE_PC + 64'h028: program_word = inst_addi(5'd4, 5'd0, 12'h01f);
+        BASE_PC + 64'h02c: program_word = inst_csrrw(5'd0, `CSR_PMPCFG0, 5'd4);
+        BASE_PC + 64'h030: program_word = inst_addi(5'd4, 5'd0, 12'h001);
+        BASE_PC + 64'h034: program_word = inst_slli(5'd4, 5'd4, 6'd11);
+        BASE_PC + 64'h038: program_word = inst_csrrw(5'd0, `CSR_MSTATUS, 5'd4);
+        BASE_PC + 64'h03c: program_word = inst_mret();
 
         S_ENTRY_PC + 64'h000: program_word = inst_addi(5'd4, 5'd0, 12'h008);
         S_ENTRY_PC + 64'h004: program_word = inst_slli(5'd4, 5'd4, 6'd60);
@@ -583,6 +589,71 @@ module tb_ooo_sv39_boot;
     end
   end
 
+  always @(posedge clk) begin
+    if (debug_sv39 && !rst) begin
+      if (commit0_valid || commit1_valid ||
+          dut.u_ooo_core.pending_system_capture_head0_w ||
+          dut.u_ooo_core.pending_system_capture_lane1_w ||
+          dut.u_ooo_core.system_csr_dispatch_fire_w ||
+          dut.u_ooo_core.pending_system_csr_commit_w ||
+          dut.u_ooo_core.pending_system_clear_w ||
+          dut.u_ooo_core.csr_trap_mem_valid_w ||
+          (cycle_count < 64)) begin
+        $display("[DBG-SV39] cyc=%0d pc=%016x st=%0d c0=%b:%08x c1=%b:%08x priv=%0d mstatus=%016x satp=%016x ret=%016x mret=%b/%b trapcause=%0d run=%b fifo=%b disp=%b irq=%b ff0=%b ff1=%b bspec=%b/%b stop=%b be=%b ctrl=%b drain=%b ctrap=%b dflush=%b owners=%b%b%b%b%b%b psys=%b/%b csr=%b pc=%016x inst=%08x hpc=%016x hinst=%08x h0stop=%b h0sys=%b h0trap=%b h1stop=%b h1ctl=%b h1mem=%b unsup=%b bar1=%b cap0=%b cap1=%b fire=%b commit=%b clr=%b trap=%b exit=%b",
+                 cycle_count, debug_pc, debug_state,
+                 commit0_valid, commit0_inst, commit1_valid, commit1_inst,
+                 dut.u_ooo_core.csr_priv_mode_w,
+                 dut.u_ooo_core.csr_mstatus_w,
+                 dut.u_ooo_core.csr_satp_w,
+                 dut.u_ooo_core.csr_ret_target_w,
+                 dut.u_ooo_core.csr_mret_valid_w,
+                 dut.u_ooo_core.csr_real_mret_valid_w,
+                 dut.u_ooo_core.csr_trap_mem_cause_w,
+                 dut.u_ooo_core.can_run_w,
+                 dut.u_ooo_core.fifo_has_packet_w,
+                 dut.u_ooo_core.dispatch_valid_w,
+                 dut.u_ooo_core.csr_irq_pending_w,
+                 dut.u_ooo_core.head_fetch_fault0_w,
+                 dut.u_ooo_core.head_fetch_fault1_w,
+                 dut.u_ooo_core.branch_spec_active_q,
+                 dut.u_ooo_core.branch_spec_dispatch_block_w,
+                 dut.u_ooo_core.stop_pending_q,
+                 dut.u_ooo_core.backend_drained_w,
+                 dut.u_ooo_core.pending_control_ready_w,
+                 dut.u_ooo_core.drain_complete_w,
+                 dut.u_ooo_core.csr_trap_mem_valid_w,
+                 dut.u_ooo_core.direct_frontend_flush_w,
+                 dut.u_ooo_core.pending_exit_q,
+                 dut.u_ooo_core.pending_arch_trap_q,
+                 dut.u_ooo_core.pending_branch_q,
+                 dut.u_ooo_core.pending_jump_q,
+                 dut.u_ooo_core.pending_mem_q,
+                 dut.u_ooo_core.pending_fp_q,
+                 dut.u_ooo_core.pending_system_q,
+                 dut.u_ooo_core.pending_system_dispatched_q,
+                 dut.u_ooo_core.pending_system_csr_q,
+                 dut.u_ooo_core.pending_system_pc_q,
+                 dut.u_ooo_core.pending_system_inst_q,
+                 dut.u_ooo_core.head_pc_w,
+                 dut.u_ooo_core.head_inst0_w,
+                 dut.u_ooo_core.head0_stop_raw_w,
+                 dut.u_ooo_core.head0_system_raw_w,
+                 dut.u_ooo_core.head0_arch_trap_raw_w,
+                 dut.u_ooo_core.head1_stop_raw_w,
+                 dut.u_ooo_core.head1_control_raw_w,
+                 dut.u_ooo_core.head1_mem_raw_w,
+                 dut.u_ooo_core.dispatch_unsupported_w,
+                 dut.u_ooo_core.dispatch1_barrier_fire_w,
+                 dut.u_ooo_core.pending_system_capture_head0_w,
+                 dut.u_ooo_core.pending_system_capture_lane1_w,
+                 dut.u_ooo_core.system_csr_dispatch_fire_w,
+                 dut.u_ooo_core.pending_system_csr_commit_w,
+                 dut.u_ooo_core.pending_system_clear_w,
+                 trap_valid, exit_valid);
+      end
+    end
+  end
+
   initial begin
     tb_errors = 0;
     clk = 1'b0;
@@ -601,6 +672,7 @@ module tb_ooo_sv39_boot;
     saw_satp_commit = 1'b0;
     saw_sfence_commit = 1'b0;
     saw_sret_commit = 1'b0;
+    debug_sv39 = $test$plusargs("debug_sv39");
     cycle_count = 0;
     `TB_TICK(clk);
     rst = 1'b0;

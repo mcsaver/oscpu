@@ -20,6 +20,9 @@ module CsrFile (
   output [`XLEN-1:0] csr_rdata_o,
   output csr_illegal_o,
 
+  input fp_fflags_valid_i,
+  input [4:0] fp_fflags_i,
+
   input trap_mem_valid_i,
   input [`XLEN-1:0] trap_mem_pc_i,
   input [`TRAP_CAUSE_W-1:0] trap_mem_cause_i,
@@ -47,13 +50,17 @@ module CsrFile (
   output [1:0] priv_mode_o,
   output [`TRAP_CAUSE_W-1:0] ecall_cause_o,
   output [`XLEN-1:0] mstatus_o,
-  output [`XLEN-1:0] satp_o
+  output [`XLEN-1:0] satp_o,
+  output svpbmt_en_o,
+  output [`PMP_CFG_BUS_W-1:0] pmpcfg_o,
+  output [`PMP_ADDR_BUS_W-1:0] pmpaddr_o
 );
 
   localparam [`XLEN-1:0] MSTATUS_WRITABLE_MASK =
       `MSTATUS_SIE | `MSTATUS_MIE | `MSTATUS_SPIE | `MSTATUS_MPIE |
       `MSTATUS_SPP | `MSTATUS_FS_MASK | `MSTATUS_MPP_MASK | `MSTATUS_MPRV |
-      `MSTATUS_SUM | `MSTATUS_MXR;
+      `MSTATUS_SUM | `MSTATUS_MXR | `MSTATUS_TVM | `MSTATUS_TW |
+      `MSTATUS_TSR;
   localparam [`XLEN-1:0] SSTATUS_WRITABLE_MASK =
       `MSTATUS_SIE | `MSTATUS_SPIE | `MSTATUS_SPP | `MSTATUS_FS_MASK |
       `MSTATUS_SUM | `MSTATUS_MXR;
@@ -65,6 +72,12 @@ module CsrFile (
       64'h8000_0000_0014_1105 | (64'd1 << 3) | (64'd1 << 5);
   localparam [`XLEN-1:0] EPC_WARL_MASK =
       {{(`XLEN-1){1'b1}}, 1'b0};
+  localparam [`XLEN-1:0] CSR_TSELECT_NO_TRIGGER_VALUE =
+      {{(`XLEN-1){1'b0}}, 1'b1};
+  localparam [`XLEN-1:0] MENVCFG_WRITABLE_MASK = `MENVCFG_PBMTE;
+  localparam [`XLEN-1:0] PMPADDR_WRITABLE_MASK = `PMP_ADDR_MASK;
+  localparam integer PMP_CFG_CSR_COUNT = 2;
+  localparam integer PMP_ADDR_COUNT = 16;
 
   function csr_counter;
     input [11:0] csr_addr;
@@ -183,6 +196,110 @@ module CsrFile (
     end
   endfunction
 
+  function csr_pmpcfg_known;
+    input [11:0] csr_addr;
+    begin
+      // RV64 only implements even pmpcfg CSRs; odd pmpcfg CSRs are illegal.
+      csr_pmpcfg_known = (csr_addr == `CSR_PMPCFG0) || (csr_addr == `CSR_PMPCFG2);
+    end
+  endfunction
+
+  function csr_pmpcfg_storage;
+    input [11:0] csr_addr;
+    begin
+      csr_pmpcfg_storage = csr_pmpcfg_known(csr_addr) && (csr_addr[0] == 1'b0);
+    end
+  endfunction
+
+  function [0:0] csr_pmpcfg_idx;
+    input [11:0] csr_addr;
+    begin
+      csr_pmpcfg_idx = csr_addr[1];
+    end
+  endfunction
+
+  function csr_pmpaddr_known;
+    input [11:0] csr_addr;
+    begin
+      csr_pmpaddr_known = (csr_addr >= `CSR_PMPADDR0) && (csr_addr <= `CSR_PMPADDR15);
+    end
+  endfunction
+
+  function [3:0] csr_pmpaddr_idx;
+    input [11:0] csr_addr;
+    begin
+      csr_pmpaddr_idx = csr_addr[3:0];
+    end
+  endfunction
+
+  function [`PMP_CFG_ENTRY_W-1:0] pmpcfg_entry_value;
+    input integer entry_idx;
+    begin
+      pmpcfg_entry_value =
+          csr_pmpcfg_q[entry_idx / 8]
+                      [(entry_idx % 8) * `PMP_CFG_ENTRY_W +: `PMP_CFG_ENTRY_W];
+    end
+  endfunction
+
+  function pmp_entry_locked;
+    input integer entry_idx;
+    reg [`PMP_CFG_ENTRY_W-1:0] cfg;
+    begin
+      cfg = pmpcfg_entry_value(entry_idx);
+      pmp_entry_locked = cfg[`PMP_CFG_L];
+    end
+  endfunction
+
+  function pmp_entry_tor;
+    input integer entry_idx;
+    reg [`PMP_CFG_ENTRY_W-1:0] cfg;
+    begin
+      cfg = pmpcfg_entry_value(entry_idx);
+      pmp_entry_tor = cfg[`PMP_CFG_A_HI:`PMP_CFG_A_LO] == `PMP_A_TOR;
+    end
+  endfunction
+
+  function pmpaddr_locked;
+    input [3:0] entry_idx;
+    begin
+      pmpaddr_locked = pmp_entry_locked(entry_idx);
+      if (entry_idx != 4'd15)
+        pmpaddr_locked = pmpaddr_locked ||
+                         (pmp_entry_locked(entry_idx + 1) &&
+                          pmp_entry_tor(entry_idx + 1));
+    end
+  endfunction
+
+  function [`PMP_CFG_ENTRY_W-1:0] sanitize_pmpcfg_entry;
+    input [`PMP_CFG_ENTRY_W-1:0] cfg;
+    reg [`PMP_CFG_ENTRY_W-1:0] clean_cfg;
+    begin
+      clean_cfg = cfg;
+      clean_cfg[6:5] = 2'b00;
+      if (cfg[`PMP_CFG_W] && !cfg[`PMP_CFG_R])
+        clean_cfg[`PMP_CFG_X:`PMP_CFG_R] = 3'b000;
+      sanitize_pmpcfg_entry = clean_cfg;
+    end
+  endfunction
+
+  function [`XLEN-1:0] apply_pmpcfg_lock;
+    input [`XLEN-1:0] old_cfg;
+    input [`XLEN-1:0] new_cfg;
+    integer cfg_entry_idx;
+    reg [`PMP_CFG_ENTRY_W-1:0] old_entry_cfg;
+    begin
+      apply_pmpcfg_lock = old_cfg;
+      for (cfg_entry_idx = 0; cfg_entry_idx < 8; cfg_entry_idx = cfg_entry_idx + 1) begin
+        old_entry_cfg =
+            old_cfg[cfg_entry_idx * `PMP_CFG_ENTRY_W +: `PMP_CFG_ENTRY_W];
+        if (!old_entry_cfg[`PMP_CFG_L])
+          apply_pmpcfg_lock[cfg_entry_idx * `PMP_CFG_ENTRY_W +: `PMP_CFG_ENTRY_W] =
+              sanitize_pmpcfg_entry(
+                  new_cfg[cfg_entry_idx * `PMP_CFG_ENTRY_W +: `PMP_CFG_ENTRY_W]);
+      end
+    end
+  endfunction
+
   function csr_writable;
     input [11:0] csr_addr;
     begin
@@ -201,22 +318,31 @@ module CsrFile (
         `CSR_SCOUNTEREN,
         `CSR_SATP,
         `CSR_MSTATUS,
+        `CSR_MISA,
         `CSR_MEDELEG,
         `CSR_MIDELEG,
         `CSR_MIE,
         `CSR_MTVEC,
         `CSR_MCOUNTEREN,
         `CSR_MCOUNTINHIBIT,
+        `CSR_MENVCFG,
+        `CSR_PMPCFG0,
         `CSR_MSCRATCH,
         `CSR_MEPC,
         `CSR_MCAUSE,
         `CSR_MTVAL,
         `CSR_MIP,
+        `CSR_PMPADDR0,
         `CSR_MCYCLE,
         `CSR_MINSTRET,
         `CSR_MCYCLEH,
-        `CSR_MINSTRETH: csr_writable = 1'b1;
-        default:      csr_writable = 1'b0;
+        `CSR_MINSTRETH,
+        `CSR_TSELECT,
+        `CSR_TDATA1,
+        `CSR_TDATA2,
+        `CSR_TCONTROL: csr_writable = 1'b1;
+        default:      csr_writable = csr_pmpcfg_known(csr_addr) ||
+                                      csr_pmpaddr_known(csr_addr);
       endcase
     end
   endfunction
@@ -249,15 +375,22 @@ module CsrFile (
         `CSR_MTVEC,
         `CSR_MCOUNTEREN,
         `CSR_MCOUNTINHIBIT,
+        `CSR_MENVCFG,
+        `CSR_PMPCFG0,
         `CSR_MSCRATCH,
         `CSR_MEPC,
         `CSR_MCAUSE,
         `CSR_MTVAL,
         `CSR_MIP,
+        `CSR_PMPADDR0,
         `CSR_MCYCLE,
         `CSR_MINSTRET,
         `CSR_MCYCLEH,
         `CSR_MINSTRETH,
+        `CSR_TSELECT,
+        `CSR_TDATA1,
+        `CSR_TDATA2,
+        `CSR_TCONTROL,
         `CSR_CYCLE,
         `CSR_TIME,
         `CSR_INSTRET,
@@ -265,7 +398,8 @@ module CsrFile (
         `CSR_TIMEH,
         `CSR_INSTRETH,
         `CSR_MHARTID: csr_known = 1'b1;
-        default:      csr_known = 1'b0;
+        default:      csr_known = csr_pmpcfg_known(csr_addr) ||
+                                  csr_pmpaddr_known(csr_addr);
       endcase
     end
   endfunction
@@ -310,8 +444,12 @@ module CsrFile (
   reg [`XLEN-1:0] csr_mcounteren_q;
   reg [`XLEN-1:0] csr_scounteren_q;
   reg [`XLEN-1:0] csr_mcountinhibit_q;
+  reg [`XLEN-1:0] csr_menvcfg_q;
+  reg [`XLEN-1:0] csr_pmpcfg_q [0:PMP_CFG_CSR_COUNT-1];
+  reg [`XLEN-1:0] csr_pmpaddr_q [0:PMP_ADDR_COUNT-1];
   reg [4:0] csr_fflags_q;
   reg [2:0] csr_frm_q;
+  integer pmp_reset_idx;
 
   wire csr_imm_op_w = csr_funct3_i[2];
   wire [`XLEN-1:0] csr_zimm_w = {{(`XLEN-5){1'b0}}, csr_zimm_i};
@@ -323,6 +461,10 @@ module CsrFile (
                                           (csr_funct3_i == 3'b101) ||
                                           ~csr_set_clear_noop_w);
   wire csr_priv_ok_w = (priv_mode_q >= csr_addr_i[9:8]);
+  wire csr_satp_tvm_illegal_w =
+      csr_valid_i && (csr_addr_i == `CSR_SATP) &&
+      (priv_mode_q == `PRIV_S) &&
+      ((csr_mstatus_q & `MSTATUS_TVM) != {`XLEN{1'b0}});
   wire mcycle_inhibit_w = (csr_mcountinhibit_q & `MCOUNTINHIBIT_CY) != {`XLEN{1'b0}};
   wire minstret_inhibit_w = (csr_mcountinhibit_q & `MCOUNTINHIBIT_IR) != {`XLEN{1'b0}};
   wire csr_counter_m_allowed_w =
@@ -334,6 +476,14 @@ module CsrFile (
       (priv_mode_q == `PRIV_M) ||
       ((priv_mode_q == `PRIV_S) && csr_counter_m_allowed_w) ||
       ((priv_mode_q == `PRIV_U) && csr_counter_m_allowed_w && csr_counter_s_allowed_w);
+  wire csr_pmpcfg_known_w = csr_pmpcfg_known(csr_addr_i);
+  wire csr_pmpcfg_storage_w = csr_pmpcfg_storage(csr_addr_i);
+  wire [0:0] csr_pmpcfg_idx_w = csr_pmpcfg_idx(csr_addr_i);
+  wire csr_pmpaddr_known_w = csr_pmpaddr_known(csr_addr_i);
+  wire [3:0] csr_pmpaddr_idx_w = csr_pmpaddr_idx(csr_addr_i);
+  wire [`XLEN-1:0] csr_pmpcfg_rdata_w =
+      csr_pmpcfg_storage_w ? csr_pmpcfg_q[csr_pmpcfg_idx_w] : {`XLEN{1'b0}};
+  wire [`XLEN-1:0] csr_pmpaddr_rdata_w = csr_pmpaddr_q[csr_pmpaddr_idx_w];
 
   wire [`XLEN-1:0] csr_mip_hw_m_w =
       (irq_software_i ? `MIP_MSIP : {`XLEN{1'b0}}) |
@@ -344,6 +494,13 @@ module CsrFile (
       ((irq_timer_i    && csr_mideleg_q[`IRQ_CAUSE_MTI]) ? `MIP_STIP : {`XLEN{1'b0}}) |
       ((irq_external_i && csr_mideleg_q[`IRQ_CAUSE_SEI]) ? `MIP_SEIP : {`XLEN{1'b0}});
   wire [`XLEN-1:0] csr_mip_visible_w = csr_mip_q | csr_mip_hw_m_w | csr_mip_hw_s_w;
+  wire csr_sd_w = ((csr_mstatus_q & `MSTATUS_FS_MASK) == `MSTATUS_FS_DIRTY);
+  // SD 是 FS/VS/XS 的只读 summary；当前核未实现 VS/XS，所以只由 FS Dirty 派生。
+  wire [`XLEN-1:0] csr_mstatus_visible_w =
+      (csr_mstatus_q | `MSTATUS_SXL_UXL) |
+      (csr_sd_w ? `MSTATUS_SD : {`XLEN{1'b0}});
+  wire [`XLEN-1:0] csr_sstatus_visible_w =
+      csr_mstatus_visible_w & `SSTATUS_MASK;
   wire [`XLEN-1:0] m_irq_enabled_pending_w =
       csr_mip_visible_w & csr_mie_q & MACHINE_INT_MASK &
       ~({`XLEN{(priv_mode_q != `PRIV_M)}} &
@@ -378,6 +535,11 @@ module CsrFile (
       ((csr_funct3_i == 3'b010) || (csr_funct3_i == 3'b110)) ? (csr_rdata_o | csr_src_w) :
       ((csr_funct3_i == 3'b011) || (csr_funct3_i == 3'b111)) ? (csr_rdata_o & ~csr_src_w) :
                                                                csr_rdata_o;
+  wire [`XLEN-1:0] csr_pmpcfg_write_value_w =
+      apply_pmpcfg_lock(csr_pmpcfg_q[csr_pmpcfg_idx_w], csr_new_value_w);
+  wire csr_pmpaddr_locked_w = pmpaddr_locked(csr_pmpaddr_idx_w);
+  wire [`XLEN-1:0] csr_pmpaddr_write_value_w =
+      csr_new_value_w & PMPADDR_WRITABLE_MASK;
 
   wire trap_mem_to_s_w = trap_mem_valid_i && (priv_mode_q != `PRIV_M) &&
                          csr_medeleg_q[trap_mem_cause_i];
@@ -396,7 +558,7 @@ module CsrFile (
       (csr_addr_i == `CSR_FFLAGS)   ? {{(`XLEN-5){1'b0}}, csr_fflags_q} :
       (csr_addr_i == `CSR_FRM)      ? {{(`XLEN-3){1'b0}}, csr_frm_q} :
       (csr_addr_i == `CSR_FCSR)     ? {{(`XLEN-8){1'b0}}, csr_frm_q, csr_fflags_q} :
-      (csr_addr_i == `CSR_SSTATUS)  ? ((csr_mstatus_q | `MSTATUS_SXL_UXL) & `SSTATUS_MASK) :
+      (csr_addr_i == `CSR_SSTATUS)  ? csr_sstatus_visible_w :
       (csr_addr_i == `CSR_SIE)      ? (csr_mie_q & SUPERVISOR_INT_MASK) :
       (csr_addr_i == `CSR_STVEC)    ? csr_stvec_q :
       (csr_addr_i == `CSR_SSCRATCH) ? csr_sscratch_q :
@@ -406,7 +568,7 @@ module CsrFile (
       (csr_addr_i == `CSR_SIP)      ? (csr_mip_visible_w & SUPERVISOR_INT_MASK) :
       (csr_addr_i == `CSR_SCOUNTEREN) ? csr_scounteren_q :
       (csr_addr_i == `CSR_SATP)     ? csr_satp_q :
-      (csr_addr_i == `CSR_MSTATUS)  ? (csr_mstatus_q | `MSTATUS_SXL_UXL) :
+      (csr_addr_i == `CSR_MSTATUS)  ? csr_mstatus_visible_w :
       (csr_addr_i == `CSR_MISA)     ? CSR_MISA_VALUE :
       (csr_addr_i == `CSR_MEDELEG)  ? csr_medeleg_q :
       (csr_addr_i == `CSR_MIDELEG)  ? csr_mideleg_q :
@@ -414,15 +576,22 @@ module CsrFile (
       (csr_addr_i == `CSR_MTVEC)    ? csr_mtvec_q :
       (csr_addr_i == `CSR_MCOUNTEREN) ? csr_mcounteren_q :
       (csr_addr_i == `CSR_MCOUNTINHIBIT) ? csr_mcountinhibit_q :
+      (csr_addr_i == `CSR_MENVCFG)  ? csr_menvcfg_q :
+      csr_pmpcfg_known_w            ? csr_pmpcfg_rdata_w :
       (csr_addr_i == `CSR_MSCRATCH) ? csr_mscratch_q :
       (csr_addr_i == `CSR_MEPC)     ? csr_mepc_q :
       (csr_addr_i == `CSR_MCAUSE)   ? csr_mcause_q :
       (csr_addr_i == `CSR_MTVAL)    ? csr_mtval_q :
       (csr_addr_i == `CSR_MIP)      ? csr_mip_visible_w :
+      csr_pmpaddr_known_w           ? csr_pmpaddr_rdata_w :
       (csr_addr_i == `CSR_MCYCLE)   ? csr_mcycle_q :
       (csr_addr_i == `CSR_MINSTRET) ? csr_minstret_q :
       (csr_addr_i == `CSR_MCYCLEH)  ? {{(`XLEN-32){1'b0}}, csr_mcycle_q[63:32]} :
       (csr_addr_i == `CSR_MINSTRETH) ? {{(`XLEN-32){1'b0}}, csr_minstret_q[63:32]} :
+      (csr_addr_i == `CSR_TSELECT)  ? CSR_TSELECT_NO_TRIGGER_VALUE :
+      (csr_addr_i == `CSR_TDATA1)   ? {`XLEN{1'b0}} :
+      (csr_addr_i == `CSR_TDATA2)   ? {`XLEN{1'b0}} :
+      (csr_addr_i == `CSR_TCONTROL) ? {`XLEN{1'b0}} :
       (csr_addr_i == `CSR_CYCLE)    ? csr_mcycle_q :
       (csr_addr_i == `CSR_TIME)     ? time_i :
       (csr_addr_i == `CSR_INSTRET)  ? csr_minstret_q :
@@ -433,6 +602,7 @@ module CsrFile (
                                       {`XLEN{1'b0}};
   assign csr_illegal_o = csr_valid_i && (~csr_known(csr_addr_i) ||
                                          ~csr_priv_ok_w ||
+                                         csr_satp_tvm_illegal_w ||
                                          ~csr_counter_allowed_w ||
                                          (csr_need_write_w && ~csr_writable(csr_addr_i)));
   assign trap_target_o = trap_to_s_w ? {csr_stvec_q[`XLEN-1:2], 2'b00} :
@@ -445,8 +615,18 @@ module CsrFile (
                                                     `EXC_ECALL_UMODE;
   assign mstatus_o = csr_mstatus_q | `MSTATUS_SXL_UXL;
   assign satp_o = csr_satp_q;
+  assign svpbmt_en_o = (csr_menvcfg_q & `MENVCFG_PBMTE) != {`XLEN{1'b0}};
   assign irq_pending_o = s_irq_pending_w | m_irq_pending_w;
   assign irq_cause_o = s_irq_pending_w ? s_irq_cause_w : m_irq_cause_w;
+
+  genvar pmp_out_idx;
+  generate
+    for (pmp_out_idx = 0; pmp_out_idx < PMP_ADDR_COUNT; pmp_out_idx = pmp_out_idx + 1) begin : gen_pmp_out
+      assign pmpcfg_o[pmp_out_idx * `PMP_CFG_ENTRY_W +: `PMP_CFG_ENTRY_W] =
+          csr_pmpcfg_q[pmp_out_idx / 8][(pmp_out_idx % 8) * `PMP_CFG_ENTRY_W +: `PMP_CFG_ENTRY_W];
+      assign pmpaddr_o[pmp_out_idx * `XLEN +: `XLEN] = csr_pmpaddr_q[pmp_out_idx];
+    end
+  endgenerate
 
   always @(posedge clk) begin
     if (rst) begin
@@ -472,6 +652,11 @@ module CsrFile (
       csr_mcounteren_q <= {`XLEN{1'b0}};
       csr_scounteren_q <= {`XLEN{1'b0}};
       csr_mcountinhibit_q <= {`XLEN{1'b0}};
+      csr_menvcfg_q <= {`XLEN{1'b0}};
+      for (pmp_reset_idx = 0; pmp_reset_idx < PMP_CFG_CSR_COUNT; pmp_reset_idx = pmp_reset_idx + 1)
+        csr_pmpcfg_q[pmp_reset_idx] <= {`XLEN{1'b0}};
+      for (pmp_reset_idx = 0; pmp_reset_idx < PMP_ADDR_COUNT; pmp_reset_idx = pmp_reset_idx + 1)
+        csr_pmpaddr_q[pmp_reset_idx] <= {`XLEN{1'b0}};
       csr_fflags_q <= 5'b00000;
       csr_frm_q <= 3'b000;
     end else begin
@@ -536,7 +721,13 @@ module CsrFile (
         end
 
         if (csr_commit_i && csr_valid_i && ~csr_illegal_o && csr_need_write_w) begin
-          case (csr_addr_i)
+          if (csr_pmpcfg_storage_w) begin
+            csr_pmpcfg_q[csr_pmpcfg_idx_w] <= csr_pmpcfg_write_value_w;
+          end else if (csr_pmpaddr_known_w) begin
+            if (!csr_pmpaddr_locked_w)
+              csr_pmpaddr_q[csr_pmpaddr_idx_w] <= csr_pmpaddr_write_value_w;
+          end else begin
+            case (csr_addr_i)
             `CSR_FFLAGS:   csr_fflags_q <= csr_new_value_w[4:0];
             `CSR_FRM:      csr_frm_q <= csr_new_value_w[2:0];
             `CSR_FCSR: begin
@@ -570,6 +761,7 @@ module CsrFile (
             `CSR_MCOUNTEREN: csr_mcounteren_q <= csr_new_value_w & `COUNTEREN_MASK;
             `CSR_MCOUNTINHIBIT: csr_mcountinhibit_q <=
                 csr_new_value_w & (`MCOUNTINHIBIT_CY | `MCOUNTINHIBIT_IR);
+            `CSR_MENVCFG: csr_menvcfg_q <= csr_new_value_w & MENVCFG_WRITABLE_MASK;
             `CSR_MSCRATCH: csr_mscratch_q <= csr_new_value_w;
             `CSR_MEPC:     csr_mepc_q <= epc_warl_value(csr_new_value_w);
             `CSR_MCAUSE:   csr_mcause_q <= csr_new_value_w;
@@ -581,7 +773,10 @@ module CsrFile (
             `CSR_MCYCLEH:  csr_mcycle_q <= {csr_new_value_w[31:0], csr_mcycle_q[31:0]};
             `CSR_MINSTRETH: csr_minstret_q <= {csr_new_value_w[31:0], csr_minstret_q[31:0]};
             default: begin end
-          endcase
+            endcase
+          end
+        end else if (fp_fflags_valid_i) begin
+          csr_fflags_q <= csr_fflags_q | fp_fflags_i;
         end
       end
     end

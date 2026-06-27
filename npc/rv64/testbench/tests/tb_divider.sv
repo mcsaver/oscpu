@@ -63,12 +63,16 @@ module tb_divider;
       req_valid = 1'b0;
 
       guard = 0;
-      while (!rsp_valid && guard < 40) begin
+      while (!rsp_valid && guard < (`XLEN + 8)) begin
         `TB_TICK(clk);
         guard = guard + 1;
       end
       tb_check1({name, " rsp_valid"}, rsp_valid, 1'b1);
-      tb_check32(name, rsp_data, exp);
+      if (rsp_data !== exp) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] %0s got=0x%016x expected=0x%016x",
+                 name, rsp_data, exp);
+      end
       rsp_ready = 1'b1;
       `TB_TICK(clk);
       rsp_ready = 1'b0;
@@ -82,14 +86,23 @@ module tb_divider;
     clk = 1'b0;
     reset_dut();
 
-    issue_wait("div -7/3", 3'b100, 32'hffff_fff9, 32'd3, 32'hffff_fffe);
-    issue_wait("divu 10/3", 3'b101, 32'd10, 32'd3, 32'd3);
-    issue_wait("rem -7/3", 3'b110, 32'hffff_fff9, 32'd3, 32'hffff_ffff);
-    issue_wait("remu 10/3", 3'b111, 32'd10, 32'd3, 32'd1);
-    issue_wait("div by zero", 3'b100, 32'd123, 32'd0, 32'hffff_ffff);
-    issue_wait("rem by zero", 3'b110, 32'd123, 32'd0, 32'd123);
-    issue_wait("div overflow", 3'b100, 32'h8000_0000, 32'hffff_ffff, 32'h8000_0000);
-    issue_wait("rem overflow", 3'b110, 32'h8000_0000, 32'hffff_ffff, 32'h0000_0000);
+    issue_wait("div -7/3", 3'b100,
+               64'hffff_ffff_ffff_fff9, 64'd3,
+               64'hffff_ffff_ffff_fffe);
+    issue_wait("divu 10/3", 3'b101, 64'd10, 64'd3, 64'd3);
+    issue_wait("rem -7/3", 3'b110,
+               64'hffff_ffff_ffff_fff9, 64'd3,
+               64'hffff_ffff_ffff_ffff);
+    issue_wait("remu 10/3", 3'b111, 64'd10, 64'd3, 64'd1);
+    issue_wait("div by zero", 3'b100, 64'd123, 64'd0,
+               64'hffff_ffff_ffff_ffff);
+    issue_wait("rem by zero", 3'b110, 64'd123, 64'd0, 64'd123);
+    issue_wait("div overflow", 3'b100,
+               64'h8000_0000_0000_0000, 64'hffff_ffff_ffff_ffff,
+               64'h8000_0000_0000_0000);
+    issue_wait("rem overflow", 3'b110,
+               64'h8000_0000_0000_0000, 64'hffff_ffff_ffff_ffff,
+               64'h0000_0000_0000_0000);
 
     req_funct3 = 3'b101;
     req_src1 = 32'hffff_ffff;

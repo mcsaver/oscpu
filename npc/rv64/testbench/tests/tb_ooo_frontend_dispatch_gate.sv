@@ -1,0 +1,217 @@
+`include "tb_common.svh"
+
+module tb_ooo_frontend_dispatch_gate;
+  reg dispatch_valid;
+  reg dispatch0_exit;
+  reg dispatch0_arch_trap;
+  reg dispatch0_system;
+  reg dispatch0_fp;
+  reg dispatch0_branch;
+  reg dispatch0_jal;
+  reg dispatch0_jump;
+  reg dispatch0_unsupported;
+  reg dispatch1_unsupported;
+  reg dispatch0_ready;
+  reg dispatch1_ready;
+  reg head0_fp_raw;
+  reg head1_fp_raw;
+  reg head_fetch_fault1;
+  reg head1_exit_raw;
+  reg head1_system_raw;
+  reg head1_arch_trap_raw;
+  reg head1_control_raw;
+  reg head1_branch_raw;
+  reg head1_jal_raw;
+  reg head1_jalr_raw;
+  reg head1_jal_call_raw;
+  reg head1_return_candidate;
+  reg lane0_before_ret_safe;
+
+  wire dispatch1_direct_jal;
+  wire dispatch1_return;
+  wire direct_branch1_dispatch_valid;
+  wire dispatch1_barrier;
+  wire dispatch1_control_unsupported;
+  wire dispatch1_mem_unsupported;
+  wire dispatch_unsupported;
+  wire dispatch_fire;
+  wire dispatch1_barrier_fire;
+  wire direct_jal0_fire;
+  wire direct_jal1_fire;
+  wire direct_ret1_fire;
+  wire direct_branch1_fire;
+
+  OooFrontendDispatchGate dut (
+    .dispatch_valid_i(dispatch_valid),
+    .dispatch0_exit_i(dispatch0_exit),
+    .dispatch0_arch_trap_i(dispatch0_arch_trap),
+    .dispatch0_system_i(dispatch0_system),
+    .dispatch0_fp_i(dispatch0_fp),
+    .dispatch0_branch_i(dispatch0_branch),
+    .dispatch0_jal_i(dispatch0_jal),
+    .dispatch0_jump_i(dispatch0_jump),
+    .dispatch0_unsupported_i(dispatch0_unsupported),
+    .dispatch1_unsupported_i(dispatch1_unsupported),
+    .dispatch0_ready_i(dispatch0_ready),
+    .dispatch1_ready_i(dispatch1_ready),
+    .head0_fp_raw_i(head0_fp_raw),
+    .head1_fp_raw_i(head1_fp_raw),
+    .head_fetch_fault1_i(head_fetch_fault1),
+    .head1_exit_raw_i(head1_exit_raw),
+    .head1_system_raw_i(head1_system_raw),
+    .head1_arch_trap_raw_i(head1_arch_trap_raw),
+    .head1_control_raw_i(head1_control_raw),
+    .head1_branch_raw_i(head1_branch_raw),
+    .head1_jal_raw_i(head1_jal_raw),
+    .head1_jalr_raw_i(head1_jalr_raw),
+    .head1_jal_call_raw_i(head1_jal_call_raw),
+    .head1_return_candidate_i(head1_return_candidate),
+    .lane0_before_ret_safe_i(lane0_before_ret_safe),
+    .dispatch1_direct_jal_o(dispatch1_direct_jal),
+    .dispatch1_return_o(dispatch1_return),
+    .direct_branch1_dispatch_valid_o(direct_branch1_dispatch_valid),
+    .dispatch1_barrier_o(dispatch1_barrier),
+    .dispatch1_control_unsupported_o(dispatch1_control_unsupported),
+    .dispatch1_mem_unsupported_o(dispatch1_mem_unsupported),
+    .dispatch_unsupported_o(dispatch_unsupported),
+    .dispatch_fire_o(dispatch_fire),
+    .dispatch1_barrier_fire_o(dispatch1_barrier_fire),
+    .direct_jal0_fire_o(direct_jal0_fire),
+    .direct_jal1_fire_o(direct_jal1_fire),
+    .direct_ret1_fire_o(direct_ret1_fire),
+    .direct_branch1_fire_o(direct_branch1_fire)
+  );
+
+  task automatic reset_inputs;
+    begin
+      dispatch_valid = 1'b1;
+      dispatch0_exit = 1'b0;
+      dispatch0_arch_trap = 1'b0;
+      dispatch0_system = 1'b0;
+      dispatch0_fp = 1'b0;
+      dispatch0_branch = 1'b0;
+      dispatch0_jal = 1'b0;
+      dispatch0_jump = 1'b0;
+      dispatch0_unsupported = 1'b0;
+      dispatch1_unsupported = 1'b0;
+      dispatch0_ready = 1'b1;
+      dispatch1_ready = 1'b1;
+      head0_fp_raw = 1'b0;
+      head1_fp_raw = 1'b0;
+      head_fetch_fault1 = 1'b0;
+      head1_exit_raw = 1'b0;
+      head1_system_raw = 1'b0;
+      head1_arch_trap_raw = 1'b0;
+      head1_control_raw = 1'b0;
+      head1_branch_raw = 1'b0;
+      head1_jal_raw = 1'b0;
+      head1_jalr_raw = 1'b0;
+      head1_jal_call_raw = 1'b0;
+      head1_return_candidate = 1'b0;
+      lane0_before_ret_safe = 1'b0;
+      #1;
+    end
+  endtask
+
+  initial begin
+    tb_errors = 0;
+
+    reset_inputs();
+    tb_check1("plain dual dispatch fires", dispatch_fire, 1'b1);
+    tb_check1("no mem unsupported", dispatch1_mem_unsupported, 1'b0);
+
+    reset_inputs();
+    head1_jal_raw = 1'b1;
+    #1;
+    tb_check1("lane1 direct jal candidate", dispatch1_direct_jal, 1'b1);
+    tb_check1("lane1 jal fires through normal dispatch", direct_jal1_fire, 1'b1);
+
+    reset_inputs();
+    head1_jal_raw = 1'b1;
+    head1_jal_call_raw = 1'b1;
+    #1;
+    tb_check1("lane1 jal call is not direct jal candidate", dispatch1_direct_jal, 1'b0);
+    tb_check1("lane1 jal call still normal dispatches", direct_jal1_fire, 1'b1);
+
+    reset_inputs();
+    head1_return_candidate = 1'b1;
+    lane0_before_ret_safe = 1'b1;
+    #1;
+    tb_check1("lane1 return candidate", dispatch1_return, 1'b1);
+    tb_check1("lane1 return fire", direct_ret1_fire, 1'b1);
+
+    reset_inputs();
+    head1_return_candidate = 1'b1;
+    lane0_before_ret_safe = 1'b0;
+    head1_jalr_raw = 1'b1;
+    #1;
+    tb_check1("unsafe return blocked", dispatch1_return, 1'b0);
+    tb_check1("unsafe jalr becomes barrier", dispatch1_barrier, 1'b1);
+
+    reset_inputs();
+    head1_branch_raw = 1'b1;
+    #1;
+    tb_check1("lane1 direct branch candidate", direct_branch1_dispatch_valid, 1'b1);
+    tb_check1("lane1 direct branch fire", direct_branch1_fire, 1'b1);
+
+    reset_inputs();
+    head1_branch_raw = 1'b1;
+    head_fetch_fault1 = 1'b1;
+    #1;
+    tb_check1("fault blocks lane1 branch fast path", direct_branch1_dispatch_valid, 1'b0);
+    tb_check1("faulted lane1 branch is barrier", dispatch1_barrier, 1'b1);
+    tb_check1("barrier fire uses slot0 ready", dispatch1_barrier_fire, 1'b1);
+
+    reset_inputs();
+    head1_control_raw = 1'b1;
+    #1;
+    tb_check1("unsupported lane1 control", dispatch1_control_unsupported, 1'b1);
+    tb_check1("unsupported dispatch", dispatch_unsupported, 1'b1);
+    tb_check1("unsupported blocks dispatch fire", dispatch_fire, 1'b0);
+
+    reset_inputs();
+    dispatch0_unsupported = 1'b1;
+    #1;
+    tb_check1("slot0 unsupported blocks dispatch", dispatch_unsupported, 1'b1);
+
+    reset_inputs();
+    dispatch0_unsupported = 1'b1;
+    head0_fp_raw = 1'b1;
+    #1;
+    tb_check1("slot0 FP raw masks integer unsupported", dispatch_unsupported, 1'b0);
+
+    reset_inputs();
+    dispatch1_unsupported = 1'b1;
+    head1_fp_raw = 1'b1;
+    #1;
+    tb_check1("slot1 FP raw masks integer unsupported", dispatch_unsupported, 1'b0);
+
+    reset_inputs();
+    dispatch0_jal = 1'b1;
+    dispatch0_unsupported = 1'b1;
+    #1;
+    tb_check1("slot0 jal direct fire suppressed by unsupported", direct_jal0_fire, 1'b0);
+    tb_check1("legacy unsupported base still sees slot0 jal", dispatch_unsupported, 1'b1);
+
+    reset_inputs();
+    dispatch0_jal = 1'b1;
+    #1;
+    tb_check1("slot0 jal direct fire", direct_jal0_fire, 1'b1);
+    tb_check1("slot0 jal blocks normal dual dispatch", dispatch_fire, 1'b0);
+
+    reset_inputs();
+    dispatch0_branch = 1'b1;
+    #1;
+    tb_check1("slot0 branch blocks lane1 base", dispatch_fire, 1'b0);
+    tb_check1("slot0 branch no unsupported", dispatch_unsupported, 1'b0);
+
+    reset_inputs();
+    dispatch0_ready = 1'b0;
+    #1;
+    tb_check1("ready0 blocks dispatch fire", dispatch_fire, 1'b0);
+
+    tb_finish("tb_ooo_frontend_dispatch_gate");
+  end
+
+endmodule
+

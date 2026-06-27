@@ -54,6 +54,16 @@ module tb_decode_unit;
     end
   endfunction
 
+  function [`INST_W-1:0] inst_system_fence;
+    input [6:0] funct7;
+    input [4:0] rs2;
+    input [4:0] rs1;
+    begin
+      inst_system_fence = {funct7, rs2, rs1, `FUNCT3_ADD_SUB,
+                           5'd0, `OPCODE_SYSTEM};
+    end
+  endfunction
+
   initial begin
     tb_errors = 0;
 
@@ -104,6 +114,32 @@ module tb_decode_unit;
     check_ctrl_bit("sret legal", `CTRL_ILLEGAL_BIT, 1'b0);
     check_ctrl_bit("sret system", `CTRL_SYSTEM_BIT, 1'b1);
     check_ctrl_bit("sret marker", `CTRL_SRET_BIT, 1'b1);
+
+    inst = inst_system_fence(`SYSTEM_FUNCT7_SFENCE_VMA, 5'd2, 5'd1); #1;
+    check_ctrl_bit("sfence.vma legal", `CTRL_ILLEGAL_BIT, 1'b0);
+    check_ctrl_bit("sfence.vma system", `CTRL_SYSTEM_BIT, 1'b1);
+    check_ctrl_bit("sfence.vma serializes", `CTRL_SFENCE_VMA_BIT, 1'b1);
+    check_ctrl_bit("sfence.vma tvm gated", `CTRL_SFENCE_TVM_BIT, 1'b1);
+
+    inst = inst_system_fence(`SYSTEM_FUNCT7_SINVAL_VMA, 5'd2, 5'd1); #1;
+    check_ctrl_bit("sinval.vma legal", `CTRL_ILLEGAL_BIT, 1'b0);
+    check_ctrl_bit("sinval.vma serializes", `CTRL_SFENCE_VMA_BIT, 1'b1);
+    check_ctrl_bit("sinval.vma tvm gated", `CTRL_SFENCE_TVM_BIT, 1'b1);
+
+    inst = inst_system_fence(`SYSTEM_FUNCT7_SFENCE_INVAL,
+                             `SYSTEM_RS2_SFENCE_W_INVAL, 5'd0); #1;
+    check_ctrl_bit("sfence.w.inval legal", `CTRL_ILLEGAL_BIT, 1'b0);
+    check_ctrl_bit("sfence.w.inval serializes", `CTRL_SFENCE_VMA_BIT, 1'b1);
+    check_ctrl_bit("sfence.w.inval no tvm", `CTRL_SFENCE_TVM_BIT, 1'b0);
+
+    inst = inst_system_fence(`SYSTEM_FUNCT7_SFENCE_INVAL,
+                             `SYSTEM_RS2_SFENCE_INVAL_IR, 5'd0); #1;
+    check_ctrl_bit("sfence.inval.ir legal", `CTRL_ILLEGAL_BIT, 1'b0);
+    check_ctrl_bit("sfence.inval.ir serializes", `CTRL_SFENCE_VMA_BIT, 1'b1);
+    check_ctrl_bit("sfence.inval.ir no tvm", `CTRL_SFENCE_TVM_BIT, 1'b0);
+
+    inst = inst_system_fence(`SYSTEM_FUNCT7_SFENCE_INVAL, 5'd2, 5'd0); #1;
+    check_ctrl_bit("reserved svinval encoding illegal", `CTRL_ILLEGAL_BIT, 1'b1);
 
     inst = inst_amo(5'b00000, 5'd7, 5'd6, `FUNCT3_LD, 5'd5); #1;
     check_ctrl_bit("amoadd.d legal", `CTRL_ILLEGAL_BIT, 1'b0);

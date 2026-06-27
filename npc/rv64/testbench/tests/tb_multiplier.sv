@@ -71,7 +71,11 @@ module tb_multiplier;
         guard = guard + 1;
       end
       tb_check1({name, " rsp_valid"}, rsp_valid, 1'b1);
-      tb_check32(name, rsp_data, exp);
+      if (rsp_data !== exp) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] %0s got=0x%016x expected=0x%016x",
+                 name, rsp_data, exp);
+      end
       rsp_ready = 1'b1;
       `TB_TICK(clk);
       rsp_ready = 1'b0;
@@ -85,10 +89,18 @@ module tb_multiplier;
     clk = 1'b0;
     reset_dut();
 
-    issue_wait("mul low signed-compatible", 3'b000, 32'hffff_fffe, 32'd3, 32'hffff_fffa);
-    issue_wait("mulh signed", 3'b001, 32'h8000_0000, 32'd2, 32'hffff_ffff);
-    issue_wait("mulhsu signed-unsigned", 3'b010, 32'hffff_fffe, 32'h8000_0000, 32'hffff_ffff);
-    issue_wait("mulhu unsigned", 3'b011, 32'hffff_ffff, 32'hffff_ffff, 32'hffff_fffe);
+    issue_wait("mul low signed-compatible", 3'b000,
+               64'hffff_ffff_ffff_fffe, 64'd3,
+               64'hffff_ffff_ffff_fffa);
+    issue_wait("mulh signed", 3'b001,
+               64'h8000_0000_0000_0000, 64'd2,
+               64'hffff_ffff_ffff_ffff);
+    issue_wait("mulhsu signed-unsigned", 3'b010,
+               64'hffff_ffff_ffff_fffe, 64'h8000_0000_0000_0000,
+               64'hffff_ffff_ffff_ffff);
+    issue_wait("mulhu unsigned", 3'b011,
+               64'hffff_ffff_ffff_ffff, 64'hffff_ffff_ffff_ffff,
+               64'hffff_ffff_ffff_fffe);
 
     req_funct3 = 3'b000;
     req_src1 = 32'd9;

@@ -646,6 +646,8 @@ module NpcCore (
     .csr_commit_i(ex_fire_w),
     .csr_rdata_o(csr_rdata_w),
     .csr_illegal_o(csr_illegal_w),
+    .fp_fflags_valid_i(1'b0),
+    .fp_fflags_i(5'b00000),
     .trap_mem_valid_i(mem_fault_w && (trap_target_w != {`XLEN{1'b0}})),
     .trap_mem_pc_i(ex_mem_pc_q),
     .trap_mem_cause_i(ex_mem_load_w ? `EXC_LOAD_ACCESS_FAULT : `EXC_STORE_ACCESS_FAULT),
@@ -665,8 +667,16 @@ module NpcCore (
     .mret_valid_i(ex_mret_redirect_w),
     .sret_valid_i(1'b0),
     .trap_target_o(csr_trap_target_w),
-    .mepc_o(csr_mepc_w)
-  );
+    .mepc_o(csr_mepc_w),
+    .ret_target_o(),
+    .priv_mode_o(),
+    .ecall_cause_o(),
+	    .mstatus_o(),
+	    .satp_o(),
+	    .svpbmt_en_o(),
+	    .pmpcfg_o(),
+	    .pmpaddr_o()
+	  );
 
   IfStage u_if_stage (
     .clk(clk),

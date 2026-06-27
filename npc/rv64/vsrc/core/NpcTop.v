@@ -133,9 +133,9 @@ module NpcTop (
   output [`XLEN-1:0] debug_pc_o,
   output [`CORE_STATE_W-1:0] debug_state_o,
   output [1:0] retire_count_o,
-  output [6:0] free_count_o,
-  output [4:0] rob_count_o,
-  output [3:0] issue_count_o
+  output [`OOO_FREE_COUNT_W-1:0] free_count_o,
+  output [`OOO_ROB_COUNT_W-1:0] rob_count_o,
+  output [`OOO_ISSUE_COUNT_W-1:0] issue_count_o
 );
 
   localparam [3:0] AXI_S_CLINT = 4'd0;

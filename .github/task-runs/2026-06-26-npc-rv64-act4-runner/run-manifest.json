@@ -1,0 +1,41 @@
+{
+  "task": "npc-rv64-act4-runner",
+  "date": "2026-06-26",
+  "scope": "npc/rv64 ACT4 final ELF execution runner",
+  "linux_rootfs_run": false,
+  "script": "npc/rv64/testsuites/scripts/npc-rv64-act4-run.sh",
+  "checks": [
+    {
+      "name": "script-syntax",
+      "command": "bash -n npc/rv64/testsuites/scripts/npc-rv64-act4-run.sh",
+      "result": "PASS"
+    },
+    {
+      "name": "act4-list-suites-I",
+      "command": "npc/rv64/testsuites/scripts/npc-rv64-act4-run.sh --list-suites",
+      "result": "PASS",
+      "suites": [
+        "rv64i/I"
+      ]
+    },
+    {
+      "name": "act4-rv64i-I",
+      "command": "npc/rv64/testsuites/scripts/npc-rv64-act4-run.sh --timeout-sec 60 --max-cycles 20000000",
+      "result": "PASS",
+      "run_dir": "npc/rv64/perf/results/act4-run/20260626-185425-396823",
+      "attempted": 51,
+      "passed": 51,
+      "failed": 0
+    },
+    {
+      "name": "act4-rv64i-M",
+      "command": "npc/rv64/testsuites/scripts/npc-rv64-act4-run.sh --workdir /home/lyg/PA/ysyx-workbench/npc/rv64/testsuites/core-tests/act4-npc-final-work-m --suites rv64i/M --timeout-sec 60 --max-cycles 20000000",
+      "result": "PASS",
+      "run_dir": "npc/rv64/perf/results/act4-run/20260626-185521-398710",
+      "attempted": 13,
+      "passed": 13,
+      "failed": 0
+    }
+  ],
+  "not_full_industrial_cpu_signoff": true
+}

@@ -311,7 +311,6 @@ void npc_mem_read(npc_paddr_t addr, npc_word_t *data, svBit *error) {
   if (data == NULL || error == NULL) return;
   *data = 0;
   *error = 0;
-  if ((addr & 0x7u) != 0) { *error = 1; return; }
   if (!npc_paddr_read(addr, data, NPC_BUS_LOAD)) { *error = 1; }
 }
 
@@ -319,7 +318,6 @@ void npc_mem_write(npc_paddr_t addr, npc_word_t data, npc_word_t mask, svBit *er
   if (error == NULL) return;
   *error = 0;
   mask &= 0xffu;
-  if ((addr & 0x7u) != 0) { *error = 1; return; }
   if (mask == 0) return;
   if (!npc_paddr_write(addr, data, mask, NPC_BUS_STORE)) { *error = 1; }
 }

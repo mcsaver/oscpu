@@ -26,7 +26,7 @@ module tb_npc_core_interrupt;
   wire lsu_axi_wvalid;
   reg lsu_axi_wready;
   wire [`XLEN-1:0] lsu_axi_wdata;
-  wire [3:0] lsu_axi_wstrb;
+  wire [`STRB_W-1:0] lsu_axi_wstrb;
   reg lsu_axi_bvalid;
   wire lsu_axi_bready;
   reg [1:0] lsu_axi_bresp;
@@ -139,14 +139,15 @@ module tb_npc_core_interrupt;
     begin
       case (addr)
         32'h8000_0000: imem_word = rv32_i(12'd1, 5'd0, `FUNCT3_ADD_SUB, 5'd1, `OPCODE_OP_IMM);
-        32'h8000_0004: imem_word = rv32_u(20'h80000, 5'd2, `OPCODE_LUI);
-        32'h8000_0008: imem_word = rv32_i(12'h100, 5'd2, `FUNCT3_ADD_SUB, 5'd2, `OPCODE_OP_IMM);
-        32'h8000_000c: imem_word = csr_write(`CSR_MTVEC, 5'd2);
-        32'h8000_0010: imem_word = rv32_i(12'h080, 5'd0, `FUNCT3_ADD_SUB, 5'd3, `OPCODE_OP_IMM);
-        32'h8000_0014: imem_word = csr_write(`CSR_MIE, 5'd3);
-        32'h8000_0018: imem_word = rv32_i(12'h008, 5'd0, `FUNCT3_ADD_SUB, 5'd4, `OPCODE_OP_IMM);
-        32'h8000_001c: imem_word = csr_set(`CSR_MSTATUS, 5'd4);
-        32'h8000_0020: imem_word = rv32_i(12'h055, 5'd0, `FUNCT3_ADD_SUB, 5'd5, `OPCODE_OP_IMM);
+        32'h8000_0004: imem_word = rv32_u(20'h40000, 5'd2, `OPCODE_LUI);
+        32'h8000_0008: imem_word = rv32_i(12'd1, 5'd2, `FUNCT3_SLL, 5'd2, `OPCODE_OP_IMM);
+        32'h8000_000c: imem_word = rv32_i(12'h100, 5'd2, `FUNCT3_ADD_SUB, 5'd2, `OPCODE_OP_IMM);
+        32'h8000_0010: imem_word = csr_write(`CSR_MTVEC, 5'd2);
+        32'h8000_0014: imem_word = rv32_i(12'h080, 5'd0, `FUNCT3_ADD_SUB, 5'd3, `OPCODE_OP_IMM);
+        32'h8000_0018: imem_word = csr_write(`CSR_MIE, 5'd3);
+        32'h8000_001c: imem_word = rv32_i(12'h008, 5'd0, `FUNCT3_ADD_SUB, 5'd4, `OPCODE_OP_IMM);
+        32'h8000_0020: imem_word = csr_set(`CSR_MSTATUS, 5'd4);
+        32'h8000_0024: imem_word = rv32_i(12'h055, 5'd0, `FUNCT3_ADD_SUB, 5'd5, `OPCODE_OP_IMM);
         32'h8000_0100: imem_word = csr_read(`CSR_MCAUSE, 5'd6);
         32'h8000_0104: imem_word = csr_read(`CSR_MEPC, 5'd7);
         32'h8000_0108: imem_word = csr_read(`CSR_MSTATUS, 5'd8);
@@ -154,6 +155,17 @@ module tb_npc_core_interrupt;
         32'h8000_0110: imem_word = {12'h001, 5'd0, `FUNCT3_ADD_SUB, 5'd0, `OPCODE_SYSTEM};
         default:       imem_word = 32'h0000_0013;
       endcase
+    end
+  endfunction
+
+  function [`XLEN-1:0] imem_beat;
+    input [`XLEN-1:0] addr;
+    reg [31:0] lo;
+    reg [31:0] hi;
+    begin
+      lo = imem_word(addr);
+      hi = imem_word(addr + 64'd4);
+      imem_beat = {hi, lo};
     end
   endfunction
 
@@ -165,13 +177,13 @@ module tb_npc_core_interrupt;
       ifu_axi_rdata = ifu_pending_data;
       ifu_axi_rresp = 2'b00;
       lsu_axi_rvalid = 1'b0;
-      lsu_axi_rdata = 32'h0;
+      lsu_axi_rdata = {`XLEN{1'b0}};
       lsu_axi_rresp = 2'b00;
       lsu_axi_bvalid = 1'b0;
       lsu_axi_bresp = 2'b00;
 
       next_ifu_pending = ifu_axi_arvalid && ifu_axi_arready;
-      next_ifu_data = imem_word(ifu_axi_araddr);
+      next_ifu_data = imem_beat(ifu_axi_araddr);
 
       `TB_TICK(clk);
 
@@ -179,7 +191,7 @@ module tb_npc_core_interrupt;
       ifu_pending_data = next_ifu_data;
 
       if (commit_valid) begin
-        if (commit_pc == 32'h8000_0020)
+        if (commit_pc == 32'h8000_0024)
           saw_interrupted_commit = 1;
         if (commit_pc == 32'h8000_0100) begin
           saw_cause = 1;
@@ -188,7 +200,7 @@ module tb_npc_core_interrupt;
           tb_check32("mcause timer interrupt", commit_rd_data, `MCAUSE_INTERRUPT | 32'd7);
         end else if (commit_pc == 32'h8000_0104) begin
           saw_mepc = 1;
-          tb_check32("mepc interrupted pc", commit_rd_data, 32'h8000_0020);
+          tb_check32("mepc interrupted pc", commit_rd_data, 32'h8000_0024);
         end else if (commit_pc == 32'h8000_0108) begin
           saw_mstatus = 1;
           tb_check32("mstatus trap stack", commit_rd_data, `MSTATUS_MPIE | `MSTATUS_MPP_M);
@@ -203,11 +215,11 @@ module tb_npc_core_interrupt;
     rst = 1'b1;
     ifu_axi_arready = 1'b1;
     ifu_axi_rvalid = 1'b0;
-    ifu_axi_rdata = 32'h0;
+    ifu_axi_rdata = {`XLEN{1'b0}};
     ifu_axi_rresp = 2'b00;
     lsu_axi_arready = 1'b1;
     lsu_axi_rvalid = 1'b0;
-    lsu_axi_rdata = 32'h0;
+    lsu_axi_rdata = {`XLEN{1'b0}};
     lsu_axi_rresp = 2'b00;
     lsu_axi_awready = 1'b1;
     lsu_axi_wready = 1'b1;
@@ -215,7 +227,7 @@ module tb_npc_core_interrupt;
     lsu_axi_bresp = 2'b00;
     irq_timer = 1'b1;
     ifu_pending = 1'b0;
-    ifu_pending_data = 32'h0;
+    ifu_pending_data = {`XLEN{1'b0}};
     saw_cause = 0;
     saw_mepc = 0;
     saw_mstatus = 0;

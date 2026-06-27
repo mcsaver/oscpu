@@ -17,9 +17,10 @@ module LSUDataPath (
   wire [15:0] shifted_half_w = shifted_rdata_w[15:0];
   wire [31:0] shifted_word_w = shifted_rdata_w[31:0];
 
-  // 数据面只做地址对齐、store 数据移位和 load 提取扩展，不再决定访问是否合法。
-  assign mem_addr_o = eff_addr_i & {{(`XLEN-`XLEN_BYTE_W){1'b1}}, {`XLEN_BYTE_W{1'b0}}};
-  assign mem_wdata_o = store_data_i << byte_shift_i;
+  // 数据面按 byte-addressed 64-bit 窗口访问仿真内存；普通 load/store 的
+  // misaligned 语义由内存返回连续字节完成，AMO 对齐约束仍由执行后端处理。
+  assign mem_addr_o = eff_addr_i;
+  assign mem_wdata_o = store_data_i;
 
   always @(*) begin
     load_data_o = {`XLEN{1'b0}};

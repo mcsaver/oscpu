@@ -1,0 +1,54 @@
+{
+  "task": "npc-rv64-rv64g-fp-amo-core-regress",
+  "date": "2026-06-26",
+  "scope": "npc/rv64 core RTL light signoff slice",
+  "linux_rootfs_run": false,
+  "runs": [
+    {
+      "name": "local-light-gate",
+      "path": "npc/rv64/perf/results/core-regress-local-gates-after-fp/20260626-175213-349221",
+      "result": "PASS",
+      "coverage": "module-testbench, verilator-lint, npc-build, am-cpu-tests"
+    },
+    {
+      "name": "rv64g-official-subset",
+      "path": "npc/rv64/perf/results/core-regress-rv64g-official-fixed/20260626-175055-331711",
+      "result": "PASS",
+      "attempted_tests": 109,
+      "suites": ["rv64ui", "rv64um", "rv64ua", "rv64uf", "rv64ud"]
+    },
+    {
+      "name": "official-expanded-after-fp",
+      "path": "npc/rv64/perf/results/core-regress-official-expanded-after-fp/20260626-175641-354868",
+      "result": "PASS",
+      "attempted_tests": 153,
+      "suites": ["rv64ui", "rv64um", "rv64ua", "rv64uf", "rv64ud", "rv64uc", "rv64uzba", "rv64uzbb", "rv64uzbc", "rv64uzbs"]
+    },
+    {
+      "name": "privileged-smoke",
+      "path": "npc/rv64/perf/results/core-regress-privileged-after-fp/20260626-175154-345944",
+      "result": "PASS",
+      "attempted_tests": 24,
+      "suites": ["rv64mi", "rv64si"]
+    },
+    {
+      "name": "rv64ua-focused",
+      "path": "npc/rv64/perf/results/core-regress-rv64ua-fixed/20260626-172324-312613",
+      "result": "PASS",
+      "attempted_tests": 19
+    },
+    {
+      "name": "rv64uf-focused",
+      "path": "npc/rv64/perf/results/core-regress-rv64uf-fixed/20260626-174530-325064",
+      "result": "PASS",
+      "attempted_tests": 11
+    },
+    {
+      "name": "rv64ud-focused",
+      "path": "npc/rv64/perf/results/core-regress-rv64ud-fixed/20260626-175031-329931",
+      "result": "PASS",
+      "attempted_tests": 12
+    }
+  ],
+  "not_full_industrial_cpu_signoff": true
+}

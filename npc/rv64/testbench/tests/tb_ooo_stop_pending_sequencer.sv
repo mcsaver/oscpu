@@ -1,0 +1,318 @@
+`timescale 1ns/1ps
+
+module tb_ooo_stop_pending_sequencer;
+  reg clk;
+  reg rst;
+  reg flush;
+  reg csr_trap_mem_valid;
+  reg direct_frontend_flush;
+  reg direct_branch0_fire;
+  reg direct_branch1_fire;
+  reg direct_branch_resolve_redirect;
+  reg branch_spec_checkpoint_capture;
+  reg branch_spec_resolve_valid;
+  reg orphan_stop_pending;
+  reg pending_branch_commit_resolve;
+  reg pending_branch_match_clear;
+  reg branch_resolve_untracked;
+  reg pending_jump_resolve_ready;
+  reg pending_jump_misaligned;
+  reg pending_jump_nolink_commit;
+  reg pending_jump_redirect_after_dispatch;
+  reg jump_dispatch_fire;
+  reg pending_mem_resolve_ready;
+  reg system_csr_dispatch_fire;
+  reg pending_system_csr_commit;
+  reg drain_complete;
+  reg can_run;
+  reg fifo_has_packet;
+  reg csr_irq_pending;
+  reg head_fetch_fault0;
+  reg dispatch0_arch_trap;
+  reg dispatch0_exit;
+  reg dispatch0_fp;
+  reg dispatch0_system;
+  reg head0_csr_illegal;
+  reg dispatch0_branch;
+  reg direct_branch0_dispatch_valid;
+  reg dispatch0_jal;
+  reg direct_jal0_dispatch_valid;
+  reg dispatch0_jump;
+  reg dispatch0_return;
+  reg dispatch1_barrier_fire;
+  reg dispatch_unsupported;
+
+  wire stop_pending;
+
+  integer errors;
+
+  OooStopPendingSequencer dut (
+    .clk(clk),
+    .rst(rst),
+    .flush_i(flush),
+    .csr_trap_mem_valid_i(csr_trap_mem_valid),
+    .direct_frontend_flush_i(direct_frontend_flush),
+    .direct_branch0_fire_i(direct_branch0_fire),
+    .direct_branch1_fire_i(direct_branch1_fire),
+    .direct_branch_resolve_redirect_i(direct_branch_resolve_redirect),
+    .branch_spec_checkpoint_capture_i(branch_spec_checkpoint_capture),
+    .branch_spec_resolve_valid_i(branch_spec_resolve_valid),
+    .orphan_stop_pending_i(orphan_stop_pending),
+    .pending_branch_commit_resolve_i(pending_branch_commit_resolve),
+    .pending_branch_match_clear_i(pending_branch_match_clear),
+    .branch_resolve_untracked_i(branch_resolve_untracked),
+    .pending_jump_resolve_ready_i(pending_jump_resolve_ready),
+    .pending_jump_misaligned_i(pending_jump_misaligned),
+    .pending_jump_nolink_commit_i(pending_jump_nolink_commit),
+    .pending_jump_redirect_after_dispatch_i(pending_jump_redirect_after_dispatch),
+    .jump_dispatch_fire_i(jump_dispatch_fire),
+    .pending_mem_resolve_ready_i(pending_mem_resolve_ready),
+    .system_csr_dispatch_fire_i(system_csr_dispatch_fire),
+    .pending_system_csr_commit_i(pending_system_csr_commit),
+    .drain_complete_i(drain_complete),
+    .can_run_i(can_run),
+    .fifo_has_packet_i(fifo_has_packet),
+    .csr_irq_pending_i(csr_irq_pending),
+    .head_fetch_fault0_i(head_fetch_fault0),
+    .dispatch0_arch_trap_i(dispatch0_arch_trap),
+    .dispatch0_exit_i(dispatch0_exit),
+    .dispatch0_fp_i(dispatch0_fp),
+    .dispatch0_system_i(dispatch0_system),
+    .head0_csr_illegal_i(head0_csr_illegal),
+    .dispatch0_branch_i(dispatch0_branch),
+    .direct_branch0_dispatch_valid_i(direct_branch0_dispatch_valid),
+    .dispatch0_jal_i(dispatch0_jal),
+    .direct_jal0_dispatch_valid_i(direct_jal0_dispatch_valid),
+    .dispatch0_jump_i(dispatch0_jump),
+    .dispatch0_return_i(dispatch0_return),
+    .dispatch1_barrier_fire_i(dispatch1_barrier_fire),
+    .dispatch_unsupported_i(dispatch_unsupported),
+    .stop_pending_o(stop_pending)
+  );
+
+  initial clk = 1'b0;
+  always #5 clk = ~clk;
+
+  task automatic tb_check1;
+    input [255:0] name;
+    input actual;
+    input expected;
+    begin
+      if (actual !== expected) begin
+        $display("FAIL %0s actual=%0b expected=%0b", name, actual, expected);
+        errors = errors + 1;
+      end
+    end
+  endtask
+
+  task automatic clear_inputs;
+    begin
+      flush = 1'b0;
+      csr_trap_mem_valid = 1'b0;
+      direct_frontend_flush = 1'b0;
+      direct_branch0_fire = 1'b0;
+      direct_branch1_fire = 1'b0;
+      direct_branch_resolve_redirect = 1'b0;
+      branch_spec_checkpoint_capture = 1'b0;
+      branch_spec_resolve_valid = 1'b0;
+      orphan_stop_pending = 1'b0;
+      pending_branch_commit_resolve = 1'b0;
+      pending_branch_match_clear = 1'b0;
+      branch_resolve_untracked = 1'b0;
+      pending_jump_resolve_ready = 1'b0;
+      pending_jump_misaligned = 1'b0;
+      pending_jump_nolink_commit = 1'b0;
+      pending_jump_redirect_after_dispatch = 1'b0;
+      jump_dispatch_fire = 1'b0;
+      pending_mem_resolve_ready = 1'b0;
+      system_csr_dispatch_fire = 1'b0;
+      pending_system_csr_commit = 1'b0;
+      drain_complete = 1'b0;
+      can_run = 1'b0;
+      fifo_has_packet = 1'b0;
+      csr_irq_pending = 1'b0;
+      head_fetch_fault0 = 1'b0;
+      dispatch0_arch_trap = 1'b0;
+      dispatch0_exit = 1'b0;
+      dispatch0_fp = 1'b0;
+      dispatch0_system = 1'b0;
+      head0_csr_illegal = 1'b0;
+      dispatch0_branch = 1'b0;
+      direct_branch0_dispatch_valid = 1'b0;
+      dispatch0_jal = 1'b0;
+      direct_jal0_dispatch_valid = 1'b0;
+      dispatch0_jump = 1'b0;
+      dispatch0_return = 1'b0;
+      dispatch1_barrier_fire = 1'b0;
+      dispatch_unsupported = 1'b0;
+    end
+  endtask
+
+  task automatic tick;
+    begin
+      @(posedge clk);
+      #1;
+    end
+  endtask
+
+  task automatic expect_stop;
+    input [255:0] name;
+    input expected;
+    begin
+      tb_check1(name, stop_pending, expected);
+    end
+  endtask
+
+  task automatic set_from_irq;
+    begin
+      clear_inputs();
+      can_run = 1'b1;
+      fifo_has_packet = 1'b1;
+      csr_irq_pending = 1'b1;
+      tick();
+      expect_stop("irq sets stop", 1'b1);
+    end
+  endtask
+
+  initial begin
+    errors = 0;
+    clear_inputs();
+    rst = 1'b1;
+    repeat (2) tick();
+    rst = 1'b0;
+    tick();
+    expect_stop("reset clears", 1'b0);
+
+    clear_inputs();
+    direct_frontend_flush = 1'b1;
+    direct_branch0_fire = 1'b1;
+    direct_branch_resolve_redirect = 1'b0;
+    tick();
+    expect_stop("direct branch no redirect sets", 1'b1);
+
+    clear_inputs();
+    direct_frontend_flush = 1'b1;
+    direct_branch1_fire = 1'b1;
+    direct_branch_resolve_redirect = 1'b1;
+    tick();
+    expect_stop("direct branch redirect clears", 1'b0);
+
+    set_from_irq();
+    clear_inputs();
+    branch_spec_checkpoint_capture = 1'b1;
+    tick();
+    expect_stop("checkpoint clears", 1'b0);
+
+    set_from_irq();
+    clear_inputs();
+    orphan_stop_pending = 1'b1;
+    tick();
+    expect_stop("orphan clears", 1'b0);
+
+    set_from_irq();
+    clear_inputs();
+    pending_jump_resolve_ready = 1'b1;
+    jump_dispatch_fire = 1'b1;
+    tick();
+    expect_stop("jump dispatch holds", 1'b1);
+    clear_inputs();
+    pending_jump_resolve_ready = 1'b1;
+    pending_jump_misaligned = 1'b1;
+    tick();
+    expect_stop("jump misaligned clears", 1'b0);
+
+    set_from_irq();
+    clear_inputs();
+    branch_spec_checkpoint_capture = 1'b1;
+    pending_jump_resolve_ready = 1'b1;
+    jump_dispatch_fire = 1'b1;
+    tick();
+    expect_stop("checkpoint clear survives jump hold", 1'b0);
+
+    set_from_irq();
+    clear_inputs();
+    pending_mem_resolve_ready = 1'b1;
+    tick();
+    expect_stop("pending memory resolve holds", 1'b1);
+    clear_inputs();
+    pending_system_csr_commit = 1'b1;
+    tick();
+    expect_stop("csr commit clears", 1'b0);
+
+    set_from_irq();
+    clear_inputs();
+    drain_complete = 1'b1;
+    tick();
+    expect_stop("drain clears", 1'b0);
+
+    clear_inputs();
+    can_run = 1'b1;
+    fifo_has_packet = 1'b1;
+    head_fetch_fault0 = 1'b1;
+    tick();
+    expect_stop("fetch fault sets", 1'b1);
+
+    clear_inputs();
+    pending_branch_commit_resolve = 1'b1;
+    tick();
+    expect_stop("branch commit clears", 1'b0);
+
+    clear_inputs();
+    can_run = 1'b1;
+    fifo_has_packet = 1'b1;
+    dispatch0_branch = 1'b1;
+    direct_branch0_dispatch_valid = 1'b0;
+    tick();
+    expect_stop("branch fallback sets", 1'b1);
+
+    clear_inputs();
+    pending_branch_match_clear = 1'b1;
+    tick();
+    expect_stop("branch match clears", 1'b0);
+
+    clear_inputs();
+    can_run = 1'b1;
+    fifo_has_packet = 1'b1;
+    dispatch0_jump = 1'b1;
+    dispatch0_return = 1'b0;
+    tick();
+    expect_stop("jump non-return sets", 1'b1);
+
+    clear_inputs();
+    branch_resolve_untracked = 1'b1;
+    tick();
+    expect_stop("untracked branch clears", 1'b0);
+
+    clear_inputs();
+    can_run = 1'b1;
+    fifo_has_packet = 1'b1;
+    dispatch1_barrier_fire = 1'b1;
+    tick();
+    expect_stop("lane1 barrier sets", 1'b1);
+
+    clear_inputs();
+    system_csr_dispatch_fire = 1'b1;
+    tick();
+    expect_stop("system csr dispatch holds", 1'b1);
+
+    clear_inputs();
+    can_run = 1'b1;
+    fifo_has_packet = 1'b1;
+    dispatch_unsupported = 1'b1;
+    csr_trap_mem_valid = 1'b1;
+    tick();
+    expect_stop("late trap overrides capture", 1'b0);
+
+    clear_inputs();
+    flush = 1'b1;
+    tick();
+    expect_stop("flush clears", 1'b0);
+
+    if (errors == 0) begin
+      $display("PASS tb_ooo_stop_pending_sequencer");
+      $finish;
+    end
+    $display("FAIL tb_ooo_stop_pending_sequencer errors=%0d", errors);
+    $finish(1);
+  end
+endmodule

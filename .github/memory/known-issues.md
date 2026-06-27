@@ -5,6 +5,63 @@
 ## 活跃问题
 <!-- 当前未解决的问题 -->
 
+### [104] `npc/rv64` ACT4 PMP CSR/权限 gate 缺口（已修并验证）
+
+- **模块**: NPC / RV64 / PMP / CSR / fetch / memory bridge / ACT4 privileged
+- **现象**: PMP RTL 接入后，ACT4 `priv/pmp/pmp64/PMPS,priv/pmp/pmp64/PMPU` 已可通过，但 `priv/pmp/pmp64/PMPSm` 初期仍有失败；补 PMPADDR 掩码后从 45/51 推进到 50/51，最后剩余 `pmpsm_csr_walk-01`。失败点不是主 CSR 比对，而是 trap signature cleanup：测试期望 `Mtrap_sig - trap_sigptr == 0x80`，实际为 0。
+- **根因**: 第一层是 `pmpaddr` 没有按实现的物理地址宽度做 WARL mask，写入未实现高位后会错误读回。第二层是 RV64 下奇数 PMP config CSR `pmpcfg1/pmpcfg3` 是 illegal CSR；当前实现曾把它们当作 legal WARL-zero，导致 ACT4 期望的四次 illegal trap 没有发生。局部规范摘录 `npc/rv64/design/study/tmp/spec-vol2-front70.txt` 明确 RV64 奇数 `pmpcfg` CSR illegal。
+- **修复**: `define.v` 增加 `PMP_PADDR_BITS=56`、`PMP_ADDR_BITS`、`PMP_ADDR_MASK`；`CsrFile` 增加 `PMPADDR_WRITABLE_MASK` 并在 PMPADDR 写入/导出时只保留 PA[55:2] 对应位；`csr_pmpcfg_known` 改为只承认 `CSR_PMPCFG0` 与 `CSR_PMPCFG2`；`tb_csr_file` 把 `pmpcfg1/3` 读写期望改为 illegal，并补 PMPADDR 高位读回 0 的 contract。前序 PMP 集成已包括 16-entry CSR 存储、lock 处理、`PmpChecker`、fetch PMP check 和 data PMP check。
+- **验证**: focused `tb_csr_file tb_ooo_fetch_axi_bridge tb_ooo_mem_axi_bridge` 3/3 PASS，证据 `npc/rv64/perf/results/20260627-act4-rva22s64-pmpcfg-odd-illegal/module-focused/`；`make -C npc/rv64 lint` PASS；`make -C npc/rv64 -j2` PASS；ACT4 `PMPSm` 51/51 PASS，证据 `npc/rv64/perf/results/20260627-act4-rva22s64-priv-pmpsm-after-pmpcfg-odd-illegal/20260627-105719-1678454/`；ACT4 `PMPS,PMPU` 18/18 PASS，证据 `npc/rv64/perf/results/20260627-act4-rva22s64-priv-pmp-spu-after-pmpcfg-odd-illegal/20260627-105736-1679907/`；official default+FP+A+privileged riscv-tests 177/177 PASS，证据 `npc/rv64/perf/results/20260627-act4-rva22s64-pmp/core-regress-official-after-pmpcfg-odd-illegal/20260627-105956-1682451/`。
+- **教训**: PMP 的 spec 边界不能只看地址匹配器。CSR 编号合法性、WARL mask、lock 后写行为、M/S/U no-match、partial overlap 和访问类型都要纳入同一 gate；ACT4 这类 CSR walk 会把“读回值正确”和“是否 trap”分开验证。
+- **边界**: 当前 PMP gate 已按 `sail-RVA22S64` RV64 核级覆盖闭合；Zicbo、完整 ACT4/UDB、Linux/full-system、formal/PPA/timing/CDC/reset/物理签核和完整 CPU sign-off 仍未完成。
+
+### [103] `npc/rv64` ACT4 privileged Sv profile / PTE reserved / mstatus.SD / Svpbmt / Svinval 缺口（已修并验证）
+
+- **模块**: NPC / RV64 / ACT4 / privileged / Sv39 / Svpbmt / Svinval / CSR / MMU
+- **现象**: 早期用 ACT4 `sail-rv64-max` 配置跑 `sv39_canonical_Smode/Umode` 时在 `sv_Svect` trap signature checker 长时间推进但不 PASS；后续改用 `sail-RVA22S64` 后 canonical 项可 PASS，但完整 `priv/Sv` 初跑为 27/33，失败集中在 non-leaf PTE D/A/U、reserved PTE、Svnapot/PBMT disabled 和 `sv_mstatus_tvm_test`。继续扩展 `Svpbmt` 后，leaf `sv39_Svpbmt_Smode/Umode` 在 trap framework 中 host timeout，而 nonleaf PBMT 用例可 PASS。继续扩展 `Svinval` 后，`Svinval`/`Svinval_mstatus_tvm` 初跑 0/2：前者不写出 TOHOST PASS，后者直接 TOHOST FAIL。
+- **根因**: `sail-rv64-max` 启用 V/VS 期望，而当前核 `misa` 与 CSR 状态没有实现 V/VS，max 下的 `sstatus.VS` mismatch 不能作为本核默认 Sv39 失败。真实 RTL 缺口包括：page walker 未统一检查 PTE hard-reserved 位和 non-leaf D/A/U；`CsrFile` 最初缺 `menvcfg`，导致 PBMTE 清零探测 illegal；`mstatus/sstatus` 读口未按 FS Dirty 合成只读 SD bit63；后续 `Svpbmt` 暴露 `menvcfg.PBMTE` 不能一直 WARL-zero；`Svinval` 暴露 `DecodeUnit` 只识别 `sfence.vma`，且前端把序列化边界与 TVM 门控绑在同一控制位上，无法表达 `sfence.vma/sinval.vma` 受 TVM 控制、`sfence.w.inval/sfence.inval.ir` 不受 TVM 控制、U-mode 四条 supervisor fence 全非法的 spec 边界。
+- **修复**: ACT4 preflight/runner 增加 `--config-name`/`--config-src`；I/D walker 共用 `pte_reserved_fault()` 并覆盖 TLB hit、fill valid、page-walk fault；base `SV39_PTE_RESERVED_MASK=64'he7c0_0000_0000_0000`，PBMTE=1 时使用 `SV39_PTE_RESERVED_MASK_SVPBMT=64'h87c0_0000_0000_0000`；`CsrFile` 保存/读回 `MENVCFG_PBMTE` bit62 并导出 `svpbmt_en_o`，其它 `menvcfg` 位保持 WARL-zero；`OooAluFetchCore`/`NpcCoreTop` 透传 `svpbmt_en` 到 fetch/mem walker；walk request 捕获 PBMTE 上下文；`mstatus/sstatus` 读口增加 FS Dirty -> SD 派生，内部状态仍不存 SD；新增 Svinval system encoding 与 `CTRL_SFENCE_TVM_BIT`，`DecodeUnit` 精确译码四条 supervisor fence，`OooAluFetchCore` 增加 U-mode fence illegal gate，并只对带 TVM bit 的 fence 施加 S-mode+TVM illegal。
+- **验证**: focused PTE set 5/5 PASS；`sv_mstatus_tvm_test` PASS；完整 ACT4 `sail-RVA22S64 priv/Sv` 33/33 PASS；ACT4 `priv/Svpbmt` 4/4 PASS；ACT4 `priv/Svinval` 2/2 PASS，证据 `npc/rv64/perf/results/20260627-act4-rva22s64-priv-svinval-after-fix/20260627-093545-1614756/`；combined ACT4 `priv/ExceptionsSv,priv/Sv,priv/Svade,priv/Svbare,priv/Svpbmt,priv/Svinval` 48/48 PASS，证据 `npc/rv64/perf/results/20260627-act4-rva22s64-priv-sv-combined-after-svinval/20260627-093604-1614913/`；`make -C npc/rv64 -j2` PASS；`make -C npc/rv64 lint` PASS；focused module TB 覆盖 PBMTE/PBMT 与 Svinval decode/system chain；official riscv-tests default+FP+A+privileged sweep 177/177 PASS，证据 `npc/rv64/perf/results/20260627-act4-rva22s64-svinval/core-regress-official/20260627-093617-1616308/`。
+- **教训**: ACT4/UDB profile 必须和实现的 ISA/CSR 边界匹配，不能把 max 配置的 V/VS 期望误当成当前核缺陷。Sv39/Svpbmt PTE 合法性检查必须由 ITLB/DTLB hit、fill 和 page-walk 共用同一 helper，并且 CSR feature enable 需要进入 TLB hit 权限复核和 walk request 上下文。`mstatus.SD` / `sstatus.SD` 是读出派生位，不应写入状态寄存器，但必须在 CSR read mux 中合成。SYSTEM 指令的“序列化边界”和“特权/TVM illegal 条件”必须分成独立控制语义，不能用一个 coarse `sfence` bit 同时承担两种 spec。
+- **边界**: 该问题已按 `sail-RVA22S64` Sv39/Svpbmt/Svinval 核级 gate 闭合；`Svadu`/`Svnapot` 在该 profile 下未生成 final ELF，PMP 后续已由 [104] 闭合；Zicbo、完整 ACT4/UDB、Linux/full-system、formal/PPA/timing/CDC/reset/物理签核或完整 CPU sign-off 仍未完成。
+
+### [102] `npc/rv64` privileged riscv-tests 暴露 FP illegal 抢先级和 Sv39 A/D 位缺口（已修并验证）
+
+- **模块**: NPC / RV64 / frontend / CSR / Sv39 / memory bridge / official riscv-tests
+- **现象**: 扩展官方 privileged suites 后，`rv64mi-p-csr` 在 `misa.F` 存在时执行 `fmv.w.x ft0,zero` 被当作 illegal instruction，tohost fail code=12；`rv64si-p-dirty` 失败，tohost fail code=3，表现为 D=0 的 S-mode store 没有触发 store page fault。
+- **根因**: `DecodeUnit` 对 OP-FP 主 opcode 仍置 `CTRL_ILLEGAL_BIT`，而 `OooAluFetchCore` 先按整数 decoder illegal 生成前端 arch trap，抢在 `OooFpDecode` 的合法 FP 路径之前；FS=Off 的 illegal gate 是对的，但 FS 打开时合法 FP 不应被整数 decoder 抢先吞掉。Sv39 侧，`OooMemAxiBridge`/`OooFetchAxiBridge` 的 leaf PTE 权限函数只检查 R/W/X/U/SUM/MXR，漏掉 A/D 位：A=0 或 store 且 D=0 应 page fault，不能继续真实访存或填 TLB。
+- **修复**: `OooAluFetchCore` 拆出 `head*_decode_illegal_w` 与 `head*_illegal_raw_w`，对 `OooFpDecode` 已识别的 FP 指令豁免整数 decoder illegal；FS=Off、TVM 下 `sfence.vma`、TSR 下 `sret` 仍走精确 illegal trap。`CsrFile.v` 同步补 debug trigger no-op CSR、`pmpcfg0/pmpaddr0`、`misa` WARL no-op 和 `mstatus.TVM/TW/TSR`。`OooMemAxiBridge` 对 data leaf PTE 增加 `!A || (store && !D)` page fault，`OooFetchAxiBridge` 对 execute leaf PTE 增加 `!A` page fault，fault PTE 不填 TLB；buffered normal load/store drain 改用 exact effective address，避免窄访存从缓冲路径错读 8B 对齐窗口。
+- **验证**: `tb_ooo_alu_fetch_core` 新增 FS 打开后 `fmv.w.x` 退休回归 PASS；`tb_ooo_mem_axi_bridge` 新增 A=0 load/D=0 store page fault 回归 PASS；`tb_ooo_fetch_axi_bridge` 新增 A=0 fetch page fault 回归 PASS；默认 `npc/rv64/testbench run` 53/53 PASS；`make -C npc/rv64 lint` PASS；`make -C npc/rv64 -j2` PASS；`rv64mi` 17/17 PASS；`rv64si` 7/7 PASS；最终 default+privileged official `riscv-tests` `135 tests attempted` 全 PASS，证据 `npc/rv64/perf/results/core-regress/20260626-170801-284881/`。
+- **教训**: OoO 前端的“基础整数 decoder illegal”不能直接作为最终非法判定源；需要和 FP/RVC/privileged/system 子解码共同仲裁。Sv39 page-walk 权限函数必须把 A/D 位作为 leaf PTE 合法性的一部分，并在 TLB fill 与 TLB hit 两处复用同一判断，否则会出现程序第一次不 fault、后续又被 stale TLB 放大的隐性错误。
+
+### [101] `npc/rv64` 官方 riscv-tests 初接入暴露 Zbb word 漏解码和 misaligned 普通访存语义不匹配（已修并验证）
+
+- **模块**: NPC / RV64 / decode / OoO integer backend / LSU / DPI PMEM / module testbench
+- **现象**: 初次把官方 `riscv-tests` 接入 `npc/rv64` core-level 回归后，`rv64uzbb-p-clzw/cpopw/ctzw/rolw/roriw/rorw` 因 illegal 或执行语义缺失失败；`rv64ui-p-ma_data` 失败，早期修法把 LSU 改成 exact byte address 后又让 `lb/lh/lw/sb/sh` 等普通窄访存因 DPI 8B 对齐检查而批量失败。
+- **根因**: Zbb 解码只覆盖了部分 64-bit 形态，漏掉 OP-IMM-32 的 word immediate 变体和 OP-32 rotate word 变体；执行后端也缺 32-bit clz/ctz/cpop/rotate 后 sign-extend 的专用路径。访存侧，官方 `ma_data.S` 明确检查普通 misaligned load/store 应读写连续字节，包括跨 8B 和跨 cacheline；旧 RTL 把普通 half/word/dword misaligned 都转成异常，后续又没有把 DPI 数据总线从 aligned-word 模型同步改为 byte-addressed window，导致 exact address 被 `npc_mem_read/write` 拒绝。
+- **修复**: `DecodeUnit.v` 合法化 `clzw/ctzw/cpopw/roriw/rolw/rorw`；`OooIntBackend.v` 补 32-bit bitmanip helper 并对 word 结果按 RV64 规则 sign-extend。LSU 改为 byte-addressed 64-bit window：普通 load/store 请求地址保持 exact effective address，`wdata/wstrb` 从 lane0 表达访问宽度，后端只对 AMO/LR/SC 保留 misaligned exception；DPI `npc_mem_read/write` 放开数据访问 8B 对齐限制，PMEM 通过连续字节读写支持跨窗口；D-cache store-hit 在 invalidate-all 后重置 valid/addr，避免 store 更新精确地址 entry 后被全失效掐掉；相关 LSU/MemoryStage/OoO backend/mem bridge testbench 更新到新契约。
+- **验证**: `scripts/npc-rv64-core-regress.sh --skip-module --skip-lint --skip-build --skip-am --riscv-tests --riscv-suites rv64ui` PASS，包含 `rv64ui-p-ma_data`；最终 `make -C npc/rv64 core-regress` PASS，证据 `npc/rv64/perf/results/core-regress/20260626-160919/`：module testbench 52/52 PASS、lint PASS、build PASS、AM cpu-tests PASS、official riscv-tests `111 tests attempted` 全 PASS。
+- **教训**: 官方 ISA 小测试接入时要先确认测试期望，不要把所有 misaligned 都默认解释成 trap；同时一旦 LSU 总线契约从 aligned-word 改成 exact byte-addressed，DPI、D-cache 和所有局部 testbench 必须同步迁移，否则会制造“程序级过/单测红”或“单测过/程序红”的假稳定。
+
+### [100] `npc/rv64` 默认完整 module testbench 被 legacy cache/core 旧基线拉红（已修并验证）
+
+- **模块**: NPC / RV64 / module testbench / legacy cache / legacy sequential core
+- **现象**: 在推进 OoO 前端 `OooBranchTargetCaptureBuffer` 拆分并补独立 testbench 后，focused OoO 前端/后端、lint、强制 Verilator build 和控制流 smoke 均已通过；但首轮默认 `make -C npc/rv64/testbench run` 不能作为全绿签收。剩余 FAIL 曾为 `tb_icache`、`tb_dcache`、`tb_npc_core_smoke`、`tb_npc_core_mcycle`、`tb_npc_core_interrupt`，随后又暴露 `tb_ooo_muldiv_unit` 与 common helper 命名冲突。
+- **已排除/已修正**: 本轮发现的 `tb_multiplier`、`tb_divider` 失败来自旧 RV32-style 期望：测试只比 32-bit 或用 40-cycle guard，而当前 `Rv32Multiplier/Rv32Divider` 在 RV64 工程里按 `XLEN=64` 数据宽度和 64-cycle latency 使用。已将乘除 testbench 改成 full XLEN 比较、64-bit 期望和 `XLEN+8` guard，并单独复验 PASS。
+- **根因**: `tb_icache`/`tb_dcache` 仍按 4B stride/32-bit word/4-bit strobe 预期；当前 RV64 cache/同步 SRAM 路径是 8 个 64-bit beat、8-bit `wstrb` 和同步读。`tb_npc_core_*` 的 instruction memory 模型也一次只返回 32-bit 指令，而当前 I-cache AXI beat 是 64-bit，需要打包两条 32-bit 指令；此外 legacy smoke/interrupt 程序用 `lui 0x800xx` 构造物理地址，在 RV64 下会 sign-extend 到 `0xffffffff800xxxxx`，与当前 zero-extended physical address/cacheable contract 不一致。最后，`tb_ooo_muldiv_unit` 已有本地 `tb_check64`，新增 common `tb_check64` 会造成重复声明，已撤回 common helper 并改为局部 helper。
+- **修复**: `tb_icache` 用 64-bit fill beat 打包两个 32-bit instruction word，并把 uncached address 改到 `0xa000_0000`；`tb_dcache` 使用 `XLEN` 数据比较、`STRB_W` strobe、8B fill/writeback stride 和 RV64 期望数据；`tb_npc_core_smoke/mcycle/interrupt` 的 IFU memory model 改为 `imem_beat={inst(addr+4),inst(addr)}`，smoke/interrupt 地址构造改用 `lui 0x400xx + slli` 生成 zero-extended `0x800xxxxx`，并同步 MEPC 期望。
+- **验证**: `tb_icache`、`tb_dcache`、`tb_npc_core_smoke`、`tb_npc_core_mcycle`、`tb_npc_core_interrupt` 单项 PASS；默认 `make -C npc/rv64/testbench RESULT_DIR=../perf/results/20260626-branch-target-capture-buffer/full-module-testbench run` 52/52 PASS。
+- **教训**: 目录和模块职责重构后的验证报告必须区分 active OoO path、module helper path、legacy path 和 aggregate path。focused PASS 只能证明该切片行为闭合，不能替代默认完整 testbench PASS。
+
+### [99] AM `riscv64-npc` CoreMark 无评分/无 guest 输出源于 legacy 设备地址与 rv64 SoC 地址图不一致（已修并验证）
+
+- **模块**: Abstract Machine / AM-Kernels CoreMark / NPC RV64 device map
+- **现象**: `ARCH=riscv64-npc NPC_SIM_BACKEND=rv64` 跑 CoreMark 时仿真器能 `HIT GOOD TRAP`，但 guest 侧缺少 `Running CoreMark`、CRC、`CoreMark PASS ... Marks` 等输出。
+- **根因**: `riscv64-npc` AM target 复用了 `riscv/npc/*` 的旧 legacy 设备地址，`putch()` 写 `0xa00003f8`，timer 读 `0xa0000048`；而当前 `npc/rv64` 主线设备地址已经是 SoC/Linux 风格，真实 UART 在 `0x10000000`、CLINT 在 `0x02000000`。同时 rv64 PMEM/总线地址图已覆盖 `0xa0000000` 附近，导致 AM rv64 不能再依赖旧 legacy serial/rtc 口径。
+- **修复**: `abstract-machine/am/src/riscv/npc/npc.h` 增加 `__ARCH_RISCV64_NPC` 分支，仅在 `ARCH=riscv64-npc` 下将 `SERIAL_PORT` 切到 `0x10000000`、`RTC_ADDR` 切到 `0x0200bff8`，并定义 10MHz `NPC_RV64_MTIME_TICKS_PER_US`；`timer.c` 在该分支用 hi/lo/hi 稳定读取 CLINT `mtime` 后换算微秒。旧 `riscv32-npc` 仍使用 `0xa00003f8/0xa0000048`。
+- **验证**: `CoreMark ITERATIONS=10 ARCH=riscv64-npc NPC_SIM_BACKEND=rv64` 恢复 guest 输出，`Total time (ms)=27`、`CoreMark PASS 1082 Marks`、`HIT GOOD TRAP`，`cycles=2781242/commits=3215638/CPI=0.865`；`make -B -C abstract-machine/am ARCH=riscv32-npc NPC_SIM_BACKEND=single archive` 和 `ARCH=riscv64-npc NPC_SIM_BACKEND=rv64 archive` 均 PASS；反汇编确认 rv64 `putch` 写 `0x10000000`，rv32 `putch` 仍写 `0xa00003f8`。
+- **教训**: `ARCH` 名称、AM 平台 runtime 和 NPC 后端地址图要作为显式合同维护。rv64 Linux/SoC 主线中，串口/CLINT 应以 DTS/RTL 地址为准；legacy AM 窗口可以保留给旧目标，但不要让新的 rv64 AM 裸机程序继续隐式依赖它。CoreMark Marks 当前是 guest CLINT timebase 口径，不与旧 host RTC 分数直接横比。
+
 ### [98] NEMU full-soak 默认 90B cycle 预算在当前 full runtime 下提前截断（已修并验证）
 
 - **模块**: NEMU / Linux full Ubuntu 22.04 / full-soak / e2e budget / systemd-oomd pressure / user-manager

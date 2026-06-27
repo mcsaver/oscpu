@@ -10,7 +10,7 @@ module tb_lsu;
   reg [`XLEN-1:0] mem_rdata;
   wire [`XLEN-1:0] mem_addr;
   wire [`XLEN-1:0] mem_wdata;
-  wire [3:0] mem_wstrb;
+  wire [`STRB_W-1:0] mem_wstrb;
   wire [`XLEN-1:0] load_data;
   wire misaligned;
 
@@ -34,11 +34,11 @@ module tb_lsu;
     store_data = 32'h0000_00aa;
     mem_size = `MEM_SIZE_BYTE;
     mem_unsigned = 1'b0;
-    mem_rdata = 32'h8000_ff7f;
+    mem_rdata = 32'h0000_0080;
     #1;
-    tb_check32("byte addr", mem_addr, 32'h8000_0000);
-    tb_check32("byte wdata", mem_wdata, 32'haa00_0000);
-    tb_check32("byte wstrb", {28'b0, mem_wstrb}, 32'h0000_0008);
+    tb_check32("byte addr", mem_addr, 32'h8000_0003);
+    tb_check32("byte wdata", mem_wdata, 32'h0000_00aa);
+    tb_check32("byte wstrb", {24'b0, mem_wstrb}, 32'h0000_0001);
     tb_check32("byte load signed", load_data, 32'hffff_ff80);
     tb_check1("byte aligned", misaligned, 1'b0);
 
@@ -50,8 +50,9 @@ module tb_lsu;
     eff_addr = 32'h8000_0002;
     mem_size = `MEM_SIZE_HALF;
     mem_unsigned = 1'b1;
+    mem_rdata = 32'h0000_8000;
     #1;
-    tb_check32("half wstrb", {28'b0, mem_wstrb}, 32'h0000_000c);
+    tb_check32("half wstrb", {24'b0, mem_wstrb}, 32'h0000_0003);
     tb_check32("half load unsigned", load_data, 32'h0000_8000);
 
     tb_finish("tb_lsu");

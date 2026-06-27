@@ -26,7 +26,7 @@ module tb_npc_core_smoke;
   wire lsu_axi_wvalid;
   reg lsu_axi_wready;
   wire [`XLEN-1:0] lsu_axi_wdata;
-  wire [3:0] lsu_axi_wstrb;
+  wire [`STRB_W-1:0] lsu_axi_wstrb;
   reg lsu_axi_bvalid;
   wire lsu_axi_bready;
   reg [1:0] lsu_axi_bresp;
@@ -59,6 +59,7 @@ module tb_npc_core_smoke;
   integer ifu_seen;
   integer lsu_reads;
   integer saw_exit;
+  localparam EXPECTED_IFU_FILL_BEATS = `ICACHE_LINE_WORDS;
 
   NpcCore dut (
     .clk(clk),
@@ -111,15 +112,29 @@ module tb_npc_core_smoke;
     .debug_gprs_o(debug_gprs)
   );
 
+  task automatic tb_check64;
+    input [1023:0] what;
+    input [`XLEN-1:0] got;
+    input [`XLEN-1:0] exp;
+    begin
+      if (got !== exp) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] %0s got=0x%016x expected=0x%016x",
+                 what, got, exp);
+      end
+    end
+  endtask
+
   function [`XLEN-1:0] imem_word;
     input [`XLEN-1:0] addr;
     begin
       case (addr)
-        32'h8000_0000: imem_word = rv32_u(20'h80002, 5'd1, `OPCODE_LUI);
-        32'h8000_0004: imem_word = rv32_i(12'd7, 5'd0, `FUNCT3_ADD_SUB, 5'd3, `OPCODE_OP_IMM);
-        32'h8000_0008: imem_word = rv32_i(12'd0, 5'd1, `FUNCT3_LW, 5'd2, `OPCODE_LOAD);
-        32'h8000_000c: imem_word = rv32_r(`FUNCT7_MULDIV, 5'd3, 5'd2, `FUNCT3_ADD_SUB, 5'd10, `OPCODE_OP);
-        32'h8000_0010: imem_word = {12'h001, 5'd0, `FUNCT3_ADD_SUB, 5'd0, `OPCODE_SYSTEM};
+        32'h8000_0000: imem_word = rv32_u(20'h40001, 5'd1, `OPCODE_LUI);
+        32'h8000_0004: imem_word = rv32_i(12'd1, 5'd1, `FUNCT3_SLL, 5'd1, `OPCODE_OP_IMM);
+        32'h8000_0008: imem_word = rv32_i(12'd7, 5'd0, `FUNCT3_ADD_SUB, 5'd3, `OPCODE_OP_IMM);
+        32'h8000_000c: imem_word = rv32_i(12'd0, 5'd1, `FUNCT3_LW, 5'd2, `OPCODE_LOAD);
+        32'h8000_0010: imem_word = rv32_r(`FUNCT7_MULDIV, 5'd3, 5'd2, `FUNCT3_ADD_SUB, 5'd10, `OPCODE_OP);
+        32'h8000_0014: imem_word = {12'h001, 5'd0, `FUNCT3_ADD_SUB, 5'd0, `OPCODE_SYSTEM};
         default:       imem_word = 32'h0000_0013;
       endcase
     end
@@ -132,6 +147,17 @@ module tb_npc_core_smoke;
         32'h8000_2000: dmem_word = 32'd6;
         default:       dmem_word = 32'h0;
       endcase
+    end
+  endfunction
+
+  function [`XLEN-1:0] imem_beat;
+    input [`XLEN-1:0] addr;
+    reg [31:0] lo;
+    reg [31:0] hi;
+    begin
+      lo = imem_word(addr);
+      hi = imem_word(addr + 64'd4);
+      imem_beat = {hi, lo};
     end
   endfunction
 
@@ -151,9 +177,10 @@ module tb_npc_core_smoke;
       lsu_axi_bresp = 2'b00;
 
       next_ifu_pending = ifu_axi_arvalid && ifu_axi_arready;
-      next_ifu_data = imem_word(ifu_axi_araddr);
-      if (next_ifu_pending && (ifu_seen < 16)) begin
-        tb_check32("core fill request addr", ifu_axi_araddr, 32'h8000_0000 + (ifu_seen << 2));
+      next_ifu_data = imem_beat(ifu_axi_araddr);
+      if (next_ifu_pending && (ifu_seen < EXPECTED_IFU_FILL_BEATS)) begin
+        tb_check64("core fill request addr", ifu_axi_araddr,
+                   64'h0000_0000_8000_0000 + (ifu_seen << `XLEN_BYTE_W));
         ifu_seen = ifu_seen + 1;
       end
       next_lsu_pending = lsu_axi_arvalid && lsu_axi_arready;
@@ -174,12 +201,16 @@ module tb_npc_core_smoke;
         if (commit_pc == 32'h8000_0000) begin
           tb_check1("commit x1 write", commit_rd_en, 1'b1);
           tb_check32("commit x1 rd", {27'b0, commit_rd_addr}, 32'd1);
-          tb_check32("commit x1 data", commit_rd_data, 32'h8000_2000);
+          tb_check32("commit x1 lui data", commit_rd_data, 32'h4000_1000);
         end else if (commit_pc == 32'h8000_0004) begin
-          tb_check32("commit x3 data", commit_rd_data, 32'd7);
+          tb_check1("commit x1 shift write", commit_rd_en, 1'b1);
+          tb_check32("commit x1 shift rd", {27'b0, commit_rd_addr}, 32'd1);
+          tb_check32("commit x1 data", commit_rd_data, 32'h8000_2000);
         end else if (commit_pc == 32'h8000_0008) begin
-          tb_check32("commit x2 data", commit_rd_data, 32'd6);
+          tb_check32("commit x3 data", commit_rd_data, 32'd7);
         end else if (commit_pc == 32'h8000_000c) begin
+          tb_check32("commit x2 data", commit_rd_data, 32'd6);
+        end else if (commit_pc == 32'h8000_0010) begin
           tb_check32("commit x10 rd", {27'b0, commit_rd_addr}, 32'd10);
           tb_check32("commit x10 data", commit_rd_data, 32'd42);
         end
@@ -196,20 +227,20 @@ module tb_npc_core_smoke;
     rst = 1'b1;
     ifu_axi_arready = 1'b1;
     ifu_axi_rvalid = 1'b0;
-    ifu_axi_rdata = 32'h0;
+    ifu_axi_rdata = {`XLEN{1'b0}};
     ifu_axi_rresp = 2'b00;
     lsu_axi_arready = 1'b1;
     lsu_axi_rvalid = 1'b0;
-    lsu_axi_rdata = 32'h0;
+    lsu_axi_rdata = {`XLEN{1'b0}};
     lsu_axi_rresp = 2'b00;
     lsu_axi_awready = 1'b1;
     lsu_axi_wready = 1'b1;
     lsu_axi_bvalid = 1'b0;
     lsu_axi_bresp = 2'b00;
     ifu_pending = 1'b0;
-    ifu_pending_data = 32'h0;
+    ifu_pending_data = {`XLEN{1'b0}};
     lsu_pending = 1'b0;
-    lsu_pending_data = 32'h0;
+    lsu_pending_data = {`XLEN{1'b0}};
     commits = 0;
     ifu_seen = 0;
     lsu_reads = 0;
@@ -225,9 +256,10 @@ module tb_npc_core_smoke;
     tb_check1("no fatal trap during first fill", trap_valid, 1'b0);
     tb_check1("ebreak observed", saw_exit[0], 1'b1);
     tb_check1("no data-side axi write in fetch smoke", lsu_axi_awvalid | lsu_axi_wvalid, 1'b0);
-    if (ifu_seen != 16) begin
+    if (ifu_seen != EXPECTED_IFU_FILL_BEATS) begin
       tb_errors = tb_errors + 1;
-      $display("[CHECK-FAIL] expected 16 first-line fetch requests, got %0d", ifu_seen);
+      $display("[CHECK-FAIL] expected %0d first-line fetch requests, got %0d",
+               EXPECTED_IFU_FILL_BEATS, ifu_seen);
     end
     if (lsu_reads == 0) begin
       tb_errors = tb_errors + 1;

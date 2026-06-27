@@ -51,14 +51,39 @@ module tb_icache;
       invalidate_i = 1'b0;
       cpu_req_valid = 1'b0;
       cpu_rsp_ready = 1'b1;
-      cpu_req_addr = 32'h0;
+      cpu_req_addr = {`XLEN{1'b0}};
       axi_arready = 1'b1;
       axi_rvalid = 1'b0;
-      axi_rdata = 32'h0;
+      axi_rdata = {`XLEN{1'b0}};
       axi_rresp = 2'b00;
       `TB_TICK(clk);
       rst = 1'b0;
       `TB_TICK(clk);
+    end
+  endtask
+
+  function [`XLEN-1:0] inst_pair;
+    input [31:0] base;
+    input integer beat;
+    reg [31:0] lo;
+    reg [31:0] hi;
+    begin
+      lo = base + (beat << 1);
+      hi = base + ((beat << 1) + 1);
+      inst_pair = {hi, lo};
+    end
+  endfunction
+
+  task automatic tb_check64;
+    input [1023:0] what;
+    input [`XLEN-1:0] got;
+    input [`XLEN-1:0] exp;
+    begin
+      if (got !== exp) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] %0s got=0x%016x expected=0x%016x",
+                 what, got, exp);
+      end
     end
   endtask
 
@@ -73,7 +98,7 @@ module tb_icache;
         guard = guard + 1;
       end
       tb_check1("icache axi arvalid", axi_arvalid, 1'b1);
-      tb_check32("icache axi araddr", axi_araddr, exp_addr);
+      tb_check64("icache axi araddr", axi_araddr, exp_addr);
       `TB_TICK(clk);
       tb_check1("icache axi rready", axi_rready, 1'b1);
       axi_rvalid = 1'b1;
@@ -81,7 +106,7 @@ module tb_icache;
       axi_rresp = 2'b00;
       `TB_TICK(clk);
       axi_rvalid = 1'b0;
-      axi_rdata = 32'h0;
+      axi_rdata = {`XLEN{1'b0}};
     end
   endtask
 
@@ -125,7 +150,8 @@ module tb_icache;
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
     for (i = 0; i < LINE_WORDS; i = i + 1) begin
-      send_mem_word(32'h8000_0000 + (i << 2), 32'h0000_1000 + i);
+      send_mem_word(64'h0000_0000_8000_0000 + (i << `XLEN_BYTE_W),
+                    inst_pair(32'h0000_1000, i));
     end
     tb_check32("filled sram word1", dut.u_data_sram.mem_q[0][32 +: 32], 32'h0000_1001);
     wait_cpu_rsp("filled line response", 32'h0000_1001, 1'b0, 1'b0);
@@ -175,7 +201,8 @@ module tb_icache;
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
     for (i = 0; i < LINE_WORDS; i = i + 1) begin
-      send_mem_word(32'h8000_1000 + (i << 2), 32'h0000_3000 + i);
+      send_mem_word(64'h0000_0000_8000_1000 + (i << `XLEN_BYTE_W),
+                    inst_pair(32'h0000_3000, i));
     end
     wait_cpu_rsp("second way filled response", 32'h0000_3001, 1'b0, 1'b0);
 
@@ -185,15 +212,15 @@ module tb_icache;
     cpu_req_valid = 1'b0;
     wait_cpu_rsp("first way still hits", 32'h0000_1001, 1'b0, 1'b1);
 
-    cpu_req_addr = 32'h9000_0000;
+    cpu_req_addr = 32'ha000_0000;
     cpu_req_valid = 1'b1;
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
     while (!axi_arvalid) `TB_TICK(clk);
-    tb_check32("uncached req addr", axi_araddr, 32'h9000_0000);
+    tb_check32("uncached req addr", axi_araddr, 32'ha000_0000);
     `TB_TICK(clk);
     axi_rvalid = 1'b1;
-    axi_rdata = 32'hfeed_cafe;
+    axi_rdata = 64'h0000_0000_feed_cafe;
     axi_rresp = 2'b00;
     `TB_TICK(clk);
     axi_rvalid = 1'b0;

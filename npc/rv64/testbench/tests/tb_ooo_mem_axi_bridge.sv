@@ -11,6 +11,7 @@ module tb_ooo_mem_axi_bridge;
   reg [1:0] priv_mode;
   reg [`XLEN-1:0] mstatus;
   reg [`XLEN-1:0] satp;
+  reg svpbmt_en;
 
   reg mem0_req_valid;
   wire mem0_req_ready;
@@ -61,8 +62,13 @@ module tb_ooo_mem_axi_bridge;
   localparam [`XLEN-1:0] SUPERPAGE_PPN =
       64'h0000_0000_8000_0000 >> 12;
   localparam [`XLEN-1:0] LEAF_FLAGS = 64'h0cf;
+  localparam [`XLEN-1:0] LEAF_NO_ACCESS_FLAGS = 64'h08f;
+  localparam [`XLEN-1:0] LEAF_NO_DIRTY_FLAGS = 64'h04f;
   localparam [`XLEN-1:0] SUPERPAGE_PTE =
       (SUPERPAGE_PPN << 10) | LEAF_FLAGS;
+  localparam [`PMP_CFG_BUS_W-1:0] PMP_ALLOW_ALL_CFG =
+      {{(`PMP_ENTRY_COUNT-1){8'h00}}, 8'h1f};
+  localparam [`PMP_ADDR_BUS_W-1:0] PMP_ALLOW_ALL_ADDR = {`PMP_ADDR_BUS_W{1'b1}};
 
   OooMemAxiBridge dut (
     .clk(clk),
@@ -72,6 +78,9 @@ module tb_ooo_mem_axi_bridge;
     .priv_mode_i(priv_mode),
     .mstatus_i(mstatus),
     .satp_i(satp),
+    .svpbmt_en_i(svpbmt_en),
+    .pmpcfg_i(PMP_ALLOW_ALL_CFG),
+    .pmpaddr_i(PMP_ALLOW_ALL_ADDR),
     .mem0_req_valid_i(mem0_req_valid),
     .mem0_req_ready_o(mem0_req_ready),
     .mem0_req_write_i(mem0_req_write),
@@ -140,6 +149,7 @@ module tb_ooo_mem_axi_bridge;
       priv_mode = `PRIV_M;
       mstatus = {`XLEN{1'b0}};
       satp = {`XLEN{1'b0}};
+      svpbmt_en = 1'b0;
       mem0_req_valid = 1'b0;
       mem0_req_write = 1'b0;
       mem0_req_addr = {`XLEN{1'b0}};
@@ -160,6 +170,30 @@ module tb_ooo_mem_axi_bridge;
       lsu_axi_wready = 1'b0;
       lsu_axi_bvalid = 1'b0;
       lsu_axi_bresp = 2'b00;
+    end
+  endtask
+
+  task automatic check_svpbmt_pte_reserved_policy;
+    reg [`XLEN-1:0] pbmt1_leaf;
+    reg [`XLEN-1:0] pbmt2_leaf;
+    reg [`XLEN-1:0] pbmt3_leaf;
+    reg [`XLEN-1:0] pbmt1_nonleaf;
+    begin
+      pbmt1_leaf = SUPERPAGE_PTE | (64'd1 << 61);
+      pbmt2_leaf = SUPERPAGE_PTE | (64'd2 << 61);
+      pbmt3_leaf = SUPERPAGE_PTE | (64'd3 << 61);
+      pbmt1_nonleaf = ((ROOT_PT >> 12) << 10) | 64'h001 | (64'd1 << 61);
+
+      tb_check1("mem PBMT=1 leaf faults while Svpbmt disabled",
+                dut.pte_reserved_fault(pbmt1_leaf, 1'b0), 1'b1);
+      tb_check1("mem PBMT=1 leaf is legal when Svpbmt enabled",
+                dut.pte_reserved_fault(pbmt1_leaf, 1'b1), 1'b0);
+      tb_check1("mem PBMT=2 leaf is legal when Svpbmt enabled",
+                dut.pte_reserved_fault(pbmt2_leaf, 1'b1), 1'b0);
+      tb_check1("mem PBMT=3 leaf remains reserved",
+                dut.pte_reserved_fault(pbmt3_leaf, 1'b1), 1'b1);
+      tb_check1("mem non-leaf PBMT remains reserved",
+                dut.pte_reserved_fault(pbmt1_nonleaf, 1'b1), 1'b1);
     end
   endtask
 
@@ -549,6 +583,60 @@ module tb_ooo_mem_axi_bridge;
     end
   endtask
 
+  task automatic sv39_leaf_ad_fault;
+    input [1023:0] what;
+    input write_access;
+    input [`XLEN-1:0] leaf_flags;
+    begin
+      priv_mode = `PRIV_S;
+      satp = (64'h8 << 60) | ROOT_PPN;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = write_access;
+      mem0_req_addr = DATA_VA;
+      mem0_req_wdata = 64'haaaa_bbbb_cccc_dddd;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      #1;
+      tb_check1(what, mem0_req_ready, 1'b1);
+      tb_check1("sv39 A/D fault request no direct AXI", lsu_axi_arvalid,
+                1'b0);
+      tick();
+      mem0_req_valid = 1'b0;
+
+      #1;
+      tb_check1("sv39 A/D fault walk AR valid", lsu_axi_arvalid, 1'b1);
+      tb_check64("sv39 A/D fault walk PTE address", lsu_axi_araddr,
+                 ROOT_PT + 64'd16);
+      lsu_axi_arready = 1'b1;
+      tick();
+      lsu_axi_arready = 1'b0;
+
+      #1;
+      tb_check1("sv39 A/D fault waits PTE", lsu_axi_rready, 1'b1);
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = (SUPERPAGE_PPN << 10) | leaf_flags;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+
+      #1;
+      tb_check1("sv39 A/D fault response valid", mem0_rsp_valid, 1'b1);
+      tb_check1("sv39 A/D fault error", mem0_rsp_error, 1'b1);
+      tb_check1("sv39 A/D fault page fault", mem0_rsp_page_fault, 1'b1);
+      tb_check1("sv39 A/D fault does not issue read", lsu_axi_arvalid,
+                1'b0);
+      tb_check1("sv39 A/D fault does not issue AW", lsu_axi_awvalid, 1'b0);
+      tb_check1("sv39 A/D fault does not issue W", lsu_axi_wvalid, 1'b0);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+
+      mmu_flush = 1'b1;
+      tick();
+      mmu_flush = 1'b0;
+      priv_mode = `PRIV_M;
+      satp = {`XLEN{1'b0}};
+    end
+  endtask
+
   wire unused_outputs =
       mem0_rsp_error | mem0_rsp_page_fault | mem1_rsp_error |
       mem1_rsp_page_fault | (|lsu_axi_wstrb);
@@ -562,12 +650,17 @@ module tb_ooo_mem_axi_bridge;
     tick();
     rst = 1'b0;
     #1;
+    check_svpbmt_pte_reserved_policy();
 
     held_response_flush_drop();
     inflight_read_flush_abort();
     read_arstrb_tracks_load_mask();
     partial_write_flush_drain();
     flushed_store_does_not_poison_dcache();
+    sv39_leaf_ad_fault("sv39 A=0 load page fault", 1'b0,
+                       LEAF_NO_ACCESS_FLAGS);
+    sv39_leaf_ad_fault("sv39 D=0 store page fault", 1'b1,
+                       LEAF_NO_DIRTY_FLAGS);
     sv39_dtlb_and_paddr_cache_hit();
 
     tb_check1("unused outputs settle", unused_outputs, unused_outputs);

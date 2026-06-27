@@ -75,15 +75,10 @@ module NpcCoreTop (
   output [`CORE_STATE_W-1:0] debug_state_o,
   output [`XLEN * `REG_NUM - 1:0] debug_gprs_o,
   output [1:0] retire_count_o,
-  output [6:0] free_count_o,
-  output [4:0] rob_count_o,
-  output [3:0] issue_count_o
+  output [`OOO_FREE_COUNT_W-1:0] free_count_o,
+  output [`OOO_ROB_COUNT_W-1:0] rob_count_o,
+  output [`OOO_ISSUE_COUNT_W-1:0] issue_count_o
 );
-
-  localparam OOO_ROB_INDEX_W = 4;
-  localparam OOO_ROB_COUNT_W = OOO_ROB_INDEX_W + 1;
-  localparam OOO_ISSUE_INDEX_W = 3;
-  localparam OOO_ISSUE_COUNT_W = OOO_ISSUE_INDEX_W + 1;
 
   wire ooo_fetch_req_valid_w;
   wire ooo_fetch_req_ready_w;
@@ -123,6 +118,9 @@ module NpcCoreTop (
   wire [1:0] ooo_priv_mode_w;
   wire [`XLEN-1:0] ooo_mstatus_w;
   wire [`XLEN-1:0] ooo_satp_w;
+  wire ooo_svpbmt_en_w;
+  wire [`PMP_CFG_BUS_W-1:0] ooo_pmpcfg_w;
+  wire [`PMP_ADDR_BUS_W-1:0] ooo_pmpaddr_w;
 
   wire ooo_icache_invalidate_valid_w =
       (ooo_mem0_req_valid_w && ooo_mem0_req_ready_w && ooo_mem0_req_write_w) ||
@@ -139,6 +137,9 @@ module NpcCoreTop (
     .invalidate_addr_i(ooo_icache_invalidate_addr_w),
     .priv_mode_i(ooo_priv_mode_w),
     .satp_i(ooo_satp_w),
+    .svpbmt_en_i(ooo_svpbmt_en_w),
+    .pmpcfg_i(ooo_pmpcfg_w),
+    .pmpaddr_i(ooo_pmpaddr_w),
     .fetch_req_valid_i(ooo_fetch_req_valid_w),
     .fetch_req_ready_o(ooo_fetch_req_ready_w),
     .fetch_req_pc_i(ooo_fetch_req_pc_w),
@@ -165,6 +166,9 @@ module NpcCoreTop (
     .priv_mode_i(ooo_priv_mode_w),
     .mstatus_i(ooo_mstatus_w),
     .satp_i(ooo_satp_w),
+    .svpbmt_en_i(ooo_svpbmt_en_w),
+    .pmpcfg_i(ooo_pmpcfg_w),
+    .pmpaddr_i(ooo_pmpaddr_w),
     .mem0_req_valid_i(ooo_mem0_req_valid_w),
     .mem0_req_ready_o(ooo_mem0_req_ready_w),
     .mem0_req_write_i(ooo_mem0_req_write_w),
@@ -208,9 +212,12 @@ module NpcCoreTop (
   );
 
   OooAluFetchCore #(
-    .ROB_INDEX_W(OOO_ROB_INDEX_W),
-    .ROB_COUNT_W(OOO_ROB_COUNT_W),
-    .ISSUE_COUNT_W(OOO_ISSUE_COUNT_W)
+    .PHY_REG_ADDR_W(`OOO_PHY_REG_ADDR_W),
+    .ROB_INDEX_W(`OOO_ROB_INDEX_W),
+    .ROB_COUNT_W(`OOO_ROB_COUNT_W),
+    .FREE_COUNT_W(`OOO_FREE_COUNT_W),
+    .ISSUE_COUNT_W(`OOO_ISSUE_COUNT_W),
+    .FETCH_PACKET_COUNT_W(`OOO_FETCH_PACKET_COUNT_W)
   ) u_ooo_core (
     .clk(clk),
     .rst(rst),
@@ -285,6 +292,9 @@ module NpcCoreTop (
     .priv_mode_o(ooo_priv_mode_w),
     .mstatus_o(ooo_mstatus_w),
     .satp_o(ooo_satp_w),
+    .svpbmt_en_o(ooo_svpbmt_en_w),
+    .pmpcfg_o(ooo_pmpcfg_w),
+    .pmpaddr_o(ooo_pmpaddr_w),
     .debug_pc_o(debug_pc_o),
     .debug_state_o(debug_state_o),
     .debug_gprs_o(debug_gprs_o),

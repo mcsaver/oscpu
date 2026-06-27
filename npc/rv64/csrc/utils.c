@@ -74,4 +74,6 @@ void npc_simconfig_init(NpcSimConfig *cfg) {
   strncpy(cfg->diff_so_path, NPC_DEFAULT_DIFF_SO, NPC_PATH_MAX - 1);
   cfg->diff_port         = 1234;
   cfg->block_path[0]     = '\0';
+  cfg->tohost_enable     = false;
+  cfg->tohost_addr       = 0;
 }

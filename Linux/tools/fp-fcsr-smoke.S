@@ -13,6 +13,8 @@
   .align 2
 _start:
   li sp, FP_SMOKE_STACK
+  li t0, (3 << 13)
+  csrs mstatus, t0
 
   csrwi fcsr, 0
   csrr t0, fcsr

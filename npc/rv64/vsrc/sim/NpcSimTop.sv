@@ -33,6 +33,7 @@ import "DPI-C" function void npc_handled_trap_event(
   input longint unsigned tval
 );
 
+`ifdef CONFIG_NPC_BRANCH_STATS
 import "DPI-C" function void npc_bpu_lookup_event(
   input int unsigned is_branch,
   input int unsigned is_jalr,
@@ -54,7 +55,9 @@ import "DPI-C" function void npc_bpu_resolve_event(
   input int unsigned actual_taken,
   input int unsigned correct
 );
+`endif
 
+`ifdef CONFIG_NPC_CACHE_STATS
 import "DPI-C" function void npc_icache_event(
   input int unsigned access,
   input int unsigned hit,
@@ -69,7 +72,9 @@ import "DPI-C" function void npc_dcache_event(
   input int unsigned write_through,
   input int unsigned is_store
 );
+`endif
 
+`ifdef CONFIG_NPC_OOO_STATS
 import "DPI-C" function void npc_ooo_cycle_event(
   input int unsigned retire_count,
   input int unsigned execute_count,
@@ -100,6 +105,7 @@ import "DPI-C" function void npc_ooo_cycle_event(
   input longint unsigned pending_branch_pc,
   input longint unsigned pending_jump_pc
 );
+`endif
 
 import "DPI-C" function void npc_uart_event(
   input int unsigned is_write,
@@ -120,6 +126,10 @@ import "DPI-C" function void npc_irq_event(
   input int unsigned plic_irq
 );
 
+`ifndef CONFIG_NPC_UART_RX_POLL_SHIFT
+`define CONFIG_NPC_UART_RX_POLL_SHIFT 0
+`endif
+
 module NpcSimTop (
   input logic clk,
   input logic rst,
@@ -138,10 +148,12 @@ module NpcSimTop (
   output logic [63:0] debug_clint_mtime_o
 );
 
+`ifdef CONFIG_NPC_DEBUG_PORTS
   localparam [3:0] AXI_S_CLINT = 4'd0;
   localparam [3:0] AXI_S_SRAM = 4'd2;
   localparam [3:0] AXI_S_UART = 4'd3;
   localparam [3:0] AXI_S_DEFAULT = 4'd15;
+`endif
   logic psram_axi_arvalid_w;
   logic psram_axi_arready_w;
   logic [`XLEN-1:0] psram_axi_araddr_w;
@@ -229,6 +241,7 @@ module NpcSimTop (
   logic uart_rx_valid_q;
   logic [7:0] uart_rx_data_q;
   logic uart_rx_ready_w;
+  logic [31:0] uart_rx_poll_q;
   logic [63:0] clint_mtime_w;
   logic plic_external_irq_w;
   logic uart_irq_w;
@@ -430,6 +443,7 @@ module NpcSimTop (
       virtio_blk_axi_aruser_w;
 
   assign debug_clint_mtime_o = clint_mtime_w;
+`ifdef CONFIG_NPC_DEBUG_PORTS
   assign debug_ooo_satp_o = u_top.u_core.u_ooo_core.csr_satp_w;
   assign debug_ooo_flags_o = {
     23'd0,
@@ -528,6 +542,17 @@ module NpcSimTop (
     u_top.u_core.u_ooo_fetch_bridge.debug_last_pte_second_q,
     u_top.u_core.u_ooo_fetch_bridge.debug_last_pte_level_q
   };
+`else
+  assign debug_ooo_satp_o = 64'd0;
+  assign debug_ooo_flags_o = 64'd0;
+  assign debug_bus_flags_o = 64'd0;
+  assign debug_bus2_flags_o = 64'd0;
+  assign debug_fetch_addr_o = 64'd0;
+  assign debug_mem_addr_o = 64'd0;
+  assign debug_fetch_pte_addr_o = 64'd0;
+  assign debug_fetch_pte_o = 64'd0;
+  assign debug_fetch_pte_meta_o = 64'd0;
+`endif
 
   AxiLiteVirtioBlk #(
     .ADDR_W(`XLEN),
@@ -626,6 +651,7 @@ module NpcSimTop (
   );
 
   assign sim_cache_flush_w = 1'b0;
+`ifdef CONFIG_NPC_SIM_STATS
   // RV64 只保留 OoO/superscalar core，cache/BPU/pipe 统计均从 OoO bridge/core 只读观察。
   assign sim_icache_access_w = u_top.u_core.u_ooo_fetch_bridge.fetch_req_fire_w;
   assign sim_icache_hit_w = sim_icache_access_w &&
@@ -750,6 +776,16 @@ module NpcSimTop (
       sim_ooo_hazard_busy_w | sim_ooo_branch_flush_w |
       sim_ooo_exception_busy_w |
       (|sim_ooo_execute_count_w) | (|sim_ooo_dispatch_count_w);
+`endif
+
+  localparam int UART_RX_POLL_SHIFT = `CONFIG_NPC_UART_RX_POLL_SHIFT;
+  localparam logic [31:0] UART_RX_POLL_MASK =
+      (UART_RX_POLL_SHIFT <= 0) ? 32'd0 :
+      (UART_RX_POLL_SHIFT >= 32) ? 32'hffff_ffff :
+      ((32'd1 << UART_RX_POLL_SHIFT) - 32'd1);
+  wire uart_rx_poll_due_w =
+      (UART_RX_POLL_MASK == 32'd0) ||
+      ((uart_rx_poll_q & UART_RX_POLL_MASK) == 32'd0);
 
   always_ff @(posedge clk) begin
     int unsigned uart_rx_data_v;
@@ -758,10 +794,20 @@ module NpcSimTop (
     if (rst) begin
       uart_rx_valid_q <= 1'b0;
       uart_rx_data_q <= 8'h00;
-    end else if (!uart_rx_valid_q || uart_rx_ready_w) begin
-      uart_rx_has_data_v = npc_uart_rx_pop(uart_rx_data_v);
-      uart_rx_valid_q <= (uart_rx_has_data_v != 0);
-      uart_rx_data_q <= uart_rx_data_v[7:0];
+      uart_rx_poll_q <= 32'd0;
+    end else begin
+      uart_rx_poll_q <= uart_rx_poll_q + 32'd1;
+      if (uart_rx_valid_q && !uart_rx_ready_w) begin
+        uart_rx_valid_q <= uart_rx_valid_q;
+        uart_rx_data_q <= uart_rx_data_q;
+      end else if (uart_rx_poll_due_w) begin
+        uart_rx_has_data_v = npc_uart_rx_pop(uart_rx_data_v);
+        uart_rx_valid_q <= (uart_rx_has_data_v != 0);
+        uart_rx_data_q <= uart_rx_data_v[7:0];
+      end else begin
+        uart_rx_valid_q <= 1'b0;
+        uart_rx_data_q <= 8'h00;
+      end
     end
   end
 
@@ -818,6 +864,7 @@ module NpcSimTop (
         );
       end
 
+`ifdef CONFIG_NPC_BRANCH_STATS
       if (u_top.u_core.u_ooo_core.branch_bpu_update_valid_w) begin
         npc_bpu_resolve_event(
           32'd1,
@@ -845,7 +892,9 @@ module NpcSimTop (
           sim_ooo_ras_overflow_event_w ? 32'd1 : 32'd0
         );
       end
+`endif
 
+`ifdef CONFIG_NPC_CACHE_STATS
       if (sim_icache_access_w) begin
         npc_icache_event(
           32'd1,
@@ -868,7 +917,9 @@ module NpcSimTop (
       if (sim_dcache_writeback_w) begin
         npc_dcache_event(32'd0, 32'd0, 32'd0, 32'd1, 32'd0, 32'd0);
       end
+`endif
 
+`ifdef CONFIG_NPC_OOO_STATS
       npc_ooo_cycle_event(
         {30'd0, core_retire_count_w},
         {30'd0, sim_ooo_execute_count_w},
@@ -900,6 +951,7 @@ module NpcSimTop (
         u_top.u_core.u_ooo_core.pending_branch_pc_q,
         u_top.u_core.u_ooo_core.pending_jump_pc_q
       );
+`endif
 
       if (core_exit_valid_w && !exit_reported_q) begin
         exit_reported_q <= 1'b1;

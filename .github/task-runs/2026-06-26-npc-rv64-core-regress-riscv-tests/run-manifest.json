@@ -1,0 +1,28 @@
+{
+  "task": "npc-rv64-core-regress-riscv-tests",
+  "date": "2026-06-26",
+  "scope": "npc/rv64 core-level RTL and simulator regression",
+  "final_run_dir": "npc/rv64/perf/results/core-regress/20260626-160919",
+  "final_command": "make -C npc/rv64 core-regress",
+  "final_status": "PASS",
+  "riscv_tests": {
+    "source": ".github/runtime-artifacts/npc-rv64-core-tests/src/riscv-tests",
+    "vendored": false,
+    "suites": [
+      "rv64ui",
+      "rv64um",
+      "rv64uc",
+      "rv64uzba",
+      "rv64uzbb",
+      "rv64uzbc",
+      "rv64uzbs"
+    ],
+    "attempted": 111,
+    "status": "PASS"
+  },
+  "boundaries": [
+    "No Linux/rootfs boot gate",
+    "No full industrial CPU sign-off claim",
+    "No formal or physical implementation sign-off"
+  ]
+}

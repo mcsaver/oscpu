@@ -1,0 +1,23 @@
+# Evidence Index
+
+- `npc/rv64/perf/results/20260626-sv39-ad-fault/module-testbench/summary.txt`
+  - Final module regression after FP illegal and Sv39 A/D fixes.
+  - Key lines: `total: 53`, `passed: 53`, `failed: 0`.
+- `npc/rv64/perf/results/core-regress/20260626-170235-277731/status.txt`
+  - Targeted CSR rerun after FP illegal arbitration fix.
+  - Key lines: `rv64mi-p-csr PASS`, `rv64mi-p-mcsr PASS`.
+- `npc/rv64/perf/results/core-regress/20260626-170244-278163/status.txt`
+  - Full `rv64mi` rerun.
+  - Key lines: all 17 machine-mode tests PASS.
+- `npc/rv64/perf/results/core-regress/20260626-170741-283531/status.txt`
+  - Targeted `rv64si-p-dirty` rerun after Sv39 A/D fix.
+  - Key line: `rv64si-p-dirty PASS`.
+- `npc/rv64/perf/results/core-regress/20260626-170749-283821/status.txt`
+  - Full `rv64si` rerun.
+  - Key lines: all 7 supervisor-mode tests PASS.
+- `npc/rv64/perf/results/core-regress/20260626-170801-284881/status.txt`
+  - Final default plus privileged official riscv-tests run.
+  - Key line: `riscv-tests-count INFO 135 tests attempted`, no FAIL rows.
+- `npc/rv64/perf/results/core-regress/20260626-170857-302332/status.txt`
+  - AM cpu-tests rerun through the same core-regress script.
+  - Key line: `am-cpu-tests PASS`.

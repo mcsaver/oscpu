@@ -34,6 +34,9 @@ npc/rv64/include/config/
 npc/rv64/include/generated/
 npc/rv64/perf/results/
 npc/rv64/testbench/build/
+npc/rv64/testsuites/core-tests/**
+!npc/rv64/testsuites/core-tests/
+!npc/rv64/testsuites/core-tests/.gitkeep
 
 # Vivado/FPGA 工程生成物：保留 fpga/Makefile、scripts/、constraints/ 等入口文件。
 fpga/.Xil/

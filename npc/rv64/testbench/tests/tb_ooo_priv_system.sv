@@ -174,6 +174,8 @@ module tb_ooo_priv_system;
     .exit_is_ebreak_o(exit_is_ebreak),
     .exit_code_o(exit_code),
     .halted_o(halted),
+    .pmpcfg_o(),
+    .pmpaddr_o(),
     .debug_pc_o(debug_pc),
     .debug_state_o(debug_state),
     .debug_gprs_o(debug_gprs),

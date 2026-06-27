@@ -104,6 +104,8 @@ module OooDataWordCache #(
 
         if (store_cacheable_w) begin
           if (store_hit_w) begin
+            valid_q[store_idx_w] <= 1'b1;
+            addr_q[store_idx_w] <= store_addr_i;
             data_q[store_idx_w] <=
                 merge_wstrb64(data_q[store_idx_w], store_data_i,
                               store_wstrb_i);

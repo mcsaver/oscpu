@@ -54,6 +54,7 @@ static bool parse_args(int argc, char **argv, NpcSimConfig *config) {
     OPT_NO_DIFF,
     OPT_LOAD,
     OPT_BLOCK,
+    OPT_TOHOST,
   };
 
   static const struct option long_opts[] = {
@@ -62,6 +63,7 @@ static bool parse_args(int argc, char **argv, NpcSimConfig *config) {
     {"load",              required_argument, NULL, OPT_LOAD},
     {"block",             required_argument, NULL, OPT_BLOCK},
     {"disk",              required_argument, NULL, OPT_BLOCK},
+    {"tohost",            required_argument, NULL, OPT_TOHOST},
     {"max",               required_argument, NULL, 'm'},
     {"max-cycles",        required_argument, NULL, 'm'},
     {"log",               optional_argument, NULL, 'l'},
@@ -125,6 +127,17 @@ static bool parse_args(int argc, char **argv, NpcSimConfig *config) {
         strncpy(config->block_path, optarg, NPC_PATH_MAX - 1);
         config->block_path[NPC_PATH_MAX - 1] = '\0';
         break;
+      case OPT_TOHOST: {
+        char *end = NULL;
+        unsigned long long addr = strtoull(optarg, &end, 0);
+        if (!end || *end != '\0') {
+          fprintf(stderr, "[npc] invalid --tohost address: %s\n", optarg);
+          return false;
+        }
+        config->tohost_enable = true;
+        config->tohost_addr = (npc_paddr_t)addr;
+        break;
+      }
       case 'm': {
         char *end = NULL;
         unsigned long long val = strtoull(optarg, &end, 10);
@@ -197,6 +210,7 @@ static bool parse_args(int argc, char **argv, NpcSimConfig *config) {
         printf("  -i, --image=FILE     load binary image\n");
         printf("      --load=ADDR:FILE load extra image at physical address (repeatable)\n");
         printf("      --block=FILE     attach virtio-mmio block image (alias: --disk)\n");
+        printf("      --tohost=ADDR    stop on non-zero riscv-tests tohost word\n");
         printf("  -m, --max=N          max cycles (0=unlimited)\n");
         printf("      --max-cycles=N   compatibility alias for --max\n");
         printf("  -l, --log[=FILE]     enable log to file\n");

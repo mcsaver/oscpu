@@ -730,7 +730,7 @@ PY
   fi
   mkdir -p "$mini_repo/.github/task-runs/demo/evidence"
   cat > "$mini_repo/.github/task-runs/demo/dispatch-log.md" <<'EOF'
-# Dispatch Log
+# 派发日志
 
 ## 基本信息
 
@@ -740,7 +740,7 @@ PY
 - `profile`: github-index
 EOF
   cat > "$mini_repo/.github/task-runs/demo/task-report.md" <<'EOF'
-# Task Report
+# 任务报告
 
 ## 基本信息
 

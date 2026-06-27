@@ -1,0 +1,8 @@
+node	status	evidence
+module-testbench	PASS	npc/rv64/perf/results/20260626-sv39-ad-fault/module-testbench/summary.txt
+verilator-lint	PASS	terminal: make -C npc/rv64 lint
+npc-build	PASS	terminal: make -C npc/rv64 -j2
+rv64mi	PASS	npc/rv64/perf/results/core-regress/20260626-170244-278163/status.txt
+rv64si	PASS	npc/rv64/perf/results/core-regress/20260626-170749-283821/status.txt
+official-riscv-tests-default-plus-privileged	PASS	npc/rv64/perf/results/core-regress/20260626-170801-284881/status.txt
+am-cpu-tests	PASS	npc/rv64/perf/results/core-regress/20260626-170857-302332/status.txt

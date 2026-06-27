@@ -23,6 +23,29 @@ include $(PLATFORM_MK)
 
 NPC_RV64 := $(REPO_ROOT)/npc/rv64
 NPC_SIM ?= $(NPC_RV64)/build/NpcSimTop
+NPC_FAST_SIM ?= 1
+NPC_FAST_NATIVE ?= 1
+NPC_FAST_CXX_AUTO := $(shell \
+	for cxx in /usr/bin/clang++ clang++; do \
+	  if command -v "$$cxx" >/dev/null 2>&1; then \
+	    out="$${TMPDIR:-/tmp}/npc-fast-cxx-test-$$$$"; \
+	    if printf 'int main() { return 0; }\n' | "$$cxx" -x c++ - -o "$$out" >/dev/null 2>&1; then \
+	      rm -f "$$out"; \
+	      echo "$$cxx"; \
+	      break; \
+	    fi; \
+	    rm -f "$$out"; \
+	  fi; \
+	done)
+NPC_SIM_CXX ?= $(if $(filter command line environment override,$(origin CXX)),$(CXX),$(NPC_FAST_CXX_AUTO))
+NPC_SIM_OPT_FAST ?= $(if $(filter undefined,$(origin VERILATOR_OPT_FAST)),$(if $(filter 1,$(NPC_FAST_SIM)),-O3$(if $(filter 1,$(NPC_FAST_NATIVE)), -march=native,),),$(VERILATOR_OPT_FAST))
+NPC_SIM_OPT_GLOBAL ?= $(if $(filter undefined,$(origin VERILATOR_OPT_GLOBAL)),$(NPC_SIM_OPT_FAST),$(VERILATOR_OPT_GLOBAL))
+NPC_SIM_MAKE_ARGS :=
+ifeq ($(NPC_FAST_SIM),1)
+NPC_SIM_MAKE_ARGS += $(if $(strip $(NPC_SIM_CXX)),CXX='$(NPC_SIM_CXX)' LINK='$(NPC_SIM_CXX)',)
+NPC_SIM_MAKE_ARGS += $(if $(strip $(NPC_SIM_OPT_FAST)),VERILATOR_OPT_FAST='$(NPC_SIM_OPT_FAST)',)
+NPC_SIM_MAKE_ARGS += $(if $(strip $(NPC_SIM_OPT_GLOBAL)),VERILATOR_OPT_GLOBAL='$(NPC_SIM_OPT_GLOBAL)',)
+endif
 NEMU_HOME := $(REPO_ROOT)/nemu
 NEMU_SIM ?= $(NEMU_HOME)/build/riscv64-nemu-interpreter
 NEMU_DEFCONFIG ?= riscv64-linux_defconfig
@@ -63,6 +86,7 @@ PROGRESS ?= 50000000
 LOG_ROOT ?= $(PLATFORM_LOG_ROOT)/linux-front
 EXTRA_ARGS ?=
 BOOTARGS_EXTRA ?=
+NEMU_ROOTFS_BOOTARGS_EXTRA ?= console=tty0
 NEMU_SYSTEMD_CHECK_LOG_DIR ?= $(LOG_ROOT)/riscv64-nemu-systemd-guest-check
 NEMU_SYSTEMD_ROOTFS_OVERLAY ?= $(NEMU_SYSTEMD_CHECK_LOG_DIR)/rootfs-overlay.raw
 NEMU_SYSTEMD_NET_TAP ?=
@@ -666,11 +690,11 @@ nemu-rootfs-overlay-machine-info:
 	@echo '[Linux] skip NEMU rootfs overlay machine info for ARCH=$(ARCH)'
 
 sim: linux-defconfig
-	+$(MAKE) -C '$(NPC_RV64)' -j'$(JOBS)'
+	+$(MAKE) -C '$(NPC_RV64)' -j'$(JOBS)' $(NPC_SIM_MAKE_ARGS)
 
 check-sim: linux-defconfig
 	+@if [ ! -x '$(NPC_SIM)' ]; then \
-	  $(MAKE) -C '$(NPC_RV64)' -j'$(JOBS)'; \
+	  $(MAKE) -C '$(NPC_RV64)' -j'$(JOBS)' $(NPC_SIM_MAKE_ARGS); \
 	else \
 	  echo '[Linux] NPC sim exists: $(NPC_SIM)'; \
 	fi
@@ -1119,7 +1143,7 @@ $(DTB_BOOTARGS_STAMP_DIR):
 	mkdir -p '$@'
 
 $(DTB_BOOTARGS_STAMP_DIR)/%.stamp: FORCE | $(DTB_BOOTARGS_STAMP_DIR)
-	@printf '%s\n' 'BOOTARGS_EXTRA=$(BOOTARGS_EXTRA)' 'NPC_ROOTFS_BOOTARGS=$(NPC_ROOTFS_BOOTARGS)' > '$@.tmp'
+	@printf '%s\n' 'BOOTARGS_EXTRA=$(BOOTARGS_EXTRA)' 'NEMU_ROOTFS_BOOTARGS_EXTRA=$(NEMU_ROOTFS_BOOTARGS_EXTRA)' 'NPC_ROOTFS_BOOTARGS=$(NPC_ROOTFS_BOOTARGS)' > '$@.tmp'
 	@if cmp -s '$@.tmp' '$@'; then rm -f '$@.tmp'; else mv '$@.tmp' '$@'; fi
 
 $(KERNEL_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(KERNEL_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
@@ -1165,8 +1189,10 @@ $(NEMU_ROOTFS_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(NEMU_ROOTFS_DTB_BOOTARGS_STA
 	  --reset-syscon \
 	  --virtio-rng \
 	  --virtio-net \
+	  --virtio-input \
+	  --simple-framebuffer \
 	  --goldfish-rtc \
-	  --bootargs-extra '$(BOOTARGS_EXTRA)' \
+	  --bootargs-extra '$(BOOTARGS_EXTRA) $(NEMU_ROOTFS_BOOTARGS_EXTRA)' \
 	  --output '$(BUILD_DIR)/generated/npc-rv64-nemu-rootfs.dts'
 	$(DTC) -I dts -O dtb -o '$@' '$(BUILD_DIR)/generated/npc-rv64-nemu-rootfs.dts'
 

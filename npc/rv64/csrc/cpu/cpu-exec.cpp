@@ -45,6 +45,8 @@ static std::unique_ptr<VerilatedVcdC> g_trace_file;
 static uint64_t g_cycle_limit        = NPC_DEFAULT_MAX_CYCLES;
 static uint64_t g_progress_interval  = NPC_DEFAULT_PROGRESS_INTERVAL;
 static volatile std::sig_atomic_t g_stop_requested = 0;
+static bool g_tohost_enabled = false;
+static npc_paddr_t g_tohost_addr = 0;
 
 struct CommitEvent {
   bool     valid;
@@ -402,6 +404,63 @@ static void read_guest_cstr(npc_word_t addr, char *buf, size_t size) {
     if (ch == 0) return;
   }
   buf[size - 1] = '\0';
+}
+
+static bool init_tohost_watch(const NpcSimConfig *config) {
+  g_tohost_enabled = false;
+  g_tohost_addr = 0;
+  if (!config || !config->tohost_enable) return true;
+
+  if ((config->tohost_addr & (sizeof(npc_word_t) - 1u)) != 0) {
+    fprintf(stderr, "[npc-tohost] unaligned --tohost address: 0x%016" NPC_PRIxPADDR "\n",
+            config->tohost_addr);
+    return false;
+  }
+  if (!npc_pmem_range_valid(config->tohost_addr, sizeof(npc_word_t))) {
+    fprintf(stderr, "[npc-tohost] --tohost address is outside PMEM: 0x%016" NPC_PRIxPADDR "\n",
+            config->tohost_addr);
+    return false;
+  }
+
+  g_tohost_enabled = true;
+  g_tohost_addr = config->tohost_addr;
+  LogBothTag("tohost", "watching word at 0x%016" NPC_PRIxPADDR, g_tohost_addr);
+  return true;
+}
+
+static bool read_tohost_word(npc_word_t *value) {
+  if (!value || !g_tohost_enabled) return false;
+  uint8_t *host = npc_guest_to_host(g_tohost_addr);
+  if (!host) return false;
+  memcpy(value, host, sizeof(*value));
+  return true;
+}
+
+static bool maybe_stop_on_tohost(void) {
+  npc_word_t value = 0;
+  if (!read_tohost_word(&value) || value == 0) return false;
+
+  uint64_t code = 1;
+  if (value == 1) {
+    code = 0;
+  } else if ((value & 1u) != 0) {
+    code = (uint64_t)(value >> 1);
+    if (code == 0) code = 1;
+  } else {
+    code = (uint64_t)value;
+  }
+
+  NpcState *st = npc_state();
+  st->state = NPC_END;
+  st->halt_pc = g_top ? g_top->debug_pc_o : NPC_RESET_PC;
+  st->halt_ret = (npc_word_t)code;
+  st->exit_is_ebreak = false;
+  st->exit_is_ecall = false;
+  st->exit_is_tohost = true;
+  st->tohost_value = value;
+  LogBothTag("tohost", "observed value=0x%016" NPC_PRIxWORD " code=%llu",
+             value, (unsigned long long)code);
+  return true;
 }
 
 static bool sv39_canonical_va(npc_word_t vaddr) {
@@ -1834,11 +1893,18 @@ static void report_run_result(void) {
     case NPC_END: {
       const bool guest_watch_exit =
           (st->halt_ret == 0) && !st->exit_is_ebreak && !st->exit_is_ecall &&
+          !st->exit_is_tohost &&
           npc_guest_expect_matched();
       const bool commit_watch_exit =
           (st->halt_ret == 0) && !st->exit_is_ebreak && !st->exit_is_ecall &&
+          !st->exit_is_tohost &&
           g_commit_watch_matched;
-      const char *trap_text = guest_watch_exit
+      const bool tohost_exit = st->exit_is_tohost;
+      const char *trap_text = tohost_exit
+          ? ((st->halt_ret == 0)
+             ? (ANSI_FG_GREEN "TOHOST PASS" ANSI_NONE)
+             : (ANSI_FG_RED "TOHOST FAIL" ANSI_NONE))
+          : guest_watch_exit
           ? (ANSI_FG_GREEN "GUEST EXPECT MATCH" ANSI_NONE)
           : commit_watch_exit
           ? (ANSI_FG_GREEN "COMMIT WATCH MATCH" ANSI_NONE)
@@ -1846,14 +1912,23 @@ static void report_run_result(void) {
           ? (ANSI_FG_GREEN "HIT GOOD TRAP" ANSI_NONE)
           : (ANSI_FG_RED   "HIT BAD TRAP"  ANSI_NONE);
       LogBothTag("cpu_exec", "npc: %s at pc = 0x%016" NPC_PRIxWORD, trap_text, st->halt_pc);
-      LogBoth("exit via %s, code=%" PRIu64 ", cycles=%llu, commits=%llu",
-              guest_watch_exit ? "guest-watch" :
-                  (commit_watch_exit ? "commit-watch" :
-                  (st->exit_is_ebreak ? "ebreak" :
-                  (st->exit_is_ecall ? "ecall" : "unknown"))),
-              (uint64_t)st->halt_ret,
-              (unsigned long long)npc_stats()->cycles,
-              (unsigned long long)npc_stats()->commits);
+      const char *exit_via = tohost_exit ? "tohost" :
+          (guest_watch_exit ? "guest-watch" :
+          (commit_watch_exit ? "commit-watch" :
+          (st->exit_is_ebreak ? "ebreak" :
+          (st->exit_is_ecall ? "ecall" : "unknown"))));
+      if (tohost_exit) {
+        LogBoth("exit via %s, value=0x%016" NPC_PRIxWORD ", code=%" PRIu64
+                ", cycles=%llu, commits=%llu",
+                exit_via, st->tohost_value, (uint64_t)st->halt_ret,
+                (unsigned long long)npc_stats()->cycles,
+                (unsigned long long)npc_stats()->commits);
+      } else {
+        LogBoth("exit via %s, code=%" PRIu64 ", cycles=%llu, commits=%llu",
+                exit_via, (uint64_t)st->halt_ret,
+                (unsigned long long)npc_stats()->cycles,
+                (unsigned long long)npc_stats()->commits);
+      }
       report_statistics();
       return;
     }
@@ -1939,6 +2014,8 @@ static void report_exit(void) {
   st->halt_ret = g_exit_event.valid ? g_exit_event.code : 1;
   st->exit_is_ebreak = g_exit_event.valid && g_exit_event.is_ebreak;
   st->exit_is_ecall = g_exit_event.valid && g_exit_event.is_ecall;
+  st->exit_is_tohost = false;
+  st->tohost_value = 0;
 }
 
 static void report_trap(void) {
@@ -1994,6 +2071,7 @@ bool npc_init_cpu(int argc, char **argv, const NpcSimConfig *config) {
   }
   g_top = std::make_unique<VNpcSimTop>();
   if (!g_top) return false;
+  if (!init_tohost_watch(config)) return false;
 
 #if VM_TRACE
   if (config->trace) {
@@ -2029,6 +2107,8 @@ int npc_cpu_exec(uint64_t max_instructions) {
   st->state = NPC_RUNNING;
   st->watchpoint_id = -1;
   st->watchpoint_expr[0] = '\0';
+  st->exit_is_tohost = false;
+  st->tohost_value = 0;
 
   uint64_t timer_start_us = npc_get_time_us();
   uint64_t executed = 0;
@@ -2053,12 +2133,17 @@ int npc_cpu_exec(uint64_t max_instructions) {
 
     step_cycle();
 
+    if (maybe_stop_on_tohost()) {
+      return finish_exec(timer_start_us, (int)st->halt_ret, true);
+    }
     if (npc_guest_expect_matched()) {
       st->state = NPC_END;
       st->halt_pc = g_top->debug_pc_o;
       st->halt_ret = 0;
       st->exit_is_ebreak = false;
       st->exit_is_ecall = false;
+      st->exit_is_tohost = false;
+      st->tohost_value = 0;
       LogBothTag("guest-watch", "matched NPC_GUEST_EXPECT='%s'",
                  npc_guest_expect_text());
       return finish_exec(timer_start_us, 0, true);
@@ -2078,6 +2163,8 @@ int npc_cpu_exec(uint64_t max_instructions) {
       st->halt_ret = 0;
       st->exit_is_ebreak = false;
       st->exit_is_ecall = false;
+      st->exit_is_tohost = false;
+      st->tohost_value = 0;
       LogBothTag("commitwatch", "stop after %llu matching committed PC(s)",
                  (unsigned long long)g_commit_watch_match_count);
       return finish_exec(timer_start_us, 0, true);
@@ -2121,6 +2208,7 @@ int npc_cpu_exec(uint64_t max_instructions) {
         if (!Verilated::gotFinish() &&
             (!npc_cycle_limit_enabled(g_cycle_limit) || npc_stats()->cycles < g_cycle_limit)) {
           step_cycle();
+          if (maybe_stop_on_tohost()) { return finish_exec(timer_start_us, (int)st->halt_ret, true); }
           if (g_exit_event.valid) { report_exit(); return finish_exec(timer_start_us, (int)st->halt_ret, true); }
           if (g_trap_event.valid) { report_trap(); return finish_exec(timer_start_us, 1, true); }
         }

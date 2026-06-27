@@ -16,6 +16,33 @@
 `define CORE_STATE_W       4
 
 // 可配置结构参数统一放在本文件，便于后续由外部软件生成或覆盖这组宏。
+// OoO 后端容量只在这里定义默认值，顶层和子模块默认参数都引用这组宏，
+// 避免调 ROB/IQ/PRF/FETCH 深度时产生端口位宽和真实数组深度漂移。
+`ifndef OOO_PHY_REG_ADDR_W
+`define OOO_PHY_REG_ADDR_W 6
+`endif
+`ifndef OOO_PHY_REG_COUNT
+`define OOO_PHY_REG_COUNT  (1 << `OOO_PHY_REG_ADDR_W)
+`endif
+`ifndef OOO_FREE_COUNT_W
+`define OOO_FREE_COUNT_W   (`OOO_PHY_REG_ADDR_W + 1)
+`endif
+`ifndef OOO_ROB_INDEX_W
+`define OOO_ROB_INDEX_W    4
+`endif
+`ifndef OOO_ROB_COUNT_W
+`define OOO_ROB_COUNT_W    (`OOO_ROB_INDEX_W + 1)
+`endif
+`ifndef OOO_ISSUE_INDEX_W
+`define OOO_ISSUE_INDEX_W  3
+`endif
+`ifndef OOO_ISSUE_COUNT_W
+`define OOO_ISSUE_COUNT_W  (`OOO_ISSUE_INDEX_W + 1)
+`endif
+`ifndef OOO_FETCH_PACKET_COUNT_W
+`define OOO_FETCH_PACKET_COUNT_W 2
+`endif
+
 `ifndef RESET_PC
 `define RESET_PC           64'h0000_0000_8000_0000
 `endif
@@ -295,7 +322,11 @@
 `define SYSTEM_FUNCT12_SRET    12'h102
 `define SYSTEM_FUNCT12_MRET    12'h302
 `define SYSTEM_FUNCT12_WFI     12'h105
-`define SYSTEM_FUNCT7_SFENCE_VMA 7'b0001001
+`define SYSTEM_FUNCT7_SFENCE_VMA   7'b0001001
+`define SYSTEM_FUNCT7_SINVAL_VMA   7'b0001011
+`define SYSTEM_FUNCT7_SFENCE_INVAL 7'b0001100
+`define SYSTEM_RS2_SFENCE_W_INVAL  5'b00000
+`define SYSTEM_RS2_SFENCE_INVAL_IR 5'b00001
 
 `define CSR_MVENDORID      12'hf11
 `define CSR_MARCHID        12'hf12
@@ -321,15 +352,26 @@
 `define CSR_MTVEC          12'h305
 `define CSR_MCOUNTEREN     12'h306
 `define CSR_MCOUNTINHIBIT  12'h320
+`define CSR_MENVCFG        12'h30a
+`define CSR_PMPCFG0        12'h3a0
+`define CSR_PMPCFG1        12'h3a1
+`define CSR_PMPCFG2        12'h3a2
+`define CSR_PMPCFG3        12'h3a3
 `define CSR_MSCRATCH       12'h340
 `define CSR_MEPC           12'h341
 `define CSR_MCAUSE         12'h342
 `define CSR_MTVAL          12'h343
 `define CSR_MIP            12'h344
+`define CSR_PMPADDR0       12'h3b0
+`define CSR_PMPADDR15      12'h3bf
 `define CSR_MCYCLE         12'hb00
 `define CSR_MINSTRET       12'hb02
 `define CSR_MCYCLEH        12'hb80
 `define CSR_MINSTRETH      12'hb82
+`define CSR_TSELECT        12'h7a0
+`define CSR_TDATA1         12'h7a1
+`define CSR_TDATA2         12'h7a2
+`define CSR_TCONTROL       12'h7a5
 `define CSR_CYCLE          12'hc00
 `define CSR_TIME           12'hc01
 `define CSR_INSTRET        12'hc02
@@ -344,6 +386,27 @@
 `define COUNTEREN_TM       64'h0000_0000_0000_0002
 `define COUNTEREN_IR       64'h0000_0000_0000_0004
 `define COUNTEREN_MASK     (`COUNTEREN_CY | `COUNTEREN_TM | `COUNTEREN_IR)
+
+`define PMP_ENTRY_COUNT    16
+`define PMP_CFG_ENTRY_W    8
+`define PMP_CFG_BUS_W      (`PMP_ENTRY_COUNT * `PMP_CFG_ENTRY_W)
+`define PMP_ADDR_BUS_W     (`PMP_ENTRY_COUNT * `XLEN)
+`ifndef PMP_PADDR_BITS
+// 当前 RVA22S64/Sail 配置按 56-bit physical address 建模，pmpaddr 只保存 PA[55:2]。
+`define PMP_PADDR_BITS     56
+`endif
+`define PMP_ADDR_BITS      (`PMP_PADDR_BITS - 2)
+`define PMP_ADDR_MASK      {{(`XLEN - `PMP_ADDR_BITS){1'b0}}, {`PMP_ADDR_BITS{1'b1}}}
+`define PMP_CFG_R          0
+`define PMP_CFG_W          1
+`define PMP_CFG_X          2
+`define PMP_CFG_A_HI       4
+`define PMP_CFG_A_LO       3
+`define PMP_CFG_L          7
+`define PMP_A_OFF          2'b00
+`define PMP_A_TOR          2'b01
+`define PMP_A_NA4          2'b10
+`define PMP_A_NAPOT        2'b11
 
 `define PRIV_U             2'b00
 `define PRIV_S             2'b01
@@ -364,10 +427,21 @@
 `define MSTATUS_SUM        64'h0000_0000_0004_0000
 `define MSTATUS_MXR        64'h0000_0000_0008_0000
 `define MSTATUS_MPRV       64'h0000_0000_0002_0000
+`define MSTATUS_TVM        64'h0000_0000_0010_0000
+`define MSTATUS_TW         64'h0000_0000_0020_0000
+`define MSTATUS_TSR        64'h0000_0000_0040_0000
 `define MSTATUS_SXL_UXL    64'h0000_000a_0000_0000
+`define MSTATUS_SD         64'h8000_0000_0000_0000
+`define MENVCFG_PBMTE      64'h4000_0000_0000_0000
 `define SSTATUS_MASK       (`MSTATUS_SIE | `MSTATUS_SPIE | `MSTATUS_SPP | \
                             `MSTATUS_FS_MASK | \
-                            `MSTATUS_SUM | `MSTATUS_MXR | `MSTATUS_SXL_UXL)
+                            `MSTATUS_SUM | `MSTATUS_MXR | `MSTATUS_SXL_UXL | \
+                            `MSTATUS_SD)
+`define SV39_PTE_RESERVED_MASK 64'he7c0_0000_0000_0000
+`define SV39_PTE_RESERVED_MASK_SVPBMT 64'h87c0_0000_0000_0000
+`define SV39_PTE_NONLEAF_RESERVED_MASK 64'h0000_0000_0000_00d0
+`define SV39_PTE_PBMT_HI   62
+`define SV39_PTE_PBMT_LO   61
 
 `define IRQ_CAUSE_SSI      5'd1
 `define IRQ_CAUSE_MSI      5'd3
@@ -512,11 +586,12 @@
 `define CTRL_MULDIV_BIT          41  // 是否属于 RVM 乘除法扩展，EX 阶段按 funct3/funct7 计算
 `define CTRL_BITMANIP_BIT        42  // 是否属于 Zba/Zbb/Zbc/Zbs 扩展，EX 阶段按原始编码计算
 `define CTRL_WORD_OP_BIT         43  // RV64 的 *W 指令：只保留低 32 位并符号扩展
-`define CTRL_SFENCE_VMA_BIT      44  // 是否为 sfence.vma；无 TLB 时作为序列化 no-op
+`define CTRL_SFENCE_VMA_BIT      44  // 是否为 supervisor TLB/ICache 刷新边界；执行侧作为序列化 no-op+flush
 `define CTRL_SRET_BIT            45  // 是否为 sret；用于 Linux/S-mode trap 返回
 `define CTRL_AMO_BIT             46  // 是否属于 A 扩展原子访存指令族
 `define CTRL_AMO_LR_BIT          47  // 是否为 lr.w/lr.d
 `define CTRL_AMO_SC_BIT          48  // 是否为 sc.w/sc.d
-`define CTRL_BUS_W               49  // 统一控制总线总宽度
+`define CTRL_SFENCE_TVM_BIT      49  // 是否属于受 mstatus.TVM 约束的地址转换 fence
+`define CTRL_BUS_W               50  // 统一控制总线总宽度
 
 `endif

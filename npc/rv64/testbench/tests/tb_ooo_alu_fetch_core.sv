@@ -123,6 +123,7 @@ module tb_ooo_alu_fetch_core;
   localparam [4:0] MODE_CONTROL_FETCH_GATE = 5'd15;
   localparam [4:0] MODE_BRANCH_LANE1_RET = 5'd16;
   localparam [4:0] MODE_ECALL = 5'd17;
+  localparam [4:0] MODE_FMV_W_X = 5'd18;
 
   OooAluFetchCore dut (
     .clk(clk),
@@ -194,6 +195,8 @@ module tb_ooo_alu_fetch_core;
     .exit_is_ebreak_o(exit_is_ebreak),
     .exit_code_o(exit_code),
     .halted_o(halted),
+    .pmpcfg_o(),
+    .pmpaddr_o(),
     .debug_pc_o(debug_pc),
     .debug_state_o(debug_state),
     .debug_gprs_o(debug_gprs),
@@ -292,6 +295,24 @@ module tb_ooo_alu_fetch_core;
     input [4:0] rs1;
     begin
       inst_csrrw = rv32_i(csr, rs1, 3'b001, rd, `OPCODE_SYSTEM);
+    end
+  endfunction
+
+  function [`INST_W-1:0] inst_csrrs;
+    input [4:0] rd;
+    input [11:0] csr;
+    input [4:0] rs1;
+    begin
+      inst_csrrs = rv32_i(csr, rs1, 3'b010, rd, `OPCODE_SYSTEM);
+    end
+  endfunction
+
+  function [`INST_W-1:0] inst_fmv_w_x;
+    input [4:0] rd;
+    input [4:0] rs1;
+    begin
+      inst_fmv_w_x = {7'b1111000, 5'b00000, rs1, 3'b000, rd,
+                      `OPCODE_OP_FP};
     end
   endfunction
 
@@ -559,6 +580,17 @@ module tb_ooo_alu_fetch_core;
               default:       program_word = inst_beq_self();
             endcase
           end
+          MODE_FMV_W_X: begin
+            case (addr)
+              32'h8000_0000: program_word = inst_lui(5'd11, 20'h00006);
+              32'h8000_0004: program_word = inst_csrrs(5'd0, `CSR_MSTATUS,
+                                                       5'd11);
+              32'h8000_0008: program_word = inst_fmv_w_x(5'd0, 5'd0);
+              32'h8000_000c: program_word = inst_addi(5'd5, 5'd0, 12'd7);
+              32'h8000_0010: program_word = inst_ebreak();
+              default:       program_word = inst_beq_self();
+            endcase
+          end
           default: begin
             case (addr)
               32'h8000_0000: program_word = inst_addi(5'd1, 5'd0, 12'd1);
@@ -805,7 +837,7 @@ module tb_ooo_alu_fetch_core;
       if (dut.core_dispatch_branch_resolve_valid_w) begin
         saw_branch_dispatch_resolve <= 1'b1;
       end
-      if (dut.direct_branch0_lane1_ret_w || dut.pending_lane1_ret_fire_w) begin
+      if (dut.direct_branch0_lane1_ret_w) begin
         saw_lane1_ret_fallthrough <= 1'b1;
       end
       if (dut.synth_lane1_ret_commit_w) begin
@@ -1111,6 +1143,18 @@ module tb_ooo_alu_fetch_core;
     tb_check32("lane1 memory load reads stored word", gpr(5'd4), 32'd13);
     tb_check32("lane1 memory load consumer sees value", gpr(5'd5), 32'd14);
     tb_check1("lane1 memory ebreak flag", exit_is_ebreak, 1'b1);
+
+    reset_dut(MODE_FMV_W_X, 32'h0000_0000);
+    repeat (140) begin
+      `TB_TICK(clk);
+      #1;
+    end
+
+    tb_check1("fmv.w.x reaches ebreak", exit_valid, 1'b1);
+    tb_check1("fmv.w.x is not trap", trap_valid, 1'b0);
+    tb_check32("fmv.w.x follows FP decode path", gpr(5'd5), 32'd7);
+    tb_check32("fmv.w.x retires before ebreak", commit_total, 32'd4);
+    tb_check1("fmv.w.x ebreak flag", exit_is_ebreak, 1'b1);
 
     reset_dut(MODE_EBREAK, 32'h0000_0000);
     repeat (12) begin

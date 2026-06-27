@@ -177,6 +177,9 @@ lint:
 
 all: default
 
+core-regress:
+	@$(abspath testsuites/scripts/npc-rv64-core-regress.sh)
+
 syn-check-env:
 	@# 先把工具和约束文件检查清楚，错误会直接指向缺失项，避免在 yosys-sta 子流程里晚失败。
 	@if [ ! -f "$(YOSYS_STA_HOME)/Makefile" ]; then \
@@ -240,7 +243,7 @@ difftest-ref:
 	$(MAKE) -C $(NEMU_HOME) AM_HOME=$(abspath ../../abstract-machine) ARCH=riscv64-npc riscv64-npc_defconfig
 	$(MAKE) -C $(NEMU_HOME) GUEST_ISA=riscv64 SHARE=1 ENGINE=interpreter
 
-.PHONY: default all lint syn-check-env sta-check-env syn sta sim run clean gprof-build prof-exec-build difftest-ref \
+.PHONY: default all lint syn-check-env sta-check-env syn sta sim run core-regress clean gprof-build prof-exec-build difftest-ref \
 	menuconfig savedefconfig defconfig help-config distclean-config
 
 include $(NPC_HOME)/scripts/config.mk

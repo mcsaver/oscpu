@@ -73,6 +73,27 @@ module DecodeUnit (
     end
   endfunction
 
+  function is_zbb_op_imm_32;
+    input [2:0] funct3;
+    input [6:0] funct7;
+    input [4:0] imm5;
+    begin
+      is_zbb_op_imm_32 = 1'b0;
+      if (funct7 == 7'h30) begin
+        if (funct3 == `FUNCT3_SRL_SRA) begin
+          is_zbb_op_imm_32 = 1'b1;
+        end else if (funct3 == `FUNCT3_SLL) begin
+          case (imm5)
+            5'h00,
+            5'h01,
+            5'h02: is_zbb_op_imm_32 = 1'b1;
+            default: begin end
+          endcase
+        end
+      end
+    end
+  endfunction
+
   function is_zb_op;
     input [2:0] funct3;
     input [6:0] funct7;
@@ -115,7 +136,9 @@ module DecodeUnit (
         {7'h04, `FUNCT3_ADD_SUB},
         {7'h10, `FUNCT3_SLT},
         {7'h10, `FUNCT3_XOR},
-        {7'h10, `FUNCT3_OR}: is_zb_op_32 = 1'b1;
+        {7'h10, `FUNCT3_OR},
+        {7'h30, `FUNCT3_SLL},
+        {7'h30, `FUNCT3_SRL_SRA}: is_zb_op_32 = 1'b1;
         {7'h04, `FUNCT3_XOR}: is_zb_op_32 = (rs2_idx == {`REG_ADDR_W{1'b0}});
         default: begin end
       endcase
@@ -492,7 +515,8 @@ module DecodeUnit (
           end
         endcase
 
-        if (is_zba_op_imm_32(funct3_w, funct6_w)) begin
+        if (is_zba_op_imm_32(funct3_w, funct6_w) ||
+            is_zbb_op_imm_32(funct3_w, funct7_w, inst_i[24:20])) begin
           ctrl_o[`CTRL_ILLEGAL_BIT] = 1'b0;
           ctrl_o[`CTRL_BITMANIP_BIT] = 1'b1;
           ctrl_o[`CTRL_RD_EN_BIT] = 1'b1;
@@ -677,7 +701,21 @@ module DecodeUnit (
           ctrl_o[`CTRL_NEED_EXEC_BIT] = 1'b1;
           if ((rd_idx_o == {`REG_ADDR_W{1'b0}}) &&
               (funct7_w == `SYSTEM_FUNCT7_SFENCE_VMA)) begin
-            // sfence.vma 必须作为特权序列化边界进入前端控制面；当前无 TLB 时执行为 no-op。
+            // 地址转换 fence 需要同时进入序列化边界，并接受 mstatus.TVM 特权门控。
+            ctrl_o[`CTRL_ILLEGAL_BIT] = 1'b0;
+            ctrl_o[`CTRL_SFENCE_VMA_BIT] = 1'b1;
+            ctrl_o[`CTRL_SFENCE_TVM_BIT] = 1'b1;
+          end else if ((rd_idx_o == {`REG_ADDR_W{1'b0}}) &&
+              (funct7_w == `SYSTEM_FUNCT7_SINVAL_VMA)) begin
+            ctrl_o[`CTRL_ILLEGAL_BIT] = 1'b0;
+            ctrl_o[`CTRL_SFENCE_VMA_BIT] = 1'b1;
+            ctrl_o[`CTRL_SFENCE_TVM_BIT] = 1'b1;
+          end else if ((rs1_idx_o == {`REG_ADDR_W{1'b0}}) &&
+              (rd_idx_o == {`REG_ADDR_W{1'b0}}) &&
+              (funct7_w == `SYSTEM_FUNCT7_SFENCE_INVAL) &&
+              ((rs2_idx_o == `SYSTEM_RS2_SFENCE_W_INVAL) ||
+               (rs2_idx_o == `SYSTEM_RS2_SFENCE_INVAL_IR))) begin
+            // Svinval 的写缓冲/取指刷新 fence 不受 TVM 约束，但仍必须作为特权序列化点提交。
             ctrl_o[`CTRL_ILLEGAL_BIT] = 1'b0;
             ctrl_o[`CTRL_SFENCE_VMA_BIT] = 1'b1;
           end else if ((rs1_idx_o == {`REG_ADDR_W{1'b0}}) &&

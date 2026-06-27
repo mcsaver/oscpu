@@ -15,7 +15,7 @@ module tb_dcache;
   reg cpu_req_write;
   reg [`XLEN-1:0] cpu_req_addr;
   reg [`XLEN-1:0] cpu_req_wdata;
-  reg [3:0] cpu_req_wstrb;
+  reg [`STRB_W-1:0] cpu_req_wstrb;
   wire cpu_rsp_valid;
   reg cpu_rsp_ready;
   wire [`XLEN-1:0] cpu_rsp_rdata;
@@ -34,7 +34,7 @@ module tb_dcache;
   wire axi_wvalid;
   reg axi_wready;
   wire [`XLEN-1:0] axi_wdata;
-  wire [3:0] axi_wstrb;
+  wire [`STRB_W-1:0] axi_wstrb;
   reg axi_bvalid;
   wire axi_bready;
   reg [1:0] axi_bresp;
@@ -74,6 +74,19 @@ module tb_dcache;
     .axi_bresp_i(axi_bresp)
   );
 
+  task automatic tb_check64;
+    input [1023:0] what;
+    input [`XLEN-1:0] got;
+    input [`XLEN-1:0] exp;
+    begin
+      if (got !== exp) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] %0s got=0x%016x expected=0x%016x",
+                 what, got, exp);
+      end
+    end
+  endtask
+
   task automatic reset_dut;
     begin
       rst = 1'b1;
@@ -81,13 +94,13 @@ module tb_dcache;
       flush_i = 1'b0;
       cpu_req_valid = 1'b0;
       cpu_req_write = 1'b0;
-      cpu_req_addr = 32'h0;
-      cpu_req_wdata = 32'h0;
-      cpu_req_wstrb = 4'h0;
+      cpu_req_addr = {`XLEN{1'b0}};
+      cpu_req_wdata = {`XLEN{1'b0}};
+      cpu_req_wstrb = {`STRB_W{1'b0}};
       cpu_rsp_ready = 1'b1;
       axi_arready = 1'b1;
       axi_rvalid = 1'b0;
-      axi_rdata = 32'h0;
+      axi_rdata = {`XLEN{1'b0}};
       axi_rresp = 2'b00;
       axi_awready = 1'b1;
       axi_wready = 1'b1;
@@ -110,7 +123,7 @@ module tb_dcache;
         guard = guard + 1;
       end
       tb_check1("dcache fill arvalid", axi_arvalid, 1'b1);
-      tb_check32("dcache fill araddr", axi_araddr, exp_addr);
+      tb_check64("dcache fill araddr", axi_araddr, exp_addr);
       `TB_TICK(clk);
       tb_check1("dcache fill rready", axi_rready, 1'b1);
       axi_rvalid = 1'b1;
@@ -118,14 +131,14 @@ module tb_dcache;
       axi_rresp = 2'b00;
       `TB_TICK(clk);
       axi_rvalid = 1'b0;
-      axi_rdata = 32'h0;
+      axi_rdata = {`XLEN{1'b0}};
     end
   endtask
 
   task automatic accept_write_word;
     input [`XLEN-1:0] exp_addr;
     input [`XLEN-1:0] exp_data;
-    input [3:0] exp_wstrb;
+    input [`STRB_W-1:0] exp_wstrb;
     integer guard;
     begin
       guard = 0;
@@ -135,9 +148,11 @@ module tb_dcache;
       end
       tb_check1("dcache write awvalid", axi_awvalid, 1'b1);
       tb_check1("dcache write wvalid", axi_wvalid, 1'b1);
-      tb_check32("dcache write addr", axi_awaddr, exp_addr);
-      tb_check32("dcache write data", axi_wdata, exp_data);
-      tb_check32("dcache write wstrb", {28'b0, axi_wstrb}, {28'b0, exp_wstrb});
+      tb_check64("dcache write addr", axi_awaddr, exp_addr);
+      tb_check64("dcache write data", axi_wdata, exp_data);
+      tb_check32("dcache write wstrb",
+                 {{(32-`STRB_W){1'b0}}, axi_wstrb},
+                 {{(32-`STRB_W){1'b0}}, exp_wstrb});
       `TB_TICK(clk);
       tb_check1("dcache write bready", axi_bready, 1'b1);
       axi_bvalid = 1'b1;
@@ -159,7 +174,7 @@ module tb_dcache;
         guard = guard + 1;
       end
       tb_check1({name, " valid"}, cpu_rsp_valid, 1'b1);
-      tb_check32(name, cpu_rsp_rdata, exp_data);
+      tb_check64(name, cpu_rsp_rdata, exp_data);
       tb_check1({name, " error"}, cpu_rsp_error, exp_error);
       `TB_TICK(clk);
     end
@@ -172,22 +187,22 @@ module tb_dcache;
       cpu_req_valid = 1'b1;
       cpu_req_write = 1'b0;
       cpu_req_addr = addr;
-      cpu_req_wdata = 32'h0;
-      cpu_req_wstrb = 4'h0;
+      cpu_req_wdata = {`XLEN{1'b0}};
+      cpu_req_wstrb = {`STRB_W{1'b0}};
       #1;
       if (cpu_rsp_valid) begin
-        tb_check32("read same-cycle response", cpu_rsp_rdata, exp_data);
+        tb_check64("read same-cycle response", cpu_rsp_rdata, exp_data);
         tb_check1("read same-cycle error", cpu_rsp_error, 1'b0);
         `TB_TICK(clk);
-	      end else begin
-	        `TB_TICK(clk);
-	        cpu_req_valid = 1'b0;
-	        wait_rsp("read response", exp_data, 1'b0);
-	      end
-	      cpu_req_valid = 1'b0;
-	      #1;
-	    end
-	  endtask
+      end else begin
+        `TB_TICK(clk);
+        cpu_req_valid = 1'b0;
+        wait_rsp("read response", exp_data, 1'b0);
+      end
+      cpu_req_valid = 1'b0;
+      #1;
+    end
+  endtask
 
   integer i;
 
@@ -204,75 +219,76 @@ module tb_dcache;
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
     for (i = 0; i < LINE_WORDS; i = i + 1) begin
-      send_fill_word(32'h8000_0000 + (i << 2), 32'h0000_2000 + i);
+      send_fill_word(64'h0000_0000_8000_0000 + (i << `XLEN_BYTE_W),
+                     64'h0000_0000_0000_2000 + i);
     end
-    wait_rsp("miss fill read", 32'h0000_2002, 1'b0);
+    wait_rsp("miss fill read", 64'h0000_0000_0000_2001, 1'b0);
 
     cpu_req_valid = 1'b1;
     cpu_req_write = 1'b0;
     cpu_req_addr = 32'h8000_0008;
-    cpu_req_wdata = 32'h0;
-    cpu_req_wstrb = 4'h0;
+    cpu_req_wdata = {`XLEN{1'b0}};
+    cpu_req_wstrb = {`STRB_W{1'b0}};
     #1;
     tb_check1("load hit no immediate valid", cpu_rsp_valid, 1'b0);
     tb_check1("load hit no axi read", axi_arvalid, 1'b0);
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
-    wait_rsp("load hit sync response", 32'h0000_2002, 1'b0);
+    wait_rsp("load hit sync response", 64'h0000_0000_0000_2001, 1'b0);
 
     cpu_req_valid = 1'b1;
     cpu_req_write = 1'b0;
     cpu_req_addr = 32'h8000_0008;
-    cpu_req_wdata = 32'h0;
-    cpu_req_wstrb = 4'h0;
+    cpu_req_wdata = {`XLEN{1'b0}};
+    cpu_req_wstrb = {`STRB_W{1'b0}};
     `TB_TICK(clk);
-    cpu_req_addr = 32'h8000_000c;
+    cpu_req_addr = 32'h8000_0010;
     #1;
     tb_check1("dcache first pipelined load rsp", cpu_rsp_valid, 1'b1);
     tb_check1("dcache accepts next load hit", cpu_req_ready, 1'b1);
-    tb_check32("dcache first pipelined data", cpu_rsp_rdata, 32'h0000_2002);
+    tb_check64("dcache first pipelined data", cpu_rsp_rdata, 64'h0000_0000_0000_2001);
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
     #1;
     tb_check1("dcache second pipelined load rsp", cpu_rsp_valid, 1'b1);
-    tb_check32("dcache second pipelined data", cpu_rsp_rdata, 32'h0000_2003);
+    tb_check64("dcache second pipelined data", cpu_rsp_rdata, 64'h0000_0000_0000_2002);
     `TB_TICK(clk);
 
     cpu_req_valid = 1'b1;
     cpu_req_write = 1'b0;
     cpu_req_addr = 32'h8000_0008;
-    cpu_req_wdata = 32'h0;
-    cpu_req_wstrb = 4'h0;
+    cpu_req_wdata = {`XLEN{1'b0}};
+    cpu_req_wstrb = {`STRB_W{1'b0}};
     cpu_rsp_ready = 1'b0;
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
     while (!cpu_rsp_valid) `TB_TICK(clk);
     #1;
     tb_check1("load hit backpressure valid", cpu_rsp_valid, 1'b1);
-    tb_check32("load hit backpressure data", cpu_rsp_rdata, 32'h0000_2002);
+    tb_check64("load hit backpressure data", cpu_rsp_rdata, 64'h0000_0000_0000_2001);
     `TB_TICK(clk);
     #1;
     tb_check1("load hit backpressure holds valid", cpu_rsp_valid, 1'b1);
-    tb_check32("load hit backpressure holds data", cpu_rsp_rdata, 32'h0000_2002);
+    tb_check64("load hit backpressure holds data", cpu_rsp_rdata, 64'h0000_0000_0000_2001);
     cpu_rsp_ready = 1'b1;
     `TB_TICK(clk);
     #1;
     tb_check1("load hit backpressure releases", cpu_rsp_valid, 1'b0);
 
-    cpu_read(32'h8000_0008, 32'h0000_2002);
+    cpu_read(32'h8000_0008, 64'h0000_0000_0000_2001);
 
     cpu_req_valid = 1'b1;
     cpu_req_write = 1'b1;
     cpu_req_addr = 32'h8000_0008;
-    cpu_req_wdata = 32'haaaa_0000;
-    cpu_req_wstrb = 4'b1100;
+    cpu_req_wdata = 64'h0000_0000_aaaa_0000;
+    cpu_req_wstrb = 8'h0c;
     #1;
     tb_check1("store hit no immediate valid", cpu_rsp_valid, 1'b0);
     tb_check1("store hit no axi write", axi_awvalid, 1'b0);
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
-    wait_rsp("store hit sync response", 32'h0, 1'b0);
-    cpu_read(32'h8000_0008, 32'haaaa_2002);
+    wait_rsp("store hit sync response", 64'h0, 1'b0);
+    cpu_read(32'h8000_0008, 64'h0000_0000_aaaa_2001);
 
     cpu_req_valid = 1'b1;
     cpu_req_write = 1'b0;
@@ -280,23 +296,24 @@ module tb_dcache;
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
     for (i = 0; i < LINE_WORDS; i = i + 1) begin
-      send_fill_word(32'h8000_1000 + (i << 2), 32'h0000_3000 + i);
+      send_fill_word(64'h0000_0000_8000_1000 + (i << `XLEN_BYTE_W),
+                     64'h0000_0000_0000_3000 + i);
     end
-    wait_rsp("second way refill read", 32'h0000_3002, 1'b0);
-    cpu_read(32'h8000_0008, 32'haaaa_2002);
+    wait_rsp("second way refill read", 64'h0000_0000_0000_3001, 1'b0);
+    cpu_read(32'h8000_0008, 64'h0000_0000_aaaa_2001);
 
     cpu_req_valid = 1'b1;
     cpu_req_write = 1'b1;
     cpu_req_addr = 32'h8000_1008;
-    cpu_req_wdata = 32'hfeed_0002;
-    cpu_req_wstrb = 4'b1111;
+    cpu_req_wdata = 64'h0000_0000_feed_0001;
+    cpu_req_wstrb = {`STRB_W{1'b1}};
     #1;
     tb_check1("second way store hit no immediate valid", cpu_rsp_valid, 1'b0);
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
-    wait_rsp("second way store hit", 32'h0, 1'b0);
+    wait_rsp("second way store hit", 64'h0, 1'b0);
 
-    cpu_read(32'h8000_0008, 32'haaaa_2002);
+    cpu_read(32'h8000_0008, 64'h0000_0000_aaaa_2001);
 
     cpu_req_valid = 1'b1;
     cpu_req_write = 1'b0;
@@ -304,37 +321,41 @@ module tb_dcache;
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
     for (i = 0; i < LINE_WORDS; i = i + 1) begin
-      accept_write_word(32'h8000_1000 + (i << 2),
-                        (i == 2) ? 32'hfeed_0002 : (32'h0000_3000 + i),
-                        4'b1111);
+      accept_write_word(64'h0000_0000_8000_1000 + (i << `XLEN_BYTE_W),
+                        (i == 1) ? 64'h0000_0000_feed_0001 :
+                                   (64'h0000_0000_0000_3000 + i),
+                        {`STRB_W{1'b1}});
     end
     for (i = 0; i < LINE_WORDS; i = i + 1) begin
-      send_fill_word(32'h8000_2000 + (i << 2), 32'h0000_4000 + i);
+      send_fill_word(64'h0000_0000_8000_2000 + (i << `XLEN_BYTE_W),
+                     64'h0000_0000_0000_4000 + i);
     end
-    wait_rsp("third line evicts lru dirty way", 32'h0000_4002, 1'b0);
+    wait_rsp("third line evicts lru dirty way", 64'h0000_0000_0000_4001, 1'b0);
 
     cpu_req_valid = 1'b1;
     cpu_req_write = 1'b1;
     cpu_req_addr = 32'h8000_2008;
-    cpu_req_wdata = 32'hcafe_0002;
-    cpu_req_wstrb = 4'b1111;
+    cpu_req_wdata = 64'h0000_0000_cafe_0001;
+    cpu_req_wstrb = {`STRB_W{1'b1}};
     #1;
     tb_check1("flush setup store no immediate valid", cpu_rsp_valid, 1'b0);
     `TB_TICK(clk);
     cpu_req_valid = 1'b0;
-    wait_rsp("flush setup third way store hit", 32'h0, 1'b0);
+    wait_rsp("flush setup third way store hit", 64'h0, 1'b0);
 
     flush_i = 1'b1;
     tb_check1("flush starts not done", flush_done, 1'b0);
     for (i = 0; i < LINE_WORDS; i = i + 1) begin
-      accept_write_word(32'h8000_0000 + (i << 2),
-                        (i == 2) ? 32'haaaa_2002 : (32'h0000_2000 + i),
-                        4'b1111);
+      accept_write_word(64'h0000_0000_8000_0000 + (i << `XLEN_BYTE_W),
+                        (i == 1) ? 64'h0000_0000_aaaa_2001 :
+                                   (64'h0000_0000_0000_2000 + i),
+                        {`STRB_W{1'b1}});
     end
     for (i = 0; i < LINE_WORDS; i = i + 1) begin
-      accept_write_word(32'h8000_2000 + (i << 2),
-                        (i == 2) ? 32'hcafe_0002 : (32'h0000_4000 + i),
-                        4'b1111);
+      accept_write_word(64'h0000_0000_8000_2000 + (i << `XLEN_BYTE_W),
+                        (i == 1) ? 64'h0000_0000_cafe_0001 :
+                                   (64'h0000_0000_0000_4000 + i),
+                        {`STRB_W{1'b1}});
     end
     for (i = 0; !flush_done && (i < FLUSH_TIMEOUT); i = i + 1) begin
       `TB_TICK(clk);
@@ -355,11 +376,11 @@ module tb_dcache;
     tb_check32("uncached addr", axi_araddr, 32'ha000_0000);
     `TB_TICK(clk);
     axi_rvalid = 1'b1;
-    axi_rdata = 32'h1234_abcd;
+    axi_rdata = 64'h0000_0000_1234_abcd;
     axi_rresp = 2'b00;
     `TB_TICK(clk);
     axi_rvalid = 1'b0;
-    wait_rsp("uncached read", 32'h1234_abcd, 1'b0);
+    wait_rsp("uncached read", 64'h0000_0000_1234_abcd, 1'b0);
 
     invalidate_i = 1'b1;
     `TB_TICK(clk);

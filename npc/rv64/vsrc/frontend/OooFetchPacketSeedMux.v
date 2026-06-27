@@ -1,0 +1,195 @@
+`include "define.v"
+
+// Encodes redirect/recovery events into fetch-packet FIFO clear/seed actions.
+// Event predicates and packet validation stay in OooAluFetchCore.
+module OooFetchPacketSeedMux (
+  input csr_trap_i,
+  input direct_flush_i,
+  input fallthrough_capture_i,
+  input branch_spec_restore_i,
+  input pending_branch_commit_resolve_i,
+  input pending_branch_match_i,
+  input pending_branch_misaligned_i,
+  input branch_prefetch_hit_i,
+  input branch_resolve_untracked_i,
+  input pending_jump_resolve_i,
+  input pending_jump_misaligned_i,
+  input pending_jump_redirect_i,
+  input pending_mem_resolve_i,
+  input system_csr_dispatch_i,
+  input pending_system_csr_commit_i,
+  input drain_complete_i,
+  input drain_pending_arch_trap_i,
+  input drain_pending_system_i,
+  input drain_pending_branch_undispatched_i,
+  input drain_pending_jump_i,
+  input drain_pending_mem_i,
+  input drain_pending_fp_i,
+  input jalr_prefetch_hit_i,
+
+  input [`XLEN-1:0] fallthrough_pc0_i,
+  input [`XLEN-1:0] fallthrough_pc1_i,
+  input [`XLEN-1:0] fallthrough_next_pc0_i,
+  input [`XLEN-1:0] fallthrough_next_pc1_i,
+  input [`XLEN-1:0] fallthrough_packet_next_pc_i,
+  input [`INST_W-1:0] fallthrough_inst0_i,
+  input [`INST_W-1:0] fallthrough_inst1_i,
+  input [1:0] fallthrough_resp0_i,
+  input [1:0] fallthrough_resp1_i,
+
+  input [`XLEN-1:0] branch_pc0_i,
+  input [`XLEN-1:0] branch_pc1_i,
+  input [`XLEN-1:0] branch_next_pc0_i,
+  input [`XLEN-1:0] branch_next_pc1_i,
+  input [`XLEN-1:0] branch_packet_next_pc_i,
+  input [`INST_W-1:0] branch_inst0_i,
+  input [`INST_W-1:0] branch_inst1_i,
+  input [1:0] branch_resp0_i,
+  input [1:0] branch_resp1_i,
+
+  input [`XLEN-1:0] jalr_pc0_i,
+  input [`XLEN-1:0] jalr_pc1_i,
+  input [`XLEN-1:0] jalr_next_pc0_i,
+  input [`XLEN-1:0] jalr_next_pc1_i,
+  input [`XLEN-1:0] jalr_packet_next_pc_i,
+  input [`INST_W-1:0] jalr_inst0_i,
+  input [`INST_W-1:0] jalr_inst1_i,
+  input [1:0] jalr_resp0_i,
+  input [1:0] jalr_resp1_i,
+
+  output reg clear_o,
+  output reg seed_valid_o,
+  output reg [`XLEN-1:0] seed_pc0_o,
+  output reg [`XLEN-1:0] seed_pc1_o,
+  output reg [`XLEN-1:0] seed_next_pc0_o,
+  output reg [`XLEN-1:0] seed_next_pc1_o,
+  output reg [`XLEN-1:0] seed_packet_next_pc_o,
+  output reg [`INST_W-1:0] seed_inst0_o,
+  output reg [`INST_W-1:0] seed_inst1_o,
+  output reg [1:0] seed_resp0_o,
+  output reg [1:0] seed_resp1_o
+);
+
+  task set_seed;
+    input [`XLEN-1:0] pc0;
+    input [`XLEN-1:0] pc1;
+    input [`XLEN-1:0] next_pc0;
+    input [`XLEN-1:0] next_pc1;
+    input [`XLEN-1:0] packet_next_pc;
+    input [`INST_W-1:0] inst0;
+    input [`INST_W-1:0] inst1;
+    input [1:0] resp0;
+    input [1:0] resp1;
+    begin
+      clear_o = 1'b0;
+      seed_valid_o = 1'b1;
+      seed_pc0_o = pc0;
+      seed_pc1_o = pc1;
+      seed_next_pc0_o = next_pc0;
+      seed_next_pc1_o = next_pc1;
+      seed_packet_next_pc_o = packet_next_pc;
+      seed_inst0_o = inst0;
+      seed_inst1_o = inst1;
+      seed_resp0_o = resp0;
+      seed_resp1_o = resp1;
+    end
+  endtask
+
+  task set_clear;
+    begin
+      clear_o = 1'b1;
+      seed_valid_o = 1'b0;
+    end
+  endtask
+
+  always @* begin
+    clear_o = 1'b0;
+    seed_valid_o = 1'b0;
+    seed_pc0_o = {`XLEN{1'b0}};
+    seed_pc1_o = {`XLEN{1'b0}};
+    seed_next_pc0_o = {`XLEN{1'b0}};
+    seed_next_pc1_o = {`XLEN{1'b0}};
+    seed_packet_next_pc_o = {`XLEN{1'b0}};
+    seed_inst0_o = {`INST_W{1'b0}};
+    seed_inst1_o = {`INST_W{1'b0}};
+    seed_resp0_o = 2'b00;
+    seed_resp1_o = 2'b00;
+
+    if (csr_trap_i) begin
+      set_clear;
+    end else if (direct_flush_i) begin
+      set_clear;
+      if (fallthrough_capture_i) begin
+        set_seed(fallthrough_pc0_i, fallthrough_pc1_i,
+                 fallthrough_next_pc0_i, fallthrough_next_pc1_i,
+                 fallthrough_packet_next_pc_i, fallthrough_inst0_i,
+                 fallthrough_inst1_i, fallthrough_resp0_i,
+                 fallthrough_resp1_i);
+      end
+    end
+
+    if (!direct_flush_i && branch_spec_restore_i) begin
+      set_clear;
+    end
+
+    if (pending_branch_commit_resolve_i) begin
+      set_clear;
+    end else if (!direct_flush_i && pending_branch_match_i) begin
+      if (pending_branch_misaligned_i) begin
+        set_clear;
+      end else if (branch_prefetch_hit_i) begin
+        set_seed(branch_pc0_i, branch_pc1_i, branch_next_pc0_i,
+                 branch_next_pc1_i, branch_packet_next_pc_i, branch_inst0_i,
+                 branch_inst1_i, branch_resp0_i, branch_resp1_i);
+      end else begin
+        set_clear;
+      end
+    end else if (!direct_flush_i && branch_resolve_untracked_i) begin
+      set_clear;
+    end else if (!direct_flush_i && pending_jump_resolve_i) begin
+      if (pending_jump_misaligned_i) begin
+        set_clear;
+      end else if (pending_jump_redirect_i) begin
+        if (jalr_prefetch_hit_i) begin
+          set_seed(jalr_pc0_i, jalr_pc1_i, jalr_next_pc0_i,
+                   jalr_next_pc1_i, jalr_packet_next_pc_i, jalr_inst0_i,
+                   jalr_inst1_i, jalr_resp0_i, jalr_resp1_i);
+        end else begin
+          set_clear;
+        end
+      end
+    end else if (!direct_flush_i && pending_mem_resolve_i) begin
+      // LSU replay dispatch does not change front-end FIFO storage.
+    end else if (!direct_flush_i && system_csr_dispatch_i) begin
+      // CSR dispatch waits for commit before the front-end FIFO is cleared.
+    end else if (!direct_flush_i && pending_system_csr_commit_i) begin
+      set_clear;
+    end else if (!csr_trap_i && !direct_flush_i && drain_complete_i) begin
+      if (drain_pending_arch_trap_i) begin
+        set_clear;
+      end else if (drain_pending_system_i) begin
+        set_clear;
+      end else if (drain_pending_branch_undispatched_i) begin
+        set_clear;
+      end else if (drain_pending_jump_i) begin
+        if (jalr_prefetch_hit_i) begin
+          set_seed(jalr_pc0_i, jalr_pc1_i, jalr_next_pc0_i,
+                   jalr_next_pc1_i, jalr_packet_next_pc_i, jalr_inst0_i,
+                   jalr_inst1_i, jalr_resp0_i, jalr_resp1_i);
+        end else begin
+          set_clear;
+        end
+      end else if (drain_pending_mem_i) begin
+        set_clear;
+      end else if (drain_pending_fp_i) begin
+        set_clear;
+      end
+    end
+
+    if (csr_trap_i) begin
+      set_clear;
+    end
+  end
+
+endmodule
+

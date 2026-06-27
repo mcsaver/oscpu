@@ -1,0 +1,6 @@
+node	status	evidence
+module-testbench	PASS	npc/rv64/perf/results/core-regress/20260626-160919/module-testbench.log
+verilator-lint	PASS	npc/rv64/perf/results/core-regress/20260626-160919/verilator-lint.log
+npc-build	PASS	npc/rv64/perf/results/core-regress/20260626-160919/npc-build.log
+am-cpu-tests	PASS	npc/rv64/perf/results/core-regress/20260626-160919/am-cpu-tests.log
+official-riscv-tests	PASS	npc/rv64/perf/results/core-regress/20260626-160919/status.txt

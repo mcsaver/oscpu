@@ -133,6 +133,8 @@ module tb_ooo_fetch_trap_gate;
     .priv_mode_o(),
     .mstatus_o(),
     .satp_o(),
+    .pmpcfg_o(),
+    .pmpaddr_o(),
     .debug_pc_o(debug_pc),
     .debug_state_o(debug_state),
     .debug_gprs_o(debug_gprs),
@@ -190,7 +192,7 @@ module tb_ooo_fetch_trap_gate;
               dut.trap_redirect_squash_q, 1'b1);
     tb_check1("redirect squash does not block sequential trap fetch",
               fetch_req_valid, 1'b1);
-    force dut.branch_resolve_untracked_raw_w = 1'b1;
+    force dut.u_branch_resolve_recovery_gate.branch_resolve_untracked_raw_w = 1'b1;
     force dut.core_branch_resolve_misaligned_w = 1'b0;
     force dut.core_branch_resolve_next_pc_w = STALE_USER_PC;
     #1;
@@ -201,10 +203,10 @@ module tb_ooo_fetch_trap_gate;
       $display("[CHECK-FAIL] stale user redirect selected during squash pc=0x%016x",
                fetch_req_pc);
     end
-    release dut.branch_resolve_untracked_raw_w;
+    release dut.u_branch_resolve_recovery_gate.branch_resolve_untracked_raw_w;
     release dut.core_branch_resolve_misaligned_w;
     release dut.core_branch_resolve_next_pc_w;
-    force dut.direct_branch_resolve_redirect_raw_w = 1'b1;
+    force dut.u_direct_branch_resolve_gate.direct_branch_resolve_redirect_raw_w = 1'b1;
     force dut.direct_branch_resolve_next_pc_w = STALE_USER_PC;
     #1;
     tb_check1("redirect squash masks direct branch resolve",
@@ -214,9 +216,9 @@ module tb_ooo_fetch_trap_gate;
       $display("[CHECK-FAIL] stale direct branch redirect selected during squash pc=0x%016x",
                fetch_req_pc);
     end
-    release dut.direct_branch_resolve_redirect_raw_w;
+    release dut.u_direct_branch_resolve_gate.direct_branch_resolve_redirect_raw_w;
     release dut.direct_branch_resolve_next_pc_w;
-    force dut.branch_resolve_redirect_raw_w = 1'b1;
+    force dut.u_branch_resolve_recovery_gate.branch_resolve_redirect_raw_w = 1'b1;
     force dut.core_branch_resolve_next_pc_w = STALE_USER_PC;
     #1;
     tb_check1("redirect squash masks tracked branch resolve",
@@ -226,9 +228,9 @@ module tb_ooo_fetch_trap_gate;
       $display("[CHECK-FAIL] stale tracked branch redirect selected during squash pc=0x%016x",
                fetch_req_pc);
     end
-    release dut.branch_resolve_redirect_raw_w;
+    release dut.u_branch_resolve_recovery_gate.branch_resolve_redirect_raw_w;
     release dut.core_branch_resolve_next_pc_w;
-    force dut.branch_spec_redirect_raw_w = 1'b1;
+    force dut.u_branch_resolve_recovery_gate.branch_spec_redirect_raw_w = 1'b1;
     force dut.core_branch_resolve_next_pc_w = STALE_USER_PC;
     #1;
     tb_check1("redirect squash masks speculative branch restore",
@@ -238,7 +240,7 @@ module tb_ooo_fetch_trap_gate;
       $display("[CHECK-FAIL] stale speculative branch redirect selected during squash pc=0x%016x",
                fetch_req_pc);
     end
-    release dut.branch_spec_redirect_raw_w;
+    release dut.u_branch_resolve_recovery_gate.branch_spec_redirect_raw_w;
     release dut.core_branch_resolve_next_pc_w;
     force dut.backend_drained_w = 1'b1;
     @(posedge clk);

@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T11:40:43+00:00",
-  "updated_at": "2026-06-25T05:00:49+00:00",
+  "updated_at": "2026-06-27T03:12:36+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -25682,6 +25682,366 @@
       "sha256": "4efef8e3751c568739c8c7a6df89983cc3fd1eb5acf65f461c0c2838b43fba44",
       "backup_source": "filesystem",
       "archived_at": "2026-06-24T18:05:53+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-25-nemu-simplefb-fbcon-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6037,
+      "sha256": "9b127f7366688f682b3f1ccd588396294d06c644d6dd717fdc7187d68251d5f1",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-25T07:08:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-25-nemu-simplefb-fbcon-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 4279,
+      "sha256": "0c44bd41c22367876170ce0975a7100eb7bab2f4bd26faea7d2d84de05e9b1de",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-25T07:08:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-25-nemu-simplefb-fbcon-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 8065,
+      "sha256": "24778c9cae18abcdaea51cd558938a616b90efde01a1558a9d0194370ae7382c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-25T07:08:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-25-nemu-simplefb-fbcon-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 869,
+      "sha256": "7b51b8b0525501939cfce58eed0e9b269ed3d6795808839dcc826350d8d6237c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-25T07:08:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-25-nemu-simplefb-fbcon-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 3965,
+      "sha256": "4f0bd25a2e507a92d16b4e875fbc48a9d8ba56da977bac687b47258ab1f33380",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-25T07:08:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-25-nemu-simplefb-fbcon-full-gate/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6247,
+      "sha256": "f04d44a1100ae4e16f88025ecee8ab3b0980f78a511e71818d48b94e0dddfac3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-25T08:07:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-25-nemu-simplefb-fbcon-full-gate/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5511,
+      "sha256": "5eb18f521b9680d71673907ddd0dfd3d63a588d9e8097f140f56e818bc9c0f6f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-25T08:07:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-25-nemu-simplefb-fbcon-full-gate/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 27698,
+      "sha256": "ffa5181588ad1b686c12e86e5e34ef65ee6437b5adbc05e314209252c2fba6d2",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-25T08:07:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-25-nemu-simplefb-fbcon-full-gate/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1088,
+      "sha256": "ab2d7ec6fe4608a9325266c352a2fee6673d47fa684f638789204407783b5747",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-25T08:07:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-25-nemu-simplefb-fbcon-full-gate/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4330,
+      "sha256": "2ba4526a832715a4ee7d041bea409af1b49283c7ab1b1ca08affa8810abde37f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-25T08:07:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-25-nemu-virtio-input-seat-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6040,
+      "sha256": "ec2d570a2601ddd9986001437d2d765c0ed6e5c55eaaa2bd40c00ce2cc333464",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-25T05:27:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-25-nemu-virtio-input-seat-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 4318,
+      "sha256": "f1517e1b9de30078791f3c78fcb051cc97e581e5f761f379155e72e47d948d8b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-25T05:27:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-25-nemu-virtio-input-seat-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 8101,
+      "sha256": "864d897ae27ae8328efd575b38915a2da704eaee5dcfe40d6ae23e943d5e78f0",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-25T05:27:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-25-nemu-virtio-input-seat-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 869,
+      "sha256": "7b51b8b0525501939cfce58eed0e9b269ed3d6795808839dcc826350d8d6237c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-25T05:27:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-25-nemu-virtio-input-seat-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4001,
+      "sha256": "3514d90f0f3447a149070bfdebf10a2aced9984e9f4ed709565b4222e6457dbe",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-25T05:27:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-25-nemu-virtio-input-seat-full-gate/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6250,
+      "sha256": "a51c1e7b57b633002c2b0efc5b9d8fc9c38ebd202289f9aaad60280802c85722",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-25T06:24:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-25-nemu-virtio-input-seat-full-gate/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5556,
+      "sha256": "d8432c263abef2048ffb090ec3905cac53cd0cac80d587c3f2ff9e533b1fa39f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-25T06:24:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-25-nemu-virtio-input-seat-full-gate/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 27797,
+      "sha256": "d1ac07de0e4dc689b5c3ae9349440aadffb0418af752369dd7d1c222bf5c582b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-25T06:24:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-25-nemu-virtio-input-seat-full-gate/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1088,
+      "sha256": "ab2d7ec6fe4608a9325266c352a2fee6673d47fa684f638789204407783b5747",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-25T06:24:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-25-nemu-virtio-input-seat-full-gate/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4369,
+      "sha256": "32cee34364f59ed879e1355bf16f9e9acb319eb542f8111b0e1cb106a3e602a1",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-25T06:24:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-26-2026-06-26-npc-rv64-industrial-signoff-baseline/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6589,
+      "sha256": "c8477e231c80cdc54329df88bb9cb416ad96174bccb42bb1ff7b0cd7a0fb6b1a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-26T07:02:19+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-26-2026-06-26-npc-rv64-industrial-signoff-baseline/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 6164,
+      "sha256": "928432c052684530671791fb3eeab0169af50bfba73fdd4f7554fe641e61d50b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-26T07:02:19+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-26-2026-06-26-npc-rv64-industrial-signoff-baseline/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4531,
+      "sha256": "493d44f5c9c2351af6feab8c75ee82463b31d97546dbe9ae85488a49d969475e",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-26T07:02:19+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-26-2026-06-26-npc-rv64-industrial-signoff-baseline/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-26T07:02:19+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-26-2026-06-26-npc-rv64-industrial-signoff-baseline/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4581,
+      "sha256": "ee5a401c7aa3dc7a04f876fef4eef6154bbc808248a7a0592d49eed95306e3be",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-26T07:02:19+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-26-2026-06-26-npc-rv64-linux-signoff-baseline-guestwatch/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 9823,
+      "sha256": "d22c604c9362bae5e57d0c8ea6ef357e421cd5a94d030217bfc20ea1aa70dfdd",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-26T07:32:05+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-26-2026-06-26-npc-rv64-linux-signoff-baseline-guestwatch/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 12477,
+      "sha256": "00753e7f0dcfc5399e0060fde2460a6acfc1b92c099c7fb5b0137f62205f4f9c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-26T07:32:05+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-26-2026-06-26-npc-rv64-linux-signoff-baseline-guestwatch/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 17598,
+      "sha256": "b5981279ced204aa1d0708887065805bd8d73546d971131d269bd0e571dd2c02",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-26T07:32:05+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-26-2026-06-26-npc-rv64-linux-signoff-baseline-guestwatch/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1688,
+      "sha256": "079efacbc3ae858aabfb1ae944b91073cf8767f102c268a3c9b3a04ecff6ff7e",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-26T07:32:05+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-26-2026-06-26-npc-rv64-linux-signoff-baseline-guestwatch/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6557,
+      "sha256": "887daf1ef4d8d315f1b2918ed1a741233835c5d4ea7e3414865375a1fc95602b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-26T07:32:05+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-26-2026-06-26-npc-rv64-linux-signoff-baseline/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 9812,
+      "sha256": "0098f76f7d0103d4a780b71e94994759bfee1cfe61e81cf4a92e940f9766cd89",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-26T07:20:11+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-26-2026-06-26-npc-rv64-linux-signoff-baseline/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 12180,
+      "sha256": "275be847c55d544e35ba573f6acd42983fba8e0dd1231da6bec1ac6cfb27b333",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-26T07:20:11+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-26-2026-06-26-npc-rv64-linux-signoff-baseline/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 17312,
+      "sha256": "c7ec1a82fe04df494e981d446e201bc330f3ef66b4454d45a73fb73145ea764a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-26T07:20:11+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-26-2026-06-26-npc-rv64-linux-signoff-baseline/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1688,
+      "sha256": "079efacbc3ae858aabfb1ae944b91073cf8767f102c268a3c9b3a04ecff6ff7e",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-26T07:20:11+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-26-2026-06-26-npc-rv64-linux-signoff-baseline/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6348,
+      "sha256": "504b28c0362e5fd4811748c1a10e38f6c5540b2b9e05e02e94a72d6e838d4df3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-26T07:20:11+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-27-2026-06-27-task-run-report-chinese-github-index/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6166,
+      "sha256": "e2ca590e55a082e073fdc87e5f03d11055f6dff8470d62337b5a2d144f63df9c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-27T03:12:36+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-27-2026-06-27-task-run-report-chinese-github-index/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 2572,
+      "sha256": "a698988a3c6d78c5eabe452109461b542a462817f93654151f0f0c6203660d7a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-27T03:12:36+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-27-2026-06-27-task-run-report-chinese-github-index/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 2317,
+      "sha256": "9724908255c5d14ecc7c0d3de8071303280b0b0f5d6889fb970a7e06423cc198",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-27T03:12:36+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-27-2026-06-27-task-run-report-chinese-github-index/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 482,
+      "sha256": "dc51f0a752d0aacffacd14f9b99b6702696aa792949329ebd5af18fa87bce09e",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-27T03:12:36+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-27-2026-06-27-task-run-report-chinese-github-index/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 3843,
+      "sha256": "bfcec008814d11b7693f3781f7bfb700114448be0361c694041fb278064fec56",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-27T03:12:36+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-27-2026-06-27-task-run-report-chinese/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 8977,
+      "sha256": "3288148f45c51b539ba5e7d0a791ea538f461a7229764f62a847a46c37a81423",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-27T03:12:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-27-2026-06-27-task-run-report-chinese/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11413,
+      "sha256": "868b890a14b8abc3573d8c4ab32008ddbfbb6f6fa3d4c7cd5184c8e16bd92a64",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-27T03:12:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-27-2026-06-27-task-run-report-chinese/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 7392,
+      "sha256": "c9b1e461d9127a9b2dfb25df5d70add96515aaef12148aa6dca98ca4ecb6b310",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-27T03:12:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-27-2026-06-27-task-run-report-chinese/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1673,
+      "sha256": "8b3d126d3085198342ff9baaf11ab584946588b0f3e6cb90887f03a220bfff7c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-27T03:12:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-06-27-2026-06-27-task-run-report-chinese/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6253,
+      "sha256": "4985b3cb6103fb6ce931965adf3bc34807a292d7a491e484d0ea6cd6bee2a910",
+      "backup_source": "filesystem",
+      "archived_at": "2026-06-27T03:12:09+00:00"
     }
   ]
 }

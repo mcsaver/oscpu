@@ -11,6 +11,8 @@
   .align 2
 _start:
   li sp, FP_SMOKE_STACK
+  li t0, (3 << 13)
+  csrs mstatus, t0
 
   li t0, 0x3ff8000000000000
   fmv.d.x ft0, t0

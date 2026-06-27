@@ -1,0 +1,31 @@
+{
+  "task": "npc-rv64-privileged-core-regress",
+  "date": "2026-06-26",
+  "scope": "npc/rv64 core-level RTL, CSR, frontend illegal arbitration, and Sv39 A/D behavior",
+  "final_status": "PASS",
+  "final_riscv_run_dir": "npc/rv64/perf/results/core-regress/20260626-170801-284881",
+  "module_run_dir": "npc/rv64/perf/results/20260626-sv39-ad-fault/module-testbench",
+  "am_run_dir": "npc/rv64/perf/results/core-regress/20260626-170857-302332",
+  "riscv_tests": {
+    "source": ".github/runtime-artifacts/npc-rv64-core-tests/src/riscv-tests",
+    "vendored": false,
+    "suites": [
+      "rv64ui",
+      "rv64um",
+      "rv64uc",
+      "rv64uzba",
+      "rv64uzbb",
+      "rv64uzbc",
+      "rv64uzbs",
+      "rv64mi",
+      "rv64si"
+    ],
+    "attempted": 135,
+    "status": "PASS"
+  },
+  "boundaries": [
+    "No Linux/rootfs boot gate",
+    "No full industrial CPU sign-off claim",
+    "No formal or physical implementation sign-off"
+  ]
+}

@@ -771,7 +771,7 @@ module tb_ooo_int_backend;
     tb_check1("dual load port0 is read", mem_req_write, 1'b0);
     tb_check1("dual load port1 is read", mem1_req_write, 1'b0);
     tb_check32("dual load port0 addr", mem_req_addr, 32'h0000_0100);
-    tb_check32("dual load port1 aligned addr", mem1_req_addr, 32'h0000_0100);
+    tb_check32("dual load port1 addr", mem1_req_addr, 32'h0000_0104);
 
     `TB_TICK(clk);
     clear_dispatch();
@@ -779,7 +779,7 @@ module tb_ooo_int_backend;
     mem_rsp_rdata = 32'haaaa_5555;
     mem_rsp_error = 1'b0;
     mem1_rsp_valid = 1'b1;
-    mem1_rsp_rdata = 64'h1234_5678_0000_0000;
+    mem1_rsp_rdata = 64'h0000_0000_1234_5678;
     mem1_rsp_error = 1'b0;
     #1;
     tb_check1("dual load port0 rsp ready", mem_rsp_ready, 1'b1);
@@ -793,13 +793,66 @@ module tb_ooo_int_backend;
     mem_rsp_valid = 1'b0;
     mem1_rsp_valid = 1'b0;
     #1;
-    tb_check32("dual load rob drains", {27'b0, rob_count}, 32'd0);
-    tb_check32("dual load iq drains", {28'b0, issue_count}, 32'd0);
-    tb_check32("dual load freelist recovers", {25'b0, free_count}, 32'd32);
+	    tb_check32("dual load rob drains", {27'b0, rob_count}, 32'd0);
+	    tb_check32("dual load iq drains", {28'b0, issue_count}, 32'd0);
+	    tb_check32("dual load freelist recovers", {25'b0, free_count}, 32'd32);
 
-	    set_dispatch0(32'h8000_2800,
-	                  make_store_ctrl(`MEM_SIZE_WORD),
-	                  5'd0, 5'd0, 5'd0, 32'h0000_0200);
+	    mem_rsp_valid = 1'b0;
+	    mem1_rsp_valid = 1'b0;
+	    set_dispatch0(32'h8000_2600,
+	                  make_load_ctrl(`MEM_SIZE_WORD, 1'b1),
+	                  5'd0, 5'd0, 5'd15, 32'h0000_0270);
+	    #1;
+	    tb_check1("buffer seed load dispatch ready", dispatch0_ready, 1'b1);
+	    tb_check1("buffer seed load request visible", mem_req_valid, 1'b1);
+	    tb_check1("buffer seed load is read", mem_req_write, 1'b0);
+	    tb_check32("buffer seed load addr", mem_req_addr, 32'h0000_0270);
+	    `TB_TICK(clk);
+	    clear_dispatch();
+	    #1;
+
+	    set_dispatch0(32'h8000_2604,
+	                  make_load_ctrl(`MEM_SIZE_HALF, 1'b1),
+	                  5'd0, 5'd0, 5'd16, 32'h0000_0276);
+	    #1;
+	    tb_check1("buffered lhu dispatch ready", dispatch0_ready, 1'b1);
+	    tb_check1("buffered lhu waits while mem0 busy", mem_req_valid, 1'b0);
+	    `TB_TICK(clk);
+	    clear_dispatch();
+	    #1;
+	    tb_check1("buffered lhu remains queued before rsp", mem_req_valid, 1'b0);
+
+	    mem_rsp_valid = 1'b1;
+	    mem_rsp_rdata = 64'h0000_0000_1234_5678;
+	    mem_rsp_error = 1'b0;
+	    #1;
+	    tb_check1("buffer seed rsp ready", mem_rsp_ready, 1'b1);
+	    tb_check1("buffered lhu drains with rsp", mem_req_valid, 1'b1);
+	    tb_check1("buffered lhu drain is read", mem_req_write, 1'b0);
+	    tb_check32("buffered lhu drain exact addr", mem_req_addr, 32'h0000_0276);
+	    tb_check1("buffer seed commit valid", commit0_valid, 1'b1);
+	    tb_check32("buffer seed commit data", commit0_data, 32'h1234_5678);
+	    `TB_TICK(clk);
+	    mem_rsp_valid = 1'b0;
+	    #1;
+
+	    mem_rsp_valid = 1'b1;
+	    mem_rsp_rdata = 64'h0000_0000_0000_1800;
+	    mem_rsp_error = 1'b0;
+	    #1;
+	    tb_check1("buffered lhu rsp ready", mem_rsp_ready, 1'b1);
+	    tb_check1("buffered lhu commit valid", commit0_valid, 1'b1);
+	    tb_check32("buffered lhu commit data", commit0_data, 32'h0000_1800);
+	    `TB_TICK(clk);
+	    mem_rsp_valid = 1'b0;
+	    #1;
+	    tb_check32("buffered lhu rob drains", {27'b0, rob_count}, 32'd0);
+	    tb_check32("buffered lhu iq drains", {28'b0, issue_count}, 32'd0);
+	    tb_check32("buffered lhu freelist recovers", {25'b0, free_count}, 32'd32);
+
+		    set_dispatch0(32'h8000_2800,
+		                  make_store_ctrl(`MEM_SIZE_WORD),
+		                  5'd0, 5'd0, 5'd0, 32'h0000_0200);
 	    `TB_TICK(clk);
 	    clear_dispatch();
 	    #1;
@@ -959,6 +1012,41 @@ module tb_ooo_int_backend;
     tb_check32("amo sequence rob drains", {27'b0, rob_count}, 32'd0);
     tb_check32("amo sequence iq drains", {28'b0, issue_count}, 32'd0);
     tb_check32("amo sequence freelist recovers", {25'b0, free_count}, 32'd32);
+
+    set_dispatch0(32'h8000_4050,
+                  make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM, `ALU_OP_ADD,
+                                1'b0, 1'b0, 1'b1),
+                  5'd0, 5'd0, 5'd1, 32'h0000_0304);
+    set_dispatch1(32'h8000_4054,
+                  make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM, `ALU_OP_ADD,
+                                1'b0, 1'b0, 1'b1),
+                  5'd0, 5'd0, 5'd2, 32'd1);
+    tick_dispatch_to_commit("amo word x0 setup", 32'h0000_0304, 32'd1);
+
+    mem_rsp_valid = 1'b0;
+    set_dispatch0(32'h8000_4060,
+                  make_amo_ctrl(`MEM_SIZE_WORD, 1'b0, 1'b0),
+                  5'd1, 5'd2, 5'd0, 32'd0);
+    dispatch0_inst = inst_amo(5'b00000, 5'd2, 5'd1, `FUNCT3_LW, 5'd0);
+    #1;
+    tb_check1("amoadd.w x0 dispatch ready", dispatch0_ready, 1'b1);
+    `TB_TICK(clk);
+    clear_dispatch();
+    wait_mem0_request("amoadd.w x0 read", 1'b0, 32'h0000_0304,
+                      1'b0, {`XLEN{1'b0}}, 1'b0, {`STRB_W{1'b0}});
+    `TB_TICK(clk);
+    #1;
+    complete_mem0_response("amoadd.w x0 read", 64'd7,
+                           1'b0, 1'b0, 1'b0, {`XLEN{1'b0}});
+    wait_mem0_request("amoadd.w x0 write", 1'b1, 32'h0000_0304,
+                      1'b1, 32'd8, 1'b1, 8'h0f);
+    `TB_TICK(clk);
+    #1;
+    complete_mem0_response("amoadd.w x0 write", {`XLEN{1'b0}},
+                           1'b1, 1'b0, 1'b1, 64'd7);
+    tb_check32("amoadd.w x0 rob drains", {27'b0, rob_count}, 32'd0);
+    tb_check32("amoadd.w x0 iq drains", {28'b0, issue_count}, 32'd0);
+    tb_check32("amoadd.w x0 freelist recovers", {25'b0, free_count}, 32'd32);
 
 	    tb_finish("tb_ooo_int_backend");
   end

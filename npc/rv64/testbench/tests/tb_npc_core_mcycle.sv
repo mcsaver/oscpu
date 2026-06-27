@@ -26,7 +26,7 @@ module tb_npc_core_mcycle;
   wire lsu_axi_wvalid;
   reg lsu_axi_wready;
   wire [`XLEN-1:0] lsu_axi_wdata;
-  wire [3:0] lsu_axi_wstrb;
+  wire [`STRB_W-1:0] lsu_axi_wstrb;
   reg lsu_axi_bvalid;
   wire lsu_axi_bready;
   reg [1:0] lsu_axi_bresp;
@@ -168,6 +168,17 @@ module tb_npc_core_mcycle;
     end
   endfunction
 
+  function [`XLEN-1:0] imem_beat;
+    input [`XLEN-1:0] addr;
+    reg [31:0] lo;
+    reg [31:0] hi;
+    begin
+      lo = imem_word(addr);
+      hi = imem_word(addr + 64'd4);
+      imem_beat = {hi, lo};
+    end
+  endfunction
+
   task automatic step_core;
     reg next_ifu_pending;
     reg [`XLEN-1:0] next_ifu_data;
@@ -176,13 +187,13 @@ module tb_npc_core_mcycle;
       ifu_axi_rdata = ifu_pending_data;
       ifu_axi_rresp = 2'b00;
       lsu_axi_rvalid = 1'b0;
-      lsu_axi_rdata = 32'h0;
+      lsu_axi_rdata = {`XLEN{1'b0}};
       lsu_axi_rresp = 2'b00;
       lsu_axi_bvalid = 1'b0;
       lsu_axi_bresp = 2'b00;
 
       next_ifu_pending = ifu_axi_arvalid && ifu_axi_arready;
-      next_ifu_data = imem_word(ifu_axi_araddr);
+      next_ifu_data = imem_beat(ifu_axi_araddr);
 
       `TB_TICK(clk);
 
@@ -242,19 +253,19 @@ module tb_npc_core_mcycle;
     rst = 1'b1;
     ifu_axi_arready = 1'b1;
     ifu_axi_rvalid = 1'b0;
-    ifu_axi_rdata = 32'h0;
+    ifu_axi_rdata = {`XLEN{1'b0}};
     ifu_axi_rresp = 2'b00;
     lsu_axi_arready = 1'b1;
     lsu_axi_rvalid = 1'b0;
-    lsu_axi_rdata = 32'h0;
+    lsu_axi_rdata = {`XLEN{1'b0}};
     lsu_axi_rresp = 2'b00;
     lsu_axi_awready = 1'b1;
     lsu_axi_wready = 1'b1;
     lsu_axi_bvalid = 1'b0;
     lsu_axi_bresp = 2'b00;
     ifu_pending = 1'b0;
-    ifu_pending_data = 32'h0;
-    frozen_mcycle_low = 32'h0;
+    ifu_pending_data = {`XLEN{1'b0}};
+    frozen_mcycle_low = {`XLEN{1'b0}};
     saw_mcycle_low = 0;
     saw_mcycle_high = 0;
     saw_cycle_low = 0;
