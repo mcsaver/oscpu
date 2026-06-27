@@ -1,0 +1,47 @@
+#!/usr/bin/env ruby
+
+require_relative "../lib/z3"
+
+class VerbalArithmetic
+  def initialize(a, b, c)
+    @solver = Z3::Solver.new
+    @vars = Hash.new do |ht,name|
+      v = Z3.Int(name)
+      @solver.assert v >= 0
+      @solver.assert v <= 9
+      ht[name] = v
+    end
+    @a = a.chars.map{|v| @vars[v]}
+    @b = b.chars.map{|v| @vars[v]}
+    @c = c.chars.map{|v| @vars[v]}
+  end
+
+  def call
+    @solver.assert @a[0] != 0
+    @solver.assert @b[0] != 0
+    @solver.assert @c[0] != 0
+    @solver.assert word_value(@a) + word_value(@b) == word_value(@c)
+    @solver.assert Z3.Distinct(*@vars.values)
+
+    if @solver.satisfiable?
+      @model = @solver.model
+      print_answer!
+    else
+      puts "failed to solve"
+    end
+  end
+
+  private
+
+  def word_value(word)
+    word.inject(0){|x,y| 10*x+y}
+  end
+
+  def print_answer!
+    [@a,@b,@c].each do |word|
+      p word.map{|v| [v.to_s, @model[v].to_i]}
+    end
+  end
+end
+
+VerbalArithmetic.new("SEND", "MORE", "MONEY").call

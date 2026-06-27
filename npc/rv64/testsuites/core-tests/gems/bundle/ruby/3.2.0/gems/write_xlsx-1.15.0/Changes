@@ -1,0 +1,600 @@
+Change history of write_xlsx rubygem.
+
+2026-03-20 v1.15.0
+    Add the option to position custom data labels in the same way that the
+    data labels can be positioned for the entire series.
+
+    Add border, fill, gradient and pattern formatting options for
+    chart titles and also chart axis titles.
+
+    Added documentation for the Worksheet `autofit()` method.
+
+    Fix failed match for range string in conditional format.
+    Strings used in a cell equality must be quoted. In order to
+    ensure this there is a check for non-range/non-numeric strings.
+    However this test wasn't anchored properly and gave a false
+    positive.
+
+    Fixed an issue where `set_row()` with the default height of 15 was
+    ignored if `set_default_row()` was also used.
+
+    Fixed issue with 0 DPI in PNG images.
+
+2026-03-12 v1.13.0
+    fix sheet name quoting with upstream Perl implementation.
+
+2025-10-28 v1.12.3
+    fix compatibility with rubyzip 3.x
+
+2025-09-08 v1.12.2
+    Fix Update gemspec: require rubyzip ~> 2.4.0
+
+2024-04-12 v1.12.1
+    Added support for embedding images into worksheets with
+    worksheet `embed_image()`.
+
+    This can be useful if you are building up a spreadsheet of products with
+    a column of images for each product. Embedded images move with the cell
+    so they can be used in worksheet tables or data ranges that will be
+    sorted or filterd.
+
+    This functionality is the equivalent of Excel's menu option to insert an
+    image using the option to "Place in Cell" which is available in Excel
+    3t5 versions from 2023 onwardsd.
+
+    Added support for Excel 365 `IMAGE()` future.
+
+    Added trendline equation formatting for Charts.
+
+    Added support for leader lines to all chart types.
+
+    Added chart option to display `N/A` as empty cells.
+
+    Add support for `invert_if_negative` color option in Charts.
+
+    Added worksheet `very_hidden` method to hide a worksheet in a way that
+    it can only be unhidden by VBA.
+
+    Fixed indentation and alignment property mismatch.
+    Fix issue where a horizontal alignment format was ignored if the
+    indentation was also set.
+
+2023-12-26 v1.11.2
+    Fix issue where header images in chartsheets weren't displayed.
+    Add support for custom table total functions.
+    Add chart option to display N/A as empty cells.
+    Add support for leader lines to all chart types.
+    Fix issue where column formulas were overwritten by table data
+    add Worksheet#very_hidden method.
+    Add add trendline equation formatting for chart.
+
+2023-08-09 v1.11.1
+    Fixed issue #110. Redefining costant Struct::ColInfo
+
+2023-05-06 v1.11.0
+    Added support for simulated worksheet `autofit()`.
+
+    Refactored internal column property handling to allow column ranges
+    to be overridden (a common UX expectation).
+
+    Add `quote_prefix` format property.
+
+    Fix for duplicate number formats. Issue #283(excel-write-xlsx)
+
+    Add fix for worksheets with tables and background images.
+
+    Replace/fix the worksheet protection password algorithm
+    so that is works correctly for strings over 24 chars.
+
+2023-02-16 v1.10.2
+    Fixed issue #104. Worksheet#write Ruby 3.2 removed Object#=~
+    making it impossible to write Date objects
+
+    Memory usage optimization.
+
+2023-01-31 v1.10.1
+    Fixed PR #99. Remove range [1..] style to work on Ruby 2.5.
+
+2023-01-29 v.1.10.0
+    Ruby version 2.5.0 or later are required.
+
+    Added support for new Excel 365 dynamic functions.
+
+2023-01-18 v1.09.5
+    Fixed issue #92. Worksheet#write raises with Time instance token.
+
+2022-09-02 v1.09.4
+    Remove zip-zip dependency.
+
+    Fix: Object#=~ is called on Integer; it always returns nil
+
+2022-07-08 v1.09.3
+    Fixed issue #47. Dealing with NAN
+
+2022-02-14 v1.09.2
+    Fixed issue #79. Worksheet#write calls the write_number
+    when multi-line string has a line with only numbers.
+
+2021-11-27 v1.09.1
+    Added Worksheet#keep_leading_zeros method to handle '001' as string in
+    Worksheet#write, write_row, and write_col method.
+
+2021-11-26 v1.09.0
+
+    Added support for background images in worksheets. See set_background().
+
+    Added support for GIF image files (and in Excel 365, animated GIF files).
+
+    Added support for pixel sizing in set_row() and set_column() via new
+    functions called set_row_pixels() and set_column_pixels().
+
+2021-11-19 v1.08.0
+
+    Added ability to add accessibility options "description" and
+    "decorative" to images via insert_image().
+
+    Added the workbook read_only_recommended() method to set the Excel
+    "Read-only Recommended" option that is available when saving a file.
+
+    Added option to set a chart crossing to 'min' as well as the existing
+    'max' option. The 'min' option isn't available in the Excel interface
+    but can be enabled via VBA.
+
+    Added option to unprotect ranges in protected worksheets.
+
+    Added check, and warning, for worksheet tables with no data row.  Either
+    with or without a header row.
+
+    Added ignore_errors() worksheet method to ignore Excel worksheet
+    errors/warnings in user defined ranges.
+
+    Fixed issue where pattern formats without colours where given a default
+    black fill colour.
+
+    Fix issue where custom chart data labels didn't inherit the position for
+    the data labels in the series.
+
+    Fixed issue with relative url links in images.
+
+    Fixed issue where headers/footers were restricted to 254 characters
+    instead of 255.
+
+2021-02-17 v1.07.0
+
+   Added support for Border, Fill, Pattern and Gradient formatting to chart
+   data labels and chart custom data labels.
+
+
+2021-02-15 v1.06.0
+
+   Fix for issue where array formulas weren't included in the output file
+   for certain ranges/conditions.
+
+
+2021-02-15 v1.05.0
+
+   Added support for custom data labels in charts.
+
+   Remove ruby-1.9.3 travil CI check.
+
+
+2021-02-14 v1.04.0
+
+   Added support for "stacked" and "percent_stacked" Line charts.
+
+   Fix for worksheet objects (charts and images) that are inserted with an
+   offset that starts in a hidden cell.
+
+   Removed error in add_worksheet() for sheet name "History" which is a
+   reserved name in English version of Excel. However, this is an allowed
+   worksheet name in some Excel variants so the warning has been turned into
+   a documentation note instead.
+
+
+2021-02-13 v1.03.0
+
+   Fix for duplicate images being copied to an Excel::Writer::XLSX
+   file. Excel uses an optimization where it only stores one copy of a
+   repeated/duplicate image in a workbook. WriteXLSX didn't do
+   this which meant that the file size would increase when then was a large
+   number of repeated images. This release fixes that issue and replicates
+   Excel's behaviour.
+
+2021-02-12 v1.02.0
+
+   Added support for hyperlinks in worksheet images.
+
+   Increased allowable url length from 255 to 2079 characters, as allowed in
+   more recent versions of Excel.
+
+
+2021-02-08 v1.01.0
+
+   Added support for stacked and East Asian vertical chart fonts.
+
+   Added option to control positioning of charts or images when cells are
+   resized.
+
+   Added support for combining Pie/Doughnut charts.
+
+   Fixed sizing of cell comment boxes when they cross columns/rows that have
+   size changes that occur after the comment is written. Comments should
+   now behave like other worksheet objects such as images and charts.
+
+   Fix for structured reference in chart ranges.
+
+2021-01-23 v1.00.0
+
+   Fixed issue where images that started in hidden rows/columns weren't placed
+   correctly in the worksheet.
+
+
+2021-01-08 v0.99.0
+
+   Added font and font_size parameters to write_comment().
+
+   Allow formulas in date field of data_validation().
+
+   Added top_left chart legend position.
+
+   Added legend formatting options.
+
+   Added set_tab_ratio() method to set the ratio between the worksheet tabs
+   and the horizontal slider.
+
+   Added worksheet hide_row_col_headers() method to turn off worksheet row
+   and column headings.
+
+   Add functionality to align chart category axis labels.
+
+   Fix for issue with special characters in worksheet table functions.
+
+   Fix handling of 'num_format': '0' in duplicate formats.
+
+
+2021-01-03 v0.98.0
+
+   fixed for autofilter rule with blanks plus another filter.
+
+2021-01-02 v0.97.0
+
+   Added Excel 2010 data bar features such as solid fills and control over
+   the display of negative values.
+
+   Added default formatting for hyperlinks if none is specified. The format
+   is the Excel hyperlink style so links change colour after they are
+   clicked.
+
+   Fixed missing plotarea formatting in pie/doughnut charts.
+
+2020-12-31 v0.96.0
+
+   Added icon sets to conditional formatting.
+
+2020-12-30 v0.95.0
+
+   Added workbook set_size() method.
+
+2020-12-30 v0.94.0
+
+   Added font support to chart tables.
+
+2020-12-30 v0.93.0
+
+   Added trendline properties: intercept, display_equation and
+   display_r_squared.
+
+2020-12-30 v0.92.0
+
+   Fix for insert_image issue when handling images with zero dpi.
+
+2020-12-30 v0.91.0
+
+   Add set_custom_property() workbook method to set custom document
+   properties.
+
+2020-12-28 v0.90.0
+
+   Added worksheet_by_name() workbook method to retrieve a worksheet
+   in a workbook by name.
+
+   Fixed issue where internal file creation and modification dates where
+   in the local timezone instead of UTC.
+
+   Fixed issue with "external:" urls with space in sheetname.
+
+   Fixed issue where Unicode full-width number strings were treated as
+   numbers in write().
+
+2020-12-27 v0.89.0
+
+   Added write_boolean() worksheet method to write Excel boolean values.
+
+
+2020-12-26 v0.88.0
+
+   Added transparency option to solid fills in chart areas.
+
+   Added options to configure chart axis tick placement.
+
+2020-12-26 v0.87.0
+
+   Added chart pattern and gradient fills.
+
+   Added option to set chart tick interval.
+
+   Add checks for valid and non-duplicate worksheet table names.
+
+   Added support for table header formatting and a fix for wrapped lines in
+   the header.
+
+   use minitest instead of test-unit
+
+2020-11-01 v0.86.0
+   Fix for images with negative offsets.
+
+   Allow hyperlinks longer than 255 characters when the link and anchor
+   are each less than or equal to 255 characters.
+
+   Added hyperlink_base document property.
+
+   Added option to allow data validation input messages with the ‘any’
+   validate parameter.
+
+   Added "stop if true" feature to conditional formatting.
+
+   Added better support and documentation for html colours throughout
+   the module. The use of the Excel97 colour palette is supported for
+   backward compatibility but deprecated.
+
+2020-10-23 v0.85.11
+   Added Worksheet#update_range_format_with_params
+
+2020-10-23 v0.85.10
+   Fix frozen string litterals problems in Format#set_align
+
+2020-09-07 v0.85.9
+   apply pull-request #59 and #60
+
+2020-09-03 v0.85.8
+   apply pull-request #58 and #52
+
+2019-06-20 v0.85.7
+   apply pull-request #26
+
+2019-02-10 v0.85.6
+   Fix work well in ms windows.
+
+2018-04-29 v0.85.5
+   Added option to store hyperlink strings as string (strings_to_urls: false).
+
+2018-04-29 v0.85.4
+   Added option to store hyperlink strings as string (urls_as_strings).
+
+2018-01-07 v0.85.3
+   Fix hide first sheet problem #37
+
+2017-11-05 v0.85.2
+   Fix frozen string litterals problems #30
+
+2017-05-19 v0.85.1
+   Fix for missing method Workbook#set_tempdir
+
+2016-06-01 v0.85.0
+   Fix url encoding of links to external files and dirs.
+
+2016-03-11 v0.84.0
+   Added support for chart axis display units (thousands, million, etc.).
+   Added option to set printing in black and white.
+   Added chart styles example.
+   Added gradient fill support.
+   Added support for clustered charts.
+   Added support for boolean error codes.
+
+2015-04-12 v0.83.0
+   Added option to combine two different chart types. For example to
+   create a Pareto chart.
+
+2015-04-12 v0.82.0
+   Added extra documentation on how to handle VBA macros and added
+   automatic and manual setting of workbook and worksheet VBA codenames.
+
+   Fix for set_start_page() for values > 1.
+
+   Fix to copy user defined chart properties, such as trendlines,
+   so that they aren't overwritten.
+
+   Added column funtion_value option to add_table to allow
+   function value to be set.
+
+   Allow explicit text categories in charts.
+
+   Fix for column/bar gap/overlap on y2 axis.
+
+2014-12-28 v0.81.1
+   use test-unit gem instead of test/unit.
+
+2014-12-04 v0.81.0
+   Add chart axis line and fill properties.
+
+2014-11-30 v0.80.0
+   Chart Data Label enhancements. Added number formatting, font handling
+   (Excel::Writer::XLSX issue #106), separator (Same issue #107) and legend key.
+   Added chart specific handling of data label positions since not all
+   positions are available for all chart types. Excel::Writer::XLSX Issue #110.
+
+2014-11-29 v0.79.0
+   Added option to add images to headers and footers.
+   Added option to not scale heaader/footer with page.
+   Fixed issue where non 96dpi images weren’t scaled properly in Excel.
+   Fix for issue where X axis title formula was overwritten by the
+   Y axis title.
+
+2014-11-22 v0.78.0
+   Added Doughnut chart with set_rotation and set_hole_size methods.
+   Added set_rotation method to Pie charts.
+   Added set_calc_mode method to control automatic calculation of
+   formulas when worksheet is opened.
+
+
+2014-08-19 v0.77.2
+   Fix for issue #16.
+
+2014-07-02 v0.77.1
+   Fix for issue #14. thanks leonid-pavlov.
+
+2014-05-12 v0.77.0
+   Fix for incorrect chart offsets in insert_chart() and set_size().
+
+2014-04-10 v0.76.3
+   dependency must be written in gemspec
+
+2014-04-10 v0.76.2
+   Fix for issue #8
+   use same rubyzip routine both in ruby-2+, 1.9+ and 1.8
+
+2014-03-21 v0.76.1
+   Fix for issue #7
+
+2014-01-31 v0.76.0
+   Added date axis handling to charts.
+   Added support for non-contiguous chart ranges.
+   Fix to remove duplicate set_column() entries.
+
+2013-12-09 v0.75.0
+   Added interval unit option for category axes.
+   Fix for axis name font rotation.
+   Fix for several minor issues with Pie chart legends.
+
+2013-11-18 v0.74.0
+   Improved defined name validation.
+     Allow utf8 character etc.
+   Added Chart#set_title option to turn off automatic title.
+   Allow positioning of plotarea, legend, title and axis names.
+   Fix for modification of user params in conditional_formatting.
+
+2013-11-13 v0.73.0
+   Added custom error bar option to charts.
+   Fix for tables added in non-sequential order.
+   Fix for scatter charts with markers on non-marker series.
+   Fix for charts with star style markers
+
+2013-09-21 v0.72.3.beta1
+   speed up when script handles large number of cells.
+
+2013-09-07 v0.72.2
+   work well with rubyzip 1.0.0
+
+2013-09-06 v0.72.1
+   specify rubyzip version : <1.0.0
+
+2013-09-03 v0.72.0
+   Fix for charts and images that cross rows and columns that are hidden or formatted but which don't have size changes.
+   Fix : Worksheet#write bug when using A1 notation and blank token.
+
+2013-09-02 v0.71.0
+   Fixed issue in image handling.
+   Added fix to ensure formula calculation on load regardless of Excel version.
+
+2013-07-13 v0.70.0
+   Fix for rendering images that are the same size as cell boundaries.
+   Fix for inaccurate column width calculation.
+   Added Chart line smoothing option.
+
+2013-06-30 v0.69.0
+   Added chart font rotation property. Mainly for use with data axes to make the display more compact.
+   Fix for issue where shapes on one worksheet corrupted charts on a subsequent worksheet.
+   Fix for issue where add_button invalidated cell comments in the same workbook.
+   Fix for set_selection with cell range.
+   Fix for issue with image scaling.
+
+2013-03-23 v0.65.1
+   Bug fix for non-integer image scaling.
+   Bug fix in Worksheet#set_first_sheet
+   Bug fix in Worksheet#start_page=()
+
+2013-03-23 v0.65.0
+   Added options to format series Gap/Overlap for Bar/Column charts.
+
+   Bug fix in Worksheet#write_formula
+   (write_formula change original formula string)
+
+   Bug fix in Worksheet#set_column
+   (failure when parameter level is out of range)
+
+2013-03-06 v0.64.1
+   Bug fix in handling utf-8 string under ruby 1.8.7
+   (examples/demo.rb failed under ruby 1.8.7)
+
+   fix in Worksheet#set_h_pagebreaks
+
+2013-03-05 v0.64.0
+   Added the option to format individual points in a chart series.
+   This allows Pie chart segments to be formatted.
+
+
+2013-03-05 v0.63.0
+  Added Chart data tools such as:
+    Error Bars
+    Up-Down Bars
+    High-Low Lines
+    Drop Lines.
+  See the chart_data_tools.rb example.
+
+2013-02-24 v0.62.0
+  Added option for adding a data table to a Chart X-axis.
+  See output from chart_data_table.rb example.
+
+2013-02-23 v0.61.0
+  Allow a cell url string to be over written with a number or formula
+  using a second write() call to the same cell. The url remains intact.
+
+  Added Worksheet#set_default_row method to set worksheet default values
+  for rows.
+
+  Added Chart#size method to set the chart dimensions.
+
+2013-02-19 v0.60.0
+ Added Excel form buttons via the worksheet insert_button() method.
+ This allows the user to tie the button to an embedded macro imported
+ using add_vba_project().
+ The portal to the dungeon dimensions is now fully open.
+
+ bug fix in Worksheet#write_url
+ bug fix in bin/vba_extract.rb
+
+2013-02-17 v0.59.0
+ Added macro support via VBA projects extracted from existing Excel
+ xlsm files. User defined functions can be called from worksheets
+ and macros can be called by the user but they cannot, currently,
+ be linked to form elements such as buttons.
+
+2013-02-10 v0.58.0
+ Added chart area and plot area formatting.
+
+2013-02-10 v0.57.0
+ Add major and minor axis chart gridline formatting.
+
+2013-02-09 v0.56.0
+ Fix for issue where chart creation order had to be the same as the insertion order or charts would be out of sync.
+ Fixed issue where gridlines didn't work in Scatter and Stock charts.
+
+2013-02-09 v0.55.0
+ Added Sparklines.
+
+2013-02-07 v0.54.0
+ Added font manipulation to Charts.
+ Added number formats to Chart axes.
+ Added Radar Charts.
+
+2012-11-30 v0.51.0
+ Impliment Shape, Table as welll as Excel::Write::XLSX-0.51
+
+2012-02-14 v0.0.4
+ Fix for x-axis major/minor units in scatter charts.(CPAN_0.46)
+
+2012-01-25 v0.0.3
+ alignment format support. see examples/formats.rb
+
+2012-01-20 v0.0.1
+ initial release

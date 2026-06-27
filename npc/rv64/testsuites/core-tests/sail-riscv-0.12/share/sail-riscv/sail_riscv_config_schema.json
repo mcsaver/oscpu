@@ -1,0 +1,2747 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "base": {
+      "type": "object",
+      "properties": {
+        "E": { "type": "boolean" },
+        "mcounteren_writable_bits": {
+          "description": "core/sys_regs.sail:617.46-617.82",
+          "oneOf": [
+            {
+              "type": "array",
+              "items": { "type": "boolean" },
+              "minItems": 32,
+              "maxItems": 32
+            },
+            {
+              "type": "object",
+              "properties": {
+                "len": { "type": "integer", "const": 32 },
+                "value": {
+                  "oneOf": [
+                    { "type": "string", "pattern": "^0x[0-9a-fA-F_]+$" },
+                    { "type": "string", "pattern": "^0b[0-1_]+$" },
+                    { "type": "string", "pattern": "^[0-9_]+$" }
+                  ]
+                }
+              },
+              "required": [ "len", "value" ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "mstatus": {
+          "type": "object",
+          "properties": {
+            "fs_legal_states": {
+              "allOf": [
+                {
+                  "description": "core/platform_config.sail:96.47-96.82",
+                  "type": "string",
+                  "enum": [
+                    "ExtContext_FourState", "ExtContext_Off",
+                    "ExtContext_TwoState"
+                  ]
+                },
+                {
+                  "description": "postlude/validate_config.sail:583.36-583.71",
+                  "type": "string",
+                  "enum": [
+                    "ExtContext_FourState", "ExtContext_Off",
+                    "ExtContext_TwoState"
+                  ]
+                }
+              ]
+            },
+            "vs_legal_states": {
+              "allOf": [
+                {
+                  "description": "core/platform_config.sail:97.47-97.82",
+                  "type": "string",
+                  "enum": [
+                    "ExtContext_FourState", "ExtContext_Off",
+                    "ExtContext_TwoState"
+                  ]
+                },
+                {
+                  "description": "postlude/validate_config.sail:601.36-601.71",
+                  "type": "string",
+                  "enum": [
+                    "ExtContext_FourState", "ExtContext_Off",
+                    "ExtContext_TwoState"
+                  ]
+                }
+              ]
+            }
+          },
+          "required": [ "fs_legal_states", "vs_legal_states" ]
+        },
+        "mtvec": {
+          "type": "object",
+          "properties": {
+            "direct": {
+              "type": "object",
+              "properties": {
+                "base_alignment": {
+                  "description": "core/platform_config.sail:20.62-20.101",
+                  "type": "integer",
+                  "minimum": 2,
+                  "maximum": 24
+                },
+                "supported": {
+                  "allOf": [
+                    {
+                      "description": "core/platform_config.sail:12.46-12.80",
+                      "type": "boolean"
+                    },
+                    {
+                      "description": "postlude/validate_config.sail:21.9-21.43",
+                      "type": "boolean"
+                    }
+                  ]
+                }
+              },
+              "required": [ "base_alignment", "supported" ]
+            },
+            "vectored": {
+              "type": "object",
+              "properties": {
+                "base_alignment": {
+                  "description": "core/platform_config.sail:21.62-21.103",
+                  "type": "integer",
+                  "minimum": 2,
+                  "maximum": 24
+                },
+                "supported": {
+                  "allOf": [
+                    {
+                      "description": "core/platform_config.sail:13.48-13.84",
+                      "type": "boolean"
+                    },
+                    {
+                      "description": "postlude/validate_config.sail:21.58-21.94",
+                      "type": "boolean"
+                    }
+                  ]
+                }
+              },
+              "required": [ "base_alignment", "supported" ]
+            }
+          },
+          "required": [ "direct", "vectored" ]
+        },
+        "reserved_behavior": {
+          "type": "object",
+          "properties": {
+            "amocas_odd_register": {
+              "description": "core/platform_config.sail:181.80-181.129",
+              "type": "string",
+              "enum": [ "AMOCAS_Fatal", "AMOCAS_Illegal" ]
+            },
+            "fcsr_rm": {
+              "description": "core/platform_config.sail:182.57-182.94",
+              "type": "string",
+              "enum": [ "Fcsr_RM_Fatal", "Fcsr_RM_Illegal" ]
+            },
+            "pmpcfg_write_only": {
+              "description": "core/platform_config.sail:183.70-183.117",
+              "type": "string",
+              "enum": [ "PMP_ClearPermissions", "PMP_Fatal" ]
+            },
+            "rv32zdinx_odd_register": {
+              "description": "core/platform_config.sail:186.86-186.138",
+              "type": "string",
+              "enum": [ "Zdinx_Fatal", "Zdinx_Illegal" ]
+            },
+            "xenvcfg_cbie": {
+              "description": "core/platform_config.sail:184.67-184.109",
+              "type": "string",
+              "enum": [ "Xenvcfg_ClearPermissions", "Xenvcfg_Fatal" ]
+            },
+            "xtvec_mode": {
+              "description": "core/platform_config.sail:185.63-185.103",
+              "type": "string",
+              "enum": [ "Xtvec_Fatal", "Xtvec_Ignore" ]
+            }
+          },
+          "required": [
+            "amocas_odd_register", "fcsr_rm", "pmpcfg_write_only",
+            "rv32zdinx_odd_register", "xenvcfg_cbie", "xtvec_mode"
+          ]
+        },
+        "scounteren_writable_bits": {
+          "description": "core/sys_regs.sail:604.46-604.82",
+          "oneOf": [
+            {
+              "type": "array",
+              "items": { "type": "boolean" },
+              "minItems": 32,
+              "maxItems": 32
+            },
+            {
+              "type": "object",
+              "properties": {
+                "len": { "type": "integer", "const": 32 },
+                "value": {
+                  "oneOf": [
+                    { "type": "string", "pattern": "^0x[0-9a-fA-F_]+$" },
+                    { "type": "string", "pattern": "^0b[0-1_]+$" },
+                    { "type": "string", "pattern": "^[0-9_]+$" }
+                  ]
+                }
+              },
+              "required": [ "len", "value" ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "stvec": {
+          "type": "object",
+          "properties": {
+            "direct": {
+              "type": "object",
+              "properties": {
+                "supported": {
+                  "allOf": [
+                    {
+                      "description": "core/platform_config.sail:15.46-15.80",
+                      "type": "boolean"
+                    },
+                    {
+                      "description": "postlude/validate_config.sail:26.50-26.84",
+                      "type": "boolean"
+                    }
+                  ]
+                }
+              },
+              "required": [ "supported" ]
+            },
+            "vectored": {
+              "type": "object",
+              "properties": {
+                "base_alignment": {
+                  "description": "core/platform_config.sail:22.62-22.103",
+                  "type": "integer",
+                  "minimum": 2,
+                  "maximum": 24
+                },
+                "supported": {
+                  "allOf": [
+                    {
+                      "description": "core/platform_config.sail:16.48-16.84",
+                      "type": "boolean"
+                    },
+                    {
+                      "description": "postlude/validate_config.sail:26.99-26.135",
+                      "type": "boolean"
+                    }
+                  ]
+                }
+              },
+              "required": [ "base_alignment", "supported" ]
+            }
+          },
+          "required": [ "direct", "vectored" ]
+        },
+        "writable_fiom": {
+          "description": "core/sys_regs.sail:89.38-89.63",
+          "type": "boolean"
+        },
+        "writable_hpm_counters": {
+          "description": "core/sys_regs.sail:92.43-92.76",
+          "oneOf": [
+            {
+              "type": "array",
+              "items": { "type": "boolean" },
+              "minItems": 32,
+              "maxItems": 32
+            },
+            {
+              "type": "object",
+              "properties": {
+                "len": { "type": "integer", "const": 32 },
+                "value": {
+                  "oneOf": [
+                    { "type": "string", "pattern": "^0x[0-9a-fA-F_]+$" },
+                    { "type": "string", "pattern": "^0b[0-1_]+$" },
+                    { "type": "string", "pattern": "^[0-9_]+$" }
+                  ]
+                }
+              },
+              "required": [ "len", "value" ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "writable_misa": {
+          "description": "core/sys_regs.sail:85.38-85.63",
+          "type": "boolean"
+        },
+        "xlen": {
+          "anyOf": [
+            { "type": "integer", "const": 32 },
+            { "type": "integer", "const": 64 }
+          ]
+        },
+        "xtval_nonzero": {
+          "type": "object",
+          "properties": {
+            "fetch_access_fault": {
+              "description": "core/platform_config.sail:132.45-132.89",
+              "type": "boolean"
+            },
+            "fetch_address_misaligned": {
+              "description": "core/platform_config.sail:131.43-131.93",
+              "type": "boolean"
+            },
+            "fetch_page_fault": {
+              "description": "core/platform_config.sail:133.43-133.85",
+              "type": "boolean"
+            },
+            "hardware_breakpoint": {
+              "description": "core/platform_config.sail:122.46-122.91",
+              "type": "boolean"
+            },
+            "illegal_instruction": {
+              "description": "core/platform_config.sail:119.46-119.91",
+              "type": "boolean"
+            },
+            "load_access_fault": {
+              "description": "core/platform_config.sail:124.44-124.87",
+              "type": "boolean"
+            },
+            "load_address_misaligned": {
+              "description": "core/platform_config.sail:123.42-123.91",
+              "type": "boolean"
+            },
+            "load_page_fault": {
+              "description": "core/platform_config.sail:125.42-125.83",
+              "type": "boolean"
+            },
+            "reserved_exceptions": {
+              "description": "core/platform_config.sail:136.45-136.90",
+              "type": "boolean"
+            },
+            "samo_access_fault": {
+              "description": "core/platform_config.sail:128.44-128.87",
+              "type": "boolean"
+            },
+            "samo_address_misaligned": {
+              "description": "core/platform_config.sail:127.42-127.91",
+              "type": "boolean"
+            },
+            "samo_page_fault": {
+              "description": "core/platform_config.sail:129.42-129.83",
+              "type": "boolean"
+            },
+            "software_breakpoint": {
+              "description": "core/platform_config.sail:121.46-121.91",
+              "type": "boolean"
+            },
+            "software_check": {
+              "description": "core/platform_config.sail:135.47-135.87",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "fetch_access_fault", "fetch_address_misaligned",
+            "fetch_page_fault", "hardware_breakpoint", "illegal_instruction",
+            "load_access_fault", "load_address_misaligned",
+            "load_page_fault", "reserved_exceptions", "samo_access_fault",
+            "samo_address_misaligned", "samo_page_fault",
+            "software_breakpoint", "software_check"
+          ]
+        }
+      },
+      "required": [
+        "E", "mcounteren_writable_bits", "mstatus", "mtvec",
+        "reserved_behavior", "scounteren_writable_bits", "stvec",
+        "writable_fiom", "writable_hpm_counters", "writable_misa", "xlen",
+        "xtval_nonzero"
+      ]
+    },
+    "extensions": {
+      "type": "object",
+      "properties": {
+        "A": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:165.126-165.155",
+                  "type": "boolean"
+                },
+                {
+                  "description": "core/extensions.sail:162.125-162.154",
+                  "type": "boolean"
+                },
+                {
+                  "description": "core/extensions.sail:41.38-41.67",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:477.193-477.222",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:452.100-452.129",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:448.100-448.129",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:537.7-537.36",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "B": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:55.38-55.67",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "D": {
+          "type": "object",
+          "properties": { "supported": { "type": "boolean" } },
+          "required": [ "supported" ]
+        },
+        "F": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:45.38-45.67",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:183.48-183.77",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:481.56-481.85",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:443.6-443.35",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:589.13-589.42",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "M": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:37.38-37.67",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "S": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:63.38-63.67",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:10.6-10.35",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:26.6-26.35",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:61.11-61.40",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:83.11-83.40",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:494.11-494.40",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:607.16-607.45",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:594.16-594.45",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Smcntrpmf": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:541.46-541.83",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Smmpm": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:545.42-545.75",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:523.66-523.99",
+                  "type": "boolean"
+                }
+              ]
+            },
+            "supported_pmlen_16": {
+              "description": "extensions/pointer_masking/pm_types.sail:36.30-36.72",
+              "type": "boolean"
+            },
+            "supported_pmlen_7": {
+              "description": "extensions/pointer_masking/pm_types.sail:35.30-35.71",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "supported", "supported_pmlen_16", "supported_pmlen_7"
+          ]
+        },
+        "Smnpm": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:550.42-550.75",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:523.111-523.144",
+                  "type": "boolean"
+                }
+              ]
+            },
+            "supported_pmlen_16": {
+              "description": "extensions/pointer_masking/pm_types.sail:39.30-39.72",
+              "type": "boolean"
+            },
+            "supported_pmlen_7": {
+              "description": "extensions/pointer_masking/pm_types.sail:38.30-38.71",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "supported", "supported_pmlen_16", "supported_pmlen_7"
+          ]
+        },
+        "Ssccptr": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:455.44-455.79",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:104.6-104.41",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:396.17-396.52",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Sscofpmf": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:459.45-459.81",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Sscounterenw": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:463.49-463.89",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:519.6-519.46",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Ssnpm": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:467.42-467.75",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:523.21-523.54",
+                  "type": "boolean"
+                }
+              ]
+            },
+            "supported_pmlen_16": {
+              "description": "extensions/pointer_masking/pm_types.sail:33.30-33.72",
+              "type": "boolean"
+            },
+            "supported_pmlen_7": {
+              "description": "extensions/pointer_masking/pm_types.sail:32.30-32.71",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "supported", "supported_pmlen_16", "supported_pmlen_7"
+          ]
+        },
+        "Ssqosid": {
+          "type": "object",
+          "properties": {
+            "mcid_length": {
+              "description": "extensions/Ssqosid/ssqosid.sail:10.29-10.66",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12
+            },
+            "rcid_length": {
+              "description": "extensions/Ssqosid/ssqosid.sail:9.29-9.66",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12
+            },
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:560.44-560.79",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:515.6-515.41",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "mcid_length", "rcid_length", "supported" ]
+        },
+        "Sstc": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:476.41-476.73",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Sstvala": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:480.44-480.79",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:493.6-493.41",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Stateen": {
+          "type": "object",
+          "properties": {
+            "C_readonly_zero": {
+              "allOf": [
+                {
+                  "description": "extensions/Stateen/stateen_regs.sail:71.16-71.57",
+                  "type": "boolean"
+                },
+                {
+                  "description": "extensions/Stateen/stateen_regs.sail:123.16-123.57",
+                  "type": "boolean"
+                },
+                {
+                  "description": "extensions/Stateen/stateen_regs.sail:174.14-174.55",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:564.108-564.149",
+                  "type": "boolean"
+                }
+              ]
+            },
+            "SE0_readonly_zero": {
+              "allOf": [
+                {
+                  "description": "extensions/Stateen/stateen_regs.sail:67.16-67.59",
+                  "type": "boolean"
+                },
+                {
+                  "description": "extensions/Stateen/stateen_regs.sail:120.16-120.59",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:564.5-564.48",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:559.5-559.48",
+                  "type": "boolean"
+                }
+              ]
+            },
+            "Smstateen": {
+              "type": "object",
+              "properties": {
+                "supported": {
+                  "allOf": [
+                    {
+                      "description": "core/extensions.sail:555.46-555.91",
+                      "type": "boolean"
+                    },
+                    {
+                      "description": "postlude/validate_config.sail:557.9-557.54",
+                      "type": "boolean"
+                    }
+                  ]
+                }
+              },
+              "required": [ "supported" ]
+            },
+            "Ssstateen": {
+              "type": "object",
+              "properties": {
+                "supported": {
+                  "allOf": [
+                    {
+                      "description": "core/extensions.sail:472.46-472.91",
+                      "type": "boolean"
+                    },
+                    {
+                      "description": "postlude/validate_config.sail:557.69-557.114",
+                      "type": "boolean"
+                    }
+                  ]
+                }
+              },
+              "required": [ "supported" ]
+            }
+          },
+          "required": [
+            "C_readonly_zero", "SE0_readonly_zero", "Smstateen", "Ssstateen"
+          ]
+        },
+        "Sv32": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:498.41-498.73",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:35.9-35.41",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:76.8-76.40",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:83.52-83.84",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Sv39": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:501.41-501.73",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:43.9-43.41",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:71.55-71.87",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:61.141-61.173",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:88.8-88.40",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Sv48": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:504.41-504.73",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:71.8-71.40",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:66.55-66.87",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:61.97-61.129",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:88.52-88.84",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Sv57": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:507.41-507.73",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:66.8-66.40",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:61.53-61.85",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:88.97-88.129",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Svade": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:512.42-512.75",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:107.6-107.39",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Svadu": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:516.42-516.75",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:110.6-110.39",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:397.17-397.50",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Svbare": {
+          "type": "object",
+          "properties": {
+            "sfence_vma_illegal_if_svbare_only": {
+              "allOf": [
+                {
+                  "description": "extensions/I/base_insts.sail:672.40-672.98",
+                  "type": "boolean"
+                },
+                {
+                  "description": "extensions/I/base_insts.sail:672.40-672.98",
+                  "type": "boolean"
+                }
+              ]
+            },
+            "supported": {
+              "description": "core/extensions.sail:495.43-495.77",
+              "type": "boolean"
+            }
+          },
+          "required": [ "sfence_vma_illegal_if_svbare_only", "supported" ]
+        },
+        "Svinval": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:520.44-520.79",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Svnapot": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:524.44-524.79",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:122.6-122.41",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Svpbmt": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:528.43-528.77",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:113.6-113.40",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Svrsw60t59b": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:532.48-532.87",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:95.6-95.45",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Svvptc": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:536.43-536.77",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:131.6-131.40",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "U": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:67.38-67.67",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:10.50-10.79",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "V": {
+          "type": "object",
+          "properties": {
+            "elen_exp": { "type": "integer" },
+            "max_index_eew_exp": {
+              "allOf": [
+                {
+                  "description": "extensions/V/vext_control.sail:28.30-28.67",
+                  "type": "integer",
+                  "minimum": 0
+                },
+                {
+                  "description": "postlude/validate_config.sail:175.22-175.59",
+                  "type": "integer",
+                  "minimum": 0
+                }
+              ]
+            },
+            "reserved_behavior": {
+              "type": "object",
+              "properties": {
+                "illegal_vtype": {
+                  "description": "core/platform_config.sail:187.69-187.120",
+                  "type": "string",
+                  "enum": [
+                    "IllegalVtype_Fatal", "IllegalVtype_Illegal",
+                    "IllegalVtype_SetVill"
+                  ]
+                },
+                "vstart_out_of_bounds": {
+                  "description": "core/platform_config.sail:188.59-188.117",
+                  "type": "string",
+                  "enum": [ "Vstart_Ignore", "Vstart_Illegal" ]
+                }
+              },
+              "required": [ "illegal_vtype", "vstart_out_of_bounds" ]
+            },
+            "support_level": {
+              "description": "core/vlen.sail:18.44-18.77",
+              "type": "string",
+              "enum": [
+                "Disabled", "Float_double", "Float_single", "Full", "Integer"
+              ]
+            },
+            "vl_use_ceil": {
+              "description": "extensions/V/vext_vset_insts.sail:80.25-80.56",
+              "type": "boolean"
+            },
+            "vlen_exp": { "type": "integer", "minimum": 3, "maximum": 16 },
+            "vstart": {
+              "type": "object",
+              "properties": {
+                "zero_required": {
+                  "type": "object",
+                  "properties": {
+                    "arith": {
+                      "description": "extensions/V/vext_utils_insts.sail:19.40-19.86",
+                      "type": "boolean"
+                    },
+                    "scalar_move": {
+                      "description": "extensions/V/vext_utils_insts.sail:20.46-20.98",
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [ "arith", "scalar_move" ]
+                }
+              },
+              "required": [ "zero_required" ]
+            }
+          },
+          "required": [
+            "elen_exp", "max_index_eew_exp", "reserved_behavior",
+            "support_level", "vl_use_ceil", "vlen_exp", "vstart"
+          ]
+        },
+        "Zaamo": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:142.42-142.75",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:477.148-477.181",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:452.55-452.88",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:448.55-448.88",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zabha": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:146.42-146.75",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:448.6-448.39",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zacas": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:150.42-150.75",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:452.6-452.39",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zalrsc": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:165.82-165.116",
+                  "type": "boolean"
+                },
+                {
+                  "description": "core/extensions.sail:162.81-162.115",
+                  "type": "boolean"
+                },
+                {
+                  "description": "core/extensions.sail:154.43-154.77",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:537.48-537.82",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zawrs": {
+          "type": "object",
+          "properties": {
+            "nto": {
+              "type": "object",
+              "properties": {
+                "is_nop": {
+                  "description": "postlude/step.sail:166.20-166.54",
+                  "type": "boolean"
+                }
+              },
+              "required": [ "is_nop" ]
+            },
+            "sto": {
+              "type": "object",
+              "properties": {
+                "is_nop": {
+                  "description": "postlude/step.sail:165.20-165.54",
+                  "type": "boolean"
+                }
+              },
+              "required": [ "is_nop" ]
+            },
+            "supported": {
+              "description": "core/extensions.sail:158.42-158.75",
+              "type": "boolean"
+            }
+          },
+          "required": [ "nto", "sto", "supported" ]
+        },
+        "Zba": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:225.40-225.71",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zbb": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:229.40-229.71",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zbc": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:233.40-233.71",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zbkb": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:237.41-237.73",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zbkc": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:241.41-241.73",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zbkx": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:245.41-245.73",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zbs": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:249.40-249.71",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zca": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:196.40-196.71",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zcb": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:200.40-200.71",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zcd": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:204.40-204.71",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zcf": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:208.40-208.71",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:439.6-439.37",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zcmop": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:212.42-212.75",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zdinx": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:191.42-191.75",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:460.6-460.39",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zfa": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:170.40-170.71",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zfbfmin": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:174.44-174.79",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:489.58-489.93",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:481.6-481.41",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zfh": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:178.40-178.71",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zfhmin": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:182.43-182.77",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:217.86-217.120",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zfinx": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:186.42-186.75",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:468.57-468.90",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:464.54-464.87",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:460.54-460.87",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:456.6-456.39",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:443.47-443.80",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:564.60-564.93",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:584.6-584.39",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zhinx": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:307.42-307.75",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:464.6-464.39",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zhinxmin": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:311.45-311.81",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:468.6-468.42",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zibi": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:75.80-75.112",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zic64b": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:79.43-79.77",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:532.6-532.40",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zicbom": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:84.43-84.77",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zicbop": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:88.43-88.77",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zicboz": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:92.43-92.77",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Ziccamoa": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:254.45-254.81",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:391.17-391.53",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Ziccamoc": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:258.45-258.81",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:392.17-392.53",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Ziccif": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:262.43-262.77",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:393.17-393.51",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zicclsm": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:267.44-267.79",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:394.17-394.52",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:543.6-543.41",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Ziccrse": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:272.44-272.79",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:395.17-395.52",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zicfilp": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:96.44-96.79",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:472.6-472.41",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zicfiss": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:100.44-100.79",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:477.6-477.41",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zicntr": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:104.43-104.77",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zicond": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:108.43-108.77",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zicsr": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:112.42-112.75",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:197.36-197.69",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:515.56-515.89",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:477.57-477.90",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:472.56-472.89",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:456.54-456.87",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zifencei": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:116.45-116.81",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zihintntl": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:120.46-120.83",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zihintpause": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:124.48-124.87",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zihpm": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:128.42-128.75",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zimop": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:132.42-132.75",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:477.102-477.135",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zknd": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:277.41-277.73",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zkne": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:281.41-281.73",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zknh": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:285.41-285.73",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zkr": {
+          "type": "object",
+          "properties": {
+            "sseed_read_only_zero": {
+              "description": "core/sys_regs.sail:315.7-315.49",
+              "type": "boolean"
+            },
+            "sseed_reset_value": {
+              "description": "sys/sys_control.sail:381.31-381.70",
+              "type": "boolean"
+            },
+            "supported": {
+              "description": "core/extensions.sail:289.40-289.71",
+              "type": "boolean"
+            },
+            "useed_read_only_zero": {
+              "description": "core/sys_regs.sail:319.7-319.49",
+              "type": "boolean"
+            },
+            "useed_reset_value": {
+              "description": "sys/sys_control.sail:382.31-382.70",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "sseed_read_only_zero", "sseed_reset_value", "supported",
+            "useed_read_only_zero", "useed_reset_value"
+          ]
+        },
+        "Zksed": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:293.42-293.75",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zksh": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:297.41-297.73",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zkt": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:301.40-301.71",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zmmul": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:137.42-137.75",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zvabd": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "description": "core/extensions.sail:352.81-352.114",
+              "type": "boolean"
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zvbb": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:373.41-373.73",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:222.6-222.38",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zvbc": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:377.41-377.73",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:226.6-226.38",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zvfbfmin": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:356.45-356.81",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:489.108-489.144",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:485.6-485.42",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zvfbfwma": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:360.45-360.81",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:489.6-489.42",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zvfh": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:364.41-364.73",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:217.6-217.38",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zvfhmin": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:368.44-368.79",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:213.6-213.41",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zvkb": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:381.41-381.73",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:230.6-230.38",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zvkg": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:385.41-385.73",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:234.6-234.38",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zvkned": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:389.43-389.77",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:238.6-238.40",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zvknha": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:393.43-393.77",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:242.6-242.40",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zvknhb": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:397.43-397.77",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:246.6-246.40",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zvksed": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:401.43-401.77",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:250.6-250.40",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zvksh": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:405.42-405.75",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:254.6-254.39",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        },
+        "Zvkt": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/extensions.sail:409.41-409.73",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:258.6-258.38",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "supported" ]
+        }
+      },
+      "required": [
+        "A", "B", "D", "F", "M", "S", "Smcntrpmf", "Smmpm", "Smnpm",
+        "Ssccptr", "Sscofpmf", "Sscounterenw", "Ssnpm", "Ssqosid", "Sstc",
+        "Sstvala", "Stateen", "Sv32", "Sv39", "Sv48", "Sv57", "Svade",
+        "Svadu", "Svbare", "Svinval", "Svnapot", "Svpbmt", "Svrsw60t59b",
+        "Svvptc", "U", "V", "Zaamo", "Zabha", "Zacas", "Zalrsc", "Zawrs",
+        "Zba", "Zbb", "Zbc", "Zbkb", "Zbkc", "Zbkx", "Zbs", "Zca", "Zcb",
+        "Zcd", "Zcf", "Zcmop", "Zdinx", "Zfa", "Zfbfmin", "Zfh", "Zfhmin",
+        "Zfinx", "Zhinx", "Zhinxmin", "Zibi", "Zic64b", "Zicbom", "Zicbop",
+        "Zicboz", "Ziccamoa", "Ziccamoc", "Ziccif", "Zicclsm", "Ziccrse",
+        "Zicfilp", "Zicfiss", "Zicntr", "Zicond", "Zicsr", "Zifencei",
+        "Zihintntl", "Zihintpause", "Zihpm", "Zimop", "Zknd", "Zkne", "Zknh",
+        "Zkr", "Zksed", "Zksh", "Zkt", "Zmmul", "Zvabd", "Zvbb", "Zvbc",
+        "Zvfbfmin", "Zvfbfwma", "Zvfh", "Zvfhmin", "Zvkb", "Zvkg", "Zvkned",
+        "Zvknha", "Zvknhb", "Zvksed", "Zvksh", "Zvkt"
+      ]
+    },
+    "memory": {
+      "type": "object",
+      "properties": {
+        "dtb_address": {
+          "description": "postlude/model.sail:38.23-38.48",
+          "oneOf": [
+            {
+              "type": "array",
+              "items": { "type": "boolean" },
+              "minItems": 64,
+              "maxItems": 64
+            },
+            {
+              "type": "object",
+              "properties": {
+                "len": { "type": "integer", "const": 64 },
+                "value": {
+                  "oneOf": [
+                    { "type": "string", "pattern": "^0x[0-9a-fA-F_]+$" },
+                    { "type": "string", "pattern": "^0b[0-1_]+$" },
+                    { "type": "string", "pattern": "^[0-9_]+$" }
+                  ]
+                }
+              },
+              "required": [ "len", "value" ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "misaligned": {
+          "type": "object",
+          "properties": {
+            "allowed_within_exp": {
+              "description": "sys/vmem_utils.sail:51.55-51.98",
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 12
+            },
+            "byte_by_byte": {
+              "description": "sys/vmem_utils.sail:34.41-34.78",
+              "type": "boolean"
+            },
+            "exceptions": {
+              "allOf": [
+                {
+                  "description": "core/platform_config.sail:87.58-87.93",
+                  "type": "object",
+                  "properties": {
+                    "load_store": {
+                      "type": "object",
+                      "properties": {
+                        "Some": {
+                          "type": "string",
+                          "enum": [ "AccessFault", "AlignmentException" ]
+                        },
+                        "None": { "type": "null" }
+                      },
+                      "minProperties": 1,
+                      "maxProperties": 1
+                    },
+                    "vector": {
+                      "type": "object",
+                      "properties": {
+                        "Some": {
+                          "type": "string",
+                          "enum": [ "AccessFault", "AlignmentException" ]
+                        },
+                        "None": { "type": "null" }
+                      },
+                      "minProperties": 1,
+                      "maxProperties": 1
+                    },
+                    "lrsc": {
+                      "type": "string",
+                      "enum": [ "AccessFault", "AlignmentException" ]
+                    },
+                    "amo": {
+                      "type": "string",
+                      "enum": [ "AccessFault", "AlignmentException" ]
+                    }
+                  },
+                  "required": [ "load_store", "vector", "lrsc", "amo" ],
+                  "additionalProperties": false
+                },
+                {
+                  "description": "postlude/validate_config.sail:548.45-548.80",
+                  "type": "object",
+                  "properties": {
+                    "load_store": {
+                      "type": "object",
+                      "properties": {
+                        "Some": {
+                          "type": "string",
+                          "enum": [ "AccessFault", "AlignmentException" ]
+                        },
+                        "None": { "type": "null" }
+                      },
+                      "minProperties": 1,
+                      "maxProperties": 1
+                    },
+                    "vector": {
+                      "type": "object",
+                      "properties": {
+                        "Some": {
+                          "type": "string",
+                          "enum": [ "AccessFault", "AlignmentException" ]
+                        },
+                        "None": { "type": "null" }
+                      },
+                      "minProperties": 1,
+                      "maxProperties": 1
+                    },
+                    "lrsc": {
+                      "type": "string",
+                      "enum": [ "AccessFault", "AlignmentException" ]
+                    },
+                    "amo": {
+                      "type": "string",
+                      "enum": [ "AccessFault", "AlignmentException" ]
+                    }
+                  },
+                  "required": [ "load_store", "vector", "lrsc", "amo" ],
+                  "additionalProperties": false
+                },
+                {
+                  "description": "postlude/validate_config.sail:544.45-544.80",
+                  "type": "object",
+                  "properties": {
+                    "load_store": {
+                      "type": "object",
+                      "properties": {
+                        "Some": {
+                          "type": "string",
+                          "enum": [ "AccessFault", "AlignmentException" ]
+                        },
+                        "None": { "type": "null" }
+                      },
+                      "minProperties": 1,
+                      "maxProperties": 1
+                    },
+                    "vector": {
+                      "type": "object",
+                      "properties": {
+                        "Some": {
+                          "type": "string",
+                          "enum": [ "AccessFault", "AlignmentException" ]
+                        },
+                        "None": { "type": "null" }
+                      },
+                      "minProperties": 1,
+                      "maxProperties": 1
+                    },
+                    "lrsc": {
+                      "type": "string",
+                      "enum": [ "AccessFault", "AlignmentException" ]
+                    },
+                    "amo": {
+                      "type": "string",
+                      "enum": [ "AccessFault", "AlignmentException" ]
+                    }
+                  },
+                  "required": [ "load_store", "vector", "lrsc", "amo" ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "order_decreasing": {
+              "description": "sys/vmem_utils.sail:28.45-28.86",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "allowed_within_exp", "byte_by_byte", "exceptions",
+            "order_decreasing"
+          ]
+        },
+        "pmp": {
+          "type": "object",
+          "properties": {
+            "count": {
+              "description": "pmp/pmp_regs.sail:12.34-12.57",
+              "anyOf": [
+                { "type": "integer", "const": 0 },
+                { "type": "integer", "const": 16 },
+                { "type": "integer", "const": 64 }
+              ]
+            },
+            "grain": {
+              "description": "pmp/pmp_regs.sail:21.35-21.58",
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 63
+            },
+            "na4_supported": {
+              "allOf": [
+                {
+                  "description": "pmp/pmp_regs.sail:122.16-122.47",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:415.6-415.37",
+                  "type": "boolean"
+                }
+              ]
+            },
+            "napot_supported": {
+              "description": "pmp/pmp_regs.sail:123.15-123.48",
+              "type": "boolean"
+            },
+            "tor_supported": {
+              "description": "pmp/pmp_regs.sail:120.15-120.46",
+              "type": "boolean"
+            },
+            "usable_count": {
+              "description": "pmp/pmp_regs.sail:17.42-17.72",
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 64
+            }
+          },
+          "required": [
+            "count", "grain", "na4_supported", "napot_supported",
+            "tor_supported", "usable_count"
+          ]
+        },
+        "regions": {
+          "description": "sys/pma.sail:222.42-222.63",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "base": {
+                "oneOf": [
+                  {
+                    "type": "array",
+                    "items": { "type": "boolean" },
+                    "minItems": 64,
+                    "maxItems": 64
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "len": { "type": "integer", "const": 64 },
+                      "value": {
+                        "oneOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^0x[0-9a-fA-F_]+$"
+                          },
+                          { "type": "string", "pattern": "^0b[0-1_]+$" },
+                          { "type": "string", "pattern": "^[0-9_]+$" }
+                        ]
+                      }
+                    },
+                    "required": [ "len", "value" ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "size": {
+                "oneOf": [
+                  {
+                    "type": "array",
+                    "items": { "type": "boolean" },
+                    "minItems": 64,
+                    "maxItems": 64
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "len": { "type": "integer", "const": 64 },
+                      "value": {
+                        "oneOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^0x[0-9a-fA-F_]+$"
+                          },
+                          { "type": "string", "pattern": "^0b[0-1_]+$" },
+                          { "type": "string", "pattern": "^[0-9_]+$" }
+                        ]
+                      }
+                    },
+                    "required": [ "len", "value" ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "mem_type": {
+                    "type": "string",
+                    "enum": [ "IOMemory", "MainMemory" ]
+                  },
+                  "cacheable": { "type": "boolean" },
+                  "coherent": { "type": "boolean" },
+                  "executable": { "type": "boolean" },
+                  "readable": { "type": "boolean" },
+                  "writable": { "type": "boolean" },
+                  "read_idempotent": { "type": "boolean" },
+                  "write_idempotent": { "type": "boolean" },
+                  "misaligned_exceptions": {
+                    "type": "object",
+                    "properties": {
+                      "load_store": {
+                        "type": "object",
+                        "properties": {
+                          "Some": {
+                            "type": "string",
+                            "enum": [ "AccessFault", "AlignmentException" ]
+                          },
+                          "None": { "type": "null" }
+                        },
+                        "minProperties": 1,
+                        "maxProperties": 1
+                      },
+                      "vector": {
+                        "type": "object",
+                        "properties": {
+                          "Some": {
+                            "type": "string",
+                            "enum": [ "AccessFault", "AlignmentException" ]
+                          },
+                          "None": { "type": "null" }
+                        },
+                        "minProperties": 1,
+                        "maxProperties": 1
+                      },
+                      "amo": {
+                        "type": "string",
+                        "enum": [ "AccessFault", "AlignmentException" ]
+                      }
+                    },
+                    "required": [ "load_store", "vector", "amo" ],
+                    "additionalProperties": false
+                  },
+                  "atomic_support": {
+                    "type": "string",
+                    "enum": [
+                      "AMOArithmetic", "AMOCASD", "AMOCASQ", "AMOCASW",
+                      "AMOLogical", "AMONone", "AMOSwap"
+                    ]
+                  },
+                  "reservability": {
+                    "type": "string",
+                    "enum": [ "RsrvEventual", "RsrvNonEventual", "RsrvNone" ]
+                  },
+                  "supports_cbo_zero": { "type": "boolean" },
+                  "supports_pte_read": { "type": "boolean" },
+                  "supports_pte_write": { "type": "boolean" }
+                },
+                "required": [
+                  "mem_type", "cacheable", "coherent", "executable",
+                  "readable", "writable", "read_idempotent",
+                  "write_idempotent", "misaligned_exceptions",
+                  "atomic_support", "reservability", "supports_cbo_zero",
+                  "supports_pte_read", "supports_pte_write"
+                ],
+                "additionalProperties": false
+              },
+              "include_in_device_tree": { "type": "boolean" }
+            },
+            "required": [
+              "base", "size", "attributes", "include_in_device_tree"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [ "dtb_address", "misaligned", "pmp", "regions" ]
+    },
+    "platform": {
+      "type": "object",
+      "properties": {
+        "archid": {
+          "description": "core/sys_regs.sail:671.48-671.70",
+          "type": "integer"
+        },
+        "cache_block_size_exp": {
+          "description": "core/platform_config.sail:27.47-27.83",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 12
+        },
+        "clint": {
+          "type": "object",
+          "properties": {
+            "base": {
+              "allOf": [
+                {
+                  "description": "core/platform_config.sail:101.53-101.79",
+                  "type": "integer"
+                },
+                {
+                  "description": "postlude/validate_config.sail:403.64-403.90",
+                  "type": "integer"
+                }
+              ]
+            },
+            "size": {
+              "allOf": [
+                {
+                  "description": "core/platform_config.sail:102.53-102.79",
+                  "type": "integer"
+                },
+                {
+                  "description": "postlude/validate_config.sail:404.64-404.90",
+                  "type": "integer"
+                }
+              ]
+            },
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/platform_config.sail:100.29-100.60",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:400.33-400.64",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "base", "size", "supported" ]
+        },
+        "clock_frequency": {
+          "description": "postlude/device_tree.sail:132.25-132.56",
+          "type": "integer",
+          "minimum": 0
+        },
+        "hartid": {
+          "description": "core/sys_regs.sail:672.48-672.70",
+          "type": "integer"
+        },
+        "impid": {
+          "description": "core/sys_regs.sail:670.48-670.69",
+          "type": "integer"
+        },
+        "instructions_per_tick": {
+          "description": "core/platform_config.sail:109.33-109.70",
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "max_time_to_wait": {
+          "description": "core/platform_config.sail:116.26-116.58",
+          "type": "integer",
+          "minimum": 0
+        },
+        "reservation": {
+          "type": "object",
+          "properties": {
+            "invalidate_on_same_hart_store": {
+              "description": "core/platform_config.sail:46.60-46.117",
+              "type": "boolean"
+            },
+            "require_exact_reservation_addr": {
+              "description": "core/platform_config.sail:45.55-45.113",
+              "type": "boolean"
+            },
+            "reservation_set_size_exp": {
+              "description": "core/platform_config.sail:40.51-40.103",
+              "type": "integer",
+              "minimum": 2,
+              "maximum": 12
+            }
+          },
+          "required": [
+            "invalidate_on_same_hart_store",
+            "require_exact_reservation_addr", "reservation_set_size_exp"
+          ]
+        },
+        "simple_interrupt_generator": {
+          "type": "object",
+          "properties": {
+            "base": {
+              "allOf": [
+                {
+                  "description": "core/platform_config.sail:106.51-106.98",
+                  "type": "integer"
+                },
+                {
+                  "description": "postlude/validate_config.sail:408.64-408.111",
+                  "type": "integer"
+                }
+              ]
+            },
+            "supported": {
+              "allOf": [
+                {
+                  "description": "core/platform_config.sail:105.27-105.79",
+                  "type": "boolean"
+                },
+                {
+                  "description": "postlude/validate_config.sail:405.31-405.83",
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "required": [ "base", "supported" ]
+        },
+        "vendorid": {
+          "description": "core/sys_regs.sail:669.48-669.72",
+          "type": "integer"
+        },
+        "wfi_available_to_user_mode": {
+          "description": "core/platform_config.sail:112.44-112.86",
+          "type": "boolean"
+        },
+        "wfi_is_nop": {
+          "description": "postlude/step.sail:164.20-164.46",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "archid", "cache_block_size_exp", "clint", "clock_frequency",
+        "hartid", "impid", "instructions_per_tick", "max_time_to_wait",
+        "reservation", "simple_interrupt_generator", "vendorid",
+        "wfi_available_to_user_mode", "wfi_is_nop"
+      ]
+    }
+  },
+  "required": [ "base", "extensions", "memory", "platform" ]
+}

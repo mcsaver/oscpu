@@ -1,0 +1,5 @@
+using /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/npc-rv64-core-tests/act4-npc-probe-work-clean/sail-rv64-max/build/rv64i/I/I-slt-00.sig for test-signature output.
+setting signature-granularity to 8 bytes
+
+RVCP-SUMMARY: TEST SIGRUN - Test File "I-slt-00.S"
+

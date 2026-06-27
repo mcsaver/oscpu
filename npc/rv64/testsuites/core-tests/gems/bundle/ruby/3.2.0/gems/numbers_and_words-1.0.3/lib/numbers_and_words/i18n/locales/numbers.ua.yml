@@ -1,0 +1,89 @@
+ua:
+  numbers:
+    ones:
+      male: [нуль, один, два, три, чотири, п’ять, шiсть, сiм, вiсiм, дев’ять]
+      female: [нуль, одна, двi, три, чотири, п’ять, шiсть, сiм, вiсiм, дев’ять]
+      neuter: [нуль, одне, два, три, чотири, п’ять, шiсть, сiм, вiсiм, дев’ять]
+    teens: [_, одинадцять, дванадцять, тринадцять, чотирнадцять, п’ятнадцять, шiстнадцять, сiмнадцять, вiсiмнадцять, дев’ятнадцять]
+    tens: [_, десять, двадцять, тридцять, сорок, п’ятдесят, шiстдесят, сiмдесят, вiсiмдесят, дев’яносто]
+    hundreds: [_, сто, двiстi, триста, чотириста, п’ятсот, шiстсот, сiмсот, вiсiмсот, дев’ятсот]
+    mega: [_, thousands, millions, billions, trillions, quadrillions, quintillion, sextillions, septillions, octillions, nonillions, decillions]
+    thousands:
+      one: тисяча
+      few: тисячi
+      many: тисяч
+    millions:
+      one: мiльйон
+      few: мiльйона
+      many: мiльйонiв
+    billions:
+      one: мiльярд
+      few: мiльярда
+      many: мiльярдiв
+    trillions:
+      one: трильйон
+      few: трильйона
+      many: трильйонiв
+    quadrillions:
+      one: квадрильйон
+      few: квадрильйона
+      many: квадрильйонiв
+    quintillions:
+      one: квiнтильйон
+      few: квiнтильйона
+      many: квiнтильйонiв
+    sextillions:
+      one: секстильйон
+      few: секстильйона
+      many: секстильйонiв
+    septillions:
+      one: септильйон
+      few: септильйона
+      many: септильйонiв
+    octillions:
+      one: октильйон
+      few: октильйона
+      many: октильйонiв
+    nonillions:
+      one: нонильйон
+      few: нонильйона
+      many: нонильйонiв
+    decillions:
+      one: децильйон
+      few: децильйона
+      many: децильйонiв
+    integral:
+      one: цiла
+      few: цiлих
+      many: цiлих
+    micro: [_, tenths, hundredths, thousandths, millionths, billionths, trillionths]
+    tenths:
+      one: десята
+      few: десятих
+      many: десятих
+    hundredths:
+      one: сота
+      few: сотих
+      many: сотих
+    thousandths:
+      one: тысячна
+      few: тисячних
+      many: тисячних
+    millionths:
+      one: мiльйонна
+      few: мiльйонних
+      many: мiльйонних
+    billionths:
+      one: мiльярдна
+      few: мiльярдних
+      many: мiльярдних
+    trillionths:
+      one: трильйонна
+      few: трильйонних
+      many: трильйонних
+    micro_separator: 'i'
+    micro_prefix:
+      tens: десяти
+      hundreds: сто
+      union: ' '
+    union: 'i'

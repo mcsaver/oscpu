@@ -1,0 +1,85 @@
+---
+0.0.2 rubyzip:>= 0|checksum:7839b2eedd8e04b2d3de622e3a525c41a41f87e845406aa77229f9637338a33a,created_at:2012-01-19T23:19:43Z
+0.0.3 rubyzip:>= 0|checksum:9899c9fb1a385760364767a6813b01a078b23591eec4018bc288dbbbbec7e445,created_at:2012-01-25T16:07:41Z
+0.0.4 rubyzip:>= 0|checksum:242599e8dec07194c15c5f2850914f9ae5109a461f447e6f726178714d262d55,created_at:2012-02-13T23:13:05Z
+0.51.0 rubyzip:>= 0|checksum:509feb39725df55feed68d366868b5e12241e0bd6a1e281eb7a66ec0a4081c2b,created_at:2012-11-30T04:05:08Z
+0.54.0 rubyzip:>= 0|checksum:604b7c16c35bf6edc9a18fff713853d011d734da86a7201265cc061269eea9c4,created_at:2013-02-07T08:09:00Z
+0.55.0 rubyzip:>= 0|checksum:786c463c49a9bbbdd300c331bf1cd2c5ba8591292887b6869ef02de1d729cce3,created_at:2013-02-09T01:28:06Z
+0.56.0 rubyzip:>= 0|checksum:101cd2c13e7c179666176d18b1189fe4b6136c72fcbbd7a60b0a70350a84970a,created_at:2013-02-09T13:11:16Z
+0.57.0 rubyzip:>= 0|checksum:387063e1dfc8a5b0bad1c86be0cf037b391f64fe74e3a12f4d4ac7d121e435b5,created_at:2013-02-10T00:10:42Z
+0.58.0 rubyzip:>= 0|checksum:8dddb2b842f2b8fa0d5a4ef20bd989468b52ca2982f49e74cdafd9144a1fe535,created_at:2013-02-10T05:39:13Z
+0.59.0 rubyzip:>= 0|checksum:3bda7d89736e0cada2ecd7ce47bb7577e3e8c9c6a65d48d62df9983fc2fdd783,created_at:2013-02-17T09:50:11Z
+0.60.0 rubyzip:>= 0|checksum:37fee8b70fd4b42224c915f6ec6c30661342fad2c5acf59466d3551791dcbcea,created_at:2013-02-19T14:06:19Z
+0.61.0 rubyzip:>= 0|checksum:7bc8e8f40df0f0dbf388df02020b3f37a58d023f9e29969e5bd8e1478a48ca05,created_at:2013-02-23T14:41:32Z
+0.62.0 rubyzip:>= 0|checksum:9ad4296cb0ef0fb8dc4e7bbdf01ac4a120aaf5201888eb6fb7be5b1b0ca89745,created_at:2013-02-23T23:14:47Z
+0.64.0 rubyzip:>= 0|checksum:7051379f9697011b2f4c158891c7f6542c5ba3371050b039a24dcf3656a2d13a,created_at:2013-03-05T09:27:12Z
+0.64.1 rubyzip:>= 0|checksum:7c1116fa6029cc4c2e49e95fcb07674a2aa14761e90b06acb745e1a2d4974226,created_at:2013-03-05T20:32:11Z
+0.65.0 rubyzip:>= 0|checksum:87fad9289054dcff52726379fccfbe35194567e70a3f64e4a621db23a1b9890d,created_at:2013-03-23T12:54:45Z
+0.65.1 rubyzip:>= 0|checksum:b9918250f4b3ac5b7e922907c52476937cb9c6d77495e2562645f6a2532fbf82,created_at:2013-03-24T09:59:44Z
+0.69.0 rubyzip:>= 0|checksum:c7c68d4435d3d91b1dc0d1e59bd2f32ddedf2f3bf2f3ac3dfa787cbd56fed78f,created_at:2013-06-29T21:27:26Z
+0.70.0 rubyzip:>= 0|checksum:f06297f7816ca04cdbd9fbc75304f448d4f454ce47d3110278f53646e4b5fee0,created_at:2013-07-12T23:29:06Z
+0.71.0 rubyzip:>= 0|checksum:b2c951d6152d4581ef71f990f833f47c1596321012441b7a389c2a9da25bf426,created_at:2013-09-02T11:27:31Z
+0.72.0 rubyzip:>= 0|checksum:20b3cab548d47dfe90a2d65e96be9e2d0bc6e212e6019086a4d0d30a36634844,created_at:2013-09-03T00:29:35Z
+0.72.1 rubyzip:< 1.0.0|checksum:4f9a9f83b31c200a9ffb469db610ef920db96ae54e5c0e035b0f273cded24b27,created_at:2013-09-06T15:28:25Z
+0.72.2 rubyzip:>= 1.0.0|checksum:00daad060fdcd84df5053b7c993553567ef9d85bf52c811fb0c2f3c6c926f75e,created_at:2013-09-07T09:09:07Z
+0.72.3.beta1 rubyzip:>= 1.0.0|checksum:e5ff5e850133499c83d593787de59fd300d3898ddfaa3755293406f949686ea3,rubygems:> 1.3.1,created_at:2013-09-20T18:44:44Z
+0.73.0 rubyzip:>= 1.0.0|checksum:c8ea6444c6acdb0bc9056793d73ffe2254beed152f893866fe2500da31c0720f,created_at:2013-11-12T22:52:11Z
+0.74.0 rubyzip:>= 1.0.0|checksum:7ccc3c6d72ecb15749c003a1ac1e7e98f6585c3dad181ff38519e340430de719,created_at:2013-11-18T14:28:54Z
+0.75.0 rubyzip:>= 1.0.0|checksum:0b19490e28a67ac4fb660eef0d8e304ea70e68715f602e37a6afacd7b2bec16f,created_at:2013-12-09T05:35:56Z
+0.76.0 |checksum:2ebe2de72b1c8d6c282417e1c0d97b7d85ae96f98b8c2d4974ba1382878379dc,created_at:2014-01-30T21:51:40Z
+0.76.1 |checksum:bba39f5542bdd55fe89b4419e17337add117cc650017f9ab1275c38ccf9fe0f7,created_at:2014-03-21T06:32:46Z
+0.76.2 |checksum:d61e3c5fb1143ec4deb537d82d0753880554b90075565bf8559f378cb2a22f9d,created_at:2014-04-10T01:05:27Z
+0.76.3 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:5c8e8613431755332476cd0f040441f22beb94e92a2ad11341eccefc05fa0caa,created_at:2014-04-10T01:18:50Z
+0.77.0 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:daf308a719d1434de9d09a486ea7ece708576b7eb1ffa48bb57a8abb91051a62,created_at:2014-05-10T23:04:40Z
+0.77.1 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:38410c0119ef6bbe15f9b28b353d28754b9f848ec9effe8dd3e30675111d5fd0,created_at:2014-07-02T15:20:46Z
+0.77.2 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:d5688dbd567212f87f1b9ab60d318de2f1d24443941673e55d8a2446e7f88bff,created_at:2014-08-19T07:07:27Z
+0.78.0 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:3a055e897dce0bdb1dd30d22d8ddfed84d9c3b63a0f7cebcd4645087cd5656ee,created_at:2014-12-04T08:03:24Z
+0.79.0 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:7b985dcdddebfebbdb743aaa359efdca5edd08f745eb33fc421e9ffdd131ad88,created_at:2014-12-04T08:04:05Z
+0.80.0 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:35b28e11ed089623f53da07da7492281067bdc17bd80e9cea84b235b782ce3fc,created_at:2014-12-04T08:04:46Z
+0.81.0 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:a98f79ce248d502151072872522c2f3c0663228c51b695f5c1f8594905dbb01a,created_at:2014-12-04T08:05:19Z
+0.81.1 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:402fd835146f7dbbd8f2b8d044e20c43e6dea98bd2d6cd175bf640abbb6788dd,created_at:2014-12-27T23:26:25Z
+0.83.0 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:be81def3c3a63d0fbdaadb3bd2c10dc0eb7ce1a2546ace1adcb2bccf09276521,created_at:2015-04-12T15:31:04Z
+0.85.1 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:f00443b3f5123a1bdc8cc4113e0b1a75a09920f278af0124a7f230ac3d883d68,created_at:2017-05-19T01:57:18Z
+0.85.2 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:8123025b737e48c3ea32c477fc8a9159f931d5f1b5bc71f3f4c0560afaac38d3,created_at:2017-11-04T22:01:25Z
+0.85.3 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:7b147f4fa92402c2affaef0e277bbfc8e64eec8892ea199a4a987d97dcd1c631,created_at:2018-01-07T06:53:40Z
+0.85.4 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:f201424182fbf999a7948b6e2928948868a237e5f0208c3e4bb5a416d200c612,created_at:2018-04-29T14:17:46Z
+0.85.5 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:543c4da41f0842a88d5d01dbd27216c99343cc2185d90c0f0a8381270d30ea21,created_at:2018-04-29T14:47:45Z
+0.85.6 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:76b6531f74a55235d0120bee30a593507e6a408275dcfe4ca90c1b4cd0f0b6b0,created_at:2019-02-10T08:36:50Z
+0.85.7 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:8bb1283ad5e9bb037f0eb6e32b80e1ea6286037eb075a331bb1f3509f33c7ad9,created_at:2019-06-20T13:41:03Z
+0.85.8 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:62acdaa487ad96ade804f354309e072d359ddb27b11b5b5cda7814eb338743fc,created_at:2020-09-06T11:06:40Z
+0.85.9 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:c65340f2ee548e75a50d8c17f871f0e3d1ad2fd6953342bd842525ebeccba08b,created_at:2020-09-07T11:19:16Z
+0.85.10 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:54cf1c0b12d0ac68e2ac63a44d297b8ab5d531befb59bb76e13981efad3553d9,created_at:2020-10-23T21:41:45Z
+0.85.11 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:c1c195a28b41059d4a23550c48ecf8670fe6ae8a756fcd8ffbd21cc963db832b,created_at:2020-10-24T23:14:38Z
+0.86.0 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:1e1b95bb1affcc27a350fe31986e96512f1820cafcf80455ac247fb3315e7223,created_at:2020-11-01T04:01:39Z
+0.87.0 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:fe328af8ef9ef0492220b9b15626d4dbf92f82242fc3ba06fe9bca526ead0a58,created_at:2020-12-26T01:31:50Z
+0.88.0 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:90a3b67e229291aaa1690901fc194455bc989b655f3ffe1f5b7a5aac6efc5fcb,created_at:2020-12-26T08:38:13Z
+0.89.0 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:7ee00b11a53a2c8880f39c3a655cb3161b6235cd571179f020d2308845c00d63,created_at:2020-12-27T09:09:43Z
+0.90.0 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:92e9da0405ebb6e144e406645e836e6dc42318d1df78a3409c0c1dc1ea797080,created_at:2020-12-28T11:43:59Z
+0.97.0 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:e6cdb8877e34b6ae248c264951a51195a390ee8a38ca2ac4e1788374f92b1b21,created_at:2021-01-03T04:32:42Z
+0.99.0 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:a0b319bd9506323543bfbe8f1a2a5d75e752751025b2747c95d723f44d265f56,created_at:2021-01-08T06:53:09Z
+1.00.0 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:1bab1d9ff21d133a0840cd0cb6ac64c54db15da3ae9807c155231fb4860c5518,created_at:2021-01-23T09:41:13Z
+1.01.0 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:3b25abf96f4da1d7928f21de0747a45498745b754b16b2fd79506e17d33b6997,created_at:2021-02-08T04:27:10Z
+1.02.0 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:d15ac086253c6a221333e4eb17b926dff5fead90ae902f7d5f25ee3db2be22b6,created_at:2021-02-11T23:52:01Z
+1.04.0 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:7c003180466440feb701c121447adfd062d3dcdf6dd6af4196c7715fe78a2c01,created_at:2021-02-14T00:51:43Z
+1.07.0 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:645806ebcaf0ff6d3037a720f379cf7961b05fa8fb0970cc7fac24a24509de85,created_at:2021-02-17T03:51:47Z
+1.08.0 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:5b12123a955ea17f3ad87fccea9de955d641f140f03ed9bc36a4d42842caf8a9,created_at:2021-11-19T22:20:57Z
+1.08.1 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:e740154b9497d6e3888432336586ea686f90f55217f58a04b676f3e2df3ef895,created_at:2021-11-20T03:23:49Z
+1.08.2 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:59462df4ee5254d7fe709be56149b4cd1048e3c25cec5073e8b474937f991362,created_at:2021-11-20T03:47:38Z
+1.09.0 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:4b9f83391da6d90312b4d5fa35516ffcff83665489c264bc132a18bfa9ace2e7,created_at:2021-11-26T12:01:55Z
+1.09.1 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:06050e0bd3ec59a8e16e740b9c069f7ff55cdecdc606e08910cc6ce4c8d06332,created_at:2021-11-27T03:52:14Z
+1.09.2 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:d06d995c90d3b4b31c7178212f7980563f263de31b9e17a2f19316045728ef06,created_at:2022-02-14T02:37:14Z
+1.09.3 rubyzip:>= 1.0.0,zip-zip:>= 0|checksum:ae43804ff8ca4460c550737ca00989f479d1e4a0f6fe5ae5f1d532d50c216431,created_at:2022-07-09T12:50:19Z
+1.09.4 rubyzip:>= 1.0.0|checksum:feb8dcfc6da7a593887e067d852158a99fe3a5e205536b8b81d0ab84f40df79b,created_at:2022-09-02T02:04:18Z
+1.09.5 rubyzip:>= 1.0.0|checksum:c4e700f3d3d5c941b03f02d5bc2f23c2e5cd8dbfa3f533a7671278bf31a1d215,created_at:2023-01-18T02:39:24Z
+1.10.0 rubyzip:>= 1.0.0|checksum:7d66a7ba721c4842203d5c428a3e190aa65d528ce6f0b2a5c2dff5957cca5210,ruby:>= 2.5.0,created_at:2023-01-29T08:49:37Z
+1.10.1 rubyzip:>= 1.0.0|checksum:c13b70f839034b11208a58594c74402b96064c1cfe2d2656004a416cb936173a,ruby:>= 2.5.0,created_at:2023-01-30T20:52:43Z
+1.10.2 rubyzip:>= 1.0.0|checksum:3dd13dc0c6fd19399458d58d945f04f9e51f4b5346e4e657ac01d62d3c92c399,ruby:>= 2.5.0,created_at:2023-02-16T12:30:55Z
+1.11.0 rubyzip:>= 1.0.0|checksum:37780e1d1a618d19ea67662e09fc3a004109fb2c1a5cb7e06fae833c7efcdcd0,ruby:>= 2.5.0,created_at:2023-05-06T05:10:50Z
+1.11.1 rubyzip:>= 1.0.0|checksum:6ae38a877d7b9f7791d1526d987fc91a575df362051d7491b85e85596ea60971,ruby:>= 2.5.0,created_at:2023-08-08T21:38:10Z
+1.11.2 nkf:>= 0,rubyzip:>= 1.0.0|checksum:067a865f120fa4c6ec3e4b8a442294cc9e2ad765b9f2b532de3460d27429fd39,ruby:>= 2.5.0,created_at:2023-12-26T06:57:51Z
+1.12.0 nkf:>= 0,rubyzip:>= 1.0.0|checksum:22f701a4dffec3f39964514714b95ccdbf43a5ed8b2dbd15bcd40862bf1cf694,ruby:>= 2.5.0,created_at:2024-04-12T07:18:45Z
+1.12.1 nkf:>= 0,rubyzip:>= 1.0.0|checksum:fd442a1190b351dd2a54c601a4c1ca90162be7a84a210b562dcf89ed412496e2,ruby:>= 2.5.0,created_at:2024-04-12T07:28:15Z
+1.12.2 nkf:>= 0,rubyzip:~> 2.4.0|checksum:641aa88d915ce0b9de61bcea527c4fff5648d0747c377d1149976a9badb7ef55,ruby:>= 2.5.0,created_at:2025-09-08T01:02:09Z
+1.12.3 nkf:>= 0,rubyzip:< 4.0&>= 2.4.0|checksum:1cc498e4973a1e5f9ce629bfaf8f1fb848a0d6056eb59dea89683dd216a297d6,ruby:>= 2.5.0,created_at:2025-10-27T21:45:20Z
+1.13.0 nkf:>= 0,rubyzip:< 4.0&>= 2.4.0|checksum:7cd58b40dc2b398f108e5fd3bf75d1d84290a671f81689e81f68f27ae5d07209,ruby:>= 2.5.0,created_at:2026-03-12T01:00:48Z
+1.15.0 nkf:>= 0,rubyzip:< 4.0&>= 2.4.0|checksum:67cfc1cc7361802e6088cdef5cec02addc8c788a4eb79914545f7032373b439a,ruby:>= 2.5.0,created_at:2026-03-21T10:16:38Z

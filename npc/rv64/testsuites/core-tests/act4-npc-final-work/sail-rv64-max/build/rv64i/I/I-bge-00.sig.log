@@ -1,0 +1,5 @@
+using /home/lyg/PA/ysyx-workbench/npc/rv64/testsuites/core-tests/act4-npc-final-work/sail-rv64-max/build/rv64i/I/I-bge-00.sig for test-signature output.
+setting signature-granularity to 8 bytes
+
+RVCP-SUMMARY: TEST SIGRUN - Test File "I-bge-00.S"
+

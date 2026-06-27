@@ -1,0 +1,195 @@
+#!/usr/bin/env ruby
+
+require_relative "../lib/z3"
+
+class LogicPuzzleCase
+  attr_reader :index
+  def initialize(puzzle, index)
+    @puzzle = puzzle
+    @index = index
+  end
+
+  def method_missing(key, *args)
+    key = key.to_s
+    if @puzzle.has_key?(key) and args.size == 1
+      @puzzle.attribute(@index, key, *args)
+    elsif @puzzle.has_key?(key) and args.size == 0
+      @puzzle.vars[key][@index]
+    else
+      super
+    end
+  end
+end
+
+class LogicPuzzle
+  attr_reader :vars, :dict
+  def initialize(count)
+    # In puzzles of this kind, all assignments are of same size
+    @count  = count
+    @solver = Z3::Solver.new
+    @vars   = {}
+    @dict   = {}
+    @cases  = @count.times.map{|i| LogicPuzzleCase.new(self, i) }
+  end
+
+  def each(&blk)
+    @cases.each(&blk)
+  end
+
+  def attribute_values(name, *vals)
+    raise "All assignments must have same number of elements" unless vals.size == @count
+    vars = @count.times.map{|i| Z3.Int("#{i}-#{name}") }
+    vars.each do |v|
+      @solver.assert v >= 0
+      @solver.assert v < @count
+    end
+    @solver.assert Z3.Distinct(*vars)
+    @dict[name] = vals
+    @vars[name] = vars
+  end
+
+  def has_key?(key)
+    @vars.has_key?(key)
+  end
+
+  def attribute(idx, key, val)
+    raise "Attribute #{key} not defined" unless @vars.has_key?(key)
+    val_idx = @dict[key].index(val) or raise "Value #{val} for attribute #{key} not possible"
+    @vars[key][idx] == val_idx
+  end
+
+  def call
+    add_assertions!
+    if @solver.satisfiable?
+      @solver.model.each do |k,v|
+        k = k.to_s.gsub("|", "")
+        i, name = k.split("-", 2)
+        puts "#{k} = #{@dict[name][v.to_i]}"
+      end
+    else
+      puts "Puzzle has no solutions"
+    end
+  end
+
+  def implies!(a, b)
+    @solver.assert Z3.Implies(a, b)
+  end
+end
+
+class FourHackersPuzzle < LogicPuzzle
+  def initialize
+    super(4)
+    attribute_values *%W[name Armand Dragonene Frogger Phineus]
+    attribute_values *%W[alias Badger Griffin Lennard Monks]
+    attribute_values *%W[country Belgium England Norway Yemen]
+    attribute_values *%W[language C Java Lisp Perl]
+    attribute_values *%W[amount 10000 80000 160000 640000]
+  end
+
+  def add_assertions!
+    each do |hacker|
+      implies!( hacker.name("Phineus"), hacker.amount("10000") )
+      implies!( hacker.alias("Lennard"), hacker.amount("160000") )
+      implies!( hacker.alias("Lennard"), ~hacker.country("England") )
+      # 2nd connection less money transferred than C coder
+      implies!( hacker.language("C"), @cases[1].amount < hacker.amount )
+      implies!( hacker.language("C"), ~hacker.country("Norway") )
+      implies!( hacker.name("Armand"), hacker.alias("Monks") )
+    end
+
+    # Armand stole more than Frogger
+    each do |a|
+      each do |b|
+        implies!(
+          a.name("Armand") & b.name("Frogger"),
+          a.amount > b.amount
+        )
+      end
+    end
+
+    each do |hacker|
+      implies!( hacker.name("Dragonene"), hacker.country("Belgium") )
+    end
+
+    # Dragonene less money than Perl coder
+    each do |a|
+      each do |b|
+        implies!(
+          a.name("Dragonene") & b.language("Perl"),
+          a.amount < b.amount
+        )
+      end
+    end
+    # perl coder made the connection before Dragonene?
+    each do |a|
+      each do |b|
+        implies!(
+          a.name("Dragonene") & b.language("Perl"),
+          a.index > b.index
+        )
+      end
+    end
+    # Lisp coder more money than Griffin
+    each do |a|
+      each do |b|
+        implies!(
+          a.alias("Griffin") & b.language("Lisp"),
+          a.amount < b.amount
+        )
+      end
+    end
+    # 3rd connection used Java
+    @solver.assert @cases[2].language("Java")
+    # Badger stole more than Yemen coder
+    each do |a|
+      each do |b|
+        implies!(
+          a.alias("Badger") & b.country("Yemen"),
+          a.amount > b.amount
+        )
+      end
+    end
+  end
+end
+
+FourHackersPuzzle.new.call
+
+"""
+There is little we can do but wait, so we may as well take another job.
+It seems there has been a bank robbery. Scotland Yard has turned to us for help in figuring out who did it.
+We have been the given the following information:
+
+    There were 4 hackers each connecting one after another.
+    Each hacker has a name and another alias too.
+    Each hacker connected from a different country.
+    Each hacker connected using a different programming language.
+    Each hacker transferred a different amount of money.
+
+    The 4 hacker names: Armand Dragonene Frogger Phineus
+    The 4 hacker aliases: Badger Griffin Lennard Monks
+    The 4 countries: Belgium England Norway Yemen
+    The 4 coding langauges: C Java Lisp Perl
+    The 4 amounts: 10000 80000 160000 640000
+    You must also determine the order the hackers connected: 1st, 2nd, 3rd, 4th
+
+Perhaps following the news may help. The attacks all took place on the 29th, but the newspapers reported it for a couple of days afterwards as they found new information:
+
+https://www.sabrefilms.co.uk/revolutionelite/casefiles/case9/img1.jpg
+https://www.sabrefilms.co.uk/revolutionelite/casefiles/case9/img2.jpg
+https://www.sabrefilms.co.uk/revolutionelite/casefiles/case9/img3.jpg
+
+--------------------------------------------------------------------------------
+Extracted rules:
+  Phineus => 10000
+  Lennard => 160000 && !England
+  2nd connection less money transferred than C coder
+  C coder !Norwary
+  Armand (Monks)
+  Armand stole more than Frogger
+  Dragonene => Belgium
+  Dragonene less money than Perl coder
+  perl coder made the connection before Dragonene?
+  Lisp coder more money than Griffin
+  3rd connection used Java
+  Badger stole more than Yemen coder
+"""

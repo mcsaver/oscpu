@@ -1,0 +1,25 @@
+pt:
+  numbers:
+    ones: [zero, um, dois, três, quatro, cinco, seis, sete, oito, nove]
+    teens: [_, onze, doze, treze, quatorze, quinze, dezesseis, dezessete, dezoito, dezenove]
+    tens: [_, dez, vinte, trinta, quarenta, cinquenta, sessenta, setenta, oitenta, noventa]
+    hundreds: [_, cento, duzentos, trezentos, quatrocentos, quinhentos, seiscentos, setecentos, oitocentos, novecentos]
+    one_hundred: cem
+    mega: [_, thousands, millions, billions, trillions, quadrillions, quintillions]
+    thousands: mil
+    millions:
+      one: milhão
+      other: milhões
+    billions:
+      one: bilhão
+      other: bilhões
+    trillions:
+      one: trilhão
+      other: trilhões
+    quadrillions:
+      one: quadrilhão
+      other: quadrilhões
+    quintillions:
+      one: quinquilhão
+      other: quinquilhões
+    union: e
