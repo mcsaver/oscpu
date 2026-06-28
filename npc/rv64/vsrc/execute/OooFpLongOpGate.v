@@ -26,28 +26,19 @@ module OooFpLongOpGate (
   `include "execute/OooFpPredicates.v"
   `include "execute/OooFpRound.v"
 
-  function [`XLEN-1:0] fp_div_value;
-    input [`XLEN-1:0] rs1_value;
-    input [`XLEN-1:0] rs2_value;
-    input is_double;
-    input [2:0] rm;
-    input [55:0] quotient_ext_i;
-    input remainder_nonzero_i;
-    begin
-      fp_div_value = is_double ?
-          fp_div_d_value(rs1_value, rs2_value, rm, quotient_ext_i,
-                         remainder_nonzero_i) :
-          fp_div_s_value(rs1_value, rs2_value, rm, quotient_ext_i[26:0],
-                         remainder_nonzero_i);
-    end
-  endfunction
+  // 各 always @(*) 组合块的结果寄存(纯组合;迭代器结果装配 / operand 准备 / fflags)。
+  reg [`XLEN-1:0] div_d_value, div_s_value, sqrt_d_value, sqrt_s_value;
+  reg [4:0] div_d_f, div_s_f, sqrt_d_f, sqrt_s_f;
+  reg [107:0] dividend_r;
+  reg [52:0] divisor_r;
+  reg [111:0] radicand_r;
 
-  function [`XLEN-1:0] fp_div_d_value;
-    input [`XLEN-1:0] rs1_value;
-    input [`XLEN-1:0] rs2_value;
-    input [2:0] rm;
-    input [55:0] quotient_ext_i;
-    input remainder_nonzero_i;
+  always @(*) begin : fp_div_d_value_blk
+    reg [`XLEN-1:0] rs1_value;
+    reg [`XLEN-1:0] rs2_value;
+    reg [2:0] rm;
+    reg [55:0] quotient_ext_i;
+    reg remainder_nonzero_i;
     reg sign_z;
     reg [10:0] exp_a;
     reg [10:0] exp_b;
@@ -70,6 +61,33 @@ module OooFpLongOpGate (
     integer exp_z;
     integer sub_shift_int;
     begin
+      rs1_value = frs1_value_i;
+      rs2_value = frs2_value_i;
+      rm = rm_i;
+      quotient_ext_i = div_quotient_w;
+      remainder_nonzero_i = div_remainder_nonzero_w;
+      sign_z = 0;
+      exp_a = 0;
+      exp_b = 0;
+      frac_a = 0;
+      frac_b = 0;
+      a_is_nan = 0;
+      b_is_nan = 0;
+      a_is_inf = 0;
+      b_is_inf = 0;
+      a_is_zero = 0;
+      b_is_zero = 0;
+      quotient_ext = 0;
+      quotient_norm = 0;
+      mant53 = 0;
+      mant_round_ext = 0;
+      guard = 0;
+      sticky = 0;
+      inc = 0;
+      sub_shift = 0;
+      exp_z = 0;
+      sub_shift_int = 0;
+      div_d_value = 0;
       sign_z = rs1_value[63] ^ rs2_value[63];
       exp_a = rs1_value[62:52];
       exp_b = rs2_value[62:52];
@@ -83,14 +101,14 @@ module OooFpLongOpGate (
       b_is_zero = (exp_b == 11'h000) && (frac_b == 52'b0);
 
       if (a_is_nan || b_is_nan) begin
-        fp_div_d_value = 64'h7ff8000000000000;
+        div_d_value = 64'h7ff8000000000000;
       end else if ((a_is_zero && b_is_zero) ||
                    (a_is_inf && b_is_inf)) begin
-        fp_div_d_value = 64'h7ff8000000000000;
+        div_d_value = 64'h7ff8000000000000;
       end else if (a_is_inf || b_is_zero) begin
-        fp_div_d_value = {sign_z, 11'h7ff, 52'b0};
+        div_d_value = {sign_z, 11'h7ff, 52'b0};
       end else if (a_is_zero || b_is_inf) begin
-        fp_div_d_value = {sign_z, 63'b0};
+        div_d_value = {sign_z, 63'b0};
       end else begin
         exp_z = ((exp_a == 11'h000) ? 1 : exp_a) -
                 ((exp_b == 11'h000) ? 1 : exp_b) + 1023;
@@ -127,22 +145,22 @@ module OooFpLongOpGate (
         end
 
         if (exp_z >= 2047) begin
-          fp_div_d_value = fp_overflow_d(sign_z, rm);
+          div_d_value = fp_overflow_d(sign_z, rm);
         end else if ((exp_z <= 1) && !mant53[52]) begin
-          fp_div_d_value = {sign_z, 11'b0, mant53[51:0]};
+          div_d_value = {sign_z, 11'b0, mant53[51:0]};
         end else begin
-          fp_div_d_value = {sign_z, exp_z[10:0], mant53[51:0]};
+          div_d_value = {sign_z, exp_z[10:0], mant53[51:0]};
         end
       end
     end
-  endfunction
+  end
 
-  function [`XLEN-1:0] fp_div_s_value;
-    input [`XLEN-1:0] rs1_value;
-    input [`XLEN-1:0] rs2_value;
-    input [2:0] rm;
-    input [26:0] quotient_ext_i;
-    input remainder_nonzero_i;
+  always @(*) begin : fp_div_s_value_blk
+    reg [`XLEN-1:0] rs1_value;
+    reg [`XLEN-1:0] rs2_value;
+    reg [2:0] rm;
+    reg [26:0] quotient_ext_i;
+    reg remainder_nonzero_i;
     reg [31:0] a;
     reg [31:0] b;
     reg sign_z;
@@ -167,6 +185,35 @@ module OooFpLongOpGate (
     integer exp_z;
     integer sub_shift_int;
     begin
+      rs1_value = frs1_value_i;
+      rs2_value = frs2_value_i;
+      rm = rm_i;
+      quotient_ext_i = div_quotient_w[26:0];
+      remainder_nonzero_i = div_remainder_nonzero_w;
+      a = 0;
+      b = 0;
+      sign_z = 0;
+      exp_a = 0;
+      exp_b = 0;
+      frac_a = 0;
+      frac_b = 0;
+      a_is_nan = 0;
+      b_is_nan = 0;
+      a_is_inf = 0;
+      b_is_inf = 0;
+      a_is_zero = 0;
+      b_is_zero = 0;
+      quotient_ext = 0;
+      quotient_norm = 0;
+      mant24 = 0;
+      mant_round_ext = 0;
+      guard = 0;
+      sticky = 0;
+      inc = 0;
+      sub_shift = 0;
+      exp_z = 0;
+      sub_shift_int = 0;
+      div_s_value = 0;
       a = rs1_value[31:0];
       b = rs2_value[31:0];
       sign_z = a[31] ^ b[31];
@@ -186,14 +233,14 @@ module OooFpLongOpGate (
                   (exp_b == 8'h00) && (frac_b == 23'b0);
 
       if (a_is_nan || b_is_nan) begin
-        fp_div_s_value = 64'hffffffff7fc00000;
+        div_s_value = 64'hffffffff7fc00000;
       end else if ((a_is_zero && b_is_zero) ||
                    (a_is_inf && b_is_inf)) begin
-        fp_div_s_value = 64'hffffffff7fc00000;
+        div_s_value = 64'hffffffff7fc00000;
       end else if (a_is_inf || b_is_zero) begin
-        fp_div_s_value = {32'hffff_ffff, sign_z, 8'hff, 23'b0};
+        div_s_value = {32'hffff_ffff, sign_z, 8'hff, 23'b0};
       end else if (a_is_zero || b_is_inf) begin
-        fp_div_s_value = {32'hffff_ffff, sign_z, 31'b0};
+        div_s_value = {32'hffff_ffff, sign_z, 31'b0};
       end else begin
         exp_z = ((exp_a == 8'h00) ? 1 : exp_a) -
                 ((exp_b == 8'h00) ? 1 : exp_b) + 127;
@@ -230,36 +277,21 @@ module OooFpLongOpGate (
         end
 
         if (exp_z >= 255) begin
-          fp_div_s_value = fp_overflow_s(sign_z, rm);
+          div_s_value = fp_overflow_s(sign_z, rm);
         end else if ((exp_z <= 1) && !mant24[23]) begin
-          fp_div_s_value = {32'hffff_ffff, sign_z, 8'b0, mant24[22:0]};
+          div_s_value = {32'hffff_ffff, sign_z, 8'b0, mant24[22:0]};
         end else begin
-          fp_div_s_value = {32'hffff_ffff, sign_z, exp_z[7:0], mant24[22:0]};
+          div_s_value = {32'hffff_ffff, sign_z, exp_z[7:0], mant24[22:0]};
         end
       end
     end
-  endfunction
+  end
 
-  function [`XLEN-1:0] fp_sqrt_value;
-    input [`XLEN-1:0] rs1_value;
-    input is_double;
-    input [2:0] rm;
-    input [55:0] root_ext_i;
-    input remainder_nonzero_i;
-    begin
-      fp_sqrt_value = is_double ?
-          fp_sqrt_d_value(rs1_value, rm, root_ext_i,
-                          remainder_nonzero_i) :
-          fp_sqrt_s_value(rs1_value, rm, root_ext_i[26:0],
-                          remainder_nonzero_i);
-    end
-  endfunction
-
-  function [`XLEN-1:0] fp_sqrt_d_value;
-    input [`XLEN-1:0] rs1_value;
-    input [2:0] rm;
-    input [55:0] root_ext_i;
-    input remainder_nonzero_i;
+  always @(*) begin : fp_sqrt_d_value_blk
+    reg [`XLEN-1:0] rs1_value;
+    reg [2:0] rm;
+    reg [55:0] root_ext_i;
+    reg remainder_nonzero_i;
     reg sign_a;
     reg [10:0] exp_a;
     reg [51:0] frac_a;
@@ -278,6 +310,28 @@ module OooFpLongOpGate (
     integer sqrt_exp;
     integer exp_z;
     begin
+      rs1_value = frs1_value_i;
+      rm = rm_i;
+      root_ext_i = sqrt_root_w;
+      remainder_nonzero_i = sqrt_remainder_nonzero_w;
+      sign_a = 0;
+      exp_a = 0;
+      frac_a = 0;
+      a_is_nan = 0;
+      a_is_inf = 0;
+      a_is_zero = 0;
+      sig_a = 0;
+      root_ext = 0;
+      mant53 = 0;
+      mant_round_ext = 0;
+      guard = 0;
+      sticky = 0;
+      inc = 0;
+      norm_shift = 0;
+      exp_unbiased = 0;
+      sqrt_exp = 0;
+      exp_z = 0;
+      sqrt_d_value = 0;
       sign_a = rs1_value[63];
       exp_a = rs1_value[62:52];
       frac_a = rs1_value[51:0];
@@ -286,13 +340,13 @@ module OooFpLongOpGate (
       a_is_zero = (exp_a == 11'h000) && (frac_a == 52'b0);
 
       if (a_is_nan) begin
-        fp_sqrt_d_value = 64'h7ff8000000000000;
+        sqrt_d_value = 64'h7ff8000000000000;
       end else if (sign_a && !a_is_zero) begin
-        fp_sqrt_d_value = 64'h7ff8000000000000;
+        sqrt_d_value = 64'h7ff8000000000000;
       end else if (a_is_inf) begin
-        fp_sqrt_d_value = {1'b0, 11'h7ff, 52'b0};
+        sqrt_d_value = {1'b0, 11'h7ff, 52'b0};
       end else if (a_is_zero) begin
-        fp_sqrt_d_value = {sign_a, 63'b0};
+        sqrt_d_value = {sign_a, 63'b0};
       end else begin
         sig_a = {(exp_a != 11'h000), frac_a};
         exp_unbiased = ((exp_a == 11'h000) ? 1 : exp_a) - 1023;
@@ -319,21 +373,21 @@ module OooFpLongOpGate (
         end
 
         if (exp_z >= 2047) begin
-          fp_sqrt_d_value = {1'b0, 11'h7ff, 52'b0};
+          sqrt_d_value = {1'b0, 11'h7ff, 52'b0};
         end else if ((exp_z <= 1) && !mant53[52]) begin
-          fp_sqrt_d_value = {1'b0, 11'b0, mant53[51:0]};
+          sqrt_d_value = {1'b0, 11'b0, mant53[51:0]};
         end else begin
-          fp_sqrt_d_value = {1'b0, exp_z[10:0], mant53[51:0]};
+          sqrt_d_value = {1'b0, exp_z[10:0], mant53[51:0]};
         end
       end
     end
-  endfunction
+  end
 
-  function [`XLEN-1:0] fp_sqrt_s_value;
-    input [`XLEN-1:0] rs1_value;
-    input [2:0] rm;
-    input [26:0] root_ext_i;
-    input remainder_nonzero_i;
+  always @(*) begin : fp_sqrt_s_value_blk
+    reg [`XLEN-1:0] rs1_value;
+    reg [2:0] rm;
+    reg [26:0] root_ext_i;
+    reg remainder_nonzero_i;
     reg [31:0] a;
     reg sign_a;
     reg [7:0] exp_a;
@@ -353,6 +407,29 @@ module OooFpLongOpGate (
     integer sqrt_exp;
     integer exp_z;
     begin
+      rs1_value = frs1_value_i;
+      rm = rm_i;
+      root_ext_i = sqrt_root_w[26:0];
+      remainder_nonzero_i = sqrt_remainder_nonzero_w;
+      a = 0;
+      sign_a = 0;
+      exp_a = 0;
+      frac_a = 0;
+      a_is_nan = 0;
+      a_is_inf = 0;
+      a_is_zero = 0;
+      sig_a = 0;
+      root_ext = 0;
+      mant24 = 0;
+      mant_round_ext = 0;
+      guard = 0;
+      sticky = 0;
+      inc = 0;
+      norm_shift = 0;
+      exp_unbiased = 0;
+      sqrt_exp = 0;
+      exp_z = 0;
+      sqrt_s_value = 0;
       a = rs1_value[31:0];
       sign_a = a[31];
       exp_a = a[30:23];
@@ -364,13 +441,13 @@ module OooFpLongOpGate (
                   (exp_a == 8'h00) && (frac_a == 23'b0);
 
       if (a_is_nan) begin
-        fp_sqrt_s_value = 64'hffffffff7fc00000;
+        sqrt_s_value = 64'hffffffff7fc00000;
       end else if (sign_a && !a_is_zero) begin
-        fp_sqrt_s_value = 64'hffffffff7fc00000;
+        sqrt_s_value = 64'hffffffff7fc00000;
       end else if (a_is_inf) begin
-        fp_sqrt_s_value = {32'hffff_ffff, 1'b0, 8'hff, 23'b0};
+        sqrt_s_value = {32'hffff_ffff, 1'b0, 8'hff, 23'b0};
       end else if (a_is_zero) begin
-        fp_sqrt_s_value = {32'hffff_ffff, sign_a, 31'b0};
+        sqrt_s_value = {32'hffff_ffff, sign_a, 31'b0};
       end else begin
         sig_a = {(exp_a != 8'h00), frac_a};
         exp_unbiased = ((exp_a == 8'h00) ? 1 : exp_a) - 127;
@@ -397,51 +474,61 @@ module OooFpLongOpGate (
         end
 
         if (exp_z >= 255) begin
-          fp_sqrt_s_value = {32'hffff_ffff, 1'b0, 8'hff, 23'b0};
+          sqrt_s_value = {32'hffff_ffff, 1'b0, 8'hff, 23'b0};
         end else if ((exp_z <= 1) && !mant24[23]) begin
-          fp_sqrt_s_value = {32'hffff_ffff, 1'b0, 8'b0, mant24[22:0]};
+          sqrt_s_value = {32'hffff_ffff, 1'b0, 8'b0, mant24[22:0]};
         end else begin
-          fp_sqrt_s_value = {32'hffff_ffff, 1'b0, exp_z[7:0], mant24[22:0]};
+          sqrt_s_value = {32'hffff_ffff, 1'b0, exp_z[7:0], mant24[22:0]};
         end
       end
     end
-  endfunction
+  end
 
-  function [107:0] fp_div_dividend_value;
-    input [`XLEN-1:0] rs1_value;
-    input is_double;
+  always @(*) begin : fp_div_dividend_value_blk
+    reg [`XLEN-1:0] rs1_value;
+    reg is_double;
     reg [52:0] sig_d;
     reg [23:0] sig_s;
     begin
+      rs1_value = frs1_value_i;
+      is_double = double_i;
+      sig_d = 0;
+      sig_s = 0;
+      dividend_r = 0;
       if (is_double) begin
         sig_d = {(rs1_value[62:52] != 11'h000), rs1_value[51:0]};
-        fp_div_dividend_value = {sig_d, 55'b0};
+        dividend_r = {sig_d, 55'b0};
       end else begin
         sig_s = {(rs1_value[30:23] != 8'h00), rs1_value[22:0]};
-        fp_div_dividend_value = {58'b0, sig_s, 26'b0};
+        dividend_r = {58'b0, sig_s, 26'b0};
       end
     end
-  endfunction
+  end
 
-  function [52:0] fp_div_divisor_value;
-    input [`XLEN-1:0] rs2_value;
-    input is_double;
+  always @(*) begin : fp_div_divisor_value_blk
+    reg [`XLEN-1:0] rs2_value;
+    reg is_double;
     reg [52:0] sig_d;
     reg [23:0] sig_s;
     begin
+      rs2_value = frs2_value_i;
+      is_double = double_i;
+      sig_d = 0;
+      sig_s = 0;
+      divisor_r = 0;
       if (is_double) begin
         sig_d = {(rs2_value[62:52] != 11'h000), rs2_value[51:0]};
-        fp_div_divisor_value = sig_d;
+        divisor_r = sig_d;
       end else begin
         sig_s = {(rs2_value[30:23] != 8'h00), rs2_value[22:0]};
-        fp_div_divisor_value = {29'b0, sig_s};
+        divisor_r = {29'b0, sig_s};
       end
     end
-  endfunction
+  end
 
-  function [111:0] fp_sqrt_radicand_value;
-    input [`XLEN-1:0] rs1_value;
-    input is_double;
+  always @(*) begin : fp_sqrt_radicand_value_blk
+    reg [`XLEN-1:0] rs1_value;
+    reg is_double;
     reg [52:0] sig_d;
     reg [23:0] sig_s;
     reg [53:0] radicand_s;
@@ -449,6 +536,15 @@ module OooFpLongOpGate (
     reg [4:0] norm_shift_s;
     integer exp_unbiased;
     begin
+      rs1_value = frs1_value_i;
+      is_double = double_i;
+      sig_d = 0;
+      sig_s = 0;
+      radicand_s = 0;
+      norm_shift_d = 0;
+      norm_shift_s = 0;
+      exp_unbiased = 0;
+      radicand_r = 0;
       if (is_double) begin
         sig_d = {(rs1_value[62:52] != 11'h000), rs1_value[51:0]};
         exp_unbiased = ((rs1_value[62:52] == 11'h000) ? 1 :
@@ -458,7 +554,7 @@ module OooFpLongOpGate (
           sig_d = sig_d << norm_shift_d;
           exp_unbiased = exp_unbiased - norm_shift_d;
         end
-        fp_sqrt_radicand_value =
+        radicand_r =
             exp_unbiased[0] ? ({59'b0, sig_d} << 59) :
                               ({59'b0, sig_d} << 58);
       end else begin
@@ -472,17 +568,17 @@ module OooFpLongOpGate (
         end
         radicand_s = exp_unbiased[0] ? ({30'b0, sig_s} << 30) :
                                       ({30'b0, sig_s} << 29);
-        fp_sqrt_radicand_value = {58'b0, radicand_s};
+        radicand_r = {58'b0, radicand_s};
       end
     end
-  endfunction
+  end
 
-  function [4:0] fp_div_s_fflags;
-    input [`XLEN-1:0] rs1_value;
-    input [`XLEN-1:0] rs2_value;
-    input [2:0] rm;
-    input [26:0] quotient_ext_i;
-    input remainder_nonzero_i;
+  always @(*) begin : fp_div_s_fflags_blk
+    reg [`XLEN-1:0] rs1_value;
+    reg [`XLEN-1:0] rs2_value;
+    reg [2:0] rm;
+    reg [26:0] quotient_ext_i;
+    reg remainder_nonzero_i;
     reg [31:0] a;
     reg [31:0] b;
     reg sign_z;
@@ -506,6 +602,34 @@ module OooFpLongOpGate (
     integer exp_z;
     integer sub_shift_int;
     begin
+      rs1_value = frs1_value_i;
+      rs2_value = frs2_value_i;
+      rm = rm_i;
+      quotient_ext_i = div_quotient_w[26:0];
+      remainder_nonzero_i = div_remainder_nonzero_w;
+      a = 0;
+      b = 0;
+      sign_z = 0;
+      exp_a = 0;
+      exp_b = 0;
+      frac_a = 0;
+      frac_b = 0;
+      a_is_nan = 0;
+      b_is_nan = 0;
+      a_is_inf = 0;
+      b_is_inf = 0;
+      a_is_zero = 0;
+      b_is_zero = 0;
+      quotient_norm = 0;
+      mant24 = 0;
+      mant_round_ext = 0;
+      guard = 0;
+      sticky = 0;
+      inc = 0;
+      sub_shift = 0;
+      exp_z = 0;
+      sub_shift_int = 0;
+      div_s_f = 0;
       a = rs1_value[31:0];
       b = rs2_value[31:0];
       sign_z = a[31] ^ b[31];
@@ -519,13 +643,13 @@ module OooFpLongOpGate (
       b_is_inf = fp_is_inf_s_value(rs2_value);
       a_is_zero = fp_is_zero_s_value(rs1_value);
       b_is_zero = fp_is_zero_s_value(rs2_value);
-      fp_div_s_fflags = 5'b00000;
+      div_s_f = 5'b00000;
 
       if (fp_is_snan_s_value(rs1_value) || fp_is_snan_s_value(rs2_value) ||
           (a_is_zero && b_is_zero) || (a_is_inf && b_is_inf)) begin
-        fp_div_s_fflags = `FP_FLAG_NV;
+        div_s_f = `FP_FLAG_NV;
       end else if (!a_is_nan && !b_is_nan && !a_is_zero && !a_is_inf && b_is_zero) begin
-        fp_div_s_fflags = `FP_FLAG_DZ;
+        div_s_f = `FP_FLAG_DZ;
       end else if (!(a_is_nan || b_is_nan || a_is_inf || b_is_inf ||
                    a_is_zero || b_is_zero)) begin
         exp_z = ((exp_a == 8'h00) ? 1 : exp_a) -
@@ -557,20 +681,20 @@ module OooFpLongOpGate (
         end else begin
           mant24 = mant_round_ext[23:0];
         end
-        fp_div_s_fflags = fp_round_flags_s(sign_z, exp_z[7:0], mant24,
+        div_s_f = fp_round_flags_s(sign_z, exp_z[7:0], mant24,
                                            guard, sticky);
         if (exp_z >= 255)
-          fp_div_s_fflags = `FP_FLAG_OF | `FP_FLAG_NX;
+          div_s_f = `FP_FLAG_OF | `FP_FLAG_NX;
       end
     end
-  endfunction
+  end
 
-  function [4:0] fp_div_d_fflags;
-    input [`XLEN-1:0] rs1_value;
-    input [`XLEN-1:0] rs2_value;
-    input [2:0] rm;
-    input [55:0] quotient_ext_i;
-    input remainder_nonzero_i;
+  always @(*) begin : fp_div_d_fflags_blk
+    reg [`XLEN-1:0] rs1_value;
+    reg [`XLEN-1:0] rs2_value;
+    reg [2:0] rm;
+    reg [55:0] quotient_ext_i;
+    reg remainder_nonzero_i;
     reg sign_z;
     reg [10:0] exp_a;
     reg [10:0] exp_b;
@@ -592,6 +716,32 @@ module OooFpLongOpGate (
     integer exp_z;
     integer sub_shift_int;
     begin
+      rs1_value = frs1_value_i;
+      rs2_value = frs2_value_i;
+      rm = rm_i;
+      quotient_ext_i = div_quotient_w;
+      remainder_nonzero_i = div_remainder_nonzero_w;
+      sign_z = 0;
+      exp_a = 0;
+      exp_b = 0;
+      frac_a = 0;
+      frac_b = 0;
+      a_is_nan = 0;
+      b_is_nan = 0;
+      a_is_inf = 0;
+      b_is_inf = 0;
+      a_is_zero = 0;
+      b_is_zero = 0;
+      quotient_norm = 0;
+      mant53 = 0;
+      mant_round_ext = 0;
+      guard = 0;
+      sticky = 0;
+      inc = 0;
+      sub_shift = 0;
+      exp_z = 0;
+      sub_shift_int = 0;
+      div_d_f = 0;
       sign_z = rs1_value[63] ^ rs2_value[63];
       exp_a = rs1_value[62:52];
       exp_b = rs2_value[62:52];
@@ -603,13 +753,13 @@ module OooFpLongOpGate (
       b_is_inf = fp_is_inf_d_value(rs2_value);
       a_is_zero = fp_is_zero_d_value(rs1_value);
       b_is_zero = fp_is_zero_d_value(rs2_value);
-      fp_div_d_fflags = 5'b00000;
+      div_d_f = 5'b00000;
 
       if (fp_is_snan_d_value(rs1_value) || fp_is_snan_d_value(rs2_value) ||
           (a_is_zero && b_is_zero) || (a_is_inf && b_is_inf)) begin
-        fp_div_d_fflags = `FP_FLAG_NV;
+        div_d_f = `FP_FLAG_NV;
       end else if (!a_is_nan && !b_is_nan && !a_is_zero && !a_is_inf && b_is_zero) begin
-        fp_div_d_fflags = `FP_FLAG_DZ;
+        div_d_f = `FP_FLAG_DZ;
       end else if (!(a_is_nan || b_is_nan || a_is_inf || b_is_inf ||
                    a_is_zero || b_is_zero)) begin
         exp_z = ((exp_a == 11'h000) ? 1 : exp_a) -
@@ -641,19 +791,19 @@ module OooFpLongOpGate (
         end else begin
           mant53 = mant_round_ext[52:0];
         end
-        fp_div_d_fflags = fp_round_flags_d(sign_z, exp_z[10:0], mant53,
+        div_d_f = fp_round_flags_d(sign_z, exp_z[10:0], mant53,
                                            guard, sticky);
         if (exp_z >= 2047)
-          fp_div_d_fflags = `FP_FLAG_OF | `FP_FLAG_NX;
+          div_d_f = `FP_FLAG_OF | `FP_FLAG_NX;
       end
     end
-  endfunction
+  end
 
-  function [4:0] fp_sqrt_s_fflags;
-    input [`XLEN-1:0] rs1_value;
-    input [2:0] rm;
-    input [26:0] root_ext_i;
-    input remainder_nonzero_i;
+  always @(*) begin : fp_sqrt_s_fflags_blk
+    reg [`XLEN-1:0] rs1_value;
+    reg [2:0] rm;
+    reg [26:0] root_ext_i;
+    reg remainder_nonzero_i;
     reg [31:0] a;
     reg sign_a;
     reg [7:0] exp_a;
@@ -668,6 +818,24 @@ module OooFpLongOpGate (
     reg inc;
     integer exp_z;
     begin
+      rs1_value = frs1_value_i;
+      rm = rm_i;
+      root_ext_i = sqrt_root_w[26:0];
+      remainder_nonzero_i = sqrt_remainder_nonzero_w;
+      a = 0;
+      sign_a = 0;
+      exp_a = 0;
+      frac_a = 0;
+      a_is_nan = 0;
+      a_is_inf = 0;
+      a_is_zero = 0;
+      mant24 = 0;
+      mant_round_ext = 0;
+      guard = 0;
+      sticky = 0;
+      inc = 0;
+      exp_z = 0;
+      sqrt_s_f = 0;
       a = rs1_value[31:0];
       sign_a = a[31];
       exp_a = a[30:23];
@@ -675,9 +843,9 @@ module OooFpLongOpGate (
       a_is_nan = fp_is_nan_s_value(rs1_value);
       a_is_inf = fp_is_inf_s_value(rs1_value);
       a_is_zero = fp_is_zero_s_value(rs1_value);
-      fp_sqrt_s_fflags = 5'b00000;
+      sqrt_s_f = 5'b00000;
       if (fp_is_snan_s_value(rs1_value) || (sign_a && !a_is_zero)) begin
-        fp_sqrt_s_fflags = `FP_FLAG_NV;
+        sqrt_s_f = `FP_FLAG_NV;
       end else if (!(a_is_nan || a_is_inf || a_is_zero)) begin
         mant24 = root_ext_i[26:3];
         guard = root_ext_i[2];
@@ -689,17 +857,17 @@ module OooFpLongOpGate (
           mant24 = mant_round_ext[24:1];
         else
           mant24 = mant_round_ext[23:0];
-        fp_sqrt_s_fflags = fp_round_flags_s(1'b0, exp_z[7:0], mant24,
+        sqrt_s_f = fp_round_flags_s(1'b0, exp_z[7:0], mant24,
                                             guard, sticky);
       end
     end
-  endfunction
+  end
 
-  function [4:0] fp_sqrt_d_fflags;
-    input [`XLEN-1:0] rs1_value;
-    input [2:0] rm;
-    input [55:0] root_ext_i;
-    input remainder_nonzero_i;
+  always @(*) begin : fp_sqrt_d_fflags_blk
+    reg [`XLEN-1:0] rs1_value;
+    reg [2:0] rm;
+    reg [55:0] root_ext_i;
+    reg remainder_nonzero_i;
     reg sign_a;
     reg [52:0] mant53;
     reg [53:0] mant_round_ext;
@@ -707,12 +875,23 @@ module OooFpLongOpGate (
     reg sticky;
     reg inc;
     begin
+      rs1_value = frs1_value_i;
+      rm = rm_i;
+      root_ext_i = sqrt_root_w;
+      remainder_nonzero_i = sqrt_remainder_nonzero_w;
+      sign_a = 0;
+      mant53 = 0;
+      mant_round_ext = 0;
+      guard = 0;
+      sticky = 0;
+      inc = 0;
+      sqrt_d_f = 0;
       sign_a = rs1_value[63];
-      fp_sqrt_d_fflags = 5'b00000;
+      sqrt_d_f = 5'b00000;
       if (fp_is_snan_d_value(rs1_value) ||
           (sign_a && !fp_is_zero_d_value(rs1_value) &&
            !fp_is_nan_d_value(rs1_value))) begin
-        fp_sqrt_d_fflags = `FP_FLAG_NV;
+        sqrt_d_f = `FP_FLAG_NV;
       end else if (!(fp_is_nan_d_value(rs1_value) ||
                    fp_is_inf_d_value(rs1_value) ||
                    fp_is_zero_d_value(rs1_value))) begin
@@ -725,16 +904,17 @@ module OooFpLongOpGate (
           mant53 = mant_round_ext[53:1];
         else
           mant53 = mant_round_ext[52:0];
-        fp_sqrt_d_fflags = fp_round_flags_d(1'b0, 11'd1023, mant53,
+        sqrt_d_f = fp_round_flags_d(1'b0, 11'd1023, mant53,
                                             guard, sticky);
       end
     end
-  endfunction
+  end
 
   // operand 准备
-  wire [107:0] dividend_w = fp_div_dividend_value(frs1_value_i, double_i);
-  wire [52:0]  divisor_w  = fp_div_divisor_value(frs2_value_i, double_i);
-  wire [111:0] radicand_w = fp_sqrt_radicand_value(frs1_value_i, double_i);
+  // operand 准备由上方 always@* 块算出(dividend_r/divisor_r/radicand_r)
+  wire [107:0] dividend_w = dividend_r;
+  wire [52:0]  divisor_w  = divisor_r;
+  wire [111:0] radicand_w = radicand_r;
 
   wire [55:0] div_quotient_w;
   wire        div_remainder_nonzero_w;
@@ -770,22 +950,11 @@ module OooFpLongOpGate (
     .remainder_nonzero_o(sqrt_remainder_nonzero_w)
   );
 
-  wire [`XLEN-1:0] div_value_w =
-      fp_div_value(frs1_value_i, frs2_value_i, double_i, rm_i,
-                   div_quotient_w, div_remainder_nonzero_w);
-  wire [`XLEN-1:0] sqrt_value_w =
-      fp_sqrt_value(frs1_value_i, double_i, rm_i,
-                    sqrt_root_w, sqrt_remainder_nonzero_w);
-  wire [4:0] div_fflags_w = double_i ?
-      fp_div_d_fflags(frs1_value_i, frs2_value_i, rm_i,
-                      div_quotient_w, div_remainder_nonzero_w) :
-      fp_div_s_fflags(frs1_value_i, frs2_value_i, rm_i,
-                      div_quotient_w[26:0], div_remainder_nonzero_w);
-  wire [4:0] sqrt_fflags_w = double_i ?
-      fp_sqrt_d_fflags(frs1_value_i, rm_i,
-                       sqrt_root_w, sqrt_remainder_nonzero_w) :
-      fp_sqrt_s_fflags(frs1_value_i, rm_i,
-                       sqrt_root_w[26:0], sqrt_remainder_nonzero_w);
+  // 结果装配/fflags 由上方 always@* 块算出,按 double_i 显式 mux
+  wire [`XLEN-1:0] div_value_w  = double_i ? div_d_value  : div_s_value;
+  wire [`XLEN-1:0] sqrt_value_w = double_i ? sqrt_d_value : sqrt_s_value;
+  wire [4:0] div_fflags_w  = double_i ? div_d_f  : div_s_f;
+  wire [4:0] sqrt_fflags_w = double_i ? sqrt_d_f : sqrt_s_f;
 
   assign div_busy_o         = div_busy_w;
   assign sqrt_busy_o        = sqrt_busy_w;
