@@ -69,6 +69,18 @@ B 类额外需:搭整核 `synth.tcl` 全核 P&R(非 OOC)取真实 WNS,再判净�
 - **B 暂缓**,前置条件=整核 P&R 流程就位(当前 Vivado 仅 OOC 模块综合,WSL 内存受限,
   整核 P&R 需评估内存峰值与看门狗,见 `vivado/README.md`)。
 
+## 6b. spec-B 可执行实验(P&R 出 WNS 后立即跑)
+精确位置 `OooIntIssueQueue.v:394-415`:`dispatch0/1_entry_ready_w` 把**本拍 busy_table 结果
+`dispatchN_srcM_ready_i`** 接入 dispatch-bypass select。
+- **B-cut-1(上界实验,最易测)**:`dispatch0_entry_ready_w = 1'b0; dispatch1_entry_ready_w = 1'b0;`
+  (全禁 dispatch-bypass)。刚 dispatch 的指令一律写入 IQ、下拍从**已寄存** `src1_ready_q` 被 select。
+  关键洞察:即便禁旁路,`busy_table→src1_ready_q[N]` 寄存写入(短,1~2 级)仍在;但 busy_table→
+  select→issue_valid→count→`ctrl_q.CE` 长链被切断 → 关键路径应起于寄存器而非 busy_table 组合。
+- **测法**:改后 `eval --difftest`(正确)+ `--all`(三 gate + **量 branch-resolve-loop CPI 退化**)+
+  `run-synth-module.sh OooDispatchBackend`(看 logic levels 是否 < 39)+(可选)`run-pnr-core.sh`(真实 WNS)。
+- **决策**:`Fmax_new/Fmax_old > CPI_new/CPI_old` 才净赢;否则 revert(git 检查点),B 判死。
+- 若 B-cut-1 升 Fmax 但 CPI 退化大,再做 B-cut-2(保留 wakeup_match 驱动的旁路、仅去"已就绪"旁路)精炼。
+
 ## 7. 变更记录
 - 2026-06-28：基于 OOC 实测关键路径(39 级 free_list→busy_table→issue_queue 单拍链)建立规范,
   分 A(CPI-中性组合重构,可验)/B(流水化,需 P&R)两路,B 暂缓。
