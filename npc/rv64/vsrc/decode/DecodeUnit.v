@@ -18,30 +18,36 @@ module DecodeUnit (
   assign rs2_idx_o = inst_i[24:20];
   assign rd_idx_o = inst_i[11:7];
 
-  function is_zb_op_imm;
-    input [2:0] funct3;
-    input [6:0] funct7;
-    input [4:0] imm5;
+  // 大型 case-based Zb 分类器组合块结果(供下方显式 decode always 块的 if 使用)
+  reg is_zb_op_imm_w, is_zb_op_w;
+  always @(*) begin : is_zb_op_imm_blk
+    reg [2:0] funct3;
+    reg [6:0] funct7;
+    reg [4:0] imm5;
     begin
-      is_zb_op_imm = 1'b0;
+      funct3 = funct3_w;
+      funct7 = funct7_w;
+      imm5 = inst_i[24:20];
+      is_zb_op_imm_w = 0;
+      is_zb_op_imm_w = 1'b0;
       if (funct3 == `FUNCT3_SLL) begin
         case (funct7[6:1])
           6'h0a,
           6'h12,
-          6'h1a: is_zb_op_imm = 1'b1;
+          6'h1a: is_zb_op_imm_w = 1'b1;
           default: begin end
         endcase
         case (funct7)
           7'h14,
           7'h24,
-          7'h34: is_zb_op_imm = 1'b1;
+          7'h34: is_zb_op_imm_w = 1'b1;
           7'h30: begin
             case (imm5)
               5'h00,
               5'h01,
               5'h02,
               5'h04,
-              5'h05: is_zb_op_imm = 1'b1;
+              5'h05: is_zb_op_imm_w = 1'b1;
               default: begin end
             endcase
           end
@@ -50,20 +56,20 @@ module DecodeUnit (
       end else if (funct3 == `FUNCT3_SRL_SRA) begin
         case (funct7[6:1])
           6'h18,
-          6'h12: is_zb_op_imm = 1'b1;
+          6'h12: is_zb_op_imm_w = 1'b1;
           default: begin end
         endcase
         case (funct7)
           7'h30,
-          7'h24: is_zb_op_imm = 1'b1;
-          7'h14: is_zb_op_imm = (imm5 == 5'h07);
+          7'h24: is_zb_op_imm_w = 1'b1;
+          7'h14: is_zb_op_imm_w = (imm5 == 5'h07);
           7'h34,
-          7'h35: is_zb_op_imm = (imm5 == 5'h18);
+          7'h35: is_zb_op_imm_w = (imm5 == 5'h18);
           default: begin end
         endcase
       end
     end
-  endfunction
+  end
 
   function is_zba_op_imm_32;
     input [2:0] funct3;
@@ -94,12 +100,16 @@ module DecodeUnit (
     end
   endfunction
 
-  function is_zb_op;
-    input [2:0] funct3;
-    input [6:0] funct7;
-    input [4:0] rs2_idx;
+  always @(*) begin : is_zb_op_blk
+    reg [2:0] funct3;
+    reg [6:0] funct7;
+    reg [4:0] rs2_idx;
     begin
-      is_zb_op = 1'b0;
+      funct3 = funct3_w;
+      funct7 = funct7_w;
+      rs2_idx = inst_i[24:20];
+      is_zb_op_w = 0;
+      is_zb_op_w = 1'b0;
       case ({funct7, funct3})
         {7'h10, `FUNCT3_SLT},
         {7'h10, `FUNCT3_XOR},
@@ -119,12 +129,12 @@ module DecodeUnit (
         {7'h14, `FUNCT3_SLL},
         {7'h24, `FUNCT3_SLL},
         {7'h24, `FUNCT3_SRL_SRA},
-        {7'h34, `FUNCT3_SLL}: is_zb_op = 1'b1;
-        {7'h04, `FUNCT3_XOR}: is_zb_op = (rs2_idx == {`REG_ADDR_W{1'b0}});
+        {7'h34, `FUNCT3_SLL}: is_zb_op_w = 1'b1;
+        {7'h04, `FUNCT3_XOR}: is_zb_op_w = (rs2_idx == {`REG_ADDR_W{1'b0}});
         default: begin end
       endcase
     end
-  endfunction
+  end
 
   function is_zb_op_32;
     input [2:0] funct3;
@@ -470,7 +480,7 @@ module DecodeUnit (
           end
         endcase
 
-        if (is_zb_op_imm(funct3_w, funct7_w, inst_i[24:20])) begin
+        if (is_zb_op_imm_w) begin
           ctrl_o[`CTRL_ILLEGAL_BIT] = 1'b0;
           ctrl_o[`CTRL_BITMANIP_BIT] = 1'b1;
         end
@@ -622,7 +632,7 @@ module DecodeUnit (
           end
         endcase
 
-        if (is_zb_op(funct3_w, funct7_w, rs2_idx_o)) begin
+        if (is_zb_op_w) begin
           ctrl_o[`CTRL_ILLEGAL_BIT] = 1'b0;
           ctrl_o[`CTRL_BITMANIP_BIT] = 1'b1;
         end
