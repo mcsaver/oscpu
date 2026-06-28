@@ -829,9 +829,13 @@ module OooIntBackend #(
       (wb_free_count_w > {1'b0, mem_rsp_wants_w});
   wire mem_rsp_fire_w = mem_rsp_valid_i && mem_rsp_ready_o;
   wire mem1_rsp_fire_w = mem1_rsp_valid_i && mem1_rsp_ready_o;
+  // AMO#2: 读阶段若 fault(error/page_fault),不得进入写阶段(否则病态 PMP W&!R 下会静默错写 +
+  // rd 垃圾 + 无异常)。fault 时 mem_amo_read_rsp_w=0 → 走 mem_rsp_final_fire_w 经 mem_rsp_wb_cause_w
+  // 报 LOAD fault(对齐 NEMU "AMO 先 Mr→Load fault"),且不写内存。常态(无 fault)行为不变。
   wire mem_amo_read_rsp_w =
       mem_rsp_fire_w && mem_amo_q && !mem_amo_lr_q && !mem_amo_sc_q &&
-      !mem_amo_write_phase_q;
+      !mem_amo_write_phase_q &&
+      !mem_rsp_error_i && !mem_rsp_page_fault_i;
   wire mem_rsp_final_fire_w = mem_rsp_fire_w && !mem_amo_read_rsp_w;
   wire mem_request_slot_open_w = !mem_pending_q || mem_rsp_final_fire_w;
   wire mem1_request_slot_open_w = !mem1_pending_q || mem1_rsp_fire_w;
