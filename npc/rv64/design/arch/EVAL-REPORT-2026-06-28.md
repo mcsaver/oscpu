@@ -119,3 +119,36 @@ PTW 交织仲裁,即对已绿的桥大规模重写。当前测试集多 dcache �
 RDN零符号/Inf0-DZ/fclass-box、AMO LR非对齐cause/读fault进写-安全;仅 FMA 双舍入待重写)、评估系统经 level-2
 元评估加固、唯一 Fmax 封顶项量化。本会话不仅完成性能优化平台期表征,更通过系统性对抗审查实质提升了核的
 **正确性与安全性**(尤其 S-mode/Linux 上线相关的中断交付)。`ai` 分支,工作树干净,所有改动验证全绿。
+
+## 11. 续(2026-06-29):FP#2 修复 + RTL 写作规范固化 + function→always@* 全核重构
+
+报告初版后,完成两件大事(均 `ai` 分支,逐刀验证全绿):
+
+### 11.1 FP#2(FMA 双舍入)已修复 — FP 6 个 spec bug 全清
+旧 `fp_fma_value`=round(round(a*b)+c) 双舍入(≤1 ULP),违反 IEEE-754 FMA 单舍入。**已实施真 fused**:
+精确宽积(106/48-bit)与 addend 在 128-bit 定点场 anchor-at-larger 对齐(较小操作数 shift-right-jam 入
+sticky)→ 宽加/减 → 128-bit LZC 规格化 → **单次舍入**;新增 `fp_shift_right_jam_128`(OooFpRound.v)。
+**验证 bit-exact**:rv64uf/ud-p-fmadd 官方金标(结果+fflags)+ 4000 迭代随机有限操作数 difftest 对 NEMU
+softfloat fused 逐指令全匹配 + 全 gate 绿。**关键 enabler**:发现 NEMU 有 F/D(Kconfig)但 difftest 参考默认关,
+启用 `CONFIG_RISCV_EXT_F/D` 即解锁 FP-difftest(硬件 FP 结果经 fmv.x.d 进 GPR,现有 GPR-difftest 对照
+NEMU softfloat;限有限非-NaN 操作数,因 NEMU 传播非规范 NaN payload)。
+
+### 11.2 RTL 写作规范固化 + function→always@* 全核重构(用户指令)
+**规范**(`.github/instructions/rtl-generation-workflow.instructions.md`):写码前先出 9 要素 RTL 拓扑并自审;
+按硬件结构写(显式 always_ff/always_comb 边界、function 仅小型纯组合 helper、状态/仲裁/valid-ready/ROB-LSQ/
+issue-select/FSM 禁入 function、for-loop 注明硬件、共享资源显式 mux+enable、注明 critical path);**可综合硬件写
+`.v`、`.sv` 仅验证**。**关键工具链约束(实测固化)**:iverilog 12.0 对 **`always_comb` 关键字**内变量常量位选
+静默错仿真(全核 build Error 10),而 `always @(*)`/`always @(posedge clk)` 正确——故可综合 .v 统一用
+Verilog-2001 always 关键字。加可执行 gate `make check-rtl-style`。
+
+**重构(14 文件,经全扫描可证完整)**:把"大型单次使用、构成模块主 datapath/分类器"的纯组合 function
+转为显式 `always @(*)` 块(嵌套-begin 法,datapath body 逐字保留,入口端口别名 + 中间量默认值防锁存,
+输出显式 mux):FP 执行 6(arith/classify/sgnj/compare/convert/longop)+ 整数执行 3(amo/bitmanip/muldiv)+
+解码 2(RvcDecompressor/DecodeUnit Zb)+ CsrFile decode + AxiLitePlic 读 decode + PmpChecker 死代码清理。
+**保留**(规范允许):小型 helper、多站点复用纯组合 helper、显式 always 控制/select/loop 所调用的纯组合谓词、
+组合 primitive(lzc/popcount/rotate)。**关键**:issue/select 仲裁(IQ 优先扫描)、PMP-match(for-loop)、decode
+译码本就在显式 always@* 中,非封进 function。全扫描确认无遗漏的大型单次 datapath/分类器 function。
+
+**验证**:每文件 check-rtl-style + Verilator lint 0 + **iverilog 模块 TB 112/112** + riscv-tests(FP 47/整数 261/
+压缩/Zb 195/特权)+ AM 57 + difftest 对 NEMU bit-exact;**CPI 1.3386 全程零变化**(纯容器变换)。本轮 17 提交
+(e2147b5→1dea507)。至此核内全部 datapath/控制/select 已显式 always@*,function 仅余合规小/复用 helper 与谓词。
