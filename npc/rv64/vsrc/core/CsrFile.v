@@ -301,9 +301,13 @@ module CsrFile (
     end
   endfunction
 
-  function csr_writable;
-    input [11:0] csr_addr;
+  // CSR 合法性 decode 由下方两个 always @(*) 组合块算出(纯组合)
+  reg csr_known_r, csr_writable_r;
+  always @(*) begin : csr_writable_blk
+    reg [11:0] csr_addr;
     begin
+      csr_addr = csr_addr_i;
+      csr_writable_r = 0;
       case (csr_addr)
         `CSR_FFLAGS,
         `CSR_FRM,
@@ -341,16 +345,18 @@ module CsrFile (
         `CSR_TSELECT,
         `CSR_TDATA1,
         `CSR_TDATA2,
-        `CSR_TCONTROL: csr_writable = 1'b1;
-        default:      csr_writable = csr_pmpcfg_known(csr_addr) ||
+        `CSR_TCONTROL: csr_writable_r = 1'b1;
+        default:      csr_writable_r = csr_pmpcfg_known(csr_addr) ||
                                       csr_pmpaddr_known(csr_addr);
       endcase
     end
-  endfunction
+  end
 
-  function csr_known;
-    input [11:0] csr_addr;
+  always @(*) begin : csr_known_blk
+    reg [11:0] csr_addr;
     begin
+      csr_addr = csr_addr_i;
+      csr_known_r = 0;
       case (csr_addr)
         `CSR_FFLAGS,
         `CSR_FRM,
@@ -398,12 +404,12 @@ module CsrFile (
         `CSR_CYCLEH,
         `CSR_TIMEH,
         `CSR_INSTRETH,
-        `CSR_MHARTID: csr_known = 1'b1;
-        default:      csr_known = csr_pmpcfg_known(csr_addr) ||
+        `CSR_MHARTID: csr_known_r = 1'b1;
+        default:      csr_known_r = csr_pmpcfg_known(csr_addr) ||
                                   csr_pmpaddr_known(csr_addr);
       endcase
     end
-  endfunction
+  end
 
   function [`XLEN-1:0] sanitize_satp;
     input [`XLEN-1:0] value;
@@ -601,11 +607,11 @@ module CsrFile (
       (csr_addr_i == `CSR_INSTRETH) ? {{(`XLEN-32){1'b0}}, csr_minstret_q[63:32]} :
       (csr_addr_i == `CSR_MHARTID)  ? {`XLEN{1'b0}} :
                                       {`XLEN{1'b0}};
-  assign csr_illegal_o = csr_valid_i && (~csr_known(csr_addr_i) ||
+  assign csr_illegal_o = csr_valid_i && (~csr_known_r ||
                                          ~csr_priv_ok_w ||
                                          csr_satp_tvm_illegal_w ||
                                          ~csr_counter_allowed_w ||
-                                         (csr_need_write_w && ~csr_writable(csr_addr_i)));
+                                         (csr_need_write_w && ~csr_writable_r));
   assign trap_target_o = trap_to_s_w ? {csr_stvec_q[`XLEN-1:2], 2'b00} :
                                       {csr_mtvec_q[`XLEN-1:2], 2'b00};
   assign mepc_o = csr_mepc_q;
