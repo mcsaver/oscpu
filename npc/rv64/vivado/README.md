@@ -55,3 +55,9 @@ OOC 综合**未布局布线**，`report_timing` 的 **route 延迟是极悲观�
 首轮普查 logic 维度结论：`OooDispatchBackend` 最深(42 逻辑级/logic ~8.3ns,free_list count→IQ ctrl
 的 rename/分配链)、`OooMulDivUnit` logic ~8.65ns(radix-4 商位选择)。真实 Fmax 需 place/route
 (内存更重,WSL 风险);先用 logic-levels 做相对优化目标。
+
+## 内存看门狗(防崩溃,已内置)
+`run-synth-module.sh` 后台跑 vivado + 监控可用内存,低于 `MEM_FLOOR_MB`(默认 2500)即强杀
+vivado 保护 WSL。经验:即便按模块,最大的几个模块(OooMemAxiBridge/OooFpArithGate 等 PMP×TLB×cache
+或宽 FP 数据通路)OOC 综合仍会把可用内存压到 <4GB;看门狗确保宁可放弃该模块结果也不崩整机。
+大模块可单独 `MEM_FLOOR_MB=1500 run-synth-module.sh <Mod>` 或在内存空时单跑。
