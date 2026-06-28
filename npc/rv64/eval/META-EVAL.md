@@ -84,3 +84,5 @@ OooCoreTopGlue→NpcCoreTop→NpcTop→cpu-exec commit event)+ `difftest.cpp` Di
 **NEMU regcpy ABI 加 fpr**(触碰敏感的 gpr/pc/fpr ABI——difftest 恢复史正卡于此)。**因触碰敏感 difftest ABI,
 评估为需专注新会话**(配 Berkeley TestFloat 向量),非极深会话低风险小修。届时 FPR-difftest 就位后,
 FP#2(FMA fused 重写)可逐位验证再实施。
+
+**[2026-06-28 实测确认 FP 验证的根障碍]**:尝试"硬件 FP 结果经 fmv.x.d 进 GPR→现有 GPR-difftest 对照 NEMU"的轻量路径,实测 difftest 在第一条 FP 指令即 control-flow mismatch(NEMU ref pc→0=trap)。根因:**NEMU 参考 misa=B,C,I,M,S,U 无 F/D**(见 §7 misa-priv),NEMU 把 FP 指令当非法 trap、根本不执行 FP。故**任何 FP-difftest(GPR 或 FPR 路径)都先需 NEMU 重配 F/D 支持**(misa 加 F/D + 启用 softfloat FP 执行 + 不 trap FP),这是 FP 验证使能器的**前置硬障碍**,必须新会话处理。当前 FP 验证仍靠 riscv-tests rv64uf/ud(NEMU 编译这些时另配?实际 rv64uf/ud 通过说明核 FP 至少过官方静态-rm 向量)+ 13 项硬件 FP ASM smoke(逐值,不依赖 NEMU)。
