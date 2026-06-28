@@ -165,9 +165,12 @@ typedef struct {
 } riscv64_CSR_state;
 
 typedef struct {
+  // pc 必须紧跟 gpr[32]：difftest 的 DIFFTEST_REG_SIZE=(GPR_NUM+1) words 假设 gpr+pc 连续。
+  // 原布局 fpr[32] 夹在 gpr 与 pc 之间,使 regcpy 把 fpr[0] 当成 pc 同步,导致 DUT 读到的
+  // ref.pc 恒为 fpr[0](init 时被写入 reset pc 后不变)→ difftest 首指令即 PC 不匹配。
   word_t gpr[32];
-  uint64_t fpr[32];
   vaddr_t pc;
+  uint64_t fpr[32];
   riscv64_CSR_state csr;
   uint8_t priv;
 } riscv64_CPU_state;
