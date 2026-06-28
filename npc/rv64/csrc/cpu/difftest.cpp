@@ -147,8 +147,27 @@ bool npc_difftest_step(npc_word_t pc, uint32_t inst, npc_word_t next_pc,
     return true;
   }
 
-  DiffContext ref = {};
+  // 比较模式：步进前比对"指令自身 PC"(committed pc),步进后比 GPR。
+  // 不比对 commit 上报的 next_pc——OoO 的 ROB 存 dispatch 时的【预测】next_pc,误预测分支
+  // 解析为 taken 后该字段不更新(核实际已取 target),直接比 next_pc 会误报;改用"committed pc
+  // == ref 步进前 pc"校验控制流(下一条 committed pc 即上一条的真实 next_pc),等价且正确。
+  DiffContext ref_pre = {};
+  g_ref_regcpy(&ref_pre, DIFFTEST_TO_DUT);
+  if (ref_pre.pc != pc) {
+    LogBoth("[npc-diff] control-flow mismatch: dut commit pc=0x%016" NPC_PRIxWORD
+            " inst=0x%08x, ref expects pc=0x%016" NPC_PRIxWORD, pc, inst, ref_pre.pc);
+    return false;
+  }
   g_ref_exec(1);
+  DiffContext ref = {};
   g_ref_regcpy(&ref, DIFFTEST_TO_DUT);
-  return compare_context(&ref, &dut, pc, inst);
+  for (int i = 0; i < 32; ++i) {
+    if (ref.gpr[i] != dut.gpr[i]) {
+      LogBoth("[npc-diff] mismatch at dut commit pc=0x%016" NPC_PRIxWORD " inst=0x%08x", pc, inst);
+      LogBoth("[npc-diff] x%d ref=0x%016" NPC_PRIxWORD " dut=0x%016" NPC_PRIxWORD,
+              i, ref.gpr[i], dut.gpr[i]);
+      return false;
+    }
+  }
+  return true;
 }
