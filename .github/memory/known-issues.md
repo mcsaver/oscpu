@@ -1145,7 +1145,11 @@
   173 级 / 36.5ns / 105 CARRY4。**fusion 使 FMA +14% 级 / +12% 延迟**——单舍入需更宽数据通路(128b 对齐
   barrel + 128b LZC + 规格化 barrel,而旧只 56b 对齐)的固有代价。但 **FMA 本就是最深路径(152 级),非
   fusion 新引入**;fusion 是正确性必需(修 FP#2 IEEE-754 违规),时序代价 modest。
-- **推荐(设计级,非本会话做)**: 把 FP arith(尤其 FMA)从单周期组合**流水化为 2-3 级**(如 乘法段 /
+- **完整 FP-op 时序画像(2026-06-29 per-output OOC)**: 对 OooFpArithGate 各输出分别约束实测——
+  **FADD/FSUB=69 级/11.3ns、FMUL=91 级/22.7ns、FMADD=173 级/36.5ns**(logic-only)。**全部单周期 FP arith
+  都深于 dispatch(39/7.95ns)**:FADD 1.4×、FMUL 2.9×、FMA 4.6×。即整个 OooFpArithGate datapath 都是 Fmax
+  瓶颈,非仅 FMA。流水化需覆盖全 FP arith:FMA ~3-4 级、FMUL ~2-3 级、FADD ~2 级。
+- **推荐(设计级,非本会话做)**: 把 FP arith(全 OooFpArithGate,FMA 最需)从单周期组合**流水化为 2-3 级**(如 乘法段 /
   对齐+宽加段 / 规格化+舍入段),可把 FP 关键路径降到 dispatch 量级(~8-12ns),恢复 Fmax 到 ~100MHz+。
   需在 OooPendingFpSequencer 加 FP-arith 多周期 done 时序(类似 div/sqrt 的 long 路径但固定 2-3 拍),
   difftest + rv64uf/ud + FP smoke 护航。这是项目时序优化的**真正高优先级下一步**(此前 dispatch-bypass
