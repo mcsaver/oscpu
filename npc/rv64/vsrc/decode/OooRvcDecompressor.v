@@ -4,7 +4,7 @@
 // 单独成模块后，RVC 指令表可以脱离 core glue 做审计和后续覆盖补强。
 module OooRvcDecompressor (
   input [15:0] inst_i,
-  output [`INST_W-1:0] inst_o
+  output reg [`INST_W-1:0] inst_o
 );
 
   // Helper inputs are sliced to the RVC fields they really encode, so
@@ -221,8 +221,8 @@ module OooRvcDecompressor (
     end
   endfunction
 
-  function [`INST_W-1:0] decompress_rvc;
-    input [15:0] inst;
+  always @(*) begin : decompress_rvc_blk
+    reg [15:0] inst;
     reg [`XLEN-1:0] imm;
     reg [4:0] rd;
     reg [4:0] rs2;
@@ -230,7 +230,15 @@ module OooRvcDecompressor (
     reg [4:0] rs2p;
     reg [5:0] shamt;
     begin
-      decompress_rvc = 32'h0000_0000;
+      inst = inst_i;
+      imm = 0;
+      rd = 0;
+      rs2 = 0;
+      rs1p = 0;
+      rs2p = 0;
+      shamt = 0;
+      inst_o = 0;
+      inst_o = 32'h0000_0000;
       rd = inst[11:7];
       rs2 = inst[6:2];
       rs1p = rvc_rs1p(inst[9:7]);
@@ -244,41 +252,41 @@ module OooRvcDecompressor (
               imm = rvc_imm_addi4spn(inst[10:7], inst[12:11],
                                       inst[5], inst[6]);
               if (imm != {`XLEN{1'b0}})
-                decompress_rvc =
+                inst_o =
                     enc_i(imm[11:0], 5'd2, `FUNCT3_ADD_SUB,
                           rvc_rdp(inst[4:2]), `OPCODE_OP_IMM);
             end
             3'b001: begin
               imm = rvc_imm_ld_sd(inst[6:5], inst[12:10]);
-              decompress_rvc =
+              inst_o =
                   enc_i(imm[11:0], rs1p, `FUNCT3_LD,
                         rvc_rdp(inst[4:2]), `OPCODE_LOAD_FP);
             end
             3'b010: begin
               imm = rvc_imm_lw_sw(inst[5], inst[12:10], inst[6]);
-              decompress_rvc =
+              inst_o =
                   enc_i(imm[11:0], rs1p, `FUNCT3_LW,
                         rvc_rdp(inst[4:2]), `OPCODE_LOAD);
             end
             3'b011: begin
               imm = rvc_imm_ld_sd(inst[6:5], inst[12:10]);
-              decompress_rvc =
+              inst_o =
                   enc_i(imm[11:0], rs1p, `FUNCT3_LD,
                         rvc_rdp(inst[4:2]), `OPCODE_LOAD);
             end
             3'b101: begin
               imm = rvc_imm_ld_sd(inst[6:5], inst[12:10]);
-              decompress_rvc =
+              inst_o =
                   enc_s_op(imm[11:0], rs2p, rs1p, `FUNCT3_SD,
                            `OPCODE_STORE_FP);
             end
             3'b110: begin
               imm = rvc_imm_lw_sw(inst[5], inst[12:10], inst[6]);
-              decompress_rvc = enc_s(imm[11:0], rs2p, rs1p, `FUNCT3_SW);
+              inst_o = enc_s(imm[11:0], rs2p, rs1p, `FUNCT3_SW);
             end
             3'b111: begin
               imm = rvc_imm_ld_sd(inst[6:5], inst[12:10]);
-              decompress_rvc = enc_s(imm[11:0], rs2p, rs1p, `FUNCT3_SD);
+              inst_o = enc_s(imm[11:0], rs2p, rs1p, `FUNCT3_SD);
             end
             default: begin end
           endcase
@@ -288,20 +296,20 @@ module OooRvcDecompressor (
           case (inst[15:13])
             3'b000: begin
               imm = rvc_imm_6(inst[12], inst[6:2]);
-              decompress_rvc =
+              inst_o =
                   enc_i(imm[11:0], rd, `FUNCT3_ADD_SUB, rd,
                         `OPCODE_OP_IMM);
             end
             3'b001: begin
               imm = rvc_imm_6(inst[12], inst[6:2]);
               if (rd != 5'd0)
-                decompress_rvc =
+                inst_o =
                     enc_i(imm[11:0], rd, `FUNCT3_ADD_SUB, rd,
                           `OPCODE_OP_IMM_32);
             end
             3'b010: begin
               imm = rvc_imm_6(inst[12], inst[6:2]);
-              decompress_rvc =
+              inst_o =
                   enc_i(imm[11:0], 5'd0, `FUNCT3_ADD_SUB, rd,
                         `OPCODE_OP_IMM);
             end
@@ -310,56 +318,56 @@ module OooRvcDecompressor (
                 imm = rvc_imm_addi16sp(inst[12], inst[4:3],
                                         inst[5], inst[2], inst[6]);
                 if (imm != {`XLEN{1'b0}})
-                  decompress_rvc =
+                  inst_o =
                       enc_i(imm[11:0], 5'd2, `FUNCT3_ADD_SUB, 5'd2,
                             `OPCODE_OP_IMM);
               end else begin
                 imm = rvc_imm_6(inst[12], inst[6:2]);
                 if ((rd != 5'd0) && (imm != {`XLEN{1'b0}}))
-                  decompress_rvc = enc_u(imm[19:0], rd, `OPCODE_LUI);
+                  inst_o = enc_u(imm[19:0], rd, `OPCODE_LUI);
               end
             end
             3'b100: begin
               case (inst[11:10])
                 2'b00: begin
-                  decompress_rvc =
+                  inst_o =
                       enc_i({6'b000000, shamt}, rs1p,
                             `FUNCT3_SRL_SRA, rs1p, `OPCODE_OP_IMM);
                 end
                 2'b01: begin
-                  decompress_rvc =
+                  inst_o =
                       enc_i({6'b010000, shamt}, rs1p,
                             `FUNCT3_SRL_SRA, rs1p, `OPCODE_OP_IMM);
                 end
                 2'b10: begin
                   imm = rvc_imm_6(inst[12], inst[6:2]);
-                  decompress_rvc =
+                  inst_o =
                       enc_i(imm[11:0], rs1p, `FUNCT3_AND, rs1p,
                             `OPCODE_OP_IMM);
                 end
                 2'b11: begin
                   if (inst[12] == 1'b0) begin
                     case (inst[6:5])
-                      2'b00: decompress_rvc =
+                      2'b00: inst_o =
                           enc_r(`FUNCT7_ALT, rs2p, rs1p, `FUNCT3_ADD_SUB,
                                 rs1p, `OPCODE_OP);
-                      2'b01: decompress_rvc =
+                      2'b01: inst_o =
                           enc_r(`FUNCT7_STD, rs2p, rs1p, `FUNCT3_XOR,
                                 rs1p, `OPCODE_OP);
-                      2'b10: decompress_rvc =
+                      2'b10: inst_o =
                           enc_r(`FUNCT7_STD, rs2p, rs1p, `FUNCT3_OR,
                                 rs1p, `OPCODE_OP);
-                      2'b11: decompress_rvc =
+                      2'b11: inst_o =
                           enc_r(`FUNCT7_STD, rs2p, rs1p, `FUNCT3_AND,
                                 rs1p, `OPCODE_OP);
                       default: begin end
                     endcase
                   end else begin
                     case (inst[6:5])
-                      2'b00: decompress_rvc =
+                      2'b00: inst_o =
                           enc_r(`FUNCT7_ALT, rs2p, rs1p, `FUNCT3_ADD_SUB,
                                 rs1p, `OPCODE_OP_32);
-                      2'b01: decompress_rvc =
+                      2'b01: inst_o =
                           enc_r(`FUNCT7_STD, rs2p, rs1p, `FUNCT3_ADD_SUB,
                                 rs1p, `OPCODE_OP_32);
                       default: begin end
@@ -373,17 +381,17 @@ module OooRvcDecompressor (
               imm = rvc_imm_j(inst[12], inst[8], inst[10:9],
                               inst[6], inst[7], inst[2],
                               inst[11], inst[5:3]);
-              decompress_rvc = enc_j(imm[20:1], 5'd0);
+              inst_o = enc_j(imm[20:1], 5'd0);
             end
             3'b110: begin
               imm = rvc_imm_b(inst[12], inst[6:5], inst[2],
                               inst[11:10], inst[4:3]);
-              decompress_rvc = enc_b(imm[12:1], 5'd0, rs1p, `FUNCT3_BEQ);
+              inst_o = enc_b(imm[12:1], 5'd0, rs1p, `FUNCT3_BEQ);
             end
             3'b111: begin
               imm = rvc_imm_b(inst[12], inst[6:5], inst[2],
                               inst[11:10], inst[4:3]);
-              decompress_rvc = enc_b(imm[12:1], 5'd0, rs1p, `FUNCT3_BNE);
+              inst_o = enc_b(imm[12:1], 5'd0, rs1p, `FUNCT3_BNE);
             end
             default: begin end
           endcase
@@ -392,53 +400,53 @@ module OooRvcDecompressor (
         2'b10: begin
           case (inst[15:13])
             3'b000: begin
-              decompress_rvc =
+              inst_o =
                   enc_i({6'b000000, shamt}, rd, `FUNCT3_SLL, rd,
                         `OPCODE_OP_IMM);
             end
             3'b001: begin
               imm = rvc_imm_ldsp(inst[4:2], inst[12], inst[6:5]);
               if (rd != 5'd0)
-                decompress_rvc =
+                inst_o =
                     enc_i(imm[11:0], 5'd2, `FUNCT3_LD, rd,
                           `OPCODE_LOAD_FP);
             end
             3'b010: begin
               imm = rvc_imm_lwsp(inst[3:2], inst[12], inst[6:4]);
               if (rd != 5'd0)
-                decompress_rvc =
+                inst_o =
                     enc_i(imm[11:0], 5'd2, `FUNCT3_LW, rd, `OPCODE_LOAD);
             end
             3'b011: begin
               imm = rvc_imm_ldsp(inst[4:2], inst[12], inst[6:5]);
               if (rd != 5'd0)
-                decompress_rvc =
+                inst_o =
                     enc_i(imm[11:0], 5'd2, `FUNCT3_LD, rd, `OPCODE_LOAD);
             end
             3'b100: begin
               if (inst[12] == 1'b0) begin
                 if (rs2 == 5'd0) begin
                   if (rd != 5'd0)
-                    decompress_rvc =
+                    inst_o =
                         enc_i(12'h000, rd, `FUNCT3_ADD_SUB, 5'd0,
                               `OPCODE_JALR);
                 end else begin
-                  decompress_rvc =
+                  inst_o =
                       enc_r(`FUNCT7_STD, rs2, 5'd0, `FUNCT3_ADD_SUB, rd,
                             `OPCODE_OP);
                 end
               end else begin
                 if (rs2 == 5'd0) begin
                   if (rd == 5'd0)
-                    decompress_rvc =
+                    inst_o =
                         {12'h001, 5'd0, `FUNCT3_ADD_SUB, 5'd0,
                          `OPCODE_SYSTEM};
                   else
-                    decompress_rvc =
+                    inst_o =
                         enc_i(12'h000, rd, `FUNCT3_ADD_SUB, 5'd1,
                               `OPCODE_JALR);
                 end else begin
-                  decompress_rvc =
+                  inst_o =
                       enc_r(`FUNCT7_STD, rs2, rd, `FUNCT3_ADD_SUB, rd,
                             `OPCODE_OP);
                 end
@@ -446,17 +454,17 @@ module OooRvcDecompressor (
             end
             3'b101: begin
               imm = rvc_imm_sdsp(inst[9:7], inst[12:10]);
-              decompress_rvc =
+              inst_o =
                   enc_s_op(imm[11:0], rs2, 5'd2, `FUNCT3_SD,
                            `OPCODE_STORE_FP);
             end
             3'b110: begin
               imm = rvc_imm_swsp(inst[8:7], inst[12:9]);
-              decompress_rvc = enc_s(imm[11:0], rs2, 5'd2, `FUNCT3_SW);
+              inst_o = enc_s(imm[11:0], rs2, 5'd2, `FUNCT3_SW);
             end
             3'b111: begin
               imm = rvc_imm_sdsp(inst[9:7], inst[12:10]);
-              decompress_rvc = enc_s(imm[11:0], rs2, 5'd2, `FUNCT3_SD);
+              inst_o = enc_s(imm[11:0], rs2, 5'd2, `FUNCT3_SD);
             end
             default: begin end
           endcase
@@ -465,8 +473,7 @@ module OooRvcDecompressor (
         default: begin end
       endcase
     end
-  endfunction
+  end
 
-  assign inst_o = decompress_rvc(inst_i);
 
 endmodule
