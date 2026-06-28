@@ -1662,7 +1662,8 @@ module OooIntBackend #(
         ex0_pdest_q <= issue0_pdest_w;
         ex0_result_q <= {`XLEN{1'b0}};
         ex0_exception_q <= 1'b1;
-        ex0_cause_q <= (issue0_is_load_w && !issue0_is_amo_w) ?
+        // AMO/SC 非对齐报 Store/AMO,但 LR 非对齐报 Load(NEMU 金标:funct5==LR→LOAD_MISALIGN)。
+        ex0_cause_q <= ((issue0_is_load_w && !issue0_is_amo_w) || issue0_is_lr_w) ?
                        `EXC_LOAD_ADDR_MISALIGN :
                        `EXC_STORE_ADDR_MISALIGN;
         ex0_tval_q <= issue0_alu_result_w;
@@ -1686,7 +1687,7 @@ module OooIntBackend #(
                          {{(`XLEN-1){1'b0}}, 1'b1} : issue1_wb_data_w);
         ex1_exception_q <= issue1_mem_exception_w;
         ex1_cause_q <= issue1_mem_exception_w ?
-                       ((issue1_is_load_w && !issue1_is_amo_w) ?
+                       (((issue1_is_load_w && !issue1_is_amo_w) || issue1_is_lr_w) ?
                         `EXC_LOAD_ADDR_MISALIGN :
                         `EXC_STORE_ADDR_MISALIGN) :
                        {`TRAP_CAUSE_W{1'b0}};
