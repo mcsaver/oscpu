@@ -41,6 +41,12 @@ eval/results/<时间戳>[-tag]/
 - 每轮分析三类代表样本（highest/lowest CPI）+ top cycles 贡献，定位下一瓶颈；不只看 `add`。
 - 负优化（无改善或微升）必须撤回，原因写入 task-run/记忆。
 
+## 可选观测：分支预测率 / cache 命中率
+默认(perf)配置不挂这些观测钩子，故 eval 输出里 `branch accuracy 0/0`、`dcache access=0`
+属**预期**(非 bug)，不影响 cycles/CPI 这一核心指标。需要深入分支/cache 分析时，用带
+`CONFIG_NPC_BRANCH_STATS` 的分析版构建后再跑 eval；RTL cache 事件统计需在 NpcSimTop.sv
+用层次化引用采样(已知 TODO)。日常优化以 cycles/CPI 为准即可。
+
 ## 关于 difftest
 当前环境 NEMU 因 `vga.o` 警告当错误无法构建，difftest 暂不可用。涉及访存顺序 / response
 ownership 等高风险改动前，应先恢复 difftest 作参考模型（见 `design/arch/ROADMAP.md`）。
