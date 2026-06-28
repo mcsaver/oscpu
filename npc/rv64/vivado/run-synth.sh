@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Vivado OOC 综合驱动：从 Makefile 取核 RTL 清单，调 vivado 批处理跑 synth.tcl(8 核)。
+# 用法: vivado/run-synth.sh [PERIOD_ns] [PART]
+#   PERIOD 默认 2.0ns(激进,逼出关键路径)；PART 默认 xc7a100tcsg324-1(ysyx Nexys)。
+# 产物落 vivado/out/<时间戳>/，不入 git(见 .gitignore)。
+set -uo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+NPC_RV64="$(cd "$HERE/.." && pwd)"
+VIVADO="${VIVADO:-/home/lyg/AMD/2025.2/2025.2/Vivado/bin/vivado}"
+PERIOD="${1:-2.0}"
+PART="${2:-xc7a100tcsg324-1}"
+TS="$(date +%Y%m%d-%H%M%S)"
+OUT="$HERE/out/$TS"
+mkdir -p "$OUT"
+
+# 从 Makefile 导出核 RTL 清单与 include 目录(单一真源,避免重复维护)
+RTL=$(make -C "$NPC_RV64" -p 2>/dev/null | grep -E '^RTL_CORE_SRCS :?=' | head -1 | sed 's/^RTL_CORE_SRCS :\?= *//')
+INCDIR=$(make -C "$NPC_RV64" -p 2>/dev/null | grep -E '^RTL_INCLUDE_DIR :?=' | head -1 | sed 's/^RTL_INCLUDE_DIR :\?= *//')
+TOP=$(make -C "$NPC_RV64" -p 2>/dev/null | grep -E '^RTL_CORE_TOP :?=' | head -1 | sed 's/^RTL_CORE_TOP :\?= *//'); TOP="${TOP:-NpcTop}"
+echo "$RTL" | tr ' ' '\n' | grep -E '\.v$' > "$OUT/filelist.txt"
+echo "[run-synth] $(wc -l < "$OUT/filelist.txt") files, top=$TOP part=$PART period=${PERIOD}ns -> $OUT"
+
+cd "$OUT"
+FILELIST="$OUT/filelist.txt" INCDIR="$INCDIR" TOP="$TOP" PART="$PART" PERIOD="$PERIOD" OUTDIR="$OUT" \
+  "$VIVADO" -mode batch -nojournal -log "$OUT/vivado.log" -source "$HERE/synth.tcl" 2>&1 | tail -5
+echo "[run-synth] reports: $OUT/timing_summary.rpt, timing_paths.rpt, utilization.rpt"
+# 摘要 WNS / 关键路径起讫
+echo "=== WNS / 关键路径 ==="
+grep -E 'WNS|Slack' "$OUT/timing_summary.rpt" 2>/dev/null | head -3
+ln -sfn "$OUT" "$HERE/out/latest"
