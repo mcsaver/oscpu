@@ -1,0 +1,1 @@
+riscv-tests                  SKIP       use --fetch-riscv-tests

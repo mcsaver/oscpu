@@ -1,5 +1,5 @@
 `include "define.v"
-`include "common/OooSlotFacts.vh"
+`include "common/OooSlotFacts.v"
 
 // 双槽 fetch head 组合 owner：只收敛可见性、单槽分类实例和 lane0 dispatch facts。
 module OooFetchHeadPairGate (

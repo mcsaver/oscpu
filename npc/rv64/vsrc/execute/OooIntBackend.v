@@ -432,64 +432,9 @@ module OooIntBackend #(
     end
   endfunction
 
-  function [`XLEN-1:0] amo_old_value;
-    input [`XLEN-1:0] load_data;
-    input [1:0] size;
-    begin
-      amo_old_value = (size == `MEM_SIZE_WORD) ?
-                      sign_extend_word(load_data[31:0]) : load_data;
-    end
-  endfunction
+  // AMO 结果计算已抽到 execute/OooAmoGate.v
 
-  function [`XLEN-1:0] amo_result_value;
-    input [`INST_W-1:0] inst;
-    input [`XLEN-1:0] old_value;
-    input [`XLEN-1:0] src2;
-    input [1:0] size;
-    reg signed [31:0] old_s32;
-    reg signed [31:0] src_s32;
-    reg signed [`XLEN-1:0] old_s64;
-    reg signed [`XLEN-1:0] src_s64;
-    reg [31:0] old_u32;
-    reg [31:0] src_u32;
-    reg [31:0] result32;
-    begin
-      old_s32 = old_value[31:0];
-      src_s32 = src2[31:0];
-      old_s64 = old_value;
-      src_s64 = src2;
-      old_u32 = old_value[31:0];
-      src_u32 = src2[31:0];
-      if (size == `MEM_SIZE_WORD) begin
-        case (inst[31:27])
-          5'b00001: result32 = src2[31:0];
-          5'b00000: result32 = old_u32 + src_u32;
-          5'b00100: result32 = old_u32 ^ src_u32;
-          5'b01100: result32 = old_u32 & src_u32;
-          5'b01000: result32 = old_u32 | src_u32;
-          5'b10000: result32 = (old_s32 < src_s32) ? old_u32 : src_u32;
-          5'b10100: result32 = (old_s32 > src_s32) ? old_u32 : src_u32;
-          5'b11000: result32 = (old_u32 < src_u32) ? old_u32 : src_u32;
-          5'b11100: result32 = (old_u32 > src_u32) ? old_u32 : src_u32;
-          default:  result32 = old_u32;
-        endcase
-        amo_result_value = sign_extend_word(result32);
-      end else begin
-        case (inst[31:27])
-          5'b00001: amo_result_value = src2;
-          5'b00000: amo_result_value = old_value + src2;
-          5'b00100: amo_result_value = old_value ^ src2;
-          5'b01100: amo_result_value = old_value & src2;
-          5'b01000: amo_result_value = old_value | src2;
-          5'b10000: amo_result_value = (old_s64 < src_s64) ? old_value : src2;
-          5'b10100: amo_result_value = (old_s64 > src_s64) ? old_value : src2;
-          5'b11000: amo_result_value = (old_value < src2) ? old_value : src2;
-          5'b11100: amo_result_value = (old_value > src2) ? old_value : src2;
-          default:  amo_result_value = old_value;
-        endcase
-      end
-    end
-  endfunction
+  // AMO 结果计算已抽到 execute/OooAmoGate.v
 
   function [`XLEN-1:0] rv64_word_alu_result;
     input [3:0] alu_op;
@@ -509,318 +454,29 @@ module OooIntBackend #(
     end
   endfunction
 
-  function [3:0] bitmanip_clz8;
-    input [7:0] value;
-    begin
-      casez (value)
-        8'b1???????: bitmanip_clz8 = 4'd0;
-        8'b01??????: bitmanip_clz8 = 4'd1;
-        8'b001?????: bitmanip_clz8 = 4'd2;
-        8'b0001????: bitmanip_clz8 = 4'd3;
-        8'b00001???: bitmanip_clz8 = 4'd4;
-        8'b000001??: bitmanip_clz8 = 4'd5;
-        8'b0000001?: bitmanip_clz8 = 4'd6;
-        8'b00000001: bitmanip_clz8 = 4'd7;
-        default:     bitmanip_clz8 = 4'd8;
-      endcase
-    end
-  endfunction
+  // bitmanip 函数已抽到 execute/OooBitmanipGate.v
 
-  function [3:0] bitmanip_ctz8;
-    input [7:0] value;
-    begin
-      casez (value)
-        8'b???????1: bitmanip_ctz8 = 4'd0;
-        8'b??????10: bitmanip_ctz8 = 4'd1;
-        8'b?????100: bitmanip_ctz8 = 4'd2;
-        8'b????1000: bitmanip_ctz8 = 4'd3;
-        8'b???10000: bitmanip_ctz8 = 4'd4;
-        8'b??100000: bitmanip_ctz8 = 4'd5;
-        8'b?1000000: bitmanip_ctz8 = 4'd6;
-        8'b10000000: bitmanip_ctz8 = 4'd7;
-        default:     bitmanip_ctz8 = 4'd8;
-      endcase
-    end
-  endfunction
+  // bitmanip 函数已抽到 execute/OooBitmanipGate.v
 
-  function [3:0] bitmanip_popcount8;
-    input [7:0] value;
-    reg [1:0] pair0;
-    reg [1:0] pair1;
-    reg [1:0] pair2;
-    reg [1:0] pair3;
-    reg [2:0] nibble0;
-    reg [2:0] nibble1;
-    begin
-      pair0 = {1'b0, value[0]} + {1'b0, value[1]};
-      pair1 = {1'b0, value[2]} + {1'b0, value[3]};
-      pair2 = {1'b0, value[4]} + {1'b0, value[5]};
-      pair3 = {1'b0, value[6]} + {1'b0, value[7]};
-      nibble0 = {1'b0, pair0} + {1'b0, pair1};
-      nibble1 = {1'b0, pair2} + {1'b0, pair3};
-      bitmanip_popcount8 = {1'b0, nibble0} + {1'b0, nibble1};
-    end
-  endfunction
+  // bitmanip 函数已抽到 execute/OooBitmanipGate.v
 
-  function [6:0] bitmanip_clz64;
-    input [63:0] value;
-    begin
-      // Zbb count 类指令用 byte 级优先树表达，避免 64 次循环覆盖结果形成长组合链。
-      if (value[63:56] != 8'b0)
-        bitmanip_clz64 = {3'b000, bitmanip_clz8(value[63:56])};
-      else if (value[55:48] != 8'b0)
-        bitmanip_clz64 = 7'd8 + {3'b000, bitmanip_clz8(value[55:48])};
-      else if (value[47:40] != 8'b0)
-        bitmanip_clz64 = 7'd16 + {3'b000, bitmanip_clz8(value[47:40])};
-      else if (value[39:32] != 8'b0)
-        bitmanip_clz64 = 7'd24 + {3'b000, bitmanip_clz8(value[39:32])};
-      else if (value[31:24] != 8'b0)
-        bitmanip_clz64 = 7'd32 + {3'b000, bitmanip_clz8(value[31:24])};
-      else if (value[23:16] != 8'b0)
-        bitmanip_clz64 = 7'd40 + {3'b000, bitmanip_clz8(value[23:16])};
-      else if (value[15:8] != 8'b0)
-        bitmanip_clz64 = 7'd48 + {3'b000, bitmanip_clz8(value[15:8])};
-      else if (value[7:0] != 8'b0)
-        bitmanip_clz64 = 7'd56 + {3'b000, bitmanip_clz8(value[7:0])};
-      else
-        bitmanip_clz64 = 7'd64;
-    end
-  endfunction
+  // bitmanip 函数已抽到 execute/OooBitmanipGate.v
 
-  function [6:0] bitmanip_ctz64;
-    input [63:0] value;
-    begin
-      if (value[7:0] != 8'b0)
-        bitmanip_ctz64 = {3'b000, bitmanip_ctz8(value[7:0])};
-      else if (value[15:8] != 8'b0)
-        bitmanip_ctz64 = 7'd8 + {3'b000, bitmanip_ctz8(value[15:8])};
-      else if (value[23:16] != 8'b0)
-        bitmanip_ctz64 = 7'd16 + {3'b000, bitmanip_ctz8(value[23:16])};
-      else if (value[31:24] != 8'b0)
-        bitmanip_ctz64 = 7'd24 + {3'b000, bitmanip_ctz8(value[31:24])};
-      else if (value[39:32] != 8'b0)
-        bitmanip_ctz64 = 7'd32 + {3'b000, bitmanip_ctz8(value[39:32])};
-      else if (value[47:40] != 8'b0)
-        bitmanip_ctz64 = 7'd40 + {3'b000, bitmanip_ctz8(value[47:40])};
-      else if (value[55:48] != 8'b0)
-        bitmanip_ctz64 = 7'd48 + {3'b000, bitmanip_ctz8(value[55:48])};
-      else if (value[63:56] != 8'b0)
-        bitmanip_ctz64 = 7'd56 + {3'b000, bitmanip_ctz8(value[63:56])};
-      else
-        bitmanip_ctz64 = 7'd64;
-    end
-  endfunction
+  // bitmanip 函数已抽到 execute/OooBitmanipGate.v
 
-  function [6:0] bitmanip_cpop64;
-    input [63:0] value;
-    reg [3:0] pop0;
-    reg [3:0] pop1;
-    reg [3:0] pop2;
-    reg [3:0] pop3;
-    reg [3:0] pop4;
-    reg [3:0] pop5;
-    reg [3:0] pop6;
-    reg [3:0] pop7;
-    reg [4:0] sum01;
-    reg [4:0] sum23;
-    reg [4:0] sum45;
-    reg [4:0] sum67;
-    reg [5:0] sum0123;
-    reg [5:0] sum4567;
-    begin
-      pop0 = bitmanip_popcount8(value[7:0]);
-      pop1 = bitmanip_popcount8(value[15:8]);
-      pop2 = bitmanip_popcount8(value[23:16]);
-      pop3 = bitmanip_popcount8(value[31:24]);
-      pop4 = bitmanip_popcount8(value[39:32]);
-      pop5 = bitmanip_popcount8(value[47:40]);
-      pop6 = bitmanip_popcount8(value[55:48]);
-      pop7 = bitmanip_popcount8(value[63:56]);
-      sum01 = {1'b0, pop0} + {1'b0, pop1};
-      sum23 = {1'b0, pop2} + {1'b0, pop3};
-      sum45 = {1'b0, pop4} + {1'b0, pop5};
-      sum67 = {1'b0, pop6} + {1'b0, pop7};
-      sum0123 = {1'b0, sum01} + {1'b0, sum23};
-      sum4567 = {1'b0, sum45} + {1'b0, sum67};
-      bitmanip_cpop64 = {1'b0, sum0123} + {1'b0, sum4567};
-    end
-  endfunction
+  // bitmanip 函数已抽到 execute/OooBitmanipGate.v
 
-  function [5:0] bitmanip_clz32;
-    input [31:0] value;
-    begin
-      if (value[31:24] != 8'b0)
-        bitmanip_clz32 = {2'b00, bitmanip_clz8(value[31:24])};
-      else if (value[23:16] != 8'b0)
-        bitmanip_clz32 = 6'd8 + {2'b00, bitmanip_clz8(value[23:16])};
-      else if (value[15:8] != 8'b0)
-        bitmanip_clz32 = 6'd16 + {2'b00, bitmanip_clz8(value[15:8])};
-      else if (value[7:0] != 8'b0)
-        bitmanip_clz32 = 6'd24 + {2'b00, bitmanip_clz8(value[7:0])};
-      else
-        bitmanip_clz32 = 6'd32;
-    end
-  endfunction
+  // bitmanip 函数已抽到 execute/OooBitmanipGate.v
 
-  function [5:0] bitmanip_ctz32;
-    input [31:0] value;
-    begin
-      if (value[7:0] != 8'b0)
-        bitmanip_ctz32 = {2'b00, bitmanip_ctz8(value[7:0])};
-      else if (value[15:8] != 8'b0)
-        bitmanip_ctz32 = 6'd8 + {2'b00, bitmanip_ctz8(value[15:8])};
-      else if (value[23:16] != 8'b0)
-        bitmanip_ctz32 = 6'd16 + {2'b00, bitmanip_ctz8(value[23:16])};
-      else if (value[31:24] != 8'b0)
-        bitmanip_ctz32 = 6'd24 + {2'b00, bitmanip_ctz8(value[31:24])};
-      else
-        bitmanip_ctz32 = 6'd32;
-    end
-  endfunction
+  // bitmanip 函数已抽到 execute/OooBitmanipGate.v
 
-  function [5:0] bitmanip_cpop32;
-    input [31:0] value;
-    reg [3:0] pop0;
-    reg [3:0] pop1;
-    reg [3:0] pop2;
-    reg [3:0] pop3;
-    reg [4:0] sum01;
-    reg [4:0] sum23;
-    begin
-      pop0 = bitmanip_popcount8(value[7:0]);
-      pop1 = bitmanip_popcount8(value[15:8]);
-      pop2 = bitmanip_popcount8(value[23:16]);
-      pop3 = bitmanip_popcount8(value[31:24]);
-      sum01 = {1'b0, pop0} + {1'b0, pop1};
-      sum23 = {1'b0, pop2} + {1'b0, pop3};
-      bitmanip_cpop32 = {1'b0, sum01} + {1'b0, sum23};
-    end
-  endfunction
+  // bitmanip 函数已抽到 execute/OooBitmanipGate.v
 
-  function [31:0] bitmanip_rol32;
-    input [31:0] value;
-    input [4:0] shamt;
-    begin
-      bitmanip_rol32 = (shamt == 5'h0) ? value :
-                       ((value << shamt) | (value >> (6'd32 - {1'b0, shamt})));
-    end
-  endfunction
+  // bitmanip 函数已抽到 execute/OooBitmanipGate.v
 
-  function [31:0] bitmanip_ror32;
-    input [31:0] value;
-    input [4:0] shamt;
-    begin
-      bitmanip_ror32 = (shamt == 5'h0) ? value :
-                       ((value >> shamt) | (value << (6'd32 - {1'b0, shamt})));
-    end
-  endfunction
+  // bitmanip 函数已抽到 execute/OooBitmanipGate.v
 
-  function [`XLEN-1:0] bitmanip_result;
-    input [6:0] opcode;
-    input [9:0] funct10;
-    input [5:0] imm;
-    input [`XLEN-1:0] src1;
-    input [`XLEN-1:0] src2;
-    reg [4:0] imm5;
-    reg [5:0] shamt;
-    reg [6:0] inv_shamt;
-    begin
-      imm5 = imm[4:0];
-      shamt = src2[`SHIFT_AMT_W-1:0];
-      inv_shamt = 7'd64 - {1'b0, shamt};
-      bitmanip_result = {`XLEN{1'b0}};
-
-      if (opcode == `OPCODE_OP_IMM) begin
-        case (funct10)
-          {7'h14, `FUNCT3_SLL},
-          {7'h15, `FUNCT3_SLL}:     bitmanip_result = src1 | (64'h1 << imm);
-          {7'h24, `FUNCT3_SLL},
-          {7'h25, `FUNCT3_SLL}:     bitmanip_result = src1 & ~(64'h1 << imm);
-          {7'h34, `FUNCT3_SLL},
-          {7'h35, `FUNCT3_SLL}:     bitmanip_result = src1 ^ (64'h1 << imm);
-          {7'h30, `FUNCT3_SRL_SRA},
-          {7'h31, `FUNCT3_SRL_SRA}: bitmanip_result = (imm == 6'h0) ? src1 :
-                                                     ((src1 >> imm) | (src1 << (7'd64 - {1'b0, imm})));
-          {7'h24, `FUNCT3_SRL_SRA},
-          {7'h25, `FUNCT3_SRL_SRA}: bitmanip_result = {{(`XLEN-1){1'b0}}, src1[imm]};
-          {7'h14, `FUNCT3_SRL_SRA}: bitmanip_result = {
-              (src1[63:56] != 8'h00) ? 8'hff : 8'h00,
-              (src1[55:48] != 8'h00) ? 8'hff : 8'h00,
-              (src1[47:40] != 8'h00) ? 8'hff : 8'h00,
-              (src1[39:32] != 8'h00) ? 8'hff : 8'h00,
-              (src1[31:24] != 8'h00) ? 8'hff : 8'h00,
-              (src1[23:16] != 8'h00) ? 8'hff : 8'h00,
-              (src1[15:8]  != 8'h00) ? 8'hff : 8'h00,
-              (src1[7:0]   != 8'h00) ? 8'hff : 8'h00
-          };
-          {7'h34, `FUNCT3_SRL_SRA},
-          {7'h35, `FUNCT3_SRL_SRA}: bitmanip_result = {src1[7:0], src1[15:8], src1[23:16], src1[31:24],
-                                                     src1[39:32], src1[47:40], src1[55:48], src1[63:56]};
-          {7'h30, `FUNCT3_SLL}: begin
-            case (imm5)
-              5'h00: bitmanip_result = {{(`XLEN-7){1'b0}},
-                                         bitmanip_clz64(src1)};
-              5'h01: bitmanip_result = {{(`XLEN-7){1'b0}},
-                                         bitmanip_ctz64(src1)};
-              5'h02: bitmanip_result = {{(`XLEN-7){1'b0}},
-                                         bitmanip_cpop64(src1)};
-              5'h04: bitmanip_result = {{(`XLEN-8){src1[7]}}, src1[7:0]};
-              5'h05: bitmanip_result = {{(`XLEN-16){src1[15]}}, src1[15:0]};
-              default: begin end
-            endcase
-          end
-          default: begin end
-        endcase
-      end else if (opcode == `OPCODE_OP_IMM_32) begin
-        case ({funct10[9:4], funct10[2:0]})
-          {6'h02, `FUNCT3_SLL}: bitmanip_result = ({{(`XLEN-32){1'b0}}, src1[31:0]}) << imm;
-          default: begin end
-        endcase
-        case (funct10)
-          {7'h30, `FUNCT3_SLL}: begin
-            case (imm5)
-              5'h00: bitmanip_result = {{(`XLEN-6){1'b0}}, bitmanip_clz32(src1[31:0])};
-              5'h01: bitmanip_result = {{(`XLEN-6){1'b0}}, bitmanip_ctz32(src1[31:0])};
-              5'h02: bitmanip_result = {{(`XLEN-6){1'b0}}, bitmanip_cpop32(src1[31:0])};
-              default: begin end
-            endcase
-          end
-          {7'h30, `FUNCT3_SRL_SRA}: begin
-            bitmanip_result = sign_extend_word(bitmanip_ror32(src1[31:0], imm5));
-          end
-          default: begin end
-        endcase
-      end else begin
-        case (funct10)
-          {7'h04, `FUNCT3_ADD_SUB}: bitmanip_result = {{(`XLEN-32){1'b0}}, src1[31:0]} + src2;
-          {7'h10, `FUNCT3_SLT}:     bitmanip_result = (((opcode == `OPCODE_OP_32) ? {{(`XLEN-32){1'b0}}, src1[31:0]} : src1) << 1) + src2;
-          {7'h10, `FUNCT3_XOR}:     bitmanip_result = (((opcode == `OPCODE_OP_32) ? {{(`XLEN-32){1'b0}}, src1[31:0]} : src1) << 2) + src2;
-          {7'h10, `FUNCT3_OR}:      bitmanip_result = (((opcode == `OPCODE_OP_32) ? {{(`XLEN-32){1'b0}}, src1[31:0]} : src1) << 3) + src2;
-          {7'h20, `FUNCT3_AND}:     bitmanip_result = src1 & ~src2;
-          {7'h20, `FUNCT3_OR}:      bitmanip_result = src1 | ~src2;
-          {7'h20, `FUNCT3_XOR}:     bitmanip_result = ~(src1 ^ src2);
-          {7'h30, `FUNCT3_SLL}:     bitmanip_result = (opcode == `OPCODE_OP_32) ?
-                                                     sign_extend_word(bitmanip_rol32(src1[31:0], src2[4:0])) :
-                                                     ((shamt == 5'h0) ? src1 :
-                                                     ((src1 << shamt) | (src1 >> inv_shamt)));
-          {7'h30, `FUNCT3_SRL_SRA}: bitmanip_result = (opcode == `OPCODE_OP_32) ?
-                                                     sign_extend_word(bitmanip_ror32(src1[31:0], src2[4:0])) :
-                                                     ((shamt == 5'h0) ? src1 :
-                                                     ((src1 >> shamt) | (src1 << inv_shamt)));
-          {7'h05, `FUNCT3_XOR}:     bitmanip_result = ($signed(src1) < $signed(src2)) ? src1 : src2;
-          {7'h05, `FUNCT3_SRL_SRA}: bitmanip_result = (src1 < src2) ? src1 : src2;
-          {7'h05, `FUNCT3_OR}:      bitmanip_result = ($signed(src1) > $signed(src2)) ? src1 : src2;
-          {7'h05, `FUNCT3_AND}:     bitmanip_result = (src1 > src2) ? src1 : src2;
-          {7'h14, `FUNCT3_SLL}:     bitmanip_result = src1 | (64'h1 << shamt);
-          {7'h24, `FUNCT3_SLL}:     bitmanip_result = src1 & ~(64'h1 << shamt);
-          {7'h24, `FUNCT3_SRL_SRA}: bitmanip_result = {{(`XLEN-1){1'b0}}, src1[shamt]};
-          {7'h34, `FUNCT3_SLL}:     bitmanip_result = src1 ^ (64'h1 << shamt);
-          {7'h04, `FUNCT3_XOR}:     bitmanip_result = {{(`XLEN-16){1'b0}}, src1[15:0]};
-          default: begin end
-        endcase
-      end
-    end
-  endfunction
+  // bitmanip 函数已抽到 execute/OooBitmanipGate.v
 
   function is_clmul_inst;
     input [`INST_W-1:0] inst;
@@ -931,15 +587,32 @@ module OooIntBackend #(
                            issue1_alu_src1_w, issue1_alu_src2_w) :
       issue1_alu_result_w;
 
+  // bitmanip 结果计算下沉到 OooBitmanipGate（两条 issue lane 各一个实例）。
+  wire [`XLEN-1:0] issue0_bitmanip_result_w;
+  wire [`XLEN-1:0] issue1_bitmanip_result_w;
+  OooBitmanipGate u_bitmanip0 (
+    .opcode_i(issue0_inst_w[6:0]),
+    .funct10_i({issue0_inst_w[31:25], issue0_inst_w[14:12]}),
+    .imm_i(issue0_inst_w[25:20]),
+    .src1_i(issue0_src1_data_w),
+    .src2_i(issue0_src2_data_w),
+    .result_o(issue0_bitmanip_result_w)
+  );
+  OooBitmanipGate u_bitmanip1 (
+    .opcode_i(issue1_inst_w[6:0]),
+    .funct10_i({issue1_inst_w[31:25], issue1_inst_w[14:12]}),
+    .imm_i(issue1_inst_w[25:20]),
+    .src1_i(issue1_src1_value_w),
+    .src2_i(issue1_src2_value_w),
+    .result_o(issue1_bitmanip_result_w)
+  );
   assign issue0_exec_result_w =
       issue0_ctrl_w[`CTRL_BITMANIP_BIT] ?
-      bitmanip_result(issue0_inst_w[6:0], {issue0_inst_w[31:25], issue0_inst_w[14:12]},
-                      issue0_inst_w[25:20], issue0_src1_data_w, issue0_src2_data_w) :
+      issue0_bitmanip_result_w :
       issue0_alu_result_final_w;
   assign issue1_exec_result_w =
       issue1_ctrl_w[`CTRL_BITMANIP_BIT] ?
-      bitmanip_result(issue1_inst_w[6:0], {issue1_inst_w[31:25], issue1_inst_w[14:12]},
-                      issue1_inst_w[25:20], issue1_src1_value_w, issue1_src2_value_w) :
+      issue1_bitmanip_result_w :
       issue1_alu_result_final_w;
 
   WBU u_wbu0 (
@@ -1115,10 +788,15 @@ module OooIntBackend #(
     .misaligned_o(mem1_rsp_misaligned_unused_w)
   );
 
-  assign mem_amo_old_value_w = amo_old_value(mem_rsp_load_data_w, mem_size_q);
-  assign mem_amo_result_value_w =
-      amo_result_value(mem_amo_inst_q, mem_amo_old_value_w,
-                       mem_amo_src2_q, mem_size_q);
+  // AMO 旧值规整与结果计算下沉到 OooAmoGate。
+  OooAmoGate u_amo_gate (
+    .inst_i(mem_amo_inst_q),
+    .load_data_i(mem_rsp_load_data_w),
+    .src2_i(mem_amo_src2_q),
+    .size_i(mem_size_q),
+    .old_value_o(mem_amo_old_value_w),
+    .result_o(mem_amo_result_value_w)
+  );
 
   LSU u_mem_amo_write_lsu (
     .eff_addr_i(mem_eff_addr_q),

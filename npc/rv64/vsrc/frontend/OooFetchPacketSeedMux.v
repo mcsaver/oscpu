@@ -1,7 +1,7 @@
 `include "define.v"
 
 // Encodes redirect/recovery events into fetch-packet FIFO clear/seed actions.
-// Event predicates and packet validation stay in OooAluFetchCore.
+// Event predicates and packet validation stay in OooCoreTopGlue.
 module OooFetchPacketSeedMux (
   input csr_trap_i,
   input direct_flush_i,
@@ -192,4 +192,3 @@ module OooFetchPacketSeedMux (
   end
 
 endmodule
-

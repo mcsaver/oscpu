@@ -60,16 +60,18 @@ module tb_ooo_fetch_trap_gate;
   wire [3:0] issue_count;
   localparam [`XLEN-1:0] STALE_USER_PC = 64'h0000003fa795aa32;
 
-  OooAluFetchCore dut (
+  wire [`XLEN-1:0] tb_csr_time_w = {`XLEN{1'b0}};
+  wire tb_csr_irq_software_w = 1'b0;
+  wire tb_csr_irq_timer_w = 1'b0;
+  wire tb_csr_irq_external_w = 1'b0;
+  `include "tb_ooo_core_top_glue_csr.svh"
+
+  OooCoreTopGlue dut (
     .clk(clk),
     .rst(rst),
     .flush_i(flush),
     .run_i(run),
     .reset_pc_i(`RESET_PC),
-    .time_i(64'd0),
-    .irq_software_i(1'b0),
-    .irq_timer_i(1'b0),
-    .irq_external_i(1'b0),
     .fetch_req_valid_o(fetch_req_valid),
     .fetch_req_ready_i(1'b1),
     .fetch_req_pc_o(fetch_req_pc),
@@ -102,6 +104,8 @@ module tb_ooo_fetch_trap_gate;
     .mem1_rsp_error_i(1'b0),
     .mem1_rsp_page_fault_i(1'b0),
     .mem_flush_o(mem_flush),
+    .mmu_flush_o(),
+    `TB_OOO_CORE_TOP_GLUE_CSR_PORTS
     .commit_ready_i(commit_ready),
     .commit0_valid_o(commit0_valid),
     .commit0_pc_o(commit0_pc),
@@ -192,7 +196,7 @@ module tb_ooo_fetch_trap_gate;
               dut.trap_redirect_squash_q, 1'b1);
     tb_check1("redirect squash does not block sequential trap fetch",
               fetch_req_valid, 1'b1);
-    force dut.u_branch_resolve_recovery_gate.branch_resolve_untracked_raw_w = 1'b1;
+    force dut.u_frontend.u_branch_resolve_recovery_gate.branch_resolve_untracked_raw_w = 1'b1;
     force dut.core_branch_resolve_misaligned_w = 1'b0;
     force dut.core_branch_resolve_next_pc_w = STALE_USER_PC;
     #1;
@@ -203,10 +207,10 @@ module tb_ooo_fetch_trap_gate;
       $display("[CHECK-FAIL] stale user redirect selected during squash pc=0x%016x",
                fetch_req_pc);
     end
-    release dut.u_branch_resolve_recovery_gate.branch_resolve_untracked_raw_w;
+    release dut.u_frontend.u_branch_resolve_recovery_gate.branch_resolve_untracked_raw_w;
     release dut.core_branch_resolve_misaligned_w;
     release dut.core_branch_resolve_next_pc_w;
-    force dut.u_direct_branch_resolve_gate.direct_branch_resolve_redirect_raw_w = 1'b1;
+    force dut.u_frontend.u_direct_branch_resolve_gate.direct_branch_resolve_redirect_raw_w = 1'b1;
     force dut.direct_branch_resolve_next_pc_w = STALE_USER_PC;
     #1;
     tb_check1("redirect squash masks direct branch resolve",
@@ -216,9 +220,9 @@ module tb_ooo_fetch_trap_gate;
       $display("[CHECK-FAIL] stale direct branch redirect selected during squash pc=0x%016x",
                fetch_req_pc);
     end
-    release dut.u_direct_branch_resolve_gate.direct_branch_resolve_redirect_raw_w;
+    release dut.u_frontend.u_direct_branch_resolve_gate.direct_branch_resolve_redirect_raw_w;
     release dut.direct_branch_resolve_next_pc_w;
-    force dut.u_branch_resolve_recovery_gate.branch_resolve_redirect_raw_w = 1'b1;
+    force dut.u_frontend.u_branch_resolve_recovery_gate.branch_resolve_redirect_raw_w = 1'b1;
     force dut.core_branch_resolve_next_pc_w = STALE_USER_PC;
     #1;
     tb_check1("redirect squash masks tracked branch resolve",
@@ -228,9 +232,9 @@ module tb_ooo_fetch_trap_gate;
       $display("[CHECK-FAIL] stale tracked branch redirect selected during squash pc=0x%016x",
                fetch_req_pc);
     end
-    release dut.u_branch_resolve_recovery_gate.branch_resolve_redirect_raw_w;
+    release dut.u_frontend.u_branch_resolve_recovery_gate.branch_resolve_redirect_raw_w;
     release dut.core_branch_resolve_next_pc_w;
-    force dut.u_branch_resolve_recovery_gate.branch_spec_redirect_raw_w = 1'b1;
+    force dut.u_frontend.u_branch_resolve_recovery_gate.branch_spec_redirect_raw_w = 1'b1;
     force dut.core_branch_resolve_next_pc_w = STALE_USER_PC;
     #1;
     tb_check1("redirect squash masks speculative branch restore",
@@ -240,7 +244,7 @@ module tb_ooo_fetch_trap_gate;
       $display("[CHECK-FAIL] stale speculative branch redirect selected during squash pc=0x%016x",
                fetch_req_pc);
     end
-    release dut.u_branch_resolve_recovery_gate.branch_spec_redirect_raw_w;
+    release dut.u_frontend.u_branch_resolve_recovery_gate.branch_spec_redirect_raw_w;
     release dut.core_branch_resolve_next_pc_w;
     force dut.backend_drained_w = 1'b1;
     @(posedge clk);

@@ -1,6 +1,6 @@
 `include "define.v"
 
-module tb_ooo_alu_fetch_core;
+module tb_ooo_core_top_glue;
   `include "tb_common.svh"
   `include "rv32_encode.svh"
 
@@ -125,16 +125,18 @@ module tb_ooo_alu_fetch_core;
   localparam [4:0] MODE_ECALL = 5'd17;
   localparam [4:0] MODE_FMV_W_X = 5'd18;
 
-  OooAluFetchCore dut (
+  wire [`XLEN-1:0] tb_csr_time_w = {`XLEN{1'b0}};
+  wire tb_csr_irq_software_w = 1'b0;
+  wire tb_csr_irq_timer_w = 1'b0;
+  wire tb_csr_irq_external_w = 1'b0;
+  `include "tb_ooo_core_top_glue_csr.svh"
+
+  OooCoreTopGlue dut (
     .clk(clk),
     .rst(rst),
     .flush_i(flush),
     .run_i(run),
     .reset_pc_i(`RESET_PC),
-    .time_i(64'd0),
-    .irq_software_i(1'b0),
-    .irq_timer_i(1'b0),
-    .irq_external_i(1'b0),
     .fetch_req_valid_o(fetch_req_valid),
     .fetch_req_ready_i(fetch_req_ready),
     .fetch_req_pc_o(fetch_req_pc),
@@ -167,6 +169,8 @@ module tb_ooo_alu_fetch_core;
     .mem1_rsp_error_i(mem1_rsp_error),
     .mem1_rsp_page_fault_i(1'b0),
     .mem_flush_o(mem_flush),
+    .mmu_flush_o(),
+    `TB_OOO_CORE_TOP_GLUE_CSR_PORTS
     .commit_ready_i(commit_ready),
     .commit0_valid_o(commit0_valid),
     .commit0_pc_o(commit0_pc),
@@ -1185,6 +1189,6 @@ module tb_ooo_alu_fetch_core;
     tb_check32("ecall rob drained after stop", {27'b0, rob_count}, 32'd0);
     tb_check32("ecall issue queue drained after stop", {28'b0, issue_count}, 32'd0);
 
-    tb_finish("tb_ooo_alu_fetch_core");
+    tb_finish("tb_ooo_core_top_glue");
   end
 endmodule

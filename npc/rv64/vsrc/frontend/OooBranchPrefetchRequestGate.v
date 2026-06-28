@@ -18,10 +18,12 @@ module OooBranchPrefetchRequestGate (
   input exit_valid_i,
   input [`XLEN-1:0] branch_pred_pc_i,
   input [`XLEN-1:0] jalr_btb_target_i,
+  input req_ready_i,
 
   output branch_req_valid_o,
   output jalr_req_valid_o,
   output req_valid_o,
+  output req_fire_o,
   output [`XLEN-1:0] req_pc_o
 );
 
@@ -48,6 +50,7 @@ module OooBranchPrefetchRequestGate (
       shared_clear_w;
 
   assign req_valid_o = branch_req_valid_o || jalr_req_valid_o;
+  assign req_fire_o = req_valid_o && req_ready_i;
   assign req_pc_o = jalr_req_valid_o ? jalr_btb_target_i : branch_pred_pc_i;
 
 endmodule

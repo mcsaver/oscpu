@@ -8,6 +8,6 @@
   `RegisterFile/PipelineControl/Rv32Multiplier/Rv32Divider/MemoryStage`
   等实现。
 
-当前活动路径是 `NpcSimTop -> NpcCoreTop -> OooAluFetchCore`，对应文件由
+当前活动路径是 `NpcSimTop -> NpcCoreTop -> OooCoreTopGlue`，对应文件由
 `vsrc/filelist.mk` 的 `RTL_CORE_SRCS` 维护。legacy 文件不进入默认 Verilator
 构建，但保留 `RTL_*` 变量，方便历史模块 testbench 按需复跑和对比。

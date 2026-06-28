@@ -1,0 +1,7 @@
+make: Entering directory '/home/lyg/PA/ysyx-workbench/npc'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/npc/sim'
+make[2]: Entering directory '/home/lyg/PA/ysyx-workbench/npc/rv64'
+make[2]: Nothing to be done for 'default'.
+make[2]: Leaving directory '/home/lyg/PA/ysyx-workbench/npc/rv64'
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/npc/sim'
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/npc'

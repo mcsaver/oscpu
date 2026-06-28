@@ -1,7 +1,7 @@
 `include "define.v"
 
 // Front-end fetch packet FIFO storage primitive.
-// Redirect, bypass and outstanding-response policy stay in OooAluFetchCore.
+// Redirect, bypass and outstanding-response policy stay in OooCoreTopGlue.
 module OooFetchPacketFifo #(
   parameter FETCH_PACKET_COUNT_W = `OOO_FETCH_PACKET_COUNT_W,
   parameter FETCH_COUNT_W = FETCH_PACKET_COUNT_W + 1

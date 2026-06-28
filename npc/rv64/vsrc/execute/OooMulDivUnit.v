@@ -128,14 +128,28 @@ module OooMulDivUnit #(
   wire [`XLEN-1:0] req_mul_result_w =
       mul_result(req_inst_i, req_src1_i, req_src2_i, req_word_i);
 
-  wire [`XLEN:0] div_rem_shift_w = {div_rem_q[`XLEN-1:0],
-                                    div_dividend_q[`XLEN-1]};
-  wire [`XLEN:0] div_divisor_ext_w = {1'b0, div_divisor_q};
-  wire div_take_w = div_rem_shift_w >= div_divisor_ext_w;
-  wire [`XLEN:0] div_rem_next_w =
-      div_take_w ? (div_rem_shift_w - div_divisor_ext_w) : div_rem_shift_w;
-  wire [`XLEN-1:0] div_quot_next_w = {div_quot_q[`XLEN-2:0], div_take_w};
-  wire [`XLEN-1:0] div_dividend_next_w = {div_dividend_q[`XLEN-2:0], 1'b0};
+  // 为什么这么改：radix-2 每周期只解出 1 个商位(word 32 拍/dword 64 拍)。改为 radix-4
+  // 每周期解出 2 个商位(word 16 拍/dword 32 拍)——把当前部分余数左移 2 位并带入被除数
+  // 高 2 位形成 partial，与 {1,2,3}×divisor 比较选商位 q∈{0..3}，减去 q×divisor 得新余数。
+  // 余数恒 <divisor(≤2^XLEN-1)，partial 最多 ~4×divisor 需 XLEN+2 位中间宽度。商位拼接、
+  // 被除数左移 2 位、count 每拍 -2。结果与 radix-2 等价，但除法延迟再减半。
+  wire [`XLEN+1:0] div_partial_w =
+      {div_rem_q[`XLEN-1:0], div_dividend_q[`XLEN-1:`XLEN-2]};
+  wire [`XLEN+1:0] div_d1_w = {2'b0, div_divisor_q};
+  wire [`XLEN+1:0] div_d2_w = {1'b0, div_divisor_q, 1'b0};
+  wire [`XLEN+1:0] div_d3_w = div_d1_w + div_d2_w;
+  wire [1:0] div_q_digit_w =
+      (div_partial_w >= div_d3_w) ? 2'd3 :
+      (div_partial_w >= div_d2_w) ? 2'd2 :
+      (div_partial_w >= div_d1_w) ? 2'd1 : 2'd0;
+  wire [`XLEN+1:0] div_sub_w =
+      (div_q_digit_w == 2'd3) ? div_d3_w :
+      (div_q_digit_w == 2'd2) ? div_d2_w :
+      (div_q_digit_w == 2'd1) ? div_d1_w : {(`XLEN+2){1'b0}};
+  wire [`XLEN+1:0] div_partial_rem_w = div_partial_w - div_sub_w;
+  wire [`XLEN:0] div_rem_next_w = {1'b0, div_partial_rem_w[`XLEN-1:0]};
+  wire [`XLEN-1:0] div_quot_next_w = {div_quot_q[`XLEN-3:0], div_q_digit_w};
+  wire [`XLEN-1:0] div_dividend_next_w = {div_dividend_q[`XLEN-3:0], 2'b0};
   wire [`XLEN-1:0] div_quot_fixed_w =
       div_quot_neg_q ? (~div_quot_next_w + {{(`XLEN-1){1'b0}}, 1'b1}) :
                        div_quot_next_w;
@@ -183,11 +197,18 @@ module OooMulDivUnit #(
               resp_data_q <= req_special_result_final_w;
               state_q <= STATE_RESP;
             end else begin
-              div_dividend_q <= req_op1_abs_w;
+              // 为什么这么改：restoring 除法器对 word(32 位)除法也跑满 64 次迭代，
+              // 但 32 位操作数取绝对值后高 32 位恒为 0，前 32 次迭代只是把被除数
+              // 左移到高位、quotient 位恒为 0(纯浪费)。这里对 word op 直接把 abs 预移
+              // 到高 32 位({abs[31:0],32'd0})并只跑 32 次迭代——到达的状态与 64 次版本
+              // 在第 32 次迭代后完全一致，结果逐位相同，但 divw/remw 延迟减半。
+              // C 的 int 除法即 divw/remw，是数论类负载(shuixianhua/prime/wanshu)的热点。
+              div_dividend_q <= req_word_i ? {req_op1_abs_w[31:0], 32'd0}
+                                           : req_op1_abs_w;
               div_divisor_q <= req_op2_abs_w;
               div_quot_q <= {`XLEN{1'b0}};
               div_rem_q <= {(`XLEN+1){1'b0}};
-              div_count_q <= 7'd64;
+              div_count_q <= req_word_i ? 7'd32 : 7'd64;
               div_rem_result_q <= req_is_rem_w;
               div_quot_neg_q <= req_signed_w && (req_op1_neg_w ^ req_op2_neg_w);
               div_rem_neg_q <= req_signed_w && req_op1_neg_w;
@@ -201,8 +222,8 @@ module OooMulDivUnit #(
           div_dividend_q <= div_dividend_next_w;
           div_quot_q <= div_quot_next_w;
           div_rem_q <= div_rem_next_w;
-          div_count_q <= div_count_q - 7'd1;
-          if (div_count_q == 7'd1) begin
+          div_count_q <= div_count_q - 7'd2;  // radix-4: 每拍解 2 个商位
+          if (div_count_q == 7'd2) begin       // 处理完最后 2 位即收尾
             resp_data_q <= div_result_final_w;
             state_q <= STATE_RESP;
           end

@@ -35,6 +35,8 @@ module OooFrontendDispatchGate (
   output dispatch_unsupported_o,
   output dispatch_fire_o,
   output dispatch1_barrier_fire_o,
+  output frontend_dispatch_to_backend_valid_o,
+  output lane1_barrier_dispatch0_valid_o,
   output direct_jal0_fire_o,
   output direct_jal1_fire_o,
   output direct_ret1_fire_o,
@@ -105,6 +107,13 @@ module OooFrontendDispatchGate (
 
   assign dispatch1_barrier_fire_o =
       dispatch1_barrier_o && !dispatch0_unsupported_i && dispatch0_ready_i;
+  assign frontend_dispatch_to_backend_valid_o =
+      dispatch_valid_i && !dispatch0_branch_i && !dispatch0_jal_i &&
+      !dispatch0_jump_i && !dispatch0_exit_i && !dispatch0_system_i &&
+      !dispatch0_fp_i && !dispatch1_barrier_o &&
+      !dispatch1_control_unsupported_o && !dispatch1_mem_unsupported_o;
+  assign lane1_barrier_dispatch0_valid_o = dispatch1_barrier_o;
+
   assign direct_jal0_fire_o =
       dispatch0_jal_i && !dispatch0_unsupported_i && dispatch0_ready_i;
   assign direct_jal1_fire_o = dispatch_fire_o && head1_jal_raw_i;
@@ -112,4 +121,3 @@ module OooFrontendDispatchGate (
   assign direct_branch1_fire_o = dispatch_fire_o && head1_branch_raw_i;
 
 endmodule
-

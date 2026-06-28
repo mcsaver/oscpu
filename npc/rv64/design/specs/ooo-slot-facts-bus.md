@@ -14,7 +14,7 @@
 
 本切片负责：
 
-- 新增 `common/OooSlotFacts.vh`，定义单槽组合事实总线位号和 `OOO_SLOT_FACTS_W`。
+- 新增 `common/OooSlotFacts.v`，定义单槽组合事实总线位号和 `OOO_SLOT_FACTS_W`。
 - `OooFetchHeadClassifyGate` 输出 `facts_o`，每个 bit 直接 alias 现有分类输出。
 - `OooFetchHeadPairGate` 输出 `head0_facts_o/head1_facts_o`，内部 lane1 可见性、
   branch-spec dispatch block 和 dispatch0 facts 改用 facts bus bit。

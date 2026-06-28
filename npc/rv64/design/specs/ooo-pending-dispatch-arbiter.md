@@ -17,6 +17,10 @@
 - 本模块是纯组合模块，没有 ready/valid 或内部寄存器。
 - `capture_base` 只在 `!csr_trap_mem && !direct_frontend_flush && can_run &&
   fifo_has_packet` 时成立；所有普通 head/lane1 capture 都必须从该条件派生。
+- slot 分类事实只从 `dispatch0_facts_i/head1_facts_i` 进入本模块；不再保留
+  `dispatch0_*` / `head1_*` 事实散线兼容端口。
+- direct fast-path、return、unsupported、barrier fire 和 CSR illegal probe 仍是独立
+  控制输入，不属于 slot facts bus。
 - `csr_irq_pending` 在 `capture_base` 内优先于 lane0/lane1 指令分类，生成
   system IRQ capture，并清理 stale trap/exit pending。
 - lane0 分类优先级保持旧父模块顺序：
@@ -25,7 +29,8 @@
   unsupported trap。
 - lane1 barrier 先形成 `lane1_barrier_base`；branch/jump/mem/FP/SYSTEM
   capture 输出必须再由 `head1_facts_i` 对应 bit 分型，不再对所有 owner
-  同时拉高 generic capture。
+  同时拉高 generic capture；具体 lane1 typed capture 和 trap/exit payload 由
+  `OooPendingLane1CaptureGate` 计算，arbiter 只保留全局优先级。
 - trap-exit lane1 capture 保留旧 scrub 语义：任意 lane1 barrier 都会触发
   trap/exit sequencer capture，具体是否留下 exit/arch valid 由 lane1 exit/trap
   facts 决定；这样非 trap/exit owner 仍会清掉 stale trap/exit valid bit。
@@ -69,8 +74,12 @@
 
 - 数据通路只有组合 priority network 和 trap/exit payload mux。
 - 位宽来自 `define.v`：`XLEN`、`INST_W`、`TRAP_CAUSE_W`。
-- lane1 owner capture 类型来自 `common/OooSlotFacts.vh` 的
+- lane1 owner capture 类型来自 `common/OooSlotFacts.v` 的
   `OOO_SLOT_FACT_BRANCH/JUMP/MEM/FP_ENABLED/SYSTEM`。
+- lane1 barrier 的局部 payload mux 由 `OooPendingLane1CaptureGate` 承接；
+  本模块仍负责 lane0/IRQ/direct/resolve/clear 的全局优先级表。
+- `dispatch0_facts_i` 必须已经由父模块按 `dispatch_valid` 门控，避免 slot0 无效时
+  仍触发 pending owner capture。
 - 不向 dispatch ready、memory ready、CSR ready 形成新的反向组合环。
 - 下游 payload 寄存器仍属于 `OooPendingBranchSequencer`、
   `OooPendingJumpSequencer`、`OooPendingMemorySequencer`、
@@ -79,6 +88,7 @@
 
 ## 3. RTL 映射
 
-- `OooPendingDispatchArbiter.v` 直接编码 2b 的组合分类表。
+- `OooPendingDispatchArbiter.v` 直接编码 2b 的全局组合分类表，并实例化
+  `OooPendingLane1CaptureGate` 承接 lane1 局部 facts 分型和 trap/exit payload。
 - `OooAluFetchCore` 保留 pending sequencer 实例、payload mux、CSR/FPR side
   effect、flush/recovery 和 final trap/exit 输出。

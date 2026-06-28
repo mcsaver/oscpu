@@ -104,16 +104,18 @@ module tb_ooo_priv_system;
   reg saw_sret_commit;
   reg saw_satp_commit;
 
-  OooAluFetchCore dut (
+  wire [`XLEN-1:0] tb_csr_time_w = 64'd1234;
+  wire tb_csr_irq_software_w = irq_software;
+  wire tb_csr_irq_timer_w = irq_timer;
+  wire tb_csr_irq_external_w = irq_external;
+  `include "tb_ooo_core_top_glue_csr.svh"
+
+  OooCoreTopGlue dut (
     .clk(clk),
     .rst(rst),
     .flush_i(flush),
     .run_i(run),
     .reset_pc_i(`RESET_PC),
-    .time_i(64'd1234),
-    .irq_software_i(irq_software),
-    .irq_timer_i(irq_timer),
-    .irq_external_i(irq_external),
     .fetch_req_valid_o(fetch_req_valid),
     .fetch_req_ready_i(fetch_req_ready),
     .fetch_req_pc_o(fetch_req_pc),
@@ -146,6 +148,8 @@ module tb_ooo_priv_system;
     .mem1_rsp_error_i(mem1_rsp_error),
     .mem1_rsp_page_fault_i(1'b0),
     .mem_flush_o(mem_flush),
+    .mmu_flush_o(),
+    `TB_OOO_CORE_TOP_GLUE_CSR_PORTS
     .commit_ready_i(commit_ready),
     .commit0_valid_o(commit0_valid),
     .commit0_pc_o(commit0_pc),

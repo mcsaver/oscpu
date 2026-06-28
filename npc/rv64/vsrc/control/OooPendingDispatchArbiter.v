@@ -1,7 +1,7 @@
 `include "include/define.v"
-`include "common/OooSlotFacts.vh"
+`include "common/OooSlotFacts.v"
 
-// Pure combinational pending-owner event arbitration for OooAluFetchCore.
+// Pure combinational pending-owner event arbitration for OooCoreTopGlue.
 module OooPendingDispatchArbiter (
   input csr_trap_mem_valid_i,
   input direct_frontend_flush_i,
@@ -34,34 +34,15 @@ module OooPendingDispatchArbiter (
   input [`OOO_SLOT_FACTS_W-1:0] dispatch0_facts_i,
   input [`OOO_SLOT_FACTS_W-1:0] head1_facts_i,
 
-  input dispatch0_arch_trap_i,
-  input dispatch0_exit_i,
-  input dispatch0_ecall_i,
-  input dispatch0_ebreak_i,
-  input dispatch0_fp_i,
-  input dispatch0_system_i,
-  input dispatch0_branch_i,
   input direct_branch0_dispatch_valid_i,
-  input dispatch0_jal_i,
   input direct_jal0_dispatch_valid_i,
-  input dispatch0_jump_i,
   input dispatch0_return_i,
   input dispatch0_unsupported_i,
   input dispatch_unsupported_i,
   input dispatch1_barrier_fire_i,
 
   input head0_csr_illegal_i,
-  input head0_semihost_ebreak_i,
-  input head1_system_raw_i,
-  input head1_exit_raw_i,
-  input head1_ecall_raw_i,
-  input head1_ebreak_raw_i,
-  input head1_arch_trap_raw_i,
-  input head1_illegal_raw_i,
-  input head1_fp_disabled_i,
-  input head1_priv_system_illegal_i,
   input head1_csr_illegal_i,
-  input head1_semihost_ebreak_i,
 
   output pending_system_capture_irq_o,
   output pending_system_capture_head0_o,
@@ -112,21 +93,6 @@ module OooPendingDispatchArbiter (
   wire dispatch0_jump_w = dispatch0_facts_i[`OOO_SLOT_FACT_JALR];
   wire head0_semihost_ebreak_w =
       dispatch0_facts_i[`OOO_SLOT_FACT_SEMIHOST_EBREAK];
-  wire head1_system_raw_w = head1_facts_i[`OOO_SLOT_FACT_SYSTEM];
-  wire head1_branch_raw_w = head1_facts_i[`OOO_SLOT_FACT_BRANCH];
-  wire head1_jump_raw_w = head1_facts_i[`OOO_SLOT_FACT_JUMP];
-  wire head1_mem_raw_w = head1_facts_i[`OOO_SLOT_FACT_MEM];
-  wire head1_fp_enabled_w = head1_facts_i[`OOO_SLOT_FACT_FP_ENABLED];
-  wire head1_exit_raw_w = head1_facts_i[`OOO_SLOT_FACT_EXIT];
-  wire head1_ecall_raw_w = head1_facts_i[`OOO_SLOT_FACT_ECALL];
-  wire head1_ebreak_raw_w = head1_facts_i[`OOO_SLOT_FACT_EBREAK];
-  wire head1_arch_trap_raw_w = head1_facts_i[`OOO_SLOT_FACT_ARCH_TRAP];
-  wire head1_illegal_raw_w = head1_facts_i[`OOO_SLOT_FACT_ILLEGAL];
-  wire head1_fp_disabled_w = head1_facts_i[`OOO_SLOT_FACT_FP_DISABLED];
-  wire head1_priv_system_illegal_w =
-      head1_facts_i[`OOO_SLOT_FACT_PRIV_SYSTEM_ILLEGAL];
-  wire head1_semihost_ebreak_w =
-      head1_facts_i[`OOO_SLOT_FACT_SEMIHOST_EBREAK];
   wire direct_branch_fire_w =
       direct_branch0_fire_i || direct_branch1_fire_i;
   wire lane0_branch_pending_w =
@@ -145,18 +111,40 @@ module OooPendingDispatchArbiter (
       !lane0_branch_pending_w &&
       !lane0_jump_pending_w &&
       dispatch1_barrier_fire_i;
-  wire lane1_system_capture_w =
-      lane1_barrier_base_w &&
-      head1_system_raw_w && !head1_csr_illegal_i &&
-      !head1_arch_trap_raw_w;
-  wire lane1_branch_capture_w =
-      lane1_barrier_base_w && head1_branch_raw_w;
-  wire lane1_jump_capture_w =
-      lane1_barrier_base_w && head1_jump_raw_w;
-  wire lane1_fp_capture_w =
-      lane1_barrier_base_w && head1_fp_enabled_w;
-  wire lane1_mem_capture_w =
-      lane1_barrier_base_w && head1_mem_raw_w;
+  wire lane1_system_capture_w;
+  wire lane1_branch_capture_w;
+  wire lane1_jump_capture_w;
+  wire lane1_fp_capture_w;
+  wire lane1_mem_capture_w;
+  wire trap_exit_capture_lane1_w;
+  wire trap_exit_lane1_arch_valid_w;
+  wire trap_exit_lane1_exit_valid_w;
+  wire trap_exit_lane1_exit_ecall_w;
+  wire trap_exit_lane1_exit_ebreak_w;
+  wire [`TRAP_CAUSE_W-1:0] trap_exit_lane1_cause_w;
+  wire [`XLEN-1:0] trap_exit_lane1_tval_w;
+
+  OooPendingLane1CaptureGate u_lane1_capture_gate (
+    .barrier_base_i(lane1_barrier_base_w),
+    .head_fetch_fault_i(head_fetch_fault1_i),
+    .head_resp_i(head_resp1_i),
+    .head_pc_i(head_pc1_i),
+    .head_inst_i(head_inst1_i),
+    .facts_i(head1_facts_i),
+    .csr_illegal_i(head1_csr_illegal_i),
+    .system_capture_o(lane1_system_capture_w),
+    .branch_capture_o(lane1_branch_capture_w),
+    .jump_capture_o(lane1_jump_capture_w),
+    .fp_capture_o(lane1_fp_capture_w),
+    .mem_capture_o(lane1_mem_capture_w),
+    .trap_exit_capture_o(trap_exit_capture_lane1_w),
+    .trap_exit_arch_valid_o(trap_exit_lane1_arch_valid_w),
+    .trap_exit_exit_valid_o(trap_exit_lane1_exit_valid_w),
+    .trap_exit_exit_ecall_o(trap_exit_lane1_exit_ecall_w),
+    .trap_exit_exit_ebreak_o(trap_exit_lane1_exit_ebreak_w),
+    .trap_exit_cause_o(trap_exit_lane1_cause_w),
+    .trap_exit_tval_o(trap_exit_lane1_tval_w)
+  );
 
   assign pending_system_capture_irq_o =
       capture_base_w && csr_irq_pending_i;
@@ -298,9 +286,6 @@ module OooPendingDispatchArbiter (
       !dispatch0_exit_w &&
       !dispatch0_fp_w &&
       dispatch0_system_w && head0_csr_illegal_i;
-  // Any lane1 barrier scrubs stale trap/exit valid bits when it is not a
-  // trap/exit owner; valid payload bits below decide whether a new entry stays.
-  wire trap_exit_capture_lane1_w = lane1_barrier_base_w;
   wire trap_exit_capture_unsupported_w =
       capture_base_w &&
       !csr_irq_pending_i &&
@@ -314,34 +299,17 @@ module OooPendingDispatchArbiter (
       !dispatch1_barrier_fire_i &&
       dispatch_unsupported_i;
 
-  wire trap_exit_lane1_arch_valid_w =
-      head_fetch_fault1_i || head1_csr_illegal_i ||
-      head1_arch_trap_raw_w;
-  wire [`TRAP_CAUSE_W-1:0] trap_exit_lane1_cause_w =
-      head1_semihost_ebreak_w ? `EXC_BREAKPOINT :
-      head1_illegal_raw_w ? `EXC_ILLEGAL_INST :
-      head1_fp_disabled_w ? `EXC_ILLEGAL_INST :
-      head1_priv_system_illegal_w ? `EXC_ILLEGAL_INST :
-      head1_csr_illegal_i ? `EXC_ILLEGAL_INST :
-      ((head_resp1_i == 2'b10) ? `EXC_INST_PAGE_FAULT :
-                                  `EXC_INST_ACCESS_FAULT);
-  wire [`XLEN-1:0] trap_exit_lane1_tval_w =
-      head1_semihost_ebreak_w ? {`XLEN{1'b0}} :
-      head1_illegal_raw_w ? head_inst1_i :
-      head1_fp_disabled_w ? head_inst1_i :
-      head1_priv_system_illegal_w ? head_inst1_i :
-      head1_csr_illegal_i ? head_inst1_i :
-      head_pc1_i;
-
   assign pending_trap_exit_capture_exit_o =
       trap_exit_capture_exit0_w || trap_exit_capture_lane1_w;
   assign pending_trap_exit_capture_exit_valid_o =
       trap_exit_capture_exit0_w ||
-      (trap_exit_capture_lane1_w && head1_exit_raw_w);
+      trap_exit_lane1_exit_valid_w;
   assign pending_trap_exit_capture_exit_ecall_o =
-      trap_exit_capture_exit0_w ? dispatch0_ecall_w : head1_ecall_raw_w;
+      trap_exit_capture_exit0_w ? dispatch0_ecall_w :
+                                  trap_exit_lane1_exit_ecall_w;
   assign pending_trap_exit_capture_exit_ebreak_o =
-      trap_exit_capture_exit0_w ? dispatch0_ebreak_w : head1_ebreak_raw_w;
+      trap_exit_capture_exit0_w ? dispatch0_ebreak_w :
+                                  trap_exit_lane1_exit_ebreak_w;
 
   assign pending_trap_exit_capture_arch_o =
       trap_exit_capture_fetch_fault0_w ||

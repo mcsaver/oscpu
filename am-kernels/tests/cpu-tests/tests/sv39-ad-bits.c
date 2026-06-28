@@ -22,8 +22,32 @@ asm(
 ".align 2\n"
 ".globl sv39_ad_fault_trap\n"
 "sv39_ad_fault_trap:\n"
-"  csrr a0, mcause\n"
-"  andi a0, a0, 0xff\n"
+// 为什么这么改：NPC 核未实现 Svadu(硬件自动置 A/D)，而是按 RISC-V 规范的另一种
+// 合法实现——A=0 或(写且 D=0)时产生 page fault，由软件在 handler 里置位后重试。
+// 原 handler 直接 ebreak 上报 mcause，使本测试只能在 HW 自动置 A/D 的实现(如 NEMU)
+// 上通过；在 NPC 上首个 ld 即 page fault 而失败。这里改为标准的软件管理 A/D：
+// page fault(cause 12/13/15) 时给唯一的叶子 PTE(ad_root[2]/[510]) 置 A|D 再 mret 重试，
+// 从而真正验证核的 SW-managed A/D 路径。NEMU 上 HW 已置 A/D、handler 不会触发，
+// 因此该测试在两类实现上都能通过；非 page fault 仍按原样上报 mcause。
+"  csrr t4, mcause\n"
+"  andi t4, t4, 0xff\n"
+"  li t5, 12\n"
+"  blt t4, t5, sv39_ad_unexpected\n"
+"  li t5, 15\n"
+"  blt t5, t4, sv39_ad_unexpected\n"
+"  la t0, ad_root\n"
+"  ld t1, 16(t0)\n"           // ad_root[2] (low/identity 1GiB 叶子)
+"  ori t1, t1, 0xc0\n"        // 置 A(bit6)|D(bit7)
+"  sd t1, 16(t0)\n"
+"  li t2, 4080\n"             // 510*8
+"  add t3, t0, t2\n"
+"  ld t1, 0(t3)\n"            // ad_root[510] (high 半区 1GiB 叶子)
+"  ori t1, t1, 0xc0\n"
+"  sd t1, 0(t3)\n"
+"  sfence.vma\n"
+"  mret\n"                    // 返回 mepc(faulting inst) 重试
+"sv39_ad_unexpected:\n"
+"  mv a0, t4\n"
 "  ebreak\n"
 ".align 2\n"
 ".globl sv39_ad_s_entry\n"

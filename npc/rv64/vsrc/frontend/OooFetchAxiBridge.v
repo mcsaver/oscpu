@@ -208,7 +208,17 @@ module OooFetchAxiBridge (
       req_first_page_bytes_full_w[2:0];
   wire cache_hit_raw_w;
   wire pmp_active_w = (pmpcfg_i != {`PMP_CFG_BUS_W{1'b0}});
-  wire cache_hit_w = cache_hit_raw_w && !pmp_active_w;
+  // 为什么这么改：原实现只要 PMP 有任何活动条目就整体禁用取指包 cache
+  // (cache_hit && !pmp_active)，导致真实 Linux/OpenSBI(总会配 PMP)下每次取指都
+  // miss、退到慢速 AXI 取指，CPI 近乎翻倍。其实 PMP 权限本就每拍按当前 pmpcfg
+  // 独立计算(req_exec_pmp_fault_w)；安全做法是命中时仍要求 PMP 放行，而不是禁用
+  // 整个 cache。这样 PMP 会 fault 时 cache_hit=0 落到下方 fault 分支(语义不变)，
+  // PMP 放行(Linux 下 DRAM 整片 RWX 的常态)时命中生效、恢复性能。
+  // 非 PMP 场景(pmp_active=0)走 1'b1 分支，行为与原实现逐位一致。
+  wire cache_hit_w = cache_hit_raw_w &&
+      (pmp_active_w ? (!req_exec_pmp_fault_w && !req_exec1_pmp_fault_w &&
+                       (!req_paging_w || req_itlb_hit_w))
+                    : 1'b1);
   wire fetch_cache_context_unused_w;
   wire [`INST_W-1:0] cache_inst0_w;
   wire [`INST_W-1:0] cache_inst1_w;
@@ -275,8 +285,10 @@ module OooFetchAxiBridge (
       (state_q == S_R1) && ifu_axi_rvalid_i &&
       (ifu_axi_rresp_i == RESP_OK) &&
       (resp0_q == RESP_OK);
+  // 填充恒开：缓存的是真实取回的指令字节，存入安全；是否供给由 cache_hit_w 的
+  // PMP 放行门控决定。原来的 !pmp_active_w 门控会在 PMP 下让 cache 永不填充。
   wire fetch_cache_fill_valid_w =
-      !pmp_active_w && (fetch_cache_fill_r0_w || fetch_cache_fill_r1_w);
+      (fetch_cache_fill_r0_w || fetch_cache_fill_r1_w);
   wire [`INST_W-1:0] fetch_cache_fill_inst0_w =
       fetch_cache_fill_r1_w ? merged_cross_packet_w[`INST_W-1:0] :
                               fetch_beat_inst0_w;

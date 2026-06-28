@@ -1,0 +1,3 @@
+verilator-lint               PASS
+npc-build                    PASS
+riscv-tests                  SKIP       use --fetch-riscv-tests

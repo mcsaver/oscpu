@@ -1,5 +1,5 @@
 `include "define.v"
-`include "common/OooSlotFacts.vh"
+`include "common/OooSlotFacts.v"
 
 module tb_ooo_fetch_head_pair_gate;
   `include "tb_common.svh"

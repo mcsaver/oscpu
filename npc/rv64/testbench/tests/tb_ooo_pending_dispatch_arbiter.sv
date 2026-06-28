@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 `include "include/define.v"
-`include "common/OooSlotFacts.vh"
+`include "common/OooSlotFacts.v"
 `include "tb_common.svh"
 
 module tb_ooo_pending_dispatch_arbiter;
@@ -121,33 +121,14 @@ module tb_ooo_pending_dispatch_arbiter;
     .head_inst1_i(head_inst1),
     .dispatch0_facts_i(dispatch0_facts),
     .head1_facts_i(head1_facts),
-    .dispatch0_arch_trap_i(dispatch0_arch_trap),
-    .dispatch0_exit_i(dispatch0_exit),
-    .dispatch0_ecall_i(dispatch0_ecall),
-    .dispatch0_ebreak_i(dispatch0_ebreak),
-    .dispatch0_fp_i(dispatch0_fp),
-    .dispatch0_system_i(dispatch0_system),
-    .dispatch0_branch_i(dispatch0_branch),
     .direct_branch0_dispatch_valid_i(direct_branch0_dispatch_valid),
-    .dispatch0_jal_i(dispatch0_jal),
     .direct_jal0_dispatch_valid_i(direct_jal0_dispatch_valid),
-    .dispatch0_jump_i(dispatch0_jump),
     .dispatch0_return_i(dispatch0_return),
     .dispatch0_unsupported_i(dispatch0_unsupported),
     .dispatch_unsupported_i(dispatch_unsupported),
     .dispatch1_barrier_fire_i(dispatch1_barrier_fire),
     .head0_csr_illegal_i(head0_csr_illegal),
-    .head0_semihost_ebreak_i(head0_semihost_ebreak),
-    .head1_system_raw_i(head1_system_raw),
-    .head1_exit_raw_i(head1_exit_raw),
-    .head1_ecall_raw_i(head1_ecall_raw),
-    .head1_ebreak_raw_i(head1_ebreak_raw),
-    .head1_arch_trap_raw_i(head1_arch_trap_raw),
-    .head1_illegal_raw_i(head1_illegal_raw),
-    .head1_fp_disabled_i(head1_fp_disabled),
-    .head1_priv_system_illegal_i(head1_priv_system_illegal),
     .head1_csr_illegal_i(head1_csr_illegal),
-    .head1_semihost_ebreak_i(head1_semihost_ebreak),
     .pending_system_capture_irq_o(pending_system_capture_irq),
     .pending_system_capture_head0_o(pending_system_capture_head0),
     .pending_system_capture_lane1_o(pending_system_capture_lane1),

@@ -511,6 +511,14 @@
 `define MEM_SIZE_WORD      2'b10   // 32-bit
 `define MEM_SIZE_DWORD     2'b11   // 64-bit
 
+// IEEE-754 fflags 异常标志位（fflags[4:0]）：FP execute 各 owner 共享，
+// 由 define.v 统一管理（原 execute/OooFpDefs.v 已并入这里）。
+`define FP_FLAG_NV         5'b10000  // invalid
+`define FP_FLAG_DZ         5'b01000  // divide-by-zero
+`define FP_FLAG_OF         5'b00100  // overflow
+`define FP_FLAG_UF         5'b00010  // underflow
+`define FP_FLAG_NX         5'b00001  // inexact
+
 // 写回源选择：WBU 在这里统一做多路选择，避免前级直接写寄存器堆。
 `define WB_SEL_NONE        3'b000  // 不写回
 `define WB_SEL_ALU         3'b001  // 写回 ALU 结果

@@ -1,7 +1,7 @@
 `include "define.v"
 
 // Pure combinational decode of a two-word fetch response into two front-end
-// instruction slots. Policy decisions stay in OooAluFetchCore.
+// instruction slots. Policy decisions stay in OooCoreTopGlue.
 module OooFetchPacketDecode (
   input [`XLEN-1:0] rsp_pc_i,
   input [`INST_W-1:0] rsp_inst0_i,
@@ -75,4 +75,3 @@ module OooFetchPacketDecode (
   assign packet_next_pc_o = dec1_next_pc_o;
 
 endmodule
-

@@ -1,7 +1,7 @@
 `include "define.v"
 
 // Selects the dispatch-visible fetch packet head from response bypass or FIFO.
-// Storage and flow-control decisions stay in OooAluFetchCore.
+// Storage and flow-control decisions stay in OooCoreTopGlue.
 module OooFetchPacketHeadMux (
   input bypass_valid_i,
   input fifo_head_valid_i,
@@ -53,4 +53,3 @@ module OooFetchPacketHeadMux (
   assign head_resp1_o = bypass_valid_i ? bypass_resp1_i : fifo_resp1_i;
 
 endmodule
-

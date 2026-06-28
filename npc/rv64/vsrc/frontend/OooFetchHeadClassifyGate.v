@@ -1,5 +1,5 @@
 `include "define.v"
-`include "common/OooSlotFacts.vh"
+`include "common/OooSlotFacts.v"
 
 // 单槽 fetch head 分类器：只生成组合 facts，不持有 fetch/CSR/pending 状态。
 module OooFetchHeadClassifyGate (

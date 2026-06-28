@@ -2,31 +2,35 @@
 
 ## 目标
 
-上一轮已经把 fetch/decode slot facts 收敛到 `common/OooSlotFacts.vh` 定义的 packed bus。
+上一轮已经把 fetch/decode slot facts 收敛到 `common/OooSlotFacts.v` 定义的 packed bus。
 本轮把该 bus 接入 `control/OooPendingDispatchArbiter.v`，让 pending capture/clear
 仲裁开始消费统一 facts，而不是继续只依赖 `dispatch0_*` / `head1_*` 散线。
 
-本切片仍保持等价迁移：旧散线端口全部保留，新增 `dispatch0_facts_i/head1_facts_i`
-作为内部组合判定的主路径，不改变 capture 优先级、payload 所有权或任一 pending
-sequencer 的时序。
+后续切片已经删除旧事实散线兼容端口；当前 `dispatch0_facts_i/head1_facts_i`
+是 slot facts 进入 arbiter 的唯一事实输入。不改变 capture 优先级、payload 所有权
+或任一 pending sequencer 的时序。
 
 ## 范围
 
 本切片负责：
 
-- `OooPendingDispatchArbiter` include `common/OooSlotFacts.vh`。
-- 新增输入 `dispatch0_facts_i` 与 `head1_facts_i`。
+- `OooPendingDispatchArbiter` include `common/OooSlotFacts.v`。
+- 输入 `dispatch0_facts_i` 与 `head1_facts_i`。
 - 在 arbiter 内部用 facts bus 建立本地 alias：
   `dispatch0_arch_trap/exit/ecall/ebreak/fp/system/branch/jal/jump` 和
   `head1_system/exit/ecall/ebreak/arch_trap/illegal/fp_disabled/priv_illegal/semihost`。
+- 后续切片把 lane1 facts alias 和 trap/exit payload mux 移入
+  `control/OooPendingLane1CaptureGate.v`；`OooPendingDispatchArbiter` 仍负责
+  lane1 barrier base 和全局 capture/clear 优先级。
 - `OooAluFetchCore` 生成 `dispatch0_facts_w = dispatch_valid_w ? head0_facts_w : 0`，
   并把 `dispatch0_facts_w/head1_facts_w` 接给 arbiter。
-- `tb_ooo_pending_dispatch_arbiter` 用旧标量 stimulus 自动构造 facts bus，验证旧场景
+- `tb_ooo_pending_dispatch_arbiter` 用标量 stimulus 自动构造 facts bus，验证旧场景
   在新 bus 主路径下仍通过。
 
 不在范围内：
 
-- 不删除旧 `dispatch0_*` / `head1_*` 兼容端口。
+- 不删除 direct fast-path、unsupported、barrier fire 或 CSR illegal probe 等非 slot-facts
+  控制输入。
 - 不改变 `head0_csr_illegal/head1_csr_illegal` 等 CSR probe 结果来源。
 - 不改变 pending branch/jump/mem/FP/system/trap-exit sequencer 的状态机。
 - 不移动 pending payload、backend drain、CSR side effect、fetch redirect、PC/outstanding、
@@ -42,6 +46,8 @@ sequencer 的时序。
   `dispatch1_barrier_fire_i` 和 lane0 优先级表决定。
 - CSR illegal 仍来自 `head0_csr_illegal_i/head1_csr_illegal_i`，因为它依赖 CSR probe，
   不是纯 decode slot facts。
+- direct branch/JAL fire、return hint、unsupported 和 lane1 barrier fire 仍是控制边界输入，
+  不塞进 slot facts bus。
 
 ## 状态机
 

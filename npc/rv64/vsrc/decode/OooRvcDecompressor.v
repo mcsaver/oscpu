@@ -1,7 +1,7 @@
 `include "define.v"
 
 // RV64 OoO 前端的压缩指令解压器：纯组合地把 16-bit RVC 半字展开为 32-bit 标准指令。
-// 单独成模块后，RVC 指令表可以脱离 OooAluFetchCore 做审计和后续覆盖补强。
+// 单独成模块后，RVC 指令表可以脱离 core glue 做审计和后续覆盖补强。
 module OooRvcDecompressor (
   input [15:0] inst_i,
   output [`INST_W-1:0] inst_o

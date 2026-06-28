@@ -121,6 +121,56 @@ module NpcCoreTop (
   wire ooo_svpbmt_en_w;
   wire [`PMP_CFG_BUS_W-1:0] ooo_pmpcfg_w;
   wire [`PMP_ADDR_BUS_W-1:0] ooo_pmpaddr_w;
+  wire [1:0] ooo_observe_priv_mode_w;
+  wire [`XLEN-1:0] ooo_observe_mstatus_w;
+  wire [`XLEN-1:0] ooo_observe_satp_w;
+  wire ooo_observe_svpbmt_en_w;
+  wire [`PMP_CFG_BUS_W-1:0] ooo_observe_pmpcfg_w;
+  wire [`PMP_ADDR_BUS_W-1:0] ooo_observe_pmpaddr_w;
+
+  wire ooo_csr_cycle_count_enable_w;
+  wire [1:0] ooo_core_retire_count_w;
+  wire ooo_pending_system_csr_commit_w;
+  wire ooo_csr_access_valid_w;
+  wire [11:0] ooo_csr_access_addr_w;
+  wire [2:0] ooo_csr_access_funct3_w;
+  wire [`REG_ADDR_W-1:0] ooo_csr_access_rs1_idx_w;
+  wire [`XLEN-1:0] ooo_csr_access_rs1_data_w;
+  wire ooo_pending_fp_fflags_commit_w;
+  wire [4:0] ooo_pending_fp_commit_fflags_w;
+  wire ooo_csr_trap_mem_valid_w;
+  wire [`XLEN-1:0] ooo_csr_trap_mem_pc_w;
+  wire [`TRAP_CAUSE_W-1:0] ooo_csr_trap_mem_cause_w;
+  wire [`XLEN-1:0] ooo_csr_trap_mem_tval_w;
+  wire ooo_csr_trap_ex_valid_w;
+  wire [`XLEN-1:0] ooo_csr_trap_ex_pc_w;
+  wire [`TRAP_CAUSE_W-1:0] ooo_csr_trap_ex_cause_w;
+  wire [`XLEN-1:0] ooo_csr_trap_ex_tval_w;
+  wire ooo_csr_trap_irq_valid_w;
+  wire [`XLEN-1:0] ooo_csr_trap_irq_pc_w;
+  wire [`TRAP_CAUSE_W-1:0] ooo_csr_trap_irq_cause_w;
+  wire ooo_csr_real_mret_valid_w;
+  wire ooo_csr_sret_valid_w;
+  wire [`XLEN-1:0] ooo_csr_rdata_w;
+  wire ooo_csr_illegal_w;
+  wire ooo_csr_irq_pending_w;
+  wire [`TRAP_CAUSE_W-1:0] ooo_csr_irq_cause_w;
+  wire [`XLEN-1:0] ooo_csr_trap_target_w;
+  wire [`XLEN-1:0] ooo_csr_mepc_w;
+  wire [`XLEN-1:0] ooo_csr_ret_target_w;
+  wire [`TRAP_CAUSE_W-1:0] ooo_csr_ecall_cause_w;
+  wire [`REG_ADDR_W-1:0] ooo_pending_fp_rs1_idx_w;
+  wire [`REG_ADDR_W-1:0] ooo_pending_fp_rs2_idx_w;
+  wire [`REG_ADDR_W-1:0] ooo_pending_fp_rs3_idx_w;
+  wire [`XLEN-1:0] ooo_pending_fp_frs1_value_w;
+  wire [`XLEN-1:0] ooo_pending_fp_frs2_value_w;
+  wire [`XLEN-1:0] ooo_pending_fp_frs3_value_w;
+  wire ooo_pending_fp_fpr_load_write_valid_w;
+  wire [`REG_ADDR_W-1:0] ooo_pending_fp_fpr_load_write_addr_w;
+  wire [`XLEN-1:0] ooo_pending_fp_fpr_load_write_data_w;
+  wire ooo_pending_fp_fpr_result_write_valid_w;
+  wire [`REG_ADDR_W-1:0] ooo_pending_fp_fpr_result_write_addr_w;
+  wire [`XLEN-1:0] ooo_pending_fp_fpr_result_write_data_w;
 
   wire ooo_icache_invalidate_valid_w =
       (ooo_mem0_req_valid_w && ooo_mem0_req_ready_w && ooo_mem0_req_write_w) ||
@@ -211,7 +261,7 @@ module NpcCoreTop (
     .lsu_axi_bresp_i(lsu_axi_bresp_i)
   );
 
-  OooAluFetchCore #(
+  OooCoreTopGlue #(
     .PHY_REG_ADDR_W(`OOO_PHY_REG_ADDR_W),
     .ROB_INDEX_W(`OOO_ROB_INDEX_W),
     .ROB_COUNT_W(`OOO_ROB_COUNT_W),
@@ -224,10 +274,6 @@ module NpcCoreTop (
     .flush_i(1'b0),
     .run_i(1'b1),
     .reset_pc_i(`RESET_PC),
-    .time_i(mtime_i),
-    .irq_software_i(irq_software_i),
-    .irq_timer_i(irq_timer_i),
-    .irq_external_i(irq_external_i),
     .fetch_req_valid_o(ooo_fetch_req_valid_w),
     .fetch_req_ready_i(ooo_fetch_req_ready_w),
     .fetch_req_pc_o(ooo_fetch_req_pc_w),
@@ -261,6 +307,55 @@ module NpcCoreTop (
     .mem1_rsp_page_fault_i(ooo_mem1_rsp_page_fault_w),
     .mem_flush_o(ooo_mem_flush_w),
     .mmu_flush_o(ooo_mmu_flush_w),
+    .csr_cycle_count_enable_w(ooo_csr_cycle_count_enable_w),
+    .core_retire_count_w(ooo_core_retire_count_w),
+    .pending_system_csr_commit_w(ooo_pending_system_csr_commit_w),
+    .csr_access_valid_w(ooo_csr_access_valid_w),
+    .csr_access_addr_w(ooo_csr_access_addr_w),
+    .csr_access_funct3_w(ooo_csr_access_funct3_w),
+    .csr_access_rs1_idx_w(ooo_csr_access_rs1_idx_w),
+    .csr_access_rs1_data_w(ooo_csr_access_rs1_data_w),
+    .pending_fp_fflags_commit_w(ooo_pending_fp_fflags_commit_w),
+    .pending_fp_commit_fflags_w(ooo_pending_fp_commit_fflags_w),
+    .csr_trap_mem_valid_w(ooo_csr_trap_mem_valid_w),
+    .csr_trap_mem_pc_w(ooo_csr_trap_mem_pc_w),
+    .csr_trap_mem_cause_w(ooo_csr_trap_mem_cause_w),
+    .csr_trap_mem_tval_w(ooo_csr_trap_mem_tval_w),
+    .csr_trap_ex_valid_w(ooo_csr_trap_ex_valid_w),
+    .csr_trap_ex_pc_w(ooo_csr_trap_ex_pc_w),
+    .csr_trap_ex_cause_w(ooo_csr_trap_ex_cause_w),
+    .csr_trap_ex_tval_w(ooo_csr_trap_ex_tval_w),
+    .csr_trap_irq_valid_w(ooo_csr_trap_irq_valid_w),
+    .csr_trap_irq_pc_w(ooo_csr_trap_irq_pc_w),
+    .csr_trap_irq_cause_w(ooo_csr_trap_irq_cause_w),
+    .csr_real_mret_valid_w(ooo_csr_real_mret_valid_w),
+    .csr_sret_valid_w(ooo_csr_sret_valid_w),
+    .csr_rdata_w(ooo_csr_rdata_w),
+    .csr_illegal_w(ooo_csr_illegal_w),
+    .csr_irq_pending_w(ooo_csr_irq_pending_w),
+    .csr_irq_cause_w(ooo_csr_irq_cause_w),
+    .csr_trap_target_w(ooo_csr_trap_target_w),
+    .csr_mepc_w(ooo_csr_mepc_w),
+    .csr_ret_target_w(ooo_csr_ret_target_w),
+    .csr_priv_mode_w(ooo_priv_mode_w),
+    .csr_ecall_cause_w(ooo_csr_ecall_cause_w),
+    .csr_mstatus_w(ooo_mstatus_w),
+    .csr_satp_w(ooo_satp_w),
+    .csr_svpbmt_en_w(ooo_svpbmt_en_w),
+    .csr_pmpcfg_w(ooo_pmpcfg_w),
+    .csr_pmpaddr_w(ooo_pmpaddr_w),
+    .pending_fp_rs1_idx_w(ooo_pending_fp_rs1_idx_w),
+    .pending_fp_rs2_idx_w(ooo_pending_fp_rs2_idx_w),
+    .pending_fp_rs3_idx_w(ooo_pending_fp_rs3_idx_w),
+    .pending_fp_frs1_value_w(ooo_pending_fp_frs1_value_w),
+    .pending_fp_frs2_value_w(ooo_pending_fp_frs2_value_w),
+    .pending_fp_frs3_value_w(ooo_pending_fp_frs3_value_w),
+    .pending_fp_fpr_load_write_valid_w(ooo_pending_fp_fpr_load_write_valid_w),
+    .pending_fp_fpr_load_write_addr_w(ooo_pending_fp_fpr_load_write_addr_w),
+    .pending_fp_fpr_load_write_data_w(ooo_pending_fp_fpr_load_write_data_w),
+    .pending_fp_fpr_result_write_valid_w(ooo_pending_fp_fpr_result_write_valid_w),
+    .pending_fp_fpr_result_write_addr_w(ooo_pending_fp_fpr_result_write_addr_w),
+    .pending_fp_fpr_result_write_data_w(ooo_pending_fp_fpr_result_write_data_w),
     .commit_ready_i(1'b1),
     .commit0_valid_o(commit0_valid_o),
     .commit0_pc_o(commit0_pc_o),
@@ -289,12 +384,12 @@ module NpcCoreTop (
     .exit_is_ebreak_o(exit_is_ebreak_o),
     .exit_code_o(exit_code_o),
     .halted_o(halted_o),
-    .priv_mode_o(ooo_priv_mode_w),
-    .mstatus_o(ooo_mstatus_w),
-    .satp_o(ooo_satp_w),
-    .svpbmt_en_o(ooo_svpbmt_en_w),
-    .pmpcfg_o(ooo_pmpcfg_w),
-    .pmpaddr_o(ooo_pmpaddr_w),
+    .priv_mode_o(ooo_observe_priv_mode_w),
+    .mstatus_o(ooo_observe_mstatus_w),
+    .satp_o(ooo_observe_satp_w),
+    .svpbmt_en_o(ooo_observe_svpbmt_en_w),
+    .pmpcfg_o(ooo_observe_pmpcfg_w),
+    .pmpaddr_o(ooo_observe_pmpaddr_w),
     .debug_pc_o(debug_pc_o),
     .debug_state_o(debug_state_o),
     .debug_gprs_o(debug_gprs_o),
@@ -302,6 +397,71 @@ module NpcCoreTop (
     .free_count_o(free_count_o),
     .rob_count_o(rob_count_o),
     .issue_count_o(issue_count_o)
+  );
+
+  CsrFile u_csr_file (
+    .clk(clk),
+    .rst(rst),
+    .cycle_count_enable_i(ooo_csr_cycle_count_enable_w),
+    .time_i(mtime_i),
+    .instret_inc_i(ooo_core_retire_count_w),
+    .csr_valid_i(ooo_csr_access_valid_w),
+    .csr_addr_i(ooo_csr_access_addr_w),
+    .csr_funct3_i(ooo_csr_access_funct3_w),
+    .csr_rs1_idx_i(ooo_csr_access_rs1_idx_w),
+    .csr_rs1_data_i(ooo_csr_access_rs1_data_w),
+    .csr_zimm_i(ooo_csr_access_rs1_idx_w),
+    .csr_commit_i(ooo_pending_system_csr_commit_w),
+    .csr_rdata_o(ooo_csr_rdata_w),
+    .csr_illegal_o(ooo_csr_illegal_w),
+    .fp_fflags_valid_i(ooo_pending_fp_fflags_commit_w),
+    .fp_fflags_i(ooo_pending_fp_commit_fflags_w),
+    .trap_mem_valid_i(ooo_csr_trap_mem_valid_w),
+    .trap_mem_pc_i(ooo_csr_trap_mem_pc_w),
+    .trap_mem_cause_i(ooo_csr_trap_mem_cause_w),
+    .trap_mem_tval_i(ooo_csr_trap_mem_tval_w),
+    .trap_ex_valid_i(ooo_csr_trap_ex_valid_w),
+    .trap_ex_pc_i(ooo_csr_trap_ex_pc_w),
+    .trap_ex_cause_i(ooo_csr_trap_ex_cause_w),
+    .trap_ex_tval_i(ooo_csr_trap_ex_tval_w),
+    .irq_software_i(irq_software_i),
+    .irq_timer_i(irq_timer_i),
+    .irq_external_i(irq_external_i),
+    .irq_pending_o(ooo_csr_irq_pending_w),
+    .irq_cause_o(ooo_csr_irq_cause_w),
+    .trap_irq_valid_i(ooo_csr_trap_irq_valid_w),
+    .trap_irq_pc_i(ooo_csr_trap_irq_pc_w),
+    .trap_irq_cause_i(ooo_csr_trap_irq_cause_w),
+    .mret_valid_i(ooo_csr_real_mret_valid_w),
+    .sret_valid_i(ooo_csr_sret_valid_w),
+    .trap_target_o(ooo_csr_trap_target_w),
+    .mepc_o(ooo_csr_mepc_w),
+    .ret_target_o(ooo_csr_ret_target_w),
+    .priv_mode_o(ooo_priv_mode_w),
+    .ecall_cause_o(ooo_csr_ecall_cause_w),
+    .mstatus_o(ooo_mstatus_w),
+    .satp_o(ooo_satp_w),
+    .svpbmt_en_o(ooo_svpbmt_en_w),
+    .pmpcfg_o(ooo_pmpcfg_w),
+    .pmpaddr_o(ooo_pmpaddr_w)
+  );
+
+  OooFpRegFile u_fp_reg_file (
+    .clk(clk),
+    .rst(rst),
+    .flush_i(1'b0),
+    .read0_addr_i(ooo_pending_fp_rs1_idx_w),
+    .read0_data_o(ooo_pending_fp_frs1_value_w),
+    .read1_addr_i(ooo_pending_fp_rs2_idx_w),
+    .read1_data_o(ooo_pending_fp_frs2_value_w),
+    .read2_addr_i(ooo_pending_fp_rs3_idx_w),
+    .read2_data_o(ooo_pending_fp_frs3_value_w),
+    .load_write_valid_i(ooo_pending_fp_fpr_load_write_valid_w),
+    .load_write_addr_i(ooo_pending_fp_fpr_load_write_addr_w),
+    .load_write_data_i(ooo_pending_fp_fpr_load_write_data_w),
+    .result_write_valid_i(ooo_pending_fp_fpr_result_write_valid_w),
+    .result_write_addr_i(ooo_pending_fp_fpr_result_write_addr_w),
+    .result_write_data_i(ooo_pending_fp_fpr_result_write_data_w)
   );
 
   assign ifu_axi_abort_o = ooo_mmu_flush_w;

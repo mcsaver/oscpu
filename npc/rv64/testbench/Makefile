@@ -45,10 +45,19 @@ TESTS := \
   tb_ooo_muldiv_unit \
   tb_ooo_clmul_unit \
   tb_ooo_int_backend \
+  tb_ooo_bitmanip_gate \
+  tb_ooo_amo_gate \
   tb_ooo_alu_decode_backend \
   tb_ooo_alu_core_slice \
-  tb_ooo_alu_fetch_core \
+  tb_ooo_core_top_glue \
   tb_ooo_fp_iter \
+  tb_ooo_fp_mem_access_gate \
+  tb_ooo_fp_classify_gate \
+  tb_ooo_fp_sgnj_gate \
+  tb_ooo_fp_compare_gate \
+  tb_ooo_fp_convert_gate \
+  tb_ooo_fp_arith_gate \
+  tb_ooo_fp_long_op_gate \
   tb_ooo_direct_ras_candidate_gate \
   tb_ooo_ras_update_gate \
   tb_ooo_branch_spec_tracker \
@@ -59,6 +68,7 @@ TESTS := \
   tb_ooo_stop_pending_sequencer \
   tb_ooo_csr_access_request_mux \
   tb_ooo_csr_trap_request_mux \
+  tb_ooo_pending_lane1_capture_gate \
   tb_ooo_pending_dispatch_arbiter \
   tb_ooo_pending_system_sequencer \
   tb_ooo_pending_trap_exit_sequencer \
@@ -147,12 +157,21 @@ TB_SRCS_tb_ooo_int_issue_queue := tests/tb_ooo_int_issue_queue.sv $(RTL_OOO_INT_
 TB_SRCS_tb_ooo_dispatch_backend := tests/tb_ooo_dispatch_backend.sv $(RTL_OOO_DISPATCH_BACKEND) $(RTL_OOO_RENAME_MAP) $(RTL_OOO_FREE_LIST) $(RTL_OOO_BUSY_TABLE) $(RTL_OOO_ROB) $(RTL_OOO_INT_ISSUE_QUEUE)
 TB_SRCS_tb_ooo_muldiv_unit := tests/tb_ooo_muldiv_unit.sv $(RTL_OOO_MULDIV_UNIT)
 TB_SRCS_tb_ooo_clmul_unit := tests/tb_ooo_clmul_unit.sv $(RTL_OOO_CLMUL_UNIT)
-TB_OOO_INT_BACKEND_SRCS := $(RTL_OOO_MULDIV_UNIT) $(RTL_OOO_CLMUL_UNIT) $(RTL_OOO_INT_BACKEND) $(RTL_OOO_DISPATCH_BACKEND) $(RTL_OOO_RENAME_MAP) $(RTL_OOO_FREE_LIST) $(RTL_OOO_BUSY_TABLE) $(RTL_OOO_ROB) $(RTL_OOO_INT_ISSUE_QUEUE) $(RTL_OOO_PHYS_REG_FILE) $(RTL_ALU) $(RTL_COMPARE_UNIT) $(RTL_LSU_CONTROL) $(RTL_LSU_DATAPATH) $(RTL_LSU) $(RTL_WBU)
+TB_OOO_INT_BACKEND_SRCS := $(RTL_OOO_MULDIV_UNIT) $(RTL_OOO_CLMUL_UNIT) $(RTL_OOO_INT_BACKEND) $(RTL_OOO_BITMANIP_GATE) $(RTL_OOO_AMO_GATE) $(RTL_OOO_DISPATCH_BACKEND) $(RTL_OOO_RENAME_MAP) $(RTL_OOO_FREE_LIST) $(RTL_OOO_BUSY_TABLE) $(RTL_OOO_ROB) $(RTL_OOO_INT_ISSUE_QUEUE) $(RTL_OOO_PHYS_REG_FILE) $(RTL_ALU) $(RTL_COMPARE_UNIT) $(RTL_LSU_CONTROL) $(RTL_LSU_DATAPATH) $(RTL_LSU) $(RTL_WBU)
 TB_SRCS_tb_ooo_int_backend := tests/tb_ooo_int_backend.sv $(TB_OOO_INT_BACKEND_SRCS)
+TB_SRCS_tb_ooo_bitmanip_gate := tests/tb_ooo_bitmanip_gate.sv $(RTL_OOO_BITMANIP_GATE)
+TB_SRCS_tb_ooo_amo_gate := tests/tb_ooo_amo_gate.sv $(RTL_OOO_AMO_GATE)
 TB_SRCS_tb_ooo_alu_decode_backend := tests/tb_ooo_alu_decode_backend.sv $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
 TB_SRCS_tb_ooo_alu_core_slice := tests/tb_ooo_alu_core_slice.sv $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
-TB_SRCS_tb_ooo_alu_fetch_core := tests/tb_ooo_alu_fetch_core.sv $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_ALU_FETCH_CORE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
+TB_SRCS_tb_ooo_core_top_glue := tests/tb_ooo_core_top_glue.sv $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
 TB_SRCS_tb_ooo_fp_iter := tests/tb_ooo_fp_iter.sv $(RTL_OOO_FP_DIV_ITER) $(RTL_OOO_FP_SQRT_ITER)
+TB_SRCS_tb_ooo_fp_mem_access_gate := tests/tb_ooo_fp_mem_access_gate.sv $(RTL_OOO_FP_MEM_ACCESS_GATE)
+TB_SRCS_tb_ooo_fp_classify_gate := tests/tb_ooo_fp_classify_gate.sv $(RTL_OOO_FP_CLASSIFY_GATE)
+TB_SRCS_tb_ooo_fp_sgnj_gate := tests/tb_ooo_fp_sgnj_gate.sv $(RTL_OOO_FP_SGNJ_GATE)
+TB_SRCS_tb_ooo_fp_compare_gate := tests/tb_ooo_fp_compare_gate.sv $(RTL_OOO_FP_COMPARE_GATE)
+TB_SRCS_tb_ooo_fp_convert_gate := tests/tb_ooo_fp_convert_gate.sv $(RTL_OOO_FP_CONVERT_GATE)
+TB_SRCS_tb_ooo_fp_arith_gate := tests/tb_ooo_fp_arith_gate.sv $(RTL_OOO_FP_ARITH_GATE)
+TB_SRCS_tb_ooo_fp_long_op_gate := tests/tb_ooo_fp_long_op_gate.sv $(RTL_OOO_FP_LONG_OP_GATE) $(RTL_OOO_FP_DIV_ITER) $(RTL_OOO_FP_SQRT_ITER)
 TB_SRCS_tb_ooo_direct_ras_candidate_gate := tests/tb_ooo_direct_ras_candidate_gate.sv $(RTL_OOO_DIRECT_RAS_CANDIDATE_GATE)
 TB_SRCS_tb_ooo_ras_update_gate := tests/tb_ooo_ras_update_gate.sv $(RTL_OOO_RAS_UPDATE_GATE)
 TB_SRCS_tb_ooo_branch_spec_tracker := tests/tb_ooo_branch_spec_tracker.sv $(RTL_OOO_BRANCH_SPEC_TRACKER)
@@ -163,7 +182,8 @@ TB_SRCS_tb_ooo_control_flush_sequencer := tests/tb_ooo_control_flush_sequencer.s
 TB_SRCS_tb_ooo_stop_pending_sequencer := tests/tb_ooo_stop_pending_sequencer.sv $(RTL_OOO_STOP_PENDING_SEQUENCER)
 TB_SRCS_tb_ooo_csr_access_request_mux := tests/tb_ooo_csr_access_request_mux.sv $(RTL_OOO_CSR_ACCESS_REQUEST_MUX)
 TB_SRCS_tb_ooo_csr_trap_request_mux := tests/tb_ooo_csr_trap_request_mux.sv $(RTL_OOO_CSR_TRAP_REQUEST_MUX)
-TB_SRCS_tb_ooo_pending_dispatch_arbiter := tests/tb_ooo_pending_dispatch_arbiter.sv $(RTL_OOO_PENDING_DISPATCH_ARBITER)
+TB_SRCS_tb_ooo_pending_lane1_capture_gate := tests/tb_ooo_pending_lane1_capture_gate.sv $(RTL_OOO_PENDING_LANE1_CAPTURE_GATE)
+TB_SRCS_tb_ooo_pending_dispatch_arbiter := tests/tb_ooo_pending_dispatch_arbiter.sv $(RTL_OOO_PENDING_LANE1_CAPTURE_GATE) $(RTL_OOO_PENDING_DISPATCH_ARBITER)
 TB_SRCS_tb_ooo_pending_system_sequencer := tests/tb_ooo_pending_system_sequencer.sv $(RTL_OOO_PENDING_SYSTEM_SEQUENCER)
 TB_SRCS_tb_ooo_pending_trap_exit_sequencer := tests/tb_ooo_pending_trap_exit_sequencer.sv $(RTL_OOO_PENDING_TRAP_EXIT_SEQUENCER)
 TB_SRCS_tb_ooo_trap_exit_event_mux := tests/tb_ooo_trap_exit_event_mux.sv $(RTL_OOO_TRAP_EXIT_EVENT_MUX)
@@ -206,8 +226,8 @@ TB_SRCS_tb_ooo_data_word_cache := tests/tb_ooo_data_word_cache.sv $(RTL_OOO_DATA
 TB_SRCS_tb_ooo_branch_target_cache := tests/tb_ooo_branch_target_cache.sv $(RTL_OOO_BRANCH_TARGET_CACHE)
 TB_SRCS_tb_ooo_branch_target_capture_buffer := tests/tb_ooo_branch_target_capture_buffer.sv $(RTL_OOO_BRANCH_TARGET_CAPTURE_BUFFER)
 TB_SRCS_tb_ooo_fetch_axi_bridge := tests/tb_ooo_fetch_axi_bridge.sv $(RTL_PMP_CHECKER) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
-TB_SRCS_tb_ooo_fetch_trap_gate := tests/tb_ooo_fetch_trap_gate.sv $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_ALU_FETCH_CORE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
-TB_SRCS_tb_ooo_priv_system := tests/tb_ooo_priv_system.sv $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_ALU_FETCH_CORE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
+TB_SRCS_tb_ooo_fetch_trap_gate := tests/tb_ooo_fetch_trap_gate.sv $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
+TB_SRCS_tb_ooo_priv_system := tests/tb_ooo_priv_system.sv $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
 TB_SRCS_tb_ooo_sv39_boot := tests/tb_ooo_sv39_boot.sv $(RTL_CORE_SRCS)
 TB_SRCS_tb_ooo_mem_axi_bridge := tests/tb_ooo_mem_axi_bridge.sv $(RTL_PMP_CHECKER) $(RTL_OOO_DATA_WORD_CACHE) $(RTL_OOO_SV39_TLB) $(RTL_OOO_MEM_AXI_BRIDGE)
 TB_SRCS_tb_pipe_regs := tests/tb_pipe_regs.sv $(RTL_IF_ID_PIPE_REG) $(RTL_ID_EX_PIPE_REG) $(RTL_EX_MEM_PIPE_REG) $(RTL_MEM_WB_PIPE_REG)
