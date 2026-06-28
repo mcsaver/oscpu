@@ -336,6 +336,60 @@
     end
   endfunction
 
+  // 128-bit shift-right-jam:用于 fused FMA 宽数据通路(anchor-at-larger 对齐)。
+  // shamt 由调用方钳到 [0,128];>=128 → 全部进粘滞位。
+  function [127:0] fp_shift_right_jam_128;
+    input [127:0] value;
+    input [7:0] shamt;
+    reg [127:0] stage;
+    reg [127:0] stage_next;
+    begin
+      if (shamt == 8'd0) begin
+        fp_shift_right_jam_128 = value;
+      end else if (shamt >= 8'd128) begin
+        fp_shift_right_jam_128 = {127'b0, |value};
+      end else begin
+        stage = value;
+        if (shamt[0]) begin
+          stage_next = {1'b0, stage[127:1]};
+          stage_next[0] = stage_next[0] | stage[0];
+          stage = stage_next;
+        end
+        if (shamt[1]) begin
+          stage_next = {2'b0, stage[127:2]};
+          stage_next[0] = stage_next[0] | (|stage[1:0]);
+          stage = stage_next;
+        end
+        if (shamt[2]) begin
+          stage_next = {4'b0, stage[127:4]};
+          stage_next[0] = stage_next[0] | (|stage[3:0]);
+          stage = stage_next;
+        end
+        if (shamt[3]) begin
+          stage_next = {8'b0, stage[127:8]};
+          stage_next[0] = stage_next[0] | (|stage[7:0]);
+          stage = stage_next;
+        end
+        if (shamt[4]) begin
+          stage_next = {16'b0, stage[127:16]};
+          stage_next[0] = stage_next[0] | (|stage[15:0]);
+          stage = stage_next;
+        end
+        if (shamt[5]) begin
+          stage_next = {32'b0, stage[127:32]};
+          stage_next[0] = stage_next[0] | (|stage[31:0]);
+          stage = stage_next;
+        end
+        if (shamt[6]) begin
+          stage_next = {64'b0, stage[127:64]};
+          stage_next[0] = stage_next[0] | (|stage[63:0]);
+          stage = stage_next;
+        end
+        fp_shift_right_jam_128 = stage;
+      end
+    end
+  endfunction
+
   function [47:0] fp_shift_right_jam_48;
     input [47:0] value;
     input [5:0] shamt;
