@@ -26,8 +26,9 @@
   上限窗口测得 **CoreMark CPI ≈ 1.020**(cycles=50M/commits=49.04M)。这是最佳真实代码 CPI
   (计算/循环密集、分支可预测,双发射 OoO 充分发挥)。真实代码画像现完整:CoreMark 1.02 < AM 加权 1.26
   < Dhrystone 1.52。
-- **B4【性能·中】时序不在 --all 回环**:Fmax 是独立手动 Vivado 流程。一个改动可能升 CPI 却悄悄劣化
-  Fmax(反之亦然),`--all` 不自动抓时序回归。spec-B 实验正是手动跨两套度量才看清 trade。
+- **B4【性能·中】时序不在 --all 回环(已闭合)**:原 Fmax 是独立手动 Vivado 流程,改动可能升 CPI 却
+  悄悄劣化 Fmax。**已加 `--timing` 模式**:Vivado 模块级 OOC(内存安全)综合关键模块取 Logic Levels
+  作 Fmax 代理,把时序回归检测纳入评估系统(默认 OooDispatchBackend,基线 39 级)。
 - **B5【方法·低】CPI 加权代表性**:加权基于 AM PASS 子集,非真实负载分布;跨版本可比但绝对值勿过解读。
 
 ## 3. 对"优化平台期"结论的校准
