@@ -81,18 +81,21 @@ PTW 交织仲裁,即对已绿的桥大规模重写。当前测试集多 dcache �
 1. **评估系统 level-2 元评估**(`eval/META-EVAL.md`):识别 5 盲点并逐一处理——difftest 逐指令 33→**40**
    (新增 RVC/fence-i/mem-order/switch/stdio)、新增 `--timing` 时序回归 gate、CoreMark CPI **1.02**、
    module TB 覆盖率量化(82/104 Ooo 模块有专属单测,良好)、CPI 加权代表性已说明。
-2. **五轮对抗性 bug-hunt 战役**(覆盖 7 大高风险区,详见 `.github/memory/known-issues.md`):
+2. **六轮对抗性 bug-hunt 战役**(覆盖全部大模块 + 8 大高风险区,详见 `.github/memory/known-issues.md`):
    **修复 3 个真 bug(全验证全绿)**:
    - 隐患B(取指跨页 PMP 绕过,**安全**):`OooFetchAxiBridge.v` 不缓存跨页包,结构性消除 stale 槽1 PMP grant。
    - B1(中断委托位错,**Linux-breaking**):`CsrFile.v` 软件/定时器 hw 委托用 M 位(MSI=3/MTI=7)应为
      S 位(SSI=1/STI=5);协调修核 4 处 + `sbi-timer.c` 测试,真 Linux 写 mideleg=0x222 时中断方能委托到 S。
    - B2(中断优先级反转):`CsrFile.v` 双 pending 无条件选 S,改 M>S 全序。
    **文档化(非贸然修复)**:隐患A(访存桥 B off-by-one,IP复用;简单门控修复经实证**死锁**,需侵入式 B-tracker);
-   flush-drain 隐患(追根为桥 `drop_rsp_q` 已缓解,非问题)。
+   flush-drain 隐患(追根为桥 `drop_rsp_q` 已缓解,非问题);H-1(direct RAS return 信任 ras_top 后端不验证=
+   已知问题[740-744]残留,satp 清 RAS 只挡跨地址空间,残留=同地址空间非标准重定义 ra 后 ret-形 jalr;修复设计=
+   RAS 降为可验证预测,留待专注跟进)。
    **逐角落核对无真 bug**:除法器 radix-4/CLZ、FreeList 并行分配、PMP TOR/NAPOT/默认拒绝、trap/异常交付编排
-   (7 区精确异常)、OoO 旁路/唤醒/写回 FSM(前递/唤醒/写回仲裁/load-use/分支解析全对);顺带移除 PMP 死代码。
-   后 3 轮多 clean → 核心逻辑严谨、覆盖充分。两次 CSR/中断 spec 修复破坏测试均被 eval 安全网拦截+回退(教训:
-   此核中断模型有测试背书的约定,改动需协调+验证)。
+   (7 区精确异常)、OoO 旁路/唤醒/写回 FSM(前递/唤醒/写回仲裁/load-use/分支解析全对)、前端(取指异常/PC-redirect/
+   fetch-dispatch 交接/BTB-方向预测后端纠正/prefetch 门控/flush 一致,5/6 区 clean);顺带移除 PMP 死代码。
+   后几轮多 clean → 核心逻辑严谨、覆盖充分。两次 CSR/中断 spec 修复破坏测试均被 eval 安全网拦截+回退(教训:
+   此核中断/投机模型有测试背书的约定,改动需协调+验证)。
 3. **整核 P&R 证 16GB WSL 不可行**(并行综合 worker 撑爆内存,看门狗护航防崩)。
 
 ## 9. 待用户决策项(非可自主推进)
