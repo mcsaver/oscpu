@@ -89,3 +89,11 @@
 - difftest/NEMU 本环境不可构建（vga.c `update_screen` 缺声明），且 NEMU 对 A/D/PMP 与本核有意不同，
   非干净参考。访存类改动依赖现有 gate（历史上能捕获访存 bug）严验，不强依赖 NEMU。
 - 大型测试集/日志不入 git（`eval/results/` 已忽略），结论写文档/记忆。
+
+## 7. 时序(Fmax)track（Vivado OOC,数据驱动）
+工具就绪:`vivado/run-synth-module.sh`(按模块 OOC+内存看门狗,零崩溃)、`survey-modules.sh`。
+方法学:OOC route 不可信,看 logic delay+Logic Levels。WSL 崩溃根因=整核全展平综合内存峰值(见记忆)。
+- iter6 ✓ 除法器:3×divisor 移出迭代环寄存,logic 8.65→6.79ns(-21%)。
+- iter7 ✓ free list alloc1 并行读,DispatchBackend 42→39 级、logic 8.32→7.95ns。
+- **下一深目标**:DispatchBackend rename/alloc/IQ 链(39 级最深)流水化为 2 拍(rename+dispatch),
+  及 OooIntIssueQueue oldest-select——影响 CPI/正确性,须 spec 先行+eval 守+重综合验 WNS。
