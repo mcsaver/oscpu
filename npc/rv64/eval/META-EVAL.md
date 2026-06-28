@@ -86,3 +86,16 @@ OooCoreTopGlue→NpcCoreTop→NpcTop→cpu-exec commit event)+ `difftest.cpp` Di
 FP#2(FMA fused 重写)可逐位验证再实施。
 
 **[2026-06-28 实测确认 FP 验证的根障碍]**:尝试"硬件 FP 结果经 fmv.x.d 进 GPR→现有 GPR-difftest 对照 NEMU"的轻量路径,实测 difftest 在第一条 FP 指令即 control-flow mismatch(NEMU ref pc→0=trap)。根因:**NEMU 参考 misa=B,C,I,M,S,U 无 F/D**(见 §7 misa-priv),NEMU 把 FP 指令当非法 trap、根本不执行 FP。故**任何 FP-difftest(GPR 或 FPR 路径)都先需 NEMU 重配 F/D 支持**(misa 加 F/D + 启用 softfloat FP 执行 + 不 trap FP),这是 FP 验证使能器的**前置硬障碍**,必须新会话处理。当前 FP 验证仍靠 riscv-tests rv64uf/ud(NEMU 编译这些时另配?实际 rv64uf/ud 通过说明核 FP 至少过官方静态-rm 向量)+ 13 项硬件 FP ASM smoke(逐值,不依赖 NEMU)。
+
+
+## 9. FP 验证已解锁(2026-06-28 突破,超越 §8 评估)
+§8 评估"FPR-difftest 需新会话"被本轮**推翻**:发现 NEMU 有 F/D 支持(Kconfig `RISCV_EXT_F/D` + `inst/fp.c` softfloat)
+但 difftest 参考默认关→FP 指令被 trap(即 §7 misa-priv 中 NEMU misa 无 F/D 的根因)。**仅需启用
+`CONFIG_RISCV_EXT_F/D`(riscv64-npc_defconfig)重建 .so** 即解锁 FP-difftest——无需 FPR 比对 infra:
+硬件 FP 结果经 `fmv.x.d` 进 GPR,现有 **GPR-difftest** 即可逐指令对照 NEMU softfloat(新 `fp-difftest-probe.c`)。
+验证:difftest 40→41 全过(整数不受影响 + FP add/sub/mul/div/sqrt/FMA finite 对照 NEMU)。
+**两个 NEMU 参考局限(非核 bug,限定 FP-difftest 用法)**:
+- **NEMU 非规范 NaN**:NEMU softfloat 传播输入 NaN payload,核按 RISC-V 输出规范 qNaN(0x7ff8...);
+  实测 NaN 输入 op 分歧(核对、NEMU 非规范)→ **FP-difftest 须用有限非-NaN 操作数**。
+- (misa B vs A/D/F 等已知,§7)。
+**成果**:FP 正确性(有限操作数)现纳入 difftest 系统验证;FP#2(FMA 双舍入)经此**确认**(见 known-issues)。
