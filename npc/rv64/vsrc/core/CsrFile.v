@@ -490,8 +490,8 @@ module CsrFile (
       (irq_timer_i    ? `MIP_MTIP : {`XLEN{1'b0}}) |
       (irq_external_i ? `MIP_MEIP : {`XLEN{1'b0}});
   wire [`XLEN-1:0] csr_mip_hw_s_w =
-      ((irq_software_i && csr_mideleg_q[`IRQ_CAUSE_MSI]) ? `MIP_SSIP : {`XLEN{1'b0}}) |
-      ((irq_timer_i    && csr_mideleg_q[`IRQ_CAUSE_MTI]) ? `MIP_STIP : {`XLEN{1'b0}}) |
+      ((irq_software_i && csr_mideleg_q[`IRQ_CAUSE_SSI]) ? `MIP_SSIP : {`XLEN{1'b0}}) |
+      ((irq_timer_i    && csr_mideleg_q[`IRQ_CAUSE_STI]) ? `MIP_STIP : {`XLEN{1'b0}}) |
       ((irq_external_i && csr_mideleg_q[`IRQ_CAUSE_SEI]) ? `MIP_SEIP : {`XLEN{1'b0}});
   wire [`XLEN-1:0] csr_mip_visible_w = csr_mip_q | csr_mip_hw_m_w | csr_mip_hw_s_w;
   wire csr_sd_w = ((csr_mstatus_q & `MSTATUS_FS_MASK) == `MSTATUS_FS_DIRTY);
@@ -504,8 +504,8 @@ module CsrFile (
   wire [`XLEN-1:0] m_irq_enabled_pending_w =
       csr_mip_visible_w & csr_mie_q & MACHINE_INT_MASK &
       ~({`XLEN{(priv_mode_q != `PRIV_M)}} &
-        ((csr_mideleg_q[`IRQ_CAUSE_MSI] ? `MIP_MSIP : {`XLEN{1'b0}}) |
-         (csr_mideleg_q[`IRQ_CAUSE_MTI] ? `MIP_MTIP : {`XLEN{1'b0}}) |
+        ((csr_mideleg_q[`IRQ_CAUSE_SSI] ? `MIP_MSIP : {`XLEN{1'b0}}) |
+         (csr_mideleg_q[`IRQ_CAUSE_STI] ? `MIP_MTIP : {`XLEN{1'b0}}) |
          (csr_mideleg_q[`IRQ_CAUSE_SEI] ? `MIP_MEIP : {`XLEN{1'b0}})));
   wire [`XLEN-1:0] s_irq_enabled_pending_w =
       csr_mip_visible_w & csr_mie_q & SUPERVISOR_INT_MASK;
@@ -617,7 +617,8 @@ module CsrFile (
   assign satp_o = csr_satp_q;
   assign svpbmt_en_o = (csr_menvcfg_q & `MENVCFG_PBMTE) != {`XLEN{1'b0}};
   assign irq_pending_o = s_irq_pending_w | m_irq_pending_w;
-  assign irq_cause_o = s_irq_pending_w ? s_irq_cause_w : m_irq_cause_w;
+  // M 级中断优先于 S 级(规范全序 MEI>MSI>MTI>SEI>SSI>STI);双 pending 时先取 M。
+  assign irq_cause_o = m_irq_pending_w ? m_irq_cause_w : s_irq_cause_w;
 
   genvar pmp_out_idx;
   generate

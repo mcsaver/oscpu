@@ -189,7 +189,7 @@ int main() {
   *(volatile uint32_t *)(CLINT_MTIMECMP + 0) = 0xffffffffu;
 
   write_csr_mtvec((uintptr_t)m_sbi_timer_trap);
-  write_csr_mideleg(1ul << IRQ_CAUSE_MTI);
+  write_csr_mideleg(1ul << IRQ_CAUSE_STI);
   mret_to_s_payload();
   halt(1);
   return 1;
