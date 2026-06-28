@@ -175,6 +175,16 @@ endif
 lint:
 	$(VERILATOR) --lint-only -Wall -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-UNUSEDSIGNAL -I$(VSRCDIR) -I$(RTL_INCLUDE_DIR) $(RTL_VERILATOR_DEFINES) --top-module $(TOPNAME) $(VSRCS)
 
+# 打印可综合核心 RTL 文件清单(供 RTL 风格检查器使用)
+print-synth-rtl:
+	@echo $(RTL_CORE_SRCS)
+
+# RTL 写作规范风格检查器(可综合硬件用 .v + Verilog-2001 always 关键字):
+# 强制 .github/instructions/rtl-generation-workflow.instructions.md 的可执行子集——
+# 可综合文件须为 .v、不得用 SV 的 always_comb/always_ff/logic(iverilog 模块 TB 不兼容)。
+check-rtl-style:
+	@RTL_FILES="$$($(MAKE) -s print-synth-rtl)" $(abspath eval/check-rtl-style.sh)
+
 all: default
 
 core-regress:

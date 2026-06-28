@@ -101,7 +101,7 @@ applyTo: "**/*.{v,sv,vh,svh}"
   Vivado 用 `read_verilog -sv` 读 `.v`、Verilator 默认按 SV 解析 `.v`，但**为兼容 iverilog 模块 TB gate，可综合 .v 不使用 `always_comb`/`always_ff` 关键字**（见上节）。
 - **`.sv` 文件仅用于验证**：testbench、DPI、仿真顶层（如 `vsrc/sim/*.sv`）、断言环境。`.sv` 里可自由用 `always_ff`/`always_comb`/`logic`。不要用 `.sv` 描述会进入综合网表的真实硬件。
 - 新增可综合模块时加入综合文件清单（`vsrc/filelist.mk`），不要把含 DPI-C 的仿真 `.sv` 混进综合网表。
-- **本地验证回环**：可综合 RTL 改动后必须同时过 ① Verilator(`make lint` + sim)② **Icarus iverilog 模块 TB**（`testbench/`，对 `always_comb` 常量位选会静默错/失败，是最易被忽视的 gate）③ 适用时 Vivado OOC。三者工具链对 SV 子集支持不同，只过其一不够。
+- **本地验证回环**：可综合 RTL 改动后必须同时过 ① **`make -C npc/rv64 check-rtl-style`**（风格 gate：可综合文件须 .v、禁 always_comb/always_ff/logic，见 `npc/rv64/eval/check-rtl-style.sh`）② Verilator(`make lint` + sim)③ **Icarus iverilog 模块 TB**（`testbench/`，对 `always_comb` 常量位选会静默错/失败，是最易被忽视的 gate）④ 适用时 Vivado OOC。工具链对 SV 子集支持不同，只过其一不够。
 
 ## 阶段 3 — RTL
 
