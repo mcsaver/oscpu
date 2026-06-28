@@ -18,6 +18,7 @@ eval/npc-eval.sh --quick          # 仅 AM cpu-tests CPI（最快性能回归）
 eval/npc-eval.sh --am --tag div-radix4   # 给结果打标签便于对比
 eval/npc-eval.sh --bench          # CoreMark/Dhrystone（长）
 eval/npc-eval.sh --difftest        # 计算子集逐指令对照 NEMU(自动建 difftest 核+跑+恢复 perf 基线)
+eval/npc-eval.sh --timing          # Vivado 模块 OOC 取关键模块 Logic Levels(抓时序回归;内存安全)
 ```
 
 ## 产物布局
@@ -57,6 +58,13 @@ NEMU 对 A/D/PMP 与本核有意不同,故只跑 M-mode 计算子集(不含 Sv39
 `CONFIG_NPC_BRANCH_STATS` 的分析版构建后再跑 eval；RTL cache 事件统计需在 NpcSimTop.sv
 用层次化引用采样(已知 TODO)。日常优化以 cycles/CPI 为准即可。
 
-## 关于 difftest
-当前环境 NEMU 因 `vga.o` 警告当错误无法构建，difftest 暂不可用。涉及访存顺序 / response
-ownership 等高风险改动前，应先恢复 difftest 作参考模型（见 `design/arch/ROADMAP.md`）。
+## 关于 difftest(已修复并工作)
+difftest 现已全面工作(NEMU 构建 + 结构 ABI + 比较模式三修复)。`--difftest` 跑 40 个 M-mode 测逐指令
+对照 NEMU(计算/整数访存 + compressed/fence-i/mem-order/switch/stdio)。NEMU 对 A/D/PMP/MISA 与本核
+有意不同(misa/串口 MMIO 等),故 Sv39/PMP-S 路径差异性 diverge,difftest 重点用于计算/整数访存正确性。
+详见 `eval/META-EVAL.md`(评估系统元评估,含 difftest 覆盖与已知发散 root-cause)。
+
+## 时序回归(--timing)
+`--timing` 用 Vivado **模块级 OOC**(内存安全,非整核——整核 P&R 在 16GB WSL 不可行,见 known-issues.md)
+综合关键模块取 Logic Levels/logic delay 作 Fmax 代理(OOC route 不可信)。基线 OooDispatchBackend=39 级,
+唯一 Fmax 封顶项见 `design/arch/timing-dispatch-issue-path.md`。

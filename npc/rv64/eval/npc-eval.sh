@@ -14,6 +14,8 @@
 #   --riscv   跑官方 riscv-tests（默认 + 特权）
 #   --am      跑 AM cpu-tests 全量并采集每测试 cycles/commits/CPI
 #   --bench   跑 CoreMark/Dhrystone（长，需较大 max-cycles）
+#   --timing  Vivado 模块级 OOC 综合关键模块取 Logic Levels（抓时序回归;内存安全;
+#             默认 TIMING_MODS=OooDispatchBackend，可 env 覆盖）
 #   --all     = --module --riscv --am
 #   --quick   仅 --am（最快的性能回归）
 #   --tag     给本次结果打标签（写进结果目录名，便于对比）
@@ -38,17 +40,19 @@ CPUT="$ROOT/am-kernels/tests/cpu-tests"
 NM="$(command -v riscv64-unknown-elf-nm || echo riscv64-unknown-elf-nm)"
 OC="$(command -v riscv64-unknown-elf-objcopy || echo riscv64-unknown-elf-objcopy)"
 
-DO_BUILD=0 DO_MODULE=0 DO_RISCV=0 DO_AM=0 DO_BENCH=0 DO_DIFFTEST=0
+DO_BUILD=0 DO_MODULE=0 DO_RISCV=0 DO_AM=0 DO_BENCH=0 DO_DIFFTEST=0 DO_TIMING=0
 TAG="" MAXCYC=4000000
+TIMING_MODS="${TIMING_MODS:-OooDispatchBackend}"  # 默认只综合 Fmax 封顶模块(内存安全)
 while [[ $# -gt 0 ]]; do case "$1" in
   --build) DO_BUILD=1;; --module) DO_MODULE=1;; --riscv) DO_RISCV=1;;
   --am) DO_AM=1;; --bench) DO_BENCH=1;; --difftest) DO_DIFFTEST=1;;
+  --timing) DO_TIMING=1;;
   --all) DO_MODULE=1; DO_RISCV=1; DO_AM=1;;
   --quick) DO_AM=1;;
   --tag) shift; TAG="$1";; --max-cycles) shift; MAXCYC="$1";;
   *) echo "unknown arg: $1"; exit 2;;
 esac; shift; done
-[[ $DO_MODULE -eq 0 && $DO_RISCV -eq 0 && $DO_AM -eq 0 && $DO_BENCH -eq 0 && $DO_DIFFTEST -eq 0 ]] && { DO_MODULE=1; DO_RISCV=1; DO_AM=1; }
+[[ $DO_MODULE -eq 0 && $DO_RISCV -eq 0 && $DO_AM -eq 0 && $DO_BENCH -eq 0 && $DO_DIFFTEST -eq 0 && $DO_TIMING -eq 0 ]] && { DO_MODULE=1; DO_RISCV=1; DO_AM=1; }
 
 TS="$(date +%Y%m%d-%H%M%S)"
 OUT="$EVAL_DIR/results/${TS}${TAG:+-$TAG}"
@@ -207,6 +211,24 @@ if [[ $DO_BENCH -eq 1 ]]; then
     echo "  $b: $cc" >> "$SUM"
   done
   echo '```' >> "$SUM"
+fi
+
+# ---- timing (Vivado 模块级 OOC,内存安全;抓时序回归,补 CPI/时序分离盲点 B4) ----
+if [[ $DO_TIMING -eq 1 ]]; then
+  log "timing: 模块级 OOC 综合关键模块($TIMING_MODS),取 Logic Levels/logic delay ..."
+  echo "" >> "$SUM"; echo "### timing (模块 OOC logic levels — Fmax 代理,越小越好)" >> "$SUM"
+  if command -v vivado >/dev/null 2>&1 || [[ -x "${VIVADO:-/home/lyg/AMD/2025.2/2025.2/Vivado/bin/vivado}" ]]; then
+    for m in $TIMING_MODS; do
+      "$NPC_RV64/vivado/run-synth-module.sh" "$m" 2.0 > "$OUT/timing-$m.log" 2>&1
+      tp="$NPC_RV64/vivado/out/latest-mod/timing_paths.rpt"
+      ll=$(grep -m1 -oE 'Logic Levels:[ ]*[0-9]+' "$tp" 2>/dev/null | grep -oE '[0-9]+$')
+      ld=$(grep -m1 -oE 'logic [0-9.]+ns' "$tp" 2>/dev/null | grep -oE '[0-9.]+' | head -1)
+      echo "- **$m**: logic levels=${ll:-?}, logic delay=${ld:-?}ns (OOC route 不可信,只看这两项)" >> "$SUM"
+    done
+    echo "_基线参考:OooDispatchBackend=39 级/7.95ns(dispatch-bypass 在路径上,见 design/arch/timing-dispatch-issue-path.md)_" >> "$SUM"
+  else
+    echo "- timing: 跳过(未找到 vivado)" >> "$SUM"
+  fi
 fi
 
 log "done. report: $SUM"
