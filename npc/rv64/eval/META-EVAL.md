@@ -50,6 +50,19 @@ riscv-arch-test + AM 系统测 + 定向单测(sv39-ad-bits 等)多重把关,只�
 "信心边界"而非"已知 bug"。**结论:B1 值得闭合以升级信心,但不应据此判定核有缺陷**。三层到此为止,
 避免在元-元-元的思辨上空转。
 
+## 7. B1 闭合进展(2026-06-28 实测)
+对候选 M-mode 测做了逐指令对照实验(建 difftest 核跑,内存安全):
+- **新增 7 个逐指令 PASS**(difftest 覆盖 33→40):compressed(RVC)、fence-i、branch-fallthrough-save、
+  **mem-test、ooo-mem-order(访存序)**、switch、stdio-format。把这些特性从仅-GOOD-TRAP 升级到指令级架构等价。
+- **2 个发散,已 root-cause = 参考模型差异(非核 bug)**:
+  - `misa-priv`:mismatch 在 `csrrs x8,misa,x0`。核 MISA=`0x...14112d`(A,C,D,F,I,M,S,U=**RV64GC+SU 正确值**);
+    NEMU MISA=`0x...141106`(B,C,I,M,S,U,有 B 缺 A/D/F)→ **NEMU misa 配置与核 ISA 不符,核正确**。
+  - `char-test`:发散在串口 MMIO 路径(NEMU 与核对 UART 寄存器建模不同)。
+- **结论**:B1 最高风险盲点调查后,**可达逐指令路径未发现核 bug**;两处发散都是 NEMU-vs-核有意/配置差异。
+  "核全绿"信心据此**上调**(40 测逐指令等价,含访存序)。剩余真盲点(Sv39/PMP 指令级)需让 NEMU 对齐
+  核的非-Svadu/PMP 语义才能覆盖(NEMU 改动,中风险,价值低于已完成项,留作后续)。
+
 ## 6. 变更记录
 - 2026-06-28:建立 level-2 元评估,识别 5 盲点(B1 difftest 不覆盖 Sv39/PMP/trap 为最高风险),
   据此把下一步迭代从"高风险性能 surgery"重定向到"低风险正确性验证加固"(扩 difftest M-mode trap/CSR)。
+- 2026-06-28:执行 B1 闭合(§7):difftest 33→40 逐指令;misa-priv/char-test 发散 root-cause 为参考模型差异非核 bug。
