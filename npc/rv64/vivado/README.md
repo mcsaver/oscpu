@@ -22,6 +22,11 @@ vivado/run-synth.sh [PERIOD_ns] [PART]
 - `utilization.rpt`：LUT/FF/DSP/BRAM 资源。
 - `vivado.log`：完整日志。`out/latest` 软链指向最近一次。
 
+## 增量时序回归(融入每轮迭代)
+`synth-changed.sh [GIT_REF]`:自动识别 git 改动涉及的 vsrc 模块,只综合这些模块(每个 OOC+看门狗),
+报告 logic 延迟/逻辑级。无参=working tree 改动;给 ref(如 HEAD~1)=该 ref..HEAD 改动。
+改完 RTL → `eval/npc-eval.sh --all`(守 CPI/正确性) + `vivado/synth-changed.sh`(看时序是否退化)。
+
 ## 时序优化工作流（数据驱动，配合 design/arch/ROADMAP.md）
 1. 跑 OOC 综合(激进周期)→ 读 `timing_paths.rpt` 找最差路径。
 2. 定位该路径所属模块/逻辑(常见嫌疑：PMP 16-entry 比较、issue queue oldest-select、
