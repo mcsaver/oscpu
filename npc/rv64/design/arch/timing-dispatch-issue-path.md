@@ -39,10 +39,20 @@ free_list.count_q[4]            // 空闲 preg 计数(够不够分配)
   可断开 free_list→busy_table 的同拍依赖(收益大)。**需严格核对 rename 相关性后才能动**。
 
 ### B. dispatch→issue 流水化(中高风险,需整核 P&R 验净收益)
-在 busy_table 输出与 issue_queue 之间插一级寄存:本拍只完成 alloc+就绪查询并写入 IQ 表项,
-发射有效/计数在下拍由寄存值算。**代价**:dispatch 到可发射 +1 拍,背靠背依赖指令的唤醒需补
-旁路(否则 IPC 退化)。**只有整核 place&route 实测 Fmax 提升 > IPC 退化才净赢**——当前仅有 OOC
-模块综合(route 不可信),**无法判净收益,故 B 暂缓至搭好整核 P&R 流程**。
+**已精确定位切点(读 `OooIntIssueQueue.v` 957 行后)**:IQ 的 issue-valid 已寄存
+(`issue0_valid_o = issue0_found_r`),但存在 **dispatch→issue 旁路**:刚 dispatch 的指令经
+`dispatch0_bypass_allowed_w`(非 mem 或 load-bypass、非 control-block 门控)可在本拍参与 select、
+下拍即发射(`issue0_dispatch0_r` 等寄存位)。**关键路径正是该旁路的 select 次态组合依赖本拍
+busy_table 算子就绪结果**(free_list→busy_table→IQ-select-next→count/ctrl_q.CE 全串一拍)。
+
+**切点方案**:让 select 次态只读**已寄存表项就绪**,不读本拍 dispatch 的 busy_table 结果
+(即弱化/流水化 dispatch bypass)。**代价**:刚 dispatch 的依赖指令失去快速旁路、晚 1 拍可发射。
+**关键权衡**:头部负载 branch-resolve-loop 恰是依赖密集(load→store→branch 链),去旁路会**伤其
+CPI**(见 `EVAL-REPORT-2026-06-28.md` §3.1)。故 B **必须**靠整核 P&R 实测:仅当
+Fmax 提升带来的吞吐 > CPI 退化才净赢。
+
+**当前**:整核 P&R 流程已建(`vivado/run-pnr-core.sh` + `pnr-core.tcl`,看门狗护航),运行取真实
+布线 WNS 中。拿到 WNS(及估算去旁路后可达周期)后,对照 CPI 退化定量判 B 是否实施。
 
 ## 4. 不变量
 - **T-I1 正确性**:任何重构后 difftest 33/33 + 三 gate(112/271/56)不退。
