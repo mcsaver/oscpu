@@ -35,6 +35,9 @@ module OooMulDivUnit #(
 
   reg [`XLEN-1:0] div_dividend_q;
   reg [`XLEN-1:0] div_divisor_q;
+  // 时序优化：3×divisor 在除法期间恒定，装载时算一次并寄存，移出 radix-4 每拍迭代环
+  // (原 div_d3=d1+d2 是 XLEN+2 位加法器,在 partial>=d3 比较的关键路径上)。结果不变。
+  reg [`XLEN+1:0] div_d3_q;
   reg [`XLEN-1:0] div_quot_q;
   reg [`XLEN:0] div_rem_q;
   reg [6:0] div_count_q;
@@ -161,7 +164,7 @@ module OooMulDivUnit #(
       {div_rem_q[`XLEN-1:0], div_dividend_q[`XLEN-1:`XLEN-2]};
   wire [`XLEN+1:0] div_d1_w = {2'b0, div_divisor_q};
   wire [`XLEN+1:0] div_d2_w = {1'b0, div_divisor_q, 1'b0};
-  wire [`XLEN+1:0] div_d3_w = div_d1_w + div_d2_w;
+  wire [`XLEN+1:0] div_d3_w = div_d3_q;  // 3×divisor 已在装载时寄存(移出迭代环加法器)
   wire [1:0] div_q_digit_w =
       (div_partial_w >= div_d3_w) ? 2'd3 :
       (div_partial_w >= div_d2_w) ? 2'd2 :
@@ -201,6 +204,7 @@ module OooMulDivUnit #(
       resp_data_q <= {`XLEN{1'b0}};
       div_dividend_q <= {`XLEN{1'b0}};
       div_divisor_q <= {`XLEN{1'b0}};
+      div_d3_q <= {(`XLEN+2){1'b0}};
       div_quot_q <= {`XLEN{1'b0}};
       div_rem_q <= {(`XLEN+1){1'b0}};
       div_count_q <= 7'd0;
@@ -229,6 +233,8 @@ module OooMulDivUnit #(
               // 取代原 word({abs,32'd0}/32 拍)与 dword(64 拍)固定方案，对小操作数大幅减拍。
               div_dividend_q <= div_dividend_pos_w;
               div_divisor_q <= req_op2_abs_w;
+              div_d3_q <= {1'b0, req_op2_abs_w, 1'b0} +
+                          {2'b0, req_op2_abs_w};  // 3×divisor 预算并寄存
               div_quot_q <= {`XLEN{1'b0}};
               div_rem_q <= {(`XLEN+1){1'b0}};
               div_count_q <= div_count_init_w;
