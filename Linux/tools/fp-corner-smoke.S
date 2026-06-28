@@ -49,6 +49,17 @@ _start:
   fadd.d ft2, ft0, ft1, rne
   fmv.x.d t1, ft2
   bnez t1, fail_rne_cancel
+  // FP#3: max+max 上溢 RTZ->最大有限, RNE->+Inf
+  li t0, 0x7fefffffffffffff
+  fmv.d.x ft0, t0
+  fadd.d ft2, ft0, ft0, rtz
+  fmv.x.d t1, ft2
+  li t2, 0x7fefffffffffffff
+  bne t1, t2, fail_of_rtz
+  fadd.d ft2, ft0, ft0, rne
+  fmv.x.d t1, ft2
+  li t2, 0x7ff0000000000000
+  bne t1, t2, fail_of_rne
   li a0, 0
   j done
 fail_inf0_val:   li a0, 1; ebreak
@@ -57,6 +68,8 @@ fail_fin0_dz:    li a0, 3; ebreak
 fail_fclass_box: li a0, 4; ebreak
 fail_rdn_cancel:  li a0, 5; ebreak
 fail_rne_cancel:  li a0, 6; ebreak
+fail_of_rtz:      li a0, 7; ebreak
+fail_of_rne:      li a0, 8; ebreak
   .align 2
 done:
   ebreak

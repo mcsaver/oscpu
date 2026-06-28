@@ -422,3 +422,33 @@
       end
     end
   endfunction
+
+  // FP#3: 上溢结果须随舍入模式饱和(IEEE-754):RNE/RMM 与"朝该方向"的 RDN(负)/RUP(正)
+  // → Inf;否则(RTZ、及反方向的 RDN/RUP)→ 同号最大有限值。仅用于"有限计算溢出"站点,
+  // 不用于固有 Inf(Inf 输入/除零/sqrt)。
+  function fp_overflow_to_inf;
+    input sign;
+    input [2:0] rm;
+    begin
+      fp_overflow_to_inf =
+          (rm == 3'b000) || (rm == 3'b100) ||
+          ((rm == 3'b010) && sign) || ((rm == 3'b011) && !sign);
+    end
+  endfunction
+  function [`XLEN-1:0] fp_overflow_d;
+    input sign;
+    input [2:0] rm;
+    begin
+      fp_overflow_d = fp_overflow_to_inf(sign, rm) ?
+          {sign, 11'h7ff, 52'b0} : {sign, 11'h7fe, {52{1'b1}}};
+    end
+  endfunction
+  function [`XLEN-1:0] fp_overflow_s;  // 返回 NaN-boxed 单精度
+    input sign;
+    input [2:0] rm;
+    begin
+      fp_overflow_s = {32'hffff_ffff,
+          (fp_overflow_to_inf(sign, rm) ?
+           {sign, 8'hff, 23'b0} : {sign, 8'hfe, {23{1'b1}}})};
+    end
+  endfunction

@@ -462,7 +462,7 @@ module OooFpConvertGate (
         end
 
         if (exp_s >= 255) begin
-          fp_d_to_s_value = {32'hffff_ffff, sign, 8'hff, 23'b0};
+          fp_d_to_s_value = fp_overflow_s(sign, rm);
         end else if ((exp_s <= 1) && !mant24[23]) begin
           fp_d_to_s_value = {32'hffff_ffff, sign, 8'b0, frac_s};
         end else begin

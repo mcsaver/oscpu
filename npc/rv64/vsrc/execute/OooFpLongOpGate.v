@@ -127,7 +127,7 @@ module OooFpLongOpGate (
         end
 
         if (exp_z >= 2047) begin
-          fp_div_d_value = {sign_z, 11'h7ff, 52'b0};
+          fp_div_d_value = fp_overflow_d(sign_z, rm);
         end else if ((exp_z <= 1) && !mant53[52]) begin
           fp_div_d_value = {sign_z, 11'b0, mant53[51:0]};
         end else begin
@@ -230,7 +230,7 @@ module OooFpLongOpGate (
         end
 
         if (exp_z >= 255) begin
-          fp_div_s_value = {32'hffff_ffff, sign_z, 8'hff, 23'b0};
+          fp_div_s_value = fp_overflow_s(sign_z, rm);
         end else if ((exp_z <= 1) && !mant24[23]) begin
           fp_div_s_value = {32'hffff_ffff, sign_z, 8'b0, mant24[22:0]};
         end else begin
