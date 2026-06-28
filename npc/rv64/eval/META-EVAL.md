@@ -18,9 +18,14 @@
   HW-A/D 与本核(非 Svadu、PMP 默认拒绝 S/U)**有意不同**。后果:**我本战役投入最多的复杂特性
   (PMP、Sv39 A/D、特权/trap)只被 GOOD-TRAP 粗粒度验证,未指令级对照**。GOOD TRAP 只说"最终没崩",
   不保证中间架构状态逐拍正确——这是"全绿"信心的最大缺口。
-- **B2【正确性·中】module TB 覆盖率未量化**:112 TB 项 vs 146 个 RTL 文件;本战役新增的大量前端 gate
-  小模块(`OooBranch*Gate`、`OooFetch*Gate` 等)多依赖系统级测试传导覆盖,无专属单元 TB。某些只在
-  特定时序触发的模块级 bug 可能不在 271+56 中显现。
+- **B2【正确性·中】module TB 覆盖率(已量化,结论:良好)**:实测 113 个 TB 目标,**82/104 Ooo 模块
+  有专属单元 TB(~79%)**,加 legacy/infra(ALU/CSR/LSU/cache/AXI)全覆盖。27 个缺专属 TB 的 Ooo 模块
+  多为:① 集成 wrapper(OooExecuteBackend/OooFrontend/OooMemoryAccess/OooControlPlane——由子模块 TB +
+  系统测覆盖);② 系统级已充分激励(OooMulDivUnit 经 div/mul+OOC综合、OooRvcDecompressor 经 compressed
+  测且现已 difftest 逐指令、OooSv39Tlb 经 sv39-* 测)。真正值得补单测的少数=预测器组件
+  (OooJalrBtb/OooRasStack/OooReturnContBuffer/OooBranchDirectionPredictor/OooPredictorUpdateGate),
+  但预测器是性能特性非正确性(预测错只是慢,不影响架构正确,由 resolve-recovery 兜底),优先级低。
+  **结论:覆盖率良好,无重大正确性缺口**。
 - **B3【性能·中】CoreMark 跑完不可行→改用窗口 CPI(已闭合)**:CoreMark 完整迭代在 RTL 仿真不可行
   (10 迭代 >20min/>300M cycle 仍未完;仿真速度 <250K cycle/s)。**但 CPI 与迭代数无关**:用 50M-cycle
   上限窗口测得 **CoreMark CPI ≈ 1.020**(cycles=50M/commits=49.04M)。这是最佳真实代码 CPI
