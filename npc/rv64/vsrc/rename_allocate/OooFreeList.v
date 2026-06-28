@@ -64,8 +64,13 @@ module OooFreeList #(
   assign alloc1_fire_w = alloc1_valid_i && alloc1_ready_o;
   assign alloc_count_w = {1'b0, alloc0_fire_w} + {1'b0, alloc1_fire_w};
 
-  assign alloc0_preg_o = fifo_q[head_q];
-  assign alloc1_preg_o = fifo_q[ptr_add(head_q, {1'b0, alloc0_fire_w})];
+  // 时序优化：原 alloc1 = fifo_q[head+alloc0_fire] 把 alloc0_fire 喂进 64:1 mux 索引,
+  // 处于关键路径(count→alloc0_fire→alloc1→busy_table)。改为并行读 head 与 head+1,
+  // alloc0_fire 只过一个浅 2:1 select。行为完全等价(fifo[head+fire])。
+  wire [PHY_REG_ADDR_W-1:0] fifo_head0_w = fifo_q[head_q];
+  wire [PHY_REG_ADDR_W-1:0] fifo_head1_w = fifo_q[ptr_add(head_q, 2'd1)];
+  assign alloc0_preg_o = fifo_head0_w;
+  assign alloc1_preg_o = alloc0_fire_w ? fifo_head1_w : fifo_head0_w;
   assign free_count_o = count_q;
   assign empty_o = (count_q == {FREE_COUNT_W{1'b0}});
   assign full_o = (count_q == PHY_REG_COUNT_COUNT);
