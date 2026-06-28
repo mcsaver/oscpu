@@ -87,7 +87,9 @@ module OooFpArithGate (
       end else if (b_is_inf) begin
         fp_addsub_d_value = {sign_b, 11'h7ff, 52'b0};
       end else if (a_is_zero && b_is_zero) begin
-        fp_addsub_d_value = {sign_a & sign_b, 63'b0};
+        // FP#4: (+0)+(-0) 等异号零和在 RDN(rm=010)下为 -0,其余模式 +0。
+        fp_addsub_d_value =
+            {((rm == 3'b010) ? (sign_a | sign_b) : (sign_a & sign_b)), 63'b0};
       end else if (a_is_zero) begin
         fp_addsub_d_value = {sign_b, exp_b, frac_b};
       end else if (b_is_zero) begin
@@ -147,7 +149,8 @@ module OooFpArithGate (
         end
 
         if (sig_norm == 56'b0) begin
-          fp_addsub_d_value = 64'b0;
+          // FP#4: 精确抵消(x+(-x))的零结果在 RDN 下为 -0,其余 +0。
+          fp_addsub_d_value = (rm == 3'b010) ? {1'b1, 63'b0} : 64'b0;
         end else begin
           mant53 = sig_norm[55:3];
           guard = sig_norm[2];
@@ -242,7 +245,9 @@ module OooFpArithGate (
       end else if (b_is_inf) begin
         fp_addsub_s_value = {32'hffff_ffff, sign_b, 8'hff, 23'b0};
       end else if (a_is_zero && b_is_zero) begin
-        fp_addsub_s_value = {32'hffff_ffff, sign_a & sign_b, 31'b0};
+        // FP#4: 异号零和在 RDN 下为 -0(NaN-boxed)。
+        fp_addsub_s_value =
+            {32'hffff_ffff, ((rm == 3'b010) ? (sign_a | sign_b) : (sign_a & sign_b)), 31'b0};
       end else if (a_is_zero) begin
         fp_addsub_s_value = {32'hffff_ffff, sign_b, exp_b, frac_b};
       end else if (b_is_zero) begin
@@ -302,7 +307,9 @@ module OooFpArithGate (
         end
 
         if (sig_norm == 27'b0) begin
-          fp_addsub_s_value = 64'hffffffff00000000;
+          // FP#4: 精确抵消零结果在 RDN 下为 -0(NaN-boxed)。
+          fp_addsub_s_value = (rm == 3'b010) ? 64'hffffffff80000000
+                                             : 64'hffffffff00000000;
         end else begin
           mant24 = sig_norm[26:3];
           guard = sig_norm[2];

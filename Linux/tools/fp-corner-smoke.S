@@ -37,12 +37,26 @@ _start:
   fclass.s t1, ft0
   li t2, 0x200
   bne t1, t2, fail_fclass_box
+  // FP#4: RDN 下 1.0+(-1.0)=-0; RNE 下 =+0
+  li t0, 0x3ff0000000000000
+  fmv.d.x ft0, t0
+  li t0, 0xbff0000000000000
+  fmv.d.x ft1, t0
+  fadd.d ft2, ft0, ft1, rdn
+  fmv.x.d t1, ft2
+  li t2, 0x8000000000000000
+  bne t1, t2, fail_rdn_cancel
+  fadd.d ft2, ft0, ft1, rne
+  fmv.x.d t1, ft2
+  bnez t1, fail_rne_cancel
   li a0, 0
   j done
 fail_inf0_val:   li a0, 1; ebreak
 fail_inf0_dz:    li a0, 2; ebreak
 fail_fin0_dz:    li a0, 3; ebreak
 fail_fclass_box: li a0, 4; ebreak
+fail_rdn_cancel:  li a0, 5; ebreak
+fail_rne_cancel:  li a0, 6; ebreak
   .align 2
 done:
   ebreak
