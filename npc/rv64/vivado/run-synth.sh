@@ -22,8 +22,13 @@ echo "$RTL" | tr ' ' '\n' | grep -E '\.v$' > "$OUT/filelist.txt"
 echo "[run-synth] $(wc -l < "$OUT/filelist.txt") files, top=$TOP part=$PART period=${PERIOD}ns -> $OUT"
 
 cd "$OUT"
+# CPU 亲和性 + 降优先级：把 vivado 绑到 4 个核(默认 8-11)、nice -n 15，给系统/Claude/vscode/wsl
+# 留出其余核，避免综合把整机占满导致 WSL 崩溃。可用 CPUSET/NICE 覆盖。
+CPUSET="${CPUSET:-8-11}"; NICE="${NICE:-15}"
+TASKSET=""; command -v taskset >/dev/null 2>&1 && TASKSET="taskset -c $CPUSET"
+echo "[run-synth] affinity: nice -n $NICE $TASKSET (总核 $(nproc))"
 FILELIST="$OUT/filelist.txt" INCDIR="$INCDIR" TOP="$TOP" PART="$PART" PERIOD="$PERIOD" OUTDIR="$OUT" \
-  "$VIVADO" -mode batch -nojournal -log "$OUT/vivado.log" -source "$HERE/synth.tcl" 2>&1 | tail -5
+  nice -n "$NICE" $TASKSET "$VIVADO" -mode batch -nojournal -log "$OUT/vivado.log" -source "$HERE/synth.tcl" 2>&1 | tail -5
 echo "[run-synth] reports: $OUT/timing_summary.rpt, timing_paths.rpt, utilization.rpt"
 # 摘要 WNS / 关键路径起讫
 echo "=== WNS / 关键路径 ==="

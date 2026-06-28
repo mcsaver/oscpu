@@ -10,6 +10,8 @@ vivado/run-synth.sh [PERIOD_ns] [PART]
 #   PERIOD 默认 2.0ns(激进,逼出负 slack 以暴露关键路径)
 #   PART   默认 xc7a100tcsg324-1(ysyx Nexys A7 常用件)
 #   4 核(synth.tcl: general.maxThreads 4；WSL 下 8 核内存压力过大会崩溃)
+#   CPU 亲和: 绑核 8-11 + nice -n 15(给系统/Claude/vscode/wsl 留核,防整机阻塞)
+#   可用 CPUSET=.. NICE=.. 覆盖
 ```
 - 文件清单与 include 目录从 Makefile 的 `RTL_CORE_SRCS`/`RTL_INCLUDE_DIR` 自动导出(单一真源)。
 - include 搜索路径含 `vsrc/` 与 `vsrc/include/`(对齐 Verilator 的 `-I`)。
