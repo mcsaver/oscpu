@@ -25,4 +25,4 @@ done
 echo "[survey] done -> $SUM" | tee -a "$SUM"
 # 按延迟排序
 echo "=== 按数据延迟排序 ===" | tee -a "$SUM"
-grep -E 'data_delay=' "$SUM" | sort -t= -k2 -rn | tee -a "$SUM"
+grep -E 'logic_delay=' "$SUM" | sort -t= -k2 -rn | tee -a "$SUM"
