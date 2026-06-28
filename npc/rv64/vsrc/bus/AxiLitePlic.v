@@ -290,35 +290,39 @@ module AxiLitePlic #(
     end
   endfunction
 
-  function [DATA_W-1:0] read_plic_word;
-    input [21:0] addr_low;
+  // PLIC 读 decode 组合块(结果在 AXI 读时序块寄存到 s_axi_rdata_o)
+  reg [DATA_W-1:0] read_plic_word_r;
+  always @(*) begin : read_plic_word_blk
+    reg [21:0] addr_low;
     begin
+      addr_low = read_addr_low_w;
+      read_plic_word_r = 0;
       if (addr_low < PLIC_PENDING_OFFSET) begin
         // Priority 区域按 32-bit word 编址；64-bit beat 同时返回相邻两个 source。
-        read_plic_word = pack_u32_pair(priority_at(addr_low[21:2]),
+        read_plic_word_r = pack_u32_pair(priority_at(addr_low[21:2]),
                                        priority_at(addr_low[21:2] + 22'd1));
       end else begin
         case (addr_low)
           PLIC_PENDING_OFFSET:
-            read_plic_word = pack_u32_pair(bitmap32(pending_q), 32'h0);
+            read_plic_word_r = pack_u32_pair(bitmap32(pending_q), 32'h0);
           PLIC_M_ENABLE_OFFSET:
-            read_plic_word = pack_u32_pair(bitmap32(enable_m_q), 32'h0);
+            read_plic_word_r = pack_u32_pair(bitmap32(enable_m_q), 32'h0);
           PLIC_S_ENABLE_OFFSET:
-            read_plic_word = pack_u32_pair(bitmap32(enable_s_q), 32'h0);
+            read_plic_word_r = pack_u32_pair(bitmap32(enable_s_q), 32'h0);
           PLIC_M_THRESH_OFFSET:
-            read_plic_word = pack_u32_pair(threshold_m_q, {27'h0, m_claim_id_r});
+            read_plic_word_r = pack_u32_pair(threshold_m_q, {27'h0, m_claim_id_r});
           PLIC_S_THRESH_OFFSET:
-            read_plic_word = pack_u32_pair(threshold_s_q, {27'h0, s_claim_id_r});
+            read_plic_word_r = pack_u32_pair(threshold_s_q, {27'h0, s_claim_id_r});
           PLIC_M_CLAIM_OFFSET:
-            read_plic_word = pack_u32_pair({27'h0, m_claim_id_r}, 32'h0);
+            read_plic_word_r = pack_u32_pair({27'h0, m_claim_id_r}, 32'h0);
           PLIC_S_CLAIM_OFFSET:
-            read_plic_word = pack_u32_pair({27'h0, s_claim_id_r}, 32'h0);
+            read_plic_word_r = pack_u32_pair({27'h0, s_claim_id_r}, 32'h0);
           default:
-            read_plic_word = {DATA_W{1'b0}};
+            read_plic_word_r = {DATA_W{1'b0}};
         endcase
       end
     end
-  endfunction
+  end
 
   always @(*) begin
     pending_next_r = pending_q | (source_irq_i & ~in_service_q);
@@ -377,7 +381,7 @@ module AxiLitePlic #(
 
       if (ar_fire_w) begin
         s_axi_rvalid_o <= 1'b1;
-        s_axi_rdata_o <= read_plic_word(read_addr_low_w);
+        s_axi_rdata_o <= read_plic_word_r;
       end
 
       if (aw_fire_w) begin
