@@ -62,6 +62,7 @@
 |---|---|---|---|---|---|
 | B3 | **规范体系**：统一 spec 模板(图文并茂)+ 逐模块补 | 中(可维护/交付质量) | 低 | 先定模板，再分模块 | **模板✓**，逐模块补进行中 |
 | B1 | **访存解耦：cacheable-PMEM store 写回解耦** | 高(真实代码+#1 微基准) | 中(已限定 cacheable;保留 MMIO 精确异常) | spec✓+FSM✓ | **spec✓ + FSM 文档✓**(`specs/ooo-mem-axi-bridge-fsm.md`)；设计已定(bpend 跟踪器+仅 cacheable 解耦,保 MEM-I3)；实现为下一专注迭代 |
+| B-LSQ | **load 多 outstanding / store-to-load forward(目标 B)** | 高(真实代码访存瓶颈) | 高(顺序/forward) | **difftest 已解锁逐指令验证** + eval | spec 先行,difftest 护航 | 待开始(已具备安全验证) |
 | B2 | **redirect/PC sequencer 改显式状态机** | 中(时序+清晰+稳健) | 中 | spec 先行；先补 redirect 优先级定向 TB 再改 | 待开始(先补 TB) |
 | B4 | 文件组织：碎片合并/大文件拆分、命名注释统一 | 中(交付质量) | 低-中 | 纯结构变换，逐目录，build+gate 不变 | 待开始(低风险，可先行) |
 | B5 | DIV radix-8 / 64 位 CLZ 跳零 | 低(递减) | 低 | 同 radix-4 套路 | 暂缓 |
@@ -86,8 +87,9 @@
 6. **RECORD+COMMIT**：更新 ROADMAP/spec/记忆/task-run，`git commit` 该迭代。
 
 ## 6. 已知环境约束
-- difftest/NEMU 本环境不可构建（vga.c `update_screen` 缺声明），且 NEMU 对 A/D/PMP 与本核有意不同，
-  非干净参考。访存类改动依赖现有 gate（历史上能捕获访存 bug）严验，不强依赖 NEMU。
+- **difftest 现已修复并全面工作**(NEMU 构建 + 结构 ABI + 比较模式三修复;计算/整数访存测试逐指令对照 NEMU 全过)。
+  开 `CONFIG_NPC_DIFFTEST` 构建即可作 LSQ/dispatch 等访存敏感重构的逐指令安全验证。注:NEMU 对 A/D/PMP 与本核
+  有意不同(NEMU HW A/D),故 Sv39/PMP 路径会差异性 diverge,difftest 重点用于计算/整数访存正确性。
 - 大型测试集/日志不入 git（`eval/results/` 已忽略），结论写文档/记忆。
 
 ## 7. 时序(Fmax)track（Vivado OOC,数据驱动）
