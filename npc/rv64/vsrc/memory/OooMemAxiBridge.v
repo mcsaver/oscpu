@@ -86,6 +86,11 @@ module OooMemAxiBridge (
   reg aw_done_q;
   reg w_done_q;
   reg drop_rsp_q;
+  // B1 访存解耦：cacheable-PMEM store 在数据落 PMEM(AW&W fire)后即报完成、提前推进，
+  // 其滞后的 AXI B 由 bpend_q 跟踪器在后台吸收，使紧随的 load 可与 B drain 重叠。
+  // 仅对 PMEM(bresp 恒 OK)解耦；MMIO/可错 store 仍等 B 以保精确异常(MEM-I3)。详见
+  // design/specs/ooo-mem-axi-bridge-fsm.md 与 design/arch/mem-store-decouple.md。
+  reg bpend_q;
 
   function [1:0] mstatus_mpp_priv;
     input [`XLEN-1:0] status;
@@ -321,9 +326,16 @@ module OooMemAxiBridge (
   wire dcache_read_fill_valid_w =
       !cpu_kill_w && (state_q == S_READ_DATA) && lsu_axi_rvalid_i &&
       (lsu_axi_rresp_i == 2'b00);
+  // 解耦 store 在数据落 PMEM 当拍(S_WRITE_REQ 两 beat 完成且走解耦)就必须更新/失效 dcache，
+  // 否则跳过 S_WRITE_RESP 会漏掉 dcache 维护、令同地址后续 load 命中旧值(MEM-I2 破坏)。
+  wire store_decouple_commit_w =
+      (state_q == S_WRITE_REQ) &&
+      ((aw_done_q || aw_fire_w) && (w_done_q || w_fire_w)) &&
+      store_decouple_w;
   wire dcache_store_commit_w =
-      (state_q == S_WRITE_RESP) && lsu_axi_bvalid_i &&
-      (lsu_axi_bresp_i == 2'b00);
+      ((state_q == S_WRITE_RESP) && lsu_axi_bvalid_i &&
+       (lsu_axi_bresp_i == 2'b00)) ||
+      store_decouple_commit_w;
 
   OooSv39Tlb #(
     .INDEX_W(DTLB_INDEX_W)
@@ -428,7 +440,11 @@ module OooMemAxiBridge (
       (!cpu_kill_w || write_drain_w);
   assign lsu_axi_wdata_o = wdata_q;
   assign lsu_axi_wstrb_o = wstrb_q;
-  assign lsu_axi_bready_o = (state_q == S_WRITE_RESP);
+  // 解耦 store 的 B 由跟踪器吸收：bpend_q 期间持续拉 bready。
+  assign lsu_axi_bready_o = (state_q == S_WRITE_RESP) || bpend_q;
+  // 仅 PMEM store 可提前完成(bresp 恒 OK)；!bpend_q 保证至多一个未收 B。
+  wire store_decouple_w =
+      ((paddr_q & `NPC_AXI_PMEM_MASK) == `NPC_AXI_PMEM_BASE) && !bpend_q;
 
   task automatic accept_request;
     input port1;
@@ -496,7 +512,12 @@ module OooMemAxiBridge (
       aw_done_q <= 1'b0;
       w_done_q <= 1'b0;
       drop_rsp_q <= 1'b0;
+      bpend_q <= 1'b0;
     end else begin
+      // B-drain 跟踪器(状态无关，flush 期间也照常吸收已解耦 store 的 B)
+      if (bpend_q && lsu_axi_bvalid_i) begin
+        bpend_q <= 1'b0;
+      end
       if (flush_i || drop_rsp_q) begin
       case (state_q)
         S_IDLE: begin
@@ -657,7 +678,17 @@ module OooMemAxiBridge (
             w_done_q <= 1'b1;
           end
           if ((aw_done_q || aw_fire_w) && (w_done_q || w_fire_w)) begin
-            state_q <= S_WRITE_RESP;
+            if (store_decouple_w) begin
+              // PMEM store：数据已落 PMEM(MEM-I2)，bresp 恒 OK；提前报完成，B 交跟踪器。
+              rsp_rdata_q <= {`XLEN{1'b0}};
+              rsp_error_q <= 1'b0;
+              rsp_page_fault_q <= 1'b0;
+              bpend_q <= 1'b1;
+              state_q <= S_RESP;
+            end else begin
+              // MMIO/uncacheable：仍等 B 以保精确总线异常。
+              state_q <= S_WRITE_RESP;
+            end
           end
         end
 

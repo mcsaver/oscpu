@@ -1,7 +1,7 @@
 # 规范：访存桥 store 写回解耦（B1）
 
 > 模板见 `SPEC-TEMPLATE.md`。目标模块：`vsrc/memory/OooMemAxiBridge.v`。
-> 状态：**设计中（spec 先行）**，实现为后续迭代。
+> 状态：**已实现并验证（iter4，2026-06-28）**。
 
 ## 1. 目的与范围
 降低访存子系统的串行延迟。当前访存桥**单 outstanding**：一条 store 必须走完
@@ -82,4 +82,8 @@ drain 或 response ownership。下一步先产出 `design/specs/ooo-mem-axi-brid
 riscv-tests `ua`(AMO/lrsc)/`ui`(ld/st/ma_data)。
 
 ## 8. 变更记录
-- 2026-06-28：建立规范（spec 先行）。实现门控于先文档化 mem-bridge flush/drop FSM。
+- 2026-06-28：建立规范。
+- 2026-06-28(iter4)：实现 `bpend_q` 跟踪器 + 仅 cacheable-PMEM store 解耦。
+  踩坑：解耦跳过 S_WRITE_RESP 漏掉 dcache store-commit→同地址 load 命中旧值(ooo-mem-order/mem-test BAD TRAP)；
+  修复=解耦当拍同时触发 `dcache_store_commit`(全失效+更新)。验证：模块112/riscv271/AM56 全绿，
+  加权 CPI 1.8722→1.5772(-15.8%)，branch-resolve-loop -30%、ooo-mem-order -27%。
