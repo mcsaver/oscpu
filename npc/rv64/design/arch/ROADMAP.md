@@ -4,7 +4,7 @@
 > 优先级 backlog 与专业化工作流。每轮迭代后按"迭代→深度再评估→据此修改"更新。
 > 配套：评估系统 `eval/`，模块规范 `design/specs/`，架构规范 `design/arch/`，文献 `design/literature/`。
 
-最近更新：2026-06-28
+最近更新：2026-06-28 (iter4 后)
 
 ---
 
@@ -15,8 +15,8 @@
 | 官方 riscv-tests（默认+特权） | 271/0 | tohost 协议 |
 | AM cpu-tests | 56/56 | ebreak GOOD TRAP |
 
-性能（AM 全量加权 CPI，含 PMP=真实场景）：**1.8722**（自禁缓存基线 3.7427 累计 −50%）。
-真实代码：CoreMark CPI≈1.146（含 PMP，受访存串行限制）。
+性能（AM 全量加权 CPI，含 PMP=真实场景）：**1.5772**（自禁缓存基线 3.7427 累计 **−58%**）。
+真实代码：CoreMark CPI≈1.146(B1 前测；store 解耦后预期下降，待复测)。
 
 容量（`include/define.v`）：dual-issue / PRF 64 / ROB 16 / IQ 8 / Fetch FIFO 4。
 
@@ -28,6 +28,7 @@
 - **iter-1 PMP 取指缓存**：PMP 一活动就禁用取指 cache → Linux/OpenSBI 下 ~2x 惩罚。改 PMP-grant 逐访问门控。
 - **iter-2 DIV word + radix-4**：word 除法 32 拍、radix-4 16 拍。shuixianhua −69%、prime −70%。
 - **撤回**：ROB16→32/IQ8→16 扩容零收益（实测瓶颈非乱序窗口深度），按工作流撤回。
+- **iter-4 B1 访存 store 写回解耦**：cacheable-PMEM store 提前完成、B 交 bpend 跟踪器；CPI 1.8722→1.5772(-15.8%)，branch-resolve-loop -30%、ooo-mem-order -27%、linux-mini-boot -31%。踩坑：解耦需同步 dcache store-commit(否则同地址 load 读旧值)。
 
 详见 `.github/task-runs/2026-06-28-npc-rv64-ooo-perf-opt/`。
 
@@ -35,11 +36,11 @@
 
 ## 3. 架构深度再评估（按"用户更看重工程质量"的新目标）
 
-### 3.1 当前瓶颈（数据驱动，eval top cycles 贡献）
-1. `branch-resolve-loop` 68k —— load→store 依赖 + **单 outstanding 访存**串行。
-2. `shuixianhua/prime` —— 仍 div（已 −70%，radix-8 收益递减）。
-3. `ooo-mem-order`/`linux-mini-boot` —— 访存顺序/单 outstanding。
-→ **真实代码与最大微基准的共同瓶颈是访存子系统**（单 outstanding、store 不解耦、无 store-to-load forward）。
+### 3.1 当前瓶颈（post-B1 深度再评估，eval top cycles 贡献）
+1. `branch-resolve-loop` 47.8k(cpi 1.34) —— B1 后降 30%，残余=load-use 延迟 + 循环分支解析；进一步需 load 流水/前递。
+2. `shuixianhua` 34.6k(cpi 5.69)/`prime` 24.9k(cpi 3.89) —— 小操作数 div 主导；radix-4 固定 16 拍未利用前导零，CLZ 早终止可再减但复杂度/收益递减、且偏微基准。
+3. `ooo-mem-order` 16.6k / `linux-mini-boot` 13.7k —— 残余访存串行（读仍单 outstanding；store-to-load forward 未做）。
+→ 易得的大 CPI 红利已收割(累计 -58%)。后续 CPI 收益递减且偏微基准；**按用户"CPI 之外更重工程质量"，下一阶段重心转向 B2/B4(状态机化+组织+spec)与 load 侧访存(读多 outstanding/forward)。**
 
 ### 3.2 工程质量问题（用户明确点名）
 - **深组合逻辑应改时序状态机**：`OooFetchPcOutstandingSequencer`(8 层优先级 if 链)、
