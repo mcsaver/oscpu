@@ -38,17 +38,17 @@ CPUT="$ROOT/am-kernels/tests/cpu-tests"
 NM="$(command -v riscv64-unknown-elf-nm || echo riscv64-unknown-elf-nm)"
 OC="$(command -v riscv64-unknown-elf-objcopy || echo riscv64-unknown-elf-objcopy)"
 
-DO_BUILD=0 DO_MODULE=0 DO_RISCV=0 DO_AM=0 DO_BENCH=0
+DO_BUILD=0 DO_MODULE=0 DO_RISCV=0 DO_AM=0 DO_BENCH=0 DO_DIFFTEST=0
 TAG="" MAXCYC=4000000
 while [[ $# -gt 0 ]]; do case "$1" in
   --build) DO_BUILD=1;; --module) DO_MODULE=1;; --riscv) DO_RISCV=1;;
-  --am) DO_AM=1;; --bench) DO_BENCH=1;;
+  --am) DO_AM=1;; --bench) DO_BENCH=1;; --difftest) DO_DIFFTEST=1;;
   --all) DO_MODULE=1; DO_RISCV=1; DO_AM=1;;
   --quick) DO_AM=1;;
   --tag) shift; TAG="$1";; --max-cycles) shift; MAXCYC="$1";;
   *) echo "unknown arg: $1"; exit 2;;
 esac; shift; done
-[[ $DO_MODULE -eq 0 && $DO_RISCV -eq 0 && $DO_AM -eq 0 && $DO_BENCH -eq 0 ]] && { DO_MODULE=1; DO_RISCV=1; DO_AM=1; }
+[[ $DO_MODULE -eq 0 && $DO_RISCV -eq 0 && $DO_AM -eq 0 && $DO_BENCH -eq 0 && $DO_DIFFTEST -eq 0 ]] && { DO_MODULE=1; DO_RISCV=1; DO_AM=1; }
 
 TS="$(date +%Y%m%d-%H%M%S)"
 OUT="$EVAL_DIR/results/${TS}${TAG:+-$TAG}"
@@ -159,6 +159,36 @@ if [[ $DO_AM -eq 1 ]]; then
       echo "- 逐测试 CPI 无 >20% 异常(无回归/无评估漂移)。" >> "$SUM"
     fi
   fi
+fi
+
+# ---- difftest (逐指令对照 NEMU) ----
+if [[ $DO_DIFFTEST -eq 1 ]]; then
+  log "difftest: 构建 difftest 核 + 计算子集逐指令对照 NEMU ..."
+  SO="$ROOT/nemu/build/riscv64-nemu-interpreter-so"
+  echo "" >> "$SUM"; echo "### difftest (逐指令对照 NEMU)" >> "$SUM"
+  # 确保参考 .so 存在
+  [[ -f "$SO" ]] || make -C "$NPC_RV64" difftest-ref > "$OUT/difftest-ref.log" 2>&1
+  # 备份配置→开 difftest→重建
+  cp "$NPC_RV64/include/config/auto.conf" "$OUT/auto.conf.save"
+  cp "$NPC_RV64/include/generated/autoconf.h" "$OUT/autoconf.h.save"
+  grep -q CONFIG_NPC_DIFFTEST "$NPC_RV64/include/config/auto.conf" || echo 'CONFIG_NPC_DIFFTEST=y' >> "$NPC_RV64/include/config/auto.conf"
+  grep -q CONFIG_NPC_DIFFTEST "$NPC_RV64/include/generated/autoconf.h" || echo '#define CONFIG_NPC_DIFFTEST 1' >> "$NPC_RV64/include/generated/autoconf.h"
+  if make -C "$NPC_RV64" -j4 default > "$OUT/difftest-build.log" 2>&1; then
+    # 计算/整数访存子集(M-mode 裸机,不走 Sv39/PMP-S,对 NEMU 干净)
+    DT_TESTS="add add-longlong bit bitmanip bubble-sort crc32 div fact fib goldbach if-else leap-year load-store matrix-mul max mersenne min3 mov-c movsx mul-longlong pascal prime quick-sort recursion select-sort shift shuixianhua string sub-longlong sum to-lower-case unalign wanshu"
+    dp=0; df=0; dfl=""
+    for t in $DT_TESTS; do
+      o=$(timeout 300 make -C "$CPUT" AM_HOME="$AM_HOME" ARCH=riscv64-npc NPC_SIM_BACKEND=rv64 ALL="$t" run NPC_RUN_ARGS="--no-progress --max-cycles $MAXCYC" 2>&1)
+      if echo "$o" | grep -q 'HIT GOOD TRAP'; then dp=$((dp+1)); else df=$((df+1)); dfl="$dfl $t"; fi
+    done
+    echo "- **difftest 计算子集**: $dp PASS, $df FAIL$([[ $df -gt 0 ]] && echo " — 失败:$dfl")" >> "$SUM"
+  else
+    echo "- **difftest**: 构建失败(见 difftest-build.log)" >> "$SUM"
+  fi
+  # 恢复 perf 配置并重建(交付二进制匹配 perf 配置)
+  cp "$OUT/auto.conf.save" "$NPC_RV64/include/config/auto.conf"
+  cp "$OUT/autoconf.h.save" "$NPC_RV64/include/generated/autoconf.h"
+  make -C "$NPC_RV64" -j4 default > "$OUT/difftest-restore.log" 2>&1
 fi
 
 # ---- benchmarks ----

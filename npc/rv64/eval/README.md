@@ -17,6 +17,7 @@ eval/npc-eval.sh --build --all    # 先重建再全量评估
 eval/npc-eval.sh --quick          # 仅 AM cpu-tests CPI（最快性能回归）
 eval/npc-eval.sh --am --tag div-radix4   # 给结果打标签便于对比
 eval/npc-eval.sh --bench          # CoreMark/Dhrystone（长）
+eval/npc-eval.sh --difftest        # 计算子集逐指令对照 NEMU(自动建 difftest 核+跑+恢复 perf 基线)
 ```
 
 ## 产物布局
@@ -28,6 +29,11 @@ eval/results/<时间戳>[-tag]/
   module.log      # 模块 TB 原始日志
   meta.txt        # 时间/tag/git HEAD/脏文件数/max-cycles
 ```
+
+## 第三层验证:difftest 逐指令对照 NEMU(--difftest)
+`--difftest` 自动:建参考 .so→开 CONFIG_NPC_DIFFTEST 重建核→跑 33 个计算/整数访存测试逐指令对照
+NEMU→恢复 perf 配置重建。访存/执行类改动应跑此模式(比 GOOD-TRAP 强的指令级架构等价验证)。
+NEMU 对 A/D/PMP 与本核有意不同,故只跑 M-mode 计算子集(不含 Sv39/PMP-S)。
 
 ## 评估自校验(两层)
 1. **dummy smoke**:跑前确认已知必过的 dummy GOOD TRAP,否则判环境异常中止(不输出误导结果)。
