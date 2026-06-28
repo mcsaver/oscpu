@@ -34,3 +34,17 @@ vivado/run-synth.sh [PERIOD_ns] [PART]
 - 综合只读核 RTL，**不含** `vsrc/sim/*.sv`(DPI/$display 等不可综合)；核 RTL 已验证 0 个 initial/DPI。
 - OOC 模式：不做物理引脚约束与布局布线，给出综合级时序估计；足以定位关键路径与相对优化。
   如需更准的 Fmax，可后续加 `opt_design/place_design/route_design` 与真实 XDC。
+
+## WSL 崩溃根因与规避（经验）
+**现象**：用 Vivado 综合整核(`NpcTop`,34k 行)且 `-flatten_hierarchy rebuilt` 时 WSL 多次整机崩溃，
+即便已降到 4 核 + 绑核(taskset 8-11) + nice。
+**根因=内存压力，非 CPU**：整核**全展平**综合 + 34k 行设计的时序图，内存峰值远超 synthesize
+阶段日志可见的 ~3.5GB；在 WSL(总 15GB,默认上限更低)下击穿内存→OOM/整机崩溃。CPU 亲和/nice
+只能防 CPU 阻塞，挡不住内存峰值。
+**规避(已验证)**：
+1. **首选按模块 OOC 综合**(`run-synth-module.sh <Module>`)：只综合单模块子树,内存仅 ~1.6GB、
+   ~40s 完成、可用内存稳在 11GB+,零崩溃;且直接给出该模块关键路径(定向时序优化所需)。
+   关键路径几乎总在某嫌疑模块内(issue 选择/除法器/PMP/宽 mux),逐个综合比较即可定位。
+2. 整核综合(`run-synth.sh`)如需,应改 `-flatten_hierarchy none`、降 maxThreads(2),
+   并考虑在 `~/.wslconfig` 设 `[wsl2] memory=12GB` 给 WSL 明确上限(由用户配置)。
+3. 综合一律 nice+taskset 绑到部分核(8-11),给 Claude/vscode/wsl 留核。
