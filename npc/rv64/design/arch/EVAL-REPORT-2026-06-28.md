@@ -75,3 +75,29 @@ PTW 交织仲裁,即对已绿的桥大规模重写。当前测试集多 dcache �
 - `eval/results/20260628-161022-reeval-milestone/summary.md`(三 gate + CPI)
 - `eval/results/20260628-160441-difftest-validate/summary.md`(33/33)
 - 工作树干净(仅 2 个 test 子模块 pre-existing,不提交)。
+
+## 8. 验证加固与 bug-hunt(报告生成后的延续工作)
+本报告初版后,迭代重心从"性能优化"转向"验证加固"(因易得性能红利已收割、剩余项需用户决策或更大内存):
+1. **评估系统 level-2 元评估**(`eval/META-EVAL.md`):识别 5 盲点并逐一处理——difftest 逐指令 33→**40**
+   (新增 RVC/fence-i/mem-order/switch/stdio)、新增 `--timing` 时序回归 gate、CoreMark CPI **1.02**、
+   module TB 覆盖率量化(82/104 Ooo 模块有专属单测,良好)、CPI 加权代表性已说明。
+2. **两轮对抗性 bug-hunt**(覆盖 5 处最高风险改动):
+   - 隐患B(取指跨页 PMP 绕过,**安全**):**已修复+验证**(`OooFetchAxiBridge.v`,不缓存跨页包,
+     结构性消除 stale 槽1 PMP grant;112/271/56+difftest40+CPI 零变化)。
+   - 隐患A(访存桥 B off-by-one,IP复用):文档化;简单门控修复经实证会**死锁**(被 eval dummy 自校验
+     抓住),需侵入式 B-tracker,留待用户知情的专注跟进。
+   - 除法器/FreeList/PMP 三处:逐角落手算核对**无真 bug**;顺带移除 PMP 死代码 `entry_match`。
+3. **整核 P&R 证 16GB WSL 不可行**(并行综合 worker 撑爆内存,看门狗护航防崩)。
+
+## 9. 待用户决策项(非可自主推进)
+| 项 | 需要 |
+|---|---|
+| ship dispatch-bypass(去旁路:−38% logic level / +5.5% CPI) | 用户定 FPGA 目标是否 Fmax-critical |
+| 推送 ~158 个本地提交到 myfork/ai | 用户授权 push |
+| 隐患A 侵入式修复(B-tracker) | 用户知情(高风险路径,简单修复已证死锁) |
+| Sv39/PMP 指令级 difftest | 改 NEMU 对齐核语义(中风险) |
+| dispatch 流水化净收益确认 / LSQ | ≥32GB 机器跑整核 P&R |
+
+## 10. 交付态总结
+核处于**高置信交付态**:三 gate + difftest 40 全绿、CPI 1.26(真实代码 CoreMark 1.02)、5 处最高风险
+改动全部对抗审查(1 安全 bug 已修)、评估系统经元评估加固、唯一 Fmax 封顶项量化。`ai` 分支,工作树干净。
