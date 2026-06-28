@@ -70,7 +70,12 @@ module OooFpClassifyGate (
     end
   endfunction
 
-  assign class_value_o = double_i ? fp_class_d_value(frs1_value_i)
-                                  : fp_class_s_value(frs1_value_i[31:0]);
+  // FP#6 修复:FCLASS.S 须查 NaN-boxing。未正确 box(高 32 位非全 1)的单精度值
+  // 视为 quiet NaN(class bit 9),而非按原始低 32 位分类。
+  wire single_nan_boxed_w = (frs1_value_i[`XLEN-1:32] == 32'hffff_ffff);
+  assign class_value_o =
+      double_i ? fp_class_d_value(frs1_value_i) :
+      single_nan_boxed_w ? fp_class_s_value(frs1_value_i[31:0]) :
+                           {{(`XLEN-10){1'b0}}, 10'h200};  // qNaN: bit 9
 
 endmodule

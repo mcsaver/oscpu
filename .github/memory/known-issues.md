@@ -1117,6 +1117,6 @@
   - **FP#2 FMA 双舍入(非单舍入)**:`OooFpArithGate.v:594-611`(fma=mul 先舍入再 add 舍入)+ flag `:1085-1093`(mul_fflags|addsub_fflags),违反 FMA 中间不舍入;模块头注释自称"单舍入"但实现未做到。
   - **FP#3 上溢恒返 ±Inf 忽略舍入模式**:`OooFpArithGate.v:164/319/443/561`、`OooFpLongOpGate.v:129/232`、`OooFpConvertGate.v:464` 上溢无条件 →{sign,全1 exp,0};RTZ(任意)/RDN(正)/RUP(负)上溢应饱和到最大有限值(OF|NX flag 正确,仅 value 错)。需静态方向舍入触发(低频)。
   - **FP#4 RDN 下精确零抵消符号错**:`OooFpArithGate.v:129-131/149-150`(double)、`:284-286/304-305`(single)强制 sign_z=0;RDN 下 x+(-x)/x-x/(+0)+(-0) 应 -0 给了 +0。
-  - **FP#5 Inf/0 误置 DZ**:`OooFpLongOpGate.v:527/611` 条件含 a 非零即置 DZ,但 a=±Inf,b=±0 也命中;IEEE-754 DZ 仅对**有限非零**被除数,Inf/0→Inf 应无异常。
-  - **FP#6 FCLASS.S 忽略 NaN-boxing**:`OooFpClassifyGate.v:74` 直接看 frs1[31:0] 不查 box;未正确 box 的值应分类为 qNaN(其他 FP op 都查 box,仅 classify 漏)。
+  - **FP#5【已修复+验证 2026-06-28】Inf/0 误置 DZ**:`OooFpLongOpGate.v:527/611` 条件含 a 非零即置 DZ,但 a=±Inf,b=±0 也命中;IEEE-754 DZ 仅对**有限非零**被除数,Inf/0→Inf 应无异常。
+  - **FP#6【已修复+验证 2026-06-28】FCLASS.S 忽略 NaN-boxing**:`OooFpClassifyGate.v:74` 直接看 frs1[31:0] 不查 box;未正确 box 的值应分类为 qNaN(其他 FP op 都查 box,仅 classify 漏)。 **已修复**:FP#5 `OooFpLongOpGate.v:527/611` DZ 条件加 `&& !a_is_inf`(Inf/0→Inf 无异常,有限非零/0 仍置 DZ);FP#6 `OooFpClassifyGate.v` 加 `single_nan_boxed_w=(高32==全1)`,未 box 单精度→class 0x200(qNaN bit9)。验证:全 gate 绿(112/271/56+difftest40+CPI不变)=安全;新 ASM smoke `Linux/tools/fp-corner-smoke.S`(Inf/0 无DZ + 1.0/0 有DZ + fclass.s 未box→qNaN)`make smoke-fp-corner` GOOD TRAP=正确。
   - **核对正确**:NaN 规范化/传播、sNaN→NV、单精度 NaN-boxing、0×Inf/Inf−Inf→NV、min/max(RISC-V 2.2)、±0 比较、FMA 符号约定、fp→int 饱和+NV、静态 5 舍入模式增量(RNE tie-even/RMM tie-away)、subnormal 支持(无 FTZ)、fclass 10 类、shift-right-jam sticky、div/sqrt 迭代(guard/round/sticky,flush 清 FSM)。死代码 `OooFpRegFile.v:33 flush 清 FPR` 因 `.flush_i(1'b0)` 实例化为死(非 bug)。

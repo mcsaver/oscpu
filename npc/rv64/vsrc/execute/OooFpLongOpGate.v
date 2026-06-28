@@ -524,7 +524,7 @@ module OooFpLongOpGate (
       if (fp_is_snan_s_value(rs1_value) || fp_is_snan_s_value(rs2_value) ||
           (a_is_zero && b_is_zero) || (a_is_inf && b_is_inf)) begin
         fp_div_s_fflags = `FP_FLAG_NV;
-      end else if (!a_is_nan && !b_is_nan && !a_is_zero && b_is_zero) begin
+      end else if (!a_is_nan && !b_is_nan && !a_is_zero && !a_is_inf && b_is_zero) begin
         fp_div_s_fflags = `FP_FLAG_DZ;
       end else if (!(a_is_nan || b_is_nan || a_is_inf || b_is_inf ||
                    a_is_zero || b_is_zero)) begin
@@ -608,7 +608,7 @@ module OooFpLongOpGate (
       if (fp_is_snan_d_value(rs1_value) || fp_is_snan_d_value(rs2_value) ||
           (a_is_zero && b_is_zero) || (a_is_inf && b_is_inf)) begin
         fp_div_d_fflags = `FP_FLAG_NV;
-      end else if (!a_is_nan && !b_is_nan && !a_is_zero && b_is_zero) begin
+      end else if (!a_is_nan && !b_is_nan && !a_is_zero && !a_is_inf && b_is_zero) begin
         fp_div_d_fflags = `FP_FLAG_DZ;
       end else if (!(a_is_nan || b_is_nan || a_is_inf || b_is_inf ||
                    a_is_zero || b_is_zero)) begin
