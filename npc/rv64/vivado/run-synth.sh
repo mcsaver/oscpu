@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Vivado OOC 综合驱动：从 Makefile 取核 RTL 清单，调 vivado 批处理跑 synth.tcl(8 核)。
+# Vivado OOC 综合驱动：从 Makefile 取核 RTL 清单，调 vivado 批处理跑 synth.tcl(4 核)。
+# 注：WSL 环境下 8 核综合会内存压力过大导致崩溃，已降到 4 核(synth.tcl maxThreads 4)。
 # 用法: vivado/run-synth.sh [PERIOD_ns] [PART]
 #   PERIOD 默认 2.0ns(激进,逼出关键路径)；PART 默认 xc7a100tcsg324-1(ysyx Nexys)。
 # 产物落 vivado/out/<时间戳>/，不入 git(见 .gitignore)。

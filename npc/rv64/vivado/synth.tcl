@@ -1,6 +1,6 @@
 # Vivado 非工程(OOC)综合脚本：综合 NpcTop 核 RTL，报告时序/关键路径/资源。
 # 由 run-synth.sh 通过环境变量传参：FILELIST INCDIR TOP PART PERIOD OUTDIR
-set_param general.maxThreads 8
+set_param general.maxThreads 4
 
 set filelist $::env(FILELIST)
 set incdir   $::env(INCDIR)
