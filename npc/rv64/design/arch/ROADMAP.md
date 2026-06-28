@@ -99,3 +99,9 @@
 - iter7 ✓ free list alloc1 并行读,DispatchBackend 42→39 级、logic 8.32→7.95ns。
 - **下一深目标**:DispatchBackend rename/alloc/IQ 链(39 级最深)流水化为 2 拍(rename+dispatch),
   及 OooIntIssueQueue oldest-select——影响 CPI/正确性,须 spec 先行+eval 守+重综合验 WNS。
+- iter8(2026-06-28)✓ 实测关键路径完整定位:`free_list.count_q[4]→busy_table.query0_ready→
+  issue_queue.issue_valid/count→ctrl_q.CE`,39 级唯一封顶。**spec 先行产出
+  `timing-dispatch-issue-path.md`**:分 A(CPI-中性组合重构,OOC 可验级数)/B(流水化,需整核 P&R)。
+  决策:A 类 free-count 预算经分析判边际(仅省~2/39 级、route 主导不可信、下游仍封顶),不为"显得动"
+  而做无效改动;真正有效项=issue_queue issue_valid/count 重构(高风险)或 B 流水化(需先搭整核 P&R)。
+  **前置阻塞**:Vivado 当前仅 OOC 模块综合,整核 P&R 流程(取真实 WNS 判流水化净收益)尚未就位。
