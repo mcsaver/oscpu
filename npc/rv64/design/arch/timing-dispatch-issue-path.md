@@ -81,6 +81,32 @@ B 类额外需:搭整核 `synth.tcl` 全核 P&R(非 OOC)取真实 WNS,再判净�
 - **决策**:`Fmax_new/Fmax_old > CPI_new/CPI_old` 才净赢;否则 revert(git 检查点),B 判死。
 - 若 B-cut-1 升 Fmax 但 CPI 退化大,再做 B-cut-2(保留 wakeup_match 驱动的旁路、仅去"已就绪"旁路)精炼。
 
+## 6c. 实验结果与最终决策(2026-06-28,已实测)
+跑了 B-cut-1/B-cut-2 两个实验(均 RTL 仿真 eval + 模块 OOC 综合,内存安全;整核 P&R 此 WSL 不可行):
+
+| 变体 | OooDispatchBackend logic levels | logic delay | 加权 CPI | IQ 模块 TB |
+|---|---|---|---|---|
+| 基线(有旁路) | 39 | 7.948ns | 1.2647 | PASS |
+| B-cut-1(全禁旁路) | **24(−38%)** | **3.617ns(−54%)** | 1.3340(**+5.5%**) | **FAIL**(tb_ooo_int_issue_queue 断言旁路) |
+| B-cut-2(仅留 wakeup 旁路) | (≈24) | — | 1.3340(+5.5%,与 B-cut-1 **完全相同**) | FAIL |
+
+**确证结论**:
+1. **唯一 Fmax 封顶段 = dispatch-bypass 的同拍 busy_table 依赖**。去掉它 logic levels 39→24、logic delay 砍半
+   (route 无关的可靠代理),新关键路径终于 `imm_q.D`(dispatch 写寄存,浅)。
+2. **旁路的 CPI 价值几乎全在"已就绪算子"(busy_table)case**:B-cut-2 保留 wakeup 旁路后 CPI 与全禁
+   **完全一样**(1.3340)——刚 dispatch 的指令其算子恰好本拍被 wakeup 的情形极罕见。故 B-cut-2 被 B-cut-1
+   支配(同 CPI、逻辑更多),有意义的选择只有"基线 vs B-cut-1"。
+3. **CPI 代价确定 +5.5%**(集中在依赖密集 ALU 环:wanshu +39%、select-sort +36%、string +28%;
+   而头部 branch-resolve-loop 几乎不变,因其访存受限——见 `EVAL-REPORT-2026-06-28.md` §3.1)。
+4. **net 收益不可在此 WSL 判定**:39→24 是否转成 >5.5% 的 **routed** Fmax 提升,需整核 P&R(此 16GB WSL
+   不可行,见 `known-issues.md`)。OOC route 占 80% 不可信。
+
+**最终决策:不 ship(回退基线)**。理由:确定的 5.5% CPI 损失 + 不可验证的 routed Fmax 收益 + 破单测
+(违反 §4 T-I1)= 正是"验净收益"禁止的未验证 trade。**这是数据完备的负决策,非未完成**。
+**重启条件**:① 有 ≥32GB 机器可跑整核 P&R 确认 routed Fmax 提升 > 5.5%;或 ② 明确 FPGA 目标为
+Fmax-critical 且可接受 5.5% CPI。届时实施 B-cut-1(最简且 Pareto 最优)+ 同步更新 tb_ooo_int_issue_queue
+的旁路时序契约(断言新行为,不可弱化真检查)。
+
 ## 7. 变更记录
 - 2026-06-28：基于 OOC 实测关键路径(39 级 free_list→busy_table→issue_queue 单拍链)建立规范,
   分 A(CPI-中性组合重构,可验)/B(流水化,需 P&R)两路,B 暂缓。

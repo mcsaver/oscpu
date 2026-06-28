@@ -109,3 +109,9 @@
   `vivado -notrace` 并行综合 worker(各~3.2GB),总 RSS~11.4GB,free 跌到 167MB,已主动终止防崩(WSL 安全)。
   根因+教训记 `known-issues.md`。**改道**:spec-B 决策不必整核 P&R,用模块级 OOC(OooDispatchBackend
   单模块,内存安全)测 logic-depth 下降 + eval 测 CPI 退化,二者足够定量判净收益(routed WNS 仅锦上添花)。
+- iter10(2026-06-28)**spec-B 实验定案(数据完备的负决策)**:实测 B-cut-1(全禁 dispatch-bypass)使
+  OooDispatchBackend logic levels **39→24(−38%)**、logic delay 7.95→3.62ns,但加权 CPI **+5.5%**
+  (1.2647→1.3340)且破 IQ 单测;B-cut-2(仅留 wakeup 旁路)CPI 与全禁**完全相同**(旁路价值全在"已就绪"
+  case)。唯一 Fmax 封顶段确证=dispatch-bypass 同拍 busy_table 依赖。**决策:不 ship,回退基线**——确定 CPI
+  损失 + routed 净收益不可验(整核 P&R 此 WSL 不可行)+ 破单测。详见 `timing-dispatch-issue-path.md` §6c。
+  **此为易得时序红利的边界:再进需 ≥32GB 机器做整核 P&R 验证,或接受 5.5% CPI 的明确 Fmax-critical 目标。**
