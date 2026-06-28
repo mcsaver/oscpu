@@ -175,7 +175,10 @@ if [[ $DO_DIFFTEST -eq 1 ]]; then
   grep -q CONFIG_NPC_DIFFTEST "$NPC_RV64/include/generated/autoconf.h" || echo '#define CONFIG_NPC_DIFFTEST 1' >> "$NPC_RV64/include/generated/autoconf.h"
   if make -C "$NPC_RV64" -j4 default > "$OUT/difftest-build.log" 2>&1; then
     # 计算/整数访存子集(M-mode 裸机,不走 Sv39/PMP-S,对 NEMU 干净)
-    DT_TESTS="add add-longlong bit bitmanip bubble-sort crc32 div fact fib goldbach if-else leap-year load-store matrix-mul max mersenne min3 mov-c movsx mul-longlong pascal prime quick-sort recursion select-sort shift shuixianhua string sub-longlong sum to-lower-case unalign wanshu"
+    # M-mode 裸机子集,逐指令对照 NEMU(对其干净:不走 Sv39/PMP-S/中断/host-time)。
+    # 计算/整数访存 + 经验验证不发散的特性测(compressed/fence-i/branch/mem-order/switch/stdio)。
+    # 已知发散(不加,待查真bug vs 有意差异,见 eval/META-EVAL.md B1):misa-priv(MISA/特权CSR)、char-test。
+    DT_TESTS="add add-longlong bit bitmanip branch-fallthrough-save bubble-sort compressed crc32 div fact fence-i fib goldbach if-else leap-year load-store matrix-mul max mem-test mersenne min3 mov-c movsx mul-longlong ooo-mem-order pascal prime quick-sort recursion select-sort shift shuixianhua stdio-format string sub-longlong sum switch to-lower-case unalign wanshu"
     dp=0; df=0; dfl=""
     for t in $DT_TESTS; do
       o=$(timeout 300 make -C "$CPUT" AM_HOME="$AM_HOME" ARCH=riscv64-npc NPC_SIM_BACKEND=rv64 ALL="$t" run NPC_RUN_ARGS="--no-progress --max-cycles $MAXCYC" 2>&1)
