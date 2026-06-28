@@ -221,35 +221,8 @@ module PmpChecker (
     end
   endfunction
 
-  function entry_match;
-    input integer entry_idx;
-    input [`XLEN-1:0] paddr;
-    input [`PMP_CFG_BUS_W-1:0] cfg_bus;
-    input [`PMP_ADDR_BUS_W-1:0] addr_bus;
-    reg [7:0] cfg;
-    reg [`XLEN-1:0] lower_bound;
-    reg [`XLEN-1:0] upper_bound;
-    begin
-      cfg = pmpcfg_at(cfg_bus, entry_idx);
-      case (cfg[`PMP_CFG_A_HI:`PMP_CFG_A_LO])
-        `PMP_A_TOR: begin
-          lower_bound = (entry_idx == 0) ? {`XLEN{1'b0}} :
-                        (pmpaddr_at(addr_bus, entry_idx - 1) << 2);
-          upper_bound = pmpaddr_at(addr_bus, entry_idx) << 2;
-          entry_match = (paddr >= lower_bound) && (paddr < upper_bound);
-        end
-        `PMP_A_NA4: begin
-          entry_match = ((paddr >> 2) == pmpaddr_at(addr_bus, entry_idx));
-        end
-        `PMP_A_NAPOT: begin
-          entry_match = napot_match(paddr, pmpaddr_at(addr_bus, entry_idx));
-        end
-        default: begin
-          entry_match = 1'b0;
-        end
-      endcase
-    end
-  endfunction
+  // [简化 2026-06-28] 移除死代码 function entry_match(全仓无调用;主逻辑用 entry_overlap/
+  // entry_full_cover)。经 bug-hunt 核实未用,build 验证无回归。
 
   reg fault_r;
   reg match_found_r;
