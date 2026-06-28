@@ -26,11 +26,17 @@ module OooFpArithGate (
   `include "execute/OooFpPredicates.v"
   `include "execute/OooFpRound.v"
 
-  function [`XLEN-1:0] fp_addsub_d_value;
-    input [`XLEN-1:0] rs1_value;
-    input [`XLEN-1:0] rs2_value;
-    input is_sub;
-    input [2:0] rm;
+  // 纯组合 datapath 结果(由各 always @(*) 块驱动,输出处按 double_i mux)。
+  // 注:可综合 .v 用 always @(*),不用 SV always_comb(iverilog 模块 TB 对 always_comb
+  // 常量位选静默错仿真,见 .github/instructions/rtl-generation-workflow.instructions.md)。
+  reg [`XLEN-1:0] addsub_d_value, addsub_s_value, mul_d_value, mul_s_value;
+  reg [4:0] addsub_d_fflags, addsub_s_fflags, mul_d_fflags, mul_s_fflags;
+
+  always @(*) begin : addsub_d_value_blk
+    reg [`XLEN-1:0] rs1_value;
+    reg [`XLEN-1:0] rs2_value;
+    reg is_sub;
+    reg [2:0] rm;
     reg sign_a;
     reg sign_b;
     reg sign_z;
@@ -64,7 +70,15 @@ module OooFpArithGate (
     reg [6:0] norm_lzc;
     reg [6:0] norm_shift;
     reg [10:0] norm_exp_limit;
-    begin
+    rs1_value = frs1_value_i;
+    rs2_value = frs2_value_i;
+    is_sub = sub_op_i;
+    rm = rm_i;
+    sign_z = 1'b0; exp_a_eff = 0; exp_b_eff = 0; exp_z = 0;
+    sig_a = 0; sig_b = 0; sig_a_aligned = 0; sig_b_aligned = 0; sig_norm = 0;
+    sig_sum = 0; mant53 = 0; mant_round_ext = 0; exp_diff = 0; shift_dist = 0;
+    guard = 0; sticky = 0; inc = 0; a_lt_b_mag = 0; norm_lzc = 0; norm_shift = 0;
+    norm_exp_limit = 0; addsub_d_value = 0;
       sign_a = rs1_value[63];
       sign_b = rs2_value[63] ^ is_sub;
       exp_a = rs1_value[62:52];
@@ -79,21 +93,21 @@ module OooFpArithGate (
       b_is_zero = (exp_b == 11'h000) && (frac_b == 52'b0);
 
       if (a_is_nan || b_is_nan) begin
-        fp_addsub_d_value = 64'h7ff8000000000000;
+        addsub_d_value =64'h7ff8000000000000;
       end else if (a_is_inf && b_is_inf && (sign_a != sign_b)) begin
-        fp_addsub_d_value = 64'h7ff8000000000000;
+        addsub_d_value =64'h7ff8000000000000;
       end else if (a_is_inf) begin
-        fp_addsub_d_value = {sign_a, 11'h7ff, 52'b0};
+        addsub_d_value ={sign_a, 11'h7ff, 52'b0};
       end else if (b_is_inf) begin
-        fp_addsub_d_value = {sign_b, 11'h7ff, 52'b0};
+        addsub_d_value ={sign_b, 11'h7ff, 52'b0};
       end else if (a_is_zero && b_is_zero) begin
         // FP#4: (+0)+(-0) 等异号零和在 RDN(rm=010)下为 -0,其余模式 +0。
-        fp_addsub_d_value =
+        addsub_d_value =
             {((rm == 3'b010) ? (sign_a | sign_b) : (sign_a & sign_b)), 63'b0};
       end else if (a_is_zero) begin
-        fp_addsub_d_value = {sign_b, exp_b, frac_b};
+        addsub_d_value ={sign_b, exp_b, frac_b};
       end else if (b_is_zero) begin
-        fp_addsub_d_value = rs1_value;
+        addsub_d_value =rs1_value;
       end else begin
         exp_a_eff = (exp_a == 11'h000) ? 11'd1 : exp_a;
         exp_b_eff = (exp_b == 11'h000) ? 11'd1 : exp_b;
@@ -150,7 +164,7 @@ module OooFpArithGate (
 
         if (sig_norm == 56'b0) begin
           // FP#4: 精确抵消(x+(-x))的零结果在 RDN 下为 -0,其余 +0。
-          fp_addsub_d_value = (rm == 3'b010) ? {1'b1, 63'b0} : 64'b0;
+          addsub_d_value =(rm == 3'b010) ? {1'b1, 63'b0} : 64'b0;
         end else begin
           mant53 = sig_norm[55:3];
           guard = sig_norm[2];
@@ -165,22 +179,21 @@ module OooFpArithGate (
           end
 
           if (exp_z >= 11'h7ff) begin
-            fp_addsub_d_value = fp_overflow_d(sign_z, rm);
+            addsub_d_value =fp_overflow_d(sign_z, rm);
           end else if ((exp_z == 11'd1) && !mant53[52]) begin
-            fp_addsub_d_value = {sign_z, 11'b0, mant53[51:0]};
+            addsub_d_value ={sign_z, 11'b0, mant53[51:0]};
           end else begin
-            fp_addsub_d_value = {sign_z, exp_z, mant53[51:0]};
+            addsub_d_value ={sign_z, exp_z, mant53[51:0]};
           end
         end
       end
-    end
-  endfunction
+  end
 
-  function [`XLEN-1:0] fp_addsub_s_value;
-    input [`XLEN-1:0] rs1_value;
-    input [`XLEN-1:0] rs2_value;
-    input is_sub;
-    input [2:0] rm;
+  always @(*) begin : addsub_s_value_blk
+    reg [`XLEN-1:0] rs1_value;
+    reg [`XLEN-1:0] rs2_value;
+    reg is_sub;
+    reg [2:0] rm;
     reg [31:0] a;
     reg [31:0] b;
     reg sign_a;
@@ -216,7 +229,15 @@ module OooFpArithGate (
     reg [5:0] norm_lzc;
     reg [5:0] norm_shift;
     reg [7:0] norm_exp_limit;
-    begin
+    rs1_value = frs1_value_i;
+    rs2_value = frs2_value_i;
+    is_sub = sub_op_i;
+    rm = rm_i;
+    sign_z = 1'b0; exp_a_eff = 0; exp_b_eff = 0; exp_z = 0;
+    sig_a = 0; sig_b = 0; sig_a_aligned = 0; sig_b_aligned = 0; sig_norm = 0;
+    sig_sum = 0; mant24 = 0; mant_round_ext = 0; exp_diff = 0; shift_dist = 0;
+    guard = 0; sticky = 0; inc = 0; a_lt_b_mag = 0; norm_lzc = 0; norm_shift = 0;
+    norm_exp_limit = 0; a = 0; b = 0; addsub_s_value = 0;
       a = rs1_value[31:0];
       b = rs2_value[31:0];
       sign_a = a[31];
@@ -237,21 +258,21 @@ module OooFpArithGate (
                   (exp_b == 8'h00) && (frac_b == 23'b0);
 
       if (a_is_nan || b_is_nan) begin
-        fp_addsub_s_value = 64'hffffffff7fc00000;
+        addsub_s_value = 64'hffffffff7fc00000;
       end else if (a_is_inf && b_is_inf && (sign_a != sign_b)) begin
-        fp_addsub_s_value = 64'hffffffff7fc00000;
+        addsub_s_value = 64'hffffffff7fc00000;
       end else if (a_is_inf) begin
-        fp_addsub_s_value = {32'hffff_ffff, sign_a, 8'hff, 23'b0};
+        addsub_s_value = {32'hffff_ffff, sign_a, 8'hff, 23'b0};
       end else if (b_is_inf) begin
-        fp_addsub_s_value = {32'hffff_ffff, sign_b, 8'hff, 23'b0};
+        addsub_s_value = {32'hffff_ffff, sign_b, 8'hff, 23'b0};
       end else if (a_is_zero && b_is_zero) begin
         // FP#4: 异号零和在 RDN 下为 -0(NaN-boxed)。
-        fp_addsub_s_value =
+        addsub_s_value =
             {32'hffff_ffff, ((rm == 3'b010) ? (sign_a | sign_b) : (sign_a & sign_b)), 31'b0};
       end else if (a_is_zero) begin
-        fp_addsub_s_value = {32'hffff_ffff, sign_b, exp_b, frac_b};
+        addsub_s_value = {32'hffff_ffff, sign_b, exp_b, frac_b};
       end else if (b_is_zero) begin
-        fp_addsub_s_value = {32'hffff_ffff, a};
+        addsub_s_value = {32'hffff_ffff, a};
       end else begin
         exp_a_eff = (exp_a == 8'h00) ? 8'd1 : exp_a;
         exp_b_eff = (exp_b == 8'h00) ? 8'd1 : exp_b;
@@ -308,7 +329,7 @@ module OooFpArithGate (
 
         if (sig_norm == 27'b0) begin
           // FP#4: 精确抵消零结果在 RDN 下为 -0(NaN-boxed)。
-          fp_addsub_s_value = (rm == 3'b010) ? 64'hffffffff80000000
+          addsub_s_value = (rm == 3'b010) ? 64'hffffffff80000000
                                              : 64'hffffffff00000000;
         end else begin
           mant24 = sig_norm[26:3];
@@ -324,34 +345,20 @@ module OooFpArithGate (
           end
 
           if (exp_z >= 8'hff) begin
-            fp_addsub_s_value = fp_overflow_s(sign_z, rm);
+            addsub_s_value = fp_overflow_s(sign_z, rm);
           end else if ((exp_z == 8'd1) && !mant24[23]) begin
-            fp_addsub_s_value = {32'hffff_ffff, sign_z, 8'b0, mant24[22:0]};
+            addsub_s_value = {32'hffff_ffff, sign_z, 8'b0, mant24[22:0]};
           end else begin
-            fp_addsub_s_value = {32'hffff_ffff, sign_z, exp_z, mant24[22:0]};
+            addsub_s_value = {32'hffff_ffff, sign_z, exp_z, mant24[22:0]};
           end
         end
       end
-    end
-  endfunction
+  end
 
-  function [`XLEN-1:0] fp_addsub_value;
-    input [`XLEN-1:0] rs1_value;
-    input [`XLEN-1:0] rs2_value;
-    input is_double;
-    input is_sub;
-    input [2:0] rm;
-    begin
-      fp_addsub_value = is_double ?
-          fp_addsub_d_value(rs1_value, rs2_value, is_sub, rm) :
-          fp_addsub_s_value(rs1_value, rs2_value, is_sub, rm);
-    end
-  endfunction
-
-  function [`XLEN-1:0] fp_mul_d_value;
-    input [`XLEN-1:0] rs1_value;
-    input [`XLEN-1:0] rs2_value;
-    input [2:0] rm;
+  always @(*) begin : mul_d_value_blk
+    reg [`XLEN-1:0] rs1_value;
+    reg [`XLEN-1:0] rs2_value;
+    reg [2:0] rm;
     reg sign_z;
     reg [10:0] exp_a;
     reg [10:0] exp_b;
@@ -378,7 +385,13 @@ module OooFpArithGate (
     reg [7:0] norm_shift;
     integer exp_z;
     integer sub_shift_int;
-    begin
+    rs1_value = frs1_value_i;
+    rs2_value = frs2_value_i;
+    rm = rm_i;
+    sig_a = 0; sig_b = 0; product = 0; product_norm = 0; mant53 = 0;
+    mant_round_ext = 0; guard = 0; sticky = 0; inc = 0; sub_shift = 0;
+    norm_lzc = 0; norm_required = 0; norm_shift = 0; exp_z = 0; sub_shift_int = 0;
+    mul_d_value = 0;
       sign_z = rs1_value[63] ^ rs2_value[63];
       exp_a = rs1_value[62:52];
       exp_b = rs2_value[62:52];
@@ -392,14 +405,14 @@ module OooFpArithGate (
       b_is_zero = (exp_b == 11'h000) && (frac_b == 52'b0);
 
       if (a_is_nan || b_is_nan) begin
-        fp_mul_d_value = 64'h7ff8000000000000;
+        mul_d_value = 64'h7ff8000000000000;
       end else if ((a_is_inf && b_is_zero) ||
                    (b_is_inf && a_is_zero)) begin
-        fp_mul_d_value = 64'h7ff8000000000000;
+        mul_d_value = 64'h7ff8000000000000;
       end else if (a_is_inf || b_is_inf) begin
-        fp_mul_d_value = {sign_z, 11'h7ff, 52'b0};
+        mul_d_value = {sign_z, 11'h7ff, 52'b0};
       end else if (a_is_zero || b_is_zero) begin
-        fp_mul_d_value = {sign_z, 63'b0};
+        mul_d_value = {sign_z, 63'b0};
       end else begin
         sig_a = {(exp_a != 11'h000), frac_a};
         sig_b = {(exp_b != 11'h000), frac_b};
@@ -448,20 +461,19 @@ module OooFpArithGate (
         end
 
         if (exp_z >= 2047) begin
-          fp_mul_d_value = fp_overflow_d(sign_z, rm);
+          mul_d_value = fp_overflow_d(sign_z, rm);
         end else if ((exp_z <= 1) && !mant53[52]) begin
-          fp_mul_d_value = {sign_z, 11'b0, mant53[51:0]};
+          mul_d_value = {sign_z, 11'b0, mant53[51:0]};
         end else begin
-          fp_mul_d_value = {sign_z, exp_z[10:0], mant53[51:0]};
+          mul_d_value = {sign_z, exp_z[10:0], mant53[51:0]};
         end
       end
-    end
-  endfunction
+  end
 
-  function [`XLEN-1:0] fp_mul_s_value;
-    input [`XLEN-1:0] rs1_value;
-    input [`XLEN-1:0] rs2_value;
-    input [2:0] rm;
+  always @(*) begin : mul_s_value_blk
+    reg [`XLEN-1:0] rs1_value;
+    reg [`XLEN-1:0] rs2_value;
+    reg [2:0] rm;
     reg [31:0] a;
     reg [31:0] b;
     reg sign_z;
@@ -490,7 +502,13 @@ module OooFpArithGate (
     reg [5:0] norm_shift;
     integer exp_z;
     integer sub_shift_int;
-    begin
+    rs1_value = frs1_value_i;
+    rs2_value = frs2_value_i;
+    rm = rm_i;
+    sig_a = 0; sig_b = 0; product = 0; product_norm = 0; mant24 = 0;
+    mant_round_ext = 0; guard = 0; sticky = 0; inc = 0; sub_shift = 0;
+    norm_lzc = 0; norm_required = 0; norm_shift = 0; exp_z = 0; sub_shift_int = 0;
+    mul_s_value = 0;
       a = rs1_value[31:0];
       b = rs2_value[31:0];
       sign_z = a[31] ^ b[31];
@@ -510,14 +528,14 @@ module OooFpArithGate (
                   (exp_b == 8'h00) && (frac_b == 23'b0);
 
       if (a_is_nan || b_is_nan) begin
-        fp_mul_s_value = 64'hffffffff7fc00000;
+        mul_s_value = 64'hffffffff7fc00000;
       end else if ((a_is_inf && b_is_zero) ||
                    (b_is_inf && a_is_zero)) begin
-        fp_mul_s_value = 64'hffffffff7fc00000;
+        mul_s_value = 64'hffffffff7fc00000;
       end else if (a_is_inf || b_is_inf) begin
-        fp_mul_s_value = {32'hffff_ffff, sign_z, 8'hff, 23'b0};
+        mul_s_value = {32'hffff_ffff, sign_z, 8'hff, 23'b0};
       end else if (a_is_zero || b_is_zero) begin
-        fp_mul_s_value = {32'hffff_ffff, sign_z, 31'b0};
+        mul_s_value = {32'hffff_ffff, sign_z, 31'b0};
       end else begin
         sig_a = {(exp_a != 8'h00), frac_a};
         sig_b = {(exp_b != 8'h00), frac_b};
@@ -566,34 +584,21 @@ module OooFpArithGate (
         end
 
         if (exp_z >= 255) begin
-          fp_mul_s_value = fp_overflow_s(sign_z, rm);
+          mul_s_value = fp_overflow_s(sign_z, rm);
         end else if ((exp_z <= 1) && !mant24[23]) begin
-          fp_mul_s_value = {32'hffff_ffff, sign_z, 8'b0, mant24[22:0]};
+          mul_s_value = {32'hffff_ffff, sign_z, 8'b0, mant24[22:0]};
         end else begin
-          fp_mul_s_value = {32'hffff_ffff, sign_z, exp_z[7:0], mant24[22:0]};
+          mul_s_value = {32'hffff_ffff, sign_z, exp_z[7:0], mant24[22:0]};
         end
       end
-    end
-  endfunction
-
-  function [`XLEN-1:0] fp_mul_value;
-    input [`XLEN-1:0] rs1_value;
-    input [`XLEN-1:0] rs2_value;
-    input is_double;
-    input [2:0] rm;
-    begin
-      fp_mul_value = is_double ?
-          fp_mul_d_value(rs1_value, rs2_value, rm) :
-          fp_mul_s_value(rs1_value, rs2_value, rm);
-    end
-  endfunction
+  end
 
 
-  function [4:0] fp_addsub_s_fflags;
-    input [`XLEN-1:0] rs1_value;
-    input [`XLEN-1:0] rs2_value;
-    input is_sub;
-    input [2:0] rm;
+  always @(*) begin : addsub_s_fflags_blk
+    reg [`XLEN-1:0] rs1_value;
+    reg [`XLEN-1:0] rs2_value;
+    reg is_sub;
+    reg [2:0] rm;
     reg [31:0] a;
     reg [31:0] b;
     reg sign_a;
@@ -629,7 +634,15 @@ module OooFpArithGate (
     reg [5:0] norm_lzc;
     reg [5:0] norm_shift;
     reg [7:0] norm_exp_limit;
-    begin
+    rs1_value = frs1_value_i;
+    rs2_value = frs2_value_i;
+    is_sub = sub_op_i;
+    rm = rm_i;
+    sign_z = 0; exp_a_eff = 0; exp_b_eff = 0; exp_z = 0;
+    sig_a = 0; sig_b = 0; sig_a_aligned = 0; sig_b_aligned = 0; sig_norm = 0;
+    sig_sum = 0; mant24 = 0; mant_round_ext = 0; exp_diff = 0; shift_dist = 0;
+    guard = 0; sticky = 0; inc = 0; a_lt_b_mag = 0; norm_lzc = 0; norm_shift = 0;
+    norm_exp_limit = 0; a = 0; b = 0;
       a = rs1_value[31:0];
       b = rs2_value[31:0];
       sign_a = a[31];
@@ -644,11 +657,11 @@ module OooFpArithGate (
       b_is_inf = fp_is_inf_s_value(rs2_value);
       a_is_zero = fp_is_zero_s_value(rs1_value);
       b_is_zero = fp_is_zero_s_value(rs2_value);
-      fp_addsub_s_fflags = 5'b00000;
+      addsub_s_fflags = 5'b00000;
 
       if (fp_is_snan_s_value(rs1_value) || fp_is_snan_s_value(rs2_value) ||
           (a_is_inf && b_is_inf && (sign_a != sign_b))) begin
-        fp_addsub_s_fflags = `FP_FLAG_NV;
+        addsub_s_fflags = `FP_FLAG_NV;
       end else if (!(a_is_nan || b_is_nan || a_is_inf || b_is_inf ||
                    a_is_zero || b_is_zero)) begin
         exp_a_eff = (exp_a == 8'h00) ? 8'd1 : exp_a;
@@ -713,18 +726,17 @@ module OooFpArithGate (
           end else begin
             mant24 = mant_round_ext[23:0];
           end
-          fp_addsub_s_fflags = fp_round_flags_s(sign_z, exp_z, mant24,
+          addsub_s_fflags = fp_round_flags_s(sign_z, exp_z, mant24,
                                                 guard, sticky);
         end
       end
-    end
-  endfunction
+  end
 
-  function [4:0] fp_addsub_d_fflags;
-    input [`XLEN-1:0] rs1_value;
-    input [`XLEN-1:0] rs2_value;
-    input is_sub;
-    input [2:0] rm;
+  always @(*) begin : addsub_d_fflags_blk
+    reg [`XLEN-1:0] rs1_value;
+    reg [`XLEN-1:0] rs2_value;
+    reg is_sub;
+    reg [2:0] rm;
     reg sign_a;
     reg sign_b;
     reg sign_z;
@@ -758,7 +770,15 @@ module OooFpArithGate (
     reg [6:0] norm_lzc;
     reg [6:0] norm_shift;
     reg [10:0] norm_exp_limit;
-    begin
+    rs1_value = frs1_value_i;
+    rs2_value = frs2_value_i;
+    is_sub = sub_op_i;
+    rm = rm_i;
+    sign_z = 0; exp_a_eff = 0; exp_b_eff = 0; exp_z = 0;
+    sig_a = 0; sig_b = 0; sig_a_aligned = 0; sig_b_aligned = 0; sig_norm = 0;
+    sig_sum = 0; mant53 = 0; mant_round_ext = 0; exp_diff = 0; shift_dist = 0;
+    guard = 0; sticky = 0; inc = 0; a_lt_b_mag = 0; norm_lzc = 0; norm_shift = 0;
+    norm_exp_limit = 0;
       sign_a = rs1_value[63];
       sign_b = rs2_value[63] ^ is_sub;
       exp_a = rs1_value[62:52];
@@ -771,11 +791,11 @@ module OooFpArithGate (
       b_is_inf = fp_is_inf_d_value(rs2_value);
       a_is_zero = fp_is_zero_d_value(rs1_value);
       b_is_zero = fp_is_zero_d_value(rs2_value);
-      fp_addsub_d_fflags = 5'b00000;
+      addsub_d_fflags = 5'b00000;
 
       if (fp_is_snan_d_value(rs1_value) || fp_is_snan_d_value(rs2_value) ||
           (a_is_inf && b_is_inf && (sign_a != sign_b))) begin
-        fp_addsub_d_fflags = `FP_FLAG_NV;
+        addsub_d_fflags = `FP_FLAG_NV;
       end else if (!(a_is_nan || b_is_nan || a_is_inf || b_is_inf ||
                    a_is_zero || b_is_zero)) begin
         exp_a_eff = (exp_a == 11'h000) ? 11'd1 : exp_a;
@@ -840,17 +860,16 @@ module OooFpArithGate (
           end else begin
             mant53 = mant_round_ext[52:0];
           end
-          fp_addsub_d_fflags = fp_round_flags_d(sign_z, exp_z, mant53,
+          addsub_d_fflags = fp_round_flags_d(sign_z, exp_z, mant53,
                                                 guard, sticky);
         end
       end
-    end
-  endfunction
+  end
 
-  function [4:0] fp_mul_s_fflags;
-    input [`XLEN-1:0] rs1_value;
-    input [`XLEN-1:0] rs2_value;
-    input [2:0] rm;
+  always @(*) begin : mul_s_fflags_blk
+    reg [`XLEN-1:0] rs1_value;
+    reg [`XLEN-1:0] rs2_value;
+    reg [2:0] rm;
     reg [31:0] a;
     reg [31:0] b;
     reg sign_z;
@@ -879,7 +898,13 @@ module OooFpArithGate (
     reg [5:0] norm_shift;
     integer exp_z;
     integer sub_shift_int;
-    begin
+    rs1_value = frs1_value_i;
+    rs2_value = frs2_value_i;
+    rm = rm_i;
+    sig_a = 0; sig_b = 0; product = 0; product_norm = 0; mant24 = 0;
+    mant_round_ext = 0; guard = 0; sticky = 0; inc = 0; sub_shift = 0;
+    norm_lzc = 0; norm_required = 0; norm_shift = 0; exp_z = 0; sub_shift_int = 0;
+    a = 0; b = 0;
       a = rs1_value[31:0];
       b = rs2_value[31:0];
       sign_z = a[31] ^ b[31];
@@ -893,11 +918,11 @@ module OooFpArithGate (
       b_is_inf = fp_is_inf_s_value(rs2_value);
       a_is_zero = fp_is_zero_s_value(rs1_value);
       b_is_zero = fp_is_zero_s_value(rs2_value);
-      fp_mul_s_fflags = 5'b00000;
+      mul_s_fflags = 5'b00000;
 
       if (fp_is_snan_s_value(rs1_value) || fp_is_snan_s_value(rs2_value) ||
           (a_is_inf && b_is_zero) || (b_is_inf && a_is_zero)) begin
-        fp_mul_s_fflags = `FP_FLAG_NV;
+        mul_s_fflags = `FP_FLAG_NV;
       end else if (!(a_is_nan || b_is_nan || a_is_inf || b_is_inf ||
                    a_is_zero || b_is_zero)) begin
         sig_a = {(exp_a != 8'h00), frac_a};
@@ -941,18 +966,17 @@ module OooFpArithGate (
         end else begin
           mant24 = mant_round_ext[23:0];
         end
-        fp_mul_s_fflags = fp_round_flags_s(sign_z, exp_z[7:0], mant24,
+        mul_s_fflags = fp_round_flags_s(sign_z, exp_z[7:0], mant24,
                                            guard, sticky);
         if (exp_z >= 255)
-          fp_mul_s_fflags = `FP_FLAG_OF | `FP_FLAG_NX;
+          mul_s_fflags = `FP_FLAG_OF | `FP_FLAG_NX;
       end
-    end
-  endfunction
+  end
 
-  function [4:0] fp_mul_d_fflags;
-    input [`XLEN-1:0] rs1_value;
-    input [`XLEN-1:0] rs2_value;
-    input [2:0] rm;
+  always @(*) begin : mul_d_fflags_blk
+    reg [`XLEN-1:0] rs1_value;
+    reg [`XLEN-1:0] rs2_value;
+    reg [2:0] rm;
     reg sign_z;
     reg [10:0] exp_a;
     reg [10:0] exp_b;
@@ -979,7 +1003,12 @@ module OooFpArithGate (
     reg [7:0] norm_shift;
     integer exp_z;
     integer sub_shift_int;
-    begin
+    rs1_value = frs1_value_i;
+    rs2_value = frs2_value_i;
+    rm = rm_i;
+    sig_a = 0; sig_b = 0; product = 0; product_norm = 0; mant53 = 0;
+    mant_round_ext = 0; guard = 0; sticky = 0; inc = 0; sub_shift = 0;
+    norm_lzc = 0; norm_required = 0; norm_shift = 0; exp_z = 0; sub_shift_int = 0;
       sign_z = rs1_value[63] ^ rs2_value[63];
       exp_a = rs1_value[62:52];
       exp_b = rs2_value[62:52];
@@ -991,11 +1020,11 @@ module OooFpArithGate (
       b_is_inf = fp_is_inf_d_value(rs2_value);
       a_is_zero = fp_is_zero_d_value(rs1_value);
       b_is_zero = fp_is_zero_d_value(rs2_value);
-      fp_mul_d_fflags = 5'b00000;
+      mul_d_fflags = 5'b00000;
 
       if (fp_is_snan_d_value(rs1_value) || fp_is_snan_d_value(rs2_value) ||
           (a_is_inf && b_is_zero) || (b_is_inf && a_is_zero)) begin
-        fp_mul_d_fflags = `FP_FLAG_NV;
+        mul_d_fflags = `FP_FLAG_NV;
       end else if (!(a_is_nan || b_is_nan || a_is_inf || b_is_inf ||
                    a_is_zero || b_is_zero)) begin
         sig_a = {(exp_a != 11'h000), frac_a};
@@ -1039,13 +1068,12 @@ module OooFpArithGate (
         end else begin
           mant53 = mant_round_ext[52:0];
         end
-        fp_mul_d_fflags = fp_round_flags_d(sign_z, exp_z[10:0], mant53,
+        mul_d_fflags = fp_round_flags_d(sign_z, exp_z[10:0], mant53,
                                            guard, sticky);
         if (exp_z >= 2047)
-          fp_mul_d_fflags = `FP_FLAG_OF | `FP_FLAG_NX;
+          mul_d_fflags = `FP_FLAG_OF | `FP_FLAG_NX;
       end
-    end
-  endfunction
+  end
 
   // ===========================================================================
   // FP#2 修复:fused multiply-add(单次舍入,IEEE-754 正确)——按硬件结构描述。
@@ -1408,18 +1436,13 @@ module OooFpArithGate (
       fma_s_fflags = fflags;
     end
 
-  // FADD/FSUB
-  assign addsub_value_o = fp_addsub_value(frs1_value_i, frs2_value_i, double_i, sub_op_i, rm_i);
-  assign addsub_fflags_o = double_i ?
-      fp_addsub_d_fflags(frs1_value_i, frs2_value_i, sub_op_i, rm_i) :
-      fp_addsub_s_fflags(frs1_value_i, frs2_value_i, sub_op_i, rm_i);
+  // FADD/FSUB —— value/fflags 由上方 always @(*) 块算出,double_i 输出 mux
+  assign addsub_value_o  = double_i ? addsub_d_value  : addsub_s_value;
+  assign addsub_fflags_o = double_i ? addsub_d_fflags : addsub_s_fflags;
 
-  // FMUL
-  wire [`XLEN-1:0] mul_value_w = fp_mul_value(frs1_value_i, frs2_value_i, double_i, rm_i);
-  assign mul_value_o = mul_value_w;
-  assign mul_fflags_o = double_i ?
-      fp_mul_d_fflags(frs1_value_i, frs2_value_i, rm_i) :
-      fp_mul_s_fflags(frs1_value_i, frs2_value_i, rm_i);
+  // FMUL —— 同上
+  assign mul_value_o  = double_i ? mul_d_value  : mul_s_value;
+  assign mul_fflags_o = double_i ? mul_d_fflags : mul_s_fflags;
 
   // FMADD 系列(FP#2 修复):fused multiply-add 单次舍入。双/单精度 always@* 组合块
   // 各算出 value/fflags;此处由 double_i 显式 mux 选择(共享输出端口)。
