@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 # 整核 P&R 驱动(内存看门狗护航,绝不崩 WSL)。取【真实布线后】WNS→判 dispatch 流水化净收益。
 # 用法: run-pnr-core.sh [PERIOD_ns] [PART]   PERIOD 默认 8.0ns(给整核留余量,非逼极限)
-# 失败/被看门狗杀也是预期结果之一:说明此 WSL 内存撑不住整核 P&R,据此记录天花板。
+#
+# ⚠️ 实测结论(2026-06-28):本 15.7GB WSL 上**不可行**。整核 synth 阶段 Vivado 会自动 spawn 多个
+#    `vivado -notrace` 并行综合 worker 进程(各 ~3.2GB),`maxThreads` 只限进程内线程、不限 worker
+#    进程数,总 RSS ~11.4GB → free 跌到 167MB、avail 紧贴看门狗 floor,OOM/崩溃风险。已主动终止。
+#    → 整核 P&R 需更大内存机器(≥32GB)或先 disable 并行综合;此 WSL 改用模块级 OOC 做时序决策
+#      (run-synth-module.sh,单模块内存安全)。详见 .github/memory/known-issues.md。
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NPC_RV64="$(cd "$HERE/.." && pwd)"
