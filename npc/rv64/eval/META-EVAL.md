@@ -74,3 +74,13 @@ riscv-arch-test + AM 系统测 + 定向单测(sv39-ad-bits 等)多重把关,只�
 - 2026-06-28:建立 level-2 元评估,识别 5 盲点(B1 difftest 不覆盖 Sv39/PMP/trap 为最高风险),
   据此把下一步迭代从"高风险性能 surgery"重定向到"低风险正确性验证加固"(扩 difftest M-mode trap/CSR)。
 - 2026-06-28:执行 B1 闭合(§7):difftest 33→40 逐指令;misa-priv/char-test 发散 root-cause 为参考模型差异非核 bug。
+
+
+## 8. FP 验证根使能器(下一会话路径,2026-06-28 调查)
+当前 FP 验证靠 ① riscv-tests rv64uf/ud(静态舍入为主)② 13 项硬件 FP ASM smoke(`--fpsmoke`,逐值)。
+**根使能器 = FPR-difftest**(difftest 比对 FPR/fcsr 对照 NEMU softfloat),能系统性逐指令验证所有 FP op
+(含 FP#2 FMA 双舍入)。调查确认其为**多部件 infra 改动**:加 `debug_fprs_o` 总线(OooFpRegFile→
+OooCoreTopGlue→NpcCoreTop→NpcTop→cpu-exec commit event)+ `difftest.cpp` DiffContext 加 fpr[32]/fcsr +
+**NEMU regcpy ABI 加 fpr**(触碰敏感的 gpr/pc/fpr ABI——difftest 恢复史正卡于此)。**因触碰敏感 difftest ABI,
+评估为需专注新会话**(配 Berkeley TestFloat 向量),非极深会话低风险小修。届时 FPR-difftest 就位后,
+FP#2(FMA fused 重写)可逐位验证再实施。
