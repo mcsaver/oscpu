@@ -205,22 +205,8 @@ module PmpChecker (
     end
   endfunction
 
-  function napot_match;
-    input [`XLEN-1:0] paddr;
-    input [`XLEN-1:0] encoded_addr;
-    reg [`XLEN-1:0] shifted_paddr;
-    reg [`XLEN-1:0] mask;
-    begin
-      shifted_paddr = paddr >> 2;
-      if (napot_full_range(encoded_addr)) begin
-        napot_match = 1'b1;
-      end else begin
-        mask = ~((64'h1 << (napot_ones(encoded_addr) + 6'd1)) - 64'h1);
-        napot_match = ((shifted_paddr & mask) == (encoded_addr & mask));
-      end
-    end
-  endfunction
-
+  // [简化 2026-06-29] 移除死代码 function napot_match(全仓无调用,仅函数体自引用;
+  //   NAPOT 匹配实际走 entry_overlap/entry_full_cover 路径)。
   // [简化 2026-06-28] 移除死代码 function entry_match(全仓无调用;主逻辑用 entry_overlap/
   // entry_full_cover)。经 bug-hunt 核实未用,build 验证无回归。
 
