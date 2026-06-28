@@ -19,6 +19,7 @@ eval/npc-eval.sh --am --tag div-radix4   # 给结果打标签便于对比
 eval/npc-eval.sh --bench          # CoreMark/Dhrystone（长）
 eval/npc-eval.sh --difftest        # 计算子集逐指令对照 NEMU(自动建 difftest 核+跑+恢复 perf 基线)
 eval/npc-eval.sh --timing          # Vivado 模块 OOC 取关键模块 Logic Levels(抓时序回归;内存安全)
+eval/npc-eval.sh --fpsmoke         # 硬件 FP IEEE-754 smoke(13项; 补 soft-float AM 测不测硬件FP的盲区)
 ```
 
 ## 产物布局

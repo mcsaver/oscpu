@@ -14,6 +14,7 @@
 #   --riscv   跑官方 riscv-tests（默认 + 特权）
 #   --am      跑 AM cpu-tests 全量并采集每测试 cycles/commits/CPI
 #   --bench   跑 CoreMark/Dhrystone（长，需较大 max-cycles）
+#   --fpsmoke Linux/tools 硬件 FP IEEE-754 smoke 回归(补 soft-float AM 测盲区)
 #   --timing  Vivado 模块级 OOC 综合关键模块取 Logic Levels（抓时序回归;内存安全;
 #             默认 TIMING_MODS=OooDispatchBackend，可 env 覆盖）
 #   --all     = --module --riscv --am
@@ -40,19 +41,19 @@ CPUT="$ROOT/am-kernels/tests/cpu-tests"
 NM="$(command -v riscv64-unknown-elf-nm || echo riscv64-unknown-elf-nm)"
 OC="$(command -v riscv64-unknown-elf-objcopy || echo riscv64-unknown-elf-objcopy)"
 
-DO_BUILD=0 DO_MODULE=0 DO_RISCV=0 DO_AM=0 DO_BENCH=0 DO_DIFFTEST=0 DO_TIMING=0
+DO_BUILD=0 DO_MODULE=0 DO_RISCV=0 DO_AM=0 DO_BENCH=0 DO_DIFFTEST=0 DO_TIMING=0 DO_FPSMOKE=0
 TAG="" MAXCYC=4000000
 TIMING_MODS="${TIMING_MODS:-OooDispatchBackend}"  # 默认只综合 Fmax 封顶模块(内存安全)
 while [[ $# -gt 0 ]]; do case "$1" in
   --build) DO_BUILD=1;; --module) DO_MODULE=1;; --riscv) DO_RISCV=1;;
   --am) DO_AM=1;; --bench) DO_BENCH=1;; --difftest) DO_DIFFTEST=1;;
-  --timing) DO_TIMING=1;;
+  --timing) DO_TIMING=1;; --fpsmoke) DO_FPSMOKE=1;;
   --all) DO_MODULE=1; DO_RISCV=1; DO_AM=1;;
   --quick) DO_AM=1;;
   --tag) shift; TAG="$1";; --max-cycles) shift; MAXCYC="$1";;
   *) echo "unknown arg: $1"; exit 2;;
 esac; shift; done
-[[ $DO_MODULE -eq 0 && $DO_RISCV -eq 0 && $DO_AM -eq 0 && $DO_BENCH -eq 0 && $DO_DIFFTEST -eq 0 && $DO_TIMING -eq 0 ]] && { DO_MODULE=1; DO_RISCV=1; DO_AM=1; }
+[[ $DO_MODULE -eq 0 && $DO_RISCV -eq 0 && $DO_AM -eq 0 && $DO_BENCH -eq 0 && $DO_DIFFTEST -eq 0 && $DO_TIMING -eq 0 && $DO_FPSMOKE -eq 0 ]] && { DO_MODULE=1; DO_RISCV=1; DO_AM=1; }
 
 TS="$(date +%Y%m%d-%H%M%S)"
 OUT="$EVAL_DIR/results/${TS}${TAG:+-$TAG}"
@@ -211,6 +212,20 @@ if [[ $DO_BENCH -eq 1 ]]; then
     echo "  $b: $cc" >> "$SUM"
   done
   echo '```' >> "$SUM"
+fi
+
+# ---- FP 硬件 smoke (Linux/tools;补 soft-float AM 测不测硬件 FP 的盲点,见 META-EVAL) ----
+if [[ $DO_FPSMOKE -eq 1 ]]; then
+  log "FP hardware smoke (硬件 FP IEEE-754, AM soft-float 覆盖不到) ..."
+  echo "" >> "$SUM"; echo "### FP 硬件 smoke (soft-float AM 测盲区)" >> "$SUM"
+  FPT="$ROOT/Linux/tools"
+  FP_SMOKES="loadstore fcsr fmv-fclass convert compare-sgnj minmax addsub mul fma div sqrt dynrm corner"
+  fpp=0; fpf=0; fpfl=""
+  for t in $FP_SMOKES; do
+    o=$(make -C "$FPT" NPC_SIM="$BIN" smoke-fp-$t 2>&1)
+    if echo "$o" | grep -q 'HIT GOOD TRAP'; then fpp=$((fpp+1)); else fpf=$((fpf+1)); fpfl="$fpfl $t"; fi
+  done
+  echo "- **FP 硬件 smoke**: $fpp PASS, $fpf FAIL$([[ $fpf -gt 0 ]] && echo " — 失败:$fpfl")" >> "$SUM"
 fi
 
 # ---- timing (Vivado 模块级 OOC,内存安全;抓时序回归,补 CPI/时序分离盲点 B4) ----
