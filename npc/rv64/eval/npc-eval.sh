@@ -185,7 +185,7 @@ if [[ $DO_DIFFTEST -eq 1 ]]; then
     # 已知发散(不加,已 root-cause=参考模型差异非核bug,见 META-EVAL.md §7):
     #   misa-priv: NEMU misa 配置(B,C,I,M,S,U)与核 RV64GC 实际值(A,C,D,F,I,M,S,U)不符,核正确;
     #   char-test: 串口 MMIO 路径 NEMU 与核建模不同。
-    DT_TESTS="add add-longlong bit bitmanip branch-fallthrough-save bubble-sort compressed crc32 div fact fence-i fib goldbach if-else leap-year load-store matrix-mul max mem-test mersenne min3 mov-c movsx mul-longlong ooo-mem-order pascal prime quick-sort recursion select-sort shift shuixianhua stdio-format string sub-longlong sum switch to-lower-case unalign wanshu"
+    DT_TESTS="add add-longlong bit bitmanip branch-fallthrough-save bubble-sort compressed crc32 div fact fence-i fib goldbach if-else leap-year load-store matrix-mul max mem-test mersenne min3 mov-c movsx mul-longlong ooo-mem-order pascal prime quick-sort recursion select-sort shift shuixianhua stdio-format string sub-longlong sum switch to-lower-case unalign wanshu fp-difftest-probe"
     dp=0; df=0; dfl=""
     for t in $DT_TESTS; do
       o=$(timeout 300 make -C "$CPUT" AM_HOME="$AM_HOME" ARCH=riscv64-npc NPC_SIM_BACKEND=rv64 ALL="$t" run NPC_RUN_ARGS="--no-progress --max-cycles $MAXCYC" 2>&1)
