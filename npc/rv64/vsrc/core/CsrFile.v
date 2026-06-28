@@ -52,6 +52,7 @@ module CsrFile (
   output [`XLEN-1:0] mstatus_o,
   output [`XLEN-1:0] satp_o,
   output svpbmt_en_o,
+  output [2:0] frm_o,  // FP#1: fcsr.frm 供 FP datapath 做 DYN 舍入
   output [`PMP_CFG_BUS_W-1:0] pmpcfg_o,
   output [`PMP_ADDR_BUS_W-1:0] pmpaddr_o
 );
@@ -615,6 +616,7 @@ module CsrFile (
                                                     `EXC_ECALL_UMODE;
   assign mstatus_o = csr_mstatus_q | `MSTATUS_SXL_UXL;
   assign satp_o = csr_satp_q;
+  assign frm_o = csr_frm_q;
   assign svpbmt_en_o = (csr_menvcfg_q & `MENVCFG_PBMTE) != {`XLEN{1'b0}};
   assign irq_pending_o = s_irq_pending_w | m_irq_pending_w;
   // M 级中断优先于 S 级(规范全序 MEI>MSI>MTI>SEI>SSI>STI);双 pending 时先取 M。

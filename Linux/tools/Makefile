@@ -181,6 +181,8 @@ FP_FMA_ELF := $(BUILD_DIR)/fp-fma-smoke.elf
 FP_FMA_BIN := $(BUILD_DIR)/fp-fma-smoke.bin
 FP_DIV_ELF := $(BUILD_DIR)/fp-div-smoke.elf
 FP_DIV_BIN := $(BUILD_DIR)/fp-div-smoke.bin
+FP_DYNRM_ELF := $(BUILD_DIR)/fp-dynrm-smoke.elf
+FP_DYNRM_BIN := $(BUILD_DIR)/fp-dynrm-smoke.bin
 FP_SQRT_ELF := $(BUILD_DIR)/fp-sqrt-smoke.elf
 FP_SQRT_BIN := $(BUILD_DIR)/fp-sqrt-smoke.bin
 FP_SQRT_NEMU_ELF := $(BUILD_DIR)/fp-sqrt-smoke-nemu.elf
@@ -191,7 +193,7 @@ SMOKE_BINS := \
   $(SRET_USER_BIN) $(SRET_USER_PF_BIN) $(SRET_USER_SV39_BIN) $(SRET_USER_SV39_HALF_BIN) \
   $(SRET_RESTORE_BIN) $(RAS_TRAP_BIN) $(AMO_MISALIGNED_BIN) $(LRSC_RESERVATION_BIN) $(PMP_ACCESS_BIN) $(PMP_PAGEWALK_BIN) $(PMP_PAGEWALK_AD_BIN) $(SV39_SFENCE_ASID_BIN) \
   $(FP_SMOKE_BIN) $(FP_FCSR_BIN) $(FP_FMV_FCLASS_BIN) $(FP_CONVERT_BIN) $(FP_COMPARE_SGNJ_BIN) \
-  $(FP_MINMAX_BIN) $(FP_ADDSUB_BIN) $(FP_MUL_BIN) $(FP_FMA_BIN) $(FP_DIV_BIN) $(FP_SQRT_BIN)
+  $(FP_MINMAX_BIN) $(FP_ADDSUB_BIN) $(FP_MUL_BIN) $(FP_FMA_BIN) $(FP_DIV_BIN) $(FP_SQRT_BIN) $(FP_DYNRM_BIN)
 
 BOOT_TOOL_BINS := $(TRAMPOLINE_BIN) $(DTB_SMOKE_BIN) $(MINI_LINUX_BIN) $(OPENSBI_SBI_BIN) $(VIRTIO_BLK_BIN) $(VIRTIO_BLK_ERROR_BIN) $(VIRTIO_NET_CTRL_BIN)
 
@@ -203,7 +205,7 @@ BOOT_TOOL_BINS := $(TRAMPOLINE_BIN) $(DTB_SMOKE_BIN) $(MINI_LINUX_BIN) $(OPENSBI
 	smoke-nemu-fp-convert smoke-nemu-fp-compare-sgnj \
 	smoke-fp-loadstore smoke-fp-fcsr smoke-fp-fmv-fclass smoke-fp-convert \
 	smoke-fp-compare-sgnj smoke-fp-minmax smoke-fp-addsub smoke-fp-mul smoke-fp-fma \
-	smoke-fp-div smoke-fp-sqrt
+	smoke-fp-div smoke-fp-sqrt smoke-fp-dynrm
 
 all: $(SMOKE_BINS)
 boot-tools: $(BOOT_TOOL_BINS) $(DTB)
@@ -592,6 +594,14 @@ $(FP_DIV_ELF): fp-div-smoke.S Makefile
 	  -DFP_SMOKE_STACK=$(FP_CONVERT_STACK) \
 	  $< -o $@
 
+$(FP_DYNRM_ELF): fp-dynrm-smoke.S Makefile
+	mkdir -p $(BUILD_DIR)
+	$(CC) -x assembler-with-cpp -nostdlib -nostartfiles \
+	  -march=rv64imafdc_zicsr_zifencei -mabi=lp64d -Wl,-Ttext=$(FP_CONVERT_TEXT) \
+	  -static -no-pie -Wl,--no-relax -Wl,--build-id=none \
+	  -DFP_SMOKE_STACK=$(FP_CONVERT_STACK) \
+	  $< -o $@
+
 $(FP_SQRT_ELF): fp-sqrt-smoke.S Makefile
 	mkdir -p $(BUILD_DIR)
 	$(CC) -x assembler-with-cpp -nostdlib -nostartfiles \
@@ -721,6 +731,9 @@ smoke-fp-fma: $(FP_FMA_BIN)
 
 smoke-fp-div: $(FP_DIV_BIN)
 	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(FP_DIV_BIN)
+
+smoke-fp-dynrm: $(FP_DYNRM_BIN)
+	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(FP_DYNRM_BIN)
 
 smoke-fp-sqrt: $(FP_SQRT_BIN)
 	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(FP_SQRT_BIN)

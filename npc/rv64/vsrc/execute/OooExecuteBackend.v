@@ -17,6 +17,7 @@ module OooExecuteBackend #(
   input core_commit1_block_w,
   input core_commit_ready_w,
   input [`XLEN-1:0] core_dispatch0_csr_rdata_w,
+  input [2:0] frm_i,  // FP#1: fcsr.frm 路由,供 DYN 舍入
   input [`INST_W-1:0] core_dispatch0_inst_w,
   input [`XLEN-1:0] core_dispatch0_next_pc_w,
   input [`XLEN-1:0] core_dispatch0_pc_w,
@@ -177,6 +178,7 @@ module OooExecuteBackend #(
     .flush_i(core_local_flush_w),
     .pending_valid_i(pending_fp_q),
     .inst_i(pending_fp_inst_q),
+    .frm_i(frm_i),
     .load_i(pending_fp_load_q),
     .store_i(pending_fp_store_q),
     .double_i(pending_fp_double_q),

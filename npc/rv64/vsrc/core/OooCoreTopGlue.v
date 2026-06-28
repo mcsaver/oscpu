@@ -85,6 +85,7 @@ module OooCoreTopGlue #(
   input [1:0] csr_priv_mode_w,
   input [`TRAP_CAUSE_W-1:0] csr_ecall_cause_w,
   input [`XLEN-1:0] csr_mstatus_w,
+  input [2:0] csr_frm_w,  // FP#1: fcsr.frm 路由到 FP datapath
   input [`XLEN-1:0] csr_satp_w,
   input csr_svpbmt_en_w,
   input [`PMP_CFG_BUS_W-1:0] csr_pmpcfg_w,
@@ -660,6 +661,7 @@ module OooCoreTopGlue #(
     .core_commit_ready_w(core_commit_ready_w),
     .core_debug_gprs_w(core_debug_gprs_w),
     .core_dispatch0_csr_rdata_w(core_dispatch0_csr_rdata_w),
+    .frm_i(csr_frm_w),
     .core_dispatch0_inst_w(core_dispatch0_inst_w),
     .core_dispatch0_next_pc_w(core_dispatch0_next_pc_w),
     .core_dispatch0_pc_w(core_dispatch0_pc_w),

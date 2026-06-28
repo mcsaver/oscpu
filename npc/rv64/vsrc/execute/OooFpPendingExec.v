@@ -17,6 +17,7 @@ module OooFpPendingExec (
   input [`XLEN-1:0] frs2_value_i,
   input [`XLEN-1:0] frs3_value_i,
   input long_start_i,
+  input [2:0] frm_i,
 
   output long_op_o,
   output compute_op_o,
@@ -85,6 +86,10 @@ module OooFpPendingExec (
 
   wire pending_fp_q = pending_valid_i;
   wire [`INST_W-1:0] pending_fp_inst_q = inst_i;
+  // FP#1 修复:rm=111(DYN)用 fcsr.frm,否则用指令静态 rm。只用于做舍入的 gate
+  // (arith/convert/longop 的 .rm_i),不用于 cmp_op_i/op_i(那是操作选择非舍入)。
+  wire [2:0] effective_rm_w =
+      (pending_fp_inst_q[14:12] == 3'b111) ? frm_i : pending_fp_inst_q[14:12];
   wire pending_fp_load_q = load_i;
   wire pending_fp_store_q = store_i;
   wire pending_fp_double_q = double_i;
@@ -193,7 +198,7 @@ module OooFpPendingExec (
     .frs1_value_i(pending_fp_frs1_value_w),
     .frs2_value_i(pending_fp_frs2_value_w),
     .double_i(pending_fp_double_q),
-    .rm_i(pending_fp_inst_q[14:12]),
+    .rm_i(effective_rm_w),
     .long_start_i(long_start_i),
     .is_div_i(pending_fp_div_w),
     .is_sqrt_i(pending_fp_sqrt_w),
@@ -222,7 +227,7 @@ module OooFpPendingExec (
     .dst_double_i(pending_fp_convert_dst_double_w),
     .fpr_to_fpr_i(pending_fp_fpr_to_fpr_w),
     .int_fmt_i(pending_fp_inst_q[21:20]),
-    .rm_i(pending_fp_inst_q[14:12]),
+    .rm_i(effective_rm_w),
     .to_gpr_value_o(pending_fp_convert_to_gpr_value_w),
     .to_gpr_fflags_o(pending_fp_convert_to_gpr_fflags_w),
     .to_fpr_value_o(pending_fp_convert_to_fpr_value_w),
@@ -275,7 +280,7 @@ module OooFpPendingExec (
     .sub_op_i(pending_fp_sub_op_w),
     .negate_product_i(pending_fp_negate_product_w),
     .subtract_addend_i(pending_fp_subtract_addend_w),
-    .rm_i(pending_fp_inst_q[14:12]),
+    .rm_i(effective_rm_w),
     .addsub_value_o(pending_fp_addsub_value_w),
     .addsub_fflags_o(pending_fp_addsub_fflags_w),
     .mul_value_o(pending_fp_mul_value_w),

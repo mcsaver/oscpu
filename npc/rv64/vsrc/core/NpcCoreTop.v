@@ -118,6 +118,7 @@ module NpcCoreTop (
   wire [1:0] ooo_priv_mode_w;
   wire [`XLEN-1:0] ooo_mstatus_w;
   wire [`XLEN-1:0] ooo_satp_w;
+  wire [2:0] ooo_frm_w;  // FP#1: fcsr.frm 从 CsrFile 路由到 FP datapath
   wire ooo_svpbmt_en_w;
   wire [`PMP_CFG_BUS_W-1:0] ooo_pmpcfg_w;
   wire [`PMP_ADDR_BUS_W-1:0] ooo_pmpaddr_w;
@@ -341,6 +342,7 @@ module NpcCoreTop (
     .csr_ecall_cause_w(ooo_csr_ecall_cause_w),
     .csr_mstatus_w(ooo_mstatus_w),
     .csr_satp_w(ooo_satp_w),
+    .csr_frm_w(ooo_frm_w),
     .csr_svpbmt_en_w(ooo_svpbmt_en_w),
     .csr_pmpcfg_w(ooo_pmpcfg_w),
     .csr_pmpaddr_w(ooo_pmpaddr_w),
@@ -442,6 +444,7 @@ module NpcCoreTop (
     .mstatus_o(ooo_mstatus_w),
     .satp_o(ooo_satp_w),
     .svpbmt_en_o(ooo_svpbmt_en_w),
+    .frm_o(ooo_frm_w),
     .pmpcfg_o(ooo_pmpcfg_w),
     .pmpaddr_o(ooo_pmpaddr_w)
   );
