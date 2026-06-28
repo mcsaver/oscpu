@@ -60,7 +60,7 @@
 | # | 项目 | 价值 | 风险 | 方式 | 状态 |
 |---|---|---|---|---|---|
 | B3 | **规范体系**：统一 spec 模板(图文并茂)+ 逐模块补 | 中(可维护/交付质量) | 低 | 先定模板，再分模块 | **模板✓**，逐模块补进行中 |
-| B1 | **访存解耦：store 写回解耦 / 多 outstanding** | 高(真实代码+#1 微基准) | 高(顺序/forward/精确异常) | spec 先行 + 状态机 + 验证先行 | **spec✓**(`mem-store-decouple.md`)；实现**门控于**先建访存顺序定向 TB(见 §6) |
+| B1 | **访存解耦：cacheable-PMEM store 写回解耦** | 高(真实代码+#1 微基准) | 中(已限定 cacheable;保留 MMIO 精确异常) | spec✓+FSM✓ | **spec✓ + FSM 文档✓**(`specs/ooo-mem-axi-bridge-fsm.md`)；设计已定(bpend 跟踪器+仅 cacheable 解耦,保 MEM-I3)；实现为下一专注迭代 |
 | B2 | **redirect/PC sequencer 改显式状态机** | 中(时序+清晰+稳健) | 中 | spec 先行；先补 redirect 优先级定向 TB 再改 | 待开始(先补 TB) |
 | B4 | 文件组织：碎片合并/大文件拆分、命名注释统一 | 中(交付质量) | 低-中 | 纯结构变换，逐目录，build+gate 不变 | 待开始(低风险，可先行) |
 | B5 | DIV radix-8 / 64 位 CLZ 跳零 | 低(递减) | 低 | 同 radix-4 套路 | 暂缓 |
