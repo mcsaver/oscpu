@@ -145,6 +145,19 @@ if [[ $DO_AM -eq 1 ]]; then
     pcpi=$(awk -F'\t' 'NR>1&&$2=="PASS"&&$3!="NA"{c+=$3;m+=$4} END{if(m)printf "%.4f",c/m}' "$prev/am-cpi.tsv")
     echo "" >> "$SUM"
     echo "- **对比上次** ($(basename "$prev")): 加权 CPI $pcpi → $wcpi $(awk -v a="$pcpi" -v b="$wcpi" 'BEGIN{if(a>0)printf "(%.1f%%)",100*(b-a)/a}')" >> "$SUM"
+    # 第 2 层自校验(评估的评估):逐测试 CPI 与上次对比,|Δ|>20% 即标红——同时抓性能回归与评估异常。
+    flags=$(awk -F'\t' '
+      NR==FNR{ if(FNR>1 && $5!="NA") prev[$1]=$5; next }
+      FNR>1 && $5!="NA" && ($1 in prev) && prev[$1]+0>0 {
+        d=100*($5-prev[$1])/prev[$1]; if(d<0)d=-d;
+        if(d>20) printf "  - ⚠ %s: cpi %.3f→%.3f (%.0f%%)\n",$1,prev[$1],$5,100*($5-prev[$1])/prev[$1]
+      }' "$prev/am-cpi.tsv" "$TSV")
+    if [[ -n "$flags" ]]; then
+      echo "- **逐测试 CPI 异常(|Δ|>20%,需复核是真回归还是评估问题)**:" >> "$SUM"
+      echo "$flags" >> "$SUM"
+    else
+      echo "- 逐测试 CPI 无 >20% 异常(无回归/无评估漂移)。" >> "$SUM"
+    fi
   fi
 fi
 

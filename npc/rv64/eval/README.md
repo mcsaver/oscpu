@@ -29,6 +29,10 @@ eval/results/<时间戳>[-tag]/
   meta.txt        # 时间/tag/git HEAD/脏文件数/max-cycles
 ```
 
+## 评估自校验(两层)
+1. **dummy smoke**:跑前确认已知必过的 dummy GOOD TRAP,否则判环境异常中止(不输出误导结果)。
+2. **逐测试 CPI 回归检测**:每个 PASS 测试 CPI 与上次对比,|Δ|>20% 标红——同时抓性能回归与评估漂移(评估的评估)。
+
 ## 三大正确性 gate（任何 RTL 改动后必须全绿）
 | gate | 内容 | 当前基准 |
 | --- | --- | --- |
