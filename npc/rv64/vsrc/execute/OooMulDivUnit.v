@@ -128,6 +128,30 @@ module OooMulDivUnit #(
   wire [`XLEN-1:0] req_mul_result_w =
       mul_result(req_inst_i, req_src1_i, req_src2_i, req_word_i);
 
+  // CLZ 早终止：按被除数绝对值的实际有效位数定位，只跑必要的迭代，跳过前导零。
+  // 小操作数除法(如 n%10/n/10)由此从固定 16/32 拍大幅减少。clz 向下取偶以保持 radix-4
+  // 的 2-bit 组对齐(多出的 1 个前导 0 位无害,只产生一个前导商位 0)。op1==0 在装载处特判。
+  function [6:0] div_clz64;
+    input [`XLEN-1:0] v;
+    integer ci;
+    reg cdone;
+    begin
+      div_clz64 = 7'd64;
+      cdone = 1'b0;
+      for (ci = `XLEN-1; ci >= 0; ci = ci - 1) begin
+        if (!cdone && v[ci]) begin
+          div_clz64 = 7'd63 - ci[6:0];
+          cdone = 1'b1;
+        end
+      end
+    end
+  endfunction
+  wire [6:0] div_clz_w = div_clz64(req_op1_abs_w);
+  wire [6:0] div_clz_even_w = {div_clz_w[6:1], 1'b0};
+  wire [`XLEN-1:0] div_dividend_pos_w = req_op1_abs_w << div_clz_even_w;
+  wire [6:0] div_count_init_w = 7'd64 - div_clz_even_w;
+  wire req_op1_zero_w = (req_op1_abs_w == {`XLEN{1'b0}});
+
   // 为什么这么改：radix-2 每周期只解出 1 个商位(word 32 拍/dword 64 拍)。改为 radix-4
   // 每周期解出 2 个商位(word 16 拍/dword 32 拍)——把当前部分余数左移 2 位并带入被除数
   // 高 2 位形成 partial，与 {1,2,3}×divisor 比较选商位 q∈{0..3}，减去 q×divisor 得新余数。
@@ -196,19 +220,18 @@ module OooMulDivUnit #(
             end else if (req_div_by_zero_w || req_signed_overflow_w) begin
               resp_data_q <= req_special_result_final_w;
               state_q <= STATE_RESP;
+            end else if (req_op1_zero_w) begin
+              // 0/d = 0、0%d = 0（d!=0 已由上面排除）；word 下 sign_extend_word(0)=0。
+              resp_data_q <= {`XLEN{1'b0}};
+              state_q <= STATE_RESP;
             end else begin
-              // 为什么这么改：restoring 除法器对 word(32 位)除法也跑满 64 次迭代，
-              // 但 32 位操作数取绝对值后高 32 位恒为 0，前 32 次迭代只是把被除数
-              // 左移到高位、quotient 位恒为 0(纯浪费)。这里对 word op 直接把 abs 预移
-              // 到高 32 位({abs[31:0],32'd0})并只跑 32 次迭代——到达的状态与 64 次版本
-              // 在第 32 次迭代后完全一致，结果逐位相同，但 divw/remw 延迟减半。
-              // C 的 int 除法即 divw/remw，是数论类负载(shuixianhua/prime/wanshu)的热点。
-              div_dividend_q <= req_word_i ? {req_op1_abs_w[31:0], 32'd0}
-                                           : req_op1_abs_w;
+              // CLZ 定位：把 abs 左移使其 MSB 到 bit63，只跑有效位的 radix-4 迭代。
+              // 取代原 word({abs,32'd0}/32 拍)与 dword(64 拍)固定方案，对小操作数大幅减拍。
+              div_dividend_q <= div_dividend_pos_w;
               div_divisor_q <= req_op2_abs_w;
               div_quot_q <= {`XLEN{1'b0}};
               div_rem_q <= {(`XLEN+1){1'b0}};
-              div_count_q <= req_word_i ? 7'd32 : 7'd64;
+              div_count_q <= div_count_init_w;
               div_rem_result_q <= req_is_rem_w;
               div_quot_neg_q <= req_signed_w && (req_op1_neg_w ^ req_op2_neg_w);
               div_rem_neg_q <= req_signed_w && req_op1_neg_w;
