@@ -281,9 +281,14 @@ module OooFetchAxiBridge (
       (ifu_axi_rresp_i == RESP_OK) &&
       !packet_cross_page_q &&
       (resp0_q == RESP_OK) && (resp1_q == RESP_OK);
+  // 不缓存跨页取指包:跨页包槽1 在下一物理页,而命中复检的 req_exec1_paddr_w=paddr0+4 是错页地址,
+  // PMP 运行期 allow→deny 第二页且无取指 cache 失效时会绕过槽1 PMP(known-issues 隐患B)。
+  // 跨页包改为每次重取(经 walk-leaf checker 用正确物理地址重查两页 PMP),结构性消除该隐患;
+  // 交付不受影响(走 inst*_q 寄存器,与 fill 分离),跨页包稀少(PC 跨 4KB 边界),CPI 影响可忽略。
   wire fetch_cache_fill_r1_w =
       (state_q == S_R1) && ifu_axi_rvalid_i &&
       (ifu_axi_rresp_i == RESP_OK) &&
+      !packet_cross_page_q &&
       (resp0_q == RESP_OK);
   // 填充恒开：缓存的是真实取回的指令字节，存入安全；是否供给由 cache_hit_w 的
   // PMP 放行门控决定。原来的 !pmp_active_w 门控会在 PMP 下让 cache 永不填充。

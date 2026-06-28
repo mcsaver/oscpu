@@ -60,5 +60,5 @@ PMP(16 entry) × 两槽 + ITLB + cache 命中比较并行；是潜在长组合�
 - iter1(2026-06-28)：取指 cache 从"PMP 全禁"改为 PMP-grant 逐访问门控 + fill 恒开。
 - 本规范(2026-06-28)：文档化 fetch 桥与该修复。
 
-## 已知隐患(2026-06-28 bug-hunt,安全/当前不可触发)
-- 跨页已缓存包槽1 PMP 复检用错物理地址(`req_exec1_paddr_w=paddr0+4` 对跨页是错页);PMP 运行期 allow→deny 第二页且无取指 cache 失效时可绕过槽1 PMP。详见 `.github/memory/known-issues.md`(隐患B)。根因修复:PMP CSR 写时失效取指 cache(CSR↔fetch 布线)。
+## 已知隐患(2026-06-28 bug-hunt)
+- **[已修复]** 跨页已缓存包槽1 PMP 复检用错物理地址(`req_exec1_paddr_w=paddr0+4` 对跨页是错页);PMP 运行期 allow→deny 第二页且无取指 cache 失效时可绕过槽1 PMP。详见 `.github/memory/known-issues.md`(隐患B)。根因修复:PMP CSR 写时失效取指 cache(CSR↔fetch 布线)。
