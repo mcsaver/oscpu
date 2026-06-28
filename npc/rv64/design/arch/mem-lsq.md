@@ -33,5 +33,24 @@
 - `eval/npc-eval.sh --all` 守 CPI/正确性 + `vivado/synth-changed.sh` 看时序。
 - 重点:ooo-mem-order、branch-resolve-loop、string、mem-test、load-store、riscv-tests ua/ui。
 
+## 5b. 可行性评估与决策(2026-06-28,读代码后)
+读 `OooMemAxiBridge.v`(726 行)定论:桥是**单 `state_q` 串行 FSM**,把 PTW 页表走查
+(S_WALK_AR/S_WALK_R)、读(S_READ_ADDR/DATA)、写(S_WRITE_REQ/RESP)全序列化,且只有单一
+`active_port_q`/`write_q`/`paging_q`——**根本性单 outstanding**。
+
+step 1(读路径 2-outstanding)需要:① 拆单 FSM 为 AR-发起 与 R-接收 两条独立轨道;
+② 多事务 response 按发起序路由回正确后端端口(需 1 深 response skid + 端口/序号 tag 队列);
+③ 与 PTW(自身也走 AR/R)交织时的仲裁与 flush drain;④ 维持 LSQ-I1..I4 不变量。
+即对已验证全绿的访存桥做**大规模 FSM 重写**。
+
+**收益侧**(见 §4):dcache-hit 已近 2 拍下限,增益主要落在 **miss-heavy / 流式 load**;
+当前测试集多 dcache 常驻,实测 CPI 已低(Dhrystone 1.52)。
+
+**决策:step 1 评估后暂缓(risk=高 / reward=有限,当前性价比不利)。**
+非"做不到",而是当前阶段不值得在深上下文里重写已绿的桥换取边际增益。
+**重启条件**:出现 miss 密集 / 大数据流式目标负载,或时序/CPI 报告指认访存串行为头部瓶颈时,
+按 §3 增量路线小步推进,每步 difftest 逐指令 + eval 三 gate + ooo-mem-order 定向 + git 检查点。
+
 ## 6. 变更记录
 - 2026-06-28：建立规范(difftest 解锁后 load 侧解耦增量路线 + 不变量 + 验证)。
+- 2026-06-28：读代码后补可行性评估(§5b),step 1 判定为高风险/有限收益,本阶段暂缓并记录重启条件。
