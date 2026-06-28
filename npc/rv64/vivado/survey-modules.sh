@@ -16,10 +16,11 @@ for m in "${MODS[@]}"; do
   echo "[survey] $m ..." | tee -a "$SUM"
   "$HERE/run-synth-module.sh" "$m" 2.0 >/dev/null 2>&1 || { echo "  $m: SYNTH FAILED" | tee -a "$SUM"; continue; }
   d="$HERE/out/latest-mod"
-  delay=$(grep -E 'Data Path Delay' "$d/timing_paths.rpt" 2>/dev/null | head -1 | grep -oE '[0-9.]+ns' | head -1)
+  delay=$(grep -E 'Data Path Delay' "$d/timing_paths.rpt" 2>/dev/null | head -1 | grep -oE 'logic [0-9.]+ns' | grep -oE '[0-9.]+ns')
+  lvl=$(grep -E 'Logic Levels' "$d/timing_paths.rpt" 2>/dev/null | head -1 | grep -oE '[0-9]+' | head -1)
   src=$(grep -E '^\s*Source:' "$d/timing_paths.rpt" 2>/dev/null | head -1 | sed 's/.*Source: *//')
   dst=$(grep -E '^\s*Destination:' "$d/timing_paths.rpt" 2>/dev/null | head -1 | sed 's/.*Destination: *//')
-  echo "  $m: data_delay=${delay:-NA}  $src -> $dst" | tee -a "$SUM"
+  echo "  $m: logic_delay=${delay:-NA} levels=${lvl:-NA}  $src -> $dst" | tee -a "$SUM"
 done
 echo "[survey] done -> $SUM" | tee -a "$SUM"
 # 按延迟排序

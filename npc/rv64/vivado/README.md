@@ -48,3 +48,10 @@ vivado/run-synth.sh [PERIOD_ns] [PART]
 2. 整核综合(`run-synth.sh`)如需,应改 `-flatten_hierarchy none`、降 maxThreads(2),
    并考虑在 `~/.wslconfig` 设 `[wsl2] memory=12GB` 给 WSL 明确上限(由用户配置)。
 3. 综合一律 nice+taskset 绑到部分核(8-11),给 Claude/vscode/wsl 留核。
+
+## OOC 时序读数方法学（重要）
+OOC 综合**未布局布线**，`report_timing` 的 **route 延迟是极悲观估计(常占 70%+)、不可信**。
+判定关键路径看 **logic delay 与 Logic Levels(逻辑级数)**，而非 total/route。
+首轮普查 logic 维度结论：`OooDispatchBackend` 最深(42 逻辑级/logic ~8.3ns,free_list count→IQ ctrl
+的 rename/分配链)、`OooMulDivUnit` logic ~8.65ns(radix-4 商位选择)。真实 Fmax 需 place/route
+(内存更重,WSL 风险);先用 logic-levels 做相对优化目标。

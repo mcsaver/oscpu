@@ -22,4 +22,4 @@ FILELIST="$OUT/filelist.txt" INCDIR="$INCDIR" TOP="$MOD" PART="$PART" PERIOD="$P
   -source "$HERE/synth-module.tcl" 2>&1 | tail -4
 ln -sfn "$OUT" "$HERE/out/latest-mod"
 echo "=== $MOD 最差路径(数据延迟) ==="
-grep -E 'Data Path Delay|Slack' "$OUT/timing_paths.rpt" 2>/dev/null | head -4
+grep -E 'Data Path Delay|Logic Levels|Slack' "$OUT/timing_paths.rpt" 2>/dev/null | head -6
