@@ -10,7 +10,7 @@ module OooAmoGate (
   input  [`XLEN-1:0]   src2_i,
   input  [1:0]         size_i,
   output [`XLEN-1:0]   old_value_o,
-  output [`XLEN-1:0]   result_o
+  output reg [`XLEN-1:0] result_o
 );
 
   // 与父模块同义的 32->64 符号扩展（trivial helper，随 owner 复制以保持自包含）。
@@ -30,11 +30,11 @@ module OooAmoGate (
     end
   endfunction
 
-  function [`XLEN-1:0] amo_result_value;
-    input [`INST_W-1:0] inst;
-    input [`XLEN-1:0] old_value;
-    input [`XLEN-1:0] src2;
-    input [1:0] size;
+  always @(*) begin : amo_result_value_blk
+    reg [`INST_W-1:0] inst;
+    reg [`XLEN-1:0] old_value;
+    reg [`XLEN-1:0] src2;
+    reg [1:0] size;
     reg signed [31:0] old_s32;
     reg signed [31:0] src_s32;
     reg signed [`XLEN-1:0] old_s64;
@@ -43,6 +43,18 @@ module OooAmoGate (
     reg [31:0] src_u32;
     reg [31:0] result32;
     begin
+      inst = inst_i;
+      old_value = old_value_o;
+      src2 = src2_i;
+      size = size_i;
+      old_s32 = 0;
+      src_s32 = 0;
+      old_s64 = 0;
+      src_s64 = 0;
+      old_u32 = 0;
+      src_u32 = 0;
+      result32 = 0;
+      result_o = 0;
       old_s32 = old_value[31:0];
       src_s32 = src2[31:0];
       old_s64 = old_value;
@@ -62,25 +74,24 @@ module OooAmoGate (
           5'b11100: result32 = (old_u32 > src_u32) ? old_u32 : src_u32;
           default:  result32 = old_u32;
         endcase
-        amo_result_value = sign_extend_word(result32);
+        result_o = sign_extend_word(result32);
       end else begin
         case (inst[31:27])
-          5'b00001: amo_result_value = src2;
-          5'b00000: amo_result_value = old_value + src2;
-          5'b00100: amo_result_value = old_value ^ src2;
-          5'b01100: amo_result_value = old_value & src2;
-          5'b01000: amo_result_value = old_value | src2;
-          5'b10000: amo_result_value = (old_s64 < src_s64) ? old_value : src2;
-          5'b10100: amo_result_value = (old_s64 > src_s64) ? old_value : src2;
-          5'b11000: amo_result_value = (old_value < src2) ? old_value : src2;
-          5'b11100: amo_result_value = (old_value > src2) ? old_value : src2;
-          default:  amo_result_value = old_value;
+          5'b00001: result_o = src2;
+          5'b00000: result_o = old_value + src2;
+          5'b00100: result_o = old_value ^ src2;
+          5'b01100: result_o = old_value & src2;
+          5'b01000: result_o = old_value | src2;
+          5'b10000: result_o = (old_s64 < src_s64) ? old_value : src2;
+          5'b10100: result_o = (old_s64 > src_s64) ? old_value : src2;
+          5'b11000: result_o = (old_value < src2) ? old_value : src2;
+          5'b11100: result_o = (old_value > src2) ? old_value : src2;
+          default:  result_o = old_value;
         endcase
       end
     end
-  endfunction
+  end
 
   assign old_value_o = amo_old_value(load_data_i, size_i);
-  assign result_o = amo_result_value(inst_i, old_value_o, src2_i, size_i);
 
 endmodule

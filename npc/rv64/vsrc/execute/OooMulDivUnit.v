@@ -60,11 +60,12 @@ module OooMulDivUnit #(
     end
   endfunction
 
-  function [`XLEN-1:0] mul_result;
-    input [`INST_W-1:0] inst;
-    input [`XLEN-1:0] src1;
-    input [`XLEN-1:0] src2;
-    input word_op;
+  reg [`XLEN-1:0] req_mul_result_w;  // 由下方 mul_result_blk 驱动(乘法结果装配 datapath)
+  always @(*) begin : mul_result_blk
+    reg [`INST_W-1:0] inst;
+    reg [`XLEN-1:0] src1;
+    reg [`XLEN-1:0] src2;
+    reg word_op;
     reg [`XLEN-1:0] op1;
     reg [`XLEN-1:0] op2;
     reg mul_op1_signed;
@@ -74,6 +75,19 @@ module OooMulDivUnit #(
     reg signed [(`XLEN*2)-1:0] mul_op2_ext;
     reg signed [(`XLEN*2)-1:0] selected_prod;
     begin
+      inst = req_inst_i;
+      src1 = req_src1_i;
+      src2 = req_src2_i;
+      word_op = req_word_i;
+      op1 = 0;
+      op2 = 0;
+      mul_op1_signed = 0;
+      mul_op2_signed = 0;
+      raw_result = 0;
+      mul_op1_ext = 0;
+      mul_op2_ext = 0;
+      selected_prod = 0;
+      req_mul_result_w = 0;
       op1 = word_op ? sign_extend_word(src1[31:0]) : src1;
       op2 = word_op ? sign_extend_word(src2[31:0]) : src2;
       mul_op1_signed = (inst[14:12] == 3'b001) ||
@@ -94,9 +108,9 @@ module OooMulDivUnit #(
         3'b011: raw_result = selected_prod[(`XLEN*2)-1:`XLEN];
         default: raw_result = {`XLEN{1'b0}};
       endcase
-      mul_result = word_op ? sign_extend_word(raw_result[31:0]) : raw_result;
+      req_mul_result_w = word_op ? sign_extend_word(raw_result[31:0]) : raw_result;
     end
-  endfunction
+  end
 
   wire req_fire_w = req_valid_i && req_ready_o;
   wire req_is_div_w = req_inst_i[14];
@@ -128,8 +142,7 @@ module OooMulDivUnit #(
   wire [`XLEN-1:0] req_special_result_final_w =
       req_word_i ? sign_extend_word(req_special_result_w[31:0]) :
                    req_special_result_w;
-  wire [`XLEN-1:0] req_mul_result_w =
-      mul_result(req_inst_i, req_src1_i, req_src2_i, req_word_i);
+  // req_mul_result_w 由上方 always @(*) 组合块 mul_result_blk 驱动
 
   // CLZ 早终止：按被除数绝对值的实际有效位数定位，只跑必要的迭代，跳过前导零。
   // 小操作数除法(如 n%10/n/10)由此从固定 16/32 拍大幅减少。clz 向下取偶以保持 radix-4

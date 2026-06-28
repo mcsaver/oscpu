@@ -10,7 +10,7 @@ module OooBitmanipGate (
   input  [5:0]       imm_i,
   input  [`XLEN-1:0] src1_i,
   input  [`XLEN-1:0] src2_i,
-  output [`XLEN-1:0] result_o
+  output reg [`XLEN-1:0] result_o
 );
 
   // 与父模块同义的 32->64 符号扩展（trivial helper，随 owner 复制以保持自包含）。
@@ -227,35 +227,44 @@ module OooBitmanipGate (
     end
   endfunction
 
-  function [`XLEN-1:0] bitmanip_result;
-    input [6:0] opcode;
-    input [9:0] funct10;
-    input [5:0] imm;
-    input [`XLEN-1:0] src1;
-    input [`XLEN-1:0] src2;
+  always @(*) begin : bitmanip_result_blk
+    reg [6:0] opcode;
+    reg [9:0] funct10;
+    reg [5:0] imm;
+    reg [`XLEN-1:0] src1;
+    reg [`XLEN-1:0] src2;
     reg [4:0] imm5;
     reg [5:0] shamt;
     reg [6:0] inv_shamt;
     begin
+      opcode = opcode_i;
+      funct10 = funct10_i;
+      imm = imm_i;
+      src1 = src1_i;
+      src2 = src2_i;
+      imm5 = 0;
+      shamt = 0;
+      inv_shamt = 0;
+      result_o = 0;
       imm5 = imm[4:0];
       shamt = src2[`SHIFT_AMT_W-1:0];
       inv_shamt = 7'd64 - {1'b0, shamt};
-      bitmanip_result = {`XLEN{1'b0}};
+      result_o = {`XLEN{1'b0}};
 
       if (opcode == `OPCODE_OP_IMM) begin
         case (funct10)
           {7'h14, `FUNCT3_SLL},
-          {7'h15, `FUNCT3_SLL}:     bitmanip_result = src1 | (64'h1 << imm);
+          {7'h15, `FUNCT3_SLL}:     result_o = src1 | (64'h1 << imm);
           {7'h24, `FUNCT3_SLL},
-          {7'h25, `FUNCT3_SLL}:     bitmanip_result = src1 & ~(64'h1 << imm);
+          {7'h25, `FUNCT3_SLL}:     result_o = src1 & ~(64'h1 << imm);
           {7'h34, `FUNCT3_SLL},
-          {7'h35, `FUNCT3_SLL}:     bitmanip_result = src1 ^ (64'h1 << imm);
+          {7'h35, `FUNCT3_SLL}:     result_o = src1 ^ (64'h1 << imm);
           {7'h30, `FUNCT3_SRL_SRA},
-          {7'h31, `FUNCT3_SRL_SRA}: bitmanip_result = (imm == 6'h0) ? src1 :
+          {7'h31, `FUNCT3_SRL_SRA}: result_o = (imm == 6'h0) ? src1 :
                                                      ((src1 >> imm) | (src1 << (7'd64 - {1'b0, imm})));
           {7'h24, `FUNCT3_SRL_SRA},
-          {7'h25, `FUNCT3_SRL_SRA}: bitmanip_result = {{(`XLEN-1){1'b0}}, src1[imm]};
-          {7'h14, `FUNCT3_SRL_SRA}: bitmanip_result = {
+          {7'h25, `FUNCT3_SRL_SRA}: result_o = {{(`XLEN-1){1'b0}}, src1[imm]};
+          {7'h14, `FUNCT3_SRL_SRA}: result_o = {
               (src1[63:56] != 8'h00) ? 8'hff : 8'h00,
               (src1[55:48] != 8'h00) ? 8'hff : 8'h00,
               (src1[47:40] != 8'h00) ? 8'hff : 8'h00,
@@ -266,18 +275,18 @@ module OooBitmanipGate (
               (src1[7:0]   != 8'h00) ? 8'hff : 8'h00
           };
           {7'h34, `FUNCT3_SRL_SRA},
-          {7'h35, `FUNCT3_SRL_SRA}: bitmanip_result = {src1[7:0], src1[15:8], src1[23:16], src1[31:24],
+          {7'h35, `FUNCT3_SRL_SRA}: result_o = {src1[7:0], src1[15:8], src1[23:16], src1[31:24],
                                                      src1[39:32], src1[47:40], src1[55:48], src1[63:56]};
           {7'h30, `FUNCT3_SLL}: begin
             case (imm5)
-              5'h00: bitmanip_result = {{(`XLEN-7){1'b0}},
+              5'h00: result_o = {{(`XLEN-7){1'b0}},
                                          bitmanip_clz64(src1)};
-              5'h01: bitmanip_result = {{(`XLEN-7){1'b0}},
+              5'h01: result_o = {{(`XLEN-7){1'b0}},
                                          bitmanip_ctz64(src1)};
-              5'h02: bitmanip_result = {{(`XLEN-7){1'b0}},
+              5'h02: result_o = {{(`XLEN-7){1'b0}},
                                          bitmanip_cpop64(src1)};
-              5'h04: bitmanip_result = {{(`XLEN-8){src1[7]}}, src1[7:0]};
-              5'h05: bitmanip_result = {{(`XLEN-16){src1[15]}}, src1[15:0]};
+              5'h04: result_o = {{(`XLEN-8){src1[7]}}, src1[7:0]};
+              5'h05: result_o = {{(`XLEN-16){src1[15]}}, src1[15:0]};
               default: begin end
             endcase
           end
@@ -285,55 +294,54 @@ module OooBitmanipGate (
         endcase
       end else if (opcode == `OPCODE_OP_IMM_32) begin
         case ({funct10[9:4], funct10[2:0]})
-          {6'h02, `FUNCT3_SLL}: bitmanip_result = ({{(`XLEN-32){1'b0}}, src1[31:0]}) << imm;
+          {6'h02, `FUNCT3_SLL}: result_o = ({{(`XLEN-32){1'b0}}, src1[31:0]}) << imm;
           default: begin end
         endcase
         case (funct10)
           {7'h30, `FUNCT3_SLL}: begin
             case (imm5)
-              5'h00: bitmanip_result = {{(`XLEN-6){1'b0}}, bitmanip_clz32(src1[31:0])};
-              5'h01: bitmanip_result = {{(`XLEN-6){1'b0}}, bitmanip_ctz32(src1[31:0])};
-              5'h02: bitmanip_result = {{(`XLEN-6){1'b0}}, bitmanip_cpop32(src1[31:0])};
+              5'h00: result_o = {{(`XLEN-6){1'b0}}, bitmanip_clz32(src1[31:0])};
+              5'h01: result_o = {{(`XLEN-6){1'b0}}, bitmanip_ctz32(src1[31:0])};
+              5'h02: result_o = {{(`XLEN-6){1'b0}}, bitmanip_cpop32(src1[31:0])};
               default: begin end
             endcase
           end
           {7'h30, `FUNCT3_SRL_SRA}: begin
-            bitmanip_result = sign_extend_word(bitmanip_ror32(src1[31:0], imm5));
+            result_o = sign_extend_word(bitmanip_ror32(src1[31:0], imm5));
           end
           default: begin end
         endcase
       end else begin
         case (funct10)
-          {7'h04, `FUNCT3_ADD_SUB}: bitmanip_result = {{(`XLEN-32){1'b0}}, src1[31:0]} + src2;
-          {7'h10, `FUNCT3_SLT}:     bitmanip_result = (((opcode == `OPCODE_OP_32) ? {{(`XLEN-32){1'b0}}, src1[31:0]} : src1) << 1) + src2;
-          {7'h10, `FUNCT3_XOR}:     bitmanip_result = (((opcode == `OPCODE_OP_32) ? {{(`XLEN-32){1'b0}}, src1[31:0]} : src1) << 2) + src2;
-          {7'h10, `FUNCT3_OR}:      bitmanip_result = (((opcode == `OPCODE_OP_32) ? {{(`XLEN-32){1'b0}}, src1[31:0]} : src1) << 3) + src2;
-          {7'h20, `FUNCT3_AND}:     bitmanip_result = src1 & ~src2;
-          {7'h20, `FUNCT3_OR}:      bitmanip_result = src1 | ~src2;
-          {7'h20, `FUNCT3_XOR}:     bitmanip_result = ~(src1 ^ src2);
-          {7'h30, `FUNCT3_SLL}:     bitmanip_result = (opcode == `OPCODE_OP_32) ?
+          {7'h04, `FUNCT3_ADD_SUB}: result_o = {{(`XLEN-32){1'b0}}, src1[31:0]} + src2;
+          {7'h10, `FUNCT3_SLT}:     result_o = (((opcode == `OPCODE_OP_32) ? {{(`XLEN-32){1'b0}}, src1[31:0]} : src1) << 1) + src2;
+          {7'h10, `FUNCT3_XOR}:     result_o = (((opcode == `OPCODE_OP_32) ? {{(`XLEN-32){1'b0}}, src1[31:0]} : src1) << 2) + src2;
+          {7'h10, `FUNCT3_OR}:      result_o = (((opcode == `OPCODE_OP_32) ? {{(`XLEN-32){1'b0}}, src1[31:0]} : src1) << 3) + src2;
+          {7'h20, `FUNCT3_AND}:     result_o = src1 & ~src2;
+          {7'h20, `FUNCT3_OR}:      result_o = src1 | ~src2;
+          {7'h20, `FUNCT3_XOR}:     result_o = ~(src1 ^ src2);
+          {7'h30, `FUNCT3_SLL}:     result_o = (opcode == `OPCODE_OP_32) ?
                                                      sign_extend_word(bitmanip_rol32(src1[31:0], src2[4:0])) :
                                                      ((shamt == 5'h0) ? src1 :
                                                      ((src1 << shamt) | (src1 >> inv_shamt)));
-          {7'h30, `FUNCT3_SRL_SRA}: bitmanip_result = (opcode == `OPCODE_OP_32) ?
+          {7'h30, `FUNCT3_SRL_SRA}: result_o = (opcode == `OPCODE_OP_32) ?
                                                      sign_extend_word(bitmanip_ror32(src1[31:0], src2[4:0])) :
                                                      ((shamt == 5'h0) ? src1 :
                                                      ((src1 >> shamt) | (src1 << inv_shamt)));
-          {7'h05, `FUNCT3_XOR}:     bitmanip_result = ($signed(src1) < $signed(src2)) ? src1 : src2;
-          {7'h05, `FUNCT3_SRL_SRA}: bitmanip_result = (src1 < src2) ? src1 : src2;
-          {7'h05, `FUNCT3_OR}:      bitmanip_result = ($signed(src1) > $signed(src2)) ? src1 : src2;
-          {7'h05, `FUNCT3_AND}:     bitmanip_result = (src1 > src2) ? src1 : src2;
-          {7'h14, `FUNCT3_SLL}:     bitmanip_result = src1 | (64'h1 << shamt);
-          {7'h24, `FUNCT3_SLL}:     bitmanip_result = src1 & ~(64'h1 << shamt);
-          {7'h24, `FUNCT3_SRL_SRA}: bitmanip_result = {{(`XLEN-1){1'b0}}, src1[shamt]};
-          {7'h34, `FUNCT3_SLL}:     bitmanip_result = src1 ^ (64'h1 << shamt);
-          {7'h04, `FUNCT3_XOR}:     bitmanip_result = {{(`XLEN-16){1'b0}}, src1[15:0]};
+          {7'h05, `FUNCT3_XOR}:     result_o = ($signed(src1) < $signed(src2)) ? src1 : src2;
+          {7'h05, `FUNCT3_SRL_SRA}: result_o = (src1 < src2) ? src1 : src2;
+          {7'h05, `FUNCT3_OR}:      result_o = ($signed(src1) > $signed(src2)) ? src1 : src2;
+          {7'h05, `FUNCT3_AND}:     result_o = (src1 > src2) ? src1 : src2;
+          {7'h14, `FUNCT3_SLL}:     result_o = src1 | (64'h1 << shamt);
+          {7'h24, `FUNCT3_SLL}:     result_o = src1 & ~(64'h1 << shamt);
+          {7'h24, `FUNCT3_SRL_SRA}: result_o = {{(`XLEN-1){1'b0}}, src1[shamt]};
+          {7'h34, `FUNCT3_SLL}:     result_o = src1 ^ (64'h1 << shamt);
+          {7'h04, `FUNCT3_XOR}:     result_o = {{(`XLEN-16){1'b0}}, src1[15:0]};
           default: begin end
         endcase
       end
     end
-  endfunction
+  end
 
-  assign result_o = bitmanip_result(opcode_i, funct10_i, imm_i, src1_i, src2_i);
 
 endmodule
