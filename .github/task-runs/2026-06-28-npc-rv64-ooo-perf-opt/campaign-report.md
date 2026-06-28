@@ -51,3 +51,33 @@ ooo-mem-order 16.6k、linux-mini-boot 13.7k——均为 **load 侧延迟**(load-
 ## 六、环境约束
 - difftest/NEMU 本环境不可构建(vga.c update_screen 缺声明)，且 NEMU 与本核 A/D/PMP 语义有意不同，
   非干净参考。访存类改动依赖现有 gate(历史能捕获访存 bug，本战役 B1 的 dcache 一致性 bug 即被捕获)。
+
+---
+
+## 附：iter6-7 时序 track + Vivado 流程 + 真实代码验证（2026-06-28 续）
+
+### Vivado 数据驱动时序（环境解锁后）
+- 工具:`vivado/run-synth-module.sh`(按模块 OOC) + `survey-modules.sh`(普查) + `run-synth.sh`(整核)。
+- **WSL 崩溃根因=内存峰值**(整核全展平综合击穿 WSL 上限,非 CPU);根治=按模块综合 + **内存看门狗**
+  (可用<2.5GB 自动杀 vivado) + 绑核 8-11/nice 15。已验证零崩溃。
+- 方法学:OOC 未布局→route 延迟不可信(常 70%+),判关键路径看 **logic delay + Logic Levels**。
+- 关键路径排名(logic):**OooDispatchBackend 39 级/7.95ns**(rename+free-list+busy+IQ写 单拍合一)唯一最深;
+  MulDivUnit 6.79ns(radix-4 CARRY4);IQ 单独仅 3.25ns/21 级;CsrFile/ROB 浅而健康。
+
+### 时序优化(均 OOC 验证 + CPI/正确性零变化)
+- **iter6** 除法器:3×divisor 移出迭代环寄存(div_d3_q),logic 8.65→6.79ns(-21%)。
+- **iter7** free list alloc1:并行读 head/head+1 + 末端 2:1 select,DispatchBackend 42→39 级。
+- 下一深目标(需 user 定向):流水化 dispatch(影响 CPI,需 place&route 验净收益)。
+
+### 真实代码 CPI(全优化核)
+- Dhrystone 50M 周期稳态 CPI≈1.52;CoreMark≈1.146(B1+CLZ 前测)。高于计算微测(分支/访存密集),
+  印证残余瓶颈=访存(读单 outstanding/无 store-forward)+分支恢复。
+
+### 规范覆盖
+本会话新增 9 份专业 spec(图文并茂):divider/PMP/mem-bridge-FSM/fetch-bridge/rename-alloc/ROB/
+CsrFile/IssueQueue/mem-store-decouple,覆盖所有被优化/分析的核心模块。
+
+### 已穷尽"安全 contained 价值",余下需 user 定向
+- CPI 近本微架构 load 延迟下限;时序 contained 契机已收割。
+- 进一步大幅提升需:①真实 FPGA part + place&route(验时序净收益)→ dispatch 流水化;
+  ②或点定一个重大重构(load 多 outstanding/分支多级投机)。
