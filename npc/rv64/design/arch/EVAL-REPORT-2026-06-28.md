@@ -82,7 +82,7 @@ PTW 交织仲裁,即对已绿的桥大规模重写。当前测试集多 dcache �
    (新增 RVC/fence-i/mem-order/switch/stdio)、新增 `--timing` 时序回归 gate、CoreMark CPI **1.02**、
    module TB 覆盖率量化(82/104 Ooo 模块有专属单测,良好)、CPI 加权代表性已说明。
 2. **八轮对抗性 bug-hunt 战役**(覆盖全部正确性关键子系统:大模块 + FP + 原子操作,10 大高风险区,详见 `.github/memory/known-issues.md`):
-   **修复 9 个真 bug(全 ASM smoke/eval/NEMU金标 验证全绿)**:
+   **修复 10 个真 bug(全 ASM smoke/eval/NEMU金标 验证全绿)**:
    - 隐患B(取指跨页 PMP 绕过,**安全**):`OooFetchAxiBridge.v` 不缓存跨页包,结构性消除 stale 槽1 PMP grant。
    - B1(中断委托位错,**Linux-breaking**):`CsrFile.v` 软件/定时器 hw 委托用 M 位(MSI=3/MTI=7)应为
      S 位(SSI=1/STI=5);协调修核 4 处 + `sbi-timer.c` 测试,真 Linux 写 mideleg=0x222 时中断方能委托到 S。
@@ -92,7 +92,7 @@ PTW 交织仲裁,即对已绿的桥大规模重写。当前测试集多 dcache �
      FP#4 RDN 精确零抵消符号、FP#5 Inf/0 误置 DZ、FP#6 FCLASS.S 忽略 NaN-boxing。**关键发现**:AM cpu-tests
      是 soft-float 不测硬件 FP,新建 ASM smoke 套件(`Linux/tools/fp-dynrm-smoke.S`/`fp-corner-smoke.S`)+
      riscv-tests rv64uf/ud 覆盖。仅 FP#2(FMA 双舍入,需 fused-multiply-add 重写)文档化。
-   - **AMO/LR-SC(对照 NEMU 金标)**:核心原子性/预约逐位对齐无缺陷;修复 LR 非对齐 cause(STORE→LOAD);隐患#2(AMO读fault进写阶段,病态PMP)/#3(SC vaddr/尺寸)文档化。
+   - **AMO/LR-SC(对照 NEMU 金标)**:核心原子性/预约逐位对齐无缺陷;修复 LR 非对齐 cause(STORE→LOAD)+ AMO#2(读 fault 进写阶段→病态 PMP W&!R 静默错写,改读 fault 短路报 LOAD 异常+不写);#3(SC vaddr/尺寸,非可移植软件边角)接受文档化。
    **文档化(非贸然修复)**:隐患A(访存桥 B off-by-one,IP复用;简单门控修复经实证**死锁**,需侵入式 B-tracker);
    flush-drain 隐患(追根为桥 `drop_rsp_q` 已缓解,非问题);H-1(direct RAS return 信任 ras_top 后端不验证=
    已知问题[740-744]残留,satp 清 RAS 只挡跨地址空间,残留=同地址空间非标准重定义 ra 后 ret-形 jalr;修复设计=
@@ -115,7 +115,7 @@ PTW 交织仲裁,即对已绿的桥大规模重写。当前测试集多 dcache �
 
 ## 10. 交付态总结
 核处于**高置信交付态**:三 gate + difftest 40 全绿、CPI 1.26(真实代码 CoreMark 1.02)、**10 大高风险区经
-8 轮对抗审查、修复 9 个真 bug**(取指跨页 PMP 绕过-安全、中断委托位-Linux、中断优先级、FP 动态舍入/上溢/
-RDN零符号/Inf0-DZ/fclass-box;仅 FMA 双舍入待重写)、评估系统经 level-2
+8 轮对抗审查、修复 10 个真 bug**(取指跨页 PMP 绕过-安全、中断委托位/优先级-Linux、FP 动态舍入/上溢/
+RDN零符号/Inf0-DZ/fclass-box、AMO LR非对齐cause/读fault进写-安全;仅 FMA 双舍入待重写)、评估系统经 level-2
 元评估加固、唯一 Fmax 封顶项量化。本会话不仅完成性能优化平台期表征,更通过系统性对抗审查实质提升了核的
 **正确性与安全性**(尤其 S-mode/Linux 上线相关的中断交付)。`ai` 分支,工作树干净,所有改动验证全绿。
