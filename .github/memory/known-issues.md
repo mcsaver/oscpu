@@ -1149,6 +1149,12 @@
   **FADD/FSUB=69 级/11.3ns、FMUL=91 级/22.7ns、FMADD=173 级/36.5ns**(logic-only)。**全部单周期 FP arith
   都深于 dispatch(39/7.95ns)**:FADD 1.4×、FMUL 2.9×、FMA 4.6×。即整个 OooFpArithGate datapath 都是 Fmax
   瓶颈,非仅 FMA。流水化需覆盖全 FP arith:FMA ~3-4 级、FMUL ~2-3 级、FADD ~2 级。
+- **全 FP 子系统 Fmax 画像(2026-06-29 OOC 完整)**: 单周期组合(=直接封顶):FCVT(OooFpConvertGate)
+  48 级/9.27ns、FADD 69/11.3ns、FMUL 91/22.7ns、**FMA 173/36.5ns(最甚)**;多周期迭代器(每拍 reg-to-reg,
+  已设计良好):FP DIV(OooFpDivIter)30 级/5.0ns、FP SQRT(OooFpSqrtIter)33 级/5.4ns,**均 < dispatch 39 级**。
+  **结论**:单周期 FP arith(FCVT/FADD/FMUL/FMA,全 ≥ dispatch)是真封顶;div/sqrt 迭代式多周期反而最浅
+  —— **印证流水化/迭代化能把每拍变浅**(div/sqrt 已示范),单周期 arith 应同法流水化。优化顺序按收益:
+  FMA(36.5→目标~9ns,4 级)> FMUL(22.7,2-3 级)> FADD(11.3,2 级)> FCVT(9.27,边际,可选)。
 - **推荐(设计级,非本会话做)**: 把 FP arith(全 OooFpArithGate,FMA 最需)从单周期组合**流水化为 2-3 级**(如 乘法段 /
   对齐+宽加段 / 规格化+舍入段),可把 FP 关键路径降到 dispatch 量级(~8-12ns),恢复 Fmax 到 ~100MHz+。
   需在 OooPendingFpSequencer 加 FP-arith 多周期 done 时序(类似 div/sqrt 的 long 路径但固定 2-3 拍),
