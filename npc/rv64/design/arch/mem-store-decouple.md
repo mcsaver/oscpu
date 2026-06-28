@@ -70,5 +70,16 @@ load 读路径与精确异常边界。
 - 回退点：git 绿检查点（commit `0bb371593` 之后的最新绿提交）。不收敛立即 `git checkout` 回退。
 - 参考文献：见 `design/literature/`（LSQ/store buffer/memory disambiguation 待补）。
 
+## 7.1 实现前置（实测发现）
+精读 `OooMemAxiBridge.v` 写路径发现：`drop_rsp_q` 在每次写期间被置 1，且喂入
+`cpu_kill_w = flush_i || drop_rsp_q`，进而门控 `req_slot_ready_w`/`rsp_valid`/`arvalid` 等。
+即"写期间不接受新请求"目前是经 `drop_rsp_q→cpu_kill` 这条隐式路径实现的，其与 flush
+drain、`aw_done/w_done`、`write_drain_w` 的精确语义尚未完全文档化。
+**结论**：在完全吃透并文档化该 flush/drop FSM 之前，不修改写路径——否则解耦极易破坏 flush
+drain 或 response ownership。下一步先产出 `design/specs/ooo-mem-axi-bridge-fsm.md`
+（完整状态/寄存器/drop 语义/flush drain 时序），再据此安全实现本规范的 `bpend_q` 解耦。
+验证网已基本就位：`ooo-mem-order`(store→load 同地址)、`string`/`mem-test`/`load-store`、
+riscv-tests `ua`(AMO/lrsc)/`ui`(ld/st/ma_data)。
+
 ## 8. 变更记录
-- 2026-06-28：建立规范（spec 先行），实现待后续迭代。
+- 2026-06-28：建立规范（spec 先行）。实现门控于先文档化 mem-bridge flush/drop FSM。
