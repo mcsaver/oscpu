@@ -81,10 +81,14 @@ static inline void update_screen() {
 void vga_update_screen() {
   // 只有 guest 显式写了 sync 才刷新，目的是避免每次设备轮询都整屏重绘。
   // 这样改完后，屏幕更新频率由 guest 提交控制，既正确也更省宿主开销。
+  // 修复：update_screen() 仅在 CONFIG_VGA_SHOW_SCREEN 下定义；不显示屏(如 difftest
+  // 共享库构建)时本函数应为 no-op，否则 implicit-declaration 编译失败(warning-as-error)。
+#ifdef CONFIG_VGA_SHOW_SCREEN
   if (vgactl_port_base[1] != 0) {
     update_screen();
     vgactl_port_base[1] = 0;
   }
+#endif
 }
 
 void init_vga() {

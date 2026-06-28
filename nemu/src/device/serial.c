@@ -703,7 +703,8 @@ void serial_poll_input(void) {
    * 全局 device tick 只按配置轮询宿主 fd，降低 Ubuntu 空闲长跑中的
    * select/read 频率；guest 主动读 UART 寄存器时仍会走 serial_port_poll_host()。
    */
-  static uint32_t host_poll_skip = 0;
+  // difftest 共享库配置下 SERIAL_HAS_HOST_RX 关闭,此变量未用;标记 unused 避免 -Werror。
+  static uint32_t host_poll_skip __attribute__((unused)) = 0;
 #ifdef SERIAL_HAS_HOST_RX
   if (host_poll_skip == 0) {
     serial_port_poll_host(&serial0);
