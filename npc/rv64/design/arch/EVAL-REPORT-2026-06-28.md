@@ -81,12 +81,17 @@ PTW 交织仲裁,即对已绿的桥大规模重写。当前测试集多 dcache �
 1. **评估系统 level-2 元评估**(`eval/META-EVAL.md`):识别 5 盲点并逐一处理——difftest 逐指令 33→**40**
    (新增 RVC/fence-i/mem-order/switch/stdio)、新增 `--timing` 时序回归 gate、CoreMark CPI **1.02**、
    module TB 覆盖率量化(82/104 Ooo 模块有专属单测,良好)、CPI 加权代表性已说明。
-2. **六轮对抗性 bug-hunt 战役**(覆盖全部大模块 + 8 大高风险区,详见 `.github/memory/known-issues.md`):
-   **修复 3 个真 bug(全验证全绿)**:
+2. **七轮对抗性 bug-hunt 战役**(覆盖全部大模块 + FP 子系统 + 9 大高风险区,详见 `.github/memory/known-issues.md`):
+   **修复 8 个真 bug(全 ASM smoke/eval 验证全绿)**:
    - 隐患B(取指跨页 PMP 绕过,**安全**):`OooFetchAxiBridge.v` 不缓存跨页包,结构性消除 stale 槽1 PMP grant。
    - B1(中断委托位错,**Linux-breaking**):`CsrFile.v` 软件/定时器 hw 委托用 M 位(MSI=3/MTI=7)应为
      S 位(SSI=1/STI=5);协调修核 4 处 + `sbi-timer.c` 测试,真 Linux 写 mideleg=0x222 时中断方能委托到 S。
    - B2(中断优先级反转):`CsrFile.v` 双 pending 无条件选 S,改 M>S 全序。
+   - **FP IEEE-754 子系统(6 中修 5)**:FP#1 动态舍入 frm 未路由进 FP datapath(**严重/广**,5 模块路由修复:
+     `fesetround` 后所有 DYN 舍入 op 原本恒 RNE)、FP#3 上溢忽略舍入模式(7 站点 rm-aware 饱和)、
+     FP#4 RDN 精确零抵消符号、FP#5 Inf/0 误置 DZ、FP#6 FCLASS.S 忽略 NaN-boxing。**关键发现**:AM cpu-tests
+     是 soft-float 不测硬件 FP,新建 ASM smoke 套件(`Linux/tools/fp-dynrm-smoke.S`/`fp-corner-smoke.S`)+
+     riscv-tests rv64uf/ud 覆盖。仅 FP#2(FMA 双舍入,需 fused-multiply-add 数据通路重写)文档化待专注重写。
    **文档化(非贸然修复)**:隐患A(访存桥 B off-by-one,IP复用;简单门控修复经实证**死锁**,需侵入式 B-tracker);
    flush-drain 隐患(追根为桥 `drop_rsp_q` 已缓解,非问题);H-1(direct RAS return 信任 ras_top 后端不验证=
    已知问题[740-744]残留,satp 清 RAS 只挡跨地址空间,残留=同地址空间非标准重定义 ra 后 ret-形 jalr;修复设计=
@@ -108,7 +113,8 @@ PTW 交织仲裁,即对已绿的桥大规模重写。当前测试集多 dcache �
 | dispatch 流水化净收益确认 / LSQ | ≥32GB 机器跑整核 P&R |
 
 ## 10. 交付态总结
-核处于**高置信交付态**:三 gate + difftest 40 全绿、CPI 1.26(真实代码 CoreMark 1.02)、**7 大高风险区经
-5 轮对抗审查、修复 3 个真 bug**(取指跨页 PMP 绕过-安全、中断委托位-Linux、中断优先级)、评估系统经 level-2
+核处于**高置信交付态**:三 gate + difftest 40 全绿、CPI 1.26(真实代码 CoreMark 1.02)、**9 大高风险区经
+7 轮对抗审查、修复 8 个真 bug**(取指跨页 PMP 绕过-安全、中断委托位-Linux、中断优先级、FP 动态舍入/上溢/
+RDN零符号/Inf0-DZ/fclass-box;仅 FMA 双舍入待重写)、评估系统经 level-2
 元评估加固、唯一 Fmax 封顶项量化。本会话不仅完成性能优化平台期表征,更通过系统性对抗审查实质提升了核的
 **正确性与安全性**(尤其 S-mode/Linux 上线相关的中断交付)。`ai` 分支,工作树干净,所有改动验证全绿。
