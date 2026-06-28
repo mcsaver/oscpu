@@ -81,23 +81,31 @@ PTW 交织仲裁,即对已绿的桥大规模重写。当前测试集多 dcache �
 1. **评估系统 level-2 元评估**(`eval/META-EVAL.md`):识别 5 盲点并逐一处理——difftest 逐指令 33→**40**
    (新增 RVC/fence-i/mem-order/switch/stdio)、新增 `--timing` 时序回归 gate、CoreMark CPI **1.02**、
    module TB 覆盖率量化(82/104 Ooo 模块有专属单测,良好)、CPI 加权代表性已说明。
-2. **两轮对抗性 bug-hunt**(覆盖 5 处最高风险改动):
-   - 隐患B(取指跨页 PMP 绕过,**安全**):**已修复+验证**(`OooFetchAxiBridge.v`,不缓存跨页包,
-     结构性消除 stale 槽1 PMP grant;112/271/56+difftest40+CPI 零变化)。
-   - 隐患A(访存桥 B off-by-one,IP复用):文档化;简单门控修复经实证会**死锁**(被 eval dummy 自校验
-     抓住),需侵入式 B-tracker,留待用户知情的专注跟进。
-   - 除法器/FreeList/PMP 三处:逐角落手算核对**无真 bug**;顺带移除 PMP 死代码 `entry_match`。
+2. **五轮对抗性 bug-hunt 战役**(覆盖 7 大高风险区,详见 `.github/memory/known-issues.md`):
+   **修复 3 个真 bug(全验证全绿)**:
+   - 隐患B(取指跨页 PMP 绕过,**安全**):`OooFetchAxiBridge.v` 不缓存跨页包,结构性消除 stale 槽1 PMP grant。
+   - B1(中断委托位错,**Linux-breaking**):`CsrFile.v` 软件/定时器 hw 委托用 M 位(MSI=3/MTI=7)应为
+     S 位(SSI=1/STI=5);协调修核 4 处 + `sbi-timer.c` 测试,真 Linux 写 mideleg=0x222 时中断方能委托到 S。
+   - B2(中断优先级反转):`CsrFile.v` 双 pending 无条件选 S,改 M>S 全序。
+   **文档化(非贸然修复)**:隐患A(访存桥 B off-by-one,IP复用;简单门控修复经实证**死锁**,需侵入式 B-tracker);
+   flush-drain 隐患(追根为桥 `drop_rsp_q` 已缓解,非问题)。
+   **逐角落核对无真 bug**:除法器 radix-4/CLZ、FreeList 并行分配、PMP TOR/NAPOT/默认拒绝、trap/异常交付编排
+   (7 区精确异常)、OoO 旁路/唤醒/写回 FSM(前递/唤醒/写回仲裁/load-use/分支解析全对);顺带移除 PMP 死代码。
+   后 3 轮多 clean → 核心逻辑严谨、覆盖充分。两次 CSR/中断 spec 修复破坏测试均被 eval 安全网拦截+回退(教训:
+   此核中断模型有测试背书的约定,改动需协调+验证)。
 3. **整核 P&R 证 16GB WSL 不可行**(并行综合 worker 撑爆内存,看门狗护航防崩)。
 
 ## 9. 待用户决策项(非可自主推进)
 | 项 | 需要 |
 |---|---|
 | ship dispatch-bypass(去旁路:−38% logic level / +5.5% CPI) | 用户定 FPGA 目标是否 Fmax-critical |
-| 推送 ~158 个本地提交到 myfork/ai | 用户授权 push |
+| 推送本地提交到 myfork/ai | 用户授权 push |
 | 隐患A 侵入式修复(B-tracker) | 用户知情(高风险路径,简单修复已证死锁) |
 | Sv39/PMP 指令级 difftest | 改 NEMU 对齐核语义(中风险) |
 | dispatch 流水化净收益确认 / LSQ | ≥32GB 机器跑整核 P&R |
 
 ## 10. 交付态总结
-核处于**高置信交付态**:三 gate + difftest 40 全绿、CPI 1.26(真实代码 CoreMark 1.02)、5 处最高风险
-改动全部对抗审查(1 安全 bug 已修)、评估系统经元评估加固、唯一 Fmax 封顶项量化。`ai` 分支,工作树干净。
+核处于**高置信交付态**:三 gate + difftest 40 全绿、CPI 1.26(真实代码 CoreMark 1.02)、**7 大高风险区经
+5 轮对抗审查、修复 3 个真 bug**(取指跨页 PMP 绕过-安全、中断委托位-Linux、中断优先级)、评估系统经 level-2
+元评估加固、唯一 Fmax 封顶项量化。本会话不仅完成性能优化平台期表征,更通过系统性对抗审查实质提升了核的
+**正确性与安全性**(尤其 S-mode/Linux 上线相关的中断交付)。`ai` 分支,工作树干净,所有改动验证全绿。
