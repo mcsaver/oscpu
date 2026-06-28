@@ -1129,3 +1129,24 @@
   - **F2【良性笔误,非bug】`SV39_PTE_RESERVED_MASK`(define.v:440)漏 bit60/59**:spec 保留域 [60:54],掩码漏检 60/59;但使 RTL 偏宽松、NEMU 完全不查保留位→无 difftest 分歧、不误伤合法 PTE。建议修为 0xffc0../0x9fc0.. 贴 spec,无功能风险,可选清理。
   【bug-hunt 战役至此 9 轮覆盖含 Sv39 PTW；正确性关键子系统全覆盖,**11 真 bug 已修**(含 FP#2 FMA fused,2026-06-29),剩余为非触发硬化缺口(hazard A / F1)/边角(AMO#3/H-1)/良性(F2)。】
 - RV64 OoO 核 — **iverilog `always_comb` 工具链约束(2026-06-29 实测,影响所有可综合 RTL 写法)**:模块 testbench gate 用 Icarus iverilog 12.0,实测其对 **`always_comb` 关键字**内的变量常量位选(如 `x[62:52]`/`w[127:75]`)发 `sorry: constant selects in always_* processes ... all bits will be included`——**静默错仿真 + 全核 build Error 10**;而 **`always @(*)`(组合)与 `always @(posedge clk)`(时序)** 对同样位选完全正确(逐例验证 t1..t5/fma_like)。Verilator/Vivado(`read_verilog -sv`)两者都吃。**结论与规范(已固化 `.github/instructions/rtl-generation-workflow.instructions.md`)**:① 真实可综合硬件写 `.v` 用 Verilog-2001 `always @(posedge clk)`/`always @(*)`,**不用** SV `always_comb`/`always_ff`;`.sv` 仅用于验证。② 可综合 RTL 改动必须同时过 Verilator + **iverilog 模块 TB** + 适用时 Vivado(只过 Verilator 会漏 iverilog 的 always_comb 静默错)。FP#2 修复正因此从 `always_comb` 改为 `always @(*)` 才全绿。
+
+### [T1] FP FMA 单周期组合路径是真正的 Fmax 封顶(2026-06-29 时序 OOC 发现,远超 dispatch)
+- **模块**: NPC / RV64 OoO / 时序 PPA / OooFpArithGate(FP 算术 owner)
+- **发现**: 对 OooFpArithGate 做组合路径 OOC(`set_max_delay -from all_inputs -to all_outputs`)实测 FMA 路径
+  **173 逻辑级 / 36.5ns logic**(新 fused;105 CARRY4 + 3 DSP),frs2→fma_value。对比此前认定的 Fmax 封顶
+  **OooDispatchBackend 仅 39 级 / 7.95ns**——FP FMA 深约 **4×**。
+- **单周期确认**: OooPendingFpSequencer.v:120-121 `compute_done_o<=1; compute_result_o<=compute_result_i`,
+  即 operand_reg → OooFpArithGate(组合 FMA)→ compute_result_o 寄存,**单周期 reg-to-reg**。故此 ~36ns
+  组合块即真实单周期关键路径,核真实 Fmax 受 FP FMA 限制(~28 MHz),**不是** dispatch 的 7.95ns(~126MHz)。
+- **为何此前遗漏**: 旧时序分析全用模块级 OOC(只综合 OooDispatchBackend),FP arith 从未做时序 OOC;
+  全核 P&R 在 16GB WSL 不可行,故 FP 长路径与 dispatch 从未在同一网表比较。`timing-dispatch-issue-path.md`
+  的"dispatch=唯一封顶"结论**不完整**:真正封顶是单周期 FP FMA。
+- **fusion 影响(实测对比)**: 旧双舍入 FMA(git 7bf1f924)= **152 级 / 32.67ns / 75 CARRY4**;新 fused =
+  173 级 / 36.5ns / 105 CARRY4。**fusion 使 FMA +14% 级 / +12% 延迟**——单舍入需更宽数据通路(128b 对齐
+  barrel + 128b LZC + 规格化 barrel,而旧只 56b 对齐)的固有代价。但 **FMA 本就是最深路径(152 级),非
+  fusion 新引入**;fusion 是正确性必需(修 FP#2 IEEE-754 违规),时序代价 modest。
+- **推荐(设计级,非本会话做)**: 把 FP arith(尤其 FMA)从单周期组合**流水化为 2-3 级**(如 乘法段 /
+  对齐+宽加段 / 规格化+舍入段),可把 FP 关键路径降到 dispatch 量级(~8-12ns),恢复 Fmax 到 ~100MHz+。
+  需在 OooPendingFpSequencer 加 FP-arith 多周期 done 时序(类似 div/sqrt 的 long 路径但固定 2-3 拍),
+  difftest + rv64uf/ud + FP smoke 护航。这是项目时序优化的**真正高优先级下一步**(此前 dispatch-bypass
+  去旁路只省 dispatch 的 7.95ns,但 FP FMA 36ns 才是真封顶,优先级更高)。

@@ -1,4 +1,14 @@
-# 规范:dispatch→issue 关键路径时序优化(唯一 Fmax 封顶项)
+# 规范:dispatch→issue 关键路径时序优化
+
+> **[2026-06-29 重要修正]** 本文标题原称 dispatch 为"唯一 Fmax 封顶项",**已被推翻**。对 OooFpArithGate
+> 做组合路径 OOC 实测:**单周期 FP FMA 路径 = 173 级 / 36.5ns logic,约 4× 于 dispatch 的 39 级 / 7.95ns**。
+> FP arith 经确认单周期(OooPendingFpSequencer:120-121),故**真正的 Fmax 封顶是单周期 FP FMA,不是 dispatch**。
+> 此前遗漏因:旧时序分析仅模块级 OOC 综合 OooDispatchBackend,FP arith 从未做时序 OOC;全核 P&R 在 WSL
+> 不可行,FP 长路径与 dispatch 从未同网表比较。详见 `.github/memory/known-issues.md` [T1]。**时序优化真正
+> 高优先级 = FP arith/FMA 流水化(2-3 级)**;dispatch-bypass 优化次之(它只省 7.95ns,FP FMA 36ns 才是封顶)。
+> 下文 dispatch 分析仍有效(dispatch 是 FP 之外最深的整数路径),但"唯一封顶"应读作"整数侧封顶"。
+
+# (原标题)dispatch→issue 关键路径(整数侧最深路径)
 
 > 模板见 `SPEC-TEMPLATE.md`。目标:`OooDispatchBackend` 及其子模块 `OooFreeList` / `OooBusyTable`
 > / `OooIntIssueQueue`。状态:**设计中(spec 先行)**;数据来自 Vivado OOC 模块综合。
