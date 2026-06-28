@@ -21,9 +21,11 @@
 - **B2【正确性·中】module TB 覆盖率未量化**:112 TB 项 vs 146 个 RTL 文件;本战役新增的大量前端 gate
   小模块(`OooBranch*Gate`、`OooFetch*Gate` 等)多依赖系统级测试传导覆盖,无专属单元 TB。某些只在
   特定时序触发的模块级 bug 可能不在 271+56 中显现。
-- **B3【性能·中】CoreMark 从未在 RTL 仿真跑完**:40+ 分钟孤儿进程,已杀。真实代码性能画像只靠
-  Dhrystone(1.52)+ AM 微测加权(1.26);**缺工业标准 CoreMark**,AM 微测对真实负载的代表性存疑
-  (加权 CPI 被 branch-resolve-loop 占 25%,偏微基准)。
+- **B3【性能·中】CoreMark 跑完不可行→改用窗口 CPI(已闭合)**:CoreMark 完整迭代在 RTL 仿真不可行
+  (10 迭代 >20min/>300M cycle 仍未完;仿真速度 <250K cycle/s)。**但 CPI 与迭代数无关**:用 50M-cycle
+  上限窗口测得 **CoreMark CPI ≈ 1.020**(cycles=50M/commits=49.04M)。这是最佳真实代码 CPI
+  (计算/循环密集、分支可预测,双发射 OoO 充分发挥)。真实代码画像现完整:CoreMark 1.02 < AM 加权 1.26
+  < Dhrystone 1.52。
 - **B4【性能·中】时序不在 --all 回环**:Fmax 是独立手动 Vivado 流程。一个改动可能升 CPI 却悄悄劣化
   Fmax(反之亦然),`--all` 不自动抓时序回归。spec-B 实验正是手动跨两套度量才看清 trade。
 - **B5【方法·低】CPI 加权代表性**:加权基于 AM PASS 子集,非真实负载分布;跨版本可比但绝对值勿过解读。

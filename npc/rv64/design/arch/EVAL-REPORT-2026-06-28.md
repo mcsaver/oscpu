@@ -63,6 +63,14 @@ PTW 交织仲裁,即对已绿的桥大规模重写。当前测试集多 dcache �
    按 logic-level/logic-delay 找关键路径,只重构被数据指认的模块(每改 difftest+eval+综合三验)。
 2. LSQ 仅在 §5 重启条件满足时启动。
 
+## 6b. 真实代码 CPI 画像(2026-06-28 补全)
+| 负载 | CPI | 说明 |
+|---|---|---|
+| CoreMark | **~1.02** | 50M-cycle 窗口(完整迭代 RTL 仿真不可行;CPI 与迭代数无关);计算/循环密集分支可预测,OoO 充分发挥 |
+| AM 加权 | 1.26 | 56 系统测加权(含 PMP/微测,偏微基准) |
+| Dhrystone | 1.52 | 分支/访存密集 |
+真实负载 CPI 优于 AM 加权(后者被 branch-resolve-loop 等微测拉高),说明核在真实代码上表现更好。
+
 ## 7. 验证证据
 - `eval/results/20260628-161022-reeval-milestone/summary.md`(三 gate + CPI)
 - `eval/results/20260628-160441-difftest-validate/summary.md`(33/33)
