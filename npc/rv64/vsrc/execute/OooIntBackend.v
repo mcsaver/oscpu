@@ -350,24 +350,12 @@ module OooIntBackend #(
 
   wire dispatch0_branch_fire_w =
       dispatch0_fire_w && dispatch0_ctrl_i[`CTRL_BRANCH_BIT];
-  wire dispatch1_branch_fire_w =
-      dispatch1_fire_w && !dispatch1_optional_i &&
-      dispatch1_ctrl_i[`CTRL_BRANCH_BIT];
-  // lane1 branch 仍正常进入 IQ 执行；dispatch 同拍 fast resolve 只保留 lane0，
-  // 避免 lane1 合成 payload 反向参与前端 ready/return-continuation 组合环。
-  wire dispatch_branch_fast_lane1_enable_w = 1'b0;
-  wire dispatch_branch_from1_w =
-      dispatch_branch_fast_lane1_enable_w &&
-      !dispatch1_optional_i && !dispatch0_branch_fire_w &&
-      dispatch1_branch_fire_w;
-  wire dispatch_branch_fast_candidate_w =
-      dispatch0_branch_fire_w || dispatch_branch_from1_w;
-  wire [PHY_REG_ADDR_W-1:0] dispatch_branch_src1_preg_w =
-      dispatch_branch_from1_w ? dispatch1_src1_preg_w :
-                                dispatch0_src1_preg_w;
-  wire [PHY_REG_ADDR_W-1:0] dispatch_branch_src2_preg_w =
-      dispatch_branch_from1_w ? dispatch1_src2_preg_w :
-                                dispatch0_src2_preg_w;
+  // E8 删除：lane1 dispatch-branch 快解析恒禁用（原 dispatch_branch_fast_lane1_enable_w=1'b0
+  // → dispatch_branch_from1_w 恒 0）。dispatch 同拍快解析只保留 lane0；dispatch1_branch_fire_w、
+  // dispatch0 转发 ALU、from1 多路选择全部死硅，连同 lane1 来源一并移除。
+  wire dispatch_branch_fast_candidate_w = dispatch0_branch_fire_w;
+  wire [PHY_REG_ADDR_W-1:0] dispatch_branch_src1_preg_w = dispatch0_src1_preg_w;
+  wire [PHY_REG_ADDR_W-1:0] dispatch_branch_src2_preg_w = dispatch0_src2_preg_w;
 
   OooPhysRegFile #(
     .PHY_REG_ADDR_W(PHY_REG_ADDR_W)
@@ -392,9 +380,10 @@ module OooIntBackend #(
     .read6_data_o(dispatch0_src1_data_w),
     .read7_addr_i(dispatch0_src2_preg_w),
     .read7_data_o(dispatch0_src2_data_w),
-    .read8_addr_i(load_branch_fast_src1_preg_w),
+    // E7 删除：load-branch-fast 死硅，read8/read9 地址接 0（保留端口，避免改 OooPhysRegFile）。
+    .read8_addr_i({PHY_REG_ADDR_W{1'b0}}),
     .read8_data_o(load_branch_fast_src1_data_w),
-    .read9_addr_i(load_branch_fast_src2_preg_w),
+    .read9_addr_i({PHY_REG_ADDR_W{1'b0}}),
     .read9_data_o(load_branch_fast_src2_data_w),
     .write0_valid_i(wb0_valid_w && (wb0_pdest_w != {PHY_REG_ADDR_W{1'b0}})),
     .write0_addr_i(wb0_pdest_w),
@@ -1112,81 +1101,9 @@ module OooIntBackend #(
     .resp_data_o(clmul_resp_data_w)
   );
 
-  wire dispatch0_src1_issue0_match_w =
-      issue0_current_result_valid_w &&
-      (issue0_pdest_w == dispatch0_src1_preg_w);
-  wire dispatch0_src1_issue1_match_w =
-      issue1_current_result_valid_w &&
-      (issue1_pdest_w == dispatch0_src1_preg_w);
-  wire dispatch0_src2_issue0_match_w =
-      issue0_current_result_valid_w &&
-      (issue0_pdest_w == dispatch0_src2_preg_w);
-  wire dispatch0_src2_issue1_match_w =
-      issue1_current_result_valid_w &&
-      (issue1_pdest_w == dispatch0_src2_preg_w);
-  wire dispatch0_src1_fast_ready_w =
-      dispatch0_src1_ready_w ||
-      dispatch0_src1_issue0_match_w ||
-      dispatch0_src1_issue1_match_w;
-  wire dispatch0_src2_fast_ready_w =
-      dispatch0_src2_ready_w ||
-      dispatch0_src2_issue0_match_w ||
-      dispatch0_src2_issue1_match_w;
-  wire [`XLEN-1:0] dispatch0_src1_value_w =
-      dispatch0_src1_issue1_match_w ? issue1_wb_data_w :
-      dispatch0_src1_issue0_match_w ? issue0_wb_data_w :
-                                      dispatch0_src1_data_w;
-  wire [`XLEN-1:0] dispatch0_src2_value_w =
-      dispatch0_src2_issue1_match_w ? issue1_wb_data_w :
-      dispatch0_src2_issue0_match_w ? issue0_wb_data_w :
-                                      dispatch0_src2_data_w;
-  wire [`XLEN-1:0] dispatch0_fast_alu_src1_w =
-      select_op1(dispatch0_ctrl_i[`CTRL_OP1_SEL_MSB:`CTRL_OP1_SEL_LSB],
-                 dispatch0_src1_value_w, dispatch0_pc_i);
-  wire [`XLEN-1:0] dispatch0_fast_alu_src2_w =
-      select_op2(dispatch0_ctrl_i[`CTRL_OP2_SEL_MSB:`CTRL_OP2_SEL_LSB],
-                 dispatch0_src2_value_w, dispatch0_imm_i);
-  wire [`XLEN-1:0] dispatch0_fast_alu_raw_w;
-  ALU u_dispatch0_fast_alu (
-    .src1_i(dispatch0_fast_alu_src1_w),
-    .src2_i(dispatch0_fast_alu_src2_w),
-    .alu_op_i(dispatch0_ctrl_i[`CTRL_ALU_OP_MSB:`CTRL_ALU_OP_LSB]),
-    .result_o(dispatch0_fast_alu_raw_w)
-  );
-  wire [`XLEN-1:0] dispatch0_fast_alu_result_w =
-      dispatch0_ctrl_i[`CTRL_WORD_OP_BIT] ?
-      rv64_word_alu_result(dispatch0_ctrl_i[`CTRL_ALU_OP_MSB:`CTRL_ALU_OP_LSB],
-                           dispatch0_fast_alu_src1_w,
-                           dispatch0_fast_alu_src2_w) :
-      dispatch0_fast_alu_raw_w;
-  wire dispatch0_fast_alu_valid_w =
-      dispatch0_fire_w &&
-      dispatch0_ctrl_i[`CTRL_VALID_BIT] &&
-      !dispatch0_ctrl_i[`CTRL_ILLEGAL_BIT] &&
-      dispatch0_ctrl_i[`CTRL_NEED_EXEC_BIT] &&
-      dispatch0_ctrl_i[`CTRL_RD_EN_BIT] &&
-      (dispatch0_ctrl_i[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] == `WB_SEL_ALU) &&
-      !dispatch0_ctrl_i[`CTRL_BRANCH_BIT] &&
-      !dispatch0_ctrl_i[`CTRL_JAL_BIT] &&
-      !dispatch0_ctrl_i[`CTRL_JALR_BIT] &&
-      !dispatch0_ctrl_i[`CTRL_LOAD_BIT] &&
-      !dispatch0_ctrl_i[`CTRL_STORE_BIT] &&
-      !dispatch0_ctrl_i[`CTRL_ECALL_BIT] &&
-      !dispatch0_ctrl_i[`CTRL_EBREAK_BIT] &&
-      !dispatch0_ctrl_i[`CTRL_FENCE_BIT] &&
-      !dispatch0_ctrl_i[`CTRL_SYSTEM_BIT] &&
-      !dispatch0_ctrl_i[`CTRL_MISC_MEM_BIT] &&
-      !dispatch0_ctrl_i[`CTRL_CSR_BIT] &&
-      !dispatch0_ctrl_i[`CTRL_MRET_BIT] &&
-      !dispatch0_ctrl_i[`CTRL_WFI_BIT] &&
-      !dispatch0_ctrl_i[`CTRL_MULDIV_BIT] &&
-      !dispatch0_ctrl_i[`CTRL_BITMANIP_BIT] &&
-      !dispatch0_ctrl_i[`CTRL_SFENCE_VMA_BIT] &&
-      !dispatch0_ctrl_i[`CTRL_SRET_BIT] &&
-      !dispatch0_ctrl_i[`CTRL_AMO_BIT] &&
-      (dispatch0_pdest_w != {PHY_REG_ADDR_W{1'b0}}) &&
-      dispatch0_src1_fast_ready_w &&
-      dispatch0_src2_fast_ready_w;
+  // E8 删除：u_dispatch0_fast_alu（dispatch0 同拍转发 ALU）整块死硅。该 ALU 唯一去向是
+  // 经 dispatch_branch_src1/2_dispatch0_match_w 把 dispatch0 结果同拍转发给 lane1 dispatch-branch，
+  // 而 lane1 快解析已恒禁用（from1=0），故转发 ALU 及其 src/value/fast-ready/valid 支撑信号皆悬空。
   wire dispatch_branch_src1_issue0_match_w =
       issue0_current_result_valid_w &&
       (issue0_pdest_w == dispatch_branch_src1_preg_w);
@@ -1199,52 +1116,35 @@ module OooIntBackend #(
   wire dispatch_branch_src2_issue1_match_w =
       issue1_current_result_valid_w &&
       (issue1_pdest_w == dispatch_branch_src2_preg_w);
-  wire dispatch_branch_src1_dispatch0_match_w =
-      dispatch_branch_from1_w && dispatch0_fast_alu_valid_w &&
-      (dispatch0_pdest_w == dispatch_branch_src1_preg_w);
-  wire dispatch_branch_src2_dispatch0_match_w =
-      dispatch_branch_from1_w && dispatch0_fast_alu_valid_w &&
-      (dispatch0_pdest_w == dispatch_branch_src2_preg_w);
-
-  wire dispatch_branch_src1_base_ready_w =
-      dispatch_branch_from1_w ? dispatch1_src1_ready_w :
-                                dispatch0_src1_ready_w;
-  wire dispatch_branch_src2_base_ready_w =
-      dispatch_branch_from1_w ? dispatch1_src2_ready_w :
-                                dispatch0_src2_ready_w;
+  // E8 删除：dispatch_branch_src1/2_dispatch0_match_w 以 from1 为与项恒 0，连同 base_ready 的
+  // from1 多路选择一并化简为 lane0 直通。
+  wire dispatch_branch_src1_base_ready_w = dispatch0_src1_ready_w;
+  wire dispatch_branch_src2_base_ready_w = dispatch0_src2_ready_w;
   wire dispatch_branch_src1_ready_w =
       dispatch_branch_src1_base_ready_w ||
-      dispatch_branch_src1_dispatch0_match_w ||
       dispatch_branch_src1_issue0_match_w ||
       dispatch_branch_src1_issue1_match_w;
   wire dispatch_branch_src2_ready_w =
       dispatch_branch_src2_base_ready_w ||
-      dispatch_branch_src2_dispatch0_match_w ||
       dispatch_branch_src2_issue0_match_w ||
       dispatch_branch_src2_issue1_match_w;
   wire dispatch_branch_ready_w =
       dispatch_branch_fast_candidate_w &&
       dispatch_branch_src1_ready_w && dispatch_branch_src2_ready_w;
 
+  // E8 删除：dispatch0_match/from1 项恒 0，src value 与 pc/imm/cmp_op 化简为 lane0 直通。
   wire [`XLEN-1:0] dispatch_branch_src1_value_w =
-      dispatch_branch_src1_dispatch0_match_w ? dispatch0_fast_alu_result_w :
       dispatch_branch_src1_issue1_match_w ? issue1_wb_data_w :
       dispatch_branch_src1_issue0_match_w ? issue0_wb_data_w :
                                             dispatch_branch_src1_data_w;
   wire [`XLEN-1:0] dispatch_branch_src2_value_w =
-      dispatch_branch_src2_dispatch0_match_w ? dispatch0_fast_alu_result_w :
       dispatch_branch_src2_issue1_match_w ? issue1_wb_data_w :
       dispatch_branch_src2_issue0_match_w ? issue0_wb_data_w :
                                             dispatch_branch_src2_data_w;
-  wire [`XLEN-1:0] dispatch_branch_pc_w =
-      dispatch_branch_from1_w ? dispatch1_pc_i : dispatch0_pc_i;
-  wire [`XLEN-1:0] dispatch_branch_fallthrough_w =
-      dispatch_branch_from1_w ? dispatch1_next_pc_i : dispatch0_next_pc_i;
-  wire [`XLEN-1:0] dispatch_branch_imm_w =
-      dispatch_branch_from1_w ? dispatch1_imm_i : dispatch0_imm_i;
+  wire [`XLEN-1:0] dispatch_branch_pc_w = dispatch0_pc_i;
+  wire [`XLEN-1:0] dispatch_branch_fallthrough_w = dispatch0_next_pc_i;
+  wire [`XLEN-1:0] dispatch_branch_imm_w = dispatch0_imm_i;
   wire [2:0] dispatch_branch_cmp_op_w =
-      dispatch_branch_from1_w ?
-      dispatch1_ctrl_i[`CTRL_CMP_OP_MSB:`CTRL_CMP_OP_LSB] :
       dispatch0_ctrl_i[`CTRL_CMP_OP_MSB:`CTRL_CMP_OP_LSB];
   wire dispatch_branch_taken_w;
   wire [`XLEN-1:0] dispatch_branch_target_w =
@@ -1254,8 +1154,7 @@ module OooIntBackend #(
                                 dispatch_branch_fallthrough_w;
   wire dispatch_branch_misaligned_w =
       dispatch_branch_taken_w && dispatch_branch_target_w[0];
-  wire [ROB_INDEX_W-1:0] dispatch_branch_rob_idx_w =
-      dispatch_branch_from1_w ? dispatch1_rob_idx_w : dispatch0_rob_idx_w;
+  wire [ROB_INDEX_W-1:0] dispatch_branch_rob_idx_w = dispatch0_rob_idx_w;
 
   localparam FAST_BRANCH_TRACK_ENTRIES = 8;
   localparam FAST_BRANCH_TRACK_INDEX_W = 3;
@@ -1332,60 +1231,12 @@ module OooIntBackend #(
     .cmp_true_o(dispatch_branch_taken_w)
   );
 
-  wire load_branch_fast_rsp0_w =
-      load_branch_fast_wait_load0_w &&
-      mem_rsp_final_fire_w && mem_load_q && !mem_store_q && !mem_amo_q &&
-      !mem_rsp_error_i && !mem_rsp_page_fault_i;
-  wire load_branch_fast_rsp1_w =
-      load_branch_fast_wait_load1_w &&
-      mem1_rsp_fire_w && !mem1_rsp_error_i && !mem1_rsp_page_fault_i;
-  wire load_branch_fast_rsp_w =
-      load_branch_fast_rsp0_w || load_branch_fast_rsp1_w;
-  wire load_branch_fast_pc_match_w =
-      pending_branch_fast_valid_i &&
-      (load_branch_fast_pc_w == pending_branch_fast_pc_i);
-  wire load_branch_fast_src1_rsp0_w =
-      load_branch_fast_rsp0_w &&
-      (load_branch_fast_src1_preg_w == mem_pdest_q);
-  wire load_branch_fast_src2_rsp0_w =
-      load_branch_fast_rsp0_w &&
-      (load_branch_fast_src2_preg_w == mem_pdest_q);
-  wire load_branch_fast_src1_rsp1_w =
-      load_branch_fast_rsp1_w &&
-      (load_branch_fast_src1_preg_w == mem1_pdest_q);
-  wire load_branch_fast_src2_rsp1_w =
-      load_branch_fast_rsp1_w &&
-      (load_branch_fast_src2_preg_w == mem1_pdest_q);
-  wire [`XLEN-1:0] load_branch_fast_src1_value_w =
-      load_branch_fast_src1_rsp0_w ? mem_rsp_load_data_w :
-      load_branch_fast_src1_rsp1_w ? mem1_rsp_load_data_w :
-                                     load_branch_fast_src1_data_w;
-  wire [`XLEN-1:0] load_branch_fast_src2_value_w =
-      load_branch_fast_src2_rsp0_w ? mem_rsp_load_data_w :
-      load_branch_fast_src2_rsp1_w ? mem1_rsp_load_data_w :
-                                     load_branch_fast_src2_data_w;
-  wire load_branch_fast_resolve_w =
-      1'b0;
-  wire [`XLEN-1:0] load_branch_fast_target_w =
-      load_branch_fast_pc_w + load_branch_fast_imm_w;
-  wire load_branch_fast_taken_w;
-  wire [`XLEN-1:0] load_branch_fast_resolve_next_pc_w =
-      load_branch_fast_taken_w ? load_branch_fast_target_w :
-                                 load_branch_fast_next_pc_w;
-  wire load_branch_fast_misaligned_w =
-      load_branch_fast_taken_w && load_branch_fast_target_w[0];
-  wire fast_branch_track_push_w =
-      dispatch_branch_track_push_w || load_branch_fast_resolve_w;
-  wire [ROB_INDEX_W-1:0] fast_branch_track_rob_idx_w =
-      load_branch_fast_resolve_w ? load_branch_fast_rob_idx_w :
-                                   dispatch_branch_rob_idx_w;
-
-  CompareUnit u_load_branch_fast_compare (
-    .lhs_i(load_branch_fast_src1_value_w),
-    .rhs_i(load_branch_fast_src2_value_w),
-    .cmp_op_i(load_branch_fast_cmp_op_w),
-    .cmp_true_o(load_branch_fast_taken_w)
-  );
+  // E7 删除：load-branch-fast 投机解析路径整条死硅。唯一使能 load_branch_fast_resolve_w
+  // 原硬接 1'b0，故 u_load_branch_fast_compare、其 rsp/src-value 转发、target/taken/
+  // resolve_next_pc/misaligned 全无真实读者，连同悬空的 rsp_w/pc_match_w 一并移除。
+  // dispatch backend 输出的 load_branch_fast_* 与 PRF read8/9 数据改由 unused-OR 收口。
+  wire fast_branch_track_push_w = dispatch_branch_track_push_w;
+  wire [ROB_INDEX_W-1:0] fast_branch_track_rob_idx_w = dispatch_branch_rob_idx_w;
 
   wire issue0_mem_request_fire_w =
       issue0_fire_w && issue0_is_mem_w && !issue0_mem_exception_w &&
@@ -1904,18 +1755,32 @@ module OooIntBackend #(
   wire branch_resolve_mispredict_w =
       branch_resolve_pick1_w ? issue1_redirect_w : issue0_redirect_w;
   assign branch_resolve_mispredict_o = branch_resolve_mispredict_w;
-  assign dispatch_branch_resolve_valid_o =
-      dispatch_branch_fast_resolve_w || load_branch_fast_resolve_w;
+  // E7 删除后：load_branch_fast_resolve_w 恒 0，dispatch_branch_resolve_* 只保留 lane0 dispatch 快解析。
+  assign dispatch_branch_resolve_valid_o = dispatch_branch_fast_resolve_w;
   assign dispatch_branch_resolve_pc_o =
-      load_branch_fast_resolve_w ? load_branch_fast_pc_w :
       dispatch_branch_fast_resolve_w ? dispatch_branch_pc_w : {`XLEN{1'b0}};
   assign dispatch_branch_resolve_next_pc_o =
-      load_branch_fast_resolve_w ? load_branch_fast_resolve_next_pc_w :
-      dispatch_branch_fast_resolve_w ? dispatch_branch_next_pc_w :
-                                      {`XLEN{1'b0}};
+      dispatch_branch_fast_resolve_w ? dispatch_branch_next_pc_w : {`XLEN{1'b0}};
   assign dispatch_branch_resolve_misaligned_o =
-      load_branch_fast_resolve_w ? load_branch_fast_misaligned_w :
-      (dispatch_branch_fast_resolve_w && dispatch_branch_misaligned_w);
+      dispatch_branch_fast_resolve_w && dispatch_branch_misaligned_w;
+
+  // E7 删除后：dispatch backend 的 load_branch_fast_* 输出、PRF read8/9 数据、以及
+  // pending_branch_fast_* 输入全部悬空（其消费逻辑随死硅移除），统一 reduction-OR 收口。
+  wire unused_load_branch_fast_w =
+      load_branch_fast_valid_w |
+      (|load_branch_fast_rob_idx_w) |
+      (|load_branch_fast_pc_w) |
+      (|load_branch_fast_next_pc_w) |
+      (|load_branch_fast_imm_w) |
+      (|load_branch_fast_cmp_op_w) |
+      (|load_branch_fast_src1_preg_w) |
+      (|load_branch_fast_src2_preg_w) |
+      load_branch_fast_wait_load0_w |
+      load_branch_fast_wait_load1_w |
+      (|load_branch_fast_src1_data_w) |
+      (|load_branch_fast_src2_data_w) |
+      pending_branch_fast_valid_i |
+      (|pending_branch_fast_pc_i);
 
   wire unused_issue_payload_w =
       (|issue0_inst_w) | (|issue1_inst_w) |
