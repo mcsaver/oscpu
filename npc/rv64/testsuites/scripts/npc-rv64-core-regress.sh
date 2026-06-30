@@ -15,7 +15,9 @@ RISCV_GCC_OPTS=${RISCV_GCC_OPTS:--static -mcmodel=medany -fvisibility=hidden -no
 RISCV_MAX_CYCLES=${RISCV_MAX_CYCLES:-2000000}
 RISCV_LIMIT=${RISCV_LIMIT:-0}
 RISCV_FILTER=${RISCV_FILTER:-}
-RISCV_SUITES_DEFAULT=(rv64ui rv64um rv64uc rv64uzba rv64uzbb rv64uzbc rv64uzbs)
+# RV64GC 全 ISA 默认覆盖：补入 rv64ua(原子/LR-SC)、rv64uf(单精度)、rv64ud(双精度)——
+# 此前默认套件漏掉 A/F/D，致 LR/SC 活锁(known-issues #106)等长期隐形。
+RISCV_SUITES_DEFAULT=(rv64ui rv64um rv64ua rv64uc rv64uf rv64ud rv64uzba rv64uzbb rv64uzbc rv64uzbs)
 RISCV_PRIVILEGED_SUITES=(rv64mi rv64si)
 RISCV_SUITES=("${RISCV_SUITES_DEFAULT[@]}")
 
