@@ -381,6 +381,23 @@ module OooMemAxiBridge (
     .fault_o(walk_leaf_pmp_fault_w)
   );
 
+  // F9：priv-spec 要求 PMP 适用于地址翻译期间对页表的隐式访问。旧实现只检查最终数据 PA
+  // (req/leaf)，每级 PTE 读地址（walk_pte_addr_w）绕过了 PMP——OS 把页表放入对 S 态拒绝
+  // 的 PMP 区时硬件仍能读出 PTE，绕过 M 态隔离。这里对 PTE 读地址补 PMP 检查（8B 读，
+  // 用被翻译访问的特权级 access_priv_q，与 leaf 检查器一致）。
+  wire walk_pte_pmp_fault_w;
+  PmpChecker u_walk_pte_pmp_checker (
+    .paddr_i(walk_pte_addr_w),
+    .access_size_i(4'd8),
+    .priv_mode_i(access_priv_q),
+    .access_read_i(1'b1),
+    .access_write_i(1'b0),
+    .access_exec_i(1'b0),
+    .pmpcfg_i(pmpcfg_i),
+    .pmpaddr_i(pmpaddr_i),
+    .fault_o(walk_pte_pmp_fault_w)
+  );
+
   OooDataWordCache #(
     .INDEX_W(DCACHE_INDEX_W)
   ) u_dcache (
@@ -420,7 +437,8 @@ module OooMemAxiBridge (
 
   assign lsu_axi_arvalid_o =
       !cpu_kill_w &&
-      ((state_q == S_WALK_AR) || (state_q == S_READ_ADDR) ||
+      (((state_q == S_WALK_AR) && !walk_pte_pmp_fault_w) ||
+       (state_q == S_READ_ADDR) ||
        req_read_miss_fire_w);
   assign lsu_axi_araddr_o =
       (state_q == S_WALK_AR) ? walk_pte_addr_w :
@@ -604,7 +622,12 @@ module OooMemAxiBridge (
         end
 
         S_WALK_AR: begin
-          if (lsu_axi_arready_i) begin
+          // F9：PTE 读地址 PMP 违例 → access fault（非 page fault），不发 AR、不读 PTE。
+          if (walk_pte_pmp_fault_w) begin
+            rsp_error_q <= 1'b1;
+            rsp_page_fault_q <= 1'b0;
+            state_q <= S_RESP;
+          end else if (lsu_axi_arready_i) begin
             state_q <= S_WALK_R;
           end
         end

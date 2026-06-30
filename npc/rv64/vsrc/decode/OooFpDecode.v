@@ -150,23 +150,21 @@ module OooFpDecode (
                 fp_sgnj_o || fp_addsub_o || fp_mul_o || fp_fma_o || fp_div_o ||
                 fp_sqrt_o || fp_minmax_o || fp_compare_o ||
                 fp_convert_to_fpr_o || fp_convert_to_gpr_o;
+  // fp_double_o：指令的浮点格式是否为双精度。**必须按 opcode 分别门控**。
+  // 为什么改：旧实现把 (funct3==011) 和裸 (funct7==*_D) 直接 OR，完全不看 opcode，
+  // 制造两类对合法指令的静默错误——
+  //   (1) FLW/FSW 的 inst[31:25] 实为 imm[11:5]，偏移落在 32-63 区时会撞上某个 *_D
+  //       funct7 编码 → 被误判双精度 → FLW 按 FLD 取 8B 不做 NaN-boxing、FSW 按 FSD
+  //       写 8B（wstrb 全 1）静默破坏相邻 4 字节内存；
+  //   (2) OP-FP 单精度算术用静态舍入 RUP(011) 时 funct3==011 命中 FUNCT3_LD → 误判双精度。
+  // 改完效果：load/store 只看 funct3 且门控 LOAD_FP/STORE_FP；OP-FP 与 FMA 的精度一律
+  // 取 fmt 字段 inst[26:25]（00=S,01=D），与所有 *_D funct7 的低 2 位、以及 FCVT.S.D
+  // (fmt=00→单)/FCVT.D.S(fmt=01→双) 的分类完全一致。
   assign fp_double_o =
-      (inst_i[14:12] == `FUNCT3_LD) ||
-      (inst_i[14:12] == `FUNCT3_SD) ||
-      (op_fma_w && (inst_i[26:25] == 2'b01)) ||
-      (inst_i[31:25] == FP_FUNCT7_FMV_X_D) ||
-      (inst_i[31:25] == FP_FUNCT7_FMV_D_X) ||
-      (inst_i[31:25] == FP_FUNCT7_FSGNJ_D) ||
-      (inst_i[31:25] == FP_FUNCT7_FADD_D) ||
-      (inst_i[31:25] == FP_FUNCT7_FSUB_D) ||
-      (inst_i[31:25] == FP_FUNCT7_FMUL_D) ||
-      (inst_i[31:25] == FP_FUNCT7_FDIV_D) ||
-      (inst_i[31:25] == FP_FUNCT7_FSQRT_D) ||
-      (inst_i[31:25] == FP_FUNCT7_FMINMAX_D) ||
-      (inst_i[31:25] == FP_FUNCT7_FCMP_D) ||
-      (inst_i[31:25] == FP_FUNCT7_FCVT_D_S) ||
-      (inst_i[31:25] == FP_FUNCT7_FCVT_D_INT) ||
-      (inst_i[31:25] == FP_FUNCT7_FCVT_INT_D);
+      ((inst_i[6:0] == `OPCODE_LOAD_FP)  && (inst_i[14:12] == `FUNCT3_LD)) ||
+      ((inst_i[6:0] == `OPCODE_STORE_FP) && (inst_i[14:12] == `FUNCT3_SD)) ||
+      (op_fp_w  && (inst_i[26:25] == 2'b01)) ||
+      (op_fma_w && (inst_i[26:25] == 2'b01));
   assign fp_gpr_write_o =
       fp_move_to_gpr_o || fp_class_o || fp_compare_o ||
       fp_convert_to_gpr_o;

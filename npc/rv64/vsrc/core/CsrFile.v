@@ -22,6 +22,7 @@ module CsrFile (
 
   input fp_fflags_valid_i,
   input [4:0] fp_fflags_i,
+  input fp_dirty_i,  // F8：FP 写 FPR 或更新 fcsr 的提交脉冲（置 mstatus.FS=Dirty）
 
   input trap_mem_valid_i,
   input [`XLEN-1:0] trap_mem_pc_i,
@@ -340,8 +341,6 @@ module CsrFile (
         `CSR_PMPADDR0,
         `CSR_MCYCLE,
         `CSR_MINSTRET,
-        `CSR_MCYCLEH,
-        `CSR_MINSTRETH,
         `CSR_TSELECT,
         `CSR_TDATA1,
         `CSR_TDATA2,
@@ -392,8 +391,6 @@ module CsrFile (
         `CSR_PMPADDR0,
         `CSR_MCYCLE,
         `CSR_MINSTRET,
-        `CSR_MCYCLEH,
-        `CSR_MINSTRETH,
         `CSR_TSELECT,
         `CSR_TDATA1,
         `CSR_TDATA2,
@@ -401,9 +398,9 @@ module CsrFile (
         `CSR_CYCLE,
         `CSR_TIME,
         `CSR_INSTRET,
-        `CSR_CYCLEH,
-        `CSR_TIMEH,
-        `CSR_INSTRETH,
+        // RV64 下 cycleh/timeh/instreth/mcycleh/minstreth 不存在（XLEN=64 计数器无高半
+        // 镜像）；访问应触发 illegal-instruction。从 known 列表移除 → 落 default →
+        // csr_illegal_o 拉高，与金标 NEMU(RV64) 一致。
         `CSR_MHARTID: csr_known_r = 1'b1;
         default:      csr_known_r = csr_pmpcfg_known(csr_addr) ||
                                   csr_pmpaddr_known(csr_addr);
@@ -593,8 +590,6 @@ module CsrFile (
       csr_pmpaddr_known_w           ? csr_pmpaddr_rdata_w :
       (csr_addr_i == `CSR_MCYCLE)   ? csr_mcycle_q :
       (csr_addr_i == `CSR_MINSTRET) ? csr_minstret_q :
-      (csr_addr_i == `CSR_MCYCLEH)  ? {{(`XLEN-32){1'b0}}, csr_mcycle_q[63:32]} :
-      (csr_addr_i == `CSR_MINSTRETH) ? {{(`XLEN-32){1'b0}}, csr_minstret_q[63:32]} :
       (csr_addr_i == `CSR_TSELECT)  ? CSR_TSELECT_NO_TRIGGER_VALUE :
       (csr_addr_i == `CSR_TDATA1)   ? {`XLEN{1'b0}} :
       (csr_addr_i == `CSR_TDATA2)   ? {`XLEN{1'b0}} :
@@ -602,9 +597,6 @@ module CsrFile (
       (csr_addr_i == `CSR_CYCLE)    ? csr_mcycle_q :
       (csr_addr_i == `CSR_TIME)     ? time_i :
       (csr_addr_i == `CSR_INSTRET)  ? csr_minstret_q :
-      (csr_addr_i == `CSR_CYCLEH)   ? {{(`XLEN-32){1'b0}}, csr_mcycle_q[63:32]} :
-      (csr_addr_i == `CSR_TIMEH)    ? {{(`XLEN-32){1'b0}}, time_i[63:32]} :
-      (csr_addr_i == `CSR_INSTRETH) ? {{(`XLEN-32){1'b0}}, csr_minstret_q[63:32]} :
       (csr_addr_i == `CSR_MHARTID)  ? {`XLEN{1'b0}} :
                                       {`XLEN{1'b0}};
   assign csr_illegal_o = csr_valid_i && (~csr_known_r ||
@@ -755,9 +747,12 @@ module CsrFile (
             `CSR_SEPC:     csr_sepc_q <= epc_warl_value(csr_new_value_w);
             `CSR_SCAUSE:   csr_scause_q <= csr_new_value_w;
             `CSR_STVAL:    csr_stval_q <= csr_new_value_w;
+            // sip 是 mip 的受限视图：S 态经 sip 只能写 SSIP；STIP/SEIP 在 sip 视图为
+            // 只读（由 M 态/硬件控制）。旧实现用 SUPERVISOR_INT_MASK 放行了 STIP/SEIP 写
+            // → S 态可伪造 S 级 timer/external 中断（WARL 违规）。收紧为仅 SSIP 可写。
             `CSR_SIP:      csr_mip_q <=
-                (csr_mip_q & ~SUPERVISOR_INT_MASK) |
-                (csr_new_value_w & SUPERVISOR_INT_MASK);
+                (csr_mip_q & ~`MIP_SSIP) |
+                (csr_new_value_w & `MIP_SSIP);
             `CSR_SCOUNTEREN: csr_scounteren_q <= csr_new_value_w & `COUNTEREN_MASK;
             `CSR_SATP:     csr_satp_q <= sanitize_satp(csr_new_value_w);
             `CSR_MSTATUS:  csr_mstatus_q <=
@@ -775,17 +770,27 @@ module CsrFile (
             `CSR_MEPC:     csr_mepc_q <= epc_warl_value(csr_new_value_w);
             `CSR_MCAUSE:   csr_mcause_q <= csr_new_value_w;
             `CSR_MTVAL:    csr_mtval_q <= csr_new_value_w;
-            `CSR_MIP:      csr_mip_q <= csr_new_value_w &
-                ~(csr_mip_hw_m_w | csr_mip_hw_s_w);
+            // mip：MSIP/MTIP/MEIP 是只读硬件位（CLINT/PLIC 驱动，经 csr_mip_visible_w
+            // 动态 OR 注入，从不入 csr_mip_q）；M 态经 mip 只能写 S 级软件位
+            // SSIP/STIP/SEIP。旧实现用 ~(当前拉高的硬件位) 当掩码，当硬件中断线为低时
+            // 反而放行 M 态把 MSIP/MTIP/MEIP 写进 csr_mip_q → 可注入伪机器中断（WARL 违规）。
+            `CSR_MIP:      csr_mip_q <=
+                (csr_mip_q & ~SUPERVISOR_INT_MASK) |
+                (csr_new_value_w & SUPERVISOR_INT_MASK);
             `CSR_MCYCLE:   csr_mcycle_q <= csr_new_value_w;
             `CSR_MINSTRET: csr_minstret_q <= csr_new_value_w;
-            `CSR_MCYCLEH:  csr_mcycle_q <= {csr_new_value_w[31:0], csr_mcycle_q[31:0]};
-            `CSR_MINSTRETH: csr_minstret_q <= {csr_new_value_w[31:0], csr_minstret_q[31:0]};
             default: begin end
             endcase
           end
-        end else if (fp_fflags_valid_i) begin
-          csr_fflags_q <= csr_fflags_q | fp_fflags_i;
+        end else if (fp_dirty_i) begin
+          // F8：任意写 FPR 或更新 fcsr 的 FP 指令提交时，必须把 mstatus.FS 置 Dirty，
+          // 否则只读 SD 派生位恒为 0、依赖 FS=Dirty 做惰性保存的 OS 会漏存 FP 上下文。
+          // fp_dirty_i = fflags 提交 | FPR load 写 | FPR 结果写（在 NpcCoreTop 处 OR）；
+          // fp_fflags_valid_i 是其子集，仅它高时累积 fflags。FP 走域B串行，此拍无并发
+          // mret/sret/mstatus CSR 写，故直接覆写 FS 字段安全。
+          if (fp_fflags_valid_i)
+            csr_fflags_q <= csr_fflags_q | fp_fflags_i;
+          csr_mstatus_q <= (csr_mstatus_q & ~`MSTATUS_FS_MASK) | `MSTATUS_FS_DIRTY;
         end
       end
     end

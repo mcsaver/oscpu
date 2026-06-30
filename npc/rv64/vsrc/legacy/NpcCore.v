@@ -648,6 +648,7 @@ module NpcCore (
     .csr_illegal_o(csr_illegal_w),
     .fp_fflags_valid_i(1'b0),
     .fp_fflags_i(5'b00000),
+    .fp_dirty_i(1'b0),
     .trap_mem_valid_i(mem_fault_w && (trap_target_w != {`XLEN{1'b0}})),
     .trap_mem_pc_i(ex_mem_pc_q),
     .trap_mem_cause_i(ex_mem_load_w ? `EXC_LOAD_ACCESS_FAULT : `EXC_STORE_ACCESS_FAULT),

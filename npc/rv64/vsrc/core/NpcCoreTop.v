@@ -418,6 +418,10 @@ module NpcCoreTop (
     .csr_illegal_o(ooo_csr_illegal_w),
     .fp_fflags_valid_i(ooo_pending_fp_fflags_commit_w),
     .fp_fflags_i(ooo_pending_fp_commit_fflags_w),
+    // F8：FP 写 FP 态的脏脉冲 = fflags 提交 | FPR load 写 | FPR 结果写，置 mstatus.FS=Dirty。
+    .fp_dirty_i(ooo_pending_fp_fflags_commit_w |
+                ooo_pending_fp_fpr_load_write_valid_w |
+                ooo_pending_fp_fpr_result_write_valid_w),
     .trap_mem_valid_i(ooo_csr_trap_mem_valid_w),
     .trap_mem_pc_i(ooo_csr_trap_mem_pc_w),
     .trap_mem_cause_i(ooo_csr_trap_mem_cause_w),

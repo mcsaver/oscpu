@@ -401,6 +401,22 @@ module OooFetchAxiBridge (
     .fault_o(walk_leaf_exec1_pmp_fault_w)
   );
 
+  // F9：取指页表 walk 的各级 PTE 读地址也必须受 PMP（priv-spec 隐式页表访问）。PTE 读是
+  // 隐式数据读（非取指），故按 read 检查、8B、用被翻译取指的特权级 req_priv_q。旧实现各级
+  // PTE 读地址绕过 PMP，OS 把页表放入对 S 态拒绝的 PMP 区时硬件仍能读出 PTE。
+  wire walk_pte_pmp_fault_w;
+  PmpChecker u_walk_pte_pmp_checker (
+    .paddr_i(walk_pte_addr_w),
+    .access_size_i(4'd8),
+    .priv_mode_i(req_priv_q),
+    .access_read_i(1'b1),
+    .access_write_i(1'b0),
+    .access_exec_i(1'b0),
+    .pmpcfg_i(pmpcfg_i),
+    .pmpaddr_i(pmpaddr_i),
+    .fault_o(walk_pte_pmp_fault_w)
+  );
+
   // packet cache 使用 PC+satp/priv 做上下文 tag；ITLB 命中只缓存翻译，不绕过取指权限。
   assign fetch_req_ready_o = (state_q == S_IDLE) ||
                              ((state_q == S_RESP) && fetch_rsp_ready_i);
@@ -411,7 +427,7 @@ module OooFetchAxiBridge (
   assign fetch_rsp_resp1_o = resp1_q;
 
   assign ifu_axi_arvalid_o =
-      (state_q == S_WALK_AR) || (state_q == S_AR0) ||
+      ((state_q == S_WALK_AR) && !walk_pte_pmp_fault_w) || (state_q == S_AR0) ||
       (state_q == S_AR1) ||
       fetch_req_direct_miss_fire_w;
   assign ifu_axi_araddr_o =
@@ -515,7 +531,18 @@ module OooFetchAxiBridge (
         end
 
         S_WALK_AR: begin
-          if (ifu_axi_arready_i) begin
+          // F9：PTE 读地址 PMP 违例 → 取指 access fault（非 page fault）。镜像 rresp≠OK 的
+          // 跨页双路处理：second 页 walk 失败只标 resp1 并回去取第一页，否则两槽都 access fault。
+          if (walk_pte_pmp_fault_w) begin
+            if (walk_second_q) begin
+              resp1_q <= RESP_ACCESS_FAULT;
+              state_q <= S_AR0;
+            end else begin
+              resp0_q <= RESP_ACCESS_FAULT;
+              resp1_q <= RESP_ACCESS_FAULT;
+              state_q <= S_RESP;
+            end
+          end else if (ifu_axi_arready_i) begin
             state_q <= S_WALK_R;
           end
         end

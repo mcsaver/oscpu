@@ -14,6 +14,7 @@ module tb_csr_file;
   reg csr_commit;
   reg fp_fflags_valid;
   reg [4:0] fp_fflags;
+  reg fp_dirty;  // F8：FP 写 FPR/fcsr 的脏脉冲（硬件中 fp_fflags_valid ⊆ fp_dirty）
   reg mret_valid;
   reg sret_valid;
   wire [`XLEN-1:0] csr_rdata;
@@ -79,6 +80,8 @@ module tb_csr_file;
     .csr_illegal_o(csr_illegal),
     .fp_fflags_valid_i(fp_fflags_valid),
     .fp_fflags_i(fp_fflags),
+    // 硬件不变量：fp_fflags_commit 是 fp_dirty 的子集，故这里 OR 以维持旧 fflags 测试有效。
+    .fp_dirty_i(fp_fflags_valid | fp_dirty),
     .trap_mem_valid_i(1'b0),
     .trap_mem_pc_i({`XLEN{1'b0}}),
     .trap_mem_cause_i({`TRAP_CAUSE_W{1'b0}}),
@@ -122,6 +125,7 @@ module tb_csr_file;
     csr_commit = 1'b0;
     fp_fflags_valid = 1'b0;
     fp_fflags = 5'b00000;
+    fp_dirty = 1'b0;
     mret_valid = 1'b0;
     sret_valid = 1'b0;
 
@@ -324,6 +328,57 @@ module tb_csr_file;
     tb_check64("mstatus keeps TVM/TSR",
                csr_rdata & (`MSTATUS_TVM | `MSTATUS_TSR),
                `MSTATUS_TVM | `MSTATUS_TSR);
+
+    // ===== F8：FP 写 FP 态置 mstatus.FS=Dirty（用位操作保留 MPP/TVM/TSR）=====
+    drive_csr(`CSR_MSTATUS, 3'b011, 5'd1, `MSTATUS_FS_MASK, 1'b1);   // CSRRC：清 FS
+    `TB_TICK(clk);
+    drive_csr(`CSR_MSTATUS, 3'b010, 5'd1, `MSTATUS_FS_CLEAN, 1'b1);  // CSRRS：FS=Clean
+    `TB_TICK(clk);
+    drive_csr(`CSR_MSTATUS, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("FS preset to Clean (non-Dirty)", csr_rdata & `MSTATUS_FS_MASK, `MSTATUS_FS_CLEAN);
+    tb_check64("SD clear when FS not Dirty", csr_rdata & `MSTATUS_SD, {`XLEN{1'b0}});
+    fp_dirty = 1'b1;
+    `TB_TICK(clk);
+    fp_dirty = 1'b0;
+    drive_csr(`CSR_MSTATUS, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("FP write sets mstatus.FS=Dirty", csr_rdata & `MSTATUS_FS_MASK, `MSTATUS_FS_DIRTY);
+    tb_check64("mstatus.SD derives from FS=Dirty", csr_rdata & `MSTATUS_SD, `MSTATUS_SD);
+
+    // ===== F6：mip 的 MTIP/MSIP/MEIP 只读，M 态写应被忽略（irq 线为低）=====
+    drive_csr(`CSR_MIP, 3'b010, 5'd1, `MIP_MTIP | `MIP_MSIP | `MIP_MEIP, 1'b1);
+    `TB_TICK(clk);
+    drive_csr(`CSR_MIP, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("mip MTIP/MSIP/MEIP read-only (write ignored)",
+               csr_rdata & (`MIP_MTIP | `MIP_MSIP | `MIP_MEIP), {`XLEN{1'b0}});
+    drive_csr(`CSR_MIP, 3'b010, 5'd1, `MIP_STIP, 1'b1);
+    `TB_TICK(clk);
+    drive_csr(`CSR_MIP, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("mip STIP writable from M-mode", csr_rdata & `MIP_STIP, `MIP_STIP);
+
+    // ===== F11：sip 视图仅 SSIP 可写；经 sip 写 STIP 被忽略 =====
+    drive_csr(`CSR_MIP, 3'b011, 5'd1, `MIP_STIP | `MIP_SSIP, 1'b1);  // CSRRC：清 STIP/SSIP
+    `TB_TICK(clk);
+    drive_csr(`CSR_SIP, 3'b010, 5'd1, `MIP_STIP | `MIP_SSIP, 1'b1);  // 经 sip CSRRS 写
+    `TB_TICK(clk);
+    drive_csr(`CSR_MIP, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("sip write of STIP ignored (read-only via sip)", csr_rdata & `MIP_STIP, {`XLEN{1'b0}});
+    tb_check64("sip write of SSIP takes effect", csr_rdata & `MIP_SSIP, `MIP_SSIP);
+
+    // ===== F7：RV64 下 *h 计数器 CSR 非法 =====
+    drive_csr(`CSR_CYCLEH, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check1("RV64 cycleh is illegal", csr_illegal, 1'b1);
+    drive_csr(`CSR_MCYCLEH, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check1("RV64 mcycleh is illegal", csr_illegal, 1'b1);
+    drive_csr(`CSR_INSTRETH, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check1("RV64 instreth is illegal", csr_illegal, 1'b1);
 
     mret_valid = 1'b1;
     `TB_TICK(clk);

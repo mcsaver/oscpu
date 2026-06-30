@@ -405,11 +405,14 @@ module OooRvcDecompressor (
                         `OPCODE_OP_IMM);
             end
             3'b001: begin
+              // C.FLDSP：解压成 `fld f[rd], offset(sp)`。**不得带 rd≠0 守卫**——
+              // RVC 规范只对整数 C.LWSP/C.LDSP 要求 rd≠0（x0 保留），而 f0 是合法
+              // FP 目标。旧实现误抄了整数守卫，使 C.FLDSP f0 被抑制成 inst_o=0 →
+              // 整数 decoder default → 伪非法陷阱，违反 RV64DC 一致性。
               imm = rvc_imm_ldsp(inst[4:2], inst[12], inst[6:5]);
-              if (rd != 5'd0)
-                inst_o =
-                    enc_i(imm[11:0], 5'd2, `FUNCT3_LD, rd,
-                          `OPCODE_LOAD_FP);
+              inst_o =
+                  enc_i(imm[11:0], 5'd2, `FUNCT3_LD, rd,
+                        `OPCODE_LOAD_FP);
             end
             3'b010: begin
               imm = rvc_imm_lwsp(inst[3:2], inst[12], inst[6:4]);

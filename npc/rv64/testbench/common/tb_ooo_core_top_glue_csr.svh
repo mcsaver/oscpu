@@ -65,6 +65,9 @@
     .csr_illegal_o(tb_csr_illegal_w),
     .fp_fflags_valid_i(tb_pending_fp_fflags_commit_w),
     .fp_fflags_i(tb_pending_fp_commit_fflags_w),
+    .fp_dirty_i(tb_pending_fp_fflags_commit_w |
+                tb_pending_fp_fpr_load_write_valid_w |
+                tb_pending_fp_fpr_result_write_valid_w),
     .trap_mem_valid_i(tb_csr_trap_mem_valid_w),
     .trap_mem_pc_i(tb_csr_trap_mem_pc_w),
     .trap_mem_cause_i(tb_csr_trap_mem_cause_w),
