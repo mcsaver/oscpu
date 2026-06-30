@@ -16,7 +16,6 @@ RTL_SCHEDULING_DIR := $(VSRCDIR)/scheduling
 RTL_REGREAD_BYPASS_DIR := $(VSRCDIR)/regread_bypass
 RTL_CONTROL_DIR := $(VSRCDIR)/control
 RTL_BUS_DIR := $(VSRCDIR)/bus
-RTL_PIPELINE_DIR := $(VSRCDIR)/pipeline
 RTL_WRITEBACK_DIR := $(VSRCDIR)/writeback
 RTL_SIM_DIR := $(VSRCDIR)/sim
 
