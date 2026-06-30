@@ -5,6 +5,15 @@
 ## 活跃问题
 <!-- 当前未解决的问题 -->
 
+### [106] `npc/rv64` RV64A LR/SC 重试活锁——SC 先于前序 LR 置 reservation 即短路失败（已修并验证）
+
+- **模块**: NPC / RV64 / OoO 整数后端 / LR-SC reservation / 访存顺序 / riscv-tests rv64ua
+- **现象**: 体检后扩展回归到 `rv64ua` 发现 `rv64ua-p-lrsc` 死循环(commits 跑到 ~29 万不结束,卡在 `lr.w; sc.w; bnez 重试`)。**rv64ua 此前从未在回归套件内**(基线 102/134 只含 rv64ui/uc/um/uf/ud/mi/si),故长期漏网。经 stash 对照确认:**会话起点及 mem1 删除前同样 hang → 预存 bug,非本会话去臃肿/Wave1 回归**。
+- **根因**: `reservation_valid_q` 由前序 LR 的**内存响应**(晚于 LR issue 数拍)才置位;而 SC 的 `issue*_sc_success_w` 在 **issue 当拍组合评估**(`OooIntBackend.v:690`)。失败的 SC(sc_success=0)因 `issue*_is_mem_w=0`(`:694`,`!(is_sc && !sc_success)`)**完全绕过** `issue*_mem_order_ready_w` 的"必须在 ROB 队头才能 fire"约束(`:841`,`!is_mem` 恒真)→ SC 先于前序 LR 完成就以失败短路退休。连续 `lr;sc`(单发或双发)每轮 SC 都在 reservation 置位前失败 → 永不退出重试循环。
+- **修复**: `OooIntBackend.v` 新增 `issue0/1_sc_premature_w`——**只把当前评估为失败的 SC** 阻塞到它成为 ROB 队头且访存空闲(`!mem_pending_q && !mem_buffer_valid_q`),AND 进 `issue0/1_ready_w`。等到队头+mem idle 时前序 LR 已退休并置好 reservation,`sc_success` 重评为真→SC 转正常条件存(is_mem=1 走既有 mem_can_fire);若 reservation 确实无效则照常以失败退休。成功的 SC(premature_w=0)路径与既有 `mem_order_ready` 顺序约束完全不受影响。
+- **验证**: `rv64ua-p-lrsc` 从死循环→TOHOST PASS(6283 commits);全 riscv-tests **134/134**(rv64ui/uc/um/ua/uf/ud + privileged mi/si,含全部 AMO + LR/SC,`--no-diff` overall_rc=0);module TB **98/98**;lint 0 error;Verilator build PASS。
+- **教训**: (1) reservation 这类"由更晚的内存响应建立、却被 issue 当拍组合消费"的状态,必须把消费者(SC)显式排到建立者(LR)完成之后,不能让"看似失败"的早评估短路掉顺序约束。(2) **回归套件必须包含 rv64ua**——LR/SC 是 RV64A 的一部分,缺它会让这类活锁长期隐形。建议 core-regress 默认 `--riscv-suites` 加 rv64ua。
+
 ### [105] `npc/rv64` Wave3 启用真分支预测(拆强制 mispredict)失败——属 B2 前端重构范畴(未修，已回退)
 
 - **模块**: NPC / RV64 / frontend 投机取指 / OooIntBackend mispredict / redirect 仲裁 / difftest

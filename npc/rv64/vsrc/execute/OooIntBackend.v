@@ -868,6 +868,23 @@ module OooIntBackend #(
         !mem_buffer_valid_q && mem_request_slot_open_w &&
         mem_req_ready_i));
 
+  // LR/SC 修复:reservation 由前序 LR 的内存响应(晚于 LR issue 数拍)才置位，而 SC 的
+  // sc_success 在 issue 当拍组合评估。失败的 SC(sc_success=0)因 issue*_is_mem_w=0 完全
+  // 绕过「mem-order-ready=ROB 队头」约束→会先于前序 LR 完成就以失败短路退休，造成
+  // 连续 lr;sc 重试活锁(rv64ua-p-lrsc 死循环)。修法:**只把当前评估为失败的 SC** 阻塞到
+  // 它成为 ROB 队头且访存空闲——此时前序 LR 已退休并置好 reservation，sc_success 会重评为真，
+  // SC 转为正常条件存(is_mem=1 走 mem_can_fire);若 reservation 确实无效则照常以失败退休。
+  // 成功的 SC(sc_success=1，premature_w=0)路径不受影响，仍由既有 mem_order_ready 顺序约束。
+  wire mem_idle_for_sc_w = !mem_pending_q && !mem_buffer_valid_q;
+  wire issue0_sc_premature_w =
+      issue0_is_sc_w && !issue0_sc_success_w &&
+      !((rob_head_valid_w && (issue0_rob_idx_w == rob_head_idx_w)) &&
+        mem_idle_for_sc_w);
+  wire issue1_sc_premature_w =
+      issue1_is_sc_w && !issue1_sc_success_w &&
+      !((rob_head_valid_w && (issue1_rob_idx_w == rob_head_idx_w)) &&
+        mem_idle_for_sc_w);
+
   wire mem_rsp_waiting_for_wb_w =
       mem_rsp_wants_w && !mem_rsp_ready_o;
   wire issue0_is_muldiv_w =
@@ -896,11 +913,13 @@ module OooIntBackend #(
   wire [`XLEN-1:0] clmul_resp_data_w;
 
   assign issue0_ready_w = !flush_i && !issue_block_w &&
+                          !issue0_sc_premature_w &&
                           (!issue0_is_mem_w || issue0_mem_can_fire_w) &&
                           (!issue0_is_muldiv_w || muldiv_req_ready_w) &&
                           (!issue0_is_clmul_w || clmul_req_ready_w);
   assign issue1_ready_w = !flush_i && !issue_block_w &&
                           !mem_rsp_waiting_for_wb_w &&
+                          !issue1_sc_premature_w &&
                           (!issue1_is_mem_w || issue1_mem_can_fire_w) &&
                           (!issue1_is_muldiv_w ||
                            (muldiv_req_ready_w && !issue0_is_muldiv_w)) &&
