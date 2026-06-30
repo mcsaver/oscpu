@@ -5,6 +5,14 @@
 ## 活跃问题
 <!-- 当前未解决的问题 -->
 
+### [107] `npc/rv64` 重新启用 difftest 对 riscv-tests 的逐指令校验——mnstatus 已对齐(部分完成)
+
+- **模块**: NPC / RV64 / CsrFile / difftest / riscv-tests
+- **背景**: 调 #106 时发现 difftest 对**所有** riscv-tests 在启动码 `csrwi mnstatus(0x744),8` 处提前 abort(DUT commit pc 与 NEMU 分歧),致 riscv-tests 长期只能 `--no-diff` 签名自检、无法逐指令对照 NEMU。这是重要验证能力缺口(签名自检会漏掉不影响最终签名的中间值错误)。
+- **已修(mnstatus 对齐)**: DUT 此前把 0x744 当未知 CSR(与 NEMU "合法"分歧)。`define.v` 加 `CSR_MNSTATUS=12'h744`,`CsrFile` csr_known/csr_writable 收入、按 WARL-zero no-op(本核未实现 NMI,无功能副作用)。**效果**:difftest 现可越过启动码,rv64ui-p-add 在 difftest 下从修复前 commit~37 abort → **跑完整个测试体(~506 提交)逐指令对 NEMU 全绿**,仅在退出处停。验证:全默认套件 `--no-diff` 仍 **177/177**(无回归)、tb_csr_file PASS、lint/build PASS。
+- **剩余(完全启用 difftest 的后续)**: (1) **退出 ecall trap 记账 off-by-one**——测试以 `ecall`(a7=93 exit)终止 trap 到 handler@0x80000004;DUT 的 ecall trap 入口不计 commit、NEMU 计,difftest 在退出处差一拍(核行为正确,属 harness 层 trap 记账,需让 difftest 在 exit-ecall/tohost 处停止比较或对齐 trap 步进);(2) **FP 寄存器不在 DiffContext**——rv64uf-p-fadd 在 difftest 下有 GPR 侧 mismatch(FP→GPR/fcsr 路径),根因是 DiffContext 只含 gpr[32]+pc(审计 F3),需扩 fpr[32]+fcsr。
+- **价值**: mnstatus 对齐已实质恢复 difftest 对整数/乘除/压缩测试体的逐指令校验能力。完成剩余两项后,riscv-tests 可全程 difftest,大幅提升正确性置信(尤其对未来 F2/B2 这类难改动)。
+
 ### [106] `npc/rv64` RV64A LR/SC 重试活锁——SC 先于前序 LR 置 reservation 即短路失败（已修并验证）
 
 - **模块**: NPC / RV64 / OoO 整数后端 / LR-SC reservation / 访存顺序 / riscv-tests rv64ua
