@@ -17,12 +17,6 @@ module tb_ooo_fetch_trap_gate;
   wire [`XLEN-1:0] mem_req_wdata;
   wire [`STRB_W-1:0] mem_req_wstrb;
   wire mem_rsp_ready;
-  wire mem1_req_valid;
-  wire mem1_req_write;
-  wire [`XLEN-1:0] mem1_req_addr;
-  wire [`XLEN-1:0] mem1_req_wdata;
-  wire [`STRB_W-1:0] mem1_req_wstrb;
-  wire mem1_rsp_ready;
   wire mem_flush;
   wire commit0_valid;
   wire [`XLEN-1:0] commit0_pc;
@@ -92,17 +86,6 @@ module tb_ooo_fetch_trap_gate;
     .mem_rsp_rdata_i({`XLEN{1'b0}}),
     .mem_rsp_error_i(1'b0),
     .mem_rsp_page_fault_i(1'b0),
-    .mem1_req_valid_o(mem1_req_valid),
-    .mem1_req_ready_i(1'b1),
-    .mem1_req_write_o(mem1_req_write),
-    .mem1_req_addr_o(mem1_req_addr),
-    .mem1_req_wdata_o(mem1_req_wdata),
-    .mem1_req_wstrb_o(mem1_req_wstrb),
-    .mem1_rsp_valid_i(1'b0),
-    .mem1_rsp_ready_o(mem1_rsp_ready),
-    .mem1_rsp_rdata_i({`XLEN{1'b0}}),
-    .mem1_rsp_error_i(1'b0),
-    .mem1_rsp_page_fault_i(1'b0),
     .mem_flush_o(mem_flush),
     .mmu_flush_o(),
     `TB_OOO_CORE_TOP_GLUE_CSR_PORTS

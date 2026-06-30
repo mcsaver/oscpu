@@ -29,18 +29,6 @@ module tb_ooo_core_top_glue;
   wire mem_rsp_ready;
   reg [`XLEN-1:0] mem_rsp_rdata;
   reg mem_rsp_error;
-  wire mem1_req_valid;
-  wire mem1_req_ready;
-  wire mem1_req_write;
-  wire [`XLEN-1:0] mem1_req_addr;
-  wire [`XLEN-1:0] mem1_req_wdata;
-  wire [`STRB_W-1:0] mem1_req_wstrb;
-  reg mem1_rsp_valid;
-  wire mem1_rsp_ready;
-  reg [`XLEN-1:0] mem1_rsp_rdata;
-  reg mem1_rsp_error;
-  wire unused_mem1_write_w =
-      mem1_req_write | (|mem1_req_wdata) | (|mem1_req_wstrb);
 
   wire commit0_valid;
   wire [`XLEN-1:0] commit0_pc;
@@ -157,17 +145,6 @@ module tb_ooo_core_top_glue;
     .mem_rsp_rdata_i(mem_rsp_rdata),
     .mem_rsp_error_i(mem_rsp_error),
     .mem_rsp_page_fault_i(1'b0),
-    .mem1_req_valid_o(mem1_req_valid),
-    .mem1_req_ready_i(mem1_req_ready),
-    .mem1_req_write_o(mem1_req_write),
-    .mem1_req_addr_o(mem1_req_addr),
-    .mem1_req_wdata_o(mem1_req_wdata),
-    .mem1_req_wstrb_o(mem1_req_wstrb),
-    .mem1_rsp_valid_i(mem1_rsp_valid),
-    .mem1_rsp_ready_o(mem1_rsp_ready),
-    .mem1_rsp_rdata_i(mem1_rsp_rdata),
-    .mem1_rsp_error_i(mem1_rsp_error),
-    .mem1_rsp_page_fault_i(1'b0),
     .mem_flush_o(mem_flush),
     .mmu_flush_o(),
     `TB_OOO_CORE_TOP_GLUE_CSR_PORTS
@@ -630,9 +607,6 @@ module tb_ooo_core_top_glue;
       mem_rsp_valid = 1'b0;
       mem_rsp_rdata = {`XLEN{1'b0}};
       mem_rsp_error = 1'b0;
-      mem1_rsp_valid = 1'b0;
-      mem1_rsp_rdata = {`XLEN{1'b0}};
-      mem1_rsp_error = 1'b0;
       data_mem_word = {`XLEN{1'b0}};
       commit_total = 0;
       request_total = 0;
@@ -666,7 +640,6 @@ module tb_ooo_core_top_glue;
 
   assign fetch_req_ready = !fetch_rsp_valid || fetch_rsp_ready;
   assign mem_req_ready = !mem_rsp_valid || mem_rsp_ready;
-  assign mem1_req_ready = !mem1_rsp_valid || mem1_rsp_ready;
 
   always @(posedge clk) begin
     if (rst || flush) begin
@@ -688,25 +661,6 @@ module tb_ooo_core_top_glue;
                            FETCH_RESP_ACCESS_FAULT : 2'b00;
         fetch_rsp_resp1 <= ((fetch_req_pc + 32'd4) == fault_addr) ?
                            FETCH_RESP_ACCESS_FAULT : 2'b00;
-      end
-    end
-  end
-
-  always @(posedge clk) begin
-    if (rst || flush) begin
-      mem1_rsp_valid <= 1'b0;
-      mem1_rsp_rdata <= {`XLEN{1'b0}};
-      mem1_rsp_error <= 1'b0;
-    end else begin
-      if (mem1_rsp_valid && mem1_rsp_ready) begin
-        mem1_rsp_valid <= 1'b0;
-      end
-
-      if (mem1_req_valid && mem1_req_ready) begin
-        mem1_rsp_valid <= 1'b1;
-        mem1_rsp_error <= 1'b0;
-        mem1_rsp_rdata <= (mem1_req_addr == 64'h0000_0000_8000_0040) ?
-                           data_mem_word : {`XLEN{1'b0}};
       end
     end
   end
@@ -792,8 +746,7 @@ module tb_ooo_core_top_glue;
       if (commit0_valid && commit1_valid) begin
         saw_dual_commit <= 1'b1;
       end
-      if (((mem_req_valid && mem_req_ready) ||
-           (mem1_req_valid && mem1_req_ready)) && !dut.stop_pending_q) begin
+      if ((mem_req_valid && mem_req_ready) && !dut.stop_pending_q) begin
         saw_memory_streaming <= 1'b1;
       end
       if (mem_req_valid && mem_req_ready && mem_rsp_valid && mem_rsp_ready) begin

@@ -102,17 +102,6 @@ module NpcCoreTop (
   wire ooo_mem0_rsp_error_w;
   wire ooo_mem0_rsp_page_fault_w;
 
-  wire ooo_mem1_req_valid_w;
-  wire ooo_mem1_req_ready_w;
-  wire ooo_mem1_req_write_w;
-  wire [`XLEN-1:0] ooo_mem1_req_addr_w;
-  wire [`XLEN-1:0] ooo_mem1_req_wdata_w;
-  wire [`STRB_W-1:0] ooo_mem1_req_wstrb_w;
-  wire ooo_mem1_rsp_valid_w;
-  wire ooo_mem1_rsp_ready_w;
-  wire [`XLEN-1:0] ooo_mem1_rsp_rdata_w;
-  wire ooo_mem1_rsp_error_w;
-  wire ooo_mem1_rsp_page_fault_w;
   wire ooo_mem_flush_w;
   wire ooo_mmu_flush_w;
   wire [1:0] ooo_priv_mode_w;
@@ -173,12 +162,10 @@ module NpcCoreTop (
   wire [`REG_ADDR_W-1:0] ooo_pending_fp_fpr_result_write_addr_w;
   wire [`XLEN-1:0] ooo_pending_fp_fpr_result_write_data_w;
 
+  // mem1(双发射 load 第二端口)死硅删除后,icache 失效只由 mem0 store fire 触发。
   wire ooo_icache_invalidate_valid_w =
-      (ooo_mem0_req_valid_w && ooo_mem0_req_ready_w && ooo_mem0_req_write_w) ||
-      (ooo_mem1_req_valid_w && ooo_mem1_req_ready_w && ooo_mem1_req_write_w);
-  wire [`XLEN-1:0] ooo_icache_invalidate_addr_w =
-      (ooo_mem0_req_valid_w && ooo_mem0_req_ready_w && ooo_mem0_req_write_w) ?
-      ooo_mem0_req_addr_w : ooo_mem1_req_addr_w;
+      ooo_mem0_req_valid_w && ooo_mem0_req_ready_w && ooo_mem0_req_write_w;
+  wire [`XLEN-1:0] ooo_icache_invalidate_addr_w = ooo_mem0_req_addr_w;
 
   OooFetchAxiBridge u_ooo_fetch_bridge (
     .clk(clk),
@@ -231,17 +218,6 @@ module NpcCoreTop (
     .mem0_rsp_rdata_o(ooo_mem0_rsp_rdata_w),
     .mem0_rsp_error_o(ooo_mem0_rsp_error_w),
     .mem0_rsp_page_fault_o(ooo_mem0_rsp_page_fault_w),
-    .mem1_req_valid_i(ooo_mem1_req_valid_w),
-    .mem1_req_ready_o(ooo_mem1_req_ready_w),
-    .mem1_req_write_i(ooo_mem1_req_write_w),
-    .mem1_req_addr_i(ooo_mem1_req_addr_w),
-    .mem1_req_wdata_i(ooo_mem1_req_wdata_w),
-    .mem1_req_wstrb_i(ooo_mem1_req_wstrb_w),
-    .mem1_rsp_valid_o(ooo_mem1_rsp_valid_w),
-    .mem1_rsp_ready_i(ooo_mem1_rsp_ready_w),
-    .mem1_rsp_rdata_o(ooo_mem1_rsp_rdata_w),
-    .mem1_rsp_error_o(ooo_mem1_rsp_error_w),
-    .mem1_rsp_page_fault_o(ooo_mem1_rsp_page_fault_w),
     .lsu_axi_arvalid_o(lsu_axi_arvalid_o),
     .lsu_axi_arready_i(lsu_axi_arready_i),
     .lsu_axi_araddr_o(lsu_axi_araddr_o),
@@ -295,17 +271,6 @@ module NpcCoreTop (
     .mem_rsp_rdata_i(ooo_mem0_rsp_rdata_w),
     .mem_rsp_error_i(ooo_mem0_rsp_error_w),
     .mem_rsp_page_fault_i(ooo_mem0_rsp_page_fault_w),
-    .mem1_req_valid_o(ooo_mem1_req_valid_w),
-    .mem1_req_ready_i(ooo_mem1_req_ready_w),
-    .mem1_req_write_o(ooo_mem1_req_write_w),
-    .mem1_req_addr_o(ooo_mem1_req_addr_w),
-    .mem1_req_wdata_o(ooo_mem1_req_wdata_w),
-    .mem1_req_wstrb_o(ooo_mem1_req_wstrb_w),
-    .mem1_rsp_valid_i(ooo_mem1_rsp_valid_w),
-    .mem1_rsp_ready_o(ooo_mem1_rsp_ready_w),
-    .mem1_rsp_rdata_i(ooo_mem1_rsp_rdata_w),
-    .mem1_rsp_error_i(ooo_mem1_rsp_error_w),
-    .mem1_rsp_page_fault_i(ooo_mem1_rsp_page_fault_w),
     .mem_flush_o(ooo_mem_flush_w),
     .mmu_flush_o(ooo_mmu_flush_w),
     .csr_cycle_count_enable_w(ooo_csr_cycle_count_enable_w),

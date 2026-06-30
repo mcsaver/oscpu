@@ -64,17 +64,9 @@ module tb_ooo_alu_core_slice;
   wire [`XLEN-1:0] mem_req_wdata;
   wire [3:0] mem_req_wstrb;
   wire mem_rsp_ready;
-  wire mem1_req_valid;
-  wire mem1_req_write;
-  wire [`XLEN-1:0] mem1_req_addr;
-  wire [`XLEN-1:0] mem1_req_wdata;
-  wire [3:0] mem1_req_wstrb;
-  wire mem1_rsp_ready;
   wire unused_mem_w =
       mem_req_valid | mem_req_write | (|mem_req_addr) |
-      (|mem_req_wdata) | (|mem_req_wstrb) | mem_rsp_ready |
-      mem1_req_valid | mem1_req_write | (|mem1_req_addr) |
-      (|mem1_req_wdata) | (|mem1_req_wstrb) | mem1_rsp_ready;
+      (|mem_req_wdata) | (|mem_req_wstrb) | mem_rsp_ready;
 
   OooAluCoreSlice #(
     .PHY_REG_ADDR_W(PHY_REG_ADDR_W),
@@ -118,17 +110,6 @@ module tb_ooo_alu_core_slice;
     .mem_rsp_rdata_i({`XLEN{1'b0}}),
     .mem_rsp_error_i(1'b0),
     .mem_rsp_page_fault_i(1'b0),
-    .mem1_req_valid_o(mem1_req_valid),
-    .mem1_req_ready_i(1'b1),
-    .mem1_req_write_o(mem1_req_write),
-    .mem1_req_addr_o(mem1_req_addr),
-    .mem1_req_wdata_o(mem1_req_wdata),
-    .mem1_req_wstrb_o(mem1_req_wstrb),
-    .mem1_rsp_valid_i(1'b0),
-    .mem1_rsp_ready_o(mem1_rsp_ready),
-    .mem1_rsp_rdata_i({`XLEN{1'b0}}),
-    .mem1_rsp_error_i(1'b0),
-    .mem1_rsp_page_fault_i(1'b0),
     .commit_ready_i(commit_ready),
     .commit1_block_i(1'b0),
     .commit0_valid_o(commit0_valid),

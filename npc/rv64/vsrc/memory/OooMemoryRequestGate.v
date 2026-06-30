@@ -23,13 +23,6 @@ module OooMemoryRequestGate (
   input [`STRB_W-1:0] core_mem_req_wstrb_i,
   input core_mem_rsp_ready_i,
 
-  input core_mem1_req_valid_i,
-  input core_mem1_req_write_i,
-  input [`XLEN-1:0] core_mem1_req_addr_i,
-  input [`XLEN-1:0] core_mem1_req_wdata_i,
-  input [`STRB_W-1:0] core_mem1_req_wstrb_i,
-  input core_mem1_rsp_ready_i,
-
   input mem_req_ready_i,
   input mem_rsp_valid_i,
 
@@ -43,13 +36,6 @@ module OooMemoryRequestGate (
   output [`XLEN-1:0] mem_req_wdata_o,
   output [`STRB_W-1:0] mem_req_wstrb_o,
   output mem_rsp_ready_o,
-
-  output mem1_req_valid_o,
-  output mem1_req_write_o,
-  output [`XLEN-1:0] mem1_req_addr_o,
-  output [`XLEN-1:0] mem1_req_wdata_o,
-  output [`STRB_W-1:0] mem1_req_wstrb_o,
-  output mem1_rsp_ready_o,
 
   output mem_flush_o,
   output mmu_flush_o
@@ -80,13 +66,6 @@ module OooMemoryRequestGate (
                                   core_mem_req_wstrb_i;
   assign mem_rsp_ready_o =
       pending_fp_mem_pending_i ? 1'b1 : core_mem_rsp_ready_i;
-
-  assign mem1_req_valid_o = core_mem1_req_valid_i;
-  assign mem1_req_write_o = core_mem1_req_write_i;
-  assign mem1_req_addr_o = core_mem1_req_addr_i;
-  assign mem1_req_wdata_o = core_mem1_req_wdata_i;
-  assign mem1_req_wstrb_o = core_mem1_req_wstrb_i;
-  assign mem1_rsp_ready_o = core_mem1_rsp_ready_i;
 
   assign mem_flush_o = core_local_flush_i || checkpoint_mem_flush_i;
   assign mmu_flush_o =

@@ -32,16 +32,6 @@ module tb_ooo_priv_system;
   wire mem_rsp_ready;
   reg [`XLEN-1:0] mem_rsp_rdata;
   reg mem_rsp_error;
-  wire mem1_req_valid;
-  reg mem1_req_ready;
-  wire mem1_req_write;
-  wire [`XLEN-1:0] mem1_req_addr;
-  wire [`XLEN-1:0] mem1_req_wdata;
-  wire [`STRB_W-1:0] mem1_req_wstrb;
-  reg mem1_rsp_valid;
-  wire mem1_rsp_ready;
-  reg [`XLEN-1:0] mem1_rsp_rdata;
-  reg mem1_rsp_error;
 
   wire commit0_valid;
   wire [`XLEN-1:0] commit0_pc;
@@ -136,17 +126,6 @@ module tb_ooo_priv_system;
     .mem_rsp_rdata_i(mem_rsp_rdata),
     .mem_rsp_error_i(mem_rsp_error),
     .mem_rsp_page_fault_i(1'b0),
-    .mem1_req_valid_o(mem1_req_valid),
-    .mem1_req_ready_i(mem1_req_ready),
-    .mem1_req_write_o(mem1_req_write),
-    .mem1_req_addr_o(mem1_req_addr),
-    .mem1_req_wdata_o(mem1_req_wdata),
-    .mem1_req_wstrb_o(mem1_req_wstrb),
-    .mem1_rsp_valid_i(mem1_rsp_valid),
-    .mem1_rsp_ready_o(mem1_rsp_ready),
-    .mem1_rsp_rdata_i(mem1_rsp_rdata),
-    .mem1_rsp_error_i(mem1_rsp_error),
-    .mem1_rsp_page_fault_i(1'b0),
     .mem_flush_o(mem_flush),
     .mmu_flush_o(),
     `TB_OOO_CORE_TOP_GLUE_CSR_PORTS
@@ -469,10 +448,6 @@ module tb_ooo_priv_system;
       mem_rsp_valid = 1'b0;
       mem_rsp_rdata = {`XLEN{1'b0}};
       mem_rsp_error = 1'b0;
-      mem1_req_ready = 1'b1;
-      mem1_rsp_valid = 1'b0;
-      mem1_rsp_rdata = {`XLEN{1'b0}};
-      mem1_rsp_error = 1'b0;
       program_mode = mode_i;
       cycle_count = 0;
       commit_total = 0;
@@ -546,21 +521,12 @@ module tb_ooo_priv_system;
       mem_rsp_valid <= 1'b0;
       mem_rsp_rdata <= {`XLEN{1'b0}};
       mem_rsp_error <= 1'b0;
-      mem1_rsp_valid <= 1'b0;
-      mem1_rsp_rdata <= {`XLEN{1'b0}};
-      mem1_rsp_error <= 1'b0;
     end else begin
       if (mem_rsp_valid && mem_rsp_ready) mem_rsp_valid <= 1'b0;
-      if (mem1_rsp_valid && mem1_rsp_ready) mem1_rsp_valid <= 1'b0;
       if (mem_req_valid && mem_req_ready) begin
         mem_rsp_valid <= 1'b1;
         mem_rsp_rdata <= {`XLEN{1'b0}};
         mem_rsp_error <= 1'b0;
-      end
-      if (mem1_req_valid && mem1_req_ready) begin
-        mem1_rsp_valid <= 1'b1;
-        mem1_rsp_rdata <= {`XLEN{1'b0}};
-        mem1_rsp_error <= 1'b0;
       end
     end
   end
@@ -694,8 +660,7 @@ module tb_ooo_priv_system;
 
   wire unused_observe_w =
       mem_req_write | (|mem_req_addr) | (|mem_req_wdata) |
-      (|mem_req_wstrb) | mem1_req_write | (|mem1_req_addr) |
-      (|mem1_req_wdata) | (|mem1_req_wstrb) |
+      (|mem_req_wstrb) |
       commit0_rd_en | (|commit0_rd_addr) | (|commit0_rd_data) |
       commit0_exception | commit0_write | (|commit0_next_pc) |
       commit1_rd_en | (|commit1_rd_addr) | (|commit1_rd_data) |

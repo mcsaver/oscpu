@@ -5,10 +5,6 @@ module OooBranchTargetCacheControlGate (
   input mem_req_ready_i,
   input mem_req_write_i,
   input [`XLEN-1:0] mem_req_addr_i,
-  input mem1_req_valid_i,
-  input mem1_req_ready_i,
-  input mem1_req_write_i,
-  input [`XLEN-1:0] mem1_req_addr_i,
 
   input core_commit0_valid_i,
   input [`INST_W-1:0] core_commit0_inst_i,
@@ -31,15 +27,12 @@ module OooBranchTargetCacheControlGate (
   output [`XLEN-1:0] branch_target_capture_arm_branch_pc_o
 );
 
+  // mem1(双发射 load 第二端口)死硅删除:lane1 store-fire 恒 0,只保留 lane0。
   wire lane0_store_fire_w =
       mem_req_valid_i && mem_req_ready_i && mem_req_write_i;
-  wire lane1_store_fire_w =
-      mem1_req_valid_i && mem1_req_ready_i && mem1_req_write_i;
 
-  assign branch_target_store_fire_o =
-      lane0_store_fire_w || lane1_store_fire_w;
-  assign branch_target_store_addr_o =
-      lane0_store_fire_w ? mem_req_addr_i : mem1_req_addr_i;
+  assign branch_target_store_fire_o = lane0_store_fire_w;
+  assign branch_target_store_addr_o = mem_req_addr_i;
 
   assign branch_target_cache_invalidate_all_o =
       (core_commit0_valid_i &&

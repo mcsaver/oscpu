@@ -7,10 +7,6 @@ module tb_ooo_branch_target_cache_control_gate;
   reg mem_req_ready;
   reg mem_req_write;
   reg [`XLEN-1:0] mem_req_addr;
-  reg mem1_req_valid;
-  reg mem1_req_ready;
-  reg mem1_req_write;
-  reg [`XLEN-1:0] mem1_req_addr;
 
   reg core_commit0_valid;
   reg [`INST_W-1:0] core_commit0_inst;
@@ -37,10 +33,6 @@ module tb_ooo_branch_target_cache_control_gate;
     .mem_req_ready_i(mem_req_ready),
     .mem_req_write_i(mem_req_write),
     .mem_req_addr_i(mem_req_addr),
-    .mem1_req_valid_i(mem1_req_valid),
-    .mem1_req_ready_i(mem1_req_ready),
-    .mem1_req_write_i(mem1_req_write),
-    .mem1_req_addr_i(mem1_req_addr),
     .core_commit0_valid_i(core_commit0_valid),
     .core_commit0_inst_i(core_commit0_inst),
     .core_commit1_valid_i(core_commit1_valid),
@@ -79,10 +71,6 @@ module tb_ooo_branch_target_cache_control_gate;
       mem_req_ready = 1'b0;
       mem_req_write = 1'b0;
       mem_req_addr = 64'h0000_0000_8000_1000;
-      mem1_req_valid = 1'b0;
-      mem1_req_ready = 1'b0;
-      mem1_req_write = 1'b0;
-      mem1_req_addr = 64'h0000_0000_8000_2000;
       core_commit0_valid = 1'b0;
       core_commit0_inst = 32'h0000_0013;
       core_commit1_valid = 1'b0;
@@ -113,40 +101,24 @@ module tb_ooo_branch_target_cache_control_gate;
     clear_inputs();
     #1;
     tb_check1("idle store fire", branch_target_store_fire, 1'b0);
-    tb_check64("idle store addr falls through lane1",
-               branch_target_store_addr, 64'h0000_0000_8000_2000);
+    // mem1(双发射 load 第二端口)死硅删除后,store addr 恒取 mem0 端口地址。
+    tb_check64("idle store addr from lane0",
+               branch_target_store_addr, 64'h0000_0000_8000_1000);
 
     clear_inputs();
     mem_req_valid = 1'b1;
     mem_req_ready = 1'b1;
     mem_req_write = 1'b1;
     mem_req_addr = 64'h0000_0000_8000_1118;
-    mem1_req_valid = 1'b1;
-    mem1_req_ready = 1'b1;
-    mem1_req_write = 1'b1;
-    mem1_req_addr = 64'h0000_0000_8000_2220;
     #1;
     tb_check1("lane0 store fire", branch_target_store_fire, 1'b1);
     tb_check64("lane0 store addr priority",
                branch_target_store_addr, 64'h0000_0000_8000_1118);
 
     clear_inputs();
-    mem1_req_valid = 1'b1;
-    mem1_req_ready = 1'b1;
-    mem1_req_write = 1'b1;
-    mem1_req_addr = 64'h0000_0000_8000_3330;
-    #1;
-    tb_check1("lane1 store fire", branch_target_store_fire, 1'b1);
-    tb_check64("lane1 store addr",
-               branch_target_store_addr, 64'h0000_0000_8000_3330);
-
-    clear_inputs();
     mem_req_valid = 1'b1;
     mem_req_ready = 1'b1;
     mem_req_write = 1'b0;
-    mem1_req_valid = 1'b1;
-    mem1_req_ready = 1'b0;
-    mem1_req_write = 1'b1;
     #1;
     tb_check1("store handshake requires write and ready",
               branch_target_store_fire, 1'b0);

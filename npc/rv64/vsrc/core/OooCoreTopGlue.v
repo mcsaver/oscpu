@@ -38,17 +38,6 @@ module OooCoreTopGlue #(
   input [`XLEN-1:0] mem_rsp_rdata_i,
   input mem_rsp_error_i,
   input mem_rsp_page_fault_i,
-  output mem1_req_valid_o,
-  input mem1_req_ready_i,
-  output mem1_req_write_o,
-  output [`XLEN-1:0] mem1_req_addr_o,
-  output [`XLEN-1:0] mem1_req_wdata_o,
-  output [`STRB_W-1:0] mem1_req_wstrb_o,
-  input mem1_rsp_valid_i,
-  output mem1_rsp_ready_o,
-  input [`XLEN-1:0] mem1_rsp_rdata_i,
-  input mem1_rsp_error_i,
-  input mem1_rsp_page_fault_i,
   output mem_flush_o,
   output mmu_flush_o,
 
@@ -362,12 +351,6 @@ module OooCoreTopGlue #(
   wire [`XLEN-1:0] core_mem_req_wdata_w;
   wire [`STRB_W-1:0] core_mem_req_wstrb_w;
   wire core_mem_rsp_ready_w;
-  wire core_mem1_req_valid_w;
-  wire core_mem1_req_write_w;
-  wire [`XLEN-1:0] core_mem1_req_addr_w;
-  wire [`XLEN-1:0] core_mem1_req_wdata_w;
-  wire [`STRB_W-1:0] core_mem1_req_wstrb_w;
-  wire core_mem1_rsp_ready_w;
   wire core_branch_resolve_valid_w;
   wire [`XLEN-1:0] core_branch_resolve_pc_w;
   wire [`XLEN-1:0] core_branch_resolve_next_pc_w;
@@ -691,12 +674,6 @@ module OooCoreTopGlue #(
     .core_dispatch_branch_resolve_pc_w(core_dispatch_branch_resolve_pc_w),
     .core_dispatch_branch_resolve_valid_w(core_dispatch_branch_resolve_valid_w),
     .core_local_flush_w(core_local_flush_w),
-    .core_mem1_req_addr_w(core_mem1_req_addr_w),
-    .core_mem1_req_valid_w(core_mem1_req_valid_w),
-    .core_mem1_req_wdata_w(core_mem1_req_wdata_w),
-    .core_mem1_req_write_w(core_mem1_req_write_w),
-    .core_mem1_req_wstrb_w(core_mem1_req_wstrb_w),
-    .core_mem1_rsp_ready_w(core_mem1_rsp_ready_w),
     .core_mem_idle_w(core_mem_idle_w),
     .core_mem_issue_block_w(core_mem_issue_block_w),
     .core_mem_req_addr_w(core_mem_req_addr_w),
@@ -733,11 +710,6 @@ module OooCoreTopGlue #(
     .head_pc1_w(head_pc1_w),
     .head_pc_w(head_pc_w),
     .issue_count_o(issue_count_o),
-    .mem1_req_ready_i(mem1_req_ready_i),
-    .mem1_rsp_error_i(mem1_rsp_error_i),
-    .mem1_rsp_page_fault_i(mem1_rsp_page_fault_i),
-    .mem1_rsp_rdata_i(mem1_rsp_rdata_i),
-    .mem1_rsp_valid_i(mem1_rsp_valid_i),
     .mem_req_ready_i(mem_req_ready_i),
     .mem_rsp_error_i(mem_rsp_error_i),
     .mem_rsp_page_fault_i(mem_rsp_page_fault_i),
@@ -809,12 +781,6 @@ module OooCoreTopGlue #(
     .checkpoint_mem_flush_q(checkpoint_mem_flush_q),
     .clk(clk),
     .core_local_flush_w(core_local_flush_w),
-    .core_mem1_req_addr_w(core_mem1_req_addr_w),
-    .core_mem1_req_valid_w(core_mem1_req_valid_w),
-    .core_mem1_req_wdata_w(core_mem1_req_wdata_w),
-    .core_mem1_req_write_w(core_mem1_req_write_w),
-    .core_mem1_req_wstrb_w(core_mem1_req_wstrb_w),
-    .core_mem1_rsp_ready_w(core_mem1_rsp_ready_w),
     .core_mem_req_addr_w(core_mem_req_addr_w),
     .core_mem_req_valid_w(core_mem_req_valid_w),
     .core_mem_req_wdata_w(core_mem_req_wdata_w),
@@ -827,12 +793,6 @@ module OooCoreTopGlue #(
     .head_inst1_w(head_inst1_w),
     .head_next_pc1_w(head_next_pc1_w),
     .head_pc1_w(head_pc1_w),
-    .mem1_req_addr_o(mem1_req_addr_o),
-    .mem1_req_valid_o(mem1_req_valid_o),
-    .mem1_req_wdata_o(mem1_req_wdata_o),
-    .mem1_req_write_o(mem1_req_write_o),
-    .mem1_req_wstrb_o(mem1_req_wstrb_o),
-    .mem1_rsp_ready_o(mem1_rsp_ready_o),
     .mem_dispatch_fire_w(mem_dispatch_fire_w),
     .mem_flush_o(mem_flush_o),
     .mem_req_addr_o(mem_req_addr_o),
@@ -1337,11 +1297,6 @@ module OooCoreTopGlue #(
     .jalr_prefetch_hit_available_w(jalr_prefetch_hit_available_w),
     .jump_dispatch_fire_w(jump_dispatch_fire_w),
     .jump_dispatch_valid_w(jump_dispatch_valid_w),
-    .mem1_req_addr_o(mem1_req_addr_o),
-    .mem1_req_ready_i(mem1_req_ready_i),
-    .mem1_req_valid_o(mem1_req_valid_o),
-    .mem1_req_write_o(mem1_req_write_o),
-    .mem1_rsp_ready_o(mem1_rsp_ready_o),
     .mem_dispatch_fire_w(mem_dispatch_fire_w),
     .mem_dispatch_valid_w(mem_dispatch_valid_w),
     .mem_req_addr_o(mem_req_addr_o),

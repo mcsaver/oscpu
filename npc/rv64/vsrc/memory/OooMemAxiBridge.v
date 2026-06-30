@@ -25,18 +25,6 @@ module OooMemAxiBridge (
   output mem0_rsp_error_o,
   output mem0_rsp_page_fault_o,
 
-  input mem1_req_valid_i,
-  output mem1_req_ready_o,
-  input mem1_req_write_i,
-  input [`XLEN-1:0] mem1_req_addr_i,
-  input [`XLEN-1:0] mem1_req_wdata_i,
-  input [`STRB_W-1:0] mem1_req_wstrb_i,
-  output mem1_rsp_valid_o,
-  input mem1_rsp_ready_i,
-  output [`XLEN-1:0] mem1_rsp_rdata_o,
-  output mem1_rsp_error_o,
-  output mem1_rsp_page_fault_o,
-
   output lsu_axi_arvalid_o,
   input lsu_axi_arready_i,
   output [`XLEN-1:0] lsu_axi_araddr_o,
@@ -69,7 +57,6 @@ module OooMemAxiBridge (
   localparam DTLB_INDEX_W = 6;
 
   reg [3:0] state_q;
-  reg active_port_q;
   reg write_q;
   reg paging_q;
   reg [1:0] access_priv_q;
@@ -262,22 +249,19 @@ module OooMemAxiBridge (
   wire [1:0] req_priv_w = effective_data_priv(priv_mode_i, mstatus_i);
   wire req_translate_w = sv39_enabled(req_priv_w, satp_i);
   wire mem0_req_fire_w = mem0_req_valid_i && mem0_req_ready_o;
-  wire mem1_req_fire_w = mem1_req_valid_i && mem1_req_ready_o;
   wire aw_fire_w = lsu_axi_awvalid_o && lsu_axi_awready_i;
   wire w_fire_w = lsu_axi_wvalid_o && lsu_axi_wready_i;
-  wire rsp_ready_w = (active_port_q == 1'b0) ? mem0_rsp_ready_i : mem1_rsp_ready_i;
+  // mem1(双发射 load 第二端口)死硅删除后,单 outstanding 桥只服务 mem0:
+  // 响应就绪/请求选择都直取 mem0,active_port 归属随之消失。
+  wire rsp_ready_w = mem0_rsp_ready_i;
   wire cpu_kill_w = flush_i || drop_rsp_q;
   wire req_slot_ready_w = !cpu_kill_w &&
                           ((state_q == S_IDLE) ||
                            ((state_q == S_RESP) && rsp_ready_w));
-  wire req_select_mem1_w = !mem0_req_valid_i && mem1_req_valid_i;
-  wire req_write_w = req_select_mem1_w ? mem1_req_write_i : mem0_req_write_i;
-  wire [`XLEN-1:0] req_addr_w =
-      req_select_mem1_w ? mem1_req_addr_i : mem0_req_addr_i;
-  wire [`XLEN-1:0] req_wdata_w =
-      req_select_mem1_w ? mem1_req_wdata_i : mem0_req_wdata_i;
-  wire [`STRB_W-1:0] req_wstrb_w =
-      req_select_mem1_w ? mem1_req_wstrb_i : mem0_req_wstrb_i;
+  wire req_write_w = mem0_req_write_i;
+  wire [`XLEN-1:0] req_addr_w = mem0_req_addr_i;
+  wire [`XLEN-1:0] req_wdata_w = mem0_req_wdata_i;
+  wire [`STRB_W-1:0] req_wstrb_w = mem0_req_wstrb_i;
   wire [3:0] req_access_size_w = access_size_from_wstrb(req_wstrb_w);
   wire [3:0] active_access_size_w = access_size_from_wstrb(wstrb_q);
   wire req_dtlb_context_hit_w;
@@ -301,7 +285,7 @@ module OooMemAxiBridge (
   wire req_dcache_hit_w =
       (!req_translate_w || req_dtlb_hit_w) && req_dcache_hit_raw_w;
   wire req_read_miss_fire_w =
-      (mem0_req_fire_w || mem1_req_fire_w) && !req_write_w &&
+      mem0_req_fire_w && !req_write_w &&
       (!req_translate_w || req_dtlb_hit_w) && !req_data_pmp_fault_w &&
       !req_dcache_hit_w;
   wire [`XLEN-1:0] walk_pte_addr_w =
@@ -422,18 +406,12 @@ module OooMemAxiBridge (
   );
 
   assign mem0_req_ready_o = req_slot_ready_w;
-  assign mem1_req_ready_o = req_slot_ready_w && !mem0_req_valid_i;
 
   assign mem0_rsp_valid_o =
-      (state_q == S_RESP) && !cpu_kill_w && (active_port_q == 1'b0);
-  assign mem1_rsp_valid_o =
-      (state_q == S_RESP) && !cpu_kill_w && (active_port_q == 1'b1);
+      (state_q == S_RESP) && !cpu_kill_w;
   assign mem0_rsp_rdata_o = rsp_rdata_q;
-  assign mem1_rsp_rdata_o = rsp_rdata_q;
   assign mem0_rsp_error_o = rsp_error_q;
-  assign mem1_rsp_error_o = rsp_error_q;
   assign mem0_rsp_page_fault_o = rsp_page_fault_q;
-  assign mem1_rsp_page_fault_o = rsp_page_fault_q;
 
   assign lsu_axi_arvalid_o =
       !cpu_kill_w &&
@@ -465,9 +443,7 @@ module OooMemAxiBridge (
       ((paddr_q & `NPC_AXI_PMEM_MASK) == `NPC_AXI_PMEM_BASE) && !bpend_q;
 
   task automatic accept_request;
-    input port1;
     begin
-      active_port_q <= port1;
       write_q <= req_write_w;
       paging_q <= req_translate_w;
       access_priv_q <= req_priv_w;
@@ -513,7 +489,6 @@ module OooMemAxiBridge (
   always @(posedge clk) begin
     if (rst) begin
       state_q <= S_IDLE;
-      active_port_q <= 1'b0;
       write_q <= 1'b0;
       paging_q <= 1'b0;
       access_priv_q <= `PRIV_M;
@@ -615,9 +590,7 @@ module OooMemAxiBridge (
           w_done_q <= 1'b0;
           drop_rsp_q <= 1'b0;
           if (mem0_req_fire_w) begin
-            accept_request(1'b0);
-          end else if (mem1_req_fire_w) begin
-            accept_request(1'b1);
+            accept_request();
           end
         end
 
@@ -729,9 +702,7 @@ module OooMemAxiBridge (
             aw_done_q <= 1'b0;
             w_done_q <= 1'b0;
             if (mem0_req_fire_w) begin
-              accept_request(1'b0);
-            end else if (mem1_req_fire_w) begin
-              accept_request(1'b1);
+              accept_request();
             end else begin
               state_q <= S_IDLE;
             end

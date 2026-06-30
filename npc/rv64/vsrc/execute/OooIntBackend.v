@@ -57,17 +57,6 @@ module OooIntBackend #(
   input [`XLEN-1:0] mem_rsp_rdata_i,
   input mem_rsp_error_i,
   input mem_rsp_page_fault_i,
-  output mem1_req_valid_o,
-  input mem1_req_ready_i,
-  output mem1_req_write_o,
-  output [`XLEN-1:0] mem1_req_addr_o,
-  output [`XLEN-1:0] mem1_req_wdata_o,
-  output [`STRB_W-1:0] mem1_req_wstrb_o,
-  input mem1_rsp_valid_i,
-  output mem1_rsp_ready_o,
-  input [`XLEN-1:0] mem1_rsp_rdata_i,
-  input mem1_rsp_error_i,
-  input mem1_rsp_page_fault_i,
 
   input commit_ready_i,
   input commit1_block_i,
@@ -735,29 +724,20 @@ module OooIntBackend #(
   reg mem_buffer_unsigned_q;
   reg [`XLEN-1:0] mem_buffer_wdata_q;
   reg [`STRB_W-1:0] mem_buffer_wstrb_q;
-  reg mem1_pending_q;
-  reg [ROB_INDEX_W-1:0] mem1_rob_idx_q;
-  reg [PHY_REG_ADDR_W-1:0] mem1_pdest_q;
-  reg [`XLEN-1:0] mem1_eff_addr_q;
-  reg [1:0] mem1_size_q;
-  reg mem1_unsigned_q;
 
   assign pending_load0_valid_w =
       mem_pending_q && mem_load_q && !mem_store_q && !mem_amo_q;
   assign pending_load0_pdest_w = mem_pdest_q;
-  assign pending_load1_valid_w = mem1_pending_q;
-  assign pending_load1_pdest_w = mem1_pdest_q;
+  // mem1(双发射 load 第二端口)死硅删除:第二 load 永不 pending,issue-queue 二次
+  // 唤醒口(pending_load1_*)恒为空——接常量 0(保留下游端口,与原行为等价)。
+  assign pending_load1_valid_w = 1'b0;
+  assign pending_load1_pdest_w = {PHY_REG_ADDR_W{1'b0}};
 
   wire [`XLEN-1:0] mem_rsp_addr_unused_w;
   wire [`XLEN-1:0] mem_rsp_wdata_unused_w;
   wire [`STRB_W-1:0] mem_rsp_wstrb_unused_w;
   wire [`XLEN-1:0] mem_rsp_load_data_w;
   wire mem_rsp_misaligned_unused_w;
-  wire [`XLEN-1:0] mem1_rsp_addr_unused_w;
-  wire [`XLEN-1:0] mem1_rsp_wdata_unused_w;
-  wire [`STRB_W-1:0] mem1_rsp_wstrb_unused_w;
-  wire [`XLEN-1:0] mem1_rsp_load_data_w;
-  wire mem1_rsp_misaligned_unused_w;
   wire [`XLEN-1:0] mem_amo_write_addr_unused_w;
   wire [`XLEN-1:0] mem_amo_write_wdata_w;
   wire [`STRB_W-1:0] mem_amo_write_wstrb_w;
@@ -777,19 +757,6 @@ module OooIntBackend #(
     .mem_wstrb_o(mem_rsp_wstrb_unused_w),
     .load_data_o(mem_rsp_load_data_w),
     .misaligned_o(mem_rsp_misaligned_unused_w)
-  );
-
-  LSU u_mem1_rsp_lsu (
-    .eff_addr_i(mem1_eff_addr_q),
-    .store_data_i({`XLEN{1'b0}}),
-    .mem_size_i(mem1_size_q),
-    .mem_unsigned_i(mem1_unsigned_q),
-    .mem_rdata_i(mem1_rsp_rdata_i),
-    .mem_addr_o(mem1_rsp_addr_unused_w),
-    .mem_wdata_o(mem1_rsp_wdata_unused_w),
-    .mem_wstrb_o(mem1_rsp_wstrb_unused_w),
-    .load_data_o(mem1_rsp_load_data_w),
-    .misaligned_o(mem1_rsp_misaligned_unused_w)
   );
 
   // AMO 旧值规整与结果计算下沉到 OooAmoGate。
@@ -820,19 +787,13 @@ module OooIntBackend #(
   wire issue_block_w =
       checkpoint_capture_i || checkpoint_quiesce_i;
   wire mem_rsp_wants_w = mem_pending_q && mem_rsp_valid_i && !flush_i;
-  wire mem1_rsp_wants_w = mem1_pending_q && mem1_rsp_valid_i && !flush_i;
   assign mem_idle_o =
-      !mem_pending_q && !mem1_pending_q && !mem_buffer_valid_q &&
-      !mem_rsp_wants_w && !mem1_rsp_wants_w;
+      !mem_pending_q && !mem_buffer_valid_q && !mem_rsp_wants_w;
   wire [1:0] wb_free_count_w =
       {1'b0, !ex0_valid_q} + {1'b0, !ex1_valid_q};
   assign mem_rsp_ready_o = mem_rsp_wants_w &&
                            (wb_free_count_w != 2'b00);
-  assign mem1_rsp_ready_o =
-      mem1_rsp_wants_w &&
-      (wb_free_count_w > {1'b0, mem_rsp_wants_w});
   wire mem_rsp_fire_w = mem_rsp_valid_i && mem_rsp_ready_o;
-  wire mem1_rsp_fire_w = mem1_rsp_valid_i && mem1_rsp_ready_o;
   // AMO#2: 读阶段若 fault(error/page_fault),不得进入写阶段(否则病态 PMP W&!R 下会静默错写 +
   // rd 垃圾 + 无异常)。fault 时 mem_amo_read_rsp_w=0 → 走 mem_rsp_final_fire_w 经 mem_rsp_wb_cause_w
   // 报 LOAD fault(对齐 NEMU "AMO 先 Mr→Load fault"),且不写内存。常态(无 fault)行为不变。
@@ -842,16 +803,6 @@ module OooIntBackend #(
       !mem_rsp_error_i && !mem_rsp_page_fault_i;
   wire mem_rsp_final_fire_w = mem_rsp_fire_w && !mem_amo_read_rsp_w;
   wire mem_request_slot_open_w = !mem_pending_q || mem_rsp_final_fire_w;
-  wire mem1_request_slot_open_w = !mem1_pending_q || mem1_rsp_fire_w;
-  wire issue1_dual_load_port1_candidate_w =
-      issue0_is_load_w && !issue0_is_amo_w && !issue0_mem_exception_w &&
-      issue1_is_load_w && !issue1_is_amo_w && !issue1_mem_exception_w &&
-      issue0_mem_order_ready_w && issue1_mem_order_ready_w;
-  wire issue1_dual_load_port1_ready_w =
-      issue1_dual_load_port1_candidate_w &&
-      !mem_buffer_valid_q &&
-      mem_request_slot_open_w && mem_req_ready_i &&
-      mem1_request_slot_open_w && mem1_req_ready_i;
   function [ROB_INDEX_W:0] rob_distance_from_head;
     input [ROB_INDEX_W-1:0] idx;
     input [ROB_INDEX_W-1:0] head;
@@ -910,16 +861,15 @@ module OooIntBackend #(
       issue1_is_mem_w &&
       !mem_issue_block_w &&
       issue1_mem_order_ready_w &&
+      // mem1(双发射 load 第二端口)死硅删除:issue1 访存只能走主端口 mem0
+      // (仅当 issue0 非访存时),原 dual-load-port1 分支恒不命中,已化简移除。
       (issue1_mem_exception_w ||
-       (issue1_dual_load_port1_candidate_w ?
-        issue1_dual_load_port1_ready_w :
-        ((!issue0_is_mem_w || issue0_mem_exception_w) &&
+       ((!issue0_is_mem_w || issue0_mem_exception_w) &&
         !mem_buffer_valid_q && mem_request_slot_open_w &&
-         mem_req_ready_i)));
+        mem_req_ready_i));
 
   wire mem_rsp_waiting_for_wb_w =
-      (mem_rsp_wants_w && !mem_rsp_ready_o) ||
-      (mem1_rsp_wants_w && !mem1_rsp_ready_o);
+      mem_rsp_wants_w && !mem_rsp_ready_o;
   wire issue0_is_muldiv_w =
       issue0_valid_w && issue0_ctrl_w[`CTRL_MULDIV_BIT];
   wire issue1_is_muldiv_w =
@@ -1256,9 +1206,6 @@ module OooIntBackend #(
       issue1_fire_w && issue1_is_mem_w && !issue1_mem_exception_w &&
       !issue0_is_mem_w && mem_request_slot_open_w && mem_req_ready_i &&
       !mem_buffer_valid_q;
-  wire issue1_mem1_request_fire_w =
-      issue1_fire_w && issue1_is_load_w && !issue1_mem_exception_w &&
-      issue1_dual_load_port1_ready_w;
   wire issue1_mem_buffer_fire_w =
       1'b0;
   wire issue1_mem_req_valid_w =
@@ -1266,10 +1213,6 @@ module OooIntBackend #(
       !issue0_is_mem_w && mem_request_slot_open_w && !mem_buffer_valid_q &&
       !flush_i && !issue_block_w && !mem_issue_block_w &&
       issue1_mem_order_ready_w;
-  wire issue1_mem1_req_valid_w =
-      issue1_valid_w && issue1_is_load_w && !issue1_mem_exception_w &&
-      issue1_dual_load_port1_ready_w &&
-      !flush_i && !issue_block_w && !mem_issue_block_w;
   wire issue0_mem_req_write_w =
       issue0_is_store_w && (!issue0_is_amo_w || issue0_is_sc_w);
   wire issue1_mem_req_write_w =
@@ -1298,11 +1241,6 @@ module OooIntBackend #(
                            mem_buffer_req_valid_w ? mem_buffer_wstrb_q :
                            issue0_mem_req_valid_w ? issue0_mem_wstrb_w :
                                                     issue1_mem_wstrb_w;
-  assign mem1_req_valid_o = issue1_mem1_req_valid_w;
-  assign mem1_req_write_o = 1'b0;
-  assign mem1_req_addr_o = issue1_mem_addr_w;
-  assign mem1_req_wdata_o = {`XLEN{1'b0}};
-  assign mem1_req_wstrb_o = {`STRB_W{1'b0}};
   reg ex0_valid_q;
   reg [ROB_INDEX_W-1:0] ex0_rob_idx_q;
   reg [PHY_REG_ADDR_W-1:0] ex0_pdest_q;
@@ -1348,12 +1286,6 @@ module OooIntBackend #(
       mem_buffer_unsigned_q <= 1'b0;
       mem_buffer_wdata_q <= {`XLEN{1'b0}};
       mem_buffer_wstrb_q <= {`STRB_W{1'b0}};
-      mem1_pending_q <= 1'b0;
-      mem1_rob_idx_q <= {ROB_INDEX_W{1'b0}};
-      mem1_pdest_q <= {PHY_REG_ADDR_W{1'b0}};
-      mem1_eff_addr_q <= {`XLEN{1'b0}};
-      mem1_size_q <= 2'b00;
-      mem1_unsigned_q <= 1'b0;
       reservation_valid_q <= 1'b0;
       reservation_addr_q <= {`XLEN{1'b0}};
       ex0_valid_q <= 1'b0;
@@ -1425,14 +1357,6 @@ module OooIntBackend #(
         mem_amo_old_value_q <= {`XLEN{1'b0}};
         mem_amo_write_data_q <= {`XLEN{1'b0}};
         mem_amo_write_wstrb_q <= {`STRB_W{1'b0}};
-      end
-      if (mem1_rsp_fire_w) begin
-        mem1_pending_q <= 1'b0;
-        mem1_rob_idx_q <= {ROB_INDEX_W{1'b0}};
-        mem1_pdest_q <= {PHY_REG_ADDR_W{1'b0}};
-        mem1_eff_addr_q <= {`XLEN{1'b0}};
-        mem1_size_q <= 2'b00;
-        mem1_unsigned_q <= 1'b0;
       end
       if (mem_buffer_req_fire_w) begin
         if (mem_buffer_store_q) begin
@@ -1509,14 +1433,6 @@ module OooIntBackend #(
                             `MEM_SIZE_DWORD));
         mem_amo_inst_q <= issue1_inst_w;
         mem_amo_src2_q <= issue1_src2_value_w;
-      end
-      if (issue1_mem1_request_fire_w) begin
-        mem1_pending_q <= 1'b1;
-        mem1_rob_idx_q <= issue1_rob_idx_w;
-        mem1_pdest_q <= issue1_pdest_w;
-        mem1_eff_addr_q <= issue1_alu_result_w;
-        mem1_size_q <= issue1_ctrl_w[`CTRL_MEM_SIZE_MSB:`CTRL_MEM_SIZE_LSB];
-        mem1_unsigned_q <= issue1_ctrl_w[`CTRL_MEM_UNSIGNED_BIT];
       end
       if (mem_buffer_req_fire_w) begin
         mem_pending_q <= 1'b1;
@@ -1629,21 +1545,18 @@ module OooIntBackend #(
 
   wire mem_rsp_to_wb0_w = mem_rsp_final_fire_w && !ex0_valid_q;
   wire mem_rsp_to_wb1_w = mem_rsp_final_fire_w && !mem_rsp_to_wb0_w;
-  wire mem1_rsp_to_wb0_w =
-      mem1_rsp_fire_w && !ex0_valid_q && !mem_rsp_to_wb0_w;
-  wire mem1_rsp_to_wb1_w = mem1_rsp_fire_w && !mem1_rsp_to_wb0_w;
+  // mem1(双发射 load 第二端口)死硅删除:第二 load 响应通道(mem1_rsp_to_wb*)整条移除。
   wire muldiv_rsp_to_wb0_w =
-      muldiv_resp_valid_w && !ex0_valid_q && !mem_rsp_to_wb0_w &&
-      !mem1_rsp_to_wb0_w;
+      muldiv_resp_valid_w && !ex0_valid_q && !mem_rsp_to_wb0_w;
   wire muldiv_rsp_to_wb1_w =
       muldiv_resp_valid_w && !muldiv_rsp_to_wb0_w && !ex1_valid_q &&
-      !mem_rsp_to_wb1_w && !mem1_rsp_to_wb1_w;
+      !mem_rsp_to_wb1_w;
   wire clmul_rsp_to_wb0_w =
       clmul_resp_valid_w && !ex0_valid_q && !mem_rsp_to_wb0_w &&
-      !mem1_rsp_to_wb0_w && !muldiv_rsp_to_wb0_w;
+      !muldiv_rsp_to_wb0_w;
   wire clmul_rsp_to_wb1_w =
       clmul_resp_valid_w && !clmul_rsp_to_wb0_w && !ex1_valid_q &&
-      !mem_rsp_to_wb1_w && !mem1_rsp_to_wb1_w && !muldiv_rsp_to_wb1_w;
+      !mem_rsp_to_wb1_w && !muldiv_rsp_to_wb1_w;
   wire [`XLEN-1:0] mem_rsp_wb_data_w =
       mem_amo_q ? (mem_amo_sc_q ? {`XLEN{1'b0}} :
                    (mem_amo_write_phase_q ? mem_amo_old_value_q :
@@ -1655,74 +1568,57 @@ module OooIntBackend #(
        `EXC_STORE_PAGE_FAULT : `EXC_LOAD_PAGE_FAULT) :
       ((mem_store_q || (mem_amo_q && (mem_amo_sc_q || mem_amo_write_phase_q))) ?
        `EXC_STORE_ACCESS_FAULT : `EXC_LOAD_ACCESS_FAULT);
-  wire [`XLEN-1:0] mem1_rsp_wb_data_w = mem1_rsp_load_data_w;
 
   assign muldiv_resp_ready_w = muldiv_rsp_to_wb0_w || muldiv_rsp_to_wb1_w;
   assign clmul_resp_ready_w = clmul_rsp_to_wb0_w || clmul_rsp_to_wb1_w;
 
   assign wb0_valid_w =
-      ex0_valid_q || mem_rsp_to_wb0_w || mem1_rsp_to_wb0_w ||
+      ex0_valid_q || mem_rsp_to_wb0_w ||
       muldiv_rsp_to_wb0_w || clmul_rsp_to_wb0_w;
   assign wb0_rob_idx_w = ex0_valid_q ? ex0_rob_idx_q :
                          mem_rsp_to_wb0_w ? mem_rob_idx_q :
-                         mem1_rsp_to_wb0_w ? mem1_rob_idx_q :
                          muldiv_rsp_to_wb0_w ? muldiv_resp_rob_idx_w :
                                                clmul_resp_rob_idx_w;
   assign wb0_pdest_w = ex0_valid_q ? ex0_pdest_q :
                        mem_rsp_to_wb0_w ? mem_pdest_q :
-                       mem1_rsp_to_wb0_w ? mem1_pdest_q :
                        muldiv_rsp_to_wb0_w ? muldiv_resp_pdest_w :
                                              clmul_resp_pdest_w;
   assign wb0_data_w = ex0_valid_q ? ex0_result_q :
                       mem_rsp_to_wb0_w ? mem_rsp_wb_data_w :
-                      mem1_rsp_to_wb0_w ? mem1_rsp_wb_data_w :
                       muldiv_rsp_to_wb0_w ? muldiv_resp_data_w :
                                             clmul_resp_data_w;
   assign wb0_exception_w = ex0_valid_q ? ex0_exception_q :
                            mem_rsp_to_wb0_w ? mem_rsp_error_i :
-                           mem1_rsp_to_wb0_w ? mem1_rsp_error_i :
                                                1'b0;
   assign wb0_cause_w = ex0_valid_q ? ex0_cause_q :
                        mem_rsp_to_wb0_w ? mem_rsp_wb_cause_w :
-                       mem1_rsp_to_wb0_w ? (mem1_rsp_page_fault_i ?
-                                            `EXC_LOAD_PAGE_FAULT :
-                                            `EXC_LOAD_ACCESS_FAULT) :
                                            {`TRAP_CAUSE_W{1'b0}};
   assign wb0_tval_w = ex0_valid_q ? ex0_tval_q :
                       mem_rsp_to_wb0_w ? mem_eff_addr_q :
-                      mem1_rsp_to_wb0_w ? mem1_eff_addr_q :
                                           {`XLEN{1'b0}};
   assign wb1_valid_w =
-      ex1_valid_q || mem_rsp_to_wb1_w || mem1_rsp_to_wb1_w ||
+      ex1_valid_q || mem_rsp_to_wb1_w ||
       muldiv_rsp_to_wb1_w || clmul_rsp_to_wb1_w;
   assign wb1_rob_idx_w = ex1_valid_q ? ex1_rob_idx_q :
                          mem_rsp_to_wb1_w ? mem_rob_idx_q :
-                         mem1_rsp_to_wb1_w ? mem1_rob_idx_q :
                          muldiv_rsp_to_wb1_w ? muldiv_resp_rob_idx_w :
                                                clmul_resp_rob_idx_w;
   assign wb1_pdest_w = ex1_valid_q ? ex1_pdest_q :
                        mem_rsp_to_wb1_w ? mem_pdest_q :
-                       mem1_rsp_to_wb1_w ? mem1_pdest_q :
                        muldiv_rsp_to_wb1_w ? muldiv_resp_pdest_w :
                                              clmul_resp_pdest_w;
   assign wb1_data_w = ex1_valid_q ? ex1_result_q :
                       mem_rsp_to_wb1_w ? mem_rsp_wb_data_w :
-                      mem1_rsp_to_wb1_w ? mem1_rsp_wb_data_w :
                       muldiv_rsp_to_wb1_w ? muldiv_resp_data_w :
                                             clmul_resp_data_w;
   assign wb1_exception_w = ex1_valid_q ? ex1_exception_q :
                            mem_rsp_to_wb1_w ? mem_rsp_error_i :
-                           mem1_rsp_to_wb1_w ? mem1_rsp_error_i :
                                                1'b0;
   assign wb1_cause_w = ex1_valid_q ? ex1_cause_q :
                        mem_rsp_to_wb1_w ? mem_rsp_wb_cause_w :
-                       mem1_rsp_to_wb1_w ? (mem1_rsp_page_fault_i ?
-                                            `EXC_LOAD_PAGE_FAULT :
-                                            `EXC_LOAD_ACCESS_FAULT) :
                                            {`TRAP_CAUSE_W{1'b0}};
   assign wb1_tval_w = ex1_valid_q ? ex1_tval_q :
                       mem_rsp_to_wb1_w ? mem_eff_addr_q :
-                      mem1_rsp_to_wb1_w ? mem1_eff_addr_q :
                                           {`XLEN{1'b0}};
 
   assign execute0_valid_o = wb0_valid_w;
@@ -1785,11 +1681,9 @@ module OooIntBackend #(
   wire unused_issue_payload_w =
       (|issue0_inst_w) | (|issue1_inst_w) |
       (|issue0_mem_load_unused_w) | (|issue1_mem_load_unused_w) |
-      mem_store_q | mem_rsp_to_wb0_w | mem1_rsp_to_wb0_w |
+      mem_store_q | mem_rsp_to_wb0_w |
       (|mem_rsp_addr_unused_w) | (|mem_rsp_wdata_unused_w) |
-      (|mem_rsp_wstrb_unused_w) | mem_rsp_misaligned_unused_w |
-      (|mem1_rsp_addr_unused_w) | (|mem1_rsp_wdata_unused_w) |
-      (|mem1_rsp_wstrb_unused_w) | mem1_rsp_misaligned_unused_w;
+      (|mem_rsp_wstrb_unused_w) | mem_rsp_misaligned_unused_w;
 
 `ifdef ROB_WALK_DEBUG
   always @(posedge clk) begin

@@ -16,7 +16,6 @@ module tb_ooo_branch_resolve_recovery_gate;
   reg execute0_valid;
   reg execute1_valid;
   reg mem_rsp_ready;
-  reg mem1_rsp_ready;
   reg branch_spec_checkpoint_pending;
   reg branch_spec_active;
   reg [`XLEN-1:0] branch_spec_pred_pc;
@@ -57,7 +56,6 @@ module tb_ooo_branch_resolve_recovery_gate;
     .execute0_valid_i(execute0_valid),
     .execute1_valid_i(execute1_valid),
     .mem_rsp_ready_i(mem_rsp_ready),
-    .mem1_rsp_ready_i(mem1_rsp_ready),
     .branch_spec_checkpoint_pending_i(branch_spec_checkpoint_pending),
     .branch_spec_active_i(branch_spec_active),
     .branch_spec_pred_pc_i(branch_spec_pred_pc),
@@ -109,7 +107,6 @@ module tb_ooo_branch_resolve_recovery_gate;
       execute0_valid = 1'b0;
       execute1_valid = 1'b0;
       mem_rsp_ready = 1'b0;
-      mem1_rsp_ready = 1'b0;
       branch_spec_checkpoint_pending = 1'b0;
       branch_spec_active = 1'b0;
       branch_spec_pred_pc = 64'h8000_0200;

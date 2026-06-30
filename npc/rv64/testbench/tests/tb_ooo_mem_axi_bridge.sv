@@ -25,18 +25,6 @@ module tb_ooo_mem_axi_bridge;
   wire mem0_rsp_error;
   wire mem0_rsp_page_fault;
 
-  reg mem1_req_valid;
-  wire mem1_req_ready;
-  reg mem1_req_write;
-  reg [`XLEN-1:0] mem1_req_addr;
-  reg [`XLEN-1:0] mem1_req_wdata;
-  reg [`STRB_W-1:0] mem1_req_wstrb;
-  wire mem1_rsp_valid;
-  reg mem1_rsp_ready;
-  wire [`XLEN-1:0] mem1_rsp_rdata;
-  wire mem1_rsp_error;
-  wire mem1_rsp_page_fault;
-
   wire lsu_axi_arvalid;
   reg lsu_axi_arready;
   wire [`XLEN-1:0] lsu_axi_araddr;
@@ -92,17 +80,6 @@ module tb_ooo_mem_axi_bridge;
     .mem0_rsp_rdata_o(mem0_rsp_rdata),
     .mem0_rsp_error_o(mem0_rsp_error),
     .mem0_rsp_page_fault_o(mem0_rsp_page_fault),
-    .mem1_req_valid_i(mem1_req_valid),
-    .mem1_req_ready_o(mem1_req_ready),
-    .mem1_req_write_i(mem1_req_write),
-    .mem1_req_addr_i(mem1_req_addr),
-    .mem1_req_wdata_i(mem1_req_wdata),
-    .mem1_req_wstrb_i(mem1_req_wstrb),
-    .mem1_rsp_valid_o(mem1_rsp_valid),
-    .mem1_rsp_ready_i(mem1_rsp_ready),
-    .mem1_rsp_rdata_o(mem1_rsp_rdata),
-    .mem1_rsp_error_o(mem1_rsp_error),
-    .mem1_rsp_page_fault_o(mem1_rsp_page_fault),
     .lsu_axi_arvalid_o(lsu_axi_arvalid),
     .lsu_axi_arready_i(lsu_axi_arready),
     .lsu_axi_araddr_o(lsu_axi_araddr),
@@ -156,12 +133,6 @@ module tb_ooo_mem_axi_bridge;
       mem0_req_wdata = {`XLEN{1'b0}};
       mem0_req_wstrb = {`STRB_W{1'b0}};
       mem0_rsp_ready = 1'b0;
-      mem1_req_valid = 1'b0;
-      mem1_req_write = 1'b0;
-      mem1_req_addr = {`XLEN{1'b0}};
-      mem1_req_wdata = {`XLEN{1'b0}};
-      mem1_req_wstrb = {`STRB_W{1'b0}};
-      mem1_rsp_ready = 1'b0;
       lsu_axi_arready = 1'b0;
       lsu_axi_rvalid = 1'b0;
       lsu_axi_rdata = {`XLEN{1'b0}};
@@ -263,29 +234,6 @@ module tb_ooo_mem_axi_bridge;
       #1;
       tb_check1("held response dropped", mem0_rsp_valid, 1'b0);
       tb_check1("bridge accepts request after held drop", mem0_req_ready, 1'b1);
-
-      mem1_req_valid = 1'b1;
-      mem1_req_write = 1'b0;
-      mem1_req_addr = 64'h0000_0000_8000_2000;
-      mem1_rsp_ready = 1'b1;
-      lsu_axi_arready = 1'b1;
-      #1;
-      tb_check1("mem1 request accepted after drop", mem1_req_ready, 1'b1);
-      tick();
-      mem1_req_valid = 1'b0;
-      lsu_axi_arready = 1'b0;
-      lsu_axi_rvalid = 1'b1;
-      lsu_axi_rdata = 64'h8877_6655_4433_2211;
-      tick();
-      lsu_axi_rvalid = 1'b0;
-      #1;
-      tb_check1("mem1 response valid after drop", mem1_rsp_valid, 1'b1);
-      tb_check64("mem1 response data after drop", mem1_rsp_rdata,
-                 64'h8877_6655_4433_2211);
-      tick();
-      mem1_rsp_ready = 1'b0;
-      #1;
-      tb_check1("mem1 response consumed", mem1_rsp_valid, 1'b0);
     end
   endtask
 
@@ -638,8 +586,7 @@ module tb_ooo_mem_axi_bridge;
   endtask
 
   wire unused_outputs =
-      mem0_rsp_error | mem0_rsp_page_fault | mem1_rsp_error |
-      mem1_rsp_page_fault | (|lsu_axi_wstrb);
+      mem0_rsp_error | mem0_rsp_page_fault | (|lsu_axi_wstrb);
 
   initial begin
     tb_errors = 0;

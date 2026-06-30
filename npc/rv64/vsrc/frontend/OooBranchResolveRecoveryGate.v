@@ -15,7 +15,6 @@ module OooBranchResolveRecoveryGate (
   input execute0_valid_i,
   input execute1_valid_i,
   input mem_rsp_ready_i,
-  input mem1_rsp_ready_i,
   input branch_spec_checkpoint_pending_i,
   input branch_spec_active_i,
   input [`XLEN-1:0] branch_spec_pred_pc_i,
@@ -74,9 +73,10 @@ module OooBranchResolveRecoveryGate (
       branch_resolve_pending_pc_match_o;
   assign branch_resolve_redirect_o =
       branch_resolve_redirect_raw_w && !trap_redirect_squash_i;
+  // mem1(双发射 load 第二端口)死硅删除:mem1_rsp_ready 恒 0,只看 mem0。
   assign backend_execute_quiet_o =
       !execute0_valid_i && !execute1_valid_i &&
-      !mem_rsp_ready_i && !mem1_rsp_ready_i;
+      !mem_rsp_ready_i;
   assign branch_spec_checkpoint_capture_o =
       branch_spec_checkpoint_pending_i && stop_pending_i &&
       pending_branch_i && pending_branch_dispatched_i &&

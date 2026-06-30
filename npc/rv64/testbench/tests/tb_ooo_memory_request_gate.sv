@@ -25,13 +25,6 @@ module tb_ooo_memory_request_gate;
   reg [`STRB_W-1:0] core_mem_req_wstrb;
   reg core_mem_rsp_ready;
 
-  reg core_mem1_req_valid;
-  reg core_mem1_req_write;
-  reg [`XLEN-1:0] core_mem1_req_addr;
-  reg [`XLEN-1:0] core_mem1_req_wdata;
-  reg [`STRB_W-1:0] core_mem1_req_wstrb;
-  reg core_mem1_rsp_ready;
-
   reg mem_req_ready;
   reg mem_rsp_valid;
 
@@ -44,12 +37,6 @@ module tb_ooo_memory_request_gate;
   wire [`XLEN-1:0] mem_req_wdata;
   wire [`STRB_W-1:0] mem_req_wstrb;
   wire mem_rsp_ready;
-  wire mem1_req_valid;
-  wire mem1_req_write;
-  wire [`XLEN-1:0] mem1_req_addr;
-  wire [`XLEN-1:0] mem1_req_wdata;
-  wire [`STRB_W-1:0] mem1_req_wstrb;
-  wire mem1_rsp_ready;
   wire mem_flush;
   wire mmu_flush;
 
@@ -73,12 +60,6 @@ module tb_ooo_memory_request_gate;
     .core_mem_req_wdata_i(core_mem_req_wdata),
     .core_mem_req_wstrb_i(core_mem_req_wstrb),
     .core_mem_rsp_ready_i(core_mem_rsp_ready),
-    .core_mem1_req_valid_i(core_mem1_req_valid),
-    .core_mem1_req_write_i(core_mem1_req_write),
-    .core_mem1_req_addr_i(core_mem1_req_addr),
-    .core_mem1_req_wdata_i(core_mem1_req_wdata),
-    .core_mem1_req_wstrb_i(core_mem1_req_wstrb),
-    .core_mem1_rsp_ready_i(core_mem1_rsp_ready),
     .mem_req_ready_i(mem_req_ready),
     .mem_rsp_valid_i(mem_rsp_valid),
     .pending_fp_mem_req_valid_o(pending_fp_mem_req_valid),
@@ -90,12 +71,6 @@ module tb_ooo_memory_request_gate;
     .mem_req_wdata_o(mem_req_wdata),
     .mem_req_wstrb_o(mem_req_wstrb),
     .mem_rsp_ready_o(mem_rsp_ready),
-    .mem1_req_valid_o(mem1_req_valid),
-    .mem1_req_write_o(mem1_req_write),
-    .mem1_req_addr_o(mem1_req_addr),
-    .mem1_req_wdata_o(mem1_req_wdata),
-    .mem1_req_wstrb_o(mem1_req_wstrb),
-    .mem1_rsp_ready_o(mem1_rsp_ready),
     .mem_flush_o(mem_flush),
     .mmu_flush_o(mmu_flush)
   );
@@ -147,12 +122,6 @@ module tb_ooo_memory_request_gate;
       core_mem_req_wdata = 64'haaaa_bbbb_cccc_dddd;
       core_mem_req_wstrb = 8'h0f;
       core_mem_rsp_ready = 1'b0;
-      core_mem1_req_valid = 1'b0;
-      core_mem1_req_write = 1'b0;
-      core_mem1_req_addr = 64'h0000_0000_8000_3000;
-      core_mem1_req_wdata = 64'h0123_4567_89ab_cdef;
-      core_mem1_req_wstrb = 8'hf0;
-      core_mem1_rsp_ready = 1'b0;
       mem_req_ready = 1'b0;
       mem_rsp_valid = 1'b0;
     end
@@ -227,18 +196,6 @@ module tb_ooo_memory_request_gate;
     backend_drained = 1'b0;
     #1;
     tb_check1("backend not drained blocks fp req", pending_fp_mem_req_valid, 1'b0);
-
-    clear_inputs();
-    core_mem1_req_valid = 1'b1;
-    core_mem1_req_write = 1'b1;
-    core_mem1_rsp_ready = 1'b1;
-    #1;
-    tb_check1("lane1 valid passthrough", mem1_req_valid, 1'b1);
-    tb_check1("lane1 write passthrough", mem1_req_write, 1'b1);
-    tb_check64("lane1 addr passthrough", mem1_req_addr, core_mem1_req_addr);
-    tb_check64("lane1 wdata passthrough", mem1_req_wdata, core_mem1_req_wdata);
-    tb_checkstrb("lane1 wstrb passthrough", mem1_req_wstrb, core_mem1_req_wstrb);
-    tb_check1("lane1 rsp ready passthrough", mem1_rsp_ready, 1'b1);
 
     clear_inputs();
     core_local_flush = 1'b1;

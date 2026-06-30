@@ -659,8 +659,7 @@ module NpcSimTop (
   assign sim_icache_miss_w = sim_icache_access_w &&
                              !u_top.u_core.u_ooo_fetch_bridge.cache_hit_w;
   assign sim_dcache_access_w =
-      u_top.u_core.u_ooo_mem_bridge.mem0_req_fire_w ||
-      u_top.u_core.u_ooo_mem_bridge.mem1_req_fire_w;
+      u_top.u_core.u_ooo_mem_bridge.mem0_req_fire_w;
   assign sim_dcache_store_access_w =
       sim_dcache_access_w && u_top.u_core.u_ooo_mem_bridge.req_write_w;
   assign sim_dcache_hit_w =
@@ -723,8 +722,7 @@ module NpcSimTop (
   wire sim_ooo_mem_busy_w =
       u_top.u_core.u_ooo_core.pending_mem_q ||
       (u_top.u_core.u_ooo_mem_bridge.state_q != 4'd0) ||
-      u_top.u_core.u_ooo_mem_bridge.mem0_req_fire_w ||
-      u_top.u_core.u_ooo_mem_bridge.mem1_req_fire_w;
+      u_top.u_core.u_ooo_mem_bridge.mem0_req_fire_w;
   wire sim_ooo_axi_wait_w =
       (u_top.ifu_axi_arvalid_w && !u_top.ifu_axi_arready_w) ||
       (u_top.ifu_axi_rready_w && !u_top.ifu_axi_rvalid_w) ||
@@ -938,9 +936,9 @@ module NpcSimTop (
 	        (u_top.u_core.u_ooo_core.branch_prefetch_hit_available_w ||
 	         u_top.u_core.u_ooo_core.jalr_prefetch_hit_available_w) ? 32'd1 : 32'd0,
         u_top.u_core.u_ooo_mem_bridge.mem0_req_fire_w ? 32'd1 : 32'd0,
-        u_top.u_core.u_ooo_mem_bridge.mem1_req_fire_w ? 32'd1 : 32'd0,
+        32'd0,  // mem1(双发射 load 第二端口)死硅删除:mem1_req_fire 恒 0
         (u_top.u_core.ooo_mem0_rsp_valid_w && u_top.u_core.ooo_mem0_rsp_ready_w) ? 32'd1 : 32'd0,
-        (u_top.u_core.ooo_mem1_rsp_valid_w && u_top.u_core.ooo_mem1_rsp_ready_w) ? 32'd1 : 32'd0,
+        32'd0,  // mem1_rsp_fire 恒 0(死硅删除)
         u_top.u_core.u_ooo_core.core_commit1_block_w ? 32'd1 : 32'd0,
         sim_ooo_fetch_busy_w ? 32'd1 : 32'd0,
         sim_ooo_mem_busy_w ? 32'd1 : 32'd0,

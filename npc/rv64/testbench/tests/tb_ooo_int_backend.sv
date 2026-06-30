@@ -82,19 +82,8 @@ module tb_ooo_int_backend;
   reg mem_rsp_valid;
   reg [`XLEN-1:0] mem_rsp_rdata;
   reg mem_rsp_error;
-  wire mem1_req_valid;
-  wire mem1_req_write;
-  wire [`XLEN-1:0] mem1_req_addr;
-  wire [`XLEN-1:0] mem1_req_wdata;
-  wire [`STRB_W-1:0] mem1_req_wstrb;
-  wire mem1_rsp_ready;
-  reg mem1_rsp_valid;
-  reg [`XLEN-1:0] mem1_rsp_rdata;
-  reg mem1_rsp_error;
 
-  wire unused_mem_ready =
-      mem_rsp_ready | mem1_rsp_ready | mem1_req_write |
-      (|mem1_req_wdata) | (|mem1_req_wstrb);
+  wire unused_mem_ready = mem_rsp_ready;
 
   OooIntBackend dut (
     .clk(clk),
@@ -141,17 +130,6 @@ module tb_ooo_int_backend;
     .mem_rsp_rdata_i(mem_rsp_rdata),
     .mem_rsp_error_i(mem_rsp_error),
     .mem_rsp_page_fault_i(1'b0),
-    .mem1_req_valid_o(mem1_req_valid),
-    .mem1_req_ready_i(1'b1),
-    .mem1_req_write_o(mem1_req_write),
-    .mem1_req_addr_o(mem1_req_addr),
-    .mem1_req_wdata_o(mem1_req_wdata),
-    .mem1_req_wstrb_o(mem1_req_wstrb),
-    .mem1_rsp_valid_i(mem1_rsp_valid),
-    .mem1_rsp_ready_o(mem1_rsp_ready),
-    .mem1_rsp_rdata_i(mem1_rsp_rdata),
-    .mem1_rsp_error_i(mem1_rsp_error),
-    .mem1_rsp_page_fault_i(1'b0),
     .commit_ready_i(commit_ready),
     .commit1_block_i(1'b0),
     .commit0_valid_o(commit0_valid),
@@ -394,9 +372,6 @@ module tb_ooo_int_backend;
 	      mem_rsp_valid = 1'b0;
 	      mem_rsp_rdata = {`XLEN{1'b0}};
 	      mem_rsp_error = 1'b0;
-      mem1_rsp_valid = 1'b0;
-      mem1_rsp_rdata = {`XLEN{1'b0}};
-      mem1_rsp_error = 1'b0;
 	      clear_dispatch();
       `TB_TICK(clk);
       rst = 1'b0;
@@ -757,50 +732,9 @@ module tb_ooo_int_backend;
 	    tb_check32("flush clears issue queue", {28'b0, issue_count}, 32'd0);
 	    tb_check32("flush restores freelist", {25'b0, free_count}, 32'd32);
 
-    mem_rsp_valid = 1'b0;
-    mem1_rsp_valid = 1'b0;
-    set_dispatch0(32'h8000_2400,
-                  make_load_ctrl(`MEM_SIZE_WORD, 1'b0),
-                  5'd0, 5'd0, 5'd15, 32'h0000_0100);
-    set_dispatch1(32'h8000_2404,
-                  make_load_ctrl(`MEM_SIZE_WORD, 1'b0),
-                  5'd0, 5'd0, 5'd16, 32'h0000_0104);
-    #1;
-    tb_check1("dual load dispatch0 ready", dispatch0_ready, 1'b1);
-    tb_check1("dual load dispatch1 ready", dispatch1_ready, 1'b1);
-    tb_check1("dual load port0 request visible", mem_req_valid, 1'b1);
-    tb_check1("dual load port1 request visible", mem1_req_valid, 1'b1);
-    tb_check1("dual load port0 is read", mem_req_write, 1'b0);
-    tb_check1("dual load port1 is read", mem1_req_write, 1'b0);
-    tb_check32("dual load port0 addr", mem_req_addr, 32'h0000_0100);
-    tb_check32("dual load port1 addr", mem1_req_addr, 32'h0000_0104);
-
-    `TB_TICK(clk);
-    clear_dispatch();
-    mem_rsp_valid = 1'b1;
-    mem_rsp_rdata = 32'haaaa_5555;
-    mem_rsp_error = 1'b0;
-    mem1_rsp_valid = 1'b1;
-    mem1_rsp_rdata = 64'h0000_0000_1234_5678;
-    mem1_rsp_error = 1'b0;
-    #1;
-    tb_check1("dual load port0 rsp ready", mem_rsp_ready, 1'b1);
-    tb_check1("dual load port1 rsp ready", mem1_rsp_ready, 1'b1);
-    tb_check1("dual load commit0 valid", commit0_valid, 1'b1);
-    tb_check1("dual load commit1 valid", commit1_valid, 1'b1);
-    tb_check32("dual load commit0 data", commit0_data, 32'haaaa_5555);
-    tb_check32("dual load commit1 data", commit1_data, 32'h1234_5678);
-
-    `TB_TICK(clk);
-    mem_rsp_valid = 1'b0;
-    mem1_rsp_valid = 1'b0;
-    #1;
-	    tb_check32("dual load rob drains", {27'b0, rob_count}, 32'd0);
-	    tb_check32("dual load iq drains", {28'b0, issue_count}, 32'd0);
-	    tb_check32("dual load freelist recovers", {25'b0, free_count}, 32'd32);
-
+    // dual-load 第二端口(mem1)死硅删除:原"两 load 同拍双端口发射"用例已无效,移除。
+    // 两 load 串行经主端口 mem0 的覆盖由下方 buffer-seed 用例与 riscv-tests 承担。
 	    mem_rsp_valid = 1'b0;
-	    mem1_rsp_valid = 1'b0;
 	    set_dispatch0(32'h8000_2600,
 	                  make_load_ctrl(`MEM_SIZE_WORD, 1'b1),
 	                  5'd0, 5'd0, 5'd15, 32'h0000_0270);
