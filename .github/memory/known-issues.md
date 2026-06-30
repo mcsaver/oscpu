@@ -10,10 +10,11 @@
 - **模块**: NPC / RV64 / frontend 投机取指 / OooIntBackend mispredict / redirect 仲裁 / difftest
 - **背景**: 体检发现默认 `OOO_ROB_WALK_MODE=1` 下 `OooIntBackend.v` 的 `issue*_mispredict_w` 含 `mode_walk_w ||` 强制项，使每条控制流无条件 redirect→整套前端 BPU(gshare/BTB/RAS)性能上零贡献(每条控制流 flush+重取)。这是 mode=1 交付配置下真实的性能封顶。
 - **尝试**: 去掉 `mode_walk_w ||`，让 redirect 只在真 mispredict(`next_pc != pred_npc`)时触发。理论依据成立：恢复门 `OooBranchResolveRecoveryGate` 已只认显式 mispredict 脉冲；`pred_npc` 在 FIFO count≥2 时就是前端实际取指的下一包 PC(`OooFrontend.head_pred_succ_w`)。
-- **结果**: rv64ui `--no-diff` 从全绿退化到 **46 PASS / 88 FAIL**。正确预测的分支不再 redirect→FIFO 保留投机包→某前端投机路径/域B(system/fence)边界交互产生 wrong-path 提交。
-- **诊断受阻(独立缺口)**: 想用 difftest 定位，但**所有 riscv-tests 启动码含 `csrwi mnstatus`(CSR 0x744)**，DUT 与金标 NEMU 对该 CSR 处理不一致(DUT 在 commit pc=0x800000e8 时 ref 期望 0x800000e4)，`--diff` 在 0x800000e4 提前 abort。**此发散 F2 前后都存在**(回退后 `--diff` 仍 abort、但 `--no-diff` 全绿)，是预存的 difftest 覆盖缺口——意味着 riscv-tests 目前**无法被 difftest 逐指令校验**，只能靠 `--no-diff` 签名自检。诊断 F2 需改用 ITRACE 比对。
-- **裁决**: F2 的两行修改不足以正确，需 B2 前端重构(统一 redirect 仲裁，消除审计 E10 的"双优先级编码器"OooFetchRequestMux 组合 vs OooFetchPcOutstandingSequencer 时序不一致 + 投机路径硬化)。已**回退**，`OooIntBackend.v` 保留强制项 + 记录注释。性能封顶仍在，待 B2。
-- **下一步候选**: (1) 修 mnstatus DUT/NEMU 一致性(或在 difftest 跳过该 CSR)使 difftest 重新可用于 riscv-tests；(2) B2 统一 redirect 仲裁(地基 `OooRedirectArbiter` 已存在但零实例化，需接入)；(3) 用 ITRACE 精确定位 F2 wrong-path 提交的首发散指令。
+- **结果**: rv64ui `--no-diff` 从全绿退化到 **46 PASS / 88 FAIL**。正确预测的分支不再 redirect→FIFO 保留投机包→wrong-path 提交。
+- **根因(与作者既有结论吻合)**: 本问题**早已被 2026-06-30 B2 bring-up 记录**(见 `project-status.md` 同日条目 + task-run `2026-06-30-rv64-ooo-b2-rob-walk-mode1-bringup/`)。精确失败模式：`pred_npc` 在 FIFO `count==0`/dispatch-bypass 时仍取寄存 `next_fetch_pc_q`(滞后指向 head 自身),使该状态下的(尤其 bypass-taken)分支 wrong-path 提交;OooFrontend `head_pred_succ_w`(count≥2 取 `fifo_head1_pc0`、count<2 退化)的注释也明载此为"边界 case 不一致"。**正解=per-packet 预测后继随 FIFO+bypass threaded**(作者首选),非 OooIntBackend 两行 `mode_walk_w||` 可了。我先前怀疑的"背靠背 system 指令/E10 双编码器"实为下方 difftest 伪差异误导,非真因。
+- **诊断受阻(独立缺口)**: 想用 difftest 定位，但**所有 riscv-tests 启动码含 `csrwi mnstatus`(CSR 0x744)**，DUT 与金标 NEMU 处理不一致(DUT 在 commit pc=0x800000e8 时 ref 期望 0x800000e4)，`--diff` 在 0x800000e4 提前 abort。**此发散 F2 前后都存在**(回退后 `--diff` 仍 abort、但 `--no-diff` 全绿,作者也记了同一坑),是预存的 difftest 覆盖缺口——riscv-tests 目前**无法被 difftest 逐指令校验**,只能靠 `--no-diff` 签名自检。
+- **裁决**: 已**回退**(`OooIntBackend.v` 保留 `mode_walk_w||` 强制项 + 记录注释),核恢复 riscv-tests 102/102。mode=1+强制 mispredict 是绿但 BPU 性能上零贡献的当前交付态;性能封顶仍在,待 per-packet 预测后继 threading 落地。
+- **下一步候选**: (1) per-packet 预测后继随 FIFO+bypass threaded(破 count==0 滞后,作者首选,主线);(2) 修 mnstatus DUT/NEMU 一致性(或 difftest 跳过该 CSR)使 difftest 重新可用于 riscv-tests 逐指令校验;(3) B2 统一 redirect 仲裁(地基 `OooRedirectArbiter` 已存在但零实例化,需接入,兼消审计 E10 双编码器)。
 
 ### [104] `npc/rv64` ACT4 PMP CSR/权限 gate 缺口（已修并验证）
 
