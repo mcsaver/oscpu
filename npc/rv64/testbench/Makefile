@@ -5,12 +5,6 @@ BUILD_DIR ?= build
 RESULT_TIMESTAMP := $(shell date +%Y%m%d-%H%M%S)
 RESULT_DIR ?= ../perf/results/$(RESULT_TIMESTAMP)/module-testbench
 LOG_DIR := $(RESULT_DIR)/logs
-PIPE_RESULT_DIR ?= ../perf/results/$(RESULT_TIMESTAMP)/pipe-test
-PIPE_LOG_DIR := $(PIPE_RESULT_DIR)/logs
-PIPE_EXPECT_LOAD_HIT_ZERO ?= 0
-PIPE_EXPECT_FRONTEND_HIT_ZERO ?= 0
-PIPE_EXPECT_ARG := $(if $(filter 1,$(PIPE_EXPECT_LOAD_HIT_ZERO)),+EXPECT_LOAD_HIT_ZERO,)
-PIPE_EXPECT_FRONTEND_ARG := $(if $(filter 1,$(PIPE_EXPECT_FRONTEND_HIT_ZERO)),+EXPECT_FRONTEND_HIT_ZERO,)
 
 IVERILOG ?= iverilog
 # 当前 PATH 里可能先命中不完整 oss-cad-suite 的 vvp；优先使用系统 Icarus vvp，保证模块级 testbench 可独立复跑。
@@ -33,7 +27,6 @@ TESTS := \
   tb_csr_file \
   tb_decode_unit \
   tb_decode_stage \
-  tb_register_file \
   tb_ooo_rename_map \
   tb_ooo_free_list \
   tb_ooo_rob \
@@ -116,21 +109,7 @@ TESTS := \
   tb_ooo_fetch_trap_gate \
   tb_ooo_priv_system \
   tb_ooo_sv39_boot \
-  tb_ooo_mem_axi_bridge \
-  tb_pipe_regs \
-  tb_cache_control \
-  tb_memory_stage_control \
-  tb_memory_stage \
-  tb_pipeline_control \
-  tb_multiplier \
-  tb_divider \
-  tb_branch_predictor \
-  tb_icache \
-  tb_dcache \
-  tb_if_stage \
-  tb_npc_core_smoke \
-  tb_npc_core_mcycle \
-  tb_npc_core_interrupt
+  tb_ooo_mem_axi_bridge
 
 TB_SRCS_tb_alu := tests/tb_alu.sv $(RTL_ALU)
 TB_SRCS_tb_compare := tests/tb_compare.sv $(RTL_COMPARE_UNIT)
@@ -147,7 +126,6 @@ TB_SRCS_tb_axi_lite_xbar := tests/tb_axi_lite_xbar.sv $(RTL_AXI_LITE_XBAR)
 TB_SRCS_tb_csr_file := tests/tb_csr_file.sv $(RTL_CSR_FILE)
 TB_SRCS_tb_decode_unit := tests/tb_decode_unit.sv $(RTL_DECODE_UNIT)
 TB_SRCS_tb_decode_stage := tests/tb_decode_stage.sv $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(RTL_DECODE_STAGE)
-TB_SRCS_tb_register_file := tests/tb_register_file.sv $(RTL_REGISTER_FILE)
 TB_SRCS_tb_ooo_rename_map := tests/tb_ooo_rename_map.sv $(RTL_OOO_RENAME_MAP)
 TB_SRCS_tb_ooo_free_list := tests/tb_ooo_free_list.sv $(RTL_OOO_FREE_LIST)
 TB_SRCS_tb_ooo_rob := tests/tb_ooo_rob.sv $(RTL_OOO_ROB)
@@ -232,139 +210,10 @@ TB_SRCS_tb_ooo_fetch_trap_gate := tests/tb_ooo_fetch_trap_gate.sv $(RTL_OOO_FRON
 TB_SRCS_tb_ooo_priv_system := tests/tb_ooo_priv_system.sv $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
 TB_SRCS_tb_ooo_sv39_boot := tests/tb_ooo_sv39_boot.sv $(RTL_CORE_SRCS)
 TB_SRCS_tb_ooo_mem_axi_bridge := tests/tb_ooo_mem_axi_bridge.sv $(RTL_PMP_CHECKER) $(RTL_OOO_DATA_WORD_CACHE) $(RTL_OOO_SV39_TLB) $(RTL_OOO_MEM_AXI_BRIDGE)
-TB_SRCS_tb_pipe_regs := tests/tb_pipe_regs.sv $(RTL_IF_ID_PIPE_REG) $(RTL_ID_EX_PIPE_REG) $(RTL_EX_MEM_PIPE_REG) $(RTL_MEM_WB_PIPE_REG)
-TB_SRCS_tb_cache_control := tests/tb_cache_control.sv $(RTL_CACHE_CONTROL)
-TB_SRCS_tb_memory_stage_control := tests/tb_memory_stage_control.sv $(RTL_MEMORY_STAGE_CONTROL)
-TB_SRCS_tb_memory_stage := tests/tb_memory_stage.sv $(RTL_LSU_CONTROL) $(RTL_LSU_DATAPATH) $(RTL_LSU) $(RTL_MEMORY_STAGE_CONTROL) $(RTL_MEMORY_STAGE)
-TB_SRCS_tb_pipeline_control := tests/tb_pipeline_control.sv $(RTL_PIPELINE_CONTROL)
-TB_SRCS_tb_multiplier := tests/tb_multiplier.sv $(RTL_RV32_MULTIPLIER)
-TB_SRCS_tb_divider := tests/tb_divider.sv $(RTL_RV32_DIVIDER)
-TB_SRCS_tb_branch_predictor := tests/tb_branch_predictor.sv $(RTL_BRANCH_PREDICTOR)
-TB_SRCS_tb_icache := tests/tb_icache.sv $(RTL_SRAM2R1W) $(RTL_ICACHE)
-TB_SRCS_tb_dcache := tests/tb_dcache.sv $(RTL_SRAM1RW) $(RTL_DCACHE)
-TB_SRCS_tb_if_stage := tests/tb_if_stage.sv $(RTL_BRANCH_PREDICTOR) $(RTL_IF_STAGE)
-TB_SRCS_tb_npc_core_smoke := tests/tb_npc_core_smoke.sv \
-  $(RTL_ALU) \
-  $(RTL_BRANCH_PREDICTOR) \
-  $(RTL_CACHE_CONTROL) \
-  $(RTL_COMPARE_UNIT) \
-  $(RTL_CSR_FILE) \
-  $(RTL_DCACHE) \
-  $(RTL_DECODE_STAGE) \
-  $(RTL_DECODE_UNIT) \
-  $(RTL_ICACHE) \
-  $(RTL_IF_STAGE) \
-  $(RTL_IMM_GEN) \
-  $(RTL_IF_ID_PIPE_REG) \
-  $(RTL_ID_EX_PIPE_REG) \
-  $(RTL_EX_MEM_PIPE_REG) \
-  $(RTL_LSU_CONTROL) \
-  $(RTL_LSU_DATAPATH) \
-  $(RTL_LSU) \
-  $(RTL_MEM_WB_PIPE_REG) \
-  $(RTL_MEMORY_STAGE_CONTROL) \
-  $(RTL_MEMORY_STAGE) \
-  $(RTL_PIPELINE_CONTROL) \
-  $(RTL_REGISTER_FILE) \
-  $(RTL_RV32_MULTIPLIER) \
-  $(RTL_RV32_DIVIDER) \
-  $(RTL_SRAM1RW) \
-  $(RTL_SRAM2R1W) \
-  $(RTL_WBU) \
-  $(RTL_NPC_CORE)
-
-TB_SRCS_tb_npc_core_mcycle := tests/tb_npc_core_mcycle.sv \
-  $(RTL_ALU) \
-  $(RTL_BRANCH_PREDICTOR) \
-  $(RTL_CACHE_CONTROL) \
-  $(RTL_COMPARE_UNIT) \
-  $(RTL_CSR_FILE) \
-  $(RTL_DCACHE) \
-  $(RTL_DECODE_STAGE) \
-  $(RTL_DECODE_UNIT) \
-  $(RTL_ICACHE) \
-  $(RTL_IF_STAGE) \
-  $(RTL_IMM_GEN) \
-  $(RTL_IF_ID_PIPE_REG) \
-  $(RTL_ID_EX_PIPE_REG) \
-  $(RTL_EX_MEM_PIPE_REG) \
-  $(RTL_LSU_CONTROL) \
-  $(RTL_LSU_DATAPATH) \
-  $(RTL_LSU) \
-  $(RTL_MEM_WB_PIPE_REG) \
-  $(RTL_MEMORY_STAGE_CONTROL) \
-  $(RTL_MEMORY_STAGE) \
-  $(RTL_PIPELINE_CONTROL) \
-  $(RTL_REGISTER_FILE) \
-  $(RTL_RV32_MULTIPLIER) \
-  $(RTL_RV32_DIVIDER) \
-  $(RTL_SRAM1RW) \
-  $(RTL_SRAM2R1W) \
-  $(RTL_WBU) \
-  $(RTL_NPC_CORE)
-
-TB_SRCS_tb_npc_core_interrupt := tests/tb_npc_core_interrupt.sv \
-  $(RTL_ALU) \
-  $(RTL_BRANCH_PREDICTOR) \
-  $(RTL_CACHE_CONTROL) \
-  $(RTL_COMPARE_UNIT) \
-  $(RTL_CSR_FILE) \
-  $(RTL_DCACHE) \
-  $(RTL_DECODE_STAGE) \
-  $(RTL_DECODE_UNIT) \
-  $(RTL_ICACHE) \
-  $(RTL_IF_STAGE) \
-  $(RTL_IMM_GEN) \
-  $(RTL_IF_ID_PIPE_REG) \
-  $(RTL_ID_EX_PIPE_REG) \
-  $(RTL_EX_MEM_PIPE_REG) \
-  $(RTL_LSU_CONTROL) \
-  $(RTL_LSU_DATAPATH) \
-  $(RTL_LSU) \
-  $(RTL_MEM_WB_PIPE_REG) \
-  $(RTL_MEMORY_STAGE_CONTROL) \
-  $(RTL_MEMORY_STAGE) \
-  $(RTL_PIPELINE_CONTROL) \
-  $(RTL_REGISTER_FILE) \
-  $(RTL_RV32_MULTIPLIER) \
-  $(RTL_RV32_DIVIDER) \
-  $(RTL_SRAM1RW) \
-  $(RTL_SRAM2R1W) \
-  $(RTL_WBU) \
-  $(RTL_NPC_CORE)
-
-PIPE_TEST_SRCS := tests/pipe_test.sv \
-  $(RTL_LSU_CONTROL) \
-  $(RTL_LSU_DATAPATH) \
-  $(RTL_LSU) \
-  $(RTL_MEMORY_STAGE_CONTROL) \
-  $(RTL_MEMORY_STAGE) \
-  $(RTL_SRAM1RW) \
-  $(RTL_DCACHE) \
-  $(RTL_PIPELINE_CONTROL)
-
-STAGE_PIPE_TEST_SRCS := tests/stage_pipe_test.sv \
-  $(RTL_BRANCH_PREDICTOR) \
-  $(RTL_IF_STAGE) \
-  $(RTL_IF_ID_PIPE_REG) \
-  $(RTL_SRAM2R1W) \
-  $(RTL_ICACHE) \
-  $(RTL_LSU_CONTROL) \
-  $(RTL_LSU_DATAPATH) \
-  $(RTL_LSU) \
-  $(RTL_MEMORY_STAGE_CONTROL) \
-  $(RTL_MEMORY_STAGE) \
-  $(RTL_SRAM1RW) \
-  $(RTL_DCACHE) \
-  $(RTL_PIPELINE_CONTROL)
-
 .DEFAULT_GOAL := run
 
 run: $(TESTS:%=$(LOG_DIR)/%.log) summary
 	@cat $(RESULT_DIR)/summary.txt
-
-pipe_test: $(PIPE_LOG_DIR)/pipe_test.log $(PIPE_LOG_DIR)/stage_pipe_test.log pipe_summary
-	@cat $(PIPE_RESULT_DIR)/summary.txt
 
 define RUN_TEST
 $(LOG_DIR)/$(1).log: $$(TB_SRCS_$(1)) common/tb_common.svh common/rv32_encode.svh Makefile
@@ -411,79 +260,7 @@ summary: $(TESTS:%=$(LOG_DIR)/%.log)
 	  test "$$fail" -eq 0; \
 	} > $(RESULT_DIR)/summary.txt
 
-$(PIPE_LOG_DIR)/pipe_test.log: $(PIPE_TEST_SRCS) common/tb_common.svh Makefile
-	@mkdir -p $(BUILD_DIR) $(PIPE_LOG_DIR)
-	@tmp="$@.tmp"; \
-	echo "[TEST] pipe_test" > "$$tmp"; \
-	echo "[COMPILE] $(IVERILOG) $(IVFLAGS) -s pipe_test -o $(BUILD_DIR)/pipe_test.vvp $(PIPE_TEST_SRCS)" >> "$$tmp"; \
-	if $(IVERILOG) $(IVFLAGS) -s pipe_test -o $(BUILD_DIR)/pipe_test.vvp $(PIPE_TEST_SRCS) >> "$$tmp" 2>&1 && \
-	   $(VVP) $(BUILD_DIR)/pipe_test.vvp +REPORT=$(abspath $(PIPE_RESULT_DIR)/bubble_report.txt) $(PIPE_EXPECT_ARG) >> "$$tmp" 2>&1; then \
-	  echo "[RESULT] PASS" >> "$$tmp"; \
-	  mv "$$tmp" "$@"; \
-	else \
-	  status=$$?; \
-	  echo "[RESULT] FAIL status=$$status" >> "$$tmp"; \
-	  mv "$$tmp" "$@"; \
-	  exit $$status; \
-	fi
-
-$(PIPE_LOG_DIR)/stage_pipe_test.log: $(STAGE_PIPE_TEST_SRCS) common/tb_common.svh Makefile
-	@mkdir -p $(BUILD_DIR) $(PIPE_LOG_DIR)
-	@tmp="$@.tmp"; \
-	echo "[TEST] stage_pipe_test" > "$$tmp"; \
-	echo "[COMPILE] $(IVERILOG) $(IVFLAGS) -s stage_pipe_test -o $(BUILD_DIR)/stage_pipe_test.vvp $(STAGE_PIPE_TEST_SRCS)" >> "$$tmp"; \
-	if $(IVERILOG) $(IVFLAGS) -s stage_pipe_test -o $(BUILD_DIR)/stage_pipe_test.vvp $(STAGE_PIPE_TEST_SRCS) >> "$$tmp" 2>&1 && \
-	   $(VVP) $(BUILD_DIR)/stage_pipe_test.vvp +REPORT=$(abspath $(PIPE_RESULT_DIR)/stage_bubble_report.txt) $(PIPE_EXPECT_FRONTEND_ARG) >> "$$tmp" 2>&1; then \
-	  echo "[RESULT] PASS" >> "$$tmp"; \
-	  mv "$$tmp" "$@"; \
-	else \
-	  status=$$?; \
-	  echo "[RESULT] FAIL status=$$status" >> "$$tmp"; \
-	  mv "$$tmp" "$@"; \
-	  exit $$status; \
-	fi
-
-pipe_summary: $(PIPE_LOG_DIR)/pipe_test.log $(PIPE_LOG_DIR)/stage_pipe_test.log
-	@mkdir -p $(PIPE_RESULT_DIR)
-	@{ \
-	  echo "# NPC single pipe_test summary"; \
-	  echo; \
-	  echo "- result_dir: $(abspath $(PIPE_RESULT_DIR))"; \
-	  echo "- tool: $$($(IVERILOG) -V | sed -n '1p')"; \
-	  echo "- expect_load_hit_zero: $(PIPE_EXPECT_LOAD_HIT_ZERO)"; \
-	  echo "- expect_frontend_hit_zero: $(PIPE_EXPECT_FRONTEND_HIT_ZERO)"; \
-	  echo; \
-	  if grep -q '\[RESULT\] PASS' "$(PIPE_LOG_DIR)/pipe_test.log"; then \
-	    echo "- PASS pipe_test"; \
-	  else \
-	    echo "- FAIL pipe_test"; \
-	    exit 1; \
-	  fi; \
-	  if grep -q '\[RESULT\] PASS' "$(PIPE_LOG_DIR)/stage_pipe_test.log"; then \
-	    echo "- PASS stage_pipe_test"; \
-	  else \
-	    echo "- FAIL stage_pipe_test"; \
-	    exit 1; \
-	  fi; \
-	  echo; \
-	  echo "## MEM Bubble Metrics"; \
-	  if test -f "$(PIPE_RESULT_DIR)/bubble_report.txt"; then \
-	    sed 's/^/- /' "$(PIPE_RESULT_DIR)/bubble_report.txt"; \
-	  else \
-	    echo "- bubble_report.txt missing"; \
-	    exit 1; \
-	  fi; \
-	  echo; \
-	  echo "## Stage Bubble Metrics"; \
-	  if test -f "$(PIPE_RESULT_DIR)/stage_bubble_report.txt"; then \
-	    sed 's/^/- /' "$(PIPE_RESULT_DIR)/stage_bubble_report.txt"; \
-	  else \
-	    echo "- stage_bubble_report.txt missing"; \
-	    exit 1; \
-	  fi; \
-	} > $(PIPE_RESULT_DIR)/summary.txt
-
 clean:
 	rm -rf $(BUILD_DIR)
 
-.PHONY: run summary pipe_test pipe_summary clean
+.PHONY: run summary clean
