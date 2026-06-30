@@ -20,6 +20,7 @@ module OooIntIssueQueue #(
   output dispatch0_ready_o,
   input [`XLEN-1:0] dispatch0_pc_i,
   input [`XLEN-1:0] dispatch0_next_pc_i,
+  input [`XLEN-1:0] dispatch0_pred_npc_i,
   input [`INST_W-1:0] dispatch0_inst_i,
   input [`CTRL_BUS_W-1:0] dispatch0_ctrl_i,
   input [ROB_INDEX_W-1:0] dispatch0_rob_idx_i,
@@ -35,6 +36,7 @@ module OooIntIssueQueue #(
   output dispatch1_ready_o,
   input [`XLEN-1:0] dispatch1_pc_i,
   input [`XLEN-1:0] dispatch1_next_pc_i,
+  input [`XLEN-1:0] dispatch1_pred_npc_i,
   input [`INST_W-1:0] dispatch1_inst_i,
   input [`CTRL_BUS_W-1:0] dispatch1_ctrl_i,
   input [ROB_INDEX_W-1:0] dispatch1_rob_idx_i,
@@ -58,6 +60,7 @@ module OooIntIssueQueue #(
   input issue0_ready_i,
   output [`XLEN-1:0] issue0_pc_o,
   output [`XLEN-1:0] issue0_next_pc_o,
+  output [`XLEN-1:0] issue0_pred_npc_o,
   output [`INST_W-1:0] issue0_inst_o,
   output [`CTRL_BUS_W-1:0] issue0_ctrl_o,
   output [ROB_INDEX_W-1:0] issue0_rob_idx_o,
@@ -70,6 +73,7 @@ module OooIntIssueQueue #(
   input issue1_ready_i,
   output [`XLEN-1:0] issue1_pc_o,
   output [`XLEN-1:0] issue1_next_pc_o,
+  output [`XLEN-1:0] issue1_pred_npc_o,
   output [`INST_W-1:0] issue1_inst_o,
   output [`CTRL_BUS_W-1:0] issue1_ctrl_o,
   output [ROB_INDEX_W-1:0] issue1_rob_idx_o,
@@ -91,12 +95,20 @@ module OooIntIssueQueue #(
   output [PHY_REG_ADDR_W-1:0] load_branch_fast_src1_preg_o,
   output [PHY_REG_ADDR_W-1:0] load_branch_fast_src2_preg_o,
   output load_branch_fast_wait_load0_o,
-  output load_branch_fast_wait_load1_o
+  output load_branch_fast_wait_load1_o,
+
+  // B2 ROB-walk：误预测时 squash 比 kill_rob_idx 更年轻(age 更大)的 IQ entry（程序序后缀），
+  // recover 期冻结发射。in-core 暂 kill 接 0、recover 接 ROB.recover_active → 行为中性。
+  input kill_valid_i,
+  input [ROB_INDEX_W-1:0] kill_rob_idx_i,
+  input [ROB_INDEX_W-1:0] rob_head_idx_i,
+  input recover_active_i
 );
 
   reg valid_q [0:ENTRY_COUNT-1];
   reg [`XLEN-1:0] pc_q [0:ENTRY_COUNT-1];
   reg [`XLEN-1:0] next_pc_q [0:ENTRY_COUNT-1];
+  reg [`XLEN-1:0] pred_npc_q [0:ENTRY_COUNT-1];
   reg [`INST_W-1:0] inst_q [0:ENTRY_COUNT-1];
   reg [`CTRL_BUS_W-1:0] ctrl_q [0:ENTRY_COUNT-1];
   reg [ROB_INDEX_W-1:0] rob_idx_q [0:ENTRY_COUNT-1];
@@ -111,6 +123,7 @@ module OooIntIssueQueue #(
   reg checkpoint_valid_q [0:ENTRY_COUNT-1];
   reg [`XLEN-1:0] checkpoint_pc_q [0:ENTRY_COUNT-1];
   reg [`XLEN-1:0] checkpoint_next_pc_q [0:ENTRY_COUNT-1];
+  reg [`XLEN-1:0] checkpoint_pred_npc_q [0:ENTRY_COUNT-1];
   reg [`INST_W-1:0] checkpoint_inst_q [0:ENTRY_COUNT-1];
   reg [`CTRL_BUS_W-1:0] checkpoint_ctrl_q [0:ENTRY_COUNT-1];
   reg [ROB_INDEX_W-1:0] checkpoint_rob_idx_q [0:ENTRY_COUNT-1];
@@ -125,6 +138,7 @@ module OooIntIssueQueue #(
   reg valid_next_r [0:ENTRY_COUNT-1];
   reg [`XLEN-1:0] pc_next_r [0:ENTRY_COUNT-1];
   reg [`XLEN-1:0] next_pc_next_r [0:ENTRY_COUNT-1];
+  reg [`XLEN-1:0] pred_npc_next_r [0:ENTRY_COUNT-1];
   reg [`INST_W-1:0] inst_next_r [0:ENTRY_COUNT-1];
   reg [`CTRL_BUS_W-1:0] ctrl_next_r [0:ENTRY_COUNT-1];
   reg [ROB_INDEX_W-1:0] rob_idx_next_r [0:ENTRY_COUNT-1];
@@ -135,6 +149,8 @@ module OooIntIssueQueue #(
   reg [PHY_REG_ADDR_W-1:0] pdest_next_r [0:ENTRY_COUNT-1];
   reg [`XLEN-1:0] imm_next_r [0:ENTRY_COUNT-1];
   reg [ENTRY_COUNT_W-1:0] count_next_r;
+  reg [ENTRY_COUNT_W-1:0] kill_keep_cnt_w;   // B2 ROB-walk squash 后存活计数（组合算，避免 BLKSEQ）
+  integer kc_i;
 
   reg issue0_found_r;
   reg issue1_found_r;
@@ -365,19 +381,30 @@ module OooIntIssueQueue #(
       !dispatch0_ctrl_i[`CTRL_BRANCH_BIT] &&
       !dispatch0_ret_bypass_w &&
       !dispatch0_jal_bypass_w;
+  // B2: mode 下 branch/JAL/JALR 走后端 mispredict 解析；禁止它们 dispatch-bypass 当拍发射，
+  // 强制经 IQ 寄存项发射（pred_npc 取寄存 pred_npc_q），打破 pred_npc→mispredict→redirect→前端预测后继
+  // →pred_npc 的组合环（UNOPTFLAT），从而可对 count<2 用前端组合预测后继。
+  wire rob_walk_mode_w = `OOO_ROB_WALK_MODE;
+  wire dispatch0_ctrlflow_mispred_w = rob_walk_mode_w &&
+      (dispatch0_ctrl_i[`CTRL_BRANCH_BIT] || dispatch0_ctrl_i[`CTRL_JAL_BIT] ||
+       dispatch0_ctrl_i[`CTRL_JALR_BIT]);
+  wire dispatch1_ctrlflow_mispred_w = rob_walk_mode_w &&
+      (dispatch1_ctrl_i[`CTRL_BRANCH_BIT] || dispatch1_ctrl_i[`CTRL_JAL_BIT] ||
+       dispatch1_ctrl_i[`CTRL_JALR_BIT]);
   wire dispatch0_bypass_allowed_w =
       (!dispatch0_mem_w || dispatch0_load_bypass_w) &&
-      !dispatch0_control_bypass_block_w;
+      !dispatch0_control_bypass_block_w &&
+      !dispatch0_ctrlflow_mispred_w;
   wire dispatch0_jal_issue1_bypass_w =
-      dispatch0_jal_bypass_w;
+      dispatch0_jal_bypass_w && !dispatch0_ctrlflow_mispred_w;
   wire dispatch0_issue1_bypass_allowed_w =
       dispatch0_bypass_allowed_w || dispatch0_jal_issue1_bypass_w;
   wire dispatch1_branch_bypass_w =
       dispatch1_ctrl_i[`CTRL_BRANCH_BIT] && !dispatch0_control_w &&
-      !dispatch0_mem_w;
+      !dispatch0_mem_w && !dispatch1_ctrlflow_mispred_w;
   wire dispatch1_jal_bypass_w =
       dispatch1_ctrl_i[`CTRL_JAL_BIT] && !dispatch0_control_w &&
-      !dispatch0_mem_w;
+      !dispatch0_mem_w && !dispatch1_ctrlflow_mispred_w;
   wire dispatch1_load_bypass_w =
       dispatch1_ctrl_i[`CTRL_LOAD_BIT] &&
       !dispatch1_ctrl_i[`CTRL_STORE_BIT] &&
@@ -689,13 +716,17 @@ module OooIntIssueQueue #(
   assign dispatch0_ready_o = (free_slots_w != {ENTRY_COUNT_W{1'b0}});
   assign dispatch1_ready_o = (free_slots_w > {{(ENTRY_COUNT_W-1){1'b0}}, dispatch0_fire_w});
 
-  assign issue0_valid_o = issue0_found_r;
+  assign issue0_valid_o = issue0_found_r && !recover_active_i && !kill_valid_i;
   assign issue0_pc_o = issue0_dispatch0_r ? dispatch0_pc_i :
                        issue0_dispatch1_r ? dispatch1_pc_i :
                        pc_q[issue0_idx_r];
   assign issue0_next_pc_o = issue0_dispatch0_r ? dispatch0_next_pc_i :
                             issue0_dispatch1_r ? dispatch1_next_pc_i :
                             next_pc_q[issue0_idx_r];
+  // pred_npc 不走 dispatch-bypass：控制流(branch/JAL/JALR)在 mode 下被禁止 bypass-issue（恒经队列），
+  // 故其 pred_npc 恒取寄存 pred_npc_q（结构上 loop-free，破 pred_npc→mispredict→redirect→前端预测→pred_npc 环）；
+  // 非控制流的 bypass 项 pred_npc 本就无消费者（不算 mispredict），取 pred_npc_q[idx] 的旧值无副作用。
+  assign issue0_pred_npc_o = pred_npc_q[issue0_idx_r];
   assign issue0_inst_o = issue0_dispatch0_r ? dispatch0_inst_i :
                          issue0_dispatch1_r ? dispatch1_inst_i :
                          inst_q[issue0_idx_r];
@@ -719,13 +750,15 @@ module OooIntIssueQueue #(
                         imm_q[issue0_idx_r];
 
   assign issue1_valid_o =
-      issue1_found_r && (!issue1_depends_on_issue0_r || issue0_fire_w);
+      issue1_found_r && (!issue1_depends_on_issue0_r || issue0_fire_w) &&
+      !recover_active_i && !kill_valid_i;
   assign issue1_pc_o = issue1_dispatch0_r ? dispatch0_pc_i :
                        issue1_dispatch1_r ? dispatch1_pc_i :
                        pc_q[issue1_idx_r];
   assign issue1_next_pc_o = issue1_dispatch0_r ? dispatch0_next_pc_i :
                             issue1_dispatch1_r ? dispatch1_next_pc_i :
                             next_pc_q[issue1_idx_r];
+  assign issue1_pred_npc_o = pred_npc_q[issue1_idx_r];
   assign issue1_inst_o = issue1_dispatch0_r ? dispatch0_inst_i :
                          issue1_dispatch1_r ? dispatch1_inst_i :
                          inst_q[issue1_idx_r];
@@ -781,6 +814,7 @@ module OooIntIssueQueue #(
       valid_next_r[compact_i] = 1'b0;
       pc_next_r[compact_i] = {`XLEN{1'b0}};
       next_pc_next_r[compact_i] = {`XLEN{1'b0}};
+      pred_npc_next_r[compact_i] = {`XLEN{1'b0}};
       inst_next_r[compact_i] = {`INST_W{1'b0}};
       ctrl_next_r[compact_i] = {`CTRL_BUS_W{1'b0}};
       rob_idx_next_r[compact_i] = {ROB_INDEX_W{1'b0}};
@@ -801,6 +835,7 @@ module OooIntIssueQueue #(
         valid_next_r[write_i] = 1'b1;
         pc_next_r[write_i] = pc_q[compact_i];
         next_pc_next_r[write_i] = next_pc_q[compact_i];
+        pred_npc_next_r[write_i] = pred_npc_q[compact_i];
         inst_next_r[write_i] = inst_q[compact_i];
         ctrl_next_r[write_i] = ctrl_q[compact_i];
         rob_idx_next_r[write_i] = rob_idx_q[compact_i];
@@ -826,6 +861,7 @@ module OooIntIssueQueue #(
       valid_next_r[write_i] = 1'b1;
       pc_next_r[write_i] = dispatch0_pc_i;
       next_pc_next_r[write_i] = dispatch0_next_pc_i;
+      pred_npc_next_r[write_i] = dispatch0_pred_npc_i;
       inst_next_r[write_i] = dispatch0_inst_i;
       ctrl_next_r[write_i] = dispatch0_ctrl_i;
       rob_idx_next_r[write_i] = dispatch0_rob_idx_i;
@@ -850,6 +886,7 @@ module OooIntIssueQueue #(
       valid_next_r[write_i] = 1'b1;
       pc_next_r[write_i] = dispatch1_pc_i;
       next_pc_next_r[write_i] = dispatch1_next_pc_i;
+      pred_npc_next_r[write_i] = dispatch1_pred_npc_i;
       inst_next_r[write_i] = dispatch1_inst_i;
       ctrl_next_r[write_i] = dispatch1_ctrl_i;
       rob_idx_next_r[write_i] = dispatch1_rob_idx_i;
@@ -873,6 +910,17 @@ module OooIntIssueQueue #(
     count_next_r = write_i[ENTRY_COUNT_W-1:0];
   end
 
+  // B2 ROB-walk squash 后存活计数（组合）：valid 且 age 不大于 kill 的 entry 数。
+  always @(*) begin
+    kill_keep_cnt_w = {ENTRY_COUNT_W{1'b0}};
+    for (kc_i = 0; kc_i < ENTRY_COUNT; kc_i = kc_i + 1) begin
+      if (valid_q[kc_i] &&
+          !((rob_idx_q[kc_i] - rob_head_idx_i) > (kill_rob_idx_i - rob_head_idx_i))) begin
+        kill_keep_cnt_w = kill_keep_cnt_w + {{(ENTRY_COUNT_W-1){1'b0}}, 1'b1};
+      end
+    end
+  end
+
   always @(posedge clk) begin
     if (rst || flush_i) begin
       count_q <= {ENTRY_COUNT_W{1'b0}};
@@ -880,6 +928,7 @@ module OooIntIssueQueue #(
         valid_q[reset_i] <= 1'b0;
         pc_q[reset_i] <= {`XLEN{1'b0}};
         next_pc_q[reset_i] <= {`XLEN{1'b0}};
+        pred_npc_q[reset_i] <= {`XLEN{1'b0}};
         inst_q[reset_i] <= {`INST_W{1'b0}};
         ctrl_q[reset_i] <= {`CTRL_BUS_W{1'b0}};
         rob_idx_q[reset_i] <= {ROB_INDEX_W{1'b0}};
@@ -892,6 +941,7 @@ module OooIntIssueQueue #(
         checkpoint_valid_q[reset_i] <= 1'b0;
         checkpoint_pc_q[reset_i] <= {`XLEN{1'b0}};
         checkpoint_next_pc_q[reset_i] <= {`XLEN{1'b0}};
+        checkpoint_pred_npc_q[reset_i] <= {`XLEN{1'b0}};
         checkpoint_inst_q[reset_i] <= {`INST_W{1'b0}};
         checkpoint_ctrl_q[reset_i] <= {`CTRL_BUS_W{1'b0}};
         checkpoint_rob_idx_q[reset_i] <= {ROB_INDEX_W{1'b0}};
@@ -909,6 +959,7 @@ module OooIntIssueQueue #(
         valid_q[reset_i] <= checkpoint_valid_q[reset_i];
         pc_q[reset_i] <= checkpoint_pc_q[reset_i];
         next_pc_q[reset_i] <= checkpoint_next_pc_q[reset_i];
+        pred_npc_q[reset_i] <= checkpoint_pred_npc_q[reset_i];
         inst_q[reset_i] <= checkpoint_inst_q[reset_i];
         ctrl_q[reset_i] <= checkpoint_ctrl_q[reset_i];
         rob_idx_q[reset_i] <= checkpoint_rob_idx_q[reset_i];
@@ -925,6 +976,7 @@ module OooIntIssueQueue #(
         checkpoint_valid_q[reset_i] <= valid_q[reset_i];
         checkpoint_pc_q[reset_i] <= pc_q[reset_i];
         checkpoint_next_pc_q[reset_i] <= next_pc_q[reset_i];
+        checkpoint_pred_npc_q[reset_i] <= pred_npc_q[reset_i];
         checkpoint_inst_q[reset_i] <= inst_q[reset_i];
         checkpoint_ctrl_q[reset_i] <= ctrl_q[reset_i];
         checkpoint_rob_idx_q[reset_i] <= rob_idx_q[reset_i];
@@ -935,12 +987,34 @@ module OooIntIssueQueue #(
         checkpoint_pdest_q[reset_i] <= pdest_q[reset_i];
         checkpoint_imm_q[reset_i] <= imm_q[reset_i];
       end
+    end else if (kill_valid_i) begin
+      // ROB-walk squash：清掉比 kill_rob_idx 更年轻(age 更大)的 entry（程序序后缀），存活=前缀，已紧凑。
+      // 存活前缀必须继续吸收当拍 wakeup，否则 kill 与 writeback 同拍时唤醒永久丢失
+      // （mode 下 wrong-path 每拍发 kill，load writeback 撞上 kill 拍 → jalr 等 load 结果死锁）。
+      for (reset_i = 0; reset_i < ENTRY_COUNT; reset_i = reset_i + 1) begin
+        if (valid_q[reset_i] &&
+            ((rob_idx_q[reset_i] - rob_head_idx_i) >
+             (kill_rob_idx_i - rob_head_idx_i))) begin
+          valid_q[reset_i] <= 1'b0;
+        end else if (valid_q[reset_i]) begin
+          src1_ready_q[reset_i] <= src1_ready_q[reset_i] ||
+              wakeup_match(src1_preg_q[reset_i],
+                           wakeup0_valid_i, wakeup0_pdest_i,
+                           wakeup1_valid_i, wakeup1_pdest_i);
+          src2_ready_q[reset_i] <= src2_ready_q[reset_i] ||
+              wakeup_match(src2_preg_q[reset_i],
+                           wakeup0_valid_i, wakeup0_pdest_i,
+                           wakeup1_valid_i, wakeup1_pdest_i);
+        end
+      end
+      count_q <= kill_keep_cnt_w;
     end else begin
       count_q <= count_next_r;
       for (reset_i = 0; reset_i < ENTRY_COUNT; reset_i = reset_i + 1) begin
         valid_q[reset_i] <= valid_next_r[reset_i];
         pc_q[reset_i] <= pc_next_r[reset_i];
         next_pc_q[reset_i] <= next_pc_next_r[reset_i];
+        pred_npc_q[reset_i] <= pred_npc_next_r[reset_i];
         inst_q[reset_i] <= inst_next_r[reset_i];
         ctrl_q[reset_i] <= ctrl_next_r[reset_i];
         rob_idx_q[reset_i] <= rob_idx_next_r[reset_i];
@@ -953,5 +1027,48 @@ module OooIntIssueQueue #(
       end
     end
   end
+
+`ifdef ROB_WALK_DEBUG
+  integer dbg_i;
+  reg [15:0] iq_stall_q;
+  reg [ENTRY_COUNT_W-1:0] iq_prev_count_q;
+  always @(posedge clk) begin
+    if (rst) begin iq_stall_q <= 16'd0; iq_prev_count_q <= {ENTRY_COUNT_W{1'b0}}; end
+    else begin
+      iq_prev_count_q <= count_q;
+      iq_stall_q <= (count_q != {ENTRY_COUNT_W{1'b0}} && count_q == iq_prev_count_q) ? iq_stall_q + 16'd1 : 16'd0;
+      if (iq_stall_q == 16'd2200) begin
+        $display("[IQSTALL] count=%0d recover=%b kill_valid=%b rob_head=%0d", count_q, recover_active_i, kill_valid_i, rob_head_idx_i);
+        for (dbg_i = 0; dbg_i < ENTRY_COUNT; dbg_i = dbg_i + 1)
+          if (valid_q[dbg_i])
+            $display("   IQ[%0d] rob=%0d pc=%h s1rdy=%b s2rdy=%b s1p=%0d s2p=%0d", dbg_i, rob_idx_q[dbg_i], pc_q[dbg_i],
+                     src1_ready_q[dbg_i], src2_ready_q[dbg_i], src1_preg_q[dbg_i], src2_preg_q[dbg_i]);
+      end
+    end
+  end
+`endif
+
+`ifdef ROB_WALK_DEBUG
+  // [IQW] jalr de-pend wakeup 对照表：找 pc=0x1a8 的卡死 entry，逐拍打印 src1_preg/ready + 当拍全部 wakeup 总线
+  reg [15:0] iqw_dbg_cnt;
+  integer iqw_j;
+  always @(posedge clk) begin
+    if (rst) begin
+      iqw_dbg_cnt <= 16'd0;
+    end else begin
+      for (iqw_j = 0; iqw_j < ENTRY_COUNT; iqw_j = iqw_j + 1) begin
+        if (valid_q[iqw_j] && (pc_q[iqw_j] == `XLEN'h800001a8) &&
+            !src1_ready_q[iqw_j] && (iqw_dbg_cnt < 16'd40)) begin
+          $display("[IQW] e=%0d rob=%0d s1p=%0d s1rdy=%b | wk0=%b/%0d wk1=%b/%0d pl0=%b/%0d pl1=%b/%0d",
+                   iqw_j, rob_idx_q[iqw_j], src1_preg_q[iqw_j], src1_ready_q[iqw_j],
+                   wakeup0_valid_i, wakeup0_pdest_i, wakeup1_valid_i, wakeup1_pdest_i,
+                   pending_load0_valid_i, pending_load0_pdest_i,
+                   pending_load1_valid_i, pending_load1_pdest_i);
+          iqw_dbg_cnt <= iqw_dbg_cnt + 16'd1;
+        end
+      end
+    end
+  end
+`endif
 
 endmodule

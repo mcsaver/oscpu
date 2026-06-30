@@ -124,6 +124,8 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
     .direct_branch_pred_pc_i(direct_branch_pred_pc),
     .head_next_pc0_i(head_next_pc0),
     .branch_fallthrough_capture_rsp_i(branch_fallthrough_capture_rsp),
+    .direct_jump_spec_fire_i(1'b0),
+    .direct_jump_spec_target_i('0),
     .branch_spec_resolve_valid_i(branch_spec_resolve_valid),
     .branch_spec_restore_i(branch_spec_restore),
     .core_branch_resolve_misaligned_i(core_branch_resolve_misaligned),

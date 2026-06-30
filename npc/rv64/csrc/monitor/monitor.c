@@ -52,6 +52,7 @@ static bool parse_args(int argc, char **argv, NpcSimConfig *config) {
   enum {
     OPT_NO_PROGRESS = 1000,
     OPT_NO_DIFF,
+    OPT_NO_VGA,
     OPT_LOAD,
     OPT_BLOCK,
     OPT_TOHOST,
@@ -77,6 +78,7 @@ static bool parse_args(int argc, char **argv, NpcSimConfig *config) {
     {"diff",              required_argument, NULL, 'F'},
     {"diff-port",         required_argument, NULL, 'p'},
     {"no-diff",           no_argument,       NULL, OPT_NO_DIFF},
+    {"no-vga",            no_argument,       NULL, OPT_NO_VGA},
     {"help",              no_argument,       NULL, 'h'},
     {NULL, 0, NULL, 0},
   };
@@ -193,6 +195,10 @@ static bool parse_args(int argc, char **argv, NpcSimConfig *config) {
       case OPT_NO_DIFF:
         config->difftest = false;
         break;
+      case OPT_NO_VGA:
+        /* 跑分/批量回归关掉 VGA：SDL 窗口不创建，vgactl/framebuffer MMIO 变 no-op */
+        config->vga_enable = false;
+        break;
       case 'p': {
 #if CONFIG_NPC_DIFFTEST
         char *end = NULL;
@@ -225,6 +231,7 @@ static bool parse_args(int argc, char **argv, NpcSimConfig *config) {
         printf("  -F, --diff=SO        set difftest reference .so (default: built-in NEMU reference)\n");
         printf("      --diff-port=N    difftest reference port (default 1234)\n");
         printf("      --no-diff        disable difftest for this run\n");
+        printf("      --no-vga         disable VGA SDL window (benchmark/batch runs)\n");
 #else
         printf("  -F, --diff=SO        unavailable: rebuild with CONFIG_NPC_DIFFTEST=y\n");
         printf("      --diff-port=N    unavailable: rebuild with CONFIG_NPC_DIFFTEST=y\n");

@@ -156,6 +156,19 @@ bool npc_load_img(const char *image_path) {
 bool npc_paddr_read(npc_paddr_t addr, npc_word_t *data, enum NpcBusAccess kind) {
   if (!data) return false;
 
+  /* PMEM 被声明为 1 GiB([0x80000000,0xbfffffff])以匹配 Linux DTS，这会把
+   * NPC_DEVICE_BASE(0xa0000000)的设备窗口别名进 RAM。设备 MMIO 必须优先于 RAM
+   * 别名(与 RTL AxiLiteXbar 中 LEGACY_MMIO 译码优先级高于重叠 SDRAM 一致)，否则
+   * serial/rtc/... 访问会被 pmem 静默吞掉(CoreMark 无串口输出的根因)。取指不穿设备。 */
+  if (kind != NPC_BUS_IFETCH && addr >= NPC_DEVICE_BASE) {
+    uint32_t mmio_data = 0;
+    if (npc_mmio_read((uint32_t)addr, &mmio_data, kind)) {
+      *data = (npc_word_t)mmio_data;
+      npc_difftest_skip_ref();
+      return true;
+    }
+  }
+
   if (npc_in_pmem(addr)) {
     *data = host_read_word(npc_guest_to_host(addr));
     if (kind == NPC_BUS_LOAD && memwatch_hits(addr, sizeof(npc_word_t))) {
@@ -182,6 +195,15 @@ bool npc_paddr_read(npc_paddr_t addr, npc_word_t *data, enum NpcBusAccess kind) 
 }
 
 bool npc_paddr_write(npc_paddr_t addr, npc_word_t data, npc_word_t mask, enum NpcBusAccess kind) {
+  /* 设备 MMIO 优先于 1 GiB pmem 的 RAM 别名(详见 npc_paddr_read 注释)：
+   * NPC_DEVICE_BASE 落在 pmem 区间内，若先判 pmem 命中即 return，会把串口等设备写
+   * 当成普通内存写吞掉，导致 MMIO/serial 回调永不触达。 */
+  if (addr >= NPC_DEVICE_BASE &&
+      npc_mmio_write((uint32_t)addr, (uint32_t)data, (uint32_t)mask, kind)) {
+    npc_difftest_skip_ref();
+    return true;
+  }
+
   if (npc_in_pmem(addr)) {
     host_write_masked(npc_guest_to_host(addr), data, mask);
     if (kind == NPC_BUS_STORE && memwatch_hits(addr, sizeof(npc_word_t))) {

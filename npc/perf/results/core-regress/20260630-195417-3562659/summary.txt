@@ -1,0 +1,10 @@
+NPC RV64 core regression
+  run_dir: /home/lyg/PA/ysyx-workbench/npc/perf/results/core-regress/20260630-195417-3562659
+  riscv_suites: rv64ui rv64um rv64uc rv64uzba rv64uzbb rv64uzbc rv64uzbs
+[2026-06-30 19:54:17] run module-testbench
+  FAIL  module-testbench (exit=2, log=/home/lyg/PA/ysyx-workbench/npc/perf/results/core-regress/20260630-195417-3562659/module-testbench.log)
+[2026-06-30 19:54:17] run verilator-lint
+  PASS  verilator-lint
+[2026-06-30 19:54:19] run npc-build
+  PASS  npc-build
+[2026-06-30 19:54:20] run am-cpu-tests

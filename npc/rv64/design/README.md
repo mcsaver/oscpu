@@ -6,6 +6,8 @@
 ## 目录结构
 | 路径 | 内容 |
 | --- | --- |
+| `arch/ooo-core-architecture.md` | **微架构宪法**（normative 顶层）：指令生命周期、标准 uop/event 字段、状态 owner 表、副作用/flush/redirect 宪法、pending 退出计划。是 B2/B3/B4/B-LSQ 的父规范 |
+| `arch/b2-branch-spec-redirect.md` | **B2 规范**：多级分支投机 + 统一 redirect，拆 branch/jump pending。评审定 B(ROB-walk) 基线 + C 快照 Phase-2；含共享地基/拆除清单/验证计划 |
 | `arch/ROADMAP.md` | **主干**：已验证状态、架构深度再评估、优先级 backlog、专业化工作流、时序 track |
 | `arch/SPEC-TEMPLATE.md` | 规范模板（spec 先行/状态机优先/图文并茂） |
 | `arch/mem-store-decouple.md` | B1 访存 store 写回解耦规范（已实现） |

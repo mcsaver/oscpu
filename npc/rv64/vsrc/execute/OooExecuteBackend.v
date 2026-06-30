@@ -22,10 +22,12 @@ module OooExecuteBackend #(
   input [`XLEN-1:0] core_dispatch0_next_pc_w,
   input [`XLEN-1:0] core_dispatch0_pc_w,
   input core_dispatch0_valid_w,
+  input [`XLEN-1:0] core_dispatch0_pred_npc_w,
   input [`INST_W-1:0] core_dispatch1_inst_w,
   input [`XLEN-1:0] core_dispatch1_next_pc_w,
   input [`XLEN-1:0] core_dispatch1_pc_w,
   input core_dispatch1_valid_w,
+  input [`XLEN-1:0] core_dispatch1_pred_npc_w,
   input core_local_flush_w,
   input core_mem_issue_block_w,
   input csr_trap_mem_valid_w,
@@ -79,6 +81,8 @@ module OooExecuteBackend #(
   input stop_pending_q,
   output [`XLEN-1:0] a0_data_w,
   output core_branch_resolve_misaligned_w,
+  output [ROB_INDEX_W-1:0] core_branch_resolve_rob_idx_w,
+  output core_branch_resolve_mispredict_w,
   output [`XLEN-1:0] core_branch_resolve_next_pc_w,
   output [`XLEN-1:0] core_branch_resolve_pc_w,
   output core_branch_resolve_valid_w,
@@ -164,6 +168,8 @@ module OooExecuteBackend #(
 
   wire [4:0] pending_fp_compute_fflags_w;
   wire [`XLEN-1:0] pending_fp_compute_value_w;
+  // arith 多周期流水就绪信号:OooFpPendingExec → sequencer 门控 compute_done 锁存。
+  wire pending_fp_compute_ready_w;
   wire [4:0] pending_fp_long_done_fflags_w;
   wire [`XLEN-1:0] pending_fp_long_done_result_w;
   wire pending_fp_long_done_w;
@@ -188,8 +194,10 @@ module OooExecuteBackend #(
     .frs2_value_i(pending_fp_frs2_value_w),
     .frs3_value_i(pending_fp_frs3_value_w),
     .long_start_i(pending_fp_long_start_w),
+    .compute_start_i(pending_fp_compute_start_w),
     .long_op_o(pending_fp_long_op_w),
     .compute_op_o(pending_fp_compute_op_w),
+    .compute_ready_o(pending_fp_compute_ready_w),
     .div_busy_o(pending_fp_div_busy_w),
     .sqrt_busy_o(pending_fp_sqrt_busy_w),
     .long_done_o(pending_fp_long_done_w),
@@ -237,6 +245,7 @@ module OooExecuteBackend #(
     .long_done_result_i(pending_fp_long_done_result_w),
     .long_done_fflags_i(pending_fp_long_done_fflags_w),
     .compute_start_i(pending_fp_compute_start_w),
+    .compute_ready_i(pending_fp_compute_ready_w),
     .compute_result_i(pending_fp_compute_value_w),
     .compute_fflags_i(pending_fp_compute_fflags_w),
     .valid_o(pending_fp_q),
@@ -295,6 +304,7 @@ module OooExecuteBackend #(
     .dispatch0_ready_o(dispatch0_ready_w),
     .dispatch0_pc_i(core_dispatch0_pc_w),
     .dispatch0_next_pc_i(core_dispatch0_next_pc_w),
+    .dispatch0_pred_npc_i(core_dispatch0_pred_npc_w),
     .dispatch0_inst_i(core_dispatch0_inst_w),
     .dispatch0_csr_rdata_i(core_dispatch0_csr_rdata_w),
     .dispatch0_unsupported_o(dispatch0_unsupported_w),
@@ -303,6 +313,7 @@ module OooExecuteBackend #(
     .dispatch1_ready_o(dispatch1_ready_w),
     .dispatch1_pc_i(core_dispatch1_pc_w),
     .dispatch1_next_pc_i(core_dispatch1_next_pc_w),
+    .dispatch1_pred_npc_i(core_dispatch1_pred_npc_w),
     .dispatch1_inst_i(core_dispatch1_inst_w),
     .dispatch1_csr_rdata_i({`XLEN{1'b0}}),
     .dispatch1_unsupported_o(dispatch1_unsupported_w),
@@ -362,6 +373,8 @@ module OooExecuteBackend #(
 	    .branch_resolve_pc_o(core_branch_resolve_pc_w),
 	    .branch_resolve_next_pc_o(core_branch_resolve_next_pc_w),
 	    .branch_resolve_misaligned_o(core_branch_resolve_misaligned_w),
+	    .branch_resolve_rob_idx_o(core_branch_resolve_rob_idx_w),
+	    .branch_resolve_mispredict_o(core_branch_resolve_mispredict_w),
 	    .dispatch_branch_resolve_valid_o(core_dispatch_branch_resolve_valid_w),
 	    .dispatch_branch_resolve_pc_o(core_dispatch_branch_resolve_pc_w),
 	    .dispatch_branch_resolve_next_pc_o(core_dispatch_branch_resolve_next_pc_w),

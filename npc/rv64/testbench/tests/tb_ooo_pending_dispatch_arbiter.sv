@@ -129,6 +129,7 @@ module tb_ooo_pending_dispatch_arbiter;
     .dispatch1_barrier_fire_i(dispatch1_barrier_fire),
     .head0_csr_illegal_i(head0_csr_illegal),
     .head1_csr_illegal_i(head1_csr_illegal),
+    .rob_walk_mode_i(1'b0),
     .pending_system_capture_irq_o(pending_system_capture_irq),
     .pending_system_capture_head0_o(pending_system_capture_head0),
     .pending_system_capture_lane1_o(pending_system_capture_lane1),

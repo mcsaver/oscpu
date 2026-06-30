@@ -48,6 +48,11 @@
 - **文件组织**：frontend 44 文件（偏碎）、`OooFrontend.v` 2258 行/`OooIntBackend.v` 1845 行（偏大）。
   按职责适度合并/拆分，命名与注释统一。
 - **规范覆盖**：`design/specs/` 多为文本散描述，缺统一专业模板与图示；要求 **spec 先行**。
+- **架构宪法（2026-06-29 新增）**：核"实现先长、架构后补"，缺顶层 normative 约束。已立
+  `arch/ooo-core-architecture.md`（微架构宪法）：定指令生命周期/标准 uop·event 字段/状态 owner 表/
+  副作用·flush·redirect 宪法/pending 退出计划。经全核 11 路审计佐证，是 B2/B3/B4/B-LSQ 的**父规范**——
+  后续重构应"反过来用宪法约束实现"。关键裁决：前端过载/控制面补丁总线/uop 散线/pending 隐藏串行主干
+  均 **confirmed**；commit 唯一改架构态基本成立（+3 受规约例外：B1 store、FPR、fflags）。
 
 ### 3.3 微架构限制（评估报告原结论，仍成立）
 - 单 entry pending sequencer（branch/jump/mem/system/FP）+ backend-drain 串行困难路径。
@@ -63,7 +68,7 @@
 | B3 | **规范体系**：统一 spec 模板(图文并茂)+ 逐模块补 | 中(可维护/交付质量) | 低 | 先定模板，再分模块 | **模板✓**，逐模块补进行中 |
 | B1 | **访存解耦：cacheable-PMEM store 写回解耦** | 高(真实代码+#1 微基准) | 中(已限定 cacheable;保留 MMIO 精确异常) | spec✓+FSM✓ | **spec✓ + FSM 文档✓**(`specs/ooo-mem-axi-bridge-fsm.md`)；设计已定(bpend 跟踪器+仅 cacheable 解耦,保 MEM-I3)；实现为下一专注迭代 |
 | B-LSQ | **load 多 outstanding / store-to-load forward(目标 B)** | 高(真实代码访存瓶颈) | 高(顺序/forward) | **difftest 已解锁逐指令验证** + eval | spec 先行,difftest 护航 | 待开始(已具备安全验证) |
-| B2 | **redirect/PC sequencer 改显式状态机** | 中(时序+清晰+稳健) | 中 | spec 先行；先补 redirect 优先级定向 TB 再改 | 待开始(先补 TB) |
+| B2 | **多级分支投机 + 统一 redirect（拆 branch/jump pending）** | 高(真乱序前置;branch-resolve-loop #1 瓶颈) | 高(横切~30 文件) | spec 先行；地基(显式 mispredict+rob_idx+单 arbiter+kill-younger)→启用投机+ROB-walk 恢复→删 pending | **spec✓ + 方案定案**(`b2-branch-spec-redirect.md`)：评审定 **B(ROB-walk)** 为基线、C 快照作 Phase-2。**地基 slice-1/2 ✅**：①`OooRedirectArbiter.v`(age-律 selector)+`tb_ooo_redirect_arbiter`(13 例 RED→GREEN);②`OooIntBackend` 导出 `branch_resolve_rob_idx_o` 并 plumb 到 `OooCoreTopGlue`(纯增量,暂 unused)。均 113/113+lint+风格全绿、未接核。**发现**:mispredict 现由前端检测(`issue0_next_pc_w` 是 fallthrough 非预测),后端算 mispredict 需把预测 next_pc 作新 uop 字段 threaded 下来→列整合切片。③**高风险大刀=点火休眠单 checkpoint 投机(`direct_branch_spec_start` 1'b0→1'b1):验证负结论——riscv 16 FAIL(store/div/clmul)+AM 分支程序活锁,该 weak 机器对多周期/访存在飞指令系统性损坏态,已精确回退绿核(riscv 271/0 复原)。坐实不复活此废弃路径、真 OoO 走 ROB-walk**。④**ROB-walk 恢复 FSM ✅**(决定的正道起步):`OooRob` 加 `kill_valid_i`/`kill_rob_idx_i`+多周期反向 walk(2/拍 emit walk{0,1} old_pdest/arch_rd 供 rename 还原/free 回收+回退 tail+`recover_active_o` 冻结),in-core kill 接 1'b0=行为中性(构造可证+113/113),`tb_ooo_rob` 定向 walk 测(奇/偶终止 last_one/last_two+负对照证有效)。⑤**B2 全整合 + Step B 投机 flip 实测(决定性负结论)**:续建 IQ age-squash + Step A 端到端接线(walk→rename/free/IQ,行为中性) + Step B `OOO_ROB_WALK_MODE` 开关(spec_start=1 + mispredict→ROB-walk kill + checkpoint 抑制;调试修 UNOPTFLAT 环=kill 打拍、BLKSEQ=组合 count)。mode=1 实测 **riscv 251/20、AM 14/43(分支程序全活锁)**,与③父会话 checkpoint 投机失败几乎一致。**定性:ROB-walk(已隔离验证正确)取代 checkpoint 后失败不变→问题不在恢复机制,在前端投机流本身(fetch-past-branch+单 spec tracker+redirect 休眠机器,启用即广泛破)。真正使分支投机=重建前端投机流(多会话级),非恢复修复**。已回退 mode=0 保绿;恢复基础设施(ROB-walk FSM/rename-restore/free-reclaim/IQ-squash/arbiter/rob_idx)全保留 mode-gated 隔离验证待接入。〔eval AM 45/12=`.config DIFFTEST=y`+device artifact,非回归〕 |
 | B4 | 文件组织：碎片合并/大文件拆分、命名注释统一 | 中(交付质量) | 低-中 | 纯结构变换，逐目录，build+gate 不变 | 待开始(低风险，可先行) |
 | B5 | DIV radix-8 / 64 位 CLZ 跳零 | 低(递减) | 低 | 同 radix-4 套路 | 暂缓 |
 | B6 | 分支多级 spec checkpoint | 中 | 高 | spec 先行 | 暂缓 |

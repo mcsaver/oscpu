@@ -31,6 +31,8 @@ module OooFetchRequestMux (
   input [`XLEN-1:0] core_branch_resolve_next_pc_i,
   input branch_prefetch_req_valid_i,
   input [`XLEN-1:0] branch_prefetch_req_pc_i,
+  input direct_jump_spec_fire_i,           // B2: 非返回 JALR 投机续取
+  input [`XLEN-1:0] direct_jump_spec_target_i,
 
   output direct_redirect_fetch_o,
   output redirect_fetch_req_valid_o,
@@ -49,7 +51,8 @@ module OooFetchRequestMux (
       direct_branch0_lane1_ret_i ||
       pending_jump_nolink_commit_i ||
       pending_jump_redirect_after_dispatch_i ||
-      direct_branch_resolve_redirect_i;
+      direct_branch_resolve_redirect_i ||
+      direct_jump_spec_fire_i;
 
   assign redirect_fetch_req_valid_o =
       (direct_redirect_fetch_o ||
@@ -61,6 +64,11 @@ module OooFetchRequestMux (
       (!outstanding_valid_i || fetch_rsp_fire_i);
 
   assign redirect_fetch_pc_o =
+      // B2：后端显式 mispredict 解析(真 target)必须优先于投机续取的 BTB 预测。
+      // computed-jump（jr rs1，如 get_seed_32 jump-table）的 BTB 是上一次 target，stale；
+      // 投机续取给旧 target，后端算出真 target 后必须覆盖，否则同拍时 line67 的投机 target 胜 → 跳错 case。
+      branch_resolve_untracked_redirect_i ? core_branch_resolve_next_pc_i :
+      direct_jump_spec_fire_i ? direct_jump_spec_target_i :
       direct_jal_fire_i ? direct_jal_target_i :
       (direct_ret0_fire_i || direct_ret1_fire_i) ? direct_ret_target_i :
       direct_branch0_lane1_ret_i ?

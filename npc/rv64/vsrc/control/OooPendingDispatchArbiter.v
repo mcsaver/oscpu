@@ -43,6 +43,7 @@ module OooPendingDispatchArbiter (
 
   input head0_csr_illegal_i,
   input head1_csr_illegal_i,
+  input rob_walk_mode_i,   // B2: mode=1 时 branch/jump 不再进 pending capture（改投机+ROB-walk）
 
   output pending_system_capture_irq_o,
   output pending_system_capture_head0_o,
@@ -67,6 +68,7 @@ module OooPendingDispatchArbiter (
 
   output pending_trap_exit_clear_exit_o,
   output pending_trap_exit_clear_arch_o,
+  output pending_trap_exit_clear_arch_squash_o,
   output pending_trap_exit_capture_exit_o,
   output pending_trap_exit_capture_exit_valid_o,
   output pending_trap_exit_capture_exit_ecall_o,
@@ -96,10 +98,10 @@ module OooPendingDispatchArbiter (
   wire direct_branch_fire_w =
       direct_branch0_fire_i || direct_branch1_fire_i;
   wire lane0_branch_pending_w =
-      dispatch0_branch_w && !direct_branch0_dispatch_valid_i;
+      dispatch0_branch_w && !direct_branch0_dispatch_valid_i && !rob_walk_mode_i;
   wire lane0_jump_pending_w =
-      (dispatch0_jal_w && !direct_jal0_dispatch_valid_i) ||
-      (dispatch0_jump_w && !dispatch0_return_i);
+      ((dispatch0_jal_w && !direct_jal0_dispatch_valid_i) ||
+       (dispatch0_jump_w && !dispatch0_return_i)) && !rob_walk_mode_i;
   wire lane1_barrier_base_w =
       capture_base_w &&
       !csr_irq_pending_i &&
@@ -159,7 +161,7 @@ module OooPendingDispatchArbiter (
   assign pending_system_capture_lane1_o = lane1_system_capture_w;
 
   assign pending_branch_capture_direct_o =
-      direct_frontend_flush_i && direct_branch_fire_w;
+      direct_frontend_flush_i && direct_branch_fire_w && !rob_walk_mode_i;
   assign pending_branch_capture_head0_o =
       capture_base_w &&
       !csr_irq_pending_i &&
@@ -169,7 +171,8 @@ module OooPendingDispatchArbiter (
       !dispatch0_fp_w &&
       !dispatch0_system_w &&
       lane0_branch_pending_w;
-  assign pending_branch_capture_lane1_o = lane1_branch_capture_w;
+  assign pending_branch_capture_lane1_o =
+      lane1_branch_capture_w && !rob_walk_mode_i;
 
   assign pending_jump_capture_head0_o =
       capture_base_w &&
@@ -181,7 +184,8 @@ module OooPendingDispatchArbiter (
       !dispatch0_system_w &&
       !lane0_branch_pending_w &&
       lane0_jump_pending_w;
-  assign pending_jump_capture_lane1_o = lane1_jump_capture_w;
+  assign pending_jump_capture_lane1_o =
+      lane1_jump_capture_w && !rob_walk_mode_i;
 
   assign pending_fp_capture_head0_o =
       capture_base_w &&
@@ -266,7 +270,8 @@ module OooPendingDispatchArbiter (
   wire trap_exit_capture_fetch_fault0_w =
       capture_base_w &&
       !csr_irq_pending_i &&
-      head_fetch_fault0_i;
+      head_fetch_fault0_i;   // mode=1 也 capture; 投机 wrong-path fetch fault residual 由
+                             // clear_arch_squash cause-gate 在被 squash 时清(见 OooPendingTrapExitSequencer)
   wire trap_exit_capture_arch0_w =
       capture_base_w &&
       !csr_irq_pending_i &&
@@ -311,18 +316,30 @@ module OooPendingDispatchArbiter (
       trap_exit_capture_exit0_w ? dispatch0_ebreak_w :
                                   trap_exit_lane1_exit_ebreak_w;
 
+  // capture 触发必须与 arch_valid 一致。lane1 barrier(barrier_base)/unsupported 不代表真实 arch trap：
+  // mode=1 下它们是 dispatch-time 投机（启动 _trm_init 的 csrw 0x80001ffc 被预取到 lane1 barrier），
+  // 用 barrier_base 触发会让 pending_trap_cause 落到 lane1_cause default=INST_ACCESS_FAULT 并残留整个
+  // 运行 → 最后被 drain_trap_payload 误用 spurious trap。改用已 gate 的 arch_valid 表达式触发。
   assign pending_trap_exit_capture_arch_o =
       trap_exit_capture_fetch_fault0_w ||
       trap_exit_capture_arch0_w ||
       trap_exit_capture_csr_illegal0_w ||
-      trap_exit_capture_lane1_w ||
-      trap_exit_capture_unsupported_w;
+      (trap_exit_capture_unsupported_w && !rob_walk_mode_i) ||
+      (trap_exit_capture_lane1_w && trap_exit_lane1_arch_valid_w &&
+       !(rob_walk_mode_i &&
+         (trap_exit_lane1_cause_w == `EXC_INST_ACCESS_FAULT)));
   assign pending_trap_exit_capture_arch_valid_o =
       trap_exit_capture_fetch_fault0_w ||
       trap_exit_capture_arch0_w ||
       trap_exit_capture_csr_illegal0_w ||
-      trap_exit_capture_unsupported_w ||
-      (trap_exit_capture_lane1_w && trap_exit_lane1_arch_valid_w);
+      (trap_exit_capture_unsupported_w && !rob_walk_mode_i) ||
+      // mode=1：lane1 arch trap capture 是 dispatch-time 投机——启动 _trm_init 的 csrw(0x80001ffc)
+      // 被预取到 lane1 barrier，arch_valid 经 facts.arch_trap_raw 置位，cause 落到 default
+      // INST_ACCESS_FAULT 并残留整个运行 → drain_trap_payload 误用 spurious trap。真实 arch trap
+      // 走 commit 路径，riscv-tests 135/0 可证 mode=1 不依赖此 dispatch-capture。
+      (trap_exit_capture_lane1_w && trap_exit_lane1_arch_valid_w &&
+       !(rob_walk_mode_i &&
+         (trap_exit_lane1_cause_w == `EXC_INST_ACCESS_FAULT)));
   assign pending_trap_exit_capture_cause_o =
       trap_exit_capture_fetch_fault0_w ?
           ((head_resp0_i == 2'b10) ? `EXC_INST_PAGE_FAULT :
@@ -379,5 +396,17 @@ module OooPendingDispatchArbiter (
       trap_exit_clear_resolve_w ||
       direct_frontend_flush_i ||
       trap_exit_capture_clear_arch_w;
+  // B2 mode=1: squash 来源(branch resolve/untracked redirect jr-ret/frontend flush)的 clear_arch
+  // 表示被清的 arch trap 来自投机 wrong-path(如越过 printf ret 取到 .text 段尾之后的 head
+  // illegal), 需一并清 pending_trap 的 cause/pc residual, 否则被 drain 出口的 drain_trap_payload
+  // (pc!=0)误用 → CoreMark(未设 mtvec)spurious illegal trap。drain 出口的 clear(drain_clear_w /
+  // pending_system_csr_commit)是真实 arch trap fire 时, 保留 cause/pc 供 trap handler 读
+  // scause/sepc(sv39 page fault/ecall)。
+  assign pending_trap_exit_clear_arch_squash_o =
+      (!direct_frontend_flush_i && branch_spec_resolve_valid_i) ||
+      pending_branch_commit_resolve_i ||
+      pending_branch_match_clear_i ||
+      (!direct_frontend_flush_i && branch_resolve_untracked_i) ||
+      direct_frontend_flush_i;
 
 endmodule

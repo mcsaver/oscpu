@@ -42,6 +42,7 @@ module OooStopPendingSequencer (
   input wire dispatch0_return_i,
   input wire dispatch1_barrier_fire_i,
   input wire dispatch_unsupported_i,
+  input wire rob_walk_mode_i,   // B2: mode=1 时 branch/jal/jump 不再起 stop_pending（改投机+ROB-walk）
 
   output reg stop_pending_o
 );
@@ -100,6 +101,11 @@ module OooStopPendingSequencer (
         if (csr_irq_pending_i) begin
           stop_pending_o <= 1'b1;
         end else if (head_fetch_fault0_i) begin
+          // fetch fault(inst access/page fault)stop_pending → drain → arch trap。
+          // mode=1 也 capture:投机 wrong-path fetch fault(CoreMark 越界 access fault)的
+          // residual 由 OooPendingTrapExitSequencer 的 clear_arch_squash cause-gate 在被
+          // mispredict squash 时清掉;真实 fetch fault(sv39 S-mode inst page fault cause=12,
+          // 不被 squash)保留 → 正常 trap。这样 sv39 boot 与 CoreMark 同时成立。
           stop_pending_o <= 1'b1;
         end else if (dispatch0_arch_trap_i) begin
           stop_pending_o <= 1'b1;
@@ -111,10 +117,12 @@ module OooStopPendingSequencer (
           stop_pending_o <= 1'b1;
         end else if (dispatch0_system_i) begin
           stop_pending_o <= 1'b1;
-        end else if (dispatch0_branch_i && !direct_branch0_dispatch_valid_i) begin
+        end else if (dispatch0_branch_i && !direct_branch0_dispatch_valid_i &&
+                     !rob_walk_mode_i) begin
           stop_pending_o <= 1'b1;
-        end else if ((dispatch0_jal_i && !direct_jal0_dispatch_valid_i) ||
-                     (dispatch0_jump_i && !dispatch0_return_i)) begin
+        end else if (((dispatch0_jal_i && !direct_jal0_dispatch_valid_i) ||
+                      (dispatch0_jump_i && !dispatch0_return_i)) &&
+                     !rob_walk_mode_i) begin
           stop_pending_o <= 1'b1;
         end else if (dispatch1_barrier_fire_i) begin
           stop_pending_o <= 1'b1;

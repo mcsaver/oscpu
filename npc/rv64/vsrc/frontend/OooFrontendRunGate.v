@@ -1,4 +1,5 @@
 // Pure combinational run/credit gate for the OoO front-end.
+`include "define.v"
 module OooFrontendRunGate #(
   parameter FETCH_COUNT_W = 3
 ) (
@@ -60,12 +61,15 @@ module OooFrontendRunGate #(
                      !exit_valid_i;
 
   assign fifo_empty_storage_o = !fifo_storage_head_valid_i;
+  // B2: mode 下禁「取指响应直通 dispatch」的 bypass，强制 wrong-path 经 FIFO——mispredict redirect 的 FIFO-clear
+  // 才能拦住它，使它无法绕过 FIFO/kill 窗口而 dispatch+提交（修 bypass-after-kill 竞争）。
   assign fetch_rsp_dispatch_bypass_o =
       fifo_empty_storage_o &&
       can_run_o &&
       outstanding_valid_i &&
       fetch_rsp_valid_i &&
-      !discard_fetch_rsp_i;
+      !discard_fetch_rsp_i &&
+      !(`OOO_ROB_WALK_MODE);
 
   assign outstanding_count_o =
       {{(FETCH_COUNT_W-1){1'b0}}, outstanding_valid_i};

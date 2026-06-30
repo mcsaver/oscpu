@@ -33,6 +33,18 @@ module OooRenameMap #(
   output [PHY_REG_ADDR_W-1:0] rename1_old_pdest_o,
   output [PHY_REG_ADDR_W-1:0] rename1_new_pdest_o,
 
+  // B2 ROB-walk 反向恢复端口：把 squashed uop 的 arch_rd 还原到其 old_pdest。
+  // 消费 OooRob 的 walk{0,1}_{arch_rd,old_pdest,valid&&rd_en}。lane1 程序序更老 → 同拍 WAW 覆盖 lane0
+  // （源序后写胜）→ 最老 squashed 写者的 old_pdest 最终留存=分支处的精确映射。详见 b2-branch-spec-redirect.md §4.1。
+  // in-core 暂接 0（投机未启用）→ 行为中性。
+  input restore_valid_i,
+  input restore0_en_i,
+  input [`REG_ADDR_W-1:0] restore0_arch_i,
+  input [PHY_REG_ADDR_W-1:0] restore0_pdest_i,
+  input restore1_en_i,
+  input [`REG_ADDR_W-1:0] restore1_arch_i,
+  input [PHY_REG_ADDR_W-1:0] restore1_pdest_i,
+
   output [PHY_REG_ADDR_W * `REG_NUM - 1:0] debug_map_o
 );
 
@@ -98,6 +110,14 @@ module OooRenameMap #(
     end else if (checkpoint_capture_i) begin
       for (idx = 0; idx < `REG_NUM; idx = idx + 1) begin
         checkpoint_map_q[idx] <= map_q[idx];
+      end
+    end else if (restore_valid_i) begin
+      // ROB-walk 恢复：lane0=较年轻、lane1=较老；同拍 WAW 时 lane1 源序在后写胜（最老者留存）。
+      if (restore0_en_i && (restore0_arch_i != {`REG_ADDR_W{1'b0}})) begin
+        map_q[restore0_arch_i] <= restore0_pdest_i;
+      end
+      if (restore1_en_i && (restore1_arch_i != {`REG_ADDR_W{1'b0}})) begin
+        map_q[restore1_arch_i] <= restore1_pdest_i;
       end
     end else begin
       if (lane0_writes_w) begin

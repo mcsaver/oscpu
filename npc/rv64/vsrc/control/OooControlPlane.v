@@ -255,6 +255,7 @@ module OooControlPlane #(
   wire [`XLEN-1:0] pending_trap_exit_capture_pc_w;
   wire [`XLEN-1:0] pending_trap_exit_capture_tval_w;
   wire pending_trap_exit_clear_arch_w;
+  wire pending_trap_exit_clear_arch_squash_w;
   wire pending_trap_exit_clear_exit_w;
   wire [`XLEN-1:0] pending_trap_pc_q;
   wire [`XLEN-1:0] pending_trap_tval_q;
@@ -415,6 +416,8 @@ module OooControlPlane #(
     .drain_complete_o(drain_complete_w)
   );
 
+  // B2: ROB-walk 模式开关——branch/jump 在 mode=1 改投机+ROB-walk 恢复，不再 pending+drain。
+  wire rob_walk_mode_w = `OOO_ROB_WALK_MODE;
 
   OooPendingDispatchArbiter u_pending_dispatch_arbiter (
     .csr_trap_mem_valid_i(csr_trap_mem_valid_w),
@@ -454,6 +457,7 @@ module OooControlPlane #(
     .dispatch1_barrier_fire_i(dispatch1_barrier_fire_w),
     .head0_csr_illegal_i(head0_csr_illegal_w),
     .head1_csr_illegal_i(head1_csr_illegal_w),
+    .rob_walk_mode_i(rob_walk_mode_w),
     .pending_system_capture_irq_o(pending_system_capture_irq_w),
     .pending_system_capture_head0_o(pending_system_capture_head0_w),
     .pending_system_capture_lane1_o(pending_system_capture_lane1_w),
@@ -472,6 +476,7 @@ module OooControlPlane #(
     .pending_mem_clear_o(pending_mem_clear_w),
     .pending_trap_exit_clear_exit_o(pending_trap_exit_clear_exit_w),
     .pending_trap_exit_clear_arch_o(pending_trap_exit_clear_arch_w),
+    .pending_trap_exit_clear_arch_squash_o(pending_trap_exit_clear_arch_squash_w),
     .pending_trap_exit_capture_exit_o(pending_trap_exit_capture_exit_w),
     .pending_trap_exit_capture_exit_valid_o(
         pending_trap_exit_capture_exit_valid_w),
@@ -574,6 +579,7 @@ module OooControlPlane #(
     .late_clear_i(csr_trap_mem_valid_w),
     .clear_exit_i(pending_trap_exit_clear_exit_w),
     .clear_arch_i(pending_trap_exit_clear_arch_w),
+    .clear_arch_squash_i(pending_trap_exit_clear_arch_squash_w),
     .capture_exit_i(pending_trap_exit_capture_exit_w),
     .capture_exit_valid_i(pending_trap_exit_capture_exit_valid_w),
     .capture_exit_is_ecall_i(pending_trap_exit_capture_exit_ecall_w),
@@ -753,6 +759,7 @@ module OooControlPlane #(
     .dispatch0_return_i(dispatch0_return_w),
     .dispatch1_barrier_fire_i(dispatch1_barrier_fire_w),
     .dispatch_unsupported_i(dispatch_unsupported_w),
+    .rob_walk_mode_i(rob_walk_mode_w),
     .stop_pending_o(stop_pending_q)
   );
 

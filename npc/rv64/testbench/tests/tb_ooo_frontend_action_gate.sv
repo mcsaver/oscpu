@@ -62,6 +62,7 @@ module tb_ooo_frontend_action_gate;
     .dispatch_fire_i(dispatch_fire),
     .dispatch1_barrier_fire_i(dispatch1_barrier_fire),
     .direct_jal0_fire_i(direct_jal0_fire),
+    .direct_jump_spec_fire_i(1'b0),
     .fetch_rsp_fire_i(fetch_rsp_fire),
     .fetch_rsp_can_enqueue_i(fetch_rsp_can_enqueue),
     .fetch_dec0_control_stop_i(fetch_dec0_control_stop),

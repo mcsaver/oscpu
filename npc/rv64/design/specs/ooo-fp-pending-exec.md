@@ -1,5 +1,8 @@
 # OooFpPendingExec Spec
 
+> ⚠ **接口待校正**：端口列表缺 FP 流水化后新增的 `compute_start_i` / `frm_i[2:0]` / `compute_ready_o`
+>（见 `../../vsrc/execute/OooFpPendingExec.v:22`）。模块仍在用；FP 子系统将随 **B-FP** 重写，届时一并更新。以 RTL 为准。
+
 ## 阶段 1 - 需求
 
 `OooFpPendingExec` 是 `npc/rv64` OoO 核的 FP pending 数据通路 helper。它接收父模块已经锁存的 pending FP 指令、GPR/FPR 操作数和控制位，输出 FP load/store 地址数据、普通 FP 组合结果、fflags，以及 FDIV/FSQRT 迭代单元的完成结果。

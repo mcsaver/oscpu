@@ -372,6 +372,11 @@ module OooCoreTopGlue #(
   wire [`XLEN-1:0] core_branch_resolve_pc_w;
   wire [`XLEN-1:0] core_branch_resolve_next_pc_w;
   wire core_branch_resolve_misaligned_w;
+  // B2：解析分支 rob_idx（kill_younger_than 基准），随 branch_resolve_* 家族上送至此；
+  // 暂未接消费者（待 OooRedirectArbiter 接入），故为 driven-but-unused（Verilator UNUSEDSIGNAL 已全局抑制）。
+  wire [`OOO_ROB_INDEX_W-1:0] core_branch_resolve_rob_idx_w;
+  // B2 片4：后端 branch/JALR 显式 mispredict 脉冲，上送前端做 redirect。
+  wire core_branch_resolve_mispredict_w;
   wire core_dispatch_branch_resolve_valid_w;
   wire [`XLEN-1:0] core_dispatch_branch_resolve_pc_w;
   wire [`XLEN-1:0] core_dispatch_branch_resolve_next_pc_w;
@@ -551,7 +556,12 @@ module OooCoreTopGlue #(
   );
 
   wire backend_drained_w;
-  wire direct_branch_spec_start_w = 1'b0;
+  // 休眠的单级 checkpoint 投机路径保持关闭（=分支走 pending）。
+  // 验证负结论(2026-06-29)：置 1'b1 点火后功能 gate 大破——riscv 16 FAIL(store/div/clmul)、
+  // AM 32 FAIL(分支程序活锁撞满 max-cycles)。该 weak 单 checkpoint 机器对多周期/访存在飞指令的
+  // quiesce/capture 系统性损坏状态，是它被关死的根因。正解＝ROB-walk 多分支恢复(见 b2-branch-spec-redirect.md)，
+  // 不复活此废弃路径。
+  wire direct_branch_spec_start_w = `OOO_ROB_WALK_MODE;
   wire jump_dispatch_valid_w;
   wire system_csr_dispatch_valid_w;
   wire system_csr_dispatch_fire_w;
@@ -611,6 +621,8 @@ module OooCoreTopGlue #(
   wire [`XLEN-1:0] core_dispatch1_pc_w;
   wire [`XLEN-1:0] core_dispatch1_next_pc_w;
   wire [`INST_W-1:0] core_dispatch1_inst_w;
+  wire [`XLEN-1:0] core_dispatch0_pred_npc_w;
+  wire [`XLEN-1:0] core_dispatch1_pred_npc_w;
 
   wire [`XLEN-1:0] pending_fp_int_rs1_value_w;
   wire pending_fp_div_busy_w;
@@ -629,6 +641,8 @@ module OooCoreTopGlue #(
     .a0_data_w(a0_data_w),
     .clk(clk),
     .core_branch_resolve_misaligned_w(core_branch_resolve_misaligned_w),
+    .core_branch_resolve_rob_idx_w(core_branch_resolve_rob_idx_w),
+    .core_branch_resolve_mispredict_w(core_branch_resolve_mispredict_w),
     .core_branch_resolve_next_pc_w(core_branch_resolve_next_pc_w),
     .core_branch_resolve_pc_w(core_branch_resolve_pc_w),
     .core_branch_resolve_valid_w(core_branch_resolve_valid_w),
@@ -666,10 +680,12 @@ module OooCoreTopGlue #(
     .core_dispatch0_next_pc_w(core_dispatch0_next_pc_w),
     .core_dispatch0_pc_w(core_dispatch0_pc_w),
     .core_dispatch0_valid_w(core_dispatch0_valid_w),
+    .core_dispatch0_pred_npc_w(core_dispatch0_pred_npc_w),
     .core_dispatch1_inst_w(core_dispatch1_inst_w),
     .core_dispatch1_next_pc_w(core_dispatch1_next_pc_w),
     .core_dispatch1_pc_w(core_dispatch1_pc_w),
     .core_dispatch1_valid_w(core_dispatch1_valid_w),
+    .core_dispatch1_pred_npc_w(core_dispatch1_pred_npc_w),
     .core_dispatch_branch_resolve_misaligned_w(core_dispatch_branch_resolve_misaligned_w),
     .core_dispatch_branch_resolve_next_pc_w(core_dispatch_branch_resolve_next_pc_w),
     .core_dispatch_branch_resolve_pc_w(core_dispatch_branch_resolve_pc_w),
@@ -1186,6 +1202,7 @@ module OooCoreTopGlue #(
     .clk(clk),
     .commit_ready_i(commit_ready_i),
     .core_branch_resolve_misaligned_w(core_branch_resolve_misaligned_w),
+    .core_branch_resolve_mispredict_w(core_branch_resolve_mispredict_w),
     .core_branch_resolve_next_pc_w(core_branch_resolve_next_pc_w),
     .core_branch_resolve_pc_w(core_branch_resolve_pc_w),
     .core_branch_resolve_valid_w(core_branch_resolve_valid_w),
@@ -1199,10 +1216,12 @@ module OooCoreTopGlue #(
     .core_dispatch0_next_pc_w(core_dispatch0_next_pc_w),
     .core_dispatch0_pc_w(core_dispatch0_pc_w),
     .core_dispatch0_valid_w(core_dispatch0_valid_w),
+    .core_dispatch0_pred_npc_w(core_dispatch0_pred_npc_w),
     .core_dispatch1_inst_w(core_dispatch1_inst_w),
     .core_dispatch1_next_pc_w(core_dispatch1_next_pc_w),
     .core_dispatch1_pc_w(core_dispatch1_pc_w),
     .core_dispatch1_valid_w(core_dispatch1_valid_w),
+    .core_dispatch1_pred_npc_w(core_dispatch1_pred_npc_w),
     .core_dispatch_branch_resolve_misaligned_w(core_dispatch_branch_resolve_misaligned_w),
     .core_dispatch_branch_resolve_next_pc_w(core_dispatch_branch_resolve_next_pc_w),
     .core_dispatch_branch_resolve_pc_w(core_dispatch_branch_resolve_pc_w),

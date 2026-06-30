@@ -39,6 +39,8 @@ module OooFetchPcOutstandingSequencer (
   input [`XLEN-1:0] direct_branch_pred_pc_i,
   input [`XLEN-1:0] head_next_pc0_i,
   input branch_fallthrough_capture_rsp_i,
+  input direct_jump_spec_fire_i,           // B2: 非返回 JALR 投机续取
+  input [`XLEN-1:0] direct_jump_spec_target_i,
 
   input branch_spec_resolve_valid_i,
   input branch_spec_restore_i,
@@ -152,6 +154,8 @@ module OooFetchPcOutstandingSequencer (
           if (branch_fallthrough_capture_rsp_i) begin
             next_fetch_pc_q <= fetch_rsp_packet_next_pc_i;
           end
+        end else if (direct_jump_spec_fire_i) begin
+          next_fetch_pc_q <= direct_jump_spec_target_i;
         end
       end else begin
         if (discard_fetch_rsp_q && fetch_rsp_fire_i) begin
@@ -279,6 +283,20 @@ module OooFetchPcOutstandingSequencer (
           outstanding_pc_q <= {`XLEN{1'b0}};
           next_fetch_pc_q <= pending_fp_next_pc_i;
         end
+      end
+
+      // B2 mode=1: older backend mispredict redirect(untracked)与同拍 wrong-path 的 direct
+      // dispatch flush 冲突时, untracked redirect 优先(架构真值, squash younger 投机指令)。
+      // 否则 wrong-path 的 direct_branch_fire(younger beqz fall-through)会盖掉 jr/jalr 的真
+      // redirect target, 使 sequential next_fetch_pc 续取 wrong-path → 取到已 squash 指令的
+      // stale 源 → load access fault → CoreMark(未设 mtvec)redirect 到 0 → 卡死。
+      // fetch_req(OooFetchRequestMux)已优先 untracked, 此处令 sequential next_fetch_pc 一致。
+      if (direct_frontend_flush_i && branch_resolve_untracked_i &&
+          !core_branch_resolve_misaligned_i) begin
+        outstanding_valid_q <= fetch_req_fire_i;
+        outstanding_pc_q <= fetch_req_fire_i ? fetch_req_pc_i : {`XLEN{1'b0}};
+        discard_fetch_rsp_q <= outstanding_valid_q && !fetch_rsp_fire_i;
+        next_fetch_pc_q <= core_branch_resolve_next_pc_i;
       end
 
       if (csr_trap_mem_valid_i) begin

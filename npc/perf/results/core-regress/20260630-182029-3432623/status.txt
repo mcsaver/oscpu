@@ -1,0 +1,5 @@
+module-testbench             FAIL       exit=2 log=/home/lyg/PA/ysyx-workbench/npc/perf/results/core-regress/20260630-182029-3432623/module-testbench.log
+verilator-lint               PASS
+npc-build                    PASS
+am-cpu-tests                 PASS
+riscv-tests                  SKIP       checkout absent

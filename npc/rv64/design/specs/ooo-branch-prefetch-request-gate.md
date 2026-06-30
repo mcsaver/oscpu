@@ -1,5 +1,9 @@
 # OooBranchPrefetchRequestGate
 
+> ⚠ **待校正（非过时归档）**：模块仍在用，但本 spec 的「非职责」节漏列了已新增的 `req_ready_i`
+> 输入与 `req_fire_o = req_valid_o && req_ready_i` 输出（见 `../../vsrc/frontend/OooBranchPrefetchRequestGate.v:22,27,53`）。
+> 以 RTL 为准；待补一节握手描述。
+
 ## 需求
 
 `OooBranchPrefetchRequestGate` 承接 `OooAluFetchCore` 中 branch/JALR prefetch

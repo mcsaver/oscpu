@@ -53,6 +53,8 @@ module OooFrontendBackendDispatchMux (
   input [`XLEN-1:0] head_next_pc1_i,
   input [`INST_W-1:0] head_inst1_i,
 
+  input [`XLEN-1:0] next_fetch_pc_i,
+
   input [`XLEN-1:0] return_cont_pc_i,
   input [`XLEN-1:0] return_cont_next_pc_i,
   input [`INST_W-1:0] return_cont_inst_i,
@@ -73,7 +75,10 @@ module OooFrontendBackendDispatchMux (
   output [`XLEN-1:0] core_dispatch0_csr_rdata_o,
   output [`XLEN-1:0] core_dispatch1_pc_o,
   output [`XLEN-1:0] core_dispatch1_next_pc_o,
-  output [`INST_W-1:0] core_dispatch1_inst_o
+  output [`INST_W-1:0] core_dispatch1_inst_o,
+
+  output [`XLEN-1:0] core_dispatch0_pred_npc_o,
+  output [`XLEN-1:0] core_dispatch1_pred_npc_o
 );
 
   assign core_dispatch0_valid_o =
@@ -154,5 +159,14 @@ module OooFrontendBackendDispatchMux (
       branch_target_append_attempt_i ?
       branch_target_cache_inst_i :
                                        head_inst1_i;
+
+  // ---- pred_npc: 前端「实际预测的 next-fetch PC」（与 next_pc 平行的新字段，B2 后端 per-branch mispredict 用）----
+  // pred_npc 必须等于前端为本 packet 实际取指的后继（= 下一条 FIFO entry 的 pc0，由 next_fetch_pc_i 传入），
+  // 否则前端按预测 taken 取了 wrong-path、而后端 pred=fallthrough 判 mis=0 不 squash → wrong-path 提交。
+  //   双发射：d0 后继=d1.pc（核内 head 路径 core_dispatch1_pc_o==head_pc1==d1.pc）；d1 后继=packet 预测后继。
+  //   单发射/d0 预测跳转：d0 后继=packet 预测后继(next_fetch_pc_i)。
+  assign core_dispatch0_pred_npc_o =
+      core_dispatch1_valid_o ? core_dispatch1_pc_o : next_fetch_pc_i;
+  assign core_dispatch1_pred_npc_o = next_fetch_pc_i;
 
 endmodule

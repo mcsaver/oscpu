@@ -320,6 +320,13 @@ MAIN_RETURN_TYPE main(int argc, char *argv[]) {
     ee_printf("==================================================\n");
 	  ee_printf("CoreMark PASS       %d Marks\n", 2921400 / time_in_secs(total_time) * ITERATIONS / 1000);
 	  ee_printf("                vs. 100000 Marks (i7-7700K @ 4.20GHz)\n");
+	  { /* 频率无关真值: CoreMark/MHz = 1e6 * iters / timed-cycles。本平台 uptime=核心周期数
+	       (RTC 返回 npc_stats()->cycles, 1 cycle->1us), timed-cycles = total_time(ms)*1000,
+	       故 = 1000*ITERATIONS/total_time; 无需假设时钟频率(CPI 由 NPC 统计侧打印)。
+	       klib 无 %f, 用定点 milli(x1000)打印。 */
+	    int cmk_per_mhz_milli = total_time ? (int)(1000000ULL * ITERATIONS / (unsigned)total_time) : 0;
+	    ee_printf("CoreMark/MHz     : %d.%03d  (freq-independent = 1e6 x %d iters / timed-cycles)\n",
+	              cmk_per_mhz_milli / 1000, cmk_per_mhz_milli % 1000, ITERATIONS); }
   }
 	if (total_errors>0)
 		ee_printf("Errors detected\n");

@@ -11,6 +11,7 @@ module tb_ooo_branch_resolve_recovery_gate;
   reg [`XLEN-1:0] core_branch_resolve_pc;
   reg [`XLEN-1:0] core_branch_resolve_next_pc;
   reg core_branch_resolve_misaligned;
+  reg core_branch_resolve_mispredict;
   reg trap_redirect_squash;
   reg execute0_valid;
   reg execute1_valid;
@@ -51,6 +52,7 @@ module tb_ooo_branch_resolve_recovery_gate;
     .core_branch_resolve_pc_i(core_branch_resolve_pc),
     .core_branch_resolve_next_pc_i(core_branch_resolve_next_pc),
     .core_branch_resolve_misaligned_i(core_branch_resolve_misaligned),
+    .core_branch_resolve_mispredict_i(core_branch_resolve_mispredict),
     .trap_redirect_squash_i(trap_redirect_squash),
     .execute0_valid_i(execute0_valid),
     .execute1_valid_i(execute1_valid),
@@ -102,6 +104,7 @@ module tb_ooo_branch_resolve_recovery_gate;
       core_branch_resolve_pc = 64'h8000_0100;
       core_branch_resolve_next_pc = 64'h8000_0200;
       core_branch_resolve_misaligned = 1'b0;
+      core_branch_resolve_mispredict = 1'b0;
       trap_redirect_squash = 1'b0;
       execute0_valid = 1'b0;
       execute1_valid = 1'b0;
@@ -129,6 +132,10 @@ module tb_ooo_branch_resolve_recovery_gate;
     #1;
     check1("pending pc match", branch_resolve_pending_pc_match, 1'b1);
     check1("pending owner match", branch_resolve_pending_match, 1'b1);
+`ifndef OOO_ROB_WALK_MODE
+    // mode=0 pending-based tracked-redirect contract. In mode=1 (ROB-walk de-pend)
+    // branches go speculative dispatch; no pending branch ever drives this path, so the
+    // pending tracked-redirect (and its prefetch-hit/misaligned blocking siblings) is bypassed.
     check1("tracked redirect", branch_resolve_redirect, 1'b1);
 
     branch_prefetch_match = 1'b1;
@@ -140,6 +147,7 @@ module tb_ooo_branch_resolve_recovery_gate;
     #1;
     check1("misaligned blocks tracked redirect",
            branch_resolve_redirect, 1'b0);
+`endif
 
     reset_inputs();
     stop_pending = 1'b1;
@@ -148,8 +156,11 @@ module tb_ooo_branch_resolve_recovery_gate;
     core_branch_resolve_valid = 1'b1;
     trap_redirect_squash = 1'b1;
     #1;
+`ifndef OOO_ROB_WALK_MODE
+    // mode=0 pending tracked-redirect contract (bypassed in mode=1).
     check1("trap squash masks tracked redirect",
            branch_resolve_redirect, 1'b0);
+`endif
     check1("trap squash keeps pending match",
            branch_resolve_pending_match, 1'b1);
 
@@ -205,12 +216,20 @@ module tb_ooo_branch_resolve_recovery_gate;
     check1("direct wait resolve match",
            direct_branch_wait_resolve_match, 1'b1);
     check1("direct wait untracked", direct_branch_wait_untracked, 1'b1);
+`ifndef OOO_ROB_WALK_MODE
+    // mode=0 untracked-redirect (direct-branch-wait path). In mode=1 untracked redirect
+    // fires ONLY on explicit backend mispredict, so this path is bypassed.
     check1("untracked redirect", branch_resolve_untracked_redirect, 1'b1);
+`endif
     direct_branch_resolve_valid = 1'b1;
     #1;
     check1("direct resolve suppresses wait untracked",
            direct_branch_wait_untracked, 1'b0);
 
+`ifndef OOO_ROB_WALK_MODE
+    // mode=0 non-stop untracked-resolve contract (valid && !stop_pending && !pending_pc_match
+    // && !direct_resolve). In mode=1 untracked fires ONLY on explicit mispredict, so this
+    // whole untracked datapath (incl. the misaligned-untracked blocking sibling) is bypassed.
     reset_inputs();
     core_branch_resolve_valid = 1'b1;
     core_branch_resolve_pc = 64'h8000_0500;
@@ -219,7 +238,11 @@ module tb_ooo_branch_resolve_recovery_gate;
     check1("non-stop untracked resolve", branch_resolve_untracked, 1'b1);
     check1("misaligned untracked redirect blocked",
            branch_resolve_untracked_redirect, 1'b0);
+`endif
 
+`ifndef OOO_ROB_WALK_MODE
+    // mode=0 untracked path includes the !branch_spec_resolve_valid_o suppression term.
+    // In mode=1 that term is gone (untracked = mispredict-only), so this is mode=0-only.
     reset_inputs();
     pending_branch = 1'b1;
     pending_branch_dispatched = 1'b1;
@@ -233,6 +256,51 @@ module tb_ooo_branch_resolve_recovery_gate;
     #1;
     check1("branch spec suppresses untracked",
            branch_resolve_untracked, 1'b0);
+`endif
+
+`ifdef OOO_ROB_WALK_MODE
+    // mode=1 (ROB-walk de-pend) contract: untracked redirect fires ONLY on an explicit
+    // backend mispredict (valid && mispredict && !misaligned), independent of any pending/
+    // stop_pending/prefetch/direct-wait state. Drive the new de-pend mispredict input and
+    // exercise the live path so the TB validates real mode=1 behavior (not vacuously).
+
+    // (1) valid && mispredict && !misaligned -> untracked + redirect both assert.
+    reset_inputs();
+    core_branch_resolve_valid = 1'b1;
+    core_branch_resolve_pc = 64'h8000_0500;
+    core_branch_resolve_mispredict = 1'b1;
+    #1;
+    check1("mode1 mispredict untracked", branch_resolve_untracked, 1'b1);
+    check1("mode1 mispredict redirect",
+           branch_resolve_untracked_redirect, 1'b1);
+
+    // (2) no backend mispredict -> no untracked redirect (predicted-correct branch must
+    //     NOT flush; otherwise every correct branch/JAL/JALR mis-fires).
+    core_branch_resolve_mispredict = 1'b0;
+    #1;
+    check1("mode1 no-mispredict no untracked",
+           branch_resolve_untracked, 1'b0);
+    check1("mode1 no-mispredict no redirect",
+           branch_resolve_untracked_redirect, 1'b0);
+
+    // (3) mispredict but misaligned -> gated off (misaligned target is a trap, not a redirect).
+    core_branch_resolve_mispredict = 1'b1;
+    core_branch_resolve_misaligned = 1'b1;
+    #1;
+    check1("mode1 misaligned no untracked",
+           branch_resolve_untracked, 1'b0);
+    check1("mode1 misaligned no redirect",
+           branch_resolve_untracked_redirect, 1'b0);
+
+    // (4) trap squash still masks the mode=1 redirect.
+    reset_inputs();
+    core_branch_resolve_valid = 1'b1;
+    core_branch_resolve_mispredict = 1'b1;
+    trap_redirect_squash = 1'b1;
+    #1;
+    check1("mode1 trap squash masks redirect",
+           branch_resolve_untracked, 1'b0);
+`endif
 
     if (errors == 0) begin
       $display("[PASS] tb_ooo_branch_resolve_recovery_gate");

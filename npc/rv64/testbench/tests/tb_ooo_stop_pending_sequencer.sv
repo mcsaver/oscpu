@@ -87,6 +87,7 @@ module tb_ooo_stop_pending_sequencer;
     .dispatch0_return_i(dispatch0_return),
     .dispatch1_barrier_fire_i(dispatch1_barrier_fire),
     .dispatch_unsupported_i(dispatch_unsupported),
+    .rob_walk_mode_i(1'b0),
     .stop_pending_o(stop_pending)
   );
 

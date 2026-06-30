@@ -10,6 +10,7 @@ module OooBranchResolveRecoveryGate (
   input [`XLEN-1:0] core_branch_resolve_pc_i,
   input [`XLEN-1:0] core_branch_resolve_next_pc_i,
   input core_branch_resolve_misaligned_i,
+  input core_branch_resolve_mispredict_i,   // B2 片4：后端显式 branch/JALR mispredict
   input trap_redirect_squash_i,
   input execute0_valid_i,
   input execute1_valid_i,
@@ -47,13 +48,23 @@ module OooBranchResolveRecoveryGate (
   wire branch_spec_redirect_raw_w =
       branch_spec_restore_o && !core_branch_resolve_misaligned_i;
 
+  // B2 ROB-walk：mode=1 时分支/跳转改投机，无 pending/stop_pending 把持 redirect。
+  // 复用既有 untracked-redirect 数据通路（OooFetchPcOutstandingSequencer 已把 next_fetch_pc 锁存到目标，
+  // 解决 redirect-pulse 丢失/未落地问题），但触发条件收紧为「仅后端显式 mispredict」，
+  // 否则每条预测正确的分支/JAL/JALR 都会误触发 flush（critique#5）。
+  wire rob_walk_mode_w = `OOO_ROB_WALK_MODE;
+  wire branch_mispredict_redirect_w =
+      rob_walk_mode_w && core_branch_resolve_valid_i &&
+      core_branch_resolve_mispredict_i && !core_branch_resolve_misaligned_i;
+
   wire branch_resolve_untracked_raw_w =
-      (direct_branch_wait_untracked_o ||
-       (core_branch_resolve_valid_i &&
-        !stop_pending_i &&
-        !branch_resolve_pending_pc_match_o &&
-        !direct_branch_resolve_valid_i)) &&
-      !branch_spec_resolve_valid_o;
+      rob_walk_mode_w ? branch_mispredict_redirect_w :
+      ((direct_branch_wait_untracked_o ||
+        (core_branch_resolve_valid_i &&
+         !stop_pending_i &&
+         !branch_resolve_pending_pc_match_o &&
+         !direct_branch_resolve_valid_i)) &&
+       !branch_spec_resolve_valid_o);
 
   assign branch_resolve_pending_pc_match_o =
       core_branch_resolve_valid_i &&

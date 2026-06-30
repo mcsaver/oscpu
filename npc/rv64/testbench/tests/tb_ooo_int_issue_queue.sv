@@ -82,6 +82,10 @@ module tb_ooo_int_issue_queue;
   wire [PHY_REG_ADDR_W-1:0] load_branch_fast_src2_preg;
   wire load_branch_fast_wait_load0;
   wire load_branch_fast_wait_load1;
+  reg kill_valid;
+  reg [ROB_INDEX_W-1:0] kill_rob_idx;
+  reg [ROB_INDEX_W-1:0] rob_head_idx;
+  reg recover_active;
 
   OooIntIssueQueue dut (
     .clk(clk),
@@ -94,6 +98,7 @@ module tb_ooo_int_issue_queue;
     .dispatch0_ready_o(dispatch0_ready),
     .dispatch0_pc_i(dispatch0_pc),
     .dispatch0_next_pc_i(dispatch0_pc + 32'd4),
+    .dispatch0_pred_npc_i('0),
     .dispatch0_inst_i(dispatch0_inst),
     .dispatch0_ctrl_i(dispatch0_ctrl),
     .dispatch0_rob_idx_i(dispatch0_rob_idx),
@@ -108,6 +113,7 @@ module tb_ooo_int_issue_queue;
     .dispatch1_ready_o(dispatch1_ready),
     .dispatch1_pc_i(dispatch1_pc),
     .dispatch1_next_pc_i(dispatch1_pc + 32'd4),
+    .dispatch1_pred_npc_i('0),
     .dispatch1_inst_i(dispatch1_inst),
     .dispatch1_ctrl_i(dispatch1_ctrl),
     .dispatch1_rob_idx_i(dispatch1_rob_idx),
@@ -160,7 +166,11 @@ module tb_ooo_int_issue_queue;
     .load_branch_fast_src1_preg_o(load_branch_fast_src1_preg),
     .load_branch_fast_src2_preg_o(load_branch_fast_src2_preg),
     .load_branch_fast_wait_load0_o(load_branch_fast_wait_load0),
-    .load_branch_fast_wait_load1_o(load_branch_fast_wait_load1)
+    .load_branch_fast_wait_load1_o(load_branch_fast_wait_load1),
+    .kill_valid_i(kill_valid),
+    .kill_rob_idx_i(kill_rob_idx),
+    .rob_head_idx_i(rob_head_idx),
+    .recover_active_i(recover_active)
   );
 
   wire unused_next_pc_w = (|issue0_next_pc) | (|issue1_next_pc) |
@@ -213,6 +223,10 @@ module tb_ooo_int_issue_queue;
       pending_load0_pdest = 6'd0;
       pending_load1_valid = 1'b0;
       pending_load1_pdest = 6'd0;
+      kill_valid = 1'b0;
+      kill_rob_idx = 4'd0;
+      rob_head_idx = 4'd0;
+      recover_active = 1'b0;
     end
   endtask
 
@@ -353,6 +367,10 @@ module tb_ooo_int_issue_queue;
     #1;
 	    tb_check1("empty after dual dispatch bypass", empty, 1'b1);
 
+    // ===== mode=0 专有：control-flow（branch/JAL）dispatch-bypass 契约 =====
+    // mode=1（OOO_ROB_WALK_MODE）设计性禁用控制流 dispatch-bypass，强制经 IQ 寄存项发射，
+    // 以打破 pred_npc→mispredict→redirect→预测后继 组合环；该语义由 riscv-tests 135/0 端到端覆盖。
+    if (!`OOO_ROB_WALK_MODE) begin
     set_dispatch0(32'h8000_0018, 4'd13, 6'd1, 1'b1, 6'd2, 1'b1, 6'd45);
     set_dispatch1(32'h8000_001c, 4'd14, 6'd3, 1'b1, 6'd4, 1'b1, 6'd0);
     dispatch1_ctrl[`CTRL_BRANCH_BIT] = 1'b1;
@@ -437,6 +455,7 @@ module tb_ooo_int_issue_queue;
     clear_inputs();
     #1;
 	    tb_check1("empty after lane0 jal issue1 bypass", empty, 1'b1);
+    end // if (!`OOO_ROB_WALK_MODE)：control-flow dispatch-bypass 为 mode=0 专有契约
 
 	    set_dispatch0(32'h8000_0048, 4'd3, 6'd20, 1'b0, 6'd0, 1'b1, 6'd50);
 	    `TB_TICK(clk);

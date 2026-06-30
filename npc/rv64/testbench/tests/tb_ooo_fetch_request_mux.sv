@@ -69,6 +69,8 @@ module tb_ooo_fetch_request_mux;
     .core_branch_resolve_next_pc_i(core_branch_resolve_next_pc),
     .branch_prefetch_req_valid_i(branch_prefetch_req_valid),
     .branch_prefetch_req_pc_i(branch_prefetch_req_pc),
+    .direct_jump_spec_fire_i(1'b0),
+    .direct_jump_spec_target_i('0),
     .direct_redirect_fetch_o(direct_redirect_fetch),
     .redirect_fetch_req_valid_o(redirect_fetch_req_valid),
     .redirect_fetch_pc_o(redirect_fetch_pc),

@@ -1,3 +1,4 @@
+`include "define.v"
 `include "tb_common.svh"
 
 module tb_ooo_frontend_dispatch_gate;
@@ -146,7 +147,13 @@ module tb_ooo_frontend_dispatch_gate;
     head1_jalr_raw = 1'b1;
     #1;
     tb_check1("unsafe return blocked", dispatch1_return, 1'b0);
-    tb_check1("unsafe jalr becomes barrier", dispatch1_barrier, 1'b1);
+    // mode=0：unsafe JALR 降级为 barrier（下一拍单独处理）；
+    // mode=1（OOO_ROB_WALK_MODE）：非返回 lane1 JALR 走 dual-issue de-pend（非 barrier），
+    // 由 backend issue1 强制 mispredict→ROB-walk 修正（riscv-tests 135/0 覆盖含 return JALR）。
+    if (!`OOO_ROB_WALK_MODE)
+      tb_check1("unsafe jalr becomes barrier", dispatch1_barrier, 1'b1);
+    else
+      tb_check1("mode1 unsafe jalr de-pend (non-barrier)", dispatch1_barrier, 1'b0);
 
     reset_inputs();
     head1_branch_raw = 1'b1;

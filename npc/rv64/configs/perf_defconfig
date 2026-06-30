@@ -1,4 +1,6 @@
 # 性能测试专用 defconfig — 关闭所有 trace 和日志，追求极速
+# perf 模式:编译期关掉所有 trace + 统计(含 RTL 观测探针),最快仿真。
+CONFIG_NPC_PERF_MODE=y
 CONFIG_CC_GPP=y
 CONFIG_CC="g++"
 CONFIG_CC_O3=y

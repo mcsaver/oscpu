@@ -542,6 +542,25 @@
 `define EXC_LOAD_PAGE_FAULT      5'd13
 `define EXC_STORE_PAGE_FAULT     5'd15
 
+// B2 统一控制流重定向（redirect_request）原因编码。OooRedirectArbiter 透传胜者 reason，
+// 下游据此区分取指重定向来源；详见 design/arch/b2-branch-spec-redirect.md §3.2。
+`define REDIR_REASON_W           3
+`define REDIR_REASON_NONE        3'd0
+`define REDIR_REASON_BRANCH_MISS 3'd1   // 条件分支误预测（后端解析）
+`define REDIR_REASON_JALR_MISS   3'd2   // JALR 目标误预测（后端 AGU 解析）
+`define REDIR_REASON_TRAP        3'd3   // commit 阶段精确异常/中断
+`define REDIR_REASON_XRET        3'd4   // mret/sret 返回
+`define REDIR_REASON_SFENCE      3'd5   // sfence.vma 后重取指
+`define REDIR_REASON_FENCEI      3'd6   // fence.i 后重取指
+`define REDIR_REASON_DIRECT      3'd7   // dispatch 期直算的 direct 控制流（JAL/已知目标）
+
+// B2 总开关：1=启用「分支投机 + ROB-walk 误预测恢复」（取代 weak checkpoint 恢复）；0=原 pending+drain。
+// 单分支深度（复用前端单 spec tracker 的 mispredict + branch_resolve_rob_idx），多分支待 pred-next-pc threading。
+`ifndef OOO_ROB_WALK_MODE
+`define OOO_ROB_WALK_MODE 1'b1
+`endif
+// `define ROB_WALK_DEBUG
+
 `define CORE_STATE_RESET      4'd0
 `define CORE_STATE_FETCH_REQ  4'd1
 `define CORE_STATE_FETCH_WAIT 4'd2

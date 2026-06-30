@@ -22,6 +22,7 @@ module OooFrontendActionGate (
   input dispatch_fire_i,
   input dispatch1_barrier_fire_i,
   input direct_jal0_fire_i,
+  input direct_jump_spec_fire_i,   // B2: 非返回 JALR 投机续取 → 触发前端 flush 重定向
   input fetch_rsp_fire_i,
   input fetch_rsp_can_enqueue_i,
   input fetch_dec0_control_stop_i,
@@ -44,7 +45,8 @@ module OooFrontendActionGate (
       direct_branch0_fire_i ||
       direct_branch1_fire_i ||
       direct_ret0_fire_i ||
-      direct_ret1_fire_i;
+      direct_ret1_fire_i ||
+      direct_jump_spec_fire_i;
 
   assign stop_head_o =
       can_run_i &&

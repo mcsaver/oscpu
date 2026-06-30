@@ -1,5 +1,8 @@
 # OoO Pending FP Sequencer Spec
 
+> ⚠ **接口待校正**：缺 `compute_ready_i` 端口，且 `compute_done_o` 触发条件已随 FP 流水化变化
+>（见 `../../vsrc/execute/OooPendingFpSequencer.v:45,124`）。模块仍在用；FP 子系统将随 **B-FP** 重写。以 RTL 为准。
+
 ## 1. 需求
 
 - `OooPendingFpSequencer` 承接 `OooAluFetchCore` 中 pending FP 单 entry

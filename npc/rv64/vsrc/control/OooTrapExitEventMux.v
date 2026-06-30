@@ -80,8 +80,11 @@ module OooTrapExitEventMux (
       !pending_system_i &&
       pending_branch_valid_i && !pending_branch_dispatched_i &&
       pending_branch_misaligned_i;
+  // 只在有真实 pending trap payload(pc!=0)时 fire 兜底 trap。mode=1 投机 lane1 capture 已在源头
+  // gate(OooPendingDispatchArbiter)，正常运行 pending_trap_pc=0 → 此处不 fire spurious trap。
   wire drain_trap_payload_w =
       drain_reached_w &&
+      (pending_trap_pc_i != {`XLEN{1'b0}}) &&
       !pending_arch_trap_i &&
       !pending_system_i &&
       !(pending_branch_valid_i && !pending_branch_dispatched_i) &&

@@ -76,6 +76,7 @@ config NPC_HAS_VGA
 
 config NPC_TRACE_BY_DEFAULT
   bool "Enable wave trace by default"
+  depends on !NPC_PERF_MODE
   default n
 
 endmenu
@@ -131,6 +132,7 @@ config NPC_WATCHPOINT
 
 config NPC_TEXT_TRACE
   bool "Build text trace support"
+  depends on !NPC_PERF_MODE
   default n
   help
     Build the software text trace framework. When disabled, itrace/mtrace/dtrace
@@ -164,5 +166,70 @@ config NPC_DTRACE_BY_DEFAULT
     Turn dtrace on at startup without requiring --dtrace or monitor commands.
 
 endif
+
+endmenu
+
+menu "Statistics and Profiling"
+
+config NPC_PERF_MODE
+  bool "Performance mode (compile out ALL trace & statistics)"
+  default n
+  help
+    Master speed switch. When enabled, every software text trace
+    (itrace/mtrace/dtrace/wave) and every statistic — summary (CPI/cycles),
+    branch/BPU, cache, OoO pipeline — is compiled out, including the RTL
+    observation probes and their per-event DPI cost. Overrides and hides all
+    the trace/statistic switches below.
+
+config NPC_SUMMARY_STATS
+  bool "Summary statistics (guest insts/cycles, CPI, CLINT mtime, host time)"
+  depends on !NPC_PERF_MODE
+  default y
+  help
+    End-of-run summary block. Software-only (no RTL probe), cheap. The
+    HIT GOOD/BAD TRAP result line (cycles/commits) is always printed
+    regardless of this option.
+
+config NPC_SIM_STATS
+  bool "Microarchitecture statistics (RTL observation-probe network)"
+  depends on !NPC_PERF_MODE
+  default y
+  help
+    Master for the shared RTL probe network (sim_*_w) that feeds the
+    branch/cache/OoO statistics below. Turning this (or perf mode) off removes
+    all probe wiring and the per-event DPI crossing. Pick categories below.
+
+if NPC_SIM_STATS
+
+config NPC_BRANCH_STATS
+  bool "Branch / jump / BPU / RAS / BTB statistics"
+  default y
+  help
+    Conditional-branch/JAL/JALR counts and direction/BTB/RAS prediction
+    accuracy. Feeds npc_bpu_lookup_event / npc_bpu_resolve_event probes.
+
+config NPC_CACHE_STATS
+  bool "I-cache / D-cache statistics"
+  default y
+  help
+    icache/dcache access/hit/miss and writeback counters. Feeds
+    npc_icache_event / npc_dcache_event probes.
+
+config NPC_OOO_STATS
+  bool "OoO pipeline statistics (retire/exec/dispatch hist + window)"
+  default y
+  help
+    Per-cycle OoO occupancy/stall histograms and the periodic window report.
+    Feeds the npc_ooo_cycle_event probe (heaviest, fires every cycle).
+
+endif # NPC_SIM_STATS
+
+config NPC_DEBUG_PORTS
+  bool "RTL debug observation ports (abort-time pipeline state dump)"
+  depends on !NPC_PERF_MODE
+  default n
+  help
+    Wide debug hierarchy ports used for the abort-time pipeline dump and deep
+    waveform observation. Independent of statistics; off by default.
 
 endmenu

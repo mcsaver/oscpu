@@ -78,6 +78,12 @@ CXXFLAGS_BUILD += $(call remove_quote,$(CONFIG_CC_OPT))
 CXXFLAGS_BUILD += $(if $(CONFIG_CC_DEBUG),-Og -ggdb3,)
 CXXFLAGS_BUILD += -DNPC_XLEN=64 -DNPC_GUEST_ISA_RV64=1
 RTL_VERILATOR_DEFINES :=
+# 由 Kconfig 派生:统计/调试探针的 `ifdef 仅在对应 CONFIG 打开时编进 RTL(perf 模式下全空)。
+RTL_VERILATOR_DEFINES += $(if $(filter y,$(CONFIG_NPC_SIM_STATS)),+define+CONFIG_NPC_SIM_STATS)
+RTL_VERILATOR_DEFINES += $(if $(filter y,$(CONFIG_NPC_BRANCH_STATS)),+define+CONFIG_NPC_BRANCH_STATS)
+RTL_VERILATOR_DEFINES += $(if $(filter y,$(CONFIG_NPC_CACHE_STATS)),+define+CONFIG_NPC_CACHE_STATS)
+RTL_VERILATOR_DEFINES += $(if $(filter y,$(CONFIG_NPC_OOO_STATS)),+define+CONFIG_NPC_OOO_STATS)
+RTL_VERILATOR_DEFINES += $(if $(filter y,$(CONFIG_NPC_DEBUG_PORTS)),+define+CONFIG_NPC_DEBUG_PORTS)
 
 # 这里直接让 Verilator 一次把 RTL、DPI 包装层和 C++ 宿主编成可执行文件，避免再手写额外链接步骤。
 # 优化要点：

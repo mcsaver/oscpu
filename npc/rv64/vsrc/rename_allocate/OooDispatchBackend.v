@@ -15,6 +15,8 @@ module OooDispatchBackend #(
   input flush_i,
   input checkpoint_capture_i,
   input checkpoint_restore_i,
+  input [ROB_INDEX_W-1:0] kill_rob_idx_i,   // B2 ROB-walk：mispredict 分支 rob_idx（kill 边界）；mode 关时无效
+  input branch_mispredict_valid_i,          // B2 ROB-walk kill 触发：后端显式 branch/JALR mispredict（取代 checkpoint_restore）
   input issue_mem_block_i,
   input pending_load0_valid_i,
   input [PHY_REG_ADDR_W-1:0] pending_load0_pdest_i,
@@ -25,6 +27,7 @@ module OooDispatchBackend #(
   output dispatch0_ready_o,
   input [`XLEN-1:0] dispatch0_pc_i,
   input [`XLEN-1:0] dispatch0_next_pc_i,
+  input [`XLEN-1:0] dispatch0_pred_npc_i,
   input [`INST_W-1:0] dispatch0_inst_i,
   input [`CTRL_BUS_W-1:0] dispatch0_ctrl_i,
   input [`REG_ADDR_W-1:0] dispatch0_rs1_arch_i,
@@ -37,6 +40,7 @@ module OooDispatchBackend #(
   output dispatch1_ready_o,
   input [`XLEN-1:0] dispatch1_pc_i,
   input [`XLEN-1:0] dispatch1_next_pc_i,
+  input [`XLEN-1:0] dispatch1_pred_npc_i,
   input [`INST_W-1:0] dispatch1_inst_i,
   input [`CTRL_BUS_W-1:0] dispatch1_ctrl_i,
   input [`REG_ADDR_W-1:0] dispatch1_rs1_arch_i,
@@ -64,6 +68,7 @@ module OooDispatchBackend #(
   input issue0_ready_i,
   output [`XLEN-1:0] issue0_pc_o,
   output [`XLEN-1:0] issue0_next_pc_o,
+  output [`XLEN-1:0] issue0_pred_npc_o,
   output [`INST_W-1:0] issue0_inst_o,
   output [`CTRL_BUS_W-1:0] issue0_ctrl_o,
   output [ROB_INDEX_W-1:0] issue0_rob_idx_o,
@@ -76,6 +81,7 @@ module OooDispatchBackend #(
   input issue1_ready_i,
   output [`XLEN-1:0] issue1_pc_o,
   output [`XLEN-1:0] issue1_next_pc_o,
+  output [`XLEN-1:0] issue1_pred_npc_o,
   output [`INST_W-1:0] issue1_inst_o,
   output [`CTRL_BUS_W-1:0] issue1_ctrl_o,
   output [ROB_INDEX_W-1:0] issue1_rob_idx_o,
@@ -216,8 +222,14 @@ module OooDispatchBackend #(
                                       {{(FREE_COUNT_W-1){1'b0}}, 1'b1}));
   // Dispatch owner 直接用容量计数生成 ready，避免 parent fire 再反喂
   // ROB/IQ ready 形成跨层组合环；子模块仍接收同一个 fire 更新状态。
+  // B2 关键：ROB 在 recover_active(walk 中) 或 kill 脉冲当拍会冻结 tail 不分配，IQ 同拍 squash/gate；
+  // 而本层 ready 只看 count(非满)，不知道冻结 → 仍会 dispatch，使 ROB tail 不前进而 rob_idx 复用、
+  // 多条指令共用同一 ROB 槽 → wakeup 错配/僵尸项。故用「已寄存」的 recover/kill 同步冻结本层 dispatch
+  // （均为寄存信号，不引入跨层组合环）。
+  wire dispatch_freeze_w = rob_recover_active_w || kill_valid_q;
   assign dispatch0_ready_o = rob_slot0_ready_w && iq_slot0_ready_w &&
-                             free_ok0_w && dispatch1_pair_ready_w;
+                             free_ok0_w && dispatch1_pair_ready_w &&
+                             !dispatch_freeze_w;
 
   assign dispatch1_ready_o = dispatch0_fire_w && rob_pair_ready_w &&
                              iq_pair_ready_w && free_ok1_w;
@@ -267,18 +279,21 @@ module OooDispatchBackend #(
     .clk(clk),
     .rst(rst),
     .flush_i(flush_i),
-    .checkpoint_capture_i(checkpoint_capture_i),
-    .checkpoint_restore_i(checkpoint_restore_i),
+    .checkpoint_capture_i(cp_capture_gated_w),
+    .checkpoint_restore_i(cp_restore_gated_w),
     .alloc0_valid_i(freelist_alloc0_valid_w),
     .alloc0_ready_o(freelist_alloc0_ready_w),
     .alloc0_preg_o(freelist_alloc0_preg_w),
     .alloc1_valid_i(freelist_alloc1_valid_w),
     .alloc1_ready_o(freelist_alloc1_ready_w),
     .alloc1_preg_o(freelist_alloc1_preg_w),
-    .free0_valid_i(commit0_valid_o && commit0_rd_en_o),
-    .free0_preg_i(commit0_old_pdest_o),
-    .free1_valid_i(commit1_valid_o && commit1_rd_en_o),
-    .free1_preg_i(commit1_old_pdest_o),
+    // 恢复期：free 回收 walk 的 new_pdest（squashed 且 rd_en）；常规期：free commit 的 old_pdest。
+    .free0_valid_i(rob_recover_active_w ? (rob_walk0_valid_w && rob_walk0_rd_en_w)
+                                        : (commit0_valid_o && commit0_rd_en_o)),
+    .free0_preg_i(rob_recover_active_w ? rob_walk0_new_pdest_w : commit0_old_pdest_o),
+    .free1_valid_i(rob_recover_active_w ? (rob_walk1_valid_w && rob_walk1_rd_en_w)
+                                        : (commit1_valid_o && commit1_rd_en_o)),
+    .free1_preg_i(rob_recover_active_w ? rob_walk1_new_pdest_w : commit1_old_pdest_o),
     .free_count_o(free_count_w),
     .empty_o(free_empty_w),
     .full_o(free_full_w)
@@ -290,8 +305,8 @@ module OooDispatchBackend #(
     .clk(clk),
     .rst(rst),
     .flush_i(flush_i),
-    .checkpoint_capture_i(checkpoint_capture_i),
-    .checkpoint_restore_i(checkpoint_restore_i),
+    .checkpoint_capture_i(cp_capture_gated_w),
+    .checkpoint_restore_i(cp_restore_gated_w),
     .rename0_valid_i(dispatch0_fire_w),
     .rename0_rs1_arch_i(dispatch0_rs1_arch_i),
     .rename0_rs2_arch_i(dispatch0_rs2_arch_i),
@@ -312,6 +327,13 @@ module OooDispatchBackend #(
     .rename1_rs2_preg_o(rename1_rs2_preg_w),
     .rename1_old_pdest_o(rename1_old_pdest_w),
     .rename1_new_pdest_o(rename1_new_pdest_unused_w),
+    .restore_valid_i(rob_recover_active_w),
+    .restore0_en_i(rename_restore0_en_w),
+    .restore0_arch_i(rob_walk0_arch_rd_w),
+    .restore0_pdest_i(rob_walk0_old_pdest_w),
+    .restore1_en_i(rename_restore1_en_w),
+    .restore1_arch_i(rob_walk1_arch_rd_w),
+    .restore1_pdest_i(rob_walk1_old_pdest_w),
     .debug_map_o(debug_map_unused_w)
   );
 
@@ -321,8 +343,8 @@ module OooDispatchBackend #(
     .clk(clk),
     .rst(rst),
     .flush_i(flush_i),
-    .checkpoint_capture_i(checkpoint_capture_i),
-    .checkpoint_restore_i(checkpoint_restore_i),
+    .checkpoint_capture_i(cp_capture_gated_w),
+    .checkpoint_restore_i(cp_restore_gated_w),
     .alloc0_valid_i(freelist_alloc0_valid_w),
     .alloc0_pdest_i(freelist_alloc0_valid_w ? freelist_alloc0_preg_w : {PHY_REG_ADDR_W{1'b0}}),
     .alloc1_valid_i(freelist_alloc1_valid_w),
@@ -341,6 +363,43 @@ module OooDispatchBackend #(
     .query3_ready_o(dispatch1_src2_ready_w)
   );
 
+  // B2 ROB-walk 恢复数据通路（Step A：结构接通、行为中性——kill 源暂 0 → recover 永不触发 → 各 mux 选常规路径）。
+  wire rob_recover_active_w;
+  wire rob_walk0_valid_w;
+  wire [`REG_ADDR_W-1:0] rob_walk0_arch_rd_w;
+  wire [PHY_REG_ADDR_W-1:0] rob_walk0_old_pdest_w;
+  wire [PHY_REG_ADDR_W-1:0] rob_walk0_new_pdest_w;
+  wire rob_walk0_rd_en_w;
+  wire rob_walk1_valid_w;
+  wire [`REG_ADDR_W-1:0] rob_walk1_arch_rd_w;
+  wire [PHY_REG_ADDR_W-1:0] rob_walk1_old_pdest_w;
+  wire [PHY_REG_ADDR_W-1:0] rob_walk1_new_pdest_w;
+  wire rob_walk1_rd_en_w;
+  // B2 Step B：后端显式 branch/JALR mispredict(branch_mispredict_valid_i) 驱动 ROB-walk kill；
+  // 模式下抑制 checkpoint（ROB-walk 取代全阵列 restore），kill_rob_idx 来自后端解析控制流 rob_idx。
+  wire rob_walk_mode_w = `OOO_ROB_WALK_MODE;
+  // mispredict 与 backend 解析组合相连；直接驱动 kill 会与 dispatch_ready 成组合环
+  // (mispredict→recovering→dispatch_ready→issue→branch_resolve→mispredict)。故 kill 打一拍寄存打破环：
+  // 前端 redirect 仍当拍生效；后端 ROB-walk 恢复延后 1 拍（mispredicted 分支非 head，wrong-path 当拍来不及提交）。
+  reg kill_valid_q;
+  reg [ROB_INDEX_W-1:0] kill_idx_q;
+  always @(posedge clk) begin
+    if (rst || flush_i) begin
+      kill_valid_q <= 1'b0;
+      kill_idx_q <= {ROB_INDEX_W{1'b0}};
+    end else begin
+      kill_valid_q <= rob_walk_mode_w && branch_mispredict_valid_i;
+      kill_idx_q <= kill_rob_idx_i;
+    end
+  end
+  wire rob_kill_valid_w = kill_valid_q;
+  wire [ROB_INDEX_W-1:0] rob_kill_idx_w = kill_idx_q;
+  wire cp_capture_gated_w = checkpoint_capture_i && !rob_walk_mode_w;
+  wire cp_restore_gated_w = checkpoint_restore_i && !rob_walk_mode_w;
+  // walk→rename restore：恢复 map[arch]=old_pdest（仅 squashed 且 rd_en）。
+  wire rename_restore0_en_w = rob_walk0_valid_w && rob_walk0_rd_en_w;
+  wire rename_restore1_en_w = rob_walk1_valid_w && rob_walk1_rd_en_w;
+
   OooRob #(
     .ROB_ENTRIES(ROB_ENTRY_COUNT),
     .ROB_INDEX_W(ROB_INDEX_W),
@@ -350,8 +409,8 @@ module OooDispatchBackend #(
     .clk(clk),
     .rst(rst),
     .flush_i(flush_i),
-    .checkpoint_capture_i(checkpoint_capture_i),
-    .checkpoint_restore_i(checkpoint_restore_i),
+    .checkpoint_capture_i(cp_capture_gated_w),
+    .checkpoint_restore_i(cp_restore_gated_w),
     .dispatch0_valid_i(dispatch0_fire_w),
     .dispatch0_ready_o(rob_dispatch0_ready_w),
     .dispatch0_rob_idx_o(rob_dispatch0_idx_w),
@@ -414,7 +473,20 @@ module OooDispatchBackend #(
     .head_valid_o(rob_head_valid_w),
     .count_o(rob_count_w),
     .empty_o(rob_empty_w),
-    .full_o(rob_full_w)
+    .full_o(rob_full_w),
+    .kill_valid_i(rob_kill_valid_w),
+    .kill_rob_idx_i(rob_kill_idx_w),
+    .recover_active_o(rob_recover_active_w),
+    .walk0_valid_o(rob_walk0_valid_w),
+    .walk0_arch_rd_o(rob_walk0_arch_rd_w),
+    .walk0_old_pdest_o(rob_walk0_old_pdest_w),
+    .walk0_new_pdest_o(rob_walk0_new_pdest_w),
+    .walk0_rd_en_o(rob_walk0_rd_en_w),
+    .walk1_valid_o(rob_walk1_valid_w),
+    .walk1_arch_rd_o(rob_walk1_arch_rd_w),
+    .walk1_old_pdest_o(rob_walk1_old_pdest_w),
+    .walk1_new_pdest_o(rob_walk1_new_pdest_w),
+    .walk1_rd_en_o(rob_walk1_rd_en_w)
   );
 
   assign rob_head_idx_o = rob_head_idx_w;
@@ -430,13 +502,14 @@ module OooDispatchBackend #(
     .clk(clk),
     .rst(rst),
     .flush_i(flush_i),
-    .checkpoint_capture_i(checkpoint_capture_i),
-    .checkpoint_restore_i(checkpoint_restore_i),
+    .checkpoint_capture_i(cp_capture_gated_w),
+    .checkpoint_restore_i(cp_restore_gated_w),
     .issue_mem_block_i(issue_mem_block_i),
     .dispatch0_valid_i(dispatch0_fire_w),
     .dispatch0_ready_o(iq_dispatch0_ready_w),
     .dispatch0_pc_i(dispatch0_pc_i),
     .dispatch0_next_pc_i(dispatch0_next_pc_i),
+    .dispatch0_pred_npc_i(dispatch0_pred_npc_i),
     .dispatch0_inst_i(dispatch0_inst_i),
     .dispatch0_ctrl_i(dispatch0_ctrl_i),
     .dispatch0_rob_idx_i(rob_dispatch0_idx_w),
@@ -451,6 +524,7 @@ module OooDispatchBackend #(
     .dispatch1_ready_o(iq_dispatch1_ready_w),
     .dispatch1_pc_i(dispatch1_pc_i),
     .dispatch1_next_pc_i(dispatch1_next_pc_i),
+    .dispatch1_pred_npc_i(dispatch1_pred_npc_i),
     .dispatch1_inst_i(dispatch1_inst_i),
     .dispatch1_ctrl_i(dispatch1_ctrl_i),
     .dispatch1_rob_idx_i(rob_dispatch1_idx_w),
@@ -472,6 +546,7 @@ module OooDispatchBackend #(
     .issue0_ready_i(issue0_ready_i),
     .issue0_pc_o(issue0_pc_o),
     .issue0_next_pc_o(issue0_next_pc_o),
+    .issue0_pred_npc_o(issue0_pred_npc_o),
     .issue0_inst_o(issue0_inst_o),
     .issue0_ctrl_o(issue0_ctrl_o),
     .issue0_rob_idx_o(issue0_rob_idx_o),
@@ -483,6 +558,7 @@ module OooDispatchBackend #(
     .issue1_ready_i(issue1_ready_i),
     .issue1_pc_o(issue1_pc_o),
     .issue1_next_pc_o(issue1_next_pc_o),
+    .issue1_pred_npc_o(issue1_pred_npc_o),
     .issue1_inst_o(issue1_inst_o),
     .issue1_ctrl_o(issue1_ctrl_o),
     .issue1_rob_idx_o(issue1_rob_idx_o),
@@ -503,7 +579,12 @@ module OooDispatchBackend #(
     .load_branch_fast_src1_preg_o(load_branch_fast_src1_preg_o),
     .load_branch_fast_src2_preg_o(load_branch_fast_src2_preg_o),
     .load_branch_fast_wait_load0_o(load_branch_fast_wait_load0_o),
-    .load_branch_fast_wait_load1_o(load_branch_fast_wait_load1_o)
+    .load_branch_fast_wait_load1_o(load_branch_fast_wait_load1_o),
+    // B2 ROB-walk：暂行为中性（kill=0、recover=0）；Step B 接 ROB.recover_active + kill 源。
+    .kill_valid_i(rob_kill_valid_w),
+    .kill_rob_idx_i(rob_kill_idx_w),
+    .rob_head_idx_i(rob_head_idx_w),
+    .recover_active_i(rob_recover_active_w)
   );
 
   assign free_count_o = free_count_w;
@@ -530,5 +611,16 @@ module OooDispatchBackend #(
                          rob_empty_w | rob_full_w | iq_empty_w | iq_full_w |
                          (|rename0_new_pdest_unused_w) |
                          (|rename1_new_pdest_unused_w) | (|debug_map_unused_w);
+
+`ifdef ROB_WALK_DEBUG
+  always @(posedge clk) begin
+    if (!rst) begin
+      if (dispatch0_fire_w)
+        $display("[D0] pc=%h rd=%0d newp=%0d rs1=%0d s1p=%0d s1rdy=%b rs2=%0d s2p=%0d s2rdy=%b rob=%0d", dispatch0_pc_i, dispatch0_rd_arch_i, dispatch0_new_pdest_w, dispatch0_rs1_arch_i, dispatch0_src1_preg_w, (!dispatch0_uses_rs1_w||dispatch0_src1_ready_w), dispatch0_rs2_arch_i, dispatch0_src2_preg_w, (!dispatch0_uses_rs2_w||dispatch0_src2_ready_w), rob_dispatch0_idx_w);
+      if (dispatch1_fire_w)
+        $display("[D1] pc=%h rd=%0d newp=%0d rs1=%0d s1p=%0d s1rdy=%b rs2=%0d s2p=%0d s2rdy=%b rob=%0d", dispatch1_pc_i, dispatch1_rd_arch_i, dispatch1_new_pdest_w, dispatch1_rs1_arch_i, dispatch1_src1_preg_w, (!dispatch1_uses_rs1_w||dispatch1_src1_ready_w), dispatch1_rs2_arch_i, dispatch1_src2_preg_w, (!dispatch1_uses_rs2_w||dispatch1_src2_ready_w), rob_dispatch1_idx_w);
+    end
+  end
+`endif
 
 endmodule

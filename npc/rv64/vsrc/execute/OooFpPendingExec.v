@@ -17,10 +17,17 @@ module OooFpPendingExec (
   input [`XLEN-1:0] frs2_value_i,
   input [`XLEN-1:0] frs3_value_i,
   input long_start_i,
+  // compute_start_i:本 compute op 已 drain、操作数稳定。对流水化的 arith(addsub/mul/fma)
+  // 作为 OooFpArithGate 多周期流水的启动/保持信号;非 arith compute 不依赖它。
+  input compute_start_i,
   input [2:0] frm_i,
 
   output long_op_o,
   output compute_op_o,
+  // compute_ready_o:compute 结果是否就绪。非流水 arith compute 恒 1(组合即得);
+  // 流水 arith(addsub/mul/fma)= OooFpArithGate.done(start 后 FP_ARITH_LATENCY 拍)。
+  // 父模块用它门控 sequencer 的 compute_done 锁存。
+  output compute_ready_o,
   output div_busy_o,
   output sqrt_busy_o,
   output long_done_o,
@@ -272,7 +279,13 @@ module OooFpPendingExec (
   wire [4:0] pending_fp_mul_fflags_w;
   wire [`XLEN-1:0] pending_fp_fma_value_w;
   wire [4:0] pending_fp_fma_fflags_w;
+  // pending_fp_arith_done_w:OooFpArithGate 多周期流水结果就绪(start 后 LATENCY 拍)。
+  wire pending_fp_arith_done_w;
   OooFpArithGate u_fp_arith_gate (
+    .clk(clk),
+    .rst(rst),
+    .flush_i(flush_i),
+    .start_i(compute_start_i),
     .frs1_value_i(pending_fp_frs1_value_w),
     .frs2_value_i(pending_fp_frs2_value_w),
     .frs3_value_i(pending_fp_frs3_value_w),
@@ -286,7 +299,8 @@ module OooFpPendingExec (
     .mul_value_o(pending_fp_mul_value_w),
     .mul_fflags_o(pending_fp_mul_fflags_w),
     .fma_value_o(pending_fp_fma_value_w),
-    .fma_fflags_o(pending_fp_fma_fflags_w)
+    .fma_fflags_o(pending_fp_fma_fflags_w),
+    .done_o(pending_fp_arith_done_w)
   );
   // pending_fp_long_done_w / _result_w / _fflags_w、div/sqrt busy 由 u_fp_long_op_gate 驱动（见上）。
   // pending_fp_minmax_value_w / _fflags_w 由 u_fp_compare_gate 驱动（见上）。
@@ -324,6 +338,13 @@ module OooFpPendingExec (
       pending_fp_fma_w ? pending_fp_fma_value_w :
       pending_fp_minmax_w ? pending_fp_minmax_value_w :
                                pending_fp_move_to_fpr_value_w;
+
+  // 流水化的 arith op(其 compute 结果取自 OooFpArithGate 的流水寄存器输出):
+  // addsub/mul/fma。这些 op 的 compute_done 必须等 arith_done;其余 compute op 组合即得。
+  wire pending_fp_pipelined_arith_w =
+      pending_fp_addsub_w || pending_fp_mul_w || pending_fp_fma_w;
+  assign compute_ready_o =
+      !pending_fp_pipelined_arith_w || pending_fp_arith_done_w;
 
   assign long_op_o = pending_fp_long_op_w;
   assign compute_op_o = pending_fp_compute_op_w;

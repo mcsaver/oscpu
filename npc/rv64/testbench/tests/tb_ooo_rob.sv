@@ -73,6 +73,23 @@ module tb_ooo_rob;
   reg [ROB_INDEX_W-1:0] saved0;
   reg [ROB_INDEX_W-1:0] saved1;
 
+  // B2 ROB-walk 恢复端口
+  reg kill_valid;
+  reg [ROB_INDEX_W-1:0] kill_rob_idx;
+  wire recover_active;
+  wire walk0_valid;
+  wire [`REG_ADDR_W-1:0] walk0_arch_rd;
+  wire [PHY_REG_ADDR_W-1:0] walk0_old_pdest;
+  wire [PHY_REG_ADDR_W-1:0] walk0_new_pdest;
+  wire walk0_rd_en;
+  wire walk1_valid;
+  wire [`REG_ADDR_W-1:0] walk1_arch_rd;
+  wire [PHY_REG_ADDR_W-1:0] walk1_old_pdest;
+  wire [PHY_REG_ADDR_W-1:0] walk1_new_pdest;
+  wire walk1_rd_en;
+  wire unused_walk_w = walk0_rd_en | walk1_rd_en |
+                       (|walk0_new_pdest) | (|walk1_new_pdest);
+
   OooRob dut (
     .clk(clk),
     .rst(rst),
@@ -139,7 +156,20 @@ module tb_ooo_rob;
     .commit1_tval_o(commit1_tval),
     .count_o(count),
     .empty_o(empty),
-    .full_o(full)
+    .full_o(full),
+    .kill_valid_i(kill_valid),
+    .kill_rob_idx_i(kill_rob_idx),
+    .recover_active_o(recover_active),
+    .walk0_valid_o(walk0_valid),
+    .walk0_arch_rd_o(walk0_arch_rd),
+    .walk0_old_pdest_o(walk0_old_pdest),
+    .walk0_new_pdest_o(walk0_new_pdest),
+    .walk0_rd_en_o(walk0_rd_en),
+    .walk1_valid_o(walk1_valid),
+    .walk1_arch_rd_o(walk1_arch_rd),
+    .walk1_old_pdest_o(walk1_old_pdest),
+    .walk1_new_pdest_o(walk1_new_pdest),
+    .walk1_rd_en_o(walk1_rd_en)
   );
 
   wire unused_next_pc_w = (|commit0_next_pc) | (|commit1_next_pc);
@@ -175,6 +205,8 @@ module tb_ooo_rob;
       wb1_exception = 1'b0;
       wb1_cause = 5'd0;
       wb1_tval = 32'h0;
+      kill_valid = 1'b0;
+      kill_rob_idx = 4'd0;
     end
   endtask
 
@@ -312,6 +344,111 @@ module tb_ooo_rob;
     flush = 1'b0;
     #1;
     tb_check1("flush empties rob", empty, 1'b1);
+
+    // ============ B2 ROB-walk 误预测恢复 ============
+    // dispatch 5 条(idx0..4，arch_rd=i+1/old=10+i/new=40+i)，kill 存活分支 idx1 → squash idx2/3/4。
+    reset_dut();
+    dispatch0_valid = 1'b1; dispatch0_rd_en = 1'b1; dispatch0_arch_rd = 5'd1;
+    dispatch0_old_pdest = 6'd10; dispatch0_new_pdest = 6'd40; dispatch0_pc = 32'h9000_0000;
+    dispatch1_valid = 1'b1; dispatch1_rd_en = 1'b1; dispatch1_arch_rd = 5'd2;
+    dispatch1_old_pdest = 6'd11; dispatch1_new_pdest = 6'd41; dispatch1_pc = 32'h9000_0004;
+    `TB_TICK(clk); clear_inputs();
+    dispatch0_valid = 1'b1; dispatch0_rd_en = 1'b1; dispatch0_arch_rd = 5'd3;
+    dispatch0_old_pdest = 6'd12; dispatch0_new_pdest = 6'd42; dispatch0_pc = 32'h9000_0008;
+    dispatch1_valid = 1'b1; dispatch1_rd_en = 1'b1; dispatch1_arch_rd = 5'd4;
+    dispatch1_old_pdest = 6'd13; dispatch1_new_pdest = 6'd43; dispatch1_pc = 32'h9000_000c;
+    `TB_TICK(clk); clear_inputs();
+    dispatch0_valid = 1'b1; dispatch0_rd_en = 1'b1; dispatch0_arch_rd = 5'd5;
+    dispatch0_old_pdest = 6'd14; dispatch0_new_pdest = 6'd44; dispatch0_pc = 32'h9000_0010;
+    `TB_TICK(clk); clear_inputs();
+    #1;
+    tb_check32("walk: count before kill", {27'b0, count}, 32'd5);
+
+    // 启动 kill（存活 idx1）：本拍冻结 dispatch、尚未 emit
+    kill_valid = 1'b1; kill_rob_idx = 4'd1;
+    #1;
+    tb_check1("walk: kill cycle freezes dispatch", dispatch0_ready, 1'b0);
+    tb_check1("walk: kill cycle no emit yet", walk0_valid, 1'b0);
+    `TB_TICK(clk); kill_valid = 1'b0;
+    #1;
+    // recover 拍 B：lane0=idx4(arch5/old14/new44)、lane1=idx3(arch4/old13)
+    tb_check1("walk B recover active", recover_active, 1'b1);
+    tb_check1("walk B lane0 valid", walk0_valid, 1'b1);
+    tb_check32("walk B lane0 arch_rd", {27'b0, walk0_arch_rd}, 32'd5);
+    tb_check32("walk B lane0 old_pdest", {26'b0, walk0_old_pdest}, 32'd14);
+    tb_check32("walk B lane0 new_pdest", {26'b0, walk0_new_pdest}, 32'd44);
+    tb_check1("walk B lane1 valid", walk1_valid, 1'b1);
+    tb_check32("walk B lane1 arch_rd", {27'b0, walk1_arch_rd}, 32'd4);
+    tb_check32("walk B lane1 old_pdest", {26'b0, walk1_old_pdest}, 32'd13);
+    `TB_TICK(clk);
+    #1;
+    // recover 拍 C：lane0=idx2(arch3/old12)、lane1 到分支边界无效、walk_done
+    tb_check1("walk C lane0 valid", walk0_valid, 1'b1);
+    tb_check32("walk C lane0 arch_rd", {27'b0, walk0_arch_rd}, 32'd3);
+    tb_check32("walk C lane0 old_pdest", {26'b0, walk0_old_pdest}, 32'd12);
+    tb_check1("walk C lane1 invalid at branch boundary", walk1_valid, 1'b0);
+    `TB_TICK(clk);
+    #1;
+    // 收尾：count=2(idx0/1 存活)、recover 退出、dispatch 解冻
+    tb_check1("walk done recover inactive", recover_active, 1'b0);
+    tb_check32("walk done count=2", {27'b0, count}, 32'd2);
+    tb_check1("walk done dispatch ready", dispatch0_ready, 1'b1);
+    tb_check1("walk done not empty", empty, 1'b0);
+    // 存活 idx0/1 仍可按序提交、状态完好
+    wb0_valid = 1'b1; wb0_rob_idx = 4'd0; wb0_data = 32'h0000_aaaa;
+    wb1_valid = 1'b1; wb1_rob_idx = 4'd1; wb1_data = 32'h0000_bbbb;
+    #1;
+    tb_check1("walk surv commit0 valid", commit0_valid, 1'b1);
+    tb_check32("walk surv commit0 pc", commit0_pc, 32'h9000_0000);
+    tb_check1("walk surv commit1 valid", commit1_valid, 1'b1);
+    tb_check32("walk surv commit1 pc", commit1_pc, 32'h9000_0004);
+    tb_check32("walk surv commit0 old_pdest", {26'b0, commit0_old_pdest}, 32'd10);
+    `TB_TICK(clk); clear_inputs();
+    #1;
+    tb_check32("walk surv count=0", {27'b0, count}, 32'd0);
+
+    // 偶数 younger：dispatch 5、kill 存活 idx2 → squash idx3/4(2 条)→走 last_two 单拍终止
+    reset_dut();
+    dispatch0_valid = 1'b1; dispatch0_rd_en = 1'b1; dispatch0_arch_rd = 5'd1;
+    dispatch0_old_pdest = 6'd10; dispatch0_new_pdest = 6'd40; dispatch0_pc = 32'ha000_0000;
+    dispatch1_valid = 1'b1; dispatch1_rd_en = 1'b1; dispatch1_arch_rd = 5'd2;
+    dispatch1_old_pdest = 6'd11; dispatch1_new_pdest = 6'd41; dispatch1_pc = 32'ha000_0004;
+    `TB_TICK(clk); clear_inputs();
+    dispatch0_valid = 1'b1; dispatch0_rd_en = 1'b1; dispatch0_arch_rd = 5'd3;
+    dispatch0_old_pdest = 6'd12; dispatch0_new_pdest = 6'd42; dispatch0_pc = 32'ha000_0008;
+    dispatch1_valid = 1'b1; dispatch1_rd_en = 1'b1; dispatch1_arch_rd = 5'd4;
+    dispatch1_old_pdest = 6'd13; dispatch1_new_pdest = 6'd43; dispatch1_pc = 32'ha000_000c;
+    `TB_TICK(clk); clear_inputs();
+    dispatch0_valid = 1'b1; dispatch0_rd_en = 1'b1; dispatch0_arch_rd = 5'd5;
+    dispatch0_old_pdest = 6'd14; dispatch0_new_pdest = 6'd44; dispatch0_pc = 32'ha000_0010;
+    `TB_TICK(clk); clear_inputs(); #1;
+    tb_check32("walk2: count before kill", {27'b0, count}, 32'd5);
+    kill_valid = 1'b1; kill_rob_idx = 4'd2;
+    `TB_TICK(clk); kill_valid = 1'b0; #1;
+    // recover 单拍：lane0=idx4、lane1=idx3，last_two 同拍收尾
+    tb_check1("walk2 lane0 valid", walk0_valid, 1'b1);
+    tb_check32("walk2 lane0 arch_rd", {27'b0, walk0_arch_rd}, 32'd5);
+    tb_check1("walk2 lane1 valid", walk1_valid, 1'b1);
+    tb_check32("walk2 lane1 arch_rd", {27'b0, walk1_arch_rd}, 32'd4);
+    `TB_TICK(clk); #1;
+    tb_check1("walk2 done via last_two: recover inactive", recover_active, 1'b0);
+    tb_check32("walk2 done count=3", {27'b0, count}, 32'd3);
+
+    // 边界：kill 时无更年轻者(存活=最新)→不进 recover、不改 ROB 内容；
+    // 但 kill 脉冲当拍仍冻结 dispatch 1 拍（recovering_w=recover_q||kill_valid_i），
+    // 与 IQ(按 kill_valid squash/gate)+ dispatch backend(dispatch_freeze=kill_valid_q)严格一致，
+    // 否则当拍 ROB 仍放新指令进 ROB、而 IQ 把它的发射项 squash → 僵尸 ROB 项永不 done（B2 实测竞争）。
+    reset_dut();
+    dispatch0_valid = 1'b1; dispatch0_rd_en = 1'b1; dispatch0_arch_rd = 5'd7;
+    dispatch0_old_pdest = 6'd20; dispatch0_new_pdest = 6'd50; dispatch0_pc = 32'h9100_0000;
+    `TB_TICK(clk); clear_inputs(); #1;
+    tb_check32("walk-edge count=1", {27'b0, count}, 32'd1);
+    kill_valid = 1'b1; kill_rob_idx = 4'd0;   // idx0 是最新且存活，无更年轻
+    #1;
+    tb_check1("walk-edge no younger: not recovering", recover_active, 1'b0);
+    tb_check1("walk-edge no younger: dispatch frozen this cycle (kill pulse)", dispatch0_ready, 1'b0);
+    `TB_TICK(clk); kill_valid = 1'b0; #1;
+    tb_check32("walk-edge count unchanged", {27'b0, count}, 32'd1);
 
     tb_finish("tb_ooo_rob");
   end

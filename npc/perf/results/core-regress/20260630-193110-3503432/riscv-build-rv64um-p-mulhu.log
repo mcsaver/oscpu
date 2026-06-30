@@ -1,0 +1,4 @@
+make: Entering directory '/home/lyg/PA/ysyx-workbench/npc/rv64/testsuites/core-tests/src/riscv-tests/isa'
+riscv64-linux-gnu-gcc -march=rv64g -mabi=lp64d -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles -Wl,--build-id=none -I./../env/p -I./macros/scalar -T./../env/p/link.ld rv64um/mulhu.S -o rv64um-p-mulhu
+riscv64-linux-gnu-objdump --disassemble-all --disassemble-zeroes --section=.text --section=.text.startup --section=.text.init --section=.data rv64um-p-mulhu > rv64um-p-mulhu.dump
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/npc/rv64/testsuites/core-tests/src/riscv-tests/isa'

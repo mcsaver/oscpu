@@ -32,6 +32,15 @@ module tb_ooo_rename_map;
   wire [PHY_REG_ADDR_W-1:0] rename1_new_pdest_out;
   wire [PHY_REG_ADDR_W * `REG_NUM - 1:0] debug_map;
 
+  // B2 ROB-walk 反向恢复端口
+  reg restore_valid;
+  reg restore0_en;
+  reg [`REG_ADDR_W-1:0] restore0_arch;
+  reg [PHY_REG_ADDR_W-1:0] restore0_pdest;
+  reg restore1_en;
+  reg [`REG_ADDR_W-1:0] restore1_arch;
+  reg [PHY_REG_ADDR_W-1:0] restore1_pdest;
+
   OooRenameMap dut (
     .clk(clk),
     .rst(rst),
@@ -58,6 +67,13 @@ module tb_ooo_rename_map;
     .rename1_rs2_preg_o(rename1_rs2_preg),
     .rename1_old_pdest_o(rename1_old_pdest),
     .rename1_new_pdest_o(rename1_new_pdest_out),
+    .restore_valid_i(restore_valid),
+    .restore0_en_i(restore0_en),
+    .restore0_arch_i(restore0_arch),
+    .restore0_pdest_i(restore0_pdest),
+    .restore1_en_i(restore1_en),
+    .restore1_arch_i(restore1_arch),
+    .restore1_pdest_i(restore1_pdest),
     .debug_map_o(debug_map)
   );
 
@@ -78,6 +94,13 @@ module tb_ooo_rename_map;
       rename1_rd_en = 1'b0;
       rename1_rd_arch = 5'd0;
       rename1_new_pdest = 6'd0;
+      restore_valid = 1'b0;
+      restore0_en = 1'b0;
+      restore0_arch = 5'd0;
+      restore0_pdest = 6'd0;
+      restore1_en = 1'b0;
+      restore1_arch = 5'd0;
+      restore1_pdest = 6'd0;
     end
   endtask
 
@@ -189,6 +212,49 @@ module tb_ooo_rename_map;
     rename0_rs1_arch = 5'd1;
     #1;
     tb_check32("flush restores initial map", {26'b0, rename0_rs1_preg}, 32'd1);
+
+    // ============ B2 ROB-walk 反向恢复端口 ============
+    // 造已知映射：x1->p32, x2->p33, x3->p34
+    clear_inputs();
+    rename0_valid = 1'b1; rename0_rd_en = 1'b1; rename0_rd_arch = 5'd1; rename0_new_pdest = 6'd32;
+    rename1_valid = 1'b1; rename1_rd_en = 1'b1; rename1_rd_arch = 5'd2; rename1_new_pdest = 6'd33;
+    `TB_TICK(clk); clear_inputs();
+    rename0_valid = 1'b1; rename0_rd_en = 1'b1; rename0_rd_arch = 5'd3; rename0_new_pdest = 6'd34;
+    `TB_TICK(clk); clear_inputs();
+    rename0_rs1_arch = 5'd1; rename0_rs2_arch = 5'd3; #1;
+    tb_check32("pre-restore x1=p32", {26'b0, rename0_rs1_preg}, 32'd32);
+    tb_check32("pre-restore x3=p34", {26'b0, rename0_rs2_preg}, 32'd34);
+
+    // 恢复 squashed：x3(old=3,younger=lane0)、x1(old=1,older=lane1)
+    restore_valid = 1'b1;
+    restore0_en = 1'b1; restore0_arch = 5'd3; restore0_pdest = 6'd3;
+    restore1_en = 1'b1; restore1_arch = 5'd1; restore1_pdest = 6'd1;
+    `TB_TICK(clk); clear_inputs();
+    rename0_rs1_arch = 5'd1; rename0_rs2_arch = 5'd3; #1;
+    tb_check32("restore x1->old p1", {26'b0, rename0_rs1_preg}, 32'd1);
+    tb_check32("restore x3->old p3", {26'b0, rename0_rs2_preg}, 32'd3);
+    rename0_rs1_arch = 5'd2; #1;
+    tb_check32("restore leaves x2=p33 untouched", {26'b0, rename0_rs1_preg}, 32'd33);
+
+    // 同拍 WAW：两 lane 恢复同一 arch x5；lane1(更老)源序后写胜
+    clear_inputs();
+    rename0_valid = 1'b1; rename0_rd_en = 1'b1; rename0_rd_arch = 5'd5; rename0_new_pdest = 6'd55;
+    `TB_TICK(clk); clear_inputs();
+    rename0_rs1_arch = 5'd5; #1;
+    tb_check32("pre-WAW x5=p55", {26'b0, rename0_rs1_preg}, 32'd55);
+    restore_valid = 1'b1;
+    restore0_en = 1'b1; restore0_arch = 5'd5; restore0_pdest = 6'd50;   // younger
+    restore1_en = 1'b1; restore1_arch = 5'd5; restore1_pdest = 6'd51;   // older → 胜
+    `TB_TICK(clk); clear_inputs();
+    rename0_rs1_arch = 5'd5; #1;
+    tb_check32("restore same-arch lane1(older) wins", {26'b0, rename0_rs1_preg}, 32'd51);
+
+    // en=0 不恢复
+    clear_inputs();
+    restore_valid = 1'b1; restore0_en = 1'b0; restore0_arch = 5'd5; restore0_pdest = 6'd9;
+    `TB_TICK(clk); clear_inputs();
+    rename0_rs1_arch = 5'd5; #1;
+    tb_check32("restore en=0 no change", {26'b0, rename0_rs1_preg}, 32'd51);
 
     tb_finish("tb_ooo_rename_map");
   end

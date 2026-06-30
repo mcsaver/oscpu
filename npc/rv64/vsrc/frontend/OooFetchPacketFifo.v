@@ -44,6 +44,7 @@ module OooFetchPacketFifo #(
   output [`INST_W-1:0] head_inst1_o,
   output [1:0] head_resp0_o,
   output [1:0] head_resp1_o,
+  output [`XLEN-1:0] head1_pc0_o,   // B2: 下一条 FIFO entry 的 pc0（head packet 的预测后继，count>=2 时有效）
   output [FETCH_COUNT_W-1:0] count_o
 );
 
@@ -88,6 +89,7 @@ module OooFetchPacketFifo #(
   assign head_inst1_o = inst1_q[head_q];
   assign head_resp0_o = resp0_q[head_q];
   assign head_resp1_o = resp1_q[head_q];
+  assign head1_pc0_o = pc0_q[ptr_inc(head_q)];
   assign count_o = count_q;
 
   always @(posedge clk) begin

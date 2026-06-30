@@ -94,6 +94,10 @@ typedef uint64_t npc_paddr_t;
 #define NPC_VGACTL_ADDR         (NPC_DEVICE_BASE + UINT64_C(0x00000100))
 #define NPC_SYNC_ADDR           (NPC_VGACTL_ADDR + UINT64_C(0x4))
 #define NPC_FB_ADDR             (NPC_DEVICE_BASE + UINT64_C(0x01000000))
+/* 必须与 vsrc/core/NpcTop.v 的 localparam CLINT_MTIME_DIVISOR 一致:
+ * RTL CLINT 每 N 个 core 周期才让 mtime 自增 1(模拟 mtime 慢于 core 时钟),
+ * 故 mtime 的期望值是 cycles/N。仅统计行用它把 mtime 与 cycles/N 对照,不参与功能。 */
+#define NPC_CLINT_MTIME_DIVISOR UINT64_C(10)
 #define NPC_SCREEN_WIDTH        400u
 #define NPC_SCREEN_HEIGHT       300u
 #define NPC_VISIBLE_FB_SIZE     (NPC_SCREEN_WIDTH * NPC_SCREEN_HEIGHT * 4u)

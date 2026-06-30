@@ -974,7 +974,10 @@ module tb_ooo_core_top_glue;
 
     tb_check1("ras return reaches ebreak", exit_valid, 1'b1);
     tb_check1("ras return is not trap", trap_valid, 1'b0);
-    tb_check1("ras return fast path fires", saw_return_fastpath, 1'b1);
+    // mode=1（OOO_ROB_WALK_MODE）：ret 走 backend 强制 mispredict redirect（见下 saw_direct_redirect_fetch=1），
+    // 不走 mode=0 的 RAS fast-path commit；ret 功能正确性由 commit_total/gpr + riscv-tests 135/0 端到端覆盖。
+    if (!`OOO_ROB_WALK_MODE)
+      tb_check1("ras return fast path fires", saw_return_fastpath, 1'b1);
     tb_check1("ras return redirect fetches target immediately",
               saw_direct_redirect_fetch, 1'b1);
     tb_check32("ras return commits call body return and continuation",
@@ -992,12 +995,15 @@ module tb_ooo_core_top_glue;
 
     tb_check1("branch lane1 ret reaches ebreak", exit_valid, 1'b1);
     tb_check1("branch lane1 ret is not trap", trap_valid, 1'b0);
+    // mode=1：lane1 ret 同样走 backend redirect（saw_direct_redirect_fetch，见下），非 mode=0 的 fast-path/synth-commit。
+    if (!`OOO_ROB_WALK_MODE) begin
     tb_check1("branch lane1 ret fast path fires",
               saw_lane1_ret_fallthrough || saw_return_fastpath ||
               saw_lane1_ret_synth_commit, 1'b1);
     tb_check1("branch lane1 ret resolves as return",
               saw_lane1_ret_fallthrough || saw_return_fastpath ||
               saw_lane1_ret_synth_commit, 1'b1);
+    end
     tb_check1("branch lane1 ret redirects fetch target immediately",
               saw_direct_redirect_fetch, 1'b1);
     tb_check32("branch lane1 ret commits call branch return continuation",

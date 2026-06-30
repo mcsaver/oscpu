@@ -82,7 +82,25 @@ module OooRob #(
   output head_valid_o,
   output [ROB_COUNT_W-1:0] count_o,
   output empty_o,
-  output full_o
+  output full_o,
+
+  // B2 ROB-walk 误预测恢复：给定存活分支 rob_idx，多周期反向 walk 把严格更年轻的 uop squash，
+  // 并逐拍(2/拍)emit 其 arch_rd/old_pdest/new_pdest 供 rename 还原 + free-list 回收。
+  // 详见 design/arch/b2-branch-spec-redirect.md §4.1。kill_valid_i 暂由核接 1'b0（投机未启用）→ 本增量行为中性；
+  // walk_* 消费者(rename/free-list 恢复端口)接入见整合切片。
+  input kill_valid_i,
+  input [ROB_INDEX_W-1:0] kill_rob_idx_i,    // 存活分支 idx；squash 严格更年轻者(R+1..tail-1)
+  output recover_active_o,                   // walk 进行中：核需冻结 dispatch/commit/wb
+  output walk0_valid_o,
+  output [`REG_ADDR_W-1:0] walk0_arch_rd_o,
+  output [PHY_REG_ADDR_W-1:0] walk0_old_pdest_o,
+  output [PHY_REG_ADDR_W-1:0] walk0_new_pdest_o,
+  output walk0_rd_en_o,
+  output walk1_valid_o,
+  output [`REG_ADDR_W-1:0] walk1_arch_rd_o,
+  output [PHY_REG_ADDR_W-1:0] walk1_old_pdest_o,
+  output [PHY_REG_ADDR_W-1:0] walk1_new_pdest_o,
+  output walk1_rd_en_o
 );
 
   reg valid_q [0:ROB_ENTRIES-1];
@@ -102,6 +120,14 @@ module OooRob #(
   reg [ROB_INDEX_W-1:0] head_q;
   reg [ROB_INDEX_W-1:0] tail_q;
   reg [ROB_COUNT_W-1:0] count_q;
+
+  // B2 ROB-walk 恢复状态机
+`ifdef ROB_WALK_DEBUG
+  reg [11:0] rob_stall_cnt_q;
+`endif
+  reg recover_q;
+  reg [ROB_INDEX_W-1:0] walk_ptr_q;   // 当前待 squash 的最年轻未处理 entry
+  reg [ROB_INDEX_W-1:0] kill_idx_q;   // 存活分支 idx（walk 终点：到它即停）
 
   reg checkpoint_valid_q [0:ROB_ENTRIES-1];
   reg checkpoint_done_q [0:ROB_ENTRIES-1];
@@ -196,7 +222,35 @@ module OooRob #(
                         wb0_head1_match_w ? wb0_tval_i :
                         wb1_head1_match_w ? wb1_tval_i :
                         tval_q[head1_w];
-  assign commit0_fire_w = commit_ready_i && (count_q != {ROB_COUNT_W{1'b0}}) &&
+  // ---- B2 ROB-walk 恢复（组合）----
+  wire [ROB_INDEX_W-1:0] kill_next_start_w = rob_ptr_add(kill_rob_idx_i, 2'd1);
+  wire kill_has_younger_w = kill_valid_i && (tail_q != kill_next_start_w);
+  // 冻结 dispatch/commit/wb：必须在「kill 脉冲当拍」就冻结，与 IQ 的 squash/issue-gate（均按 kill_valid_i）
+  // 严格一致；否则 kill 当拍 ROB 仍放新指令进 ROB、而 IQ 把它的发射项 squash 掉 → 僵尸 ROB 项永不 done。
+  wire recovering_w = recover_q || kill_valid_i;
+  wire [ROB_INDEX_W-1:0] wptr_m1_w = walk_ptr_q - {{(ROB_INDEX_W-1){1'b0}}, 1'b1};
+  wire [ROB_INDEX_W-1:0] kill_next_q_w = rob_ptr_add(kill_idx_q, 2'd1);
+  wire lane0_sq_w = recover_q;                           // 不变量：recover 期 walk_ptr_q 恒为更年轻 entry
+  wire lane1_sq_w = recover_q && (wptr_m1_w != kill_idx_q);
+  wire last_one_w = recover_q && (wptr_m1_w == kill_idx_q);
+  wire last_two_w = recover_q && (wptr_m1_w != kill_idx_q) &&
+                    ((walk_ptr_q - {{(ROB_INDEX_W-2){1'b0}}, 2'd2}) == kill_idx_q);
+  wire walk_done_w = last_one_w || last_two_w;
+
+  assign recover_active_o   = recover_q;
+  assign walk0_valid_o      = lane0_sq_w;
+  assign walk0_arch_rd_o    = arch_rd_q[walk_ptr_q];
+  assign walk0_old_pdest_o  = old_pdest_q[walk_ptr_q];
+  assign walk0_new_pdest_o  = new_pdest_q[walk_ptr_q];
+  assign walk0_rd_en_o      = rd_en_q[walk_ptr_q];
+  assign walk1_valid_o      = lane1_sq_w;
+  assign walk1_arch_rd_o    = arch_rd_q[wptr_m1_w];
+  assign walk1_old_pdest_o  = old_pdest_q[wptr_m1_w];
+  assign walk1_new_pdest_o  = new_pdest_q[wptr_m1_w];
+  assign walk1_rd_en_o      = rd_en_q[wptr_m1_w];
+
+  assign commit0_fire_w = !recovering_w &&
+                          commit_ready_i && (count_q != {ROB_COUNT_W{1'b0}}) &&
                           valid_q[head_q] && head_done_w;
   assign commit1_fire_w = commit0_fire_w && !commit1_block_i &&
                           !head_exception_w &&
@@ -207,9 +261,9 @@ module OooRob #(
   // Dispatch ready 只看当前已登记的 ROB 空位，不借用同拍 commit 释放的槽。
   // 这样避免 dispatch->issue 旁路和 writeback/commit 之间形成组合环。
   assign free_slots_w = ROB_ENTRIES[ROB_COUNT_W-1:0] - count_q;
-  assign dispatch0_ready_o = (free_slots_w != {ROB_COUNT_W{1'b0}});
+  assign dispatch0_ready_o = !recovering_w && (free_slots_w != {ROB_COUNT_W{1'b0}});
   assign dispatch0_fire_w = dispatch0_valid_i && dispatch0_ready_o;
-  assign dispatch1_ready_o = (free_slots_w > {{(ROB_COUNT_W-1){1'b0}}, dispatch0_fire_w});
+  assign dispatch1_ready_o = !recovering_w && (free_slots_w > {{(ROB_COUNT_W-1){1'b0}}, dispatch0_fire_w});
   assign dispatch1_fire_w = dispatch1_valid_i && dispatch1_ready_o;
   assign dispatch_count_w = {1'b0, dispatch0_fire_w} + {1'b0, dispatch1_fire_w};
   assign dispatch0_rob_idx_o = tail_q;
@@ -283,6 +337,9 @@ module OooRob #(
       checkpoint_head_q <= {ROB_INDEX_W{1'b0}};
       checkpoint_tail_q <= {ROB_INDEX_W{1'b0}};
       checkpoint_count_q <= {ROB_COUNT_W{1'b0}};
+      recover_q <= 1'b0;
+      walk_ptr_q <= {ROB_INDEX_W{1'b0}};
+      kill_idx_q <= {ROB_INDEX_W{1'b0}};
     end else if (checkpoint_restore_i) begin
       head_q <= checkpoint_head_q;
       tail_q <= checkpoint_tail_q;
@@ -321,6 +378,59 @@ module OooRob #(
         checkpoint_cause_q[idx] <= cause_q[idx];
         checkpoint_tval_q[idx] <= tval_q[idx];
       end
+    end else if (recover_q) begin
+      // ROB-walk：本拍 squash lane0(恒)/lane1(若仍更年轻)，count 递减；到存活分支即收尾回退 tail。
+      // 关键：recovery 窗口内仍须吸收 in-flight 写回——更老(存活)指令的执行结果若恰在此时回写，
+      // 丢弃会令其 ROB 项永不 done → head 永久卡死。写回放在 squash 之前，被 squash 的更年轻项由
+      // 其后的 valid/done<=0 覆盖（nonblocking 源序后写胜），故对被压制项无副作用。
+      if (wb0_valid_i && valid_q[wb0_rob_idx_i]) begin
+        done_q[wb0_rob_idx_i] <= 1'b1;
+        data_q[wb0_rob_idx_i] <= wb0_data_i;
+        exception_q[wb0_rob_idx_i] <= wb0_exception_i;
+        cause_q[wb0_rob_idx_i] <= wb0_cause_i;
+        tval_q[wb0_rob_idx_i] <= wb0_tval_i;
+      end
+      if (wb1_valid_i && valid_q[wb1_rob_idx_i]) begin
+        done_q[wb1_rob_idx_i] <= 1'b1;
+        data_q[wb1_rob_idx_i] <= wb1_data_i;
+        exception_q[wb1_rob_idx_i] <= wb1_exception_i;
+        cause_q[wb1_rob_idx_i] <= wb1_cause_i;
+        tval_q[wb1_rob_idx_i] <= wb1_tval_i;
+      end
+      valid_q[walk_ptr_q] <= 1'b0;
+      done_q[walk_ptr_q] <= 1'b0;
+      if (lane1_sq_w) begin
+        valid_q[wptr_m1_w] <= 1'b0;
+        done_q[wptr_m1_w] <= 1'b0;
+      end
+      count_q <= count_q - (lane1_sq_w ? {{(ROB_COUNT_W-2){1'b0}}, 2'd2}
+                                       : {{(ROB_COUNT_W-1){1'b0}}, 1'b1});
+      if (walk_done_w) begin
+        recover_q <= 1'b0;
+        tail_q <= kill_next_q_w;
+      end else begin
+        walk_ptr_q <= walk_ptr_q - {{(ROB_INDEX_W-2){1'b0}}, 2'd2};
+      end
+    end else if (kill_has_younger_w) begin
+      // 启动 walk：从 tail-1（最年轻）开始反向 squash，终点=存活分支 kill_rob_idx。
+      // 同样吸收本拍 in-flight 写回（此拍尚未 squash 任何项，无冲突）。
+      if (wb0_valid_i && valid_q[wb0_rob_idx_i]) begin
+        done_q[wb0_rob_idx_i] <= 1'b1;
+        data_q[wb0_rob_idx_i] <= wb0_data_i;
+        exception_q[wb0_rob_idx_i] <= wb0_exception_i;
+        cause_q[wb0_rob_idx_i] <= wb0_cause_i;
+        tval_q[wb0_rob_idx_i] <= wb0_tval_i;
+      end
+      if (wb1_valid_i && valid_q[wb1_rob_idx_i]) begin
+        done_q[wb1_rob_idx_i] <= 1'b1;
+        data_q[wb1_rob_idx_i] <= wb1_data_i;
+        exception_q[wb1_rob_idx_i] <= wb1_exception_i;
+        cause_q[wb1_rob_idx_i] <= wb1_cause_i;
+        tval_q[wb1_rob_idx_i] <= wb1_tval_i;
+      end
+      recover_q <= 1'b1;
+      kill_idx_q <= kill_rob_idx_i;
+      walk_ptr_q <= tail_q - {{(ROB_INDEX_W-1){1'b0}}, 1'b1};
     end else begin
       if (commit0_fire_w) begin
         valid_q[head_q] <= 1'b0;
@@ -382,6 +492,15 @@ module OooRob #(
       count_q <= count_q + {{(ROB_COUNT_W-2){1'b0}}, dispatch_count_w} -
                  {{(ROB_COUNT_W-2){1'b0}}, commit_count_w};
     end
+`ifdef ROB_WALK_DEBUG
+    if (rst) rob_stall_cnt_q <= 12'd0;
+    else begin
+      rob_stall_cnt_q <= (count_q != {ROB_COUNT_W{1'b0}} && !commit0_fire_w) ? rob_stall_cnt_q + 12'd1 : 12'd0;
+      if (rob_stall_cnt_q == 12'd2000)
+        $display("[ROBSTALL] head=%0d tail=%0d count=%0d recover=%b validH=%b doneH=%b pcH=%h instH=%h commit_ready=%b kill_valid=%b",
+                 head_q, tail_q, count_q, recover_q, valid_q[head_q], done_q[head_q], pc_q[head_q], inst_q[head_q], commit_ready_i, kill_valid_i);
+    end
+`endif
   end
 
 endmodule

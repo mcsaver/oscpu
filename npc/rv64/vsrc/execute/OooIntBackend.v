@@ -25,6 +25,7 @@ module OooIntBackend #(
   output dispatch0_ready_o,
   input [`XLEN-1:0] dispatch0_pc_i,
   input [`XLEN-1:0] dispatch0_next_pc_i,
+  input [`XLEN-1:0] dispatch0_pred_npc_i,
   input [`INST_W-1:0] dispatch0_inst_i,
   input [`CTRL_BUS_W-1:0] dispatch0_ctrl_i,
   input [`REG_ADDR_W-1:0] dispatch0_rs1_arch_i,
@@ -37,6 +38,7 @@ module OooIntBackend #(
   output dispatch1_ready_o,
   input [`XLEN-1:0] dispatch1_pc_i,
   input [`XLEN-1:0] dispatch1_next_pc_i,
+  input [`XLEN-1:0] dispatch1_pred_npc_i,
   input [`INST_W-1:0] dispatch1_inst_i,
   input [`CTRL_BUS_W-1:0] dispatch1_ctrl_i,
   input [`REG_ADDR_W-1:0] dispatch1_rs1_arch_i,
@@ -106,6 +108,11 @@ module OooIntBackend #(
   output [`XLEN-1:0] branch_resolve_pc_o,
   output [`XLEN-1:0] branch_resolve_next_pc_o,
   output branch_resolve_misaligned_o,
+  // B2：导出解析分支的 rob_idx（kill_younger_than 的年龄基准；issue 路径）。
+  // 详见 design/arch/b2-branch-spec-redirect.md §3.1/§7。本切片纯增量，未接消费者。
+  output [ROB_INDEX_W-1:0] branch_resolve_rob_idx_o,
+  // B2 片4：被选中 lane 的 branch/JALR mispredict 脉冲（mode=1 驱动 ROB-walk kill + redirect）。
+  output branch_resolve_mispredict_o,
   output dispatch_branch_resolve_valid_o,
   output [`XLEN-1:0] dispatch_branch_resolve_pc_o,
   output [`XLEN-1:0] dispatch_branch_resolve_next_pc_o,
@@ -135,6 +142,7 @@ module OooIntBackend #(
   wire issue0_ready_w;
   wire [`XLEN-1:0] issue0_pc_w;
   wire [`XLEN-1:0] issue0_next_pc_w;
+  wire [`XLEN-1:0] issue0_pred_npc_w;
   wire [`INST_W-1:0] issue0_inst_w;
   wire [`CTRL_BUS_W-1:0] issue0_ctrl_w;
   wire [ROB_INDEX_W-1:0] issue0_rob_idx_w;
@@ -147,6 +155,7 @@ module OooIntBackend #(
   wire issue1_ready_w;
   wire [`XLEN-1:0] issue1_pc_w;
   wire [`XLEN-1:0] issue1_next_pc_w;
+  wire [`XLEN-1:0] issue1_pred_npc_w;
   wire [`INST_W-1:0] issue1_inst_w;
   wire [`CTRL_BUS_W-1:0] issue1_ctrl_w;
   wire [ROB_INDEX_W-1:0] issue1_rob_idx_w;
@@ -202,6 +211,8 @@ module OooIntBackend #(
     .flush_i(flush_i),
     .checkpoint_capture_i(checkpoint_capture_i),
     .checkpoint_restore_i(checkpoint_restore_i),
+    .kill_rob_idx_i(branch_resolve_rob_idx_o),   // B2 ROB-walk：mispredict 控制流 rob_idx（与 mispredict 同拍）
+    .branch_mispredict_valid_i(branch_resolve_mispredict_w),  // B2 片4：ROB-walk kill 触发
     .issue_mem_block_i(mem_issue_block_w),
     .pending_load0_valid_i(pending_load0_valid_w),
     .pending_load0_pdest_i(pending_load0_pdest_w),
@@ -211,6 +222,7 @@ module OooIntBackend #(
     .dispatch0_ready_o(dispatch0_ready_o),
     .dispatch0_pc_i(dispatch0_pc_i),
     .dispatch0_next_pc_i(dispatch0_next_pc_i),
+    .dispatch0_pred_npc_i(dispatch0_pred_npc_i),
     .dispatch0_inst_i(dispatch0_inst_i),
     .dispatch0_ctrl_i(dispatch0_ctrl_i),
     .dispatch0_rs1_arch_i(dispatch0_rs1_arch_i),
@@ -222,6 +234,7 @@ module OooIntBackend #(
     .dispatch1_ready_o(dispatch1_ready_o),
     .dispatch1_pc_i(dispatch1_pc_i),
     .dispatch1_next_pc_i(dispatch1_next_pc_i),
+    .dispatch1_pred_npc_i(dispatch1_pred_npc_i),
     .dispatch1_inst_i(dispatch1_inst_i),
     .dispatch1_ctrl_i(dispatch1_ctrl_i),
     .dispatch1_rs1_arch_i(dispatch1_rs1_arch_i),
@@ -246,6 +259,7 @@ module OooIntBackend #(
     .issue0_ready_i(issue0_ready_w),
     .issue0_pc_o(issue0_pc_w),
     .issue0_next_pc_o(issue0_next_pc_w),
+    .issue0_pred_npc_o(issue0_pred_npc_w),
     .issue0_inst_o(issue0_inst_w),
     .issue0_ctrl_o(issue0_ctrl_w),
     .issue0_rob_idx_o(issue0_rob_idx_w),
@@ -257,6 +271,7 @@ module OooIntBackend #(
     .issue1_ready_i(issue1_ready_w),
     .issue1_pc_o(issue1_pc_w),
     .issue1_next_pc_o(issue1_next_pc_w),
+    .issue1_pred_npc_o(issue1_pred_npc_w),
     .issue1_inst_o(issue1_inst_w),
     .issue1_ctrl_o(issue1_ctrl_w),
     .issue1_rob_idx_o(issue1_rob_idx_w),
@@ -963,6 +978,53 @@ module OooIntBackend #(
   wire issue1_clmul_fire_w = issue1_fire_w && issue1_is_clmul_w;
   wire issue0_branch_fire_w = issue0_fire_w && issue0_is_branch_w;
   wire issue1_branch_fire_w = issue1_fire_w && issue1_is_branch_w;
+
+  // ===== B2 片2：后端 branch+JAL+JALR 统一控制流解析（issue 级 per-uop mispredict）=====
+  // mode=0 时只解析 BRANCH（JAL/JALR 仍走 pending+drain），下列表达式代数化简后与 branch-only 逐位等价。
+  wire mode_walk_w = `OOO_ROB_WALK_MODE;
+  wire issue0_is_jal_w  = issue0_valid_w && issue0_ctrl_w[`CTRL_JAL_BIT];
+  wire issue0_is_jalr_w = issue0_valid_w && issue0_ctrl_w[`CTRL_JALR_BIT];
+  wire issue1_is_jal_w  = issue1_valid_w && issue1_ctrl_w[`CTRL_JAL_BIT];
+  wire issue1_is_jalr_w = issue1_valid_w && issue1_ctrl_w[`CTRL_JALR_BIT];
+  wire issue0_is_ctrlflow_w =
+      issue0_is_branch_w || (mode_walk_w && (issue0_is_jal_w || issue0_is_jalr_w));
+  wire issue1_is_ctrlflow_w =
+      issue1_is_branch_w || (mode_walk_w && (issue1_is_jal_w || issue1_is_jalr_w));
+  // JALR 目标 = (rs1+imm) & ~1；JAL 目标 = pc+imm(=branch_target)；BRANCH = taken?target:fallthrough。
+  wire [`XLEN-1:0] issue0_jalr_target_w =
+      (issue0_src1_data_w + issue0_imm_w) & {{(`XLEN-1){1'b1}}, 1'b0};
+  wire [`XLEN-1:0] issue1_jalr_target_w =
+      (issue1_src1_value_w + issue1_imm_w) & {{(`XLEN-1){1'b1}}, 1'b0};
+  wire [`XLEN-1:0] issue0_ctrlflow_next_pc_w =
+      issue0_is_jalr_w ? issue0_jalr_target_w :
+      issue0_is_jal_w  ? issue0_branch_target_w :
+                         issue0_branch_next_pc_w;
+  wire [`XLEN-1:0] issue1_ctrlflow_next_pc_w =
+      issue1_is_jalr_w ? issue1_jalr_target_w :
+      issue1_is_jal_w  ? issue1_branch_target_w :
+                         issue1_branch_next_pc_w;
+  // 目标对齐异常（IALIGN=16）：JALR 清 bit0 故恒不失配；JAL 看 target[0]；BRANCH taken 看 target[0]。
+  wire issue0_ctrlflow_misaligned_w =
+      issue0_is_jalr_w ? 1'b0 :
+      issue0_is_jal_w  ? issue0_branch_target_w[0] :
+                         (issue0_branch_taken_w && issue0_branch_target_w[0]);
+  wire issue1_ctrlflow_misaligned_w =
+      issue1_is_jalr_w ? 1'b0 :
+      issue1_is_jal_w  ? issue1_branch_target_w[0] :
+                         (issue1_branch_taken_w && issue1_branch_target_w[0]);
+  wire issue0_ctrlflow_fire_w = issue0_fire_w && issue0_is_ctrlflow_w;
+  wire issue1_ctrlflow_fire_w = issue1_fire_w && issue1_is_ctrlflow_w;
+  // 误预测 = 架构后继 PC ≠ 片1 threaded 的预测后继 PC，且非对齐异常（misaligned 走 trap，不走 redirect）。
+  // mode 下「零方向投机」基线：每条控制流强制 mispredict→恒 redirect 到后端算的架构后继，
+  // 不信任前端方向预测（堵住 pred_npc 与前端实际取指不一致的所有漏洞）。配合禁 dispatch-bypass，
+  // wrong-path 只能经 FIFO 被 redirect 的 FIFO-clear 清掉。性能差（每条控制流 flush+重取），但功能正确——
+  // 后续优化=精确 per-packet 预测后继使正确预测免于 redirect。
+  wire issue0_mispredict_w =
+      (mode_walk_w || (issue0_ctrlflow_next_pc_w != issue0_pred_npc_w)) &&
+      !issue0_ctrlflow_misaligned_w;
+  wire issue1_mispredict_w =
+      (mode_walk_w || (issue1_ctrlflow_next_pc_w != issue1_pred_npc_w)) &&
+      !issue1_ctrlflow_misaligned_w;
 
   wire issue0_current_result_valid_w =
       issue0_fire_w && !issue0_is_mem_w && !issue0_is_muldiv_w &&
@@ -1808,23 +1870,34 @@ module OooIntBackend #(
 
   assign execute0_valid_o = wb0_valid_w;
   assign execute1_valid_o = wb1_valid_w;
-  wire issue0_branch_resolve_emit_w =
-      issue0_branch_fire_w && !issue0_fast_branch_suppressed_w;
-  wire issue1_branch_resolve_emit_w =
-      issue1_branch_fire_w && !issue1_fast_branch_suppressed_w;
+  wire issue0_resolve_emit_w =
+      issue0_ctrlflow_fire_w && !issue0_fast_branch_suppressed_w;
+  wire issue1_resolve_emit_w =
+      issue1_ctrlflow_fire_w && !issue1_fast_branch_suppressed_w;
+  wire issue0_redirect_w = issue0_resolve_emit_w && issue0_mispredict_w;
+  wire issue1_redirect_w = issue1_resolve_emit_w && issue1_mispredict_w;
+  // lane 选择：mode=1 取最老 mispredict（issue0 优先）；mode=0 退化为原 issue0-first（中性）。
+  wire branch_resolve_pick1_w =
+      mode_walk_w ? (!issue0_redirect_w && issue1_redirect_w)
+                  : (!issue0_resolve_emit_w);
 
   assign branch_resolve_valid_o =
-      issue0_branch_resolve_emit_w || issue1_branch_resolve_emit_w;
+      issue0_resolve_emit_w || issue1_resolve_emit_w;
   assign branch_resolve_pc_o =
-      issue0_branch_resolve_emit_w ? issue0_pc_w : issue1_pc_w;
-  assign branch_resolve_next_pc_o = issue0_branch_resolve_emit_w ?
-                                    issue0_branch_next_pc_w :
-                                    issue1_branch_next_pc_w;
+      branch_resolve_pick1_w ? issue1_pc_w : issue0_pc_w;
+  assign branch_resolve_next_pc_o =
+      branch_resolve_pick1_w ? issue1_ctrlflow_next_pc_w
+                             : issue0_ctrlflow_next_pc_w;
   assign branch_resolve_misaligned_o =
-      issue0_branch_resolve_emit_w ? (issue0_branch_taken_w &&
-                                      issue0_branch_target_w[0]) :
-                                     (issue1_branch_taken_w &&
-                                      issue1_branch_target_w[0]);
+      branch_resolve_pick1_w ? issue1_ctrlflow_misaligned_w
+                             : issue0_ctrlflow_misaligned_w;
+  // B2：解析控制流的 rob_idx，与 branch_resolve_pc/next_pc 同源选 issue0/issue1。
+  assign branch_resolve_rob_idx_o =
+      branch_resolve_pick1_w ? issue1_rob_idx_w : issue0_rob_idx_w;
+  // 片2 计算、片4 接线导出：被选中 lane 的 mispredict 脉冲（mode=1 驱动 ROB-walk kill + redirect）。
+  wire branch_resolve_mispredict_w =
+      branch_resolve_pick1_w ? issue1_redirect_w : issue0_redirect_w;
+  assign branch_resolve_mispredict_o = branch_resolve_mispredict_w;
   assign dispatch_branch_resolve_valid_o =
       dispatch_branch_fast_resolve_w || load_branch_fast_resolve_w;
   assign dispatch_branch_resolve_pc_o =
@@ -1846,5 +1919,15 @@ module OooIntBackend #(
       (|mem_rsp_wstrb_unused_w) | mem_rsp_misaligned_unused_w |
       (|mem1_rsp_addr_unused_w) | (|mem1_rsp_wdata_unused_w) |
       (|mem1_rsp_wstrb_unused_w) | mem1_rsp_misaligned_unused_w;
+
+`ifdef ROB_WALK_DEBUG
+  always @(posedge clk) begin
+    if (!rst && branch_resolve_valid_o)
+      $display("[CF] mispred=%b pick1=%b | i0 emit=%b jalr=%b jal=%b br=%b rob=%0d pc=%h next=%h s1p=%0d s1v=%h imm=%h | i1 emit=%b jalr=%b rob=%0d pc=%h next=%h",
+               branch_resolve_mispredict_w, branch_resolve_pick1_w,
+               issue0_resolve_emit_w, issue0_is_jalr_w, issue0_is_jal_w, issue0_is_branch_w, issue0_rob_idx_w, issue0_pc_w, issue0_ctrlflow_next_pc_w, issue0_src1_preg_w, issue0_src1_data_w, issue0_imm_w,
+               issue1_resolve_emit_w, issue1_is_jalr_w, issue1_rob_idx_w, issue1_pc_w, issue1_ctrlflow_next_pc_w);
+  end
+`endif
 
 endmodule

@@ -199,6 +199,43 @@ module tb_ooo_pending_control_resolve_gate;
     check1("redirect after dispatch",
            pending_jump_redirect_after_dispatch, 1'b1);
 
+    // ----------------------------------------------------------------------
+    // De-pend (mode=1, `OOO_ROB_WALK_MODE`) turns branch/jump into pure
+    // out-of-order speculative dispatch + backend forced-mispredict redirect.
+    // The legacy pending+drain "misalign blocks the RAS call-fire / post-
+    // dispatch redirect" gating only lives on the mode=0 pending path, which
+    // is bypassed (dead) in the production build. define.v (included above)
+    // defines OOO_ROB_WALK_MODE, so the `ifndef block is compiled out of the
+    // production run and the `ifdef block validates the real mode=1 contract.
+    // ----------------------------------------------------------------------
+`ifndef OOO_ROB_WALK_MODE
+    // mode=0 legacy pending+drain: a genuinely misaligned resolved target
+    // (JAL with an odd immediate -> target LSB set) must block both the RAS
+    // call push-fire and the post-dispatch redirect.
+    reset_inputs();
+    stop_pending = 1'b1;
+    pending_jump = 1'b1;
+    pending_jump_jalr = 1'b0;
+    backend_drained = 1'b1;
+    pending_jump_inst[11:7] = 5'd1;
+    pending_jump_imm = 64'h21;
+    jump_dispatch_fire = 1'b1;
+    #1;
+    check1("mode0 misaligned jump target",
+           pending_jump_misaligned, 1'b1);
+    check1("misaligned jump blocks call fire",
+           pending_jump_call_fire, 1'b0);
+    check1("misaligned jump blocks redirect",
+           pending_jump_redirect_after_dispatch, 1'b0);
+`endif
+
+`ifdef OOO_ROB_WALK_MODE
+    // mode=1 de-pend contract (production): the JALR datapath force-clears the
+    // target LSB ({sum[XLEN-1:1],1'b0}), so an ALIGNED JALR call resolves and
+    // FIRES its RAS push + post-dispatch redirect -- this speculative-dispatch
+    // fire REPLACES the old mode=0 "misalign blocks" expectation. The very
+    // inputs that the legacy assertion expected to block (rs1+imm=0x8000_0001
+    // -> resolved 0x8000_0000, aligned) now correctly fire.
     reset_inputs();
     stop_pending = 1'b1;
     pending_jump = 1'b1;
@@ -209,10 +246,30 @@ module tb_ooo_pending_control_resolve_gate;
     pending_jump_imm = 64'h0;
     jump_dispatch_fire = 1'b1;
     #1;
-    check1("misaligned jump blocks call fire",
+    check1("depend aligned jalr not misaligned",
+           pending_jump_misaligned, 1'b0);
+    check1("depend aligned jalr call fires",
+           pending_jump_call_fire, 1'b1);
+    check1("depend aligned jalr redirect fires",
+           pending_jump_redirect_after_dispatch, 1'b1);
+    // ...but a genuinely misaligned resolved target (odd JAL target -> LSB set)
+    // still gates both the call-fire and the redirect, even in de-pend mode.
+    reset_inputs();
+    stop_pending = 1'b1;
+    pending_jump = 1'b1;
+    pending_jump_jalr = 1'b0;
+    backend_drained = 1'b1;
+    pending_jump_inst[11:7] = 5'd1;
+    pending_jump_imm = 64'h21;
+    jump_dispatch_fire = 1'b1;
+    #1;
+    check1("depend misaligned jump target",
+           pending_jump_misaligned, 1'b1);
+    check1("depend misaligned blocks call fire",
            pending_jump_call_fire, 1'b0);
-    check1("misaligned jump blocks redirect",
+    check1("depend misaligned blocks redirect",
            pending_jump_redirect_after_dispatch, 1'b0);
+`endif
 
     reset_inputs();
     pending_branch = 1'b1;

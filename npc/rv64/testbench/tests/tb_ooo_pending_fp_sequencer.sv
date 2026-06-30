@@ -35,6 +35,7 @@ module tb_ooo_pending_fp_sequencer;
   reg [`XLEN-1:0] long_done_result;
   reg [4:0] long_done_fflags;
   reg compute_start;
+  reg compute_ready;
   reg [`XLEN-1:0] compute_result;
   reg [4:0] compute_fflags;
 
@@ -96,6 +97,7 @@ module tb_ooo_pending_fp_sequencer;
     .long_done_result_i(long_done_result),
     .long_done_fflags_i(long_done_fflags),
     .compute_start_i(compute_start),
+    .compute_ready_i(compute_ready),
     .compute_result_i(compute_result),
     .compute_fflags_i(compute_fflags),
     .valid_o(valid),
@@ -220,6 +222,7 @@ module tb_ooo_pending_fp_sequencer;
       long_done_result = 64'h0102_0304_0506_0708;
       long_done_fflags = 5'b10001;
       compute_start = 1'b0;
+      compute_ready = 1'b1;  // 非流水路径默认就绪;本 TB 单独验 sequencer 锁存语义
       compute_result = 64'h8877_6655_4433_2211;
       compute_fflags = 5'b00101;
     end

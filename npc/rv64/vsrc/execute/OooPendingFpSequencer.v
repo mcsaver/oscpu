@@ -40,6 +40,9 @@ module OooPendingFpSequencer (
   input [4:0] long_done_fflags_i,
 
   input compute_start_i,
+  // compute_ready_i:compute 结果是否就绪(流水化 arith 需等其多周期 done,见
+  // OooFpPendingExec.compute_ready_o);非 arith compute 恒 1,行为与原单拍一致。
+  input compute_ready_i,
   input [`XLEN-1:0] compute_result_i,
   input [4:0] compute_fflags_i,
 
@@ -116,7 +119,9 @@ module OooPendingFpSequencer (
         long_fflags_o <= long_done_fflags_i;
       end
 
-      if (compute_start_i) begin
+      // 流水化 arith:compute_start_i 在等待期间持续拉高,但只有 compute_ready_i
+      // (= arith 多周期 done)为真时才锁存 compute_done,实现延后 LATENCY 拍。
+      if (compute_start_i && compute_ready_i) begin
         compute_done_o <= 1'b1;
         compute_result_o <= compute_result_i;
         compute_fflags_o <= compute_fflags_i;

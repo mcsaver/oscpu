@@ -112,10 +112,12 @@ module tb_ooo_dispatch_backend;
     .flush_i(flush),
     .checkpoint_capture_i(checkpoint_capture),
     .checkpoint_restore_i(checkpoint_restore),
+    .branch_mispredict_valid_i(1'b0),
     .dispatch0_valid_i(dispatch0_valid),
     .dispatch0_ready_o(dispatch0_ready),
     .dispatch0_pc_i(dispatch0_pc),
     .dispatch0_next_pc_i(dispatch0_pc + 32'd4),
+    .dispatch0_pred_npc_i('0),
     .dispatch0_inst_i(dispatch0_inst),
     .dispatch0_ctrl_i(dispatch0_ctrl),
     .dispatch0_rs1_arch_i(dispatch0_rs1_arch),
@@ -127,6 +129,7 @@ module tb_ooo_dispatch_backend;
     .dispatch1_ready_o(dispatch1_ready),
     .dispatch1_pc_i(dispatch1_pc),
     .dispatch1_next_pc_i(dispatch1_pc + 32'd4),
+    .dispatch1_pred_npc_i('0),
     .dispatch1_inst_i(dispatch1_inst),
     .dispatch1_ctrl_i(dispatch1_ctrl),
     .dispatch1_rs1_arch_i(dispatch1_rs1_arch),
@@ -405,6 +408,10 @@ module tb_ooo_dispatch_backend;
     tb_check32("freelist recovers after waw commits", {25'b0, free_count}, 32'd32);
     tb_check32("rob drains after waw", {27'b0, rob_count}, 32'd0);
 
+    // ===== mode=0 专有：weak checkpoint capture/restore 恢复机制 =====
+    // mode=1（OOO_ROB_WALK_MODE）改用 ROB-walk reverse-undo 恢复（见 tb_ooo_rob 的 walk 测试），
+    // checkpoint 路径在 mode=1 不激活；mode=1 误预测恢复由 riscv-tests 135/0 端到端覆盖。
+    if (!`OOO_ROB_WALK_MODE) begin
     issue0_ready = 1'b0;
     issue1_ready = 1'b0;
     set_dispatch0(32'h8000_0030, 5'd1, 1'b1, 5'd2, 1'b1, 5'd8, 1'b1);
@@ -432,6 +439,7 @@ module tb_ooo_dispatch_backend;
     tb_check32("checkpoint restore rob count", {27'b0, rob_count}, 32'd1);
     tb_check32("checkpoint restore issue count", {28'b0, issue_count}, 32'd1);
     tb_check32("checkpoint restore issue pc", issue0_pc, 32'h8000_0030);
+    end // if (!`OOO_ROB_WALK_MODE)：weak checkpoint 为 mode=0 专有恢复机制
     issue0_ready = 1'b1;
     issue1_ready = 1'b1;
 

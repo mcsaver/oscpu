@@ -844,7 +844,9 @@ extern "C" void npc_commit_event(npc_word_t pc, uint32_t inst, npc_word_t next_p
   }
   g_shadow_gpr[0] = 0;
 
+#ifdef CONFIG_NPC_BRANCH_STATS
   record_ooo_control_flow_commit(pc, inst, next_pc);
+#endif
   maybe_log_commit_watch(pc, inst, next_pc, rd_en, rd_addr, rd_data);
   maybe_log_user_trace(pc, inst, next_pc);
 
@@ -1025,6 +1027,7 @@ extern "C" void npc_handled_trap_event(uint32_t kind, uint32_t cause,
              (unsigned long long)npc_stats()->commits, kind_name, cause, pc, tval);
 }
 
+#ifdef CONFIG_NPC_BRANCH_STATS
 extern "C" void npc_control_flow_event(uint32_t is_branch, uint32_t branch_taken,
                                        uint32_t is_jal, uint32_t is_jalr) {
   if (is_branch) {
@@ -1155,7 +1158,9 @@ static void record_ooo_control_flow_commit(uint32_t pc, uint32_t inst, uint32_t 
                         pred_taken ? 1u : 0u, actual_taken ? 1u : 0u,
                         correct ? 1u : 0u);
 }
+#endif  // CONFIG_NPC_BRANCH_STATS
 
+#ifdef CONFIG_NPC_CACHE_STATS
 extern "C" void npc_icache_event(uint32_t access, uint32_t hit, uint32_t miss) {
   g_sim_perf.icache_access += access ? 1u : 0u;
   g_sim_perf.icache_hit += hit ? 1u : 0u;
@@ -1183,7 +1188,9 @@ extern "C" void npc_dcache_event(uint32_t access, uint32_t hit, uint32_t miss,
   g_sim_perf.dcache_writeback += writeback ? 1u : 0u;
   g_sim_perf.dcache_write_through += write_through ? 1u : 0u;
 }
+#endif  // CONFIG_NPC_CACHE_STATS
 
+#ifdef CONFIG_NPC_OOO_STATS
 static void bump_ooo_hist(uint64_t hist[3], uint32_t value) {
   hist[value < 2 ? value : 2]++;
 }
@@ -1391,6 +1398,7 @@ extern "C" void npc_ooo_cycle_event(uint32_t retire_count,
                   mem_busy, axi_wait, hazard_busy, branch_flush,
                   exception_busy);
 }
+#endif  // CONFIG_NPC_OOO_STATS
 
 static bool install_sigint_handler(void) {
   struct sigaction act = {};
@@ -1472,6 +1480,7 @@ static void accumulate_host_time(uint64_t start_us) {
 }
 
 // 分支/跳转统计报告：按指令类型汇总动态执行次数，方便与其他仿真器输出对比
+#ifdef CONFIG_NPC_BRANCH_STATS
 static void report_branch_stats(void) {
   uint64_t total_commits = npc_stats()->commits;
   uint64_t nr_not_taken = g_nr_branch - g_nr_branch_taken;
@@ -1543,6 +1552,9 @@ static void report_branch_stats(void) {
   }
 }
 
+#endif  // CONFIG_NPC_BRANCH_STATS
+
+#ifdef CONFIG_NPC_CACHE_STATS
 static void report_cache_stats(void) {
   LogBothTag("statistic", "=== Cache Statistics ===");
   LogBothTag("statistic", "icache: access=%llu, hit=%llu, miss=%llu",
@@ -1566,6 +1578,9 @@ static void report_cache_stats(void) {
              (unsigned long long)g_sim_perf.dcache_write_through);
 }
 
+#endif  // CONFIG_NPC_CACHE_STATS
+
+#ifdef CONFIG_NPC_OOO_STATS
 static void report_ooo_stats(void) {
   if (g_sim_perf.ooo_cycles == 0) return;
   LogBothTag("statistic", "=== OoO Pipeline Statistics ===");
@@ -1667,12 +1682,22 @@ static void report_ooo_stats(void) {
              (unsigned long long)g_sim_perf.ooo_mem1_rsp_fire);
   report_ooo_window(true);
 }
+#endif  // CONFIG_NPC_OOO_STATS
 
 // NEMU 风格统计 + CPI + 分支统计，NPC 跑分结果可直接和参考模型对比
 static void report_statistics(void) {
+#ifdef CONFIG_NPC_SUMMARY_STATS
+  // CLINT mtime 按 NpcTop.v 的 CLINT_MTIME_DIVISOR 预分频(每 N 个 core 周期 mtime+1),
+  // 期望值是 cycles/N 而非 cycles;旧诊断直接拿 mtime==cycles 判等,永远 mismatch。
+  // 容忍 ±1 拍采样相位偏移(mtime 与 cycles 同在 posedge 更新)。
+  uint64_t mtime_expected = npc_stats()->cycles / NPC_CLINT_MTIME_DIVISOR;
+  uint64_t mtime_now      = npc_stats()->clint_mtime;
+  uint64_t mtime_absdiff  = (mtime_now >= mtime_expected)
+                              ? (mtime_now - mtime_expected)
+                              : (mtime_expected - mtime_now);
   char mtime_delta[48];
   format_u64_delta(mtime_delta, sizeof(mtime_delta),
-                   npc_stats()->clint_mtime, npc_stats()->cycles);
+                   mtime_now, mtime_expected);
 
   LogBothTag("statistic", "host time spent = %llu us",
           (unsigned long long)npc_stats()->host_time_us);
@@ -1681,10 +1706,12 @@ static void report_statistics(void) {
   // 新增 cycles 和 CPI 输出，对齐参考工程的统计格式
   LogBothTag("statistic", "total guest cycles = %llu",
           (unsigned long long)npc_stats()->cycles);
-  LogBothTag("statistic", "CLINT mtime = %llu (mtime-cycles=%s, match=%s)",
-          (unsigned long long)npc_stats()->clint_mtime,
+  LogBothTag("statistic", "CLINT mtime = %llu (= cycles/%u, expected %llu, delta=%s, match=%s)",
+          (unsigned long long)mtime_now,
+          (unsigned)NPC_CLINT_MTIME_DIVISOR,
+          (unsigned long long)mtime_expected,
           mtime_delta,
-          (npc_stats()->clint_mtime == npc_stats()->cycles) ? "yes" : "no");
+          (mtime_absdiff <= 1) ? "yes" : "no");
   if (npc_stats()->commits > 0) {
     LogBothTag("statistic", "CPI (cycles/instruction) = %.3f",
             (double)npc_stats()->cycles / (double)npc_stats()->commits);
@@ -1695,9 +1722,16 @@ static void report_statistics(void) {
   } else {
     LogBothTag("statistic", "Finish running in less than 1 us and can not calculate the simulation frequency");
   }
+#endif  // CONFIG_NPC_SUMMARY_STATS
+#ifdef CONFIG_NPC_BRANCH_STATS
   report_branch_stats();
+#endif
+#ifdef CONFIG_NPC_CACHE_STATS
   report_cache_stats();
+#endif
+#ifdef CONFIG_NPC_OOO_STATS
   report_ooo_stats();
+#endif
 }
 
 static void report_recent_commits(void) {

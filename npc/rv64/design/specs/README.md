@@ -11,7 +11,7 @@
 - ★ `ooo-rob` — 重排序缓冲(2-wide 程序序提交/精确异常/checkpoint)
 - ★ `ooo-phys-reg-file` — 物理寄存器堆(写-读旁路/write1>write0/x0)
 - ★ `ooo-rename-map` — 重命名映射(同拍 RAW/WAW 前递/checkpoint)
-- `ooo-int-backend-decompose`、`ooo-fp-pending-exec*`、`ooo-fp-reg-file`、`ooo-pending-fp-sequencer`
+- `ooo-fp-pending-exec`、`ooo-fp-reg-file`、`ooo-pending-fp-sequencer`
 
 ## 访存 / MMU
 - ★ `ooo-mem-axi-bridge-fsm` — 访存桥 FSM(flush/drop 语义/store 解耦)
@@ -34,4 +34,7 @@
 
 ## 说明
 - 当前 ★ 专业规范覆盖被本轮优化/分析触及的核心模块(12 个);其余模块规范为边界笔记,
-  后续按需逐步升级到专业模板。整体架构与时序 track 见 `../arch/ROADMAP.md`。
+  后续按需逐步升级到专业模板。整体架构与时序 track 见 `../arch/ROADMAP.md`,
+  顶层微架构宪法见 `../arch/ooo-core-architecture.md`。
+- **过时规范**已归档到 `history/`(见 `history/README.md`);2026-06-29 逐份审计结论:
+  78 份中 68 CURRENT / 5 OUTDATED / 5 SUPERSEDED(已移 6 份真过时件入 history;另 4 份活模块小漂移标 ⚠ 待校正,未归档)。

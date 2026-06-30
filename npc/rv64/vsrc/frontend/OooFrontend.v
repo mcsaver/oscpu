@@ -11,6 +11,7 @@ module OooFrontend #(
   input clk,
   input commit_ready_i,
   input core_branch_resolve_misaligned_w,
+  input core_branch_resolve_mispredict_w,
   input [`XLEN-1:0] core_branch_resolve_next_pc_w,
   input [`XLEN-1:0] core_branch_resolve_pc_w,
   input core_branch_resolve_valid_w,
@@ -158,6 +159,8 @@ module OooFrontend #(
   output [`XLEN-1:0] core_dispatch1_next_pc_w,
   output [`XLEN-1:0] core_dispatch1_pc_w,
   output core_dispatch1_valid_w,
+  output [`XLEN-1:0] core_dispatch0_pred_npc_w,
+  output [`XLEN-1:0] core_dispatch1_pred_npc_w,
   output direct_branch0_dispatch_valid_w,
   output direct_branch0_fire_w,
   output direct_branch0_lane1_ret_w,
@@ -431,6 +434,7 @@ module OooFrontend #(
   wire [`XLEN-1:0] fifo_head_packet_next_pc_w;
   wire [`XLEN-1:0] fifo_head_pc0_w;
   wire [`XLEN-1:0] fifo_head_pc1_w;
+  wire [`XLEN-1:0] fifo_head1_pc0_w;
   wire [1:0] fifo_head_resp0_w;
   wire [1:0] fifo_head_resp1_w;
   wire fifo_pop_w;
@@ -785,6 +789,7 @@ module OooFrontend #(
     .dispatch0_branch_i(dispatch0_branch_w),
     .dispatch0_jal_i(dispatch0_jal_w),
     .dispatch0_jump_i(dispatch0_jump_w),
+    .dispatch0_return_i(dispatch0_return_w),
     .dispatch0_unsupported_i(dispatch0_unsupported_w),
     .dispatch1_unsupported_i(dispatch1_unsupported_w),
     .dispatch0_ready_i(dispatch0_ready_w),
@@ -1144,6 +1149,7 @@ module OooFrontend #(
     .core_branch_resolve_pc_i(core_branch_resolve_pc_w),
     .core_branch_resolve_next_pc_i(core_branch_resolve_next_pc_w),
     .core_branch_resolve_misaligned_i(core_branch_resolve_misaligned_w),
+    .core_branch_resolve_mispredict_i(core_branch_resolve_mispredict_w),
     .trap_redirect_squash_i(trap_redirect_squash_q),
     .execute0_valid_i(execute0_valid_unused_w),
     .execute1_valid_i(execute1_valid_unused_w),
@@ -1219,6 +1225,8 @@ module OooFrontend #(
     .core_branch_resolve_next_pc_i(core_branch_resolve_next_pc_w),
     .branch_prefetch_req_valid_i(branch_prefetch_req_valid_w),
     .branch_prefetch_req_pc_i(branch_prefetch_req_pc_w),
+    .direct_jump_spec_fire_i(direct_jump_spec_fire_w),
+    .direct_jump_spec_target_i(jalr_spec_pred_target_w),
     .direct_redirect_fetch_o(direct_redirect_fetch_w),
     .redirect_fetch_req_valid_o(redirect_fetch_req_valid_w),
     .redirect_fetch_pc_o(redirect_fetch_pc_w),
@@ -1249,6 +1257,7 @@ module OooFrontend #(
     .dispatch_fire_i(dispatch_fire_w),
     .dispatch1_barrier_fire_i(dispatch1_barrier_fire_w),
     .direct_jal0_fire_i(direct_jal0_fire_w),
+    .direct_jump_spec_fire_i(direct_jump_spec_fire_w),
     .fetch_rsp_fire_i(fetch_rsp_fire_w),
     .fetch_rsp_can_enqueue_i(fetch_rsp_can_enqueue_w),
     .fetch_dec0_control_stop_i(fetch_dec0_control_stop_w),
@@ -1393,6 +1402,29 @@ module OooFrontend #(
     .hit_resp1_o(jalr_prefetch_hit_resp1_w)
   );
 
+  // ===== B2: dispatch 期非返回 JALR 投机续取（mode=1）=====
+  // 让前端在遇到非返回 JALR 时不再等 pending_jump，而是用 RAS/BTB 预测目标立即续取；
+  // 预测错由后端 per-JALR mispredict → ROB-walk + redirect 修正（片2/片4）。
+  // 用 lane0 实际 fire（core_dispatch0_fire_w）触发投机续取，而非 dual-issue 的 dispatch_fire_w
+  // （后者 lane1_base 含 !jump，JALR head 时恒 0 → 之前 JALR 既不续取也未 present，dispatch 卡死）。
+  wire direct_jump_spec_start_w =
+      direct_branch_spec_start_w && core_dispatch0_fire_w &&
+      dispatch0_jump_w && !dispatch0_return_w;
+  wire jalr_spec_ret_hint_w =
+      head0_jalr_raw_w && (head0_rd_unused_w == {`REG_ADDR_W{1'b0}}) &&
+      ((head0_rs1_w == 5'd1) || (head0_rs1_w == 5'd5)) &&
+      (head0_imm_w == {`XLEN{1'b0}});
+  wire jalr_spec_use_ras_w = jalr_spec_ret_hint_w && !ras_empty_w;
+  wire jalr_spec_btb_lookup_w = direct_jump_spec_start_w && !jalr_spec_use_ras_w;
+  wire jalr_spec_btb_hit_w;
+  wire [`XLEN-1:0] jalr_spec_btb_target_w;
+  // 预测目标优先级：return-hint→RAS top；否则 BTB hit→BTB target；兜底=fallthrough(pc+ilen)。
+  wire [`XLEN-1:0] jalr_spec_pred_target_w =
+      jalr_spec_use_ras_w ? ras_top_w :
+      jalr_spec_btb_hit_w ? jalr_spec_btb_target_w :
+                            head_next_pc0_w;
+  wire direct_jump_spec_fire_w = direct_jump_spec_start_w;
+
   OooJalrBtb u_jalr_btb (
     .clk(clk),
     .rst(rst),
@@ -1403,6 +1435,10 @@ module OooFrontend #(
     .lookup_entry_hit_o(pending_jump_jalr_btb_entry_hit_w),
     .lookup_hit_o(pending_jump_jalr_btb_hit_w),
     .lookup_target_o(pending_jump_jalr_btb_target_w),
+    .spec_lookup_enable_i(jalr_spec_btb_lookup_w),
+    .spec_lookup_pc_i(head_pc_w),
+    .spec_lookup_hit_o(jalr_spec_btb_hit_w),
+    .spec_lookup_target_o(jalr_spec_btb_target_w),
     .update_valid_i(jalr_btb_update_w),
     .update_pc_i(pending_jump_pc_q),
     .update_target_i(pending_jump_resolved_target_w)
@@ -1799,8 +1835,23 @@ module OooFrontend #(
     .head_inst1_o(fifo_head_inst1_w),
     .head_resp0_o(fifo_head_resp0_w),
     .head_resp1_o(fifo_head_resp1_w),
+    .head1_pc0_o(fifo_head1_pc0_w),
     .count_o(fifo_count_q)
   );
+
+  // B2: head packet 的「预测后继 PC」= 下一条 FIFO entry 的 pc0（前端按预测序取指，故 next entry 即预测后继）。
+  // count>=2：next entry 正确且 loop-free。count==1：退回寄存 next_fetch_pc_q（前沿==head 后继，正确）。
+  // 【已知遗留】count==0 bypass：next_fetch_pc_q 当拍尚未从本 packet pc 更新到后继 → pred 滞后指向本 packet 自身，
+  //   使 bypass 的 predicted-taken 分支被判 mis 错误。正解=用「前端-only 的组合下一取指 PC」(去掉后端 redirect 项
+  //   以免与 backend mispredict 成组合环)，待续。fetch_req_pc_o 含后端 redirect 不可直接用(UNOPTFLAT)。
+  // head packet 的「预测后继 PC」= pred_npc 源。count>=2：下一条 FIFO entry pc0（前端按预测序取指，正确）。
+  // count<2(含 bypass)：暂用寄存 next_fetch_pc_q——它滞后指向 head 自身 → 每分支伪 mispredict 但 redirect 恒指向
+  //   架构后继（功能正确/慢），比「组合精确重建前端预测」更鲁棒（后者须逐 case 与前端实际取指一致，易漏）。
+  // 【续：精确前端预测后继（含 BHT direct_branch_pred_pc）的组合重建已验可 loop-free（IQ 结构破环），
+  //   但与前端实际取指仍有边界 case 不一致；最终正解=per-packet 预测后继随 FIFO+bypass threaded。详见 task-runs。
+  wire [`XLEN-1:0] head_pred_succ_w =
+      (fifo_count_q >= {{(FETCH_COUNT_W-2){1'b0}}, 2'd2}) ? fifo_head1_pc0_w
+                                                          : next_fetch_pc_q;
 
 
   OooBranchBpuUpdateGate u_branch_bpu_update_gate (
@@ -1921,6 +1972,7 @@ module OooFrontend #(
     .head_pc1_i(head_pc1_w),
     .head_next_pc1_i(head_next_pc1_w),
     .head_inst1_i(head_inst1_w),
+    .next_fetch_pc_i(head_pred_succ_w),
     .return_cont_pc_i(return_cont_pc_q),
     .return_cont_next_pc_i(return_cont_next_pc_q),
     .return_cont_inst_i(return_cont_inst_q),
@@ -1939,7 +1991,9 @@ module OooFrontend #(
     .core_dispatch0_csr_rdata_o(core_dispatch0_csr_rdata_w),
     .core_dispatch1_pc_o(core_dispatch1_pc_w),
     .core_dispatch1_next_pc_o(core_dispatch1_next_pc_w),
-    .core_dispatch1_inst_o(core_dispatch1_inst_w)
+    .core_dispatch1_inst_o(core_dispatch1_inst_w),
+    .core_dispatch0_pred_npc_o(core_dispatch0_pred_npc_w),
+    .core_dispatch1_pred_npc_o(core_dispatch1_pred_npc_w)
   );
 
 
@@ -2181,6 +2235,8 @@ module OooFrontend #(
       .direct_branch_pred_pc_i(direct_branch_pred_pc_w),
       .head_next_pc0_i(head_next_pc0_w),
       .branch_fallthrough_capture_rsp_i(branch_fallthrough_capture_rsp_w),
+      .direct_jump_spec_fire_i(direct_jump_spec_fire_w),
+      .direct_jump_spec_target_i(jalr_spec_pred_target_w),
       .branch_spec_resolve_valid_i(branch_spec_resolve_valid_w),
       .branch_spec_restore_i(branch_spec_restore_w),
       .core_branch_resolve_misaligned_i(core_branch_resolve_misaligned_w),
@@ -2254,5 +2310,20 @@ module OooFrontend #(
       .next_pc_o(return_cont_next_pc_q),
       .inst_o(return_cont_inst_q)
   );
+
+`ifdef ROB_WALK_DEBUG
+  // 单行对照表：jump(含 jalr) 在 head 时，把 dispatch 链上下游信号排在同一时间轴一行，便于定位卡点。
+  reg [15:0] fe_dbg_cnt;
+  always @(posedge clk) begin
+    if (rst) fe_dbg_cnt <= 16'd0;
+    else if (dispatch0_jump_w) begin
+      fe_dbg_cnt <= fe_dbg_cnt + 16'd1;
+      if (fe_dbg_cnt < 16'd24)
+        $display("[FE] hpc=%h jmp=%b ret=%b d0v=%b d0f=%b dfire=%b jdv=%b jdf=%b jspecS=%b jspecF=%b canrun=%b fifo=%0d out=%b stoph=%b",
+                 head_pc_w, dispatch0_jump_w, dispatch0_return_w, core_dispatch0_valid_w, core_dispatch0_fire_w, dispatch_fire_w,
+                 jump_dispatch_valid_w, jump_dispatch_fire_w, direct_jump_spec_start_w, direct_jump_spec_fire_w, can_run_w, fifo_count_q, outstanding_valid_q, stop_head_w);
+    end
+  end
+`endif
 
 endmodule

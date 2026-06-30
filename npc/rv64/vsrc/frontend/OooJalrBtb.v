@@ -12,6 +12,12 @@ module OooJalrBtb (
   output lookup_hit_o,
   output [`XLEN-1:0] lookup_target_o,
 
+  // B2: dispatch 期非返回 JALR 投机续取的第二组合查询端口（同表只读，零额外状态）
+  input spec_lookup_enable_i,
+  input [`XLEN-1:0] spec_lookup_pc_i,
+  output spec_lookup_hit_o,
+  output [`XLEN-1:0] spec_lookup_target_o,
+
   input update_valid_i,
   input [`XLEN-1:0] update_pc_i,
   input [`XLEN-1:0] update_target_i
@@ -31,6 +37,13 @@ module OooJalrBtb (
       valid_q[lookup_idx_w] && (pc_q[lookup_idx_w] == lookup_pc_i);
   assign lookup_hit_o = lookup_enable_i && lookup_entry_hit_o;
   assign lookup_target_o = target_q[lookup_idx_w];
+
+  wire [`BPU_BTB_INDEX_W-1:0] spec_lookup_idx_w =
+      spec_lookup_pc_i[`BPU_BTB_INDEX_W:1];
+  assign spec_lookup_hit_o =
+      spec_lookup_enable_i &&
+      valid_q[spec_lookup_idx_w] && (pc_q[spec_lookup_idx_w] == spec_lookup_pc_i);
+  assign spec_lookup_target_o = target_q[spec_lookup_idx_w];
 
   always @(posedge clk) begin
     if (rst || clear_i) begin

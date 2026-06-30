@@ -1,4 +1,6 @@
 # perf-sim 配置：仅保留最小外设和进度输出，用于 CoreMark/Linux 性能基线。
+# perf 模式:编译期关掉所有 trace + 统计(含 RTL 观测探针),最快仿真。
+CONFIG_NPC_PERF_MODE=y
 CONFIG_CC_GPP=y
 CONFIG_CC="g++"
 CONFIG_CC_O3=y

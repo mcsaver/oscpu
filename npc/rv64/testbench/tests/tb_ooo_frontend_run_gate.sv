@@ -1,3 +1,4 @@
+`include "define.v"
 `include "tb_common.svh"
 
 module tb_ooo_frontend_run_gate;
@@ -166,8 +167,10 @@ module tb_ooo_frontend_run_gate;
     outstanding_valid = 1'b1;
     fetch_rsp_valid = 1'b1;
     #1;
+    // mode=1（OOO_ROB_WALK_MODE）禁用 fetch-rsp dispatch-bypass（强制经 FIFO，打破投机组合环），
+    // 故 mode=1 期望 bypass=0；mode=0 保留 fifo-empty 快路径 bypass=1。
     tb_check1("response bypass when fifo empty", fetch_rsp_dispatch_bypass,
-              1'b1);
+              !`OOO_ROB_WALK_MODE);
     tb_check32("one outstanding count", {29'b0, outstanding_count}, 32'd1);
 
     reset_inputs();

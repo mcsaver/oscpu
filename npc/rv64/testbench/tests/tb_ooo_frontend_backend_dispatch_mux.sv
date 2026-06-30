@@ -123,6 +123,7 @@ module tb_ooo_frontend_backend_dispatch_mux;
     .head_pc1_i(head_pc1),
     .head_next_pc1_i(head_next_pc1),
     .head_inst1_i(head_inst1),
+    .next_fetch_pc_i('0),
     .return_cont_pc_i(return_cont_pc),
     .return_cont_next_pc_i(return_cont_next_pc),
     .return_cont_inst_i(return_cont_inst),
