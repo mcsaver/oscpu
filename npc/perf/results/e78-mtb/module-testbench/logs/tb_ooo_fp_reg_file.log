@@ -1,0 +1,7 @@
+[TEST] tb_ooo_fp_reg_file
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_fp_reg_file -o build/tb_ooo_fp_reg_file.vvp tests/tb_ooo_fp_reg_file.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/regread_bypass/OooFpRegFile.v
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/regread_bypass/OooFpRegFile.v:4: warning: timescale for OooFpRegFile inherited from another file.
+tests/tb_ooo_fp_reg_file.sv:1: ...: The inherited timescale is here.
+PASS tb_ooo_fp_reg_file
+tests/tb_ooo_fp_reg_file.sv:144: $finish called at 47000 (1ps)
+[RESULT] PASS

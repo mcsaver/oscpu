@@ -1,0 +1,11 @@
+[TEST] tb_ooo_frontend_backend_dispatch_mux
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_frontend_backend_dispatch_mux -o build/tb_ooo_frontend_backend_dispatch_mux.vvp tests/tb_ooo_frontend_backend_dispatch_mux.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFrontendBackendDispatchMux.v
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFrontendBackendDispatchMux.v:3: warning: timescale for OooFrontendBackendDispatchMux inherited from another file.
+tests/tb_ooo_frontend_backend_dispatch_mux.sv:1: ...: The inherited timescale is here.
+warning: Some design elements have no explicit time unit and/or
+       : time precision. This may cause confusing timing results.
+       : Affected design elements are:
+       :   -- compilation unit
+[PASS] tb_ooo_frontend_backend_dispatch_mux
+common/tb_common.svh:32: $finish called at 26000 (1ps)
+[RESULT] PASS

@@ -1,0 +1,7 @@
+[TEST] tb_ooo_commit_output_mux
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_commit_output_mux -o build/tb_ooo_commit_output_mux.vvp tests/tb_ooo_commit_output_mux.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/OooCommitOutputMux.v
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/OooCommitOutputMux.v:3: warning: timescale for OooCommitOutputMux inherited from another file.
+tests/tb_ooo_commit_output_mux.sv:1: ...: The inherited timescale is here.
+PASS tb_ooo_commit_output_mux
+tests/tb_ooo_commit_output_mux.sv:382: $finish called at 8000 (1ps)
+[RESULT] PASS

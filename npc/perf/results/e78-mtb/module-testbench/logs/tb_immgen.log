@@ -1,0 +1,5 @@
+[TEST] tb_immgen
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_immgen -o build/tb_immgen.vvp tests/tb_immgen.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/ImmGen.v
+[PASS] tb_immgen
+common/tb_common.svh:32: $finish called at 6 (1s)
+[RESULT] PASS

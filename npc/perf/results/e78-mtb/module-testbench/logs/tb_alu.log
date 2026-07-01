@@ -1,0 +1,5 @@
+[TEST] tb_alu
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_alu -o build/tb_alu.vvp tests/tb_alu.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/ALU.v
+[PASS] tb_alu
+common/tb_common.svh:32: $finish called at 13 (1s)
+[RESULT] PASS

@@ -1,0 +1,5 @@
+[TEST] tb_ooo_data_word_cache
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_data_word_cache -o build/tb_ooo_data_word_cache.vvp tests/tb_ooo_data_word_cache.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/cache/OooDataWordCache.v
+[PASS] tb_ooo_data_word_cache
+common/tb_common.svh:32: $finish called at 27 (1s)
+[RESULT] PASS

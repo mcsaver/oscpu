@@ -35,6 +35,8 @@ config SERIAL_PORT
 
 config SERIAL_MMIO
   hex "MMIO address of the serial controller"
+  # RV64 system mode follows Linux/platform/npc-rv64.yml and generated DTB.
+  default 0x10000000 if ISA64 && MODE_SYSTEM && !TARGET_AM
   default 0xa00003f8
 
 config SERIAL_INPUT_FIFO
@@ -63,6 +65,7 @@ endif # HAS_SERIAL
 
 menuconfig HAS_TIMER
   bool "Enable timer"
+  default n if ISA64 && MODE_SYSTEM && !TARGET_AM
   default y
 
 if HAS_TIMER
@@ -78,6 +81,7 @@ endif # HAS_TIMER
 
 menuconfig HAS_KEYBOARD
   bool "Enable keyboard"
+  default n if ISA64 && MODE_SYSTEM && !TARGET_AM
   default y
 
 if HAS_KEYBOARD
@@ -93,6 +97,7 @@ endif # HAS_KEYBOARD
 
 menuconfig HAS_VGA
   bool "Enable VGA"
+  default n if ISA64 && MODE_SYSTEM && !TARGET_AM
   default y
 
 if HAS_VGA
@@ -126,6 +131,7 @@ endif # HAS_VGA
 if !TARGET_AM
 menuconfig HAS_AUDIO
   bool "Enable audio"
+  default n if ISA64 && MODE_SYSTEM
   default y
 
 if HAS_AUDIO
@@ -159,6 +165,8 @@ config DISK_CTL_PORT
 
 config DISK_CTL_MMIO
   hex "MMIO address of the disk controller"
+  # Keep virtio-mmio block adjacent to UART as described by the Linux platform YAML.
+  default 0x10001000 if ISA64 && MODE_SYSTEM
   default 0xa0000300
 
 config DISK_IMG_PATH

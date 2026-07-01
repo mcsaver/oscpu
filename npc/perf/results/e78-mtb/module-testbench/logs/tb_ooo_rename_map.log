@@ -1,0 +1,5 @@
+[TEST] tb_ooo_rename_map
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_rename_map -o build/tb_ooo_rename_map.vvp tests/tb_ooo_rename_map.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/rename_allocate/OooRenameMap.v
+[PASS] tb_ooo_rename_map
+common/tb_common.svh:32: $finish called at 44 (1s)
+[RESULT] PASS

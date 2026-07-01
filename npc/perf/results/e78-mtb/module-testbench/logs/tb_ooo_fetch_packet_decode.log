@@ -1,0 +1,5 @@
+[TEST] tb_ooo_fetch_packet_decode
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_fetch_packet_decode -o build/tb_ooo_fetch_packet_decode.vvp tests/tb_ooo_fetch_packet_decode.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/OooRvcDecompressor.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchPacketDecode.v
+[PASS] tb_ooo_fetch_packet_decode
+common/tb_common.svh:32: $finish called at 5 (1s)
+[RESULT] PASS

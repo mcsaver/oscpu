@@ -1,0 +1,5 @@
+[TEST] tb_ooo_fp_iter
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_fp_iter -o build/tb_ooo_fp_iter.vvp tests/tb_ooo_fp_iter.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpDivIter.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpSqrtIter.v
+[PASS] tb_ooo_fp_iter
+common/tb_common.svh:32: $finish called at 1317 (1s)
+[RESULT] PASS

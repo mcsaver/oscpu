@@ -1,0 +1,5 @@
+[TEST] tb_ooo_redirect_arbiter
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_redirect_arbiter -o build/tb_ooo_redirect_arbiter.vvp tests/tb_ooo_redirect_arbiter.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooRedirectArbiter.v
+[PASS] tb_ooo_redirect_arbiter
+common/tb_common.svh:32: $finish called at 13 (1s)
+[RESULT] PASS

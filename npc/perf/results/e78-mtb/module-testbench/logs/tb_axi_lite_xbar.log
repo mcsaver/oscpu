@@ -1,0 +1,25 @@
+[TEST] tb_axi_lite_xbar
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_axi_lite_xbar -o build/tb_axi_lite_xbar.vvp tests/tb_axi_lite_xbar.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLiteXbar.v
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLiteXbar.v:280: warning: @* is sensitive to all 2 words in array 'rd_resp_data_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLiteXbar.v:281: warning: @* is sensitive to all 2 words in array 'rd_resp_resp_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLiteXbar.v:289: warning: @* is sensitive to all 3 words in array 'rd_rr_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLiteXbar.v:291: warning: @* is sensitive to all 2 words in array 'artarget_decode_r'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLiteXbar.v:296: warning: @* is sensitive to all 2 words in array 'artarget_decode_r'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLiteXbar.v:303: warning: @* is sensitive to all 2 words in array 'artarget_decode_r'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLiteXbar.v:308: warning: @* is sensitive to all 2 words in array 'artarget_decode_r'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLiteXbar.v:332: warning: @* is sensitive to all 3 words in array 'rd_addr_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLiteXbar.v:333: warning: @* is sensitive to all 3 words in array 'rd_strb_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLiteXbar.v:334: warning: @* is sensitive to all 3 words in array 'rd_user_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLiteXbar.v:338: warning: @* is sensitive to all 3 words in array 'rd_owner_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLiteXbar.v:361: warning: @* is sensitive to all 3 words in array 'wr_rr_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLiteXbar.v:363: warning: @* is sensitive to all 2 words in array 'wr_awtarget_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLiteXbar.v:367: warning: @* is sensitive to all 2 words in array 'wr_awtarget_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLiteXbar.v:373: warning: @* is sensitive to all 2 words in array 'wr_awtarget_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLiteXbar.v:377: warning: @* is sensitive to all 2 words in array 'wr_awtarget_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLiteXbar.v:399: warning: @* is sensitive to all 3 words in array 'wr_addr_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLiteXbar.v:404: warning: @* is sensitive to all 3 words in array 'wr_data_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLiteXbar.v:405: warning: @* is sensitive to all 3 words in array 'wr_strb_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLiteXbar.v:409: warning: @* is sensitive to all 3 words in array 'wr_owner_q'.
+[PASS] tb_axi_lite_xbar
+common/tb_common.svh:32: $finish called at 78 (1s)
+[RESULT] PASS

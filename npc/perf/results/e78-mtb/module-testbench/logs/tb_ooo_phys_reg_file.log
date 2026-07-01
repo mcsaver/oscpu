@@ -1,0 +1,9 @@
+[TEST] tb_ooo_phys_reg_file
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_phys_reg_file -o build/tb_ooo_phys_reg_file.vvp tests/tb_ooo_phys_reg_file.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/regread_bypass/OooPhysRegFile.v
+tests/tb_ooo_phys_reg_file.sv:33: warning: Instantiating module OooPhysRegFile with dangling input port 3 (recover_i) floating.
+tests/tb_ooo_phys_reg_file.sv:33: warning: Instantiating module OooPhysRegFile with dangling input port 4 (recover_gprs_i) floating.
+tests/tb_ooo_phys_reg_file.sv:33: warning: Instantiating module OooPhysRegFile with dangling input port 17 (read6_addr_i) floating.
+tests/tb_ooo_phys_reg_file.sv:33: warning: Instantiating module OooPhysRegFile with dangling input port 19 (read7_addr_i) floating.
+[PASS] tb_ooo_phys_reg_file
+common/tb_common.svh:32: $finish called at 15 (1s)
+[RESULT] PASS

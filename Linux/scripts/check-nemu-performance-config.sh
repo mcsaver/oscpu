@@ -92,10 +92,34 @@ require_config_enabled CONFIG_INTERPRETER_INTR_FAST_FLAG
 require_autoconf_define CONFIG_INTERPRETER_INTR_FAST_FLAG
 require_config_value CONFIG_DEVICE_UPDATE_CHECK_INTERVAL 512
 require_autoconf_value CONFIG_DEVICE_UPDATE_CHECK_INTERVAL 512
+require_config_enabled CONFIG_HAS_SERIAL
+require_autoconf_define CONFIG_HAS_SERIAL
+require_config_value CONFIG_SERIAL_MMIO 0x10000000
+require_autoconf_value CONFIG_SERIAL_MMIO 0x10000000
 require_config_value CONFIG_SERIAL_INPUT_HOST_POLL_INTERVAL 4
 require_autoconf_value CONFIG_SERIAL_INPUT_HOST_POLL_INTERVAL 4
+require_config_enabled CONFIG_HAS_DISK
+require_autoconf_define CONFIG_HAS_DISK
+require_config_value CONFIG_DISK_CTL_MMIO 0x10001000
+require_autoconf_value CONFIG_DISK_CTL_MMIO 0x10001000
 require_config_enabled CONFIG_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG
 require_autoconf_define CONFIG_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG
+require_config_enabled CONFIG_HAS_VIRTIO_RNG
+require_autoconf_define CONFIG_HAS_VIRTIO_RNG
+require_config_value CONFIG_VIRTIO_RNG_MMIO 0x10002000
+require_autoconf_value CONFIG_VIRTIO_RNG_MMIO 0x10002000
+require_config_enabled CONFIG_HAS_GOLDFISH_RTC
+require_autoconf_define CONFIG_HAS_GOLDFISH_RTC
+require_config_value CONFIG_GOLDFISH_RTC_MMIO 0x10003000
+require_autoconf_value CONFIG_GOLDFISH_RTC_MMIO 0x10003000
+require_config_enabled CONFIG_HAS_VIRTIO_NET
+require_autoconf_define CONFIG_HAS_VIRTIO_NET
+require_config_value CONFIG_VIRTIO_NET_MMIO 0x10004000
+require_autoconf_value CONFIG_VIRTIO_NET_MMIO 0x10004000
+require_config_enabled CONFIG_HAS_SYSCON_RESET
+require_autoconf_define CONFIG_HAS_SYSCON_RESET
+require_config_value CONFIG_SYSCON_RESET_MMIO 0x100000
+require_autoconf_value CONFIG_SYSCON_RESET_MMIO 0x100000
 require_config_value CONFIG_MSIZE 0x40000000
 require_autoconf_value CONFIG_MSIZE 0x40000000
 
@@ -120,7 +144,19 @@ debug_opts=(
   CONFIG_RISCV_SYSCALL_DEBUG_LOG
 )
 
+legacy_device_opts=(
+  CONFIG_HAS_TIMER
+  CONFIG_HAS_KEYBOARD
+  CONFIG_HAS_VGA
+  CONFIG_HAS_AUDIO
+)
+
 for opt in "${debug_opts[@]}"; do
+  reject_config_enabled "$opt"
+  reject_autoconf_define "$opt"
+done
+
+for opt in "${legacy_device_opts[@]}"; do
   reject_config_enabled "$opt"
   reject_autoconf_define "$opt"
 done

@@ -1,0 +1,5 @@
+[TEST] tb_ooo_fetch_axi_bridge
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_fetch_axi_bridge -o build/tb_ooo_fetch_axi_bridge.vvp tests/tb_ooo_fetch_axi_bridge.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/PmpChecker.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/cache/OooFetchPacketCache.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooSv39Tlb.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchAxiBridge.v
+[PASS] tb_ooo_fetch_axi_bridge
+common/tb_common.svh:32: $finish called at 536 (1s)
+[RESULT] PASS

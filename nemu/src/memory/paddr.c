@@ -21,10 +21,12 @@
 #include <memory/cache.h>
 #include <memory/soc.h>
 #include <device/mmio.h>
+#include <cpu/cpu.h>
 #include <cpu/difftest.h>
 #include <utils/profile.h>
 #include <isa.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdlib.h>
 
 #ifdef CONFIG_MTRACE
@@ -49,6 +51,10 @@ static word_t paddr_write_value_trace_value = 0;
 static word_t paddr_write_value_trace_mask = (word_t)-1;
 static uint64_t paddr_write_value_trace_max = 4096;
 static uint64_t paddr_write_value_trace_count = 0;
+// ACT4/riscv-tests report PASS/FAIL through a tohost memory word.
+// Keep it disabled unless the command line explicitly passes --tohost.
+static bool paddr_tohost_is_enabled = false;
+static paddr_t paddr_tohost_addr = 0;
 
 static bool paddr_trace_snapshot_range_ok(paddr_t addr, uint32_t len) {
   if (len == 0) return false;
@@ -209,6 +215,12 @@ void paddr_write_trace_dump_machine_info(FILE *out) {
   }
   fprintf(out, "runtime.paddr_write_value_trace.enabled=%d\n",
       paddr_write_value_trace_is_enabled ? 1 : 0);
+  fprintf(out, "runtime.tohost.enabled=%d\n",
+      paddr_tohost_is_enabled ? 1 : 0);
+  if (paddr_tohost_is_enabled) {
+    fprintf(out, "runtime.tohost.addr=0x%016" PRIx64 "\n",
+        (uint64_t)paddr_tohost_addr);
+  }
 }
 
 static bool paddr_write_trace_range_overlap(paddr_t addr, uint32_t len) {
@@ -380,6 +392,54 @@ static bool pmem_range_ok(paddr_t addr, uint32_t len) {
   return end >= addr && in_pmem(addr) && in_pmem(end);
 }
 
+void paddr_tohost_set_addr(paddr_t addr) {
+  Assert((addr & (sizeof(word_t) - 1u)) == 0,
+      "--tohost address must be %zu-byte aligned: " FMT_PADDR,
+      sizeof(word_t), addr);
+  Assert(pmem_range_ok(addr, sizeof(word_t)),
+      "--tohost address is outside PMEM: " FMT_PADDR, addr);
+  paddr_tohost_addr = addr;
+  paddr_tohost_is_enabled = true;
+}
+
+static bool paddr_tohost_range_overlap(paddr_t addr, uint32_t len) {
+  if (!paddr_tohost_is_enabled || len == 0) return false;
+  uint64_t access_start = (uint64_t)addr;
+  uint64_t access_end = access_start + (uint64_t)len - 1;
+  if (access_end < access_start) access_end = UINT64_MAX;
+  uint64_t tohost_start = (uint64_t)paddr_tohost_addr;
+  uint64_t tohost_end = tohost_start + sizeof(word_t) - 1;
+  return access_start <= tohost_end && access_end >= tohost_start;
+}
+
+static uint64_t paddr_tohost_decode_exit(word_t value) {
+  if (value == 1) {
+    return 0;
+  }
+  if ((value & 1u) != 0) {
+    uint64_t code = (uint64_t)(value >> 1);
+    return code == 0 ? 1 : code;
+  }
+  return (uint64_t)value;
+}
+
+void paddr_tohost_check_write(paddr_t addr, uint32_t len) {
+  if (!paddr_tohost_range_overlap(addr, len)) return;
+
+  // Read the full XLEN word so byte/word/doubleword writes all converge.
+  word_t value = pmem_read(paddr_tohost_addr, sizeof(word_t));
+  if (value == 0) return;
+
+  uint64_t code = paddr_tohost_decode_exit(value);
+  int halt_ret = code > (uint64_t)INT_MAX ? 1 : (int)code;
+  Log("nemu: %s via tohost at pc = " FMT_WORD
+      ", addr=" FMT_PADDR ", value=" FMT_WORD ", code=%" PRIu64,
+      code == 0 ? ANSI_FMT("TOHOST PASS", ANSI_FG_GREEN) :
+      ANSI_FMT("TOHOST FAIL", ANSI_FG_RED),
+      cpu.pc, paddr_tohost_addr, value, code);
+  set_nemu_state(NEMU_END, cpu.pc, halt_ret);
+}
+
 static void paddr_dma_notify_cpu(paddr_t addr, uint32_t len) {
   if (len == 0) return;
   IFDEF(CONFIG_ISA_riscv, isa_riscv_lr_sc_invalidate(addr, (int)len));
@@ -397,6 +457,7 @@ bool paddr_dma_write(paddr_t addr, const void *buf, uint32_t len) {
   paddr_dma_notify_cpu(addr, len);
   paddr_write_trace_after_write(addr, len,
       paddr_write_trace_first_word(buf, len), buf, "dma-buffer");
+  paddr_tohost_check_write(addr, len);
   nemu_profile_count_if(NEMU_PROFILE_PADDR_DMA_WRITES, 1);
   nemu_profile_count_if(NEMU_PROFILE_PADDR_DMA_WRITE_BYTES, len);
   return true;
@@ -408,6 +469,7 @@ bool paddr_dma_write_value(paddr_t addr, int len, word_t data) {
   pmem_write(addr, len, data);
   paddr_dma_notify_cpu(addr, (uint32_t)len);
   paddr_write_trace_after_write(addr, (uint32_t)len, data, &data, "dma-value");
+  paddr_tohost_check_write(addr, (uint32_t)len);
   nemu_profile_count_if(NEMU_PROFILE_PADDR_DMA_WRITES, 1);
   nemu_profile_count_if(NEMU_PROFILE_PADDR_DMA_WRITE_BYTES, (uint64_t)len);
   return true;
@@ -477,6 +539,7 @@ void paddr_write(paddr_t addr, int len, word_t data) {
     nemu_profile_count_if(NEMU_PROFILE_PADDR_PMEM_WRITE_BYTES, (uint64_t)len);
     pmem_write(addr, len, data);
     paddr_write_trace_after_write(addr, (uint32_t)len, data, &data, "paddr-pmem");
+    paddr_tohost_check_write(addr, (uint32_t)len);
 #ifdef CONFIG_MTRACE
     extern bool g_in_ifetch;
     if(!g_in_ifetch && cpu.pc >= CONFIG_MTRACE_START && cpu.pc <= CONFIG_MTRACE_END)

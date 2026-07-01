@@ -55,7 +55,9 @@ module OooStopPendingSequencer (
         stop_pending_o <= 1'b0;
       end else if (direct_frontend_flush_i) begin
         if (direct_branch0_fire_i || direct_branch1_fire_i) begin
-          stop_pending_o <= !direct_branch_resolve_redirect_i;
+          // 优化: 预测正确的 direct branch, 若后端已排空(drain_complete=1)则已在按序位置,
+          // 跳过多余 full drain; 后端非空时保守 drain 保证按序提交(去掉全部 drain 会 difftest 错)。
+          stop_pending_o <= !direct_branch_resolve_redirect_i && !drain_complete_i;
         end
       end
 

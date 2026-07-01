@@ -1,0 +1,7 @@
+[TEST] tb_ooo_branch_append_dispatch_gate
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_branch_append_dispatch_gate -o build/tb_ooo_branch_append_dispatch_gate.vvp tests/tb_ooo_branch_append_dispatch_gate.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBranchAppendDispatchGate.v
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBranchAppendDispatchGate.v:3: warning: timescale for OooBranchAppendDispatchGate inherited from another file.
+tests/tb_ooo_branch_append_dispatch_gate.sv:1: ...: The inherited timescale is here.
+[PASS] tb_ooo_branch_append_dispatch_gate
+tests/tb_ooo_branch_append_dispatch_gate.sv:299: $finish called at 7000 (1ps)
+[RESULT] PASS

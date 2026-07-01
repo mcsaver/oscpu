@@ -1,0 +1,5 @@
+[TEST] tb_ooo_rob
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_rob -o build/tb_ooo_rob.vvp tests/tb_ooo_rob.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/OooRob.v
+[PASS] tb_ooo_rob
+common/tb_common.svh:32: $finish called at 87 (1s)
+[RESULT] PASS

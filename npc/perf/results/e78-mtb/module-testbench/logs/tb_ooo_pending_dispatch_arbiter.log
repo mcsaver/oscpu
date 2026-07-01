@@ -1,0 +1,13 @@
+[TEST] tb_ooo_pending_dispatch_arbiter
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_pending_dispatch_arbiter -o build/tb_ooo_pending_dispatch_arbiter.vvp tests/tb_ooo_pending_dispatch_arbiter.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingDispatchArbiter.v
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v:6: warning: timescale for OooPendingLane1CaptureGate inherited from another file.
+tests/tb_ooo_pending_dispatch_arbiter.sv:1: ...: The inherited timescale is here.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingDispatchArbiter.v:5: warning: timescale for OooPendingDispatchArbiter inherited from another file.
+tests/tb_ooo_pending_dispatch_arbiter.sv:1: ...: The inherited timescale is here.
+warning: Some design elements have no explicit time unit and/or
+       : time precision. This may cause confusing timing results.
+       : Affected design elements are:
+       :   -- compilation unit
+[PASS] tb_ooo_pending_dispatch_arbiter
+common/tb_common.svh:32: $finish called at 37000 (1ps)
+[RESULT] PASS

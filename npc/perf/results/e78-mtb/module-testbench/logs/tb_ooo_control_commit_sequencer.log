@@ -1,0 +1,6 @@
+[TEST] tb_ooo_control_commit_sequencer
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_control_commit_sequencer -o build/tb_ooo_control_commit_sequencer.vvp tests/tb_ooo_control_commit_sequencer.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/OooControlCommitSequencer.v
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/OooControlCommitSequencer.v:3: warning: timescale for OooControlCommitSequencer inherited from another file.
+tests/tb_ooo_control_commit_sequencer.sv:1: ...: The inherited timescale is here.
+PASS tb_ooo_control_commit_sequencer
+[RESULT] PASS

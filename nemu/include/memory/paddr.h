@@ -49,6 +49,8 @@ void paddr_write_trace_dump_machine_info(FILE *out);
 void paddr_write_value_trace_arm(word_t value, word_t mask,
     uint64_t max_count, const char *reason);
 void paddr_write_value_trace_disarm(const char *reason);
+void paddr_tohost_set_addr(paddr_t addr);
+void paddr_tohost_check_write(paddr_t addr, uint32_t len);
 extern bool paddr_device_write_seen;
 bool paddr_take_device_write(void);
 

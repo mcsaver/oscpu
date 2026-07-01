@@ -1,0 +1,7 @@
+[TEST] tb_ooo_pending_fp_sequencer
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_pending_fp_sequencer -o build/tb_ooo_pending_fp_sequencer.vvp tests/tb_ooo_pending_fp_sequencer.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooPendingFpSequencer.v
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooPendingFpSequencer.v:4: warning: timescale for OooPendingFpSequencer inherited from another file.
+tests/tb_ooo_pending_fp_sequencer.sv:1: ...: The inherited timescale is here.
+PASS tb_ooo_pending_fp_sequencer
+tests/tb_ooo_pending_fp_sequencer.sv:377: $finish called at 146000 (1ps)
+[RESULT] PASS

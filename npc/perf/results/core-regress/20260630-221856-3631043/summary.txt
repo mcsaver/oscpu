@@ -1,0 +1,10 @@
+NPC RV64 core regression
+  run_dir: /home/lyg/PA/ysyx-workbench/npc/perf/results/core-regress/20260630-221856-3631043
+  riscv_suites: rv64ui rv64uc rv64uf rv64ud rv64mi rv64si
+[2026-06-30 22:18:56] run verilator-lint
+  PASS  verilator-lint
+[2026-06-30 22:18:58] run npc-build
+  PASS  npc-build
+  SKIP  riscv-tests checkout not found: /home/lyg/PA/ysyx-workbench/npc/testsuites/core-tests/src/riscv-tests
+[2026-06-30 22:19:57] done overall_rc=0
+  status: /home/lyg/PA/ysyx-workbench/npc/perf/results/core-regress/20260630-221856-3631043/status.txt

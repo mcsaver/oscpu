@@ -1,0 +1,5 @@
+[TEST] tb_ooo_fetch_head_classify_gate
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_fetch_head_classify_gate -o build/tb_ooo_fetch_head_classify_gate.vvp tests/tb_ooo_fetch_head_classify_gate.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/OooFpDecode.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchHeadClassifyGate.v
+[PASS] tb_ooo_fetch_head_classify_gate
+common/tb_common.svh:32: $finish called at 30 (1s)
+[RESULT] PASS

@@ -1,0 +1,5 @@
+[TEST] tb_ooo_branch_target_capture_buffer
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_branch_target_capture_buffer -o build/tb_ooo_branch_target_capture_buffer.vvp tests/tb_ooo_branch_target_capture_buffer.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBranchTargetCaptureBuffer.v
+[PASS] tb_ooo_branch_target_capture_buffer
+common/tb_common.svh:32: $finish called at 21 (1s)
+[RESULT] PASS

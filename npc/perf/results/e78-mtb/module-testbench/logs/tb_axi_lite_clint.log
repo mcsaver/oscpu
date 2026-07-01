@@ -1,0 +1,5 @@
+[TEST] tb_axi_lite_clint
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_axi_lite_clint -o build/tb_axi_lite_clint.vvp tests/tb_axi_lite_clint.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiLiteClint.v
+[PASS] tb_axi_lite_clint
+common/tb_common.svh:32: $finish called at 270 (1s)
+[RESULT] PASS

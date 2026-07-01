@@ -1,0 +1,8 @@
+[TEST] tb_ooo_pending_system_sequencer
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_pending_system_sequencer -o build/tb_ooo_pending_system_sequencer.vvp tests/tb_ooo_pending_system_sequencer.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingSystemSequencer.v
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingSystemSequencer.v:3: warning: timescale for OooPendingSystemSequencer inherited from another file.
+tests/tb_ooo_pending_system_sequencer.sv:1: ...: The inherited timescale is here.
+FAIL irq cause actual=0x000000000000000b expected=0x800000000000000b
+FAIL tb_ooo_pending_system_sequencer errors=1
+tests/tb_ooo_pending_system_sequencer.sv:294: $finish(1) called at 126000 (1ps)
+[RESULT] PASS

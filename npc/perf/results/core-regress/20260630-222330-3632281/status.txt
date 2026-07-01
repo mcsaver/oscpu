@@ -1,0 +1,206 @@
+riscv-clean                  PASS
+build-rv64ui-p-add           PASS
+rv64ui-p-add                 FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-addi          PASS
+rv64ui-p-addi                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-addiw         PASS
+rv64ui-p-addiw               FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-addw          PASS
+rv64ui-p-addw                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-and           PASS
+rv64ui-p-and                 FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-andi          PASS
+rv64ui-p-andi                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-auipc         PASS
+rv64ui-p-auipc               FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-beq           PASS
+rv64ui-p-beq                 FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-bge           PASS
+rv64ui-p-bge                 FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-bgeu          PASS
+rv64ui-p-bgeu                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-blt           PASS
+rv64ui-p-blt                 FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-bltu          PASS
+rv64ui-p-bltu                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-bne           PASS
+rv64ui-p-bne                 FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-fence_i       PASS
+rv64ui-p-fence_i             FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-jal           PASS
+rv64ui-p-jal                 FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-jalr          PASS
+rv64ui-p-jalr                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-lb            PASS
+rv64ui-p-lb                  FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-lbu           PASS
+rv64ui-p-lbu                 FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-ld            PASS
+rv64ui-p-ld                  FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-ld_st         PASS
+rv64ui-p-ld_st               FAIL       exit=127 tohost=0x0000000080002000
+build-rv64ui-p-lh            PASS
+rv64ui-p-lh                  FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-lhu           PASS
+rv64ui-p-lhu                 FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-lui           PASS
+rv64ui-p-lui                 FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-lw            PASS
+rv64ui-p-lw                  FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-lwu           PASS
+rv64ui-p-lwu                 FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-ma_data       PASS
+rv64ui-p-ma_data             FAIL       exit=127 tohost=0x0000000080002000
+build-rv64ui-p-or            PASS
+rv64ui-p-or                  FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-ori           PASS
+rv64ui-p-ori                 FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-sb            PASS
+rv64ui-p-sb                  FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-sd            PASS
+rv64ui-p-sd                  FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-sh            PASS
+rv64ui-p-sh                  FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-simple        PASS
+rv64ui-p-simple              FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-sll           PASS
+rv64ui-p-sll                 FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-slli          PASS
+rv64ui-p-slli                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-slliw         PASS
+rv64ui-p-slliw               FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-sllw          PASS
+rv64ui-p-sllw                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-slt           PASS
+rv64ui-p-slt                 FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-slti          PASS
+rv64ui-p-slti                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-sltiu         PASS
+rv64ui-p-sltiu               FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-sltu          PASS
+rv64ui-p-sltu                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-sra           PASS
+rv64ui-p-sra                 FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-srai          PASS
+rv64ui-p-srai                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-sraiw         PASS
+rv64ui-p-sraiw               FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-sraw          PASS
+rv64ui-p-sraw                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-srl           PASS
+rv64ui-p-srl                 FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-srli          PASS
+rv64ui-p-srli                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-srliw         PASS
+rv64ui-p-srliw               FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-srlw          PASS
+rv64ui-p-srlw                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-st_ld         PASS
+rv64ui-p-st_ld               FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-sub           PASS
+rv64ui-p-sub                 FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-subw          PASS
+rv64ui-p-subw                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-sw            PASS
+rv64ui-p-sw                  FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-xor           PASS
+rv64ui-p-xor                 FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ui-p-xori          PASS
+rv64ui-p-xori                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64uc-p-rvc           PASS
+rv64uc-p-rvc                 FAIL       exit=127 tohost=0x0000000080003000
+build-rv64uf-p-fadd          PASS
+rv64uf-p-fadd                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64uf-p-fclass        PASS
+rv64uf-p-fclass              FAIL       exit=127 tohost=0x0000000080001000
+build-rv64uf-p-fcmp          PASS
+rv64uf-p-fcmp                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64uf-p-fcvt          PASS
+rv64uf-p-fcvt                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64uf-p-fcvt_w        PASS
+rv64uf-p-fcvt_w              FAIL       exit=127 tohost=0x0000000080001000
+build-rv64uf-p-fdiv          PASS
+rv64uf-p-fdiv                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64uf-p-fmadd         PASS
+rv64uf-p-fmadd               FAIL       exit=127 tohost=0x0000000080001000
+build-rv64uf-p-fmin          PASS
+rv64uf-p-fmin                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64uf-p-ldst          PASS
+rv64uf-p-ldst                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64uf-p-move          PASS
+rv64uf-p-move                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64uf-p-recoding      PASS
+rv64uf-p-recoding            FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ud-p-fadd          PASS
+rv64ud-p-fadd                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ud-p-fclass        PASS
+rv64ud-p-fclass              FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ud-p-fcmp          PASS
+rv64ud-p-fcmp                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ud-p-fcvt          PASS
+rv64ud-p-fcvt                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ud-p-fcvt_w        PASS
+rv64ud-p-fcvt_w              FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ud-p-fdiv          PASS
+rv64ud-p-fdiv                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ud-p-fmadd         PASS
+rv64ud-p-fmadd               FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ud-p-fmin          PASS
+rv64ud-p-fmin                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ud-p-ldst          PASS
+rv64ud-p-ldst                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ud-p-move          PASS
+rv64ud-p-move                FAIL       exit=127 tohost=0x0000000080002000
+build-rv64ud-p-recoding      PASS
+rv64ud-p-recoding            FAIL       exit=127 tohost=0x0000000080001000
+build-rv64ud-p-structural    PASS
+rv64ud-p-structural          FAIL       exit=127 tohost=0x0000000080001000
+build-rv64mi-p-breakpoint    PASS
+rv64mi-p-breakpoint          FAIL       exit=127 tohost=0x0000000080001000
+build-rv64mi-p-csr           PASS
+rv64mi-p-csr                 FAIL       exit=127 tohost=0x0000000080001000
+build-rv64mi-p-illegal       PASS
+rv64mi-p-illegal             FAIL       exit=127 tohost=0x0000000080001000
+build-rv64mi-p-instret_overflow PASS
+rv64mi-p-instret_overflow    FAIL       exit=127 tohost=0x0000000080001000
+build-rv64mi-p-ld-misaligned PASS
+rv64mi-p-ld-misaligned       FAIL       exit=127 tohost=0x0000000080001000
+build-rv64mi-p-lh-misaligned PASS
+rv64mi-p-lh-misaligned       FAIL       exit=127 tohost=0x0000000080001000
+build-rv64mi-p-lw-misaligned PASS
+rv64mi-p-lw-misaligned       FAIL       exit=127 tohost=0x0000000080001000
+build-rv64mi-p-ma_addr       PASS
+rv64mi-p-ma_addr             FAIL       exit=127 tohost=0x0000000080001000
+build-rv64mi-p-ma_fetch      PASS
+rv64mi-p-ma_fetch            FAIL       exit=127 tohost=0x0000000080001000
+build-rv64mi-p-mcsr          PASS
+rv64mi-p-mcsr                FAIL       exit=127 tohost=0x0000000080001000
+build-rv64mi-p-pmpaddr       PASS
+rv64mi-p-pmpaddr             FAIL       exit=127 tohost=0x0000000080001000
+build-rv64mi-p-sbreak        PASS
+rv64mi-p-sbreak              FAIL       exit=127 tohost=0x0000000080001000
+build-rv64mi-p-scall         PASS
+rv64mi-p-scall               FAIL       exit=127 tohost=0x0000000080001000
+build-rv64mi-p-sd-misaligned PASS
+rv64mi-p-sd-misaligned       FAIL       exit=127 tohost=0x0000000080001000
+build-rv64mi-p-sh-misaligned PASS
+rv64mi-p-sh-misaligned       FAIL       exit=127 tohost=0x0000000080001000
+build-rv64mi-p-sw-misaligned PASS
+rv64mi-p-sw-misaligned       FAIL       exit=127 tohost=0x0000000080001000
+build-rv64mi-p-zicntr        PASS
+rv64mi-p-zicntr              FAIL       exit=127 tohost=0x0000000080001000
+build-rv64si-p-csr           PASS
+rv64si-p-csr                 FAIL       exit=127 tohost=0x0000000080001000
+build-rv64si-p-dirty         PASS
+rv64si-p-dirty               FAIL       exit=127 tohost=0x0000000080001000
+build-rv64si-p-icache-alias  PASS
+rv64si-p-icache-alias        FAIL       exit=127 tohost=0x0000000080001000
+build-rv64si-p-ma_fetch      PASS
+rv64si-p-ma_fetch            FAIL       exit=127 tohost=0x0000000080001000
+build-rv64si-p-sbreak        PASS
+rv64si-p-sbreak              FAIL       exit=127 tohost=0x0000000080001000
+build-rv64si-p-scall         PASS
+rv64si-p-scall               FAIL       exit=127 tohost=0x0000000080001000
+build-rv64si-p-wfi           PASS
+rv64si-p-wfi                 FAIL       exit=127 tohost=0x0000000080001000
+riscv-tests-count            INFO       102 tests attempted

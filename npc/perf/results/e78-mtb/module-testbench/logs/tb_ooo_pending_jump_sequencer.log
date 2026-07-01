@@ -1,0 +1,7 @@
+[TEST] tb_ooo_pending_jump_sequencer
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_pending_jump_sequencer -o build/tb_ooo_pending_jump_sequencer.vvp tests/tb_ooo_pending_jump_sequencer.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooPendingJumpSequencer.v
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooPendingJumpSequencer.v:3: warning: timescale for OooPendingJumpSequencer inherited from another file.
+tests/tb_ooo_pending_jump_sequencer.sv:1: ...: The inherited timescale is here.
+PASS tb_ooo_pending_jump_sequencer
+tests/tb_ooo_pending_jump_sequencer.sv:299: $finish called at 106000 (1ps)
+[RESULT] PASS

@@ -1,0 +1,5 @@
+[TEST] tb_wbu
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_wbu -o build/tb_wbu.vvp tests/tb_wbu.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/WBU.v
+[PASS] tb_wbu
+common/tb_common.svh:32: $finish called at 6 (1s)
+[RESULT] PASS

@@ -1,0 +1,5 @@
+[TEST] tb_ooo_fetch_packet_seed_mux
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_fetch_packet_seed_mux -o build/tb_ooo_fetch_packet_seed_mux.vvp tests/tb_ooo_fetch_packet_seed_mux.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchPacketSeedMux.v
+[PASS] tb_ooo_fetch_packet_seed_mux
+common/tb_common.svh:32: $finish called at 33 (1s)
+[RESULT] PASS

@@ -1,0 +1,6 @@
+[TEST] tb_ooo_pending_trap_exit_sequencer
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_pending_trap_exit_sequencer -o build/tb_ooo_pending_trap_exit_sequencer.vvp tests/tb_ooo_pending_trap_exit_sequencer.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v
+tests/tb_ooo_pending_trap_exit_sequencer.sv:27: warning: Instantiating module OooPendingTrapExitSequencer with dangling input port 6 (clear_arch_squash_i) floating.
+PASS tb_ooo_pending_trap_exit_sequencer
+tests/tb_ooo_pending_trap_exit_sequencer.sv:186: $finish called at 86 (1s)
+[RESULT] PASS

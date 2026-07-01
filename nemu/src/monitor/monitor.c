@@ -375,6 +375,7 @@ static int parse_args(int argc, char *argv[]) {
     OPT_QMP,
     OPT_GDBSTUB,
     OPT_NET_TAP,
+    OPT_TOHOST,
   };
   const struct option table[] = {
     {"batch"    , no_argument      , NULL, 'b'},
@@ -395,6 +396,7 @@ static int parse_args(int argc, char *argv[]) {
     {"qmp"      , required_argument, NULL, OPT_QMP},
     {"gdbstub"  , required_argument, NULL, OPT_GDBSTUB},
     {"net-tap"  , required_argument, NULL, OPT_NET_TAP},
+    {"tohost"   , required_argument, NULL, OPT_TOHOST},
     {"help"     , no_argument      , NULL, 'h'},
     {"elf"      , required_argument, NULL, 'e'},
     {0          , 0                , NULL,  0 },
@@ -425,6 +427,15 @@ static int parse_args(int argc, char *argv[]) {
       case OPT_MONITOR_CMD: add_monitor_cmd(optarg); break;
       case OPT_QMP: qmp_set_port(atoi(optarg)); break;
       case OPT_GDBSTUB: gdbstub_set_port(atoi(optarg)); break;
+      case OPT_TOHOST: {
+        // This only enables external arch-test exits; normal AM/batch exits stay unchanged.
+        char *end = NULL;
+        uint64_t addr = strtoull(optarg, &end, 0);
+        Assert(end != optarg && end != NULL && *end == '\0',
+            "invalid --tohost address: %s", optarg);
+        paddr_tohost_set_addr((paddr_t)addr);
+        break;
+      }
       case OPT_NET_TAP:
 #ifdef CONFIG_HAS_VIRTIO_NET
         virtio_net_set_tap(optarg);
@@ -447,6 +458,7 @@ static int parse_args(int argc, char *argv[]) {
         printf("\t   --qmp=PORT           wait for startup QMP, then same-socket runtime query/stop/cont/events/device introspection/quit\n");
         printf("\t   --gdbstub=PORT       wait for a startup GDB remote client on localhost\n");
         printf("\t   --net-tap=IFNAME     attach virtio-net to an existing host TAP interface\n");
+        printf("\t   --tohost=ADDR        stop when a riscv-tests/ACT4 tohost word becomes non-zero\n");
         printf("\t   --block=FILE         attach block image (Linux path placeholder)\n");
         printf("\t   --block-overlay=FILE write block changes to sparse overlay\n");
         printf("\t-l,--log=FILE           output log to FILE\n");

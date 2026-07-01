@@ -511,6 +511,9 @@ static inline void vaddr_paddr_write_fast(VaddrTranslateResult trans, int len, w
   if (likely(trans.host_addr != NULL)) {
     nemu_profile_count_if(NEMU_PROFILE_VADDR_HOST_FAST_WRITES, 1);
     host_write(trans.host_addr, len, data);
+    // The host-fast path writes PMEM directly, so mirror paddr_write()'s
+    // tohost check here for Linux performance configs.
+    paddr_tohost_check_write(trans.paddr, (uint32_t)len);
     return;
   }
 #endif

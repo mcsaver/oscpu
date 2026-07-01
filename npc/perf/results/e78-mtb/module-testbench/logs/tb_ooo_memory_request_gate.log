@@ -1,0 +1,5 @@
+[TEST] tb_ooo_memory_request_gate
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_memory_request_gate -o build/tb_ooo_memory_request_gate.vvp tests/tb_ooo_memory_request_gate.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemoryRequestGate.v
+[PASS] tb_ooo_memory_request_gate
+common/tb_common.svh:32: $finish called at 11 (1s)
+[RESULT] PASS

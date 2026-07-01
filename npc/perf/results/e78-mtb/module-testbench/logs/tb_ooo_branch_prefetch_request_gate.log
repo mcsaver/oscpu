@@ -1,0 +1,6 @@
+[TEST] tb_ooo_branch_prefetch_request_gate
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_branch_prefetch_request_gate -o build/tb_ooo_branch_prefetch_request_gate.vvp tests/tb_ooo_branch_prefetch_request_gate.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBranchPrefetchRequestGate.v
+tests/tb_ooo_branch_prefetch_request_gate.sv:27: warning: Instantiating module OooBranchPrefetchRequestGate with dangling input port 17 (req_ready_i) floating.
+[PASS] tb_ooo_branch_prefetch_request_gate
+common/tb_common.svh:32: $finish called at 29 (1s)
+[RESULT] PASS

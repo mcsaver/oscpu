@@ -1,0 +1,7 @@
+[TEST] tb_ooo_control_flush_sequencer
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_control_flush_sequencer -o build/tb_ooo_control_flush_sequencer.vvp tests/tb_ooo_control_flush_sequencer.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooControlFlushSequencer.v
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooControlFlushSequencer.v:1: warning: timescale for OooControlFlushSequencer inherited from another file.
+tests/tb_ooo_control_flush_sequencer.sv:1: ...: The inherited timescale is here.
+PASS tb_ooo_control_flush_sequencer
+tests/tb_ooo_control_flush_sequencer.sv:149: $finish called at 186000 (1ps)
+[RESULT] PASS

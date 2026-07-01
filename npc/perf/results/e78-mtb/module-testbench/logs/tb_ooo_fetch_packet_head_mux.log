@@ -1,0 +1,5 @@
+[TEST] tb_ooo_fetch_packet_head_mux
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_fetch_packet_head_mux -o build/tb_ooo_fetch_packet_head_mux.vvp tests/tb_ooo_fetch_packet_head_mux.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchPacketHeadMux.v
+[PASS] tb_ooo_fetch_packet_head_mux
+common/tb_common.svh:32: $finish called at 7 (1s)
+[RESULT] PASS

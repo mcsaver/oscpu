@@ -1,0 +1,5 @@
+[TEST] tb_ooo_busy_table
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_busy_table -o build/tb_ooo_busy_table.vvp tests/tb_ooo_busy_table.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/rename_allocate/OooBusyTable.v
+[PASS] tb_ooo_busy_table
+common/tb_common.svh:32: $finish called at 27 (1s)
+[RESULT] PASS

@@ -1,0 +1,5 @@
+[TEST] tb_lsu
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_lsu -o build/tb_lsu.vvp tests/tb_lsu.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/LSUControl.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/LSUDataPath.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/LSU.v
+[PASS] tb_lsu
+common/tb_common.svh:32: $finish called at 3 (1s)
+[RESULT] PASS

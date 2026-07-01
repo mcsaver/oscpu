@@ -1,0 +1,5 @@
+[TEST] tb_ooo_trap_exit_output_sequencer
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_ooo_trap_exit_output_sequencer -o build/tb_ooo_trap_exit_output_sequencer.vvp tests/tb_ooo_trap_exit_output_sequencer.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooTrapExitOutputSequencer.v
+PASS tb_ooo_trap_exit_output_sequencer
+tests/tb_ooo_trap_exit_output_sequencer.sv:160: $finish called at 96 (1s)
+[RESULT] PASS

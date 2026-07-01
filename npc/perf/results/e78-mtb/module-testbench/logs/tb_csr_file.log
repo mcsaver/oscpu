@@ -1,0 +1,5 @@
+[TEST] tb_csr_file
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -s tb_csr_file -o build/tb_csr_file.vvp tests/tb_csr_file.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/core/CsrFile.v
+[PASS] tb_csr_file
+common/tb_common.svh:32: $finish called at 119 (1s)
+[RESULT] PASS
