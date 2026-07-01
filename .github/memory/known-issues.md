@@ -63,6 +63,10 @@
   - **统一性洞察(本轮最大价值)**:**三北极星项被 domain-B full-drain 这道"总闸"统一锁死**——F2 的性能收益被它吃掉,而**拆掉 domain-B full-drain 正是 item2(LSQ mem 多-outstanding 不 drain)与 item3(FP 出 domain-B)的目标**。故**唯一正确的优化顺序 = 先拆 domain-B full-drain(从 mem/fetch-fault 的 ROB-carried/多-outstanding 化入手),再叠加已就绪的 F2 correctness 配方 → F2 才变现**。这把用户"工程为何臃肿/需真架构优化"从模糊抱怨落成**数据支撑的架构诊断 + 优化路线图**:总闸不拆,任何单项(分支预测/访存并行)的收益都会被 full-drain 回吞。
   - **裁决**:F2 correctness 已攻克但**独立提交是性能负(-8.6%)且收益被总闸锁死**,故**回退到干净 baseline**(`ad00e097f`,复验 vsrc 干净 + build ok + 已知 177/177)。**净交付**:(a) #105"最后拼图"的**确切修复配方(direct_branch_pred_pc,3 文件已验证 correctness bit-exact 到 3.2M)**;(b) 性能负根因**定死为 domain-B 总闸**(计数器铁证);(c) **三项被总闸统一锁死**的架构诊断 + 优化顺序。下一步:拆 domain-B full-drain(先 mem/fetch-fault),再 5 分钟复现本配方启用 F2。
 
+- **[2026-07-01 总闸精确定位 + 正确性证否——domain-B 迁移是唯一路径的铁证]** 用 stop-cause 探针把 CoreMark 的 `stop`(771k cyc,22.8%)来源逐类计数,**定死总闸精确身份**:500k 周期内 60,800 个 stop set 事件中 **60,798(99.997%)= `dbranch`**——即 `OooStopPendingSequencer:60 stop_pending_o <= !direct_branch_resolve_redirect_i`:**每条 direct branch 解析(即使预测正确 `!redirect`)都 set stop_pending + 全后端 drain**,且该路径**无 `rob_walk_mode` 豁免**(与 set 块 :121 branch 的 walk 豁免并存,故 walk 模式下分支仍经此 drain)。**这才是 baseline 771k stop 与 F2 深投机下 +288k 的真身**。
+  - **bounded 优化尝试 + 正确性证否(关键)**:实验把 :60 改成"预测正确的 direct branch 不 stop(去多余 drain)"——**CoreMark difftest 在第 1554 条即 control-flow mismatch**(DUT commit 0x80002e3c、ref 期望 0x80002e30,DUT 乱序跳过)。故该 drain **是正确性必需**、非保守冗余:它保证 direct branch(在前端解析/提交)与后端**按序提交**一致。已回退,核回 3,204,741 条预存墙。
+  - **闭合结论(完整技术地图)**:总闸 = direct branch 的前端-解析-then-drain 提交模型;拆它**必须**把 direct branch(及同构的 mem/fp/system)从"前端 drain 提交"迁移到"进正常 ROB 按序提交"(**domain-A 化**)——**这正是三北极星项(F2 变现/LSQ 多-outstanding/FP 出 E2E3)的共同本质,是一个统一的多日 domain-A 迁移专项,无 bounded 的 landed 削减点**(最有希望的"去 direct-branch drain"已实验证否)。F2 correctness 配方(#105 第四次)已就绪,待迁移后叠加即变现。**这把"123都做"从三个看似独立的任务,收敛为一个有完整技术地图的 domain-A 迁移工程。**
+
 ### [104] `npc/rv64` ACT4 PMP CSR/权限 gate 缺口（已修并验证）
 
 - **模块**: NPC / RV64 / PMP / CSR / fetch / memory bridge / ACT4 privileged
