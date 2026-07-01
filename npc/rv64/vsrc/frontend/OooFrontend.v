@@ -1837,11 +1837,14 @@ module OooFrontend #(
   // head packet 的「预测后继 PC」= pred_npc 源。count>=2：下一条 FIFO entry pc0（前端按预测序取指，正确）。
   // count<2(含 bypass)：暂用寄存 next_fetch_pc_q——它滞后指向 head 自身 → 每分支伪 mispredict 但 redirect 恒指向
   //   架构后继（功能正确/慢），比「组合精确重建前端预测」更鲁棒（后者须逐 case 与前端实际取指一致，易漏）。
-  // 【续：精确前端预测后继（含 BHT direct_branch_pred_pc）的组合重建已验可 loop-free（IQ 结构破环），
-  //   但与前端实际取指仍有边界 case 不一致；最终正解=per-packet 预测后继随 FIFO+bypass threaded。详见 task-runs。
-  wire [`XLEN-1:0] head_pred_succ_w =
-      (fifo_count_q >= {{(FETCH_COUNT_W-2){1'b0}}, 2'd2}) ? fifo_head1_pc0_w
-                                                          : next_fetch_pc_q;
+  // 【F2 最终正解落地】pred_npc 源 = head_packet_next_pc_w：**当前 dispatching head 包(FIFO-head
+  //   或 bypass，已由 OooFetchPacketHitMux 统一 mux)在取指时确定的预测后继 PC**。它对 FIFO-head 是
+  //   寄存值(fifo_head_packet_next_pc)、对 bypass 是该 packet 自身的 fetch-rsp packet_next_pc，二者
+  //   都不组合依赖后端 redirect → 无 UNOPTFLAT 环;且 count>=2 时它等于下一条 FIFO entry 的 pc0
+  //   (fifo_head1_pc0),故对既有 count>=2 路径行为不变、只修好 count<2/bypass 的滞后。
+  //   替代旧的 (count>=2 ? fifo_head1_pc0 : next_fetch_pc_q) 滞后近似,使 per-packet 预测后继
+  //   随 FIFO+bypass 正确 threaded → 后端 per-branch mispredict 可信、正确预测免于 redirect。
+  wire [`XLEN-1:0] head_pred_succ_w = head_packet_next_pc_w;
 
 
   OooBranchBpuUpdateGate u_branch_bpu_update_gate (

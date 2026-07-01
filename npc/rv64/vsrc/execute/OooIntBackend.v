@@ -972,17 +972,13 @@ module OooIntBackend #(
                          (issue1_branch_taken_w && issue1_branch_target_w[0]);
   wire issue0_ctrlflow_fire_w = issue0_fire_w && issue0_is_ctrlflow_w;
   wire issue1_ctrlflow_fire_w = issue1_fire_w && issue1_is_ctrlflow_w;
-  // 误预测 = 架构后继 PC ≠ 片1 threaded 的预测后继 PC，且非对齐异常（misaligned 走 trap，不走 redirect）。
-  // mode 下「零方向投机」基线：每条控制流强制 mispredict→恒 redirect 到后端算的架构后继，
-  // 不信任前端方向预测（堵住 pred_npc 与前端实际取指不一致的所有漏洞）。配合禁 dispatch-bypass，
-  // wrong-path 只能经 FIFO 被 redirect 的 FIFO-clear 清掉。性能差（每条控制流 flush+重取），但功能正确——
-  // 后续优化=精确 per-packet 预测后继使正确预测免于 redirect。
-  // 【Wave3 尝试与回退记录】曾去掉 mode_walk_w|| 启用真预测：rv64ui --no-diff 退化 46/88
-  //   (正确预测的分支保留投机 FIFO 后，某前端投机路径/域B边界交互产生 wrong-path 提交)。
-  //   注意 difftest 无法直接定位该回归——所有 riscv-tests 启动码含 csrwi mnstatus(0x744)，
-  //   DUT 与 NEMU 对该 CSR 处理不一致会让 --diff 在 0x800000e4 提前 abort（此发散 F2 前后皆有、
-  //   属预存 difftest 覆盖缺口），需改用 ITRACE 诊断。属 B2 前端重构(统一 redirect 仲裁 +
-  //   投机路径硬化)范畴，非本处两行可了。故保留强制项至 B2 落地。详见 known-issues #105。
+  // 误预测 = 架构后继 PC ≠ 前端 threaded 的预测后继 PC(pred_npc)，且非对齐异常(misaligned 走 trap)。
+  // 【F2 分步落地·当前保留强制项】pred_npc 源已修好(OooFrontend.head_pred_succ_w = 统一 FIFO+bypass 的
+  //   head_packet_next_pc_w，寄存/无环/取指时确定)——这是 F2 的必要前置。但仅此不足:去掉 mode_walk_w||
+  //   启用真预测后,difftest 定位到 ROB-walk 恢复对**wrong-path squash 有缺陷**(预测-taken 的分支被真
+  //   取错路后,mispredict redirect 未能干净 squash 错路指令→wrong-path 提交,如 rv64ui-p-add 的
+  //   0x1ac bne)。此缺陷在强制项下从未被锻炼(强制项使前端从不真取预测错路)。故先锁定 pred_npc
+  //   foundation、保留强制项,recovery 缺陷用现已可用的 difftest 单独死磕(见 known-issues #105)。
   wire issue0_mispredict_w =
       (mode_walk_w || (issue0_ctrlflow_next_pc_w != issue0_pred_npc_w)) &&
       !issue0_ctrlflow_misaligned_w;
