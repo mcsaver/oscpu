@@ -33,6 +33,11 @@
 - **裁决**: 已**回退**(`OooIntBackend.v` 保留 `mode_walk_w||` 强制项 + 记录注释),核恢复 riscv-tests 102/102。mode=1+强制 mispredict 是绿但 BPU 性能上零贡献的当前交付态;性能封顶仍在,待 per-packet 预测后继 threading 落地。
 - **下一步候选**: (1) per-packet 预测后继随 FIFO+bypass threaded(破 count==0 滞后,作者首选,主线);(2) 修 mnstatus DUT/NEMU 一致性(或 difftest 跳过该 CSR)使 difftest 重新可用于 riscv-tests 逐指令校验;(3) B2 统一 redirect 仲裁(地基 `OooRedirectArbiter` 已存在但零实例化,需接入,兼消审计 E10 双编码器)。
 
+- **[2026-07-01 进展] pred_npc foundation 已落地 + difftest 已重启 + recovery 缺陷精确定位**:
+  - ✅ 候选(1)部分:`OooFrontend.head_pred_succ_w` 改为 `head_packet_next_pc_w`(统一 FIFO+bypass 的 per-packet 预测后继,取指时确定/寄存)——**破了作者当年卡的 UNOPTFLAT 组合环**(FIFO-head 是寄存值、bypass 是该包 fetch-rsp packet_next_pc,均不组合依赖后端 redirect)。lint 无 UNOPTFLAT、强制项下 177/177 中性。commit `4a48da090`。
+  - ✅ 候选(2)已成:mnstatus 修复(#107)使 difftest 重新可用于 riscv-tests 测试体逐指令校验——**F2 现在可被 difftest 调试**(作者当年因 mnstatus 挡住 difftest 只能 --no-diff 盲调)。
+  - 🔎 **recovery 缺陷精确定位**(用重启的 difftest):去掉 `mode_walk_w||` 后,`rv64ui-p-add` 在 `0x1ac bne a4,t2,fail`(a4=t2=0 应不跳)处,前端预测-taken 真取了错路 0x68c,而 **ROB-walk 恢复未能干净 squash 该 wrong-path→0x68c 提交**(difftest 首发散点)。根因方向=审计 F5 那类竞态:kill 打一拍寄存(`OooDispatchBackend`)使误预测当拍 T 的 wrong-path uop 仍可发射,`recovering_w=recover_q||kill_valid_i` 的 commit-freeze(`OooRob.v:252`)与 kill 时序需逐拍对齐。**关键**:该 wrong-path squash 路径在强制项下从未被锻炼(强制项使前端从不真取预测错路),F2 首次暴露它。属 B2 recovery 硬化专项,需逐拍波形/difftest 对齐 kill/squash/commit-freeze,非本处可了。foundation 已锁,recovery 待专项。
+
 ### [104] `npc/rv64` ACT4 PMP CSR/权限 gate 缺口（已修并验证）
 
 - **模块**: NPC / RV64 / PMP / CSR / fetch / memory bridge / ACT4 privileged
