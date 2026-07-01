@@ -399,7 +399,9 @@ module OooMemAxiBridge (
     .fill_addr_i(paddr_q),
     .fill_data_i(lsu_axi_rdata_i),
     .store_commit_i(dcache_store_commit_w),
-    .store_invalidate_all_i(1'b1),
+    // LSQ Phase 1：去掉核弹式全失效（原恒 1），改由 dcache 按 store 真实字节区间对
+    // {store_idx-1,idx,+1} 三邻域精确失效/合并（byte-window 模型下等价保持 store→load 可见性）。
+    .store_invalidate_all_i(1'b0),
     .store_addr_i(paddr_q),
     .store_data_i(wdata_q),
     .store_wstrb_i(wstrb_q)

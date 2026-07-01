@@ -66,14 +66,55 @@ module OooDataWordCache #(
     end
   endfunction
 
+  // store 写入的字节数（size-based wstrb 是 bit0 连续，popcount 即窗口宽度）。
+  function [3:0] store_nbytes_from_wstrb;
+    input [`STRB_W-1:0] wstrb;
+    integer nb_i;
+    begin
+      store_nbytes_from_wstrb = 4'd0;
+      for (nb_i = 0; nb_i < `STRB_W; nb_i = nb_i + 1)
+        if (wstrb[nb_i])
+          store_nbytes_from_wstrb = store_nbytes_from_wstrb + 4'd1;
+      if (store_nbytes_from_wstrb == 4'd0)
+        store_nbytes_from_wstrb = 4'd1;
+    end
+  endfunction
+
+  // byte-window 内存模型：一个 cache entry 缓存 [entry_addr, entry_addr+8) 的 8 字节窗口，
+  // store 写 [store_addr, store_addr+nbytes)。二者字节区间相交 → entry 已被本次 store 改写，须失效。
+  function windows_overlap;
+    input [`XLEN-1:0] entry_addr;
+    input [`XLEN-1:0] s_addr;
+    input [3:0] s_nbytes;
+    begin
+      windows_overlap =
+          (entry_addr < (s_addr + {{(`XLEN-4){1'b0}}, s_nbytes})) &&
+          (s_addr < (entry_addr + {{(`XLEN-4){1'b0}}, 4'd8}));
+    end
+  endfunction
+
   wire [INDEX_W-1:0] req_idx_w = cache_index(req_lookup_addr_i);
   wire [INDEX_W-1:0] walk_idx_w = cache_index(walk_lookup_addr_i);
   wire [INDEX_W-1:0] fill_idx_w = cache_index(fill_addr_i);
   wire [INDEX_W-1:0] store_idx_w = cache_index(store_addr_i);
+  // store 字节窗口最多跨 2 条 line，向后延伸的非对齐 cached 窗口又可覆盖 store_idx-1，
+  // 故对 {store_idx-1, store_idx, store_idx+1} 三邻域逐一按真实字节区间相交精确失效。
+  wire [INDEX_W-1:0] store_idx_m1_w = store_idx_w - {{(INDEX_W-1){1'b0}}, 1'b1};
+  wire [INDEX_W-1:0] store_idx_p1_w = store_idx_w + {{(INDEX_W-1){1'b0}}, 1'b1};
+  wire [3:0] store_nbytes_w = store_nbytes_from_wstrb(store_wstrb_i);
   wire store_cacheable_w = cacheable_addr(store_addr_i);
   wire store_hit_w =
       store_cacheable_w && valid_q[store_idx_w] &&
       (addr_q[store_idx_w] == store_addr_i);
+  wire store_ov_idx_w =
+      valid_q[store_idx_w] &&
+      windows_overlap(addr_q[store_idx_w], store_addr_i, store_nbytes_w);
+  wire store_ov_m1_w =
+      valid_q[store_idx_m1_w] &&
+      windows_overlap(addr_q[store_idx_m1_w], store_addr_i, store_nbytes_w);
+  wire store_ov_p1_w =
+      valid_q[store_idx_p1_w] &&
+      windows_overlap(addr_q[store_idx_p1_w], store_addr_i, store_nbytes_w);
 
   assign req_cacheable_o = cacheable_addr(req_lookup_addr_i);
   assign req_hit_o =
@@ -98,11 +139,16 @@ module OooDataWordCache #(
       end
 
       if (store_commit_i) begin
+        // 旧核弹式全失效：每次 store 清空整个 dcache（store_invalidate_all_i 恒 1）。保留通路
+        // 供回退，但 LSQ Phase 1 起改由桥恒 0 → 走下方按地址精确失效/更新。
         if (store_invalidate_all_i) begin
           valid_q <= {ENTRY_COUNT{1'b0}};
         end
 
         if (store_cacheable_w) begin
+          // store_idx：exact-match 合并更新（保窗口热）；full-8B store 直接建窗口；
+          // 否则若真实字节区间与本 entry 相交则失效（如 ld 0x1000 后 sb 0x1004：
+          // addr_q[idx]=0x1000≠0x1004 无 hit，但相交 → 必须失效，避免旧窗口漏改字节被后续 load 命中）。
           if (store_hit_w) begin
             valid_q[store_idx_w] <= 1'b1;
             addr_q[store_idx_w] <= store_addr_i;
@@ -113,7 +159,12 @@ module OooDataWordCache #(
             valid_q[store_idx_w] <= 1'b1;
             addr_q[store_idx_w] <= store_addr_i;
             data_q[store_idx_w] <= store_data_i;
+          end else if (store_ov_idx_w) begin
+            valid_q[store_idx_w] <= 1'b0;
           end
+          // 邻域 line 里向后/向前延伸而覆盖 store 字节的非对齐窗口精确失效（三邻域互不同 index）。
+          if (store_ov_m1_w) valid_q[store_idx_m1_w] <= 1'b0;
+          if (store_ov_p1_w) valid_q[store_idx_p1_w] <= 1'b0;
         end
       end
     end
