@@ -11,6 +11,19 @@
 - [ ] 综合分析通过
 ## 已完成的工作
 <!-- 按时间倒序记录，格式: - [日期] 简要描述 -->
+- [2026-07-03] **新子项目 `ace-sim/` 从零起步:activity-driven / completion-event / eval-driven 周期级体系结构仿真器 V1(MVP)落地全绿**。与 rv64 OOO 核无关的独立 greenfield(用户设计,C++20,`ace-sim/` 下自包含,无外部依赖)。介于 Verilator(逐 wire 全量 eval)/gem5(重量级 EventQueue)/Sniper 之间:同步边界由 cycle+commit 保证(`Reg<T>` cur/next、固定 7-phase 顺序),异步由 completion event 表达(多周期 FU 内部不逐周期 eval),并发由 active-set + ready-valid 队列表达,性能来自**只 eval 活跃组件 + time-skip**(系统 blocked 直接跳到下一个事件周期)。内核 `src/sim/`(cycle/phase/event/event_wheel 环形桶+far 堆/active_scheduler/context 主循环)+ `src/core/`(reg/queue/resource=latency·II·width)+ `src/mem/`(端口+cache 延迟)+ `src/cpu/`(in-order scoreboard 核,结果 issue 时算、busy 位 retire 才清 → completion≠commit)。**验证**:`make test` 内核单元测试全过;`make run` 参考模型对拍功能正确 + 7 个目标全 PASS(典型:248 模拟周期仅执行 30、跳过 218)。**对抗式审查(4 维 finder+双向证伪)揪出并修 4 缺陷**:①HALT 未持久闸住取指→HALT 后指令被执行(HIGH);②**睡眠安全律违反**——`II>latency` 时结构冒险是纯 wall-clock 无事件兜底→CPU 睡死/提前静止(MED,已加 `CpuWake` 自唤醒兜底,契约固化进 DESIGN.md §5.1);③停机 off-by-one;④`FunctionalUnit.width` 在 II>=1 时被 II 检查误杀。均加端到端/单元回归钉死。契约见 `ace-sim/DESIGN.md`(10 不变量+版本路线 V1✅→V5)。下一步 V2:ROB+issue queue+物理寄存器 ready 表+异步唤醒+精确 commit。详见记忆 [[ace-sim-project]]。
+- [2026-07-03] **修复 Sv39 跨页 misaligned plain load/store 静默错译(rtl-ground-truth §3.1 #2, 最小精确异常)**。
+  曾经:数据桥只翻译起始 VA 一次、第二页字节按起始 PA 物理连续读写(`OooMemAxiBridge.v:455-476/490`), plain 访存
+  misaligned 又不 trap(`OooIntBackend.v:1094` 原门 `issue*_mem_exception_w = issue*_is_amo_w && misaligned` 只放
+  AMO) → 分页 OS 下静默读错/写坏相邻物理页(M 态恒等映射无害故现有测试不暴露)。**修复=拓宽 `OooIntBackend.v:1094`
+  发射拍异常门**:对"`mem_translate_active_i`(分页开) + plain LS + misaligned + 跨 4KB 页(EA[11:0]+size>0x1000)"
+  也抛精确 LOAD/STORE_ADDR_MISALIGN;cause/tval(:2325/2328 选 cause 4/6、tval=EA)/请求关断(:1905 等 `!mem_exception`)/
+  ex→wb→ROB-commit 上报整链**复用 AMO misaligned 机制零改**;misaligned 在发射拍**预占翻译**(不发桥请求),页内
+  misaligned 仍 byte-window 硬件支持不 trap、对齐/M 态/satp=Bare 全不动。**工作流深读定案(3 路 trace + 我逐条核对
+  真代码 file:line)**。**验证零退化**:lint 0/模块 TB 96/96/riscv 355/0/difftest 38/3。**新增定向自检 cpu-test
+  `am-kernels/tests/cpu-tests/tests/sv39-xpage-misalign.c`**(超页恒等映射 + 分页开跨页 misaligned store → **HIT GOOD
+  TRAP code=0**,证 cause 6/tval=EA;退出用 AM 约定 ebreak+a0)。现有套件对此零覆盖(全 -p 物理/分页用例全对齐),定向
+  TB 是必需守护(独立跑不挂 difftest——NEMU 静默字节仿真不 trap,参考模型有意分歧)。
 - [2026-07-03] **修复 rv64mi-p-illegal(F2 核唯一 riscv-tests 失败)：riscv-tests 353/354→355/0**。根因经
   5+ 探针逐层钉死、**沿途证否 3 个错误假设**(dispatch 探针"head1 被丢"、工作流 commit-trace"trap-PC 捕获=0"、
   "CSR 读陈旧"——均被架构退休真相推翻)：`OooFetchHeadPairGate.v:190` 的 `head1_decode_valid_w` 含

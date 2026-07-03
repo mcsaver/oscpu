@@ -1091,8 +1091,39 @@ module OooIntBackend #(
     .entry_addr_o(miq_entry_addr_unused_w)
   );
 
-  wire issue0_mem_exception_w = issue0_is_amo_w && issue0_mem_misaligned_w;
-  wire issue1_mem_exception_w = issue1_is_amo_w && issue1_mem_misaligned_w;
+  // 【正确性修复 2026-07-03: rtl-ground-truth §3.1 #2】跨 4KB 页 misaligned plain load/store
+  // 精确异常。桥(OooMemAxiBridge)只翻译起始 VA 一次、第二页字节按起始 PA 物理连续读写
+  // (OooMemAxiBridge.v:455-456/471/475-476/490); plain 访存 misaligned 又不 trap(下方原门只放 AMO),
+  // 分页开启(Sv39)时跨 4KB 页 → 静默读错/写坏相邻物理页。此处对"分页开 + plain LS + misaligned +
+  // 跨 4KB 页"抛精确 LOAD/STORE_ADDR_MISALIGN,交软件 trap-and-emulate(cause/tval/请求关断/ROB-commit
+  // 上报整链复用 AMO misaligned 机制,一字未改; 页内 misaligned 仍由 byte-window 硬件正常支持不 trap;
+  // M 态/satp=Bare(mem_translate_active_i=0)与对齐访存(cross_page=0)全不受影响)。
+  wire issue0_plain_ls_w =
+      (issue0_is_load_w && !issue0_is_amo_w) || issue0_is_plain_store_w;
+  wire issue1_plain_ls_w =
+      (issue1_is_load_w && !issue1_is_amo_w) || issue1_is_plain_store_w;
+  // nbytes = 1<<size (BYTE/HALF/WORD/DWORD=00/01/10/11 → 1/2/4/8)。
+  wire [3:0] issue0_acc_bytes_w =
+      4'd1 << issue0_ctrl_w[`CTRL_MEM_SIZE_MSB:`CTRL_MEM_SIZE_LSB];
+  wire [3:0] issue1_acc_bytes_w =
+      4'd1 << issue1_ctrl_w[`CTRL_MEM_SIZE_MSB:`CTRL_MEM_SIZE_LSB];
+  // 跨 4KB 页 ⟺ EA[11:0]+nbytes > 0x1000 (13 位加法容纳 0xFFF+8=0x1007 不截断)。
+  // 跨页 ⟹ 必 misaligned(4KB 是任何自然对齐的整数倍); &&misaligned 冗余但作为 cross_page 若误判对齐访存的
+  // 安全网(对齐访存 misaligned=0 兜住,防误伤成回归)。
+  wire issue0_cross_page_w =
+      ({1'b0, issue0_alu_result_w[11:0]} + {9'b0, issue0_acc_bytes_w}) > 13'h1000;
+  wire issue1_cross_page_w =
+      ({1'b0, issue1_alu_result_w[11:0]} + {9'b0, issue1_acc_bytes_w}) > 13'h1000;
+  wire issue0_xpage_misalign_w =
+      mem_translate_active_i && issue0_plain_ls_w &&
+      issue0_mem_misaligned_w && issue0_cross_page_w;
+  wire issue1_xpage_misalign_w =
+      mem_translate_active_i && issue1_plain_ls_w &&
+      issue1_mem_misaligned_w && issue1_cross_page_w;
+  wire issue0_mem_exception_w =
+      (issue0_is_amo_w && issue0_mem_misaligned_w) || issue0_xpage_misalign_w;
+  wire issue1_mem_exception_w =
+      (issue1_is_amo_w && issue1_mem_misaligned_w) || issue1_xpage_misalign_w;
   // MMIO(非 PMEM)load 保守独占: 设备读有副作用, 多在飞会乱设备序。
   wire issue0_mem_mmio_w =
       !((issue0_mem_addr_w & `NPC_AXI_PMEM_MASK) == `NPC_AXI_PMEM_BASE);

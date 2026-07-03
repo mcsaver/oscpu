@@ -110,10 +110,17 @@ load/store/AMO（SQ + probe/drain + MIQ）已全部迁回域 A。
    （`decode/DecodeUnit.v:779-783`；原 `REDIR_REASON_FENCEI` 宏已随 OooRedirectArbiter 删档移除，fence.i 仍无任何重取触发/消费者），无任何保底清除——
    即使软件规范执行 fence.i 也无法恢复一致性。次级：分页开启时 probe 拍失效用 VA、drain 拍用 PA，
    与 VIVT cache 索引错配。（BTC 有 fence 全清保底，但 BTC 本身恒空,无实际影响。）
-2. **Sv39 下跨 4KB 页的 misaligned load/store 静默错误翻译**。数据桥只翻译起始 VA 一次，
-   第二页字节按"起始 PA 物理连续"读写（`memory/OooMemAxiBridge.v:238-252,455-476`），
-   plain 访存 misaligned 又不 trap——分页 OS 下会静默读错/写坏相邻物理页，且 drain nokill 写必达。
-   （对照：取指桥有完整双页处理，数据桥无对应物。M-mode 恒等映射下无害,现有测试因此不暴露。）
+2. ~~**Sv39 下跨 4KB 页的 misaligned load/store 静默错误翻译**~~ **→ 已修复（2026-07-03，最小精确异常）**。
+   曾经：数据桥只翻译起始 VA 一次、第二页字节按起始 PA 物理连续读写（`OooMemAxiBridge.v:455-476/490`），
+   plain 访存 misaligned 又不 trap（`OooIntBackend.v:1094` 原门只放 AMO）→ 分页 OS 下静默读错/写坏相邻物理页。
+   **修复**：`OooIntBackend.v:1094` 拓宽发射拍异常门——对"分页开(`mem_translate_active_i`) + plain LS +
+   misaligned + 跨 4KB 页(EA[11:0]+size>0x1000)"抛精确 LOAD/STORE_ADDR_MISALIGN(cause 4/6, tval=EA),
+   交软件 trap-and-emulate；cause/tval/请求关断/ROB-commit 上报整链复用 AMO misaligned 机制零改。misaligned
+   在发射拍**预占翻译**(不发桥请求),故页内 misaligned 仍由 byte-window 硬件正常支持不 trap、对齐/M 态/satp=Bare
+   全不受影响。**验证零退化**(riscv 355/0、模块 TB 96/96、difftest 38/3)+ **新增定向自检 cpu-test
+   `am-kernels/.../sv39-xpage-misalign.c`**(分页开跨页 misaligned store → GOOD TRAP,证 cause 6/tval=EA)。
+   注：现有套件全 -p 物理/分页用例全对齐,对此零覆盖,故定向 TB 是本修的必需守护(独立跑,不挂 difftest——NEMU
+   对同一跨页 misaligned 是静默字节仿真不 trap,属参考模型有意分歧)。"完整硬件双页支持"(镜像取指桥双 walk)可作后续独立项。
 3. ~~**difftest MMIO skip 对 RVC 压缩访存指令 ref.pc 毒化**。~~ **→ 已修复（2026-07-03）**：
    `csrc/cpu/difftest.cpp:182` 的 skip 分支已从写死 `pc+4` 改为用已传入的 `next_pc`（对压缩访存=pc+2、
    非压缩=pc+4，访存非控制流恒不误预测故 next_pc 即真实后继）。验证：difftest 计算子集 38/3 与改前
