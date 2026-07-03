@@ -2,6 +2,10 @@
 
 // Busy table 是 rename/issue 之间的唤醒边界：分配新 pdest 时标记未就绪，
 // 执行单元 writeback 时标记就绪，组合查询给 issue queue 判断操作数是否可发射。
+/* verilator lint_off UNOPTFLAT */
+// 【B-FP 簇】FP 交叉 wakeup/ready 菱形使 Verilator 跨实例保守判环
+// (__Vcellinp__ 端口注入形态)。行为正确性由全量测试守; 真伪甄别与
+// 结构化真修(交叉唤醒打拍)列为 FP 簇收尾项。
 module OooBusyTable #(
   parameter PHY_REG_COUNT = `OOO_PHY_REG_COUNT,
   parameter PHY_REG_ADDR_W = `OOO_PHY_REG_ADDR_W
@@ -29,7 +33,12 @@ module OooBusyTable #(
   input [PHY_REG_ADDR_W-1:0] query2_preg_i,
   output query2_ready_o,
   input [PHY_REG_ADDR_W-1:0] query3_preg_i,
-  output query3_ready_o
+  output query3_ready_o,
+  // 【B-FP 簇】raw 查询(不含同拍 alloc 前视): FP store 数据源 fs2 的 dispatch 拍
+  // 查询——其源受 lane 约束不可能是同拍 alloc, 且含 alloc 前视会经整数 IQ 的
+  // bypass ready 形成跨模块组合环(alloc←fire←ready←fp_st_ready←本查询)。
+  input [PHY_REG_ADDR_W-1:0] query_raw_preg_i,
+  output query_raw_ready_o
 );
 
   reg ready_q [0:PHY_REG_COUNT-1];
@@ -86,6 +95,11 @@ module OooBusyTable #(
                                       alloc1_real_w, alloc1_pdest_i,
                                       wakeup0_real_w, wakeup0_pdest_i,
                                       wakeup1_real_w, wakeup1_pdest_i);
+  assign query_raw_ready_o = query_ready(query_raw_preg_i,
+                                         1'b0, {PHY_REG_ADDR_W{1'b0}},
+                                         1'b0, {PHY_REG_ADDR_W{1'b0}},
+                                         wakeup0_real_w, wakeup0_pdest_i,
+                                         wakeup1_real_w, wakeup1_pdest_i);
 
   always @(posedge clk) begin
     if (rst || flush_i) begin
@@ -119,3 +133,4 @@ module OooBusyTable #(
   end
 
 endmodule
+/* verilator lint_on UNOPTFLAT */

@@ -75,9 +75,6 @@ module tb_ooo_pending_dispatch_arbiter;
   wire pending_jump_capture_head0;
   wire pending_jump_capture_lane1;
   wire pending_jump_clear;
-  wire pending_fp_capture_head0;
-  wire pending_fp_capture_lane1;
-  wire pending_fp_clear;
   wire pending_mem_capture_lane1;
   wire pending_mem_clear;
   wire pending_trap_exit_clear_exit;
@@ -141,9 +138,6 @@ module tb_ooo_pending_dispatch_arbiter;
     .pending_jump_capture_head0_o(pending_jump_capture_head0),
     .pending_jump_capture_lane1_o(pending_jump_capture_lane1),
     .pending_jump_clear_o(pending_jump_clear),
-    .pending_fp_capture_head0_o(pending_fp_capture_head0),
-    .pending_fp_capture_lane1_o(pending_fp_capture_lane1),
-    .pending_fp_clear_o(pending_fp_clear),
     .pending_mem_capture_lane1_o(pending_mem_capture_lane1),
     .pending_mem_clear_o(pending_mem_clear),
     .pending_trap_exit_clear_exit_o(pending_trap_exit_clear_exit),
@@ -354,8 +348,6 @@ module tb_ooo_pending_dispatch_arbiter;
               pending_branch_capture_lane1, 1'b0);
     tb_check1("lane1 empty barrier does not open jump capture",
               pending_jump_capture_lane1, 1'b0);
-    tb_check1("lane1 empty barrier does not open fp capture",
-              pending_fp_capture_lane1, 1'b0);
     tb_check1("lane1 empty barrier does not open mem capture",
               pending_mem_capture_lane1, 1'b0);
     tb_check1("lane1 empty barrier capture exit invalid",
@@ -371,8 +363,6 @@ module tb_ooo_pending_dispatch_arbiter;
               pending_branch_capture_lane1, 1'b1);
     tb_check1("lane1 branch keeps jump capture closed",
               pending_jump_capture_lane1, 1'b0);
-    tb_check1("lane1 branch keeps fp capture closed",
-              pending_fp_capture_lane1, 1'b0);
     tb_check1("lane1 branch keeps mem capture closed",
               pending_mem_capture_lane1, 1'b0);
 
@@ -384,8 +374,6 @@ module tb_ooo_pending_dispatch_arbiter;
               pending_jump_capture_lane1, 1'b1);
     tb_check1("lane1 jump keeps branch capture closed",
               pending_branch_capture_lane1, 1'b0);
-    tb_check1("lane1 jump keeps fp capture closed",
-              pending_fp_capture_lane1, 1'b0);
     tb_check1("lane1 jump keeps mem capture closed",
               pending_mem_capture_lane1, 1'b0);
 
@@ -393,8 +381,7 @@ module tb_ooo_pending_dispatch_arbiter;
     dispatch1_barrier_fire = 1'b1;
     head1_fp_enabled = 1'b1;
     #1;
-    tb_check1("lane1 fp opens only fp capture",
-              pending_fp_capture_lane1, 1'b1);
+    // 【B-FP 簇】FP 迁域 A: lane1 FP 不再 capture(执行在 FP 簇, 经 ROB 真 commit)
     tb_check1("lane1 fp keeps branch capture closed",
               pending_branch_capture_lane1, 1'b0);
     tb_check1("lane1 fp keeps jump capture closed",
@@ -412,8 +399,6 @@ module tb_ooo_pending_dispatch_arbiter;
               pending_branch_capture_lane1, 1'b0);
     tb_check1("lane1 mem keeps jump capture closed",
               pending_jump_capture_lane1, 1'b0);
-    tb_check1("lane1 mem keeps fp capture closed",
-              pending_fp_capture_lane1, 1'b0);
 
     reset_inputs();
     dispatch1_barrier_fire = 1'b1;
@@ -478,7 +463,6 @@ module tb_ooo_pending_dispatch_arbiter;
     stop_pending = 1'b1;
     drain_complete = 1'b1;
     #1;
-    tb_check1("drain clears fp", pending_fp_clear, 1'b1);
     tb_check1("drain clears system", pending_system_clear, 1'b1);
     tb_check1("drain clears trap arch", pending_trap_exit_clear_arch, 1'b1);
 

@@ -193,7 +193,7 @@ void init_goldfish_rtc() {
   interrupt_pending = false;
 
   goldfish_rtc_base = new_space(GOLDFISH_RTC_SIZE);
-  add_mmio_map("goldfish-rtc", CONFIG_GOLDFISH_RTC_MMIO,
+  add_mmio_map("goldfish-rtc", DEV_GOLDFISH_RTC_MMIO,
       goldfish_rtc_base, GOLDFISH_RTC_SIZE, goldfish_rtc_io_handler);
 }
 
@@ -232,7 +232,7 @@ void goldfish_rtc_qmp_query_rtc(char *out, size_t out_size) {
       "\"alarm-running\":%s,\"irq-enabled\":%s,"
       "\"interrupt-pending\":%s,\"interrupt-line\":%s,"
       "\"time-latch\":\"low-then-high\"}}]}",
-      CONFIG_GOLDFISH_RTC_MMIO, GOLDFISH_RTC_IRQ,
+      DEV_GOLDFISH_RTC_MMIO, GOLDFISH_RTC_IRQ,
       (unsigned long long)MUXDEF(CONFIG_ISA_riscv, isa_riscv_clint_timebase_hz(), 0ull),
       (unsigned long long)now_ns, (unsigned long long)alarm_ns,
       rtc_json_bool(alarm_running), rtc_json_bool(alarm_running),

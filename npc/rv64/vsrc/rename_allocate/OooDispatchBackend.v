@@ -3,6 +3,8 @@
 // 先把 OoO dispatch/rename 后端边界串成一个可验证闭环：
 // rename/free-list/ROB/busy-table/issue-queue 在这里按 2-wide 程序序协同，
 // 后续执行单元只需要消费 issue 端口并通过 writeback 端口唤醒与完成 ROB。
+/* verilator lint_off UNOPTFLAT */
+// F2 predict_taken→lane1 fire→IQ/alloc ready 的跨实例保守判环族。
 module OooDispatchBackend #(
   parameter PHY_REG_ADDR_W = `OOO_PHY_REG_ADDR_W,
   parameter ROB_INDEX_W = `OOO_ROB_INDEX_W,
@@ -18,6 +20,10 @@ module OooDispatchBackend #(
   input [ROB_INDEX_W-1:0] kill_rob_idx_i,   // B2 ROB-walk：mispredict 分支 rob_idx（kill 边界）；mode 关时无效
   input branch_mispredict_valid_i,          // B2 ROB-walk kill 触发：后端显式 branch/JALR mispredict（取代 checkpoint_restore）
   input issue_mem_block_i,
+  // 【LSQ·SQ 切换】SQ 空闲槽(由 SQ count_q 时序生成, 无跨层组合环): store dispatch
+  // 需要 SQ slot, 满则反压。
+  input sq_alloc0_ready_i,
+  input sq_alloc1_ready_i,
   input pending_load0_valid_i,
   input [PHY_REG_ADDR_W-1:0] pending_load0_pdest_i,
   input pending_load1_valid_i,
@@ -33,7 +39,21 @@ module OooDispatchBackend #(
   input [`REG_ADDR_W-1:0] dispatch0_rs1_arch_i,
   input [`REG_ADDR_W-1:0] dispatch0_rs2_arch_i,
   input [`REG_ADDR_W-1:0] dispatch0_rd_arch_i,
+  // 【B-FP Phase0 地基】FPR 目的标记透传(接 0=行为中性)
+  input dispatch0_is_fp_rd_i,
+  // 【B-FP 簇】FP uop 协作: is_fp=不进整数 IQ; fp_pdest/old=FP rename 侧的
+  // 目的(is_fp_rd 时替换 ROB old/new 与 IQ pdest); fp_st_src=FP store 数据源
+  // (进 IQ fp_src2, 监听 FP wakeup)。
+  input dispatch0_is_fp_i,
+  input [PHY_REG_ADDR_W-1:0] dispatch0_fp_pdest_i,
+  input [PHY_REG_ADDR_W-1:0] dispatch0_fp_old_pdest_i,
+  input dispatch0_fp_st_src_en_i,
+  input [PHY_REG_ADDR_W-1:0] dispatch0_fp_st_src_preg_i,
+  input dispatch0_fp_st_src_ready_i,
   input [`XLEN-1:0] dispatch0_imm_i,
+  // 【F2】BPU 查询快照随行(thread 进 IQ, issue 侧导出供 resolve 回训)
+  input [`BPU_BHT_INDEX_W-1:0] dispatch0_bht_idx_i,
+  input dispatch0_pred_taken_i,
 
   input dispatch1_valid_i,
   input dispatch1_optional_i,
@@ -46,7 +66,16 @@ module OooDispatchBackend #(
   input [`REG_ADDR_W-1:0] dispatch1_rs1_arch_i,
   input [`REG_ADDR_W-1:0] dispatch1_rs2_arch_i,
   input [`REG_ADDR_W-1:0] dispatch1_rd_arch_i,
+  input dispatch1_is_fp_rd_i,
+  input dispatch1_is_fp_i,
+  input [PHY_REG_ADDR_W-1:0] dispatch1_fp_pdest_i,
+  input [PHY_REG_ADDR_W-1:0] dispatch1_fp_old_pdest_i,
+  input dispatch1_fp_st_src_en_i,
+  input [PHY_REG_ADDR_W-1:0] dispatch1_fp_st_src_preg_i,
+  input dispatch1_fp_st_src_ready_i,
   input [`XLEN-1:0] dispatch1_imm_i,
+  input [`BPU_BHT_INDEX_W-1:0] dispatch1_bht_idx_i,
+  input dispatch1_pred_taken_i,
 
   input wb0_valid_i,
   input [ROB_INDEX_W-1:0] wb0_rob_idx_i,
@@ -55,6 +84,7 @@ module OooDispatchBackend #(
   input wb0_exception_i,
   input [`TRAP_CAUSE_W-1:0] wb0_cause_i,
   input [`XLEN-1:0] wb0_tval_i,
+  input [4:0] wb0_fflags_i,
 
   input wb1_valid_i,
   input [ROB_INDEX_W-1:0] wb1_rob_idx_i,
@@ -63,6 +93,21 @@ module OooDispatchBackend #(
   input wb1_exception_i,
   input [`TRAP_CAUSE_W-1:0] wb1_cause_i,
   input [`XLEN-1:0] wb1_tval_i,
+  input [4:0] wb1_fflags_i,
+
+  // 【B-FP 簇】FP wakeup(整数 IQ 的 fp_src2 监听) + FP walk 分流输出
+  input fp_wake0_valid_i,
+  input [PHY_REG_ADDR_W-1:0] fp_wake0_preg_i,
+  input fp_wake1_valid_i,
+  input [PHY_REG_ADDR_W-1:0] fp_wake1_preg_i,
+  output walk0_fp_valid_o,
+  output [`REG_ADDR_W-1:0] walk0_fp_arch_o,
+  output [PHY_REG_ADDR_W-1:0] walk0_fp_old_pdest_o,
+  output [PHY_REG_ADDR_W-1:0] walk0_fp_new_pdest_o,
+  output walk1_fp_valid_o,
+  output [`REG_ADDR_W-1:0] walk1_fp_arch_o,
+  output [PHY_REG_ADDR_W-1:0] walk1_fp_old_pdest_o,
+  output [PHY_REG_ADDR_W-1:0] walk1_fp_new_pdest_o,
 
   output issue0_valid_o,
   input issue0_ready_i,
@@ -75,7 +120,12 @@ module OooDispatchBackend #(
   output [PHY_REG_ADDR_W-1:0] issue0_src1_preg_o,
   output [PHY_REG_ADDR_W-1:0] issue0_src2_preg_o,
   output [PHY_REG_ADDR_W-1:0] issue0_pdest_o,
+  output issue0_fp_pdest_o,
+  output issue0_fp_st_src_en_o,
+  output [PHY_REG_ADDR_W-1:0] issue0_fp_st_src_preg_o,
   output [`XLEN-1:0] issue0_imm_o,
+  output [`BPU_BHT_INDEX_W-1:0] issue0_bht_idx_o,
+  output issue0_pred_taken_o,
 
   output issue1_valid_o,
   input issue1_ready_i,
@@ -88,11 +138,17 @@ module OooDispatchBackend #(
   output [PHY_REG_ADDR_W-1:0] issue1_src1_preg_o,
   output [PHY_REG_ADDR_W-1:0] issue1_src2_preg_o,
   output [PHY_REG_ADDR_W-1:0] issue1_pdest_o,
+  output issue1_fp_pdest_o,
+  output issue1_fp_st_src_en_o,
+  output [PHY_REG_ADDR_W-1:0] issue1_fp_st_src_preg_o,
   output [`XLEN-1:0] issue1_imm_o,
+  output [`BPU_BHT_INDEX_W-1:0] issue1_bht_idx_o,
+  output issue1_pred_taken_o,
 
   output dispatch0_fire_o,
   output [ROB_INDEX_W-1:0] dispatch0_rob_idx_o,
   output [PHY_REG_ADDR_W-1:0] dispatch0_pdest_o,
+  output [PHY_REG_ADDR_W-1:0] dispatch1_pdest_o,
   output [PHY_REG_ADDR_W-1:0] dispatch0_src1_preg_o,
   output dispatch0_src1_ready_o,
   output [PHY_REG_ADDR_W-1:0] dispatch0_src2_preg_o,
@@ -111,6 +167,8 @@ module OooDispatchBackend #(
   output [`XLEN-1:0] commit0_next_pc_o,
   output [`INST_W-1:0] commit0_inst_o,
   output commit0_rd_en_o,
+  output commit0_is_fp_rd_o,
+  output [4:0] commit0_fflags_o,
   output [`REG_ADDR_W-1:0] commit0_arch_rd_o,
   output [PHY_REG_ADDR_W-1:0] commit0_old_pdest_o,
   output [PHY_REG_ADDR_W-1:0] commit0_new_pdest_o,
@@ -124,6 +182,8 @@ module OooDispatchBackend #(
   output [`XLEN-1:0] commit1_next_pc_o,
   output [`INST_W-1:0] commit1_inst_o,
   output commit1_rd_en_o,
+  output commit1_is_fp_rd_o,
+  output [4:0] commit1_fflags_o,
   output [`REG_ADDR_W-1:0] commit1_arch_rd_o,
   output [PHY_REG_ADDR_W-1:0] commit1_old_pdest_o,
   output [PHY_REG_ADDR_W-1:0] commit1_new_pdest_o,
@@ -134,6 +194,7 @@ module OooDispatchBackend #(
 
   output [ROB_INDEX_W-1:0] rob_head_idx_o,
   output rob_head_valid_o,
+  output rob_recover_active_o,
   output [FREE_COUNT_W-1:0] free_count_o,
   output [ROB_COUNT_W-1:0] rob_count_o,
   output [ISSUE_COUNT_W-1:0] issue_count_o,
@@ -150,6 +211,13 @@ module OooDispatchBackend #(
   output load_branch_fast_wait_load1_o
 );
 
+  // 【B-FP 簇】FP 算术(非 mem)不进整数 IQ(在 FP IQ); FP mem 正常进(mem 通道)。
+  wire dispatch0_fp_arith_w = dispatch0_is_fp_i &&
+                              !dispatch0_ctrl_i[`CTRL_LOAD_BIT] &&
+                              !dispatch0_ctrl_i[`CTRL_STORE_BIT];
+  wire dispatch1_fp_arith_w = dispatch1_is_fp_i &&
+                              !dispatch1_ctrl_i[`CTRL_LOAD_BIT] &&
+                              !dispatch1_ctrl_i[`CTRL_STORE_BIT];
   wire dispatch0_uses_rs1_w = dispatch0_ctrl_i[`CTRL_RS1_EN_BIT];
   wire dispatch0_uses_rs2_w = dispatch0_ctrl_i[`CTRL_RS2_EN_BIT];
   wire dispatch0_writes_rd_w = dispatch0_ctrl_i[`CTRL_RD_EN_BIT] &&
@@ -206,6 +274,19 @@ module OooDispatchBackend #(
   wire dispatch0_fire_w = dispatch0_valid_i && dispatch0_ready_o;
   wire dispatch0_alloc_w = dispatch0_fire_w && dispatch0_writes_rd_w;
 
+  // 【LSQ·SQ 切换】store 的 SQ slot 判定: slot0 给 d0(或 d0 非 store 时给 d1);
+  // d0/d1 双 store 时 d1 需第二 slot(alloc1_ready)。
+  wire dispatch0_is_store_w = ((dispatch0_inst_i[6:0] == 7'b0100011) ||
+       ((dispatch0_inst_i[6:0] == 7'b0100111) &&
+        ((dispatch0_inst_i[14:12] == 3'b010) || (dispatch0_inst_i[14:12] == 3'b011))));
+  wire dispatch1_is_store_w = ((dispatch1_inst_i[6:0] == 7'b0100011) ||
+       ((dispatch1_inst_i[6:0] == 7'b0100111) &&
+        ((dispatch1_inst_i[14:12] == 3'b010) || (dispatch1_inst_i[14:12] == 3'b011))));
+  wire sq_ok0_w = !dispatch0_is_store_w || sq_alloc0_ready_i;
+  wire sq_ok1_w = !dispatch1_is_store_w ||
+                  (dispatch0_is_store_w ? sq_alloc1_ready_i :
+                                          sq_alloc0_ready_i);
+
   wire free_ok1_pair_w =
       !dispatch1_writes_rd_w ||
       (free_count_w >= (dispatch0_writes_rd_w ?
@@ -214,7 +295,8 @@ module OooDispatchBackend #(
   wire dispatch1_pair_ready_w =
       !dispatch1_valid_i ||
       dispatch1_optional_i ||
-      (rob_pair_ready_w && iq_pair_ready_w && free_ok1_pair_w);
+      (rob_pair_ready_w && (iq_pair_ready_w || dispatch1_fp_arith_w) &&
+       free_ok1_pair_w && sq_ok1_w);
 
   wire free_ok1_w = !dispatch1_writes_rd_w ||
                     (free_count_w >= (dispatch0_alloc_w ?
@@ -227,12 +309,15 @@ module OooDispatchBackend #(
   // 多条指令共用同一 ROB 槽 → wakeup 错配/僵尸项。故用「已寄存」的 recover/kill 同步冻结本层 dispatch
   // （均为寄存信号，不引入跨层组合环）。
   wire dispatch_freeze_w = rob_recover_active_w || kill_valid_q;
-  assign dispatch0_ready_o = rob_slot0_ready_w && iq_slot0_ready_w &&
-                             free_ok0_w && dispatch1_pair_ready_w &&
+  assign dispatch0_ready_o = rob_slot0_ready_w &&
+                             (iq_slot0_ready_w || dispatch0_fp_arith_w) &&
+                             free_ok0_w && sq_ok0_w &&
+                             dispatch1_pair_ready_w &&
                              !dispatch_freeze_w;
 
   assign dispatch1_ready_o = dispatch0_fire_w && rob_pair_ready_w &&
-                             iq_pair_ready_w && free_ok1_w;
+                             (iq_pair_ready_w || dispatch1_fp_arith_w) &&
+                             free_ok1_w && sq_ok1_w;
 
   wire dispatch1_fire_w = dispatch1_valid_i && dispatch1_ready_o;
   wire dispatch1_alloc_w = dispatch1_fire_w && dispatch1_writes_rd_w;
@@ -360,8 +445,11 @@ module OooDispatchBackend #(
     .query2_preg_i(dispatch1_src1_preg_w),
     .query2_ready_o(dispatch1_src1_ready_w),
     .query3_preg_i(dispatch1_src2_preg_w),
-    .query3_ready_o(dispatch1_src2_ready_w)
+    .query3_ready_o(dispatch1_src2_ready_w),
+    .query_raw_preg_i({PHY_REG_ADDR_W{1'b0}}),
+    .query_raw_ready_o(busy_raw_unused_w)
   );
+  wire busy_raw_unused_w;
 
   // B2 ROB-walk 恢复数据通路（Step A：结构接通、行为中性——kill 源暂 0 → recover 永不触发 → 各 mux 选常规路径）。
   wire rob_recover_active_w;
@@ -399,6 +487,19 @@ module OooDispatchBackend #(
   // walk→rename restore：恢复 map[arch]=old_pdest（仅 squashed 且 rd_en）。
   wire rename_restore0_en_w = rob_walk0_valid_w && rob_walk0_rd_en_w;
   wire rename_restore1_en_w = rob_walk1_valid_w && rob_walk1_rd_en_w;
+  // FP walk 分流(FPR 目的 rd_en=0 → 整数 restore/free 天然跳过; is_fp_rd 单独出)
+  wire rob_walk0_is_fp_w;
+  wire rob_walk1_is_fp_w;
+  assign walk0_fp_valid_o = rob_recover_active_w && rob_walk0_valid_w &&
+                            rob_walk0_is_fp_w;
+  assign walk0_fp_arch_o = rob_walk0_arch_rd_w;
+  assign walk0_fp_old_pdest_o = rob_walk0_old_pdest_w;
+  assign walk0_fp_new_pdest_o = rob_walk0_new_pdest_w;
+  assign walk1_fp_valid_o = rob_recover_active_w && rob_walk1_valid_w &&
+                            rob_walk1_is_fp_w;
+  assign walk1_fp_arch_o = rob_walk1_arch_rd_w;
+  assign walk1_fp_old_pdest_o = rob_walk1_old_pdest_w;
+  assign walk1_fp_new_pdest_o = rob_walk1_new_pdest_w;
 
   OooRob #(
     .ROB_ENTRIES(ROB_ENTRY_COUNT),
@@ -418,9 +519,13 @@ module OooDispatchBackend #(
     .dispatch0_next_pc_i(dispatch0_next_pc_i),
     .dispatch0_inst_i(dispatch0_inst_i),
     .dispatch0_rd_en_i(dispatch0_writes_rd_w),
+    .dispatch0_is_fp_rd_i(dispatch0_is_fp_rd_i),
     .dispatch0_arch_rd_i(dispatch0_rd_arch_i),
-    .dispatch0_old_pdest_i(dispatch0_writes_rd_w ? rename0_old_pdest_w : {PHY_REG_ADDR_W{1'b0}}),
-    .dispatch0_new_pdest_i(dispatch0_new_pdest_w),
+    .dispatch0_old_pdest_i(dispatch0_is_fp_rd_i ? dispatch0_fp_old_pdest_i :
+                           dispatch0_writes_rd_w ? rename0_old_pdest_w :
+                           {PHY_REG_ADDR_W{1'b0}}),
+    .dispatch0_new_pdest_i(dispatch0_is_fp_rd_i ? dispatch0_fp_pdest_i
+                                                  : dispatch0_new_pdest_w),
     .dispatch1_valid_i(dispatch1_fire_w),
     .dispatch1_ready_o(rob_dispatch1_ready_w),
     .dispatch1_rob_idx_o(rob_dispatch1_idx_w),
@@ -428,21 +533,27 @@ module OooDispatchBackend #(
     .dispatch1_next_pc_i(dispatch1_next_pc_i),
     .dispatch1_inst_i(dispatch1_inst_i),
     .dispatch1_rd_en_i(dispatch1_writes_rd_w),
+    .dispatch1_is_fp_rd_i(dispatch1_is_fp_rd_i),
     .dispatch1_arch_rd_i(dispatch1_rd_arch_i),
-    .dispatch1_old_pdest_i(dispatch1_writes_rd_w ? rename1_old_pdest_w : {PHY_REG_ADDR_W{1'b0}}),
-    .dispatch1_new_pdest_i(dispatch1_new_pdest_w),
+    .dispatch1_old_pdest_i(dispatch1_is_fp_rd_i ? dispatch1_fp_old_pdest_i :
+                           dispatch1_writes_rd_w ? rename1_old_pdest_w :
+                           {PHY_REG_ADDR_W{1'b0}}),
+    .dispatch1_new_pdest_i(dispatch1_is_fp_rd_i ? dispatch1_fp_pdest_i
+                                                  : dispatch1_new_pdest_w),
     .wb0_valid_i(wb0_valid_i),
     .wb0_rob_idx_i(wb0_rob_idx_i),
     .wb0_data_i(wb0_data_i),
     .wb0_exception_i(wb0_exception_i),
     .wb0_cause_i(wb0_cause_i),
     .wb0_tval_i(wb0_tval_i),
+    .wb0_fflags_i(wb0_fflags_i),
     .wb1_valid_i(wb1_valid_i),
     .wb1_rob_idx_i(wb1_rob_idx_i),
     .wb1_data_i(wb1_data_i),
     .wb1_exception_i(wb1_exception_i),
     .wb1_cause_i(wb1_cause_i),
     .wb1_tval_i(wb1_tval_i),
+    .wb1_fflags_i(wb1_fflags_i),
     .commit_ready_i(commit_ready_i),
     .commit1_block_i(commit1_block_i),
     .commit0_valid_o(commit0_valid_o),
@@ -450,6 +561,8 @@ module OooDispatchBackend #(
     .commit0_next_pc_o(commit0_next_pc_o),
     .commit0_inst_o(commit0_inst_o),
     .commit0_rd_en_o(commit0_rd_en_o),
+    .commit0_is_fp_rd_o(commit0_is_fp_rd_o),
+    .commit0_fflags_o(commit0_fflags_o),
     .commit0_arch_rd_o(commit0_arch_rd_o),
     .commit0_old_pdest_o(commit0_old_pdest_o),
     .commit0_new_pdest_o(commit0_new_pdest_o),
@@ -462,6 +575,8 @@ module OooDispatchBackend #(
     .commit1_next_pc_o(commit1_next_pc_o),
     .commit1_inst_o(commit1_inst_o),
     .commit1_rd_en_o(commit1_rd_en_o),
+    .commit1_is_fp_rd_o(commit1_is_fp_rd_o),
+    .commit1_fflags_o(commit1_fflags_o),
     .commit1_arch_rd_o(commit1_arch_rd_o),
     .commit1_old_pdest_o(commit1_old_pdest_o),
     .commit1_new_pdest_o(commit1_new_pdest_o),
@@ -486,11 +601,14 @@ module OooDispatchBackend #(
     .walk1_arch_rd_o(rob_walk1_arch_rd_w),
     .walk1_old_pdest_o(rob_walk1_old_pdest_w),
     .walk1_new_pdest_o(rob_walk1_new_pdest_w),
-    .walk1_rd_en_o(rob_walk1_rd_en_w)
+    .walk1_rd_en_o(rob_walk1_rd_en_w),
+    .walk0_is_fp_o(rob_walk0_is_fp_w),
+    .walk1_is_fp_o(rob_walk1_is_fp_w)
   );
 
   assign rob_head_idx_o = rob_head_idx_w;
   assign rob_head_valid_o = rob_head_valid_w;
+  assign rob_recover_active_o = rob_recover_active_w;
 
   OooIntIssueQueue #(
     .ENTRY_COUNT(ISSUE_ENTRY_COUNT),
@@ -505,7 +623,7 @@ module OooDispatchBackend #(
     .checkpoint_capture_i(cp_capture_gated_w),
     .checkpoint_restore_i(cp_restore_gated_w),
     .issue_mem_block_i(issue_mem_block_i),
-    .dispatch0_valid_i(dispatch0_fire_w),
+    .dispatch0_valid_i(dispatch0_fire_w && !dispatch0_fp_arith_w),
     .dispatch0_ready_o(iq_dispatch0_ready_w),
     .dispatch0_pc_i(dispatch0_pc_i),
     .dispatch0_next_pc_i(dispatch0_next_pc_i),
@@ -517,9 +635,16 @@ module OooDispatchBackend #(
     .dispatch0_src1_ready_i(!dispatch0_uses_rs1_w || dispatch0_src1_ready_w),
     .dispatch0_src2_preg_i(dispatch0_src2_preg_w),
     .dispatch0_src2_ready_i(!dispatch0_uses_rs2_w || dispatch0_src2_ready_w),
-    .dispatch0_pdest_i(dispatch0_new_pdest_w),
+    .dispatch0_pdest_i(dispatch0_is_fp_rd_i ? dispatch0_fp_pdest_i
+                                              : dispatch0_new_pdest_w),
+    .dispatch0_fp_pdest_i(dispatch0_is_fp_rd_i),
+    .dispatch0_fp_st_src_en_i(dispatch0_fp_st_src_en_i),
+    .dispatch0_fp_st_src_preg_i(dispatch0_fp_st_src_preg_i),
+    .dispatch0_fp_st_src_ready_i(dispatch0_fp_st_src_ready_i),
     .dispatch0_imm_i(dispatch0_imm_i),
-    .dispatch1_valid_i(dispatch1_fire_w),
+    .dispatch0_bht_idx_i(dispatch0_bht_idx_i),
+    .dispatch0_pred_taken_i(dispatch0_pred_taken_i),
+    .dispatch1_valid_i(dispatch1_fire_w && !dispatch1_fp_arith_w),
     .dispatch1_optional_i(dispatch1_optional_i),
     .dispatch1_ready_o(iq_dispatch1_ready_w),
     .dispatch1_pc_i(dispatch1_pc_i),
@@ -532,12 +657,23 @@ module OooDispatchBackend #(
     .dispatch1_src1_ready_i(!dispatch1_uses_rs1_w || dispatch1_src1_ready_w),
     .dispatch1_src2_preg_i(dispatch1_src2_preg_w),
     .dispatch1_src2_ready_i(!dispatch1_uses_rs2_w || dispatch1_src2_ready_w),
-    .dispatch1_pdest_i(dispatch1_new_pdest_w),
+    .dispatch1_pdest_i(dispatch1_is_fp_rd_i ? dispatch1_fp_pdest_i
+                                              : dispatch1_new_pdest_w),
+    .dispatch1_fp_pdest_i(dispatch1_is_fp_rd_i),
+    .dispatch1_fp_st_src_en_i(dispatch1_fp_st_src_en_i),
+    .dispatch1_fp_st_src_preg_i(dispatch1_fp_st_src_preg_i),
+    .dispatch1_fp_st_src_ready_i(dispatch1_fp_st_src_ready_i),
     .dispatch1_imm_i(dispatch1_imm_i),
+    .dispatch1_bht_idx_i(dispatch1_bht_idx_i),
+    .dispatch1_pred_taken_i(dispatch1_pred_taken_i),
     .wakeup0_valid_i(wb0_valid_i),
     .wakeup0_pdest_i(wb0_pdest_i),
     .wakeup1_valid_i(wb1_valid_i),
     .wakeup1_pdest_i(wb1_pdest_i),
+    .fp_wake0_valid_i(fp_wake0_valid_i),
+    .fp_wake0_preg_i(fp_wake0_preg_i),
+    .fp_wake1_valid_i(fp_wake1_valid_i),
+    .fp_wake1_preg_i(fp_wake1_preg_i),
     .pending_load0_valid_i(pending_load0_valid_i),
     .pending_load0_pdest_i(pending_load0_pdest_i),
     .pending_load1_valid_i(pending_load1_valid_i),
@@ -553,7 +689,12 @@ module OooDispatchBackend #(
     .issue0_src1_preg_o(issue0_src1_preg_o),
     .issue0_src2_preg_o(issue0_src2_preg_o),
     .issue0_pdest_o(issue0_pdest_o),
+    .issue0_fp_pdest_o(issue0_fp_pdest_o),
+    .issue0_fp_st_src_en_o(issue0_fp_st_src_en_o),
+    .issue0_fp_st_src_preg_o(issue0_fp_st_src_preg_o),
     .issue0_imm_o(issue0_imm_o),
+    .issue0_bht_idx_o(issue0_bht_idx_o),
+    .issue0_pred_taken_o(issue0_pred_taken_o),
     .issue1_valid_o(issue1_valid_o),
     .issue1_ready_i(issue1_ready_i),
     .issue1_pc_o(issue1_pc_o),
@@ -565,7 +706,12 @@ module OooDispatchBackend #(
     .issue1_src1_preg_o(issue1_src1_preg_o),
     .issue1_src2_preg_o(issue1_src2_preg_o),
     .issue1_pdest_o(issue1_pdest_o),
+    .issue1_fp_pdest_o(issue1_fp_pdest_o),
+    .issue1_fp_st_src_en_o(issue1_fp_st_src_en_o),
+    .issue1_fp_st_src_preg_o(issue1_fp_st_src_preg_o),
     .issue1_imm_o(issue1_imm_o),
+    .issue1_bht_idx_o(issue1_bht_idx_o),
+    .issue1_pred_taken_o(issue1_pred_taken_o),
     .count_o(iq_count_w),
     .empty_o(iq_empty_w),
     .full_o(iq_full_w),
@@ -593,6 +739,7 @@ module OooDispatchBackend #(
   assign dispatch0_fire_o = dispatch0_fire_w;
   assign dispatch0_rob_idx_o = rob_dispatch0_idx_w;
   assign dispatch0_pdest_o = dispatch0_new_pdest_w;
+  assign dispatch1_pdest_o = dispatch1_new_pdest_w;
   assign dispatch0_src1_preg_o = dispatch0_src1_preg_w;
   assign dispatch0_src1_ready_o = !dispatch0_uses_rs1_w || dispatch0_src1_ready_w;
   assign dispatch0_src2_preg_o = dispatch0_src2_preg_w;
@@ -623,4 +770,6 @@ module OooDispatchBackend #(
   end
 `endif
 
+
 endmodule
+/* verilator lint_on UNOPTFLAT */

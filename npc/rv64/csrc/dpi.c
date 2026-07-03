@@ -340,13 +340,18 @@ void npc_irq_event(uint32_t uart_irq, uint32_t plic_irq) {
   g_irq_trace_count++;
 }
 
+void npc_mmio_load_event(void) {
+  // 【F2 difftest 基建】旧"总线 rsp 拍置全局 skip 旗"机制退役: 与 commit 粗配对在
+  // SQ(store 总线访问晚于 commit)与 MIQ/F2(rsp→commit 距离拉大)时代双双失效并毒
+  // 化 ref。skip 判定已搬进 difftest.cpp 的 commit 拍指令解码(EA 非 pmem 即 skip)。
+}
+
 void npc_uart_event(uint32_t is_write, uint32_t tx_valid, uint32_t tx_data,
                     uint32_t access_addr, uint64_t access_wdata,
                     uint32_t access_wstrb, uint64_t access_rdata) {
   (void)is_write;
   maybe_trace_uart_access(is_write, tx_valid, tx_data, access_addr,
                           access_wdata, access_wstrb, access_rdata);
-  npc_difftest_skip_ref();
   if (tx_valid) {
     maybe_trace_uart_tx(tx_data);
     npc_log_putchar((char)(tx_data & 0xffu));

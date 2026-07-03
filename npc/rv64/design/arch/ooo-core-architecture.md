@@ -424,10 +424,10 @@ correctness 永远对，但 ILP 几乎归零（除直线整数段）。这不是
 
 | owner | 类 | 现状机制 | 裁决 | 目标：被谁取代 | ROADMAP |
 | --- | --- | --- | --- | --- | --- |
-| `OooPendingBranchSequencer` | branch | 单 entry + 全 drain | **ELIMINATE** | 后端分支单元解析 + 多级投机恢复（branch tag + 多 checkpoint/ROB-walk）+ §5.5 统一 redirect | B2 + B6 |
-| `OooPendingJumpSequencer` | jump | 单 entry + 全 drain | **ELIMINATE** | JAL 前端直算（pc+imm）；JALR 后端 AGU 解析 + BTB/RAS 预测 + 同分支的投机恢复 | B2 + B6 |
+| `OooPendingBranchSequencer` | branch | ~~单 entry + 全 drain~~ | **✅ 功能 ELIMINATED（2026-07-03）** | 已由「后端 issue 解析 + 显式 mispredict + ROB-walk 恢复 + **F2 真预测（pred_npc 单源, 预测正确免 redirect）**」取代（`specs/ooo-f2-per-packet-pred-implementation-plan.md`）；pending 壳在 mode=1 为死路（capture 门控恒 0），文件删除待 B4 清理 | B2 ✅（tag/多 checkpoint 未做, ROB-walk 版够用） |
+| `OooPendingJumpSequencer` | jump | ~~单 entry + 全 drain~~ | **✅ 功能 ELIMINATED（2026-07-03）** | JAL 前端直算（pc+imm, F2 后恒免 redirect）；JALR 走 RAS/BTB 投机续取 + 后端解析 mispredict（同分支机制）；pending 壳同上为死路 | B2 ✅ |
 | `OooPendingMemorySequencer` + 单-outstanding 桥 | mem | lane1 barrier + `OooMemAxiBridge` 一次一笔 | **ELIMINATE** | **LSQ**：LQ/SQ + store→load 前递 + 访存歧义消解 + load replay + MSHR 多 outstanding；store 退休落存 | B-LSQ |
-| `OooPendingFpSequencer` + `OooFpPendingExec` | fp | 单 entry，mem→long→compute 串行 | **ELIMINATE** | FP 重命名 + FP issue queue + FP 执行簇（复用现成 FADD3/FMUL3/FMA5 流水 + Div/Sqrt 迭代器）+ **FP 经 ROB 提交**（消除 §7.1 E2/E3） | 新 B-FP |
+| `OooPendingFpSequencer` + `OooFpPendingExec` | fp | ~~单 entry，mem→long→compute 串行~~ | **✅ ELIMINATED（2026-07-02）** | 已由 `OooFpBackend`（FP rename + FpIQ + 执行簇 + 经 ROB 真 commit）取代；pending-FP 壳四文件删除、E2/E3 消除、fflags/FS-dirty 走 commit（`specs/ooo-fp-cluster-implementation-plan.md` §8/§9） | 新 B-FP ✅ |
 | `OooPendingSystemSequencer` | system | drain + 执行 | **KEEP** | 改"ROB 队头执行 + 退休刷 younger"标志位（语义不变，去掉全局 `stop_pending` 依赖） | 清理 |
 | `OooPendingTrapExitSequencer` | trap | drain + 执行 | **KEEP / 瘦身** | 精确异常本就由 ROB 队头承接（exception 字段 + commit1 阻塞已在）；瘦掉冗余脚手架 | 清理 |
 | `OooStopPendingSequencer` / `OooPendingDrainResolveGate` / `OooPendingDispatchArbiter` / 各 …Gate | 机制 | 全局门控/屏障/仲裁 | **DELETE（最终）** | 四类拆完后只剩 system/trap 的队头串行，全局 `stop_pending` + drain 机制整体删除 | 全部完成后 |
@@ -454,12 +454,14 @@ Recovery：branch tag + 多级 checkpoint / ROB-walk；单一 redirect arbiter�
 
 **四个使能件（拆 B 的全部前置）**：
 
-1. **多级分支投机 + 统一 redirect**（B2+B6）：branch tag/color、允许 ≥N 条投机分支在飞、后端解析
-   cond+JALR 并产出**显式 mispredict + kill-younger-than**、§5.5 单一 arbiter。→ 拆 `branch` + `jump`。
+1. **多级分支投机 + 统一 redirect**（B2+B6）：**✅ 主体完成（2026-07-03, F2 整体落地）**——
+   多条投机分支在飞、后端解析 cond+JAL+JALR 产出显式 mispredict + kill-younger-than（ROB-walk）、
+   真方向/目标预测（BHT resolve-update + RAS/BTB）、预测正确免 redirect（pred_npc 单源）。
+   branch tag/多 checkpoint 未做（单 ROB-walk 恢复够用, 需求出现再升级）。`branch`+`jump` 功能已拆。
 2. **LSQ**（B-LSQ）：LQ/SQ、store→load 前递、访存歧义消解 + load replay、MSHR 多 outstanding、
    store 退休时落存。→ 拆 `mem`，并解掉单-outstanding 桥这个真正的访存 ILP 封顶。
-3. **FP 执行簇**（新 B-FP）：FP 重命名 + FP IQ + FP 管线（平移现有流水）+ FP 经 ROB 提交。
-   → 拆 `fp`，并消除 §7.1 的 E2/E3 副作用例外。
+3. **FP 执行簇**（新 B-FP）：**✅ 完成（2026-07-02）**——FP 重命名 + FP IQ + FP 管线 + FP 经 ROB 提交
+   已落地（rv64uf/ud 23/23 + 全集 difftest 全绿），`fp` 类清零、E2/E3 已消除。
 4. **serialize-at-retire**（清理）：`system`/`trap` 改 ROB-队头执行 + 退休刷 younger，删 `stop_pending`。
 
 **推荐拆除顺序**（依赖驱动，非随意）：
@@ -468,7 +470,7 @@ Recovery：branch tag + 多级 checkpoint / ROB-walk；单一 redirect arbiter�
    连 LSQ 的投机 load 都无法越过分支。先补 redirect 优先级定向 TB，再改 FSM。
    **规范已立**：`b2-branch-spec-redirect.md`（评审定 **B=ROB-walk** 为基线、C 最老分支快照作 Phase-2 快路径）。
 2. **再 B-LSQ** —— 性能最大杠杆；依赖 #1 才能让 load 投机越过分支；difftest 已就绪护航。
-3. **B-FP 可与 #2 并行** —— FP 是独立簇，不阻塞访存改造。
+3. **B-FP 可与 #2 并行** —— **✅ 已完成**（先于 B-LSQ Phase2+，实证独立簇不阻塞访存改造）。
 4. **最后 serialize-at-retire 清理** —— 与 #1 的 redirect 改造同源，#1 落定后顺手收口，删 `stop_pending`。
 
 > 【宪法 C-PEND-DIR】**域 B 的 branch/jump/mem/fp 四类是过渡脚手架，目标清零**；只允许 system/trap

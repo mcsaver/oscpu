@@ -278,6 +278,9 @@ module OooFetchHeadPairGate (
       dispatch_valid_o && head0_facts_o[`OOO_SLOT_FACT_JAL];
   assign dispatch0_jump_o =
       dispatch_valid_o && head0_facts_o[`OOO_SLOT_FACT_JALR];
-  assign direct_branch0_dispatch_valid_o = dispatch0_branch_o;
+  // domain-A 第一刀: direct 分支 dispatch 资格关闭, 分支 dispatch 由 frontend_dispatch
+  // 普通路覆盖(dispatch mux 的 pc/inst 同为 head0 default 臂, 语义不变)。
+  assign direct_branch0_dispatch_valid_o =
+      dispatch0_branch_o && !(`OOO_DBRANCH_DOMAIN_A);
 
 endmodule

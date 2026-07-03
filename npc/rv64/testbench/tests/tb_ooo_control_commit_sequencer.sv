@@ -30,13 +30,6 @@ module tb_ooo_control_commit_sequencer;
   reg drain_pending_jump;
   reg drain_pending_mem;
 
-  reg drain_pending_fp;
-  reg pending_fp_gpr_write;
-  reg [`XLEN-1:0] pending_fp_pc;
-  reg [`INST_W-1:0] pending_fp_inst;
-  reg [`XLEN-1:0] pending_fp_next_pc;
-  reg [`REG_ADDR_W-1:0] pending_fp_rd;
-  reg [`XLEN-1:0] pending_fp_result_value;
 
   wire ctrl_commit_valid;
   wire [`XLEN-1:0] ctrl_commit_pc;
@@ -75,13 +68,6 @@ module tb_ooo_control_commit_sequencer;
     .pending_branch_next_pc_i(pending_branch_next_pc),
     .drain_pending_jump_i(drain_pending_jump),
     .drain_pending_mem_i(drain_pending_mem),
-    .drain_pending_fp_i(drain_pending_fp),
-    .pending_fp_gpr_write_i(pending_fp_gpr_write),
-    .pending_fp_pc_i(pending_fp_pc),
-    .pending_fp_inst_i(pending_fp_inst),
-    .pending_fp_next_pc_i(pending_fp_next_pc),
-    .pending_fp_rd_i(pending_fp_rd),
-    .pending_fp_result_value_i(pending_fp_result_value),
     .ctrl_commit_valid_o(ctrl_commit_valid),
     .ctrl_commit_pc_o(ctrl_commit_pc),
     .ctrl_commit_inst_o(ctrl_commit_inst),
@@ -155,13 +141,6 @@ module tb_ooo_control_commit_sequencer;
       pending_branch_next_pc = 64'h8000_0400;
       drain_pending_jump = 1'b0;
       drain_pending_mem = 1'b0;
-      drain_pending_fp = 1'b0;
-      pending_fp_gpr_write = 1'b0;
-      pending_fp_pc = 64'h8000_0500;
-      pending_fp_inst = 32'hf200_0053;
-      pending_fp_next_pc = 64'h8000_0504;
-      pending_fp_rd = 5'd3;
-      pending_fp_result_value = 64'h1234_5678_9abc_def0;
     end
   endtask
 
@@ -263,73 +242,14 @@ module tb_ooo_control_commit_sequencer;
     tick();
     expect_idle("misaligned branch does not pseudo commit");
 
-    clear_inputs();
-    drain_complete = 1'b1;
-    drain_pending_arch_trap = 1'b1;
-    drain_pending_fp = 1'b1;
-    pending_fp_gpr_write = 1'b1;
-    tick();
-    expect_idle("arch trap suppresses fp commit");
-
-    clear_inputs();
-    drain_complete = 1'b1;
-    drain_pending_jump = 1'b1;
-    drain_pending_fp = 1'b1;
-    pending_fp_gpr_write = 1'b1;
-    tick();
-    expect_idle("pending jump suppresses fp commit");
-
-    clear_inputs();
-    drain_complete = 1'b1;
-    drain_pending_mem = 1'b1;
-    drain_pending_fp = 1'b1;
-    pending_fp_gpr_write = 1'b1;
-    tick();
-    expect_idle("pending mem suppresses fp commit");
-
-    clear_inputs();
-    drain_complete = 1'b1;
-    drain_pending_fp = 1'b1;
-    pending_fp_gpr_write = 1'b1;
-    pending_fp_pc = 64'h8000_5000;
-    pending_fp_inst = 32'hf200_80d3;
-    pending_fp_next_pc = 64'h8000_5004;
-    pending_fp_rd = 5'd8;
-    pending_fp_result_value = 64'hdead_beef_cafe_babe;
-    tick();
-    tb_check1("fp gpr commit valid", ctrl_commit_valid, 1'b1);
-    tb_check64("fp gpr commit pc", ctrl_commit_pc, 64'h8000_5000);
-    tb_check32("fp gpr commit inst", ctrl_commit_inst, 32'hf200_80d3);
-    tb_check64("fp gpr commit next", ctrl_commit_next_pc, 64'h8000_5004);
-    tb_check1("fp gpr rd_en", ctrl_commit_rd_en, 1'b1);
-    tb_check64("fp gpr rd", {{(`XLEN-`REG_ADDR_W){1'b0}}, ctrl_commit_rd_addr},
-               64'd8);
-    tb_check64("fp gpr data", ctrl_commit_rd_data,
-               64'hdead_beef_cafe_babe);
-    tb_check1("fp gpr write", ctrl_commit_write, 1'b1);
-    tb_check1("fp gpr serial flush", core_serial_flush, 1'b1);
-
-    clear_inputs();
-    drain_complete = 1'b1;
-    drain_pending_fp = 1'b1;
-    pending_fp_gpr_write = 1'b1;
-    pending_fp_rd = 5'd0;
-    pending_fp_result_value = 64'h1111_2222_3333_4444;
-    tick();
-    tb_check1("fp x0 commit valid", ctrl_commit_valid, 1'b1);
-    tb_check1("fp x0 rd_en", ctrl_commit_rd_en, 1'b1);
-    tb_check1("fp x0 write blocked", ctrl_commit_write, 1'b0);
-    tb_check1("fp x0 serial flush", core_serial_flush, 1'b1);
-
+    // 【B-FP 簇】pending-FP 壳已拆: drain_fp_commit 场景组删除
+    // (arch-trap/jump/mem suppress×3 + fp gpr commit + fp x0 + jump 优先)。
     clear_inputs();
     pending_jump_nolink_commit = 1'b1;
     pending_jump_pc = 64'h8000_6000;
     pending_jump_inst = 32'h0000_006f;
     pending_jump_target = 64'h8000_6060;
     drain_complete = 1'b1;
-    drain_pending_fp = 1'b1;
-    pending_fp_gpr_write = 1'b1;
-    pending_fp_pc = 64'h8000_7000;
     tick();
     tb_check1("jump priority valid", ctrl_commit_valid, 1'b1);
     tb_check64("jump priority pc", ctrl_commit_pc, 64'h8000_6000);

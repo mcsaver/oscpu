@@ -35,18 +35,6 @@
   wire tb_csr_svpbmt_en_w;
   wire [`PMP_CFG_BUS_W-1:0] tb_csr_pmpcfg_w;
   wire [`PMP_ADDR_BUS_W-1:0] tb_csr_pmpaddr_w;
-  wire [`REG_ADDR_W-1:0] tb_pending_fp_rs1_idx_w;
-  wire [`REG_ADDR_W-1:0] tb_pending_fp_rs2_idx_w;
-  wire [`REG_ADDR_W-1:0] tb_pending_fp_rs3_idx_w;
-  wire [`XLEN-1:0] tb_pending_fp_frs1_value_w;
-  wire [`XLEN-1:0] tb_pending_fp_frs2_value_w;
-  wire [`XLEN-1:0] tb_pending_fp_frs3_value_w;
-  wire tb_pending_fp_fpr_load_write_valid_w;
-  wire [`REG_ADDR_W-1:0] tb_pending_fp_fpr_load_write_addr_w;
-  wire [`XLEN-1:0] tb_pending_fp_fpr_load_write_data_w;
-  wire tb_pending_fp_fpr_result_write_valid_w;
-  wire [`REG_ADDR_W-1:0] tb_pending_fp_fpr_result_write_addr_w;
-  wire [`XLEN-1:0] tb_pending_fp_fpr_result_write_data_w;
 
   CsrFile u_csr_file (
     .clk(clk),
@@ -65,9 +53,7 @@
     .csr_illegal_o(tb_csr_illegal_w),
     .fp_fflags_valid_i(tb_pending_fp_fflags_commit_w),
     .fp_fflags_i(tb_pending_fp_commit_fflags_w),
-    .fp_dirty_i(tb_pending_fp_fflags_commit_w |
-                tb_pending_fp_fpr_load_write_valid_w |
-                tb_pending_fp_fpr_result_write_valid_w),
+    .fp_dirty_i(tb_pending_fp_fflags_commit_w),
     .trap_mem_valid_i(tb_csr_trap_mem_valid_w),
     .trap_mem_pc_i(tb_csr_trap_mem_pc_w),
     .trap_mem_cause_i(tb_csr_trap_mem_cause_w),
@@ -96,24 +82,6 @@
     .svpbmt_en_o(tb_csr_svpbmt_en_w),
     .pmpcfg_o(tb_csr_pmpcfg_w),
     .pmpaddr_o(tb_csr_pmpaddr_w)
-  );
-
-  OooFpRegFile u_fp_reg_file (
-    .clk(clk),
-    .rst(rst),
-    .flush_i(flush),
-    .read0_addr_i(tb_pending_fp_rs1_idx_w),
-    .read0_data_o(tb_pending_fp_frs1_value_w),
-    .read1_addr_i(tb_pending_fp_rs2_idx_w),
-    .read1_data_o(tb_pending_fp_frs2_value_w),
-    .read2_addr_i(tb_pending_fp_rs3_idx_w),
-    .read2_data_o(tb_pending_fp_frs3_value_w),
-    .load_write_valid_i(tb_pending_fp_fpr_load_write_valid_w),
-    .load_write_addr_i(tb_pending_fp_fpr_load_write_addr_w),
-    .load_write_data_i(tb_pending_fp_fpr_load_write_data_w),
-    .result_write_valid_i(tb_pending_fp_fpr_result_write_valid_w),
-    .result_write_addr_i(tb_pending_fp_fpr_result_write_addr_w),
-    .result_write_data_i(tb_pending_fp_fpr_result_write_data_w)
   );
 
 `define TB_OOO_CORE_TOP_GLUE_CSR_PORTS \
@@ -153,16 +121,4 @@
     .csr_satp_w(tb_csr_satp_w), \
     .csr_svpbmt_en_w(tb_csr_svpbmt_en_w), \
     .csr_pmpcfg_w(tb_csr_pmpcfg_w), \
-    .csr_pmpaddr_w(tb_csr_pmpaddr_w), \
-    .pending_fp_rs1_idx_w(tb_pending_fp_rs1_idx_w), \
-    .pending_fp_rs2_idx_w(tb_pending_fp_rs2_idx_w), \
-    .pending_fp_rs3_idx_w(tb_pending_fp_rs3_idx_w), \
-    .pending_fp_frs1_value_w(tb_pending_fp_frs1_value_w), \
-    .pending_fp_frs2_value_w(tb_pending_fp_frs2_value_w), \
-    .pending_fp_frs3_value_w(tb_pending_fp_frs3_value_w), \
-    .pending_fp_fpr_load_write_valid_w(tb_pending_fp_fpr_load_write_valid_w), \
-    .pending_fp_fpr_load_write_addr_w(tb_pending_fp_fpr_load_write_addr_w), \
-    .pending_fp_fpr_load_write_data_w(tb_pending_fp_fpr_load_write_data_w), \
-    .pending_fp_fpr_result_write_valid_w(tb_pending_fp_fpr_result_write_valid_w), \
-    .pending_fp_fpr_result_write_addr_w(tb_pending_fp_fpr_result_write_addr_w), \
-    .pending_fp_fpr_result_write_data_w(tb_pending_fp_fpr_result_write_data_w),
+    .csr_pmpaddr_w(tb_csr_pmpaddr_w),

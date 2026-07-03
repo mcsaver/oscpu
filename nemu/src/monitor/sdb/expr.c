@@ -28,6 +28,7 @@ NEMU (你的实现)：如果你的 expr() 函数没有实现短路逻辑（即�
  */
 #include <regex.h>
 #include "memory/paddr.h"
+#include "memory/cache.h"  // 调试读走 dcache 一致视图(write-back 下 pmem 直读会 stale)
 
 //定义tokens大小
 #define BUF_SIZ 1024
@@ -438,7 +439,7 @@ static uint32_t eval(int p, int q) {
         return (uint32_t)paddr_read(ad, 4);
       } */
         paddr_t ad = (uint32_t)eval(op + 1, q);
-        return (uint32_t)paddr_read(ad, 4);
+        return (uint32_t)(in_pmem(ad) ? dcache_peek_read(ad, 4) : paddr_read(ad, 4));
     }
 
     if (op_type == TK_D)

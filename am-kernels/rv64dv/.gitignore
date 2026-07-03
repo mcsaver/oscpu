@@ -1,0 +1,8 @@
+# 父 am-kernels/.gitignore 首行 `*` 只白名单 .c/.cc/.S/README/.gitignore；
+# rv64dv 的 runner 入口是 Makefile + shell 脚本，这里显式白名单它们，否则会丢失。
+!Makefile
+!scripts/rv64dv-run.sh
+# riscv-dv 生成器与 python venv 体积大(~278M)、可重建，不入库；out 是每次随机生成物。
+riscv-dv/
+venv/
+out/

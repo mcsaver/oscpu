@@ -11,7 +11,6 @@ module OooFrontendRunGate #(
   input pending_branch_i,
   input pending_jump_i,
   input pending_mem_i,
-  input pending_fp_i,
   input pending_arch_trap_i,
   input pending_system_i,
   input synth_lane1_ret_pending_i,
@@ -42,7 +41,6 @@ module OooFrontendRunGate #(
       pending_branch_i ||
       pending_jump_i ||
       pending_mem_i ||
-      pending_fp_i ||
       pending_arch_trap_i ||
       pending_system_i ||
       synth_lane1_ret_pending_i ||

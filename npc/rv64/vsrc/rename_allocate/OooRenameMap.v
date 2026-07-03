@@ -2,6 +2,8 @@
 
 // OoO 第一阶段先把重命名表做成独立基础件：它只维护 speculative map，
 // 方便后续接 ROB checkpoint/flush 时把精确恢复逻辑放在统一边界上。
+/* verilator lint_off UNOPTFLAT */
+// FP 交叉查询面的保守判环族(见 OooIntBackend 头注), 行为由全量测试守。
 module OooRenameMap #(
   parameter PHY_REG_ADDR_W = `OOO_PHY_REG_ADDR_W
 ) (
@@ -137,3 +139,4 @@ module OooRenameMap #(
   endgenerate
 
 endmodule
+/* verilator lint_on UNOPTFLAT */

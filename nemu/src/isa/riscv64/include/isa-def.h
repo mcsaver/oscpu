@@ -43,6 +43,13 @@
 #define CSR_MTVEC    0x305
 #define CSR_MCOUNTEREN 0x306
 #define CSR_MCOUNTINHIBIT 0x320
+// menvcfg(0x30a): S/U 环境配置。NEMU 未实现 Svpbmt/Svnapot/Sstc/Svadu, 故这些扩展位
+// 语义为 0(相关 PTE 高位一律 fault); 但寄存器本身必须可读写(WARL), 否则 guest 的
+// `csrc menvcfg, t` 会误触 illegal instruction。ACT4 svpbmt_disabled 测试正是靠清 PBMTE 走此路径。
+#define CSR_MENVCFG  0x30a
+#define MENVCFG_WRITABLE_MASK \
+    (((word_t)1 << 0) | ((word_t)3 << 4) | ((word_t)1 << 6) | ((word_t)1 << 7) | \
+     ((word_t)7 << 61))
 #define CSR_PMPCFG0  0x3a0
 #define CSR_PMPCFG1  0x3a1
 #define CSR_PMPCFG2  0x3a2
@@ -94,18 +101,26 @@
 #define MSTATUS_MPP_M      ((word_t)3 << 11)
 #define MSTATUS_FS_MASK    ((word_t)3 << 13)
 #define MSTATUS_FS_DIRTY   ((word_t)3 << 13)
+// VS(vector context status, bits[10:9])。NEMU 未实现 V 扩展, 但 sail-rv64-max(max 含 V)参考模型
+// 启动即把 VS 置 Dirty(3), 且 ACT 特权测试每次 trap 都把 sstatus 打包成签名字与金标准逐位比对;
+// 只要 VS 读回值不一致, 第一条 trap 就失配。这里把 VS 作为可写保持的 WARL 字段暴露, 让 guest 写 VS
+// 后能读回一致值, 与参考模型对齐(WARL 保留写入值即满足这些测试, 不需要真正实现 V)。
+#define MSTATUS_VS_MASK    ((word_t)3 << 9)
+#define MSTATUS_VS_DIRTY   ((word_t)3 << 9)
 #define MSTATUS_MPRV       ((word_t)1 << 17)
 #define MSTATUS_SUM        ((word_t)1 << 18)
 #define MSTATUS_MXR        ((word_t)1 << 19)
+#define MSTATUS_TVM        ((word_t)1 << 20)  // Trap Virtual Memory: S 态且置位时 satp/SFENCE.VMA 非法
 #define MSTATUS_SXL_UXL    MUXDEF(CONFIG_ISA64, ((word_t)0xa << 32), 0)
 #define MSTATUS_SD         MUXDEF(CONFIG_ISA64, ((word_t)1 << 63), ((word_t)1 << 31))
 #define SSTATUS_MASK       (MSTATUS_SIE | MSTATUS_SPIE | MSTATUS_SPP | \
+                            MSTATUS_VS_MASK | \
                             MSTATUS_FS_MASK | MSTATUS_SUM | MSTATUS_MXR | \
                             MSTATUS_SXL_UXL)
 #define MSTATUS_WRITABLE_MASK \
     (MSTATUS_SIE | MSTATUS_MIE | MSTATUS_SPIE | MSTATUS_MPIE | \
-     MSTATUS_SPP | MSTATUS_FS_MASK | MSTATUS_MPP_MASK | MSTATUS_MPRV | \
-     MSTATUS_SUM | MSTATUS_MXR)
+     MSTATUS_SPP | MSTATUS_VS_MASK | MSTATUS_FS_MASK | MSTATUS_MPP_MASK | \
+     MSTATUS_MPRV | MSTATUS_SUM | MSTATUS_MXR | MSTATUS_TVM)
 
 #define MIP_SSIP           ((word_t)1 << 1)
 #define MIP_MSIP           ((word_t)1 << 3)
@@ -156,6 +171,7 @@ typedef struct {
   word_t mtvec, mepc, mcause, mstatus, mie, mip, mscratch, mtval;
   word_t stvec, sepc, scause, sscratch, stval;
   word_t medeleg, mideleg, satp;
+  word_t menvcfg;
   word_t mcounteren, scounteren, mcountinhibit;
   uint8_t pmpcfg[RISCV64_PMP_ENTRY_COUNT];
   word_t pmpaddr[RISCV64_PMP_ENTRY_COUNT];

@@ -155,9 +155,12 @@
 `ifndef NPC_AXI_PMEM_MASK
 `define NPC_AXI_PMEM_MASK  64'hffff_ffff_f000_0000
 `endif
-// 旧 AM/NEMU 兼容 MMIO 窗口仅用于当前 Verilator 仿真设备，严格 SoC 地址图不依赖它。
+// 简易 csrc 仿真设备 (rtc/kbd/vga/fb) 的 DPI 窗口。经此 slave 桥到 AxiDpiSlave→DPI→
+// csrc paddr.c→设备回调 (skip_ref, difftest 安全)。须与 csrc/include/device_address.h
+// 的 NPC_DEVICE_BASE(0x12000000)/NPC_DEVICE_TOP(0x14000000) 一致。旧 legacy 0xa0000000
+// 窗口已移除,SDRAM 0xa0000000 不再被别名遮挡。
 `ifndef NPC_AXI_LEGACY_MMIO_BASE
-`define NPC_AXI_LEGACY_MMIO_BASE 64'h0000_0000_a000_0000
+`define NPC_AXI_LEGACY_MMIO_BASE 64'h0000_0000_1200_0000
 `endif
 `ifndef NPC_AXI_LEGACY_MMIO_MASK
 `define NPC_AXI_LEGACY_MMIO_MASK 64'hffff_ffff_fe00_0000
@@ -563,6 +566,19 @@
 // 单分支深度（复用前端单 spec tracker 的 mispredict + branch_resolve_rob_idx），多分支待 pred-next-pc threading。
 `ifndef OOO_ROB_WALK_MODE
 `define OOO_ROB_WALK_MODE 1'b1
+`endif
+// domain-A 迁移第一刀(#105 总闸拆除): head0 条件分支不再走 direct 前端解析-then-drain
+// 提交模型(每条 stop_pending+全 drain, 占 99.997% stop), 而是与 head1 分支同构地作为普通
+// uop 经 frontend_dispatch 进 ROB/IQ, 由后端 resolve + mode=1 redirect/ROB-walk 按序提交。
+// 1=domain-A(拆总闸); 0=原 direct+drain 模型(对照/回退用)。
+`ifndef OOO_DBRANCH_DOMAIN_A
+`define OOO_DBRANCH_DOMAIN_A 1'b1
+`endif
+// LSQ·SQ 切换(spec ooo-lsq-implementation-plan.md §3.6): 1=plain store 不再等 ROB 队头,
+// issue 拍经桥 probe(翻译+PMP 前置精确异常) → SQ(PA) → 退休后 drain 落存(pretrans+nokill);
+// 0=旧路径(store 队头发射+真事务, SQ 保持影子对拍)。
+`ifndef OOO_SQ_STORE_PATH
+`define OOO_SQ_STORE_PATH 1'b1
 `endif
 // `define ROB_WALK_DEBUG
 

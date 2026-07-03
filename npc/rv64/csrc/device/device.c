@@ -7,14 +7,14 @@
 #include "device/vga.h"
 #include "device/map.h"
 
-/* serial.c 和 timer.c 没有独立头文件——像 NEMU 一样直接前向声明 */
-void npc_init_serial(void);
+/* timer.c 没有独立头文件——像 NEMU 一样直接前向声明。
+ * serial 现由真 RTL UART(Uart.v @ 0x10000000)承载,输出/skip_ref 走 dpi.c 的
+ * npc_uart_event,csrc 不再注册独立 serial 模型。 */
 void npc_init_timer(void);
 
 /* ==== 公共接口 ==== */
 void npc_init_device(bool enable_stdin_keyboard, bool enable_vga) {
   npc_init_map();
-  npc_init_serial();
   npc_init_timer();
   npc_kbd_init(enable_stdin_keyboard);
   npc_vga_init(enable_vga);

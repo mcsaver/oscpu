@@ -16,6 +16,9 @@ module tb_ooo_mem_axi_bridge;
   reg mem0_req_valid;
   wire mem0_req_ready;
   reg mem0_req_write;
+  reg mem0_req_probe;
+  reg mem0_req_pretrans;
+  reg mem0_req_nokill;
   reg [`XLEN-1:0] mem0_req_addr;
   reg [`XLEN-1:0] mem0_req_wdata;
   reg [`STRB_W-1:0] mem0_req_wstrb;
@@ -24,6 +27,7 @@ module tb_ooo_mem_axi_bridge;
   wire [`XLEN-1:0] mem0_rsp_rdata;
   wire mem0_rsp_error;
   wire mem0_rsp_page_fault;
+  wire mem_translate_active;
 
   wire lsu_axi_arvalid;
   reg lsu_axi_arready;
@@ -72,6 +76,9 @@ module tb_ooo_mem_axi_bridge;
     .mem0_req_valid_i(mem0_req_valid),
     .mem0_req_ready_o(mem0_req_ready),
     .mem0_req_write_i(mem0_req_write),
+    .mem0_req_probe_i(mem0_req_probe),
+    .mem0_req_pretrans_i(mem0_req_pretrans),
+    .mem0_req_nokill_i(mem0_req_nokill),
     .mem0_req_addr_i(mem0_req_addr),
     .mem0_req_wdata_i(mem0_req_wdata),
     .mem0_req_wstrb_i(mem0_req_wstrb),
@@ -80,6 +87,7 @@ module tb_ooo_mem_axi_bridge;
     .mem0_rsp_rdata_o(mem0_rsp_rdata),
     .mem0_rsp_error_o(mem0_rsp_error),
     .mem0_rsp_page_fault_o(mem0_rsp_page_fault),
+    .translate_active_o(mem_translate_active),
     .lsu_axi_arvalid_o(lsu_axi_arvalid),
     .lsu_axi_arready_i(lsu_axi_arready),
     .lsu_axi_araddr_o(lsu_axi_araddr),
@@ -129,6 +137,9 @@ module tb_ooo_mem_axi_bridge;
       svpbmt_en = 1'b0;
       mem0_req_valid = 1'b0;
       mem0_req_write = 1'b0;
+      mem0_req_probe = 1'b0;
+      mem0_req_pretrans = 1'b0;
+      mem0_req_nokill = 1'b0;
       mem0_req_addr = {`XLEN{1'b0}};
       mem0_req_wdata = {`XLEN{1'b0}};
       mem0_req_wstrb = {`STRB_W{1'b0}};
@@ -175,10 +186,25 @@ module tb_ooo_mem_axi_bridge;
     end
   endtask
 
+  // 【line-dcache】读 miss 语义: 不跨线 → 对齐 AR(addr&~7)+strb 全 1(取整线);
+  // 跨线 → 原窗口 AR+原 strb(uncached 直读)。
+  function automatic [3:0] strb_nbytes;
+    input [`STRB_W-1:0] strb;
+    integer bi;
+    begin
+      strb_nbytes = 4'd0;
+      for (bi = 0; bi < `STRB_W; bi = bi + 1)
+        if (strb[bi]) strb_nbytes = strb_nbytes + 4'd1;
+      if (strb_nbytes == 4'd0) strb_nbytes = 4'd1;
+    end
+  endfunction
+
   task automatic issue_mem0_read_strb;
     input [`XLEN-1:0] addr;
     input [`STRB_W-1:0] strb;
+    reg is_cross_r;
     begin
+      is_cross_r = ({1'b0, addr[2:0]} + strb_nbytes(strb)) > 5'd8;
       mem0_req_valid = 1'b1;
       mem0_req_write = 1'b0;
       mem0_req_addr = addr;
@@ -187,9 +213,11 @@ module tb_ooo_mem_axi_bridge;
       #1;
       tb_check1("mem0 read request ready", mem0_req_ready, 1'b1);
       tb_check1("mem0 read issues AR", lsu_axi_arvalid, 1'b1);
-      tb_check64("mem0 read AR address", lsu_axi_araddr, addr);
+      tb_check64("mem0 read AR address", lsu_axi_araddr,
+                 is_cross_r ? addr : {addr[`XLEN-1:3], 3'b000});
       tb_check64("mem0 read AR strb", {{(`XLEN-`STRB_W){1'b0}}, lsu_axi_arstrb},
-                 {{(`XLEN-`STRB_W){1'b0}}, strb});
+                 is_cross_r ? {{(`XLEN-`STRB_W){1'b0}}, strb}
+                       : {{(`XLEN-`STRB_W){1'b0}}, {`STRB_W{1'b1}}});
       tick();
       mem0_req_valid = 1'b0;
       lsu_axi_arready = 1'b0;
@@ -213,7 +241,9 @@ module tb_ooo_mem_axi_bridge;
 
   task automatic held_response_flush_drop;
     begin
-      issue_mem0_read(64'h0000_0000_8000_1000);
+      // 【line-dcache】前一场景(1005 掩码读)已 fill 对齐 line 0x80001000,
+      // 换未被 fill 的地址保持"miss→等 R"场景语义。
+      issue_mem0_read(64'h0000_0000_8000_6000);
       #1;
       tb_check1("mem0 read waits for R", lsu_axi_rready, 1'b1);
       lsu_axi_rvalid = 1'b1;
@@ -585,8 +615,87 @@ module tb_ooo_mem_axi_bridge;
     end
   endtask
 
+  // 【LSQ·SQ 切换】probe: write 探测走完翻译+PMP 后不写内存, PA 经 rsp_rdata 回传。
+  task automatic probe_write_returns_pa;
+    begin
+      clear_inputs();
+      tick();
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b1;
+      mem0_req_probe = 1'b1;
+      mem0_req_addr = DATA_PA;
+      mem0_req_wdata = 64'hdead_beef_0123_4567;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      #1;
+      tb_check1("probe request ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      mem0_req_probe = 1'b0;
+      #1;
+      tb_check1("probe response valid", mem0_rsp_valid, 1'b1);
+      tb_check1("probe no error", mem0_rsp_error, 1'b0);
+      tb_check1("probe no page fault", mem0_rsp_page_fault, 1'b0);
+      tb_check64("probe returns PA in rdata", mem0_rsp_rdata, DATA_PA);
+      tb_check1("probe does not issue AW", lsu_axi_awvalid, 1'b0);
+      tb_check1("probe does not issue W", lsu_axi_wvalid, 1'b0);
+      tb_check1("probe does not issue AR", lsu_axi_arvalid, 1'b0);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+    end
+  endtask
+
+  // 【LSQ·SQ 切换】pretrans+nokill(退休 store 落存): 跳过翻译直写 PA, 且 flush
+  // 期间事务照常推进(写必达)、响应不被 kill 压制。
+  task automatic pretrans_nokill_store_survives_flush;
+    begin
+      clear_inputs();
+      tick();
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b1;
+      mem0_req_pretrans = 1'b1;
+      mem0_req_nokill = 1'b1;
+      mem0_req_addr = DATA_PA;
+      mem0_req_wdata = 64'h1122_3344_5566_7788;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      #1;
+      tb_check1("pretrans request ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      mem0_req_pretrans = 1'b0;
+      mem0_req_nokill = 1'b0;
+      // 立刻 flush: nokill 事务必须继续发出 AW/W 并完成
+      flush = 1'b1;
+      #1;
+      tb_check1("nokill write still issues AW under flush",
+                lsu_axi_awvalid, 1'b1);
+      tb_check1("nokill write still issues W under flush",
+                lsu_axi_wvalid, 1'b1);
+      tb_check64("nokill write AW address", lsu_axi_awaddr, DATA_PA);
+      lsu_axi_awready = 1'b1;
+      lsu_axi_wready = 1'b1;
+      tick();
+      lsu_axi_awready = 1'b0;
+      lsu_axi_wready = 1'b0;
+      #1;
+      // PMEM store 解耦: AW/W 落地即响应, flush 不得压制 nokill 事务的 rsp_valid
+      tb_check1("nokill response valid under flush", mem0_rsp_valid, 1'b1);
+      tb_check1("nokill response no error", mem0_rsp_error, 1'b0);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+      flush = 1'b0;
+      // 后台 B 由 bpend 吸收
+      lsu_axi_bvalid = 1'b1;
+      tick();
+      lsu_axi_bvalid = 1'b0;
+      tick();
+    end
+  endtask
+
   wire unused_outputs =
-      mem0_rsp_error | mem0_rsp_page_fault | (|lsu_axi_wstrb);
+      mem0_rsp_error | mem0_rsp_page_fault | (|lsu_axi_wstrb) |
+      mem_translate_active;
 
   initial begin
     tb_errors = 0;
@@ -609,6 +718,8 @@ module tb_ooo_mem_axi_bridge;
     sv39_leaf_ad_fault("sv39 D=0 store page fault", 1'b1,
                        LEAF_NO_DIRTY_FLAGS);
     sv39_dtlb_and_paddr_cache_hit();
+    probe_write_returns_pa();
+    pretrans_nokill_store_survives_flush();
 
     tb_check1("unused outputs settle", unused_outputs, unused_outputs);
     tb_finish("tb_ooo_mem_axi_bridge");

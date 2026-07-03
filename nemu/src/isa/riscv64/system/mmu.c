@@ -16,6 +16,7 @@
 #include <isa.h>
 #include <memory/vaddr.h>
 #include <memory/paddr.h>
+#include <memory/cache.h>
 #include <utils/profile.h>
 
 #include <stdlib.h>
@@ -33,6 +34,13 @@
 #define PTE_G ((word_t)1 << 5)
 #define PTE_A ((word_t)1 << 6)
 #define PTE_D ((word_t)1 << 7)
+// 高位保留/未实现扩展字段。NEMU 未实现 Svnapot/Svpbmt, 也未建模 menvcfg.PBMTE,
+// 故这些位非 0 的 PTE 一律非法 (page fault); Sv39/Sv48/Sv57 的 PTE 高位布局相同, 泛化通用。
+// 金标准 sail-rv64-max 启用 Svrsw60t59b: PTE bits[60:59] 被重定义为 RSW(软件可用位),
+// walker 必须忽略之(不 fault); 故保留字段仅为 bits[58:54]。
+#define PTE_RSVD ((word_t)0x1f << 54)  // bits[58:54] 保留, 必须为 0 (bits[60:59]=RSW via Svrsw60t59b)
+#define PTE_PBMT ((word_t)3 << 61)     // bits[62:61] PBMT(Svpbmt), 未实现须为 0
+#define PTE_N    ((word_t)1 << 63)     // bit[63] N(Svnapot), 未实现须为 0
 
 #define SV39_TLB_SIZE 4096
 
@@ -344,16 +352,24 @@ int isa_mmu_check(vaddr_t vaddr, int len, int type) {
   if (priv == PRIV_M) return MMU_DIRECT;
   word_t mode = SATP64_MODE(cpu.csr.satp);
   if (mode == 0) return MMU_DIRECT;
-  return mode == 8 ? MMU_TRANSLATE : MMU_FAIL;
+  // Sv39(8)/Sv48(9)/Sv57(10) 走翻译; 其余(含未实现的更高模式)翻译失败。
+  return (mode == 8 || mode == 9 || mode == 10) ? MMU_TRANSLATE : MMU_FAIL;
 #else
   return MMU_DIRECT;
 #endif
 }
 
-static inline bool sv39_va_canonical(vaddr_t vaddr) {
-  uint64_t va = vaddr;
-  uint64_t top = va >> 39;
-  return top == 0 || top == ((1ull << 25) - 1);
+// 分页级数: Sv39=3, Sv48=4, Sv57=5。walker 与 canonical 检查共用。
+static inline int sv_levels_for_mode(word_t mode) {
+  return mode == 8 ? 3 : (mode == 9 ? 4 : 5);
+}
+
+// VA canonical 检查按分页模式的有效位宽 (Sv39=39/Sv48=48/Sv57=57):
+// 要求 va[63:bits-1] 是 va[bits-1] 的符号扩展, 否则 page fault。
+static inline bool sv_va_canonical(vaddr_t vaddr, word_t mode) {
+  int bits = mode == 8 ? 39 : (mode == 9 ? 48 : 57);
+  int64_t s = (int64_t)vaddr >> (bits - 1);
+  return s == 0 || s == -1;
 }
 
 static inline uint32_t sv39_tlb_index(uint64_t root_ppn, uint16_t asid,
@@ -468,7 +484,29 @@ static inline void sv39_tlb_fill(vaddr_t vaddr, paddr_t paddr,
 }
 
 static inline bool pte_invalid(word_t pte) {
-  return (pte & PTE_V) == 0 || ((pte & PTE_W) && !(pte & PTE_R));
+  if ((pte & PTE_V) == 0) return true;             // V=0
+  if ((pte & PTE_W) && !(pte & PTE_R)) return true; // W=1,R=0 保留编码
+  // 未实现 Svpbmt(PBMT) 及保留位[58:54]非0 → 非法(bits[60:59]=RSW via Svrsw60t59b 须忽略)。
+  // 对叶/非叶 PTE 一律适用, 也同时被真实 walk 与 debug walk 复用, 一处覆盖所有翻译路径。
+  // 注意: N(Svnapot) 不在此判断——金标准 sail-rv64-max 启用 Svnapot 1.0.0,
+  // 叶 PTE 的 N 位需按 NAPOT 翻译而非一律 fault; 见 sv39_translate 叶分支。
+  if (pte & (PTE_PBMT | PTE_RSVD)) return true;
+  return false;
+}
+
+// Svnapot(1.0.0): 仅定义 64KiB NAPOT (level0 叶 PTE, ppn[3:0]==0b1000)。
+// 返回该叶 PTE 生效的 NAPOT PPN 低位掩码 (64KiB → 0xf); 非 NAPOT 页返回 0。
+// *reserved 置位表示 N=1 但编码/层级非法 → 应 page fault。
+static inline uint64_t pte_napot_mask(word_t pte, int level, uint64_t pte_ppn,
+    bool *reserved) {
+  *reserved = false;
+  if ((pte & PTE_N) == 0) return 0;
+  // 当前 Svnapot 只支持 level0 的 64KiB, 其 ppn[3:0] 必须为 0b1000, 否则保留。
+  if (level != 0 || (pte_ppn & 0xf) != 0x8) {
+    *reserved = true;
+    return 0;
+  }
+  return 0xf;
 }
 
 static inline bool pte_leaf(word_t pte) {
@@ -504,16 +542,11 @@ static paddr_t sv39_translate(vaddr_t vaddr, int len, int type,
   (void)len;
   if (host_addr != NULL) *host_addr = NULL;
   sv39_translate_fault_cause = mmu_page_fault_cause_for_type(type);
-  if (!sv39_va_canonical(vaddr)) return sv39_fail(vaddr, type, -1, 0, 0, "non-canonical");
+  word_t satp_mode = SATP64_MODE(cpu.csr.satp);
+  int levels = sv_levels_for_mode(satp_mode);
+  if (!sv_va_canonical(vaddr, satp_mode)) return sv39_fail(vaddr, type, -1, 0, 0, "non-canonical");
 
   uint64_t va = vaddr;
-  /*
-   * sv39_translate 是 Ubuntu 热路径；避免局部 VPN 数组触发
-   * -fstack-protector-strong 给每次翻译插入 stack canary。
-   */
-  uint64_t vpn0 = (va >> 12) & 0x1ff;
-  uint64_t vpn1 = (va >> 21) & 0x1ff;
-  uint64_t vpn2 = (va >> 30) & 0x1ff;
   uint64_t page_offset = va & 0xfff;
   uint64_t table = SATP64_PPN(cpu.csr.satp) << 12;
   uint8_t priv = mmu_effective_priv(type);
@@ -522,28 +555,37 @@ static paddr_t sv39_translate(vaddr_t vaddr, int len, int type,
   if (sv39_tlb_lookup(vaddr, type, priv, &cached_paddr, host_addr)) return cached_paddr;
 
   nemu_profile_count_if(NEMU_PROFILE_MMU_WALKS, 1);
-  for (int level = 2; level >= 0; level--) {
-    uint64_t vpn_at_level = level == 2 ? vpn2 : (level == 1 ? vpn1 : vpn0);
+  // Sv39/Sv48/Sv57 统一 N 级游走: 每级取 va 的 9 位 VPN; 叶节点用统一的
+  // "高位取 PTE.PPN、低 9*level 位取 VA" 公式组装物理地址(对 Sv39 与旧标量实现 bit-exact)。
+  for (int level = levels - 1; level >= 0; level--) {
+    uint64_t vpn_at_level = (va >> (12 + 9 * level)) & 0x1ff;
     paddr_t pte_addr = (paddr_t)(table + vpn_at_level * 8);
     if (!isa_riscv64_pmp_check_as_priv(pte_addr, 8, MEM_TYPE_READ, PRIV_S)) {
       return sv39_fail_with_cause(vaddr, type, level, pte_addr, 0,
           "pmp-page-table-read", mmu_access_fault_cause_for_type(type));
     }
     nemu_profile_count_if(NEMU_PROFILE_MMU_PTE_READS, 1);
-    word_t pte = paddr_read(pte_addr, 8);
+    // 经 dcache 一致视图读 PTE：guest 常用普通 store 运行时构建页表，PTE 会 dirty
+    // 停在 write-back dcache 中且尚未回写 pmem；直读 pmem 会拿到 stale 值导致虚假 page fault。
+    word_t pte = dcache_peek_read(pte_addr, 8);
     if (pte_invalid(pte)) return sv39_fail(vaddr, type, level, pte_addr, pte, "invalid-pte");
     global_mapping = global_mapping || (pte & PTE_G);
 
     uint64_t pte_ppn = (pte >> 10) & ((1ull << 44) - 1);
-    uint64_t ppn0 = pte_ppn & 0x1ff;
-    uint64_t ppn1 = (pte_ppn >> 9) & 0x1ff;
-    uint64_t ppn2 = (pte_ppn >> 18) & ((1ull << 26) - 1);
 
     if (pte_leaf(pte)) {
-      if ((level == 2 && (ppn0 != 0 || ppn1 != 0)) ||
-          (level == 1 && ppn0 != 0)) {
+      // 超级页对齐: level>0 的叶 PTE 要求 PPN 低 9*level 位为 0。
+      uint64_t low_mask = (level == 0) ? 0 : (((uint64_t)1 << (9 * level)) - 1);
+      if (pte_ppn & low_mask) {
         return sv39_fail(vaddr, type, level, pte_addr, pte, "misaligned-superpage");
       }
+      // Svnapot: N=1 的叶页按 NAPOT 翻译; N=1 但编码/层级非法则 page fault。
+      bool napot_reserved = false;
+      uint64_t napot_mask = pte_napot_mask(pte, level, pte_ppn, &napot_reserved);
+      if (napot_reserved) {
+        return sv39_fail(vaddr, type, level, pte_addr, pte, "napot-reserved");
+      }
+      low_mask |= napot_mask;
       if (!pte_permission_ok(pte, type, priv)) {
         return sv39_fail(vaddr, type, level, pte_addr, pte, "permission");
       }
@@ -555,17 +597,13 @@ static paddr_t sv39_translate(vaddr_t vaddr, int len, int type,
               "pmp-page-table-write", mmu_access_fault_cause_for_type(type));
         }
         nemu_profile_count_if(NEMU_PROFILE_MMU_PTE_UPDATES, 1);
-        paddr_write(pte_addr, 8, pte | needed);
+        // A/D 位回写同样走一致视图：命中 dcache 就原地更新，避免与 CPU 侧 dcache 分叉。
+        dcache_coherent_write(pte_addr, 8, pte | needed);
       }
 
-      uint64_t pa;
-      if (level == 2) {
-        pa = (ppn2 << 30) | (vpn1 << 21) | (vpn0 << 12) | page_offset;
-      } else if (level == 1) {
-        pa = (ppn2 << 30) | (ppn1 << 21) | (vpn0 << 12) | page_offset;
-      } else {
-        pa = (pte_ppn << 12) | page_offset;
-      }
+      // 物理页号: 高位保留 PTE.PPN, 低 9*level 位用 VA 对应 VPN(超级页)。
+      uint64_t pa_ppn = (pte_ppn & ~low_mask) | ((va >> 12) & low_mask);
+      uint64_t pa = (pa_ppn << 12) | page_offset;
       sv39_tlb_fill(vaddr, (paddr_t)pa, type, priv, global_mapping);
       if (host_addr != NULL) {
         uint8_t *host_page = sv39_host_page_base((paddr_t)pa);
@@ -574,6 +612,11 @@ static paddr_t sv39_translate(vaddr_t vaddr, int len, int type,
       return (paddr_t)pa;
     }
 
+    // 非叶 PTE(R=W=X=0, 指向下一级页表): D/A/U 位保留, 软件须清零, 非 0 → page fault(规范要求)。
+    // N(Svnapot) 只对叶 PTE 有效; 非叶 PTE 的 N=1 为保留编码 → page fault。
+    if (pte & (PTE_D | PTE_A | PTE_U | PTE_N)) {
+      return sv39_fail(vaddr, type, level, pte_addr, pte, "nonleaf-reserved-adu");
+    }
     table = pte_ppn << 12;
   }
 
@@ -610,48 +653,40 @@ bool isa_riscv64_mmu_debug_translate_user(vaddr_t vaddr, int len, int type,
     if (paddr != NULL) *paddr = (paddr_t)vaddr;
     return true;
   }
-  if (mode != 8 || !sv39_va_canonical(vaddr)) return false;
+  if ((mode != 8 && mode != 9 && mode != 10) || !sv_va_canonical(vaddr, mode)) return false;
+  int levels = sv_levels_for_mode(mode);
 
   uint64_t va = vaddr;
-  uint64_t vpn0 = (va >> 12) & 0x1ff;
-  uint64_t vpn1 = (va >> 21) & 0x1ff;
-  uint64_t vpn2 = (va >> 30) & 0x1ff;
   uint64_t page_offset = va & 0xfff;
   uint64_t table = SATP64_PPN(cpu.csr.satp) << 12;
 
-  for (int level = 2; level >= 0; level--) {
-    uint64_t vpn_at_level = level == 2 ? vpn2 : (level == 1 ? vpn1 : vpn0);
+  for (int level = levels - 1; level >= 0; level--) {
+    uint64_t vpn_at_level = (va >> (12 + 9 * level)) & 0x1ff;
     paddr_t pte_addr = (paddr_t)(table + vpn_at_level * 8);
     if (!isa_riscv64_pmp_check_as_priv(pte_addr, 8, MEM_TYPE_READ, PRIV_S)) {
       return false;
     }
-    word_t pte = paddr_read(pte_addr, 8);
+    // debug 翻译也需一致视图；peek 天然无 fill/evict 副作用，不扰动被测状态。
+    word_t pte = dcache_peek_read(pte_addr, 8);
     if (pte_invalid(pte)) return false;
 
     uint64_t pte_ppn = (pte >> 10) & ((1ull << 44) - 1);
-    uint64_t ppn0 = pte_ppn & 0x1ff;
-    uint64_t ppn1 = (pte_ppn >> 9) & 0x1ff;
-    uint64_t ppn2 = (pte_ppn >> 18) & ((1ull << 26) - 1);
 
     if (pte_leaf(pte)) {
-      if ((level == 2 && (ppn0 != 0 || ppn1 != 0)) ||
-          (level == 1 && ppn0 != 0)) {
-        return false;
-      }
+      uint64_t low_mask = (level == 0) ? 0 : (((uint64_t)1 << (9 * level)) - 1);
+      if (pte_ppn & low_mask) return false;
+      bool napot_reserved = false;
+      uint64_t napot_mask = pte_napot_mask(pte, level, pte_ppn, &napot_reserved);
+      if (napot_reserved) return false;
+      low_mask |= napot_mask;
       if (!pte_permission_ok(pte, type, PRIV_U)) return false;
 
-      uint64_t pa;
-      if (level == 2) {
-        pa = (ppn2 << 30) | (vpn1 << 21) | (vpn0 << 12) | page_offset;
-      } else if (level == 1) {
-        pa = (ppn2 << 30) | (ppn1 << 21) | (vpn0 << 12) | page_offset;
-      } else {
-        pa = (pte_ppn << 12) | page_offset;
-      }
-      if (paddr != NULL) *paddr = (paddr_t)pa;
+      uint64_t pa_ppn = (pte_ppn & ~low_mask) | ((va >> 12) & low_mask);
+      if (paddr != NULL) *paddr = (paddr_t)((pa_ppn << 12) | page_offset);
       return true;
     }
 
+    if (pte & (PTE_D | PTE_A | PTE_U | PTE_N)) return false;
     table = pte_ppn << 12;
   }
   return false;

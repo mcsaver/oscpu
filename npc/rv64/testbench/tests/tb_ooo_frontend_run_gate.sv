@@ -12,7 +12,6 @@ module tb_ooo_frontend_run_gate;
   reg pending_branch;
   reg pending_jump;
   reg pending_mem;
-  reg pending_fp;
   reg pending_arch_trap;
   reg pending_system;
   reg synth_lane1_ret_pending;
@@ -48,7 +47,6 @@ module tb_ooo_frontend_run_gate;
     .pending_branch_i(pending_branch),
     .pending_jump_i(pending_jump),
     .pending_mem_i(pending_mem),
-    .pending_fp_i(pending_fp),
     .pending_arch_trap_i(pending_arch_trap),
     .pending_system_i(pending_system),
     .synth_lane1_ret_pending_i(synth_lane1_ret_pending),
@@ -83,7 +81,6 @@ module tb_ooo_frontend_run_gate;
       pending_branch = 1'b0;
       pending_jump = 1'b0;
       pending_mem = 1'b0;
-      pending_fp = 1'b0;
       pending_arch_trap = 1'b0;
       pending_system = 1'b0;
       synth_lane1_ret_pending = 1'b0;

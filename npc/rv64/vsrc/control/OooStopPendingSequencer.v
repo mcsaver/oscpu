@@ -1,3 +1,4 @@
+`include "define.v"
 module OooStopPendingSequencer (
   input wire clk,
   input wire rst,
@@ -31,6 +32,9 @@ module OooStopPendingSequencer (
   input wire head_fetch_fault0_i,
   input wire dispatch0_arch_trap_i,
   input wire dispatch0_exit_i,
+  // 【B-FP 簇】FP 迁域 A: head0=FP 与普通指令同构, 不再参与 stop_pending 决策
+  // (旧 fp 臂在 lane1 barrier fire 拍抢先把 stop_pending 写 0, 使同包 lane1
+  // capture 的 CSR 指令永远等不到 drain→注入)。端口保留避免上层接线扰动。
   input wire dispatch0_fp_i,
   input wire dispatch0_system_i,
   input wire head0_csr_illegal_i,
@@ -47,6 +51,8 @@ module OooStopPendingSequencer (
   output reg stop_pending_o
 );
 
+  wire dbranch_domain_a_w = `OOO_DBRANCH_DOMAIN_A;
+
   always @(posedge clk) begin
     if (rst || flush_i) begin
       stop_pending_o <= 1'b0;
@@ -55,9 +61,11 @@ module OooStopPendingSequencer (
         stop_pending_o <= 1'b0;
       end else if (direct_frontend_flush_i) begin
         if (direct_branch0_fire_i || direct_branch1_fire_i) begin
-          // 优化: 预测正确的 direct branch, 若后端已排空(drain_complete=1)则已在按序位置,
-          // 跳过多余 full drain; 后端非空时保守 drain 保证按序提交(去掉全部 drain 会 difftest 错)。
-          stop_pending_o <= !direct_branch_resolve_redirect_i && !drain_complete_i;
+          // domain-A(#105 总闸拆除): 分支现经普通 dispatch 进 ROB 按序提交, 由后端
+          // resolve + pred_npc 比对 + ROB-walk kill 保证正确性, 不再需要 stop+全 drain。
+          // (旧 direct+drain 模型: 预测正确也 stop+drain, 占 99.997% stop 事件。)
+          stop_pending_o <= dbranch_domain_a_w ? 1'b0 :
+              (!direct_branch_resolve_redirect_i && !drain_complete_i);
         end
       end
 
@@ -113,8 +121,6 @@ module OooStopPendingSequencer (
           stop_pending_o <= 1'b1;
         end else if (dispatch0_exit_i) begin
           stop_pending_o <= 1'b1;
-        end else if (dispatch0_fp_i) begin
-          stop_pending_o <= 1'b1;
         end else if (dispatch0_system_i && head0_csr_illegal_i) begin
           stop_pending_o <= 1'b1;
         end else if (dispatch0_system_i) begin
@@ -138,4 +144,6 @@ module OooStopPendingSequencer (
       end
     end
   end
+  wire dispatch0_fp_unused_w = dispatch0_fp_i;
+
 endmodule

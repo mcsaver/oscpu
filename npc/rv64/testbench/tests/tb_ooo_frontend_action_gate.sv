@@ -21,6 +21,7 @@ module tb_ooo_frontend_action_gate;
   reg direct_branch1_dispatch_valid;
   reg dispatch_unsupported;
   reg dispatch_fire;
+  reg dbranch_dispatch_fire;  // domain-A: 分支普通 dispatch fire(pop 源)
   reg dispatch1_barrier_fire;
   reg direct_jal0_fire;
   reg fetch_rsp_fire;
@@ -60,6 +61,7 @@ module tb_ooo_frontend_action_gate;
     .direct_branch1_dispatch_valid_i(direct_branch1_dispatch_valid),
     .dispatch_unsupported_i(dispatch_unsupported),
     .dispatch_fire_i(dispatch_fire),
+    .dbranch_dispatch_fire_i(dbranch_dispatch_fire),
     .dispatch1_barrier_fire_i(dispatch1_barrier_fire),
     .direct_jal0_fire_i(direct_jal0_fire),
     .direct_jump_spec_fire_i(1'b0),
@@ -101,6 +103,7 @@ module tb_ooo_frontend_action_gate;
       direct_branch1_dispatch_valid = 1'b0;
       dispatch_unsupported = 1'b0;
       dispatch_fire = 1'b0;
+      dbranch_dispatch_fire = 1'b0;
       dispatch1_barrier_fire = 1'b0;
       direct_jal0_fire = 1'b0;
       fetch_rsp_fire = 1'b0;
@@ -140,7 +143,14 @@ module tb_ooo_frontend_action_gate;
     reset_inputs();
     dispatch0_branch = 1'b1;
     #1;
-    tb_check1("slot0 branch stops head", stop_head, 1'b1);
+    // domain-A(OOO_DBRANCH_DOMAIN_A=1): 分支走普通 dispatch, 不停取指头。
+    tb_check1("slot0 branch no longer stops head (domain-A)", stop_head, 1'b0);
+    // domain-A: 分支普通 dispatch fire 驱动 FIFO pop。
+    dbranch_dispatch_fire = 1'b1;
+    #1;
+    tb_check1("dbranch dispatch fire pops fifo (domain-A)", fifo_pop, 1'b1);
+    dbranch_dispatch_fire = 1'b0;
+    #1;
 
     reset_inputs();
     dispatch1_barrier = 1'b1;

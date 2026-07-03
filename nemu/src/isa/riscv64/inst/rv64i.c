@@ -190,6 +190,8 @@ static inline bool exec_system(Decode *s, uint32_t inst, uint32_t funct3, int rd
       return true;
     default:
       if ((inst & 0xfe007fffu) == 0x12000073u) { // sfence.vma
+        // TVM: S 态且 mstatus.TVM=1 时 SFENCE.VMA 触发 illegal instruction; M 态不受影响。
+        if (cpu.priv == PRIV_S && (cpu.csr.mstatus & MSTATUS_TVM)) return false;
         isa_riscv64_mmu_tlb_flush_selective(R(rs1), rs1 != 0, R(rs2), rs2 != 0);
         return true;
       }

@@ -105,13 +105,6 @@ module OooControlPlane #(
   input pending_branch_q,
   input [`XLEN-1:0] pending_branch_target_w,
   input pending_control_ready_w,
-  input pending_fp_compute_done_q,
-  input pending_fp_compute_op_w,
-  input pending_fp_long_done_q,
-  input pending_fp_long_op_w,
-  input pending_fp_long_pending_q,
-  input pending_fp_mem_done_q,
-  input pending_fp_q,
   input pending_jump_dispatched_q,
   input pending_jump_misaligned_w,
   input pending_jump_nolink_commit_w,
@@ -130,6 +123,8 @@ module OooControlPlane #(
   input synth_lane1_ret_branch_commit0_w,
   input synth_lane1_ret_branch_seen_q,
   input synth_lane1_ret_pending_q,
+  // 【LSQ·SQ 切换】退休侧访存静默(SQ 排空且无 drain 在飞), AND 进 backend_drained
+  input mem_retire_quiet_i,
   output backend_drained_w,
   output checkpoint_mem_flush_q,
   output core_checkpoint_capture_w,
@@ -183,11 +178,6 @@ module OooControlPlane #(
   output pending_branch_commit_resolve_w,
   output pending_branch_match_clear_w,
   output pending_exit_q,
-  output pending_fp_capture_head0_w,
-  output pending_fp_capture_lane1_w,
-  output pending_fp_clear_w,
-  output pending_fp_compute_start_w,
-  output pending_fp_long_start_w,
   output pending_jump_capture_head0_w,
   output pending_jump_capture_lane1_w,
   output pending_jump_clear_w,
@@ -392,24 +382,16 @@ module OooControlPlane #(
     .pending_jump_misaligned_i(pending_jump_misaligned_w),
     .pending_mem_i(pending_mem_q),
     .pending_mem_dispatched_i(pending_mem_dispatched_q),
-    .pending_fp_i(pending_fp_q),
-    .pending_fp_mem_done_i(pending_fp_mem_done_q),
-    .pending_fp_long_op_i(pending_fp_long_op_w),
-    .pending_fp_long_pending_i(pending_fp_long_pending_q),
-    .pending_fp_long_done_i(pending_fp_long_done_q),
-    .pending_fp_compute_op_i(pending_fp_compute_op_w),
-    .pending_fp_compute_done_i(pending_fp_compute_done_q),
     .pending_system_i(pending_system_q),
     .pending_system_csr_i(pending_system_csr_q),
     .pending_system_dispatched_i(pending_system_dispatched_q),
+    .mem_retire_quiet_i(mem_retire_quiet_i),
     .backend_drained_o(backend_drained_w),
     .jump_dispatch_valid_o(jump_dispatch_valid_w),
     .system_csr_dispatch_valid_o(system_csr_dispatch_valid_w),
     .system_csr_dispatch_fire_o(system_csr_dispatch_fire_w),
     .pending_mem_resolve_ready_o(pending_mem_resolve_ready_w),
     .mem_dispatch_valid_o(mem_dispatch_valid_w),
-    .pending_fp_long_start_o(pending_fp_long_start_w),
-    .pending_fp_compute_start_o(pending_fp_compute_start_w),
     .pending_branch_commit_resolve_o(pending_branch_commit_resolve_w),
     .pending_branch_match_clear_o(pending_branch_match_clear_w),
     .pending_replay_wait_o(pending_replay_wait_w),
@@ -469,9 +451,6 @@ module OooControlPlane #(
     .pending_jump_capture_head0_o(pending_jump_capture_head0_w),
     .pending_jump_capture_lane1_o(pending_jump_capture_lane1_w),
     .pending_jump_clear_o(pending_jump_clear_w),
-    .pending_fp_capture_head0_o(pending_fp_capture_head0_w),
-    .pending_fp_capture_lane1_o(pending_fp_capture_lane1_w),
-    .pending_fp_clear_o(pending_fp_clear_w),
     .pending_mem_capture_lane1_o(pending_mem_capture_lane1_w),
     .pending_mem_clear_o(pending_mem_clear_w),
     .pending_trap_exit_clear_exit_o(pending_trap_exit_clear_exit_w),
@@ -528,11 +507,17 @@ module OooControlPlane #(
     .core_commit1_block_o(core_commit1_block_w)
   );
 
+  wire pending_system_rdata_refresh_w =
+      backend_drained_w && stop_pending_q && pending_system_q &&
+      pending_system_csr_q && !pending_system_dispatched_q;
+
   OooPendingSystemSequencer u_pending_system_sequencer (
     .clk(clk),
     .rst(rst || flush_i),
     .clear_i(pending_system_clear_w),
     .clear_dispatched_i(orphan_stop_pending_w),
+    .refresh_rdata_i(pending_system_rdata_refresh_w),
+    .refresh_rdata_value_i(csr_rdata_w),
     .dispatch_fire_i(system_csr_dispatch_fire_w),
     .capture_irq_i(pending_system_capture_irq_w),
     .capture_irq_pc_i(head_pc_w),
@@ -628,7 +613,6 @@ module OooControlPlane #(
     .pending_system_i(pending_system_q),
     .pending_jump_i(pending_jump_q),
     .pending_mem_i(pending_mem_q),
-    .pending_fp_i(pending_fp_q),
     .pending_exit_i(pending_exit_q),
     .pending_exit_is_ecall_i(pending_exit_is_ecall_q),
     .pending_exit_is_ebreak_i(pending_exit_is_ebreak_q),
@@ -680,7 +664,6 @@ module OooControlPlane #(
     .pending_branch_i(pending_branch_q),
     .pending_jump_i(pending_jump_q),
     .pending_mem_i(pending_mem_q),
-    .pending_fp_i(pending_fp_q),
     .pending_system_i(pending_system_q),
     .synth_lane1_ret_pending_i(synth_lane1_ret_pending_q),
     .synth_lane1_branch_drop_pending_i(synth_lane1_branch_drop_pending_q),
@@ -762,5 +745,6 @@ module OooControlPlane #(
     .rob_walk_mode_i(rob_walk_mode_w),
     .stop_pending_o(stop_pending_q)
   );
+
 
 endmodule

@@ -78,6 +78,11 @@ module tb_ooo_frontend_backend_dispatch_mux;
   wire [`INST_W-1:0] core_dispatch1_inst;
 
   OooFrontendBackendDispatchMux dut (
+    .dispatch1_ready_i(1'b1),
+    .dispatch1_squash_i(1'b0),
+    .d0_ctrlflow_fired_i(1'b0),
+    .d1_ctrlflow_fired_i(1'b0),
+    .direct_fire_succ_i({`XLEN{1'b0}}),
     .branch_prefetch_dispatch_attempt_i(branch_prefetch_dispatch_attempt),
     .branch_prefetch_dispatch_buffer_i(branch_prefetch_dispatch_buffer),
     .branch_prefetch_dispatch_rsp_i(branch_prefetch_dispatch_rsp),

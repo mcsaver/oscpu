@@ -427,6 +427,17 @@ static inline bool vaddr_pmp_check_or_fault(VaddrTranslateResult *trans,
     vaddr_t addr, int len, int type) {
 #ifdef CONFIG_ISA_riscv
   /*
+   * PMA: 物理地址不落在任何合法窗口 (pmem/CLINT/PLIC/SoC/已注册 MMIO) 时，
+   * 抬 guest access-fault，而不是让 paddr/mmio 层用 host assert/panic 崩掉整个进程。
+   * guest 可控的越界访存 (未支持分页模式导致 VA 当 PA、随机压测程序等) 只应产生精确异常，
+   * 交给 guest 的 trap handler；这是把 NEMU 当 reference 跑不可信/随机程序 (rv64dv) 的可靠性前提。
+   */
+  if (unlikely(!paddr_is_accessible(trans->paddr, len))) {
+    trans->host_addr = NULL;
+    vaddr_set_fault(vaddr_access_fault_cause_for_type(type), addr);
+    return false;
+  }
+  /*
    * PMP/PMA 类保护发生在最终物理地址上。MMU 翻译失败仍是 page fault；
    * 翻译成功但 PMP 拒绝时才报告 access fault，避免把保护错误混成页表错误。
    */

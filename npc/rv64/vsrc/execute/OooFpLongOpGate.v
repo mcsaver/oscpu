@@ -61,9 +61,9 @@ module OooFpLongOpGate (
     integer exp_z;
     integer sub_shift_int;
     begin
-      rs1_value = frs1_value_i;
-      rs2_value = frs2_value_i;
-      rm = rm_i;
+      rs1_value = op_frs1_q;
+      rs2_value = op_frs2_q;
+      rm = op_rm_q;
       quotient_ext_i = div_quotient_w;
       remainder_nonzero_i = div_remainder_nonzero_w;
       sign_z = 0;
@@ -185,9 +185,9 @@ module OooFpLongOpGate (
     integer exp_z;
     integer sub_shift_int;
     begin
-      rs1_value = frs1_value_i;
-      rs2_value = frs2_value_i;
-      rm = rm_i;
+      rs1_value = op_frs1_q;
+      rs2_value = op_frs2_q;
+      rm = op_rm_q;
       quotient_ext_i = div_quotient_w[26:0];
       remainder_nonzero_i = div_remainder_nonzero_w;
       a = 0;
@@ -310,8 +310,8 @@ module OooFpLongOpGate (
     integer sqrt_exp;
     integer exp_z;
     begin
-      rs1_value = frs1_value_i;
-      rm = rm_i;
+      rs1_value = op_frs1_q;
+      rm = op_rm_q;
       root_ext_i = sqrt_root_w;
       remainder_nonzero_i = sqrt_remainder_nonzero_w;
       sign_a = 0;
@@ -407,8 +407,8 @@ module OooFpLongOpGate (
     integer sqrt_exp;
     integer exp_z;
     begin
-      rs1_value = frs1_value_i;
-      rm = rm_i;
+      rs1_value = op_frs1_q;
+      rm = op_rm_q;
       root_ext_i = sqrt_root_w[26:0];
       remainder_nonzero_i = sqrt_remainder_nonzero_w;
       a = 0;
@@ -602,9 +602,9 @@ module OooFpLongOpGate (
     integer exp_z;
     integer sub_shift_int;
     begin
-      rs1_value = frs1_value_i;
-      rs2_value = frs2_value_i;
-      rm = rm_i;
+      rs1_value = op_frs1_q;
+      rs2_value = op_frs2_q;
+      rm = op_rm_q;
       quotient_ext_i = div_quotient_w[26:0];
       remainder_nonzero_i = div_remainder_nonzero_w;
       a = 0;
@@ -716,9 +716,9 @@ module OooFpLongOpGate (
     integer exp_z;
     integer sub_shift_int;
     begin
-      rs1_value = frs1_value_i;
-      rs2_value = frs2_value_i;
-      rm = rm_i;
+      rs1_value = op_frs1_q;
+      rs2_value = op_frs2_q;
+      rm = op_rm_q;
       quotient_ext_i = div_quotient_w;
       remainder_nonzero_i = div_remainder_nonzero_w;
       sign_z = 0;
@@ -818,8 +818,8 @@ module OooFpLongOpGate (
     reg inc;
     integer exp_z;
     begin
-      rs1_value = frs1_value_i;
-      rm = rm_i;
+      rs1_value = op_frs1_q;
+      rm = op_rm_q;
       root_ext_i = sqrt_root_w[26:0];
       remainder_nonzero_i = sqrt_remainder_nonzero_w;
       a = 0;
@@ -875,8 +875,8 @@ module OooFpLongOpGate (
     reg sticky;
     reg inc;
     begin
-      rs1_value = frs1_value_i;
-      rm = rm_i;
+      rs1_value = op_frs1_q;
+      rm = op_rm_q;
       root_ext_i = sqrt_root_w;
       remainder_nonzero_i = sqrt_remainder_nonzero_w;
       sign_a = 0;
@@ -907,6 +907,27 @@ module OooFpLongOpGate (
         sqrt_d_f = fp_round_flags_d(1'b0, 11'd1023, mant53,
                                             guard, sticky);
       end
+    end
+  end
+
+  // 【B-FP 簇】start 拍锁存操作数/rm: 结果组装与 fflags 块在 done 拍(多拍
+  // 迭代后)组合求值, 旧实现直接读 frs*_value_i/rm_i, 在 OoO 发射框架下迭代
+  // 期间输入已换人 → 结果错。operand 准备块保持读输入(start 拍即被采样)。
+  reg [`XLEN-1:0] op_frs1_q;
+  reg [`XLEN-1:0] op_frs2_q;
+  reg [2:0] op_rm_q;
+  reg op_double_q;
+  always @(posedge clk) begin
+    if (rst) begin
+      op_frs1_q <= {`XLEN{1'b0}};
+      op_frs2_q <= {`XLEN{1'b0}};
+      op_rm_q <= 3'b000;
+      op_double_q <= 1'b0;
+    end else if (long_start_i) begin
+      op_frs1_q <= frs1_value_i;
+      op_frs2_q <= frs2_value_i;
+      op_rm_q <= rm_i;
+      op_double_q <= double_i;
     end
   end
 
@@ -951,10 +972,10 @@ module OooFpLongOpGate (
   );
 
   // 结果装配/fflags 由上方 always@* 块算出,按 double_i 显式 mux
-  wire [`XLEN-1:0] div_value_w  = double_i ? div_d_value  : div_s_value;
-  wire [`XLEN-1:0] sqrt_value_w = double_i ? sqrt_d_value : sqrt_s_value;
-  wire [4:0] div_fflags_w  = double_i ? div_d_f  : div_s_f;
-  wire [4:0] sqrt_fflags_w = double_i ? sqrt_d_f : sqrt_s_f;
+  wire [`XLEN-1:0] div_value_w  = op_double_q ? div_d_value  : div_s_value;
+  wire [`XLEN-1:0] sqrt_value_w = op_double_q ? sqrt_d_value : sqrt_s_value;
+  wire [4:0] div_fflags_w  = op_double_q ? div_d_f  : div_s_f;
+  wire [4:0] sqrt_fflags_w = op_double_q ? sqrt_d_f : sqrt_s_f;
 
   assign div_busy_o         = div_busy_w;
   assign sqrt_busy_o        = sqrt_busy_w;

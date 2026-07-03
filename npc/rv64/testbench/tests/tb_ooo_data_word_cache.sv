@@ -37,6 +37,8 @@ module tb_ooo_data_word_cache;
     .clk(clk),
     .rst(rst),
     .req_lookup_addr_i(req_lookup_addr),
+    .req_nbytes_i(4'd8),
+    .req_line_cross_o(),
     .req_cacheable_o(req_cacheable),
     .req_hit_o(req_hit),
     .req_data_o(req_data),
@@ -155,8 +157,8 @@ module tb_ooo_data_word_cache;
     commit_store(WORD1, 64'hdead_beef_cafe_babe, 8'b1111_1111, 1'b0);
     req_lookup_addr = WORD1;
     #1;
-    tb_check1("full store miss allocates", req_hit, 1'b1);
-    tb_check64("full store miss data", req_data, 64'hdead_beef_cafe_babe);
+    // 【line-dcache】write-no-allocate: full-8B store miss 也不建行
+    tb_check1("full store miss no allocate (line model)", req_hit, 1'b0);
 
     commit_store(WORD2, 64'h5555_6666_7777_8888, 8'b0000_1111, 1'b0);
     req_lookup_addr = WORD2;

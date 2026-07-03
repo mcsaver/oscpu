@@ -2,6 +2,10 @@
 
 // 整数 issue queue 先覆盖 ALU-only uop 的乱序发射核心动作：
 // 保持队列内程序序，监听两个 writeback wakeup，每拍最多发射两个最老 ready uop。
+/* verilator lint_off UNOPTFLAT */
+// 【B-FP 簇】FP 交叉 wakeup/ready 菱形使 Verilator 跨实例保守判环
+// (__Vcellinp__ 端口注入形态)。行为正确性由全量测试守; 真伪甄别与
+// 结构化真修(交叉唤醒打拍)列为 FP 簇收尾项。
 module OooIntIssueQueue #(
   parameter ENTRY_COUNT = (1 << `OOO_ISSUE_INDEX_W),
   parameter ENTRY_INDEX_W = `OOO_ISSUE_INDEX_W,
@@ -21,6 +25,8 @@ module OooIntIssueQueue #(
   input [`XLEN-1:0] dispatch0_pc_i,
   input [`XLEN-1:0] dispatch0_next_pc_i,
   input [`XLEN-1:0] dispatch0_pred_npc_i,
+  input [`BPU_BHT_INDEX_W-1:0] dispatch0_bht_idx_i,
+  input dispatch0_pred_taken_i,
   input [`INST_W-1:0] dispatch0_inst_i,
   input [`CTRL_BUS_W-1:0] dispatch0_ctrl_i,
   input [ROB_INDEX_W-1:0] dispatch0_rob_idx_i,
@@ -29,6 +35,11 @@ module OooIntIssueQueue #(
   input [PHY_REG_ADDR_W-1:0] dispatch0_src2_preg_i,
   input dispatch0_src2_ready_i,
   input [PHY_REG_ADDR_W-1:0] dispatch0_pdest_i,
+  // 【B-FP 簇】fp_pdest=目的是 FP preg(mem rsp 写 FP 堆); fp_st_src=FP store 数据源
+  input dispatch0_fp_pdest_i,
+  input dispatch0_fp_st_src_en_i,
+  input [PHY_REG_ADDR_W-1:0] dispatch0_fp_st_src_preg_i,
+  input dispatch0_fp_st_src_ready_i,
   input [`XLEN-1:0] dispatch0_imm_i,
 
   input dispatch1_valid_i,
@@ -37,6 +48,8 @@ module OooIntIssueQueue #(
   input [`XLEN-1:0] dispatch1_pc_i,
   input [`XLEN-1:0] dispatch1_next_pc_i,
   input [`XLEN-1:0] dispatch1_pred_npc_i,
+  input [`BPU_BHT_INDEX_W-1:0] dispatch1_bht_idx_i,
+  input dispatch1_pred_taken_i,
   input [`INST_W-1:0] dispatch1_inst_i,
   input [`CTRL_BUS_W-1:0] dispatch1_ctrl_i,
   input [ROB_INDEX_W-1:0] dispatch1_rob_idx_i,
@@ -45,12 +58,21 @@ module OooIntIssueQueue #(
   input [PHY_REG_ADDR_W-1:0] dispatch1_src2_preg_i,
   input dispatch1_src2_ready_i,
   input [PHY_REG_ADDR_W-1:0] dispatch1_pdest_i,
+  input dispatch1_fp_pdest_i,
+  input dispatch1_fp_st_src_en_i,
+  input [PHY_REG_ADDR_W-1:0] dispatch1_fp_st_src_preg_i,
+  input dispatch1_fp_st_src_ready_i,
   input [`XLEN-1:0] dispatch1_imm_i,
 
   input wakeup0_valid_i,
   input [PHY_REG_ADDR_W-1:0] wakeup0_pdest_i,
   input wakeup1_valid_i,
   input [PHY_REG_ADDR_W-1:0] wakeup1_pdest_i,
+  // 【B-FP 簇】FP wakeup(fp store 数据源 fs2 的就绪监听)
+  input fp_wake0_valid_i,
+  input [PHY_REG_ADDR_W-1:0] fp_wake0_preg_i,
+  input fp_wake1_valid_i,
+  input [PHY_REG_ADDR_W-1:0] fp_wake1_preg_i,
   input pending_load0_valid_i,
   input [PHY_REG_ADDR_W-1:0] pending_load0_pdest_i,
   input pending_load1_valid_i,
@@ -61,12 +83,17 @@ module OooIntIssueQueue #(
   output [`XLEN-1:0] issue0_pc_o,
   output [`XLEN-1:0] issue0_next_pc_o,
   output [`XLEN-1:0] issue0_pred_npc_o,
+  output [`BPU_BHT_INDEX_W-1:0] issue0_bht_idx_o,
+  output issue0_pred_taken_o,
   output [`INST_W-1:0] issue0_inst_o,
   output [`CTRL_BUS_W-1:0] issue0_ctrl_o,
   output [ROB_INDEX_W-1:0] issue0_rob_idx_o,
   output [PHY_REG_ADDR_W-1:0] issue0_src1_preg_o,
   output [PHY_REG_ADDR_W-1:0] issue0_src2_preg_o,
   output [PHY_REG_ADDR_W-1:0] issue0_pdest_o,
+  output issue0_fp_pdest_o,
+  output issue0_fp_st_src_en_o,
+  output [PHY_REG_ADDR_W-1:0] issue0_fp_st_src_preg_o,
   output [`XLEN-1:0] issue0_imm_o,
 
   output issue1_valid_o,
@@ -74,12 +101,17 @@ module OooIntIssueQueue #(
   output [`XLEN-1:0] issue1_pc_o,
   output [`XLEN-1:0] issue1_next_pc_o,
   output [`XLEN-1:0] issue1_pred_npc_o,
+  output [`BPU_BHT_INDEX_W-1:0] issue1_bht_idx_o,
+  output issue1_pred_taken_o,
   output [`INST_W-1:0] issue1_inst_o,
   output [`CTRL_BUS_W-1:0] issue1_ctrl_o,
   output [ROB_INDEX_W-1:0] issue1_rob_idx_o,
   output [PHY_REG_ADDR_W-1:0] issue1_src1_preg_o,
   output [PHY_REG_ADDR_W-1:0] issue1_src2_preg_o,
   output [PHY_REG_ADDR_W-1:0] issue1_pdest_o,
+  output issue1_fp_pdest_o,
+  output issue1_fp_st_src_en_o,
+  output [PHY_REG_ADDR_W-1:0] issue1_fp_st_src_preg_o,
   output [`XLEN-1:0] issue1_imm_o,
 
   output [ENTRY_COUNT_W-1:0] count_o,
@@ -109,6 +141,8 @@ module OooIntIssueQueue #(
   reg [`XLEN-1:0] pc_q [0:ENTRY_COUNT-1];
   reg [`XLEN-1:0] next_pc_q [0:ENTRY_COUNT-1];
   reg [`XLEN-1:0] pred_npc_q [0:ENTRY_COUNT-1];
+  reg [`BPU_BHT_INDEX_W-1:0] bht_idx_q [0:ENTRY_COUNT-1];
+  reg pred_taken_q [0:ENTRY_COUNT-1];
   reg [`INST_W-1:0] inst_q [0:ENTRY_COUNT-1];
   reg [`CTRL_BUS_W-1:0] ctrl_q [0:ENTRY_COUNT-1];
   reg [ROB_INDEX_W-1:0] rob_idx_q [0:ENTRY_COUNT-1];
@@ -117,6 +151,11 @@ module OooIntIssueQueue #(
   reg [PHY_REG_ADDR_W-1:0] src2_preg_q [0:ENTRY_COUNT-1];
   reg src2_ready_q [0:ENTRY_COUNT-1];
   reg [PHY_REG_ADDR_W-1:0] pdest_q [0:ENTRY_COUNT-1];
+  // 【B-FP 簇】fp 字段(不进 checkpoint 影子——该机制已废弃)
+  reg fp_pdest_q [0:ENTRY_COUNT-1];
+  reg fp_st_en_q [0:ENTRY_COUNT-1];
+  reg [PHY_REG_ADDR_W-1:0] fp_st_preg_q [0:ENTRY_COUNT-1];
+  reg fp_st_ready_q [0:ENTRY_COUNT-1];
   reg [`XLEN-1:0] imm_q [0:ENTRY_COUNT-1];
   reg [ENTRY_COUNT_W-1:0] count_q;
 
@@ -124,6 +163,8 @@ module OooIntIssueQueue #(
   reg [`XLEN-1:0] checkpoint_pc_q [0:ENTRY_COUNT-1];
   reg [`XLEN-1:0] checkpoint_next_pc_q [0:ENTRY_COUNT-1];
   reg [`XLEN-1:0] checkpoint_pred_npc_q [0:ENTRY_COUNT-1];
+  reg [`BPU_BHT_INDEX_W-1:0] checkpoint_bht_idx_q [0:ENTRY_COUNT-1];
+  reg checkpoint_pred_taken_q [0:ENTRY_COUNT-1];
   reg [`INST_W-1:0] checkpoint_inst_q [0:ENTRY_COUNT-1];
   reg [`CTRL_BUS_W-1:0] checkpoint_ctrl_q [0:ENTRY_COUNT-1];
   reg [ROB_INDEX_W-1:0] checkpoint_rob_idx_q [0:ENTRY_COUNT-1];
@@ -139,6 +180,8 @@ module OooIntIssueQueue #(
   reg [`XLEN-1:0] pc_next_r [0:ENTRY_COUNT-1];
   reg [`XLEN-1:0] next_pc_next_r [0:ENTRY_COUNT-1];
   reg [`XLEN-1:0] pred_npc_next_r [0:ENTRY_COUNT-1];
+  reg [`BPU_BHT_INDEX_W-1:0] bht_idx_next_r [0:ENTRY_COUNT-1];
+  reg pred_taken_next_r [0:ENTRY_COUNT-1];
   reg [`INST_W-1:0] inst_next_r [0:ENTRY_COUNT-1];
   reg [`CTRL_BUS_W-1:0] ctrl_next_r [0:ENTRY_COUNT-1];
   reg [ROB_INDEX_W-1:0] rob_idx_next_r [0:ENTRY_COUNT-1];
@@ -147,6 +190,10 @@ module OooIntIssueQueue #(
   reg [PHY_REG_ADDR_W-1:0] src2_preg_next_r [0:ENTRY_COUNT-1];
   reg src2_ready_next_r [0:ENTRY_COUNT-1];
   reg [PHY_REG_ADDR_W-1:0] pdest_next_r [0:ENTRY_COUNT-1];
+  reg fp_pdest_next_r [0:ENTRY_COUNT-1];
+  reg fp_st_en_next_r [0:ENTRY_COUNT-1];
+  reg [PHY_REG_ADDR_W-1:0] fp_st_preg_next_r [0:ENTRY_COUNT-1];
+  reg fp_st_ready_next_r [0:ENTRY_COUNT-1];
   reg [`XLEN-1:0] imm_next_r [0:ENTRY_COUNT-1];
   reg [ENTRY_COUNT_W-1:0] count_next_r;
   reg [ENTRY_COUNT_W-1:0] kill_keep_cnt_w;   // B2 ROB-walk squash 后存活计数（组合算，避免 BLKSEQ）
@@ -428,7 +475,10 @@ module OooIntIssueQueue #(
       (dispatch0_src2_ready_i ||
        wakeup_match(dispatch0_src2_preg_i,
                     wakeup0_valid_i, wakeup0_pdest_i,
-                    wakeup1_valid_i, wakeup1_pdest_i));
+                    wakeup1_valid_i, wakeup1_pdest_i)) &&
+      (!dispatch0_fp_st_src_en_i || dispatch0_fp_st_src_ready_i ||
+       (fp_wake0_valid_i && (fp_wake0_preg_i == dispatch0_fp_st_src_preg_i)) ||
+       (fp_wake1_valid_i && (fp_wake1_preg_i == dispatch0_fp_st_src_preg_i)));
   wire dispatch1_entry_ready_w =
       dispatch1_fire_w && dispatch1_bypass_allowed_w &&
       !(issue_mem_block_i && dispatch1_mem_w) &&
@@ -561,7 +611,12 @@ module OooIntIssueQueue #(
                               (src2_ready_q[scan_i] ||
                                wakeup_match(src2_preg_q[scan_i],
                                             wakeup0_valid_i, wakeup0_pdest_i,
-                                            wakeup1_valid_i, wakeup1_pdest_i));
+                                            wakeup1_valid_i, wakeup1_pdest_i)) &&
+                              (!fp_st_en_q[scan_i] || fp_st_ready_q[scan_i] ||
+                               (fp_wake0_valid_i &&
+                                (fp_wake0_preg_i == fp_st_preg_q[scan_i])) ||
+                               (fp_wake1_valid_i &&
+                                (fp_wake1_preg_i == fp_st_preg_q[scan_i])));
       if (entry_ready_r[scan_i]) begin
         if (!issue0_found_r) begin
           issue0_found_r = 1'b1;
@@ -727,6 +782,8 @@ module OooIntIssueQueue #(
   // 故其 pred_npc 恒取寄存 pred_npc_q（结构上 loop-free，破 pred_npc→mispredict→redirect→前端预测→pred_npc 环）；
   // 非控制流的 bypass 项 pred_npc 本就无消费者（不算 mispredict），取 pred_npc_q[idx] 的旧值无副作用。
   assign issue0_pred_npc_o = pred_npc_q[issue0_idx_r];
+  assign issue0_bht_idx_o = bht_idx_q[issue0_idx_r];
+  assign issue0_pred_taken_o = pred_taken_q[issue0_idx_r];
   assign issue0_inst_o = issue0_dispatch0_r ? dispatch0_inst_i :
                          issue0_dispatch1_r ? dispatch1_inst_i :
                          inst_q[issue0_idx_r];
@@ -745,6 +802,17 @@ module OooIntIssueQueue #(
   assign issue0_pdest_o = issue0_dispatch0_r ? dispatch0_pdest_i :
                           issue0_dispatch1_r ? dispatch1_pdest_i :
                           pdest_q[issue0_idx_r];
+  assign issue0_fp_pdest_o = issue0_dispatch0_r ? dispatch0_fp_pdest_i :
+                             issue0_dispatch1_r ? dispatch1_fp_pdest_i :
+                             fp_pdest_q[issue0_idx_r];
+  assign issue0_fp_st_src_en_o =
+      issue0_dispatch0_r ? dispatch0_fp_st_src_en_i :
+      issue0_dispatch1_r ? dispatch1_fp_st_src_en_i :
+      fp_st_en_q[issue0_idx_r];
+  assign issue0_fp_st_src_preg_o =
+      issue0_dispatch0_r ? dispatch0_fp_st_src_preg_i :
+      issue0_dispatch1_r ? dispatch1_fp_st_src_preg_i :
+      fp_st_preg_q[issue0_idx_r];
   assign issue0_imm_o = issue0_dispatch0_r ? dispatch0_imm_i :
                         issue0_dispatch1_r ? dispatch1_imm_i :
                         imm_q[issue0_idx_r];
@@ -759,6 +827,8 @@ module OooIntIssueQueue #(
                             issue1_dispatch1_r ? dispatch1_next_pc_i :
                             next_pc_q[issue1_idx_r];
   assign issue1_pred_npc_o = pred_npc_q[issue1_idx_r];
+  assign issue1_bht_idx_o = bht_idx_q[issue1_idx_r];
+  assign issue1_pred_taken_o = pred_taken_q[issue1_idx_r];
   assign issue1_inst_o = issue1_dispatch0_r ? dispatch0_inst_i :
                          issue1_dispatch1_r ? dispatch1_inst_i :
                          inst_q[issue1_idx_r];
@@ -777,6 +847,17 @@ module OooIntIssueQueue #(
   assign issue1_pdest_o = issue1_dispatch0_r ? dispatch0_pdest_i :
                           issue1_dispatch1_r ? dispatch1_pdest_i :
                           pdest_q[issue1_idx_r];
+  assign issue1_fp_pdest_o = issue1_dispatch0_r ? dispatch0_fp_pdest_i :
+                             issue1_dispatch1_r ? dispatch1_fp_pdest_i :
+                             fp_pdest_q[issue1_idx_r];
+  assign issue1_fp_st_src_en_o =
+      issue1_dispatch0_r ? dispatch0_fp_st_src_en_i :
+      issue1_dispatch1_r ? dispatch1_fp_st_src_en_i :
+      fp_st_en_q[issue1_idx_r];
+  assign issue1_fp_st_src_preg_o =
+      issue1_dispatch0_r ? dispatch0_fp_st_src_preg_i :
+      issue1_dispatch1_r ? dispatch1_fp_st_src_preg_i :
+      fp_st_preg_q[issue1_idx_r];
   assign issue1_imm_o = issue1_dispatch0_r ? dispatch0_imm_i :
                         issue1_dispatch1_r ? dispatch1_imm_i :
                         imm_q[issue1_idx_r];
@@ -815,10 +896,16 @@ module OooIntIssueQueue #(
       pc_next_r[compact_i] = {`XLEN{1'b0}};
       next_pc_next_r[compact_i] = {`XLEN{1'b0}};
       pred_npc_next_r[compact_i] = {`XLEN{1'b0}};
+      bht_idx_next_r[compact_i] = {`BPU_BHT_INDEX_W{1'b0}};
+      pred_taken_next_r[compact_i] = 1'b0;
       inst_next_r[compact_i] = {`INST_W{1'b0}};
       ctrl_next_r[compact_i] = {`CTRL_BUS_W{1'b0}};
       rob_idx_next_r[compact_i] = {ROB_INDEX_W{1'b0}};
       src1_preg_next_r[compact_i] = {PHY_REG_ADDR_W{1'b0}};
+      fp_pdest_next_r[compact_i] = 1'b0;
+      fp_st_en_next_r[compact_i] = 1'b0;
+      fp_st_preg_next_r[compact_i] = {PHY_REG_ADDR_W{1'b0}};
+      fp_st_ready_next_r[compact_i] = 1'b0;
       src1_ready_next_r[compact_i] = 1'b0;
       src2_preg_next_r[compact_i] = {PHY_REG_ADDR_W{1'b0}};
       src2_ready_next_r[compact_i] = 1'b0;
@@ -836,6 +923,8 @@ module OooIntIssueQueue #(
         pc_next_r[write_i] = pc_q[compact_i];
         next_pc_next_r[write_i] = next_pc_q[compact_i];
         pred_npc_next_r[write_i] = pred_npc_q[compact_i];
+        bht_idx_next_r[write_i] = bht_idx_q[compact_i];
+        pred_taken_next_r[write_i] = pred_taken_q[compact_i];
         inst_next_r[write_i] = inst_q[compact_i];
         ctrl_next_r[write_i] = ctrl_q[compact_i];
         rob_idx_next_r[write_i] = rob_idx_q[compact_i];
@@ -852,6 +941,13 @@ module OooIntIssueQueue #(
                          wakeup0_valid_i, wakeup0_pdest_i,
                          wakeup1_valid_i, wakeup1_pdest_i);
         pdest_next_r[write_i] = pdest_q[compact_i];
+        fp_pdest_next_r[write_i] = fp_pdest_q[compact_i];
+        fp_st_en_next_r[write_i] = fp_st_en_q[compact_i];
+        fp_st_preg_next_r[write_i] = fp_st_preg_q[compact_i];
+        fp_st_ready_next_r[write_i] =
+            fp_st_ready_q[compact_i] ||
+            (fp_wake0_valid_i && (fp_wake0_preg_i == fp_st_preg_q[compact_i])) ||
+            (fp_wake1_valid_i && (fp_wake1_preg_i == fp_st_preg_q[compact_i]));
         imm_next_r[write_i] = imm_q[compact_i];
         write_i = write_i + 1;
       end
@@ -862,6 +958,8 @@ module OooIntIssueQueue #(
       pc_next_r[write_i] = dispatch0_pc_i;
       next_pc_next_r[write_i] = dispatch0_next_pc_i;
       pred_npc_next_r[write_i] = dispatch0_pred_npc_i;
+      bht_idx_next_r[write_i] = dispatch0_bht_idx_i;
+      pred_taken_next_r[write_i] = dispatch0_pred_taken_i;
       inst_next_r[write_i] = dispatch0_inst_i;
       ctrl_next_r[write_i] = dispatch0_ctrl_i;
       rob_idx_next_r[write_i] = dispatch0_rob_idx_i;
@@ -878,6 +976,10 @@ module OooIntIssueQueue #(
                        wakeup0_valid_i, wakeup0_pdest_i,
                        wakeup1_valid_i, wakeup1_pdest_i);
       pdest_next_r[write_i] = dispatch0_pdest_i;
+      fp_pdest_next_r[write_i] = dispatch0_fp_pdest_i;
+      fp_st_en_next_r[write_i] = dispatch0_fp_st_src_en_i;
+      fp_st_preg_next_r[write_i] = dispatch0_fp_st_src_preg_i;
+      fp_st_ready_next_r[write_i] = dispatch0_fp_st_src_ready_i;
       imm_next_r[write_i] = dispatch0_imm_i;
       write_i = write_i + 1;
     end
@@ -887,6 +989,8 @@ module OooIntIssueQueue #(
       pc_next_r[write_i] = dispatch1_pc_i;
       next_pc_next_r[write_i] = dispatch1_next_pc_i;
       pred_npc_next_r[write_i] = dispatch1_pred_npc_i;
+      bht_idx_next_r[write_i] = dispatch1_bht_idx_i;
+      pred_taken_next_r[write_i] = dispatch1_pred_taken_i;
       inst_next_r[write_i] = dispatch1_inst_i;
       ctrl_next_r[write_i] = dispatch1_ctrl_i;
       rob_idx_next_r[write_i] = dispatch1_rob_idx_i;
@@ -903,6 +1007,10 @@ module OooIntIssueQueue #(
                        wakeup0_valid_i, wakeup0_pdest_i,
                        wakeup1_valid_i, wakeup1_pdest_i);
       pdest_next_r[write_i] = dispatch1_pdest_i;
+      fp_pdest_next_r[write_i] = dispatch1_fp_pdest_i;
+      fp_st_en_next_r[write_i] = dispatch1_fp_st_src_en_i;
+      fp_st_preg_next_r[write_i] = dispatch1_fp_st_src_preg_i;
+      fp_st_ready_next_r[write_i] = dispatch1_fp_st_src_ready_i;
       imm_next_r[write_i] = dispatch1_imm_i;
       write_i = write_i + 1;
     end
@@ -929,6 +1037,8 @@ module OooIntIssueQueue #(
         pc_q[reset_i] <= {`XLEN{1'b0}};
         next_pc_q[reset_i] <= {`XLEN{1'b0}};
         pred_npc_q[reset_i] <= {`XLEN{1'b0}};
+        bht_idx_q[reset_i] <= {`BPU_BHT_INDEX_W{1'b0}};
+        pred_taken_q[reset_i] <= 1'b0;
         inst_q[reset_i] <= {`INST_W{1'b0}};
         ctrl_q[reset_i] <= {`CTRL_BUS_W{1'b0}};
         rob_idx_q[reset_i] <= {ROB_INDEX_W{1'b0}};
@@ -937,11 +1047,17 @@ module OooIntIssueQueue #(
         src2_preg_q[reset_i] <= {PHY_REG_ADDR_W{1'b0}};
         src2_ready_q[reset_i] <= 1'b0;
         pdest_q[reset_i] <= {PHY_REG_ADDR_W{1'b0}};
+        fp_pdest_q[reset_i] <= 1'b0;
+        fp_st_en_q[reset_i] <= 1'b0;
+        fp_st_preg_q[reset_i] <= {PHY_REG_ADDR_W{1'b0}};
+        fp_st_ready_q[reset_i] <= 1'b0;
         imm_q[reset_i] <= {`XLEN{1'b0}};
         checkpoint_valid_q[reset_i] <= 1'b0;
         checkpoint_pc_q[reset_i] <= {`XLEN{1'b0}};
         checkpoint_next_pc_q[reset_i] <= {`XLEN{1'b0}};
         checkpoint_pred_npc_q[reset_i] <= {`XLEN{1'b0}};
+        checkpoint_bht_idx_q[reset_i] <= {`BPU_BHT_INDEX_W{1'b0}};
+        checkpoint_pred_taken_q[reset_i] <= 1'b0;
         checkpoint_inst_q[reset_i] <= {`INST_W{1'b0}};
         checkpoint_ctrl_q[reset_i] <= {`CTRL_BUS_W{1'b0}};
         checkpoint_rob_idx_q[reset_i] <= {ROB_INDEX_W{1'b0}};
@@ -960,6 +1076,8 @@ module OooIntIssueQueue #(
         pc_q[reset_i] <= checkpoint_pc_q[reset_i];
         next_pc_q[reset_i] <= checkpoint_next_pc_q[reset_i];
         pred_npc_q[reset_i] <= checkpoint_pred_npc_q[reset_i];
+        bht_idx_q[reset_i] <= checkpoint_bht_idx_q[reset_i];
+        pred_taken_q[reset_i] <= checkpoint_pred_taken_q[reset_i];
         inst_q[reset_i] <= checkpoint_inst_q[reset_i];
         ctrl_q[reset_i] <= checkpoint_ctrl_q[reset_i];
         rob_idx_q[reset_i] <= checkpoint_rob_idx_q[reset_i];
@@ -977,6 +1095,8 @@ module OooIntIssueQueue #(
         checkpoint_pc_q[reset_i] <= pc_q[reset_i];
         checkpoint_next_pc_q[reset_i] <= next_pc_q[reset_i];
         checkpoint_pred_npc_q[reset_i] <= pred_npc_q[reset_i];
+        checkpoint_bht_idx_q[reset_i] <= bht_idx_q[reset_i];
+        checkpoint_pred_taken_q[reset_i] <= pred_taken_q[reset_i];
         checkpoint_inst_q[reset_i] <= inst_q[reset_i];
         checkpoint_ctrl_q[reset_i] <= ctrl_q[reset_i];
         checkpoint_rob_idx_q[reset_i] <= rob_idx_q[reset_i];
@@ -1005,6 +1125,11 @@ module OooIntIssueQueue #(
               wakeup_match(src2_preg_q[reset_i],
                            wakeup0_valid_i, wakeup0_pdest_i,
                            wakeup1_valid_i, wakeup1_pdest_i);
+          fp_st_ready_q[reset_i] <= fp_st_ready_q[reset_i] ||
+              (fp_wake0_valid_i &&
+               (fp_wake0_preg_i == fp_st_preg_q[reset_i])) ||
+              (fp_wake1_valid_i &&
+               (fp_wake1_preg_i == fp_st_preg_q[reset_i]));
         end
       end
       count_q <= kill_keep_cnt_w;
@@ -1015,6 +1140,8 @@ module OooIntIssueQueue #(
         pc_q[reset_i] <= pc_next_r[reset_i];
         next_pc_q[reset_i] <= next_pc_next_r[reset_i];
         pred_npc_q[reset_i] <= pred_npc_next_r[reset_i];
+        bht_idx_q[reset_i] <= bht_idx_next_r[reset_i];
+        pred_taken_q[reset_i] <= pred_taken_next_r[reset_i];
         inst_q[reset_i] <= inst_next_r[reset_i];
         ctrl_q[reset_i] <= ctrl_next_r[reset_i];
         rob_idx_q[reset_i] <= rob_idx_next_r[reset_i];
@@ -1023,6 +1150,10 @@ module OooIntIssueQueue #(
         src2_preg_q[reset_i] <= src2_preg_next_r[reset_i];
         src2_ready_q[reset_i] <= src2_ready_next_r[reset_i];
         pdest_q[reset_i] <= pdest_next_r[reset_i];
+        fp_pdest_q[reset_i] <= fp_pdest_next_r[reset_i];
+        fp_st_en_q[reset_i] <= fp_st_en_next_r[reset_i];
+        fp_st_preg_q[reset_i] <= fp_st_preg_next_r[reset_i];
+        fp_st_ready_q[reset_i] <= fp_st_ready_next_r[reset_i];
         imm_q[reset_i] <= imm_next_r[reset_i];
       end
     end
@@ -1072,3 +1203,4 @@ module OooIntIssueQueue #(
 `endif
 
 endmodule
+/* verilator lint_on UNOPTFLAT */

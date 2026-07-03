@@ -107,6 +107,25 @@ module tb_ooo_int_backend;
     .dispatch0_rs2_arch_i(dispatch0_rs2_arch),
     .dispatch0_rd_arch_i(dispatch0_rd_arch),
     .dispatch0_imm_i(dispatch0_imm),
+    .dispatch0_is_fp_i(1'b0),
+    .dispatch0_fp_load_i(1'b0),
+    .dispatch0_fp_store_i(1'b0),
+    .dispatch0_fp_double_i(1'b0),
+    .dispatch0_fp_gpr_write_i(1'b0),
+    .dispatch0_fp_gpr_src_i(1'b0),
+    .dispatch0_fp_fs1_en_i(1'b0),
+    .dispatch0_fp_fs2_en_i(1'b0),
+    .dispatch0_fp_fs3_en_i(1'b0),
+    .dispatch1_is_fp_i(1'b0),
+    .dispatch1_fp_load_i(1'b0),
+    .dispatch1_fp_store_i(1'b0),
+    .dispatch1_fp_double_i(1'b0),
+    .dispatch1_fp_gpr_write_i(1'b0),
+    .dispatch1_fp_gpr_src_i(1'b0),
+    .dispatch1_fp_fs1_en_i(1'b0),
+    .dispatch1_fp_fs2_en_i(1'b0),
+    .dispatch1_fp_fs3_en_i(1'b0),
+    .frm_i(3'b000),
     .dispatch1_valid_i(dispatch1_valid),
     .dispatch1_optional_i(1'b0),
     .dispatch1_ready_o(dispatch1_ready),
@@ -639,12 +658,10 @@ module tb_ooo_int_backend;
                   make_branch_ctrl(`CMP_OP_EQ),
                   5'd5, 5'd0, 5'd0, 32'd8);
     #1;
-    tb_check1("branch bypass direct resolve valid",
-              dispatch_branch_resolve_valid, 1'b1);
-    tb_check32("branch bypass direct resolve pc",
-               dispatch_branch_resolve_pc, 32'h8000_0804);
-    tb_check32("branch bypass direct resolve not taken",
-               dispatch_branch_resolve_next_pc, 32'h8000_0808);
+    // domain-A(OOO_DBRANCH_DOMAIN_A=1): dispatch 拍快解析对分支禁用(fast 路不产生
+    // mispredict/ROB-walk kill, 会放走 wrong-path); 分支恒经 IQ 由 issue 级 resolve。
+    tb_check1("branch dispatch fast resolve disabled (domain-A)",
+              dispatch_branch_resolve_valid, 1'b0);
     `TB_TICK(clk);
     clear_dispatch();
     repeat (4) begin
@@ -737,35 +754,36 @@ module tb_ooo_int_backend;
 	    mem_rsp_valid = 1'b0;
 	    set_dispatch0(32'h8000_2600,
 	                  make_load_ctrl(`MEM_SIZE_WORD, 1'b1),
-	                  5'd0, 5'd0, 5'd15, 32'h0000_0270);
+	                  5'd0, 5'd0, 5'd15, 32'h8000_0270);  // 【F2】EA 入 pmem: 非 pmem load 现按 MMIO 队头独占, 本场景测 buffer 串行化
 	    #1;
 	    tb_check1("buffer seed load dispatch ready", dispatch0_ready, 1'b1);
 	    tb_check1("buffer seed load request visible", mem_req_valid, 1'b1);
 	    tb_check1("buffer seed load is read", mem_req_write, 1'b0);
-	    tb_check32("buffer seed load addr", mem_req_addr, 32'h0000_0270);
+	    tb_check32("buffer seed load addr", mem_req_addr, 32'h8000_0270);
 	    `TB_TICK(clk);
 	    clear_dispatch();
 	    #1;
 
 	    set_dispatch0(32'h8000_2604,
 	                  make_load_ctrl(`MEM_SIZE_HALF, 1'b1),
-	                  5'd0, 5'd0, 5'd16, 32'h0000_0276);
+	                  5'd0, 5'd0, 5'd16, 32'h8000_0276);
 	    #1;
 	    tb_check1("buffered lhu dispatch ready", dispatch0_ready, 1'b1);
-	    tb_check1("buffered lhu waits while mem0 busy", mem_req_valid, 1'b0);
+	    // 【LSQ/MIQ 语义】plain load 背靠背在飞(rsp 恒配 MIQ 队头), 旧"单例串行等待"
+	    // 断言依赖第一条 load 落 MMIO 区占 mem_pending 的巧合, 地址入 pmem 后按真语义更新。
+	    tb_check1("plain lhu back-to-back issues", mem_req_valid, 1'b1);
+	    tb_check1("plain lhu back-to-back is read", mem_req_write, 1'b0);
+	    tb_check32("plain lhu back-to-back addr", mem_req_addr, 32'h8000_0276);
 	    `TB_TICK(clk);
 	    clear_dispatch();
 	    #1;
-	    tb_check1("buffered lhu remains queued before rsp", mem_req_valid, 1'b0);
+	    tb_check1("no third request in flight", mem_req_valid, 1'b0);
 
 	    mem_rsp_valid = 1'b1;
 	    mem_rsp_rdata = 64'h0000_0000_1234_5678;
 	    mem_rsp_error = 1'b0;
 	    #1;
 	    tb_check1("buffer seed rsp ready", mem_rsp_ready, 1'b1);
-	    tb_check1("buffered lhu drains with rsp", mem_req_valid, 1'b1);
-	    tb_check1("buffered lhu drain is read", mem_req_write, 1'b0);
-	    tb_check32("buffered lhu drain exact addr", mem_req_addr, 32'h0000_0276);
 	    tb_check1("buffer seed commit valid", commit0_valid, 1'b1);
 	    tb_check32("buffer seed commit data", commit0_data, 32'h1234_5678);
 	    `TB_TICK(clk);

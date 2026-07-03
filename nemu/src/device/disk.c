@@ -677,15 +677,15 @@ static void virtio_blk_raise_irq(void) {
 }
 
 static uint16_t guest_read16(paddr_t addr) {
-  return paddr_read(addr, 2);
+  return (uint16_t)paddr_dma_read_value(addr, 2);
 }
 
 static uint32_t guest_read32(paddr_t addr) {
-  return paddr_read(addr, 4);
+  return (uint32_t)paddr_dma_read_value(addr, 4);
 }
 
 static uint64_t guest_read64(paddr_t addr) {
-  return paddr_read(addr, 8);
+  return (uint64_t)paddr_dma_read_value(addr, 8);
 }
 
 static void guest_write16(paddr_t addr, uint16_t value) {
@@ -762,13 +762,9 @@ static bool guest_range_ok(paddr_t addr, uint32_t len) {
 static bool guest_copy_from(paddr_t addr, void *buf, uint32_t len) {
   if (len == 0) return true;
   if (!guest_range_ok(addr, len)) return false;
-  if (in_pmem(addr) && in_pmem(addr + len - 1)) {
-    memcpy(buf, guest_to_host(addr), len);
-    return true;
-  }
-  uint8_t *out = buf;
-  for (uint32_t i = 0; i < len; i++) out[i] = paddr_read(addr + i, 1);
-  return true;
+  // 必须经 dcache 一致视图读: guest 刚写的数据段可能 dirty 停在 write-back dcache,
+  // 裸 memcpy(guest_to_host) 会读到 pmem stale(与 #108 tohost 漏判同源)。
+  return paddr_dma_read(addr, buf, len);
 }
 
 static bool guest_copy_to(paddr_t addr, const void *buf, uint32_t len) {
@@ -1690,6 +1686,6 @@ void init_disk() {
 #ifdef CONFIG_HAS_PORT_IO
   add_pio_map("virtio-blk", CONFIG_DISK_CTL_PORT, virtio_base, 0x1000, virtio_blk_io_handler);
 #else
-  add_mmio_map("virtio-blk", CONFIG_DISK_CTL_MMIO, virtio_base, 0x1000, virtio_blk_io_handler);
+  add_mmio_map("virtio-blk", DEV_DISK_MMIO, virtio_base, 0x1000, virtio_blk_io_handler);
 #endif
 }

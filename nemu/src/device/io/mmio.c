@@ -19,6 +19,7 @@
 //2.当CPU方位这个地址区间时，把请求转发给对应设备
 
 #include <device/map.h>
+#include <device/mmio.h>
 #include <memory/paddr.h>
 #include <isa.h>
 #include <utils.h>
@@ -46,6 +47,21 @@ static int nr_map = 0;
 static IOMap* fetch_mmio_map(paddr_t addr) {
   int mapid = find_mapid_by_addr(maps, nr_map, addr);
   return (mapid == -1 ? NULL : &maps[mapid]);
+}
+
+// 纯查询: [addr, addr+len-1] 是否完全落在某个已注册 MMIO 设备窗口内。
+// 用 map_inside 而非 find_mapid_by_addr, 避免后者命中即 difftest_skip_ref 的副作用——
+// 本函数只做"物理地址可访问性预检", 不能扰动 difftest 步进。
+bool mmio_is_mapped(paddr_t addr, int len) {
+  if (len <= 0) return false;
+  paddr_t last = addr + (paddr_t)len - 1;
+  if (last < addr) return false;
+  bool lo = false, hi = false;
+  for (int i = 0; i < nr_map; i++) {
+    if (map_inside(&maps[i], addr)) lo = true;
+    if (map_inside(&maps[i], last)) hi = true;
+  }
+  return lo && hi;
 }
 
 //只在注册设备的时候使用，作用是：

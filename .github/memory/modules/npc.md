@@ -394,6 +394,19 @@
 - 2026-04-07: `IFU/bh_bt.v` 已补成最小 BHT 闭环，当前支持 `pc_lookup` 组合查表输出 `pre_state`/`jump_if`，以及 `pc_wb_bt + state_wb_bh` 的同步写回；表项格式为 `{tag, 2-bit state}`，表深为 `2^BHT_ADDR_WIDTH`。
 - 2026-03-22: 新增 alu.v 的基础实现，当前支持 10 种运算: add、sub、and、or、xor、sll、srl、sra、slt、sltu。
 
+## B-FP 簇整体落地(2026-07-02)
+
+FP 真乱序(rename+FpIQ+物理堆+执行簇+ROB commit)一次成型,rv64uf/ud 23/23。
+核心文件:`vsrc/execute/OooFpBackend.v`(簇本体)、`OooFpIssueQueue.v`、
+`OooFpPhysRegFile.v`、`OooFpArithGate.v`(5 级 meta 链自流水)、
+`OooFpLongOpGate.v`(start 拍操作数锁存)。11 个根因修复清单见
+`design/specs/ooo-fp-cluster-implementation-plan.md` §8.2——**拆任何 pending
+通道前必读**(域 B 不变量反噬家族:fact gate 会把同包 lane1 指令静默丢成 NOP)。
+FP load 禁 SQ 前递(前递路无 FP 分流);CSR 注入 rdata 在 drain 完成拍刷新。
+pending-FP 壳已同日第二批拆净(spec §9,4 文件删/F8 fp_dirty 换源)。
+遗留:UNOPTFLAT 围栏族甄别(+OooRenameMap)、difftest 基线(整数也 boot
+mismatch,与 FP 无关)。
+
 ## 设计笔记
 <!-- 模块设计思路、接口约定 -->
 - 2026-06-03: RV64 当前顶层契约更新为 `NpcTop` 是可综合 SoC 顶层，`NpcCoreTop` 是 core 实现选择边界，`NpcSimTop` 是 Verilator/DPI 仿真外壳。AXI crossbar、UART、CLINT、PLIC 和默认 slave 不应再直接放在 `NpcSimTop` 中；DPI memory、DPI virtio 和 host 事件回调也不能进入 `RTL_CORE_SRCS`/Vivado 索引。需要新增真实 FPGA/板级外设时，应优先接 `NpcTop` 导出的 AXI-Lite 设备窗口或替换其中的 stub，而不是把 DPI 逻辑下沉进可综合顶层。

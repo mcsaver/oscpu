@@ -147,7 +147,8 @@ module OooBranchAppendDispatchGate #(
   assign branch_prefetch_hit_to_fifo_o =
       branch_prefetch_hit_available_i && !branch_prefetch_dispatch_fire_o;
 
-  assign dispatch1_optional_o =
-      return_cont_optional_o || branch_target_append_candidate_o ||
-      branch_fallthrough_append_candidate_o;
+  // 【F2】optional 恒 0: direct 模型 lane1 选发槽遗产(append 快速路已恒禁)。F2 的
+  // dual 双发(not-taken 分支+head1)必须 pair 原子——optional 让 DispatchBackend 豁免
+  // pair-ready 后 d0 可独发, dbranch pop 会把未发射的 head1 从 FIFO 蒸发。
+  assign dispatch1_optional_o = 1'b0;
 endmodule

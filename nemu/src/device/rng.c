@@ -139,15 +139,15 @@ static void virtio_rng_raise_irq(void) {
 }
 
 static uint16_t guest_read16(paddr_t addr) {
-  return paddr_read(addr, 2);
+  return (uint16_t)paddr_dma_read_value(addr, 2);
 }
 
 static uint32_t guest_read32(paddr_t addr) {
-  return paddr_read(addr, 4);
+  return (uint32_t)paddr_dma_read_value(addr, 4);
 }
 
 static uint64_t guest_read64(paddr_t addr) {
-  return paddr_read(addr, 8);
+  return (uint64_t)paddr_dma_read_value(addr, 8);
 }
 
 static void guest_write16(paddr_t addr, uint16_t value) {
@@ -534,10 +534,10 @@ void init_virtio_rng() {
   }
   virtio_rng_reset();
 #ifdef CONFIG_HAS_PORT_IO
-  add_pio_map("virtio-rng", CONFIG_VIRTIO_RNG_MMIO, rng_base, 0x1000,
+  add_pio_map("virtio-rng", DEV_VIRTIO_RNG_MMIO, rng_base, 0x1000,
       virtio_rng_io_handler);
 #else
-  add_mmio_map("virtio-rng", CONFIG_VIRTIO_RNG_MMIO, rng_base, 0x1000,
+  add_mmio_map("virtio-rng", DEV_VIRTIO_RNG_MMIO, rng_base, 0x1000,
       virtio_rng_io_handler);
 #endif
 }
@@ -580,7 +580,7 @@ void virtio_rng_qmp_query_rng(char *out, size_t out_size) {
       "\"last-avail-idx\":%u}}]}",
       virtio_rng_backend_name(),
       rng_fd >= 0 ? "/dev/urandom" : "fallback-prng",
-      CONFIG_VIRTIO_RNG_MMIO, VIRTIO_RNG_IRQ,
+      DEV_VIRTIO_RNG_MMIO, VIRTIO_RNG_IRQ,
       VIRTIO_RNG_DEVICE_ID, VIRTIO_VENDOR_YSYX, VIRTIO_MMIO_VERSION_2,
       VIRTIO_RNG_QUEUE_SIZE, json_bool(queue0.ready),
       device_status, interrupt_status,

@@ -16,6 +16,14 @@ module OooMemAxiBridge (
   input mem0_req_valid_i,
   output mem0_req_ready_o,
   input mem0_req_write_i,
+  // 【LSQ·SQ 切换】三个事务属性位(spec ooo-lsq-implementation-plan.md §3.6):
+  //   probe: write 探测——翻译+PMP 走完后不写内存, PA 经 rsp_rdata 回传(fault 路径复用);
+  //   pretrans: 地址已是 PA(SQ drain 落存)——跳过翻译与 PMP(probe 拍已查);
+  //   nokill: 事务不可被 flush 丢弃(已退休 store 的落存写必达)。
+  // 三位全 0 时本模块行为与旧版逐位一致。
+  input mem0_req_probe_i,
+  input mem0_req_pretrans_i,
+  input mem0_req_nokill_i,
   input [`XLEN-1:0] mem0_req_addr_i,
   input [`XLEN-1:0] mem0_req_wdata_i,
   input [`STRB_W-1:0] mem0_req_wstrb_i,
@@ -24,6 +32,8 @@ module OooMemAxiBridge (
   output [`XLEN-1:0] mem0_rsp_rdata_o,
   output mem0_rsp_error_o,
   output mem0_rsp_page_fault_o,
+  // 当前特权/satp 上下文下数据访问是否经 Sv39 翻译(供后端 load-vs-SQ 判定选 blind 模式)
+  output translate_active_o,
 
   output lsu_axi_arvalid_o,
   input lsu_axi_arready_i,
@@ -53,7 +63,9 @@ module OooMemAxiBridge (
   localparam [3:0] S_WRITE_REQ = 4'd5;
   localparam [3:0] S_WRITE_RESP = 4'd6;
   localparam [3:0] S_RESP = 4'd7;
-  localparam DCACHE_INDEX_W = 10;
+  // 【LSQ Phase2+3】8KB(2^10×8B)直映对 CoreMark 工作集 miss 率 47.6%——
+  // 容量拉到 32KB(2^12), miss 流转 hit 流(hit 已 1 req/拍 back-to-back)。
+  localparam DCACHE_INDEX_W = 12;
   localparam DTLB_INDEX_W = 6;
 
   reg [3:0] state_q;
@@ -78,6 +90,13 @@ module OooMemAxiBridge (
   // 仅对 PMEM(bresp 恒 OK)解耦；MMIO/可错 store 仍等 B 以保精确异常(MEM-I3)。详见
   // design/specs/ooo-mem-axi-bridge-fsm.md 与 design/arch/mem-store-decouple.md。
   reg bpend_q;
+  // 【LSQ·SQ 切换】当前事务属性(accept 拍锁存, 每次 accept 覆盖)。pretrans 的效果
+  // (跳过翻译/PMP)全部在 accept 拍组合完成, 无需寄存。
+  reg probe_q;
+  reg nokill_q;
+  // 【line-dcache】本读事务是否跨 8B line(跨线走窗口读不 fill; 不跨线发对齐
+  // AR, 回填 line 并把窗口视图给 CPU)
+  reg read_cross_q;
 
   function [1:0] mstatus_mpp_priv;
     input [`XLEN-1:0] status;
@@ -247,7 +266,9 @@ module OooMemAxiBridge (
   endfunction
 
   wire [1:0] req_priv_w = effective_data_priv(priv_mode_i, mstatus_i);
-  wire req_translate_w = sv39_enabled(req_priv_w, satp_i);
+  wire ctx_translate_w = sv39_enabled(req_priv_w, satp_i);
+  // pretrans 请求地址已是 PA:跳过翻译(req_cache_addr_w 直取 req_addr)与 PMP(probe 拍已查)。
+  wire req_translate_w = ctx_translate_w && !mem0_req_pretrans_i;
   wire mem0_req_fire_w = mem0_req_valid_i && mem0_req_ready_o;
   wire aw_fire_w = lsu_axi_awvalid_o && lsu_axi_awready_i;
   wire w_fire_w = lsu_axi_wvalid_o && lsu_axi_wready_i;
@@ -255,6 +276,9 @@ module OooMemAxiBridge (
   // 响应就绪/请求选择都直取 mem0,active_port 归属随之消失。
   wire rsp_ready_w = mem0_rsp_ready_i;
   wire cpu_kill_w = flush_i || drop_rsp_q;
+  // nokill 事务(退休 store 落存)进行期间, flush/drop 对 FSM 推进与响应握手均无效——
+  // 写必达。nokill_q 是"当前事务"属性(accept 拍覆盖), 非 IDLE 态即有效。
+  wire nokill_busy_w = nokill_q && (state_q != S_IDLE);
   wire req_slot_ready_w = !cpu_kill_w &&
                           ((state_q == S_IDLE) ||
                            ((state_q == S_RESP) && rsp_ready_w));
@@ -278,9 +302,11 @@ module OooMemAxiBridge (
       req_dtlb_hit_w ? req_translated_paddr_w : req_addr_w;
   wire req_pmp_fault_raw_w;
   wire req_data_pmp_fault_w =
-      (!req_translate_w || req_dtlb_hit_w) && req_pmp_fault_raw_w;
+      (!req_translate_w || req_dtlb_hit_w) && req_pmp_fault_raw_w &&
+      !mem0_req_pretrans_i;
   wire req_dcacheable_unused_w;
   wire req_dcache_hit_raw_w;
+  wire req_line_cross_w;
   wire [`XLEN-1:0] req_dcache_data_w;
   wire req_dcache_hit_w =
       (!req_translate_w || req_dtlb_hit_w) && req_dcache_hit_raw_w;
@@ -309,7 +335,7 @@ module OooMemAxiBridge (
                              mstatus_i);
   wire dcache_read_fill_valid_w =
       !cpu_kill_w && (state_q == S_READ_DATA) && lsu_axi_rvalid_i &&
-      (lsu_axi_rresp_i == 2'b00);
+      (lsu_axi_rresp_i == 2'b00) && !read_cross_q;
   // 解耦 store 在数据落 PMEM 当拍(S_WRITE_REQ 两 beat 完成且走解耦)就必须更新/失效 dcache，
   // 否则跳过 S_WRITE_RESP 会漏掉 dcache 维护、令同地址后续 load 命中旧值(MEM-I2 破坏)。
   wire store_decouple_commit_w =
@@ -388,15 +414,17 @@ module OooMemAxiBridge (
     .clk(clk),
     .rst(rst),
     .req_lookup_addr_i(req_cache_addr_w),
+    .req_nbytes_i(req_access_size_w),
     .req_cacheable_o(req_dcacheable_unused_w),
     .req_hit_o(req_dcache_hit_raw_w),
+    .req_line_cross_o(req_line_cross_w),
     .req_data_o(req_dcache_data_w),
     .walk_lookup_addr_i(walk_leaf_paddr_w),
     .walk_cacheable_o(walk_leaf_dcacheable_unused_w),
     .walk_hit_o(walk_leaf_dcache_hit_w),
     .walk_data_o(walk_leaf_dcache_data_w),
     .fill_valid_i(dcache_read_fill_valid_w),
-    .fill_addr_i(paddr_q),
+    .fill_addr_i({paddr_q[`XLEN-1:3], 3'b000}),
     .fill_data_i(lsu_axi_rdata_i),
     .store_commit_i(dcache_store_commit_w),
     // LSQ Phase 1：去掉核弹式全失效（原恒 1），改由 dcache 按 store 真实字节区间对
@@ -410,32 +438,40 @@ module OooMemAxiBridge (
   assign mem0_req_ready_o = req_slot_ready_w;
 
   assign mem0_rsp_valid_o =
-      (state_q == S_RESP) && !cpu_kill_w;
+      (state_q == S_RESP) && (!cpu_kill_w || nokill_busy_w);
   assign mem0_rsp_rdata_o = rsp_rdata_q;
   assign mem0_rsp_error_o = rsp_error_q;
   assign mem0_rsp_page_fault_o = rsp_page_fault_q;
+  assign translate_active_o = ctx_translate_w;
 
   assign lsu_axi_arvalid_o =
       !cpu_kill_w &&
       (((state_q == S_WALK_AR) && !walk_pte_pmp_fault_w) ||
        (state_q == S_READ_ADDR) ||
        req_read_miss_fire_w);
+  wire [`XLEN-1:0] req_read_araddr_w =
+      req_line_cross_w ? req_cache_addr_w
+                       : {req_cache_addr_w[`XLEN-1:3], 3'b000};
+  wire [`XLEN-1:0] pend_read_araddr_w =
+      read_cross_q ? paddr_q : {paddr_q[`XLEN-1:3], 3'b000};
   assign lsu_axi_araddr_o =
       (state_q == S_WALK_AR) ? walk_pte_addr_w :
-      req_read_miss_fire_w ? req_cache_addr_w : paddr_q;
+      req_read_miss_fire_w ? req_read_araddr_w : pend_read_araddr_w;
   assign lsu_axi_arstrb_o =
       (state_q == S_WALK_AR) ? {`STRB_W{1'b1}} :
-      req_read_miss_fire_w ? req_wstrb_w : wstrb_q;
+      req_read_miss_fire_w ? (req_line_cross_w ? req_wstrb_w
+                                               : {`STRB_W{1'b1}}) :
+      (read_cross_q ? wstrb_q : {`STRB_W{1'b1}});
   assign lsu_axi_rready_o = (state_q == S_WALK_R) || (state_q == S_READ_DATA);
   wire write_drain_w =
       drop_rsp_q || (flush_i && (aw_done_q || w_done_q));
   assign lsu_axi_awvalid_o =
       (state_q == S_WRITE_REQ) && !aw_done_q &&
-      (!cpu_kill_w || write_drain_w);
+      (!cpu_kill_w || write_drain_w || nokill_q);
   assign lsu_axi_awaddr_o = paddr_q;
   assign lsu_axi_wvalid_o =
       (state_q == S_WRITE_REQ) && !w_done_q &&
-      (!cpu_kill_w || write_drain_w);
+      (!cpu_kill_w || write_drain_w || nokill_q);
   assign lsu_axi_wdata_o = wdata_q;
   assign lsu_axi_wstrb_o = wstrb_q;
   // 解耦 store 的 B 由跟踪器吸收：bpend_q 期间持续拉 bready。
@@ -452,8 +488,11 @@ module OooMemAxiBridge (
       access_svpbmt_en_q <= svpbmt_en_i;
       addr_q <= req_addr_w;
       paddr_q <= req_cache_addr_w;
+      read_cross_q <= req_line_cross_w;
       wdata_q <= req_wdata_w;
       wstrb_q <= req_wstrb_w;
+      probe_q <= mem0_req_probe_i && req_write_w;
+      nokill_q <= mem0_req_nokill_i;
       rsp_rdata_q <= {`XLEN{1'b0}};
       rsp_error_q <= 1'b0;
       rsp_page_fault_q <= 1'b0;
@@ -478,7 +517,13 @@ module OooMemAxiBridge (
           state_q <= S_RESP;
         end
       end else if (req_write_w) begin
-        state_q <= S_WRITE_REQ;
+        if (mem0_req_probe_i) begin
+          // 【LSQ·SQ 切换】write 探测:翻译+PMP 已过, 不写内存, PA 经 rsp_rdata 回传。
+          rsp_rdata_q <= req_cache_addr_w;
+          state_q <= S_RESP;
+        end else begin
+          state_q <= S_WRITE_REQ;
+        end
       end else if (req_dcache_hit_w) begin
         rsp_rdata_q <= req_dcache_data_w;
         state_q <= S_RESP;
@@ -499,6 +544,7 @@ module OooMemAxiBridge (
       walk_ppn_q <= 44'd0;
       addr_q <= {`XLEN{1'b0}};
       paddr_q <= {`XLEN{1'b0}};
+      read_cross_q <= 1'b0;
       wdata_q <= {`XLEN{1'b0}};
       wstrb_q <= {`STRB_W{1'b0}};
       rsp_rdata_q <= {`XLEN{1'b0}};
@@ -508,12 +554,15 @@ module OooMemAxiBridge (
       w_done_q <= 1'b0;
       drop_rsp_q <= 1'b0;
       bpend_q <= 1'b0;
+      probe_q <= 1'b0;
+      nokill_q <= 1'b0;
     end else begin
       // B-drain 跟踪器(状态无关，flush 期间也照常吸收已解耦 store 的 B)
       if (bpend_q && lsu_axi_bvalid_i) begin
         bpend_q <= 1'b0;
       end
-      if (flush_i || drop_rsp_q) begin
+      // nokill 事务(退休 store 落存)对 flush/drop 免疫, 走正常推进分支直到完成。
+      if ((flush_i || drop_rsp_q) && !nokill_busy_w) begin
       case (state_q)
         S_IDLE: begin
           state_q <= S_IDLE;
@@ -635,7 +684,15 @@ module OooMemAxiBridge (
               end else begin
                 paddr_q <= walk_leaf_paddr_w;
                 if (write_q) begin
-                  state_q <= S_WRITE_REQ;
+                  if (probe_q) begin
+                    // 【LSQ·SQ 切换】PTW 完成的 write 探测同样短路:PA 回传, 不写。
+                    rsp_rdata_q <= walk_leaf_paddr_w;
+                    rsp_error_q <= 1'b0;
+                    rsp_page_fault_q <= 1'b0;
+                    state_q <= S_RESP;
+                  end else begin
+                    state_q <= S_WRITE_REQ;
+                  end
                 end else if (walk_leaf_dcache_hit_w) begin
                   rsp_rdata_q <= walk_leaf_dcache_data_w;
                   rsp_error_q <= 1'b0;
@@ -661,7 +718,10 @@ module OooMemAxiBridge (
 
         S_READ_DATA: begin
           if (lsu_axi_rvalid_i) begin
-            rsp_rdata_q <= lsu_axi_rdata_i;
+            // 不跨线: AXI 返回对齐 line → CPU 视图右移窗口偏移;
+            // 跨线: 窗口读原样。
+            rsp_rdata_q <= read_cross_q ? lsu_axi_rdata_i :
+                           (lsu_axi_rdata_i >> {paddr_q[2:0], 3'b000});
             rsp_error_q <= (lsu_axi_rresp_i != 2'b00);
             rsp_page_fault_q <= 1'b0;
             state_q <= S_RESP;

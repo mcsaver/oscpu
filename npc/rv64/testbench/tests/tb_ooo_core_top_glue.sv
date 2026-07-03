@@ -845,10 +845,10 @@ module tb_ooo_core_top_glue;
 
     tb_check1("taken branch reaches ebreak", exit_valid, 1'b1);
     tb_check1("taken branch is not trap", trap_valid, 1'b0);
-    tb_check1("taken branch fast path fires", saw_branch_fastpath, 1'b1);
-    tb_check1("taken branch redirects or restores speculation",
-              saw_branch_redirect_fetch || saw_branch_spec_restore ||
-              saw_branch_dispatch_resolve, 1'b1);
+    // 【F2】direct fire 只在预测 taken(或 head1 不可双发)拍发生; 本场景分支为前跳
+    // (static BTFN 预测 not-taken)→dual 双发不 fire, 方向错由后端 mispredict 纠正
+    // (上方 reaches-ebreak 已覆盖功能)。fire 观测期望翻转为 0。
+    tb_check1("taken branch dual-issues without fire (F2)", saw_branch_fastpath, 1'b0);
     tb_check32("taken branch commits with target body", commit_total, 32'd5);
     tb_check32("taken branch keeps x1", gpr(5'd1), 32'd1);
     tb_check32("taken branch skips lane1 fallthrough", gpr(5'd3), 32'd0);
@@ -864,10 +864,7 @@ module tb_ooo_core_top_glue;
 
     tb_check1("not-taken branch reaches ebreak", exit_valid, 1'b1);
     tb_check1("not-taken branch is not trap", trap_valid, 1'b0);
-    tb_check1("not-taken branch fast path fires", saw_branch_fastpath, 1'b1);
-    tb_check1("not-taken branch predicts or redirects fallthrough",
-              saw_branch_redirect_fetch || saw_branch_spec_correct ||
-              saw_branch_dispatch_resolve, 1'b1);
+    tb_check1("not-taken branch dual-issues without fire (F2)", saw_branch_fastpath, 1'b0);
     tb_check32("not-taken branch commits fallthrough", commit_total, 32'd7);
     tb_check32("not-taken branch keeps x1", gpr(5'd1), 32'd1);
     tb_check32("not-taken branch executes fallthrough", gpr(5'd3), 32'd3);
@@ -882,8 +879,9 @@ module tb_ooo_core_top_glue;
     end
 
     tb_check1("ready branch reaches ebreak", exit_valid, 1'b1);
-    tb_check1("ready branch dispatch resolve fires",
-              saw_branch_dispatch_resolve, 1'b1);
+    // domain-A: dispatch 拍快解析禁用, ready 分支同样经 IQ resolve(功能由 GPR 终值覆盖)。
+    tb_check1("ready branch dispatch fast resolve disabled (domain-A)",
+              saw_branch_dispatch_resolve, 1'b0);
     tb_check32("ready branch skips fallthrough", gpr(5'd1), 32'd0);
     tb_check32("ready branch executes target", gpr(5'd2), 32'd7);
 
@@ -1040,7 +1038,7 @@ module tb_ooo_core_top_glue;
 
     tb_check1("lane1 branch reaches ebreak", exit_valid, 1'b1);
     tb_check1("lane1 branch is not trap", trap_valid, 1'b0);
-    tb_check1("lane1 branch fast path fires", saw_branch_fastpath, 1'b1);
+    tb_check1("lane1 branch dual-issues without fire (F2)", saw_branch_fastpath, 1'b0);
     tb_check1("lane1 branch resolves in backend",
               saw_backend_branch_resolve, 1'b1);
     tb_check32("lane1 branch commits precise body", commit_total, 32'd4);

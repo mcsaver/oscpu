@@ -1,5 +1,8 @@
 /* RV64 F/D 浮点 load/store、算术、转换、比较和分类。 */
 
+#include <fenv.h>
+#include <math.h>
+
 static inline bool fp_state_enabled(void) {
   return (cpu.csr.mstatus & MSTATUS_FS_MASK) != 0;
 }
@@ -11,6 +14,27 @@ static inline void fp_mark_dirty(void) {
 static inline void fp_raise_invalid(void) {
   cpu.csr.fflags |= FFLAGS_NV;
   fp_mark_dirty();
+}
+
+/* 宿主 FP 异常 → RISC-V fflags。宿主运算(默认 RNE)与 dut 的 RNE 语义位精确
+ * 一致, 这里把此前缺失的 NX/OF/UF/DZ/NV 累积补上(x86 的 underflow 判定同为
+ * after-rounding+inexact, 与 IEEE/RISC-V 对齐)。 */
+static inline void fp_host_flags_clear(void) {
+  feclearexcept(FE_ALL_EXCEPT);
+}
+
+static inline void fp_host_flags_accum(void) {
+  int e = fetestexcept(FE_ALL_EXCEPT);
+  uint32_t f = 0;
+  if (e & FE_INVALID)   f |= FFLAGS_NV;
+  if (e & FE_DIVBYZERO) f |= FFLAGS_DZ;
+  if (e & FE_OVERFLOW)  f |= FFLAGS_OF;
+  if (e & FE_UNDERFLOW) f |= FFLAGS_UF;
+  if (e & FE_INEXACT)   f |= FFLAGS_NX;
+  if (f != 0) {
+    cpu.csr.fflags |= f;
+    fp_mark_dirty();
+  }
 }
 
 static bool fp_load_trace_is_enabled = false;
@@ -209,6 +233,12 @@ static inline bool f64_is_snan(uint64_t value) {
          (frac & 0x0008000000000000ull) == 0;
 }
 
+/* RISC-V NaN boxing: 单精 op 读 FPR, 高 32 位非全 1 → 视为 canonical qNaN。
+ * (FMV.X.W 与 FSW 是 raw 位形搬运, 不做该检查。) */
+static inline uint32_t f32_unbox(uint64_t value) {
+  return ((value >> 32) == 0xffffffffull) ? (uint32_t)value : 0x7fc00000u;
+}
+
 static inline float f32_to_host(uint32_t value) {
   union {
     uint32_t u;
@@ -230,6 +260,9 @@ static inline uint32_t f32_from_host(float value) {
     uint32_t u;
     float f;
   } v = { .f = value };
+  /* RISC-V: 运算生成的 NaN 一律 canonical(宿主会传播 operand NaN 位形) */
+  if ((v.u & 0x7f800000u) == 0x7f800000u && (v.u & 0x007fffffu) != 0u)
+    return 0x7fc00000u;
   return v.u;
 }
 
@@ -238,6 +271,9 @@ static inline uint64_t f64_from_host(double value) {
     uint64_t u;
     double f;
   } v = { .f = value };
+  if ((v.u & 0x7ff0000000000000ull) == 0x7ff0000000000000ull &&
+      (v.u & 0x000fffffffffffffull) != 0ull)
+    return 0x7ff8000000000000ull;
   return v.u;
 }
 
@@ -252,6 +288,7 @@ static inline bool exec_rvf_arith_s(uint32_t funct7, uint32_t rm, int rd,
   float af = f32_to_host(a);
   float bf = f32_to_host(b);
   float result = 0.0f;
+  fp_host_flags_clear();
   switch (funct7) {
     case 0x00: result = af + bf; break;                         // fadd.s
     case 0x04: result = af - bf; break;                         // fsub.s
@@ -260,6 +297,7 @@ static inline bool exec_rvf_arith_s(uint32_t funct7, uint32_t rm, int rd,
     default:
       return false;
   }
+  fp_host_flags_accum();
   F(rd) = 0xffffffff00000000ull | f32_from_host(result);
   fp_mark_dirty();
   return true;
@@ -271,6 +309,7 @@ static inline bool exec_rvf_arith_d(uint32_t funct7, uint32_t rm, int rd,
   double af = f64_to_host(a);
   double bf = f64_to_host(b);
   double result = 0.0;
+  fp_host_flags_clear();
   switch (funct7) {
     case 0x01: result = af + bf; break;                         // fadd.d
     case 0x05: result = af - bf; break;                         // fsub.d
@@ -279,6 +318,7 @@ static inline bool exec_rvf_arith_d(uint32_t funct7, uint32_t rm, int rd,
     default:
       return false;
   }
+  fp_host_flags_accum();
   F(rd) = f64_from_host(result);
   fp_mark_dirty();
   return true;
@@ -300,9 +340,11 @@ static inline bool exec_rvf_sqrt_s(uint32_t rm, int rd, uint32_t value) {
   if (f32_is_snan(value) || f32_is_negative_nonzero(value)) {
     fp_raise_invalid();
   }
+  fp_host_flags_clear();
   uint32_t result = f32_is_negative_nonzero(value)
                       ? 0x7fc00000u
                       : f32_from_host(__builtin_sqrtf(f32_to_host(value)));
+  fp_host_flags_accum();
   F(rd) = 0xffffffff00000000ull | result;
   fp_mark_dirty();
   return true;
@@ -314,9 +356,11 @@ static inline bool exec_rvf_sqrt_d(uint32_t rm, int rd, uint64_t value) {
   if (f64_is_snan(value) || f64_is_negative_nonzero(value)) {
     fp_raise_invalid();
   }
+  fp_host_flags_clear();
   uint64_t result = f64_is_negative_nonzero(value)
                       ? 0x7ff8000000000000ull
                       : f64_from_host(__builtin_sqrt(f64_to_host(value)));
+  fp_host_flags_accum();
   F(rd) = result;
   fp_mark_dirty();
   return true;
@@ -329,6 +373,7 @@ static inline bool exec_rvf_fused_madd_s(uint32_t opcode, uint32_t rm, int rd,
   float bf = f32_to_host(b);
   float cf = f32_to_host(c);
   float result = 0.0f;
+  fp_host_flags_clear();
   switch (opcode) {
     case OPC_MADD:  result = __builtin_fmaf( af, bf,  cf); break; // fmadd.s
     case OPC_MSUB:  result = __builtin_fmaf( af, bf, -cf); break; // fmsub.s
@@ -337,6 +382,7 @@ static inline bool exec_rvf_fused_madd_s(uint32_t opcode, uint32_t rm, int rd,
     default:
       return false;
   }
+  fp_host_flags_accum();
   F(rd) = 0xffffffff00000000ull | f32_from_host(result);
   fp_mark_dirty();
   return true;
@@ -349,6 +395,7 @@ static inline bool exec_rvf_fused_madd_d(uint32_t opcode, uint32_t rm, int rd,
   double bf = f64_to_host(b);
   double cf = f64_to_host(c);
   double result = 0.0;
+  fp_host_flags_clear();
   switch (opcode) {
     case OPC_MADD:  result = __builtin_fma( af, bf,  cf); break;  // fmadd.d
     case OPC_MSUB:  result = __builtin_fma( af, bf, -cf); break;  // fmsub.d
@@ -357,6 +404,7 @@ static inline bool exec_rvf_fused_madd_d(uint32_t opcode, uint32_t rm, int rd,
     default:
       return false;
   }
+  fp_host_flags_accum();
   F(rd) = f64_from_host(result);
   fp_mark_dirty();
   return true;
@@ -373,8 +421,8 @@ static inline bool exec_rvf_fused_madd(uint32_t opcode, uint32_t inst, int rd,
   switch (fmt) {
 #ifdef CONFIG_RISCV_EXT_F
     case 0x0:
-      return exec_rvf_fused_madd_s(opcode, rm, rd, (uint32_t)F(rs1),
-                                   (uint32_t)F(rs2), (uint32_t)F(rs3));
+      return exec_rvf_fused_madd_s(opcode, rm, rd, f32_unbox(F(rs1)),
+                                   f32_unbox(F(rs2)), f32_unbox(F(rs3)));
 #endif
 #ifdef CONFIG_RISCV_EXT_D
     case 0x1:
@@ -417,54 +465,70 @@ static inline uint64_t fminmax64(uint64_t a, uint64_t b, bool is_max) {
   return af < bf ? a : b;
 }
 
-static inline word_t fcvt_to_int(double value, uint32_t rs2) {
+static inline double fcvt_round_by_rm(double v, uint32_t rm) {
+  uint32_t resolved = rm == 0x7 ? cpu.csr.frm : rm;
+  switch (resolved) {
+    case 0: return rint(v);                                     // RNE(宿主默认)
+    case 1: return trunc(v);                                    // RTZ
+    case 2: return floor(v);                                    // RDN
+    case 3: return ceil(v);                                     // RUP
+    case 4: return (v >= 0.0) ? floor(v + 0.5) : ceil(v - 0.5); // RMM
+    default: return rint(v);
+  }
+}
+
+/* RISC-V FCVT.to-int: 先按 rm 取整, 取整值越界/NaN → NV+饱和; 否则 NX=丢位。
+ * 旧实现对负输入一刀切 NV(fcvt.wu.s(-0.9,rtz) 应=0+NX), 且忽略 rm。 */
+static inline word_t fcvt_to_int(double value, uint32_t rs2, uint32_t rm) {
   if (value != value) {
     fp_raise_invalid();
-    return rs2 == 0 || rs2 == 2 ? (word_t)0x7fffffffffffffffull : ~(word_t)0;
+    switch (rs2) {
+      case 0:  return (word_t)(int64_t)(int32_t)0x7fffffffu;    // w:  2^31-1(sext)
+      case 1:  return ~(word_t)0;                               // wu: 2^32-1(sext 全 1)
+      case 2:  return (word_t)0x7fffffffffffffffull;            // l
+      default: return ~(word_t)0;                               // lu
+    }
   }
-
+  double r = fcvt_round_by_rm(value, rm);
+  word_t out;
   switch (rs2) {
     case 0:                                                     // w
-      if (value < -2147483648.0) { fp_raise_invalid(); return (word_t)(int64_t)(int32_t)0x80000000u; }
-      if (value > 2147483647.0) { fp_raise_invalid(); return 0x7fffffffu; }
-      return (word_t)(int64_t)(int32_t)value;
+      if (r < -2147483648.0) { fp_raise_invalid(); return (word_t)(int64_t)(int32_t)0x80000000u; }
+      if (r > 2147483647.0)  { fp_raise_invalid(); return 0x7fffffffu; }
+      out = (word_t)(int64_t)(int32_t)r; break;
     case 1:                                                     // wu
-      if (value < 0.0) { fp_raise_invalid(); return 0; }
-      if (value > 4294967295.0) { fp_raise_invalid(); return 0xffffffffu; }
-      return (word_t)(uint32_t)value;
+      if (r < 0.0)          { fp_raise_invalid(); return 0; }
+      if (r > 4294967295.0) { fp_raise_invalid(); return ~(word_t)0; }
+      out = (word_t)(int64_t)(int32_t)(uint32_t)r; break;
     case 2:                                                     // l
-      if (value < -9223372036854775808.0) {
-        fp_raise_invalid();
-        return (word_t)0x8000000000000000ull;
-      }
-      if (value >= 9223372036854775808.0) {
-        fp_raise_invalid();
-        return (word_t)0x7fffffffffffffffull;
-      }
-      return (word_t)(int64_t)value;
+      if (r < -9223372036854775808.0) { fp_raise_invalid(); return (word_t)0x8000000000000000ull; }
+      if (r >= 9223372036854775808.0) { fp_raise_invalid(); return (word_t)0x7fffffffffffffffull; }
+      out = (word_t)(int64_t)r; break;
     case 3:                                                     // lu
-      if (value < 0.0) { fp_raise_invalid(); return 0; }
-      if (value >= 18446744073709551616.0) {
-        fp_raise_invalid();
-        return ~(word_t)0;
-      }
-      return (word_t)(uint64_t)value;
+      if (r < 0.0)                      { fp_raise_invalid(); return 0; }
+      if (r >= 18446744073709551616.0)  { fp_raise_invalid(); return ~(word_t)0; }
+      out = (word_t)(uint64_t)r; break;
     default:
       return 0;
   }
+  if (r != value) {
+    cpu.csr.fflags |= FFLAGS_NX;
+    fp_mark_dirty();
+  }
+  return out;
 }
 
 static inline bool exec_rvf_fcvt_int_s(uint32_t rm, int rd, int rs2,
                                        uint32_t value) {
   if (rs2 > 3 || !fp_rounding_mode_valid(rm)) return false;
-  R(rd) = fcvt_to_int((double)f32_to_host(value), rs2);
+  R(rd) = fcvt_to_int((double)f32_to_host(value), rs2, rm);
   return true;
 }
 
 static inline bool exec_rvf_fcvt_int_d(uint32_t rm, int rd, int rs2,
                                        uint64_t value) {
   if (rs2 > 3 || !fp_rounding_mode_valid(rm)) return false;
-  R(rd) = fcvt_to_int(f64_to_host(value), rs2);
+  R(rd) = fcvt_to_int(f64_to_host(value), rs2, rm);
   return true;
 }
 
@@ -472,12 +536,14 @@ static inline bool exec_rvf_fcvt_from_int_s(uint32_t rm, int rd, int rs1,
                                             int rs2) {
   if (rs2 > 3 || !fp_rounding_mode_valid(rm)) return false;
   float result = 0.0f;
+  fp_host_flags_clear();
   switch (rs2) {
     case 0: result = (float)(int32_t)R(rs1); break;             // fcvt.s.w
     case 1: result = (float)(uint32_t)R(rs1); break;            // fcvt.s.wu
     case 2: result = (float)(int64_t)R(rs1); break;             // fcvt.s.l
     case 3: result = (float)(uint64_t)R(rs1); break;            // fcvt.s.lu
   }
+  fp_host_flags_accum();
   F(rd) = 0xffffffff00000000ull | f32_from_host(result);
   fp_mark_dirty();
   return true;
@@ -487,12 +553,14 @@ static inline bool exec_rvf_fcvt_from_int_d(uint32_t rm, int rd, int rs1,
                                             int rs2) {
   if (rs2 > 3 || !fp_rounding_mode_valid(rm)) return false;
   double result = 0.0;
+  fp_host_flags_clear();
   switch (rs2) {
     case 0: result = (double)(int32_t)R(rs1); break;            // fcvt.d.w
     case 1: result = (double)(uint32_t)R(rs1); break;           // fcvt.d.wu
     case 2: result = (double)(int64_t)R(rs1); break;            // fcvt.d.l
     case 3: result = (double)(uint64_t)R(rs1); break;           // fcvt.d.lu
   }
+  fp_host_flags_accum();
   F(rd) = f64_from_host(result);
   fp_mark_dirty();
   return true;
@@ -501,7 +569,9 @@ static inline bool exec_rvf_fcvt_from_int_d(uint32_t rm, int rd, int rs1,
 #if defined(CONFIG_RISCV_EXT_F) && defined(CONFIG_RISCV_EXT_D)
 static inline bool exec_rvf_fcvt_s_d(uint32_t rm, int rd, uint64_t value) {
   if (!fp_rounding_mode_valid(rm)) return false;
+  fp_host_flags_clear();
   float result = (float)f64_to_host(value);
+  fp_host_flags_accum();
   F(rd) = 0xffffffff00000000ull | f32_from_host(result);
   fp_mark_dirty();
   return true;
@@ -509,7 +579,9 @@ static inline bool exec_rvf_fcvt_s_d(uint32_t rm, int rd, uint64_t value) {
 
 static inline bool exec_rvf_fcvt_d_s(uint32_t rm, int rd, uint32_t value) {
   if (!fp_rounding_mode_valid(rm)) return false;
+  fp_host_flags_clear();
   double result = (double)f32_to_host(value);
+  fp_host_flags_accum();
   F(rd) = f64_from_host(result);
   fp_mark_dirty();
   return true;
@@ -586,12 +658,12 @@ static inline bool exec_rvf_op(uint32_t inst, int rd, int rs1, int rs2) {
     case 0x04:                                                   // fsub.s
     case 0x08:                                                   // fmul.s
     case 0x0c:                                                   // fdiv.s
-      return exec_rvf_arith_s(funct7, funct3, rd, (uint32_t)F(rs1), (uint32_t)F(rs2));
+      return exec_rvf_arith_s(funct7, funct3, rd, f32_unbox(F(rs1)), f32_unbox(F(rs2)));
     case 0x2c:                                                   // fsqrt.s
-      return rs2 == 0 ? exec_rvf_sqrt_s(funct3, rd, (uint32_t)F(rs1)) : false;
+      return rs2 == 0 ? exec_rvf_sqrt_s(funct3, rd, f32_unbox(F(rs1))) : false;
     case 0x10: {                                                 // fsgnj.s/fsgnjn.s/fsgnjx.s
-      uint32_t a = (uint32_t)F(rs1);
-      uint32_t b = (uint32_t)F(rs2);
+      uint32_t a = f32_unbox(F(rs1));
+      uint32_t b = f32_unbox(F(rs2));
       uint32_t sign = b & 0x80000000u;
       if (funct3 == 0x1) sign ^= 0x80000000u;
       else if (funct3 == 0x2) sign = (a ^ b) & 0x80000000u;
@@ -603,7 +675,7 @@ static inline bool exec_rvf_op(uint32_t inst, int rd, int rs1, int rs2) {
     case 0x14:                                                   // fmin.s/fmax.s
       if (funct3 > 0x1) return false;
       F(rd) = 0xffffffff00000000ull |
-              fminmax32((uint32_t)F(rs1), (uint32_t)F(rs2), funct3 == 0x1);
+              fminmax32(f32_unbox(F(rs1)), f32_unbox(F(rs2)), funct3 == 0x1);
       fp_mark_dirty();
       return true;
 #if defined(CONFIG_RISCV_EXT_D)
@@ -611,9 +683,9 @@ static inline bool exec_rvf_op(uint32_t inst, int rd, int rs1, int rs2) {
       return rs2 == 1 ? exec_rvf_fcvt_s_d(funct3, rd, F(rs1)) : false;
 #endif
     case 0x50:                                                   // fle.s/flt.s/feq.s
-      return exec_rvf_compare_s(funct3, rd, (uint32_t)F(rs1), (uint32_t)F(rs2));
+      return exec_rvf_compare_s(funct3, rd, f32_unbox(F(rs1)), f32_unbox(F(rs2)));
     case 0x60:                                                   // fcvt.w/wu/l/lu.s
-      return exec_rvf_fcvt_int_s(funct3, rd, rs2, (uint32_t)F(rs1));
+      return exec_rvf_fcvt_int_s(funct3, rd, rs2, f32_unbox(F(rs1)));
     case 0x68:                                                   // fcvt.s.w/wu/l/lu
       return exec_rvf_fcvt_from_int_s(funct3, rd, rs1, rs2);
     case 0x70:
@@ -621,8 +693,8 @@ static inline bool exec_rvf_op(uint32_t inst, int rd, int rs1, int rs2) {
         R(rd) = (word_t)SEXT((uint32_t)F(rs1), 32);
         return true;
       }
-      if (rs2 == 1 && funct3 == 0x1) {                         // fclass.s
-        R(rd) = fclass32((uint32_t)F(rs1));
+      if (rs2 == 0 && funct3 == 0x1) {                         // fclass.s
+        R(rd) = fclass32(f32_unbox(F(rs1)));
         return true;
       }
       return false;
@@ -660,7 +732,7 @@ static inline bool exec_rvf_op(uint32_t inst, int rd, int rs1, int rs2) {
       return true;
 #if defined(CONFIG_RISCV_EXT_F)
     case 0x21:                                                   // fcvt.d.s
-      return rs2 == 0 ? exec_rvf_fcvt_d_s(funct3, rd, (uint32_t)F(rs1)) : false;
+      return rs2 == 0 ? exec_rvf_fcvt_d_s(funct3, rd, f32_unbox(F(rs1))) : false;
 #endif
     case 0x51:                                                   // fle.d/flt.d/feq.d
       return exec_rvf_compare_d(funct3, rd, F(rs1), F(rs2));
@@ -673,7 +745,7 @@ static inline bool exec_rvf_op(uint32_t inst, int rd, int rs1, int rs2) {
         R(rd) = F(rs1);
         return true;
       }
-      if (rs2 == 1 && funct3 == 0x1) {                         // fclass.d
+      if (rs2 == 0 && funct3 == 0x1) {                         // fclass.d
         R(rd) = fclass64(F(rs1));
         return true;
       }

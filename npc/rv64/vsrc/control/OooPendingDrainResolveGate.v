@@ -28,13 +28,9 @@ module OooPendingDrainResolveGate #(
   input pending_jump_misaligned_i,
   input pending_mem_i,
   input pending_mem_dispatched_i,
-  input pending_fp_i,
-  input pending_fp_mem_done_i,
-  input pending_fp_long_op_i,
-  input pending_fp_long_pending_i,
-  input pending_fp_long_done_i,
-  input pending_fp_compute_op_i,
-  input pending_fp_compute_done_i,
+  // 【LSQ·SQ 切换】退休侧访存静默: SQ 化后 ROB 空不再隐含"store 已全部落存"
+  // (退休 store 可能仍在 SQ 待 drain), 串行点必须等它。
+  input mem_retire_quiet_i,
   input pending_system_i,
   input pending_system_csr_i,
   input pending_system_dispatched_i,
@@ -44,18 +40,12 @@ module OooPendingDrainResolveGate #(
   output system_csr_dispatch_fire_o,
   output pending_mem_resolve_ready_o,
   output mem_dispatch_valid_o,
-  output pending_fp_long_start_o,
-  output pending_fp_compute_start_o,
   output pending_branch_commit_resolve_o,
   output pending_branch_match_clear_o,
   output pending_replay_wait_o,
   output drain_complete_o
 );
 
-  wire pending_fp_long_wait_w =
-      pending_fp_long_op_i && !pending_fp_long_done_i;
-  wire pending_fp_compute_wait_w =
-      pending_fp_compute_op_i && !pending_fp_compute_done_i;
   wire pending_branch_resolve_wait_w =
       pending_branch_i && pending_branch_dispatched_i &&
       !branch_resolve_pending_match_i && !pending_branch_commit_resolve_o;
@@ -64,7 +54,8 @@ module OooPendingDrainResolveGate #(
                              (issue_count_i == {ISSUE_COUNT_W{1'b0}}) &&
                              (core_retire_count_i == 2'b00) &&
                              !synth_lane1_ret_pending_i &&
-                             !synth_lane1_branch_drop_pending_i;
+                             !synth_lane1_branch_drop_pending_i &&
+                             mem_retire_quiet_i;
 
   assign jump_dispatch_valid_o = pending_jump_resolve_ready_i &&
                                  !pending_jump_nolink_i &&
@@ -80,21 +71,12 @@ module OooPendingDrainResolveGate #(
       backend_drained_q_i;
   assign mem_dispatch_valid_o = pending_mem_resolve_ready_o;
 
-  assign pending_fp_long_start_o =
-      stop_pending_i && pending_fp_i && backend_drained_q_i &&
-      pending_fp_mem_done_i && pending_fp_long_op_i &&
-      !pending_fp_long_pending_i && !pending_fp_long_done_i;
-  assign pending_fp_compute_start_o =
-      stop_pending_i && pending_fp_i && backend_drained_q_i &&
-      pending_fp_mem_done_i && pending_fp_compute_op_i &&
-      !pending_fp_compute_done_i;
-
   assign pending_branch_commit_resolve_o =
       !direct_frontend_flush_i && stop_pending_i && backend_drained_o &&
       pending_branch_i && pending_branch_dispatched_i &&
       !branch_resolve_pending_match_i && !branch_spec_active_i &&
       !branch_spec_checkpoint_pending_i && !pending_jump_i &&
-      !pending_mem_i && !pending_fp_i && !pending_arch_trap_i &&
+      !pending_mem_i && !pending_arch_trap_i &&
       !pending_system_i;
   assign pending_branch_match_clear_o =
       !direct_frontend_flush_i && stop_pending_i && pending_branch_i &&
@@ -105,8 +87,6 @@ module OooPendingDrainResolveGate #(
       pending_branch_resolve_wait_w ||
       (pending_jump_i && !pending_jump_dispatched_i) ||
       (pending_mem_i && !pending_mem_dispatched_i) ||
-      (pending_fp_i && (!pending_fp_mem_done_i || pending_fp_long_wait_w ||
-                        pending_fp_compute_wait_w)) ||
       (pending_system_i && pending_system_csr_i);
   assign drain_complete_o =
       stop_pending_i && backend_drained_o && pending_control_ready_i &&

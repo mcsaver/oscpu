@@ -3,6 +3,10 @@
 
 // OoO core 顶层装配壳：只实例化 frontend/control/execute/memory/writeback/
 // regread_bypass 等子系统，功能规则继续归入对应目录，避免 core glue 再膨胀为 owner。
+/* verilator lint_off UNOPTFLAT */
+// 【B-FP 簇】FP 交叉 wakeup/ready 菱形使 Verilator 跨实例保守判环
+// (__Vcellinp__ 端口注入形态)。行为正确性由全量测试守; 真伪甄别与
+// 结构化真修(交叉唤醒打拍)列为 FP 簇收尾项。
 module OooCoreTopGlue #(
   parameter PHY_REG_ADDR_W = `OOO_PHY_REG_ADDR_W,
   parameter ROB_INDEX_W = `OOO_ROB_INDEX_W,
@@ -30,6 +34,9 @@ module OooCoreTopGlue #(
   output mem_req_valid_o,
   input mem_req_ready_i,
   output mem_req_write_o,
+  output mem_req_probe_o,
+  output mem_req_pretrans_o,
+  output mem_req_nokill_o,
   output [`XLEN-1:0] mem_req_addr_o,
   output [`XLEN-1:0] mem_req_wdata_o,
   output [`STRB_W-1:0] mem_req_wstrb_o,
@@ -38,6 +45,7 @@ module OooCoreTopGlue #(
   input [`XLEN-1:0] mem_rsp_rdata_i,
   input mem_rsp_error_i,
   input mem_rsp_page_fault_i,
+  input mem_translate_active_i,
   output mem_flush_o,
   output mmu_flush_o,
 
@@ -49,8 +57,11 @@ module OooCoreTopGlue #(
   output [2:0] csr_access_funct3_w,
   output [`REG_ADDR_W-1:0] csr_access_rs1_idx_w,
   output [`XLEN-1:0] csr_access_rs1_data_w,
+  // 【B-FP 簇】fflags 提交脉冲(源=ROB commit; 名字保留 pending_ 前缀以稳住
+  // NpcCoreTop 接线, pending-FP 壳已拆)。
   output pending_fp_fflags_commit_w,
   output [4:0] pending_fp_commit_fflags_w,
+  output fp_dirty_commit_w,
   output csr_trap_mem_valid_w,
   output [`XLEN-1:0] csr_trap_mem_pc_w,
   output [`TRAP_CAUSE_W-1:0] csr_trap_mem_cause_w,
@@ -79,18 +90,6 @@ module OooCoreTopGlue #(
   input csr_svpbmt_en_w,
   input [`PMP_CFG_BUS_W-1:0] csr_pmpcfg_w,
   input [`PMP_ADDR_BUS_W-1:0] csr_pmpaddr_w,
-  output [`REG_ADDR_W-1:0] pending_fp_rs1_idx_w,
-  output [`REG_ADDR_W-1:0] pending_fp_rs2_idx_w,
-  output [`REG_ADDR_W-1:0] pending_fp_rs3_idx_w,
-  input [`XLEN-1:0] pending_fp_frs1_value_w,
-  input [`XLEN-1:0] pending_fp_frs2_value_w,
-  input [`XLEN-1:0] pending_fp_frs3_value_w,
-  output pending_fp_fpr_load_write_valid_w,
-  output [`REG_ADDR_W-1:0] pending_fp_fpr_load_write_addr_w,
-  output [`XLEN-1:0] pending_fp_fpr_load_write_data_w,
-  output pending_fp_fpr_result_write_valid_w,
-  output [`REG_ADDR_W-1:0] pending_fp_fpr_result_write_addr_w,
-  output [`XLEN-1:0] pending_fp_fpr_result_write_data_w,
 
   input commit_ready_i,
 
@@ -161,20 +160,6 @@ module OooCoreTopGlue #(
   wire pending_jump_jalr_q;
   wire pending_mem_q;
   wire pending_mem_dispatched_q;
-  wire pending_fp_q;
-  wire pending_fp_mem_pending_q;
-  wire pending_fp_mem_done_q;
-  wire pending_fp_long_pending_q;
-  wire pending_fp_long_done_q;
-  wire [`XLEN-1:0] pending_fp_long_result_q;
-  wire [4:0] pending_fp_long_fflags_q;
-  wire pending_fp_compute_done_q;
-  wire [`XLEN-1:0] pending_fp_compute_result_q;
-  wire [4:0] pending_fp_compute_fflags_q;
-  wire pending_fp_load_q;
-  wire pending_fp_store_q;
-  wire pending_fp_double_q;
-  wire pending_fp_gpr_write_q;
   wire pending_arch_trap_q;
   wire [`TRAP_CAUSE_W-1:0] pending_trap_cause_q;
   wire [`XLEN-1:0] pending_branch_pc_q;
@@ -193,11 +178,6 @@ module OooCoreTopGlue #(
   wire [`XLEN-1:0] pending_mem_pc_q;
   wire [`INST_W-1:0] pending_mem_inst_q;
   wire [`XLEN-1:0] pending_mem_next_pc_q;
-  wire [`XLEN-1:0] pending_fp_pc_q;
-  wire [`INST_W-1:0] pending_fp_inst_q;
-  wire [`XLEN-1:0] pending_fp_next_pc_q;
-  wire [`XLEN-1:0] pending_fp_addr_q;
-  wire [`REG_ADDR_W-1:0] pending_fp_rd_q;
   wire pending_system_q;
   wire pending_system_dispatched_q;
   wire pending_system_csr_q;
@@ -289,6 +269,9 @@ module OooCoreTopGlue #(
   wire dispatch1_ready_w;
   wire dispatch0_unsupported_w;
   wire dispatch1_unsupported_w;
+  // 【F2】裸支持性(无 valid 项, 破 dual_go 环)
+  wire dispatch0_unsupported_raw_w;
+  wire dispatch1_unsupported_raw_w;
   wire dispatch_valid_w;
   wire dispatch0_exit_w;
   wire dispatch0_arch_trap_w;
@@ -345,8 +328,33 @@ module OooCoreTopGlue #(
   wire execute0_valid_unused_w;
   wire execute1_valid_unused_w;
   wire core_mem_idle_w;
+  wire core_mem_retire_quiet_w;
+  wire [4:0] core_commit0_fflags_w;
+  wire core_commit0_is_fp_rd_w;
+  wire core_commit1_is_fp_rd_w;
+  wire [4:0] core_commit1_fflags_w;
+  // F8: 写 FPR 或产生 fflags 的 FP 指令提交 → mstatus.FS=Dirty 脉冲
+  assign fp_dirty_commit_w =
+      (core_commit0_valid_w && !core_commit0_exception_w &&
+       core_commit0_is_fp_rd_w) ||
+      (core_commit1_valid_w && !core_commit1_exception_w &&
+       core_commit1_is_fp_rd_w) ||
+      pending_fp_fflags_commit_w;
+  assign pending_fp_fflags_commit_w =
+      (core_commit0_valid_w && !core_commit0_exception_w &&
+       (core_commit0_fflags_w != 5'b00000)) ||
+      (core_commit1_valid_w && !core_commit1_exception_w &&
+       (core_commit1_fflags_w != 5'b00000));
+  assign pending_fp_commit_fflags_w =
+      ((core_commit0_valid_w && !core_commit0_exception_w) ?
+       core_commit0_fflags_w : 5'b00000) |
+      ((core_commit1_valid_w && !core_commit1_exception_w) ?
+       core_commit1_fflags_w : 5'b00000);
   wire core_mem_req_valid_w;
   wire core_mem_req_write_w;
+  wire core_mem_req_probe_w;
+  wire core_mem_req_pretrans_w;
+  wire core_mem_req_nokill_w;
   wire [`XLEN-1:0] core_mem_req_addr_w;
   wire [`XLEN-1:0] core_mem_req_wdata_w;
   wire [`STRB_W-1:0] core_mem_req_wstrb_w;
@@ -360,6 +368,11 @@ module OooCoreTopGlue #(
   wire [`OOO_ROB_INDEX_W-1:0] core_branch_resolve_rob_idx_w;
   // B2 片4：后端 branch/JALR 显式 mispredict 脉冲，上送前端做 redirect。
   wire core_branch_resolve_mispredict_w;
+  // 【F2】BPU issue-resolve 回训随行(execute → frontend)
+  wire core_branch_resolve_is_branch_w;
+  wire core_branch_resolve_taken_w;
+  wire core_branch_resolve_pred_taken_w;
+  wire [`BPU_BHT_INDEX_W-1:0] core_branch_resolve_bht_idx_w;
   wire core_dispatch_branch_resolve_valid_w;
   wire [`XLEN-1:0] core_dispatch_branch_resolve_pc_w;
   wire [`XLEN-1:0] core_dispatch_branch_resolve_next_pc_w;
@@ -486,32 +499,6 @@ module OooCoreTopGlue #(
     .pending_branch_next_pc_w(pending_branch_next_pc_w),
     .pending_branch_pc_q(pending_branch_pc_q),
     .pending_branch_q(pending_branch_q),
-    .pending_fp_addr_q(pending_fp_addr_q),
-    .pending_fp_commit_fflags_w(pending_fp_commit_fflags_w),
-    .pending_fp_compute_fflags_q(pending_fp_compute_fflags_q),
-    .pending_fp_compute_result_q(pending_fp_compute_result_q),
-    .pending_fp_double_q(pending_fp_double_q),
-    .pending_fp_fflags_commit_w(pending_fp_fflags_commit_w),
-    .pending_fp_fpr_load_write_addr_w(pending_fp_fpr_load_write_addr_w),
-    .pending_fp_fpr_load_write_data_w(pending_fp_fpr_load_write_data_w),
-    .pending_fp_fpr_load_write_valid_w(pending_fp_fpr_load_write_valid_w),
-    .pending_fp_fpr_result_write_addr_w(pending_fp_fpr_result_write_addr_w),
-    .pending_fp_fpr_result_write_data_w(pending_fp_fpr_result_write_data_w),
-    .pending_fp_fpr_result_write_valid_w(pending_fp_fpr_result_write_valid_w),
-    .pending_fp_gpr_commit_w(pending_fp_gpr_commit_w),
-    .pending_fp_gpr_write_q(pending_fp_gpr_write_q),
-    .pending_fp_inst_q(pending_fp_inst_q),
-    .pending_fp_load_q(pending_fp_load_q),
-    .pending_fp_long_fflags_q(pending_fp_long_fflags_q),
-    .pending_fp_long_op_w(pending_fp_long_op_w),
-    .pending_fp_long_result_q(pending_fp_long_result_q),
-    .pending_fp_mem_rsp_fire_w(pending_fp_mem_rsp_fire_w),
-    .pending_fp_next_pc_q(pending_fp_next_pc_q),
-    .pending_fp_pc_q(pending_fp_pc_q),
-    .pending_fp_q(pending_fp_q),
-    .pending_fp_rd_q(pending_fp_rd_q),
-    .pending_fp_result_value_w(pending_fp_result_value_w),
-    .pending_fp_store_q(pending_fp_store_q),
     .pending_jump_inst_q(pending_jump_inst_q),
     .pending_jump_nolink_commit_w(pending_jump_nolink_commit_w),
     .pending_jump_pc_q(pending_jump_pc_q),
@@ -558,17 +545,10 @@ module OooCoreTopGlue #(
   wire pending_jump_capture_head0_w;
   wire pending_jump_capture_lane1_w;
   wire pending_jump_clear_w;
-  wire pending_fp_capture_head0_w;
-  wire pending_fp_capture_lane1_w;
-  wire pending_fp_clear_w;
   wire pending_mem_capture_lane1_w;
   wire pending_mem_clear_w;
   wire pending_mem_resolve_ready_w;
   wire mem_dispatch_valid_w;
-  wire pending_fp_long_op_w;
-  wire pending_fp_compute_op_w;
-  wire pending_fp_long_start_w;
-  wire pending_fp_compute_start_w;
   wire pending_branch_commit_resolve_w;
   wire pending_branch_match_clear_w;
   wire pending_replay_wait_w;
@@ -587,7 +567,6 @@ module OooCoreTopGlue #(
   wire core_checkpoint_quiesce_w;
   wire core_mem_issue_block_w;
 
-  wire pending_fp_gpr_commit_w;
   wire core_local_flush_w;
   wire core_commit_ready_w;
   wire core_commit1_block_w;
@@ -606,13 +585,12 @@ module OooCoreTopGlue #(
   wire [`INST_W-1:0] core_dispatch1_inst_w;
   wire [`XLEN-1:0] core_dispatch0_pred_npc_w;
   wire [`XLEN-1:0] core_dispatch1_pred_npc_w;
+  // 【F2】BHT 查询快照随行(frontend → execute, thread 进 IQ)
+  wire [`BPU_BHT_INDEX_W-1:0] core_dispatch0_bht_idx_w;
+  wire core_dispatch0_pred_taken_w;
+  wire [`BPU_BHT_INDEX_W-1:0] core_dispatch1_bht_idx_w;
+  wire core_dispatch1_pred_taken_w;
 
-  wire [`XLEN-1:0] pending_fp_int_rs1_value_w;
-  wire pending_fp_div_busy_w;
-  wire pending_fp_sqrt_busy_w;
-  wire [`XLEN-1:0] pending_fp_mem_aligned_addr_w;
-  wire [`XLEN-1:0] pending_fp_mem_wdata_w;
-  wire [`STRB_W-1:0] pending_fp_mem_wstrb_w;
 
   OooExecuteBackend #(
     .PHY_REG_ADDR_W(PHY_REG_ADDR_W),
@@ -626,6 +604,10 @@ module OooCoreTopGlue #(
     .core_branch_resolve_misaligned_w(core_branch_resolve_misaligned_w),
     .core_branch_resolve_rob_idx_w(core_branch_resolve_rob_idx_w),
     .core_branch_resolve_mispredict_w(core_branch_resolve_mispredict_w),
+    .core_branch_resolve_is_branch_w(core_branch_resolve_is_branch_w),
+    .core_branch_resolve_taken_w(core_branch_resolve_taken_w),
+    .core_branch_resolve_pred_taken_w(core_branch_resolve_pred_taken_w),
+    .core_branch_resolve_bht_idx_w(core_branch_resolve_bht_idx_w),
     .core_branch_resolve_next_pc_w(core_branch_resolve_next_pc_w),
     .core_branch_resolve_pc_w(core_branch_resolve_pc_w),
     .core_branch_resolve_valid_w(core_branch_resolve_valid_w),
@@ -664,45 +646,51 @@ module OooCoreTopGlue #(
     .core_dispatch0_pc_w(core_dispatch0_pc_w),
     .core_dispatch0_valid_w(core_dispatch0_valid_w),
     .core_dispatch0_pred_npc_w(core_dispatch0_pred_npc_w),
+    .core_dispatch0_bht_idx_w(core_dispatch0_bht_idx_w),
+    .core_dispatch0_pred_taken_w(core_dispatch0_pred_taken_w),
     .core_dispatch1_inst_w(core_dispatch1_inst_w),
     .core_dispatch1_next_pc_w(core_dispatch1_next_pc_w),
     .core_dispatch1_pc_w(core_dispatch1_pc_w),
     .core_dispatch1_valid_w(core_dispatch1_valid_w),
     .core_dispatch1_pred_npc_w(core_dispatch1_pred_npc_w),
+    .core_dispatch1_bht_idx_w(core_dispatch1_bht_idx_w),
+    .core_dispatch1_pred_taken_w(core_dispatch1_pred_taken_w),
     .core_dispatch_branch_resolve_misaligned_w(core_dispatch_branch_resolve_misaligned_w),
     .core_dispatch_branch_resolve_next_pc_w(core_dispatch_branch_resolve_next_pc_w),
     .core_dispatch_branch_resolve_pc_w(core_dispatch_branch_resolve_pc_w),
     .core_dispatch_branch_resolve_valid_w(core_dispatch_branch_resolve_valid_w),
     .core_local_flush_w(core_local_flush_w),
     .core_mem_idle_w(core_mem_idle_w),
+    .core_mem_retire_quiet_w(core_mem_retire_quiet_w),
+    .core_commit0_fflags_w(core_commit0_fflags_w),
+    .core_commit0_is_fp_rd_w(core_commit0_is_fp_rd_w),
+    .core_commit1_is_fp_rd_w(core_commit1_is_fp_rd_w),
+    .core_commit1_fflags_w(core_commit1_fflags_w),
     .core_mem_issue_block_w(core_mem_issue_block_w),
     .core_mem_req_addr_w(core_mem_req_addr_w),
     .core_mem_req_valid_w(core_mem_req_valid_w),
     .core_mem_req_wdata_w(core_mem_req_wdata_w),
     .core_mem_req_write_w(core_mem_req_write_w),
+    .core_mem_req_probe_w(core_mem_req_probe_w),
+    .core_mem_req_pretrans_w(core_mem_req_pretrans_w),
+    .core_mem_req_nokill_w(core_mem_req_nokill_w),
     .core_mem_req_wstrb_w(core_mem_req_wstrb_w),
     .core_mem_rsp_ready_w(core_mem_rsp_ready_w),
+    .mem_translate_active_i(mem_translate_active_i),
     .core_pending_load_branch_dep_w(core_pending_load_branch_dep_w),
     .core_retire_count_w(core_retire_count_w),
     .csr_trap_mem_valid_w(csr_trap_mem_valid_w),
     .dispatch0_ready_w(dispatch0_ready_w),
+    .dispatch0_unsupported_raw_w(dispatch0_unsupported_raw_w),
     .dispatch0_unsupported_w(dispatch0_unsupported_w),
     .dispatch1_optional_w(dispatch1_optional_w),
     .dispatch1_ready_w(dispatch1_ready_w),
+    .dispatch1_unsupported_raw_w(dispatch1_unsupported_raw_w),
     .dispatch1_unsupported_w(dispatch1_unsupported_w),
     .execute0_valid_unused_w(execute0_valid_unused_w),
     .execute1_valid_unused_w(execute1_valid_unused_w),
     .flush_i(flush_i),
     .free_count_o(free_count_o),
-    .head0_fp_double_w(head0_fp_double_w),
-    .head0_fp_gpr_write_w(head0_fp_gpr_write_w),
-    .head0_fp_load_raw_w(head0_fp_load_raw_w),
-    .head0_fp_store_raw_w(head0_fp_store_raw_w),
-    .head1_fp_double_w(head1_fp_double_w),
-    .head1_fp_enabled_w(head1_fp_enabled_w),
-    .head1_fp_gpr_write_w(head1_fp_gpr_write_w),
-    .head1_fp_load_raw_w(head1_fp_load_raw_w),
-    .head1_fp_store_raw_w(head1_fp_store_raw_w),
     .head_inst0_w(head_inst0_w),
     .head_inst1_w(head_inst1_w),
     .head_next_pc0_w(head_next_pc0_w),
@@ -722,45 +710,6 @@ module OooCoreTopGlue #(
     .pending_branch_rs1_data_w(pending_branch_rs1_data_w),
     .pending_branch_rs2_data_w(pending_branch_rs2_data_w),
     .pending_branch_taken_w(pending_branch_taken_w),
-    .pending_fp_addr_q(pending_fp_addr_q),
-    .pending_fp_capture_head0_w(pending_fp_capture_head0_w),
-    .pending_fp_capture_lane1_w(pending_fp_capture_lane1_w),
-    .pending_fp_clear_w(pending_fp_clear_w),
-    .pending_fp_compute_done_q(pending_fp_compute_done_q),
-    .pending_fp_compute_fflags_q(pending_fp_compute_fflags_q),
-    .pending_fp_compute_op_w(pending_fp_compute_op_w),
-    .pending_fp_compute_result_q(pending_fp_compute_result_q),
-    .pending_fp_compute_start_w(pending_fp_compute_start_w),
-    .pending_fp_div_busy_w(pending_fp_div_busy_w),
-    .pending_fp_double_q(pending_fp_double_q),
-    .pending_fp_frs1_value_w(pending_fp_frs1_value_w),
-    .pending_fp_frs2_value_w(pending_fp_frs2_value_w),
-    .pending_fp_frs3_value_w(pending_fp_frs3_value_w),
-    .pending_fp_gpr_commit_w(pending_fp_gpr_commit_w),
-    .pending_fp_gpr_write_q(pending_fp_gpr_write_q),
-    .pending_fp_inst_q(pending_fp_inst_q),
-    .pending_fp_int_rs1_value_w(pending_fp_int_rs1_value_w),
-    .pending_fp_load_q(pending_fp_load_q),
-    .pending_fp_long_done_q(pending_fp_long_done_q),
-    .pending_fp_long_fflags_q(pending_fp_long_fflags_q),
-    .pending_fp_long_op_w(pending_fp_long_op_w),
-    .pending_fp_long_pending_q(pending_fp_long_pending_q),
-    .pending_fp_long_result_q(pending_fp_long_result_q),
-    .pending_fp_long_start_w(pending_fp_long_start_w),
-    .pending_fp_mem_aligned_addr_w(pending_fp_mem_aligned_addr_w),
-    .pending_fp_mem_done_q(pending_fp_mem_done_q),
-    .pending_fp_mem_pending_q(pending_fp_mem_pending_q),
-    .pending_fp_mem_req_fire_w(pending_fp_mem_req_fire_w),
-    .pending_fp_mem_rsp_fire_w(pending_fp_mem_rsp_fire_w),
-    .pending_fp_mem_wdata_w(pending_fp_mem_wdata_w),
-    .pending_fp_mem_wstrb_w(pending_fp_mem_wstrb_w),
-    .pending_fp_next_pc_q(pending_fp_next_pc_q),
-    .pending_fp_pc_q(pending_fp_pc_q),
-    .pending_fp_q(pending_fp_q),
-    .pending_fp_rd_q(pending_fp_rd_q),
-    .pending_fp_result_value_w(pending_fp_result_value_w),
-    .pending_fp_sqrt_busy_w(pending_fp_sqrt_busy_w),
-    .pending_fp_store_q(pending_fp_store_q),
     .rob_count_o(rob_count_o),
     .rst(rst),
     .stop_pending_q(stop_pending_q)
@@ -768,7 +717,6 @@ module OooCoreTopGlue #(
 
   // FP pending owner 移入 execute helper；父模块仍负责 FPR、fflags 和精确提交边界。
 
-  wire [`XLEN-1:0] pending_fp_result_value_w;
 
   // Branch pending owner 移入 frontend helper；父模块仍负责 compare/BPU/recovery。
 
@@ -785,6 +733,9 @@ module OooCoreTopGlue #(
     .core_mem_req_valid_w(core_mem_req_valid_w),
     .core_mem_req_wdata_w(core_mem_req_wdata_w),
     .core_mem_req_write_w(core_mem_req_write_w),
+    .core_mem_req_probe_w(core_mem_req_probe_w),
+    .core_mem_req_pretrans_w(core_mem_req_pretrans_w),
+    .core_mem_req_nokill_w(core_mem_req_nokill_w),
     .core_mem_req_wstrb_w(core_mem_req_wstrb_w),
     .core_mem_rsp_ready_w(core_mem_rsp_ready_w),
     .csr_trap_mem_valid_w(csr_trap_mem_valid_w),
@@ -800,20 +751,14 @@ module OooCoreTopGlue #(
     .mem_req_valid_o(mem_req_valid_o),
     .mem_req_wdata_o(mem_req_wdata_o),
     .mem_req_write_o(mem_req_write_o),
+    .mem_req_probe_o(mem_req_probe_o),
+    .mem_req_pretrans_o(mem_req_pretrans_o),
+    .mem_req_nokill_o(mem_req_nokill_o),
     .mem_req_wstrb_o(mem_req_wstrb_o),
     .mem_rsp_ready_o(mem_rsp_ready_o),
     .mem_rsp_valid_i(mem_rsp_valid_i),
     .mmu_flush_o(mmu_flush_o),
     .orphan_stop_pending_w(orphan_stop_pending_w),
-    .pending_fp_mem_aligned_addr_w(pending_fp_mem_aligned_addr_w),
-    .pending_fp_mem_done_q(pending_fp_mem_done_q),
-    .pending_fp_mem_pending_q(pending_fp_mem_pending_q),
-    .pending_fp_mem_req_fire_w(pending_fp_mem_req_fire_w),
-    .pending_fp_mem_rsp_fire_w(pending_fp_mem_rsp_fire_w),
-    .pending_fp_mem_wdata_w(pending_fp_mem_wdata_w),
-    .pending_fp_mem_wstrb_w(pending_fp_mem_wstrb_w),
-    .pending_fp_q(pending_fp_q),
-    .pending_fp_store_q(pending_fp_store_q),
     .pending_mem_capture_lane1_w(pending_mem_capture_lane1_w),
     .pending_mem_clear_w(pending_mem_clear_w),
     .pending_mem_dispatched_q(pending_mem_dispatched_q),
@@ -831,22 +776,15 @@ module OooCoreTopGlue #(
 
   // 控制类伪提交由 writeback 侧 sequencer 统一打拍，父模块只保留 pending/trap owner。
 
-  wire pending_fp_mem_req_fire_w;
-  wire pending_fp_mem_rsp_fire_w;
 
   OooPendingOperandReadGate u_pending_operand_read_gate (
     .gprs_i(core_debug_gprs_w),
     .pending_branch_rs1_i(pending_branch_rs1_q),
     .pending_branch_rs2_i(pending_branch_rs2_q),
     .pending_jump_rs1_i(pending_jump_rs1_q),
-    .pending_fp_inst_i(pending_fp_inst_q),
     .pending_branch_rs1_data_o(pending_branch_rs1_data_w),
     .pending_branch_rs2_data_o(pending_branch_rs2_data_w),
-    .pending_jump_rs1_data_o(pending_jump_rs1_data_w),
-    .pending_fp_rs1_idx_o(pending_fp_rs1_idx_w),
-    .pending_fp_rs2_idx_o(pending_fp_rs2_idx_w),
-    .pending_fp_rs3_idx_o(pending_fp_rs3_idx_w),
-    .pending_fp_int_rs1_value_o(pending_fp_int_rs1_value_w)
+    .pending_jump_rs1_data_o(pending_jump_rs1_data_w)
   );
 
   wire unused_core_slice_observe_w =
@@ -871,7 +809,6 @@ module OooCoreTopGlue #(
       (|branch_prefetch_rsp1_rd_unused_w) |
       (|branch_prefetch_rsp1_imm_unused_w) |
       branch_fallthrough_safe_w | branch_target_cache_hit_w |
-      pending_fp_div_busy_w | pending_fp_sqrt_busy_w |
       pending_replay_wait_w |
       return_cont_attempt_ready_w |
       pending_jump_jalr_sum_lsb_unused_w | head_fetch_fault_w |
@@ -890,6 +827,7 @@ module OooCoreTopGlue #(
     .a0_data_w(a0_data_w),
     .backend_drained_q(backend_drained_q),
     .backend_drained_w(backend_drained_w),
+    .mem_retire_quiet_i(core_mem_retire_quiet_w),
     .branch_resolve_pending_match_w(branch_resolve_pending_match_w),
     .branch_resolve_untracked_w(branch_resolve_untracked_w),
     .branch_spec_active_q(branch_spec_active_q),
@@ -1038,18 +976,6 @@ module OooCoreTopGlue #(
     .pending_branch_target_w(pending_branch_target_w),
     .pending_control_ready_w(pending_control_ready_w),
     .pending_exit_q(pending_exit_q),
-    .pending_fp_capture_head0_w(pending_fp_capture_head0_w),
-    .pending_fp_capture_lane1_w(pending_fp_capture_lane1_w),
-    .pending_fp_clear_w(pending_fp_clear_w),
-    .pending_fp_compute_done_q(pending_fp_compute_done_q),
-    .pending_fp_compute_op_w(pending_fp_compute_op_w),
-    .pending_fp_compute_start_w(pending_fp_compute_start_w),
-    .pending_fp_long_done_q(pending_fp_long_done_q),
-    .pending_fp_long_op_w(pending_fp_long_op_w),
-    .pending_fp_long_pending_q(pending_fp_long_pending_q),
-    .pending_fp_long_start_w(pending_fp_long_start_w),
-    .pending_fp_mem_done_q(pending_fp_mem_done_q),
-    .pending_fp_q(pending_fp_q),
     .pending_jump_capture_head0_w(pending_jump_capture_head0_w),
     .pending_jump_capture_lane1_w(pending_jump_capture_lane1_w),
     .pending_jump_clear_w(pending_jump_clear_w),
@@ -1163,6 +1089,10 @@ module OooCoreTopGlue #(
     .commit_ready_i(commit_ready_i),
     .core_branch_resolve_misaligned_w(core_branch_resolve_misaligned_w),
     .core_branch_resolve_mispredict_w(core_branch_resolve_mispredict_w),
+    .core_branch_resolve_is_branch_w(core_branch_resolve_is_branch_w),
+    .core_branch_resolve_taken_w(core_branch_resolve_taken_w),
+    .core_branch_resolve_pred_taken_w(core_branch_resolve_pred_taken_w),
+    .core_branch_resolve_bht_idx_w(core_branch_resolve_bht_idx_w),
     .core_branch_resolve_next_pc_w(core_branch_resolve_next_pc_w),
     .core_branch_resolve_pc_w(core_branch_resolve_pc_w),
     .core_branch_resolve_valid_w(core_branch_resolve_valid_w),
@@ -1177,11 +1107,15 @@ module OooCoreTopGlue #(
     .core_dispatch0_pc_w(core_dispatch0_pc_w),
     .core_dispatch0_valid_w(core_dispatch0_valid_w),
     .core_dispatch0_pred_npc_w(core_dispatch0_pred_npc_w),
+    .core_dispatch0_bht_idx_w(core_dispatch0_bht_idx_w),
+    .core_dispatch0_pred_taken_w(core_dispatch0_pred_taken_w),
     .core_dispatch1_inst_w(core_dispatch1_inst_w),
     .core_dispatch1_next_pc_w(core_dispatch1_next_pc_w),
     .core_dispatch1_pc_w(core_dispatch1_pc_w),
     .core_dispatch1_valid_w(core_dispatch1_valid_w),
     .core_dispatch1_pred_npc_w(core_dispatch1_pred_npc_w),
+    .core_dispatch1_bht_idx_w(core_dispatch1_bht_idx_w),
+    .core_dispatch1_pred_taken_w(core_dispatch1_pred_taken_w),
     .core_dispatch_branch_resolve_misaligned_w(core_dispatch_branch_resolve_misaligned_w),
     .core_dispatch_branch_resolve_next_pc_w(core_dispatch_branch_resolve_next_pc_w),
     .core_dispatch_branch_resolve_pc_w(core_dispatch_branch_resolve_pc_w),
@@ -1222,11 +1156,13 @@ module OooCoreTopGlue #(
     .dispatch0_ready_w(dispatch0_ready_w),
     .dispatch0_return_w(dispatch0_return_w),
     .dispatch0_system_w(dispatch0_system_w),
+    .dispatch0_unsupported_raw_w(dispatch0_unsupported_raw_w),
     .dispatch0_unsupported_w(dispatch0_unsupported_w),
     .dispatch1_barrier_fire_w(dispatch1_barrier_fire_w),
     .dispatch1_barrier_w(dispatch1_barrier_w),
     .dispatch1_optional_w(dispatch1_optional_w),
     .dispatch1_ready_w(dispatch1_ready_w),
+    .dispatch1_unsupported_raw_w(dispatch1_unsupported_raw_w),
     .dispatch1_unsupported_w(dispatch1_unsupported_w),
     .dispatch_fire_w(dispatch_fire_w),
     .dispatch_unsupported_w(dispatch_unsupported_w),
@@ -1256,10 +1192,6 @@ module OooCoreTopGlue #(
     .head0_ctrl_w(head0_ctrl_w),
     .head0_ecall_raw_w(head0_ecall_raw_w),
     .head0_facts_w(head0_facts_w),
-    .head0_fp_double_w(head0_fp_double_w),
-    .head0_fp_gpr_write_w(head0_fp_gpr_write_w),
-    .head0_fp_load_raw_w(head0_fp_load_raw_w),
-    .head0_fp_store_raw_w(head0_fp_store_raw_w),
     .head0_rd_unused_w(head0_rd_unused_w),
     .head0_sfence_raw_w(head0_sfence_raw_w),
     .head0_stop_raw_w(head0_stop_raw_w),
@@ -1271,11 +1203,6 @@ module OooCoreTopGlue #(
     .head1_ctrl_w(head1_ctrl_w),
     .head1_ecall_raw_w(head1_ecall_raw_w),
     .head1_facts_w(head1_facts_w),
-    .head1_fp_double_w(head1_fp_double_w),
-    .head1_fp_enabled_w(head1_fp_enabled_w),
-    .head1_fp_gpr_write_w(head1_fp_gpr_write_w),
-    .head1_fp_load_raw_w(head1_fp_load_raw_w),
-    .head1_fp_store_raw_w(head1_fp_store_raw_w),
     .head1_mem_raw_w(head1_mem_raw_w),
     .head1_rd_unused_w(head1_rd_unused_w),
     .head1_sfence_raw_w(head1_sfence_raw_w),
@@ -1329,8 +1256,6 @@ module OooCoreTopGlue #(
     .pending_branch_target_w(pending_branch_target_w),
     .pending_control_ready_w(pending_control_ready_w),
     .pending_exit_q(pending_exit_q),
-    .pending_fp_next_pc_q(pending_fp_next_pc_q),
-    .pending_fp_q(pending_fp_q),
     .pending_jump_call_fire_w(pending_jump_call_fire_w),
     .pending_jump_capture_head0_w(pending_jump_capture_head0_w),
     .pending_jump_capture_lane1_w(pending_jump_capture_lane1_w),
@@ -1387,3 +1312,4 @@ module OooCoreTopGlue #(
   );
 
 endmodule
+/* verilator lint_on UNOPTFLAT */

@@ -5,6 +5,9 @@ module OooDirectControlFlowGate #(
   parameter ENABLE_DIRECT_RAS_RET = 1'b1
 )(
   input dispatch0_branch_i,
+  // 【F2】双发资格(OooFrontendDispatchGate.dbranch_dual_go): not-taken 预测且 head1
+  // 平凡 → 分支不 fire(不 flush 不重取), 与 head1 原子双发走顺序流。
+  input dbranch_dual_go_i,
   input dispatch0_jal_i,
   input dispatch0_return_i,
   input dispatch0_unsupported_i,
@@ -44,8 +47,14 @@ module OooDirectControlFlowGate #(
   output return_cont_match_o
 );
 
+  // domain-A: direct 分支 fire 保留(它驱动前端按 BHT 预测重定向取指 = 方向预测能力);
+  // 总闸(stop_pending+全 drain)在 OooStopPendingSequencer 侧单独 gate 掉; dispatch 仍走
+  // 普通路进 ROB, 后端 resolve 比对 pred_npc 纠错。
+  // 【F2】dual_go(not-taken+head1 平凡)拍不 fire: 不 flush、顺序流双发, 零重取代价;
+  // fire 只剩 taken 预测或 head1 不可双发(barrier/unsupported)的拍(flush+按 pred 重取)。
   assign direct_branch0_fire_o =
-      dispatch0_branch_i && !dispatch0_unsupported_i && dispatch0_ready_i;
+      dispatch0_branch_i && !dispatch0_unsupported_i && dispatch0_ready_i &&
+      !dbranch_dual_go_i;
   assign direct_jal0_dispatch_valid_o = dispatch0_jal_i;
   assign direct_jal_fire_o = direct_jal0_fire_i || direct_jal1_fire_i;
 

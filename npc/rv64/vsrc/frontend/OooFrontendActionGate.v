@@ -1,4 +1,5 @@
 // Pure combinational action predicates for the OoO front-end shell.
+`include "define.v"
 module OooFrontendActionGate (
   input direct_jal_fire_i,
   input direct_branch0_fire_i,
@@ -20,6 +21,7 @@ module OooFrontendActionGate (
   input direct_branch1_dispatch_valid_i,
   input dispatch_unsupported_i,
   input dispatch_fire_i,
+  input dbranch_dispatch_fire_i,  // domain-A: 分支普通 dispatch fire(pop 源)
   input dispatch1_barrier_fire_i,
   input direct_jal0_fire_i,
   input direct_jump_spec_fire_i,   // B2: 非返回 JALR 投机续取 → 触发前端 flush 重定向
@@ -56,7 +58,7 @@ module OooFrontendActionGate (
        dispatch0_exit_i ||
        dispatch0_arch_trap_i ||
        dispatch0_system_i ||
-       dispatch0_branch_i ||
+       (dispatch0_branch_i && !(`OOO_DBRANCH_DOMAIN_A)) ||
        dispatch0_jal_i ||
        dispatch0_jump_i ||
        dispatch1_barrier_i ||
@@ -66,6 +68,7 @@ module OooFrontendActionGate (
 
   assign fifo_pop_o =
       dispatch_fire_i ||
+      dbranch_dispatch_fire_i ||
       dispatch1_barrier_fire_i ||
       direct_jal0_fire_i;
 

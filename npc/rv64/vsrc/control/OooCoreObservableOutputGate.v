@@ -15,7 +15,6 @@ module OooCoreObservableOutputGate(
   input pending_branch_i,
   input pending_jump_i,
   input pending_mem_i,
-  input pending_fp_i,
   input pending_system_i,
   input synth_lane1_ret_pending_i,
   input synth_lane1_branch_drop_pending_i,
@@ -62,7 +61,7 @@ module OooCoreObservableOutputGate(
   assign exit_code_o = exit_code_i;
   assign halted_o = halted_i ||
                     (stop_pending_i && !pending_branch_i && !pending_jump_i &&
-                     !pending_mem_i && !pending_fp_i && !pending_system_i &&
+                     !pending_mem_i && !pending_system_i &&
                      !synth_lane1_ret_pending_i &&
                      !synth_lane1_branch_drop_pending_i);
   assign priv_mode_o = csr_priv_mode_i;

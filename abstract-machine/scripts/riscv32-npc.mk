@@ -24,6 +24,7 @@ COMMON_CFLAGS += -ffreestanding -march=rv64im_zicsr_zifencei_zba_zbb_zbc_zbs -ma
 LDFLAGS       += -melf64lriscv
 else
 COMMON_CFLAGS += -march=rv32imc_zicsr_zifencei_zba_zbb_zbc_zbs -mabi=ilp32 # overwrite
+COMMON_CFLAGS += -DDEVICE_MAP_LEGACY             # RV32 封存: 旧 AM 设备图 (npc/single 后端 0xa0000000)
 LDFLAGS       += -melf32lriscv                   # overwrite
 
 AM_SRCS += riscv/npc/libgcc/div.S \

@@ -34,7 +34,6 @@ module OooTrapExitEventMux (
   input wire pending_system_i,
   input wire pending_jump_i,
   input wire pending_mem_i,
-  input wire pending_fp_i,
   input wire pending_exit_i,
   input wire pending_exit_is_ecall_i,
   input wire pending_exit_is_ebreak_i,
@@ -90,7 +89,6 @@ module OooTrapExitEventMux (
       !(pending_branch_valid_i && !pending_branch_dispatched_i) &&
       !pending_jump_i &&
       !pending_mem_i &&
-      !pending_fp_i &&
       !pending_exit_i &&
       !branch_commit_misaligned_w &&
       !branch_match_misaligned_w &&
@@ -128,7 +126,6 @@ module OooTrapExitEventMux (
       !(pending_branch_valid_i && !pending_branch_dispatched_i) &&
       !pending_jump_i &&
       !pending_mem_i &&
-      !pending_fp_i &&
       pending_exit_i;
   assign exit_is_ecall_o = pending_exit_is_ecall_i;
   assign exit_is_ebreak_o = pending_exit_is_ebreak_i;

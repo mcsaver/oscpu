@@ -29,7 +29,6 @@ module tb_ooo_trap_exit_event_mux;
   reg pending_system_i;
   reg pending_jump_i;
   reg pending_mem_i;
-  reg pending_fp_i;
   reg pending_exit_i;
   reg pending_exit_is_ecall_i;
   reg pending_exit_is_ebreak_i;
@@ -74,7 +73,6 @@ module tb_ooo_trap_exit_event_mux;
     .pending_system_i(pending_system_i),
     .pending_jump_i(pending_jump_i),
     .pending_mem_i(pending_mem_i),
-    .pending_fp_i(pending_fp_i),
     .pending_exit_i(pending_exit_i),
     .pending_exit_is_ecall_i(pending_exit_is_ecall_i),
     .pending_exit_is_ebreak_i(pending_exit_is_ebreak_i),
@@ -120,7 +118,6 @@ module tb_ooo_trap_exit_event_mux;
       pending_system_i = 1'b0;
       pending_jump_i = 1'b0;
       pending_mem_i = 1'b0;
-      pending_fp_i = 1'b0;
       pending_exit_i = 1'b0;
       pending_exit_is_ecall_i = 1'b0;
       pending_exit_is_ebreak_i = 1'b0;

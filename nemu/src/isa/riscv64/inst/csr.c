@@ -93,7 +93,9 @@ static inline bool csr_counter_allowed(uint32_t csr) {
 }
 
 static inline word_t csr_status_sd_bit(void) {
-  return (cpu.csr.mstatus & MSTATUS_FS_MASK) == MSTATUS_FS_DIRTY
+  // SD 汇总 FS 或 VS 任一为 Dirty(3)。VS 随 V 扩展 status 位一起暴露后, SD 也须兼顾 VS。
+  return ((cpu.csr.mstatus & MSTATUS_FS_MASK) == MSTATUS_FS_DIRTY ||
+          (cpu.csr.mstatus & MSTATUS_VS_MASK) == MSTATUS_VS_DIRTY)
            ? MSTATUS_SD : 0;
 }
 
@@ -161,7 +163,11 @@ static inline void csr_profile_sstatus_write_delta(word_t old_status,
 static inline word_t csr_sanitize_satp(word_t value) {
 #ifdef CONFIG_ISA64
   word_t mode = value >> 60;
-  return (mode == 0 || mode == 8) ? value : 0;
+  // satp.MODE 是 WARL 字段，NEMU 支持 Bare(0)/Sv39(8)/Sv48(9)/Sv57(10)。写入不支持的 MODE 时，
+  // 按 RISC-V 特权规范"整个 satp 写不生效"——保持旧值，而不是清成 Bare(0)。
+  // 清 0 会丢掉正在生效的映射、让后续访存把 VA 当 PA 落到越界物理地址, 并破坏分页模式探测语义。
+  if (mode != 0 && mode != 8 && mode != 9 && mode != 10) return cpu.csr.satp;
+  return value;
 #else
   return value;
 #endif
@@ -278,6 +284,7 @@ static inline bool csr_read(uint32_t csr, word_t *value) {
     case CSR_MIE:      *value = cpu.csr.mie; return true;
     case CSR_MTVEC:    *value = cpu.csr.mtvec; return true;
     case CSR_MCOUNTEREN: *value = cpu.csr.mcounteren; return true;
+    case CSR_MENVCFG:  *value = cpu.csr.menvcfg; return true;
     case CSR_MCOUNTINHIBIT: *value = cpu.csr.mcountinhibit; return true;
     case CSR_MSCRATCH: *value = cpu.csr.mscratch; return true;
     case CSR_MEPC:     *value = cpu.csr.mepc; return true;
@@ -361,12 +368,17 @@ static inline bool csr_write(uint32_t csr, word_t value) {
       CSR_DEBUG_LOG("CSR write satp=" FMT_WORD " raw=" FMT_WORD " pc=" FMT_WORD
           " priv=%u", cpu.csr.satp, value, cpu.pc, cpu.priv);
       return true;
+    // misa 是 WARL: NEMU 的扩展集固定不可变, 写按"忽略非法/所有位"处理(读回仍是 csr_misa_value)。
+    // 关键是 csrw misa 本身是合法指令, 不能落到 default 当 illegal——否则 riscv-dv 等在 mtvec 设置前
+    // 写 misa 的 boot code 会 trap 到 mtvec=0 而跑飞。(rv64dv 压测发现)
+    case CSR_MISA:     return true;
     case CSR_MSTATUS:  cpu.csr.mstatus = (value & MSTATUS_WRITABLE_MASK) | MSTATUS_SXL_UXL; return true;
     case CSR_MEDELEG:  cpu.csr.medeleg = value; return true;
     case CSR_MIDELEG:  cpu.csr.mideleg = value; return true;
     case CSR_MIE:      isa_riscv64_write_mie(value); return true;
     case CSR_MTVEC:    cpu.csr.mtvec = value & ~(word_t)0x3; return true;
     case CSR_MCOUNTEREN: cpu.csr.mcounteren = value & COUNTEREN_MASK; return true;
+    case CSR_MENVCFG:  cpu.csr.menvcfg = value & MENVCFG_WRITABLE_MASK; return true;
     case CSR_MCOUNTINHIBIT: cpu.csr.mcountinhibit = value & (MCOUNTINHIBIT_CY | MCOUNTINHIBIT_IR); return true;
     case CSR_MSCRATCH: cpu.csr.mscratch = value; return true;
     case CSR_MEPC:     cpu.csr.mepc = value & mepc_mask; return true;
@@ -436,7 +448,8 @@ static inline word_t csr_encode_mpp(uint8_t priv) {
 
 static inline bool ebreak_should_raise_breakpoint_trap(void) {
 #if defined(CONFIG_MODE_SYSTEM) && !defined(CONFIG_TARGET_AM)
-  // Linux/system 模式必须按官方 ISA 把 ebreak 当 breakpoint trap，不能被 PA 退出协议抢走。
+  // Linux/system 模式按官方 ISA 把 ebreak 当 breakpoint trap(ACT4/semihost 等依赖);
+  // AM 系统测试统一用设备树 syscon 退出, 不依赖 ebreak 停机。
   return true;
 #else
   return cpu.csr.mtvec != 0 || cpu.csr.stvec != 0;
@@ -486,6 +499,8 @@ static inline bool exec_csr(uint32_t inst, uint32_t funct3, int rd, int rs1) {
   csr_last_sstatus_write_delta = 0;
 
   if (cpu.priv < BITS(csr, 9, 8)) return false;
+  // TVM: S 态且 mstatus.TVM=1 时访问 satp 触发 illegal instruction(读写皆然); M 态不受影响。
+  if (csr == CSR_SATP && cpu.priv == PRIV_S && (cpu.csr.mstatus & MSTATUS_TVM)) return false;
   if (!csr_counter_allowed(csr)) return false;
   if (!csr_read(csr, &old_val)) return false;
 

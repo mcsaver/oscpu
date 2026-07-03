@@ -20,6 +20,8 @@
 #include "sdb.h"
 #include "watchpoint.h"
 #include <utils.h>
+#include <memory/paddr.h>
+#include <memory/cache.h>
 
 // 下面这些头文件主要服务于 `cmd_p` 新增的 `p test`。（更改日期：2025-12-22）
 // - <ctype.h>  : isspace() 用于跳过空白
@@ -171,7 +173,7 @@ static int cmd_x(char *args) {
   for (long i = 0; i < n; i++)
   {
     paddr_t a = addr + i * 4;
-    word_t v = paddr_read(a, 4);
+    word_t v = (in_pmem(a) ? dcache_peek_read(a, 4) : paddr_read(a, 4));  // 一致视图: dirty 未回写也读到最新值
     printf("0x%08x: 0x%08x\n", (unsigned)a, (unsigned)v);
   }
   return 0;

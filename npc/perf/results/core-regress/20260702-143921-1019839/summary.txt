@@ -1,0 +1,7 @@
+NPC RV64 core regression
+  run_dir: /home/lyg/PA/ysyx-workbench/npc/perf/results/core-regress/20260702-143921-1019839
+  riscv_suites: rv64ui rv64ua
+  riscv_filter: (p-s[bdhw]$|p-lrsc|p-amoadd_d|p-ld_st|p-st_ld|p-ma_data)
+  SKIP  riscv-tests checkout not found: /home/lyg/PA/ysyx-workbench/npc/testsuites/core-tests/src/riscv-tests
+[2026-07-02 14:39:21] done overall_rc=0
+  status: /home/lyg/PA/ysyx-workbench/npc/perf/results/core-regress/20260702-143921-1019839/status.txt

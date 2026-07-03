@@ -35,8 +35,13 @@ static void s_timer_payload(void) __attribute__((noinline, noreturn));
 asm(
 ".align 2\n"
 ".globl m_sbi_timer_trap\n"
+// 完整 SBI-timer mock: 真实 OpenSBI 的 CLINT timer 走 machine timer(MTIP), 由 M-mode 收 MTIP 后
+// 写 sip.STIP 转发到 S-mode(NEMU 的 mtimecmp 只派生 MTIP, mideleg 不委托 machine timer)。故本 handler
+// 分两支: (a)S-mode 的 SBI set_timer ecall → 设 mtimecmp 触发 MTIP + 使能 mie.MTIE; (b)MTIP 中断 →
+// 清 machine timer + 置 sip.STIP 交付 S-mode。S-mode timer handler 收 STI 后关 sie.STIE 收口。
 "m_sbi_timer_trap:\n"
 "  csrr t0, mcause\n"
+"  bltz t0, m_sbi_timer_forward\n"    // mcause 符号位=1 → 中断(MTIP), 走转发支
 "  la t1, sbi_timer_mcause\n"
 "  sd t0, 0(t1)\n"
 "  csrr t0, mepc\n"
@@ -48,13 +53,13 @@ asm(
 "  sd a6, 0(t1)\n"
 "  la t1, sbi_timer_a7\n"
 "  sd a7, 0(t1)\n"
-"  li t2, 0x02004004\n"
-"  li t3, -1\n"
-"  sw t3, 0(t2)\n"
-"  li t2, 0x02004000\n"
+"  li t2, 0x02004000\n"               // mtimecmp = 0 → mtime>=0 立即派生 MTIP
 "  sw zero, 0(t2)\n"
-"  li t2, 0x02004004\n"
-"  sw zero, 0(t2)\n"
+"  sw zero, 4(t2)\n"
+"  li t2, 0x80\n"                      // 使能 mie.MTIE, 让 M 接管 machine timer
+"  csrs mie, t2\n"
+"  li t2, 0x20\n"                      // 清旧 sip.STIP
+"  csrc mip, t2\n"
 "  la t1, sbi_timer_m_seen\n"
 "  li t0, 1\n"
 "  sd t0, 0(t1)\n"
@@ -63,6 +68,16 @@ asm(
 "  csrr t0, mepc\n"
 "  addi t0, t0, 4\n"
 "  csrw mepc, t0\n"
+"  mret\n"
+"m_sbi_timer_forward:\n"
+"  li t2, 0x02004000\n"               // 清 machine timer: mtimecmp = max
+"  li t3, -1\n"
+"  sw t3, 0(t2)\n"
+"  sw t3, 4(t2)\n"
+"  li t2, 0x80\n"                      // 清 mie.MTIE
+"  csrc mie, t2\n"
+"  li t2, 0x20\n"                      // 置 sip.STIP → 交付 S-mode timer 中断
+"  csrs mip, t2\n"
 "  mret\n"
 ".align 2\n"
 ".globl s_timer_trap\n"
@@ -76,11 +91,8 @@ asm(
 "  csrr t0, sstatus\n"
 "  la t1, sbi_timer_sstatus\n"
 "  sd t0, 0(t1)\n"
-"  li t2, 0x02004004\n"
-"  li t3, -1\n"
-"  sw t3, 0(t2)\n"
-"  li t2, 0x02004000\n"
-"  sw t3, 0(t2)\n"
+"  li t2, 0x20\n"                      // 关 sie.STIE: sip.STIP 归 M-mode(SBI) 清, S 侧关使能避免 sret 后重复触发 STI
+"  csrc sie, t2\n"
 "  la t1, sbi_timer_s_seen\n"
 "  li t0, 1\n"
 "  sd t0, 0(t1)\n"

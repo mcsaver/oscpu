@@ -5,6 +5,52 @@
 ## 活跃问题
 <!-- 当前未解决的问题 -->
 
+### [110] F2 三件套在 domain-A 树上的叠加实测——三个新边界定死(domain-A 已落地, F2 叠加待专项)
+
+> **[2026-07-03 已解决——F2 整体落地]** per-packet 单源方案一次成型:pred_npc 单一真源
+> (`direct_fire_succ` 同 wire 喂 next_fetch 与 dispatch pred_npc)+ not-taken 分支免 flush
+> 双发(dual_go,裸事实谓词破 #110 边界 3 环)+ solo 拍 d1 squash(边界 2 解)+ BPU
+> resolve-update 重建(bht_idx/pred_taken thread 进 IQ;此前 BHT 恒零训练)。强制项拆除,
+> jal/jalr/branch 恒判 mispredict。三个新根因(全为恒-mispredict 节奏掩盖的预存漏洞):
+> ①flush 拍顺序取指臂泄漏(障碍①真身,修 FlowControl gate);②MIQ kill 拍同拍 push 漏标
+> killed(迟到 rsp 写已回收 preg,CoreMark p42 案);③MMIO load 可投机发射(不可撤销设备读+
+> LEGACY 不受 walk 保护,归入 ROB 队头独占)。difftest MMIO skip 搬到 commit 拍 EA 解码
+> (旧 rsp 拍全局旗=既往 3.2M 条预存墙真身)。结果:riscv 153/153 difftest、CoreMark 10 iter
+> difftest 全绿、TB 97/97、**CoreMark/MHz 2.869→3.395(+18.3%)**、branch_flush 34.7%→19.4%。
+> 详见 `npc/rv64/design/specs/ooo-f2-per-packet-pred-implementation-plan.md` §6。
+> 遗留:taken fire 仍付 flush 重取延迟(下一刀:spec 重取走 redirect 臂/BTB 免 flush);
+> RVC 压缩 mem 指令的 difftest MMIO skip 未解码(设备访问现均 32b)。
+
+- **模块**: NPC / RV64 / F2 分支预测叠加 / domain-A(089166588 之上)
+- **背景**: domain-A 第一块拼图(direct branch 迁 ROB+总闸拆除)已提交并全套真绿(riscv-tests 177/177+module TB 98/98+spike difftest 逐指令 507+CoreMark stop=0, IPC 0.82)。按 9946410ef 配方叠加 F2 三件套(pred_npc BHT 项+DispatchMux 哨兵可靠性+去强制项), 三轮实测每轮定死一个新边界后按纪律回退, 核保持在 domain-A 已提交态。
+- **边界 1(纯哨兵版)**: count<2 恒哨兵 mis → taken 紧循环每迭代强制 flush, CoreMark 稳态完美周期锁死 IPC 0.53(retire=533333 精确重复)。静态 not-taken 对 taken 紧循环是最坏预测, BHT 项必需。
+- **边界 2(BHT 项+件2 per-slot 哨兵)**: **domain-A 特有新场景**——配方验证环境(direct 模型)分支独占 dispatch0 不双发; domain-A 分支走普通 dispatch 后, 预测-taken 且解析 taken(mis=0 免 redirect)的分支拍, 普通双发把同包 head1(fall-through, 不在预测路径上)塞进 d1 → "预测正确→免 redirect→无 kill" 通路顺序提交 wrong-path → CoreMark BHT warm 后(~1595 条)跑飞 pc=0(exception 循环 16.7%)。**修法方向=该拍禁 d1 双发**(mux core_dispatch1_valid gate)。
+- **边界 3(d1-gate 谓词源)**: 用 fire-mux 后的 `direct_branch_predict_taken_w` 做 d1-gate → 经 d1_valid→dispatch fire→fire-mux 成 **UNOPTFLAT 组合环**; 改用 head0 纯 BHT 寄存输出(`head0_branch_pred_taken_w`)+自算 target(`head_pc+imm`)破环, 但**谓词与 fire(实际取指动作)不同源** → BHT taken 但 direct fire 未 fire(unsupported/not-ready)拍, 前端实际没跳、pred 却给 target → add difftest 207 条即发散(0x3b0/0x390)。**正解方向=谓词必须与前端实际取指动作同源**: 要么寄存一拍 fire 履历随 packet threaded, 要么给 fire 路径做无环的"将 fire"前视(排除 ready 依赖), 要么 per-packet 把实际取指决策存 FIFO(#105 主线正解)。
+- **边界 4(第 5 轮, 谓词+head1 补全版仍同发散 add@207)**: 深层事实——`direct_branch0_fire` **不含 pred_taken 条件**(DirectControlFlowGate: branch&&!unsupported&&ready), 即 direct 模型下 head0 分支**每条都 fire→flush→按 pred_pc(taken?target:fallthrough) 重取**。故 pred_npc 的真值**恒等于 fire-mux 后的 direct_branch_pred_pc**(不仅 taken 时), 用 head0 侧 BHT 自算(taken 时 target/否则 fifo_head1_pc0)在 not-taken/重取时序上与实际取指错位; 而 direct_branch_pred_pc 经 fire-mux → 组合环(边界 3)。**每条单点补丁路都通向同一结构解: 取指时把实际取指决策(fire 后继)per-packet 存 FIFO/随 bypass threaded**(#105 主线正解)。作者 3 轮+本会话 5 轮共 8 轮单点尝试全部失败于同一族一致性边界——这是"必须结构改造"的最强架构证据。
+- **[2026-07-02 F2 第五轮·difftest 护栏就位后的再攻(已撤退, 三个新结构性障碍数据化)]** difftest 基线本日修复(153/153 NEMU 对拍)后重试 F2。哨兵版(count<2=64'h1)+去强制项: riscv-tests 全绿但 CoreMark boot ~2000 条后 wrong-path 重复提交(beqz@0x80002e50 的 fall-through 0x2e54 双份 commit)——根因=**direct fire 恒 flush+重取, not-taken 的第一份 fall-through 靠恒-mispredict ROB-walk 砍, 免 walk 后双份都活**。改 predict_taken gate(taken 才 fire/not-taken 双发): jalr difftest 揪出**三个新障碍**: ①direct fire 的 flush 漏杀同拍 fetch-rsp, wrong-path 包(20c 案)入 FIFO——旧形态靠后端恒 redirect 二次清洗掩盖; ②DirectBranchResolveGate 拍内解析会在 fire 拍改写 next_fetch(resolve_next), 与 head_pred_succ 的 taken 项(direct_branch_pred_pc)**不同源**→pred 恒错配; ③mispredict-redirect 后 bypass/prefetch 通道只 dispatch head0, head1(204 案)蒸发。全关 direct fire 的纯哨兵版则 taken 紧循环退化(matrix 内循环 9 拍/迭代, mem=100% 窗口)。**结论不变**: 每条单点补丁都撞进 direct/prefetch/拍内解析三层旧机器的一致性边界, #105 主线正解(per-packet threaded 取指决策)是唯一出路; 且改造时必须一并处理 flush 对 in-flight rsp 的 discard 语义与 bypass 双发。本轮保留资产: pred_npc 哨兵化(64'h1)落地; ecall commit 事件+MMIO-load skip 使 CoreMark difftest 可用(分歧定位到条级)。
+- **结论**: F2 叠加=「预测谓词/实际取指/双发槽位」三方一致性工程, 单点补丁每轮修一露一(与作者三轮同款泥潭)。domain-A 地基已验收, F2 专项下一会话按上述三边界+#105 主线正解(per-packet threaded)推进; 所有中间形态的失败模式与探针方法已数据化, 复现成本≈分钟级。
+
+### [109] NEMU DMA↔write-back dcache 一致性家族(#108 同源审计发现)+ Linux/Makefile virtio-input 悬空 flag(已修并验证)
+
+- **模块**: NEMU / write-back dcache / virtio(blk/net/rng) DMA / sdb 调试读 / Linux dtb 生成
+- **背景**: 按 #108 教训(2) 对全部"host 侧直访 guest 内存"路径做系统性 grep 审计(`pmem_read`/`paddr_read`/裸 `memcpy(guest_to_host)` 调用点),发现完整的 DMA 一致性缺口家族——CONFIG_CACHE=y 下逻辑可证的确定性 bug,rv64dv/ACT4/cpu-tests 不用 virtio 故未暴露,Linux+virtio 必踩。
+- **写侧**: `paddr_dma_write`(`memcpy(guest_to_host)` 直写 pmem)与 `paddr_dma_write_value`(`pmem_write`)都绕过 dcache:dcache 恰有该行时 guest 读 dcache 返回 stale(看不到 DMA 数据),**dirty 行将来 writeback 还会反向覆盖 DMA 数据**;`paddr_dma_notify_cpu` 已做 ifetch cache/LR-SC 失效却漏了 dcache。修:改经 `dcache_coherent_write`(命中原地改保持 dirty、未命中直写 pmem;大块 8B+尾字节循环)。
+- **读侧**: virtio rng/net/disk 的 `guest_read16/32/64`(→`paddr_read`→pmem)与 disk.c `guest_copy_from` 的裸 `memcpy(guest_to_host)`——guest 刚 kick 的 virtio 描述符/数据段 dirty 在 dcache 时设备读 stale。修:paddr.c 新增对称一致入口 `paddr_dma_read_value`/`paddr_dma_read`(内部 `dcache_peek_read`),三设备+disk copy 全部切换;paddr.h 注明"设备读 guest 内存一律走这两个入口,禁止 paddr_read/裸 memcpy"。
+- **调试侧**: sdb `expr.c`(解引用求值)/`sdb.c`(x 命令)的 `paddr_read` 改 `in_pmem ? dcache_peek_read : paddr_read`,watchpoint/内存查看不再读 stale。
+- **Linux/Makefile 悬空 flag**: NEMU rootfs dtb 规则残留 `--virtio-input --simple-framebuffer`——整个 virtio-input 特性已在 tracer commit `45c148039`(6-28)被整体回退(gen_dts.py 53 行+yml 11 行+NEMU input.c 424 行+Kconfig/device.c/filelist 全删),唯漏 Makefile 调用 → **此后所有 `run-ubuntu-*` 的 dtb 生成断裂**(`gen_dts.py: unrecognized arguments`)。删残留恢复主线;特性本体如需可从 `45c148039^` 找回。
+- **验证**: rv64dv difftest-vs-spike 5 PASS/0 FAIL;AM cpu-tests 57/57;ACT4 161/161(零回归);**正向重验**:`run-ubuntu-rootfs` 完整 boot——OpenSBI v1.8→Linux 6.6→virtio_blk vda 2GiB→VFS Mounted root(ext4)→systemd→"Welcome to Ubuntu 22.04.5 LTS"(write-back dcache 全程开启,mount+systemd=数千次 virtio DMA 经新一致路径)。commit `525e48080`。
+- **教训**: (1) "host 直访 guest 内存"的完整清单=tohost 检查、MMU walker、**设备 DMA 读+写**、调试器读——write-back dcache 引入时必须一次性全家族审计,漏一个就是静默数据破坏;写侧比读侧更危险(dirty writeback 反向覆盖 DMA 数据是双向破坏)。(2) tracer 自动 commit 会把"被中断/回退的工作树"快照进历史——特性回退必须 grep 全部调用点(本例 Makefile 漏删导致主线断裂 4 天);怀疑历史内容时用 `git log --all -S`(增删都命中,注意命中的可能是**删除** commit,父提交才有内容)。
+
+### [108] NEMU rv64dv(riscv-dv)压测抓到 2 个真 bug——misa 非 WARL + write-back dcache 绕 tohost(已修并验证)
+
+- **模块**: NEMU / RV64 / CSR / write-back dcache / tohost 退出检测 / rv64dv 压测
+- **背景**: `am-kernels/rv64dv` 用 chipsalliance/riscv-dv 约束随机指令流压测 NEMU(DUT=NEMU、REF=spike-diff,逐指令逐寄存器 difftest,PASS 充要=干净 HIT GOOD TRAP+零 mismatch)。首轮压测即定位 2 个 **arch-test/Linux/CoreMark 均未暴露**的 NEMU bug。
+- **Bug 1(csr.c)**: `csrw misa` 落 `csr_write` 的 default 分支被判 illegal-instruction。但 misa 是 **WARL**——NEMU 扩展集固定不可变,写应按"忽略"处理(读回仍 `csr_misa_value`),指令本身合法。riscv-dv boot code 在 mtvec 设置前写 misa → trap 到 mtvec=0 → 跑飞。修:`case CSR_MISA: return true;`。
+- **Bug 2(paddr.c/cache.c/cpu-exec.c)**: write-back dcache 下 tohost 退出检测**双重漏判**:(a) tohost 值刚被 guest store 写入、dirty 停在 dcache 未回 pmem,`paddr_tohost_check_write` 用 `pmem_read` 读到 stale 0 → 漏判(改 `dcache_peek_read` 一致视图);(b) 走 dcache 的 store 根本不经 `paddr_write` 的 tohost 检查 → `dcache_write` 补一次 `paddr_tohost_check_write`;(c) 块内指令 `set_nemu_state(NEMU_END)` 后 TB 会继续执行到静态边界 → `execute_basic_block` 逐指令查 state 立即停。rv64dv self-loop 反复写 tohost 的用例暴露;与 ACT4 曾修的 dcache↔PTW 一致性同源(**write-back dcache 引入后,所有"host 侧直读 guest 内存"的路径都必须走 dcache 一致视图**)。
+- **配套**: syscon.c 补 SiFive Test Finisher FAIL 编码(`0x3333|code<<16`,AM `halt(code!=0)` 统一经设备树 syscon 退出→BAD TRAP);utils.h `_Atomic` 加 `__cplusplus` gate(spike-diff difftest.cc 为 C++)。
+- **验证**: rv64dv `riscv_arithmetic_basic_test` 5 迭代 difftest-vs-spike **5 PASS/0 FAIL**;AM cpu-tests(riscv64-nemu,batch `c` target)**57/57**;ACT4 全量 rv64i/I 51+rv64i/M 13+priv/Sv 97=**161/161** 零回归。commit `de5e86abd`。
+- **教训**: (1) 约束随机+第三方金标(spike)的逐指令 difftest 能抓 directed 测试(ACT4/riscv-tests)覆盖不到的盲区——misa WARL 与 tohost self-loop 都是 boot/退出协议路径,directed 测试从不触碰。(2) 引入 write-back dcache 后,`pmem_read` 型 host 直读(tohost/难例还有 difftest memcpy、监视点)全部要过 `dcache_peek_read`,建议 grep 审计所有 `pmem_read` 调用点。(3) 跑 AM 测试必须用 `c` target(batch `-b`),`run` 是交互式 sdb,管道下全 FAIL 是假象。
+
 ### [107] `npc/rv64` 重新启用 difftest 对 riscv-tests 的逐指令校验——mnstatus 已对齐(部分完成)
 
 - **模块**: NPC / RV64 / CsrFile / difftest / riscv-tests
@@ -23,6 +69,9 @@
 - **教训**: (1) reservation 这类"由更晚的内存响应建立、却被 issue 当拍组合消费"的状态,必须把消费者(SC)显式排到建立者(LR)完成之后,不能让"看似失败"的早评估短路掉顺序约束。(2) **回归套件必须包含 rv64ua**——LR/SC 是 RV64A 的一部分,缺它会让这类活锁长期隐形。建议 core-regress 默认 `--riscv-suites` 加 rv64ua。
 
 ### [105] `npc/rv64` Wave3 启用真分支预测(拆强制 mispredict)失败——属 B2 前端重构范畴(未修，已回退)
+
+> **[2026-07-03 已解决]** 主线正解(per-packet threaded/单源化)已整体落地,见 #110 顶部
+> 闭合记录与 spec ooo-f2-per-packet-pred §6。历史 8 轮单点失败的三族边界全部以结构方式闭合。
 
 - **模块**: NPC / RV64 / frontend 投机取指 / OooIntBackend mispredict / redirect 仲裁 / difftest
 - **背景**: 体检发现默认 `OOO_ROB_WALK_MODE=1` 下 `OooIntBackend.v` 的 `issue*_mispredict_w` 含 `mode_walk_w ||` 强制项，使每条控制流无条件 redirect→整套前端 BPU(gshare/BTB/RAS)性能上零贡献(每条控制流 flush+重取)。这是 mode=1 交付配置下真实的性能封顶。
@@ -1241,3 +1290,8 @@
 - **连带修复 de-pend 单元 TB**: 去掉 sv39 gate 后 module TB 不再卡在 sv39,暴露 2 个 pre-existing de-pend(片4)单元 TB 回归:`tb_ooo_branch_resolve_recovery_gate`(`OooBranchResolveRecoveryGate` 加 `core_branch_resolve_mispredict_i` 后 mode=1 redirect 只在显式 mispredict 触发,TB 硬接 `mispredict_i(1'b0)` 测旧 mode=0 pending 契约)、`tb_ooo_pending_control_resolve_gate`(纯组合 gate,无 mispredict 输入;misaligned-JALR 用例 born-broken,JALR 强制清 LSB→永远对齐)。修法:mode-guard mode=0 契约断言(`\`ifndef OOO_ROB_WALK_MODE`)+ 加 `\`ifdef OOO_ROB_WALK_MODE` 的 mode=1 mispredict/de-pend 非空断言。
 - **验证(全部 mode=1 绿)**: `cd npc/rv64/testbench && make` → **113/113 PASS**(含 tb_ooo_sv39_boot)；CoreMark crcfinal=0xfcaf；riscv-tests 135/0；am-cpu PASS。记忆 [[coremark-mode1-spec-wrongpath]]。
 - **设计教训**: mode=1 trap gate 不要用 `!rob_walk_mode` 一刀切挡 dispatch-capture —— 应先证实"投机场景真的存在"再加 gate(本例 CoreMark 投机预取停在 pmem range 走 decode illegal,fetch fault 路径根本不触发);真实 head exception(fetch page fault / illegal)的 precise 由 commit 路径 + clear_arch_squash residual 清理协同保证,不需要 mode gate。
+
+### [2026-07-01] CoreMark 在 difftest 开启下读 rtc out-of-bound(预先存在, --no-diff 跑分)
+- **现象**: `make ARCH=riscv64-npc ... run` 跑 CoreMark(difftest 默认开)在读 rtc(0x1200004c)时 NEMU 参考报 `address (...) is out of bound at pc=...`。cpu-tests(纯计算)difftest 全过;CoreMark `--no-diff` 正常(CRC 0xfcaf/8 Marks)。
+- **根因**: (1) difftest 参考态 NEMU 不初始化设备; (2) OoO 核 MMIO **load** 乱序执行,`npc_difftest_skip_ref()` 在该 load 提交前被更早提交的指令消费掉,导致该 load 的 difftest step 让参考真去执行 → 无设备 → out of bound。**store**(如 serial 写)在提交点执行故无此竞态。与设备地址是 0xa0000048 还是 0x12000048 无关(旧图同样存在)。
+- **规避**: CoreMark 等读设备时基的基准按 `--no-diff` 跑(既有约定)。彻底修需 difftest-infra 层把 skip_ref 绑定到具体指令/PC 而非全局标志(未做,超出设备图统一范围)。

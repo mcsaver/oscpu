@@ -432,15 +432,15 @@ static void virtio_net_request_guest_announce(void) {
 }
 
 static uint16_t guest_read16(paddr_t addr) {
-  return paddr_read(addr, 2);
+  return (uint16_t)paddr_dma_read_value(addr, 2);
 }
 
 static uint32_t guest_read32(paddr_t addr) {
-  return paddr_read(addr, 4);
+  return (uint32_t)paddr_dma_read_value(addr, 4);
 }
 
 static uint64_t guest_read64(paddr_t addr) {
-  return paddr_read(addr, 8);
+  return (uint64_t)paddr_dma_read_value(addr, 8);
 }
 
 static void guest_write16(paddr_t addr, uint16_t value) {
@@ -2898,10 +2898,10 @@ void init_virtio_net() {
   virtio_net_reset();
   virtio_net_tap_open_if_requested();
 #ifdef CONFIG_HAS_PORT_IO
-  add_pio_map("virtio-net", CONFIG_VIRTIO_NET_MMIO, net_base, 0x1000,
+  add_pio_map("virtio-net", DEV_VIRTIO_NET_MMIO, net_base, 0x1000,
       virtio_net_io_handler);
 #else
-  add_mmio_map("virtio-net", CONFIG_VIRTIO_NET_MMIO, net_base, 0x1000,
+  add_mmio_map("virtio-net", DEV_VIRTIO_NET_MMIO, net_base, 0x1000,
       virtio_net_io_handler);
 #endif
 }

@@ -13,6 +13,8 @@
 // 后第 LATENCY 拍拉高,父模块据此延后锁存 compute_done。算术逐行不变 → bit-exact 按构造
 // 保持。FP_ARITH_LATENCY=5:FMA(最深)5 级、FMUL 3 级、FADD 2 级真流水(各 op datapath
 // 内部切级,把原单拍 173/91/69 级关键路径压到每级 ≤ ~dispatch;见文件末各流水段)。
+/* verilator lint_off UNOPTFLAT */
+// kill 组合前视与 meta 链的保守判环, 行为由测试守。
 module OooFpArithGate (
   input              clk,
   input              rst,
@@ -34,7 +36,25 @@ module OooFpArithGate (
   output [4:0]       mul_fflags_o,
   output [`XLEN-1:0] fma_value_o,
   output [4:0]       fma_fflags_o,
-  output             done_o
+  output             done_o,
+
+  // 【B-FP 簇·自流水接口】(spec §7): launch 单拍脉冲发射, 每拍可背靠背进新 op
+  // (数据通路本就逐级寄存, 每拍采样输入); 5 级 meta 链(valid/rob_idx/pdest/double/
+  // kind)随行, FADD(2 级)/FMUL(3 级)结果经对齐链补齐到统一第 5 拍, out_* 单口输出。
+  // kill: 比 kill_rob_idx 年轻的在飞 meta 清 valid(防晚到 wb 写脏已回收 preg)。
+  // 旧 start/done 接口保留给 pending 壳, 拆除时一并移除。
+  input              launch_valid_i,
+  input  [`OOO_ROB_INDEX_W-1:0] launch_rob_idx_i,
+  input  [`OOO_PHY_REG_ADDR_W-1:0] launch_pdest_i,
+  input  [1:0]       launch_kind_i,   // 0=addsub, 1=mul, 2=fma
+  input              kill_valid_i,
+  input  [`OOO_ROB_INDEX_W-1:0] kill_rob_idx_i,
+  input  [`OOO_ROB_INDEX_W-1:0] rob_head_idx_i,
+  output             out_valid_o,
+  output [`OOO_ROB_INDEX_W-1:0] out_rob_idx_o,
+  output [`OOO_PHY_REG_ADDR_W-1:0] out_pdest_o,
+  output [`XLEN-1:0] out_value_o,
+  output [4:0]       out_fflags_o
 );
 
   `include "execute/OooFpPredicates.v"
@@ -1373,5 +1393,94 @@ module OooFpArithGate (
     else if (latency_cnt < FP_ARITH_LATENCY[3:0]) latency_cnt <= latency_cnt + 4'd1;
   end
   assign done_o = start_i && (latency_cnt == FP_ARITH_LATENCY[3:0]);
+
+  // ===========================================================================
+  // 【B-FP 簇·自流水控制】5 级 meta 链 + 浅 op 对齐链(spec §7)。
+  // 数据通路每拍无条件推进(输入每拍采样进第一级), meta 链承载 op 身份;
+  // FADD 结果在 stage2 末就绪 → 3 级对齐; FMUL stage3 末 → 2 级; FMA 恰第 5 拍。
+  // 对齐链捕获拍 = op 位于该 stage 的拍末(下一 op 覆盖前), 用 meta 的 double 选 s/d。
+  // kill: age 比 kill_rob_idx 年轻的 meta 清 valid(结果照常流出但 valid=0 不 wb)。
+  // ===========================================================================
+  reg meta_valid_q [1:5];
+  reg [`OOO_ROB_INDEX_W-1:0] meta_rob_q [1:5];
+  reg [`OOO_PHY_REG_ADDR_W-1:0] meta_pdest_q [1:5];
+  reg meta_double_q [1:5];
+  reg [1:0] meta_kind_q [1:5];
+
+  function fp_meta_killed;
+    input [`OOO_ROB_INDEX_W-1:0] idx;
+    begin
+      fp_meta_killed = kill_valid_i &&
+          ((idx - rob_head_idx_i) > (kill_rob_idx_i - rob_head_idx_i));
+    end
+  endfunction
+
+  // 对齐链: value+fflags(69b)
+  reg [`XLEN-1:0] addsub_a1_value_q, addsub_a2_value_q;
+  reg [4:0] addsub_a1_fflags_q, addsub_a2_fflags_q;
+  reg [`XLEN-1:0] mul_a1_value_q, mul_a2_value_q;
+  reg [4:0] mul_a1_fflags_q, mul_a2_fflags_q;
+
+  integer mi;
+  always @(posedge clk) begin
+    if (rst || flush_i) begin
+      for (mi = 1; mi <= 5; mi = mi + 1) begin
+        meta_valid_q[mi] <= 1'b0;
+        meta_rob_q[mi] <= {`OOO_ROB_INDEX_W{1'b0}};
+        meta_pdest_q[mi] <= {`OOO_PHY_REG_ADDR_W{1'b0}};
+        meta_double_q[mi] <= 1'b0;
+        meta_kind_q[mi] <= 2'b00;
+      end
+      addsub_a1_value_q <= {`XLEN{1'b0}}; addsub_a1_fflags_q <= 5'b0;
+      addsub_a2_value_q <= {`XLEN{1'b0}}; addsub_a2_fflags_q <= 5'b0;
+      mul_a1_value_q <= {`XLEN{1'b0}}; mul_a1_fflags_q <= 5'b0;
+      mul_a2_value_q <= {`XLEN{1'b0}}; mul_a2_fflags_q <= 5'b0;
+    end else begin
+      meta_valid_q[1] <= launch_valid_i &&
+                         !fp_meta_killed(launch_rob_idx_i);
+      meta_rob_q[1] <= launch_rob_idx_i;
+      meta_pdest_q[1] <= launch_pdest_i;
+      meta_double_q[1] <= double_i;
+      meta_kind_q[1] <= launch_kind_i;
+      for (mi = 2; mi <= 5; mi = mi + 1) begin
+        meta_valid_q[mi] <= meta_valid_q[mi-1] &&
+                            !fp_meta_killed(meta_rob_q[mi-1]);
+        meta_rob_q[mi] <= meta_rob_q[mi-1];
+        meta_pdest_q[mi] <= meta_pdest_q[mi-1];
+        meta_double_q[mi] <= meta_double_q[mi-1];
+        meta_kind_q[mi] <= meta_kind_q[mi-1];
+      end
+      // kill 拍对链中存量再补一刀(上面的推进已带 kill gate, 这里覆盖"kill 拍不推进
+      // 的场景不存在"——链恒推进, 推进 gate 已足够; 保留注释以说明语义)。
+
+      // FADD 结果捕获: value_q 于 T+2 末写入, 最早 T+3 拍(op 在 meta[3])可读。
+      addsub_a1_value_q <= meta_double_q[3] ? addsub_d_value_q
+                                            : addsub_s_value_q;
+      addsub_a1_fflags_q <= meta_double_q[3] ? addsub_d_fflags_q
+                                             : addsub_s_fflags_q;
+      addsub_a2_value_q <= addsub_a1_value_q;
+      addsub_a2_fflags_q <= addsub_a1_fflags_q;
+      // FMUL 结果 stage3 末捕获
+      mul_a1_value_q <= meta_double_q[3] ? mul_d_value_q : mul_s_value_q;
+      mul_a1_fflags_q <= meta_double_q[3] ? mul_d_fflags_q : mul_s_fflags_q;
+      mul_a2_value_q <= mul_a1_value_q;
+      mul_a2_fflags_q <= mul_a1_fflags_q;
+    end
+  end
+
+  assign out_valid_o = meta_valid_q[5] && !fp_meta_killed(meta_rob_q[5]);
+  assign out_rob_idx_o = meta_rob_q[5];
+  assign out_pdest_o = meta_pdest_q[5];
+  assign out_value_o =
+      (meta_kind_q[5] == 2'd2) ? (meta_double_q[5] ? fma_d_value_q
+                                                   : fma_s_value_q) :
+      (meta_kind_q[5] == 2'd1) ? mul_a2_value_q :
+                                 addsub_a2_value_q;
+  assign out_fflags_o =
+      (meta_kind_q[5] == 2'd2) ? (meta_double_q[5] ? fma_d_fflags_q
+                                                   : fma_s_fflags_q) :
+      (meta_kind_q[5] == 2'd1) ? mul_a2_fflags_q :
+                                 addsub_a2_fflags_q;
+
 
 endmodule

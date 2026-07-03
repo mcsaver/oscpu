@@ -87,13 +87,8 @@ typedef uint64_t npc_paddr_t;
 #define NPC_PMEM_BASE           UINT64_C(0x80000000)
 /* 与 Linux/npc-rv64 rootfs DTS 的 1 GiB RAM 声明保持一致。 */
 #define NPC_PMEM_SIZE           (1024ull * 1024ull * 1024ull)
-#define NPC_DEVICE_BASE         UINT64_C(0xa0000000)
-#define NPC_SERIAL_PORT         (NPC_DEVICE_BASE + UINT64_C(0x000003f8))
-#define NPC_RTC_ADDR            (NPC_DEVICE_BASE + UINT64_C(0x00000048))
-#define NPC_KBD_ADDR            (NPC_DEVICE_BASE + UINT64_C(0x00000060))
-#define NPC_VGACTL_ADDR         (NPC_DEVICE_BASE + UINT64_C(0x00000100))
-#define NPC_SYNC_ADDR           (NPC_VGACTL_ADDR + UINT64_C(0x4))
-#define NPC_FB_ADDR             (NPC_DEVICE_BASE + UINT64_C(0x01000000))
+// 设备地址统一由单一集中点提供 (serial→RTL UART, 简易设备→0x12000000 DPI 窗口)
+#include "device_address.h"
 /* 必须与 vsrc/core/NpcTop.v 的 localparam CLINT_MTIME_DIVISOR 一致:
  * RTL CLINT 每 N 个 core 周期才让 mtime 自增 1(模拟 mtime 慢于 core 时钟),
  * 故 mtime 的期望值是 cycles/N。仅统计行用它把 mtime 与 cycles/N 对照,不参与功能。 */

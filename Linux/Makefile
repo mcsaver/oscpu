@@ -1189,8 +1189,6 @@ $(NEMU_ROOTFS_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(NEMU_ROOTFS_DTB_BOOTARGS_STA
 	  --reset-syscon \
 	  --virtio-rng \
 	  --virtio-net \
-	  --virtio-input \
-	  --simple-framebuffer \
 	  --goldfish-rtc \
 	  --bootargs-extra '$(BOOTARGS_EXTRA) $(NEMU_ROOTFS_BOOTARGS_EXTRA)' \
 	  --output '$(BUILD_DIR)/generated/npc-rv64-nemu-rootfs.dts'

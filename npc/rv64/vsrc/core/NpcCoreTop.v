@@ -93,6 +93,9 @@ module NpcCoreTop (
   wire ooo_mem0_req_valid_w;
   wire ooo_mem0_req_ready_w;
   wire ooo_mem0_req_write_w;
+  wire ooo_mem0_req_probe_w;
+  wire ooo_mem0_req_pretrans_w;
+  wire ooo_mem0_req_nokill_w;
   wire [`XLEN-1:0] ooo_mem0_req_addr_w;
   wire [`XLEN-1:0] ooo_mem0_req_wdata_w;
   wire [`STRB_W-1:0] ooo_mem0_req_wstrb_w;
@@ -101,6 +104,7 @@ module NpcCoreTop (
   wire [`XLEN-1:0] ooo_mem0_rsp_rdata_w;
   wire ooo_mem0_rsp_error_w;
   wire ooo_mem0_rsp_page_fault_w;
+  wire ooo_mem_translate_active_w;
 
   wire ooo_mem_flush_w;
   wire ooo_mmu_flush_w;
@@ -127,6 +131,7 @@ module NpcCoreTop (
   wire [`REG_ADDR_W-1:0] ooo_csr_access_rs1_idx_w;
   wire [`XLEN-1:0] ooo_csr_access_rs1_data_w;
   wire ooo_pending_fp_fflags_commit_w;
+  wire ooo_fp_dirty_commit_w;
   wire [4:0] ooo_pending_fp_commit_fflags_w;
   wire ooo_csr_trap_mem_valid_w;
   wire [`XLEN-1:0] ooo_csr_trap_mem_pc_w;
@@ -149,18 +154,6 @@ module NpcCoreTop (
   wire [`XLEN-1:0] ooo_csr_mepc_w;
   wire [`XLEN-1:0] ooo_csr_ret_target_w;
   wire [`TRAP_CAUSE_W-1:0] ooo_csr_ecall_cause_w;
-  wire [`REG_ADDR_W-1:0] ooo_pending_fp_rs1_idx_w;
-  wire [`REG_ADDR_W-1:0] ooo_pending_fp_rs2_idx_w;
-  wire [`REG_ADDR_W-1:0] ooo_pending_fp_rs3_idx_w;
-  wire [`XLEN-1:0] ooo_pending_fp_frs1_value_w;
-  wire [`XLEN-1:0] ooo_pending_fp_frs2_value_w;
-  wire [`XLEN-1:0] ooo_pending_fp_frs3_value_w;
-  wire ooo_pending_fp_fpr_load_write_valid_w;
-  wire [`REG_ADDR_W-1:0] ooo_pending_fp_fpr_load_write_addr_w;
-  wire [`XLEN-1:0] ooo_pending_fp_fpr_load_write_data_w;
-  wire ooo_pending_fp_fpr_result_write_valid_w;
-  wire [`REG_ADDR_W-1:0] ooo_pending_fp_fpr_result_write_addr_w;
-  wire [`XLEN-1:0] ooo_pending_fp_fpr_result_write_data_w;
 
   // mem1(双发射 load 第二端口)死硅删除后,icache 失效只由 mem0 store fire 触发。
   wire ooo_icache_invalidate_valid_w =
@@ -210,6 +203,9 @@ module NpcCoreTop (
     .mem0_req_valid_i(ooo_mem0_req_valid_w),
     .mem0_req_ready_o(ooo_mem0_req_ready_w),
     .mem0_req_write_i(ooo_mem0_req_write_w),
+    .mem0_req_probe_i(ooo_mem0_req_probe_w),
+    .mem0_req_pretrans_i(ooo_mem0_req_pretrans_w),
+    .mem0_req_nokill_i(ooo_mem0_req_nokill_w),
     .mem0_req_addr_i(ooo_mem0_req_addr_w),
     .mem0_req_wdata_i(ooo_mem0_req_wdata_w),
     .mem0_req_wstrb_i(ooo_mem0_req_wstrb_w),
@@ -218,6 +214,7 @@ module NpcCoreTop (
     .mem0_rsp_rdata_o(ooo_mem0_rsp_rdata_w),
     .mem0_rsp_error_o(ooo_mem0_rsp_error_w),
     .mem0_rsp_page_fault_o(ooo_mem0_rsp_page_fault_w),
+    .translate_active_o(ooo_mem_translate_active_w),
     .lsu_axi_arvalid_o(lsu_axi_arvalid_o),
     .lsu_axi_arready_i(lsu_axi_arready_i),
     .lsu_axi_araddr_o(lsu_axi_araddr_o),
@@ -263,6 +260,9 @@ module NpcCoreTop (
     .mem_req_valid_o(ooo_mem0_req_valid_w),
     .mem_req_ready_i(ooo_mem0_req_ready_w),
     .mem_req_write_o(ooo_mem0_req_write_w),
+    .mem_req_probe_o(ooo_mem0_req_probe_w),
+    .mem_req_pretrans_o(ooo_mem0_req_pretrans_w),
+    .mem_req_nokill_o(ooo_mem0_req_nokill_w),
     .mem_req_addr_o(ooo_mem0_req_addr_w),
     .mem_req_wdata_o(ooo_mem0_req_wdata_w),
     .mem_req_wstrb_o(ooo_mem0_req_wstrb_w),
@@ -271,6 +271,7 @@ module NpcCoreTop (
     .mem_rsp_rdata_i(ooo_mem0_rsp_rdata_w),
     .mem_rsp_error_i(ooo_mem0_rsp_error_w),
     .mem_rsp_page_fault_i(ooo_mem0_rsp_page_fault_w),
+    .mem_translate_active_i(ooo_mem_translate_active_w),
     .mem_flush_o(ooo_mem_flush_w),
     .mmu_flush_o(ooo_mmu_flush_w),
     .csr_cycle_count_enable_w(ooo_csr_cycle_count_enable_w),
@@ -282,6 +283,7 @@ module NpcCoreTop (
     .csr_access_rs1_idx_w(ooo_csr_access_rs1_idx_w),
     .csr_access_rs1_data_w(ooo_csr_access_rs1_data_w),
     .pending_fp_fflags_commit_w(ooo_pending_fp_fflags_commit_w),
+    .fp_dirty_commit_w(ooo_fp_dirty_commit_w),
     .pending_fp_commit_fflags_w(ooo_pending_fp_commit_fflags_w),
     .csr_trap_mem_valid_w(ooo_csr_trap_mem_valid_w),
     .csr_trap_mem_pc_w(ooo_csr_trap_mem_pc_w),
@@ -311,18 +313,6 @@ module NpcCoreTop (
     .csr_svpbmt_en_w(ooo_svpbmt_en_w),
     .csr_pmpcfg_w(ooo_pmpcfg_w),
     .csr_pmpaddr_w(ooo_pmpaddr_w),
-    .pending_fp_rs1_idx_w(ooo_pending_fp_rs1_idx_w),
-    .pending_fp_rs2_idx_w(ooo_pending_fp_rs2_idx_w),
-    .pending_fp_rs3_idx_w(ooo_pending_fp_rs3_idx_w),
-    .pending_fp_frs1_value_w(ooo_pending_fp_frs1_value_w),
-    .pending_fp_frs2_value_w(ooo_pending_fp_frs2_value_w),
-    .pending_fp_frs3_value_w(ooo_pending_fp_frs3_value_w),
-    .pending_fp_fpr_load_write_valid_w(ooo_pending_fp_fpr_load_write_valid_w),
-    .pending_fp_fpr_load_write_addr_w(ooo_pending_fp_fpr_load_write_addr_w),
-    .pending_fp_fpr_load_write_data_w(ooo_pending_fp_fpr_load_write_data_w),
-    .pending_fp_fpr_result_write_valid_w(ooo_pending_fp_fpr_result_write_valid_w),
-    .pending_fp_fpr_result_write_addr_w(ooo_pending_fp_fpr_result_write_addr_w),
-    .pending_fp_fpr_result_write_data_w(ooo_pending_fp_fpr_result_write_data_w),
     .commit_ready_i(1'b1),
     .commit0_valid_o(commit0_valid_o),
     .commit0_pc_o(commit0_pc_o),
@@ -384,9 +374,8 @@ module NpcCoreTop (
     .fp_fflags_valid_i(ooo_pending_fp_fflags_commit_w),
     .fp_fflags_i(ooo_pending_fp_commit_fflags_w),
     // F8：FP 写 FP 态的脏脉冲 = fflags 提交 | FPR load 写 | FPR 结果写，置 mstatus.FS=Dirty。
-    .fp_dirty_i(ooo_pending_fp_fflags_commit_w |
-                ooo_pending_fp_fpr_load_write_valid_w |
-                ooo_pending_fp_fpr_result_write_valid_w),
+    // F8: FS=Dirty 脉冲 = FPR 目的 commit | fflags commit(pending-FP 壳已拆)
+    .fp_dirty_i(ooo_fp_dirty_commit_w),
     .trap_mem_valid_i(ooo_csr_trap_mem_valid_w),
     .trap_mem_pc_i(ooo_csr_trap_mem_pc_w),
     .trap_mem_cause_i(ooo_csr_trap_mem_cause_w),
@@ -416,24 +405,6 @@ module NpcCoreTop (
     .frm_o(ooo_frm_w),
     .pmpcfg_o(ooo_pmpcfg_w),
     .pmpaddr_o(ooo_pmpaddr_w)
-  );
-
-  OooFpRegFile u_fp_reg_file (
-    .clk(clk),
-    .rst(rst),
-    .flush_i(1'b0),
-    .read0_addr_i(ooo_pending_fp_rs1_idx_w),
-    .read0_data_o(ooo_pending_fp_frs1_value_w),
-    .read1_addr_i(ooo_pending_fp_rs2_idx_w),
-    .read1_data_o(ooo_pending_fp_frs2_value_w),
-    .read2_addr_i(ooo_pending_fp_rs3_idx_w),
-    .read2_data_o(ooo_pending_fp_frs3_value_w),
-    .load_write_valid_i(ooo_pending_fp_fpr_load_write_valid_w),
-    .load_write_addr_i(ooo_pending_fp_fpr_load_write_addr_w),
-    .load_write_data_i(ooo_pending_fp_fpr_load_write_data_w),
-    .result_write_valid_i(ooo_pending_fp_fpr_result_write_valid_w),
-    .result_write_addr_i(ooo_pending_fp_fpr_result_write_addr_w),
-    .result_write_data_i(ooo_pending_fp_fpr_result_write_data_w)
   );
 
   assign ifu_axi_abort_o = ooo_mmu_flush_w;

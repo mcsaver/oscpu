@@ -52,6 +52,8 @@ module tb_ooo_pending_system_sequencer;
     .rst(rst),
     .clear_i(clear),
     .clear_dispatched_i(clear_dispatched),
+    .refresh_rdata_i(1'b0),
+    .refresh_rdata_value_i({`XLEN{1'b0}}),
     .dispatch_fire_i(dispatch_fire),
     .capture_irq_i(capture_irq),
     .capture_irq_pc_i(capture_irq_pc),

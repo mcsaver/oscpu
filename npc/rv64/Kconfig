@@ -69,7 +69,7 @@ config NPC_STDIN_KEYBOARD
 
 config NPC_HAS_VGA
   bool "Enable VGA MMIO device"
-  default y
+  default n
   help
     Expose vgactl/framebuffer MMIO to the guest. When disabled, AM GPU config
     will report present=false and VGA accesses become harmless no-ops.

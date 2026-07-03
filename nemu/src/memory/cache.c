@@ -232,6 +232,56 @@ void dcache_write(paddr_t addr, int len, word_t data) {
   }
   if (missed) CACHE_STAT_INC(dcache_miss);
   else CACHE_STAT_INC(dcache_hit);
+  // dcache 是 write-back：走 dcache 的 store 只落 dirty 行、不到 pmem，绕过了
+  // paddr_write() 里的 tohost 检查。这里补一次(check 内部用 dcache_peek_read 读一致值)，
+  // 否则 write_tohost 退出——尤其反复写 tohost 的 self-loop——会被彻底漏判。
+  paddr_tohost_check_write(addr, (uint32_t)len);
+}
+
+// 只探查"已经在 dcache 中的行"，命中就返回其(可能 dirty 的)最新字节，未命中就读 pmem。
+// 关键：不 fill、不 evict、不计入 access/hit/miss 统计——因此不会改变 CoreMark 等的命中率基线。
+// 用于 Sv39 页表游走器读 PTE：既能看到 guest 刚用 sd 写入、尚 dirty 在 dcache 的页表，
+// 又不把 walker 的访存伪装成 CPU 数据访问污染性能模型。
+word_t dcache_peek_read(paddr_t addr, int len) {
+  if (!cacheable_range(addr, len)) {
+    return uncached_read(addr, len);
+  }
+  word_t ret = 0;
+  for (int i = 0; i < len; i++) {
+    paddr_t a = addr + i;
+    paddr_t block = a / CACHE_LINE_SIZE;
+    uint32_t index = block % DCACHE_LINE_NR;
+    paddr_t tag = block / DCACHE_LINE_NR;
+    DCacheLine *line = &dcache[index];
+    uint8_t byte = (line->valid && line->tag == tag)
+        ? line->data[line_offset_of(a)]
+        : (uint8_t)backend_read(a, 1);
+    ret |= (word_t)byte << (i * 8);
+  }
+  return ret;
+}
+
+// 与 dcache_peek_read 对称的一致性写：命中 dcache 就原地改并保持 dirty（不写 pmem，避免与 dcache 分叉），
+// 未命中就直写 pmem（不 fill）。不计统计。用于 walker 回写 PTE 的 A/D 位，保证后续 CPU/walker 读到一致值。
+void dcache_coherent_write(paddr_t addr, int len, word_t data) {
+  if (!cacheable_range(addr, len)) {
+    uncached_write(addr, len, data);
+    return;
+  }
+  for (int i = 0; i < len; i++) {
+    paddr_t a = addr + i;
+    paddr_t block = a / CACHE_LINE_SIZE;
+    uint32_t index = block % DCACHE_LINE_NR;
+    paddr_t tag = block / DCACHE_LINE_NR;
+    DCacheLine *line = &dcache[index];
+    uint8_t byte = (data >> (i * 8)) & 0xffu;
+    if (line->valid && line->tag == tag) {
+      line->data[line_offset_of(a)] = byte;
+      line->dirty = true;
+    } else {
+      backend_write(a, 1, byte);
+    }
+  }
 }
 
 void cache_flush_all(void) {
@@ -285,6 +335,15 @@ word_t dcache_read(paddr_t addr, int len) {
 }
 
 void dcache_write(paddr_t addr, int len, word_t data) {
+  paddr_write(addr, len, data);
+}
+
+// 无 dcache 时 pmem 即唯一真源，一致性探针退化为直读/直写。
+word_t dcache_peek_read(paddr_t addr, int len) {
+  return paddr_read(addr, len);
+}
+
+void dcache_coherent_write(paddr_t addr, int len, word_t data) {
   paddr_write(addr, len, data);
 }
 

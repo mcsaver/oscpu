@@ -31,50 +31,25 @@ make -C npc/rv64 core-regress
 用例。外部 `riscv-tests` 源码默认放在
 `npc/rv64/testsuites/core-tests/src/riscv-tests/`，这是 ignored testsuite
 artifact，不随仓库提交；缺失时可用脚本的 `--fetch-riscv-tests` 拉取。
-外部测试套件、工具链和 ACT4 workdir 统一收敛在 `npc/rv64/testsuites/`。
+外部 riscv-tests 收敛在 `npc/rv64/testsuites/`;ACT4(riscv-arch-test 源/工具链/ELF 基线)已整体迁至 `am-kernels/arch-test/`(2026-07-02,详见其 README)。
 脚本也支持 `--riscv-privileged` 追加 `rv64mi/rv64si`，以及
 `--riscv-filter REGEX` 对单项失败做快速复现。
 
-RISC-V Architecture Tests / ACT4 前置检查：
+RISC-V Architecture Tests / ACT4(已迁至 am-kernels/arch-test，2026-07-02)：
 
 ```bash
-npc/rv64/testsuites/scripts/npc-rv64-act4-preflight.sh --prepare
-npc/rv64/testsuites/scripts/npc-rv64-act4-preflight.sh --install-xpack-gcc
-npc/rv64/testsuites/scripts/npc-rv64-act4-preflight.sh --probe-tests --extensions I
-npc/rv64/testsuites/scripts/npc-rv64-act4-preflight.sh --probe-elfs --extensions I
-npc/rv64/testsuites/scripts/npc-rv64-act4-preflight.sh --final-elfs --extensions I
-npc/rv64/testsuites/scripts/npc-rv64-act4-preflight.sh --final-elfs --extensions M \
-  --workdir npc/rv64/testsuites/core-tests/act4-npc-final-work-script
-npc/rv64/testsuites/scripts/npc-rv64-act4-preflight.sh --final-elfs --extensions Sv \
-  --config-name sail-RVA22S64 \
-  --workdir npc/rv64/testsuites/core-tests/act4-npc-rva22s64-work
-npc/rv64/testsuites/scripts/npc-rv64-act4-run.sh --list-suites
-npc/rv64/testsuites/scripts/npc-rv64-act4-run.sh --config-name sail-RVA22S64 \
-  --workdir npc/rv64/testsuites/core-tests/act4-npc-rva22s64-work --list-suites
-npc/rv64/testsuites/scripts/npc-rv64-act4-run.sh --filter 'I-(add|addi|sub)-00' --limit 3
-npc/rv64/testsuites/scripts/npc-rv64-act4-run.sh --suites rv64i/I,rv64i/M
-npc/rv64/testsuites/scripts/npc-rv64-act4-run.sh --config-name sail-RVA22S64 \
-  --workdir npc/rv64/testsuites/core-tests/act4-npc-rva22s64-work --suites priv/Sv
+# 生成/环境准备(原 npc-rv64-act4-preflight.sh)
+am-kernels/arch-test/scripts/act4-preflight.sh --final-elfs --extensions I
+# 跑 NPC 目标(原 npc-rv64-act4-run.sh; 统一 runner 见 make -C am-kernels/arch-test help)
+am-kernels/arch-test/scripts/act4-npc-run.sh --suites rv64i/I,rv64i/M
+make -C am-kernels/arch-test run-npc ACT4_SUITES="rv64i/I,rv64i/M,priv/Sv"
 ```
 
-该入口把 `riscv/riscv-arch-test`、ACT4 Python venv、Bundler 和 Sail
-reference model 放在 `npc/rv64/testsuites/core-tests/`，不随仓库提交，
-也不运行完整 Linux/rootfs。`--probe-tests` 只验证 ACT4 assembly 生成链路；
-`--probe-elfs` 默认 `FAST=True`，主要验证 ELF 生成前置链路；`--final-elfs`
-会生成 `elfs/.../*.elf` final self-checking ELF，给 NPC 执行时应使用这个
-final ELF，而不是 `build/.../*.sig.elf` 参考模型中间 ELF。当前 ACT4 要求
-GCC 15+ 或 LLVM/Clang 21+，可用 `--install-xpack-gcc` 在 testsuite
-artifact 中安装 xPack GCC 15.2.0-1。`--workdir` 支持绝对路径或相对仓库根目录
-的路径，避免 ACT4 在源码 checkout 内生成嵌套测试产物。`--config-name` 可选择
-ACT4/Sail 配置目录，`--config-src` 可显式指定配置源；当前核未实现 V/VS，因此
-privileged Sv 默认不应使用会期望 `sstatus.VS` 的 `sail-rv64-max`，而应使用
-和当前实现边界匹配的 `sail-RVA22S64`。`npc-rv64-act4-run.sh`
-会对 final ELF 逐项解析 `tohost`、objcopy 成 bin，并用 NPC `--tohost=ADDR`
-判定 PASS/FAIL，结果写入 `npc/rv64/perf/results/act4-run/`；不确定 suite 名时
-先用 `--list-suites` 查看实际生成目录。当前本地 ACT4 checkout 的 unprivileged
-final ELF 目录只有 `rv64i/I` 和 `rv64i/M`；尝试生成 `C` 或 `A` extension 会返回
-成功但不产出可执行 suite，因此不能把它解释为 RTL 的 C/A 执行结果。
-`Sv` privileged suite 当前可在 `sail-RVA22S64` 配置下生成并通过 NPC 执行。
+要点(详见 am-kernels/arch-test/README.md)：NPC 执行用 `elfs/.../*.elf` final
+self-checking ELF(不是 `build/.../*.sig.elf` 参考模型中间 ELF)；privileged Sv
+应使用与实现边界匹配的 `sail-RVA22S64` 配置(当前核未实现 V/VS，不用 `sail-rv64-max`)；
+`C`/`A` extension 生成会返回成功但不产出可执行 suite。NPC 结果仍写
+`npc/rv64/perf/results/act4-run/`。
 
 AM/cpu-tests 回归：
 

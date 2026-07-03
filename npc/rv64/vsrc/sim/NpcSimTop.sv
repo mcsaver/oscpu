@@ -20,6 +20,7 @@ import "DPI-C" function void npc_exit_event(
   input longint unsigned pc
 );
 
+import "DPI-C" function void npc_mmio_load_event();
 import "DPI-C" function void npc_trap_event(
   input int unsigned cause,
   input longint unsigned pc,
@@ -826,6 +827,19 @@ module NpcSimTop (
       uart_irq_prev_q <= uart_irq_w;
       plic_irq_prev_q <= plic_external_irq_w;
 
+      // difftest: 非 pmem 的 load(MMIO 读, 如 goldfish timer)返回值依赖设备
+      // 状态, ref 无法对齐 → 挂起 skip_ref(uart 同款粗粒度; 该 load 的
+      // difftest_step 消费并以 dut 状态覆盖 ref)。
+      if (u_top.u_core.u_ooo_mem_bridge.mem0_rsp_valid_o &&
+          u_top.u_core.u_ooo_mem_bridge.mem0_rsp_ready_i &&
+          !u_top.u_core.u_ooo_mem_bridge.write_q &&
+          ((u_top.u_core.u_ooo_mem_bridge.paddr_q & `NPC_AXI_PMEM_MASK)
+             != `NPC_AXI_PMEM_BASE) &&
+          ((u_top.u_core.u_ooo_mem_bridge.paddr_q & 64'hffff_f000)
+             != 64'h1000_0000)) begin
+        npc_mmio_load_event();
+      end
+
       if (uart_access_valid_w) begin
         // UART 已从 DPI 大从设备拆出；这里补回仿真侧输出和 difftest MMIO skip。
         npc_uart_event(
@@ -985,6 +999,23 @@ module NpcSimTop (
           u_top.u_core.u_ooo_core.csr_trap_ex_pc_w,
           u_top.u_core.u_ooo_core.csr_trap_ex_tval_w
         );
+        // difftest: ecall/ebreak 走 pending-trap 通道, 不产生 ROB/ctrl commit,
+        // ref 单步会停在 ecall 本身等待——在 trap 注入拍补一条 commit 事件
+        // (GPR 不变, next=trap 目标), 让 ref 同步跨过这条指令。
+        if ((u_top.u_core.u_ooo_core.csr_trap_ex_cause_w == `TRAP_CAUSE_W'd8) ||
+            (u_top.u_core.u_ooo_core.csr_trap_ex_cause_w == `TRAP_CAUSE_W'd9) ||
+            (u_top.u_core.u_ooo_core.csr_trap_ex_cause_w == `TRAP_CAUSE_W'd11) ||
+            (u_top.u_core.u_ooo_core.csr_trap_ex_cause_w == `TRAP_CAUSE_W'd3)) begin
+          npc_commit_event(
+            u_top.u_core.u_ooo_core.csr_trap_ex_pc_w,
+            (u_top.u_core.u_ooo_core.csr_trap_ex_cause_w == `TRAP_CAUSE_W'd3) ?
+              32'h00100073 : 32'h00000073,
+            u_top.u_core.u_ooo_core.csr_trap_target_w,
+            32'd0,
+            32'd0,
+            64'd0
+          );
+        end
       end
 
       if (u_top.u_core.u_ooo_core.csr_trap_irq_valid_w) begin

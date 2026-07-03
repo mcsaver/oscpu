@@ -933,6 +933,9 @@ static uint64_t execute_basic_block(uint64_t n) {
     if (debug_breakpoint_stop()) break;
     execute_one(&s);
     retired++;
+    // 块内指令(tohost store/ebreak 等)可能 set_nemu_state(NEMU_END) 结束运行:
+    // 必须在此立即停,不能等到 TB 静态边界,否则退出后仍会继续执行整块指令。
+    if (unlikely(nemu_state.state != NEMU_RUNNING)) break;
     InterpreterTbStopReason reason = interpreter_tb_static_stop_reason(&s);
     if (reason == INTERPRETER_TB_STOP_NONE &&
         unlikely(paddr_has_device_write()) && paddr_take_device_write()) {

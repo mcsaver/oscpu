@@ -18,6 +18,12 @@ module OooFrontendBackendDispatchMux (
   input direct_jal1_fire_i,
   input direct_ret1_fire_i,
   input dispatch0_ready_i,
+  // 【F2】pred_npc 单源化与 d1 squash(见 spec ooo-f2-per-packet-pred §2)
+  input dispatch1_ready_i,
+  input dispatch1_squash_i,        // solo 分支(taken/!dual)或非返回 JALR 拍禁 d1 影子
+  input d0_ctrlflow_fired_i,       // d0 是本拍 fire 的控制流(jal0/ret0/branch0/jump_spec)
+  input d1_ctrlflow_fired_i,       // d1 是本拍 fire 的控制流(jal1/ret1/branch1)
+  input [`XLEN-1:0] direct_fire_succ_i,  // 本拍 direct fire 的实际重取目标(单一真源)
 
   input [`XLEN-1:0] branch_prefetch_buf_pc0_i,
   input [`XLEN-1:0] branch_prefetch_buf_next_pc0_i,
@@ -91,11 +97,13 @@ module OooFrontendBackendDispatchMux (
       lane1_barrier_dispatch0_valid_i ||
       jump_dispatch_valid_i || mem_dispatch_valid_i;
 
+  // 【F2】solo 分支/非返回 JALR 拍 d1 影子必须 squash: 免 redirect 后不再有恒 ROB-walk
+  // 兜底砍它, 若照旧双发, wrong-path fall-through 会顺序提交(#110 边界 2)。
   assign core_dispatch1_valid_o =
       branch_prefetch_dispatch_attempt_i ||
-      (return_cont_attempt_i || branch_target_append_attempt_i ||
-       branch_fallthrough_append_attempt_i ||
-       frontend_dispatch_to_backend_valid_i);
+      ((return_cont_attempt_i || branch_target_append_attempt_i ||
+        branch_fallthrough_append_attempt_i ||
+        frontend_dispatch_to_backend_valid_i) && !dispatch1_squash_i);
 
   assign core_dispatch0_fire_o =
       core_dispatch0_valid_o && dispatch0_ready_i;
@@ -160,13 +168,21 @@ module OooFrontendBackendDispatchMux (
       branch_target_cache_inst_i :
                                        head_inst1_i;
 
-  // ---- pred_npc: 前端「实际预测的 next-fetch PC」（与 next_pc 平行的新字段，B2 后端 per-branch mispredict 用）----
-  // pred_npc 必须等于前端为本 packet 实际取指的后继（= 下一条 FIFO entry 的 pc0，由 next_fetch_pc_i 传入），
-  // 否则前端按预测 taken 取了 wrong-path、而后端 pred=fallthrough 判 mis=0 不 squash → wrong-path 提交。
-  //   双发射：d0 后继=d1.pc（核内 head 路径 core_dispatch1_pc_o==head_pc1==d1.pc）；d1 后继=packet 预测后继。
-  //   单发射/d0 预测跳转：d0 后继=packet 预测后继(next_fetch_pc_i)。
+  // ---- pred_npc: 前端「实际取指后继」(后端 per-uop mispredict 判据) ----
+  // 【F2 单源化】pred_npc 恒等于前端本拍实际取指决策, 不允许推断/近似(#105 障碍②的结构解):
+  //   d0/d1 是本拍 fire 的控制流 → direct_fire_succ_i(与 OutstandingSequencer.next_fetch
+  //     共享同一 wire, 机械同源——jal/ret 精确 target、taken 分支=pred target、
+  //     solo not-taken 分支=fallthrough, 解析一致即免 redirect);
+  //   d0 非控制流/不 fire 且 d1 实际双发(valid&&ready, pair 原子) → d0 后继=d1.pc;
+  //   其余(顺序流) → next_fetch_pc_i = head_pred_succ(count>=2 时下包 pc0, 否则 64'h1
+  //     哨兵恒 mispredict 兜底)。
+  wire d1_present_w = core_dispatch1_valid_o && dispatch1_ready_i;
   assign core_dispatch0_pred_npc_o =
-      core_dispatch1_valid_o ? core_dispatch1_pc_o : next_fetch_pc_i;
-  assign core_dispatch1_pred_npc_o = next_fetch_pc_i;
+      d0_ctrlflow_fired_i ? direct_fire_succ_i :
+      d1_present_w        ? core_dispatch1_pc_o :
+                            next_fetch_pc_i;
+  assign core_dispatch1_pred_npc_o =
+      d1_ctrlflow_fired_i ? direct_fire_succ_i :
+                            next_fetch_pc_i;
 
 endmodule

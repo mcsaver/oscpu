@@ -486,7 +486,7 @@ void serial_qmp_query_serial(char *out, size_t out_size) {
       "\"stdin-enabled\":%s},"
       "\"tx-buffer\":{\"capacity\":%u,\"count\":%u},"
       "\"irq-level\":%s,\"thr-irq-pending\":%s}}]}",
-      serial_host_backend_name(), CONFIG_SERIAL_MMIO, serial0.irq,
+      serial_host_backend_name(), DEV_SERIAL_MMIO, serial0.irq,
       serial0.bus_map_size, snap.ier, snap.iir, snap.fcr, snap.lcr,
       snap.mcr, snap.lsr, snap.msr, snap.scr, snap.dll, snap.dlm,
       serial_json_bool(snap.dlab), snap.rx_fifo_capacity,
@@ -760,7 +760,7 @@ static void serial_register_bus(SerialPort *port) {
   add_pio_map(port->name, CONFIG_SERIAL_PORT, port->bus_space,
       port->bus_map_size, serial_io_handler);
 #else
-  add_mmio_map(port->name, CONFIG_SERIAL_MMIO, port->bus_space,
+  add_mmio_map(port->name, DEV_SERIAL_MMIO, port->bus_space,
       port->bus_map_size, serial_io_handler);
 #endif
 }

@@ -47,8 +47,26 @@ asm(
 "  sfence.vma\n"
 "  mret\n"                    // 返回 mepc(faulting inst) 重试
 "sv39_ad_unexpected:\n"
+// 统一到设备树退出: sv39_ad_high 成功/失败都用 ebreak(→breakpoint,mcause=3)带 a0 退出码进来;
+// M 态无分页, 直写 reset_syscon(SiFive Test Finisher): a0==0→0x5555(GOOD), 否则(a0<<16)|0x3333(BAD)。
+// 非 breakpoint 的意外 trap 用 mcause 作失败码。ebreak 保持官方 breakpoint 语义, 不再当退出。
+"  li t5, 3\n"
+"  beq t4, t5, sv39_ad_do_exit\n"
 "  mv a0, t4\n"
-"  ebreak\n"
+"sv39_ad_do_exit:\n"
+"  li t0, 0x00100000\n"
+"  beqz a0, sv39_ad_exit_pass\n"
+"  slli t1, a0, 16\n"
+"  li t2, 0x3333\n"
+"  or t1, t1, t2\n"
+"  sw t1, 0(t0)\n"
+"sv39_ad_spin1:\n"
+"  j sv39_ad_spin1\n"
+"sv39_ad_exit_pass:\n"
+"  li t1, 0x5555\n"
+"  sw t1, 0(t0)\n"
+"sv39_ad_spin2:\n"
+"  j sv39_ad_spin2\n"
 ".align 2\n"
 ".globl sv39_ad_s_entry\n"
 "sv39_ad_s_entry:\n"

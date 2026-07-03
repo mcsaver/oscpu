@@ -1,6 +1,7 @@
 include $(AM_HOME)/scripts/isa/riscv.mk
 include $(AM_HOME)/scripts/platform/nemu.mk
 CFLAGS  += -DISA_H=\"riscv/riscv.h\"
+CFLAGS  += -DDEVICE_MAP_LEGACY   # RV32 封存: 沿用旧 AM 设备图 (0xa0000000)
 AM_RISCV_BASE_EXT := e
 include $(AM_HOME)/scripts/isa/riscv-nemu-ext.mk
 LDFLAGS       += -melf32lriscv                     # overwrite

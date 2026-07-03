@@ -9,14 +9,7 @@ module tb_ooo_memory_request_gate;
   reg pending_system_sfence_commit;
 
   reg stop_pending;
-  reg pending_fp;
   reg backend_drained;
-  reg pending_fp_mem_pending;
-  reg pending_fp_mem_done;
-  reg pending_fp_store;
-  reg [`XLEN-1:0] pending_fp_mem_aligned_addr;
-  reg [`XLEN-1:0] pending_fp_mem_wdata;
-  reg [`STRB_W-1:0] pending_fp_mem_wstrb;
 
   reg core_mem_req_valid;
   reg core_mem_req_write;
@@ -28,9 +21,6 @@ module tb_ooo_memory_request_gate;
   reg mem_req_ready;
   reg mem_rsp_valid;
 
-  wire pending_fp_mem_req_valid;
-  wire pending_fp_mem_req_fire;
-  wire pending_fp_mem_rsp_fire;
   wire mem_req_valid;
   wire mem_req_write;
   wire [`XLEN-1:0] mem_req_addr;
@@ -46,14 +36,7 @@ module tb_ooo_memory_request_gate;
     .pending_system_satp_write_commit_i(pending_system_satp_write_commit),
     .pending_system_sfence_commit_i(pending_system_sfence_commit),
     .stop_pending_i(stop_pending),
-    .pending_fp_i(pending_fp),
     .backend_drained_i(backend_drained),
-    .pending_fp_mem_pending_i(pending_fp_mem_pending),
-    .pending_fp_mem_done_i(pending_fp_mem_done),
-    .pending_fp_store_i(pending_fp_store),
-    .pending_fp_mem_aligned_addr_i(pending_fp_mem_aligned_addr),
-    .pending_fp_mem_wdata_i(pending_fp_mem_wdata),
-    .pending_fp_mem_wstrb_i(pending_fp_mem_wstrb),
     .core_mem_req_valid_i(core_mem_req_valid),
     .core_mem_req_write_i(core_mem_req_write),
     .core_mem_req_addr_i(core_mem_req_addr),
@@ -62,9 +45,6 @@ module tb_ooo_memory_request_gate;
     .core_mem_rsp_ready_i(core_mem_rsp_ready),
     .mem_req_ready_i(mem_req_ready),
     .mem_rsp_valid_i(mem_rsp_valid),
-    .pending_fp_mem_req_valid_o(pending_fp_mem_req_valid),
-    .pending_fp_mem_req_fire_o(pending_fp_mem_req_fire),
-    .pending_fp_mem_rsp_fire_o(pending_fp_mem_rsp_fire),
     .mem_req_valid_o(mem_req_valid),
     .mem_req_write_o(mem_req_write),
     .mem_req_addr_o(mem_req_addr),
@@ -108,14 +88,7 @@ module tb_ooo_memory_request_gate;
       pending_system_satp_write_commit = 1'b0;
       pending_system_sfence_commit = 1'b0;
       stop_pending = 1'b0;
-      pending_fp = 1'b0;
       backend_drained = 1'b0;
-      pending_fp_mem_pending = 1'b0;
-      pending_fp_mem_done = 1'b0;
-      pending_fp_store = 1'b0;
-      pending_fp_mem_aligned_addr = 64'h0000_0000_8000_1000;
-      pending_fp_mem_wdata = 64'h1122_3344_5566_7788;
-      pending_fp_mem_wstrb = 8'hff;
       core_mem_req_valid = 1'b0;
       core_mem_req_write = 1'b0;
       core_mem_req_addr = 64'h0000_0000_8000_2000;
@@ -124,16 +97,6 @@ module tb_ooo_memory_request_gate;
       core_mem_rsp_ready = 1'b0;
       mem_req_ready = 1'b0;
       mem_rsp_valid = 1'b0;
-    end
-  endtask
-
-  task automatic set_pending_fp_ready;
-    begin
-      stop_pending = 1'b1;
-      pending_fp = 1'b1;
-      backend_drained = 1'b1;
-      pending_fp_mem_pending = 1'b0;
-      pending_fp_mem_done = 1'b0;
     end
   endtask
 
@@ -152,51 +115,7 @@ module tb_ooo_memory_request_gate;
     tb_checkstrb("core lane0 wstrb passthrough", mem_req_wstrb, core_mem_req_wstrb);
     tb_check1("core lane0 rsp ready passthrough", mem_rsp_ready, 1'b1);
 
-    clear_inputs();
-    set_pending_fp_ready();
-    pending_fp_store = 1'b1;
-    mem_req_ready = 1'b1;
-    core_mem_req_valid = 1'b1;
-    core_mem_req_write = 1'b0;
-    #1;
-    tb_check1("pending fp req valid", pending_fp_mem_req_valid, 1'b1);
-    tb_check1("pending fp req fire", pending_fp_mem_req_fire, 1'b1);
-    tb_check1("pending fp overrides valid", mem_req_valid, 1'b1);
-    tb_check1("pending fp store write", mem_req_write, 1'b1);
-    tb_check64("pending fp addr", mem_req_addr, pending_fp_mem_aligned_addr);
-    tb_check64("pending fp wdata", mem_req_wdata, pending_fp_mem_wdata);
-    tb_checkstrb("pending fp wstrb", mem_req_wstrb, pending_fp_mem_wstrb);
-
-    clear_inputs();
-    set_pending_fp_ready();
-    pending_fp_store = 1'b0;
-    #1;
-    tb_check1("pending fp load write low", mem_req_write, 1'b0);
-    tb_check1("pending fp no ready no fire", pending_fp_mem_req_fire, 1'b0);
-
-    clear_inputs();
-    set_pending_fp_ready();
-    pending_fp_mem_pending = 1'b1;
-    mem_rsp_valid = 1'b1;
-    core_mem_rsp_ready = 1'b0;
-    #1;
-    tb_check1("pending fp pending blocks new req", pending_fp_mem_req_valid, 1'b0);
-    tb_check1("pending fp rsp ready forced", mem_rsp_ready, 1'b1);
-    tb_check1("pending fp rsp fire", pending_fp_mem_rsp_fire, 1'b1);
-
-    clear_inputs();
-    set_pending_fp_ready();
-    pending_fp_mem_done = 1'b1;
-    #1;
-    tb_check1("pending fp done blocks req", pending_fp_mem_req_valid, 1'b0);
-
-    clear_inputs();
-    stop_pending = 1'b1;
-    pending_fp = 1'b1;
-    backend_drained = 1'b0;
-    #1;
-    tb_check1("backend not drained blocks fp req", pending_fp_mem_req_valid, 1'b0);
-
+    // 【B-FP 簇】pending-FP 直写旁路已拆: fp 抢占场景组删除。
     clear_inputs();
     core_local_flush = 1'b1;
     #1;

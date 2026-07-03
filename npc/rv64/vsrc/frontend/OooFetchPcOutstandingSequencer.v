@@ -20,27 +20,13 @@ module OooFetchPcOutstandingSequencer (
   input direct_frontend_flush_i,
   input branch_fallthrough_keep_outstanding_i,
   input direct_jal_fire_i,
-  input [`XLEN-1:0] direct_jal_target_i,
   input direct_ret_fire_i,
-  input [`XLEN-1:0] direct_ret_target_i,
   input direct_branch_fire_i,
-  input direct_branch1_fire_i,
-  input direct_branch0_lane1_ret_i,
-  input return_cont_dispatch_i,
-  input [`XLEN-1:0] return_cont_next_pc_i,
-  input [`XLEN-1:0] ras_top_i,
-  input branch_target_dispatch_i,
-  input [`XLEN-1:0] branch_target_cache_next_pc_i,
-  input branch_fallthrough_dispatch_i,
-  input [`XLEN-1:0] head_next_pc1_i,
-  input direct_branch_resolve_redirect_i,
-  input [`XLEN-1:0] direct_branch_resolve_next_pc_i,
-  input direct_branch_spec_start_i,
-  input [`XLEN-1:0] direct_branch_pred_pc_i,
-  input [`XLEN-1:0] head_next_pc0_i,
   input branch_fallthrough_capture_rsp_i,
   input direct_jump_spec_fire_i,           // B2: 非返回 JALR 投机续取
-  input [`XLEN-1:0] direct_jump_spec_target_i,
+  // 【F2 单源化】direct fire 拍的实际重取目标, 由 OooFrontend 组合构造并同时供给
+  // dispatch pred_npc——本模块不再内置重复 mux, 消灭「pred 与 next_fetch 不同源」族错配。
+  input [`XLEN-1:0] direct_fire_succ_i,
 
   input branch_spec_resolve_valid_i,
   input branch_spec_restore_i,
@@ -83,8 +69,6 @@ module OooFetchPcOutstandingSequencer (
   input [`XLEN-1:0] pending_jump_target_i,
   input pending_mem_i,
   input [`XLEN-1:0] pending_mem_next_pc_i,
-  input pending_fp_i,
-  input [`XLEN-1:0] pending_fp_next_pc_i,
 
   output [`XLEN-1:0] next_fetch_pc_o,
   output outstanding_valid_o,
@@ -133,29 +117,12 @@ module OooFetchPcOutstandingSequencer (
                                                 {`XLEN{1'b0}});
         discard_fetch_rsp_q <= branch_fallthrough_keep_outstanding_i ? 1'b0 :
                                (outstanding_valid_q && !fetch_rsp_fire_i);
-        if (direct_jal_fire_i) begin
-          next_fetch_pc_q <= direct_jal_target_i;
-        end else if (direct_ret_fire_i) begin
-          next_fetch_pc_q <= direct_ret_target_i;
-        end else if (direct_branch_fire_i) begin
-          next_fetch_pc_q <= direct_branch0_lane1_ret_i ?
-                             (return_cont_dispatch_i ?
-                              return_cont_next_pc_i : ras_top_i) :
-                             branch_target_dispatch_i ?
-                             branch_target_cache_next_pc_i :
-                             branch_fallthrough_dispatch_i ?
-                             head_next_pc1_i :
-                             direct_branch_resolve_redirect_i ?
-                             direct_branch_resolve_next_pc_i :
-                             direct_branch_spec_start_i ?
-                             direct_branch_pred_pc_i :
-                             (direct_branch1_fire_i ? head_next_pc1_i :
-                                                      head_next_pc0_i);
-          if (branch_fallthrough_capture_rsp_i) begin
+        if (direct_jal_fire_i || direct_ret_fire_i ||
+            direct_branch_fire_i || direct_jump_spec_fire_i) begin
+          next_fetch_pc_q <= direct_fire_succ_i;
+          if (direct_branch_fire_i && branch_fallthrough_capture_rsp_i) begin
             next_fetch_pc_q <= fetch_rsp_packet_next_pc_i;
           end
-        end else if (direct_jump_spec_fire_i) begin
-          next_fetch_pc_q <= direct_jump_spec_target_i;
         end
       end else begin
         if (discard_fetch_rsp_q && fetch_rsp_fire_i) begin
@@ -278,10 +245,6 @@ module OooFetchPcOutstandingSequencer (
           outstanding_valid_q <= 1'b0;
           outstanding_pc_q <= {`XLEN{1'b0}};
           next_fetch_pc_q <= pending_mem_next_pc_i;
-        end else if (pending_fp_i) begin
-          outstanding_valid_q <= 1'b0;
-          outstanding_pc_q <= {`XLEN{1'b0}};
-          next_fetch_pc_q <= pending_fp_next_pc_i;
         end
       end
 

@@ -86,6 +86,35 @@ static inline bool exec_zb_op(uint32_t funct3, uint32_t funct7, int rd, int rs2,
   }
 }
 
+/* Zbb 的 OP-IMM-32(0x1b)家族: clzw/ctzw/cpopw/roriw(slli.uw 在 rv64i 层)。 */
+static inline word_t rorw_zb(uint32_t v, uint32_t sh) {
+  sh &= 31;
+  uint32_t r = sh ? ((v >> sh) | (v << (32 - sh))) : v;
+  return (word_t)(int64_t)(int32_t)r;
+}
+
+static inline bool exec_zb_op_imm_32(uint32_t inst, int rd, word_t src1) {
+  if (!ISDEF(CONFIG_ISA64)) return false;
+  uint32_t funct3 = FUNCT3(inst);
+  uint32_t funct7 = FUNCT7(inst);
+  uint32_t imm5 = BITS(inst, 24, 20);
+  uint32_t src32 = (uint32_t)src1;
+
+  if (funct3 == 0x1 && funct7 == 0x30) {
+    switch (imm5) {
+      case 0x00: R(rd) = src32 == 0 ? 32 : (word_t)__builtin_clz(src32); return true;  // clzw
+      case 0x01: R(rd) = src32 == 0 ? 32 : (word_t)__builtin_ctz(src32); return true;  // ctzw
+      case 0x02: R(rd) = (word_t)__builtin_popcount(src32); return true;               // cpopw
+      default: return false;
+    }
+  }
+  if (funct3 == 0x5 && funct7 == 0x30) {                       // roriw
+    R(rd) = rorw_zb(src32, imm5);
+    return true;
+  }
+  return false;
+}
+
 static inline bool exec_zb_op_32(uint32_t funct3, uint32_t funct7, int rd, int rs2, word_t src1, word_t src2) {
   if (!ISDEF(CONFIG_ISA64)) return false;
 
@@ -99,6 +128,10 @@ static inline bool exec_zb_op_32(uint32_t funct3, uint32_t funct7, int rd, int r
       if (rs2 != 0) return false;
       R(rd) = src1 & 0xffffu;                                           // zext.h
       return true;
+    case OP_KEY(0x1, 0x30):                                             // rolw
+      return R(rd) = rorw_zb((uint32_t)src1, 32u - ((uint32_t)src2 & 31u)), true;
+    case OP_KEY(0x5, 0x30):                                             // rorw
+      return R(rd) = rorw_zb((uint32_t)src1, (uint32_t)src2), true;
     default:
       return false;
   }

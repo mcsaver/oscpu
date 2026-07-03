@@ -3,13 +3,17 @@
 set -uo pipefail
 
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)
-NPC_HOME=${NPC_HOME:-$ROOT_DIR/npc/rv64}
+# rv64 工程根目录用专属变量 NPC_RV64_HOME,不复用/劫持官方 NPC_HOME——
+# 用户环境的 NPC_HOME 按 ysyx 约定指向 npc/(AM 平台脚本 npc.mk 依赖该语义),
+# 此前本脚本以 NPC_HOME 兼职 rv64 路径且允许环境覆盖,环境有 NPC_HOME=npc 时
+# 内部所有路径(build/testbench/日志)静默漂移到 npc/ 下。
+NPC_RV64_HOME=${NPC_RV64_HOME:-$ROOT_DIR/npc/rv64}
 AM_HOME=${AM_HOME:-$ROOT_DIR/abstract-machine}
 NEMU_HOME=${NEMU_HOME:-$ROOT_DIR/nemu}
-ARTIFACT_ROOT=${ARTIFACT_ROOT:-$NPC_HOME/testsuites/core-tests}
+ARTIFACT_ROOT=${ARTIFACT_ROOT:-$NPC_RV64_HOME/testsuites/core-tests}
 RISCV_TESTS_REPO=${RISCV_TESTS_REPO:-https://github.com/riscv-software-src/riscv-tests.git}
 RISCV_TESTS_DIR=${RISCV_TESTS_DIR:-$ARTIFACT_ROOT/src/riscv-tests}
-LOG_BASE=${LOG_BASE:-$NPC_HOME/perf/results/core-regress}
+LOG_BASE=${LOG_BASE:-$NPC_RV64_HOME/perf/results/core-regress}
 RISCV_PREFIX=${RISCV_PREFIX:-riscv64-linux-gnu-}
 RISCV_GCC_OPTS=${RISCV_GCC_OPTS:--static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles -Wl,--build-id=none}
 RISCV_MAX_CYCLES=${RISCV_MAX_CYCLES:-2000000}
@@ -293,7 +297,7 @@ run_riscv_test() {
     return 0
   fi
 
-  if "$NPC_HOME/build/NpcSimTop" -b --no-diff --max-cycles "$RISCV_MAX_CYCLES" \
+  if "$NPC_RV64_HOME/build/NpcSimTop" -b --no-diff --max-cycles "$RISCV_MAX_CYCLES" \
       --tohost="$tohost" "$bin" >"$log" 2>&1; then
     if grep -q 'TOHOST PASS' "$log"; then
       status_line "$name" PASS "tohost=$tohost"
@@ -365,7 +369,7 @@ run_riscv_tests() {
 
 main() {
   parse_args "$@"
-  export AM_HOME NEMU_HOME NPC_HOME
+  export AM_HOME NEMU_HOME
   prepare_run_dir
   summary_line "NPC RV64 core regression"
   summary_line "  run_dir: $RUN_DIR"
@@ -375,13 +379,13 @@ main() {
   fi
 
   if [[ $RUN_MODULE -eq 1 ]]; then
-    run_case module-testbench make -C "$NPC_HOME/testbench" RESULT_DIR="$RUN_DIR/module-testbench" run
+    run_case module-testbench make -C "$NPC_RV64_HOME/testbench" RESULT_DIR="$RUN_DIR/module-testbench" run
   fi
   if [[ $RUN_LINT -eq 1 ]]; then
-    run_case verilator-lint make -C "$NPC_HOME" lint
+    run_case verilator-lint make -C "$NPC_RV64_HOME" lint
   fi
   if [[ $RUN_BUILD -eq 1 ]]; then
-    run_case npc-build make -C "$NPC_HOME" -j2
+    run_case npc-build make -C "$NPC_RV64_HOME" -j2
   fi
   if [[ $RUN_AM -eq 1 ]]; then
     run_case am-cpu-tests make -C "$ROOT_DIR/am-kernels/tests/cpu-tests" ARCH=riscv64-npc run

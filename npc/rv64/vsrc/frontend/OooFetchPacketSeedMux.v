@@ -24,7 +24,6 @@ module OooFetchPacketSeedMux (
   input drain_pending_branch_undispatched_i,
   input drain_pending_jump_i,
   input drain_pending_mem_i,
-  input drain_pending_fp_i,
   input jalr_prefetch_hit_i,
 
   input [`XLEN-1:0] fallthrough_pc0_i,
@@ -180,8 +179,6 @@ module OooFetchPacketSeedMux (
           set_clear;
         end
       end else if (drain_pending_mem_i) begin
-        set_clear;
-      end else if (drain_pending_fp_i) begin
         set_clear;
       end
     end

@@ -21,6 +21,9 @@ module OooRob #(
   input [`XLEN-1:0] dispatch0_next_pc_i,
   input [`INST_W-1:0] dispatch0_inst_i,
   input dispatch0_rd_en_i,
+  // 【B-FP Phase0 地基】FPR 目的标记: commit 时写架构 FPR 而非 GPR(arch_rd 复用为
+  // FPR 号)。fflags 随 wb 回填、随 commit 输出。接 0 时行为与旧版逐位一致。
+  input dispatch0_is_fp_rd_i,
   input [`REG_ADDR_W-1:0] dispatch0_arch_rd_i,
   input [PHY_REG_ADDR_W-1:0] dispatch0_old_pdest_i,
   input [PHY_REG_ADDR_W-1:0] dispatch0_new_pdest_i,
@@ -32,6 +35,7 @@ module OooRob #(
   input [`XLEN-1:0] dispatch1_next_pc_i,
   input [`INST_W-1:0] dispatch1_inst_i,
   input dispatch1_rd_en_i,
+  input dispatch1_is_fp_rd_i,
   input [`REG_ADDR_W-1:0] dispatch1_arch_rd_i,
   input [PHY_REG_ADDR_W-1:0] dispatch1_old_pdest_i,
   input [PHY_REG_ADDR_W-1:0] dispatch1_new_pdest_i,
@@ -42,6 +46,7 @@ module OooRob #(
   input wb0_exception_i,
   input [`TRAP_CAUSE_W-1:0] wb0_cause_i,
   input [`XLEN-1:0] wb0_tval_i,
+  input [4:0] wb0_fflags_i,
 
   input wb1_valid_i,
   input [ROB_INDEX_W-1:0] wb1_rob_idx_i,
@@ -49,6 +54,7 @@ module OooRob #(
   input wb1_exception_i,
   input [`TRAP_CAUSE_W-1:0] wb1_cause_i,
   input [`XLEN-1:0] wb1_tval_i,
+  input [4:0] wb1_fflags_i,
 
   input commit_ready_i,
   input commit1_block_i,
@@ -57,6 +63,8 @@ module OooRob #(
   output [`XLEN-1:0] commit0_next_pc_o,
   output [`INST_W-1:0] commit0_inst_o,
   output commit0_rd_en_o,
+  output commit0_is_fp_rd_o,
+  output [4:0] commit0_fflags_o,
   output [`REG_ADDR_W-1:0] commit0_arch_rd_o,
   output [PHY_REG_ADDR_W-1:0] commit0_old_pdest_o,
   output [PHY_REG_ADDR_W-1:0] commit0_new_pdest_o,
@@ -70,6 +78,8 @@ module OooRob #(
   output [`XLEN-1:0] commit1_next_pc_o,
   output [`INST_W-1:0] commit1_inst_o,
   output commit1_rd_en_o,
+  output commit1_is_fp_rd_o,
+  output [4:0] commit1_fflags_o,
   output [`REG_ADDR_W-1:0] commit1_arch_rd_o,
   output [PHY_REG_ADDR_W-1:0] commit1_old_pdest_o,
   output [PHY_REG_ADDR_W-1:0] commit1_new_pdest_o,
@@ -96,11 +106,13 @@ module OooRob #(
   output [PHY_REG_ADDR_W-1:0] walk0_old_pdest_o,
   output [PHY_REG_ADDR_W-1:0] walk0_new_pdest_o,
   output walk0_rd_en_o,
+  output walk0_is_fp_o,
   output walk1_valid_o,
   output [`REG_ADDR_W-1:0] walk1_arch_rd_o,
   output [PHY_REG_ADDR_W-1:0] walk1_old_pdest_o,
   output [PHY_REG_ADDR_W-1:0] walk1_new_pdest_o,
-  output walk1_rd_en_o
+  output walk1_rd_en_o,
+  output walk1_is_fp_o
 );
 
   reg valid_q [0:ROB_ENTRIES-1];
@@ -116,6 +128,9 @@ module OooRob #(
   reg exception_q [0:ROB_ENTRIES-1];
   reg [`TRAP_CAUSE_W-1:0] cause_q [0:ROB_ENTRIES-1];
   reg [`XLEN-1:0] tval_q [0:ROB_ENTRIES-1];
+  // 【B-FP Phase0 地基】不进 checkpoint 影子(该机制已被 ROB-walk 取代, 只减不加)
+  reg is_fp_rd_q [0:ROB_ENTRIES-1];
+  reg [4:0] fflags_q [0:ROB_ENTRIES-1];
 
   reg [ROB_INDEX_W-1:0] head_q;
   reg [ROB_INDEX_W-1:0] tail_q;
@@ -161,6 +176,8 @@ module OooRob #(
   wire [`TRAP_CAUSE_W-1:0] head1_cause_w;
   wire [`XLEN-1:0] head_tval_w;
   wire [`XLEN-1:0] head1_tval_w;
+  wire [4:0] head_fflags_w;
+  wire [4:0] head1_fflags_w;
   wire commit0_fire_w;
   wire commit1_fire_w;
   wire [1:0] commit_count_w;
@@ -214,6 +231,14 @@ module OooRob #(
                          wb0_head1_match_w ? wb0_cause_i :
                          wb1_head1_match_w ? wb1_cause_i :
                          cause_q[head1_w];
+  assign head_fflags_w = done_q[head_q] ? fflags_q[head_q] :
+                         wb0_head_match_w ? wb0_fflags_i :
+                         wb1_head_match_w ? wb1_fflags_i :
+                         fflags_q[head_q];
+  assign head1_fflags_w = done_q[head1_w] ? fflags_q[head1_w] :
+                          wb0_head1_match_w ? wb0_fflags_i :
+                          wb1_head1_match_w ? wb1_fflags_i :
+                          fflags_q[head1_w];
   assign head_tval_w = done_q[head_q] ? tval_q[head_q] :
                        wb0_head_match_w ? wb0_tval_i :
                        wb1_head_match_w ? wb1_tval_i :
@@ -243,11 +268,13 @@ module OooRob #(
   assign walk0_old_pdest_o  = old_pdest_q[walk_ptr_q];
   assign walk0_new_pdest_o  = new_pdest_q[walk_ptr_q];
   assign walk0_rd_en_o      = rd_en_q[walk_ptr_q];
+  assign walk0_is_fp_o      = is_fp_rd_q[walk_ptr_q];
   assign walk1_valid_o      = lane1_sq_w;
   assign walk1_arch_rd_o    = arch_rd_q[wptr_m1_w];
   assign walk1_old_pdest_o  = old_pdest_q[wptr_m1_w];
   assign walk1_new_pdest_o  = new_pdest_q[wptr_m1_w];
   assign walk1_rd_en_o      = rd_en_q[wptr_m1_w];
+  assign walk1_is_fp_o      = is_fp_rd_q[wptr_m1_w];
 
   assign commit0_fire_w = !recovering_w &&
                           commit_ready_i && (count_q != {ROB_COUNT_W{1'b0}}) &&
@@ -269,11 +296,21 @@ module OooRob #(
   assign dispatch0_rob_idx_o = tail_q;
   assign dispatch1_rob_idx_o = rob_ptr_add(tail_q, {1'b0, dispatch0_fire_w});
 
+`ifdef DBRA_PROBE
+  always @(posedge clk) begin
+    if (commit0_fire_w || commit1_fire_w || kill_valid_i || recover_q)
+      $display("[ROBP] c0=%b pc0=%h c1=%b pc1=%h kill=%b kidx=%h recov=%b head=%h cnt=%d",
+               commit0_fire_w, pc_q[head_q], commit1_fire_w, pc_q[head1_w],
+               kill_valid_i, kill_rob_idx_i, recover_q, head_q, count_q);
+  end
+`endif
   assign commit0_valid_o = commit0_fire_w;
   assign commit0_pc_o = pc_q[head_q];
   assign commit0_next_pc_o = next_pc_q[head_q];
   assign commit0_inst_o = inst_q[head_q];
   assign commit0_rd_en_o = rd_en_q[head_q];
+  assign commit0_is_fp_rd_o = is_fp_rd_q[head_q];
+  assign commit0_fflags_o = head_fflags_w;
   assign commit0_arch_rd_o = arch_rd_q[head_q];
   assign commit0_old_pdest_o = old_pdest_q[head_q];
   assign commit0_new_pdest_o = new_pdest_q[head_q];
@@ -287,6 +324,8 @@ module OooRob #(
   assign commit1_next_pc_o = next_pc_q[head1_w];
   assign commit1_inst_o = inst_q[head1_w];
   assign commit1_rd_en_o = rd_en_q[head1_w];
+  assign commit1_is_fp_rd_o = is_fp_rd_q[head1_w];
+  assign commit1_fflags_o = head1_fflags_w;
   assign commit1_arch_rd_o = arch_rd_q[head1_w];
   assign commit1_old_pdest_o = old_pdest_q[head1_w];
   assign commit1_new_pdest_o = new_pdest_q[head1_w];
@@ -320,6 +359,8 @@ module OooRob #(
         exception_q[idx] <= 1'b0;
         cause_q[idx] <= {`TRAP_CAUSE_W{1'b0}};
         tval_q[idx] <= {`XLEN{1'b0}};
+        is_fp_rd_q[idx] <= 1'b0;
+        fflags_q[idx] <= 5'b00000;
         checkpoint_valid_q[idx] <= 1'b0;
         checkpoint_done_q[idx] <= 1'b0;
         checkpoint_pc_q[idx] <= {`XLEN{1'b0}};
@@ -389,6 +430,7 @@ module OooRob #(
         exception_q[wb0_rob_idx_i] <= wb0_exception_i;
         cause_q[wb0_rob_idx_i] <= wb0_cause_i;
         tval_q[wb0_rob_idx_i] <= wb0_tval_i;
+        fflags_q[wb0_rob_idx_i] <= wb0_fflags_i;
       end
       if (wb1_valid_i && valid_q[wb1_rob_idx_i]) begin
         done_q[wb1_rob_idx_i] <= 1'b1;
@@ -396,6 +438,7 @@ module OooRob #(
         exception_q[wb1_rob_idx_i] <= wb1_exception_i;
         cause_q[wb1_rob_idx_i] <= wb1_cause_i;
         tval_q[wb1_rob_idx_i] <= wb1_tval_i;
+        fflags_q[wb1_rob_idx_i] <= wb1_fflags_i;
       end
       valid_q[walk_ptr_q] <= 1'b0;
       done_q[walk_ptr_q] <= 1'b0;
@@ -420,6 +463,7 @@ module OooRob #(
         exception_q[wb0_rob_idx_i] <= wb0_exception_i;
         cause_q[wb0_rob_idx_i] <= wb0_cause_i;
         tval_q[wb0_rob_idx_i] <= wb0_tval_i;
+        fflags_q[wb0_rob_idx_i] <= wb0_fflags_i;
       end
       if (wb1_valid_i && valid_q[wb1_rob_idx_i]) begin
         done_q[wb1_rob_idx_i] <= 1'b1;
@@ -427,6 +471,7 @@ module OooRob #(
         exception_q[wb1_rob_idx_i] <= wb1_exception_i;
         cause_q[wb1_rob_idx_i] <= wb1_cause_i;
         tval_q[wb1_rob_idx_i] <= wb1_tval_i;
+        fflags_q[wb1_rob_idx_i] <= wb1_fflags_i;
       end
       recover_q <= 1'b1;
       kill_idx_q <= kill_rob_idx_i;
@@ -447,6 +492,7 @@ module OooRob #(
         exception_q[wb0_rob_idx_i] <= wb0_exception_i;
         cause_q[wb0_rob_idx_i] <= wb0_cause_i;
         tval_q[wb0_rob_idx_i] <= wb0_tval_i;
+        fflags_q[wb0_rob_idx_i] <= wb0_fflags_i;
       end
       if (wb1_valid_i && valid_q[wb1_rob_idx_i]) begin
         done_q[wb1_rob_idx_i] <= 1'b1;
@@ -454,6 +500,7 @@ module OooRob #(
         exception_q[wb1_rob_idx_i] <= wb1_exception_i;
         cause_q[wb1_rob_idx_i] <= wb1_cause_i;
         tval_q[wb1_rob_idx_i] <= wb1_tval_i;
+        fflags_q[wb1_rob_idx_i] <= wb1_fflags_i;
       end
 
       if (dispatch0_fire_w) begin
@@ -463,6 +510,8 @@ module OooRob #(
         next_pc_q[dispatch0_rob_idx_o] <= dispatch0_next_pc_i;
         inst_q[dispatch0_rob_idx_o] <= dispatch0_inst_i;
         rd_en_q[dispatch0_rob_idx_o] <= dispatch0_rd_en_i;
+        is_fp_rd_q[dispatch0_rob_idx_o] <= dispatch0_is_fp_rd_i;
+        fflags_q[dispatch0_rob_idx_o] <= 5'b00000;
         arch_rd_q[dispatch0_rob_idx_o] <= dispatch0_arch_rd_i;
         old_pdest_q[dispatch0_rob_idx_o] <= dispatch0_old_pdest_i;
         new_pdest_q[dispatch0_rob_idx_o] <= dispatch0_new_pdest_i;
@@ -478,6 +527,8 @@ module OooRob #(
         next_pc_q[dispatch1_rob_idx_o] <= dispatch1_next_pc_i;
         inst_q[dispatch1_rob_idx_o] <= dispatch1_inst_i;
         rd_en_q[dispatch1_rob_idx_o] <= dispatch1_rd_en_i;
+        is_fp_rd_q[dispatch1_rob_idx_o] <= dispatch1_is_fp_rd_i;
+        fflags_q[dispatch1_rob_idx_o] <= 5'b00000;
         arch_rd_q[dispatch1_rob_idx_o] <= dispatch1_arch_rd_i;
         old_pdest_q[dispatch1_rob_idx_o] <= dispatch1_old_pdest_i;
         new_pdest_q[dispatch1_rob_idx_o] <= dispatch1_new_pdest_i;
@@ -502,5 +553,6 @@ module OooRob #(
     end
 `endif
   end
+
 
 endmodule

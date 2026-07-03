@@ -4,7 +4,6 @@
 module tb_ooo_fp_reg_file;
   reg clk;
   reg rst;
-  reg flush;
   reg [`REG_ADDR_W-1:0] read0_addr;
   reg [`REG_ADDR_W-1:0] read1_addr;
   reg [`REG_ADDR_W-1:0] read2_addr;
@@ -23,7 +22,6 @@ module tb_ooo_fp_reg_file;
   OooFpRegFile dut (
     .clk(clk),
     .rst(rst),
-    .flush_i(flush),
     .read0_addr_i(read0_addr),
     .read0_data_o(read0_data),
     .read1_addr_i(read1_addr),
@@ -43,7 +41,6 @@ module tb_ooo_fp_reg_file;
 
   task automatic clear_inputs;
     begin
-      flush = 1'b0;
       read0_addr = {`REG_ADDR_W{1'b0}};
       read1_addr = {`REG_ADDR_W{1'b0}};
       read2_addr = {`REG_ADDR_W{1'b0}};
@@ -126,16 +123,12 @@ module tb_ooo_fp_reg_file;
     #1;
     check64("f0 writable", read0_data, 64'h5555_5555_5555_5555);
 
-    flush = 1'b1;
-    tick();
-    clear_inputs();
-    read0_addr = 5'd0;
-    read1_addr = 5'd1;
-    read2_addr = 5'd2;
+    // 架构 FPR 只随 rst 清零; flush 清零语义已删除(footgun: 误接真实流水线
+    // flush 会毁架构态)。此处验证保持性: f2 此前写入的值仍在。
+    read1_addr = 5'd2;
     #1;
-    check64("flush clears f0", read0_data, 64'h0);
-    check64("flush clears f1", read1_data, 64'h0);
-    check64("flush clears f2", read2_data, 64'h0);
+    check64("arch fpr retained across flush-removal", read1_data,
+            64'haaaa_bbbb_cccc_dddd);
 
     if (errors == 0)
       $display("PASS tb_ooo_fp_reg_file");

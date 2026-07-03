@@ -1,9 +1,0 @@
-(FI|A)+
-(YE|OT)K
-(.)[IF]+
-[NODE]+
-(FY|F|RG)+
-
-(Y|F)(.)\2[DAF]\1
-(U|O|I)*T[FRO]+
-[KANE]*[GIN]*

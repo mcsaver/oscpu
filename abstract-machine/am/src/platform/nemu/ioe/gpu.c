@@ -5,16 +5,31 @@
 
 #define SYNC_ADDR (VGACTL_ADDR + 4)
 
+// 设备树图(riscv64-nemu)没有简易 VGA 控制器: 不读 VGACTL, gpu 一律 present=false,
+// 避免 ioe_init 触碰 NEMU 未实现的 0x12000100 而抬 access-fault。VGA 属 AM 仿真扩展,
+// 不在设备树; 需要显示的程序应走另有 RTL/模型的后端。
 static inline uint32_t gpu_width() {
+#if defined(__riscv) && !defined(DEVICE_MAP_LEGACY)
+  return 0;
+#else
   return inl(VGACTL_ADDR) >> 16;
+#endif
 }
 
 static inline uint32_t gpu_height() {
+#if defined(__riscv) && !defined(DEVICE_MAP_LEGACY)
+  return 0;
+#else
   return inl(VGACTL_ADDR) & 0xffffu;
+#endif
 }
 
 static inline bool gpu_present() {
+#if defined(__riscv) && !defined(DEVICE_MAP_LEGACY)
+  return false;
+#else
   return am_gpu_present(gpu_width(), gpu_height());
+#endif
 }
 
 void __am_gpu_init() {

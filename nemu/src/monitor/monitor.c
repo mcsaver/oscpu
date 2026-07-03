@@ -281,37 +281,37 @@ static void dump_machine_info(FILE *out) {
 
   machine_info_write_bool(out, "device.serial.enabled", ISDEF(CONFIG_HAS_SERIAL));
 #ifdef CONFIG_HAS_SERIAL
-  machine_info_write_hex(out, "device.serial.mmio", CONFIG_SERIAL_MMIO);
+  machine_info_write_hex(out, "device.serial.mmio", DEV_SERIAL_MMIO);
   fprintf(out, "device.serial.irq=1\n");
   serial_dump_machine_info(out);
 #endif
   machine_info_write_bool(out, "device.virtio_blk.enabled", ISDEF(CONFIG_HAS_DISK));
 #ifdef CONFIG_HAS_DISK
-  machine_info_write_hex(out, "device.virtio_blk.mmio", CONFIG_DISK_CTL_MMIO);
+  machine_info_write_hex(out, "device.virtio_blk.mmio", DEV_DISK_MMIO);
   fprintf(out, "device.virtio_blk.irq=2\n");
   virtio_blk_dump_machine_info(out);
 #endif
   machine_info_write_bool(out, "device.virtio_rng.enabled", ISDEF(CONFIG_HAS_VIRTIO_RNG));
 #ifdef CONFIG_HAS_VIRTIO_RNG
-  machine_info_write_hex(out, "device.virtio_rng.mmio", CONFIG_VIRTIO_RNG_MMIO);
+  machine_info_write_hex(out, "device.virtio_rng.mmio", DEV_VIRTIO_RNG_MMIO);
   fprintf(out, "device.virtio_rng.irq=3\n");
   virtio_rng_dump_machine_info(out);
 #endif
   machine_info_write_bool(out, "device.goldfish_rtc.enabled", ISDEF(CONFIG_HAS_GOLDFISH_RTC));
 #ifdef CONFIG_HAS_GOLDFISH_RTC
-  machine_info_write_hex(out, "device.goldfish_rtc.mmio", CONFIG_GOLDFISH_RTC_MMIO);
+  machine_info_write_hex(out, "device.goldfish_rtc.mmio", DEV_GOLDFISH_RTC_MMIO);
   fprintf(out, "device.goldfish_rtc.irq=4\n");
   goldfish_rtc_dump_machine_info(out);
 #endif
   machine_info_write_bool(out, "device.virtio_net.enabled", ISDEF(CONFIG_HAS_VIRTIO_NET));
 #ifdef CONFIG_HAS_VIRTIO_NET
-  machine_info_write_hex(out, "device.virtio_net.mmio", CONFIG_VIRTIO_NET_MMIO);
+  machine_info_write_hex(out, "device.virtio_net.mmio", DEV_VIRTIO_NET_MMIO);
   fprintf(out, "device.virtio_net.irq=5\n");
   virtio_net_dump_machine_info(out);
 #endif
   machine_info_write_bool(out, "device.syscon_reset.enabled", ISDEF(CONFIG_HAS_SYSCON_RESET));
 #ifdef CONFIG_HAS_SYSCON_RESET
-  machine_info_write_hex(out, "device.syscon_reset.mmio", CONFIG_SYSCON_RESET_MMIO);
+  machine_info_write_hex(out, "device.syscon_reset.mmio", DEV_SYSCON_RESET_MMIO);
   machine_info_write_hex(out, "device.syscon_reset.poweroff_value", CONFIG_SYSCON_POWEROFF_VALUE);
   machine_info_write_hex(out, "device.syscon_reset.reboot_value", CONFIG_SYSCON_REBOOT_VALUE);
 #endif

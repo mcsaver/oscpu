@@ -29,6 +29,7 @@ TESTS := \
   tb_decode_stage \
   tb_ooo_rename_map \
   tb_ooo_free_list \
+  tb_ooo_store_queue \
   tb_ooo_rob \
   tb_ooo_phys_reg_file \
   tb_ooo_fp_reg_file \
@@ -44,7 +45,6 @@ TESTS := \
   tb_ooo_alu_core_slice \
   tb_ooo_core_top_glue \
   tb_ooo_fp_iter \
-  tb_ooo_fp_mem_access_gate \
   tb_ooo_fp_classify_gate \
   tb_ooo_fp_sgnj_gate \
   tb_ooo_fp_compare_gate \
@@ -77,7 +77,6 @@ TESTS := \
   tb_ooo_pending_control_resolve_gate \
   tb_ooo_pending_branch_sequencer \
   tb_ooo_pending_jump_sequencer \
-  tb_ooo_pending_fp_sequencer \
   tb_ooo_branch_append_dispatch_gate \
   tb_ooo_branch_bpu_update_gate \
   tb_ooo_branch_target_cache_control_gate \
@@ -128,6 +127,7 @@ TB_SRCS_tb_decode_unit := tests/tb_decode_unit.sv $(RTL_DECODE_UNIT)
 TB_SRCS_tb_decode_stage := tests/tb_decode_stage.sv $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(RTL_DECODE_STAGE)
 TB_SRCS_tb_ooo_rename_map := tests/tb_ooo_rename_map.sv $(RTL_OOO_RENAME_MAP)
 TB_SRCS_tb_ooo_free_list := tests/tb_ooo_free_list.sv $(RTL_OOO_FREE_LIST)
+TB_SRCS_tb_ooo_store_queue := tests/tb_ooo_store_queue.sv $(RTL_OOO_STORE_QUEUE)
 TB_SRCS_tb_ooo_rob := tests/tb_ooo_rob.sv $(RTL_OOO_ROB)
 TB_SRCS_tb_ooo_phys_reg_file := tests/tb_ooo_phys_reg_file.sv $(RTL_OOO_PHYS_REG_FILE)
 TB_SRCS_tb_ooo_fp_reg_file := tests/tb_ooo_fp_reg_file.sv $(RTL_OOO_FP_REG_FILE)
@@ -136,7 +136,8 @@ TB_SRCS_tb_ooo_int_issue_queue := tests/tb_ooo_int_issue_queue.sv $(RTL_OOO_INT_
 TB_SRCS_tb_ooo_dispatch_backend := tests/tb_ooo_dispatch_backend.sv $(RTL_OOO_DISPATCH_BACKEND) $(RTL_OOO_RENAME_MAP) $(RTL_OOO_FREE_LIST) $(RTL_OOO_BUSY_TABLE) $(RTL_OOO_ROB) $(RTL_OOO_INT_ISSUE_QUEUE)
 TB_SRCS_tb_ooo_muldiv_unit := tests/tb_ooo_muldiv_unit.sv $(RTL_OOO_MULDIV_UNIT)
 TB_SRCS_tb_ooo_clmul_unit := tests/tb_ooo_clmul_unit.sv $(RTL_OOO_CLMUL_UNIT)
-TB_OOO_INT_BACKEND_SRCS := $(RTL_OOO_MULDIV_UNIT) $(RTL_OOO_CLMUL_UNIT) $(RTL_OOO_INT_BACKEND) $(RTL_OOO_BITMANIP_GATE) $(RTL_OOO_AMO_GATE) $(RTL_OOO_DISPATCH_BACKEND) $(RTL_OOO_RENAME_MAP) $(RTL_OOO_FREE_LIST) $(RTL_OOO_BUSY_TABLE) $(RTL_OOO_ROB) $(RTL_OOO_INT_ISSUE_QUEUE) $(RTL_OOO_PHYS_REG_FILE) $(RTL_ALU) $(RTL_COMPARE_UNIT) $(RTL_LSU_CONTROL) $(RTL_LSU_DATAPATH) $(RTL_LSU) $(RTL_WBU)
+TB_OOO_INT_BACKEND_FP_SRCS := $(RTL_OOO_FP_BACKEND) $(RTL_OOO_FP_REG_FILE) $(RTL_OOO_FP_ISSUE_QUEUE) $(RTL_OOO_FP_PHYS_REG_FILE) $(RTL_OOO_FP_ARITH_GATE) $(RTL_OOO_FP_LONG_OP_GATE) $(RTL_OOO_FP_DIV_ITER) $(RTL_OOO_FP_SQRT_ITER) $(RTL_OOO_FP_CLASSIFY_GATE) $(RTL_OOO_FP_SGNJ_GATE) $(RTL_OOO_FP_COMPARE_GATE) $(RTL_OOO_FP_CONVERT_GATE)
+TB_OOO_INT_BACKEND_SRCS := $(TB_OOO_INT_BACKEND_FP_SRCS) $(RTL_OOO_MEM_INFLIGHT_QUEUE) $(RTL_OOO_STORE_QUEUE) $(RTL_OOO_MULDIV_UNIT) $(RTL_OOO_CLMUL_UNIT) $(RTL_OOO_INT_BACKEND) $(RTL_OOO_BITMANIP_GATE) $(RTL_OOO_AMO_GATE) $(RTL_OOO_DISPATCH_BACKEND) $(RTL_OOO_RENAME_MAP) $(RTL_OOO_FREE_LIST) $(RTL_OOO_BUSY_TABLE) $(RTL_OOO_ROB) $(RTL_OOO_INT_ISSUE_QUEUE) $(RTL_OOO_PHYS_REG_FILE) $(RTL_ALU) $(RTL_COMPARE_UNIT) $(RTL_LSU_CONTROL) $(RTL_LSU_DATAPATH) $(RTL_LSU) $(RTL_WBU)
 TB_SRCS_tb_ooo_int_backend := tests/tb_ooo_int_backend.sv $(TB_OOO_INT_BACKEND_SRCS)
 TB_SRCS_tb_ooo_bitmanip_gate := tests/tb_ooo_bitmanip_gate.sv $(RTL_OOO_BITMANIP_GATE)
 TB_SRCS_tb_ooo_amo_gate := tests/tb_ooo_amo_gate.sv $(RTL_OOO_AMO_GATE)
@@ -144,7 +145,6 @@ TB_SRCS_tb_ooo_alu_decode_backend := tests/tb_ooo_alu_decode_backend.sv $(RTL_OO
 TB_SRCS_tb_ooo_alu_core_slice := tests/tb_ooo_alu_core_slice.sv $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
 TB_SRCS_tb_ooo_core_top_glue := tests/tb_ooo_core_top_glue.sv $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
 TB_SRCS_tb_ooo_fp_iter := tests/tb_ooo_fp_iter.sv $(RTL_OOO_FP_DIV_ITER) $(RTL_OOO_FP_SQRT_ITER)
-TB_SRCS_tb_ooo_fp_mem_access_gate := tests/tb_ooo_fp_mem_access_gate.sv $(RTL_OOO_FP_MEM_ACCESS_GATE)
 TB_SRCS_tb_ooo_fp_classify_gate := tests/tb_ooo_fp_classify_gate.sv $(RTL_OOO_FP_CLASSIFY_GATE)
 TB_SRCS_tb_ooo_fp_sgnj_gate := tests/tb_ooo_fp_sgnj_gate.sv $(RTL_OOO_FP_SGNJ_GATE)
 TB_SRCS_tb_ooo_fp_compare_gate := tests/tb_ooo_fp_compare_gate.sv $(RTL_OOO_FP_COMPARE_GATE)
@@ -177,7 +177,6 @@ TB_SRCS_tb_ooo_branch_resolve_recovery_gate := tests/tb_ooo_branch_resolve_recov
 TB_SRCS_tb_ooo_pending_control_resolve_gate := tests/tb_ooo_pending_control_resolve_gate.sv $(RTL_OOO_PENDING_CONTROL_RESOLVE_GATE)
 TB_SRCS_tb_ooo_pending_branch_sequencer := tests/tb_ooo_pending_branch_sequencer.sv $(RTL_OOO_PENDING_BRANCH_SEQUENCER)
 TB_SRCS_tb_ooo_pending_jump_sequencer := tests/tb_ooo_pending_jump_sequencer.sv $(RTL_OOO_PENDING_JUMP_SEQUENCER)
-TB_SRCS_tb_ooo_pending_fp_sequencer := tests/tb_ooo_pending_fp_sequencer.sv $(RTL_OOO_PENDING_FP_SEQUENCER)
 TB_SRCS_tb_ooo_branch_append_dispatch_gate := tests/tb_ooo_branch_append_dispatch_gate.sv $(RTL_OOO_BRANCH_APPEND_DISPATCH_GATE)
 TB_SRCS_tb_ooo_branch_bpu_update_gate := tests/tb_ooo_branch_bpu_update_gate.sv $(RTL_OOO_BRANCH_BPU_UPDATE_GATE)
 TB_SRCS_tb_ooo_branch_target_cache_control_gate := tests/tb_ooo_branch_target_cache_control_gate.sv $(RTL_OOO_BRANCH_TARGET_CACHE_CONTROL_GATE)
@@ -216,12 +215,12 @@ run: $(TESTS:%=$(LOG_DIR)/%.log) summary
 	@cat $(RESULT_DIR)/summary.txt
 
 define RUN_TEST
-$(LOG_DIR)/$(1).log: $$(TB_SRCS_$(1)) common/tb_common.svh common/rv32_encode.svh Makefile
+$(LOG_DIR)/$(1).log: $$(sort $$(TB_SRCS_$(1))) common/tb_common.svh common/rv32_encode.svh Makefile
 	@mkdir -p $(BUILD_DIR) $(LOG_DIR)
 	@tmp="$$@.tmp"; \
 	echo "[TEST] $(1)" > "$$$$tmp"; \
-	echo "[COMPILE] $(IVERILOG) $(IVFLAGS) -s $(1) -o $(BUILD_DIR)/$(1).vvp $$(TB_SRCS_$(1))" >> "$$$$tmp"; \
-	if $(IVERILOG) $(IVFLAGS) -s $(1) -o $(BUILD_DIR)/$(1).vvp $$(TB_SRCS_$(1)) >> "$$$$tmp" 2>&1 && \
+	echo "[COMPILE] $(IVERILOG) $(IVFLAGS) -s $(1) -o $(BUILD_DIR)/$(1).vvp $$(sort $$(TB_SRCS_$(1)))" >> "$$$$tmp"; \
+	if $(IVERILOG) $(IVFLAGS) -s $(1) -o $(BUILD_DIR)/$(1).vvp $$(sort $$(TB_SRCS_$(1))) >> "$$$$tmp" 2>&1 && \
 	   $(VVP) $(BUILD_DIR)/$(1).vvp >> "$$$$tmp" 2>&1; then \
 	  echo "[RESULT] PASS" >> "$$$$tmp"; \
 	  mv "$$$$tmp" "$$@"; \

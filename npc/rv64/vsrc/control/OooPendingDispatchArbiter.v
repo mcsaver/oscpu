@@ -59,9 +59,6 @@ module OooPendingDispatchArbiter (
   output pending_jump_capture_lane1_o,
   output pending_jump_clear_o,
 
-  output pending_fp_capture_head0_o,
-  output pending_fp_capture_lane1_o,
-  output pending_fp_clear_o,
 
   output pending_mem_capture_lane1_o,
   output pending_mem_clear_o,
@@ -88,7 +85,9 @@ module OooPendingDispatchArbiter (
   wire dispatch0_exit_w = dispatch0_facts_i[`OOO_SLOT_FACT_EXIT];
   wire dispatch0_ecall_w = dispatch0_facts_i[`OOO_SLOT_FACT_ECALL];
   wire dispatch0_ebreak_w = dispatch0_facts_i[`OOO_SLOT_FACT_EBREAK];
-  wire dispatch0_fp_w = dispatch0_facts_i[`OOO_SLOT_FACT_FP_ENABLED];
+  // 【B-FP 簇】FP 迁域 A: head0=FP 与普通 ALU 指令完全同构, 不再参与任何
+  // pending capture/clear 门控(旧 !dispatch0_fp_w gate 在 lane1 barrier fire
+  // 整包 pop 时挡死 lane1 system capture → 与 FP 同包的 CSR 指令被静默丢弃)。
   wire dispatch0_system_w = dispatch0_facts_i[`OOO_SLOT_FACT_SYSTEM];
   wire dispatch0_branch_w = dispatch0_facts_i[`OOO_SLOT_FACT_BRANCH];
   wire dispatch0_jal_w = dispatch0_facts_i[`OOO_SLOT_FACT_JAL];
@@ -108,7 +107,6 @@ module OooPendingDispatchArbiter (
       !head_fetch_fault0_i &&
       !dispatch0_arch_trap_w &&
       !dispatch0_exit_w &&
-      !dispatch0_fp_w &&
       !dispatch0_system_w &&
       !lane0_branch_pending_w &&
       !lane0_jump_pending_w &&
@@ -156,7 +154,6 @@ module OooPendingDispatchArbiter (
       !head_fetch_fault0_i &&
       !dispatch0_arch_trap_w &&
       !dispatch0_exit_w &&
-      !dispatch0_fp_w &&
       dispatch0_system_w && !head0_csr_illegal_i;
   assign pending_system_capture_lane1_o = lane1_system_capture_w;
 
@@ -168,7 +165,6 @@ module OooPendingDispatchArbiter (
       !head_fetch_fault0_i &&
       !dispatch0_arch_trap_w &&
       !dispatch0_exit_w &&
-      !dispatch0_fp_w &&
       !dispatch0_system_w &&
       lane0_branch_pending_w;
   assign pending_branch_capture_lane1_o =
@@ -180,21 +176,12 @@ module OooPendingDispatchArbiter (
       !head_fetch_fault0_i &&
       !dispatch0_arch_trap_w &&
       !dispatch0_exit_w &&
-      !dispatch0_fp_w &&
       !dispatch0_system_w &&
       !lane0_branch_pending_w &&
       lane0_jump_pending_w;
   assign pending_jump_capture_lane1_o =
       lane1_jump_capture_w && !rob_walk_mode_i;
 
-  assign pending_fp_capture_head0_o =
-      capture_base_w &&
-      !csr_irq_pending_i &&
-      !head_fetch_fault0_i &&
-      !dispatch0_arch_trap_w &&
-      !dispatch0_exit_w &&
-      dispatch0_fp_w;
-  assign pending_fp_capture_lane1_o = lane1_fp_capture_w;
 
   assign pending_mem_capture_lane1_o = lane1_mem_capture_w;
 
@@ -220,7 +207,6 @@ module OooPendingDispatchArbiter (
        head_fetch_fault0_i ||
        dispatch0_arch_trap_w ||
        dispatch0_exit_w ||
-       dispatch0_fp_w ||
        dispatch0_system_w ||
        lane0_jump_pending_w ||
        dispatch_unsupported_i);
@@ -230,7 +216,6 @@ module OooPendingDispatchArbiter (
        head_fetch_fault0_i ||
        dispatch0_arch_trap_w ||
        dispatch0_exit_w ||
-       dispatch0_fp_w ||
        dispatch0_system_w ||
        lane0_branch_pending_w ||
        dispatch_unsupported_i);
@@ -240,7 +225,6 @@ module OooPendingDispatchArbiter (
        head_fetch_fault0_i ||
        dispatch0_arch_trap_w ||
        dispatch0_exit_w ||
-       dispatch0_fp_w ||
        dispatch0_system_w ||
        lane0_branch_pending_w ||
        lane0_jump_pending_w ||
@@ -255,7 +239,6 @@ module OooPendingDispatchArbiter (
       resolve_clear_w ||
       pending_jump_clear_from_resolve_w ||
       jump_capture_clear_w;
-  assign pending_fp_clear_o = drain_clear_w;
   assign pending_system_clear_o =
       csr_trap_mem_valid_i ||
       direct_frontend_flush_i ||
@@ -289,7 +272,6 @@ module OooPendingDispatchArbiter (
       !head_fetch_fault0_i &&
       !dispatch0_arch_trap_w &&
       !dispatch0_exit_w &&
-      !dispatch0_fp_w &&
       dispatch0_system_w && head0_csr_illegal_i;
   wire trap_exit_capture_unsupported_w =
       capture_base_w &&
@@ -297,7 +279,6 @@ module OooPendingDispatchArbiter (
       !head_fetch_fault0_i &&
       !dispatch0_arch_trap_w &&
       !dispatch0_exit_w &&
-      !dispatch0_fp_w &&
       !dispatch0_system_w &&
       !lane0_branch_pending_w &&
       !lane0_jump_pending_w &&
@@ -367,7 +348,6 @@ module OooPendingDispatchArbiter (
       (csr_irq_pending_i ||
        head_fetch_fault0_i ||
        dispatch0_arch_trap_w ||
-       dispatch0_fp_w ||
        dispatch0_system_w ||
        lane0_branch_pending_w ||
        lane0_jump_pending_w ||
@@ -376,7 +356,6 @@ module OooPendingDispatchArbiter (
       capture_base_w &&
       (csr_irq_pending_i ||
        dispatch0_exit_w ||
-       dispatch0_fp_w ||
        dispatch0_system_w ||
        lane0_jump_pending_w);
   wire trap_exit_clear_resolve_w =
@@ -408,5 +387,6 @@ module OooPendingDispatchArbiter (
       pending_branch_match_clear_i ||
       (!direct_frontend_flush_i && branch_resolve_untracked_i) ||
       direct_frontend_flush_i;
+
 
 endmodule

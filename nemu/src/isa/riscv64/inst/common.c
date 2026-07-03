@@ -50,6 +50,10 @@
 #define OPC_SYSTEM 0x73
 
 #define FFLAGS_NV 0x10u
+#define FFLAGS_DZ 0x08u
+#define FFLAGS_OF 0x04u
+#define FFLAGS_UF 0x02u
+#define FFLAGS_NX 0x01u
 
 #define OP_KEY(funct3, funct7) ((((funct7) & 0x7f) << 3) | ((funct3) & 0x7))
 #define SHAMT5(value) ((value) & 0x1f)

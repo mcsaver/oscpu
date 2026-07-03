@@ -210,7 +210,8 @@ module tb_ooo_branch_append_dispatch_gate;
     check1("return-cont attempt disabled", return_cont_attempt, 1'b0);
     check1("synthetic append disabled", synth_lane1_branch_append, 1'b0);
     check1("return-cont dispatch disabled", return_cont_dispatch, 1'b0);
-    check1("dispatch1 optional from return-cont", dispatch1_optional, 1'b1);
+    // 【F2】dispatch1_optional 恒 0(pair 原子性要求, 见 RTL 注释)
+    check1("dispatch1 optional from return-cont", dispatch1_optional, 1'b0);
 
     reset_inputs();
     dispatch0_branch = 1'b1;
@@ -234,7 +235,7 @@ module tb_ooo_branch_append_dispatch_gate;
     check1("target attempt disabled", branch_target_append_attempt, 1'b0);
     check1("target dispatch disabled", branch_target_dispatch, 1'b0);
     check1("dispatch1 optional from branch candidates",
-           dispatch1_optional, 1'b1);
+           dispatch1_optional, 1'b0);
 
     reset_inputs();
     dispatch0_branch = 1'b1;

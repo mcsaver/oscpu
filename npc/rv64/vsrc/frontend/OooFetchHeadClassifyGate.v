@@ -129,8 +129,11 @@ module OooFetchHeadClassifyGate (
   assign arch_trap_raw_o =
       fetch_fault_i || illegal_raw_o || semihost_ebreak_o ||
       fp_disabled_o || priv_system_illegal_o;
+  // 【B-FP 簇】FP 迁域 A: fp_raw 不再是 stop 类(普通 dispatch 进 ROB/FP 簇)。
+  // 旧 fp_raw 臂使 head0=FP 时 head1 不 decode(facts 全 0), 与 FP 同包的
+  // lane1 CSR/system 指令被当无害指令双发成 NOP。FS=off 走 arch_trap 仍 stop。
   assign stop_raw_o =
-      fetch_fault_i || exit_raw_o || system_raw_o || fp_raw_o ||
+      fetch_fault_i || exit_raw_o || system_raw_o ||
       arch_trap_raw_o;
 
   assign facts_o[`OOO_SLOT_FACT_ILLEGAL] = illegal_raw_o;

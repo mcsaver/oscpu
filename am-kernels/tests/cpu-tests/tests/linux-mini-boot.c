@@ -246,6 +246,9 @@ int main(void) {
   mini_order_word = 0;
 
   mini_root[VPN2(LOW_BASE)] = ((LOW_BASE >> 12) << 10) | PTE_FLAGS;
+  // identity-map 低 1GiB(含设备树 reset_syscon 0x00100000), 让 S-mode 下 halt→syscon 退出能翻译成功。
+  // AM halt 已统一到设备树 syscon; 建立分页的系统测试须像真实 Linux ioremap 那样映射设备窗口。
+  mini_root[VPN2(0)] = ((0ul >> 12) << 10) | PTE_FLAGS;
   mini_satp = SATP_MODE_SV39 | ((uintptr_t)mini_root >> 12);
 
   write_csr_mtvec((uintptr_t)linux_mini_m_trap);

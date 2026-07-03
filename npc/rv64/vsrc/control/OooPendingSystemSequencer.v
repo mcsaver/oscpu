@@ -8,6 +8,11 @@ module OooPendingSystemSequencer (
   input clear_dispatched_i,
   input dispatch_fire_i,
 
+  // 【B-FP 簇】drain 完成拍刷新 CSR 读值: capture 拍锁存的 rdata 在"CSR 与
+  // 产生 fflags 的 FP 指令同窗口在飞"时是旧值(fsflags 读 0)。drain 完成拍
+  // ROB 已空、CSR 状态为架构终值, 重锁一次; fire 拍(至少晚一拍)消费寄存值。
+  input refresh_rdata_i,
+  input [`XLEN-1:0] refresh_rdata_value_i,
   input capture_irq_i,
   input [`XLEN-1:0] capture_irq_pc_i,
   input [`TRAP_CAUSE_W-1:0] capture_irq_cause_i,
@@ -133,6 +138,8 @@ module OooPendingSystemSequencer (
       dispatched_q <= 1'b1;
     end else if (clear_dispatched_i) begin
       dispatched_q <= 1'b0;
+    end else if (refresh_rdata_i) begin
+      csr_rdata_q <= refresh_rdata_value_i;
     end
   end
 
@@ -149,5 +156,6 @@ module OooPendingSystemSequencer (
   assign next_pc_o = next_pc_q;
   assign csr_rdata_o = csr_rdata_q;
   assign irq_cause_o = irq_cause_q;
+
 
 endmodule

@@ -29,13 +29,6 @@ module OooControlCommitSequencer (
   input drain_pending_jump_i,
   input drain_pending_mem_i,
 
-  input drain_pending_fp_i,
-  input pending_fp_gpr_write_i,
-  input [`XLEN-1:0] pending_fp_pc_i,
-  input [`INST_W-1:0] pending_fp_inst_i,
-  input [`XLEN-1:0] pending_fp_next_pc_i,
-  input [`REG_ADDR_W-1:0] pending_fp_rd_i,
-  input [`XLEN-1:0] pending_fp_result_value_i,
 
   output ctrl_commit_valid_o,
   output [`XLEN-1:0] ctrl_commit_pc_o,
@@ -68,17 +61,9 @@ module OooControlCommitSequencer (
       !drain_pending_system_i &&
       drain_pending_branch_undispatched_i &&
       !drain_pending_branch_misaligned_i;
-  wire drain_fp_commit_w =
-      drain_complete_i && !drain_pending_arch_trap_i &&
-      !drain_pending_system_i &&
-      !drain_pending_branch_undispatched_i &&
-      !drain_pending_jump_i &&
-      !drain_pending_mem_i &&
-      drain_pending_fp_i;
+  // 【B-FP 簇】pending-FP 壳已拆: drain_fp_commit 臂删除(FP 经 ROB 真 commit)。
   wire any_drain_commit_w =
-      drain_system_commit_w || drain_branch_commit_w || drain_fp_commit_w;
-  wire fp_write_x0_w =
-      pending_fp_rd_i == {`REG_ADDR_W{1'b0}};
+      drain_system_commit_w || drain_branch_commit_w;
 
   always @(posedge clk) begin
     if (rst) begin
@@ -115,15 +100,6 @@ module OooControlCommitSequencer (
           pc_q <= pending_branch_pc_i;
           inst_q <= pending_branch_inst_i;
           next_pc_q <= pending_branch_next_pc_i;
-        end else begin
-          pc_q <= pending_fp_pc_i;
-          inst_q <= pending_fp_inst_i;
-          next_pc_q <= pending_fp_next_pc_i;
-          rd_en_q <= pending_fp_gpr_write_i;
-          rd_addr_q <= pending_fp_rd_i;
-          rd_data_q <= pending_fp_result_value_i;
-          write_q <= pending_fp_gpr_write_i && !fp_write_x0_w;
-          serial_flush_q <= pending_fp_gpr_write_i;
         end
       end
     end

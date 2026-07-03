@@ -81,8 +81,21 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
   reg [`XLEN-1:0] pending_jump_target;
   reg pending_mem;
   reg [`XLEN-1:0] pending_mem_next_pc;
-  reg pending_fp;
-  reg [`XLEN-1:0] pending_fp_next_pc;
+
+  // 【F2】DUT 的 direct 臂 mux 已上提为单源 direct_fire_succ_i(OooFrontend 构造);
+  // TB 侧按原 mux 语义重建, 现有场景(设置 jal_target 等并断言 next_fetch)保持不变。
+  wire [`XLEN-1:0] tb_direct_fire_succ =
+      direct_jal_fire ? direct_jal_target :
+      direct_ret_fire ? direct_ret_target :
+      direct_branch_fire ? (
+          direct_branch0_lane1_ret ?
+              (return_cont_dispatch ? return_cont_next_pc : ras_top) :
+          branch_target_dispatch ? branch_target_cache_next_pc :
+          branch_fallthrough_dispatch ? head_next_pc1 :
+          direct_branch_resolve_redirect ? direct_branch_resolve_next_pc :
+          direct_branch_spec_start ? direct_branch_pred_pc :
+          (direct_branch1_fire ? head_next_pc1 : head_next_pc0)) :
+      {`XLEN{1'b0}};
 
   wire [`XLEN-1:0] next_fetch_pc;
   wire outstanding_valid;
@@ -105,27 +118,11 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
     .direct_frontend_flush_i(direct_frontend_flush),
     .branch_fallthrough_keep_outstanding_i(branch_fallthrough_keep_outstanding),
     .direct_jal_fire_i(direct_jal_fire),
-    .direct_jal_target_i(direct_jal_target),
     .direct_ret_fire_i(direct_ret_fire),
-    .direct_ret_target_i(direct_ret_target),
     .direct_branch_fire_i(direct_branch_fire),
-    .direct_branch1_fire_i(direct_branch1_fire),
-    .direct_branch0_lane1_ret_i(direct_branch0_lane1_ret),
-    .return_cont_dispatch_i(return_cont_dispatch),
-    .return_cont_next_pc_i(return_cont_next_pc),
-    .ras_top_i(ras_top),
-    .branch_target_dispatch_i(branch_target_dispatch),
-    .branch_target_cache_next_pc_i(branch_target_cache_next_pc),
-    .branch_fallthrough_dispatch_i(branch_fallthrough_dispatch),
-    .head_next_pc1_i(head_next_pc1),
-    .direct_branch_resolve_redirect_i(direct_branch_resolve_redirect),
-    .direct_branch_resolve_next_pc_i(direct_branch_resolve_next_pc),
-    .direct_branch_spec_start_i(direct_branch_spec_start),
-    .direct_branch_pred_pc_i(direct_branch_pred_pc),
-    .head_next_pc0_i(head_next_pc0),
     .branch_fallthrough_capture_rsp_i(branch_fallthrough_capture_rsp),
     .direct_jump_spec_fire_i(1'b0),
-    .direct_jump_spec_target_i('0),
+    .direct_fire_succ_i(tb_direct_fire_succ),
     .branch_spec_resolve_valid_i(branch_spec_resolve_valid),
     .branch_spec_restore_i(branch_spec_restore),
     .core_branch_resolve_misaligned_i(core_branch_resolve_misaligned),
@@ -161,8 +158,6 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
     .pending_jump_target_i(pending_jump_target),
     .pending_mem_i(pending_mem),
     .pending_mem_next_pc_i(pending_mem_next_pc),
-    .pending_fp_i(pending_fp),
-    .pending_fp_next_pc_i(pending_fp_next_pc),
     .next_fetch_pc_o(next_fetch_pc),
     .outstanding_valid_o(outstanding_valid),
     .outstanding_pc_o(outstanding_pc),
@@ -244,8 +239,6 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
       pending_jump_target = {`XLEN{1'b0}};
       pending_mem = 1'b0;
       pending_mem_next_pc = {`XLEN{1'b0}};
-      pending_fp = 1'b0;
-      pending_fp_next_pc = {`XLEN{1'b0}};
     end
   endtask
 

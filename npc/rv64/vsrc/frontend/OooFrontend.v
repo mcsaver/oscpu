@@ -12,6 +12,11 @@ module OooFrontend #(
   input commit_ready_i,
   input core_branch_resolve_misaligned_w,
   input core_branch_resolve_mispredict_w,
+  // 【F2】issue-resolve BPU 回训随行载荷(后端 resolve 总线导出)
+  input core_branch_resolve_is_branch_w,
+  input core_branch_resolve_taken_w,
+  input core_branch_resolve_pred_taken_w,
+  input [`BPU_BHT_INDEX_W-1:0] core_branch_resolve_bht_idx_w,
   input [`XLEN-1:0] core_branch_resolve_next_pc_w,
   input [`XLEN-1:0] core_branch_resolve_pc_w,
   input core_branch_resolve_valid_w,
@@ -39,8 +44,10 @@ module OooFrontend #(
   input direct_branch_spec_start_w,
   input dispatch0_ready_w,
   input dispatch0_unsupported_w,
+  input dispatch0_unsupported_raw_w,
   input dispatch1_ready_w,
   input dispatch1_unsupported_w,
+  input dispatch1_unsupported_raw_w,
   input drain_complete_w,
   input execute0_valid_unused_w,
   input execute1_valid_unused_w,
@@ -69,8 +76,6 @@ module OooFrontend #(
   input pending_branch_match_clear_w,
   input pending_branch_taken_w,
   input pending_exit_q,
-  input [`XLEN-1:0] pending_fp_next_pc_q,
-  input pending_fp_q,
   input pending_jump_capture_head0_w,
   input pending_jump_capture_lane1_w,
   input pending_jump_clear_w,
@@ -156,6 +161,12 @@ module OooFrontend #(
   output core_dispatch1_valid_w,
   output [`XLEN-1:0] core_dispatch0_pred_npc_w,
   output [`XLEN-1:0] core_dispatch1_pred_npc_w,
+  // 【F2】dispatch 载荷: head0/head1 的 BHT 查询快照(bht_idx=lookup 拍 pc^ghr, 必须
+  // 随行——update 拍 ghr 已变), 后端 thread 进 IQ、resolve 拍随 resolve 总线回前端回训。
+  output [`BPU_BHT_INDEX_W-1:0] core_dispatch0_bht_idx_w,
+  output core_dispatch0_pred_taken_w,
+  output [`BPU_BHT_INDEX_W-1:0] core_dispatch1_bht_idx_w,
+  output core_dispatch1_pred_taken_w,
   output direct_branch0_dispatch_valid_w,
   output direct_branch0_fire_w,
   output direct_branch0_lane1_ret_w,
@@ -196,10 +207,6 @@ module OooFrontend #(
   output [`CTRL_BUS_W-1:0] head0_ctrl_w,
   output head0_ecall_raw_w,
   output [`OOO_SLOT_FACTS_W-1:0] head0_facts_w,
-  output head0_fp_double_w,
-  output head0_fp_gpr_write_w,
-  output head0_fp_load_raw_w,
-  output head0_fp_store_raw_w,
   output [`REG_ADDR_W-1:0] head0_rd_unused_w,
   output head0_sfence_raw_w,
   output head0_stop_raw_w,
@@ -211,11 +218,6 @@ module OooFrontend #(
   output [`CTRL_BUS_W-1:0] head1_ctrl_w,
   output head1_ecall_raw_w,
   output [`OOO_SLOT_FACTS_W-1:0] head1_facts_w,
-  output head1_fp_double_w,
-  output head1_fp_enabled_w,
-  output head1_fp_gpr_write_w,
-  output head1_fp_load_raw_w,
-  output head1_fp_store_raw_w,
   output head1_mem_raw_w,
   output [`REG_ADDR_W-1:0] head1_rd_unused_w,
   output head1_sfence_raw_w,
@@ -468,6 +470,15 @@ module OooFrontend #(
   wire head0_fp_move_to_fpr_raw_w;
   wire head0_fp_move_to_gpr_raw_w;
   wire head0_fp_mul_raw_w;
+  wire head0_fp_double_w;
+  wire head0_fp_gpr_write_w;
+  wire head0_fp_load_raw_w;
+  wire head0_fp_store_raw_w;
+  wire head1_fp_double_w;
+  wire head1_fp_enabled_w;
+  wire head1_fp_gpr_write_w;
+  wire head1_fp_load_raw_w;
+  wire head1_fp_store_raw_w;
   wire head0_fp_raw_w;
   wire head0_fp_sgnj_raw_w;
   wire head0_fp_sqrt_raw_w;
@@ -572,6 +583,7 @@ module OooFrontend #(
   wire return_cont_uop_safe_w;
   wire return_cont_valid_q;
   wire stop_head_w;
+  wire dbranch_dispatch_fire_w;  // domain-A: head0 分支普通 dispatch fire(FIFO pop 源)
   wire stop_pending_busy_w;
 
 
@@ -586,7 +598,6 @@ module OooFrontend #(
     .pending_branch_i(pending_branch_q),
     .pending_jump_i(pending_jump_q),
     .pending_mem_i(pending_mem_q),
-    .pending_fp_i(pending_fp_q),
     .pending_arch_trap_i(pending_arch_trap_q),
     .pending_system_i(pending_system_q),
     .synth_lane1_ret_pending_i(synth_lane1_ret_pending_q),
@@ -777,6 +788,8 @@ module OooFrontend #(
 
   OooFrontendDispatchGate u_frontend_dispatch_gate (
     .dispatch_valid_i(dispatch_valid_w),
+    .head0_branch_pred_taken_i(head0_branch_pred_taken_w),
+    .head1_branch_pred_taken_i(head1_branch_pred_taken_w),
     .dispatch0_exit_i(dispatch0_exit_w),
     .dispatch0_arch_trap_i(dispatch0_arch_trap_w),
     .dispatch0_system_i(dispatch0_system_w),
@@ -787,6 +800,8 @@ module OooFrontend #(
     .dispatch0_return_i(dispatch0_return_w),
     .dispatch0_unsupported_i(dispatch0_unsupported_w),
     .dispatch1_unsupported_i(dispatch1_unsupported_w),
+    .dispatch0_unsupported_raw_i(dispatch0_unsupported_raw_w),
+    .dispatch1_unsupported_raw_i(dispatch1_unsupported_raw_w),
     .dispatch0_ready_i(dispatch0_ready_w),
     .dispatch1_ready_i(dispatch1_ready_w),
     .head0_fp_raw_i(head0_fp_raw_w),
@@ -817,7 +832,9 @@ module OooFrontend #(
     .direct_jal0_fire_o(direct_jal0_fire_w),
     .direct_jal1_fire_o(direct_jal1_fire_w),
     .direct_ret1_fire_o(direct_ret1_fire_w),
-    .direct_branch1_fire_o(direct_branch1_fire_w)
+    .direct_branch1_fire_o(direct_branch1_fire_w),
+    .dbranch_dispatch_fire_o(dbranch_dispatch_fire_w),
+    .dbranch_dual_go_o(dbranch_dual_go_w)
   );
 
 
@@ -892,6 +909,7 @@ module OooFrontend #(
     .ENABLE_DIRECT_RAS_RET(ENABLE_DIRECT_RAS_RET)
   ) u_direct_control_flow_gate (
     .dispatch0_branch_i(dispatch0_branch_w),
+    .dbranch_dual_go_i(dbranch_dual_go_w),
     .dispatch0_jal_i(dispatch0_jal_w),
     .dispatch0_return_i(dispatch0_return_w),
     .dispatch0_unsupported_i(dispatch0_unsupported_w),
@@ -1249,6 +1267,7 @@ module OooFrontend #(
     .direct_branch1_dispatch_valid_i(direct_branch1_dispatch_valid_w),
     .dispatch_unsupported_i(dispatch_unsupported_w),
     .dispatch_fire_i(dispatch_fire_w),
+    .dbranch_dispatch_fire_i(dbranch_dispatch_fire_w),
     .dispatch1_barrier_fire_i(dispatch1_barrier_fire_w),
     .direct_jal0_fire_i(direct_jal0_fire_w),
     .direct_jump_spec_fire_i(direct_jump_spec_fire_w),
@@ -1683,7 +1702,6 @@ module OooFrontend #(
     .pending_arch_trap_i(pending_arch_trap_q),
     .pending_system_i(pending_system_q),
     .pending_jump_i(pending_jump_q),
-    .pending_fp_i(pending_fp_q),
     .clear_o(branch_prefetch_clear_w)
   );
 
@@ -1744,7 +1762,6 @@ module OooFrontend #(
                                          !pending_branch_dispatched_q),
     .drain_pending_jump_i(pending_jump_q),
     .drain_pending_mem_i(pending_mem_q),
-    .drain_pending_fp_i(pending_fp_q),
     .jalr_prefetch_hit_i(jalr_prefetch_hit_available_w),
     .fallthrough_pc0_i(fetch_dec0_pc_w),
     .fallthrough_pc1_i(fetch_dec1_pc_w),
@@ -1840,9 +1857,54 @@ module OooFrontend #(
   // pred_npc 源:count>=2 用下一条 FIFO entry 的 pc0(=前端实际取指的下一包首 PC,含预测-taken
   //   重定向,正确);count<2 暂用寄存 next_fetch_pc_q(滞后,F2 count<2 缺口)。
   //   注意:packet_next_pc 是 fall-through(顺序后继),不含 taken 预测,故不能直接当 pred_npc。
+  // 【F2·domain-A 哨兵版】pred_npc 语义 = 前端实际取指后继。domain-A 下前端对分支不再
+  //   按 BHT 重定向(direct fire 关闭), 实际后继恒为顺序流: count>=2 时 = 下一 FIFO 包 pc0
+  //   (真值, 可比对→not-taken 分支免 redirect); count<2 时下一包尚未取回、后继未知 →
+  //   给非法哨兵值 64'h1(指令地址至少 2 对齐, 恒不等于任何架构 next_pc)→必判 mispredict
+  //   →安全 redirect。取代旧 next_fetch_pc_q 滞后近似(其值可能凑巧等于 next_pc → 漏判
+  //   wrong-path, 即 #105 旧 46/88 的根因)。
+  // pred_npc 源(F2 foundation, 强制项下不生效): count>=2 = 下一 FIFO 包 pc0;
+  // count<2 = 64'h1 哨兵(恒 mispredict 兜底, 取代旧 next_fetch_pc_q 滞后近似)。
   wire [`XLEN-1:0] head_pred_succ_w =
       (fifo_count_q >= {{(FETCH_COUNT_W-2){1'b0}}, 2'd2}) ? fifo_head1_pc0_w
-                                                          : next_fetch_pc_q;
+                                                          : 64'h1;
+
+  // ===== 【F2 单源化】本拍 direct fire 的实际重取目标 =====
+  // 与 OooFetchPcOutstandingSequencer 的 next_fetch 更新共享同一 wire(该模块的内部
+  // 重复 mux 已删), dispatch pred_npc 的 fired-控制流臂也取它——pred 与实际取指
+  // 机械同源, 结构性消灭 #105 障碍②(拍内解析/spec 臂不同源错配)族。臂序保持
+  // 原 OutstandingSequencer 优先级: jal > ret > branch(lane1_ret > target > fallthrough
+  // > 拍内解析 > spec > 顺序) > jump_spec。
+  wire dbranch_dual_go_w;
+  wire [`XLEN-1:0] direct_fire_succ_w =
+      direct_jal_fire_w ? direct_jal_target_w :
+      (direct_ret0_fire_w || direct_ret1_fire_w) ? direct_ret_target_w :
+      direct_branch_fire_w ? (
+          direct_branch0_lane1_ret_w ?
+              (return_cont_dispatch_w ? return_cont_next_pc_q : ras_top_w) :
+          branch_target_dispatch_w ? branch_target_cache_next_pc_w :
+          branch_fallthrough_dispatch_w ? head_next_pc1_w :
+          direct_branch_resolve_redirect_w ? direct_branch_resolve_next_pc_w :
+          direct_branch_spec_start_w ? direct_branch_pred_pc_w :
+          (direct_branch1_fire_w ? head_next_pc1_w : head_next_pc0_w)) :
+      direct_jump_spec_fire_w ? jalr_spec_pred_target_w :
+      head_pred_succ_w;
+  wire d0_ctrlflow_fired_w =
+      direct_jal0_fire_w || direct_ret0_fire_w || direct_branch0_fire_w ||
+      direct_jump_spec_fire_w;
+  wire d1_ctrlflow_fired_w =
+      direct_jal1_fire_w || direct_ret1_fire_w || direct_branch1_fire_w;
+  // solo 分支(taken/!dual)与非返回 JALR 拍禁 d1 影子(谓词无 ready, 不与 pair-ready 成环)
+  wire dispatch1_squash_w =
+      (dispatch0_branch_w && !dbranch_dual_go_w) ||
+      (dispatch0_jump_w && !dispatch0_return_w);
+
+  // 【F2】dispatch 载荷: BHT 查询快照直通(prefetch/pending 臂非分支, 后端只在
+  // is_branch 时消费, 载荷错位无害)
+  assign core_dispatch0_bht_idx_w = head0_branch_bht_idx_w;
+  assign core_dispatch0_pred_taken_w = head0_branch_pred_taken_w;
+  assign core_dispatch1_bht_idx_w = head1_branch_bht_idx_w;
+  assign core_dispatch1_pred_taken_w = head1_branch_pred_taken_w;
 
 
   OooBranchBpuUpdateGate u_branch_bpu_update_gate (
@@ -1875,6 +1937,12 @@ module OooFrontend #(
     .direct_branch_pc_i(direct_branch_pc_w),
     .pending_branch_bht_idx_i(pending_branch_bht_idx_q),
     .direct_branch_bht_idx_i(direct_branch_bht_idx_w),
+    .resolve_update_valid_i(core_branch_resolve_valid_w &&
+                            core_branch_resolve_is_branch_w),
+    .resolve_update_taken_i(core_branch_resolve_taken_w),
+    .resolve_update_pred_taken_i(core_branch_resolve_pred_taken_w),
+    .resolve_update_pc_i(core_branch_resolve_pc_w),
+    .resolve_update_bht_idx_i(core_branch_resolve_bht_idx_w),
     .branch_bpu_pending0_capture_o(branch_bpu_pending0_capture_w),
     .branch_bpu_pending1_capture_o(branch_bpu_pending1_capture_w),
     .branch_bpu_lookup_event_o(branch_bpu_lookup_event_w),
@@ -1935,6 +2003,11 @@ module OooFrontend #(
     .direct_jal1_fire_i(direct_jal1_fire_w),
     .direct_ret1_fire_i(direct_ret1_fire_w),
     .dispatch0_ready_i(dispatch0_ready_w),
+    .dispatch1_ready_i(dispatch1_ready_w),
+    .dispatch1_squash_i(dispatch1_squash_w),
+    .d0_ctrlflow_fired_i(d0_ctrlflow_fired_w),
+    .d1_ctrlflow_fired_i(d1_ctrlflow_fired_w),
+    .direct_fire_succ_i(direct_fire_succ_w),
     .branch_prefetch_buf_pc0_i(branch_prefetch_buf_pc0_q),
     .branch_prefetch_buf_next_pc0_i(branch_prefetch_buf_next_pc0_q),
     .branch_prefetch_buf_inst0_i(branch_prefetch_buf_inst0_q),
@@ -2207,27 +2280,11 @@ module OooFrontend #(
       .direct_frontend_flush_i(direct_frontend_flush_w),
       .branch_fallthrough_keep_outstanding_i(branch_fallthrough_keep_outstanding_w),
       .direct_jal_fire_i(direct_jal_fire_w),
-      .direct_jal_target_i(direct_jal_target_w),
       .direct_ret_fire_i(direct_ret0_fire_w || direct_ret1_fire_w),
-      .direct_ret_target_i(direct_ret_target_w),
       .direct_branch_fire_i(direct_branch0_fire_w || direct_branch1_fire_w),
-      .direct_branch1_fire_i(direct_branch1_fire_w),
-      .direct_branch0_lane1_ret_i(direct_branch0_lane1_ret_w),
-      .return_cont_dispatch_i(return_cont_dispatch_w),
-      .return_cont_next_pc_i(return_cont_next_pc_q),
-      .ras_top_i(ras_top_w),
-      .branch_target_dispatch_i(branch_target_dispatch_w),
-      .branch_target_cache_next_pc_i(branch_target_cache_next_pc_w),
-      .branch_fallthrough_dispatch_i(branch_fallthrough_dispatch_w),
-      .head_next_pc1_i(head_next_pc1_w),
-      .direct_branch_resolve_redirect_i(direct_branch_resolve_redirect_w),
-      .direct_branch_resolve_next_pc_i(direct_branch_resolve_next_pc_w),
-      .direct_branch_spec_start_i(direct_branch_spec_start_w),
-      .direct_branch_pred_pc_i(direct_branch_pred_pc_w),
-      .head_next_pc0_i(head_next_pc0_w),
       .branch_fallthrough_capture_rsp_i(branch_fallthrough_capture_rsp_w),
       .direct_jump_spec_fire_i(direct_jump_spec_fire_w),
-      .direct_jump_spec_target_i(jalr_spec_pred_target_w),
+      .direct_fire_succ_i(direct_fire_succ_w),
       .branch_spec_resolve_valid_i(branch_spec_resolve_valid_w),
       .branch_spec_restore_i(branch_spec_restore_w),
       .core_branch_resolve_misaligned_i(core_branch_resolve_misaligned_w),
@@ -2263,8 +2320,6 @@ module OooFrontend #(
       .pending_jump_target_i(pending_jump_target_q),
       .pending_mem_i(pending_mem_q),
       .pending_mem_next_pc_i(pending_mem_next_pc_q),
-      .pending_fp_i(pending_fp_q),
-      .pending_fp_next_pc_i(pending_fp_next_pc_q),
       .next_fetch_pc_o(next_fetch_pc_q),
       .outstanding_valid_o(outstanding_valid_q),
       .outstanding_pc_o(outstanding_pc_q),
@@ -2316,5 +2371,12 @@ module OooFrontend #(
     end
   end
 `endif
+
+
+  // 【B-FP 簇】pending-FP capture 已拆, head facts 细分类仅存 facts 总线消费
+  wire frontend_fp_facts_unused_w =
+      head0_fp_double_w | head0_fp_gpr_write_w | head0_fp_load_raw_w |
+      head0_fp_store_raw_w | head1_fp_double_w | head1_fp_enabled_w |
+      head1_fp_gpr_write_w | head1_fp_load_raw_w | head1_fp_store_raw_w;
 
 endmodule

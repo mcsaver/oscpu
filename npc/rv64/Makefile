@@ -84,6 +84,7 @@ RTL_VERILATOR_DEFINES += $(if $(filter y,$(CONFIG_NPC_BRANCH_STATS)),+define+CON
 RTL_VERILATOR_DEFINES += $(if $(filter y,$(CONFIG_NPC_CACHE_STATS)),+define+CONFIG_NPC_CACHE_STATS)
 RTL_VERILATOR_DEFINES += $(if $(filter y,$(CONFIG_NPC_OOO_STATS)),+define+CONFIG_NPC_OOO_STATS)
 RTL_VERILATOR_DEFINES += $(if $(filter y,$(CONFIG_NPC_DEBUG_PORTS)),+define+CONFIG_NPC_DEBUG_PORTS)
+RTL_VERILATOR_DEFINES += $(if $(filter y,$(F2_PROBE)),+define+F2_PROBE +define+DBRA_PROBE)
 
 # 这里直接让 Verilator 一次把 RTL、DPI 包装层和 C++ 宿主编成可执行文件，避免再手写额外链接步骤。
 # 优化要点：

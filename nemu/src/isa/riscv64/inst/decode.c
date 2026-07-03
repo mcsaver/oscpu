@@ -32,7 +32,13 @@ static int decode_exec(Decode *s) {
     }
     case OPC_OP_IMM_32: {
       word_t src1 = R(rs1);
-      if (!exec_rv64i_op_imm_32(inst, rd, src1)) goto invalid;
+      if (!exec_rv64i_op_imm_32(inst, rd, src1)) {
+#ifdef CONFIG_RISCV_EXT_B
+        if (!exec_zb_op_imm_32(inst, rd, src1)) goto invalid;
+#else
+        goto invalid;
+#endif
+      }
       break;
     }
     case OPC_LOAD: {

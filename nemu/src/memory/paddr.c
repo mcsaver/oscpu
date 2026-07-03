@@ -427,7 +427,9 @@ void paddr_tohost_check_write(paddr_t addr, uint32_t len) {
   if (!paddr_tohost_range_overlap(addr, len)) return;
 
   // Read the full XLEN word so byte/word/doubleword writes all converge.
-  word_t value = pmem_read(paddr_tohost_addr, sizeof(word_t));
+  // tohost 可能刚被 guest store 写入、仍 dirty 停在 write-back dcache 未回 pmem，
+  // 必须用 dcache 一致视图读，否则读到 pmem stale 0 → 漏判 tohost 退出(rv64dv self-loop 暴露)。
+  word_t value = dcache_peek_read(paddr_tohost_addr, sizeof(word_t));
   if (value == 0) return;
 
   uint64_t code = paddr_tohost_decode_exit(value);
@@ -450,10 +452,24 @@ static void paddr_dma_notify_cpu(paddr_t addr, uint32_t len) {
   vaddr_ifetch_cache_invalidate_paddr(addr, len);
 }
 
+// DMA 写必须经 dcache 一致视图落存(dcache_coherent_write: 命中原地改保持 dirty、
+// 未命中直写 pmem)。旧实现 memcpy/pmem_write 直写 pmem: 若 dcache 恰有该行,
+// guest 读 dcache 返回 stale 旧值(看不到 DMA 数据), dirty 行将来 writeback 还会
+// 反向覆盖 DMA 数据。与 #108 tohost 漏判同源(write-back dcache 的 host 侧直访问)。
+static void paddr_dma_coherent_copy_in(paddr_t addr, const uint8_t *src, uint32_t len) {
+  uint32_t i = 0;
+  for (; i + 8 <= len && ((addr + i) & 7) == 0; i += 8) {
+    word_t v;
+    memcpy(&v, src + i, 8);
+    dcache_coherent_write(addr + i, 8, v);
+  }
+  for (; i < len; i++) dcache_coherent_write(addr + i, 1, src[i]);
+}
+
 bool paddr_dma_write(paddr_t addr, const void *buf, uint32_t len) {
   if (len == 0) return true;
   if (!pmem_range_ok(addr, len)) return false;
-  memcpy(guest_to_host(addr), buf, len);
+  paddr_dma_coherent_copy_in(addr, buf, len);
   paddr_dma_notify_cpu(addr, len);
   paddr_write_trace_after_write(addr, len,
       paddr_write_trace_first_word(buf, len), buf, "dma-buffer");
@@ -466,12 +482,34 @@ bool paddr_dma_write(paddr_t addr, const void *buf, uint32_t len) {
 bool paddr_dma_write_value(paddr_t addr, int len, word_t data) {
   assert(len >= 1 && len <= 8);
   if (!pmem_range_ok(addr, (uint32_t)len)) return false;
-  pmem_write(addr, len, data);
+  dcache_coherent_write(addr, len, data);
   paddr_dma_notify_cpu(addr, (uint32_t)len);
   paddr_write_trace_after_write(addr, (uint32_t)len, data, &data, "dma-value");
   paddr_tohost_check_write(addr, (uint32_t)len);
   nemu_profile_count_if(NEMU_PROFILE_PADDR_DMA_WRITES, 1);
   nemu_profile_count_if(NEMU_PROFILE_PADDR_DMA_WRITE_BYTES, (uint64_t)len);
+  return true;
+}
+
+// DMA 读的对称一致入口: 设备读 guest 内存(virtio ring/描述符/数据段)必须看到
+// guest 经 dcache 写入(可能 dirty 未回 pmem)的最新值。旧路径 paddr_read/裸 memcpy
+// 读 pmem 会拿到 stale——guest 刚 kick 的描述符 dirty 在 dcache 时 virtio 必错。
+word_t paddr_dma_read_value(paddr_t addr, int len) {
+  assert(len >= 1 && len <= 8);
+  if (!pmem_range_ok(addr, (uint32_t)len)) return 0;
+  return dcache_peek_read(addr, len);
+}
+
+bool paddr_dma_read(paddr_t addr, void *buf, uint32_t len) {
+  if (len == 0) return true;
+  if (!pmem_range_ok(addr, len)) return false;
+  uint8_t *out = buf;
+  uint32_t i = 0;
+  for (; i + 8 <= len && ((addr + i) & 7) == 0; i += 8) {
+    word_t v = dcache_peek_read(addr + i, 8);
+    memcpy(out + i, &v, 8);
+  }
+  for (; i < len; i++) out[i] = (uint8_t)dcache_peek_read(addr + i, 1);
   return true;
 }
 
@@ -494,6 +532,23 @@ void init_mem() {
   IFDEF(CONFIG_SOC_SIM, soc_sim_reset());
   // cache 以 paddr 层作为后端，初始化只建立 tag/data 状态，不改变 PMEM/MMIO 的权威语义。
   IFDEF(CONFIG_CACHE, init_cache());
+}
+
+// 判断物理地址区间是否落在任何合法访问窗口 (pmem / CLINT / PLIC / SoC / 已注册 MMIO)。
+// 供 vaddr 层在 CPU 访存翻译后做可访问性预检: 命中则正常访存, 未命中则抬 guest access-fault,
+// 取代原先 paddr/mmio 层遇到 guest 可控越界地址就 host assert/panic 崩掉整个进程的行为
+// (这是 rv64dv 等随机程序压测把 NEMU 当 reference 时的可靠性前提: 一条非法访存不该干掉进程内 ref.so)。
+// 热路径 (pmem 命中) 只做一次 in_pmem 判断即返回, 不遍历设备表, 因此对正常访存零额外开销。
+bool paddr_is_accessible(paddr_t addr, int len) {
+  if (len <= 0) return false;
+  paddr_t last = addr + (paddr_t)len - 1;
+  if (last < addr) return false;  // 长度回绕/溢出视为不可访问
+  if (likely(in_pmem(addr) && in_pmem(last))) return true;
+  if (MUXDEF(CONFIG_ISA_riscv, isa_riscv_clint_in_range(addr), false)) return true;
+  if (MUXDEF(CONFIG_ISA_riscv, isa_riscv_plic_in_range(addr), false)) return true;
+  if (MUXDEF(CONFIG_SOC_SIM, soc_sim_in_range(addr), false)) return true;
+  if (MUXDEF(CONFIG_DEVICE, mmio_is_mapped(addr, len), false)) return true;
+  return false;
 }
 
 //对外的物理地址读写入口，若地址在pmem范围则走pmem_read/pmem_write，否则在启用CONFIG_DEVICE时调用mmio_read/mmio_write

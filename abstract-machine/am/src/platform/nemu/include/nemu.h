@@ -2,6 +2,7 @@
 #define NEMU_H__
 
 #include <klib-macros.h>
+#include <device_address.h>   // 全 ISA 共用的设备地址图 (默认 Linux/SoC, -DDEVICE_MAP_LEGACY 切回旧图)
 
 
 #include ISA_H // the macro `ISA_H` is defined in CFLAGS
@@ -19,31 +20,42 @@
 # error unsupported ISA __ISA__
 #endif
 
-#if defined(__ARCH_X86_NEMU)
-# define DEVICE_BASE 0x0
-#else
-# define DEVICE_BASE 0xa0000000
+// 设备地址全部来自 <device_address.h> —— 所有 ISA 共用同一套图,不再按 ISA 分支。
+#define SERIAL_PORT     DEV_SERIAL_BASE  // ns16550a THR@0
+#define KBD_ADDR        DEV_KBD_BASE
+#define RTC_ADDR        DEV_RTC_BASE
+#define VGACTL_ADDR     DEV_VGACTL_BASE
+#define AUDIO_ADDR      DEV_AUDIO_BASE
+#define DISK_ADDR       DEV_DISK_BASE
+#define FB_ADDR         DEV_FB_BASE
+#define AUDIO_SBUF_ADDR DEV_AUDIO_SBUF
+
+#if defined(__riscv) && !defined(DEVICE_MAP_LEGACY)
+// riscv64-nemu(设备树图): AM 的 halt/timer 不再依赖 NEMU 未实现的简易设备,
+// 而是统一架构在设备树真设备上——halt 走 reset_syscon, timer 走 goldfish-rtc。
+#define SYSCON_ADDR        DEV_SYSCON_BASE        // SiFive Test Finisher (poweroff/exit)
+#define GOLDFISH_RTC_ADDR  DEV_GOLDFISH_RTC_BASE  // 纳秒时间源
 #endif
-
-#define MMIO_BASE 0xa0000000
-
-//除去最后两个其余均是再DEVICE_BASE_上加偏移得到，后两个基于MMIO_BASE
-#define SERIAL_PORT     (DEVICE_BASE + 0x00003f8)//串口
-#define KBD_ADDR        (DEVICE_BASE + 0x0000060)//键盘
-#define RTC_ADDR        (DEVICE_BASE + 0x0000048)//时钟
-#define VGACTL_ADDR     (DEVICE_BASE + 0x0000100)//VGA控制器
-#define AUDIO_ADDR      (DEVICE_BASE + 0x0000200)//音频控制寄存器
-#define DISK_ADDR       (DEVICE_BASE + 0x0000300)//磁盘控制寄存器
-#define FB_ADDR         (MMIO_BASE   + 0x1000000)//显存framebuffer起始地址
-#define AUDIO_SBUF_ADDR (MMIO_BASE   + 0x1200000)//音频流缓冲区地址
 
 extern char _pmem_start;
 #define PMEM_SIZE (128 * 1024 * 1024)
 #define PMEM_END  ((uintptr_t)&_pmem_start + PMEM_SIZE)
-#define NEMU_PADDR_SPACE \
+
+#if defined(DEVICE_MAP_LEGACY)
+// 旧图: 设备集中在 0xa0000000 段
+# define NEMU_PADDR_SPACE \
   RANGE(&_pmem_start, PMEM_END), \
   RANGE(FB_ADDR, FB_ADDR + 0x200000), \
-  RANGE(MMIO_BASE, MMIO_BASE + 0x1000) /* serial, rtc, screen, keyboard */
+  RANGE(0xa0000000, 0xa0000000 + 0x1000) /* serial, rtc, screen, keyboard */
+#else
+// 默认 Linux/SoC 图: 设备分散在低地址簇与 0x21000000 段,分段覆盖 MMIO 空间
+# define NEMU_PADDR_SPACE \
+  RANGE(&_pmem_start, PMEM_END), \
+  RANGE(DEV_SYSCON_BASE, DEV_SYSCON_BASE + 0x1000), /* reset_syscon (halt) */ \
+  RANGE(DEV_CLINT_BASE, DEV_CLINT_BASE + 0x10000),  /* clint */ \
+  RANGE(0x10000000, 0x10014000),                    /* serial/virtio/goldfish-rtc/rtc/kbd/disk/audio 簇 */ \
+  RANGE(DEV_VGACTL_BASE, DEV_AUDIO_SBUF + 0x200000) /* vgactl/fb/audio-sbuf */
+#endif
 
 typedef uintptr_t PTE;
 

@@ -21,7 +21,13 @@ void __am_disk_status(AM_DISK_STATUS_T *stat);
 void __am_disk_blkio(AM_DISK_BLKIO_T *io);
 
 static void __am_timer_config(AM_TIMER_CONFIG_T *cfg) { cfg->present = true; cfg->has_rtc = true; }
-static void __am_input_config(AM_INPUT_CONFIG_T *cfg) { cfg->present = true;  }
+static void __am_input_config(AM_INPUT_CONFIG_T *cfg) {
+#if defined(__riscv) && !defined(DEVICE_MAP_LEGACY)
+  cfg->present = false;  // 设备树无简易键盘 (KBD 属 AM 仿真扩展, 不在设备树)
+#else
+  cfg->present = true;
+#endif
+}
 static void __am_uart_config(AM_UART_CONFIG_T *cfg)   { cfg->present = false; }
 static void __am_net_config (AM_NET_CONFIG_T *cfg)    { cfg->present = false; }
 

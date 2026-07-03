@@ -18,6 +18,14 @@ config DEVICE_UPDATE_CHECK_INTERVAL
 
 if DEVICE
 
+config DEVICE_MAP_LEGACY
+  bool "Use legacy AM device map (0xa0000000 family)"
+  default n
+  help
+    设备地址默认走统一的 Linux/SoC 图 (见 include/device/device_address.h,
+    与 AM/NPC 三方一致)。仅当为封存的 RV32 旧目标构建 difftest 参考时置 y,
+    切回旧 AM 图 (serial 0xa00003f8 / rtc 0xa0000048 ...)。
+
 config HAS_PORT_IO
   bool
   default y if ISA_x86

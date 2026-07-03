@@ -298,8 +298,8 @@ module tb_ooo_fetch_head_pair_gate;
     tb_check1("lane0 branch fact", head0_facts[`OOO_SLOT_FACT_BRANCH], 1'b1);
     tb_check1("lane0 branch suppresses lane1 branch", head1_branch_raw, 1'b0);
     tb_check1("lane0 branch suppresses lane1 fault", head_fetch_fault1, 1'b0);
-    tb_check1("branch dispatch alias", direct_branch0_dispatch_valid,
-              dispatch0_branch);
+    // domain-A(OOO_DBRANCH_DOMAIN_A=1): direct 分支 dispatch 资格恒 0, 分支经普通 dispatch。
+    tb_check1("branch direct dispatch disabled (domain-A)", direct_branch0_dispatch_valid, 1'b0);
 
     reset_inputs();
     set_ctrl0_bit(`CTRL_ILLEGAL_BIT, 1'b1);

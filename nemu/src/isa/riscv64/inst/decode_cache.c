@@ -590,7 +590,13 @@ dc_op_imm_32: {
     default:
       break;
   }
-  if (!exec_rv64i_op_imm_32(inst, entry->rd, R(entry->rs1))) goto invalid;
+  if (!exec_rv64i_op_imm_32(inst, entry->rd, R(entry->rs1))) {
+#ifdef CONFIG_RISCV_EXT_B
+    if (!exec_zb_op_imm_32(inst, entry->rd, R(entry->rs1))) goto invalid;
+#else
+    goto invalid;
+#endif
+  }
   goto decoded;
 }
 dc_load:

@@ -628,7 +628,7 @@ module tb_ooo_sv39_boot;
                  dut.u_ooo_core.pending_branch_q,
                  dut.u_ooo_core.pending_jump_q,
                  dut.u_ooo_core.pending_mem_q,
-                 dut.u_ooo_core.pending_fp_q,
+                 1'b0,  // pending_fp_q: pending-FP 壳已拆, 占位保持格式对齐
                  dut.u_ooo_core.pending_system_q,
                  dut.u_ooo_core.pending_system_dispatched_q,
                  dut.u_ooo_core.pending_system_csr_q,

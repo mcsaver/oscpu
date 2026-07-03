@@ -1,5 +1,0 @@
-using /home/lyg/PA/ysyx-workbench/npc/rv64/testsuites/core-tests/act4-npc-rva22s64-pmp-work/sail-RVA22S64/build/priv/pmp/pmp64/PMPSm/pmpsm_cfg_XWR_all-03.sig for test-signature output.
-setting signature-granularity to 8 bytes
-
-RVCP-SUMMARY: TEST SIGRUN - Test File "pmpsm_cfg_XWR_all-03.S"
-

@@ -218,7 +218,8 @@ module tb_ooo_fetch_head_classify_gate;
     tb_check1("legal fp masks integer illegal", illegal_raw, 1'b0);
     tb_check1("legal fp raw", fp_raw, 1'b1);
     tb_check1("legal fp enabled", fp_enabled, 1'b1);
-    tb_check1("legal fp stops for pending fp", stop_raw, 1'b1);
+    // 【B-FP 簇】FP 迁域 A: fp_raw 不再是 stop 类(普通 dispatch 进 FP 簇)
+    tb_check1("legal fp no longer stops (domain-A)", stop_raw, 1'b0);
     check_fact_aliases("fp enabled");
 
     reset_inputs();

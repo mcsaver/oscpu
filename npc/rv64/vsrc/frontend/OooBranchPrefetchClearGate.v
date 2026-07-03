@@ -18,7 +18,6 @@ module OooBranchPrefetchClearGate(
   input pending_arch_trap_i,
   input pending_system_i,
   input pending_jump_i,
-  input pending_fp_i,
   output clear_o
 );
 
@@ -35,7 +34,6 @@ module OooBranchPrefetchClearGate(
       (!direct_frontend_flush_i && pending_system_csr_commit_i) ||
       (!csr_trap_mem_valid_i && !direct_frontend_flush_i && stop_pending_i &&
        drain_complete_i &&
-       (pending_arch_trap_i || pending_system_i || pending_jump_i ||
-        pending_fp_i));
+       (pending_arch_trap_i || pending_system_i || pending_jump_i));
 
 endmodule

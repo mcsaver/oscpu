@@ -1,0 +1,10 @@
+# 父 am-kernels/.gitignore 首行 `*` 只白名单 .c/.cc/.S/README/.gitignore;
+# arch-test 的入口是 Makefile + shell 脚本 + 配置,显式白名单,否则新文件会丢失。
+!Makefile
+!scripts/*.sh
+!config/**
+# 环境与产物不入库(可由 scripts/act4-preflight.sh 重建/重下载):
+# env/ = venv/gems/ruby-dev-deb/sail 源/xpack 工具链; work/ = 权威 ELF 基线; build/ = 运行产物。
+env/
+work/
+build/

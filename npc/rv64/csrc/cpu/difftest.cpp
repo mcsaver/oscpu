@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
 
 enum {
   DIFFTEST_TO_DUT = 0,
@@ -151,6 +152,41 @@ bool npc_difftest_step(npc_word_t pc, uint32_t inst, npc_word_t next_pc,
   // 不比对 commit 上报的 next_pc——OoO 的 ROB 存 dispatch 时的【预测】next_pc,误预测分支
   // 解析为 taken 后该字段不更新(核实际已取 target),直接比 next_pc 会误报;改用"committed pc
   // == ref 步进前 pc"校验控制流(下一条 committed pc 即上一条的真实 next_pc),等价且正确。
+  // 【F2 difftest 基建】MMIO 访存的 skip 判定搬到 commit 拍、按指令解码 EA:
+  // 旧机制(桥 rsp 拍/uart 总线拍置全局 skip 旗)有两个致命时序洞——
+  //   (a) SQ 切换后 store 的总线访问在 commit 之后, UART store 自己吃不到 skip,
+  //       ref 真执行 MMIO store → fault → ref.pc=0(既往 CoreMark 3.2M 条预存墙真身);
+  //   (b) skip 旗与 commit 粗配对, MIQ/F2 时代 rsp→commit 距离拉大即错位毒 ref。
+  // 此处按 dut commit 的 inst 解码(load/store/AMO)+dut GPR 算 EA, 非 pmem 即为
+  // MMIO 访问: ref 不步进, 拷 dut GPR 进 ref、ref.pc=pc+4(mem 指令恒非控制流)。
+  {
+    uint32_t opc = inst & 0x7f;
+    bool mem_is_load = (opc == 0x03) || (opc == 0x07);
+    bool mem_is_store = (opc == 0x23) || (opc == 0x27);
+    bool mem_is_amo = (opc == 0x2f);
+    if (mem_is_load || mem_is_store || mem_is_amo) {
+      uint32_t rs1 = (inst >> 15) & 0x1f;
+      int64_t imm = 0;
+      if (mem_is_load) imm = (int64_t)(int32_t)inst >> 20;
+      else if (mem_is_store)
+        imm = (int64_t)((int32_t)(inst & 0xfe000000) >> 20) | ((inst >> 7) & 0x1f);
+      npc_word_t ea = gpr[rs1] + (npc_word_t)imm;
+      if (ea < NPC_PMEM_BASE) {
+        DiffContext ref_chk = {};
+        g_ref_regcpy(&ref_chk, DIFFTEST_TO_DUT);
+        if (ref_chk.pc != pc) {
+          LogBoth("[npc-diff] control-flow mismatch (mmio skip): dut commit pc=0x%016" NPC_PRIxWORD
+                  " inst=0x%08x, ref expects pc=0x%016" NPC_PRIxWORD, pc, inst, ref_chk.pc);
+          return false;
+        }
+        DiffContext dut_ov = make_dut_context(pc + 4, gpr, rd_en, rd_addr, rd_data);
+        g_ref_regcpy(&dut_ov, DIFFTEST_TO_REF);
+        g_skip_ref = false;   // 旧机制若已挂旗, 一并吸收(本条即其归属)
+        return true;
+      }
+    }
+  }
+
   DiffContext ref_pre = {};
   g_ref_regcpy(&ref_pre, DIFFTEST_TO_DUT);
   if (ref_pre.pc != pc) {

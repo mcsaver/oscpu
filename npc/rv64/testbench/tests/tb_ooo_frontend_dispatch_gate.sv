@@ -44,6 +44,13 @@ module tb_ooo_frontend_dispatch_gate;
 
   OooFrontendDispatchGate dut (
     .dispatch_valid_i(dispatch_valid),
+    // 【F2】新输入: TB 场景默认 not-taken 预测但 head1 不平凡不成立时(raw=0),
+    // dual_go 只由 pred_taken 决定; 置 pred_taken=1 使 dual_go=0, 保持原 direct
+    // 模型场景语义(分支拍 lane1 禁)不变。lane1 branch fire 场景单独驱动 head1 侧。
+    .head0_branch_pred_taken_i(1'b1),
+    .head1_branch_pred_taken_i(1'b1),
+    .dispatch0_unsupported_raw_i(1'b0),
+    .dispatch1_unsupported_raw_i(1'b0),
     .dispatch0_exit_i(dispatch0_exit),
     .dispatch0_arch_trap_i(dispatch0_arch_trap),
     .dispatch0_system_i(dispatch0_system),

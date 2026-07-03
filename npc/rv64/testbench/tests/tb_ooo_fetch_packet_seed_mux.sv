@@ -23,7 +23,6 @@ module tb_ooo_fetch_packet_seed_mux;
   reg drain_pending_branch_undispatched;
   reg drain_pending_jump;
   reg drain_pending_mem;
-  reg drain_pending_fp;
   reg jalr_prefetch_hit;
 
   reg [`XLEN-1:0] fallthrough_pc0;
@@ -90,7 +89,6 @@ module tb_ooo_fetch_packet_seed_mux;
     .drain_pending_branch_undispatched_i(drain_pending_branch_undispatched),
     .drain_pending_jump_i(drain_pending_jump),
     .drain_pending_mem_i(drain_pending_mem),
-    .drain_pending_fp_i(drain_pending_fp),
     .jalr_prefetch_hit_i(jalr_prefetch_hit),
     .fallthrough_pc0_i(fallthrough_pc0),
     .fallthrough_pc1_i(fallthrough_pc1),
@@ -211,7 +209,6 @@ module tb_ooo_fetch_packet_seed_mux;
       drain_pending_branch_undispatched = 1'b0;
       drain_pending_jump = 1'b0;
       drain_pending_mem = 1'b0;
-      drain_pending_fp = 1'b0;
       jalr_prefetch_hit = 1'b0;
 
       fallthrough_pc0 = 64'h0000_0000_0000_1000;
@@ -361,12 +358,6 @@ module tb_ooo_fetch_packet_seed_mux;
     drain_pending_arch_trap = 1'b1;
     #1;
     check_clear("drain arch trap clears");
-
-    reset_inputs();
-    drain_complete = 1'b1;
-    drain_pending_fp = 1'b1;
-    #1;
-    check_clear("drain fp clears");
 
     tb_finish("tb_ooo_fetch_packet_seed_mux");
   end

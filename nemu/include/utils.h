@@ -17,7 +17,11 @@
 #define __UTILS_H__
 
 #include <common.h>
+#ifdef __cplusplus
+#include <atomic>
+#else
 #include <stdatomic.h>
+#endif
 
 // ----------- state -----------
 
@@ -25,7 +29,12 @@ enum { NEMU_RUNNING, NEMU_STOP, NEMU_END, NEMU_ABORT, NEMU_QUIT };
 
 typedef struct {
   // QMP runtime thread may request quit while the CPU loop observes the state.
+  // C 侧(NEMU)用 C11 _Atomic; C++ 侧(spike-diff difftest.cc 包含本头)用 std::atomic, ABI 兼容。
+#ifdef __cplusplus
+  std::atomic<int> state;
+#else
   _Atomic int state;
+#endif
   vaddr_t halt_pc;
   uint32_t halt_ret;
 } NEMUState;
