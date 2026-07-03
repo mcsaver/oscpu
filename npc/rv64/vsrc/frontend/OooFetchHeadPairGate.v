@@ -187,9 +187,17 @@ module OooFetchHeadPairGate (
       !head0_facts_o[`OOO_SLOT_FACT_JUMP] &&
       !head0_facts_o[`OOO_SLOT_FACT_STOP] && (head_resp1_i != 2'b00);
   assign head_fetch_fault_o = head_fetch_fault0_o | head_fetch_fault1_o;
+  // 【F2 修复 2026-07-03: rv64mi-p-illegal】head0=分支时不再压制 head1 译码。
+  // F2 下 not-taken 分支与 head1 原子双发, head1 在正确路径上, 必须译码使 head1 的 facts
+  // (尤其 system_raw/exit/arch_trap)正确 —— 否则 head0=分支 & head1=CSR/system 时 head1_system_raw=0,
+  // dbranch_dual_go 看不到 head1 是 system, 把 CSR 当无害指令双发进 domain-A(CSR 在 domain-A 不执行→读回 0),
+  // 导致 trap handler 的 `csrr t0,mepc` 读回 0 → 匹配失败 → j fail(rv64mi-p-illegal 既有失败根因)。
+  // 修正后: head1=system → dbranch_dual_go=0 → 分支 fire+重取 head1 → head1 成 head0 走 domain-B(读对);
+  // head1=普通指令 → facts 正确但 dbranch_dual_go 仍=1(正常双发, 行为不变)。
+  // 与 OooFetchHeadClassifyGate 注释所述"head0=FP 压制 head1"的 FP 家族 bug 同类(FP 已修, 分支同理);
+  // JUMP/STOP 的压制保留(不在本 bug 覆盖, 避免扩大改动面)。head_fetch_fault1 保持(与 resp1==0 互斥, 无关)。
   assign head1_decode_valid_w =
       fifo_has_packet_i && !head_fetch_fault0_o &&
-      !head0_facts_o[`OOO_SLOT_FACT_BRANCH] &&
       !head0_facts_o[`OOO_SLOT_FACT_JUMP] &&
       !head0_facts_o[`OOO_SLOT_FACT_STOP] && (head_resp1_i == 2'b00);
 

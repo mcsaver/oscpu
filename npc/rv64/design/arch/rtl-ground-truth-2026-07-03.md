@@ -200,19 +200,20 @@ git-stash 基线证否，与本改动无关）。
 - 本次审计**只读源码,未跑仿真**,"当前全绿与否"不在本文件断言范围;历史通过状态见
   `.github/memory/project-status.md`。
 - riscv-tests 仅跑 -p（物理内存）变体,无 -v 虚存变体——§3.1-2 的跨页 misaligned 缺口因此不被现有套件覆盖。
-- **⚠️ 既有失败（2026-07-03 实测）**：当前 F2 生产核（HEAD, `OOO_ROB_WALK_MODE=1`）跑 riscv-tests
-  `--riscv-privileged` = **353/354**，唯一 FAIL = `rv64mi-p-illegal`(exit=2)。git-stash 基线证明是
-  **既有失败**（mode0 历史运行 PASS、mode1 起 FAIL），与文档他处"271/0 全绿 / 全绿"声称**矛盾**——
-  那些是 F2 切换/sync 之前或不含该特权用例的快照。**已 5 探针确凿钉死（2026-07-03，沿途推翻 3 个错误假设）**：
-  ①bad2(M)/bad5(S) 两个 illegal trap 的 epc/cause=2/tval 全对、csr_mepc_q 确实变成 bad5；②但 bad5 的
-  M-handler(`synchronous_exception`)跑了 `csrr mcause`/`csrr mtval`，**`csrr t0,mepc`(0x8000044c) 从未派发**。
-  真因 = **F2 在 head0=分支 + head1=CSR/system 同包时丢弃 head1**：包 `[bne(head0), csrr mepc(head1)]` 里
-  bne 不跳但 head1 的 csrr mepc 被丢 → t0 保持旧值(mcause=2) → handler `beq t0,bad标签` 全不匹配 → `j fail`。
-  对比：`csrr mcause`(head1，head0=li ALU)工作、`csrr mepc`(head1，head0=bne 分支)被丢。次要异常：`.word 0`
-  被当 2 字节压缩非法解码。**修复位置**：`OooFrontendDispatchGate` 分支双发的 FIFO pop（`dbranch_dual_go`(:61-66)
-  已排除 head1_system 不双发、`dispatch1_barrier`(:102)已含 head1_system，但 head0=分支单发时整包仍 pop 掉
-  head1）——改为 head0=分支 & head1=barrier 时只 pop head0、保留 head1 走 domain-B 捕获。**高回归风险，须
-  spec 先行+全回归，待落地**（详见记忆 rv64mi-illegal-preexisting-f2-fail）。
+- **✅ 已修复（2026-07-03）：`rv64mi-p-illegal`**（曾是 F2 核唯一 riscv-tests 失败，353/354）。
+  修复后 riscv-tests(默认+特权) **355/0 全绿**、模块 TB 96/96、difftest 38/3 不变（零退化）。
+  **根因（5+探针逐层钉死，沿途证否 3 个错误假设：head1-drop / trap-PC 捕获=0 / CSR 读陈旧均被架构退休真相推翻）**：
+  `OooFetchHeadPairGate.v:190` 的 `head1_decode_valid_w` 含 `!head0_facts[OOO_SLOT_FACT_BRANCH]`
+  → **head0=分支时 head1 不译码(facts 全 0)** → `head1_system_raw=0` → 前端双发 `dbranch_dual_go`
+  看不到 head1 是 CSR/system → 把 CSR 双发进 domain-A（domain-A 不执行 CSR→读回 0）。表现：trap handler 包
+  `[bne(head0), csrr mepc(head1)]` 里 csrr mepc 读回 0（mepc 寄存器却=0x264，`NPC_TRAPWATCH` 证），
+  handler `beq t0,bad标签` 全不匹配 → `j fail`。这是 `OooFetchHeadClassifyGate:132-134` 注释点名的
+  "head0=FP 压制 head1"FP 家族 bug 的**分支版**（FP 已修、分支没修）。
+  **修复**：去掉 `head1_decode_valid_w` 的 `!head0_facts[OOO_SLOT_FACT_BRANCH]`（仅 BRANCH，保留 JUMP/STOP）——
+  head0=分支时也译码 head1 → head1_system_raw 正确 → dbranch_dual_go 正确排除 head1=system → 分支 fire+重取
+  head1 → csrr 成 head0 走 domain-B 读对；head1=普通指令行为不变。
+  **方法学**：dispatch 侧探针会被投机/双发/截断 confound；用 `NPC_TRAPWATCH`/`NPC_COMMITWATCH`（env,免重编）
+  取架构退休真相定死（详见记忆 [[rv64mi-illegal-preexisting-f2-fail]]）。
 - ACT/arch-test 入口不在本目录（已迁 `am-kernels/arch-test`）;Linux/Ubuntu 启动编排在仓库根 `Linux/`。
 
 ---
