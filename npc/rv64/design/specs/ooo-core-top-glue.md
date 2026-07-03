@@ -18,10 +18,10 @@
 | CSR/privilege/PMP 状态 | `core/` 状态实现 + `control/` 事件 mux | `NpcCoreTop` 直接例化 `CsrFile`；`OooCoreTopGlue` 只导出 CSR access/trap/fflags/retire 事件并消费 CSR 状态 | CSR 状态 owner 已从 glue 上提 |
 | 基础 decode/RVC/FP decode | `decode/` | 独立 helper | 已拆 |
 | rename/dispatch/ROB/IQ/PRF/backend | 对应外层目录 | `OooAluCoreSlice` 及子模块 | 已拆为执行核心切片 |
-| FP pending 执行数据通路 | `execute/` | `OooFpPendingExec`/`OooPendingFpSequencer` | 已拆 |
-| FPR 状态/读写 | `regread_bypass/` | `NpcCoreTop` 直接例化 `OooFpRegFile`；`OooCoreTopGlue` 只导出 FPR read/write 事件并消费读数据 | FPR 状态 owner 已从 glue 上提 |
+| FP 执行数据通路 | `execute/` | FP 真乱序簇（`OooFpBackend`/`OooFpArithGate` 等，经 `OooAluCoreSlice` 子树）；旧 `OooFpPendingExec`/`OooPendingFpSequencer` 已随 pending-FP 拆除删除 | 已迁域 A |
+| FPR 状态/读写 | `regread_bypass/`（模块源） | `OooFpRegFile` 已随 FP 迁域 A 移入 execute/ FP 簇内例化（`OooIntBackend`→`OooFpBackend` 的 `u_arch_fpr`）；glue 与 `NpcCoreTop` 均不再持有 FPR 状态 | FPR 状态 owner 已下沉到 FP 簇 |
 | pending/drain/CSR/trap/flush/recovery | `control/` + `frontend/` helper | pending/control sequencer 与 mux；`OooPendingDrainResolveGate` 承接 drain/resolve 中枢；`OooCsrIllegalProbeGate` 承接 CSR illegal lane probe；`OooCoreSliceControlGate` 承接 core slice 准入 | 已拆为 helper，由 core glue 接线 |
-| FP commit/GPR-FPR/fflags 修饰 | `writeback/` | `OooFpCommitGate` | 已拆 |
+| FP commit/GPR-FPR/fflags 修饰 | `writeback/` | `OooFpCommitGate` 已随 FP 迁域 A 删除（FP 经 ROB 真 commit，fflags/dirty commit 聚合降为 glue 级连续赋值） | 已删除 |
 | writeback/commit 修饰 | `writeback/` | commit/control/synthetic sequencer 与 mux；`OooSyntheticLane1RetCommitGate` 承接 synthetic lane1 return commit/drop 判定 | 已拆为 helper，由 core glue 接线 |
 | pending operand read | `regread_bypass/` | `OooPendingOperandReadGate` | 已拆 |
 | 对外 trap/debug/CSR 观测输出 | `control/` | `OooCoreObservableOutputGate` | 已拆 |
@@ -30,15 +30,16 @@
 
 - `OooCoreTopGlue` 不包含 `always` 状态块；新增功能状态必须落到职责目录的
   sequencer/register owner 中。
-- `OooCoreTopGlue` 可以保留跨子系统 wire、实例参数和端口转接；当前不保留顶层
-  `assign`，也不能写 pending/drain 规则、redirect 规则、FP commit 规则或 fetch
-  packet 规则。
+- `OooCoreTopGlue` 可以保留跨子系统 wire、实例参数和端口转接；顶层只保留少量
+  聚合级连续赋值（当前 4 个 `assign`：`csr_cycle_count_enable_w` 与 FP
+  fflags/dirty commit 聚合，另有 `dispatch0_facts_w` packing 等 `wire =` 赋值），
+  不能写 pending/drain 规则、redirect 规则或 fetch packet 规则。
 - `OooCoreTopGlue` 不再实例化 `CsrFile`；CSR/privilege/PMP 状态由 `NpcCoreTop`
   直接例化的 `CsrFile` 持有，core glue 只能通过边界端口产生精确 CSR 事件并消费
   CSR 状态。
-- `OooCoreTopGlue` 不再实例化 `OooFpRegFile`；FPR 状态由 `NpcCoreTop` 直接例化的
-  `regread_bypass/OooFpRegFile` 持有，core glue 只能导出 pending FP 的读地址和
-  load/result 写回事件，并消费 FPR 读数据。
+- `OooCoreTopGlue` 不再实例化 `OooFpRegFile`；FPR 状态随 FP 迁域 A 由 execute/ FP 簇
+  （`OooFpBackend` 内 `u_arch_fpr`）持有，glue 与 `NpcCoreTop` 均不再接触 FPR 读写散线
+  （pending-FP 通道已拆除）。
 - direct JAL/return、predictor update、CSR illegal lane 归属、synthetic lane1 retire
   和 core slice commit/flush 准入都必须由职责目录 owner 输出，不能在 core glue
   重新拼布尔公式。
@@ -53,10 +54,10 @@
 
 | glue 实例 | wrapper / 模块 | 聚合目录 | spec |
 | --- | --- | --- | --- |
-| `u_frontend` | `OooFrontend` | `frontend/`(49) + `decode/` DecodeStage(6) | [`ooo-frontend.md`](./ooo-frontend.md) |
+| `u_frontend` | `OooFrontend` | `frontend/`(49) + `decode/` DecodeStage(6) | [`history/ooo-frontend.md`](./history/ooo-frontend.md)(已归档;现状见 `vsrc/frontend/OooFrontend.v`) |
 | `u_control_plane` | `OooControlPlane` | `control/`(13) | [`ooo-control-plane.md`](./ooo-control-plane.md) |
-| `u_execute_backend` | `OooExecuteBackend` | `execute/`(4) | [`ooo-execute-backend.md`](./ooo-execute-backend.md) |
-| `u_writeback` | `OooWriteback` | `writeback/`(5) | [`ooo-writeback.md`](./ooo-writeback.md) |
+| `u_execute_backend` | `OooExecuteBackend` | `execute/`(2：`OooAluCoreSlice`+`CompareUnit`，FP pending 壳拆除后) | [`ooo-execute-backend.md`](./ooo-execute-backend.md) |
+| `u_writeback` | `OooWriteback` | `writeback/`(4，`OooFpCommitGate` 删除后) | [`ooo-writeback.md`](./ooo-writeback.md) |
 | `u_memory_access` | `OooMemoryAccess` | `memory/`(2) | [`ooo-memory-access.md`](./ooo-memory-access.md) |
 | `u_pending_operand_read_gate` | `OooPendingOperandReadGate` | `regread_bypass/`(1) | 单模块叶子，无需独立 wrapper |
 
@@ -81,5 +82,5 @@ wrapper 抽取为纯结构变换：每个 wrapper 只把跨边界信号导出为
   结构化定义落到 `common/`，再逐步替换散线。
 - 单模块叶子 `OooPendingOperandReadGate` 可在后续 regread/bypass 子系统成形时并入；
   当前单实例独立 wrapper 无收益。
-- `OooFpPendingExec` / `OooIntBackend` 巨石的内部拆分仍是独立战线，不属于本 wrapper
-  分层范围。
+- `OooIntBackend` 巨石的内部拆分仍是独立战线，不属于本 wrapper 分层范围
+  （`OooFpPendingExec` 已随 FP 迁域 A 删除）。

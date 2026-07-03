@@ -1,8 +1,10 @@
 # OooDirectBranchResolveGate
 
+> ⚠️ **状态(2026-07-03 RTL 重读)**:fire/payload/pred_pc/BHT metadata 选择臂仍活跃(供 F2 direct fire 重取与 BPU lookup);但 resolve 合并臂已死——dispatch-resolve 源在 `OOO_DBRANCH_DOMAIN_A=1` 下恒 0(`OooIntBackend.v:531-532` 快解析 candidate 证死),issue-resolve 臂因"fire 拍该包已 pop+flush、IQ 禁控制流当拍发射"在设计路径上不可达(仅剩跨实例 PC 别名巧合窗口,巧合触发 lane1-ret 有双提交理论风险,建议显式 tie-off),`direct_branch_resolve_*` 与 `direct_branch0_lane1_ret_o` 随之死;证据见 `.github/task-runs/2026-07-03-rv64-rtl-reread-audit/answers.json` #1;拆除计划见 `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述。
+
 ## 需求
 
-`OooDirectBranchResolveGate` 承接 `OooAluFetchCore` 中 direct branch fast
+`OooDirectBranchResolveGate` 承接 `OooFrontend`(原 `OooAluFetchCore`)中 direct branch fast
 path 的纯组合事实生成：
 
 - 在 lane0/lane1 direct branch fire 之间选择 branch PC、fallthrough、立即数、

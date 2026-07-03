@@ -1,8 +1,15 @@
 # OooFetchPacketSeedMux Boundary Spec
 
+> ⚠️ **状态(2026-07-03 RTL 重读)**：seed 功能全死、clear 编码存活——全部 4 个 set_seed 臂
+> （fallthrough capture 被 `BRANCH_APPEND_DISPATCH_ENABLE=1'b0` 关死；branch/JALR
+> prefetch hit 及 pending branch/jump 各臂在 `OOO_ROB_WALK_MODE=1'b1` 下 pending 恒 0），
+> `seed_valid_o` 恒 0，模块退化为 clear-only 编码器（活 clear 触发：CSR trap、direct flush、
+> untracked resolve、pending-system CSR commit、drain 的 arch-trap/system 臂）；
+> 拆除计划见 `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述。
+
 ## 1. Requirement
 
-`OooAluFetchCore` owns redirect and recovery policy, but the conversion from
+`OooFrontend`（原 `OooAluFetchCore`，已重构删除）owns redirect and recovery policy, but the conversion from
 already-computed events into `OooFetchPacketFifo` `clear/seed` inputs is a pure
 combinational action encoder.
 

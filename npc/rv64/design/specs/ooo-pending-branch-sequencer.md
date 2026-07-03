@@ -1,8 +1,10 @@
 # OoO Pending Branch Sequencer Spec
 
+> ⚠️ **状态(2026-07-03 RTL 重读)**:已形式化证死——`OOO_ROB_WALK_MODE=1'b1` 下三个 capture 源(direct/head0/lane1)全被 `!rob_walk_mode_i` 门死(`OooPendingDispatchArbiter.v:160-171`),`valid_o` 恒 0,pending branch 串行化全链(含 BPU pending/drained/commit 回训臂、prefetch、RecoveryGate pending 臂)随之死路;分支现走 F2 真预测 + issue 级解析 + ROB-walk;拆除计划见 `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述。
+
 ## 1. 需求
 
-- `OooPendingBranchSequencer` 承接 `OooAluFetchCore` 中 pending branch 单 entry
+- `OooPendingBranchSequencer` 承接 `OooFrontend` 中 pending branch 单 entry
   注册状态。
 - 输入只包含父模块已经仲裁好的 clear/capture 事件和 direct/head0/lane1 branch
   payload；输出 `valid/dispatched/pc/next_pc/inst/rs1/rs2/imm/cmp_op/pred_taken/
@@ -73,5 +75,5 @@ clear > clear_dispatched`。capture 高于普通 clear 是为了保留旧父模�
 ## 3. RTL 映射
 
 - `OooPendingBranchSequencer.v` 的单个时序块按 2b 优先级编码。
-- `OooAluFetchCore` 继续生成 capture/clear 事件，父模块仍持有全局 pending owner、
+- `OooFrontend` 继续生成 capture/clear 事件，父模块仍持有全局 pending owner、
   branch compare、BPU update、trap、redirect 和 precise recovery。

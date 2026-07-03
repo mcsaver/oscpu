@@ -18,7 +18,7 @@
 
 ## 3. 接口与不变量
 
-- wrapper 端口 = 13 个内部实例跨边界信号（222 个）。
+- wrapper 端口 = 13 个内部实例跨边界信号（2026-07 现状 211 个；pending-FP 通道拆除前为 222 个）。
 - glue 顶层 wire 名保留，含被 `NpcSimTop` trace 探测的控制信号（`stop_pending_q`、
   `pending_system_*`、`drain_complete_w`、`csr_trap_*` 等）→ `u_ooo_core.<sig>` 探针不失效。
 - 关键边界 case：`dispatch0_facts_w` 由 glue 级连续赋值 `wire [\`OOO_SLOT_FACTS_W-1:0]

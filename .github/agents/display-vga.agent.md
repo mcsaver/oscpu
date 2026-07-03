@@ -16,7 +16,7 @@ tools: [read, edit, search, execute, agent, todo]
 
 1. 读取 `.github/instructions/linux-framebuffer-vga.instructions.md`。
 2. 读取 `.github/memory/modules/npc.md` 中 VGA、Linux bring-up 与已知显示边界记录。
-3. 读取 `Linux/platform/npc-rv64.yml`、`Linux/platform/gen_dts.py`。
+3. 读取 `Linux/platform/common-rv64.yml`(共享 SoC 契约)、`Linux/platform/{npc,nemu}-rv64.yml`(平台差异)、`Linux/platform/gen_dts.py`。
 4. 读取现有 VGA/SDL/legacy framebuffer 设备实现，但不得默认 Linux 会使用它们。
 
 ## 近期目标

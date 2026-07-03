@@ -8,7 +8,7 @@
 - 实现/规范中引用文献时用 `[[NN-主题]]` 或相对链接，保持可追溯。
 
 计划纳入主题（按 backlog 需要逐步补）：
-- LSQ / store buffer / store-to-load forwarding（B1 访存解耦）
+- LSQ / store buffer / store-to-load forwarding（B1 已实现，SQ+前递已落地；LQ/MSHR/多 outstanding 仍待做）
 - 精确异常下的乱序访存排序（memory disambiguation）
-- 分支预测恢复与 checkpoint/rename 回滚（B6）
+- 分支预测恢复与 checkpoint/rename 回滚（B6 已被 ROB-walk 方案取代，checkpoint 未采用）
 - SRT 高基数除法（DIV radix-4/8 已部分实现）

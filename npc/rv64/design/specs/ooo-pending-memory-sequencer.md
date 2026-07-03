@@ -1,5 +1,11 @@
 # OoO Pending Memory Sequencer Spec
 
+> ⚠️ **状态（2026-07-03 RTL 重读）**：`capture_lane1_i` 恒 0 已被形式化证死——lane1 barrier 条件不含
+> FACT_MEM，与 mem 严格互斥（`OooPendingLane1CaptureGate.v:50`、`OooFrontendDispatchGate.v:102-109`），
+> `pending_mem_q` 恒 0，本模块（现唯一实例在 `OooMemoryAccess.v`）与 dispatch mux mem 臂、
+> DrainResolveGate mem 注入全链为活文件中的死通道；拆除计划见 `../arch/ooo-core-architecture.md` §8.3。
+> 下文保留其设计语义描述。
+
 ## 1. 需求
 
 - `OooPendingMemorySequencer` 承接 `OooAluFetchCore` 中 lane1 memory barrier 的

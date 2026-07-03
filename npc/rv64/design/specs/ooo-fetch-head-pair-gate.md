@@ -20,10 +20,15 @@ recovery 时序。
 - `head_fetch_fault0/1` 与 `head_fetch_fault` 的组合判断。
 - `head0_decode_valid` 与 `head1_decode_valid` 的组合可见性。
 - head0/head1 单槽分类器实例化与 facts 输出。
-- `branch_spec_dispatch_block` 的组合判断。
+- `branch_spec_dispatch_block` 的组合判断
+  （`OOO_ROB_WALK_MODE=1` 下 `branch_spec_active_i` 恒 0——spec tracker 唯一置位路径
+  checkpoint capture 依赖 pending_branch，其 capture 被 `!rob_walk_mode` 门死——
+  本输出当前恒 0）。
 - `dispatch_valid` 与 dispatch0 的 ECALL/EBREAK/exit/arch-trap/system/FP/branch/JAL/JALR
   facts。
-- `direct_branch0_dispatch_valid` 作为 lane0 branch fast path 的组合别名。
+- `direct_branch0_dispatch_valid` 作为 lane0 branch fast path 的组合别名
+  （domain-A：现被 `OOO_DBRANCH_DOMAIN_A=1` 恒关为 0，head0 分支改走普通
+  dispatch 进 ROB/IQ）。
 
 不在范围内：
 
@@ -57,10 +62,13 @@ recovery 时序。
 - `head_fetch_fault0_o=1` 时，`head1_decode_valid` 内部为 0，lane1 分类 facts 为 0。
 - head0 branch/jump/stop 会抑制 lane1 decode 和 lane1 fetch fault。
 - `head_fetch_fault_o = head_fetch_fault0_o | head_fetch_fault1_o`。
-- branch-spec dispatch block 不应在 `branch_spec_active_i=0` 时拉高。
+- branch-spec dispatch block 不应在 `branch_spec_active_i=0` 时拉高
+  （默认 `OOO_ROB_WALK_MODE=1` 配置下 `branch_spec_active_i` 恒 0，故本输出恒 0；
+  死因标注见「范围」节对应条目）。
 - `dispatch0_fp_o` 只在 head0 FP enabled 时拉高；FS-off FP 应走 arch trap，而不是
   dispatch0 FP。
-- `direct_branch0_dispatch_valid_o == dispatch0_branch_o`。
+- `direct_branch0_dispatch_valid_o == dispatch0_branch_o && !(OOO_DBRANCH_DOMAIN_A)`
+  （默认配置下恒 0；旧不变量 `== dispatch0_branch_o` 仅在 domain-A 关闭时成立）。
 - 模块不读取或修改 pending、CSR 文件、ROB、FIFO storage、PC/outstanding、RAS 或 BPU 状态。
 
 ## 数据通路骨架

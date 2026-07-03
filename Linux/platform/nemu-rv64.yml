@@ -1,0 +1,61 @@
+# NEMU RV64 Linux/Ubuntu bring-up 平台配置(NEMU 专属部分)。
+#
+# 共享 SoC 契约(内存/装载布局/共有设备/共享 bootargs)在 common-rv64.yml,
+# 本文件经 gen_dts.py 深合并覆盖其上,只写 NEMU 平台差异:产物路径、
+# NEMU 独有设备(NPC RTL 未实现,只进 NEMU rootfs DTB)与 rootfs bootargs。
+# Makefile 按 ARCH=riscv64-nemu 自动选中本文件。
+
+base: common-rv64.yml
+
+# 以下路径字段中,initrd.image 是 gen_dts.py initramfs 模式未传
+# --initrd-image 时的缺省 fallback(会 stat 该文件计算 initrd-end);
+# 其余路径目前无代码解析(Makefile 以 PLATFORM_ROOT/BUILD_DIR 变量
+# 自行展开等价路径),保留为平台产物位置的文档性单一说明。
+opensbi:
+  fw_jump: Linux/env/platforms/nemu/build/opensbi/rootfs/platform/generic/firmware/fw_jump.bin
+
+kernel:
+  image: Linux/env/platforms/nemu/build/linux/arch/riscv/boot/Image
+
+dtb:
+  build_dir: Linux/build/riscv64-nemu
+
+initrd:
+  image: Linux/env/platforms/nemu/images/initramfs/rootfs.cpio
+
+ubuntu_initrd:
+  image: Linux/env/platforms/nemu/images/ubuntu2204/ubuntu-22.04-riscv64-probe.cpio
+
+rootfs:
+  image: Linux/env/platforms/nemu/images/ubuntu2204/ubuntu-22.04-riscv64.ext4
+
+# NEMU 独有设备:NPC RTL 未实现,避免给 NPC DTB 写实际总线无响应的节点。
+# 这些节点仅在 NEMU rootfs DTB 规则以 --virtio-rng/--virtio-net/
+# --goldfish-rtc/--reset-syscon 开关打开时进入 DTS。
+# 注意:check-device-address-map.sh 门禁不校验这 4 个设备,改地址时
+# 必须人工同步 nemu/include/device/device_address.h,其中 goldfish_rtc/
+# reset_syscon 还被 abstract-machine/am/include/device_address.h 消费
+# (AM timer 时间源 / AM halt 通路),漏改会静默失联。
+devices:
+  virtio_rng:
+    base: 0x10002000
+    size: 0x1000
+    irq: 3
+  virtio_net:
+    base: 0x10004000
+    size: 0x1000
+    irq: 5
+  goldfish_rtc:
+    base: 0x10003000
+    size: 0x1000
+    irq: 4
+  reset_syscon:
+    base: 0x00100000
+    size: 0x1000
+    poweroff_value: 0x5555
+    reboot_value: 0x7777
+
+# NEMU rootfs DTB 的 bootargs 真源(Makefile 只追加
+# NEMU_ROOTFS_BOOTARGS_EXTRA ?= console=tty0,不整串覆盖)。
+bootargs:
+  rootfs: "console=ttyS0,115200n8 root=/dev/vda rw init=/lib/systemd/systemd"

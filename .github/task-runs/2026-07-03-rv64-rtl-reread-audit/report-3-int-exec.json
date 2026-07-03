@@ -1,0 +1,196 @@
+{
+ "subsystem": "整数发射与执行(Int Issue & Execute):OooIntIssueQueue + OooIntBackend 及其功能单元/物理寄存器堆",
+ "modules": [
+  {
+   "file": "scheduling/OooIntIssueQueue.v",
+   "purpose": "8 项压缩式(compacting)程序序整数发射队列:每拍从队头扫最老 ready 选 issue0/issue1 双发射,支持 dispatch 当拍旁路发射(虚拟队尾)、2 路写回唤醒+2 路 FP 唤醒、ROB-walk 按年龄 squash",
+   "instantiated_by": "rename_allocate/OooDispatchBackend.v:613 (u_issue_queue);经 filelist.mk:66/306 编译",
+   "key_params": "ENTRY_COUNT=8 (1<<`OOO_ISSUE_INDEX_W, define.v:37=3);发射宽度 2;dispatch 写入 2;wakeup 口 2(int)+2(FP)+2(pending-load,仅喂死硅 fast 通道);preg 地址 6b;rob_idx 4b;另含等容量 checkpoint 影子阵列(mode=1 下恒 gated)"
+  },
+  {
+   "file": "execute/OooIntBackend.v",
+   "purpose": "整数乱序后端主体 glue:实例化 dispatch/rename/ROB/IQ 复合体、10R2W PRF、双 ALU lane、共享乘除/CLMUL、访存请求状态机(LEGACY 单例+buffer+MIQ+SQ)、5 源双口写回仲裁、issue 级 branch/JAL/JALR 解析与 mispredict、并挂载整个 OooFpBackend",
+   "instantiated_by": "decode/OooAluDecodeBackend.v:389 (u_int_backend);filelist.mk:73/301",
+   "key_params": "2 发射 lane;wb 口 2;MIQ_ENTRY_N=4(:1015);SQ 深 4(SQ_ENTRY_W=2, :925);mem_buffer 1 项;FAST_BRANCH_TRACK_ENTRIES=8(:1821,死硅);ROB 16 项/PRF 64 项参数透传"
+  },
+  {
+   "file": "execute/OooExecuteBackend.v",
+   "purpose": "子系统薄 wrapper:聚合 OooAluCoreSlice 与域 B pending 分支比较器(u_pending_branch_compare,操作数来自架构 GPR 读门),纯结构聚合无逻辑",
+   "instantiated_by": "core/OooCoreTopGlue.v:595;filelist.mk:106/205",
+   "key_params": "内含 1×CompareUnit + 1×OooAluCoreSlice"
+  },
+  {
+   "file": "execute/OooAluCoreSlice.v",
+   "purpose": "wrapper:OooAluDecodeBackend(后端私有二次译码+OooIntBackend)+ OooArchRegFile(退休更新架构 GPR、输出 debug_gprs/a0);retire_count=commit0+commit1",
+   "instantiated_by": "execute/OooExecuteBackend.v:139-145 (u_core_slice);filelist.mk:104/293",
+   "key_params": "提交宽度 2;serial_write 口已封 0(OooExecuteBackend.v:157)"
+  },
+  {
+   "file": "execute/ALU.v",
+   "purpose": "单拍纯组合 64 位 ALU:ADD/SUB/SLL/SLT/SLTU/XOR/SRL/SRA/OR/AND/COPY_A/COPY_B;*W 字操作由父模块 rv64_word_alu_result 截断再符号扩展(OooIntBackend.v:619-635,759-768)",
+   "instantiated_by": "execute/OooIntBackend.v:743 (u_alu0), :750 (u_alu1) 共 2 份;filelist.mk:44/267",
+   "key_params": "XLEN=64;alu_op 4b;0 级流水(组合)"
+  },
+  {
+   "file": "execute/CompareUnit.v",
+   "purpose": "纯组合分支比较器:EQ/NE/LT/GE/LTU/GEU 输出真假",
+   "instantiated_by": "execute/OooIntBackend.v:729 (u_branch_compare0), :736 (u_branch_compare1), :1889 (u_dispatch_branch_compare,死硅消费) + execute/OooExecuteBackend.v:131 (u_pending_branch_compare,域 B);共 4 份",
+   "key_params": "cmp_op 3b;组合"
+  },
+  {
+   "file": "execute/OooMulDivUnit.v",
+   "purpose": "共享乘除单元(2 lane 争用,issue0 优先):乘法=req 拍单拍组合 128b 有符号选择乘积;除法=radix-4 迭代(每拍 2 商位)+CLZ 早终止;div0/溢出/被除数 0 特例 1 拍",
+   "instantiated_by": "execute/OooIntBackend.v:1710-1713 (u_muldiv_unit) 单实例;filelist.mk:71/299",
+   "key_params": "乘法:发射后 1 拍 resp_valid(STATE_RESP);除法:最多 32 迭代拍(64 位),word 最多 16 拍,CLZ 取偶对齐可更短;非流水(IDLE 才 ready);覆盖 MUL/MULH/MULHSU/MULHU/DIV/DIVU/REM/REMU 及 W 变体"
+  },
+  {
+   "file": "execute/OooBitmanipGate.v",
+   "purpose": "Zba/Zbb/Zbs 单拍纯组合结果 owner:bseti/bclri/binvi/bexti、rori(w)、orc.b、rev8、clz/ctz/cpop(+w)、sext.b/h、slli.uw、add.uw、sh1/2/3add(.uw)、andn/orn/xnor、rol/ror(w)、min/minu/max/maxu、bset/bclr/binv/bext、zext.h;clz/ctz/cpop 用字节级优先树",
+   "instantiated_by": "execute/OooIntBackend.v:773 (u_bitmanip0), :781 (u_bitmanip1) 每 lane 一份;filelist.mk:75/304",
+   "key_params": "组合 0 级;输入 opcode 7b+funct10+imm6"
+  },
+  {
+   "file": "execute/OooClmulUnit.v",
+   "purpose": "Zbc 无进位乘法单元:CLMUL/CLMULH/CLMULR 三种,逐位移位-异或串行迭代",
+   "instantiated_by": "execute/OooIntBackend.v:1745-1748 (u_clmul_unit) 单实例;filelist.mk:72/300",
+   "key_params": "固定 64 迭代拍(iter 0..63,无早终止)+1 拍 RESP;非流水"
+  },
+  {
+   "file": "execute/OooAmoGate.v",
+   "purpose": "RV64A AMO 结果纯组合 owner:输入内存旧值/rs2/宽度,输出符号规整旧值与新值;amoswap/add/xor/and/or/min/max/minu/maxu 的 W/D 变体(inst[31:27] 译码)",
+   "instantiated_by": "execute/OooIntBackend.v:989 (u_amo_gate) 单实例;filelist.mk:77/305",
+   "key_params": "组合;W 变体 32b 运算后符号扩展"
+  },
+  {
+   "file": "regread_bypass/OooPhysRegFile.v",
+   "purpose": "整数物理寄存器堆:10 读 2 写,写口当拍对读口 write-through 旁路(write1 优先),p0 硬零;flush(recover_i)时 p1-p31 载入架构 GPR、p32-63 清零",
+   "instantiated_by": "execute/OooIntBackend.v:536-538 (u_phys_reg_file) 单实例;filelist.mk:62/310",
+   "key_params": "64 项(`OOO_PHY_REG_COUNT`=1<<6, define.v:22/25)×64b;10R2W(注释自称 8R2W 与实际不符);读口分配:R0-3=issue0/1 src、R4/5=dispatch-branch(死硅)、R6/7=dispatch0 src(悬空)、R8=FP 簇 GPR 源、R9=接 0"
+  },
+  {
+   "file": "regread_bypass/OooPendingOperandReadGate.v",
+   "purpose": "域 B pending 串行路径的架构操作数读取门:从 32×64b 架构 GPR 打包总线组合抽取 pending branch rs1/rs2 与 pending jump rs1",
+   "instantiated_by": "core/OooCoreTopGlue.v:780 (u_pending_operand_read_gate);filelist.mk:64/179",
+   "key_params": "3 读口,纯组合,数据源=OooArchRegFile debug_gprs"
+  }
+ ],
+ "capabilities": [
+  {
+   "claim": "发射队列深 8 项、压缩式且队内严格程序序:发射/入队后每拍整体压缩重排,选择逻辑=顺序扫描取最老 ready 为 issue0、次老为 issue1(顺序优先,无年龄矩阵)",
+   "evidence": "scheduling/OooIntIssueQueue.v:10(ENTRY_COUNT=1<<3, include/define.v:37)、:531-659(顺序扫描选择)、:891-1019(压缩网络)"
+  },
+  {
+   "claim": "每拍最多双发射,且支持 dispatch 当拍旁路发射(dispatch 中的 uop 作虚拟队尾同拍发射,消除空队 refill 气泡);store 不可作 issue1;mode=1 下 branch/JAL/JALR 禁旁路、恒经队列发射(pred_npc 单源取寄存值)",
+   "evidence": "scheduling/OooIntIssueQueue.v:661-768(bypass 仲裁)、:643-649(issue1 非 store)、:434-448(ctrlflow_mispred gate)、:781-784(pred_npc 恒取 pred_npc_q)"
+  },
+  {
+   "claim": "唤醒=写回拍广播(wb0/wb1 直连 IQ wakeup0/1),配合 PRF write-through 读旁路实现单拍 ALU 依赖链 back-to-back(生产者 T 发射、T+1 写回并唤醒、消费者 T+1 发射读到旁路数据),无投机唤醒故无 replay",
+   "evidence": "rename_allocate/OooDispatchBackend.v:669-672(wakeup←wb)、execute/OooIntBackend.v:2298(ex0_valid_q 发射后 1 拍成 wb)、regread_bypass/OooPhysRegFile.v:46-67(读口写旁路)"
+  },
+  {
+   "claim": "同拍级联双发:issue1 操作数命中 issue0 pdest 时组合前递 issue0 结果(仅 issue0 为单拍 ALU/bitmanip 类,ctrl_can_forward 排除 mem/控制流/muldiv/clmul),相依指令对可同拍发射",
+   "evidence": "execute/OooIntBackend.v:683-696(issue1 前递 mux)、:1686-1693(current_result_valid)、scheduling/OooIntIssueQueue.v:292-312(ctrl_can_forward)、:325-352(dispatch_entry_ready_with_issue0)"
+  },
+  {
+   "claim": "执行资源:2 条对称 ALU lane(各含 ALU+CompareUnit+BitmanipGate+WBU+LSU-AGU,单拍执行寄存至 ex0/ex1)+1 共享乘除单元+1 共享 CLMUL 单元+1 访存桥请求口(5 源 mux:AMO写>buffer>issue0>issue1>SQ-drain)+FP 完成通道;写回 2 口,固定优先级 ex>mem>muldiv>clmul>fpwb",
+   "evidence": "execute/OooIntBackend.v:743-755(双 ALU)、:773-788(双 bitmanip)、:1710/1745(共享单元)、:1962-1994(mem req mux)、:2375-2396(wb 仲裁链)、:2427-2464(wb0/wb1 装配)"
+  },
+  {
+   "claim": "乘法:发射拍单拍组合出 128b 积(按 funct3 先选唯一符号扩展避免三套乘法器),次拍 resp_valid;除法:radix-4 每拍 2 商位+CLZ 早终止,64 位最多 32 迭代拍(word 16 拍),div0/有符号溢出/0 被除数 1 拍特例;单元非流水",
+   "evidence": "execute/OooMulDivUnit.v:64-113(单拍乘)、:147-204(radix-4+CLZ)、:230-272(状态机:IDLE→DIV_RUN→RESP)、:206(busy 时不 ready)"
+  },
+  {
+   "claim": "bitmanip 覆盖 Zba+Zbb+Zbs 全部(单拍)与 Zbc CLMUL/CLMULH/CLMULR(64 拍串行迭代单元);CLMUL 按 OP+funct7=0x05+funct3 SLL/SLT/SLTU 识别并分流到独立单元",
+   "evidence": "execute/OooBitmanipGate.v:254-342(全指令译码表)、execute/OooClmulUnit.v:99-113(64 迭代)、execute/OooIntBackend.v:661-681(is_clmul_inst/op 映射)、:1579-1584"
+  },
+  {
+   "claim": "AMO(amoswap/add/xor/and/or/min/max/minu/maxu W/D)与 LR/SC 在 IntBackend 的 LEGACY 访存单例状态机串行执行:需 ROB 队头+MIQ 全空+SQ 无 committed 残留才发射;读-改-写两总线事务(rsp 后 OooAmoGate 组合算新值再发写);LR 置 8B/4B 对齐 reservation,SC 条件写、失败 SC 阻塞到队头重评防 lr/sc 活锁;AMO/LR/SC misaligned 精确异常(LR 报 Load、AMO/SC 报 Store misalign,对齐 NEMU)",
+   "evidence": "execute/OooIntBackend.v:1518-1531(队头臂)、:1158-1160(mem_amo_slot_open=MIQ 空)、:1507-1508(amo_sq_quiet)、:2136-2141(读→写相变)、:1556-1571(SC premature)、:2324-2327(misalign cause)"
+  },
+  {
+   "claim": "plain load 可乱序投机发射(不等 ROB 队头),受三层序约束:IQ 内 older-store block、在飞 store/probe 的 8B-line 重叠判定(Sv39 开启时保守 blind)、SQ snoop 按 rob age+committed 判定;load 命中 SQ 最年轻更老全覆盖 entry 时单拍前递完成(不访存,M-mode 且非 MMIO 限定);plain store 发射即 probe(翻译探测)进 SQ、退休后 drain 落存;MIQ 允许 4 笔 plain load/probe/drain 背靠背在飞",
+   "evidence": "execute/OooIntBackend.v:1518-1524(投机臂)、:1192-1257(line_overlap/sq_block)、:1259-1334(SQ 前递)、:2298-2309(前递单拍完成)、:1011-1020(MIQ 4 项)、:922-926(SQ 生命周期)"
+  },
+  {
+   "claim": "issue 级控制流统一解析:branch/JAL/JALR 在发射拍算真后继(JALR=(rs1+imm)&~1),与 pred_npc 比对产生 per-uop mispredict → 驱动前端 redirect+ROB-walk kill+BPU 回训(is_branch gate 的 taken/bht_idx/pred_taken 随行);双 lane 取最老 mispredict(issue0 优先)",
+   "evidence": "execute/OooIntBackend.v:1625-1684(统一解析)、:2498-2534(resolve 总线与 lane 选择)、:2543(mispredict 导出)"
+  },
+  {
+   "claim": "整数 PRF 为 64 项 10R2W、写读同拍旁路、p0 硬零;误预测恢复用 ROB-walk(IQ 按 rob_idx 环形年龄 squash 更年轻项、存活前缀同拍继续吸收 wakeup 防唤醒丢失,recover 期冻结发射)",
+   "evidence": "regread_bypass/OooPhysRegFile.v:14-41(10R2W)、:55-66(旁路+x0)、scheduling/OooIntIssueQueue.v:1110-1135(kill 拍 squash+吸收 wakeup)、:774/820-822(recover/kill 拍禁发)"
+  },
+  {
+   "claim": "本后端只接纳基础 ALU/分支/跳转/load-store/RVM/bitmanip/RVA/CSR-读改写 及 FP 旁路合成 uop;SYSTEM 非 CSR、MRET/SRET/WFI/SFENCE.VMA 判 unsupported 不进乱序后端(走域 B pending 串行路径,其分支比较在 OooExecuteBackend 用架构 GPR 经 OooPendingOperandReadGate)",
+   "evidence": "decode/OooAluDecodeBackend.v:153-173(ctrl_supported)、:380-383(unsupported 输出)、execute/OooExecuteBackend.v:131-136(pending compare)、regread_bypass/OooPendingOperandReadGate.v:22-24"
+  }
+ ],
+ "limitations": [
+  {
+   "claim": "IQ checkpoint 影子阵列(与主阵列等容量的 16 组寄存器,约占模块 1/3 状态)在当前配置为死硅:OOO_ROB_WALK_MODE 默认 1,capture/restore 恒被 gate 掉;fp 新增字段也未进影子(恢复会丢 fp 字段,注释自认机制已废弃)",
+   "evidence": "rename_allocate/OooDispatchBackend.v:485-486(gate)、include/define.v:567-568(mode=1)、scheduling/OooIntIssueQueue.v:154(fp 字段不进影子)、:162-177(影子阵列)"
+  },
+  {
+   "claim": "dispatch-branch 快解析整条为死硅:OOO_DBRANCH_DOMAIN_A 默认 1 使 candidate 恒 0,连带 u_dispatch_branch_compare、FAST_BRANCH_TRACK 8 项表、PRF read4/5 读口全部无有效消费;dispatch_branch_resolve_valid_o 恒 0 仍布线到顶层",
+   "evidence": "execute/OooIntBackend.v:531-532(candidate=fire&&!(1'b1))、include/define.v:574-575、:1821-1894(track 表+compare)、:2545-2551(恒 0 输出)"
+  },
+  {
+   "claim": "load 唤醒投机不存在:pending_load0/1 仅喂 IQ 的 load-branch-fast 通道,而该通道消费端已删(E7),IQ 仍每拍计算全套 load_branch_fast_* 输出但在 IntBackend 被 unused-OR 收口——IQ 内约 60 行选择逻辑为死逻辑;pending_load1 恒 0(双 load 第二端口死硅删除)",
+   "evidence": "execute/OooIntBackend.v:1896-1899(E7 注释)、:2555-2568(unused 收口)、:956-959(pending_load1=0)、scheduling/OooIntIssueQueue.v:582-601(死计算)"
+  },
+  {
+   "claim": "PRF 10 读口中 4 个无效:read4/5(dispatch-branch)消费死硅、read6/7(dispatch0 src,原 E8 转发 ALU)读出数据声明后无任何使用、read9 地址接 0;模块头注释仍写 8R2W 与实际端口数不符",
+   "evidence": "execute/OooIntBackend.v:518-519(wire 仅声明)、:551-563(接线)、:1766-1768(E8 删除注释)、regread_bypass/OooPhysRegFile.v:4(过时注释)"
+  },
+  {
+   "claim": "每拍实际至多 1 条访存进入内存通道:issue1 的 mem 发射要求 issue0 非 mem(mem1 第二端口已删),IQ 选择层允许的同拍双 load 在发射层被否决(仅 SQ 前递/异常例外);乘除与 CLMUL 单元均非流水且不能双 lane 同拍各发一条(issue1 需 issue0 非同类)",
+   "evidence": "execute/OooIntBackend.v:1543-1554(issue1 mem 条件)、:1548-1549(死硅注释)、:1605-1614(issue1_ready 互斥)、execute/OooMulDivUnit.v:206、execute/OooClmulUnit.v:62"
+  },
+  {
+   "claim": "CLMUL 固定 64 拍无早终止,吞吐极低;乘法单元 RESP 期间拒新请求(吞吐≤1条/2拍),除法期间乘法也被阻塞(同一状态机)",
+   "evidence": "execute/OooClmulUnit.v:60(iter_last=63)、execute/OooMulDivUnit.v:27-29/206(单状态机 IDLE 才 ready)"
+  },
+  {
+   "claim": "IQ 与 IntBackend 顶层整体关闭 Verilator UNOPTFLAT lint,FP 交叉唤醒组合菱形被保守判环,真伪未甄别(注释自认'正确性由全量测试守,结构化真修列为收尾项')——潜在组合环风险被压制",
+   "evidence": "scheduling/OooIntIssueQueue.v:5-8、execute/OooIntBackend.v:6-9"
+  },
+  {
+   "claim": "flush 时 PRF 恢复为'p1-31=架构 GPR、p32-63=清零'的硬编码假设,隐含 flush 后 rename map 必须同拍重置为 identity 映射,物理寄存器重命名空间在每次 flush 后归零重建(域 B 串行语义遗留)",
+   "evidence": "regread_bypass/OooPhysRegFile.v:105-113、execute/OooIntBackend.v:541-542(recover_i=flush_i)"
+  },
+  {
+   "claim": "SQ drain(已退休 store)落存遇 bus error 无法精确 trap,只打印警告计数(自认 known-limitation);MMIO load 强制 ROB 队头独占(不可投机),MMIO store 对 load 保守 blind 阻塞",
+   "evidence": "execute/OooIntBackend.v:2916-2922(SQ-DRAIN-ERROR)、:1512-1524(F2 注释+MMIO 队头臂)、:1205-1209(MMIO blind)"
+  },
+  {
+   "claim": "压缩式 IQ 每拍全量搬移 8 项×全 payload(2×64b pc+64b pred_npc+32b inst+50b ctrl+64b imm 等),寄存器写功耗与布线开销大;选择为纯顺序优先无真正年龄仲裁矩阵——是面积/功耗换正确性的实现",
+   "evidence": "scheduling/OooIntIssueQueue.v:891-1019(全量压缩)、:140-160(每项字段清单)"
+  },
+  {
+   "claim": "IQ 内存序保守:store 必须成为队内最老 valid 项才可发射(older_valid_seen 即阻塞),load 被任何更老 store 项阻塞(IQ 层 addr-blind,精确重叠判定推迟到发射层)——队列内无 store-load 乱序调度",
+   "evidence": "scheduling/OooIntIssueQueue.v:532-536(entry_mem_order_block)、:655-658(older_store/valid_seen)"
+  },
+  {
+   "claim": "普通(非 AMO)load/store 的 misaligned 在本后端不报异常(issue*_mem_exception_w 仅 AMO 族),跨 8B 线访问依赖下游数据通路处理;WBU 的 load_data 口在本后端恒接 0(load 数据实际走 mem rsp 通道,WBU 复用属遗留结构)",
+   "evidence": "execute/OooIntBackend.v:1094-1095(仅 AMO misalign)、:801/811(load_data_i 接 0)"
+  }
+ ],
+ "cross_module": [
+  "dispatch 接口(上游=前端/CoreTopGlue 经 OooExecuteBackend 透传):双 lane uop {pc,next_pc,pred_npc,bht_idx,pred_taken,inst,csr_rdata},dispatch1_optional 语义=lane1 可延拍推进;CSR 指令旧值经 imm payload 复用穿过 rename/IQ/ROB(decode/OooAluDecodeBackend.v:196-199)",
+  "内存桥接口(下游 OooMemoryAccess/OooMemAxiBridge):mem_req 带事务属性 probe(store 翻译探测不写)/pretrans+nokill(SQ drain 写必达),rsp 带 error/page_fault;mem_translate_active_i 来自 Sv39 状态,决定 load-vs-store 序判定是否保守 blind(execute/OooIntBackend.v:84-101)",
+  "branch_resolve_* 总线(输出到前端/控制平面):pc/next_pc/rob_idx/mispredict/misaligned + BPU 回训随行(is_branch/taken/pred_taken/bht_idx);mispredict 同时驱动 ROB-walk kill、MIQ kill、SQ boundary squash、FP 簇 kill(execute/OooIntBackend.v:141-154,1071-1072,2603-2604,2781)",
+  "commit0/1 双提交口(到 writeback/ArchRegFile/difftest):pc/next_pc/inst/rd/data/exception/cause/tval + fflags/is_fp_rd;commit_ready_i/commit1_block_i 由控制平面反压;mem_retire_quiet_o(SQ 空且无 drain 在飞)AND 进 backend_drained 供 system/trap/FP 串行点等待(execute/OooIntBackend.v:103-137,1119-1122)",
+  "FP 簇契约(OooFpBackend 挂在 IntBackend 内):FP dispatch 属性由 AluDecodeBackend 旁路译码供给;FP load 借整数 mem 通道(rsp 拍 NaN-box 后走 fpld_wb 写 FP 堆);FP store 数据源 fs2 就绪监听进整数 IQ(fp_st_* 字段+fp_wake0/1);FP 完成经 fpwb 抢 wb0/wb1 最低优先级槽(execute/OooIntBackend.v:211-213,2396,2588-2708)",
+  "域 B(pending 串行)契约:unsupported 指令(SYSTEM 非 CSR/MRET/SRET/WFI/SFENCE.VMA)不进本后端,由控制平面 pending sequencer 处理;其分支/跳转操作数经 OooPendingOperandReadGate 从 OooArchRegFile 的 debug_gprs 打包总线读,分支真假由 OooExecuteBackend.u_pending_branch_compare 算出回控制平面(core/OooCoreTopGlue.v:780-788)",
+  "flush 恢复契约:flush_i 拍 PRF 以 recover_gprs_i(架构 GPR)重载 p1-31、清 p32-63,要求 rename map/freelist 同拍重置;mispredict 则走非 flush 的 ROB-walk(walk0/1 端口逆写 rename)两套并存(execute/OooIntBackend.v:26,541-542; rename_allocate/OooDispatchBackend.v:596-607)",
+  "唤醒总线跨模块扇出:wb0/wb1(valid+pdest)同时喂 IQ 唤醒、busy table、ROB done、FP 簇 int_wake0/1(FMV.W.X 等 GPR 源就绪监听)(execute/OooIntBackend.v:2685-2688)"
+ ],
+ "open_questions": [
+  "mem_issue_block_i 与 checkpoint_quiesce_i 的确切产生条件在控制平面子系统(OooControlPlane/OooStopPendingSequencer):何种事件(trap/system/drain)会封锁整数 IQ 的 mem 发射,封锁窗口多长,需跨子系统核实",
+  "普通(非 AMO)misaligned 及跨 8B 线 load/store 的完整语义在 memory/cache 子系统(LSU/LSUDataPath/OooDataWordCache/OooMemAxiBridge):本后端不报异常且 line_overlap_1 只留 ±1 线保守窗口,下游是否真正支持任意 misaligned 需核实",
+  "mem_rsp_page_fault_i/error_i 的生成路径(Sv39 PTW/PMP 在何处检查、probe 事务的翻译探测具体如何回传 PA)属 memory 子系统",
+  "flush 拍 rename map 是否确实同拍重置为 identity(PRF recover 假设的另一半在 OooRenameMap/OooFreeList,属 rename 子系统)——若不同步则 flush 后读到清零的 p32-63",
+  "被 lint_off 压制的 UNOPTFLAT 环(FP 交叉唤醒菱形,__Vcellinp__ 端口注入形态)是真组合环还是 Verilator 保守误判,注释称待'交叉唤醒打拍'真修,未验证",
+  "pending_load_branch_dep_o 在前端 OooBranchResolveRecoveryGate.v:84 作为 mem_idle 的 OR 例外项参与分支恢复 quiet 判定——在 load-branch-fast 消费端已删(E7)的现状下,该例外项是否仍必要/正确,需结合前端恢复时序核实",
+  "OooExecuteBackend 的 head_inst0/1、head_pc/next_pc 等端口与 OooSlotFacts.v 的用途(疑为观测/断言面)未深究,其消费者在 CoreTopGlue/控制平面"
+ ]
+}

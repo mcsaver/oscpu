@@ -1,5 +1,7 @@
 # OooCommitOutputMux Spec
 
+> ⚠️ **状态（2026-07-03 RTL 重读）**：synthetic lane1-ret / branch-append 两类输入源已被形式化证死（ret capture 依赖拍内解析同拍谓词、append 被 `BRANCH_APPEND_DISPATCH_ENABLE=1'b0` 关死，输入恒 0），ctrl_commit 的 rd/write 元数据亦恒 0——本 mux 实际活路径仅剩 ctrl pseudo-commit 载荷臂 + core commit 直通 + JAL next-PC 修正 + retire count；拆除计划见 `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述。
+
 ## Scope
 
 `OooCommitOutputMux` owns the combinational boundary between internal commit

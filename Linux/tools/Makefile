@@ -33,7 +33,9 @@ NEMU_FP_SQRT_LOG ?= $(BUILD_DIR)/fp-sqrt-nemu.log
 NEMU_VIRTIO_BLK_ERROR_LOG ?= $(BUILD_DIR)/virtio-blk-error-nemu.log
 NEMU_VIRTIO_NET_CTRL_LOG ?= $(BUILD_DIR)/virtio-net-ctrl-nemu.log
 PYTHON ?= $(if $(wildcard $(ENV_ROOT)/tools/python/bin/python3),$(ENV_ROOT)/tools/python/bin/python3,python3)
+# tools 的 smoke DTB 只喂 NPC_SIM,固定用 NPC 平台 yml;共享契约在 common-rv64.yml。
 PLATFORM_CONFIG ?= ../platform/npc-rv64.yml
+PLATFORM_CONFIG_COMMON ?= ../platform/common-rv64.yml
 GEN_DTS ?= ../platform/gen_dts.py
 
 TRAMPOLINE_TEXT ?= 0x80000000
@@ -213,7 +215,7 @@ all: $(SMOKE_BINS)
 boot-tools: $(BOOT_TOOL_BINS) $(DTB)
 dtb: $(DTB)
 
-$(DTB_DTS): $(GEN_DTS) $(PLATFORM_CONFIG)
+$(DTB_DTS): $(GEN_DTS) $(PLATFORM_CONFIG) $(PLATFORM_CONFIG_COMMON)
 	mkdir -p $(dir $@)
 	$(PYTHON) $(GEN_DTS) --config $(PLATFORM_CONFIG) --mode kernel --output $@
 

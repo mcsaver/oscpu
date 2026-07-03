@@ -1,10 +1,12 @@
 # OooBranchBpuUpdateGate Spec
 
+> ⚠️ **状态(2026-07-03 RTL 重读)**:旧四个 update 臂(direct/pending/drained/commit)在 mode=1+`OOO_DBRANCH_DOMAIN_A` 下全死——direct 臂依赖拍内快解析(恒 0),pending/drained/commit 三臂依赖 pending_branch(capture 被 `!rob_walk_mode` 门死);BPU 回训唯一活源 = F2 issue-resolve 臂(`resolve_update_*`,后端每条条件分支 resolve 拍回训,含预测正确者),模块内注释自证(`OooBranchBpuUpdateGate.v:33-35`);另 `branch_bpu_pending0_capture` 因 `direct_branch0_dispatch_valid` 恒 0 而语义漂移为"每个 head0 分支拍都置位",现仅驱动 lookup_event 统计;拆除计划见 `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述,并已补记 resolve 臂。
+
 ## Scope
 
 `OooBranchBpuUpdateGate` owns the combinational predicates and muxing used to
 feed branch direction predictor lookup/update sideband logic in
-`OooAluFetchCore`.
+`OooFrontend` (formerly `OooAluFetchCore`).
 
 It does not store predictor state, mutate BHT/PHT entries, compare branch
 operands, update RAS/BTB state, or own any pending branch register. The parent
@@ -20,6 +22,9 @@ remains the owner of branch state, resolve/recovery sequencing, the
   pending branch commit-resolve events.
 - Pending/direct branch prediction metadata: predicted-taken, PC, BHT index,
   resolved next PC, target PC, and actual taken facts.
+- F2 issue-resolve update sideband: `resolve_update_valid/taken/pred_taken/
+  pc/bht_idx` exported from the backend branch resolve bus (BHT index and
+  predicted-taken travel with the uop through the issue queue).
 
 ## Outputs
 
@@ -46,13 +51,17 @@ remains the owner of branch state, resolve/recovery sequencing, the
 - Drained update requires stop-pending branch ownership, drain complete, and an
   undispatched pending branch.
 - Commit update mirrors pending branch commit-resolve.
-- Update-valid is the OR of all four update classes.
+- Update-valid is the OR of the four legacy update classes plus the F2
+  issue-resolve update event.
 - Pending-like updates are pending/drained/commit updates; they select pending
   PC/BHT/prediction metadata.
 - Pending resolve actual-taken is true only when the resolve target equals the
   pending branch target and the resolve is not misaligned.
 - Drained and commit updates use the stored pending branch taken bit.
 - Direct update uses the direct branch resolved-taken bit.
+- When no pending-like or direct class fires, taken/predicted-taken/PC/BHT
+  index all fall back to the F2 resolve-update metadata (the only live source
+  in mode=1).
 - Update correctness is selected predicted-taken equal to selected actual-taken.
 
 ## Non-Goals

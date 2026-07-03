@@ -1,8 +1,10 @@
 # OooRasUpdateGate 规格
 
+> ⚠️ **状态(2026-07-03 RTL 重读)**:模块本身活跃,但 mode=1 下多条输入臂恒 0 为死通道——pop 的 `pending_jump_return_fire`/`direct_branch0_lane1_ret` 臂、push 的 `pending_jump_call_fire` 臂、clear 的 `branch_spec_restore` 臂(pending-jump 序列器、branch-spec resolve、lane1-ret 融合均已判死);实际活口 = clear(特权边界/每次 mispredict untracked/unsafe direct call)+ pop(direct ret0/ret1)+ push(direct JAL call,push value 恒选 direct link);拆除计划见 `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述。
+
 ## 阶段 1：需求
 
-`OooRasUpdateGate` 负责从 `OooAluFetchCore` 中抽出 RAS 栈上游的纯组合更新控制：
+`OooRasUpdateGate` 负责从 `OooFrontend`(原 `OooAluFetchCore`)中抽出 RAS 栈上游的纯组合更新控制：
 
 - RAS/return-cont 需要清空的全局预测边界。
 - direct/pending return-like 触发的 RAS pop；旧 pending lane1-ret dispatch replay

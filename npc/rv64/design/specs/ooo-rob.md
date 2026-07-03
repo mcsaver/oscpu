@@ -5,16 +5,20 @@
 ## 1. 目的与范围
 ROB 是乱序执行与精确提交的边界：执行可乱序完成(writeback)，但对外 commit、异常上报、
 旧物理寄存器释放必须按 head 程序序发生。容量 ROB_ENTRIES=16(`OOO_ROB_INDEX_W`=4)。
-2-wide dispatch / 2-wide writeback / 2-wide in-order commit。支持 checkpoint/restore(分支投机回滚)。
+2-wide dispatch / 2-wide writeback / 2-wide in-order commit。误预测恢复=ROB-walk
+(2 项/拍反向 walk squash 更年轻项);checkpoint 影子阵列在 `OOO_ROB_WALK_MODE=1` 下
+capture/restore 恒被 gate,为死硅(2026-07-03 RTL 重读确认)。
 
 ## 2. 接口（要点）
 | 组 | 信号 | 含义 |
 | --- | --- | --- |
 | dispatch0/1 | valid/ready/rob_idx + pc/inst/rd/old_pdest/new_pdest | 在 tail 分配 ROB 项,返回 idx |
 | wb0/1 | valid/rob_idx/exception | 乱序标记 done(可命中 head 或 head1) |
-| commit0/1 | valid/pc/inst/rd/old_pdest/new_pdest/data/exception/cause/tval | head 程序序退休输出 |
+| commit0/1 | valid/pc/inst/rd/old_pdest/new_pdest/data/exception/cause/tval + is_fp_rd/fflags | head 程序序退休输出(FP 目的与 fflags 随行) |
 | commit_ready_i / commit1_block_i | | 上游提交准入 / 单独阻断 commit1 |
-| flush_i / checkpoint_capture/restore | | 冲刷 / 分支快照与回滚 |
+| flush_i | | 冲刷 |
+| kill_valid/rob_idx → walk0/1 + recover_active | arch_rd/old_pdest/new_pdest/rd_en/is_fp | ROB-walk 误预测恢复:squash 严格更年轻项,walk 输出供 rename 还原+free-list 回收;walk 期(含 kill 当拍)冻结 dispatch/commit,in-flight wb 仍被吸收 |
+| checkpoint_capture/restore | | mode=1 下恒 gate,影子阵列为死硅 |
 
 ## 3. 状态与时序
 - 环形:`head_q`(提交端)、`tail_q`(分配端)、`count_q`;每项 `valid_q/done_q/exception_q/rd_en_q/...`。
@@ -23,7 +27,11 @@ ROB 是乱序执行与精确提交的边界：执行可乱序完成(writeback)�
 - commit:head(及 head1)valid&done&commit_ready 时退休;commit1 可被 `commit1_block_i` 单独挡。
   提交时输出架构 rd/data、释放 old_pdest、推进 head。
 - 异常:提交项 exception=1 → commit0_exception 上报(精确,在 commit 边界),触发上游 flush。
-- checkpoint:分支投机时 capture 全 ROB 状态;误预测 restore 回滚到检查点。
+- 误预测恢复(ROB-walk):kill_valid 锁存存活分支 idx,从 tail 反向 2 项/拍 squash 严格更年轻项
+  并逐拍 emit walk0/1(arch_rd/old_pdest/new_pdest/rd_en/is_fp,FP 目的经 is_fp 分流给 FP 簇),
+  recover_active 期间(含 kill 当拍)冻结 dispatch/commit;但 in-flight 写回仍被吸收——存活(更老)
+  项的结果若在此窗口回写被丢弃,其 ROB 项永不 done、head 卡死(被 squash 项由其后的 valid/done
+  清 0 覆盖,无副作用);checkpoint 影子阵列(capture/restore)在 mode=1 下恒 gate,为死硅。
 
 ## 4. 不变量
 - **ROB-I1 程序序提交**：commit 只从 head 起按序;commit1 必为 head 的下一项且不早于 commit0。

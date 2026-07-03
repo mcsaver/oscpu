@@ -4,12 +4,13 @@
 
 ## 1. 目的与范围
 预测条件分支方向(taken/not-taken),双发射(2 lookup 口)。gshare(全局历史)+ local(局部历史)混合,
-2-bit 饱和计数器。只管方向;目标地址由 BTB/RAS/BTC,跳转由 jump sequencer。
+2-bit 饱和计数器。只管方向;目标地址由 RAS 与前端直算(JAL=pc+imm、RET=RAS top;
+JALR-BTB/BTC/pending jump sequencer 在 mode=1 下已判死,见 2026-07-03 RTL 重读基线)。
 
 ## 2. 结构
 ```
  gshare:  index = fn(PC, GHR)        → bht_q[idx] (2-bit 饱和)  [BPU_BHT_ENTRIES≈4096]
- local :  lh = local_hist_q[PC_idx]  → local_pht_q[lh] (2-bit) [BPU_LOCAL_*≈4096]
+ local :  lh = local_hist_q[PC_idx(256 项×8b)] → local_pht_q[{pc[4:1],lh}] (2-bit) [PHT 4096]
  GHR(ghr_q): 全局分支历史移位寄存器(BHT_INDEX_W 位)
  lookup → pred_taken / predict_strong / bht_idx(供 update 回写)
  update(resolve): 按实际 taken 更新计数器(±1 饱和)、移入 GHR、更新 local history
@@ -19,7 +20,8 @@
 
 ## 3. 不变量
 - **BP-I1 索引一致**:lookup 产出的 bht_idx 必须随 uop 传到 resolve,update 用同一 idx 回写(否则训错条目)。
-- **BP-I2 更新顺序**:GHR/计数器在 resolve(真实方向已知)时更新;投机期不污染(误预测恢复见 BranchSpecTracker)。
+- **BP-I2 更新顺序**:GHR/计数器在 resolve(真实方向已知)时更新;投机期不污染(误预测恢复走
+  pred_npc 显式 mispredict redirect + ROB-walk;BranchSpecTracker 的 checkpoint 机制已判死)。
 - **BP-I3 双发射**:lookup0/lookup1 同拍读同一表,需保证两口读不互相干扰(纯读)。
 - 预测错不影响正确性(只影响性能):误预测由后端 resolve→精确 redirect 纠正。
 
@@ -33,3 +35,5 @@ Vivado OOC:13 逻辑级/logic ~3.4ns(local_hist→local_pht 索引+计数器),�
 
 ## 6. 变更记录
 - 2026-06-28：逆向文档化(gshare+local 混合/2-bit 饱和/双 lookup/静态回退/resolve 更新)。
+- 2026-07-03：RTL 重读校正——目标预测引用改为现状(JALR-BTB/BTC 已死)、local PHT 索引精确化
+  ({pc[4:1],hist})、BP-I2 恢复机制改为 mispredict+ROB-walk;update 单源=F2 issue-resolve。

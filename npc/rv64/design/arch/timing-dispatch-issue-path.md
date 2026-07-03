@@ -8,10 +8,16 @@
 > 高优先级 = FP arith/FMA 流水化(2-3 级)**;dispatch-bypass 优化次之(它只省 7.95ns,FP FMA 36ns 才是封顶)。
 > 下文 dispatch 分析仍有效(dispatch 是 FP 之外最深的整数路径),但"唯一封顶"应读作"整数侧封顶"。
 
+> **[2026-07-03 更新(RTL 重读)]** 上述 FP 封顶已解除:`OooFpArithGate` 已流水化(FADD/FMUL/FMA 分级、
+> 统一第 5 拍出结果、可背靠背,单拍 173 级关键路径压到每级 ≤ dispatch 级数),pending-FP 通道已拆除
+> (`OooPendingFpSequencer` 已不存在,FP 走独立 rename/IQ 流水簇)。dispatch→issue 链重新成为当前
+> 已知最深逻辑级路径;本文 §6c "不 ship dispatch-bypass" 的负决策与重启条件仍有效。
+> 另:F2(`OOO_ROB_WALK_MODE=1`)下分支/JAL/JALR 已禁 dispatch 旁路(恒经队列发射),旁路仅余 ALU/访存类。
+
 # (原标题)dispatch→issue 关键路径(整数侧最深路径)
 
 > 模板见 `SPEC-TEMPLATE.md`。目标:`OooDispatchBackend` 及其子模块 `OooFreeList` / `OooBusyTable`
-> / `OooIntIssueQueue`。状态:**设计中(spec 先行)**;数据来自 Vivado OOC 模块综合。
+> / `OooIntIssueQueue`。状态:**已定案(§6c 数据完备负决策,重启条件见文末)**;数据来自 Vivado OOC 模块综合。
 
 ## 1. 数据(实测关键路径,2026-06-28 OOC)
 `vivado/out/mod-OooDispatchBackend-20260628-143934/`:
@@ -58,7 +64,7 @@ busy_table 算子就绪结果**(free_list→busy_table→IQ-select-next→count/
 **切点方案**:让 select 次态只读**已寄存表项就绪**,不读本拍 dispatch 的 busy_table 结果
 (即弱化/流水化 dispatch bypass)。**代价**:刚 dispatch 的依赖指令失去快速旁路、晚 1 拍可发射。
 **关键权衡**:头部负载 branch-resolve-loop 恰是依赖密集(load→store→branch 链),去旁路会**伤其
-CPI**(见 `EVAL-REPORT-2026-06-28.md` §3.1)。故 B **必须**靠整核 P&R 实测:仅当
+CPI**(见 `history/EVAL-REPORT-2026-06-28.md` §3.1(已归档))。故 B **必须**靠整核 P&R 实测:仅当
 Fmax 提升带来的吞吐 > CPI 退化才净赢。
 
 **当前**:整核 P&R 流程已建(`vivado/run-pnr-core.sh` + `pnr-core.tcl`,看门狗护航),运行取真实
@@ -107,7 +113,7 @@ B 类额外需:搭整核 `synth.tcl` 全核 P&R(非 OOC)取真实 WNS,再判净�
    **完全一样**(1.3340)——刚 dispatch 的指令其算子恰好本拍被 wakeup 的情形极罕见。故 B-cut-2 被 B-cut-1
    支配(同 CPI、逻辑更多),有意义的选择只有"基线 vs B-cut-1"。
 3. **CPI 代价确定 +5.5%**(集中在依赖密集 ALU 环:wanshu +39%、select-sort +36%、string +28%;
-   而头部 branch-resolve-loop 几乎不变,因其访存受限——见 `EVAL-REPORT-2026-06-28.md` §3.1)。
+   而头部 branch-resolve-loop 几乎不变,因其访存受限——见 `history/EVAL-REPORT-2026-06-28.md` §3.1(已归档))。
 4. **net 收益不可在此 WSL 判定**:39→24 是否转成 >5.5% 的 **routed** Fmax 提升,需整核 P&R(此 16GB WSL
    不可行,见 `known-issues.md`)。OOC route 占 80% 不可信。
 
@@ -120,3 +126,5 @@ Fmax-critical 且可接受 5.5% CPI。届时实施 B-cut-1(最简且 Pareto 最�
 ## 7. 变更记录
 - 2026-06-28：基于 OOC 实测关键路径(39 级 free_list→busy_table→issue_queue 单拍链)建立规范,
   分 A(CPI-中性组合重构,可验)/B(流水化,需 P&R)两路,B 暂缓。
+- 2026-07-03：RTL 重读复核——FP arith 流水化落地后,2026-06-29 的"FP FMA 封顶"修正注记已过时,
+  补 2026-07-03 更新注;状态改"已定案"。§6c 负决策不变。

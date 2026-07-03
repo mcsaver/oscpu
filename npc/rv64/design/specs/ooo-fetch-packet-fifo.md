@@ -1,8 +1,14 @@
 # OooFetchPacketFifo Boundary Spec
 
+> ⚠️ **状态(2026-07-03 RTL 重读)**：模块本体存活（enqueue/pop/clear/head 通路是取指主路径）；
+> 但 **seed 通道当前恒不触发**——上游 `OooFetchPacketSeedMux` 的全部 set_seed 臂
+> （fallthrough capture / branch-prefetch hit / JALR-prefetch hit）在
+> `OOO_ROB_WALK_MODE=1'b1` + `BRANCH_APPEND_DISPATCH_ENABLE=1'b0` 下判死，
+> `seed_valid_i` 恒 0；拆除计划见 `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述。
+
 ## 1. Requirement
 
-`OooAluFetchCore` previously owned fetch packet FIFO pointers, count and packet
+`OooFrontend`（原 `OooAluFetchCore`，已重构删除）previously owned fetch packet FIFO pointers, count and packet
 storage directly.  The inline FIFO mixed packet storage with redirect, branch
 prefetch, JALR prefetch, CSR trap and precise drain control.  This made the
 front-end boundary difficult to audit.
@@ -36,6 +42,8 @@ Outputs:
 - `count_o`: number of valid stored packets, range `0..2^FETCH_PACKET_COUNT_W`.
 - `head_valid_o`: true iff `count_o != 0`.
 - `head_*_o`: packet fields selected by the current head pointer.
+- `head1_pc0_o`（B2/F2 新增）: 下一条 FIFO entry（head+1）的 `pc0`，作 head 包的
+  顺序流 `pred_npc` 预测后继，仅 `count_o >= 2` 时有效。
 
 The parent must not use `head_*_o` unless `head_valid_o` or an external bypass
 path provides a valid packet.  The module does not arbitrate between stored FIFO
@@ -72,12 +80,13 @@ actions mirror the old inlined non-blocking assignment order.
 
 ## 5. Parent Boundary
 
-`OooAluFetchCore` remains responsible for:
+`OooFrontend` remains responsible for:
 
-- deciding whether an incoming fetch response bypasses FIFO storage;
+- deciding whether an incoming fetch response bypasses FIFO storage
+  （mode=1 下 bypass 恒 0，配置性死路）;
 - computing `fetch_rsp_enqueue_w`, `fifo_storage_pop_w` and reservation;
 - encoding redirect/trap/drain clear and seed actions;
-- selecting seed packet source:
+- selecting seed packet source（三源在当前配置下全为死路，见文首状态注记）:
   - branch fall-through current response;
   - branch prefetch hit promoted to FIFO;
   - JALR prefetch hit promoted to FIFO.

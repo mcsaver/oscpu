@@ -1,8 +1,10 @@
 # OoO Branch Prefetch Buffer
 
+> ⚠️ **状态(2026-07-03 RTL 重读)**:活文件中的死存储——`OOO_ROB_WALK_MODE=1` 下 `req_fire_i` 恒 0(branch prefetch req 需 pending_branch 恒 0、JALR req 需 JALR-BTB hit 而表恒空,见 `OooBranchPrefetchRequestGate.v:40-52`),影子包永不建立,全链死路;拆除计划见 `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述。
+
 ## 1. 需求
 
-`OooBranchPrefetchBuffer` 承接 `OooAluFetchCore` 中 branch prefetch 影子包状态：
+`OooBranchPrefetchBuffer` 承接 `OooFrontend` 中 branch prefetch 影子包状态：
 
 - 记录已经发出的 branch prefetch request PC。
 - 在匹配的 fetch response 返回时保存两条 slot 的 decoded packet。

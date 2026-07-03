@@ -115,6 +115,11 @@
 - 稳定结论、长期经验和设计决策写入 `.github/memory/`。
 - 单次任务过程、节点派发与证据链优先写入 `.github/task-runs/<日期-任务名>/`。
 - 处理 agent 架构与工作流环境任务时，相关长期结论优先沉淀到 `.github/memory/modules/agent-system.md`。
+- **文档生命周期义务**：文档不是只增不减的沉积层。声明任务"完成"前，按
+  `.github/instructions/doc-lifecycle.instructions.md` §4 核对本次改动是否触发文档状态迁移
+  （删模块→spec 归档、机制判死→⚠️ 注记、实施计划落地→同刀归档、新快照→旧快照归档、
+  归档后悬空引用清零）；大规模改动后可跑全量审计工作流（Claude Code：
+  `Workflow({name: "doc-lifecycle-audit"})`；其他 agent 按协议手动执行同等流程）。
 - 回答用户时优先说明结果、关键约束、验证情况和剩余风险，不要只给抽象过程描述。
 
 ---

@@ -1,33 +1,25 @@
-# NPC RV64 Linux/Ubuntu bring-up 平台配置。
-# 这个文件是 OpenSBI/Linux/DTB/initramfs/rootfs 入口的单一事实来源，
-# 避免 RAM、镜像装载地址和设备中断号散落在 Makefile/DTS/C++/RTL 中。
-memory:
-  base: 0x80000000
-  size: 0x40000000   # 1 GiB，给完整 Ubuntu 22.04 rootfs/systemd/apt/页缓存留出更接近 VM 的余量
+# NPC RV64 Linux/Ubuntu bring-up 平台配置(NPC 专属部分)。
+#
+# 共享 SoC 契约(内存/装载布局/共有设备/共享 bootargs)在 common-rv64.yml,
+# 本文件经 gen_dts.py 深合并覆盖其上,只写 NPC 平台差异:产物路径与
+# rootfs bootargs。Makefile 按 ARCH=riscv64-npc 自动选中本文件。
 
-reset:
-  pc: 0x80000000
-  boot_hartid: 0
+base: common-rv64.yml
 
+# 以下路径字段中,initrd.image 是 gen_dts.py initramfs 模式未传
+# --initrd-image 时的缺省 fallback(会 stat 该文件计算 initrd-end);
+# 其余路径目前无代码解析(Makefile 以 PLATFORM_ROOT/BUILD_DIR 变量
+# 自行展开等价路径),保留为平台产物位置的文档性单一说明。
 opensbi:
   fw_jump: Linux/env/platforms/npc/build/opensbi/rootfs/platform/generic/firmware/fw_jump.bin
-  fw_jump_addr: 0x80000000
 
 kernel:
-  load_addr: 0x80200000
   image: Linux/env/platforms/npc/build/linux/arch/riscv/boot/Image
 
 dtb:
-  load_addr: 0x82200000
   build_dir: Linux/build/riscv64-npc
 
-# NEMU/NPC 没有真实硬件 RNG；用 DTB rng-seed 走 Linux 官方 bootloader
-# 随机种子入口，避免 systemd 早期 getrandom 在无熵状态下停住。
-chosen:
-  rng_seed: "79 73 79 78 2d 72 76 36 34 2d 6e 65 6d 75 2d 73 79 73 74 65 6d 64 2d 72 6e 67 2d 73 65 65 64 01"
-
 initrd:
-  load_addr: 0x84000000
   image: Linux/env/platforms/npc/images/initramfs/rootfs.cpio
 
 ubuntu_initrd:
@@ -36,45 +28,9 @@ ubuntu_initrd:
 rootfs:
   image: Linux/env/platforms/npc/images/ubuntu2204/ubuntu-22.04-riscv64.ext4
 
-devices:
-  clint:
-    base: 0x02000000
-    size: 0x00010000
-  plic:
-    base: 0x0c000000
-    size: 0x04000000
-    sources_initramfs: 1
-    sources_rootfs: 32
-  uart0:
-    base: 0x10000000
-    size: 0x1000
-    irq: 1
-    clock_frequency: 1843200
-    current_speed: 115200
-  virtio_blk:
-    base: 0x10001000
-    size: 0x1000
-    irq: 2
-  virtio_rng:
-    base: 0x10002000
-    size: 0x1000
-    irq: 3
-  virtio_net:
-    base: 0x10004000
-    size: 0x1000
-    irq: 5
-  goldfish_rtc:
-    base: 0x10003000
-    size: 0x1000
-    irq: 4
-  reset_syscon:
-    base: 0x00100000
-    size: 0x1000
-    poweroff_value: 0x5555
-    reboot_value: 0x7777
-
+# NPC 的 rootfs DTB 实际由 Linux/Makefile 以 --bootargs-override
+# '$(NPC_ROOTFS_BOOTARGS)' 整串覆盖(init 按 console-shell 开关指向
+# ysyx-npc-systemd-wrapper 或 systemd),此处的值仅作无 override 直跑
+# gen_dts.py 时的缺省,与覆盖串的 systemd 直启形态保持一致。
 bootargs:
-  kernel: "console=ttyS0,115200n8 earlycon=sbi loglevel=8 ignore_loglevel"
-  initramfs: "console=ttyS0,115200n8 earlycon=sbi loglevel=8 ignore_loglevel rdinit=/bin/sh"
-  ubuntu_initramfs: "console=ttyS0,115200n8 earlycon=sbi loglevel=8 ignore_loglevel rdinit=/init nowatchdog softlockup_panic=0"
   rootfs: "console=ttyS0,115200n8 root=/dev/vda rw init=/lib/systemd/systemd"

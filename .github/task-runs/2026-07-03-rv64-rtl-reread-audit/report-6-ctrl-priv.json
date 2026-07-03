@@ -1,0 +1,303 @@
+{
+ "subsystem": "控制平面/特权架构/提交(control + CsrFile + writeback):ROB 提交、精确异常、M/S/U 特权与 CSR、中断/trap/xret、域B(pending 串行化)执行域、架构寄存器堆、对外观测/commit 流",
+ "modules": [
+  {
+   "file": "writeback/OooRob.v",
+   "purpose": "重排序缓冲:乱序写回与按序提交/异常/旧物理寄存器释放的边界,含全表 checkpoint 影子和 ROB-walk 误预测恢复状态机",
+   "instantiated_by": "rename_allocate/OooDispatchBackend.v:504(参数 ROB_ENTRIES=ROB_ENTRY_COUNT=1<<4)",
+   "key_params": "深度 16 项(OOO_ROB_INDEX_W=4, include/define.v:31, 无构建期 -D 覆盖);dispatch 2 条/拍(OooRob.v:17,31);commit 2 条/拍(OooRob.v:61,76);wb 2 口(OooRob.v:43,51);walk 恢复 2 项/拍(OooRob.v:258-262);物理寄存器地址 6 位=64 项(define.v:22)"
+  },
+  {
+   "file": "core/CsrFile.v",
+   "purpose": "CSR 寄存器堆+特权级状态机:M/S/U 三级、trap/xRET 副作用、中断 pending/委托、PMP、计数器、fcsr",
+   "instantiated_by": "core/NpcCoreTop.v:359",
+   "key_params": "priv 2 位(M/S/U, reset=M, CsrFile.v:636);pmpcfg×2+pmpaddr×16(CsrFile.v:81-82);mcycle/minstret 64 位;cause 5 位(define.v:15);misa=RV64ACDFIMSU 固定值(CsrFile.v:73-74)"
+  },
+  {
+   "file": "control/OooControlPlane.v",
+   "purpose": "控制平面纯结构 wrapper:聚合 13 个 CSR/trap/pending/drain/flush/stop/观测 owner 实例,无自有逻辑(仅 1 个 rdata refresh 组合式, 510-512 行)",
+   "instantiated_by": "core/OooCoreTopGlue.v:823",
+   "key_params": "750 行;13 个子实例;ROB_COUNT_W=5, ISSUE_COUNT_W=4 参数化"
+  },
+  {
+   "file": "control/OooPendingDispatchArbiter.v",
+   "purpose": "域B捕获/清除事件的纯组合总仲裁:决定 dispatch 边界哪类指令进 pending_system/branch/jump/mem/trap_exit 通道,优先级 irq>fetch_fault0>arch_trap>exit>system>branch>jump>barrier>unsupported",
+   "instantiated_by": "control/OooControlPlane.v:404",
+   "key_params": "纯组合;capture 优先级链 8 级(149-286 行);rob_walk_mode=1 时 branch/jump capture 全关(100-103,161,171,183)"
+  },
+  {
+   "file": "control/OooPendingLane1CaptureGate.v",
+   "purpose": "lane1 barrier 指令的类型分型与 trap/exit payload(cause/tval)组合计算",
+   "instantiated_by": "control/OooPendingDispatchArbiter.v:127",
+   "key_params": "纯组合;cause 优先级 semihost>illegal>fp_disabled>priv_illegal>csr_illegal>fetch fault(60-67 行)"
+  },
+  {
+   "file": "control/OooStopPendingSequencer.v",
+   "purpose": "域B总闸 stop_pending 置位/清除时序:决定何时停止取指供给并进入 drain 序列",
+   "instantiated_by": "control/OooControlPlane.v:704",
+   "key_params": "1 位状态;置位源 8 类(111-139 行);dbranch_domain_a=1 时 direct 分支不再 stop(54,67 行);dispatch0_fp_i 端口保留但 unused(147 行)"
+  },
+  {
+   "file": "control/OooPendingDrainResolveGate.v",
+   "purpose": "drain 判定与注入 valid 生成:backend_drained=(ROB空 ∧ IQ空 ∧ retire静默 ∧ 无合成ret挂起 ∧ SQ访存静默),drain_complete 后放行 pending CSR/jump/mem 注入",
+   "instantiated_by": "control/OooControlPlane.v:358",
+   "key_params": "纯组合;drained 6 条件 AND(53-58 行);CSR 注入需额外等 backend_drained_q 寄存版(63-65 行)"
+  },
+  {
+   "file": "control/OooPendingSystemSequencer.v",
+   "purpose": "pending SYSTEM 单表项状态:捕获 CSR/ecall/mret|sret/wfi/sfence/irq 一条,锁存 pc/inst/next_pc/csr_rdata/irq_cause,drain 完成拍支持 rdata 重锁",
+   "instantiated_by": "control/OooControlPlane.v:514",
+   "key_params": "深度 1(单组寄存器 57-69 行);7 个类型位;capture 优先级 clear>irq>head0>lane1>fire>refresh(86-143 行)"
+  },
+  {
+   "file": "control/OooPendingTrapExitSequencer.v",
+   "purpose": "pending arch-trap(cause/pc/tval)与 exit(ebreak/ecall 停机)payload 寄存;区分 squash 清除(连 ILLEGAL residual 一起清)与真实 trap fire 清除(保留 cause/pc 供 handler)",
+   "instantiated_by": "control/OooControlPlane.v:561",
+   "key_params": "深度 1;clear_arch_squash 仅清 cause==EXC_ILLEGAL_INST 的 residual(59-64 行)"
+  },
+  {
+   "file": "control/OooCsrAccessRequestMux.v",
+   "purpose": "CSR 访问请求四源 mux(commit0 CSR > pending_system > head1 probe > head0),rs1 数据直接从架构 GPR debug_gprs 读;产生 satp 写/sfence commit 事件",
+   "instantiated_by": "control/OooControlPlane.v:264",
+   "key_params": "纯组合;4 源优先级(54-57 行);rs1_data=debug_gprs[rs1](61-62 行)"
+  },
+  {
+   "file": "control/OooCsrTrapRequestMux.v",
+   "purpose": "CsrFile 三类 trap 请求生成:trap_mem(commit 异常)/trap_ex(drain 后 ecall+arch trap)/trap_irq(drain 后中断),及 mret/sret 判定与 priv_predictor_boundary",
+   "instantiated_by": "control/OooControlPlane.v:301",
+   "key_params": "纯组合;sret=mret 通道+funct12==SRET 复判(92-95 行);boundary=trap|xret|satp写|sfence(97-100 行)"
+  },
+  {
+   "file": "control/OooCsrIllegalProbeGate.v",
+   "purpose": "csr_illegal 组合返回值的 lane0/lane1 归属分配",
+   "instantiated_by": "control/OooControlPlane.v:349",
+   "key_params": "16 行纯组合"
+  },
+  {
+   "file": "control/OooControlFlushSequencer.v",
+   "purpose": "trap flush 时序:commit 异常(trap_mem)下一拍产生 core_trap_flush;priv 边界事件起 trap_redirect_squash 保持到 backend drained",
+   "instantiated_by": "control/OooControlPlane.v:474",
+   "key_params": "3 个 1 位寄存器;trap flush 恰 1 拍延迟(25 行)"
+  },
+  {
+   "file": "control/OooCoreSliceControlGate.v",
+   "purpose": "core slice 的 flush/checkpoint/commit 准入裁决:core_local_flush=flush|trap_flush|serial_flush;mode=1 下关闭 quiesce/mem_issue_block/commit 冻结",
+   "instantiated_by": "control/OooControlPlane.v:487",
+   "key_params": "纯组合;rob_walk_mode=1 时 quiesce 恒 0(34-36 行)、commit_ready 不看 branch_spec(42-46 行)"
+  },
+  {
+   "file": "control/OooTrapExitEventMux.v",
+   "purpose": "drain 出口事件选择:分支/跳转目标 misaligned 兜底 trap、drain_trap_payload(pc!=0 的残留 trap)、exit(ebreak 停机)——注意这些走 halted 停机而非 CsrFile trap",
+   "instantiated_by": "control/OooControlPlane.v:587",
+   "key_params": "纯组合;7 个 trap 源 OR(99-106 行);exit 需所有 pending owner 空(122-129 行)"
+  },
+  {
+   "file": "control/OooTrapExitOutputSequencer.v",
+   "purpose": "trap/exit 观测输出锁存:trap_i 或 exit_i 置 halted=1(核停机,不可恢复)",
+   "instantiated_by": "control/OooControlPlane.v:632",
+   "key_params": "粘滞寄存器组;halted 单向置位(37-50 行)"
+  },
+  {
+   "file": "control/OooCoreObservableOutputGate.v",
+   "purpose": "对外观测输出统一边界:trap/exit/halted/priv/mstatus/satp/pmp/debug_pc/debug_state/debug_gprs 直通与 debug_pc 4 级 fallback",
+   "instantiated_by": "control/OooControlPlane.v:653",
+   "key_params": "纯组合;halted 追加 orphan-stop 条件(62-66 行);debug_state 5 态(78-84 行)"
+  },
+  {
+   "file": "control/OooRedirectArbiter.v",
+   "purpose": "统一控制流重定向仲裁器(年龄律:最老胜,平手 trap>branch>direct)——DEAD:未接线",
+   "instantiated_by": "DEAD(核内零实例化;filelist.mk:85 仅定义变量未加入 RTL_CORE_SRCS;OooCoreTopGlue.v:367 注释'待接入';仅 testbench/tests/tb_ooo_redirect_arbiter.sv 引用)",
+   "key_params": "3 源仲裁;4 位环形年龄减法"
+  },
+  {
+   "file": "writeback/OooWriteback.v",
+   "purpose": "writeback 子系统纯结构 wrapper:聚合合成 lane1-ret commit 门/序列器、控制 commit 序列器、commit 输出 mux 共 4 实例",
+   "instantiated_by": "core/OooCoreTopGlue.v:438",
+   "key_params": "260 行;4 个子实例"
+  },
+  {
+   "file": "writeback/OooControlCommitSequencer.v",
+   "purpose": "域B合成 commit 条目生成(1 拍延迟寄存):drain 出口的 mret/sret/wfi/sfence/CSR-illegal 兜底、未派发 pending branch、jr-nolink 跳转以 pc/inst/next_pc 形式补进 commit 流(rd 写恒 0)",
+   "instantiated_by": "writeback/OooWriteback.v:163",
+   "key_params": "深度 1;rd_en/rd_data/write 恒 0(80-84 行无置位);core_serial_flush_o 恒 0(85 行,无置 1 路径)"
+  },
+  {
+   "file": "writeback/OooCommitOutputMux.v",
+   "purpose": "对外 commit 流最终 mux:ctrl_commit/合成 lane1-ret/branch-append 条目与 ROB core commit 合成 2 lane 输出;JAL 的 next_pc 用 imm 重算修正",
+   "instantiated_by": "writeback/OooWriteback.v:201",
+   "key_params": "2 commit lane;retire_count=core+ctrl+append+ret-drop(200-204 行);JAL next_pc=pc+imm_j(78-89 行)"
+  },
+  {
+   "file": "writeback/OooSyntheticLane1RetCommitGate.v",
+   "purpose": "合成 lane1 return 的 commit 时机判定(before/after core0、drop-branch 配对)",
+   "instantiated_by": "writeback/OooWriteback.v:114",
+   "key_params": "纯组合;PC 匹配配对(26-35 行)"
+  },
+  {
+   "file": "writeback/OooSyntheticLane1RetSequencer.v",
+   "purpose": "direct 双发中 lane1=return 不进 ROB 时的合成 commit 状态(ret_pending/branch_seen/branch_drop),satp 写或 trap 时清除",
+   "instantiated_by": "writeback/OooWriteback.v:136",
+   "key_params": "深度 1;satp_clear/trap_clear 全清(80-82 行)"
+  },
+  {
+   "file": "writeback/OooArchRegFile.v",
+   "purpose": "架构 GPR:仅 commit 时按程序序写入的影子提交状态,供 difftest/debug/a0 退出码/CSR rs1 串行读;异常 commit 不写",
+   "instantiated_by": "execute/OooAluCoreSlice.v:244",
+   "key_params": "32×64 位;2 commit 写口+1 串行写口(已封 0);x0 读恒 0(70 行);a0=rf[10](65 行)"
+  },
+  {
+   "file": "writeback/WBU.v",
+   "purpose": "写回源 5 选 1 纯组合 mux(ALU/LOAD/PC+4/IMM/CSR)——活代码",
+   "instantiated_by": "execute/OooIntBackend.v:798(u_wbu0) 与 :808(u_wbu1),每发射 lane 一个",
+   "key_params": "25 行;sel 3 位;5 源"
+  }
+ ],
+ "capabilities": [
+  {
+   "claim": "ROB 深度 16 项,每拍最多派发 2 条、提交 2 条;commit1 受三条件阻断(commit0 无异常、count>1、commit1_block);head/head+1 支持同拍写回前递(wb 数据当拍即可参与 commit)",
+   "evidence": "include/define.v:31(OOO_ROB_INDEX_W=4→16 项);writeback/OooRob.v:279-286(commit0/1 fire 条件);OooRob.v:200-249(wb0/wb1 对 head/head1 的 match 前递);构建无 -D 覆盖(npc/rv64/Makefile:82-87 仅 stats/probe 宏)"
+  },
+  {
+   "claim": "精确异常(域A执行异常):执行单元写回时把 exception/cause/tval 记入 ROB 表项,到达 head 按序随 commit 输出;commit 异常当拍写 CsrFile(mepc/mcause/mtval/mstatus/priv 切换),异常指令被 ArchRegFile 拒写(架构状态不被污染),下一拍 core_trap_flush 冲刷 core slice(ROB/IQ/rename),frontend 用 trap_target 重定向到 {m|s}tvec",
+   "evidence": "writeback/OooRob.v:489-504(wb 记录 exception/cause/tval);control/OooCsrTrapRequestMux.v:60-72(commit0/1 异常→trap_mem_valid,pc/cause/tval 选择);core/CsrFile.v:672-685(trap_mem 写 CSR+切 priv);writeback/OooArchRegFile.v:36-43(!exception 门);control/OooControlFlushSequencer.v:25(下一拍 core_trap_flush);control/OooCoreSliceControlGate.v:39-40(core_local_flush);execute/OooExecuteBackend.v:148(flush 进 core slice→ROB);core/CsrFile.v:609-610(trap_target)"
+  },
+  {
+   "claim": "支持 M/S/U 三特权级,reset 进 M;misa 固定值 RV64ACDFIMSU(0x8000000000141105|D|F);异常委托 medeleg[cause]、中断按 cause∈{SSI,STI,SEI} 且 priv!=M 时 trap 到 S(写 sepc/scause/stval,priv→S),否则到 M",
+   "evidence": "core/CsrFile.v:636(reset PRIV_M);CsrFile.v:73-74(misa 值);CsrFile.v:550-558(trap_to_s 判定);CsrFile.v:672-715(M/S 两分支 trap 副作用);CsrFile.v:114-123(MPP 编码只含 U/S/M)"
+  },
+  {
+   "claim": "CSR 已实现清单(known+可读写):fflags/frm/fcsr;sstatus/sie/stvec/sscratch/sepc/scause/stval/sip/scounteren/satp;mstatus/misa/medeleg/mideleg/mie/mtvec/mcounteren/mcountinhibit/menvcfg/mscratch/mepc/mcause/mtval/mip/mcycle/minstret;pmpcfg0/pmpcfg2+pmpaddr0-15;只读 mvendorid(0x79737978)/marchid(26010035)/mimpid(0)/mhartid(0);用户态只读 cycle/time/instret。RV64 下 cycleh/timeh/instreth 显式判 illegal",
+   "evidence": "core/CsrFile.v:360-411(known 表);CsrFile.v:560-603(读 mux);CsrFile.v:726-786(写 case);CsrFile.v:403-406(*h 移除注释);CsrFile.v:561-562(vendorid/archid)"
+  },
+  {
+   "claim": "CSR WARL 语义:mstatus 可写位=SIE|MIE|SPIE|MPIE|SPP|FS|MPP|MPRV|SUM|MXR|TVM|TW|TSR,SXL/UXL 硬连线,SD 由 FS==Dirty 只读派生;sstatus 掩码视图;satp 仅接受 mode=Bare(0)/Sv39(8) 否则整体写 0;mip 写仅 SSIP/STIP/SEIP(M 硬件位只读)、sip 写仅 SSIP;sie 写仅 S 位;mepc/sepc bit0 清零;mtvec/stvec 低 2 位强制 00;pmp 带 lock/TOR-lock 链与 W&!R→清 RWX sanitize;menvcfg 仅 PBMTE 位可写",
+   "evidence": "core/CsrFile.v:61-68(mstatus/sstatus 掩码);CsrFile.v:503-509(SD 派生);CsrFile.v:413-422(satp sanitize);CsrFile.v:752-757,775-781(sip/mip 收紧注释与实现);CsrFile.v:744-747(sie/stvec);CsrFile.v:75-76,424-429(EPC WARL);CsrFile.v:275-303(pmp lock/sanitize);CsrFile.v:79(menvcfg 掩码)"
+  },
+  {
+   "claim": "中断:三根硬件线 MSIP/MTIP/MEIP(CLINT×2+PLIC×1);mideleg[SSI/STI/SEI] 置位时同一根线映射为 SSIP/STIP/SEIP 视图且在非 M 态屏蔽对应 M 位;使能=mie & mip & 全局位(M:priv!=M 或 MIE;S:priv==U 或 priv==S&&SIE);优先级 M 域先于 S 域,域内 MEI>MSI>MTI、SEI>SSI>STI",
+   "evidence": "core/NpcTop.v:267-269,450-451(CLINT msip/mtip、PLIC external 接线);core/CsrFile.v:494-502(硬件位+委托视图);CsrFile.v:510-528(使能 pending);CsrFile.v:530-537,622-623(优先级)"
+  },
+  {
+   "claim": "中断采样与注入时机:dispatch 边界拍采样(capture_base=无 trap/flush、can_run、FIFO 有包,且 csr_irq_pending 优先于所有 head0 分类)→捕获 head_pc/irq_cause 进 pending_system 并置 stop_pending→等 backend 全排空(ROB 空+IQ 空+retire 静默+SQ 静默)→drain_complete 拍发 trap_irq_valid→CsrFile 写 mepc=被打断指令 PC、mcause=中断位|cause,priv 切换;不打断在飞指令,天然精确",
+   "evidence": "control/OooPendingDispatchArbiter.v:80-82,149-150(capture 条件与优先级);control/OooStopPendingSequencer.v:111-112(stop 置位);control/OooPendingSystemSequencer.v:95-108(锁存 pc/cause);control/OooPendingDrainResolveGate.v:53-58,91-93(drained/drain_complete);control/OooCsrTrapRequestMux.v:87-90(trap_irq);core/CsrFile.v:700-715(irq trap 副作用)"
+  },
+  {
+   "claim": "trap 进入/返回流程:ecall(SYSTEM 类)→stop+drain→trap_ex(cause 按当前 priv=8/9/11)、mepc=ecall PC;mret/sret→stop+drain→CsrFile 恢复(MPP/SPP→priv、MPIE/SPIE→MIE/SIE、mret 时非 M 目标清 MPRV)+合成 commit 条目 next_pc=ret_target(mepc/sepc);sret 与 mret 共用 pending 通道由 funct12 复判;ebreak(非 semihost)→pending_exit→drain→exit_valid+halted(仿真停机);trap/xret/satp 写/sfence 均产生 priv_predictor_boundary→trap_redirect_squash 直到排空",
+   "evidence": "core/CsrFile.v:614-616(ecall cause);control/OooCsrTrapRequestMux.v:74-85(ecall/arch trap→trap_ex);CsrFile.v:170-199,717-724(mret/sret 副作用);writeback/OooControlCommitSequencer.v:54-58,94-98(xret 合成 commit,next_pc=csr_ret_target);OooCsrTrapRequestMux.v:92-95(sret funct12 复判);control/OooTrapExitEventMux.v:122-129 + OooTrapExitOutputSequencer.v:45-50(exit→halted);OooCsrTrapRequestMux.v:97-100 + OooControlFlushSequencer.v:26-28(boundary→squash)"
+  },
+  {
+   "claim": "域B(pending 串行化)当前清单(OOO_ROB_WALK_MODE=1、OOO_DBRANCH_DOMAIN_A=1 时):①中断注入 ②取指 fault(inst access/page fault) ③arch trap 类=decode illegal、FP FS=off、priv-system-illegal(sfence@U / sfence+TVM@S / sret+TSR@S)、semihost ebreak ④ebreak(exit) ⑤SYSTEM 全家=CSR 指令、ecall、mret/sret、wfi、sfence.vma(含 Svinval sfence.w.inval/sfence.inval.ir) ⑥dispatch_unsupported 兜底 ⑦lane1 barrier(head1 为上述类或非 direct 分支/非 return 非 depend JALR)。不再串行化:分支/JAL/JALR(已迁域A投机+ROB-walk)、FP(已迁域A)、fence/fence.i(域A合法 no-op)、load/store/AMO/MUL/DIV/bitmanip(域A)",
+   "evidence": "control/OooStopPendingSequencer.v:111-139(全部置位臂,branch/jump 臂带 !rob_walk_mode_i 门);include/define.v:567-568,574-575(两模式宏=1);frontend/OooFetchHeadClassifyGate.v:124-125(SYSTEM=ecall|csr|xret|wfi|sfence);decode/DecodeUnit.v:713-730(sfence.vma+Svinval 归 SFENCE_VMA);OooFetchHeadClassifyGate.v:129-134(arch_trap 源);frontend/OooFrontendDispatchGate.v:102-109(lane1 barrier 条件);decode/DecodeUnit.v:779-785+decode/OooAluDecodeBackend.v:supported 函数不排 FENCE(fence 域A);OooStopPendingSequencer.v:35-38(FP 不再参与)"
+  },
+  {
+   "claim": "CSR 指令执行模型(串行五步):dispatch 拍组合读 CsrFile 得旧值并锁存→stop+drain→drain 完成拍重锁 rdata(修复与 FP fflags 同窗口的旧值)→单条注入普通 dispatch(旧值经 imm payload 走 rename/ROB,commit 时写 rd)→commit0 PC 匹配拍 pending_system_csr_commit 触发 csr_commit_i,CSR 写副作用一次性生效;rs1 数据从架构 GPR(debug_gprs)读——drain 后架构态即最新值",
+   "evidence": "control/OooPendingSystemSequencer.v:11-15,141-143(rdata 锁存与 refresh);control/OooControlPlane.v:510-512(refresh 条件);control/OooPendingDrainResolveGate.v:63-67(注入 valid);decode/OooAluDecodeBackend.v:196-198(旧值经 imm payload);control/OooCsrAccessRequestMux.v:47-49,61-62(commit PC 匹配、rs1=debug_gprs);core/NpcCoreTop.v:371(csr_commit_i 接 pending_system_csr_commit)"
+  },
+  {
+   "claim": "计数器:mcycle 每拍+1、minstret 按 retire_count(0-2)累加,均受 mcountinhibit.CY/IR 抑制;cycle/time/instret 用户视图受 mcounteren(S/U)与 scounteren(U)分级门控,违规判 illegal;time 只读透传 CLINT mtime",
+   "evidence": "core/CsrFile.v:666-670(计数);CsrFile.v:474-484(inhibit+分级门控);CsrFile.v:604-608(illegal 汇总);core/NpcCoreTop.v:363-364(time_i=mtime, instret_inc=retire_count)"
+  },
+  {
+   "claim": "ROB-walk 误预测恢复:kill 脉冲当拍冻结 dispatch/commit(recovering),从 tail-1 反向 2 项/拍 squash 到存活分支为止,walk 期间仍吸收更老指令的在飞写回(防 head 永久卡死),逐拍输出 arch_rd/old_pdest/new_pdest/is_fp 供 rename 回滚与 free-list 回收,结束拍回退 tail;kill 源=int backend 分支 resolve mispredict",
+   "evidence": "writeback/OooRob.v:250-263(walk 组合);OooRob.v:279-295(recovering 冻结);OooRob.v:422-478(walk 时序+wb 吸收注释);OooRob.v:104-115(walk 输出口);execute/OooIntBackend.v:1071(kill=branch_resolve_mispredict);rename_allocate/OooDispatchBackend.v:592(walk 消费)"
+  },
+  {
+   "claim": "ArchRegFile 是影子提交状态(retirement register file),与物理寄存器堆(regread_bypass/OooPhysRegFile,执行域推测态)并存:仅 commit 拍写入、异常 commit 拒写、x0 恒 0;用途=difftest/debug GPR 视图、a0 退出码、串行 CSR 指令的 rs1 读源;串行写口已封 0",
+   "evidence": "writeback/OooArchRegFile.v:3-4(注释自述)、36-43(写条件)、65-71(a0/x0);execute/OooExecuteBackend.v:157(.serial_write_valid_i(1'b0));control/OooCsrAccessRequestMux.v:61-62(CSR rs1 消费);vsrc/filelist.mk:62(OooPhysRegFile 另在 regread_bypass)"
+  },
+  {
+   "claim": "WBU.v 是活代码:被 OooIntBackend 每发射 lane 各实例化一次(u_wbu0/u_wbu1),做 ALU/LOAD/PC+4/IMM/CSR 五源写回选择;CSR 源即 imm payload 携带的 CSR 旧值",
+   "evidence": "execute/OooIntBackend.v:798,808(两实例);writeback/WBU.v:14-23(5 源 mux);vsrc/filelist.mk:258,313(在编译清单)"
+  },
+  {
+   "claim": "对外 commit 流(供 difftest)由 OooCommitOutputMux 合成:ROB 双 commit + 域B合成条目(xret/wfi/未派发分支/jr-nolink)+ 合成 lane1-ret/branch-append 条目,统一为 2 lane;JAL 的 next_pc 按 imm_j 重算为架构正确值",
+   "evidence": "writeback/OooCommitOutputMux.v:95-204(mux 全逻辑);OooCommitOutputMux.v:70-89(JAL next_pc 修正);vsrc/sim/NpcSimTop.sv:275-282(sim 侧消费)"
+  }
+ ],
+ "limitations": [
+  {
+   "claim": "OooRedirectArbiter 是死代码:filelist.mk 仅定义变量(RTL_OOO_REDIRECT_ARBITER)但从未加入 RTL_CORE_SRCS/RTL_OOO_FRONTEND_HELPERS,核内零实例化,仅被模块级 testbench 引用;其设计目标(统一 redirect 仲裁取代隐式优先级链)未落地,当前 redirect 仍是分散多点汇合",
+   "evidence": "vsrc/filelist.mk:85(仅 := 定义,169-246 与 266-313 两个清单均无引用);core/OooCoreTopGlue.v:367(注释'暂未接消费者(待 OooRedirectArbiter 接入)');testbench/tests/tb_ooo_redirect_arbiter.sv(唯一使用者)"
+  },
+  {
+   "claim": "core_serial_flush 恒为 0 的死逻辑:OooControlCommitSequencer 的 serial_flush_q 每拍清 0 且无任何置 1 路径,但仍被 OooCoreSliceControlGate 参与 core_local_flush/commit_ready 计算;同模块 ctrl_commit 的 rd_en/rd_data/write 也恒 0(合成 commit 永不写寄存器)",
+   "evidence": "writeback/OooControlCommitSequencer.v:85(每拍 <=1'b0,68-105 无置 1);control/OooCoreSliceControlGate.v:39-46(仍消费)"
+  },
+  {
+   "claim": "fence 与 fence.i 被实现为合法 no-op(域A普通 dispatch,不排空 store queue、不冲刷 icache/fetch packet cache):fence.i 对自修改代码不正确;define.v 已预留 REDIR_REASON_FENCEI/SFENCE 编码但无消费者(RedirectArbiter 未接线)",
+   "evidence": "include/define.v:610(注释'当前实现视为合法 no-op');decode/DecodeUnit.v:779-785(仅置 FENCE/MISC_MEM/NEED_EXEC 位);decode/OooAluDecodeBackend.v ctrl_supported 函数不排 FENCE 位(supported→普通 uop);include/define.v:561-562(REDIR_REASON 编码无实现)"
+  },
+  {
+   "claim": "ebreak(非 semihost)不产生 RISC-V 规范的 breakpoint trap(cause=3 写 mepc/mtvec),而是走 pending_exit→exit_valid→halted 永久停机(仿真环境退出约定);仅 semihost ebreak 特殊对给 EXC_BREAKPOINT cause",
+   "evidence": "frontend/OooFetchHeadClassifyGate.v:123(exit_raw=ebreak&&!semihost);control/OooPendingDispatchArbiter.v:288-298(exit 捕获);control/OooTrapExitEventMux.v:122-129 与 OooTrapExitOutputSequencer.v:45-50(exit→halted 粘滞);OooPendingDispatchArbiter.v:328-330(semihost→EXC_BREAKPOINT)"
+  },
+  {
+   "claim": "分支/跳转目标 misaligned(EXC_INST_ADDR_MISALIGN)不进 CsrFile trap 流程(不写 mepc/mcause/不跳 mtvec),直接 trap_valid+halted 停机;C 扩展使 IALIGN=16 触发面小,但行为不合规范",
+   "evidence": "control/OooTrapExitEventMux.v:99-108(misaligned 各臂→trap_o,cause 固定 EXC_INST_ADDR_MISALIGN);control/OooTrapExitOutputSequencer.v:37-43(trap_i→halted<=1);core/CsrFile.v:27-45(trap 入口仅 mem/ex/irq 三路,无此路)"
+  },
+  {
+   "claim": "wfi 的 mstatus.TW 超时非法门控未实现:TW 位可写但全 vsrc 无消费者;wfi 在任何特权级都作为 no-op 立即提交(合法的简化实现,但 TW=1 时 S/U 态 wfi 应 illegal 的语义缺失)",
+   "evidence": "core/CsrFile.v:61-65(TW 在可写掩码);grep 全 vsrc 仅 frontend/OooFetchHeadClassifyGate.v:112-120 实现了 TVM/TSR 门控,无 TW 检查;writeback/OooControlCommitSequencer.v:54-58(wfi 走 no-op commit 臂)"
+  },
+  {
+   "claim": "mtvec/stvec 仅支持 direct 模式:写入时低 2 位强制清 0,trap_target 恒为 base,vectored 模式(mode=1,中断 base+4*cause)不支持",
+   "evidence": "core/CsrFile.v:747,766(写强制 {v[63:2],2'b00});CsrFile.v:609-610(target 无 vectored 分支)"
+  },
+  {
+   "claim": "medeleg/mideleg 全 64 位可写、无 WARL 掩码:规范要求的只读 0 位(如 medeleg[11] ecall-from-M 不可委托、mideleg 的 M 级中断位)未实现硬 0",
+   "evidence": "core/CsrFile.v:762-763(csr_medeleg_q/csr_mideleg_q <= csr_new_value_w 无掩码)"
+  },
+  {
+   "claim": "mnstatus/tselect/tdata1/tdata2/tcontrol 为 stub:在 known+writable 列表但写 case 无条目(写被静默忽略),读值固定(mnstatus 落 default 读 0;tselect 读 1 表'无 trigger',tdata* 读 0);debug trigger 机制不存在",
+   "evidence": "core/CsrFile.v:344-348(writable 列表含之);CsrFile.v:733-784(写 case 无这些地址);CsrFile.v:595-598(tselect/tdata 固定读值);CsrFile.v:77-78(TSELECT_NO_TRIGGER_VALUE=1)"
+  },
+  {
+   "claim": "外部中断仅一根线:PLIC 单 external 输出,SEIP 只能靠 mideleg 把同一根线路由到 S(委托后该线不再作为 MEIP pending),无独立 M/S 双 context;MSIP/MTIP/SSIP 委托同理。S 级中断硬件位无法与 M 级同时独立 pending",
+   "evidence": "core/NpcTop.v:267-269(单 external 线);core/CsrFile.v:494-515(委托=线路由+非 M 态屏蔽 M 位)"
+  },
+  {
+   "claim": "pending_mem 域B通道疑似不可达遗留:mem_capture 需 lane1 barrier 且 FACT_MEM,但 barrier 触发条件(fetch_fault1/exit/system/arch_trap/非direct branch/非return JALR)不含 mem——正常 load/store/AMO 全走域A LSQ;通道逻辑(capture/clear/dispatch_valid)仍完整保留",
+   "evidence": "control/OooPendingLane1CaptureGate.v:50(mem_capture=barrier_base&&mem_raw);frontend/OooFrontendDispatchGate.v:102-109(barrier 条件无 mem);control/OooPendingDrainResolveGate.v:69-72(通道仍在)"
+  },
+  {
+   "claim": "mode=1 下 dispatch-time 的 unsupported/lane1-INST_ACCESS_FAULT arch-trap 捕获被显式门控关闭(投机 wrong-path 残留会造成 spurious trap),真实 trap 依赖 commit 路径;意味着若真出现后端不支持的合法指令,域B无 trap 出口(依赖'不存在此类指令'假设)",
+   "evidence": "control/OooPendingDispatchArbiter.v:304-323(!rob_walk_mode_i 门控与长注释);control/OooStopPendingSequencer.v:137-138(unsupported 仍 stop,但捕获被关)"
+  },
+  {
+   "claim": "ROB 每项带全字段 checkpoint 影子阵列(约 2 倍存储),但 mode=1 下与之配套的 quiesce/mem_issue_block/commit 冻结均被关闭,代码自述'该机制已被 ROB-walk 取代,只减不加'——checkpoint 面积为半退役遗留",
+   "evidence": "writeback/OooRob.v:131(注释)、147-162(影子阵列)、384-421(capture/restore 仍在);control/OooCoreSliceControlGate.v:27-37(mode=1 关闭配套门控)"
+  },
+  {
+   "claim": "trap cause 通路仅 5 位(TRAP_CAUSE_W=5),cause>31 不可表达;mcause/scause 高位仅由 MCAUSE_INTERRUPT 单 bit 注入",
+   "evidence": "include/define.v:15(TRAP_CAUSE_W=5);core/CsrFile.v:675,703-704(零扩展+中断位)"
+  },
+  {
+   "claim": "CSR/SYSTEM 指令性能:每条都触发全后端排空(stop→ROB/IQ/SQ 全空→单条注入→再排空恢复),CSR 密集代码开销为数十拍级串行化;这是域B设计的固有成本",
+   "evidence": "control/OooStopPendingSequencer.v:124-127(所有 SYSTEM stop);control/OooPendingDrainResolveGate.v:53-58,91-93(全排空条件);control/OooPendingDispatchArbiter.v:193-202(drain 后才 clear)"
+  },
+  {
+   "claim": "OooStopPendingSequencer 的 dispatch0_fp_i 是保留的 unused 端口(FP 迁域A后仅为避免上层接线扰动而保留)",
+   "evidence": "control/OooStopPendingSequencer.v:35-38(注释),147(unused wire 吸收)"
+  }
+ ],
+ "cross_module": [
+  "CsrFile→MMU/PMP/取指:satp(Sv39)/priv_mode/mstatus(SUM/MXR/MPRV)/pmpcfg×16/pmpaddr×16/svpbmt_en(menvcfg.PBMTE) 经 NpcCoreTop 分发给 TLB/PmpChecker/cache(core/NpcCoreTop.v:359-400;core/CsrFile.v:57-58,617-620)",
+  "trap/返回重定向:csr_trap_target_w(mtvec/stvec base)与 csr_ret_target_w(mepc/sepc)送入 OooFrontend 做 fetch 重定向(core/OooCoreTopGlue.v:1134;core/CsrFile.v:609-612)",
+  "中断硬件线:AxiLiteClint 的 msip/mtip、AxiLitePlic 的 external 直连 CsrFile irq_*_i;CLINT mtime 作 time CSR 只读源(core/NpcTop.v:267-269,450-451;core/NpcCoreTop.v:363)",
+  "ROB-walk 恢复协议:kill_valid=int backend branch_resolve_mispredict(execute/OooIntBackend.v:1071),walk0/1 输出被 OooRenameMap/OooFreeList 消费做 rename 回滚+物理寄存器回收,recover_active 冻结全核 dispatch/commit(rename_allocate/OooDispatchBackend.v:592,730;rename_allocate/OooRenameMap.v:39)",
+  "backend_drained 依赖 memory 子系统的 mem_retire_quiet(SQ 排空+无 drain 在飞)与 scheduling 的 issue_count、ROB 的 rob_count(control/OooPendingDrainResolveGate.v:53-58;control/OooControlPlane.v:126-127)",
+  "CSR 旧值经 dispatch imm payload 穿 rename/issue/ROB 作为该 uop 写回数据;WBU 的 WB_SEL_CSR/IMM 消费(decode/OooAluDecodeBackend.v:196-198;writeback/WBU.v:19-20)",
+  "对外 commit 流 2 lane(commit0/1 pc/inst/next_pc/rd/exception)供 NpcSimTop difftest 逐条比对;debug_gprs(ArchRegFile)同时是 difftest GPR 视图与串行 CSR rs1 读源(vsrc/sim/NpcSimTop.sv:275-282;control/OooCsrAccessRequestMux.v:61-62)",
+  "FP 簇→CsrFile:fflags 随 commit 累积、fp_dirty 置 mstatus.FS=Dirty(SD 派生);frm 反向供 FP datapath DYN 舍入(core/NpcCoreTop.v:374-380;core/CsrFile.v:787-796,619)",
+  "priv_predictor_boundary(trap/xret/satp 写/sfence commit)→trap_redirect_squash 通知 frontend 预测器边界,直到 backend drained(control/OooCsrTrapRequestMux.v:97-100;control/OooControlFlushSequencer.v:26-28)",
+  "branch_spec checkpoint capture/restore 由 frontend OooBranchSpecTracker 驱动,经 OooCoreSliceControlGate 直通给 ROB checkpoint 端口(control/OooCoreSliceControlGate.v:31-32;writeback/OooRob.v:384-421)"
+ ],
+ "open_questions": [
+  "pending_mem 通道的真实可达场景:capture 只能来自 lane1 barrier∧FACT_MEM,而 barrier 条件不含 mem——需 memory/frontend 子系统确认 OooPendingMemorySequencer(memory/OooMemoryAccess.v:55 实例化)是否还有其他触发源,或确认整条通道为不可达遗留",
+  "mode=1(ROB-walk)下 branch_spec checkpoint capture/restore 是否仍被 frontend 实际触发(dual 分支投机路径),还是 ROB 的 checkpoint 影子阵列已完全空转——需 frontend 子系统核对 OooBranchSpecTracker 在 OOO_ROB_WALK_MODE=1 下的 capture/restore 发射条件",
+  "commit0 正常+commit1 异常同拍提交时,commit1 所属 store 是否已进入 SQ 退休队列而被错误 drain(精确异常在 LSQ 侧的边界)——需 LSQ/memory 子系统确认 store 释放与 commit1_exception 的时序关系",
+  "medeleg/mideleg 全位可写(无 WARL 掩码)与 difftest 金标 NEMU 的行为是否逐位一致(NEMU 若有掩码则 CSR 读回会 diverge)——需 difftest/NEMU 侧确认",
+  "OooTrapExitEventMux 的 misaligned/残留 trap→halted 停机路径在仿真环境(csrc)中被如何解释(测试失败上报还是正常退出)——需 sim/csrc 子系统确认 trap_valid_o 的消费语义",
+  "OooCsrAccessRequestMux 的 csr_access_valid 在 head0/head1 probe 拍即拉高(供 illegal 判定与 rdata 预读),该组合读是否与同拍 commit0 CSR 写存在读写序竞争(csr_rdata_o 是纯组合,写在时钟沿,理论上读到旧值即 probe 语义)——建议与整数后端注入时序一起复核"
+ ]
+}

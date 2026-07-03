@@ -1,0 +1,323 @@
+{
+ "subsystem": "构建系统/仿真驱动/验证现状(npc/rv64:Makefile、Kconfig、configs、scripts、csrc 全部 C/C++ 仿真与 difftest、testbench、testsuites、eval、perf、vivado)",
+ "modules": [
+  {
+   "file": "Makefile",
+   "purpose": "顶层构建:Verilator 把 VSRCS(RTL_CORE_SRCS+SIM_TOP_SRCS)与 csrc 全部 C/C++ 一次编成可执行 build/NpcSimTop;并集成 lint/sim/run/core-regress/syn/sta/gprof/difftest-ref/check-rtl-style 目标",
+   "key_params": "SIM_TOP=NpcSimTop、RTL_CORE_TOP=NpcTop(20-22);Verilator -O3 --x-assign fast --noassert(94-98);--trace 仅 TRACE=1 或 CONFIG_NPC_TRACE_BY_DEFAULT 时编入(121-126);多线程 VERILATOR_THREADS 默认 1(38);yosys-sta 参数 PDK=icsprout55、CLK 默认 500MHz(139-143)",
+   "instantiated_by": "用户命令行/AM 平台 run 目标(240-246)/testsuites 与 eval 脚本"
+  },
+  {
+   "file": "Kconfig",
+   "purpose": "仿真器编译期配置:编译器/优化、默认 max-cycles、batch、VGA、difftest、SDB/expr/watchpoint、text-trace(itrace/mtrace/dtrace)、perf 总闸、4 类统计探针、debug ports",
+   "key_params": "NPC_DEFAULT_MAX_CYCLES 默认 2000000(51-53);NPC_PERF_MODE 编译期裁掉全部 trace+统计(174-182);NPC_SIM_STATS 下分 BRANCH/CACHE/OOO 三类(193-224);NPC_DIFFTEST 默认 n(110-117)",
+   "instantiated_by": "scripts/config.mk 的 conf/mconf 流程;输出 include/config/auto.conf + include/generated/autoconf.h(Makefile:158-159)"
+  },
+  {
+   "file": "scripts/config.mk",
+   "purpose": "kconfig 构建流程:menuconfig/savedefconfig/%defconfig,工具链(conf/mconf/fixdep)直接复用 NEMU 树",
+   "key_params": "KCONFIG_PATH=$(NEMU_HOME)/tools/kconfig(10);%defconfig 只读 configs/ 目录(36-38)",
+   "instantiated_by": "Makefile:266 include"
+  },
+  {
+   "file": "configs/default_defconfig",
+   "purpose": "验证配置:difftest=y、SDB/expr/watchpoint=y、text-trace=y、log-file=y",
+   "key_params": "CONFIG_NPC_DIFFTEST=y、CONFIG_NPC_DEFAULT_MAX_CYCLES=2000000",
+   "instantiated_by": "make default_defconfig"
+  },
+  {
+   "file": "configs/rv64_perf_defconfig",
+   "purpose": "性能配置:PERF_MODE=y、difftest/SDB/trace 全关、max-cycles=0,用于 CoreMark/Linux 长跑(configs/perf_defconfig 内容相同)",
+   "key_params": "CONFIG_NPC_PERF_MODE=y、CONFIG_NPC_DIFFTEST=n、MAX_CYCLES=0",
+   "instantiated_by": "make rv64_perf_defconfig"
+  },
+  {
+   "file": "configs/rv64_soc_defconfig",
+   "purpose": "SoC 兼容验证配置:difftest+SDB 保留、VGA=y",
+   "key_params": "CONFIG_NPC_HAS_VGA=y、CONFIG_NPC_DIFFTEST=y",
+   "instantiated_by": "make rv64_soc_defconfig"
+  },
+  {
+   "file": "csrc/main.c",
+   "purpose": "仿真器入口:init config→init monitor→monitor run→fini",
+   "key_params": "16 行,全部逻辑下沉到 monitor/cpu 模块",
+   "instantiated_by": "Makefile:130 CSRCS 全量收集编译"
+  },
+  {
+   "file": "csrc/monitor/monitor.c",
+   "purpose": "getopt_long 命令行解析与子系统初始化编排(log/mem/map/img/device/virtio/trace/expr/watchpoint/cpu/difftest)",
+   "key_params": "选项:-b/-i/--load=ADDR:FILE(最多8个)/--block(--disk)/--tohost/-m(--max/--max-cycles)/-l/-t/-P(--progress)/--no-progress/-I/-M/-D/-F(--diff)/--diff-port/--no-diff/--vga/--no-vga(62-86);batch 模式直接 cpu_exec,否则进 SDB(300-308)",
+   "instantiated_by": "main.c:9 npc_init_monitor"
+  },
+  {
+   "file": "csrc/cpu/cpu-exec.cpp",
+   "purpose": "仿真主循环:step_cycle(双沿 eval+VCD dump)、commit/exit/trap DPI 事件消费、difftest 步进、tohost/guest-expect/commitwatch 停机、统计报表(branch/BPU/cache/OoO/CPI)、异常时 32 条 recent-commit/debug-cycle 环形回放",
+   "key_params": "每周期最多 2 条 commit 事件(kMaxCommitEventsPerCycle=2,93);recent ring 32(94-95);复位 5 拍(2028);OoO 窗口报告默认 1M 周期(230);唯一 C++ 文件(持有 VNpcSimTop)",
+   "instantiated_by": "monitor.c 经 cpu.h 接口调用;DPI 回调由 vsrc/sim/NpcSimTop.sv:858-1013 调入"
+  },
+  {
+   "file": "csrc/cpu/difftest.cpp",
+   "purpose": "difftest 运行时:dlopen 参考 .so,4 符号 ABI(difftest_init/memcpy/regcpy/exec);逐提交比对;MMIO skip 在 commit 拍按指令解码 EA 判定",
+   "key_params": "DiffContext 仅 gpr[32]+pc(19-22);步进前比 committed pc、步进后比 32 GPR(190-207);EA<NPC_PMEM_BASE 即 skip:ref 不步进、拷 dut GPR、ref.pc=pc+4(163-187);仅 CONFIG_NPC_DIFFTEST=y 时编译(Makefile:131-136)",
+   "instantiated_by": "cpu-exec.cpp:2225 npc_difftest_step;初始化 monitor→npc_init_cpu:2125"
+  },
+  {
+   "file": "csrc/dpi.c",
+   "purpose": "DPI-C 回调:npc_ifetch/npc_mem_read/npc_mem_write(AxiDpiSlave 内存总线)、npc_uart_event(TX 落宿主 stdout)、npc_uart_rx_pop(env 驱动的 UART 输入注入,支持 wait-pattern/gap/delay)、npc_irq_event、退役空函数 npc_mmio_load_event",
+   "key_params": "UART RX 由 NPC_UART_RX_FILE/TEXT/WAIT/CYCLE_GAP/RELEASE_DELAY_CYCLES 环境变量控制(107-135,361-418);npc_mmio_load_event 已为空(343-347)",
+   "instantiated_by": "vsrc/sim/NpcSimTop.sv:5-125 与 vsrc/sim/AxiDpiSlave.sv:5-17 import \"DPI-C\""
+  },
+  {
+   "file": "csrc/memory/paddr.c",
+   "purpose": "宿主侧物理内存:1GB calloc 模拟 pmem,镜像装载(支持任意物理地址),DPI 简易设备窗口 MMIO 分发并触发 difftest skip_ref",
+   "key_params": "PMEM [0x80000000,+1GB)(csrc/include/utils.h:87-89);DPI 设备窗口 [0x12000000,0x14000000)(162-169);NPC_MEMWATCH_START/END 环境变量(24-41)",
+   "instantiated_by": "monitor.c:273 npc_init_mem;dpi.c 总线回调"
+  },
+  {
+   "file": "csrc/memory/cache.c",
+   "purpose": "DEAD——宿主侧 icache/dcache 软件模型(4KB/64B 线):npc_cache_read/npc_cache_write 在整个 csrc/vsrc 无调用者;唯一入口 npc_cache_flush_all 挂在 NpcSimTop.sv 的 sim_cache_flush_w,而该信号被 assign 恒 0(vsrc/sim/NpcSimTop.sv:654),永不触发",
+   "key_params": "ICACHE/DCACHE 各 4096B、64B line(10-14);地址类型 uint32_t(33-47,RV32 遗留)",
+   "instantiated_by": "DEAD(编译进二进制但无有效调用路径;npc_cache_init 仅在 paddr.c:83 清零)"
+  },
+  {
+   "file": "csrc/device/serial.c",
+   "purpose": "DEAD——旧 csrc 串口模型:npc_init_serial 在全 csrc 无调用者;device.c:11-13 注释明确 serial 已由真 RTL UART(0x10000000)+dpi.c npc_uart_event 取代",
+   "key_params": "33 行,LSR 恒回 THRE/TEMT",
+   "instantiated_by": "DEAD(无调用者)"
+  },
+  {
+   "file": "csrc/device/device.c",
+   "purpose": "设备编排:init 只注册 timer(RTC)/keyboard/vga;按 65536 周期节流轮询 SDL/stdin 事件",
+   "key_params": "DEVICE_POLL_INTERVAL=65536(25);RTC 时基 1 cycle↦1μs 折算(timer.c:10-25,可 NPC_RTC_USE_HOST_TIME 切宿主墙钟)",
+   "instantiated_by": "monitor.c:285 npc_init_device"
+  },
+  {
+   "file": "csrc/device/virtio_blk.c",
+   "purpose": "virtio-mmio v2 block 设备宿主模型:MMIO 寄存器组+virtqueue 处理,DMA 直接读写 pmem;通过 --block/--disk 挂盘镜像",
+   "key_params": "MAGIC 0x74726976、version 2、device-id 2、QUEUE_MAX=128、扇区 512B(25-29);DPI 三函数 npc_virtio_blk_read/write/irq",
+   "instantiated_by": "vsrc/sim/AxiLiteVirtioBlk.sv:5-20 import DPI;monitor.c:286 init"
+  },
+  {
+   "file": "csrc/monitor/sdb.c",
+   "purpose": "交互式调试器:c/q/si/info(r,w,t,c)/x/p/w/d/trace(cond,on/off) 十条命令;CONFIG_NPC_SDB=n 时退化为纯 batch",
+   "key_params": "命令表 10 项(179-190)",
+   "instantiated_by": "monitor.c:307 npc_sdb_mainloop(非 batch 模式)"
+  },
+  {
+   "file": "csrc/monitor/log.c",
+   "purpose": "日志+guest 输出行缓冲:NPC_GUEST_EXPECT 环境变量匹配 UART 输出即成功停机;NPC_UART_RX_WAIT 匹配后才释放注入输入",
+   "key_params": "guest 行缓冲 4096B(13);两个 env 钩子(36,45)",
+   "instantiated_by": "全 csrc 通用;cpu-exec.cpp:2173 消费 guest_expect_matched"
+  },
+  {
+   "file": "csrc/monitor/disasm.c",
+   "purpose": "itrace 反汇编,动态加载 NEMU 维护的 Capstone(libcapstone.so.5)",
+   "key_params": "依赖 $(NEMU_HOME)/tools/capstone(Makefile:27-29,163-164,178-180);仅 CONFIG_NPC_TEXT_TRACE=y 时启用",
+   "instantiated_by": "cpu-exec.cpp:1428 trace_commit"
+  },
+  {
+   "file": "vsrc/filelist.mk",
+   "purpose": "RTL 文件清单单一真源:主仿真、模块 testbench、Vivado/yosys 综合共享;RTL_CORE_SRCS(可综合 .v)与 SIM_TOP_SRCS(含 DPI 的 .sv 仿真壳)明确分离",
+   "key_params": "RTL_CORE_SRCS 定义于 266;SIM_TOP_SRCS=AxiDpiSlave.sv+AxiLiteVirtioBlk.sv+NpcSimTop.sv(314);VSRCS=两者之和(315)",
+   "instantiated_by": "Makefile:44、testbench/Makefile:3、vivado 脚本经 make -p 提取"
+  },
+  {
+   "file": "testbench/Makefile",
+   "purpose": "模块级单元 TB 回归:97 个 iverilog(-g2012) testbench,逐个编译 vvp 运行,产出 summary.txt(PASS/FAIL 计数,任一 FAIL 整体非零退出)",
+   "key_params": "TESTS 共 97 项(14-111,与 tests/*.sv 97 个一一对应);覆盖 ALU/LSU/UART/CLINT/PLIC/xbar/CSR/decode/rename/ROB/IQ/SQ/FP 各 gate/fetch/分支恢复/sv39 boot(tb_ooo_sv39_boot 用整套 RTL_CORE_SRCS,210)等;RESULT_DIR 默认 ../perf/results/<时间戳>/module-testbench(6)",
+   "instantiated_by": "make -C testbench run;core-regress 脚本 382;eval/npc-eval.sh:87"
+  },
+  {
+   "file": "testsuites/scripts/npc-rv64-core-regress.sh",
+   "purpose": "核心回归总入口(make core-regress):模块 TB→verilator lint→NPC 构建→AM cpu-tests(ARCH=riscv64-npc)→官方 riscv-tests(按 suite 逐个编译 -p 变体,objcopy 成 bin,--tohost 协议判 PASS)",
+   "key_params": "默认套件 rv64ui/um/ua/uc/uf/ud/uzba/uzbb/uzbc/uzbs(24),--riscv-privileged 追加 rv64mi/rv64si(25);每测试预算 2M 周期(19);工具链前缀 riscv64-linux-gnu-(17);仅 -p(物理内存)变体(354);riscv-tests 上游 clone 到 testsuites/core-tests/src(14-15)",
+   "instantiated_by": "Makefile:197-198 core-regress;eval/npc-eval.sh:97"
+  },
+  {
+   "file": "eval/npc-eval.sh",
+   "purpose": "统一评估系统:--module/--riscv/--am(逐测试 cycles/commits/CPI 采集+加权 CPI+与上次结果对比、|Δ|>20% 告警)/--bench(CoreMark/Dhrystone)/--difftest(临时开 difftest 重建、42 个计算子集逐指令对照 NEMU、恢复配置)/--fpsmoke(Linux/tools 13 项硬件 FP smoke)/--timing(Vivado 模块 OOC 取 Logic Levels);带 dummy 自校验防环境异常出伪结果",
+   "key_params": "默认 max-cycles=4000000(45);difftest 子集 42 测试(188);FP smoke 13 项(222);TIMING_MODS 默认 OooDispatchBackend(46);产物 eval/results/<时间戳>/",
+   "instantiated_by": "手工运行;results/ 下 57 个历史运行目录"
+  },
+  {
+   "file": "eval/check-rtl-style.sh",
+   "purpose": "RTL 风格门禁(make check-rtl-style):可综合集必须 .v、禁用 always_comb/always_ff/logic(iverilog 12.0 对 always_comb 常量位选静默错仿真)",
+   "key_params": "检查对象=RTL_CORE_SRCS(Makefile:186-193)",
+   "instantiated_by": "Makefile:192-193"
+  },
+  {
+   "file": "perf/scripts/bench.sh",
+   "purpose": "遗留 CoreMark 跑分脚本——仍用 ARCH=riscv32-npc 构建镜像,与本 rv64 目录不匹配(现行跑分入口是 eval/npc-eval.sh --bench 的 riscv64-npc)",
+   "key_params": "ARCH=riscv32-npc(20,22)",
+   "instantiated_by": "疑似遗留(无其它脚本引用)"
+  },
+  {
+   "file": "perf/scripts/profile.sh",
+   "purpose": "callgrind 宿主热点分析脚本——同样遗留 ARCH=riscv32-npc(16-17)",
+   "key_params": "valgrind --tool=callgrind,--max-cycles 200000(27-29)",
+   "instantiated_by": "手工;疑似 rv32 时代遗留"
+  },
+  {
+   "file": "vivado/run-synth.sh",
+   "purpose": "整核 Vivado OOC 综合:从 make -p 提取 RTL_CORE_SRCS/顶层,产出 timing_summary/timing_paths/utilization 报告",
+   "key_params": "默认 PERIOD=2.0ns(激进逼关键路径)、PART=xc7a100tcsg324-1(4-5,11-12);maxThreads 4(synth.tcl:3);绑核 8-11+nice 15(27)",
+   "instantiated_by": "手工;vivado/out/ 36 个历史产物目录"
+  },
+  {
+   "file": "vivado/run-synth-module.sh",
+   "purpose": "单模块 OOC 综合(内存看门狗防 WSL 崩溃),配套 survey-modules.sh(12 个嫌疑模块普查)与 synth-changed.sh(git 增量时序回归)",
+   "key_params": "默认 2.0ns;MEM_FLOOR_MB=2500 看门狗强杀(18,26-34)",
+   "instantiated_by": "eval/npc-eval.sh:237(--timing);手工"
+  },
+  {
+   "file": "vivado/run-pnr-core.sh",
+   "purpose": "整核 P&R 驱动——脚本头部自述 2026-06-28 实测在本 15.7GB WSL 不可行(Vivado 并行 worker 总 RSS ~11.4GB 触发 OOM 风险,已主动终止),仅存档",
+   "key_params": "默认 8.0ns;MEM_FLOOR_MB=3000 看门狗(14-15)",
+   "instantiated_by": "手工;当前机器不可用(3-9)"
+  },
+  {
+   "file": "Makefile(syn/sta 目标)",
+   "purpose": "yosys-sta 流程:make syn 产出标准单元网表、make sta 跑 iEDA STA/功耗;综合对象是 RTL_CORE_SRCS(明确排除含 DPI 的 NpcSimTop.sv)",
+   "key_params": "STA_DESIGN=NpcTop、PDK=icsprout55、CLK 500MHz 默认、依赖 ../../yosys-sta 与 ../../oss-cad-suite(139-155,200-230)",
+   "instantiated_by": "make syn / make sta"
+  }
+ ],
+ "capabilities": [
+  {
+   "claim": "完整的 Verilator 仿真驱动已实现:批处理/SDB 交互两模式,支持 -i 主镜像、--load=ADDR:FILE 多镜像(最多 8 个,面向 OpenSBI/kernel/DTB 分址装载)、--block virtio 磁盘、--tohost、--max-cycles、-l 日志、-t VCD 波形、-P 进度、-I/-M/-D 三类 text trace、--diff/--no-diff/--diff-port",
+   "evidence": "csrc/monitor/monitor.c:62-259(选项表与解析);csrc/utils.h:162(NPC_MAX_LOAD_IMAGES=8);csrc/cpu/cpu-exec.cpp:2110-2122(VCD 条件编译)"
+  },
+  {
+   "claim": "仿真主循环在 csrc/cpu/cpu-exec.cpp:npc_cpu_exec:每拍双沿 eval、消费 DPI commit/exit/trap 事件(每拍最多 2 条 commit=提交宽度 2)、difftest 步进、五种停机路径(ebreak-exit/trap/tohost/NPC_GUEST_EXPECT 串口输出匹配/commitwatch)、SIGINT 可中断、超时 ABORT 并回放最近 32 条 commit 与 32 拍调试快照",
+   "evidence": "csrc/cpu/cpu-exec.cpp:2129-2263(主循环)、93-95(宽度与 ring)、439-464(tohost)、1737-1807(回放)"
+  },
+  {
+   "claim": "difftest 用 NEMU 作参考模型:dlopen 加载 .so(默认路径编译期烧入 $(NEMU_HOME)/build/riscv64-nemu-interpreter-so),make difftest-ref 一键构建(NEMU riscv64-npc_defconfig+SHARE=1);ABI 为 difftest_init/difftest_memcpy/difftest_regcpy/difftest_exec 四符号;启动时把镜像 memcpy 进 ref 并置 reset pc=0x80000000",
+   "evidence": "Makefile:30,50,259-261;csrc/cpu/difftest.cpp:49-52,95-111"
+  },
+  {
+   "claim": "difftest 比对语义:步进前比 committed pc(等价校验控制流,规避 ROB 存预测 next_pc 的问题),步进后比 32 个 GPR;MMIO skip 在 commit 拍按指令解码(load/store/AMO opcode)+GPR 算 EA,EA<0x80000000 即判 MMIO:ref 不步进、用 dut GPR 覆写 ref、ref.pc=pc+4;csrc 简易设备窗口访问额外经 npc_difftest_skip_ref 挂旗兜底",
+   "evidence": "csrc/cpu/difftest.cpp:150-207;csrc/memory/paddr.c:166,187,199"
+  },
+  {
+   "claim": "仿真壳有一处刻意的 difftest 同步特判:ecall/ebreak 走 pending-trap 通道不产生 ROB commit,NpcSimTop 在 trap 注入拍合成一条 commit 事件(inst=0x73/0x00100073,next=trap 目标)让 ref 跨过该指令",
+   "evidence": "vsrc/sim/NpcSimTop.sv:1002-1013 附近(csr_trap_ex cause∈{3,8,9,11} 时 npc_commit_event 合成)"
+  },
+  {
+   "claim": "riscv-tests 官方 ISA 套件可一键回归:make core-regress 默认跑 rv64ui/um/ua/uc/uf/ud/uzba/uzbb/uzbc/uzbs 的 -p 变体,--riscv-privileged 追加 rv64mi/rv64si;每测试独立编译、objcopy、--tohost 协议判 PASS(tohost=1→code 0);测试源已 clone 在 testsuites/core-tests/src/riscv-tests",
+   "evidence": "testsuites/scripts/npc-rv64-core-regress.sh:24-25,262-263,300-318,346-365"
+  },
+  {
+   "claim": "模块级单元验证:97 个 iverilog testbench(ALU/LSU/UART/CLINT/PLIC/AXI xbar/CSR/decode/rename/free-list/ROB/物理寄存器堆/发射队列/SQ/muldiv/clmul/bitmanip/AMO/FP 全 gate 族/fetch 通路/分支预测恢复/priv 系统/sv39 boot/两个 AXI bridge),make -C testbench run 全跑并生成 PASS/FAIL summary,任一失败整体非零退出",
+   "evidence": "testbench/Makefile:14-111(TESTS 97 项),214-260(run/summary);tests/ 目录 97 个 .sv"
+  },
+  {
+   "claim": "AM cpu-tests 与 CoreMark/Dhrystone 用 ARCH=riscv64-npc 平台跑在本核上;eval/npc-eval.sh 的 --am 逐测试采集 cycles/commits/CPI 生成 am-cpi.tsv、计算加权 CPI 并与上一次结果自动对比(逐测试 |ΔCPI|>20% 告警),且先跑 dummy 自校验防伪结果",
+   "evidence": "testsuites/scripts/npc-rv64-core-regress.sh:391;eval/npc-eval.sh:107-166(AM+CPI),204-215(bench)"
+  },
+  {
+   "claim": "Linux 启动基础设施完备(仿真侧):--load 多镜像装载、virtio-mmio v2 block 设备(queue max 128,DMA 直捅 pmem)、UART RX 输入注入(NPC_UART_RX_FILE/TEXT+等待 pattern NPC_UART_RX_WAIT+节奏控制)、NPC_GUEST_EXPECT 输出匹配停机、Sv39 软件页表遍历的用户态调试读(syscall/path trace)",
+   "evidence": "csrc/device/virtio_blk.c:25-55;csrc/dpi.c:103-158,361-418;csrc/monitor/log.c:36-77;csrc/cpu/cpu-exec.cpp:466-527(Sv39 debug walk),640-749(user ecall trace)"
+  },
+  {
+   "claim": "性能统计体系:RTL 观测探针经 DPI 每事件上报——分支/JAL/JALR/RET 与 BTB/BHT/RAS 精度、icache/dcache 命中细分(load/store/writeback)、OoO 每拍 retire/execute/dispatch 直方图与 stall 分桶(fetch/mem/axi/hazard/branch-flush/exception)、top 分支 miss PC 与等待 PC 排行、CPI/仿真频率/CLINT mtime 一致性校验(cycles/10),全部可被 NPC_PERF_MODE 编译期裁除",
+   "evidence": "csrc/cpu/cpu-exec.cpp:1031-1401(事件),1484-1734(报表);Makefile:82-87(宏注入);csrc/include/utils.h:95(CLINT divisor=10)"
+  },
+  {
+   "claim": "综合/时序流程双轨存在:(a) yosys-sta——make syn/sta,DESIGN=NpcTop、PDK=icsprout55、默认目标 500MHz,产网表+STA/功耗报告;(b) Vivado OOC——整核(默认 2.0ns 逼关键路径,xc7a100t)、单模块(内存看门狗)、12 模块普查、git 增量时序回归,eval --timing 集成取 Logic Levels;两者综合对象都是排除 DPI 仿真壳的 RTL_CORE_SRCS",
+   "evidence": "Makefile:139-155,221-230;vivado/run-synth.sh:5,11-12;vivado/synth.tcl:29-38;vivado/survey-modules.sh;vivado/synth-changed.sh;eval/npc-eval.sh:231-247"
+  },
+  {
+   "claim": "宿主性能剖析入口:make gprof-build(--prof-cfuncs)、make prof-exec-build(--prof-exec 多线程 mtask 分析)、perf/scripts/profile.sh(callgrind);Verilator 多线程可经 VERILATOR_THREADS/THREADS_DPI/MAX_MTASKS 变量开启",
+   "evidence": "Makefile:100-116,252-257;perf/scripts/profile.sh:27-36"
+  },
+  {
+   "claim": "这些流程被实际大量运行过(文件系统证据):eval/results 有 57 个时间戳运行目录、perf/results 364 个、vivado/out 36 个;core-regress 把日志落 perf/results/core-regress/<时间戳>并维护 latest 软链",
+   "evidence": "eval/、perf/、vivado/ 目录列表;testsuites/scripts/npc-rv64-core-regress.sh:175-185"
+  },
+  {
+   "claim": "RTL 风格门禁可执行:make check-rtl-style 强制可综合文件为 .v 且禁 always_comb/always_ff/logic(规避 iverilog 12.0 已知错仿真),检查对象取自 print-synth-rtl 单一真源",
+   "evidence": "Makefile:186-193;eval/check-rtl-style.sh:27-47"
+  }
+ ],
+ "limitations": [
+  {
+   "claim": "difftest 只比对 32 个 GPR + PC,不比对任何 CSR、FP 寄存器和内存——CSR/FP/访存副作用错误只要不反映到 GPR/控制流就检不出",
+   "evidence": "csrc/cpu/difftest.cpp:19-22(DiffContext 仅 gpr[32]+pc),200-207(仅 GPR 循环比对)"
+  },
+  {
+   "claim": "MMIO skip 的两个硬编码假设:(1) EA<NPC_PMEM_BASE(0x80000000) 一律视为 MMIO 并跳过 ref;(2) skip 后 ref.pc 强制 pc+4——若 MMIO 访存指令是 RVC 压缩形式(应 pc+2),或 commit 上报 inst 未解压导致低 7 位 opcode 判定失配,该路径会毒化 ref(未在本子系统内证实是否发生,见 open_questions)",
+   "evidence": "csrc/cpu/difftest.cpp:163-187"
+  },
+  {
+   "claim": "csrc/memory/cache.c(宿主侧 4KB icache/dcache 模型)是死代码:npc_cache_read/npc_cache_write 全仓库无调用者,唯一入口 npc_cache_flush_all 挂在被 assign 恒 0 的 sim_cache_flush_w 上,且内部地址类型是 uint32_t(RV32 遗留)",
+   "evidence": "vsrc/sim/NpcSimTop.sv:654(assign sim_cache_flush_w = 1'b0),1030-1032;grep 全 csrc 无 npc_cache_read/write 调用;csrc/memory/cache.c:33-47"
+  },
+  {
+   "claim": "csrc/device/serial.c 是死代码:npc_init_serial 无任何调用者,device.c 注释明确 serial 已由真 RTL UART+dpi.c 承载",
+   "evidence": "csrc/device/device.c:11-13;grep 全 csrc 无 npc_init_serial 调用"
+  },
+  {
+   "claim": "perf/scripts/bench.sh 与 profile.sh 仍用 ARCH=riscv32-npc 构建镜像,与本 rv64 核/riscv64-npc 平台不匹配,属 rv32 时代遗留;现行跑分入口实际是 eval/npc-eval.sh --bench(riscv64-npc)",
+   "evidence": "perf/scripts/bench.sh:20,22;perf/scripts/profile.sh:16-17;对照 eval/npc-eval.sh:209"
+  },
+  {
+   "claim": "perf/configs/perf_defconfig 是过时副本(缺 CONFIG_NPC_PERF_MODE=y 与 CONFIG_NPC_DIFFTEST=n),且 make %defconfig 规则只读 configs/ 目录,该文件不会被构建系统使用",
+   "evidence": "diff 结果(perf/configs vs configs 两份 perf_defconfig 差 3 行);scripts/config.mk:36-38(--defconfig=configs/$@)"
+  },
+  {
+   "claim": "csrc/include/device_address.h:12 声称 RTL 设备段由 scripts/gen-define-devices.py 从本文件生成,但该脚本在整个仓库中不存在(find 无结果),scripts/ 目录仅有 config.mk——生成链断裂,一致性仅靠外部门禁脚本",
+   "evidence": "csrc/include/device_address.h:11-12;find 全仓库无 gen-define-devices.py;scripts/ 目录列表"
+  },
+  {
+   "claim": "cpu-exec.cpp 内嵌 NPC_LINUX_HANG_PROBE 调试探针,硬编码约 40 个特定 Linux 内核构建的 PC 值和物理地址(如 0x80044d30、0x80044498)——仅 env 打开、不改架构行为,但对其它内核镜像完全失效,属仿真侧一次性调试残留",
+   "evidence": "csrc/cpu/cpu-exec.cpp:853-978"
+  },
+  {
+   "claim": "npc/rv64 内没有 arch-test/ACT 入口(grep Makefile/testsuites/eval 无引用),也没有 xv6 或 Linux/Ubuntu 的自动化启动/验证脚本——Linux 只有基础设施(--load/--block/UART 注入),启动编排在仓库其它位置;riscv-tests 只跑 -p 物理内存变体,无 -v 虚存变体",
+   "evidence": "grep arch.test 无结果;testsuites/scripts/npc-rv64-core-regress.sh:351(仅 $suite-p-$case)"
+  },
+  {
+   "claim": "csrc 简易设备 MMIO 分发把地址截断为 uint32_t 传给 map 层,设备窗口隐含 <4GB 假设(当前窗口 0x12000000-0x14000000 内无害,是结构性遗留)",
+   "evidence": "csrc/memory/paddr.c:164,185,199((uint32_t)addr 强转)"
+  },
+  {
+   "claim": "整核 Vivado P&R 在当前开发机不可行:run-pnr-core.sh 头部自述 2026-06-28 实测 WSL 15.7GB 内存不足已主动终止,时序决策退化为模块级 OOC 的 Logic Levels/logic delay 代理指标(OOC route 数据自认不可信)",
+   "evidence": "vivado/run-pnr-core.sh:3-9;vivado/synth-changed.sh:24(注明 route 不可信)"
+  },
+  {
+   "claim": "eval/npc-eval.sh 与 vivado 脚本硬编码本机 Vivado 安装路径 /home/lyg/AMD/2025.2(可 env 覆盖但默认不可移植);eval 注释自称模块 TB 112 项与实际 97 项不符(注释漂移)",
+   "evidence": "eval/npc-eval.sh:14,235;vivado/run-synth.sh:10;testbench/Makefile:14-111 实数 97"
+  },
+  {
+   "claim": "testbench/mp 是遗留垃圾文件:一段引用已不存在的 npc/single 路径的旧运行日志片段",
+   "evidence": "testbench/mp 内容(iverilog .../npc/single/vsrc/ALU.v + oss-cad-suite vvp 报错记录)"
+  },
+  {
+   "claim": "CoreMark 等基准的 RTC 时基是人为设定的 1 cycle↦1μs(标称 1MHz)折算,不是宿主真实时间——分数量的是 guest 周期数;此为有意设计但意味着绝对分值不可与真硬件直接对比(CoreMark/MHz、CPI 不受影响)",
+   "evidence": "csrc/device/timer.c:10-25"
+  },
+  {
+   "claim": "difftest 与 text-trace/统计探针是编译期开关:CONFIG_NPC_DIFFTEST=n 的 perf 构建根本不含 difftest.cpp 与 -ldl,--diff 直接报错;交付二进制默认按 rv64_perf_defconfig 是无 difftest 的(eval --difftest 需临时改配置重建再恢复)",
+   "evidence": "Makefile:48-52,131-136;csrc/monitor/monitor.c:191-195;eval/npc-eval.sh:176-201"
+  }
+ ],
+ "cross_module": [
+  "RTL 仿真壳边界:SIM_TOP=NpcSimTop(vsrc/sim/NpcSimTop.sv:308 实例化 NpcTop u_top);csrc 与 RTL 的全部交互经 17 个 DPI-C 函数(NpcSimTop.sv:5-125、AxiDpiSlave.sv:5-17、AxiLiteVirtioBlk.sv:5-20);统计探针直接层次化引用 u_top.u_core.u_ooo_core 内部信号名(NpcSimTop.sv:940-1000)——核内部重命名会静默破坏统计。",
+  "NEMU 深度依赖:difftest 参考 .so ABI 为 difftest_init/memcpy/regcpy/exec 且 regcpy 上下文必须恰为 {gpr[32], pc}(csrc/cpu/difftest.cpp:19-27);kconfig 工具链(conf/mconf/fixdep)与 Capstone 反汇编库均从 $(NEMU_HOME) 复用(scripts/config.mk:10-11,Makefile:27-29);Makefile:7-9 强制 NEMU_HOME 必须是有效 NEMU 仓库。",
+  "设备地址三方契约:csrc/include/device_address.h 的数值必须与 AM(abstract-machine)与 NEMU 的同名头一致(difftest 前提),由 Linux/scripts/check-device-address-map.sh 外部门禁校验(device_address.h:8-12);RTL UART@0x10000000/CLINT@0x02000000/PLIC@0x0c000000 为真 RTL,rtc/kbd/vga/fb 走 DPI 窗口 [0x12000000,0x14000000)。",
+  "AM 平台 riscv64-npc:core-regress 与 eval 均经 make -C am-kernels/... ARCH=riscv64-npc (eval 额外传 NPC_SIM_BACKEND=rv64) 触发 AM 侧 npc.mk,最终回落到本目录 make run 的『IMG+RUN_ARGS 原样透传』边界(Makefile:240-246);NPC_HOME 环境变量按 ysyx 约定指向 npc/ 而非 npc/rv64(regress 脚本 6-10 专门规避此坑)。",
+  "综合/STA 外部工作区:make syn/sta 依赖 ../../yosys-sta(Makefile+iEDA 二进制)与 ../../oss-cad-suite/bin/yosys(Makefile:200-230);Vivado 流程独立于此,共享 RTL_CORE_SRCS 清单。",
+  "FP 硬件 smoke 依赖仓库根 Linux/tools 的 make smoke-fp-* 目标(eval/npc-eval.sh:221-227);riscv-tests 依赖上游 github clone 与 riscv64-linux-gnu- 交叉工具链(regress 脚本 14-18)。",
+  "顶层 make sim 目标含 ysyx 官方 git 追踪钩子 $(call git_commit)(Makefile:233,宏定义在仓库根 Makefile:22,经 Makefile:268 include)。",
+  "tohost 协议:core-regress 用 riscv64-linux-gnu-nm 抽取 ELF 的 tohost 符号地址传给 --tohost,host 侧每拍轮询 pmem 该字(cpu-exec.cpp:439-464)——依赖 riscv-tests env 链接脚本布局。"
+ ],
+ "open_questions": [
+  "commit DPI 事件上报的 inst(core_commit0_inst_w)对 RVC 压缩指令是原始 16 位还是解压后 32 位?这直接决定 difftest MMIO skip 的 opcode 解码(difftest.cpp:163-166)是否覆盖压缩访存,以及 skip 后 ref.pc=pc+4(difftest.cpp:182)对 2 字节指令是否错位——需取指/decode 子系统(OooRvcDecompressor/OooFetchPacketDecode)与 ROB commit 通路确认。",
+  "sim_cache_flush_w 恒 0(NpcSimTop.sv:654)意味着宿主侧 cache 模型完全退役——fence.i/一致性是否已全部在 RTL 核内自洽处理、csrc/memory/cache.c 是否可整体删除,需 cache/总线子系统确认。",
+  "cpu-exec.cpp:1818-1861 对 debug_ooo_flags_o 逐 bit 硬编码解码(41 个位段)——这些位定义与 RTL 侧打包是否仍一致(有无 drift),需核顶层(OooCoreTopGlue/NpcCoreTop)对照。",
+  "NpcSimTop.sv:1009 的 ecall/ebreak 合成 commit 只在 cause∈{3,8,9,11} 时触发——是否覆盖 pending-trap 通道的全部无-commit 指令情形(如其它同通道系统指令),需控制流/CSR 子系统确认。",
+  "各验证套件的当前通过率(riscv-tests -p、AM cpu-tests、module TB 97 项、CoreMark difftest)只能由 eval/results 与 perf/results 的运行产物证实『被跑过』;本次审计按规则未读结果文本,『全绿与否』未在源码层面核验。",
+  "AM 侧 riscv64-npc 平台的 NPC_SIM_BACKEND=rv64 具体如何路由到本目录 build/NpcSimTop(abstract-machine/scripts 的 npc.mk 在本子系统范围之外),以及 Linux/Ubuntu 启动的镜像编排脚本(仓库根 Linux/ 目录)与本仿真器 --load/--block 参数的实际调用组合。"
+ ]
+}

@@ -1,10 +1,12 @@
 # OooBranchAppendDispatchGate Spec
 
+> ⚠️ **状态(2026-07-03 RTL 重读)**:活文件中的死通道——`BRANCH_APPEND_DISPATCH_ENABLE=1'b0`、`BRANCH_PREFETCH_DISPATCH_ENABLE=1'b0`、`return_cont_attempt_o=1'b0`、`dispatch1_optional_o=1'b0` 四常量恒禁,append/prefetch dispatch 输出全死;attempt 条件依赖的 direct 分支拍内解析在 `OOO_ROB_WALK_MODE=1`+domain-A 下亦为设计路径死(`OooBranchAppendDispatchGate.v:68-69,82`);拆除计划见 `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述。
+
 ## Scope
 
 `OooBranchAppendDispatchGate` owns the combinational dispatch-side predicates
 for branch target/fallthrough lane1 append and branch prefetch direct dispatch
-inside `OooAluFetchCore`.
+inside `OooFrontend`.
 
 It does not store fetch, pending, RAS, branch prefetch, or outstanding state. It
 does not select dispatch payload data, update PC, consume return-continuation
@@ -58,8 +60,9 @@ state transitions.
   true.
 - Branch prefetch hit goes to FIFO whenever a hit is available and direct
   dispatch did not fire.
-- `dispatch1_optional` is true when any optional lane1 source is a candidate:
-  return-cont, branch target append, or branch fallthrough append.
+- `dispatch1_optional` is tied to zero: F2 dual dispatch (not-taken branch +
+  head1) must stay pair-atomic, so the legacy optional-lane1 exemption is
+  permanently disabled alongside the append fast paths.
 
 ## Non-Goals
 

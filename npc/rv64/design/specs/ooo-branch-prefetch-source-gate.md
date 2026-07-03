@@ -1,8 +1,10 @@
 # OooBranchPrefetchSourceGate
 
+> ⚠️ **状态(2026-07-03 RTL 重读)**:活文件中的死通道——`OOO_ROB_WALK_MODE=1` 下输入侧 pending_branch/pending_jump 序列器 valid 恒 0(capture 被 `!rob_walk_mode_i` 门死,`OooPendingDispatchArbiter.v:160-183`),`jalr_btb_lookup_o` 恒 0,其余输出无有效消费(下游 prefetch request 恒 0);拆除计划见 `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述。
+
 ## 需求
 
-`OooBranchPrefetchSourceGate` 承接 `OooAluFetchCore` 中 branch/JALR prefetch
+`OooBranchPrefetchSourceGate` 承接 `OooFrontend` 中 branch/JALR prefetch
 source 的纯组合事实生成：
 
 - 计算 pending branch target。

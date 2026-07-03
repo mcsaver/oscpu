@@ -1,5 +1,7 @@
 # OoO Synthetic Lane1 Return Sequencer
 
+> ⚠️ **状态（2026-07-03 RTL 重读）**：整链设计路径死——唯一置位路径 `capture_i = direct_frontend_flush && fire && direct_branch0_lane1_ret_w`（`OooWriteback.v:142-144`）依赖 direct fire 与 issue-resolve 同拍且 PC 匹配的拍内解析谓词，`OOO_DBRANCH_DOMAIN_A=1` 下仅剩跨实例 PC 别名巧合可达（巧合发生时存在双提交理论风险，建议显式 tie-off），`ret_pending_q` 恒 0，下游 commit gate/合成 commit 臂/drain 条件全部退化为常量；`capture_branch_seen/drop` 输入亦被 `OooBranchAppendDispatchGate.return_cont_attempt_o=1'b0` 独立关死。形式化证据见 task-run answers.json #1；拆除计划见 `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述。
+
 ## Stage 1 - Requirements
 
 - `OooSyntheticLane1RetSequencer` owns the registered state used to retire a
@@ -15,9 +17,9 @@
 - Outputs are registered and feed existing run gating, direct-branch
   suppression, backend-drain detection, commit mux, halted decision, and retire
   count logic.
-- `rst || flush_i` clears all output state. In normal cycles, capture and clear
-  events are applied with the same late-priority order as the old parent
-  always block.
+- `rst` clears all output state (the module has no `flush_i` port). In normal
+  cycles, capture and clear events are applied with the same late-priority
+  order as the old parent always block.
 - Out of scope: changing the commit mux, branch append gate, direct branch
   resolve policy, RAS update policy, or trap/CSR side effects. The legacy
   `pending_lane1_ret` dispatch path is removed by the follow-up cleanup spec,

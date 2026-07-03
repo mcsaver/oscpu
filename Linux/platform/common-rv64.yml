@@ -1,0 +1,69 @@
+# RV64 Linux/Ubuntu bring-up 共享 SoC 契约(NEMU 与 NPC 两侧必须一致的部分)。
+#
+# 本文件被 npc-rv64.yml / nemu-rv64.yml 通过 `base:` 引用,由 gen_dts.py
+# 深合并(平台文件的同名键覆盖本文件)。NEMU 是 NPC 的 golden reference,
+# difftest 与 golden bring-up 对比的前提是两侧共享同一内存/装载布局和
+# 共有设备地址图——这些字段只应改这里,不允许在平台文件中各自漂移。
+# 设备地址另有 AM/NEMU/NPC 三侧 device_address.h 单一集中点与
+# Linux/scripts/check-device-address-map.sh 门禁,改地址时四处同步。
+
+memory:
+  base: 0x80000000
+  size: 0x40000000   # 1 GiB，给完整 Ubuntu 22.04 rootfs/systemd/apt/页缓存留出更接近 VM 的余量
+
+reset:
+  pc: 0x80000000
+  boot_hartid: 0
+
+# 装载布局(fw_jump/kernel/DTB/initramfs 的物理地址):两侧一致。
+# 注意:opensbi.load_addr 是固件装载地址(= reset.pc),与 build-opensbi.sh 的
+# FW_JUMP_ADDR(OpenSBI 官方编译参数,固件跳转到下一级 kernel 的地址,
+# 默认 0x80200000)同形不同义,不要混用。
+opensbi:
+  load_addr: 0x80000000
+
+kernel:
+  load_addr: 0x80200000
+
+dtb:
+  load_addr: 0x82200000
+
+initrd:
+  load_addr: 0x84000000
+
+# NPC 没有硬件 RNG,NEMU 的 virtio-rng 也要到驱动加载后才可用;两侧都用
+# DTB rng-seed 走 Linux 官方 bootloader 随机种子入口,避免 systemd 早期
+# getrandom 在无熵状态下停住。字节串内容进 DTB,改动会使两侧 DTB 全部变化。
+chosen:
+  rng_seed: "79 73 79 78 2d 72 76 36 34 2d 6e 65 6d 75 2d 73 79 73 74 65 6d 64 2d 72 6e 67 2d 73 65 65 64 01"
+
+# 共有设备:两侧都实现,地址/中断号是 difftest 级契约。
+# 平台专属设备(virtio_rng/virtio_net/goldfish_rtc/reset_syscon 等)写在
+# 各自平台 yml 的 devices 段,深合并后追加到这里。
+devices:
+  clint:
+    base: 0x02000000
+    size: 0x00010000
+  plic:
+    base: 0x0c000000
+    size: 0x04000000
+    sources_initramfs: 1
+    # rootfs DTB 按 mode 统一声明 32 个中断源(NPC 实际只挂 irq1/2,
+    # 声明上限无害);gen_dts.py 按 mode 而非平台取值。
+    sources_rootfs: 32
+  uart0:
+    base: 0x10000000
+    size: 0x1000
+    irq: 1
+    clock_frequency: 1843200
+    current_speed: 115200
+  virtio_blk:
+    base: 0x10001000
+    size: 0x1000
+    irq: 2
+
+# rootfs 场景的 bootargs 两侧不同,写在各自平台 yml;这里只放共享场景。
+bootargs:
+  kernel: "console=ttyS0,115200n8 earlycon=sbi loglevel=8 ignore_loglevel"
+  initramfs: "console=ttyS0,115200n8 earlycon=sbi loglevel=8 ignore_loglevel rdinit=/bin/sh"
+  ubuntu_initramfs: "console=ttyS0,115200n8 earlycon=sbi loglevel=8 ignore_loglevel rdinit=/init nowatchdog softlockup_panic=0"

@@ -1,5 +1,7 @@
 # OoO Control Flush Sequencer
 
+> ⚠️ **状态（2026-07-03 RTL 重读）**：`checkpoint_mem_flush_o` 臂恒 0——其输入 `checkpoint_restore_i` 源自 branch_spec restore（`OooBranchResolveRecoveryGate.branch_spec_restore_o`），后者要求 `pending_branch_i`（`OOO_ROB_WALK_MODE=1` 下恒 0），全链死；`core_trap_flush` / `trap_redirect_squash` 两臂是活的精确 trap/边界主干。拆除计划见 `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述。
+
 ## Stage 1 - Requirements
 
 - `OooControlFlushSequencer` owns the registered flush state that used to live
@@ -11,7 +13,7 @@
 - Inputs are already-prioritized predicates from `OooAluFetchCore`. Outputs are
   registered and feed existing run gates, action gates, local flush, memory
   flush, and branch recovery suppression logic.
-- `rst || flush_i` from the parent clears all output state. In normal cycles,
+- `rst` clears all output state (the module has no `flush_i` port). In normal cycles,
   trap flush and checkpoint memory flush are one-cycle registered pulses driven
   by their request predicates; trap redirect squash is a sticky state that holds
   until the backend is drained.
@@ -33,8 +35,7 @@
 - If `priv_predictor_boundary_i` and `backend_drained_i` are both high in the
   same cycle, the set wins and `trap_redirect_squash_o` is asserted for the
   next cycle. A later drained cycle with no new boundary clears it.
-- Reset has priority over all requests, matching the old parent
-  `if (rst || flush_i) ... else ...` block.
+- Reset has priority over all requests (`if (rst) ... else ...`).
 
 ## Stage 2b - State Machine
 

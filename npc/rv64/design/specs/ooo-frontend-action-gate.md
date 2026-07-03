@@ -2,7 +2,7 @@
 
 ## 需求
 
-`OooFrontendActionGate` 承接 `OooAluFetchCore` 中分散的前端动作谓词：
+`OooFrontendActionGate` 承接 `OooAluFetchCore`（现已重构为 `OooFrontend` wrapper）中分散的前端动作谓词：
 
 - direct JAL/branch/return fast path 是否触发前端直接 flush。
 - 当前 dispatch-visible head packet 是否应暂停普通顺序取指。
@@ -18,11 +18,12 @@ sequencer、pending/commit/trap 和所有时序状态所有权。
 输入信号均为父模块已经解码或仲裁后的 predicate：
 
 - Direct fast-path fire：`direct_jal_fire_i`、`direct_branch0_fire_i`、
-  `direct_branch1_fire_i`、`direct_ret0_fire_i`、`direct_ret1_fire_i`。
+  `direct_branch1_fire_i`、`direct_ret0_fire_i`、`direct_ret1_fire_i`、
+  `direct_jump_spec_fire_i`（B2：非返回 JALR 投机续取）。
 - Dispatch-visible head：`can_run_i`、`fifo_has_packet_i`、
   `branch_spec_dispatch_block_i`、slot0/slot1 barrier/unsupported predicates。
-- FIFO pop：`dispatch_fire_i`、`dispatch1_barrier_fire_i`、
-  `direct_jal0_fire_i`。
+- FIFO pop：`dispatch_fire_i`、`dbranch_dispatch_fire_i`（domain-A：head0
+  分支普通 dispatch fire）、`dispatch1_barrier_fire_i`、`direct_jal0_fire_i`。
 - Response control-stop：`fetch_rsp_fire_i`、`fetch_rsp_can_enqueue_i`、
   decoded packet control-stop bits。
 - Trap request blocker：CSR trap memory/execute/interrupt valid 与 core-local
@@ -32,9 +33,10 @@ sequencer、pending/commit/trap 和所有时序状态所有权。
 
 - `direct_frontend_flush_o` 是任一 direct fast-path fire 的 OR。
 - `stop_head_o` 只在前端可运行、有 head packet、未被 branch-spec block 且 head
-  需要 barrier/unsupported/direct 处理时为真。
-- `fifo_pop_o` 保留旧语义：normal dispatch、lane1 barrier dispatch 或 lane0
-  direct JAL 会消费当前 head packet。
+  需要 barrier/unsupported/direct 处理时为真（head0 条件分支臂被
+  `OOO_DBRANCH_DOMAIN_A=1` 恒关，分支不再 stop head）。
+- `fifo_pop_o` 保留旧语义：normal dispatch、domain-A 分支普通 dispatch、
+  lane1 barrier dispatch 或 lane0 direct JAL 会消费当前 head packet。
 - `fetch_rsp_control_stop_o` 只在 response 已 fire、可 enqueue 且 decoded packet
   含 control-stop 时为真。
 - `fetch_request_blocked_by_trap_o` 在 CSR trap pending 或 core trap/serial flush

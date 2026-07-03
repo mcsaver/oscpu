@@ -1,8 +1,10 @@
 # OoO Direct Branch Wait Buffer
 
+> ⚠️ **状态(2026-07-03 RTL 重读)**:mode=1(`OOO_ROB_WALK_MODE=1'b1`)下本模块唯一有意义的消费臂 `direct_branch_wait_untracked` 在 `OooBranchResolveRecoveryGate.v:59-66` 的 mode=1 分支被丢弃(untracked 判据收紧为"仅后端显式 mispredict"),模块只剩置位/自清空转,等效死逻辑;拆除计划见 `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述。
+
 ## 1. 需求
 
-`OooDirectBranchWaitBuffer` 承接 `OooAluFetchCore` 中 direct branch 等待后端 resolve 的单 entry 状态：
+`OooDirectBranchWaitBuffer` 承接 `OooFrontend`(原 `OooAluFetchCore`)中 direct branch 等待后端 resolve 的单 entry 状态：
 
 - 当 direct branch fire 但当拍没有匹配的 resolve 时，保存该 branch PC。
 - 当后续后端 resolve PC 命中时，清除等待状态。

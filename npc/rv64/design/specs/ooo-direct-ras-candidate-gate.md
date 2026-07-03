@@ -2,7 +2,7 @@
 
 ## 阶段 1：需求
 
-`OooDirectRasCandidateGate` 负责从 `OooAluFetchCore` 中抽出 direct RAS/RAS-ret
+`OooDirectRasCandidateGate` 负责从 `OooFrontend`(原 `OooAluFetchCore`)中抽出 direct RAS/RAS-ret
 候选相关的纯组合事实：
 
 - lane0/lane1 JAL 是否是 call-like JAL，即 `rd` 为 `x1` 或 `x5`。

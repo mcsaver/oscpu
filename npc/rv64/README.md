@@ -4,9 +4,10 @@
 
 ## 当前定位
 
-- ISA 目标：当前活动 OoO 核按 RV64GC 基线推进，并已覆盖 `Zba/Zbb/Zbc/Zbs`
-  子集；更细的实现边界以 `vsrc/README.md`、core-regress 结果和 memory
-  记录为准。
+- ISA 目标：当前活动 OoO 核已实现 RV64IMAFDC + `Zba/Zbb/Zbc/Zbs` + Zicsr，
+  M/S/U 三特权级 + Sv39 虚存（硬件 PTW + I/D TLB）+ PMP×16；更细的实现边界
+  （能力/缺口/死硅）以 `design/arch/rtl-ground-truth-2026-07-03.md`
+  （RTL 重读真相基线）、`vsrc/README.md` 和 core-regress 结果为准。
 - 数据宽度：`XLEN=64`，PC/GPR/CSR/AXI data/DPI payload 均按 64 位处理。
 - 访存宽度：LSU 使用 8-byte bus word 和 `WSTRB[7:0]`，支持 byte/half/word/dword load/store。
 - 运行入口：外部请优先使用 `npc/sim` 或 AM 的 `ARCH=riscv64-npc`，不要直接把上层脚本绑到 `npc/rv64` 私有路径。
@@ -61,12 +62,11 @@ make -C am-kernels/tests/cpu-tests ARCH=riscv64-npc run \
 ```
 
 当前核级验证结果：AM `ARCH=riscv64-npc` cpu-tests `56/56 PASS`；官方
-`riscv-tests` 默认 core-regress 套件 `111` 个 p-mode 用例通过，覆盖
-`rv64ui/rv64um/rv64uc/rv64uzba/rv64uzbb/rv64uzbc/rv64uzbs`；追加
-`--riscv-privileged` 后组合套件 `135` 个用例通过，额外覆盖
-`rv64mi/rv64si`；2026-06-26 的扩展组合
-`rv64ui/rv64um/rv64ua/rv64uf/rv64ud/rv64uc/rv64uzba/rv64uzbb/rv64uzbc/rv64uzbs`
-为 `153 tests attempted` 全 PASS。官方 `riscv-tests` 通过 NPC 的
+`riscv-tests` core-regress 默认套件现为
+`rv64ui/rv64um/rv64ua/rv64uc/rv64uf/rv64ud/rv64uzba/rv64uzbb/rv64uzbc/rv64uzbs`
+十套件（2026-06-26 以该扩展组合跑出 `153 tests attempted` 全 PASS；
+更早的 7 套件默认组合为 `111` 个 p-mode 用例通过，追加
+`--riscv-privileged` 即 `rv64mi/rv64si` 后为 `135` 个用例通过）。官方 `riscv-tests` 通过 NPC 的
 `--tohost=ADDR` watcher 判定 PASS/FAIL。ACT4 目前已完成 framework
 生成 smoke、xPack GCC 15.2.0-1 compiler gate、testsuite artifact 内 Ruby
 headers gate、RV64I/RV64M final self-checking ELF 生成与 NPC 执行；ACT4
@@ -109,7 +109,13 @@ decode 后，ACT4 `priv/Sv` 33/33 PASS，`priv/Svpbmt` 4/4 PASS，
 
 ## Difftest 状态
 
-当前默认关闭 `CONFIG_NPC_DIFFTEST`。原因是本仓库 NEMU 的 RV64 reference 仍不完整：`src/isa/riscv64` 不存在，现有执行器也缺 RV64 load/store、OP-32 和 RV64M 等语义。后续若要打开 RV64 difftest，需要先补齐 NEMU RV64 reference。
+difftest 以本仓库 NEMU 为参考模型（`nemu/src/isa/riscv64` 已完整可用），
+`make -C npc/rv64 difftest-ref` 一键构建参考 `.so`（NEMU
+`riscv64-npc_defconfig` + `SHARE=1`，注意备份/恢复 NEMU `.config`）。
+`configs/default_defconfig` 默认打开 `CONFIG_NPC_DIFFTEST=y`；Kconfig 裸默认与
+`rv64_perf_defconfig` 为 n（perf 构建编译期剔除 difftest 运行时）。比对语义：
+逐 commit 比 PC + 32 GPR，不比 CSR/FPR/内存；MMIO load 在 commit 拍按指令解码
+EA 判定 skip。详见 `design/arch/rtl-ground-truth-2026-07-03.md` §2.5/§3.4。
 
 ## 生成物
 

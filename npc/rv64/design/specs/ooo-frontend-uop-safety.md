@@ -11,6 +11,12 @@
 - branch fallthrough/target append candidate，检查附带的 slot 是否适合作为普通 uop。
 - branch prefetch packet 转正/直接派发候选，检查预取 packet 的两个 slot 是否都是普通 uop。
 
+> ⚠️ **状态（2026-07-03 RTL 重读）**：上述场景中仅 lane0-before-ret 的消费链仍活；
+> return-continuation（`return_cont_attempt_o=1'b0`）、branch fallthrough/target
+> append（`BRANCH_APPEND_DISPATCH_ENABLE=1'b0`）、branch prefetch
+> （req 依赖恒 0 的 pending_branch/btb_hit）四族消费端均为死通道，对应 7 个实例
+> 的 `safe_o` 供给死逻辑；拆除计划见 `../arch/ooo-core-architecture.md` §8.3。
+
 本模块只判断组合安全谓词，不产生 dispatch、redirect、trap、flush 或 commit 动作。
 
 ## 2. 协议

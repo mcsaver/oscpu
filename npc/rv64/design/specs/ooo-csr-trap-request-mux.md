@@ -3,7 +3,8 @@
 ## Scope
 
 `OooCsrTrapRequestMux` owns the pure combinational request selection that feeds
-`CsrFile` trap/return side effects from `OooAluFetchCore`.
+`CsrFile` trap/return side effects from the control plane (`control/OooControlPlane`,
+historically `OooAluFetchCore`).
 
 It does not own CSR architectural state, CSR read-modify-write legality,
 privilege delegation, trap target selection, fetch redirect, backend drain,
@@ -42,7 +43,7 @@ pending-owner state, final terminal trap/exit output, or simulation exit.
   `pending_system_ecall_trap_w`, `pending_arch_trap_fire_w`,
   `csr_trap_mem_*`, `csr_trap_ex_*`, `csr_trap_irq_valid_w`,
   `csr_mret_valid_w`, `csr_sret_valid_w`, and
-  `priv_predictor_boundary_w` remain visible in `OooAluFetchCore`.
+  `priv_predictor_boundary_w` remain visible in `OooControlPlane`.
 - Trap payload outputs are meaningful when their corresponding valid output is
   true; inactive payloads follow the old mux defaults and are not architectural.
 

@@ -2,8 +2,9 @@
 
 ## 1. 目标
 
-把 `writeback/` 目录的 5 个 commit/retire owner 聚合到 `writeback/OooWriteback.v`，
+把 `writeback/` 目录的 4 个 commit/retire owner 聚合到 `writeback/OooWriteback.v`，
 让 `OooCoreTopGlue` 只对写回子系统做一次实例化。纯结构聚合，不新增逻辑、不改行为。
+（抽取时为 5 个 owner；`OooFpCommitGate` 已随 FP 迁域 A 删除，FP 经 ROB 真 commit。）
 
 ## 2. 责任边界（内部 owner，行为不变）
 
@@ -11,13 +12,12 @@
 | --- | --- |
 | `OooCommitOutputMux` | commit0/commit1 输出选择 |
 | `OooControlCommitSequencer` | control commit 注册状态 |
-| `OooFpCommitGate` | FP result/fflags/GPR-FPR 写回修饰 |
-| `OooSyntheticLane1RetCommitGate` | synthetic lane1 return commit/drop 判定 |
-| `OooSyntheticLane1RetSequencer` | synthetic lane1 return 注册状态 |
+| `OooSyntheticLane1RetCommitGate` | synthetic lane1 return commit/drop 判定（死硅驻留，无独立 spec，死因见 `ooo-synthetic-lane1-ret-sequencer.md` 注记） |
+| `OooSyntheticLane1RetSequencer` | synthetic lane1 return 注册状态（死硅驻留，`ret_pending_q` 恒 0，见其 spec 注记） |
 
 ## 3. 接口与不变量
 
-- wrapper 端口 = 5 个内部实例跨边界信号（113 个）。
+- wrapper 端口 = 4 个内部实例跨边界信号（2026-07 现状 87 个；`OooFpCommitGate` 删除前为 113 个）。
 - glue 顶层 wire 名保留；commit 输出端口（`commit0_*_o`/`commit1_*_o`）由 wrapper
   输出直接驱动 glue 同名顶层输出端口。
 - `synth_lane1_ret_commit_w` 被 `tb_ooo_core_top_glue` 以 `dut.synth_lane1_ret_commit_w`

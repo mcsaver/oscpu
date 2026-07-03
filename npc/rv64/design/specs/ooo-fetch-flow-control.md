@@ -1,8 +1,13 @@
 # OooFetchFlowControl Boundary Spec
 
+> ⚠️ **状态(2026-07-03 RTL 重读)**：模块本体存活；但 dispatch-bypass 相关输出
+> （`fetch_rsp_bypass_consumed_o` 及各式 bypass 分流）在 `OOO_ROB_WALK_MODE=1'b1`（默认）下
+> 因 `fetch_rsp_dispatch_bypass_i` 恒 0 而为配置性死路（`OooFrontendRunGate.v:62-70`）；
+> 拆除计划见 `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述。
+
 ## 1. Requirement
 
-`OooAluFetchCore` owns many front-end policies.  The request/response
+`OooFrontend`（原 `OooAluFetchCore`，已重构删除）owns many front-end policies.  The request/response
 ready-valid equations are pure combinational flow control and can be separated
 from PC sequencing, outstanding response tracking and redirect recovery state.
 
@@ -14,7 +19,8 @@ from PC sequencing, outstanding response tracking and redirect recovery state.
 - report whether a normal sequential request may issue.
 
 The parent keeps ownership of all state: `next_fetch_pc_q`,
-`outstanding_valid_q`, `outstanding_pc_q`, `discard_fetch_rsp_q`, redirect PC
+`outstanding_valid_q`, `outstanding_pc_q`, `discard_fetch_rsp_q`（现由子模块
+`OooFetchPcOutstandingSequencer` 持有）, redirect PC
 selection, branch prefetch state, precise trap/drain state and FIFO storage.
 
 ## 2. Interface Contract
@@ -49,8 +55,9 @@ Combinational ordering mirrors the old equations:
 
 1. `fetch_rsp_fire_o = fetch_rsp_valid_i && fetch_rsp_ready_o`.
 2. Normal request issue requires run, no stop-head, no current response control
-   stop, no discard, FIFO reserve and either no outstanding response or a
-   same-cycle response fire.
+   stop, no discard, no same-cycle direct frontend flush（F2 新增：flush 拍
+   `next_fetch_pc_q` 仍是旧值，须在源头封死顺序取指臂）, FIFO reserve and either
+   no outstanding response or a same-cycle response fire.
 3. Request valid is true when trap/serial blockers are clear and any request
    source is active: redirect, branch prefetch or normal issue.
 4. Response ready is true when it can enqueue, bypass, drop or direct-drop.

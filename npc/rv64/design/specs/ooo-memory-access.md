@@ -13,21 +13,21 @@
 
 ## 2. 责任边界
 
-| 内部 owner | 目录 | 职责（不变） |
+| 内部 owner | 目录 | 职责（2026-07-03 现状） |
 | --- | --- | --- |
-| `OooMemoryRequestGate` | `memory/` | 组合选择 commit/FP pending memory 访问到 LSU/MMU AXI 请求线，产生双口 mem/mem1 request、response ready、MMU/mem flush，以及 FP memory req/rsp fire |
-| `OooPendingMemorySequencer` | `memory/` | lane1 memory barrier 的 pending memory 单 entry 注册状态（`valid/dispatched/pc/inst/next_pc`） |
+| `OooMemoryRequestGate` | `memory/` | 已退化为纯透传：core mem 请求 9 路 assign 直通（含 probe/pretrans/nokill），仅聚合 `mem_flush`（core-local‖checkpoint）与 `mmu_flush`（satp 写‖sfence commit）两根 OR；pending-FP 直写旁路与 mem1 双口均已拆除 |
+| `OooPendingMemorySequencer` | `memory/` | lane1 memory barrier 的 pending memory 单 entry 注册状态（`valid/dispatched/pc/inst/next_pc`）；⚠️ 2026-07-03 RTL 重读：capture 恒 0 已形式化证死（lane1 barrier 条件不含 FACT_MEM），全链死通道，见 `ooo-pending-memory-sequencer.md` 状态注记 |
 
-wrapper 自身不持有任何 `always`、`assign` 或新 wire 逻辑，只声明内部信号
-`pending_fp_mem_req_valid_w`（原 glue 顶层 wire，仅被两个 memory owner 引用，故下沉为
-wrapper 内部 wire）并按原顺序例化两个 owner。
+wrapper 自身不持有任何 `always`、`assign` 或新 wire 逻辑，按原顺序例化两个 owner
+（原内部信号 `pending_fp_mem_req_valid_w` 已随 pending-FP 直写旁路拆除而消失，现无内部 wire）。
 
 ## 3. 接口与不变量
 
-- wrapper 端口 = 原两个 owner 与 glue 其余部分之间跨边界的全部信号（共 60 个），
+- wrapper 端口 = 原两个 owner 与 glue 其余部分之间跨边界的全部信号（抽取时 60 个；FP/mem1
+  信号拆除、probe/pretrans/nokill 加入后现为 45 个），
   方向由"谁驱动"决定：owner 输出且被 glue 其余部分消费 → wrapper 输出；glue 其余部分
   或顶层输入驱动且被 owner 消费 → wrapper 输入。
-- glue 顶层 wire 名保持不变：`mem_req_*_o/mem1_req_*_o/mem_flush_o/mmu_flush_o` 等顶层
+- glue 顶层 wire 名保持不变：`mem_req_*_o/mem_flush_o/mmu_flush_o`（mem1 双口已删）等顶层
   输出端口由 wrapper 输出直接驱动；`pending_mem_q/pending_mem_dispatched_q/
   pending_mem_pc_q/pending_mem_inst_q/pending_mem_next_pc_q` 等 pending memory 状态
   仍以同名 glue 顶层 wire 形式存在（wrapper 输出 → glue wire），保证现有 testbench 探针

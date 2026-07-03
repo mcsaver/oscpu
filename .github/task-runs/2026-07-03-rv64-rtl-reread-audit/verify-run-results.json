@@ -1,0 +1,558 @@
+{
+ "groups": [
+  {
+   "group": "nav-readmes",
+   "results": [
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/README.md",
+     "verdict": "CURRENT",
+     "summary": "全部可验证声明与代码一致:Makefile:197 core-regress/:259 difftest-ref 存在;configs/default_defconfig:16 CONFIG_NPC_DIFFTEST=y、rv64_perf_defconfig:19 =n、Kconfig:112 裸默认 n,与文中三处描述逐一吻合;core-regress 脚本 testsuites/scripts/npc-rv64-core-regress.sh:24 默认十套件(rv64ui...rv64uzbs)与 README 逐字一致,--fetch-riscv-tests/--riscv-privileged/--riscv-filter flags 均在(:85/:110/:115);am-kernels/arch-test/scripts/{act4-preflight.sh,act4-npc-run.sh} 存在;ISA 定位与 difftest 比对语义(逐 commit PC+32GPR、MMIO commit 拍 EA 解码)与真相基线 rtl-ground-truth-2026-07-03.md §1/§2.5 一致;验证结果段数字全部带日期锚(2026-06-26/27)且已注明 ACT4 迁移(2026-07-02),不构成漂移。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/README.md",
+     "verdict": "DRIFT_FIXED",
+     "summary": "三处修正:(1) 目录列表缺 vsrc 实际存在的 core/、bus/(7 个 AXI 互连/外设文件)、include/(define.v)、sim/(3 个 .sv 仿真壳)四目录,已按原列表风格补 4 行;(2) 行 46 wrapper spec 引用组含 ooo-frontend.md,该文件已归档(specs/history/README.md:34 登记 SUPERSEDED),属协议 §3.3 悬空引用,已改为从大括号组摘出并注明 history 路径+(已归档);(3) 'glue 约 1.4k 行'实测 1315 行(wc -l),改为约 1.3k。其余关键声明全部亲验一致:glue 恰 6 实例/0 always(OooCoreTopGlue.v:438/595/727/780/823/1041)、CsrFile 实例上提 NpcCoreTop.v:359、icache 4096 项(OooFetchPacketCache.v:4 INDEX_W=12)、dcache 32KB(OooMemAxiBridge.v:68 DCACHE_INDEX_W=12→4096×8B)、OOO_* 宏在 include/define.v:21-34、OooPendingDispatchArbiter facts bus 端口(该文件:34-35)且分类散线仅剩 head1_csr_illegal_i、FP pending 三文件(OooFpPendingExec/OooPendingFpSequencer/OooFpCommitGate)已物理不存在、OooFrontend 含 6 个 DecodeStage 实例、死硅总注记(2026-07-03)已在位。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/README.md",
+     "verdict": "DRIFT_FIXED",
+     "summary": "两处修正(同一事实):'OooRedirectArbiter.v 未编译入 filelist/不在 filelist 编译'与代码不符——filelist.mk:85 实际定义了 RTL_OOO_REDIRECT_ARBITER := $(RTL_CONTROL_DIR)/OooRedirectArbiter.v 登记行,但该变量全文件零消费(grep '$(RTL_OOO_REDIRECT_ARBITER)' 无命中,不进 RTL_CORE_SRCS),故精确化为'仅登记变量、未接入编译列表,零实例化'(注记与条目各一处);零实例化亲验成立(OooCoreTopGlue.v:367 仅注释提及)。死硅注记其余证据链逐条亲验:define.v:567-568 OOO_ROB_WALK_MODE=1'b1 编译期常量;OooPendingDispatchArbiter.v:100/103/171/183 branch/jump capture 被 !rob_walk_mode_i 门死;OooCoreSliceControlGate checkpoint 臂恒 0 成立(OooBranchResolveRecoveryGate.v:80-84 capture 依赖恒 0 的 pending_branch_i 链)。15 个 owner 条目+OooControlPlane wrapper 与 control/ 目录 16 个 .v 文件一一对应,无遗漏无幽灵。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/README.md",
+     "verdict": "DRIFT_FIXED",
+     "summary": "三处修正:(1) 'specs/*.md 逐模块规范(71 份)'过时,实际 66 份(ls *.md=67 含 README)+15 份归档在 specs/history/,已改计数并把'本轮新增'改为中性表述;(2) 目录表格缺三份 arch/ 活文档——权威现状快照 rtl-ground-truth-2026-07-03.md(doc-lifecycle §6 指定,导航 README 必须收录)、mem-lsq.md(状态'部分落地',文件头自述)、timing-dispatch-issue-path.md,已各补一行;(3) '当前一句话状态(2026-06-28)'整体过时(riscv-tests 271/0、CPI 1.26 口径已被 FP 簇/F2 真预测/LSQ SQ/真相基线超越),已改写为 2026-07-03 口径:真相基线固化+域 A 迁移三簇+pending 四通道证死+最新全绿面(56/56、十套件+privileged、ACT4、CoreMark difftest+18.3%)+时序封顶复归 OooDispatchBackend(FP FMA 流水化 173→31 级,timing-dispatch-issue-path.md 头部与 memory 佐证)。表格其余行亲验:arch/history/{b2-branch-spec-redirect,mem-store-decouple}.md、eval/npc-eval.sh、vivado/、study/、campaign-report.md 路径全部存在。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/README.md",
+     "verdict": "CURRENT",
+     "summary": "自述为非穷举选列索引('其余为 decompose 阶段简明笔记见 vsrc/README 总览'),所列 spec 名与 specs/ 目录 66 份文件逐一对上(含通配 ooo-direct-*/ooo-ras-*/ooo-branch-prefetch-*/ooo-csr-*-mux 全部命中);归档引用 history/ooo-lsq-implementation-plan.md 存在;'宪法 v0.2'与 ooo-core-architecture.md:14 版本行一致;头部'85 份 6 CURRENT/67 校正/12 归档'与 doc-lifecycle §6 登记一致;known-issues #111(SMC 失效缺口)在 .github/memory/known-issues.md:8 存在;死硅家族标注与代码证据一致(OOO_ROB_WALK_MODE=1'b1 define.v:568、pending capture 门死 OooPendingDispatchArbiter.v:100/103、ooo-pending-memory-sequencer/ooo-synthetic-lane1-ret-sequencer 对应模块仍编译在册);FP 簇真源 vsrc/execute/OooFpBackend.v 存在。无漂移。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/literature/README.md",
+     "verdict": "DRIFT_FIXED",
+     "summary": "两处修正:计划纳入主题的 backlog 括号已失效——(1) '(B1 访存解耦)'改为'B1 已实现,SQ+前递已落地;LQ/MSHR/多 outstanding 仍待做'(证据:ROADMAP.md:72 B1 状态'已实现并验证',mem-lsq.md 头部'部分落地:store-to-load 前递已实现,load 多 outstanding 仍未做');(2) '(B6)'改为'B6 已被 ROB-walk 方案取代,checkpoint 未采用'(证据:ROADMAP.md:77 'B6 已被 B2 ROB-walk 取代',真相基线 §1 '误预测恢复=redirect+ROB-walk,无 checkpoint')。其余约定(NN-主题.md 笔记格式/不存版权 PDF/引用可追溯)与目录现状一致:literature/ 仅含 README、尚无笔记,与'按 backlog 需要逐步补'自洽;'DIV radix-4/8 已部分实现'与真相基线'除 radix-4+CLZ 早终止'相符。"
+    }
+   ]
+  },
+  {
+   "group": "arch-constitution",
+   "results": [
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/arch/ooo-core-architecture.md",
+     "verdict": "DRIFT_FIXED",
+     "summary": "normative 宪法,实体活,但 §2 七原则表是 v0.2 重读时的漏改块,与自身 §7.1/§8.3 自相矛盾;另有行数/端口数/证据行号漂移。逐条修正(均亲验代码):(1) C1 行 pending branch/jump 串行加'(已证死待删)'——capture 被 !rob_walk_mode 门死(OooPendingDispatchArbiter.v:160-171);(2) C2 行 CTRL_BUS 行号 define.v:556-603→598-643(CTRL_VALID_BIT@598..CTRL_BUS_W=50@643),'decode 在 3 处实例化'→'2 处'(grep 全 vsrc 仅 OooAluDecodeBackend.v 2×+OooFrontend.v 6×,legacy 第三处不存在);(3) C4 行'FP 不是执行簇而是 pending 旁路(OooPendingFpSequencer.v)'→'FP 已是独立执行簇 OooFpBackend'(execute/ 目录无 OooPendingFpSequencer.v,OooFpBackend.v 存在);(4) C5 行'无 LSQ'→'SQ(4)+probe/drain+前递已落地;桥仍单 outstanding;OooPendingMemorySequencer 已证死'(OooIntBackend.v:925 SQ_ENTRY_W、:1015 MIQ;OooPendingLane1CaptureGate.v:50-52 mem_capture 依赖不含 FACT_MEM 的 barrier);(5) C6 行'三个受规约例外'→'一个(E1),E2/E3 已消除'(与 §7.1 表对齐);(6) §3.2-1 '1415 行的 glue'→1315(wc -l 实测 1315,§3.1 树注自写 1315);(7) §3.2-2 'DecodeStage 3 处(含 legacy 1×)'→'2 处共 8 份';(8) §4.1 Reg-read 'OooPhysRegFile(8R2W)'→'10R2W,其中 5 读口死硅'(OooPhysRegFile.v:14-33 read0-read9 十读口);(9) §5.2 CTRL_BUS 行号同步;(10) §5.3 result_event 证据 OooIntBackend.v:120-134,1744-1807→166-180,2427-2494(wb0/wb1 wire 声明@166-180,assign 汇合@2427-2494;原行号现为 commit1 端口和 Clmul 实例);(11) §5.4 OooRob.v:218-242→280-335(commit 输出 assign@307-335)、异常阻止 commit1 :201-204→:282-285(commit1_fire_w=...&&!head_exception_w 实测@282-285);(12) §9 C6 行加'2026-07-03:仅余 E1'标注;(13) 附录标题'本版(v0.1)'→'v0.1 的已知未尽项(历史记录)'并标注 glue 行数今昔。其余抽查(NpcCoreTop.v:163/192/238/359 实例化行号、OooStopPendingSequencer.v 置位链、OooIntBackend.v:531-532 OOO_DBRANCH_DOMAIN_A、OooMemAxiBridge.v:479-481/738-748 store 解耦、前端 55 实例、OooRedirectArbiter 未入 RTL_CORE_SRCS+零实例化)全部吻合未动。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/arch/rtl-ground-truth-2026-07-03.md",
+     "verdict": "CURRENT",
+     "summary": "snapshot 类,当日(2026-07-03)最新权威快照,无更新快照取代它。抽查 13+ 处证据全部与代码吻合:filelist.mk:85 REDIRECT_ARBITER 变量定义且 RTL_CORE_SRCS(266-315)无引用+全仓零实例化;OooPendingDispatchArbiter.v:160-171 capture 被 !rob_walk_mode_i 门死;OooPendingLane1CaptureGate.v:50-52 + OooFrontendDispatchGate.v:102-109 barrier 条件不含 mem(pending_mem 恒 0);OooBranchBpuUpdateGate.v:33-35 注释自证;OooPredictorUpdateGate.v:17-19 JALR-BTB 依赖 pending_jump;OooFrontendRunGate.v:62-70 bypass 被 OOO_ROB_WALK_MODE 禁;OooIntBackend.v:801/811 WBU load_data_i 恒 0;define.v:53-58 CACHEABLE_BASE/LAST 与 152-157 PMEM mask(256MB)矛盾属实;OooFetchPacketCache.v:61-82 same_fetch_window 4 字节足迹;DecodeUnit.v:779-783 fence.i 合法 no-op;difftest.cpp:182 skip 后 make_dut_context(pc+4);RAS DEPTH=32。关键疑点'FADD/FMUL/FMA 3/3/5 级'经流水寄存器结构验证正确(FADD 有 as_*_s1_q→s2_q→输出 q 三组寄存,OooFpArithGate.v:679-731;文件头注释'FADD 2 级'才是代码注释陈旧,非文档错误)。不动。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/arch/ROADMAP.md",
+     "verdict": "CURRENT",
+     "summary": "living 主干文档,实体活,2026-07-03 已同步。头部免责声明明确'§1/§3 的性能与规模数字为 2026-06-28 时点快照,最新现状以 rtl-ground-truth-2026-07-03.md 与 project-status.md 为准',覆盖了 §1 gate 数字(112/112 等)与 §3.2 文件行数(OooFrontend 2258 行,现 2382)的时点性;B2 行的 2026-07-03 更新与代码吻合(OOO_ROB_WALK_MODE=1'b1 生产形态、OooRedirectArbiter 未入编译清单未实例化——filelist.mk:85 亲验);B-LSQ 行'store 迁 SQ+前递落地/桥单 outstanding'与 OooMemAxiBridge.v(单 state_q FSM)+OooIntBackend.v(SQ/MIQ)吻合;B6'已被 B2 ROB-walk 取代'与 OooDispatchBackend.v:485-486 checkpoint 门死一致。无需修正。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/arch/mem-lsq.md",
+     "verdict": "CURRENT",
+     "summary": "spec 类,对应实体(OooMemAxiBridge+访存发射路径)活,2026-07-03 复核注与代码吻合:grep 证实 active_port_q 已不存在(复核注自己已声明此点);桥仍是单 state_q 串行 FSM(55 处引用,S_WALK_AR/S_READ_ADDR/S_WRITE_REQ 状态仍在,OooMemAxiBridge.v:59-63),'根本性单 outstanding'结论成立;store-to-load 前递已由 SQ 落地(OooIntBackend.v:925 SQ_ENTRY_W mode=1 为 4 项)与状态行一致;§5b 暂缓决策的前提(单 FSM)未变。§5b 中'726 行'是 2026-06-28 读代码时点记录(现 782 行),复核注已总体声明时点性,不构成现状误导。无需修正。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/arch/timing-dispatch-issue-path.md",
+     "verdict": "CURRENT",
+     "summary": "spec 类(已定案负决策+重启条件),2026-07-03 更新注与代码吻合:OooFpArithGate 已流水化(FADD s1_q/s2_q/输出 q 三组寄存、FMUL S1→S2→S3、FMA 5 级 meta 链,统一第 5 拍出结果,OooFpArithGate.v:43,679-731)故'FP 封顶已解除'成立;OooPendingFpSequencer.v 已物理不存在(ls vsrc/execute 证实),2026-06-29 注记中对它的引用是历史陈述且已被 07-03 注声明拆除;'F2 下分支/JAL/JALR 已禁 dispatch 旁路'与 OooIntIssueQueue.v:431-448 吻合(dispatch*_ctrlflow_mispred_w=rob_walk_mode&&(BRANCH|JAL|JALR) 排除旁路,JAL 特殊臂同被 !ctrlflow_mispred 关死);§6c 负决策前提(WSL 整核 P&R 不可行、dispatch-bypass 仍在)未变。无需修正。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/arch/SPEC-TEMPLATE.md",
+     "verdict": "CURRENT",
+     "summary": "normative 模板类(doc-lifecycle §1 明列为长活),纯流程/格式规定,无任何代码事实断言可漂移;仍被宪法头部与 mem-lsq/timing 两 spec 引用为模板真源,specs 目录多份规范按其结构撰写,使命持续。不动。"
+    }
+   ]
+  },
+  {
+   "group": "specs-branch-prediction",
+   "results": [
+    {
+     "file": "npc/rv64/design/specs/ooo-branch-direction-predictor.md",
+     "verdict": "CURRENT",
+     "summary": "结构参数全部与代码吻合:BHT 4096(define.v:175-179 INDEX_W=12)、local hist 256 项×8b(define.v:187-194)、PHT {pc[4:1],lh} 4096(define.v:195-203, OooBranchDirectionPredictor.v:111-118);静态回退 backward-taken(v:42,75-76)、2-bit 饱和/strong 两端(v:37-53)、双 lookup 纯读(v:78-151)、resolve 拍更新 GHR/BHT/local(v:174-193)。'update 单源=F2 issue-resolve'与 OooBranchBpuUpdateGate.v:33-35 注释及 81-84 update_valid 组合一致(四旧臂 mode=1 恒 0 已证)。'JALR-BTB/BTC 已死'与 BTC capture_arm 恒 0(OooBranchTargetCacheControlGate.v:44-49)一致。"
+    },
+    {
+     "file": "npc/rv64/design/specs/ooo-branch-spec-tracker.md",
+     "verdict": "CURRENT",
+     "summary": "死硅注记三论断逐一验证:①direct_branch_spec_start 恒 1=OooCoreTopGlue.v:534(wire direct_branch_spec_start_w = `OOO_ROB_WALK_MODE`,行号精确);②checkpoint_capture 恒 0——OooBranchResolveRecoveryGate.v:80-84 需 stop_pending&&pending_branch,而 pending_branch capture 在 mode=1 被 OooPendingDispatchArbiter.v:99-100/160-183 全臂门死;active_o 唯一置 1 路径 OooBranchSpecTracker.v:52-55 故 SPEC_ACTIVE 不可达;③checkpoint_pending 副作用活——taken 预测 fire 时 flush+spec_start 置位(v:45-50),压制 RAS 的 OooDirectRasCandidateGate.v:51-55 行号精确(ras_direct_update_safe_o 含 !branch_spec_checkpoint_pending_i)。正文状态机与 v:39-77 一致。"
+    },
+    {
+     "file": "npc/rv64/design/specs/ooo-branch-append-dispatch-gate.md",
+     "verdict": "CURRENT",
+     "summary": "注记四常量全部在位:BRANCH_APPEND_DISPATCH_ENABLE=1'b0(v:68)、BRANCH_PREFETCH_DISPATCH_ENABLE=1'b0(v:69)、return_cont_attempt_o=1'b0(v:82)、dispatch1_optional_o=1'b0(v:153),另 branch_prefetch_dispatch_fire_o=1'b0(v:146);引用行号 68-69,82 精确。正文 invariants 逐条对应 v:71-148;文档末条'dispatch1_optional tied to zero: F2 dual dispatch pair-atomic'与 F2 落地后(fd0cd2c27)新增注释 v:150-153 逐字义一致,已反映最新改动。"
+    },
+    {
+     "file": "npc/rv64/design/specs/ooo-branch-bpu-update-gate.md",
+     "verdict": "CURRENT",
+     "summary": "注记引用 OooBranchBpuUpdateGate.v:33-35 的【F2】自证注释行号精确;四旧臂死已证:direct 臂=direct_branch_resolve_valid 恒 0(dispatch 臂 OooIntBackend.v:531-532 被 !OOO_DBRANCH_DOMAIN_A 关死、issue 臂需 fire 拍同 PC resolve 设计路径死),pending/drained/commit 臂依赖 pending_branch 恒 0(OooPendingDispatchArbiter.v:99-100,160-183);pending0_capture 语义漂移论据成立:direct_branch0_dispatch_valid = dispatch0_branch && !(`OOO_DBRANCH_DOMAIN_A`) 恒 0(OooFetchHeadPairGate.v:283-284),该 wire 在 OooFrontend.v 仅声明+连接(292/1946)无其他消费。正文 update_valid=四臂 OR+resolve 臂(v:81-84)、metadata fallback 到 resolve_update_*(v:89-110)与文档 invariants 一致,F2 resolve 臂已补记。"
+    },
+    {
+     "file": "npc/rv64/design/specs/ooo-branch-resolve-recovery-gate.md",
+     "verdict": "CURRENT",
+     "summary": "注记引用 v:54-66 行号精确:rob_walk_mode mux(v:54-57 branch_mispredict_redirect_w=valid&&mispredict&&!misaligned,v:59-66 编译期选择),mode=1 下 untracked 判据即'仅后端显式 mispredict',core_branch_resolve_mispredict_i 端口在 v:13。各死臂论断成立:tracked redirect/pending match 需 pending_branch(恒 0)、checkpoint capture 需 branch_spec_checkpoint_pending 且 pending_branch(v:80-84)、spec resolve 需 branch_spec_active(恒 0,v:85-87)、direct-branch-wait untracked 属 mode-0 臂(v:61-66)。正文 invariants 逐条对应 v:40-105。"
+    },
+    {
+     "file": "npc/rv64/design/specs/ooo-branch-target-cache-control-gate.md",
+     "verdict": "CURRENT",
+     "summary": "注记引用 v:44-49 行号精确(capture_arm 五条件 AND 含 direct_branch_resolve_redirect_i&&direct_branch_resolve_taken_i);拍内解析死已证(OooDirectBranchResolveGate.v:89-105 resolve_valid 恒 0→redirect/taken 恒 0)故 BTC 唯一填充路径断;消费端关死=BRANCH_APPEND_DISPATCH_ENABLE=1'b0(OooBranchAppendDispatchGate.v:68,95-99)。正文:store fire mem0 单 lane(v:30-34)、MISC_MEM 全清(v:37-41)、arm branch PC 2:1 mux(v:51-52)全部与代码一致。"
+    },
+    {
+     "file": "npc/rv64/design/specs/ooo-branch-prefetch-buffer.md",
+     "verdict": "CURRENT",
+     "summary": "注记论断成立:req_fire_i 恒 0——引用 OooBranchPrefetchRequestGate.v:40-52 行号精确(branch_req 需 pending_branch 恒 0,jalr_req 需 jalr_btb_hit 而 BTB 填充链死),影子包永不建立。正文状态机与 OooBranchPrefetchBuffer.v:63-100 逐条一致:rst 全清(64-76)、clear 清 active/valid/pc 不动 payload(77-80)、req_fire 置 active 清 valid 记 pc(82-86)、rsp_capture 置 valid 存 payload(87-98)、clear 优先(else-if 结构)、同拍 req+capture 语义(nonblocking 顺序)。"
+    },
+    {
+     "file": "npc/rv64/design/specs/ooo-branch-prefetch-request-gate.md",
+     "verdict": "CURRENT",
+     "summary": "注记引用 v:40-52 行号精确;死因链已证:branch_req_valid 需 stop_pending&&pending_branch&&dispatched(v:40-45)而 pending_branch 在 mode=1 恒 0(OooPendingDispatchArbiter.v:99-100,160-183),jalr_req_valid 需 jalr_btb_hit(v:47-50)而 JALR-BTB 恒空恒 miss。正文与代码一致:shared blockers 八条(v:30-38)、req_valid=OR/req_fire=&&ready(v:52-53)、req_pc JALR 优先 mux(v:54)。"
+    },
+    {
+     "file": "npc/rv64/design/specs/ooo-branch-prefetch-source-gate.md",
+     "verdict": "CURRENT",
+     "summary": "注记引用 OooPendingDispatchArbiter.v:160-183 行号精确(direct/lane1 branch/jump capture 均 && !rob_walk_mode_i;head0 臂经 lane0_branch_pending_w/lane0_jump_pending_w 亦含 !rob_walk_mode_i,arbiter v:99-103,门死完备);jalr_btb_lookup_o 需 stop_pending&&pending_jump(OooBranchPrefetchSourceGate.v:37-41)故恒 0。正文四输出与代码一致:target=pc+imm(v:23-24)、pred_pc mux(v:26-28)、ret hint rd=x0/rs1=x1|x5/imm=0(v:30-35)、RAS 非空抑制 lookup+空栈 fallback(v:41)。"
+    },
+    {
+     "file": "npc/rv64/design/specs/ooo-branch-prefetch-status-gate.md",
+     "verdict": "CURRENT",
+     "summary": "注记论断成立:branch_prefetch_active 恒 0(req_fire 恒 0,OooBranchPrefetchRequestGate.v:40-53)且 pending_branch/pending_jump 恒 0(OooPendingDispatchArbiter.v:99-103,160-183),故 rsp_capture/match 及全部下游输出恒 0(OooBranchPrefetchStatusGate.v:28-42 每条都以 active 或 capture_owner 为前提)。正文与代码逐条一致:capture_owner=dispatched pending branch 或 pending JALR(v:24-26)、capture 需 active&&!buffer_valid&&stop_pending&&rsp fire(v:28-33)、match 需 active(v:35-37)、buffer/rsp/hit/pending 组合(v:39-42)。"
+    }
+   ]
+  },
+  {
+   "group": "specs-branch-resolve-ras",
+   "results": [
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-direct-branch-resolve-gate.md",
+     "verdict": "CURRENT",
+     "summary": "死硅注记锚点复核全部仍准确:OooIntBackend.v:531-532 确为 dispatch_branch_fast_candidate_w = dispatch0_branch_fire_w && !(OOO_DBRANCH_DOMAIN_A),include/define.v:575 恒 1,dispatch-resolve 源恒 0;注记声称的活臂属实(direct_branch_pred_pc_w 供 F2 spec start OooFrontend.v:1888/BranchSpecTracker :2255,BHT metadata 供 OooBranchBpuUpdateGate :1910-1959);引用锚 answers.json 与宪法 §8.3 均存在。正文协议/不变量与 OooDirectBranchResolveGate.v 逐条一致(lane1 优先 mux :70-87、dispatch 优先 issue :92-97、redirect/taken :98-102、lane1-ret :104-111)。无漂移。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-direct-branch-wait-buffer.md",
+     "verdict": "CURRENT",
+     "summary": "注记锚点 OooBranchResolveRecoveryGate.v:59-66 行号仍准确(mode=1 三目丢弃 direct_branch_wait_untracked_o 臂,OOO_ROB_WALK_MODE=1'b1 见 define.v:568);direct_branch_wait_untracked_w 在 OooFrontend.v 除端口连接 :1188 外无消费者,wait_q/pc_q 只回喂 recovery gate 做 match 自清(:1175-1176,:1198),注记'置位/自清空转'属实。正文状态机与 OooDirectBranchWaitBuffer.v:25-39 一致(顺序 if、fire 覆盖 match 语义)。无漂移。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-direct-ras-candidate-gate.md",
+     "verdict": "CURRENT",
+     "summary": "无注记且无需注记:模块输出全部处于 mode=1 活口路径(direct ret0/ret1 pop、direct JAL call push 是 RAS 现存活口),非死通道。逐条比对 OooDirectRasCandidateGate.v 全一致:call-like rd∈{x1,x5}(:33-34,:49-50)、safe 四条件(:51-55)、ret ready 链(:43-47)、dispatch0_return 要求 dispatch0_jump(:56-59)、head1 要求 jalr raw(:60-63)、return hint rd=x0/rs1∈{x1,x5}/imm=0(:35-42);实例化 OooFrontend.v:740,tb 存在于 testbench/tests/tb_ooo_direct_ras_candidate_gate.sv。无漂移。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-ras-update-gate.md",
+     "verdict": "CURRENT",
+     "summary": "注记声称的死臂逐一实证:pending_jump_return_fire_o/pending_jump_call_fire_o 均要求 pending_jump_i(OooPendingControlResolveGate.v:59-73),而 pending-jump capture 双臂被 !rob_walk_mode_i 门死(OooPendingDispatchArbiter.v:101-103,:182-183)恒 0;branch_spec_restore_w 要求 pending_branch_i(OooBranchResolveRecoveryGate.v:85-92),pending-branch capture 三臂同被门死(OooPendingDispatchArbiter.v:160-171)恒 0;lane1-ret 臂随 resolve-gate 判死。活口与注记一致:untracked(F2 mispredict 经 OooBranchResolveRecoveryGate.v:55-60)+direct ret0/ret1+direct JAL push(value 恒 direct link)。正文 OR/mux 与 OooRasUpdateGate.v:25-39 一致。无漂移。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-jalr-prefetch-status-gate.md",
+     "verdict": "CURRENT",
+     "summary": "注记两支恒 0 声明均实证:pending_jump_i 恒 0(capture 双臂被 !rob_walk_mode_i 门死,OooPendingDispatchArbiter.v:101-103,:182-183);branch_prefetch_active_i 恒 0(branch 臂要求恒 0 的 pending_branch_i、JALR 臂要求 jalr_btb_hit 而 lookup enable 要求恒 0 的 pending_jump_i:OooBranchPrefetchRequestGate.v:40-53、OooBranchPrefetchSourceGate.v:37-41、OooJalrBtb.v:38,req_fire 恒 0 且 active_q 仅由 req_fire 置位 OooBranchPrefetchBuffer.v:82-83)→ match_o 及全部 hit 输出恒 0。正文条件链与 OooJalrPrefetchStatusGate.v:25-44 逐条一致。无漂移。"
+    }
+   ]
+  },
+  {
+   "group": "specs-fetch-packet-path",
+   "results": [
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-fetch-packet-decode.md",
+     "verdict": "CURRENT",
+     "summary": "与 OooFetchPacketDecode.v 逐条一致:half 拼接/RVC 展开(vsrc/frontend/OooFetchPacketDecode.v:27-41)、slot1 resp 选择 dec1_needs_word1_w=!dec0_compressed||!dec1_compressed(:41,:67,等价于文档'完全落在 inst0 内用 resp0')、control_stop=resp!=0||branch/JAL/JALR/system(:57-62,:68-73)、packet_next_pc=dec1_next_pc(:75)。纯组合无状态 ✓。模块活,为取指主路径(OooFrontend.v:973 实例化)。'与原 OooAluFetchCore 等价'为历史等价基准句,不构成现状漂移。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-fetch-packet-fifo.md",
+     "verdict": "CURRENT",
+     "summary": "死硅注记验证成立:seed_valid_i 恒 0——3 源 4 臂全死(fallthrough capture 被 OooBranchAppendDispatchGate.v:68 localparam BRANCH_APPEND_DISPATCH_ENABLE=1'b0 经 :101-121 关死;branch prefetch hit 需 pending_branch_match,pending_branch capture 被 OooPendingDispatchArbiter.v:99-100,160-171 !rob_walk_mode_i 门死且 define.v:568 OOO_ROB_WALK_MODE=1'b1;JALR 两臂需 pending_jump_resolve/pending_jump_q,pending_jump capture 同被 :102-103,179-180 门死)。正文核对:优先级 rst>clear>seed>enq/pop(OooFetchPacketFifo.v:95-152)✓;head1_pc0_o=pc0_q[head+1] 仅 count>=2 有效(:92,消费端 OooFrontend.v:1868-1869 fifo_count>=2 才选)✓;mode=1 bypass 恒 0(OooFrontendRunGate.v:64-70)✓;父模块 OooFrontend(OooFrontend.v:1807 实例化)✓。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-fetch-packet-head-mux.md",
+     "verdict": "CURRENT",
+     "summary": "死硅注记验证成立:bypass_valid_i 恒 0——OooFrontendRunGate.v:64-70 fetch_rsp_dispatch_bypass_o 末项 !(`OOO_ROB_WALK_MODE),define.v:568 mode=1'b1 → 恒 0,注记引用行号 62-70 准确。正文组合规则与 OooFetchPacketHeadMux.v:41-53 逐条一致(head_has_packet=bypass||fifo、bypass 优先、载荷 bit 精确复制)。实例化 OooFrontend.v:993 ✓。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-fetch-packet-hit-mux.md",
+     "verdict": "CURRENT",
+     "summary": "死硅注记验证成立:两实例(OooFrontend.v:1124 branch/1387 JALR)服务的 prefetch 通路全链死——branch prefetch req 需 stop_pending&&pending_branch&&dispatched(OooBranchPrefetchRequestGate.v:41-43),pending_branch capture 被 !rob_walk_mode_i 门死(OooPendingDispatchArbiter.v:99-100,160-171)恒 0;JALR 侧 hit_available 全部 match 需 pending_jump_q(OooJalrPrefetchStatusGate 实例 OooFrontend.v:1366-1384)恒 0,且 JALR-BTB update_valid=jalr_btb_update_w 依赖 pending_jump_resolve_ready(OooFrontend.v:1048-1056,1455)恒 0 → 表恒空。消费端 seed 臂与 prefetch dispatch(BRANCH_PREFETCH_DISPATCH_ENABLE=1'b0, OooBranchAppendDispatchGate.v:69)亦死。正文组合规则与 OooFetchPacketHitMux.v:38-47 一致。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-fetch-packet-seed-mux.md",
+     "verdict": "CURRENT",
+     "summary": "死硅注记逐项验证成立:RTL 恰 4 个 set_seed 臂(OooFetchPacketSeedMux.v:121-127,139-142,152-155,174-177)全死(源谓词 fallthrough_capture/pending_branch_match/pending_jump_resolve/drain_pending_jump 恒 0,证据同 FIFO/HitMux 条)→ seed_valid_o 恒 0 ✓。'活 clear 触发'5 项列表复核无漏项无多列:CSR trap 活;direct flush 活(OooFrontendActionGate.v:45-52 direct_jal_fire 等 domain-A 下仍触发);untracked resolve 活(mode=1 即后端显式 mispredict redirect 主路径,OooBranchResolveRecoveryGate.v:55-60);pending-system CSR commit 活(pending_system capture 无 rob_walk_mode 门,OooPendingDispatchArbiter.v:149-158);drain arch-trap/system 臂活。未列各臂确证恒 0:branch_spec_restore(需 branch_spec_resolve_valid←pending_branch,OooBranchResolveRecoveryGate.v:85-92)、pending_branch_commit_resolve/match_clear(OooPendingDrainResolveGate.v:74-84 需 pending_branch_i)、pending_jump 臂、drain branch/jump 臂、drain mem 臂(pending_mem 唯一 capture=lane1 mem×barrier,barrier 条件不含 mem 类,OooFrontendDispatchGate.v:102-109 + OooPendingLane1CaptureGate.v:50,结构互斥恒 0)。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-fetch-head-classify-gate.md",
+     "verdict": "CURRENT",
+     "summary": "分类语义逐条与 OooFetchHeadClassifyGate.v 一致:illegal_raw=decode_illegal&&!fp_raw(:88)、fp_enabled=fp_raw&&!fp_disabled(:127-128)、semihost peer 方向由 semihost_peer_is_enter_i 决定(:100-104,PairGate head0 传 1'b0/exit、head1 传 1'b1/enter,OooFetchHeadPairGate.v:136,201)、sfence TVM 仅约束带 CTRL_SFENCE_TVM_BIT 的 sfence.vma/sinval.vma(:113-116)、U-mode fence illegal(:112)、S-mode TSR SRET(:117-119)、semihost EBREAK 不 exit 但 arch_trap(:123,129-131)、fetch_fault 抑制全 facts 且 arch_trap/stop=1(:61,129-137)。stop_raw 不含 fp_raw(FP 已迁域 A,:132-137)与文档数据通路第 6 条同步 ✓。模块活,由 OooFetchHeadPairGate 双实例化(:131,196)与文档头部陈述一致。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-fetch-head-pair-gate.md",
+     "verdict": "DRIFT_FIXED",
+     "summary": "主体与 OooFetchHeadPairGate.v 一致(fault0/lane1 可见性 :126-129,184-194;dispatch_valid :260-262;direct_branch0_dispatch_valid==dispatch0_branch&&!OOO_DBRANCH_DOMAIN_A :283-284 且文档已标注 domain-A 恒 0,define.v:575=1'b1 ✓)。漂移 1 处:branch_spec_dispatch_block_o(:249-258)在当前配置下恒 0——branch_spec_active_q 唯一置位路径 checkpoint_capture_i(OooBranchSpecTracker.v:52-55)依赖 pending_branch_i(OooBranchResolveRecoveryGate.v:80-84),其 capture 被 !rob_walk_mode_i 门死(OooPendingDispatchArbiter.v:99-100,160-171;define.v:568 mode=1'b1),文档原描述为活语义无任何死路标注。修改:①「范围」节 branch_spec_dispatch_block 条目加括号死因标注(mode=1 下 branch_spec_active_i 恒 0→本输出恒 0,含置位链证据);②「不变量」节对应条目补'默认配置下恒 0'一句并回指范围节标注。均为最小 diff,仿照文档对 direct_branch0_dispatch_valid 的既有括号标注风格。"
+    }
+   ]
+  },
+  {
+   "group": "specs-fetch-request-bridge",
+   "results": [
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-fetch-axi-bridge.md",
+     "verdict": "DRIFT_FIXED",
+     "summary": "两处端口漂移已就地修正:(1) §2 表格 fetch_rsp_* 列表含不存在的 next_pc——OooFetchAxiBridge.v:20-25 端口仅 inst0/resp0/inst1/resp1,packet next_pc 由前端 decode 计算,已改;(2) §2 表格列不存在的 flush_i 端口——模块端口(OooFetchAxiBridge.v:3-34)仅 mmu_flush_i(=satp 写/sfence commit,OooMemoryRequestGate.v:61-62、NpcCoreTop.v:166),已改。其余核验全部吻合:PMP-grant 逐访问门控公式(OooFetchAxiBridge.v:218-221)、fill 恒开(:295-296)、跨页包不缓存(fill_r0/r1 含 !packet_cross_page_q,:282/:291,注释 :276-280)、8 态状态机(:36-43)、leaf A=0→page fault(exec_permission_fault !pte[6],:153-162)、invalidate 仅 mem0 store fire 驱动(NpcCoreTop.v:158-161)、§6 缺口描述准确(same_fetch_window 4B 窗口,cache/OooFetchPacketCache.v:57-67)、隐患B 修复描述与代码一致。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-fetch-flow-control.md",
+     "verdict": "CURRENT",
+     "summary": "全部方程逐条与 OooFetchFlowControl.v 吻合:12 个输出端口一致;can_issue_request 含 F2 新增 !direct_frontend_flush 封顺序臂(:63-72);rsp_ready/enqueue/drop/bypass 方程(:40-61)与 §3 顺序一致;4 条不变量均成立(:43-45,:59-61,:78)。死硅注记证据准确:fetch_rsp_dispatch_bypass_i 恒 0 因 OooFrontendRunGate.v:62-70 的 !(`OOO_ROB_WALK_MODE) 与项,define.v:568 默认 1'b1;OooFrontend.v:1306 连线证实。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-fetch-pc-outstanding-sequencer.md",
+     "verdict": "CURRENT",
+     "summary": "与 OooFetchPcOutstandingSequencer.v 逐段吻合:4 寄存器(:79-82);优先级序 normal→direct-flush→spec-restore→pending-branch→untracked→pending-jump→system-CSR→drained→untracked-over-flush(B2,:257-263)→late-CSR-trap(:265-270) 与 always 块顺序一致;F2 单源 direct_fire_succ_i 臂(:120-126)与 OooFrontend.v:1876-1891 共享 wire 属实;端口表无 pending-FP 输入属实。注记死臂全部验证恒 0:pending branch/jump capture 被 rob_walk_mode 压死(OooPendingDispatchArbiter.v:99-103/:160-184),pending mem capture 结构恒 0(barrier 触发类型不含 mem 且 fetch-fault 拍 mem_raw 被 decode_ok 压死,OooFrontendDispatchGate.v:104-110 + OooFetchHeadClassifyGate.v:61-63,94-95),prefetch adopt 链恒 0(req_valid 依赖 pending_branch_i/pending_jump_i,OooBranchPrefetchRequestGate.v:40-52 + OooBranchPrefetchSourceGate.v:37-41),fallthrough capture 恒 0(OooBranchAppendDispatchGate.v:68 ENABLE=1'b0,:96-105,:117-122)。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-fetch-request-mux.md",
+     "verdict": "DRIFT_FIXED",
+     "summary": "正文(端口/redirect 优先级 mux 顺序/不变量)与 OooFetchRequestMux.v:43-87 逐条吻合;但 ⚠️ 注记把 lane1-ret 与 direct-branch-resolve 列为'谓词恒 0'不成立,已就地修正:dispatch 拍快解析源确实被 domain-A 压死(OooIntBackend.v:531-532 dispatch_branch_fast_candidate = ... && !(`OOO_DBRANCH_DOMAIN_A)),但 issue 同拍同 PC 巧合路径结构可达——direct_branch_issue_resolve_valid = direct_branch_fire && issue_resolve_valid && PC 相等(OooDirectBranchResolveGate.v:61-64),其中 direct_branch_fire 在 F2 下 taken/非 dual 拍仍 fire(OooDirectControlFlowGate.v:55-57,注释自证'domain-A: direct 分支 fire 保留')、issue resolve 广播活(OooIntBackend.v:2509),故为罕见残活臂而非死臂。注记已改为区分'恒 0 死臂'(return-cont=硬编码 1'b0、BTC/fallthrough=ENABLE 1'b0、pending-jump/branch-prefetch=pending 家族恒 0,并补列 normal-branch-resolve/branch-spec-restore,OooBranchResolveRecoveryGate.v:40-48)与'lane1-ret/direct-branch-resolve 罕见残活臂'。其余死/活声称验证无误:untracked=mode=1 主 mispredict redirect(OooBranchResolveRecoveryGate.v:54-58)、jump-spec 活(OooFrontend.v:1423-1425)、JAL/RET 臂活。"
+    }
+   ]
+  },
+  {
+   "group": "specs-frontend-dispatch",
+   "results": [
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-frontend-action-gate.md",
+     "verdict": "CURRENT",
+     "summary": "五个输出公式与 OooFrontendActionGate.v:45-85 逐条一致:direct_frontend_flush=六路 direct fire OR(含 direct_jump_spec_fire_i :27,51,文档已载 B2);stop_head 分支臂被 OOO_DBRANCH_DOMAIN_A=1 恒关(:61 + include/define.v:575),文档已如实记载;fifo_pop 四源含 dbranch_dispatch_fire_i(:24,69-73,文档已载 domain-A);fetch_rsp_control_stop/fetch_request_blocked_by_trap 与 :75-85 一致。实例连线 OooFrontend.v:1249-1288 与协议节输入分类吻合。无漂移。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-frontend-backend-dispatch-mux.md",
+     "verdict": "CURRENT",
+     "summary": "已带 2026-07-03 死硅注记且全部断言经亲读代码证实:branch prefetch/append 臂死于 OooBranchAppendDispatchGate.v:68-69 两 localparam=1'b0(门死 :95-101,128-145);return_cont_attempt_o=1'b0(:82);pending jump capture 双臂显式 !rob_walk_mode_i(OooPendingDispatchArbiter.v:101-103,173-183,define.v:568 mode=1),pending mem 无 barrier 供给臂(OooFrontendDispatchGate.v:102-109 + OooFetchHeadClassifyGate.v:94-96 mem_raw 要求 ctrl_legal 与 barrier 各臂互斥)→ OooPendingDrainResolveGate.v:60-72 jump/mem valid 恒 0 → mux 内 fire 恒 0(OooFrontendBackendDispatchMux.v:110-113);活臂=pending system CSR+head slot0/1 属实。正文 IO/优先级/F2 不变量(dispatch1_squash :102-106、pred_npc 三臂 :179-186、CSR rdata 单源 :141-143、fallthrough 仅置 valid :104-105)与代码一致。无漂移,注记保留。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-frontend-dispatch-gate.md",
+     "verdict": "CURRENT",
+     "summary": "与 OooFrontendDispatchGate.v 逐条一致:dbranch_dual_go(:61-69,预测 not-taken+head1 平凡+裸 unsupported 谓词)、lane1_base 含 (!dispatch0_branch||dual_go) 且无 FP 阻断项(:71-78,文档'FP 已迁域 A'属实)、B2 非返回 JALR de-pend 双发 dispatch1_depend_jump_w(:100-109,OOO_ROB_WALK_MODE=1)、unsupported_base 不排除 slot0 JAL(:80-86)、dispatch1_mem_unsupported 恒 0(:120)、dispatch_fire 四条件(:133-138)、dbranch_dispatch_fire 为 FIFO pop 源(:129-131,OOO_DBRANCH_DOMAIN_A=1 define.v:575)、direct_branch1 仅预测 taken 时 fire(:164-165)。实例 OooFrontend.v:789-838 连线一致。无漂移。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-frontend-run-gate.md",
+     "verdict": "CURRENT",
+     "summary": "与 OooFrontendRunGate.v 逐条一致:stop_pending_owner 十源(:39-49)、orphan/busy 区分(:51-52)、can_run 七条件(:53-59)、bypass 公式含 !(OOO_ROB_WALK_MODE) 恒 0 配置性死路(:64-70,define.v:568 宏=1)——文档已如实记载死路及 B2 理由(与代码注释 :62-63 同源);outstanding_count/fifo_reserve(:72-75)一致。实例 OooFrontend.v:590-623 一致。无漂移。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-frontend-uop-safety.md",
+     "verdict": "CURRENT",
+     "summary": "模块白名单/参数/不变量与 OooFrontendUopSafety.v:24-59 一致(base 恒拒 branch/JAL/JALR/ecall/ebreak/system/CSR/fence/misc-mem/mret/wfi :24-38,ALLOW_* 可选项 :40-47,resp/semihost/rd-hazard :49-56)。§5 实例映射与 OooFrontend.v 全部 8 个实例参数逐一吻合:lane0-before-ret(:768-786,LOAD/STORE 允许+RD_HAZARD)、return-cont(:887-905)、fallthrough/target-capture(:952-970,1027-1045,RESP_OK+SEMIHOST)、prefetch×4(:1461-1542,MULDIV/BITMANIP 允许)。死硅注记'仅 lane0-before-ret 消费链活、7 个死实例'核实:return_cont_attempt_o=1'b0(OooBranchAppendDispatchGate.v:82)、BRANCH_APPEND/PREFETCH_DISPATCH_ENABLE=1'b0(:68-69)、pending_branch 三 capture 臂均 !rob_walk_mode_i 门死(OooPendingDispatchArbiter.v:160-171)。无漂移,注记保留。"
+    }
+   ]
+  },
+  {
+   "group": "specs-pending-domain-b",
+   "results": [
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-pending-dispatch-arbiter.md",
+     "verdict": "CURRENT",
+     "summary": "⚠️注记全部核实:branch/jump capture 三臂 !rob_walk_mode_i 门死(OooPendingDispatchArbiter.v:100-103,160-183,OOO_ROB_WALK_MODE=1'b1 于 define.v:568);unsupported/lane1-INST_ACCESS_FAULT arch capture mode 门控(:304-323);lane1_fp_capture_w 悬空(:117 声明/:138 连接、无对应输出端口)。正文与代码一致:clear 语义差异(branch clear 无 direct-flush 项 :233-236,jump/system/mem 有 :237-251)、cause 优先级 fetch fault>arch0>csr_illegal0>lane1>unsupported(:324-333)、§3 上层为 OooControlPlane(:404 实例)+OooCoreTopGlue。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-pending-branch-sequencer.md",
+     "verdict": "CURRENT",
+     "summary": "⚠️注记核实:三个 capture 源全被门死——direct(OooPendingDispatchArbiter.v:161)、head0(经 lane0_branch_pending_w :100)、lane1(:171)均含 !rob_walk_mode_i,valid_o 恒 0。正文状态机优先级 rst>late_clear>capture_direct>capture_head0>capture_lane1>clear>clear_dispatched 与 OooPendingBranchSequencer.v:76-139 逐条一致(clear 只清 valid/dispatched/next_pc :133-136,direct capture 唯一 dispatched=1 路径 :95-96);实例在 OooFrontend.v:2073。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-pending-jump-sequencer.md",
+     "verdict": "CURRENT",
+     "summary": "⚠️注记核实:head0 capture 经 lane0_jump_pending_w(OooPendingDispatchArbiter.v:101-103 含 !rob_walk_mode_i)、lane1 capture(:182-183 显式门死),valid_o 恒 0;JALR-BTB 更新口 jalr_btb_update_o 依赖恒 0 的 pending_jump_resolve_ready_i(OooPredictorUpdateGate.v:17-19)确认恒 0。正文状态机与 OooPendingJumpSequencer.v:51-95 一致(dispatch_fire 只写 dispatched/target :90-92,clear 不清 jalr/pc/inst/rs1/imm/target :86-89);实例在 OooFrontend.v:2132。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-pending-control-resolve-gate.md",
+     "verdict": "CURRENT",
+     "summary": "⚠️注记核实:输入 pending_branch/pending_jump 恒 0(上游序列器证死),pending_control_ready_o=!pending_branch_i||commit_ready_i(OooPendingControlResolveGate.v:84)恒 1,resolve_ready(:55-57)/return/call/nolink/redirect(:59-83)全含 pending_jump_i 因子恒 0。正文 Invariants 与 RTL 逐条一致:JALR target 清 bit0/JAL pc+imm(:51-53)、return hint rd=x0∧rs1∈{x1,x5}∧imm=0∧!ras_empty(:59-63)、call rd∈{x1,x5}(:68-70)、nolink(:75-77)。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-pending-lane1-capture-gate.md",
+     "verdict": "CURRENT",
+     "summary": "⚠️注记核实:mem_capture_o=barrier_base_i&&mem_raw_w(OooPendingLane1CaptureGate.v:50),而 barrier 触发条件(OooFrontendDispatchGate.v:102-109)只含 fault/exit/system/arch_trap/branch 残臂/jalr 残臂、无 MEM 项,与 FACT_MEM 互斥恒 0;fp_capture_o 上游悬空(arbiter 无输出端口);branch/jump capture 下游 :171/:183 门死。正文一致:SYSTEM capture 要求 !csr_illegal&&!ARCH_TRAP(:44-46)、trap_exit scrub=barrier_base(:52)、cause/tval 优先级 semihost>illegal>fp_disabled>priv_illegal>csr_illegal>fetch resp(:60-75)、head_resp==2'b10 判 page fault(:66)。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-pending-memory-sequencer.md",
+     "verdict": "CURRENT",
+     "summary": "⚠️注记核实:capture_lane1_i 恒 0 论据成立(OooPendingLane1CaptureGate.v:50 与 OooFrontendDispatchGate.v:102-109 barrier 条件互斥),唯一实例确在 OooMemoryAccess.v:55。正文状态机与 OooPendingMemorySequencer.v:31-56 逐条一致(优先级 rst>late_clear>capture>clear>dispatch_fire>clear_dispatched,clear 只清 valid/dispatched/next_pc :48-51)。§1/§3 的 OooAluFetchCore 为死通道冻结正文中的 decompose 历史措辞,注记已定位现状实例,按协议保留。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-pending-system-sequencer.md",
+     "verdict": "CURRENT",
+     "summary": "活模块(域 B 仅存 system/trap 类通道),无需死硅注记。全部规则与 OooPendingSystemSequencer.v 一致:优先级 clear>capture_irq>capture_head0>capture_lane1>dispatch_fire>clear_dispatched>refresh_rdata(:71-143);clear 只清 valid/dispatched/type 位、payload 保留(:86-94);IRQ capture inst=0/next_pc=pc/rdata=0/irq=1(:104-108);refresh_rdata 仅重写 csr_rdata_q(:141-143),父模块置位条件 backend_drained&&stop_pending&&pending CSR&&!dispatched 与 OooControlPlane.v:510-512 逐字一致;rst||flush_i 折叠(OooControlPlane.v:516)。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-pending-trap-exit-sequencer.md",
+     "verdict": "DRIFT_FIXED",
+     "summary": "活模块 spec 一处事实漂移已修:Owner 段现在时断言 \"used by OooAluFetchCore\",但该巨石模块在 vsrc 已不存在(全 vsrc grep 零命中),实例现位于 OooControlPlane.v:561 → 改为 \"used by OooControlPlane (successor of the legacy OooAluFetchCore monolith)\"(最小 diff,保持英文原文风格)。其余全部核实一致:clear_exit→clear_arch(squash 仅清 EXC_ILLEGAL_INST residual,OooPendingTrapExitSequencer.v:59-64)→capture_exit→capture_arch→late_clear 末位全清(:80-88)优先级;Integration Contract 七级 dispatch 优先级与 arbiter :149-323 一致;正文 2026-07-03 注(FP 迁域 A/branch-jump 证死)与现状相符。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-stop-pending-sequencer.md",
+     "verdict": "CURRENT",
+     "summary": "活模块,规则 1-7 与 OooStopPendingSequencer.v 逐条一致:rst||flush 清零(:57);domain-A direct 臂写 0(:62-69,OOO_DBRANCH_DOMAIN_A=1'b1 于 define.v:575);checkpoint/resolve/orphan/commit/drain/CSR trap 清位链(:72-108);jump resolve hold/clear 分支(:90-99,spec 已标 dead arm)与 mem/system hold-only 槽(:100-103);mode=1 下 branch/jal/jalr 置位臂 !rob_walk_mode_i 门死(:128-134),活置位源 IRQ/fetch fault/arch trap/exit/SYSTEM/lane1 barrier/unsupported(:111-139);CSR trap 末位 clear(:142-144);dispatch0_fp_i 保留未用端口(:38,:147)。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-synthetic-lane1-ret-sequencer.md",
+     "verdict": "CURRENT",
+     "summary": "⚠️注记核实:capture_i=direct_frontend_flush&&(fire0||fire1)&&direct_branch0_lane1_ret_w 确在 OooWriteback.v:142-144;capture_branch_seen/drop 接 synth_lane1_branch_append_w,其源 OooBranchAppendDispatchGate.v:106-107=return_cont_attempt_o&&dispatch1_ready_i 且 :82 assign return_cont_attempt_o=1'b0,确认独立关死。正文状态机/赋值次序(maintain→ret_commit/drop_match/branch_commit1→capture→satp→trap)与 OooSyntheticLane1RetSequencer.v:54-83 一致;无 flush_i 端口、父模块 rst||flush_i 折叠(OooWriteback.v:138)一致。"
+    }
+   ]
+  },
+  {
+   "group": "specs-control-csr-trap",
+   "results": [
+    {
+     "file": "npc/rv64/design/specs/ooo-control-plane.md",
+     "verdict": "CURRENT",
+     "summary": "全部关键声明亲验一致:wrapper 端口实测 211 个(awk 统计 OooControlPlane.v 端口声明,含 LSQ 新增 mem_retire_quiet_i 后仍为 211);内部实例恰 13 个(OooControlPlane.v:264-747,与 §2 owner 表逐一对应);lane1 capture gate 确在 arbiter 内部(OooPendingDispatchArbiter.v:127);dispatch0_facts_w 41 位(common/OooSlotFacts.v:47)且 packing 连续赋值仍留在 glue 顶层(OooCoreTopGlue.v:284);trace 探测的控制 wire 名(stop_pending_q/pending_system_*/drain_complete_w/csr_trap_*)均保留为 wrapper 端口名;参数仅 ROB_COUNT_W/ISSUE_COUNT_W 且都被 u_pending_drain_resolve_gate 消费。§4 验证节数字为当时抽取验证记录,非现状陈述。"
+    },
+    {
+     "file": "npc/rv64/design/specs/ooo-control-flush-sequencer.md",
+     "verdict": "CURRENT",
+     "summary": "Stage 2d 三条 next-state 方程与 RTL 逐行一致(OooControlFlushSequencer.v:25-29);无 flush_i 端口、rst 优先 ✓(父级以 rst||flush_i 接入,OooControlPlane.v:476);同拍 boundary 优先于 drained 清除 ✓(:26-28 的 OR 结构)。死硅注记链亲验成立:checkpoint_restore_i←core_checkpoint_restore_w←SliceControlGate←branch_spec_restore_w,而 branch_spec_restore_o 要求 branch_spec_resolve_valid_o 要求 pending_branch_i(OooBranchResolveRecoveryGate.v:85-92),pending_branch capture 全被 !rob_walk_mode_i 门死(OooPendingDispatchArbiter.v:100,160-171),OOO_ROB_WALK_MODE=1'b1(include/define.v:568)→checkpoint_mem_flush 臂恒 0;trap_flush/trap_redirect_squash 两臂活(trap_flush_req_i←csr_trap_mem_valid_w,OooControlPlane.v:477)。"
+    },
+    {
+     "file": "npc/rv64/design/specs/ooo-control-commit-sequencer.md",
+     "verdict": "CURRENT",
+     "summary": "注记与正文均与 RTL 一致:FP GPR 臂物理删除有代码注释自证(OooControlCommitSequencer.v:64);serial_flush_q 每拍清零且全文无置位路径(:85)→core_serial_flush_o 恒 0 ✓;rd_en/rd_addr/rd_data/write 每拍清零无置位(:80-84)✓;jump no-link 优先于 drain 的 if/else 顺序 ✓(:87-92);drain SYSTEM 合成 commit 条件与 MRET target mux ✓(:54-58,94-98)。注记称 jump-nolink/undispatched-branch 两臂不可达亲验成立:pending_jump_nolink_commit_o 要求 pending_jump_i(OooPendingControlResolveGate.v:75-81),drain_branch_commit_w 要求 pending_branch 通道,两通道 capture 均被 rob_walk_mode 门死(OooPendingDispatchArbiter.v:100,103,183)。"
+    },
+    {
+     "file": "npc/rv64/design/specs/ooo-csrfile.md",
+     "verdict": "DRIFT_FIXED",
+     "summary": "主体(M/S/U 特权、trap/xRET mstatus 栈、medeleg/mideleg 全可写例外、satp 仅 Bare/Sv39、mtvec/stvec 仅 direct、PMP 16 entry、*h 别名判 illegal、四条不变量)逐条对 CsrFile.v 亲验一致(trap_to_m/s_mstatus :136-168、mret/sret :170-199、sanitize_satp :413-422、csr_illegal_o :604-608、NpcCoreTop.v:359 直接例化)。修正 2 处漂移:(1) §2 补登整个 FP CSR 域——fflags/frm/fcsr 寄存器(CsrFile.v:456-457,564-566)、fp_dirty_i→mstatus.FS=Dirty 与 fflags 累积(:787-796)、frm_o 输出(:619),FP 簇落地后模块新增的架构所有权原文档完全未记;(2) §2 顺带补 menvcfg(仅 PBMTE 可写→svpbmt_en_o,:620,770)与 mcounteren/scounteren(S/U 态 counter 逐位授权,:476-484);§7 追加变更记录一行。"
+    },
+    {
+     "file": "npc/rv64/design/specs/ooo-csr-access-request-mux.md",
+     "verdict": "CURRENT",
+     "summary": "7 条规则逐条与 RTL 一致(OooCsrAccessRequestMux.v):commit0 CSR 判定 :43-46、pending SYSTEM commit 需 PC 匹配 :47-49、access inst 优先级 commit0→pending→lane1 probe→lane0 :54-57、lane1 probe 门控 :50-52、set/clear 零源 no-op :64-69、SATP write commit :80-83、SFENCE 受 drained 边界门控 :84-86;纯组合无状态 ✓;pending_system_csr_commit_w 等 wire 名在 OooControlPlane 保留 ✓(OooControlPlane.v:286)。pending_system 属域 B 活通道(SYSTEM 串行化路径),非死硅。"
+    },
+    {
+     "file": "npc/rv64/design/specs/ooo-csr-trap-request-mux.md",
+     "verdict": "CURRENT",
+     "summary": "8 条规则逐条与 RTL 一致(OooCsrTrapRequestMux.v):lane0/lane1 异常 OR 与 lane0 payload 优先 :60-72、drained 门控 :57-58,74-77、arch trap 优先于 ECALL payload :81-85、IRQ 经同一 drained 边界 :87-90、SRET 由 inst[31:20] 检出且 real_mret 排除 SRET :92-95、priv_predictor_boundary 五贡献源 :97-100;纯组合无状态 ✓;csr_trap_mem_*/csr_trap_ex_*/csr_trap_irq_valid_w/csr_mret_valid_w/csr_sret_valid_w/priv_predictor_boundary_w 等旧 wire 名在 OooControlPlane 全部保留可见(OooControlPlane.v:328-345)。"
+    },
+    {
+     "file": "npc/rv64/design/specs/ooo-trap-exit-event-mux.md",
+     "verdict": "DRIFT_FIXED",
+     "summary": "正文与 RTL 一致:drain_reached 前置条件 :53-62、payload mux 顺序与七臂对应 :63-120、drain 兜底 trap 的 pc!=0 守卫 :84-86、exit 无 pending-FP 输入 :122-129 ✓。注记死臂声明亲验:第 1 臂 pending_branch_commit_resolve 与第 2 臂 pending_branch_match_clear 均要求 pending_branch_i(OooPendingDrainResolveGate.v:74-84),第 4 臂 pending_jump、第 5 臂 pending_branch_valid 同因 rob_walk_mode 门死(OooPendingDispatchArbiter.v:100,103,160-183 + define.v:568)——均恒 0 ✓;但注记漏列第 7 臂:branch_spec_misaligned_w 要求 branch_spec_resolve_valid_i,后者要求 pending_branch_i(OooBranchResolveRecoveryGate.v:85-92),同样恒 0。修改 1 处:注记死臂列表 1/2/4/5→1/2/4/5/7(注明第 7 臂死因),并把活残臂明确为第 3 臂 untracked(其 branch_resolve_untracked 走 F2 direct_branch_wait 活链,OooBranchResolveRecoveryGate.v:95-100)。"
+    },
+    {
+     "file": "npc/rv64/design/specs/ooo-trap-exit-output-sequencer.md",
+     "verdict": "CURRENT",
+     "summary": "与 RTL 完全一致(OooTrapExitOutputSequencer.v):reset 清全部状态 :27-35、trap_i/exit_i 独立捕获且同拍双置位确定性成立 :37-50、输出 sticky 直到新终态事件覆写 ✓;State 节八个输出与端口一一对应 :16-23。Parent Event Contract 节的七臂优先级复述与 event mux 代码一致,且已内联引用 event-mux 死硅注记('依赖 pending branch/jump 的臂输入恒 0 已证死')——该表述按根因(pending_branch/pending_jump 恒 0)涵盖 1/2/4/5/7 臂,与本次核验结论相容,无需改动。"
+    }
+   ]
+  },
+  {
+   "group": "specs-rename-rob-commit-top",
+   "results": [
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-rename-alloc.md",
+     "verdict": "CURRENT",
+     "summary": "逐条对代码核验一致:环形 FreeList/alloc ready 条件(OooFreeList.v:65-77)、iter7 alloc1 并行读+2:1 select(OooFreeList.v:71-77)、count 防溢出(86/91)、checkpoint 影子在 OOO_ROB_WALK_MODE=1(define.v:568)下经 cp_capture/restore_gated_w 恒 gate(OooDispatchBackend.v:485-486)、恢复期 free 源切换为 walk new_pdest(OooDispatchBackend.v:375-381)、BusyTable 同拍 alloc 写胜(OooBusyTable.v:119-131)、查询旁路顺序(64-74)、raw 口唯一实例接常量 0(OooDispatchBackend.v:449)、FP store fs2 就绪由 FP 簇自建 fp_busy_q 提供(OooFpBackend.v:279)、容量宏 PRF64/free32/ROB16/IQ8(define.v:22-40)、4 个模块 TB 均存在。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-rename-map.md",
+     "verdict": "CURRENT",
+     "summary": "全部一致:同拍 RAW 前递 map_after_lane0(OooRenameMap.v:64-99)、同拍 WAW lane1 后写胜(128-131)、old_pdest 返回(84-99)、ROB-walk restore0/1 端口且 lane1(更老)后写胜留存最老映射(116-123)、flush/rst 恒等复位 map[i]=preg_i(103-107)、x0 恒 preg0(70-71/80-85/118)、checkpoint 影子在 mode=1 下恒 gate(OooDispatchBackend.v:485-486+define.v:568),死硅注记与代码相符。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-rob.md",
+     "verdict": "DRIFT_FIXED",
+     "summary": "两处修正,均为同一漂移:文档称 ROB-walk 期'冻结 dispatch/commit/wb',但代码在 recovery 窗口(recover_q 分支 OooRob.v:422-448 与 kill 当拍 457-475)显式吸收 in-flight 写回——注释明言丢弃存活项结果会令其 ROB 项永不 done、head 卡死;dispatch/commit 确实经 recovering_w=recover_q||kill_valid_i 冻结(255/279/291)。修改:(1)§2 接口表 kill 行改为'walk 期(含 kill 当拍)冻结 dispatch/commit,in-flight wb 仍被吸收';(2)§3 误预测恢复条改为'冻结 dispatch/commit;但 in-flight 写回仍被吸收——存活(更老)项的结果若在此窗口回写被丢弃,其 ROB 项永不 done、head 卡死(被 squash 项由其后的 valid/done 清 0 覆盖,无副作用)'。其余核验一致:ROB_ENTRIES=16、2-wide 三端、walk 2 项/拍反向(258-263/443-456)、commit1 受 commit1_block_i 与 head 异常双重阻断(282-285)、dispatch ready 不借同拍 commit 释放槽(288-294)、is_fp_rd/fflags 随行(66-67/312-313)、checkpoint 影子恒 gate 死硅注记与代码相符。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-writeback.md",
+     "verdict": "DRIFT_FIXED",
+     "summary": "一处修正:§2 表中 OooSyntheticLane1RetCommitGate 行'见其 spec 注记'为悬空引用——该模块无独立 spec(design/specs/ 全目录 grep 仅 ooo-core-top-glue.md/ooo-writeback.md 提及),死因实际记录在 ooo-synthetic-lane1-ret-sequencer.md 的 ⚠️ 注记(其中已覆盖'下游 commit gate 退化为常量');改为'无独立 spec,死因见 ooo-synthetic-lane1-ret-sequencer.md 注记'。其余全部核验一致:wrapper 恰含 4 个实例(OooWriteback.v:114/136/163/201)、端口脚本实数 87(60 in+27 out)与文档相符、无结构参数、synth_lane1_ret_commit_w 保留为输出端口(92)且 tb_ooo_core_top_glue.sv:800 以 dut.synth_lane1_ret_commit_w 探测、OooFpCommitGate 确已删除(文件不存在)。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-commit-output-mux.md",
+     "verdict": "CURRENT",
+     "summary": "已带 ⚠️ 死硅注记且逐条声明核验成立:branch-append 被 BRANCH_APPEND_DISPATCH_ENABLE=1'b0 关死(OooBranchAppendDispatchGate.v:68);ctrl_commit rd/write 元数据恒 0(OooControlCommitSequencer.v:74-84 中 rd_en_q/rd_addr_q/rd_data_q/write_q 仅有赋 0 路径,112-115 直通输出);拆除计划引用的宪法 §8.3 存在(ooo-core-architecture.md:445)。正文语义描述与代码一致:commit0/commit1 优先级链(OooCommitOutputMux.v:95-198)、JAL next-PC 修正 rv32_imm_j(70-89)、retire_count 表达式逐项对应(200-204)、无状态纯组合。按协议 §2,注记在位+下文保留设计语义,不需改动。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-backend-drain-tracker.md",
+     "verdict": "DRIFT_FIXED",
+     "summary": "四处最小修正,均为同一漂移:文档称'父模块(OooFrontend)组合计算 backend_empty_i',但计算 owner 实为 control/OooPendingDrainResolveGate.v:53-59(rob_count==0 && issue_count==0 && retire_count==0 && !synth_lane1_* && mem_retire_quiet),经 OooControlPlane(:389 backend_drained_o)→glue wire(OooCoreTopGlue.v:528)→OooFrontend 输入端口(:10)传入。修改:(1)§1 bullet 改为'由 control/OooPendingDrainResolveGate 组合计算,经 glue 与父模块端口传入';(2)§2 backend_empty_i 描述加'上游(control/OooPendingDrainResolveGate,经 glue/父模块端口)';(3)§2 父模块职责改'提供 backend_empty_i(计算真源在 control/OooPendingDrainResolveGate)';(4)§5 数据通路第 1 步同步。模块本体 24 行代码与 §3/§4 完全一致:rst||force_drained→1、普通拍 backend_empty&&!dispatch_fire(OooBackendDrainTracker.v:16-22);实例连线 dispatch_fire_i←core_dispatch0_fire_w、force_drained_i←csr_trap_mem_valid_w、rst←rst||flush_i(OooFrontend.v:2064-2071);empty 定义内容(ROB/IQ/retire/synthetic lane1/mem_retire_quiet)与文档相符;drained_o 消费者 OooPendingControlResolveGate(:1338)与 system_csr_dispatch gate 相符。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-core-top-glue.md",
+     "verdict": "DRIFT_FIXED",
+     "summary": "两处修正,均为 FPR 状态 owner 漂移:文档称'NpcCoreTop 直接例化 regread_bypass/OooFpRegFile 持有 FPR 状态',但 NpcCoreTop.v 已无任何 OooFpRegFile/fpr 连线(grep 零命中),OooFpRegFile 唯一实例已随 FP 迁域 A 下沉到 execute/ FP 簇:OooIntBackend.v:2595 例化 OooFpBackend→OooFpBackend.v:152 例化 u_arch_fpr。修改:(1)责任边界表 FPR 行改为'已随 FP 迁域 A 移入 execute/ FP 簇内例化(OooIntBackend→OooFpBackend 的 u_arch_fpr);glue 与 NpcCoreTop 均不再持有 FPR 状态';(2)关键不变量对应 bullet 同步改写(并去掉已拆除的 pending FP 读地址导出描述)。其余声明全部核验一致:glue 0 个 always、恰 6 个实例(u_writeback/u_execute_backend/u_memory_access/u_pending_operand_read_gate/u_control_plane/u_frontend)、恰 4 个 assign(OooCoreTopGlue.v:141 csr_cycle_count_enable_w + 337/343/348 FP fflags/dirty 聚合)、1315 行≈1.4k、CsrFile 由 NpcCoreTop.v:359 例化、wrapper 实例数 OooFrontend 55(=frontend 49+decode 6)/OooControlPlane 13/OooExecuteBackend 2(CompareUnit+OooAluCoreSlice)/OooMemoryAccess 2、引用的 4 份 spec(含 history/ooo-frontend.md)均存在、OooFpPendingExec/OooPendingFpSequencer/OooFpCommitGate 确已删除、OooIntBackend 仍存在。"
+    }
+   ]
+  },
+  {
+   "group": "specs-execute-issue-regfile",
+   "results": [
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-execute-backend.md",
+     "verdict": "CURRENT",
+     "summary": "逐条核实一致:wrapper 现仅 2 实例(OooExecuteBackend.v:131 CompareUnit u_pending_branch_compare、:139 OooAluCoreSlice),grep pending_fp 0 命中(pending-FP 端口族已消失),参数恰为 5 个且无 FETCH_PACKET_COUNT_W(OooExecuteBackend.v:7-11),debug count 端口仍在(:123-126)。⚠️ 死硅注记声明亲验成立:pending_branch 三条 capture 路径均含 !rob_walk_mode_i(OooPendingDispatchArbiter.v:99-100/160-161/170-171),而 OOO_ROB_WALK_MODE=1'b1(define.v:567-568)→ pending_branch_q 恒 0,CompareUnit 输出功能死。OooFpBackend 确挂 OooIntBackend 内(OooIntBackend.v:2595)。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-int-issue-queue.md",
+     "verdict": "CURRENT",
+     "summary": "逐条核实一致:1206 行、ENTRY_COUNT=8(define.v:36-37 OOO_ISSUE_INDEX_W=3);2 整数 wakeup(OooIntIssueQueue.v:67-70)+2 FP wakeup 且确服务 FP store fs2 就绪(:72-75,:480,:947-949);walk-mode 下 branch/JAL/JALR 禁 dispatch 旁路、经寄存项发射(:434-448);load_branch_fast 输出族消费端已删(E7)属死硅空转——OooIntBackend.v:1896-1899 注释+:2555-2566 unused-OR 收口;checkpoint 影子在 OOO_ROB_WALK_MODE=1 下 capture/restore 恒 gate(OooDispatchBackend.v:485-486 cp_*_gated_w=...&&!rob_walk_mode_w);kill/recover 冻结发射(:774,:822),compaction 压实存在(:894+)。文中两处死硅陈述均为已有正确注记,无漂移。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-muldiv-unit.md",
+     "verdict": "CURRENT",
+     "summary": "逐条核实一致:FSM IDLE/DIV_RUN/RESP(OooMulDivUnit.v:27-29)、req_ready=(state==IDLE)(:206)、MUL 单周期 IDLE 拍写 resp_data_q(:234-236)、特例除零/INT_MIN 溢出/被除数 0(:136-144,:237-243)、CLZ 向下取偶定位+count=64-clz_even(:150-169)、radix-4 每拍 2 商位/partial 宽 XLEN+2/与{1,2,3}×divisor 比较(:176-192)、count-=2 且 count==2 收尾(:267-268)、flush 当拍回 IDLE(:213-214)、word 后处理 sign_extend(:202-204)。代码新增 3×divisor 装载拍预寄存(:38-40,:249-250)属结果不变的时序微优化,与 spec 伪码及不变量不冲突。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-clmul-unit.md",
+     "verdict": "CURRENT",
+     "summary": "逐条核实一致:137 行属实;op 编码 LOW=0/HIGH=1/REV=2(OooClmulUnit.v:30-32);3 态 FSM IDLE→RUN(64 拍 iter 0..63,iter_last==63)→RESP(:26-28,:60,:109-112);LOW 路径 step_bit=rhs[0]/partial=lhs、lhs<<=1、rhs>>=1(:50-56,:102-104);HIGH 路径 step_bit=rhs[63]/partial=rhs_right_shift 初值 src1(:50-52,:93-95,:105-107);REV 初值 {1'b0,src1[63:1]}(:93-95);flush 与 rst 同效回 IDLE(:69);由 OooIntBackend 实例化(OooIntBackend.v:1745)。四条不变量均与实现吻合。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-phys-reg-file.md",
+     "verdict": "CURRENT",
+     "summary": "逐条核实一致:10R2W、容量 64(define.v:21-22);写-读旁路且 write1 优先(OooPhysRegFile.v:57-62);x0 恒 0 读且写忽略(:55-56,:115,:118);recover 拍 preg1-31 回灌架构 GPR、preg32-63 清零(:105-113),实例 recover_i 接 flush_i(OooIntBackend.v:541)。'有效 5R' 死硅陈述亲验成立:read0-3=issue src、read8=FP 簇 GPR 源、read9 地址接 0(OooIntBackend.v:543-563);read4/5 的 dispatch-branch 快解析消费端死于 OOO_DBRANCH_DOMAIN_A=1'b1(OooIntBackend.v:531-532 candidate 恒 0,define.v:574-575);read6/7 读出数据 wire 声明后无消费(OooIntBackend.v:518-519 仅接线)。"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/specs/ooo-fp-reg-file.md",
+     "verdict": "CURRENT",
+     "summary": "逐条核实一致:模块仅 rst 清零、flush 端口已删(OooFpRegFile.v:6-8 端口表无 flush_i);唯一实例 u_arch_fpr 在 OooFpBackend 内(OooFpBackend.v:152);3 读口在实例中地址恒接 0、数据挂 unused wire(OooFpBackend.v:155-160),端口级死代码陈述成立;load_write←commit0_fp_*、result_write←commit1_fp_*(:161-166)即 commit 双写;同拍同址 result_write 后写覆盖(OooFpRegFile.v:50-54 顺序块),写口不屏蔽地址 0(f0 非硬零);fprs_o 全量平铺(:27,:33-38)且确为 FP 物理堆恢复源:arch_fprs_flat_w→OooFpPhysRegFile.recover_fprs_i(OooFpBackend.v:382,OooFpPhysRegFile.v:75-78)。"
+    }
+   ]
+  },
+  {
+   "group": "specs-memory-mmu",
+   "results": [
+    {
+     "file": "npc/rv64/design/specs/ooo-memory-access.md",
+     "verdict": "CURRENT",
+     "summary": "逐条核验一致:wrapper 纯结构聚合、零内部逻辑(OooMemoryAccess.v:6-106 仅两实例,无 always/assign/内部 wire);端口数 45=29 入+16 出(OooMemoryAccess.v:7-51 实数吻合,含 probe/pretrans/nokill 三属性);OooMemoryRequestGate '9 路 assign 直通+mem_flush/mmu_flush 两根 OR' 与代码逐字一致(OooMemoryRequestGate.v:41-58 九路直通、:60-62 两 OR);sequencer rst 接 rst||flush_i(OooMemoryAccess.v:57);对 OooPendingMemorySequencer 死通道的转述与被引 spec 注记及代码一致——lane1 barrier 条件不含 FACT_MEM(OooFrontendDispatchGate.v:101-109),mem_capture_o=barrier_base&&mem_raw 故恒 0(OooPendingLane1CaptureGate.v:50),被引文件 ooo-pending-memory-sequencer.md 存在且注记格式合规。§4 验证节 103/103 为该刀落地时的历史验证证据(快照性质),非现状漂移。"
+    },
+    {
+     "file": "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
+     "verdict": "DRIFT_FIXED",
+     "summary": "主体(状态集/B1 解耦 bpend_q/probe·pretrans·nokill/flush-drain/四不变量/隐患A 指针)全部核验一致,但 2026-07-03 校正后 sync 进来的代码(fd0cd2c27, LSQ Phase2+3 等)含 4 处 FSM 级漂移,已就地最小校正:(1) §3 转移图补 'S_WALK_AR --(PTE 读地址 PMP 违例,F9)--> S_RESP(access fault,不发 AR)'——证据 OooMemAxiBridge.v:394-409(u_walk_pte_pmp_checker)、:449(arvalid 门)、:650-656(S_WALK_AR 直转 S_RESP);(2) §3 load-miss 行加注 'accept 拍 arready 即 fire 时跳过 S_READ_ADDR 直入 S_READ_DATA'——证据 :313-316(req_read_miss_fire_w)、:447-451(accept 拍拉 arvalid)、:531(arready?S_READ_DATA:S_READ_ADDR);(3) §3 S_RESP 行补 back-to-back accept——证据 :762-771(S_RESP && rsp_ready && fire → accept_request 不经 S_IDLE);(4) §3 要点新增 line 读 bullet(32KB 直映 DCACHE_INDEX_W=12/不跨线发 8B 对齐 AR 回填 line、rsp_rdata 按 paddr_q[2:0] 移位/跨线 read_cross_q 窗口读不 fill)——证据 :66-68、:97-99、:336-338、:452-464、:723-724;§7 变更记录追加一行注明本次审计补漂移。其余核验:MEM-I3 引用的 [SQ-DRAIN-ERROR] 存在(OooIntBackend.v:2920),known-issues 隐患A 存在(.github/memory/known-issues.md:1246),'drop_rsp_q 现只服务写路径'成立(读态 drop 分支结构性不可达:drop_rsp_q=1 期间 req_slot_ready=0 无法进入读态)。"
+    },
+    {
+     "file": "npc/rv64/design/specs/ooo-sv39-tlb.md",
+     "verdict": "CURRENT",
+     "summary": "逐条核验一致:64 项容量(OooSv39Tlb.v:4-5 INDEX_W=6 默认;两例化均 6——DTLB OooMemAxiBridge.v:69/350-351,ITLB OooFetchAxiBridge.v:48/336-337,'取指/访存桥各例化一份'成立);vpn tag=vaddr[38:12]+整 satp 作上下文匹配(OooSv39Tlb.v:46-51,86-90);index=vaddr[INDEX_W+11:12](:39-44);superpage level 掩码匹配 1G 只比 VPN2/2M 比 VPN2:1(:53-64)与 paddr 按 level 拼接(:66-80);clear_i 全清(:100-102),clear 源=satp 写||sfence commit(OooMemoryRequestGate.v:61-62 → 桥 mmu_flush_i→clear_i OooMemAxiBridge.v:355);TLB-I2/I3 由桥 fill gate 保证——dtlb_fill_valid_w 含 !superpage_misaligned 与 !data_permission_fault(A/D 位 !pte[6]||(write&&!pte[7]))(OooMemAxiBridge.v:327-335 + :224-236),不判权限/不 walk 归桥的分工描述准确;§5 引用 ooo-fetch-axi-bridge.md 存在。"
+    },
+    {
+     "file": "npc/rv64/design/specs/pmp-checker.md",
+     "verdict": "CURRENT",
+     "summary": "逐条核验一致:16 entry(define.v:398 PMP_ENTRY_COUNT=16,packed bus :400-401);判定四步全部对上——越界回绕 fault(PmpChecker.v:221-223,243-244)、自 entry0 找第一个 overlap 已激活 entry(:232-241,A=OFF 走 default 不匹配 :158-160)、enforce=(priv!=M)||L 且 fault=enforce&&(!full_cover||权限违)(:246-251,部分覆盖不放行=PMP-I3)、无匹配时 M 放行/S-U 拒绝(:253-254=PMP-I1/I2);PMP-I4 地址匹配——TOR [pmpaddr[i-1],pmpaddr[i])<<2(:136-144)、NA4=4B(:146-150)、NAPOT 前导 1 推区间/全 1 防溢出处理(:61-99);§5 关键路径描述(纯组合/napot_ones 循环 :31-47)仍准确;桥侧例化 3 份(req/walk-leaf/walk-pte)+取指桥若干,'各例化若干份'成立。known-issues 记录的 napot_lower_bound 高位丢失为本核不可达低危项,文档无错误陈述。"
+    }
+   ]
+  },
+  {
+   "group": "study-notes",
+   "results": [
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/study/README.md",
+     "verdict": "SUPERSEDED_ARCHIVE",
+     "summary": "study 目录索引,自述'实现 NPC 单周期 CPU 的阶段性学习结果'。该目录 8 份文件系 git 9383fde08 从 npc/single/design/study/ C100 原样复制而来,原件仍活在 npc/single 侧;rv64 现状为 RV64 OoO(define.v:5 XLEN=64,vsrc/{scheduling,rename_allocate} 乱序结构),单周期 bring-up 使命已完成。design/README.md:16 已标注 study/ 为'早期学习笔记'。随目录整体归档。",
+     "current_ref": "现状见 npc/rv64/design/arch/ooo-core-architecture.md + rtl-ground-truth-2026-07-03.md;原件活本体 npc/single/design/study/README.md"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/study/RISC-V-spec-functional-sim-notes.md",
+     "verdict": "SUPERSEDED_ARCHIVE",
+     "summary": "阶段学习快照,自述'支撑 npc/single 的最小功能仿真环境'(单 hart/M 模式/RV32I+Zicsr)。其'明确延后'清单已被 rv64 全面落地反超:S 模式+委托(CsrFile.v:433-434 medeleg/mideleg,笔记称可不实现)、页表(NpcCoreTop.v:113 ooo_satp_w,笔记列为延后)、真实定时器中断(AxiLiteClint.v + CsrFile.v:496 MTIP,笔记称'当前不触发真实中断')。使命完成,按现状修正等于整份重写。",
+     "current_ref": "现状见 npc/rv64/design/arch/ooo-core-architecture.md;原件活本体 npc/single/design/study/RISC-V-spec-functional-sim-notes.md"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/study/RISC-V-spec-functional-sim-scope.md",
+     "verdict": "SUPERSEDED_ARCHIVE",
+     "summary": "一次性选读范围计划,自带使命:'为 npc/single 的最小功能仿真环境服务'。其'暂缓'清单(F/D 浮点、A 原子、S 模式、Sv32 页表)在 rv64 已全部实现:vsrc/execute/OooFp*.v 整簇浮点、OooAmoGate.v 原子、CsrFile.v:433-440 S 模式 CSR、NpcCoreTop.v:113 satp。学习产物(functional-sim-notes.md)已产出,计划使命闭合。",
+     "current_ref": "现状见 npc/rv64/design/arch/ooo-core-architecture.md;原件活本体 npc/single/design/study/RISC-V-spec-functional-sim-scope.md"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/study/RISC-V-spec-hardware-architecture-notes.md",
+     "verdict": "SUPERSEDED_ARCHIVE",
+     "summary": "阶段学习快照,元信息自述'支撑 npc/single 的最小硬件架构骨架,当前假设 single hart、RV32I、M 模式优先、无 cache、无页表'。rv64 现状逐条反转:XLEN=64(define.v:5)、cache 已实现(vsrc/cache/OooDataWordCache.v、OooFetchPacketCache.v)、页表已实现(NpcCoreTop.v:113)、mip/mie 非'读 0'而是完整 CLINT 驱动中断链(CsrFile.v:496-514)。bring-up 阶段使命完成。",
+     "current_ref": "现状见 npc/rv64/design/arch/ooo-core-architecture.md;原件活本体 npc/single/design/study/RISC-V-spec-hardware-architecture-notes.md"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/study/RISC-V-spec-hardware-architecture-scope.md",
+     "verdict": "SUPERSEDED_ARCHIVE",
+     "summary": "一次性选读范围计划,目标'给 npc/single 建立硬件架构骨架学习线'。其'当前不优先学习'项(Supervisor 完整语义、虚拟内存、PMP)中 S 模式与地址翻译已在 rv64 实装(CsrFile.v:433-440 stvec/sepc/medeleg/mideleg,NpcCoreTop.v:113 satp/Sv39);学习产物(hardware-architecture-notes.md)已产出,计划使命闭合。",
+     "current_ref": "现状见 npc/rv64/design/arch/ooo-core-architecture.md;原件活本体 npc/single/design/study/RISC-V-spec-hardware-architecture-scope.md"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/study/RV32I-ai-notes.md",
+     "verdict": "SUPERSEDED_ARCHIVE",
+     "summary": "元信息自述'适用对象:npc/single 单周期 RV32I CPU',内容为单周期 IFU/IDU/EXU/LSU/WBU 五段职责草图与'现有 alu.v'落地启发。rv64/vsrc 现状为乱序多域结构(frontend/scheduling/rename_allocate/regread_bypass/execute/writeback 目录,NpcCoreTop.v 全 ooo_* 信号),单周期主通路组织方式在 rv64 树内无对应实施对象;早期学习使命完成。原件仍活在 npc/single/design/study/(git 9383fde08 C100 复制关系)。",
+     "current_ref": "现状见 npc/rv64/design/arch/ooo-core-architecture.md;原件活本体 npc/single/design/study/RV32I-ai-notes.md"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/study/RV32I-implementation-checklist.md",
+     "verdict": "SUPERSEDED_ARCHIVE",
+     "summary": "早期阶段落地清单,自述'默认服务于 npc/single 的单周期 RV32I 主通路实现'。清单全部条目(译码控制包/五段职责/统一提交点/IFU redirect 闭环)对应的 bring-up 工作早已完成并被 RV64 OoO 远超(define.v:5 XLEN=64;riscv-tests 135/0、CoreMark 全绿见 memory 基线);'在 define.v 统一补齐 opcode 编码'等待办项对 rv64 现状无意义。一次性 checklist 使命闭合。",
+     "current_ref": "现状见 npc/rv64/design/arch/ooo-core-architecture.md + rtl-ground-truth-2026-07-03.md;原件活本体 npc/single/design/study/RV32I-implementation-checklist.md"
+    },
+    {
+     "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/study/tmp/README.md",
+     "verdict": "SUPERSEDED_ARCHIVE",
+     "summary": "tmp 目录说明,对同目录两个 PDF 提取 txt(spec-vol1-front80.txt 239K、spec-vol2-front70.txt 196K,均实际存在)的描述本身准确;但其使命是'避免后续 agent 重复提取规范前部章节'服务于 RV32I/M-mode bring-up 学习线,该学习线在 rv64 侧已闭合(见同组其余判定),且原件连同 txt 完整活在 npc/single/design/study/tmp/。随 study 目录整体归档;若主控归档时不保留 txt,建议 README 与 txt 同迁以维持自洽。",
+     "current_ref": "原件活本体 npc/single/design/study/tmp/;提取源 PDF 仍在 npc/rv64/design/(两卷中文版 20240411)"
+    }
+   ]
+  }
+ ],
+ "archive_queue": [
+  {
+   "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/study/README.md",
+   "verdict": "SUPERSEDED_ARCHIVE",
+   "summary": "study 目录索引,自述'实现 NPC 单周期 CPU 的阶段性学习结果'。该目录 8 份文件系 git 9383fde08 从 npc/single/design/study/ C100 原样复制而来,原件仍活在 npc/single 侧;rv64 现状为 RV64 OoO(define.v:5 XLEN=64,vsrc/{scheduling,rename_allocate} 乱序结构),单周期 bring-up 使命已完成。design/README.md:16 已标注 study/ 为'早期学习笔记'。随目录整体归档。",
+   "current_ref": "现状见 npc/rv64/design/arch/ooo-core-architecture.md + rtl-ground-truth-2026-07-03.md;原件活本体 npc/single/design/study/README.md"
+  },
+  {
+   "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/study/RISC-V-spec-functional-sim-notes.md",
+   "verdict": "SUPERSEDED_ARCHIVE",
+   "summary": "阶段学习快照,自述'支撑 npc/single 的最小功能仿真环境'(单 hart/M 模式/RV32I+Zicsr)。其'明确延后'清单已被 rv64 全面落地反超:S 模式+委托(CsrFile.v:433-434 medeleg/mideleg,笔记称可不实现)、页表(NpcCoreTop.v:113 ooo_satp_w,笔记列为延后)、真实定时器中断(AxiLiteClint.v + CsrFile.v:496 MTIP,笔记称'当前不触发真实中断')。使命完成,按现状修正等于整份重写。",
+   "current_ref": "现状见 npc/rv64/design/arch/ooo-core-architecture.md;原件活本体 npc/single/design/study/RISC-V-spec-functional-sim-notes.md"
+  },
+  {
+   "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/study/RISC-V-spec-functional-sim-scope.md",
+   "verdict": "SUPERSEDED_ARCHIVE",
+   "summary": "一次性选读范围计划,自带使命:'为 npc/single 的最小功能仿真环境服务'。其'暂缓'清单(F/D 浮点、A 原子、S 模式、Sv32 页表)在 rv64 已全部实现:vsrc/execute/OooFp*.v 整簇浮点、OooAmoGate.v 原子、CsrFile.v:433-440 S 模式 CSR、NpcCoreTop.v:113 satp。学习产物(functional-sim-notes.md)已产出,计划使命闭合。",
+   "current_ref": "现状见 npc/rv64/design/arch/ooo-core-architecture.md;原件活本体 npc/single/design/study/RISC-V-spec-functional-sim-scope.md"
+  },
+  {
+   "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/study/RISC-V-spec-hardware-architecture-notes.md",
+   "verdict": "SUPERSEDED_ARCHIVE",
+   "summary": "阶段学习快照,元信息自述'支撑 npc/single 的最小硬件架构骨架,当前假设 single hart、RV32I、M 模式优先、无 cache、无页表'。rv64 现状逐条反转:XLEN=64(define.v:5)、cache 已实现(vsrc/cache/OooDataWordCache.v、OooFetchPacketCache.v)、页表已实现(NpcCoreTop.v:113)、mip/mie 非'读 0'而是完整 CLINT 驱动中断链(CsrFile.v:496-514)。bring-up 阶段使命完成。",
+   "current_ref": "现状见 npc/rv64/design/arch/ooo-core-architecture.md;原件活本体 npc/single/design/study/RISC-V-spec-hardware-architecture-notes.md"
+  },
+  {
+   "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/study/RISC-V-spec-hardware-architecture-scope.md",
+   "verdict": "SUPERSEDED_ARCHIVE",
+   "summary": "一次性选读范围计划,目标'给 npc/single 建立硬件架构骨架学习线'。其'当前不优先学习'项(Supervisor 完整语义、虚拟内存、PMP)中 S 模式与地址翻译已在 rv64 实装(CsrFile.v:433-440 stvec/sepc/medeleg/mideleg,NpcCoreTop.v:113 satp/Sv39);学习产物(hardware-architecture-notes.md)已产出,计划使命闭合。",
+   "current_ref": "现状见 npc/rv64/design/arch/ooo-core-architecture.md;原件活本体 npc/single/design/study/RISC-V-spec-hardware-architecture-scope.md"
+  },
+  {
+   "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/study/RV32I-ai-notes.md",
+   "verdict": "SUPERSEDED_ARCHIVE",
+   "summary": "元信息自述'适用对象:npc/single 单周期 RV32I CPU',内容为单周期 IFU/IDU/EXU/LSU/WBU 五段职责草图与'现有 alu.v'落地启发。rv64/vsrc 现状为乱序多域结构(frontend/scheduling/rename_allocate/regread_bypass/execute/writeback 目录,NpcCoreTop.v 全 ooo_* 信号),单周期主通路组织方式在 rv64 树内无对应实施对象;早期学习使命完成。原件仍活在 npc/single/design/study/(git 9383fde08 C100 复制关系)。",
+   "current_ref": "现状见 npc/rv64/design/arch/ooo-core-architecture.md;原件活本体 npc/single/design/study/RV32I-ai-notes.md"
+  },
+  {
+   "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/study/RV32I-implementation-checklist.md",
+   "verdict": "SUPERSEDED_ARCHIVE",
+   "summary": "早期阶段落地清单,自述'默认服务于 npc/single 的单周期 RV32I 主通路实现'。清单全部条目(译码控制包/五段职责/统一提交点/IFU redirect 闭环)对应的 bring-up 工作早已完成并被 RV64 OoO 远超(define.v:5 XLEN=64;riscv-tests 135/0、CoreMark 全绿见 memory 基线);'在 define.v 统一补齐 opcode 编码'等待办项对 rv64 现状无意义。一次性 checklist 使命闭合。",
+   "current_ref": "现状见 npc/rv64/design/arch/ooo-core-architecture.md + rtl-ground-truth-2026-07-03.md;原件活本体 npc/single/design/study/RV32I-implementation-checklist.md"
+  },
+  {
+   "file": "/home/lyg/PA/ysyx-workbench/npc/rv64/design/study/tmp/README.md",
+   "verdict": "SUPERSEDED_ARCHIVE",
+   "summary": "tmp 目录说明,对同目录两个 PDF 提取 txt(spec-vol1-front80.txt 239K、spec-vol2-front70.txt 196K,均实际存在)的描述本身准确;但其使命是'避免后续 agent 重复提取规范前部章节'服务于 RV32I/M-mode bring-up 学习线,该学习线在 rv64 侧已闭合(见同组其余判定),且原件连同 txt 完整活在 npc/single/design/study/tmp/。随 study 目录整体归档;若主控归档时不保留 txt,建议 README 与 txt 同迁以维持自洽。",
+   "current_ref": "原件活本体 npc/single/design/study/tmp/;提取源 PDF 仍在 npc/rv64/design/(两卷中文版 20240411)"
+  }
+ ],
+ "next_steps": "主控按 doc-lifecycle 协议 §3 执行归档手续(git mv→history 登记表→悬空引用 grep 清零→索引同步),并更新协议 §6 登记状态与 task-run。"
+}

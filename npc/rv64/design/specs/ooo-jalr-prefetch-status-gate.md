@@ -1,8 +1,10 @@
 # OooJalrPrefetchStatusGate
 
+> ⚠️ **状态(2026-07-03 RTL 重读)**:活文件中的死通道——`OOO_ROB_WALK_MODE=1` 下 `pending_jump_i` 恒 0(pending jump capture 被 `!rob_walk_mode_i` 门死)且 `branch_prefetch_active_i` 恒 0(prefetch req 恒不发起),`match_o` 及全部 hit 输出恒 0;拆除计划见 `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述。
+
 ## 需求
 
-`OooJalrPrefetchStatusGate` 承接 `OooAluFetchCore` 中 JALR branch-prefetch
+`OooJalrPrefetchStatusGate` 承接 `OooFrontend` 中 JALR branch-prefetch
 hit status 的纯组合判定：
 
 - 在已 dispatch 的 JALR target 与当前 resolve target 之间选择可比较 target。

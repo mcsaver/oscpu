@@ -1,9 +1,11 @@
 # OooPendingControlResolveGate Spec
 
+> ⚠️ **状态(2026-07-03 RTL 重读)**:活文件中的死通道——`OOO_ROB_WALK_MODE=1` 下输入侧 pending_branch/pending_jump 恒 0(序列器 capture 被 `!rob_walk_mode_i` 门死),除 `pending_control_ready_o` 恒 1 外,jump resolve/return/call/nolink/redirect 全输出恒 0;拆除计划见 `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述。
+
 ## Scope
 
 `OooPendingControlResolveGate` owns the combinational facts for pending branch
-and pending jump resolution in `OooAluFetchCore`.
+and pending jump resolution in `OooFrontend`.
 
 It does not store pending state, compare branch operands, update RAS/BTB state,
 commit control instructions, raise traps, or update fetch PC. The parent remains

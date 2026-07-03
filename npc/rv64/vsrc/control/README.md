@@ -3,10 +3,20 @@
 这里用于承接 OoO core 的跨阶段控制逻辑，例如 flush、recovery、interrupt、
 CSR 边界、terminal trap/exit 输出、PMU、power/clock gating 和未来 SMT 控制。
 
-当前全局控制装配已经迁到 `../core/OooCoreTopGlue.v`，CSR 状态实现仍是
-`../core/CsrFile.v`，但实例层级已经上提到 `../core/NpcCoreTop.v`。core glue 只导出
-CSR access/trap/fflags/retire 事件并消费外部 CSR 状态；后续拆分时应先保持接口行为
-不变，再把独立的控制状态机移入本目录，避免 core glue 重新承载功能语义。
+本目录的子系统 wrapper 是 `OooControlPlane.v`，作为 `../core/OooCoreTopGlue.v`
+六实例之一装配下列控制 owner；CSR 状态实现仍是 `../core/CsrFile.v`，实例层级已
+上提到 `../core/NpcCoreTop.v`。core glue 只导出 CSR access/trap/fflags/retire 事件
+并消费外部 CSR 状态；后续拆分应继续保持接口行为不变，避免 core glue 重新承载
+功能语义。
+
+> ⚠️ **状态（2026-07-03 RTL 重读）**：pending branch/jump/mem 通道整链证死——
+> `OooPendingDispatchArbiter` 的 branch/jump/memory capture 被 `!rob_walk_mode`
+> 门死，`OooPendingDrainResolveGate` 的 jump/mem dispatch 臂恒空转；
+> `OooCoreSliceControlGate` 的 branch checkpoint 臂恒 gate 0；`OooRedirectArbiter.v`
+> 仅在 `filelist.mk` 登记变量、未接入编译列表，零实例化。存活的域 B（stop_pending + 全后端 drain 串行化）
+> 只剩 system/trap/IRQ 类。证据见 `../../design/arch/rtl-ground-truth-2026-07-03.md`
+> §4，拆除计划见 `../../design/arch/ooo-core-architecture.md` §8.3。下文保留各
+> owner 的设计语义描述。
 
 - `OooTrapExitEventMux.v`：最终 trap/exit terminal event 的纯组合选择 owner；
   父模块只提供 branch/jump/drain/pending facts。
@@ -17,7 +27,8 @@ CSR access/trap/fflags/retire 事件并消费外部 CSR 状态；后续拆分时
   owner；不持有 pending payload、fetch PC/outstanding、CSR 状态或 FPR 写回。
 - `OooPendingDrainResolveGate.v`：stop-pending 后的 backend drained、pending replay
   wait、drain complete、branch commit resolve/match clear、jump/system/mem dispatch
-  valid/fire 和 FP start 组合中枢；不持有 pending payload 或状态寄存器。
+  valid/fire 组合中枢（FP start 臂已随 pending-FP 拆除）；不持有 pending payload
+  或状态寄存器。
 - `OooCoreObservableOutputGate.v`：最终对外 trap/exit/halt、CSR state passthrough、
   debug PC/state/GPR 和 exit code 的纯组合输出选择；不写 CSR/trap sticky 状态。
 - `OooCoreSliceControlGate.v`：branch checkpoint capture/restore/quiesce、branch-spec
@@ -36,3 +47,12 @@ CSR access/trap/fflags/retire 事件并消费外部 CSR 状态；后续拆分时
   不持有 pending payload 或架构状态。
 - `OooTrapExitOutputSequencer.v`：最终 `trap_valid/exit_valid/halted` sticky
   输出寄存器 owner。
+- `OooControlFlushSequencer.v`：`core_trap_flush`、`trap_redirect_squash` 和
+  `checkpoint_mem_flush` 注册状态 owner；CSR/trap side effect 仍在父模块。
+- `OooPendingSystemSequencer.v`：pending SYSTEM/CSR/IRQ 注册状态 owner（域 B 存活
+  主体）；CSR side effect、trap/return target 选择与 pending owner arbitration
+  仍在父模块。
+- `OooPendingTrapExitSequencer.v`：pending architectural trap 与 simulation-exit
+  的 valid/payload 注册状态 owner。
+- `OooRedirectArbiter.v`：B2 统一控制流重定向仲裁器——未接入（`filelist.mk`
+  仅定义 `RTL_OOO_REDIRECT_ARBITER` 变量、未被编译列表消费，零实例化），死硅存档。

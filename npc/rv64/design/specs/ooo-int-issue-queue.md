@@ -1,22 +1,27 @@
 # 规范：整数发射队列 OooIntIssueQueue
 
-> 模块：`vsrc/scheduling/OooIntIssueQueue.v`(957 行,核心调度器)。模板见 `../arch/SPEC-TEMPLATE.md`。
+> 模块：`vsrc/scheduling/OooIntIssueQueue.v`(1206 行,核心调度器)。模板见 `../arch/SPEC-TEMPLATE.md`。
 > 状态：已实现并验证。
 
 ## 1. 目的与范围
-保持队列内程序序的压缩式发射队列:每拍接收最多 2 条 dispatch uop、监听 2 个 writeback wakeup、
-发射最多 2 个**最老 ready** uop。容量 ENTRY_COUNT=8(`OOO_ISSUE_INDEX_W`=3)。
+保持队列内程序序的压缩式发射队列:每拍接收最多 2 条 dispatch uop、监听 2 个整数 writeback wakeup
++ 2 个 FP wakeup、发射最多 2 个**最老 ready** uop。容量 ENTRY_COUNT=8(`OOO_ISSUE_INDEX_W`=3)。
 不负责寄存器读/执行(下游 ALU slice)、不负责 busy-table 状态(由 BusyTable,IQ 内缓存 src ready 位)。
 
 ## 2. 结构与时序
 - 每项:valid/src1_ready/src2_ready/src preg/pdest/imm/ctrl/rob_idx/pc...,**按程序序排列**(新进尾)。
-- **wakeup**:2 个 writeback pdest 广播,匹配 src preg → 置该 src ready(同拍旁路,新发射 uop 同拍可见)。
+- **wakeup**:2 个整数 writeback + 2 个 FP wakeup pdest 广播,匹配 src preg → 置该 src ready
+  (同拍旁路,新发射 uop 同拍可见;FP 口服务 FP store 数据源 fs2 的就绪监听)。
 - **select**:顺序扫描(oldest-first)选最老的 2 个 src1&src2 都 ready 的 uop → issue0/issue1。
   issue1 的就绪需考虑 issue0 同拍消耗(前向检查)。
 - **compaction**:发射后剩余项向前压实保持程序序紧凑。
-- **dispatch 旁路/快路径**:dispatch entry 可作虚拟队尾同拍参与 select(绕过入队延迟);
-  另有 load-dependent-branch 快路径:检测 load 依赖分支直接从 dispatch 转发,绕过 IQ。
-- checkpoint/restore:分支投机时快照队列,误预测回滚。
+- **dispatch 旁路**:dispatch entry 可作虚拟队尾同拍参与 select(绕过入队延迟);
+  `OOO_ROB_WALK_MODE=1` 下 branch/JAL/JALR 禁旁路、恒经队列寄存项发射(pred_npc 取寄存值)。
+  load-dependent-branch 快路径(`load_branch_fast_*` 输出族)的消费端已删(E7),
+  IQ 内该选择逻辑为死硅空转(2026-07-03 RTL 重读确认)。
+- 误预测恢复=ROB-walk:按 `kill_rob_idx` 环形年龄 squash 更年轻项,recover 期冻结发射
+  (存活前缀同拍继续吸收 wakeup 防漏唤醒);checkpoint 影子阵列在 `OOO_ROB_WALK_MODE=1` 下
+  capture/restore 恒被 gate,为死硅(fp 新增字段亦不进影子)。
 
 ## 3. 不变量
 - **IQ-I1 程序序**:select 与 commit 对齐程序序;issue1 不早于 issue0(同拍两发保持相对序)。

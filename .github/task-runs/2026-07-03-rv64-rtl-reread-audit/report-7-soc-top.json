@@ -1,0 +1,224 @@
+{
+ "subsystem": "顶层集成/总线/SoC/仿真环境 (npc/rv64)",
+ "modules": [
+  {
+   "file": "vsrc/sim/NpcSimTop.sv",
+   "purpose": "Verilator 仿真顶层:实例化 NpcTop+3×AxiDpiSlave+VirtioBlk,DPI 事件泵(commit/trap/exit/uart/irq/mmio-skip)、UART RX 轮询、跨层调试探针",
+   "instantiated_by": "Verilator --top-module NpcSimTop(Makefile:21,170);无 RTL 父模块",
+   "key_params": "UART_RX_POLL_SHIFT 可配(NpcSimTop.sv:130-132);CONFIG_NPC_DEBUG_PORTS/OOO_STATS/BRANCH_STATS/CACHE_STATS/SIM_STATS 条件编译(Makefile:82-86)"
+  },
+  {
+   "file": "vsrc/core/NpcTop.v",
+   "purpose": "可综合 SoC 顶层:核+16 从 crossbar+UART/CLINT/PLIC+9 个错误 stub;PSRAM/SDRAM/legacy-MMIO/virtio 四组 AXI 引出到顶层端口",
+   "instantiated_by": "vsrc/sim/NpcSimTop.sv:308",
+   "key_params": "AXI_S_COUNT=16(NpcTop.v:158);CLINT_MTIME_DIVISOR=10(NpcTop.v:159);STUB_MASK 覆盖 SRAM/GPIO/PS2/MROM/VGA/FLASH/CHIPLINK_MMIO/CHIPLINK_MEM/DEFAULT 共 9 窗(NpcTop.v:169-178)"
+  },
+  {
+   "file": "vsrc/core/NpcCoreTop.v",
+   "purpose": "核级顶层:OooCoreTopGlue+取指/访存两 AXI 桥+CsrFile;绑定 reset_pc、irq 三线、mtime;store fire 触发 icache 失效",
+   "instantiated_by": "vsrc/core/NpcTop.v:237",
+   "key_params": "reset_pc_i=`RESET_PC=0x8000_0000(NpcCoreTop.v:250,include/define.v:47);flush_i=1'b0/run_i=1'b1/commit_ready_i=1'b1 硬绑(NpcCoreTop.v:248-249,316)"
+  },
+  {
+   "file": "vsrc/core/OooCoreTopGlue.v",
+   "purpose": "OoO 核装配壳:仅实例化 6 个子系统 wrapper(Writeback/ExecuteBackend/MemoryAccess/PendingOperandReadGate/ControlPlane/Frontend)并汇聚 CSR/commit/trap 接口",
+   "instantiated_by": "vsrc/core/NpcCoreTop.v:238",
+   "key_params": "PHY_REG_ADDR_W=6(64 物理寄存器)、ROB_INDEX_W=4(16 项)、ISSUE_INDEX_W=3(8 项)、FETCH_PACKET_COUNT_W=2(include/define.v:21-44);双 commit 通道(OooCoreTopGlue.v:96-114);OOO_ROB_WALK_MODE=1/OOO_DBRANCH_DOMAIN_A=1/OOO_SQ_STORE_PATH=1(include/define.v:567-582)"
+  },
+  {
+   "file": "vsrc/bus/NpcAxiBus.v",
+   "purpose": "总线壳:把 IFU(只读)/LSU(读写)打包为 2-master,注入 aruser(0=ifetch,1=load)与 arstrb 后交 AxiLiteXbar",
+   "instantiated_by": "vsrc/core/NpcTop.v:313",
+   "key_params": "M_COUNT=2,ARUSER_IFETCH=0/ARUSER_LOAD=1(NpcAxiBus.v:66-71);IFU 写通道 tied-off(NpcAxiBus.v:116-127)"
+  },
+  {
+   "file": "vsrc/bus/AxiLiteXbar.v",
+   "purpose": "参数化 M×S single-beat crossbar:索引序首命中地址译码+默认 slave、每 slave 独立轮询仲裁、master 侧 R 缓冲防死锁、read-abort 挂起丢弃",
+   "instantiated_by": "vsrc/bus/NpcAxiBus.v:135",
+   "key_params": "每 master 同时最多 1 个未决读+1 个未决写(rd_master_busy_q/wr_master_busy_q,AxiLiteXbar.v:177,190);译码首命中优先(AxiLiteXbar.v:140-154);abort 后 AR 已发则等 R 丢弃(rd_drop_q,AxiLiteXbar.v:483-495);写需 AW+W 都 hold 才 grant(AxiLiteXbar.v:352-394)"
+  },
+  {
+   "file": "vsrc/bus/AxiLiteClint.v",
+   "purpose": "CLINT:msip@0x0000/mtimecmp@0x4000/mtime@0xbff8 可读写;mtip=mtime>=mtimecmp 电平输出;mtime 分频计数",
+   "instantiated_by": "vsrc/core/NpcTop.v:424",
+   "key_params": "MTIME_DIVISOR=10、MTIME_INCREMENT=1(AxiLiteClint.v:8-9,NpcTop.v:159,428)即 mtime=clk/10;复位 mtimecmp=全 1(AxiLiteClint.v:176);单 hart 单 bit msip(AxiLiteClint.v:155,214)"
+  },
+  {
+   "file": "vsrc/bus/AxiLitePlic.v",
+   "purpose": "PLIC:32 source bitmap、M/S 双 context 的 priority/pending/enable/threshold/claim/complete 全套;树形最高优先级 claim;level-triggered pending",
+   "instantiated_by": "vsrc/core/NpcTop.v:459",
+   "key_params": "SOURCE_NUM=32(source1..31 有效,source0 恒 0,AxiLitePlic.v:9,158,350);M enable@0x2000/S enable@0x2080/M claim@0x200004/S claim@0x201004(AxiLitePlic.v:37-44);external_irq_o=(m_claim!=0)||(s_claim!=0) 合并单线(AxiLitePlic.v:138)"
+  },
+  {
+   "file": "vsrc/bus/AxiLiteToUart.v",
+   "purpose": "AXI-Lite→UART 单拍寄存器访问适配器;另输出 uart_access_* 观测口供仿真 difftest-skip/终端事件",
+   "instantiated_by": "vsrc/core/NpcTop.v:385",
+   "key_params": "12-bit 寄存器地址窗(AxiLiteToUart.v:36,58);64-bit 数据/wstrb 透传"
+  },
+  {
+   "file": "vsrc/bus/Uart.v",
+   "purpose": "16550 风格 UART 本体(不感知总线):RBR/THR/DLL,IER/DLM,IIR/FCR,LCR,LSR;RX 单字节缓冲;TX 单拍脉冲直通宿主;RX/THRE 两类中断",
+   "instantiated_by": "vsrc/bus/AxiLiteToUart.v:81",
+   "key_params": "THRE 恒 1(thre_ready_w=1'b1,Uart.v:48);LSR=0x60|rx_valid(Uart.v:116);offset4 返回 0x01 非标(Uart.v:35,115);IER 仅低 4 位(Uart.v:191);FCR 仅存 0xc1 位、无真实 FIFO(Uart.v:194);字节 lane 由 wstrb 推导(Uart.v:124-168)"
+  },
+  {
+   "file": "vsrc/bus/AxiDefaultSlave.v",
+   "purpose": "默认错误 slave:读返回 data=0/rresp=SLVERR(2'b10),写返回 bresp=SLVERR;供 9 个未实装窗口与地址不命中兜底",
+   "instantiated_by": "vsrc/core/NpcTop.v:585(generate 循环 ×9 实例)",
+   "key_params": "rresp/bresp 恒 2'b10(AxiDefaultSlave.v:31,34)"
+  },
+  {
+   "file": "vsrc/sim/AxiDpiSlave.sv",
+   "purpose": "仿真专用 AXI→DPI 桥:按 aruser 分流 npc_ifetch/npc_mem_read,写走 npc_mem_write,把 PSRAM/SDRAM/legacy-MMIO 三窗桥到宿主 pmem 与 csrc 设备回调",
+   "instantiated_by": "vsrc/sim/NpcSimTop.sv:585,608,631(×3:psram/sdram/legacy_mmio)",
+   "key_params": "aruser==0→npc_ifetch,否则 npc_mem_read(AxiDpiSlave.sv:94-98);全 64-bit 地址原样传宿主;单事务在飞"
+  },
+  {
+   "file": "vsrc/sim/AxiLiteVirtioBlk.sv",
+   "purpose": "仿真专用 virtio-mmio 前端:AXI-Lite 读写转 npc_virtio_blk_read/write DPI,每拍轮询 npc_virtio_blk_irq 刷新 irq_o;寄存器模型/virtqueue/DMA 全在 csrc/device/virtio_blk.c",
+   "instantiated_by": "vsrc/sim/NpcSimTop.sv:558",
+   "key_params": "12-bit 偏移窗(AxiLiteVirtioBlk.sv:109,129);宿主侧为 virtio-mmio version 2 + split virtqueue(QUEUE_SEL/NUM/READY/NOTIFY+desc/driver/device 64-bit 地址),QUEUE_NUM_MAX=128(csrc/device/virtio_blk.c:25,28,39-52)"
+  },
+  {
+   "file": "vsrc/include/define.v",
+   "purpose": "全局宏单一真源:XLEN=64、RESET_PC、完整 SoC 地址图(16 窗)、cacheable 窗、OoO 容量宏、CSR/指令编码、B2/LSQ/domain-A 特性开关",
+   "instantiated_by": "header,被各 .v `include(filelist.mk:22 RTL_DEFINE);无实例化",
+   "key_params": "RESET_PC=0x8000_0000(define.v:47);CACHEABLE=0x8000_0000..0x9fff_fffc(define.v:53-58);CLINT@0x0200_0000/64KB,PLIC@0x0c00_0000/64MB,SRAM@0x0f00_0000/16MB,UART@0x1000_0000/4KB,VIRTIO@0x1000_1000/4KB,GPIO@0x1000_2000/16B,PS2@0x1001_1000/8B,LEGACY_MMIO@0x1200_0000/32MB,MROM@0x2000_0000/4KB,VGA@0x2100_0000/2MB,FLASH@0x3000_0000/256MB,CHIPLINK_MMIO@0x4000_0000/1GB,PSRAM@0x8000_0000/512MB,SDRAM@0xa000_0000/512MB,CHIPLINK_MEM@0xc000_0000/1GB(define.v:62-151);PMEM 窗 0x8000_0000/mask 0xf000_0000 仅 256MB(define.v:152-157)"
+  },
+  {
+   "file": "vsrc/filelist.mk",
+   "purpose": "RTL 清单单一真源:RTL_CORE_SRCS(可综合)+SIM_TOP_SRCS(3 个 sim 文件)=VSRCS,由主 Makefile/lint/STA 共享",
+   "instantiated_by": "Makefile:44 include;Verilator 构建规则消费 VSRCS(Makefile:167-170)",
+   "key_params": "清单 133 文件与磁盘 find 结果 133 完全一致(脚本核对,零缺漏);STA_RTL_FILES=RTL_CORE_SRCS 排除 sim(Makefile:145-146)"
+  },
+  {
+   "file": "vsrc/control/OooRedirectArbiter.v",
+   "purpose": "B2 统一控制流重定向仲裁器(multi-source redirect→唯一 redirect_request)——尚未接入",
+   "instantiated_by": "DEAD:filelist.mk:85 仅定义变量 RTL_OOO_REDIRECT_ARBITER,从未加入 RTL_OOO_FRONTEND_HELPERS/RTL_CORE_SRCS(全文件 grep 仅此一处);vsrc 内零实例化;OooCoreTopGlue.v:367 自述'待 OooRedirectArbiter 接入'",
+   "key_params": "不参与编译,也无实例"
+  }
+ ],
+ "capabilities": [
+  {
+   "claim": "完整五级模块层次已证实:NpcSimTop→NpcTop→NpcCoreTop→(OooFetchAxiBridge/OooMemAxiBridge/OooCoreTopGlue/CsrFile),Glue 内仅 6 个子系统 wrapper;总线侧 NpcTop→NpcAxiBus→AxiLiteXbar,外设 UART/CLINT/PLIC 在 NpcTop,VirtIO/DPI 内存在 NpcSimTop",
+   "evidence": "vsrc/sim/NpcSimTop.sv:308,558,585,608,631;vsrc/core/NpcTop.v:237,313,385,424,459,585;vsrc/core/NpcCoreTop.v:163,192,238,359;vsrc/core/OooCoreTopGlue.v:438,595,727,780,823,1041"
+  },
+  {
+   "claim": "AXI 拓扑=2 主(IFU 只读、LSU 读写)×16 从的 single-beat 自定义 AXI-Lite-like:64-bit 地址/数据,无 burst/ID/size,读通道带非标 arstrb+1bit aruser+read-abort 边带;每 master 1 读+1 写 outstanding;每 slave 轮询仲裁+1 深 master 侧 R 缓冲(防 IFU 阻塞 LSU 死锁)",
+   "evidence": "vsrc/bus/NpcAxiBus.v:66-71,116-127;vsrc/bus/AxiLiteXbar.v:177,190,285-349,341-349,352-394"
+  },
+  {
+   "claim": "地址译码为 slave 索引升序首命中+DEFAULT(idx15)兜底;16 窗完整映射(CLINT/PLIC/SRAM/UART/VIRTIO/GPIO/PS2/MROM/VGA/FLASH/CHIPLINK_MMIO/PSRAM/LEGACY_MMIO/SDRAM/CHIPLINK_MEM/DEFAULT)全部由 include/define.v 单点定义并在 NpcTop 参数化传入",
+   "evidence": "vsrc/bus/AxiLiteXbar.v:140-154;vsrc/core/NpcTop.v:141-158,313-333;vsrc/include/define.v:62-173"
+  },
+  {
+   "claim": "CLINT 实现 msip(0x0000)/mtimecmp(0x4000,0x4004)/mtime(0xbff8,0xbffc) 读写,mtip=mtime>=mtimecmp 电平中断,时基=core clk/10(MTIME_DIVISOR=10、每 tick +1);mtime 总线可写、64/32 位访问均支持(wstrb lane mux)",
+   "evidence": "vsrc/bus/AxiLiteClint.v:38-43,58,79,97-126,180-229;vsrc/core/NpcTop.v:159,428"
+  },
+  {
+   "claim": "PLIC 实现 32 source(1..31 有效)、M/S 双 context:priority 数组(32-bit×32,64-bit beat 一次读写相邻两个)、pending bitmap(可写)、enable、threshold、claim(读清 pending 置 in_service)/complete(写清 in_service),claim 用 5 级树选最高优先级;level-triggered(pending 持续从 source 电平 OR)",
+   "evidence": "vsrc/bus/AxiLitePlic.v:37-44,155-253,300-325,327-352,398-439"
+  },
+  {
+   "claim": "中断布线全链路:CLINT.msip→NpcCoreTop.irq_software_i→CsrFile→mip.MSIP(bit3);CLINT.mtip→irq_timer_i→mip.MTIP(bit7);PLIC.external_irq→irq_external_i→mip.MEIP(bit11),且经 mideleg 委派时同线注入 SSIP/STIP/SEIP 视图;PLIC source1=UART、source2=virtio-blk、source0/3-31 恒 0;CLINT.mtime 同时直连 CsrFile.time_i 支撑 time CSR",
+   "evidence": "vsrc/core/NpcTop.v:267-270,457;vsrc/core/NpcCoreTop.v:387-389,363;vsrc/core/CsrFile.v:495-501"
+  },
+  {
+   "claim": "UART 为 16550 寄存器子集:DLAB 切换 DLL/DLM,IIR 编码(0x04 RX/0x02 THRE/0x01 无中断,FIFO 使能加 0xc0),LSR=0x60|rx_valid,RX 单字节缓冲带背压(rx_ready),TX 为单拍字节脉冲直通仿真宿主;irq=IER[0]&rx_valid|IER[1]&THRE",
+   "evidence": "vsrc/bus/Uart.v:31-36,46-68,104-120,362-367;vsrc/sim/NpcSimTop.sv:789-811,843-854"
+  },
+  {
+   "claim": "VirtIO-blk 为 virtio-mmio version 2(modern)+split virtqueue 设备:RTL 侧纯 AXI-Lite→DPI 桥并每拍轮询 irq;宿主 C 模型实现 QUEUE_SEL/NUM/READY/NOTIFY、desc/driver/device 三区 64-bit 地址寄存器、QUEUE_NUM_MAX=128、描述符链 DMA 直读写 guest 内存",
+   "evidence": "vsrc/sim/AxiLiteVirtioBlk.sv:5-22,97-98,108-139;csrc/device/virtio_blk.c:25,28,39-52,180-195,244-259"
+  },
+  {
+   "claim": "DPI slave 把 PSRAM(0x8000_0000)/SDRAM(0xa000_0000)/legacy-MMIO(0x1200_0000) 三窗桥到宿主:aruser=0 走 npc_ifetch、=1 走 npc_mem_read,写走 npc_mem_write(带 8-bit mask)——即主存和 csrc 简易设备(rtc/kbd/vga/fb)都在宿主侧模拟",
+   "evidence": "vsrc/sim/AxiDpiSlave.sv:5-22,94-101,115-124;vsrc/sim/NpcSimTop.sv:585-652;vsrc/include/define.v:158-163"
+  },
+  {
+   "claim": "difftest 接口:双通道 commit(pc/inst/next_pc/rd_en/rd_addr/rd_data/exception)从 OooCoreTopGlue 经 NpcCoreTop/NpcTop 逐层引出,在 NpcSimTop 时序块调 npc_commit_event;ecall/ebreak 走 pending-trap 通道时在 csr_trap_ex_valid 拍补发合成 commit(inst=0x73/0x100073,next=trap 目标);MMIO load skip 由 mem 桥 paddr 非 PMEM 窗判定发 npc_mmio_load_event;另有 trap/exit/handled-trap/uart/irq 边沿事件",
+   "evidence": "vsrc/sim/NpcSimTop.sv:833-841,857-877,968-1028,1002-1018;vsrc/core/NpcTop.v:102-129,271-298"
+  },
+  {
+   "claim": "复位流程:仿真 harness 拉 rst=1 连续 5 个周期后释放并打印 ***reset***;复位取指 PC=0x8000_0000(reset_pc_i 端口注入,无 bootrom,程序由宿主直接装载进 DPI pmem)",
+   "evidence": "csrc/cpu/cpu-exec.cpp:2025-2033;vsrc/core/NpcCoreTop.v:250;vsrc/include/define.v:46-48"
+  },
+  {
+   "claim": "构建边界清晰:filelist.mk 的 133 个文件与 vsrc 磁盘完全一致(脚本核对零缺漏零悬空);RTL_CORE_SRCS 为可综合集(供 STA),SIM_TOP_SRCS(AxiDpiSlave/AxiLiteVirtioBlk/NpcSimTop)仅进 Verilator;Kconfig 开关经 +define 注入 RTL(SIM_STATS/BRANCH_STATS/CACHE_STATS/OOO_STATS/DEBUG_PORTS)",
+   "evidence": "vsrc/filelist.mk:264-315;Makefile:44,82-86,145-146,167-170"
+  },
+  {
+   "claim": "xbar 的 read-abort 语义正确处理在飞事务:abort 时 AR 未被 slave 接收则直接撤销,已接收则置 rd_drop 等 R 返回丢弃,不留 orphan response;master 侧已缓存的响应也随 abort 清除——abort 源为 ifu_abort=mmu_flush、lsu_abort=mem_flush",
+   "evidence": "vsrc/bus/AxiLiteXbar.v:457-461,483-495;vsrc/core/NpcCoreTop.v:410-411"
+  }
+ ],
+ "limitations": [
+  {
+   "claim": "OooRedirectArbiter.v 是双重死代码:filelist.mk 只定义变量(第 85 行)从未把它加入 RTL_OOO_FRONTEND_HELPERS/RTL_CORE_SRCS(既不编译),vsrc 内也无任何实例化;配套的 core_branch_resolve_rob_idx_w 已上送但自述 driven-but-unused",
+   "evidence": "vsrc/filelist.mk:85(全文件唯一出现);vsrc/core/OooCoreTopGlue.v:367-368;grep 全 vsrc 无实例化命中"
+  },
+  {
+   "claim": "16 个地址窗中 9 个是 stub(SRAM/GPIO/PS2/MROM/VGA/FLASH/CHIPLINK_MMIO/CHIPLINK_MEM/DEFAULT),接 AxiDefaultSlave 一律返回 SLVERR+零数据;无 bootrom(MROM 窗也是 stub),依赖宿主装载+复位 PC 直跳 0x8000_0000",
+   "evidence": "vsrc/core/NpcTop.v:169-178,583-613;vsrc/bus/AxiDefaultSlave.v:31,34"
+  },
+  {
+   "claim": "difftest 的 PMEM 判定窗(base 0x8000_0000/mask 0xf000_0000,仅 256MB)与 PSRAM xbar 窗(512MB,0x8000_0000..0x9fff_ffff)不一致:0x9000_0000..0x9fff_ffff 以及整个 SDRAM(0xa000_0000)的 load 都会触发 npc_mmio_load_event 而被 difftest skip",
+   "evidence": "vsrc/include/define.v:152-157(PMEM) vs 134-145(PSRAM/SDRAM);vsrc/sim/NpcSimTop.sv:833-841"
+  },
+  {
+   "claim": "UART 非完整 16550:无真实 FIFO(FCR[0] 仅改变 IIR 高 2 位读数)、无波特率定时(DLL/DLM 可写但不生效,TX 为单拍脉冲)、THRE 恒 1、offset4 返回硬编码 0x01(标准 16550 此处是 MCR)、无 MSR/SCR",
+   "evidence": "vsrc/bus/Uart.v:35,41,48,109-116,194"
+  },
+  {
+   "claim": "CLINT 为单 hart 最小实现:msip 只有 1 位、无 hart 偏移编址;mtime 时基=clk/10 硬编码于 NpcTop 参数,与真实 SoC 独立时钟域时基无对应",
+   "evidence": "vsrc/bus/AxiLiteClint.v:50,155,214;vsrc/core/NpcTop.v:159"
+  },
+  {
+   "claim": "PLIC 的 M/S 两个 context 合并为一根 external_irq_o 输出进核,CsrFile 的 SEIP 由同一根线与 mideleg[SEI] 相与生成——S 模式外部中断没有独立于 M 的物理 pending 线;无多 hart context",
+   "evidence": "vsrc/bus/AxiLitePlic.v:138;vsrc/core/NpcTop.v:269,456;vsrc/core/CsrFile.v:497-501"
+  },
+  {
+   "claim": "总线无 AXI4 能力:无 burst/ID/QoS/size,每 master 严格 1 个未决读+1 个未决写(串行化,cache line 重填需多次单拍事务);AXI 外设错误响应不完整——CLINT/PLIC/UART 的 rresp/bresp 恒 OKAY,非法 offset 静默读 0/写忽略",
+   "evidence": "vsrc/bus/AxiLiteXbar.v:177,190;vsrc/bus/AxiLiteClint.v:73,76;vsrc/bus/AxiLitePlic.v:134,137;vsrc/bus/AxiLiteToUart.v:68,71"
+  },
+  {
+   "claim": "NPC_AXI_SPI_BASE/MASK 宏是死定义:与 VIRTIO_BLK 完全同窗(0x1000_1000/4KB),NpcTop 无 SPI slave,该宏无任何消费者",
+   "evidence": "vsrc/include/define.v:86-97;vsrc/core/NpcTop.v:141-156(无 SPI 槽位)"
+  },
+  {
+   "claim": "debug_gprs_o(32×64bit 寄存器堆可见性)在 NpcTop 内被归并进 unused reduction,不出仿真顶层端口;difftest 的 DUT GPR 靠 csrc 侧 g_shadow_gpr 影子堆由 commit 事件增量重建,并非直接观测 RTL 寄存器堆",
+   "evidence": "vsrc/core/NpcTop.v:301,308-311;csrc/cpu/cpu-exec.cpp:106;csrc/cpu/difftest.cpp:56-61"
+  },
+  {
+   "claim": "VirtIO-blk 的 DMA 完全在宿主 C 侧直接读写 pmem(guest_read/guest_ptr),不经过 RTL AXI 总线——总线/缓存层看不到 DMA 流量,存在 DMA↔dcache 一致性隐患面(RTL 侧无 snoop)",
+   "evidence": "vsrc/sim/AxiLiteVirtioBlk.sv:3-5;csrc/device/virtio_blk.c:188,248"
+  },
+  {
+   "claim": "核级控制口硬绑:flush_i=1'b0、run_i=1'b1、commit_ready_i=1'b1——外部 flush/run/commit 背压接口在 SoC 层实际不可用;SDRAM(0xa000_0000)不在 CACHEABLE 窗(上限 0x9fff_fffc)内,恒走非缓存路径",
+   "evidence": "vsrc/core/NpcCoreTop.v:248-249,316;vsrc/include/define.v:53-58,140-145"
+  },
+  {
+   "claim": "NpcSimTop 大量跨层级引用核内部信号(u_top.u_core.u_ooo_core.pending_*_q 等约 60 个探针)且 OooCoreTopGlue 整体包在 verilator lint_off UNOPTFLAT 中(自述 FP 交叉唤醒疑似组合环,真伪未甄别)——仿真顶层与核内部命名强耦合,重构核内信号会静默破坏调试口",
+   "evidence": "vsrc/sim/NpcSimTop.sv:447-545,657-777;vsrc/core/OooCoreTopGlue.v:6-9,1315"
+  }
+ ],
+ "cross_module": [
+  "中断契约:CLINT.msip/mtip 与 PLIC.external_irq 分别接 CsrFile.irq_software/timer/external_i,置 mip.MSIP(bit3)/MTIP(bit7)/MEIP(bit11),委派位视图由 CsrFile 内 mideleg 生成(vsrc/core/NpcCoreTop.v:387-389;vsrc/core/CsrFile.v:495-501);PLIC source1=UART/source2=virtio(vsrc/core/NpcTop.v:457)",
+  "时间契约:CLINT.mtime(clk/10)直连 CsrFile.time_i 作为 time CSR 读数(vsrc/core/NpcCoreTop.v:363),difftest 参考端(NEMU)时基须与 divisor=10 对齐否则 time 读数分歧",
+  "aruser 私契:0=ifetch/1=load,由 NpcAxiBus 注入、AxiDpiSlave 消费以分流 npc_ifetch/npc_mem_read DPI 入口(vsrc/bus/NpcAxiBus.v:69-71;vsrc/sim/AxiDpiSlave.sv:94-98)",
+  "abort 边带:ifu_axi_abort=mmu_flush、lsu_axi_abort=mem_flush,由核内 flush 信号驱动,xbar 据此丢弃在飞读(vsrc/core/NpcCoreTop.v:410-411;vsrc/bus/AxiLiteXbar.v:483-495)——核内 flush 语义变化会直接影响总线正确性",
+  "地址一致性门禁:LEGACY_MMIO 窗(0x1200_0000/32MB)必须与 csrc/include/device_address.h 的 NPC_DEVICE_BASE/TOP 一致(vsrc/include/define.v:158-163 自述);CACHEABLE 窗(0x8000_0000..0x9fff_fffc)由核内 fetch/mem 桥消费(vsrc/include/define.v:53-58)",
+  "DPI 事件 ABI:npc_commit_event/npc_exit_event/npc_trap_event/npc_handled_trap_event/npc_mmio_load_event/npc_uart_event/npc_irq_event/npc_uart_rx_pop 签名须与 csrc/dpi.c 及 cpu-exec.cpp 影子 GPR 逻辑对齐——任何写 rd 的提交都必须恰好发一次 commit 事件,否则影子 GPR 与 difftest 失真(vsrc/sim/NpcSimTop.sv:5-128;csrc/cpu/cpu-exec.cpp:106)",
+  "icache 一致性:mem0 store fire(valid&&ready&&write)拍触发取指侧 invalidate,地址=store 地址(vsrc/core/NpcCoreTop.v:159-161)——LSQ/store 路径改动须保持该 fire 语义",
+  "OooCoreTopGlue 与核内六大 wrapper(OooFrontend/OooExecuteBackend/OooMemoryAccess/OooControlPlane/OooWriteback/OooPendingOperandReadGate)的端口即子系统边界;CSR 全部集中在核外 CsrFile,经 csr_access_*/csr_trap_*/pending_system_csr_commit 事务接口交互(vsrc/core/NpcCoreTop.v:359-408)"
+ ],
+ "open_questions": [
+  "difftest PMEM 窗(256MB, define.v:152-157)小于 PSRAM 窗(512MB)且不含 SDRAM:0x9000_0000+ 与 SDRAM 的 load 全部走 mmio-skip 是有意设计(DMA 区不比对)还是遗留失配?需 difftest/csrc 子系统确认 skip 语义与 guest 实际内存布局",
+  "OooRedirectArbiter(B2 统一重定向)何时接入、core_branch_resolve_rob_idx_w 的消费计划——属核内 frontend/control 子系统的 roadmap,顶层只能证实其当前为死代码",
+  "CLINT divisor=10 的时基与 NEMU 参考端 mtime 推进方式如何对齐(difftest 对 time CSR 读、mtip 触发时刻是否 skip)?需 difftest 子系统回答",
+  "PLIC S-context claim(0x201004)是否被现有 S-mode 软件(Linux/rootfs 路线)实际走到?单根 external_irq 合并线在 M/S 同时 claim 场景下的语义是否充分,需结合核内中断委派路径验证",
+  "NpcSimTop 引用的核内探针(pending_branch_q/stop_pending_q/drain_complete_w 等约 60 个)语义属核内控制平面;这些调试口的正确性由谁守护(改名即静默断链)?",
+  "STUB 的 SRAM(0x0f00_0000)/FLASH/MROM/CHIPLINK 窗口是否有实装计划(ysyxSoC 对接),SLVERR 响应对现有软件栈是否被依赖为探测手段?",
+  "OooCoreTopGlue 顶层 lint_off UNOPTFLAT 掩盖的 FP 交叉唤醒疑似组合环(自述'真伪甄别列为 FP 簇收尾项')的真实性,需 execute/scheduling 子系统裁决"
+ ]
+}

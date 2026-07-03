@@ -61,7 +61,10 @@ SCRIPT_DIR := $(LINUX_HOME)/scripts
 TOOLS_DIR := $(LINUX_HOME)/tools
 LINUX_CONFIG ?= $(LINUX_HOME)/configs/rv64_linux_defconfig
 TRACE_CONFIG ?= $(LINUX_HOME)/configs/rv64_trace_defconfig
-PLATFORM_CONFIG ?= $(LINUX_HOME)/platform/npc-rv64.yml
+# 平台 yml 按 ARCH 自动选择(npc-rv64.yml / nemu-rv64.yml),共享 SoC 契约在
+# common-rv64.yml 由 gen_dts.py 经 base: 引用深合并;common 变更也要触发 DTB 重建。
+PLATFORM_CONFIG ?= $(LINUX_HOME)/platform/$(LINUX_PLATFORM)-rv64.yml
+PLATFORM_CONFIG_COMMON ?= $(LINUX_HOME)/platform/common-rv64.yml
 GEN_DTS ?= $(LINUX_HOME)/platform/gen_dts.py
 PYTHON ?= $(if $(wildcard $(ENV_ROOT)/tools/python/bin/python3),$(ENV_ROOT)/tools/python/bin/python3,python3)
 DTC ?= dtc
@@ -1146,20 +1149,20 @@ $(DTB_BOOTARGS_STAMP_DIR)/%.stamp: FORCE | $(DTB_BOOTARGS_STAMP_DIR)
 	@printf '%s\n' 'BOOTARGS_EXTRA=$(BOOTARGS_EXTRA)' 'NEMU_ROOTFS_BOOTARGS_EXTRA=$(NEMU_ROOTFS_BOOTARGS_EXTRA)' 'NPC_ROOTFS_BOOTARGS=$(NPC_ROOTFS_BOOTARGS)' > '$@.tmp'
 	@if cmp -s '$@.tmp' '$@'; then rm -f '$@.tmp'; else mv '$@.tmp' '$@'; fi
 
-$(KERNEL_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(KERNEL_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
+$(KERNEL_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(PLATFORM_CONFIG_COMMON) $(KERNEL_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
 	$(PYTHON) '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode kernel \
 	  --bootargs-extra '$(BOOTARGS_EXTRA)' \
 	  --output '$(BUILD_DIR)/generated/npc-rv64.dts'
 	$(DTC) -I dts -O dtb -o '$@' '$(BUILD_DIR)/generated/npc-rv64.dts'
 
-$(BUSYBOX_INITRAMFS_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(BUSYBOX_INITRD) $(BUSYBOX_INITRAMFS_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
+$(BUSYBOX_INITRAMFS_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(PLATFORM_CONFIG_COMMON) $(BUSYBOX_INITRD) $(BUSYBOX_INITRAMFS_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
 	$(PYTHON) '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode initramfs \
 	  --bootargs-extra '$(BOOTARGS_EXTRA)' \
 	  --initrd-image '$(BUSYBOX_INITRD)' \
 	  --output '$(BUILD_DIR)/generated/npc-rv64-initramfs.dts'
 	$(DTC) -I dts -O dtb -o '$@' '$(BUILD_DIR)/generated/npc-rv64-initramfs.dts'
 
-$(UBUNTU_PROBE_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(UBUNTU_PROBE_INITRD) $(UBUNTU_PROBE_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
+$(UBUNTU_PROBE_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(PLATFORM_CONFIG_COMMON) $(UBUNTU_PROBE_INITRD) $(UBUNTU_PROBE_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
 	$(PYTHON) '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode initramfs \
 	  --bootargs-key ubuntu_initramfs \
 	  --bootargs-extra '$(BOOTARGS_EXTRA)' \
@@ -1168,7 +1171,7 @@ $(UBUNTU_PROBE_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(UBUNTU_PROBE_INITRD) $(UBUN
 	  --output '$(BUILD_DIR)/generated/npc-rv64-ubuntu-initramfs.dts'
 	$(DTC) -I dts -O dtb -o '$@' '$(BUILD_DIR)/generated/npc-rv64-ubuntu-initramfs.dts'
 
-$(UBUNTU_SHELL_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(UBUNTU_SHELL_INITRD) $(UBUNTU_SHELL_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
+$(UBUNTU_SHELL_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(PLATFORM_CONFIG_COMMON) $(UBUNTU_SHELL_INITRD) $(UBUNTU_SHELL_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
 	$(PYTHON) '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode initramfs \
 	  --bootargs-key ubuntu_initramfs \
 	  --bootargs-extra '$(BOOTARGS_EXTRA)' \
@@ -1177,14 +1180,14 @@ $(UBUNTU_SHELL_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(UBUNTU_SHELL_INITRD) $(UBUN
 	  --output '$(BUILD_DIR)/generated/npc-rv64-ubuntu-shell-initramfs.dts'
 	$(DTC) -I dts -O dtb -o '$@' '$(BUILD_DIR)/generated/npc-rv64-ubuntu-shell-initramfs.dts'
 
-$(NPC_ROOTFS_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(NPC_ROOTFS_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
+$(NPC_ROOTFS_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(PLATFORM_CONFIG_COMMON) $(NPC_ROOTFS_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
 	$(PYTHON) '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode rootfs \
 	  --bootargs-override '$(NPC_ROOTFS_BOOTARGS)' \
 	  --bootargs-extra '$(BOOTARGS_EXTRA)' \
 	  --output '$(BUILD_DIR)/generated/npc-rv64-rootfs.dts'
 	$(DTC) -I dts -O dtb -o '$@' '$(BUILD_DIR)/generated/npc-rv64-rootfs.dts'
 
-$(NEMU_ROOTFS_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(NEMU_ROOTFS_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
+$(NEMU_ROOTFS_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(PLATFORM_CONFIG_COMMON) $(NEMU_ROOTFS_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
 	$(PYTHON) '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode rootfs \
 	  --reset-syscon \
 	  --virtio-rng \

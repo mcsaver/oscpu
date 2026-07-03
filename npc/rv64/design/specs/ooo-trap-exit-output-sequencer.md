@@ -4,7 +4,8 @@
 
 `OooTrapExitOutputSequencer` owns the final user-visible sticky
 `trap_valid_o`, trap payload, `exit_valid_o`, exit payload, and `halted_o`
-state for `OooAluFetchCore`.
+state for the control plane (`control/OooControlPlane`, historically
+`OooAluFetchCore`).
 
 It does not own pending architectural trap/exit capture, CSR trap entry, PC
 redirect/recovery, ROB retirement, backend drain qualification, or simulation
@@ -36,8 +37,10 @@ still present one final architectural outcome at a precise boundary.
 
 ## Parent Event Contract
 
-`OooAluFetchCore` remains responsible for forming the terminal event inputs.
-The event mux must preserve the old sequential assignment priority:
+`OooControlPlane`(经 `OooTrapExitEventMux`)remains responsible for forming
+the terminal event inputs. The event mux must preserve the old sequential
+assignment priority(注:其中依赖 pending branch/jump 的臂在当前配置下输入恒
+0,已证死,见 `ooo-trap-exit-event-mux.md` 状态注记):
 
 1. pending branch commit misaligned target,
 2. tracked branch match misaligned target,

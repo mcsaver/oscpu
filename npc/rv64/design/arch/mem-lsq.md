@@ -1,7 +1,9 @@
 # 规范：load 侧访存解耦 / LSQ（目标 B）
 
 > 模板见 `SPEC-TEMPLATE.md`。目标模块：`vsrc/memory/OooMemAxiBridge.v` + 后端访存发射。
-> 状态：**设计中(spec 先行)**;difftest 已解锁逐指令验证。
+> 状态：**部分落地(2026-07-03 RTL 重读复核)**——store-to-load 前递已随 store→SQ 切换实现
+> (4 项 SQ 全包含单拍前递,M-mode 非 MMIO 限定);load 多 outstanding 仍未做(桥仍单 outstanding、
+> MIQ 深 4 仅解耦发射侧、真实 MLP≈1),§5b 暂缓决策仍有效。difftest 已解锁逐指令验证。
 
 ## 1. 目的与范围
 当前访存桥**单 outstanding**:一次只一个内存事务在飞,连续独立 load 串行(各自全延迟)。真实代码
@@ -10,7 +12,8 @@
 
 ## 2. 关键不变量(difftest 逐指令护航)
 - **LSQ-I1 store→load 顺序**:younger load 到 older(未排空)store 的同地址,必须读到 store 新值
-  (现 dcache 在 store-commit 全失效+更新已保证;多 outstanding 下需保持)。
+  (现由 SQ 机制保证:IQ older-store 拦 / 在飞 probe 8B-line 重叠判定 / SQ snoop + SQ 单拍前递;
+  多 outstanding 下需保持)。
 - **LSQ-I2 顺序**:与中间 store 的相对序必须保持(单 hart)。
 - **LSQ-I3 精确异常**:load page/access fault 在该 load 的 commit 边界精确上报;乱序返回的 fault 按 ROB 序提交。
 - **LSQ-I4 response ownership**:多事务 response 路由回正确后端端口,flush 正确 drain;无 ready/valid 组合环。
@@ -21,6 +24,8 @@
   store 仍单序、store→load 同地址用 dcache 转发。验证 ooo-mem-order/string/mem-test/load-store +
   difftest 逐指令 + eval(branch-resolve-loop 应降)。
 - **step 2(可选)**:真正 LSQ(load queue+地址消歧+store buffer forward),覆盖跨 store 的乱序 load。
+  (2026-07 复核:store buffer forward 已由 SQ 前递落地;剩 load queue/地址消歧,且 Sv39 开启时
+  前递/重叠精判整体退化为 blind 阻塞。)
 - 任一步 difftest/eval 退化即 revert(git 检查点)。
 
 ## 4. 风险与回退
@@ -51,6 +56,12 @@ step 1(读路径 2-outstanding)需要:① 拆单 FSM 为 AR-发起 与 R-接收 
 **重启条件**:出现 miss 密集 / 大数据流式目标负载,或时序/CPI 报告指认访存串行为头部瓶颈时,
 按 §3 增量路线小步推进,每步 difftest 逐指令 + eval 三 gate + ooo-mem-order 定向 + git 检查点。
 
+> 2026-07-03 复核:桥仍为单 FSM 单 outstanding(仅 S_RESP 拍可 back-to-back 接续 + 1 笔解耦 store
+> 滞后 B),本节"根本性单 outstanding"结论仍成立;但桥已演进出 probe/pretrans/nokill 事务属性、
+> bpend 写解耦与 4 项 MIQ(仅解耦发射侧),原文提到的 `active_port_q` 等信号名已不存在。
+
 ## 6. 变更记录
 - 2026-06-28：建立规范(difftest 解锁后 load 侧解耦增量路线 + 不变量 + 验证)。
 - 2026-06-28：读代码后补可行性评估(§5b),step 1 判定为高风险/有限收益,本阶段暂缓并记录重启条件。
+- 2026-07-03：RTL 重读复核——store-to-load 前递部分已由 store→SQ 切换落地,load 多 outstanding
+  维持暂缓;更新状态行与 §2/§3/§5b 的现状描述。

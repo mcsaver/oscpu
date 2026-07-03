@@ -43,7 +43,7 @@ config SERIAL_PORT
 
 config SERIAL_MMIO
   hex "MMIO address of the serial controller"
-  # RV64 system mode follows Linux/platform/npc-rv64.yml and generated DTB.
+  # RV64 system mode follows Linux/platform/common-rv64.yml (+ nemu-rv64.yml) and generated DTB.
   default 0x10000000 if ISA64 && MODE_SYSTEM && !TARGET_AM
   default 0xa00003f8
 

@@ -1,5 +1,11 @@
 # OooFetchPacketHitMux Boundary Spec
 
+> ⚠️ **状态(2026-07-03 RTL 重读)**：全链死路——本模块两实例（branch/JALR prefetch hit mux）
+> 服务的 prefetch 通路已整体判死：branch prefetch req 依赖 `pending_branch`（mode=1 下
+> capture 被 `!rob_walk_mode` 门死、恒 0），JALR prefetch req 依赖 JALR-BTB `btb_hit`
+> （表恒空、恒 0），prefetch hit 永不发生，输出无有效消费者；拆除计划见
+> `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述。
+
 ## 1. Requirement
 
 Branch and JALR prefetch hits can use packet payload from two sources:

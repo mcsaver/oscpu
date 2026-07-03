@@ -70,7 +70,9 @@ e2e_nemu_ubuntu_static_gate_impl() {
     Linux/tools/virtio-blk-error-smoke.S \
     Linux/tools/virtio-net-ctrl-smoke.S \
     Linux/platform/gen_dts.py \
+    Linux/platform/common-rv64.yml \
     Linux/platform/npc-rv64.yml \
+    Linux/platform/nemu-rv64.yml \
     scripts/nemu-preserved-run.sh \
     nemu/configs/riscv64-linux_defconfig \
     nemu/scripts/native.mk \

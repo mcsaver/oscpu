@@ -5,6 +5,34 @@
 ## 活跃问题
 <!-- 当前未解决的问题 -->
 
+### [111] rv64 全 RTL 重读定死的正确性缺口家族(2026-07-03, 4 项硬缺口+合规清单, 均未修)
+
+- **模块**: NPC / RV64 OoO 核 / 取指包 cache / 数据桥 / difftest
+- **背景**: 全 RTL 从零重读(9 路审计+矛盾裁定+追问形式化验证, task-run
+  `2026-07-03-rv64-rtl-reread-audit/`, 真相基线 `npc/rv64/design/arch/rtl-ground-truth-2026-07-03.md`)。
+  以下为**已证实、现有测试不暴露**的正确性缺口, 修复优先级建议按列出顺序:
+- **①SMC/fence.i 洞(结构性, 软件无法规避)**: 取指包 cache 逐 store 失效把 store 足迹硬编码 4 字节
+  (`OooFetchPacketCache.v:61-82` 谓词+index 扫描集双重排除), 对齐 8B store(sd/FSD/SC.D/AMO*.D)
+  高 4 字节覆盖的取指包(fetch_pc=A+4/A+6)**漏失效**; 而 fence.i 是真 no-op(`DecodeUnit.v:779-783`,
+  `REDIR_REASON_FENCEI` 零消费者), 无保底清除 → sd 改写指令区+fence.i+跳入高 4 字节 = 执行旧指令。
+  次级: 分页下 probe 拍失效用 VA/drain 拍用 PA, 与 VIVT cache 索引错配。riscv-tests 只跑 -p 不暴露。
+- **②Sv39 跨 4KB 页 misaligned 静默错译**: 数据桥只翻译起始 VA 一次, 第二页字节按起始 PA 物理连续
+  读写(`OooMemAxiBridge.v:238-252,455-476`), plain 访存 misaligned 又不 trap → 分页 OS 下静默读错/
+  写坏相邻物理页且 drain nokill 写必达。M-mode 恒等映射下无害(现有测试全在此掩护下)。
+  对照: 取指桥有完整双页处理, 数据桥无对应物。
+- **③difftest MMIO skip 对 RVC 压缩访存 ref.pc 毒化**: commit 上报 inst 已是解压 32 位(EA 判定正确),
+  但 skip 后硬编码 `ref.pc=pc+4`(`difftest.cpp:182`), 压缩访存真实 next=pc+2 → 下一条假阳性
+  mismatch 中止。修法已定: skip 分支改用已传入的 event.next_pc(对非控制流指令恒精确)。
+- **④unsupported 合法指令域 B trap 出口悬置**: mode=1 下 dispatch-time unsupported 捕获被门控关闭
+  (防 wrong-path spurious trap, `OooPendingDispatchArbiter.v:304-323`), stop 仍置位但无捕获出口——
+  依赖"译码白名单=后端能力"假设(当前成立)。
+- **合规缺口清单**(非 bug 但偏离规范, 见基线 §3.2): ebreak 不走 breakpoint trap(halted 停机约定)、
+  分支目标 misaligned 直接 halted、mtvec/stvec 仅 direct、medeleg/mideleg 无 WARL 掩码、
+  wfi 忽略 TW、rm=DYN+frm 非法不报 illegal、Zb 两处过宽接受、sfence.vma 忽略 vaddr/asid。
+- **理论风险**: DirectBranchResolveGate issue 臂未 tie-off, 跨实例 PC 别名巧合窗口存在
+  (紧循环+长延迟可构造), 巧合时 lane1-ret 合成 commit 有双提交理论风险——建议显式 tie-off
+  (证据链 `answers.json` 第 1 条)。
+
 ### [110] F2 三件套在 domain-A 树上的叠加实测——三个新边界定死(domain-A 已落地, F2 叠加待专项)
 
 > **[2026-07-03 已解决——F2 整体落地]** per-packet 单源方案一次成型:pred_npc 单一真源

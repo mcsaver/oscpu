@@ -1,0 +1,223 @@
+{
+ "subsystem": "译码/重命名/分发(decode / rename_allocate / dispatch),RV64 OoO 核,路径 npc/rv64/vsrc",
+ "modules": [
+  {
+   "file": "vsrc/decode/DecodeStage.v",
+   "purpose": "纯组合译码包装:DecodeUnit(控制包)+ ImmGen(立即数)一次产出 ctrl/rs1/rs2/rd/imm",
+   "key_params": "输入 32b inst,输出 50b ctrl(`CTRL_BUS_W`)+64b imm;全组合无状态",
+   "instantiated_by": "OooAluDecodeBackend.v:134,143(后端 2 lane)+ OooFrontend.v:2167/2177/2187/2197/2207/2217(前端 head0/head1/branch_target_capture/branch_prefetch0/1/rsp1 共 6 实例);filelist.mk RTL_DECODE_STAGE"
+  },
+  {
+   "file": "vsrc/decode/DecodeUnit.v",
+   "purpose": "主译码表:32b 指令 → 50 位统一控制总线(合法性/寄存器使能/ALU op/比较 op/访存粒度/系统类标记),默认 ILLEGAL=1 逐编码清零",
+   "key_params": "ctrl 总线 50 位(include/define.v:643);Zb 分类器 is_zb_op_imm/is_zb_op/is_zb_op_32 内嵌",
+   "instantiated_by": "DecodeStage.v:12"
+  },
+  {
+   "file": "vsrc/decode/ImmGen.v",
+   "purpose": "I/S/B/U/J 五型立即数拼接+符号扩展至 64b,仅接 inst[31:7]",
+   "key_params": "5 种 imm_type(3b 选择),default 输出 0",
+   "instantiated_by": "DecodeStage.v:20"
+  },
+  {
+   "file": "vsrc/decode/OooAluDecodeBackend.v",
+   "purpose": "后端 dispatch 适配层:双 lane DecodeStage + supported 白名单判定 + FP 指令旁路合成最小 ctrl + CSR 旧值注入 imm payload,再实例化 OooIntBackend",
+   "key_params": "2-wide dispatch;CSR rdata 仅 lane0;FP lane1 全放开(d1_fp_allow_w=d1_is_fp_w, 行 306);unsupported/unsupported_raw 双输出",
+   "instantiated_by": "execute/OooAluCoreSlice.v:134 → OooExecuteBackend.v:139 → OooCoreTopGlue.v:595 → NpcCoreTop.v:238"
+  },
+  {
+   "file": "vsrc/decode/OooFpDecode.v",
+   "purpose": "FP 指令纯组合分类器:15 类 one-hot(load/store/move/class/sgnj/addsub/mul/fma/div/sqrt/minmax/compare/convert×2)+ fp_double/fp_gpr_write",
+   "key_params": "S/D 双精度按 fmt=inst[26:25] 门控;rm 101/110 保留舍入模式拒绝(行 59-60)",
+   "instantiated_by": "frontend/OooFetchHeadClassifyGate.v:65(单实例,前端 head 分类)"
+  },
+  {
+   "file": "vsrc/decode/OooRvcDecompressor.v",
+   "purpose": "RVC 解压器:16b 半字纯组合展开为 32b 标准指令,非法/保留编码输出 32'h0(经主译码 default 判非法)",
+   "key_params": "覆盖 RV64C Q0/Q1/Q2 三象限;C.FLDSP 无 rd≠0 守卫(行 408-415 修复注释)",
+   "instantiated_by": "frontend/OooFetchPacketDecode.v:43,48(双实例,取指包 2 slot)"
+  },
+  {
+   "file": "vsrc/rename_allocate/OooFreeList.v",
+   "purpose": "物理寄存器空闲表:环形 FIFO,2 alloc + 2 free 每拍,释放项下一拍才可再分配;含 checkpoint 全量影子阵列",
+   "key_params": "64 深(PHY_REG_COUNT=`OOO_PHY_REG_COUNT`=1<<6),指针 6b,初始空闲 32(preg32..63,行 38,102-104);free push 排除 preg0(行 84-91)",
+   "instantiated_by": "OooDispatchBackend.v:360(整数)+ execute/OooFpBackend.v:251(FP,checkpoint 口接 0)"
+  },
+  {
+   "file": "vsrc/rename_allocate/OooRenameMap.v",
+   "purpose": "整数投机重命名表:arch→phys 映射,2 lane 读写(lane1 组合前视 lane0 同拍写,同拍 WAW lane1 胜);flush 恒等复位 + checkpoint 影子 + ROB-walk 反向恢复端口",
+   "key_params": "32 项(`REG_NUM`)×6b;x0 硬映射 preg0(行 80-86);restore 2 口/拍,walk 同拍 WAW lane1(更老)后写胜(行 116-123)",
+   "instantiated_by": "OooDispatchBackend.v:387(仅整数;FP 侧用 OooFpBackend.v:196 自建 fp_map_q,非本模块)"
+  },
+  {
+   "file": "vsrc/rename_allocate/OooBusyTable.v",
+   "purpose": "物理寄存器就绪位表:alloc 置忙、writeback wakeup 置就绪(同拍 alloc 优先),供 dispatch 拍查询源操作数初始 ready",
+   "key_params": "64×1b;2 alloc + 2 wakeup/拍;4 个含同拍 alloc/wakeup 前视查询口 + 1 个 raw 口(无 alloc 前视,行 98-102);preg0 恒 ready",
+   "instantiated_by": "OooDispatchBackend.v:425(单实例;FP 侧用 OooFpBackend.v:279 自建 fp_busy_q 数组)"
+  },
+  {
+   "file": "vsrc/rename_allocate/OooDispatchBackend.v",
+   "purpose": "rename/allocate/dispatch 总 owner:2-wide 程序序协调 FreeList/RenameMap/BusyTable/ROB/整数 IQ,资源 ready 闸 + mispredict kill 打拍 + ROB-walk 恢复期冻结与回滚",
+   "key_params": "2-wide;ROB=16 项(ROB_ENTRY_COUNT=1<<ROB_INDEX_W=1<<4,行 256)、整数 IQ=8 项(ISSUE_ENTRY_COUNT=1<<(ISSUE_COUNT_W-1)=1<<3,行 257-258);kill 打 1 拍寄存(行 472-482);checkpoint 在 ROB_WALK_MODE=1 下被 gate(行 485-486)",
+   "instantiated_by": "execute/OooIntBackend.v:320"
+  },
+  {
+   "file": "vsrc/common/OooSlotFacts.v",
+   "purpose": "单 fetch/decode slot 的组合事实总线宏头文件:41 位分类(illegal/branch/jal/jalr/mem/FP 15 类/ecall/ebreak/csr/mret/sret/wfi/sfence/arch_trap/stop 等)",
+   "key_params": "`OOO_SLOT_FACTS_W`=41(行 47)",
+   "instantiated_by": "头文件,被 frontend/OooFetchHeadClassifyGate.v:2 include;filelist.mk RTL_HEADER_SRCS"
+  },
+  {
+   "file": "vsrc/include/define.v",
+   "purpose": "全局宏单一真源:ISA opcode/funct 编码、50 位 ctrl 总线位号、OoO 容量宏、CSR 地址、trap cause、B2/LSQ 特性开关",
+   "key_params": "XLEN=64;OOO_PHY_REG_ADDR_W=6(64 preg);OOO_ROB_INDEX_W=4(ROB16);OOO_ISSUE_COUNT_W=4(IQ8);OOO_ROB_WALK_MODE=1、OOO_DBRANCH_DOMAIN_A=1、OOO_SQ_STORE_PATH=1 默认开(行 566-582);RESET_PC=0x8000_0000",
+   "instantiated_by": "全局 include;filelist.mk RTL_DEFINE"
+  }
+ ],
+ "capabilities": [
+  {
+   "claim": "RV64I 基础整数指令全集译码:LUI/AUIPC、JAL/JALR、BEQ/BNE/BLT/BGE/BLTU/BGEU、LB/LH/LW/LD/LBU/LHU/LWU、SB/SH/SW/SD、ADDI/SLTI/SLTIU/XORI/ORI/ANDI/SLLI/SRLI/SRAI、ADDIW/SLLIW/SRLIW/SRAIW、ADD/SUB/SLL/SLT/SLTU/XOR/SRL/SRA/OR/AND、ADDW/SUBW/SLLW/SRLW/SRAW、FENCE/FENCE.I、ECALL/EBREAK",
+   "evidence": "decode/DecodeUnit.v:173-195(LUI/AUIPC),197-224(JAL/JALR),226-265(BRANCH 6 条),267-320(LOAD 7 条),322-355(STORE 4 条),426-487(OP-IMM),489-536(OP-IMM-32),538-639(OP),641-706(OP-32),779-786(FENCE/FENCE.I),734-741(ECALL/EBREAK)"
+  },
+  {
+   "claim": "RV64M 全集:MUL/MULH/MULHSU/MULHU/DIV/DIVU/REM/REMU(OP+funct7=0000001 全部 8 个 funct3)与 MULW/DIVW/DIVUW/REMW/REMUW(OP-32 funct3 000/100/101/110/111),置 CTRL_MULDIV_BIT 交执行级按原始编码计算",
+   "evidence": "decode/DecodeUnit.v:556-626(OP MULDIV 各 funct3 臂),653-690(OP-32 MULDIV);include/define.v:634(CTRL_MULDIV_BIT 注释)"
+  },
+  {
+   "claim": "RV64A 全集:LR.W/D(强制 rs2==0 否则非法)、SC.W/D、AMOSWAP/AMOADD/AMOXOR/AMOAND/AMOOR/AMOMIN/AMOMAX/AMOMINU/AMOMAXU 的 .W/.D(funct3=010/011),置 AMO/AMO_LR/AMO_SC 位",
+   "evidence": "decode/DecodeUnit.v:357-424(OPCODE_AMO 分支;391-413 按 inst[31:27] 枚举 11 种;396-399 LR rs2 校验)"
+  },
+  {
+   "claim": "Zicsr 全 6 条(CSRRW/CSRRS/CSRRC/CSRRWI/CSRRSI/CSRRCI):funct3 001/010/011/101/110/111 统一置 CSR 位,寄存器版额外置 RS1_EN;读改写细则留给执行级",
+   "evidence": "decode/DecodeUnit.v:763-776"
+  },
+  {
+   "claim": "特权指令:MRET/SRET/WFI(funct12 译码)、SFENCE.VMA + Svinval 家族(SINVAL.VMA/SFENCE.W.INVAL/SFENCE.INVAL.IR),SFENCE 类带 TVM 门控标记位",
+   "evidence": "decode/DecodeUnit.v:742-753(MRET/SRET/WFI),712-731(SFENCE/SINVAL/SFENCE.W.INVAL/SFENCE.INVAL.IR);include/define.v:328-332(编码宏)"
+  },
+  {
+   "claim": "Zba/Zbb/Zbc/Zbs 四扩展译码(置 CTRL_BITMANIP_BIT 由执行级按原始编码算):Zba=SH1ADD/SH2ADD/SH3ADD/ADD.UW/SH*ADD.UW/SLLI.UW;Zbb=ANDN/ORN/XNOR/ROL/ROR/RORI/ROLW/RORW/RORIW/CLZ/CTZ/CPOP/CLZW/CTZW/CPOPW/SEXT.B/SEXT.H/ZEXT.H/MIN/MINU/MAX/MAXU/ORC.B/REV8;Zbc=CLMUL/CLMULR/CLMULH;Zbs=BSET/BCLR/BINV/BEXT 及 4 条立即数版",
+   "evidence": "decode/DecodeUnit.v:113-135(is_zb_op:SH*ADD/ANDN/ORN/XNOR/ROL/ROR/MIN-MAX/CLMUL 系/BSET-BCLR-BEXT-BINV),139-156(is_zb_op_32:ADD.UW/SH*ADD.UW/ROLW/RORW/ZEXT.H),23-72(is_zb_op_imm:BSETI/BCLRI/BINVI/BEXTI/RORI/CLZ/CTZ/CPOP/SEXT.B/H/ORC.B/REV8),74-101(SLLI.UW/RORIW/CLZW/CTZW/CPOPW);挂接点 483-486,528-535,635-638,699-705"
+  },
+  {
+   "claim": "F/D 扩展经旁路进入后端:OooAluDecodeBackend 识别 OP-FP/FMADD/FMSUB/FNMSUB/FNMADD/FLW/FLD/FSW/FSD,合成最小 ctrl(FP mem 置 LOAD/STORE+SIZE+RS1_EN 走整数 IQ mem 通道,GPR 目的类 FCMP/FCLASS/FMV.X/FCVT→int 置 RD_EN 走整数 rename);OooFpDecode 分类全部 RV64F/D 运算(FADD/FSUB/FMUL/FDIV/FSQRT/FSGNJ[N/X]/FMIN/FMAX/FEQ/FLT/FLE/FCLASS/FMV 四向/FCVT int↔fp 含 W/WU/L/LU/FCVT.S.D/FCVT.D.S),精度按 fmt=inst[26:25] 判定",
+   "evidence": "decode/OooAluDecodeBackend.v:201-346(旁路与合成 ctrl),248-275(d0 分类);decode/OooFpDecode.v:26-51(funct7 表),68-146(15 类判定),163-167(fp_double 按 opcode 门控)"
+  },
+  {
+   "claim": "RVC(RV64C)解压:Q0=C.ADDI4SPN/C.FLD/C.LW/C.LD/C.FSD/C.SW/C.SD;Q1=C.ADDI/C.ADDIW/C.LI/C.ADDI16SP/C.LUI/C.SRLI/C.SRAI/C.ANDI/C.SUB/C.XOR/C.OR/C.AND/C.SUBW/C.ADDW/C.J/C.BEQZ/C.BNEZ;Q2=C.SLLI/C.FLDSP/C.LWSP/C.LDSP/C.JR/C.MV/C.EBREAK/C.JALR/C.ADD/C.FSDSP/C.SWSP/C.SDSP;保留编码输出 0 交主译码判非法",
+   "evidence": "decode/OooRvcDecompressor.v:248-292(Q0),295-397(Q1),400-473(Q2),240-241(默认 inst_o=0)"
+  },
+  {
+   "claim": "非法指令处理链:DecodeUnit 默认 ILLEGAL=1、合法编码显式清零、未知 opcode 保持 VALID=1+ILLEGAL=1;后端 dispatch 判 unsupported 拒收不进 OoO;前端 classify 把 illegal(非 FP)归 arch_trap→stop 串行 trap 域;RVC 非法解压为 0 同路径",
+   "evidence": "decode/DecodeUnit.v:162-163,788-790;decode/OooAluDecodeBackend.v:164-172(ctrl_supported),380-383(unsupported 输出);frontend/OooFetchHeadClassifyGate.v:229(illegal_raw),266-277(arch_trap/stop 归并)"
+  },
+  {
+   "claim": "全流水 2-wide:译码(dispatch0/1 双 DecodeStage)、重命名(rename0/1)、freelist 分配(alloc0/1)、dispatch(fire0/1)、发射(issue0/1)、写回唤醒(wb0/1)、提交(commit0/1)均每拍最多 2 条;lane1 可标 optional(资源不足不阻塞 lane0)",
+   "evidence": "decode/OooAluDecodeBackend.v:134-150;rename_allocate/OooDispatchBackend.v:32-78(双 dispatch 入口),112-146(双 issue),274-323(双 fire 与 optional 豁免,295-299),163-193(双 commit)"
+  },
+  {
+   "claim": "物理寄存器堆:整数 64 项、FP 64 项(参数链自顶层到叶全部使用 define.v 默认宏,无覆盖);各自 freelist 初始空闲 32 项(preg32..63),arch 寄存器初始恒等映射 preg0..31",
+   "evidence": "include/define.v:21-26(OOO_PHY_REG_ADDR_W=6);core/NpcCoreTop.v:238-244(顶层传默认宏);execute/OooIntBackend.v:536(OooPhysRegFile 默认参数=64);execute/OooFpBackend.v:375-376(FP 64);rename_allocate/OooFreeList.v:38,102-112(INIT_FREE_COUNT=64-32)"
+  },
+  {
+   "claim": "ROB 16 项、整数发射队列 8 项;dispatch 资源闸=ROB 非满 ∧ (IQ 非满 ∨ FP 算术) ∧ freelist 足额(按 lane 需求 1/2 个) ∧ (非 store ∨ SQ 有槽) ∧ 非恢复冻结;FP 算术 uop 不占整数 IQ 槽,FP load/store 占",
+   "evidence": "rename_allocate/OooDispatchBackend.v:256-262(深度),264-320(ready 闸全式),215-220(fp_arith 判定),626/647(IQ 入口按 !fp_arith 门控),277-299(store 需 sq_alloc0/1_ready)"
+  },
+  {
+   "claim": "FreeList 组织:64 深环形 FIFO,双 alloc 并行读 head/head+1(浅 2:1 select 优化关键路径),双 free 带满量保护,preg0 永不入队;flush/rst 重灌 preg32..63",
+   "evidence": "rename_allocate/OooFreeList.v:42-49(阵列),65-97(alloc/free 组合),74-77(双读优化),84-91(preg0 排除),100-115(复位初始化)"
+  },
+  {
+   "claim": "RenameMap 组织与前视:x0 恒 preg0;lane1 的 rs1/rs2/old_pdest 经 map_after_lane0 前视 lane0 同拍新映射;同拍 WAW 时 lane1(程序序更年轻)后写胜",
+   "evidence": "rename_allocate/OooRenameMap.v:64-99(map_after_lane0 与四路输出),124-131(WAW lane1 胜)"
+  },
+  {
+   "claim": "BusyTable 组织:alloc 置忙、wakeup 置就绪,同拍冲突 alloc 胜(防止物理寄存器同拍回收重用被误判 ready);查询含同拍 alloc/wakeup 组合前视;raw 口(FP store fs2 用途)只含 wakeup 前视以避免跨模块组合环",
+   "evidence": "rename_allocate/OooBusyTable.v:53-76(query_ready 优先级),118-131(时序更新,129 注释),37-41+98-102(raw 口)"
+  },
+  {
+   "claim": "误预测恢复=ROB-walk(默认模式 OOO_ROB_WALK_MODE=1):后端 branch/JALR mispredict 打 1 拍寄存成 kill(打破 mispredict→dispatch_ready 组合环,前端 redirect 仍当拍);恢复期 dispatch 冻结;每拍 walk 2 条,RenameMap 写回 map[arch]=old_pdest(walk 同拍 WAW 最老者留存=分支点精确映射),FreeList 回收 squashed 的 new_pdest;FP 目的经 walk*_fp 端口分流给 FP 簇",
+   "evidence": "include/define.v:566-569(模式开关);rename_allocate/OooDispatchBackend.v:466-489(kill 打拍+走线),311-316(dispatch_freeze),376-381(恢复期 free 源切换),415-421(restore 接线),491-502(FP walk 分流);rename_allocate/OooRenameMap.v:38-48,116-123"
+  },
+  {
+   "claim": "trap/drain 边界的全量恢复:flush_i 使 FreeList/RenameMap/BusyTable 复位为初始态(恒等映射+preg32..63 空闲+全 ready),同时物理寄存器堆 preg1..31 用已提交架构 GPR 重灌、preg32..63 清零——即 flush 语义为『映射归位+架构值回灌』",
+   "evidence": "rename_allocate/OooFreeList.v:100-115;rename_allocate/OooRenameMap.v:103-107;rename_allocate/OooBusyTable.v:105-109;regread_bypass/OooPhysRegFile.v:105-113 + execute/OooIntBackend.v:541(recover_i=flush_i)"
+  },
+  {
+   "claim": "CSR 指令的串行化 dispatch:前端 stop 后由 pending system 序列读出 CSR 旧值,经 dispatch0_csr_rdata 注入,后端把旧值替换 imm payload 作为该 uop 的写回数据穿过 rename/issue/ROB;仅 lane0 支持(lane1 csr_rdata 恒 0)",
+   "evidence": "decode/OooAluDecodeBackend.v:195-199;frontend/OooFrontendBackendDispatchMux.v:141-143;execute/OooExecuteBackend.v:180(lane1 接 0);frontend/OooFetchHeadClassifyGate.v:246,271-277(csr∈system→stop)"
+  },
+  {
+   "claim": "分发时 pending/串行化处理的完整分类——(a)后端 unsupported 拒收:非法指令、无需执行类、ECALL、EBREAK、MRET、SRET、WFI、SFENCE.VMA/Svinval 家族;(b)前端 stop_raw 串行边界:fetch_fault、非 semihost 的 EBREAK(exit)、ECALL、CSR、MRET/SRET、WFI、SFENCE、arch_trap(illegal/semihost-ebreak/FS=off 的 FP/特权 SFENCE-SRET 非法);FP 与 head0 直接条件分支已迁 domain-A 普通 dispatch 不再 stop;MULDIV/BITMANIP/AMO/load/store/fence 均 supported 走正常 OoO dispatch",
+   "evidence": "decode/OooAluDecodeBackend.v:164-172(白名单式 supported);frontend/OooFetchHeadClassifyGate.v:264-277(stop_raw 组成、272-274 FP 迁域注释);include/define.v:574-576(DBRANCH_DOMAIN_A=1)"
+  },
+  {
+   "claim": "FP 独立重命名通道(不复用整数 Map/BusyTable):FP 簇自建 32 项 fp_map_q(恒等复位、walk 恢复、lane1 后写胜)+ 复用 OooFreeList 参数化实例 + 自建 fp_busy_q(alloc 置忙/wakeup 清,查询无 alloc 前视);FPR 目的 uop 在 ROB 以 is_fp_rd 标记,old/new pdest 替换为 FP 侧值",
+   "evidence": "execute/OooFpBackend.v:196-240(fp_map_q),251-273(FP FreeList),279-303(fp_busy_q);rename_allocate/OooDispatchBackend.v:524-528,538-542(ROB old/new mux),638-640,660-662(IQ pdest mux)"
+  }
+ ],
+ "limitations": [
+  {
+   "claim": "FENCE.I 译码后与 FENCE 完全同构(仅置 FENCE/MISC_MEM 位当合法 no-op uop),本子系统内无任何 fence.i 专用后续动作:REDIR_REASON_FENCEI 宏定义后全 vsrc 无消费者(死编码),CTRL_FENCE_BIT 全 vsrc 唯一消费者是前端 UopSafety 的排除项——fence.i 后重取指/icache 失效在源码中无证据",
+   "evidence": "decode/DecodeUnit.v:779-786(同一分支);include/define.v:562(REDIR_REASON_FENCEI,grep 全 vsrc 无引用);frontend/OooFrontendUopSafety.v:35-36(唯一 CTRL_FENCE_BIT 消费)"
+  },
+  {
+   "claim": "未实现的扩展:无 Zicond(czero.eqz/nez 编码 {funct7=0000111,funct3=101/111} 不在 OP 译码表)、无 Zfh/Q(OooFpDecode 仅按 fmt=00/01 分类,fmt=10/11 → illegal)、无 Zbkb/Zbkx 等;misa 层面未在本子系统核验",
+   "evidence": "decode/DecodeUnit.v:538-639(OP 表无 0000111 臂);decode/OooFpDecode.v:61-62(fp_fma_fmt 限 00/01),163-167"
+  },
+  {
+   "claim": "AMO 的 aq/rl 位(inst[26:25])完全不参与译码校验,任意 aq/rl 组合均按同一语义接受——因 AMO 串行执行可能行为无害,但属编码未校验",
+   "evidence": "decode/DecodeUnit.v:391(case inst[31:27],跳过 [26:25])"
+  },
+  {
+   "claim": "Zb 译码存在过宽接受:(1) REV8 除正确的 funct7=0x35 外还接受 0x34+imm5=0x18(RV64 下 0110100_101_11000 非法编码被当 REV8 类放行);(2) OP(0110011) 的 {funct7=0x04,funct3=100,rs2=0} 被接受——RV64 下 zext.h 正确编码在 OP-32,OP 版属 Zbkb PACK 保留域;实际执行结果取决于执行级,与金标准的一致性未在本子系统内验证",
+   "evidence": "decode/DecodeUnit.v:66-67(0x34/0x35 并列),133({7'h04,XOR} rs2==0 于 is_zb_op)"
+  },
+  {
+   "claim": "checkpoint 影子阵列为死逻辑:FreeList/RenameMap/BusyTable 各含全量影子拷贝阵列,但默认 OOO_ROB_WALK_MODE=1 下 cp_capture/restore 被恒 gate 为 0,FP 侧 FreeList 的 checkpoint 口直接接常量 0——三套影子阵列(64×6b+32×6b+64×1b ×2)只耗面积不参与功能",
+   "evidence": "include/define.v:566-569(默认 1);rename_allocate/OooDispatchBackend.v:485-486(cp_*_gated = i && !mode);execute/OooFpBackend.v:258-259(接 1'b0);OooFreeList.v:46-49/OooRenameMap.v:54/OooBusyTable.v:45(影子阵列)"
+  },
+  {
+   "claim": "BusyTable 无 ROB-walk 恢复端口:mode=1 恢复期被 squash 的 preg busy 位不回滚,正确性依赖『回收后再分配必重新置忙』的语义覆盖;且模块头注释自认 FP 交叉 wakeup/ready 的 Verilator UNOPTFLAT 保守判环族『真伪甄别与结构化真修』尚未完成,行为仅由全量测试守护",
+   "evidence": "rename_allocate/OooBusyTable.v:5-8(头注释),13-17(无 walk 端口);rename_allocate/OooDispatchBackend.v:425-451(实例仅接 checkpoint 口)"
+  },
+  {
+   "claim": "FP 物理寄存器 preg0 一次性泄漏:OooFreeList 的 free push 无条件排除 preg0(整数 x0 语义),而 FP 侧 f0 是真寄存器且初始映射 preg0——f0 首次被重命名后 old_pdest=preg0 在提交回收时被丢弃,FP 有效物理寄存器容量实为 63",
+   "evidence": "rename_allocate/OooFreeList.v:84-91(preg0 排除);execute/OooFpBackend.v:227-231(fp_map 恒等复位)+251(复用同模块);regread_bypass/OooFpPhysRegFile.v:4(『无 x0 特判——f0 是真寄存器』)"
+  },
+  {
+   "claim": "CSR 指令硬编码只能从 lane0 dispatch:lane1 的 csr_rdata 输入恒 0,若 CSR 从 lane1 进入将携带错误旧值——正确性完全依赖前端 stop/pending 串行化保证 CSR 不会出现在 lane1",
+   "evidence": "execute/OooExecuteBackend.v:180(dispatch1_csr_rdata_i 接 {XLEN{1'b0}});decode/OooAluDecodeBackend.v:198-199"
+  },
+  {
+   "claim": "死硅/死口(文件均被实例化,无死文件,但存在死端口族):(1) OooDispatchBackend 的 load_branch_fast_* 输出端口族已被 E7 标注死硅,消费端仅 OR 进 unused;(2) OooBusyTable 的 query_raw 口在唯一实例中接常量 0(FP store fs2 ready 实际由 OooFpBackend 自建 busy 数组提供);(3) OooRenameMap 的 debug_map_o 与 rename*_new_pdest_o 回读在实例处 unused;(4) DecodeUnit 的 CTRL_VALID_BIT 恒 1 无信息量",
+   "evidence": "execute/OooIntBackend.v:559(E7 注释),2556(OR 进 unused);rename_allocate/OooDispatchBackend.v:449-450(query_raw 接 0),344,754-760(unused 收集);decode/DecodeUnit.v:162,789(VALID 恒 1)"
+  },
+  {
+   "claim": "DecodeUnit 的 is_zb_op_imm 存在冗余编码臂:funct7 7'h14/7'h24/7'h34+SLL 三臂与 funct6 0x0a/0x12/0x1a 臂完全重叠(funct7 是对应 funct6 的子集),为无害但混淆审计的重复逻辑",
+   "evidence": "decode/DecodeUnit.v:34-43(funct6 臂与 funct7 臂并存)"
+  },
+  {
+   "claim": "OooAluDecodeBackend 头部注释已过时:声称『FP 算术只走 lane0;lane1 仅允许 FP load』,实际代码 lane1 已全 FP 放开——审计时不可信注释",
+   "evidence": "decode/OooAluDecodeBackend.v:206-207(旧注释) vs 305-306(d1_fp_allow_w = d1_is_fp_w)"
+  }
+ ],
+ "cross_module": [
+  "前端复用本子系统译码件:OooFrontend 实例化 6 个 DecodeStage(head0/head1/branch_target_capture/branch_prefetch×3,OooFrontend.v:2167-2222),OooFpDecode 单实例于 OooFetchHeadClassifyGate.v:65,OooRvcDecompressor 双实例于 OooFetchPacketDecode.v:43,48;分类结果以 41 位 OooSlotFacts 总线(common/OooSlotFacts.v)输出给控制面/pending 序列",
+  "dispatch 入口约定:前端经 OooFrontendBackendDispatchMux(frontend/OooFrontendBackendDispatchMux.v:120-143)把 head/pending-system(CSR)/pending-jump/pending-mem/branch-prefetch/direct-jal/direct-ret 多源注入 lane0,CSR 旧值仅随 system_csr_dispatch 有效;dispatch1_optional 由前端 dispatch gate 给出(OooFrontend.v:1682)",
+  "与执行后端:OooDispatchBackend 由 OooIntBackend.v:320 实例化,issue0/1 端口喂执行单元,wb0/1(写回)同时驱动 ROB 完成、BusyTable wakeup、IQ wakeup;branch_resolve_mispredict+rob_idx 回喂 kill(OooIntBackend.v:332-333)",
+  "与 ROB/writeback 子系统:OooRob(writeback 目录)在 OooDispatchBackend.v:504 内实例化,walk0/1 端口(arch_rd/old_pdest/new_pdest/rd_en/is_fp)是误预测恢复数据源;commit0/1 的 old_pdest 是常规 freelist 回收源",
+  "与 FP 簇(execute/OooFpBackend):dispatch*_is_fp_rd/fp_pdest/fp_old_pdest/fp_st_src_* 端口把 FP rename 结果嵌入 ROB/IQ 表项;walk*_fp_* 输出把 squash 的 FP 目的分流给 FP map/freelist 恢复;fp_wake0/1 是整数 IQ 内 FP store 数据源的唤醒通道(OooDispatchBackend.v:98-110,673-676)",
+  "与 memory/LSQ:store(含 FSW/FSD)dispatch 需 SQ 空槽(sq_alloc0/1_ready_i 反压,OooDispatchBackend.v:23-26,277-299);issue_mem_block_i/mem_issue_block 由 memory 子系统限流 mem 通道发射",
+  "与控制面(control/):flush_i(trap/drain 全量恢复)、checkpoint_capture/restore(mode=1 下无效)、recover_gprs(架构 GPR 平铺总线,flush 时重灌物理寄存器堆,OooPhysRegFile.v:105-113);CSR 地址合法性由 OooCsrIllegalProbeGate(控制面)判定,不在译码 ctrl 内",
+  "容量参数契约:全部深度/位宽自 include/define.v 单点定义(PHY=64/ROB=16/IQ=8),NpcCoreTop.v:238-244 起逐层显式透传同名宏,任何子系统改容量只应改宏"
+ ],
+ "open_questions": [
+  "fence.i 之后的 icache/取指一致性由谁维护?本子系统内 FENCE.I 是纯 no-op uop 且 REDIR_REASON_FENCEI 无消费者;需前端/cache 子系统核验 OooFetchPacketCache 是否有别的失效机制,否则自修改代码正确性存疑",
+  "非法指令 trap 的 cause/tval 生成点在控制面(EXC_ILLEGAL_INST 的注入与 mtval 是否写指令码)未在本子系统核验,需控制面审计确认 stop→pending trap 的精确语义",
+  "前端 stop_raw 与 pending 序列(OooStopPendingSequencer/OooPendingDispatchArbiter/OooPendingSystemSequencer)的完整调度协议,以及 pending-mem dispatch(OooFrontendBackendDispatchMux 的 mem_dispatch_valid)覆盖哪些访存(MMIO/uncached?)属前端/控制面/memory 子系统,本审计只见接口",
+  "Zb 过宽接受的两处编码(REV8 的 0x34 变体、OP 域 {0x04,funct3=100,rs2=0})在 difftest 下是否与 NEMU 行为一致(NEMU 是否同样宽接受)未验证,需执行级+difftest 侧确认是否构成真分歧",
+  "OooBusyTable/OooFreeList/OooRenameMap 头注释宣称的 Verilator UNOPTFLAT 跨实例保守判环(FP 交叉 wakeup/ready 菱形)是真组合环还是工具保守误报,需跨 OooIntBackend/OooFpBackend/OooIntIssueQueue 的组合路径审计,不在本子系统单独可判",
+  "ROB-walk 恢复期间 walk 速率 2 条/拍、ROB 最深 16:最坏恢复约 8 拍且 dispatch 全冻结——该窗口与前端 redirect 当拍生效的交互(恢复期新路径指令被 dispatch_freeze 挡住多少拍)对性能的影响需要与前端/ROB 子系统联合量化"
+ ]
+}

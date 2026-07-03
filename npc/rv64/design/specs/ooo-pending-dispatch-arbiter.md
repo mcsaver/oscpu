@@ -1,5 +1,7 @@
 # OoO Pending Dispatch Arbiter Spec
 
+> ⚠️ **状态（2026-07-03 RTL 重读）**：branch/jump capture 全部臂（direct/head0/lane1）被 `!rob_walk_mode_i` 门死（`OOO_ROB_WALK_MODE=1'b1`，`OooPendingDispatchArbiter.v:100-103,160-183`）；mem capture 因 lane1 barrier 条件与 `FACT_MEM` 经 DecodeUnit 单 case 结构严格互斥而恒 0（形式化终裁见 task-run answers.json #5）；lane1 FP capture 在本模块内悬空（`lane1_fp_capture_w` 无输出端口，FP 已迁域 A）；mode=1 下 unsupported 的 arch-trap capture 亦被门控关闭（`:304-323`）——活功能仅剩 system（CSR/ecall/xret/wfi/sfence）/IRQ/trap-exit 的捕获与 clear 优先级网络；拆除计划见 `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述（FP 相关句已按现行 RTL 修正）。
+
 ## 1. 需求
 
 - `OooPendingDispatchArbiter` 承接 `OooAluFetchCore` 中 pending owner
@@ -7,8 +9,8 @@
 - 输入来自当前 fetch packet head、dispatch classification、direct frontend
   flush、branch/jump resolve、CSR trap 和 drain 状态。
 - 输出只包含已有 pending sequencer 消费的事件：
-  branch/jump/memory/FP/system/trap-exit capture 与 clear，以及 trap/exit
-  capture payload。
+  branch/jump/memory/system/trap-exit capture 与 clear，以及 trap/exit
+  capture payload（FP capture 输出已随 pending-FP 拆除移除，仅剩悬空内部 wire）。
 - 本模块不保存状态、不读 GPR/FPR、不访问 CSR、不更新 BPU/RAS/BTB、不发起
   fetch redirect，也不决定最终 commit/trap 输出。
 
@@ -24,13 +26,15 @@
 - `csr_irq_pending` 在 `capture_base` 内优先于 lane0/lane1 指令分类，生成
   system IRQ capture，并清理 stale trap/exit pending。
 - lane0 分类优先级保持旧父模块顺序：
-  fetch fault -> architectural trap -> exit -> FP -> SYSTEM/CSR -> branch
+  fetch fault -> architectural trap -> exit -> SYSTEM/CSR -> branch
   serialized boundary -> jump serialized boundary -> lane1 barrier ->
-  unsupported trap。
-- lane1 barrier 先形成 `lane1_barrier_base`；branch/jump/mem/FP/SYSTEM
+  unsupported trap（lane0 FP 臂已随 FP 迁域 A 删除，head0=FP 与普通
+  ALU 指令同构，不再参与 pending capture/clear 门控）。
+- lane1 barrier 先形成 `lane1_barrier_base`；branch/jump/mem/SYSTEM
   capture 输出必须再由 `head1_facts_i` 对应 bit 分型，不再对所有 owner
   同时拉高 generic capture；具体 lane1 typed capture 和 trap/exit payload 由
-  `OooPendingLane1CaptureGate` 计算，arbiter 只保留全局优先级。
+  `OooPendingLane1CaptureGate` 计算（gate 的 fp_capture 输出在 arbiter 侧悬空），
+  arbiter 只保留全局优先级。
 - trap-exit lane1 capture 保留旧 scrub 语义：任意 lane1 barrier 都会触发
   trap/exit sequencer capture，具体是否留下 exit/arch valid 由 lane1 exit/trap
   facts 决定；这样非 trap/exit owner 仍会清掉 stale trap/exit valid bit。
@@ -49,7 +53,7 @@
 | `direct_frontend_flush && direct branch fire` | direct branch capture，jump/mem/system/trap-exit 清理 |
 | `capture_base && csr_irq_pending` | system IRQ capture，清 stale branch/jump/mem/trap-exit |
 | `capture_base && head0 fetch fault` | trap-exit architectural capture |
-| `capture_base && lane0 arch trap/exit/FP/system/branch/jump` | 对应 pending capture 或 trap capture |
+| `capture_base && lane0 arch trap/exit/system/branch/jump` | 对应 pending capture 或 trap capture |
 | `capture_base && lane1 barrier` | lane1 typed owner capture；trap-exit scrub/capture |
 | `capture_base && unsupported` | illegal-instruction trap capture |
 | resolve/drain/system CSR commit | 对应 pending clear |
@@ -83,12 +87,14 @@
 - 不向 dispatch ready、memory ready、CSR ready 形成新的反向组合环。
 - 下游 payload 寄存器仍属于 `OooPendingBranchSequencer`、
   `OooPendingJumpSequencer`、`OooPendingMemorySequencer`、
-  `OooPendingFpSequencer`、`OooPendingSystemSequencer` 和
-  `OooPendingTrapExitSequencer`。
+  `OooPendingSystemSequencer` 和 `OooPendingTrapExitSequencer`
+  （`OooPendingFpSequencer` 已随 pending-FP 拆除删除；branch/jump/mem
+  三个 sequencer 为死通道驻留，见顶部状态注记）。
 
 ## 3. RTL 映射
 
 - `OooPendingDispatchArbiter.v` 直接编码 2b 的全局组合分类表，并实例化
   `OooPendingLane1CaptureGate` 承接 lane1 局部 facts 分型和 trap/exit payload。
-- `OooAluFetchCore` 保留 pending sequencer 实例、payload mux、CSR/FPR side
+- 上层（历史巨石 `OooAluFetchCore`，现为 `OooControlPlane` wrapper 与
+  `OooCoreTopGlue` 接线）保留 pending sequencer 实例、payload mux、CSR side
   effect、flush/recovery 和 final trap/exit 输出。

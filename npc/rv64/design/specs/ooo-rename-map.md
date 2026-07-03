@@ -5,7 +5,9 @@
 ## 1. 目的与范围
 维护架构寄存器→物理寄存器映射(speculative map)。每拍最多 2 条 uop 同拍重命名:读 src 的当前 phys 映射、
 把 dest 的 arch→new phys 写入映射;返回每条 uop 的 src phys 与被覆盖的 old phys(供 ROB 提交时释放)。
-含 checkpoint/restore(分支投机回滚)。
+误预测恢复走 ROB-walk 反向恢复端口(restore0/1,每拍 2 条,把 squashed uop 的 arch_rd 还原为 old_pdest);
+checkpoint 影子在 `OOO_ROB_WALK_MODE=1` 下 capture/restore 恒被 gate,为死硅(2026-07-03 RTL 重读确认)。
+flush 时恒等复位(map[i]=preg_i)。
 
 ## 2. 同拍双重命名
 - lane0/lane1 同拍:lane1 的 src 若等于 lane0 的 dest(同拍 RAW),src phys 取 lane0 的 new phys(同拍前递);
@@ -16,7 +18,8 @@
 - **RM-I1 同拍前递**:lane1.src == lane0.dest → 用 lane0.new_phys(读到同拍较老 uop 的结果映射)。
 - **RM-I2 同拍 WAW**:lane0/lane1 同 arch dest → 最终映射为 lane1.new_phys。
 - **RM-I3 x0**:arch x0 映射恒为 preg0(不分配/不释放)。
-- **RM-I4 精确恢复**:checkpoint 在分支投机时快照 map;误预测 restore 回滚,保证 redirect 后映射正确。
+- **RM-I4 精确恢复**:误预测由 ROB 反向 walk 逐拍把 squashed uop 的 map[arch_rd] 还原为 old_pdest
+  (walk lane1 程序序更老,同拍 WAW 后写胜→最老映射留存),保证 redirect 后映射正确;flush 则恒等复位。
 
 ## 4. 关键路径
 Vivado OOC:RenameMap 单独仅 1 逻辑级/logic 0.77ns(极浅,健康)。深度在 DispatchBackend 把它与

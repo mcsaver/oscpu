@@ -1,8 +1,19 @@
 # OooFetchRequestMux
 
+> ⚠️ **状态(2026-07-03 RTL 重读)**：模块本体存活（untracked/jump-spec/JAL/RET 臂与顺序臂是
+> 活跃主通路）；return-cont、branch-target-cache、branch-fallthrough、pending-jump、
+> branch-prefetch 各臂（含 normal-branch-resolve / branch-spec-restore 谓词）随 append/
+> pending/prefetch 家族在当前配置（`OOO_ROB_WALK_MODE=1'b1` + `OOO_DBRANCH_DOMAIN_A=1'b1` +
+> `BRANCH_APPEND_DISPATCH_ENABLE=1'b0`）下判死（谓词恒 0）；lane1-ret 与 direct-branch-resolve
+> 两臂**未**恒 0——dispatch 拍快解析源已被 domain-A 压死（`OooIntBackend.v:531-532`），
+> 但 direct branch fire（F2 下 taken/非 dual 拍仍 fire，`OooDirectControlFlowGate.v:55-57`）
+> 撞 issue 同拍同 PC 解析的巧合路径仍结构可达（`OooDirectBranchResolveGate.v:61-64`），
+> 属罕见残活臂；拆除计划见
+> `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述。
+
 ## 需求
 
-`OooFetchRequestMux` 承接 `OooAluFetchCore` 中 fetch request PC 来源选择的纯组合逻辑：
+`OooFetchRequestMux` 承接 `OooFrontend`（原 `OooAluFetchCore`，已重构删除）中 fetch request PC 来源选择的纯组合逻辑：
 
 - 计算顺序 fetch PC：若 outstanding response 本拍返回，则使用 response packet
   next PC；否则使用 `next_fetch_pc_q`。
@@ -18,13 +29,13 @@
 
 - 顺序 PC：`outstanding_valid_i`、`fetch_rsp_fire_i`、
   `fetch_rsp_packet_next_pc_i`、`next_fetch_pc_i`。
-- redirect predicate：direct JAL/return、lane0 branch to lane1 return、
-  pending JALR/no-link commit、direct branch resolve、normal branch resolve、
-  branch speculation restore、untracked branch resolve、branch fallthrough
-  outstanding suppression。
-- redirect target：direct JAL target、direct return target、return continuation、
-  RAS top、branch target cache next PC、fallthrough PC、direct branch resolve
-  target、pending jump target、core branch resolve next PC。
+- redirect predicate：direct JAL/return、direct jump spec（B2 非返回 JALR 投机续取）、
+  lane0 branch to lane1 return、pending JALR/no-link commit、direct branch resolve、
+  normal branch resolve、branch speculation restore、untracked branch resolve、
+  branch fallthrough outstanding suppression。
+- redirect target：direct jump spec target、direct JAL target、direct return target、
+  return continuation、RAS top、branch target cache next PC、fallthrough PC、
+  direct branch resolve target、pending jump target、core branch resolve next PC。
 - lower-priority source：branch prefetch request valid/PC。
 
 输出信号：
@@ -40,7 +51,9 @@
 - Redirect request 优先级高于 branch prefetch，高于顺序取指。
 - Outstanding 未返回且本拍 response 未 fire 时，redirect request valid 必须为假。
 - Branch fallthrough 已有匹配 outstanding 时，redirect request valid 必须为假。
-- Redirect target 优先级保持旧语义：
+- Redirect target 优先级（B2 后现行语义）：
+  untracked branch resolve（后端显式 mispredict 真 target，必须覆盖投机预测）>
+  direct jump spec（非返回 JALR 投机续取）>
   direct JAL > direct return > lane0-branch lane1-return > branch target cache >
   branch fallthrough > direct branch resolve > pending jump > branch speculation
   restore/default core branch resolve。

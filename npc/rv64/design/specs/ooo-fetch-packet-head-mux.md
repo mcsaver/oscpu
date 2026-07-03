@@ -1,8 +1,13 @@
 # OooFetchPacketHeadMux Boundary Spec
 
+> ⚠️ **状态(2026-07-03 RTL 重读)**：bypass 臂为配置性死路——`OOO_ROB_WALK_MODE=1'b1`（默认）
+> 使 `fetch_rsp_dispatch_bypass` 恒 0（`OooFrontendRunGate.v:62-70`，防 bypass-after-kill），
+> `bypass_valid_i` 永不为真，本 mux 实际恒选 FIFO head 臂；拆除计划见
+> `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述。
+
 ## 1. Requirement
 
-`OooAluFetchCore` can consume the current fetch packet from two mutually
+`OooFrontend`（原 `OooAluFetchCore`，已重构删除）can consume the current fetch packet from two mutually
 exclusive front-end sources:
 
 - a just-returned fetch response that is bypassed directly into dispatch;

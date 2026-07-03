@@ -1,8 +1,10 @@
 # OoO Pending Jump Sequencer Spec
 
+> ⚠️ **状态(2026-07-03 RTL 重读)**:已形式化证死——`OOO_ROB_WALK_MODE=1'b1` 下 head0/lane1 capture 均被 `!rob_walk_mode_i` 门死(`OooPendingDispatchArbiter.v:160-183`),`valid_o` 恒 0;连带 JALR-BTB 更新口(依赖 pending_jump_resolve_ready)恒 0、表恒空(`OooPredictorUpdateGate.v:17-19`);JAL/JALR 现走前端直算/RAS 投机 + issue 级解析 + ROB-walk;拆除计划见 `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述。
+
 ## 1. 需求
 
-- `OooPendingJumpSequencer` 承接 `OooAluFetchCore` 中 JAL/JALR pending
+- `OooPendingJumpSequencer` 承接 `OooFrontend` 中 JAL/JALR pending
   jump 单 entry 注册状态。
 - 输入只包含父模块已经仲裁好的 clear/capture/dispatch 事件、head0 jump
   payload、lane1 barrier payload 和 dispatch target；输出
@@ -77,5 +79,5 @@ capture。
 ## 3. RTL 映射
 
 - `OooPendingJumpSequencer.v` 的单个时序块按 2b 优先级编码。
-- `OooAluFetchCore` 继续生成 capture/clear/dispatch 事件，父模块仍持有全局
+- `OooFrontend` 继续生成 capture/clear/dispatch 事件，父模块仍持有全局
   pending owner、trap、redirect、RAS/BTB 和 JALR target 仲裁。

@@ -1,5 +1,7 @@
 # OooPendingLane1CaptureGate Spec
 
+> ⚠️ **状态（2026-07-03 RTL 重读）**：`mem_capture_o` 被形式化证死——barrier 触发条件（fault/exit/system/arch_trap/branch/jalr 残臂）与 `FACT_MEM` 经 DecodeUnit 单 case 结构严格互斥，恒 0（终裁见 task-run answers.json #5）；`fp_capture_o` 在上游 arbiter 内悬空（FP 已迁域 A）；branch/jump capture 下游被 `!rob_walk_mode_i` 门死——活功能仅剩 SYSTEM capture 与 trap/exit scrub/payload 计算；拆除计划见 `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述。
+
 ## 1. 需求
 
 - `OooPendingLane1CaptureGate` 承接 lane1 barrier 之后的局部 owner 分型和
@@ -15,8 +17,9 @@
 
 - 本模块是纯组合 helper，没有 ready/valid、寄存器或复位。
 - `barrier_base_i` 必须由上游 arbiter 已经按全局优先级过滤：无 CSR trap memory、
-  无 direct frontend flush、可运行、有 fetch packet、无 IRQ、无 lane0 fault/trap/exit/FP/
-  SYSTEM/branch/jump owner，并且 lane1 barrier fire。
+  无 direct frontend flush、可运行、有 fetch packet、无 IRQ、无 lane0 fault/trap/exit/
+  SYSTEM/branch/jump owner，并且 lane1 barrier fire（lane0 FP 过滤项已随 FP
+  迁域 A 删除）。
 - typed owner capture 只由 `facts_i` 的 `OOO_SLOT_FACT_BRANCH/JUMP/MEM/
   FP_ENABLED/SYSTEM` 打开。
 - SYSTEM capture 额外要求 `!csr_illegal_i && !ARCH_TRAP`，保持 lane1 CSR illegal

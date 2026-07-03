@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""从 npc-rv64.yml 生成 Linux bring-up 用 DTB 源文件。"""
+"""从平台 yml(npc-rv64.yml / nemu-rv64.yml)生成 Linux bring-up 用 DTB 源文件。
+
+平台 yml 通过顶层 `base:` 键引用共享 SoC 契约(common-rv64.yml),
+本脚本递归加载并深合并:平台文件的同名键覆盖 base,dict 递归合并,
+标量/列表整体替换。"""
 
 from __future__ import annotations
 
@@ -28,9 +32,32 @@ def dts_string_list(values: tuple[str, ...]) -> str:
     return ", ".join(f'"{value}"' for value in values)
 
 
-def load_config(path: Path) -> dict:
+def deep_merge(base: dict, overlay: dict) -> dict:
+    merged = dict(base)
+    for key, value in overlay.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def load_config(path: Path, _seen: frozenset[Path] = frozenset()) -> dict:
+    resolved = path.resolve()
+    if resolved in _seen:
+        raise SystemExit(f"平台配置 base 引用成环：{path}")
     with path.open("r", encoding="utf-8") as fh:
-        return yaml.safe_load(fh)
+        cfg = yaml.safe_load(fh) or {}
+    base_ref = cfg.pop("base", None)
+    if base_ref:
+        base_path = Path(base_ref)
+        if not base_path.is_absolute():
+            # base 相对于当前 yml 所在目录解析，与 --config 的调用目录无关。
+            base_path = path.parent / base_path
+        if not base_path.is_file():
+            raise SystemExit(f"平台配置 base 不存在：{base_path}（由 {path} 引用）")
+        cfg = deep_merge(load_config(base_path, _seen | {resolved}), cfg)
+    return cfg
 
 
 def initrd_cells(cfg: dict, mode: str, initrd_image: str | None) -> tuple[str, str] | None:

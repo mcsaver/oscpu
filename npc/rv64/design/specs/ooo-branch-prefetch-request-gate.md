@@ -1,12 +1,10 @@
 # OooBranchPrefetchRequestGate
 
-> ⚠ **待校正（非过时归档）**：模块仍在用，但本 spec 的「非职责」节漏列了已新增的 `req_ready_i`
-> 输入与 `req_fire_o = req_valid_o && req_ready_i` 输出（见 `../../vsrc/frontend/OooBranchPrefetchRequestGate.v:22,27,53`）。
-> 以 RTL 为准；待补一节握手描述。
+> ⚠️ **状态(2026-07-03 RTL 重读)**:活文件中的死通道——`OOO_ROB_WALK_MODE=1` 下 `branch_req_valid_o` 需 pending_branch(恒 0)、`jalr_req_valid_o` 需 jalr_btb_hit(JALR-BTB 表恒空恒 miss),`req_valid_o`/`req_fire_o` 恒 0(`OooBranchPrefetchRequestGate.v:40-52`);拆除计划见 `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述。
 
 ## 需求
 
-`OooBranchPrefetchRequestGate` 承接 `OooAluFetchCore` 中 branch/JALR prefetch
+`OooBranchPrefetchRequestGate` 承接 `OooFrontend` 中 branch/JALR prefetch
 request 的纯组合生成：
 
 - 判断 pending branch 是否可以发起 speculative prefetch。
@@ -29,12 +27,14 @@ outstanding/discard 时序、prefetch buffer 状态和 fetch request ready-valid
 - Shared blockers：`branch_prefetch_active_i`、`outstanding_valid_i`、
   `discard_fetch_rsp_i`、`branch_spec_checkpoint_pending_i`、
   `branch_spec_active_i`、`halted_i`、`trap_valid_i`、`exit_valid_i`。
+- Handshake：`req_ready_i`，父模块 fetch request 仲裁给出的接受就绪。
 
 输出信号：
 
 - `branch_req_valid_o` 表示 pending branch prefetch request 可发起。
 - `jalr_req_valid_o` 表示 JALR BTB prefetch request 可发起。
 - `req_valid_o = branch_req_valid_o || jalr_req_valid_o`。
+- `req_fire_o = req_valid_o && req_ready_i`。
 - `req_pc_o` 在 JALR request valid 时选择 `jalr_btb_target_i`，否则选择
   `branch_pred_pc_i`，保持旧逻辑中 JALR 对 PC mux 的优先级。
 
@@ -49,7 +49,8 @@ outstanding/discard 时序、prefetch buffer 状态和 fetch request ready-valid
 
 ## 非职责
 
-- 不产生 `req_fire`，不查看 `fetch_req_ready_i`。
+- 不做 fetch request 仲裁；`req_fire_o` 只是 `req_valid_o && req_ready_i` 的
+  组合结果，ready 的来源与优先级仍由父模块持有。
 - 不更新 branch prefetch buffer。
 - 不比较 branch resolve PC，不执行 BTB lookup。
 - 不解释 JALR return hint、RAS、BHT 或 instruction opcode。

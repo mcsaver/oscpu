@@ -3,7 +3,8 @@
 ## Scope
 
 `OooCsrAccessRequestMux` owns the pure combinational selection of the CSR access
-request sent to `CsrFile` from `OooAluFetchCore`.
+request sent to `CsrFile` from the control plane (`control/OooControlPlane`,
+historically `OooAluFetchCore`).
 
 It does not own CSR state, CSR legality, CSR write side effects, trap entry,
 return side effects, redirect, pending-owner state, or final terminal output.
@@ -28,7 +29,7 @@ return side effects, redirect, pending-owner state, or final terminal output.
 
 - The module is purely combinational and contains no state.
 - It preserves old parent-observable wire names when instantiated in
-  `OooAluFetchCore`, especially `pending_system_csr_commit_w`.
+  `OooControlPlane`, especially `pending_system_csr_commit_w`.
 - It never asserts CSR commit by looking only at pending state; the matching
   commit0 CSR PC must also be present.
 - Inactive payloads follow the old parent mux defaults and are not architectural.

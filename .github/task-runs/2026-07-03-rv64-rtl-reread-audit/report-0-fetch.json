@@ -1,0 +1,257 @@
+{
+ "capabilities": [
+  {
+   "claim": "双发射前端:每拍最多向后端派发 2 条 uop(lane0 主通道恒在,lane1 仅在 head1 '平凡可双发'或特定 append 场景下有效;solo 分支/非返回 JALR 拍 lane1 被 squash)",
+   "evidence": "vsrc/frontend/OooFrontendBackendDispatchMux.v:90-106, vsrc/frontend/OooFrontendDispatchGate.v:61-138, vsrc/frontend/OooFrontend.v:1898-1900"
+  },
+  {
+   "claim": "fetch packet = 从精确 PC 起的 8 字节窗口(pc..pc+7),解码为恰好 2 条指令槽,每槽带 2-bit resp;packet_next_pc 精确等于第 2 条指令末尾(pc+4/6/8,RVC 依长度),窗口尾部多余字节丢弃、下一包从 packet_next_pc 重新取",
+   "evidence": "vsrc/frontend/OooFetchAxiBridge.v:199, vsrc/frontend/OooFetchPacketDecode.v:27-75"
+  },
+  {
+   "claim": "RVC(C 扩展)全量支持:2 个纯组合 OooRvcDecompressor 实例把 16-bit 半字解压为 32-bit(覆盖 C0/C1/C2 象限,含 C.FLD/C.FSD/C.FLDSP/C.FSDSP、C.JR/C.JALR/C.MV/C.ADD/C.EBREAK);slot0 由 inst0[1:0]!=11 判压缩,slot1 按 slot0 长度从 half1 或 half2 取;非法 RVC 编码解压为 0 → 下游按 illegal 处理",
+   "evidence": "vsrc/frontend/OooFetchPacketDecode.v:27-51, vsrc/decode/OooRvcDecompressor.v:248-477"
+  },
+  {
+   "claim": "指令永不跨 packet 边界:每次取指请求都以任意 2 字节对齐 PC 为起点取 8 字节(AXI araddr 直接用 pc/paddr),故 RVC 造成的'半条指令跨行'不存在;跨 4KB 页的包由桥内两次 AXI 读 + merge_cross_page_packet 按字节拼接,两页独立翻译、独立 fault 标注(首条指令跨页时 resp0 继承第二页 fault)",
+   "evidence": "vsrc/frontend/OooFetchAxiBridge.v:180-196, vsrc/frontend/OooFetchAxiBridge.v:433-437, vsrc/frontend/OooFetchAxiBridge.v:648-677"
+  },
+  {
+   "claim": "取指侧完整 Sv39 虚实转换:ITLB(OooSv39Tlb, 64 项直接映射,index=vaddr[17:12],PTE+level 存储支持 1G/2M/4K 超页 tag 匹配,整 satp 值作上下文 tag)+ 桥内硬件 3 级页表 walker(S_WALK_AR/S_WALK_R 状态经 IFU AXI 逐级读 PTE);检查 canonical 地址、PTE 保留位(含 Svpbmt)、超页对齐、X/U 权限、A 位",
+   "evidence": "vsrc/frontend/OooFetchAxiBridge.v:47-48, vsrc/frontend/OooFetchAxiBridge.v:336-354, vsrc/frontend/OooFetchAxiBridge.v:73-162, vsrc/memory/OooSv39Tlb.v:3-5"
+  },
+  {
+   "claim": "PMP 全覆盖取指:5 个 PmpChecker 实例分别查两槽物理地址(请求拍)、walk leaf 两槽、以及各级 PTE 隐式读(F9);PTE 读 PMP 违例报 access fault;命中包 cache 时仍每拍复检当前 pmpcfg 放行,而非禁用 cache",
+   "evidence": "vsrc/frontend/OooFetchAxiBridge.v:356-418, vsrc/frontend/OooFetchAxiBridge.v:536-544, vsrc/frontend/OooFetchAxiBridge.v:210-221"
+  },
+  {
+   "claim": "取指异常按槽标记与传递:resp 编码 2'b00=OK/2'b01=access fault/2'b10=page fault,随包进 FIFO 到 head;head0 fault → head_fetch_fault0 → arch_trap(不解码、stop);head1 fault 仅在 head0 非 branch/jump/stop 时可见,走 lane1 barrier→pending 捕获;cause 由 control 侧映射(resp==2'b10→EXC_INST_PAGE_FAULT(12),否则 EXC_INST_ACCESS_FAULT(1))",
+   "evidence": "vsrc/frontend/OooFetchAxiBridge.v:44-46, vsrc/frontend/OooFetchHeadPairGate.v:126-131, vsrc/frontend/OooFetchHeadPairGate.v:184-194, vsrc/frontend/OooFetchHeadClassifyGate.v:129-137, vsrc/control/OooPendingDispatchArbiter.v:326-327"
+  },
+  {
+   "claim": "取指包 cache:4096 项直接映射、index=pc[12:1](半字粒度支持 RVC 对齐)、全 64-bit PC tag + 执行上下文 tag(paging/priv/satp),命中时 S_RESP→S_RESP 背靠背 1 包/拍(峰值 2 条/拍);只缓存两槽 resp 全 OK 且不跨页的包;mmu_flush 全清",
+   "evidence": "vsrc/cache/OooFetchPacketCache.v:36-44, vsrc/cache/OooFetchPacketCache.v:69, vsrc/cache/OooFetchPacketCache.v:130-139, vsrc/frontend/OooFetchAxiBridge.v:279-296, vsrc/frontend/OooFetchAxiBridge.v:421-422, vsrc/frontend/OooFetchAxiBridge.v:697-702"
+  },
+  {
+   "claim": "自修改代码一致性:每次 store fire(mem0 写)向取指 cache 发失效,cache 组合计算 5 个相邻 index(base-3..base+1)上与 store 4 字节窗口重叠的包并失效,同拍 lookup/fill 也被同窗口失效判定拦截",
+   "evidence": "vsrc/core/NpcCoreTop.v:160-162, vsrc/cache/OooFetchPacketCache.v:57-128"
+  },
+  {
+   "claim": "flush/redirect 恢复为多源分级:trap(csr_trap_mem_valid)→FIFO clear+outstanding 清零+next_fetch_pc=trap_target;前端自身控制流 fire(jal/ret/taken-branch/JALR 投机)→direct_frontend_flush(FIFO clear 或 seed fallthrough 包)+discard 在途响应;后端 resolve(mispredict/untracked/spec restore)→redirect mux 重取,优先级 untracked resolve > jump_spec > jal > ret > branch 各臂 > 顺序;prefetch buffer 命中时 resolve 拍直接 seed 目标包免重取",
+   "evidence": "vsrc/frontend/OooFetchPcOutstandingSequencer.v:111-270, vsrc/frontend/OooFetchPacketSeedMux.v:104-189, vsrc/frontend/OooFetchRequestMux.v:47-87, vsrc/frontend/OooFrontendActionGate.v:45-51"
+  },
+  {
+   "claim": "F2 pred_npc 单源机制:dispatch 每 uop 携带 pred_npc/bht_idx/pred_taken 载荷,direct fire 拍的实际重取目标(direct_fire_succ_w)与 next_fetch 更新共享同一 wire;顺序流 pred_npc=下一 FIFO 包 pc0(count>=2)或 64'h1 哨兵(count<2,恒判 mispredict 兜底)",
+   "evidence": "vsrc/frontend/OooFrontend.v:1868-1907, vsrc/frontend/OooFrontendBackendDispatchMux.v:171-186, vsrc/frontend/OooFetchPcOutstandingSequencer.v:27-29"
+  },
+  {
+   "claim": "前端快速控制流:direct JAL(目标立即重取+可选 RAS push)、direct RET(RAS top 投机)、taken-branch fire、非返回 JALR 投机续取(RAS ret-hint > JALR-BTB > fallthrough 三级预测);另有 branch/jalr prefetch buffer 在 pending 未决期间预取预测目标包",
+   "evidence": "vsrc/frontend/OooFrontend.v:1418-1439, vsrc/frontend/OooFrontend.v:908-949, vsrc/frontend/OooFrontend.v:1709-1737, vsrc/frontend/OooFetchRequestMux.v:66-82"
+  },
+  {
+   "claim": "head 双槽组合分类:每槽 41-bit facts(branch/jal/jalr/mem/FP 细分类/ecall/ebreak/semihost/csr/xret/wfi/sfence/priv-illegal/arch_trap/stop),含特权检查(sfence@U、TVM@S、TSR@S 判 illegal)与 mstatus.FS=off 的 FP disabled→arch_trap",
+   "evidence": "vsrc/frontend/OooFetchHeadClassifyGate.v:88-137, vsrc/common/OooSlotFacts.v:47, vsrc/frontend/OooFetchHeadPairGate.v:126-194"
+  }
+ ],
+ "cross_module": [
+  "取指存储接口:OooFrontend 的 fetch_req_valid/pc + fetch_rsp_{inst0,resp0,inst1,resp1} 与 OooFetchAxiBridge 在 NpcCoreTop 层对接(vsrc/core/NpcCoreTop.v:163-186);resp 语义 2bit{00=OK,01=access fault,10=page fault}(vsrc/frontend/OooFetchAxiBridge.v:44-46)是取指异常跨子系统的唯一编码",
+  "dispatch 契约:core_dispatch0/1_{valid,pc,next_pc,inst,pred_npc,bht_idx,pred_taken,csr_rdata} 输出到 rename/dispatch 后端,dispatch0/1_ready_w 反压回前端(vsrc/frontend/OooFrontend.v:152-169, vsrc/frontend/OooFrontendBackendDispatchMux.v:73-88);后端须原样透传 bht_idx/pred_taken/pred_npc 至 resolve 拍",
+  "resolve 回传总线:core_branch_resolve_{valid,pc,next_pc,mispredict,taken,pred_taken,bht_idx,is_branch,misaligned} 由后端执行域回前端,用于 BPU 回训(OooBranchBpuUpdateGate resolve_update 臂)与 redirect(vsrc/frontend/OooFrontend.v:13-22, vsrc/frontend/OooFrontend.v:1940-1945)",
+  "mmu_flush 契约:由 memory 子系统 OooMemoryAccess 输出(vsrc/memory/OooMemoryAccess.v:103,sfence/satp 提交驱动),前端消费为:清 ITLB+清取指包 cache+复位取指 FSM(vsrc/frontend/OooFetchAxiBridge.v:441-442)+abort 在途 IFU AXI(vsrc/core/NpcCoreTop.v:410)",
+  "icache 失效契约:mem0 store fire(valid&&ready&&write)即发 invalidate_valid/addr(vsrc/core/NpcCoreTop.v:159-162);双发 load 第二端口(mem1)已死硅删除,失效只依赖 mem0",
+  "CSR/trap 上下文:priv_mode/satp/mstatus/svpbmt/pmpcfg/pmpaddr 由 CSR 供给翻译与权限(vsrc/core/NpcCoreTop.v:168-172);csr_trap_target/csr_ret_target/csr_trap_{mem,ex,irq}_valid 驱动前端重定向与取指请求封锁(vsrc/frontend/OooFetchPcOutstandingSequencer.v:211-270, vsrc/frontend/OooFrontendActionGate.v:80-85)",
+  "取指 fault cause 映射不在前端:head_resp==2'b10→EXC_INST_PAGE_FAULT 否则 EXC_INST_ACCESS_FAULT,由 control 子系统完成(vsrc/control/OooPendingDispatchArbiter.v:326-327, vsrc/control/OooPendingLane1CaptureGate.v:66-67)",
+  "pending 家族(branch/jump/mem/system)双向协议:前端 OooPendingBranchSequencer/OooPendingJumpSequencer 持内容寄存器,capture/clear/commit_resolve 谓词由 control 子系统供给(vsrc/frontend/OooFrontend.v:70-97, vsrc/frontend/OooFrontend.v:2073-2164)",
+  "IRQ 注入协议:csr_irq_pending 直接封死前端 dispatch_valid,由 control 走 pending-system 通道注入(vsrc/frontend/OooFetchHeadPairGate.v:260-262)",
+  "AXI 读通道假设:ifu_axi_araddr 直接用 2 字节对齐 PC/物理地址发 8 字节读,期望 rdata 返回 addr..addr+7 的字节(vsrc/frontend/OooFetchAxiBridge.v:264-268, 433-437)——总线/仿真 slave 必须支持非 8 字节对齐读"
+ ],
+ "limitations": [
+  {
+   "claim": "单 outstanding 取指请求:同一时刻最多 1 个在途 fetch(can_issue_request 要求 !outstanding_valid || fetch_rsp_fire;OutstandingSequencer 只有一套 outstanding_pc/valid 寄存器),miss/页表 walk 期间取指完全串行,无非阻塞/多路 outstanding",
+   "evidence": "vsrc/frontend/OooFetchFlowControl.v:67-72, vsrc/frontend/OooFetchPcOutstandingSequencer.v:79-82"
+  },
+  {
+   "claim": "取指宽度硬上限 2 条/包:8 字节窗口即使全 RVC(可容 4 条)也只解码 2 条,窗口尾部字节丢弃、下一包重新经完整请求通道取回;RVC 密集代码有效取指带宽 4-6 字节/包",
+   "evidence": "vsrc/frontend/OooFetchPacketDecode.v:27-75"
+  },
+  {
+   "claim": "FIFO count<2 时 pred_npc 用 64'h1 非法哨兵 → 该拍派发的分支恒判 mispredict、恒走 redirect(功能安全但性能损失);代码注释自认是 F2 遗留缺口(count==0 bypass 场景的正解未实装)",
+   "evidence": "vsrc/frontend/OooFrontend.v:1849-1870"
+  },
+  {
+   "claim": "配置性死路①:OOO_ROB_WALK_MODE=1'b1(默认)使 fetch_rsp_dispatch_bypass 恒 0,响应直通 dispatch 通路(OooFetchPacketHeadMux 的 bypass 臂、fetch_rsp_bypass_consumed)在当前配置下永不选通,逻辑存在但被编译期常量禁用",
+   "evidence": "vsrc/frontend/OooFrontendRunGate.v:62-70, vsrc/include/define.v:567-568, vsrc/frontend/OooFetchPacketHeadMux.v:41-53"
+  },
+  {
+   "claim": "配置性死路②:OOO_DBRANCH_DOMAIN_A=1'b1(默认)使 direct_branch0_dispatch_valid 恒 0、stop_head 的 head0-branch 臂关闭——head0 条件分支的 direct-fire 前端解析通路(OooDirectBranchResolveGate 的 branch0 臂、OooDirectBranchWaitBuffer 部分场景)只剩 head1/lane1 分支路径在用",
+   "evidence": "vsrc/frontend/OooFetchHeadPairGate.v:281-284, vsrc/frontend/OooFrontendActionGate.v:61, vsrc/include/define.v:574-575"
+  },
+  {
+   "claim": "取指包 cache 是 VIVT+上下文标签结构,每项存完整 64-bit PC tag + 64-bit satp + 2-bit priv + paging 位,4096 项 tag 开销巨大(≈68KB tag vs 34KB 数据);直接映射无任何替换策略(fill 直接覆盖),无 LRU/伪随机",
+   "evidence": "vsrc/cache/OooFetchPacketCache.v:36-44, vsrc/cache/OooFetchPacketCache.v:145-165"
+  },
+  {
+   "claim": "跨 4KB 页的取指包永不缓存(fill 条件含 !packet_cross_page_q),每次命中该 PC 都重走两页翻译+两次 AXI 读;注释说明这是为堵 PMP allow→deny 复检漏洞的刻意取舍",
+   "evidence": "vsrc/frontend/OooFetchAxiBridge.v:279-296"
+  },
+  {
+   "claim": "不做硬件 A 位更新:取指命中 A=0 的页直接 page fault(exec_permission_fault 要求 pte[6]),依赖软件处理;ITLB 也只缓存 A=1 的 PTE",
+   "evidence": "vsrc/frontend/OooFetchAxiBridge.v:153-162, vsrc/frontend/OooFetchAxiBridge.v:271-278"
+  },
+  {
+   "claim": "ITLB 仅 64 项直接映射、无 ASID 语义:tag 用整个 satp 值逐位比较(不同 ASID 恒不同 tag,保守正确但 ASID 切换无共享),且任何 mmu_flush 全清(sfence.vma 无按页/按 ASID 精细失效)",
+   "evidence": "vsrc/memory/OooSv39Tlb.v:3-30, vsrc/frontend/OooFetchAxiBridge.v:336-341"
+  },
+  {
+   "claim": "store 失效窗口按 4 字节 store span 假设:same_fetch_window 用 (store_addr&~3)..+3 与包窗口求交,8 字节 store(sd)的高 4 字节所覆盖的包起点(addr+4 起)不在判定窗口内,是否遗漏失效取决于 memory 侧是否以 dword 粒度单地址发起失效——前端侧无法自证闭合",
+   "evidence": "vsrc/cache/OooFetchPacketCache.v:57-67, vsrc/core/NpcCoreTop.v:159-162"
+  },
+  {
+   "claim": "任务清单中的 OooFetchTrapGate 不存在(frontend/ 目录无此文件);取指 fault 的 trap 化完全由 head classify 的 arch_trap/stop facts + control 子系统完成",
+   "evidence": "vsrc/frontend/OooFetchHeadClassifyGate.v:129-137"
+  },
+  {
+   "claim": "head1 取指 fault 的可见性被 head0 类型门控(head0 为 branch/jump/stop 时 fault1 不标注),依赖控制流重定向天然丢弃 slot1;dbranch_dual_go 也显式排除 fault1,路径闭合但语义分散在 3 个模块",
+   "evidence": "vsrc/frontend/OooFetchHeadPairGate.v:184-194, vsrc/frontend/OooFrontendDispatchGate.v:61-69"
+  },
+  {
+   "claim": "前端存在大量 *_unused_w 导出端口(如 branch_prefetch0/1 的 rd/rs1/rs2/imm、branch_target_capture 的寄存器索引、fetch_cache_context_hit、pending_jump_jalr_sum_lsb),为保持 lint 干净而导出但无消费者——结构冗余非死文件",
+   "evidence": "vsrc/frontend/OooFrontend.v:119-132, vsrc/frontend/OooFrontend.v:2376-2380, vsrc/frontend/OooFetchAxiBridge.v:222"
+  },
+  {
+   "claim": "取指请求发出即翻译(请求拍组合查 ITLB/PMP/packet-cache),PC 未对齐 4 字节也直接作 AXI araddr;不支持突发(每包 1-2 个单 beat 读),miss 时每包至少 3 拍(AR0/R0/RESP),walk 每级再加 2 拍",
+   "evidence": "vsrc/frontend/OooFetchAxiBridge.v:236-247, vsrc/frontend/OooFetchAxiBridge.v:429-439, vsrc/frontend/OooFetchAxiBridge.v:466-531"
+  }
+ ],
+ "modules": [
+  {
+   "file": "vsrc/frontend/OooFrontend.v",
+   "purpose": "前端子系统结构 wrapper:聚合取指/FIFO/head 分类/dispatch mux/BPU/RAS/BTB/prefetch/pending 序列器等约 55 个实例,并构造 F2 pred_npc 单源 wire(direct_fire_succ_w/head_pred_succ_w)",
+   "key_params": "FETCH_PACKET_COUNT_W=2(FIFO 4 包), ROB_COUNT_W=5, BRANCH_TARGET_CACHE_INDEX_W=4(16 项), ENABLE_DIRECT_RAS_RET=1;2382 行",
+   "instantiated_by": "core/OooCoreTopGlue.v:1041 (u_frontend)"
+  },
+  {
+   "file": "vsrc/frontend/OooFetchAxiBridge.v",
+   "purpose": "取指存储桥:8 状态 FSM(IDLE/WALK_AR/WALK_R/AR0/R0/AR1/R1/RESP)完成 Sv39 翻译(内置 3 级 walker)+PMP 检查+取指包 cache/ITLB 查询/填充+跨页包两次读拼接,输出 2 槽指令+2bit resp",
+   "key_params": "包=8B(pc..pc+7)/2 槽;CACHE_INDEX_W=12(4096 项包 cache), ITLB_INDEX_W=6(64 项);resp{00 OK,01 AF,10 PF};5 个 PmpChecker;跨页包不缓存",
+   "instantiated_by": "core/NpcCoreTop.v:163 (u_ooo_fetch_bridge)"
+  },
+  {
+   "file": "vsrc/cache/OooFetchPacketCache.v",
+   "purpose": "取指包 cache:直接映射、以 pc[INDEX_W:1] 半字粒度索引、全 PC+执行上下文(paging/priv/satp) tag,存 2×inst+2×resp;store 失效检查 5 个相邻 index 的 4B 窗口重叠",
+   "key_params": "INDEX_W=12→4096 项(实例化传参);每项 2×32b inst+2×2b resp+64b pc tag+64b satp+2b priv+1b paging;直接映射覆盖写、无替换算法;clear_i=mmu_flush 全清",
+   "instantiated_by": "frontend/OooFetchAxiBridge.v:307 (u_fetch_packet_cache)"
+  },
+  {
+   "file": "vsrc/decode/OooRvcDecompressor.v",
+   "purpose": "RVC 解压器:纯组合把 16-bit 压缩指令展开为 32-bit 标准编码(RV64C 全象限,含 FP 双精 C.FLD/C.FSD 系列;非法编码输出 0)",
+   "key_params": "16b 入/32b 出;C0/C1/C2 三象限完整 case 表;无状态",
+   "instantiated_by": "frontend/OooFetchPacketDecode.v:43,48 (u_dec0/u_dec1_rvc_decompressor,2 实例)"
+  },
+  {
+   "file": "vsrc/frontend/OooFetchPacketDecode.v",
+   "purpose": "取指响应组合解码:把 8B 响应切成 2 条指令槽(RVC 感知的 half0/half1/half2 选择),生成每槽 pc/next_pc/resp/control_stop 与 packet_next_pc",
+   "key_params": "2 槽/包;槽长 2 或 4B;control_stop=resp!=OK 或 opcode∈{BRANCH,JAL,JALR,SYSTEM}",
+   "instantiated_by": "frontend/OooFrontend.v:973 (u_fetch_packet_decode)"
+  },
+  {
+   "file": "vsrc/frontend/OooFetchPacketFifo.v",
+   "purpose": "fetch packet FIFO 存储原语:环形队列,支持 enqueue/pop/clear/seed(seed=清空后单包重灌),导出 head 与 head+1 的 pc0(pred_npc 用)",
+   "key_params": "深度 4 包(FETCH_PACKET_COUNT_W=2);每项 5×64b PC+2×32b inst+2×2b resp;单进单出;count 3bit",
+   "instantiated_by": "frontend/OooFrontend.v:1807 (u_fetch_packet_fifo)"
+  },
+  {
+   "file": "vsrc/frontend/OooFetchFlowControl.v",
+   "purpose": "取指 ready/valid 组合策略:rsp 的 enqueue/bypass/drop 分流、req 发起许可(can_issue_request)、FIFO 预留判定;强制单 outstanding",
+   "key_params": "单 outstanding(!outstanding||rsp_fire);bypass 被 OOO_ROB_WALK_MODE 禁用;fifo_reserve=(count+outstanding)<4",
+   "instantiated_by": "frontend/OooFrontend.v:1291 (u_fetch_flow_control)"
+  },
+  {
+   "file": "vsrc/frontend/OooFetchPcOutstandingSequencer.v",
+   "purpose": "取指 PC 权威时序 owner:next_fetch_pc/outstanding_pc/outstanding_valid/discard_fetch_rsp 四寄存器,承接 trap/direct flush/spec restore/pending 各族重定向的优先级覆盖链",
+   "key_params": "1 个 outstanding 槽;优先级(低→高):顺序更新→direct flush→spec restore→pending branch/jump/system→drain→untracked→csr_trap;reset_pc 入参",
+   "instantiated_by": "frontend/OooFrontend.v:2267 (u_fetch_pc_outstanding)"
+  },
+  {
+   "file": "vsrc/frontend/OooFetchRequestMux.v",
+   "purpose": "取指请求 PC 组合仲裁:redirect(untracked>jalr-spec>jal>ret>lane1-ret>target-cache>fallthrough>direct-resolve>pending-jump>spec) > branch prefetch > 顺序 PC",
+   "key_params": "3 层优先级、redirect 臂内 11 个源;redirect 需 (!outstanding||rsp_fire) 才可发",
+   "instantiated_by": "frontend/OooFrontend.v:1207 (u_fetch_request_mux)"
+  },
+  {
+   "file": "vsrc/frontend/OooFetchPacketHeadMux.v",
+   "purpose": "head 包选择:响应 bypass(当前配置恒禁用)vs FIFO head 的 9 字段组合 mux",
+   "key_params": "纯组合 2 选 1;bypass 臂因 OOO_ROB_WALK_MODE=1 死路",
+   "instantiated_by": "frontend/OooFrontend.v:993 (u_fetch_packet_head_mux)"
+  },
+  {
+   "file": "vsrc/frontend/OooFetchPacketHitMux.v",
+   "purpose": "prefetch 命中包选择:同拍响应捕获 vs 已缓存 buffer 的 9 字段组合 mux(branch/jalr prefetch 各一实例)",
+   "key_params": "纯组合 2 选 1;2 个实例",
+   "instantiated_by": "frontend/OooFrontend.v:1124 (u_branch_prefetch_hit_mux), frontend/OooFrontend.v:1387 (u_jalr_prefetch_hit_mux)"
+  },
+  {
+   "file": "vsrc/frontend/OooFetchPacketSeedMux.v",
+   "purpose": "redirect/recovery 事件→FIFO clear/seed 动作编码:trap/direct flush(fallthrough 捕获可 seed)/spec restore/pending branch(prefetch 命中可 seed)/pending jump(jalr prefetch 命中可 seed)/drain 各臂",
+   "key_params": "优先级 if-else 链约 12 臂;seed=清空后灌 1 包",
+   "instantiated_by": "frontend/OooFrontend.v:1740 (u_fetch_packet_seed_mux)"
+  },
+  {
+   "file": "vsrc/frontend/OooFetchHeadClassifyGate.v",
+   "purpose": "单槽 head 分类:由 ctrl 总线+inst 生成 41-bit facts(branch/jump/mem/FP 细分/system/semihost/priv-illegal/arch_trap/stop),fetch fault 时不解码直接 arch_trap",
+   "key_params": "OOO_SLOT_FACTS_W=41;SEMIHOST 指令对 32'h01f01013/32'h40705013;含 TVM/TSR/U-sfence 特权检查与 FS=off 判定",
+   "instantiated_by": "frontend/OooFetchHeadPairGate.v:131,196 (head0/head1 两实例)"
+  },
+  {
+   "file": "vsrc/frontend/OooFetchHeadPairGate.v",
+   "purpose": "双槽 head 组合 owner:fault0/fault1 可见性门控(fault1 仅当 head0 非 branch/jump/stop)、双槽分类实例、dispatch_valid 与 lane0 dispatch facts、branch_spec_dispatch_block",
+   "key_params": "2 槽;dispatch_valid=has_packet&&can_run&&!irq&&!fault0&&!spec_block;direct_branch0_dispatch 被 OOO_DBRANCH_DOMAIN_A=1 恒关",
+   "instantiated_by": "frontend/OooFrontend.v:626 (u_fetch_head_pair_gate)"
+  },
+  {
+   "file": "vsrc/frontend/OooFrontendActionGate.v",
+   "purpose": "前端动作谓词:direct_frontend_flush(6 个 direct fire 源之或)、stop_head、fifo_pop(4 源)、fetch_rsp_control_stop、trap 期取指请求封锁",
+   "key_params": "纯组合;fifo_pop=dispatch_fire|dbranch_fire|barrier_fire|jal0_fire",
+   "instantiated_by": "frontend/OooFrontend.v:1249 (u_frontend_action_gate)"
+  },
+  {
+   "file": "vsrc/frontend/OooFrontendBackendDispatchMux.v",
+   "purpose": "派发载荷终级 mux:lane0 六源(prefetch-buffer/prefetch-rsp/pending-system/pending-jump/pending-mem/head0)、lane1 五源;生成 core_dispatch0/1_valid/fire 与 pred_npc 载荷",
+   "key_params": "2 lanes;lane1 在 dispatch1_squash(solo 分支/非返回 JALR)拍强制无效;pred_npc 三臂:ctrlflow-fired→direct_fire_succ / d1-present→d1.pc / 顺序→head_pred_succ",
+   "instantiated_by": "frontend/OooFrontend.v:1987 (u_frontend_backend_dispatch_mux)"
+  },
+  {
+   "file": "vsrc/frontend/OooFrontendDispatchGate.v",
+   "purpose": "双发资格与 fire 谓词:dbranch_dual_go(not-taken 分支+平凡 head1 原子双发)、lane1 direct-jal/return/branch 资格、barrier 判定、dispatch_fire(需 dispatch0&&1 ready)、direct jal/ret/branch fire",
+   "key_params": "dual 需双 ready;OOO_ROB_WALK_MODE=1 启用非返回 JALR de-pend 双发;OOO_DBRANCH_DOMAIN_A=1 分支走普通 dispatch",
+   "instantiated_by": "frontend/OooFrontend.v:789 (u_frontend_dispatch_gate)"
+  },
+  {
+   "file": "vsrc/frontend/OooFrontendRunGate.v",
+   "purpose": "run/credit 门:can_run(排除 trap/serial flush/stop_pending/halt/exit)、orphan_stop 检测、fifo 预留计算、响应直通 bypass 许可(当前配置恒禁)",
+   "key_params": "stop_pending owner 10 源;fetch_rsp_dispatch_bypass 含 !(OOO_ROB_WALK_MODE) 恒 0",
+   "instantiated_by": "frontend/OooFrontend.v:590 (u_frontend_run_gate)"
+  },
+  {
+   "file": "vsrc/frontend/OooFrontendUopSafety.v",
+   "purpose": "参数化 uop 白名单:判定某槽指令是否可走前端快速路径(排除控制流/系统/CSR/fence,按参数放行 load/store/muldiv/bitmanip/sfence/sret/amo,选配 resp-OK/semihost/rd-hazard 检查)",
+   "key_params": "10 个 parameter 开关;8 个实例各异配置(lane0-before-ret 查 rd hazard、fallthrough/target-capture 要求 resp OK 等)",
+   "instantiated_by": "frontend/OooFrontend.v:768,887,952,1027,1461,1482,1503,1524 (8 实例)"
+  },
+  {
+   "file": "vsrc/frontend/OooFetchTrapGate(不存在)",
+   "purpose": "任务清单标注'若存在'——已确认 frontend/ 目录无此文件,取指 trap 化由 HeadClassify 的 arch_trap facts+control 子系统承担",
+   "key_params": "N/A",
+   "instantiated_by": "DEAD(文件不存在)"
+  }
+ ],
+ "open_questions": [
+  "8 字节 store(sd/AMO-D)的取指 cache 失效闭合性:OooFetchPacketCache.same_fetch_window 只按 store_addr 的 4 字节窗口((addr&~3)..+3)判重叠(vsrc/cache/OooFetchPacketCache.v:57-67),invalidate 单地址来自 mem0 请求(vsrc/core/NpcCoreTop.v:159-162);若 memory 侧以单个 8B store 一次性发出且不拆分,store 高 4 字节覆盖的取指包可能漏失效——需 memory/LSQ 子系统确认 store 到 mem0 端口的粒度拆分策略",
+  "IFU AXI 非对齐 8 字节读语义:桥直接以 2 字节对齐 PC/物理地址作 araddr 发 8B 读并期待 rdata=addr..addr+7(vsrc/frontend/OooFetchAxiBridge.v:264-268,433-437);需 bus/sim 子系统(NpcAxiBus/AxiDpiSlave)确认对非 8B 对齐地址、跨 8B 边界读的支持,以及 MMIO 区取指是否有副作用防护",
+  "跨页取指包第二页读(S_AR1 用 paddr1_q)未见 Svpbmt/PMA 属性检查差异化处理——两页 PBMT 属性不同时的取指语义(以及取指是否允许指向 device 区)需与 memory/bus 属性检查对照",
+  "pending_branch/pending_jump 序列器与 control 子系统的 capture/clear 时序契约(capture_direct/head0/lane1、match_clear、commit_resolve 的互斥与优先级)在前端侧只能看到消费端(vsrc/frontend/OooFrontend.v:2073-2164);其产生端不变量需 control 子系统核对",
+  "core_branch_resolve_* 总线在双分支同拍 resolve(lane0+lane1 均为分支)时的仲裁语义:前端假设每拍至多一条 resolve(单套 bht_idx/pc 载荷),后端执行域是否保证该串行化需跨子系统确认",
+  "OooBranchDirectionPredictor/OooJalrBtb/OooBranchTargetCache/OooRasStack 属于分支预测子系统(本审计仅核对其在 OooFrontend 内的实例化与接口:vsrc/frontend/OooFrontend.v:1441,1590,1964,2330);其内部组织(BHT 4096 项/BTB 256 项/RAS 16 项,vsrc/include/define.v:175-215)的准确语义由分支预测子系统审计确认"
+ ],
+ "subsystem": "前端取指通路(fetch path):取指请求/Sv39 翻译/取指包 cache/RVC 解码/包 FIFO/head 分类/双发派发"
+}

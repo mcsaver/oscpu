@@ -1,0 +1,210 @@
+{
+ "subsystem": "访存子系统(LSU helper / MIQ / SQ / 内存 AXI 桥+硬件 PTW / DTLB / PMP / 数据 cache)",
+ "modules": [
+  {
+   "file": "vsrc/memory/LSU.v",
+   "purpose": "纯组合 wrapper:聚合 LSUControl+LSUDataPath,给定 eff_addr/size/unsigned 产生 mem_addr/wdata/wstrb/load_data/misaligned,不含任何时序状态",
+   "instantiated_by": "OooIntBackend ×4(vsrc/execute/OooIntBackend.v:840,854,974,998:issue0/issue1 地址与 store 操作数生成、rsp 数据抽取、AMO 写数据规整)",
+   "key_params": "XLEN=64,STRB_W=8;无流水级(纯组合)"
+  },
+  {
+   "file": "vsrc/memory/LSUControl.v",
+   "purpose": "访存控制面:按 size 生成低位连续 wstrb(不随地址偏移移位)与 misaligned 判定(half:addr[0],word:addr[1:0],dword:addr[2:0])",
+   "instantiated_by": "LSU(vsrc/memory/LSU.v:20)",
+   "key_params": "size 2b 编码 B/H/W/D(vsrc/include/define.v:517-520)"
+  },
+  {
+   "file": "vsrc/memory/LSUDataPath.v",
+   "purpose": "访存数据面:地址/wdata 原样透传(byte-window 语义,vsrc/memory/LSUDataPath.v:20-23),load 数据按 byte_shift 右移后做 size/符号扩展",
+   "instantiated_by": "LSU(vsrc/memory/LSU.v:31)+ OooIntBackend ×2 前递数据抽取(vsrc/execute/OooIntBackend.v:1414,1425)",
+   "key_params": "64b 数据,B/H/W/D 符号/零扩展"
+  },
+  {
+   "file": "vsrc/memory/OooMemAxiBridge.v",
+   "purpose": "数据访存 AXI 桥单体:8 态 FSM 内含硬件 Sv39 PTW(S_WALK_AR/R)、DTLB、3×PMP、数据 cache、probe/pretrans/nokill 事务属性、PMEM store B 解耦(bpend)",
+   "instantiated_by": "NpcCoreTop(vsrc/core/NpcCoreTop.v:192)",
+   "key_params": "FSM 8 态(:58-65);单 outstanding(S_RESP 拍可 back-to-back accept,:282-284);DCACHE_INDEX_W=12、DTLB_INDEX_W=6(:68-69);walk 3 级(walk_level 2→0)"
+  },
+  {
+   "file": "vsrc/memory/OooMemInflightQueue.v",
+   "purpose": "在飞访存事务顺序 FIFO(MIQ):kind=LOAD/PROBE/DRAIN/LEGACY,rsp 恒配队头;ROB-walk kill 按环形 age 标 killed(rsp 静默弃);flush 压缩仅保留 DRAIN",
+   "instantiated_by": "OooIntBackend(vsrc/execute/OooIntBackend.v:1051)",
+   "key_params": "ENTRY_N=4/ENTRY_W=2(vsrc/execute/OooIntBackend.v:1015-1016);kind 2b;kill 白名单仅 LOAD/PROBE(:222-231)"
+  },
+  {
+   "file": "vsrc/memory/OooMemoryAccess.v",
+   "purpose": "子系统 wrapper(纯结构聚合):OooPendingMemorySequencer + OooMemoryRequestGate 两实例,core↔桥请求通道打包",
+   "instantiated_by": "OooCoreTopGlue(vsrc/core/OooCoreTopGlue.v:727)",
+   "key_params": "无状态,纯接线"
+  },
+  {
+   "file": "vsrc/memory/OooMemoryRequestGate.v",
+   "purpose": "请求门(已退化为纯透传):core mem req 9 路 assign 直通;仅聚合 mem_flush(core_local||checkpoint)与 mmu_flush(satp write commit||sfence commit)两根 OR(vsrc/memory/OooMemoryRequestGate.v:41-62)",
+   "instantiated_by": "OooMemoryAccess(vsrc/memory/OooMemoryAccess.v:75)",
+   "key_params": "纯组合;B-FP pending 直写旁路已拆(:40)"
+  },
+  {
+   "file": "vsrc/memory/OooPendingMemorySequencer.v",
+   "purpose": "域B pending 遗留活体:lane1 捕获拍寄存 pending mem 指令(pc/inst/next_pc/valid/dispatched)供控制面 pending 通道使用,不承载数据通路",
+   "instantiated_by": "OooMemoryAccess(vsrc/memory/OooMemoryAccess.v:55)",
+   "key_params": "单 entry 寄存器组;late_clear(csr_trap)/clear/capture/dispatch 四事件优先级(:31-57)"
+  },
+  {
+   "file": "vsrc/memory/OooStoreQueue.v",
+   "purpose": "程序序环形 SQ:dispatch 双口按序 alloc,发射/probe-rsp 按 rob_idx CAM 回填 addr+data+strb,commit 双口 CAM 置 committed,队头 committed 后台 drain;flush_all(trap)清全部未 committed,branch-kill 按 boundary 环形 age 清年轻者",
+   "instantiated_by": "OooIntBackend(vsrc/execute/OooIntBackend.v:2798)",
+   "key_params": "ENTRY_COUNT_W=2→4 entry(mode=1;mode=0 影子为 16)(vsrc/execute/OooIntBackend.v:925);ROB_INDEX_W=4;双 alloc/双 mark/单 fill(fill1 接 0,:2819)/单 drain 口"
+  },
+  {
+   "file": "vsrc/memory/OooSv39Tlb.v",
+   "purpose": "Sv39 TLB(直映):tag=27b 全 VPN+整值 satp 比较,存 PTE+level,superpage 按 level 部分 VPN 匹配,组合输出 leaf_paddr;clear 全清",
+   "instantiated_by": "OooMemAxiBridge(vsrc/memory/OooMemAxiBridge.v:350,DTLB INDEX_W=6=64 entry)+ OooFetchAxiBridge(vsrc/frontend/OooFetchAxiBridge.v:336,ITLB 亦 64 entry,属前端)",
+   "key_params": "64 entry 直映,index=vaddr[17:12];单 lookup 口+单 fill 口;无 ASID 字段(靠 satp 整值比较)"
+  },
+  {
+   "file": "vsrc/memory/PmpChecker.v",
+   "purpose": "PMP 纯组合检查器:16 entry 最低编号匹配优先,TOR/NA4/NAPOT,访问区间部分覆盖即 fault,M-mode 仅 Lock 位 enforce,S/U 无匹配默认 fault,地址回绕 fault",
+   "instantiated_by": "OooMemAxiBridge ×3(req/walk-leaf/walk-PTE,vsrc/memory/OooMemAxiBridge.v:370,382,399)+ OooFetchAxiBridge ×5(vsrc/frontend/OooFetchAxiBridge.v:356,368,380,392,408)",
+   "key_params": "PMP_ENTRY_COUNT=16、cfg 8b/entry(vsrc/include/define.v:398-401);access_size=wstrb popcount 1-8B"
+  },
+  {
+   "file": "vsrc/cache/OooDataWordCache.v",
+   "purpose": "数据 cache:对齐 8B line、直映、PIPT;读 miss fill(read-allocate),store 命中线内字节 merge(write-update)、miss 不分配,跨线 store 双线保守失效,跨线读窗口直读不 fill;PMEM-only cacheable;附 PTW leaf 数据查询口",
+   "instantiated_by": "OooMemAxiBridge(vsrc/memory/OooMemAxiBridge.v:411)",
+   "key_params": "INDEX_W=12→4096 line×8B=32KB(vsrc/memory/OooMemAxiBridge.v:66-68);TAG_W=64-3-12=49;单req口+单walk口"
+  }
+ ],
+ "capabilities": [
+  {
+   "claim": "load 可乱序越过更老的 load(IQ 只用 older_store_seen 拦 load,不拦 load-过-load),但响应按发射序 FIFO 返回(MIQ+单序桥),dcache hit 下 LOAD/PROBE/DRAIN 可背靠背 1 事务/拍、最多 4 笔在飞",
+   "evidence": "vsrc/scheduling/OooIntIssueQueue.v:534-535,655-657(仅 store 拦 load);vsrc/memory/OooMemInflightQueue.v:3-20(响应恒按请求序、FIFO 配对);vsrc/memory/OooMemAxiBridge.v:282-284(S_RESP 拍 back-to-back accept);vsrc/execute/OooIntBackend.v:1015(MIQ 深 4)"
+  },
+  {
+   "claim": "load 对已发射老 store 的歧义消解:M-mode(VA=PA)按 8B line±1 距离重叠精判,不重叠即放行;对 SQ 已知地址 entry、MIQ 在飞 PROBE(地址未知窗口)、LEGACY pending store 三层判定;Sv39 翻译开启时全部退化为 blind 等待(VA 别名不安全)",
+   "evidence": "vsrc/execute/OooIntBackend.v:1192-1204(line_overlap_1),1222-1257(SQ block:mem_translate_active||MMIO||重叠),1443-1475(PROBE block),1477-1504(pending/buffer/probe/sq 四臂汇总)"
+  },
+  {
+   "claim": "store-to-load 前递已实现:扫描 SQ 取『最年轻的更老重叠 entry』,load 字节窗口被 entry 完全包含时单拍完成(走 ex0/ex1 通道,不发桥请求);数据=entry.data 右移地址差后按 size/unsigned 抽取,天然支持 misaligned 前递",
+   "evidence": "vsrc/execute/OooIntBackend.v:1259-1334(fwd0 判定:程序序扫描/区间包含/delta 右移),1398-1405(fwd gate),1414-1435(LSUDataPath 抽取),2302-2309(单拍进 ex0);vsrc/execute/OooIntBackend.v:1903-1907(前递不发桥请求)"
+  },
+  {
+   "claim": "plain store 严格 commit 后写内存:发射拍只发 probe(翻译+PMP 探测,不写内存,PA 经 rsp_rdata 回传),probe rsp 拍 PA+data 回填 SQ,ROB 退休拍 CAM 置 committed,队头 committed 后台 drain(pretrans 跳过翻译/PMP + nokill 写必达,flush 免疫);AMO/SC 写在执行拍但被约束到 ROB 队头+SQ 排空,实质等价 commit 点",
+   "evidence": "vsrc/memory/OooMemAxiBridge.v:19-26(三属性定义),520-524(probe 短路回 PA),279-281(nokill 免疫);vsrc/execute/OooIntBackend.v:1955-1960(drain 请求),1993-1994(pretrans+nokill),2762-2777(commit 标记),1505-1508(AMO 需 sq_no_committed+无 drain 在飞)"
+  },
+  {
+   "claim": "PMEM store 写延迟解耦:AW&W 完成拍即报完成并同步更新 dcache,滞后 B 由 bpend 跟踪器后台吸收(至多 1 笔);MMIO/可错 store 仍等 B 保精确总线异常",
+   "evidence": "vsrc/memory/OooMemAxiBridge.v:89-92(设计意图),480-481(仅 PMEM 且 !bpend),739-749(提前完成),341-348(解耦拍 dcache 维护),561-563(B 吸收)"
+  },
+  {
+   "claim": "数据 cache:32KB(4096×8B line)直映 PIPT,读 miss 对齐 fill、store 命中字节精确 merge(write-update)、miss 不分配(write-no-allocate),恒 write-through(每个 store 都上 AXI);PTW leaf 数据读命中 dcache 可免 AXI;仅 PMEM(0x8000_0000 起 256MB)可缓存",
+   "evidence": "vsrc/memory/OooMemAxiBridge.v:66-68(32KB),427(fill 用 PA);vsrc/cache/OooDataWordCache.v:19-23(组织),70-75(cacheable=PMEM mask),153-176(merge/双线失效);vsrc/memory/OooMemAxiBridge.v:696-700(walk 口 leaf 命中);vsrc/include/define.v:152-156(PMEM base/mask)"
+  },
+  {
+   "claim": "PTW 是硬件的,实现在 OooMemAxiBridge FSM 内(S_WALK_AR/S_WALK_R):3 级 Sv39,支持 1G/2M superpage(错位 superpage→page fault),PTE invalid/reserved(含 svpbmt 保留位)/非叶到 level0 →page fault,权限检查含 MXR/SUM/MPRV(effective_data_priv),A/D 位软件管理(A=0 或 store 遇 D=0 →page fault,不硬件置位);walk 成功回填 DTLB",
+   "evidence": "vsrc/memory/OooMemAxiBridge.v:648-711(walk FSM),191-201(superpage 对齐),224-236(权限:!pte[6]||write&&!pte[7]),112-121(MPRV),203-222(MXR/SUM),174-189(svpbmt 保留位),327-335+363-368(DTLB fill)"
+  },
+  {
+   "claim": "DTLB 64 entry 直映,tag=27b 全 VPN+satp 整值比较(换地址空间自然 miss),存 PTE+level 支持 superpage 命中;命中但权限违例当拍直接报 page fault 不走 walk;satp 写/sfence.vma commit 全清(mmu_flush 同时清 ITLB)",
+   "evidence": "vsrc/memory/OooSv39Tlb.v:26-30,53-64,86-94,100-102;vsrc/memory/OooMemAxiBridge.v:295-300,505-508;vsrc/memory/OooMemoryRequestGate.v:61-62;vsrc/core/NpcCoreTop.v:166(ITLB 同源 mmu_flush)"
+  },
+  {
+   "claim": "PMP 16 entry,支持 OFF/TOR/NA4/NAPOT 全部三种匹配模式,最低编号匹配优先,访问区间未被单 entry 完全覆盖即 fault,M-mode 仅 Lock enforce、S/U 无匹配默认 fault;数据路径三处检查:最终数据 PA(req/走表 leaf)+每级 PTE 读地址(F9 隐式访问),PMP 违例报 access fault(非 page fault)",
+   "evidence": "vsrc/include/define.v:398(16 entry);vsrc/memory/PmpChecker.v:135-161(TOR/NA4/NAPOT),243-255(部分覆盖/默认拒绝);vsrc/memory/OooMemAxiBridge.v:370-409(三实例),394-397(F9 注释),649-656(PTE PMP fault→access fault)"
+  },
+  {
+   "claim": "LR/SC:单 reservation 寄存器,LR 成功响应拍置位(W 按 4B、D 按 8B 对齐地址),SC 发射拍组合评估成功性;任何 store 发射/AMO 写/SC 本身均清 reservation;评估失败的 SC 被阻塞到 ROB 队头且访存空闲再重评(防 lr/sc 活锁);AMO=读改写两笔 LEGACY 事务(AmoGate 支持 swap/add/xor/and/or/min/max/minu/maxu 的 W/D),AMO/LR/SC 独占:要求 MIQ 全空+SQ 无 committed 残留",
+   "evidence": "vsrc/execute/OooIntBackend.v:868-886(reservation/sc_success),2143-2151(LR 置位/SC 清),1556-1571(SC 活锁修复),2136-2141(AMO 写阶段),1157-1160(MIQ 全空),1507-1508(amo_sq_quiet);vsrc/execute/OooAmoGate.v:66-89(9 op×W/D)"
+  },
+  {
+   "claim": "MMIO 识别=物理地址不在 PMEM 窗(addr&0xffff_ffff_f000_0000 != 0x8000_0000);MMIO load 归 LEGACY 独占且必须 ROB 队头才发射(设备读副作用不可投机);MMIO store 走 probe/SQ/drain 但 SQ 中 blind 拦一切更年轻 load、禁前递、drain 时桥等 B;MMIO 不进 dcache",
+   "evidence": "vsrc/execute/OooIntBackend.v:1096-1100,1512-1524(F2:MMIO load 队头独占),1915-1916(needs_excl),1229-1237(SQ MMIO blind),1322(前递 PMEM-only);vsrc/memory/OooMemAxiBridge.v:480-481(解耦仅 PMEM);vsrc/cache/OooDataWordCache.v:70-75"
+  },
+  {
+   "claim": "misaligned:plain load/store 任意错位由硬件直接支持、不报异常——采用 byte-window 总线语义(地址原样、wstrb 低位连续、DPI 内存按任意起始地址 64b 窗口读写),跨 8B line 的读走『窗口直读不 fill』慢路径;AMO/LR/SC 错位报精确异常(LR→load-misalign,AMO/SC→store-misalign,对齐 NEMU 金标)",
+   "evidence": "vsrc/memory/LSUDataPath.v:20-23;vsrc/memory/LSUControl.v:22-41;vsrc/sim/AxiDpiSlave.sv:97,115-119(窗口读写);vsrc/memory/OooMemAxiBridge.v:97-99,452-464(跨线路径);vsrc/execute/OooIntBackend.v:1094-1095,2319-2328(仅 AMO 族报 misaligned)"
+  },
+  {
+   "claim": "恢复语义分层正确:trap/checkpoint flush 全清 SQ 未 committed+MIQ 压缩仅留 DRAIN;branch mispredict(ROB-walk)按 boundary 环形 age 只清更年轻的 SQ entry/只标更年轻的 MIQ LOAD/PROBE killed(rsp 到达静默弃,含 kill 拍同拍 push 的 F2 补标);nokill drain 写对 flush 完全免疫直到完成",
+   "evidence": "vsrc/memory/OooStoreQueue.v:10-15,140-152,229-241;vsrc/memory/OooMemInflightQueue.v:128-190(DRAIN 压缩),195-231(kill 含同拍 push);vsrc/memory/OooMemAxiBridge.v:279-281,564-565"
+  },
+  {
+   "claim": "FP load/store 走整数访存同一路径:FP store 数据发射拍读 FP PRF,FP load 响应拍 NaN-box(FLW 高 32 全 1)后分流 fpld_wb 写 FP 物理堆;FSW/FSD 同走 SQ 生命周期",
+   "evidence": "vsrc/execute/OooIntBackend.v:842-843,856-857(fpst_read_data),2397-2405(NaN-box),2592-2593(fpld_wb),2719-2726(SQ alloc 含 FP store opcode 0100111)"
+  }
+ ],
+ "limitations": [
+  {
+   "claim": "没有死文件:12 个模块全部被实例化且在 filelist.mk;但 LSU.v/LSUControl.v/LSUDataPath.v 是『活代码、角色退化』——已不是流水线 LSU,只是被 OooIntBackend 当纯组合地址/wstrb/数据规整 helper 复用(4+2 处实例)",
+   "evidence": "vsrc/filelist.mk:47-49,278-280;vsrc/execute/OooIntBackend.v:840,854,974,998,1414,1425(grep 全仓仅这些实例点)"
+  },
+  {
+   "claim": "没有独立 load queue、没有内存依赖预测、没有 load 投机+序违例回滚:load 从不越过地址未知的更老 store(IQ 内被任何未发射老 store 全拦,发射后被在飞 PROBE 拦),正确性靠保守等待而非 replay;MIQ 是 in-flight FIFO 不是 LQ",
+   "evidence": "vsrc/scheduling/OooIntIssueQueue.v:534-535,655-657;vsrc/execute/OooIntBackend.v:1436-1442(注释明言 PROBE=地址未知窗口拦 load);全仓无 dependence predictor/replay 结构(memory/ 目录仅上述文件)"
+  },
+  {
+   "claim": "store 零乱序:store 只能从 issue0 发射且必须是 IQ 中最老 valid entry(older_valid_seen 拦),issue1 恒不发 store;每拍至多 1 笔桥请求(mem1 第二访存端口死硅已删,pending_load1 恒 0)",
+   "evidence": "vsrc/scheduling/OooIntIssueQueue.v:536(store 被任何更老 entry 拦),644(issue1 排除 store);vsrc/execute/OooIntBackend.v:956-959,1925-1931(issue1 mem 需 !issue0_is_mem)"
+  },
+  {
+   "claim": "Sv39 翻译开启时乱序访存能力大幅收窄:load 对 SQ/PROBE 全部 blind 等待且 store-to-load 前递整体禁用(VA 别名判定不安全),仅 M-mode(VA=PA)享受重叠精判+前递",
+   "evidence": "vsrc/execute/OooIntBackend.v:1212-1216(注释),1232/1250(translate_active→blind),1331-1333/1391-1393(translate_active→前递禁用)"
+  },
+  {
+   "claim": "桥单 outstanding:单 FSM 同时只承载 1 笔事务(仅 S_RESP 拍可 back-to-back 接续 + 1 笔解耦 store 的滞后 B),MIQ 深 4 只解耦发射侧,真实 MLP≈1,dcache miss 无重叠",
+   "evidence": "vsrc/memory/OooMemAxiBridge.v:275-284(单 outstanding 注释+req_slot_ready),92(bpend 仅 1 笔:479-481)"
+  },
+  {
+   "claim": "仅支持 Sv39:桥只认 satp.mode==8,其他值一律按 Bare 不翻译;且 CsrFile WARL 把 mode!=8 的 satp 写整体清零——无 Sv48/Sv57",
+   "evidence": "vsrc/memory/OooMemAxiBridge.v:123-129;vsrc/core/CsrFile.v:413-419,759"
+  },
+  {
+   "claim": "跨 4KB 页边界的 misaligned 访问不拆分翻译:只翻译起始 VA,PA 窗口按物理连续读写,第二页字节使用错误翻译(桥内无二次翻译逻辑);跨 8B line 读还不 fill dcache(恒慢路径)",
+   "evidence": "vsrc/memory/OooMemAxiBridge.v:238-252(leaf_paddr 仅拼 vaddr[11:0]),452-464(跨线窗口直读),97-99;全 FSM 无第二次 walk 触发路径(:636-779)"
+  },
+  {
+   "claim": "已退休 store 的 drain 落存若遇总线错误无法精确异常:仅 $display 计数警告([SQ-DRAIN-ERROR]),依赖 probe 拍已前置翻译/PMP fault 的假设",
+   "evidence": "vsrc/execute/OooIntBackend.v:2916-2922"
+  },
+  {
+   "claim": "TLB 无 ASID/按页选择性失效:sfence.vma 与 satp 写一律全清 D/ITLB(clear_i 单根线),sfence 的 vaddr/asid 操作数被忽略;dcache 全失效口 store_invalidate_all_i 恒接 0(保留死口)",
+   "evidence": "vsrc/memory/OooSv39Tlb.v:9,100-102(全清);vsrc/memory/OooMemoryRequestGate.v:61-62(仅 commit 脉冲);vsrc/memory/OooMemAxiBridge.v:430-432(恒 0)"
+  },
+  {
+   "claim": "svpbmt 仅做 PTE 保留位合法性检查,PBMT 值不改变内存属性(cacheable 判定仍纯 PMEM 地址 mask);A/D 位硬件不更新(Svade 式:A=0 或 store 遇 D=0 报 page fault),OS 必须软件管理 A/D",
+   "evidence": "vsrc/memory/OooMemAxiBridge.v:174-189(仅合法性),224-236(!pte[6]/!pte[7]→fault);vsrc/cache/OooDataWordCache.v:70-75(cacheable 与 PBMT 无关)"
+  },
+  {
+   "claim": "byte-window 总线语义是对仿真 DPI slave 的硬编码假设:wstrb 低位连续不随地址偏移移位、araddr 可任意错位、非标 arstrb 读窗口信号——非标准 AXI,真实 SoC/外设不成立;FP load 不吃 SQ 前递(命中重叠回落等 drain,性能缺口)",
+   "evidence": "vsrc/memory/LSUControl.v:22-40(wstrb 低位连续);vsrc/sim/AxiDpiSlave.sv:97,115-119;vsrc/memory/OooMemAxiBridge.v:41(arstrb 端口);vsrc/execute/OooIntBackend.v:1396-1401(FP 禁前递)"
+  },
+  {
+   "claim": "LEGACY 单例通道遗留脆弱点:mem_pending_q 不受 MIQ killed/ROB-walk 保护(只被 flush 清),MMIO load 因此被硬约束到 ROB 队头;PROBE 对 misaligned plain store 只回传起始地址 PA,SQ/drain 按该 PA 写整个窗口(与跨页问题同族);OooPendingMemorySequencer/OooMemoryRequestGate 是域B半迁移痕迹(前者仅控制面记账,后者退化为透传+2 根 OR 门)",
+   "evidence": "vsrc/execute/OooIntBackend.v:1512-1517(F2 注释明言不受保护),2136-2171(仅 flush 清);vsrc/memory/OooMemAxiBridge.v:520-523(probe 回起始 PA);vsrc/memory/OooMemoryRequestGate.v:40-62"
+  },
+  {
+   "claim": "flush 拍桥对 S_WALK_R/S_READ_DATA 直接本地释放不等 R 响应,依赖下游 xbar 同步 abort/drop 的强协议假设(桥内无核对机制)",
+   "evidence": "vsrc/memory/OooMemAxiBridge.v:581-590(注释+直接 S_IDLE)"
+  }
+ ],
+ "cross_module": [
+  "请求链路契约:OooIntBackend(mem_req_*) → OooAluDecodeBackend(vsrc/decode/OooAluDecodeBackend.v:389) → OooAluCoreSlice(vsrc/execute/OooAluCoreSlice.v:134) → OooExecuteBackend → OooCoreTopGlue(core_mem_req_*,vsrc/core/OooCoreTopGlue.v:727) → OooMemoryAccess(透传) → NpcCoreTop → OooMemAxiBridge.mem0(vsrc/core/NpcCoreTop.v:192) → lsu_axi(带非标 arstrb) → NpcAxiBus/AxiDpiSlave(DPI npc_mem_read/write)",
+  "事务三属性契约 probe/pretrans/nokill(vsrc/memory/OooMemAxiBridge.v:19-26):probe=翻译探测不写内存 PA 经 rsp_rdata 回传;pretrans=地址已是 PA 跳过翻译/PMP;nokill=flush 免疫写必达。发起端在 OooIntBackend(:1987-1994),全 0 时桥行为与旧版一致",
+  "translate_active_o(桥→backend mem_translate_active_i):当前 priv(含 MPRV)/satp 下数据访问是否经 Sv39 翻译,是 load-vs-SQ blind/前递禁用的判定开关(vsrc/memory/OooMemAxiBridge.v:35-36,445;vsrc/execute/OooIntBackend.v:1232,1331)",
+  "CSR 面输入契约:priv_mode/mstatus/satp/svpbmt_en/pmpcfg(16×8b 平铺)/pmpaddr(16×64b 平铺)来自 CsrFile;satp WARL 仅 mode 8(vsrc/core/CsrFile.v:413-419)保证桥只需处理 Sv39/Bare",
+  "mmu_flush = pending_system 的 satp-write/sfence commit 脉冲(vsrc/memory/OooMemoryRequestGate.v:61-62),同拍全清 DTLB 与 ITLB(vsrc/core/NpcCoreTop.v:166,vsrc/memory/OooMemAxiBridge.v:355);mem_flush = core_local_flush||checkpoint_mem_flush → 桥丢弃非 nokill 在飞事务",
+  "icache 一致性:mem0 write fire(含 probe!存疑,见 open_questions)触发 fetch bridge invalidate(vsrc/core/NpcCoreTop.v:157-161)",
+  "SQ 生命周期与后端契约:alloc 反压经 DispatchBackend(dispatch 拍 store opcode 判定,vsrc/execute/OooIntBackend.v:2719-2730);committed 标记来自 commit0/1(rob_head/head+1 CAM);squash 用 branch_resolve_mispredict+branch_resolve_rob_idx+rob_head_idx(ROB-walk 环形 age 契约,MIQ kill 同源);mem_retire_quiet_o(SQ 空+无 drain 在飞)AND 进 backend_drained,是 trap/system/FP 串行点的等待条件(:1119-1122)",
+  "IQ 访存序契约(scheduling):load 被 IQ 内任何未发射更老 store 拦、store 仅 IQ 最老可发射(vsrc/scheduling/OooIntIssueQueue.v:534-536)——SQ/MIQ 的重叠精判只在 store 发射(probe)之后才接管",
+  "wb 槽共享:mem rsp 消费需 ex0/ex1 槽有空(优先级 mem>muldiv>clmul>fpwb,vsrc/execute/OooIntBackend.v:1123-1132,2375-2396);FP load 分流 fpld_wb→OooFpBackend(:2681-2684),FP store 数据发射拍经 fpst_read 读 FP PRF",
+  "OooPendingMemorySequencer 输出(pending_mem_q/pc/inst/next_pc/dispatched)供 OooControlPlane 域B pending 通道消费(经 OooCoreTopGlue 接线),访存数据通路不经过它"
+ ],
+ "open_questions": [
+  "跨 4KB 页界的 misaligned load/store 在 Sv39 下第二页字节翻译错误(桥无拆分),这是否被上游软件栈(AM/OS/测试集不产生跨页 misaligned)或 IQ/发射约束实际规避?需前端/软件侧回答",
+  "IQ 扫描序=年龄序的不变量(older_store_seen 依赖 entry 0 最老的压缩队列组织)由 scheduling 子系统维护(vsrc/scheduling/OooIntIssueQueue.v:4 注释自称『保持队列内程序序』),压缩/入队实现本身未在本次审计范围内核验",
+  "非标 AXI 扩展(读通道 arstrb 窗口 strobe、错位 awaddr+低位连续 wstrb 的 byte-window 写)在 NpcAxiBus/AxiLiteXbar 及真实外设模型(UART/CLINT/PLIC/virtio)上的处理是否一致?属 bus 子系统",
+  "icache invalidate 由 mem0 write fire 触发(vsrc/core/NpcCoreTop.v:158-161),而 SQ 模式下 store 的 write fire 有两类:发射拍 probe(write=1 但不写内存)与 commit 后 drain(真写)——probe 拍就失效 icache 是否过度(无害保守)以及 drain 拍是否也触发(应触发,drain 也是 mem0 write fire)?对自修改代码语义需前端确认 fetch cache 失效粒度",
+  "flush 拍桥对在飞 R 的本地直接释放(vsrc/memory/OooMemAxiBridge.v:581-590)所依赖的『flush 同步请求 xbar abort/drop』机制在 bus 侧的实现与时序窗口未核验",
+  "satp 写/sfence 与在飞访存的串行化(mmu_flush 脉冲拍与 MIQ/SQ 排空的先后)由控制面 backend_drained/pending_system 序列保证,该保证链(OooControlPlane/OooPendingSystemSequencer)属控制子系统",
+  "difftest 侧对 post-commit drain 写的内存比对时机(store 已 commit 但尚未落存的窗口)如何处理,属仿真/difftest 子系统(csrc)"
+ ]
+}

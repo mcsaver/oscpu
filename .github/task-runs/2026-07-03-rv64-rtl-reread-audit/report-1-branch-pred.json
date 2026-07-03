@@ -1,0 +1,313 @@
+{
+ "capabilities": [
+  {
+   "claim": "方向预测器 = gshare + 局部历史 的混合预测器(非经典 tournament 计数器,选择规则固定):gshare 臂 4096 项 2bit BHT(idx = pc[12:1] XOR 12 位 GHR),局部臂 256 项 8bit 局部历史表(idx=pc[8:1]) + 4096 项 2bit 局部 PHT(idx={pc[4:1],hist[7:0]});选择规则:local 有效且 gshare 非 strong→取 local,local strong→取 local,否则取 gshare;两臂皆 invalid 时静态 BTFN(imm 符号位为负→taken);计数器初值 2'd2(weakly-taken)",
+   "evidence": "vsrc/frontend/OooBranchDirectionPredictor.v:67-151, vsrc/include/define.v:175-218"
+  },
+  {
+   "claim": "双端口查询:BHT 对 head0/head1 两条指令并行 lookup(dispatch/FIFO-head 拍,而非取指拍),lookup 拍的 bht_idx(pc^GHR 快照)与 pred_taken 作为 dispatch 载荷随 uop thread 进发射队列,resolve 拍随 resolve 总线原样回训,避免 GHR 已推进造成 idx 错位",
+   "evidence": "vsrc/frontend/OooFrontend.v:1964-1984,1902-1907,164-169; vsrc/scheduling/OooIntIssueQueue.v:780-786"
+  },
+  {
+   "claim": "F2 真分支预测已启用(编译常量 OOO_ROB_WALK_MODE=1'b1):条件分支预测 not-taken 且 head1 可平凡双发时走 dual_go——不 flush 不重取,与 head1 原子双发零气泡;预测 taken(或 head1 不可双发)时 direct fire——前端 flush 并按预测目标(pc+imm)/fallthrough 重取",
+   "evidence": "vsrc/include/define.v:567-568; vsrc/frontend/OooFrontendDispatchGate.v:61-69,129-131,164-165; vsrc/frontend/OooDirectControlFlowGate.v:55-57"
+  },
+  {
+   "claim": "pred_npc 单源化:dispatch 时给每条 uop 附带『前端实际取指后继』——本拍 fire 的控制流取 direct_fire_succ_w(与取指 PC 更新共享同一 wire,机械同源:jal 精确 target/ret=RAS top/taken 分支=预测 target/dual 双发 d0 后继=d1.pc);顺序流取下一 FIFO 包 pc0(count>=2)",
+   "evidence": "vsrc/frontend/OooFrontend.v:1868-1891; vsrc/frontend/OooFrontendBackendDispatchMux.v:171-186"
+  },
+  {
+   "claim": "安全网:FIFO count<2(下一包未取回、后继未知)时 pred_npc = 64'h1 非法哨兵,恒不等于任何架构 next_pc → 该分支必判 mispredict → 安全 redirect(『总是当作误预测处理』的兜底路径,以性能换正确性)",
+   "evidence": "vsrc/frontend/OooFrontend.v:1860-1870"
+  },
+  {
+   "claim": "后端 issue 级统一控制流解析:条件分支/JAL/JALR 三类全部在整数发射拍解析,mispredict = (架构后继 next_pc != pred_npc) && 非 misaligned;JALR 目标=(rs1+imm)&~1,JAL=pc+imm,分支=taken?target:fallthrough;双 lane 同拍 mispredict 时选最老者(issue0 优先)",
+   "evidence": "vsrc/execute/OooIntBackend.v:1635-1684,2497-2543"
+  },
+  {
+   "claim": "误预测恢复 = redirect + ROB-walk(非全流水 flush、非影子 checkpoint 恢复):kill 脉冲当拍冻结 dispatch/commit 并使 IQ 当拍禁发射+按 rob 年龄单拍 squash 更年轻项;ROB 从 tail-1 反向 walk,每拍 squash 至多 2 项并同步 emit walk0/1(rename map 还原 old_pdest、free-list 回收 new_pdest,2 项/拍),walk 到存活分支即回退 tail;恢复延迟≈1(kill 拍)+ceil(更年轻 uop 数/2) 拍(ROB 16 项,最坏约 8 拍),无更年轻项时零 walk 拍",
+   "evidence": "vsrc/writeback/OooRob.v:250-263,279-293,422-478; vsrc/scheduling/OooIntIssueQueue.v:774,1110-1117; vsrc/rename_allocate/OooDispatchBackend.v:307-311,376-381,415,488-489"
+  },
+  {
+   "claim": "前端 redirect 承接:mispredict 拍 branch_resolve_untracked_redirect(mode=1 下仅由后端显式 mispredict 触发)把 next_fetch_pc 锁存为 resolve 的架构后继,清 FIFO 重新取指;与同拍更年轻 direct flush 冲突时 untracked(更老、架构真值)优先;trap_redirect_squash 可压制分支 redirect(trap 优先)",
+   "evidence": "vsrc/frontend/OooBranchResolveRecoveryGate.v:54-66,102-105; vsrc/frontend/OooFetchPcOutstandingSequencer.v:174-182,251-262; vsrc/frontend/OooFrontend.v:1744-1763"
+  },
+  {
+   "claim": "mode=1 下禁止取指响应 bypass 直通 dispatch,强制 wrong-path 经 FIFO,使 mispredict 的 FIFO-clear 能拦住错路指令(修 bypass-after-kill 竞争)",
+   "evidence": "vsrc/frontend/OooFrontendRunGate.v:62-70"
+  },
+  {
+   "claim": "dispatch 拍分支快解析(fast-resolve):head0 分支操作数就绪(PRF ready 或同拍 wb 前递)时用专用 CompareUnit 拍内解析;direct fire 的 taken 分支拍内解析成功则前端直接按真实结果取指(pred 与实际同源→后端免 redirect),并用 8 项 fast_branch tracker 抑制该 rob_idx 的后端重复 resolve/redirect",
+   "evidence": "vsrc/execute/OooIntBackend.v:1793-1901,2497-2500,2544-2551; vsrc/frontend/OooDirectBranchResolveGate.v:50-102"
+  },
+  {
+   "claim": "BPU 更新时机 = resolve 时(非 commit):①F2 issue-resolve 回训——后端每条条件分支(is_branch gate 掉 jal/jalr)resolve 拍回训 BHT/局部表/GHR,含预测正确的分支;②direct 分支拍内解析时走 direct_update 臂;两臂经单写口 mux(pending 类>direct>resolve 优先级),被 fast-resolve 的分支后端 emit 被抑制故不双训;GHR 仅在 update 拍移入真实 taken(resolve 序,非投机 GHR)",
+   "evidence": "vsrc/frontend/OooBranchBpuUpdateGate.v:33-110; vsrc/frontend/OooFrontend.v:1940-1945; vsrc/frontend/OooBranchDirectionPredictor.v:181-193"
+  },
+  {
+   "claim": "JAL:dispatch 拍 direct fire 直算 pc+imm 重取,前后端同算 target → resolve 恒匹配免 redirect;JAL rd∈{x1,x5} 识别为 call",
+   "evidence": "vsrc/frontend/OooDirectControlFlowGate.v:58-84; vsrc/execute/OooIntBackend.v:1632-1647"
+  },
+  {
+   "claim": "JALR 预测(mode=1 投机续取):非返回 JALR dispatch fire 拍立即投机续取,目标优先级 = return-hint(rd=x0∧rs1∈{x1,x5}∧imm=0)且 RAS 非空→RAS top;否则 JALR-BTB spec 组合查询口 hit→BTB target;兜底 fallthrough(pc+ilen);lane1 非返回 JALR 走 de-pend dual present 由后端 mispredict 修正;JALR-BTB 为 256 项直接映射(idx=pc[8:1],全 64 位 PC tag)",
+   "evidence": "vsrc/frontend/OooFrontend.v:1418-1458; vsrc/frontend/OooJalrBtb.v:26-46; vsrc/frontend/OooFrontendDispatchGate.v:97-109; vsrc/include/define.v:181-185"
+  },
+  {
+   "claim": "RAS:32 深栈(count 计数式,DEPTH=32/INDEX_W=5,实例化用模块默认参数);push=direct JAL call(需 ras_direct_update_safe)或 pending jump call(mode=1 死);pop=direct ret fire/lane1 合成 ret/pending ret(死);满栈 push 覆盖栈顶并置 reliable=0,弹到空前一格恢复 reliable;clear=特权边界(trap/mret/satp/sfence)/spec restore/每次 mispredict(untracked)/unsafe call;direct ret fire(dispatch0_return)要求 RAS reliable 且非空且 update-safe",
+   "evidence": "vsrc/frontend/OooRasStack.v:3-6,29-67; vsrc/frontend/OooFrontend.v:2330-2341; vsrc/frontend/OooRasUpdateGate.v:25-39; vsrc/frontend/OooDirectRasCandidateGate.v:43-63; vsrc/control/OooCsrTrapRequestMux.v:97-100"
+  },
+  {
+   "claim": "lane1 ret 融合:direct 分支拍内解析且 next_pc==head1_pc 且 head1 是 return 候选时,direct_branch0_lane1_ret 同拍 RAS pop+按 RAS top 续取,并通知 writeback 做合成 lane1 ret 提交",
+   "evidence": "vsrc/frontend/OooDirectBranchResolveGate.v:104-111; vsrc/writeback/OooWriteback.v:32,144; vsrc/frontend/OooFrontend.v:1880-1884"
+  },
+  {
+   "claim": "分支目标缓存 BTC(16 项,idx=branch_pc[5:2],tag=完整 branch_pc+target_pc,存目标包 inst/next_pc)有完整的一致性维护:store 命中目标 8B 取指字精确失效、MISC_MEM(fence/fence.i)commit 全清、satp 写全清;capture 经 2 级(arm buffer→fetch 响应命中→写入)",
+   "evidence": "vsrc/frontend/OooBranchTargetCache.v:36-98; vsrc/frontend/OooBranchTargetCacheControlGate.v:31-52; vsrc/frontend/OooBranchTargetCaptureBuffer.v:31-51; vsrc/frontend/OooFrontend.v:1590-1611"
+  },
+  {
+   "claim": "串行化 drain 路径仍保留给非分支类:CSR/SYSTEM、ecall/ebreak/arch-trap、fetch fault、IRQ、exit、lane1 barrier、unsupported 指令仍置 stop_pending→drain;OooBackendDrainTracker 以『后端空且本拍无 dispatch』寄存 drained(1 拍滞后),trap 强制置 drained",
+   "evidence": "vsrc/control/OooStopPendingSequencer.v:109-139; vsrc/frontend/OooBackendDrainTracker.v:16-22"
+  }
+ ],
+ "limitations": [
+  {
+   "claim": "整套 pending-branch/pending-jump 串行化机构在当前编译常量(OOO_ROB_WALK_MODE=1'b1)下是死路径:branch/jal/jalr 的 pending capture 与 stop_pending 置位全部被 !rob_walk_mode_i 门控恒 0,故 OooPendingBranchSequencer、OooPendingJumpSequencer 的 valid 恒 0,OooPendingControlResolveGate 的 jump resolve/return/call/nolink 输出、OooBranchResolveRecoveryGate 的 pending/spec 臂(branch_resolve_redirect、branch_spec_redirect 等)全部恒 0。文件仍被编译实例化但功能死",
+   "evidence": "vsrc/include/define.v:567-568; vsrc/control/OooPendingDispatchArbiter.v:99-103,160-183; vsrc/control/OooStopPendingSequencer.v:128-134"
+  },
+  {
+   "claim": "JALR BTB 在 mode=1 下永不更新(update = pending_jump_resolve_ready && jalr,而 pending_jump 恒不 capture → 恒 0),表恒空 → spec_lookup_hit 恒 0 → 非返回 JALR 且 RAS 不可用时预测恒为 fallthrough(pc+ilen),几乎必吃 mispredict+ROB-walk;其 pending lookup 口(lookup_enable 依赖 stop_pending&&pending_jump)同样恒 disable",
+   "evidence": "vsrc/frontend/OooPredictorUpdateGate.v:17-19; vsrc/frontend/OooBranchPrefetchSourceGate.v:37-41; vsrc/control/OooPendingDispatchArbiter.v:101-103,173-183"
+  },
+  {
+   "claim": "BTC(OooBranchTargetCache)是『被维护但零消费』的死存储:唯一下游 branch_target_append/dispatch 被 localparam BRANCH_APPEND_DISPATCH_ENABLE=1'b0 恒禁,lookup_hit 在 glue 侧仅进 unused reduction-OR;capture/失效逻辑照常耗电占面积",
+   "evidence": "vsrc/frontend/OooBranchAppendDispatchGate.v:68,95-114; core/OooCoreTopGlue.v:811 (vsrc/core/OooCoreTopGlue.v:811)"
+  },
+  {
+   "claim": "branch/JALR prefetch 全家桶(OooBranchPrefetchBuffer/RequestGate/SourceGate/StatusGate/ClearGate、OooJalrPrefetchStatusGate、两个 prefetch HitMux)在 mode=1 全为死路径:branch_req_valid 需要 pending_branch(恒0),jalr_req_valid 需要 jalr_btb_hit(恒0),且 BRANCH_PREFETCH_DISPATCH_ENABLE=1'b0 恒禁 prefetch dispatch",
+   "evidence": "vsrc/frontend/OooBranchPrefetchRequestGate.v:40-52; vsrc/frontend/OooBranchAppendDispatchGate.v:69,128-146"
+  },
+  {
+   "claim": "OooReturnContBuffer 是死存储:capture(direct JAL call 拍)仍活跃,但唯一 consume 源 return_cont_dispatch=synth_lane1_branch_append 依赖 return_cont_attempt_o=1'b0 硬禁;return_cont_optional_w 是悬空 wire 无消费者;return_cont_attempt_ready_w 仅进 glue unused-OR",
+   "evidence": "vsrc/frontend/OooBranchAppendDispatchGate.v:82,106-112; vsrc/frontend/OooFrontend.v:1656,2344-2358; vsrc/core/OooCoreTopGlue.v:813"
+  },
+  {
+   "claim": "OooBranchSpecTracker 的 checkpoint/active 投机机制(旧域B哨兵)在 mode=1 基本死:checkpoint_capture 需要 stop_pending&&pending_branch(恒0)→ active 恒 0;但 checkpoint_pending 仍会在 taken 分支 fire 且拍内未 fast-resolve 时置 1,且只能等下一次 direct flush/mispredict/trap 清——挂起期间 ras_direct_update_safe 被拉低,连带禁 RAS push/direct-ret",
+   "evidence": "vsrc/frontend/OooBranchSpecTracker.v:30-50; vsrc/frontend/OooBranchResolveRecoveryGate.v:80-84; vsrc/frontend/OooDirectRasCandidateGate.v:51-55"
+  },
+  {
+   "claim": "RAS 直接更新条件极端保守:ras_direct_update_safe 要求 rob_count==0 且无 stop_pending 且无 spec active/checkpoint_pending——OoO 稳态 ROB 几乎不空,故 JAL call 大多落入 unsafe 分支直接触发 ras_clear(清空整个 RAS 而非 push);且每次后端 mispredict(untracked)也清 RAS → RAS 命中率结构性受限",
+   "evidence": "vsrc/frontend/OooDirectRasCandidateGate.v:51-55; vsrc/frontend/OooDirectControlFlowGate.v:78-82; vsrc/frontend/OooRasUpdateGate.v:25-29"
+  },
+  {
+   "claim": "RAS 同拍 pop 优先于 push(always 块 else-if 序):call+ret 同拍事件时 push 被静默丢弃;满栈 push 覆盖固定栈顶 LAST_INDEX 并置 reliable=0,直到完全弹空才恢复 reliable(期间 direct ret 全禁)",
+   "evidence": "vsrc/frontend/OooRasStack.v:55-66,31-36"
+  },
+  {
+   "claim": "预测器状态清除极少:glue 的 flush_i 在 NpcCoreTop 硬接 1'b0,故 BHT/局部表/GHR 除复位外从不清(跨特权级/跨地址空间不清,priv_predictor_boundary 只清 RAS);JALR BTB/BTC 仅 satp 写 commit 时清;JALR BTB 无 store/fence 失效(虽然它反正不更新)",
+   "evidence": "vsrc/core/NpcCoreTop.v:248; vsrc/frontend/OooFrontend.v:1444,1595,1967; vsrc/frontend/OooRasUpdateGate.v:25-26"
+  },
+  {
+   "claim": "FIFO 低水位(count<2,含每次 redirect 后的重取窗口)时顺序流分支 pred_npc=64'h1 哨兵恒判 mispredict:每条此类分支都吃 redirect+ROB-walk 全套开销,是已知性能保守点(代码注释自认『F2 count<2 缺口』)",
+   "evidence": "vsrc/frontend/OooFrontend.v:1849-1870"
+  },
+  {
+   "claim": "OooRedirectArbiter(统一重定向仲裁器)已建模块+单测但主设计未实例化(仅 testbench 引用,glue 注释『暂未接消费者』)——实际 redirect 优先级仍由 OooFetchRequestMux 隐式优先级链与各汇合点分散承担;ROB 的 checkpoint_* 影子寄存器阵列(约 13×16 项)仍在但已被 ROB-walk 取代(死面积)",
+   "evidence": "vsrc/core/OooCoreTopGlue.v:367; testbench/tests/tb_ooo_redirect_arbiter.sv:40; vsrc/writeback/OooRob.v:131,147-162"
+  },
+  {
+   "claim": "define.v 的 BPU_RAS_ENTRIES=16/BPU_RAS_DEPTH 等 RAS 宏是死宏(无任何 RTL 引用),实际 RAS 深度由 OooRasStack 模块默认参数 32 决定——文档参数与实硬件不一致的陷阱",
+   "evidence": "vsrc/include/define.v:205-215; vsrc/frontend/OooRasStack.v:3-7; vsrc/frontend/OooFrontend.v:2330"
+  },
+  {
+   "claim": "solo taken 分支与非返回 JALR 的 dispatch 拍强制压制 lane1(dispatch1_squash),即这两类控制流恒单发,双发宽度 2 只对 dual_go not-taken 分支/JAL 对/普通指令对成立",
+   "evidence": "vsrc/frontend/OooFrontend.v:1897-1900; vsrc/frontend/OooFrontendBackendDispatchMux.v (dispatch1_squash 消费)"
+  },
+  {
+   "claim": "OooDirectBranchWaitBuffer 在 mode=1 只剩自清功能:其 untracked 输出臂(direct_branch_wait_untracked)在 branch_resolve_untracked_raw 的 mode=1 分支中被丢弃(仅看后端显式 mispredict),等效死逻辑",
+   "evidence": "vsrc/frontend/OooBranchResolveRecoveryGate.v:59-66,98-101"
+  }
+ ],
+ "cross_module": [
+  "dispatch 载荷接口(前端→后端):core_dispatch0/1_{pred_npc,bht_idx,pred_taken} 随 uop 经 OooDispatchBackend thread 进 OooIntIssueQueue 寄存(控制流禁 dispatch-bypass 发射,pred_npc 恒取寄存项,破组合环)——vsrc/frontend/OooFrontend.v:162-169; vsrc/scheduling/OooIntIssueQueue.v:431-440,780-786",
+  "resolve 总线(后端→前端):core_branch_resolve_{valid,pc,next_pc,misaligned,mispredict,is_branch,taken,pred_taken,bht_idx,rob_idx} 由 OooIntBackend issue 级统一产生,前端消费做 BPU 回训 + untracked redirect——vsrc/execute/OooIntBackend.v:2509-2543; vsrc/frontend/OooFrontend.v:14-22",
+  "kill/恢复接口:branch_resolve_mispredict + rob_idx → OooRob.kill_valid/kill_rob_idx(walk squash)、OooIntIssueQueue.kill_valid(age-squash)、OooDispatchBackend(dispatch freeze + rename map restore + free-list 回收 walk pdest)——vsrc/execute/OooIntBackend.v:332-333,1071; vsrc/rename_allocate/OooDispatchBackend.v:311,376-381,415",
+  "trap 优先约定:trap_redirect_squash_q 压制一切分支 redirect;csr_trap_mem_valid_w 作为多数投机状态(spec tracker/wait buffer/pending sequencer/drain tracker)的最终清除源——vsrc/frontend/OooBranchResolveRecoveryGate.v:74-75,102-103; vsrc/frontend/OooBackendDrainTracker.v:17",
+  "特权/地址空间边界约定:priv_predictor_boundary(trap/mret/satp 写/sfence commit)只清 RAS;pending_system_satp_write_commit 清 JALR BTB 与 BTC;MISC_MEM(fence 类)commit 清 BTC;LSU store fire(mem_req 握手)对 BTC 做 8B 精确失效——vsrc/control/OooCsrTrapRequestMux.v:97-100; vsrc/frontend/OooFrontend.v:1444,1595; vsrc/frontend/OooBranchTargetCacheControlGate.v:31-41",
+  "合成提交约定:direct_branch0_lane1_ret_w 通知 OooWriteback 做 lane1 ret 的合成 commit(分支+ret 融合拍)——vsrc/writeback/OooWriteback.v:32,144",
+  "serialization 接口:stop_pending_q 由 OooStopPendingSequencer 持有(mode=1 下分支类不再置位),drain_complete_w 来自控制面,backend_drained_q(本子系统 DrainTracker)反馈给 pending resolve 与 seed mux——vsrc/control/OooStopPendingSequencer.v:109-139; vsrc/frontend/OooFrontend.v:1338,1758",
+  "顶层配置:OooFrontend 由 OooCoreTopGlue 单实例化(vsrc/core/OooCoreTopGlue.v:1041),glue 由 NpcCoreTop 实例化且 flush_i 硬接 1'b0(vsrc/core/NpcCoreTop.v:248);direct_branch_spec_start_w 在 glue 硬接为 OOO_ROB_WALK_MODE 常量(vsrc/core/OooCoreTopGlue.v:534)"
+ ],
+ "modules": [
+  {
+   "file": "vsrc/frontend/OooBranchDirectionPredictor.v",
+   "purpose": "方向预测器:gshare(4096×2bit BHT,idx=pc[12:1]^GHR12)+局部历史(256×8bit hist + 4096×2bit local PHT)混合,双 lookup 口,单 update 口,invalid 时静态 BTFN",
+   "key_params": "BHT 4096 项/GHR 12 位/局部历史表 256×8bit/局部 PHT 4096 项(idx=4bit pc+8bit hist)/计数器 2bit 初值 2",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:1964"
+  },
+  {
+   "file": "vsrc/frontend/OooBranchTargetCache.v",
+   "purpose": "分支目标包缓存 BTC:缓存 taken 分支目标处的取指包(inst/next_pc),含 store 8B 精确失效与全清;消费端已恒禁 → 死存储",
+   "key_params": "16 项(INDEX_W=4),idx=branch_pc[5:2],tag=64 位 branch_pc+target_pc 双匹配",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:1590"
+  },
+  {
+   "file": "vsrc/frontend/OooBranchTargetCacheControlGate.v",
+   "purpose": "BTC 控制组合门:store-fire 失效地址、fence(MISC_MEM) commit 全清、capture arm 条件(direct taken 分支拍内 resolve)",
+   "key_params": "纯组合;store 失效窗口 8 字节",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:1545"
+  },
+  {
+   "file": "vsrc/frontend/OooBranchTargetCaptureBuffer.v",
+   "purpose": "BTC capture 中转:arm(分支 pc/目标 pc)→等 fetch 响应 pc 命中→hit 触发 BTC 写入",
+   "key_params": "单项 buffer(pending+2×64bit)",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:1572"
+  },
+  {
+   "file": "vsrc/frontend/OooJalrBtb.v",
+   "purpose": "JALR 目标 BTB:直接映射全 tag,pending lookup 口(mode=1 死)+ spec 组合查询口(供非返回 JALR 投机续取);mode=1 下 update 恒 0 → 表恒空",
+   "key_params": "256 项(BPU_BTB_INDEX_W=8),idx=pc[8:1],64 位 PC tag+64 位 target",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:1441"
+  },
+  {
+   "file": "vsrc/frontend/OooJalrPrefetchStatusGate.v",
+   "purpose": "JALR prefetch 命中判定组合门(prefetch pc 与 pending jump 目标比对);mode=1 死路径(pending_jump 恒 0)",
+   "key_params": "纯组合",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:1366"
+  },
+  {
+   "file": "vsrc/frontend/OooRasStack.v",
+   "purpose": "返回地址栈:count 计数式栈,满栈覆盖顶+reliable 降级,弹空恢复 reliable",
+   "key_params": "DEPTH=32/INDEX_W=5/COUNT_W=6(实例用默认参数;define.v 的 BPU_RAS_*=16 是死宏);同拍 pop 优先于 push",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:2330"
+  },
+  {
+   "file": "vsrc/frontend/OooRasUpdateGate.v",
+   "purpose": "RAS 操作仲裁组合门:clear(特权边界/spec restore/每次 mispredict/unsafe call)、pop(direct ret×2/lane1 ret/pending ret)、push(direct jal call/pending call)",
+   "key_params": "纯组合",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:2227"
+  },
+  {
+   "file": "vsrc/frontend/OooDirectRasCandidateGate.v",
+   "purpose": "RAS 候选/安全判定:call rd∈{x1,x5}、ret-hint(rd=x0∧rs1∈{x1,x5}∧imm=0)、ras_direct_update_safe(要求 ROB 空+无 stop/spec 挂起)、head0 直接 ret 与 head1 ret 候选",
+   "key_params": "纯组合;ENABLE_DIRECT_RAS_RET=1",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:740"
+  },
+  {
+   "file": "vsrc/frontend/OooReturnContBuffer.v",
+   "purpose": "call 后继续包缓存(供 ret 返回时免重取);capture 活跃但 consume 恒 0 → 死存储",
+   "key_params": "单项(pc/next_pc/inst)",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:2344"
+  },
+  {
+   "file": "vsrc/frontend/OooBranchPrefetchBuffer.v",
+   "purpose": "分支/JALR 预取包缓存(req pc+响应包寄存);mode=1 死路径(req_fire 恒 0)",
+   "key_params": "单项 packet(2 指令槽)",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:1709"
+  },
+  {
+   "file": "vsrc/frontend/OooBranchPrefetchClearGate.v",
+   "purpose": "prefetch 状态清除条件汇聚组合门(trap/flush/各 pending resolve/drain)",
+   "key_params": "纯组合",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:1687"
+  },
+  {
+   "file": "vsrc/frontend/OooBranchPrefetchRequestGate.v",
+   "purpose": "prefetch 请求发起组合门(pending 分支预测目标/JALR BTB 目标);mode=1 下 branch/jalr req 均恒 0(死)",
+   "key_params": "纯组合",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:1078"
+  },
+  {
+   "file": "vsrc/frontend/OooBranchPrefetchSourceGate.v",
+   "purpose": "prefetch 源事实组合门:pending 分支 target/pred_pc、JALR ret-hint、JALR BTB lookup enable;mode=1 死",
+   "key_params": "纯组合",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:1059"
+  },
+  {
+   "file": "vsrc/frontend/OooBranchPrefetchStatusGate.v",
+   "purpose": "分支 prefetch 响应捕获/命中判定组合门;mode=1 死",
+   "key_params": "纯组合",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:1104"
+  },
+  {
+   "file": "vsrc/frontend/OooBranchSpecTracker.v",
+   "purpose": "旧域B分支投机 checkpoint 追踪器(active/checkpoint_pending/pred_pc);mode=1 下 active 恒 0,仅剩 checkpoint_pending 置位副作用(拉低 ras_direct_update_safe)",
+   "key_params": "3 状态寄存(2×1bit+64bit)",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:2247"
+  },
+  {
+   "file": "vsrc/frontend/OooBranchResolveRecoveryGate.v",
+   "purpose": "分支 resolve/恢复事实中枢:mode=1 下核心输出=branch_resolve_untracked_redirect(仅后端显式 mispredict 触发,trap 可压制);pending/spec/checkpoint 臂在 mode=1 恒 0",
+   "key_params": "纯组合;rob_walk_mode 编译期 mux",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:1155"
+  },
+  {
+   "file": "vsrc/frontend/OooDirectBranchResolveGate.v",
+   "purpose": "direct 分支选择与拍内解析:head0/head1 fire mux、pred_pc(taken?pc+imm:fallthrough)、dispatch/issue 拍内 resolve PC 匹配、lane1 ret 融合判定",
+   "key_params": "纯组合;resolve 源=dispatch fast-resolve + issue resolve 两路",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:841"
+  },
+  {
+   "file": "vsrc/frontend/OooDirectBranchWaitBuffer.v",
+   "purpose": "记录 fire 后未拍内解析的 direct 分支 pc 等后端 resolve;mode=1 下其 untracked 输出被丢弃,仅剩自清",
+   "key_params": "单项(pending+64bit pc)",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:1194"
+  },
+  {
+   "file": "vsrc/frontend/OooDirectControlFlowGate.v",
+   "purpose": "direct 控制流策略组合门:分支 fire(排除 dual_go)、JAL fire/target、RAS ret fire/target、call 识别与 safe/unsafe 分流、return-cont capture/match",
+   "key_params": "纯组合;ENABLE_DIRECT_RAS_RET=1",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:908"
+  },
+  {
+   "file": "vsrc/frontend/OooBranchAppendDispatchGate.v",
+   "purpose": "lane1 同拍 append 快速路(target/fallthrough/return-cont)与 prefetch dispatch 门:全部被 localparam 0 恒禁,输出仅 dispatch1_optional=0 与若干 unused 事实",
+   "key_params": "BRANCH_APPEND_DISPATCH_ENABLE=0、BRANCH_PREFETCH_DISPATCH_ENABLE=0、return_cont_attempt=1'b0、dispatch1_optional=1'b0(全死)",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:1614"
+  },
+  {
+   "file": "vsrc/frontend/OooBranchBpuUpdateGate.v",
+   "purpose": "BPU 更新臂仲裁:direct(拍内解析)/pending/drained/commit(后三臂 mode=1 死)/F2 issue-resolve 回训(is_branch gate),单写口 mux 输出 taken/pred_taken/pc/bht_idx",
+   "key_params": "纯组合;5 个更新臂,优先级 pending 类>direct>resolve",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:1910"
+  },
+  {
+   "file": "vsrc/frontend/OooPredictorUpdateGate.v",
+   "purpose": "BTC capture 与 JALR BTB update 使能组合门;JALR BTB update 臂 mode=1 恒 0",
+   "key_params": "纯组合 2 输出",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:1048"
+  },
+  {
+   "file": "vsrc/frontend/OooPendingBranchSequencer.v",
+   "purpose": "pending 分支寄存槽(direct/head0/lane1 三 capture 源,含 BHT 快照载荷);mode=1 下 capture 恒 0 → valid 恒 0(死)",
+   "key_params": "单项,载荷含 pc/next_pc/inst/rs1/rs2/imm/cmp_op/pred_taken/bht_idx(12bit)",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:2073"
+  },
+  {
+   "file": "vsrc/frontend/OooPendingJumpSequencer.v",
+   "purpose": "pending JAL/JALR 寄存槽(head0/lane1 capture,dispatch 后锁 target);mode=1 死",
+   "key_params": "单项,载荷 pc/next_pc/inst/rs1/imm/target/jalr 标志",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:2132"
+  },
+  {
+   "file": "vsrc/frontend/OooPendingControlResolveGate.v",
+   "purpose": "pending 分支/跳转解析组合门(JALR 目标=(rs1+imm)&~1、misaligned、return/call/nolink 分类);mode=1 下除 pending_control_ready 恒 1 外全死",
+   "key_params": "纯组合",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:1329"
+  },
+  {
+   "file": "vsrc/frontend/OooBackendDrainTracker.v",
+   "purpose": "后端排空跟踪:drained = 寄存(backend_empty && 无 dispatch fire),trap 强制置 1;服务 CSR/trap 等串行化路径(仍活跃)",
+   "key_params": "1bit 状态,1 拍滞后",
+   "instantiated_by": "vsrc/frontend/OooFrontend.v:2064"
+  }
+ ],
+ "open_questions": [
+  "同拍双发射两条控制流都 emit resolve 时,BPU 只回训 pick1 选中的一条(mode=1 优先最老 mispredict),另一条(可能是预测正确的更老分支)的回训永久丢失;以及 mispredict resolve 拍之前已发射的 wrong-path 分支是否存在训练污染窗——需要结合 IQ 发射时序与 ROB kill 时序跨子系统验证(vsrc/execute/OooIntBackend.v:2504-2543)",
+  "count<2 哨兵(64'h1 恒 mispredict)在 redirect 风暴场景(每次 redirect 后 FIFO 必然低水位)的实际性能损耗未量化,需要 perf 计数器/仿真数据(vsrc/frontend/OooFrontend.v:1860-1870)",
+  "OooBranchSpecTracker.checkpoint_pending 在 mode=1 下由 taken 分支 fire 置位后,若该分支后端 resolve 为预测正确(无 untracked),它只能等下一次 direct flush 才被覆盖清除——挂起窗口内 RAS 更新被禁的实际持续时间与对 RAS 命中率的影响未验证(vsrc/frontend/OooBranchSpecTracker.v:45-50)",
+  "BHT/局部表/GHR 从不清除(flush_i 恒 0)且索引不含特权级/ASID:跨地址空间/跨特权级的分支别名是否只是性能问题(pred_npc 机制保证正确性)——理论上是,但需 difftest 在多进程/S-mode 切换负载下确认无隐藏正确性依赖(vsrc/core/NpcCoreTop.v:248)",
+  "OooRedirectArbiter 已建未接线,当前 redirect 优先级由 OooFetchRequestMux 的隐式 mux 链承担:该 mux 链的臂序(直跳/ret/pending/branch-resolve/spec/untracked/prefetch)与 arbiter 设计的年龄律是否在所有并发组合下等价,属于跨 frontend/control 子系统的一致性问题(vsrc/frontend/OooFetchRequestMux.v 全文 vs vsrc/control/OooRedirectArbiter.v)",
+  "pending_jump_rs1_data_w 由 glue 侧提供给死路径(pending jump 解析),其上游寄存器读口是否构成可删除的死硅,需要 regread/bypass 子系统确认(vsrc/frontend/OooFrontend.v:82,1341)"
+ ],
+ "subsystem": "分支预测与投机恢复(RV64 OoO 前端控制流:方向预测/BTB/RAS/真预测 F2/ROB-walk 误预测恢复/pending 串行化遗留)"
+}

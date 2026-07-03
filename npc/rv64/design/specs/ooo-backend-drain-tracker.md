@@ -2,10 +2,11 @@
 
 ## 1. 需求
 
-`OooBackendDrainTracker` 承接 `OooAluFetchCore` 中 `backend_drained_q` 的单 bit 状态：
+`OooBackendDrainTracker` 承接 `OooFrontend`(原 `OooAluFetchCore`)中 `backend_drained_q` 的单 bit 状态：
 
-- 父模块组合计算当前后端是否为空。
-- 本模块把该事实打一拍，供 CSR/system、memory replay、FP pending 等精确边界使用。
+- 后端是否为空由 `control/OooPendingDrainResolveGate` 组合计算,经 glue 与父模块端口传入。
+- 本模块把该事实打一拍，供 CSR/system、trap/中断注入等域 B 串行化精确边界使用
+  (2026-07-03 RTL 重读:pending-mem replay 与 pending-FP 消费臂已判死/拆除,分支类不再走 drain)。
 - 若本拍发生新的 dispatch fire，则下一拍不能认为后端已 drained。
 - 若 precise trap/frontend global clear 发生，则强制回到 drained 状态。
 
@@ -15,7 +16,7 @@
 
 输入：
 
-- `backend_empty_i`：父模块已经计算好的组合事实，表示 ROB、issue queue、retire 和 synthetic lane1 状态都为空。
+- `backend_empty_i`：上游(`control/OooPendingDrainResolveGate`,经 glue/父模块端口)已经计算好的组合事实，表示 ROB、issue queue、retire、synthetic lane1 状态都为空，且访存退休侧静默(SQ 排空且无 drain 在飞,`mem_retire_quiet`,LSQ·SQ 切换后并入)。
 - `dispatch_fire_i`：本拍有新的 dispatch0 fire，会让下一拍不能继续认为 drained。
 - `force_drained_i`：trap/precise recovery 边界强制清空前端视角下的 drain tracker。
 
@@ -25,8 +26,9 @@
 
 父模块仍负责：
 
-- 计算 `backend_empty_i`。
-- 使用 `drained_o` 作为 pending replay、CSR dispatch、FP pending start 的 gate。
+- 提供 `backend_empty_i`(计算真源在 `control/OooPendingDrainResolveGate`)。
+- 使用 `drained_o` 作为 CSR/system dispatch 与 pending 控制解析(drain_complete)的 gate
+  (pending-mem replay/pending-FP start 消费臂已死)。
 - 处理 trap、flush、commit、ROB/IQ 状态本身。
 
 ## 3. 状态机
@@ -48,6 +50,6 @@
 
 ## 5. 数据通路
 
-1. 父模块汇总 `backend_empty_i`。
+1. `control/OooPendingDrainResolveGate` 汇总 `backend_empty_i`,经 glue/父模块端口送入。
 2. 本模块保存 `backend_empty_i && !dispatch_fire_i`。
 3. precise trap/recovery 通过 `force_drained_i` 直接写回 drained。

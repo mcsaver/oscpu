@@ -2,7 +2,8 @@
 
 ## 目标
 
-`frontend/OooAluFetchCore.v` 仍承担 fetch packet head 分类、基础译码非法判定、
+`frontend/OooAluFetchCore.v`（后已重构为 `OooFrontend` wrapper；本模块现由
+`OooFetchHeadPairGate` 实例化）仍承担 fetch packet head 分类、基础译码非法判定、
 FP 子译码、privileged 非法检查、pending/CSR/trap glue 和提交修饰等多类职责。
 本轮选择风险最低的一刀：把 head0/head1 重复的“单个 fetch head 分类”纯组合逻辑
 收敛到 `frontend/OooFetchHeadClassifyGate.v`。
@@ -77,7 +78,8 @@ FP 子译码、privileged 非法检查、pending/CSR/trap glue 和提交修饰�
 4. `system_raw_o` 汇总 ECALL/CSR/xRET/WFI/SFENCE。
 5. `arch_trap_raw_o` 汇总 fetch fault、base illegal、semihost EBREAK、FS-off FP 和
    privileged illegal。
-6. `stop_raw_o` 汇总 exit/system/FP/arch trap。
+6. `stop_raw_o` 汇总 fetch fault/exit/system/arch trap；FP 已迁域 A，
+   `fp_raw` 不再属 stop 类（普通 dispatch 进 ROB/FP 簇；FS-off 经 arch trap 仍 stop）。
 
 ## 验证计划
 

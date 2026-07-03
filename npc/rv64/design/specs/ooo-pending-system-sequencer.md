@@ -24,6 +24,11 @@
 - `clear_dispatched_i` clears only `dispatched_o` and has lower priority than
   `dispatch_fire_i`, preserving the old same-cycle ordering in the parent always
   block.
+- `refresh_rdata_i` has the lowest priority and rewrites only `csr_rdata_o`
+  (drain-complete re-latch, added with the FP domain-A migration: the rdata
+  captured at dispatch time is stale when the CSR shares the window with
+  in-flight fflags-producing FP instructions; the parent asserts it at
+  `backend_drained && stop_pending && pending CSR && !dispatched`).
 
 ## 3. State Machine
 

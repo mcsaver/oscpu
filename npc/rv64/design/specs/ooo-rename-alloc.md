@@ -12,15 +12,18 @@
 ## 2. FreeList（环形队列）
 - `fifo_q[head..tail]` 存空闲 pdest;`alloc0=fifo[head]`、`alloc1=fifo[head+alloc0_fire]`。
 - `alloc0_ready=count!=0`、`alloc1_ready=count>alloc0_fire`;释放下一拍可分配(避免与 commit 时序耦合)。
-- checkpoint/restore 支持分支投机回滚(整表快照)。
+- checkpoint 整表快照影子阵列在 `OOO_ROB_WALK_MODE=1` 下 capture/restore 恒被 gate,为死硅
+  (2026-07-03 RTL 重读确认);误预测恢复实际走 ROB-walk(恢复期 free 源切换为 squashed uop 的 new_pdest)。
 - **不变量 FL-I1**：count = 当前空闲数;post_alloc/free 计算带 `<PHY_REG_COUNT` 防溢出。
 - **iter7 时序**：`alloc1` 改为并行读 `fifo[head]`/`fifo[head+1]` + alloc0_fire 过浅 2:1 select
   (取代 alloc0_fire 喂 64:1 mux 索引)，行为等价、DispatchBackend 42→39 级。
 
 ## 3. BusyTable（唤醒边界 + 同拍旁路）
-- `ready_q[preg]`:alloc 置 0(忙)、wakeup 置 1(就绪);**wakeup 优先于 alloc 写**(同拍重用 pdest 不误判就绪)。
+- `ready_q[preg]`:alloc 置 0(忙)、wakeup 置 1(就绪);**同拍同 preg 时 alloc 写胜**(alloc 晚于 wakeup 生效,
+  同拍回收重用 pdest 不误判就绪)。
 - 组合查询 `query_ready(preg)`:preg==0→1;命中本拍 alloc→0;命中本拍 wakeup→1;否则 `ready_q[preg]`。
-  即把同拍 alloc/wakeup 旁路进查询，保证 IQ 同拍看到最新就绪态。4 个查询端口(2 uop × src1/src2)。
+  即把同拍 alloc/wakeup 旁路进查询，保证 IQ 同拍看到最新就绪态。4 个查询端口(2 uop × src1/src2);
+  另有 1 个仅含 wakeup 前视的 raw 口,唯一实例中地址接常量 0(死口,FP store fs2 就绪实际由 FP 簇自建 busy 数组提供)。
 - **不变量 BT-I1**：x0(preg0)恒就绪;**BT-I2**：同拍 alloc+wakeup 同 preg 时 alloc 优先(忙)。
 
 ## 4. #1 关键路径（Vivado OOC 实测）

@@ -1,9 +1,11 @@
 # OooBranchResolveRecoveryGate Spec
 
+> ⚠️ **状态(2026-07-03 RTL 重读)**:模块是 F2 误预测恢复的活中枢,但只剩单臂活——mode=1(`OOO_ROB_WALK_MODE=1'b1`)下 untracked 判据被编译期 mux 收紧为"仅后端显式 mispredict"(`branch_resolve_untracked_raw = rob_walk_mode ? (resolve_valid && mispredict && !misaligned) : …`,`OooBranchResolveRecoveryGate.v:54-66`),`branch_resolve_untracked_redirect` 是唯一活 redirect 输出;pending match/tracked redirect/branch-spec checkpoint-capture/restore/spec-redirect 与 direct-branch-wait untracked 各臂因 pending_branch/branch_spec_active/快解析恒 0 而全死;拆除计划见 `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述。
+
 ## Scope
 
 `OooBranchResolveRecoveryGate` owns the combinational branch resolve recovery
-predicates used by `OooAluFetchCore`.
+predicates used by `OooFrontend` (formerly `OooAluFetchCore`).
 
 It does not store branch state, update BPU/RAS tables, modify fetch PC state, or
 own the direct branch wait buffer. The parent remains the owner of pending
@@ -14,7 +16,9 @@ trap squash state, and fetch outstanding/discard state.
 
 - Pending branch owner state: stop pending, pending branch valid, dispatched,
   pending branch PC, and branch-prefetch match.
-- Branch resolve payload: valid, PC, next PC, and misaligned.
+- Branch resolve payload: valid, PC, next PC, misaligned, and the backend
+  explicit mispredict flag (`core_branch_resolve_mispredict_i`, the sole
+  untracked-redirect trigger in ROB-walk mode).
 - Branch speculation state: checkpoint pending, active, predicted PC, memory
   idle, and pending-load branch dependency.
 - Backend quiet sources: execute lane valid and memory response ready flags.
@@ -46,7 +50,11 @@ trap squash state, and fetch outstanding/discard state.
   can request restore but cannot produce a redirect.
 - Direct-branch-wait untracked requires wait-buffer PC match, no pending-branch
   match, and no same-cycle direct branch resolve.
-- Generic untracked resolve is suppressed when branch-spec resolve is valid.
+- Generic untracked resolve is suppressed when branch-spec resolve is valid
+  (legacy mode-0 arm only).
+- In ROB-walk mode (`OOO_ROB_WALK_MODE=1`), untracked resolve is exactly
+  "resolve valid, explicit mispredict, non-misaligned"; wait-buffer/pending
+  matches are ignored by this arm.
 - Trap redirect squash masks redirect outputs only; it does not erase the raw
   resolve match predicates.
 

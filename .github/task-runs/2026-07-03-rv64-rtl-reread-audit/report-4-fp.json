@@ -1,0 +1,205 @@
+{
+ "subsystem": "浮点子系统(RV64 F/D 扩展:解码、重命名、发射、执行、写回、fcsr 交互)",
+ "modules": [
+  {
+   "file": "vsrc/execute/OooFpBackend.v",
+   "purpose": "FP 后端一体枢纽:FP rename(32 项 map+复用 OooFreeList+自建 busy 数组)、FP IQ/物理堆/架构 FPR 实例化、发射级 funct7 op 译码与动态 rm 解析、执行簇(arith 自流水/div·sqrt 迭代/组合类 1 拍)、完成仲裁+完成 FIFO 出 fpwb",
+   "instantiated_by": "vsrc/execute/OooIntBackend.v:2595 (u_fp_backend);filelist.mk:69/309",
+   "key_params": "fp_map 32 项(REG_NUM,OooFpBackend.v:195);done FIFO 深 8(DONE_FIFO_W=3,OooFpBackend.v:820-821),发射预算 count<=2(OooFpBackend.v:572-573);双 dispatch lane(disp/disp1, fpld0/fpld1);eff_rm=rm==111?frm:rm(OooFpBackend.v:523-524)"
+  },
+  {
+   "file": "vsrc/execute/OooFpArithGate.v",
+   "purpose": "FADD/FSUB、FMUL、FMA 族(FMADD/FMSUB/FNMSUB/FNMADD)single/double 双独立流水 datapath,fused 单次舍入 FMA(128b 定点场 anchor-at-larger),带 5 级 meta 链+kill 的自流水接口",
+   "instantiated_by": "vsrc/execute/OooFpBackend.v:604 (u_fp_arith)",
+   "key_params": "FADD 3 级寄存(T+3 可读,OooFpArithGate.v:675-753,1456)、FMUL 3 级(S1 乘/S2 左规/S3 舍入)、FMA 5 级(S1 积/S2 移位量/S3 128b 对齐宽加/S4 LZC+subnormal/S5 舍入);统一 FP_ARITH_LATENCY=5 拍出口(OooFpArithGate.v:1379,1471);每拍可背靠背 launch(OooFpArithGate.v:41-43)"
+  },
+  {
+   "file": "vsrc/execute/OooFpConvertGate.v",
+   "purpose": "FCVT 全族纯组合 owner:fp→int(W/WU/L/LU × S/D)、int→fp(S/D × W/WU/L/LU)、fp↔fp(FCVT.S.D/FCVT.D.S),含饱和、NaN→最大值、value+fflags 双份逻辑",
+   "instantiated_by": "vsrc/execute/OooFpBackend.v:742 (u_fp_convert)",
+   "key_params": "int_fmt=inst[21:20](W=00/WU=01/L=10/LU=11,OooFpConvertGate.v:70-71,159-160);纯组合 0 级;输出按 src/dst_double+fpr_to_fpr mux(OooFpConvertGate.v:1005-1019)"
+  },
+  {
+   "file": "vsrc/execute/OooFpLongOpGate.v",
+   "purpose": "FDIV/FSQRT 时序 owner:start 拍锁存操作数/rm(防迭代期输入换人),operand 准备(subnormal 预规格化)、迭代器实例、done 拍结果装配+fflags",
+   "instantiated_by": "vsrc/execute/OooFpBackend.v:646 (u_fp_long_op)",
+   "key_params": "操作数锁存寄存器 op_frs1/frs2/rm/double(OooFpLongOpGate.v:916-932);dividend 108b/divisor 53b/radicand 112b;S/D 共用同一迭代器"
+  },
+  {
+   "file": "vsrc/execute/OooFpDivIter.v",
+   "purpose": "串行 restoring 除法器,每拍产出 1 个商位",
+   "instantiated_by": "vsrc/execute/OooFpLongOpGate.v:949 (u_fp_div_iter)",
+   "key_params": "QUOTIENT_W=56/DIVIDEND_W=108/DIVISOR_W=53;56 步迭代,done 在 start 后约 57 拍(OooFpDivIter.v:6-10,33,56-77);单在飞(busy 背压)"
+  },
+  {
+   "file": "vsrc/execute/OooFpSqrtIter.v",
+   "purpose": "逐位(每拍消费 2 位 radicand)开方迭代器",
+   "instantiated_by": "vsrc/execute/OooFpLongOpGate.v:962 (u_fp_sqrt_iter)",
+   "key_params": "ROOT_W=56/VALUE_W=112;56 步迭代,done 约 start 后 57 拍(OooFpSqrtIter.v:6-9,31,58-76);单在飞"
+  },
+  {
+   "file": "vsrc/execute/OooFpRound.v",
+   "purpose": "`include 注入的共享舍入/规格化 helper 头:fp_round_increment(5 舍入模式)、LZC 家族、shift-right-jam 家族(27/48/56/106/128b)、OF/UF/NX 标志映射、溢出饱和(Inf 或最大有限值随 rm)",
+   "instantiated_by": "被 `include 于 OooFpArithGate.v:61、OooFpConvertGate.v:23、OooFpLongOpGate.v:27(非模块,filelist.mk:127/264 作 header)",
+   "key_params": "rm 编码 000 RNE/001 RTZ/010 RDN/011 RUP/100 RMM,default→RNE(OooFpRound.v:15-23);UF=舍入后 subnormal 且 inexact(OooFpRound.v:450-457,470-477)"
+  },
+  {
+   "file": "vsrc/execute/OooFpClassifyGate.v",
+   "purpose": "FCLASS.S/D 纯组合 owner,10 位 class mask;未 NaN-box 的单精度直接报 qNaN(bit9)",
+   "instantiated_by": "vsrc/execute/OooFpBackend.v:728 (u_fp_classify)",
+   "key_params": "纯组合;NaN-box 检查在输出 mux(OooFpClassifyGate.v:69-73)"
+  },
+  {
+   "file": "vsrc/execute/OooFpCompareGate.v",
+   "purpose": "FEQ/FLT/FLE(NaN→0,sNaN 或 FLT/FLE 遇 qNaN 置 NV)与 FMIN/FMAX(单 NaN 取另一方/双 NaN canonical qNaN/±0 定序/仅 sNaN 置 NV)纯组合 owner",
+   "instantiated_by": "vsrc/execute/OooFpBackend.v:706 (u_fp_compare)",
+   "key_params": "纯组合;cmp_op=funct3(010 FEQ/001 FLT/000 FLE),is_max=funct3[0](OooFpCompareGate.v:5-8)"
+  },
+  {
+   "file": "vsrc/execute/OooFpSgnjGate.v",
+   "purpose": "FSGNJ/FSGNJN/FSGNJX 纯组合 owner;单精度未 box 源替换为 canonical qNaN 0x7fc00000,结果恒 NaN-box",
+   "instantiated_by": "vsrc/execute/OooFpBackend.v:719 (u_fp_sgnj)",
+   "key_params": "纯组合;op=funct3(OooFpSgnjGate.v:38-57)"
+  },
+  {
+   "file": "vsrc/execute/OooFpPredicates.v",
+   "purpose": "`include 注入的共享谓词头:NaN/sNaN/inf/zero(S/D)与 NaN-box 判定;未 box 单精度视为 NaN",
+   "instantiated_by": "被 `include 于 OooFpArithGate.v:60、OooFpConvertGate.v:22、OooFpLongOpGate.v:26、OooFpCompareGate.v:26(header,filelist.mk:125/264)",
+   "key_params": "fp_is_nan_s_value: 高 32 位≠全 1 即 NaN(OooFpPredicates.v:7-14)"
+  },
+  {
+   "file": "vsrc/scheduling/OooFpIssueQueue.v",
+   "purpose": "FP 发射队列:双 dispatch、单发射 oldest-ready(ROB 环形 age 全扫描),三 FP 源+一 GPR 源各自监听 FP/INT wakeup 双口,dispatch 拍同拍 wakeup 前视,mispredict age-squash/flush 全清/recover 冻结",
+   "instantiated_by": "vsrc/execute/OooFpBackend.v:423 (u_fp_issue_queue)",
+   "key_params": "8 项(ENTRY_INDEX_W=3,OooFpBackend.v:424,OooFpIssueQueue.v:92);发射宽度 1;wakeup 4 口(fp×2+int×2);FP load/store 不进本队列(OooFpIssueQueue.v:4-5)"
+  },
+  {
+   "file": "vsrc/regread_bypass/OooFpPhysRegFile.v",
+   "purpose": "FP 物理寄存器堆:f0 为真寄存器(无 x0 特判);4R(发射三源+FP store 数据)2W(算术结果+load 写回),写读同拍旁路(write1 优先);trap flush 时低 32 项单拍拷入架构 FPR、高 32 清 0",
+   "instantiated_by": "vsrc/execute/OooFpBackend.v:375 (u_fp_phys_reg_file)",
+   "key_params": "64 项×64b(PHY_REG_COUNT=`OOO_PHY_REG_COUNT=1<<6,include/define.v:22-25);4R2W(OooFpPhysRegFile.v:18-32)"
+  },
+  {
+   "file": "vsrc/regread_bypass/OooFpRegFile.v",
+   "purpose": "架构(committed)FPR:commit 双口写,全量平铺导出 fprs_o 作为 trap flush 时物理堆恢复源;只随 rst 清零",
+   "instantiated_by": "vsrc/execute/OooFpBackend.v:152 (u_arch_fpr);filelist.mk:63",
+   "key_params": "32 项×64b;3 读口在唯一实例中地址恒接 0、数据 unused(OooFpBackend.v:155-160)——端口级死代码"
+  },
+  {
+   "file": "vsrc/decode/OooFpDecode.v",
+   "purpose": "FP 指令类别译码(load/store/mv/class/sgnj/addsub/mul/fma/div/sqrt/minmax/compare/cvt×2)+精度判定(op 分别门控:load/store 看 funct3,OP-FP/FMA 看 fmt=inst[26:25])+GPR 写判定;静态 rm 101/110 不认(fp_o=0→上游 illegal)",
+   "instantiated_by": "vsrc/frontend/OooFetchHeadClassifyGate.v:65 (u_fp_decode,双 head 经 OooFetchHeadPairGate 各一份)",
+   "key_params": "纯组合;fp_rounding_arith_w=funct3<=100 或==111(OooFpDecode.v:59-60);FMA 仅 fmt 00/01(OooFpDecode.v:61-62)"
+  }
+ ],
+ "capabilities": [
+  {
+   "claim": "F/D 扩展指令逐类覆盖完整:FLW/FLD/FSW/FSD;FADD/FSUB/FMUL(S/D);FMADD/FMSUB/FNMSUB/FNMADD(S/D);FDIV/FSQRT(S/D);FCVT.W/WU/L/LU.S/D 与 FCVT.S/D.W/WU/L/LU 及 FCVT.S.D/FCVT.D.S;FEQ/FLT/FLE;FCLASS;FSGNJ/FSGNJN/FSGNJX;FMIN/FMAX;FMV.X.W/FMV.X.D/FMV.W.X/FMV.D.X。单双精度均为独立完整 datapath(非共享折叠)",
+   "evidence": "vsrc/decode/OooFpDecode.v:68-146(全类译码);vsrc/execute/OooFpBackend.v:506-559(发射级 funct7 分类);vsrc/execute/OooFpConvertGate.v:70-71,1005-1019(W/WU/L/LU 全格式);vsrc/execute/OooFpArithGate.v:71-407(FADD d/s 两条流水),425-669(FMUL d/s),803-1289(FMA d/s)"
+  },
+  {
+   "claim": "FMA 是 fused 单次舍入:53×53(24×24)精确宽积与 addend 在 128-bit 定点场 anchor-at-larger 对齐(shift-right-jam 入粘滞),宽加/减+单次规格化+单次舍入;FNMADD/FNMSUB 经 negate_product/subtract_addend 在符号处理内完成",
+   "evidence": "vsrc/execute/OooFpArithGate.v:782-800(算法说明+S1..S5 切级),939-971(128b 对齐+宽加減),1012-1045(单次舍入+组装);vsrc/execute/OooFpBackend.v:561-566(negate_product/subtract_addend 从 opcode 译出)"
+  },
+  {
+   "claim": "舍入模式支持 RNE/RTZ/RDN/RUP/RMM 全 5 种,静态 rm 取 inst[14:12],rm=111(DYN)时从 fcsr.frm 动态读取;frm 由 CsrFile 输出经 NpcCoreTop→OooIntBackend 布线进 FP 后端;溢出结果按 rm 饱和到 Inf 或同号最大有限值",
+   "evidence": "vsrc/execute/OooFpRound.v:8-25(5 模式进位判定),483-508(溢出饱和随 rm);vsrc/execute/OooFpBackend.v:523-524(eff_rm mux);vsrc/core/CsrFile.v:56,619(frm_o);vsrc/core/NpcCoreTop.v:114,312,405;vsrc/execute/OooIntBackend.v:78,2602"
+  },
+  {
+   "claim": "fflags 逐指令产生、随完成事务进 ROB、commit 拍非异常才 OR 累积进 fcsr.fflags(架构序精确);任何写 FPR 或产生 fflags 的 FP 提交同时置 mstatus.FS=Dirty,SD 位由 FS==Dirty 派生;fflags/frm/fcsr 三个 CSR 读写视图齐全",
+   "evidence": "vsrc/execute/OooIntBackend.v:2460-2461(fflags 挂 wb 事务);vsrc/writeback/OooRob.v:313,328(commit 输出 fflags);vsrc/core/OooCoreTopGlue.v:337-352(commit 拍聚合+异常滤除);vsrc/core/CsrFile.v:793-795(csr_fflags_q <= csr_fflags_q | fp_fflags_i;FS←Dirty),503(SD),564-566(fflags/frm/fcsr 读),734-738(写)"
+  },
+  {
+   "claim": "执行延迟/流水:FADD 3 级寄存(T+3 结果就绪)、FMUL 3 级、FMA 5 级,三者经对齐链统一在 launch 后第 5 拍单口输出,数据通路每拍推进可背靠背发射(吞吐 1 op/拍,受完成 FIFO 预算 count<=2 限制);FDIV/FSQRT 用 56 步迭代器(done 约 start 后 57 拍),单在飞;比较/最值/符号注入/分类/FMV/FCVT 全部发射拍组合完成打 1 拍(exec1)",
+   "evidence": "vsrc/execute/OooFpArithGate.v:1373-1379(统一 LATENCY=5),1398-1400(FADD stage2 末→3 级对齐/FMUL stage3 末→2 级),1456(T+2 末写 value_q);vsrc/execute/OooFpDivIter.v:33,56-77;vsrc/execute/OooFpSqrtIter.v:31,58-76;vsrc/execute/OooFpBackend.v:568-586(发射预算/long busy/exec1 占用),869-876(组合类 1 拍寄存)"
+  },
+  {
+   "claim": "FP 算术是真乱序发射,不走 pending 串行域:专用 8 项 FP 发射队列 oldest-ready 选择(非队头 ready 即可先发),双 lane dispatch(同拍两条 FP 算术或两条 FP load 各自独立 rename alloc),源就绪靠 FP 双口+INT 双口 wakeup 广播(含 dispatch 拍同拍前视);旧 OooFpPendingExec 串行壳已拆除(仓库内无该模块定义或实例)",
+   "evidence": "vsrc/scheduling/OooFpIssueQueue.v:3-8,193-206(oldest-ready 扫描),142-168(同拍 wakeup 前视);vsrc/execute/OooFpBackend.v:66-97(双 lane 端口),423-498(IQ 实例);grep 全 vsrc 无 'module OooFpPendingExec'(仅注释提及'从 OooFpPendingExec 抽出',如 vsrc/execute/OooFpConvertGate.v:4)"
+  },
+  {
+   "claim": "FP 有独立重命名体系:32 项 map(rst/trap-flush 恒等复位)+参数化复用 OooFreeList+自建 64 项 busy 数组;推测执行恢复三件套齐全——mispredict 用 ROB walk FP 分流(walk0/1_fp 还原 map、回收新 preg)+IQ age-squash+执行簇 meta 链 kill+完成 FIFO killed 标记(防撞号污染重放后同号 ROB entry);trap flush 用架构 FPR 单拍整体拷回物理堆低 32 项",
+   "evidence": "vsrc/execute/OooFpBackend.v:195-240(map+恒等复位+walk 恢复),251-272(FreeList),279-313(busy),823-825,887-899(FIFO killed 语义);vsrc/scheduling/OooFpIssueQueue.v:256-269(age squash);vsrc/execute/OooFpArithGate.v:1404-1416,1439-1452(meta kill);vsrc/regread_bypass/OooFpPhysRegFile.v:75-82(recover 拷贝);vsrc/writeback/OooRob.v:109-115,271-277(walk is_fp)"
+  },
+  {
+   "claim": "NaN-boxing 语义完整:单精度输入高 32 位≠全 1 一律视为 NaN(算术/比较/转换),FSGNJ 未 box 源替换 canonical qNaN,FCLASS 未 box 报 qNaN class;所有单精度结果输出恒 NaN-box;FLW 写回 box(高 32 全 1)、FLD 直存;FMV.W.X box、FMV.X.W 按位取低 32 符号扩展",
+   "evidence": "vsrc/execute/OooFpPredicates.v:4,7-14;vsrc/execute/OooFpSgnjGate.v:46-49;vsrc/execute/OooFpClassifyGate.v:67-73;vsrc/execute/OooFpRound.v:500-508(结果 box);vsrc/execute/OooIntBackend.v:2402-2405(FLW box);vsrc/execute/OooFpBackend.v:756-762(FMV 两向)"
+  },
+  {
+   "claim": "subnormal 全支持,无 flush-to-zero:输入 exp==0 时按 eff_exp=1+无隐含位进入主通路(FADD/FMUL/FMA/FDIV 均如此),FSQRT/FCVT 对 subnormal 输入先 LZC 预规格化;输出侧经 shift-right-jam 产生 subnormal 结果;UF 标志按'舍入后 tiny 且 inexact'判定",
+   "evidence": "vsrc/execute/OooFpArithGate.v:140-143(FADD eff exp),477-478,521-526(FMUL subnormal 右移),907-912,1001-1006(FMA);vsrc/execute/OooFpLongOpGate.v:352-357,548-572(sqrt/div 预规格化);vsrc/execute/OooFpRound.v:450-457,470-477(UF)"
+  },
+  {
+   "claim": "FP load/store 配合:FLW/FLD/FSW/FSD 由前端识别后走整数 IQ mem 通道(地址生成/LSQ/SQ 生命周期共享),FP 后端只提供 load 目的 preg 分配(fpld0/1_alloc 双 lane)、store 数据源 rename 查询(fpst0/1_query)与发射拍物理堆 R3 数据读、load 写回(写物理堆+FP wakeup+box 后进 ROB data 供 commit 写架构 FPR);FP store 同走 SQ",
+   "evidence": "vsrc/execute/OooFpBackend.v:8-14(分工声明),88-117(fpld/fpst 端口);vsrc/execute/OooIntBackend.v:210-231(dispatch 分流),929(发射拍 fpst_read preg mux),2592-2593(fpld_wb=mem rsp 分流,错误/页故障不写),2686-2687(pdest=miq 队头);vsrc/execute/OooIntBackend.v 2723 附近注释'store 判定含 FP store——FP store 同走 SQ 生命周期'"
+  },
+  {
+   "claim": "特权合规:mstatus.FS==0(Off)时 FP 指令在前端被判 fp_disabled 进异常流(非法指令);未知 FP 编码与静态非法 rm(101/110)因 DecodeUnit 默认 CTRL_ILLEGAL=1 且 OooFpDecode 白名单不认而报 illegal",
+   "evidence": "vsrc/frontend/OooFetchHeadClassifyGate.v:126-131,164(fp_disabled=fp_raw && FS==0);vsrc/decode/DecodeUnit.v:163(默认 illegal,无 FP opcode 分支);vsrc/decode/OooFpDecode.v:59-60(rm 白名单);vsrc/frontend/OooFetchHeadClassifyGate.v:88(illegal_raw=decode_illegal && !fp_raw)"
+  },
+  {
+   "claim": "GPR 目的 FP 指令(FCMP/FCLASS/FMV.X.*/FCVT→int)真跨域:pdest 来自整数 rename,结果经 fpwb(rd_en=1)写整数 PRF 并发整数 wakeup;GPR 源 FP 指令(FMV.W/D.X、FCVT←int)在 FP IQ 内监听整数 wakeup、发射拍读整数物理堆专用 read8 口",
+   "evidence": "vsrc/execute/OooFpBackend.v:12-14,53,60-62,124-125,815(done_in_rd_en);vsrc/execute/OooIntBackend.v:561(read8→fp_gpr_read_data),2390-2396(fpwb 进 wb0/wb1 仲裁),2429,2464(wb 有效源含 fpwb)"
+  }
+ ],
+ "limitations": [
+  {
+   "claim": "动态舍入模式非法值不报 illegal:rm=DYN(111)且 fcsr.frm=101/110 时,指令照常执行并按 fp_round_increment 的 default 分支静默用 RNE 舍入;CsrFile 对 frm 写入也无合法性约束。RISC-V 规范要求此情形报非法指令",
+   "evidence": "vsrc/execute/OooFpBackend.v:523-524(eff_rm 直接替换,无合法性检查);vsrc/execute/OooFpRound.v:22(default: RNE);vsrc/core/CsrFile.v:735(frm 3 位直写);全 vsrc 未见 frm 非法拦截点"
+  },
+  {
+   "claim": "FDIV/FSQRT 无流水且互斥:issue_ready 检查 long_busy_any(div 或 sqrt 任一 busy 即不发任何 long op),单在飞,单/双精度同为 56 步迭代(~57 拍 done),FDIV.S 未按 24 位精度缩短迭代",
+   "evidence": "vsrc/execute/OooFpBackend.v:579-585(long_busy_any 背压);vsrc/execute/OooFpDivIter.v:9,33(QUOTIENT_W=56 恒定);vsrc/execute/OooFpLongOpGate.v:503(single dividend 仅移位布局,商仍 56 步)"
+  },
+  {
+   "claim": "OooFpBackend 内 FLW NaN-box 逻辑是死路径:fpld_wb_double_i 在唯一实例化点被硬接 1'b1,fpld_boxed_data_w 恒走 double 直存分支;实际 box 由 OooIntBackend 的 mem_rsp_fp_boxed_w(按 miq_head_size)完成——正确性依赖上游先 box 的隐式约定,模块内 box 代码为冗余",
+   "evidence": "vsrc/execute/OooIntBackend.v:2684(.fpld_wb_double_i(1'b1)),2403-2405(真正的 box);vsrc/execute/OooFpBackend.v:370-373(死的 box mux)"
+  },
+  {
+   "claim": "OooFpArithGate 旧 start/done 多周期接口是保留的死接口:start_i 恒接 1'b0,done_o 与 addsub/mul/fma 的 value/fflags 直连端口全部 unused,latency_cnt 计数器永远为 0;注释自认'拆除 pending 壳时一并移除'但尚未移除",
+   "evidence": "vsrc/execute/OooFpBackend.v:608(.start_i(1'b0)),591-597,617-623(unused 线);vsrc/execute/OooFpArithGate.v:45(遗留声明),1388-1395(死计数器)"
+  },
+  {
+   "claim": "OooFpRegFile 三个读端口在唯一实例中端口级死代码:地址恒接 0、数据挂 unused 线;该模块仅剩 commit 双写+fprs_o 平铺导出两个活功能",
+   "evidence": "vsrc/execute/OooFpBackend.v:155-160(read0/1/2 地址接 0,数据 unused);vsrc/regread_bypass/OooFpRegFile.v:10-15(端口仍在)"
+  },
+  {
+   "claim": "完成仲裁存在结构性优先级饥饿风险:arith(无背压)>exec1(组合类)>long(div/sqrt hold),arith 背靠背流不断时 exec1 滞留会反过来阻塞所有组合类发射(issue_ready 要求 !exec1_valid_q),long 结果靠 hold 寄存等待且'新 long 发射拍作废旧 hold'的 wrong-path 清理依赖时序约定;另外发射预算 done FIFO count<=2(实际深 8)非常保守,限制峰值吞吐",
+   "evidence": "vsrc/execute/OooFpBackend.v:568-573(count<=2),583-585(exec1 占用阻发),664-665,679-698(hold 作废语义),788-794(仲裁优先级)"
+  },
+  {
+   "claim": "FP IQ 为单发射(每拍最多 1 条 FP op 进执行),发射选择是 8 项全组合 age 扫描;FP 交叉 wakeup/ready 菱形被 Verilator 判环,以 lint_off UNOPTFLAT 压制,注释自认'真伪甄别与结构化真修(交叉唤醒打拍)列为收尾项'未完成",
+   "evidence": "vsrc/scheduling/OooFpIssueQueue.v:4(8 项单发射),193-206(组合扫描);vsrc/execute/OooFpBackend.v:18-21(lint_off 与自认注释)"
+  },
+  {
+   "claim": "不支持 Zfh/半精度、Q 扩展、FCVTMOD 等;LOAD_FP/STORE_FP 仅认 W/D 宽度(FLH/FSH 等会因白名单落空而 illegal);FMA 仅认 fmt 00/01",
+   "evidence": "vsrc/decode/OooFpDecode.v:68-77(仅 FUNCT3_LW/LD、SW/SD),61-62(fmt 00/01)"
+  },
+  {
+   "claim": "mispredict kill 不中止迭代器:被 kill 的 div/sqrt 仅作废 meta,DivIter/SqrtIter 继续跑完 56 步并 busy 背压后续 long op(性能损失);迭代器只被 flush/rst 清,不接 kill_rob_idx",
+   "evidence": "vsrc/execute/OooFpBackend.v:693-697(仅清 meta);vsrc/execute/OooFpDivIter.v:14,45(仅 flush_i);vsrc/execute/OooFpLongOpGate.v:无 kill 端口(8-24)"
+  },
+  {
+   "claim": "文件级死代码:无——15 个 FP 文件全部被实例化或被 `include,且全部在 filelist.mk 编译清单(RTL_CORE_SRCS/RTL_HEADER_SRCS)内;但注意 OooFpPredicates.v/OooFpRound.v 是 include 头不是模块,OooFpRegFile 名字与 OooFpPhysRegFile 易混——前者是 32 项架构 FPR(恢复源),后者是 64 项推测物理堆,两者都是活代码",
+   "evidence": "实例化 grep 全命中(OooFpBackend.v:152,375,423,604,646,706,719,728,742;OooFpLongOpGate.v:949,962;OooIntBackend.v:2595;OooFetchHeadClassifyGate.v:65);vsrc/filelist.mk:63,67-69,108,113-127,167-168,264-265,307-309"
+  }
+ ],
+ "cross_module": [
+  "dispatch 分流约定(OooIntBackend→OooFpBackend):is_fp 且非 load/store → disp/disp1(FP IQ);FP load → fpld0/1_alloc(仅 rename 分配,访存走整数 mem 通道);FP store → fpst0/1_query(rs2=inst[24:20] 查 preg+ready 进整数 IQ 的 fp_src2)。fire 原子性靠双方 ready 交叉 gate(vsrc/execute/OooIntBackend.v:210-231,2615-2673)",
+  "FP load 写回契约:mem 在飞队列(miq)队头 pdest_fp 标记 + load wb fire → fpld_wb(pdest=miq_head_pdest_w,数据已在 OooIntBackend.v:2403-2405 按 miq_head_size box;error/page_fault 拍不写,OooIntBackend.v:2592-2593);同拍作为 fp_wake1 广播进 FP IQ",
+  "FP store 数据契约:dispatch 拍查 fpst_query(preg+ready),发射拍以 issue0_fp_st_preg 从 FP 物理堆 R3 读数据(OooIntBackend.v:929,2679-2680);FP store 进 SQ 生命周期与整数 store 相同",
+  "完成/写回契约:fpwb(rob_idx+pdest+rd_en+data+fflags)作为整数 wb0/wb1 端口的第五源、最低优先仲裁,ready 反压回 FP 完成 FIFO;rd_en=1 时写整数 PRF(GPR 目的跨域指令),rd_en=0 时 data 仅作 ROB done 载体供 commit 写架构 FPR(OooIntBackend.v:2390-2396,2429,2460-2464)",
+  "fflags/FS 契约:fflags 存 ROB entry → commit0/1_fflags → OooCoreTopGlue 聚合(异常 commit 滤除,OooCoreTopGlue.v:337-352)→ NpcCoreTop → CsrFile 按拍 OR 累积并置 mstatus.FS=Dirty(CsrFile.v:787-795);frm 反向:CsrFile.frm_o→NpcCoreTop.ooo_frm_w→OooIntBackend.frm_i→OooFpBackend(NpcCoreTop.v:114,312,405)",
+  "推测恢复契约:kill_valid=branch_resolve_mispredict+kill_rob_idx/rob_head_idx(环形 age 比较,OooIntBackend.v:2604-2606);recover 期 ROB walk 的 FP 分流 walk0/1_fp_*(OooRob is_fp_rd 标记,OooRob.v:109-115);trap flush=flush_i 触发 map 恒等+物理堆拷架构 FPR",
+  "前端契约:OooFpDecode 在 OooFetchHeadClassifyGate 内对每个 fetch head 译码,产出 fp_raw/fp_double/fp_gpr_write 等 facts 位;FS==0 → fp_disabled 异常;decode_illegal 且非 FP → illegal(OooFetchHeadClassifyGate.v:88,126-131,164)",
+  "commit 写架构 FPR 契约:commit0/1_is_fp_rd 且非异常时以 commit data(即 fpwb 携带的 FP 值或 load box 值)写 OooFpRegFile,并回收 old_pdest 进 FP free list(OooIntBackend.v:2699-2707;OooFpBackend.v:161-166,242-249)"
+ ],
+ "open_questions": [
+  "FP FreeList 复位后的初始空闲集合是否恰为 preg 32..63(与恒等 map、物理堆低 32=架构值的恢复模式自洽)——OooFreeList.v 属 rename/allocate 子系统,本次未读其复位逻辑",
+  "fpld_wb_double_i 硬接 1'b1 依赖 mem 侧 mem_rsp_fp_boxed_w 按 miq_head_size 先行 box 的隐式契约;miq_head_size/miq_head_pdest_fp 标记的填写正确性(尤其 LSQ/probe 精确异常路径下)需 memory 子系统确认",
+  "FP store 数据在发射拍从 R3 读出后,到 SQ drain 落存之间的 wdata 锁存与 4B/8B 对齐(FSW wstrb)在 memory 子系统完成,本子系统只见 fpst_read_data_o 单口——该锁存时机与 store 迁 SQ 后的生命周期是否有窗口问题需跨模块回答",
+  "rm=DYN+frm 非法(101/110)按规范应报 illegal:除本子系统外是否存在前端或 CSR 侧拦截(本次在 frontend/control/csr 相关 grep 中未发现),若无则为真实合规缺口,需与 difftest 参考模型(NEMU)行为对照确认是否被测试掩盖",
+  "wrong-path long op(div/sqrt)结果由'新 long 发射拍作废旧 hold'清理(OooFpBackend.v:679-698):kill 后到下一条 long 发射之间若发生 trap flush 之外的序列,旧 done 是否可能与新 meta 错配——kill/redirect 全局时序由 control/frontend 子系统裁定,本子系统内无法单独证明",
+  "OooFpBackend 的 disp1_gpr_pdest_i 接 dispatch1_new_pdest_probe_w 而 disp_gpr_pdest_i 接 dispatch0_pdest_w(OooIntBackend.v:2626,2646)——lane1 GPR 目的 preg 用 probe 前视值的正确性依赖整数 rename 的同拍 alloc 语义,属整数 rename 子系统的约定"
+ ]
+}

@@ -38,7 +38,7 @@
 #  define DEV_SB_ADDR        0x13200000   // 音频流缓冲 (窗口 +0x1200000)
 #endif
 
-// ---- Linux 平台设备 (RV64 system; 地址恒定, 与 Linux/platform/npc-rv64.yml/DTB 一致) ----
+// ---- Linux 平台设备 (RV64 system; 地址恒定, 与 Linux/platform/common-rv64.yml + nemu-rv64.yml/DTB 一致; virtio_rng/net、goldfish_rtc、reset_syscon 为 NEMU 独有, 声明在 nemu-rv64.yml) ----
 #define DEV_CLINT_MMIO         0x02000000
 #define DEV_PLIC_MMIO          0x0c000000
 #define DEV_VIRTIO_RNG_MMIO    0x10002000
