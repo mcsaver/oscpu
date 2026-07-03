@@ -81,8 +81,8 @@ RTL_OOO_CONTROL_COMMIT_SEQUENCER := $(RTL_WRITEBACK_DIR)/OooControlCommitSequenc
 RTL_OOO_COMMIT_OUTPUT_MUX := $(RTL_WRITEBACK_DIR)/OooCommitOutputMux.v
 RTL_OOO_SYNTHETIC_LANE1_RET_COMMIT_GATE := $(RTL_WRITEBACK_DIR)/OooSyntheticLane1RetCommitGate.v
 RTL_OOO_CONTROL_FLUSH_SEQUENCER := $(RTL_CONTROL_DIR)/OooControlFlushSequencer.v
-# B2 单一控制流重定向仲裁器（multi-source redirect → 唯一 redirect_request；详见 design/arch/b2-branch-spec-redirect.md）。
-RTL_OOO_REDIRECT_ARBITER := $(RTL_CONTROL_DIR)/OooRedirectArbiter.v
+# [已删 RTL_OOO_REDIRECT_ARBITER / OooRedirectArbiter.v —— C7 统一 redirect 仲裁地基删档减负（2026-07-03，
+#  从未接入编译列表/零实例化）；当前 redirect 仲裁由 OooFetchRequestMux 隐式优先级链承担。]
 # 子系统 wrapper：聚合 CSR/trap/pending/drain/flush/stop/observable 控制 owner，供 OooCoreTopGlue 单实例化。
 RTL_OOO_CONTROL_PLANE := $(RTL_CONTROL_DIR)/OooControlPlane.v
 RTL_OOO_STOP_PENDING_SEQUENCER := $(RTL_CONTROL_DIR)/OooStopPendingSequencer.v

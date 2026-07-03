@@ -179,7 +179,10 @@ bool npc_difftest_step(npc_word_t pc, uint32_t inst, npc_word_t next_pc,
                   " inst=0x%08x, ref expects pc=0x%016" NPC_PRIxWORD, pc, inst, ref_chk.pc);
           return false;
         }
-        DiffContext dut_ov = make_dut_context(pc + 4, gpr, rd_en, rd_addr, rd_data);
+        // 用 DUT 提交的真实 next_pc（对 RVC 压缩访存 = pc+2，非压缩 = pc+4）；
+        // 访存非控制流指令恒不误预测，故 next_pc 即其真实后继。写死 pc+4 会毒化
+        // 压缩访存后的控制流校验（C.LWSP/C.SWSP 命中 MMIO → 下一条假阳性 mismatch）。
+        DiffContext dut_ov = make_dut_context(next_pc, gpr, rd_en, rd_addr, rd_data);
         g_ref_regcpy(&dut_ov, DIFFTEST_TO_REF);
         g_skip_ref = false;   // 旧机制若已挂旗, 一并吸收(本条即其归属)
         return true;

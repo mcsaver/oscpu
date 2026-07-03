@@ -187,8 +187,15 @@ module tb_ooo_direct_branch_resolve_gate;
     issue_resolve_pc = head1_pc;
     issue_resolve_next_pc = head1_next_pc;
     #1;
-    tb_check1("issue resolve valid", direct_branch_resolve_valid, 1'b1);
-    tb_check1("issue redirect", direct_branch_resolve_redirect, 1'b1);
+    // [tie-off 契约] F2(OOO_DBRANCH_DOMAIN_A=1)下前端 issue 快臂被门死：direct branch 的
+    // issue 级解析归 OooIntBackend.branch_resolve_valid_o(+ROB-walk/BPU 单源)所有，本前端臂
+    // 在 F2 只会靠"issue_resolve_pc 与当前取指头 direct_branch_pc 跨实例 PC 别名巧合"spurious
+    // 触发，一旦巧合会经 direct_branch0_lane1_ret_o 合成 lane1-ret 造成 ret 双提交，故门死。
+    // 断言随模式精确追踪：F2(=1)→issue 臂输出恒 0；mode0(=0)→issue 臂仍活输出 1。不弱化检查。
+    tb_check1("issue resolve valid (F2 tied-off / mode0 live)",
+              direct_branch_resolve_valid, !(`OOO_DBRANCH_DOMAIN_A));
+    tb_check1("issue redirect (F2 tied-off / mode0 live)",
+              direct_branch_resolve_redirect, !(`OOO_DBRANCH_DOMAIN_A));
     tb_check1("issue not taken", direct_branch_resolve_taken, 1'b0);
 
     reset_inputs();

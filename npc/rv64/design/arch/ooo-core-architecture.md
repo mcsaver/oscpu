@@ -408,10 +408,11 @@ RAS 清空（权限边界 / spec restore，`OooRasUpdateGate.v:25-29`）、各 p
 > `redirect_request`。**仲裁主判据＝年龄**：同拍多源取 age 最老（`rob_idx − rob_head`，环形）者胜——
 > 更老的重定向会 squash 更年轻的源本身；同 age 平手按类 `trap > branch > direct`（trap/xret 恒在 commit/head=最老，
 > 年龄律已天然给它最高）。`IMMEDIATE`(dispatch 直算)/`DEFERRED`(后端误预测)/`TRAP_COMMITTED`(commit) 三类只**描述典型 age 位置、非固定覆盖序**。
-> **已实现地基**：`vsrc/control/OooRedirectArbiter.v` + `tb_ooo_redirect_arbiter.sv`（13 例 RED→GREEN）。
-> 〔2026-07-03 重读注记：该模块**既未进编译清单（filelist.mk 仅定义变量未加入 RTL_CORE_SRCS）也未在核内实例化**，
-> 属"已验证的地基、未接线的死文件"；当前 redirect 仲裁仍由 `OooFetchRequestMux` 隐式优先级链
-> 与多汇合点分散承担。接线仍是 B2 收口项。〕
+> 〔2026-07-03 更新：曾有"已实现地基"`vsrc/control/OooRedirectArbiter.v` + `tb_ooo_redirect_arbiter.sv`
+> （13 例 RED→GREEN，年龄律 selector），但该模块**从未进编译清单/从未实例化**，属已验证但未接线的死文件；
+> 经决策**删档减负**（模块+TB+filelist 变量+`REDIR_REASON_*` 宏全删，2026-07-03）。
+> C7 统一仲裁**仍是目标**，但不再保留未接线的独立地基文件——待真正做 redirect 收口时从 git 历史复活或重导出。
+> 当前 redirect 仲裁仍由 `OooFetchRequestMux` 隐式优先级链与多汇合点分散承担。〕
 > 对应 `ROADMAP` B2。〔修正：本节初稿的"IMMEDIATE>DEFERRED>TRAP_COMMITTED 固定优先级"不正确，实现时改为年龄律，详见 `history/b2-branch-spec-redirect.md` §3.2（已归档）。〕
 
 ---

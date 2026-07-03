@@ -29,7 +29,7 @@ misa = RV64ACDFIMSU（`core/CsrFile.v`）。复位 PC = 0x8000_0000，无 bootro
 | DCache | 32KB 直接映射 PIPT，8B line，write-through/no-allocate | `cache/OooDataWordCache.v` |
 | ITLB / DTLB | 各 64 项直接映射，satp 整值 tag，超页支持 | `memory/OooSv39Tlb.v` |
 | 方向预测 | gshare(4096×2b, GHR12) + 局部历史(256×8b + 4096×2b PHT) 混合 | `frontend/OooBranchDirectionPredictor.v` |
-| RAS | 32 深（define.v 的 BPU_RAS_*=16 是死宏） | `frontend/OooRasStack.v` |
+| RAS | 32 深（`OooRasStack.v` 的 DEPTH=32；旧 define.v 死宏 BPU_RAS_*=16 已于 2026-07-03 删除） | `frontend/OooRasStack.v` |
 | 误预测恢复 | redirect + ROB-walk（2 项/拍反向 walk），无 checkpoint | `writeback/OooRob.v` |
 | 乘/除 | 乘 2 拍非流水；除 radix-4+CLZ 早终止（≤32 拍） | `execute/OooMulDivUnit.v` |
 | FADD/FMUL/FMA | 3/3/5 级流水（统一第 5 拍出结果，可背靠背） | `execute/OooFpArithGate.v` |
@@ -107,16 +107,18 @@ load/store/AMO（SQ + probe/drain + MIQ）已全部迁回域 A。
    `OooFetchPacketCache.same_fetch_window` 把 store 足迹硬编码为 4 字节
    （`cache/OooFetchPacketCache.v:61-82`），对齐 `sd/FSD/SC.D/AMO*.D` 覆盖 A+4..A+7 的取指包
    （fetch_pc=A+4/A+6）被谓词与 index 扫描集双重排除;而 fence.i 译码后是合法 no-op
-   （`decode/DecodeUnit.v:779-783`，`REDIR_REASON_FENCEI` 全仓无消费者），无任何保底清除——
+   （`decode/DecodeUnit.v:779-783`；原 `REDIR_REASON_FENCEI` 宏已随 OooRedirectArbiter 删档移除，fence.i 仍无任何重取触发/消费者），无任何保底清除——
    即使软件规范执行 fence.i 也无法恢复一致性。次级：分页开启时 probe 拍失效用 VA、drain 拍用 PA，
    与 VIVT cache 索引错配。（BTC 有 fence 全清保底，但 BTC 本身恒空,无实际影响。）
 2. **Sv39 下跨 4KB 页的 misaligned load/store 静默错误翻译**。数据桥只翻译起始 VA 一次，
    第二页字节按"起始 PA 物理连续"读写（`memory/OooMemAxiBridge.v:238-252,455-476`），
    plain 访存 misaligned 又不 trap——分页 OS 下会静默读错/写坏相邻物理页，且 drain nokill 写必达。
    （对照：取指桥有完整双页处理，数据桥无对应物。M-mode 恒等映射下无害,现有测试因此不暴露。）
-3. **difftest MMIO skip 对 RVC 压缩访存指令 ref.pc 毒化**。commit 上报 inst 是解压后 32 位
-   （EA 判定正确），但 skip 后强制 `ref.pc = pc+4`（`csrc/cpu/difftest.cpp:182`），压缩访存真实
-   next=pc+2 → 下一条即假阳性 mismatch 中止。修复：skip 分支改用已传入的 event.next_pc。
+3. ~~**difftest MMIO skip 对 RVC 压缩访存指令 ref.pc 毒化**。~~ **→ 已修复（2026-07-03）**：
+   `csrc/cpu/difftest.cpp:182` 的 skip 分支已从写死 `pc+4` 改为用已传入的 `next_pc`（对压缩访存=pc+2、
+   非压缩=pc+4，访存非控制流恒不误预测故 next_pc 即真实后继）。验证：difftest 计算子集 38/3 与改前
+   逐字节一致（git-stash 基线证否——当前测试集 putch 走字节存储 sb、RVC 无 c.sb 恒 4 字节故本修不触发，
+   属潜伏正确性修复，将在压缩 word+ 存储命中 MMIO 时兑现）。〔那 3 项 difftest FAIL 为既有 divergence，见 §5〕
 4. **unsupported 合法指令的域 B trap 出口悬置**：mode=1 下 dispatch-time unsupported 捕获被门控关闭
    （防 wrong-path spurious trap），stop 仍置位但无捕获出口——依赖"后端支持所有已译码指令"假设成立
    （当前译码白名单与后端能力对齐,故未触发）。
@@ -174,17 +176,21 @@ load/store/AMO（SQ + probe/drain + MIQ）已全部迁回域 A。
 | OooSyntheticLane1Ret 家族（Sequencer/CommitGate + CommitOutputMux 合成臂） | capture 依赖拍内解析同拍谓词,设计路径死 | `writeback/OooWriteback.v:142-144` |
 | checkpoint 影子阵列五套（FreeList/RenameMap/BusyTable/IQ/ROB） | `cp_*` 恒 gate 0（ROB-walk 已取代） | `rename_allocate/OooDispatchBackend.v:485-486` |
 | OooBranchSpecTracker 的 active/checkpoint 机制 | capture 恒 0;但 checkpoint_pending 仍会置位并压制 RAS 更新（副作用活着,机制死) | report-1 |
-| OooRedirectArbiter.v | **未编译**（filelist 只定义变量未入 RTL_CORE_SRCS）+ 零实例化,仅 TB 引用 | `vsrc/filelist.mk:85` |
+| ~~OooRedirectArbiter.v~~ **已删档（2026-07-03）** | C7 统一 redirect 仲裁地基,从未接入编译列表/零实例化 → 删档减负（模块+TB+filelist 变量+`REDIR_REASON_*` 宏全删；lint 0/模块 TB 96/96）。当前仲裁=`OooFetchRequestMux` 隐式优先级链；若重启统一 arbiter 从 git 历史复活 | 已删除 |
 | fetch 响应 bypass 直通 dispatch 通路 | `OOO_ROB_WALK_MODE=1` 恒禁（防 bypass-after-kill） | `frontend/OooFrontendRunGate.v:62-70` |
 | WBU 的 LOAD 源臂 | load_data 口两实例恒接 0（load 走 mem rsp 通道） | `execute/OooIntBackend.v:801,811` |
 | IQ load-branch-fast 输出族 + pending_load0/1 | 消费端已删（E7),IQ 内 ~60 行选择逻辑空转 | report-3 |
 | PRF read4/5/6/7/9 五个读口 | 消费死硅/声明后未用/地址接 0（"10R2W"实际有效 5R2W） | report-3 |
-| 死宏 | `CACHEABLE_BASE/LAST`（与实际 256MB PMEM mask 矛盾!）、`NPC_AXI_SPI_*`、`BPU_RAS_*`、`REDIR_REASON_*` 全仓零消费 | `include/define.v:53-58,86-91` |
+| 死宏 | ~~`CACHEABLE_BASE/LAST`、`NPC_AXI_SPI_*`、`BPU_RAS_*`、`REDIR_REASON_*`~~ **全部已删除（2026-07-03，lint 0/0 残留）**（`REDIR_REASON_*` 随 `OooRedirectArbiter.v` 删档一并删——唯一消费者已无） | `include/define.v` |
 | csrc 侧 | `csrc/memory/cache.c`（宿主 cache 模型,uint32_t 地址 RV32 遗留）、`csrc/device/serial.c`、`perf/scripts/bench.sh|profile.sh`（riscv32 遗留）、`perf/configs/perf_defconfig`（过时副本,构建不读） | report-8 |
 
-**理论风险残留**（死而未 tie-off）：DirectBranchResolveGate 的 issue 臂靠"跨实例 PC 别名巧合"仍可
-触发（紧循环+长延迟可构造）,巧合发生时 lane1-ret 合成 commit 存在双提交理论风险——
-建议显式 tie-off（见 answers.json #1 open questions）。
+~~**理论风险残留**（死而未 tie-off）：DirectBranchResolveGate 的 issue 臂靠"跨实例 PC 别名巧合"仍可
+触发（紧循环+长延迟可构造）,巧合发生时 lane1-ret 合成 commit 存在双提交理论风险~~
+**→ 已修复（2026-07-03）**：`OooDirectBranchResolveGate.v` 的 `direct_branch_issue_resolve_valid_w`
+已用 `!(\`OOO_DBRANCH_DOMAIN_A)` 显式门死（F2 下恒 0，dispatch 臂本就由源头 `dispatch_resolve_valid_i=0`
+门死），双提交理论风险消除。验证：模块 TB 97/97（`tb_ooo_direct_branch_resolve_gate` 契约同步更新为
+随模式断言 F2→0/mode0→1，未弱化检查）+ riscv-tests 353/354（唯一 FAIL=`rv64mi-p-illegal` 为既有失败，
+git-stash 基线证否，与本改动无关）。
 
 ---
 
@@ -194,6 +200,19 @@ load/store/AMO（SQ + probe/drain + MIQ）已全部迁回域 A。
 - 本次审计**只读源码,未跑仿真**,"当前全绿与否"不在本文件断言范围;历史通过状态见
   `.github/memory/project-status.md`。
 - riscv-tests 仅跑 -p（物理内存）变体,无 -v 虚存变体——§3.1-2 的跨页 misaligned 缺口因此不被现有套件覆盖。
+- **⚠️ 既有失败（2026-07-03 实测）**：当前 F2 生产核（HEAD, `OOO_ROB_WALK_MODE=1`）跑 riscv-tests
+  `--riscv-privileged` = **353/354**，唯一 FAIL = `rv64mi-p-illegal`(exit=2)。git-stash 基线证明是
+  **既有失败**（mode0 历史运行 PASS、mode1 起 FAIL），与文档他处"271/0 全绿 / 全绿"声称**矛盾**——
+  那些是 F2 切换/sync 之前或不含该特权用例的快照。**已 5 探针确凿钉死（2026-07-03，沿途推翻 3 个错误假设）**：
+  ①bad2(M)/bad5(S) 两个 illegal trap 的 epc/cause=2/tval 全对、csr_mepc_q 确实变成 bad5；②但 bad5 的
+  M-handler(`synchronous_exception`)跑了 `csrr mcause`/`csrr mtval`，**`csrr t0,mepc`(0x8000044c) 从未派发**。
+  真因 = **F2 在 head0=分支 + head1=CSR/system 同包时丢弃 head1**：包 `[bne(head0), csrr mepc(head1)]` 里
+  bne 不跳但 head1 的 csrr mepc 被丢 → t0 保持旧值(mcause=2) → handler `beq t0,bad标签` 全不匹配 → `j fail`。
+  对比：`csrr mcause`(head1，head0=li ALU)工作、`csrr mepc`(head1，head0=bne 分支)被丢。次要异常：`.word 0`
+  被当 2 字节压缩非法解码。**修复位置**：`OooFrontendDispatchGate` 分支双发的 FIFO pop（`dbranch_dual_go`(:61-66)
+  已排除 head1_system 不双发、`dispatch1_barrier`(:102)已含 head1_system，但 head0=分支单发时整包仍 pop 掉
+  head1）——改为 head0=分支 & head1=barrier 时只 pop head0、保留 head1 走 domain-B 捕获。**高回归风险，须
+  spec 先行+全回归，待落地**（详见记忆 rv64mi-illegal-preexisting-f2-fail）。
 - ACT/arch-test 入口不在本目录（已迁 `am-kernels/arch-test`）;Linux/Ubuntu 启动编排在仓库根 `Linux/`。
 
 ---

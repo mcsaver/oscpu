@@ -364,7 +364,8 @@ module OooCoreTopGlue #(
   wire [`XLEN-1:0] core_branch_resolve_next_pc_w;
   wire core_branch_resolve_misaligned_w;
   // B2：解析分支 rob_idx（kill_younger_than 基准），随 branch_resolve_* 家族上送至此；
-  // 暂未接消费者（待 OooRedirectArbiter 接入），故为 driven-but-unused（Verilator UNUSEDSIGNAL 已全局抑制）。
+  // 后端内部已用于 ROB-walk kill；此 glue 导出份暂无消费者（原拟接统一 redirect arbiter，该地基已删档），
+  // 保留为 driven-but-unused（Verilator UNUSEDSIGNAL 已全局抑制），若重启 redirect 收口可直接接。
   wire [`OOO_ROB_INDEX_W-1:0] core_branch_resolve_rob_idx_w;
   // B2 片4：后端 branch/JALR 显式 mispredict 脉冲，上送前端做 redirect。
   wire core_branch_resolve_mispredict_w;

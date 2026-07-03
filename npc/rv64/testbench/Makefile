@@ -61,7 +61,6 @@ TESTS := \
   tb_ooo_stop_pending_sequencer \
   tb_ooo_csr_access_request_mux \
   tb_ooo_csr_trap_request_mux \
-  tb_ooo_redirect_arbiter \
   tb_ooo_pending_lane1_capture_gate \
   tb_ooo_pending_dispatch_arbiter \
   tb_ooo_pending_system_sequencer \
@@ -161,7 +160,6 @@ TB_SRCS_tb_ooo_control_flush_sequencer := tests/tb_ooo_control_flush_sequencer.s
 TB_SRCS_tb_ooo_stop_pending_sequencer := tests/tb_ooo_stop_pending_sequencer.sv $(RTL_OOO_STOP_PENDING_SEQUENCER)
 TB_SRCS_tb_ooo_csr_access_request_mux := tests/tb_ooo_csr_access_request_mux.sv $(RTL_OOO_CSR_ACCESS_REQUEST_MUX)
 TB_SRCS_tb_ooo_csr_trap_request_mux := tests/tb_ooo_csr_trap_request_mux.sv $(RTL_OOO_CSR_TRAP_REQUEST_MUX)
-TB_SRCS_tb_ooo_redirect_arbiter := tests/tb_ooo_redirect_arbiter.sv $(RTL_OOO_REDIRECT_ARBITER)
 TB_SRCS_tb_ooo_pending_lane1_capture_gate := tests/tb_ooo_pending_lane1_capture_gate.sv $(RTL_OOO_PENDING_LANE1_CAPTURE_GATE)
 TB_SRCS_tb_ooo_pending_dispatch_arbiter := tests/tb_ooo_pending_dispatch_arbiter.sv $(RTL_OOO_PENDING_LANE1_CAPTURE_GATE) $(RTL_OOO_PENDING_DISPATCH_ARBITER)
 TB_SRCS_tb_ooo_pending_system_sequencer := tests/tb_ooo_pending_system_sequencer.sv $(RTL_OOO_PENDING_SYSTEM_SEQUENCER)

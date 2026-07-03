@@ -50,13 +50,8 @@
 `define PC_STEP            64'd4
 `endif
 
-`ifndef CACHEABLE_BASE
-// RV64 已把 I/D cache 的 line beat 调整为 8 个 64-bit beat，PMEM 可以重新走 cache。
-`define CACHEABLE_BASE     64'h0000_0000_8000_0000
-`endif
-`ifndef CACHEABLE_LAST
-`define CACHEABLE_LAST     64'h0000_0000_9fff_fffc
-`endif
+// [已删死宏 CACHEABLE_BASE/LAST — RV32 遗留，与真实可缓存判定(NPC_AXI_PMEM_MASK 256MB 窗)
+//  矛盾且全仓零消费。可缓存区真源见 OooDataWordCache/OooMemAxiBridge 的 PMEM mask 判定。]
 // ysyxSoC 地址图统一在这里预留。未实现设备先在顶层接错误 slave，
 // 后续替换成真实 IP 时只需要沿用同名窗口，不再改 core/cache 接口。
 `ifndef NPC_AXI_CLINT_BASE
@@ -83,12 +78,8 @@
 `ifndef NPC_AXI_UART_MASK
 `define NPC_AXI_UART_MASK  64'hffff_ffff_ffff_f000
 `endif
-`ifndef NPC_AXI_SPI_BASE
-`define NPC_AXI_SPI_BASE   64'h0000_0000_1000_1000
-`endif
-`ifndef NPC_AXI_SPI_MASK
-`define NPC_AXI_SPI_MASK   64'hffff_ffff_ffff_f000
-`endif
+// [已删死宏 NPC_AXI_SPI_BASE/MASK — 全仓零消费，且其 base 0x1000_1000 已被 VIRTIO_BLK 复用；
+//  SPI 设备当前不用，故直接移除该预留槽。]
 `ifndef NPC_AXI_VIRTIO_BLK_BASE
 `define NPC_AXI_VIRTIO_BLK_BASE 64'h0000_0000_1000_1000
 `endif
@@ -202,18 +193,8 @@
 `ifndef BPU_LOCAL_PHT_ENTRIES
 `define BPU_LOCAL_PHT_ENTRIES (1 << `BPU_LOCAL_PHT_INDEX_W)
 `endif
-`ifndef BPU_RAS_ENTRIES
-`define BPU_RAS_ENTRIES    16
-`endif
-`ifndef BPU_RAS_INDEX_W
-`define BPU_RAS_INDEX_W    4
-`endif
-`ifndef BPU_RAS_SIZE_W
-`define BPU_RAS_SIZE_W     5
-`endif
-`ifndef BPU_RAS_DEPTH
-`define BPU_RAS_DEPTH      5'd16
-`endif
+// [已删死宏 BPU_RAS_ENTRIES/INDEX_W/SIZE_W/DEPTH — 全仓零消费且谎报深度(值 16，
+//  真实 RAS 为 32 深，见 frontend/OooRasStack.v)。删除以免误导。]
 `ifndef BPU_COUNTER_INIT
 `define BPU_COUNTER_INIT   2'd2
 `endif
@@ -550,17 +531,9 @@
 `define EXC_LOAD_PAGE_FAULT      5'd13
 `define EXC_STORE_PAGE_FAULT     5'd15
 
-// B2 统一控制流重定向（redirect_request）原因编码。OooRedirectArbiter 透传胜者 reason，
-// 下游据此区分取指重定向来源；详见 design/arch/b2-branch-spec-redirect.md §3.2。
-`define REDIR_REASON_W           3
-`define REDIR_REASON_NONE        3'd0
-`define REDIR_REASON_BRANCH_MISS 3'd1   // 条件分支误预测（后端解析）
-`define REDIR_REASON_JALR_MISS   3'd2   // JALR 目标误预测（后端 AGU 解析）
-`define REDIR_REASON_TRAP        3'd3   // commit 阶段精确异常/中断
-`define REDIR_REASON_XRET        3'd4   // mret/sret 返回
-`define REDIR_REASON_SFENCE      3'd5   // sfence.vma 后重取指
-`define REDIR_REASON_FENCEI      3'd6   // fence.i 后重取指
-`define REDIR_REASON_DIRECT      3'd7   // dispatch 期直算的 direct 控制流（JAL/已知目标）
+// [已删死宏 REDIR_REASON_W/NONE/BRANCH_MISS/JALR_MISS/TRAP/XRET/SFENCE/FENCEI/DIRECT ——
+//  唯一消费者 OooRedirectArbiter.v 已删档（C7 统一 redirect 仲裁地基删档减负，2026-07-03）。
+//  当前取指重定向仲裁由 OooFetchRequestMux 隐式优先级链承担；若重启统一 arbiter 再引入。]
 
 // B2 总开关：1=启用「分支投机 + ROB-walk 误预测恢复」（取代 weak checkpoint 恢复）；0=原 pending+drain。
 // 单分支深度（复用前端单 spec tracker 的 mispredict + branch_resolve_rob_idx），多分支待 pred-next-pc threading。

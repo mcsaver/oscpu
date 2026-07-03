@@ -58,7 +58,14 @@ module OooDirectBranchResolveGate (
   wire direct_branch_dispatch_resolve_valid_w =
       direct_branch0_dispatch_resolve_valid_w ||
       direct_branch1_dispatch_resolve_valid_w;
+  // [tie-off] F2(OOO_DBRANCH_DOMAIN_A=1)下 direct branch 的 issue 级解析归 OooIntBackend
+  // 的 branch_resolve_valid_o(+ROB-walk kill / BPU issue-resolve 单源)所有；本前端快臂在 F2
+  // 已无合法功能——direct branch 离开取指头之后才在 issue 解析，(issue_resolve_pc_i==direct_branch_pc_o)
+  // 只能靠跨实例 PC 别名巧合匹配，一旦巧合会经下方 direct_branch0_lane1_ret_o 合成 lane1-ret
+  // commit 造成该 ret 双提交(rtl-ground-truth-2026-07-03 §4 理论风险残留)。故在 F2 显式门死此臂
+  // (dispatch 臂已由源头 dispatch_resolve_valid_i=0 门死),消除该理论双提交风险。
   wire direct_branch_issue_resolve_valid_w =
+      !(`OOO_DBRANCH_DOMAIN_A) &&
       direct_branch_fire_o &&
       issue_resolve_valid_i &&
       (issue_resolve_pc_i == direct_branch_pc_o);

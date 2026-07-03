@@ -12,8 +12,7 @@ CSR 边界、terminal trap/exit 输出、PMU、power/clock gating 和未来 SMT 
 > ⚠️ **状态（2026-07-03 RTL 重读）**：pending branch/jump/mem 通道整链证死——
 > `OooPendingDispatchArbiter` 的 branch/jump/memory capture 被 `!rob_walk_mode`
 > 门死，`OooPendingDrainResolveGate` 的 jump/mem dispatch 臂恒空转；
-> `OooCoreSliceControlGate` 的 branch checkpoint 臂恒 gate 0；`OooRedirectArbiter.v`
-> 仅在 `filelist.mk` 登记变量、未接入编译列表，零实例化。存活的域 B（stop_pending + 全后端 drain 串行化）
+> `OooCoreSliceControlGate` 的 branch checkpoint 臂恒 gate 0。存活的域 B（stop_pending + 全后端 drain 串行化）
 > 只剩 system/trap/IRQ 类。证据见 `../../design/arch/rtl-ground-truth-2026-07-03.md`
 > §4，拆除计划见 `../../design/arch/ooo-core-architecture.md` §8.3。下文保留各
 > owner 的设计语义描述。
@@ -54,5 +53,5 @@ CSR 边界、terminal trap/exit 输出、PMU、power/clock gating 和未来 SMT 
   仍在父模块。
 - `OooPendingTrapExitSequencer.v`：pending architectural trap 与 simulation-exit
   的 valid/payload 注册状态 owner。
-- `OooRedirectArbiter.v`：B2 统一控制流重定向仲裁器——未接入（`filelist.mk`
-  仅定义 `RTL_OOO_REDIRECT_ARBITER` 变量、未被编译列表消费，零实例化），死硅存档。
+<!-- OooRedirectArbiter.v（B2 统一控制流重定向仲裁器地基）已于 2026-07-03 删档减负：
+     从未接入编译列表/零实例化；当前 redirect 仲裁由 OooFetchRequestMux 隐式优先级链承担。 -->
