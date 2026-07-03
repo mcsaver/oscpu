@@ -63,7 +63,8 @@ module DecodeUnit (
           7'h30,
           7'h24: is_zb_op_imm_w = 1'b1;
           7'h14: is_zb_op_imm_w = (imm5 == 5'h07);
-          7'h34,
+          // 【合规修复 2026-07-03: §3.2 zb-overwide】rev8 仅 RV64 编码 funct7=0x35(imm5=0x18);
+          // 删 0x34(RV32 rev8.w 变体, 在 RV64 应非法; rv64uzbb-p-rev8 用 0x35=6b80d713, 零回归)。
           7'h35: is_zb_op_imm_w = (imm5 == 5'h18);
           default: begin end
         endcase
@@ -130,7 +131,8 @@ module DecodeUnit (
         {7'h24, `FUNCT3_SLL},
         {7'h24, `FUNCT3_SRL_SRA},
         {7'h34, `FUNCT3_SLL}: is_zb_op_w = 1'b1;
-        {7'h04, `FUNCT3_XOR}: is_zb_op_w = (rs2_idx == {`REG_ADDR_W{1'b0}});
+        // 【合规修复 2026-07-03: §3.2 zb-overwide】删 OP 域 zext.h(pack rd,rs,x0): RV64 zext.h 是
+        // OP-32(packw, is_zb_op_32:152 已译, rv64uzbb-p-zext_h 用 OP-32=0800c73b), 此 OP 编码 RV64 应非法。
         default: begin end
       endcase
     end

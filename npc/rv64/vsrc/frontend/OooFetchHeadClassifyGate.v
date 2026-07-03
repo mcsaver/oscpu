@@ -117,9 +117,17 @@ module OooFetchHeadClassifyGate (
   wire sret_tsr_illegal_w =
       sret_raw_o && (priv_mode_i == `PRIV_S) &&
       ((mstatus_i & `MSTATUS_TSR) != {`XLEN{1'b0}});
+  // 【合规修复 2026-07-03: §3.2 wfi-TW】mstatus.TW=1 时 priv<M 的 WFI 应 illegal(规范:
+  // TW=1 下低特权 WFI 超 bounded time 即非法, 本核 WFI=立即 no-op 故立即 illegal)。
+  // 与 sfence-TVM/sret-TSR 同构走 priv_system_illegal → arch_trap → 精确 trap。
+  // 现有测试全 TW=0(rv64si-p-wfi/rv64mi 明确"WFI doesn't trap when TW=0"), TW=0 时本项恒 0 → 零回归。
+  wire wfi_tw_illegal_w =
+      wfi_raw_o && (priv_mode_i != `PRIV_M) &&
+      ((mstatus_i & `MSTATUS_TW) != {`XLEN{1'b0}});
 
   assign priv_system_illegal_o =
-      sfence_u_illegal_w || sfence_tvm_illegal_w || sret_tsr_illegal_w;
+      sfence_u_illegal_w || sfence_tvm_illegal_w || sret_tsr_illegal_w ||
+      wfi_tw_illegal_w;
   assign exit_raw_o = ebreak_raw_o && !semihost_ebreak_o;
   assign system_raw_o =
       ecall_raw_o || csr_raw_o || xret_raw_o || wfi_raw_o || sfence_raw_o;

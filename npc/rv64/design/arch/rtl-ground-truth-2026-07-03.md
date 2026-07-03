@@ -135,9 +135,14 @@ load/store/AMO（SQ + probe/drain + MIQ）已全部迁回域 A。
   （semihost ebreak 除外）；分支/跳转目标 misaligned 同样直接 halted 不走 trap 流程。
 - **mtvec/stvec 仅 direct 模式**（vectored 写入被 WARL 清除）。
 - **medeleg/mideleg 全 64 位可写**，无规范要求的只读 0 位掩码。
-- **wfi 忽略 mstatus.TW**（TW=1 时 S/U 态应 illegal）；wfi=no-op 立即提交。
-- **rm=DYN 且 frm=101/110 不报 illegal**（静默按 RNE 执行）,规范要求报非法指令。
-- Zb 译码两处过宽接受（REV8 的 0x34 变体、OP 域 zext.h 编码）;AMO 的 aq/rl 位不校验。
+- ~~**wfi 忽略 mstatus.TW**~~ **→ 已修复（2026-07-03）**：`OooFetchHeadClassifyGate.v` 加 `wfi_tw_illegal`
+  (priv<M 且 mstatus.TW=1 → priv_system_illegal → arch_trap)。现有测试全 TW=0,零回归(riscv 355/0)。
+- **rm=DYN 且 frm=101/110/111 不报 illegal**（静默按 RNE 执行）,规范要求报非法指令。**待落地**：
+  该条动态条件(frm 仅 issue 可知)需新增 FP-execute-time illegal 通路(OooFpBackend 现只产结果+fflags,无 illegal 出口),
+  属较大机制改动、🟡C 仅 arch-test 暴露,单列聚焦跟进。
+- ~~Zb 译码两处过宽接受（REV8 的 0x34 变体、OP 域 zext.h 编码）~~ **→ 已修复（2026-07-03）**：`DecodeUnit.v`
+  REV8 收紧到 funct7=0x35(删 0x34 RV32 rev8.w)、删 OP 域 zext.h(RV64 zext.h 是 OP-32=is_zb_op_32:152)。
+  objdump 证 rv64uzbb-p-rev8/zext_h 用正确编码(0x35/OP-32),零回归(riscv 355/0)。AMO 的 aq/rl 位不校验(4 组合皆合法,合规)。
 - 无 debug trigger（tselect/tdata* 为 stub）、无 vectored 中断、无 Sv48/Sv57、无 H/V/Zfh/Zicond/Zicboz 等扩展。
 - sfence.vma 忽略 vaddr/asid 操作数（一律全清 TLB）;TLB 无 ASID 共享（satp 整值 tag,保守正确）。
 
