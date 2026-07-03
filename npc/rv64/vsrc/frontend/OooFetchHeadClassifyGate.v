@@ -11,6 +11,7 @@ module OooFetchHeadClassifyGate (
   input [`CTRL_BUS_W-1:0] ctrl_i,
   input [1:0] priv_mode_i,
   input [`XLEN-1:0] mstatus_i,
+  input [2:0] frm_i,
   output illegal_raw_o,
   output branch_raw_o,
   output jal_raw_o,
@@ -61,6 +62,11 @@ module OooFetchHeadClassifyGate (
   wire decode_ok_w = decode_valid_i && !fetch_fault_i;
   wire decode_illegal_w = decode_ok_w && ctrl_i[`CTRL_ILLEGAL_BIT];
   wire ctrl_legal_w = decode_ok_w && !ctrl_i[`CTRL_ILLEGAL_BIT];
+  // 【正确性修复 2026-07-03: §3.1 #4 unsupported-trap-exit】译码合法却不需 EXEC 的残差
+  // (当前 ISA 恒 0: DecodeUnit 仅 :758/:763 置 NEED_EXEC=0 且都保持 ILLEGAL=1 → ctrl_legal=0)。
+  // 折入 arch_trap → head0 精确出口(受 squash 保护、不受 rob_walk 门控), 补齐 mode=1 下
+  // dispatch_unsupported 置 stop 却无 payload 的死路(OooPendingDispatchArbiter:308 rob_walk 门死), 结构性零回归。
+  wire unsupported_residual_w = ctrl_legal_w && !ctrl_i[`CTRL_NEED_EXEC_BIT];
 
   OooFpDecode u_fp_decode (
     .decode_valid_i(decode_ok_w),
@@ -85,7 +91,18 @@ module OooFetchHeadClassifyGate (
     .fp_gpr_write_o(fp_gpr_write_o)
   );
 
-  assign illegal_raw_o = decode_illegal_w && !fp_raw_o;
+  // 【正确性修复 2026-07-03: §3.2 frm-DYN】DYN(rm=111) FP 算术在发射侧用 committed frm 解析
+  // (OooFpBackend:524), 但 frm=5/6/7 保留值不 trap → 静默错误。与 fp_disabled 同类("该 trap
+  // 却在执行的 FP"), 复用精确-illegal 整机: 前端 classify 拿 committed frm 判非法, 折入 illegal
+  // 并同步关 fp_enabled(否则既 trap 又派 FP 簇)。静态 reserved rm(101/110)已由 OooFpDecode:59 排除。
+  wire fp_dyn_rm_bearing_w =
+      fp_addsub_raw_o || fp_mul_raw_o || fp_fma_raw_o || fp_div_raw_o ||
+      fp_sqrt_raw_o || fp_convert_to_fpr_raw_o || fp_convert_to_gpr_raw_o;
+  wire fp_dyn_frm_illegal_w =
+      fp_dyn_rm_bearing_w && (inst_i[14:12] == 3'b111) &&
+      ((frm_i == 3'b101) || (frm_i == 3'b110) || (frm_i == 3'b111));
+
+  assign illegal_raw_o = (decode_illegal_w && !fp_raw_o) || fp_dyn_frm_illegal_w;
 
   assign branch_raw_o = ctrl_legal_w && ctrl_i[`CTRL_BRANCH_BIT];
   assign jal_raw_o = ctrl_legal_w && ctrl_i[`CTRL_JAL_BIT];
@@ -133,10 +150,10 @@ module OooFetchHeadClassifyGate (
       ecall_raw_o || csr_raw_o || xret_raw_o || wfi_raw_o || sfence_raw_o;
   assign fp_disabled_o =
       fp_raw_o && ((mstatus_i & `MSTATUS_FS_MASK) == {`XLEN{1'b0}});
-  assign fp_enabled_o = fp_raw_o && !fp_disabled_o;
+  assign fp_enabled_o = fp_raw_o && !fp_disabled_o && !fp_dyn_frm_illegal_w;
   assign arch_trap_raw_o =
       fetch_fault_i || illegal_raw_o || semihost_ebreak_o ||
-      fp_disabled_o || priv_system_illegal_o;
+      fp_disabled_o || priv_system_illegal_o || unsupported_residual_w;
   // 【B-FP 簇】FP 迁域 A: fp_raw 不再是 stop 类(普通 dispatch 进 ROB/FP 簇)。
   // 旧 fp_raw 臂使 head0=FP 时 head1 不 decode(facts 全 0), 与 FP 同包的
   // lane1 CSR/system 指令被当无害指令双发成 NOP。FS=off 走 arch_trap 仍 stop。

@@ -11,7 +11,34 @@
 - [ ] 综合分析通过
 ## 已完成的工作
 <!-- 按时间倒序记录，格式: - [日期] 简要描述 -->
+- [2026-07-03] **`ace-sim/` V3 LSQ(内存乱序)落地全绿**(接续 V2)。首次引入 **store**(内存从只读 `data_at` 变可写 `backing_` 覆盖层)。**扩展 V2 乱序核**(非另起炉灶,loads-only 行为不变 → V2 demo 成回归守卫)。store queue 兼作 store buffer:dispatch 分配→execute 拍算地址+数据→commit 标 committed→按程序序 drain 落存。三行为:**store→load 前递**(命中最年轻的更老同址 store,免访存单拍完成)、**内存消歧**(任一更老 store 地址未知则 load **等待**,不得越序读内存)、**HALT 前 store buffer fence**。有状态参考模型(regs+mem)对拍。**对抗式审查(4 维:forwarding/ordering-sleep/drain-fence/lifecycle)揪出 1 个 critical 死锁**:LOAD 就绪列表遇消歧等待时 `break` 整类 → head-of-line 阻塞 → load→store→load 环死锁(等待的 younger load 堵住能解析它的 older load,无事件可破 → 静默 halt;两 verifier 各编 PoC 复现)。**根因=我此前睡眠安全律分析的漏洞**:"停顿有事件兜底"不够,兜底事件不能被停顿者自己挡住。**修复=LOAD 类跳过不可发射项而非 break**(FU/端口类 break 仍安全,因停顿原因全列表一致);推论已固化进 DESIGN.md §5.1。另加 `drain_width>0`/`sq_size>0` fail-fast assert(DISPUTED 项)。**验证**:7 目标 + 3 回归(WAW+前递/**load→store→load 死锁**/II>latency)+ **2 万次随机差分对拍(regs+mem)零 mismatch 零 hang**,四版(kernel/V1/V2/V3)全绿。关键自检:store 地址锁在 20 周期 DIV 后,后续同址 load 仍前递正确(=主核"队头=序安全"家族)。文件:`src/cpu/ooo_cpu.{hh,cc}`(LSQ 扩展)`src/main_lsq.cc` `src/mem/simple_mem.*`(可写)`src/cpu/ref_model.hh`(有状态)。`make run-lsq`。下一步 V4=分支预测+mispredict squash+epoch 惰性取消。详见 [[ace-sim-project]]。
+- [2026-07-03] **`ace-sim/` V2 乱序执行核落地全绿**(接续 V1)。`CycleOooCpu`:寄存器重命名(RAT+free list+64 物理寄存器堆)+ issue queue(完成驱动唤醒:producer **完成**即写物理寄存器+唤醒依赖者,非退休)+ 16 项 ROB 按序精确 commit(退休时释放旧物理寄存器)。复用 V1 全部地基(事件轮/活动调度/睡眠安全律/CpuWake)。**与 V1 顺序核 head-to-head 同程序**:completion order `1 4 5 6 7 8 9 10 11 13 2 3 12`(独立 ALU/load 越过 20 周期 DIV=dyn2 先完成)、commit order 严格 `1..13`(按程序序)、周期 26 vs 38(快 32%)→ **completion≠commit(不变量 #2/#3)彻底落地**。5 目标+2 回归(II>latency 睡眠安全、HALT 闸门)全 PASS,V1/内核零回归。**对抗式审查(4 维:rename-freelist/wakeup-issue/rob-commit/sleep-loads)0 真 bug**(~1.3M 随机差分对拍零 mismatch/零 hang),仅加 2 处防御:①`num_phys>num_arch` fail-fast assert(否则 misconfig 静默死锁);②on_wakeup 的 `dyn_id` 幂等/squash 守卫(V2 无 squash 恒成立,为 V4 epoch 惰性取消预埋)。文件:`src/cpu/ooo_cpu.{hh,cc}` `src/main_ooo.cc` `src/cpu/ref_model.hh`。`make run-ooo`。下一步 V3=LSQ+store buffer+cache 层级。详见 [[ace-sim-project]]。
 - [2026-07-03] **新子项目 `ace-sim/` 从零起步:activity-driven / completion-event / eval-driven 周期级体系结构仿真器 V1(MVP)落地全绿**。与 rv64 OOO 核无关的独立 greenfield(用户设计,C++20,`ace-sim/` 下自包含,无外部依赖)。介于 Verilator(逐 wire 全量 eval)/gem5(重量级 EventQueue)/Sniper 之间:同步边界由 cycle+commit 保证(`Reg<T>` cur/next、固定 7-phase 顺序),异步由 completion event 表达(多周期 FU 内部不逐周期 eval),并发由 active-set + ready-valid 队列表达,性能来自**只 eval 活跃组件 + time-skip**(系统 blocked 直接跳到下一个事件周期)。内核 `src/sim/`(cycle/phase/event/event_wheel 环形桶+far 堆/active_scheduler/context 主循环)+ `src/core/`(reg/queue/resource=latency·II·width)+ `src/mem/`(端口+cache 延迟)+ `src/cpu/`(in-order scoreboard 核,结果 issue 时算、busy 位 retire 才清 → completion≠commit)。**验证**:`make test` 内核单元测试全过;`make run` 参考模型对拍功能正确 + 7 个目标全 PASS(典型:248 模拟周期仅执行 30、跳过 218)。**对抗式审查(4 维 finder+双向证伪)揪出并修 4 缺陷**:①HALT 未持久闸住取指→HALT 后指令被执行(HIGH);②**睡眠安全律违反**——`II>latency` 时结构冒险是纯 wall-clock 无事件兜底→CPU 睡死/提前静止(MED,已加 `CpuWake` 自唤醒兜底,契约固化进 DESIGN.md §5.1);③停机 off-by-one;④`FunctionalUnit.width` 在 II>=1 时被 II 检查误杀。均加端到端/单元回归钉死。契约见 `ace-sim/DESIGN.md`(10 不变量+版本路线 V1✅→V5)。下一步 V2:ROB+issue queue+物理寄存器 ready 表+异步唤醒+精确 commit。详见记忆 [[ace-sim-project]]。
+- [2026-07-03] **正确性批2落地 3 项: unsupported-trap-exit(§3.1 #4) + frm-DYN(§3.2) + SMC 足迹 8B(§3.1 #1 之 #3A), 零退化**。
+  经工作流 3 路深读定案(逐条对 HEAD 核 file:line)。**#1 unsupported**: mode=1 下 dispatch-time unsupported 捕获被
+  rob_walk 门关(OooPendingDispatchArbiter:308)→stop 无 payload 死路。修=`OooFetchHeadClassifyGate.v` 加
+  `unsupported_residual = ctrl_legal && !NEED_EXEC` 折入 arch_trap→head0 精确出口(受 squash 保护、不受 rob_walk 门),
+  而非删门(会重引 dispatch 投机 spurious)。残差对当前 ISA 恒 0(DecodeUnit 仅 :758/:763 NEED_EXEC=0 且都保持
+  ILLEGAL=1)→结构性零回归。**#2 frm-DYN**: DYN(rm=111) FP + frm=保留值(5/6/7)静默按 RNE 执行不 trap。不走 OooFpBackend
+  新增 illegal 通路(它只产结果+fflags), 而是前端 classify 拿 committed frm 判非法(与 fp_disabled 同类)折入 illegal_raw
+  + 同步关 fp_enabled; frm_i 经 pair-gate/frontend/glue 贯穿(csr_frm_w 复用)。**#3A SMC 足迹**: same_fetch_window
+  足迹硬编码 4B, 8B SD 改写区 [base,base+7] 高半取指包(fetch_pc=A+4/A+6, idx base+2/+3)漏失效→取回旧码。修=足迹
+  高端 +3→+7 + 邻域补 p4/p6(OooFetchPacketCache.v), 保守加宽只多失效恒安全。**验证**: lint 0 / 模块 TB 96/96(classify
+  加 frm-DYN/wfi-TW/unsupported 正例 + NEED_EXEC=1 默认修; packet cache 加 p4/p6 case) / riscv 355/0 / **#3A 定向证否**
+  (stash #3A RTL 后 packet cache TB 4 CHECK-FAIL=高半包 got hit=1 未失效, 修复后 PASS)。**#3B fence.i 真生效单列**:
+  覆盖"投机越过 fence.i 已入 ROB 的年轻改写指令"需 CTRL_BUS_W 扩宽 + 复制 sfence pending_system 提交路径(5 模块、
+  与 #3A 部分冗余、perf 回归), 设计推荐评估后单做。文档 rtl-ground-truth §3.1 #1/#4、§3.2 frm-DYN 已同步。
+- [2026-07-03] **合规批修复 wfi-TW + zb-overwide(rtl-ground-truth §3.2, 提交 ed96f679e, 零退化)**。两项 RISC-V
+  合规缺口:①**wfi-TW**——WFI 现无条件 legal, 规范要求 mstatus.TW=1 时 priv<M 的 WFI 应 illegal(TW=1 下低特权
+  WFI 超 bounded time 即非法, 本核 WFI=立即 no-op 故立即 illegal)。修=`OooFetchHeadClassifyGate.v` 加
+  `wfi_tw_illegal`(wfi_raw && priv!=M && mstatus.TW), 与 sfence-TVM/sret-TSR **同构**走 priv_system_illegal→
+  arch_trap→精确 trap。现有测试全 TW=0(rv64si-p-wfi/rv64mi 明确"WFI doesn't trap when TW=0")→本项恒 0→零回归。
+  ②**zb-overwide**——Zb 译码两处过宽:REV8 的 is_zb_op_imm funct7=0x34,0x35 收紧到仅 0x35(0x34=RV32 rev8.w,
+  RV64 应非法); 删 OP 域 zext.h `{funct7=0x04,funct3=XOR,rs2=0}`(RV64 zext.h 是 OP-32=packw, 由 is_zb_op_32:152
+  译码; 此 OP 编码 RV64 应非法, 核未声明 Zbkb pack)。**objdump 证** rv64uzbb-p-rev8 用 0x35(6b80d713)、
+  rv64uzbb-p-zext_h 用 OP-32(0800c73b)均正确编码→零回归。**验证**:lint 0/模块 TB 96/96/riscv 355/0(尤 rv64uzbb/mi/si)。
+  批里其余 3 项(frm-DYN 需新增 FP-execute illegal 通路 / unsupported-trap-exit latent+触碰 domain-B / SMC-fence.i
+  多模块)经深读确认 substantial/risky/latent, 用户选"都做完", 设计中(rtl-ground-truth §3.2/§3.1 已注待落地位置)。
 - [2026-07-03] **修复 Sv39 跨页 misaligned plain load/store 静默错译(rtl-ground-truth §3.1 #2, 最小精确异常)**。
   曾经:数据桥只翻译起始 VA 一次、第二页字节按起始 PA 物理连续读写(`OooMemAxiBridge.v:455-476/490`), plain 访存
   misaligned 又不 trap(`OooIntBackend.v:1094` 原门 `issue*_mem_exception_w = issue*_is_amo_w && misaligned` 只放

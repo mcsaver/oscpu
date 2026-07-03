@@ -214,6 +214,29 @@ module tb_ooo_fetch_packet_cache;
     expect_lookup("store keeps other packet", 1'b1, 1'b1,
                   32'h0000_0113, 2'b10, 32'h0000_8193, 2'b00);
 
+    // 【§3.1 #1 SMC 足迹 8B】8B store 改写区 [base,base+7] 跨两个 4B 块。缓存在 pc=base+4
+    // (idx base+2=p4)/base+6(idx base+3=p6)的高半取指包, 原 4B 足迹(+3)+邻域仅到 base+1 漏失效。
+    // 填 PC1+4/PC1+6 包 → 用 addr=PC1 失效(模拟 8B SD 足迹 [PC1,PC1+7]) → 应失效。
+    // 修复前: +3 足迹 PC1+3<PC1+4 且邻域无 p4/p6 → 漏(旧码被当新码取回); 修复后 +7 足迹+p4/p6 命中。
+    fill_packet(1'b0, 2'd0, {`XLEN{1'b0}}, PC1 + 64'd4,
+                32'h0000_0a13, 2'b00, 32'h0000_ab93, 2'b00);
+    fill_packet(1'b0, 2'd0, {`XLEN{1'b0}}, PC1 + 64'd6,
+                32'h0000_0c13, 2'b00, 32'h0000_cd93, 2'b00);
+    set_lookup(1'b0, 2'd0, {`XLEN{1'b0}}, PC1 + 64'd4);
+    expect_lookup("8B high-half p4 cached", 1'b1, 1'b1,
+                  32'h0000_0a13, 2'b00, 32'h0000_ab93, 2'b00);
+    invalidate_addr = PC1;
+    invalidate_valid = 1'b1;
+    tick();
+    invalidate_valid = 1'b0;
+    #1;
+    set_lookup(1'b0, 2'd0, {`XLEN{1'b0}}, PC1 + 64'd4);
+    expect_lookup("8B store invalidates p4 high-half (#3A)", 1'b0, 1'b0,
+                  32'h0, 2'b00, 32'h0, 2'b00);
+    set_lookup(1'b0, 2'd0, {`XLEN{1'b0}}, PC1 + 64'd6);
+    expect_lookup("8B store invalidates p6 high-half (#3A)", 1'b0, 1'b0,
+                  32'h0, 2'b00, 32'h0, 2'b00);
+
     invalidate_addr = PC2 + 64'd2;
     invalidate_valid = 1'b1;
     fill_paging = 1'b0;

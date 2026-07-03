@@ -58,11 +58,13 @@ module OooFetchPacketCache #(
     input [`XLEN-1:0] fetch_pc;
     input [`XLEN-1:0] store_addr;
     begin
+      // 【正确性修复 2026-07-03: §3.1 #1 SMC 足迹】store 足迹高端 4→8B: 8B SD 改写区
+      // [base, base+7] 跨两个 4B 块, 原 +3(4B)漏高 4B。取指窗仍 8B([pc,pc+7], 低端 +7)。
       same_fetch_window =
           ((store_addr & {{(`XLEN-2){1'b1}}, 2'b00}) <=
            (fetch_pc + {{(`XLEN-3){1'b0}}, 3'd7})) &&
           (((store_addr & {{(`XLEN-2){1'b1}}, 2'b00}) +
-            {{(`XLEN-2){1'b0}}, 2'd3}) >= fetch_pc);
+            {{(`XLEN-3){1'b0}}, 3'd7}) >= fetch_pc);
     end
   endfunction
 
@@ -80,6 +82,11 @@ module OooFetchPacketCache #(
       invalidate_base_idx_w;
   wire [INDEX_W-1:0] invalidate_idx_p2_w =
       invalidate_base_idx_w + INVALIDATE_DELTA_1;
+  // 【SMC 足迹】8B SD 高侧取指包 pc=base+4(idx base+2)/pc=base+6(idx base+3)漏, 补 p4/p6 邻域。
+  wire [INDEX_W-1:0] invalidate_idx_p4_w =
+      invalidate_base_idx_w + INVALIDATE_DELTA_2;
+  wire [INDEX_W-1:0] invalidate_idx_p6_w =
+      invalidate_base_idx_w + INVALIDATE_DELTA_3;
   wire lookup_invalidated_w =
       invalidate_valid_i && same_fetch_window(lookup_pc_i, invalidate_addr_i);
   wire fill_invalidated_w =
@@ -100,6 +107,12 @@ module OooFetchPacketCache #(
   wire invalidate_p2_hit_w =
       invalidate_valid_i && valid_q[invalidate_idx_p2_w] &&
       same_fetch_window(pc_q[invalidate_idx_p2_w], invalidate_addr_i);
+  wire invalidate_p4_hit_w =
+      invalidate_valid_i && valid_q[invalidate_idx_p4_w] &&
+      same_fetch_window(pc_q[invalidate_idx_p4_w], invalidate_addr_i);
+  wire invalidate_p6_hit_w =
+      invalidate_valid_i && valid_q[invalidate_idx_p6_w] &&
+      same_fetch_window(pc_q[invalidate_idx_p6_w], invalidate_addr_i);
 
   reg [ENTRY_COUNT-1:0] valid_next_r;
 
@@ -120,6 +133,12 @@ module OooFetchPacketCache #(
     end
     if (invalidate_p2_hit_w) begin
       valid_next_r[invalidate_idx_p2_w] = 1'b0;
+    end
+    if (invalidate_p4_hit_w) begin
+      valid_next_r[invalidate_idx_p4_w] = 1'b0;
+    end
+    if (invalidate_p6_hit_w) begin
+      valid_next_r[invalidate_idx_p6_w] = 1'b0;
     end
 
     if (fill_valid_i && !fill_invalidated_w) begin

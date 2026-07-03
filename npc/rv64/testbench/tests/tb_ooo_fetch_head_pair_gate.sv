@@ -13,6 +13,7 @@ module tb_ooo_fetch_head_pair_gate;
   reg [`CTRL_BUS_W-1:0] head1_ctrl;
   reg [1:0] priv_mode;
   reg [`XLEN-1:0] mstatus;
+  reg [2:0] frm;
   reg branch_spec_active;
   reg can_run;
   reg csr_irq_pending;
@@ -132,6 +133,7 @@ module tb_ooo_fetch_head_pair_gate;
     .head1_ctrl_i(head1_ctrl),
     .priv_mode_i(priv_mode),
     .mstatus_i(mstatus),
+    .frm_i(frm),
     .branch_spec_active_i(branch_spec_active),
     .can_run_i(can_run),
     .csr_irq_pending_i(csr_irq_pending),
@@ -244,8 +246,13 @@ module tb_ooo_fetch_head_pair_gate;
       head_inst1 = INST_ADDI;
       head0_ctrl = {`CTRL_BUS_W{1'b0}};
       head1_ctrl = {`CTRL_BUS_W{1'b0}};
+      // 真实合法指令 NEED_EXEC=1(不变量 legal⟹need_exec); 默认置位以免误触
+      // 新增的 unsupported_residual(ctrl_legal && !NEED_EXEC)。
+      head0_ctrl[`CTRL_NEED_EXEC_BIT] = 1'b1;
+      head1_ctrl[`CTRL_NEED_EXEC_BIT] = 1'b1;
       priv_mode = `PRIV_M;
       mstatus = `MSTATUS_FS_CLEAN;
+      frm = 3'b000;
       branch_spec_active = 1'b0;
       can_run = 1'b1;
       csr_irq_pending = 1'b0;

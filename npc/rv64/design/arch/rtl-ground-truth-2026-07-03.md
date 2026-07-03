@@ -103,13 +103,17 @@ load/store/AMO（SQ + probe/drain + MIQ）已全部迁回域 A。
 ## 3. 不能实现什么（缺口清单）
 
 ### 3.1 硬正确性缺口（已形式化证实）
-1. **自修改代码：8B store 高 4 字节漏失效取指包 cache + fence.i 是真 no-op**。
-   `OooFetchPacketCache.same_fetch_window` 把 store 足迹硬编码为 4 字节
-   （`cache/OooFetchPacketCache.v:61-82`），对齐 `sd/FSD/SC.D/AMO*.D` 覆盖 A+4..A+7 的取指包
-   （fetch_pc=A+4/A+6）被谓词与 index 扫描集双重排除;而 fence.i 译码后是合法 no-op
-   （`decode/DecodeUnit.v:779-783`；原 `REDIR_REASON_FENCEI` 宏已随 OooRedirectArbiter 删档移除，fence.i 仍无任何重取触发/消费者），无任何保底清除——
-   即使软件规范执行 fence.i 也无法恢复一致性。次级：分页开启时 probe 拍失效用 VA、drain 拍用 PA，
-   与 VIVT cache 索引错配。（BTC 有 fence 全清保底，但 BTC 本身恒空,无实际影响。）
+1. **自修改代码：~~8B store 高 4 字节漏失效取指包 cache~~ 已修复(#3A) + fence.i 真 no-op(#3B 待落地)**。
+   ~~`same_fetch_window` store 足迹硬编码 4 字节~~ **→ #3A 已修复（2026-07-03）**：足迹高端 4→8B
+   (`cache/OooFetchPacketCache.v` same_fetch_window +3→+7) + 邻域补 p4/p6(idx base+2/+3, INVALIDATE_DELTA_2/3),
+   覆盖 8B SD 改写区 [base,base+7] 跨两个 4B 块的高半取指包(fetch_pc=A+4/A+6)。加宽只多失效恒安全(cache 纯性能,
+   miss→重取)。**定向证否**:packet cache 模块 TB 加 p4/p6 case(修复前 4 CHECK-FAIL=高半包 got hit=1 未失效,
+   修复后 PASS), 零回归(riscv 355/0、模块 TB 96/96)。
+   **#3B fence.i 真生效待落地**：fence.i 现译码后合法 no-op(`decode/DecodeUnit.v:781-788` 与 fence 不分), 无重取
+   触发——覆盖"投机越过 fence.i 已入 ROB 的年轻改写指令"(#3A 只失效 cache, 管不到已取入 ROB 的项)需让 fence.i 成
+   barrier + commit 触发 mmu_flush/redirect(CTRL_BUS_W 扩宽 + 复制 sfence pending_system 提交路径, 5 模块、与 #3A
+   部分冗余、fence.i 频繁代码有 perf 回归), 单列评估。次级：分页开启时 probe 拍失效用 VA、drain 拍用 PA，与 VIVT
+   cache 索引错配。（BTC 有 fence 全清保底，但 BTC 本身恒空,无实际影响。）
 2. ~~**Sv39 下跨 4KB 页的 misaligned load/store 静默错误翻译**~~ **→ 已修复（2026-07-03，最小精确异常）**。
    曾经：数据桥只翻译起始 VA 一次、第二页字节按起始 PA 物理连续读写（`OooMemAxiBridge.v:455-476/490`），
    plain 访存 misaligned 又不 trap（`OooIntBackend.v:1094` 原门只放 AMO）→ 分页 OS 下静默读错/写坏相邻物理页。
@@ -126,9 +130,12 @@ load/store/AMO（SQ + probe/drain + MIQ）已全部迁回域 A。
    非压缩=pc+4，访存非控制流恒不误预测故 next_pc 即真实后继）。验证：difftest 计算子集 38/3 与改前
    逐字节一致（git-stash 基线证否——当前测试集 putch 走字节存储 sb、RVC 无 c.sb 恒 4 字节故本修不触发，
    属潜伏正确性修复，将在压缩 word+ 存储命中 MMIO 时兑现）。〔那 3 项 difftest FAIL 为既有 divergence，见 §5〕
-4. **unsupported 合法指令的域 B trap 出口悬置**：mode=1 下 dispatch-time unsupported 捕获被门控关闭
-   （防 wrong-path spurious trap），stop 仍置位但无捕获出口——依赖"后端支持所有已译码指令"假设成立
-   （当前译码白名单与后端能力对齐,故未触发）。
+4. ~~**unsupported 合法指令的域 B trap 出口悬置**~~ **→ 已修复（2026-07-03，结构性零回归）**：mode=1 下
+   dispatch-time unsupported 捕获被门控关闭（防 wrong-path spurious trap），stop 仍置位但无捕获出口。
+   **修复**=`OooFetchHeadClassifyGate.v` 加 `unsupported_residual_w = ctrl_legal && !NEED_EXEC` 折入
+   arch_trap→head0 精确出口(受 squash 保护、不受 rob_walk 门控), 而非删 :308 门(删门会重引 dispatch 投机 spurious)。
+   该残差对当前 ISA 恒 0(DecodeUnit 仅 :758/:763 置 NEED_EXEC=0 且都保持 ILLEGAL=1→ctrl_legal=0), 属补齐
+   latent 缺口的防御性精确出口, 结构性零回归(riscv 355/0)。模块 TB 加 unsupported_residual case 验证。
 
 ### 3.2 ISA/规范合规缺口
 - **ebreak 不产生规范 breakpoint trap**（cause=3 进 mtvec），而是 exit→halted 仿真停机约定
@@ -137,9 +144,12 @@ load/store/AMO（SQ + probe/drain + MIQ）已全部迁回域 A。
 - **medeleg/mideleg 全 64 位可写**，无规范要求的只读 0 位掩码。
 - ~~**wfi 忽略 mstatus.TW**~~ **→ 已修复（2026-07-03）**：`OooFetchHeadClassifyGate.v` 加 `wfi_tw_illegal`
   (priv<M 且 mstatus.TW=1 → priv_system_illegal → arch_trap)。现有测试全 TW=0,零回归(riscv 355/0)。
-- **rm=DYN 且 frm=101/110/111 不报 illegal**（静默按 RNE 执行）,规范要求报非法指令。**待落地**：
-  该条动态条件(frm 仅 issue 可知)需新增 FP-execute-time illegal 通路(OooFpBackend 现只产结果+fflags,无 illegal 出口),
-  属较大机制改动、🟡C 仅 arch-test 暴露,单列聚焦跟进。
+- ~~**rm=DYN 且 frm=101/110/111 不报 illegal**~~ **→ 已修复（2026-07-03）**：不走 OooFpBackend 新增 illegal 通路,
+  而是**前端 classify 拿 committed frm 判非法**(与 fp_disabled 同类"该 trap 却在执行的 FP"): `OooFetchHeadClassifyGate.v`
+  加 `fp_dyn_frm_illegal = fp_rm_bearing && rm==111 && frm∈{5,6,7}` 折入 illegal_raw→arch_trap, 同步关 fp_enabled
+  (否则既 trap 又派 FP 簇); frm_i 经 pair-gate/frontend/glue 贯穿(csr_frm_w 复用, 无新顶层网)。静态 reserved rm(101/110)
+  已由 OooFpDecode:59 排除。CSR 写属 stop 类串行→保证 frm 在 head 分类时已 commit。模块 TB 加 DYN+frm=5 illegal /
+  DYN+frm=2 legal 对照 case, 零回归(riscv 355/0、rv64uf/ud 23/23)。
 - ~~Zb 译码两处过宽接受（REV8 的 0x34 变体、OP 域 zext.h 编码）~~ **→ 已修复（2026-07-03）**：`DecodeUnit.v`
   REV8 收紧到 funct7=0x35(删 0x34 RV32 rev8.w)、删 OP 域 zext.h(RV64 zext.h 是 OP-32=is_zb_op_32:152)。
   objdump 证 rv64uzbb-p-rev8/zext_h 用正确编码(0x35/OP-32),零回归(riscv 355/0)。AMO 的 aq/rl 位不校验(4 组合皆合法,合规)。

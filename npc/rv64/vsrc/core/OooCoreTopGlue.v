@@ -1127,6 +1127,7 @@ module OooCoreTopGlue #(
     .core_trap_flush_q(core_trap_flush_q),
     .csr_irq_pending_w(csr_irq_pending_w),
     .csr_mstatus_w(csr_mstatus_w),
+    .csr_frm_w(csr_frm_w),
     .csr_priv_mode_w(csr_priv_mode_w),
     .csr_ret_target_w(csr_ret_target_w),
     .csr_trap_ex_valid_w(csr_trap_ex_valid_w),

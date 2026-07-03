@@ -12,6 +12,7 @@ module tb_ooo_fetch_head_classify_gate;
   reg [`CTRL_BUS_W-1:0] ctrl;
   reg [1:0] priv_mode;
   reg [`XLEN-1:0] mstatus;
+  reg [2:0] frm;
 
   wire illegal_raw;
   wire branch_raw;
@@ -58,6 +59,7 @@ module tb_ooo_fetch_head_classify_gate;
 
   localparam [`INST_W-1:0] INST_ADDI = 32'h0000_0093;
   localparam [`INST_W-1:0] INST_FADD_S = 32'h0020_80d3;
+  localparam [`INST_W-1:0] INST_FADD_S_DYN = 32'h0020_f0d3;  // FADD.S 但 rm=DYN(funct3=111)
   localparam [`INST_W-1:0] INST_EBREAK = 32'h0010_0073;
   localparam [`INST_W-1:0] SEMIHOST_ENTER_INST = 32'h01f0_1013;
   localparam [`INST_W-1:0] SEMIHOST_EXIT_INST = 32'h4070_5013;
@@ -71,6 +73,7 @@ module tb_ooo_fetch_head_classify_gate;
     .ctrl_i(ctrl),
     .priv_mode_i(priv_mode),
     .mstatus_i(mstatus),
+    .frm_i(frm),
     .illegal_raw_o(illegal_raw),
     .branch_raw_o(branch_raw),
     .jal_raw_o(jal_raw),
@@ -182,8 +185,12 @@ module tb_ooo_fetch_head_classify_gate;
       semihost_peer_inst = 32'h0000_0013;
       semihost_peer_is_enter = 1'b0;
       ctrl = {`CTRL_BUS_W{1'b0}};
+      // 真实合法指令均 NEED_EXEC=1(不变量 legal⟹need_exec); 默认置位以免误触
+      // 新增的 unsupported_residual(ctrl_legal && !NEED_EXEC)。
+      ctrl[`CTRL_NEED_EXEC_BIT] = 1'b1;
       priv_mode = `PRIV_M;
       mstatus = `MSTATUS_FS_CLEAN;
+      frm = 3'b000;
       #1;
     end
   endtask
@@ -329,6 +336,58 @@ module tb_ooo_fetch_head_classify_gate;
     tb_check1("fetch fault suppresses mem", mem_raw, 1'b0);
     tb_check1("fetch fault suppresses fp", fp_raw, 1'b0);
     check_fact_aliases("fetch fault");
+
+    // 【§3.1 #4 unsupported-trap-exit】译码合法却 !NEED_EXEC 的残差 → arch_trap 精确出口
+    reset_inputs();
+    set_ctrl_bit(`CTRL_NEED_EXEC_BIT, 1'b0);
+    #1;
+    tb_check1("unsupported residual (legal & !need_exec) traps",
+              arch_trap_raw, 1'b1);
+    tb_check1("unsupported residual stops", stop_raw, 1'b1);
+
+    // 【§3.2 frm-DYN】DYN(rm=111) FP 算术 + frm=保留值(5) → illegal + trap + 不派 FP 簇
+    reset_inputs();
+    inst = INST_FADD_S_DYN;
+    set_ctrl_bit(`CTRL_ILLEGAL_BIT, 1'b1);  // 整数译码器把 FP 判 illegal, fp_raw 掩掉
+    frm = 3'b101;
+    #1;
+    tb_check1("fp dyn reserved frm illegal", illegal_raw, 1'b1);
+    tb_check1("fp dyn reserved frm traps", arch_trap_raw, 1'b1);
+    tb_check1("fp dyn reserved frm not dispatched to fp", fp_enabled, 1'b0);
+    check_fact_aliases("fp dyn frm illegal");
+
+    // 对照: DYN + frm=合法(2) → 正常派 FP, 不 trap
+    reset_inputs();
+    inst = INST_FADD_S_DYN;
+    set_ctrl_bit(`CTRL_ILLEGAL_BIT, 1'b1);
+    frm = 3'b010;
+    #1;
+    tb_check1("fp dyn legal frm not illegal", illegal_raw, 1'b0);
+    tb_check1("fp dyn legal frm enabled", fp_enabled, 1'b1);
+    tb_check1("fp dyn legal frm no trap", arch_trap_raw, 1'b0);
+
+    // 【§3.2 wfi-TW】mstatus.TW=1 且 priv<M 的 WFI → priv_system_illegal + trap
+    reset_inputs();
+    set_ctrl_bit(`CTRL_WFI_BIT, 1'b1);
+    priv_mode = `PRIV_S;
+    mstatus = `MSTATUS_FS_CLEAN | `MSTATUS_TW;
+    #1;
+    tb_check1("wfi under tw (priv<M) illegal", priv_system_illegal, 1'b1);
+    tb_check1("wfi under tw traps", arch_trap_raw, 1'b1);
+    // 对照: TW=1 但 M 态 → 合法(M 态 WFI 永不受 TW 约束)
+    reset_inputs();
+    set_ctrl_bit(`CTRL_WFI_BIT, 1'b1);
+    priv_mode = `PRIV_M;
+    mstatus = `MSTATUS_FS_CLEAN | `MSTATUS_TW;
+    #1;
+    tb_check1("wfi under tw in M-mode legal", priv_system_illegal, 1'b0);
+    // 对照: TW=0 S 态 → 合法(现有测试全此情形, 零回归)
+    reset_inputs();
+    set_ctrl_bit(`CTRL_WFI_BIT, 1'b1);
+    priv_mode = `PRIV_S;
+    mstatus = `MSTATUS_FS_CLEAN;
+    #1;
+    tb_check1("wfi without tw legal", priv_system_illegal, 1'b0);
 
     tb_finish("tb_ooo_fetch_head_classify_gate");
   end
