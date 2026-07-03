@@ -11,6 +11,15 @@
 - **背景**: 全 RTL 从零重读(9 路审计+矛盾裁定+追问形式化验证, task-run
   `2026-07-03-rv64-rtl-reread-audit/`, 真相基线 `npc/rv64/design/arch/rtl-ground-truth-2026-07-03.md`)。
   以下为**已证实、现有测试不暴露**的正确性缺口, 修复优先级建议按列出顺序:
+- **【2026-07-03 修复进度】原 4 项已修 3.5(仅 ①的 #3B fence.i 单列)+ 合规清单全修**:
+  ②Sv39 跨页 misaligned **已修**(82eaa68e6, OooIntBackend:1094 精确异常 + 定向 cpu-test sv39-xpage-misalign.c)、
+  ③difftest RVC MMIO skip **已修**(fece978e6, difftest.cpp:182 用 next_pc)、④unsupported **已修**(700c9e894,
+  classify `unsupported_residual=ctrl_legal&&!NEED_EXEC`→arch_trap head0 精确出口, 对当前 ISA 恒 0 结构零回归)、
+  ①的 **#3A 8B 足迹漏失效已修**(700c9e894, same_fetch_window +3→+7 + 邻域补 p4/p6, packet cache 模块 TB 证否)、
+  ①的 **#3B fence.i 真 flush 单列**(6-8 模块=CTRL_BUS_W 扩宽 + 复制 sfence pending_system 提交路径, 覆盖"投机越
+  fence.i 已入 ROB 的年轻改写指令"、与 #3A 部分冗余、无测试可验、fence.i 罕用故 perf 影响小, 设计推荐评估后单做
+  ——**当前唯一剩余的已知正确性缺口**)。合规清单: wfi-TW/zb-overwide(ed96f679e)、frm-DYN(700c9e894)全修;
+  理论风险 DirectBranchResolveGate issue 臂 tie-off 亦已做(fece978e6)。以下原文保留供追溯。
 - **①SMC/fence.i 洞(结构性, 软件无法规避)**: 取指包 cache 逐 store 失效把 store 足迹硬编码 4 字节
   (`OooFetchPacketCache.v:61-82` 谓词+index 扫描集双重排除), 对齐 8B store(sd/FSD/SC.D/AMO*.D)
   高 4 字节覆盖的取指包(fetch_pc=A+4/A+6)**漏失效**; 而 fence.i 是真 no-op(`DecodeUnit.v:779-783`,
