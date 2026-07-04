@@ -186,8 +186,9 @@ load/store/AMO（SQ + probe/drain + MIQ）已全部迁回域 A。
 拆除前必读 `.github/task-runs/2026-07-03-rv64-rtl-reread-audit/answers.json` 的形式化证据链。
 
 > **B4 物理删除进度（2026-07-04 起，逐项 cycle-exact 中性验收）**：已删 csrc 死代码、PRF read6/7/9、
-> OooSyntheticLane1Ret 家族、五套 checkpoint 影子阵列（下表已标 commit）。前端 prefetch/BTC 网、
-> pending branch/jump/mem 链、dispatch 拍快解析族、WBU LOAD 臂、IQ load-branch-fast、fetch bypass 待删。
+> OooSyntheticLane1Ret 家族、五套 checkpoint 影子阵列、**前端 prefetch/BTC 网（13 模块 22 文件 -2881 行，bac43bc8f）**
+>（下表已标 commit）。**待删**：pending branch/jump/mem 链（控制面，最纠缠 25-27 文件）、dispatch 拍快解析族
+>（含 SKIP 的 PRF read4/5）、WBU LOAD 臂、IQ load-branch-fast、fetch bypass；SpecTracker 有活 RAS 副作用需专项。
 
 | 死硅 | 判死机制 | 关键证据 |
 | --- | --- | --- |
@@ -195,10 +196,10 @@ load/store/AMO（SQ + probe/drain + MIQ）已全部迁回域 A。
 | pending_mem 全链（OooPendingMemorySequencer + mux mem 臂 + DrainResolveGate mem 注入） | lane1 barrier 条件不含 FACT_MEM,严格互斥 → capture 恒 0（可整链删除） | `control/OooPendingLane1CaptureGate.v:50`、`frontend/OooFrontendDispatchGate.v:102-109` |
 | dispatch 拍分支快解析全族（IntBackend candidate/CompareUnit/FAST_BRANCH_TRACK 8 项表/PRF read4-5、DirectBranchResolveGate dispatch 臂） | `!(OOO_DBRANCH_DOMAIN_A)` 恒 0 | `execute/OooIntBackend.v:531-532` |
 | BPU 更新旧四臂（direct/pending/drained/commit）→ 只剩 issue-resolve 单源 | 依赖拍内解析或 pending_branch,均死 | `frontend/OooBranchBpuUpdateGate.v:33-35` 注释自证 |
-| OooBranchTargetCache（BTC 16 项）+ CaptureBuffer | 唯一填充路径依赖拍内解析 → 恒空;消费端 append 又被 `BRANCH_APPEND_DISPATCH_ENABLE=1'b0` 关死（双重死） | `frontend/OooBranchTargetCacheControlGate.v:44-49`、`OooBranchAppendDispatchGate.v:68` |
-| JALR-BTB 更新口 | update 依赖 pending_jump 恒 0 → 表恒空 → spec 查询恒 miss | `frontend/OooPredictorUpdateGate.v:17-19` |
-| branch/JALR prefetch 全家桶（Buffer/Request/Source/Status/ClearGate + 2 个 HitMux + JalrPrefetchStatusGate） | req 依赖 pending_branch/btb_hit 恒 0 | report-1 |
-| OooReturnContBuffer | consume 端 `return_cont_attempt_o=1'b0` 硬禁 | `frontend/OooBranchAppendDispatchGate.v:82` |
+| ~~OooBranchTargetCache（BTC 16 项）+ CaptureBuffer + ControlGate~~ **已删（2026-07-04, B4, bac43bc8f）** | 唯一填充路径依赖拍内解析 → 恒空;消费端 append 又被 `BRANCH_APPEND_DISPATCH_ENABLE=1'b0` 关死（双重死）;hit 恒0 从 unused-sink OR 移除 | `frontend/OooBranchTargetCacheControlGate.v:44-49`、`OooBranchAppendDispatchGate.v:68` |
+| ~~JALR-BTB(OooJalrBtb) + 更新口(OooPredictorUpdateGate)~~ **已删（2026-07-04, B4, bac43bc8f）** | update 依赖 pending_jump 恒 0 → 表恒空 → spec 查询恒 miss;jalr_spec_btb_hit=0 退回 RAS/fallthrough | `frontend/OooPredictorUpdateGate.v:17-19` |
+| ~~branch/JALR prefetch 全家桶（Buffer/Request/Source/Status/ClearGate + HitMux + JalrPrefetchStatusGate）~~ **已删（2026-07-04, B4, bac43bc8f）** | req 依赖 pending_branch/btb_hit 恒 0;pending_branch_target re-inline 给保留的 pending 链 | report-1 |
+| ~~OooReturnContBuffer~~ **已删（2026-07-04, B4, bac43bc8f）** | consume 端 `return_cont_attempt_o=1'b0` 硬禁;唯一非门控用途入死 sink | `frontend/OooBranchAppendDispatchGate.v:82` |
 | ~~OooSyntheticLane1Ret 家族（Sequencer/CommitGate + CommitOutputMux 合成臂）~~ **已删（2026-07-04, B4, 21c7fbe14）** | capture≡0（direct_branch_resolve 两臂受 OOO_DBRANCH_DOMAIN_A=1 恒0）→自洽全零不动点;跨模块输出在 OooCoreTopGlue 常量0 tie-off | `writeback/OooWriteback.v:142-144` |
 | ~~checkpoint 影子阵列五套（FreeList/RenameMap/BusyTable/IQ/ROB）~~ **已删（2026-07-04, B4, a7d5c5661）** | `cp_*` 恒 gate 0（ROB-walk 已取代）;6 模块 TB 同步退休 checkpoint 场景;ROB-walk 活恢复完整保留 | `rename_allocate/OooDispatchBackend.v:485-486` |
 | OooBranchSpecTracker 的 active/checkpoint 机制 | capture 恒 0;但 checkpoint_pending 仍会置位并压制 RAS 更新（副作用活着,机制死) | report-1 |
