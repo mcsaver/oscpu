@@ -50,14 +50,10 @@ module OooPendingDispatchArbiter (
   output pending_system_capture_lane1_o,
   output pending_system_clear_o,
 
-  output pending_branch_capture_direct_o,
-  output pending_branch_capture_head0_o,
-  output pending_branch_capture_lane1_o,
-  output pending_branch_clear_o,
-
-  output pending_jump_capture_head0_o,
-  output pending_jump_capture_lane1_o,
-  output pending_jump_clear_o,
+  // [wave5b 死硅拆除] pending_branch/jump capture+clear 输出臂(7 根)已删——capture 全被
+  // !rob_walk_mode_i(OOO_ROB_WALK_MODE=1'b1 → =0) 门死，前端 sequencer 亦删。系统/陷阱臂与
+  // 共享骨架(capture_base_w/lane0_*_pending_w/resolve_clear_w/pending_jump_clear_from_resolve_w
+  // /lane1 capture gate)保留：它们仍喂 pending_system_clear/trap_exit 等 KEEP 输出。
 
   output pending_trap_exit_clear_exit_o,
   output pending_trap_exit_clear_arch_o,
@@ -151,31 +147,9 @@ module OooPendingDispatchArbiter (
       dispatch0_system_w && !head0_csr_illegal_i;
   assign pending_system_capture_lane1_o = lane1_system_capture_w;
 
-  assign pending_branch_capture_direct_o =
-      direct_frontend_flush_i && direct_branch_fire_w && !rob_walk_mode_i;
-  assign pending_branch_capture_head0_o =
-      capture_base_w &&
-      !csr_irq_pending_i &&
-      !head_fetch_fault0_i &&
-      !dispatch0_arch_trap_w &&
-      !dispatch0_exit_w &&
-      !dispatch0_system_w &&
-      lane0_branch_pending_w;
-  assign pending_branch_capture_lane1_o =
-      lane1_branch_capture_w && !rob_walk_mode_i;
-
-  assign pending_jump_capture_head0_o =
-      capture_base_w &&
-      !csr_irq_pending_i &&
-      !head_fetch_fault0_i &&
-      !dispatch0_arch_trap_w &&
-      !dispatch0_exit_w &&
-      !dispatch0_system_w &&
-      !lane0_branch_pending_w &&
-      lane0_jump_pending_w;
-  assign pending_jump_capture_lane1_o =
-      lane1_jump_capture_w && !rob_walk_mode_i;
-
+  // [wave5b 死硅拆除] pending_branch_capture_direct/head0/lane1 + pending_jump_capture_head0/lane1
+  // 五条 capture assign 已删（capture 恒 0）。lane1_branch_capture_w / lane1_jump_capture_w 现转
+  // lane1 capture gate 的未读输出（gate 为 KEEP，不递归删其端口）。
 
   wire pending_jump_clear_from_resolve_w =
       !direct_frontend_flush_i && pending_jump_resolve_ready_i &&
@@ -193,34 +167,9 @@ module OooPendingDispatchArbiter (
       (!direct_frontend_flush_i && pending_system_csr_commit_i) ||
       drain_clear_w;
 
-  wire branch_capture_clear_w =
-      capture_base_w &&
-      (csr_irq_pending_i ||
-       head_fetch_fault0_i ||
-       dispatch0_arch_trap_w ||
-       dispatch0_exit_w ||
-       dispatch0_system_w ||
-       lane0_jump_pending_w ||
-       dispatch_unsupported_i);
-  wire jump_capture_clear_w =
-      capture_base_w &&
-      (csr_irq_pending_i ||
-       head_fetch_fault0_i ||
-       dispatch0_arch_trap_w ||
-       dispatch0_exit_w ||
-       dispatch0_system_w ||
-       lane0_branch_pending_w ||
-       dispatch_unsupported_i);
-
-  assign pending_branch_clear_o =
-      resolve_clear_w ||
-      pending_jump_clear_from_resolve_w ||
-      branch_capture_clear_w;
-  assign pending_jump_clear_o =
-      direct_frontend_flush_i ||
-      resolve_clear_w ||
-      pending_jump_clear_from_resolve_w ||
-      jump_capture_clear_w;
+  // [wave5b 死硅拆除] branch_capture_clear_w / jump_capture_clear_w + pending_branch_clear_o /
+  // pending_jump_clear_o 已删（clear 输出只喂已删的前端 sequencer）。resolve_clear_w /
+  // pending_jump_clear_from_resolve_w 保留，仍喂 pending_system_clear_o + trap_exit clears(KEEP)。
   assign pending_system_clear_o =
       csr_trap_mem_valid_i ||
       direct_frontend_flush_i ||

@@ -68,17 +68,12 @@ module OooFrontend #(
   input mem_req_write_o,
   input mem_rsp_ready_o,
   input pending_arch_trap_q,
-  input pending_branch_capture_direct_w,
-  input pending_branch_capture_head0_w,
-  input pending_branch_capture_lane1_w,
-  input pending_branch_clear_w,
+  // [wave5b 死硅拆除] pending_branch/jump capture+clear 输入口(direct/head0/lane1/clear ×branch,
+  // head0/lane1/clear ×jump) 已删——上游 OooPendingDispatchArbiter 对应 capture 臂随本波删除。
   input pending_branch_commit_resolve_w,
   input pending_branch_match_clear_w,
   input pending_branch_taken_w,
   input pending_exit_q,
-  input pending_jump_capture_head0_w,
-  input pending_jump_capture_lane1_w,
-  input pending_jump_clear_w,
   input [`XLEN-1:0] pending_jump_rs1_data_w,
   // pending_mem 全链已删除；下述二信号仅供活的 fetch/run 端 sensor 读取（恒 0，父模块 tie-off）。
   input [`XLEN-1:0] pending_mem_next_pc_q,
@@ -283,13 +278,9 @@ module OooFrontend #(
   localparam ENABLE_DIRECT_RAS_RET = 1'b1;
 
   wire backend_execute_quiet_w;
-  wire branch_bpu_commit_update_w;
-  wire branch_bpu_direct_update_w;
-  wire branch_bpu_drained_update_w;
+  // [wave5b 死硅拆除] branch_bpu_commit/direct/drained/pending/pending_like_update_w 已删（旧四臂）
   wire branch_bpu_pending0_capture_w;
   wire branch_bpu_pending1_capture_w;
-  wire branch_bpu_pending_like_update_w;
-  wire branch_bpu_pending_update_w;
   wire [`BPU_BHT_INDEX_W-1:0] branch_bpu_update_bht_idx_w;
   wire branch_fallthrough_append_attempt_w;
   wire branch_fallthrough_append_candidate_w;
@@ -1262,41 +1253,28 @@ module OooFrontend #(
   );
 
 
-  OooPendingControlResolveGate u_pending_control_resolve_gate (
-    .pending_branch_i(pending_branch_q),
-    .pending_branch_taken_i(pending_branch_taken_w),
-    .pending_branch_target_i(pending_branch_target_w),
-    .pending_branch_next_pc_i(pending_branch_next_pc_q),
-    .stop_pending_i(stop_pending_q),
-    .pending_jump_i(pending_jump_q),
-    .pending_jump_jalr_i(pending_jump_jalr_q),
-    .pending_jump_dispatched_i(pending_jump_dispatched_q),
-    .backend_drained_i(backend_drained_q),
-    .pending_jump_pc_i(pending_jump_pc_q),
-    .pending_jump_imm_i(pending_jump_imm_q),
-    .pending_jump_rs1_data_i(pending_jump_rs1_data_w),
-    .pending_jump_inst_i(pending_jump_inst_q),
-    .pending_jump_rs1_i(pending_jump_rs1_q),
-    .ras_empty_i(ras_empty_w),
-    .jump_dispatch_fire_i(jump_dispatch_fire_w),
-    .commit_ready_i(commit_ready_i),
-    .pending_branch_fallthrough_o(pending_branch_fallthrough_w),
-    .pending_branch_next_pc_o(pending_branch_next_pc_w),
-    .pending_branch_misaligned_o(pending_branch_misaligned_w),
-    .pending_jump_jalr_sum_lsb_o(pending_jump_jalr_sum_lsb_unused_w),
-    .pending_jump_resolved_target_o(pending_jump_resolved_target_w),
-    .pending_jump_misaligned_o(pending_jump_misaligned_w),
-    .pending_jump_resolve_ready_o(pending_jump_resolve_ready_w),
-    .pending_jump_return_o(pending_jump_return_w),
-    .pending_jump_return_fire_o(pending_jump_return_fire_w),
-    .pending_jump_call_o(pending_jump_call_w),
-    .pending_jump_call_fire_o(pending_jump_call_fire_w),
-    .pending_jump_nolink_o(pending_jump_nolink_w),
-    .pending_jump_nolink_commit_o(pending_jump_nolink_commit_w),
-    .pending_jump_redirect_after_dispatch_o(
-        pending_jump_redirect_after_dispatch_w),
-    .pending_control_ready_o(pending_control_ready_w)
-  );
+  // [wave5b 死硅拆除] OooPendingControlResolveGate 物理删除。该门纯组合，全部输出仅由
+  // pending_branch_q / pending_jump_q（capture 恒 0 → 恒 0）派生：pending_branch_i=0 →
+  // fallthrough/next_pc/misaligned=0；pending_jump_i=0 → resolve_ready/return/call/nolink 及
+  // 其 *_fire/*_commit/resolved_target/redirect_after_dispatch 全 0；jalr_sum_lsb 口本就名带 unused。
+  // 唯 pending_control_ready_o = (!pending_branch_i || commit_ready_i) 在 pending_branch_i=0 时
+  // 恒 =1 → tie 1'b1（逐位等价）。供保留的 FetchRequestMux/SeedMux/RAS/OutstandingSeq 等 KEEP/活
+  // F2 sensor 读常量。输入口 pending_jump_rs1_data_w / pending_branch_taken_w 转未读输入（容忍）。
+  assign pending_branch_fallthrough_w = {`XLEN{1'b0}};
+  assign pending_branch_next_pc_w = {`XLEN{1'b0}};
+  assign pending_branch_misaligned_w = 1'b0;
+  assign pending_jump_jalr_sum_lsb_unused_w = 1'b0;
+  assign pending_jump_resolved_target_w = {`XLEN{1'b0}};
+  assign pending_jump_misaligned_w = 1'b0;
+  assign pending_jump_resolve_ready_w = 1'b0;
+  assign pending_jump_return_w = 1'b0;
+  assign pending_jump_return_fire_w = 1'b0;
+  assign pending_jump_call_w = 1'b0;
+  assign pending_jump_call_fire_w = 1'b0;
+  assign pending_jump_nolink_w = 1'b0;
+  assign pending_jump_nolink_commit_w = 1'b0;
+  assign pending_jump_redirect_after_dispatch_w = 1'b0;
+  assign pending_control_ready_w = 1'b1;
 
 
 
@@ -1585,24 +1563,11 @@ module OooFrontend #(
     .direct_branch_bht_valid_i(direct_branch_bht_valid_w),
     .head0_branch_bht_valid_i(head0_branch_bht_valid_w),
     .head1_branch_bht_valid_i(head1_branch_bht_valid_w),
-    .direct_branch_resolve_valid_i(direct_branch_resolve_valid_w),
-    .stop_pending_i(stop_pending_q),
-    .pending_branch_i(pending_branch_q),
-    .pending_branch_dispatched_i(pending_branch_dispatched_q),
-    .branch_resolve_pending_match_i(branch_resolve_pending_match_w),
-    .drain_complete_i(drain_complete_w),
-    .pending_branch_commit_resolve_i(pending_branch_commit_resolve_w),
-    .core_branch_resolve_misaligned_i(core_branch_resolve_misaligned_w),
-    .core_branch_resolve_next_pc_i(core_branch_resolve_next_pc_w),
-    .pending_branch_target_i(pending_branch_target_w),
-    .pending_branch_taken_i(pending_branch_taken_w),
-    .direct_branch_resolve_taken_i(direct_branch_resolve_taken_w),
-    .pending_branch_pred_taken_i(pending_branch_pred_taken_q),
-    .direct_branch_predict_taken_i(direct_branch_predict_taken_w),
-    .pending_branch_pc_i(pending_branch_pc_q),
-    .direct_branch_pc_i(direct_branch_pc_w),
-    .pending_branch_bht_idx_i(pending_branch_bht_idx_q),
-    .direct_branch_bht_idx_i(direct_branch_bht_idx_w),
+    // [wave5b 死硅拆除] 旧四臂输入(direct_branch_resolve_valid/stop_pending/pending_branch*
+    // /branch_resolve_pending_match/drain_complete/pending_branch_commit_resolve/
+    // core_branch_resolve_misaligned/next_pc/pending_branch_target/taken/direct_branch_resolve_taken
+    // /pending_branch_pred_taken/direct_branch_predict_taken/pending_branch_pc/direct_branch_pc
+    // /pending_branch_bht_idx/direct_branch_bht_idx) 随四臂删除，只保留 issue-resolve 单源。
     .resolve_update_valid_i(core_branch_resolve_valid_w &&
                             core_branch_resolve_is_branch_w),
     .resolve_update_taken_i(core_branch_resolve_taken_w),
@@ -1613,12 +1578,7 @@ module OooFrontend #(
     .branch_bpu_pending1_capture_o(branch_bpu_pending1_capture_w),
     .branch_bpu_lookup_event_o(branch_bpu_lookup_event_w),
     .branch_bpu_lookup_bht_valid_o(branch_bpu_lookup_bht_valid_w),
-    .branch_bpu_direct_update_o(branch_bpu_direct_update_w),
-    .branch_bpu_pending_update_o(branch_bpu_pending_update_w),
-    .branch_bpu_drained_update_o(branch_bpu_drained_update_w),
-    .branch_bpu_commit_update_o(branch_bpu_commit_update_w),
     .branch_bpu_update_valid_o(branch_bpu_update_valid_w),
-    .branch_bpu_pending_like_update_o(branch_bpu_pending_like_update_w),
     .branch_bpu_update_taken_o(branch_bpu_update_taken_w),
     .branch_bpu_update_pred_taken_o(branch_bpu_update_pred_taken_w),
     .branch_bpu_update_correct_o(branch_bpu_update_correct_w),
@@ -1731,98 +1691,34 @@ module OooFrontend #(
     .drained_o(backend_drained_q)
   );
 
-  OooPendingBranchSequencer u_pending_branch_sequencer (
-    .clk(clk),
-    .rst(rst || flush_i),
-    .late_clear_i(csr_trap_mem_valid_w),
-    .clear_i(pending_branch_clear_w),
-    .clear_dispatched_i(orphan_stop_pending_w),
-    .capture_direct_i(pending_branch_capture_direct_w),
-    .capture_direct_valid_i(!direct_branch_resolve_redirect_w),
-    .capture_direct_pc_i(direct_branch1_fire_w ? head_pc1_w : head_pc_w),
-    .capture_direct_next_pc_i(direct_branch1_fire_w ? head_next_pc1_w :
-                              head_next_pc0_w),
-    .capture_direct_inst_i(direct_branch1_fire_w ? head_inst1_w :
-                           head_inst0_w),
-    .capture_direct_rs1_i(direct_branch1_fire_w ? head1_rs1_w : head0_rs1_w),
-    .capture_direct_rs2_i(direct_branch1_fire_w ? head1_rs2_w : head0_rs2_w),
-    .capture_direct_imm_i(direct_branch1_fire_w ? head1_imm_w : head0_imm_w),
-    .capture_direct_cmp_op_i(direct_branch1_fire_w ?
-                             head1_ctrl_w[`CTRL_CMP_OP_MSB:`CTRL_CMP_OP_LSB] :
-                             head0_ctrl_w[`CTRL_CMP_OP_MSB:`CTRL_CMP_OP_LSB]),
-    .capture_direct_pred_taken_i(direct_branch_predict_taken_w),
-    .capture_direct_bht_valid_i(direct_branch_bht_valid_w),
-    .capture_direct_bht_idx_i(direct_branch_bht_idx_w),
-    .capture_head0_i(pending_branch_capture_head0_w),
-    .capture_head0_pc_i(head_pc_w),
-    .capture_head0_next_pc_i(head_next_pc0_w),
-    .capture_head0_inst_i(head_inst0_w),
-    .capture_head0_rs1_i(head0_rs1_w),
-    .capture_head0_rs2_i(head0_rs2_w),
-    .capture_head0_imm_i(head0_imm_w),
-    .capture_head0_cmp_op_i(head0_ctrl_w[`CTRL_CMP_OP_MSB:`CTRL_CMP_OP_LSB]),
-    .capture_head0_pred_taken_i(head0_branch_pred_taken_w),
-    .capture_head0_bht_valid_i(head0_branch_bht_valid_w),
-    .capture_head0_bht_idx_i(head0_branch_bht_idx_w),
-    .capture_lane1_i(pending_branch_capture_lane1_w),
-    .capture_lane1_valid_i(head1_branch_raw_w),
-    .capture_lane1_pc_i(head_pc1_w),
-    .capture_lane1_next_pc_i(head_next_pc1_w),
-    .capture_lane1_inst_i(head_inst1_w),
-    .capture_lane1_rs1_i(head1_rs1_w),
-    .capture_lane1_rs2_i(head1_rs2_w),
-    .capture_lane1_imm_i(head1_imm_w),
-    .capture_lane1_cmp_op_i(head1_ctrl_w[`CTRL_CMP_OP_MSB:`CTRL_CMP_OP_LSB]),
-    .capture_lane1_pred_taken_i(head1_branch_pred_taken_w),
-    .capture_lane1_bht_valid_i(head1_branch_bht_valid_w),
-    .capture_lane1_bht_idx_i(head1_branch_bht_idx_w),
-    .valid_o(pending_branch_q),
-    .dispatched_o(pending_branch_dispatched_q),
-    .pc_o(pending_branch_pc_q),
-    .next_pc_o(pending_branch_next_pc_q),
-    .inst_o(pending_branch_inst_q),
-    .rs1_o(pending_branch_rs1_q),
-    .rs2_o(pending_branch_rs2_q),
-    .imm_o(pending_branch_imm_q),
-    .cmp_op_o(pending_branch_cmp_op_q),
-    .pred_taken_o(pending_branch_pred_taken_q),
-    .bht_valid_o(pending_branch_bht_valid_q),
-    .bht_idx_o(pending_branch_bht_idx_q)
-  );
+  // [wave5b 死硅拆除] OooPendingBranchSequencer 物理删除。三条 capture 臂
+  // (direct/head0/lane1) 全被 !rob_walk_mode_i(OOO_ROB_WALK_MODE=1'b1 → =0) 门死于
+  // OooPendingDispatchArbiter → valid_q 永不置位 → 每个输出恒 = 复位值。tie-off 逐位等价：
+  // 复位块中 cmp_op_q<=`CMP_OP_NONE，其余全 0（见原模块 reset）。
+  assign pending_branch_q = 1'b0;
+  assign pending_branch_dispatched_q = 1'b0;
+  assign pending_branch_pc_q = {`XLEN{1'b0}};
+  assign pending_branch_next_pc_q = {`XLEN{1'b0}};
+  assign pending_branch_inst_q = {`INST_W{1'b0}};
+  assign pending_branch_rs1_q = {`REG_ADDR_W{1'b0}};
+  assign pending_branch_rs2_q = {`REG_ADDR_W{1'b0}};
+  assign pending_branch_imm_q = {`XLEN{1'b0}};
+  assign pending_branch_cmp_op_q = `CMP_OP_NONE;
+  assign pending_branch_pred_taken_q = 1'b0;
+  assign pending_branch_bht_valid_q = 1'b0;
+  assign pending_branch_bht_idx_q = {`BPU_BHT_INDEX_W{1'b0}};
 
-  OooPendingJumpSequencer u_pending_jump_sequencer (
-    .clk(clk),
-    .rst(rst || flush_i),
-    .late_clear_i(csr_trap_mem_valid_w),
-    .clear_i(pending_jump_clear_w),
-    .clear_dispatched_i(orphan_stop_pending_w),
-    .dispatch_fire_i(jump_dispatch_fire_w),
-    .dispatch_target_i(pending_jump_resolved_target_w),
-    .capture_head0_i(pending_jump_capture_head0_w),
-    .capture_head0_jalr_i(head0_jalr_raw_w),
-    .capture_head0_pc_i(head_pc_w),
-    .capture_head0_next_pc_i(head_next_pc0_w),
-    .capture_head0_inst_i(head_inst0_w),
-    .capture_head0_rs1_i(head0_rs1_w),
-    .capture_head0_imm_i(head0_imm_w),
-    .capture_lane1_i(pending_jump_capture_lane1_w),
-    .capture_lane1_valid_i(head1_jump_raw_w),
-    .capture_lane1_jalr_i(head1_jalr_raw_w),
-    .capture_lane1_pc_i(head_pc1_w),
-    .capture_lane1_next_pc_i(head_next_pc1_w),
-    .capture_lane1_inst_i(head_inst1_w),
-    .capture_lane1_rs1_i(head1_rs1_w),
-    .capture_lane1_imm_i(head1_imm_w),
-    .valid_o(pending_jump_q),
-    .dispatched_o(pending_jump_dispatched_q),
-    .jalr_o(pending_jump_jalr_q),
-    .pc_o(pending_jump_pc_q),
-    .next_pc_o(pending_jump_next_pc_q),
-    .inst_o(pending_jump_inst_q),
-    .rs1_o(pending_jump_rs1_q),
-    .imm_o(pending_jump_imm_q),
-    .target_o(pending_jump_target_q)
-  );
+  // [wave5b 死硅拆除] OooPendingJumpSequencer 物理删除。capture_head0/lane1 同样被
+  // !rob_walk_mode_i 门死；dispatch_fire 依赖 pending_jump_resolve_ready(恒0)。全输出恒 = 复位 0。
+  assign pending_jump_q = 1'b0;
+  assign pending_jump_dispatched_q = 1'b0;
+  assign pending_jump_jalr_q = 1'b0;
+  assign pending_jump_pc_q = {`XLEN{1'b0}};
+  assign pending_jump_next_pc_q = {`XLEN{1'b0}};
+  assign pending_jump_inst_q = {`INST_W{1'b0}};
+  assign pending_jump_rs1_q = {`REG_ADDR_W{1'b0}};
+  assign pending_jump_imm_q = {`XLEN{1'b0}};
+  assign pending_jump_target_q = {`XLEN{1'b0}};
 
 
   DecodeStage u_head0_decode (

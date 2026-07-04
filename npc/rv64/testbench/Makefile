@@ -72,9 +72,6 @@ TESTS := \
   tb_ooo_frontend_backend_dispatch_mux \
   tb_ooo_direct_branch_resolve_gate \
   tb_ooo_branch_resolve_recovery_gate \
-  tb_ooo_pending_control_resolve_gate \
-  tb_ooo_pending_branch_sequencer \
-  tb_ooo_pending_jump_sequencer \
   tb_ooo_branch_append_dispatch_gate \
   tb_ooo_branch_bpu_update_gate \
   tb_ooo_memory_request_gate \
@@ -160,9 +157,7 @@ TB_SRCS_tb_ooo_frontend_dispatch_gate := tests/tb_ooo_frontend_dispatch_gate.sv 
 TB_SRCS_tb_ooo_frontend_backend_dispatch_mux := tests/tb_ooo_frontend_backend_dispatch_mux.sv $(RTL_OOO_FRONTEND_BACKEND_DISPATCH_MUX)
 TB_SRCS_tb_ooo_direct_branch_resolve_gate := tests/tb_ooo_direct_branch_resolve_gate.sv $(RTL_OOO_DIRECT_BRANCH_RESOLVE_GATE)
 TB_SRCS_tb_ooo_branch_resolve_recovery_gate := tests/tb_ooo_branch_resolve_recovery_gate.sv $(RTL_OOO_BRANCH_RESOLVE_RECOVERY_GATE)
-TB_SRCS_tb_ooo_pending_control_resolve_gate := tests/tb_ooo_pending_control_resolve_gate.sv $(RTL_OOO_PENDING_CONTROL_RESOLVE_GATE)
-TB_SRCS_tb_ooo_pending_branch_sequencer := tests/tb_ooo_pending_branch_sequencer.sv $(RTL_OOO_PENDING_BRANCH_SEQUENCER)
-TB_SRCS_tb_ooo_pending_jump_sequencer := tests/tb_ooo_pending_jump_sequencer.sv $(RTL_OOO_PENDING_JUMP_SEQUENCER)
+# [wave5b 死硅拆除] tb_ooo_pending_control_resolve_gate / _branch_sequencer / _jump_sequencer 已删（模块退休）
 TB_SRCS_tb_ooo_branch_append_dispatch_gate := tests/tb_ooo_branch_append_dispatch_gate.sv $(RTL_OOO_BRANCH_APPEND_DISPATCH_GATE)
 TB_SRCS_tb_ooo_branch_bpu_update_gate := tests/tb_ooo_branch_bpu_update_gate.sv $(RTL_OOO_BRANCH_BPU_UPDATE_GATE)
 TB_SRCS_tb_ooo_memory_request_gate := tests/tb_ooo_memory_request_gate.sv $(RTL_OOO_MEMORY_REQUEST_GATE)

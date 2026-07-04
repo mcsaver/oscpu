@@ -1,6 +1,9 @@
 `timescale 1ns/1ps
 `include "include/define.v"
 
+// [wave5b 死硅拆除] OooBranchBpuUpdateGate 旧四臂(direct/pending/drained/commit)+pending_like
+// 已删，BHT update 化简为 issue-resolve 单源。TB 同步退休四臂场景，保留 BHT lookup 触发路径 +
+// 新增 issue-resolve 单源 update 断言。
 module tb_ooo_branch_bpu_update_gate;
   reg direct_frontend_flush;
   reg can_run;
@@ -13,35 +16,17 @@ module tb_ooo_branch_bpu_update_gate;
   reg direct_branch_bht_valid;
   reg head0_branch_bht_valid;
   reg head1_branch_bht_valid;
-  reg direct_branch_resolve_valid;
-  reg stop_pending;
-  reg pending_branch;
-  reg pending_branch_dispatched;
-  reg branch_resolve_pending_match;
-  reg drain_complete;
-  reg pending_branch_commit_resolve;
-  reg core_branch_resolve_misaligned;
-  reg [`XLEN-1:0] core_branch_resolve_next_pc;
-  reg [`XLEN-1:0] pending_branch_target;
-  reg pending_branch_taken;
-  reg direct_branch_resolve_taken;
-  reg pending_branch_pred_taken;
-  reg direct_branch_predict_taken;
-  reg [`XLEN-1:0] pending_branch_pc;
-  reg [`XLEN-1:0] direct_branch_pc;
-  reg [`BPU_BHT_INDEX_W-1:0] pending_branch_bht_idx;
-  reg [`BPU_BHT_INDEX_W-1:0] direct_branch_bht_idx;
+  reg resolve_update_valid;
+  reg resolve_update_taken;
+  reg resolve_update_pred_taken;
+  reg [`XLEN-1:0] resolve_update_pc;
+  reg [`BPU_BHT_INDEX_W-1:0] resolve_update_bht_idx;
 
   wire branch_bpu_pending0_capture;
   wire branch_bpu_pending1_capture;
   wire branch_bpu_lookup_event;
   wire branch_bpu_lookup_bht_valid;
-  wire branch_bpu_direct_update;
-  wire branch_bpu_pending_update;
-  wire branch_bpu_drained_update;
-  wire branch_bpu_commit_update;
   wire branch_bpu_update_valid;
-  wire branch_bpu_pending_like_update;
   wire branch_bpu_update_taken;
   wire branch_bpu_update_pred_taken;
   wire branch_bpu_update_correct;
@@ -62,34 +47,16 @@ module tb_ooo_branch_bpu_update_gate;
     .direct_branch_bht_valid_i(direct_branch_bht_valid),
     .head0_branch_bht_valid_i(head0_branch_bht_valid),
     .head1_branch_bht_valid_i(head1_branch_bht_valid),
-    .direct_branch_resolve_valid_i(direct_branch_resolve_valid),
-    .stop_pending_i(stop_pending),
-    .pending_branch_i(pending_branch),
-    .pending_branch_dispatched_i(pending_branch_dispatched),
-    .branch_resolve_pending_match_i(branch_resolve_pending_match),
-    .drain_complete_i(drain_complete),
-    .pending_branch_commit_resolve_i(pending_branch_commit_resolve),
-    .core_branch_resolve_misaligned_i(core_branch_resolve_misaligned),
-    .core_branch_resolve_next_pc_i(core_branch_resolve_next_pc),
-    .pending_branch_target_i(pending_branch_target),
-    .pending_branch_taken_i(pending_branch_taken),
-    .direct_branch_resolve_taken_i(direct_branch_resolve_taken),
-    .pending_branch_pred_taken_i(pending_branch_pred_taken),
-    .direct_branch_predict_taken_i(direct_branch_predict_taken),
-    .pending_branch_pc_i(pending_branch_pc),
-    .direct_branch_pc_i(direct_branch_pc),
-    .pending_branch_bht_idx_i(pending_branch_bht_idx),
-    .direct_branch_bht_idx_i(direct_branch_bht_idx),
+    .resolve_update_valid_i(resolve_update_valid),
+    .resolve_update_taken_i(resolve_update_taken),
+    .resolve_update_pred_taken_i(resolve_update_pred_taken),
+    .resolve_update_pc_i(resolve_update_pc),
+    .resolve_update_bht_idx_i(resolve_update_bht_idx),
     .branch_bpu_pending0_capture_o(branch_bpu_pending0_capture),
     .branch_bpu_pending1_capture_o(branch_bpu_pending1_capture),
     .branch_bpu_lookup_event_o(branch_bpu_lookup_event),
     .branch_bpu_lookup_bht_valid_o(branch_bpu_lookup_bht_valid),
-    .branch_bpu_direct_update_o(branch_bpu_direct_update),
-    .branch_bpu_pending_update_o(branch_bpu_pending_update),
-    .branch_bpu_drained_update_o(branch_bpu_drained_update),
-    .branch_bpu_commit_update_o(branch_bpu_commit_update),
     .branch_bpu_update_valid_o(branch_bpu_update_valid),
-    .branch_bpu_pending_like_update_o(branch_bpu_pending_like_update),
     .branch_bpu_update_taken_o(branch_bpu_update_taken),
     .branch_bpu_update_pred_taken_o(branch_bpu_update_pred_taken),
     .branch_bpu_update_correct_o(branch_bpu_update_correct),
@@ -146,30 +113,18 @@ module tb_ooo_branch_bpu_update_gate;
       direct_branch_bht_valid = 1'b0;
       head0_branch_bht_valid = 1'b0;
       head1_branch_bht_valid = 1'b0;
-      direct_branch_resolve_valid = 1'b0;
-      stop_pending = 1'b0;
-      pending_branch = 1'b0;
-      pending_branch_dispatched = 1'b0;
-      branch_resolve_pending_match = 1'b0;
-      drain_complete = 1'b0;
-      pending_branch_commit_resolve = 1'b0;
-      core_branch_resolve_misaligned = 1'b0;
-      core_branch_resolve_next_pc = 64'h8000_0200;
-      pending_branch_target = 64'h8000_0200;
-      pending_branch_taken = 1'b0;
-      direct_branch_resolve_taken = 1'b0;
-      pending_branch_pred_taken = 1'b0;
-      direct_branch_predict_taken = 1'b0;
-      pending_branch_pc = 64'h8000_0100;
-      direct_branch_pc = 64'h8000_1000;
-      pending_branch_bht_idx = {`BPU_BHT_INDEX_W{1'b0}};
-      direct_branch_bht_idx = {`BPU_BHT_INDEX_W{1'b0}};
+      resolve_update_valid = 1'b0;
+      resolve_update_taken = 1'b0;
+      resolve_update_pred_taken = 1'b0;
+      resolve_update_pc = 64'h8000_0200;
+      resolve_update_bht_idx = {`BPU_BHT_INDEX_W{1'b0}};
     end
   endtask
 
   initial begin
     errors = 0;
 
+    // ---- BHT lookup 触发路径（活 F2 预测，保留） ----
     reset_inputs();
     can_run = 1'b1;
     fifo_has_packet = 1'b1;
@@ -204,77 +159,37 @@ module tb_ooo_branch_bpu_update_gate;
     check1("direct lookup event", branch_bpu_lookup_event, 1'b1);
     check1("direct lookup bht valid", branch_bpu_lookup_bht_valid, 1'b1);
 
+    // ---- issue-resolve 单源 update（F2 唯一活 update） ----
     reset_inputs();
-    direct_branch_resolve_valid = 1'b1;
-    direct_branch_resolve_taken = 1'b1;
-    direct_branch_predict_taken = 1'b1;
-    direct_branch_pc = 64'h8000_1004;
-    direct_branch_bht_idx = 12'h123;
     #1;
-    check1("direct update class", branch_bpu_direct_update, 1'b1);
-    check1("direct update valid", branch_bpu_update_valid, 1'b1);
-    check1("direct update taken", branch_bpu_update_taken, 1'b1);
-    check1("direct pred selected", branch_bpu_update_pred_taken, 1'b1);
-    check1("direct update correct", branch_bpu_update_correct, 1'b1);
-    check64("direct update pc", branch_bpu_update_pc, 64'h8000_1004);
-    check_bht("direct update bht", branch_bpu_update_bht_idx, 12'h123);
+    check1("no update when resolve idle", branch_bpu_update_valid, 1'b0);
 
     reset_inputs();
-    direct_branch_resolve_valid = 1'b1;
-    stop_pending = 1'b1;
-    pending_branch = 1'b1;
-    pending_branch_dispatched = 1'b1;
-    branch_resolve_pending_match = 1'b1;
-    core_branch_resolve_next_pc = 64'h8000_2200;
-    pending_branch_target = 64'h8000_2200;
-    pending_branch_pred_taken = 1'b0;
-    direct_branch_predict_taken = 1'b1;
-    pending_branch_pc = 64'h8000_2000;
-    direct_branch_pc = 64'h8000_3000;
-    pending_branch_bht_idx = 12'h456;
-    direct_branch_bht_idx = 12'h789;
+    resolve_update_valid = 1'b1;
+    resolve_update_taken = 1'b1;
+    resolve_update_pred_taken = 1'b1;
+    resolve_update_pc = 64'h8000_1004;
+    resolve_update_bht_idx = 12'h123;
     #1;
-    check1("pending update class", branch_bpu_pending_update, 1'b1);
-    check1("pending-like update", branch_bpu_pending_like_update, 1'b1);
-    check1("pending target match taken", branch_bpu_update_taken, 1'b1);
-    check1("pending pred selected", branch_bpu_update_pred_taken, 1'b0);
-    check1("pending update incorrect", branch_bpu_update_correct, 1'b0);
-    check64("pending update pc wins", branch_bpu_update_pc, 64'h8000_2000);
-    check_bht("pending update bht wins", branch_bpu_update_bht_idx, 12'h456);
-    core_branch_resolve_misaligned = 1'b1;
-    #1;
-    check1("misaligned pending update not taken",
-           branch_bpu_update_taken, 1'b0);
+    check1("resolve update valid", branch_bpu_update_valid, 1'b1);
+    check1("resolve update taken", branch_bpu_update_taken, 1'b1);
+    check1("resolve pred selected", branch_bpu_update_pred_taken, 1'b1);
+    check1("resolve update correct", branch_bpu_update_correct, 1'b1);
+    check64("resolve update pc", branch_bpu_update_pc, 64'h8000_1004);
+    check_bht("resolve update bht", branch_bpu_update_bht_idx, 12'h123);
 
     reset_inputs();
-    stop_pending = 1'b1;
-    pending_branch = 1'b1;
-    pending_branch_dispatched = 1'b0;
-    drain_complete = 1'b1;
-    pending_branch_taken = 1'b1;
-    pending_branch_pred_taken = 1'b1;
-    pending_branch_pc = 64'h8000_4000;
-    pending_branch_bht_idx = 12'habc;
+    resolve_update_valid = 1'b1;
+    resolve_update_taken = 1'b1;
+    resolve_update_pred_taken = 1'b0;
+    resolve_update_pc = 64'h8000_2000;
+    resolve_update_bht_idx = 12'h456;
     #1;
-    check1("drained update class", branch_bpu_drained_update, 1'b1);
-    check1("drained update taken", branch_bpu_update_taken, 1'b1);
-    check1("drained update correct", branch_bpu_update_correct, 1'b1);
-    check64("drained update pc", branch_bpu_update_pc, 64'h8000_4000);
-    check_bht("drained update bht", branch_bpu_update_bht_idx, 12'habc);
-
-    reset_inputs();
-    pending_branch_commit_resolve = 1'b1;
-    pending_branch_taken = 1'b0;
-    pending_branch_pred_taken = 1'b1;
-    pending_branch_pc = 64'h8000_5000;
-    pending_branch_bht_idx = 12'hdef;
-    #1;
-    check1("commit update class", branch_bpu_commit_update, 1'b1);
-    check1("commit update valid", branch_bpu_update_valid, 1'b1);
-    check1("commit update uses pending taken", branch_bpu_update_taken, 1'b0);
-    check1("commit update incorrect", branch_bpu_update_correct, 1'b0);
-    check64("commit update pc", branch_bpu_update_pc, 64'h8000_5000);
-    check_bht("commit update bht", branch_bpu_update_bht_idx, 12'hdef);
+    check1("resolve mispredict update valid", branch_bpu_update_valid, 1'b1);
+    check1("resolve mispredict taken", branch_bpu_update_taken, 1'b1);
+    check1("resolve mispredict incorrect", branch_bpu_update_correct, 1'b0);
+    check64("resolve mispredict pc", branch_bpu_update_pc, 64'h8000_2000);
+    check_bht("resolve mispredict bht", branch_bpu_update_bht_idx, 12'h456);
 
     if (errors == 0) begin
       $display("[PASS] tb_ooo_branch_bpu_update_gate");

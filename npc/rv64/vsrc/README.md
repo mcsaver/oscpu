@@ -121,12 +121,10 @@ module/core 回归和性能样本分析。
 - `memory/OooPendingMemorySequencer.v` 承接 lane1 memory barrier 的 pending memory
   单 entry 注册状态；父模块仍负责 pending owner arbitration、LSU/MMU request、
   memory trap、backend drain、fetch redirect 和 precise recovery。
-- `frontend/OooPendingBranchSequencer.v` 承接 pending branch 单 entry 注册状态；
-  父模块仍负责 branch compare、target 计算、BPU update、branch-spec recovery、
-  misaligned trap、backend drain、fetch redirect 和 precise recovery。
-- `frontend/OooPendingJumpSequencer.v` 承接 JAL/JALR pending jump 单 entry 注册状态；
-  父模块仍负责 target 计算、RAS/BTB、misaligned trap、backend drain、fetch redirect
-  和 precise recovery。
+- ~~`frontend/OooPendingBranchSequencer.v`~~ **已删（wave5b 死硅拆除）**：capture 三臂全被
+  `!rob_walk_mode`(OOO_ROB_WALK_MODE=1'b1)门死 → 状态恒 0；分支恢复改走 issue-resolve+ROB-walk。
+- ~~`frontend/OooPendingJumpSequencer.v`~~ **已删（wave5b 死硅拆除）**：capture 同样门死 → 状态恒 0；
+  JAL/JALR 走 direct RAS/spec + issue-resolve。
 - `frontend/OooDirectRasCandidateGate.v` 承接 direct RAS/RAS-ret 候选组合事实：
   lane0/lane1 JAL call-like raw、RAS direct update safe、lane0 direct return 和
   lane1 return candidate；父模块仍保留 RAS 栈、return-cont buffer、direct jump/ret
@@ -216,10 +214,9 @@ module/core 回归和性能样本分析。
   OooSyntheticLane1Ret 家族（Sequencer/CommitGate）亦已删除（rtl-ground-truth §4：
   capture 依赖拍内解析同拍谓词，F2 下经 `direct_branch0_lane1_ret_w` 恒 0）。
   当前 lane1 return 延迟可见性由 direct RAS 事件与 issue-resolve/ROB-walk 承担。
-- `frontend/OooPendingControlResolveGate.v` 承接 pending branch next/misaligned、
-  pending JAL/JALR resolved target、return/call/no-link 分类、jump resolve-ready 和
-  redirect-after-dispatch 组合事实；父模块仍保留 pending 状态、CompareUnit、RAS/BTB
-  表项、trap/commit 和 PC/outstanding/discard 时序所有权。
+- ~~`frontend/OooPendingControlResolveGate.v`~~ **已删（wave5b 死硅拆除）**：全部输出由
+  pending_branch/pending_jump（capture 恒 0 → 恒 0）派生，纯组合恒 0（pending_control_ready 恒 1）；
+  已就地 tie-off，随 pending_branch/jump sequencer 一并退休。
 - `frontend/OooBranchAppendDispatchGate.v` 承接 return-cont、branch target/
   fallthrough lane1 append candidate/attempt/dispatch、fallthrough outstanding
   keep/capture、branch prefetch direct-dispatch dead-path 和 `dispatch1_optional`

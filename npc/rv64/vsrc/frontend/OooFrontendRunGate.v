@@ -59,15 +59,12 @@ module OooFrontendRunGate #(
                      !exit_valid_i;
 
   assign fifo_empty_storage_o = !fifo_storage_head_valid_i;
-  // B2: mode 下禁「取指响应直通 dispatch」的 bypass，强制 wrong-path 经 FIFO——mispredict redirect 的 FIFO-clear
-  // 才能拦住它，使它无法绕过 FIFO/kill 窗口而 dispatch+提交（修 bypass-after-kill 竞争）。
-  assign fetch_rsp_dispatch_bypass_o =
-      fifo_empty_storage_o &&
-      can_run_o &&
-      outstanding_valid_i &&
-      fetch_rsp_valid_i &&
-      !discard_fetch_rsp_i &&
-      !(`OOO_ROB_WALK_MODE);
+  // [wave5b 死硅拆除] fetch 响应 bypass 直通 dispatch 通路物理删除：原式尾含
+  // !(OOO_ROB_WALK_MODE)，在 OOO_ROB_WALK_MODE=1'b1 下恒 0（防 bypass-after-kill
+  // 竞争，强制 wrong-path 经 FIFO）。整式已是编译期常量 0，故直接常量 0 tie-off，逐位等价。
+  // 保留 fetch_rsp_valid_i / discard_fetch_rsp_i 端口（仅本 bypass 消费，现转未读输入，
+  // 综合/lint 容忍；不递归删接口以免动 OooFrontend 布线）。
+  assign fetch_rsp_dispatch_bypass_o = 1'b0;
 
   assign outstanding_count_o =
       {{(FETCH_COUNT_W-1){1'b0}}, outstanding_valid_i};

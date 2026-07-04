@@ -187,16 +187,17 @@ load/store/AMO（SQ + probe/drain + MIQ）已全部迁回域 A。
 
 > **B4 物理删除进度（2026-07-04 起，逐项 cycle-exact 中性验收）**：已删 csrc 死代码、PRF read4-9（全，真5R2W）、
 > OooSyntheticLane1Ret 家族、五套 checkpoint 影子阵列、前端 prefetch/BTC 网（13 模块 -2881 行）、
-> WBU LOAD 臂、IQ load-branch-fast、dispatch 拍分支快解析族（下表已标 commit）。**待删**：pending branch/jump/mem 链
->（控制面，最纠缠；只删死 pending owner，保留 system/trap+stop_pending KEEP 机制）、BPU 旧四臂（随 pending_branch 同波）、
-> OooDirectBranchResolveGate（~15 F2 活消费者，专项）、fetch bypass；SpecTracker 有活 RAS 副作用需专项。
+> WBU LOAD 臂、IQ load-branch-fast、dispatch 拍分支快解析族（下表已标 commit）、**pending branch/jump 链
+> + Arbiter branch/jump capture 臂 + BPU 旧四臂 + fetch bypass（wave5b，逐位 tie-off，lint 0/0 + 模块 TB 82/82）**。
+> **待删**：pending_mem 链、OooDirectBranchResolveGate（~15 F2 活消费者，专项）；RecoveryGate 的 pending/spec 臂
+> 与 SpecTracker 有活 F2 untracked-redirect + RAS 副作用需专项（wave5b 已 SKIP，改用 pending_branch_i=0 tie-off 令其自洽塌缩）。
 
 | 死硅 | 判死机制 | 关键证据 |
 | --- | --- | --- |
-| pending_branch / pending_jump 全链（2 个 Sequencer + PendingControlResolveGate + RecoveryGate 的 pending/spec 臂） | capture 被 `!rob_walk_mode` 门死（OOO_ROB_WALK_MODE=1'b1） | `control/OooPendingDispatchArbiter.v:160-171` |
+| ~~pending_branch / pending_jump 全链（2 个 Sequencer + PendingControlResolveGate + Arbiter branch/jump capture 臂 + TopGlue/ControlPlane 布线）~~ **已删（2026-07-04, wave5b）**：3 模块 + 7 根 capture/clear 跨模块信号物理删除，前端就地常量 tie-off（pending_control_ready 恒 1，余恒 0）供 KEEP/活 F2 sensor 读；RecoveryGate 的 pending/spec 臂**未删（SKIP）**——它与活 F2 untracked-redirect + RAS 副作用同模块，改由 pending_branch_i=0 tie-off 令其自洽塌缩（见 §4 SKIP 说明） | capture 被 `!rob_walk_mode` 门死（OOO_ROB_WALK_MODE=1'b1） | `control/OooPendingDispatchArbiter.v`（原 :160-171） |
 | pending_mem 全链（OooPendingMemorySequencer + mux mem 臂 + DrainResolveGate mem 注入） | lane1 barrier 条件不含 FACT_MEM,严格互斥 → capture 恒 0（可整链删除） | `control/OooPendingLane1CaptureGate.v:50`、`frontend/OooFrontendDispatchGate.v:102-109` |
 | ~~dispatch 拍分支快解析全族（IntBackend candidate/CompareUnit/FAST_BRANCH_TRACK 8 项表/PRF read4-5）~~ **已删（2026-07-04, B4, 3edd53210）**;DirectBranchResolveGate 保留(SKIP,~15 F2 消费者) | `!(OOO_DBRANCH_DOMAIN_A)` 恒 0;F2 活 issue-resolve 完整保留 | `execute/OooIntBackend.v:531-532` |
-| BPU 更新旧四臂（direct/pending/drained/commit）→ 只剩 issue-resolve 单源 | 依赖拍内解析或 pending_branch,均死 | `frontend/OooBranchBpuUpdateGate.v:33-35` 注释自证 |
+| ~~BPU 更新旧四臂（direct/pending/drained/commit + pending_like）~~ **已删（2026-07-04, wave5b）**：4-way update mux 化简为 issue-resolve 单源（四臂谓词恒 0 时逐拍落 resolve 分支 → 逐位等价）；BHT lookup 触发路径 + update_correct/valid perf 计数保留 | 依赖拍内解析或 pending_branch,均死 | `frontend/OooBranchBpuUpdateGate.v` |
 | ~~OooBranchTargetCache（BTC 16 项）+ CaptureBuffer + ControlGate~~ **已删（2026-07-04, B4, bac43bc8f）** | 唯一填充路径依赖拍内解析 → 恒空;消费端 append 又被 `BRANCH_APPEND_DISPATCH_ENABLE=1'b0` 关死（双重死）;hit 恒0 从 unused-sink OR 移除 | `frontend/OooBranchTargetCacheControlGate.v:44-49`、`OooBranchAppendDispatchGate.v:68` |
 | ~~JALR-BTB(OooJalrBtb) + 更新口(OooPredictorUpdateGate)~~ **已删（2026-07-04, B4, bac43bc8f）** | update 依赖 pending_jump 恒 0 → 表恒空 → spec 查询恒 miss;jalr_spec_btb_hit=0 退回 RAS/fallthrough | `frontend/OooPredictorUpdateGate.v:17-19` |
 | ~~branch/JALR prefetch 全家桶（Buffer/Request/Source/Status/ClearGate + HitMux + JalrPrefetchStatusGate）~~ **已删（2026-07-04, B4, bac43bc8f）** | req 依赖 pending_branch/btb_hit 恒 0;pending_branch_target re-inline 给保留的 pending 链 | report-1 |
@@ -205,7 +206,7 @@ load/store/AMO（SQ + probe/drain + MIQ）已全部迁回域 A。
 | ~~checkpoint 影子阵列五套（FreeList/RenameMap/BusyTable/IQ/ROB）~~ **已删（2026-07-04, B4, a7d5c5661）** | `cp_*` 恒 gate 0（ROB-walk 已取代）;6 模块 TB 同步退休 checkpoint 场景;ROB-walk 活恢复完整保留 | `rename_allocate/OooDispatchBackend.v:485-486` |
 | OooBranchSpecTracker 的 active/checkpoint 机制 | capture 恒 0;但 checkpoint_pending 仍会置位并压制 RAS 更新（副作用活着,机制死) | report-1 |
 | ~~OooRedirectArbiter.v~~ **已删档（2026-07-03）** | C7 统一 redirect 仲裁地基,从未接入编译列表/零实例化 → 删档减负（模块+TB+filelist 变量+`REDIR_REASON_*` 宏全删；lint 0/模块 TB 96/96）。当前仲裁=`OooFetchRequestMux` 隐式优先级链；若重启统一 arbiter 从 git 历史复活 | 已删除 |
-| fetch 响应 bypass 直通 dispatch 通路 | `OOO_ROB_WALK_MODE=1` 恒禁（防 bypass-after-kill） | `frontend/OooFrontendRunGate.v:62-70` |
+| ~~fetch 响应 bypass 直通 dispatch 通路~~ **已删（2026-07-04, wave5b）**：`fetch_rsp_dispatch_bypass_o` 原式尾含 `!(OOO_ROB_WALK_MODE)` 恒 0 → 直接常量 0 tie-off（逐位等价）；消费端 FetchPacketHeadMux/FetchFlowControl 在 bypass_valid=0 时不选 bypass payload | `OOO_ROB_WALK_MODE=1` 恒禁（防 bypass-after-kill） | `frontend/OooFrontendRunGate.v` |
 | ~~WBU 的 LOAD 源臂~~ **已删（2026-07-04, B4, ca18af091）** | load_data 口两实例恒接 0（load 走 mem rsp 通道）;删 WB_SEL_LOAD 臂落 default=0 等价 | `execute/OooIntBackend.v:801,811` |
 | ~~IQ load-branch-fast 输出族 + pending_load0/1~~ **已删（2026-07-04, B4, ca18af091）** | 消费端已删（E7),IQ ~65 行扫描落死 sink 空转;pending_load_branch_dep tie-off 0 | report-3 |
 | ~~PRF read4/5/6/7/9 五个死读口~~ **全部已删（2026-07-04, B4, read6/7/9=e72948c90 + read4/5=3edd53210）** | read6/7/9 零消费者;read4/5 随 dispatch 快解析族摘;PRF 现真 5R2W（read0-3 双发射 + read8 FP） | report-3 |

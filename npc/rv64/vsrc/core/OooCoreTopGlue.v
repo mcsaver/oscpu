@@ -532,13 +532,7 @@ module OooCoreTopGlue #(
   wire pending_system_capture_head0_w;
   wire pending_system_capture_lane1_w;
   wire pending_system_clear_w;
-  wire pending_branch_capture_direct_w;
-  wire pending_branch_capture_head0_w;
-  wire pending_branch_capture_lane1_w;
-  wire pending_branch_clear_w;
-  wire pending_jump_capture_head0_w;
-  wire pending_jump_capture_lane1_w;
-  wire pending_jump_clear_w;
+  // [wave5b 死硅拆除] pending_branch/jump capture+clear 布线(7 根)已删——arbiter 臂 + 前端 sequencer 均删
   wire pending_mem_resolve_ready_w;
   wire pending_branch_commit_resolve_w;
   wire pending_branch_match_clear_w;
@@ -934,10 +928,6 @@ module OooCoreTopGlue #(
     .outstanding_valid_q(outstanding_valid_q),
     .pending_arch_trap_fire_w(pending_arch_trap_fire_w),
     .pending_arch_trap_q(pending_arch_trap_q),
-    .pending_branch_capture_direct_w(pending_branch_capture_direct_w),
-    .pending_branch_capture_head0_w(pending_branch_capture_head0_w),
-    .pending_branch_capture_lane1_w(pending_branch_capture_lane1_w),
-    .pending_branch_clear_w(pending_branch_clear_w),
     .pending_branch_commit_resolve_w(pending_branch_commit_resolve_w),
     .pending_branch_dispatched_q(pending_branch_dispatched_q),
     .pending_branch_match_clear_w(pending_branch_match_clear_w),
@@ -947,9 +937,6 @@ module OooCoreTopGlue #(
     .pending_branch_target_w(pending_branch_target_w),
     .pending_control_ready_w(pending_control_ready_w),
     .pending_exit_q(pending_exit_q),
-    .pending_jump_capture_head0_w(pending_jump_capture_head0_w),
-    .pending_jump_capture_lane1_w(pending_jump_capture_lane1_w),
-    .pending_jump_clear_w(pending_jump_clear_w),
     .pending_jump_dispatched_q(pending_jump_dispatched_q),
     .pending_jump_misaligned_w(pending_jump_misaligned_w),
     .pending_jump_nolink_commit_w(pending_jump_nolink_commit_w),
@@ -1204,10 +1191,6 @@ module OooCoreTopGlue #(
     .outstanding_valid_q(outstanding_valid_q),
     .pending_arch_trap_q(pending_arch_trap_q),
     .pending_branch_bht_valid_q(pending_branch_bht_valid_q),
-    .pending_branch_capture_direct_w(pending_branch_capture_direct_w),
-    .pending_branch_capture_head0_w(pending_branch_capture_head0_w),
-    .pending_branch_capture_lane1_w(pending_branch_capture_lane1_w),
-    .pending_branch_clear_w(pending_branch_clear_w),
     .pending_branch_cmp_op_q(pending_branch_cmp_op_q),
     .pending_branch_commit_resolve_w(pending_branch_commit_resolve_w),
     .pending_branch_dispatched_q(pending_branch_dispatched_q),
@@ -1224,9 +1207,6 @@ module OooCoreTopGlue #(
     .pending_control_ready_w(pending_control_ready_w),
     .pending_exit_q(pending_exit_q),
     .pending_jump_call_fire_w(pending_jump_call_fire_w),
-    .pending_jump_capture_head0_w(pending_jump_capture_head0_w),
-    .pending_jump_capture_lane1_w(pending_jump_capture_lane1_w),
-    .pending_jump_clear_w(pending_jump_clear_w),
     .pending_jump_dispatched_q(pending_jump_dispatched_q),
     .pending_jump_imm_q(pending_jump_imm_q),
     .pending_jump_inst_q(pending_jump_inst_q),

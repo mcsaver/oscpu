@@ -68,13 +68,7 @@ module tb_ooo_pending_dispatch_arbiter;
   wire pending_system_capture_head0;
   wire pending_system_capture_lane1;
   wire pending_system_clear;
-  wire pending_branch_capture_direct;
-  wire pending_branch_capture_head0;
-  wire pending_branch_capture_lane1;
-  wire pending_branch_clear;
-  wire pending_jump_capture_head0;
-  wire pending_jump_capture_lane1;
-  wire pending_jump_clear;
+  // [wave5b 死硅拆除] pending_branch/jump capture+clear 输出臂已删（capture 恒 0）。
   wire pending_trap_exit_clear_exit;
   wire pending_trap_exit_clear_arch;
   wire pending_trap_exit_capture_exit;
@@ -129,13 +123,6 @@ module tb_ooo_pending_dispatch_arbiter;
     .pending_system_capture_head0_o(pending_system_capture_head0),
     .pending_system_capture_lane1_o(pending_system_capture_lane1),
     .pending_system_clear_o(pending_system_clear),
-    .pending_branch_capture_direct_o(pending_branch_capture_direct),
-    .pending_branch_capture_head0_o(pending_branch_capture_head0),
-    .pending_branch_capture_lane1_o(pending_branch_capture_lane1),
-    .pending_branch_clear_o(pending_branch_clear),
-    .pending_jump_capture_head0_o(pending_jump_capture_head0),
-    .pending_jump_capture_lane1_o(pending_jump_capture_lane1),
-    .pending_jump_clear_o(pending_jump_clear),
     .pending_trap_exit_clear_exit_o(pending_trap_exit_clear_exit),
     .pending_trap_exit_clear_arch_o(pending_trap_exit_clear_arch),
     .pending_trap_exit_capture_exit_o(pending_trap_exit_capture_exit),
@@ -280,14 +267,12 @@ module tb_ooo_pending_dispatch_arbiter;
 
     reset_inputs();
     tb_check1("idle no irq capture", pending_system_capture_irq, 1'b0);
-    tb_check1("idle no branch clear", pending_branch_clear, 1'b0);
 
     reset_inputs();
     csr_irq_pending = 1'b1;
     #1;
     tb_check1("irq captures system", pending_system_capture_irq, 1'b1);
     tb_check1("irq blocks head0 system", pending_system_capture_head0, 1'b0);
-    tb_check1("irq clears stale branch", pending_branch_clear, 1'b1);
     tb_check1("irq clears stale trap exit", pending_trap_exit_clear_exit, 1'b1);
     tb_check1("irq does not clear current system entry", pending_system_clear, 1'b0);
 
@@ -321,61 +306,21 @@ module tb_ooo_pending_dispatch_arbiter;
     check_xlen("illegal csr tval", pending_trap_exit_capture_tval,
                {32'b0, head_inst0});
 
-    reset_inputs();
-    dispatch0_branch = 1'b1;
-    direct_branch0_dispatch_valid = 1'b0;
-    #1;
-    tb_check1("head0 serialized branch capture", pending_branch_capture_head0, 1'b1);
-    tb_check1("serialized branch clears jump", pending_jump_clear, 1'b1);
-    tb_check1("serialized branch does not clear branch", pending_branch_clear, 1'b0);
-
+    // [wave5b 死硅拆除] head0/lane1 branch/jump capture + branch/jump clear 场景已退休
+    // （对应 arbiter capture 臂删除）。仅保留仍活的 trap-exit clear 观测。
     reset_inputs();
     dispatch0_jal = 1'b1;
     direct_jal0_dispatch_valid = 1'b0;
     #1;
-    tb_check1("head0 serialized jump capture", pending_jump_capture_head0, 1'b1);
-    tb_check1("serialized jump clears branch", pending_branch_clear, 1'b1);
     tb_check1("serialized jump clears trap exit arch", pending_trap_exit_clear_arch, 1'b1);
 
     reset_inputs();
     dispatch1_barrier_fire = 1'b1;
     #1;
-    tb_check1("lane1 empty barrier does not open branch capture",
-              pending_branch_capture_lane1, 1'b0);
-    tb_check1("lane1 empty barrier does not open jump capture",
-              pending_jump_capture_lane1, 1'b0);
     tb_check1("lane1 empty barrier capture exit invalid",
               pending_trap_exit_capture_exit_valid, 1'b0);
     tb_check1("lane1 empty barrier capture arch invalid",
               pending_trap_exit_capture_arch_valid, 1'b0);
-
-    reset_inputs();
-    dispatch1_barrier_fire = 1'b1;
-    head1_branch_raw = 1'b1;
-    #1;
-    tb_check1("lane1 branch opens only branch capture",
-              pending_branch_capture_lane1, 1'b1);
-    tb_check1("lane1 branch keeps jump capture closed",
-              pending_jump_capture_lane1, 1'b0);
-
-    reset_inputs();
-    dispatch1_barrier_fire = 1'b1;
-    head1_jump_raw = 1'b1;
-    #1;
-    tb_check1("lane1 jump opens only jump capture",
-              pending_jump_capture_lane1, 1'b1);
-    tb_check1("lane1 jump keeps branch capture closed",
-              pending_branch_capture_lane1, 1'b0);
-
-    reset_inputs();
-    dispatch1_barrier_fire = 1'b1;
-    head1_fp_enabled = 1'b1;
-    #1;
-    // 【B-FP 簇】FP 迁域 A: lane1 FP 不再 capture(执行在 FP 簇, 经 ROB 真 commit)
-    tb_check1("lane1 fp keeps branch capture closed",
-              pending_branch_capture_lane1, 1'b0);
-    tb_check1("lane1 fp keeps jump capture closed",
-              pending_jump_capture_lane1, 1'b0);
 
     reset_inputs();
     dispatch1_barrier_fire = 1'b1;
@@ -421,18 +366,13 @@ module tb_ooo_pending_dispatch_arbiter;
     direct_frontend_flush = 1'b1;
     direct_branch0_fire = 1'b1;
     #1;
-    tb_check1("direct branch capture", pending_branch_capture_direct, 1'b1);
-    tb_check1("direct flush clears jump", pending_jump_clear, 1'b1);
     tb_check1("direct flush clears system", pending_system_clear, 1'b1);
     tb_check1("direct branch clears exit", pending_trap_exit_clear_exit, 1'b1);
-    tb_check1("direct flush does not clear branch directly", pending_branch_clear, 1'b0);
 
     reset_inputs();
     pending_jump_resolve_ready = 1'b1;
     pending_jump_misaligned = 1'b1;
     #1;
-    tb_check1("jump redirect clears branch", pending_branch_clear, 1'b1);
-    tb_check1("jump redirect clears jump", pending_jump_clear, 1'b1);
     tb_check1("jump redirect clears exit", pending_trap_exit_clear_exit, 1'b1);
     tb_check1("jump redirect does not clear arch", pending_trap_exit_clear_arch, 1'b0);
 
