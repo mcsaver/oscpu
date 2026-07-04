@@ -4,7 +4,6 @@
 
 #include "cpu/difftest.h"
 #include "device/map.h"
-#include "memory/cache.h"
 #include "monitor/log.h"
 #include "monitor/trace.h"
 #include "utils.h"
@@ -80,7 +79,6 @@ void npc_init_mem(void) {
    * 2. 大块 calloc 在 Linux 上通常由内核零页映射实现，不会真正触碰物理页 */
   g_pmem = (uint8_t *)calloc(1, g_pmem_size);
   if (!g_pmem) { perror("[npc] calloc pmem"); abort(); }
-  npc_cache_init();
   init_memwatch();
   LogBoth("physical memory area [0x%016" NPC_PRIxPADDR ", 0x%016" NPC_PRIxPADDR "]",
           (npc_paddr_t)NPC_PMEM_BASE, (npc_paddr_t)(NPC_PMEM_BASE + (npc_paddr_t)g_pmem_size - 1));

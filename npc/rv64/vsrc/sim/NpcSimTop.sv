@@ -2,7 +2,6 @@
 
 // DPI-C 仿真顶层：只负责把可综合 NpcCore 接到独立总线和宿主侧事件模型。
 // 该文件不能进入 RTL_CORE_SRCS/STA_RTL_FILES。
-import "DPI-C" task npc_cache_flush_all();
 
 import "DPI-C" function void npc_commit_event(
   input longint unsigned pc,
@@ -247,7 +246,6 @@ module NpcSimTop (
   logic plic_external_irq_w;
   logic uart_irq_w;
   logic virtio_blk_irq_w;
-  logic sim_cache_flush_w;
   logic sim_icache_access_w;
   logic sim_icache_hit_w;
   logic sim_icache_miss_w;
@@ -651,7 +649,6 @@ module NpcSimTop (
     .s_axi_bresp_o(legacy_mmio_axi_bresp_w)
   );
 
-  assign sim_cache_flush_w = 1'b0;
 `ifdef CONFIG_NPC_SIM_STATS
   // RV64 只保留 OoO/superscalar core，cache/BPU/pipe 统计均从 OoO bridge/core 只读观察。
   assign sim_icache_access_w = u_top.u_core.u_ooo_fetch_bridge.fetch_req_fire_w;
@@ -1027,9 +1024,6 @@ module NpcSimTop (
         );
       end
 
-      if (sim_cache_flush_w) begin
-        npc_cache_flush_all();
-      end
     end
   end
 
