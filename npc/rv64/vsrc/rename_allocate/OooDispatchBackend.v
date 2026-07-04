@@ -22,10 +22,6 @@ module OooDispatchBackend #(
   // 需要 SQ slot, 满则反压。
   input sq_alloc0_ready_i,
   input sq_alloc1_ready_i,
-  input pending_load0_valid_i,
-  input [PHY_REG_ADDR_W-1:0] pending_load0_pdest_i,
-  input pending_load1_valid_i,
-  input [PHY_REG_ADDR_W-1:0] pending_load1_pdest_i,
 
   input dispatch0_valid_i,
   output dispatch0_ready_o,
@@ -195,18 +191,7 @@ module OooDispatchBackend #(
   output rob_recover_active_o,
   output [FREE_COUNT_W-1:0] free_count_o,
   output [ROB_COUNT_W-1:0] rob_count_o,
-  output [ISSUE_COUNT_W-1:0] issue_count_o,
-  output pending_load_branch_dep_o,
-  output load_branch_fast_valid_o,
-  output [ROB_INDEX_W-1:0] load_branch_fast_rob_idx_o,
-  output [`XLEN-1:0] load_branch_fast_pc_o,
-  output [`XLEN-1:0] load_branch_fast_next_pc_o,
-  output [`XLEN-1:0] load_branch_fast_imm_o,
-  output [2:0] load_branch_fast_cmp_op_o,
-  output [PHY_REG_ADDR_W-1:0] load_branch_fast_src1_preg_o,
-  output [PHY_REG_ADDR_W-1:0] load_branch_fast_src2_preg_o,
-  output load_branch_fast_wait_load0_o,
-  output load_branch_fast_wait_load1_o
+  output [ISSUE_COUNT_W-1:0] issue_count_o
 );
 
   // 【B-FP 簇】FP 算术(非 mem)不进整数 IQ(在 FP IQ); FP mem 正常进(mem 通道)。
@@ -660,10 +645,6 @@ module OooDispatchBackend #(
     .fp_wake0_preg_i(fp_wake0_preg_i),
     .fp_wake1_valid_i(fp_wake1_valid_i),
     .fp_wake1_preg_i(fp_wake1_preg_i),
-    .pending_load0_valid_i(pending_load0_valid_i),
-    .pending_load0_pdest_i(pending_load0_pdest_i),
-    .pending_load1_valid_i(pending_load1_valid_i),
-    .pending_load1_pdest_i(pending_load1_pdest_i),
     .issue0_valid_o(issue0_valid_o),
     .issue0_ready_i(issue0_ready_i),
     .issue0_pc_o(issue0_pc_o),
@@ -701,17 +682,6 @@ module OooDispatchBackend #(
     .count_o(iq_count_w),
     .empty_o(iq_empty_w),
     .full_o(iq_full_w),
-    .pending_load_branch_dep_o(pending_load_branch_dep_o),
-    .load_branch_fast_valid_o(load_branch_fast_valid_o),
-    .load_branch_fast_rob_idx_o(load_branch_fast_rob_idx_o),
-    .load_branch_fast_pc_o(load_branch_fast_pc_o),
-    .load_branch_fast_next_pc_o(load_branch_fast_next_pc_o),
-    .load_branch_fast_imm_o(load_branch_fast_imm_o),
-    .load_branch_fast_cmp_op_o(load_branch_fast_cmp_op_o),
-    .load_branch_fast_src1_preg_o(load_branch_fast_src1_preg_o),
-    .load_branch_fast_src2_preg_o(load_branch_fast_src2_preg_o),
-    .load_branch_fast_wait_load0_o(load_branch_fast_wait_load0_o),
-    .load_branch_fast_wait_load1_o(load_branch_fast_wait_load1_o),
     // B2 ROB-walk：暂行为中性（kill=0、recover=0）；Step B 接 ROB.recover_active + kill 源。
     .kill_valid_i(rob_kill_valid_w),
     .kill_rob_idx_i(rob_kill_idx_w),

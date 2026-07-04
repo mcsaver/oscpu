@@ -71,10 +71,6 @@ module OooIntIssueQueue #(
   input [PHY_REG_ADDR_W-1:0] fp_wake0_preg_i,
   input fp_wake1_valid_i,
   input [PHY_REG_ADDR_W-1:0] fp_wake1_preg_i,
-  input pending_load0_valid_i,
-  input [PHY_REG_ADDR_W-1:0] pending_load0_pdest_i,
-  input pending_load1_valid_i,
-  input [PHY_REG_ADDR_W-1:0] pending_load1_pdest_i,
 
   output issue0_valid_o,
   input issue0_ready_i,
@@ -115,17 +111,6 @@ module OooIntIssueQueue #(
   output [ENTRY_COUNT_W-1:0] count_o,
   output empty_o,
   output full_o,
-  output pending_load_branch_dep_o,
-  output load_branch_fast_valid_o,
-  output [ROB_INDEX_W-1:0] load_branch_fast_rob_idx_o,
-  output [`XLEN-1:0] load_branch_fast_pc_o,
-  output [`XLEN-1:0] load_branch_fast_next_pc_o,
-  output [`XLEN-1:0] load_branch_fast_imm_o,
-  output [2:0] load_branch_fast_cmp_op_o,
-  output [PHY_REG_ADDR_W-1:0] load_branch_fast_src1_preg_o,
-  output [PHY_REG_ADDR_W-1:0] load_branch_fast_src2_preg_o,
-  output load_branch_fast_wait_load0_o,
-  output load_branch_fast_wait_load1_o,
 
   // B2 ROB-walk：误预测时 squash 比 kill_rob_idx 更年轻(age 更大)的 IQ entry（程序序后缀），
   // recover 期冻结发射。in-core 暂 kill 接 0、recover 接 ROB.recover_active → 行为中性。
@@ -195,23 +180,6 @@ module OooIntIssueQueue #(
   reg issue1_depends_on_issue0_r;
   reg older_store_seen_r;
   reg older_valid_seen_r;
-  reg pending_load_branch_dep_r;
-  reg load_branch_fast_valid_r;
-  reg [ROB_INDEX_W-1:0] load_branch_fast_rob_idx_r;
-  reg [`XLEN-1:0] load_branch_fast_pc_r;
-  reg [`XLEN-1:0] load_branch_fast_next_pc_r;
-  reg [`XLEN-1:0] load_branch_fast_imm_r;
-  reg [2:0] load_branch_fast_cmp_op_r;
-  reg [PHY_REG_ADDR_W-1:0] load_branch_fast_src1_preg_r;
-  reg [PHY_REG_ADDR_W-1:0] load_branch_fast_src2_preg_r;
-  reg load_branch_fast_wait_load0_r;
-  reg load_branch_fast_wait_load1_r;
-  reg src1_load0_match_r;
-  reg src1_load1_match_r;
-  reg src2_load0_match_r;
-  reg src2_load1_match_r;
-  reg branch_src1_fast_ready_r;
-  reg branch_src2_fast_ready_r;
   reg entry_load_r;
   reg entry_store_r;
   reg entry_mem_order_block_r;
@@ -355,12 +323,6 @@ module OooIntIssueQueue #(
                                      dispatch0_ctrl_i[`CTRL_STORE_BIT]);
   wire dispatch1_mem_w = ctrl_is_mem(dispatch1_ctrl_i[`CTRL_LOAD_BIT],
                                      dispatch1_ctrl_i[`CTRL_STORE_BIT]);
-  wire pending_load0_real_w =
-      pending_load0_valid_i &&
-      (pending_load0_pdest_i != {PHY_REG_ADDR_W{1'b0}});
-  wire pending_load1_real_w =
-      pending_load1_valid_i &&
-      (pending_load1_pdest_i != {PHY_REG_ADDR_W{1'b0}});
   always @(*) begin
     queued_store_valid_r = 1'b0;
     for (store_scan_i = 0; store_scan_i < ENTRY_COUNT;
@@ -487,23 +449,6 @@ module OooIntIssueQueue #(
     issue1_depends_on_issue0_r = 1'b0;
     older_store_seen_r = 1'b0;
     older_valid_seen_r = 1'b0;
-    pending_load_branch_dep_r = 1'b0;
-    load_branch_fast_valid_r = 1'b0;
-    load_branch_fast_rob_idx_r = {ROB_INDEX_W{1'b0}};
-    load_branch_fast_pc_r = {`XLEN{1'b0}};
-    load_branch_fast_next_pc_r = {`XLEN{1'b0}};
-    load_branch_fast_imm_r = {`XLEN{1'b0}};
-    load_branch_fast_cmp_op_r = 3'b000;
-    load_branch_fast_src1_preg_r = {PHY_REG_ADDR_W{1'b0}};
-    load_branch_fast_src2_preg_r = {PHY_REG_ADDR_W{1'b0}};
-    load_branch_fast_wait_load0_r = 1'b0;
-    load_branch_fast_wait_load1_r = 1'b0;
-    src1_load0_match_r = 1'b0;
-    src1_load1_match_r = 1'b0;
-    src2_load0_match_r = 1'b0;
-    src2_load1_match_r = 1'b0;
-    branch_src1_fast_ready_r = 1'b0;
-    branch_src2_fast_ready_r = 1'b0;
     entry_load_r = 1'b0;
     entry_store_r = 1'b0;
     entry_mem_order_block_r = 1'b0;
@@ -515,71 +460,6 @@ module OooIntIssueQueue #(
       entry_mem_order_block_r =
           (entry_load_r && older_store_seen_r) ||
           (entry_store_r && older_valid_seen_r);
-      src1_load0_match_r =
-          valid_q[scan_i] &&
-          !src1_ready_q[scan_i] &&
-          pending_load0_real_w &&
-          (src1_preg_q[scan_i] == pending_load0_pdest_i);
-      src1_load1_match_r =
-          valid_q[scan_i] &&
-          !src1_ready_q[scan_i] &&
-          pending_load1_real_w &&
-          (src1_preg_q[scan_i] == pending_load1_pdest_i);
-      src2_load0_match_r =
-          valid_q[scan_i] &&
-          !src2_ready_q[scan_i] &&
-          pending_load0_real_w &&
-          (src2_preg_q[scan_i] == pending_load0_pdest_i);
-      src2_load1_match_r =
-          valid_q[scan_i] &&
-          !src2_ready_q[scan_i] &&
-          pending_load1_real_w &&
-          (src2_preg_q[scan_i] == pending_load1_pdest_i);
-      branch_src1_fast_ready_r =
-          src1_ready_q[scan_i] ||
-          src1_load0_match_r || src1_load1_match_r ||
-          wakeup_match(src1_preg_q[scan_i],
-                       wakeup0_valid_i, wakeup0_pdest_i,
-                       wakeup1_valid_i, wakeup1_pdest_i);
-      branch_src2_fast_ready_r =
-          src2_ready_q[scan_i] ||
-          src2_load0_match_r || src2_load1_match_r ||
-          wakeup_match(src2_preg_q[scan_i],
-                       wakeup0_valid_i, wakeup0_pdest_i,
-                       wakeup1_valid_i, wakeup1_pdest_i);
-      pending_load_branch_dep_r = pending_load_branch_dep_r ||
-          (valid_q[scan_i] &&
-           ctrl_q[scan_i][`CTRL_BRANCH_BIT] &&
-           (((!src1_ready_q[scan_i]) &&
-             ((pending_load0_real_w &&
-               (src1_preg_q[scan_i] == pending_load0_pdest_i)) ||
-              (pending_load1_real_w &&
-               (src1_preg_q[scan_i] == pending_load1_pdest_i)))) ||
-            ((!src2_ready_q[scan_i]) &&
-             ((pending_load0_real_w &&
-               (src2_preg_q[scan_i] == pending_load0_pdest_i)) ||
-              (pending_load1_real_w &&
-               (src2_preg_q[scan_i] == pending_load1_pdest_i))))));
-      if (!load_branch_fast_valid_r &&
-          valid_q[scan_i] &&
-          ctrl_q[scan_i][`CTRL_BRANCH_BIT] &&
-          (src1_load0_match_r || src1_load1_match_r ||
-           src2_load0_match_r || src2_load1_match_r) &&
-          branch_src1_fast_ready_r && branch_src2_fast_ready_r) begin
-        load_branch_fast_valid_r = 1'b1;
-        load_branch_fast_rob_idx_r = rob_idx_q[scan_i];
-        load_branch_fast_pc_r = pc_q[scan_i];
-        load_branch_fast_next_pc_r = next_pc_q[scan_i];
-        load_branch_fast_imm_r = imm_q[scan_i];
-        load_branch_fast_cmp_op_r =
-            ctrl_q[scan_i][`CTRL_CMP_OP_MSB:`CTRL_CMP_OP_LSB];
-        load_branch_fast_src1_preg_r = src1_preg_q[scan_i];
-        load_branch_fast_src2_preg_r = src2_preg_q[scan_i];
-        load_branch_fast_wait_load0_r =
-            src1_load0_match_r || src2_load0_match_r;
-        load_branch_fast_wait_load1_r =
-            src1_load1_match_r || src2_load1_match_r;
-      end
       entry_ready_r[scan_i] = valid_q[scan_i] &&
                               !(issue_mem_block_i &&
                                 ctrl_is_mem(ctrl_q[scan_i][`CTRL_LOAD_BIT],
@@ -845,17 +725,6 @@ module OooIntIssueQueue #(
 
   assign count_o = count_q;
   assign empty_o = (count_q == {ENTRY_COUNT_W{1'b0}});
-  assign pending_load_branch_dep_o = pending_load_branch_dep_r;
-  assign load_branch_fast_valid_o = load_branch_fast_valid_r;
-  assign load_branch_fast_rob_idx_o = load_branch_fast_rob_idx_r;
-  assign load_branch_fast_pc_o = load_branch_fast_pc_r;
-  assign load_branch_fast_next_pc_o = load_branch_fast_next_pc_r;
-  assign load_branch_fast_imm_o = load_branch_fast_imm_r;
-  assign load_branch_fast_cmp_op_o = load_branch_fast_cmp_op_r;
-  assign load_branch_fast_src1_preg_o = load_branch_fast_src1_preg_r;
-  assign load_branch_fast_src2_preg_o = load_branch_fast_src2_preg_r;
-  assign load_branch_fast_wait_load0_o = load_branch_fast_wait_load0_r;
-  assign load_branch_fast_wait_load1_o = load_branch_fast_wait_load1_r;
   assign full_o = (count_q == ENTRY_COUNT[ENTRY_COUNT_W-1:0]);
 
   wire dispatch0_issue_fire_w =
@@ -1117,11 +986,9 @@ module OooIntIssueQueue #(
       for (iqw_j = 0; iqw_j < ENTRY_COUNT; iqw_j = iqw_j + 1) begin
         if (valid_q[iqw_j] && (pc_q[iqw_j] == `XLEN'h800001a8) &&
             !src1_ready_q[iqw_j] && (iqw_dbg_cnt < 16'd40)) begin
-          $display("[IQW] e=%0d rob=%0d s1p=%0d s1rdy=%b | wk0=%b/%0d wk1=%b/%0d pl0=%b/%0d pl1=%b/%0d",
+          $display("[IQW] e=%0d rob=%0d s1p=%0d s1rdy=%b | wk0=%b/%0d wk1=%b/%0d",
                    iqw_j, rob_idx_q[iqw_j], src1_preg_q[iqw_j], src1_ready_q[iqw_j],
-                   wakeup0_valid_i, wakeup0_pdest_i, wakeup1_valid_i, wakeup1_pdest_i,
-                   pending_load0_valid_i, pending_load0_pdest_i,
-                   pending_load1_valid_i, pending_load1_pdest_i);
+                   wakeup0_valid_i, wakeup0_pdest_i, wakeup1_valid_i, wakeup1_pdest_i);
           iqw_dbg_cnt <= iqw_dbg_cnt + 16'd1;
         end
       end

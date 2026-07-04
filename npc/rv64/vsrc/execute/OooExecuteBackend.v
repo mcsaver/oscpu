@@ -110,7 +110,6 @@ module OooExecuteBackend #(
   output core_mem_req_nokill_w,
   output [`STRB_W-1:0] core_mem_req_wstrb_w,
   output core_mem_rsp_ready_w,
-  output core_pending_load_branch_dep_w,
   output [1:0] core_retire_count_w,
   output dispatch0_ready_w,
   output dispatch0_unsupported_w,
@@ -245,7 +244,6 @@ module OooExecuteBackend #(
 	    .dispatch_branch_resolve_pc_o(core_dispatch_branch_resolve_pc_w),
 	    .dispatch_branch_resolve_next_pc_o(core_dispatch_branch_resolve_next_pc_w),
 	    .dispatch_branch_resolve_misaligned_o(core_dispatch_branch_resolve_misaligned_w),
-	    .pending_load_branch_dep_o(core_pending_load_branch_dep_w),
 	    .retire_count_o(core_retire_count_w),
     .a0_data_o(a0_data_w),
     .debug_gprs_o(core_debug_gprs_w)

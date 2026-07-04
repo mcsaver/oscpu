@@ -381,7 +381,11 @@ module OooCoreTopGlue #(
   wire [`XLEN-1:0] core_dispatch_branch_resolve_pc_w;
   wire [`XLEN-1:0] core_dispatch_branch_resolve_next_pc_w;
   wire core_dispatch_branch_resolve_misaligned_w;
-  wire core_pending_load_branch_dep_w;
+  // IQ load-branch-fast 死硅整族删除：pending_load_branch_dep 生产链已摘除。
+  // 其唯一消费者 OooBranchResolveRecoveryGate.branch_spec_checkpoint_capture_o 在
+  // OOO_ROB_WALK_MODE=1 下恒 0（pending_branch 捕获被 !rob_walk_mode 门死），故此处
+  // 常量 0 tie-off 逐位中性；下游 OooFrontend/RecoveryGate 端口保留读此 0。
+  wire core_pending_load_branch_dep_w = 1'b0;
   wire [`XLEN-1:0] a0_data_w;
   wire core_commit0_valid_w;
   wire [`XLEN-1:0] core_commit0_pc_w;
@@ -666,7 +670,6 @@ module OooCoreTopGlue #(
     .core_mem_req_wstrb_w(core_mem_req_wstrb_w),
     .core_mem_rsp_ready_w(core_mem_rsp_ready_w),
     .mem_translate_active_i(mem_translate_active_i),
-    .core_pending_load_branch_dep_w(core_pending_load_branch_dep_w),
     .core_retire_count_w(core_retire_count_w),
     .csr_trap_mem_valid_w(csr_trap_mem_valid_w),
     .dispatch0_ready_w(dispatch0_ready_w),

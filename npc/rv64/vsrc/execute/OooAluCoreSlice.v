@@ -115,7 +115,6 @@ module OooAluCoreSlice #(
   output [`XLEN-1:0] dispatch_branch_resolve_pc_o,
   output [`XLEN-1:0] dispatch_branch_resolve_next_pc_o,
   output dispatch_branch_resolve_misaligned_o,
-  output pending_load_branch_dep_o,
   output [1:0] retire_count_o,
   output [`XLEN-1:0] a0_data_o,
   output [`XLEN * `REG_NUM - 1:0] debug_gprs_o
@@ -237,8 +236,7 @@ module OooAluCoreSlice #(
 	    .dispatch_branch_resolve_valid_o(dispatch_branch_resolve_valid_o),
 	    .dispatch_branch_resolve_pc_o(dispatch_branch_resolve_pc_o),
 	    .dispatch_branch_resolve_next_pc_o(dispatch_branch_resolve_next_pc_o),
-	    .dispatch_branch_resolve_misaligned_o(dispatch_branch_resolve_misaligned_o),
-	    .pending_load_branch_dep_o(pending_load_branch_dep_o)
+	    .dispatch_branch_resolve_misaligned_o(dispatch_branch_resolve_misaligned_o)
   );
 
   OooArchRegFile u_arch_reg_file (

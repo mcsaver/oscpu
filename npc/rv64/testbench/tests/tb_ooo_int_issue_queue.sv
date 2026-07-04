@@ -40,10 +40,6 @@ module tb_ooo_int_issue_queue;
   reg [PHY_REG_ADDR_W-1:0] wakeup0_pdest;
   reg wakeup1_valid;
   reg [PHY_REG_ADDR_W-1:0] wakeup1_pdest;
-  reg pending_load0_valid;
-  reg [PHY_REG_ADDR_W-1:0] pending_load0_pdest;
-  reg pending_load1_valid;
-  reg [PHY_REG_ADDR_W-1:0] pending_load1_pdest;
   wire issue0_valid;
   reg issue0_ready;
   wire [`XLEN-1:0] issue0_pc;
@@ -69,17 +65,6 @@ module tb_ooo_int_issue_queue;
   wire [ENTRY_COUNT_W-1:0] count;
   wire empty;
   wire full;
-  wire pending_load_branch_dep;
-  wire load_branch_fast_valid;
-  wire [ROB_INDEX_W-1:0] load_branch_fast_rob_idx;
-  wire [`XLEN-1:0] load_branch_fast_pc;
-  wire [`XLEN-1:0] load_branch_fast_next_pc;
-  wire [`XLEN-1:0] load_branch_fast_imm;
-  wire [2:0] load_branch_fast_cmp_op;
-  wire [PHY_REG_ADDR_W-1:0] load_branch_fast_src1_preg;
-  wire [PHY_REG_ADDR_W-1:0] load_branch_fast_src2_preg;
-  wire load_branch_fast_wait_load0;
-  wire load_branch_fast_wait_load1;
   reg kill_valid;
   reg [ROB_INDEX_W-1:0] kill_rob_idx;
   reg [ROB_INDEX_W-1:0] rob_head_idx;
@@ -135,10 +120,6 @@ module tb_ooo_int_issue_queue;
     .fp_wake0_preg_i('0),
     .fp_wake1_valid_i(1'b0),
     .fp_wake1_preg_i('0),
-    .pending_load0_valid_i(pending_load0_valid),
-    .pending_load0_pdest_i(pending_load0_pdest),
-    .pending_load1_valid_i(pending_load1_valid),
-    .pending_load1_pdest_i(pending_load1_pdest),
     .issue0_valid_o(issue0_valid),
     .issue0_ready_i(issue0_ready),
     .issue0_pc_o(issue0_pc),
@@ -164,35 +145,13 @@ module tb_ooo_int_issue_queue;
     .count_o(count),
     .empty_o(empty),
     .full_o(full),
-    .pending_load_branch_dep_o(pending_load_branch_dep),
-    .load_branch_fast_valid_o(load_branch_fast_valid),
-    .load_branch_fast_rob_idx_o(load_branch_fast_rob_idx),
-    .load_branch_fast_pc_o(load_branch_fast_pc),
-    .load_branch_fast_next_pc_o(load_branch_fast_next_pc),
-    .load_branch_fast_imm_o(load_branch_fast_imm),
-    .load_branch_fast_cmp_op_o(load_branch_fast_cmp_op),
-    .load_branch_fast_src1_preg_o(load_branch_fast_src1_preg),
-    .load_branch_fast_src2_preg_o(load_branch_fast_src2_preg),
-    .load_branch_fast_wait_load0_o(load_branch_fast_wait_load0),
-    .load_branch_fast_wait_load1_o(load_branch_fast_wait_load1),
     .kill_valid_i(kill_valid),
     .kill_rob_idx_i(kill_rob_idx),
     .rob_head_idx_i(rob_head_idx),
     .recover_active_i(recover_active)
   );
 
-  wire unused_next_pc_w = (|issue0_next_pc) | (|issue1_next_pc) |
-                          pending_load_branch_dep |
-                          load_branch_fast_valid |
-                          (|load_branch_fast_rob_idx) |
-                          (|load_branch_fast_pc) |
-                          (|load_branch_fast_next_pc) |
-                          (|load_branch_fast_imm) |
-                          (|load_branch_fast_cmp_op) |
-                          (|load_branch_fast_src1_preg) |
-                          (|load_branch_fast_src2_preg) |
-                          load_branch_fast_wait_load0 |
-                          load_branch_fast_wait_load1;
+  wire unused_next_pc_w = (|issue0_next_pc) | (|issue1_next_pc);
 
   task automatic clear_inputs;
     begin
@@ -225,10 +184,6 @@ module tb_ooo_int_issue_queue;
       wakeup0_pdest = 6'd0;
       wakeup1_valid = 1'b0;
       wakeup1_pdest = 6'd0;
-      pending_load0_valid = 1'b0;
-      pending_load0_pdest = 6'd0;
-      pending_load1_valid = 1'b0;
-      pending_load1_pdest = 6'd0;
       kill_valid = 1'b0;
       kill_rob_idx = 4'd0;
       rob_head_idx = 4'd0;

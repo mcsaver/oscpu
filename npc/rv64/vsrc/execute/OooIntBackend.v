@@ -155,8 +155,7 @@ module OooIntBackend #(
   output dispatch_branch_resolve_valid_o,
   output [`XLEN-1:0] dispatch_branch_resolve_pc_o,
   output [`XLEN-1:0] dispatch_branch_resolve_next_pc_o,
-  output dispatch_branch_resolve_misaligned_o,
-  output pending_load_branch_dep_o
+  output dispatch_branch_resolve_misaligned_o
 );
 
   localparam [1:0] CLMUL_OP_LOW = 2'd0;
@@ -298,20 +297,6 @@ module OooIntBackend #(
   wire dispatch1_src2_ready_w;
   wire [ROB_INDEX_W-1:0] rob_head_idx_w;
   wire rob_head_valid_w;
-  wire pending_load0_valid_w;
-  wire [PHY_REG_ADDR_W-1:0] pending_load0_pdest_w;
-  wire pending_load1_valid_w;
-  wire [PHY_REG_ADDR_W-1:0] pending_load1_pdest_w;
-  wire load_branch_fast_valid_w;
-  wire [ROB_INDEX_W-1:0] load_branch_fast_rob_idx_w;
-  wire [`XLEN-1:0] load_branch_fast_pc_w;
-  wire [`XLEN-1:0] load_branch_fast_next_pc_w;
-  wire [`XLEN-1:0] load_branch_fast_imm_w;
-  wire [2:0] load_branch_fast_cmp_op_w;
-  wire [PHY_REG_ADDR_W-1:0] load_branch_fast_src1_preg_w;
-  wire [PHY_REG_ADDR_W-1:0] load_branch_fast_src2_preg_w;
-  wire load_branch_fast_wait_load0_w;
-  wire load_branch_fast_wait_load1_w;
 
   wire unused_issue_ctrl_bits_w =
       (|{issue0_ctrl_w[42:24], issue0_ctrl_w[15:0]}) |
@@ -332,10 +317,6 @@ module OooIntBackend #(
     .issue_mem_block_i(mem_issue_block_w),
     .sq_alloc0_ready_i(sq_alloc0_ready_w),
     .sq_alloc1_ready_i(sq_alloc1_ready_w),
-    .pending_load0_valid_i(pending_load0_valid_w),
-    .pending_load0_pdest_i(pending_load0_pdest_w),
-    .pending_load1_valid_i(pending_load1_valid_w),
-    .pending_load1_pdest_i(pending_load1_pdest_w),
     .dispatch0_valid_i(dispatch0_valid_i && d0_fp_ok_w),
     .dispatch0_ready_o(dispatch0_dbe_ready_w),
     .dispatch0_pc_i(dispatch0_pc_i),
@@ -493,18 +474,7 @@ module OooIntBackend #(
     .rob_head_valid_o(rob_head_valid_w),
     .free_count_o(free_count_o),
     .rob_count_o(rob_count_o),
-    .issue_count_o(issue_count_o),
-    .pending_load_branch_dep_o(pending_load_branch_dep_o),
-    .load_branch_fast_valid_o(load_branch_fast_valid_w),
-    .load_branch_fast_rob_idx_o(load_branch_fast_rob_idx_w),
-    .load_branch_fast_pc_o(load_branch_fast_pc_w),
-    .load_branch_fast_next_pc_o(load_branch_fast_next_pc_w),
-    .load_branch_fast_imm_o(load_branch_fast_imm_w),
-    .load_branch_fast_cmp_op_o(load_branch_fast_cmp_op_w),
-    .load_branch_fast_src1_preg_o(load_branch_fast_src1_preg_w),
-    .load_branch_fast_src2_preg_o(load_branch_fast_src2_preg_w),
-    .load_branch_fast_wait_load0_o(load_branch_fast_wait_load0_w),
-    .load_branch_fast_wait_load1_o(load_branch_fast_wait_load1_w)
+    .issue_count_o(issue_count_o)
 	  );
 
   wire [`XLEN-1:0] issue0_src1_data_w;
@@ -786,7 +756,6 @@ module OooIntBackend #(
   WBU u_wbu0 (
     .wb_sel_i(issue0_ctrl_w[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB]),
     .alu_data_i(issue0_exec_result_w),
-    .load_data_i({`XLEN{1'b0}}),
     .pc_plus4_i(issue0_next_pc_w),
     .imm_data_i(issue0_imm_w),
     .csr_data_i(issue0_imm_w),
@@ -796,7 +765,6 @@ module OooIntBackend #(
   WBU u_wbu1 (
     .wb_sel_i(issue1_ctrl_w[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB]),
     .alu_data_i(issue1_exec_result_w),
-    .load_data_i({`XLEN{1'b0}}),
     .pc_plus4_i(issue1_next_pc_w),
     .imm_data_i(issue1_imm_w),
     .csr_data_i(issue1_imm_w),
@@ -938,13 +906,8 @@ module OooIntBackend #(
   wire sq_empty_w = (sq_count_w == {(SQ_ENTRY_W+1){1'b0}});
   wire sq_no_committed_w = (sq_snoop_committed_w == {SQ_ENTRY_N{1'b0}});
 
-  assign pending_load0_valid_w =
-      miq_head_load_w && !miq_head_killed_w && !miq_head_pdest_fp_w;
-  assign pending_load0_pdest_w = miq_head_pdest_w;
-  // mem1(双发射 load 第二端口)死硅删除:第二 load 永不 pending,issue-queue 二次
-  // 唤醒口(pending_load1_*)恒为空——接常量 0(保留下游端口,与原行为等价)。
-  assign pending_load1_valid_w = 1'b0;
-  assign pending_load1_pdest_w = {PHY_REG_ADDR_W{1'b0}};
+  // pending_load0/1 唤醒口已随 IQ load-branch-fast 死硅整族删除（消费端 E7 已删，
+  // IQ 内选择逻辑空转）。miq_head 前递仍活于其它通路，此处不再驱动 IQ 二次唤醒。
 
   wire [`XLEN-1:0] mem_rsp_addr_unused_w;
   wire [`XLEN-1:0] mem_rsp_wdata_unused_w;
@@ -2569,19 +2532,9 @@ module OooIntBackend #(
   assign dispatch_branch_resolve_misaligned_o =
       dispatch_branch_fast_resolve_w && dispatch_branch_misaligned_w;
 
-  // E7 删除后：dispatch backend 的 load_branch_fast_* 输出、以及
-  // pending_branch_fast_* 输入全部悬空（其消费逻辑随死硅移除），统一 reduction-OR 收口。
-  wire unused_load_branch_fast_w =
-      load_branch_fast_valid_w |
-      (|load_branch_fast_rob_idx_w) |
-      (|load_branch_fast_pc_w) |
-      (|load_branch_fast_next_pc_w) |
-      (|load_branch_fast_imm_w) |
-      (|load_branch_fast_cmp_op_w) |
-      (|load_branch_fast_src1_preg_w) |
-      (|load_branch_fast_src2_preg_w) |
-      load_branch_fast_wait_load0_w |
-      load_branch_fast_wait_load1_w |
+  // dispatch backend 的 load_branch_fast_* 输出族已物理删除（IQ 死硅摘除）；
+  // 仅存 pending_branch_fast_* 输入（另一未删死硅族）悬空，reduction-OR 收口。
+  wire unused_pending_branch_fast_w =
       pending_branch_fast_valid_i |
       (|pending_branch_fast_pc_i);
 
