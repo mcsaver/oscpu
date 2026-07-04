@@ -185,6 +185,10 @@ load/store/AMO（SQ + probe/drain + MIQ）已全部迁回域 A。
 以下均为**活文件中的死通道/死存储**（在 filelist.mk、被实例化,但被编译期常量或结构性不可达证死）。
 拆除前必读 `.github/task-runs/2026-07-03-rv64-rtl-reread-audit/answers.json` 的形式化证据链。
 
+> **B4 物理删除进度（2026-07-04 起，逐项 cycle-exact 中性验收）**：已删 csrc 死代码、PRF read6/7/9、
+> OooSyntheticLane1Ret 家族、五套 checkpoint 影子阵列（下表已标 commit）。前端 prefetch/BTC 网、
+> pending branch/jump/mem 链、dispatch 拍快解析族、WBU LOAD 臂、IQ load-branch-fast、fetch bypass 待删。
+
 | 死硅 | 判死机制 | 关键证据 |
 | --- | --- | --- |
 | pending_branch / pending_jump 全链（2 个 Sequencer + PendingControlResolveGate + RecoveryGate 的 pending/spec 臂） | capture 被 `!rob_walk_mode` 门死（OOO_ROB_WALK_MODE=1'b1） | `control/OooPendingDispatchArbiter.v:160-171` |
@@ -195,16 +199,16 @@ load/store/AMO（SQ + probe/drain + MIQ）已全部迁回域 A。
 | JALR-BTB 更新口 | update 依赖 pending_jump 恒 0 → 表恒空 → spec 查询恒 miss | `frontend/OooPredictorUpdateGate.v:17-19` |
 | branch/JALR prefetch 全家桶（Buffer/Request/Source/Status/ClearGate + 2 个 HitMux + JalrPrefetchStatusGate） | req 依赖 pending_branch/btb_hit 恒 0 | report-1 |
 | OooReturnContBuffer | consume 端 `return_cont_attempt_o=1'b0` 硬禁 | `frontend/OooBranchAppendDispatchGate.v:82` |
-| OooSyntheticLane1Ret 家族（Sequencer/CommitGate + CommitOutputMux 合成臂） | capture 依赖拍内解析同拍谓词,设计路径死 | `writeback/OooWriteback.v:142-144` |
-| checkpoint 影子阵列五套（FreeList/RenameMap/BusyTable/IQ/ROB） | `cp_*` 恒 gate 0（ROB-walk 已取代） | `rename_allocate/OooDispatchBackend.v:485-486` |
+| ~~OooSyntheticLane1Ret 家族（Sequencer/CommitGate + CommitOutputMux 合成臂）~~ **已删（2026-07-04, B4, 21c7fbe14）** | capture≡0（direct_branch_resolve 两臂受 OOO_DBRANCH_DOMAIN_A=1 恒0）→自洽全零不动点;跨模块输出在 OooCoreTopGlue 常量0 tie-off | `writeback/OooWriteback.v:142-144` |
+| ~~checkpoint 影子阵列五套（FreeList/RenameMap/BusyTable/IQ/ROB）~~ **已删（2026-07-04, B4, a7d5c5661）** | `cp_*` 恒 gate 0（ROB-walk 已取代）;6 模块 TB 同步退休 checkpoint 场景;ROB-walk 活恢复完整保留 | `rename_allocate/OooDispatchBackend.v:485-486` |
 | OooBranchSpecTracker 的 active/checkpoint 机制 | capture 恒 0;但 checkpoint_pending 仍会置位并压制 RAS 更新（副作用活着,机制死) | report-1 |
 | ~~OooRedirectArbiter.v~~ **已删档（2026-07-03）** | C7 统一 redirect 仲裁地基,从未接入编译列表/零实例化 → 删档减负（模块+TB+filelist 变量+`REDIR_REASON_*` 宏全删；lint 0/模块 TB 96/96）。当前仲裁=`OooFetchRequestMux` 隐式优先级链；若重启统一 arbiter 从 git 历史复活 | 已删除 |
 | fetch 响应 bypass 直通 dispatch 通路 | `OOO_ROB_WALK_MODE=1` 恒禁（防 bypass-after-kill） | `frontend/OooFrontendRunGate.v:62-70` |
 | WBU 的 LOAD 源臂 | load_data 口两实例恒接 0（load 走 mem rsp 通道） | `execute/OooIntBackend.v:801,811` |
 | IQ load-branch-fast 输出族 + pending_load0/1 | 消费端已删（E7),IQ 内 ~60 行选择逻辑空转 | report-3 |
-| PRF read4/5/6/7/9 五个读口 | 消费死硅/声明后未用/地址接 0（"10R2W"实际有效 5R2W） | report-3 |
+| PRF ~~read6/7/9~~ **已删（2026-07-04, B4, e72948c90）** + read4/5（保留） | read6/7/9 零消费者/地址接0 已删;read4/5 实为 dispatch 拍快解析族一部分(喂 CompareUnit)→随该族一起摘,暂 SKIP | report-3 |
 | 死宏 | ~~`CACHEABLE_BASE/LAST`、`NPC_AXI_SPI_*`、`BPU_RAS_*`、`REDIR_REASON_*`~~ **全部已删除（2026-07-03，lint 0/0 残留）**（`REDIR_REASON_*` 随 `OooRedirectArbiter.v` 删档一并删——唯一消费者已无） | `include/define.v` |
-| csrc 侧 | `csrc/memory/cache.c`（宿主 cache 模型,uint32_t 地址 RV32 遗留）、`csrc/device/serial.c`、`perf/scripts/bench.sh|profile.sh`（riscv32 遗留）、`perf/configs/perf_defconfig`（过时副本,构建不读） | report-8 |
+| csrc 侧 | ~~`csrc/memory/cache.c`、`csrc/device/serial.c`~~ **已删（2026-07-04, B4, 15497d2bd）**（连带 NpcSimTop.sv DPI hook + paddr.c init 调用）;`perf/scripts/bench.sh\|profile.sh`、`perf/configs/perf_defconfig`（riscv32 遗留,doc-lifecycle 待清） | report-8 |
 
 ~~**理论风险残留**（死而未 tie-off）：DirectBranchResolveGate 的 issue 臂靠"跨实例 PC 别名巧合"仍可
 触发（紧循环+长延迟可构造）,巧合发生时 lane1-ret 合成 commit 存在双提交理论风险~~
