@@ -9,8 +9,6 @@ module tb_ooo_free_list;
   reg clk;
   reg rst;
   reg flush;
-  reg checkpoint_capture;
-  reg checkpoint_restore;
   reg alloc0_valid;
   wire alloc0_ready;
   wire [PHY_REG_ADDR_W-1:0] alloc0_preg;
@@ -30,8 +28,6 @@ module tb_ooo_free_list;
     .clk(clk),
     .rst(rst),
     .flush_i(flush),
-    .checkpoint_capture_i(checkpoint_capture),
-    .checkpoint_restore_i(checkpoint_restore),
     .alloc0_valid_i(alloc0_valid),
     .alloc0_ready_o(alloc0_ready),
     .alloc0_preg_o(alloc0_preg),
@@ -50,8 +46,6 @@ module tb_ooo_free_list;
   task automatic clear_inputs;
     begin
       flush = 1'b0;
-      checkpoint_capture = 1'b0;
-      checkpoint_restore = 1'b0;
       alloc0_valid = 1'b0;
       alloc1_valid = 1'b0;
       free0_valid = 1'b0;
@@ -94,22 +88,6 @@ module tb_ooo_free_list;
     tb_check32("next alloc1 p35", {26'b0, alloc1_preg}, 32'd35);
 
     clear_inputs();
-    checkpoint_capture = 1'b1;
-    `TB_TICK(clk);
-    clear_inputs();
-    alloc0_valid = 1'b1;
-    alloc1_valid = 1'b1;
-    `TB_TICK(clk);
-    clear_inputs();
-    #1;
-    tb_check32("checkpoint mutation count", {25'b0, free_count}, 32'd28);
-    tb_check32("checkpoint mutation next p36", {26'b0, alloc0_preg}, 32'd36);
-    checkpoint_restore = 1'b1;
-    `TB_TICK(clk);
-    clear_inputs();
-    #1;
-    tb_check32("checkpoint restore count", {25'b0, free_count}, 32'd30);
-    tb_check32("checkpoint restore next p34", {26'b0, alloc0_preg}, 32'd34);
 
     alloc0_valid = 1'b1;
     alloc1_valid = 1'b1;

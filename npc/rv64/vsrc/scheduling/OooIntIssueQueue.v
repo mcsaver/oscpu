@@ -16,8 +16,6 @@ module OooIntIssueQueue #(
   input clk,
   input rst,
   input flush_i,
-  input checkpoint_capture_i,
-  input checkpoint_restore_i,
   input issue_mem_block_i,
 
   input dispatch0_valid_i,
@@ -151,30 +149,13 @@ module OooIntIssueQueue #(
   reg [PHY_REG_ADDR_W-1:0] src2_preg_q [0:ENTRY_COUNT-1];
   reg src2_ready_q [0:ENTRY_COUNT-1];
   reg [PHY_REG_ADDR_W-1:0] pdest_q [0:ENTRY_COUNT-1];
-  // 【B-FP 簇】fp 字段(不进 checkpoint 影子——该机制已废弃)
+  // 【B-FP 簇】fp 字段
   reg fp_pdest_q [0:ENTRY_COUNT-1];
   reg fp_st_en_q [0:ENTRY_COUNT-1];
   reg [PHY_REG_ADDR_W-1:0] fp_st_preg_q [0:ENTRY_COUNT-1];
   reg fp_st_ready_q [0:ENTRY_COUNT-1];
   reg [`XLEN-1:0] imm_q [0:ENTRY_COUNT-1];
   reg [ENTRY_COUNT_W-1:0] count_q;
-
-  reg checkpoint_valid_q [0:ENTRY_COUNT-1];
-  reg [`XLEN-1:0] checkpoint_pc_q [0:ENTRY_COUNT-1];
-  reg [`XLEN-1:0] checkpoint_next_pc_q [0:ENTRY_COUNT-1];
-  reg [`XLEN-1:0] checkpoint_pred_npc_q [0:ENTRY_COUNT-1];
-  reg [`BPU_BHT_INDEX_W-1:0] checkpoint_bht_idx_q [0:ENTRY_COUNT-1];
-  reg checkpoint_pred_taken_q [0:ENTRY_COUNT-1];
-  reg [`INST_W-1:0] checkpoint_inst_q [0:ENTRY_COUNT-1];
-  reg [`CTRL_BUS_W-1:0] checkpoint_ctrl_q [0:ENTRY_COUNT-1];
-  reg [ROB_INDEX_W-1:0] checkpoint_rob_idx_q [0:ENTRY_COUNT-1];
-  reg [PHY_REG_ADDR_W-1:0] checkpoint_src1_preg_q [0:ENTRY_COUNT-1];
-  reg checkpoint_src1_ready_q [0:ENTRY_COUNT-1];
-  reg [PHY_REG_ADDR_W-1:0] checkpoint_src2_preg_q [0:ENTRY_COUNT-1];
-  reg checkpoint_src2_ready_q [0:ENTRY_COUNT-1];
-  reg [PHY_REG_ADDR_W-1:0] checkpoint_pdest_q [0:ENTRY_COUNT-1];
-  reg [`XLEN-1:0] checkpoint_imm_q [0:ENTRY_COUNT-1];
-  reg [ENTRY_COUNT_W-1:0] checkpoint_count_q;
 
   reg valid_next_r [0:ENTRY_COUNT-1];
   reg [`XLEN-1:0] pc_next_r [0:ENTRY_COUNT-1];
@@ -1052,60 +1033,6 @@ module OooIntIssueQueue #(
         fp_st_preg_q[reset_i] <= {PHY_REG_ADDR_W{1'b0}};
         fp_st_ready_q[reset_i] <= 1'b0;
         imm_q[reset_i] <= {`XLEN{1'b0}};
-        checkpoint_valid_q[reset_i] <= 1'b0;
-        checkpoint_pc_q[reset_i] <= {`XLEN{1'b0}};
-        checkpoint_next_pc_q[reset_i] <= {`XLEN{1'b0}};
-        checkpoint_pred_npc_q[reset_i] <= {`XLEN{1'b0}};
-        checkpoint_bht_idx_q[reset_i] <= {`BPU_BHT_INDEX_W{1'b0}};
-        checkpoint_pred_taken_q[reset_i] <= 1'b0;
-        checkpoint_inst_q[reset_i] <= {`INST_W{1'b0}};
-        checkpoint_ctrl_q[reset_i] <= {`CTRL_BUS_W{1'b0}};
-        checkpoint_rob_idx_q[reset_i] <= {ROB_INDEX_W{1'b0}};
-        checkpoint_src1_preg_q[reset_i] <= {PHY_REG_ADDR_W{1'b0}};
-        checkpoint_src1_ready_q[reset_i] <= 1'b0;
-        checkpoint_src2_preg_q[reset_i] <= {PHY_REG_ADDR_W{1'b0}};
-        checkpoint_src2_ready_q[reset_i] <= 1'b0;
-        checkpoint_pdest_q[reset_i] <= {PHY_REG_ADDR_W{1'b0}};
-        checkpoint_imm_q[reset_i] <= {`XLEN{1'b0}};
-      end
-      checkpoint_count_q <= {ENTRY_COUNT_W{1'b0}};
-    end else if (checkpoint_restore_i) begin
-      count_q <= checkpoint_count_q;
-      for (reset_i = 0; reset_i < ENTRY_COUNT; reset_i = reset_i + 1) begin
-        valid_q[reset_i] <= checkpoint_valid_q[reset_i];
-        pc_q[reset_i] <= checkpoint_pc_q[reset_i];
-        next_pc_q[reset_i] <= checkpoint_next_pc_q[reset_i];
-        pred_npc_q[reset_i] <= checkpoint_pred_npc_q[reset_i];
-        bht_idx_q[reset_i] <= checkpoint_bht_idx_q[reset_i];
-        pred_taken_q[reset_i] <= checkpoint_pred_taken_q[reset_i];
-        inst_q[reset_i] <= checkpoint_inst_q[reset_i];
-        ctrl_q[reset_i] <= checkpoint_ctrl_q[reset_i];
-        rob_idx_q[reset_i] <= checkpoint_rob_idx_q[reset_i];
-        src1_preg_q[reset_i] <= checkpoint_src1_preg_q[reset_i];
-        src1_ready_q[reset_i] <= checkpoint_src1_ready_q[reset_i];
-        src2_preg_q[reset_i] <= checkpoint_src2_preg_q[reset_i];
-        src2_ready_q[reset_i] <= checkpoint_src2_ready_q[reset_i];
-        pdest_q[reset_i] <= checkpoint_pdest_q[reset_i];
-        imm_q[reset_i] <= checkpoint_imm_q[reset_i];
-      end
-    end else if (checkpoint_capture_i) begin
-      checkpoint_count_q <= count_q;
-      for (reset_i = 0; reset_i < ENTRY_COUNT; reset_i = reset_i + 1) begin
-        checkpoint_valid_q[reset_i] <= valid_q[reset_i];
-        checkpoint_pc_q[reset_i] <= pc_q[reset_i];
-        checkpoint_next_pc_q[reset_i] <= next_pc_q[reset_i];
-        checkpoint_pred_npc_q[reset_i] <= pred_npc_q[reset_i];
-        checkpoint_bht_idx_q[reset_i] <= bht_idx_q[reset_i];
-        checkpoint_pred_taken_q[reset_i] <= pred_taken_q[reset_i];
-        checkpoint_inst_q[reset_i] <= inst_q[reset_i];
-        checkpoint_ctrl_q[reset_i] <= ctrl_q[reset_i];
-        checkpoint_rob_idx_q[reset_i] <= rob_idx_q[reset_i];
-        checkpoint_src1_preg_q[reset_i] <= src1_preg_q[reset_i];
-        checkpoint_src1_ready_q[reset_i] <= src1_ready_q[reset_i];
-        checkpoint_src2_preg_q[reset_i] <= src2_preg_q[reset_i];
-        checkpoint_src2_ready_q[reset_i] <= src2_ready_q[reset_i];
-        checkpoint_pdest_q[reset_i] <= pdest_q[reset_i];
-        checkpoint_imm_q[reset_i] <= imm_q[reset_i];
       end
     end else if (kill_valid_i) begin
       // ROB-walk squash：清掉比 kill_rob_idx 更年轻(age 更大)的 entry（程序序后缀），存活=前缀，已紧凑。

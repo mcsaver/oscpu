@@ -13,8 +13,6 @@ module OooBusyTable #(
   input clk,
   input rst,
   input flush_i,
-  input checkpoint_capture_i,
-  input checkpoint_restore_i,
 
   input alloc0_valid_i,
   input [PHY_REG_ADDR_W-1:0] alloc0_pdest_i,
@@ -42,7 +40,6 @@ module OooBusyTable #(
 );
 
   reg ready_q [0:PHY_REG_COUNT-1];
-  reg checkpoint_ready_q [0:PHY_REG_COUNT-1];
   integer idx;
 
   wire alloc0_real_w = alloc0_valid_i && (alloc0_pdest_i != {PHY_REG_ADDR_W{1'b0}});
@@ -105,15 +102,6 @@ module OooBusyTable #(
     if (rst || flush_i) begin
       for (idx = 0; idx < PHY_REG_COUNT; idx = idx + 1) begin
         ready_q[idx] <= 1'b1;
-        checkpoint_ready_q[idx] <= 1'b1;
-      end
-    end else if (checkpoint_restore_i) begin
-      for (idx = 0; idx < PHY_REG_COUNT; idx = idx + 1) begin
-        ready_q[idx] <= checkpoint_ready_q[idx];
-      end
-    end else if (checkpoint_capture_i) begin
-      for (idx = 0; idx < PHY_REG_COUNT; idx = idx + 1) begin
-        checkpoint_ready_q[idx] <= ready_q[idx];
       end
     end else begin
       if (wakeup0_real_w) begin

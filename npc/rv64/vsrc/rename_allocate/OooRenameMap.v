@@ -1,7 +1,7 @@
 `include "define.v"
 
 // OoO 第一阶段先把重命名表做成独立基础件：它只维护 speculative map，
-// 方便后续接 ROB checkpoint/flush 时把精确恢复逻辑放在统一边界上。
+// 误预测精确恢复由 ROB-walk 反向 restore（restore_valid_i 端口）在统一边界上完成。
 /* verilator lint_off UNOPTFLAT */
 // FP 交叉查询面的保守判环族(见 OooIntBackend 头注), 行为由全量测试守。
 module OooRenameMap #(
@@ -10,8 +10,6 @@ module OooRenameMap #(
   input clk,
   input rst,
   input flush_i,
-  input checkpoint_capture_i,
-  input checkpoint_restore_i,
 
   input rename0_valid_i,
   input [`REG_ADDR_W-1:0] rename0_rs1_arch_i,
@@ -51,7 +49,6 @@ module OooRenameMap #(
 );
 
   reg [PHY_REG_ADDR_W-1:0] map_q [0:`REG_NUM-1];
-  reg [PHY_REG_ADDR_W-1:0] checkpoint_map_q [0:`REG_NUM-1];
 
   wire lane0_writes_w = rename0_valid_i && rename0_rd_en_i &&
                         (rename0_rd_arch_i != {`REG_ADDR_W{1'b0}});
@@ -103,15 +100,6 @@ module OooRenameMap #(
     if (rst || flush_i) begin
       for (idx = 0; idx < `REG_NUM; idx = idx + 1) begin
         map_q[idx] <= idx[PHY_REG_ADDR_W-1:0];
-        checkpoint_map_q[idx] <= idx[PHY_REG_ADDR_W-1:0];
-      end
-    end else if (checkpoint_restore_i) begin
-      for (idx = 0; idx < `REG_NUM; idx = idx + 1) begin
-        map_q[idx] <= checkpoint_map_q[idx];
-      end
-    end else if (checkpoint_capture_i) begin
-      for (idx = 0; idx < `REG_NUM; idx = idx + 1) begin
-        checkpoint_map_q[idx] <= map_q[idx];
       end
     end else if (restore_valid_i) begin
       // ROB-walk 恢复：lane0=较年轻、lane1=较老；同拍 WAW 时 lane1 源序在后写胜（最老者留存）。

@@ -15,8 +15,6 @@ module OooDispatchBackend #(
   input clk,
   input rst,
   input flush_i,
-  input checkpoint_capture_i,
-  input checkpoint_restore_i,
   input [ROB_INDEX_W-1:0] kill_rob_idx_i,   // B2 ROB-walk：mispredict 分支 rob_idx（kill 边界）；mode 关时无效
   input branch_mispredict_valid_i,          // B2 ROB-walk kill 触发：后端显式 branch/JALR mispredict（取代 checkpoint_restore）
   input issue_mem_block_i,
@@ -364,8 +362,6 @@ module OooDispatchBackend #(
     .clk(clk),
     .rst(rst),
     .flush_i(flush_i),
-    .checkpoint_capture_i(cp_capture_gated_w),
-    .checkpoint_restore_i(cp_restore_gated_w),
     .alloc0_valid_i(freelist_alloc0_valid_w),
     .alloc0_ready_o(freelist_alloc0_ready_w),
     .alloc0_preg_o(freelist_alloc0_preg_w),
@@ -390,8 +386,6 @@ module OooDispatchBackend #(
     .clk(clk),
     .rst(rst),
     .flush_i(flush_i),
-    .checkpoint_capture_i(cp_capture_gated_w),
-    .checkpoint_restore_i(cp_restore_gated_w),
     .rename0_valid_i(dispatch0_fire_w),
     .rename0_rs1_arch_i(dispatch0_rs1_arch_i),
     .rename0_rs2_arch_i(dispatch0_rs2_arch_i),
@@ -428,8 +422,6 @@ module OooDispatchBackend #(
     .clk(clk),
     .rst(rst),
     .flush_i(flush_i),
-    .checkpoint_capture_i(cp_capture_gated_w),
-    .checkpoint_restore_i(cp_restore_gated_w),
     .alloc0_valid_i(freelist_alloc0_valid_w),
     .alloc0_pdest_i(freelist_alloc0_valid_w ? freelist_alloc0_preg_w : {PHY_REG_ADDR_W{1'b0}}),
     .alloc1_valid_i(freelist_alloc1_valid_w),
@@ -464,7 +456,7 @@ module OooDispatchBackend #(
   wire [PHY_REG_ADDR_W-1:0] rob_walk1_new_pdest_w;
   wire rob_walk1_rd_en_w;
   // B2 Step B：后端显式 branch/JALR mispredict(branch_mispredict_valid_i) 驱动 ROB-walk kill；
-  // 模式下抑制 checkpoint（ROB-walk 取代全阵列 restore），kill_rob_idx 来自后端解析控制流 rob_idx。
+  // kill_rob_idx 来自后端解析控制流 rob_idx（ROB-walk 全阵列 restore，无 checkpoint）。
   wire rob_walk_mode_w = `OOO_ROB_WALK_MODE;
   // mispredict 与 backend 解析组合相连；直接驱动 kill 会与 dispatch_ready 成组合环
   // (mispredict→recovering→dispatch_ready→issue→branch_resolve→mispredict)。故 kill 打一拍寄存打破环：
@@ -482,8 +474,6 @@ module OooDispatchBackend #(
   end
   wire rob_kill_valid_w = kill_valid_q;
   wire [ROB_INDEX_W-1:0] rob_kill_idx_w = kill_idx_q;
-  wire cp_capture_gated_w = checkpoint_capture_i && !rob_walk_mode_w;
-  wire cp_restore_gated_w = checkpoint_restore_i && !rob_walk_mode_w;
   // walk→rename restore：恢复 map[arch]=old_pdest（仅 squashed 且 rd_en）。
   wire rename_restore0_en_w = rob_walk0_valid_w && rob_walk0_rd_en_w;
   wire rename_restore1_en_w = rob_walk1_valid_w && rob_walk1_rd_en_w;
@@ -510,8 +500,6 @@ module OooDispatchBackend #(
     .clk(clk),
     .rst(rst),
     .flush_i(flush_i),
-    .checkpoint_capture_i(cp_capture_gated_w),
-    .checkpoint_restore_i(cp_restore_gated_w),
     .dispatch0_valid_i(dispatch0_fire_w),
     .dispatch0_ready_o(rob_dispatch0_ready_w),
     .dispatch0_rob_idx_o(rob_dispatch0_idx_w),
@@ -620,8 +608,6 @@ module OooDispatchBackend #(
     .clk(clk),
     .rst(rst),
     .flush_i(flush_i),
-    .checkpoint_capture_i(cp_capture_gated_w),
-    .checkpoint_restore_i(cp_restore_gated_w),
     .issue_mem_block_i(issue_mem_block_i),
     .dispatch0_valid_i(dispatch0_fire_w && !dispatch0_fp_arith_w),
     .dispatch0_ready_o(iq_dispatch0_ready_w),

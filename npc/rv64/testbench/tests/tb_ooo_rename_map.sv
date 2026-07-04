@@ -8,8 +8,6 @@ module tb_ooo_rename_map;
   reg clk;
   reg rst;
   reg flush;
-  reg checkpoint_capture;
-  reg checkpoint_restore;
   reg rename0_valid;
   reg [`REG_ADDR_W-1:0] rename0_rs1_arch;
   reg [`REG_ADDR_W-1:0] rename0_rs2_arch;
@@ -45,8 +43,6 @@ module tb_ooo_rename_map;
     .clk(clk),
     .rst(rst),
     .flush_i(flush),
-    .checkpoint_capture_i(checkpoint_capture),
-    .checkpoint_restore_i(checkpoint_restore),
     .rename0_valid_i(rename0_valid),
     .rename0_rs1_arch_i(rename0_rs1_arch),
     .rename0_rs2_arch_i(rename0_rs2_arch),
@@ -80,8 +76,6 @@ module tb_ooo_rename_map;
   task automatic clear_inputs;
     begin
       flush = 1'b0;
-      checkpoint_capture = 1'b0;
-      checkpoint_restore = 1'b0;
       rename0_valid = 1'b0;
       rename0_rs1_arch = 5'd0;
       rename0_rs2_arch = 5'd0;
@@ -148,34 +142,9 @@ module tb_ooo_rename_map;
     tb_check32("x1 renamed", {26'b0, rename0_rs1_preg}, 32'd32);
     tb_check32("x2 renamed", {26'b0, rename0_rs2_preg}, 32'd33);
 
-    checkpoint_capture = 1'b1;
-    `TB_TICK(clk);
+    // checkpoint capture/restore 场景已删（dead silicon，ROB-walk 取代）；
+    // 净效果 = 映射回到 capture 前快照（x1->p32, x2->p33），此处直接保持该态。
     clear_inputs();
-
-    rename0_valid = 1'b1;
-    rename0_rd_en = 1'b1;
-    rename0_rd_arch = 5'd1;
-    rename0_new_pdest = 6'd40;
-    rename1_valid = 1'b1;
-    rename1_rd_en = 1'b1;
-    rename1_rd_arch = 5'd4;
-    rename1_new_pdest = 6'd41;
-    `TB_TICK(clk);
-    clear_inputs();
-    rename0_rs1_arch = 5'd1;
-    rename0_rs2_arch = 5'd4;
-    #1;
-    tb_check32("checkpoint mutation x1", {26'b0, rename0_rs1_preg}, 32'd40);
-    tb_check32("checkpoint mutation x4", {26'b0, rename0_rs2_preg}, 32'd41);
-
-    checkpoint_restore = 1'b1;
-    `TB_TICK(clk);
-    clear_inputs();
-    rename0_rs1_arch = 5'd1;
-    rename0_rs2_arch = 5'd4;
-    #1;
-    tb_check32("checkpoint restore x1", {26'b0, rename0_rs1_preg}, 32'd32);
-    tb_check32("checkpoint restore x4", {26'b0, rename0_rs2_preg}, 32'd4);
 
     rename0_valid = 1'b1;
     rename0_rd_en = 1'b1;

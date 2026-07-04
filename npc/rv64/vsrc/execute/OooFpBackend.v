@@ -254,8 +254,6 @@ module OooFpBackend #(
     .clk(clk),
     .rst(rst),
     .flush_i(flush_i),
-    .checkpoint_capture_i(1'b0),
-    .checkpoint_restore_i(1'b0),
     .alloc0_valid_i(alloc0_valid_w),
     .alloc0_ready_o(freelist_alloc0_ready_w),
     .alloc0_preg_o(freelist_alloc0_preg_w),

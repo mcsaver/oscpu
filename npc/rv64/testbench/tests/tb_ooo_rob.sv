@@ -10,8 +10,6 @@ module tb_ooo_rob;
   reg clk;
   reg rst;
   reg flush;
-  reg checkpoint_capture;
-  reg checkpoint_restore;
   reg dispatch0_valid;
   wire dispatch0_ready;
   wire [ROB_INDEX_W-1:0] dispatch0_rob_idx;
@@ -94,8 +92,6 @@ module tb_ooo_rob;
     .clk(clk),
     .rst(rst),
     .flush_i(flush),
-    .checkpoint_capture_i(checkpoint_capture),
-    .checkpoint_restore_i(checkpoint_restore),
     .dispatch0_valid_i(dispatch0_valid),
     .dispatch0_ready_o(dispatch0_ready),
     .dispatch0_rob_idx_o(dispatch0_rob_idx),
@@ -181,8 +177,6 @@ module tb_ooo_rob;
   task automatic clear_inputs;
     begin
       flush = 1'b0;
-      checkpoint_capture = 1'b0;
-      checkpoint_restore = 1'b0;
       dispatch0_valid = 1'b0;
       dispatch0_pc = 32'h0;
       dispatch0_inst = 32'h0;
@@ -258,26 +252,9 @@ module tb_ooo_rob;
     tb_check32("count after dispatch", {27'b0, count}, 32'd2);
     tb_check1("head not done yet", commit0_valid, 1'b0);
 
-    checkpoint_capture = 1'b1;
-    `TB_TICK(clk);
+    // checkpoint capture/restore 场景已删（dead silicon，ROB-walk 取代）；
+    // 净效果 = ROB 回到 capture 前(2 条 idx0/idx1，head 未 done)，此处保持该态。
     clear_inputs();
-    dispatch0_valid = 1'b1;
-    dispatch0_pc = 32'h8000_0008;
-    dispatch0_inst = 32'h0020_0193;
-    dispatch0_rd_en = 1'b1;
-    dispatch0_arch_rd = 5'd3;
-    dispatch0_old_pdest = 6'd3;
-    dispatch0_new_pdest = 6'd34;
-    `TB_TICK(clk);
-    clear_inputs();
-    #1;
-    tb_check32("checkpoint mutation count", {27'b0, count}, 32'd3);
-    checkpoint_restore = 1'b1;
-    `TB_TICK(clk);
-    clear_inputs();
-    #1;
-    tb_check32("checkpoint restore count", {27'b0, count}, 32'd2);
-    tb_check1("checkpoint restore head still waits", commit0_valid, 1'b0);
 
     wb1_valid = 1'b1;
     wb1_rob_idx = saved1;

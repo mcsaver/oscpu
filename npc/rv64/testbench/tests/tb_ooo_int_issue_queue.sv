@@ -10,8 +10,6 @@ module tb_ooo_int_issue_queue;
   reg clk;
   reg rst;
   reg flush;
-  reg checkpoint_capture;
-  reg checkpoint_restore;
   reg issue_mem_block;
   reg dispatch0_valid;
   wire dispatch0_ready;
@@ -91,8 +89,6 @@ module tb_ooo_int_issue_queue;
     .clk(clk),
     .rst(rst),
     .flush_i(flush),
-    .checkpoint_capture_i(checkpoint_capture),
-    .checkpoint_restore_i(checkpoint_restore),
     .issue_mem_block_i(issue_mem_block),
     .dispatch0_valid_i(dispatch0_valid),
     .dispatch0_ready_o(dispatch0_ready),
@@ -201,8 +197,6 @@ module tb_ooo_int_issue_queue;
   task automatic clear_inputs;
     begin
       flush = 1'b0;
-      checkpoint_capture = 1'b0;
-      checkpoint_restore = 1'b0;
       issue_mem_block = 1'b0;
       dispatch0_valid = 1'b0;
       dispatch0_pc = 32'h0;
@@ -555,35 +549,9 @@ module tb_ooo_int_issue_queue;
     #1;
     tb_check1("same-cycle wakeup bypass drains", empty, 1'b1);
 
+    // checkpoint capture/restore 场景已删（dead silicon，ROB-walk 取代）；
+    // 净效果 = IQ 排空回到场景前（empty），issue0/1_ready 维持 1/1，此处保持该态。
     clear_inputs();
-    issue0_ready = 1'b0;
-    issue1_ready = 1'b1;
-    set_dispatch0(32'h8000_0050, 4'd8, 6'd1, 1'b1, 6'd2, 1'b1, 6'd40);
-    `TB_TICK(clk);
-    clear_inputs();
-    #1;
-    tb_check32("checkpoint source count", {28'b0, count}, 32'd1);
-    tb_check32("checkpoint source issue pc", issue0_pc, 32'h8000_0050);
-    checkpoint_capture = 1'b1;
-    `TB_TICK(clk);
-    clear_inputs();
-    issue1_ready = 1'b0;
-    set_dispatch0(32'h8000_0054, 4'd9, 6'd3, 1'b1, 6'd4, 1'b1, 6'd41);
-    `TB_TICK(clk);
-    clear_inputs();
-    issue1_ready = 1'b1;
-    #1;
-    tb_check32("checkpoint mutation count", {28'b0, count}, 32'd2);
-    checkpoint_restore = 1'b1;
-    `TB_TICK(clk);
-    clear_inputs();
-    #1;
-    tb_check32("checkpoint restore count", {28'b0, count}, 32'd1);
-    tb_check32("checkpoint restore issue pc", issue0_pc, 32'h8000_0050);
-    issue0_ready = 1'b1;
-    `TB_TICK(clk);
-    #1;
-    tb_check1("checkpoint restored entry drains", empty, 1'b1);
 
     set_dispatch0(32'h8000_0040, 4'd7, 6'd1, 1'b1, 6'd2, 1'b1, 6'd39);
     `TB_TICK(clk);

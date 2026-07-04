@@ -8,8 +8,6 @@ module tb_ooo_busy_table;
   reg clk;
   reg rst;
   reg flush;
-  reg checkpoint_capture;
-  reg checkpoint_restore;
   reg alloc0_valid;
   reg [PHY_REG_ADDR_W-1:0] alloc0_pdest;
   reg alloc1_valid;
@@ -31,8 +29,6 @@ module tb_ooo_busy_table;
     .clk(clk),
     .rst(rst),
     .flush_i(flush),
-    .checkpoint_capture_i(checkpoint_capture),
-    .checkpoint_restore_i(checkpoint_restore),
     .alloc0_valid_i(alloc0_valid),
     .alloc0_pdest_i(alloc0_pdest),
     .alloc1_valid_i(alloc1_valid),
@@ -54,8 +50,6 @@ module tb_ooo_busy_table;
   task automatic clear_inputs;
     begin
       flush = 1'b0;
-      checkpoint_capture = 1'b0;
-      checkpoint_restore = 1'b0;
       alloc0_valid = 1'b0;
       alloc0_pdest = 6'd0;
       alloc1_valid = 1'b0;
@@ -120,30 +114,9 @@ module tb_ooo_busy_table;
     #1;
     tb_check1("p32 ready after wakeup", query0_ready, 1'b1);
 
-    checkpoint_capture = 1'b1;
-    `TB_TICK(clk);
+    // checkpoint capture/restore 场景已删（dead silicon，ROB-walk 取代）；
+    // 净效果 = busy 状态回到 capture 前（p33 busy, p34 ready），此处直接保持该态。
     clear_inputs();
-
-    wakeup0_valid = 1'b1;
-    wakeup0_pdest = 6'd33;
-    alloc0_valid = 1'b1;
-    alloc0_pdest = 6'd34;
-    `TB_TICK(clk);
-    clear_inputs();
-    query0_preg = 6'd33;
-    query1_preg = 6'd34;
-    #1;
-    tb_check1("checkpoint mutation p33 ready", query0_ready, 1'b1);
-    tb_check1("checkpoint mutation p34 busy", query1_ready, 1'b0);
-
-    checkpoint_restore = 1'b1;
-    `TB_TICK(clk);
-    clear_inputs();
-    query0_preg = 6'd33;
-    query1_preg = 6'd34;
-    #1;
-    tb_check1("checkpoint restore p33 busy", query0_ready, 1'b0);
-    tb_check1("checkpoint restore p34 ready", query1_ready, 1'b1);
 
     wakeup0_valid = 1'b1;
     wakeup0_pdest = 6'd33;

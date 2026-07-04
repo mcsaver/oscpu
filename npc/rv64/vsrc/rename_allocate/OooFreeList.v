@@ -15,8 +15,6 @@ module OooFreeList #(
   input clk,
   input rst,
   input flush_i,
-  input checkpoint_capture_i,
-  input checkpoint_restore_i,
 
   input alloc0_valid_i,
   output alloc0_ready_o,
@@ -43,10 +41,6 @@ module OooFreeList #(
   reg [PHY_REG_ADDR_W-1:0] head_q;
   reg [PHY_REG_ADDR_W-1:0] tail_q;
   reg [FREE_COUNT_W-1:0] count_q;
-  reg [PHY_REG_ADDR_W-1:0] checkpoint_fifo_q [0:PHY_REG_COUNT-1];
-  reg [PHY_REG_ADDR_W-1:0] checkpoint_head_q;
-  reg [PHY_REG_ADDR_W-1:0] checkpoint_tail_q;
-  reg [FREE_COUNT_W-1:0] checkpoint_count_q;
 
   wire alloc0_fire_w;
   wire alloc1_fire_w;
@@ -101,32 +95,13 @@ module OooFreeList #(
       for (idx = 0; idx < PHY_REG_COUNT; idx = idx + 1) begin
         if (idx < INIT_FREE_COUNT) begin
           fifo_q[idx] <= ARCH_REG_BASE + idx[PHY_REG_ADDR_W-1:0];
-          checkpoint_fifo_q[idx] <= ARCH_REG_BASE + idx[PHY_REG_ADDR_W-1:0];
         end else begin
           fifo_q[idx] <= {PHY_REG_ADDR_W{1'b0}};
-          checkpoint_fifo_q[idx] <= {PHY_REG_ADDR_W{1'b0}};
         end
       end
       head_q <= {PHY_REG_ADDR_W{1'b0}};
       tail_q <= INIT_FREE_COUNT[PHY_REG_ADDR_W-1:0];
       count_q <= INIT_FREE_COUNT;
-      checkpoint_head_q <= {PHY_REG_ADDR_W{1'b0}};
-      checkpoint_tail_q <= INIT_FREE_COUNT[PHY_REG_ADDR_W-1:0];
-      checkpoint_count_q <= INIT_FREE_COUNT;
-    end else if (checkpoint_restore_i) begin
-      for (idx = 0; idx < PHY_REG_COUNT; idx = idx + 1) begin
-        fifo_q[idx] <= checkpoint_fifo_q[idx];
-      end
-      head_q <= checkpoint_head_q;
-      tail_q <= checkpoint_tail_q;
-      count_q <= checkpoint_count_q;
-    end else if (checkpoint_capture_i) begin
-      for (idx = 0; idx < PHY_REG_COUNT; idx = idx + 1) begin
-        checkpoint_fifo_q[idx] <= fifo_q[idx];
-      end
-      checkpoint_head_q <= head_q;
-      checkpoint_tail_q <= tail_q;
-      checkpoint_count_q <= count_q;
     end else begin
       // 正常路径的 push/count 先由组合逻辑推导，时序块只落状态。
       if (free0_push_w) begin

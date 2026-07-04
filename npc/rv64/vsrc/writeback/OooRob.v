@@ -11,8 +11,6 @@ module OooRob #(
   input clk,
   input rst,
   input flush_i,
-  input checkpoint_capture_i,
-  input checkpoint_restore_i,
 
   input dispatch0_valid_i,
   output dispatch0_ready_o,
@@ -128,7 +126,7 @@ module OooRob #(
   reg exception_q [0:ROB_ENTRIES-1];
   reg [`TRAP_CAUSE_W-1:0] cause_q [0:ROB_ENTRIES-1];
   reg [`XLEN-1:0] tval_q [0:ROB_ENTRIES-1];
-  // 【B-FP Phase0 地基】不进 checkpoint 影子(该机制已被 ROB-walk 取代, 只减不加)
+  // 【B-FP Phase0 地基】
   reg is_fp_rd_q [0:ROB_ENTRIES-1];
   reg [4:0] fflags_q [0:ROB_ENTRIES-1];
 
@@ -143,23 +141,6 @@ module OooRob #(
   reg recover_q;
   reg [ROB_INDEX_W-1:0] walk_ptr_q;   // 当前待 squash 的最年轻未处理 entry
   reg [ROB_INDEX_W-1:0] kill_idx_q;   // 存活分支 idx（walk 终点：到它即停）
-
-  reg checkpoint_valid_q [0:ROB_ENTRIES-1];
-  reg checkpoint_done_q [0:ROB_ENTRIES-1];
-  reg [`XLEN-1:0] checkpoint_pc_q [0:ROB_ENTRIES-1];
-  reg [`XLEN-1:0] checkpoint_next_pc_q [0:ROB_ENTRIES-1];
-  reg [`INST_W-1:0] checkpoint_inst_q [0:ROB_ENTRIES-1];
-  reg checkpoint_rd_en_q [0:ROB_ENTRIES-1];
-  reg [`REG_ADDR_W-1:0] checkpoint_arch_rd_q [0:ROB_ENTRIES-1];
-  reg [PHY_REG_ADDR_W-1:0] checkpoint_old_pdest_q [0:ROB_ENTRIES-1];
-  reg [PHY_REG_ADDR_W-1:0] checkpoint_new_pdest_q [0:ROB_ENTRIES-1];
-  reg [`XLEN-1:0] checkpoint_data_q [0:ROB_ENTRIES-1];
-  reg checkpoint_exception_q [0:ROB_ENTRIES-1];
-  reg [`TRAP_CAUSE_W-1:0] checkpoint_cause_q [0:ROB_ENTRIES-1];
-  reg [`XLEN-1:0] checkpoint_tval_q [0:ROB_ENTRIES-1];
-  reg [ROB_INDEX_W-1:0] checkpoint_head_q;
-  reg [ROB_INDEX_W-1:0] checkpoint_tail_q;
-  reg [ROB_COUNT_W-1:0] checkpoint_count_q;
 
   wire [ROB_INDEX_W-1:0] head1_w;
   wire wb0_head_match_w;
@@ -361,64 +342,10 @@ module OooRob #(
         tval_q[idx] <= {`XLEN{1'b0}};
         is_fp_rd_q[idx] <= 1'b0;
         fflags_q[idx] <= 5'b00000;
-        checkpoint_valid_q[idx] <= 1'b0;
-        checkpoint_done_q[idx] <= 1'b0;
-        checkpoint_pc_q[idx] <= {`XLEN{1'b0}};
-        checkpoint_next_pc_q[idx] <= {`XLEN{1'b0}};
-        checkpoint_inst_q[idx] <= {`INST_W{1'b0}};
-        checkpoint_rd_en_q[idx] <= 1'b0;
-        checkpoint_arch_rd_q[idx] <= {`REG_ADDR_W{1'b0}};
-        checkpoint_old_pdest_q[idx] <= {PHY_REG_ADDR_W{1'b0}};
-        checkpoint_new_pdest_q[idx] <= {PHY_REG_ADDR_W{1'b0}};
-        checkpoint_data_q[idx] <= {`XLEN{1'b0}};
-        checkpoint_exception_q[idx] <= 1'b0;
-        checkpoint_cause_q[idx] <= {`TRAP_CAUSE_W{1'b0}};
-        checkpoint_tval_q[idx] <= {`XLEN{1'b0}};
       end
-      checkpoint_head_q <= {ROB_INDEX_W{1'b0}};
-      checkpoint_tail_q <= {ROB_INDEX_W{1'b0}};
-      checkpoint_count_q <= {ROB_COUNT_W{1'b0}};
       recover_q <= 1'b0;
       walk_ptr_q <= {ROB_INDEX_W{1'b0}};
       kill_idx_q <= {ROB_INDEX_W{1'b0}};
-    end else if (checkpoint_restore_i) begin
-      head_q <= checkpoint_head_q;
-      tail_q <= checkpoint_tail_q;
-      count_q <= checkpoint_count_q;
-      for (idx = 0; idx < ROB_ENTRIES; idx = idx + 1) begin
-        valid_q[idx] <= checkpoint_valid_q[idx];
-        done_q[idx] <= checkpoint_done_q[idx];
-        pc_q[idx] <= checkpoint_pc_q[idx];
-        next_pc_q[idx] <= checkpoint_next_pc_q[idx];
-        inst_q[idx] <= checkpoint_inst_q[idx];
-        rd_en_q[idx] <= checkpoint_rd_en_q[idx];
-        arch_rd_q[idx] <= checkpoint_arch_rd_q[idx];
-        old_pdest_q[idx] <= checkpoint_old_pdest_q[idx];
-        new_pdest_q[idx] <= checkpoint_new_pdest_q[idx];
-        data_q[idx] <= checkpoint_data_q[idx];
-        exception_q[idx] <= checkpoint_exception_q[idx];
-        cause_q[idx] <= checkpoint_cause_q[idx];
-        tval_q[idx] <= checkpoint_tval_q[idx];
-      end
-    end else if (checkpoint_capture_i) begin
-      checkpoint_head_q <= head_q;
-      checkpoint_tail_q <= tail_q;
-      checkpoint_count_q <= count_q;
-      for (idx = 0; idx < ROB_ENTRIES; idx = idx + 1) begin
-        checkpoint_valid_q[idx] <= valid_q[idx];
-        checkpoint_done_q[idx] <= done_q[idx];
-        checkpoint_pc_q[idx] <= pc_q[idx];
-        checkpoint_next_pc_q[idx] <= next_pc_q[idx];
-        checkpoint_inst_q[idx] <= inst_q[idx];
-        checkpoint_rd_en_q[idx] <= rd_en_q[idx];
-        checkpoint_arch_rd_q[idx] <= arch_rd_q[idx];
-        checkpoint_old_pdest_q[idx] <= old_pdest_q[idx];
-        checkpoint_new_pdest_q[idx] <= new_pdest_q[idx];
-        checkpoint_data_q[idx] <= data_q[idx];
-        checkpoint_exception_q[idx] <= exception_q[idx];
-        checkpoint_cause_q[idx] <= cause_q[idx];
-        checkpoint_tval_q[idx] <= tval_q[idx];
-      end
     end else if (recover_q) begin
       // ROB-walk：本拍 squash lane0(恒)/lane1(若仍更年轻)，count 递减；到存活分支即收尾回退 tail。
       // 关键：recovery 窗口内仍须吸收 in-flight 写回——更老(存活)指令的执行结果若恰在此时回写，

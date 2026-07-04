@@ -327,8 +327,6 @@ module OooIntBackend #(
     .clk(clk),
     .rst(rst),
     .flush_i(flush_i),
-    .checkpoint_capture_i(checkpoint_capture_i),
-    .checkpoint_restore_i(checkpoint_restore_i),
     .kill_rob_idx_i(branch_resolve_rob_idx_o),   // B2 ROB-walk：mispredict 控制流 rob_idx（与 mispredict 同拍）
     .branch_mispredict_valid_i(branch_resolve_mispredict_w),  // B2 片4：ROB-walk kill 触发
     .issue_mem_block_i(mem_issue_block_w),
