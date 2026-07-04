@@ -231,14 +231,6 @@ module/core 回归和性能样本分析。
   组合事实（F2 后 BPU 回训单源=issue-resolve，direct/pending/drained/commit
   旧四臂已证死）；父模块仍保留 predictor table 实例、branch pending/spec/wait 状态、
   resolve/recovery sequencer、RAS/BTB update 和 PC/outstanding 时序所有权。
-- `frontend/OooPredictorUpdateGate.v` 承接 branch target cache capture 与 JALR BTB
-  update valid 的组合事件；父模块仍保留 predictor table/cache 实例、pending jump
-  状态、fetch response payload 和 precise recovery 时序所有权。
-- `frontend/OooBranchTargetCacheControlGate.v` 承接 branch target cache/capture
-  buffer 上游的 store fire/address、commit `MISC-MEM` 全失效、direct branch
-  redirect 后 capture arm 和 branch PC 选择组合事实；父模块仍保留 branch target
-  cache/capture buffer 实例、direct branch resolve、dispatch/FIFO 和 PC/outstanding
-  时序所有权。
 - `frontend/OooFrontendRunGate.v` 承接前端运行许可、stop pending owner/orphan
   判定、response bypass 条件和 fetch FIFO/outstanding credit 组合 gating；父模块仍保留
   stop pending 清理、PC/outstanding/discard、FIFO 存储和 redirect/trap 时序所有权。
@@ -250,35 +242,12 @@ module/core 回归和性能样本分析。
   在 redirect、branch prefetch 与顺序 PC 之间保持旧优先级；父模块仍保留
   `next_fetch_pc`、outstanding/discard、redirect recovery 和 request ready-valid
   时序所有权。
-- `frontend/OooBranchPrefetchSourceGate.v` 承接 pending branch target/predicted
-  PC 与 pending JALR return-hint/BTB-lookup 的组合 source facts；父模块仍保留
-  pending 状态、RAS/BTB 表项、request gate、branch resolve 和 recovery 时序所有权。
-- `frontend/OooBranchPrefetchRequestGate.v` 承接 pending branch 与 JALR BTB hit
-  发起 prefetch request 的组合 gating、request fire 和 request PC 选择；父模块仍保留 BTB/RAS
-  lookup、branch resolve、prefetch buffer、outstanding/discard 和 fetch request
-  ready-valid 时序所有权。
-- `frontend/OooBranchPrefetchStatusGate.v` 承接 branch prefetch response capture
-  与 branch resolve hit/pending status 的组合判定；父模块仍保留 prefetch buffer
-  写入、hit packet 选择、JALR 专用 hit status 和 recovery 时序所有权。
-- `frontend/OooBranchPrefetchClearGate.v` 承接 branch prefetch buffer 清空条件：
-  CSR trap、direct flush、branch-spec resolve、pending branch/jump/system resolve 和
-  drain 后的 pending trap/system/jump/FP；父模块只把 clear 事件接入 prefetch buffer。
-- `frontend/OooJalrPrefetchStatusGate.v` 承接 JALR branch-prefetch target
-  ready、target mux、hit/pending status 的组合判定；父模块仍保留 JALR resolve、
-  BTB update、hit packet 选择和 PC/outstanding/discard 时序所有权。
-- `frontend/OooBranchPrefetchBuffer.v` 承接 branch prefetch 影子包状态，只保存
-  active/request PC、buffer valid 和 packet payload；request/capture/clear 的组合条件
-  已由对应 frontend gate 承接，父模块仍保留 branch resolve match、FIFO seed 和
-  redirect PC。
 - `frontend/OooDirectBranchWaitBuffer.v` 承接 direct branch 等待后端 resolve 的单 entry
   状态，只保存 pending 和 branch PC；父模块仍负责 resolve match/untracked、redirect、
   trap 和 BPU 更新。
 - `frontend/OooBackendDrainTracker.v` 承接前端视角下的 backend drained 打拍状态；
   父模块仍负责组合计算 ROB/IQ/retire/synthetic lane1 是否为空，以及 pending/trap
   控制使用该状态的策略。
-- `frontend/OooFetchPacketHitMux.v` 承接 branch/JALR prefetch hit payload 在
-  same-cycle response capture 与 buffered packet 之间的组合选择；父模块仍负责
-  hit/match 判定和 redirect/FIFO seed 策略。
 - `frontend/OooFetchPacketHeadMux.v` 承接 dispatch 可见 fetch packet head 的来源选择，
   只在 response bypass 与 FIFO head payload 之间做组合 mux；父模块仍决定 bypass
   条件、FIFO pop/seed 和 redirect/trap recovery。

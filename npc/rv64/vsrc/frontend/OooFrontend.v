@@ -284,7 +284,6 @@ module OooFrontend #(
   localparam [FETCH_COUNT_W-1:0] FETCH_PACKET_COUNT_VALUE =
       (1 << FETCH_PACKET_COUNT_W);
   localparam ENABLE_DIRECT_RAS_RET = 1'b1;
-  localparam BRANCH_TARGET_CACHE_INDEX_W = 4;
 
   wire backend_execute_quiet_w;
   wire branch_bpu_commit_update_w;
@@ -303,23 +302,15 @@ module OooFrontend #(
   wire branch_fallthrough_dispatch_w;
   wire branch_fallthrough_keep_outstanding_w;
   wire branch_fallthrough_outstanding_match_w;
-  wire [`CTRL_BUS_W-1:0] branch_prefetch0_ctrl_w;
-  wire [`CTRL_BUS_W-1:0] branch_prefetch1_ctrl_w;
   wire branch_prefetch_active_q;
-  wire [`XLEN-1:0] branch_prefetch_branch_pred_pc_w;
-  wire branch_prefetch_branch_req_valid_w;
   wire [`INST_W-1:0] branch_prefetch_buf_inst0_q;
   wire [`INST_W-1:0] branch_prefetch_buf_inst1_q;
   wire [`XLEN-1:0] branch_prefetch_buf_next_pc0_q;
   wire [`XLEN-1:0] branch_prefetch_buf_next_pc1_q;
-  wire [`XLEN-1:0] branch_prefetch_buf_packet_next_pc_q;
   wire [`XLEN-1:0] branch_prefetch_buf_pc0_q;
   wire [`XLEN-1:0] branch_prefetch_buf_pc1_q;
-  wire [1:0] branch_prefetch_buf_resp0_q;
-  wire [1:0] branch_prefetch_buf_resp1_q;
   wire branch_prefetch_buffer_match_w;
   wire branch_prefetch_buffer_valid_q;
-  wire branch_prefetch_clear_w;
   wire branch_prefetch_dispatch0_safe_w;
   wire branch_prefetch_dispatch1_safe_w;
   wire branch_prefetch_dispatch_attempt_w;
@@ -336,39 +327,23 @@ module OooFrontend #(
   wire [1:0] branch_prefetch_hit_resp0_w;
   wire [1:0] branch_prefetch_hit_resp1_w;
   wire branch_prefetch_hit_to_fifo_w;
-  wire branch_prefetch_jalr_req_valid_w;
   wire branch_prefetch_match_w;
   wire [`XLEN-1:0] branch_prefetch_pc_q;
   wire branch_prefetch_pending_match_w;
   wire [`XLEN-1:0] branch_prefetch_req_pc_w;
   wire branch_prefetch_req_valid_w;
-  wire [`CTRL_BUS_W-1:0] branch_prefetch_rsp1_ctrl_w;
-  wire branch_prefetch_rsp_capture_w;
   wire branch_prefetch_rsp_dispatch0_safe_w;
   wire branch_prefetch_rsp_dispatch1_safe_w;
-  wire branch_prefetch_rsp_match_w;
   wire branch_prefetch_rsp_raw_match_w;
   wire branch_resolve_pending_pc_match_w;
   wire [`XLEN-1:0] branch_spec_pred_pc_q;
   wire branch_target_append_attempt_w;
   wire branch_target_append_candidate_w;
   wire branch_target_append_w;
-  wire branch_target_cache_capture_w;
-  wire [BRANCH_TARGET_CACHE_INDEX_W-1:0] branch_target_cache_idx_unused_w;
   wire [`INST_W-1:0] branch_target_cache_inst_w;
-  wire branch_target_cache_invalidate_all_w;
   wire [`XLEN-1:0] branch_target_cache_next_pc_w;
   wire [`XLEN-1:0] branch_target_cache_target_pc_w;
-  wire [`XLEN-1:0] branch_target_capture_arm_branch_pc_w;
-  wire branch_target_capture_arm_w;
-  wire [`XLEN-1:0] branch_target_capture_branch_pc_q;
-  wire branch_target_capture_hit_w;
-  wire branch_target_capture_pending_q;
-  wire branch_target_capture_safe_w;
-  wire [`XLEN-1:0] branch_target_capture_target_pc_q;
   wire branch_target_dispatch_w;
-  wire [`XLEN-1:0] branch_target_store_addr_w;
-  wire branch_target_store_fire_w;
   wire can_issue_request_w;
   wire direct_branch1_dispatch_valid_w;
   wire [`BPU_BHT_INDEX_W-1:0] direct_branch_bht_idx_w;
@@ -533,8 +508,6 @@ module OooFrontend #(
   wire head1_semihost_ebreak_w;
   wire head1_sret_raw_w;
   wire head1_system_raw_w;
-  wire jalr_btb_update_w;
-  wire jalr_prefetch_buffer_match_w;
   wire [`INST_W-1:0] jalr_prefetch_hit_inst0_w;
   wire [`INST_W-1:0] jalr_prefetch_hit_inst1_w;
   wire [`XLEN-1:0] jalr_prefetch_hit_next_pc0_w;
@@ -544,9 +517,7 @@ module OooFrontend #(
   wire [`XLEN-1:0] jalr_prefetch_hit_pc1_w;
   wire [1:0] jalr_prefetch_hit_resp0_w;
   wire [1:0] jalr_prefetch_hit_resp1_w;
-  wire jalr_prefetch_match_w;
   wire jalr_prefetch_pending_match_w;
-  wire jalr_prefetch_rsp_match_w;
   wire lane0_before_ret_safe_w;
   wire lane1_barrier_dispatch0_valid_w;
   wire [FETCH_COUNT_W-1:0] outstanding_count_w;
@@ -556,11 +527,6 @@ module OooFrontend #(
   wire [`XLEN-1:0] pending_branch_next_pc_q;
   wire pending_branch_pred_taken_q;
   wire pending_jump_call_w;
-  wire pending_jump_jalr_btb_entry_hit_w;
-  wire [`BPU_BTB_INDEX_W-1:0] pending_jump_jalr_btb_idx_w;
-  wire pending_jump_jalr_btb_lookup_w;
-  wire [`XLEN-1:0] pending_jump_jalr_btb_target_w;
-  wire pending_jump_jalr_ret_hint_w;
   wire [`XLEN-1:0] pending_jump_next_pc_q;
   wire pending_jump_return_w;
   wire [`XLEN-1:0] pending_jump_target_q;
@@ -1026,133 +992,104 @@ module OooFrontend #(
   );
 
 
-  OooFrontendUopSafety #(
-    .REQUIRE_RESP_OK(1'b1),
-    .REJECT_SEMIHOST_ENTER(1'b1),
-    .ALLOW_LOAD(1'b1),
-    .ALLOW_STORE(1'b0),
-    .ALLOW_MULDIV(1'b0),
-    .ALLOW_BITMANIP(1'b0),
-    .ALLOW_SFENCE(1'b1),
-    .ALLOW_SRET(1'b1),
-    .ALLOW_AMO(1'b1),
-    .CHECK_RD_HAZARD(1'b0)
-  ) u_branch_target_capture_safety (
-    .ctrl_i(branch_target_capture_ctrl_w),
-    .resp_i(fetch_dec0_resp_w),
-    .inst_i(fetch_dec0_inst_w),
-    .rd_i({`REG_ADDR_W{1'b0}}),
-    .hazard_rs_i({`REG_ADDR_W{1'b0}}),
-    .safe_o(branch_target_capture_safe_w)
-  );
+  // ================= 前端 prefetch / BTC / JALR-BTB / return-cont 死硅拆除后的行为中性 tie-off =================
+  // 依据 rtl-ground-truth-2026-07-03.md §4 + report-1：这些结构在 OOO_ROB_WALK_MODE=1'b1 /
+  // OOO_DBRANCH_DOMAIN_A=1'b1 下由编译常量证死——branch prefetch req 依赖 pending_branch(恒0)/jalr_btb_hit(恒0)；
+  // BTC capture 依赖 direct_branch_resolve_taken(恒0) → 恒空 → hit 恒0，且消费端 BRANCH_APPEND_DISPATCH_ENABLE=1'b0；
+  // JALR BTB update 依赖 pending_jump(恒0) → 表恒空 → 查询恒 miss；return_cont consume 依赖 return_cont_attempt=1'b0。
+  // 全部消费端落在恒0谓词门后（FetchRequestMux/FetchFlowControl/SeedMux/BackendDispatchMux/ResolveRecoveryGate/
+  // AppendDispatchGate/OutstandingSequencer/DirectControlFlowGate 均在对应 valid/attempt/hit=0 时不选该 payload），
+  // 故以下常量替换对每拍 cycle 行为逐位中性。原模块实例 + TB + filelist 引用已删。
 
+  // pending 分支目标：原 OooBranchPrefetchSourceGate 顺带算出，供仍保留的 pending 控制链消费 → 就地内联保持等价
+  assign pending_branch_target_w = pending_branch_pc_q + pending_branch_imm_q;
 
-  OooPredictorUpdateGate u_predictor_update_gate (
-    .branch_target_capture_hit_i(branch_target_capture_hit_w),
-    .branch_target_capture_safe_i(branch_target_capture_safe_w),
-    .pending_jump_resolve_ready_i(pending_jump_resolve_ready_w),
-    .pending_jump_jalr_i(pending_jump_jalr_q),
-    .pending_jump_misaligned_i(pending_jump_misaligned_w),
-    .branch_target_cache_capture_o(branch_target_cache_capture_w),
-    .jalr_btb_update_o(jalr_btb_update_w)
-  );
+  // OooBranchPrefetchRequestGate（req_valid 恒0）
+  assign branch_prefetch_req_valid_w = 1'b0;
+  assign branch_prefetch_req_fire_w  = 1'b0;
+  assign branch_prefetch_req_pc_w    = {`XLEN{1'b0}};
 
+  // OooBranchPrefetchStatusGate（active 恒0 → match/hit 恒0）
+  assign branch_prefetch_match_w         = 1'b0;
+  assign branch_prefetch_buffer_match_w  = 1'b0;
+  assign branch_prefetch_pending_match_w = 1'b0;
+  assign branch_prefetch_hit_available_w = 1'b0;
 
-  OooBranchPrefetchSourceGate u_branch_prefetch_source_gate (
-    .pending_branch_pc_i(pending_branch_pc_q),
-    .pending_branch_imm_i(pending_branch_imm_q),
-    .pending_branch_next_pc_i(pending_branch_next_pc_q),
-    .pending_branch_pred_taken_i(pending_branch_pred_taken_q),
-    .stop_pending_i(stop_pending_q),
-    .pending_jump_i(pending_jump_q),
-    .pending_jump_jalr_i(pending_jump_jalr_q),
-    .pending_jump_rd_i(pending_jump_inst_q[11:7]),
-    .pending_jump_rs1_i(pending_jump_rs1_q),
-    .pending_jump_imm_i(pending_jump_imm_q),
-    .ras_empty_i(ras_empty_w),
-    .pending_branch_target_o(pending_branch_target_w),
-    .branch_pred_pc_o(branch_prefetch_branch_pred_pc_w),
-    .jalr_ret_hint_o(pending_jump_jalr_ret_hint_w),
-    .jalr_btb_lookup_o(pending_jump_jalr_btb_lookup_w)
-  );
+  // branch prefetch hit-mux payload（rsp_select 恒0 → don't-care）
+  assign branch_prefetch_hit_pc0_w            = {`XLEN{1'b0}};
+  assign branch_prefetch_hit_pc1_w            = {`XLEN{1'b0}};
+  assign branch_prefetch_hit_next_pc0_w       = {`XLEN{1'b0}};
+  assign branch_prefetch_hit_next_pc1_w       = {`XLEN{1'b0}};
+  assign branch_prefetch_hit_packet_next_pc_w = {`XLEN{1'b0}};
+  assign branch_prefetch_hit_inst0_w          = {`INST_W{1'b0}};
+  assign branch_prefetch_hit_inst1_w          = {`INST_W{1'b0}};
+  assign branch_prefetch_hit_resp0_w          = 2'b00;
+  assign branch_prefetch_hit_resp1_w          = 2'b00;
 
+  // OooBranchPrefetchBuffer（req_fire/rsp_capture 恒0 → 恒复位 0）
+  assign branch_prefetch_active_q       = 1'b0;
+  assign branch_prefetch_buffer_valid_q = 1'b0;
+  assign branch_prefetch_pc_q           = {`XLEN{1'b0}};
+  assign branch_prefetch_buf_pc0_q      = {`XLEN{1'b0}};
+  assign branch_prefetch_buf_pc1_q      = {`XLEN{1'b0}};
+  assign branch_prefetch_buf_next_pc0_q = {`XLEN{1'b0}};
+  assign branch_prefetch_buf_next_pc1_q = {`XLEN{1'b0}};
+  assign branch_prefetch_buf_inst0_q    = {`INST_W{1'b0}};
+  assign branch_prefetch_buf_inst1_q    = {`INST_W{1'b0}};
 
-  OooBranchPrefetchRequestGate u_branch_prefetch_request_gate (
-    .stop_pending_i(stop_pending_q),
-    .pending_branch_i(pending_branch_q),
-    .pending_branch_dispatched_i(pending_branch_dispatched_q),
-    .branch_resolve_pending_match_i(branch_resolve_pending_match_w),
-    .jalr_btb_hit_i(pending_jump_jalr_btb_hit_w),
-    .pending_jump_dispatched_i(pending_jump_dispatched_q),
-    .branch_prefetch_active_i(branch_prefetch_active_q),
-    .outstanding_valid_i(outstanding_valid_q),
-    .discard_fetch_rsp_i(discard_fetch_rsp_q),
-    .branch_spec_checkpoint_pending_i(branch_spec_checkpoint_pending_q),
-    .branch_spec_active_i(branch_spec_active_q),
-    .halted_i(halted_q),
-    .trap_valid_i(trap_valid_q),
-    .exit_valid_i(exit_valid_q),
-    .branch_pred_pc_i(branch_prefetch_branch_pred_pc_w),
-    .jalr_btb_target_i(pending_jump_jalr_btb_target_w),
-    .req_ready_i(fetch_req_ready_i),
-    .branch_req_valid_o(branch_prefetch_branch_req_valid_w),
-    .jalr_req_valid_o(branch_prefetch_jalr_req_valid_w),
-    .req_valid_o(branch_prefetch_req_valid_w),
-    .req_fire_o(branch_prefetch_req_fire_w),
-    .req_pc_o(branch_prefetch_req_pc_w)
-  );
+  // prefetch dispatch 安全谓词（消费端 BRANCH_PREFETCH_DISPATCH_ENABLE=1'b0 → don't-care）
+  assign branch_prefetch_dispatch0_safe_w     = 1'b0;
+  assign branch_prefetch_dispatch1_safe_w     = 1'b0;
+  assign branch_prefetch_rsp_dispatch0_safe_w = 1'b0;
+  assign branch_prefetch_rsp_dispatch1_safe_w = 1'b0;
 
+  // OooJalrPrefetchStatusGate + jalr prefetch hit-mux
+  assign jalr_prefetch_hit_available_w = 1'b0;
+  assign jalr_prefetch_pending_match_w = 1'b0;
+  assign jalr_prefetch_hit_pc0_w            = {`XLEN{1'b0}};
+  assign jalr_prefetch_hit_pc1_w            = {`XLEN{1'b0}};
+  assign jalr_prefetch_hit_next_pc0_w       = {`XLEN{1'b0}};
+  assign jalr_prefetch_hit_next_pc1_w       = {`XLEN{1'b0}};
+  assign jalr_prefetch_hit_packet_next_pc_w = {`XLEN{1'b0}};
+  assign jalr_prefetch_hit_inst0_w          = {`INST_W{1'b0}};
+  assign jalr_prefetch_hit_inst1_w          = {`INST_W{1'b0}};
+  assign jalr_prefetch_hit_resp0_w          = 2'b00;
+  assign jalr_prefetch_hit_resp1_w          = 2'b00;
 
-  OooBranchPrefetchStatusGate u_branch_prefetch_status_gate (
-    .branch_prefetch_active_i(branch_prefetch_active_q),
-    .branch_prefetch_buffer_valid_i(branch_prefetch_buffer_valid_q),
-    .stop_pending_i(stop_pending_q),
-    .pending_branch_i(pending_branch_q),
-    .pending_branch_dispatched_i(pending_branch_dispatched_q),
-    .pending_jump_i(pending_jump_q),
-    .pending_jump_jalr_i(pending_jump_jalr_q),
-    .fetch_rsp_fire_i(fetch_rsp_fire_w),
-    .branch_prefetch_pc_i(branch_prefetch_pc_q),
-    .core_branch_resolve_next_pc_i(core_branch_resolve_next_pc_w),
-    .rsp_capture_o(branch_prefetch_rsp_capture_w),
-    .match_o(branch_prefetch_match_w),
-    .buffer_match_o(branch_prefetch_buffer_match_w),
-    .rsp_match_o(branch_prefetch_rsp_match_w),
-    .hit_available_o(branch_prefetch_hit_available_w),
-    .pending_match_o(branch_prefetch_pending_match_w)
-  );
+  // OooJalrBtb（表恒空 → hit 恒0）
+  assign pending_jump_jalr_btb_hit_w = 1'b0;
 
+  // OooBranchTargetCache（capture 恒0 → hit 恒0；payload don't-care）
+  assign branch_target_cache_hit_w       = 1'b0;
+  assign branch_target_cache_target_pc_w = {`XLEN{1'b0}};
+  assign branch_target_cache_next_pc_w   = {`XLEN{1'b0}};
+  assign branch_target_cache_inst_w      = {`INST_W{1'b0}};
 
-  OooFetchPacketHitMux u_branch_prefetch_hit_mux (
-    .rsp_select_i(branch_prefetch_rsp_match_w),
-    .rsp_pc0_i(fetch_dec0_pc_w),
-    .rsp_pc1_i(fetch_dec1_pc_w),
-    .rsp_next_pc0_i(fetch_dec0_next_pc_w),
-    .rsp_next_pc1_i(fetch_dec1_next_pc_w),
-    .rsp_packet_next_pc_i(fetch_rsp_packet_next_pc_w),
-    .rsp_inst0_i(fetch_dec0_inst_w),
-    .rsp_inst1_i(fetch_dec1_inst_w),
-    .rsp_resp0_i(fetch_dec0_resp_w),
-    .rsp_resp1_i(fetch_dec1_resp_w),
-    .buf_pc0_i(branch_prefetch_buf_pc0_q),
-    .buf_pc1_i(branch_prefetch_buf_pc1_q),
-    .buf_next_pc0_i(branch_prefetch_buf_next_pc0_q),
-    .buf_next_pc1_i(branch_prefetch_buf_next_pc1_q),
-    .buf_packet_next_pc_i(branch_prefetch_buf_packet_next_pc_q),
-    .buf_inst0_i(branch_prefetch_buf_inst0_q),
-    .buf_inst1_i(branch_prefetch_buf_inst1_q),
-    .buf_resp0_i(branch_prefetch_buf_resp0_q),
-    .buf_resp1_i(branch_prefetch_buf_resp1_q),
-    .hit_pc0_o(branch_prefetch_hit_pc0_w),
-    .hit_pc1_o(branch_prefetch_hit_pc1_w),
-    .hit_next_pc0_o(branch_prefetch_hit_next_pc0_w),
-    .hit_next_pc1_o(branch_prefetch_hit_next_pc1_w),
-    .hit_packet_next_pc_o(branch_prefetch_hit_packet_next_pc_w),
-    .hit_inst0_o(branch_prefetch_hit_inst0_w),
-    .hit_inst1_o(branch_prefetch_hit_inst1_w),
-    .hit_resp0_o(branch_prefetch_hit_resp0_w),
-    .hit_resp1_o(branch_prefetch_hit_resp1_w)
-  );
+  // OooReturnContBuffer（consume 恒0；下游 return_cont_attempt/dispatch 恒0 → 全 gate 0）
+  assign return_cont_valid_q   = 1'b0;
+  assign return_cont_pc_q      = {`XLEN{1'b0}};
+  assign return_cont_next_pc_q = {`XLEN{1'b0}};
+  assign return_cont_inst_q    = {`INST_W{1'b0}};
+
+  // prefetch/BTC 包解码残留字段（原 4 个 DecodeStage，仅进 glue unused-sink OR）
+  assign branch_target_capture_ctrl_w       = {`CTRL_BUS_W{1'b0}};
+  assign branch_target_capture_rs1_unused_w = {`REG_ADDR_W{1'b0}};
+  assign branch_target_capture_rs2_unused_w = {`REG_ADDR_W{1'b0}};
+  assign branch_target_capture_rd_unused_w  = {`REG_ADDR_W{1'b0}};
+  assign branch_target_capture_imm_unused_w = {`XLEN{1'b0}};
+  assign branch_prefetch0_rs1_unused_w = {`REG_ADDR_W{1'b0}};
+  assign branch_prefetch0_rs2_unused_w = {`REG_ADDR_W{1'b0}};
+  assign branch_prefetch0_rd_unused_w  = {`REG_ADDR_W{1'b0}};
+  assign branch_prefetch0_imm_unused_w = {`XLEN{1'b0}};
+  assign branch_prefetch1_rs1_unused_w = {`REG_ADDR_W{1'b0}};
+  assign branch_prefetch1_rs2_unused_w = {`REG_ADDR_W{1'b0}};
+  assign branch_prefetch1_rd_unused_w  = {`REG_ADDR_W{1'b0}};
+  assign branch_prefetch1_imm_unused_w = {`XLEN{1'b0}};
+  assign branch_prefetch_rsp1_rs1_unused_w = {`REG_ADDR_W{1'b0}};
+  assign branch_prefetch_rsp1_rs2_unused_w = {`REG_ADDR_W{1'b0}};
+  assign branch_prefetch_rsp1_rd_unused_w  = {`REG_ADDR_W{1'b0}};
+  assign branch_prefetch_rsp1_imm_unused_w = {`XLEN{1'b0}};
+  // ==================================================================================================
 
   OooBranchResolveRecoveryGate u_branch_resolve_recovery_gate (
     .stop_pending_i(stop_pending_q),
@@ -1365,57 +1302,6 @@ module OooFrontend #(
   );
 
 
-  OooJalrPrefetchStatusGate u_jalr_prefetch_status_gate (
-    .branch_prefetch_active_i(branch_prefetch_active_q),
-    .branch_prefetch_buffer_valid_i(branch_prefetch_buffer_valid_q),
-    .branch_prefetch_rsp_capture_i(branch_prefetch_rsp_capture_w),
-    .stop_pending_i(stop_pending_q),
-    .pending_jump_i(pending_jump_q),
-    .pending_jump_jalr_i(pending_jump_jalr_q),
-    .pending_jump_dispatched_i(pending_jump_dispatched_q),
-    .pending_jump_target_i(pending_jump_target_q),
-    .pending_jump_resolve_ready_i(pending_jump_resolve_ready_w),
-    .pending_jump_resolved_target_i(pending_jump_resolved_target_w),
-    .pending_jump_misaligned_i(pending_jump_misaligned_w),
-    .branch_prefetch_pc_i(branch_prefetch_pc_q),
-    .match_o(jalr_prefetch_match_w),
-    .buffer_match_o(jalr_prefetch_buffer_match_w),
-    .rsp_match_o(jalr_prefetch_rsp_match_w),
-    .hit_available_o(jalr_prefetch_hit_available_w),
-    .pending_match_o(jalr_prefetch_pending_match_w)
-  );
-
-
-  OooFetchPacketHitMux u_jalr_prefetch_hit_mux (
-    .rsp_select_i(jalr_prefetch_rsp_match_w),
-    .rsp_pc0_i(fetch_dec0_pc_w),
-    .rsp_pc1_i(fetch_dec1_pc_w),
-    .rsp_next_pc0_i(fetch_dec0_next_pc_w),
-    .rsp_next_pc1_i(fetch_dec1_next_pc_w),
-    .rsp_packet_next_pc_i(fetch_rsp_packet_next_pc_w),
-    .rsp_inst0_i(fetch_dec0_inst_w),
-    .rsp_inst1_i(fetch_dec1_inst_w),
-    .rsp_resp0_i(fetch_dec0_resp_w),
-    .rsp_resp1_i(fetch_dec1_resp_w),
-    .buf_pc0_i(branch_prefetch_buf_pc0_q),
-    .buf_pc1_i(branch_prefetch_buf_pc1_q),
-    .buf_next_pc0_i(branch_prefetch_buf_next_pc0_q),
-    .buf_next_pc1_i(branch_prefetch_buf_next_pc1_q),
-    .buf_packet_next_pc_i(branch_prefetch_buf_packet_next_pc_q),
-    .buf_inst0_i(branch_prefetch_buf_inst0_q),
-    .buf_inst1_i(branch_prefetch_buf_inst1_q),
-    .buf_resp0_i(branch_prefetch_buf_resp0_q),
-    .buf_resp1_i(branch_prefetch_buf_resp1_q),
-    .hit_pc0_o(jalr_prefetch_hit_pc0_w),
-    .hit_pc1_o(jalr_prefetch_hit_pc1_w),
-    .hit_next_pc0_o(jalr_prefetch_hit_next_pc0_w),
-    .hit_next_pc1_o(jalr_prefetch_hit_next_pc1_w),
-    .hit_packet_next_pc_o(jalr_prefetch_hit_packet_next_pc_w),
-    .hit_inst0_o(jalr_prefetch_hit_inst0_w),
-    .hit_inst1_o(jalr_prefetch_hit_inst1_w),
-    .hit_resp0_o(jalr_prefetch_hit_resp0_w),
-    .hit_resp1_o(jalr_prefetch_hit_resp1_w)
-  );
 
   // ===== B2: dispatch 期非返回 JALR 投机续取（mode=1）=====
   // 让前端在遇到非返回 JALR 时不再等 pending_jump，而是用 RAS/BTB 预测目标立即续取；
@@ -1430,9 +1316,8 @@ module OooFrontend #(
       ((head0_rs1_w == 5'd1) || (head0_rs1_w == 5'd5)) &&
       (head0_imm_w == {`XLEN{1'b0}});
   wire jalr_spec_use_ras_w = jalr_spec_ret_hint_w && !ras_empty_w;
-  wire jalr_spec_btb_lookup_w = direct_jump_spec_start_w && !jalr_spec_use_ras_w;
-  wire jalr_spec_btb_hit_w;
-  wire [`XLEN-1:0] jalr_spec_btb_target_w;
+  wire jalr_spec_btb_hit_w = 1'b0;   // JALR-BTB 表恒空 → spec 查询恒 miss（死硅拆除 tie-off）
+  wire [`XLEN-1:0] jalr_spec_btb_target_w = {`XLEN{1'b0}};  // 上同，miss 时 don't-care
   // 预测目标优先级：return-hint→RAS top；否则 BTB hit→BTB target；兜底=fallthrough(pc+ilen)。
   wire [`XLEN-1:0] jalr_spec_pred_target_w =
       jalr_spec_use_ras_w ? ras_top_w :
@@ -1440,177 +1325,10 @@ module OooFrontend #(
                             head_next_pc0_w;
   wire direct_jump_spec_fire_w = direct_jump_spec_start_w;
 
-  OooJalrBtb u_jalr_btb (
-    .clk(clk),
-    .rst(rst),
-    .clear_i(flush_i || pending_system_satp_write_commit_w),
-    .lookup_enable_i(pending_jump_jalr_btb_lookup_w),
-    .lookup_pc_i(pending_jump_pc_q),
-    .lookup_idx_o(pending_jump_jalr_btb_idx_w),
-    .lookup_entry_hit_o(pending_jump_jalr_btb_entry_hit_w),
-    .lookup_hit_o(pending_jump_jalr_btb_hit_w),
-    .lookup_target_o(pending_jump_jalr_btb_target_w),
-    .spec_lookup_enable_i(jalr_spec_btb_lookup_w),
-    .spec_lookup_pc_i(head_pc_w),
-    .spec_lookup_hit_o(jalr_spec_btb_hit_w),
-    .spec_lookup_target_o(jalr_spec_btb_target_w),
-    .update_valid_i(jalr_btb_update_w),
-    .update_pc_i(pending_jump_pc_q),
-    .update_target_i(pending_jump_resolved_target_w)
-  );
 
 
-  OooFrontendUopSafety #(
-    .REQUIRE_RESP_OK(1'b1),
-    .REJECT_SEMIHOST_ENTER(1'b0),
-    .ALLOW_LOAD(1'b1),
-    .ALLOW_STORE(1'b0),
-    .ALLOW_MULDIV(1'b1),
-    .ALLOW_BITMANIP(1'b1),
-    .ALLOW_SFENCE(1'b0),
-    .ALLOW_SRET(1'b0),
-    .ALLOW_AMO(1'b0),
-    .CHECK_RD_HAZARD(1'b0)
-  ) u_branch_prefetch_buf0_safety (
-    .ctrl_i(branch_prefetch0_ctrl_w),
-    .resp_i(branch_prefetch_buf_resp0_q),
-    .inst_i(32'h0000_0013),
-    .rd_i({`REG_ADDR_W{1'b0}}),
-    .hazard_rs_i({`REG_ADDR_W{1'b0}}),
-    .safe_o(branch_prefetch_dispatch0_safe_w)
-  );
 
 
-  OooFrontendUopSafety #(
-    .REQUIRE_RESP_OK(1'b1),
-    .REJECT_SEMIHOST_ENTER(1'b0),
-    .ALLOW_LOAD(1'b1),
-    .ALLOW_STORE(1'b0),
-    .ALLOW_MULDIV(1'b1),
-    .ALLOW_BITMANIP(1'b1),
-    .ALLOW_SFENCE(1'b0),
-    .ALLOW_SRET(1'b0),
-    .ALLOW_AMO(1'b0),
-    .CHECK_RD_HAZARD(1'b0)
-  ) u_branch_prefetch_buf1_safety (
-    .ctrl_i(branch_prefetch1_ctrl_w),
-    .resp_i(branch_prefetch_buf_resp1_q),
-    .inst_i(32'h0000_0013),
-    .rd_i({`REG_ADDR_W{1'b0}}),
-    .hazard_rs_i({`REG_ADDR_W{1'b0}}),
-    .safe_o(branch_prefetch_dispatch1_safe_w)
-  );
-
-
-  OooFrontendUopSafety #(
-    .REQUIRE_RESP_OK(1'b1),
-    .REJECT_SEMIHOST_ENTER(1'b0),
-    .ALLOW_LOAD(1'b1),
-    .ALLOW_STORE(1'b0),
-    .ALLOW_MULDIV(1'b1),
-    .ALLOW_BITMANIP(1'b1),
-    .ALLOW_SFENCE(1'b0),
-    .ALLOW_SRET(1'b0),
-    .ALLOW_AMO(1'b0),
-    .CHECK_RD_HAZARD(1'b0)
-  ) u_branch_prefetch_rsp0_safety (
-    .ctrl_i(branch_target_capture_ctrl_w),
-    .resp_i(fetch_dec0_resp_w),
-    .inst_i(32'h0000_0013),
-    .rd_i({`REG_ADDR_W{1'b0}}),
-    .hazard_rs_i({`REG_ADDR_W{1'b0}}),
-    .safe_o(branch_prefetch_rsp_dispatch0_safe_w)
-  );
-
-
-  OooFrontendUopSafety #(
-    .REQUIRE_RESP_OK(1'b1),
-    .REJECT_SEMIHOST_ENTER(1'b0),
-    .ALLOW_LOAD(1'b1),
-    .ALLOW_STORE(1'b0),
-    .ALLOW_MULDIV(1'b1),
-    .ALLOW_BITMANIP(1'b1),
-    .ALLOW_SFENCE(1'b0),
-    .ALLOW_SRET(1'b0),
-    .ALLOW_AMO(1'b0),
-    .CHECK_RD_HAZARD(1'b0)
-  ) u_branch_prefetch_rsp1_safety (
-    .ctrl_i(branch_prefetch_rsp1_ctrl_w),
-    .resp_i(fetch_dec1_resp_w),
-    .inst_i(32'h0000_0013),
-    .rd_i({`REG_ADDR_W{1'b0}}),
-    .hazard_rs_i({`REG_ADDR_W{1'b0}}),
-    .safe_o(branch_prefetch_rsp_dispatch1_safe_w)
-  );
-
-
-  OooBranchTargetCacheControlGate u_branch_target_cache_control_gate (
-    .mem_req_valid_i(mem_req_valid_o),
-    .mem_req_ready_i(mem_req_ready_i),
-    .mem_req_write_i(mem_req_write_o),
-    .mem_req_addr_i(mem_req_addr_o),
-    .core_commit0_valid_i(core_commit0_valid_w),
-    .core_commit0_inst_i(core_commit0_inst_w),
-    .core_commit1_valid_i(core_commit1_valid_w),
-    .core_commit1_inst_i(core_commit1_inst_w),
-    .direct_frontend_flush_i(direct_frontend_flush_w),
-    .direct_branch_resolve_redirect_i(direct_branch_resolve_redirect_w),
-    .direct_branch0_lane1_ret_i(direct_branch0_lane1_ret_w),
-    .branch_target_dispatch_i(branch_target_dispatch_w),
-    .direct_branch_resolve_taken_i(direct_branch_resolve_taken_w),
-    .direct_branch1_fire_i(direct_branch1_fire_w),
-    .head_pc0_i(head_pc_w),
-    .head_pc1_i(head_pc1_w),
-    .branch_target_store_fire_o(branch_target_store_fire_w),
-    .branch_target_store_addr_o(branch_target_store_addr_w),
-    .branch_target_cache_invalidate_all_o(
-        branch_target_cache_invalidate_all_w),
-    .branch_target_capture_arm_o(branch_target_capture_arm_w),
-    .branch_target_capture_arm_branch_pc_o(
-        branch_target_capture_arm_branch_pc_w)
-  );
-
-
-  OooBranchTargetCaptureBuffer u_branch_target_capture_buffer (
-    .clk(clk),
-    .rst(rst || flush_i),
-    .global_clear_i(csr_trap_mem_valid_w),
-    .frontend_clear_i(direct_frontend_flush_w),
-    .hit_clear_enable_i(!branch_target_cache_invalidate_all_w),
-    .arm_i(branch_target_capture_arm_w),
-    .arm_branch_pc_i(branch_target_capture_arm_branch_pc_w),
-    .arm_target_pc_i(direct_branch_resolve_next_pc_w),
-    .rsp_valid_i(fetch_rsp_fire_w),
-    .rsp_pc_i(fetch_dec0_pc_w),
-    .pending_o(branch_target_capture_pending_q),
-    .branch_pc_o(branch_target_capture_branch_pc_q),
-    .target_pc_o(branch_target_capture_target_pc_q),
-    .hit_o(branch_target_capture_hit_w)
-  );
-
-
-  OooBranchTargetCache #(
-    .INDEX_W(BRANCH_TARGET_CACHE_INDEX_W)
-  ) u_branch_target_cache (
-    .clk(clk),
-    .rst(rst),
-    .clear_i(flush_i || pending_system_satp_write_commit_w),
-    .lookup_branch_pc_i(head_pc_w),
-    .lookup_target_pc_i(head0_branch_target_w),
-    .lookup_idx_o(branch_target_cache_idx_unused_w),
-    .lookup_hit_o(branch_target_cache_hit_w),
-    .lookup_target_pc_o(branch_target_cache_target_pc_w),
-    .lookup_next_pc_o(branch_target_cache_next_pc_w),
-    .lookup_inst_o(branch_target_cache_inst_w),
-    .invalidate_all_i(branch_target_cache_invalidate_all_w),
-    .store_fire_i(branch_target_store_fire_w),
-    .store_addr_i(branch_target_store_addr_w),
-    .capture_valid_i(branch_target_cache_capture_w),
-    .capture_branch_pc_i(branch_target_capture_branch_pc_q),
-    .capture_target_pc_i(branch_target_capture_target_pc_q),
-    .capture_next_pc_i(fetch_dec0_next_pc_w),
-    .capture_inst_i(fetch_dec0_inst_w)
-  );
 
 
   OooBranchAppendDispatchGate #(
@@ -1686,57 +1404,6 @@ module OooFrontend #(
 
 
 
-  OooBranchPrefetchClearGate u_branch_prefetch_clear_gate (
-    .csr_trap_mem_valid_i(csr_trap_mem_valid_w),
-    .direct_frontend_flush_i(direct_frontend_flush_w),
-    .branch_spec_resolve_valid_i(branch_spec_resolve_valid_w),
-    .pending_branch_commit_resolve_i(pending_branch_commit_resolve_w),
-    .pending_branch_match_clear_i(pending_branch_match_clear_w),
-    .branch_resolve_untracked_i(branch_resolve_untracked_w),
-    .pending_jump_resolve_ready_i(pending_jump_resolve_ready_w),
-    .pending_jump_misaligned_i(pending_jump_misaligned_w),
-    .pending_jump_nolink_commit_i(pending_jump_nolink_commit_w),
-    .pending_jump_redirect_after_dispatch_i(
-        pending_jump_redirect_after_dispatch_w),
-    .pending_system_csr_commit_i(pending_system_csr_commit_w),
-    .stop_pending_i(stop_pending_q),
-    .drain_complete_i(drain_complete_w),
-    .pending_arch_trap_i(pending_arch_trap_q),
-    .pending_system_i(pending_system_q),
-    .pending_jump_i(pending_jump_q),
-    .clear_o(branch_prefetch_clear_w)
-  );
-
-
-  OooBranchPrefetchBuffer u_branch_prefetch_buffer (
-    .clk(clk),
-    .rst(rst || flush_i),
-    .clear_i(branch_prefetch_clear_w),
-    .req_fire_i(branch_prefetch_req_fire_w),
-    .req_pc_i(branch_prefetch_req_pc_w),
-    .rsp_capture_i(branch_prefetch_rsp_capture_w),
-    .rsp_pc0_i(fetch_dec0_pc_w),
-    .rsp_pc1_i(fetch_dec1_pc_w),
-    .rsp_next_pc0_i(fetch_dec0_next_pc_w),
-    .rsp_next_pc1_i(fetch_dec1_next_pc_w),
-    .rsp_packet_next_pc_i(fetch_rsp_packet_next_pc_w),
-    .rsp_inst0_i(fetch_dec0_inst_w),
-    .rsp_inst1_i(fetch_dec1_inst_w),
-    .rsp_resp0_i(fetch_dec0_resp_w),
-    .rsp_resp1_i(fetch_dec1_resp_w),
-    .active_o(branch_prefetch_active_q),
-    .buffer_valid_o(branch_prefetch_buffer_valid_q),
-    .pc_o(branch_prefetch_pc_q),
-    .buf_pc0_o(branch_prefetch_buf_pc0_q),
-    .buf_pc1_o(branch_prefetch_buf_pc1_q),
-    .buf_next_pc0_o(branch_prefetch_buf_next_pc0_q),
-    .buf_next_pc1_o(branch_prefetch_buf_next_pc1_q),
-    .buf_packet_next_pc_o(branch_prefetch_buf_packet_next_pc_q),
-    .buf_inst0_o(branch_prefetch_buf_inst0_q),
-    .buf_inst1_o(branch_prefetch_buf_inst1_q),
-    .buf_resp0_o(branch_prefetch_buf_resp0_q),
-    .buf_resp1_o(branch_prefetch_buf_resp1_q)
-  );
 
 
   OooFetchPacketSeedMux u_fetch_packet_seed_mux (
@@ -2186,44 +1853,6 @@ module OooFrontend #(
   );
 
 
-  DecodeStage u_branch_target_capture_decode (
-    .inst_i(fetch_dec0_inst_w),
-    .ctrl_o(branch_target_capture_ctrl_w),
-    .rs1_idx_o(branch_target_capture_rs1_unused_w),
-    .rs2_idx_o(branch_target_capture_rs2_unused_w),
-    .rd_idx_o(branch_target_capture_rd_unused_w),
-    .imm_o(branch_target_capture_imm_unused_w)
-  );
-
-
-  DecodeStage u_branch_prefetch0_decode (
-    .inst_i(branch_prefetch_buf_inst0_q),
-    .ctrl_o(branch_prefetch0_ctrl_w),
-    .rs1_idx_o(branch_prefetch0_rs1_unused_w),
-    .rs2_idx_o(branch_prefetch0_rs2_unused_w),
-    .rd_idx_o(branch_prefetch0_rd_unused_w),
-    .imm_o(branch_prefetch0_imm_unused_w)
-  );
-
-
-  DecodeStage u_branch_prefetch1_decode (
-    .inst_i(branch_prefetch_buf_inst1_q),
-    .ctrl_o(branch_prefetch1_ctrl_w),
-    .rs1_idx_o(branch_prefetch1_rs1_unused_w),
-    .rs2_idx_o(branch_prefetch1_rs2_unused_w),
-    .rd_idx_o(branch_prefetch1_rd_unused_w),
-    .imm_o(branch_prefetch1_imm_unused_w)
-  );
-
-
-  DecodeStage u_branch_prefetch_rsp1_decode (
-    .inst_i(fetch_dec1_inst_w),
-    .ctrl_o(branch_prefetch_rsp1_ctrl_w),
-    .rs1_idx_o(branch_prefetch_rsp1_rs1_unused_w),
-    .rs2_idx_o(branch_prefetch_rsp1_rs2_unused_w),
-    .rd_idx_o(branch_prefetch_rsp1_rd_unused_w),
-    .imm_o(branch_prefetch_rsp1_imm_unused_w)
-  );
 
 
   OooRasUpdateGate u_ras_update_gate (
@@ -2343,21 +1972,6 @@ module OooFrontend #(
   );
 
 
-  OooReturnContBuffer u_return_cont_buffer (
-      .clk(clk),
-      .rst(rst || flush_i),
-      .clear_i(ras_clear_w),
-      .consume_i(return_cont_dispatch_w),
-      .capture_i(direct_jal_call_w),
-      .capture_valid_i(return_cont_capture_w),
-      .capture_pc_i(head_pc1_w),
-      .capture_next_pc_i(head_next_pc1_w),
-      .capture_inst_i(head_inst1_w),
-      .valid_o(return_cont_valid_q),
-      .pc_o(return_cont_pc_q),
-      .next_pc_o(return_cont_next_pc_q),
-      .inst_o(return_cont_inst_q)
-  );
 
 `ifdef ROB_WALK_DEBUG
   // 单行对照表：jump(含 jalr) 在 head 时，把 dispatch 链上下游信号排在同一时间轴一行，便于定位卡点。

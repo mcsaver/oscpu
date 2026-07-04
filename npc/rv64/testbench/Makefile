@@ -77,20 +77,13 @@ TESTS := \
   tb_ooo_pending_jump_sequencer \
   tb_ooo_branch_append_dispatch_gate \
   tb_ooo_branch_bpu_update_gate \
-  tb_ooo_branch_target_cache_control_gate \
   tb_ooo_memory_request_gate \
   tb_ooo_pending_memory_sequencer \
   tb_ooo_frontend_run_gate \
   tb_ooo_frontend_action_gate \
   tb_ooo_fetch_request_mux \
-  tb_ooo_branch_prefetch_source_gate \
-  tb_ooo_branch_prefetch_request_gate \
-  tb_ooo_branch_prefetch_status_gate \
-  tb_ooo_jalr_prefetch_status_gate \
-  tb_ooo_branch_prefetch_buffer \
   tb_ooo_direct_branch_wait_buffer \
   tb_ooo_backend_drain_tracker \
-  tb_ooo_fetch_packet_hit_mux \
   tb_ooo_fetch_packet_head_mux \
   tb_ooo_fetch_packet_seed_mux \
   tb_ooo_fetch_packet_decode \
@@ -100,8 +93,6 @@ TESTS := \
   tb_ooo_fetch_head_classify_gate \
   tb_ooo_fetch_packet_cache \
   tb_ooo_data_word_cache \
-  tb_ooo_branch_target_cache \
-  tb_ooo_branch_target_capture_buffer \
   tb_ooo_fetch_axi_bridge \
   tb_ooo_fetch_trap_gate \
   tb_ooo_priv_system \
@@ -175,20 +166,13 @@ TB_SRCS_tb_ooo_pending_branch_sequencer := tests/tb_ooo_pending_branch_sequencer
 TB_SRCS_tb_ooo_pending_jump_sequencer := tests/tb_ooo_pending_jump_sequencer.sv $(RTL_OOO_PENDING_JUMP_SEQUENCER)
 TB_SRCS_tb_ooo_branch_append_dispatch_gate := tests/tb_ooo_branch_append_dispatch_gate.sv $(RTL_OOO_BRANCH_APPEND_DISPATCH_GATE)
 TB_SRCS_tb_ooo_branch_bpu_update_gate := tests/tb_ooo_branch_bpu_update_gate.sv $(RTL_OOO_BRANCH_BPU_UPDATE_GATE)
-TB_SRCS_tb_ooo_branch_target_cache_control_gate := tests/tb_ooo_branch_target_cache_control_gate.sv $(RTL_OOO_BRANCH_TARGET_CACHE_CONTROL_GATE)
 TB_SRCS_tb_ooo_memory_request_gate := tests/tb_ooo_memory_request_gate.sv $(RTL_OOO_MEMORY_REQUEST_GATE)
 TB_SRCS_tb_ooo_pending_memory_sequencer := tests/tb_ooo_pending_memory_sequencer.sv $(RTL_OOO_PENDING_MEMORY_SEQUENCER)
 TB_SRCS_tb_ooo_frontend_run_gate := tests/tb_ooo_frontend_run_gate.sv $(RTL_OOO_FRONTEND_RUN_GATE)
 TB_SRCS_tb_ooo_frontend_action_gate := tests/tb_ooo_frontend_action_gate.sv $(RTL_OOO_FRONTEND_ACTION_GATE)
 TB_SRCS_tb_ooo_fetch_request_mux := tests/tb_ooo_fetch_request_mux.sv $(RTL_OOO_FETCH_REQUEST_MUX)
-TB_SRCS_tb_ooo_branch_prefetch_source_gate := tests/tb_ooo_branch_prefetch_source_gate.sv $(RTL_OOO_BRANCH_PREFETCH_SOURCE_GATE)
-TB_SRCS_tb_ooo_branch_prefetch_request_gate := tests/tb_ooo_branch_prefetch_request_gate.sv $(RTL_OOO_BRANCH_PREFETCH_REQUEST_GATE)
-TB_SRCS_tb_ooo_branch_prefetch_status_gate := tests/tb_ooo_branch_prefetch_status_gate.sv $(RTL_OOO_BRANCH_PREFETCH_STATUS_GATE)
-TB_SRCS_tb_ooo_jalr_prefetch_status_gate := tests/tb_ooo_jalr_prefetch_status_gate.sv $(RTL_OOO_JALR_PREFETCH_STATUS_GATE)
-TB_SRCS_tb_ooo_branch_prefetch_buffer := tests/tb_ooo_branch_prefetch_buffer.sv $(RTL_OOO_BRANCH_PREFETCH_BUFFER)
 TB_SRCS_tb_ooo_direct_branch_wait_buffer := tests/tb_ooo_direct_branch_wait_buffer.sv $(RTL_OOO_DIRECT_BRANCH_WAIT_BUFFER)
 TB_SRCS_tb_ooo_backend_drain_tracker := tests/tb_ooo_backend_drain_tracker.sv $(RTL_OOO_BACKEND_DRAIN_TRACKER)
-TB_SRCS_tb_ooo_fetch_packet_hit_mux := tests/tb_ooo_fetch_packet_hit_mux.sv $(RTL_OOO_FETCH_PACKET_HIT_MUX)
 TB_SRCS_tb_ooo_fetch_packet_head_mux := tests/tb_ooo_fetch_packet_head_mux.sv $(RTL_OOO_FETCH_PACKET_HEAD_MUX)
 TB_SRCS_tb_ooo_fetch_packet_seed_mux := tests/tb_ooo_fetch_packet_seed_mux.sv $(RTL_OOO_FETCH_PACKET_SEED_MUX)
 TB_SRCS_tb_ooo_fetch_packet_decode := tests/tb_ooo_fetch_packet_decode.sv $(RTL_OOO_RVC_DECOMPRESSOR) $(RTL_OOO_FETCH_PACKET_DECODE)
@@ -198,8 +182,6 @@ TB_SRCS_tb_ooo_fetch_head_pair_gate := tests/tb_ooo_fetch_head_pair_gate.sv $(RT
 TB_SRCS_tb_ooo_fetch_head_classify_gate := tests/tb_ooo_fetch_head_classify_gate.sv $(RTL_OOO_FP_DECODE) $(RTL_OOO_FETCH_HEAD_CLASSIFY_GATE)
 TB_SRCS_tb_ooo_fetch_packet_cache := tests/tb_ooo_fetch_packet_cache.sv $(RTL_OOO_FETCH_PACKET_CACHE)
 TB_SRCS_tb_ooo_data_word_cache := tests/tb_ooo_data_word_cache.sv $(RTL_OOO_DATA_WORD_CACHE)
-TB_SRCS_tb_ooo_branch_target_cache := tests/tb_ooo_branch_target_cache.sv $(RTL_OOO_BRANCH_TARGET_CACHE)
-TB_SRCS_tb_ooo_branch_target_capture_buffer := tests/tb_ooo_branch_target_capture_buffer.sv $(RTL_OOO_BRANCH_TARGET_CAPTURE_BUFFER)
 TB_SRCS_tb_ooo_fetch_axi_bridge := tests/tb_ooo_fetch_axi_bridge.sv $(RTL_PMP_CHECKER) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
 TB_SRCS_tb_ooo_fetch_trap_gate := tests/tb_ooo_fetch_trap_gate.sv $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
 TB_SRCS_tb_ooo_priv_system := tests/tb_ooo_priv_system.sv $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
