@@ -114,7 +114,7 @@ module OooControlPlane #(
   input pending_jump_redirect_after_dispatch_w,
   input pending_jump_resolve_ready_w,
   input [`XLEN-1:0] pending_jump_resolved_target_w,
-  input pending_mem_dispatched_q,
+  // pending_mem 全链已删除；本 sensor 仅供 trap-exit-mux/observable 读取（恒 0，父模块 tie-off）。
   input pending_mem_q,
   input [ROB_COUNT_W-1:0] rob_count_o,
   input rst,
@@ -167,7 +167,6 @@ module OooControlPlane #(
   output halted_q,
   output head0_csr_illegal_w,
   output jump_dispatch_valid_w,
-  output mem_dispatch_valid_w,
   output [`XLEN-1:0] mstatus_o,
   output pending_arch_trap_fire_w,
   output pending_arch_trap_q,
@@ -181,8 +180,7 @@ module OooControlPlane #(
   output pending_jump_capture_head0_w,
   output pending_jump_capture_lane1_w,
   output pending_jump_clear_w,
-  output pending_mem_capture_lane1_w,
-  output pending_mem_clear_w,
+  // pending_mem 全链已删除；本信号恒 0（内部 assign tie-off），仅供 stop_pending/trap-exit/fetch sensor 读取。
   output pending_mem_resolve_ready_w,
   output pending_replay_wait_w,
   output pending_system_capture_head0_w,
@@ -380,8 +378,6 @@ module OooControlPlane #(
     .pending_jump_resolve_ready_i(pending_jump_resolve_ready_w),
     .pending_jump_nolink_i(pending_jump_nolink_w),
     .pending_jump_misaligned_i(pending_jump_misaligned_w),
-    .pending_mem_i(pending_mem_q),
-    .pending_mem_dispatched_i(pending_mem_dispatched_q),
     .pending_system_i(pending_system_q),
     .pending_system_csr_i(pending_system_csr_q),
     .pending_system_dispatched_i(pending_system_dispatched_q),
@@ -390,13 +386,16 @@ module OooControlPlane #(
     .jump_dispatch_valid_o(jump_dispatch_valid_w),
     .system_csr_dispatch_valid_o(system_csr_dispatch_valid_w),
     .system_csr_dispatch_fire_o(system_csr_dispatch_fire_w),
-    .pending_mem_resolve_ready_o(pending_mem_resolve_ready_w),
-    .mem_dispatch_valid_o(mem_dispatch_valid_w),
     .pending_branch_commit_resolve_o(pending_branch_commit_resolve_w),
     .pending_branch_match_clear_o(pending_branch_match_clear_w),
     .pending_replay_wait_o(pending_replay_wait_w),
     .drain_complete_o(drain_complete_w)
   );
+
+  // 【pending_mem 全链已删除】lane1 barrier 谓词与 FACT_MEM 严格互斥 → capture 恒 0，
+  // 整条 pending_mem 序列/仲裁/drain 臂退休。仍被 stop_pending/trap-exit/fetch sensor 读取的
+  // resolve_ready 恒等常量 0（rtl-ground-truth §4）。
+  assign pending_mem_resolve_ready_w = 1'b0;
 
   // B2: ROB-walk 模式开关——branch/jump 在 mode=1 改投机+ROB-walk 恢复，不再 pending+drain。
   wire rob_walk_mode_w = `OOO_ROB_WALK_MODE;
@@ -451,8 +450,6 @@ module OooControlPlane #(
     .pending_jump_capture_head0_o(pending_jump_capture_head0_w),
     .pending_jump_capture_lane1_o(pending_jump_capture_lane1_w),
     .pending_jump_clear_o(pending_jump_clear_w),
-    .pending_mem_capture_lane1_o(pending_mem_capture_lane1_w),
-    .pending_mem_clear_o(pending_mem_clear_w),
     .pending_trap_exit_clear_exit_o(pending_trap_exit_clear_exit_w),
     .pending_trap_exit_clear_arch_o(pending_trap_exit_clear_arch_w),
     .pending_trap_exit_clear_arch_squash_o(pending_trap_exit_clear_arch_squash_w),

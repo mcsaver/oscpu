@@ -1,12 +1,12 @@
 `include "define.v"
-`include "common/OooSlotFacts.v"
 
-// OooMemoryAccess: OoO core 子系统 wrapper（纯结构聚合，从 OooCoreTopGlue 抽出 2 个实例）。
-// 行为与原扁平实例化等价：仅把跨边界信号导出为端口，内部信号下沉。
+// OooMemoryAccess: OoO core 子系统 wrapper（纯结构聚合）。
+// 【pending_mem 全链已删除】rtl-ground-truth §4：lane1 barrier 谓词与 FACT_MEM 严格互斥
+// → OooPendingMemorySequencer 的 capture 恒 0（结构不可达），整链退休。本 wrapper 现仅
+// 承载活的访存请求门 OooMemoryRequestGate（纯组合，故已无 clk/rst/flush）。
 module OooMemoryAccess (
   input backend_drained_q,
   input checkpoint_mem_flush_q,
-  input clk,
   input core_local_flush_w,
   input [`XLEN-1:0] core_mem_req_addr_w,
   input core_mem_req_valid_w,
@@ -17,21 +17,10 @@ module OooMemoryAccess (
   input core_mem_req_nokill_w,
   input [`STRB_W-1:0] core_mem_req_wstrb_w,
   input core_mem_rsp_ready_w,
-  input csr_trap_mem_valid_w,
-  input flush_i,
-  input head1_mem_raw_w,
-  input [`INST_W-1:0] head_inst1_w,
-  input [`XLEN-1:0] head_next_pc1_w,
-  input [`XLEN-1:0] head_pc1_w,
-  input mem_dispatch_fire_w,
   input mem_req_ready_i,
   input mem_rsp_valid_i,
-  input orphan_stop_pending_w,
-  input pending_mem_capture_lane1_w,
-  input pending_mem_clear_w,
   input pending_system_satp_write_commit_w,
   input pending_system_sfence_commit_w,
-  input rst,
   input stop_pending_q,
   output mem_flush_o,
   output [`XLEN-1:0] mem_req_addr_o,
@@ -43,33 +32,8 @@ module OooMemoryAccess (
   output mem_req_nokill_o,
   output [`STRB_W-1:0] mem_req_wstrb_o,
   output mem_rsp_ready_o,
-  output mmu_flush_o,
-  output pending_mem_dispatched_q,
-  output [`INST_W-1:0] pending_mem_inst_q,
-  output [`XLEN-1:0] pending_mem_next_pc_q,
-  output [`XLEN-1:0] pending_mem_pc_q,
-  output pending_mem_q
+  output mmu_flush_o
 );
-
-
-  OooPendingMemorySequencer u_pending_memory_sequencer (
-    .clk(clk),
-    .rst(rst || flush_i),
-    .late_clear_i(csr_trap_mem_valid_w),
-    .clear_i(pending_mem_clear_w),
-    .clear_dispatched_i(orphan_stop_pending_w),
-    .dispatch_fire_i(mem_dispatch_fire_w),
-    .capture_lane1_i(pending_mem_capture_lane1_w),
-    .capture_valid_i(head1_mem_raw_w),
-    .capture_pc_i(head_pc1_w),
-    .capture_inst_i(head_inst1_w),
-    .capture_next_pc_i(head_next_pc1_w),
-    .valid_o(pending_mem_q),
-    .dispatched_o(pending_mem_dispatched_q),
-    .pc_o(pending_mem_pc_q),
-    .inst_o(pending_mem_inst_q),
-    .next_pc_o(pending_mem_next_pc_q)
-  );
 
 
   OooMemoryRequestGate u_memory_request_gate (

@@ -26,8 +26,6 @@ module OooPendingDrainResolveGate #(
   input pending_jump_resolve_ready_i,
   input pending_jump_nolink_i,
   input pending_jump_misaligned_i,
-  input pending_mem_i,
-  input pending_mem_dispatched_i,
   // 【LSQ·SQ 切换】退休侧访存静默: SQ 化后 ROB 空不再隐含"store 已全部落存"
   // (退休 store 可能仍在 SQ 待 drain), 串行点必须等它。
   input mem_retire_quiet_i,
@@ -38,8 +36,6 @@ module OooPendingDrainResolveGate #(
   output jump_dispatch_valid_o,
   output system_csr_dispatch_valid_o,
   output system_csr_dispatch_fire_o,
-  output pending_mem_resolve_ready_o,
-  output mem_dispatch_valid_o,
   output pending_branch_commit_resolve_o,
   output pending_branch_match_clear_o,
   output pending_replay_wait_o,
@@ -66,17 +62,12 @@ module OooPendingDrainResolveGate #(
   assign system_csr_dispatch_fire_o =
       system_csr_dispatch_valid_o && dispatch0_ready_i;
 
-  assign pending_mem_resolve_ready_o =
-      stop_pending_i && pending_mem_i && !pending_mem_dispatched_i &&
-      backend_drained_q_i;
-  assign mem_dispatch_valid_o = pending_mem_resolve_ready_o;
-
   assign pending_branch_commit_resolve_o =
       !direct_frontend_flush_i && stop_pending_i && backend_drained_o &&
       pending_branch_i && pending_branch_dispatched_i &&
       !branch_resolve_pending_match_i && !branch_spec_active_i &&
       !branch_spec_checkpoint_pending_i && !pending_jump_i &&
-      !pending_mem_i && !pending_arch_trap_i &&
+      !pending_arch_trap_i &&
       !pending_system_i;
   assign pending_branch_match_clear_o =
       !direct_frontend_flush_i && stop_pending_i && pending_branch_i &&
@@ -86,7 +77,6 @@ module OooPendingDrainResolveGate #(
   assign pending_replay_wait_o =
       pending_branch_resolve_wait_w ||
       (pending_jump_i && !pending_jump_dispatched_i) ||
-      (pending_mem_i && !pending_mem_dispatched_i) ||
       (pending_system_i && pending_system_csr_i);
   assign drain_complete_o =
       stop_pending_i && backend_drained_o && pending_control_ready_i &&

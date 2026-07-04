@@ -16,7 +16,6 @@ module OooPendingLane1CaptureGate (
   output branch_capture_o,
   output jump_capture_o,
   output fp_capture_o,
-  output mem_capture_o,
 
   output trap_exit_capture_o,
   output trap_exit_arch_valid_o,
@@ -30,7 +29,6 @@ module OooPendingLane1CaptureGate (
   wire system_raw_w = facts_i[`OOO_SLOT_FACT_SYSTEM];
   wire branch_raw_w = facts_i[`OOO_SLOT_FACT_BRANCH];
   wire jump_raw_w = facts_i[`OOO_SLOT_FACT_JUMP];
-  wire mem_raw_w = facts_i[`OOO_SLOT_FACT_MEM];
   wire fp_enabled_w = facts_i[`OOO_SLOT_FACT_FP_ENABLED];
   wire exit_raw_w = facts_i[`OOO_SLOT_FACT_EXIT];
   wire ecall_raw_w = facts_i[`OOO_SLOT_FACT_ECALL];
@@ -47,7 +45,6 @@ module OooPendingLane1CaptureGate (
   assign branch_capture_o = barrier_base_i && branch_raw_w;
   assign jump_capture_o = barrier_base_i && jump_raw_w;
   assign fp_capture_o = barrier_base_i && fp_enabled_w;
-  assign mem_capture_o = barrier_base_i && mem_raw_w;
 
   assign trap_exit_capture_o = barrier_base_i;
   assign trap_exit_arch_valid_o =

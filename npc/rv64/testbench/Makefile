@@ -78,7 +78,6 @@ TESTS := \
   tb_ooo_branch_append_dispatch_gate \
   tb_ooo_branch_bpu_update_gate \
   tb_ooo_memory_request_gate \
-  tb_ooo_pending_memory_sequencer \
   tb_ooo_frontend_run_gate \
   tb_ooo_frontend_action_gate \
   tb_ooo_fetch_request_mux \
@@ -167,7 +166,6 @@ TB_SRCS_tb_ooo_pending_jump_sequencer := tests/tb_ooo_pending_jump_sequencer.sv 
 TB_SRCS_tb_ooo_branch_append_dispatch_gate := tests/tb_ooo_branch_append_dispatch_gate.sv $(RTL_OOO_BRANCH_APPEND_DISPATCH_GATE)
 TB_SRCS_tb_ooo_branch_bpu_update_gate := tests/tb_ooo_branch_bpu_update_gate.sv $(RTL_OOO_BRANCH_BPU_UPDATE_GATE)
 TB_SRCS_tb_ooo_memory_request_gate := tests/tb_ooo_memory_request_gate.sv $(RTL_OOO_MEMORY_REQUEST_GATE)
-TB_SRCS_tb_ooo_pending_memory_sequencer := tests/tb_ooo_pending_memory_sequencer.sv $(RTL_OOO_PENDING_MEMORY_SEQUENCER)
 TB_SRCS_tb_ooo_frontend_run_gate := tests/tb_ooo_frontend_run_gate.sv $(RTL_OOO_FRONTEND_RUN_GATE)
 TB_SRCS_tb_ooo_frontend_action_gate := tests/tb_ooo_frontend_action_gate.sv $(RTL_OOO_FRONTEND_ACTION_GATE)
 TB_SRCS_tb_ooo_fetch_request_mux := tests/tb_ooo_fetch_request_mux.sv $(RTL_OOO_FETCH_REQUEST_MUX)

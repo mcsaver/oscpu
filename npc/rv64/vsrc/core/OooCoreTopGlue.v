@@ -158,8 +158,11 @@ module OooCoreTopGlue #(
   wire pending_jump_q;
   wire pending_jump_dispatched_q;
   wire pending_jump_jalr_q;
-  wire pending_mem_q;
-  wire pending_mem_dispatched_q;
+  // [死硅 tie-off] pending_mem 全链已删除(rtl-ground-truth §4：lane1 barrier 谓词与
+  // FACT_MEM 严格互斥 → OooPendingMemorySequencer capture 恒 0，结构不可达)。valid/next_pc
+  // 原本恒 0，改为显式常量 0，保持下游 KEEP sensor(RunGate/FetchPc/SeedMux/TrapExit/
+  // Observable/Writeback)与 sim 探针(u_ooo_core.pending_mem_q)行为不变。
+  wire pending_mem_q = 1'b0;
   wire pending_arch_trap_q;
   wire [`TRAP_CAUSE_W-1:0] pending_trap_cause_q;
   wire [`XLEN-1:0] pending_branch_pc_q;
@@ -178,9 +181,7 @@ module OooCoreTopGlue #(
   wire synth_lane1_ret_pending_q = 1'b0;
   wire synth_lane1_ret_branch_seen_q = 1'b0;
   wire synth_lane1_branch_drop_pending_q = 1'b0;
-  wire [`XLEN-1:0] pending_mem_pc_q;
-  wire [`INST_W-1:0] pending_mem_inst_q;
-  wire [`XLEN-1:0] pending_mem_next_pc_q;
+  wire [`XLEN-1:0] pending_mem_next_pc_q = {`XLEN{1'b0}};
   wire pending_system_q;
   wire pending_system_dispatched_q;
   wire pending_system_csr_q;
@@ -538,10 +539,7 @@ module OooCoreTopGlue #(
   wire pending_jump_capture_head0_w;
   wire pending_jump_capture_lane1_w;
   wire pending_jump_clear_w;
-  wire pending_mem_capture_lane1_w;
-  wire pending_mem_clear_w;
   wire pending_mem_resolve_ready_w;
-  wire mem_dispatch_valid_w;
   wire pending_branch_commit_resolve_w;
   wire pending_branch_match_clear_w;
   wire pending_replay_wait_w;
@@ -568,7 +566,6 @@ module OooCoreTopGlue #(
   wire core_dispatch1_valid_w;
   wire core_dispatch0_fire_w;
   wire jump_dispatch_fire_w;
-  wire mem_dispatch_fire_w;
   wire [`XLEN-1:0] core_dispatch0_pc_w;
   wire [`XLEN-1:0] core_dispatch0_next_pc_w;
   wire [`INST_W-1:0] core_dispatch0_inst_w;
@@ -719,7 +716,6 @@ module OooCoreTopGlue #(
   OooMemoryAccess u_memory_access (
     .backend_drained_q(backend_drained_q),
     .checkpoint_mem_flush_q(checkpoint_mem_flush_q),
-    .clk(clk),
     .core_local_flush_w(core_local_flush_w),
     .core_mem_req_addr_w(core_mem_req_addr_w),
     .core_mem_req_valid_w(core_mem_req_valid_w),
@@ -730,13 +726,6 @@ module OooCoreTopGlue #(
     .core_mem_req_nokill_w(core_mem_req_nokill_w),
     .core_mem_req_wstrb_w(core_mem_req_wstrb_w),
     .core_mem_rsp_ready_w(core_mem_rsp_ready_w),
-    .csr_trap_mem_valid_w(csr_trap_mem_valid_w),
-    .flush_i(flush_i),
-    .head1_mem_raw_w(head1_mem_raw_w),
-    .head_inst1_w(head_inst1_w),
-    .head_next_pc1_w(head_next_pc1_w),
-    .head_pc1_w(head_pc1_w),
-    .mem_dispatch_fire_w(mem_dispatch_fire_w),
     .mem_flush_o(mem_flush_o),
     .mem_req_addr_o(mem_req_addr_o),
     .mem_req_ready_i(mem_req_ready_i),
@@ -750,17 +739,8 @@ module OooCoreTopGlue #(
     .mem_rsp_ready_o(mem_rsp_ready_o),
     .mem_rsp_valid_i(mem_rsp_valid_i),
     .mmu_flush_o(mmu_flush_o),
-    .orphan_stop_pending_w(orphan_stop_pending_w),
-    .pending_mem_capture_lane1_w(pending_mem_capture_lane1_w),
-    .pending_mem_clear_w(pending_mem_clear_w),
-    .pending_mem_dispatched_q(pending_mem_dispatched_q),
-    .pending_mem_inst_q(pending_mem_inst_q),
-    .pending_mem_next_pc_q(pending_mem_next_pc_q),
-    .pending_mem_pc_q(pending_mem_pc_q),
-    .pending_mem_q(pending_mem_q),
     .pending_system_satp_write_commit_w(pending_system_satp_write_commit_w),
     .pending_system_sfence_commit_w(pending_system_sfence_commit_w),
-    .rst(rst),
     .stop_pending_q(stop_pending_q)
   );
 
@@ -947,7 +927,6 @@ module OooCoreTopGlue #(
     .issue_count_o(issue_count_o),
     .jump_dispatch_fire_w(jump_dispatch_fire_w),
     .jump_dispatch_valid_w(jump_dispatch_valid_w),
-    .mem_dispatch_valid_w(mem_dispatch_valid_w),
     .mstatus_o(mstatus_o),
     .next_fetch_pc_q(next_fetch_pc_q),
     .orphan_stop_pending_w(orphan_stop_pending_w),
@@ -980,9 +959,6 @@ module OooCoreTopGlue #(
     .pending_jump_redirect_after_dispatch_w(pending_jump_redirect_after_dispatch_w),
     .pending_jump_resolve_ready_w(pending_jump_resolve_ready_w),
     .pending_jump_resolved_target_w(pending_jump_resolved_target_w),
-    .pending_mem_capture_lane1_w(pending_mem_capture_lane1_w),
-    .pending_mem_clear_w(pending_mem_clear_w),
-    .pending_mem_dispatched_q(pending_mem_dispatched_q),
     .pending_mem_q(pending_mem_q),
     .pending_mem_resolve_ready_w(pending_mem_resolve_ready_w),
     .pending_replay_wait_w(pending_replay_wait_w),
@@ -1217,8 +1193,6 @@ module OooCoreTopGlue #(
     .jalr_prefetch_hit_available_w(jalr_prefetch_hit_available_w),
     .jump_dispatch_fire_w(jump_dispatch_fire_w),
     .jump_dispatch_valid_w(jump_dispatch_valid_w),
-    .mem_dispatch_fire_w(mem_dispatch_fire_w),
-    .mem_dispatch_valid_w(mem_dispatch_valid_w),
     .mem_req_addr_o(mem_req_addr_o),
     .mem_req_ready_i(mem_req_ready_i),
     .mem_req_valid_o(mem_req_valid_o),
@@ -1270,9 +1244,7 @@ module OooCoreTopGlue #(
     .pending_jump_return_fire_w(pending_jump_return_fire_w),
     .pending_jump_rs1_data_w(pending_jump_rs1_data_w),
     .pending_jump_rs1_q(pending_jump_rs1_q),
-    .pending_mem_inst_q(pending_mem_inst_q),
     .pending_mem_next_pc_q(pending_mem_next_pc_q),
-    .pending_mem_pc_q(pending_mem_pc_q),
     .pending_mem_q(pending_mem_q),
     .pending_mem_resolve_ready_w(pending_mem_resolve_ready_w),
     .pending_system_csr_commit_w(pending_system_csr_commit_w),

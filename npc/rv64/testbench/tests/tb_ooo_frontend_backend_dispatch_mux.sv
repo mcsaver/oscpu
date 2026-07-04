@@ -13,7 +13,6 @@ module tb_ooo_frontend_backend_dispatch_mux;
   reg direct_ret0_dispatch_valid;
   reg lane1_barrier_dispatch0_valid;
   reg jump_dispatch_valid;
-  reg mem_dispatch_valid;
   reg return_cont_attempt;
   reg branch_target_append_attempt;
   reg branch_fallthrough_append_attempt;
@@ -44,10 +43,6 @@ module tb_ooo_frontend_backend_dispatch_mux;
   reg [`XLEN-1:0] pending_jump_next_pc;
   reg [`INST_W-1:0] pending_jump_inst;
 
-  reg [`XLEN-1:0] pending_mem_pc;
-  reg [`XLEN-1:0] pending_mem_next_pc;
-  reg [`INST_W-1:0] pending_mem_inst;
-
   reg [`XLEN-1:0] head_pc0;
   reg [`XLEN-1:0] head_next_pc0;
   reg [`INST_W-1:0] head_inst0;
@@ -68,7 +63,6 @@ module tb_ooo_frontend_backend_dispatch_mux;
   wire core_dispatch1_valid;
   wire core_dispatch0_fire;
   wire jump_dispatch_fire;
-  wire mem_dispatch_fire;
   wire [`XLEN-1:0] core_dispatch0_pc;
   wire [`XLEN-1:0] core_dispatch0_next_pc;
   wire [`INST_W-1:0] core_dispatch0_inst;
@@ -93,7 +87,6 @@ module tb_ooo_frontend_backend_dispatch_mux;
     .direct_ret0_dispatch_valid_i(direct_ret0_dispatch_valid),
     .lane1_barrier_dispatch0_valid_i(lane1_barrier_dispatch0_valid),
     .jump_dispatch_valid_i(jump_dispatch_valid),
-    .mem_dispatch_valid_i(mem_dispatch_valid),
     .return_cont_attempt_i(return_cont_attempt),
     .branch_target_append_attempt_i(branch_target_append_attempt),
     .branch_fallthrough_append_attempt_i(branch_fallthrough_append_attempt),
@@ -119,9 +112,6 @@ module tb_ooo_frontend_backend_dispatch_mux;
     .pending_jump_pc_i(pending_jump_pc),
     .pending_jump_next_pc_i(pending_jump_next_pc),
     .pending_jump_inst_i(pending_jump_inst),
-    .pending_mem_pc_i(pending_mem_pc),
-    .pending_mem_next_pc_i(pending_mem_next_pc),
-    .pending_mem_inst_i(pending_mem_inst),
     .head_pc0_i(head_pc0),
     .head_next_pc0_i(head_next_pc0),
     .head_inst0_i(head_inst0),
@@ -140,7 +130,6 @@ module tb_ooo_frontend_backend_dispatch_mux;
     .core_dispatch1_valid_o(core_dispatch1_valid),
     .core_dispatch0_fire_o(core_dispatch0_fire),
     .jump_dispatch_fire_o(jump_dispatch_fire),
-    .mem_dispatch_fire_o(mem_dispatch_fire),
     .core_dispatch0_pc_o(core_dispatch0_pc),
     .core_dispatch0_next_pc_o(core_dispatch0_next_pc),
     .core_dispatch0_inst_o(core_dispatch0_inst),
@@ -175,7 +164,6 @@ module tb_ooo_frontend_backend_dispatch_mux;
       direct_ret0_dispatch_valid = 1'b0;
       lane1_barrier_dispatch0_valid = 1'b0;
       jump_dispatch_valid = 1'b0;
-      mem_dispatch_valid = 1'b0;
       return_cont_attempt = 1'b0;
       branch_target_append_attempt = 1'b0;
       branch_fallthrough_append_attempt = 1'b0;
@@ -205,10 +193,6 @@ module tb_ooo_frontend_backend_dispatch_mux;
       pending_jump_pc = 64'h5000_0000;
       pending_jump_next_pc = 64'h5000_0100;
       pending_jump_inst = 32'h0000_006f;
-
-      pending_mem_pc = 64'h6000_0000;
-      pending_mem_next_pc = 64'h6000_0004;
-      pending_mem_inst = 32'h0000_2083;
 
       head_pc0 = 64'h1000_0000;
       head_next_pc0 = 64'h1000_0004;
@@ -270,7 +254,6 @@ module tb_ooo_frontend_backend_dispatch_mux;
     expect_dispatch1("normal", 1'b1, head_pc1, head_next_pc1, head_inst1);
     tb_check1("normal fire", core_dispatch0_fire, 1'b1);
     tb_check1("normal no jump fire", jump_dispatch_fire, 1'b0);
-    tb_check1("normal no mem fire", mem_dispatch_fire, 1'b0);
 
     reset_inputs();
     branch_prefetch_dispatch_attempt = 1'b1;
@@ -307,13 +290,6 @@ module tb_ooo_frontend_backend_dispatch_mux;
                      pending_jump_next_pc, pending_jump_inst, {`XLEN{1'b0}});
     tb_check1("jump fire", jump_dispatch_fire, 1'b1);
     tb_check1("jump d0 fire", core_dispatch0_fire, 1'b1);
-
-    reset_inputs();
-    mem_dispatch_valid = 1'b1;
-    #1;
-    expect_dispatch0("pending mem", 1'b1, pending_mem_pc,
-                     pending_mem_next_pc, pending_mem_inst, {`XLEN{1'b0}});
-    tb_check1("mem fire", mem_dispatch_fire, 1'b1);
 
     reset_inputs();
     direct_ret0_dispatch_valid = 1'b1;
@@ -362,13 +338,11 @@ module tb_ooo_frontend_backend_dispatch_mux;
     reset_inputs();
     system_csr_dispatch_valid = 1'b1;
     jump_dispatch_valid = 1'b1;
-    mem_dispatch_valid = 1'b1;
     #1;
     expect_dispatch0("d0 source priority", 1'b1, pending_system_pc,
                      pending_system_next_pc, pending_system_inst,
                      pending_system_csr_rdata);
     tb_check1("independent jump fire", jump_dispatch_fire, 1'b1);
-    tb_check1("independent mem fire", mem_dispatch_fire, 1'b1);
 
     tb_finish("tb_ooo_frontend_backend_dispatch_mux");
   end

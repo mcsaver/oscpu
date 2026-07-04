@@ -16,7 +16,6 @@ module tb_ooo_pending_lane1_capture_gate;
   wire branch_capture;
   wire jump_capture;
   wire fp_capture;
-  wire mem_capture;
   wire trap_exit_capture;
   wire trap_exit_arch_valid;
   wire trap_exit_exit_valid;
@@ -37,7 +36,6 @@ module tb_ooo_pending_lane1_capture_gate;
     .branch_capture_o(branch_capture),
     .jump_capture_o(jump_capture),
     .fp_capture_o(fp_capture),
-    .mem_capture_o(mem_capture),
     .trap_exit_capture_o(trap_exit_capture),
     .trap_exit_arch_valid_o(trap_exit_arch_valid),
     .trap_exit_exit_valid_o(trap_exit_exit_valid),
@@ -106,12 +104,10 @@ module tb_ooo_pending_lane1_capture_gate;
     barrier_base = 1'b1;
     facts[`OOO_SLOT_FACT_BRANCH] = 1'b1;
     facts[`OOO_SLOT_FACT_JUMP] = 1'b1;
-    facts[`OOO_SLOT_FACT_MEM] = 1'b1;
     facts[`OOO_SLOT_FACT_FP_ENABLED] = 1'b1;
     #1;
     tb_check1("branch fact captures branch", branch_capture, 1'b1);
     tb_check1("jump fact captures jump", jump_capture, 1'b1);
-    tb_check1("mem fact captures mem", mem_capture, 1'b1);
     tb_check1("fp fact captures fp", fp_capture, 1'b1);
     tb_check1("typed owner does not imply arch valid",
               trap_exit_arch_valid, 1'b0);

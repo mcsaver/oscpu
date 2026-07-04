@@ -59,10 +59,6 @@ module OooPendingDispatchArbiter (
   output pending_jump_capture_lane1_o,
   output pending_jump_clear_o,
 
-
-  output pending_mem_capture_lane1_o,
-  output pending_mem_clear_o,
-
   output pending_trap_exit_clear_exit_o,
   output pending_trap_exit_clear_arch_o,
   output pending_trap_exit_clear_arch_squash_o,
@@ -115,7 +111,6 @@ module OooPendingDispatchArbiter (
   wire lane1_branch_capture_w;
   wire lane1_jump_capture_w;
   wire lane1_fp_capture_w;
-  wire lane1_mem_capture_w;
   wire trap_exit_capture_lane1_w;
   wire trap_exit_lane1_arch_valid_w;
   wire trap_exit_lane1_exit_valid_w;
@@ -136,7 +131,6 @@ module OooPendingDispatchArbiter (
     .branch_capture_o(lane1_branch_capture_w),
     .jump_capture_o(lane1_jump_capture_w),
     .fp_capture_o(lane1_fp_capture_w),
-    .mem_capture_o(lane1_mem_capture_w),
     .trap_exit_capture_o(trap_exit_capture_lane1_w),
     .trap_exit_arch_valid_o(trap_exit_lane1_arch_valid_w),
     .trap_exit_exit_valid_o(trap_exit_lane1_exit_valid_w),
@@ -183,8 +177,6 @@ module OooPendingDispatchArbiter (
       lane1_jump_capture_w && !rob_walk_mode_i;
 
 
-  assign pending_mem_capture_lane1_o = lane1_mem_capture_w;
-
   wire pending_jump_clear_from_resolve_w =
       !direct_frontend_flush_i && pending_jump_resolve_ready_i &&
       (pending_jump_misaligned_i ||
@@ -219,16 +211,6 @@ module OooPendingDispatchArbiter (
        dispatch0_system_w ||
        lane0_branch_pending_w ||
        dispatch_unsupported_i);
-  wire mem_capture_clear_w =
-      capture_base_w &&
-      (csr_irq_pending_i ||
-       head_fetch_fault0_i ||
-       dispatch0_arch_trap_w ||
-       dispatch0_exit_w ||
-       dispatch0_system_w ||
-       lane0_branch_pending_w ||
-       lane0_jump_pending_w ||
-       dispatch_unsupported_i);
 
   assign pending_branch_clear_o =
       resolve_clear_w ||
@@ -244,11 +226,6 @@ module OooPendingDispatchArbiter (
       direct_frontend_flush_i ||
       resolve_clear_w ||
       pending_jump_clear_from_resolve_w;
-  assign pending_mem_clear_o =
-      direct_frontend_flush_i ||
-      resolve_clear_w ||
-      pending_jump_clear_from_resolve_w ||
-      mem_capture_clear_w;
 
   wire trap_exit_capture_fetch_fault0_w =
       capture_base_w &&

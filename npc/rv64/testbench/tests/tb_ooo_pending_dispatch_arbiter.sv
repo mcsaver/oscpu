@@ -75,8 +75,6 @@ module tb_ooo_pending_dispatch_arbiter;
   wire pending_jump_capture_head0;
   wire pending_jump_capture_lane1;
   wire pending_jump_clear;
-  wire pending_mem_capture_lane1;
-  wire pending_mem_clear;
   wire pending_trap_exit_clear_exit;
   wire pending_trap_exit_clear_arch;
   wire pending_trap_exit_capture_exit;
@@ -138,8 +136,6 @@ module tb_ooo_pending_dispatch_arbiter;
     .pending_jump_capture_head0_o(pending_jump_capture_head0),
     .pending_jump_capture_lane1_o(pending_jump_capture_lane1),
     .pending_jump_clear_o(pending_jump_clear),
-    .pending_mem_capture_lane1_o(pending_mem_capture_lane1),
-    .pending_mem_clear_o(pending_mem_clear),
     .pending_trap_exit_clear_exit_o(pending_trap_exit_clear_exit),
     .pending_trap_exit_clear_arch_o(pending_trap_exit_clear_arch),
     .pending_trap_exit_capture_exit_o(pending_trap_exit_capture_exit),
@@ -348,8 +344,6 @@ module tb_ooo_pending_dispatch_arbiter;
               pending_branch_capture_lane1, 1'b0);
     tb_check1("lane1 empty barrier does not open jump capture",
               pending_jump_capture_lane1, 1'b0);
-    tb_check1("lane1 empty barrier does not open mem capture",
-              pending_mem_capture_lane1, 1'b0);
     tb_check1("lane1 empty barrier capture exit invalid",
               pending_trap_exit_capture_exit_valid, 1'b0);
     tb_check1("lane1 empty barrier capture arch invalid",
@@ -363,8 +357,6 @@ module tb_ooo_pending_dispatch_arbiter;
               pending_branch_capture_lane1, 1'b1);
     tb_check1("lane1 branch keeps jump capture closed",
               pending_jump_capture_lane1, 1'b0);
-    tb_check1("lane1 branch keeps mem capture closed",
-              pending_mem_capture_lane1, 1'b0);
 
     reset_inputs();
     dispatch1_barrier_fire = 1'b1;
@@ -374,8 +366,6 @@ module tb_ooo_pending_dispatch_arbiter;
               pending_jump_capture_lane1, 1'b1);
     tb_check1("lane1 jump keeps branch capture closed",
               pending_branch_capture_lane1, 1'b0);
-    tb_check1("lane1 jump keeps mem capture closed",
-              pending_mem_capture_lane1, 1'b0);
 
     reset_inputs();
     dispatch1_barrier_fire = 1'b1;
@@ -385,19 +375,6 @@ module tb_ooo_pending_dispatch_arbiter;
     tb_check1("lane1 fp keeps branch capture closed",
               pending_branch_capture_lane1, 1'b0);
     tb_check1("lane1 fp keeps jump capture closed",
-              pending_jump_capture_lane1, 1'b0);
-    tb_check1("lane1 fp keeps mem capture closed",
-              pending_mem_capture_lane1, 1'b0);
-
-    reset_inputs();
-    dispatch1_barrier_fire = 1'b1;
-    head1_mem_raw = 1'b1;
-    #1;
-    tb_check1("lane1 mem opens only mem capture",
-              pending_mem_capture_lane1, 1'b1);
-    tb_check1("lane1 mem keeps branch capture closed",
-              pending_branch_capture_lane1, 1'b0);
-    tb_check1("lane1 mem keeps jump capture closed",
               pending_jump_capture_lane1, 1'b0);
 
     reset_inputs();
