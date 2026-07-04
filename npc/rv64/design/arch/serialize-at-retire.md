@@ -71,7 +71,12 @@ PendingOperandReadGate/PendingLane1CaptureGate + glue 布线。**但有隐藏依
   commit-fire + flush-younger + redirect"时序图 + CSR 读点迁队头的正确性论证 + 各 sys_op 的 commit 语义；
   **先补定向 TB**（系统op-at-head / CSR-RAW hazard / sfence-TLB / mret-priv / IRQ-at-commit）作红线。
 - **阶段 1 — CSR 队头化**（半成品已在）：CSR 改正常程序序进 ROB（不 drain 全后端），读点移队头，commit 写+flush younger。
-  仍保留 stop_pending 停派 younger（先不删 drain）。战场 = `rv64mi` CSR 用例。
+  仍保留 stop_pending 停派 younger（先不删 drain）。战场 = `rv64mi` CSR 用例。详细实施 spec = `serialize-at-retire-phase1.md`。
+  **⚠️【2026-07-04 实现尝试遇方法级障碍】**：读点/rd 覆写/serial_flush 复活机制验证成立（riscv 355/0+模块 TB 82/82+
+  difftest 绿），**但 commit 拍 fire-and-forget 的 serial_flush 会中止在飞 LSU AXI 事务（`mem_flush=core_local_flush→
+  lsu_axi_abort`），使更老 store 的 probe 永不完成 → backend 永不 drain → drain-based trap 死锁**（3 AM 回归）。
+  **共性前置（所有触发 flush 的阶段 1-4 都受此约束）**：serial_flush 必须先与 mem 静默协调（延迟到 MIQ 空阻塞 commit /
+  或 flush 对 LSU 像 ROB-walk 不 abort 在飞读）。详见 phase1 spec §9。
 - **阶段 2 — sfence/satp 队头化**：进 ROB，commit 产 mmu_flush 脉冲 + flush younger + 冲在飞取指。**起用 Linux smoke**。
 - **阶段 3 — ecall/ebreak/arch-trap/illegal 队头化**：携 exception 字段进 ROB，**直接并入现成域 A 队头精确异常路径**
   （重叠度最高、最顺），退休 TrapExitEventMux drain 臂。

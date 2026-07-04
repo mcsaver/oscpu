@@ -1,6 +1,9 @@
 # Phase 1 实施 Spec：CSR 队头化（serialize-at-retire step 1）
 
-> 状态：**spec 完成（2026-07-04），实现待落地**。父规范 `serialize-at-retire.md`。
+> 状态：**⚠️ 实现尝试遇方法级障碍，未落地（2026-07-04）**。spec 本体（读点/rd 覆写/serial_flush 复活）
+> 均验证成立（riscv-tests 355/0 + 模块 TB 82/82 + difftest 无退化），**但 §9 的 flush-on-every-CSR ↔
+> 异步 LSU 冲突使 3 个 AM CSR/特权/中断测试死锁回归——本方法需先解决 LSU 协调（§9 修向）才能落地**。
+> 父规范 `serialize-at-retire.md`。
 > 范围：**只 head0 CSR 队头化，lane1 CSR 仍走 drain 路**（两路结构互斥，天然最小面）。
 > 保留 stop_pending（停派 younger 直到 CSR commit）；不删任何 drain 机制；不碰非 CSR 系统 op。
 
@@ -94,6 +97,39 @@ RAW/satp/wrong-path 三重灾区在 Phase 1 因**保留 stop_pending**（同时�
 - 验证安全网（difftest 不比 CSR）：riscv 355/0(rv64mi/si) + AM 57 + difftest 38/3 + CoreMark 0xfcaf +
   里程碑 OpenSBI banner(M-mode CSR/mret 秒级) → Linux `Linux version`(S-mode satp/sfence,~5min)。
 
+## 9. ⚠️ 关键障碍：flush-on-every-CSR ↔ 异步 LSU 冲突（实现尝试确认，未解决）
+
+按 §4 全量实现后 spec 本体成立：**riscv-tests 355/0（含 rv64mi/si CSR/特权）+ 模块 TB 82/82（含新增定向 TB）
++ difftest 无退化**。读点迁队头、rd 架构 GPR 覆写（真修=`OooAluCoreSlice` 写 ArchRegFile 处，非 OooCommitOutputMux
+——后者只喂 difftest/观测=假绿点）、复活 `core_serial_flush`（原家 `OooControlCommitSequencer`）、ROB 禁 CSR
+commit1 均验证正确。
+
+**但 3 个 AM 测试死锁回归（counteren-time / sbi-base-console / uart-plic-sirq，AM 54/3 vs 基线 57/1）**，
+root-cause 同族（方法级）：
+- `OooMemoryRequestGate.v:60 mem_flush_o = core_local_flush`（= flush || trap_flush || **serial_flush**）→
+  `lsu_axi_abort`。∴**每次 head0-CSR 的 serial_flush 都中止在飞 LSU AXI 事务**（store 地址 probe 经 MIQ）。
+- 典型（counteren-time）：非法 S-mode `rdtime` 正确路由到 drain→csr_illegal arch-trap 且被 capture，但更老的
+  `sd ra`(0x5c) 卡在 ROB 队头 `head_done=0`——它在 SQ、probe 已发但被 serial_flush 中止、永不完成 → 永不提交 →
+  `backend_drained=0` 恒假 → **drain-based trap 死锁**。
+- 即 **serial_flush 不能是 commit 拍的 fire-and-forget**，它与异步 LSU/MIQ 根本冲突（原始 serialize-at-retire
+  调查已预判"精确异常/访存交织"是重灾区，此处坐实）。
+
+**修向（Y，下一迭代，LSU-recovery 级）**：①**延迟 serial_flush 到 `mem_idle`**（MIQ 空+无在飞 probe/drain），
+期间阻塞 commit，让在飞 probe 先完成再 flush；或 ②**serial_flush 对 LSU 像 ROB-walk**（不 AXI-abort 在飞读、
+孤儿响应静默丢弃、不孤儿化 MIQ 项）。（试过并回退的两招：把 head0_csr 做真 stop_pending owner——stuck store
+比非法 CSR 更老、停 younger 够不到；只从 lsu_axi_abort 摘 serial_flush——死锁仍在，证明是 probe-completion/MIQ
+响应路由被 backend flush 破坏，非单纯 AXI abort。）
+
+**结论**：Phase 1 读点/rd/serial_flush 机制正确且已验证，但落地前**必须先做 serial_flush 与 mem 静默的协调
+（§9 修向）**——这是本方法成立的前置，也是后续所有阶段（sfence/mret/IRQ 同样触发 flush）的共性前置。
+
 ## 8. 变更记录
 - 2026-07-04：只读深挖 CSR 五步执行流 + 产出 Phase 1 实施 spec（head0-CSR-only，复活 core_serial_flush，
   rd 覆写，保留 stop_pending，satp 必选）。核心洞察=写机器已在 commit 拍就绪、serial_flush 挂点天生留好。
+- 2026-07-04（**实现尝试，未落地**）：按 §4 全量实现，riscv 355/0 + 模块 TB 82/82 + difftest 绿，**但遇 §9
+  flush↔LSU 方法级障碍，3 AM 死锁回归**。落地中确认的 spec↔RTL 偏差：serial_flush 生成家实为
+  `OooControlCommitSequencer`（非 §4#8 FlushSequencer）；rd 覆写真落点 `OooAluCoreSlice` 写 ArchRegFile
+  （§1 的 OooCommitOutputMux 只喂 difftest=假绿点）；satp mmu_flush 队头拍死锁取指桥故关（靠 serial_flush+
+  discard+ITLB satp-tag miss 保正确，rv64si-p-dirty 过）；FP CSR 排除本阶段（squash 在飞 FP 活锁）；CSR 必须
+  单独提交（禁 commit0/1 CSR dual-commit）。**stop_pending 对 head0 CSR 是孤儿自清 no-op、正确性全靠 serial_flush**
+  ——正是它与 LSU 冲突暴露之因。补丁未合入（待 §9 修向）。
