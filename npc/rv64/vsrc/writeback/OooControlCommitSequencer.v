@@ -29,6 +29,11 @@ module OooControlCommitSequencer (
   input drain_pending_jump_i,
   input drain_pending_mem_i,
 
+  // 【serialize-at-retire Phase1 §9】head0-CSR 队头提交脉冲(已被 OooRob 的 mem_quiet 门控, 只在 mem
+  // 全静默拍拉高)。复活 core_serial_flush(此前恒 0 死信号): 提交拍触发 1 拍脉冲, 镜像 trap flush 时序,
+  // 刷 younger + phys-recover + 前端 redirect。因 mem 已静默, serial_flush→lsu_axi_abort 中止不了任何东西。
+  input head0_csr_commit_i,
+
 
   output ctrl_commit_valid_o,
   output [`XLEN-1:0] ctrl_commit_pc_o,
@@ -82,7 +87,8 @@ module OooControlCommitSequencer (
       rd_addr_q <= {`REG_ADDR_W{1'b0}};
       rd_data_q <= {`XLEN{1'b0}};
       write_q <= 1'b0;
-      serial_flush_q <= 1'b0;
+      // 【serialize Phase1 §9】复活 serial_flush: head0-CSR 提交拍(mem 静默) → 下拍 1 拍 flush 脉冲。
+      serial_flush_q <= head0_csr_commit_i;
 
       if (pending_jump_nolink_commit_i) begin
         valid_q <= 1'b1;

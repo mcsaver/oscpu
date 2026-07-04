@@ -52,6 +52,8 @@ module OooCoreTopGlue #(
   output csr_cycle_count_enable_w,
   output [1:0] core_retire_count_w,
   output pending_system_csr_commit_w,
+  // 【serialize Phase1】head0-CSR 队头提交脉冲(→NpcCoreTop csr_commit / 内部各消费者)
+  output head0_csr_commit_w,
   output csr_access_valid_w,
   output [11:0] csr_access_addr_w,
   output [2:0] csr_access_funct3_w,
@@ -516,6 +518,7 @@ module OooCoreTopGlue #(
     .retire_count_o(retire_count_o),
     .rst(rst),
     .stop_pending_q(stop_pending_q),
+    .head0_csr_commit_i(head0_csr_commit_w),
     .synth_lane1_branch_append_w(synth_lane1_branch_append_w)
   );
 
@@ -624,6 +627,9 @@ module OooCoreTopGlue #(
     .core_commit_ready_w(core_commit_ready_w),
     .core_debug_gprs_w(core_debug_gprs_w),
     .core_dispatch0_csr_rdata_w(core_dispatch0_csr_rdata_w),
+    // 【serialize Phase1】commit-time rd 覆写: head0-CSR 提交脉冲 + 架构 csr_rdata(组合旧值)。
+    .head0_csr_commit_w(head0_csr_commit_w),
+    .core_commit0_csr_rdata_w(csr_rdata_w),
     .frm_i(csr_frm_w),
     .core_dispatch0_inst_w(core_dispatch0_inst_w),
     .core_dispatch0_next_pc_w(core_dispatch0_next_pc_w),
@@ -953,6 +959,7 @@ module OooCoreTopGlue #(
     .pending_system_capture_lane1_w(pending_system_capture_lane1_w),
     .pending_system_clear_w(pending_system_clear_w),
     .pending_system_csr_commit_w(pending_system_csr_commit_w),
+    .head0_csr_commit_w(head0_csr_commit_w),
     .pending_system_csr_q(pending_system_csr_q),
     .pending_system_csr_rdata_q(pending_system_csr_rdata_q),
     .pending_system_dispatched_q(pending_system_dispatched_q),
@@ -1228,6 +1235,10 @@ module OooCoreTopGlue #(
     .pending_mem_q(pending_mem_q),
     .pending_mem_resolve_ready_w(pending_mem_resolve_ready_w),
     .pending_system_csr_commit_w(pending_system_csr_commit_w),
+    // 【serialize Phase1】head0-CSR 队头提交拍 redirect(seed 清 + pc-seq 重取) + §4#1 合法 CSR 放行判定。
+    .head0_csr_commit_w(head0_csr_commit_w),
+    .core_commit0_next_pc_w(core_commit0_next_pc_w),
+    .head0_csr_illegal_i(head0_csr_illegal_w),
     .pending_system_csr_rdata_q(pending_system_csr_rdata_q),
     .pending_system_ecall_q(pending_system_ecall_q),
     .pending_system_inst_q(pending_system_inst_q),

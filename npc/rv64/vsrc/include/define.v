@@ -547,6 +547,15 @@
 `ifndef OOO_DBRANCH_DOMAIN_A
 `define OOO_DBRANCH_DOMAIN_A 1'b1
 `endif
+// serialize-at-retire Phase1(CSR 队头化)总开关: 1=合法非-FP head0-CSR 走正常 ROB dispatch + mem-quiet
+// 门控 serial_flush 队头提交(§9 修向①); 0=所有 CSR 仍走 pending+drain(基线行为)。
+// ⚠️ 当前默认 0: §9 mem_quiet 安全机制 + §4 核心已验证(riscv rv64mi/si 23/23 + FP), 但中间态
+// (head0-CSR 与 lane1-drain-CSR 共存)有未解死锁——两条 lane1-CSR 覆写单个 pending 寄存器 +
+// ecall-drain stuck-store(mem_retire_quiet=0), 致 sbi-base-console/fp-difftest-probe 挂死。
+// 详见 design/arch/serialize-at-retire-phase1.md §10。置 1 需先解中间态串行化。
+`ifndef OOO_CSR_QUEUE_HEAD
+`define OOO_CSR_QUEUE_HEAD 1'b0
+`endif
 // LSQ·SQ 切换(spec ooo-lsq-implementation-plan.md §3.6): 1=plain store 不再等 ROB 队头,
 // issue 拍经桥 probe(翻译+PMP 前置精确异常) → SQ(PA) → 退休后 drain 落存(pretrans+nokill);
 // 0=旧路径(store 队头发射+真事务, SQ 保持影子对拍)。

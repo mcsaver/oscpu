@@ -156,6 +156,7 @@ module OooDispatchBackend #(
 
   input commit_ready_i,
   input commit1_block_i,
+  input mem_quiet_i,   // 【serialize Phase1 §9】mem 静默(=mem_idle&&mem_retire_quiet), 门控 head0-CSR 退休
   output commit0_valid_o,
   output [`XLEN-1:0] commit0_pc_o,
   output [`XLEN-1:0] commit0_next_pc_o,
@@ -529,6 +530,7 @@ module OooDispatchBackend #(
     .wb1_fflags_i(wb1_fflags_i),
     .commit_ready_i(commit_ready_i),
     .commit1_block_i(commit1_block_i),
+    .mem_quiet_i(mem_quiet_i),
     .commit0_valid_o(commit0_valid_o),
     .commit0_pc_o(commit0_pc_o),
     .commit0_next_pc_o(commit0_next_pc_o),

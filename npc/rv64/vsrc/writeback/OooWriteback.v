@@ -55,6 +55,7 @@ module OooWriteback (
   input pending_system_q,
   input rst,
   input stop_pending_q,
+  input head0_csr_commit_i,   // 【serialize Phase1】head0-CSR 提交脉冲 → serial_flush 复活
   input synth_lane1_branch_append_w,
   output commit0_exception_o,
   output [`INST_W-1:0] commit0_inst_o,
@@ -114,6 +115,7 @@ module OooWriteback (
     .pending_branch_next_pc_i(pending_branch_next_pc_w),
     .drain_pending_jump_i(pending_jump_q),
     .drain_pending_mem_i(pending_mem_q),
+    .head0_csr_commit_i(head0_csr_commit_i),
     .ctrl_commit_valid_o(ctrl_commit_valid_q),
     .ctrl_commit_pc_o(ctrl_commit_pc_q),
     .ctrl_commit_inst_o(ctrl_commit_inst_q),

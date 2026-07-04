@@ -17,6 +17,9 @@ module OooExecuteBackend #(
   input core_commit1_block_w,
   input core_commit_ready_w,
   input [`XLEN-1:0] core_dispatch0_csr_rdata_w,
+  // 【serialize Phase1】head0-CSR 提交拍 rd 覆写(=head0_csr_commit) + 架构 csr_rdata(=csr_rdata_o 组合旧值)
+  input head0_csr_commit_w,
+  input [`XLEN-1:0] core_commit0_csr_rdata_w,
   input [2:0] frm_i,  // FP#1: fcsr.frm 路由,供 DYN 舍入
   input [`INST_W-1:0] core_dispatch0_inst_w,
   input [`XLEN-1:0] core_dispatch0_next_pc_w,
@@ -165,6 +168,8 @@ module OooExecuteBackend #(
     .dispatch0_pred_taken_i(core_dispatch0_pred_taken_w),
     .dispatch0_inst_i(core_dispatch0_inst_w),
     .dispatch0_csr_rdata_i(core_dispatch0_csr_rdata_w),
+    .head0_csr_commit_i(head0_csr_commit_w),
+    .commit0_csr_rdata_i(core_commit0_csr_rdata_w),
     .dispatch0_unsupported_o(dispatch0_unsupported_w),
     .dispatch0_unsupported_raw_o(dispatch0_unsupported_raw_w),
     .dispatch1_valid_i(core_dispatch1_valid_w),

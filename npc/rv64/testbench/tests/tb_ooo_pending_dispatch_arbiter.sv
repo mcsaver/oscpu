@@ -96,6 +96,7 @@ module tb_ooo_pending_dispatch_arbiter;
     .pending_jump_nolink_commit_i(pending_jump_nolink_commit),
     .pending_jump_redirect_after_dispatch_i(pending_jump_redirect_after_dispatch),
     .pending_system_csr_commit_i(pending_system_csr_commit),
+    .head0_csr_commit_i(1'b0),   // 【serialize Phase1】此 TB 不测队头化, 恒 0 = 基线
     .stop_pending_i(stop_pending),
     .drain_complete_i(drain_complete),
     .direct_branch0_fire_i(direct_branch0_fire),

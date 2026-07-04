@@ -53,6 +53,8 @@ module tb_ooo_frontend_action_gate;
     .dispatch0_exit_i(dispatch0_exit),
     .dispatch0_arch_trap_i(dispatch0_arch_trap),
     .dispatch0_system_i(dispatch0_system),
+    .dispatch0_csr_i(1'b0),              // 【serialize Phase1】此 TB 不测队头化, 恒 0 = 基线
+    .head0_csr_dispatch_fire_i(1'b0),
     .dispatch0_branch_i(dispatch0_branch),
     .dispatch0_jal_i(dispatch0_jal),
     .dispatch0_jump_i(dispatch0_jump),

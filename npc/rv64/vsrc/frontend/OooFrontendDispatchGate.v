@@ -5,6 +5,7 @@ module OooFrontendDispatchGate (
   input dispatch0_exit_i,
   input dispatch0_arch_trap_i,
   input dispatch0_system_i,
+  input dispatch0_csr_i,   // 【serialize Phase1 §4#1】合法 head0-CSR: 放行进 ROB(其余 system op 仍拦)
   input dispatch0_fp_i,
   // 【F2】纯 BHT 寄存输出(不经 fire-mux, 不含 ready)——dual 资格/branch1 fire gate 用,
   // 谓词无 ready 依赖故不与 dispatch pair-ready 成组合环(#110 边界 3 的破环约束)。
@@ -149,7 +150,8 @@ module OooFrontendDispatchGate (
   assign frontend_dispatch_to_backend_valid_o =
       dispatch_valid_i && (!dispatch0_branch_i || dbranch_domain_a_w) && !dispatch0_jal_i &&
       (!dispatch0_jump_i || dispatch0_depend_jump_w) &&
-      !dispatch0_exit_i && !dispatch0_system_i &&
+      // 【serialize Phase1 §4#1】合法 head0-CSR(dispatch0_csr_i) 放行进 ROB; 其余 system op 仍拦(走 drain)。
+      !dispatch0_exit_i && !(dispatch0_system_i && !dispatch0_csr_i) &&
       // 【B-FP 簇】FP 迁域 A: head0 FP 走普通 dispatch 进 ROB/FP 簇, 不再 capture。
       !dispatch1_barrier_o &&
       !dispatch1_control_unsupported_o && !dispatch1_mem_unsupported_o;

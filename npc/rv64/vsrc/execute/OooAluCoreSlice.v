@@ -44,6 +44,12 @@ module OooAluCoreSlice #(
   input dispatch1_pred_taken_i,
   input [`INST_W-1:0] dispatch1_inst_i,
   input [`XLEN-1:0] dispatch1_csr_rdata_i,
+  // 【serialize-at-retire Phase1】commit-time rd 覆写: head0-CSR 队头化后 dispatch 拍 csr_rdata=0(读点已迁队头),
+  // 其 ROB data 是垃圾。提交拍(head0_csr_commit_i)把架构组合读 csr_rdata(commit0_csr_rdata_i)覆写进 commit0_data,
+  // 同时修 arch GPR(→ArchRegFile) 与 difftest 流(→core_commit0_rd_data)。必须 commit-time(非 dispatch): fsflags 坑
+  // ——OLDER FP 在 CSR dispatch 后/commit 前更新 fflags, 只有提交拍架构读才对。
+  input head0_csr_commit_i,
+  input [`XLEN-1:0] commit0_csr_rdata_i,
   output dispatch1_unsupported_o,
   output dispatch1_unsupported_raw_o,
 
@@ -129,6 +135,10 @@ module OooAluCoreSlice #(
   wire [`TRAP_CAUSE_W-1:0] commit1_cause_w;
   wire [`XLEN-1:0] commit1_tval_w;
   wire [`XLEN * `REG_NUM - 1:0] arch_debug_gprs_w;
+  // 【serialize Phase1】ROB 原始 commit0 data(未覆写); head0-CSR 提交拍用架构 csr_rdata 覆写。
+  wire [`XLEN-1:0] commit0_data_raw_w;
+  assign commit0_data_o =
+      head0_csr_commit_i ? commit0_csr_rdata_i : commit0_data_raw_w;
 
   OooAluDecodeBackend #(
     .PHY_REG_ADDR_W(PHY_REG_ADDR_W),
@@ -201,7 +211,7 @@ module OooAluCoreSlice #(
     .commit0_arch_rd_o(commit0_arch_rd_o),
     .commit0_old_pdest_o(commit0_old_pdest_w),
     .commit0_new_pdest_o(commit0_new_pdest_w),
-    .commit0_data_o(commit0_data_o),
+    .commit0_data_o(commit0_data_raw_w),
     .commit0_exception_o(commit0_exception_o),
     .commit0_cause_o(commit0_cause_w),
     .commit0_tval_o(commit0_tval_w),

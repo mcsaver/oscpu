@@ -18,6 +18,7 @@ module OooFetchPacketSeedMux (
   input pending_mem_resolve_i,
   input system_csr_dispatch_i,
   input pending_system_csr_commit_i,
+  input head0_csr_commit_i,   // 【serialize Phase1】head0-CSR 队头提交拍清前端 FIFO(redirect 由 pc-seq 驱动)
   input drain_complete_i,
   input drain_pending_arch_trap_i,
   input drain_pending_system_i,
@@ -161,7 +162,9 @@ module OooFetchPacketSeedMux (
       // LSU replay dispatch does not change front-end FIFO storage.
     end else if (!direct_flush_i && system_csr_dispatch_i) begin
       // CSR dispatch waits for commit before the front-end FIFO is cleared.
-    end else if (!direct_flush_i && pending_system_csr_commit_i) begin
+    end else if (!direct_flush_i &&
+        (pending_system_csr_commit_i || head0_csr_commit_i)) begin
+      // head0-CSR(队头路)与 lane1-drain CSR 互斥, 同 set_clear: 清 FIFO, 重取由 pc-seq next_fetch_pc 驱动。
       set_clear;
     end else if (!csr_trap_i && !direct_flush_i && drain_complete_i) begin
       if (drain_pending_arch_trap_i) begin

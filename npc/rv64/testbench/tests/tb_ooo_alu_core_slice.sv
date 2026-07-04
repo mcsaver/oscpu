@@ -112,6 +112,9 @@ module tb_ooo_alu_core_slice;
     .mem_rsp_page_fault_i(1'b0),
     .commit_ready_i(commit_ready),
     .commit1_block_i(1'b0),
+    // 【serialize Phase1】commit-time CSR rd 覆写端口(此 TB 不测 CSR 队头化, 恒 0 = 基线 commit0_data)。
+    .head0_csr_commit_i(1'b0),
+    .commit0_csr_rdata_i({`XLEN{1'b0}}),
     .commit0_valid_o(commit0_valid),
     .commit0_pc_o(commit0_pc),
     .commit0_next_pc_o(commit0_next_pc),

@@ -56,6 +56,13 @@ module OooRob #(
 
   input commit_ready_i,
   input commit1_block_i,
+  // 【serialize-at-retire Phase1 §9 修向①】mem 静默门控: head0-CSR 退休拍会触发 serial_flush,
+  // 若此时 LSU/MIQ 有在飞 AXI(store probe/drain), serial_flush→mem_flush→lsu_axi_abort 会中止它
+  // → 更老 store 卡队头 head_done=0 → backend_drained 恒假 → drain-based trap 死锁。故 head0-CSR
+  // 必须等 mem_quiet(=mem_idle && mem_retire_quiet, 即 MIQ 空+SQ 排空+无在飞)才退休。此门控放在
+  // commit0_fire(而非 ControlPlane 的 commit_ready)是为避开 commit_ready→commit0_valid→core_commit0_csr
+  // 组合环; head0_is_csr_w 只看 inst_q/done/exception, 不依赖 commit_ready。
+  input mem_quiet_i,
   output commit0_valid_o,
   output [`XLEN-1:0] commit0_pc_o,
   output [`XLEN-1:0] commit0_next_pc_o,
@@ -257,11 +264,29 @@ module OooRob #(
   assign walk1_rd_en_o      = rd_en_q[wptr_m1_w];
   assign walk1_is_fp_o      = is_fp_rd_q[wptr_m1_w];
 
+  // 【serialize-at-retire Phase1】识别队头是否为(合法)CSR uop——用于 §9 mem-quiet 门控与禁 CSR 双提交。
+  // 只看 inst/done/exception(不依赖 commit_ready), 避免与 core_commit0_csr 成组合环。head0-CSR 队头化后
+  // 走正常 ROB, 队头 inst 为 SYSTEM 且 funct3!=0 即 CSR; 带异常者(非法 CSR)不在此(走 domain-A trap)。
+  wire head0_is_csr_w = valid_q[head_q] && head_done_w && !head_exception_w &&
+      (inst_q[head_q][6:0] == `OPCODE_SYSTEM) && (inst_q[head_q][14:12] != 3'b000);
+  // head0-CSR 未达 mem_quiet 时冻结其退休(mem 排空后再 commit+serial_flush, 见 §9 修向①)。
+  // flag OFF 时不冻结(基线: CSR 走 drain, 退休不触发 serial_flush, 无需 mem 门控)。
+  wire head0_csr_mem_hold_w =
+      `OOO_CSR_QUEUE_HEAD && head0_is_csr_w && !mem_quiet_i;
+  // head1 是否为 CSR: CSR 必须单发经 commit0 退休(否则经 commit1 会漏掉 head0_csr_commit → serial_flush/
+  // csr状态写/rd覆写全不触发, 如 mtvec 静默不写)。故 head1=CSR 时禁 commit1, 逼 CSR 等到自己成 head0。
+  wire head1_is_csr_w = valid_q[head1_w] && head1_done_w && !head1_exception_w &&
+      (inst_q[head1_w][6:0] == `OPCODE_SYSTEM) && (inst_q[head1_w][14:12] != 3'b000);
   assign commit0_fire_w = !recovering_w &&
                           commit_ready_i && (count_q != {ROB_COUNT_W{1'b0}}) &&
-                          valid_q[head_q] && head_done_w;
+                          valid_q[head_q] && head_done_w &&
+                          !head0_csr_mem_hold_w;
+  // 禁 CSR 双提交(仅 flag ON): (a) head0=CSR 时 serial_flush 刷 younger(含 head1), head1 不得同拍提交;
+  //               (b) head1=CSR 时禁 commit1, 逼 CSR 单发经 commit0(否则漏 head0_csr_commit)。
+  wire csr_commit1_block_w =
+      `OOO_CSR_QUEUE_HEAD && (head0_is_csr_w || head1_is_csr_w);
   assign commit1_fire_w = commit0_fire_w && !commit1_block_i &&
-                          !head_exception_w &&
+                          !head_exception_w && !csr_commit1_block_w &&
                           (count_q > {{(ROB_COUNT_W-1){1'b0}}, 1'b1}) &&
                           valid_q[head1_w] && head1_done_w;
   assign commit_count_w = {1'b0, commit0_fire_w} + {1'b0, commit1_fire_w};

@@ -80,6 +80,12 @@ module OooFrontend #(
   input pending_mem_q,
   input pending_mem_resolve_ready_w,
   input pending_system_csr_commit_w,
+  // 【serialize Phase1】head0-CSR 队头提交拍 redirect: 脉冲 + CSR 的架构下条 PC(core_commit0_next_pc)。
+  input head0_csr_commit_w,
+  input [`XLEN-1:0] core_commit0_next_pc_w,
+  // 【serialize Phase1 §4#1】head0-CSR 队头化: 只放行【合法】CSR 进 ROB(非法 CSR 如 S-mode 无 counteren 的
+  // rdtime 仍走 stop→drain→csr_illegal arch-trap)。故需 head0_csr_illegal 在 dispatch 侧区分。
+  input head0_csr_illegal_i,
   input [`XLEN-1:0] pending_system_csr_rdata_q,
   input pending_system_ecall_q,
   input [`INST_W-1:0] pending_system_inst_q,
@@ -742,8 +748,25 @@ module OooFrontend #(
   );
 
 
+  // 【serialize Phase1 §4】合法 head0-CSR 判定(镜像 OooFetchHeadPairGate dispatch0_system_o 的切法):
+  // dispatch_valid && facts[CSR] && !illegal。用于 §4#1 放行 / §4#2 不停头 / §4#3 squash lane1。
+  // ★排除 FP CSR(fflags/frm/fcsr): 本阶段不队头化 FP CSR(serial_flush 会 squash 在飞多周期 FP → 活锁/
+  //   fflags RAW 错), 让它们仍走 drain 路(§9 note)。fdiv/fmadd 读 fcsr 校验异常标志靠此保正确。
+  wire head0_fp_csr_w =
+      (head_inst0_w[31:20] == `CSR_FFLAGS) ||
+      (head_inst0_w[31:20] == `CSR_FRM) ||
+      (head_inst0_w[31:20] == `CSR_FCSR);
+  wire dispatch0_csr_w =
+      `OOO_CSR_QUEUE_HEAD &&
+      dispatch_valid_w && head0_facts_w[`OOO_SLOT_FACT_CSR] &&
+      !head0_csr_illegal_i && !head0_fp_csr_w;
+  // head0-CSR 单发 fire(=进后端 valid 且 dispatch 就绪): 驱动 FIFO 单发 pop(否则前端卡死)。
+  wire head0_csr_dispatch_fire_w =
+      frontend_dispatch_to_backend_valid_w && dispatch0_csr_w && dispatch0_ready_w;
+
   OooFrontendDispatchGate u_frontend_dispatch_gate (
     .dispatch_valid_i(dispatch_valid_w),
+    .dispatch0_csr_i(dispatch0_csr_w),
     .head0_branch_pred_taken_i(head0_branch_pred_taken_w),
     .head1_branch_pred_taken_i(head1_branch_pred_taken_w),
     .dispatch0_exit_i(dispatch0_exit_w),
@@ -1186,6 +1209,8 @@ module OooFrontend #(
     .dispatch0_exit_i(dispatch0_exit_w),
     .dispatch0_arch_trap_i(dispatch0_arch_trap_w),
     .dispatch0_system_i(dispatch0_system_w),
+    .dispatch0_csr_i(dispatch0_csr_w),
+    .head0_csr_dispatch_fire_i(head0_csr_dispatch_fire_w),
     .dispatch0_branch_i(dispatch0_branch_w),
     .dispatch0_jal_i(dispatch0_jal_w),
     .dispatch0_jump_i(dispatch0_jump_w),
@@ -1399,6 +1424,7 @@ module OooFrontend #(
     .pending_mem_resolve_i(pending_mem_resolve_ready_w),
     .system_csr_dispatch_i(system_csr_dispatch_fire_w),
     .pending_system_csr_commit_i(pending_system_csr_commit_w),
+    .head0_csr_commit_i(head0_csr_commit_w),
     .drain_complete_i(stop_pending_q && drain_complete_w),
     .drain_pending_arch_trap_i(pending_arch_trap_q),
     .drain_pending_system_i(pending_system_q),
@@ -1541,7 +1567,8 @@ module OooFrontend #(
   // solo 分支(taken/!dual)与非返回 JALR 拍禁 d1 影子(谓词无 ready, 不与 pair-ready 成环)
   wire dispatch1_squash_w =
       (dispatch0_branch_w && !dbranch_dual_go_w) ||
-      (dispatch0_jump_w && !dispatch0_return_w);
+      (dispatch0_jump_w && !dispatch0_return_w) ||
+      dispatch0_csr_w;   // 【serialize Phase1 §4#3】head0-CSR 单发, 禁 lane1 影子(younger 不与 CSR 同包进 ROB)
 
   // 【F2】dispatch 载荷: BHT 查询快照直通(prefetch/pending 臂非分支, 后端只在
   // is_branch 时消费, 载荷错位无害)
@@ -1826,6 +1853,8 @@ module OooFrontend #(
       .jalr_prefetch_hit_packet_next_pc_i(jalr_prefetch_hit_packet_next_pc_w),
       .pending_jump_resolved_target_i(pending_jump_resolved_target_w),
       .pending_system_csr_commit_i(pending_system_csr_commit_w),
+      .head0_csr_commit_i(head0_csr_commit_w),
+      .core_commit0_next_pc_i(core_commit0_next_pc_w),
       .pending_system_next_pc_i(pending_system_next_pc_q),
       .drain_complete_i(stop_pending_q && drain_complete_w),
       .pending_arch_trap_i(pending_arch_trap_q),

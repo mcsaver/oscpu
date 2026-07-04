@@ -56,6 +56,10 @@ module OooFetchPcOutstandingSequencer (
 
   input pending_system_csr_commit_i,
   input [`XLEN-1:0] pending_system_next_pc_i,
+  // 【serialize Phase1】head0-CSR 队头提交拍 redirect: 清 outstanding + discard 在飞取指响应 + 从 CSR 的
+  // next_pc(架构下条 PC)重取。next_pc 用 core_commit0_next_pc(ROB 队头 CSR 的 next_pc)。
+  input head0_csr_commit_i,
+  input [`XLEN-1:0] core_commit0_next_pc_i,
 
   input drain_complete_i,
   input pending_arch_trap_i,
@@ -203,11 +207,13 @@ module OooFetchPcOutstandingSequencer (
             next_fetch_pc_q <= pending_jump_resolved_target_i;
           end
         end
-      end else if (!direct_frontend_flush_i && pending_system_csr_commit_i) begin
+      end else if (!direct_frontend_flush_i &&
+          (pending_system_csr_commit_i || head0_csr_commit_i)) begin
         outstanding_valid_q <= 1'b0;
         outstanding_pc_q <= {`XLEN{1'b0}};
         discard_fetch_rsp_q <= outstanding_valid_q && !fetch_rsp_fire_i;
-        next_fetch_pc_q <= pending_system_next_pc_i;
+        next_fetch_pc_q <= head0_csr_commit_i ? core_commit0_next_pc_i
+                                              : pending_system_next_pc_i;
       end else if (!csr_trap_mem_valid_i &&
                    !direct_frontend_flush_i && drain_complete_i) begin
         if (pending_arch_trap_i) begin

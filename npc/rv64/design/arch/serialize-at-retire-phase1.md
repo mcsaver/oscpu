@@ -1,8 +1,10 @@
 # Phase 1 实施 Spec：CSR 队头化（serialize-at-retire step 1）
 
-> 状态：**⚠️ 实现尝试遇方法级障碍，未落地（2026-07-04）**。spec 本体（读点/rd 覆写/serial_flush 复活）
-> 均验证成立（riscv-tests 355/0 + 模块 TB 82/82 + difftest 无退化），**但 §9 的 flush-on-every-CSR ↔
-> 异步 LSU 冲突使 3 个 AM CSR/特权/中断测试死锁回归——本方法需先解决 LSU 协调（§9 修向）才能落地**。
+> 状态：**flag-gated 半落地（2026-07-05）**。§9 mem-quiescence 安全机制**已实现并落地（sound，3 refute
+> agent 对抗验证）**，§4 CSR 队头化核心机制验证成立（riscv rv64mi/si 23/23 + FP 全绿），但中间态
+> （head0-CSR 与 lane1-drain-CSR 共存）有未解死锁，故全特性收在编译期 flag `OOO_CSR_QUEUE_HEAD`
+> （默认 0=基线，树保持绿：module TB 82/82 + lint 0 + riscv 177/0 + AM 57/58）。**详见 §10。**
+> （历史：2026-07-04 首次尝试遇 §9 flush↔LSU 障碍未落地；本轮 §9 修向① 已解，暴露更深的中间态死锁。）
 > 父规范 `serialize-at-retire.md`。
 > 范围：**只 head0 CSR 队头化，lane1 CSR 仍走 drain 路**（两路结构互斥，天然最小面）。
 > 保留 stop_pending（停派 younger 直到 CSR commit）；不删任何 drain 机制；不碰非 CSR 系统 op。
@@ -133,3 +135,63 @@ root-cause 同族（方法级）：
   discard+ITLB satp-tag miss 保正确，rv64si-p-dirty 过）；FP CSR 排除本阶段（squash 在飞 FP 活锁）；CSR 必须
   单独提交（禁 commit0/1 CSR dual-commit）。**stop_pending 对 head0 CSR 是孤儿自清 no-op、正确性全靠 serial_flush**
   ——正是它与 LSU 冲突暴露之因。补丁未合入（待 §9 修向）。
+
+## 10. §9 修向① 实现 + §4 落地 + 中间态死锁（2026-07-05，flag-gated 半落地）
+
+> 状态：**§9 mem-quiescence 安全机制实现并落地（sound，已对抗验证）；§4 CSR 队头化核心机制验证成立
+> （riscv rv64mi/si 23/23 + FP 全绿）；但中间态（head0-CSR 与 lane1-drain-CSR 共存）有未解死锁，
+> 故全特性收在编译期 flag `OOO_CSR_QUEUE_HEAD`（默认 0=基线行为，树保持绿）。** flag ON 需先解中间态串行化。
+
+### 10.1 §9 修向① 落地：mem_quiet 门控（sound）
+- **门控信号 = `mem_idle && mem_retire_quiet`**（二者）。mem_idle(OooIntBackend:1082,miq_empty)覆盖 younger
+  在飞 load/probe/active-drain；mem_retire_quiet(:1086,sq_empty)覆盖 committed 但未 drain 的更老 SQ store。
+  二者 AND = 完全 mem 静默 → serial_flush(mem_flush→lsu_axi_abort)中止不了任何东西、破坏不了 MIQ 响应路由。
+  选 both（非单 mem_idle）使 head0-CSR 路的 **liveness 包络与现成 drain 路(backend_drained 已含 mem_retire_quiet)
+  完全一致** = 继承已验证机制的活性边界，且结构性消除边界 drain race。
+- **落点=OooRob commit0_fire（loop-free）**，非 ControlPlane commit_ready mask：后者 core_commit0_csr 依赖
+  commit0_valid=commit0_fire=依赖 commit_ready → 组合环。改用 ROB 内部 `head0_is_csr_w`（从 inst_q/done/
+  exception 判，不依赖 commit_ready）门控 commit0_fire → 无环。head0_csr_commit 天然只在 mem 静默拍拉高
+  （因 core_commit0_csr=commit0_fire 已含门控）。mem_idle&&mem_retire_quiet 在 OooIntBackend 生成，同域下路
+  由 OooDispatchBackend→OooRob（mem_quiet_i）。
+- **对抗验证**：3 个独立 refute agent（new-deadlock/correctness/sq-flush）全 REFUTED=False，high conf：
+  ①mem_idle 时无在飞 AXI→死锁结构性不可能且有界可达；②读旧值/写副作用/rd 回写架构正确（等待期 CSR 态冻结）；
+  ③committed store 恒存活 flush_all + 边界 drain nokill 免疫 → mem_idle 单独已够（本实现更保守用 both）。
+
+### 10.2 §4 落地实现（当前行号，flag ON 生效）
+- §4#1 前端放行(OooFrontendDispatchGate:152) + §4#2 stop_head/fifo_pop(OooFrontendActionGate) +
+  §4#3 dispatch1_squash(OooFrontend) + §4#4 capture 互斥(OooPendingDispatchArbiter:147)。
+- rd 覆写真落点：**OooAluCoreSlice commit0_data 覆写**（commit0_data 同喂 ArchRegFile + core_commit0_rd_data
+  difftest 流 = 同 wire，覆写 1 处修两者），值=commit 拍架构组合读 csr_rdata（NON dispatch-time：fsflags 坑）。
+- serial_flush 复活：OooControlCommitSequencer:85 `serial_flush_q<=head0_csr_commit_i`。下游全 born-ready。
+- redirect：OooFetchPacketSeedMux/OooFetchPcOutstandingSequencer 加 head0_csr_commit 臂(next_pc=core_commit0_next_pc)。
+- CSR state 写：NpcCoreTop csr_commit_i `|= head0_csr_commit`（satp mmu_flush 不在 head0 拍开，靠 ITLB satp-tag miss）。
+
+### 10.3 落地中发现并修复的 4 个真 bug
+1. **commit1-CSR 漏 head0_csr_commit**：CSR 经 commit1（双提交第二条）退休时 head0_csr_commit（只看 commit0）
+   漏掉 → mtvec 静默不写。修：OooRob commit1_fire 加 `!head0_is_csr && !head1_is_csr`（CSR 恒单发经 commit0）。
+2. **pending_system_csr_q 全局抑制**：head0-CSR 与另一条 lane1-drain-CSR 共存时，后者 pend_csr_q=1 误抑制前者
+   head0 提交。修：head0_csr_commit 用 `!pending_system_csr_commit_w`（pc 精确匹配那条）而非全局 pend_csr_q。
+3. **FP CSR 未排除**：fcsr/fflags/frm(0x001/2/3)走 head0 路 → serial_flush squash 在飞多周期 FP → fdiv/fmadd 挂。
+   修：frontend + arbiter 的 dispatch0_csr_w 排除 FP CSR（仍走 drain）。
+4. **serial_flush 未清 pending_system**：head0-CSR commit 刷 younger 但 younger 的 pending 系统op残留。
+   修：arbiter pending_system_clear `|= head0_csr_commit`（部分缓解，未根治，见 10.4）。
+
+### 10.4 ⚠️ 未解中间态死锁（flag ON 时 sbi-base-console / fp-difftest-probe 挂死）
+父 spec §4 已警告「阶段 1-4 中间态两套系统op语义共抢 ROB 队头独占=最脆弱、易死锁」，此处坐实两层：
+- **两条 lane1-CSR 覆写单个 pending 寄存器**：mtvec+mstatus 在重叠窗口都被捕获到 pending_system（单寄存器），
+  第二个覆写第一个 → 第一个 drain 状态丢失（pc mismatch 既不走 drain 又靠 hack 走 head0）。根源=head0-CSR 的
+  stop_pending 未有效串行化 lane1-CSR 捕获（baseline 靠 stop 串行化能过，§4 扰动之）。
+- **ecall-drain stuck-store**：sbi 后段 ecall 捕获到 pending 后 drain 永不完成——`backend_drained=0`（ROB 空但
+  `mem_retire_quiet=0`=一个 store 卡 SQ，§9 家族残留）→ stop_pending 卡死 → 前端冻结（CANRUN0: stopbusy=1/sys=1）。
+- **诊断方法学**：NPC_COMMITWATCH（退休真相）+ 自插 CSRWRITE_PROBE/CANRUN_PROBE（ifdef，已移除）逐层定位
+  csr_commit fire→head0_csr_commit→pending_system 转换→can_run blocker→stop_pending owner。
+
+### 10.5 验证矩阵
+| 状态 | module TB | lint | riscv | AM | 结论 |
+|---|---|---|---|---|---|
+| flag OFF（提交默认）| 82/82 | 0 | 177/0 | 57/58* | **= 精确基线**（*fp-difftest-probe 预存在失败，与本工作无关）|
+| flag ON | 82/82 | 0 | rv64mi16+si7+FP 全绿 | sbi/fp-difftest-probe 挂死 | 核心 sound，中间态未解 |
+
+### 10.6 下一步（flag ON 前置）
+解中间态串行化：使 head0-CSR 的 stop_pending 有效阻止 lane1-CSR 捕获（或让 lane1-CSR 也队头化 = 每 CSR
+单发经 head0，消除共存），并根治 ecall-drain 的 SQ stuck-store（核对是否 serial_flush/中间态扰动致某 store 未 drain）。

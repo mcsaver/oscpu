@@ -433,6 +433,8 @@ module OooIntBackend #(
     .commit_ready_i(commit_ready_i && !checkpoint_capture_i &&
                     !checkpoint_restore_i && !checkpoint_quiesce_i),
     .commit1_block_i(commit1_block_i),
+    // 【serialize Phase1 §9】mem 全静默才放 head0-CSR 退休(=mem_idle 无在飞 MIQ + mem_retire_quiet SQ 排空)。
+    .mem_quiet_i(mem_idle_o && mem_retire_quiet_o),
     .commit0_valid_o(commit0_valid_o),
     .commit0_pc_o(commit0_pc_o),
     .commit0_next_pc_o(commit0_next_pc_o),

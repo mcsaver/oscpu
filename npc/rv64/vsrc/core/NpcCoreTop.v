@@ -125,6 +125,7 @@ module NpcCoreTop (
   wire ooo_csr_cycle_count_enable_w;
   wire [1:0] ooo_core_retire_count_w;
   wire ooo_pending_system_csr_commit_w;
+  wire ooo_head0_csr_commit_w;   // 【serialize Phase1】head0-CSR 队头提交脉冲 → CSR 状态写
   wire ooo_csr_access_valid_w;
   wire [11:0] ooo_csr_access_addr_w;
   wire [2:0] ooo_csr_access_funct3_w;
@@ -277,6 +278,7 @@ module NpcCoreTop (
     .csr_cycle_count_enable_w(ooo_csr_cycle_count_enable_w),
     .core_retire_count_w(ooo_core_retire_count_w),
     .pending_system_csr_commit_w(ooo_pending_system_csr_commit_w),
+    .head0_csr_commit_w(ooo_head0_csr_commit_w),
     .csr_access_valid_w(ooo_csr_access_valid_w),
     .csr_access_addr_w(ooo_csr_access_addr_w),
     .csr_access_funct3_w(ooo_csr_access_funct3_w),
@@ -368,7 +370,10 @@ module NpcCoreTop (
     .csr_rs1_idx_i(ooo_csr_access_rs1_idx_w),
     .csr_rs1_data_i(ooo_csr_access_rs1_data_w),
     .csr_zimm_i(ooo_csr_access_rs1_idx_w),
-    .csr_commit_i(ooo_pending_system_csr_commit_w),
+    // 【serialize Phase1 §E5】CSR 状态写在 drain 路(pending_system_csr_commit) 或 head0 队头路(mem 静默拍) fire。
+    // csr_valid_i/addr/rs1 已由 csr_access_* 覆盖 head0-CSR(core_commit0_csr 优先); satp state 也经此写(内部 :759)。
+    // 注: satp 的 mmu_flush(ifu_axi_abort)不在 head0 拍开(靠 serial_flush redirect + ITLB satp-tag miss)。
+    .csr_commit_i(ooo_pending_system_csr_commit_w || ooo_head0_csr_commit_w),
     .csr_rdata_o(ooo_csr_rdata_w),
     .csr_illegal_o(ooo_csr_illegal_w),
     .fp_fflags_valid_i(ooo_pending_fp_fflags_commit_w),

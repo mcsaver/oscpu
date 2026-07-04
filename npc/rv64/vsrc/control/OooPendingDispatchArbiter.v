@@ -18,6 +18,10 @@ module OooPendingDispatchArbiter (
   input pending_jump_nolink_commit_i,
   input pending_jump_redirect_after_dispatch_i,
   input pending_system_csr_commit_i,
+  // 【serialize Phase1】head0-CSR 队头提交(→serial_flush)清 pending_system: head0-CSR 与同窗口另一条
+  // lane1/younger 系统op(drain)可能共存于中间态, head0-CSR commit 拍 serial_flush 刷 younger, 那条 pending
+  // 系统op(younger)须一并清(否则 pending_system 残留卡死 stop_pending → 前端冻结, 见 sbi 死锁)。
+  input head0_csr_commit_i,
   input stop_pending_i,
   input drain_complete_i,
 
@@ -81,6 +85,19 @@ module OooPendingDispatchArbiter (
   // pending capture/clear 门控(旧 !dispatch0_fp_w gate 在 lane1 barrier fire
   // 整包 pop 时挡死 lane1 system capture → 与 FP 同包的 CSR 指令被静默丢弃)。
   wire dispatch0_system_w = dispatch0_facts_i[`OOO_SLOT_FACT_SYSTEM];
+  // 【serialize-at-retire Phase1 §4#4】head0-CSR 队头化: 合法 head0-CSR 改走正常 ROB dispatch(不再 capture
+  // 进 pending_system), 由 serial commit 提交。此处 dispatch0_csr_w="是 head0-可队头化 CSR"; :147 的
+  // pending_system_capture_head0 排除它(已有 !head0_csr_illegal, 合法/非法 CSR 均不 head0-capture:
+  // 合法→ROB, 非法→trap_exit_capture_csr_illegal0 drain-trap)。ecall/mret/wfi/sfence(csr=0)仍 capture。
+  // ★排除 FP CSR(fflags/frm/fcsr): 与前端 §4#1 一致——FP CSR 本阶段不队头化, 须仍 capture 进 drain
+  //   (否则既不 admit ROB 又不 capture = 丢失)。故对 FP CSR dispatch0_csr_w=0 → capture_head0 照常 fire。
+  wire head0_fp_csr_w =
+      (head_inst0_i[31:20] == `CSR_FFLAGS) ||
+      (head_inst0_i[31:20] == `CSR_FRM) ||
+      (head_inst0_i[31:20] == `CSR_FCSR);
+  wire dispatch0_csr_w =
+      `OOO_CSR_QUEUE_HEAD &&
+      dispatch0_facts_i[`OOO_SLOT_FACT_CSR] && !head0_fp_csr_w;
   wire dispatch0_branch_w = dispatch0_facts_i[`OOO_SLOT_FACT_BRANCH];
   wire dispatch0_jal_w = dispatch0_facts_i[`OOO_SLOT_FACT_JAL];
   wire dispatch0_jump_w = dispatch0_facts_i[`OOO_SLOT_FACT_JALR];
@@ -144,7 +161,7 @@ module OooPendingDispatchArbiter (
       !head_fetch_fault0_i &&
       !dispatch0_arch_trap_w &&
       !dispatch0_exit_w &&
-      dispatch0_system_w && !head0_csr_illegal_i;
+      dispatch0_system_w && !dispatch0_csr_w && !head0_csr_illegal_i;
   assign pending_system_capture_lane1_o = lane1_system_capture_w;
 
   // [wave5b 死硅拆除] pending_branch_capture_direct/head0/lane1 + pending_jump_capture_head0/lane1
@@ -173,6 +190,7 @@ module OooPendingDispatchArbiter (
   assign pending_system_clear_o =
       csr_trap_mem_valid_i ||
       direct_frontend_flush_i ||
+      head0_csr_commit_i ||
       resolve_clear_w ||
       pending_jump_clear_from_resolve_w;
 

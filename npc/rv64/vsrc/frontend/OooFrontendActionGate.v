@@ -13,6 +13,8 @@ module OooFrontendActionGate (
   input dispatch0_exit_i,
   input dispatch0_arch_trap_i,
   input dispatch0_system_i,
+  input dispatch0_csr_i,              // 【serialize Phase1 §4#2a】合法 head0-CSR 不停头(走正常 dispatch)
+  input head0_csr_dispatch_fire_i,   // 【serialize Phase1 §4#2b】head0-CSR 单发 fire → FIFO 单发 pop
   input dispatch0_branch_i,
   input dispatch0_jal_i,
   input dispatch0_jump_i,
@@ -57,7 +59,7 @@ module OooFrontendActionGate (
       (head_fetch_fault0_i ||
        dispatch0_exit_i ||
        dispatch0_arch_trap_i ||
-       dispatch0_system_i ||
+       (dispatch0_system_i && !dispatch0_csr_i) ||
        (dispatch0_branch_i && !(`OOO_DBRANCH_DOMAIN_A)) ||
        dispatch0_jal_i ||
        dispatch0_jump_i ||
@@ -70,7 +72,8 @@ module OooFrontendActionGate (
       dispatch_fire_i ||
       dbranch_dispatch_fire_i ||
       dispatch1_barrier_fire_i ||
-      direct_jal0_fire_i;
+      direct_jal0_fire_i ||
+      head0_csr_dispatch_fire_i;   // 【serialize Phase1 §4#2b】head0-CSR 单发 pop(其余 4 项对 CSR 均不 fire)
 
   assign fetch_rsp_control_stop_o =
       fetch_rsp_fire_i &&

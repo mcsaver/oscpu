@@ -24,6 +24,10 @@ module OooStopPendingSequencer (
   input wire pending_mem_resolve_ready_i,
   input wire system_csr_dispatch_fire_i,
   input wire pending_system_csr_commit_i,
+  // 【serialize-at-retire Phase1】head0-CSR 队头提交拍清 stop(它在 dispatch 拍经 dispatch0_system_i 置了
+  // stop 停 younger; 提交后须清, 否则 younger 永不 dispatch → 前端死锁)。与 drain 路 pending_system_csr_commit
+  // 互斥(head0 路 pending_system_csr_q=0)。flush_i 是顶层恒 0 flush, serial_flush 不经它, 故必须显式清。
+  input wire head0_csr_commit_i,
   input wire drain_complete_i,
 
   input wire can_run_i,
@@ -101,7 +105,8 @@ module OooStopPendingSequencer (
         // Hold this priority slot; pending memory state is owned elsewhere.
       end else if (!direct_frontend_flush_i && system_csr_dispatch_fire_i) begin
         // Hold this priority slot; pending SYSTEM dispatched state is owned elsewhere.
-      end else if (!direct_frontend_flush_i && pending_system_csr_commit_i) begin
+      end else if (!direct_frontend_flush_i &&
+          (pending_system_csr_commit_i || head0_csr_commit_i)) begin
         stop_pending_o <= 1'b0;
       end else if (!csr_trap_mem_valid_i &&
           !direct_frontend_flush_i && stop_pending_o && drain_complete_i) begin

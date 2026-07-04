@@ -181,6 +181,11 @@ module OooControlPlane #(
   output pending_system_capture_lane1_w,
   output pending_system_clear_w,
   output pending_system_csr_commit_w,
+  // 【serialize-at-retire Phase1】head0-CSR 队头退休脉冲(组合, 提交拍). 因 core_commit0_csr_w 依赖
+  // core_commit0_valid=commit0_fire(已被 OooRob 的 mem_quiet 门控), 此信号天然只在 mem 静默拍拉高。
+  // !pending_system_csr_q 区分: head0 路(CSR 进 ROB, =0) vs lane1-drain 路(=1, 走老机制)。
+  // 驱动 serial_flush + rd 覆写 + csr 写 + 前端 redirect + stop 清。
+  output head0_csr_commit_w,
   output pending_system_csr_q,
   output [`XLEN-1:0] pending_system_csr_rdata_q,
   output pending_system_dispatched_q,
@@ -288,6 +293,18 @@ module OooControlPlane #(
     .pending_system_satp_write_commit_o(pending_system_satp_write_commit_w),
     .pending_system_sfence_commit_o(pending_system_sfence_commit_w)
   );
+
+  // 【serialize-at-retire Phase1】head0-CSR 队头退休脉冲。core_commit0_csr_w 已被 OooRob 的 mem_quiet
+  // 门控(commit0_fire→commit0_valid→core_commit0_csr), 故此脉冲天然只在 mem 静默的提交拍拉高。
+  // !pending_system_csr_q 排除 lane1-drain 路(那条仍走老的 pending_system_csr_commit)。
+  // 区分 head0 路 vs lane1-drain 路: 用 !pending_system_csr_commit_w(pc 精确匹配那条), 不能用全局
+  // pending_system_csr_q——head0-CSR 与另一条 lane1-drain-CSR 共存时(中间态), 后者的 pend_csr_q=1 会
+  // 误抑制前者的 head0 提交, 使该 head0-CSR 既不走 drain(pc 不匹配)又不走 head0 → CSR 静默不写(mtvec 坑)。
+  // flag OFF 时恒 0: head0_csr_commit 是全部 §9 infra(serial_flush/rd 覆写/redirect/csr 写/stop 清/
+  // pending 清)的触发, gate 在此使 flag OFF = 纯基线(否则 drain CSR 的 pending pc-mismatch 会虚假触发
+  // serial_flush 破坏 fp-difftest-probe 等)。
+  assign head0_csr_commit_w =
+      `OOO_CSR_QUEUE_HEAD && core_commit0_csr_w && !pending_system_csr_commit_w;
 
 
   OooCsrTrapRequestMux u_csr_trap_request_mux (
@@ -410,6 +427,7 @@ module OooControlPlane #(
     .pending_jump_redirect_after_dispatch_i(
         pending_jump_redirect_after_dispatch_w),
     .pending_system_csr_commit_i(pending_system_csr_commit_w),
+    .head0_csr_commit_i(head0_csr_commit_w),
     .stop_pending_i(stop_pending_q),
     .drain_complete_i(drain_complete_w),
     .direct_branch0_fire_i(direct_branch0_fire_w),
@@ -709,6 +727,7 @@ module OooControlPlane #(
     .pending_mem_resolve_ready_i(pending_mem_resolve_ready_w),
     .system_csr_dispatch_fire_i(system_csr_dispatch_fire_w),
     .pending_system_csr_commit_i(pending_system_csr_commit_w),
+    .head0_csr_commit_i(head0_csr_commit_w),
     .drain_complete_i(drain_complete_w),
     .can_run_i(can_run_w),
     .fifo_has_packet_i(fifo_has_packet_w),
