@@ -515,9 +515,6 @@ module OooIntBackend #(
   wire [`XLEN-1:0] issue1_src2_data_w;
   wire [`XLEN-1:0] dispatch_branch_src1_data_w;
   wire [`XLEN-1:0] dispatch_branch_src2_data_w;
-  wire [`XLEN-1:0] dispatch0_src1_data_w;
-  wire [`XLEN-1:0] dispatch0_src2_data_w;
-  wire [`XLEN-1:0] load_branch_fast_src2_data_w;
 
   wire dispatch0_branch_fire_w =
       dispatch0_fire_w && dispatch0_ctrl_i[`CTRL_BRANCH_BIT];
@@ -552,15 +549,8 @@ module OooIntBackend #(
     .read4_data_o(dispatch_branch_src1_data_w),
     .read5_addr_i(dispatch_branch_src2_preg_w),
     .read5_data_o(dispatch_branch_src2_data_w),
-    .read6_addr_i(dispatch0_src1_preg_w),
-    .read6_data_o(dispatch0_src1_data_w),
-    .read7_addr_i(dispatch0_src2_preg_w),
-    .read7_data_o(dispatch0_src2_data_w),
-    // E7 删除：load-branch-fast 死硅，read8/read9 地址接 0（保留端口，避免改 OooPhysRegFile）。
     .read8_addr_i(fp_gpr_read_addr_w),
     .read8_data_o(fp_gpr_read_data_w),
-    .read9_addr_i({PHY_REG_ADDR_W{1'b0}}),
-    .read9_data_o(load_branch_fast_src2_data_w),
     .write0_valid_i(wb0_valid_w && (wb0_pdest_w != {PHY_REG_ADDR_W{1'b0}})),
     .write0_addr_i(wb0_pdest_w),
     .write0_data_i(wb0_data_w),
@@ -2581,7 +2571,7 @@ module OooIntBackend #(
   assign dispatch_branch_resolve_misaligned_o =
       dispatch_branch_fast_resolve_w && dispatch_branch_misaligned_w;
 
-  // E7 删除后：dispatch backend 的 load_branch_fast_* 输出、PRF read8/9 数据、以及
+  // E7 删除后：dispatch backend 的 load_branch_fast_* 输出、以及
   // pending_branch_fast_* 输入全部悬空（其消费逻辑随死硅移除），统一 reduction-OR 收口。
   wire unused_load_branch_fast_w =
       load_branch_fast_valid_w |
@@ -2594,7 +2584,6 @@ module OooIntBackend #(
       (|load_branch_fast_src2_preg_w) |
       load_branch_fast_wait_load0_w |
       load_branch_fast_wait_load1_w |
-      (|load_branch_fast_src2_data_w) |
       pending_branch_fast_valid_i |
       (|pending_branch_fast_pc_i);
 

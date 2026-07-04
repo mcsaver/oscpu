@@ -23,14 +23,8 @@ module OooPhysRegFile #(
   output [`XLEN-1:0] read4_data_o,
   input [PHY_REG_ADDR_W-1:0] read5_addr_i,
   output [`XLEN-1:0] read5_data_o,
-  input [PHY_REG_ADDR_W-1:0] read6_addr_i,
-  output [`XLEN-1:0] read6_data_o,
-  input [PHY_REG_ADDR_W-1:0] read7_addr_i,
-  output [`XLEN-1:0] read7_data_o,
   input [PHY_REG_ADDR_W-1:0] read8_addr_i,
   output [`XLEN-1:0] read8_data_o,
-  input [PHY_REG_ADDR_W-1:0] read9_addr_i,
-  output [`XLEN-1:0] read9_data_o,
 
   input write0_valid_i,
   input [PHY_REG_ADDR_W-1:0] write0_addr_i,
@@ -84,16 +78,7 @@ module OooPhysRegFile #(
   assign read5_data_o = read_port_data(read5_addr_i,
                                        write0_valid_i, write0_addr_i, write0_data_i,
                                        write1_valid_i, write1_addr_i, write1_data_i);
-  assign read6_data_o = read_port_data(read6_addr_i,
-                                       write0_valid_i, write0_addr_i, write0_data_i,
-                                       write1_valid_i, write1_addr_i, write1_data_i);
-  assign read7_data_o = read_port_data(read7_addr_i,
-                                       write0_valid_i, write0_addr_i, write0_data_i,
-                                       write1_valid_i, write1_addr_i, write1_data_i);
   assign read8_data_o = read_port_data(read8_addr_i,
-                                       write0_valid_i, write0_addr_i, write0_data_i,
-                                       write1_valid_i, write1_addr_i, write1_data_i);
-  assign read9_data_o = read_port_data(read9_addr_i,
                                        write0_valid_i, write0_addr_i, write0_data_i,
                                        write1_valid_i, write1_addr_i, write1_data_i);
 

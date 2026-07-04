@@ -21,8 +21,6 @@ module tb_ooo_phys_reg_file;
   wire [`XLEN-1:0] read5_data;
   reg [PHY_REG_ADDR_W-1:0] read8_addr;
   wire [`XLEN-1:0] read8_data;
-  reg [PHY_REG_ADDR_W-1:0] read9_addr;
-  wire [`XLEN-1:0] read9_data;
   reg write0_valid;
   reg [PHY_REG_ADDR_W-1:0] write0_addr;
   reg [`XLEN-1:0] write0_data;
@@ -47,8 +45,6 @@ module tb_ooo_phys_reg_file;
 	    .read5_data_o(read5_data),
 	    .read8_addr_i(read8_addr),
 	    .read8_data_o(read8_data),
-	    .read9_addr_i(read9_addr),
-	    .read9_data_o(read9_data),
 	    .write0_valid_i(write0_valid),
     .write0_addr_i(write0_addr),
     .write0_data_i(write0_data),
@@ -66,7 +62,6 @@ module tb_ooo_phys_reg_file;
       read4_addr = 6'd0;
       read5_addr = 6'd0;
       read8_addr = 6'd0;
-      read9_addr = 6'd0;
       write0_valid = 1'b0;
       write0_addr = 6'd0;
       write0_data = 32'h0;
