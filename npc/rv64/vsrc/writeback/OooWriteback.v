@@ -5,7 +5,6 @@
 // 行为与原扁平实例化等价：仅把跨边界信号导出为端口，内部信号下沉。
 module OooWriteback (
   input clk,
-  input commit_ready_i,
   input core_commit0_exception_w,
   input [`INST_W-1:0] core_commit0_inst_w,
   input [`XLEN-1:0] core_commit0_next_pc_w,
@@ -28,16 +27,10 @@ module OooWriteback (
   input [1:0] core_retire_count_w,
   input [`XLEN-1:0] csr_ret_target_w,
   input csr_trap_mem_valid_w,
-  input direct_branch0_fire_w,
-  input direct_branch0_lane1_ret_w,
-  input direct_branch1_fire_w,
   input direct_frontend_flush_w,
   input drain_complete_w,
   input flush_i,
   input [`INST_W-1:0] head_inst0_w,
-  input [`INST_W-1:0] head_inst1_w,
-  input [`XLEN-1:0] head_next_pc1_w,
-  input [`XLEN-1:0] head_pc1_w,
   input [`XLEN-1:0] head_pc_w,
   input [`XLEN-1:0] mem_rsp_rdata_i,
   input pending_arch_trap_q,
@@ -60,7 +53,6 @@ module OooWriteback (
   input [`XLEN-1:0] pending_system_next_pc_q,
   input [`XLEN-1:0] pending_system_pc_q,
   input pending_system_q,
-  input pending_system_satp_write_commit_w,
   input rst,
   input stop_pending_q,
   input synth_lane1_branch_append_w,
@@ -84,13 +76,7 @@ module OooWriteback (
   output commit1_write_o,
   output core_serial_flush_q,
   output ctrl_commit_valid_q,
-  output [1:0] retire_count_o,
-  output synth_lane1_branch_drop_match_w,
-  output synth_lane1_branch_drop_pending_q,
-  output synth_lane1_ret_branch_commit0_w,
-  output synth_lane1_ret_branch_seen_q,
-  output synth_lane1_ret_commit_w,
-  output synth_lane1_ret_pending_q
+  output [1:0] retire_count_o
 );
 
   wire [`INST_W-1:0] ctrl_commit_inst_q;
@@ -100,65 +86,7 @@ module OooWriteback (
   wire [`XLEN-1:0] ctrl_commit_rd_data_q;
   wire ctrl_commit_rd_en_q;
   wire ctrl_commit_write_q;
-  wire [`XLEN-1:0] synth_lane1_branch_drop_pc_q;
-  wire synth_lane1_ret_after_core0_w;
-  wire synth_lane1_ret_before_core0_w;
-  wire synth_lane1_ret_branch_commit1_w;
-  wire [`XLEN-1:0] synth_lane1_ret_branch_pc_q;
-  wire synth_lane1_ret_drop_branch_w;
-  wire [`INST_W-1:0] synth_lane1_ret_inst_q;
-  wire [`XLEN-1:0] synth_lane1_ret_next_pc_q;
-  wire [`XLEN-1:0] synth_lane1_ret_pc_q;
 
-
-  OooSyntheticLane1RetCommitGate u_synthetic_lane1_ret_commit_gate (
-    .ret_pending_i(synth_lane1_ret_pending_q),
-    .ret_branch_seen_i(synth_lane1_ret_branch_seen_q),
-    .ret_branch_pc_i(synth_lane1_ret_branch_pc_q),
-    .branch_drop_pending_i(synth_lane1_branch_drop_pending_q),
-    .branch_drop_pc_i(synth_lane1_branch_drop_pc_q),
-    .core_commit0_valid_i(core_commit0_valid_w),
-    .core_commit0_pc_i(core_commit0_pc_w),
-    .core_commit1_valid_i(core_commit1_valid_w),
-    .core_commit1_pc_i(core_commit1_pc_w),
-    .ctrl_commit_valid_i(ctrl_commit_valid_q),
-    .commit_ready_i(commit_ready_i),
-    .ret_branch_commit0_o(synth_lane1_ret_branch_commit0_w),
-    .ret_branch_commit1_o(synth_lane1_ret_branch_commit1_w),
-    .branch_drop_match_o(synth_lane1_branch_drop_match_w),
-    .ret_drop_branch_o(synth_lane1_ret_drop_branch_w),
-    .ret_before_core0_o(synth_lane1_ret_before_core0_w),
-    .ret_after_core0_o(synth_lane1_ret_after_core0_w),
-    .ret_commit_o(synth_lane1_ret_commit_w)
-  );
-
-
-  OooSyntheticLane1RetSequencer u_synthetic_lane1_ret_sequencer (
-    .clk(clk),
-    .rst(rst || flush_i),
-    .ret_commit_i(synth_lane1_ret_commit_w),
-    .branch_drop_match_i(synth_lane1_branch_drop_match_w),
-    .branch_commit1_i(synth_lane1_ret_branch_commit1_w),
-    .capture_i(direct_frontend_flush_w &&
-               (direct_branch0_fire_w || direct_branch1_fire_w) &&
-               direct_branch0_lane1_ret_w),
-    .capture_branch_seen_i(synth_lane1_branch_append_w),
-    .capture_branch_drop_i(synth_lane1_branch_append_w),
-    .capture_branch_pc_i(head_pc_w),
-    .capture_ret_pc_i(head_pc1_w),
-    .capture_ret_next_pc_i(head_next_pc1_w),
-    .capture_ret_inst_i(head_inst1_w),
-    .satp_clear_i(pending_system_satp_write_commit_w),
-    .trap_clear_i(csr_trap_mem_valid_w),
-    .ret_pending_o(synth_lane1_ret_pending_q),
-    .ret_branch_seen_o(synth_lane1_ret_branch_seen_q),
-    .ret_branch_pc_o(synth_lane1_ret_branch_pc_q),
-    .ret_pc_o(synth_lane1_ret_pc_q),
-    .ret_next_pc_o(synth_lane1_ret_next_pc_q),
-    .ret_inst_o(synth_lane1_ret_inst_q),
-    .branch_drop_pending_o(synth_lane1_branch_drop_pending_q),
-    .branch_drop_pc_o(synth_lane1_branch_drop_pc_q)
-  );
 
   OooControlCommitSequencer u_control_commit_sequencer (
     .clk(clk),
@@ -211,12 +139,6 @@ module OooWriteback (
     .synth_branch_append_pc_i(head_pc_w),
     .synth_branch_append_inst_i(head_inst0_w),
     .synth_branch_append_next_pc_i(core_dispatch_branch_resolve_next_pc_w),
-    .synth_lane1_ret_before_core0_i(synth_lane1_ret_before_core0_w),
-    .synth_lane1_ret_after_core0_i(synth_lane1_ret_after_core0_w),
-    .synth_lane1_ret_drop_branch_i(synth_lane1_ret_drop_branch_w),
-    .synth_lane1_ret_pc_i(synth_lane1_ret_pc_q),
-    .synth_lane1_ret_inst_i(synth_lane1_ret_inst_q),
-    .synth_lane1_ret_next_pc_i(synth_lane1_ret_next_pc_q),
     .core_commit0_valid_i(core_commit0_valid_w),
     .core_commit0_pc_i(core_commit0_pc_w),
     .core_commit0_next_pc_i(core_commit0_next_pc_w),

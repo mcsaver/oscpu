@@ -67,7 +67,6 @@ TESTS := \
   tb_ooo_pending_trap_exit_sequencer \
   tb_ooo_trap_exit_event_mux \
   tb_ooo_trap_exit_output_sequencer \
-  tb_ooo_synthetic_lane1_ret_sequencer \
   tb_ooo_frontend_uop_safety \
   tb_ooo_frontend_dispatch_gate \
   tb_ooo_frontend_backend_dispatch_mux \
@@ -166,7 +165,6 @@ TB_SRCS_tb_ooo_pending_system_sequencer := tests/tb_ooo_pending_system_sequencer
 TB_SRCS_tb_ooo_pending_trap_exit_sequencer := tests/tb_ooo_pending_trap_exit_sequencer.sv $(RTL_OOO_PENDING_TRAP_EXIT_SEQUENCER)
 TB_SRCS_tb_ooo_trap_exit_event_mux := tests/tb_ooo_trap_exit_event_mux.sv $(RTL_OOO_TRAP_EXIT_EVENT_MUX)
 TB_SRCS_tb_ooo_trap_exit_output_sequencer := tests/tb_ooo_trap_exit_output_sequencer.sv $(RTL_OOO_TRAP_EXIT_OUTPUT_SEQUENCER)
-TB_SRCS_tb_ooo_synthetic_lane1_ret_sequencer := tests/tb_ooo_synthetic_lane1_ret_sequencer.sv $(RTL_OOO_SYNTHETIC_LANE1_RET_SEQUENCER)
 TB_SRCS_tb_ooo_frontend_uop_safety := tests/tb_ooo_frontend_uop_safety.sv $(RTL_OOO_FRONTEND_UOP_SAFETY)
 TB_SRCS_tb_ooo_frontend_dispatch_gate := tests/tb_ooo_frontend_dispatch_gate.sv $(RTL_OOO_FRONTEND_DISPATCH_GATE)
 TB_SRCS_tb_ooo_frontend_backend_dispatch_mux := tests/tb_ooo_frontend_backend_dispatch_mux.sv $(RTL_OOO_FRONTEND_BACKEND_DISPATCH_MUX)

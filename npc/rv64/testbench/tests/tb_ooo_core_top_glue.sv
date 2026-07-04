@@ -87,7 +87,6 @@ module tb_ooo_core_top_glue;
   reg saw_branch_dispatch_resolve;
   reg saw_control_fallthrough_fetch;
   reg saw_lane1_ret_fallthrough;
-  reg saw_lane1_ret_synth_commit;
   reg [4:0] program_mode;
   reg [`XLEN-1:0] fault_addr;
   reg [`XLEN-1:0] data_mem_word;
@@ -629,7 +628,6 @@ module tb_ooo_core_top_glue;
       saw_branch_dispatch_resolve = 1'b0;
       saw_control_fallthrough_fetch = 1'b0;
       saw_lane1_ret_fallthrough = 1'b0;
-      saw_lane1_ret_synth_commit = 1'b0;
       program_mode = mode_i;
       fault_addr = fault_addr_i;
       `TB_TICK(clk);
@@ -733,7 +731,6 @@ module tb_ooo_core_top_glue;
       saw_backend_branch_resolve <= 1'b0;
       saw_control_fallthrough_fetch <= 1'b0;
       saw_lane1_ret_fallthrough <= 1'b0;
-      saw_lane1_ret_synth_commit <= 1'b0;
     end else begin
       commit_total <= commit_total + commit0_valid + commit1_valid;
       if (fetch_req_valid && fetch_req_ready) begin
@@ -796,9 +793,6 @@ module tb_ooo_core_top_glue;
       end
       if (dut.direct_branch0_lane1_ret_w) begin
         saw_lane1_ret_fallthrough <= 1'b1;
-      end
-      if (dut.synth_lane1_ret_commit_w) begin
-        saw_lane1_ret_synth_commit <= 1'b1;
       end
       if (program_mode == MODE_CONTROL_FETCH_GATE &&
           fetch_req_valid && fetch_req_ready &&
@@ -949,11 +943,9 @@ module tb_ooo_core_top_glue;
     // mode=1：lane1 ret 同样走 backend redirect（saw_direct_redirect_fetch，见下），非 mode=0 的 fast-path/synth-commit。
     if (!`OOO_ROB_WALK_MODE) begin
     tb_check1("branch lane1 ret fast path fires",
-              saw_lane1_ret_fallthrough || saw_return_fastpath ||
-              saw_lane1_ret_synth_commit, 1'b1);
+              saw_lane1_ret_fallthrough || saw_return_fastpath, 1'b1);
     tb_check1("branch lane1 ret resolves as return",
-              saw_lane1_ret_fallthrough || saw_return_fastpath ||
-              saw_lane1_ret_synth_commit, 1'b1);
+              saw_lane1_ret_fallthrough || saw_return_fastpath, 1'b1);
     end
     tb_check1("branch lane1 ret redirects fetch target immediately",
               saw_direct_redirect_fetch, 1'b1);

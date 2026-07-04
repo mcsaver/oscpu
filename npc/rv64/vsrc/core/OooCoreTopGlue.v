@@ -172,9 +172,12 @@ module OooCoreTopGlue #(
   wire [`INST_W-1:0] pending_jump_inst_q;
   wire [`REG_ADDR_W-1:0] pending_jump_rs1_q;
   wire [`XLEN-1:0] pending_jump_imm_q;
-  wire synth_lane1_ret_pending_q;
-  wire synth_lane1_ret_branch_seen_q;
-  wire synth_lane1_branch_drop_pending_q;
+  // [死硅 tie-off] OooSyntheticLane1Ret 家族(Sequencer/CommitGate)已删除
+  // (rtl-ground-truth §4；capture 路径经 direct_branch0_lane1_ret_w 恒 0)。
+  // 这些信号原本恒 0，改为显式常量 0，保持下游 OooControlPlane/OooFrontend/sim 探针行为不变。
+  wire synth_lane1_ret_pending_q = 1'b0;
+  wire synth_lane1_ret_branch_seen_q = 1'b0;
+  wire synth_lane1_branch_drop_pending_q = 1'b0;
   wire [`XLEN-1:0] pending_mem_pc_q;
   wire [`INST_W-1:0] pending_mem_inst_q;
   wire [`XLEN-1:0] pending_mem_next_pc_q;
@@ -427,14 +430,13 @@ module OooCoreTopGlue #(
   wire pending_control_ready_w;
   wire jalr_prefetch_hit_available_w;
 
-  wire synth_lane1_ret_branch_commit0_w;
+  wire synth_lane1_ret_branch_commit0_w = 1'b0;  // [死硅 tie-off] synth lane1-ret 家族已删
   wire branch_target_cache_hit_w;
 
   wire return_cont_attempt_ready_w;
   wire synth_lane1_branch_append_w;
   wire dispatch1_optional_w;
-  wire synth_lane1_branch_drop_match_w;
-  wire synth_lane1_ret_commit_w;
+  wire synth_lane1_branch_drop_match_w = 1'b0;  // [死硅 tie-off] synth lane1-ret 家族已删
 
   OooWriteback u_writeback (
     .clk(clk),
@@ -456,7 +458,6 @@ module OooCoreTopGlue #(
     .commit1_rd_en_o(commit1_rd_en_o),
     .commit1_valid_o(commit1_valid_o),
     .commit1_write_o(commit1_write_o),
-    .commit_ready_i(commit_ready_i),
     .core_commit0_exception_w(core_commit0_exception_w),
     .core_commit0_inst_w(core_commit0_inst_w),
     .core_commit0_next_pc_w(core_commit0_next_pc_w),
@@ -481,16 +482,10 @@ module OooCoreTopGlue #(
     .csr_ret_target_w(csr_ret_target_w),
     .csr_trap_mem_valid_w(csr_trap_mem_valid_w),
     .ctrl_commit_valid_q(ctrl_commit_valid_q),
-    .direct_branch0_fire_w(direct_branch0_fire_w),
-    .direct_branch0_lane1_ret_w(direct_branch0_lane1_ret_w),
-    .direct_branch1_fire_w(direct_branch1_fire_w),
     .direct_frontend_flush_w(direct_frontend_flush_w),
     .drain_complete_w(drain_complete_w),
     .flush_i(flush_i),
     .head_inst0_w(head_inst0_w),
-    .head_inst1_w(head_inst1_w),
-    .head_next_pc1_w(head_next_pc1_w),
-    .head_pc1_w(head_pc1_w),
     .head_pc_w(head_pc_w),
     .mem_rsp_rdata_i(mem_rsp_rdata_i),
     .pending_arch_trap_q(pending_arch_trap_q),
@@ -513,17 +508,10 @@ module OooCoreTopGlue #(
     .pending_system_next_pc_q(pending_system_next_pc_q),
     .pending_system_pc_q(pending_system_pc_q),
     .pending_system_q(pending_system_q),
-    .pending_system_satp_write_commit_w(pending_system_satp_write_commit_w),
     .retire_count_o(retire_count_o),
     .rst(rst),
     .stop_pending_q(stop_pending_q),
-    .synth_lane1_branch_append_w(synth_lane1_branch_append_w),
-    .synth_lane1_branch_drop_match_w(synth_lane1_branch_drop_match_w),
-    .synth_lane1_branch_drop_pending_q(synth_lane1_branch_drop_pending_q),
-    .synth_lane1_ret_branch_commit0_w(synth_lane1_ret_branch_commit0_w),
-    .synth_lane1_ret_branch_seen_q(synth_lane1_ret_branch_seen_q),
-    .synth_lane1_ret_commit_w(synth_lane1_ret_commit_w),
-    .synth_lane1_ret_pending_q(synth_lane1_ret_pending_q)
+    .synth_lane1_branch_append_w(synth_lane1_branch_append_w)
   );
 
   wire backend_drained_w;

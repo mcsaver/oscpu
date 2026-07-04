@@ -16,13 +16,6 @@ module tb_ooo_commit_output_mux;
   reg [`INST_W-1:0] synth_branch_append_inst;
   reg [`XLEN-1:0] synth_branch_append_next_pc;
 
-  reg synth_lane1_ret_before_core0;
-  reg synth_lane1_ret_after_core0;
-  reg synth_lane1_ret_drop_branch;
-  reg [`XLEN-1:0] synth_lane1_ret_pc;
-  reg [`INST_W-1:0] synth_lane1_ret_inst;
-  reg [`XLEN-1:0] synth_lane1_ret_next_pc;
-
   reg core_commit0_valid;
   reg [`XLEN-1:0] core_commit0_pc;
   reg [`XLEN-1:0] core_commit0_next_pc;
@@ -81,12 +74,6 @@ module tb_ooo_commit_output_mux;
     .synth_branch_append_pc_i(synth_branch_append_pc),
     .synth_branch_append_inst_i(synth_branch_append_inst),
     .synth_branch_append_next_pc_i(synth_branch_append_next_pc),
-    .synth_lane1_ret_before_core0_i(synth_lane1_ret_before_core0),
-    .synth_lane1_ret_after_core0_i(synth_lane1_ret_after_core0),
-    .synth_lane1_ret_drop_branch_i(synth_lane1_ret_drop_branch),
-    .synth_lane1_ret_pc_i(synth_lane1_ret_pc),
-    .synth_lane1_ret_inst_i(synth_lane1_ret_inst),
-    .synth_lane1_ret_next_pc_i(synth_lane1_ret_next_pc),
     .core_commit0_valid_i(core_commit0_valid),
     .core_commit0_pc_i(core_commit0_pc),
     .core_commit0_next_pc_i(core_commit0_next_pc),
@@ -202,13 +189,6 @@ module tb_ooo_commit_output_mux;
       synth_branch_append_pc = 64'h8000_3000;
       synth_branch_append_inst = 32'h0000_0063;
       synth_branch_append_next_pc = 64'h8000_3100;
-
-      synth_lane1_ret_before_core0 = 1'b0;
-      synth_lane1_ret_after_core0 = 1'b0;
-      synth_lane1_ret_drop_branch = 1'b0;
-      synth_lane1_ret_pc = 64'h8000_4000;
-      synth_lane1_ret_inst = 32'h0000_8067;
-      synth_lane1_ret_next_pc = 64'h8000_5000;
 
       core_commit0_valid = 1'b1;
       core_commit0_pc = 64'h8000_0000;
@@ -326,56 +306,13 @@ module tb_ooo_commit_output_mux;
     tb_check2("branch append retire", retire_count, 2'd2);
 
     clear_inputs();
-    synth_lane1_ret_before_core0 = 1'b1;
-    core_retire_count = 2'd1;
-    #1;
-    tb_check1("ret before c0 valid", commit0_valid, 1'b1);
-    tb_check64("ret before c0 pc", commit0_pc, synth_lane1_ret_pc);
-    tb_check32("ret before c0 inst", commit0_inst, synth_lane1_ret_inst);
-    tb_check64("ret before c0 next", commit0_next_pc,
-               synth_lane1_ret_next_pc);
-    tb_check1("ret before c0 rd_en", commit0_rd_en, 1'b0);
-    tb_check1("ret before c1 valid", commit1_valid, core_commit0_valid);
-    tb_check64("ret before c1 pc", commit1_pc, core_commit0_pc);
-    tb_check32("ret before c1 inst", commit1_inst, core_commit0_inst);
-    tb_check64("ret before c1 next", commit1_next_pc, core_commit0_next_pc);
-    tb_check1("ret before c1 rd_en", commit1_rd_en, core_commit0_rd_en);
-    tb_check5("ret before c1 rd", commit1_rd_addr, core_commit0_rd_addr);
-    tb_check64("ret before c1 data", commit1_rd_data, core_commit0_rd_data);
-    tb_check1("ret before c1 write", commit1_write, core_commit0_write);
-    tb_check2("ret before retire", retire_count, 2'd2);
-
-    clear_inputs();
-    synth_lane1_ret_after_core0 = 1'b1;
-    core_retire_count = 2'd1;
-    #1;
-    expect_commit0_core0("ret after", 64'h8000_0004);
-    tb_check1("ret after c1 valid", commit1_valid, 1'b1);
-    tb_check64("ret after c1 pc", commit1_pc, synth_lane1_ret_pc);
-    tb_check32("ret after c1 inst", commit1_inst, synth_lane1_ret_inst);
-    tb_check64("ret after c1 next", commit1_next_pc,
-               synth_lane1_ret_next_pc);
-    expect_commit1_zero_side_effects("ret after");
-    tb_check2("ret after retire", retire_count, 2'd2);
-
-    clear_inputs();
-    synth_lane1_ret_drop_branch = 1'b1;
-    core_retire_count = 2'd2;
-    #1;
-    tb_check64("drop c0 pc", commit0_pc, synth_lane1_ret_pc);
-    tb_check1("drop c0 rd_en", commit0_rd_en, 1'b0);
-    expect_commit1_core1("drop", 64'h8000_0008);
-    tb_check2("drop retire", retire_count, 2'd2);
-
-    clear_inputs();
     ctrl_commit_valid = 1'b1;
     synth_lane1_branch_append = 1'b1;
-    synth_lane1_ret_after_core0 = 1'b1;
     core_retire_count = 2'd0;
     #1;
     tb_check64("ctrl priority c0 pc", commit0_pc, ctrl_commit_pc);
     tb_check1("ctrl priority c1 valid", commit1_valid, 1'b0);
-    tb_check2("ctrl priority retire", retire_count, 2'd3);
+    tb_check2("ctrl priority retire", retire_count, 2'd2);
 
     if (errors == 0) begin
       $display("PASS tb_ooo_commit_output_mux");

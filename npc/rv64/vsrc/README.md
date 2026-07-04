@@ -172,13 +172,11 @@ module/core 回归和性能样本分析。
   `ctrl_commit_valid/payload/rd/write` 和 `core_serial_flush` 注册状态；父模块仍负责
   pending owner 捕获/清理、CSR/trap side effect、ROB commit mux 和
   PC/outstanding 时序。
-- `writeback/OooSyntheticLane1RetCommitGate.v` 承接 synthetic lane1 return 的
-  branch commit0/commit1 match、branch-drop match、ret-before/after-core0 与 drop-branch
-  commit 判定；父模块仍保留 synthetic ret/drop 注册状态和最终 commit output mux。
-- `writeback/OooCommitOutputMux.v` 承接 control pseudo-commit、synthetic
-  lane1 return/branch append 与 ROB commit0/commit1 到外部 commit/retire 端口的
-  纯组合 mux；父模块仍负责 ROB/CSR/trap side effect、synthetic ret 状态和
-  pending owner 清理。
+- `writeback/OooCommitOutputMux.v` 承接 control pseudo-commit、branch append
+  与 ROB commit0/commit1 到外部 commit/retire 端口的纯组合 mux；父模块仍负责
+  ROB/CSR/trap side effect 和 pending owner 清理。
+  （旧 synthetic lane1 return 合成臂已随 OooSyntheticLane1Ret 家族删除，
+  rtl-ground-truth §4：capture 路径恒 0。）
 - `control/OooControlFlushSequencer.v` 承接 `core_trap_flush`、
   `trap_redirect_squash` 和 `checkpoint_mem_flush` 注册状态；父模块仍负责 CSR/trap
   side effect、pending owner 清理、branch checkpoint 事件和 PC/outstanding 时序。
@@ -214,11 +212,10 @@ module/core 回归和性能样本分析。
 - `control/OooTrapExitEventMux.v` 承接最终 trap/exit terminal event 与 payload
   的纯组合选择；父模块仍负责提供 branch/jump/drain/pending facts、CSR/trap side
   effect、exit-code 选择、fetch redirect 和 precise recovery。
-- `writeback/OooSyntheticLane1RetSequencer.v` 承接 lane1 return synthetic retire
-  与 branch-drop 注册状态；父模块仍负责 branch/RAS/BTB 判定、pending owner、
-  commit0/commit1 mux、retire count 和 CSR/trap side effect。
 - `core/OooCoreTopGlue.v` 中旧 `pending_lane1_ret_*` dispatch replay 状态已删除；
-  当前 lane1 return 延迟可见性由 synthetic retire sequencer 与 direct RAS 事件承担。
+  OooSyntheticLane1Ret 家族（Sequencer/CommitGate）亦已删除（rtl-ground-truth §4：
+  capture 依赖拍内解析同拍谓词，F2 下经 `direct_branch0_lane1_ret_w` 恒 0）。
+  当前 lane1 return 延迟可见性由 direct RAS 事件与 issue-resolve/ROB-walk 承担。
 - `frontend/OooPendingControlResolveGate.v` 承接 pending branch next/misaligned、
   pending JAL/JALR resolved target、return/call/no-link 分类、jump resolve-ready 和
   redirect-after-dispatch 组合事实；父模块仍保留 pending 状态、CompareUnit、RAS/BTB
