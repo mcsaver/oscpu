@@ -16,7 +16,7 @@
 | 内部 owner | 目录 | 职责（2026-07-03 现状） |
 | --- | --- | --- |
 | `OooMemoryRequestGate` | `memory/` | 已退化为纯透传：core mem 请求 9 路 assign 直通（含 probe/pretrans/nokill），仅聚合 `mem_flush`（core-local‖checkpoint）与 `mmu_flush`（satp 写‖sfence commit）两根 OR；pending-FP 直写旁路与 mem1 双口均已拆除 |
-| `OooPendingMemorySequencer` | `memory/` | lane1 memory barrier 的 pending memory 单 entry 注册状态（`valid/dispatched/pc/inst/next_pc`）；⚠️ 2026-07-03 RTL 重读：capture 恒 0 已形式化证死（lane1 barrier 条件不含 FACT_MEM），全链死通道，见 `ooo-pending-memory-sequencer.md` 状态注记 |
+| ~~`OooPendingMemorySequencer`~~ **已 B4 物理删除（2026-07-04, b2918073a）** | ~~lane1 memory barrier 的 pending memory 单 entry 注册状态~~ capture 恒 0（lane1 barrier 与 FACT_MEM 严格互斥，从未可达）→整链删除；跨模块死信号已在 TopGlue/ControlPlane 常量0 tie-off。spec 归档 `history/ooo-pending-memory-sequencer.md` |
 
 wrapper 自身不持有任何 `always`、`assign` 或新 wire 逻辑，按原顺序例化两个 owner
 （原内部信号 `pending_fp_mem_req_valid_w` 已随 pending-FP 直写旁路拆除而消失，现无内部 wire）。

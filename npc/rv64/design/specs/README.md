@@ -25,7 +25,7 @@
 - ★ `ooo-mem-axi-bridge-fsm` — 访存桥 FSM(probe/pretrans/nokill/store 解耦/单 outstanding)
 - ★ `ooo-sv39-tlb` — Sv39 TLB(64 项/上下文/superpage)
 - ★ `pmp-checker` — PMP 检查器(16 项 TOR/NA4/NAPOT)
-- `ooo-memory-access`(wrapper)、`ooo-pending-memory-sequencer`(⚠️ 证死待删)
+- `ooo-memory-access`(wrapper)〔`ooo-pending-memory-sequencer` 已 B4 物理删除 → `history/`〕
 - LSQ 现状:SQ(4)+probe/drain+store→load 前递已落地,LQ/MSHR/多 outstanding 未做
   (见真相基线 §2.3/§3.3;实施方案已归档 `history/ooo-lsq-implementation-plan.md`)
 
@@ -36,10 +36,11 @@
 - 活预测件:`ooo-branch-direction-predictor`(gshare+局部混合)、`ooo-direct-*`、`ooo-ras-*`、
   `ooo-branch-bpu-update-gate`(issue-resolve 单源)、`ooo-branch-resolve-recovery-gate`、
   `ooo-backend-drain-tracker`
-- ⚠️ 死硅家族(mode=1/domain-A 证死,已逐份注记):`ooo-pending-branch/jump-sequencer`、
+- 已 B4 物理删除(spec 归档 `history/`,见真相基线 §4 逐行 commit):`ooo-pending-branch/jump-sequencer`、
   `ooo-pending-control-resolve-gate`、`ooo-branch-prefetch-*`、`ooo-branch-target-cache-control-gate`、
-  `ooo-branch-spec-tracker`(checkpoint 死,RAS 压制副作用仍活)、`ooo-branch-append-dispatch-gate`、
-  `ooo-jalr-prefetch-status-gate`
+  `ooo-jalr-prefetch-status-gate`、`ooo-fetch-packet-hit-mux`
+- ⚠️ 保留死码(融合活+死/门控死臂,模块存活未删):`ooo-branch-spec-tracker`(checkpoint 死,RAS 压制副作用仍活)、
+  `ooo-branch-append-dispatch-gate`(BRANCH_APPEND_DISPATCH_ENABLE=0)、`ooo-branch-bpu-update-gate`(旧四臂删,issue-resolve 单源存活)
 - F2 真预测现状见真相基线 §2.4(实施方案已归档)
 
 ## 控制面 / 提交 / CSR
@@ -47,7 +48,7 @@
 - `ooo-control-plane`、`ooo-commit-output-mux`、`ooo-csr-*-mux`、`ooo-pending-system-sequencer`、
   `ooo-pending-trap-exit-sequencer`、`ooo-stop-pending-sequencer`(域 B 仅剩 system/trap 类)、
   `ooo-trap-exit-*`、`ooo-pending-dispatch-arbiter`、`ooo-pending-lane1-capture-gate`
-- ⚠️ `ooo-synthetic-lane1-ret-sequencer`(设计路径死)
+- 〔`ooo-synthetic-lane1-ret-sequencer`(+CommitGate) 已 B4 物理删除 → `history/`〕
 
 ## 装配 / 总线
 - `ooo-core-top-glue`、`ooo-writeback`、`ooo-control-plane`、`ooo-memory-access`(子系统 wrapper)

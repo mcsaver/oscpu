@@ -40,3 +40,28 @@
 2026-06-29 标注的 4 份 ⚠ 待校正 spec 已于 2026-07-03 处置完毕：
 `ooo-fp-arith-pipeline.md`/`ooo-fp-pending-exec.md`/`ooo-pending-fp-sequencer.md` 归档（见上表），
 `ooo-branch-prefetch-request-gate.md` 已加死硅状态注记并校正（仍在 `design/specs/`）。
+
+## 归档清单（2026-07-04，B4 死硅物理删除）
+
+> 依据：B4 死硅物理删除（真相基线 §4 逐项 cycle-exact 中性删除，见
+> `../../arch/rtl-ground-truth-2026-07-03.md` §4 逐行 commit）。以下 12 份 spec 描述的模块已物理删除
+> （文件 + filelist + 实例化全删），按"删模块→spec 归档"从 `design/specs/` 移入。
+
+| 文件 | 类别 | 归档原因（模块已 B4 物理删除） | 现状参考 |
+| --- | --- | --- | --- |
+| `ooo-branch-prefetch-buffer.md` | ORPHAN | `OooBranchPrefetchBuffer` 已删（prefetch 全家桶，req 依赖 pending_branch 恒0） | 真相基线 §4（bac43bc8f） |
+| `ooo-branch-prefetch-request-gate.md` | ORPHAN | `OooBranchPrefetchRequestGate` 已删（同上） | 同上 |
+| `ooo-branch-prefetch-source-gate.md` | ORPHAN | `OooBranchPrefetchSourceGate` 已删（pending_branch_target 已 re-inline 给保留的 pending 链消费） | 同上 |
+| `ooo-branch-prefetch-status-gate.md` | ORPHAN | `OooBranchPrefetchStatusGate` 已删 | 同上 |
+| `ooo-jalr-prefetch-status-gate.md` | ORPHAN | `OooJalrPrefetchStatusGate` 已删 | 同上 |
+| `ooo-branch-target-cache-control-gate.md` | ORPHAN | `OooBranchTargetCacheControlGate` 已删（BTC 双重死：填充依赖拍内解析恒空 + append BRANCH_APPEND_DISPATCH_ENABLE=0） | 同上 |
+| `ooo-fetch-packet-hit-mux.md` | ORPHAN | `OooFetchPacketHitMux` 已删（仅被 2 个 prefetch 实例引用，随 prefetch 整体死） | 同上 |
+| `ooo-pending-branch-sequencer.md` | ORPHAN | `OooPendingBranchSequencer` 已删（capture 被 !rob_walk_mode 门死，OOO_ROB_WALK_MODE=1） | 真相基线 §4（10d7729c0）；F2 活解析=issue-resolve |
+| `ooo-pending-jump-sequencer.md` | ORPHAN | `OooPendingJumpSequencer` 已删（同上） | 同上 |
+| `ooo-pending-control-resolve-gate.md` | ORPHAN | `OooPendingControlResolveGate` 已删（输出仅由 pending_branch/jump=0 派生） | 同上 |
+| `ooo-pending-memory-sequencer.md` | ORPHAN | `OooPendingMemorySequencer` 已删（lane1 barrier 与 FACT_MEM 严格互斥，capture 从未可达） | 真相基线 §4（b2918073a） |
+| `ooo-synthetic-lane1-ret-sequencer.md` | ORPHAN | `OooSyntheticLane1RetSequencer`（+CommitGate）已删（capture≡0 自洽全零不动点） | 真相基线 §4（21c7fbe14） |
+
+> 保留在 `design/specs/`（模块未删，B4 只删死臂或证明不可安全删）：`ooo-branch-bpu-update-gate.md`（模块存活，
+> 仅删旧四臂保留 issue-resolve）、`ooo-branch-spec-tracker.md` / `ooo-branch-resolve-recovery-gate.md` /
+> `ooo-control-commit-sequencer.md` 等（融合活+死或 KEEP，见真相基线 §4 保留说明）。

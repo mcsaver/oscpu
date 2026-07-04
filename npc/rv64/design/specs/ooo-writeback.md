@@ -12,8 +12,8 @@
 | --- | --- |
 | `OooCommitOutputMux` | commit0/commit1 输出选择 |
 | `OooControlCommitSequencer` | control commit 注册状态 |
-| `OooSyntheticLane1RetCommitGate` | synthetic lane1 return commit/drop 判定（死硅驻留，无独立 spec，死因见 `ooo-synthetic-lane1-ret-sequencer.md` 注记） |
-| `OooSyntheticLane1RetSequencer` | synthetic lane1 return 注册状态（死硅驻留，`ret_pending_q` 恒 0，见其 spec 注记） |
+| ~~`OooSyntheticLane1RetCommitGate`~~ **已 B4 物理删除（2026-07-04, 21c7fbe14）** | ~~synthetic lane1 return commit/drop 判定~~ capture≡0 自洽全零不动点→删除，CommitOutputMux 合成臂化简、跨模块输出 TopGlue 常量0 tie-off |
+| ~~`OooSyntheticLane1RetSequencer`~~ **已 B4 物理删除（2026-07-04, 21c7fbe14）** | ~~synthetic lane1 return 注册状态~~ 同上；spec 归档 `history/ooo-synthetic-lane1-ret-sequencer.md` |
 
 ## 3. 接口与不变量
 
