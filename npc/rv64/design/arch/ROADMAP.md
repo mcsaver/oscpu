@@ -75,6 +75,7 @@
 | B4 | 死硅物理删除（宪法"只加不减"债）+ 文件组织：碎片合并/大文件拆分、命名注释统一 | 中(交付质量/面积/可维护) | 低-中 | worktree 串行代理逐族删+主树 cycle-exact+difftest+CoreMark 验收；纯结构变换 build+gate 不变 | **死硅删除基本完成(2026-07-04)**：**9 批 ~5900 行可分离死硅已物理删除**（csrc/PRF read4-9全/SyntheticLane1Ret/checkpoint影子×5/前端prefetch-BTC网13模块/WBU-LOAD/IQ-load-branch-fast/dispatch快解析族/pending_mem链/pending-branch-jump链+BPU旧臂+fetch-bypass），各 cycle 逐位中性+difftest 38/3+CoreMark 0xfcaf 不变，见 rtl-ground-truth §4 逐行 commit。**剩余 3 项（DirectBranchResolveGate/SpecTracker/RecoveryGate臂）经 wave6a/6b 穷举证明=「融合活+死」门，死臂已中性化但与活 F2/RAS 同壳，物理删除需架构重构，保留为行为中性死码**。文件组织（大文件拆分）仍待做 |
 | B5 | DIV radix-8 / 64 位 CLZ 跳零 | 低(递减) | 低 | 同 radix-4 套路 | 暂缓 |
 | B6 | 分支多级 spec checkpoint | 中 | 高 | spec 先行 | 已被 B2 ROB-walk 取代(walk 天然支持多在飞分支，无需 checkpoint) |
+| B7 | **serialize-at-retire（宪法 §8.4 step 4，域 B 拆除最后一步）**：system/trap 改 ROB 队头执行+退休刷 younger，删 stop_pending/drain 机制 | 中(交付质量/CSR 指令延迟) | **高(精确异常/CSR/特权全路径)** | **spec✓**(`serialize-at-retire.md`)；6 阶段(CSR→sfence→ecall/trap→mret/IRQ→删机制)，每阶段 355/0+difftest+Linux smoke | **只读调查完成(2026-07-04)=高风险大重写、走专项**：宪法框定"改标志位语义不变"经证实低估——非 CSR 系统指令今天不进 ROB，副作用由控制面 drain 拍合成→须新建系统指令 ROB 数据通路(~15-20 RTL+~15 TB)。cycle-exact 不适用(改语义守正确性,需 Linux boot smoke=CSR 侧唯一护栏)。详见 spec |
 
 ### 下一步决策（自主判断）
 - **B1 实现门控**：访存 store 解耦是 #1 性能杠杆，但触碰访存顺序/response ownership，

@@ -453,7 +453,16 @@ branch/jump/mem/fp 四个 pending owner 的 capture 已全部恒 0 或物理删�
 | `OooPendingFpSequencer` + `OooFpPendingExec` | fp | ~~单 entry，mem→long→compute 串行~~ | **✅ ELIMINATED（2026-07-02）** | 已由 `OooFpBackend`（FP rename + FpIQ + 执行簇 + 经 ROB 真 commit）取代；pending-FP 壳四文件删除、E2/E3 消除、fflags/FS-dirty 走 commit（`../specs/history/ooo-fp-cluster-implementation-plan.md` §8/§9，已归档） | 新 B-FP ✅ |
 | `OooPendingSystemSequencer` | system | drain + 执行 | **KEEP** | 改"ROB 队头执行 + 退休刷 younger"标志位（语义不变，去掉全局 `stop_pending` 依赖） | 清理 |
 | `OooPendingTrapExitSequencer` | trap | drain + 执行 | **KEEP / 瘦身** | 精确异常本就由 ROB 队头承接（exception 字段 + commit1 阻塞已在）；瘦掉冗余脚手架 | 清理 |
-| `OooStopPendingSequencer` / `OooPendingDrainResolveGate` / `OooPendingDispatchArbiter` / 各 …Gate | 机制 | 全局门控/屏障/仲裁 | **DELETE（最终）** | 四类拆完后只剩 system/trap 的队头串行，全局 `stop_pending` + drain 机制整体删除 | 全部完成后 |
+| `OooStopPendingSequencer` / `OooPendingDrainResolveGate` / `OooPendingDispatchArbiter` / 各 …Gate | 机制 | 全局门控/屏障/仲裁 | **DELETE（最终）** | 四类拆完后只剩 system/trap 的队头串行，全局 `stop_pending` + drain 机制整体删除 | **仍 KEEP（在用）**——见下 §8.4 注 |
+
+> **【2026-07-04 serialize-at-retire 只读调查更正】**：本行 DELETE 与 §8.4 step 4 对 serialize-at-retire 的
+> "改标志位、语义不变、复用队头精确异常"框定**经 RTL 只读调查证实为严重低估**。真相：**除 CSR 外的系统指令
+> （ecall/mret/sret/wfi/sfence/IRQ/arch-trap）今天根本不进 ROB**，副作用由 pending 控制面在 drain-complete 拍
+> 合成；CSR 也只在 drain 后作孤儿再注入。要"队头执行"须先把它们改造成真 ROB 公民、把 CSR 读点/副作用下沉到
+> 队头/commit = **新建系统指令数据通路（~15-20 RTL + ~15 TB），非删机制**。判定=高风险大重写、增量分步差
+> （中间态两套队头独占易死锁）、difftest 不比 CSR 故需 Linux boot smoke 护栏。**完整可行性评估 + 6 阶段实施
+> 路线 + 风险登记见 `design/arch/serialize-at-retire.md`（专项 spec，本步作为独立专项推进，非快速改动）。**
+> 在该专项阶段 5 完成前，本行机制保持 KEEP（在用），B4 死硅删除不触碰它们。
 
 ### 8.4 【目标】真正的乱序多发射结构（north star）
 
