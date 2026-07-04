@@ -481,22 +481,9 @@ module OooIntBackend #(
   wire [`XLEN-1:0] issue0_src2_data_w;
   wire [`XLEN-1:0] issue1_src1_data_w;
   wire [`XLEN-1:0] issue1_src2_data_w;
-  wire [`XLEN-1:0] dispatch_branch_src1_data_w;
-  wire [`XLEN-1:0] dispatch_branch_src2_data_w;
-
-  wire dispatch0_branch_fire_w =
-      dispatch0_fire_w && dispatch0_ctrl_i[`CTRL_BRANCH_BIT];
-  // E8 删除：lane1 dispatch-branch 快解析恒禁用（原 dispatch_branch_fast_lane1_enable_w=1'b0
-  // → dispatch_branch_from1_w 恒 0）。dispatch 同拍快解析只保留 lane0；dispatch1_branch_fire_w、
-  // dispatch0 转发 ALU、from1 多路选择全部死硅，连同 lane1 来源一并移除。
-  // domain-A 第一刀：禁用 dispatch 拍快解析对分支的抢先——fast 路只给前端 redirect、不产生
-  // issue 级 mispredict/ROB-walk kill（服务旧 direct+drain 模型），domain-A 下会让分支的
-  // wrong-path 后继(fall-through)无人 squash、随 commit1 同拍溜出（探针实测 0x14c/0x150）。
-  // 分支恒经 IQ → issue resolve → 强制 mispredict → redirect + ROB-walk kill。
-  wire dispatch_branch_fast_candidate_w =
-      dispatch0_branch_fire_w && !(`OOO_DBRANCH_DOMAIN_A);
-  wire [PHY_REG_ADDR_W-1:0] dispatch_branch_src1_preg_w = dispatch0_src1_preg_w;
-  wire [PHY_REG_ADDR_W-1:0] dispatch_branch_src2_preg_w = dispatch0_src2_preg_w;
+  // Wave4b 删除：dispatch 拍分支快解析全族（candidate/src/value/FAST_BRANCH_TRACK/
+  // CompareUnit/PRF read4-5）——`!(`OOO_DBRANCH_DOMAIN_A)` 恒 0 证死。分支恒经 IQ →
+  // issue-resolve → 强制 mispredict + ROB-walk kill（活 F2 路径，不受本次删除影响）。
 
   OooPhysRegFile #(
     .PHY_REG_ADDR_W(PHY_REG_ADDR_W)
@@ -513,10 +500,6 @@ module OooIntBackend #(
     .read2_data_o(issue1_src1_data_w),
     .read3_addr_i(issue1_src2_preg_w),
     .read3_data_o(issue1_src2_data_w),
-    .read4_addr_i(dispatch_branch_src1_preg_w),
-    .read4_data_o(dispatch_branch_src1_data_w),
-    .read5_addr_i(dispatch_branch_src2_preg_w),
-    .read5_data_o(dispatch_branch_src2_data_w),
     .read8_addr_i(fp_gpr_read_addr_w),
     .read8_data_o(fp_gpr_read_data_w),
     .write0_valid_i(wb0_valid_w && (wb0_pdest_w != {PHY_REG_ADDR_W{1'b0}})),
@@ -1745,142 +1728,9 @@ module OooIntBackend #(
     .resp_data_o(clmul_resp_data_w)
   );
 
-  // E8 删除：u_dispatch0_fast_alu（dispatch0 同拍转发 ALU）整块死硅。该 ALU 唯一去向是
-  // 经 dispatch_branch_src1/2_dispatch0_match_w 把 dispatch0 结果同拍转发给 lane1 dispatch-branch，
-  // 而 lane1 快解析已恒禁用（from1=0），故转发 ALU 及其 src/value/fast-ready/valid 支撑信号皆悬空。
-  wire dispatch_branch_src1_issue0_match_w =
-      issue0_current_result_valid_w &&
-      (issue0_pdest_w == dispatch_branch_src1_preg_w);
-  wire dispatch_branch_src1_issue1_match_w =
-      issue1_current_result_valid_w &&
-      (issue1_pdest_w == dispatch_branch_src1_preg_w);
-  wire dispatch_branch_src2_issue0_match_w =
-      issue0_current_result_valid_w &&
-      (issue0_pdest_w == dispatch_branch_src2_preg_w);
-  wire dispatch_branch_src2_issue1_match_w =
-      issue1_current_result_valid_w &&
-      (issue1_pdest_w == dispatch_branch_src2_preg_w);
-  // E8 删除：dispatch_branch_src1/2_dispatch0_match_w 以 from1 为与项恒 0，连同 base_ready 的
-  // from1 多路选择一并化简为 lane0 直通。
-  wire dispatch_branch_src1_base_ready_w = dispatch0_src1_ready_w;
-  wire dispatch_branch_src2_base_ready_w = dispatch0_src2_ready_w;
-  wire dispatch_branch_src1_ready_w =
-      dispatch_branch_src1_base_ready_w ||
-      dispatch_branch_src1_issue0_match_w ||
-      dispatch_branch_src1_issue1_match_w;
-  wire dispatch_branch_src2_ready_w =
-      dispatch_branch_src2_base_ready_w ||
-      dispatch_branch_src2_issue0_match_w ||
-      dispatch_branch_src2_issue1_match_w;
-  wire dispatch_branch_ready_w =
-      dispatch_branch_fast_candidate_w &&
-      dispatch_branch_src1_ready_w && dispatch_branch_src2_ready_w;
-
-  // E8 删除：dispatch0_match/from1 项恒 0，src value 与 pc/imm/cmp_op 化简为 lane0 直通。
-  wire [`XLEN-1:0] dispatch_branch_src1_value_w =
-      dispatch_branch_src1_issue1_match_w ? issue1_wb_data_w :
-      dispatch_branch_src1_issue0_match_w ? issue0_wb_data_w :
-                                            dispatch_branch_src1_data_w;
-  wire [`XLEN-1:0] dispatch_branch_src2_value_w =
-      dispatch_branch_src2_issue1_match_w ? issue1_wb_data_w :
-      dispatch_branch_src2_issue0_match_w ? issue0_wb_data_w :
-                                            dispatch_branch_src2_data_w;
-  wire [`XLEN-1:0] dispatch_branch_pc_w = dispatch0_pc_i;
-  wire [`XLEN-1:0] dispatch_branch_fallthrough_w = dispatch0_next_pc_i;
-  wire [`XLEN-1:0] dispatch_branch_imm_w = dispatch0_imm_i;
-  wire [2:0] dispatch_branch_cmp_op_w =
-      dispatch0_ctrl_i[`CTRL_CMP_OP_MSB:`CTRL_CMP_OP_LSB];
-  wire dispatch_branch_taken_w;
-  wire [`XLEN-1:0] dispatch_branch_target_w =
-      dispatch_branch_pc_w + dispatch_branch_imm_w;
-  wire [`XLEN-1:0] dispatch_branch_next_pc_w =
-      dispatch_branch_taken_w ? dispatch_branch_target_w :
-                                dispatch_branch_fallthrough_w;
-  wire dispatch_branch_misaligned_w =
-      dispatch_branch_taken_w && dispatch_branch_target_w[0];
-  wire [ROB_INDEX_W-1:0] dispatch_branch_rob_idx_w = dispatch0_rob_idx_w;
-
-  localparam FAST_BRANCH_TRACK_ENTRIES = 8;
-  localparam FAST_BRANCH_TRACK_INDEX_W = 3;
-
-  reg fast_branch_valid_q [0:FAST_BRANCH_TRACK_ENTRIES-1];
-  reg [ROB_INDEX_W-1:0] fast_branch_rob_idx_q
-      [0:FAST_BRANCH_TRACK_ENTRIES-1];
-
-  reg issue0_fast_branch_suppressed_r;
-  reg issue1_fast_branch_suppressed_r;
-  reg [FAST_BRANCH_TRACK_INDEX_W-1:0] issue0_fast_branch_idx_r;
-  reg [FAST_BRANCH_TRACK_INDEX_W-1:0] issue1_fast_branch_idx_r;
-  reg fast_branch_alloc_ready_r;
-  reg [FAST_BRANCH_TRACK_INDEX_W-1:0] fast_branch_alloc_idx_r;
-  integer fast_branch_scan_i;
-  integer fast_branch_track_i;
-
-  always @(*) begin
-    issue0_fast_branch_suppressed_r = 1'b0;
-    issue1_fast_branch_suppressed_r = 1'b0;
-    issue0_fast_branch_idx_r = {FAST_BRANCH_TRACK_INDEX_W{1'b0}};
-    issue1_fast_branch_idx_r = {FAST_BRANCH_TRACK_INDEX_W{1'b0}};
-    fast_branch_alloc_ready_r = 1'b0;
-    fast_branch_alloc_idx_r = {FAST_BRANCH_TRACK_INDEX_W{1'b0}};
-    for (fast_branch_scan_i = 0;
-         fast_branch_scan_i < FAST_BRANCH_TRACK_ENTRIES;
-         fast_branch_scan_i = fast_branch_scan_i + 1) begin
-      if (fast_branch_valid_q[fast_branch_scan_i] &&
-          issue0_branch_fire_w &&
-          (fast_branch_rob_idx_q[fast_branch_scan_i] == issue0_rob_idx_w) &&
-          !issue0_fast_branch_suppressed_r) begin
-        issue0_fast_branch_suppressed_r = 1'b1;
-        issue0_fast_branch_idx_r =
-            fast_branch_scan_i[FAST_BRANCH_TRACK_INDEX_W-1:0];
-      end
-      if (fast_branch_valid_q[fast_branch_scan_i] &&
-          issue1_branch_fire_w &&
-          (fast_branch_rob_idx_q[fast_branch_scan_i] == issue1_rob_idx_w) &&
-          !issue1_fast_branch_suppressed_r) begin
-        issue1_fast_branch_suppressed_r = 1'b1;
-        issue1_fast_branch_idx_r =
-            fast_branch_scan_i[FAST_BRANCH_TRACK_INDEX_W-1:0];
-      end
-      if ((!fast_branch_valid_q[fast_branch_scan_i] ||
-           (issue0_fast_branch_suppressed_r &&
-            (issue0_fast_branch_idx_r ==
-             fast_branch_scan_i[FAST_BRANCH_TRACK_INDEX_W-1:0])) ||
-           (issue1_fast_branch_suppressed_r &&
-            (issue1_fast_branch_idx_r ==
-             fast_branch_scan_i[FAST_BRANCH_TRACK_INDEX_W-1:0]))) &&
-          !fast_branch_alloc_ready_r) begin
-        fast_branch_alloc_ready_r = 1'b1;
-        fast_branch_alloc_idx_r =
-            fast_branch_scan_i[FAST_BRANCH_TRACK_INDEX_W-1:0];
-      end
-    end
-  end
-
-  wire issue0_fast_branch_suppressed_w = issue0_fast_branch_suppressed_r;
-  wire issue1_fast_branch_suppressed_w = issue1_fast_branch_suppressed_r;
-  wire dispatch_branch_same_cycle_issue_w =
-      (issue0_branch_fire_w && (issue0_rob_idx_w == dispatch_branch_rob_idx_w)) ||
-      (issue1_branch_fire_w && (issue1_rob_idx_w == dispatch_branch_rob_idx_w));
-  wire dispatch_branch_fast_resolve_w =
-      dispatch_branch_ready_w &&
-      (dispatch_branch_same_cycle_issue_w || fast_branch_alloc_ready_r);
-  wire dispatch_branch_track_push_w =
-      dispatch_branch_fast_resolve_w && !dispatch_branch_same_cycle_issue_w;
-
-  CompareUnit u_dispatch_branch_compare (
-    .lhs_i(dispatch_branch_src1_value_w),
-    .rhs_i(dispatch_branch_src2_value_w),
-    .cmp_op_i(dispatch_branch_cmp_op_w),
-    .cmp_true_o(dispatch_branch_taken_w)
-  );
-
-  // E7 删除：load-branch-fast 投机解析路径整条死硅。唯一使能 load_branch_fast_resolve_w
-  // 原硬接 1'b0，故 u_load_branch_fast_compare、其 rsp/src-value 转发、target/taken/
-  // resolve_next_pc/misaligned 全无真实读者，连同悬空的 rsp_w/pc_match_w 一并移除。
-  // dispatch backend 输出的 load_branch_fast_* 与 PRF read8/9 数据改由 unused-OR 收口。
-  wire fast_branch_track_push_w = dispatch_branch_track_push_w;
-  wire [ROB_INDEX_W-1:0] fast_branch_track_rob_idx_w = dispatch_branch_rob_idx_w;
+  // Wave4b 删除：dispatch 拍分支快解析支撑网（src issue0/1 前递匹配、base/合成 ready、
+  // src value、pc/fallthrough/imm/cmp_op、taken/target/next_pc/misaligned/rob_idx）——
+  // 唯一 consumer dispatch_branch_fast_resolve_w 已随 candidate（恒 0）死硅摘除。
 
   // 前递命中的 load 单拍完成(ex 通道), 不发桥请求、不进 buffer、不占 mux。
   wire issue0_mem_request_fire_w =
@@ -2094,27 +1944,7 @@ module OooIntBackend #(
       ex1_exception_q <= 1'b0;
       ex1_cause_q <= {`TRAP_CAUSE_W{1'b0}};
       ex1_tval_q <= {`XLEN{1'b0}};
-      for (fast_branch_track_i = 0;
-           fast_branch_track_i < FAST_BRANCH_TRACK_ENTRIES;
-           fast_branch_track_i = fast_branch_track_i + 1) begin
-        fast_branch_valid_q[fast_branch_track_i] <= 1'b0;
-        fast_branch_rob_idx_q[fast_branch_track_i] <= {ROB_INDEX_W{1'b0}};
-      end
     end else begin
-      if (issue0_fast_branch_suppressed_w) begin
-        fast_branch_valid_q[issue0_fast_branch_idx_r] <= 1'b0;
-        fast_branch_rob_idx_q[issue0_fast_branch_idx_r] <= {ROB_INDEX_W{1'b0}};
-      end
-      if (issue1_fast_branch_suppressed_w) begin
-        fast_branch_valid_q[issue1_fast_branch_idx_r] <= 1'b0;
-        fast_branch_rob_idx_q[issue1_fast_branch_idx_r] <= {ROB_INDEX_W{1'b0}};
-      end
-      if (fast_branch_track_push_w) begin
-        fast_branch_valid_q[fast_branch_alloc_idx_r] <= 1'b1;
-        fast_branch_rob_idx_q[fast_branch_alloc_idx_r] <=
-            fast_branch_track_rob_idx_w;
-      end
-
       if (mem_amo_read_rsp_w) begin
         mem_amo_write_phase_q <= 1'b1;
         mem_amo_write_sent_q <= 1'b0;
@@ -2477,10 +2307,11 @@ module OooIntBackend #(
 
   assign execute0_valid_o = wb0_valid_w;
   assign execute1_valid_o = wb1_valid_w;
-  wire issue0_resolve_emit_w =
-      issue0_ctrlflow_fire_w && !issue0_fast_branch_suppressed_w;
-  wire issue1_resolve_emit_w =
-      issue1_ctrlflow_fire_w && !issue1_fast_branch_suppressed_w;
+  // Wave4b: issue0/1_fast_branch_suppressed_w 恒 0（FAST_BRANCH_TRACK 死硅已摘，
+  // fast_branch_valid_q 永不置位）→ issue-resolve emit 直通 ctrlflow_fire（活 F2 路径，
+  // 行为与化简前逐拍等价）。
+  wire issue0_resolve_emit_w = issue0_ctrlflow_fire_w;
+  wire issue1_resolve_emit_w = issue1_ctrlflow_fire_w;
   wire issue0_redirect_w = issue0_resolve_emit_w && issue0_mispredict_w;
   wire issue1_redirect_w = issue1_resolve_emit_w && issue1_mispredict_w;
   // lane 选择：mode=1 取最老 mispredict（issue0 优先）；mode=0 退化为原 issue0-first（中性）。
@@ -2523,14 +2354,13 @@ module OooIntBackend #(
   end
 `endif
   assign branch_resolve_mispredict_o = branch_resolve_mispredict_w;
-  // E7 删除后：load_branch_fast_resolve_w 恒 0，dispatch_branch_resolve_* 只保留 lane0 dispatch 快解析。
-  assign dispatch_branch_resolve_valid_o = dispatch_branch_fast_resolve_w;
-  assign dispatch_branch_resolve_pc_o =
-      dispatch_branch_fast_resolve_w ? dispatch_branch_pc_w : {`XLEN{1'b0}};
-  assign dispatch_branch_resolve_next_pc_o =
-      dispatch_branch_fast_resolve_w ? dispatch_branch_next_pc_w : {`XLEN{1'b0}};
-  assign dispatch_branch_resolve_misaligned_o =
-      dispatch_branch_fast_resolve_w && dispatch_branch_misaligned_w;
+  // Wave4b: dispatch 拍分支快解析族已物理删除；输出恒 0 tie-off。跨模块消费者
+  // (OooDirectBranchResolveGate 的 dispatch 臂、OooCommitOutputMux 的 synth-append) 在
+  // domain-A 下本就只见 0，保持既有 0 语义，行为中性。
+  assign dispatch_branch_resolve_valid_o = 1'b0;
+  assign dispatch_branch_resolve_pc_o = {`XLEN{1'b0}};
+  assign dispatch_branch_resolve_next_pc_o = {`XLEN{1'b0}};
+  assign dispatch_branch_resolve_misaligned_o = 1'b0;
 
   // dispatch backend 的 load_branch_fast_* 输出族已物理删除（IQ 死硅摘除）；
   // 仅存 pending_branch_fast_* 输入（另一未删死硅族）悬空，reduction-OR 收口。
@@ -2543,7 +2373,9 @@ module OooIntBackend #(
       (|issue0_mem_load_unused_w) | (|issue1_mem_load_unused_w) |
       mem_store_q | mem_rsp_to_wb0_w |
       (|mem_rsp_addr_unused_w) | (|mem_rsp_wdata_unused_w) |
-      (|mem_rsp_wstrb_unused_w) | mem_rsp_misaligned_unused_w;
+      (|mem_rsp_wstrb_unused_w) | mem_rsp_misaligned_unused_w |
+      // Wave4b: dispatch0_src2 preg/ready 原仅喂 dispatch 拍分支快解析（已删）→ reduction-OR 收口。
+      (|dispatch0_src2_preg_w) | dispatch0_src2_ready_w;
 
 `ifdef ROB_WALK_DEBUG
   always @(posedge clk) begin

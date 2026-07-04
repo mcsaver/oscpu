@@ -15,10 +15,6 @@ module tb_ooo_phys_reg_file;
   wire [`XLEN-1:0] read2_data;
   reg [PHY_REG_ADDR_W-1:0] read3_addr;
   wire [`XLEN-1:0] read3_data;
-  reg [PHY_REG_ADDR_W-1:0] read4_addr;
-  wire [`XLEN-1:0] read4_data;
-  reg [PHY_REG_ADDR_W-1:0] read5_addr;
-  wire [`XLEN-1:0] read5_data;
   reg [PHY_REG_ADDR_W-1:0] read8_addr;
   wire [`XLEN-1:0] read8_data;
   reg write0_valid;
@@ -39,10 +35,6 @@ module tb_ooo_phys_reg_file;
     .read2_data_o(read2_data),
     .read3_addr_i(read3_addr),
     .read3_data_o(read3_data),
-    .read4_addr_i(read4_addr),
-	    .read4_data_o(read4_data),
-	    .read5_addr_i(read5_addr),
-	    .read5_data_o(read5_data),
 	    .read8_addr_i(read8_addr),
 	    .read8_data_o(read8_data),
 	    .write0_valid_i(write0_valid),
@@ -59,8 +51,6 @@ module tb_ooo_phys_reg_file;
       read1_addr = 6'd0;
       read2_addr = 6'd0;
       read3_addr = 6'd0;
-      read4_addr = 6'd0;
-      read5_addr = 6'd0;
       read8_addr = 6'd0;
       write0_valid = 1'b0;
       write0_addr = 6'd0;
