@@ -174,7 +174,7 @@
 
 > **落地机制（对抗审查挑战#4/#5 纠正，承重）**：断言机制**必须**是可综合 `.v` 内的 `` `ifdef OOO_ASSERT ... $error(...) `endif ``，**不是** TB 侧 SV `assert`。理由 [验证]：全核回归走 Verilator 编译 `.v` + `csrc/cpu/difftest.cpp` 跑 CoreMark/Linux/difftest；`tb_*.sv` 是**逐模块单元 TB，从不包裹全核跑 CoreMark**——SV assert 装在模块 TB 里永远看不到全核 workload。真正接进全核回归的机制是 `Makefile:122 VERILATOR_FLAGS += +define+OOO_ASSERT` + `--assert`，`make check-contract`（`eval/check-contract.sh` [验证]）ratchet `$error(` 计数不回退（基线 `eval/contract-assert-baseline.txt`）。
 >
-> **现状：gate 已存在但近乎空转**——全核可综合 RTL **只有 1 条 `$error`**（`OooFetchPacketFifo.v`，baseline=**1** [验证]）。牙齿造好了、没咬东西。落地下列断言后 baseline **1→5**，check-contract 物理阻止它们被静默删。
+> **现状：gate 已存在但近乎空转**——全核可综合 RTL **只有 1 条 `$error`**（`OooFetchPacketFifo.v`，baseline=**1** [验证]）。牙齿造好了、没咬东西。落地下列断言后 baseline 上调（**2026-07-05 实落 INV-1/2/3：1→4；INV-4 留翻 flag 那轮**，见 §8），check-contract 物理阻止它们被静默删。
 >
 > **每条断言写完须故意制造一次违约确认会响**（防真空通过，SPEC-TEMPLATE §4 强制），且**编码独立于 RTL 真理**（防同盲区）。
 
@@ -361,3 +361,4 @@ redirect_request {
 
 - **2026-07-05 v1（冻结）**：四子系统逆向 + C-OBJ-REDIR 重写评估 + 对抗审查三份融合落盘。本轮 [验证] 复核全部承重断言（define.v flags、Sequencer:93-277、Mux:47-87、CoreSliceControlGate:39-40、StopPending:64-159、IntBackend:2410-2413/2590、ExecuteBackend:150、StoreQueue:128-152、Rob:59-64、MemAxiBridge:278-565、MemoryRequestGate:49-62、ControlCommitSequencer:91、ControlPlane:307、check-contract.sh、contract-assert-baseline.txt=1）。**纳入对抗审查五处修正**：①源表补 FP/MulDiv 簇（§2.1a）；②铁律③降级为"结构成立/默认零覆盖"（§3）；③系统性幸存者偏差告警（§0/UC-C）；④Step 0 机制由 TB SV assert 纠为 in-RTL `$error` under OOO_ASSERT（§4/§5.7）；⑤活文档强制挂 check-contract gate（§6.4）。**GAP-5 跨子系统纠正**（serial/trap 确进 SQ flush_all）经复核确认，铁律①结论不变。未改任何 RTL/配置，纯只读综合冻结。
 - **待办**：Step 0 落 4 条立即断言、baseline 1→5、锚点信号名化（§6.4 UC-11）。
+- 2026-07-05: INV-1/2/3 落成 in-RTL `ifdef OOO_ASSERT $error 立即断言（commit a336bf973），baseline 1→4；全核+177 riscv+am 全绿 0 误报，INV-2 制造违约验证能响；INV-4 未落（跨 3 模块同 flag=1 覆盖，留下轮）。

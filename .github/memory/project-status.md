@@ -425,3 +425,14 @@
 - **对抗审查抓到**：check-contract gate 现状 baseline=1 "空转"（全核唯一 `$error` 是 FIFO 探针，牙齿造好没咬东西）；INV-3/INV-4-serial 只在 flag=1 被 exercise。
 - **Step 0（最小第一步，spec 裁决"无条件现在做"）**：把 INV-1..5 落成 in-RTL `` `ifdef OOO_ASSERT $error ``（baseline 1→5，需在 4 个核心模块 threading 比较点信号，零行为风险但非免费）。
 证据/裁决/backlog（GAP-1..9 + UC-A..E）见 spec + task-run `2026-07-05-rv64-debug-methodology-reflection/`，记忆 [[rv64-architecture-first-reflection]]。
+
+## 2026-07-05 flush 契约 Step 0：INV-1/2/3 立即断言落地（check-contract baseline 1→4）
+
+把 flush 契约 §4 承重不变量落成 in-RTL `` `ifdef OOO_ASSERT $error `` 立即断言，让 check-contract gate 从"空转"（唯一 FIFO 探针）变成咬住 flush 契约（commit a336bf973）：
+- **INV-1 @ OooFrontend**：untracked 重定向时 mux 落点必选 core_branch_resolve_next_pc（守 `OooFetchRequestMux:67` untracked 最高优先档不被改坏 = GAP-1 静默 CoreMark 地雷；活路径前件，**结构零误报**）。
+- **INV-2 @ OooFetchPcOutstandingSequencer**：next_fetch_pc 同拍至多一个终态写者赢（onehot0）；当前 nonblocking 覆盖使其恒成立、arbiter 重写后才真正承重；**制造违约已验证能响**（阈值 >1→>0 → sequencer TB 报 `[FLUSH-CONTRACT INV-2]`）。
+- **INV-3 @ OooControlPlane**：CSR-commit ⊥ younger-branch-mispredict 互斥（GAP-2）；默认 `OOO_CSR_QUEUE_HEAD=0` 前件恒假 = 翻 flag=1 试 Linux boot 的前置护栏。
+- INV-4 未落（跨 3 模块、同 flag=1 覆盖，留下轮随翻 flag）。
+- **验证**：全核 build（--assert + +define+OOO_ASSERT）+ 全 riscv 177 + am 全绿、0 误报；make check-contract PASS(4≥4)；baseline `eval/contract-assert-baseline.txt` 1→4。
+- **诚实**：3 条当前都不 fire（核全绿本就该过）——价值是防未来 regression(INV-1)、翻 flag 前置护栏(INV-3)、arbiter 重写后生效(INV-2)，非抓当前 bug。这印证 spec §5.5"活路径承重不变量少"。
+证据见 spec `ooo-flush-redirect-contract.md` §4 + task-run，记忆 [[rv64-architecture-first-reflection]]。
