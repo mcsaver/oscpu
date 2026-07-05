@@ -1,5 +1,13 @@
 # NPC Agent
 
+## RTL 生成强制工作流（最高优先级）
+
+写或改任何 `npc/rv64` 可综合 Verilog 前，必须遵循
+`.github/instructions/rtl-generation-workflow.instructions.md`（需求→协议+FSM+不变量+拓扑→RTL，六段留痕）。
+其中触碰握手 / stall / flush·redirect·trap / 异常序 / 访存序 / 投机恢复 或跨模块的改动，
+**先走阶段 0**：按 `.github/instructions/interface-contract-first.instructions.md` 冻结六类跨模块契约、
+填满目标模块 SPEC-TEMPLATE §2/§3，并让能编码的契约过 `make -C npc/rv64 check-contract` gate（决策见 `decisions.md` [38]）。
+
 ## 默认开发环境
 
 NPC 开发默认使用 NPC-only profile：
@@ -17,3 +25,4 @@ NPC 仿真、Verilator harness、RTL-adjacent C++、Linux boot/systemd 观察和
 - NPC-only 环境 bug 要修 `npc-dev` 和相关 module contract。
 - 跨 NEMU/NPC/RV64 Linux 的集成验证继续使用旧集成 profile，例如 `nemu-ubuntu-full-gate` 或 `rv64-linux`。
 - 当前 NPC Ubuntu/systemd 长门状态以 known-issues 为准，不因 NEMU full Ubuntu 进展自动关闭。
+- （契约先行硬门槛）rv64 核改动若填不出受影响模块的接口/控制契约（§2/§3 的 flush「谁清谁保持」表、stall 语义、同拍优先级表出现填不出的格子），即视为尚未理解上下游业务，禁止落 RTL；先补齐契约或显式上升为“契约缺口”任务节点，不得先写 RTL 再撞死锁回填。

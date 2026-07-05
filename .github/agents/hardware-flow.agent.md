@@ -114,6 +114,7 @@ synth-boundary-audit → verilator-perf-run → rtl-invariant-check → focused-
 ## 节点设计原则
 
 - `hardware-flow` 先负责把跨模块流程走通，再把具体修复交给模块专家
+- （rv64 核跨模块 RTL）任何触碰握手/stall/flush/序/恢复的节点，前面必须先有一个 `interface-contract-freeze` 节点：产出六类契约的冻结表 + 受影响模块 SPEC-TEMPLATE §2/§3 填写 + 能编码契约的立即断言清单（过 `make -C npc/rv64 check-contract`），作为下游 RTL 实现节点的硬依赖。契约填不出的模块不得作为 RTL 节点开工，应回退为“契约缺口”节点显式上升，而非在实现节点里赌上下游。
 - 软件产物不是硬件 gate 的附属品；凡是 C/C++/Python/Shell/Make/Kconfig 改动，都要先有 `software-flow` 的需求/契约/实现/测试记录，再把产物交给硬件或系统 gate 消费
 - 若节点需要 NEMU 日志、trace、waveform 或构建摘要，必须把这些证据显式写进节点输出，而不是只给一句“已运行”
 - 若目标路径尚未实现，必须把结论写成“当前图已截断到参考闭环”，不能暗示 target 已通过

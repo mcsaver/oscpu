@@ -93,7 +93,7 @@ RTL_VERILATOR_DEFINES += $(if $(filter y,$(F2_PROBE)),+define+F2_PROBE +define+D
 #   3. profiling 只在显式目标中打开；--prof-cfuncs 会触发 -pg 插桩，不能混进普通性能基线
 VERILATOR_FLAGS += -MMD --cc --exe \
 			   -O3 \
-			   --x-assign fast --x-initial fast --noassert \
+			   --x-assign fast --x-initial fast --assert \
 			   -Wall -Wno-DECLFILENAME -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-UNUSEDSIGNAL \
 			   -I$(VSRCDIR) -I$(RTL_INCLUDE_DIR)
 
@@ -116,6 +116,10 @@ endif
 endif
 
 VERILATOR_FLAGS += $(RTL_VERILATOR_DEFINES)
+# 契约立即断言探针（architecture-first，见 .github/instructions/interface-contract-first.instructions.md）：
+# 让六类契约中已编码为过程式 $error/$fatal 的立即断言常驻全核 sim 回归；make syn 网表不含此 define。
+# 如需临时关闭断言（如排查误报），删除下一行即可。
+VERILATOR_FLAGS += +define+OOO_ASSERT
 
 # 只在确实需要波形时才打开 --trace，避免无谓的 eval() 开销
 ifeq ($(CONFIG_NPC_TRACE_BY_DEFAULT),y)
@@ -191,6 +195,12 @@ print-synth-rtl:
 # 可综合文件须为 .v、不得用 SV 的 always_comb/always_ff/logic(iverilog 模块 TB 不兼容)。
 check-rtl-style:
 	@RTL_FILES="$$($(MAKE) -s print-synth-rtl)" $(abspath eval/check-rtl-style.sh)
+
+# 契约立即断言 gate（architecture-first 的可执行牙齿）：强制
+# .github/instructions/interface-contract-first.instructions.md 的机器可检子集——
+# 全核 build 含 --assert + OOO_ASSERT、rv64 可综合 .v 的契约立即断言计数不回退。
+check-contract:
+	@$(abspath eval/check-contract.sh)
 
 all: default
 

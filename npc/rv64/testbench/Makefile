@@ -9,7 +9,7 @@ LOG_DIR := $(RESULT_DIR)/logs
 IVERILOG ?= iverilog
 # 当前 PATH 里可能先命中不完整 oss-cad-suite 的 vvp；优先使用系统 Icarus vvp，保证模块级 testbench 可独立复跑。
 VVP ?= $(if $(wildcard /usr/bin/vvp),/usr/bin/vvp,vvp)
-IVFLAGS ?= -g2012 -Wall -I$(VSRCDIR) -I$(RTL_INCLUDE_DIR) -Icommon
+IVFLAGS ?= -g2012 -Wall -I$(VSRCDIR) -I$(RTL_INCLUDE_DIR) -Icommon -DOOO_ASSERT
 
 TESTS := \
   tb_alu \

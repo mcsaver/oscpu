@@ -17,6 +17,17 @@
 
 ## 架构决策
 
+### [38] rv64 核采用 architecture-first（接口/控制契约先行），缺口主要是"强制装置"而非文档
+
+- **日期**: 2026-07-05
+- **状态**: 已决定
+- **上下文**: 对 21 个历史调试会话（约一周，总编译 1353 / 跑测 916 / 改代码 1428 次）做元复盘，追问"为什么 debug 慢、为什么有 spec 仍反复出 bug"。发现 debug 慢一半是 RTL 媒介固有（改一行≈重编一次整仿真器，Edit/COMPILE=1.06；bug 常要跑 3.2M 指令才现形），一半是流程（安全网掩盖真因、量具噪声）；"有 spec 仍出 bug"的根不在 spec 质量——54 个 bug 中 spec 本身写错仅约 14%，"spec 对但无可执行护栏"占多数。用户进一步诊断根因是一开始 RTL-first、没写明 stall/flush 等控制契约。
+- **决策**: rv64 后续按 architecture-first 推进，但把"datasheet 先行"精确为"接口/控制契约先行"——先冻结六类可判定跨模块契约（握手 / 反压 stall 单向 DAG / flush「谁清谁保持」表+优先级全序 / 异常序 / 访存序 / 投机恢复单一真源），再写改块内 RTL。承认核心缺口是"强制装置"（回归覆盖 + 可执行检查 + 加深金模型）而非文档：契约缺失是最大一族但占不满一半，近一半 bug（跨模块涌现 + 纯译码/数值/harness 噪声）写再多契约也防不住。
+- **理由**: 单模块 spec 挡不住跨模块涌现；散文契约不会自动报警；实现会悄悄偏离且无护栏。防住 bug 的是把契约转成连续运行的可执行检查，不是更多文档。是 [19]（根因非补丁）在架构层的延伸、[18]（产物与记忆分层）的方法论化；业界并非纯瀑布，正确姿势是"契约冻结 + 受控迭代"。
+- **落地约束（已复核）**: 全核 SVA 时序断言命中 0、Verilator flags 无 `--assert` → 断言须用立即断言 `always @(posedge clk) if (违约) $error(...)`（iverilog + Verilator 通吃），不能用 `|->`/`$stable`；两种烂法须防（真空通过 / 照 RTL 写的同盲区）。`design/arch/ooo-core-architecture.md` C7/§7 自认"≥12 redirect/flush 源、≥5 汇合、无统一优先级链" → flush 是结构缺陷，应局部重写成单点优先编码仲裁器（true by construction），而非"加表 + 挂断言"。判据：非法状态随源数组合爆炸且无单一收敛点 → 重写；边界清晰状态小 → 立即断言够。`design/arch/SPEC-TEMPLATE.md` §2/§3 已是正确契约骨架但 specs/ 从没填过一次。
+- **本周最小起步**: ①`rv64ua/uf/ud` 加进默认回归（近一半涌现 bug 唯一现实拦截网，零成本）；②30 分钟 `--assert` 立即断言探针验证工具链能否走"契约转可执行检查"。大表 / flush 重写排其后。
+- **影响 / 完整分析**: 后续 rv64 bug 修复与新模块开发应先答"该模块什么条件 stall、flush 来时清谁保持谁"再写逻辑；完整两份报告 + 证据见 `.github/task-runs/2026-07-05-rv64-debug-methodology-reflection/`，auto-memory `rv64-architecture-first-reflection`。
+
 ### [37] 软件开发全流程采用独立 `software-flow` agent
 
 - **日期**: 2026-06-09

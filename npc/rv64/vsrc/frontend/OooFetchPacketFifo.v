@@ -152,4 +152,18 @@ module OooFetchPacketFifo #(
     end
   end
 
+`ifdef OOO_ASSERT
+  // ── 契约② 反压/无溢出（architecture-first 立即断言，见 interface-contract-first.instructions.md）──
+  // 不变量：fetch packet FIFO 占用 count_q 永不超过物理深度 FETCH_PACKET_COUNT。
+  // 证据：count_q(第62行) 更新仅 ±1(第148/149行)，物理深度 = 1<<OOO_FETCH_PACKET_COUNT_W = 4。
+  // 立即断言（过程式 $error，Verilator/iverilog 双仿真器通吃，非 SVA），仅在 +define+OOO_ASSERT 时编入，synth 不含。
+  always @(posedge clk) begin
+    if (!rst && (count_q > FETCH_PACKET_COUNT[FETCH_COUNT_W-1:0])) begin
+      $error("[CONTRACT-FIFO-OVFL] OooFetchPacketFifo count_q=%0d exceeds depth=%0d",
+             count_q, FETCH_PACKET_COUNT);
+      $fatal;
+    end
+  end
+`endif
+
 endmodule

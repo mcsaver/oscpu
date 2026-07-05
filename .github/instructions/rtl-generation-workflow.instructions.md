@@ -9,6 +9,17 @@ applyTo: "**/*.{v,sv,vh,svh}"
 
 只读类问题（仅解释代码、回答原理、做 RECALL）不强制走完整流程，但若结论会被用于后续 RTL 改动，则改动那一步必须补齐。
 
+## 阶段 0 — 接口/控制契约先行（仅 npc/rv64 可综合 RTL；跨模块或触碰控制路径时强制前置）
+
+改动位于 `npc/rv64/**` 且触碰握手 / stall / flush·redirect·trap / 异常序 / 访存序 / 投机恢复，
+或跨 ≥2 module 边界时，**在进入阶段 1 之前**，必须先按
+`.github/instructions/interface-contract-first.instructions.md` 冻结六类跨模块契约，
+并把受影响模块的 SPEC-TEMPLATE §2/§3（尤其 flush「谁清谁保持」表 + 同拍优先级表 + stall 语义）填满。
+
+**硬门槛：填不出契约的格子 = 尚未理解上下游 = 禁止进入阶段 1 写 RTL。**
+契约中能编码的部分优先转成立即断言（`always @(posedge clk) if (违约) $error(...)`，禁 SVA `|->`）。
+digital_logic_experiment 等非 rv64 核 RTL 不强制本阶段，直接从阶段 1 开始。
+
 ## 阶段 1 — 需求
 
 把任务转写为可验证的需求清单：
@@ -101,7 +112,7 @@ applyTo: "**/*.{v,sv,vh,svh}"
   Vivado 用 `read_verilog -sv` 读 `.v`、Verilator 默认按 SV 解析 `.v`，但**为兼容 iverilog 模块 TB gate，可综合 .v 不使用 `always_comb`/`always_ff` 关键字**（见上节）。
 - **`.sv` 文件仅用于验证**：testbench、DPI、仿真顶层（如 `vsrc/sim/*.sv`）、断言环境。`.sv` 里可自由用 `always_ff`/`always_comb`/`logic`。不要用 `.sv` 描述会进入综合网表的真实硬件。
 - 新增可综合模块时加入综合文件清单（`vsrc/filelist.mk`），不要把含 DPI-C 的仿真 `.sv` 混进综合网表。
-- **本地验证回环**：可综合 RTL 改动后必须同时过 ① **`make -C npc/rv64 check-rtl-style`**（风格 gate：可综合文件须 .v、禁 always_comb/always_ff/logic，见 `npc/rv64/eval/check-rtl-style.sh`）② Verilator(`make lint` + sim)③ **Icarus iverilog 模块 TB**（`testbench/`，对 `always_comb` 常量位选会静默错/失败，是最易被忽视的 gate）④ 适用时 Vivado OOC。工具链对 SV 子集支持不同，只过其一不够。
+- **本地验证回环**：可综合 RTL 改动后必须同时过 ① **`make -C npc/rv64 check-rtl-style`**（风格 gate：可综合文件须 .v、禁 always_comb/always_ff/logic，见 `npc/rv64/eval/check-rtl-style.sh`）② Verilator(`make lint` + sim)③ **Icarus iverilog 模块 TB**（`testbench/`，对 `always_comb` 常量位选会静默错/失败，是最易被忽视的 gate）④ 适用时 Vivado OOC ⑤（触碰控制路径/跨模块的 rv64 改动）**`make -C npc/rv64 check-contract`**（契约 gate：build 含 `--assert`+`OOO_ASSERT`、rv64 可综合 `.v` 的立即断言计数不回退，见 `interface-contract-first.instructions.md`）。工具链对 SV 子集支持不同，只过其一不够。
 
 ## 阶段 3 — RTL
 
@@ -115,6 +126,7 @@ applyTo: "**/*.{v,sv,vh,svh}"
 
 - 在对话或落盘 RTL 的同一回复中，按 阶段 1 / 2a / 2b / 2c / 2d / 3 的顺序给出推导
 - 涉及落盘的 RTL 改动，应在 `.github/task-runs/<日期-任务名>/task-report.md` 中追加“RTL 推导摘要”一节，至少保留：需求要点、关键不变量、状态机骨架、数据通路骨架；不要只记录最终代码
+- 触碰控制路径/跨模块的 rv64 改动，task-report 还须含「接口契约冻结」一节：本次冻结/更新的 §2/§3 表、六类契约中受影响项、新增的立即断言清单（含“已故意制造违约确认会响”的证据）
 - 模块级的稳定结论（接口协议、不变量、状态机）应回写到 `.github/memory/modules/npc.md` 或对应模块笔记，避免下次重复推导
 
 ## 禁止行为
@@ -123,3 +135,4 @@ applyTo: "**/*.{v,sv,vh,svh}"
 - 禁止用“与现有风格保持一致”替代显式协议/状态机/不变量说明
 - 禁止仅凭波形或测试通过就认定不变量成立；不变量必须有结构性论证或断言
 - 禁止把 bug 修复直接缝在出错的 always 块里而不回到阶段 2 重新审视协议/状态机/不变量
+- （rv64 核）禁止在触碰握手/stall/flush/序/恢复的改动中跳过阶段 0 的跨模块契约冻结；禁止用块内推导（阶段 1–2）替代跨模块 SPEC-TEMPLATE §2/§3 的填写

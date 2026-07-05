@@ -38,6 +38,7 @@
 4. `.github/memory/known-issues.md`
 5. `.github/memory/modules/<相关模块>.md`
 6. `.github/instructions/<相关主题>.instructions.md`
+   - 若涉及 `npc/rv64` 可综合 RTL 且触碰握手 / stall / flush·redirect·trap / 异常序 / 访存序 / 投机恢复，**必读** `.github/instructions/interface-contract-first.instructions.md`，先冻结六类跨模块契约再写逻辑（决策见 `.github/memory/decisions.md` [38]）
 7. 若任务涉及 `npc/single/` 或 `npc/soc/` 的数据通路、译码、控制、功能仿真、SoC wrapper 或 RTL，补读对应目录下的 `design/study/README.md` 及专题笔记
 8. 若任务涉及 `ysyxSoC/`、CPU 顶层 ABI、SoC 地址图或 `ysyxSoCFull.v` 生成，补读 `.github/memory/modules/ysyx-soc.md` 与 `ysyxSoC/spec/cpu-interface.md`
 9. 若任务涉及 AI 开发环境 e2e、规则发现、agent 工作流自检或“降低 AI 不确定性”，补读 `.github/instructions/agent-e2e-workflow.instructions.md` 与 `.github/e2e/README.md`，先用 `scripts/agent-e2e.sh --list-profiles` 查看模块 profile，再按任务选择 `discovery`、`contracts`、`quick`、`agent-system`、`software-flow`、`github-index`、`abstract-machine`、`am-kernels`、`hardware-flow`、`nemu`、`npc`、`rv64-linux` 等 profile 生成证据包
@@ -112,6 +113,7 @@
   - 若只完成其中一项，最终回复和 memory/task-run 必须显式写清“已完成项、未完成项、下一步候选”，并保持目标/问题在语义上未闭合。
   - 只有当原始目标的全部硬性条目都有客观证据，且不存在未处理的用户明确要求时，才允许使用“整体完成/goal complete”的表述。
   - RV64 Linux/Ubuntu、图任务和长链调试尤其要按 gate 分层收口，禁止用低层 gate 或单个设备子项越级声明完整 Ubuntu、完整 VM、完整性能路线或完整图目标。
+  - （rv64 核 RTL）若本次改动触碰握手/stall/flush/序/恢复或跨模块边界，声明“完成”前必须核对：六类契约已冻结、受影响模块 SPEC-TEMPLATE §2/§3 已填满、能编码的契约已转成非真空立即断言且 `make -C npc/rv64 check-contract` 通过；任一缺失只能称“子任务完成”，并在回复中显式列出未冻结的契约格子作为未闭合项。
 - 稳定结论、长期经验和设计决策写入 `.github/memory/`。
 - 单次任务过程、节点派发与证据链优先写入 `.github/task-runs/<日期-任务名>/`。
 - 处理 agent 架构与工作流环境任务时，相关长期结论优先沉淀到 `.github/memory/modules/agent-system.md`。

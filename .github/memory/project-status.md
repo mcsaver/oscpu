@@ -395,3 +395,21 @@
 - 已知边界(预先存在,非本次引入): CoreMark 在 difftest 开启下读 rtc out-of-bound(NEMU 参考不初始化设备 + OoO MMIO load 使 skip_ref 被更早提交指令消费),CoreMark 按 --no-diff 跑分。
 - 相关文件: abstract-machine/am/include/device_address.h、nemu/include/device/device_address.h(+ device/map.h include、各设备 .c/monitor.c 改 DEV_*)、npc/rv64/csrc/include/device_address.h(+ utils.h/device.c/paddr.c)、npc/rv64/vsrc/include/define.v、rv32 的 .mk、nemu Kconfig(DEVICE_MAP_LEGACY)。
 - 备注: 为在后台会话原地作业, 已建本地未跟踪 `.claude/settings.local.json`(bgIsolation:none)。
+
+## 2026-07-05 RV64 核方法论元复盘 + architecture-first 决策沉淀（纯分析，非代码改动）
+
+对 21 个历史调试会话（总编译 1353 / 跑测 916 / 改代码 1428 / 探查 2181）做两轮元复盘，回答"为什么 debug 慢、为什么有 spec 仍出 bug、怎么像 IC 公司 architecture-first"。
+- **核心结论**: debug 慢一半是 RTL 媒介固有（改一行≈重编整仿真器，Edit/COMPILE=1.06；bug 常需跑数百万指令才现形）一半是流程（安全网掩盖真因 + 量具噪声）；"有 spec 仍出 bug"根不在 spec 质量（54 bug 中 spec 真写错仅约 14%，"spec 对但无可执行护栏"占多数）；把"datasheet 先行"精确为"接口/控制契约先行"，缺口主要是**强制装置**（回归 + 可执行检查 + 加深金模型）非文档。
+- **已复核硬证据**: Edit 1428/COMPILE 1353（比 1.06）；全核 SVA 命中 0、Verilator flags 无 `--assert`（→ 断言须立即断言形态）；宪法 §7 自认 flush ≥12 源无优先级链（→ 该单点仲裁器重写）；`SPEC-TEMPLATE.md` §2/§3 契约骨架从没填过一次。
+- **本周最小起步**: `rv64ua/uf/ud` 入默认回归 + 30min `--assert` 立即断言探针。大表 / flush 重写排其后。
+- **诚实上限**: 归因受幸存者偏差限制、缺 per-bug 耗时数据 → "慢主要是方法问题"仍是假说，需补 transcript 耗时抽取才能定量。
+- 决策见 `decisions.md` [38]，完整两份报告 + 证据见 task-run `2026-07-05-rv64-debug-methodology-reflection/`，记忆 [[rv64-architecture-first-reflection]]。
+
+## 2026-07-05 architecture-first 落地（本周最小起步 + 闭环 gate + agent 环境结合）
+
+承接同日方法论复盘（[38]），把最小起步落地并把 architecture-first 焊进 agent 环境。**含实质 RTL/构建/agent 环境改动。**
+- **任务①校正**：rv64ua/uf/ud **早已在默认回归**（2026-07-01 commit `d32b256be`，非本次），复盘里"不在回归=零护栏"前提错了（未核实脚本，再证"别信没核实的断言"）；本次实跑三套件全 PASS，加防回退护栏（校验 `RISCV_SUITES_DEFAULT` 常量、不误伤运行时缩集）。
+- **任务②工具链验证通过**：`OooFetchPacketFifo.v` 加契约②立即断言（count_q≤深度4，`ifdef OOO_ASSERT`）；iverilog module-TB 三步实证：真版 exit0 / 违约 exit1 报 `[CONTRACT-FIFO-OVFL]` / 恢复 exit0。过程式 `always@(posedge) if(违约) $error/$fatal` 在 Verilator+iverilog 双链路必响，`--assert` 只管 SV `assert()` 关键字。全核带 `--assert`+`+define+OOO_ASSERT` 构建 npc-build PASS、三套件全绿、断言误报=0。
+- **闭环 gate（用户洞察，把探针升级为常驻 spec 符合性门禁）**：新建 `eval/check-contract.sh` + `make check-contract`（三检查：`--assert` 存在 / `+define+OOO_ASSERT` 存在 / 立即断言计数不回退），复用 `check-rtl-style` 范式；实测删断言→rc≠0、恢复→rc=0，有牙齿。
+- **agent 环境有机结合（8 文件焊进"发现→工作流→完成→gate"四道装置）**：新建 `interface-contract-first.instructions.md`（六类契约规范单一真源）；接线 `rtl-generation-workflow`（阶段0契约先行+验证回环⑤check-contract+留痕+禁止）、`AGENTS.md`（必读链+完成钩子）、`npc.agent.md`（工作流+边界硬门槛）、`hardware-flow.agent.md`（interface-contract-freeze 节点）、`SPEC-TEMPLATE.md`（§2 flush表必填+§4 断言义务）。
+- **全 gate 绿**：check-rtl-style / check-contract / fifo module-TB / 全核 build / 三套件回归 均 PASS。改动 16 文件（新建4+修改12）。证据与清单见 task-run `2026-07-05-rv64-debug-methodology-reflection/landing-report.md`，记忆 [[rv64-architecture-first-reflection]]。

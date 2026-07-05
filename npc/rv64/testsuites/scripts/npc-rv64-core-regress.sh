@@ -342,6 +342,15 @@ run_riscv_tests() {
   local suite
   local case_name
   local target
+  # 防回退护栏（2026-07-05 architecture-first）：默认白名单必须始终含 A/F/D（RV64GC 覆盖，
+  # 见 :24 注释 + known-issues #106 LR/SC 活锁）。检查 RISCV_SUITES_DEFAULT 常量而非运行时
+  # RISCV_SUITES，故不误伤 --riscv-suites 显式缩集；只在有人手滑从默认白名单删掉时报错。
+  for _must in rv64ua rv64uf rv64ud; do
+    case " ${RISCV_SUITES_DEFAULT[*]} " in
+      *" $_must "*) : ;;
+      *) echo "  FAIL  regression-guard: 默认白名单 RISCV_SUITES_DEFAULT 丢失 $_must（RV64GC 覆盖缺口，近半涌现 bug 拦截网）"; OVERALL_RC=1 ;;
+    esac
+  done
   shopt -s nullglob
   for suite in "${RISCV_SUITES[@]}"; do
     for src in "$RISCV_TESTS_DIR"/isa/"$suite"/*.S; do
