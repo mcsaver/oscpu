@@ -334,7 +334,7 @@ redirect_request {
 
 ### 6.3 对抗审查专项存疑（不粉饰）
 
-- **UC-A｜源清单曾漏一整个活跃子系统（FP/MulDiv flush+kill）**：已补入 §2.1a（入口 `OooIntBackend.v:2410-2413` [验证]，内部 [审查]）。方向性提醒：此漏项**加重**而非减轻 C7 判词——真实 flush sink 扇出比原画更宽（`branch_resolve_mispredict_w` 同拍扇进 IntIQ+FpIQ+FpArith+FpBackend DONE_FIFO+MIQ+ROB-walk+SQ boundary）。契约在**低估自己要证明的乱**。
+- **UC-A｜整数 MulDiv/CLMUL 缺 mispredict-kill 端口**：**✅已修(2026-07-05 先证据后修)**——A1 生产者身份哨兵实证 rv64uzbc-p-clmul 撞号(CLMUL wrong-path 写复用 ROB 槽,之前被 valid_q 静默兜住)→给 MulDiv+CLMUL 补 kill 三端口+age-squash(逐字照 FP fp_meta_killed)+组合 gate resp_valid→A1 静默、全绿(baseline 5→7)。原文存:已补入 §2.1a（入口 `OooIntBackend.v:2410-2413` [验证]，内部 [审查]）。方向性提醒：此漏项**加重**而非减轻 C7 判词——真实 flush sink 扇出比原画更宽（`branch_resolve_mispredict_w` 同拍扇进 IntIQ+FpIQ+FpArith+FpBackend DONE_FIFO+MIQ+ROB-walk+SQ boundary）。契约在**低估自己要证明的乱**。
 - **UC-B｜铁律③默认回归零覆盖**：见 §3 降级。挂 serial_flush（默认 [休]），flag=1 全 Linux 绿之前不得读作 settled。
 - **UC-C｜系统性幸存者偏差**：头号绿证据全 flag=0；memory「flag ON real workload 全绿」**不在本契约证据集且本身不完整**。凡 serialize 类"成立" = "flag=0 不触发"，非 flag=1 背书。
 - **UC-D｜铁律② AMO/LR/SC nokill 未核实**：`mem_req_nokill_o` 直通，真正 nokill 判定在上游 IntBackend AMO 通道，本轮未打开，存疑保留（§3 铁律②）。
@@ -363,3 +363,4 @@ redirect_request {
 - **待办**：Step 0 落 4 条立即断言、baseline 1→5、锚点信号名化（§6.4 UC-11）。
 - 2026-07-05: INV-1/2/3 落成 in-RTL `ifdef OOO_ASSERT $error 立即断言（commit a336bf973），baseline 1→4；全核+177 riscv+am 全绿 0 误报，INV-2 制造违约验证能响；INV-4 未落（跨 3 模块同 flag=1 覆盖，留下轮）。
 - 2026-07-05: **GAP-6 root-cause 修复**——删 OooPendingTrapExitSequencer squash-clear 的 cause==EXC_ILLEGAL_INST 症状补丁(payload 生命周期对齐 validity 位:55)。先加 payload-lifetime 立即断言实证 sv39 boot 现有测试 fire 7 次(cause=12 wrong-path page-fault residual)=confirmed-bug, 删补丁后 0 fire、module113+riscv177+am 全绿, baseline 4→5。
+- 2026-07-05: **UC-A root-cause 修复**——整数 MulDiv/CLMUL 独缺 mispredict-kill 端口(FP 全家有)。先加 ROB 生产者身份哨兵(OooRob)实证 rv64uzbc-p-clmul wrong-path clmul 结果撞号复用槽(A1 fire)=confirmed→给 OooMulDivUnit+OooClmulUnit 补 kill_valid/kill_rob_idx/rob_head_idx 三端口+age-squash(逐字照 OooFpArithGate fp_meta_killed 严格年轻>)+组合抹 resp_valid_o+父层接 branch_resolve_mispredict_w→A1 静默、module113+riscv177+am+CoreMark(0xfcaf)全绿。baseline 5→7。

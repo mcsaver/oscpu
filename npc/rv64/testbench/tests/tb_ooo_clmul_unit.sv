@@ -34,6 +34,9 @@ module tb_ooo_clmul_unit;
     .clk(clk),
     .rst(rst),
     .flush_i(flush),
+    .kill_valid_i(1'b0),                        // UC-A kill 端口: TB 禁用(=0), 单元行为退化为原逻辑
+    .kill_rob_idx_i({ROB_INDEX_W{1'b0}}),
+    .rob_head_idx_i({ROB_INDEX_W{1'b0}}),
     .req_valid_i(req_valid),
     .req_ready_o(req_ready),
     .req_rob_idx_i(req_rob_idx),

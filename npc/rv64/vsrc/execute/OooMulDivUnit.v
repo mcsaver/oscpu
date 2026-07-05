@@ -7,6 +7,10 @@ module OooMulDivUnit #(
   input clk,
   input rst,
   input flush_i,
+  // UC-A mispredict-kill: 整数 MulDiv 补齐 kill 端口(FP 全家已有)，防误预测阴影 wrong-path 结果撞号
+  input kill_valid_i,
+  input [ROB_INDEX_W-1:0] kill_rob_idx_i,
+  input [ROB_INDEX_W-1:0] rob_head_idx_i,
 
   input req_valid_i,
   output req_ready_o,
@@ -203,8 +207,22 @@ module OooMulDivUnit #(
       div_word_q ? sign_extend_word(div_result_raw_w[31:0]) :
                    div_result_raw_w;
 
+  // UC-A mispredict-kill: age 表达式逐字复用 OooFpArithGate fp_meta_killed —— 严格年轻 '>'(kill 点自身
+  // NOT killed)、三操作数同宽 ROB_INDEX_W 无符号模减(ROB 环上把队头旋到 0 天然处理 wrap)。kill_valid_i=0
+  // 时恒 0 → 下方 gate 全退化为原逻辑, 行为逐字不变。
+  function muldiv_killed;
+    input [ROB_INDEX_W-1:0] idx;
+    muldiv_killed = kill_valid_i &&
+        ((idx - rob_head_idx_i) > (kill_rob_idx_i - rob_head_idx_i));
+  endfunction
+  wire kill_inflight_w =
+      ((state_q == STATE_DIV_RUN) || (state_q == STATE_RESP)) &&
+      muldiv_killed(resp_rob_idx_q);
+  wire kill_new_req_w = req_fire_w && muldiv_killed(req_rob_idx_i);
+
   assign req_ready_o = state_q == STATE_IDLE;
-  assign resp_valid_o = state_q == STATE_RESP;
+  // 组合抹 resp_valid_o(载重项, 对齐 FP out_valid_o 的 && !killed): kill 命中 STATE_RESP 当拍即不写脏值
+  assign resp_valid_o = (state_q == STATE_RESP) && !kill_inflight_w;
   assign resp_rob_idx_o = resp_rob_idx_q;
   assign resp_pdest_o = resp_pdest_q;
   assign resp_data_o = resp_data_q;
@@ -225,10 +243,16 @@ module OooMulDivUnit #(
       div_quot_neg_q <= 1'b0;
       div_rem_neg_q <= 1'b0;
       div_word_q <= 1'b0;
+    end else if (kill_inflight_w) begin
+      // UC-A: kill 命中在飞 op → 强制回 IDLE(覆盖优先, 胜过 case 的 DIV_RUN/RESP 推进), 抹 resp 身份防脏写回
+      state_q <= STATE_IDLE;
+      resp_rob_idx_q <= {ROB_INDEX_W{1'b0}};
+      resp_pdest_q <= {PHY_REG_ADDR_W{1'b0}};
+      resp_data_q <= {`XLEN{1'b0}};
     end else begin
       case (state_q)
         STATE_IDLE: begin
-          if (req_fire_w) begin
+          if (req_fire_w && !kill_new_req_w) begin
             resp_rob_idx_q <= req_rob_idx_i;
             resp_pdest_q <= req_pdest_i;
             if (!req_is_div_w) begin

@@ -444,3 +444,13 @@
 - **验证全绿**：module113 + riscv177/0 + am + **CoreMark(0xfcaf GOOD TRAP)**、0 断言误报；`make check-contract` baseline 4→5(GAP-6 断言进 ratchet)。契约 §6 GAP-6 标已修。
 - **剩两缺口**：#111 fence.i(confirmed-bug, high, 主攻, 镜像 sfence.vma 模板)、UC-A(整数 MulDiv 独缺 mispredict-kill 端口=强漏修信号, 照抄 FP kill 范式)。方法学：**先加断言拿证据把隐患升级/证伪，再 root-cause 修**——GAP-6 是范例(sv39 fire 7 次实证)。
 证据见 spec §6/§8 + commit，记忆 [[rv64-architecture-first-reflection]]。
+
+## 2026-07-05 UC-A root-cause 修复：MulDiv/CLMUL 补 mispredict-kill 端口（先证据后修）
+
+flush 契约诊断确认 UC-A：整数 MulDiv/CLMUL **独缺 mispredict-kill 端口**（FP 全家 FpArith/FpDiv/FpSqrt/DONE_FIFO 都有），误预测阴影里 wrong-path DIV/CLMUL 结果污染被 ROB-walk kill 后复用的 ROB 槽/PRF/IQ 唤醒，偶发静默数据损坏（默认 mode=1 即活，软件无法规避）。
+- **先证据（Step A）**：加 ROB 生产者身份哨兵（`OooRob` wb 携带 pdest != slot.new_pdest 即撞号）→ **实证 rv64uzbc-p-clmul 的 wrong-path `clmul`(pc=0x800003a0)结果撞号复用槽** → UC-A confirmed，精确定位 **CLMUL 单元**（之前被 valid_q 守卫静默兜住、测试照样 PASS）。
+- **root-cause 修（Step B）**：给 `OooMulDivUnit` + `OooClmulUnit` 补 `kill_valid/kill_rob_idx/rob_head_idx` 三端口 + age-squash（逐字照 `OooFpArithGate` fp_meta_killed：`(idx-head)>(kill-head)` 严格年轻、环形模减）+ 组合抹 `resp_valid_o`（kill 命中当拍不写脏值）+ 父层 `OooIntBackend` 接 `branch_resolve_mispredict_w`（与送 FpBackend 同源）。单元 TB 连 kill=0 禁用。
+- **验证**：rv64uzbc-p-clmul 的 A1 从 fire→**静默**（撞号消失=证明 root cause 是 kill 缺失、修对）；module113 + riscv177/0 + am + CoreMark(0xfcaf) 全绿、UC-A fire=0、age 未误杀正确 clmul/div/mul；check-contract baseline 5→7。契约 §6 UC-A 标已修。
+- **方法学**：A1 生产者身份哨兵=静默数据损坏的通用探测器，先加拿证据把 structural-risk 升 confirmed（同 GAP-6 范式，两次成功）。
+- **剩 #111 fence.i**（confirmed high 主攻，镜像 sfence.vma）待修。
+证据见 spec §6/§8 + task-run，记忆 [[rv64-architecture-first-reflection]]。

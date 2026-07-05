@@ -45,6 +45,7 @@ module OooRob #(
   input [`TRAP_CAUSE_W-1:0] wb0_cause_i,
   input [`XLEN-1:0] wb0_tval_i,
   input [4:0] wb0_fflags_i,
+  input [PHY_REG_ADDR_W-1:0] wb0_pdest_i,   // A1 生产者身份哨兵(UC-A)
 
   input wb1_valid_i,
   input [ROB_INDEX_W-1:0] wb1_rob_idx_i,
@@ -53,6 +54,7 @@ module OooRob #(
   input [`TRAP_CAUSE_W-1:0] wb1_cause_i,
   input [`XLEN-1:0] wb1_tval_i,
   input [4:0] wb1_fflags_i,
+  input [PHY_REG_ADDR_W-1:0] wb1_pdest_i,   // A1 生产者身份哨兵(UC-A)
 
   input commit_ready_i,
   input commit1_block_i,
@@ -506,5 +508,25 @@ module OooRob #(
 `endif
   end
 
+
+`ifdef OOO_ASSERT
+  // A1 生产者身份哨兵 (UC-A): wb 写已 valid 的 ROB 槽时, 携带的 pdest 必须等于该槽 dispatch 记录的
+  // new_pdest_q。不等 = wrong-path stale 生产者(muldiv/clmul/alu 无 mispredict-kill)写了被 kill 后
+  // 复用的槽 = 静默撞号。仅 pdest!=0(真 int 生产者写 PRF)时校验; FP-rd/store/no-rd 携 0 跳过, 无假阳。
+  always @(posedge clk) begin
+    if (!rst && !flush_i) begin
+      if (wb0_valid_i && valid_q[wb0_rob_idx_i] &&
+          (wb0_pdest_i != {PHY_REG_ADDR_W{1'b0}}) &&
+          (wb0_pdest_i !== new_pdest_q[wb0_rob_idx_i]))
+        $error("[FLUSH-CONTRACT UC-A] ROB 生产者撞号 WB0 idx=%0d pdest=%0d != slot.new_pdest=%0d (pc=%h) wrong-path 生产者写复用槽 @%0t",
+               wb0_rob_idx_i, wb0_pdest_i, new_pdest_q[wb0_rob_idx_i], pc_q[wb0_rob_idx_i], $time);
+      if (wb1_valid_i && valid_q[wb1_rob_idx_i] &&
+          (wb1_pdest_i != {PHY_REG_ADDR_W{1'b0}}) &&
+          (wb1_pdest_i !== new_pdest_q[wb1_rob_idx_i]))
+        $error("[FLUSH-CONTRACT UC-A] ROB 生产者撞号 WB1 idx=%0d pdest=%0d != slot.new_pdest=%0d (pc=%h) wrong-path 生产者写复用槽 @%0t",
+               wb1_rob_idx_i, wb1_pdest_i, new_pdest_q[wb1_rob_idx_i], pc_q[wb1_rob_idx_i], $time);
+    end
+  end
+`endif
 
 endmodule

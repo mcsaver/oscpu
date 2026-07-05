@@ -7,6 +7,10 @@ module OooClmulUnit #(
   input clk,
   input rst,
   input flush_i,
+  // UC-A mispredict-kill: CLMUL 同 MulDiv 缺口(A1 哨兵实测 rv64uzbc-p-clmul 撞号)，补齐 kill 端口
+  input kill_valid_i,
+  input [ROB_INDEX_W-1:0] kill_rob_idx_i,
+  input [ROB_INDEX_W-1:0] rob_head_idx_i,
 
   input req_valid_i,
   output req_ready_o,
@@ -59,8 +63,19 @@ module OooClmulUnit #(
       {1'b0, rhs_right_shift_q[`XLEN-1:1]};
   wire iter_last_w = iter_q == 7'd63;
 
+  // UC-A mispredict-kill: age 表达式逐字复用 OooFpArithGate fp_meta_killed(严格年轻 '>', 环形模减)。
+  function clmul_killed;
+    input [ROB_INDEX_W-1:0] idx;
+    clmul_killed = kill_valid_i &&
+        ((idx - rob_head_idx_i) > (kill_rob_idx_i - rob_head_idx_i));
+  endfunction
+  wire kill_inflight_w =
+      ((state_q == STATE_RUN) || (state_q == STATE_RESP)) &&
+      clmul_killed(resp_rob_idx_q);
+  wire kill_new_req_w = req_fire_w && clmul_killed(req_rob_idx_i);
+
   assign req_ready_o = state_q == STATE_IDLE;
-  assign resp_valid_o = state_q == STATE_RESP;
+  assign resp_valid_o = (state_q == STATE_RESP) && !kill_inflight_w;
   assign resp_rob_idx_o = resp_rob_idx_q;
   assign resp_pdest_o = resp_pdest_q;
   assign resp_data_o = resp_data_q;
@@ -77,10 +92,16 @@ module OooClmulUnit #(
       lhs_shift_q <= {`XLEN{1'b0}};
       rhs_shift_q <= {`XLEN{1'b0}};
       rhs_right_shift_q <= {`XLEN{1'b0}};
+    end else if (kill_inflight_w) begin
+      // UC-A: kill 命中在飞 clmul → 强制回 IDLE(覆盖优先), 抹 resp 身份防脏写回
+      state_q <= STATE_IDLE;
+      resp_rob_idx_q <= {ROB_INDEX_W{1'b0}};
+      resp_pdest_q <= {PHY_REG_ADDR_W{1'b0}};
+      resp_data_q <= {`XLEN{1'b0}};
     end else begin
       case (state_q)
         STATE_IDLE: begin
-          if (req_fire_w) begin
+          if (req_fire_w && !kill_new_req_w) begin
             state_q <= STATE_RUN;
             resp_rob_idx_q <= req_rob_idx_i;
             resp_pdest_q <= req_pdest_i;
