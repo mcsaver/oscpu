@@ -433,8 +433,12 @@ module OooIntBackend #(
     .commit_ready_i(commit_ready_i && !checkpoint_capture_i &&
                     !checkpoint_restore_i && !checkpoint_quiesce_i),
     .commit1_block_i(commit1_block_i),
-    // 【serialize Phase1 §9】mem 全静默才放 head0-CSR 退休(=mem_idle 无在飞 MIQ + mem_retire_quiet SQ 排空)。
-    .mem_quiet_i(mem_idle_o && mem_retire_quiet_o),
+    // 【serialize Phase1 §9/§10.4】mem 门控用 mem_idle 单独(miq_empty=无在飞 AXI probe/load/drain), 不含
+    // mem_retire_quiet(sq_empty)。★关键: 加 sq_empty 会死锁——head0-CSR 在 ROB 队头, 若有 younger uncommitted
+    // store 在 SQ(它既不能 drain[未 committed] 又不能 retire[被队头 CSR 挡]), sq 永不空→CSR 永不 commit。
+    // refute:sq-flush 已证 mem_idle 单独足够: committed store 恒存活 flush_all + 边界 drain nokill 免疫;
+    // younger store 的 probe 在 mem_idle 前完成, 之后被 serial_flush 干净 flush(uncommitted 丢弃)。
+    .mem_quiet_i(mem_idle_o),
     .commit0_valid_o(commit0_valid_o),
     .commit0_pc_o(commit0_pc_o),
     .commit0_next_pc_o(commit0_next_pc_o),

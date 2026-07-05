@@ -245,6 +245,7 @@ module OooCoreTopGlue #(
   wire head0_fp_gpr_write_w;
   wire head0_ecall_raw_w;
   wire head0_csr_raw_w;
+  wire head0_csr_inflight_w;   // 【serialize Phase1 §10.4】head0-CSR 在飞(u_frontend 出 → ControlPlane/stop)
   wire head0_xret_raw_w;
   wire head0_wfi_raw_w;
   wire head0_sfence_raw_w;
@@ -903,6 +904,7 @@ module OooCoreTopGlue #(
     .halted_o(halted_o),
     .halted_q(halted_q),
     .head0_csr_illegal_w(head0_csr_illegal_w),
+    .head0_csr_inflight_w(head0_csr_inflight_w),
     .head0_csr_raw_w(head0_csr_raw_w),
     .head0_ecall_raw_w(head0_ecall_raw_w),
     .head0_sfence_raw_w(head0_sfence_raw_w),
@@ -1151,6 +1153,7 @@ module OooCoreTopGlue #(
     .flush_i(flush_i),
     .halted_q(halted_q),
     .head0_arch_trap_raw_w(head0_arch_trap_raw_w),
+    .head0_csr_inflight_w(head0_csr_inflight_w),
     .head0_csr_raw_w(head0_csr_raw_w),
     .head0_ctrl_w(head0_ctrl_w),
     .head0_ecall_raw_w(head0_ecall_raw_w),

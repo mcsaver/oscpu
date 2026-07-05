@@ -203,6 +203,7 @@ module OooFrontend #(
   output fetch_rsp_ready_o,
   output fifo_has_packet_w,
   output head0_arch_trap_raw_w,
+  output head0_csr_inflight_w,   // 【serialize Phase1 §10.4】head0-CSR 在飞(→保持 stop_pending 阻 younger 越序捕获)
   output head0_csr_raw_w,
   output [`CTRL_BUS_W-1:0] head0_ctrl_w,
   output head0_ecall_raw_w,
@@ -763,6 +764,18 @@ module OooFrontend #(
   // head0-CSR 单发 fire(=进后端 valid 且 dispatch 就绪): 驱动 FIFO 单发 pop(否则前端卡死)。
   wire head0_csr_dispatch_fire_w =
       frontend_dispatch_to_backend_valid_w && dispatch0_csr_w && dispatch0_ready_w;
+  // 【serialize Phase1 §10.4 修】head0-CSR 在飞锁存: dispatch 置、commit/flush 清。在飞期间(它在 ROB 未提交)
+  // 须保持 stop_pending 阻止 younger 越序 dispatch/被捕获到 drain——否则 head0-CSR(ROB) 与 younger CSR
+  // (lane1-drain) 共存, younger 越过在飞的 head0-CSR 被捕获, 覆写单个 pending 寄存器→drain 状态丢失死锁。
+  // (根因: head0-CSR 单发 pop 后不再在 FIFO 头, dispatch0_system set 条件只 1 拍, stop 随即被 drain 清掉。)
+  reg head0_csr_inflight_q;
+  always @(posedge clk) begin
+    if (rst || core_trap_flush_q || core_serial_flush_q || head0_csr_commit_w)
+      head0_csr_inflight_q <= 1'b0;
+    else if (head0_csr_dispatch_fire_w)
+      head0_csr_inflight_q <= 1'b1;
+  end
+  assign head0_csr_inflight_w = head0_csr_inflight_q;
 
   OooFrontendDispatchGate u_frontend_dispatch_gate (
     .dispatch_valid_i(dispatch_valid_w),

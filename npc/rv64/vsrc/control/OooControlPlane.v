@@ -72,6 +72,7 @@ module OooControlPlane #(
   input fetch_req_valid_o,
   input fifo_has_packet_w,
   input flush_i,
+  input head0_csr_inflight_w,   // 【serialize Phase1 §10.4】head0-CSR 在飞 → stop 保持
   input head0_csr_raw_w,
   input head0_ecall_raw_w,
   input head0_sfence_raw_w,
@@ -728,6 +729,7 @@ module OooControlPlane #(
     .system_csr_dispatch_fire_i(system_csr_dispatch_fire_w),
     .pending_system_csr_commit_i(pending_system_csr_commit_w),
     .head0_csr_commit_i(head0_csr_commit_w),
+    .head0_csr_inflight_i(head0_csr_inflight_w),
     .drain_complete_i(drain_complete_w),
     .can_run_i(can_run_w),
     .fifo_has_packet_i(fifo_has_packet_w),

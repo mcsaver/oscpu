@@ -1,10 +1,11 @@
 # Phase 1 实施 Spec：CSR 队头化（serialize-at-retire step 1）
 
-> 状态：**flag-gated 半落地（2026-07-05）**。§9 mem-quiescence 安全机制**已实现并落地（sound，3 refute
-> agent 对抗验证）**，§4 CSR 队头化核心机制验证成立（riscv rv64mi/si 23/23 + FP 全绿），但中间态
-> （head0-CSR 与 lane1-drain-CSR 共存）有未解死锁，故全特性收在编译期 flag `OOO_CSR_QUEUE_HEAD`
-> （默认 0=基线，树保持绿：module TB 82/82 + lint 0 + riscv 177/0 + AM 57/58）。**详见 §10。**
-> （历史：2026-07-04 首次尝试遇 §9 flush↔LSU 障碍未落地；本轮 §9 修向① 已解，暴露更深的中间态死锁。）
+> 状态：**flag-gated 落地，功能就绪（2026-07-05）**。§9 mem-quiescence（sound，3 refute 验证）+ §4 CSR 队头化
+> + **中间态死锁已修复（§10.4 两修：head0_csr_inflight 保持 stop 串行化 + mem 门控改用 mem_idle 单独避 younger-store
+> 循环死锁）**。**flag ON 全 real workload 通过**：riscv 177/0 + AM 57/58 + CoreMark 0xfcaf + sbi/linux-mini-boot/
+> sv39/misa-priv/最小 ecall。收在编译期 flag `OOO_CSR_QUEUE_HEAD`，**当前默认 0=基线绿**（翻 1 前置=完整 Linux
+> boot 护航 + glue TB CsrFile stub，见 §10.6）。**详见 §10。**
+> （历史：07-04 遇 §9 flush↔LSU 障碍未落地；07-05 首轮 §9 修向① 解、暴露中间态死锁；07-05 次轮中间态两修解。）
 > 父规范 `serialize-at-retire.md`。
 > 范围：**只 head0 CSR 队头化，lane1 CSR 仍走 drain 路**（两路结构互斥，天然最小面）。
 > 保留 stop_pending（停派 younger 直到 CSR commit）；不删任何 drain 机制；不碰非 CSR 系统 op。
@@ -176,22 +177,37 @@ root-cause 同族（方法级）：
 4. **serial_flush 未清 pending_system**：head0-CSR commit 刷 younger 但 younger 的 pending 系统op残留。
    修：arbiter pending_system_clear `|= head0_csr_commit`（部分缓解，未根治，见 10.4）。
 
-### 10.4 ⚠️ 未解中间态死锁（flag ON 时 sbi-base-console / fp-difftest-probe 挂死）
-父 spec §4 已警告「阶段 1-4 中间态两套系统op语义共抢 ROB 队头独占=最脆弱、易死锁」，此处坐实两层：
-- **两条 lane1-CSR 覆写单个 pending 寄存器**：mtvec+mstatus 在重叠窗口都被捕获到 pending_system（单寄存器），
-  第二个覆写第一个 → 第一个 drain 状态丢失（pc mismatch 既不走 drain 又靠 hack 走 head0）。根源=head0-CSR 的
-  stop_pending 未有效串行化 lane1-CSR 捕获（baseline 靠 stop 串行化能过，§4 扰动之）。
-- **ecall-drain stuck-store**：sbi 后段 ecall 捕获到 pending 后 drain 永不完成——`backend_drained=0`（ROB 空但
-  `mem_retire_quiet=0`=一个 store 卡 SQ，§9 家族残留）→ stop_pending 卡死 → 前端冻结（CANRUN0: stopbusy=1/sys=1）。
-- **诊断方法学**：NPC_COMMITWATCH（退休真相）+ 自插 CSRWRITE_PROBE/CANRUN_PROBE（ifdef，已移除）逐层定位
-  csr_commit fire→head0_csr_commit→pending_system 转换→can_run blocker→stop_pending owner。
+### 10.4 中间态死锁（父 spec"最脆弱中间态"）—— 2026-07-05 第二轮**已修复**（2 修）
+父 spec §4 警告「中间态两套系统op语义共抢 ROB 队头独占=最脆弱、易死锁」，坐实两层并均已修：
+- **① 两条 lane1-CSR 越序共存覆写单 pending 寄存器**：带周期号探针定位——mtvec(0x3ec,更老)在 ROB(head0 路)
+  cyc78→92 期间, younger mstatus(0x400)在 cyc82 越过它被捕获到 pending。**根因**=head0-CSR 单发 pop 后不再在
+  FIFO 头, `dispatch0_system` set 条件只 1 拍即被 drain 清 → stop 不保持 → younger 越序捕获。**修 = head0_csr_inflight
+  锁存器**(OooFrontend: dispatch 置/commit·flush 清), 在飞期间强制 stop_pending=1(OooStopPendingSequencer 末尾
+  保持臂, 排除 commit/trap 拍避卡死), 阻 younger 越序 dispatch/捕获 → 每 CSR 序退休。
+- **② ecall-drain stuck-store（真正 root）**：`[STUCK] memquiet=0 h0inflight=1` 定位——**mem 门控错选
+  `mem_idle && mem_retire_quiet`**: head0-CSR 在 ROB 队头等 `mem_retire_quiet`(=sq_empty), 但 SQ 有 younger
+  uncommitted store(在 CSR 后 dispatch, 既不能 drain[未 committed]又不能 retire[被队头 CSR 挡])→ sq 永不空→
+  **循环死锁**。**修 = 门控只用 `mem_idle`(miq_empty)**(OooIntBackend mem_quiet_i): younger store 的 probe 在
+  mem_idle 前完成、之后被 serial_flush 干净 flush(uncommitted 丢弃), 不等它 retire。refute:sq-flush agent 早证
+  mem_idle 单独足够(committed store 恒存活 flush_all + 边界 drain nokill 免疫), 我加 mem_retire_quiet 反造死锁。
+- **诊断方法学**：带周期号自插探针(MIDSTATE/CSRWRITE/CANRUN, ifdef 已移除)逐层定位 csr_commit→head0_csr_commit
+  →pending 转换→can_run blocker(OooFrontendRunGate)→stop owner；最小复现序列在 NpcSimTop 隔离(vs glue module TB)。
 
-### 10.5 验证矩阵
-| 状态 | module TB | lint | riscv | AM | 结论 |
-|---|---|---|---|---|---|
-| flag OFF（提交默认）| 82/82 | 0 | 177/0 | 57/58* | **= 精确基线**（*fp-difftest-probe 预存在失败，与本工作无关）|
-| flag ON | 82/82 | 0 | rv64mi16+si7+FP 全绿 | sbi/fp-difftest-probe 挂死 | 核心 sound，中间态未解 |
+### 10.5 验证矩阵（2 修后）
+| 状态 | module TB | lint | riscv | AM | CoreMark | 结论 |
+|---|---|---|---|---|---|---|
+| **flag OFF（提交默认）** | 82/82 | 0 | 177/0 | 57/58* | — | **= 精确基线**（*fp-difftest-probe 预存在失败，与本工作无关）|
+| flag ON | 82/82** | 0 | **177/0** | **57/58*** | **0xfcaf** | **中间态死锁已修**; real workload 全绿(含 sbi/linux-mini-boot/sv39/misa-priv/最小 ecall) |
 
-### 10.6 下一步（flag ON 前置）
+*fp-difftest-probe 预存在失败。**tb_ooo_core_top_glue 的 MODE_ECALL 段在 flag ON 失败=**TB 层结构限制**(OooCoreTopGlue
+不含 CsrFile, mtvec 写不生效→ecall trap 到 0), **非核 bug**——同序列在 NpcSimTop(含 CsrFile) 正确(GOOD TRAP,
+mtvec handler 执行)。glue TB 无法测 queue-head CSR 路。flag ON 的 module-TB=81/82(该 1 项需 CsrFile stub 或改全 sim 测)。
+
+### 10.6 翻默认 ON 的前置（当前保守 OFF 之因）
+中间态死锁已修、real workload 全绿, 但按 spec §5「最高危路径须 Linux boot 护航」, **完整 Linux 内核 boot
+(S-mode satp/sfence 热路径)未与 flag ON 跑**(linux-mini-boot 已过但非完整内核); difftest 逐指令(CSR 盲区但补 GPR)
+未跑; riscv `-v-` 变体(355 全套)未跑; glue module TB MODE_ECALL 需 CsrFile stub。集齐后翻默认 1'b1。
+
+### 10.7 下一步（flag ON 前置，历史）
 解中间态串行化：使 head0-CSR 的 stop_pending 有效阻止 lane1-CSR 捕获（或让 lane1-CSR 也队头化 = 每 CSR
 单发经 head0，消除共存），并根治 ecall-drain 的 SQ stuck-store（核对是否 serial_flush/中间态扰动致某 store 未 drain）。

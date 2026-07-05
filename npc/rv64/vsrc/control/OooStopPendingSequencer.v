@@ -28,6 +28,10 @@ module OooStopPendingSequencer (
   // stop 停 younger; 提交后须清, 否则 younger 永不 dispatch → 前端死锁)。与 drain 路 pending_system_csr_commit
   // 互斥(head0 路 pending_system_csr_q=0)。flush_i 是顶层恒 0 flush, serial_flush 不经它, 故必须显式清。
   input wire head0_csr_commit_i,
+  // 【serialize Phase1 §10.4】head0-CSR 在飞(dispatch→commit)期间保持 stop_pending: head0-CSR 单发 pop 后
+  // 不再在 FIFO 头, dispatch0_system set 条件只 1 拍即被 drain 清 → younger CSR 越序被捕获到 drain 与在飞
+  // head0-CSR 共存覆写单 pending 死锁。在飞期间强制 stop=1 阻 younger dispatch/捕获, 保证 CSR 序退休。
+  input wire head0_csr_inflight_i,
   input wire drain_complete_i,
 
   input wire can_run_i,
@@ -146,6 +150,12 @@ module OooStopPendingSequencer (
 
       if (csr_trap_mem_valid_i) begin
         stop_pending_o <= 1'b0;
+      end
+
+      // 【serialize Phase1 §10.4】head0-CSR 在飞保持臂(末尾最高优先): 排除 commit 拍(head0_csr_commit 那拍
+      // 由上方 clear 臂正常清, 否则 stop 卡死)与 trap 拍(trap 清优先)。在飞其余拍强制 stop=1 阻 younger 越序。
+      if (head0_csr_inflight_i && !head0_csr_commit_i && !csr_trap_mem_valid_i) begin
+        stop_pending_o <= 1'b1;
       end
     end
   end
