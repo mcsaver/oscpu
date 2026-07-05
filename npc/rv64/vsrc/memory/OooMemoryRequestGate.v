@@ -5,6 +5,7 @@ module OooMemoryRequestGate (
   input checkpoint_mem_flush_i,
   input pending_system_satp_write_commit_i,
   input pending_system_sfence_commit_i,
+  input pending_system_fencei_commit_i,
 
   input stop_pending_i,
   input backend_drained_i,
@@ -59,6 +60,7 @@ module OooMemoryRequestGate (
 
   assign mem_flush_o = core_local_flush_i || checkpoint_mem_flush_i;
   assign mmu_flush_o =
-      pending_system_satp_write_commit_i || pending_system_sfence_commit_i;
+      pending_system_satp_write_commit_i || pending_system_sfence_commit_i ||
+      pending_system_fencei_commit_i;   // fence.i：整块清取指包(clear_i) + fetch 桥复位
 
 endmodule

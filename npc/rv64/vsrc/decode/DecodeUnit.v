@@ -779,11 +779,22 @@ module DecodeUnit (
       end
 
       `OPCODE_MISC_MEM: begin
-        if ((funct3_w == `FUNCT3_FENCE) || (funct3_w == `FUNCT3_FENCE_I)) begin
+        if (funct3_w == `FUNCT3_FENCE) begin
           ctrl_o[`CTRL_ILLEGAL_BIT] = 1'b0;
-          ctrl_o[`CTRL_FENCE_BIT] = 1'b1;
+          ctrl_o[`CTRL_FENCE_BIT] = 1'b1;          // 纯内存序 fence：仍作合法 no-op
           ctrl_o[`CTRL_MISC_MEM_BIT] = 1'b1;
           ctrl_o[`CTRL_NEED_EXEC_BIT] = 1'b1;
+        end else if (funct3_w == `FUNCT3_FENCE_I) begin
+          ctrl_o[`CTRL_ILLEGAL_BIT] = 1'b0;
+          ctrl_o[`CTRL_MISC_MEM_BIT] = 1'b1;
+`ifdef OOO_FENCEI_TRUE_FLUSH
+          // flag ON：fence.i 作 stop 类 system，退休拍 mmu_flush(整块清取指 cache)+redirect 到 pc+4。
+          // 不设 NEED_EXEC：不进 EXEC，像 sfence/wfi 那样只在退休拍产生副作用。
+          ctrl_o[`CTRL_FENCEI_BIT] = 1'b1;
+`else
+          ctrl_o[`CTRL_FENCE_BIT] = 1'b1;          // flag OFF：回落旧 no-op = 零回归
+          ctrl_o[`CTRL_NEED_EXEC_BIT] = 1'b1;
+`endif
         end
       end
 

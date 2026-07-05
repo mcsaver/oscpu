@@ -23,6 +23,7 @@ module OooPendingSystemSequencer (
   input capture_head0_mret_i,
   input capture_head0_wfi_i,
   input capture_head0_sfence_i,
+  input capture_head0_fencei_i,
   input [`XLEN-1:0] capture_head0_pc_i,
   input [`INST_W-1:0] capture_head0_inst_i,
   input [`XLEN-1:0] capture_head0_next_pc_i,
@@ -34,6 +35,7 @@ module OooPendingSystemSequencer (
   input capture_lane1_mret_i,
   input capture_lane1_wfi_i,
   input capture_lane1_sfence_i,
+  input capture_lane1_fencei_i,
   input [`XLEN-1:0] capture_lane1_pc_i,
   input [`INST_W-1:0] capture_lane1_inst_i,
   input [`XLEN-1:0] capture_lane1_next_pc_i,
@@ -46,6 +48,7 @@ module OooPendingSystemSequencer (
   output mret_o,
   output wfi_o,
   output sfence_o,
+  output fencei_o,
   output irq_o,
   output [`XLEN-1:0] pc_o,
   output [`INST_W-1:0] inst_o,
@@ -61,6 +64,7 @@ module OooPendingSystemSequencer (
   reg mret_q;
   reg wfi_q;
   reg sfence_q;
+  reg fencei_q;
   reg irq_q;
   reg [`XLEN-1:0] pc_q;
   reg [`INST_W-1:0] inst_q;
@@ -77,6 +81,7 @@ module OooPendingSystemSequencer (
       mret_q <= 1'b0;
       wfi_q <= 1'b0;
       sfence_q <= 1'b0;
+      fencei_q <= 1'b0;
       irq_q <= 1'b0;
       pc_q <= {`XLEN{1'b0}};
       inst_q <= {`INST_W{1'b0}};
@@ -91,6 +96,7 @@ module OooPendingSystemSequencer (
       mret_q <= 1'b0;
       wfi_q <= 1'b0;
       sfence_q <= 1'b0;
+      fencei_q <= 1'b0;
       irq_q <= 1'b0;
     end else if (capture_irq_i) begin
       valid_q <= 1'b1;
@@ -100,6 +106,7 @@ module OooPendingSystemSequencer (
       mret_q <= 1'b0;
       wfi_q <= 1'b0;
       sfence_q <= 1'b0;
+      fencei_q <= 1'b0;
       irq_q <= 1'b1;
       pc_q <= capture_irq_pc_i;
       inst_q <= {`INST_W{1'b0}};
@@ -114,6 +121,7 @@ module OooPendingSystemSequencer (
       mret_q <= capture_head0_mret_i;
       wfi_q <= capture_head0_wfi_i;
       sfence_q <= capture_head0_sfence_i;
+      fencei_q <= capture_head0_fencei_i;
       irq_q <= 1'b0;
       pc_q <= capture_head0_pc_i;
       inst_q <= capture_head0_inst_i;
@@ -128,6 +136,7 @@ module OooPendingSystemSequencer (
       mret_q <= capture_lane1_mret_i;
       wfi_q <= capture_lane1_wfi_i;
       sfence_q <= capture_lane1_sfence_i;
+      fencei_q <= capture_lane1_fencei_i;
       irq_q <= 1'b0;
       pc_q <= capture_lane1_pc_i;
       inst_q <= capture_lane1_inst_i;
@@ -150,6 +159,7 @@ module OooPendingSystemSequencer (
   assign mret_o = mret_q;
   assign wfi_o = wfi_q;
   assign sfence_o = sfence_q;
+  assign fencei_o = fencei_q;
   assign irq_o = irq_q;
   assign pc_o = pc_q;
   assign inst_o = inst_q;

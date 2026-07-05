@@ -249,6 +249,7 @@ module OooCoreTopGlue #(
   wire head0_xret_raw_w;
   wire head0_wfi_raw_w;
   wire head0_sfence_raw_w;
+  wire head0_fencei_raw_w;
   wire head0_system_raw_w;
   wire head0_arch_trap_raw_w;
   wire head0_stop_raw_w;
@@ -268,6 +269,7 @@ module OooCoreTopGlue #(
   wire head1_xret_raw_w;
   wire head1_wfi_raw_w;
   wire head1_sfence_raw_w;
+  wire head1_fencei_raw_w;
   wire head1_stop_raw_w;
   wire [`OOO_SLOT_FACTS_W-1:0] head1_facts_w;
 
@@ -416,6 +418,7 @@ module OooCoreTopGlue #(
   wire [`XLEN * `REG_NUM - 1:0] core_debug_gprs_w;
   wire pending_system_satp_write_commit_w;
   wire pending_system_sfence_commit_w;
+  wire pending_system_fencei_commit_w;
   wire pending_system_ecall_trap_w;
   wire pending_arch_trap_fire_w;
   wire csr_mret_valid_w;
@@ -742,6 +745,7 @@ module OooCoreTopGlue #(
     .mmu_flush_o(mmu_flush_o),
     .pending_system_satp_write_commit_w(pending_system_satp_write_commit_w),
     .pending_system_sfence_commit_w(pending_system_sfence_commit_w),
+    .pending_system_fencei_commit_w(pending_system_fencei_commit_w),
     .stop_pending_q(stop_pending_q)
   );
 
@@ -908,12 +912,14 @@ module OooCoreTopGlue #(
     .head0_csr_raw_w(head0_csr_raw_w),
     .head0_ecall_raw_w(head0_ecall_raw_w),
     .head0_sfence_raw_w(head0_sfence_raw_w),
+    .head0_fencei_raw_w(head0_fencei_raw_w),
     .head0_wfi_raw_w(head0_wfi_raw_w),
     .head0_xret_raw_w(head0_xret_raw_w),
     .head1_csr_raw_w(head1_csr_raw_w),
     .head1_ecall_raw_w(head1_ecall_raw_w),
     .head1_facts_w(head1_facts_w),
     .head1_sfence_raw_w(head1_sfence_raw_w),
+    .head1_fencei_raw_w(head1_fencei_raw_w),
     .head1_wfi_raw_w(head1_wfi_raw_w),
     .head1_xret_raw_w(head1_xret_raw_w),
     .head_fetch_fault0_w(head_fetch_fault0_w),
@@ -976,6 +982,7 @@ module OooCoreTopGlue #(
     .pending_system_q(pending_system_q),
     .pending_system_satp_write_commit_w(pending_system_satp_write_commit_w),
     .pending_system_sfence_commit_w(pending_system_sfence_commit_w),
+    .pending_system_fencei_commit_w(pending_system_fencei_commit_w),
     .pending_trap_cause_q(pending_trap_cause_q),
     .pmpaddr_o(pmpaddr_o),
     .pmpcfg_o(pmpcfg_o),
@@ -1160,6 +1167,7 @@ module OooCoreTopGlue #(
     .head0_facts_w(head0_facts_w),
     .head0_rd_unused_w(head0_rd_unused_w),
     .head0_sfence_raw_w(head0_sfence_raw_w),
+    .head0_fencei_raw_w(head0_fencei_raw_w),
     .head0_stop_raw_w(head0_stop_raw_w),
     .head0_system_raw_w(head0_system_raw_w),
     .head0_wfi_raw_w(head0_wfi_raw_w),
@@ -1172,6 +1180,7 @@ module OooCoreTopGlue #(
     .head1_mem_raw_w(head1_mem_raw_w),
     .head1_rd_unused_w(head1_rd_unused_w),
     .head1_sfence_raw_w(head1_sfence_raw_w),
+    .head1_fencei_raw_w(head1_fencei_raw_w),
     .head1_stop_raw_w(head1_stop_raw_w),
     .head1_wfi_raw_w(head1_wfi_raw_w),
     .head1_xret_raw_w(head1_xret_raw_w),

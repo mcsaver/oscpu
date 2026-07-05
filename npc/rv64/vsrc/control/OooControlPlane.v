@@ -76,12 +76,14 @@ module OooControlPlane #(
   input head0_csr_raw_w,
   input head0_ecall_raw_w,
   input head0_sfence_raw_w,
+  input head0_fencei_raw_w,
   input head0_wfi_raw_w,
   input head0_xret_raw_w,
   input head1_csr_raw_w,
   input head1_ecall_raw_w,
   input [`OOO_SLOT_FACTS_W-1:0] head1_facts_w,
   input head1_sfence_raw_w,
+  input head1_fencei_raw_w,
   input head1_wfi_raw_w,
   input head1_xret_raw_w,
   input head_fetch_fault0_w,
@@ -201,6 +203,7 @@ module OooControlPlane #(
   output pending_system_q,
   output pending_system_satp_write_commit_w,
   output pending_system_sfence_commit_w,
+  output pending_system_fencei_commit_w,
   output [`TRAP_CAUSE_W-1:0] pending_trap_cause_q,
   output [`PMP_ADDR_BUS_W-1:0] pmpaddr_o,
   output [`PMP_CFG_BUS_W-1:0] pmpcfg_o,
@@ -232,6 +235,10 @@ module OooControlPlane #(
   wire pending_exit_is_ecall_q;
   wire pending_system_capture_irq_w;
   wire pending_system_sfence_q;
+  wire pending_system_fencei_q;
+  // fence.i commit(镜像 sfence_commit，无 CSR 写)：stop+drain 完成且队头为 fencei → 退休拍拉 mmu_flush+redirect
+  assign pending_system_fencei_commit_w =
+      stop_pending_q && drain_complete_w && pending_system_q && pending_system_fencei_q;
   wire pending_system_wfi_q;
   wire pending_trap_exit_capture_arch_valid_w;
   wire pending_trap_exit_capture_arch_w;
@@ -532,6 +539,7 @@ module OooControlPlane #(
     .capture_head0_mret_i(head0_xret_raw_w),
     .capture_head0_wfi_i(head0_wfi_raw_w),
     .capture_head0_sfence_i(head0_sfence_raw_w),
+    .capture_head0_fencei_i(head0_fencei_raw_w),
     .capture_head0_pc_i(head_pc_w),
     .capture_head0_inst_i(head_inst0_w),
     .capture_head0_next_pc_i(head_next_pc0_w),
@@ -542,6 +550,7 @@ module OooControlPlane #(
     .capture_lane1_mret_i(head1_xret_raw_w),
     .capture_lane1_wfi_i(head1_wfi_raw_w),
     .capture_lane1_sfence_i(head1_sfence_raw_w),
+    .capture_lane1_fencei_i(head1_fencei_raw_w),
     .capture_lane1_pc_i(head_pc1_w),
     .capture_lane1_inst_i(head_inst1_w),
     .capture_lane1_next_pc_i(head_next_pc1_w),
@@ -553,6 +562,7 @@ module OooControlPlane #(
     .mret_o(pending_system_mret_q),
     .wfi_o(pending_system_wfi_q),
     .sfence_o(pending_system_sfence_q),
+    .fencei_o(pending_system_fencei_q),
     .irq_o(pending_system_irq_q),
     .pc_o(pending_system_pc_q),
     .inst_o(pending_system_inst_q),

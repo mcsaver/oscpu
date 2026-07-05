@@ -44,6 +44,7 @@
 `define OOO_SLOT_FACT_SYSTEM               38
 `define OOO_SLOT_FACT_ARCH_TRAP            39
 `define OOO_SLOT_FACT_STOP                 40
-`define OOO_SLOT_FACTS_W                   41
+`define OOO_SLOT_FACT_FENCEI               41  // fence.i(真 flush，OOO_FENCEI_TRUE_FLUSH)
+`define OOO_SLOT_FACTS_W                   42
 
 `endif

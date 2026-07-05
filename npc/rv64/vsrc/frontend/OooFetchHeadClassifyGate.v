@@ -48,6 +48,7 @@ module OooFetchHeadClassifyGate (
   output xret_raw_o,
   output wfi_raw_o,
   output sfence_raw_o,
+  output fencei_raw_o,
   output priv_system_illegal_o,
   output exit_raw_o,
   output system_raw_o,
@@ -125,6 +126,8 @@ module OooFetchHeadClassifyGate (
   assign xret_raw_o = mret_raw_o || sret_raw_o;
   assign wfi_raw_o = ctrl_legal_w && ctrl_i[`CTRL_WFI_BIT];
   assign sfence_raw_o = ctrl_legal_w && ctrl_i[`CTRL_SFENCE_VMA_BIT];
+  // fence.i(真 flush): 全特权合法(不进 priv_system_illegal), 折进 system_raw 使其 stop→退休拍 mmu_flush+redirect
+  assign fencei_raw_o = ctrl_legal_w && ctrl_i[`CTRL_FENCEI_BIT];
 
   wire sfence_u_illegal_w = sfence_raw_o && (priv_mode_i == `PRIV_U);
   wire sfence_tvm_illegal_w =
@@ -147,7 +150,8 @@ module OooFetchHeadClassifyGate (
       wfi_tw_illegal_w;
   assign exit_raw_o = ebreak_raw_o && !semihost_ebreak_o;
   assign system_raw_o =
-      ecall_raw_o || csr_raw_o || xret_raw_o || wfi_raw_o || sfence_raw_o;
+      ecall_raw_o || csr_raw_o || xret_raw_o || wfi_raw_o || sfence_raw_o ||
+      fencei_raw_o;
   assign fp_disabled_o =
       fp_raw_o && ((mstatus_i & `MSTATUS_FS_MASK) == {`XLEN{1'b0}});
   assign fp_enabled_o = fp_raw_o && !fp_disabled_o && !fp_dyn_frm_illegal_w;
@@ -202,5 +206,6 @@ module OooFetchHeadClassifyGate (
   assign facts_o[`OOO_SLOT_FACT_SYSTEM] = system_raw_o;
   assign facts_o[`OOO_SLOT_FACT_ARCH_TRAP] = arch_trap_raw_o;
   assign facts_o[`OOO_SLOT_FACT_STOP] = stop_raw_o;
+  assign facts_o[`OOO_SLOT_FACT_FENCEI] = fencei_raw_o;
 
 endmodule
