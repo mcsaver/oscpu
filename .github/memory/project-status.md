@@ -413,3 +413,15 @@
 - **闭环 gate（用户洞察，把探针升级为常驻 spec 符合性门禁）**：新建 `eval/check-contract.sh` + `make check-contract`（三检查：`--assert` 存在 / `+define+OOO_ASSERT` 存在 / 立即断言计数不回退），复用 `check-rtl-style` 范式；实测删断言→rc≠0、恢复→rc=0，有牙齿。
 - **agent 环境有机结合（8 文件焊进"发现→工作流→完成→gate"四道装置）**：新建 `interface-contract-first.instructions.md`（六类契约规范单一真源）；接线 `rtl-generation-workflow`（阶段0契约先行+验证回环⑤check-contract+留痕+禁止）、`AGENTS.md`（必读链+完成钩子）、`npc.agent.md`（工作流+边界硬门槛）、`hardware-flow.agent.md`（interface-contract-freeze 节点）、`SPEC-TEMPLATE.md`（§2 flush表必填+§4 断言义务）。
 - **全 gate 绿**：check-rtl-style / check-contract / fifo module-TB / 全核 build / 三套件回归 均 PASS。改动 16 文件（新建4+修改12）。证据与清单见 task-run `2026-07-05-rv64-debug-methodology-reflection/landing-report.md`，记忆 [[rv64-architecture-first-reflection]]。
+
+## 2026-07-05 flush/redirect 契约冻结（architecture-first 首个应用 = 吃自己狗粮）
+
+用刚建的契约先行工作流处理宪法 §7 自认的"补丁总线"（≥12 flush/redirect 源、≥5 汇合点、无统一优先级链）。逆向 45 源 → 冻结 `design/specs/ooo-flush-redirect-contract.md`(363 行)：
+- **E1-E13 源总表**（源×[清|保持]，file:line 佐证）+ 优先级全序 + 7 个汇合点。
+- **三铁律核对**：①✅ committed store 不得被清；②✅（带存疑）不得 kill 已发 AXI；③⚠️ CSR 写 commit 拍可见"结构成立但默认回归零覆盖"（挂 serial_flush，默认 `OOO_CSR_QUEUE_HEAD=0` 恒不触发）。
+- **INV-1..5 承重不变量** + in-RTL `$error` 断言草案（Step 0 可执行化）。
+- **C-OBJ-REDIR 重写裁决**：**不 big-bang**（real workload 全绿=收敛是去风险非修 bug；且本核有控制面 big-bang 活锁判死史 b2），**assert-then-converge**——断言无条件现在做、arbiter 收敛挂 `OOO_CSR_QUEUE_HEAD=1`/B-LSQ 触发条件、走 shadow-equivalence（复活 arbiter 并行算赢家+每拍 assert==活机制+全绿再切）。
+- **关键发现**：①单点仲裁器正解是**年龄律**（age=rob_idx-rob_head 取最老者胜，trap 恒在 head 天然最高）**非优先编码**（宪法 §407-416 已否掉优先编码、撤回）；②`OooRedirectArbiter.v`+TB（13 例 113/113 绿）**2026-07-03 因"从未接线"删档（commit `fece978e6` 可 git 复活）= 不是从零起步**；③年龄基准 rob_idx 已 plumb 到后端，唯独取指侧缺 age 字段。
+- **对抗审查抓到**：check-contract gate 现状 baseline=1 "空转"（全核唯一 `$error` 是 FIFO 探针，牙齿造好没咬东西）；INV-3/INV-4-serial 只在 flag=1 被 exercise。
+- **Step 0（最小第一步，spec 裁决"无条件现在做"）**：把 INV-1..5 落成 in-RTL `` `ifdef OOO_ASSERT $error ``（baseline 1→5，需在 4 个核心模块 threading 比较点信号，零行为风险但非免费）。
+证据/裁决/backlog（GAP-1..9 + UC-A..E）见 spec + task-run `2026-07-05-rv64-debug-methodology-reflection/`，记忆 [[rv64-architecture-first-reflection]]。

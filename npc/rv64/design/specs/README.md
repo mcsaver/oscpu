@@ -44,6 +44,7 @@
 - F2 真预测现状见真相基线 §2.4(实施方案已归档)
 
 ## 控制面 / 提交 / CSR
+- ★ `ooo-flush-redirect-contract` — **flush/redirect 契约（现状冻结 v1）**：E1-E13 源总表(源×[清|保持])+优先级全序(年龄律)+三铁律核对+INV-1..5 承重不变量(立即断言草案)+C-OBJ-REDIR 单点仲裁器重写裁决(assert-then-converge)。触碰 flush/redirect/stall/序 的改动的前置契约（依据 decisions [38] + 宪法 §7 C7）。
 - ★ `ooo-csrfile` — CSR(M/S/U 特权/trap-return/委托/PMP/satp/counters)
 - `ooo-control-plane`、`ooo-commit-output-mux`、`ooo-csr-*-mux`、`ooo-pending-system-sequencer`、
   `ooo-pending-trap-exit-sequencer`、`ooo-stop-pending-sequencer`(域 B 仅剩 system/trap 类)、
