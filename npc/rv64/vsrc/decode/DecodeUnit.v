@@ -786,13 +786,17 @@ module DecodeUnit (
           ctrl_o[`CTRL_NEED_EXEC_BIT] = 1'b1;
         end else if (funct3_w == `FUNCT3_FENCE_I) begin
           ctrl_o[`CTRL_ILLEGAL_BIT] = 1'b0;
-          ctrl_o[`CTRL_MISC_MEM_BIT] = 1'b1;
 `ifdef OOO_FENCEI_TRUE_FLUSH
-          // flag ON：fence.i 作 stop 类 system，退休拍 mmu_flush(整块清取指 cache)+redirect 到 pc+4。
-          // 不设 NEED_EXEC：不进 EXEC，像 sfence/wfi 那样只在退休拍产生副作用。
+          // flag ON：镜像 sfence.vma —— 走 SYSTEM + EXEC 路径(sfence 亦设 CTRL_SYSTEM_BIT+NEED_EXEC，
+          // :712-713)，序列化 stop，退休拍 mmu_flush(整块清取指 cache)+ redirect 到 next_pc(pc+4)。
+          // 【root-cause 修】原设 CTRL_MISC_MEM 且不设 NEED_EXEC → fence.i 不走 system+exec → next_pc 未算 →
+          // redirect 到 0 卡死(rv64ui-p-fence_i + smc 微测 FAIL 的成因)。
+          ctrl_o[`CTRL_SYSTEM_BIT] = 1'b1;
+          ctrl_o[`CTRL_NEED_EXEC_BIT] = 1'b1;
           ctrl_o[`CTRL_FENCEI_BIT] = 1'b1;
 `else
           ctrl_o[`CTRL_FENCE_BIT] = 1'b1;          // flag OFF：回落旧 no-op = 零回归
+          ctrl_o[`CTRL_MISC_MEM_BIT] = 1'b1;
           ctrl_o[`CTRL_NEED_EXEC_BIT] = 1'b1;
 `endif
         end

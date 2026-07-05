@@ -623,6 +623,8 @@
 `define CTRL_AMO_SC_BIT          48  // 是否为 sc.w/sc.d
 `define CTRL_SFENCE_TVM_BIT      49  // 是否属于受 mstatus.TVM 约束的地址转换 fence
 `define CTRL_FENCEI_BIT          50  // fence.i(真 flush)：序列化 stop 类，退休拍整块清取指 cache + redirect(OOO_FENCEI_TRUE_FLUSH)
+// fence.i 真 flush 默认开(#111 #3B 修复)；排查时注释此行即回落旧 no-op(零回归，见 Step B commit)
+`define OOO_FENCEI_TRUE_FLUSH
 `define CTRL_BUS_W               51  // 统一控制总线总宽度
 
 `endif
