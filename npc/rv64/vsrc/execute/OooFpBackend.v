@@ -578,8 +578,12 @@ module OooFpBackend #(
   wire issue_is_comb_w = op_sgnj_w || op_minmax_w || op_cmp_w || op_class_w ||
                          op_mv_to_gpr_w || op_mv_to_fpr_w || op_cvt_to_gpr_w ||
                          op_cvt_int_to_fpr_w || op_cvt_fpr_to_fpr_w;
+  // long(div/sqrt)真正单在飞: 除 !busy 外还须 !long_meta_valid_q。busy 在 done 拍即掉, 但 completion
+  // (long_done_hold)被更高优先级 arith/exec1 阻塞时 meta 尚未取——此窗口若发新 long op 会覆写旧 op 的
+  // meta+清 done_hold → 旧 op 结果丢失永不退休(fp-difftest-probe: fdiv 完成被 arith 阻塞, fsqrt issue 覆写 fdiv)。
+  // meta_valid 覆盖 issue→consume 全程, gate 它保证前一 long op 的完成被消费后才发下一条。
   assign issue_ready_w = done_fifo_room_w &&
-                         (!op_long_w || !long_busy_any_w) &&
+                         (!op_long_w || (!long_busy_any_w && !long_meta_valid_q)) &&
                          (!issue_is_comb_w || !exec1_valid_q);
   wire issue_fire_w = issue_valid_w && issue_ready_w;
 
