@@ -1,0 +1,342 @@
+<title>为什么 RTL debug 慢、为什么有 spec 仍出 bug</title>
+<style>
+  :root {
+    --ground:#f2f5f5; --panel:#ffffff; --panel-2:#eaeeef;
+    --ink:#141d1d; --ink-soft:#47565a; --ink-faint:#7b8a8d;
+    --rule:#d7dedf; --rule-strong:#bcc7c8;
+    --accent:#0c7882; --accent-ink:#0a5f68; --accent-soft:#e2f0f1;
+    --crit:#b0433a; --crit-soft:#f6e4e1;
+    --warn:#9a640f; --warn-soft:#f3ead6;
+    --good:#397a58; --good-soft:#deece5;
+    --mono:ui-monospace,"SFMono-Regular","Cascadia Code",Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","PingFang SC","Microsoft Yahei",system-ui,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --ground:#0c1214; --panel:#121a1c; --panel-2:#182123;
+      --ink:#dee6e7; --ink-soft:#9cadaf; --ink-faint:#6b7c7e;
+      --rule:#213032; --rule-strong:#31474a;
+      --accent:#43bcc6; --accent-ink:#5fcdd6; --accent-soft:#123034;
+      --crit:#e28376; --crit-soft:#2c1a17;
+      --warn:#d6a441; --warn-soft:#2a2413;
+      --good:#68c095; --good-soft:#132720;
+    }
+  }
+  :root[data-theme="light"]{
+    --ground:#f2f5f5; --panel:#ffffff; --panel-2:#eaeeef;
+    --ink:#141d1d; --ink-soft:#47565a; --ink-faint:#7b8a8d;
+    --rule:#d7dedf; --rule-strong:#bcc7c8;
+    --accent:#0c7882; --accent-ink:#0a5f68; --accent-soft:#e2f0f1;
+    --crit:#b0433a; --crit-soft:#f6e4e1; --warn:#9a640f; --warn-soft:#f3ead6;
+    --good:#397a58; --good-soft:#deece5;
+  }
+  :root[data-theme="dark"]{
+    --ground:#0c1214; --panel:#121a1c; --panel-2:#182123;
+    --ink:#dee6e7; --ink-soft:#9cadaf; --ink-faint:#6b7c7e;
+    --rule:#213032; --rule-strong:#31474a;
+    --accent:#43bcc6; --accent-ink:#5fcdd6; --accent-soft:#123034;
+    --crit:#e28376; --crit-soft:#2c1a17; --warn:#d6a441; --warn-soft:#2a2413;
+    --good:#68c095; --good-soft:#132720;
+  }
+
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:var(--sans); font-size:16.5px; line-height:1.72;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  }
+  .wrap{max-width:860px; margin:0 auto; padding:0 24px 96px}
+  .col{max-width:680px}
+  ::selection{background:var(--accent-soft); color:var(--accent-ink)}
+
+  /* ---- masthead ---- */
+  header.mast{padding:56px 0 30px; border-bottom:1px solid var(--rule-strong)}
+  .eyebrow{
+    font-family:var(--mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--accent-ink); display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center;
+  }
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block;vertical-align:middle;margin-right:7px}
+  h1{
+    font-size:clamp(28px,5.2vw,42px); line-height:1.14; letter-spacing:-.018em;
+    font-weight:760; margin:20px 0 14px; text-wrap:balance; max-width:16ch;
+  }
+  .dek{font-size:17px; color:var(--ink-soft); max-width:60ch; margin:0}
+  .dek b{color:var(--ink); font-weight:640}
+
+  /* ---- instrument readout ---- */
+  .readout{
+    margin:30px 0 4px; display:grid; grid-template-columns:repeat(3,1fr); gap:1px;
+    background:var(--rule-strong); border:1px solid var(--rule-strong); border-radius:10px; overflow:hidden;
+  }
+  .cell{background:var(--panel); padding:20px 18px 18px; display:flex; flex-direction:column; gap:6px}
+  .cell .big{font-family:var(--mono); font-weight:680; font-size:clamp(30px,6vw,44px); line-height:1; letter-spacing:-.02em; font-variant-numeric:tabular-nums; color:var(--accent-ink)}
+  .cell .cap{font-family:var(--mono); font-size:11.5px; letter-spacing:.02em; color:var(--ink-faint); text-transform:uppercase}
+  .cell .sub{font-size:13.5px; color:var(--ink-soft); line-height:1.42}
+  @media(max-width:620px){.readout{grid-template-columns:1fr} .cell{padding:16px}}
+
+  /* ---- section scaffolding ---- */
+  section{padding:40px 0 4px; border-top:1px solid var(--rule); margin-top:40px}
+  section:first-of-type{border-top:none}
+  .snum{font-family:var(--mono); font-size:12.5px; letter-spacing:.1em; color:var(--accent-ink); font-weight:600}
+  h2{font-size:clamp(21px,3.4vw,27px); line-height:1.2; letter-spacing:-.012em; font-weight:720; margin:8px 0 18px; text-wrap:balance}
+  h3{font-size:17.5px; font-weight:680; margin:30px 0 10px; letter-spacing:-.005em; display:flex; align-items:baseline; gap:10px; flex-wrap:wrap}
+  h3 .lead{font-family:var(--mono); color:var(--accent-ink); font-size:14px; font-weight:600}
+  p{margin:0 0 16px; max-width:66ch}
+  p.col, ul.col, ol.col{max-width:680px}
+  strong{font-weight:660; color:var(--ink)}
+  code, .mono{font-family:var(--mono); font-size:.9em; background:var(--panel-2); padding:.08em .38em; border-radius:4px; color:var(--ink)}
+  em{font-style:normal; background:linear-gradient(transparent 62%,var(--accent-soft) 62%); padding:0 .05em; font-weight:560}
+
+  ul,ol{margin:0 0 16px; padding-left:0; list-style:none}
+  li{position:relative; padding-left:24px; margin:0 0 12px; max-width:64ch}
+  ul li::before{content:""; position:absolute; left:4px; top:.62em; width:7px; height:1.5px; background:var(--accent)}
+  ol{counter-reset:oi}
+  ol li{counter-increment:oi; padding-left:32px}
+  ol li::before{content:counter(oi); position:absolute; left:0; top:0; font-family:var(--mono); font-size:12px; font-weight:640; color:var(--accent-ink); background:var(--accent-soft); width:20px; height:20px; border-radius:5px; display:flex; align-items:center; justify-content:center; line-height:1}
+
+  /* ---- thesis callout ---- */
+  .thesis{
+    background:var(--panel); border:1px solid var(--rule-strong); border-left:3px solid var(--accent);
+    border-radius:8px; padding:24px 26px; margin:26px 0;
+  }
+  .thesis .k{font-family:var(--mono); font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--accent-ink); margin-bottom:10px}
+  .thesis p:last-child{margin-bottom:0}
+  .thesis .punch{font-size:18px; line-height:1.5; color:var(--ink); font-weight:600; max-width:60ch}
+
+  /* ---- chips ---- */
+  .chip{font-family:var(--mono); font-size:11px; font-weight:600; letter-spacing:.02em; padding:2px 8px; border-radius:20px; white-space:nowrap; display:inline-block; vertical-align:middle}
+  .chip.fix{background:var(--good-soft); color:var(--good)}
+  .chip.hard{background:var(--crit-soft); color:var(--crit)}
+  .chip.part{background:var(--warn-soft); color:var(--warn)}
+
+  /* ---- tables ---- */
+  .tw{overflow-x:auto; margin:20px 0 22px; border:1px solid var(--rule); border-radius:9px; background:var(--panel)}
+  table{border-collapse:collapse; width:100%; font-size:14.5px; min-width:520px}
+  th,td{text-align:left; padding:11px 15px; border-bottom:1px solid var(--rule); vertical-align:top}
+  thead th{font-family:var(--mono); font-size:11.5px; letter-spacing:.03em; text-transform:uppercase; color:var(--ink-faint); font-weight:600; background:var(--panel-2)}
+  tbody tr:last-child td{border-bottom:none}
+  td.num,th.num{font-family:var(--mono); font-variant-numeric:tabular-nums; text-align:right; white-space:nowrap}
+  .bar{display:inline-block; height:8px; border-radius:2px; background:var(--accent); vertical-align:middle; margin-left:8px; opacity:.85}
+  .cred-hard{color:var(--good); font-weight:600}
+  .cred-soft{color:var(--warn); font-weight:600}
+  .cred-no{color:var(--crit); font-weight:600}
+
+  /* ---- honest-boundary block ---- */
+  .review{background:var(--crit-soft); border:1px solid color-mix(in srgb,var(--crit) 26%,transparent); border-radius:10px; padding:26px 28px; margin:26px 0}
+  .review .k{font-family:var(--mono); font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--crit); margin-bottom:6px; font-weight:600}
+  .review h2{margin-top:2px}
+  .review ol li::before{background:color-mix(in srgb,var(--crit) 20%,transparent); color:var(--crit)}
+  .review em{background:linear-gradient(transparent 62%,color-mix(in srgb,var(--crit) 22%,transparent) 62%)}
+
+  /* ---- priority ladder ---- */
+  .prio{display:flex; flex-direction:column; gap:14px; margin:22px 0}
+  .prio .row{background:var(--panel); border:1px solid var(--rule); border-radius:9px; padding:16px 18px 16px 16px; display:grid; grid-template-columns:auto 1fr; gap:16px; align-items:start}
+  .prio .tag{font-family:var(--mono); font-size:12px; font-weight:680; padding:4px 9px; border-radius:6px; letter-spacing:.03em; height:fit-content; white-space:nowrap}
+  .p0 .tag{background:var(--good-soft); color:var(--good)}
+  .p1 .tag{background:var(--accent-soft); color:var(--accent-ink)}
+  .p2 .tag{background:var(--warn-soft); color:var(--warn)}
+  .p3 .tag{background:var(--panel-2); color:var(--ink-soft)}
+  .prio h4{margin:0 0 4px; font-size:15.5px; font-weight:660}
+  .prio p{margin:0; font-size:14px; color:var(--ink-soft); max-width:58ch}
+  .prio ul{margin:8px 0 0}
+  .prio li{font-size:13.5px; color:var(--ink-soft); margin-bottom:6px}
+
+  .lead-in{font-size:13px; font-family:var(--mono); color:var(--ink-faint); letter-spacing:.03em; margin:0 0 14px}
+  hr.soft{border:none; border-top:1px dashed var(--rule-strong); margin:34px 0}
+  footer{margin-top:56px; padding-top:22px; border-top:1px solid var(--rule-strong); font-size:13.5px; color:var(--ink-faint); font-family:var(--mono); line-height:1.7}
+  footer b{color:var(--ink-soft); font-weight:600}
+
+  @media(prefers-reduced-motion:no-preference){
+    .readout .cell{animation:rise .5s cubic-bezier(.2,.7,.3,1) backwards}
+    .cell:nth-child(2){animation-delay:.07s} .cell:nth-child(3){animation-delay:.14s}
+    @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <div class="eyebrow"><span><span class="dot"></span>RTL DEBUG · 复盘</span><span>21 会话</span><span>54 BUG</span><span>06-27 → 07-05</span></div>
+    <h1>为什么 debug 那么慢，为什么有了 spec 还在出 bug</h1>
+    <p class="dek">对 rv64 乱序超标量核一周内 21 场调试会话的逐条解剖。两个问题其实是<b>同一个认知误区的两面</b>——下面用数出来的 54 个 bug 回答它，包括这套归因自己站不住的地方。</p>
+
+    <div class="readout">
+      <div class="cell">
+        <div class="big">1.06</div>
+        <div class="cap">Edit : Compile</div>
+        <div class="sub">改代码 1428 次、编译 1353 次——<b>几乎每改一行就重编一次整仿真器</b>。没有"批量改再验证"。</div>
+      </div>
+      <div class="cell">
+        <div class="big">14%</div>
+        <div class="cap">spec 真写错的占比</div>
+        <div class="sub">44 条真·正确性 bug 里，spec 本身错或缺失的只有 6 条。<b>问题不在 spec。</b></div>
+      </div>
+      <div class="cell">
+        <div class="big">59%</div>
+        <div class="cap">spec 对、却没护栏</div>
+        <div class="sub">26 条 bug 是"spec 明明写对了，但没有任何东西在每次仿真时把实现拉去对照"。<b>真正的病灶。</b></div>
+      </div>
+    </div>
+  </header>
+
+  <div class="col">
+
+  <div class="thesis">
+    <div class="k">核心结论 · 先把话说透</div>
+    <p class="punch">你把"写下了正确的 spec"默认等价于"有东西在强制这个正确性"——但这两件事之间隔着一整套验证装置，而 spec 本身不是验证器，只是意图声明。</p>
+    <p style="margin-top:14px">写对一条 spec，本身不产生任何拦截 bug 的力量。bug 不出在"没有 spec"或"spec 错了"，而出在 <em>spec 与实现之间没有连续运行的可执行检查</em>。残余 bug 精确地活在"没有任何 oracle 能到达的角落"：模块之间的隐式契约、乱序/投机炸开的状态空间、以及散文意图和接线现实之间的缝隙。</p>
+    <p style="margin-bottom:0">而"慢"，一部分是 RTL 这个媒介固有的（编译-仿真往返长、内部状态不可观测、分歧点离真因远），基本不可消除、只能缓解；另一部分是方法/流程叠加的，可改进。但要诚实：<b>我们手上没有一秒真实耗时数据</b>，无法精确判定"慢"里有多少是方法问题、多少是这个核本身就极难验的必然——第三节专门讲这个边界。</p>
+  </div>
+
+  </div>
+
+  <section>
+    <div class="snum">§1 / 定量画像</div>
+    <h2>往返数字，以及它们能不能信</h2>
+    <p class="col">先分清哪些数字站得住、哪些是解释性度量——这直接决定结论能推多硬。这张表本身就是一个诚实信号。</p>
+    <div class="tw">
+      <table>
+        <thead><tr><th>指标</th><th class="num">数值</th><th>可信度</th></tr></thead>
+        <tbody>
+          <tr><td>Edit（改文件）总次数</td><td class="num">1428</td><td><span class="cred-hard">硬</span> · 机械工具计数，对抗复算逐字吻合</td></tr>
+          <tr><td>COMPILE（编译仿真器）</td><td class="num">1353</td><td><span class="cred-hard">硬</span> · 单会话峰值 289</td></tr>
+          <tr><td>Edit / COMPILE</td><td class="num">1.06</td><td><span class="cred-hard">硬</span> · 几乎每改一行就全量重编，无批量验证</td></tr>
+          <tr><td>COMPILE / RUNTEST</td><td class="num">1.48</td><td><span class="cred-soft">半信</span> · 也可读成"编译失败没跑到测"，不必然是瞎迭代</td></tr>
+          <tr><td><code>$display</code> 临时探针物理数</td><td class="num">≈813</td><td><span class="cred-hard">硬</span> · 注意：<b>低于</b> Edit 次数</td></tr>
+          <tr><td>综合曾宣称的 "PROBE"</td><td class="num">2181</td><td><span class="cred-no">别信</span> · 口径不可复现，"探查是最大黑洞"这条押在假数上</td></tr>
+          <tr><td>单会话 wall-clock 峰值</td><td class="num">64.6h</td><td><span class="cred-hard">硬</span> · 但只是单会话总时长，非 per-bug</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="col">真相是<strong>改、编、探三者量级相当</strong>，共同构成一个极短、极频繁、极浅的迭代节拍——不是某一项独大。时间黑洞的量级由两个事实定死：一个难会话能烧掉 <em>64.6 小时</em>；而 bug 往往要跑到 <span class="mono">3.2M 指令</span>（F2）或 <span class="mono">29 万 commit</span>（LR/SC 活锁）才现形——<strong>每验证一次假设，都要付这么长的一段仿真</strong>。</p>
+  </section>
+
+  <section>
+    <div class="snum">§2 / 为什么慢</div>
+    <h2>按"是不是可改进"分两类</h2>
+
+    <h3><span class="lead">A 类</span> RTL 媒介固有 <span class="chip hard">基本不可消除 · 只能缓解</span></h3>
+    <ul class="col">
+      <li><strong>A1 编译-仿真往返长</strong>：Edit/COMPILE≈1.06 意味着几乎没有批量改；深层 bug 要跑几十万到几百万指令才到分歧点。这是循环的基础节拍。缓解手段项目已沉淀：免重编的架构级观测（<code>NPC_TRAPWATCH</code>/<code>commitwatch</code>）、分模块 OOC 综合、后台 job。</li>
+      <li><strong>A2 内部状态不可观测</strong>：僵尸 IQ entry、pending 状态机、preg busy、pred_npc……全靠注入 813 个临时 <code>$display</code> 再重编反推，探针自身还有税（组合瞬态要改 posedge、端口名靠猜、grep 漏 <span class="mono">t=0</span> 前缀白跑数轮）。缓解：单行跨信号对照表（波形的文本等价物）、commitwatch 绕过前端探针。</li>
+      <li><strong>A3 分歧点离真因远，甚至指向错误一侧</strong>：<code>rv64mi-illegal</code> 崩在 handler 末尾 <span class="mono">j fail</span>，真因在几百 commit 前的 CSR 读 0；CoreMark rtc 的报错<em>其实来自 NEMU 参考侧而非 DUT</em>，靠"错误信息文字格式不同"才认出来。凡上 difftest 的会话都遇到。</li>
+    </ul>
+
+    <h3><span class="lead">B 类</span> 方法/流程叠加 <span class="chip part">可改进 · 但见第三节折扣</span></h3>
+    <ul class="col">
+      <li><strong>B4 安全网掩盖真因（最昂贵）</strong> <span class="chip fix">可改进</span>：<code>mode_walk_w||</code> 恒强制 mispredict，使 wrong-path 恢复通路<em>从未被锻炼</em>，F2 一删兜底 88 FAIL 一次涌出；difftest <strong>只比 GPR+PC、不比 FPR/fcsr</strong>，让 6 个 FP bug 结构性潜伏；rv64ua 不在回归，LR/SC 活锁从未被跑到。→ 拆兜底前先补 oracle，遗漏套件入默认回归。</li>
+      <li><strong>B5 假设反复被推翻</strong> <span class="chip part">部分可改进</span>：<code>rv64mi-illegal</code> 连续证否 <strong>5 个</strong>根因；mnstatus 伪差异把 F2 带上整条错误根因链，6-8 轮后自我推翻。→ 用架构退休真相（commitwatch/trapwatch）做决定性实验——但长链追错方向很大程度是 LLM-agent 调试的固有失效模式，不全是方法能修。</li>
+      <li><strong>B6 状态空间组合爆炸</strong> <span class="chip hard">基本不可消除</span>：serialize 的 coexistence 是 <span class="mono">stop_pending / pending_system / mem_idle / SQ-drain / serial_flush</span> 五个各自正确机制的涌现交互。这就是这个核难的本体。</li>
+      <li><strong>B7 判据/环境噪声制造假失败</strong> <span class="chip fix">高度可改进 · 可能被低估的头条</span>：手搓判据连错、config 污染（跑的是旧 bin，objdump 才发现）、<span class="mono">nohup &amp;</span> 让 Bash 瞬时返回 exit0 误判"已跑完"。这一族就是 difftest-harness-alignment=22%，每个真修复的收尾都要先剥一层量具噪声。</li>
+    </ul>
+  </section>
+
+  <div class="review">
+    <div class="k">§3 / 对抗审查 · 诚实的边界</div>
+    <h2>这份归因哪里把话说过了</h2>
+    <p class="col">要对得起"讨厌症状级补丁"的标准，必须把这套归因自身的软肋摆出来，否则它就是一个有说服力的假说冒充结论。</p>
+    <ol class="col">
+      <li><strong>幸存者/分母偏差（最大漏洞）</strong>。这份分布是对<em>已经逃逸、变成了 debug 会话的 bug</em> 做的统计。用逃逸集去证"spec 没有强制力"有循环论证成分。反证恰在数据里：审计能凭 <span class="mono">file:line</span> 低成本秒抓单模块 decode bug——<strong>那正是 spec 在起作用</strong>，而这类被早杀、从没变成会话的 bug 不进这个分母。所以 14% 既低估了 spec 的实际正确率，也撑不起"spec 普遍无强制力"的强版本。</li>
+      <li><strong>次数 ≠ 成本</strong>。整套论证问的是"为什么慢"（wall-clock），但除了两个会话总时长，<em>没有一秒 per-bug 耗时、没有 time-to-detection</em>。"潜伏很久"是修辞不是测量。</li>
+      <li><strong>最省事的替代解释没被证伪</strong>。奥卡姆剃刀指向三条零假设，它们能解释全部现象却从未被排除：<br>• <strong>这个核本来就极难验</strong>——双发 × 投机 × 乱序 × FP × Sv39 × M/S 特权，是业界公认最难验的一类；"52% 跨模块/投机 bug"正是这类的<em>预期签名</em>。B4–B7 那层"流程病"，很可能大半只是"OoO 本来就难"换了个听起来可修的说法。<br>• <strong>LLM-agent 长链调试是已知失效模式</strong>——无波形查看器、上下文截断、子代理给矛盾根因。把 40 轮记到"spec 无强制力"，是把调试者的局限记到了被调试物头上。<br>• <strong>单人、无第二审查者</strong>——很多 bug 属于"有 code review 就会被拦"那一类。</li>
+      <li><strong>诊断与药方错位</strong>。归因说定位主导成本，但它开的药（补断言、扩 oracle、遗漏套件入回归）几乎全在治<em>检出/逃逸</em>，没几味在治<em>定位速度</em>。第五节把这个错位纠回来。</li>
+    </ol>
+    <p class="col" style="margin-bottom:0"><strong>诚实版结论</strong>：「spec ≠ 强制力」作为<em>定性心智模型成立且有用</em>——就算 spec 拦住了 90%，逃逸的 10% 仍精确落在"无可执行检查到达"的地方。但它<strong>不能被这批逃逸样本升级成"慢与出 bug 主要是方法问题"的定量因果结论</strong>。要完成这个升级，还差第五节 P3 里那份 per-bug 时间数据。</p>
+  </div>
+
+  <section>
+    <div class="snum">§4 / spec 落差</div>
+    <h2>为什么有 spec 仍然出 bug：五道结构性落差</h2>
+    <p class="lead-in">44 条真·正确性 bug（已剔除 10 条量具/时序类 na；去重后唯一 bug 约 50，比例浮动几个百分点内）</p>
+    <div class="tw">
+      <table>
+        <thead><tr><th>spec 与 bug 的关系</th><th class="num">数量</th><th class="num">占 44 条</th><th>分布</th></tr></thead>
+        <tbody>
+          <tr><td>spec 对、实现悄悄偏离</td><td class="num">17</td><td class="num">39%</td><td><span class="bar" style="width:120px"></span></td></tr>
+          <tr><td>多模块交互涌现（无宿主模块可挂 spec）</td><td class="num">12</td><td class="num">27%</td><td><span class="bar" style="width:83px"></span></td></tr>
+          <tr><td>spec 散文写到了、但无可执行断言</td><td class="num">9</td><td class="num">20%</td><td><span class="bar" style="width:62px"></span></td></tr>
+          <tr><td>spec 本身覆盖粒度不够 / 写错</td><td class="num">6</td><td class="num">14%</td><td><span class="bar" style="width:43px"></span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="col"><strong>读法</strong>：spec 本身有问题的只有 14%；而"spec 对但没被强制"（39% + 20% = <em>26 条，占 59%</em>）才是主体。</p>
+
+    <ul class="col">
+      <li><strong>落差① 散文非断言（59%，最主要）</strong>：spec 把正确行为写成中文/注释，但没有机制每次仿真拿实现去对照。FP-CSR 必须排除、<code>serial_flush</code> 必须镜像 <code>trap_flush</code> 的完整清除清单——都白纸黑字写在 spec §9 note 里，实现照抄时漏了，<em>因为 note 是散文，任何自动 gate 都抓不到</em>。</li>
+      <li><strong>落差② 单模块 spec 挡不住跨模块涌现（27%）</strong>：write-back dcache 对、Sv39 walker 对，缺的是"PTW 必须看到已提交但仍在 cache 的 store"这条一致性契约（连 Linux 启动都不触发）；LR/SC 活锁 = 两个各自合理时序的涌现。</li>
+      <li><strong>落差③ 实现悄悄偏离、无护栏检测（39% 的另一面）</strong>：F2 walk 恢复把 <code>rename1_old_pdest</code> 接到 <code>_unused_w</code> 悬空哑线——lint 有 unused-OR 兜底不报、Verilator 容忍、<em>只有 iverilog 才抓</em>。更危险的变体：<strong>测试自身编码了同款错误</strong>（sbi-timer.c 用非标 bit7 与核一致），bug 在核与测试间双向自洽通过。</li>
+      <li><strong>落差④ 乱序状态空间超出 spec 能穷举</strong>：serialize §9 只把 coexistence 笼统标为"最脆弱中间态"，没给出"head0-CSR 在飞全程必须 hold stop_pending"这条实现级不变量，实现顺手用了全局 pending 标志就中招。</li>
+      <li><strong>落差⑤ spec 滞后于反复改动的 RTL</strong>：本项目宪法自承"实现先长、架构后补"。B2 redirect 仲裁器<em>是实现暴露并修正了 spec 自己的优先级 bug</em>；serialize spec 曾把 flush 当无副作用，实现才发现它与异步 LSU 根本冲突——<strong>spec 有时自己就是 bug 源。</strong></li>
+      <li><strong>附加落差⑥ 连可执行的 spec（NEMU 参考）自己都是错的</strong>：FP 五项欠账、Zbb-W 整层缺失、mstatus VS 字段缺失——difftest 分歧点常指向参考的错而非 DUT 真因。你以为终于有了可执行 spec，它却没被验证过。</li>
+    </ul>
+    <div class="thesis">
+      <div class="k">一句话贯通</div>
+      <p class="punch" style="font-size:16.5px">spec 降低的是<em>单模块 ISA 语义</em>这类 bug（这类确实被静态审计快速抓出）；但对<em>跨模块涌现 + 投机状态空间 + 意图↔实现偏离</em>这三类几乎无能为力——防住它们的从来不是 spec，而是把 spec 翻译成连续运行的可执行断言 + 把 oracle 覆盖洞堵上。</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="snum">§5 / 改进</div>
+    <h2>可落地的改进，按 ROI 排序</h2>
+    <p class="col">原则：<strong>先摘量具摩擦和 oracle 覆盖洞这两块低垂果实</strong>（便宜、可能是 wall-clock 头条），再动定位速度，最后才是把 spec 翻断言这类大工程。</p>
+
+    <div class="prio">
+      <div class="row p0">
+        <span class="tag">P0</span>
+        <div>
+          <h4>堵量具与 oracle 覆盖洞 · 最便宜、ROI 最高</h4>
+          <p>对准 difftest-harness-alignment=22% 这一族——最可操作，且很可能吃掉了最多真实调试时间。</p>
+          <ul>
+            <li>把量具本身钉死：判据脚本三侧一致性门禁、每次 objdump 确认实际编进 bin、pre-#1 saved binary 做 A/B、禁掉 <span class="mono">nohup &amp;</span> 瞬时 exit0 误判。</li>
+            <li>difftest 扩比 <strong>FPR / fcsr / CSR</strong>：一次性堵掉 6 个 FP bug 潜伏的整类；遗漏套件（rv64ua/uf/ud）加进默认回归并锁定。</li>
+            <li>CI 双 lint 并跑（iverilog + Verilator + 悬空线检查）："iverilog 才抓、Verilator 放过"是双 lint 就能堵的具体漏洞。</li>
+          </ul>
+        </div>
+      </div>
+      <div class="row p1">
+        <span class="tag">P1</span>
+        <div>
+          <h4>缩短定位循环 · 对准主病灶，别只治检出</h4>
+          <ul>
+            <li><strong>常态化波形 dump</strong>（FST/GTKWave）：把"临时 <code>$display</code> 再重编"换成"一次 dump 反复看"——813 个临时探针 + 每个都要重编，是实打实的税。<em>唯一直接砍定位速度的杠杆。</em></li>
+            <li>免重编观测继续扩 + 缩短往返：commitwatch/trapwatch/单行跨信号对照表已是一等公民；分模块 OOC 综合、后台 job 摊平编译延迟。</li>
+          </ul>
+        </div>
+      </div>
+      <div class="row p2">
+        <span class="tag">P2</span>
+        <div>
+          <h4>把 spec 变护栏 · 对准 59% 的 diverged + not-executable</h4>
+          <ul>
+            <li>关键不变量转 <strong>SVA / 在线 assert</strong>：把散文 note 里能表达成单点不变量的（serial_flush 镜像清单、head0-CSR hold stop_pending、FP-CSR 排除）写成每拍自动报警。边界：只对"有宿主、能单点表达"的有效，跨模块涌现仍无处可挂。</li>
+            <li>补 bug 时同步补定向 TB（项目已补 13 个）：把每个踩过的坑固化成回归护栏。</li>
+          </ul>
+        </div>
+      </div>
+      <div class="row p3">
+        <span class="tag">P3</span>
+        <div>
+          <h4>让分析本身可回查 · 下次能用数据回答自己</h4>
+          <ul>
+            <li>把这张 54 行 bug 表落盘进 <code>.github/task-runs/</code>（会话/commit + file:line + 两个标签）；给 PROBE 一个可复现定义否则删掉。</li>
+            <li><strong>补上 per-bug wall-clock 和 time-to-detection，画成本随会话序的趋势线</strong>——这是<em>唯一</em>能把"方法问题"和"固有复杂度"真正分开的分析，而它就躺在后续 transcript 里可算。在补上它之前，第三节那句"慢主要是方法问题"永远只是合理假说。</li>
+            <li>沉淀已见效的验证工作流：家族必读清单、"对抗验证结论别自作主张加固"——项目最成熟的收敛长尾手段，恰恰不是"写更多 spec"。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="thesis" style="border-left-color:var(--good)">
+      <div class="k" style="color:var(--good)">收尾</div>
+      <p style="margin-bottom:0" class="punch" style="font-size:16.5px">本项目 spec 质量其实不差（17 条 spec 明确正确）。问题从来不是"spec 不够好"，而是<em>正确的 spec 没有被转成会自动报警的断言，而 bug 恰好躲在断言照不到的角落</em>。把"有 spec"当"有护栏"，就是这次认知落差的根——但也请记住，把这个洞察从"合理心智模型"升级成"已证成的定量结论"，还差 P3 那份时间数据。</p>
+    </div>
+  </section>
+
+  <footer>
+    <b>方法</b> · 21 会话 digest（剥离波形/编译输出，保留对话+每次编译/跑测/探查/改代码动作）→ 9 agent 并行解剖抽出 54 bug → 3 agent 读 known-issues.md(492K)/project-status.md(516K)/定量表 → 综合 → 对抗审查 → 定稿。<br>
+    <b>硬指标已复核</b> · Edit 1428 / COMPILE 1353 / RUNTEST 916；Edit/COMPILE=1.06、COMPILE/RUNTEST=1.48、54 bug=9 agent 加总，均与原始计数逐字吻合。<br>
+    <b>已知不确定</b> · PROBE=2181 口径不可复现（已在正文标注别信）；per-bug 耗时缺失 → 方法 vs 复杂度的定量归因仍是假说。
+  </footer>
+
+</div>

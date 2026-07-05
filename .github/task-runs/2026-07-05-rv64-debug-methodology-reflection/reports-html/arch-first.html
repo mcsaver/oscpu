@@ -1,0 +1,269 @@
+<title>怎么像 IC 公司一样 architecture-first</title>
+<style>
+  :root{
+    --ground:#f2f5f5; --panel:#ffffff; --panel-2:#eaeeef;
+    --ink:#141d1d; --ink-soft:#47565a; --ink-faint:#7b8a8d;
+    --rule:#d7dedf; --rule-strong:#bcc7c8;
+    --accent:#0c7882; --accent-ink:#0a5f68; --accent-soft:#e2f0f1;
+    --crit:#b0433a; --crit-soft:#f6e4e1;
+    --warn:#9a640f; --warn-soft:#f3ead6;
+    --good:#397a58; --good-soft:#deece5;
+    --mono:ui-monospace,"SFMono-Regular","Cascadia Code",Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","PingFang SC","Microsoft Yahei",system-ui,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --ground:#0c1214; --panel:#121a1c; --panel-2:#182123;
+    --ink:#dee6e7; --ink-soft:#9cadaf; --ink-faint:#6b7c7e;
+    --rule:#213032; --rule-strong:#31474a;
+    --accent:#43bcc6; --accent-ink:#5fcdd6; --accent-soft:#123034;
+    --crit:#e28376; --crit-soft:#2c1a17; --warn:#d6a441; --warn-soft:#2a2413;
+    --good:#68c095; --good-soft:#132720;
+  }}
+  :root[data-theme="light"]{
+    --ground:#f2f5f5; --panel:#ffffff; --panel-2:#eaeeef;
+    --ink:#141d1d; --ink-soft:#47565a; --ink-faint:#7b8a8d;
+    --rule:#d7dedf; --rule-strong:#bcc7c8;
+    --accent:#0c7882; --accent-ink:#0a5f68; --accent-soft:#e2f0f1;
+    --crit:#b0433a; --crit-soft:#f6e4e1; --warn:#9a640f; --warn-soft:#f3ead6;
+    --good:#397a58; --good-soft:#deece5;
+  }
+  :root[data-theme="dark"]{
+    --ground:#0c1214; --panel:#121a1c; --panel-2:#182123;
+    --ink:#dee6e7; --ink-soft:#9cadaf; --ink-faint:#6b7c7e;
+    --rule:#213032; --rule-strong:#31474a;
+    --accent:#43bcc6; --accent-ink:#5fcdd6; --accent-soft:#123034;
+    --crit:#e28376; --crit-soft:#2c1a17; --warn:#d6a441; --warn-soft:#2a2413;
+    --good:#68c095; --good-soft:#132720;
+  }
+
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0; background:var(--ground); color:var(--ink); font-family:var(--sans); font-size:16.5px; line-height:1.72; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility}
+  .wrap{max-width:880px; margin:0 auto; padding:0 24px 96px}
+  .col{max-width:680px}
+  ::selection{background:var(--accent-soft); color:var(--accent-ink)}
+
+  header.mast{padding:56px 0 30px; border-bottom:1px solid var(--rule-strong)}
+  .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent-ink); display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center}
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block;margin-right:7px}
+  h1{font-size:clamp(27px,5vw,41px); line-height:1.14; letter-spacing:-.018em; font-weight:760; margin:20px 0 14px; text-wrap:balance; max-width:19ch}
+  .dek{font-size:17px; color:var(--ink-soft); max-width:62ch; margin:0}
+  .dek b{color:var(--ink); font-weight:640}
+
+  .readout{margin:30px 0 4px; display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--rule-strong); border:1px solid var(--rule-strong); border-radius:10px; overflow:hidden}
+  .cell{background:var(--panel); padding:20px 18px 18px; display:flex; flex-direction:column; gap:6px}
+  .cell .big{font-family:var(--mono); font-weight:680; font-size:clamp(30px,6vw,44px); line-height:1; letter-spacing:-.02em; font-variant-numeric:tabular-nums; color:var(--accent-ink)}
+  .cell .cap{font-family:var(--mono); font-size:11.5px; letter-spacing:.02em; color:var(--ink-faint); text-transform:uppercase}
+  .cell .sub{font-size:13.5px; color:var(--ink-soft); line-height:1.42}
+  @media(max-width:620px){.readout{grid-template-columns:1fr} .cell{padding:16px}}
+
+  section{padding:40px 0 4px; border-top:1px solid var(--rule); margin-top:40px}
+  section:first-of-type{border-top:none}
+  .snum{font-family:var(--mono); font-size:12.5px; letter-spacing:.1em; color:var(--accent-ink); font-weight:600}
+  h2{font-size:clamp(21px,3.4vw,27px); line-height:1.2; letter-spacing:-.012em; font-weight:720; margin:8px 0 18px; text-wrap:balance}
+  h3{font-size:17.5px; font-weight:680; margin:28px 0 10px; letter-spacing:-.005em; display:flex; align-items:baseline; gap:10px; flex-wrap:wrap}
+  h3 .lead{font-family:var(--mono); color:var(--accent-ink); font-size:14px; font-weight:600}
+  p{margin:0 0 16px; max-width:66ch}
+  strong{font-weight:660; color:var(--ink)}
+  code,.mono{font-family:var(--mono); font-size:.88em; background:var(--panel-2); padding:.08em .38em; border-radius:4px; color:var(--ink)}
+  em{font-style:normal; background:linear-gradient(transparent 62%,var(--accent-soft) 62%); padding:0 .05em; font-weight:560}
+
+  ul,ol{margin:0 0 16px; padding-left:0; list-style:none}
+  li{position:relative; padding-left:24px; margin:0 0 12px; max-width:64ch}
+  ul li::before{content:""; position:absolute; left:4px; top:.62em; width:7px; height:1.5px; background:var(--accent)}
+  ol{counter-reset:oi}
+  ol li{counter-increment:oi; padding-left:32px}
+  ol li::before{content:counter(oi); position:absolute; left:0; top:.05em; font-family:var(--mono); font-size:12px; font-weight:640; color:var(--accent-ink); background:var(--accent-soft); width:20px; height:20px; border-radius:5px; display:flex; align-items:center; justify-content:center; line-height:1}
+
+  .thesis{background:var(--panel); border:1px solid var(--rule-strong); border-left:3px solid var(--accent); border-radius:8px; padding:22px 26px; margin:24px 0}
+  .thesis .k{font-family:var(--mono); font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--accent-ink); margin-bottom:10px}
+  .thesis p:last-child{margin-bottom:0}
+  .thesis .punch{font-size:18px; line-height:1.5; color:var(--ink); font-weight:600; max-width:60ch}
+
+  .chip{font-family:var(--mono); font-size:11px; font-weight:600; letter-spacing:.02em; padding:2px 8px; border-radius:20px; white-space:nowrap; display:inline-block; vertical-align:middle}
+  .chip.fix{background:var(--good-soft); color:var(--good)}
+  .chip.hard{background:var(--crit-soft); color:var(--crit)}
+  .chip.part{background:var(--warn-soft); color:var(--warn)}
+
+  .tw{overflow-x:auto; margin:20px 0 22px; border:1px solid var(--rule); border-radius:9px; background:var(--panel)}
+  table{border-collapse:collapse; width:100%; font-size:14px; min-width:540px}
+  th,td{text-align:left; padding:11px 15px; border-bottom:1px solid var(--rule); vertical-align:top}
+  thead th{font-family:var(--mono); font-size:11.5px; letter-spacing:.03em; text-transform:uppercase; color:var(--ink-faint); font-weight:600; background:var(--panel-2)}
+  tbody tr:last-child td{border-bottom:none}
+  .kbd{font-family:var(--mono); font-size:.86em; color:var(--accent-ink)}
+  .clr{color:var(--crit); font-weight:600}
+  .keep{color:var(--good); font-weight:600}
+
+  .review{background:var(--crit-soft); border:1px solid color-mix(in srgb,var(--crit) 26%,transparent); border-radius:10px; padding:26px 28px; margin:26px 0}
+  .review .k{font-family:var(--mono); font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--crit); margin-bottom:6px; font-weight:600}
+  .review h2{margin-top:2px}
+  .review em{background:linear-gradient(transparent 62%,color-mix(in srgb,var(--crit) 22%,transparent) 62%)}
+
+  .startbox{background:var(--good-soft); border:1px solid color-mix(in srgb,var(--good) 32%,transparent); border-radius:10px; padding:26px 28px; margin:26px 0}
+  .startbox .k{font-family:var(--mono); font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--good); margin-bottom:8px; font-weight:600}
+  .startbox h2{margin-top:0}
+  .startbox em{background:linear-gradient(transparent 62%,color-mix(in srgb,var(--good) 26%,transparent) 62%)}
+  .startbox code{background:color-mix(in srgb,var(--good) 14%,transparent)}
+
+  .qgrid{display:flex; flex-direction:column; gap:0}
+  .qlab{font-family:var(--mono); font-size:12.5px; font-weight:680; color:var(--accent-ink); letter-spacing:.04em}
+  .lead-in{font-size:13px; font-family:var(--mono); color:var(--ink-faint); letter-spacing:.03em; margin:0 0 14px}
+  .filetag{font-family:var(--mono); font-size:.82em; background:var(--panel-2); color:var(--ink-soft); padding:1px 6px; border-radius:4px}
+  footer{margin-top:56px; padding-top:22px; border-top:1px solid var(--rule-strong); font-size:13px; color:var(--ink-faint); font-family:var(--mono); line-height:1.7}
+  footer b{color:var(--ink-soft); font-weight:600}
+  @media(prefers-reduced-motion:no-preference){
+    .readout .cell{animation:rise .5s cubic-bezier(.2,.7,.3,1) backwards}
+    .cell:nth-child(2){animation-delay:.07s} .cell:nth-child(3){animation-delay:.14s}
+    @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  }
+</style>
+
+<div class="wrap">
+  <header class="mast">
+    <div class="eyebrow"><span><span class="dot"></span>方法论 · 姊妹篇</span><span>ARCHITECTURE-FIRST</span><span>rv64 OOO</span></div>
+    <h1>怎么像 IC 公司一样思考：契约先行，不是 datasheet 先行</h1>
+    <p class="dek">你诊断对了方向——反复栽在同一类地方是真的。但要把词换准，把"更顶层更抽象"落成具体物，还要诚实：<b>你缺的主要不是文档，是强制装置。</b>下面每个论断都用你自己项目的代码与文档核过。</p>
+    <div class="readout">
+      <div class="cell">
+        <div class="big">0</div>
+        <div class="cap">全核 SVA 时序断言</div>
+        <div class="sub">已复核：<code>|-&gt;</code>/<code>$past</code> 命中 0、Verilator 没开 <code>--assert</code>。<b>"断言先行"必须换成能编译的形态。</b></div>
+      </div>
+      <div class="cell">
+        <div class="big">≥12</div>
+        <div class="cap">redirect/flush 源</div>
+        <div class="sub">宪法 §7 自认："≥12 源、≥5 汇合点、无统一优先级链"。<b>这不是缺一张表，是结构缺陷。</b></div>
+      </div>
+      <div class="cell">
+        <div class="big">0<span style="font-size:.5em">次</span></div>
+        <div class="cap">契约模板被填过</div>
+        <div class="sub"><span class="filetag">SPEC-TEMPLATE.md</span> §2/§3 是正确骨架（握手/背压/flush 优先级），specs/ 里从没填过一次。</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="col">
+    <div class="thesis">
+      <div class="k">核心校正 · 定心丸 + 冷水</div>
+      <p class="punch">你说的"datasheet 先行"选错了层——datasheet 恰恰<em>不含</em>你踩坑的那层东西。你真正想要的，精确的名字是<em>接口/控制契约</em>。</p>
+      <p style="margin-top:14px"><strong>你对的部分（真内核）</strong>：把 bug 按机制归类，"stall / flush / 握手 / 序 / 一致性"确实是全仓库最大、最反复的一族。FP 簇 80–90 轮、lrsc/sv39/F2 各 40+ 轮——你最贵的几场 debug 全落在这里。你反复感到"总在这类地方栽"，不是错觉。</p>
+      <p style="margin-bottom:0"><strong>你错的一层（要诚实）</strong>："契约文本真缺了、写下来就能防"的只是一小撮（<code>stop_pending</code> 只 hold 1 拍、<code>serial_flush</code> 漏清、两类 CSR 用全局标志、<code>pred_npc</code> 多源不同源）。<em>剩下大半防不住</em>：一种是涌现交互（write-back 下 PTW 读到 dcache 里 stale PTE，开工根本想不到）；一种与控制契约无关（纯译码/数值错 + harness 噪声）。所以别信上一份里"78%/52%/14%"那种两位小数——同一个 dcache 一致性 bug，PTW 版被判"不可预见"、store 版被判"你漏写契约"，<em>机制是同一个</em>，凭什么分两类。</p>
+    </div>
+  </div>
+
+  <section>
+    <div class="snum">§1 / 业界真实分层</div>
+    <h2>三层别混，"写 RTL 是翻译"哪对哪危险</h2>
+    <div class="tw"><table>
+      <thead><tr><th>层</th><th>是什么</th><th>面向谁</th><th>含不含"防 bug 那层"</th></tr></thead>
+      <tbody>
+        <tr><td><strong>架构规格 / datasheet</strong></td><td>ISA 语义 + 对外产品参数（主频/接口/功耗）</td><td>客户、软件</td><td><span class="clr">不含</span>微架构，也不含块间接口</td></tr>
+        <tr><td><strong>微架构 / 接口规格</strong></td><td>流水线级、握手、stall/flush 语义、序、恢复</td><td>设计与验证团队内部</td><td><span class="keep">这才是防 bug 那层</span></td></tr>
+        <tr><td><strong>RTL</strong></td><td>可综合实现</td><td>工具链</td><td>落地</td></tr>
+      </tbody>
+    </table></div>
+    <p class="col">你若真去写一份 datasheet，写完会发现它对你的 flush bug <em>一个字都帮不上</em>。这个纠正不是换黑话。</p>
+    <p class="col"><strong>"写 RTL 是翻译"——哪里对</strong>：一旦一个块的边界契约（每根信号的时序/握手/stall/flush 语义）冻死，块内逻辑基本是这些约束的机械后果，此时"RTL 是翻译"成立，是好习惯。</p>
+    <p class="col"><strong>哪里危险</strong>：业界<em>从来不是纯瀑布</em>。真实 IC 公司的 spec 是带 ECO、带 review board 的活契约；很多接口语义只有把 consumer 也建出来才结晶。你的 serialize-at-retire 就是活证据——§9 mem-quiescence 修向、中间态死锁、<code>head0_csr_inflight</code> 保持，<em>没有一条是 spec 预见的，全是实现里撞出来的</em>。这不是你做得不纯，这就是常态。正确姿势：<strong>契约冻结 + 受控迭代</strong>——RTL 逼出变更时，变更先回契约（小、被评审）再落 RTL，绝不让 RTL 悄悄分叉。把"翻译"理解成"一次定死、想清一切再动手"，才是危险的那一半。</p>
+  </section>
+
+  <section>
+    <div class="snum">§2 / 骨干</div>
+    <h2>把"更顶层更抽象"落成具体物：六类契约</h2>
+    <p class="col">先破误解：<strong>"更抽象"不是画更大的框图，也不是更长的模块说明书。</strong>你 <span class="filetag">design/</span> 下已 ~7700 行文档，"这个模块负责什么"根本不缺。你缺的是<em>可判定的跨模块时序契约</em>——不看 RTL 就能回答"A 在什么条件 stall、flush 时谁清谁保持、这根信号哪拍有效"。这一层在你整个语料里近乎为零。</p>
+    <ul class="col">
+      <li><strong>① 握手协议</strong> <span class="chip part">缺它踩过</span>：valid 到 fire 前不撤回、payload 整拍冻结；ready 可组合依赖 valid，valid 禁组合依赖同级 ready（禁组合环）。→ 坑：FP gate 丢同包 CSR（payload 没整体冻结）。</li>
+      <li><strong>② 反压 / stall</strong>：唯一产生源（freelist 空 / ROB 满 / IQ 满 / SQ 满），传播链是<em>单向 DAG</em>；可停级 vs 不可停在飞级（已发 AXI 不可回退）；stall = 冻结。→ 坑：serialize 五机制涌现死锁，根因就是"谁 stall 谁"从没被冻成无环 DAG。</li>
+      <li><strong>③ flush/redirect "谁清谁保持"表</strong> <span class="chip hard">最该先做</span>：见下表。→ 坑：CoreMark mode=1 那批 redirect bug（untracked-over-flush、cause residual、缺 clear_arch_squash）本质就是这张表没冻结。</li>
+    </ul>
+    <div class="tw"><table>
+      <thead><tr><th>flush 源</th><th>清 <span class="clr">CLEAR</span></th><th>保持 <span class="keep">KEEP</span></th></tr></thead>
+      <tbody>
+        <tr><td>trap / exit</td><td class="clr">fetch FIFO、IQ、全 ROB 在飞、busytable、rename map→arch</td><td class="keep">已 commit 的 arch RF/CSR、SQ 中 committed 未 drain 的 store</td></tr>
+        <tr><td>branch mispredict（ROB-walk）</td><td class="clr">boundary 之后的 ROB/IQ/SQ、回收 freelist</td><td class="keep">boundary 之前全部、SQ committed</td></tr>
+        <tr><td>SQ flush</td><td class="clr">boundary 之后未 commit store</td><td class="keep"><code>snoop_committed</code> 继续 drain</td></tr>
+      </tbody>
+    </table></div>
+    <p class="col">优先级全序（高→低）：<span class="kbd">trap/exit &gt; CSR/xRET &gt; branch mispredict &gt; BPU/RAS 预测重定向 &gt; 顺序 PC</span>。铁律：<em>flush 时 committed store 不得被清</em>、<em>不得 kill 已发 AXI（只能 drain 完）</em>、<em>CSR 写在 commit 拍即架构可见、flush 不能撤</em>。<strong>但注意：这张表最终不该只是"表 + 断言"——见 §3 对它的重构主张。</strong></p>
+    <ul class="col">
+      <li><strong>④ 异常序</strong>：精确异常只在 ROB 队头 retire 拍宣告、年轻全 squash；retire 全序；serialize 指令须成 ROB 唯一在飞项才执行。→ 坑：rv64mi head1 译码 bug（head0 为分支时 head1 不译码→lane1 CSR 漏识别）。</li>
+      <li><strong>⑤ 访存序</strong>：store 只在 commit 后 drain；load 前递须对 older 未 drain store 判 addr_valid + strb 覆盖；<em>任何 store 完成必更新/失效 dcache</em>（跨模块副作用进不变量清单）。→ 坑：cacheable store 跳过 dcache 副作用，younger load 命中 stale。</li>
+      <li><strong>⑥ 投机恢复 / 单一真源</strong>：每个"域/成员关系"必须有单一真源。→ 坑：FP 从域 B 迁域 A 后，5+ 模块旧拦截器还按过期不变量吞 fsflags。</li>
+    </ul>
+    <p class="col"><strong>这六类 + "当 X 必须 Y"的判据，就是"更顶层更抽象"的精确形态</strong>：比框图抽象（不谈实现），比模块说明书具体（每条能转成检查）；跨模块、与内部实现无关，改任一模块时它是护栏。你的 <span class="filetag">SPEC-TEMPLATE.md</span> §2/§3 早给了正确骨架——只是<em>从没被填过一次</em>。</p>
+  </section>
+
+  <section>
+    <div class="snum">§3 / Q1</div>
+    <h2>已长歪的核怎么办：补契约 + 转可执行检查 + 该重写就重写</h2>
+    <p class="col"><strong>不推倒整核。</strong>real workload 全绿（riscv 177/0、CoreMark、linux-mini），推平是巨大负收益。但"要不要重写"<em>不是二元问题</em>——"长歪"的不是整核，是某些子系统的结构本身歪了，这类要<strong>局部重写</strong>。</p>
+    <h3><span class="lead">第一步</span> 把散文契约转成"可执行检查"，别先写新大文档 <span class="chip fix">最高 ROI</span></h3>
+    <p class="col">但<strong>别照 SVA 那套 <code>|-&gt;</code>/<code>$stable</code> 写，你的工具链编不过</strong>（已复核：SVA 命中 0、iverilog 不认并发断言、Verilator 没开 <code>--assert</code>）。能落地的形态是时钟块<em>立即断言</em>：<code>always @(posedge clk) if (违约条件) $error(...);</code>——iverilog 也能跑，module-TB 与全核两个仿真器通吃。接进你已有的 cycle-exact 差分 fuzz 护栏，违反即回退。先落那几条"写明即能防"的。</p>
+    <div class="review" style="background:var(--warn-soft);border-color:color-mix(in srgb,var(--warn) 30%,transparent)">
+      <div class="k" style="color:var(--warn)">但断言不是万能药 · 两种烂法</div>
+      <ul style="margin-bottom:0">
+        <li style="max-width:none"><strong>真空通过（vacuous pass）</strong>：refactor 后前件永不为真，断言永远静默 PASS、零保护却看着像覆盖。<em>写完每条断言，必须故意制造一次违约确认它会响。</em></li>
+        <li style="max-width:none"><strong>同盲区</strong>：spec 若 vague，你只能照着 RTL 写断言——于是断言只是把 RTL 干了啥重述一遍，<em>永远抓不到 RTL 本身错</em>。断言相对文档的唯一真优势是"违约会主动响"，且仅当它非真空、且编码的是<strong>独立于 RTL 的真理</strong>（来自 ISA/金模型）。</li>
+      </ul>
+    </div>
+    <h3><span class="lead">第二步</span> 只审咬过你的三类边界，别普查</h3>
+    <p class="col">两执行域切换（FP 域 B→域 A 的过期拦截器）、LSQ/SQ 交接（store 解耦的 dcache 副作用）、flush 与在飞 LSU 的作用域。拿六类契约对着这些边界的 RTL 逐条问"这条在这里成立吗"。</p>
+    <h3><span class="lead">第三步</span> flush/redirect 子系统该<em>局部重写</em>，不是加张表加个断言 <span class="chip hard">你真正在问的</span></h3>
+    <p class="col">宪法 §7 自认 12 源、5 汇合、无统一优先级链——<strong>这是结构缺陷</strong>。正确的 IC 修法是把 12 个源<em>重构进一个优先编码的单一 redirect 仲裁器</em>：所有源汇进一处，优先编码出 onehot，"同拍不得两源都赢"<strong>由构造保证（true by construction）</strong>。这才是你反复喊的"让非法状态无法表示"的正确应用。而"写优先级表 + 挂断言检测两源都赢"是它的<em>更弱版本</em>——结构上的乱流还在，只是被监视着，下一个 redirect bug 照样在 12 源组合空间里长出来。</p>
+    <p class="col"><strong>判据</strong>：当一个子系统的非法状态空间随源数<em>组合爆炸、且没有单一收敛点</em>时（flush 合流正是），重构成单点仲裁的收益是"这一类 bug 的整个家族从此消失"，远大于"给爆炸空间挂一串抓不全的断言"。反之，边界清晰、状态空间小的地方，加立即断言就够，别镀金重写。</p>
+  </section>
+
+  <section>
+    <div class="snum">§4 / Q2</div>
+    <h2>怎么像 IC 工程师一样思考</h2>
+    <p class="col">核心是<strong>思维顺序的翻转</strong>：从"这个模块要实现什么功能"→"这个模块的边界契约是什么"。逻辑是这些约束的<em>后果</em>，不是起点。加四个每次改 RTL 都做的动作：</p>
+    <ol class="col">
+      <li><strong>先定义接口，再写逻辑。</strong>动手前把边界信号表填满（方向/位宽/时序/复位值 + 握手 + stall 语义 + flush 作用域）。<em>填不出来的地方，就是你还没理解的上下游业务——这时写 RTL 就是在赌。</em>反面教材：<span class="filetag">ooo-fetch-flow-control.md</span> 给了握手方程却声明"不持有任何状态、PC/outstanding 全甩给 parent"——给了合同却把决定握手的状态藏在别处。</li>
+      <li><strong>把每根信号当契约的一方来审。</strong>valid = "我承诺这拍有效且不撤回"，ready = "我承诺能吃下"。每连一根线，问"两端各承诺了什么，谁可能违约"。</li>
+      <li><strong>写逻辑前先答两个问题</strong>——"这个模块什么条件 stall"、"flush 来时清谁保持谁"。你现在是写完 RTL 撞到死锁才被迫回答（serialize 五机制死锁就是这么来的）。IC 工程师<em>先</em>答，答不出就别写逻辑。</li>
+      <li><strong>拒绝"先让它跑起来"。</strong>这是你要戒最深的瘾，你有数据证明代价：核功能会绿，但 bug 藏进涌现交互，然后你花 80–90 轮在被投机/双发 confound 的探针泥潭里查一个"接线全对"的 bug——省下开工半天，赔进 debug 两周。替代：<em>先让非法状态无法表示，再让它跑</em>。</li>
+    </ol>
+    <p class="col">补一条更微妙的：<strong>"先定义接口"不等于"一次定死"</strong>——是"定义到能让两端并行开工的程度，撞出的语义回填契约"。</p>
+  </section>
+
+  <section>
+    <div class="snum">§5 / Q3</div>
+    <h2>怎么像 IC 公司一样解决（穷人版：必做 / 天花板 / 放弃）</h2>
+    <p class="col"><strong>先认天花板</strong>：IC 公司防 bug 靠的是你没有的一整套基建——1:2~1:3 专职 DV 团队、UVM、SVA、覆盖率签核、形式化、回归农场、<em>独立的人做 review</em>。这套里你只握有 difftest vs NEMU。承认覆盖率 / 形式化 / 独立评审三个缺口，比幻想 spec 替你补上重要。</p>
+    <p class="lead-in">必做 · 按 ROI 排</p>
+    <ol class="col">
+      <li><strong>把 rv64ua/uf/ud 加进默认回归。</strong>全篇最真、最便宜、最该今天就做——你近一半涌现 bug 的<em>唯一现实拦截网</em>，现在它们不在回归里 = 这一族零护栏。</li>
+      <li><strong>加深金模型，别另起断言炉灶。</strong>让 NEMU 吐出<em>微架构事件流</em>（按序 retire 的 store/load 地址流、taken 异常 cause 流），difftest 这些事件流而不只对寄存器末态。直接治"300 拍后在无关地方报错"，<em>不碰你的断言难题</em>，是最短的路。</li>
+      <li><strong>覆盖率是必做不是放弃</strong>：Verilator 免费给 line/toggle；更值钱的是手搓 cover-point——回归里到底出现过 <code>flush源 × flush边界</code> 组合没有？对头号病症是"没测到的涌现交互"的单人核，交互矩阵 cover-point 是性价比最高的单一工具。</li>
+      <li><strong>每修一个 bug，把找到它的 fuzz 种子/最小激励固化成命名回归。</strong>配 <code>git bisect</code> 作为涌现 bug 的取证主武器。</li>
+      <li>守住你已有的穷人版：difftest 金模型 + cycle-exact 差分 fuzz + feature-flag 受控迭代（<code>OOO_CSR_QUEUE_HEAD</code> 默认 0）。你已在跑，是补齐不是推翻。</li>
+    </ol>
+    <p class="col"><strong>用 LLM-agent 替代、但必须警惕的：独立评审。</strong>它<em>不独立</em>——和你共享盲区、还爱顺着你。你 memory 里的血债：refute agent 曾 HIGH-confidence 判定"mem_idle 单独足够"且是错的，你不信结论、自作主张加固才引入死锁。<em>这次审查本身就是活样本</em>：我在用一个 LLM 审另一个 LLM，能帮你扩面、戳穿糖衣，但替代不了你缺的那个人类第二意见。用它 refute，但结论一旦 HIGH-confidence，别在它之上自作主张加固。</p>
+    <p class="col"><strong>放弃（对单人教学核是负 ROI）</strong>：完整 UVM、覆盖率签核、穷尽形式化，以及——<em>动手前先写一份 50 页微架构大 spec</em>。给单人核写大 spec 一定漂移，然后骗你。</p>
+  </section>
+
+  <div class="review">
+    <div class="k">§6 / 诚实的反面 · 三坑 · 一上限 · 一份成本账</div>
+    <h2>免得你从"先写 RTL"滑到另一极端"把 spec/断言当圣物"</h2>
+    <ul style="margin-bottom:14px">
+      <li style="max-width:none"><strong>坑一：会撒谎的文档比没有文档更危险。</strong>一旦你宣称"RTL 只跟契约走"，现实逼你打 ECO 那刻文档就开始撒谎，而你会信它。这也是"把契约编码成检查"比"写文档"重要的原因——但别把这句推成"断言不漂移"，断言会真空、会同盲区。</li>
+      <li style="max-width:none"><strong>坑二：冻结了错误的契约，spec 会变成不在场证明。</strong>你会忠实实现一个错误的 flush 语义，bug 躲在"可它符合 spec 啊"背后。解药：<em>spec 只停在"意图 + 不变量"的高度</em>（为什么、什么必须恒成立），不做逐行 RTL 转写；微架构归 RTL 所有。</li>
+      <li style="max-width:none"><strong>坑三："写 RTL 是翻译"推到极端会长出过度设计。</strong>你会 spec 出永远用不到的通用性、什么都参数化。<em>单人核的范围裁剪比通用性值钱得多。</em></li>
+    </ul>
+    <p style="max-width:none"><strong>上限</strong>：单人有硬天花板，spec/断言都补不上——你缺覆盖率、形式化、独立评审三样基建，architecture-first 不是银弹，不会把你变成一支 DV 团队。</p>
+    <p style="max-width:none;margin-bottom:0"><strong>成本账</strong>：把六类契约全写成断言，光 flush 一张表就几十条，每条都要调到非真空，对单人<em>可能是数周</em>；写坏的断言会误报、卡死你的 fuzz 门禁，本身就是新噪声源。<strong>别把"铺三张大表"当"本周动作"——它是中期工程。</strong></p>
+  </div>
+
+  <div class="startbox">
+    <div class="k">§7 / 最小起步动作 · 本周 · 别被宏大流程压垮</div>
+    <h2>只做一件，外加一个当天收尾的探针</h2>
+    <p style="max-width:none"><strong>主动作：把 rv64ua/uf/ud 加进默认回归。</strong>你近一半 bug（涌现族）唯一现实的拦截网，几乎零成本，今天就能合。做完这一件，你的涌现 bug 家族<em>从"零护栏"变成"下次触发当场红"</em>——比写任何文档、任何断言都先值。</p>
+    <p style="max-width:none;margin-bottom:0"><strong>同日探针（30 分钟，决定后面几周方向的可行性）</strong>：全核 build 加 <code>--assert</code>，在某个模块边界写<em>一条</em>立即断言 <code>always @(posedge clk) if (违约) $error(...)</code>，故意制造一次违约确认它会响。这一步<em>不产出任何契约</em>，只回答一个致命问题：你的工具链到底能不能执行"把契约冻成可执行检查"这条路线。跑通了，§3 第一步才有地基；跑不通，就把力气全押到"事件流 difftest + cover-point"这条不依赖断言语言的路上——省下几周押错宝的时间。<strong>三张大表、flush 单一仲裁器重构，都排在这两件之后。别倒过来。</strong></p>
+  </div>
+
+  <footer>
+    <b>方法</b> · 5 路并行（业界流程 ‖ 54-bug 证据审判 ‖ 现有 spec 粒度诊断 ‖ 契约清单 ‖ 诚实反面）→ 综合 → 对抗审查 → 定稿。<br>
+    <b>已复核的硬证据</b> · 全核 SVA 时序算子命中 0、Verilator flags 无 <code>--assert</code>（→ 断言须改立即断言形态）；<span class="filetag">ooo-core-architecture.md</span> C7 宪法自认"≥12 redirect/flush 源、≥5 汇合、无统一优先级链"；<span class="filetag">SPEC-TEMPLATE.md</span> §2/§3 握手/背压/flush 优先级骨架存在但 specs/ 从未填过。<br>
+    <b>诚实上限</b> · "契约缺失是最大一族但占不满一半"；近一半 bug 写再多契约也防不住 → 你缺的主要是强制装置（回归 + 可执行检查 + 加深金模型），不是文档。
+  </footer>
+</div>
