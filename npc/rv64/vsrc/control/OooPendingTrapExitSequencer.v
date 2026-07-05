@@ -53,11 +53,13 @@ module OooPendingTrapExitSequencer (
         // illegal trap。drain 出口的 clear(非 squash)是真实 trap fire 时, 保留 cause/pc 供
         // trap handler 读 scause/sepc(sv39 page fault/ecall)。
         pending_arch_trap_o <= 1'b0;
-        // 仅清 ILLEGAL residual: CoreMark 越过 ret 取到 .text 段尾之后的投机 head decode
-        // illegal(cause=2)被 jr/ret squash 后 cause/pc 残留 → drain_trap_payload 误用。其他
-        // cause(page fault/ecall/load fault)保留 cause/pc, trap handler 仍可读 scause/sepc。
-        if (clear_arch_squash_i &&
-            (pending_trap_cause_o == `EXC_ILLEGAL_INST)) begin
+        // GAP-6 root-cause 修(2026-07-05): 删原 `&& cause==EXC_ILLEGAL_INST` 症状补丁。
+        // squash 的 arch trap 必来自投机 wrong-path, 其 payload 应与 validity 位(上面:55 无条件清)
+        // 一起作废——不论 cause。原 ILLEGAL gate 是当初为 CoreMark ILLEGAL 个案打的补丁, 使非-illegal
+        // wrong-path fetch-fault residual 残留(实测 sv39 boot 触发 cause=12 INST_PAGE_FAULT residual
+        // 7 次) → drain_trap_payload(pc!=0)可误 fire spurious page-fault trap。真实 trap 走非-squash
+        // 的 late_clear / drain-clear 路径(不在 squash 源里), scause/sepc 照旧保留。
+        if (clear_arch_squash_i) begin
           pending_trap_cause_o <= {`TRAP_CAUSE_W{1'b0}};
           pending_trap_pc_o <= {`XLEN{1'b0}};
           pending_trap_tval_o <= {`XLEN{1'b0}};
@@ -88,5 +90,22 @@ module OooPendingTrapExitSequencer (
       end
     end
   end
+
+`ifdef OOO_ASSERT
+  // GAP-6 payload-lifetime 不变量 (flush 契约 §4)：squash 清 arch trap(validity 位:55 无条件归0)
+  // 后, 若同拍无 capture_arch/late_clear 覆写, 下一拍 trap payload(cause/pc/tval)必须全 0——
+  // payload 生命周期须对齐 validity 位。修前(:59-60 有 cause==ILLEGAL gate)非-illegal wrong-path
+  // fetch-fault(page/access/breakpoint) residual 会残留 → 此断言 fire; 删 gate 后恒静默。
+  reg gap6_squash_noload_q;
+  always @(posedge clk)
+    gap6_squash_noload_q <= !rst && clear_arch_i && clear_arch_squash_i &&
+                            !capture_arch_i && !late_clear_i;
+  always @(posedge clk) if (!rst && gap6_squash_noload_q)
+    if ((pending_trap_cause_o !== {`TRAP_CAUSE_W{1'b0}}) ||
+        (pending_trap_pc_o   !== {`XLEN{1'b0}}) ||
+        (pending_trap_tval_o !== {`XLEN{1'b0}}))
+      $error("[FLUSH-CONTRACT GAP-6] squash 清 arch trap 后 payload 残留: cause=%h pc=%h tval=%h @%0t",
+             pending_trap_cause_o, pending_trap_pc_o, pending_trap_tval_o, $time);
+`endif
 
 endmodule

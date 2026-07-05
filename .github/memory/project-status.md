@@ -436,3 +436,11 @@
 - **验证**：全核 build（--assert + +define+OOO_ASSERT）+ 全 riscv 177 + am 全绿、0 误报；make check-contract PASS(4≥4)；baseline `eval/contract-assert-baseline.txt` 1→4。
 - **诚实**：3 条当前都不 fire（核全绿本就该过）——价值是防未来 regression(INV-1)、翻 flag 前置护栏(INV-3)、arbiter 重写后生效(INV-2)，非抓当前 bug。这印证 spec §5.5"活路径承重不变量少"。
 证据见 spec `ooo-flush-redirect-contract.md` §4 + task-run，记忆 [[rv64-architecture-first-reflection]]。
+
+## 2026-07-05 GAP-6 root-cause 修复（flush 契约首个真缺口落地：先证据后修）
+
+诊断三个 flush 结构缺口后，**GAP-6 确认为 confirmed-bug 并修复**。root cause：`OooPendingTrapExitSequencer` squash 时 validity 位(:55)无条件清、但 payload(:59-60)多 gate 了 `cause==EXC_ILLEGAL_INST` → 非-illegal wrong-path fetch-fault residual 残留 → `drain_trap_payload`(pc!=0)可误 fire spurious trap。
+- **先证据后修**：先加 payload-lifetime 立即断言 → **sv39 boot 现有测试 fire 7 次**(cause=12 INST_PAGE_FAULT residual)=从"隐患"升级 confirmed-bug → 删 :59-60 的 `cause==EXC_ILLEGAL_INST`(当初为 CoreMark 个案打的症状补丁)做 root-cause 修(payload 生命周期对齐 validity 位) → sv39 boot 修后 **0 fire**。真 trap 走非-squash drain-clear 保留 scause/sepc。
+- **验证全绿**：module113 + riscv177/0 + am + **CoreMark(0xfcaf GOOD TRAP)**、0 断言误报；`make check-contract` baseline 4→5(GAP-6 断言进 ratchet)。契约 §6 GAP-6 标已修。
+- **剩两缺口**：#111 fence.i(confirmed-bug, high, 主攻, 镜像 sfence.vma 模板)、UC-A(整数 MulDiv 独缺 mispredict-kill 端口=强漏修信号, 照抄 FP kill 范式)。方法学：**先加断言拿证据把隐患升级/证伪，再 root-cause 修**——GAP-6 是范例(sv39 fire 7 次实证)。
+证据见 spec §6/§8 + commit，记忆 [[rv64-architecture-first-reflection]]。
