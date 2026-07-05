@@ -1925,4 +1925,16 @@ module OooFrontend #(
       head0_fp_store_raw_w | head1_fp_double_w | head1_fp_enabled_w |
       head1_fp_gpr_write_w | head1_fp_load_raw_w | head1_fp_store_raw_w;
 
+`ifdef OOO_ASSERT
+  // INV-1 (flush-redirect 契约 §4, GAP-1): untracked 重定向时 mux 落点必选 core_branch_resolve_next_pc。
+  // OooFetchRequestMux:67 untracked 是最高优先档 → 结构保证 redirect_fetch_pc_w==core_branch_resolve_next_pc_w;
+  // 与 seq:268 同源。body 当前恒真, 守 mux 侧「untracked>其他」不被改坏(漏改即 CoreMark 静默卡死)。
+  // 完整跨 mux/seq 两落点比较需 plumb seq:268 RHS, 留作后续。零误报。
+  always @(posedge clk) if (!rst)
+    if (branch_resolve_untracked_redirect_w &&
+        (redirect_fetch_pc_w !== core_branch_resolve_next_pc_w))
+      $error("[FLUSH-CONTRACT INV-1] untracked mux 落点 != core_branch_resolve_next_pc: mux=%h expect=%h @%0t",
+             redirect_fetch_pc_w, core_branch_resolve_next_pc_w, $time);
+`endif
+
 endmodule

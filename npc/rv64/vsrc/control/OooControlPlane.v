@@ -752,5 +752,29 @@ module OooControlPlane #(
     .stop_pending_o(stop_pending_q)
   );
 
+`ifdef OOO_ASSERT
+  // ── 契约 INV-3 (GAP-2 互斥): CSR-commit 队头退休 redirect ⊥ 同拍 younger-branch-mispredict redirect ──
+  // 契约意图(独立于实现, 见 ooo-flush-redirect-contract.md §4/§5.2): head0-CSR 恒在 ROB 队头(age=0, 最老),
+  // 其提交拍 head0_csr_commit_w 驱动 serial_flush + csr 写 + 前端 redirect(架构下条 PC)。任何 younger 分支的
+  // mispredict/resolve redirect 都是更年轻指令的重定向请求。serialize-at-retire 声称二者同拍不可能(younger
+  // 已被 drain), 但这是"未证明的兜底不变量"。断言把它钉成显式护栏: 若同拍两源都请求 → GAP-2 被违反。
+  // 覆盖: 仅 OOO_CSR_QUEUE_HEAD=1 exercise(默认 head0_csr_commit_w≡0, 见 :307-308 + define.v:556)。
+  // 注(忠实性): branch_spec_resolve+restore 与 head0_csr_commit 同拍时, 现状 nonblocking 顺序(:215>:146)
+  //   让 CSR 目标胜出——behavior 当前正确, 但仍违反"co-request 互斥"契约, 属真发现(要么强化 serialize
+  //   drain younger 分支, 要么把不变量降级为 co-steal 读法)。此处按契约忠实编码 co-request 互斥。
+  always @(posedge clk) begin
+    if (!rst && !flush_i && head0_csr_commit_w &&
+        ((branch_spec_resolve_valid_w && branch_spec_restore_w) ||
+         branch_resolve_untracked_w ||
+         pending_branch_commit_resolve_w ||
+         pending_branch_match_clear_w)) begin
+      $error("[FLUSH-CONTRACT INV-3] CSR-commit 与 younger-branch-mispredict 同拍(GAP-2 互斥被违反): spec_restore=%b untracked=%b pend_resolve=%b pend_clear=%b",
+             (branch_spec_resolve_valid_w && branch_spec_restore_w),
+             branch_resolve_untracked_w, pending_branch_commit_resolve_w,
+             pending_branch_match_clear_w);
+      $fatal;
+    end
+  end
+`endif
 
 endmodule

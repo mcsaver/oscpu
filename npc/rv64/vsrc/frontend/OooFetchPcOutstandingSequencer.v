@@ -277,5 +277,42 @@ module OooFetchPcOutstandingSequencer (
     end
   end
 
+`ifdef OOO_ASSERT
+  // INV-2 (flush-redirect 契约 §4): next_fetch_pc_q 各 override 落点同拍至多一个「终态写者」赢。
+  // 依 §2.3 文本优先级(后写覆盖先写): E4(:115) < branch_spec(:137) < else-if 链(:151-255)
+  //   < E3-untracked-over-flush(:263) < E1-csr_trap(:271)。win_x = 本块条件成立且无更高优先
+  //   (文本更后)块覆盖 → 构造上恒 onehot0(优先编码器护栏)。用手工计数(非 $onehot0)保 iverilog
+  //   -g2012 与 Verilator 双端可编译。
+  wire inv2_cond_b_w = direct_frontend_flush_i &&
+        (direct_jal_fire_i || direct_ret_fire_i ||
+         direct_branch_fire_i || direct_jump_spec_fire_i);           // E4 :124
+  wire inv2_cond_c_w = !direct_frontend_flush_i && branch_spec_resolve_valid_i &&
+         branch_spec_restore_i && !core_branch_resolve_misaligned_i; // branch_spec :146
+  wire inv2_cond_d_w =                                               // else-if 链任一臂 :151-255
+         pending_branch_commit_resolve_i ||
+         pending_branch_match_clear_i ||
+         (!direct_frontend_flush_i && branch_resolve_untracked_i) ||
+         (!direct_frontend_flush_i && pending_jump_resolve_ready_i) ||
+         (!direct_frontend_flush_i &&
+          (pending_system_csr_commit_i || head0_csr_commit_i)) ||
+         (!csr_trap_mem_valid_i && !direct_frontend_flush_i && drain_complete_i);
+  wire inv2_cond_e_w = direct_frontend_flush_i && branch_resolve_untracked_i &&
+         !core_branch_resolve_misaligned_i;                          // E3 override :263
+  wire inv2_cond_f_w = csr_trap_mem_valid_i;                         // E1 :271
+  wire inv2_win_f_w = inv2_cond_f_w;
+  wire inv2_win_e_w = inv2_cond_e_w && !inv2_cond_f_w;
+  wire inv2_win_d_w = inv2_cond_d_w && !inv2_cond_e_w && !inv2_cond_f_w;
+  wire inv2_win_c_w = inv2_cond_c_w && !inv2_cond_d_w && !inv2_cond_e_w && !inv2_cond_f_w;
+  wire inv2_win_b_w = inv2_cond_b_w && !inv2_cond_c_w && !inv2_cond_d_w &&
+         !inv2_cond_e_w && !inv2_cond_f_w;
+  wire [2:0] inv2_win_count_w = inv2_win_b_w + inv2_win_c_w + inv2_win_d_w +
+         inv2_win_e_w + inv2_win_f_w;
+  always @(posedge clk) if (!rst) begin
+    if (inv2_win_count_w > 3'd1)
+      $error("[FLUSH-CONTRACT INV-2] 同拍多个 redirect 终态写者赢: b=%b c=%b d=%b e=%b f=%b @%0t",
+             inv2_win_b_w, inv2_win_c_w, inv2_win_d_w, inv2_win_e_w, inv2_win_f_w, $time);
+  end
+`endif
+
 endmodule
 
