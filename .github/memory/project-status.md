@@ -454,3 +454,14 @@ flush 契约诊断确认 UC-A：整数 MulDiv/CLMUL **独缺 mispredict-kill 端
 - **方法学**：A1 生产者身份哨兵=静默数据损坏的通用探测器，先加拿证据把 structural-risk 升 confirmed（同 GAP-6 范式，两次成功）。
 - **剩 #111 fence.i**（confirmed high 主攻，镜像 sfence.vma）待修。
 证据见 spec §6/§8 + task-run，记忆 [[rv64-architecture-first-reflection]]。
+
+## 2026-07-06 fence.i/SMC(#111 #3B) root-cause 修复完成 —— 三个真结构缺口全修完、已知正确性缺口清零
+
+三步"先证据后修"(#111 唯一剩余正确性缺口):
+- **Step A(证据)**: SMC 微测 `am-kernels/tests/cpu-tests/tests/smc-fencei-trigger.c` 实测坐实 confirmed-bug——fence.i 纯译码 no-op(DecodeUnit 不区分 fence/fence.i)、无 flush 无重取 → SMC(运行期自修改代码)静默错执，现有 riscv-tests fence_i/AM fence-i.c 都测不到(它们经 jalr 到达改写码只测 cache 相干、碰不到"陈旧 uop 已在 ROB")。
+- **Step B(12 处 plumbing)**: 镜像 sfence.vma 完整链(classify→pairgate→frontend→coretopglue→controlplane→PendingSystemSequencer capture→commit→mmu_flush)，flag-gate `OOO_FENCEI_TRUE_FLUSH`；flag OFF 全回归零回归(commit 70452523d)。
+- **Step C(验证抓到修复自身 bug→再修)**: flag ON 首验 fence.i redirect 到 **PC=0 卡死**(rv64ui-p-fence_i + smc FAIL)。root cause: **fence.i 该走 SYSTEM+EXEC 路径算 next_pc**(sfence 亦设 CTRL_SYSTEM_BIT+NEED_EXEC，DecodeUnit:712-713)；原照 workflow agent 方案设 CTRL_MISC_MEM 且不设 NEED_EXEC(**agent 误称"sfence 不设 NEED_EXEC"，实际它设了**)→ fence.i 不走 system+exec → next_pc 未算 → redirect 0。修 DecodeUnit fence.i flag ON 分支为 CTRL_SYSTEM_BIT+CTRL_NEED_EXEC_BIT+CTRL_FENCEI_BIT，翻默认 ON(commit 21252d2cb)。
+- **闭环全绿**: smc-fencei-trigger check(==seed+2) PASS + HIT GOOD TRAP + rv64ui-p-fence_i PASS + flag ON 全回归(module113 + riscv177/0 + am + CoreMark 0xfcaf、0 断言误报)。排查回退=注释 define.v 的 `` `define OOO_FENCEI_TRUE_FLUSH ``(回落 Step B 零回归)。
+- **教训**: workflow agent 落实方案可能含事实错误(称 sfence 不设 NEED_EXEC)，落地验证抓到并 root-cause 修——正是"先证据后修 + 迭代验证"的价值。
+
+**三个真结构缺口全部 root-cause 修完**：GAP-6(trap payload 残留，sv39 实证) + UC-A(MulDiv/CLMUL 无 mispredict-kill，clmul 撞号实证) + fence.i/SMC(SMC 静默错执，微测实证)。每个都走完"先证据后修"闭环。**known-issues #111 的唯一剩余正确性缺口 #3B 清零。** 记忆 [[rv64-architecture-first-reflection]] [[rv64core-audit-baseline]]。
