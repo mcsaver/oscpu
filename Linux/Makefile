@@ -12,6 +12,8 @@ BOOT ?= ubuntu-rootfs
 
 LINUX_HOME := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 REPO_ROOT := $(abspath $(LINUX_HOME)/..)
+# 工作区根：通用工具(tool/kconfig 等)定位锚点，独立于 nemu
+YSYX_HOME ?= $(REPO_ROOT)
 ARCH_SPLIT := $(subst -, ,$(ARCH))
 LINUX_ISA := $(word 1,$(ARCH_SPLIT))
 LINUX_PLATFORM := $(word 2,$(ARCH_SPLIT))
@@ -70,8 +72,8 @@ PYTHON ?= $(if $(wildcard $(ENV_ROOT)/tools/python/bin/python3),$(ENV_ROOT)/tool
 DTC ?= dtc
 JOBS ?= $(shell nproc)
 
-KCONFIG_PATH := $(REPO_ROOT)/nemu/tools/kconfig
-FIXDEP_PATH := $(REPO_ROOT)/nemu/tools/fixdep
+KCONFIG_PATH := $(YSYX_HOME)/tool/kconfig
+FIXDEP_PATH := $(YSYX_HOME)/tool/fixdep
 CONF := $(KCONFIG_PATH)/build/conf
 FIXDEP := $(FIXDEP_PATH)/build/fixdep
 LINUX_CONFIG_STAMP := $(NPC_RV64)/.linux-defconfig.stamp

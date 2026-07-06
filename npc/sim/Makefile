@@ -1,6 +1,8 @@
 SIM_HOME := $(abspath .)
 NPC_ROOT ?= $(abspath ..)
 NEMU_HOME ?= $(abspath $(NPC_ROOT)/../nemu)
+# 工作区根：通用工具(tool/kconfig 等)定位锚点，独立于 nemu
+YSYX_HOME ?= $(abspath $(NPC_ROOT)/..)
 DEFAULT_BACKEND := single
 LEGACY_BACKEND_FILE ?= $(NPC_ROOT)/.platform
 SUPPORTED_BACKENDS := single rv64 soc

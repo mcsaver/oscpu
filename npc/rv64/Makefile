@@ -1,5 +1,7 @@
 NPC_HOME := $(abspath .)
 NEMU_HOME ?= $(abspath ../../nemu)
+# 工作区根：通用工具(tool/kconfig 等)定位锚点，独立于 nemu
+YSYX_HOME ?= $(abspath ../..)
 YOSYS_STA_HOME ?= $(abspath ../../yosys-sta)
 OSS_CAD_SUITE_HOME ?= $(abspath ../../oss-cad-suite)
 .DEFAULT_GOAL := default

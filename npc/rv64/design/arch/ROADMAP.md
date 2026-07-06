@@ -4,22 +4,25 @@
 > 优先级 backlog 与专业化工作流。每轮迭代后按"迭代→深度再评估→据此修改"更新。
 > 配套：评估系统 `eval/`，模块规范 `design/specs/`，架构规范 `design/arch/`，文献 `design/literature/`。
 
-最近更新：2026-07-03（对照 RTL 重读真相基线校正 backlog 状态；§1/§3 的性能与规模数字为
-2026-06-28 时点快照，最新现状以 `rtl-ground-truth-2026-07-03.md` 与 `.github/memory/project-status.md` 为准）
+最近更新：2026-07-06（gate 数字/正确性状态/下一步决策同步到当前真相。
+最新现状以 `.github/memory/project-status.md` 为准；`rtl-ground-truth-2026-07-03.md` 是 07-03 时点基线快照）
 
 ---
 
 ## 1. 当前已验证状态（三大 gate 全绿）
 | gate | 结果 | 工具 |
 | --- | --- | --- |
-| 模块 testbench | 112/112 | iverilog |
-| 官方 riscv-tests（默认+特权） | 271/0 | tohost 协议 |
-| AM cpu-tests | 56/56 | ebreak GOOD TRAP |
+| 模块 testbench | 82/82 | iverilog（死硅删除后 TB 数从 112 降至 82） |
+| 官方 riscv-tests（默认+特权） | 355/0 | tohost 协议 |
+| AM cpu-tests | 59/0 | ebreak GOOD TRAP |
 
-性能（AM 全量加权 CPI，含 PMP=真实场景）：**1.5772**（自禁缓存基线 3.7427 累计 **−58%**）。
-真实代码：CoreMark CPI≈1.146(B1 前测；store 解耦后预期下降，待复测)。
+性能（AM 全量加权 CPI，含 PMP=真实场景）：**1.2638**（自禁缓存基线 3.7427 累计 **−66%**）。
+真实代码：CoreMark CPI≈1.23（2026-07 LSQ SQ 切换后 10-iter；F2 收益待 domain-B 拆除变现）。
 
 容量（`include/define.v`）：dual-issue / PRF 64 / ROB 16 / IQ 8 / Fetch FIFO 4。
+**正确性缺口：清零**（fence.i/SMC #111 #3B 已修、翻默认 ON、全绿闭环 2026-07-05）。
+**验证基础设施新增**：redirect 观测层三 checker（`vsrc/debug/`，旁挂零面积；范式见
+`interface-contract-first.instructions.md`「外部抽象状态观测层」节）。
 
 ---
 
@@ -77,13 +80,21 @@
 | B6 | 分支多级 spec checkpoint | 中 | 高 | spec 先行 | 已被 B2 ROB-walk 取代(walk 天然支持多在飞分支，无需 checkpoint) |
 | B7 | **serialize-at-retire（宪法 §8.4 step 4，域 B 拆除最后一步）**：system/trap 改 ROB 队头执行+退休刷 younger，删 stop_pending/drain 机制 | 中(交付质量/CSR 指令延迟) | **高(精确异常/CSR/特权全路径)** | **spec✓**(`serialize-at-retire.md`)；6 阶段(CSR→sfence→ecall/trap→mret/IRQ→删机制)，每阶段 355/0+difftest+Linux smoke | **只读调查完成(2026-07-04)=高风险大重写、走专项**：宪法框定"改标志位语义不变"经证实低估——非 CSR 系统指令今天不进 ROB，副作用由控制面 drain 拍合成→须新建系统指令 ROB 数据通路(~15-20 RTL+~15 TB)。cycle-exact 不适用(改语义守正确性,需 Linux boot smoke=CSR 侧唯一护栏)。详见 spec |
 
-### 下一步决策（自主判断）
-- **B1 实现门控**：访存 store 解耦是 #1 性能杠杆，但触碰访存顺序/response ownership，
-  历史有"读旧值"踩坑，且本环境无 difftest 参考。按 B1 规范 §6 与"干净正解"交付纪律，
-  **先建访存顺序定向 testbench（store→load 同/异地址、flush-during-write、AMO/lrsc 边界）**，
-  再实现解耦；不在无充分验证下仓促落地高风险改动。
-- **可并行先行的低风险项**：B4(文件组织) 与 B3(逐模块 spec) 不改行为/可被 gate 守住，
-  可在 B1 验证准备期穿插推进，持续提升交付质量。
+### 下一步决策（2026-07-06 更新：工具链地基先行 → 再回 domain-B 拆除）
+
+主线卡点已定死：domain-B 拆除最后一步（B7 serialize-at-retire / 翻 `OOO_CSR_QUEUE_HEAD=1`）
+real-workload 已全绿却不敢翻默认——因 **difftest 不比 CSR（盲区）**，CSR/trap 序列化无金标准护栏，
+历史反复栽在此（中间态死锁 / "队头=序安全"不变量腐蚀 / 签名全过但架构错路）。
+**决策：先补 CSR 侧金标准护栏（把 NEMU 的 CSR 做正确、开 CSR difftest 逐 CSR 校），再回来拆 domain-B。**
+（比"观测层断言几条人挑不变量"更根本——补的是全覆盖金标准，不是旁路缓解。）路线（四步）：
+1. ✅ **刷新本 ROADMAP**（本次）。
+2. **Kconfig 通用化**：工具本体现寄生 `nemu/tools/kconfig`（+ 配套 `tools/fixdep`）；npc/{rv64,single,sim,soc}
+   + nemu + Linux 共 6+ 工程经 `$(NEMU_HOME)/tools/kconfig` 反向依赖它。抽到工作区级 `tool/`，
+   改各 `scripts/config.mk` 引用，逐工程验 menuconfig 照常。（通用工具归工作区、不归子工程——依赖方向原则的代码层落地。）
+3. **NEMU CSR 正确性**：补 NEMU 符合语义的 CSR 配置；已有的引**官方测试集**验证 NEMU CSR 正确。
+4. **启用 nemu↔npc CSR difftest**：做到能正确无误逐 CSR 校对——这就是 domain-B 拆除缺的金标准护栏。
+补齐后 B7 / `CSR_QUEUE_HEAD=1` 在 CSR-difftest 守护下推进（不再靠 Linux boot 兜底 CSR 盲区）。
+其它高价值项（load 多 outstanding / dcache word→line 粒度 = CoreMark load miss 47% 根因）护栏就位后择机。
 
 ---
 

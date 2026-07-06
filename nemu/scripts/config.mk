@@ -27,10 +27,12 @@ endif
 
 ##定义变量Q，内容为@，用途：在makefile的命令前加入@(Q)，可以让命令执行时不在终端睡出命令本身
 Q            := @
-##定义变量KCONFIG_PATH，指向NEMU工程下的kconfig目录
-KCONFIG_PATH := $(NEMU_HOME)/tools/kconfig
-##定义变量FIXDEF_PATH，指向NEMU工程下的fixdep目录，fixdep是一个依赖关系处理工具，用于自动生成和修正依赖文件
-FIXDEP_PATH  := $(NEMU_HOME)/tools/fixdep
+##定义变量YSYX_HOME，工作区根：通用配置工具已从 nemu 迁至工作区级 tool/(独立于 nemu，可被 env/上层覆盖)
+YSYX_HOME    ?= $(abspath $(NEMU_HOME)/..)
+##定义变量KCONFIG_PATH，指向工作区通用工具 tool/kconfig 目录
+KCONFIG_PATH := $(YSYX_HOME)/tool/kconfig
+##定义变量FIXDEP_PATH，指向工作区通用工具 tool/fixdep 目录，fixdep是一个依赖关系处理工具，用于自动生成和修正依赖文件
+FIXDEP_PATH  := $(YSYX_HOME)/tool/fixdep
 ##定义变量Kconfig，指向主配置文件Kconfig的路径：此文件描述了可配置项和依赖关系，是menuconfig系统的核心入口
 Kconfig      := $(NEMU_HOME)/Kconfig
 ##作用：把这些路径都追加到rm-distclean变量中：rm-distclean用于distclean目标，表示在执行make distance时要删除的文件和目录（如自动生成的配置和缓存文件）

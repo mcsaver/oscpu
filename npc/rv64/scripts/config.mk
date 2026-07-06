@@ -7,8 +7,8 @@ $(warning $(COLOR_RED)Run 'make default_defconfig' or 'make menuconfig' under $(
 endif
 
 Q := @
-KCONFIG_PATH := $(NEMU_HOME)/tools/kconfig
-FIXDEP_PATH := $(NEMU_HOME)/tools/fixdep
+KCONFIG_PATH := $(YSYX_HOME)/tool/kconfig
+FIXDEP_PATH := $(YSYX_HOME)/tool/fixdep
 Kconfig := $(NPC_HOME)/Kconfig
 rm-distclean += include/generated include/config .config .config.old
 silent := -s
