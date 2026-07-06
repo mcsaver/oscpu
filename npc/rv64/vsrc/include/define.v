@@ -356,10 +356,13 @@
 `define CSR_TDATA1         12'h7a1
 `define CSR_TDATA2         12'h7a2
 `define CSR_TCONTROL       12'h7a5
-// Smrnmi mnstatus(0x744)：riscv-tests 启动码 `csrwi mnstatus,8` 会访问它。金标 NEMU
-// 视其为合法(不 trap)，DUT 此前当未知 CSR → 行为与 NEMU 分歧、且让 difftest 在启动码处
-// 提前 abort（known-issues #106/#107）。这里实现为合法 WARL-zero no-op 以与 NEMU 对齐，
-// 重新启用 difftest 对 riscv-tests 的逐指令校验。本核未实现 NMI，故无功能副作用。
+// Smrnmi mnstatus(0x744)：riscv-tests 启动码 `csrwi mnstatus,8` 会访问它。★2026-07-07 裁决更新:
+// 当前金标 **RV64** NEMU 对 0x744 取 illegal（未实现 Smrnmi，spec-correct: 未实现 CSR 应 illegal）;
+// 旧注释"金标 NEMU 视其合法"是 RV32 时代且已过时。故本核从 known 白名单**移除** MNSTATUS → 落
+// default → csr_illegal_o 拉高，与 RV64 NEMU 对齐。当年被迫加 WARL-zero no-op 是因当时 difftest 无
+// 异常同步（NPC illegal 而 NEMU 合法 → 启动码 abort）; 现 item5 的**自主 trap 恢复**(difftest.cpp)
+// 让两侧同为 illegal 时对齐（NEMU exec 该指令也 illegal → 跳同 handler），且 riscv-tests 启动码有临时
+// mtvec 兜底跳过该 illegal。本核未实现 NMI，故无功能副作用。宏保留仅作地址常量存档。
 `define CSR_MNSTATUS       12'h744
 `define CSR_CYCLE          12'hc00
 `define CSR_TIME           12'hc01
