@@ -9,7 +9,8 @@ import "DPI-C" function void npc_commit_event(
   input longint unsigned next_pc,
   input int unsigned rd_en,
   input int unsigned rd_addr,
-  input longint unsigned rd_data
+  input longint unsigned rd_data,
+  input int unsigned is_fp   // 阶段2 FPR shadow: 该提交是否 FP rd 写(rd_addr/rd_data 复用为 FP addr/结果)
 );
 
 import "DPI-C" function void npc_exit_event(
@@ -941,7 +942,8 @@ module NpcSimTop (
           core_commit0_next_pc_w,
           core_commit0_rd_en_w ? 32'd1 : 32'd0,
           {{(32-`REG_ADDR_W){1'b0}}, core_commit0_rd_addr_w},
-          core_commit0_rd_data_w
+          core_commit0_rd_data_w,
+          u_top.u_core.u_ooo_core.core_commit0_is_fp_rd_w ? 32'd1 : 32'd0
         );
       end
 
@@ -952,7 +954,8 @@ module NpcSimTop (
           core_commit1_next_pc_w,
           core_commit1_rd_en_w ? 32'd1 : 32'd0,
           {{(32-`REG_ADDR_W){1'b0}}, core_commit1_rd_addr_w},
-          core_commit1_rd_data_w
+          core_commit1_rd_data_w,
+          u_top.u_core.u_ooo_core.core_commit1_is_fp_rd_w ? 32'd1 : 32'd0
         );
       end
 
@@ -1104,7 +1107,8 @@ module NpcSimTop (
             u_top.u_core.u_ooo_core.csr_trap_target_w,
             32'd0,
             32'd0,
-            64'd0
+            64'd0,
+            32'd0   // ecall/ebreak 补 commit 非 FP
           );
         end
       end

@@ -58,7 +58,6 @@ static const int kCsrCmpCount = (int)(sizeof(kCsrCmpList) / sizeof(kCsrCmpList[0
 
 // 阶段2 FPR: 本条提交后的 DUT arch FPR 快照 + 延迟比较的暂存 ref FPR。
 static uint64_t g_dut_fpr[NPC_DIFF_FPR_N] = {};
-static uint64_t g_pending_ref_fpr[NPC_DIFF_FPR_N] = {};
 
 void npc_difftest_set_dut_csr(const npc_word_t csr[NPC_DIFF_CSR_N]) {
   memcpy(g_dut_csr, csr, sizeof(g_dut_csr));
@@ -91,7 +90,6 @@ static bool csr_delayed_step(npc_word_t pc, uint32_t inst) {
   // xret(mret/sret) 的 mstatus/priv 更新时序与 csrw(NBA 滞后一拍)不一致, 使「统一滞后一拍」的
   // 延迟比较模型对 xret 那一拍失配(非功能 bug: 测试仍 HIT GOOD)。阶段1 暂跳过 xret 的比较点;
   // 阶段1.5 根本修法 = RTL 暴露 CSR next-state 组合 wire 使 snapshot 精确对齐提交拍。
-  static bool warned_fpr[NPC_DIFF_FPR_N] = {};
   const bool cur_is_xret = (inst == 0x30200073u) || (inst == 0x10200073u);
   if (g_csr_pending && !cur_is_xret) {
     // CSR + priv + fflags/frm(比较列表; mie/mip/mcycle/minstret 阶段3 排除)
@@ -114,24 +112,9 @@ static bool csr_delayed_step(npc_word_t pc, uint32_t inst) {
         ok = false;
       }
     }
-    // 阶段2 FPR(xret 不改 FPR, 但与 CSR 同延迟点一起比; 跳过 xret 拍则下一条验证)
-    if (g_ref_fpr_snapshot) {
-      for (int i = 0; i < NPC_DIFF_FPR_N && (ok || warn_only); ++i) {
-        if (g_pending_ref_fpr[i] != g_dut_fpr[i]) {
-          if (!warn_only || !warned_fpr[i]) {
-            warned_fpr[i] = true;
-            LogBoth("[npc-diff] FPR mismatch at dut commit pc=0x%016" NPC_PRIxWORD " inst=0x%08x",
-                    g_pending_pc, g_pending_inst);
-            LogBoth("[npc-diff] f%d ref=0x%016" PRIx64 " dut=0x%016" PRIx64,
-                    i, g_pending_ref_fpr[i], g_dut_fpr[i]);
-          }
-          ok = false;
-        }
-      }
-    }
+    // 阶段2 FPR 已移到 difftest_step 直接比较(shadow 是 post-K, 非延迟), 此处不再比 FPR。
   }
-  g_ref_csr_snapshot(g_pending_ref_csr);   // 暂存本条 exec 后的 ref CSR/FPR, 待下一条比较
-  if (g_ref_fpr_snapshot) g_ref_fpr_snapshot(g_pending_ref_fpr);
+  g_ref_csr_snapshot(g_pending_ref_csr);   // 暂存本条 exec 后的 ref CSR, 待下一条比较
   g_pending_pc = pc;
   g_pending_inst = inst;
   g_csr_pending = true;
@@ -338,7 +321,6 @@ bool npc_difftest_step(npc_word_t pc, uint32_t inst, npc_word_t next_pc,
     // 刷新延迟 CSR 比较的 pending 为 trap 后 ref CSR, 与 dut handler 首条的(trap 后)CSR 对齐。
     if (g_ref_csr_snapshot) {
       g_ref_csr_snapshot(g_pending_ref_csr);
-      if (g_ref_fpr_snapshot) g_ref_fpr_snapshot(g_pending_ref_fpr);
       g_pending_pc = pc;
       g_pending_inst = inst;
       g_csr_pending = true;
@@ -353,6 +335,27 @@ bool npc_difftest_step(npc_word_t pc, uint32_t inst, npc_word_t next_pc,
       LogBoth("[npc-diff] x%d ref=0x%016" NPC_PRIxWORD " dut=0x%016" NPC_PRIxWORD,
               i, ref.gpr[i], dut.gpr[i]);
       return false;
+    }
+  }
+
+  // 阶段2 FPR: shadow(逐提交精确的 post-K 值)与 ref(exec K 后)【直接比较】——似 GPR shadow, 非
+  // 延迟。shadow 每提交更新自己的 FP rd(双提交 lane0/lane1 各 post 自己), 故 K 的 event.fpr=post-K,
+  // 与 ref post-K 对齐; 直接比即可, 不入 csr_delayed_step(那是给 arch-snapshot 的 post-(K-1) 用的)。
+  if (g_ref_fpr_snapshot) {
+    static const bool fpr_warn = (getenv("NPC_DIFF_CSR_WARN") != nullptr);
+    static bool warned_fpr[NPC_DIFF_FPR_N] = {};
+    uint64_t ref_fpr[NPC_DIFF_FPR_N] = {};
+    g_ref_fpr_snapshot(ref_fpr);
+    for (int i = 0; i < NPC_DIFF_FPR_N; ++i) {
+      if (ref_fpr[i] != g_dut_fpr[i]) {
+        if (!fpr_warn || !warned_fpr[i]) {
+          warned_fpr[i] = true;
+          LogBoth("[npc-diff] FPR mismatch at dut commit pc=0x%016" NPC_PRIxWORD " inst=0x%08x", pc, inst);
+          LogBoth("[npc-diff] f%d ref=0x%016" PRIx64 " dut=0x%016" PRIx64,
+                  i, ref_fpr[i], g_dut_fpr[i]);
+        }
+        if (!fpr_warn) return false;
+      }
     }
   }
 

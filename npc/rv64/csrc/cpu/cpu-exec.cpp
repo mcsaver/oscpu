@@ -106,9 +106,10 @@ static uint64_t    g_recent_debug_count = 0;
 static ExitEvent   g_exit_event   = {};
 static TrapEvent   g_trap_event   = {};
 static npc_word_t  g_shadow_gpr[32] = {};
+static uint64_t    g_shadow_fpr[32] = {};   // 阶段2 FPR shadow: 逐提交精确 FP arch 值(对称 GPR)
 // 全状态 difftest: 本拍 CSR+priv 快照(NpcSimTop 每 commit 拍经 npc_arch_csr_event XMR 更新)。
 static npc_word_t  g_dut_csr_live[NPC_DIFF_CSR_N] = {};
-static uint64_t    g_dut_fpr_live[NPC_DIFF_FPR_N] = {};   // 阶段2: 本拍 arch FPR 快照
+static uint64_t    g_dut_fpr_live[NPC_DIFF_FPR_N] = {};   // 阶段2(旧): arch FPR 快照(改用 shadow 后弃用)
 static bool        g_commit_watch_inited = false;
 static bool        g_commit_watch_enabled = false;
 static npc_word_t  g_commit_watch_start = 0;
@@ -870,9 +871,16 @@ extern "C" void npc_arch_fpr_event(
 }
 
 extern "C" void npc_commit_event(npc_word_t pc, uint32_t inst, npc_word_t next_pc,
-                                 uint32_t rd_en, uint32_t rd_addr, npc_word_t rd_data) {
-  const bool write_rd = (rd_en != 0) && rd_addr > 0 && rd_addr < 32;
-  if (write_rd) {
+                                 uint32_t rd_en, uint32_t rd_addr, npc_word_t rd_data,
+                                 uint32_t is_fp) {
+  // FP 提交不写整数 gpr(rd_en 对 difftest 的整数 gpr 更新, 故 FP 时 write_rd=0)。
+  const bool write_rd = !is_fp && (rd_en != 0) && rd_addr > 0 && rd_addr < 32;
+  if (is_fp) {
+    // 阶段2 FPR shadow: FP 提交的 rd_addr/rd_data 复用为 FP arch addr/结果(OooIntBackend 用同一
+    // commit0_data_o/arch_rd_o 写 arch FPR), 逐提交精确更新 shadow_fpr——对称 GPR shadow, 双提交/
+    // co-issue 时 lane0/lane1 各更新自己的 FP rd, 无「同拍快照看不到另一 lane 写」的中间态污染。
+    if (rd_addr < 32) g_shadow_fpr[rd_addr] = rd_data;
+  } else if (write_rd) {
     g_shadow_gpr[rd_addr] = rd_data;
   }
   g_shadow_gpr[0] = 0;
@@ -1024,7 +1032,7 @@ extern "C" void npc_commit_event(npc_word_t pc, uint32_t inst, npc_word_t next_p
     memcpy(event->gpr_after, g_shadow_gpr, sizeof(event->gpr_after));
     // CSR+priv 快照(本拍值)。CSR 写指令 serialize 单发→双提交里无 CSR 写，两条 CSR 同值。
     memcpy(event->csr, g_dut_csr_live, sizeof(event->csr));
-    memcpy(event->fpr, g_dut_fpr_live, sizeof(event->fpr));   // 阶段2: arch FPR 快照
+    memcpy(event->fpr, g_shadow_fpr, sizeof(event->fpr));   // 阶段2 FPR shadow(逐提交精确, 抗 co-issue)
     remember_commit_event(event);
   }
 }
