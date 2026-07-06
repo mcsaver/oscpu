@@ -5,6 +5,9 @@ __pycache__/
 *.py[cod]
 *oss-cad-suite/
 *jcs/
+
+# yosys-sta：本地 STA 流程目录（result/、日志、bin/、pdk/ 等生成物），作为本地工具目录不纳入 Git 跟踪。
+/yosys-sta/
 am-kernels/build/regression/
 npc/single/.config
 npc/single/.config.old
