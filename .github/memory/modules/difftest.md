@@ -2,6 +2,22 @@
 
 ## 当前状态
 <!-- DiffTest 配置与通过情况 -->
+- 2026-07-06: **RV64 difftest 全状态扩展 阶段2/3/4 落地(commit 199aeebbc + d67754c3b)**。**阶段2 FPR**:
+  独立通道(对称 CSR)——NEMU `difftest_fpr_snapshot(fpr[32])` + NPC 每 commit 拍 XMR 读 arch FPR(深路径
+  `u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_fp_backend.arch_fprs_flat_w`,
+  32 scalar DPI)+ 延迟一拍比较。★验证: 全套 rv64uf/rv64ud FP 计算 FPR 误报=0(含双提交 FP,全 TOHOST PASS),
+  fp-difftest-probe 注入分歧被正确抓。**阶段3 掩码**: 比较改 `kCsrCmpList` 选择性索引=确定性 CSR[0..16]
+  + fflags/frm 纳入; mie/mip/mcycle/minstret 排除。**阶段1.5**: 确认 skip-xret 是正确处理(xret 的 CSR
+  效果在下一条验证), 非临时缓解。**阶段4 中断同步**: NPC 取异步中断(csr_trap_irq)补报 `npc_handled_trap_event`
+  kind=2 → cpu-exec 登记 pending → difftest.cpp【集成进自主 trap 恢复】: control-flow mismatch 时若 NPC
+  报了中断则让 NEMU `difftest_raise_intr(mcause)`(NPC 主导时刻)否则 exec faulting——统一处理异常(faulting
+  不 commit)+中断(异步指令边界取)。**验证**: 4 个异步中断(plic-sirq/uart-plic-sirq/sbi-timer/sbi-ipi-reset-hsm)
+  从 ABORT → HIT GOOD; 全套 AM 全状态 difftest **GOOD 51→56**(阶段1→item5→阶段4)。剩 3 ABORT:
+  fp-difftest-probe(故意 probe 预期 abort)+ counteren-time/misa-priv(counter/misa 读值 GPR 分歧, golden
+  guard 暴露的真分歧逐个修 backlog)。非-difftest core-regress overall_rc=0 无回归。★**CSR golden guard
+  暴露真分歧 backlog**: CSR 0x744(mnstatus/Smrnmi)——NEMU 取 illegal trap、NPC 不取(NPC 未实现 CSR 的
+  illegal 检测缺口, 阻 riscv-tests difftest); counter/misa 读值差异。这些是全状态 difftest 作为持续
+  golden guard 的产出。
 - 2026-07-06: **misalign 策略对齐 + difftest 自主 trap 恢复(commit 0a399a878)**。消除 sv39-xpage-misalign
   的 NPC↔NEMU 发散。**(1) NEMU 普通 load/store misaligned 也 fault**(对齐 NPC 硬件 LSUControl 的 addr%size):
   rv64i.c `exec_rv64i_load/store` 入口按 `len=1<<(funct3&3)` 查 `addr%len` → CAUSE_LOAD/STORE_MISALIGNED
