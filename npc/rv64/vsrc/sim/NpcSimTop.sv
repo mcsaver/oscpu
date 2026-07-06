@@ -19,6 +19,19 @@ import "DPI-C" function void npc_exit_event(
   input longint unsigned pc
 );
 
+// 全状态 difftest: 每 commit 拍 XMR 读 CsrFile 的 CSR+priv 快照(23 槽, 索引约定见 difftest.h)。
+// 用 23 个 scalar 参数(scalar 传递自动 4→2 state 转换; unpacked array DPI 的 shape 匹配过严)。
+import "DPI-C" function void npc_arch_csr_event(
+  input longint unsigned c0,  input longint unsigned c1,  input longint unsigned c2,
+  input longint unsigned c3,  input longint unsigned c4,  input longint unsigned c5,
+  input longint unsigned c6,  input longint unsigned c7,  input longint unsigned c8,
+  input longint unsigned c9,  input longint unsigned c10, input longint unsigned c11,
+  input longint unsigned c12, input longint unsigned c13, input longint unsigned c14,
+  input longint unsigned c15, input longint unsigned c16, input longint unsigned c17,
+  input longint unsigned c18, input longint unsigned c19, input longint unsigned c20,
+  input longint unsigned c21, input longint unsigned c22
+);
+
 import "DPI-C" function void npc_mmio_load_event();
 import "DPI-C" function void npc_trap_event(
   input int unsigned cause,
@@ -807,6 +820,33 @@ module NpcSimTop (
     end
   end
 
+  // 全状态 difftest: XMR 从 CsrFile 汇聚 CSR+priv 到 23 槽快照(索引与 difftest.h/NEMU dut.c 一致)。
+  // 阶段1 比较 [0,17): 确定性 CSR + priv; 17..22(mie/mip/mcycle/minstret/fflags/frm)先填不比。
+  wire [63:0] diff_csr_snap [0:22];
+  assign diff_csr_snap[0]  = u_top.u_core.u_csr_file.csr_mstatus_q;
+  assign diff_csr_snap[1]  = u_top.u_core.u_csr_file.csr_mepc_q;
+  assign diff_csr_snap[2]  = u_top.u_core.u_csr_file.csr_mcause_q;
+  assign diff_csr_snap[3]  = u_top.u_core.u_csr_file.csr_mtvec_q;
+  assign diff_csr_snap[4]  = u_top.u_core.u_csr_file.csr_mtval_q;
+  assign diff_csr_snap[5]  = u_top.u_core.u_csr_file.csr_mscratch_q;
+  assign diff_csr_snap[6]  = u_top.u_core.u_csr_file.csr_sepc_q;
+  assign diff_csr_snap[7]  = u_top.u_core.u_csr_file.csr_scause_q;
+  assign diff_csr_snap[8]  = u_top.u_core.u_csr_file.csr_stvec_q;
+  assign diff_csr_snap[9]  = u_top.u_core.u_csr_file.csr_stval_q;
+  assign diff_csr_snap[10] = u_top.u_core.u_csr_file.csr_sscratch_q;
+  assign diff_csr_snap[11] = u_top.u_core.u_csr_file.csr_medeleg_q;
+  assign diff_csr_snap[12] = u_top.u_core.u_csr_file.csr_mideleg_q;
+  assign diff_csr_snap[13] = u_top.u_core.u_csr_file.csr_satp_q;
+  assign diff_csr_snap[14] = u_top.u_core.u_csr_file.csr_mcounteren_q;
+  assign diff_csr_snap[15] = u_top.u_core.u_csr_file.csr_scounteren_q;
+  assign diff_csr_snap[16] = {62'b0, u_top.u_core.u_csr_file.priv_mode_q};
+  assign diff_csr_snap[17] = u_top.u_core.u_csr_file.csr_mie_q;
+  assign diff_csr_snap[18] = u_top.u_core.u_csr_file.csr_mip_visible_w;
+  assign diff_csr_snap[19] = u_top.u_core.u_csr_file.csr_mcycle_q;
+  assign diff_csr_snap[20] = u_top.u_core.u_csr_file.csr_minstret_q;
+  assign diff_csr_snap[21] = {59'b0, u_top.u_core.u_csr_file.csr_fflags_q};
+  assign diff_csr_snap[22] = {61'b0, u_top.u_core.u_csr_file.csr_frm_q};
+
   // 仿真事件仍集中在顶层；真实 PMEM/MMIO 请求已经下沉到 AxiDpiSlave。
   always_ff @(posedge clk) begin
     if (rst) begin
@@ -849,6 +889,15 @@ module NpcSimTop (
           uart_access_rdata_w
         );
       end
+
+      // 全状态 difftest: 每拍把 CSR+priv 快照送宿主(commit 处理时快照进 event)。
+      npc_arch_csr_event(
+        diff_csr_snap[0],  diff_csr_snap[1],  diff_csr_snap[2],  diff_csr_snap[3],
+        diff_csr_snap[4],  diff_csr_snap[5],  diff_csr_snap[6],  diff_csr_snap[7],
+        diff_csr_snap[8],  diff_csr_snap[9],  diff_csr_snap[10], diff_csr_snap[11],
+        diff_csr_snap[12], diff_csr_snap[13], diff_csr_snap[14], diff_csr_snap[15],
+        diff_csr_snap[16], diff_csr_snap[17], diff_csr_snap[18], diff_csr_snap[19],
+        diff_csr_snap[20], diff_csr_snap[21], diff_csr_snap[22]);
 
       // commit/trap/exit 只作为仿真事件推给宿主侧，避免把宽调试总线做成 Verilator 顶层 IO。
       if (core_commit0_valid_w && !core_commit0_exception_w) begin

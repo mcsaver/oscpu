@@ -40,3 +40,32 @@ bool isa_difftest_checkregs(CPU_state *ref_r, vaddr_t pc) {
 
 void isa_difftest_attach() {
 }
+
+// 全状态 difftest 扩展：CSR + priv 扁平化到 buf。★索引约定必须与 NPC difftest.cpp 完全一致。
+// 阶段1 比较 0..16(确定性 CSR + priv); 17+ 先填但暂不比(mie/mip=阶段3中断, mcycle/minstret=
+// 阶段3计数掩码, fflags/frm=阶段2随 FPR)。buf 至少 32 word。
+void isa_difftest_csr_snapshot(uint64_t *buf) {
+  buf[0]  = cpu.csr.mstatus;
+  buf[1]  = cpu.csr.mepc;
+  buf[2]  = cpu.csr.mcause;
+  buf[3]  = cpu.csr.mtvec;
+  buf[4]  = cpu.csr.mtval;
+  buf[5]  = cpu.csr.mscratch;
+  buf[6]  = cpu.csr.sepc;
+  buf[7]  = cpu.csr.scause;
+  buf[8]  = cpu.csr.stvec;
+  buf[9]  = cpu.csr.stval;
+  buf[10] = cpu.csr.sscratch;
+  buf[11] = cpu.csr.medeleg;
+  buf[12] = cpu.csr.mideleg;
+  buf[13] = cpu.csr.satp;
+  buf[14] = cpu.csr.mcounteren;
+  buf[15] = cpu.csr.scounteren;
+  buf[16] = cpu.priv;
+  buf[17] = cpu.csr.mie;
+  buf[18] = cpu.csr.mip;
+  buf[19] = cpu.csr.mcycle;
+  buf[20] = cpu.csr.minstret;
+  buf[21] = cpu.csr.fflags;
+  buf[22] = cpu.csr.frm;
+}

@@ -48,6 +48,13 @@ __EXPORT void difftest_regcpy(void *dut, bool direction) {
   }
 }
 
+#if defined(CONFIG_ISA_riscv)
+// 全状态 difftest 扩展：旁路通道拷 CSR + priv(不动 regcpy 的 gpr+pc memcpy, 分阶段友好)。
+__EXPORT void difftest_csr_snapshot(void *buf) {
+  isa_difftest_csr_snapshot((uint64_t *)buf);
+}
+#endif
+
 __EXPORT void difftest_exec(uint64_t n) {
   cpu_exec(n);
 }

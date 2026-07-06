@@ -57,6 +57,7 @@ struct CommitEvent {
   uint32_t rd_addr;
   npc_word_t rd_data;
   npc_word_t gpr_after[32];
+  npc_word_t csr[NPC_DIFF_CSR_N];   // 全状态 difftest: 本条提交后的 CSR+priv 快照
 };
 
 struct ExitEvent {
@@ -104,6 +105,8 @@ static uint64_t    g_recent_debug_count = 0;
 static ExitEvent   g_exit_event   = {};
 static TrapEvent   g_trap_event   = {};
 static npc_word_t  g_shadow_gpr[32] = {};
+// 全状态 difftest: 本拍 CSR+priv 快照(NpcSimTop 每 commit 拍经 npc_arch_csr_event XMR 更新)。
+static npc_word_t  g_dut_csr_live[NPC_DIFF_CSR_N] = {};
 static bool        g_commit_watch_inited = false;
 static bool        g_commit_watch_enabled = false;
 static npc_word_t  g_commit_watch_start = 0;
@@ -836,6 +839,20 @@ static void remember_debug_cycle(void) {
   ++g_recent_debug_count;
 }
 
+// 全状态 difftest: NpcSimTop 每 commit 拍 XMR 读 CsrFile → 更新本拍 CSR+priv 快照。
+// 索引约定见 difftest.h/NEMU dut.c。commit event 填充时快照进 event->csr。
+extern "C" void npc_arch_csr_event(
+    npc_word_t c0, npc_word_t c1, npc_word_t c2, npc_word_t c3, npc_word_t c4,
+    npc_word_t c5, npc_word_t c6, npc_word_t c7, npc_word_t c8, npc_word_t c9,
+    npc_word_t c10, npc_word_t c11, npc_word_t c12, npc_word_t c13, npc_word_t c14,
+    npc_word_t c15, npc_word_t c16, npc_word_t c17, npc_word_t c18, npc_word_t c19,
+    npc_word_t c20, npc_word_t c21, npc_word_t c22) {
+  const npc_word_t v[NPC_DIFF_CSR_N] = {
+      c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11,
+      c12, c13, c14, c15, c16, c17, c18, c19, c20, c21, c22};
+  for (int i = 0; i < NPC_DIFF_CSR_N; ++i) g_dut_csr_live[i] = v[i];
+}
+
 extern "C" void npc_commit_event(npc_word_t pc, uint32_t inst, npc_word_t next_pc,
                                  uint32_t rd_en, uint32_t rd_addr, npc_word_t rd_data) {
   const bool write_rd = (rd_en != 0) && rd_addr > 0 && rd_addr < 32;
@@ -989,6 +1006,8 @@ extern "C" void npc_commit_event(npc_word_t pc, uint32_t inst, npc_word_t next_p
     event->rd_data = rd_data;
     // 双提交时每条事件都保留“该条提交后”的 GPR 快照，避免 lane0 被 lane1 的未来写回污染。
     memcpy(event->gpr_after, g_shadow_gpr, sizeof(event->gpr_after));
+    // CSR+priv 快照(本拍值)。CSR 写指令 serialize 单发→双提交里无 CSR 写，两条 CSR 同值。
+    memcpy(event->csr, g_dut_csr_live, sizeof(event->csr));
     remember_commit_event(event);
   }
 }
@@ -2222,6 +2241,7 @@ int npc_cpu_exec(uint64_t max_instructions) {
         trace_commit(event);
 #if CONFIG_NPC_DIFFTEST
         if (npc_difftest_enabled()) {
+          npc_difftest_set_dut_csr(event.csr);   // 全状态: 注入本条提交后的 CSR+priv
           if (!npc_difftest_step(event.pc, event.inst,
                                  event.next_pc, event.gpr_after,
                                  event.rd_en, event.rd_addr,

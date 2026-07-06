@@ -62,5 +62,8 @@ word_t isa_query_intr();
 // difftest
 bool isa_difftest_checkregs(CPU_state *ref_r, vaddr_t pc);
 void isa_difftest_attach();
+// 全状态 difftest 扩展：按固定索引把 CSR + priv 扁平化到 buf(解耦 struct 布局)。
+// 索引约定见 src/isa/riscv64/difftest/dut.c 与 NPC 侧 difftest.cpp(两侧必须一致)。
+void isa_difftest_csr_snapshot(uint64_t *buf);
 
 #endif
