@@ -58,6 +58,7 @@ struct CommitEvent {
   npc_word_t rd_data;
   npc_word_t gpr_after[32];
   npc_word_t csr[NPC_DIFF_CSR_N];   // 全状态 difftest: 本条提交后的 CSR+priv 快照
+  uint64_t   fpr[NPC_DIFF_FPR_N];   // 阶段2: 本条提交后的 arch FPR 快照
 };
 
 struct ExitEvent {
@@ -107,6 +108,7 @@ static TrapEvent   g_trap_event   = {};
 static npc_word_t  g_shadow_gpr[32] = {};
 // 全状态 difftest: 本拍 CSR+priv 快照(NpcSimTop 每 commit 拍经 npc_arch_csr_event XMR 更新)。
 static npc_word_t  g_dut_csr_live[NPC_DIFF_CSR_N] = {};
+static uint64_t    g_dut_fpr_live[NPC_DIFF_FPR_N] = {};   // 阶段2: 本拍 arch FPR 快照
 static bool        g_commit_watch_inited = false;
 static bool        g_commit_watch_enabled = false;
 static npc_word_t  g_commit_watch_start = 0;
@@ -853,6 +855,20 @@ extern "C" void npc_arch_csr_event(
   for (int i = 0; i < NPC_DIFF_CSR_N; ++i) g_dut_csr_live[i] = v[i];
 }
 
+// 阶段2: NpcSimTop 每 commit 拍 XMR 读 arch FPR(32×64bit)→更新本拍 FPR 快照(32 scalar, 对称 CSR)。
+extern "C" void npc_arch_fpr_event(
+    uint64_t f0, uint64_t f1, uint64_t f2, uint64_t f3, uint64_t f4, uint64_t f5,
+    uint64_t f6, uint64_t f7, uint64_t f8, uint64_t f9, uint64_t f10, uint64_t f11,
+    uint64_t f12, uint64_t f13, uint64_t f14, uint64_t f15, uint64_t f16, uint64_t f17,
+    uint64_t f18, uint64_t f19, uint64_t f20, uint64_t f21, uint64_t f22, uint64_t f23,
+    uint64_t f24, uint64_t f25, uint64_t f26, uint64_t f27, uint64_t f28, uint64_t f29,
+    uint64_t f30, uint64_t f31) {
+  const uint64_t v[NPC_DIFF_FPR_N] = {
+      f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15,
+      f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30, f31};
+  for (int i = 0; i < NPC_DIFF_FPR_N; ++i) g_dut_fpr_live[i] = v[i];
+}
+
 extern "C" void npc_commit_event(npc_word_t pc, uint32_t inst, npc_word_t next_pc,
                                  uint32_t rd_en, uint32_t rd_addr, npc_word_t rd_data) {
   const bool write_rd = (rd_en != 0) && rd_addr > 0 && rd_addr < 32;
@@ -1008,6 +1024,7 @@ extern "C" void npc_commit_event(npc_word_t pc, uint32_t inst, npc_word_t next_p
     memcpy(event->gpr_after, g_shadow_gpr, sizeof(event->gpr_after));
     // CSR+priv 快照(本拍值)。CSR 写指令 serialize 单发→双提交里无 CSR 写，两条 CSR 同值。
     memcpy(event->csr, g_dut_csr_live, sizeof(event->csr));
+    memcpy(event->fpr, g_dut_fpr_live, sizeof(event->fpr));   // 阶段2: arch FPR 快照
     remember_commit_event(event);
   }
 }
@@ -2242,6 +2259,7 @@ int npc_cpu_exec(uint64_t max_instructions) {
 #if CONFIG_NPC_DIFFTEST
         if (npc_difftest_enabled()) {
           npc_difftest_set_dut_csr(event.csr);   // 全状态: 注入本条提交后的 CSR+priv
+          npc_difftest_set_dut_fpr(event.fpr);   // 阶段2: 注入本条提交后的 arch FPR
           if (!npc_difftest_step(event.pc, event.inst,
                                  event.next_pc, event.gpr_after,
                                  event.rd_en, event.rd_addr,

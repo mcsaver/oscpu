@@ -53,6 +53,9 @@ __EXPORT void difftest_regcpy(void *dut, bool direction) {
 __EXPORT void difftest_csr_snapshot(void *buf) {
   isa_difftest_csr_snapshot((uint64_t *)buf);
 }
+__EXPORT void difftest_fpr_snapshot(void *buf) {
+  isa_difftest_fpr_snapshot((uint64_t *)buf);
+}
 #endif
 
 __EXPORT void difftest_exec(uint64_t n) {

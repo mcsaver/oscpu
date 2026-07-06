@@ -32,6 +32,21 @@ import "DPI-C" function void npc_arch_csr_event(
   input longint unsigned c21, input longint unsigned c22
 );
 
+// 阶段2: 每 commit 拍 XMR 读 arch FPR(32×64bit) 快照(32 scalar, 对称 CSR)。
+import "DPI-C" function void npc_arch_fpr_event(
+  input longint unsigned f0,  input longint unsigned f1,  input longint unsigned f2,
+  input longint unsigned f3,  input longint unsigned f4,  input longint unsigned f5,
+  input longint unsigned f6,  input longint unsigned f7,  input longint unsigned f8,
+  input longint unsigned f9,  input longint unsigned f10, input longint unsigned f11,
+  input longint unsigned f12, input longint unsigned f13, input longint unsigned f14,
+  input longint unsigned f15, input longint unsigned f16, input longint unsigned f17,
+  input longint unsigned f18, input longint unsigned f19, input longint unsigned f20,
+  input longint unsigned f21, input longint unsigned f22, input longint unsigned f23,
+  input longint unsigned f24, input longint unsigned f25, input longint unsigned f26,
+  input longint unsigned f27, input longint unsigned f28, input longint unsigned f29,
+  input longint unsigned f30, input longint unsigned f31
+);
+
 import "DPI-C" function void npc_mmio_load_event();
 import "DPI-C" function void npc_trap_event(
   input int unsigned cause,
@@ -847,6 +862,16 @@ module NpcSimTop (
   assign diff_csr_snap[21] = {59'b0, u_top.u_core.u_csr_file.csr_fflags_q};
   assign diff_csr_snap[22] = {61'b0, u_top.u_core.u_csr_file.csr_frm_q};
 
+  // 阶段2: XMR 汇聚 arch FPR(32×64bit)。深路径到 OooFpBackend 的 arch_fprs_flat_w。
+  wire [63:0] diff_fpr_snap [0:31];
+  genvar fpr_gi;
+  generate
+    for (fpr_gi = 0; fpr_gi < 32; fpr_gi = fpr_gi + 1) begin : g_diff_fpr_snap
+      assign diff_fpr_snap[fpr_gi] =
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_fp_backend.arch_fprs_flat_w[fpr_gi*64 +: 64];
+    end
+  endgenerate
+
   // 仿真事件仍集中在顶层；真实 PMEM/MMIO 请求已经下沉到 AxiDpiSlave。
   always_ff @(posedge clk) begin
     if (rst) begin
@@ -898,6 +923,15 @@ module NpcSimTop (
         diff_csr_snap[12], diff_csr_snap[13], diff_csr_snap[14], diff_csr_snap[15],
         diff_csr_snap[16], diff_csr_snap[17], diff_csr_snap[18], diff_csr_snap[19],
         diff_csr_snap[20], diff_csr_snap[21], diff_csr_snap[22]);
+      npc_arch_fpr_event(
+        diff_fpr_snap[0],  diff_fpr_snap[1],  diff_fpr_snap[2],  diff_fpr_snap[3],
+        diff_fpr_snap[4],  diff_fpr_snap[5],  diff_fpr_snap[6],  diff_fpr_snap[7],
+        diff_fpr_snap[8],  diff_fpr_snap[9],  diff_fpr_snap[10], diff_fpr_snap[11],
+        diff_fpr_snap[12], diff_fpr_snap[13], diff_fpr_snap[14], diff_fpr_snap[15],
+        diff_fpr_snap[16], diff_fpr_snap[17], diff_fpr_snap[18], diff_fpr_snap[19],
+        diff_fpr_snap[20], diff_fpr_snap[21], diff_fpr_snap[22], diff_fpr_snap[23],
+        diff_fpr_snap[24], diff_fpr_snap[25], diff_fpr_snap[26], diff_fpr_snap[27],
+        diff_fpr_snap[28], diff_fpr_snap[29], diff_fpr_snap[30], diff_fpr_snap[31]);
 
       // commit/trap/exit 只作为仿真事件推给宿主侧，避免把宽调试总线做成 Verilator 顶层 IO。
       if (core_commit0_valid_w && !core_commit0_exception_w) begin

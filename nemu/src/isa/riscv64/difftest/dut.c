@@ -69,3 +69,7 @@ void isa_difftest_csr_snapshot(uint64_t *buf) {
   buf[21] = cpu.csr.fflags;
   buf[22] = cpu.csr.frm;
 }
+
+void isa_difftest_fpr_snapshot(uint64_t *buf) {
+  for (int i = 0; i < 32; i++) buf[i] = cpu.fpr[i];
+}
