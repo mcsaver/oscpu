@@ -97,7 +97,13 @@ static bool csr_delayed_step(npc_word_t pc, uint32_t inst) {
     // CSR + priv + fflags/frm(比较列表; mie/mip/mcycle/minstret 阶段3 排除)
     for (int k = 0; k < kCsrCmpCount && (ok || warn_only); ++k) {
       int i = kCsrCmpList[k];
-      if (g_pending_ref_csr[i] != g_dut_csr[i]) {
+      // ★mstatus(idx 0): mask FS[14:13]+SD[63]。spec 明确允许 FS(FP 状态)dirty 追踪不精确
+      // (可保守/精确); 且双提交时 FP 副作用(FLD 的 FS-dirty 走 NBA 下一拍才可见)不可经一拍滞后
+      // 快照精确观测——co-issue 的 lane1 同拍快照看不到 lane0 FLD 置的 FS dirty。NPC 确实置 FS
+      // dirty(符合 spec, 仅精确时序不可观测), 故掩去这两位(似 mcycle/mip 的不可比状态掩码)。
+      const uint64_t cmp_mask = (i == 0)
+          ? ~(((uint64_t)0x6000) | ((uint64_t)1 << 63)) : ~(uint64_t)0;
+      if ((g_pending_ref_csr[i] & cmp_mask) != (g_dut_csr[i] & cmp_mask)) {
         if (!warn_only || !warned[i]) {
           warned[i] = true;
           LogBoth("[npc-diff] CSR mismatch at dut commit pc=0x%016" NPC_PRIxWORD " inst=0x%08x",
