@@ -1095,4 +1095,42 @@ module NpcSimTop (
 `undef RDSEQ_XMR2
 `endif
 
+  // ─────────────────────────────────────────────────────────────────────────────────────────
+  // §5 三层观测模型 ② 层: Sv39 HW-managed A/D 更新(Svadu)观测 checker(数据+取指双桥)。
+  // XMR 从 u_top.u_core.u_ooo_{fetch,mem}_bridge.* 连入两桥的 walker + PTE 写信号。
+  // 通用单桥模块实例化两次: 取指桥 ALLOW_D=0(只置 A) / 数据桥 ALLOW_D=1(置 A/D)。见 ooo-sv39-hw-ad-update.md §5。
+  // ─────────────────────────────────────────────────────────────────────────────────────────
+`ifdef OOO_ASSERT
+`define ADF_XMR u_top.u_core.u_ooo_fetch_bridge
+  OooAdUpdateChecker #(.ALLOW_D(1'b0)) u_ooo_fetch_adupd_checker (
+    .clk            (clk),
+    .rst            (rst),
+    .state_i        (`ADF_XMR.state_q),
+    .rvalid_i       (`ADF_XMR.ifu_axi_rvalid_i),
+    .rdata_i        (`ADF_XMR.ifu_axi_rdata_i),
+    .awvalid_i      (`ADF_XMR.ifu_axi_awvalid_o),
+    .awaddr_i       (`ADF_XMR.ifu_axi_awaddr_o),
+    .wvalid_i       (`ADF_XMR.ifu_axi_wvalid_o),
+    .wstrb_i        (`ADF_XMR.ifu_axi_wstrb_o),
+    .walk_pte_addr_i(`ADF_XMR.walk_pte_addr_w),
+    .ad_pte_i       (`ADF_XMR.ad_pte_q)
+  );
+`undef ADF_XMR
+`define ADM_XMR u_top.u_core.u_ooo_mem_bridge
+  OooAdUpdateChecker #(.ALLOW_D(1'b1)) u_ooo_mem_adupd_checker (
+    .clk            (clk),
+    .rst            (rst),
+    .state_i        (`ADM_XMR.state_q),
+    .rvalid_i       (`ADM_XMR.lsu_axi_rvalid_i),
+    .rdata_i        (`ADM_XMR.lsu_axi_rdata_i),
+    .awvalid_i      (`ADM_XMR.lsu_axi_awvalid_o),
+    .awaddr_i       (`ADM_XMR.lsu_axi_awaddr_o),
+    .wvalid_i       (`ADM_XMR.lsu_axi_wvalid_o),
+    .wstrb_i        (`ADM_XMR.lsu_axi_wstrb_o),
+    .walk_pte_addr_i(`ADM_XMR.walk_pte_addr_w),
+    .ad_pte_i       (`ADM_XMR.ad_pte_q)
+  );
+`undef ADM_XMR
+`endif
+
 endmodule

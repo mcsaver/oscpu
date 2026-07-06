@@ -93,5 +93,14 @@ bresp OK 后**用 ad_pte_q 填 TLB** + 接**续流**（复用 leaf-OK 的 probe 
         82/82(两桥 TB 双绿) + lint 0 警告。
       - ★教训: RTL 契约变更必须同步更新编码旧契约的模块 TB, 且**验证须含 module-testbench**(否则如
         数据侧那样带 TB 回归静默落地)。
-- [ ] OooAdUpdateChecker 观测层守护(数据+取指双桥)
+- [x] **OooAdUpdateChecker 观测层守护(数据+取指双桥)**（2026-07-06 落地并验证）
+      - 通用单桥 checker(`vsrc/debug/OooAdUpdateChecker.sv`), NpcSimTop XMR 双实例化(取指 ALLOW_D=0 /
+        数据 ALLOW_D=1), filelist.mk 登记进 SIM_TOP_SRCS(DCE 零面积)。5 不变量: 写地址==walk_pte_addr /
+        ad_pte^orig 只改 bit6/7 / A 位必置 / 取指绝不改 D / wstrb 全置。orig leaf PTE 由观测 S_WALK_R 末拍
+        rdata 锁存。断言 `$error`+`$fatal`(对齐 redirect checker 风格)。
+      - **★非真空已验**(sv39-ad-bits, 临时探针): 两桥**双双命中**真实 A/D 更新且全不变量成立——
+        取指桥 orig=..000f(A=0)→ad_pte=..004f(仅+A), awaddr==walk_pte_addr=0x80001010;
+        数据桥 orig=..004f(D=0)→ad_pte=..00cf(仅+D), awaddr==walk_pte_addr=0x80001ff0。
+        **证明取指侧 inst A=0 更新确被 sv39-ad-bits 行使**(非假想路径)。
+      - **验证全绿**: core-regress overall_rc=0(checker 激活下 153/0 + AM + module TB 全静默) + lint 0 警告。
 - [ ] NEMU difftest 验 A/D 对齐(需 DIFFTEST=y + NEMU ref)
