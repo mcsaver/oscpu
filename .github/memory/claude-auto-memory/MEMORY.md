@@ -23,3 +23,4 @@
 - [ace-sim project](ace-sim-project.md) — 用户自研活动驱动周期级体系结构仿真器(C++20,ace-sim/,与rv64核无关);V1顺序+V2乱序+V3 LSQ+V4投机各经对抗审查;睡眠安全律(+HOL死锁+漏唤醒backing两推论);**已完成 npc 对齐模块化重构=11 RTL式模块+CpuTop,每步差分fuzz数字不变护栏**;engineering.md
 - [rv64 architecture-first 元反思](rv64-architecture-first-reflection.md) — 缺的是强制装置非文档;"接口契约先行"非"datasheet先行";flush是结构缺陷该单点仲裁器重写(true by construction);断言须立即断言形态(SVA命中0);本周最小起步=rv64ua入回归+--assert探针
 - [Workspace artifacts not tool-dir](workspace-artifacts-not-tool-dir.md) — 有长期价值的产物/工具/记忆放 git 工作区，不只留 ~/.claude/ 工具目录(跨平台/换工具即丢);落点 task-runs/*/tools + claude-auto-memory 镜像
+- [Encoding zero-area + debug two-tier](encoding-zero-area-debug-two-tier.md) — 编码≈面积中性→值得性是软件工程非PPA;debug两分类物理归属(sim checker vs OS-visible IP);真FSM vs组合仲裁判据;权威文档 ooo-debug-observability-architecture.md

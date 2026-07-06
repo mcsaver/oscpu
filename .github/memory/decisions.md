@@ -17,6 +17,15 @@
 
 ## 架构决策
 
+### [39] 编码/状态机化 ≈ 面积中性 → Debug 两分类 + 状态机编码值得性判据
+
+- **日期**: 2026-07-06
+- **状态**: 已决定（方案层），未落地
+- **上下文**: 从"把 flush 契约断言内嵌进可综合 `.v` 是否违背'底层可综合核 / 顶层仿真核'分离理念"的质疑出发，讨论把控制状态编码化的成本效益。用户担忧全核状态编码 = 大改 + 增面积功耗 + 无性能收益。
+- **决策**: 三点。① **编码 ≈ 面积中性**: 纯组合仲裁的编码是重命名（综合 flatten + 布尔优化消掉中间 wire / encode-decode 对，门级网表逐门一致，EDA 自动解决）; 真 FSM 的状态编码不增寄存器（信息量守恒前提，`fsm_recode` 自动权衡 binary/one-hot）; 悬空 debug 端口被 DCE（可慷慨引出，例化不接 = 零面积）。故"是否值得"不是 PPA 问题，而是"重构工作量 + 重写引 bug 风险 ⟷ 可读/可维护/可验证收益"的软件工程问题。② **Debug 两分类，物理归属不同**: (1) 符合 spec 的 FSM 转移验证接口 → `.sv` checker → `SIM_TOP_SRCS`（DCE 零面积）; (2) 开放给 OS 的内部信号 → 可综合 debug IP（RISC-V Debug Module/HPM/trace）→ `RTL_CORE_SRCS`（面积必要）。③ **状态机编码值得性判据**: 第一刀 = 真 FSM（跨拍转移）vs 无记忆组合仲裁——后者只配 observability 投影，不做状态机化; 值得编码的是"真 FSM + 非法态致命 + 多 reg 交织 + 跨模块共享 + 持续演进/反复出 bug"的热点。
+- **理由**: 编码零面积论证把面积从天平移除，使决策清晰化。两分类避免把仿真验证信号误塞进硅。判据防止把 architecture-first 误读成"全核强制编码"（那才是用户担忧的大改 + 无收益）。
+- **影响**: 后续 debug/observability 落地按 `npc/rv64/design/specs/ooo-debug-observability-architecture.md`; `interface-contract-first.instructions.md` 将补端口约定 + 判据（只规范真 FSM 热点，非全核强制）。关键 caveat: **Moore/Mealy 一致性**（状态机化勿改 cycle 行为，difftest 会抓）; **零面积重命名 ⊥ 非法态收紧**是张力（分清哪块拿零面积、哪块拿 bug-prevention）。`redirect_status` 探索已回滚（redirect 是无记忆组合仲裁、非 FSM，选错样板；枚举设计记档备将来 observability 重建）。本决策的前半段（GAP-3/7 内嵌断言落地、baseline 7→9、回归全绿恒静默）属 flush GAP 收口延续，见 project-status。
+
 ### [38] rv64 核采用 architecture-first（接口/控制契约先行），缺口主要是"强制装置"而非文档
 
 - **日期**: 2026-07-05

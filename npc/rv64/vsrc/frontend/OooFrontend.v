@@ -1939,6 +1939,16 @@ module OooFrontend #(
         (redirect_fetch_pc_w !== core_branch_resolve_next_pc_w))
       $error("[FLUSH-CONTRACT INV-1] untracked mux 落点 != core_branch_resolve_next_pc: mux=%h expect=%h @%0t",
              redirect_fetch_pc_w, core_branch_resolve_next_pc_w, $time);
+
+  // GAP-3 (flush-redirect 契约 §4): mux 的 direct 重定向必蕴含 FE 的 direct_frontend_flush。
+  // 二者同拍不一致时, 本拍 fetch_req 被 mux 重定向而 sequencer 未 latch next_fetch / 未 reset
+  // outstanding → 两落点(fetch_req vs next_fetch)分叉。direct_redirect_fetch_w(:179)/
+  // direct_frontend_flush_w(:176)已同 scope, 零 plumbing。当前恒静默(两 direct 定义差集
+  // branch1 vs pending_jump* 结构对齐、恒不同拍); 制造违约=复活 tie-0 的
+  // pending_jump_nolink_commit/redirect_after_dispatch 而漏同步进 FrontendActionGate → fire。
+  always @(posedge clk) if (!rst)
+    if (direct_redirect_fetch_w && !direct_frontend_flush_w)
+      $error("[FLUSH-CONTRACT GAP-3] mux direct_redirect_fetch 置位而 FE direct_frontend_flush 未置位: fetch_req 被 mux 重定向但 sequencer 未 latch next_fetch/未 reset outstanding -> 两落点分叉 @%0t", $time);
 `endif
 
 endmodule

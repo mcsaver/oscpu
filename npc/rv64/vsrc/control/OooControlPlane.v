@@ -787,4 +787,33 @@ module OooControlPlane #(
   end
 `endif
 
+`ifdef OOO_ASSERT
+  // ── 契约 INV-7 (GAP-7): stop_pending head0-system SET 谓词 单一真源护栏 ──
+  // stop_pending 的 head0-system SET 臂(OooStopPendingSequencer.v:130-134)与 arbiter 授予
+  // pending-system 队头所有权(OooPendingDispatchArbiter.v:158-164 → pending_system_capture_head0_o)
+  // 是同一"队头 system 需停 younger"谓词的两处人工镜像(GAP-7: 无单一真源, 易漂移)。
+  // 不变量(subset): arbiter 授予队头 system 所有权 ⟹ sequencer 必 arm head0-system SET 前件。
+  // 任一侧改 capture_base 4 项 / irq|fault|arch|exit 门控而另一侧漏改, 即 fire。
+  // 反向不作等价: sequencer 亦为 illegal-CSR 与 flag=1 队头化 CSR arm stop, 由 sibling channel
+  //   拥有, 非 capture_head0, 故仅断 subset(oracle 比 capture_head0 宽松, capture_head0⟹oracle 恒真)。
+  // oracle 是契约的第三份独立拷贝, 与两侧 RTL 交叉核对(§4/§5.7 防同盲区)。
+  wire inv7_seq_head0_system_set_w =
+      !csr_trap_mem_valid_w && !direct_frontend_flush_w &&
+      can_run_w && fifo_has_packet_w &&
+      !csr_irq_pending_w && !head_fetch_fault0_w &&
+      !dispatch0_arch_trap_w && !dispatch0_exit_w &&
+      dispatch0_system_w;
+  always @(posedge clk) begin
+    if (!rst && !flush_i &&
+        pending_system_capture_head0_w && !inv7_seq_head0_system_set_w) begin
+      $error("[FLUSH-CONTRACT INV-7] arbiter 授予 head0-system 队头所有权 但 sequencer 未 arm stop_pending SET 前件(GAP-7 SET 谓词两处镜像漂移): capture_head0=1 seq_set=%b [csr_trap=%b dflush=%b can_run=%b fifo=%b irq=%b fault0=%b arch=%b exit=%b sys=%b]",
+             inv7_seq_head0_system_set_w,
+             csr_trap_mem_valid_w, direct_frontend_flush_w, can_run_w,
+             fifo_has_packet_w, csr_irq_pending_w, head_fetch_fault0_w,
+             dispatch0_arch_trap_w, dispatch0_exit_w, dispatch0_system_w);
+      $fatal;
+    end
+  end
+`endif
+
 endmodule
