@@ -158,6 +158,11 @@ static inline void fp_load_trace_after_load(uint32_t funct3, int rd,
 
 static inline bool exec_rvf_load(uint32_t funct3, int rd, word_t addr) {
   if (!fp_state_enabled()) return false;
+  // 对齐 NPC: FP load misaligned → CAUSE_LOAD_MISALIGNED(flw=4B/fld=8B, len=1<<funct3)。
+  if (funct3 == 0x2 || funct3 == 0x3) {
+    word_t len = (word_t)1 << funct3;
+    if (addr & (len - 1)) { vaddr_set_fault(CAUSE_LOAD_MISALIGNED, addr); return true; }
+  }
   switch (funct3) {
 #ifdef CONFIG_RISCV_EXT_F
     case 0x2: { // flw
@@ -185,6 +190,11 @@ static inline bool exec_rvf_load(uint32_t funct3, int rd, word_t addr) {
 }
 static inline bool exec_rvf_store(uint32_t funct3, word_t addr, int rs2) {
   if (!fp_state_enabled()) return false;
+  // 对齐 NPC: FP store misaligned → CAUSE_STORE_MISALIGNED(fsw=4B/fsd=8B)。
+  if (funct3 == 0x2 || funct3 == 0x3) {
+    word_t len = (word_t)1 << funct3;
+    if (addr & (len - 1)) { vaddr_set_fault(CAUSE_STORE_MISALIGNED, addr); return true; }
+  }
   switch (funct3) {
 #ifdef CONFIG_RISCV_EXT_F
     case 0x2: // fsw

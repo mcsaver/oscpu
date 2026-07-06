@@ -37,6 +37,14 @@ static inline bool exec_rv64i_op_imm(uint32_t inst, int rd, word_t src1) {
 }
 
 static inline bool exec_rv64i_load(uint32_t funct3, int rd, word_t addr) {
+  // NPC 硬件对 misaligned 普通 load 取 fault(LSUControl 按 size 检查 addr 低位)。NEMU 原透明
+  // 处理 → difftest 发散。此处对齐: len = 1<<(funct3&3)(lb/lbu=1,lh/lhu=2,lw/lwu=4,ld=8),
+  // addr%len!=0 → CAUSE_LOAD_MISALIGNED(tval=addr)。AMO 自查、页表 walk 走 dcache_peek 不受影响。
+  int len = 1 << (funct3 & 0x3);
+  if (addr & (word_t)(len - 1)) {
+    vaddr_set_fault(CAUSE_LOAD_MISALIGNED, addr);
+    return true;
+  }
   word_t val = 0;
   switch (funct3) {
     case 0x0:
@@ -78,6 +86,12 @@ static inline bool exec_rv64i_load(uint32_t funct3, int rd, word_t addr) {
 }
 
 static inline bool exec_rv64i_store(uint32_t funct3, word_t addr, word_t data) {
+  // 对齐 NPC: misaligned 普通 store → CAUSE_STORE_MISALIGNED(见 exec_rv64i_load 注释)。
+  int len = 1 << (funct3 & 0x3);
+  if (addr & (word_t)(len - 1)) {
+    vaddr_set_fault(CAUSE_STORE_MISALIGNED, addr);
+    return true;
+  }
   switch (funct3) {
     case 0x0: Mw(addr, 1, data); return true; // sb
     case 0x1: Mw(addr, 2, data); return true; // sh

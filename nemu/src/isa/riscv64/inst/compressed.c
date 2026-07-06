@@ -206,7 +206,7 @@ static inline bool exec_rv64c(Decode *s, uint16_t inst) {
           }
           return true;
         case 0x6: // c.sw
-          Mw(R(C_RS1(inst)) + c_imm_lw_sw(inst), 4, R(C_RS2(inst)));
+          exec_rv64i_store(0x2, R(C_RS1(inst)) + c_imm_lw_sw(inst), R(C_RS2(inst)));
           return true;
         case 0x5: // c.fsd
           if (!ISDEF(CONFIG_RISCV_EXT_D) ||
@@ -216,7 +216,7 @@ static inline bool exec_rv64c(Decode *s, uint16_t inst) {
           return true;
         case 0x7: // c.sd
           if (!ISDEF(CONFIG_ISA64)) BAD_DECODE();
-          Mw(R(C_RS1(inst)) + c_imm_ld_sd(inst), 8, R(C_RS2(inst)));
+          exec_rv64i_store(0x3, R(C_RS1(inst)) + c_imm_ld_sd(inst), R(C_RS2(inst)));
           return true;
         default:
           BAD_DECODE();
@@ -348,7 +348,7 @@ static inline bool exec_rv64c(Decode *s, uint16_t inst) {
           }
           return true;
         case 0x6: // c.swsp
-          Mw(R(2) + c_imm_swsp(inst), 4, R(rs2));
+          exec_rv64i_store(0x2, R(2) + c_imm_swsp(inst), R(rs2));
           return true;
         case 0x5: // c.fsdsp
           if (!ISDEF(CONFIG_RISCV_EXT_D) ||
@@ -358,7 +358,7 @@ static inline bool exec_rv64c(Decode *s, uint16_t inst) {
           return true;
         case 0x7: // c.sdsp
           if (!ISDEF(CONFIG_ISA64)) BAD_DECODE();
-          Mw(R(2) + c_imm_sdsp(inst), 8, R(rs2));
+          exec_rv64i_store(0x3, R(2) + c_imm_sdsp(inst), R(rs2));
           return true;
         default:
           BAD_DECODE();

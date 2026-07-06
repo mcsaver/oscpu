@@ -260,9 +260,27 @@ bool npc_difftest_step(npc_word_t pc, uint32_t inst, npc_word_t next_pc,
   DiffContext ref_pre = {};
   g_ref_regcpy(&ref_pre, DIFFTEST_TO_DUT);
   if (ref_pre.pc != pc) {
-    LogBoth("[npc-diff] control-flow mismatch: dut commit pc=0x%016" NPC_PRIxWORD
-            " inst=0x%08x, ref expects pc=0x%016" NPC_PRIxWORD, pc, inst, ref_pre.pc);
-    return false;
+    // ★自主 trap 恢复: NPC 的 exception faulting 指令【不 commit】(直接 trap 到 handler)→ difftest
+    // 收不到它、NEMU 尚未执行 → dut 的 handler 首条 commit 与 NEMU 停在 faulting 指令处失配。
+    // 让 NEMU exec(1) 执行 faulting 指令: 若它同样 fault, NEMU 也 trap 到同一 handler(pc), 对齐;
+    // 否则(NEMU 未 fault, pc 仍不符)才是真 mismatch。通用处理任意 NPC 同步异常(misalign/page/
+    // access/illegal)——faulting 指令的存在与 handler 入口由 dut commit 流隐式给出。
+    g_ref_exec(1);
+    DiffContext ref_retry = {};
+    g_ref_regcpy(&ref_retry, DIFFTEST_TO_DUT);
+    if (ref_retry.pc != pc) {
+      LogBoth("[npc-diff] control-flow mismatch: dut commit pc=0x%016" NPC_PRIxWORD
+              " inst=0x%08x, ref expects pc=0x%016" NPC_PRIxWORD, pc, inst, ref_pre.pc);
+      return false;
+    }
+    // NEMU 也 trap 到 handler(pc)。faulting 指令的 trap 已改 mepc/mcause/mstatus/priv/tval →
+    // 刷新延迟 CSR 比较的 pending 为 trap 后 ref CSR, 与 dut handler 首条的(trap 后)CSR 对齐。
+    if (g_ref_csr_snapshot) {
+      g_ref_csr_snapshot(g_pending_ref_csr);
+      g_pending_pc = pc;
+      g_pending_inst = inst;
+      g_csr_pending = true;
+    }
   }
   g_ref_exec(1);
   DiffContext ref = {};
