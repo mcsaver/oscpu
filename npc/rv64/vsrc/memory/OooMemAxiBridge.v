@@ -63,6 +63,9 @@ module OooMemAxiBridge (
   localparam [3:0] S_WRITE_REQ = 4'd5;
   localparam [3:0] S_WRITE_RESP = 4'd6;
   localparam [3:0] S_RESP = 4'd7;
+  localparam [3:0] S_AD_UPDATE = 4'd8;   // HW A/D: 写回 leaf PTE 置 A(D)位, 再续原访问
+  localparam [`XLEN-1:0] PTE_A_BIT = {{(`XLEN-7){1'b0}}, 7'h40};  // bit 6 (Accessed)
+  localparam [`XLEN-1:0] PTE_D_BIT = {{(`XLEN-8){1'b0}}, 8'h80};  // bit 7 (Dirty)
   // 【LSQ Phase2+3】8KB(2^10×8B)直映对 CoreMark 工作集 miss 率 47.6%——
   // 容量拉到 32KB(2^12), miss 流转 hit 流(hit 已 1 req/拍 back-to-back)。
   localparam DCACHE_INDEX_W = 12;
@@ -77,6 +80,7 @@ module OooMemAxiBridge (
   reg [43:0] walk_ppn_q;
   reg [`XLEN-1:0] addr_q;
   reg [`XLEN-1:0] paddr_q;
+  reg [`XLEN-1:0] ad_pte_q;    // HW A/D: 置位后的 leaf PTE(供 S_AD_UPDATE 写 + TLB 填)
   reg [`XLEN-1:0] wdata_q;
   reg [`STRB_W-1:0] wstrb_q;
   reg [`XLEN-1:0] rsp_rdata_q;
@@ -221,17 +225,26 @@ module OooMemAxiBridge (
     end
   endfunction
 
+  // HW A/D(Svadu, 对齐 NEMU): 权限 fault 只含真权限(R/W/X、U/S、MXR/SUM)。
+  // A/D 缺失不再 fault, 改由 walker S_AD_UPDATE 写回 PTE 置位(见 data_ad_update_needed)。
   function data_permission_fault;
     input [`XLEN-1:0] pte;
     input write_access;
     input [1:0] priv_mode;
     input [`XLEN-1:0] status;
     begin
-      // 权限判断拆成纯组合 helper，保持 MXR/SUM/U 与 Sv39 A/D 位语义。
       data_permission_fault =
           (write_access ? !pte[2] : !data_read_ok(pte, status)) ||
-          !data_user_ok(pte, priv_mode, status) ||
-          !pte[6] || (write_access && !pte[7]);
+          !data_user_ok(pte, priv_mode, status);
+    end
+  endfunction
+
+  // A/D 需 HW 更新: 真权限已过但 A=0(任意访问)或 D=0(store)。
+  function data_ad_update_needed;
+    input [`XLEN-1:0] pte;
+    input write_access;
+    begin
+      data_ad_update_needed = !pte[6] || (write_access && !pte[7]);
     end
   endfunction
 
@@ -297,7 +310,13 @@ module OooMemAxiBridge (
       (pte_reserved_fault(req_dtlb_pte_w, svpbmt_en_i) ||
        data_permission_fault(req_dtlb_pte_w, req_write_w, req_priv_w,
                              mstatus_i));
-  wire req_dtlb_hit_w = req_dtlb_context_hit_w && !req_dtlb_perm_fault_w;
+  // HW A/D: TLB 命中项若 A/D 不足(如 load 填的 A=1/D=0 项被 store 命中)→ 视为 miss,
+  // 走 walk 触发 S_AD_UPDATE 置位后重填。TLB 命中仅当真权限过 且 A/D 已足。
+  wire req_dtlb_ad_needed_w =
+      req_dtlb_context_hit_w && !req_dtlb_perm_fault_w &&
+      data_ad_update_needed(req_dtlb_pte_w, req_write_w);
+  wire req_dtlb_hit_w =
+      req_dtlb_context_hit_w && !req_dtlb_perm_fault_w && !req_dtlb_ad_needed_w;
   wire [`XLEN-1:0] req_cache_addr_w =
       req_dtlb_hit_w ? req_translated_paddr_w : req_addr_w;
   wire req_pmp_fault_raw_w;
@@ -324,7 +343,7 @@ module OooMemAxiBridge (
   wire [`XLEN-1:0] walk_leaf_dcache_data_w;
   wire write_paddr_virtio_blk_w =
       ((paddr_q & `NPC_AXI_VIRTIO_BLK_MASK) == `NPC_AXI_VIRTIO_BLK_BASE);
-  wire dtlb_fill_valid_w =
+  wire dtlb_leaf_ok_w =
       (state_q == S_WALK_R) && lsu_axi_rvalid_i &&
       (lsu_axi_rresp_i == 2'b00) &&
       !pte_invalid(lsu_axi_rdata_i) &&
@@ -333,6 +352,14 @@ module OooMemAxiBridge (
       !superpage_misaligned(lsu_axi_rdata_i, walk_level_q) &&
       !data_permission_fault(lsu_axi_rdata_i, write_q, access_priv_q,
                              mstatus_i);
+  wire walk_ad_needed_w = data_ad_update_needed(lsu_axi_rdata_i, write_q);
+  // A/D 写回 B 完成拍(bresp OK): 用 ad_pte_q 填 TLB(A/D 已置)+ 续原访问。
+  wire ad_update_b_ok_w =
+      (state_q == S_AD_UPDATE) && lsu_axi_bvalid_i && (lsu_axi_bresp_i == 2'b00);
+  // 无需更新 → S_WALK_R 填原始 PTE(A/D 已足); 需更新 → 待 S_AD_UPDATE 写完填 ad_pte_q。
+  wire dtlb_fill_valid_w = (dtlb_leaf_ok_w && !walk_ad_needed_w) || ad_update_b_ok_w;
+  wire [`XLEN-1:0] dtlb_fill_pte_w =
+      ad_update_b_ok_w ? ad_pte_q : lsu_axi_rdata_i;
   wire dcache_read_fill_valid_w =
       !cpu_kill_w && (state_q == S_READ_DATA) && lsu_axi_rvalid_i &&
       (lsu_axi_rresp_i == 2'b00) && !read_cross_q;
@@ -345,7 +372,8 @@ module OooMemAxiBridge (
   wire dcache_store_commit_w =
       ((state_q == S_WRITE_RESP) && lsu_axi_bvalid_i &&
        (lsu_axi_bresp_i == 2'b00)) ||
-      store_decouple_commit_w;
+      store_decouple_commit_w ||
+      ad_update_b_ok_w;   // HW A/D: PTE 写回也维护 dcache(否则读 PTE 得 stale A/D, rv64si-dirty 破)
 
   OooSv39Tlb #(
     .INDEX_W(DTLB_INDEX_W)
@@ -363,7 +391,7 @@ module OooMemAxiBridge (
     .fill_valid_i(dtlb_fill_valid_w),
     .fill_vaddr_i(addr_q),
     .fill_satp_i(satp_i),
-    .fill_pte_i(lsu_axi_rdata_i),
+    .fill_pte_i(dtlb_fill_pte_w),
     .fill_level_i(walk_level_q)
   );
 
@@ -430,9 +458,10 @@ module OooMemAxiBridge (
     // LSQ Phase 1：去掉核弹式全失效（原恒 1），改由 dcache 按 store 真实字节区间对
     // {store_idx-1,idx,+1} 三邻域精确失效/合并（byte-window 模型下等价保持 store→load 可见性）。
     .store_invalidate_all_i(1'b0),
-    .store_addr_i(paddr_q),
-    .store_data_i(wdata_q),
-    .store_wstrb_i(wstrb_q)
+    // HW A/D: PTE 写回拍(ad_update_b_ok_w)对 PTE 地址维护 dcache; 否则用 store 地址。
+    .store_addr_i(ad_update_b_ok_w ? walk_pte_addr_w : paddr_q),
+    .store_data_i(ad_update_b_ok_w ? ad_pte_q : wdata_q),
+    .store_wstrb_i(ad_update_b_ok_w ? {`STRB_W{1'b1}} : wstrb_q)
   );
 
   assign mem0_req_ready_o = req_slot_ready_w;
@@ -465,17 +494,23 @@ module OooMemAxiBridge (
   assign lsu_axi_rready_o = (state_q == S_WALK_R) || (state_q == S_READ_DATA);
   wire write_drain_w =
       drop_rsp_q || (flush_i && (aw_done_q || w_done_q));
+  // HW A/D: S_AD_UPDATE 复用写通道写回 leaf PTE(awaddr=PTE 地址, wdata=置位 PTE, wstrb=全 8B),
+  // 写必达(不受 cpu_kill 门控; flush 由 FSM 完成写后 drop, 幂等)。
   assign lsu_axi_awvalid_o =
-      (state_q == S_WRITE_REQ) && !aw_done_q &&
-      (!cpu_kill_w || write_drain_w || nokill_q);
-  assign lsu_axi_awaddr_o = paddr_q;
+      ((state_q == S_WRITE_REQ) && !aw_done_q &&
+       (!cpu_kill_w || write_drain_w || nokill_q)) ||
+      ((state_q == S_AD_UPDATE) && !aw_done_q);
+  assign lsu_axi_awaddr_o =
+      (state_q == S_AD_UPDATE) ? walk_pte_addr_w : paddr_q;
   assign lsu_axi_wvalid_o =
-      (state_q == S_WRITE_REQ) && !w_done_q &&
-      (!cpu_kill_w || write_drain_w || nokill_q);
-  assign lsu_axi_wdata_o = wdata_q;
-  assign lsu_axi_wstrb_o = wstrb_q;
-  // 解耦 store 的 B 由跟踪器吸收：bpend_q 期间持续拉 bready。
-  assign lsu_axi_bready_o = (state_q == S_WRITE_RESP) || bpend_q;
+      ((state_q == S_WRITE_REQ) && !w_done_q &&
+       (!cpu_kill_w || write_drain_w || nokill_q)) ||
+      ((state_q == S_AD_UPDATE) && !w_done_q);
+  assign lsu_axi_wdata_o = (state_q == S_AD_UPDATE) ? ad_pte_q : wdata_q;
+  assign lsu_axi_wstrb_o = (state_q == S_AD_UPDATE) ? {`STRB_W{1'b1}} : wstrb_q;
+  // 解耦 store 的 B 由跟踪器吸收：bpend_q 期间持续拉 bready。S_AD_UPDATE 也收 B。
+  assign lsu_axi_bready_o =
+      (state_q == S_WRITE_RESP) || bpend_q || (state_q == S_AD_UPDATE);
   // 仅 PMEM store 可提前完成(bresp 恒 OK)；!bpend_q 保证至多一个未收 B。
   wire store_decouple_w =
       ((paddr_q & `NPC_AXI_PMEM_MASK) == `NPC_AXI_PMEM_BASE) && !bpend_q;
@@ -544,6 +579,7 @@ module OooMemAxiBridge (
       walk_ppn_q <= 44'd0;
       addr_q <= {`XLEN{1'b0}};
       paddr_q <= {`XLEN{1'b0}};
+      ad_pte_q <= {`XLEN{1'b0}};
       read_cross_q <= 1'b0;
       wdata_q <= {`XLEN{1'b0}};
       wstrb_q <= {`STRB_W{1'b0}};
@@ -620,6 +656,21 @@ module OooMemAxiBridge (
           end
         end
 
+        S_AD_UPDATE: begin
+          // A/D 写必达: 完成 AW/W + 吸收 B 后 drop(不续访问; re-exec 幂等重走)。
+          if (aw_fire_w) aw_done_q <= 1'b1;
+          if (w_fire_w) w_done_q <= 1'b1;
+          if ((aw_done_q || aw_fire_w) && (w_done_q || w_fire_w) &&
+              lsu_axi_bvalid_i) begin
+            aw_done_q <= 1'b0;
+            w_done_q <= 1'b0;
+            drop_rsp_q <= 1'b0;
+            state_q <= S_IDLE;
+          end else begin
+            drop_rsp_q <= 1'b1;
+          end
+        end
+
         S_RESP: begin
           state_q <= S_IDLE;
           aw_done_q <= 1'b0;
@@ -681,6 +732,14 @@ module OooMemAxiBridge (
                 rsp_error_q <= 1'b1;
                 rsp_page_fault_q <= 1'b0;
                 state_q <= S_RESP;
+              end else if (walk_ad_needed_w) begin
+                // HW A/D: 真权限过但 A/D 不足 → 写回置位 PTE(S_AD_UPDATE), B 后再续访问。
+                ad_pte_q <= lsu_axi_rdata_i | PTE_A_BIT |
+                            (write_q ? PTE_D_BIT : {`XLEN{1'b0}});
+                paddr_q <= walk_leaf_paddr_w;
+                aw_done_q <= 1'b0;
+                w_done_q <= 1'b0;
+                state_q <= S_AD_UPDATE;
               end else begin
                 paddr_q <= walk_leaf_paddr_w;
                 if (write_q) begin
@@ -756,6 +815,38 @@ module OooMemAxiBridge (
             rsp_error_q <= (lsu_axi_bresp_i != 2'b00);
             rsp_page_fault_q <= 1'b0;
             state_q <= S_RESP;
+          end
+        end
+
+        S_AD_UPDATE: begin
+          // HW A/D 写(AW/W→B): 写成功后 TLB 已填置位 PTE(ad_update_b_ok_w), 续原 leaf 访问决策。
+          if (aw_fire_w) aw_done_q <= 1'b1;
+          if (w_fire_w) w_done_q <= 1'b1;
+          if ((aw_done_q || aw_fire_w) && (w_done_q || w_fire_w) &&
+              lsu_axi_bvalid_i) begin
+            aw_done_q <= 1'b0;
+            w_done_q <= 1'b0;
+            if (lsu_axi_bresp_i != 2'b00) begin
+              rsp_error_q <= 1'b1;         // A/D 写总线异常 → access fault
+              rsp_page_fault_q <= 1'b0;
+              state_q <= S_RESP;
+            end else if (write_q) begin
+              if (probe_q) begin
+                rsp_rdata_q <= paddr_q;    // probe 短路: 返回 PA(=walk_leaf_paddr)
+                rsp_error_q <= 1'b0;
+                rsp_page_fault_q <= 1'b0;
+                state_q <= S_RESP;
+              end else begin
+                state_q <= S_WRITE_REQ;    // 真 store: 续写数据
+              end
+            end else if (walk_leaf_dcache_hit_w) begin
+              rsp_rdata_q <= walk_leaf_dcache_data_w;
+              rsp_error_q <= 1'b0;
+              rsp_page_fault_q <= 1'b0;
+              state_q <= S_RESP;
+            end else begin
+              state_q <= S_READ_ADDR;      // load miss: 续读数据
+            end
           end
         end
 

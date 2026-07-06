@@ -62,7 +62,14 @@ bresp OK 后**用 ad_pte_q 填 TLB** + 接**续流**（复用 leaf-OK 的 probe 
 - 每步差分回归数字不变（幂等性: 重执行 A/D 更新无害）。
 
 ## §7 状态
-- [ ] 数据侧 S_AD_UPDATE + fault 拆分 + TLB fill 时机
+- [x] **数据侧 S_AD_UPDATE + fault 拆分 + TLB fill 时机 + dcache coherence**（2026-07-06 落地并验证）
+      - 8 处 edit: fault 拆分(`data_permission_fault` 去 A/D + `data_ad_update_needed`) / TLB-hit ad_needed 门控 /
+        S_AD_UPDATE 态 + ad_pte_q reg / dtlb_fill 双触发(walk 原始 / ad 置位) / AXI 写输出 mux / S_WALK_R leaf 分支 /
+        FSM 双分支(flush 写必达 + normal B 后续访问) / **★dcache coherence(PTE 写回维护 dcache)**。
+      - **★验证网抓 bug**: 初版 rv64si-p-dirty FAIL —— 根因 = A/D 写 PTE 到内存但测试读 PTE(当数据)命中 stale dcache;
+        补 dcache 维护(对齐 NEMU dcache_coherent_write)后过。
+      - **验证全绿**: riscv 355/0(含 rv64si-p-dirty D 位) + AM 59/0(含 sv39-ad-bits) + 观测层 checker 恒静默 + CPI 1.2638 不变。
+      - 第 6 个坑(施工中新发现): TLB-hit ad_needed(load 填的 A=1/D=0 项被 store 命中)→ 视为 miss 走 walk 更新。
 - [ ] 取指侧新写通道 + 总线 plumbing
-- [ ] OooAdUpdateChecker 观测层守护
-- [ ] 验证（sv39-ad-bits + NEMU difftest + 回归）
+- [ ] OooAdUpdateChecker 观测层守护(数据+取指双桥)
+- [ ] NEMU difftest 验 A/D 对齐(需 DIFFTEST=y + NEMU ref)
