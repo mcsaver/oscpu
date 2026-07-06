@@ -88,11 +88,12 @@
 - **验证**: rv64dv `riscv_arithmetic_basic_test` 5 迭代 difftest-vs-spike **5 PASS/0 FAIL**;AM cpu-tests(riscv64-nemu,batch `c` target)**57/57**;ACT4 全量 rv64i/I 51+rv64i/M 13+priv/Sv 97=**161/161** 零回归。commit `de5e86abd`。
 - **教训**: (1) 约束随机+第三方金标(spike)的逐指令 difftest 能抓 directed 测试(ACT4/riscv-tests)覆盖不到的盲区——misa WARL 与 tohost self-loop 都是 boot/退出协议路径,directed 测试从不触碰。(2) 引入 write-back dcache 后,`pmem_read` 型 host 直读(tohost/难例还有 difftest memcpy、监视点)全部要过 `dcache_peek_read`,建议 grep 审计所有 `pmem_read` 调用点。(3) 跑 AM 测试必须用 `c` target(batch `-b`),`run` 是交互式 sdb,管道下全 FAIL 是假象。
 
-### [107] `npc/rv64` 重新启用 difftest 对 riscv-tests 的逐指令校验——mnstatus 已对齐(部分完成)
+### [107] `npc/rv64` 重新启用 difftest 对 riscv-tests 的逐指令校验——★2026-07-07 目标达成(全状态 difftest + mnstatus 反转 illegal)
 
 - **模块**: NPC / RV64 / CsrFile / difftest / riscv-tests
 - **背景**: 调 #106 时发现 difftest 对**所有** riscv-tests 在启动码 `csrwi mnstatus(0x744),8` 处提前 abort(DUT commit pc 与 NEMU 分歧),致 riscv-tests 长期只能 `--no-diff` 签名自检、无法逐指令对照 NEMU。这是重要验证能力缺口(签名自检会漏掉不影响最终签名的中间值错误)。
 - **已修(mnstatus 对齐)**: DUT 此前把 0x744 当未知 CSR(与 NEMU "合法"分歧)。`define.v` 加 `CSR_MNSTATUS=12'h744`,`CsrFile` csr_known/csr_writable 收入、按 WARL-zero no-op(本核未实现 NMI,无功能副作用)。**效果**:difftest 现可越过启动码,rv64ui-p-add 在 difftest 下从修复前 commit~37 abort → **跑完整个测试体(~506 提交)逐指令对 NEMU 全绿**,仅在退出处停。验证:全默认套件 `--no-diff` 仍 **177/177**(无回归)、tb_csr_file PASS、lint/build PASS。
+- **★2026-07-07 裁决反转 + #107 目标达成(commit 8edf35e4f + difftest 全状态扩展链)**: 迁 RV64 后金标 **RV64 NEMU 对 0x744 改取 illegal**(spec-correct: 未实现 Smrnmi 应 illegal; 旧"NEMU 合法"是 RV32/旧 NEMU 时代)。NPC 的 WARL-zero no-op 反而成了分歧源(NPC 合法 vs NEMU illegal) → 从 `CsrFile` csr_known/csr_writable 白名单**移除 MNSTATUS**(落 default → illegal, 匹配 RV64 NEMU)。当年被迫 no-op 是因无 difftest 异常同步; 现 **item5 自主 trap 恢复**让两侧同为 illegal 时对齐(NEMU exec 该指令也 illegal → 跳同 handler), riscv-tests 启动码临时 mtvec 兜底跳过。★本 session 还实现了 #107「剩余」两项: **(2) FPR 加入 difftest**(阶段2: fpr[32]+fflags/frm 独立通道+延迟比较, rv64uf/ud FP 误报0); **(1) 退出/中断/异常 trap 同步**(自主 trap 恢复统一异常+中断)。**效果**: rv64uf/rv64ud FP 全状态 difftest 从全 FAIL → **10/11 PASS**(0x744 解锁), 全套 AM **56 GOOD**, 非-difftest core-regress **overall_rc=0** 无回归。剩 `rv64ud-p-recoding`=mstatus.FS(FP dirty)分歧, 是下一个逐个修 backlog。
 - **剩余(完全启用 difftest 的后续)**: (1) **退出 ecall trap 记账 off-by-one**——测试以 `ecall`(a7=93 exit)终止 trap 到 handler@0x80000004;DUT 的 ecall trap 入口不计 commit、NEMU 计,difftest 在退出处差一拍(核行为正确,属 harness 层 trap 记账,需让 difftest 在 exit-ecall/tohost 处停止比较或对齐 trap 步进);(2) **FP 寄存器不在 DiffContext**——rv64uf-p-fadd 在 difftest 下有 GPR 侧 mismatch(FP→GPR/fcsr 路径),根因是 DiffContext 只含 gpr[32]+pc(审计 F3),需扩 fpr[32]+fcsr。
 - **价值**: mnstatus 对齐已实质恢复 difftest 对整数/乘除/压缩测试体的逐指令校验能力。完成剩余两项后,riscv-tests 可全程 difftest,大幅提升正确性置信(尤其对未来 F2/B2 这类难改动)。
 
