@@ -2,6 +2,7 @@
 
 ## 当前状态
 <!-- DiffTest 配置与通过情况 -->
+- 2026-07-07: **golden guard 逐个修分歧(3 项, commit 8edf35e4f/9e362d965/66e25b53a)——解锁 riscv-tests FP 全状态 difftest**。全状态 difftest 就位后作为持续 golden guard 逐个暴露并修 NPC↔NEMU 分歧, 一切以官方 RISC-V spec 为裁决: **(1) CSR 0x744(mnstatus)**——RV64 NEMU 取 illegal(未实现 Smrnmi, spec-correct), NPC 假 no-op(RV32 时代遗留)→ 移除 no-op 匹配(自主 trap 恢复兜底)。**(2) mstatus.FS mask**——rv64ud-p-recoding 暴露 FS 分歧, root-cause=第一条 FP 指令(fld)与整数指令双提交, FS-dirty 副作用 NBA 下一拍才可见, 同拍快照看不到; spec 明确允许 FS dirty 追踪不精确 → mask FS[14:13]+SD[63](似 mcycle 掩码)。**(3) ★FPR shadow**——FS mask 后暴露 FPR 同源 co-issue 时序 artifact(fld f0 ref=-inf dut=0); 根本修=FPR shadow(对称 GPR): FP 写复用整数 commit 的 rd_data/rd_addr(=FP 结果/addr, OooIntBackend:2515), 加 is_fp flag → cpu-exec shadow_fpr[rd]=rd_data 逐提交精确, 且 FPR 从延迟比较**移到直接比较**(shadow 是 post-K 值似 GPR, 非 arch-snapshot 的 post-(K-1))。**验证**: rv64uf/rv64ud FP 全状态 difftest 从全 FAIL → **20/21 PASS**(含 recoding/fcvt/structural co-issue 全修); 全套 AM **56 GOOD**; 非-difftest core-regress overall_rc=0 无回归。剩 rv64ud-p-move=独立 bin 加载问题(TOHOST FAIL pc=0x0)非 difftest。注: 阶段2 旧 arch-snapshot FPR 通道(npc_arch_fpr_event/diff_fpr_snap)保留但弃用(冗余 XMR 可清理)。
 - 2026-07-06: **RV64 difftest 全状态扩展 阶段2/3/4 落地(commit 199aeebbc + d67754c3b)**。**阶段2 FPR**:
   独立通道(对称 CSR)——NEMU `difftest_fpr_snapshot(fpr[32])` + NPC 每 commit 拍 XMR 读 arch FPR(深路径
   `u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_fp_backend.arch_fprs_flat_w`,
