@@ -2,6 +2,19 @@
 
 ## 当前状态
 <!-- DiffTest 配置与通过情况 -->
+- 2026-07-06: **misalign 策略对齐 + difftest 自主 trap 恢复(commit 0a399a878)**。消除 sv39-xpage-misalign
+  的 NPC↔NEMU 发散。**(1) NEMU 普通 load/store misaligned 也 fault**(对齐 NPC 硬件 LSUControl 的 addr%size):
+  rv64i.c `exec_rv64i_load/store` 入口按 `len=1<<(funct3&3)` 查 `addr%len` → CAUSE_LOAD/STORE_MISALIGNED
+  (tval=addr); fp.c `exec_rvf_load/store` 同; compressed.c 的 c.sw/c.sd/c.swsp/c.sdsp 改走 exec_rv64i_store。
+  AMO 已自查、页表 walk 走 dcache_peek(非 Mr/Mw)、decode_cache 取指走 Mr → 均不受影响(故不改 Mr/Mw 宏)。
+  **(2) ★difftest 自主 trap 恢复(通用 exception 同步, difftest.cpp)**: NPC 的 exception faulting 指令
+  【不 commit】(直接 trap 到 handler)→ difftest 收不到、NEMU 停在 faulting 指令 → dut handler 首条 commit
+  失配。修: control-flow mismatch 时让 NEMU exec(1) 执行 faulting 指令, 若同 fault 则 trap 到同一 handler(pc)
+  对齐、否则才真 mismatch, 并刷新延迟 CSR pending 为 trap 后 ref CSR。**通用处理任意 NPC 同步异常**(misalign/
+  page/access/illegal), faulting 指令的存在与 handler 入口由 dut commit 流隐式给出。**验证**: sv39-xpage-misalign
+  从 ABORT → HIT GOOD; 全套 AM 全状态 difftest GOOD 51→52; 剩 7 ABORT 全是其它类别(4 个异步中断 PLIC/timer/
+  SBI-IPI 需 difftest 中断同步 + counteren-time/misa-priv/fp-difftest-probe 各自), 非 misalign。52 GOOD 证
+  NEMU 对合法访存不误 fault。未改 NPC RTL, 非-difftest 不受影响。
 - 2026-07-06: **RV64 difftest 全状态扩展 阶段1 落地: CSR + priv 比较通道(commit f4e115fc8)**。在 gpr+pc
   之上新增 **CSR+priv 比较旁路通道**(不动 regcpy 的 gpr+pc memcpy, 分阶段友好)。机制跨四层: NEMU
   `isa_difftest_csr_snapshot`(dut.c 按固定索引扁平化 CSR+priv)+ ref.c 导出 `difftest_csr_snapshot`;
