@@ -110,6 +110,9 @@ real-workload 已全绿却不敢翻默认——因 **difftest 不比 CSR（盲�
 - **difftest 现已修复并全面工作**(NEMU 构建 + 结构 ABI + 比较模式三修复;计算/整数访存测试逐指令对照 NEMU 全过)。
   开 `CONFIG_NPC_DIFFTEST` 构建即可作 LSQ/dispatch 等访存敏感重构的逐指令安全验证。注:NEMU 对 A/D/PMP 与本核
   有意不同(NEMU HW A/D),故 Sv39/PMP 路径会差异性 diverge,difftest 重点用于计算/整数访存正确性。
+- **NEMU FP 已升级 Berkeley SoftFloat(RISC-V spec, `tool/softfloat`)**(2026-07-06)：原 host-float 近似实现 →
+  proper IEEE-754;官方 rv64uf/ud 23/0 + 与 spike 逐指令 bit-一致。FP 现可作 difftest 金标准(FPR 对比前提已备)。
+  **NEMU-NPC A/D 分歧待 NPC SW→HW 对齐后消除**(主线 step 4),之后 difftest ABI 扩 GPR+FPR+全 CSR+priv。
 - 大型测试集/日志不入 git（`eval/results/` 已忽略），结论写文档/记忆。
 
 ## 7. 时序(Fmax)track（Vivado OOC,数据驱动）

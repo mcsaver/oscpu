@@ -110,5 +110,11 @@ include $(AM_HOME)/Makefile
 LINKAGE += $(ARCHIVES)
 else
 # Include rules to build NEMU
+# Berkeley SoftFloat (RISC-V specialization) — NEMU RV64 FP 金标准, 从工作区级 tool/ 链接(独立于子工程)
+ifeq ($(GUEST_ISA),riscv64)
+SOFTFLOAT_HOME := $(YSYX_HOME)/tool/softfloat
+INC_PATH += $(SOFTFLOAT_HOME)/source/include
+LIBS += $(SOFTFLOAT_HOME)/build/Linux-x86_64-GCC/softfloat.a
+endif
 include $(NEMU_HOME)/scripts/native.mk
 endif
