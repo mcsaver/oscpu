@@ -103,4 +103,20 @@ bresp OK 后**用 ad_pte_q 填 TLB** + 接**续流**（复用 leaf-OK 的 probe 
         数据桥 orig=..004f(D=0)→ad_pte=..00cf(仅+D), awaddr==walk_pte_addr=0x80001ff0。
         **证明取指侧 inst A=0 更新确被 sv39-ad-bits 行使**(非假想路径)。
       - **验证全绿**: core-regress overall_rc=0(checker 激活下 153/0 + AM + module TB 全静默) + lint 0 警告。
-- [ ] NEMU difftest 验 A/D 对齐(需 DIFFTEST=y + NEMU ref)
+- [x] **NEMU difftest 验 A/D 对齐**（2026-07-06 验证）
+      - 流程: 备份 NPC 三件套(.config/auto.conf/autoconf.h)+NEMU .config → `make difftest-ref`(建 NEMU
+        参考 .so, GUEST_ISA=riscv64 含 SoftFloat) → sed CONFIG_NPC_DIFFTEST=y + `conf --syncconfig`(三处一致)
+        → 构建 NPC difftest 版 → 跑 workload → 恢复全部配置。
+      - **★A/D 对齐成功**: `sv39-ad-bits`(A/D 专测) difftest **HIT GOOD TRAP + 全程锁步无 mismatch** ——
+        NPC HW-managed A/D 与 NEMU 一致(无 PC/GPR 发散)。旁证 `sv39-ras-relocate` + 5 个 compute 测试
+        (add/mul-longlong/bubble-sort/fib/dummy)均 difftest 锁步。
+      - **out-of-scope 发现(非 A/D, 记录不修)**: `sv39-xpage-misalign` difftest 发散 —— control-flow
+        mismatch(NPC 提交 trap 处理器 pc=0x80000010 读 mcause=6, NEMU 期望顺序 pc=0x80000084)。根因 =
+        **misaligned 普通访存策略差**: NPC 硬件对 misaligned load/store 取 fault(cause 4/6, spec 允许),
+        NEMU 只对 AMO 查对齐(amo.c), 普通访存 misaligned 透明处理不 fault。与 A/D 无关(A/D 是 page-fault
+        cause 13/15)。属后续 step 4 全状态 difftest 扩展要处理的 misalign 策略对齐范畴, 非本 spec。
+
+## §8 结论
+本 spec 全部完成(数据侧 + 取指侧 + 观测层 checker + NEMU difftest 验证)。NPC Sv39 A/D 从 SW-managed
+(缺失即 page fault)全面改为 HW-managed(Svadu, 任意访问 HW 置位), **与 NEMU 语义对齐**。A/D 路径不再是
+NPC↔NEMU difftest 的发散源。归档条件已满足(可迁 `design/specs/history/`)。
