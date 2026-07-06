@@ -1049,6 +1049,14 @@ extern "C" void npc_handled_trap_event(uint32_t kind, uint32_t cause,
                                        npc_word_t pc, npc_word_t tval) {
   maybe_log_ecall_trap(kind, cause, pc, tval);
 
+#if CONFIG_NPC_DIFFTEST
+  // 阶段4 中断同步: kind==2(irq)登记 pending 中断(mcause = interrupt bit | cause 号),
+  // difftest 在 handler 首条 commit 的同步点让 NEMU raise 同中断(见 difftest.cpp 自主恢复)。
+  if (kind == 2 && npc_difftest_enabled()) {
+    npc_difftest_set_pending_intr(((uint64_t)1 << 63) | (uint64_t)cause);
+  }
+#endif
+
   if (!g_trap_watch_inited) {
     g_trap_watch_inited = true;
     const char *enabled = std::getenv("NPC_TRAPWATCH");

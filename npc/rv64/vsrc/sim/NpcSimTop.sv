@@ -1072,6 +1072,17 @@ module NpcSimTop (
         );
       end
 
+      // 阶段4 difftest 中断同步: NPC 取异步中断(csr_trap_irq)→ 报 kind=2(irq), 让 difftest 让 NEMU
+      // raise 同中断(NPC 主导时刻)。中断 tval=0。
+      if (u_top.u_core.u_ooo_core.csr_trap_irq_valid_w) begin
+        npc_handled_trap_event(
+          32'd2,
+          {{(32-`TRAP_CAUSE_W){1'b0}}, u_top.u_core.u_ooo_core.csr_trap_irq_cause_w},
+          u_top.u_core.u_ooo_core.csr_trap_irq_pc_w,
+          64'd0
+        );
+      end
+
       if (u_top.u_core.u_ooo_core.csr_trap_ex_valid_w) begin
         npc_handled_trap_event(
           32'd1,

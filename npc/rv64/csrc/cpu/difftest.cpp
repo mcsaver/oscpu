@@ -36,6 +36,9 @@ static ref_regcpy_t g_ref_regcpy = nullptr;
 static ref_exec_t g_ref_exec = nullptr;
 static ref_csrsnap_t g_ref_csr_snapshot = nullptr;  // 可选: 旧 ref.so 无则降级只比 gpr/pc
 static ref_csrsnap_t g_ref_fpr_snapshot = nullptr;  // 阶段2: 可选 FPR 快照(同签名)
+static void (*g_ref_raise_intr)(uint64_t) = nullptr;  // 阶段4: NEMU difftest_raise_intr(mcause)
+// 阶段4: NPC 取异步中断的 pending 登记(mcause 含 interrupt bit), difftest 在同步点让 NEMU raise。
+static struct { bool valid; uint64_t mcause; } g_pending_intr = {false, 0};
 
 // 本条提交后的 DUT CSR 快照(commit 处理在 step 前经 npc_difftest_set_dut_csr 注入)。
 static npc_word_t g_dut_csr[NPC_DIFF_CSR_N] = {};
@@ -63,6 +66,11 @@ void npc_difftest_set_dut_csr(const npc_word_t csr[NPC_DIFF_CSR_N]) {
 
 void npc_difftest_set_dut_fpr(const uint64_t fpr[NPC_DIFF_FPR_N]) {
   memcpy(g_dut_fpr, fpr, sizeof(g_dut_fpr));
+}
+
+void npc_difftest_set_pending_intr(uint64_t mcause) {
+  g_pending_intr.valid = true;
+  g_pending_intr.mcause = mcause;
 }
 
 // ★延迟一拍 CSR 比较: NpcSimTop 每 commit 拍 XMR 读的 csr_*_q 滞后 commit event 一拍
@@ -153,6 +161,9 @@ static bool load_reference_symbols(void) {
     g_ref_fpr_snapshot = nullptr;
     fprintf(stderr, "[npc-diff] note: reference lacks difftest_fpr_snapshot; FPR diff disabled.\n");
   }
+  dlerror();
+  g_ref_raise_intr = reinterpret_cast<void (*)(uint64_t)>(dlsym(g_ref_handle, "difftest_raise_intr"));
+  if (dlerror()) g_ref_raise_intr = nullptr;   // 阶段4: 缺则中断同步降级(control-flow mismatch)
   return g_ref_init && g_ref_memcpy && g_ref_regcpy && g_ref_exec;
 }
 
@@ -302,7 +313,14 @@ bool npc_difftest_step(npc_word_t pc, uint32_t inst, npc_word_t next_pc,
     // 让 NEMU exec(1) 执行 faulting 指令: 若它同样 fault, NEMU 也 trap 到同一 handler(pc), 对齐;
     // 否则(NEMU 未 fault, pc 仍不符)才是真 mismatch。通用处理任意 NPC 同步异常(misalign/page/
     // access/illegal)——faulting 指令的存在与 handler 入口由 dut commit 流隐式给出。
-    g_ref_exec(1);
+    // ★阶段4 中断同步: 若 NPC 报了异步中断(kind=2), 则让 NEMU raise 同中断(NPC 主导时刻)而非 exec
+    // faulting 指令——中断非某条指令 fault, 而是异步在指令边界取; NEMU 以当前 pc 作 epc 跳同 handler。
+    if (g_pending_intr.valid && g_ref_raise_intr) {
+      g_ref_raise_intr(g_pending_intr.mcause);
+      g_pending_intr.valid = false;
+    } else {
+      g_ref_exec(1);
+    }
     DiffContext ref_retry = {};
     g_ref_regcpy(&ref_retry, DIFFTEST_TO_DUT);
     if (ref_retry.pc != pc) {

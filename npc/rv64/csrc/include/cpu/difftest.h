@@ -25,6 +25,8 @@ void npc_difftest_skip_ref(void);
 // 供 commit 处理在 step 前注入本条提交后的 DUT CSR 快照(旁路通道, 不改 step 签名)。
 void npc_difftest_set_dut_csr(const npc_word_t csr[NPC_DIFF_CSR_N]);
 void npc_difftest_set_dut_fpr(const uint64_t fpr[NPC_DIFF_FPR_N]);
+// 阶段4: NPC 取异步中断时登记 pending(mcause 含 interrupt bit), difftest 在同步点让 NEMU raise。
+void npc_difftest_set_pending_intr(uint64_t mcause);
 bool npc_difftest_step(npc_word_t pc, uint32_t inst, npc_word_t next_pc,
                        const npc_word_t gpr[32],
                        bool rd_en, uint32_t rd_addr, npc_word_t rd_data);
@@ -42,6 +44,7 @@ static inline bool npc_difftest_enabled(void) { return false; }
 static inline void npc_difftest_skip_ref(void) {}
 static inline void npc_difftest_set_dut_csr(const npc_word_t csr[NPC_DIFF_CSR_N]) { (void)csr; }
 static inline void npc_difftest_set_dut_fpr(const uint64_t fpr[NPC_DIFF_FPR_N]) { (void)fpr; }
+static inline void npc_difftest_set_pending_intr(uint64_t mcause) { (void)mcause; }
 static inline bool npc_difftest_step(npc_word_t pc, uint32_t inst, npc_word_t next_pc,
                                      const npc_word_t gpr[32],
                                      bool rd_en, uint32_t rd_addr, npc_word_t rd_data) {
