@@ -2,6 +2,22 @@
 
 ## 当前状态
 <!-- DiffTest 配置与通过情况 -->
+- 2026-07-06: **RV64 difftest 全状态扩展 阶段1 落地: CSR + priv 比较通道(commit f4e115fc8)**。在 gpr+pc
+  之上新增 **CSR+priv 比较旁路通道**(不动 regcpy 的 gpr+pc memcpy, 分阶段友好)。机制跨四层: NEMU
+  `isa_difftest_csr_snapshot`(dut.c 按固定索引扁平化 CSR+priv)+ ref.c 导出 `difftest_csr_snapshot`;
+  NPC NpcSimTop 每 commit 拍 XMR 读 u_csr_file → `npc_arch_csr_event` DPI(23 scalar); cpu-exec
+  `g_dut_csr_live`+CommitEvent.csr 快照; difftest.cpp 可选 dlsym(旧 ref.so 降级只比 gpr/pc)。阶段1 比较
+  索引 [0,17)(mstatus/mepc/mcause/mtvec/mtval/mscratch + S 态 + medeleg/mideleg/satp/mcounteren/
+  scounteren + priv)。★**两个 snapshot 时序修正(非功能 bug)**: (1)**延迟一拍比较**——每拍 XMR 读的
+  csr_*_q 因 CSR 写 NBA 在同拍 always_ff 读之后 → 滞后一拍, 用「当前 DUT CSR(上条写后) vs 暂存上条
+  ref CSR」抵消; (2)**skip xret**——mret/sret 的 mstatus/priv 更新时序与 csrw 不一致使统一滞后模型
+  失配(测试仍 HIT GOOD), 暂跳过 xret 比较点(阶段1.5 根本修=RTL 暴露 CSR next-state 组合 wire)。诊断开关
+  `NPC_DIFF_CSR_WARN`(每类分歧打印一次不中止)。**验证: ★零新增 abort** —— 全套 AM 全状态 difftest
+  GOOD=51/59; 剩 8 ABORT 全是 GPR/PC 层已有 control-flow mismatch(sv39-xpage-misalign=misalign 差待
+  对齐; counteren-time/sbi-timer/plic-sirq/uart-plic-sirq/sbi-ipi-reset-hsm/misa-priv/fp-difftest-probe
+  =timer/中断/SBI/FP 异步难对齐), CSR 字段全空(非 CSR 引入); sv39-ad-bits/ras-relocate 的 CSR+priv 全对齐。
+  非-difftest core-regress overall_rc=0 无回归。**剩: 阶段1.5(xret/trap 时序精化)+阶段2(FPR)+阶段3
+  (counter/mip 掩码)**。
 - 2026-07-06: **RV64 NPC↔NEMU difftest 验证 Sv39 HW-managed A/D 对齐成功**。NPC 已把 Sv39 A/D 从 SW-managed(缺失即 page fault)全面改为 HW-managed(Svadu, 对齐 NEMU) —— 数据侧 `020499a70` + 取指侧 `d3302ee9b` + 观测层 checker `6b5da3e99`。流程: 备份 NPC 三件套(.config/auto.conf/autoconf.h)+NEMU .config → `make -C npc/rv64 difftest-ref`(建 NEMU 参考 `nemu/build/riscv64-nemu-interpreter-so`, GUEST_ISA=riscv64 含 SoftFloat) → `sed CONFIG_NPC_DIFFTEST=y` + `tool/kconfig/build/conf --syncconfig Kconfig`(三处一致) → 构建 → `./build/NpcSimTop -i <bin> -b`(difftest 默认 on) → 恢复配置。**验证**: `sv39-ad-bits`(A/D 专测) HIT GOOD TRAP 全程锁步无 mismatch + `sv39-ras-relocate` + 5 compute 测试均锁步 → A/D 路径不再是 NPC↔NEMU 发散源。★**当前 RV64 difftest 比较范围仍是提交后 GPR/PC(DIFFTEST_REG_SIZE=33)**, CSR/FP 未比(step 4 待扩)。
 - 2026-07-06: **★difftest misalign 策略差(step 4 待处理)**: `sv39-xpage-misalign` difftest **发散** = control-flow mismatch(NPC 提交 trap 处理器读 mcause=6, NEMU 顺序执行)。根因 = **misaligned 普通访存策略差**: NPC 硬件对 misaligned load/store 取 fault(cause 4/6, spec 允许), NEMU 只对 AMO 查对齐(`nemu/src/isa/riscv64/inst/amo.c`), 普通访存 misaligned 经 `vaddr_read/write` 透明处理**不 fault**。**与 A/D 无关**(A/D 是 page-fault cause 13/15)。step 4 全状态 difftest 扩展前须先对齐 misalign 策略(令 NEMU 也 fault, 或 difftest skip misalign, 或测试避 misalign)。
 - 2026-07-06: **★config 备份/还原坑(再次踩)**: 启用 `CONFIG_NPC_DIFFTEST=y` 后备份/还原 NPC config **必须含三件套** `.config` + `include/config/auto.conf`(make 变量) + `include/generated/autoconf.h`(C 宏), 只还原部分会导致 auto.conf(=y)↔autoconf.h(off) 不一致 → difftest.cpp 编译又撞 header stub 假重定义(红鲱鱼)。修/验证用 `conf --syncconfig Kconfig` 从 `.config` 一致重生成; 三处 `grep DIFFTEST` 必须同号。
