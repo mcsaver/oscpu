@@ -20,6 +20,17 @@ module NpcAxiBus #(
   input ifu_axi_rready_i,
   output [`XLEN-1:0] ifu_axi_rdata_o,
   output [1:0] ifu_axi_rresp_o,
+  // HW-managed A 更新：取指桥写通道(写回 PTE 置 A 位), 接 xbar 现成 M_IFU 写 master 口。
+  input ifu_axi_awvalid_i,
+  output ifu_axi_awready_o,
+  input [`XLEN-1:0] ifu_axi_awaddr_i,
+  input ifu_axi_wvalid_i,
+  output ifu_axi_wready_o,
+  input [`XLEN-1:0] ifu_axi_wdata_i,
+  input [`STRB_W-1:0] ifu_axi_wstrb_i,
+  output ifu_axi_bvalid_o,
+  input ifu_axi_bready_i,
+  output [1:0] ifu_axi_bresp_o,
 
   input lsu_axi_arvalid_i,
   output lsu_axi_arready_o,
@@ -113,24 +124,27 @@ module NpcAxiBus #(
   assign ifu_axi_rresp_o = m_rresp_w[M_IFU*2 +: 2];
   assign lsu_axi_rresp_o = m_rresp_w[M_LSU*2 +: 2];
 
-  assign m_awvalid_w[M_IFU] = 1'b0;
+  assign m_awvalid_w[M_IFU] = ifu_axi_awvalid_i;
   assign m_awvalid_w[M_LSU] = lsu_axi_awvalid_i;
-  assign m_awaddr_w[M_IFU*`XLEN +: `XLEN] = {`XLEN{1'b0}};
+  assign m_awaddr_w[M_IFU*`XLEN +: `XLEN] = ifu_axi_awaddr_i;
   assign m_awaddr_w[M_LSU*`XLEN +: `XLEN] = lsu_axi_awaddr_i;
-  assign m_wvalid_w[M_IFU] = 1'b0;
+  assign m_wvalid_w[M_IFU] = ifu_axi_wvalid_i;
   assign m_wvalid_w[M_LSU] = lsu_axi_wvalid_i;
-  assign m_wdata_w[M_IFU*`XLEN +: `XLEN] = {`XLEN{1'b0}};
+  assign m_wdata_w[M_IFU*`XLEN +: `XLEN] = ifu_axi_wdata_i;
   assign m_wdata_w[M_LSU*`XLEN +: `XLEN] = lsu_axi_wdata_i;
-  assign m_wstrb_w[M_IFU*`STRB_W +: `STRB_W] = {`STRB_W{1'b0}};
+  assign m_wstrb_w[M_IFU*`STRB_W +: `STRB_W] = ifu_axi_wstrb_i;
   assign m_wstrb_w[M_LSU*`STRB_W +: `STRB_W] = lsu_axi_wstrb_i;
-  assign m_bready_w[M_IFU] = 1'b0;
+  assign m_bready_w[M_IFU] = ifu_axi_bready_i;
   assign m_bready_w[M_LSU] = lsu_axi_bready_i;
 
+  assign ifu_axi_awready_o = m_awready_w[M_IFU];
+  assign ifu_axi_wready_o = m_wready_w[M_IFU];
+  assign ifu_axi_bvalid_o = m_bvalid_w[M_IFU];
+  assign ifu_axi_bresp_o = m_bresp_w[M_IFU*2 +: 2];
   assign lsu_axi_awready_o = m_awready_w[M_LSU];
   assign lsu_axi_wready_o = m_wready_w[M_LSU];
   assign lsu_axi_bvalid_o = m_bvalid_w[M_LSU];
   assign lsu_axi_bresp_o = m_bresp_w[M_LSU*2 +: 2];
-  wire unused_ifu_bresp_w = |m_bresp_w[M_IFU*2 +: 2];
 
   AxiLiteXbar #(
     .ADDR_W(`XLEN),

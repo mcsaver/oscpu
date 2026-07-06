@@ -44,10 +44,21 @@ bresp OK 后**用 ad_pte_q 填 TLB** + 接**续流**（复用 leaf-OK 的 probe 
 4. **flush-during-write**: S_AD_UPDATE 的 AXI 写在飞不可撤——按 nokill 语义处理(写必达/免 kill)，flush 后 re-exec 会重走(幂等: 再置 A/D 无害)。
 5. **AXI 写输出 mux**: `awaddr/wdata/wstrb` 在 `S_AD_UPDATE` 选 PTE 地址/ad_pte_q/全 8B，`S_WRITE_REQ` 选 store 值。
 
-## §4 实现设计（取指侧，后做）
+## §4 实现设计（取指侧，后做）—— 已落地 2026-07-06
 - `exec_permission_fault` 去 `!pte[6]`; 加 `exec_ad_update_needed = !pte[6]`（取指只置 A）。
 - OooFetchAxiBridge 加最小 AXI 写通道(AW/W/B) + `S_AD_UPDATE` 态 + 写输出，A=0 时写 `PTE|(1<<6)`。
-- plumb `ifu_axi_aw/w/b` 到 `NpcCoreTop → NpcAxiBus`，xbar 接 IFU 写口(现只接 IFU 读口)。
+- plumb `ifu_axi_aw/w/b` 到 `NpcCoreTop → NpcTop → NpcAxiBus`，xbar 接 IFU 写口(现只接 IFU 读口)。
+- **★方案差异（取指侧比数据侧简单）**: 取指侧用 **re-walk** 而非续流复制——leaf-OK 但 A=0
+  → 锁 `ad_pte_q=pte|A` → `S_AD_UPDATE` 写 `walk_pte_addr_w`(组合 off walk_ppn_q/level, 写期间
+  仍有效) → 等 B → **回 `S_WALK_AR` 重走当前级**(walk_ppn_q/level 不变 → 重读同一 leaf PTE, 此时
+  A=1 → 走正常 leaf-OK 续流)。零续流复制、无死循环。
+- **TLB 永不缓存 A=0**: `itlb_fill_valid_w` 加 `&& !exec_ad_update_needed`, 首遍 A=0 不填、re-walk 后
+  A=1 才填 → TLB 命中路径无需 A 门控(对比数据侧因 D 位需 TLB-hit ad_needed 门控)。
+- **bresp 错误处理**: A 写 B 若非 OK → 取指 access fault(避免 A=0 无限重试)。
+- **flush 期丢写**: mmu_flush 打回 S_IDLE 丢写, 对取指侧**正确**(A 更新是优化, re-fetch 幂等重做);
+  PTE 恒落 always-ready PMEM, AW/W 同拍握手无 split-window, 不需数据侧的 write-drain 机制。
+- **总线**: xbar 本就读+写全功能(`m_awvalid_i`/`wr_master_busy_q`), M_IFU=0 已是 master, NpcAxiBus
+  原把 M_IFU 写口恒接 0 → 改接真信号即可(无需改 xbar 仲裁)。
 
 ## §5 观测层守护（vsrc/debug/，用三层观测方法学）
 `OooAdUpdateChecker.sv`（挂 SIM_TOP，XMR 订阅两桥的 S_AD_UPDATE + PTE 信号）断言:
@@ -70,6 +81,17 @@ bresp OK 后**用 ad_pte_q 填 TLB** + 接**续流**（复用 leaf-OK 的 probe 
         补 dcache 维护(对齐 NEMU dcache_coherent_write)后过。
       - **验证全绿**: riscv 355/0(含 rv64si-p-dirty D 位) + AM 59/0(含 sv39-ad-bits) + 观测层 checker 恒静默 + CPI 1.2638 不变。
       - 第 6 个坑(施工中新发现): TLB-hit ad_needed(load 填的 A=1/D=0 项被 store 命中)→ 视为 miss 走 walk 更新。
-- [ ] 取指侧新写通道 + 总线 plumbing
+- [x] **取指侧新写通道 + 总线 plumbing**（2026-07-06 落地并验证）
+      - 4 文件: OooFetchAxiBridge(re-walk 方案 + AW/W/B + S_AD_UPDATE + fault 拆分 + itlb A 门控 +
+        bresp 错误处理) / NpcCoreTop / NpcTop / NpcAxiBus(接 M_IFU 写 master 口)。
+      - **★验证网抓 TB 契约漂移**: core-regress 的 module-testbench 抓到**两个** TB 编码旧 SW-managed
+        契约: (1) `tb_ooo_fetch_axi_bridge` "user fetch A=0 → page fault"; (2) `tb_ooo_mem_axi_bridge`
+        "A=0 load/D=0 store → page fault"(**后者是上一会话数据侧落地时遗留未改**——当时验证未含
+        module-testbench)。均改写为 HW-managed 更新期望(取指=A 更新写+re-walk; 数据=A/D 更新写+续流,
+        且用独立数据地址 0x8000_a000 避免 store 污染物理 dcache 干扰后续 dtlb 测试)。
+      - **验证全绿**: core-regress overall_rc=0 —— riscv 153/0 + am-cpu-tests PASS + module-testbench
+        82/82(两桥 TB 双绿) + lint 0 警告。
+      - ★教训: RTL 契约变更必须同步更新编码旧契约的模块 TB, 且**验证须含 module-testbench**(否则如
+        数据侧那样带 TB 回归静默落地)。
 - [ ] OooAdUpdateChecker 观测层守护(数据+取指双桥)
 - [ ] NEMU difftest 验 A/D 对齐(需 DIFFTEST=y + NEMU ref)

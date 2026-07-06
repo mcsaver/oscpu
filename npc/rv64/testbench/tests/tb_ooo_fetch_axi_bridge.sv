@@ -26,9 +26,21 @@ module tb_ooo_fetch_axi_bridge;
   wire ifu_axi_rready;
   reg [`XLEN-1:0] ifu_axi_rdata;
   reg [1:0] ifu_axi_rresp;
+  // HW-managed A 更新写通道
+  wire ifu_axi_awvalid;
+  reg ifu_axi_awready;
+  wire [`XLEN-1:0] ifu_axi_awaddr;
+  wire ifu_axi_wvalid;
+  reg ifu_axi_wready;
+  wire [`XLEN-1:0] ifu_axi_wdata;
+  wire [`STRB_W-1:0] ifu_axi_wstrb;
+  reg ifu_axi_bvalid;
+  wire ifu_axi_bready;
+  reg [1:0] ifu_axi_bresp;
 
   localparam [1:0] RESP_OK = 2'b00;
   localparam [1:0] RESP_PAGE_FAULT = 2'b10;
+  localparam [`XLEN-1:0] PTE_A_BIT_TB = 64'h40;  // bit 6 (Accessed)
   localparam [`XLEN-1:0] ROOT_PT = 64'h0000_0000_8100_0000;
   localparam [`XLEN-1:0] L1_PT = 64'h0000_0000_8100_1000;
   localparam [`XLEN-1:0] L0_PT = 64'h0000_0000_8100_2000;
@@ -83,7 +95,17 @@ module tb_ooo_fetch_axi_bridge;
     .ifu_axi_rvalid_i(ifu_axi_rvalid),
     .ifu_axi_rready_o(ifu_axi_rready),
     .ifu_axi_rdata_i(ifu_axi_rdata),
-    .ifu_axi_rresp_i(ifu_axi_rresp)
+    .ifu_axi_rresp_i(ifu_axi_rresp),
+    .ifu_axi_awvalid_o(ifu_axi_awvalid),
+    .ifu_axi_awready_i(ifu_axi_awready),
+    .ifu_axi_awaddr_o(ifu_axi_awaddr),
+    .ifu_axi_wvalid_o(ifu_axi_wvalid),
+    .ifu_axi_wready_i(ifu_axi_wready),
+    .ifu_axi_wdata_o(ifu_axi_wdata),
+    .ifu_axi_wstrb_o(ifu_axi_wstrb),
+    .ifu_axi_bvalid_i(ifu_axi_bvalid),
+    .ifu_axi_bready_o(ifu_axi_bready),
+    .ifu_axi_bresp_i(ifu_axi_bresp)
   );
 
   always #5 clk = ~clk;
@@ -179,6 +201,10 @@ module tb_ooo_fetch_axi_bridge;
       ifu_axi_rvalid = 1'b0;
       ifu_axi_rdata = {`XLEN{1'b0}};
       ifu_axi_rresp = RESP_OK;
+      ifu_axi_awready = 1'b1;
+      ifu_axi_wready = 1'b1;
+      ifu_axi_bvalid = 1'b0;
+      ifu_axi_bresp = RESP_OK;
       repeat (3) tick();
       rst = 1'b0;
       tick();
@@ -271,6 +297,62 @@ module tb_ooo_fetch_axi_bridge;
       drive_r(pte_for_page(L0_PT, PTE_NONLEAF_FLAGS), RESP_OK);
       expect_ar(what, pte_addr(L0_PT, vaddr, 2'd0));
       drive_r(pte_for_page(paddr, leaf_flags), RESP_OK);
+    end
+  endtask
+
+  // HW-managed A：取指到 A=0 leaf → 桥经 S_AD_UPDATE 写回 PTE|A，本任务模拟写侧握手 + 校验
+  // 写地址=本级 leaf PTE 地址、写数据=置 A 位的 PTE、wstrb 全置。
+  task automatic drive_ad_write;
+    input [1023:0] what;
+    input [`XLEN-1:0] exp_addr;
+    input [`XLEN-1:0] exp_wdata;
+    integer waits;
+    begin
+      waits = 0;
+      while ((ifu_axi_awvalid !== 1'b1) && (waits < 20)) begin
+        tick();
+        waits = waits + 1;
+      end
+      tb_check1(what, ifu_axi_awvalid, 1'b1);
+      tb_check1(what, ifu_axi_wvalid, 1'b1);
+      if (ifu_axi_awvalid === 1'b1) begin
+        tb_check64_local(what, ifu_axi_awaddr, exp_addr);
+        tb_check64_local(what, ifu_axi_wdata, exp_wdata);
+        tb_check1(what, &ifu_axi_wstrb, 1'b1);
+      end
+      tick();                     // AW/W 握手(awready/wready=1 → aw_done/w_done)
+      ifu_axi_bvalid = 1'b1;
+      ifu_axi_bresp = RESP_OK;
+      tick();                     // FSM 见 bvalid → 完成 → re-walk 本级
+      ifu_axi_bvalid = 1'b0;
+    end
+  endtask
+
+  // A=0 取指全序: 三级 walk 到 A=0 leaf → 写回 PTE|A → re-walk 本级(读回 A=1) → 取指令。
+  task automatic walk_to_fetch_with_ad_update;
+    input [1023:0] what;
+    input [`XLEN-1:0] vaddr;
+    input [`XLEN-1:0] paddr;
+    input [`XLEN-1:0] leaf_flags_a0;
+    input [`XLEN-1:0] inst_beat;
+    reg [`XLEN-1:0] leaf_pte_a0;
+    reg [`XLEN-1:0] leaf_pte_a1;
+    reg [`XLEN-1:0] l0_leaf_addr;
+    begin
+      leaf_pte_a0 = pte_for_page(paddr, leaf_flags_a0);
+      leaf_pte_a1 = leaf_pte_a0 | PTE_A_BIT_TB;
+      l0_leaf_addr = pte_addr(L0_PT, vaddr, 2'd0);
+      expect_ar(what, pte_addr(ROOT_PT, vaddr, 2'd2));
+      drive_r(pte_for_page(L1_PT, PTE_NONLEAF_FLAGS), RESP_OK);
+      expect_ar(what, pte_addr(L1_PT, vaddr, 2'd1));
+      drive_r(pte_for_page(L0_PT, PTE_NONLEAF_FLAGS), RESP_OK);
+      expect_ar(what, l0_leaf_addr);
+      drive_r(leaf_pte_a0, RESP_OK);          // A=0 leaf → 触发 A 更新
+      drive_ad_write(what, l0_leaf_addr, leaf_pte_a1);
+      expect_ar(what, l0_leaf_addr);          // re-walk 本级
+      drive_r(leaf_pte_a1, RESP_OK);          // 读回 A=1
+      expect_ar(what, paddr);                 // 取指令
+      drive_r(inst_beat, RESP_OK);
     end
   endtask
 
@@ -375,15 +457,15 @@ module tb_ooo_fetch_axi_bridge;
     expect_rsp("itlb permissions use current request privilege",
                RESP_PAGE_FAULT, RESP_PAGE_FAULT, {`XLEN{1'b0}});
 
+    // HW-managed A（Svadu，对齐 NEMU）：取指到 A=0 可执行页不再 page fault，
+    // 而是经 S_AD_UPDATE 写回 PTE 置 A 位、re-walk 后正常取指成功。
     start_fetch("user fetch with A=0 request accepted", NO_ACCESS_VA,
                 `PRIV_U);
-    walk_to_fetch_page_fault("user fetch A=0 page fault", NO_ACCESS_VA,
-                             NO_ACCESS_PA, PTE_USER_X_NO_ACCESS_FLAGS);
-    #1;
-    tb_check1("user fetch A=0 does not issue instruction AR",
-              ifu_axi_arvalid, 1'b0);
-    expect_rsp("user fetch A=0 reports page fault",
-               RESP_PAGE_FAULT, RESP_PAGE_FAULT, {`XLEN{1'b0}});
+    walk_to_fetch_with_ad_update("user fetch A=0 triggers HW A update",
+                                 NO_ACCESS_VA, NO_ACCESS_PA,
+                                 PTE_USER_X_NO_ACCESS_FLAGS, USER_INST_BEAT);
+    expect_rsp("user fetch A=0 succeeds after HW A update",
+               RESP_OK, RESP_OK, USER_INST_BEAT);
 
     mmu_flush = 1'b1;
     tick();

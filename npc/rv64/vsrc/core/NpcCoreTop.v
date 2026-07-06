@@ -14,6 +14,17 @@ module NpcCoreTop (
   output ifu_axi_rready_o,
   input [`XLEN-1:0] ifu_axi_rdata_i,
   input [1:0] ifu_axi_rresp_i,
+  // HW-managed A 更新：取指桥新写通道(写回 PTE 置 A 位)。
+  output ifu_axi_awvalid_o,
+  input ifu_axi_awready_i,
+  output [`XLEN-1:0] ifu_axi_awaddr_o,
+  output ifu_axi_wvalid_o,
+  input ifu_axi_wready_i,
+  output [`XLEN-1:0] ifu_axi_wdata_o,
+  output [`STRB_W-1:0] ifu_axi_wstrb_o,
+  input ifu_axi_bvalid_i,
+  output ifu_axi_bready_o,
+  input [1:0] ifu_axi_bresp_i,
 
   output lsu_axi_arvalid_o,
   input lsu_axi_arready_i,
@@ -187,7 +198,17 @@ module NpcCoreTop (
     .ifu_axi_rvalid_i(ifu_axi_rvalid_i),
     .ifu_axi_rready_o(ifu_axi_rready_o),
     .ifu_axi_rdata_i(ifu_axi_rdata_i),
-    .ifu_axi_rresp_i(ifu_axi_rresp_i)
+    .ifu_axi_rresp_i(ifu_axi_rresp_i),
+    .ifu_axi_awvalid_o(ifu_axi_awvalid_o),
+    .ifu_axi_awready_i(ifu_axi_awready_i),
+    .ifu_axi_awaddr_o(ifu_axi_awaddr_o),
+    .ifu_axi_wvalid_o(ifu_axi_wvalid_o),
+    .ifu_axi_wready_i(ifu_axi_wready_i),
+    .ifu_axi_wdata_o(ifu_axi_wdata_o),
+    .ifu_axi_wstrb_o(ifu_axi_wstrb_o),
+    .ifu_axi_bvalid_i(ifu_axi_bvalid_i),
+    .ifu_axi_bready_o(ifu_axi_bready_o),
+    .ifu_axi_bresp_i(ifu_axi_bresp_i)
   );
 
   OooMemAxiBridge u_ooo_mem_bridge (

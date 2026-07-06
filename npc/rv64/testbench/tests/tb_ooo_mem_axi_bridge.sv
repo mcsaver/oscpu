@@ -50,6 +50,10 @@ module tb_ooo_mem_axi_bridge;
   localparam [`XLEN-1:0] ROOT_PT = 64'h0000_0000_8000_2000;
   localparam [`XLEN-1:0] DATA_VA = 64'h0000_0000_8000_3000;
   localparam [`XLEN-1:0] DATA_PA = 64'h0000_0000_8000_3000;
+  // A/D 更新测试专用数据地址(同超页同 leaf PTE=ROOT_PT+16, 但不同 PA), 避免 store
+  // 污染 DATA_PA 的物理 dcache(mmu_flush 不清物理索引 dcache)干扰后续 dtlb 测试。
+  localparam [`XLEN-1:0] DATA_VA_AD = 64'h0000_0000_8000_a000;
+  localparam [`XLEN-1:0] DATA_PA_AD = 64'h0000_0000_8000_a000;
   localparam [`XLEN-1:0] ROOT_PPN = ROOT_PT >> 12;
   localparam [`XLEN-1:0] SUPERPAGE_PPN =
       64'h0000_0000_8000_0000 >> 12;
@@ -561,51 +565,119 @@ module tb_ooo_mem_axi_bridge;
     end
   endtask
 
-  task automatic sv39_leaf_ad_fault;
+  // HW-managed A/D（Svadu，对齐 NEMU）：leaf 真权限过但 A=0(任意)/D=0(store) 不再 page fault，
+  // 而是经 S_AD_UPDATE 写回 leaf PTE 置 A(D) 位、填 TLB 后续原访问：
+  //   A=0 load  → 写 PTE|A → load miss 续 S_READ_ADDR(data AR) → 返回数据；
+  //   D=0 store → 写 PTE|A|D → 续 S_WRITE_REQ(store AW/W→DATA_PA, PMEM decouple 提前完成)。
+  // 两情形置位后 PTE 均 == SUPERPAGE_PTE(A=1,D=1)。
+  task automatic sv39_leaf_ad_update;
     input [1023:0] what;
     input write_access;
     input [`XLEN-1:0] leaf_flags;
+    reg [`XLEN-1:0] orig_pte;
+    reg [`XLEN-1:0] ad_pte;
     begin
+      orig_pte = (SUPERPAGE_PPN << 10) | leaf_flags;
+      ad_pte = orig_pte | 64'h40 | (write_access ? 64'h80 : 64'h0);
       priv_mode = `PRIV_S;
       satp = (64'h8 << 60) | ROOT_PPN;
       mem0_req_valid = 1'b1;
       mem0_req_write = write_access;
-      mem0_req_addr = DATA_VA;
+      mem0_req_addr = DATA_VA_AD;
       mem0_req_wdata = 64'haaaa_bbbb_cccc_dddd;
       mem0_req_wstrb = {`STRB_W{1'b1}};
       #1;
       tb_check1(what, mem0_req_ready, 1'b1);
-      tb_check1("sv39 A/D fault request no direct AXI", lsu_axi_arvalid,
+      tb_check1("sv39 A/D update request no direct AXI", lsu_axi_arvalid,
                 1'b0);
       tick();
       mem0_req_valid = 1'b0;
 
       #1;
-      tb_check1("sv39 A/D fault walk AR valid", lsu_axi_arvalid, 1'b1);
-      tb_check64("sv39 A/D fault walk PTE address", lsu_axi_araddr,
+      tb_check1("sv39 A/D update walk AR valid", lsu_axi_arvalid, 1'b1);
+      tb_check64("sv39 A/D update walk PTE address", lsu_axi_araddr,
                  ROOT_PT + 64'd16);
       lsu_axi_arready = 1'b1;
       tick();
       lsu_axi_arready = 1'b0;
 
       #1;
-      tb_check1("sv39 A/D fault waits PTE", lsu_axi_rready, 1'b1);
+      tb_check1("sv39 A/D update waits PTE", lsu_axi_rready, 1'b1);
       lsu_axi_rvalid = 1'b1;
-      lsu_axi_rdata = (SUPERPAGE_PPN << 10) | leaf_flags;
+      lsu_axi_rdata = orig_pte;
       tick();
       lsu_axi_rvalid = 1'b0;
 
+      // S_AD_UPDATE：写回置位 PTE 到 leaf PTE 物理地址（全 8B），非 fault。
       #1;
-      tb_check1("sv39 A/D fault response valid", mem0_rsp_valid, 1'b1);
-      tb_check1("sv39 A/D fault error", mem0_rsp_error, 1'b1);
-      tb_check1("sv39 A/D fault page fault", mem0_rsp_page_fault, 1'b1);
-      tb_check1("sv39 A/D fault does not issue read", lsu_axi_arvalid,
-                1'b0);
-      tb_check1("sv39 A/D fault does not issue AW", lsu_axi_awvalid, 1'b0);
-      tb_check1("sv39 A/D fault does not issue W", lsu_axi_wvalid, 1'b0);
-      mem0_rsp_ready = 1'b1;
+      tb_check1("sv39 A/D update issues AW", lsu_axi_awvalid, 1'b1);
+      tb_check1("sv39 A/D update issues W", lsu_axi_wvalid, 1'b1);
+      tb_check64("sv39 A/D update write PTE address", lsu_axi_awaddr,
+                 ROOT_PT + 64'd16);
+      tb_check64("sv39 A/D update write PTE data", lsu_axi_wdata, ad_pte);
+      tb_check1("sv39 A/D update write full strb", &lsu_axi_wstrb, 1'b1);
+      lsu_axi_awready = 1'b1;
+      lsu_axi_wready = 1'b1;
       tick();
-      mem0_rsp_ready = 1'b0;
+      lsu_axi_awready = 1'b0;
+      lsu_axi_wready = 1'b0;
+      #1;
+      lsu_axi_bvalid = 1'b1;
+      lsu_axi_bresp = 2'b00;
+      tick();
+      lsu_axi_bvalid = 1'b0;
+
+      if (write_access) begin
+        // 续 store：AW/W 到 DATA_PA（store 数据），PMEM decouple 提前报完成。
+        #1;
+        tb_check1("sv39 A/D update store issues AW", lsu_axi_awvalid, 1'b1);
+        tb_check64("sv39 A/D update store AW address", lsu_axi_awaddr,
+                   DATA_PA_AD);
+        tb_check64("sv39 A/D update store W data", lsu_axi_wdata,
+                   64'haaaa_bbbb_cccc_dddd);
+        lsu_axi_awready = 1'b1;
+        lsu_axi_wready = 1'b1;
+        tick();
+        lsu_axi_awready = 1'b0;
+        lsu_axi_wready = 1'b0;
+        #1;
+        tb_check1("sv39 A/D update store response valid", mem0_rsp_valid,
+                  1'b1);
+        tb_check1("sv39 A/D update store no error", mem0_rsp_error, 1'b0);
+        tb_check1("sv39 A/D update store no page fault", mem0_rsp_page_fault,
+                  1'b0);
+        mem0_rsp_ready = 1'b1;
+        tick();
+        mem0_rsp_ready = 1'b0;
+        // decoupled PMEM store 的 B（bpend）吸收。
+        lsu_axi_bvalid = 1'b1;
+        tick();
+        lsu_axi_bvalid = 1'b0;
+      end else begin
+        // 续 load miss：S_READ_ADDR → data AR(DATA_PA) → R → 返回数据。
+        #1;
+        tb_check1("sv39 A/D update load issues data AR", lsu_axi_arvalid,
+                  1'b1);
+        tb_check64("sv39 A/D update load data AR address", lsu_axi_araddr,
+                   DATA_PA_AD);
+        lsu_axi_arready = 1'b1;
+        tick();
+        lsu_axi_arready = 1'b0;
+        #1;
+        tb_check1("sv39 A/D update load waits R", lsu_axi_rready, 1'b1);
+        lsu_axi_rvalid = 1'b1;
+        lsu_axi_rdata = 64'hfeed_face_cafe_beef;
+        tick();
+        lsu_axi_rvalid = 1'b0;
+        #1;
+        tb_check1("sv39 A/D update load response valid", mem0_rsp_valid, 1'b1);
+        tb_check1("sv39 A/D update load no error", mem0_rsp_error, 1'b0);
+        tb_check64("sv39 A/D update load response data", mem0_rsp_rdata,
+                   64'hfeed_face_cafe_beef);
+        mem0_rsp_ready = 1'b1;
+        tick();
+        mem0_rsp_ready = 1'b0;
+      end
 
       mmu_flush = 1'b1;
       tick();
@@ -713,9 +785,9 @@ module tb_ooo_mem_axi_bridge;
     read_arstrb_tracks_load_mask();
     partial_write_flush_drain();
     flushed_store_does_not_poison_dcache();
-    sv39_leaf_ad_fault("sv39 A=0 load page fault", 1'b0,
+    sv39_leaf_ad_update("sv39 A=0 load triggers HW A update", 1'b0,
                        LEAF_NO_ACCESS_FLAGS);
-    sv39_leaf_ad_fault("sv39 D=0 store page fault", 1'b1,
+    sv39_leaf_ad_update("sv39 D=0 store triggers HW D update", 1'b1,
                        LEAF_NO_DIRTY_FLAGS);
     sv39_dtlb_and_paddr_cache_hit();
     probe_write_returns_pa();

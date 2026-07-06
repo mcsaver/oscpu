@@ -184,6 +184,17 @@ module NpcTop (
   wire ifu_axi_rready_w;
   wire [`XLEN-1:0] ifu_axi_rdata_w;
   wire [1:0] ifu_axi_rresp_w;
+  // HW-managed A 更新：取指桥写通道(写回 PTE 置 A 位)。
+  wire ifu_axi_awvalid_w;
+  wire ifu_axi_awready_w;
+  wire [`XLEN-1:0] ifu_axi_awaddr_w;
+  wire ifu_axi_wvalid_w;
+  wire ifu_axi_wready_w;
+  wire [`XLEN-1:0] ifu_axi_wdata_w;
+  wire [`STRB_W-1:0] ifu_axi_wstrb_w;
+  wire ifu_axi_bvalid_w;
+  wire ifu_axi_bready_w;
+  wire [1:0] ifu_axi_bresp_w;
 
   wire lsu_axi_arvalid_w;
   wire lsu_axi_arready_w;
@@ -245,6 +256,16 @@ module NpcTop (
     .ifu_axi_rready_o(ifu_axi_rready_w),
     .ifu_axi_rdata_i(ifu_axi_rdata_w),
     .ifu_axi_rresp_i(ifu_axi_rresp_w),
+    .ifu_axi_awvalid_o(ifu_axi_awvalid_w),
+    .ifu_axi_awready_i(ifu_axi_awready_w),
+    .ifu_axi_awaddr_o(ifu_axi_awaddr_w),
+    .ifu_axi_wvalid_o(ifu_axi_wvalid_w),
+    .ifu_axi_wready_i(ifu_axi_wready_w),
+    .ifu_axi_wdata_o(ifu_axi_wdata_w),
+    .ifu_axi_wstrb_o(ifu_axi_wstrb_w),
+    .ifu_axi_bvalid_i(ifu_axi_bvalid_w),
+    .ifu_axi_bready_o(ifu_axi_bready_w),
+    .ifu_axi_bresp_i(ifu_axi_bresp_w),
     .lsu_axi_arvalid_o(lsu_axi_arvalid_w),
     .lsu_axi_arready_i(lsu_axi_arready_w),
     .lsu_axi_araddr_o(lsu_axi_araddr_w),
@@ -342,6 +363,16 @@ module NpcTop (
     .ifu_axi_rready_i(ifu_axi_rready_w),
     .ifu_axi_rdata_o(ifu_axi_rdata_w),
     .ifu_axi_rresp_o(ifu_axi_rresp_w),
+    .ifu_axi_awvalid_i(ifu_axi_awvalid_w),
+    .ifu_axi_awready_o(ifu_axi_awready_w),
+    .ifu_axi_awaddr_i(ifu_axi_awaddr_w),
+    .ifu_axi_wvalid_i(ifu_axi_wvalid_w),
+    .ifu_axi_wready_o(ifu_axi_wready_w),
+    .ifu_axi_wdata_i(ifu_axi_wdata_w),
+    .ifu_axi_wstrb_i(ifu_axi_wstrb_w),
+    .ifu_axi_bvalid_o(ifu_axi_bvalid_w),
+    .ifu_axi_bready_i(ifu_axi_bready_w),
+    .ifu_axi_bresp_o(ifu_axi_bresp_w),
     .lsu_axi_arvalid_i(lsu_axi_arvalid_w),
     .lsu_axi_arready_o(lsu_axi_arready_w),
     .lsu_axi_araddr_i(lsu_axi_araddr_w),

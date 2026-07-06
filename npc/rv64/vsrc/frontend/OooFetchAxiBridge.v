@@ -30,7 +30,20 @@ module OooFetchAxiBridge (
   input ifu_axi_rvalid_i,
   output ifu_axi_rready_o,
   input [`XLEN-1:0] ifu_axi_rdata_i,
-  input [1:0] ifu_axi_rresp_i
+  input [1:0] ifu_axi_rresp_i,
+
+  // HW-managed A 更新写通道（Svadu，对齐 NEMU）：取指到 A=0 的可执行页时，
+  // 不再 page fault，改经 S_AD_UPDATE 写回 PTE 置 A 位。取指只置 A（不置 D）。
+  output ifu_axi_awvalid_o,
+  input ifu_axi_awready_i,
+  output [`XLEN-1:0] ifu_axi_awaddr_o,
+  output ifu_axi_wvalid_o,
+  input ifu_axi_wready_i,
+  output [`XLEN-1:0] ifu_axi_wdata_o,
+  output [`STRB_W-1:0] ifu_axi_wstrb_o,
+  input ifu_axi_bvalid_i,
+  output ifu_axi_bready_o,
+  input [1:0] ifu_axi_bresp_i
 );
 
   localparam [3:0] S_IDLE = 4'd0;
@@ -41,6 +54,8 @@ module OooFetchAxiBridge (
   localparam [3:0] S_AR1 = 4'd5;
   localparam [3:0] S_R1 = 4'd6;
   localparam [3:0] S_RESP = 4'd7;
+  localparam [3:0] S_AD_UPDATE = 4'd8;  // HW A 更新: 写回 leaf PTE 置 A 位, 再 re-walk 续原取指
+  localparam [`XLEN-1:0] PTE_A_BIT = {{(`XLEN-7){1'b0}}, 7'h40};  // bit 6 (Accessed)
   localparam [1:0] RESP_OK = 2'b00;
   localparam [1:0] RESP_ACCESS_FAULT = 2'b01;
   localparam [1:0] RESP_PAGE_FAULT = 2'b10;
@@ -69,6 +84,9 @@ module OooFetchAxiBridge (
   reg [`XLEN-1:0] debug_last_pte_q;
   reg [1:0] debug_last_pte_level_q;
   reg debug_last_pte_second_q;
+  reg [`XLEN-1:0] ad_pte_q;   // HW A: 置 A 位后的 leaf PTE(供 S_AD_UPDATE 写通道)
+  reg aw_done_q;              // S_AD_UPDATE 的 AW 已握手(吸收 awready/wready 偏斜)
+  reg w_done_q;               // S_AD_UPDATE 的 W 已握手
 
   function sv39_enabled;
     input [1:0] priv_mode;
@@ -150,14 +168,23 @@ module OooFetchAxiBridge (
     end
   endfunction
 
+  // HW-managed A（Svadu，对齐 NEMU）：A 缺失不再算权限 fault，改由 S_AD_UPDATE 写回置位。
+  // 真权限（X、U/S）仍在此判。
   function exec_permission_fault;
     input [`XLEN-1:0] pte;
     input [1:0] priv_mode;
     begin
       exec_permission_fault =
           !pte[3] ||
-          ((priv_mode == `PRIV_U) ? !pte[4] : pte[4]) ||
-          !pte[6];
+          ((priv_mode == `PRIV_U) ? !pte[4] : pte[4]);
+    end
+  endfunction
+
+  // 取指到真权限全通过但 A=0 的 leaf → 触发 HW A 更新（写 PTE|A 后 re-walk），非 fault。
+  function exec_ad_update_needed;
+    input [`XLEN-1:0] pte;
+    begin
+      exec_ad_update_needed = !pte[6];
     end
   endfunction
 
@@ -275,7 +302,10 @@ module OooFetchAxiBridge (
       !pte_reserved_fault(ifu_axi_rdata_i, req_svpbmt_en_q) &&
       (pte_leaf(ifu_axi_rdata_i)) &&
       !superpage_misaligned(ifu_axi_rdata_i, walk_level_q) &&
-      !exec_permission_fault(ifu_axi_rdata_i, req_priv_q);
+      !exec_permission_fault(ifu_axi_rdata_i, req_priv_q) &&
+      // HW A: 首遍读到 A=0 的 PTE 不填 TLB(否则缓存 A=0 项); 待 S_AD_UPDATE 写完 re-walk
+      // 读回 A=1 的 PTE 再填。TLB 因此永不缓存 A=0, TLB 命中路径无需 A 门控。
+      !exec_ad_update_needed(ifu_axi_rdata_i);
   wire fetch_cache_fill_r0_w =
       (state_q == S_R0) && ifu_axi_rvalid_i &&
       (ifu_axi_rresp_i == RESP_OK) &&
@@ -438,6 +468,19 @@ module OooFetchAxiBridge (
   assign ifu_axi_rready_o =
       (state_q == S_WALK_R) || (state_q == S_R0) || (state_q == S_R1);
 
+  // HW A 更新写通道：awaddr = 本级 leaf PTE 地址(walk_pte_addr_w 在 S_AD_UPDATE 期间仍有效,
+  // 因 walk_ppn_q/walk_level_q 不变), wdata = 置 A 位的 PTE, wstrb 全 8B。写落 always-ready
+  // PMEM(页表所在), AW/W 同拍握手; aw_done_q/w_done_q 吸收任何 awready/wready 偏斜。
+  // mmu_flush 期丢写对取指侧正确(A 更新是优化, re-fetch 幂等重做)。
+  assign ifu_axi_awvalid_o = (state_q == S_AD_UPDATE) && !aw_done_q;
+  assign ifu_axi_awaddr_o = walk_pte_addr_w;
+  assign ifu_axi_wvalid_o = (state_q == S_AD_UPDATE) && !w_done_q;
+  assign ifu_axi_wdata_o = ad_pte_q;
+  assign ifu_axi_wstrb_o = {`STRB_W{1'b1}};
+  assign ifu_axi_bready_o = (state_q == S_AD_UPDATE);
+  wire ifu_ad_aw_fire_w = ifu_axi_awvalid_o && ifu_axi_awready_i;
+  wire ifu_ad_w_fire_w = ifu_axi_wvalid_o && ifu_axi_wready_i;
+
   always @(posedge clk) begin
     if (rst || mmu_flush_i) begin
       state_q <= S_IDLE;
@@ -462,6 +505,9 @@ module OooFetchAxiBridge (
       debug_last_pte_q <= {`XLEN{1'b0}};
       debug_last_pte_level_q <= 2'd0;
       debug_last_pte_second_q <= 1'b0;
+      ad_pte_q <= {`XLEN{1'b0}};
+      aw_done_q <= 1'b0;
+      w_done_q <= 1'b0;
     end else begin
       case (state_q)
         S_IDLE: begin
@@ -595,6 +641,14 @@ module OooFetchAxiBridge (
                   resp1_q <= RESP_ACCESS_FAULT;
                   state_q <= S_RESP;
                 end
+              // HW A: 真权限+PMP 全过但 A=0 → 写回 PTE|A 后 re-walk 本级(读回 A=1 续原取指)。
+              // walk_ppn_q/walk_level_q 保持不变 → walk_pte_addr_w 仍指向本 leaf PTE。
+              // 置 A 后真 fault 已排除, 故不会与 fault 竞争(fault 分支在前, 优先)。
+              end else if (exec_ad_update_needed(ifu_axi_rdata_i)) begin
+                ad_pte_q <= ifu_axi_rdata_i | PTE_A_BIT;
+                aw_done_q <= 1'b0;
+                w_done_q <= 1'b0;
+                state_q <= S_AD_UPDATE;
               end else begin
                 if (walk_second_q) begin
                 paddr1_q <= leaf_paddr(ifu_axi_rdata_i,
@@ -673,6 +727,32 @@ module OooFetchAxiBridge (
             resp1_q <= (ifu_axi_rresp_i == RESP_OK) ? resp1_q :
                        RESP_ACCESS_FAULT;
             state_q <= S_RESP;
+          end
+        end
+
+        S_AD_UPDATE: begin
+          // 写回 PTE|A: 完成 AW/W + 吸收 B 后 re-walk 本级(walk_ppn_q/walk_level_q 未改,
+          // 重读同一 leaf PTE 此时 A=1 → exec_ad_update_needed=0 → 走正常 leaf-OK 续流)。
+          // mmu_flush 会打回 S_IDLE 丢写(A 更新幂等, re-fetch 重做), 不损正确性。
+          if (ifu_ad_aw_fire_w) aw_done_q <= 1'b1;
+          if (ifu_ad_w_fire_w) w_done_q <= 1'b1;
+          if ((aw_done_q || ifu_ad_aw_fire_w) &&
+              (w_done_q || ifu_ad_w_fire_w) && ifu_axi_bvalid_i) begin
+            aw_done_q <= 1'b0;
+            w_done_q <= 1'b0;
+            if (ifu_axi_bresp_i == RESP_OK) begin
+              state_q <= S_WALK_AR;
+            end else begin
+              // A 写失败(极罕见: PTE 落不可写区) → 取指 access fault, 避免 A=0 无限重试。
+              if (walk_second_q) begin
+                resp1_q <= RESP_ACCESS_FAULT;
+                state_q <= S_AR0;
+              end else begin
+                resp0_q <= RESP_ACCESS_FAULT;
+                resp1_q <= RESP_ACCESS_FAULT;
+                state_q <= S_RESP;
+              end
+            end
           end
         end
 
