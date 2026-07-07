@@ -158,10 +158,14 @@ static inline void fp_load_trace_after_load(uint32_t funct3, int rd,
 
 static inline bool exec_rvf_load(uint32_t funct3, int rd, word_t addr) {
   if (!fp_state_enabled()) return false;
-  // 对齐 NPC: FP load misaligned → CAUSE_LOAD_MISALIGNED(flw=4B/fld=8B, len=1<<funct3)。
+  // 对齐 NPC 硬件语义(见 rv64i.c exec_rv64i_load): FP load 页内 misaligned 硬件支持,仅翻译激活且跨 4KB 页 fault。
   if (funct3 == 0x2 || funct3 == 0x3) {
     word_t len = (word_t)1 << funct3;
-    if (addr & (len - 1)) { vaddr_set_fault(CAUSE_LOAD_MISALIGNED, addr); return true; }
+    if ((addr & (len - 1)) &&
+        isa_mmu_check(addr, (int)len, MEM_TYPE_READ) == MMU_TRANSLATE &&
+        ((addr & (word_t)0xfff) + len > (word_t)0x1000)) {
+      vaddr_set_fault(CAUSE_LOAD_MISALIGNED, addr); return true;
+    }
   }
   switch (funct3) {
 #ifdef CONFIG_RISCV_EXT_F
@@ -190,10 +194,14 @@ static inline bool exec_rvf_load(uint32_t funct3, int rd, word_t addr) {
 }
 static inline bool exec_rvf_store(uint32_t funct3, word_t addr, int rs2) {
   if (!fp_state_enabled()) return false;
-  // 对齐 NPC: FP store misaligned → CAUSE_STORE_MISALIGNED(fsw=4B/fsd=8B)。
+  // 对齐 NPC 硬件语义(见 rv64i.c): FP store 页内 misaligned 硬件支持,仅翻译激活且跨 4KB 页 fault。
   if (funct3 == 0x2 || funct3 == 0x3) {
     word_t len = (word_t)1 << funct3;
-    if (addr & (len - 1)) { vaddr_set_fault(CAUSE_STORE_MISALIGNED, addr); return true; }
+    if ((addr & (len - 1)) &&
+        isa_mmu_check(addr, (int)len, MEM_TYPE_WRITE) == MMU_TRANSLATE &&
+        ((addr & (word_t)0xfff) + len > (word_t)0x1000)) {
+      vaddr_set_fault(CAUSE_STORE_MISALIGNED, addr); return true;
+    }
   }
   switch (funct3) {
 #ifdef CONFIG_RISCV_EXT_F
