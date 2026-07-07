@@ -1333,3 +1333,15 @@
 - **现象**: `make ARCH=riscv64-npc ... run` 跑 CoreMark(difftest 默认开)在读 rtc(0x1200004c)时 NEMU 参考报 `address (...) is out of bound at pc=...`。cpu-tests(纯计算)difftest 全过;CoreMark `--no-diff` 正常(CRC 0xfcaf/8 Marks)。
 - **根因**: (1) difftest 参考态 NEMU 不初始化设备; (2) OoO 核 MMIO **load** 乱序执行,`npc_difftest_skip_ref()` 在该 load 提交前被更早提交的指令消费掉,导致该 load 的 difftest step 让参考真去执行 → 无设备 → out of bound。**store**(如 serial 写)在提交点执行故无此竞态。与设备地址是 0xa0000048 还是 0x12000048 无关(旧图同样存在)。
 - **规避**: CoreMark 等读设备时基的基准按 `--no-diff` 跑(既有约定)。彻底修需 difftest-infra 层把 skip_ref 绑定到具体指令/PC 而非全局标志(未做,超出设备图统一范围)。
+
+### [2026-07-07] riscv-tests 全套全状态 difftest 回归 97/102 —— misalign 前提修复 + 5 个窄剩余分类
+
+- **背景**: 0x744 illegal 修复(8edf35e4f)解锁 riscv-tests 首次跑全状态 difftest(gpr+pc+CSR+priv+FPR)。首跑 84/102, golden guard 一次暴露一批分歧。
+- **【已修·大赢】misalign 类(8 测试, commit 917a18b39)**: item5(0a399a878)让 NEMU 普通 load/store **无条件** misalign fault, 前提错误("NPC 硬件对 misaligned 取 fault")。逐 RTL 核实 NPC 真语义(OooIntBackend.v:1057-1066): `mem_exception = (is_amo && misaligned) || (mem_translate_active && plain_ls && misaligned && cross_page)` —— **普通 load/store 页内 misaligned 由 LSUDataPath 连续字节硬件支持(不 fault), 仅"翻译激活(satp≠Bare) 且跨 4KB 页(EA[11:0]+len>0x1000)"才 fault**; AMO/LR/SC misaligned 一律 fault。修: nemu rv64i.c/fp.c 普通 LS 的 misalign fault 精化为 `(addr&(len-1)) && isa_mmu_check==MMU_TRANSLATE && ((addr&0xfff)+len>0x1000)`(同 NPC cross_page 公式)。铁证: ld-misaligned dut=0x0908...(NPC 硬件正确 misaligned 值) vs item5-NEMU fault 未更新的旧值。
+- **【harness 误判·非 bug, 5 测试】**: (a) ma_data/ld_st/move 的 **tohost 符号在 0x80002000**(大 .data 段推移)非固定 0x80001000, 回归脚本用错地址→读到数据段垃圾误判 FAIL; 用各自 ELF tohost 地址→全 PASS。(b) sbreak×2 经 **ebreak(code=0) 终止**=HIT GOOD TRAP, 脚本只认 "TOHOST PASS"→误判; 加 "HIT GOOD TRAP" 检测→PASS。★教训: riscv-tests 回归脚本必须(1)逐 ELF 读 tohost symbol 地址,(2)PASS 检测认 TOHOST PASS **或** HIT GOOD TRAP。
+- **剩 5 真分歧(4 root, 均窄边角/时序/未实现扩展, 核心 rv64ui/um/uc/uf/ud 算术+访存全绿)**:
+  1. **fcvt_w fflags.NV(rv64ud/uf-p-fcvt_w, 2 测试)**: fcvt.w.s 溢出**值饱和正确(0x7fffffff)但 sticky NV(0x10)在 test_42 一条丢**。手算确认 OooFpConvertGate fp_s_to_int_fflags_blk 对该 input(0x4f32d05e=3e9)**确算出 NV**(mag_ext=0xB2D05E00>max_pos), value blk 也饱和——两 blk 逻辑一致; 且**只 test_42 一条丢**(其它溢出/Inf/NaN fcvt NV 全对)→非 datapath 逻辑 bug, 疑 co-issue/done-FIFO 时序丢 fflags(参 [[fp-cluster-eleven-root-causes]] 同包丢 CSR 家族)。窄: value 全对, 仅 sticky flag 1 处。
+  2. **rv64si-p-dirty(x5 ref=0 dut=1)**: Sv39 A/D 中间态可见时机。两侧**都 HW-managed**(NEMU mmu.c:593-600 回写置位, NPC S_AD_UPDATE 写回), 分歧为 store 触发 D-bit 置位的可见拍时序(疑 spec-允许不精确, 类 mstatus.FS/counter)。
+  3. **rv64mi-p-breakpoint(mstatus/mepc, tcontrol 0x7a5/tdata)**: debug trigger 扩展。NPC 大概率不实现 debug(可选扩展)→未实现扩展非核心 bug。
+  4. **rv64mi-p-illegal(mstatus.TSR bit22 WARL + illegal-detection control-flow)**: mstatus WARL 字段裁决(NPC 让 TSR 可写而 NEMU 不/反之) + 某 illegal 指令后控制流分歧。spec 逐位裁决家族(类 [[rv64mi-illegal-preexisting-f2-fail]]/0x744/misa.B)。
+- **验证无回归**: cpu-tests 全状态 difftest GOOD=58/59(仅 fp-difftest-probe 故意 probe); misalign 改动严格改善一致性(NEW-NEMU 匹配 NPC 硬件语义)。
