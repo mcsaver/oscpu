@@ -70,8 +70,11 @@ module CsrFile (
       `MIE_SSIE | `MIE_STIE | `MIE_SEIE;
   localparam [`XLEN-1:0] MACHINE_INT_MASK =
       `MIE_MSIE | `MIE_MTIE | `MIE_MEIE;
+  // MXL=64 + U/S/M/I/A/C(base 0x141105) | D(bit3) | F(bit5) | B(bit1)。★2026-07-07: 补 misa.B
+  // ——本核实现 Zba+Zbb+Zbs(= 2023 ratified B 扩展; core-regress rv64uzba/uzbb/uzbs 全绿, 另含 Zbc),
+  // 按 spec 实现 B 就应报 misa.B=1; 原缺此位与金标 RV64 NEMU(misa.B=1)分歧(全状态 difftest 暴露)。
   localparam [`XLEN-1:0] CSR_MISA_VALUE =
-      64'h8000_0000_0014_1105 | (64'd1 << 3) | (64'd1 << 5);
+      64'h8000_0000_0014_1105 | (64'd1 << 3) | (64'd1 << 5) | (64'd1 << 1);
   localparam [`XLEN-1:0] EPC_WARL_MASK =
       {{(`XLEN-1){1'b1}}, 1'b0};
   localparam [`XLEN-1:0] CSR_TSELECT_NO_TRIGGER_VALUE =
