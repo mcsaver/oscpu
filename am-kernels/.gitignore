@@ -11,3 +11,8 @@ _*
 *~
 build/
 !.gitignore
+# 允许外层仓库接管 vendored riscv-arch-test；目录内部生成物继续由其自己的 .gitignore 过滤。
+!arch-test/
+!arch-test/src/
+!arch-test/src/riscv-arch-test/
+!arch-test/src/riscv-arch-test/**

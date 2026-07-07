@@ -40,6 +40,10 @@ npc/rv64/testbench/build/
 npc/rv64/testsuites/core-tests/**
 !npc/rv64/testsuites/core-tests/
 !npc/rv64/testsuites/core-tests/.gitkeep
+# 允许外层仓库接管 vendored riscv-tests；其内部构建产物继续由该目录自己的 .gitignore 过滤。
+!npc/rv64/testsuites/core-tests/src/
+!npc/rv64/testsuites/core-tests/src/riscv-tests/
+!npc/rv64/testsuites/core-tests/src/riscv-tests/**
 
 # Vivado/FPGA 工程生成物：保留 fpga/Makefile、scripts/、constraints/ 等入口文件。
 fpga/.Xil/
