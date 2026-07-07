@@ -275,7 +275,16 @@ bool npc_difftest_step(npc_word_t pc, uint32_t inst, npc_word_t next_pc,
       else if (mem_is_store)
         imm = (int64_t)((int32_t)(inst & 0xfe000000) >> 20) | ((inst >> 7) & 0x1f);
       npc_word_t ea = gpr[rs1] + (npc_word_t)imm;
-      if (ea < NPC_PMEM_BASE) {
+      // ★MMIO skip 只在【地址翻译关闭】时用虚拟 EA 判(此时 VA==PA, 低地址=真 MMIO 设备如 CLINT);
+      // 翻译开启时低 VA 是 pmem 映射(用户态/identity-offset 数据, VA<pmem_base 但 PA 落 pmem):
+      // 绝不能用 VA<pmem_base 误判 MMIO——否则 skip 掉真 pmem store, NEMU 不 exec 该指令、ref 内存
+      // 不同步(rv64si-p-dirty: dummy@VA=0x2008→PA=0x80002008 被误 skip, NEMU 跳过 store→ref 读旧 0)。
+      // effective priv 取 MPRV(load/store 借 MPP)。satp=idx13/priv=idx16/mstatus=idx0(见 dut.c 快照序)。
+      uint64_t xlate_satp = g_dut_csr[13], xlate_mstatus = g_dut_csr[0], xlate_priv = g_dut_csr[16];
+      if (xlate_priv == 3 && (xlate_mstatus & (1ull << 17)))   // MPRV=1 → 有效 priv 取 MPP
+        xlate_priv = (xlate_mstatus >> 11) & 0x3;
+      bool xlate_on = ((xlate_satp >> 60) != 0) && (xlate_priv != 3);
+      if (!xlate_on && ea < NPC_PMEM_BASE) {
         DiffContext ref_chk = {};
         g_ref_regcpy(&ref_chk, DIFFTEST_TO_DUT);
         if (ref_chk.pc != pc) {
