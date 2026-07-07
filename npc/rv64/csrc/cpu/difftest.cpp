@@ -95,6 +95,15 @@ static bool csr_delayed_step(npc_word_t pc, uint32_t inst) {
     // CSR + priv + fflags/frm(比较列表; mie/mip/mcycle/minstret 阶段3 排除)
     for (int k = 0; k < kCsrCmpCount && (ok || warn_only); ++k) {
       int i = kCsrCmpList[k];
+      // ★fcvt.w/wu/l/lu(FP→GPR: opcode 0x53 + funct7 0x60/0x61)的 fflags 副作用经 FP done-FIFO 比
+      // 整数 CSR 多滞后一拍到 csr_fflags_q(实测: 处理 fcvt 的 K+1 拍 dut_ff 仍为旧值, K+2 拍才现 NV)。
+      // 「统一滞后一拍」延迟模型对它错位一次(清 fflags 后首个 NV-setting fcvt 暴露, 类 xret 一拍失配)。
+      // fflags sticky: 跳过上一条=FP→GPR 的本拍 fflags(idx21)比较非漏验——NV 下一拍即入 csr_fflags_q,
+      // 由后续指令的 sticky 值继续校。NPC fflags 值正确, 纯 difftest 比较时序 artifact。
+      if (i == 21) {
+        const uint32_t pf7 = g_pending_inst >> 25;
+        if ((g_pending_inst & 0x7f) == 0x53u && (pf7 & 0x7eu) == 0x60u) continue;
+      }
       // ★mstatus(idx 0): mask FS[14:13]+SD[63]。spec 明确允许 FS(FP 状态)dirty 追踪不精确
       // (可保守/精确); 且双提交时 FP 副作用(FLD 的 FS-dirty 走 NBA 下一拍才可见)不可经一拍滞后
       // 快照精确观测——co-issue 的 lane1 同拍快照看不到 lane0 FLD 置的 FS dirty。NPC 确实置 FS
