@@ -197,6 +197,9 @@ static inline bool exec_system(Decode *s, uint32_t inst, uint32_t funct3, int rd
       return true;
     case 0x10200073: // sret
       if (cpu.priv < PRIV_S) return false;
+      // TSR: S 态且 mstatus.TSR=1 时 SRET 触发 illegal(M 态不约束; 对齐 NPC
+      // OooFetchHeadClassifyGate sret_tsr_illegal: sret && priv==S && TSR)。
+      if (cpu.priv == PRIV_S && (cpu.csr.mstatus & MSTATUS_TSR)) return false;
       csr_sret(s);
       return true;
     case 0x30200073: // mret
@@ -204,6 +207,9 @@ static inline bool exec_system(Decode *s, uint32_t inst, uint32_t funct3, int rd
       csr_mret(s);
       return true;
     case 0x10500073: // wfi
+      // TW: priv<M 且 mstatus.TW=1 时 WFI 触发 illegal(本核 WFI=立即 no-op 即超 bounded time;
+      // 对齐 NPC OooFetchHeadClassifyGate wfi_tw_illegal: wfi && priv!=M && TW)。
+      if (cpu.priv != PRIV_M && (cpu.csr.mstatus & MSTATUS_TW)) return false;
       isa_riscv64_wfi();
       return true;
     default:

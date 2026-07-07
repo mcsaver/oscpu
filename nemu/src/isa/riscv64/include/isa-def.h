@@ -111,6 +111,8 @@
 #define MSTATUS_SUM        ((word_t)1 << 18)
 #define MSTATUS_MXR        ((word_t)1 << 19)
 #define MSTATUS_TVM        ((word_t)1 << 20)  // Trap Virtual Memory: S 态且置位时 satp/SFENCE.VMA 非法
+#define MSTATUS_TW         ((word_t)1 << 21)  // Timeout Wait: priv<M 且置位时 WFI 非法
+#define MSTATUS_TSR        ((word_t)1 << 22)  // Trap SRET: S 态且置位时 SRET 非法
 #define MSTATUS_SXL_UXL    MUXDEF(CONFIG_ISA64, ((word_t)0xa << 32), 0)
 #define MSTATUS_SD         MUXDEF(CONFIG_ISA64, ((word_t)1 << 63), ((word_t)1 << 31))
 #define SSTATUS_MASK       (MSTATUS_SIE | MSTATUS_SPIE | MSTATUS_SPP | \
@@ -120,7 +122,8 @@
 #define MSTATUS_WRITABLE_MASK \
     (MSTATUS_SIE | MSTATUS_MIE | MSTATUS_SPIE | MSTATUS_MPIE | \
      MSTATUS_SPP | MSTATUS_VS_MASK | MSTATUS_FS_MASK | MSTATUS_MPP_MASK | \
-     MSTATUS_MPRV | MSTATUS_SUM | MSTATUS_MXR | MSTATUS_TVM)
+     MSTATUS_MPRV | MSTATUS_SUM | MSTATUS_MXR | MSTATUS_TVM | \
+     MSTATUS_TW | MSTATUS_TSR)
 
 #define MIP_SSIP           ((word_t)1 << 1)
 #define MIP_MSIP           ((word_t)1 << 3)
