@@ -329,6 +329,22 @@ bool npc_difftest_step(npc_word_t pc, uint32_t inst, npc_word_t next_pc,
   g_ref_exec(1);
   DiffContext ref = {};
   g_ref_regcpy(&ref, DIFFTEST_TO_DUT);
+  // ★counter 读(rdcycle/rdtime/rdinstret 及 mcycle/minstret 的 csrr, 0xc00-c1f/0xb00-b1f 及 h 版)
+  // 本质不可逐值 difftest: NPC 的 time=硬件 CLINT mtime(CLINT_MTIME_DIVISOR=10, 每10拍+1=cycle/10)、
+  // cycle/instret=微架构计数; 而 NEMU 是指令级(clint_mtime++每指令、mcycle=指令数)。二者=微架构 cycle
+  // vs 指令数, 比例=CPI 随程序变, 无固定倍数可对齐(NPC mtime×10 只还原 NPC 真 cycle, NEMU 侧仍指令数)。
+  // 故读 counter 用 DUT 值同步 REF gpr[rd](NPC 主导, 保后续控制流/数据一致, 不逐值误报)。
+  {
+    const uint32_t opc2 = inst & 0x7f, f3 = (inst >> 12) & 0x7;
+    const uint32_t csra = (inst >> 20) & 0xfff, crd = (inst >> 7) & 0x1f;
+    const bool csrop = (opc2 == 0x73) && (f3 != 0 && f3 != 4);   // csrrw/s/c[i], 有 rd
+    const bool counter = (csra >= 0xc00 && csra <= 0xc1f) || (csra >= 0xc80 && csra <= 0xc9f) ||
+                         (csra >= 0xb00 && csra <= 0xb1f) || (csra >= 0xb80 && csra <= 0xb9f);
+    if (csrop && counter && crd != 0 && crd < 32) {
+      ref.gpr[crd] = dut.gpr[crd];              // NPC 主导 counter 读值
+      g_ref_regcpy(&ref, DIFFTEST_TO_REF);      // 同步回 NEMU, 保后续用该 counter 值的指令一致
+    }
+  }
   for (int i = 0; i < 32; ++i) {
     if (ref.gpr[i] != dut.gpr[i]) {
       LogBoth("[npc-diff] mismatch at dut commit pc=0x%016" NPC_PRIxWORD " inst=0x%08x", pc, inst);
