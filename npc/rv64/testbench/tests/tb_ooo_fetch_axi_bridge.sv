@@ -385,23 +385,43 @@ module tb_ooo_fetch_axi_bridge;
     reg [`XLEN-1:0] pbmt2_leaf;
     reg [`XLEN-1:0] pbmt3_leaf;
     reg [`XLEN-1:0] pbmt1_nonleaf;
+    reg [`XLEN-1:0] napot_leaf;
+    reg [`XLEN-1:0] napot_bad_leaf;
+    reg [`XLEN-1:0] napot_nonleaf;
     begin
       pbmt1_leaf = pte_for_page(USER_PA, PTE_USER_X_FLAGS) | (64'd1 << 61);
       pbmt2_leaf = pte_for_page(USER_PA, PTE_USER_X_FLAGS) | (64'd2 << 61);
       pbmt3_leaf = pte_for_page(USER_PA, PTE_USER_X_FLAGS) | (64'd3 << 61);
       pbmt1_nonleaf =
           pte_for_page(L1_PT, PTE_NONLEAF_FLAGS) | (64'd1 << 61);
+      napot_leaf =
+          (pte_for_page(USER_PA, PTE_USER_X_FLAGS) & ~(64'hf << 10)) |
+          (64'h8 << 10) | `SV39_PTE_N;
+      napot_bad_leaf =
+          (pte_for_page(USER_PA, PTE_USER_X_FLAGS) & ~(64'hf << 10)) |
+          (64'h7 << 10) | `SV39_PTE_N;
+      napot_nonleaf = pte_for_page(L1_PT, PTE_NONLEAF_FLAGS) | `SV39_PTE_N;
 
       tb_check1("fetch PBMT=1 leaf faults while Svpbmt disabled",
-                dut.pte_reserved_fault(pbmt1_leaf, 1'b0), 1'b1);
+                dut.pte_reserved_fault(pbmt1_leaf, 1'b0, 2'd0), 1'b1);
       tb_check1("fetch PBMT=1 leaf is legal when Svpbmt enabled",
-                dut.pte_reserved_fault(pbmt1_leaf, 1'b1), 1'b0);
+                dut.pte_reserved_fault(pbmt1_leaf, 1'b1, 2'd0), 1'b0);
       tb_check1("fetch PBMT=2 leaf is legal when Svpbmt enabled",
-                dut.pte_reserved_fault(pbmt2_leaf, 1'b1), 1'b0);
+                dut.pte_reserved_fault(pbmt2_leaf, 1'b1, 2'd0), 1'b0);
       tb_check1("fetch PBMT=3 leaf remains reserved",
-                dut.pte_reserved_fault(pbmt3_leaf, 1'b1), 1'b1);
+                dut.pte_reserved_fault(pbmt3_leaf, 1'b1, 2'd0), 1'b1);
       tb_check1("fetch non-leaf PBMT remains reserved",
-                dut.pte_reserved_fault(pbmt1_nonleaf, 1'b1), 1'b1);
+                dut.pte_reserved_fault(pbmt1_nonleaf, 1'b1, 2'd1), 1'b1);
+      tb_check1("fetch Svnapot 64KiB leaf is legal",
+                dut.pte_reserved_fault(napot_leaf, 1'b0, 2'd0), 1'b0);
+      tb_check1("fetch Svnapot bad ppn encoding faults",
+                dut.pte_reserved_fault(napot_bad_leaf, 1'b0, 2'd0), 1'b1);
+      tb_check1("fetch Svnapot non-leaf faults",
+                dut.pte_reserved_fault(napot_nonleaf, 1'b0, 2'd1), 1'b1);
+      tb_check1("fetch Svnapot level1 leaf faults",
+                dut.pte_reserved_fault(napot_leaf, 1'b0, 2'd1), 1'b1);
+      tb_check64_local("fetch Svnapot PA uses VA low PPN bits",
+                       dut.leaf_paddr(napot_leaf, USER_VA, 2'd0), USER_PA);
     end
   endtask
 

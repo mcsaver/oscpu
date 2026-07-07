@@ -429,6 +429,7 @@
                             `MSTATUS_FS_MASK | \
                             `MSTATUS_SUM | `MSTATUS_MXR | `MSTATUS_SXL_UXL | \
                             `MSTATUS_SD)
+`define SV39_PTE_N         64'h8000_0000_0000_0000
 `define SV39_PTE_RESERVED_MASK 64'he7c0_0000_0000_0000
 `define SV39_PTE_RESERVED_MASK_SVPBMT 64'h87c0_0000_0000_0000
 `define SV39_PTE_NONLEAF_RESERVED_MASK 64'h0000_0000_0000_00d0

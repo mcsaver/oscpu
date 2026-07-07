@@ -164,22 +164,40 @@ module tb_ooo_mem_axi_bridge;
     reg [`XLEN-1:0] pbmt2_leaf;
     reg [`XLEN-1:0] pbmt3_leaf;
     reg [`XLEN-1:0] pbmt1_nonleaf;
+    reg [`XLEN-1:0] napot_leaf;
+    reg [`XLEN-1:0] napot_bad_leaf;
+    reg [`XLEN-1:0] napot_nonleaf;
     begin
       pbmt1_leaf = SUPERPAGE_PTE | (64'd1 << 61);
       pbmt2_leaf = SUPERPAGE_PTE | (64'd2 << 61);
       pbmt3_leaf = SUPERPAGE_PTE | (64'd3 << 61);
       pbmt1_nonleaf = ((ROOT_PT >> 12) << 10) | 64'h001 | (64'd1 << 61);
+      napot_leaf =
+          (SUPERPAGE_PTE & ~(64'hf << 10)) | (64'h8 << 10) | `SV39_PTE_N;
+      napot_bad_leaf =
+          (SUPERPAGE_PTE & ~(64'hf << 10)) | (64'h7 << 10) | `SV39_PTE_N;
+      napot_nonleaf = ((ROOT_PT >> 12) << 10) | 64'h001 | `SV39_PTE_N;
 
       tb_check1("mem PBMT=1 leaf faults while Svpbmt disabled",
-                dut.pte_reserved_fault(pbmt1_leaf, 1'b0), 1'b1);
+                dut.pte_reserved_fault(pbmt1_leaf, 1'b0, 2'd0), 1'b1);
       tb_check1("mem PBMT=1 leaf is legal when Svpbmt enabled",
-                dut.pte_reserved_fault(pbmt1_leaf, 1'b1), 1'b0);
+                dut.pte_reserved_fault(pbmt1_leaf, 1'b1, 2'd0), 1'b0);
       tb_check1("mem PBMT=2 leaf is legal when Svpbmt enabled",
-                dut.pte_reserved_fault(pbmt2_leaf, 1'b1), 1'b0);
+                dut.pte_reserved_fault(pbmt2_leaf, 1'b1, 2'd0), 1'b0);
       tb_check1("mem PBMT=3 leaf remains reserved",
-                dut.pte_reserved_fault(pbmt3_leaf, 1'b1), 1'b1);
+                dut.pte_reserved_fault(pbmt3_leaf, 1'b1, 2'd0), 1'b1);
       tb_check1("mem non-leaf PBMT remains reserved",
-                dut.pte_reserved_fault(pbmt1_nonleaf, 1'b1), 1'b1);
+                dut.pte_reserved_fault(pbmt1_nonleaf, 1'b1, 2'd1), 1'b1);
+      tb_check1("mem Svnapot 64KiB leaf is legal",
+                dut.pte_reserved_fault(napot_leaf, 1'b0, 2'd0), 1'b0);
+      tb_check1("mem Svnapot bad ppn encoding faults",
+                dut.pte_reserved_fault(napot_bad_leaf, 1'b0, 2'd0), 1'b1);
+      tb_check1("mem Svnapot non-leaf faults",
+                dut.pte_reserved_fault(napot_nonleaf, 1'b0, 2'd1), 1'b1);
+      tb_check1("mem Svnapot level1 leaf faults",
+                dut.pte_reserved_fault(napot_leaf, 1'b0, 2'd1), 1'b1);
+      tb_check64("mem Svnapot PA uses VA low PPN bits",
+                 dut.leaf_paddr(napot_leaf, DATA_VA, 2'd0), DATA_PA);
     end
   endtask
 

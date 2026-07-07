@@ -30,7 +30,7 @@
 
 ## 1. 必读链
 
-任何非平凡任务开工前，按顺序读取：
+任何非平凡任务开工前，先用 `python3 scripts/github_index_db.py brief <关键词> --profile <profile>` 生成 bounded 上下文包；还不确定 profile 时先省略 `--profile`，根据 `Profile Suggestions` 选择。随后按顺序读取并核对：
 
 1. 本文件 `.github/AGENTS.md`
 2. `.github/copilot-instructions.md`
@@ -54,7 +54,7 @@
 
 | 步骤 | 必须产出 | 说明 |
 | --- | --- | --- |
-| **RECALL** | 已读记忆文件清单 + 相关约束摘要 | 先消化 `.github/memory/**` 与本地 study 资料 |
+| **RECALL** | DB brief 命令/结果 + 已读记忆文件清单 + 相关约束摘要 | 先用 `brief` 获取 bounded 上下文，再消化 `.github/memory/**` 与本地 study 资料；若跳过 DB recall，必须写明原因 |
 | **PLAN** | 任务图或最小可执行步骤 | 复杂任务优先选静态图模板 |
 | **DISPATCH** | 当前节点的具体动作 | 可并发做只读调研，但实现与验证按依赖推进 |
 | **VERIFY** | 客观证据 | 日志、构建结果、测试结果、trace、对比输出 |
@@ -97,6 +97,8 @@
 
 ## 6. 终端与验证约束
 
+- Windows 侧访问本 WSL 工作区时，PowerShell 只作为 `wsl.exe` 启动器，不承载工程逻辑、路径展开、管道或文件操作；命令统一交给 Ubuntu 执行：`wsl.exe -d Ubuntu --cd /home/lyg/PA/ysyx-workbench -- bash -lc '<cmd>'`。若当前 agent/CLI 已经运行在 WSL/Linux 原生 shell 内，则直接执行 `bash`/`make`/`rg`/`git` 等原生命令，不再反向套 `wsl.exe`。
+- 从 Windows 侧启动 WSL 工程命令默认 single-flight；不要并发打开多个 `wsl.exe` client 做读写、构建或检索。需要复杂控制流、多个管道或 Bash 变量时，放进 `bash -lc` 的 Linux 侧命令或仓库脚本中，避免被 PowerShell 预先解释。
 - 对 NEMU、SDB、menuconfig、SDL 或其它交互式程序，避免使用会破坏交互的包装方式截断输入输出。
 - 需要查看结果时，应直接运行程序并基于真实终端输出总结关键结论。
 - 能脚本化的调试路径优先脚本化，例如 `--batch`、日志文件、trace、watchpoint、配置开关、临时代码插桩或专用测试程序。
@@ -109,6 +111,7 @@
 ## 7. 记录与交付
 
 - **完成判定钩子**：在声明“完成”、关闭目标、更新 goal 状态、或把任务写入“已完成”前，必须重新展开用户原始请求和已读文档中的 checklist/路线图，逐项核对：
+  - 必须显式完成“实现者人格 / 审查者人格”内部对抗：实现者先陈述本轮改动、证据和交付边界；审查者随后优先寻找反例、覆盖洞、假绿、未读上下文、未跑 profile、验证不匹配和越级完成声明。最终回复和 task-run/memory 应写清冲突结论：哪些质疑已由证据关闭，哪些只能作为剩余风险或下一步，冲突未解决时不得声明整体完成。
   - 若用户请求是路线图、长期目标或包含多阶段建议，只能把已验证的最小闭环称为“子任务/本切片完成”，不得把整个目标标为完成。
   - 若只完成其中一项，最终回复和 memory/task-run 必须显式写清“已完成项、未完成项、下一步候选”，并保持目标/问题在语义上未闭合。
   - 只有当原始目标的全部硬性条目都有客观证据，且不存在未处理的用户明确要求时，才允许使用“整体完成/goal complete”的表述。
@@ -116,6 +119,7 @@
   - （rv64 核 RTL）若本次改动触碰握手/stall/flush/序/恢复或跨模块边界，声明“完成”前必须核对：六类契约已冻结、受影响模块 SPEC-TEMPLATE §2/§3 已填满、能编码的契约已转成非真空立即断言且 `make -C npc/rv64 check-contract` 通过；任一缺失只能称“子任务完成”，并在回复中显式列出未冻结的契约格子作为未闭合项。
 - 稳定结论、长期经验和设计决策写入 `.github/memory/`。
 - 单次任务过程、节点派发与证据链优先写入 `.github/task-runs/<日期-任务名>/`。
+- 收尾前运行 `scripts/agent-e2e.sh --guard --guard-mode strict`，让工具按本轮工作树触碰路径推导推荐 profile，并检查 task-run evidence 是否包含对应 completed report、`context-brief.md`、`profile-resolve.md` 与 `evidence-index.md`；若 guard 报缺少证据或 DB 召回产物，必须先补跑建议 profile，或在最终回复和 memory/task-run 中明确豁免理由与风险，不能用 difftest/TB PASS 替代 workflow 证据契约。
 - 处理 agent 架构与工作流环境任务时，相关长期结论优先沉淀到 `.github/memory/modules/agent-system.md`。
 - **文档生命周期义务**：文档不是只增不减的沉积层。声明任务"完成"前，按
   `.github/instructions/doc-lifecycle.instructions.md` §4 核对本次改动是否触发文档状态迁移

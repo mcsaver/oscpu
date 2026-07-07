@@ -28,6 +28,7 @@ tools: [read, edit, search, agent, todo]
 
 - 先判断需求应落在 **Database 长期记忆**、**Skill 标准流程**、**Agent 自动维护**、**全局规则**、**按目录生效的 instructions**、还是 **记忆/蓝图文档**，不要把所有东西都塞进一份全局指令
 - 复杂任务优先落成“Database 事实层 + Skill 规则层 + Agent 执行层”的三层结构，再映射到图任务协议和模块专家
+- 交付前必须让“实现者人格”和“审查者人格”对立：实现者负责收敛方案、证据和边界，审查者负责主动寻找反例、覆盖洞、假绿、未跑 profile、未读上下文和越级完成声明；最终结论由证据裁决，冲突未解决时只允许交付子任务状态和剩余风险
 - 新增 agent 时，必须让 `description` 能清楚暴露触发词和使用场景
 - 新增工程模块或工作流 agent 后，同时检查 coordinator 的 `agents` 列表、蓝图 Agent 分层、memory-protocol 模块清单、对应 `memory/modules/*.md`、e2e module、profile 与脚本 gate
 - 修改范围保持最小闭环：同一轮只落一组能独立生效的配置变更

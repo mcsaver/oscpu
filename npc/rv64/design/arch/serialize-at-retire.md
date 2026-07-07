@@ -1,6 +1,8 @@
 # 规范：serialize-at-retire（域 B 拆除最后一步）—— 可行性评估 + 分阶段实施计划
 
-> 状态：**spec 先行（2026-07-04，只读调查完成，RTL 未动）**。宪法 §8.4 step 4。
+> 状态：**spec 先行 + Phase1 flag-gated 落地（2026-07-07 生命周期校正）**。宪法 §8.4 step 4。
+> `serialize-at-retire-phase1.md` 已实现 head0-CSR 队头化的 `OOO_CSR_QUEUE_HEAD` 编译期开关，
+> 但默认仍为 0；翻默认 1 前仍需 full Linux boot、`-v-`/full-state difftest 与 glue TB CsrFile stub 护航。
 > 定位：把 system/trap 指令从"全局 stop_pending + 全后端 drain"改为"ROB 队头执行 + 退休刷 younger"，
 > **架构语义不变**（cycle 会变，故 cycle-exact 中性不适用），之后物理删除
 > `OooStopPendingSequencer`/`OooPendingDrainResolveGate`/`OooPendingDispatchArbiter` 等机制。
@@ -56,7 +58,8 @@ PendingOperandReadGate/PendingLane1CaptureGate + glue 布线。**但有隐藏依
 
 ## 3. 风险最高的边界（专项开工必读）
 
-1. **CSR 读值时机**：队头读须读到"之前所有已提交写"值；序错→静默读旧值，**difftest 不比 CSR 抓不到**。
+1. **CSR 读值时机**：队头读须读到"之前所有已提交写"值；序错会破坏架构态。当前全状态 difftest 已能比较
+   确定性 CSR+priv+fflags/frm，但仍需 riscv-tests 特权集与 Linux smoke 覆盖时序/异步边界。
 2. **mret/sret 后 flush + priv 切换 + pred 清理**（`priv_predictor_boundary`）：漏/多做→取指走错特权/地址空间。
 3. **CSR 写后 hazard**：写 mstatus/satp/pmp 后紧邻指令用新值的可见性（今天靠 drain 天然隔离）。
 4. **sfence 后 TLB flush 时序**：`mmu_flush` 从 drain 电平改 commit 脉冲，须冲 ITLB + 在飞取指；脉冲宽窄错→漏刷/误刷。
@@ -91,9 +94,11 @@ stop_pending/drain 物理删除**只能在阶段 5** 一次性做。
 ## 5. 验证方案（cycle-exact 不适用 → 语义守正确性）
 
 1. **riscv-tests 355/0 全套**（含 `rv64mi/si` 特权，`make core-regress`）——唯一直接覆盖 trap/CSR/mret/特权的护栏。
-2. **difftest 逐指令**（NEMU，比 PC+32 GPR）——**但不比 CSR/FPR/内存**，CSR 侧盲区靠 #1/#4 补。
+2. **difftest 逐指令**（NEMU，全状态比较 GPR/PC + 确定性 CSR/priv + FPR + fflags/frm）——
+   对 CSR 队头化已不再是盲区，但 xret/fcvt 等时序 artifact、counter/FS 掩码和异步中断同步仍须按既有策略审查。
 3. **CoreMark 0xfcaf** + AM/Dhrystone 全 GOOD TRAP。
-4. **Linux boot smoke（本任务必需）**：sfence.vma/satp/mret/S-mode page fault/IRQ 是内核热路径、正好是 difftest 盲区；
+4. **Linux boot smoke（本任务必需）**：sfence.vma/satp/mret/S-mode page fault/IRQ 是内核热路径，覆盖
+   difftest 难以单独证明的系统级时序与设备/中断交互；
    QEMU 参考 + NPC/Verilator 分层，按 `/init`/内核 print/S-mode 切换 gate 收口。**没有 Linux smoke = CSR/特权侧无护栏。**
 5. **定向 + 对抗性 TB**：系统op-at-head 提交→younger squash+redirect+CSR写；CSR-RAW；mret-priv；sfence-TLB；IRQ-at-commit。
 

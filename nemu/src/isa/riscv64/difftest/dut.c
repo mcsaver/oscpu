@@ -42,8 +42,8 @@ void isa_difftest_attach() {
 }
 
 // 全状态 difftest 扩展：CSR + priv 扁平化到 buf。★索引约定必须与 NPC difftest.cpp 完全一致。
-// 阶段1 比较 0..16(确定性 CSR + priv); 17+ 先填但暂不比(mie/mip=阶段3中断, mcycle/minstret=
-// 阶段3计数掩码, fflags/frm=阶段2随 FPR)。buf 至少 32 word。
+// NPC 当前比较确定性 CSR[0..16] + fflags/frm；mie/mip/counter 这类异步/计数状态填充但按策略排除或同步。
+// buf 至少 32 word。
 void isa_difftest_csr_snapshot(uint64_t *buf) {
   buf[0]  = cpu.csr.mstatus;
   buf[1]  = cpu.csr.mepc;

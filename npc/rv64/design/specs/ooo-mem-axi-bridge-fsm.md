@@ -43,6 +43,9 @@
   右移出 CPU 视图；跨线（`read_cross_q`）按原地址窗口读且不 fill。
 - **PTW 隐式访问 PMP（F9）**：每级 PTE 读地址（`walk_pte_addr_w`）经独立 PmpChecker 检查，违例在
   S_WALK_AR 直接转 S_RESP 报 access fault（非 page fault），不发 AR。
+- **Svnapot 64KiB**：PTW 只接受 level0 leaf 且 `PTE.N=1 && PTE.PPN[3:0]=4'b1000`；非 leaf、
+  level1/2 leaf 或其它 NAPOT 编码均报 load/store page fault。合法 leaf 的 PA 拼接使用 VA[15:12]
+  替代 PTE.PPN[3:0]，再进入 PMP、dcache 或 AXI 访问；DTLB hit 复核必须带 leaf level。
 - 单 outstanding 由**状态**强制：`req_slot_ready_w = !cpu_kill && (S_IDLE || (S_RESP && rsp_ready))`，
   写/读事务进行中(非 S_IDLE/S_RESP)不接受新请求。**与 drop_rsp_q 无关**。
 
@@ -81,6 +84,7 @@
   三事务属性、flush 读态改本地直接释放（依赖 xbar abort/drop）、MEM-I3 收窄。
 - 2026-07-03（doc-lifecycle 审计补漂移）：F9 PTE 读地址 PMP（S_WALK_AR 可直转 S_RESP）、line 读
   （32KB dcache/对齐 AR 回填/跨线窗口读）、accept 拍 AR 直发跳过 S_READ_ADDR、S_RESP back-to-back accept。
+- 2026-07-07：补齐 Svnapot 64KiB leaf 判定、PA 拼接与 DTLB hit 复核 level 约束。
 
 ## 已知隐患(2026-06-28 bug-hunt,当前不可触发)
 - "至多一个未收 B" 不变量未由桥自身保证,依赖外部 `AxiLiteXbar` 串行化写;接流水化写互连会 B 归因 off-by-one。详见 `.github/memory/known-issues.md`(隐患A)。IP 复用前应桥内自保证(accept 新写前 `!bpend_q` 或 B 计数+归属)。

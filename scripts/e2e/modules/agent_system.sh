@@ -122,6 +122,83 @@ e2e_agent_system_discovery() {
     rc=1
   fi
 
+  echo "[agent-system] e2e evidence guard"
+  local evidence_guard_ok=1
+  if grep -Fq 'E2E_GUARD_MODE=strict' "$runner_sh" &&
+     grep -Fq 'e2e_guard_profiles_for_path' "$runner_sh" &&
+     grep -Fq 'e2e_guard_evidence_has_db_recall' "$runner_sh" &&
+     grep -Fq 'missing_evidence profile=' "$runner_sh" &&
+     grep -Fq -- '--guard-mode strict' "$E2E_ROOT_DIR/.github/AGENTS.md" &&
+     grep -Fq -- '--guard-mode strict' "$E2E_ROOT_DIR/.github/instructions/agent-e2e-workflow.instructions.md" &&
+     grep -Fq -- '--guard-mode strict' "$E2E_ROOT_DIR/.github/e2e/README.md" &&
+     grep -Fq -- '--guard-mode strict' "$E2E_ROOT_DIR/scripts/README.md" &&
+     grep -Fq -- 'context-brief.md' "$E2E_ROOT_DIR/.github/instructions/agent-e2e-workflow.instructions.md" &&
+     grep -Fq -- 'evidence-index.md' "$E2E_ROOT_DIR/.github/e2e/README.md"; then
+    printf 'PASS e2e evidence guard is wired into runner and docs\n'
+  else
+    printf 'FAIL e2e evidence guard runner or docs missing\n'
+    evidence_guard_ok=0
+  fi
+
+  local guard_tmp guard_paths guard_evidence guard_report_only
+  guard_tmp=$(mktemp -d)
+  guard_paths="$guard_tmp/paths.txt"
+  guard_evidence="$guard_tmp/evidence-pass"
+  guard_report_only="$guard_tmp/evidence-report-only"
+  mkdir -p "$guard_evidence"
+  cat > "$guard_evidence/task-report.md" <<'EOF'
+# 任务报告
+
+- `profile`: agent-system
+- `status`: completed
+EOF
+  cat > "$guard_evidence/context-brief.md" <<'EOF'
+# Context Brief
+
+generated_by: github_index_db brief
+EOF
+  cat > "$guard_evidence/profile-resolve.md" <<'EOF'
+# Profile Resolve
+
+generated_by: github_index_db resolve-profile
+EOF
+  cat > "$guard_evidence/evidence-index.md" <<'EOF'
+# Evidence Index
+
+generated_by: github_index_db index-evidence
+EOF
+  printf '%s\n' '.github/AGENTS.md' > "$guard_paths"
+  if "$runner_sh" --guard --guard-mode strict --paths-file "$guard_paths" --evidence-dir "$guard_evidence" >/dev/null 2>&1; then
+    printf 'PASS e2e evidence guard accepts matching completed task-run evidence\n'
+  else
+    printf 'FAIL e2e evidence guard rejected matching completed task-run evidence\n'
+    evidence_guard_ok=0
+  fi
+  mkdir -p "$guard_report_only"
+  cat > "$guard_report_only/task-report.md" <<'EOF'
+# 任务报告
+
+- `profile`: agent-system
+- `status`: completed
+EOF
+  if "$runner_sh" --guard --guard-mode strict --paths-file "$guard_paths" --evidence-dir "$guard_report_only" >/dev/null 2>&1; then
+    printf 'FAIL e2e evidence guard accepted report without DB recall artifacts\n'
+    evidence_guard_ok=0
+  else
+    printf 'PASS e2e evidence guard rejects report without DB recall artifacts\n'
+  fi
+  printf '%s\n' 'npc/rv64/vsrc/OooCore.v' > "$guard_paths"
+  if "$runner_sh" --guard --guard-mode strict --paths-file "$guard_paths" --evidence-dir "$guard_evidence" >/dev/null 2>&1; then
+    printf 'FAIL e2e evidence guard accepted missing npc-dev evidence\n'
+    evidence_guard_ok=0
+  else
+    printf 'PASS e2e evidence guard rejects missing recommended profile evidence\n'
+  fi
+  rm -rf "$guard_tmp"
+  if [[ $evidence_guard_ok -ne 1 ]]; then
+    rc=1
+  fi
+
   echo "[agent-system] scenario profile isolation"
   local profile_isolation_ok=1
   for doc in "$workflow_doc" "$e2e_readme"; do
@@ -695,7 +772,11 @@ e2e_agent_system_reviewer_inspector_gate() {
   if e2e_file_contains "$review_doc" '"R7": "agent-layer"' &&
      e2e_file_contains "$review_doc" '"primary_agent": "ysyx-coordinator"' &&
      e2e_file_contains "$review_doc" '"inspector": "agent-system"' &&
-     e2e_file_contains "$review_doc" '"state-audit"'; then
+     e2e_file_contains "$review_doc" '"state-audit"' &&
+     e2e_file_contains "$review_doc" '"adversarial_personas"' &&
+     e2e_file_contains "$review_doc" '"implementer_persona"' &&
+     e2e_file_contains "$review_doc" '"reviewer_persona"' &&
+     e2e_file_contains "$review_doc" '"conflict_resolution_required": true'; then
     printf 'PASS review routing maps R7 to reviewer/inspector gate\n'
   else
     printf 'FAIL review routing missing R7 reviewer/inspector gate\n'
@@ -704,10 +785,22 @@ e2e_agent_system_reviewer_inspector_gate() {
 
   if e2e_file_contains "$policy_doc" '"reviewer_profile_nodes"' &&
      e2e_file_contains "$policy_doc" '"state-machine-traceback"' &&
-     e2e_file_contains "$policy_doc" '"reviewer-inspector-gate"'; then
+     e2e_file_contains "$policy_doc" '"reviewer-inspector-gate"' &&
+     e2e_file_contains "$policy_doc" '"adversarial_personas_required": true' &&
+     e2e_file_contains "$policy_doc" '"conflict_resolution_required": true'; then
     printf 'PASS policy requires reviewer/inspector profile nodes\n'
   else
     printf 'FAIL policy missing reviewer/inspector profile node requirements\n'
+    rc=1
+  fi
+
+  if e2e_file_contains ".github/AGENTS.md" '实现者人格 / 审查者人格' &&
+     e2e_file_contains ".github/copilot-instructions.md" '实现者人格 / 审查者人格' &&
+     e2e_file_contains ".github/agents/agent-system.agent.md" '实现者人格' &&
+     e2e_file_contains ".github/instructions/agent-env-state-machine.instructions.md" '实现者/审查者对抗'; then
+    printf 'PASS adversarial implementer/reviewer delivery rule is documented\n'
+  else
+    printf 'FAIL adversarial implementer/reviewer delivery rule missing from docs\n'
     rc=1
   fi
 

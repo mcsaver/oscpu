@@ -80,21 +80,22 @@
 | B6 | 分支多级 spec checkpoint | 中 | 高 | spec 先行 | 已被 B2 ROB-walk 取代(walk 天然支持多在飞分支，无需 checkpoint) |
 | B7 | **serialize-at-retire（宪法 §8.4 step 4，域 B 拆除最后一步）**：system/trap 改 ROB 队头执行+退休刷 younger，删 stop_pending/drain 机制 | 中(交付质量/CSR 指令延迟) | **高(精确异常/CSR/特权全路径)** | **spec✓**(`serialize-at-retire.md`)；6 阶段(CSR→sfence→ecall/trap→mret/IRQ→删机制)，每阶段 355/0+difftest+Linux smoke | **只读调查完成(2026-07-04)=高风险大重写、走专项**：宪法框定"改标志位语义不变"经证实低估——非 CSR 系统指令今天不进 ROB，副作用由控制面 drain 拍合成→须新建系统指令 ROB 数据通路(~15-20 RTL+~15 TB)。cycle-exact 不适用(改语义守正确性,需 Linux boot smoke=CSR 侧唯一护栏)。详见 spec |
 
-### 下一步决策（2026-07-06 更新：工具链地基先行 → 再回 domain-B 拆除）
+### 下一步决策（2026-07-07 生命周期校正：四步护栏链已闭合 → 转 B7 flag-ON 前置）
 
-主线卡点已定死：domain-B 拆除最后一步（B7 serialize-at-retire / 翻 `OOO_CSR_QUEUE_HEAD=1`）
-real-workload 已全绿却不敢翻默认——因 **difftest 不比 CSR（盲区）**，CSR/trap 序列化无金标准护栏，
-历史反复栽在此（中间态死锁 / "队头=序安全"不变量腐蚀 / 签名全过但架构错路）。
-**决策：先补 CSR 侧金标准护栏（把 NEMU 的 CSR 做正确、开 CSR difftest 逐 CSR 校），再回来拆 domain-B。**
-（比"观测层断言几条人挑不变量"更根本——补的是全覆盖金标准，不是旁路缓解。）路线（四步）：
-1. ✅ **刷新本 ROADMAP**（本次）。
-2. **Kconfig 通用化**：工具本体现寄生 `nemu/tools/kconfig`（+ 配套 `tools/fixdep`）；npc/{rv64,single,sim,soc}
-   + nemu + Linux 共 6+ 工程经 `$(NEMU_HOME)/tools/kconfig` 反向依赖它。抽到工作区级 `tool/`，
-   改各 `scripts/config.mk` 引用，逐工程验 menuconfig 照常。（通用工具归工作区、不归子工程——依赖方向原则的代码层落地。）
-3. **NEMU CSR 正确性**：补 NEMU 符合语义的 CSR 配置；已有的引**官方测试集**验证 NEMU CSR 正确。
-4. **启用 nemu↔npc CSR difftest**：做到能正确无误逐 CSR 校对——这就是 domain-B 拆除缺的金标准护栏。
-补齐后 B7 / `CSR_QUEUE_HEAD=1` 在 CSR-difftest 守护下推进（不再靠 Linux boot 兜底 CSR 盲区）。
-其它高价值项（load 多 outstanding / dcache word→line 粒度 = CoreMark load miss 47% 根因）护栏就位后择机。
+2026-07-06 记录的"先补 CSR 侧金标准护栏，再回来拆 domain-B"四步链已完成：
+1. ✅ **刷新 ROADMAP**：本文件已同步到 gate 355/0、AM 59/0、正确性缺口清零的当前基线。
+2. ✅ **Kconfig 通用化**：`kconfig/fixdep` 已迁到工作区级 `tool/`，npc/{rv64,single,sim,soc}+nemu+Linux
+   均经 `$(YSYX_HOME)/tool/{kconfig,fixdep}` 使用；2026-07-07 又补齐 `tool/` 自身 Makefile 的反向依赖，
+   使其 include 工作区级 `scripts/build.mk`，不再依赖 `$(NEMU_HOME)/scripts/build.mk`。
+3. ✅ **NEMU CSR/特权正确性**：RV64 NEMU 已补齐 riscv-tests/ACT4 暴露的 CSR、trap、Sv 语义，并由官方/金标
+   测试链验证；当前 NEMU 可作为 NPC CSR/priv/FPR 全状态 difftest reference。
+4. ✅ **NPC↔NEMU 全状态 difftest**：已启用 CSR+priv+FPR(+fflags/frm) 比较、异常/中断同步、counter 同步与
+   spec-允许掩码；AM 与 riscv-tests full-state difftest 分歧已逐个清零，`ssvnapot` 边界也已闭合。
+
+因此 B7 / `OOO_CSR_QUEUE_HEAD=1` 不再被"CSR difftest 盲区"阻塞；下一步应按
+`serialize-at-retire.md` / `serialize-at-retire-phase1.md` 推进 **flag ON 前置**：补 full Linux boot 护航、
+`-v-`/full-state difftest 覆盖和 glue TB CsrFile stub，然后再评估把 `OOO_CSR_QUEUE_HEAD` 默认翻 1。
+其它高价值项（load 多 outstanding / dcache word→line 粒度 = CoreMark load miss 47% 根因）在 B7 护栏闭合后择机。
 
 ---
 
@@ -107,12 +108,12 @@ real-workload 已全绿却不敢翻默认——因 **difftest 不比 CSR（盲�
 6. **RECORD+COMMIT**：更新 ROADMAP/spec/记忆/task-run，`git commit` 该迭代。
 
 ## 6. 已知环境约束
-- **difftest 现已修复并全面工作**(NEMU 构建 + 结构 ABI + 比较模式三修复;计算/整数访存测试逐指令对照 NEMU 全过)。
-  开 `CONFIG_NPC_DIFFTEST` 构建即可作 LSQ/dispatch 等访存敏感重构的逐指令安全验证。注:NEMU 对 A/D/PMP 与本核
-  有意不同(NEMU HW A/D),故 Sv39/PMP 路径会差异性 diverge,difftest 重点用于计算/整数访存正确性。
+- **difftest 现已修复并全面工作**：NPC↔NEMU 全状态比较覆盖 GPR/PC、确定性 CSR+priv、FPR、fflags/frm，
+  并有异常/中断同步、counter 读同步与 spec-允许掩码。开 `CONFIG_NPC_DIFFTEST` 构建即可作 LSQ/dispatch/
+  CSR 队头化等敏感重构的逐指令安全验证；Sv39 A/D 与 Svnapot 边界已对齐，PMP/异步计数仍按既有策略处理。
 - **NEMU FP 已升级 Berkeley SoftFloat(RISC-V spec, `tool/softfloat`)**(2026-07-06)：原 host-float 近似实现 →
   proper IEEE-754;官方 rv64uf/ud 23/0 + 与 spike 逐指令 bit-一致。FP 现可作 difftest 金标准(FPR 对比前提已备)。
-  **NEMU-NPC A/D 分歧待 NPC SW→HW 对齐后消除**(主线 step 4),之后 difftest ABI 扩 GPR+FPR+全 CSR+priv。
+  该 SoftFloat 结果已进入 NPC↔NEMU FPR difftest 金标准链。
 - 大型测试集/日志不入 git（`eval/results/` 已忽略），结论写文档/记忆。
 
 ## 7. 时序(Fmax)track（Vivado OOC,数据驱动）

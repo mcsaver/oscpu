@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T11:40:43+00:00",
-  "updated_at": "2026-06-27T03:12:36+00:00",
+  "updated_at": "2026-07-07T12:06:50+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -26042,6 +26042,166 @@
       "sha256": "4985b3cb6103fb6ce931965adf3bc34807a292d7a491e484d0ea6cd6bee2a910",
       "backup_source": "filesystem",
       "archived_at": "2026-06-27T03:12:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-07-2026-07-07-windows-wsl-terminal-rule/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 8979,
+      "sha256": "194d01f0ee04d69d00aea0baf80cff34171fba348f97cadd40698a82ced143c3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T08:19:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-07-2026-07-07-windows-wsl-terminal-rule/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11463,
+      "sha256": "20df282e36448c89d2f3872a24f68291e128db120a2d8db6ac5e2c67c024dda9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T08:19:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-07-2026-07-07-windows-wsl-terminal-rule/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 7416,
+      "sha256": "9a8a37bdc85e561317c0e30e891cce99a7aba902a38ecf44e274e9d6946339db",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T08:19:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-07-2026-07-07-windows-wsl-terminal-rule/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1673,
+      "sha256": "8b3d126d3085198342ff9baaf11ab584946588b0f3e6cb90887f03a220bfff7c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T08:19:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-07-2026-07-07-windows-wsl-terminal-rule/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6289,
+      "sha256": "e1042c7d0e8a44f074a6546c8a3f5375bb838c0079b7b1cf382563eaef5d25d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T08:19:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-07-adversarial-review-personas/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 8970,
+      "sha256": "826cd30b684d52d600c2caf0fb975cf33a00a939b2cb5fdab5f0bda7bbe0e0e3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T12:06:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-07-adversarial-review-personas/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11238,
+      "sha256": "4d0534b7e5639ca2e0335a10d2b3e4ef3b5fff62466000c8ad18f4ac78ca0dcf",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T12:06:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-07-adversarial-review-personas/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 7301,
+      "sha256": "dae327baecfdf3ff98e4b95df1e2ba34f8ee08fd1a392be7ee25bdb27b133607",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T12:06:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-07-adversarial-review-personas/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1673,
+      "sha256": "8b3d126d3085198342ff9baaf11ab584946588b0f3e6cb90887f03a220bfff7c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T12:06:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-07-adversarial-review-personas/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6127,
+      "sha256": "a2590f1d9be4c677b49e277cb56667b4877c9d74633f6189d600dbb76c4a08b5",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T12:06:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-07-e2e-db-usage-guard/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 12463,
+      "sha256": "0b45d4989c8f4606a5f80109ed9d1501c4fda624439d4992428add15497d18c8",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T09:29:40+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-07-e2e-db-usage-guard/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11013,
+      "sha256": "f139a0776c9d7db1baa3b6c073556d5e52e936a66892494f5307a9b8639e86b5",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T09:29:40+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-07-e2e-db-usage-guard/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 7182,
+      "sha256": "053f2c2d0b5d89932e7e9019be051ab27b206765547d2cf222482a690358c699",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T09:29:40+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-07-e2e-db-usage-guard/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1673,
+      "sha256": "8b3d126d3085198342ff9baaf11ab584946588b0f3e6cb90887f03a220bfff7c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T09:29:40+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-07-e2e-db-usage-guard/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 5965,
+      "sha256": "a27b5c0271314a1c6ae6f931418c0bad081d5f4b3ab5f96a9b637b06b39073ef",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T09:29:40+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-07-e2e-guard-enforcement/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 12543,
+      "sha256": "88905116adc12a2dd73f864ab96bb13a7cd4bf5498dca26e01c50d157cd98bcc",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T08:55:19+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-07-e2e-guard-enforcement/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11088,
+      "sha256": "8a81e02de6a152024441ba54809458a2610c566c9ff1eb576ffacf2278251b6c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T08:55:19+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-07-e2e-guard-enforcement/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 7221,
+      "sha256": "9c3cb61737fd1141bb139c63ecb15d09da7037141d4044051b99395aa3b67186",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T08:55:19+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-07-e2e-guard-enforcement/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1673,
+      "sha256": "8b3d126d3085198342ff9baaf11ab584946588b0f3e6cb90887f03a220bfff7c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T08:55:19+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-07-e2e-guard-enforcement/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6019,
+      "sha256": "6994fe3f3840991830095359db2a841255f164107da576789da340d7a351c307",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T08:55:19+00:00"
     }
   ]
 }

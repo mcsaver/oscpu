@@ -43,8 +43,9 @@
 #define CSR_MTVEC    0x305
 #define CSR_MCOUNTEREN 0x306
 #define CSR_MCOUNTINHIBIT 0x320
-// menvcfg(0x30a): S/U 环境配置。NEMU 未实现 Svpbmt/Svnapot/Sstc/Svadu, 故这些扩展位
-// 语义为 0(相关 PTE 高位一律 fault); 但寄存器本身必须可读写(WARL), 否则 guest 的
+// menvcfg(0x30a): S/U 环境配置。NEMU 已在 MMU walker 中实现 Svnapot 64KiB NAPOT；
+// Svpbmt/Sstc/Svadu 仍未实现，相关环境配置位只保留 WARL 读写语义。寄存器本身必须
+// 可读写(WARL)，否则 guest 的
 // `csrc menvcfg, t` 会误触 illegal instruction。ACT4 svpbmt_disabled 测试正是靠清 PBMTE 走此路径。
 #define CSR_MENVCFG  0x30a
 #define MENVCFG_WRITABLE_MASK \

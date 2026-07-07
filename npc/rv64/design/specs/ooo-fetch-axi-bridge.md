@@ -22,6 +22,9 @@
 - **PMP**：对 exec_paddr(及 +4 的第二槽)逐访问检查；fault→resp=ACCESS_FAULT。
 - **跨页**：包尾跨 4KiB 页时，第二槽需第二次翻译/取指并拼接(merge_cross_page)；
   **跨页包永不缓存**（fill 条件含 `!packet_cross_page_q`），每次命中该 PC 都重走两页翻译+两次读。
+- **Svnapot 64KiB**：page walk 只接受 level0 leaf 且 `PTE.N=1 && PTE.PPN[3:0]=4'b1000`；
+  非 leaf、level1/2 leaf 或其它 NAPOT 编码均报 instruction page fault。合法 leaf 的 PA 拼接使用
+  VA[15:12] 替代 PTE.PPN[3:0]，再进入 PMP 与 fetch cache fill。
 
 ## 4. PMP × 取指 cache 门控（iter1 修复，关键）
 **问题**：原实现 `cache_hit = cache_hit_raw && !pmp_active`、`fill = !pmp_active && ...`——
@@ -47,7 +50,8 @@ fetch_cache_fill_valid_w = (fill_r0 || fill_r1);   // 不再被 pmp_active 门�
  S_IDLE --need-trans,itlb-miss--> S_WALK_AR/S_WALK_R(三级) --> 取指/RESP
  S_IDLE --pmp/page fault--> S_RESP(resp=ACCESS_FAULT/PAGE_FAULT)
 ```
-A/D：leaf PTE 的 A=0 → instruction page fault(核非 Svadu，软件管理 A/D)。
+A/D：leaf PTE 的 A=0 → instruction page fault(核非 Svadu，软件管理 A/D)。reserved 扩展位检查在
+Svpbmt/Svnapot 规则之后完成；ITLB 命中复核也必须带 leaf level，避免把合法 NAPOT hit 当成保留位 fault。
 
 ## 6. 验证
 - riscv-tests `rv64ui`(取指正确性)、`rv64mi/si`(特权/翻译)、ACT4 Sv39/PMP。
@@ -65,6 +69,7 @@ PMP(16 entry) × 两槽 + ITLB + cache 命中比较并行；是潜在长组合�
 ## 8. 变更记录
 - iter1(2026-06-28)：取指 cache 从"PMP 全禁"改为 PMP-grant 逐访问门控 + fill 恒开。
 - 本规范(2026-06-28)：文档化 fetch 桥与该修复。
+- 2026-07-07：补齐 Svnapot 64KiB leaf 判定、PA 拼接与 ITLB hit 复核 level 约束。
 
 ## 已知隐患(2026-06-28 bug-hunt)
 - **[已修复]** 跨页已缓存包槽1 PMP 复检用错物理地址(`req_exec1_paddr_w=paddr0+4` 对跨页是错页);PMP 运行期 allow→deny 第二页且无取指 cache 失效时可绕过槽1 PMP。详见 `.github/memory/known-issues.md`(隐患B)。根因修复:**跨页取指包不缓存**(fill 条件含 `!packet_cross_page_q`,每次重取经 walk-leaf checker 用正确物理地址重查两页 PMP,`OooFetchAxiBridge.v:279-296` 注释自证);非跨页包内 `paddr0+4` 恒同页,复检恒正确。

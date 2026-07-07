@@ -93,6 +93,8 @@
     "inspector": "agent-system",
     "coordinator": "ysyx-coordinator",
     "traceback_required": true,
+    "adversarial_personas_required": true,
+    "conflict_resolution_required": true,
     "reviewer_profile_nodes": [
       "state-machine-traceback",
       "reviewer-inspector-gate"

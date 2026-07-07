@@ -142,13 +142,19 @@ module OooFetchAxiBridge (
   function pte_reserved_fault;
     input [`XLEN-1:0] pte;
     input svpbmt_en;
+    input [1:0] level;
     begin
       pte_reserved_fault =
-          ((pte & (svpbmt_en ? `SV39_PTE_RESERVED_MASK_SVPBMT :
-                                `SV39_PTE_RESERVED_MASK)) !=
-           {`XLEN{1'b0}}) ||
-          (!pte_leaf(pte) &&
-           (((pte & `SV39_PTE_NONLEAF_RESERVED_MASK) != {`XLEN{1'b0}}) ||
+          (pte_leaf(pte) ?
+           (((pte & ((svpbmt_en ? `SV39_PTE_RESERVED_MASK_SVPBMT :
+                                  `SV39_PTE_RESERVED_MASK) &
+                                 ~`SV39_PTE_N)) != {`XLEN{1'b0}}) ||
+            (((pte & `SV39_PTE_N) != {`XLEN{1'b0}}) &&
+             ((level != 2'd0) || (pte[13:10] != 4'b1000)))) :
+           (((pte & (svpbmt_en ? `SV39_PTE_RESERVED_MASK_SVPBMT :
+                                  `SV39_PTE_RESERVED_MASK)) !=
+             {`XLEN{1'b0}}) ||
+            ((pte & `SV39_PTE_NONLEAF_RESERVED_MASK) != {`XLEN{1'b0}}) ||
             (svpbmt_en &&
              (pte[`SV39_PTE_PBMT_HI:`SV39_PTE_PBMT_LO] != 2'b00)))) ||
           (pte_leaf(pte) && svpbmt_en &&
@@ -193,13 +199,16 @@ module OooFetchAxiBridge (
     input [`XLEN-1:0] vaddr;
     input [1:0] level;
     begin
-      // 用单表达式保持 Sv39 superpage PPN 拼接，避免函数级 lint waiver。
+      // Svnapot 64KiB leaf: PTE.PPN[3:0] 是 NAPOT 编码(1000)，真实 PA
+      // 低 4 个 PPN bit 必须来自 VA[15:12]，否则会写到 64KiB 窗口中间。
       leaf_paddr = {8'b0,
                     (level == 2'd2) ?
                     {pte[53:28], vaddr[29:21], vaddr[20:12]} :
                     (level == 2'd1) ?
                     {pte[53:28], pte[27:19], vaddr[20:12]} :
-                    pte[53:10],
+                    (((pte & `SV39_PTE_N) != {`XLEN{1'b0}}) ?
+                     {pte[53:14], vaddr[15:12]} :
+                     pte[53:10]),
                     vaddr[11:0]};
     end
   endfunction
@@ -253,11 +262,11 @@ module OooFetchAxiBridge (
   wire [1:0] cache_resp1_w;
   wire req_itlb_context_hit_w;
   wire [`XLEN-1:0] req_itlb_pte_w;
-  wire [1:0] req_itlb_level_unused_w;
+  wire [1:0] req_itlb_level_w;
   wire [`XLEN-1:0] req_itlb_paddr_w;
   wire req_itlb_perm_fault_w =
       req_itlb_context_hit_w &&
-      (pte_reserved_fault(req_itlb_pte_w, svpbmt_en_i) ||
+      (pte_reserved_fault(req_itlb_pte_w, svpbmt_en_i, req_itlb_level_w) ||
        exec_permission_fault(req_itlb_pte_w, priv_mode_i));
   wire req_itlb_hit_w = req_itlb_context_hit_w && !req_itlb_perm_fault_w;
   wire [`XLEN-1:0] req_exec_paddr_w =
@@ -299,7 +308,7 @@ module OooFetchAxiBridge (
       !mmu_flush_i && (state_q == S_WALK_R) && ifu_axi_rvalid_i &&
       (ifu_axi_rresp_i == RESP_OK) &&
       !pte_invalid(ifu_axi_rdata_i) &&
-      !pte_reserved_fault(ifu_axi_rdata_i, req_svpbmt_en_q) &&
+      !pte_reserved_fault(ifu_axi_rdata_i, req_svpbmt_en_q, walk_level_q) &&
       (pte_leaf(ifu_axi_rdata_i)) &&
       !superpage_misaligned(ifu_axi_rdata_i, walk_level_q) &&
       !exec_permission_fault(ifu_axi_rdata_i, req_priv_q) &&
@@ -374,7 +383,7 @@ module OooFetchAxiBridge (
     .lookup_satp_i(satp_i),
     .lookup_context_hit_o(req_itlb_context_hit_w),
     .lookup_pte_o(req_itlb_pte_w),
-    .lookup_level_o(req_itlb_level_unused_w),
+    .lookup_level_o(req_itlb_level_w),
     .lookup_paddr_o(req_itlb_paddr_w),
     .fill_valid_i(itlb_fill_valid_w),
     .fill_vaddr_i(walk_vaddr_w),
@@ -610,7 +619,8 @@ module OooFetchAxiBridge (
               end
             end else if (pte_invalid(ifu_axi_rdata_i) ||
                          pte_reserved_fault(ifu_axi_rdata_i,
-                                            req_svpbmt_en_q) ||
+                                            req_svpbmt_en_q,
+                                            walk_level_q) ||
                          (!pte_leaf(ifu_axi_rdata_i) &&
                           (walk_level_q == 2'd0))) begin
               if (walk_second_q) begin

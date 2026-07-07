@@ -43,6 +43,8 @@
       "checks": [
         "review routing maps R7 to agent-layer",
         "agent-layer has ysyx-coordinator reviewer and agent-system inspector",
+        "implementer/reviewer adversarial personas are required before delivery",
+        "unresolved conflicts are reported as remaining risk",
         "agent-system profile executes the reviewer/inspector gate"
       ]
     }

@@ -68,13 +68,16 @@ module OooSv39Tlb #(
     input [`XLEN-1:0] vaddr;
     input [1:0] level;
     begin
-      // 只用组合 mux 拼 leaf PPN，避免函数内临时寄存器引入 lint waiver。
+      // Svnapot 64KiB leaf 的 PPN[3:0] 来自 VA[15:12]；TLB 命中必须
+      // 与 page walk 首次翻译同源，避免首访正确、后续命中错译。
       leaf_paddr = {8'b0,
                     (level == 2'd2) ?
                     {pte[53:28], vaddr[29:21], vaddr[20:12]} :
                     (level == 2'd1) ?
                     {pte[53:28], pte[27:19], vaddr[20:12]} :
-                    pte[53:10],
+                    (((pte & `SV39_PTE_N) != {`XLEN{1'b0}}) ?
+                     {pte[53:14], vaddr[15:12]} :
+                     pte[53:10]),
                     vaddr[11:0]};
     end
   endfunction

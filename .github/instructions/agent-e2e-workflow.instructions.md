@@ -13,6 +13,7 @@
 
 ## 执行卫生
 
+- 开工先用 `python3 scripts/github_index_db.py brief <关键词> --profile <profile>` 生成 bounded 上下文包；未确定 profile 时先省略 `--profile` 看 `Profile Suggestions`。回查历史 task-run/evidence 时使用 `runs --profile <profile>` 和 `evidence --run-id <run_id>`，不要默认手工 grep/cat 完整日志或直接加载 `.github/task-runs/**` 原始 evidence。
 - 工程命令通过 WSL single-flight 执行，避免并发启动多个 `wsl.exe`。日常 NEMU/NPC 并行开发保持 runtime isolation 默认 `warn`；遇到 `Wsl/Service/E_UNEXPECTED` 或 NEMU profile 被 NPC 残留任务拖慢，先做 WSL 健康检查和 active scenario runtime isolation 判定；若看到超过 86400s 的历史对侧 task-run client，应清理该历史 client 后再补跑当前 NEMU/NPC gate，严谨复现实验再切到 `strict`。
 - 真实构建/e2e 优先使用 `scripts/agent-run.sh`，让非交互环境加载 `scripts/agent-env.sh`。
 - 外层工具控制符会污染命令字符串。多模式搜索优先使用 `rg -e foo -e bar`，不要依赖带 `|` 的单个正则穿过外层 shell。
@@ -21,6 +22,8 @@
 - NEMU 慢速诊断 gate 若设置 `NEMU_INTERPRETER_BASIC_BLOCK=0`、`NEMU_INTERPRETER_WIDE_IFETCH=0`、`NEMU_INTERPRETER_DECODE_CACHE=0`、`NEMU_VADDR_HOST_FAST=0` 或 `NEMU_RISCV_MMU_TLB=0`，e2e 应自动提高 systemd start timeout，并使用较大的 serial input chunk，避免把上传过慢误判为 guest 行为。
 
 ## 完成判定
+
+收尾前运行 `scripts/agent-e2e.sh --guard --guard-mode strict`。guard 会读取当前工作树触碰路径（或 `--paths-file` / `--path` 指定路径），推导推荐 profile，并要求本轮 `.github/task-runs/` 中存在对应 profile 且时间不早于触发文件的 completed task report，同时存在 `context-brief.md`、`profile-resolve.md` 与 `evidence-index.md`，证明本轮没有绕过 DB recall / profile resolve / evidence index 链路。若缺证据，必须补跑建议的 `scripts/agent-e2e.sh --profile <profile> --task-slug <task> --stop-on-fail`，或在 task-run/memory/最终回复中写清豁免理由；不能用 difftest、riscv-tests、module TB 或 CoreMark 的 PASS 代替 agent/e2e workflow 证据契约。
 
 完成后必须查看 task-run report、profile resolve、关键 evidence、FAIL marker 和 memory 更新。不能只看外层退出码，也不能从 `.github/db-backup` 绕开当前 DB/index recall 链路问题。
 

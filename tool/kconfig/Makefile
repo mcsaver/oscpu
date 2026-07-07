@@ -1,4 +1,5 @@
 NAME = conf
+YSYX_HOME ?= $(abspath ../..)
 obj := build
 SRCS += confdata.c expr.c preprocess.c symbol.c util.c
 SRCS += $(obj)/lexer.lex.c $(obj)/parser.tab.c
@@ -20,7 +21,7 @@ else
 $(error bad target=$(NAME))
 endif
 
-include $(NEMU_HOME)/scripts/build.mk
+include $(YSYX_HOME)/scripts/build.mk
 
 $(obj)/lexer.lex.o: $(obj)/parser.tab.h
 $(obj)/lexer.lex.c: lexer.l $(obj)/parser.tab.h

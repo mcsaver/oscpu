@@ -63,6 +63,29 @@
       ]
     }
   ],
+  "adversarial_personas": {
+    "implementer_persona": {
+      "role": "deliver",
+      "must_provide": [
+        "change_summary",
+        "verification_evidence",
+        "delivery_boundary"
+      ]
+    },
+    "reviewer_persona": {
+      "role": "refute",
+      "must_challenge": [
+        "counterexample",
+        "coverage_gap",
+        "false_green",
+        "missing_profile",
+        "missing_context",
+        "overclaim"
+      ]
+    },
+    "conflict_resolution_required": true,
+    "unresolved_conflict_policy": "deliver_subtask_status_with_remaining_risk"
+  },
   "requirement_routes": {
     "R1": "skill-layer",
     "R2": "agent-layer",
@@ -76,6 +99,8 @@
   },
   "review_rules": [
     "Every cross-layer change must identify at least one review route before final reporting.",
+    "Every non-trivial delivery must run implementer_persona and reviewer_persona in opposition before final reporting.",
+    "Unresolved implementer/reviewer conflicts must be reported as remaining risk or next action, not hidden behind a completed claim.",
     "Database-layer changes must keep stored ownership limited to retained memory/log documents and preserve backup/snapshot consistency.",
     "Skill-layer changes must keep SKILL.md live and under audit.",
     "Agent-layer changes must leave task-run evidence when profile or workflow behavior changes."

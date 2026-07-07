@@ -1,3 +1,4 @@
 NAME = fixdep
+YSYX_HOME ?= $(abspath ../..)
 SRCS = fixdep.c
-include $(NEMU_HOME)/scripts/build.mk
+include $(YSYX_HOME)/scripts/build.mk

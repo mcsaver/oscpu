@@ -23,9 +23,13 @@ scripts/agent-e2e.sh --profile nemu-ubuntu-full-gate
 
 ## 执行卫生
 
+开工先用 `python3 scripts/github_index_db.py brief <关键词> --profile <profile>` 生成 bounded 上下文包；未确定 profile 时先省略 `--profile`，根据 `Profile Suggestions` 选择。回查历史 task-run/evidence 时使用 `python3 scripts/github_index_db.py runs --profile <profile>` 与 `python3 scripts/github_index_db.py evidence --run-id <run_id>`，不要默认手工 grep/cat 完整日志。
+
 不要并发启动多个 `wsl.exe` 跑工程命令；遇到 `Wsl/Service/E_UNEXPECTED`、stale `wsl.exe` 客户端，或 NEMU/NPC 场景互相拖慢，先确认 WSL 状态和 active scenario runtime isolation。日常 NEMU/NPC 并行开发保持默认 `warn`，但超过 86400s 的历史对侧 task-run client 应清理后再补跑当前 gate；严谨复现实验再切到 `strict`。需要加载开发环境时使用 `scripts/agent-run.sh`。外层工具控制符可能拆坏命令，检索多个词使用 `rg -e`。PowerShell 包裹 `wsl.exe -- bash -lc '...'` 时不要裸用 Bash `$var`，否则会先被 PowerShell 展开；一次性命令优先写字面路径或用脚本文件承载复杂逻辑。
 
 Windows `Start-Process wsl.exe` 启动长门时，`-- bash -lc "..."` 必须作为单个 argument string 传入。NEMU slow diagnostic 环境变量关闭 interpreter/fast-path 时，full focused gate 应保留自动 bootargs timeout 与 `NEMU_SYSTEMD_INPUT_CHUNK_BYTES=512` 证据，避免 serial 上传耗时被误判成 guest/NEMU 根因。
+
+收尾前运行 `scripts/agent-e2e.sh --guard --guard-mode strict`。该 guard 根据本轮工作树触碰路径推荐 profile，并检查当前 task-run evidence 是否包含对应 completed report、`context-brief.md`、`profile-resolve.md` 与 `evidence-index.md`；缺少证据或 DB 召回产物时先补跑建议 profile，或显式记录豁免理由。需要在 hook 中预检时可用 `--guard-mode warn`，需要测试特定路径时可用 `--paths-file`、`--path` 和 `--evidence-dir`。
 
 ## 软件流程
 

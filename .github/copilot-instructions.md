@@ -69,7 +69,7 @@ fceux-am (NES 模拟器, 运行在 AM 上)
 - 若同类动态图在多轮任务中反复以相同输入输出和成功标准复用，应把它提升为新的静态图模板，而不是长期靠临时扩图维持。
 - 对跨模块或多节点图任务，应在 `.github/task-runs/<日期-任务名>/` 下维护 `task-report.md` 与 `dispatch-log.md`；模板入口固定为 `.github/task-runs/templates/task-report.template.md` 与 `.github/task-runs/templates/dispatch-log.template.md`。`agent-e2e.sh` 生成的 task-run Markdown 会在报告层收口时归档/同步进开发记忆数据库，但工作区保留可直接读取的原文件；原始 `.log/.cmd/.tsv/.txt` evidence 保留在文件系统，但会登记到 `evidence_assets` 并生成/归档 `evidence-index.md`；读取报告内容优先用 `load --source auto --path <task-report.md>`，查询原始 evidence 摘要用 `evidence --run-id <run_id>`。
 - `.github/memory/` 只沉淀稳定结论、长期经验和设计决策；单次图执行的节点明细、阶段状态、证据链和派发历史优先写入 `.github/task-runs/`，不要把长日志整段塞进记忆文件；长日志只做路径/hash/marker/摘要登记。
-- 当任务是“搭建/验证 AI 开发环境 e2e”“降低 AI 不确定性”或检查规则发现漂移时，先读取 `.github/instructions/agent-e2e-workflow.instructions.md` 与 `.github/e2e/README.md`，用 `scripts/agent-e2e.sh --list-profiles` 和 `--validate-all-profiles` 选择模块 profile；全模块入口用 `--profile contracts`，软件流程入口用 `--profile software-flow`，`.github` 检索索引入口用 `--profile github-index`，最小 smoke 用 `--profile quick`，结果不能越级证明 target、Linux/Ubuntu 或 PPA 正确。
+- 当任务是“搭建/验证 AI 开发环境 e2e”“降低 AI 不确定性”或检查规则发现漂移时，先读取 `.github/instructions/agent-e2e-workflow.instructions.md` 与 `.github/e2e/README.md`，用 `python3 scripts/github_index_db.py brief <关键词> --profile <profile>` 生成 bounded 上下文包，再用 `scripts/agent-e2e.sh --list-profiles` 和 `--validate-all-profiles` 选择模块 profile；全模块入口用 `--profile contracts`，软件流程入口用 `--profile software-flow`，`.github` 检索索引入口用 `--profile github-index`，最小 smoke 用 `--profile quick`，结果不能越级证明 target、Linux/Ubuntu 或 PPA 正确。
 - 当前默认主闭环已经推进为 `am-kernels -> abstract-machine -> npc/sim -> NPC/Verilator(target) + NEMU(reference)`；纯参考调研、AM/NEMU 平台问题或 target 不相关任务仍可截断到 `NEMU(reference)`。
 - 大任务允许并发调用多个只读子 agent 做 RECALL、资料审计和日志整理；涉及实现、验证、记录的节点仍按依赖顺序串行推进。
 - 工作区级蓝图统一维护在 `.github/agentic-hardware-blueprint.md`；处理 agent 架构、工作流编排或 AI 驱动硬件开发环境任务时优先读取。
@@ -100,6 +100,8 @@ fceux-am (NES 模拟器, 运行在 AM 上)
 - Linux 屏幕近期目标是 simple-framebuffer/simpledrm/fbcon + SDL scanout 文本显示，不是完整 Ubuntu 图形桌面。
 
 ## Agent 终端约束
+- Windows 侧访问本 WSL 工作区时，PowerShell 只作为 `wsl.exe` 启动器，不负责工程命令、路径展开、管道或文件操作；统一使用 `wsl.exe -d Ubuntu --cd /home/lyg/PA/ysyx-workbench -- bash -lc '<cmd>'` 把命令交给 Ubuntu。若当前 agent/CLI 已经在 WSL/Linux 原生 shell 内运行，则直接使用原生 `bash`/`make`/`rg`/`git` 等命令，不再套 `wsl.exe`。
+- 从 Windows 侧启动 WSL 工程命令默认 single-flight；不要并发打开多个 `wsl.exe` client 做读写、构建或检索。复杂控制流、管道和 Bash 变量应留在 Linux 侧 `bash -lc` 或仓库脚本中，避免被 PowerShell 预先解释。
 - 对 NEMU、NVBoard、menuconfig、SDL 窗口等交互式程序，禁止使用 `tail`、`head`、`sed -n`、管道截断或其他会消费/劫持标准输入输出的包装方式运行；这会破坏界面显示或导致交互异常。
 - 需要查看结果时，应直接在终端原样运行程序，再由 agent 在回复中总结关键输出；不要为了缩短输出而改写命令的数据流。
 - 若必须减少日志量，优先调整程序自身日志开关或构建参数，不要在命令外层追加会截断交互输出的管道。
@@ -143,7 +145,7 @@ fceux-am (NES 模拟器, 运行在 AM 上)
 本项目使用 `.github/memory/` 目录存储跨会话的项目状态和知识：
 - 开发记忆系统实现目录为 `scripts/dev_memory/`，其中 `core.py` 负责 schema/index/chunk 基础能力，`queries.py` 负责 query/summary/load，`api.py` 负责外部 AI JSON/JSONL 只读协议，`maintenance.py` 负责 promote/migrate/backup/restore/audit，`cli.py` 负责命令行装配，`__main__.py` 提供 `PYTHONPATH=scripts python3 -m dev_memory ...` 包入口；`scripts/github_index_db.py` 只是兼容 wrapper。
 - 可用 `scripts/github_index_db.py rebuild/stat/ls/tree/query/search/summary/compact/load/show/brief/profiles/resolve-profile/runs/evidence/usage/api/refresh/add/remove/promote/update-stored/backup/migrate/archive-markdown/index-evidence/snapshot-stored/rehydrate/materialize/restore/audit-db-first/audit-markdown-coverage/doctor` 为 `.github/**` 和根目录/多 AI 入口 shim 建本地 SQLite 检索索引和目录式资料库；默认数据库在 `.github/cache/github-index.sqlite`，默认额外索引 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md`、`CONVENTIONS.md`、`.windsurfrules`、`.cursor/rules/agents.mdc`，保存索引、元数据、哈希、状态、查询文本、派生 chunk/summary、CLI/API access_log、raw evidence asset 摘要，以及 retained memory/log stored documents。agent、instruction、e2e profile/module、contract 和说明文档直接保留在原文件，数据库只作为索引读取它们。`brief <terms> --profile <profile>` 会组合核心规则、项目状态、known issues、live/indexed e2e profile/module 和关键词命中 chunk，为外部 agent 生成 bounded startup context；`profiles <terms>` 会从 live/indexed e2e profiles 解析 include、节点数、模块、owner 和运行命令，作为 profile 选择目录；`resolve-profile <profile>` 会按 TSV 行顺序递归展开 `@include`，输出 include 边、profile_order、展开节点、source_profile、模块和 owner，贴近 `agent-e2e.sh` 的真实调度视图；`runs --profile <profile>` 会从 retained task-report 汇总历史 run 状态、时间、final_result，并链接 report/dispatch/context brief/profile resolve/evidence index 及 evidence asset 数量；`index-evidence <task-run>` 只登记原始 evidence 文件的路径、大小、sha256、mtime、行数、marker 和 bounded 摘要，不把完整 log 放进 DB；`evidence --run-id <run_id>` 查询这些摘要；`usage` 会从 `access_log` 汇总最近一次数据库使用时间、CLI/API 来源、op、target 和 result_count；`api` 提供外部 AI 可调用的只读 JSON/JSONL 协议，支持 `stat/search/summary/load/show/brief/profiles/resolve-profile/runs/evidence/usage/schema`。普通文档读取用 `load --source auto` 或直接读文件；修改 memory/log retained documents 用 `update-stored --from-file/--content/--stdin` 写回数据库并同步 live 文件；`archive-markdown` 只用于 memory/log Markdown；`.github/cache` 可被清理，所以重要 DB 更新后用 `snapshot-stored --backup-dir .github/db-backup/stored-snapshot --yes` 生成当前 retained 快照，缓存 DB 丢失时用 `rehydrate --backup-dir .github/db-backup/stored-snapshot --yes` 从 manifest 重建 memory/log stored documents；`materialize --prune-non-retained` 可把 stored 内容写回原文件并移除非 memory/log DB ownership；`audit-db-first` 实时读取 live 文件，严格要求 `memory`/`memory-module` 与 stored 一致，并把历史 task-run/report/evidence stored-only 或 live drift 作为非阻塞归档分类；`audit-markdown-coverage --fail-on-live-evidence` 用来证明 Markdown ownership 边界；删除真实文件必须显式 `remove --delete-file --yes`。
-- 未确定 e2e profile 时，先用 `scripts/github_index_db.py brief <关键词>` 获取 live/indexed context；未传 `--profile` 时输出会包含 `Profile Suggestions`，根据 live/indexed profile/module 文档给出候选 profile、匹配词和推荐 `scripts/agent-e2e.sh --profile <profile>` 命令。
+- 非平凡任务开工优先用 `scripts/github_index_db.py brief <关键词> --profile <profile>` 获取 live/indexed context；未确定 e2e profile 时先省略 `--profile`，输出会包含 `Profile Suggestions`，根据 live/indexed profile/module 文档给出候选 profile、匹配词和推荐 `scripts/agent-e2e.sh --profile <profile>` 命令。历史 task-run/evidence 回查使用 `runs --profile <profile>` 与 `evidence --run-id <run_id>`，不要默认手工 grep/cat 完整日志。
 - `project-status.md` — 项目进度总览
 - `decisions.md` — 设计决策记录
 - `known-issues.md` — 已知问题与调试历史
@@ -157,5 +159,7 @@ RECALL (加载记忆) → PLAN (分解任务) → DISPATCH (逐步派发) → VE
 
 ## Agent 完成判定钩子
 - 在声明“完成”、关闭 goal 或写入“已完成”记录前，必须回看用户原始请求和已读文档的完整 checklist/路线图，逐项核对实际证据。
+- 收尾时必须显式执行“实现者人格 / 审查者人格”内部对抗：实现者说明交付证据和边界，审查者优先攻击反例、覆盖洞、假绿、未跑 profile、未读上下文和越级结论；最终答复必须写清冲突后结论，冲突未解决时只能交付子任务状态和剩余风险。
+- 在收尾前运行 `scripts/agent-e2e.sh --guard --guard-mode strict`。该 guard 会按本轮工作树触碰路径推导推荐 profile，并检查 `.github/task-runs/` evidence 是否包含对应 completed report、`context-brief.md`、`profile-resolve.md` 与 `evidence-index.md`；若缺证据或 DB 召回产物，先补跑建议 profile，或在回复和 memory/task-run 中写明豁免理由与风险。
 - 若只完成路线图中的一个子项，只能表述为“本子项/本切片完成”，并列出未完成项；不得把长期目标、多阶段任务或完整 Ubuntu/完整 VM 路线越级标为整体完成。
 - 对 RV64 Linux/Ubuntu、图任务、长链调试和 agent 工作流任务，最终答复必须同时写清已闭合 gate、未闭合 gate 和下一步候选。

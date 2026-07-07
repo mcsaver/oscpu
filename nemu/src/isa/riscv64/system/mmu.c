@@ -34,13 +34,13 @@
 #define PTE_G ((word_t)1 << 5)
 #define PTE_A ((word_t)1 << 6)
 #define PTE_D ((word_t)1 << 7)
-// 高位保留/未实现扩展字段。NEMU 未实现 Svnapot/Svpbmt, 也未建模 menvcfg.PBMTE,
-// 故这些位非 0 的 PTE 一律非法 (page fault); Sv39/Sv48/Sv57 的 PTE 高位布局相同, 泛化通用。
+// 高位保留/未实现扩展字段。NEMU 已实现 Svnapot 64KiB NAPOT；Svpbmt 仍未建模
+// menvcfg.PBMTE，PBMT 位非 0 的 PTE 仍非法(page fault)。Sv39/Sv48/Sv57 的 PTE 高位布局相同。
 // 金标准 sail-rv64-max 启用 Svrsw60t59b: PTE bits[60:59] 被重定义为 RSW(软件可用位),
 // walker 必须忽略之(不 fault); 故保留字段仅为 bits[58:54]。
 #define PTE_RSVD ((word_t)0x1f << 54)  // bits[58:54] 保留, 必须为 0 (bits[60:59]=RSW via Svrsw60t59b)
 #define PTE_PBMT ((word_t)3 << 61)     // bits[62:61] PBMT(Svpbmt), 未实现须为 0
-#define PTE_N    ((word_t)1 << 63)     // bit[63] N(Svnapot), 未实现须为 0
+#define PTE_N    ((word_t)1 << 63)     // bit[63] N(Svnapot), 合法 leaf 走 NAPOT 翻译
 
 #define SV39_TLB_SIZE 4096
 

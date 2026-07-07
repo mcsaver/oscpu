@@ -178,13 +178,19 @@ module OooMemAxiBridge (
   function pte_reserved_fault;
     input [`XLEN-1:0] pte;
     input svpbmt_en;
+    input [1:0] level;
     begin
       pte_reserved_fault =
-          ((pte & (svpbmt_en ? `SV39_PTE_RESERVED_MASK_SVPBMT :
-                                `SV39_PTE_RESERVED_MASK)) !=
-           {`XLEN{1'b0}}) ||
-          (!pte_leaf(pte) &&
-           (((pte & `SV39_PTE_NONLEAF_RESERVED_MASK) != {`XLEN{1'b0}}) ||
+          (pte_leaf(pte) ?
+           (((pte & ((svpbmt_en ? `SV39_PTE_RESERVED_MASK_SVPBMT :
+                                  `SV39_PTE_RESERVED_MASK) &
+                                 ~`SV39_PTE_N)) != {`XLEN{1'b0}}) ||
+            (((pte & `SV39_PTE_N) != {`XLEN{1'b0}}) &&
+             ((level != 2'd0) || (pte[13:10] != 4'b1000)))) :
+           (((pte & (svpbmt_en ? `SV39_PTE_RESERVED_MASK_SVPBMT :
+                                  `SV39_PTE_RESERVED_MASK)) !=
+             {`XLEN{1'b0}}) ||
+            ((pte & `SV39_PTE_NONLEAF_RESERVED_MASK) != {`XLEN{1'b0}}) ||
             (svpbmt_en &&
              (pte[`SV39_PTE_PBMT_HI:`SV39_PTE_PBMT_LO] != 2'b00)))) ||
           (pte_leaf(pte) && svpbmt_en &&
@@ -253,13 +259,16 @@ module OooMemAxiBridge (
     input [`XLEN-1:0] vaddr;
     input [1:0] level;
     begin
-      // 用组合 mux 直接拼 leaf PPN，便于后续 TLB/page-walk 逻辑 lint 收敛。
+      // Svnapot 64KiB leaf: PTE.PPN[3:0] 是 NAPOT 编码(1000)，真实 PA
+      // 低 4 个 PPN bit 必须来自 VA[15:12]，否则 store 会落到错误 64KiB 子页。
       leaf_paddr = {8'b0,
                     (level == 2'd2) ?
                     {pte[53:28], vaddr[29:21], vaddr[20:12]} :
                     (level == 2'd1) ?
                     {pte[53:28], pte[27:19], vaddr[20:12]} :
-                    pte[53:10],
+                    (((pte & `SV39_PTE_N) != {`XLEN{1'b0}}) ?
+                     {pte[53:14], vaddr[15:12]} :
+                     pte[53:10]),
                     vaddr[11:0]};
     end
   endfunction
@@ -303,11 +312,11 @@ module OooMemAxiBridge (
   wire [3:0] active_access_size_w = access_size_from_wstrb(wstrb_q);
   wire req_dtlb_context_hit_w;
   wire [`XLEN-1:0] req_dtlb_pte_w;
-  wire [1:0] req_dtlb_level_unused_w;
+  wire [1:0] req_dtlb_level_w;
   wire [`XLEN-1:0] req_translated_paddr_w;
   wire req_dtlb_perm_fault_w =
       req_dtlb_context_hit_w &&
-      (pte_reserved_fault(req_dtlb_pte_w, svpbmt_en_i) ||
+      (pte_reserved_fault(req_dtlb_pte_w, svpbmt_en_i, req_dtlb_level_w) ||
        data_permission_fault(req_dtlb_pte_w, req_write_w, req_priv_w,
                              mstatus_i));
   // HW A/D: TLB 命中项若 A/D 不足(如 load 填的 A=1/D=0 项被 store 命中)→ 视为 miss,
@@ -347,7 +356,7 @@ module OooMemAxiBridge (
       (state_q == S_WALK_R) && lsu_axi_rvalid_i &&
       (lsu_axi_rresp_i == 2'b00) &&
       !pte_invalid(lsu_axi_rdata_i) &&
-      !pte_reserved_fault(lsu_axi_rdata_i, access_svpbmt_en_q) &&
+      !pte_reserved_fault(lsu_axi_rdata_i, access_svpbmt_en_q, walk_level_q) &&
       pte_leaf(lsu_axi_rdata_i) &&
       !superpage_misaligned(lsu_axi_rdata_i, walk_level_q) &&
       !data_permission_fault(lsu_axi_rdata_i, write_q, access_priv_q,
@@ -386,7 +395,7 @@ module OooMemAxiBridge (
     .lookup_satp_i(satp_i),
     .lookup_context_hit_o(req_dtlb_context_hit_w),
     .lookup_pte_o(req_dtlb_pte_w),
-    .lookup_level_o(req_dtlb_level_unused_w),
+    .lookup_level_o(req_dtlb_level_w),
     .lookup_paddr_o(req_translated_paddr_w),
     .fill_valid_i(dtlb_fill_valid_w),
     .fill_vaddr_i(addr_q),
@@ -715,7 +724,8 @@ module OooMemAxiBridge (
               state_q <= S_RESP;
             end else if (pte_invalid(lsu_axi_rdata_i) ||
                          pte_reserved_fault(lsu_axi_rdata_i,
-                                            access_svpbmt_en_q) ||
+                                            access_svpbmt_en_q,
+                                            walk_level_q) ||
                          (!pte_leaf(lsu_axi_rdata_i) &&
                           (walk_level_q == 2'd0))) begin
               rsp_error_q <= 1'b1;

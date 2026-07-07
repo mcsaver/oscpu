@@ -42,7 +42,7 @@ static struct { bool valid; uint64_t mcause; } g_pending_intr = {false, 0};
 
 // 本条提交后的 DUT CSR 快照(commit 处理在 step 前经 npc_difftest_set_dut_csr 注入)。
 static npc_word_t g_dut_csr[NPC_DIFF_CSR_N] = {};
-// ★索引名与 NEMU dut.c isa_difftest_csr_snapshot 一致。阶段1 比较 [0,17)。
+// ★索引名与 NEMU dut.c isa_difftest_csr_snapshot 一致。比较列表见 kCsrCmpList。
 static const char *const kCsrName[NPC_DIFF_CSR_N] = {
   "mstatus", "mepc", "mcause", "mtvec", "mtval", "mscratch",
   "sepc", "scause", "stvec", "stval", "sscratch",
