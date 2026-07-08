@@ -1150,27 +1150,21 @@ module NpcSimTop (
   end
 
   // ─────────────────────────────────────────────────────────────────────────────────────────
-  // §5 三层观测模型 ② 层: OoO 前端取指重定向「组合仲裁器」观测 checker(旁挂, 不进数据通路)。
+  // §5 三层观测模型 ② 层: OoO 前端取指重定向「组合汇合点」观测 checker(旁挂, 不进数据通路)。
+  // 【P4 切消费点(2026-07-09)】mux 三元链已删(redirect PC 单源 = OooRedirectArbiter 赢家),
+  // checker 同步重写: 死态哨兵(RDMUX-DEAD)照旧 + 单源透传结构守卫(RDMUX-ARB/DEFAULT-PC)。
   // 被观测信号经 XMR 从 u_top.u_core.u_ooo_core.u_frontend.u_fetch_request_mux 连入端口;
-  // 仅 `+define+OOO_ASSERT` 时例化; facts_o 悬空 → DCE 零面积。① 层电路一行不动。
+  // 仅 `+define+OOO_ASSERT` 时例化; facts 悬空 → DCE 零面积。① 层电路一行不动。
   // ─────────────────────────────────────────────────────────────────────────────────────────
 `ifdef OOO_ASSERT
 `define RDMUX_XMR u_top.u_core.u_ooo_core.u_frontend.u_fetch_request_mux
   OooRedirectMuxChecker u_ooo_rdmux_checker (
     .clk                          (clk),
     .rst                          (rst),
-    .untracked_i                  (`RDMUX_XMR.branch_resolve_untracked_redirect_i),
-    .direct_jump_spec_i           (`RDMUX_XMR.direct_jump_spec_fire_i),
-    .direct_jal_i                 (`RDMUX_XMR.direct_jal_fire_i),
-    .direct_ret0_i                (`RDMUX_XMR.direct_ret0_fire_i),
-    .direct_ret1_i                (`RDMUX_XMR.direct_ret1_fire_i),
-    .direct_lane1_ret_i           (`RDMUX_XMR.direct_branch0_lane1_ret_i),
-    .branch_target_i              (`RDMUX_XMR.branch_target_dispatch_i),
-    .branch_fallthru_i            (`RDMUX_XMR.branch_fallthrough_dispatch_i),
-    .direct_br_resolve_i          (`RDMUX_XMR.direct_branch_resolve_redirect_i),
     .pending_jump_nolink_i        (`RDMUX_XMR.pending_jump_nolink_commit_i),
     .pending_jump_redir_i         (`RDMUX_XMR.pending_jump_redirect_after_dispatch_i),
-    .branch_spec_i                (`RDMUX_XMR.branch_spec_redirect_i),
+    .redirect_valid_i             (`RDMUX_XMR.redirect_valid_i),
+    .redirect_pc_i                (`RDMUX_XMR.redirect_pc_i),
     .redirect_fetch_pc_i          (`RDMUX_XMR.redirect_fetch_pc_o),
     .core_branch_resolve_next_pc_i(`RDMUX_XMR.core_branch_resolve_next_pc_i)
   );
@@ -1178,16 +1172,19 @@ module NpcSimTop (
 `endif
 
   // ─────────────────────────────────────────────────────────────────────────────────────────
-  // §5 三层观测模型 ② 层: OoO 前端取指重定向「时序仲裁器」观测 checker(redirect 双仲裁器之 B)。
-  // 被观测信号经 XMR 从 u_top.u_core.u_ooo_core.u_frontend.u_fetch_pc_outstanding 连入。
+  // §5 三层观测模型 ② 层: OoO 前端取指重定向「时序汇合点」观测 checker。
+  // 被观测信号经 XMR 从 u_top.u_core.u_ooo_core.u_frontend.u_fetch_pc_outstanding 连入;
+  // 【P4】E1 载荷口 csr_trap_target_i 已随 PC 写删除 → target 改自 u_frontend 作用域
+  // (csr_trap_target_w), INV-S2 断言语义不变(E1 pre-mux 最高档 + trap 口 age0 恒胜)。
   // ─────────────────────────────────────────────────────────────────────────────────────────
 `ifdef OOO_ASSERT
 `define RDSEQ_XMR u_top.u_core.u_ooo_core.u_frontend.u_fetch_pc_outstanding
+`define RDFE_XMR u_top.u_core.u_ooo_core.u_frontend
   OooRedirectSeqChecker u_ooo_rdseq_checker (
     .clk                             (clk),
     .rst                             (rst),
     .csr_trap_mem_valid_i            (`RDSEQ_XMR.csr_trap_mem_valid_i),
-    .csr_trap_target_i               (`RDSEQ_XMR.csr_trap_target_i),
+    .csr_trap_target_i               (`RDFE_XMR.csr_trap_target_w),
     .direct_frontend_flush_i         (`RDSEQ_XMR.direct_frontend_flush_i),
     .branch_resolve_untracked_i      (`RDSEQ_XMR.branch_resolve_untracked_i),
     .core_branch_resolve_misaligned_i(`RDSEQ_XMR.core_branch_resolve_misaligned_i),
@@ -1195,27 +1192,12 @@ module NpcSimTop (
     .next_fetch_pc_q                 (`RDSEQ_XMR.next_fetch_pc_q)
   );
 `undef RDSEQ_XMR
+`undef RDFE_XMR
 `endif
 
-  // ─────────────────────────────────────────────────────────────────────────────────────────
-  // §5 三层观测模型 ② 层: redirect 两仲裁器「合并视图」checker(跨 Mux/Seq 一致性)。
-  // 同时 XMR 组合 Mux(u_fetch_request_mux)与时序 Seq(u_fetch_pc_outstanding)两个仲裁器。
-  // ─────────────────────────────────────────────────────────────────────────────────────────
-`ifdef OOO_ASSERT
-`define RDMUX_XMR2 u_top.u_core.u_ooo_core.u_frontend.u_fetch_request_mux
-`define RDSEQ_XMR2 u_top.u_core.u_ooo_core.u_frontend.u_fetch_pc_outstanding
-  OooRedirectMergeChecker u_ooo_rdmerge_checker (
-    .clk                       (clk),
-    .rst                       (rst),
-    .mux_untracked_redirect_i  (`RDMUX_XMR2.branch_resolve_untracked_redirect_i),
-    .mux_redirect_fetch_pc_i   (`RDMUX_XMR2.redirect_fetch_pc_o),
-    .seq_direct_frontend_flush_i(`RDSEQ_XMR2.direct_frontend_flush_i),
-    .seq_csr_trap_mem_valid_i  (`RDSEQ_XMR2.csr_trap_mem_valid_i),
-    .seq_next_fetch_pc_q       (`RDSEQ_XMR2.next_fetch_pc_q)
-  );
-`undef RDMUX_XMR2
-`undef RDSEQ_XMR2
-`endif
+  // 【P4 切消费点(2026-07-09)】OooRedirectMergeChecker(跨 Mux/Seq untracked 一致性 INV-M1)
+  // 退役: 两汇合点消费同一 OooRedirectArbiter 赢家 wire, 跨器一致性由单源构造保证,
+  // 对照物不复存在(文件与 SIM_TOP_SRCS 项一并删除, 见 filelist.mk)。
 
   // ─────────────────────────────────────────────────────────────────────────────────────────
   // §5 三层观测模型 ② 层: Sv39 HW-managed A/D 更新(Svadu)观测 checker(数据+取指双桥)。

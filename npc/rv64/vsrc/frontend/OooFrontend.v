@@ -98,6 +98,10 @@ module OooFrontend #(
   input priv_predictor_boundary_w,
   input [`XLEN-1:0] reset_pc_i,
   input [ROB_COUNT_W-1:0] rob_count_o,
+  // 【P4 切消费点】统一 redirect 年龄律仲裁(OooRedirectArbiter 生产实例在本模块内):
+  // ROB 队头指针(年龄基准+trap 口 rob_idx)与后端 resolve 分支 rob_idx(branch 口年龄)。
+  input [`OOO_ROB_INDEX_W-1:0] rob_head_idx_i,
+  input [`OOO_ROB_INDEX_W-1:0] core_branch_resolve_rob_idx_i,
   input rst,
   input run_i,
   input stop_pending_q,
@@ -194,12 +198,6 @@ module OooFrontend #(
   output dispatch_fire_w,
   output dispatch_unsupported_w,
   output dispatch_valid_w,
-  // 【P4 shadow】E4(direct 控制流 redirect)观测口：与 u_fetch_pc_outstanding 的
-  // direct_frontend_flush 装载臂(OooFetchPcOutstandingSequencer.v:124-129)组合等价构造，
-  // 供 OooCoreTopGlue 的 shadow RedirectArbiter 作 direct 口输入（取指侧无 rob_idx，
-  // 契约"最大缺口"的免 plumbing 构造式）。纯观测输出，不驱动任何功能逻辑。
-  output e4_redirect_valid_o,
-  output [`XLEN-1:0] e4_redirect_pc_o,
   output fetch_req_fire_w,
   output [`XLEN-1:0] fetch_req_pc_o,
   output fetch_req_valid_o,
@@ -532,7 +530,6 @@ module OooFrontend #(
   wire pending_jump_call_w;
   wire [`XLEN-1:0] pending_jump_next_pc_q;
   wire pending_jump_return_w;
-  wire [`XLEN-1:0] pending_jump_target_q;
   wire ras_clear_w;
   wire ras_direct_update_safe_w;
   wire ras_pop_w;
@@ -1183,6 +1180,115 @@ module OooFrontend #(
   // 声明前置(赋值仍在原 JALR-spec 簇内): iverilog 14 拒绝实例端口前向引用
   wire direct_jump_spec_fire_w;
   wire [`XLEN-1:0] jalr_spec_pred_target_w;
+  // 声明前置(赋值在 direct_fire_succ 簇旁, 文件后部): E4 direct redirect 构造式。
+  wire e4_redirect_valid_w;
+  wire [`XLEN-1:0] e4_redirect_pc_w;
+
+  // ═══ 【P4 切消费点(2026-07-09)】统一 redirect 年龄律仲裁器 生产实例 ═══
+  // shadow 阶段(OooCoreTopGlue `ifdef OOO_ASSERT 影子段, 2026-07-08)等价证据闭合后,
+  // OooRedirectArbiter 转正为 redirect PC 唯一真源: 输出喂两个原汇合点
+  // (OooFetchRequestMux 组合链已删 / OooFetchPcOutstandingSequencer 六处 PC 写已删,
+  // 换 arb 终写)。实例放本模块(不放 glue): 三源 fetch 侧信号全在本作用域, 放 glue
+  // 会造 frontend→glue→frontend 跨层组合往返(UNOPTFLAT 家族, 见下 head_pred_succ 注释)。
+  //
+  // ── commit 家族 pre-mux(E1>E5>E6, 照 OooFetchPcOutstandingSequencer 原文本序) ──
+  // E1/E5/E6 同为 commit-time、同 rob_idx(head, age≡0)——arbiter 年龄律无法区分家族内
+  // 成员, 家族内序必须 pre-mux; arbiter 只仲裁家族间(trap 口 vs branch 口 vs direct 口)。
+  // E1: commit trap/xret(恒 ROB head, 绝对最高)
+  wire commit_e1_valid_w = csr_trap_mem_valid_w;
+  // E5: CSR 提交 redirect。head0 支默认 OOO_CSR_QUEUE_HEAD=0 恒 0(零 exercise,
+  // 幸存者偏差照契约 §0 标注; 翻 flag 时 INV-3/INV-3b 是哨兵)。
+  // !direct_frontend_flush 门 = 现行 E4-压-E5/E6 序的忠实编码(drain 期 dispatch 停摆
+  // 使该拍本不可达, 保留 = 零语义风险)。
+  wire commit_e5_valid_w = !direct_frontend_flush_w &&
+      (pending_system_csr_commit_w || head0_csr_commit_w);
+  wire [`XLEN-1:0] commit_e5_pc_w =
+      head0_csr_commit_w ? core_commit0_next_pc_w : pending_system_next_pc_q;
+  // E6: drain 终态, owner 序 arch_trap>system>branch>jump>mem 照抄 Sequencer 原臂序。
+  wire commit_e6_base_w = !csr_trap_mem_valid_w && !direct_frontend_flush_w &&
+      stop_pending_q && drain_complete_w;
+  wire commit_e6_branch_undisp_w = pending_branch_q && !pending_branch_dispatched_q;
+  wire commit_e6_sel_arch_w = pending_arch_trap_q;
+  wire commit_e6_sel_system_w = !pending_arch_trap_q && pending_system_q;
+  wire commit_e6_sel_branch_w = !pending_arch_trap_q && !pending_system_q &&
+      commit_e6_branch_undisp_w;
+  wire commit_e6_sel_jump_w = !pending_arch_trap_q && !pending_system_q &&
+      !commit_e6_branch_undisp_w && pending_jump_q;
+  wire commit_e6_sel_mem_w = !pending_arch_trap_q && !pending_system_q &&
+      !commit_e6_branch_undisp_w && !pending_jump_q && pending_mem_q; // 恒 0(死硅 tie-off)
+  // misaligned 的 E6-branch 臂不写 next_fetch_pc(原 Sequencer 门)→ 不算 PC 赢家。
+  wire commit_e6_valid_w = commit_e6_base_w &&
+      (commit_e6_sel_arch_w || commit_e6_sel_system_w ||
+       (commit_e6_sel_branch_w && !pending_branch_misaligned_w) ||
+       commit_e6_sel_jump_w || commit_e6_sel_mem_w);
+  // E6-jump 臂目标: 原 Sequencer 用 jalr_prefetch_hit ? hit_packet_next_pc :
+  // pending_jump_target, 二者本模块内均为死硅 tie-0(wave5b 拆除块)→ 忠实镜像为常量 0
+  // (该臂若真触发即是 bug, INV-1'/difftest 会连带暴露)。
+  wire [`XLEN-1:0] commit_e6_pc_w =
+      commit_e6_sel_arch_w ? csr_trap_target_w :
+      commit_e6_sel_system_w ?
+          ((pending_system_ecall_q || pending_system_irq_q) ? csr_trap_target_w :
+           (pending_system_mret_q ? csr_ret_target_w : pending_system_next_pc_q)) :
+      commit_e6_sel_branch_w ? pending_branch_next_pc_w :
+      commit_e6_sel_jump_w ? {`XLEN{1'b0}} :
+      pending_mem_next_pc_q;
+  // 【GAP-2 甲门已删(行为变化面, 契约 §3)】shadow 阶段的 !branch_resolve_untracked_w
+  // 门显式编码了现行"E3 压过 E5/E6"文本序; 切换后由年龄律给出 commit 家族(age0)恒胜
+  // ——架构语义修复(队头 CSR/drain 提交后 younger 误预测分支本该被 squash)。该同拍
+  // 在全部现有负载不可达(INV-3b 全程 0 fire 实证), flag=1 是唯一可能违反域(INV-3/
+  // INV-3b 哨兵在位)。后端 kill(branch_resolve_mispredict_w 扇出)不经此路, 本刀零触碰。
+  wire commit_trap_valid_w = commit_e1_valid_w ||
+      commit_e5_valid_w || commit_e6_valid_w;
+  wire [`XLEN-1:0] commit_trap_pc_w =
+      commit_e1_valid_w ? csr_trap_target_w :
+      commit_e5_valid_w ? commit_e5_pc_w : commit_e6_pc_w;
+
+  wire redirect_valid_w;
+  wire [`XLEN-1:0] redirect_pc_w;
+  wire [`OOO_ROB_INDEX_W-1:0] redirect_kill_idx_w;
+  wire [`REDIR_REASON_W-1:0] redirect_reason_w;
+  wire redirect_flush_fetch_w;
+  wire redirect_flush_backend_w;
+  OooRedirectArbiter u_redirect_arbiter (
+    .rob_head_idx_i(rob_head_idx_i),
+    // trap 口 = commit 家族(E1/E5/E6 pre-mux): commit-time 源恒 ROB head(age≡0)
+    .trap_valid_i(commit_trap_valid_w),
+    .trap_pc_i(commit_trap_pc_w),
+    .trap_rob_idx_i(rob_head_idx_i),
+    .trap_reason_i(`REDIR_REASON_TRAP),
+    .trap_flush_fetch_i(1'b1),
+    .trap_flush_backend_i(1'b1),
+    // branch 口 = E3(后端 resolve 已带真 rob_idx): valid 用现成
+    // branch_resolve_untracked_redirect(RecoveryGate = untracked && !misaligned,
+    // 已含 trap_redirect_squash 掩码)。
+    .branch_valid_i(branch_resolve_untracked_redirect_w),
+    .branch_pc_i(core_branch_resolve_next_pc_w),
+    .branch_rob_idx_i(core_branch_resolve_rob_idx_i),
+    .branch_reason_i(`REDIR_REASON_BRANCH_MISS),
+    .branch_flush_fetch_i(1'b1),
+    .branch_flush_backend_i(1'b1),
+    // direct 口 = E4: 取指侧无 age, 喂 head-1 哨兵(age=2^W-1 恒最年轻——direct 是
+    // dispatch 拍事件, 构造上严格年轻于任何本拍后端 resolve 分支; 同拍 E3+E4 年龄律
+    // branch 胜 = 原 :263 untracked-over-flush override 语义, GAP-1 双落点随之消灭;
+    // age15 平手拍不可达: 分支占 head+15 ⟹ ROB 满 ⟹ 无 dispatch ⟹ 无 direct fire)。
+    .direct_valid_i(e4_redirect_valid_w),
+    .direct_pc_i(e4_redirect_pc_w),
+    .direct_rob_idx_i(rob_head_idx_i - {{(`OOO_ROB_INDEX_W-1){1'b0}}, 1'b1}),
+    .direct_reason_i(`REDIR_REASON_DIRECT),
+    .direct_flush_fetch_i(1'b1),
+    .direct_flush_backend_i(1'b0),
+    .redirect_valid_o(redirect_valid_w),
+    .redirect_pc_o(redirect_pc_w),
+    // kill_idx/reason/flush_* 本刀 unused sink(后端 kill/nuke 通道零触碰, 禁止项④);
+    // reason 同时被下方 INV-1' 断言消费(守 branch 口接线)。GAP-4 后端收敛另立刀。
+    .redirect_kill_idx_o(redirect_kill_idx_w),
+    .redirect_reason_o(redirect_reason_w),
+    .redirect_flush_fetch_o(redirect_flush_fetch_w),
+    .redirect_flush_backend_o(redirect_flush_backend_w)
+  );
+  wire _unused_redirect_arb_w = (|redirect_kill_idx_w) |
+      redirect_flush_fetch_w | redirect_flush_backend_w |
+      (|redirect_reason_w);
 
   OooFetchRequestMux u_fetch_request_mux (
     .outstanding_valid_i(outstanding_valid_q),
@@ -1204,21 +1310,12 @@ module OooFrontend #(
     .branch_fallthrough_dispatch_i(branch_fallthrough_dispatch_w),
     .branch_fallthrough_outstanding_match_i(
         branch_fallthrough_outstanding_match_w),
-    .return_cont_dispatch_i(return_cont_dispatch_w),
-    .return_cont_next_pc_i(return_cont_next_pc_q),
-    .ras_top_i(ras_top_w),
-    .branch_target_dispatch_i(branch_target_dispatch_w),
-    .branch_target_cache_next_pc_i(branch_target_cache_next_pc_w),
-    .head_next_pc1_i(head_next_pc1_w),
-    .direct_jal_target_i(direct_jal_target_w),
-    .direct_ret_target_i(direct_ret_target_w),
-    .direct_branch_resolve_next_pc_i(direct_branch_resolve_next_pc_w),
-    .pending_jump_resolved_target_i(pending_jump_resolved_target_w),
     .core_branch_resolve_next_pc_i(core_branch_resolve_next_pc_w),
     .branch_prefetch_req_valid_i(branch_prefetch_req_valid_w),
     .branch_prefetch_req_pc_i(branch_prefetch_req_pc_w),
     .direct_jump_spec_fire_i(direct_jump_spec_fire_w),
-    .direct_jump_spec_target_i(jalr_spec_pred_target_w),
+    .redirect_valid_i(redirect_valid_w),
+    .redirect_pc_i(redirect_pc_w),
     .direct_redirect_fetch_o(direct_redirect_fetch_w),
     .redirect_fetch_req_valid_o(redirect_fetch_req_valid_w),
     .redirect_fetch_pc_o(redirect_fetch_pc_w),
@@ -1588,14 +1685,16 @@ module OooFrontend #(
           (direct_branch1_fire_w ? head_next_pc1_w : head_next_pc0_w)) :
       direct_jump_spec_fire_w ? jalr_spec_pred_target_w :
       head_pred_succ_w;
-  // 【P4 shadow】E4 观测口构造式：照抄 OooFetchPcOutstandingSequencer.v:124-129 装载臂——
-  // valid = direct_frontend_flush 拍任一 direct fire；pc = direct_fire_succ，
-  // 分支 fallthrough capture 拍覆写为 fetch_rsp_packet_next_pc（与该臂内层 if 同序）。
-  assign e4_redirect_valid_o = direct_frontend_flush_w &&
+  // 【P4】E4 direct redirect 构造式(arbiter direct 口输入, 声明前置于 arbiter 实例旁):
+  // 照原 OooFetchPcOutstandingSequencer E4 装载臂——valid = direct_frontend_flush 拍
+  // 任一 direct fire; pc = direct_fire_succ, 分支 fallthrough capture 拍覆写为
+  // fetch_rsp_packet_next_pc(与原臂内层 if 同序)。shadow 阶段为观测输出口, 切消费点
+  // 后转为生产信号(原 Sequencer 内层 PC 写已删, 经 arbiter 终写回注)。
+  assign e4_redirect_valid_w = direct_frontend_flush_w &&
       (direct_jal_fire_w || direct_ret0_fire_w || direct_ret1_fire_w ||
        direct_branch0_fire_w || direct_branch1_fire_w ||
        direct_jump_spec_fire_w);
-  assign e4_redirect_pc_o =
+  assign e4_redirect_pc_w =
       ((direct_branch0_fire_w || direct_branch1_fire_w) &&
        branch_fallthrough_capture_rsp_w) ? fetch_rsp_packet_next_pc_w
                                          : direct_fire_succ_w;
@@ -1786,7 +1885,8 @@ module OooFrontend #(
   assign pending_jump_inst_q = {`INST_W{1'b0}};
   assign pending_jump_rs1_q = {`REG_ADDR_W{1'b0}};
   assign pending_jump_imm_q = {`XLEN{1'b0}};
-  assign pending_jump_target_q = {`XLEN{1'b0}};
+  // 【P4】pending_jump_target_q tie-0 已删——唯一消费者(Sequencer E6-jump PC 写)随
+  // 切消费点删除, PC 收敛 arbiter(E6-jump pre-mux 忠实镜像常量 0)。
 
 
   DecodeStage u_head0_decode (
@@ -1851,6 +1951,9 @@ module OooFrontend #(
   );
 
 
+  // 【P4 切消费点】redirect PC 载荷口(csr_trap_target/csr_ret_target/direct_fire_succ/
+  // core_commit0_next_pc/pending_system_next_pc/pending_jump_target/pending_mem_next_pc
+  // 与 E4 fire 家族/capture)已随六处 PC 写删除——PC 经 u_redirect_arbiter 赢家单点回注。
   OooFetchPcOutstandingSequencer u_fetch_pc_outstanding (
       .clk(clk),
       .rst(rst || flush_i),
@@ -1862,16 +1965,8 @@ module OooFrontend #(
       .fetch_req_fire_i(fetch_req_fire_w),
       .fetch_req_pc_i(fetch_req_pc_o),
       .csr_trap_mem_valid_i(csr_trap_mem_valid_w),
-      .csr_trap_target_i(csr_trap_target_w),
-      .csr_ret_target_i(csr_ret_target_w),
       .direct_frontend_flush_i(direct_frontend_flush_w),
       .branch_fallthrough_keep_outstanding_i(branch_fallthrough_keep_outstanding_w),
-      .direct_jal_fire_i(direct_jal_fire_w),
-      .direct_ret_fire_i(direct_ret0_fire_w || direct_ret1_fire_w),
-      .direct_branch_fire_i(direct_branch0_fire_w || direct_branch1_fire_w),
-      .branch_fallthrough_capture_rsp_i(branch_fallthrough_capture_rsp_w),
-      .direct_jump_spec_fire_i(direct_jump_spec_fire_w),
-      .direct_fire_succ_i(direct_fire_succ_w),
       .branch_spec_resolve_valid_i(branch_spec_resolve_valid_w),
       .branch_spec_restore_i(branch_spec_restore_w),
       .core_branch_resolve_misaligned_i(core_branch_resolve_misaligned_w),
@@ -1895,20 +1990,15 @@ module OooFrontend #(
       .pending_jump_resolved_target_i(pending_jump_resolved_target_w),
       .pending_system_csr_commit_i(pending_system_csr_commit_w),
       .head0_csr_commit_i(head0_csr_commit_w),
-      .core_commit0_next_pc_i(core_commit0_next_pc_w),
-      .pending_system_next_pc_i(pending_system_next_pc_q),
       .drain_complete_i(stop_pending_q && drain_complete_w),
       .pending_arch_trap_i(pending_arch_trap_q),
       .pending_system_i(pending_system_q),
-      .pending_system_ecall_i(pending_system_ecall_q),
-      .pending_system_irq_i(pending_system_irq_q),
-      .pending_system_mret_i(pending_system_mret_q),
       .pending_branch_i(pending_branch_q),
       .pending_branch_dispatched_i(pending_branch_dispatched_q),
       .pending_jump_i(pending_jump_q),
-      .pending_jump_target_i(pending_jump_target_q),
       .pending_mem_i(pending_mem_q),
-      .pending_mem_next_pc_i(pending_mem_next_pc_q),
+      .redirect_valid_i(redirect_valid_w),
+      .redirect_pc_i(redirect_pc_w),
       .next_fetch_pc_o(next_fetch_pc_q),
       .outstanding_valid_o(outstanding_valid_q),
       .outstanding_pc_o(outstanding_pc_q),
@@ -1954,15 +2044,16 @@ module OooFrontend #(
       head1_fp_gpr_write_w | head1_fp_load_raw_w | head1_fp_store_raw_w;
 
 `ifdef OOO_ASSERT
-  // INV-1 (flush-redirect 契约 §4, GAP-1): untracked 重定向时 mux 落点必选 core_branch_resolve_next_pc。
-  // OooFetchRequestMux:67 untracked 是最高优先档 → 结构保证 redirect_fetch_pc_w==core_branch_resolve_next_pc_w;
-  // 与 seq:268 同源。body 当前恒真, 守 mux 侧「untracked>其他」不被改坏(漏改即 CoreMark 静默卡死)。
-  // 完整跨 mux/seq 两落点比较需 plumb seq:268 RHS, 留作后续。零误报。
+  // INV-1' (flush-redirect 契约 §4, GAP-1 后继, P4 切消费点改口径): arbiter branch 口
+  // 赢家拍, 统一 redirect PC 必等于 core_branch_resolve_next_pc(branch 口 pc 源接线守卫)。
+  // 旧 INV-1 守的是 mux 三元链「untracked 最高档」——该链已删, 单源化后改守 arbiter
+  // branch 口不被错接(负测试实证过错接 pc 源会响的同款守卫; 刀0 探针 P4-KNIFE0-MUX-SUCC
+  // 的职责由本断言 + 单源构造接替)。零误报。
   always @(posedge clk) if (!rst)
-    if (branch_resolve_untracked_redirect_w &&
-        (redirect_fetch_pc_w !== core_branch_resolve_next_pc_w))
-      $error("[FLUSH-CONTRACT INV-1] untracked mux 落点 != core_branch_resolve_next_pc: mux=%h expect=%h @%0t",
-             redirect_fetch_pc_w, core_branch_resolve_next_pc_w, $time);
+    if (redirect_valid_w && (redirect_reason_w == `REDIR_REASON_BRANCH_MISS) &&
+        (redirect_pc_w !== core_branch_resolve_next_pc_w))
+      $error("[FLUSH-CONTRACT INV-1] arbiter branch 口赢家 PC != core_branch_resolve_next_pc: arb=%h expect=%h @%0t",
+             redirect_pc_w, core_branch_resolve_next_pc_w, $time);
 
   // GAP-3 (flush-redirect 契约 §4): mux 的 direct 重定向必蕴含 FE 的 direct_frontend_flush。
   // 二者同拍不一致时, 本拍 fetch_req 被 mux 重定向而 sequencer 未 latch next_fetch / 未 reset

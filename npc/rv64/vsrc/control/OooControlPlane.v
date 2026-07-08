@@ -764,6 +764,11 @@ module OooControlPlane #(
 
 `ifdef OOO_ASSERT
   // ── 契约 INV-3 (GAP-2 互斥): CSR-commit 队头退休 redirect ⊥ 同拍 younger-branch-mispredict redirect ──
+  // 【P4 切消费点(2026-07-09)升格】GAP-2 甲门(shadow 段 !branch_resolve_untracked_w)已随
+  // 统一 redirect 仲裁真源化删除——年龄律下 commit 家族(age0)构造性胜过 younger 分支。
+  // 本断言从"收敛触发监测"升格为「甲门删除的不可达性哨兵」: fire = 该同拍在真实负载可达,
+  // 行为面(此拍 next_fetch_pc 从 mispredict 目标改为 CSR/drain 目标)从"不可观测"变"可观测",
+  // 须回 ooo-flush-redirect-contract.md §GAP-2 重审。逻辑不动。
   // 契约意图(独立于实现, 见 ooo-flush-redirect-contract.md §4/§5.2): head0-CSR 恒在 ROB 队头(age=0, 最老),
   // 其提交拍 head0_csr_commit_w 驱动 serial_flush + csr 写 + 前端 redirect(架构下条 PC)。任何 younger 分支的
   // mispredict/resolve redirect 都是更年轻指令的重定向请求。serialize-at-retire 声称二者同拍不可能(younger
@@ -786,14 +791,14 @@ module OooControlPlane #(
     end
   end
 
-  // ── 契约 INV-3b (GAP-2 互斥推广, P4 shadow 乙断言): E5-pending_system / E6-drain 终态支 ──
-  // INV-3 只钉了 head0 支; 此处把 co-request 互斥推广到 commit 家族其余活跃成员:
-  // pending-system CSR 提交 redirect(E5) 与 drain 终态 redirect(E6) 的拍, 若同拍
-  // younger-branch untracked mispredict 也在请求 redirect, 现行文本序(Sequencer E3 :178
-  // 早于 E5 :210/E6 :217)让 E3 赢——OooCoreTopGlue 的 shadow GAP-2 甲门显式编码了该序。
-  // 互斥若真成立则本断言恒静默、甲门恒透明; 一旦违反即响 = 契约 §5.7 的"收敛触发条件
-  // 到了"信号。监测型(不 $fatal), 独立于 shadow 等价断言记录冲突拍。谓词照抄 Sequencer
-  // E5/E6 臂条件(drain_complete_i = stop_pending_q && drain_complete_w, 见 OooFrontend 实例)。
+  // ── 契约 INV-3b (GAP-2 互斥推广, P4 乙断言): E5-pending_system / E6-drain 终态支 ──
+  // 【P4 切消费点(2026-07-09)升格】从"收敛触发监测"升格为「GAP-2 甲门删除的不可达性哨兵」。
+  // 切换前实证: module TB 86 + riscv 177 + AM + CoreMark 全程 0 fire → 该同拍在全部现有
+  // 负载不可达 → 删甲门(年龄律 commit 家族恒胜取代现行"E3 压过 E5/E6"文本序)后回归逐拍
+  // 不变。flag=1(OOO_CSR_QUEUE_HEAD, head0 支)是唯一可能违反域——本断言与 INV-3 在位作
+  // 哨兵, 一旦 fire = 行为变化面从不可达变可达, 回契约 §GAP-2 重审。监测型(不 $fatal),
+  // 谓词照抄 Sequencer E5/E6 臂条件(drain_complete_i = stop_pending_q && drain_complete_w,
+  // 见 OooFrontend 实例), 与 u_frontend 内 commit 家族 pre-mux(E5/E6 valid)同一文本源。
   wire inv3b_commit_family_redirect_w =
       (!direct_frontend_flush_w &&
        (pending_system_csr_commit_w || head0_csr_commit_w)) ||           // E5

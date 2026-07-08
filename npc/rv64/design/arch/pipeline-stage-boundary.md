@@ -67,7 +67,7 @@
 | P1（**2026-07-08 已完成**） | **EX→WB 提取第一刀**：`OooIntBackend` 的 ex0/ex1 簇替换为两个 `PipeStageReg #(.WIDTH(144))` 实例（valid 由原语持有，payload 144b/lane）。原 always 各赋值臂等价改写为组合 up_valid/up_payload 生成（"功能模块退化为纯组合+写入下一级寄存器"目标形态）；mem_pending/AMO FSM 共用 always 块原地不动。down_ready 接常 1（ROB wb 口恒收的现状语义），kill_i 接常 0（现状：kill 不清 ex_q），flush_i 接 `flush_i\|\|checkpoint_restore_i`（原 flush 臂等价）。原"未命中臂写全 0 payload"语义不保留（valid=0 拍 payload 留脏，已核对无 valid=0 读 payload 消费点）。原语自带 PSR-HOLD/PSR-FLUSH-EMPTY 断言随 CORE_SRCS 进 check-contract 计数（+2） | focused TB（tb_ooo_int_backend）PASS + 全量 module TB 85/85 + lint + check-contract（tohost 回归留给重构整体收口） |
 | P2（**2026-07-08 已完成**） | **FP exec1 簇提取**：`OooFpBackend` exec1_*_q（valid1+payload 81b，带 IQ 反压占用语义）替换为 `PipeStageReg #(.WIDTH(81)) u_exec1_stage`。payload 布局 `{rob[80:77], pdest[76:71], dst_gpr[70], dst_en[69], value[68:5], fflags[4:0]}`。端口契约：flush_i=`flush_i`（recover/checkpoint 不清 exec1——与 IntBackend 不同的现状语义）、kill_i=`exec1_kill_w`（年龄比较留使用方，rob 取 down_payload 位段）、up_valid_i=`issue_fire_w && issue_is_comb_w`、down_ready_i=`!arith_out_valid_w`（唯一阻塞源=arith 完成仲裁优先）、**up_ready_o 悬空**——issue_ready_w 保留 `!exec1_valid_q` 项（现行反压比原语 up_ready 更严，语义中性提取不做省 1 拍微优化）。消费点经 `exec1_*_q` 位段别名 wire 零文本改动；原 flush 清零 payload 变留脏安全（全消费点经 exec1_take_w/exec1_valid_q 门控）。done FIFO（同 always 块但 next-state 零交叉）与 long meta/hold 簇（两相写违反单装载契约）、`OooFpArithGate` 多级 meta 链（kill 前视耦合）**不提取**——exec1 是本模块唯一可提取纯流水簇 | tb_ooo_int_backend PASS + 全量 module TB 85/85 + lint + check-contract（计数 17 不变：PSR 断言按文件计，P1 已计入） |
 | P3（**2026-07-08 机制完成+首批数据**） | keep_hierarchy 全核对照实验：7 大模块 keep 下 ABC **分模块独立 mapping 实锤**——`OooMemAxiBridge` 66034 gates/area 131k/delay 45、`OooFetchAxiBridge` 93412 gates/area 175k/delay 50（两 cache 控制逻辑 stdcell 成本首次量化）。**发现并修复哈希 paramod 漏保**：参数值长时 yosys 用 `$paramod$<hash>\Mod` 形态（模块名在末尾），原 glob 尾部强制 `\*` 匹配不上致 7 keep 5 漏——yosys.tcl setattr 补 `=*\$module` 后缀 pattern（小例 PoC 验证）。**修复版全核综合 4670s 跑通**(此前 flatten 全核 6000s×2 timeout)：ABC 分 10 块独立 mapping——IntBackend 95250 gates/197k area/delay 89、FetchAxiBridge 93412/175k/50、MemAxiBridge 66269/132k/47、FpBackend 50545/107k/**90**、IntIssueQueue 30656/55k/27、Rob 15230/46k/14、Frontend 14497/27k/37、NpcTop 剩余 59395/113k/61、PipeStageReg×2 各 5 gates；总 stdcell 面积 ~855k(不含 4 黑盒宏)。关键路径大户=IntBackend(89)/FpBackend(90)——与"Issue→RegRead→EX 全核最深组合锥"侦查结论互证。宏合同 checker 新网表全 PASS+iEDA 兼容 PASS。`OooFpArithGate` 内部子模块化仍单独立项 | **全核综合首次闭合** |
-| P4（**2026-07-08 shadow 阶段已落地**） | **flush 单点化**（见 §5）：`OooRedirectArbiter` 复活（13 例 TB 全绿）+ `OooCoreTopGlue` 文末 `ifdef OOO_ASSERT` 影子仲裁段 + SHADOW-EQ-PC/KILL/NUKE 三等价断言 + INV-3b（GAP-2 乙，OooControlPlane）。覆盖 E1/E3/E4/E5/E6（默认 flag 下 next_fetch_pc_q 全部活跃终态写者）；E7/E8/E9 半死/影子臂进排除谓词；GAP-2 甲门把现行"E3 压过 E5/E6"文本序显式编码进 shadow 输入端（可 grep `GAP-2 现行序`，切换时删除）。plumbing：rob_head_idx 经 IntBackend→AluDecodeBackend→AluCoreSlice→ExecuteBackend 四层透传至 glue；E4 目标经 OooFrontend `e4_redirect_{valid,pc}_o` 构造式观测口。零行为改变（纯增量端口+断言段），综合网表不变 | shadow 全绿后切消费点。当前证据=module TB 86/86（sv39_boot 含 15 次真实 E3 事件 0 误报）+ 负测试（错接 branch 口 pc 源 15 次 fire）；**大节点回归（riscv-tests/AM/CoreMark/linux-mini +OOO_ASSERT）为切换前置门槛，由主控统一跑**。E2/E5-head0 支 flag=0 零 exercise，其等价证据须 flag=1 应力另补 |
+| P4（**2026-07-09 切消费点完成**） | **flush 单点化——fetch 侧 redirect PC 单真源落地**（见 §5）：shadow 全绿（86 TB+riscv 177+AM+CoreMark 全程 OOO_ASSERT 零 fire）后一次切齐——`OooRedirectArbiter` 转正（生产实例迁 `OooFrontend`，trap 口=E1>E5>E6 pre-mux age0 / branch 口=E3 真 rob_idx / direct 口=E4 head−1 哨兵）；`OooFetchRequestMux` 三元链删除（赢家透传+core_branch_resolve 兜底，valid 成员集不动）；`OooFetchPcOutstandingSequencer` E1/E3/E4/E5/E6 六处 PC 写删除（记账全保留，含 :263 系 override 臂记账），换文本最后唯一 arb 终写；E7/E8/E9 排除集臂原样保留（新增 INV-3c 钉互斥）。GAP-2 甲门删除=唯一行为变化面（全 flag=0 负载不可达，INV-3b 0 fire 实证，升格哨兵）；GAP-1 双落点由构造消灭。glue shadow 段删除（NUKE-SRC-EQ 保留钉 nuke 源）；断言基线 21→20。刀 0 前置探针（mux E4 链 vs direct_fire_succ 两平行编码，shadow 未覆盖点）module TB 86+CoreMark 零 fire 后才动刀。后端 kill/nuke 通道零触碰（arbiter kill_idx/reason/flush_backend unused-sink） | ✅ fetch 侧完成。验证=focused TB 重写 PASS+module TB 86/86+lint 双变体+check-contract 20≥20+负测试（错接 arbiter branch 口 pc 源 INV-1 623 fire→复原 0 fire）+切换后 CoreMark 0xfcaf/0.966 持平零 fire；大节点回归（riscv/AM/linux-mini）主控统一跑。**GAP-4 后端扁平 OR 收敛（消费 kill_idx/reason/flush_backend）另立刀**；E2/E5-head0 支 flag=0 零 exercise 照旧 |
 | P5+ | "重新流水化"类边界（Decode→Rename 等）按独立 spec 逐条决策 | 每条独立 spec+用户拍板 |
 
 ## 5. flush 单点化路线（搭车项，输入已由侦查冻结）
@@ -85,12 +85,18 @@
   `tb_ooo_redirect_arbiter`（testbench）。
 - **切换路径 = assert-then-converge + shadow-equivalence**（big-bang 判死史：控制面一把
   点火曾致全活锁）：复活 arbiter 并行计算赢家 → 每拍断言与现行散落逻辑等价 → 全绿后
-  才切消费点。
+  才切消费点。**✅ 2026-07-09 fetch 侧切换完成**：arbiter 生产实例在 `OooFrontend`
+  （放 glue 会造 frontend→glue→frontend 跨层组合往返，撞 UNOPTFLAT 家族）；commit
+  家族（E1/E5/E6 同 age0）家族内序 pre-mux，arbiter 只仲裁家族间。
 - **三条铁律不进 arbiter**：committed store 不可清（SQ survive_r 自治，INV-4 已断言）、
   已发 AXI 只能 drain（nokill 事务层旁路与控制流仲裁保持两层分离）、CSR commit 拍即
   架构可见不可撤。E11 mmu_flush 与控制流正交、E10 是掩码非清除，均不并入。
-- **最大 plumbing 缺口**：取指侧无 age 字段（FetchRequestMux/PcSequencer 无 rob_idx）。
-- 已知序缺陷 GAP-2（取指链 mispredict 高于 CSR/xRET，与目标序倒置）由年龄律自然修复。
+- ~~最大 plumbing 缺口：取指侧无 age 字段~~ ✅ 已由 direct 口 head−1 哨兵构造式消解
+  （direct 恒最年轻的语义忠实编码，age=2^W−1 是保守表示；age15 平手拍不可达——分支占
+  head+15 ⟹ ROB 满 ⟹ 无 dispatch ⟹ 无 direct fire）。
+- ~~已知序缺陷 GAP-2~~ ✅ 已由年龄律修复（甲门删除；flag=0 负载不可达实证 INV-3b 0 fire，
+  flag=1 哨兵在位）。**剩余=GAP-4 后端扁平 OR 收敛**（arbiter kill_idx/reason/
+  flush_backend 输出现为 unused-sink，消费它们 = 下一刀）。
 
 ## 6. 综合侧兑现（已实测的机制）
 
@@ -115,6 +121,24 @@
 
 ## 8. 变更记录
 
+- 2026-07-09（P4 切消费点完成）：`OooRedirectArbiter` 转正为 fetch 侧 redirect PC 单真源。
+  刀 0（探针）：OooFrontend 加 mux-vs-succ 探针断言（mux E4 链与 direct_fire_succ 两平行
+  编码、shadow 未覆盖点），module TB 86/86 零 fire（前件非真空自证 1 hit）+ CoreMark 10
+  迭代零 fire（0xfcaf）。刀 1（一次切齐，mux/seq 同批禁分切）：arbiter 生产实例迁
+  OooFrontend（commit 家族 E1>E5>E6 pre-mux + branch 口 untracked_redirect/真 rob_idx +
+  direct 口 e4 构造式/head−1 哨兵；kill/reason/flush_* unused-sink 留 GAP-4）；
+  RequestMux 三元链删除（赢家透传+默认兜底，valid 成员集不动=禁止项①）；Sequencer 六处
+  PC 写删除（E1/E3/E4/E5/E6，记账全保留=禁止项②，:263 系臂记账尤然）+ 文本最后唯一
+  arb 终写 + INV-2 重写 + INV-3c 新增；GAP-2 甲门删除（唯一行为变化面，INV-3b 全负载
+  0 fire 实证不可达，INV-3/INV-3b 升格哨兵）；glue shadow 段删除（SHADOW-EQ-NUKE 保留
+  改名 NUKE-SRC-EQ）；INV-1 改口径（arbiter branch 口守卫）；断言基线 21→20。
+  Sim 观测层：MuxChecker 重写（单源透传守卫）+ MuxFacts 缩 2 档、MergeChecker 退役
+  （INV-M1 由单源构造给出）、SeqChecker INV-S1/S2 保留（csr_trap_target XMR 迁
+  u_frontend 作用域）。TB：tb_ooo_fetch_request_mux/tb_ooo_fetch_pc_outstanding_sequencer
+  按「记账臂+arb 终写」口径重写，tb_ooo_redirect_arbiter 13 例不动。
+  验证：focused TB PASS、module TB 86/86、lint 双变体零告警、check-contract 20≥20、
+  负测试（错接 branch 口 pc 源→INV-1 623 fire→复原 0 fire）、切换后 CoreMark
+  0xfcaf/0.966 持平全断言零 fire。大节点回归主控统一跑。
 - 2026-07-08（P2/P3/P4）：P2 FP exec1 簇提取落地（WIDTH=81，kill 年龄判定留使用方，issue_ready 保留 !exec1_valid_q 项零拍数变化）；P3 keep_hierarchy 全核首批数据 + 哈希 paramod glob 修复；P4 shadow RedirectArbiter 复活接线（S1-S4①），SHADOW-EQ-PC/KILL/NUKE + INV-3b 断言基线 12→21，负测试 15 fire→复原 0 fire，riscv-tests 177/CoreMark 全程 OOO_ASSERT 零 fire=等价证据。切消费点（拆 Sequencer/RequestMux 双机制）为 shadow 全绿后的独立后续。
 
 - 2026-07-08：spec 冻结（四路侦查基线）；PipeStageReg 原语 + tb_pipe_stage_reg 落地；

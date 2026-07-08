@@ -1,8 +1,19 @@
 # OoO Fetch PC Outstanding Sequencer
 
-> ⚠️ **状态(2026-07-03 RTL 重读)**：模块本体是取指 PC 权威 owner（活）；但其 pending
-> branch/jump/mem 各恢复臂与 branch/JALR prefetch adopt 臂在 `OOO_ROB_WALK_MODE=1'b1`
-> 下随 pending 家族/prefetch 全链判死（对应谓词恒 0，臂为无害死逻辑）；拆除计划见
+> ✅ **状态(2026-07-09 P4 切消费点)**：redirect PC 真源已收敛 `OooRedirectArbiter`
+> （年龄律，`OooFrontend.u_redirect_arbiter`，见 `ooo-flush-redirect-contract.md` §2.2）。
+> 本模块 **E1(csr_trap)/E3(untracked 两臂)/E4(direct flush 装载)/E5(csr commit)/E6(drain
+> 终态各 owner) 六处 next_fetch_pc 写已删除**，换 always 块文本最后的唯一 arb 终写
+> （`redirect_valid_i → next_fetch_pc_q <= redirect_pc_i`）；对应 PC 载荷端口
+> （csr_trap_target/csr_ret_target/direct_fire_succ 及 E4 fire 家族/capture/
+> core_commit0_next_pc/pending_system_next_pc/ecall/irq/mret/pending_jump_target/
+> pending_mem_next_pc）随之删除。**各臂 outstanding/discard 记账全部保留**（模块仍是
+> outstanding 状态机权威 owner）。保留 PC 写臂 = 顺序推进 + E7(commit_resolve/match_clear,
+> 半死) + E8(pending_jump, tie-0 死硅) + E9(branch_spec restore, 死)——shadow 排除集，
+> arb 终写与它们同拍仅限 E1 拍，由新增 INV-3c 钉住；INV-2 重写为新写者集 onehot0。
+>
+> ⚠️ 旧状态注(2026-07-03 RTL 重读)：pending branch/jump/mem 恢复臂与 prefetch adopt 臂
+> 在 `OOO_ROB_WALK_MODE=1'b1` 下判死照旧（谓词恒 0，无害死逻辑），拆除计划见
 > `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述。
 
 ## Stage 1 - Requirements
@@ -32,14 +43,14 @@
   packet next PC when no new fetch request fires. A new fetch request advances
   `next_fetch_pc` to the request PC.
 - Redirect/recovery events overwrite the normal fetch progress in the same
-  clock edge. The priority intentionally follows the old parent nonblocking
-  assignment order:
-  normal progress -> direct frontend flush -> branch-spec restore ->
-  pending branch commit/match -> untracked branch recovery -> pending jump ->
-  pending system CSR commit -> drained pending owner ->
-  untracked-over-direct-flush override（B2 新增：older 后端 mispredict redirect 与同拍
-  wrong-path direct flush 冲突时，untracked 真值覆盖 sequential next_fetch_pc）->
-  late CSR trap.
+  clock edge. The bookkeeping priority intentionally follows the old parent
+  nonblocking assignment order:
+  normal progress -> direct frontend flush(记账) -> branch-spec restore ->
+  pending branch commit/match -> untracked branch recovery(记账) -> pending jump ->
+  pending system CSR commit(记账) -> drained pending owner(记账) ->
+  untracked-over-direct-flush override(记账) -> late CSR trap(记账) ->
+  **arb final write（P4：唯一 redirect PC 落点，redirect_valid_i 拍写 redirect_pc_i，
+  文本最后=最高优先，取代原 late CSR trap 的 PC 写位）**。
 - `discard_fetch_rsp` records that an old outstanding response must be dropped
   when a redirect/trap invalidates the in-flight request. It clears when that
   stale response fires.
@@ -82,14 +93,13 @@ new request/prefetch as outstanding while an older response is still stale.
   - `fetch_rsp_enqueue_i || fetch_rsp_bypass_consumed_i` selects
     `fetch_rsp_packet_next_pc_i` when no request fires.
   - `fetch_req_fire_i` selects `fetch_req_pc_i` and arms outstanding.
-- Direct flush 臂已 F2 单源化：模块不再内置 JAL/return/target-cache/fallthrough 等
-  重复 mux，direct fire 拍统一取输入 `direct_fire_succ_i`（由 `OooFrontend` 组合构造、
-  与 dispatch `pred_npc` 共享同一 wire，消灭「pred 与 next_fetch 不同源」错配）。
-  Same-cycle fallthrough response capture overrides the branch
-  next PC with `fetch_rsp_packet_next_pc_i`（该捕获谓词在当前配置下恒 0，死臂）.
-- Recovery muxes select CSR trap target, branch resolve target, pending branch
-  target, JALR prefetch hit packet next PC, pending JALR/JAL target, MRET target,
-  or pending memory next PC（pending-FP 臂已随 FP 真乱序迁移拆除，模块无此输入）.
+- 【P4】Direct flush 臂只剩记账：`direct_fire_succ`（F2 单源构造，含 fallthrough
+  capture 覆写）已上移为 `OooFrontend` 的 e4 构造式（arbiter direct 口输入），本模块
+  不再收该载荷；direct fire 拍的 PC 经 arb 终写回注。
+- 【P4】Recovery PC mux 只剩保留臂（E7 pending branch target / branch prefetch hit、
+  E8 JALR prefetch hit / pending jump resolved target、E9 core branch resolve）；
+  CSR trap / MRET / drain 终态各 owner 目标已迁 `OooFrontend` commit 家族 pre-mux
+  （arbiter trap 口）。
 - All muxes are registered at the module clock edge; the module adds no new
   combinational path from a response or branch resolve back into fetch request
   generation beyond the existing registered outputs.

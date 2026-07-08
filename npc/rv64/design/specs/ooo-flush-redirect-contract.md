@@ -85,9 +85,29 @@
 
 **去重说明**：E1 吸收子系统2的 `core_trap_flush_q`、子系统3的 `late_clear`/`OooMemAxiBridge.flush_i`(trap 分量)/SQ flush_all(trap 分量)/MIQ flush(trap 分量)、子系统4的 stop 清(trap)、**+FP 簇 flush 分量**——同一 committed-trap 事件的多点施加。E3 吸收子系统2的 ROB-walk kill + 子系统1的 untracked + untracked-over-flush、**+FP 簇 kill 分量**。E12 吸收子系统3/4 的 pending capture/clear/clear_arch/clear_arch_squash/clear_exit 全家族。
 
-### 2.2 优先级全序（高 → 低）
+### 2.2 优先级全序（高 → 低）—— ✅ P4 切消费点后：单真源（2026-07-09）
 
-现状由**两个物理机制分别承担，无单一真源**（C7 本体）：
+**【P4 切消费点(2026-07-09)】redirect PC 已收敛单真源**：`OooRedirectArbiter`（年龄律
+`age = rob_idx − rob_head` 环形 argmin 单赢家，`OooFrontend` 内生产实例）仲裁三口：
+
+- **trap 口** = commit 家族 pre-mux（E1 > E5 > E6，家族内序照原 Sequencer 文本序在
+  `OooFrontend` 组合编码——E1/E5/E6 同为 commit-time、同 rob_idx(head, age≡0)，arbiter
+  年龄律无法区分家族内成员，家族内序必须 pre-mux），rob_idx = head（age≡0 恒最老）。
+- **branch 口** = E3（valid=`branch_resolve_untracked_redirect`，rob_idx = 后端 resolve
+  真 rob_idx）。
+- **direct 口** = E4（valid/pc = e4 构造式即 direct_fire_succ + fallthrough-capture 覆写，
+  rob_idx = head−1 哨兵 age=2^W−1 恒最年轻——direct 是 dispatch 拍事件，构造上严格年轻
+  于任何本拍后端 resolve 分支）。
+
+赢家输出喂两个原汇合点：`OooFetchRequestMux`（三元链已删，`redirect_valid ? redirect_pc
+: core_branch_resolve_next_pc` 兜底）与 `OooFetchPcOutstandingSequencer`（E1/E3/E4/E5/E6
+六处 PC 写已删，换 always 块文本最后的唯一 arb 终写）。**同拍两源都赢由构造不可能**
+（§5.4 论证兑现）。保留在 Sequencer 内的 PC 写者 = 顺序推进 + E7/E8/E9（半死/死硅排除集，
+shadow 无等价证据，原样保留；arb 终写与它们同拍仅限 E1 拍，由 INV-3c 钉住）。
+kill/reason/flush_backend 输出本刀 unused-sink——后端 kill/nuke 通道未动（GAP-4 后续刀）。
+
+<details>
+<summary>切换前双机制历史形态（供追溯；行号为 2026-07-05 冻结拍）</summary>
 
 **机制 A — 取指请求 PC（`OooFetchRequestMux` 组合 first-match ternary `:66-82`）** [验证]，纯人工排序、无年龄字段：
 `untracked > direct_jump_spec > direct_jal > direct_ret > direct_branch0_lane1_ret > branch_target_dispatch > branch_fallthrough > direct_branch_resolve > pending_jump > branch_spec > 顺序`
@@ -102,6 +122,8 @@
 | 4 | **E4 direct_frontend_flush 臂** | :115 | 被 :151/:159/:263/:271 覆盖 |
 | 5 | E9 branch_spec_restore | :137 | `!direct_flush`（[死]） |
 | 6（最低） | 顺序推进 | :100-112 | — |
+
+</details>
 
 **后端（`core_local_flush` 扁平 OR `OooCoreSliceControlGate.v:39-40`）** [验证]：`flush_i(死) ‖ core_trap_flush ‖ core_serial_flush` —— **三源无优先级区分，纯 OR**（语义上互斥/叠加均等效整清）。ROB 全清 `rst‖flush_i`(`OooRob.v:349`) 优先级最高，压过 E3 的 ROB-walk `recover`。故后端实序：**E1/E2 整清 nuke > E3 ROB-walk 部分 squash**。
 
@@ -123,10 +145,17 @@
 
 ### 2.3 汇合点清单（§7「≥5 汇合点、无统一优先级链」实证）
 
+> **【P4 切消费点(2026-07-09)更新】汇合点 1/2 的 redirect PC 择一已合并进
+> `OooRedirectArbiter`（年龄律单赢家，`OooFrontend.u_redirect_arbiter`）**：#1 只剩
+> 「赢家透传 or 默认兜底」+ valid/流控职责；#2 只剩 outstanding/discard 记账 + 保留臂
+> （E7/E8/E9）+ arb 终写。GAP-1 双落点人工同步由构造消灭。#3-#7（后端 OR/AXI/pending/
+> stop_pending）本刀未动，arbiter 的 kill/reason/flush_backend 输出 unused-sink 留给
+> GAP-4 后端收敛刀。
+
 | # | 汇合点 | 信号 @ file:line | 仲裁形态 |
 |---|---|---|---|
-| 1 | 取指请求 PC | `OooFetchRequestMux.v:66-87` | first-match ternary，无年龄 |
-| 2 | next_fetch_pc / outstanding | `OooFetchPcOutstandingSequencer.v:93-277` | nonblocking 后写胜 |
+| 1 | 取指请求 PC | `OooFetchRequestMux.v`（redirect_fetch_pc_o 二择） | ✅ arbiter 赢家透传（P4 收敛） |
+| 2 | next_fetch_pc / outstanding | `OooFetchPcOutstandingSequencer.v`（arb 终写 + 记账臂） | ✅ arbiter 赢家单点回注（P4 收敛） |
 | 3 | 后端全清 | `OooCoreSliceControlGate.v:39-40 core_local_flush` | 扁平 OR，无类型标签 |
 | 4 | AXI 级 squash 漏斗 | `OooMemoryRequestGate.v:60 mem_flush = core_local_flush ‖ checkpoint_mem_flush` | OR |
 | 5 | pending 出口 trap/exit 决策 | `OooTrapExitEventMux.v:53-131` | 最长 AND 门控隐式优先级 |
@@ -182,8 +211,8 @@
 
 | # | 不变量 | 为何成立 | 断言落点（模块 · 信号） | flag=0 覆盖 | 挂 gate |
 |---|---|---|---|---|---|
-| **INV-1** | **GAP-1 一致性**：untracked 重定向的两个落点选出的 PC 相同 | `mux:70` 与 `Seq:263` 两处**人工同步**「untracked>direct」，任一漏改即 CoreMark 静默卡死（`Seq:257-262` 注释史） | `OooFetchPcOutstandingSequencer` · assert `mux 结果 == :263 override 结果` | ✅ 有（活路径每拍走） | ✅ |
-| **INV-2** | **同拍至多一个 flush/redirect 源赢**（C-OBJ-REDIR 目标的运行时护栏） | 当前靠机制 A/B 人工全序；断言把"两源都赢不可能"先钉成护栏（在 arbiter 真收敛前守住现状） | `OooFetchPcOutstandingSequencer` · `$onehot0({E1..E8 各自"我赢了"谓词})` | 部分（serialize 支 flag=1 才 exercise） | ✅ |
+| **INV-1** | ~~GAP-1 双落点一致~~ **P4 改口径(2026-07-09)**：arbiter branch 口赢家拍，统一 redirect PC == core_branch_resolve_next_pc（branch 口 pc 源接线守卫） | 双落点已单源化，旧断言对象消失；新守卫钉 arbiter 接线不被错改（负测试 623 fire→复原 0 实证） | `OooFrontend` · redirect_reason==BRANCH_MISS 拍比较 | ✅ 有（活路径每拍走） | ✅ |
+| **INV-2** | **同拍至多一个 next_fetch_pc 终态写者赢**（P4 重写：写者集缩为 {E9, E7cr/E7mc/E8 保留臂, arb 终写}） | E1/E3/E4/E5/E6 六族 PC 写已并入 arb 终写；保留臂与 arb 的文本序优先编码器护栏 | `OooFetchPcOutstandingSequencer` · 手工 win 计数 ≤1；**+INV-3c**（arb 终写压过保留臂仅限 E1 拍/不可达拍） | 部分（保留臂半死/死硅） | ✅ |
 | **INV-3** | **GAP-2 互斥**：`!(csr_commit_redirect && younger_branch_mispredict_same_cycle)` | 现状是**未证明**的兜底不变量；断言把它变显式 | `OooControlPlane` / `OooFetchPcOutstandingSequencer` · csr_commit 与 younger-branch mispredict 谓词 | ❌ **仅 flag=1 exercise**（默认 head0_csr_commit≡0） | ✅（含 caveat） |
 | **INV-4** | **committed store 不在任何 flush 的 clears 里** / **head0-CSR serial_flush 只从 mem-idle 退休派生** | 铁律① 靠 `survive_r` 的 committed 恒存活 + head0-CSR 退休受 `mem_idle` 门控；§10.4 已证明不能等 SQ empty，否则 younger store 死锁 | `OooStoreQueue` · `!(flush_valid && committed/mark && !survive_r)`；`OooRob` · `!(head0 CSR commit0_fire && !mem_quiet_i)`，其中 `mem_quiet_i` 当前接 `mem_idle_o` | committed 支 ✅；serial 支 ❌**仅 flag=1** | ✅（2026-07-07 已落） |
 | **INV-5** | **不得 kill 已发 nokill AXI**（铁律②） | `nokill_busy` 对 `cpu_kill` 免疫 | `OooMemAxiBridge` · `!(cpu_kill_fire && nokill_q && state!=IDLE && 事务被撕裂)` | ✅ 有 | ✅ |
@@ -315,8 +344,8 @@ redirect_request {
 
 | GAP | 摘要 | 锚点 | 状态 |
 |---|---|---|---|
-| **GAP-1** | 取指 redirect 优先级无单一真源（C7 本体）；「untracked>direct」两落点(`mux:70`+`Seq:263`)人工同步，任一漏改 CoreMark 卡死 | §2.2 机制 A/B | INV-1 断言可钉；根治=arbiter 收敛 |
-| **GAP-2** | CSR/xRET 与 branch mispredict 相对序倒置(:178 先于 :210/:217)，靠**未证明互斥**兜底（**仅 flag=1 可违反**） | §2.2 目标序对照 | INV-3 断言；年龄律根治 |
+| **GAP-1** | ~~取指 redirect 优先级无单一真源~~ **✅已根治(2026-07-09 P4 切消费点)**：redirect PC 单真源 = `OooRedirectArbiter`（`OooFrontend` 内），「untracked>direct」由年龄律构造给出（branch 真 rob_idx 恒老于 direct head−1 哨兵），双落点人工同步物理消灭；INV-1 改口径为 arbiter branch 口接线守卫（负测试 623 fire→复原 0 实证） | §2.2 单真源 | ✅ 根治 |
+| **GAP-2** | ~~CSR/xRET 与 branch mispredict 相对序倒置~~ **✅年龄律修复(2026-07-09 P4)**：甲门（shadow `!branch_resolve_untracked_w`）删除，commit 家族(age0)构造性胜过 younger 分支 = 宪法目标序。**caveat**：该同拍在全部 flag=0 负载不可达（INV-3b 全程 0 fire 实证）→ 行为变化面零可观测；**flag=1(OOO_CSR_QUEUE_HEAD) 是唯一可能可达域**，INV-3/INV-3b 升格为不可达性哨兵在位，翻 flag 验证按 serialize §10.6 另立 | §2.2/§3 行为变化面 | ✅ 修复（flag=1 caveat） |
 | **GAP-3** | 两个「direct redirect」定义不一致：`FrontendActionGate.direct_frontend_flush`(含 branch1/jump_spec、无 pending_jump) ≠ `FetchRequestMux.direct_redirect_fetch`(含 pending_jump*/direct_branch_resolve、无 branch1) | E4 | 待收口统一 |
 | **GAP-4** | 后端 flush 扁平 OR、双 squash 机制（E1/E2 nuke vs E3 walk）无统一仲裁器 | `SliceControlGate:39-40` | reason+kill_younger_than 统一 |
 | **GAP-5** | 「清/保持」靠不变量而非机制（含子系统4 陈述错，已纠）：serial/trap **确进 SQ flush_all**，committed 靠 `survive`；head0-CSR serial 退休靠 `mem_idle` 避免 abort 在飞事务，younger 未 committed store 允许在 flush_all 下被丢弃 | §3 铁律① | ✅ INV-4 已断言显式化（2026-07-07） |
@@ -358,6 +387,23 @@ redirect_request {
 - **历史踩坑引用**：控制面 big-bang 活锁判死史 `design/arch/history/b2-branch-spec-redirect.md §2.x`；serialize flag-ON 中间态死锁修复史 memory `serialize-at-retire-flush-lsu-obstacle` + `design/arch/serialize-at-retire-phase1.md §10.4`；F2 减 flush 类优化 kill-窗口逃逸家族 memory `f2-true-branch-prediction-landed`。
 
 ## 8. 变更记录
+
+- **2026-07-09 P4 切消费点（GAP-1 根治 / GAP-2 年龄律修复）**：`OooRedirectArbiter` 从
+  shadow 转正为 redirect PC 单真源（`OooFrontend.u_redirect_arbiter`，trap 口=E1>E5>E6
+  pre-mux age0 / branch 口=E3 真 rob_idx / direct 口=E4 head−1 哨兵）。
+  `OooFetchRequestMux` 三元链删除（赢家透传+默认兜底，valid/流控职责与 valid 成员集
+  未动）；`OooFetchPcOutstandingSequencer` E1/E3/E4/E5/E6 六处 PC 写删除（记账全保留，
+  含 :263 系 override 臂记账），换文本最后唯一 arb 终写；E7/E8/E9 保留臂原样。
+  GAP-2 甲门删除 = 唯一行为变化面，全 flag=0 负载不可达（INV-3b 0 fire 实证），
+  INV-3/INV-3b 升格为不可达性哨兵。glue shadow 段删除（SHADOW-EQ-PC/KILL 使命完成，
+  SHADOW-EQ-NUKE 保留改名 NUKE-SRC-EQ 钉 nuke 源）；INV-1 改口径（arbiter branch 口
+  守卫，负测试 tb_ooo_sv39_boot 错接 623 fire→复原 0）；INV-2 重写+INV-3c 新增；
+  断言基线 21→20（−2 shadow +1 INV-3c）。后端 kill/nuke 通道零触碰（arbiter
+  kill/reason/flush_backend unused-sink，GAP-4 另立刀）。切换前置刀 0 探针
+  （mux E4 链 vs direct_fire_succ 两平行编码）module TB 86 + CoreMark 全程 0 fire。
+  验证：module TB 86/86、lint 双变体、check-contract 20≥20、CoreMark 0xfcaf 持平。
+  sim 观测层：MuxChecker 重写（单源透传守卫）、MergeChecker 退役（跨器一致性由构造
+  给出）、SeqChecker INV-S1/S2 保留（target XMR 迁 u_frontend 作用域）。
 
 - **2026-07-05 v1（冻结）**：四子系统逆向 + C-OBJ-REDIR 重写评估 + 对抗审查三份融合落盘。本轮 [验证] 复核全部承重断言（define.v flags、Sequencer:93-277、Mux:47-87、CoreSliceControlGate:39-40、StopPending:64-159、IntBackend:2410-2413/2590、ExecuteBackend:150、StoreQueue:128-152、Rob:59-64、MemAxiBridge:278-565、MemoryRequestGate:49-62、ControlCommitSequencer:91、ControlPlane:307、check-contract.sh、contract-assert-baseline.txt=1）。**纳入对抗审查五处修正**：①源表补 FP/MulDiv 簇（§2.1a）；②铁律③降级为"结构成立/默认零覆盖"（§3）；③系统性幸存者偏差告警（§0/UC-C）；④Step 0 机制由 TB SV assert 纠为 in-RTL `$error` under OOO_ASSERT（§4/§5.7）；⑤活文档强制挂 check-contract gate（§6.4）。**GAP-5 跨子系统纠正**（serial/trap 确进 SQ flush_all）经复核确认，铁律①结论不变。未改任何 RTL/配置，纯只读综合冻结。
 - **历史待办状态迁移**：Step 0 断言已分批落地并在 2026-07-07 ratchet 到 baseline=11；剩余待办转为 GAP-3/GAP-4/GAP-7/GAP-8/GAP-9 的收敛与 B7 flag-ON 前置验证。

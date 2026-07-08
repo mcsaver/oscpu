@@ -1,6 +1,11 @@
 `include "tb_common.svh"
 `include "define.v"
 
+// 【P4 切消费点(2026-07-09)】DUT 的 E1/E3/E4/E5/E6 六处 next_fetch_pc 写已删, PC 经
+// redirect_valid/redirect_pc(OooRedirectArbiter 赢家)在文本最后单点回注; 各臂
+// outstanding/discard 记账全保留。本 TB 口径同步为「记账臂 + arb 终写」: 原用例中被删
+// PC 写的臂改为同拍驱动 redirect_valid/redirect_pc(模拟 arbiter 赢家), 记账期望不变;
+// 保留 PC 写的臂(E7/E8/E9/顺序)用例原样。
 module tb_ooo_fetch_pc_outstanding_sequencer;
   reg clk;
   reg rst;
@@ -14,31 +19,9 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
   reg [`XLEN-1:0] fetch_req_pc;
 
   reg csr_trap_mem_valid;
-  reg [`XLEN-1:0] csr_trap_target;
-  reg [`XLEN-1:0] csr_ret_target;
 
   reg direct_frontend_flush;
   reg branch_fallthrough_keep_outstanding;
-  reg direct_jal_fire;
-  reg [`XLEN-1:0] direct_jal_target;
-  reg direct_ret_fire;
-  reg [`XLEN-1:0] direct_ret_target;
-  reg direct_branch_fire;
-  reg direct_branch1_fire;
-  reg direct_branch0_lane1_ret;
-  reg return_cont_dispatch;
-  reg [`XLEN-1:0] return_cont_next_pc;
-  reg [`XLEN-1:0] ras_top;
-  reg branch_target_dispatch;
-  reg [`XLEN-1:0] branch_target_cache_next_pc;
-  reg branch_fallthrough_dispatch;
-  reg [`XLEN-1:0] head_next_pc1;
-  reg direct_branch_resolve_redirect;
-  reg [`XLEN-1:0] direct_branch_resolve_next_pc;
-  reg direct_branch_spec_start;
-  reg [`XLEN-1:0] direct_branch_pred_pc;
-  reg [`XLEN-1:0] head_next_pc0;
-  reg branch_fallthrough_capture_rsp;
 
   reg branch_spec_resolve_valid;
   reg branch_spec_restore;
@@ -67,35 +50,18 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
   reg [`XLEN-1:0] pending_jump_resolved_target;
 
   reg pending_system_csr_commit;
-  reg [`XLEN-1:0] pending_system_next_pc;
+  reg head0_csr_commit;
 
   reg drain_complete;
   reg pending_arch_trap;
   reg pending_system;
-  reg pending_system_ecall;
-  reg pending_system_irq;
-  reg pending_system_mret;
   reg pending_branch;
   reg pending_branch_dispatched;
   reg pending_jump;
-  reg [`XLEN-1:0] pending_jump_target;
   reg pending_mem;
-  reg [`XLEN-1:0] pending_mem_next_pc;
 
-  // 【F2】DUT 的 direct 臂 mux 已上提为单源 direct_fire_succ_i(OooFrontend 构造);
-  // TB 侧按原 mux 语义重建, 现有场景(设置 jal_target 等并断言 next_fetch)保持不变。
-  wire [`XLEN-1:0] tb_direct_fire_succ =
-      direct_jal_fire ? direct_jal_target :
-      direct_ret_fire ? direct_ret_target :
-      direct_branch_fire ? (
-          direct_branch0_lane1_ret ?
-              (return_cont_dispatch ? return_cont_next_pc : ras_top) :
-          branch_target_dispatch ? branch_target_cache_next_pc :
-          branch_fallthrough_dispatch ? head_next_pc1 :
-          direct_branch_resolve_redirect ? direct_branch_resolve_next_pc :
-          direct_branch_spec_start ? direct_branch_pred_pc :
-          (direct_branch1_fire ? head_next_pc1 : head_next_pc0)) :
-      {`XLEN{1'b0}};
+  reg redirect_valid;
+  reg [`XLEN-1:0] redirect_pc;
 
   wire [`XLEN-1:0] next_fetch_pc;
   wire outstanding_valid;
@@ -113,16 +79,8 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
     .fetch_req_fire_i(fetch_req_fire),
     .fetch_req_pc_i(fetch_req_pc),
     .csr_trap_mem_valid_i(csr_trap_mem_valid),
-    .csr_trap_target_i(csr_trap_target),
-    .csr_ret_target_i(csr_ret_target),
     .direct_frontend_flush_i(direct_frontend_flush),
     .branch_fallthrough_keep_outstanding_i(branch_fallthrough_keep_outstanding),
-    .direct_jal_fire_i(direct_jal_fire),
-    .direct_ret_fire_i(direct_ret_fire),
-    .direct_branch_fire_i(direct_branch_fire),
-    .branch_fallthrough_capture_rsp_i(branch_fallthrough_capture_rsp),
-    .direct_jump_spec_fire_i(1'b0),
-    .direct_fire_succ_i(tb_direct_fire_succ),
     .branch_spec_resolve_valid_i(branch_spec_resolve_valid),
     .branch_spec_restore_i(branch_spec_restore),
     .core_branch_resolve_misaligned_i(core_branch_resolve_misaligned),
@@ -145,19 +103,16 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
     .jalr_prefetch_hit_packet_next_pc_i(jalr_prefetch_hit_packet_next_pc),
     .pending_jump_resolved_target_i(pending_jump_resolved_target),
     .pending_system_csr_commit_i(pending_system_csr_commit),
-    .pending_system_next_pc_i(pending_system_next_pc),
+    .head0_csr_commit_i(head0_csr_commit),
     .drain_complete_i(drain_complete),
     .pending_arch_trap_i(pending_arch_trap),
     .pending_system_i(pending_system),
-    .pending_system_ecall_i(pending_system_ecall),
-    .pending_system_irq_i(pending_system_irq),
-    .pending_system_mret_i(pending_system_mret),
     .pending_branch_i(pending_branch),
     .pending_branch_dispatched_i(pending_branch_dispatched),
     .pending_jump_i(pending_jump),
-    .pending_jump_target_i(pending_jump_target),
     .pending_mem_i(pending_mem),
-    .pending_mem_next_pc_i(pending_mem_next_pc),
+    .redirect_valid_i(redirect_valid),
+    .redirect_pc_i(redirect_pc),
     .next_fetch_pc_o(next_fetch_pc),
     .outstanding_valid_o(outstanding_valid),
     .outstanding_pc_o(outstanding_pc),
@@ -180,30 +135,8 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
       fetch_req_fire = 1'b0;
       fetch_req_pc = {`XLEN{1'b0}};
       csr_trap_mem_valid = 1'b0;
-      csr_trap_target = {`XLEN{1'b0}};
-      csr_ret_target = {`XLEN{1'b0}};
       direct_frontend_flush = 1'b0;
       branch_fallthrough_keep_outstanding = 1'b0;
-      direct_jal_fire = 1'b0;
-      direct_jal_target = {`XLEN{1'b0}};
-      direct_ret_fire = 1'b0;
-      direct_ret_target = {`XLEN{1'b0}};
-      direct_branch_fire = 1'b0;
-      direct_branch1_fire = 1'b0;
-      direct_branch0_lane1_ret = 1'b0;
-      return_cont_dispatch = 1'b0;
-      return_cont_next_pc = {`XLEN{1'b0}};
-      ras_top = {`XLEN{1'b0}};
-      branch_target_dispatch = 1'b0;
-      branch_target_cache_next_pc = {`XLEN{1'b0}};
-      branch_fallthrough_dispatch = 1'b0;
-      head_next_pc1 = {`XLEN{1'b0}};
-      direct_branch_resolve_redirect = 1'b0;
-      direct_branch_resolve_next_pc = {`XLEN{1'b0}};
-      direct_branch_spec_start = 1'b0;
-      direct_branch_pred_pc = {`XLEN{1'b0}};
-      head_next_pc0 = {`XLEN{1'b0}};
-      branch_fallthrough_capture_rsp = 1'b0;
       branch_spec_resolve_valid = 1'b0;
       branch_spec_restore = 1'b0;
       core_branch_resolve_misaligned = 1'b0;
@@ -226,19 +159,16 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
       jalr_prefetch_hit_packet_next_pc = {`XLEN{1'b0}};
       pending_jump_resolved_target = {`XLEN{1'b0}};
       pending_system_csr_commit = 1'b0;
-      pending_system_next_pc = {`XLEN{1'b0}};
+      head0_csr_commit = 1'b0;
       drain_complete = 1'b0;
       pending_arch_trap = 1'b0;
       pending_system = 1'b0;
-      pending_system_ecall = 1'b0;
-      pending_system_irq = 1'b0;
-      pending_system_mret = 1'b0;
       pending_branch = 1'b0;
       pending_branch_dispatched = 1'b0;
       pending_jump = 1'b0;
-      pending_jump_target = {`XLEN{1'b0}};
       pending_mem = 1'b0;
-      pending_mem_next_pc = {`XLEN{1'b0}};
+      redirect_valid = 1'b0;
+      redirect_pc = {`XLEN{1'b0}};
     end
   endtask
 
@@ -294,6 +224,7 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
     tb_errors = 0;
     clear_inputs();
 
+    // ── 顺序/记账基础(未动臂) ──
     reset_dut(64'h0000_0000_8000_0000);
     check_state("reset", 64'h0000_0000_8000_0000, 1'b0,
                 {`XLEN{1'b0}}, 1'b0);
@@ -311,6 +242,7 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
                 64'h0000_0000_8000_1004, 1'b0,
                 64'h0000_0000_8000_1000, 1'b0);
 
+    // ── E7 commit_resolve(保留臂, 记账+PC 都在模块内) ──
     reset_dut(64'h0000_0000_8000_0000);
     issue_fetch(64'h0000_0000_8000_2000);
     clear_inputs();
@@ -326,14 +258,14 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
     check_state("stale response clears discard",
                 64'h0000_0000_8000_3000, 1'b0, {`XLEN{1'b0}}, 1'b0);
 
+    // ── E4 direct flush: 记账在模块内, PC 由 arb 终写回注(redirect_pc=direct 赢家) ──
     reset_dut(64'h0000_0000_8000_0000);
     issue_fetch(64'h0000_0000_8000_4000);
     clear_inputs();
     direct_frontend_flush = 1'b1;
     branch_fallthrough_keep_outstanding = 1'b1;
-    direct_branch_fire = 1'b1;
-    branch_fallthrough_dispatch = 1'b1;
-    head_next_pc1 = 64'h0000_0000_8000_4010;
+    redirect_valid = 1'b1;
+    redirect_pc = 64'h0000_0000_8000_4010;   // arbiter direct 口赢家(e4 构造式)
     tick();
     check_state("direct fallthrough keeps outstanding",
                 64'h0000_0000_8000_4010, 1'b1,
@@ -341,15 +273,13 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
 
     clear_inputs();
     direct_frontend_flush = 1'b1;
-    direct_branch_fire = 1'b1;
-    branch_fallthrough_dispatch = 1'b1;
-    head_next_pc1 = 64'h0000_0000_8000_5004;
-    branch_fallthrough_capture_rsp = 1'b1;
-    fetch_rsp_packet_next_pc = 64'h0000_0000_8000_5008;
+    redirect_valid = 1'b1;
+    redirect_pc = 64'h0000_0000_8000_5008;   // capture 覆写已并入 e4 构造式(前端侧)
     tick();
-    check_state("fallthrough response capture overrides direct branch pc",
+    check_state("direct flush adopts arb winner and discards stale",
                 64'h0000_0000_8000_5008, 1'b0, {`XLEN{1'b0}}, 1'b1);
 
+    // ── E9 branch_spec restore(保留臂) ──
     reset_dut(64'h0000_0000_8000_0000);
     issue_fetch(64'h0000_0000_8000_6000);
     clear_inputs();
@@ -363,6 +293,7 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
                 64'h0000_0000_8000_7004, 1'b1,
                 64'h0000_0000_8000_7000, 1'b1);
 
+    // ── E7 match_clear(保留臂) ──
     reset_dut(64'h0000_0000_8000_0000);
     clear_inputs();
     pending_branch_match_clear = 1'b1;
@@ -376,6 +307,7 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
                 64'h0000_0000_8000_8008, 1'b1,
                 64'h0000_0000_8000_8000, 1'b0);
 
+    // ── E8 pending_jump(保留臂, tie-0 死硅——TB 直激哨兵路径) ──
     reset_dut(64'h0000_0000_8000_0000);
     issue_fetch(64'h0000_0000_8000_8800);
     clear_inputs();
@@ -391,14 +323,53 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
                 64'h0000_0000_8000_9008, 1'b1,
                 64'h0000_0000_8000_9000, 1'b1);
 
+    // ── E3 untracked: 记账在模块内, PC 由 arb 终写(branch 口赢家) ──
+    reset_dut(64'h0000_0000_8000_0000);
+    issue_fetch(64'h0000_0000_8000_9800);
+    clear_inputs();
+    branch_resolve_untracked = 1'b1;
+    core_branch_resolve_next_pc = 64'h0000_0000_8000_9900;
+    redirect_valid = 1'b1;
+    redirect_pc = 64'h0000_0000_8000_9900;
+    tick();
+    check_state("untracked bookkeeping plus arb write",
+                64'h0000_0000_8000_9900, 1'b0, {`XLEN{1'b0}}, 1'b1);
+
+    // ── E3-over-E4 override(:263 系记账臂——禁止项②: 记账不得随 PC 写删除) ──
+    reset_dut(64'h0000_0000_8000_0000);
+    issue_fetch(64'h0000_0000_8000_9a00);
+    clear_inputs();
+    direct_frontend_flush = 1'b1;
+    branch_resolve_untracked = 1'b1;
+    fetch_req_fire = 1'b1;
+    fetch_req_pc = 64'h0000_0000_8000_9b00;
+    redirect_valid = 1'b1;
+    redirect_pc = 64'h0000_0000_8000_9b00;  // 年龄律 branch 胜 direct(原 :263 语义)
+    tick();
+    check_state("untracked-over-flush bookkeeping adopts request",
+                64'h0000_0000_8000_9b00, 1'b1,
+                64'h0000_0000_8000_9b00, 1'b1);
+
+    // ── E5 csr commit: 记账在模块内, PC 由 arb 终写(trap 口 pre-mux E5) ──
+    reset_dut(64'h0000_0000_8000_0000);
+    issue_fetch(64'h0000_0000_8000_9c00);
+    clear_inputs();
+    pending_system_csr_commit = 1'b1;
+    redirect_valid = 1'b1;
+    redirect_pc = 64'h0000_0000_8000_9d00;
+    tick();
+    check_state("csr commit clears outstanding and takes arb pc",
+                64'h0000_0000_8000_9d00, 1'b0, {`XLEN{1'b0}}, 1'b1);
+
+    // ── E6 drain 终态: 记账 owner 序在模块内, PC 由 arb 终写(trap 口 pre-mux E6) ──
     reset_dut(64'h0000_0000_8000_0000);
     clear_inputs();
     drain_complete = 1'b1;
     pending_system = 1'b1;
-    pending_system_mret = 1'b1;
-    csr_ret_target = 64'h0000_0000_8000_a000;
+    redirect_valid = 1'b1;
+    redirect_pc = 64'h0000_0000_8000_a000;   // mret 目标经 pre-mux 选出
     tick();
-    check_state("drained mret selects csr return target",
+    check_state("drained system owner takes arb pc",
                 64'h0000_0000_8000_a000, 1'b0, {`XLEN{1'b0}}, 1'b0);
 
     reset_dut(64'h0000_0000_8000_0000);
@@ -406,24 +377,38 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
     clear_inputs();
     drain_complete = 1'b1;
     pending_jump = 1'b1;
-    pending_jump_target = 64'h0000_0000_8000_b100;
+    redirect_valid = 1'b1;
+    redirect_pc = 64'h0000_0000_8000_b100;
     tick();
     check_state("drained pending jump drops old outstanding",
                 64'h0000_0000_8000_b100, 1'b0, {`XLEN{1'b0}}, 1'b1);
 
+    // ── E1 csr trap: 记账在模块内, PC 由 arb 终写(trap 口 E1 最高档); 同拍 direct
+    //    flush 记账被 E1 记账(文本更后)覆盖——原 "late csr trap wins" 语义 ──
     reset_dut(64'h0000_0000_8000_0000);
     issue_fetch(64'h0000_0000_8000_c800);
     clear_inputs();
     csr_trap_mem_valid = 1'b1;
-    csr_trap_target = 64'h0000_0000_8000_c000;
     direct_frontend_flush = 1'b1;
-    direct_jal_fire = 1'b1;
-    direct_jal_target = 64'h0000_0000_dead_beef;
+    redirect_valid = 1'b1;
+    redirect_pc = 64'h0000_0000_8000_c000;   // E1 pre-mux 最高档 = csr_trap_target
     tick();
     check_state("late csr trap wins over direct flush",
                 64'h0000_0000_8000_c000, 1'b0, {`XLEN{1'b0}}, 1'b1);
 
+    // ── arb 终写压过顺序推进(文本最后 = 最高优先) ──
+    reset_dut(64'h0000_0000_8000_0000);
+    clear_inputs();
+    fetch_req_fire = 1'b1;
+    fetch_req_pc = 64'h0000_0000_8000_d000;
+    branch_resolve_untracked = 1'b1;        // 给 redirect 一个真实事件语境(E3 记账)
+    redirect_valid = 1'b1;
+    redirect_pc = 64'h0000_0000_8000_e000;
+    tick();
+    check_state("arb final write beats sequential request pc",
+                64'h0000_0000_8000_e000, 1'b1,
+                64'h0000_0000_8000_d000, 1'b0);
+
     tb_finish("tb_ooo_fetch_pc_outstanding_sequencer");
   end
 endmodule
-

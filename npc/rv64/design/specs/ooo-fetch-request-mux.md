@@ -1,15 +1,20 @@
 # OooFetchRequestMux
 
-> ⚠️ **状态(2026-07-03 RTL 重读)**：模块本体存活（untracked/jump-spec/JAL/RET 臂与顺序臂是
-> 活跃主通路）；return-cont、branch-target-cache、branch-fallthrough、pending-jump、
-> branch-prefetch 各臂（含 normal-branch-resolve / branch-spec-restore 谓词）随 append/
-> pending/prefetch 家族在当前配置（`OOO_ROB_WALK_MODE=1'b1` + `OOO_DBRANCH_DOMAIN_A=1'b1` +
-> `BRANCH_APPEND_DISPATCH_ENABLE=1'b0`）下判死（谓词恒 0）；lane1-ret 与 direct-branch-resolve
-> 两臂**未**恒 0——dispatch 拍快解析源已被 domain-A 压死（`OooIntBackend.v:531-532`），
-> 但 direct branch fire（F2 下 taken/非 dual 拍仍 fire，`OooDirectControlFlowGate.v:55-57`）
-> 撞 issue 同拍同 PC 解析的巧合路径仍结构可达（`OooDirectBranchResolveGate.v:61-64`），
-> 属罕见残活臂；拆除计划见
-> `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述。
+> ✅ **状态(2026-07-09 P4 切消费点)**：redirect PC 真源已收敛 `OooRedirectArbiter`
+> （年龄律，`OooFrontend.u_redirect_arbiter`，见 `ooo-flush-redirect-contract.md` §2.2）。
+> 本模块的 **redirect target first-match 三元链已删除**——`redirect_fetch_pc_o =
+> redirect_valid_i ? redirect_pc_i(arbiter 赢家) : core_branch_resolve_next_pc_i(兜底,
+> E7/E9 保留臂拍与原链默认档同目标)`。原 11 档链的目标输入端口
+> （direct_jal_target/direct_ret_target/return_cont/ras_top/branch_target_cache_next_pc/
+> head_next_pc1/direct_branch_resolve_next_pc/pending_jump_resolved_target/
+> direct_jump_spec_target）随之删除。**valid/流控职责原样保留**（direct_redirect_fetch_o
+> OR、redirect_fetch_req_valid_o 三条件、fetch_req_pc_o 三段）——valid 成员集与 arbiter
+> direct 口不同（e4 valid 含普通 branch0/1_fire 而本 valid 不含），改接 arbiter valid
+> 会新增同拍取指请求=时序变化，为切消费点契约禁止项。
+>
+> ⚠️ 旧状态注(2026-07-03 RTL 重读)：pending-jump 两 fire 输入仍为 wave5b tie-0 死态
+> （`OooRedirectMuxChecker` RDMUX-DEAD 哨兵在位）；其余判死臂描述随三元链删除而失效，
+> 见 git 史。
 
 ## 需求
 
@@ -43,7 +48,7 @@
 - `direct_redirect_fetch_o` 是 direct fast redirect 类事件的 OR。
 - `redirect_fetch_req_valid_o` 在任一 redirect 事件有效、未被 fallthrough outstanding
   suppression 阻止，且没有未返回 outstanding 或本拍 response 已 fire 时为真。
-- `redirect_fetch_pc_o` 按旧优先级选择 redirect target。
+- `redirect_fetch_pc_o`（P4 后）= arbiter 赢家透传或默认兜底 core branch resolve next PC。
 - `fetch_req_pc_o` 优先使用 redirect PC，其次 branch prefetch PC，最后顺序 PC。
 
 ## 不变量
@@ -51,12 +56,11 @@
 - Redirect request 优先级高于 branch prefetch，高于顺序取指。
 - Outstanding 未返回且本拍 response 未 fire 时，redirect request valid 必须为假。
 - Branch fallthrough 已有匹配 outstanding 时，redirect request valid 必须为假。
-- Redirect target 优先级（B2 后现行语义）：
-  untracked branch resolve（后端显式 mispredict 真 target，必须覆盖投机预测）>
-  direct jump spec（非返回 JALR 投机续取）>
-  direct JAL > direct return > lane0-branch lane1-return > branch target cache >
-  branch fallthrough > direct branch resolve > pending jump > branch speculation
-  restore/default core branch resolve。
+- Redirect target（P4 单源）：`redirect_valid_i` 拍恒透传 `redirect_pc_i`（arbiter 年龄律
+  赢家）；无赢家拍恒兜底 `core_branch_resolve_next_pc_i`。守卫=`OooRedirectMuxChecker`
+  RDMUX-ARB-PC / RDMUX-DEFAULT-PC（重加链臂即 fire）。原 11 档 first-match 序由 arbiter
+  年龄律 + commit pre-mux + e4 构造式取代（等价性=P4 shadow 期 SHADOW-EQ-PC + 刀 0
+  mux-vs-succ 探针零 fire 证据链）。
 - 新模块不产生 `fetch_req_valid_o`，不查看 `fetch_req_ready_i`，不更新任何状态。
 
 ## 非职责

@@ -1,6 +1,9 @@
 # OoO 核 Debug / Observability 架构规格
 
-> 状态: **三层观测模型定型(§5) + redirect 双仲裁器观测三件套(Mux/Seq/Merge)落地并验证 + 规则固化完成**(2026-07-06)。剩「真 FSM 编码样板(动 RTL)」待议。本文是新会话接续本主题的单一入口。
+> 状态: **三层观测模型定型(§5) + 规则固化完成**(2026-07-06)。**redirect 观测三件套已随
+> P4 切消费点(2026-07-09)演化为两件**: Mux checker 重写(单源透传守卫)、Seq checker 保留、
+> Merge checker 退役(跨器一致性由 `OooRedirectArbiter` 单源构造给出, 见 §4.1 注)。
+> 剩「真 FSM 编码样板(动 RTL)」待议。本文是新会话接续本主题的单一入口。
 > 关联: [[ooo-flush-redirect-contract.md]] · [[interface-contract-first.instructions.md]] · decisions [39]
 
 ## 0. 本文缘起(讨论链, 一句话版)
@@ -88,8 +91,18 @@ debug 必须拆成两个物理归属不同的层, 禁混:
 - **结论: 选错样板, 已删。** redirect winner 是**无记忆组合仲裁**(§3 第一刀), 非真 FSM——编码只有 observability 价值, 无状态机收益。其枚举设计(基于真实 mux 优先级三元链 `OooFetchRequestMux.v:66-82` + sequencer override 顺序 `OooFetchPcOutstandingSequencer.v:263/271`)记档备查: 若将来要一个"可打印的前端 redirect 观测面", 可作 (1) 类 observability 投影重建, 但**不作为 FSM 编码样板**。
 - 真要立 FSM 编码样板, 应挑 §3 候选热点(stop_pending / trap-exit)。
 
-### 4.1 redirect 真实互斥来源(权威表, 2026-07-06 照两份 RTL 逐档改写)
+### 4.1 redirect 真实互斥来源(权威表)
 
+> ⚠️ **【P4 切消费点(2026-07-09)】本表下述"双仲裁器"形态已成历史**: redirect PC 真源已
+> 收敛 `OooRedirectArbiter`(年龄律, `OooFrontend.u_redirect_arbiter`)——Mux 三元链已删
+> (赢家透传+默认兜底), Seq 六处 PC 写已删(记账保留+arb 终写), 权威优先级表迁
+> `ooo-flush-redirect-contract.md` §2.2(单真源三口: trap=E1>E5>E6 pre-mux / branch=E3 /
+> direct=E4 head−1 哨兵)。观测三件套同步: `OooRedirectMuxChecker` 重写为单源透传守卫
+> (RDMUX-ARB-PC/RDMUX-DEFAULT-PC)+死态哨兵(RDMUX-DEAD 照旧); `OooRedirectSeqChecker`
+> INV-S1/S2 保留(csr_trap_target XMR 迁 u_frontend 作用域); `OooRedirectMergeChecker`
+> **退役**(INV-M1 跨器一致性由单源构造给出, 文件已删)。下表保留作历史追溯(行号为
+> 2026-07-06 快照)。
+>
 > 本节原为「单一 11 主态优先级链」失真抽象(把组合 Mux + 时序 Seq 两个仲裁器压平、多处次序记反),
 > 已于 2026-07-06 照 `OooFetchRequestMux.v`(组合)+ `OooFetchPcOutstandingSequencer.v`(时序)两份 RTL
 > **逐档核实后改写为下表**(两仲裁器各列真实优先级 + 行号锚点, 可复核)。旧失真单链见 git 历史。
@@ -221,10 +234,14 @@ debug 必须拆成两个物理归属不同的层, 禁混:
      (seen_q 与 next_fetch_pc_q 同延迟对齐, 避免同拍读 reg 旧值)。这两条是核内自带 INV-2(:280-294, 只查 onehot0)未覆盖的独立真理。
    - **验证**: build 0 warn + riscv 355/0 + AM 59/0 **恒静默** + 非真空(csr_trap_mem 是 mem 阶段 trap,
      经 `sv39-xpage-misalign` 可达 1 次、延迟比较对齐、INV-S2 held; 该测试 HIT GOOD TRAP)。**① 电路一行不动。**
-4. ✅ **合并两仲裁器统一视图(跨 Mux/Seq 一致性)已落地**: `vsrc/debug/OooRedirectMergeChecker.sv`(同时 XMR
-   两个仲裁器 + INV-M1: 当 `flush && untracked_redirect && !csr_trap` 时组合 Mux 当拍 `redirect_fetch_pc` == 时序 Seq
-   下一拍 `next_fetch_pc_q`, 延迟一拍比较对齐)。把 §4.1 Seq:262 注释声称的"两器一致"变成**运行时验证的事实**:
-   CoreMark 前件可达 1417 次、1417/1417 全一致(静默)。验证: build 0 warn + riscv 355/0 + AM 59/0 恒静默。**① 电路一行不动。**
+4. ⚠️ **合并两仲裁器统一视图(跨 Mux/Seq 一致性)——已于 P4 切消费点(2026-07-09)退役**:
+   `OooRedirectMergeChecker.sv`(INV-M1)历史价值 = 把 Seq:262 注释声称的"两器一致"变成运行时
+   验证事实(CoreMark 1417/1417 一致), 是切消费点的等价证据链一环。切换后两汇合点消费同一
+   `OooRedirectArbiter` 赢家 wire, 跨器一致性由单源构造给出、对照物不复存在 → 文件与
+   SIM_TOP_SRCS 项删除(doc-lifecycle: 机制判死注记)。同批: MuxChecker 重写为单源透传守卫
+   (RDMUX-ARB-PC/RDMUX-DEFAULT-PC, 重加链臂即 fire)+死态哨兵照旧, MuxFacts 缩 2 档;
+   SeqChecker INV-S1/S2 保留(csr_trap_target XMR 迁 u_frontend 作用域——Seq 的 E1 载荷口
+   已随 PC 写删除)。
 5. ✅ **规则固化已完成**: §5 三层模型 + §5.6 断言纪律 + 8 条工具链/方法学踩坑(XMR 五层 / `PINCONNECTEMPTY`
    去空端口 / `$display` 探针法[`--assert` 下 `$error` 中止、core-regress 不收 stdout 须直跑单 bin] / 时序件延迟比较 /
    mem-vs-exec trap 信号语义 / `$time` 恒 0 / baseline 不计 SIM checker 等)已写进 `interface-contract-first.instructions.md`

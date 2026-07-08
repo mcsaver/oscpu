@@ -237,7 +237,8 @@ RTL_NPC_SIM_TOP := $(RTL_SIM_DIR)/NpcSimTop.sv
 # §5 三层观测模型 ② 层 checker(旁挂 SIM_TOP, 不进 RTL_CORE_SRCS → DCE 零面积)
 RTL_OOO_REDIRECT_MUX_CHECKER := $(RTL_DEBUG_DIR)/OooRedirectMuxChecker.sv
 RTL_OOO_REDIRECT_SEQ_CHECKER := $(RTL_DEBUG_DIR)/OooRedirectSeqChecker.sv
-RTL_OOO_REDIRECT_MERGE_CHECKER := $(RTL_DEBUG_DIR)/OooRedirectMergeChecker.sv
+# 【P4 切消费点(2026-07-09)】OooRedirectMergeChecker(跨 Mux/Seq untracked 一致性 INV-M1)退役:
+# 两汇合点消费同一 OooRedirectArbiter 赢家 → 跨器一致性由单源构造保证, 对照物不复存在。
 RTL_OOO_AD_UPDATE_CHECKER := $(RTL_DEBUG_DIR)/OooAdUpdateChecker.sv
 RTL_OOO_BRANCH_DIRECTION_PREDICTOR_CHECKER := $(RTL_DEBUG_DIR)/OooBranchDirectionPredictorChecker.sv
 RTL_OOO_FETCH_PACKET_CACHE_CHECKER := $(RTL_DEBUG_DIR)/OooFetchPacketCacheChecker.sv
@@ -299,6 +300,5 @@ RTL_CORE_SRCS := $(strip \
 SIM_TOP_SRCS := $(RTL_AXI_DPI_SLAVE) $(RTL_AXI_LITE_VIRTIO_BLK) $(RTL_NPC_SIM_TOP) \
 	$(RTL_OOO_REDIRECT_MUX_CHECKER) \
 	$(RTL_OOO_REDIRECT_SEQ_CHECKER) \
-	$(RTL_OOO_REDIRECT_MERGE_CHECKER) \
 	$(RTL_OOO_AD_UPDATE_CHECKER)
 VSRCS = $(RTL_CORE_SRCS) $(SIM_TOP_SRCS)
