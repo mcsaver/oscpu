@@ -60,7 +60,7 @@ e2e_npc_rv64_contract() {
     npc/rv64/Makefile \
     npc/rv64/Kconfig \
     npc/rv64/README.md \
-    npc/rv64/design/study/README.md \
+    npc/rv64/design/history/study/README.md \
     Linux/README.md
 }
 

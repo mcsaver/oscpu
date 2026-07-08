@@ -42,6 +42,14 @@
 `ifndef OOO_FETCH_PACKET_COUNT_W
 `define OOO_FETCH_PACKET_COUNT_W 2
 `endif
+`ifndef OOO_FETCH_PACKET_CACHE_INDEX_W
+// 取指包 cache 默认保持 4096 项；综合/面积实验可通过同名 define 显式缩小。
+`define OOO_FETCH_PACKET_CACHE_INDEX_W 12
+`endif
+`ifndef OOO_DATA_WORD_CACHE_INDEX_W
+// D-cache 默认保持 4096 项；综合/面积实验可通过同名 define 显式缩小。
+`define OOO_DATA_WORD_CACHE_INDEX_W 12
+`endif
 
 `ifndef RESET_PC
 `define RESET_PC           64'h0000_0000_8000_0000

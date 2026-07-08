@@ -1,0 +1,1 @@
+PASS iEDA netlist compatibility netlist=npc/rv64/build/sta/NpcTop-100MHz/NpcTop.netlist.v forbidden=0

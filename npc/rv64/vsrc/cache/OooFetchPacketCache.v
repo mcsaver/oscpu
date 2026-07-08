@@ -1,7 +1,7 @@
 `include "define.v"
 
 module OooFetchPacketCache #(
-  parameter INDEX_W = 12,
+  parameter INDEX_W = `OOO_FETCH_PACKET_CACHE_INDEX_W,
   parameter ENTRY_COUNT = (1 << INDEX_W)
 ) (
   input clk,
@@ -114,38 +114,6 @@ module OooFetchPacketCache #(
       invalidate_valid_i && valid_q[invalidate_idx_p6_w] &&
       same_fetch_window(pc_q[invalidate_idx_p6_w], invalidate_addr_i);
 
-  reg [ENTRY_COUNT-1:0] valid_next_r;
-
-  always @(*) begin
-    valid_next_r = valid_q;
-
-    if (invalidate_m6_hit_w) begin
-      valid_next_r[invalidate_idx_m6_w] = 1'b0;
-    end
-    if (invalidate_m4_hit_w) begin
-      valid_next_r[invalidate_idx_m4_w] = 1'b0;
-    end
-    if (invalidate_m2_hit_w) begin
-      valid_next_r[invalidate_idx_m2_w] = 1'b0;
-    end
-    if (invalidate_p0_hit_w) begin
-      valid_next_r[invalidate_idx_p0_w] = 1'b0;
-    end
-    if (invalidate_p2_hit_w) begin
-      valid_next_r[invalidate_idx_p2_w] = 1'b0;
-    end
-    if (invalidate_p4_hit_w) begin
-      valid_next_r[invalidate_idx_p4_w] = 1'b0;
-    end
-    if (invalidate_p6_hit_w) begin
-      valid_next_r[invalidate_idx_p6_w] = 1'b0;
-    end
-
-    if (fill_valid_i && !fill_invalidated_w) begin
-      valid_next_r[fill_idx_w] = 1'b1;
-    end
-  end
-
   assign lookup_context_hit_o =
       valid_q[lookup_idx_w] &&
       (paging_q[lookup_idx_w] == lookup_paging_i) &&
@@ -165,10 +133,32 @@ module OooFetchPacketCache #(
     if (rst || clear_i) begin
       valid_q <= {ENTRY_COUNT{1'b0}};
     end else begin
-      // Store/fence invalidation has only five possible overlapping packet
-      // indices; compute valid_next_r combinationally so this clocked block
-      // has one owner for the valid vector.
-      valid_q <= valid_next_r;
+      // 这里直接更新少数命中的 valid bit，避免组合 next-state 使用宽向量
+      // 动态位写；fill 保持最后赋值，匹配原有“未被覆盖的同拍 fill 胜出”语义。
+      if (invalidate_m6_hit_w) begin
+        valid_q[invalidate_idx_m6_w] <= 1'b0;
+      end
+      if (invalidate_m4_hit_w) begin
+        valid_q[invalidate_idx_m4_w] <= 1'b0;
+      end
+      if (invalidate_m2_hit_w) begin
+        valid_q[invalidate_idx_m2_w] <= 1'b0;
+      end
+      if (invalidate_p0_hit_w) begin
+        valid_q[invalidate_idx_p0_w] <= 1'b0;
+      end
+      if (invalidate_p2_hit_w) begin
+        valid_q[invalidate_idx_p2_w] <= 1'b0;
+      end
+      if (invalidate_p4_hit_w) begin
+        valid_q[invalidate_idx_p4_w] <= 1'b0;
+      end
+      if (invalidate_p6_hit_w) begin
+        valid_q[invalidate_idx_p6_w] <= 1'b0;
+      end
+      if (fill_valid_i && !fill_invalidated_w) begin
+        valid_q[fill_idx_w] <= 1'b1;
+      end
 
       if (fill_valid_i && !fill_invalidated_w) begin
         paging_q[fill_idx_w] <= fill_paging_i;

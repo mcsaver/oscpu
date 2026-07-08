@@ -1415,6 +1415,14 @@ module OooFpArithGate (
     end
   endfunction
 
+`ifdef OOO_ASSERT
+  always @(posedge clk) begin
+    if (!rst && !flush_i && launch_valid_i && (launch_kind_i == 2'd3)) begin
+      $error("[FP-ARITH-CONTRACT] illegal launch_kind_i=3");
+    end
+  end
+`endif
+
   // 对齐链: value+fflags(69b)
   reg [`XLEN-1:0] addsub_a1_value_q, addsub_a2_value_q;
   reg [4:0] addsub_a1_fflags_q, addsub_a2_fflags_q;

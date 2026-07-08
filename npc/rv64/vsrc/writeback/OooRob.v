@@ -525,6 +525,10 @@ module OooRob #(
           (wb1_pdest_i !== new_pdest_q[wb1_rob_idx_i]))
         $error("[FLUSH-CONTRACT UC-A] ROB 生产者撞号 WB1 idx=%0d pdest=%0d != slot.new_pdest=%0d (pc=%h) wrong-path 生产者写复用槽 @%0t",
                wb1_rob_idx_i, wb1_pdest_i, new_pdest_q[wb1_rob_idx_i], pc_q[wb1_rob_idx_i], $time);
+      // INV-4-serial: head0 CSR 退休会在下一拍触发 serial_flush; 退休拍必须已经无在飞内存事务。
+      // 当前 mem_quiet_i 接 mem_idle(不含 SQ empty), 这是 §10.4 为避免 younger-store 死锁后的真实契约。
+      if (`OOO_CSR_QUEUE_HEAD && commit0_fire_w && head0_is_csr_w && !mem_quiet_i)
+        $error("[FLUSH-CONTRACT INV-4] head0 CSR 在 mem_idle=0 时退休: serial_flush 会 abort 在飞内存事务 @%0t", $time);
     end
   end
 `endif

@@ -17,7 +17,7 @@
 // - store 合并: 不跨线 → line 内 wstrb<<off 精确合并(write-update, 保热);
 //   跨线 store → 相关两线保守失效。write-no-allocate(miss 不建行)。
 module OooDataWordCache #(
-  parameter INDEX_W = 10,
+  parameter INDEX_W = `OOO_DATA_WORD_CACHE_INDEX_W,
   parameter ENTRY_COUNT = (1 << INDEX_W)
 ) (
   input clk,

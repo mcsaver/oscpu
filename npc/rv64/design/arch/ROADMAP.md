@@ -4,7 +4,7 @@
 > 优先级 backlog 与专业化工作流。每轮迭代后按"迭代→深度再评估→据此修改"更新。
 > 配套：评估系统 `eval/`，模块规范 `design/specs/`，架构规范 `design/arch/`，文献 `design/literature/`。
 
-最近更新：2026-07-06（gate 数字/正确性状态/下一步决策同步到当前真相。
+最近更新：2026-07-07（B7 flag-ON 前置清单按最新验证生命周期校正。
 最新现状以 `.github/memory/project-status.md` 为准；`rtl-ground-truth-2026-07-03.md` 是 07-03 时点基线快照）
 
 ---
@@ -93,8 +93,16 @@
    spec-允许掩码；AM 与 riscv-tests full-state difftest 分歧已逐个清零，`ssvnapot` 边界也已闭合。
 
 因此 B7 / `OOO_CSR_QUEUE_HEAD=1` 不再被"CSR difftest 盲区"阻塞；下一步应按
-`serialize-at-retire.md` / `serialize-at-retire-phase1.md` 推进 **flag ON 前置**：补 full Linux boot 护航、
-`-v-`/full-state difftest 覆盖和 glue TB CsrFile stub，然后再评估把 `OOO_CSR_QUEUE_HEAD` 默认翻 1。
+`serialize-at-retire.md` / `serialize-at-retire-phase1.md` 推进 **flag ON 前置**。2026-07-07 已补
+`OOO_CSR_QUEUE_HEAD=1` 专用构建入口与 focused Linux smoke 护栏；当前剩余是完整 Ubuntu/rootfs boot 护航和
+`-v-`/full-state difftest 覆盖，然后再评估把 `OOO_CSR_QUEUE_HEAD` 默认翻 1。
+2026-07-07 已先补 `ooo-flush-redirect-contract.md` 的 INV-4 in-RTL 断言（baseline 9→11），
+把 head0-CSR mem-idle 门控与 SQ committed-store survive 这两个 flag-ON 承重不变量接进 `check-contract`。
+同日又补齐 glue TB 的 CsrFile stub head0 commit 接线，`tb_ooo_core_top_glue` 在默认与
+`-DOOO_CSR_QUEUE_HEAD=1` 下均 PASS；glue TB 不再是当前前置缺口。
+同日继续补齐 flag-ON focused Linux smokes：`smoke-sret-user-sv39`、`smoke-sret-user-sv39-halfword`、
+`smoke-sret-restore`、`smoke-sret-user-pagefault`、`smoke-virtio-blk` 均在
+`NPC_OOO_CSR_QUEUE_HEAD=1` 下 GOOD TRAP；默认 `smoke-virtio-blk` 也 GOOD TRAP。该证据不替代完整 rootfs boot。
 其它高价值项（load 多 outstanding / dcache word→line 粒度 = CoreMark load miss 47% 根因）在 B7 护栏闭合后择机。
 
 ---

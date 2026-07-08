@@ -4,10 +4,20 @@
 __pycache__/
 *.py[cod]
 *oss-cad-suite/
+oss-cad-suite-linux-x64-*.tgz
 *jcs/
 
-# yosys-sta：本地 STA 流程目录（result/、日志、bin/、pdk/ 等生成物），作为本地工具目录不纳入 Git 跟踪。
-/yosys-sta/
+# yosys-sta：保留本地工具/结果目录忽略，但跟踪可复现的 flow 入口与脚本。
+/yosys-sta/*
+!/yosys-sta/Makefile
+!/yosys-sta/scripts/
+!/yosys-sta/scripts/common.tcl
+!/yosys-sta/scripts/default.sdc
+!/yosys-sta/scripts/pdk/
+!/yosys-sta/scripts/pdk/icsprout55.tcl
+!/yosys-sta/scripts/pdk/nangate45.tcl
+!/yosys-sta/scripts/sta.tcl
+!/yosys-sta/scripts/yosys.tcl
 am-kernels/build/regression/
 npc/single/.config
 npc/single/.config.old
@@ -32,6 +42,7 @@ npc/rv64/.config.old
 npc/rv64/.linux-defconfig.stamp
 npc/rv64/.linux-trace-defconfig.stamp
 npc/rv64/build/
+npc/rv64/build-csrqh/
 npc/rv64/gmon.out
 npc/rv64/include/config/
 npc/rv64/include/generated/
@@ -86,6 +97,7 @@ Linux/tools/initramfs/
 .github/shujuku_aireview/**
 .github/task-runs/.async/**
 .github/task-runs/*.log
+.github/task-runs/**/*.log
 .github/task-runs/**/evidence/**
 !.github/task-runs/**/evidence-index.md
 !.github/task-runs/**/run-manifest.json

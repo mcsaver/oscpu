@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T14:31:49+00:00",
-  "updated_at": "2026-06-27T03:13:43+00:00",
+  "updated_at": "2026-07-08T02:08:56+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -766,10 +766,10 @@
     {
       "path": ".github/memory/known-issues.md",
       "kind": "memory",
-      "size_bytes": 417707,
-      "sha256": "747ce3a7210613609f70f8c834dc95445d28cfb790df2a0365aed6c94861390c",
-      "backup_source": "filesystem",
-      "archived_at": "2026-06-27T03:13:43+00:00"
+      "size_bytes": 515281,
+      "sha256": "b9650f476e7c42d6e806fd9403853aacbd2c842e122a48a20532fa9ac768f1fa",
+      "backup_source": "database",
+      "archived_at": "2026-07-08T02:07:20+00:00"
     },
     {
       "path": ".github/memory/modules/abstract-machine.md",
@@ -822,10 +822,10 @@
     {
       "path": ".github/memory/modules/npc.md",
       "kind": "memory-module",
-      "size_bytes": 470079,
-      "sha256": "602991b78d7643a0d586dcd9e8de48aa86cc986636f5d6e7111ce61ca13431d7",
-      "backup_source": "filesystem",
-      "archived_at": "2026-06-27T03:13:43+00:00"
+      "size_bytes": 565364,
+      "sha256": "30693ef317489a11f3bdc41e7f49ebef163d0dacf751ffdc2b96e382c0df62e1",
+      "backup_source": "database",
+      "archived_at": "2026-07-08T02:07:20+00:00"
     },
     {
       "path": ".github/memory/modules/software-flow.md",
@@ -838,10 +838,10 @@
     {
       "path": ".github/memory/modules/yosys-sta.md",
       "kind": "memory-module",
-      "size_bytes": 1736,
-      "sha256": "d7ab874f6773c89fd6ea90b66a7e33c9d19bca6acef933c1a81717c457c5b51b",
-      "backup_source": "filesystem",
-      "archived_at": "2026-06-27T03:13:43+00:00"
+      "size_bytes": 25488,
+      "sha256": "eb441f8e444825c4cf7d4527c2b00c3c1833c61bfd6cc5f6fc776bb08a6ebb5e",
+      "backup_source": "database",
+      "archived_at": "2026-07-08T02:07:20+00:00"
     },
     {
       "path": ".github/memory/modules/ysyx-soc.md",
@@ -854,10 +854,10 @@
     {
       "path": ".github/memory/project-status.md",
       "kind": "memory",
-      "size_bytes": 378095,
-      "sha256": "29f047a5fdf9b3bac97aea7b73e5cbba440a64345fde1be855a8a62284bdaab4",
-      "backup_source": "filesystem",
-      "archived_at": "2026-06-27T03:13:43+00:00"
+      "size_bytes": 602044,
+      "sha256": "c09e6d1b715e9c15e7739bdfdea62e56222d0f51ee11a0fd049a5fbe0a2f3cd0",
+      "backup_source": "database",
+      "archived_at": "2026-07-08T02:07:20+00:00"
     },
     {
       "path": ".github/task-runs/2026-04-13-npc-dpic-bringup/dispatch-log.md",
@@ -36338,6 +36338,270 @@
       "sha256": "4985b3cb6103fb6ce931965adf3bc34807a292d7a491e484d0ea6cd6bee2a910",
       "backup_source": "filesystem",
       "archived_at": "2026-06-27T03:13:43+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-07-yosys-fetch-packet-cache-valid-next/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 13469,
+      "sha256": "761aca14da07bdb79e264c4e2a89323b9055b378e47cb3923132035ec9f8ea3c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T16:38:12+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-07-yosys-rv64-synth-probe/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 17758,
+      "sha256": "9f51066ea073ee3b047bcf92b7366684082edd70d1f39e299b6c7a59194887b6",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T15:29:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-branch-direction-predictor-macro-placeholder-2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4527,
+      "sha256": "4b7a08bd7e8c1de6a5fb0a1a519ca3c1632b7b281a8e3ccd545a39ba8b405d9c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T23:45:58+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-branch-direction-predictor-macro-placeholder-3/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 5395,
+      "sha256": "d0ae437ec2693ac3206975eb0dc279c677f3434d41c579a73e6d5c4e83134ab8",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T23:45:58+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-branch-direction-predictor-macro-placeholder-4/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 7547,
+      "sha256": "a940fb47579bab508f7fcbb31574e99dd2f3574d9c0eb9127f0eb715c039dd68",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T23:45:58+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-branch-direction-predictor-macro-placeholder/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 10191,
+      "sha256": "9332a63b4a7954a3ac93ca9a8795cf2838711bd31cc53c7d1e0711beffe87eb1",
+      "backup_source": "database",
+      "archived_at": "2026-07-07T23:44:02+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-branch-direction-predictor-macro-placeholder/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 8340,
+      "sha256": "031efc9cbc18ba0029e7ebc23d646bf0ef337974b57e339645698409a2bf75fe",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T23:45:58+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-branch-direction-predictor-macro-placeholder/profile-resolve-yosys-sta.md",
+      "kind": "task-run",
+      "size_bytes": 10119,
+      "sha256": "017b1e4a13f608543053a98143feabf98f925c0283e6232c2341b69554a13d32",
+      "backup_source": "database",
+      "archived_at": "2026-07-07T23:44:02+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-branch-direction-predictor-macro-placeholder/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 3641,
+      "sha256": "22936a5f4764ebd5de96061d658cff2767347d29ecff8d4877fa0d83ccd425d2",
+      "backup_source": "database",
+      "archived_at": "2026-07-07T23:45:58+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-data-word-cache-macro-placeholder/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 3102,
+      "sha256": "7c8a630a3d85c6e9b42c0cc17c50e3850290268e8e0ae70c90e11ecfa06ad1e5",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T23:11:57+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-data-word-cache-semantic-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 2124,
+      "sha256": "d9399336a1ae8c03936dfefac595820cddc14be995c8d06782dbd5501eddfa09",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T23:03:58+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-fetch-packet-cache-macro-placeholder-2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4456,
+      "sha256": "d23b70785968210ad1c3bd375705685ab2b9aa0dbca0f0072b9ed74f38aa7e58",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T23:30:16+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-fetch-packet-cache-macro-placeholder-3/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 5316,
+      "sha256": "02390bff456b48d7ecc5584e82c0eb707ce7e37ef3768b533823c2c1cce1d56a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T23:30:16+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-fetch-packet-cache-macro-placeholder-4/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 7444,
+      "sha256": "8fcf23aaa4c81c57c8a3d247b10375ccb997bdee73ecf125d2d177ff6297c3fb",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T23:30:16+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-fetch-packet-cache-macro-placeholder/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6818,
+      "sha256": "e9d780f3ffd4fe46b1fd953bd5f3794dacb6ac48b083a1acbc435744ffa2ffad",
+      "backup_source": "database",
+      "archived_at": "2026-07-07T23:28:12+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-fetch-packet-cache-macro-placeholder/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 8248,
+      "sha256": "13bd490b6b2535dcf67a747044fd93eb36969dc700df7cdcc7bfd864e9ebd3c3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T23:30:16+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-fetch-packet-cache-macro-placeholder/profile-resolve-yosys-sta.md",
+      "kind": "task-run",
+      "size_bytes": 9818,
+      "sha256": "59fd7aa3b92f8596eb749702a3583d153befc1dda842c2ef19fb3fcb9e662dff",
+      "backup_source": "database",
+      "archived_at": "2026-07-07T23:28:12+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-fetch-packet-cache-macro-placeholder/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 3414,
+      "sha256": "2eac1dab1add9ccf1964d7ddf710213ced2fc76ae67658a610e0e95b2b4c2812",
+      "backup_source": "database",
+      "archived_at": "2026-07-07T23:30:16+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-fp-arith-cone-ooc/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 7891,
+      "sha256": "f84c459609987412b94090168d81a3ca8a395e090ce9350cc5092221786e67a1",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T20:22:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-fp-arith-internal-cones/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 11345,
+      "sha256": "8e544bf52f4d24273325cd26b87e4e25234cb28212c3abebe788d4f90ec8f507",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T20:39:06+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-fp-arith-macro-decision/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 13749,
+      "sha256": "07af30ee0e9467a5a1542fad2de18455c5d8907da4bd837ec66ffb3f5e22732b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T00:02:20+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-ieda-netlist-compat/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 30332,
+      "sha256": "cffb42b4f1feff01a1ed726f22c4edf8d774c3c6b8f447212ba86fd8ca6a2f72",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T02:08:56+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-npctop-cache-data-fp-blackbox-syn-2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 5286,
+      "sha256": "cb849ea0d9dfaf9a7bece27681555a0c8781c3d4f96f8c3892adeecdbe94d0b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T21:37:52+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-npctop-cache-data-fp-blackbox-syn-3/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4428,
+      "sha256": "5fc18bb47dd7d6934b340b65b204f5f0e82a7227d8f13d557fec0bffad84a00a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T21:37:53+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-npctop-cache-data-fp-blackbox-syn/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 2181,
+      "sha256": "289d380ba1599086f5a065fba57cedc5273a448a5f9b171fcdf514f1a0cd2f7d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T21:38:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-npctop-cache-data-fp-bpu-blackbox-syn/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 3463,
+      "sha256": "6944b1fe426e82b88ee3224f1b6bc49f8f3c9ec14c8eb4223087952abf284743",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T22:28:18+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-npctop-cache-fp-blackbox-syn/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 2126,
+      "sha256": "4e25ea7e2ad1177961f485db162b211b239a091c442c683d00d6bbd9b11fbef9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T21:06:04+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-yosys-macro-boundary-contracts/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 1745,
+      "sha256": "e49263a2139aa5dda005af2b915edfd0b694b2bc07623b852df31d6ba65a0a6f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T22:51:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-yosys-pmpchecker-range-share/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 8468,
+      "sha256": "95924c1ff5038be167ae2300271b9f5f71eef68faf74d28c57d40c04b26aaedb",
+      "backup_source": "database",
+      "archived_at": "2026-07-07T22:25:02+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-yosys-pmpchecker-range-share/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 20118,
+      "sha256": "2b88dc32aa002edbcdf7b6d7f2b6e7ba13f2518783022b0a4fdf76a4f274a3ad",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T17:21:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-yosys-pmpchecker-range-share/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1224,
+      "sha256": "dde391f86398c9befee19f7e780eeb9547b77edb2df5de88b5c3652f595e3bf2",
+      "backup_source": "database",
+      "archived_at": "2026-07-07T22:25:02+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-yosys-pmpchecker-range-share/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 3200,
+      "sha256": "ecadfa2d0dda4627fcafd90c0e65532f82cf820cd4b355f52d7ffe328ea214ec",
+      "backup_source": "database",
+      "archived_at": "2026-07-07T22:25:02+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-yosys-sta-flow-versioned/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 3931,
+      "sha256": "bf5dc2fc7aaa2536804b3d14c9b72e7cb278c65b5ceb589a283802d716008bbe",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-07T22:40:05+00:00"
     },
     {
       "path": ".github/task-runs/README.md",

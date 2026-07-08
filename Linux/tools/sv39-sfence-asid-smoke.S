@@ -32,6 +32,10 @@
 
 _start:
   li sp, SV39_SFENCE_ASID_STACK
+  li t0, -1
+  csrw pmpaddr0, t0
+  li t0, 0x1f // NAPOT RWX for S-mode Sv39 focused smoke access.
+  csrw pmpcfg0, t0
   call setup_page_tables
   call enable_sv39_asid1
 

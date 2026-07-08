@@ -1,6 +1,7 @@
   wire tb_csr_cycle_count_enable_w;
   wire [1:0] tb_core_retire_count_w;
   wire tb_pending_system_csr_commit_w;
+  wire tb_head0_csr_commit_w;
   wire tb_csr_access_valid_w;
   wire [11:0] tb_csr_access_addr_w;
   wire [2:0] tb_csr_access_funct3_w;
@@ -48,7 +49,9 @@
     .csr_rs1_idx_i(tb_csr_access_rs1_idx_w),
     .csr_rs1_data_i(tb_csr_access_rs1_data_w),
     .csr_zimm_i(tb_csr_access_rs1_idx_w),
-    .csr_commit_i(tb_pending_system_csr_commit_w),
+    // Mirror NpcCoreTop: CSR state commits via the drained pending-system path
+    // or via the queue-head CSR retire pulse when OOO_CSR_QUEUE_HEAD is enabled.
+    .csr_commit_i(tb_pending_system_csr_commit_w || tb_head0_csr_commit_w),
     .csr_rdata_o(tb_csr_rdata_w),
     .csr_illegal_o(tb_csr_illegal_w),
     .fp_fflags_valid_i(tb_pending_fp_fflags_commit_w),
@@ -88,6 +91,7 @@
     .csr_cycle_count_enable_w(tb_csr_cycle_count_enable_w), \
     .core_retire_count_w(tb_core_retire_count_w), \
     .pending_system_csr_commit_w(tb_pending_system_csr_commit_w), \
+    .head0_csr_commit_w(tb_head0_csr_commit_w), \
     .csr_access_valid_w(tb_csr_access_valid_w), \
     .csr_access_addr_w(tb_csr_access_addr_w), \
     .csr_access_funct3_w(tb_csr_access_funct3_w), \

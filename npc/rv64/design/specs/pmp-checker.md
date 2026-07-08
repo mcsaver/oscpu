@@ -34,18 +34,22 @@
   **教训**：任何运行于 S/U 的裸代码必须先配 PMP(真实固件 OpenSBI 即如此)；不要把此默认拒绝误判为 core bug。
 - **PMP-I2（M 模式默认放行）**：无匹配 entry 时 M 访问恒通过(除非匹配到 locked entry)。
 - **PMP-I3（完整覆盖）**：访问区间必须被单条匹配 entry 完整覆盖才按其权限放行；跨 entry 部分覆盖→fault。
-- **PMP-I4（地址匹配）**：TOR 用 `[pmpaddr[i-1], pmpaddr[i])<<2`；NA4=4B；NAPOT 按编码前导 1 推区间，
+- **PMP-I4（地址匹配）**：TOR 用 `[pmpaddr[i-1], pmpaddr[i])<<2`；NA4=4B；NAPOT 按编码低位连续 1 推区间，
   全 1 编码=全地址空间。
 
 ## 5. 关键路径
-纯组合，16 entry × (overlap+full-cover+match) 比较 + 优先级选择。是潜在长组合链；
-NAPOT 的前导 1 计数(`napot_ones`)含循环。时序阶段(待 STA)若成关键路径，可考虑流水化 PMP 检查
-或减少 entry 数；当前功能正确优先。
+纯组合，16 entry × range decode + overlap/full-cover 比较 + first-overlap 优先级选择。2026-07-08
+为 Yosys/stdcell 收敛改写后，每个 entry 的 TOR/NA4/NAPOT lower/upper 只推导一次并共享给
+overlap/full-cover；NAPOT 不再用 trailing-one 计数和 variable shift，而用 `addr ^ (addr + 1)`
+得到 selector mask，再推导 lower/upper_last。时序阶段(待全顶 STA)若 PMP 仍成关键路径，可考虑
+流水化 PMP 检查、减少 entry 数或把 PMP 检查与桥接 FSM 做更明确的 pipeline 边界。
 
 ## 6. 验证
+- dedicated module TB：`tb_pmp_checker` 覆盖 no-match M/S、no access request、wrap fault、TOR full/partial/no-match、TOR entry1 lower bound、NA4 permission/partial/size0、16B NAPOT、first-overlap priority、M locked/unlocked 和 invalid TOR inactive。
 - riscv-arch-test ACT4 PMP gate（`PMPSm 51/51`、`PMPS,PMPU 18/18`）。
 - riscv-tests `rv64mi-p-pmpaddr`。
 - iter0 经验：AM S-mode 测试经 `trm.c` 配 NAPOT 全空间 RWX 后全部恢复(56/56)。
 
 ## 7. 变更记录
+- 2026-07-08：Yosys/stdcell 优化：per-entry range decode 共享 overlap/full-cover，NAPOT 改用 `x^(x+1)` selector mask；新增 `tb_pmp_checker` 做 spec 语义审核。PmpChecker OOC full stdcell PASS，顶层 coarse 规模随之下降。
 - 2026-06-28：逆向文档化(含 iter0 回归根因与教训)。

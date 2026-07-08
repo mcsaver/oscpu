@@ -19,21 +19,25 @@
 - ★ `ooo-rename-map` — 重命名映射(同拍 RAW/WAW 前递/walk 还原)
 - `ooo-execute-backend`、`ooo-clmul-unit`
 - FP 簇现状:`vsrc/execute/OooFpBackend.v` 为真源(实施方案与旧 pending 壳 spec 已归档);
+  `ooo-fp-arith-gate` — FP short arithmetic 5-cycle 流水、B-FP launch/out 与 macro/OOC decision contract;
   `ooo-fp-reg-file` — 架构 FPR(commit 双写+trap 恢复源)
 
 ## 访存 / MMU
 - ★ `ooo-mem-axi-bridge-fsm` — 访存桥 FSM(probe/pretrans/nokill/store 解耦/单 outstanding)
+- ★ `ooo-data-word-cache` — 数据侧 8B line D-cache 语义、debug/common checker 与 macro/OOC 前置合同
 - ★ `ooo-sv39-tlb` — Sv39 TLB(64 项/上下文/superpage)
 - ★ `pmp-checker` — PMP 检查器(16 项 TOR/NA4/NAPOT)
+- `yosys-macro-boundary-contracts` — Yosys 四黑盒宏/OOC 边界合同（timing/area/语义缺口与任务清单）
 - `ooo-memory-access`(wrapper)〔`ooo-pending-memory-sequencer` 已 B4 物理删除 → `history/`〕
 - LSQ 现状:SQ(4)+probe/drain+store→load 前递已落地,LQ/MSHR/多 outstanding 未做
   (见真相基线 §2.3/§3.3;实施方案已归档 `history/ooo-lsq-implementation-plan.md`)
 
 ## 取指 / 前端 / 分支预测
 - ★ `ooo-fetch-axi-bridge` — 取指桥(ITLB+硬件 PTW+取指包 cache+PMP;SMC 失效缺口见 known-issues #111)
+- ★ `ooo-fetch-packet-cache` — 取指包 cache 语义、debug/common checker 与 macro/OOC 前置合同
 - `ooo-fetch-packet-*`、`ooo-fetch-pc-outstanding-sequencer`、`ooo-fetch-request-mux`、
   `ooo-frontend-*-gate`、`ooo-fetch-head-*-gate`
-- 活预测件:`ooo-branch-direction-predictor`(gshare+局部混合)、`ooo-direct-*`、`ooo-ras-*`、
+- 活预测件:`ooo-branch-direction-predictor`(gshare+局部混合，含 debug/common checker 与 macro/OOC 前置合同)、`ooo-direct-*`、`ooo-ras-*`、
   `ooo-branch-bpu-update-gate`(issue-resolve 单源)、`ooo-branch-resolve-recovery-gate`、
   `ooo-backend-drain-tracker`
 - 已 B4 物理删除(spec 归档 `history/`,见真相基线 §4 逐行 commit):`ooo-pending-branch/jump-sequencer`、

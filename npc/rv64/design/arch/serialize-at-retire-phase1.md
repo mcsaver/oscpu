@@ -3,8 +3,9 @@
 > 状态：**flag-gated 落地，功能就绪（2026-07-05）**。§9 mem-quiescence（sound，3 refute 验证）+ §4 CSR 队头化
 > + **中间态死锁已修复（§10.4 两修：head0_csr_inflight 保持 stop 串行化 + mem 门控改用 mem_idle 单独避 younger-store
 > 循环死锁）**。**flag ON 全 real workload 通过**：riscv 177/0 + AM 57/58 + CoreMark 0xfcaf + sbi/linux-mini-boot/
-> sv39/misa-priv/最小 ecall。收在编译期 flag `OOO_CSR_QUEUE_HEAD`，**当前默认 0=基线绿**（翻 1 前置=完整 Linux
-> boot 护航 + glue TB CsrFile stub，见 §10.6）。**详见 §10。**
+> sv39/misa-priv/最小 ecall。收在编译期 flag `OOO_CSR_QUEUE_HEAD`，**当前默认 0=基线绿**（flag-ON focused
+> Linux smokes 已于 2026-07-07 通过；翻 1 前置=完整 rootfs boot 护航 + `-v-`/full-state difftest，见 §10.6；
+> glue TB CsrFile stub 已于 2026-07-07 接入 head0 commit）。**详见 §10。**
 > （历史：07-04 遇 §9 flush↔LSU 障碍未落地；07-05 首轮 §9 修向① 解、暴露中间态死锁；07-05 次轮中间态两修解。）
 > 父规范 `serialize-at-retire.md`。
 > 范围：**只 head0 CSR 队头化，lane1 CSR 仍走 drain 路**（两路结构互斥，天然最小面）。
@@ -199,14 +200,28 @@ root-cause 同族（方法级）：
 | **flag OFF（提交默认）** | 82/82 | 0 | 177/0 | 57/58* | — | **= 精确基线**（*fp-difftest-probe 预存在失败，与本工作无关）|
 | flag ON | 82/82** | 0 | **177/0** | **57/58*** | **0xfcaf** | **中间态死锁已修**; real workload 全绿(含 sbi/linux-mini-boot/sv39/misa-priv/最小 ecall) |
 
-*fp-difftest-probe 预存在失败。**tb_ooo_core_top_glue 的 MODE_ECALL 段在 flag ON 失败=**TB 层结构限制**(OooCoreTopGlue
-不含 CsrFile, mtvec 写不生效→ecall trap 到 0), **非核 bug**——同序列在 NpcSimTop(含 CsrFile) 正确(GOOD TRAP,
-mtvec handler 执行)。glue TB 无法测 queue-head CSR 路。flag ON 的 module-TB=81/82(该 1 项需 CsrFile stub 或改全 sim 测)。
+*fp-difftest-probe 预存在失败。**tb_ooo_core_top_glue 的 MODE_ECALL flag-ON TB 缺口已于 2026-07-07 关闭**：
+`common/tb_ooo_core_top_glue_csr.svh` 的 CsrFile stub 现 mirror `NpcCoreTop`，以
+`pending_system_csr_commit || head0_csr_commit` 写 CSR 状态；默认与 `-DOOO_CSR_QUEUE_HEAD=1` 下
+`tb_ooo_core_top_glue` 均 PASS。flag ON module-TB 恢复 82/82。
 
 ### 10.6 翻默认 ON 的前置（当前保守 OFF 之因）
-中间态死锁已修、real workload 全绿, 但按 spec §5「最高危路径须 Linux boot 护航」, **完整 Linux 内核 boot
-(S-mode satp/sfence 热路径)未与 flag ON 跑**(linux-mini-boot 已过但非完整内核); difftest 逐指令(CSR 盲区但补 GPR)
-未跑; riscv `-v-` 变体(355 全套)未跑; glue module TB MODE_ECALL 需 CsrFile stub。集齐后翻默认 1'b1。
+中间态死锁已修、real workload 全绿、glue module TB MODE_ECALL flag-ON 已补 CsrFile/head0 commit 并通过；
+2026-07-07 又补可复现的 `OOO_CSR_QUEUE_HEAD=1` Linux/NPC 构建入口，并在 flag ON 下跑通 focused Linux smokes：
+`smoke-sret-user-sv39`、`smoke-sret-user-sv39-halfword`、`smoke-sret-restore`、
+`smoke-sret-user-pagefault`、`smoke-virtio-blk`。其中 SRET/Sv39 裸机 smoke 显式设置 PMP open
+以匹配 OpenSBI/Linux 生命周期，virtio-blk 修正 DPI 写入口对 LSU 低位 wstrb 的解释，默认与 flag ON 均 GOOD TRAP。
+
+但按 spec §5「最高危路径须 Linux boot 护航」，**完整 Ubuntu/rootfs Linux boot
+(OpenSBI→内核→rootfs/systemd 路线)仍未与 flag ON 跑完**；flag ON 下 `-v-`/full-state difftest
+覆盖也仍待补，riscv `-v-` 变体(355 全套)未跑。集齐后再评估翻默认 1'b1。
+
+2026-07-07 补充：flush/redirect 契约的 INV-4 已按 §10.4 当前语义接入 in-RTL `OOO_ASSERT`，
+`OooRob` 断 head0-CSR 不得在 `mem_idle=0` 退休，`OooStoreQueue` 断 flush 不得清 committed store；
+`check-contract` baseline 9→11。该切片降低 flag ON 风险，但仍不替代完整 Linux boot / `-v-`。
+
+2026-07-07 补充：glue TB CsrFile stub 已接入 `head0_csr_commit_w`，MODE_ECALL 在
+`-DOOO_CSR_QUEUE_HEAD=1` 下 PASS；该项从前置清单移除。
 
 ### 10.7 下一步（flag ON 前置，历史）
 解中间态串行化：使 head0-CSR 的 stop_pending 有效阻止 lane1-CSR 捕获（或让 lane1-CSR 也队头化 = 每 CSR

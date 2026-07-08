@@ -1,0 +1,1 @@
+FAIL iEDA netlist compatibility netlist=npc/rv64/build/sta/NpcTop-100MHz/NpcTop.netlist.v forbidden=defparam=44, $print=7

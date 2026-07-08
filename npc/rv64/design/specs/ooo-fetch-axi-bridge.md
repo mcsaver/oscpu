@@ -1,11 +1,13 @@
 # 规范：取指 AXI 桥 OooFetchAxiBridge
 
 > 模块：`vsrc/frontend/OooFetchAxiBridge.v`。模板见 `../arch/SPEC-TEMPLATE.md`。
-> 状态：**已实现并验证**（含 iter1 取指 cache PMP 门控修复）。
+> 状态：**已实现并验证**（含 iter1 取指 cache PMP 门控修复、fence.i 真 flush、Svnapot 64KiB）。
 
 ## 1. 目的与范围
 把前端取指请求(PC)落到 IFU AXI，返回一个 **fetch packet**（两条对齐的 32-bit 槽，支持 RVC）。
 内含取指包 cache、Sv39 ITLB、PMP 检查、跨页拼接。单事务在飞。不负责分支预测/重定向(前端控制面)。
+取指包 cache 的 lookup/fill/invalidate/clear 语义与 macro/OOC 前置合同见
+`ooo-fetch-packet-cache.md`；本文只约束桥侧 PMP/ITLB/AXI/fence.i 事务语义。
 
 ## 2. 接口（要点）
 | 信号 | 含义 |
@@ -13,8 +15,8 @@
 | `fetch_req_valid_i/ready_o` + `fetch_req_pc_i` | 取指请求 |
 | `fetch_rsp_*`（inst0/inst1/resp0/resp1） | 返回包(两槽+各自 resp；packet next_pc 由前端 decode 计算，桥不输出) |
 | `priv_mode_i/satp_i/svpbmt_en_i` + `pmpcfg_i/pmpaddr_i` | 翻译/权限上下文 |
-| `mmu_flush_i`（sfence/satp 写 commit） | ITLB/walk 失效（模块无独立 `flush_i` 端口） |
-| `invalidate_*`（仅 mem0 store fire 驱动） | 取指 cache 逐 store 失效（fence.i 是 no-op、不触发任何失效；且失效窗口按 4B store 假设，8B store 高 4 字节漏失效——见 §6） |
+| `mmu_flush_i`（sfence/satp/fence.i commit） | ITLB/walk 与取指包 cache 整体失效（模块无独立 `flush_i` 端口） |
+| `invalidate_*`（store fire 驱动） | 取指 cache 逐 store 失效；8B store footprint 覆盖 m6/m4/m2/p0/p2/p4/p6 候选 index |
 
 ## 3. 主要数据通路
 - **取指包 cache** `OooFetchPacketCache`：按 {PC, satp/priv 上下文} 命中，返回 inst0/1+resp0/1。
@@ -56,20 +58,24 @@ Svpbmt/Svnapot 规则之后完成；ITLB 命中复核也必须带 leaf level，�
 ## 6. 验证
 - riscv-tests `rv64ui`(取指正确性)、`rv64mi/si`(特权/翻译)、ACT4 Sv39/PMP。
 - iter1 A/B(同配 PMP)：add 2052→1086、matrix-mul 22094→8508；riscv-tests 271/0 不变。
-- 自修改代码：`invalidate_*` 逐 store 失效路径(AM fence-i)。
-  ⚠️ **已证实缺口(2026-07-03 RTL 重读)**：失效窗口硬编码 4 字节
-  （`OooFetchPacketCache.same_fetch_window`），8B store(sd/FSD/SC.D/AMO*.D)高 4 字节
-  覆盖的取指包漏失效；且 fence.i 是真 no-op（无保底清除），软件规范执行 fence.i 也无法恢复
-  一致性。次级：分页时 probe 拍失效用 VA、drain 拍用 PA，与 VIVT 索引错配。
-  详见 `../arch/rtl-ground-truth-2026-07-03.md` §3.1。
+- 自修改代码：`invalidate_*` 逐 store 失效路径覆盖 8B store footprint；fence.i 作为 stop/drain 系统指令在
+  commit 拍拉 `mmu_flush_i`，整块清 ITLB 与取指包 cache，并配合 redirect 保证后续重新取指。
+  历史缺口见 `../arch/rtl-ground-truth-2026-07-03.md` §3.1；当前 RTL 已由 `CTRL_FENCEI_BIT`
+  与 `OooFetchPacketCache.same_fetch_window` 的 8B footprint 修复。
 
 ## 7. 关键路径
 PMP(16 entry) × 两槽 + ITLB + cache 命中比较并行；是潜在长组合链，时序阶段(待 STA)评估。
+取指包 cache 默认 `OOO_FETCH_PACKET_CACHE_INDEX_W=12`（4096 项）；综合/面积实验可通过同名
+define 显式缩小，但这只能改变容量/性能，不应作为语义修复手段。
+cache 模块级 0-cycle lookup、next-cycle fill/invalidate visibility 与 819200 state-bit lower bound
+由 `ooo-fetch-packet-cache.md` 的 Macro/OOC Contract v0 维护。
 
 ## 8. 变更记录
 - iter1(2026-06-28)：取指 cache 从"PMP 全禁"改为 PMP-grant 逐访问门控 + fill 恒开。
 - 本规范(2026-06-28)：文档化 fetch 桥与该修复。
 - 2026-07-07：补齐 Svnapot 64KiB leaf 判定、PA 拼接与 ITLB hit 复核 level 约束。
+- 2026-07-08：校正文档生命周期：fence.i 已是真 flush，store invalidate footprint 已覆盖 8B；
+  记录 `OOO_FETCH_PACKET_CACHE_INDEX_W` 综合实验开关。
 
 ## 已知隐患(2026-06-28 bug-hunt)
 - **[已修复]** 跨页已缓存包槽1 PMP 复检用错物理地址(`req_exec1_paddr_w=paddr0+4` 对跨页是错页);PMP 运行期 allow→deny 第二页且无取指 cache 失效时可绕过槽1 PMP。详见 `.github/memory/known-issues.md`(隐患B)。根因修复:**跨页取指包不缓存**(fill 条件含 `!packet_cross_page_q`,每次重取经 walk-leaf checker 用正确物理地址重查两页 PMP,`OooFetchAxiBridge.v:279-296` 注释自证);非跨页包内 `paddr0+4` 恒同页,复检恒正确。

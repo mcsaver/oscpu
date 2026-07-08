@@ -35,13 +35,13 @@ module Uart #(
   localparam [11:0] UART_COMPAT_STAT_OFFSET = 12'h004;
   localparam [11:0] UART_LSR_OFFSET         = 12'h005;
 
-  reg [7:0] ier_q = 8'h00;
-  reg [7:0] dll_q = 8'h01;
-  reg [7:0] dlm_q = 8'h00;
-  reg [7:0] fcr_q = 8'h00;
-  reg [7:0] lcr_q = 8'h00;
-  reg rx_valid_q = 1'b0;
-  reg [7:0] rx_data_q = 8'h00;
+  reg [7:0] ier_q;
+  reg [7:0] dll_q;
+  reg [7:0] dlm_q;
+  reg [7:0] fcr_q;
+  reg [7:0] lcr_q;
+  reg rx_valid_q;
+  reg [7:0] rx_data_q;
 
   wire dlab_w = lcr_q[7];
   wire fifo_enabled_w = fcr_q[0];

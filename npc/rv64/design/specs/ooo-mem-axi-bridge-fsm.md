@@ -38,9 +38,10 @@
 - **事务三属性（LSQ·SQ 切换新增）**：`probe`=write 探测（翻译+PMP 走完不写内存，PA 经 rsp_rdata
   回传）；`pretrans`=地址已是 PA（SQ drain 落存），跳过翻译/PMP；`nokill`=flush/drop 对该事务
   失效（已退休 store 写必达）。三位全 0 时行为与旧版一致。
-- **line 读（LSQ Phase2+3）**：dcache 为 32KB 直映 word cache（`DCACHE_INDEX_W=12`）；读 miss 不跨
+- **line 读（LSQ Phase2+3）**：dcache 为 32KB 直映 word cache（`OOO_DATA_WORD_CACHE_INDEX_W=12`）；读 miss 不跨
   8B line 时发 line 对齐 AR（低 3 位清零）、回填整 line、`rsp_rdata` 按 line 内偏移（`paddr_q[2:0]`）
-  右移出 CPU 视图；跨线（`read_cross_q`）按原地址窗口读且不 fill。
+  右移出 CPU 视图；跨线（`read_cross_q`）按原地址窗口读且不 fill。D-cache 模块级 hit/fill/store
+  维护语义由 `ooo-data-word-cache.md` 冻结，桥 spec 只约束事务级 FSM 与 AXI 行为。
 - **PTW 隐式访问 PMP（F9）**：每级 PTE 读地址（`walk_pte_addr_w`）经独立 PmpChecker 检查，违例在
   S_WALK_AR 直接转 S_RESP 报 access fault（非 page fault），不发 AR。
 - **Svnapot 64KiB**：PTW 只接受 level0 leaf 且 `PTE.N=1 && PTE.PPN[3:0]=4'b1000`；非 leaf、

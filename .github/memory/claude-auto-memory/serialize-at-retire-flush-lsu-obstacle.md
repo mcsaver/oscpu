@@ -8,6 +8,12 @@ metadata:
 ---
 
 rv64 OoO 核 **serialize-at-retire**（宪法 §8.4 域 B 拆除最后一步）Phase1（CSR 队头化）。
+> 生命周期更新（2026-07-07）：下文记录的是 2026-07-05 当时状态；其中“glue TB 需 CsrFile stub/
+> MODE_ECALL flag ON 失败”已关闭。当前 `tb_ooo_core_top_glue_csr.svh` 的 CsrFile stub 已接入
+> `head0_csr_commit_w`，`tb_ooo_core_top_glue` 在 `-DOOO_CSR_QUEUE_HEAD=1` 下 PASS。2026-07-07 又补
+> flag-ON focused Linux smokes（SRET/Sv39/pagefault/virtio-blk）并修正 virtio-blk DPI 写入口 wstrb 生命周期。
+> 剩余前置为完整 rootfs boot 与 `-v-`/full-state difftest。
+
 **2026-07-05 进展：§9 mem-quiescence 修向① 已实现并落地(sound)，§4 核心验证成立，但暴露更深的中间态死锁。
 全特性收在编译期 flag `OOO_CSR_QUEUE_HEAD`（默认 0=基线，树保持绿）。** spec 权威记录见
 `npc/rv64/design/arch/serialize-at-retire-phase1.md §10`。

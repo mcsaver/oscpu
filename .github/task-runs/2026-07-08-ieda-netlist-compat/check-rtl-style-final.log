@@ -1,0 +1,3 @@
+make: Entering directory '/home/lyg/PA/ysyx-workbench/npc/rv64'
+[check-rtl-style] PASS: 可综合 RTL 全部为 .v 且无 SV always_comb/always_ff/logic 关键字
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/npc/rv64'

@@ -1,0 +1,8 @@
+[agent-e2e] profile-boundary=npc-dev mode=NPC-only
+[agent-e2e] PASS profile-boundary npc-dev NPC-only closure
+your 131072x1 screen size is bogus. expect trouble
+[agent-e2e] PASS scenario-runtime-isolation profile=npc-dev mode=npc policy=warn
+[agent-e2e] profile=npc-dev
+[agent-e2e] run_dir=.github/task-runs/2026-07-08-ieda-netlist-compat-npc-dev
+[agent-e2e] report=.github/task-runs/2026-07-08-ieda-netlist-compat-npc-dev/task-report.md
+[agent-e2e] dispatch=.github/task-runs/2026-07-08-ieda-netlist-compat-npc-dev/dispatch-log.md

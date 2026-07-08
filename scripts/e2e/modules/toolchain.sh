@@ -66,7 +66,11 @@ e2e_toolchain_check() {
   e2e_toolchain_expect_env NVBOARD_HOME "$E2E_ROOT_DIR/nvboard" || rc=1
   e2e_toolchain_expect_tool_from_dir_if_present "local mill/java wrappers" "${HOME:-}/.local/bin" mill || rc=1
   e2e_toolchain_expect_tool_from_dir_if_present "riscv baremetal toolchain" "${RISCV_TOOLCHAIN_HOME:-${HOME:-}/riscv-toolchain/riscv}/bin" riscv64-unknown-elf-gcc || rc=1
-  e2e_toolchain_expect_tool_from_dir_if_present "oss-cad-suite yosys" "${HOME:-}/oss-cad-suite/bin" yosys || rc=1
+  local oss_cad_suite_dir="$E2E_ROOT_DIR/oss-cad-suite/bin"
+  if [[ ! -d $oss_cad_suite_dir ]]; then
+    oss_cad_suite_dir="${HOME:-}/oss-cad-suite/bin"
+  fi
+  e2e_toolchain_expect_tool_from_dir_if_present "oss-cad-suite yosys" "$oss_cad_suite_dir" yosys || rc=1
   if [[ -n ${JAVA_HOME:-} ]]; then
     e2e_toolchain_expect_tool_from_dir_if_present "JAVA_HOME java" "$JAVA_HOME/bin" java || rc=1
   else

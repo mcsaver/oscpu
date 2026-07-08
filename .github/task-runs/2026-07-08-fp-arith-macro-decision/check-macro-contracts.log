@@ -1,0 +1,9 @@
+PASS spec contract rows modules=4 path=npc/rv64/design/specs/yosys-macro-boundary-contracts.md
+PASS rtl module=OooFetchPacketCache file=npc/rv64/vsrc/cache/OooFetchPacketCache.v
+PASS rtl module=OooDataWordCache file=npc/rv64/vsrc/cache/OooDataWordCache.v
+PASS rtl module=OooFpArithGate file=npc/rv64/vsrc/execute/OooFpArithGate.v
+PASS rtl module=OooBranchDirectionPredictor file=npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v
+PASS netlist instance module=OooFetchPacketCache file=npc/rv64/build/sta/NpcTop-100MHz/NpcTop.netlist.v
+PASS netlist instance module=OooDataWordCache file=npc/rv64/build/sta/NpcTop-100MHz/NpcTop.netlist.v
+PASS netlist instance module=OooFpArithGate file=npc/rv64/build/sta/NpcTop-100MHz/NpcTop.netlist.v
+PASS netlist instance module=OooBranchDirectionPredictor file=npc/rv64/build/sta/NpcTop-100MHz/NpcTop.netlist.v

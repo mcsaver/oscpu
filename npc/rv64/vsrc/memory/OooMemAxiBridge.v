@@ -68,7 +68,6 @@ module OooMemAxiBridge (
   localparam [`XLEN-1:0] PTE_D_BIT = {{(`XLEN-8){1'b0}}, 8'h80};  // bit 7 (Dirty)
   // 【LSQ Phase2+3】8KB(2^10×8B)直映对 CoreMark 工作集 miss 率 47.6%——
   // 容量拉到 32KB(2^12), miss 流转 hit 流(hit 已 1 req/拍 back-to-back)。
-  localparam DCACHE_INDEX_W = 12;
   localparam DTLB_INDEX_W = 6;
 
   reg [3:0] state_q;
@@ -445,9 +444,7 @@ module OooMemAxiBridge (
     .fault_o(walk_pte_pmp_fault_w)
   );
 
-  OooDataWordCache #(
-    .INDEX_W(DCACHE_INDEX_W)
-  ) u_dcache (
+  OooDataWordCache u_dcache (
     .clk(clk),
     .rst(rst),
     .req_lookup_addr_i(req_cache_addr_w),

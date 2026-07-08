@@ -1,0 +1,4 @@
+make: Entering directory '/home/lyg/PA/ysyx-workbench/npc/rv64'
+  契约立即断言（$error）计数：当前=12 基线=12
+check-contract: PASS（--assert ✓ / OOO_ASSERT ✓ / 断言计数 12≥12 ✓）
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/npc/rv64'

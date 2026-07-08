@@ -19,6 +19,7 @@ TESTS := \
   tb_lsu_control \
   tb_lsu_datapath \
   tb_lsu \
+  tb_pmp_checker \
   tb_uart \
   tb_axi_lite_to_uart \
   tb_axi_lite_clint \
@@ -74,6 +75,7 @@ TESTS := \
   tb_ooo_branch_resolve_recovery_gate \
   tb_ooo_branch_append_dispatch_gate \
   tb_ooo_branch_bpu_update_gate \
+  tb_ooo_branch_direction_predictor \
   tb_ooo_memory_request_gate \
   tb_ooo_frontend_run_gate \
   tb_ooo_frontend_action_gate \
@@ -102,6 +104,7 @@ TB_SRCS_tb_wbu := tests/tb_wbu.sv $(RTL_WBU)
 TB_SRCS_tb_lsu_control := tests/tb_lsu_control.sv $(RTL_LSU_CONTROL)
 TB_SRCS_tb_lsu_datapath := tests/tb_lsu_datapath.sv $(RTL_LSU_DATAPATH)
 TB_SRCS_tb_lsu := tests/tb_lsu.sv $(RTL_LSU_CONTROL) $(RTL_LSU_DATAPATH) $(RTL_LSU)
+TB_SRCS_tb_pmp_checker := tests/tb_pmp_checker.sv $(RTL_PMP_CHECKER)
 TB_SRCS_tb_uart := tests/tb_uart.sv $(RTL_UART)
 TB_SRCS_tb_axi_lite_to_uart := tests/tb_axi_lite_to_uart.sv $(RTL_UART) $(RTL_AXI_LITE_TO_UART)
 TB_SRCS_tb_axi_lite_clint := tests/tb_axi_lite_clint.sv $(RTL_AXI_LITE_CLINT)
@@ -160,6 +163,7 @@ TB_SRCS_tb_ooo_branch_resolve_recovery_gate := tests/tb_ooo_branch_resolve_recov
 # [wave5b 死硅拆除] tb_ooo_pending_control_resolve_gate / _branch_sequencer / _jump_sequencer 已删（模块退休）
 TB_SRCS_tb_ooo_branch_append_dispatch_gate := tests/tb_ooo_branch_append_dispatch_gate.sv $(RTL_OOO_BRANCH_APPEND_DISPATCH_GATE)
 TB_SRCS_tb_ooo_branch_bpu_update_gate := tests/tb_ooo_branch_bpu_update_gate.sv $(RTL_OOO_BRANCH_BPU_UPDATE_GATE)
+TB_SRCS_tb_ooo_branch_direction_predictor := tests/tb_ooo_branch_direction_predictor.sv $(RTL_OOO_BRANCH_DIRECTION_PREDICTOR) $(RTL_OOO_BRANCH_DIRECTION_PREDICTOR_CHECKER)
 TB_SRCS_tb_ooo_memory_request_gate := tests/tb_ooo_memory_request_gate.sv $(RTL_OOO_MEMORY_REQUEST_GATE)
 TB_SRCS_tb_ooo_frontend_run_gate := tests/tb_ooo_frontend_run_gate.sv $(RTL_OOO_FRONTEND_RUN_GATE)
 TB_SRCS_tb_ooo_frontend_action_gate := tests/tb_ooo_frontend_action_gate.sv $(RTL_OOO_FRONTEND_ACTION_GATE)
@@ -173,8 +177,8 @@ TB_SRCS_tb_ooo_fetch_packet_fifo := tests/tb_ooo_fetch_packet_fifo.sv $(RTL_OOO_
 TB_SRCS_tb_ooo_fetch_flow_control := tests/tb_ooo_fetch_flow_control.sv $(RTL_OOO_FETCH_FLOW_CONTROL)
 TB_SRCS_tb_ooo_fetch_head_pair_gate := tests/tb_ooo_fetch_head_pair_gate.sv $(RTL_OOO_FP_DECODE) $(RTL_OOO_FETCH_HEAD_CLASSIFY_GATE) $(RTL_OOO_FETCH_HEAD_PAIR_GATE)
 TB_SRCS_tb_ooo_fetch_head_classify_gate := tests/tb_ooo_fetch_head_classify_gate.sv $(RTL_OOO_FP_DECODE) $(RTL_OOO_FETCH_HEAD_CLASSIFY_GATE)
-TB_SRCS_tb_ooo_fetch_packet_cache := tests/tb_ooo_fetch_packet_cache.sv $(RTL_OOO_FETCH_PACKET_CACHE)
-TB_SRCS_tb_ooo_data_word_cache := tests/tb_ooo_data_word_cache.sv $(RTL_OOO_DATA_WORD_CACHE)
+TB_SRCS_tb_ooo_fetch_packet_cache := tests/tb_ooo_fetch_packet_cache.sv $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_OOO_FETCH_PACKET_CACHE_CHECKER)
+TB_SRCS_tb_ooo_data_word_cache := tests/tb_ooo_data_word_cache.sv $(RTL_OOO_DATA_WORD_CACHE) $(RTL_OOO_DATA_WORD_CACHE_CHECKER)
 TB_SRCS_tb_ooo_fetch_axi_bridge := tests/tb_ooo_fetch_axi_bridge.sv $(RTL_PMP_CHECKER) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
 TB_SRCS_tb_ooo_fetch_trap_gate := tests/tb_ooo_fetch_trap_gate.sv $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
 TB_SRCS_tb_ooo_priv_system := tests/tb_ooo_priv_system.sv $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)

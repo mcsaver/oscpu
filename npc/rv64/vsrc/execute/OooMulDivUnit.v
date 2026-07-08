@@ -29,8 +29,9 @@ module OooMulDivUnit #(
 );
 
   localparam STATE_IDLE = 2'd0;
-  localparam STATE_DIV_RUN = 2'd1;
-  localparam STATE_RESP = 2'd2;
+  localparam STATE_MUL_RUN = 2'd1;
+  localparam STATE_DIV_RUN = 2'd2;
+  localparam STATE_RESP = 2'd3;
 
   reg [1:0] state_q;
   reg [ROB_INDEX_W-1:0] resp_rob_idx_q;
@@ -49,6 +50,13 @@ module OooMulDivUnit #(
   reg div_quot_neg_q;
   reg div_rem_neg_q;
   reg div_word_q;
+  reg [(`XLEN*2)-1:0] mul_acc_q;
+  reg [(`XLEN*2)-1:0] mul_multiplicand_q;
+  reg [`XLEN-1:0] mul_multiplier_q;
+  reg [6:0] mul_count_q;
+  reg [2:0] mul_funct3_q;
+  reg mul_word_q;
+  reg mul_neg_q;
 
   function [`XLEN-1:0] sign_extend_word;
     input [31:0] word;
@@ -64,62 +72,27 @@ module OooMulDivUnit #(
     end
   endfunction
 
-  reg [`XLEN-1:0] req_mul_result_w;  // 由下方 mul_result_blk 驱动(乘法结果装配 datapath)
-  always @(*) begin : mul_result_blk
-    reg [`INST_W-1:0] inst;
-    reg [`XLEN-1:0] src1;
-    reg [`XLEN-1:0] src2;
-    reg word_op;
-    reg [`XLEN-1:0] op1;
-    reg [`XLEN-1:0] op2;
-    reg mul_op1_signed;
-    reg mul_op2_signed;
-    reg [`XLEN-1:0] raw_result;
-    reg signed [(`XLEN*2)-1:0] mul_op1_ext;
-    reg signed [(`XLEN*2)-1:0] mul_op2_ext;
-    reg signed [(`XLEN*2)-1:0] selected_prod;
-    begin
-      inst = req_inst_i;
-      src1 = req_src1_i;
-      src2 = req_src2_i;
-      word_op = req_word_i;
-      op1 = 0;
-      op2 = 0;
-      mul_op1_signed = 0;
-      mul_op2_signed = 0;
-      raw_result = 0;
-      mul_op1_ext = 0;
-      mul_op2_ext = 0;
-      selected_prod = 0;
-      req_mul_result_w = 0;
-      op1 = word_op ? sign_extend_word(src1[31:0]) : src1;
-      op2 = word_op ? sign_extend_word(src2[31:0]) : src2;
-      mul_op1_signed = (inst[14:12] == 3'b001) ||
-                       (inst[14:12] == 3'b010);
-      mul_op2_signed = (inst[14:12] == 3'b001);
-      // 先按 funct3 选择唯一的符号扩展形式，再只生成一个乘积，避免综合出三套并行大乘法器。
-      mul_op1_ext = mul_op1_signed ?
-                    $signed({{`XLEN{op1[`XLEN-1]}}, op1}) :
-                    $signed({{`XLEN{1'b0}}, op1});
-      mul_op2_ext = mul_op2_signed ?
-                    $signed({{`XLEN{op2[`XLEN-1]}}, op2}) :
-                    $signed({{`XLEN{1'b0}}, op2});
-      selected_prod = mul_op1_ext * mul_op2_ext;
-      case (inst[14:12])
-        3'b000: raw_result = selected_prod[`XLEN-1:0];
-        3'b001,
-        3'b010,
-        3'b011: raw_result = selected_prod[(`XLEN*2)-1:`XLEN];
-        default: raw_result = {`XLEN{1'b0}};
-      endcase
-      req_mul_result_w = word_op ? sign_extend_word(raw_result[31:0]) : raw_result;
-    end
-  end
-
   wire req_fire_w = req_valid_i && req_ready_o;
-  wire req_is_div_w = req_inst_i[14];
+  wire [2:0] req_funct3_w = req_inst_i[14:12];
+  wire req_is_div_w = req_funct3_w[2];
   wire req_is_rem_w = req_inst_i[13];
   wire req_signed_w = !req_inst_i[12];
+  wire [`XLEN-1:0] req_mul_op1_w =
+      req_word_i ? sign_extend_word(req_src1_i[31:0]) : req_src1_i;
+  wire [`XLEN-1:0] req_mul_op2_w =
+      req_word_i ? sign_extend_word(req_src2_i[31:0]) : req_src2_i;
+  wire req_mul_op1_signed_w = (req_funct3_w == 3'b001) ||
+                              (req_funct3_w == 3'b010);
+  wire req_mul_op2_signed_w = (req_funct3_w == 3'b001);
+  wire req_mul_op1_neg_w = req_mul_op1_signed_w && req_mul_op1_w[`XLEN-1];
+  wire req_mul_op2_neg_w = req_mul_op2_signed_w && req_mul_op2_w[`XLEN-1];
+  wire [`XLEN-1:0] req_mul_op1_abs_w =
+      req_mul_op1_neg_w ? (~req_mul_op1_w + {{(`XLEN-1){1'b0}}, 1'b1}) :
+                          req_mul_op1_w;
+  wire [`XLEN-1:0] req_mul_op2_abs_w =
+      req_mul_op2_neg_w ? (~req_mul_op2_w + {{(`XLEN-1){1'b0}}, 1'b1}) :
+                          req_mul_op2_w;
+  wire req_mul_neg_w = req_mul_op1_neg_w ^ req_mul_op2_neg_w;
   wire req_word_unsigned_w = req_word_i && req_inst_i[12];
   wire [`XLEN-1:0] req_op1_w =
       req_word_i ? (req_word_unsigned_w ? zero_extend_word(req_src1_i[31:0]) :
@@ -146,7 +119,30 @@ module OooMulDivUnit #(
   wire [`XLEN-1:0] req_special_result_final_w =
       req_word_i ? sign_extend_word(req_special_result_w[31:0]) :
                    req_special_result_w;
-  // req_mul_result_w 由上方 always @(*) 组合块 mul_result_blk 驱动
+
+  wire [(`XLEN*2)-1:0] mul_addend_w =
+      mul_multiplier_q[0] ? mul_multiplicand_q : {(`XLEN*2){1'b0}};
+  wire [(`XLEN*2)-1:0] mul_acc_next_w = mul_acc_q + mul_addend_w;
+  wire [(`XLEN*2)-1:0] mul_multiplicand_next_w =
+      {mul_multiplicand_q[(`XLEN*2)-2:0], 1'b0};
+  wire [`XLEN-1:0] mul_multiplier_next_w =
+      {1'b0, mul_multiplier_q[`XLEN-1:1]};
+  wire [(`XLEN*2)-1:0] mul_product_final_w =
+      mul_neg_q ? (~mul_acc_next_w + {{((`XLEN*2)-1){1'b0}}, 1'b1}) :
+                  mul_acc_next_w;
+  reg [`XLEN-1:0] mul_result_raw_w;
+  reg [`XLEN-1:0] mul_result_final_w;
+  always @(*) begin
+    case (mul_funct3_q)
+      3'b000: mul_result_raw_w = mul_product_final_w[`XLEN-1:0];
+      3'b001,
+      3'b010,
+      3'b011: mul_result_raw_w = mul_product_final_w[(`XLEN*2)-1:`XLEN];
+      default: mul_result_raw_w = {`XLEN{1'b0}};
+    endcase
+    mul_result_final_w = mul_word_q ? sign_extend_word(mul_result_raw_w[31:0]) :
+                                      mul_result_raw_w;
+  end
 
   // CLZ 早终止：按被除数绝对值的实际有效位数定位，只跑必要的迭代，跳过前导零。
   // 小操作数除法(如 n%10/n/10)由此从固定 16/32 拍大幅减少。clz 向下取偶以保持 radix-4
@@ -216,7 +212,7 @@ module OooMulDivUnit #(
         ((idx - rob_head_idx_i) > (kill_rob_idx_i - rob_head_idx_i));
   endfunction
   wire kill_inflight_w =
-      ((state_q == STATE_DIV_RUN) || (state_q == STATE_RESP)) &&
+      ((state_q == STATE_MUL_RUN) || (state_q == STATE_DIV_RUN) || (state_q == STATE_RESP)) &&
       muldiv_killed(resp_rob_idx_q);
   wire kill_new_req_w = req_fire_w && muldiv_killed(req_rob_idx_i);
 
@@ -243,6 +239,13 @@ module OooMulDivUnit #(
       div_quot_neg_q <= 1'b0;
       div_rem_neg_q <= 1'b0;
       div_word_q <= 1'b0;
+      mul_acc_q <= {(`XLEN*2){1'b0}};
+      mul_multiplicand_q <= {(`XLEN*2){1'b0}};
+      mul_multiplier_q <= {`XLEN{1'b0}};
+      mul_count_q <= 7'd0;
+      mul_funct3_q <= 3'b000;
+      mul_word_q <= 1'b0;
+      mul_neg_q <= 1'b0;
     end else if (kill_inflight_w) begin
       // UC-A: kill 命中在飞 op → 强制回 IDLE(覆盖优先, 胜过 case 的 DIV_RUN/RESP 推进), 抹 resp 身份防脏写回
       state_q <= STATE_IDLE;
@@ -256,8 +259,14 @@ module OooMulDivUnit #(
             resp_rob_idx_q <= req_rob_idx_i;
             resp_pdest_q <= req_pdest_i;
             if (!req_is_div_w) begin
-              resp_data_q <= req_mul_result_w;
-              state_q <= STATE_RESP;
+              mul_acc_q <= {(`XLEN*2){1'b0}};
+              mul_multiplicand_q <= {{`XLEN{1'b0}}, req_mul_op1_abs_w};
+              mul_multiplier_q <= req_mul_op2_abs_w;
+              mul_count_q <= 7'd64;
+              mul_funct3_q <= req_funct3_w;
+              mul_word_q <= req_word_i;
+              mul_neg_q <= req_mul_neg_w;
+              state_q <= STATE_MUL_RUN;
             end else if (req_div_by_zero_w || req_signed_overflow_w) begin
               resp_data_q <= req_special_result_final_w;
               state_q <= STATE_RESP;
@@ -281,6 +290,17 @@ module OooMulDivUnit #(
               div_word_q <= req_word_i;
               state_q <= STATE_DIV_RUN;
             end
+          end
+        end
+
+        STATE_MUL_RUN: begin
+          mul_acc_q <= mul_acc_next_w;
+          mul_multiplicand_q <= mul_multiplicand_next_w;
+          mul_multiplier_q <= mul_multiplier_next_w;
+          mul_count_q <= mul_count_q - 7'd1;
+          if (mul_count_q == 7'd1) begin
+            resp_data_q <= mul_result_final_w;
+            state_q <= STATE_RESP;
           end
         end
 

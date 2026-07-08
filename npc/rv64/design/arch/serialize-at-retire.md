@@ -2,7 +2,8 @@
 
 > 状态：**spec 先行 + Phase1 flag-gated 落地（2026-07-07 生命周期校正）**。宪法 §8.4 step 4。
 > `serialize-at-retire-phase1.md` 已实现 head0-CSR 队头化的 `OOO_CSR_QUEUE_HEAD` 编译期开关，
-> 但默认仍为 0；翻默认 1 前仍需 full Linux boot、`-v-`/full-state difftest 与 glue TB CsrFile stub 护航。
+> 但默认仍为 0；2026-07-07 已补齐 glue TB CsrFile stub 的 head0 commit 接线与 flag-ON focused Linux smokes。
+> 翻默认 1 前仍需完整 rootfs boot 与 `-v-`/full-state difftest 护航。
 > 定位：把 system/trap 指令从"全局 stop_pending + 全后端 drain"改为"ROB 队头执行 + 退休刷 younger"，
 > **架构语义不变**（cycle 会变，故 cycle-exact 中性不适用），之后物理删除
 > `OooStopPendingSequencer`/`OooPendingDrainResolveGate`/`OooPendingDispatchArbiter` 等机制。

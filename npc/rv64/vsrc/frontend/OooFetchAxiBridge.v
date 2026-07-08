@@ -59,7 +59,6 @@ module OooFetchAxiBridge (
   localparam [1:0] RESP_OK = 2'b00;
   localparam [1:0] RESP_ACCESS_FAULT = 2'b01;
   localparam [1:0] RESP_PAGE_FAULT = 2'b10;
-  localparam CACHE_INDEX_W = 12;
   localparam ITLB_INDEX_W = 6;
 
   reg [3:0] state_q;
@@ -343,9 +342,7 @@ module OooFetchAxiBridge (
       fetch_cache_fill_r1_w ? resp0_q : RESP_OK;
   wire [1:0] fetch_cache_fill_resp1_w = resp1_q;
 
-  OooFetchPacketCache #(
-    .INDEX_W(CACHE_INDEX_W)
-  ) u_fetch_packet_cache (
+  OooFetchPacketCache u_fetch_packet_cache (
     .clk(clk),
     .rst(rst),
     .clear_i(mmu_flush_i),

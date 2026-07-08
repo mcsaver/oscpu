@@ -1,0 +1,5 @@
+[agent-e2e] scenario-runtime-isolation profile=yosys-sta mode=integrated
+[agent-e2e] profile=yosys-sta
+[agent-e2e] run_dir=.github/task-runs/2026-07-08-fp-arith-macro-decision-yosys-sta
+[agent-e2e] report=.github/task-runs/2026-07-08-fp-arith-macro-decision-yosys-sta/task-report.md
+[agent-e2e] dispatch=.github/task-runs/2026-07-08-fp-arith-macro-decision-yosys-sta/dispatch-log.md

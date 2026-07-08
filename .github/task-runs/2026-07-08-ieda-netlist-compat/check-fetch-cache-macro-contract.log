@@ -1,0 +1,3 @@
+PASS fetch-spec facts=14
+PASS macro-boundary facts=8
+PASS fetch cache macro placeholder contract fetch_spec=npc/rv64/design/specs/ooo-fetch-packet-cache.md macro_spec=npc/rv64/design/specs/yosys-macro-boundary-contracts.md

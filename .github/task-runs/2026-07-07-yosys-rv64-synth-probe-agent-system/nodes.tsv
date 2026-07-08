@@ -1,0 +1,2 @@
+recall-discovery	agent-system	agent-system	PASS	AGENTS/copilot/instructions/memory/e2e profiles	规则发现链和 e2e 配置入口存在	.github/task-runs/2026-07-07-yosys-rv64-synth-probe-agent-system/evidence/recall-discovery.log
+tool-env-check	agent-system	toolchain	FAIL	agent-env + bash/git/make/python/gcc/verilator/toolchain	exit=1	.github/task-runs/2026-07-07-yosys-rv64-synth-probe-agent-system/evidence/tool-env-check.log

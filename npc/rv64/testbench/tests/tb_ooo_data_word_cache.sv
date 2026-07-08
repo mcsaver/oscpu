@@ -7,8 +7,10 @@ module tb_ooo_data_word_cache;
   reg rst;
 
   reg [`XLEN-1:0] req_lookup_addr;
+  reg [3:0] req_nbytes;
   wire req_cacheable;
   wire req_hit;
+  wire req_line_cross;
   wire [`XLEN-1:0] req_data;
 
   reg [`XLEN-1:0] walk_lookup_addr;
@@ -37,8 +39,8 @@ module tb_ooo_data_word_cache;
     .clk(clk),
     .rst(rst),
     .req_lookup_addr_i(req_lookup_addr),
-    .req_nbytes_i(4'd8),
-    .req_line_cross_o(),
+    .req_nbytes_i(req_nbytes),
+    .req_line_cross_o(req_line_cross),
     .req_cacheable_o(req_cacheable),
     .req_hit_o(req_hit),
     .req_data_o(req_data),
@@ -53,6 +55,25 @@ module tb_ooo_data_word_cache;
     .store_invalidate_all_i(store_invalidate_all),
     .store_addr_i(store_addr),
     .store_data_i(store_data),
+    .store_wstrb_i(store_wstrb)
+  );
+
+  OooDataWordCacheChecker u_checker (
+    .clk(clk),
+    .rst(rst),
+    .req_lookup_addr_i(req_lookup_addr),
+    .req_nbytes_i(req_nbytes),
+    .req_cacheable_i(req_cacheable),
+    .req_hit_i(req_hit),
+    .req_line_cross_i(req_line_cross),
+    .walk_lookup_addr_i(walk_lookup_addr),
+    .walk_cacheable_i(walk_cacheable),
+    .walk_hit_i(walk_hit),
+    .fill_valid_i(fill_valid),
+    .fill_addr_i(fill_addr),
+    .store_commit_i(store_commit),
+    .store_invalidate_all_i(store_invalidate_all),
+    .store_addr_i(store_addr),
     .store_wstrb_i(store_wstrb)
   );
 
@@ -78,6 +99,7 @@ module tb_ooo_data_word_cache;
   task automatic clear_inputs;
     begin
       req_lookup_addr = WORD0;
+      req_nbytes = 4'd8;
       walk_lookup_addr = WORD0;
       fill_valid = 1'b0;
       fill_addr = {`XLEN{1'b0}};
@@ -143,9 +165,27 @@ module tb_ooo_data_word_cache;
     walk_lookup_addr = WORD0;
     #1;
     tb_check1("fill req hit", req_hit, 1'b1);
+    tb_check1("fill req not cross", req_line_cross, 1'b0);
     tb_check64("fill req data", req_data, 64'h0011_2233_4455_6677);
     tb_check1("fill walk hit", walk_hit, 1'b1);
     tb_check64("fill walk data", walk_data, 64'h0011_2233_4455_6677);
+
+    req_lookup_addr = WORD0 + 64'd3;
+    req_nbytes = 4'd4;
+    #1;
+    tb_check1("unaligned 4B hit in same line", req_hit, 1'b1);
+    tb_check1("unaligned 4B not cross", req_line_cross, 1'b0);
+    tb_check64("unaligned 4B window data", req_data,
+               64'h0000_0000_1122_3344);
+
+    req_lookup_addr = WORD0 + 64'd6;
+    req_nbytes = 4'd4;
+    #1;
+    tb_check1("cross-line window detected", req_line_cross, 1'b1);
+    tb_check1("cross-line window cannot hit", req_hit, 1'b0);
+    req_lookup_addr = WORD0;
+    req_nbytes = 4'd8;
+    #1;
 
     commit_store(WORD0, 64'haabb_ccdd_eeff_1234, 8'b1010_0101, 1'b0);
     req_lookup_addr = WORD0;
@@ -164,6 +204,23 @@ module tb_ooo_data_word_cache;
     req_lookup_addr = WORD2;
     #1;
     tb_check1("partial store miss no allocate", req_hit, 1'b0);
+
+    fill_word(WORD0, 64'h1111_2222_3333_4444);
+    fill_word(WORD1, 64'h5555_6666_7777_8888);
+    req_lookup_addr = WORD0;
+    req_nbytes = 4'd8;
+    #1;
+    tb_check1("cross-store setup word0 hit", req_hit, 1'b1);
+    req_lookup_addr = WORD1;
+    #1;
+    tb_check1("cross-store setup word1 hit", req_hit, 1'b1);
+    commit_store(WORD0 + 64'd6, 64'h0000_0000_aabb_ccdd, 8'b0000_1111, 1'b0);
+    req_lookup_addr = WORD0;
+    #1;
+    tb_check1("cross-line store invalidates first line", req_hit, 1'b0);
+    req_lookup_addr = WORD1;
+    #1;
+    tb_check1("cross-line store invalidates second line", req_hit, 1'b0);
 
     req_lookup_addr = MMIO_WORD;
     walk_lookup_addr = MMIO_WORD;

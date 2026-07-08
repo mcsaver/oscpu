@@ -66,6 +66,25 @@ module tb_ooo_fetch_packet_cache;
     .invalidate_addr_i(invalidate_addr)
   );
 
+  OooFetchPacketCacheChecker u_checker (
+    .clk(clk),
+    .rst(rst),
+    .clear_i(clear),
+    .lookup_paging_i(lookup_paging),
+    .lookup_priv_i(lookup_priv),
+    .lookup_satp_i(lookup_satp),
+    .lookup_pc_i(lookup_pc),
+    .lookup_context_hit_i(lookup_context_hit),
+    .lookup_hit_i(lookup_hit),
+    .fill_valid_i(fill_valid),
+    .fill_paging_i(fill_paging),
+    .fill_priv_i(fill_priv),
+    .fill_satp_i(fill_satp),
+    .fill_pc_i(fill_pc),
+    .invalidate_valid_i(invalidate_valid),
+    .invalidate_addr_i(invalidate_addr)
+  );
+
   task automatic tb_check64;
     input [1023:0] what;
     input [`XLEN-1:0] got;

@@ -1,0 +1,50 @@
+make: Entering directory '/home/lyg/PA/ysyx-workbench/npc/rv64'
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/yosys-sta'
+set -o pipefail && ./bin/iEDA -script /home/lyg/PA/ysyx-workbench/yosys-sta/scripts/sta.tcl /home/lyg/PA/ysyx-workbench/yosys-sta/scripts/default.sdc /home/lyg/PA/ysyx-workbench/npc/rv64/build/sta/NpcTop-100MHz/NpcTop.netlist.v NpcTop icsprout55 2>&1 | tee /home/lyg/PA/ysyx-workbench/npc/rv64/build/sta/NpcTop-100MHz/sta.log
+I20260708 08:44:37.844362 396977 Sta.cc:383] read verilog file /home/lyg/PA/ysyx-workbench/npc/rv64/build/sta/NpcTop-100MHz/NpcTop.netlist.v start
+I20260708 08:44:37.844691 396977 VerilogParserRustC.cc:41] load verilog file /home/lyg/PA/ysyx-workbench/npc/rv64/build/sta/NpcTop-100MHz/NpcTop.netlist.v
+r str /home/lyg/PA/ysyx-workbench/npc/rv64/build/sta/NpcTop-100MHz/NpcTop.netlist.v
+thread '<unnamed>' panicked at src/verilog_parser/mod.rs:936:13:
+Fatal:        --> 2442158:23
+        |
+2442158 |   OooFetchPacketCache #(
+        |                       ^---
+        |
+        = expected inst_id
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+fatal runtime error: failed to initiate panic, error 5
+[0;31mE20260708 08:44:38.801919 396977 Log.cc:52] *** Aborted at 1783471478 (unix time) try "date -d @1783471478" if you are using GNU date ***
+[m[0;31mE20260708 08:44:38.802170 396977 Log.cc:52] PC: @                0x0 (unknown)
+[m[0;31mE20260708 08:44:38.802218 396977 Log.cc:52] *** SIGABRT (@0x3e800060eb1) received by PID 396977 (TID 0x737ca3f2c080) from PID 396977; stack trace: ***
+[m[0;31mE20260708 08:44:38.802263 396977 Log.cc:52]     @     0x55b20be16c4e (unknown)
+[m[0;31mE20260708 08:44:38.802311 396977 Log.cc:52]     @     0x737ca3845330 (unknown)
+[m[0;31mE20260708 08:44:38.802356 396977 Log.cc:52]     @     0x737ca389eb2c pthread_kill
+[m[0;31mE20260708 08:44:38.802387 396977 Log.cc:52]     @     0x737ca384527e gsignal
+[m[0;31mE20260708 08:44:38.802441 396977 Log.cc:52]     @     0x737ca38288ff abort
+[m[0;31mE20260708 08:44:38.802465 396977 Log.cc:52]     @     0x55b20ba5b547 (unknown)
+[m[0;31mE20260708 08:44:38.802484 396977 Log.cc:52]     @     0x55b20ba58819 (unknown)
+[m[0;31mE20260708 08:44:38.802502 396977 Log.cc:52]     @     0x55b20ba586cc (unknown)
+[m[0;31mE20260708 08:44:38.802521 396977 Log.cc:52]     @     0x55b20ba583de (unknown)
+[m[0;31mE20260708 08:44:38.802553 396977 Log.cc:52]     @     0x55b20ba57156 (unknown)
+[m[0;31mE20260708 08:44:38.802577 396977 Log.cc:52]     @     0x55b20ba58142 (unknown)
+[m[0;31mE20260708 08:44:38.802599 396977 Log.cc:52]     @     0x55b20b0728f5 (unknown)
+[m[0;31mE20260708 08:44:38.802618 396977 Log.cc:52]     @     0x55b20be454d0 (unknown)
+[m[0;31mE20260708 08:44:38.802636 396977 Log.cc:52]     @     0x55b20be4718f (unknown)
+[m[0;31mE20260708 08:44:38.802654 396977 Log.cc:52]     @     0x55b20be0453b (unknown)
+[m[0;31mE20260708 08:44:38.802672 396977 Log.cc:52]     @     0x55b20b91dfcc (unknown)
+[m[0;31mE20260708 08:44:38.802690 396977 Log.cc:52]     @     0x55b20badd21b (unknown)
+[m[0;31mE20260708 08:44:38.802722 396977 Log.cc:52]     @     0x55b20bae5438 (unknown)
+[m[0;31mE20260708 08:44:38.802752 396977 Log.cc:52]     @     0x55b20bae6743 (unknown)
+[m[0;31mE20260708 08:44:38.802780 396977 Log.cc:52]     @     0x55b20bb9b058 (unknown)
+[m[0;31mE20260708 08:44:38.802811 396977 Log.cc:52]     @     0x55b20bba94fc (unknown)
+[m[0;31mE20260708 08:44:38.802845 396977 Log.cc:52]     @     0x55b20bae1266 (unknown)
+[m[0;31mE20260708 08:44:38.802876 396977 Log.cc:52]     @     0x55b20b09a32b (unknown)
+[m[0;31mE20260708 08:44:38.802919 396977 Log.cc:52]     @     0x737ca382a1ca (unknown)
+[m[0;31mE20260708 08:44:38.802980 396977 Log.cc:52]     @     0x737ca382a28b __libc_start_main
+[m[0;31mE20260708 08:44:38.803090 396977 Log.cc:52]     @     0x55b20b0a98d1 (unknown)
+[m/bin/bash: line 1: 396977 Aborted                 (core dumped) ./bin/iEDA -script /home/lyg/PA/ysyx-workbench/yosys-sta/scripts/sta.tcl /home/lyg/PA/ysyx-workbench/yosys-sta/scripts/default.sdc /home/lyg/PA/ysyx-workbench/npc/rv64/build/sta/NpcTop-100MHz/NpcTop.netlist.v NpcTop icsprout55 2>&1
+     396978 Done                    | tee /home/lyg/PA/ysyx-workbench/npc/rv64/build/sta/NpcTop-100MHz/sta.log
+make[1]: *** [Makefile:43: /home/lyg/PA/ysyx-workbench/npc/rv64/build/sta/NpcTop-100MHz/NpcTop.rpt] Error 134
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/yosys-sta'
+make: *** [Makefile:258: sta] Error 2
+make: Leaving directory '/home/lyg/PA/ysyx-workbench/npc/rv64'

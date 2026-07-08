@@ -1,0 +1,3 @@
+PASS bpu-spec facts=16
+PASS macro-boundary facts=8
+PASS bpu macro placeholder contract bpu_spec=npc/rv64/design/specs/ooo-branch-direction-predictor.md macro_spec=npc/rv64/design/specs/yosys-macro-boundary-contracts.md

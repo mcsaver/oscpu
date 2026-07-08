@@ -4,7 +4,10 @@
 它属于当前乱序核实现，物理目录按职责和现有外层目录合并：
 
 - `frontend/`：PC 生成、分支预测、pending branch/jump sequencer、BPU update gate、RAS、direct control-flow gate、predictor update gate、return-continuation、branch target capture、branch append dispatch gate、branch prefetch request/clear gate、branch prefetch buffer、direct branch wait buffer、backend drain tracker、front-end uop safety policy、front-end dispatch gate、front-end/backend dispatch mux、front-end run gate、front-end action gate、fetch request mux、fetch packet decode、fetch head classify、fetch head pair gate、fetch packet FIFO、fetch flow-control、取指 AXI bridge、前端控制壳。
-- `common/`：跨阶段共享的 packed bus/header 定义；当前 `OooSlotFacts.v` 统一维护 fetch/decode slot facts bit layout。
+- `common/`：跨阶段共享的 packed bus/header 定义；当前 `OooSlotFacts.v` 维护 fetch/decode slot facts，
+  `OooRedirect*Facts.vh`、`OooBranchDirectionPredictorFacts.vh`、
+  `OooFetchPacketCacheFacts.vh` 与 `OooDataWordCacheFacts.vh` 维护 debug 观测层 facts bit
+  layout，用于审核 RTL 是否符合 spec 语义。
 - `decode/`：基础 decode、立即数生成、RVC 预译码、FP decode、OoO decode glue。
 - `cache/`：取指包 cache（4096 项直接映射 VIVT）与 data word cache（32KB 直接
   映射 PIPT dcache，write-through/no-allocate）。
@@ -21,6 +24,8 @@
 - `bus/`：SoC AXI/AXI-Lite 互连与外设（xbar、CLINT、PLIC、UART、default slave）。
 - `include/`：`define.v` 全局宏（`XLEN`、`OOO_*` 容量、模式开关）。
 - `sim/`：仿真专用壳（`NpcSimTop.sv`、AXI DPI slave、virtio-blk）；`.sv` 仅限验证侧。
+- `debug/`：旁挂仿真 checker，配合 `common/*Facts*` 审核 RTL 是否符合 spec 语义；不进入
+  `RTL_CORE_SRCS`，当前 BPU、取指包 cache 与 D-cache checker 先由 focused TB 覆盖。
 
 > ⚠️ **状态（2026-07-03 RTL 重读）**：下文条目含大量历史演进记录。pending
 > branch/jump/mem 三通道、dispatch 拍分支快解析、BTC/JALR-BTB 更新口/

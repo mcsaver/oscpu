@@ -1,10 +1,10 @@
 # 规范：整数乘除单元 OooMulDivUnit
 
 > 模块：`vsrc/execute/OooMulDivUnit.v`。模板见 `../arch/SPEC-TEMPLATE.md`。
-> 状态：**已实现并验证**（含 iter2 radix-4、iter5 CLZ 早终止）。
+> 状态：**已实现并验证**（含 iter-mul shift-add、iter2 radix-4、iter5 CLZ 早终止）。
 
 ## 1. 目的与范围
-执行 RV64 M 扩展：MUL/MULH/MULHU/MULHSU/MULW（单周期乘法）与
+执行 RV64 M 扩展：MUL/MULH/MULHU/MULHSU/MULW（多周期迭代乘法）与
 DIV/DIVU/REM/REMU 及 W 变体（多周期 restoring 除法）。带 ready/valid 握手与 flush。
 不负责操作数前递/调度（由发射/旁路网络处理）。
 
@@ -19,11 +19,22 @@ DIV/DIVU/REM/REMU 及 W 变体（多周期 restoring 除法）。带 ready/valid
 | `resp_data_o/resp_rob_idx_o/resp_pdest_o` | out | 结果与去向 |
 | `flush_i` | in | 冲刷，回 IDLE |
 
-时序：MUL 在 IDLE 当拍算完→RESP（1 拍可见）。DIV 多拍：IDLE→DIV_RUN×K→RESP。
+时序：MUL 进入 `MUL_RUN`，每拍处理 1 个 multiplier bit，完成后进入 RESP。DIV 多拍：
+IDLE→DIV_RUN×K→RESP。
 
-## 3. 乘法（单周期）
-`mul_result()` 组合函数按 inst 选 MULW/MULH 系列，signed/unsigned 扩展后取高/低 64 位。
-无迭代，IDLE 当拍写 `resp_data_q`→RESP。
+## 3. 乘法（多周期 shift-add）
+乘法不再推断一拍 128-bit 大乘法器。请求在 IDLE 接受后保存 funct3、word、结果符号和
+payload，并把被乘数绝对值放入 128-bit shift register、乘数绝对值放入 64-bit shift register：
+```
+每拍:
+  acc'          = acc + (multiplier[0] ? multiplicand : 0)
+  multiplicand' = multiplicand << 1
+  multiplier'   = multiplier >> 1
+  count -= 1 ; 当 count==1 时本拍产生完整 128-bit product
+```
+若 MULH/MULHSU 需要有符号结果，则对最终 128-bit 绝对值乘积按 `mul_neg` 做二补数恢复；
+随后按 funct3 选择低 64 位或高 64 位，`MULW` 对低 32 位做符号扩展。当前 MULW 仍复用
+64 次迭代，后续可在不改协议的前提下降到 32 次。
 
 ## 4. 除法（多周期 restoring，radix-4 + CLZ 早终止）
 
@@ -60,8 +71,9 @@ word(≤32 有效位): ≤16 拍；dword: ≤32 拍；小操作数更少。
 
 ## 5. 状态机
 ```
- IDLE --req&!div--> RESP                         (乘法/除法特例)
+ IDLE --req&!div--> MUL_RUN --(count==1)--> RESP
  IDLE --req&div---> DIV_RUN --(count==2)--> RESP
+ IDLE --req&div special--> RESP                  (除零/溢出/被除数 0)
  RESP --resp_ready--> IDLE
  任意 --flush--> IDLE
 ```
@@ -71,8 +83,11 @@ word(≤32 有效位): ≤16 拍；dword: ≤32 拍；小操作数更少。
 - **MD-I2**：CLZ 定位等价于 full-width 除法（多出的前导 0 位只产生前导商 0）。
 - **MD-I3**：count 恒为偶且 ≥2（op1≠0 保证），DIV_RUN 必在 count==2 收尾，不会越界。
 - **MD-I4**：flush 当拍回 IDLE，不产生悬挂响应。
+- **MD-I5**：MUL_RUN 与 DIV_RUN 一样属于在飞状态；flush 或 mispredict-kill 命中时必须清空并不得吐出旧响应。
 
 ## 7. 关键路径与权衡
+- 乘法从一拍大组合乘法器改为 128-bit 加法器 + shift register，显著降低 Yosys/ABC 门级综合压力；
+  代价是 MUL/MULH/MULHSU/MULHU/MULW 延迟变为 64 拍，需由既有 ready/valid 长延迟协议吸收。
 - radix-4 的商位选择需 3 个 (XLEN+2) 比较器 + 选择；CLZ 定位含优先级编码 + 变量左移(桶形)。
   二者均在**装载拍/迭代步组合**，非跨模块长链，但相对 radix-2 增加了组合深度——
   属 **CPI↔Fmax 权衡**，待综合后在时序阶段评估是否需要切流水或降基数。
@@ -83,9 +98,13 @@ word(≤32 有效位): ≤16 拍；dword: ≤32 拍；小操作数更少。
 - riscv-tests `rv64um`(div/divu/divw/divuw/rem/remu/remw/remuw/mul/mulw) 全过——
   覆盖 signed/unsigned、word/dword、INT_MIN/-1 溢出、除零、边界操作数。
 - AM `div`/数论类(shuixianhua/prime/wanshu/goldbach) GOOD TRAP。
-- 模块 TB `tb_ooo_muldiv_unit`/`tb_divider`/`tb_multiplier`。
+- 模块 TB `tb_ooo_muldiv_unit` 覆盖 4 类 64-bit multiply、MULW、div/rem、busy、flush。
+- 2026-07-08 iter-mul 验证：`tb_ooo_muldiv_unit` PASS；`OooMulDivUnit` OOC full stdcell PASS，
+  `synth_check` 0 problems，area `18944.80`；`NpcTop + OooFetchPacketCache blackbox` 顶层综合
+  从旧版停在 `OooMulDivUnit` 推进到 `OooFpArithGate`，证明 blocker 已转移。
 
 ## 9. 变更记录
 - iter2(2026-06-28)：word 32 拍 + radix-4 16 拍。
 - iter5(2026-06-28)：CLZ 早终止(按有效位数定位) + op1==0 特例。
 - 本规范(2026-06-28)：逆向文档化当前算法与不变量。
+- iter-mul(2026-07-08)：乘法由一拍 `*` 改为 64-step shift-add，降低 stdcell 综合压力。

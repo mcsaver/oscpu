@@ -577,18 +577,30 @@ void npc_virtio_blk_write(uint32_t offset, uint64_t data64, uint64_t mask64,
   if (!error || !irq) return;
   npc_difftest_skip_ref();
   *error = 0;
-  uint32_t aligned = offset & ~7u;
-  uint32_t mask = (uint32_t)(mask64 & 0xffu);
-  if (mask == 0) {
+  uint64_t raw_mask = mask64 & 0xffu;
+  if (raw_mask == 0) {
     *irq = (g_interrupt_status != 0) ? 1 : 0;
     return;
   }
 
-  if ((mask & 0x0fu) != 0 && !write_reg32(aligned, (uint32_t)data64, mask & 0x0fu)) {
+  // NPC LSU keeps store data/wstrb in the low lanes; addr[2:0] selects
+  // the byte lane within the AXI-Lite beat.
+  uint32_t byte_lane = offset & 7u;
+  uint64_t aligned_mask64 = raw_mask << byte_lane;
+  uint64_t aligned_data64 = data64 << (byte_lane * 8);
+  uint32_t aligned = offset & ~7u;
+  if ((aligned_mask64 & ~0xffull) != 0) {
+    *error = 1;
+    *irq = (g_interrupt_status != 0) ? 1 : 0;
+    return;
+  }
+
+  uint32_t mask = (uint32_t)aligned_mask64;
+  if ((mask & 0x0fu) != 0 && !write_reg32(aligned, (uint32_t)aligned_data64, mask & 0x0fu)) {
     *error = 1;
   }
   if ((mask & 0xf0u) != 0 &&
-      !write_reg32(aligned + 4u, (uint32_t)(data64 >> 32), (mask >> 4) & 0x0fu)) {
+      !write_reg32(aligned + 4u, (uint32_t)(aligned_data64 >> 32), (mask >> 4) & 0x0fu)) {
     *error = 1;
   }
 

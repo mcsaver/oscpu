@@ -23,7 +23,8 @@ RTL_CORE_TOP ?= NpcTop
 SIM_TOP ?= NpcSimTop
 TOPNAME = $(SIM_TOP)
 VERILATOR = verilator
-BUILD_DIR = ./build
+OOO_CSR_QUEUE_HEAD ?= 0
+BUILD_DIR ?= ./build$(if $(filter 1 y,$(OOO_CSR_QUEUE_HEAD)),-csrqh,)
 OBJ_DIR = $(BUILD_DIR)/obj_dir
 BIN = $(BUILD_DIR)/$(TOPNAME)
 CAPSTONE_HOME = $(abspath $(NEMU_HOME)/tools/capstone)
@@ -87,6 +88,7 @@ RTL_VERILATOR_DEFINES += $(if $(filter y,$(CONFIG_NPC_CACHE_STATS)),+define+CONF
 RTL_VERILATOR_DEFINES += $(if $(filter y,$(CONFIG_NPC_OOO_STATS)),+define+CONFIG_NPC_OOO_STATS)
 RTL_VERILATOR_DEFINES += $(if $(filter y,$(CONFIG_NPC_DEBUG_PORTS)),+define+CONFIG_NPC_DEBUG_PORTS)
 RTL_VERILATOR_DEFINES += $(if $(filter y,$(F2_PROBE)),+define+F2_PROBE +define+DBRA_PROBE)
+RTL_VERILATOR_DEFINES += $(if $(filter 1 y,$(OOO_CSR_QUEUE_HEAD)),+define+OOO_CSR_QUEUE_HEAD=1)
 
 # 这里直接让 Verilator 一次把 RTL、DPI 包装层和 C++ 宿主编成可执行文件，避免再手写额外链接步骤。
 # 优化要点：
@@ -148,6 +150,14 @@ STA_CLK_PORT_NAME ?= clk
 STA_CLK_FREQ_MHZ ?= 500
 STA_SDC_FILE ?= $(abspath $(YOSYS_STA_HOME)/scripts/default.sdc)
 STA_RESULT_ROOT ?= $(abspath $(BUILD_DIR)/sta)
+STA_VERILOG_INCLUDE_DIRS ?= $(VSRCDIR) $(RTL_INCLUDE_DIR)
+STA_VERILOG_DEFINES ?=
+STA_SYNTH_FLATTEN ?= 0
+STA_SYNTH_SHARE ?= 0
+STA_SYNTH_STOP_AFTER_COARSE ?= 0
+STA_SYNTH_PUBLIC_AUTONAME ?= 1
+STA_SYNTH_DFF_AUTONAME ?= 1
+STA_SYNTH_BLACKBOX_MODULES ?=
 # 显式列出可综合核心文件，避免把含 DPI-C 的 NpcSimTop.sv 或纯宏头 define.v 混进综合网表。
 STA_RTL_FILES ?= $(RTL_CORE_SRCS)
 STA_RESULT_DIR = $(STA_RESULT_ROOT)/$(STA_DESIGN)-$(STA_CLK_FREQ_MHZ)MHz
@@ -158,6 +168,14 @@ STA_MAKE_ARGS = \
 	CLK_FREQ_MHZ=$(STA_CLK_FREQ_MHZ) \
 	SDC_FILE=$(STA_SDC_FILE) \
 	O=$(STA_RESULT_ROOT) \
+	VERILOG_INCLUDE_DIRS="$(STA_VERILOG_INCLUDE_DIRS)" \
+	VERILOG_DEFINES="$(STA_VERILOG_DEFINES)" \
+	SYNTH_FLATTEN=$(STA_SYNTH_FLATTEN) \
+	SYNTH_SHARE=$(STA_SYNTH_SHARE) \
+	SYNTH_STOP_AFTER_COARSE=$(STA_SYNTH_STOP_AFTER_COARSE) \
+	SYNTH_PUBLIC_AUTONAME=$(STA_SYNTH_PUBLIC_AUTONAME) \
+	SYNTH_DFF_AUTONAME=$(STA_SYNTH_DFF_AUTONAME) \
+	SYNTH_BLACKBOX_MODULES="$(STA_SYNTH_BLACKBOX_MODULES)" \
 	RTL_FILES="$(STA_RTL_FILES)"
 
 INCFLAGS = $(addprefix -I, $(INC_PATH))
@@ -231,7 +249,7 @@ sta-check-env: syn-check-env
 	fi
 
 syn: syn-check-env
-	@# 这里只综合 NpcCore 及其纯 RTL 子模块；改完后可以直接从当前 RV64 目录产出标准单元网表，不再手动切目录拼参数。
+	@# 这里只综合可综合 RTL 顶层及其纯 RTL 子模块；改完后可以直接从当前 RV64 目录产出标准单元网表，不再手动切目录拼参数。
 	@PATH="$(OSS_CAD_SUITE_HOME)/bin:$$PATH" $(MAKE) -C $(YOSYS_STA_HOME) syn $(STA_MAKE_ARGS)
 	@echo "[npc-sta] synthesized netlist: $(STA_RESULT_DIR)/$(STA_DESIGN).netlist.v"
 

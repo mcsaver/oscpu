@@ -24,7 +24,9 @@ endif
 include $(PLATFORM_MK)
 
 NPC_RV64 := $(REPO_ROOT)/npc/rv64
-NPC_SIM ?= $(NPC_RV64)/build/NpcSimTop
+NPC_OOO_CSR_QUEUE_HEAD ?= 0
+NPC_SIM_BUILD_DIR := $(NPC_RV64)/build$(if $(filter 1 y,$(NPC_OOO_CSR_QUEUE_HEAD)),-csrqh,)
+NPC_SIM ?= $(NPC_SIM_BUILD_DIR)/NpcSimTop
 NPC_FAST_SIM ?= 1
 NPC_FAST_NATIVE ?= 1
 NPC_FAST_CXX_AUTO := $(shell \
@@ -48,6 +50,7 @@ NPC_SIM_MAKE_ARGS += $(if $(strip $(NPC_SIM_CXX)),CXX='$(NPC_SIM_CXX)' LINK='$(N
 NPC_SIM_MAKE_ARGS += $(if $(strip $(NPC_SIM_OPT_FAST)),VERILATOR_OPT_FAST='$(NPC_SIM_OPT_FAST)',)
 NPC_SIM_MAKE_ARGS += $(if $(strip $(NPC_SIM_OPT_GLOBAL)),VERILATOR_OPT_GLOBAL='$(NPC_SIM_OPT_GLOBAL)',)
 endif
+NPC_SIM_MAKE_ARGS += OOO_CSR_QUEUE_HEAD='$(NPC_OOO_CSR_QUEUE_HEAD)'
 NEMU_HOME := $(REPO_ROOT)/nemu
 NEMU_SIM ?= $(NEMU_HOME)/build/riscv64-nemu-interpreter
 NEMU_DEFCONFIG ?= riscv64-linux_defconfig

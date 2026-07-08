@@ -1,0 +1,3 @@
+PASS fp-arith-spec facts=18
+PASS macro-boundary facts=8
+PASS fp-arith macro decision contract fp_spec=npc/rv64/design/specs/ooo-fp-arith-gate.md macro_spec=npc/rv64/design/specs/yosys-macro-boundary-contracts.md

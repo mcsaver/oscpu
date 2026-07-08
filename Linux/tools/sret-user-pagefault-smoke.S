@@ -25,6 +25,11 @@ _start:
   la t0, s_handler
   csrw stvec, t0
 
+  li t0, -1
+  csrw pmpaddr0, t0
+  li t0, 0x1f // NAPOT RWX for S/U focused smoke access.
+  csrw pmpcfg0, t0
+
   li t0, (1 << 12)
   csrs medeleg, t0
 

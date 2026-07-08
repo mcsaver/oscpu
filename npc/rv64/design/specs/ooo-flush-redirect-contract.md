@@ -185,10 +185,10 @@
 | **INV-1** | **GAP-1 一致性**：untracked 重定向的两个落点选出的 PC 相同 | `mux:70` 与 `Seq:263` 两处**人工同步**「untracked>direct」，任一漏改即 CoreMark 静默卡死（`Seq:257-262` 注释史） | `OooFetchPcOutstandingSequencer` · assert `mux 结果 == :263 override 结果` | ✅ 有（活路径每拍走） | ✅ |
 | **INV-2** | **同拍至多一个 flush/redirect 源赢**（C-OBJ-REDIR 目标的运行时护栏） | 当前靠机制 A/B 人工全序；断言把"两源都赢不可能"先钉成护栏（在 arbiter 真收敛前守住现状） | `OooFetchPcOutstandingSequencer` · `$onehot0({E1..E8 各自"我赢了"谓词})` | 部分（serialize 支 flag=1 才 exercise） | ✅ |
 | **INV-3** | **GAP-2 互斥**：`!(csr_commit_redirect && younger_branch_mispredict_same_cycle)` | 现状是**未证明**的兜底不变量；断言把它变显式 | `OooControlPlane` / `OooFetchPcOutstandingSequencer` · csr_commit 与 younger-branch mispredict 谓词 | ❌ **仅 flag=1 exercise**（默认 head0_csr_commit≡0） | ✅（含 caveat） |
-| **INV-4** | **committed store 不在任何 flush 的 clears 里** / **serial_flush 恒在 SQ 空拍** | 铁律① 靠 `survive_r` 的 committed 恒存活 + serial 恒在 mem_quiet 拍触发（GAP-5 挂靠的构造不变量） | `OooStoreQueue` · `!(flush_all_i && committed_q[k] && !survive_r[k])`；`OooRob`/`OooControlCommitSequencer` · `!(core_serial_flush && !sq_empty)` | committed 支 ✅；serial 支 ❌**仅 flag=1** | ✅ |
+| **INV-4** | **committed store 不在任何 flush 的 clears 里** / **head0-CSR serial_flush 只从 mem-idle 退休派生** | 铁律① 靠 `survive_r` 的 committed 恒存活 + head0-CSR 退休受 `mem_idle` 门控；§10.4 已证明不能等 SQ empty，否则 younger store 死锁 | `OooStoreQueue` · `!(flush_valid && committed/mark && !survive_r)`；`OooRob` · `!(head0 CSR commit0_fire && !mem_quiet_i)`，其中 `mem_quiet_i` 当前接 `mem_idle_o` | committed 支 ✅；serial 支 ❌**仅 flag=1** | ✅（2026-07-07 已落） |
 | **INV-5** | **不得 kill 已发 nokill AXI**（铁律②） | `nokill_busy` 对 `cpu_kill` 免疫 | `OooMemAxiBridge` · `!(cpu_kill_fire && nokill_q && state!=IDLE && 事务被撕裂)` | ✅ 有 | ✅ |
 
-**覆盖 caveat（对抗审查纠正，不粉饰）**：INV-3 与 INV-4-serial 支**只在 `OOO_CSR_QUEUE_HEAD=1` 被 exercise**。默认绿回归里 serial_flush 恒不触发 → 这两条在 flag=1 真跑起来之前**是死重、钉不住现状**——而那正是尚未 ship 的东西。故"Step 0 零风险钉住现状"**只对 INV-1/INV-2-活支/INV-4-committed 支/INV-5 成立**；INV-3/INV-4-serial 是"零行为风险、但覆盖要等 flag=1"。
+**覆盖 caveat（对抗审查纠正，不粉饰）**：INV-3 与 INV-4-serial 支**只在 `OOO_CSR_QUEUE_HEAD=1` 被 exercise**。默认绿回归里 serial_flush 恒不触发 → 这两条在 flag=1 真跑起来之前**仍是未被默认 workload 充分锻炼的重断言**。2026-07-07 已把 INV-4 两半接进 in-RTL `$error`，但它仍不等价于 flag=1 Linux boot 背书。
 
 ### 断言草案（in-RTL，`` `ifdef OOO_ASSERT ``，drop 进对应 `.v`）
 
@@ -217,11 +217,11 @@
       $error("[FLUSH-CONTRACT INV-3] CSR-commit 与 younger-branch-mispredict 同拍(未证明互斥被违反)");
 `endif
 
-// INV-4-serial @ OooRob.v / OooControlCommitSequencer.v —— serial_flush 恒在 SQ 空拍
+// INV-4-serial @ OooRob.v —— head0 CSR 退休必须已无在飞内存事务(mem_idle)
 `ifdef OOO_ASSERT
   always @(posedge clk) if (!rst)
-    if (core_serial_flush_w && !sq_empty_w)
-      $error("[FLUSH-CONTRACT INV-4] serial_flush 在 SQ 非空拍触发(铁律①构造不变量被违反)");
+    if (`OOO_CSR_QUEUE_HEAD && commit0_fire_w && head0_is_csr_w && !mem_quiet_i)
+      $error("[FLUSH-CONTRACT INV-4] head0 CSR 在 mem_idle=0 时退休");
 `endif
 ```
 
@@ -299,7 +299,7 @@ redirect_request {
 
 ### 5.7 最小第一步（若推进，唯一安全小步）
 
-**Step 0：把 §4 承重不变量落成 in-RTL `` `ifdef OOO_ASSERT $error ``（进 check-contract 计数 1→5），零行为改变。** 按价值排：INV-1（GAP-1 一致性，把静默 CoreMark 地雷变编译期护栏）> INV-3（GAP-2 互斥，**安全翻 flag 前置**）> INV-2（同拍 onehot）> INV-4-serial（serial-in-SQ-empty）。
+**Step 0：把 §4 承重不变量落成 in-RTL `` `ifdef OOO_ASSERT $error ``（进 check-contract ratchet），零行为改变。** 已落 INV-1/2/3、GAP-6 payload-lifetime、UC-A producer-sentinel 和 INV-4 两半；当前 baseline=11。INV-4 的 serial 半边按 §10.4 生命周期校正为 `mem_idle`，不是旧版 `SQ empty`。
 
 > **对抗审查对 Step 0 的三处纠正（已并入）**：(1) 机制用 in-RTL `$error` under `OOO_ASSERT`（进 check-contract），**不是** TB SV assert（跑不到全核 workload）；(2)「数小时零风险」偏乐观——baseline=1，每条是**新写的 in-RTL 组合交叉核对 + threading 比较点**，仍便宜零行为风险但非"接现成框架"；(3)「钉住现状」对 INV-3/INV-4-serial **只在 flag=1 成立**（默认 serial_flush 恒不触发）。
 
@@ -319,7 +319,7 @@ redirect_request {
 | **GAP-2** | CSR/xRET 与 branch mispredict 相对序倒置(:178 先于 :210/:217)，靠**未证明互斥**兜底（**仅 flag=1 可违反**） | §2.2 目标序对照 | INV-3 断言；年龄律根治 |
 | **GAP-3** | 两个「direct redirect」定义不一致：`FrontendActionGate.direct_frontend_flush`(含 branch1/jump_spec、无 pending_jump) ≠ `FetchRequestMux.direct_redirect_fetch`(含 pending_jump*/direct_branch_resolve、无 branch1) | E4 | 待收口统一 |
 | **GAP-4** | 后端 flush 扁平 OR、双 squash 机制（E1/E2 nuke vs E3 walk）无统一仲裁器 | `SliceControlGate:39-40` | reason+kill_younger_than 统一 |
-| **GAP-5** | 「清/保持」靠不变量而非机制（含子系统4 陈述错，已纠）：serial/trap **确进 SQ flush_all**，committed 靠 `survive`、younger 未 committed 于 serial 拍不存在靠 `mem_quiet` | §3 铁律① | INV-4 断言显式化 |
+| **GAP-5** | 「清/保持」靠不变量而非机制（含子系统4 陈述错，已纠）：serial/trap **确进 SQ flush_all**，committed 靠 `survive`；head0-CSR serial 退休靠 `mem_idle` 避免 abort 在飞事务，younger 未 committed store 允许在 flush_all 下被丢弃 | §3 铁律① | ✅ INV-4 已断言显式化（2026-07-07） |
 | **GAP-6** | ~~wrong-path trap payload 残留~~ **✅已修(2026-07-05)**：删 OooPendingTrapExitSequencer:59-60 的 cause==EXC_ILLEGAL_INST 症状补丁, squash 无条件清 payload(对齐:55 validity)。payload-lifetime 立即断言实证 sv39 boot 修前 fire **7 次**(cause=12 INST_PAGE_FAULT residual)→修后 **0**, 全回归绿 | E12 | ✅已修+断言守住(baseline→5) |
 | **GAP-7** | stop_pending 优先级 = 单 always 块语句顺序（隐式，`OooStopPendingSequencer.v:64-159`）；SET 谓词在 sequencer 与 `OooPendingDispatchArbiter` 两处人工镜像，无单一真源易漂移 | 汇合点6 | 待收口 |
 | **GAP-8** | pending_system 单寄存器无队列：head0-CSR 在飞与 younger drain-CSR 共存会覆写→死锁，靠 `head0_csr_inflight` hold(`:157`) 防（**flag ON 时脆弱不变量**） | E5/E12 | 仅 flag=1 应力；serialize §10.4 修复史 |
@@ -342,13 +342,13 @@ redirect_request {
 
 ### 6.4 活文档强制（对抗审查挑战#5 —— 本契约不沦为死文档的唯一结构性保证）
 
-> **你不缺 gate，缺的是把契约承重条款喂给那个已空转的 gate。** `Makefile:202 check-contract → eval/check-contract.sh` 强制三条：(1) `--assert` 在场、(2) `+define+OOO_ASSERT` 在场、(3) 可综合 `.v` 的 `$error` 计数不回退（对照 `eval/contract-assert-baseline.txt`）。已接进全核 Verilator 回归（`Makefile:122`）——in-RTL 断言会在 CoreMark/Linux/difftest 里**真的 fire**。但当前 baseline=1、全核仅 1 条 `$error`（`OooFetchPacketFifo.v`）——**空转**。
+> **你不缺 gate，缺的是把契约承重条款喂给那个已空转的 gate。** `Makefile:202 check-contract → eval/check-contract.sh` 强制三条：(1) `--assert` 在场、(2) `+define+OOO_ASSERT` 在场、(3) 可综合 `.v` 的 `$error` 计数不回退（对照 `eval/contract-assert-baseline.txt`）。已接进全核 Verilator 回归（`Makefile:122`）——in-RTL 断言会在 CoreMark/Linux/difftest 里**真的 fire**。2026-07-07 当前 baseline=11，Step 0 承重断言已不再空转；后续工作是把剩余 GAP 逐步收敛，而不是补 INV-4。
 
 - **UC-11｜本契约的落盘纪律**（三条，缺一即退化为"填一次不更新"的死文档）：
   1. **锚点迁信号名**：全文 `:NNN` 行号只作追溯，权威锚点是**模块名 + 信号名 + grep 模式**（可被 check-rtl-style/check-contract 机检）。RTL 插一行行号即漂，散文契约不得充当真源。
-  2. **四条承重不变量编码进 `.v`**：INV-1（`OooFetchPcOutstandingSequencer`）、INV-2（同拍 onehot）、INV-4-serial（`OooRob`/`OooControlCommitSequencer`）、INV-3（`OooControlPlane`），baseline **1→5**，ratchet 物理阻止静默删。
+  2. **四条承重不变量编码进 `.v`**：INV-1（`OooFetchPcOutstandingSequencer`）、INV-2（同拍 onehot）、INV-3（`OooControlPlane`）、INV-4（`OooRob` + `OooStoreQueue`），当前 baseline **11**，ratchet 物理阻止静默删。
   3. **散文契约降级为导航索引**：真源活在"RTL 一旦背离即 fail build"的 ratcheted 断言里，本 .md 指向那些断言，**不**充当真源。这与 doc-lifecycle 协议、interface-contract-first gate 完全同构。
-- **动作项（未落地，backlog）**：Step 0 落 4 条断言 + 更新 `eval/contract-assert-baseline.txt` 1→5 + 本 spec 锚点信号名化。本文件冻结时**尚未**执行 Step 0（纯只读综合冻结）。
+- **动作项（当前状态）**：Step 0 承重断言已分批落地并 ratchet 到 baseline=11；本文仍保留 GAP-3/GAP-4/GAP-7/GAP-8/GAP-9 作为后续 redirect/serialize 收敛 backlog。下一步不再是“补 INV-4”或“补 glue TB CsrFile stub”（后者已于 2026-07-07 接入 head0 commit 并验证），而是按 `serialize-at-retire-phase1.md §10.6` 补 flag ON 前置：完整 Linux boot 与 `-v-`/full-state difftest。
 
 ---
 
@@ -360,8 +360,9 @@ redirect_request {
 ## 8. 变更记录
 
 - **2026-07-05 v1（冻结）**：四子系统逆向 + C-OBJ-REDIR 重写评估 + 对抗审查三份融合落盘。本轮 [验证] 复核全部承重断言（define.v flags、Sequencer:93-277、Mux:47-87、CoreSliceControlGate:39-40、StopPending:64-159、IntBackend:2410-2413/2590、ExecuteBackend:150、StoreQueue:128-152、Rob:59-64、MemAxiBridge:278-565、MemoryRequestGate:49-62、ControlCommitSequencer:91、ControlPlane:307、check-contract.sh、contract-assert-baseline.txt=1）。**纳入对抗审查五处修正**：①源表补 FP/MulDiv 簇（§2.1a）；②铁律③降级为"结构成立/默认零覆盖"（§3）；③系统性幸存者偏差告警（§0/UC-C）；④Step 0 机制由 TB SV assert 纠为 in-RTL `$error` under OOO_ASSERT（§4/§5.7）；⑤活文档强制挂 check-contract gate（§6.4）。**GAP-5 跨子系统纠正**（serial/trap 确进 SQ flush_all）经复核确认，铁律①结论不变。未改任何 RTL/配置，纯只读综合冻结。
-- **待办**：Step 0 落 4 条立即断言、baseline 1→5、锚点信号名化（§6.4 UC-11）。
-- 2026-07-05: INV-1/2/3 落成 in-RTL `ifdef OOO_ASSERT $error 立即断言（commit a336bf973），baseline 1→4；全核+177 riscv+am 全绿 0 误报，INV-2 制造违约验证能响；INV-4 未落（跨 3 模块同 flag=1 覆盖，留下轮）。
+- **历史待办状态迁移**：Step 0 断言已分批落地并在 2026-07-07 ratchet 到 baseline=11；剩余待办转为 GAP-3/GAP-4/GAP-7/GAP-8/GAP-9 的收敛与 B7 flag-ON 前置验证。
+- 2026-07-05: INV-1/2/3 落成 in-RTL `ifdef OOO_ASSERT $error 立即断言（commit a336bf973），baseline 1→4；全核+177 riscv+am 全绿 0 误报，INV-2 制造违约验证能响；当时 INV-4 尚未覆盖（2026-07-07 已补 baseline 9→11）。
 - 2026-07-05: **GAP-6 root-cause 修复**——删 OooPendingTrapExitSequencer squash-clear 的 cause==EXC_ILLEGAL_INST 症状补丁(payload 生命周期对齐 validity 位:55)。先加 payload-lifetime 立即断言实证 sv39 boot 现有测试 fire 7 次(cause=12 wrong-path page-fault residual)=confirmed-bug, 删补丁后 0 fire、module113+riscv177+am 全绿, baseline 4→5。
 - 2026-07-05: **UC-A root-cause 修复**——整数 MulDiv/CLMUL 独缺 mispredict-kill 端口(FP 全家有)。先加 ROB 生产者身份哨兵(OooRob)实证 rv64uzbc-p-clmul wrong-path clmul 结果撞号复用槽(A1 fire)=confirmed→给 OooMulDivUnit+OooClmulUnit 补 kill_valid/kill_rob_idx/rob_head_idx 三端口+age-squash(逐字照 OooFpArithGate fp_meta_killed 严格年轻>)+组合抹 resp_valid_o+父层接 branch_resolve_mispredict_w→A1 静默、module113+riscv177+am+CoreMark(0xfcaf)全绿。baseline 5→7。
 - 2026-07-06: **fence.i 引入新 flush 语义(#111 #3B 修复,commit 21252d2cb)**——fence.i 折进 system_raw→pending_system 序列化→退休拍 pending_system_fencei_commit 拉 mmu_flush(整块清取指 cache OooFetchPacketCache)+复用 E6 drain pending_system redirect(next_pc=pc+4)。E11 触发加 fencei_commit、校正其清取指 cache(非仅 DTLB,sfence 本就如此)。契约先行工作流要求触碰 flush 源更契约,此为落地收尾。
+- 2026-07-07: **INV-4 两半落成 in-RTL `OOO_ASSERT` 断言，baseline 9→11**。`OooRob` 新增 head0-CSR commit 不得发生在 `mem_quiet_i=0` 的断言；注意按 Phase1 §10.4 生命周期校正，`mem_quiet_i` 当前接 `mem_idle_o`，不含 `mem_retire_quiet/sq_empty`，否则 younger-store 会形成死锁。`OooStoreQueue` 新增 flush 不得清除 committed 或同拍 mark store 的断言。验证：`make -C npc/rv64 check-contract` PASS（11/11），`make -C npc/rv64 -j2` PASS，focused `tb_ooo_store_queue tb_ooo_rob` PASS。

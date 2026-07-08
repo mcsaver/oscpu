@@ -1,0 +1,19 @@
+`ifndef __NPC_RV64_OOO_FETCH_PACKET_CACHE_FACTS_VH__
+`define __NPC_RV64_OOO_FETCH_PACKET_CACHE_FACTS_VH__
+
+// OoO fetch packet cache 外部观测 facts。
+// 归属：OooFetchPacketCache 的 debug/common 三层观测模型第 3 层。
+// 用途：给仿真 checker 和 focused TB 一个稳定的语义位号表，不规定综合 RTL 的物理编码。
+
+`define OOO_FPC_LOOKUP_CONTEXT_HIT      0  // index/context 命中
+`define OOO_FPC_LOOKUP_HIT              1  // context + exact PC + 非同拍 store footprint 命中
+`define OOO_FPC_LOOKUP_INVALIDATED      2  // lookup PC 与同拍 store footprint 重叠
+`define OOO_FPC_FILL                    3  // fill 请求
+`define OOO_FPC_FILL_BLOCKED_BY_STORE   4  // fill PC 与同拍 store footprint 重叠，fill 必须被阻止
+`define OOO_FPC_INVALIDATE              5  // store-driven invalidate 请求
+`define OOO_FPC_CLEAR                   6  // clear_i/fence.i/sfence/satp 类整体失效
+`define OOO_FPC_PAGED_LOOKUP            7  // lookup 使用 paging context
+`define OOO_FPC_BARE_LOOKUP             8  // lookup bare mode，不比较 priv/satp
+`define OOO_FPC_FACTS_W                 9
+
+`endif

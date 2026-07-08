@@ -1,0 +1,86 @@
+{
+  "artifacts": {
+    "context_brief": ".github/task-runs/2026-07-07-yosys-rv64-synth-probe-agent-system/context-brief.md",
+    "dispatch_log": ".github/task-runs/2026-07-07-yosys-rv64-synth-probe-agent-system/dispatch-log.md",
+    "evidence_dir": ".github/task-runs/2026-07-07-yosys-rv64-synth-probe-agent-system/evidence",
+    "evidence_index": ".github/task-runs/2026-07-07-yosys-rv64-synth-probe-agent-system/evidence-index.md",
+    "nodes": ".github/task-runs/2026-07-07-yosys-rv64-synth-probe-agent-system/nodes.tsv",
+    "profile_resolve": ".github/task-runs/2026-07-07-yosys-rv64-synth-probe-agent-system/profile-resolve.md",
+    "run_dir": ".github/task-runs/2026-07-07-yosys-rv64-synth-probe-agent-system",
+    "run_manifest": ".github/task-runs/2026-07-07-yosys-rv64-synth-probe-agent-system/run-manifest.json",
+    "task_report": ".github/task-runs/2026-07-07-yosys-rv64-synth-probe-agent-system/task-report.md"
+  },
+  "db": {
+    "markdown_archive": true,
+    "raw_evidence_index_only": true
+  },
+  "evidence": {
+    "asset_count": 3,
+    "by_kind": {
+      "log": 2,
+      "tsv": 1
+    },
+    "total_size_bytes": 7913
+  },
+  "final_result": "profile=agent-system 存在失败节点；不能把后续工程判断建立在该节点上。",
+  "git": {
+    "branch": "ai",
+    "head": "a22eece7c",
+    "upstream": "myfork/ai"
+  },
+  "graph_mode": "static",
+  "graph_template": "modular-agent-e2e",
+  "node_counts": {
+    "by_status": {
+      "FAIL": 1,
+      "PASS": 1
+    },
+    "total": 2
+  },
+  "nodes": [
+    {
+      "evidence": ".github/task-runs/2026-07-07-yosys-rv64-synth-probe-agent-system/evidence/recall-discovery.log",
+      "inputs": "AGENTS/copilot/instructions/memory/e2e profiles",
+      "module": "agent-system",
+      "node_id": "recall-discovery",
+      "outputs": "规则发现链和 e2e 配置入口存在",
+      "owner_agent": "agent-system",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-07-yosys-rv64-synth-probe-agent-system/evidence/tool-env-check.log",
+      "inputs": "agent-env + bash/git/make/python/gcc/verilator/toolchain",
+      "module": "toolchain",
+      "node_id": "tool-env-check",
+      "outputs": "exit=1",
+      "owner_agent": "agent-system",
+      "status": "FAIL"
+    }
+  ],
+  "profile": "agent-system",
+  "run_id": "2026-07-07-yosys-rv64-synth-probe-agent-system",
+  "schema_version": 1,
+  "started_at": "2026-07-07 23:32:42 +0800",
+  "state_traceback": {
+    "current_state": "verify",
+    "evidence_policy": "task-report + dispatch-log + run-manifest + evidence-index",
+    "failure_reason": "profile=agent-system 存在失败节点；不能把后续工程判断建立在该节点上。",
+    "failure_state": "verify",
+    "inspector": "agent-system",
+    "reviewer": "ysyx-coordinator",
+    "rollback_target": "implement",
+    "state_sequence": [
+      "recall_context",
+      "classify_layer",
+      "plan_graph",
+      "implement",
+      "verify",
+      "inspect",
+      "persist"
+    ]
+  },
+  "status": "blocked",
+  "task_slug": "yosys-rv64-synth-probe-agent-system",
+  "trace_id": "e2e:2026-07-07-yosys-rv64-synth-probe-agent-system",
+  "updated_at": "2026-07-07 23:32:42 +0800"
+}

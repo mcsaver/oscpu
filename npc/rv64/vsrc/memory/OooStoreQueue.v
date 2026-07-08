@@ -89,6 +89,9 @@ module OooStoreQueue #(
   reg [ROB_INDEX_W-1:0] rob_idx_q [0:ENTRY_COUNT-1];
 
   integer i;
+`ifdef OOO_ASSERT
+  integer assert_i;
+`endif
 
   wire alloc0_fire_w = alloc0_valid_i && alloc0_ready_o && !flush_valid_i;
   wire alloc1_fire_w = alloc1_valid_i && alloc1_ready_o && alloc0_fire_w;
@@ -264,5 +267,21 @@ module OooStoreQueue #(
       end
     end
   end
+
+`ifdef OOO_ASSERT
+  // INV-4-committed: flush 只允许清未退休 store; 已 committed 或同拍 mark 的 store 必须进入 survive 集。
+  // 这是 serial/trap flush 能安全接入 SQ flush_all 的承重不变量。
+  always @(posedge clk) begin
+    if (!rst && flush_valid_i) begin
+      for (assert_i = 0; assert_i < ENTRY_COUNT; assert_i = assert_i + 1) begin
+        if (valid_q[assert_i] &&
+            (committed_q[assert_i] || mark_hit0_w[assert_i] || mark_hit1_w[assert_i]) &&
+            !survive_r[assert_i])
+          $error("[FLUSH-CONTRACT INV-4] SQ flush 试图清 committed store entry=%0d rob=%0d @%0t",
+                 assert_i, rob_idx_q[assert_i], $time);
+      end
+    end
+  end
+`endif
 
 endmodule

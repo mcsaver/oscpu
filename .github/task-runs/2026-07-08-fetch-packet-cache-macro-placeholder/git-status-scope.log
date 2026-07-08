@@ -1,0 +1,123 @@
+ M .github/db-backup/stored-snapshot/manifest.json
+ M .github/db-backup/task-runs/manifest.json
+ M .github/e2e/modules/toolchain.md
+ M .github/e2e/modules/yosys-sta.md
+ M .github/memory/claude-auto-memory/serialize-at-retire-flush-lsu-obstacle.md
+ M .github/memory/known-issues.md
+ M .github/memory/modules/agent-system.md
+ M .github/memory/modules/difftest.md
+ M .github/memory/modules/nemu.md
+ M .github/memory/modules/npc.md
+ M .github/memory/modules/yosys-sta.md
+ M .github/memory/project-status.md
+ M .gitignore
+ M Linux/Makefile
+ M Linux/tools/ras-trap-boundary-smoke.S
+ M Linux/tools/sret-restore-smoke.S
+ M Linux/tools/sret-user-pagefault-smoke.S
+ M Linux/tools/sret-user-smoke.S
+ M Linux/tools/sret-user-sv39-halfword-smoke.S
+ M Linux/tools/sret-user-sv39-smoke.S
+ M Linux/tools/sv39-sfence-asid-smoke.S
+ M npc/rv64/Makefile
+ M npc/rv64/csrc/device/virtio_blk.c
+ M npc/rv64/design/arch/ROADMAP.md
+ M npc/rv64/design/arch/serialize-at-retire-phase1.md
+ M npc/rv64/design/arch/serialize-at-retire.md
+ M npc/rv64/design/specs/README.md
+ M npc/rv64/design/specs/ooo-fetch-axi-bridge.md
+ M npc/rv64/design/specs/ooo-flush-redirect-contract.md
+ M npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md
+ M npc/rv64/design/specs/ooo-muldiv-unit.md
+ M npc/rv64/design/specs/pmp-checker.md
+ M npc/rv64/eval/contract-assert-baseline.txt
+ M npc/rv64/testbench/Makefile
+ M npc/rv64/testbench/common/tb_ooo_core_top_glue_csr.svh
+ M npc/rv64/testbench/tests/tb_ooo_data_word_cache.sv
+ M npc/rv64/testbench/tests/tb_ooo_fetch_packet_cache.sv
+ M npc/rv64/testbench/tests/tb_ooo_fp_arith_gate.sv
+ M npc/rv64/vsrc/README.md
+ M npc/rv64/vsrc/bus/Uart.v
+ M npc/rv64/vsrc/cache/OooFetchPacketCache.v
+ M npc/rv64/vsrc/execute/OooFpArithGate.v
+ M npc/rv64/vsrc/execute/OooMulDivUnit.v
+ M npc/rv64/vsrc/filelist.mk
+ M npc/rv64/vsrc/frontend/OooFetchAxiBridge.v
+ M npc/rv64/vsrc/include/define.v
+ M npc/rv64/vsrc/memory/OooStoreQueue.v
+ M npc/rv64/vsrc/memory/PmpChecker.v
+ M npc/rv64/vsrc/writeback/OooRob.v
+ M scripts/e2e/modules/npc.sh
+ M scripts/e2e/modules/toolchain.sh
+?? .github/task-runs/2026-07-07-agent-e2e-yosys-sta/
+?? .github/task-runs/2026-07-07-flag-on-linux-focused-smokes/
+?? .github/task-runs/2026-07-07-flush-contract-inv4-guard/
+?? .github/task-runs/2026-07-07-glue-tb-csrfile-head0-commit/
+?? .github/task-runs/2026-07-07-yosys-fetch-packet-cache-valid-next/
+?? .github/task-runs/2026-07-07-yosys-rv64-synth-probe-agent-system-2/
+?? .github/task-runs/2026-07-07-yosys-rv64-synth-probe-agent-system/
+?? .github/task-runs/2026-07-07-yosys-rv64-synth-probe-npc-dev-2/
+?? .github/task-runs/2026-07-07-yosys-rv64-synth-probe-npc-dev/
+?? .github/task-runs/2026-07-07-yosys-rv64-synth-probe-yosys-sta/
+?? .github/task-runs/2026-07-07-yosys-rv64-synth-probe/
+?? .github/task-runs/2026-07-08-data-word-cache-macro-placeholder-2/
+?? .github/task-runs/2026-07-08-data-word-cache-macro-placeholder-3/
+?? .github/task-runs/2026-07-08-data-word-cache-macro-placeholder-4/
+?? .github/task-runs/2026-07-08-data-word-cache-macro-placeholder/
+?? .github/task-runs/2026-07-08-data-word-cache-semantic-contract-2/
+?? .github/task-runs/2026-07-08-data-word-cache-semantic-contract-3/
+?? .github/task-runs/2026-07-08-data-word-cache-semantic-contract/
+?? .github/task-runs/2026-07-08-fetch-packet-cache-macro-placeholder/
+?? .github/task-runs/2026-07-08-fp-arith-cone-ooc-2/
+?? .github/task-runs/2026-07-08-fp-arith-cone-ooc-3/
+?? .github/task-runs/2026-07-08-fp-arith-cone-ooc/
+?? .github/task-runs/2026-07-08-fp-arith-flush-kind-guard-2/
+?? .github/task-runs/2026-07-08-fp-arith-flush-kind-guard-3/
+?? .github/task-runs/2026-07-08-fp-arith-flush-kind-guard/
+?? .github/task-runs/2026-07-08-fp-arith-internal-cones-2/
+?? .github/task-runs/2026-07-08-fp-arith-internal-cones-3/
+?? .github/task-runs/2026-07-08-fp-arith-internal-cones/
+?? .github/task-runs/2026-07-08-fp-arith-launch-out-tb-2/
+?? .github/task-runs/2026-07-08-fp-arith-launch-out-tb/
+?? .github/task-runs/2026-07-08-npctop-cache-data-fp-blackbox-syn-2/
+?? .github/task-runs/2026-07-08-npctop-cache-data-fp-blackbox-syn-3/
+?? .github/task-runs/2026-07-08-npctop-cache-data-fp-blackbox-syn/
+?? .github/task-runs/2026-07-08-npctop-cache-data-fp-bpu-blackbox-syn-2/
+?? .github/task-runs/2026-07-08-npctop-cache-data-fp-bpu-blackbox-syn-3/
+?? .github/task-runs/2026-07-08-npctop-cache-data-fp-bpu-blackbox-syn-4/
+?? .github/task-runs/2026-07-08-npctop-cache-data-fp-bpu-blackbox-syn-5/
+?? .github/task-runs/2026-07-08-npctop-cache-data-fp-bpu-blackbox-syn/
+?? .github/task-runs/2026-07-08-npctop-cache-fp-blackbox-syn-2/
+?? .github/task-runs/2026-07-08-npctop-cache-fp-blackbox-syn-3/
+?? .github/task-runs/2026-07-08-npctop-cache-fp-blackbox-syn/
+?? .github/task-runs/2026-07-08-uart-procassinit-rv64-build-unblock-2/
+?? .github/task-runs/2026-07-08-uart-procassinit-rv64-build-unblock/
+?? .github/task-runs/2026-07-08-yosys-fetch-cache-index-config-2/
+?? .github/task-runs/2026-07-08-yosys-fetch-cache-index-config/
+?? .github/task-runs/2026-07-08-yosys-fetch-packet-cache-valid-next-npc-dev/
+?? .github/task-runs/2026-07-08-yosys-fetch-packet-cache-valid-next-yosys-sta/
+?? .github/task-runs/2026-07-08-yosys-fp-arith-gate-ooc-2/
+?? .github/task-runs/2026-07-08-yosys-fp-arith-gate-ooc-3/
+?? .github/task-runs/2026-07-08-yosys-fp-arith-gate-ooc/
+?? .github/task-runs/2026-07-08-yosys-macro-boundary-contracts-2/
+?? .github/task-runs/2026-07-08-yosys-macro-boundary-contracts-3/
+?? .github/task-runs/2026-07-08-yosys-macro-boundary-contracts-4/
+?? .github/task-runs/2026-07-08-yosys-macro-boundary-contracts/
+?? .github/task-runs/2026-07-08-yosys-pmpchecker-range-share-agent-system/
+?? .github/task-runs/2026-07-08-yosys-pmpchecker-range-share-npc-dev/
+?? .github/task-runs/2026-07-08-yosys-pmpchecker-range-share-yosys-sta/
+?? .github/task-runs/2026-07-08-yosys-pmpchecker-range-share/
+?? .github/task-runs/2026-07-08-yosys-sta-flow-versioned-2/
+?? .github/task-runs/2026-07-08-yosys-sta-flow-versioned-3/
+?? .github/task-runs/2026-07-08-yosys-sta-flow-versioned-4/
+?? .github/task-runs/2026-07-08-yosys-sta-flow-versioned/
+?? npc/rv64/design/specs/ooo-data-word-cache.md
+?? npc/rv64/design/specs/ooo-fetch-packet-cache.md
+?? npc/rv64/design/specs/ooo-fp-arith-gate.md
+?? npc/rv64/design/specs/yosys-macro-boundary-contracts.md
+?? npc/rv64/testbench/tests/tb_pmp_checker.sv
+?? npc/rv64/vsrc/common/OooDataWordCacheFacts.vh
+?? npc/rv64/vsrc/common/OooFetchPacketCacheFacts.vh
+?? npc/rv64/vsrc/debug/OooDataWordCacheChecker.sv
+?? npc/rv64/vsrc/debug/OooFetchPacketCacheChecker.sv
+?? yosys-sta/
