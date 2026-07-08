@@ -1,0 +1,7 @@
+recall-discovery	agent-system	agent-system	PASS	AGENTS/copilot/instructions/memory/e2e profiles	规则发现链和 e2e 配置入口存在	.github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore-4/evidence/recall-discovery.log
+tool-env-check	agent-system	toolchain	PASS	agent-env + bash/git/make/python/gcc/verilator/toolchain	非交互软环境、hard requirements 与 optional tools 可见	.github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore-4/evidence/tool-env-check.log
+npc-sim-status	hardware-flow	hardware-flow	PASS	npc/sim Kconfig 与 backend mk	当前 npc/sim 后端状态	.github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore-4/evidence/npc-sim-status.log
+abstract-machine-contract	abstract-machine	abstract-machine	PASS	AM Makefile/scripts/include/memory	AM 平台合约入口存在	.github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore-4/evidence/abstract-machine-contract.log
+nemu-config-probe	nemu	nemu	PASS	nemu Kconfig/configs/device filelist	NEMU 当前配置和参考入口可见	.github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore-4/evidence/nemu-config-probe.log
+nemu-add-smoke	nemu	nemu	SKIP	当前 NEMU AM-compatible 配置 + cpu-tests add	NEMU reference 最小 smoke PASS 或配置边界 SKIP	.github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore-4/evidence/nemu-add-smoke.log
+difftest-contract	difftest	difftest	PASS	NEMU spike-diff + npc/sim difftest-ref	DiffTest 合约入口存在	.github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore-4/evidence/difftest-contract.log

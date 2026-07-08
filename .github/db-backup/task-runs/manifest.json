@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T11:40:43+00:00",
-  "updated_at": "2026-07-08T02:08:42+00:00",
+  "updated_at": "2026-07-08T10:34:55+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -26442,6 +26442,366 @@
       "sha256": "8b90c11af14f45e60b63687e951350195e5527ebe5453c61f63ddd43061276f3",
       "backup_source": "filesystem",
       "archived_at": "2026-07-07T15:34:53+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore-2/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6579,
+      "sha256": "897f0e4611282738eb4466986cdd8c315139e607dfba37a6e00c5cf06a1d3386",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T03:39:06+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore-2/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 6026,
+      "sha256": "f95a1d0514bf1d146ffba3ffb4d4538ec78b9e2505e3a5213db74c837877b7ca",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T03:39:06+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore-2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4465,
+      "sha256": "e0058076e6d737dc1368d1e6bf1576cfe9078ba732693ee21b3e6a44320c072b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T03:39:06+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore-2/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T03:39:06+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore-2/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4625,
+      "sha256": "2d4a2f36ccea43c7f778b8ad4b577237e5dba83bdb65dc4a9632d4e5e9072f89",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T03:39:06+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore-3/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 9613,
+      "sha256": "d22a4109c61cfd8cff2bd4f28b0ab5b00a853c4db4e050b12ebf6c467026e511",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T03:39:08+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore-3/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 6300,
+      "sha256": "dad37b89306792d8430fdf5942f23da6a73f7f3213bd77916d74dc16140a67c8",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T03:39:08+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore-3/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4819,
+      "sha256": "57ce6fb99a4227c425d7b28ac4249ec86a8f08bab67bc1b5a5497a88877b25ee",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T03:39:08+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore-3/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1194,
+      "sha256": "7f0de012dd75c4367000a8dbaca972606495ee0234b24c3929838d374212110b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T03:39:08+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore-3/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4734,
+      "sha256": "b12e8c3aacbc33df1873a895b7f4305ab179036074ce2eb589e672917799696c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T03:39:08+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore-4/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 10861,
+      "sha256": "b37e0913fef3e320c2162531b58f9ece17922af923df6a9745f75046cec0b509",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T03:40:41+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore-4/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 8125,
+      "sha256": "e1d5706ae5509055d5ff8d4caf79af296d323421ce888ae153499d3eb84f1321",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T03:40:41+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore-4/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 5975,
+      "sha256": "ca3ada0865585ef0dc88297928056804ddcd481ecbb44042da774427fc5f9684",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T03:40:41+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore-4/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1398,
+      "sha256": "67ce081429538640cc42d3121849e47aa6be6454480448a8b1067069cb7a4e86",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T03:40:41+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore-4/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 5276,
+      "sha256": "1193da2c1ea93707ac658e5c4ca2059ecd91ae2ba99017d6f32677261205b8ad",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T03:40:41+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 8980,
+      "sha256": "d3508daadee300d42c4f596d53302ace80e2e4ff53c0bb0dd52f1f04f59d0b6c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T03:37:03+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11488,
+      "sha256": "929e374527083a5ed21faddff9f3f6e5be432526c4ba3dd4283bd58335cc7406",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T03:37:03+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 7431,
+      "sha256": "e0e5de9fd7e6e6b8f69b2626d80c346811aff7477b3cea4258d1aee9c4e5bbc8",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T03:37:03+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1673,
+      "sha256": "8b3d126d3085198342ff9baaf11ab584946588b0f3e6cb90887f03a220bfff7c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T03:37:03+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-iverilog14-tb-gate-restore/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6307,
+      "sha256": "19492fd195cba8abe392247922671f3bf564ff9604a939ae7edae02d46f1fde2",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T03:37:03+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-pipeline-boundary-p1/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6573,
+      "sha256": "d457a14a77017a80b3c7c63c464d3c8426f3e11f761ed0f321be8c3a8e7c6615",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T09:45:06+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-pipeline-boundary-p1/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5892,
+      "sha256": "e8243c753fded92f11c3e880d6bd93962512fa87e57f981ec3c10e04541e072d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T09:45:06+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-pipeline-boundary-p1/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4395,
+      "sha256": "d321af9e55c2b0d4809aaede28a357caaf13abcd87bcaee5e22ff81fe005921b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T09:45:06+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-pipeline-boundary-p1/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T09:45:06+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-pipeline-boundary-p1/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4515,
+      "sha256": "3a24d5d87675a2650896a0b87912ae1e85478209e896a76d57852524e4f09186",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T09:45:06+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-sram-macro-refactor-2/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 10230,
+      "sha256": "53cbd7024a5548837eae788e75c5b978d0d3cb2eb1f50b46b94e9913e3ed64a9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T09:07:49+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-sram-macro-refactor-2/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 6934,
+      "sha256": "32dff47441858f5d6095bf561b3ed0de2d3641420a197399feca8c2f1da5e904",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T09:07:49+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-sram-macro-refactor-2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 5256,
+      "sha256": "38bc0df7a048b6357957eab2c28da12ce8a32d685cb5e12a634fffd8cd1214de",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T09:07:49+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-sram-macro-refactor-2/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1224,
+      "sha256": "dde391f86398c9befee19f7e780eeb9547b77edb2df5de88b5c3652f595e3bf2",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T09:07:49+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-sram-macro-refactor-2/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4798,
+      "sha256": "d5f981f3d070b811fe4a4805a1188f62439bf6591d743d145328d271dfadb469",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T09:07:49+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-sram-macro-refactor/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6572,
+      "sha256": "7e9a09bfd40319d01db2f0b24d0ba5d8e251d3b0157c0168226d798678156d86",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T09:07:47+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-sram-macro-refactor/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5875,
+      "sha256": "1b9ca8b296d05655be4f1ccb385260114e6c5dd429722d8be765d5b1e9630d0a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T09:07:47+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-sram-macro-refactor/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4386,
+      "sha256": "32c5f49256e6d6e2714354c7c7f352aee24e021e1644769c64e79c96da76917b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T09:07:47+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-sram-macro-refactor/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T09:07:47+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-sram-macro-refactor/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4501,
+      "sha256": "a311df33babed97dd2e8bbef6ba58fff97dce104064f2f3abdc07fa7907bdb73",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T09:07:47+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-stage-boundary-p2p4-2/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 10230,
+      "sha256": "c4aeb347f65f158d9bd564d913399b137c337bf819dc9ced2f4d4ae3ac7afc12",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T10:34:55+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-stage-boundary-p2p4-2/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 6934,
+      "sha256": "330b8c685eebb933fb5921a7d75d48c3f442b4b6db67eb5ca40cd6388d017402",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T10:34:55+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-stage-boundary-p2p4-2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 5256,
+      "sha256": "161f799f28caf1f83c230bb9c1202611acc63d66698ab6e8f6279cbc51be68db",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T10:34:55+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-stage-boundary-p2p4-2/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1224,
+      "sha256": "dde391f86398c9befee19f7e780eeb9547b77edb2df5de88b5c3652f595e3bf2",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T10:34:55+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-stage-boundary-p2p4-2/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4798,
+      "sha256": "61b881b621c5e1be070e92788022038881d8006a012f28fbf4560a810e7844bf",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T10:34:55+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-stage-boundary-p2p4/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6572,
+      "sha256": "f51db7d35bf6ba4210625b563614eaffefdc378314db8cf3932eb20b9140322b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T10:34:54+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-stage-boundary-p2p4/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5875,
+      "sha256": "8d8b758b05370cd9d2014185ee9cb12fc5cb4a983e4608e9ad399e55976ebb64",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T10:34:54+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-stage-boundary-p2p4/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4386,
+      "sha256": "10a9f3f564c097bd76faa1cec436a80cab4d42884a8b4550398df3a23e65a342",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T10:34:54+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-stage-boundary-p2p4/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T10:34:54+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-08-2026-07-08-stage-boundary-p2p4/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4501,
+      "sha256": "a6679927483ff6e6e52ecc8039d2596e4dc83f8f41f7f9c1e0f480949e5eaed5",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-08T10:34:54+00:00"
     },
     {
       "path": ".github/task-runs/2026-07-08-branch-direction-predictor-macro-placeholder-2/context-brief.md",
