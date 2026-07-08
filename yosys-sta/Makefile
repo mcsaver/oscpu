@@ -13,6 +13,10 @@ SYNTH_STOP_AFTER_COARSE ?= 0
 SYNTH_PUBLIC_AUTONAME ?= 1
 SYNTH_DFF_AUTONAME ?= 1
 SYNTH_BLACKBOX_MODULES ?=
+KEEP_HIERARCHY_MODULES ?=
+# 额外 liberty(如黑盒宏的 non-signoff 占位 .lib),STA 时随标准单元库一并 read_liberty;
+# 默认空,由上层(例如 npc/rv64 Makefile 的 STA_EXTRA_LIB_FILES)传绝对路径列表。
+EXTRA_LIB_FILES ?=
 export CLK_FREQ_MHZ ?= 500
 export CLK_PORT_NAME ?= clk
 export SYNTH_FLATTEN
@@ -21,6 +25,8 @@ export SYNTH_STOP_AFTER_COARSE
 export SYNTH_PUBLIC_AUTONAME
 export SYNTH_DFF_AUTONAME
 export SYNTH_BLACKBOX_MODULES
+export KEEP_HIERARCHY_MODULES
+export EXTRA_LIB_FILES
 PDK = icsprout55
 
 RESULT_DIR = $(O)/$(DESIGN)-$(CLK_FREQ_MHZ)MHz

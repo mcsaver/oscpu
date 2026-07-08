@@ -1,0 +1,799 @@
+/* OooFpArithGate.lib — non-signoff placeholder liberty
+ * 占位模型:数字无物理意义,仅用于 iEDA STA 图闭合(宏合同 v1)。
+ * 全端口按寄存器边界宏抽象:input setup 0.500ns/hold 0.100ns 对 clk;
+ * output 从 clk 上升沿 1.000ns 固定 delay;pin cap 0.010pf。
+ * 单位/操作条件数值对齐 icsprout55 (1ns/1pf/1.2V/25C)。
+ * 由 gen_macro_libs.py 生成(2026-07-08),勿手改——改端口表后重跑生成器。
+ */
+library (OooFpArithGate) {
+  technology (cmos);
+  delay_model : table_lookup;
+  time_unit : "1ns";
+  voltage_unit : "1V";
+  current_unit : "1mA";
+  leakage_power_unit : "1nW";
+  pulling_resistance_unit : "1kohm";
+  capacitive_load_unit (1,pf);
+  nom_process : 1;
+  nom_temperature : 25;
+  nom_voltage : 1.2;
+  input_threshold_pct_fall : 50;
+  input_threshold_pct_rise : 50;
+  output_threshold_pct_fall : 50;
+  output_threshold_pct_rise : 50;
+  slew_derate_from_library : 0.5;
+  slew_lower_threshold_pct_fall : 30;
+  slew_lower_threshold_pct_rise : 30;
+  slew_upper_threshold_pct_fall : 70;
+  slew_upper_threshold_pct_rise : 70;
+  default_cell_leakage_power : 0;
+  default_fanout_load : 1;
+  default_output_pin_cap : 0;
+  default_max_transition : 0.795659;
+  operating_conditions (macro_placeholder_tt_1p2_25) {
+    process : 1;
+    temperature : 25;
+    voltage : 1.2;
+  }
+  default_operating_conditions : macro_placeholder_tt_1p2_25;
+  type (bus_2) {
+    base_type : array;
+    data_type : bit;
+    bit_width : 2;
+    bit_from : 1;
+    bit_to : 0;
+    downto : true;
+  }
+  type (bus_3) {
+    base_type : array;
+    data_type : bit;
+    bit_width : 3;
+    bit_from : 2;
+    bit_to : 0;
+    downto : true;
+  }
+  type (bus_4) {
+    base_type : array;
+    data_type : bit;
+    bit_width : 4;
+    bit_from : 3;
+    bit_to : 0;
+    downto : true;
+  }
+  type (bus_5) {
+    base_type : array;
+    data_type : bit;
+    bit_width : 5;
+    bit_from : 4;
+    bit_to : 0;
+    downto : true;
+  }
+  type (bus_6) {
+    base_type : array;
+    data_type : bit;
+    bit_width : 6;
+    bit_from : 5;
+    bit_to : 0;
+    downto : true;
+  }
+  type (bus_64) {
+    base_type : array;
+    data_type : bit;
+    bit_width : 64;
+    bit_from : 63;
+    bit_to : 0;
+    downto : true;
+  }
+  cell (OooFpArithGate) {
+    area : 0;
+    interface_timing : true;
+    pin (clk) {
+      direction : input;
+      clock : true;
+      capacitance : 0.010;
+    }
+    pin (rst) {
+      direction : input;
+      capacitance : 0.010;
+      timing () {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint (scalar) {
+          values ("0.500");
+        }
+        fall_constraint (scalar) {
+          values ("0.500");
+        }
+      }
+      timing () {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint (scalar) {
+          values ("0.100");
+        }
+        fall_constraint (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    pin (flush_i) {
+      direction : input;
+      capacitance : 0.010;
+      timing () {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint (scalar) {
+          values ("0.500");
+        }
+        fall_constraint (scalar) {
+          values ("0.500");
+        }
+      }
+      timing () {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint (scalar) {
+          values ("0.100");
+        }
+        fall_constraint (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    pin (start_i) {
+      direction : input;
+      capacitance : 0.010;
+      timing () {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint (scalar) {
+          values ("0.500");
+        }
+        fall_constraint (scalar) {
+          values ("0.500");
+        }
+      }
+      timing () {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint (scalar) {
+          values ("0.100");
+        }
+        fall_constraint (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    bus (frs1_value_i) {
+      bus_type : bus_64;
+      direction : input;
+      capacitance : 0.010;
+      timing () {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint (scalar) {
+          values ("0.500");
+        }
+        fall_constraint (scalar) {
+          values ("0.500");
+        }
+      }
+      timing () {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint (scalar) {
+          values ("0.100");
+        }
+        fall_constraint (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    bus (frs2_value_i) {
+      bus_type : bus_64;
+      direction : input;
+      capacitance : 0.010;
+      timing () {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint (scalar) {
+          values ("0.500");
+        }
+        fall_constraint (scalar) {
+          values ("0.500");
+        }
+      }
+      timing () {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint (scalar) {
+          values ("0.100");
+        }
+        fall_constraint (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    bus (frs3_value_i) {
+      bus_type : bus_64;
+      direction : input;
+      capacitance : 0.010;
+      timing () {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint (scalar) {
+          values ("0.500");
+        }
+        fall_constraint (scalar) {
+          values ("0.500");
+        }
+      }
+      timing () {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint (scalar) {
+          values ("0.100");
+        }
+        fall_constraint (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    pin (double_i) {
+      direction : input;
+      capacitance : 0.010;
+      timing () {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint (scalar) {
+          values ("0.500");
+        }
+        fall_constraint (scalar) {
+          values ("0.500");
+        }
+      }
+      timing () {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint (scalar) {
+          values ("0.100");
+        }
+        fall_constraint (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    pin (sub_op_i) {
+      direction : input;
+      capacitance : 0.010;
+      timing () {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint (scalar) {
+          values ("0.500");
+        }
+        fall_constraint (scalar) {
+          values ("0.500");
+        }
+      }
+      timing () {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint (scalar) {
+          values ("0.100");
+        }
+        fall_constraint (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    pin (negate_product_i) {
+      direction : input;
+      capacitance : 0.010;
+      timing () {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint (scalar) {
+          values ("0.500");
+        }
+        fall_constraint (scalar) {
+          values ("0.500");
+        }
+      }
+      timing () {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint (scalar) {
+          values ("0.100");
+        }
+        fall_constraint (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    pin (subtract_addend_i) {
+      direction : input;
+      capacitance : 0.010;
+      timing () {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint (scalar) {
+          values ("0.500");
+        }
+        fall_constraint (scalar) {
+          values ("0.500");
+        }
+      }
+      timing () {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint (scalar) {
+          values ("0.100");
+        }
+        fall_constraint (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    bus (rm_i) {
+      bus_type : bus_3;
+      direction : input;
+      capacitance : 0.010;
+      timing () {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint (scalar) {
+          values ("0.500");
+        }
+        fall_constraint (scalar) {
+          values ("0.500");
+        }
+      }
+      timing () {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint (scalar) {
+          values ("0.100");
+        }
+        fall_constraint (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    pin (launch_valid_i) {
+      direction : input;
+      capacitance : 0.010;
+      timing () {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint (scalar) {
+          values ("0.500");
+        }
+        fall_constraint (scalar) {
+          values ("0.500");
+        }
+      }
+      timing () {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint (scalar) {
+          values ("0.100");
+        }
+        fall_constraint (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    bus (launch_rob_idx_i) {
+      bus_type : bus_4;
+      direction : input;
+      capacitance : 0.010;
+      timing () {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint (scalar) {
+          values ("0.500");
+        }
+        fall_constraint (scalar) {
+          values ("0.500");
+        }
+      }
+      timing () {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint (scalar) {
+          values ("0.100");
+        }
+        fall_constraint (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    bus (launch_pdest_i) {
+      bus_type : bus_6;
+      direction : input;
+      capacitance : 0.010;
+      timing () {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint (scalar) {
+          values ("0.500");
+        }
+        fall_constraint (scalar) {
+          values ("0.500");
+        }
+      }
+      timing () {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint (scalar) {
+          values ("0.100");
+        }
+        fall_constraint (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    bus (launch_kind_i) {
+      bus_type : bus_2;
+      direction : input;
+      capacitance : 0.010;
+      timing () {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint (scalar) {
+          values ("0.500");
+        }
+        fall_constraint (scalar) {
+          values ("0.500");
+        }
+      }
+      timing () {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint (scalar) {
+          values ("0.100");
+        }
+        fall_constraint (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    pin (kill_valid_i) {
+      direction : input;
+      capacitance : 0.010;
+      timing () {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint (scalar) {
+          values ("0.500");
+        }
+        fall_constraint (scalar) {
+          values ("0.500");
+        }
+      }
+      timing () {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint (scalar) {
+          values ("0.100");
+        }
+        fall_constraint (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    bus (kill_rob_idx_i) {
+      bus_type : bus_4;
+      direction : input;
+      capacitance : 0.010;
+      timing () {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint (scalar) {
+          values ("0.500");
+        }
+        fall_constraint (scalar) {
+          values ("0.500");
+        }
+      }
+      timing () {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint (scalar) {
+          values ("0.100");
+        }
+        fall_constraint (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    bus (rob_head_idx_i) {
+      bus_type : bus_4;
+      direction : input;
+      capacitance : 0.010;
+      timing () {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint (scalar) {
+          values ("0.500");
+        }
+        fall_constraint (scalar) {
+          values ("0.500");
+        }
+      }
+      timing () {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint (scalar) {
+          values ("0.100");
+        }
+        fall_constraint (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    bus (addsub_value_o) {
+      bus_type : bus_64;
+      direction : output;
+      max_capacitance : 0.500;
+      timing () {
+        related_pin : "clk";
+        timing_type : rising_edge;
+        timing_sense : non_unate;
+        cell_rise (scalar) {
+          values ("1.000");
+        }
+        cell_fall (scalar) {
+          values ("1.000");
+        }
+        rise_transition (scalar) {
+          values ("0.100");
+        }
+        fall_transition (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    bus (addsub_fflags_o) {
+      bus_type : bus_5;
+      direction : output;
+      max_capacitance : 0.500;
+      timing () {
+        related_pin : "clk";
+        timing_type : rising_edge;
+        timing_sense : non_unate;
+        cell_rise (scalar) {
+          values ("1.000");
+        }
+        cell_fall (scalar) {
+          values ("1.000");
+        }
+        rise_transition (scalar) {
+          values ("0.100");
+        }
+        fall_transition (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    bus (mul_value_o) {
+      bus_type : bus_64;
+      direction : output;
+      max_capacitance : 0.500;
+      timing () {
+        related_pin : "clk";
+        timing_type : rising_edge;
+        timing_sense : non_unate;
+        cell_rise (scalar) {
+          values ("1.000");
+        }
+        cell_fall (scalar) {
+          values ("1.000");
+        }
+        rise_transition (scalar) {
+          values ("0.100");
+        }
+        fall_transition (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    bus (mul_fflags_o) {
+      bus_type : bus_5;
+      direction : output;
+      max_capacitance : 0.500;
+      timing () {
+        related_pin : "clk";
+        timing_type : rising_edge;
+        timing_sense : non_unate;
+        cell_rise (scalar) {
+          values ("1.000");
+        }
+        cell_fall (scalar) {
+          values ("1.000");
+        }
+        rise_transition (scalar) {
+          values ("0.100");
+        }
+        fall_transition (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    bus (fma_value_o) {
+      bus_type : bus_64;
+      direction : output;
+      max_capacitance : 0.500;
+      timing () {
+        related_pin : "clk";
+        timing_type : rising_edge;
+        timing_sense : non_unate;
+        cell_rise (scalar) {
+          values ("1.000");
+        }
+        cell_fall (scalar) {
+          values ("1.000");
+        }
+        rise_transition (scalar) {
+          values ("0.100");
+        }
+        fall_transition (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    bus (fma_fflags_o) {
+      bus_type : bus_5;
+      direction : output;
+      max_capacitance : 0.500;
+      timing () {
+        related_pin : "clk";
+        timing_type : rising_edge;
+        timing_sense : non_unate;
+        cell_rise (scalar) {
+          values ("1.000");
+        }
+        cell_fall (scalar) {
+          values ("1.000");
+        }
+        rise_transition (scalar) {
+          values ("0.100");
+        }
+        fall_transition (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    pin (done_o) {
+      direction : output;
+      max_capacitance : 0.500;
+      timing () {
+        related_pin : "clk";
+        timing_type : rising_edge;
+        timing_sense : non_unate;
+        cell_rise (scalar) {
+          values ("1.000");
+        }
+        cell_fall (scalar) {
+          values ("1.000");
+        }
+        rise_transition (scalar) {
+          values ("0.100");
+        }
+        fall_transition (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    pin (out_valid_o) {
+      direction : output;
+      max_capacitance : 0.500;
+      timing () {
+        related_pin : "clk";
+        timing_type : rising_edge;
+        timing_sense : non_unate;
+        cell_rise (scalar) {
+          values ("1.000");
+        }
+        cell_fall (scalar) {
+          values ("1.000");
+        }
+        rise_transition (scalar) {
+          values ("0.100");
+        }
+        fall_transition (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    bus (out_rob_idx_o) {
+      bus_type : bus_4;
+      direction : output;
+      max_capacitance : 0.500;
+      timing () {
+        related_pin : "clk";
+        timing_type : rising_edge;
+        timing_sense : non_unate;
+        cell_rise (scalar) {
+          values ("1.000");
+        }
+        cell_fall (scalar) {
+          values ("1.000");
+        }
+        rise_transition (scalar) {
+          values ("0.100");
+        }
+        fall_transition (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    bus (out_pdest_o) {
+      bus_type : bus_6;
+      direction : output;
+      max_capacitance : 0.500;
+      timing () {
+        related_pin : "clk";
+        timing_type : rising_edge;
+        timing_sense : non_unate;
+        cell_rise (scalar) {
+          values ("1.000");
+        }
+        cell_fall (scalar) {
+          values ("1.000");
+        }
+        rise_transition (scalar) {
+          values ("0.100");
+        }
+        fall_transition (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    bus (out_value_o) {
+      bus_type : bus_64;
+      direction : output;
+      max_capacitance : 0.500;
+      timing () {
+        related_pin : "clk";
+        timing_type : rising_edge;
+        timing_sense : non_unate;
+        cell_rise (scalar) {
+          values ("1.000");
+        }
+        cell_fall (scalar) {
+          values ("1.000");
+        }
+        rise_transition (scalar) {
+          values ("0.100");
+        }
+        fall_transition (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    bus (out_fflags_o) {
+      bus_type : bus_5;
+      direction : output;
+      max_capacitance : 0.500;
+      timing () {
+        related_pin : "clk";
+        timing_type : rising_edge;
+        timing_sense : non_unate;
+        cell_rise (scalar) {
+          values ("1.000");
+        }
+        cell_fall (scalar) {
+          values ("1.000");
+        }
+        rise_transition (scalar) {
+          values ("0.100");
+        }
+        fall_transition (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+  }
+}

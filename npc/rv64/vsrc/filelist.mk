@@ -19,6 +19,10 @@ RTL_BUS_DIR := $(VSRCDIR)/bus
 RTL_WRITEBACK_DIR := $(VSRCDIR)/writeback
 RTL_SIM_DIR := $(VSRCDIR)/sim
 RTL_DEBUG_DIR := $(VSRCDIR)/debug
+# SRAM 宏行为模型独立目录：仿真真源；NpcTop 综合时按模块名进 SYNTH_BLACKBOX_MODULES。
+RTL_SRAM_DIR := $(VSRCDIR)/sram
+# 级间边界原语独立目录：PipeStageReg 等(自带 keep_hierarchy)；治理 spec 见 design/arch/pipeline-stage-boundary.md。
+RTL_PIPELINE_DIR := $(VSRCDIR)/pipeline
 
 RTL_DEFINE := $(RTL_INCLUDE_DIR)/define.v
 RTL_OOO_SLOT_FACTS_V := $(RTL_COMMON_DIR)/OooSlotFacts.v
@@ -27,6 +31,9 @@ RTL_OOO_SLOT_FACTS_V := $(RTL_COMMON_DIR)/OooSlotFacts.v
 RTL_OOO_SV39_TLB := $(RTL_MEMORY_DIR)/OooSv39Tlb.v
 RTL_OOO_FETCH_PACKET_CACHE := $(RTL_CACHE_DIR)/OooFetchPacketCache.v
 RTL_OOO_DATA_WORD_CACHE := $(RTL_CACHE_DIR)/OooDataWordCache.v
+RTL_SRAM_FETCH_PACKET := $(RTL_SRAM_DIR)/Sram4096x199.v
+RTL_SRAM_DATA_WORD := $(RTL_SRAM_DIR)/Sram4096x113.v
+RTL_PIPE_STAGE_REG := $(RTL_PIPELINE_DIR)/PipeStageReg.v
 RTL_OOO_BRANCH_DIRECTION_PREDICTOR := $(RTL_FRONTEND_DIR)/OooBranchDirectionPredictor.v
 
 RTL_NPC_CORE_TOP := $(RTL_CORE_DIR)/NpcCoreTop.v
@@ -78,8 +85,10 @@ RTL_OOO_ARCH_REG_FILE := $(RTL_WRITEBACK_DIR)/OooArchRegFile.v
 RTL_OOO_CONTROL_COMMIT_SEQUENCER := $(RTL_WRITEBACK_DIR)/OooControlCommitSequencer.v
 RTL_OOO_COMMIT_OUTPUT_MUX := $(RTL_WRITEBACK_DIR)/OooCommitOutputMux.v
 RTL_OOO_CONTROL_FLUSH_SEQUENCER := $(RTL_CONTROL_DIR)/OooControlFlushSequencer.v
-# [已删 RTL_OOO_REDIRECT_ARBITER / OooRedirectArbiter.v —— C7 统一 redirect 仲裁地基删档减负（2026-07-03，
-#  从未接入编译列表/零实例化）；当前 redirect 仲裁由 OooFetchRequestMux 隐式优先级链承担。]
+# P4 复活（2026-07-08，pipeline-stage-boundary.md §5 flush 单点化）：统一 redirect 年龄律仲裁器。
+# shadow 阶段由 OooCoreTopGlue 在 `ifdef OOO_ASSERT 下实例化作等价断言（经 RTL_OOO_FRONTEND_HELPERS
+# 进 RTL_CORE_SRCS 与全部 glue 系 TB；综合无 OOO_ASSERT → 无实例 → hierarchy 剪除零面积）。
+RTL_OOO_REDIRECT_ARBITER := $(RTL_CONTROL_DIR)/OooRedirectArbiter.v
 # 子系统 wrapper：聚合 CSR/trap/pending/drain/flush/stop/observable 控制 owner，供 OooCoreTopGlue 单实例化。
 RTL_OOO_CONTROL_PLANE := $(RTL_CONTROL_DIR)/OooControlPlane.v
 RTL_OOO_STOP_PENDING_SEQUENCER := $(RTL_CONTROL_DIR)/OooStopPendingSequencer.v
@@ -169,6 +178,7 @@ RTL_OOO_FRONTEND_HELPERS := $(RTL_OOO_RVC_DECOMPRESSOR) $(RTL_OOO_FP_DECODE) \
 	$(RTL_OOO_CONTROL_COMMIT_SEQUENCER) \
 	$(RTL_OOO_COMMIT_OUTPUT_MUX) \
 	$(RTL_OOO_CONTROL_FLUSH_SEQUENCER) \
+	$(RTL_OOO_REDIRECT_ARBITER) \
 	$(RTL_OOO_STOP_PENDING_SEQUENCER) \
 	$(RTL_OOO_CORE_OBSERVABLE_OUTPUT_GATE) \
 	$(RTL_OOO_CORE_SLICE_CONTROL_GATE) \
@@ -256,6 +266,9 @@ RTL_CORE_SRCS := $(strip \
 	$(RTL_OOO_SV39_TLB) \
 	$(RTL_OOO_FETCH_PACKET_CACHE) \
 	$(RTL_OOO_DATA_WORD_CACHE) \
+	$(RTL_SRAM_FETCH_PACKET) \
+	$(RTL_SRAM_DATA_WORD) \
+	$(RTL_PIPE_STAGE_REG) \
 	$(RTL_NPC_CORE_TOP) \
 	$(RTL_NPC_TOP) \
 	$(RTL_OOO_FETCH_AXI_BRIDGE) \

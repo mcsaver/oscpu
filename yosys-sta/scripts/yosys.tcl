@@ -60,6 +60,10 @@ set SYNTH_BLACKBOX_MODULES ""
 if {[info exists env(SYNTH_BLACKBOX_MODULES)]} {
   set SYNTH_BLACKBOX_MODULES $::env(SYNTH_BLACKBOX_MODULES)
 }
+set KEEP_HIERARCHY_MODULES ""
+if {[info exists env(KEEP_HIERARCHY_MODULES)]} {
+  set KEEP_HIERARCHY_MODULES $::env(KEEP_HIERARCHY_MODULES)
+}
 
 proc env_flag_enabled {value} {
   set norm [string tolower $value]
@@ -229,6 +233,23 @@ foreach module $SYNTH_BLACKBOX_MODULES {
   select -module $module
   blackbox
   select -clear
+}
+
+# 级间边界治理(pipeline-stage-boundary.md §6)：flatten 前保留指定模块层次，
+# 让 ABC 沿寄存器边界切 cone。必须先显式 elaborate 派生 $paramod 实体再 setattr——
+# read_verilog 后直接 setattr 落在 AST 占位上，synth 内部重派生时属性丢失(实测)。
+if {[llength $KEEP_HIERARCHY_MODULES] > 0} {
+  hierarchy -check -top $DESIGN
+  foreach module $KEEP_HIERARCHY_MODULES {
+    if {$module eq ""} {
+      continue
+    }
+    log "\[INFO\]: KEEPING hierarchy of module $module through flatten"
+    # 三种命名形态都要覆盖：原名(无参数化实例)、可读 paramod($paramod\Mod\P=V)、
+    # 哈希 paramod($paramod$<hash>\Mod——参数值长时 yosys 用哈希, 模块名在末尾,
+    # 实测 OooRob 等 7 keep 模块 5 个走此形态而漏保, 故补 "=*\\Mod" 后缀匹配)。
+    setattr -mod -set keep_hierarchy 1 $module "=\$paramod*$module\\*" "=*\\$module"
+  }
 }
 
 # generic synthesis (coarse)

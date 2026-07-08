@@ -158,6 +158,15 @@ STA_SYNTH_STOP_AFTER_COARSE ?= 0
 STA_SYNTH_PUBLIC_AUTONAME ?= 1
 STA_SYNTH_DFF_AUTONAME ?= 1
 STA_SYNTH_BLACKBOX_MODULES ?=
+STA_KEEP_HIERARCHY_MODULES ?=
+# 黑盒宏的 non-signoff 占位 liberty(见 syn/macro-lib/README.md):让 iEDA STA 的
+# 时序图闭合出 rpt/pwr(消除 "liberty cell X is not exist"),数字不做签核;
+# 端口表随 RTL 变更需重跑 syn/macro-lib/gen_macro_libs.py 再生成。
+STA_EXTRA_LIB_FILES ?= \
+	$(abspath syn/macro-lib/Sram4096x199.lib) \
+	$(abspath syn/macro-lib/Sram4096x113.lib) \
+	$(abspath syn/macro-lib/OooFpArithGate.lib) \
+	$(abspath syn/macro-lib/OooBranchDirectionPredictor.lib)
 # 显式列出可综合核心文件，避免把含 DPI-C 的 NpcSimTop.sv 或纯宏头 define.v 混进综合网表。
 STA_RTL_FILES ?= $(RTL_CORE_SRCS)
 STA_RESULT_DIR = $(STA_RESULT_ROOT)/$(STA_DESIGN)-$(STA_CLK_FREQ_MHZ)MHz
@@ -176,6 +185,8 @@ STA_MAKE_ARGS = \
 	SYNTH_PUBLIC_AUTONAME=$(STA_SYNTH_PUBLIC_AUTONAME) \
 	SYNTH_DFF_AUTONAME=$(STA_SYNTH_DFF_AUTONAME) \
 	SYNTH_BLACKBOX_MODULES="$(STA_SYNTH_BLACKBOX_MODULES)" \
+	KEEP_HIERARCHY_MODULES="$(STA_KEEP_HIERARCHY_MODULES)" \
+	EXTRA_LIB_FILES="$(STA_EXTRA_LIB_FILES)" \
 	RTL_FILES="$(STA_RTL_FILES)"
 
 INCFLAGS = $(addprefix -I, $(INC_PATH))

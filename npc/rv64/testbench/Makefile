@@ -7,11 +7,16 @@ RESULT_DIR ?= ../perf/results/$(RESULT_TIMESTAMP)/module-testbench
 LOG_DIR := $(RESULT_DIR)/logs
 
 IVERILOG ?= iverilog
-# 当前 PATH 里可能先命中不完整 oss-cad-suite 的 vvp；优先使用系统 Icarus vvp，保证模块级 testbench 可独立复跑。
-VVP ?= $(if $(wildcard /usr/bin/vvp),/usr/bin/vvp,vvp)
+# iverilog 与 vvp 必须同源同版本：14.0 编译产物喂 12.0 runtime 会拒跑
+# ("VVP input file 14.0 can not be run with run time version 12.0")。
+# 取实际命中 iverilog 的同目录 vvp，找不到才退回 PATH。
+# (旧方案硬选 /usr/bin/vvp 因"oss-cad-suite vvp 不完整"，该前提已过时：当前套件 vvp 可正常跑 TB。)
+IVERILOG_BIN_DIR := $(dir $(shell command -v $(IVERILOG) 2>/dev/null))
+VVP ?= $(if $(wildcard $(IVERILOG_BIN_DIR)vvp),$(IVERILOG_BIN_DIR)vvp,vvp)
 IVFLAGS ?= -g2012 -Wall -I$(VSRCDIR) -I$(RTL_INCLUDE_DIR) -Icommon -DOOO_ASSERT
 
 TESTS := \
+  tb_pipe_stage_reg \
   tb_alu \
   tb_compare \
   tb_immgen \
@@ -59,6 +64,7 @@ TESTS := \
   tb_ooo_control_commit_sequencer \
   tb_ooo_commit_output_mux \
   tb_ooo_control_flush_sequencer \
+  tb_ooo_redirect_arbiter \
   tb_ooo_stop_pending_sequencer \
   tb_ooo_csr_access_request_mux \
   tb_ooo_csr_trap_request_mux \
@@ -125,7 +131,7 @@ TB_SRCS_tb_ooo_dispatch_backend := tests/tb_ooo_dispatch_backend.sv $(RTL_OOO_DI
 TB_SRCS_tb_ooo_muldiv_unit := tests/tb_ooo_muldiv_unit.sv $(RTL_OOO_MULDIV_UNIT)
 TB_SRCS_tb_ooo_clmul_unit := tests/tb_ooo_clmul_unit.sv $(RTL_OOO_CLMUL_UNIT)
 TB_OOO_INT_BACKEND_FP_SRCS := $(RTL_OOO_FP_BACKEND) $(RTL_OOO_FP_REG_FILE) $(RTL_OOO_FP_ISSUE_QUEUE) $(RTL_OOO_FP_PHYS_REG_FILE) $(RTL_OOO_FP_ARITH_GATE) $(RTL_OOO_FP_LONG_OP_GATE) $(RTL_OOO_FP_DIV_ITER) $(RTL_OOO_FP_SQRT_ITER) $(RTL_OOO_FP_CLASSIFY_GATE) $(RTL_OOO_FP_SGNJ_GATE) $(RTL_OOO_FP_COMPARE_GATE) $(RTL_OOO_FP_CONVERT_GATE)
-TB_OOO_INT_BACKEND_SRCS := $(TB_OOO_INT_BACKEND_FP_SRCS) $(RTL_OOO_MEM_INFLIGHT_QUEUE) $(RTL_OOO_STORE_QUEUE) $(RTL_OOO_MULDIV_UNIT) $(RTL_OOO_CLMUL_UNIT) $(RTL_OOO_INT_BACKEND) $(RTL_OOO_BITMANIP_GATE) $(RTL_OOO_AMO_GATE) $(RTL_OOO_DISPATCH_BACKEND) $(RTL_OOO_RENAME_MAP) $(RTL_OOO_FREE_LIST) $(RTL_OOO_BUSY_TABLE) $(RTL_OOO_ROB) $(RTL_OOO_INT_ISSUE_QUEUE) $(RTL_OOO_PHYS_REG_FILE) $(RTL_ALU) $(RTL_COMPARE_UNIT) $(RTL_LSU_CONTROL) $(RTL_LSU_DATAPATH) $(RTL_LSU) $(RTL_WBU)
+TB_OOO_INT_BACKEND_SRCS := $(TB_OOO_INT_BACKEND_FP_SRCS) $(RTL_OOO_MEM_INFLIGHT_QUEUE) $(RTL_OOO_STORE_QUEUE) $(RTL_OOO_MULDIV_UNIT) $(RTL_OOO_CLMUL_UNIT) $(RTL_OOO_INT_BACKEND) $(RTL_PIPE_STAGE_REG) $(RTL_OOO_BITMANIP_GATE) $(RTL_OOO_AMO_GATE) $(RTL_OOO_DISPATCH_BACKEND) $(RTL_OOO_RENAME_MAP) $(RTL_OOO_FREE_LIST) $(RTL_OOO_BUSY_TABLE) $(RTL_OOO_ROB) $(RTL_OOO_INT_ISSUE_QUEUE) $(RTL_OOO_PHYS_REG_FILE) $(RTL_ALU) $(RTL_COMPARE_UNIT) $(RTL_LSU_CONTROL) $(RTL_LSU_DATAPATH) $(RTL_LSU) $(RTL_WBU)
 TB_SRCS_tb_ooo_int_backend := tests/tb_ooo_int_backend.sv $(TB_OOO_INT_BACKEND_SRCS)
 TB_SRCS_tb_ooo_bitmanip_gate := tests/tb_ooo_bitmanip_gate.sv $(RTL_OOO_BITMANIP_GATE)
 TB_SRCS_tb_ooo_amo_gate := tests/tb_ooo_amo_gate.sv $(RTL_OOO_AMO_GATE)
@@ -146,6 +152,7 @@ TB_SRCS_tb_ooo_fetch_pc_outstanding_sequencer := tests/tb_ooo_fetch_pc_outstandi
 TB_SRCS_tb_ooo_control_commit_sequencer := tests/tb_ooo_control_commit_sequencer.sv $(RTL_OOO_CONTROL_COMMIT_SEQUENCER)
 TB_SRCS_tb_ooo_commit_output_mux := tests/tb_ooo_commit_output_mux.sv $(RTL_OOO_COMMIT_OUTPUT_MUX)
 TB_SRCS_tb_ooo_control_flush_sequencer := tests/tb_ooo_control_flush_sequencer.sv $(RTL_OOO_CONTROL_FLUSH_SEQUENCER)
+TB_SRCS_tb_ooo_redirect_arbiter := tests/tb_ooo_redirect_arbiter.sv $(RTL_OOO_REDIRECT_ARBITER)
 TB_SRCS_tb_ooo_stop_pending_sequencer := tests/tb_ooo_stop_pending_sequencer.sv $(RTL_OOO_STOP_PENDING_SEQUENCER)
 TB_SRCS_tb_ooo_csr_access_request_mux := tests/tb_ooo_csr_access_request_mux.sv $(RTL_OOO_CSR_ACCESS_REQUEST_MUX)
 TB_SRCS_tb_ooo_csr_trap_request_mux := tests/tb_ooo_csr_trap_request_mux.sv $(RTL_OOO_CSR_TRAP_REQUEST_MUX)
@@ -177,13 +184,14 @@ TB_SRCS_tb_ooo_fetch_packet_fifo := tests/tb_ooo_fetch_packet_fifo.sv $(RTL_OOO_
 TB_SRCS_tb_ooo_fetch_flow_control := tests/tb_ooo_fetch_flow_control.sv $(RTL_OOO_FETCH_FLOW_CONTROL)
 TB_SRCS_tb_ooo_fetch_head_pair_gate := tests/tb_ooo_fetch_head_pair_gate.sv $(RTL_OOO_FP_DECODE) $(RTL_OOO_FETCH_HEAD_CLASSIFY_GATE) $(RTL_OOO_FETCH_HEAD_PAIR_GATE)
 TB_SRCS_tb_ooo_fetch_head_classify_gate := tests/tb_ooo_fetch_head_classify_gate.sv $(RTL_OOO_FP_DECODE) $(RTL_OOO_FETCH_HEAD_CLASSIFY_GATE)
-TB_SRCS_tb_ooo_fetch_packet_cache := tests/tb_ooo_fetch_packet_cache.sv $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_OOO_FETCH_PACKET_CACHE_CHECKER)
-TB_SRCS_tb_ooo_data_word_cache := tests/tb_ooo_data_word_cache.sv $(RTL_OOO_DATA_WORD_CACHE) $(RTL_OOO_DATA_WORD_CACHE_CHECKER)
-TB_SRCS_tb_ooo_fetch_axi_bridge := tests/tb_ooo_fetch_axi_bridge.sv $(RTL_PMP_CHECKER) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
+TB_SRCS_tb_pipe_stage_reg := tests/tb_pipe_stage_reg.sv $(RTL_PIPE_STAGE_REG)
+TB_SRCS_tb_ooo_fetch_packet_cache := tests/tb_ooo_fetch_packet_cache.sv $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_FETCH_PACKET_CACHE_CHECKER)
+TB_SRCS_tb_ooo_data_word_cache := tests/tb_ooo_data_word_cache.sv $(RTL_OOO_DATA_WORD_CACHE) $(RTL_SRAM_DATA_WORD) $(RTL_OOO_DATA_WORD_CACHE_CHECKER)
+TB_SRCS_tb_ooo_fetch_axi_bridge := tests/tb_ooo_fetch_axi_bridge.sv $(RTL_PMP_CHECKER) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
 TB_SRCS_tb_ooo_fetch_trap_gate := tests/tb_ooo_fetch_trap_gate.sv $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
 TB_SRCS_tb_ooo_priv_system := tests/tb_ooo_priv_system.sv $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
 TB_SRCS_tb_ooo_sv39_boot := tests/tb_ooo_sv39_boot.sv $(RTL_CORE_SRCS)
-TB_SRCS_tb_ooo_mem_axi_bridge := tests/tb_ooo_mem_axi_bridge.sv $(RTL_PMP_CHECKER) $(RTL_OOO_DATA_WORD_CACHE) $(RTL_OOO_SV39_TLB) $(RTL_OOO_MEM_AXI_BRIDGE)
+TB_SRCS_tb_ooo_mem_axi_bridge := tests/tb_ooo_mem_axi_bridge.sv $(RTL_PMP_CHECKER) $(RTL_OOO_DATA_WORD_CACHE) $(RTL_SRAM_DATA_WORD) $(RTL_OOO_SV39_TLB) $(RTL_OOO_MEM_AXI_BRIDGE)
 .DEFAULT_GOAL := run
 
 run: $(TESTS:%=$(LOG_DIR)/%.log) summary
