@@ -54,14 +54,26 @@
   live `lsu_axi_rdata_i`（靠 xbar 保持 rdata 才碰巧对）——现统一用锁存 `paddr_q`。
   `req_ready` 在 S_LOOKUP 为 0（单 outstanding 不变）；`read_cross_q` 在 accept 拍按 VA 低 3 位判定，
   VA/PA 页内偏移相同故对 walk 路径同样成立。D-cache 模块级 lookup/fill/store 维护语义由
-  `ooo-data-word-cache.md` 冻结（store 维护一期为无条件失效），桥 spec 只约束事务级 FSM 与 AXI 行为。
+  `ooo-data-word-cache.md` 冻结（store 维护 = 2 拍 RMW write-update，v1.1），桥 spec 只约束
+  事务级 FSM 与 AXI 行为。
+- **store RMW write-update（2026-07-09 赎回）**：真 store commit（S_WRITE_REQ 解耦拍 /
+  S_WRITE_RESP b-ok 拍——两拍均非 lookup/fill 消费态，dcache 宏读口空闲）即 dcache RMW 发射拍；
+  次拍（判决拍，状态必∈{S_RESP,S_IDLE}）dcache 拉 `rmw_busy_o` 占宏口，桥以
+  `!dcache_rmw_busy_w` 压 `req_slot_ready`——**store 完成后 1 bubble**（S_RESP back-to-back
+  accept 被压一拍）。`dcache_lookup_en_w`/S_LOOKUP-miss 的 arvalid 与状态转移同加
+  `!rmw_busy` 安全网（状态互斥下恒不触发，MEM-RMW-PORT 断言把关）。
+  `store_decouple_commit_w` 限定 FSM 正常推进分支（`fsm_normal_w`）：flush-drain 拍
+  FSM 进 S_WRITE_RESP 等 B、改由 b-ok 拍单次提交，消灭同一 store 双 commit（第二次 RMW
+  发射会撞第一次判决拍，1RW 违约）。HW A/D PTE 写回维护（S_AD_UPDATE b-ok）不走 RMW
+  （`store_rmw_en_i=0`，无条件失效）——该拍的 read 续访问可能同拍发 lookup，宏读口不空闲。
 - **PTW 隐式访问 PMP（F9）**：每级 PTE 读地址（`walk_pte_addr_w`）经独立 PmpChecker 检查，违例在
   S_WALK_AR 直接转 S_RESP 报 access fault（非 page fault），不发 AR。
 - **Svnapot 64KiB**：PTW 只接受 level0 leaf 且 `PTE.N=1 && PTE.PPN[3:0]=4'b1000`；非 leaf、
   level1/2 leaf 或其它 NAPOT 编码均报 load/store page fault。合法 leaf 的 PA 拼接使用 VA[15:12]
   替代 PTE.PPN[3:0]，再进入 PMP、dcache 或 AXI 访问；DTLB hit 复核必须带 leaf level。
-- 单 outstanding 由**状态**强制：`req_slot_ready_w = !cpu_kill && (S_IDLE || (S_RESP && rsp_ready))`，
-  写/读事务进行中(非 S_IDLE/S_RESP)不接受新请求。**与 drop_rsp_q 无关**。
+- 单 outstanding 由**状态**强制：`req_slot_ready_w = !cpu_kill && !dcache_rmw_busy &&
+  (S_IDLE || (S_RESP && rsp_ready))`，写/读事务进行中(非 S_IDLE/S_RESP)不接受新请求；
+  dcache RMW 判决拍(store 完成次拍)额外压 1 拍。**与 drop_rsp_q 无关**。
 
 ## 4. flush / drain 路径（`if (flush_i || drop_rsp_q)` 分支）
 `drop_rsp_q` = "本地已放弃当前事务、但下游可能仍会回一个需吞掉的响应" 的粘滞标志。
@@ -110,6 +122,13 @@
   `ooo-data-word-cache.md` §4）。sim 统计探针 `req_dcache_hit_w` 改为判决拍粘滞值
   （`CONFIG_NPC_SIM_STATS` 构建专用，NpcSimTop 的 fire&&hit 表达式变为错位一拍近似，
   精确化归宏合同收尾统一改 NpcSimTop）。
+- 2026-07-09：**store RMW write-update 赎回**——真 store commit 变 dcache 2 拍 RMW 发射
+  （§3 要点），`req_slot_ready` 加 `!dcache_rmw_busy`（store 后 1 bubble），
+  `store_decouple_commit_w` 限定正常推进分支（flush-drain 改 b-ok 拍单次提交），
+  `dcache_lookup_en/arvalid(S_LOOKUP-miss)/S_LOOKUP miss 转移` 加 `!rmw_busy` 安全网 +
+  MEM-RMW-PORT 断言。A/D PTE 写回维护保持无条件失效（`store_rmw_en_i=0`）。
+  桥 TB：post-commit/post-drain 同址读改回 hit 预期、drain 完成后 1 bubble、新增
+  `store_rmw_write_update_and_bubble` 定向（ready 压制 + 字节合并数据回读）。
 
 ## 已知隐患(2026-06-28 bug-hunt,当前不可触发)
 - "至多一个未收 B" 不变量未由桥自身保证,依赖外部 `AxiLiteXbar` 串行化写;接流水化写互连会 B 归因 off-by-one。详见 `.github/memory/known-issues.md`(隐患A)。IP 复用前应桥内自保证(accept 新写前 `!bpend_q` 或 B 计数+归属)。

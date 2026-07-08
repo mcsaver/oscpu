@@ -4,6 +4,9 @@
 // (checker 自带一份发射拍锁存), 原 DWC-HIT-GATE/DWC-WALK-HIT-GATE 两个同拍断言
 // 随 req/walk 读口合并为单 lookup 口而合一为打拍版; 纯地址组合断言
 // (REQ-CACHEABLE/WALK-CACHEABLE/LINE-CROSS)保持同拍不变。
+// 【store RMW】真 store commit 走 2 拍 RMW: checker 自带 pend 模型审核
+// rmw_busy 恰为 commit 次拍(DWC-RMW-BUSY), 且 RMW 两拍窗口内宏口不得被
+// lookup/fill 抢占(DWC-RMW-PORT)、不得背靠背 RMW(DWC-RMW-B2B)。
 `include "define.v"
 `include "common/OooDataWordCacheFacts.vh"
 
@@ -27,8 +30,11 @@ module OooDataWordCacheChecker (
   input wire [`XLEN-1:0] fill_addr_i,
 
   input wire store_commit_i,
+  input wire store_rmw_en_i,
   input wire [`XLEN-1:0] store_addr_i,
-  input wire [`STRB_W-1:0] store_wstrb_i
+  input wire [`XLEN-1:0] store_wdata_i,
+  input wire [`STRB_W-1:0] store_wstrb_i,
+  input wire rmw_busy_i
 );
 
   function cacheable_addr;
@@ -75,6 +81,17 @@ module OooDataWordCacheChecker (
       lookup_addr_q <= lookup_addr_i;
   end
 
+  // store RMW pend 模型: rmw_busy 必须恰为"cacheable 真 store commit"的次拍。
+  wire store_rmw_issue_w =
+      store_commit_i && store_rmw_en_i && cacheable_addr(store_addr_i);
+  reg rmw_pend_model_q;
+  always @(posedge clk) begin
+    if (rst)
+      rmw_pend_model_q <= 1'b0;
+    else
+      rmw_pend_model_q <= store_rmw_issue_w;
+  end
+
   wire [`OOO_DWC_FACTS_W-1:0] facts_w;
   assign facts_w[`OOO_DWC_REQ_UNCACHED] =
       !cacheable_addr(req_lookup_addr_i);
@@ -86,10 +103,12 @@ module OooDataWordCacheChecker (
   assign facts_w[`OOO_DWC_STORE_COMMIT] = store_commit_i;
   assign facts_w[`OOO_DWC_STORE_LINE_CROSS] =
       store_commit_i && store_line_cross_w;
+  assign facts_w[`OOO_DWC_STORE_RMW_ISSUE] = store_rmw_issue_w;
+  assign facts_w[`OOO_DWC_STORE_RMW_BUSY] = rmw_busy_i;
 
   wire _unused_facts_w =
       |facts_w | (|walk_lookup_addr_i) | (|fill_addr_i) |
-      (|store_addr_i) | (|store_wstrb_i);
+      (|store_addr_i) | (|store_wdata_i) | (|store_wstrb_i);
 
 `ifdef OOO_ASSERT
   always @(posedge clk) begin
@@ -151,6 +170,38 @@ module OooDataWordCacheChecker (
         (!cacheable_addr(fill_addr_i) || (fill_addr_i[2:0] != 3'b000))) begin
       $error("[DWC-FILL-ADDR] fill must be PMEM cacheable and 8B aligned: addr=%h @%0t",
              fill_addr_i, $time);
+      $fatal;
+    end
+  end
+
+  // DWC-RMW-BUSY: rmw_busy 恰为 RMW 发射(cacheable 真 store commit)的次拍,
+  // 多一拍/少一拍都意味着桥的 1 bubble 门控与 DWC 两拍机构失配。
+  always @(posedge clk) begin
+    if (!rst && (rmw_busy_i !== rmw_pend_model_q)) begin
+      $error("[DWC-RMW-BUSY] rmw_busy=%b 但模型=%b(应恰为 RMW 发射次拍) @%0t",
+             rmw_busy_i, rmw_pend_model_q, $time);
+      $fatal;
+    end
+  end
+
+  // DWC-RMW-PORT: RMW 两拍窗口(发射拍占读口/判决拍占写口)内宏口不得被
+  // lookup 发射或 fill 抢占(1RW 违约)。A/D 维护路(store_rmw_en=0)不占口,
+  // 允许与 lookup 同拍。
+  always @(posedge clk) begin
+    if (!rst && (store_rmw_issue_w || rmw_busy_i) &&
+        (lookup_en_i || fill_valid_i)) begin
+      $error("[DWC-RMW-PORT] RMW 窗口宏口被抢: issue=%b busy=%b lookup=%b fill=%b @%0t",
+             store_rmw_issue_w, rmw_busy_i, lookup_en_i, fill_valid_i, $time);
+      $fatal;
+    end
+  end
+
+  // DWC-RMW-B2B: RMW 判决拍不得再来一个 RMW 发射(桥 store commit 源状态上
+  // 不可能背靠背; 出现即 store_decouple_commit 双提交类回归)。
+  always @(posedge clk) begin
+    if (!rst && store_rmw_issue_w && rmw_busy_i) begin
+      $error("[DWC-RMW-B2B] RMW 判决拍出现新 RMW 发射(背靠背 commit) @%0t",
+             $time);
       $fatal;
     end
   end

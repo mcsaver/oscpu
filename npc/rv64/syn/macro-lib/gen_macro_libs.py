@@ -45,11 +45,14 @@ CELLS = [
         ("wdata_i", 199, "input"),
         ("rdata_o", 199, "output"),
     ]),
+    # bit-write-mask 变体(2026-07-09 store RMW write-update): wmask_i 与 wdata_i
+    # 同宽同 setup 弧——真实 SRAM 宏的 per-bit write mask 端口形态。
     ("Sram4096x113", "clk", [
         ("en_i", 1, "input"),
         ("we_i", 1, "input"),
         ("addr_i", 12, "input"),
         ("wdata_i", 113, "input"),
+        ("wmask_i", 113, "input"),
         ("rdata_o", 113, "output"),
     ]),
     ("OooFpArithGate", "clk", [

@@ -3,7 +3,7 @@
  * 全端口按寄存器边界宏抽象:input setup 0.500ns/hold 0.100ns 对 clk;
  * output 从 clk 上升沿 1.000ns 固定 delay;pin cap 0.010pf。
  * 单位/操作条件数值对齐 icsprout55 (1ns/1pf/1.2V/25C)。
- * 由 gen_macro_libs.py 生成(2026-07-08),勿手改——改端口表后重跑生成器。
+ * 由 gen_macro_libs.py 生成(2026-07-09),勿手改——改端口表后重跑生成器。
  */
 library (Sram4096x113) {
   technology (cmos);
@@ -134,6 +134,31 @@ library (Sram4096x113) {
       }
     }
     bus (wdata_i) {
+      bus_type : bus_113;
+      direction : input;
+      capacitance : 0.010;
+      timing () {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint (scalar) {
+          values ("0.500");
+        }
+        fall_constraint (scalar) {
+          values ("0.500");
+        }
+      }
+      timing () {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint (scalar) {
+          values ("0.100");
+        }
+        fall_constraint (scalar) {
+          values ("0.100");
+        }
+      }
+    }
+    bus (wmask_i) {
       bus_type : bus_113;
       direction : input;
       capacitance : 0.010;

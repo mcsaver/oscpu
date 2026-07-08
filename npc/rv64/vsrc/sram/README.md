@@ -11,6 +11,10 @@
 2. **仿真真源**：本目录的行为模型即仿真语义——1RW 单口、同步读
    （en 且非写时读地址打拍，次拍 `rdata_o` 有效）、write-first 不保证
    （读写同拍同址视为使用方违约，使用方必须保证读写状态互斥）。
+   带 `wmask_i` 的规格为 **bit-write-mask 变体**（真实工艺 SRAM 宏的常见
+   端口形态）：写拍仅 `wmask_i=1` 的位落 `wdata_i`，其余位保持；全行写传
+   全 1 掩码。占位 lib（`syn/macro-lib/gen_macro_libs.py`）的 pin 表须与
+   端口同步。
 3. **综合边界**：NpcTop 综合时本目录模块经 `SYNTH_BLACKBOX_MODULES`
    黑盒化，由工艺 SRAM 宏 / bsg_fakeram 生成的 lib/lef 提供实现；
    本目录行为模型**不得**进入标准单元综合展开（4096 深阵列会重现
@@ -24,4 +28,4 @@
 | 模块 | 规格 | 使用方 | 用途 |
 | --- | --- | --- | --- |
 | `Sram4096x199` | 4096×199, 1RW | `OooFetchPacketCache` | 取指包 payload（paging/priv/satp/pc/inst0/inst1/resp0/resp1 拼宽） |
-| `Sram4096x113` | 4096×113, 1RW | `OooDataWordCache` | d-cache tag+data 拼宽 |
+| `Sram4096x113` | 4096×113, 1RW, bit-write-mask | `OooDataWordCache` | d-cache tag+data 拼宽；store RMW write-update 只写 data 段字节（tag 段掩码 0） |

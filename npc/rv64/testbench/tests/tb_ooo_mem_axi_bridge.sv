@@ -412,8 +412,13 @@ module tb_ooo_mem_axi_bridge;
       tick();
       lsu_axi_bvalid = 1'b0;
       #1;
-      tb_check1("bridge idle after write drain", mem0_req_ready, 1'b1);
+      // 【store RMW】drain store 的 B-ok 次拍是 RMW 判决拍(write-update 合并
+      // 落宏), req_ready 压 1 bubble 后才回 idle。
+      tb_check1("write drain rmw bubble blocks accept", mem0_req_ready, 1'b0);
       tb_check1("write drain never exposes response", mem0_rsp_valid, 1'b0);
+      tick();
+      #1;
+      tb_check1("bridge idle after write drain", mem0_req_ready, 1'b1);
     end
   endtask
 
@@ -506,23 +511,16 @@ module tb_ooo_mem_axi_bridge;
       tb_check1("post-commit read no AR at fire", lsu_axi_arvalid, 1'b0);
       tick();
       mem0_req_valid = 1'b0;
-      // 【SRAM 一期·无条件失效】committed store 直接失效 line(write-update
-      // 保热已刻意丢弃): 同址读判决拍必 miss 走 AXI 重取, store 数据可见性
-      // 经 MEM-I2(数据已落 PMEM)由 slave 回传, 而非 cache 保热。
+      // 【store RMW·write-update】committed store 在完成拍 2 拍 RMW 线内合并,
+      // line 保持有效且已含新数据: 同址读判决拍命中, 不发 AR, 数据来自 cache
+      // (与 PMEM 一致, MEM-I2 下 store 数据已落 PMEM)。
       #1;
-      tb_check1("post-commit read misses invalidated line",
-                lsu_axi_arvalid, 1'b1);
-      tb_check64("post-commit reload AR address", lsu_axi_araddr,
-                 64'h0000_0000_8000_5000);
+      tb_check1("post-commit read hits updated line", lsu_axi_arvalid, 1'b0);
       tick();
       lsu_axi_arready = 1'b0;
-      lsu_axi_rvalid = 1'b1;
-      lsu_axi_rdata = 64'haaaa_bbbb_cccc_dddd;   // store 后的 PMEM 内容
-      tick();
-      lsu_axi_rvalid = 1'b0;
       #1;
-      tb_check1("post-commit reload response valid", mem0_rsp_valid, 1'b1);
-      tb_check64("committed store data visible via reload", mem0_rsp_rdata,
+      tb_check1("post-commit cached response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("committed store data visible via cache hit", mem0_rsp_rdata,
                  64'haaaa_bbbb_cccc_dddd);
       mem0_rsp_ready = 1'b1;
       tick();
@@ -563,26 +561,97 @@ module tb_ooo_mem_axi_bridge;
       tb_check1("post-drain read no AR at fire", lsu_axi_arvalid, 1'b0);
       tick();
       mem0_req_valid = 1'b0;
-      // 【SRAM 一期·无条件失效】flush 下 drain 的 store 同样在完成拍失效 line
-      // (untracked-over-flush 语义保持): 同址读 miss 走 AXI 重取新值。
+      // 【store RMW·write-update】flush 下 drain 的 store 同样在完成拍 RMW
+      // 合并进 line(untracked-over-flush 语义保持: 数据已落 PMEM, cache 与
+      // PMEM 一致): 同址读命中新值, 不发 AR。
       #1;
-      tb_check1("post-drain read misses invalidated line",
-                lsu_axi_arvalid, 1'b1);
-      tb_check64("post-drain reload AR address", lsu_axi_araddr,
-                 64'h0000_0000_8000_5000);
+      tb_check1("post-drain read hits updated line", lsu_axi_arvalid, 1'b0);
       tick();
       lsu_axi_arready = 1'b0;
-      lsu_axi_rvalid = 1'b1;
-      lsu_axi_rdata = 64'h1234_5678_9abc_def0;   // drain store 后的 PMEM 内容
-      tick();
-      lsu_axi_rvalid = 1'b0;
       #1;
-      tb_check1("post-drain reload response valid", mem0_rsp_valid, 1'b1);
-      tb_check64("drained store data visible via reload", mem0_rsp_rdata,
+      tb_check1("post-drain cached response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("drained store data visible via cache hit", mem0_rsp_rdata,
                  64'h1234_5678_9abc_def0);
       mem0_rsp_ready = 1'b1;
       tick();
       mem0_rsp_ready = 1'b0;
+    end
+  endtask
+
+  // 【store RMW 定向】write-update 的 2 拍 RMW 与读口仲裁:
+  //   (a) store 完成次拍(RMW 判决拍)rmw_busy 压 req_ready——S_RESP back-to-back
+  //       accept 被压出 1 bubble, 新请求最早在再次拍被接受;
+  //   (b) bubble 后的同址 load 命中 RMW 合并后的 line(部分字节 wstrb 合并,
+  //       数据来自 cache 而非 AXI——本场景 R 通道全程不驱动即为证明)。
+  task automatic store_rmw_write_update_and_bubble;
+    begin
+      // 种子 fill: 读 0x8000_7000 → line = 0x1111_2222_3333_4444
+      issue_mem0_read(64'h0000_0000_8000_7000);
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'h1111_2222_3333_4444;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("rmw seed response valid", mem0_rsp_valid, 1'b1);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+
+      // 低 4B 部分 store(PMEM 解耦: AW/W 完成拍即 commit=RMW 发射拍)
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b1;
+      mem0_req_addr = 64'h0000_0000_8000_7000;
+      mem0_req_wdata = 64'h0000_0000_dead_beef;
+      mem0_req_wstrb = 8'b0000_1111;
+      lsu_axi_awready = 1'b1;
+      lsu_axi_wready = 1'b1;
+      #1;
+      tb_check1("rmw store request ready", mem0_req_ready, 1'b1);
+      tick();
+      // 同拍立即换上 back-to-back load 请求(考 req_ready 压制)
+      mem0_req_write = 1'b0;
+      mem0_req_addr = 64'h0000_0000_8000_7000;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      mem0_rsp_ready = 1'b1;
+      #1;
+      tb_check1("rmw store issues AW", lsu_axi_awvalid, 1'b1);
+      tb_check1("rmw store issues W", lsu_axi_wvalid, 1'b1);
+      tick();
+      lsu_axi_awready = 1'b0;
+      lsu_axi_wready = 1'b0;
+      #1;
+      // RMW 判决拍: store 响应有效(S_RESP), 但 rmw_busy 必须压住 back-to-back
+      // accept(req_ready=0)——这就是 store 后 1 bubble。
+      tb_check1("rmw decision cycle store response valid", mem0_rsp_valid,
+                1'b1);
+      tb_check1("rmw decision cycle blocks accept (1 bubble)",
+                mem0_req_ready, 1'b0);
+      tick();
+      #1;
+      // bubble 之后恢复接受(响应已被消费, 桥回 S_IDLE)
+      tb_check1("bridge accepts after rmw bubble", mem0_req_ready, 1'b1);
+      lsu_axi_arready = 1'b1;   // 陷阱: 命中不得发 AR
+      tick();
+      mem0_req_valid = 1'b0;
+      mem0_rsp_ready = 1'b0;
+      #1;
+      tb_check1("post-rmw load hits merged line (no AR)", lsu_axi_arvalid,
+                1'b0);
+      tick();
+      lsu_axi_arready = 1'b0;
+      #1;
+      tb_check1("post-rmw load response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("post-rmw load returns byte-merged data", mem0_rsp_rdata,
+                 64'h1111_2222_dead_beef);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+
+      // 解耦 store 的后台 B 由 bpend 吸收
+      lsu_axi_bvalid = 1'b1;
+      tick();
+      lsu_axi_bvalid = 1'b0;
+      tick();
     end
   endtask
 
@@ -935,6 +1004,7 @@ module tb_ooo_mem_axi_bridge;
     cached_window_shift_and_cross_block();
     partial_write_flush_drain();
     flushed_store_does_not_poison_dcache();
+    store_rmw_write_update_and_bubble();
     sv39_leaf_ad_update("sv39 A=0 load triggers HW A update", 1'b0,
                        LEAF_NO_ACCESS_FLAGS);
     sv39_leaf_ad_update("sv39 D=0 store triggers HW D update", 1'b1,

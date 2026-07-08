@@ -5,6 +5,10 @@
 // expect 全部改经 issue_lookup(插 tick); 纯地址组合视图(cacheable/line_cross)
 // 仍同拍 #1 观测。窗口移位与跨线阻断职责移至桥判决拍, 由 tb_ooo_mem_axi_bridge
 // 的 unaligned-hit/跨线读场景审核。
+// 【store RMW·write-update 赎回】真 store commit(store_rmw_en=1)走 2 拍 RMW:
+// commit 拍占宏口读, 次拍(rmw_busy=1)tag match 则线内字节合并写(tag 段不写)。
+// commit_store 任务同步审核 rmw_busy 恰为发射次拍; 一期"无条件失效"预期全部
+// 重写为 write-update 预期。A/D 维护路(store_rmw_en=0)保持无条件失效。
 // INDEX_W 固定 12(Sram4096x113 宏定死), TB 不再用小参数覆盖。
 module tb_ooo_data_word_cache;
   `include "tb_common.svh"
@@ -30,12 +34,17 @@ module tb_ooo_data_word_cache;
   reg [`XLEN-1:0] fill_data;
 
   reg store_commit;
+  reg store_rmw_en;
   reg [`XLEN-1:0] store_addr;
+  reg [`XLEN-1:0] store_wdata;
   reg [`STRB_W-1:0] store_wstrb;
+  wire rmw_busy;
 
   localparam [`XLEN-1:0] WORD0 = `NPC_AXI_PMEM_BASE + 64'h0000_1000;
   localparam [`XLEN-1:0] WORD1 = `NPC_AXI_PMEM_BASE + 64'h0000_1008;
   localparam [`XLEN-1:0] WORD2 = `NPC_AXI_PMEM_BASE + 64'h0000_1010;
+  // 与 WORD0 同 index(addr[14:3])异 tag 的别名行(write-update 不误伤检查用)
+  localparam [`XLEN-1:0] ALIAS0 = WORD0 + 64'h0000_8000;
   localparam [`XLEN-1:0] MMIO_WORD = 64'h0000_0000_1000_0000;
 
   OooDataWordCache dut (
@@ -55,8 +64,11 @@ module tb_ooo_data_word_cache;
     .fill_addr_i(fill_addr),
     .fill_data_i(fill_data),
     .store_commit_i(store_commit),
+    .store_rmw_en_i(store_rmw_en),
     .store_addr_i(store_addr),
-    .store_wstrb_i(store_wstrb)
+    .store_wdata_i(store_wdata),
+    .store_wstrb_i(store_wstrb),
+    .rmw_busy_o(rmw_busy)
   );
 
   OooDataWordCacheChecker u_checker (
@@ -74,8 +86,11 @@ module tb_ooo_data_word_cache;
     .fill_valid_i(fill_valid),
     .fill_addr_i(fill_addr),
     .store_commit_i(store_commit),
+    .store_rmw_en_i(store_rmw_en),
     .store_addr_i(store_addr),
-    .store_wstrb_i(store_wstrb)
+    .store_wdata_i(store_wdata),
+    .store_wstrb_i(store_wstrb),
+    .rmw_busy_i(rmw_busy)
   );
 
   task automatic tb_check64;
@@ -108,7 +123,9 @@ module tb_ooo_data_word_cache;
       fill_addr = {`XLEN{1'b0}};
       fill_data = {`XLEN{1'b0}};
       store_commit = 1'b0;
+      store_rmw_en = 1'b0;
       store_addr = {`XLEN{1'b0}};
+      store_wdata = {`XLEN{1'b0}};
       store_wstrb = {`STRB_W{1'b0}};
     end
   endtask
@@ -126,16 +143,31 @@ module tb_ooo_data_word_cache;
     end
   endtask
 
+  // store commit: 发射拍拉 store_commit(RMW 路该拍占宏口读), tick 后判决拍
+  // 审核 rmw_busy 恰位(cacheable RMW 路=1, A/D 维护路与 uncacheable=0),
+  // 再 tick 走完判决拍(RMW 写落宏)并确认 busy 回落——两拍窗口内不发 lookup,
+  // 与桥侧 req_ready 压制的合同一致(checker DWC-RMW-PORT 把关)。
   task automatic commit_store;
     input [`XLEN-1:0] addr;
     input [`STRB_W-1:0] strb;
+    input [`XLEN-1:0] data;
+    input rmw_en;
+    reg busy_exp_r;
     begin
+      busy_exp_r =
+          rmw_en && ((addr & `NPC_AXI_PMEM_MASK) == `NPC_AXI_PMEM_BASE);
       store_addr = addr;
       store_wstrb = strb;
+      store_wdata = data;
+      store_rmw_en = rmw_en;
       store_commit = 1'b1;
       tick();
       store_commit = 1'b0;
       #1;
+      tb_check1("rmw busy tracks decision cycle", rmw_busy, busy_exp_r);
+      tick();
+      #1;
+      tb_check1("rmw busy deasserts after decision", rmw_busy, 1'b0);
     end
   endtask
 
@@ -205,35 +237,66 @@ module tb_ooo_data_word_cache;
     req_nbytes = 4'd8;
     #1;
 
-    // 【SRAM 一期】store 维护 = 无条件失效: 命中行不再 byte-merge 保热
-    // (write-update 为刻意丢弃的一期取舍), store 后同址读必 miss 走 AXI。
-    commit_store(WORD0, 8'b1010_0101);
+    // 【store RMW·write-update】命中线内字节合并: 低 4B 覆盖, 高 4B 保持,
+    // line 依旧有效(一期无条件失效预期废止)。
+    commit_store(WORD0, 8'b0000_1111, 64'haabb_ccdd_1122_3344, 1'b1);
     issue_lookup(WORD0);
-    tb_check1("store invalidates line unconditionally", lookup_hit, 1'b0);
+    tb_check1("rmw store keeps line valid", lookup_hit, 1'b1);
+    tb_check64("rmw store merges low bytes", lookup_line,
+               64'h0011_2233_1122_3344);
 
-    commit_store(WORD1, 8'b1111_1111);
+    // 偏移合并: off=4 的 2B store 只覆盖 byte4..5(窗口数据低位起)
+    commit_store(WORD0 + 64'd4, 8'b0000_0011, 64'h0000_0000_0000_8899, 1'b1);
+    issue_lookup(WORD0);
+    tb_check1("offset rmw store keeps line valid", lookup_hit, 1'b1);
+    tb_check64("offset rmw store merges bytes 4..5", lookup_line,
+               64'h0011_8899_1122_3344);
+
+    // write-no-allocate: miss 行(未 fill)store 不建行也不误动他行
+    commit_store(WORD1, 8'b1111_1111, 64'hdead_dead_dead_dead, 1'b1);
     issue_lookup(WORD1);
-    // write-no-allocate: full-8B store miss 也不建行
     tb_check1("full store miss no allocate (line model)", lookup_hit, 1'b0);
 
-    commit_store(WORD2, 8'b0000_1111);
+    commit_store(WORD2, 8'b0000_1111, 64'hdead_dead_dead_dead, 1'b1);
     issue_lookup(WORD2);
     tb_check1("partial store miss no allocate", lookup_hit, 1'b0);
 
-    // 跨线 store: 两条相关 line 都失效(无条件, 不比 tag)
+    // write-update 主收益: 同 index 异 tag 的 store miss 不再误清原行
+    commit_store(ALIAS0, 8'b1111_1111, 64'h5a5a_5a5a_5a5a_5a5a, 1'b1);
+    issue_lookup(WORD0);
+    tb_check1("alias-index store miss keeps victim line", lookup_hit, 1'b1);
+    tb_check64("alias-index store miss keeps victim data", lookup_line,
+               64'h0011_8899_1122_3344);
+    issue_lookup(ALIAS0);
+    tb_check1("alias-index store no allocate", lookup_hit, 1'b0);
+
+    // 跨线 store: 本行照常线内合并(掩码截断=线内字节), 下一行保守失效
     fill_word(WORD0, 64'h1111_2222_3333_4444);
     fill_word(WORD1, 64'h5555_6666_7777_8888);
     issue_lookup(WORD0);
     tb_check1("cross-store setup word0 hit", lookup_hit, 1'b1);
     issue_lookup(WORD1);
     tb_check1("cross-store setup word1 hit", lookup_hit, 1'b1);
-    commit_store(WORD0 + 64'd6, 8'b0000_1111);
+    commit_store(WORD0 + 64'd6, 8'b0000_1111, 64'h0000_0000_aabb_ccdd, 1'b1);
     issue_lookup(WORD0);
-    tb_check1("cross-line store invalidates first line", lookup_hit, 1'b0);
+    tb_check1("cross-line store updates first line in-line bytes",
+              lookup_hit, 1'b1);
+    tb_check64("cross-line store merged bytes 6..7", lookup_line,
+               64'hccdd_2222_3333_4444);
     issue_lookup(WORD1);
     tb_check1("cross-line store invalidates second line", lookup_hit, 1'b0);
 
-    // MMIO: 组合视图不 cacheable, lookup 判决必 miss
+    // A/D PTE 写回维护路(store_rmw_en=0): 保持一期无条件失效, 无 RMW 两拍窗口
+    fill_word(WORD2, 64'h9999_8888_7777_6666);
+    issue_lookup(WORD2);
+    tb_check1("ad-maintenance setup hit", lookup_hit, 1'b1);
+    commit_store(WORD2, 8'b1111_1111, 64'h0badc0de_0badc0de, 1'b0);
+    issue_lookup(WORD2);
+    tb_check1("ad-maintenance store invalidates unconditionally",
+              lookup_hit, 1'b0);
+
+    // MMIO: 组合视图不 cacheable, store commit 无 RMW(busy 恒 0), 判决必 miss
+    commit_store(MMIO_WORD, 8'b1111_1111, 64'h1234_5678_9abc_def0, 1'b1);
     req_lookup_addr = MMIO_WORD;
     walk_lookup_addr = MMIO_WORD;
     #1;

@@ -303,7 +303,12 @@ module OooMemAxiBridge (
   // nokill 事务(退休 store 落存)进行期间, flush/drop 对 FSM 推进与响应握手均无效——
   // 写必达。nokill_q 是"当前事务"属性(accept 拍覆盖), 非 IDLE 态即有效。
   wire nokill_busy_w = nokill_q && (state_q != S_IDLE);
-  wire req_slot_ready_w = !cpu_kill_w &&
+  // FSM 正常推进分支选择条件(flush/drop 拍走 drain 分支; nokill 事务免疫)。
+  wire fsm_normal_w = !cpu_kill_w || nokill_busy_w;
+  // 【store RMW】dcache store write-update 判决拍占宏口: 该拍压 req_ready
+  // (store 后 1 bubble), 阻止 S_IDLE/S_RESP back-to-back accept 发 lookup 抢口。
+  wire dcache_rmw_busy_w;
+  wire req_slot_ready_w = !cpu_kill_w && !dcache_rmw_busy_w &&
                           ((state_q == S_IDLE) ||
                            ((state_q == S_RESP) && rsp_ready_w));
   wire req_write_w = mem0_req_write_i;
@@ -368,7 +373,11 @@ module OooMemAxiBridge (
   wire store_decouple_w;
   // 解耦 store 在数据落 PMEM 当拍(S_WRITE_REQ 两 beat 完成且走解耦)就必须更新/失效 dcache，
   // 否则跳过 S_WRITE_RESP 会漏掉 dcache 维护、令同地址后续 load 命中旧值(MEM-I2 破坏)。
+  // 【store RMW】限定正常推进分支(fsm_normal_w): flush-drain 拍 FSM 进 S_WRITE_RESP
+  // 等 B, 改由 b-ok 拍单次提交——否则同一 store 双 commit, 第二次 RMW 读会撞上
+  // 第一次的判决拍(1RW 违约)。语义不变: drain store 仍在 B ok 拍维护 dcache。
   wire store_decouple_commit_w =
+      fsm_normal_w &&
       (state_q == S_WRITE_REQ) &&
       ((aw_done_q || aw_fire_w) && (w_done_q || w_fire_w)) &&
       store_decouple_w;
@@ -397,10 +406,12 @@ module OooMemAxiBridge (
       (aw_done_q || aw_fire_w) && (w_done_q || w_fire_w) && !write_q;
   // walk/A/D 路只在 FSM 正常推进分支发读(flush/drop 拍事务被释放, 不发)。
   // req 路的 fire 已经由 req_slot_ready_w 含 !cpu_kill_w 把关。
-  wire fsm_normal_w = !cpu_kill_w || nokill_busy_w;
+  // 【store RMW】判决拍宏口被 RMW 占用, lookup 一律不发(!rmw_busy 是安全网:
+  // 三源所在状态与 RMW 判决拍状态互斥, 由下方 OOO_ASSERT 证实恒不触发)。
   wire dcache_lookup_en_w =
-      req_read_lookup_fire_w ||
-      (fsm_normal_w && (walk_read_lookup_fire_w || ad_read_lookup_fire_w));
+      !dcache_rmw_busy_w &&
+      (req_read_lookup_fire_w ||
+       (fsm_normal_w && (walk_read_lookup_fire_w || ad_read_lookup_fire_w)));
   wire [`XLEN-1:0] dcache_lookup_addr_w =
       req_read_lookup_fire_w  ? req_cache_addr_w :
       walk_read_lookup_fire_w ? walk_leaf_paddr_w : paddr_q;
@@ -488,11 +499,16 @@ module OooMemAxiBridge (
     .fill_valid_i(dcache_read_fill_valid_w),
     .fill_addr_i({paddr_q[`XLEN-1:3], 3'b000}),
     .fill_data_i(lsu_axi_rdata_i),
-    // 【SRAM 一期】store 维护 = 无条件失效(cache 内不读 tag 不写 SRAM)。
+    // 【store RMW·二期赎回】真 store commit(S_WRITE_REQ 解耦/S_WRITE_RESP b-ok,
+    // 该拍宏读口空闲)走 2 拍 RMW write-update; HW A/D PTE 写回维护路保持无条件
+    // 失效(该拍的 read 续访问可能同拍发 lookup, 读口不空闲)。
     .store_commit_i(dcache_store_commit_w),
+    .store_rmw_en_i(!ad_update_b_ok_w),
     // HW A/D: PTE 写回拍(ad_update_b_ok_w)对 PTE 地址维护 dcache; 否则用 store 地址。
     .store_addr_i(ad_update_b_ok_w ? walk_pte_addr_w : paddr_q),
-    .store_wstrb_i(ad_update_b_ok_w ? {`STRB_W{1'b1}} : wstrb_q)
+    .store_wdata_i(wdata_q),
+    .store_wstrb_i(ad_update_b_ok_w ? {`STRB_W{1'b1}} : wstrb_q),
+    .rmw_busy_o(dcache_rmw_busy_w)
   );
 
   // (sim 统计探针已精确化：NpcSimTop 改为 access 打一拍 + 直接采判决拍
@@ -509,11 +525,13 @@ module OooMemAxiBridge (
 
   // 【SRAM 同步读】read miss 的 AR 从 fire 拍推迟到 S_LOOKUP 判决拍(晚 1 拍),
   // 地址/strb 统一取锁存 paddr_q/wstrb_q, 原 req_* 直通支路随之删除。
+  // S_LOOKUP 项的 !rmw_busy 与 FSM 转移侧一致(读口互斥安全网, 状态互斥下恒真)。
   assign lsu_axi_arvalid_o =
       !cpu_kill_w &&
       (((state_q == S_WALK_AR) && !walk_pte_pmp_fault_w) ||
        (state_q == S_READ_ADDR) ||
-       ((state_q == S_LOOKUP) && !dcache_lookup_hit_final_w));
+       ((state_q == S_LOOKUP) && !dcache_lookup_hit_final_w &&
+        !dcache_rmw_busy_w));
   wire [`XLEN-1:0] pend_read_araddr_w =
       read_cross_q ? paddr_q : {paddr_q[`XLEN-1:3], 3'b000};
   assign lsu_axi_araddr_o =
@@ -809,8 +827,10 @@ module OooMemAxiBridge (
             rsp_page_fault_q <= 1'b0;
             state_q <= S_RESP;
           end else begin
-            // miss/跨线: 当拍发 AR(arvalid 组合含 S_LOOKUP-miss 项)。
-            state_q <= lsu_axi_arready_i ? S_READ_DATA : S_READ_ADDR;
+            // miss/跨线: 当拍发 AR(arvalid 组合含 S_LOOKUP-miss 项)。转移条件
+            // 与 arvalid 的 !rmw_busy 门一致, 保持 AR 握手协议自洽。
+            state_q <= (lsu_axi_arready_i && !dcache_rmw_busy_w) ?
+                       S_READ_DATA : S_READ_ADDR;
           end
         end
 
@@ -912,5 +932,22 @@ module OooMemAxiBridge (
       end
     end
   end
+
+`ifdef OOO_ASSERT
+  // 【store RMW 读口互斥】RMW 判决拍(rmw_busy)宏口被占, 桥侧不得出现任何
+  // 会用口的动作: 三源 lookup 发射意图/fill/S_LOOKUP 判决。由 FSM 状态互斥
+  // (RMW 判决拍状态∈{S_RESP,S_IDLE})+req_ready 压制保证, 违反即门控链被破坏。
+  always @(posedge clk) begin
+    if (!rst && dcache_rmw_busy_w &&
+        (req_read_lookup_fire_w || walk_read_lookup_fire_w ||
+         ad_read_lookup_fire_w || dcache_read_fill_valid_w ||
+         (state_q == S_LOOKUP))) begin
+      $error("[MEM-RMW-PORT] RMW 判决拍出现 lookup/fill/S_LOOKUP: state=%0d req=%b walk=%b ad=%b fill=%b @%0t",
+             state_q, req_read_lookup_fire_w, walk_read_lookup_fire_w,
+             ad_read_lookup_fire_w, dcache_read_fill_valid_w, $time);
+      $fatal;
+    end
+  end
+`endif
 
 endmodule
