@@ -4,7 +4,7 @@
 
 ## 测试来源(2026-07-02 起本目录自治，不再依赖 npc)
 
-- 外部测试源：`src/riscv-arch-test`(官方 RISC-V Architectural Test Framework，独立 git 检出)。
+- 外部测试源：`src/riscv-arch-test`(官方 RISC-V Architectural Test Framework；2026-07-07 起已 vendor 化为主仓库直管源码树，无嵌套 `.git`，原上游 HEAD `49cdd65f9`)。
 - 生成入口：`scripts/act4-preflight.sh`(`make build-final` / runner `--build-final` 调用；探针工作目录在 `build/probe-work`)。
 - 默认复用产物(权威 ELF 基线)：`work/sail-rv64-max/elfs`(不入库；盘上就绪，缺失时 `make build-final` 重建)。
 - 构建环境：`env/`(xpack riscv-none-elf-gcc 工具链、sail-riscv 源、act4-venv、gems、ruby-dev-deb、ruby-dev-patch；均不入库，`scripts/act4-preflight.sh --prepare` 可重建)。

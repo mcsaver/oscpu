@@ -5,7 +5,7 @@
 ## Layout
 
 - `scripts/`: NPC RV64 核级测试脚本入口(当前为 `npc-rv64-core-regress.sh`)。
-- `core-tests/`: 本地外部测试资产,当前只保留 `src/riscv-tests`(官方 riscv-tests 检出,供 core-regress)。
+- `core-tests/`: 本地外部测试资产,当前只保留 `src/riscv-tests`(官方 riscv-tests；2026-07-07 起已 vendor 化为主仓库直管源码树,无嵌套 `.git`,原上游 HEAD `34e6b6d1e`,供 core-regress)。
 
 > **ACT4 已迁出(2026-07-02)**:riscv-arch-test 测试源、生成入口(preflight)、构建环境(xpack/sail/venv/gems)与权威 ELF 基线已整体迁到 `am-kernels/arch-test/`(自治工程,详见其 README)。入口对应关系:
 > - `npc-rv64-act4-preflight.sh` → `am-kernels/arch-test/scripts/act4-preflight.sh`

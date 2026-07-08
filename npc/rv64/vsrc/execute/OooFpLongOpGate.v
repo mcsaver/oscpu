@@ -33,6 +33,21 @@ module OooFpLongOpGate (
   reg [52:0] divisor_r;
   reg [111:0] radicand_r;
 
+  // 声明前置(iverilog 14 拒绝前向引用): start 拍锁存的操作数寄存与迭代器输出
+  // 线网供下方各命名 always@(*) 块引用; 驱动逻辑(时序块/实例)仍在文件下方原位。
+  reg [`XLEN-1:0] op_frs1_q;
+  reg [`XLEN-1:0] op_frs2_q;
+  reg [2:0] op_rm_q;
+  reg op_double_q;
+  wire [55:0] div_quotient_w;
+  wire        div_remainder_nonzero_w;
+  wire        div_busy_w;
+  wire        div_done_w;
+  wire [55:0] sqrt_root_w;
+  wire        sqrt_remainder_nonzero_w;
+  wire        sqrt_busy_w;
+  wire        sqrt_done_w;
+
   always @(*) begin : fp_div_d_value_blk
     reg [`XLEN-1:0] rs1_value;
     reg [`XLEN-1:0] rs2_value;
@@ -913,10 +928,7 @@ module OooFpLongOpGate (
   // 【B-FP 簇】start 拍锁存操作数/rm: 结果组装与 fflags 块在 done 拍(多拍
   // 迭代后)组合求值, 旧实现直接读 frs*_value_i/rm_i, 在 OoO 发射框架下迭代
   // 期间输入已换人 → 结果错。operand 准备块保持读输入(start 拍即被采样)。
-  reg [`XLEN-1:0] op_frs1_q;
-  reg [`XLEN-1:0] op_frs2_q;
-  reg [2:0] op_rm_q;
-  reg op_double_q;
+  // (op_frs1_q/op_frs2_q/op_rm_q/op_double_q 声明已前置到文件上方)
   always @(posedge clk) begin
     if (rst) begin
       op_frs1_q <= {`XLEN{1'b0}};
@@ -937,15 +949,7 @@ module OooFpLongOpGate (
   wire [52:0]  divisor_w  = divisor_r;
   wire [111:0] radicand_w = radicand_r;
 
-  wire [55:0] div_quotient_w;
-  wire        div_remainder_nonzero_w;
-  wire        div_busy_w;
-  wire        div_done_w;
-  wire [55:0] sqrt_root_w;
-  wire        sqrt_remainder_nonzero_w;
-  wire        sqrt_busy_w;
-  wire        sqrt_done_w;
-
+  // (迭代器输出 wire 声明已前置到文件上方)
   OooFpDivIter u_fp_div_iter (
     .clk(clk),
     .rst(rst),

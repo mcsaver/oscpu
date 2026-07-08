@@ -127,6 +127,9 @@ module OooFrontendDispatchGate (
        dispatch1_control_unsupported_o ||
        dispatch1_mem_unsupported_o);
 
+  // 声明前置，iverilog 14 拒绝前向引用（assign 保留在下方原位）
+  wire dbranch_domain_a_w;
+
   assign dbranch_dispatch_fire_o =
       dbranch_domain_a_w && dispatch_valid_i && dispatch0_branch_i &&
       !dispatch0_unsupported_i && dispatch0_ready_i;
@@ -146,7 +149,7 @@ module OooFrontendDispatchGate (
       `OOO_ROB_WALK_MODE && dispatch0_jump_i && !dispatch0_return_i;
   // domain-A 第一刀: head0 条件分支改走普通 dispatch 进 ROB/IQ(与 head1 分支同构),
   // 不再被 direct 通路(前端解析+flush+全 drain 总闸)独占。
-  wire dbranch_domain_a_w = `OOO_DBRANCH_DOMAIN_A;
+  assign dbranch_domain_a_w = `OOO_DBRANCH_DOMAIN_A;
   assign frontend_dispatch_to_backend_valid_o =
       dispatch_valid_i && (!dispatch0_branch_i || dbranch_domain_a_w) && !dispatch0_jal_i &&
       (!dispatch0_jump_i || dispatch0_depend_jump_w) &&

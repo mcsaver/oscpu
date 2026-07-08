@@ -220,7 +220,9 @@ run_case() {
 
 ensure_riscv_tests() {
   mkdir -p "$ARTIFACT_ROOT/src"
-  if [[ ! -d $RISCV_TESTS_DIR/.git ]]; then
+  # vendor 化(2026-07-07)后 riscv-tests 已无嵌套 .git，存在性判据改用测试树本体
+  # 标志文件 isa/Makefile——判据目的本来就是"测试源码在不在"，不该依赖 .git。
+  if [[ ! -f $RISCV_TESTS_DIR/isa/Makefile ]]; then
     if [[ $FETCH_RISCV -ne 1 ]]; then
       summary_line "  SKIP  riscv-tests checkout not found: $RISCV_TESTS_DIR"
       status_line riscv-tests SKIP "use --fetch-riscv-tests"

@@ -26,6 +26,22 @@ applyTo: "**"
     └── yosys-sta.md
 ```
 
+> **存储形态（2026-07-08 起 DB-backed）**：上列文件多数已提升为 stored document
+> （`.github/cache/github-index.sqlite`），工作区内只留 8 行兼容 shim（开头为
+> `# DB-backed ...` 即是）。对 shim 文件：
+>
+> - **读原文**：`python3 scripts/github_index_db.py load --source stored --path <仓库相对路径>`；
+>   批量召回优先 `brief <关键词> --profile <profile>`。
+> - **更新**：先 `load` 出全文到临时文件修改，再
+>   `python3 scripts/github_index_db.py update-stored <仓库相对路径> --from-file <临时文件>`。
+>   **禁止直接编辑或追加 shim 文件本体**——那会造成 live/stored 分叉
+>   （`audit-db-first` strict 会 FAIL），且内容在下次 `materialize` 时丢失。
+> - **一致性审计**：`python3 scripts/github_index_db.py audit-db-first`。
+>
+> 完整 DB 工作流（`promote`/`materialize`/`restore`/`snapshot-stored` 等）见
+> `.github/AGENTS.md` §0；非 shim 的 materialized 全文文件仍可直接编辑，但受
+> strict 审计约束（live 必须等于 stored，编辑后需 `update-stored` 同步）。
+
 ## 任务执行产物位置
 
 ```
@@ -43,7 +59,7 @@ applyTo: "**"
 ## 工作流程
 
 ### 1. 开始任务前 — 读取记忆与本地资料
-- **必须** 先读取 `.github/memory/project-status.md` 了解当前项目状态
+- **必须** 先读取 `.github/memory/project-status.md` 了解当前项目状态（DB shim 用 `load` 读原文，见上）
 - **必须** 读取自己模块对应的 `.github/memory/modules/<模块>.md`
 - 如果任务涉及 `.github/agents/`、`.github/instructions/`、`copilot-instructions.md` 或 AI 驱动硬件开发环境本身，**必须** 读取 `.github/memory/modules/agent-system.md` 与 `.github/agentic-hardware-blueprint.md`
 - 如果任务涉及 AI 开发环境 e2e、自检、规则发现漂移或“降低 AI 不确定性”，**必须** 读取 `.github/instructions/agent-e2e-workflow.instructions.md`，并用 `scripts/agent-e2e.sh` 生成或复用 task-run 证据包
@@ -62,8 +78,8 @@ applyTo: "**"
 - 若发现本轮目标被 agent 自行缩小，必须在 RECORD 中写清缩小范围、已完成切片和未完成范围；必要时把误判沉淀为 known-issues 或 agent-system 经验
 
 ### 4. 完成任务后 — 更新记忆
-- **必须** 更新 `.github/memory/project-status.md` 的相关条目
-- **必须** 更新自己模块的 `.github/memory/modules/<模块>.md`
+- **必须** 更新 `.github/memory/project-status.md` 的相关条目（DB shim 走 `update-stored`，见上；不得直接改 shim 本体）
+- **必须** 更新自己模块的 `.github/memory/modules/<模块>.md`（同上）
 - 如果修复了 bug，将问题从"活跃问题"移到"已解决问题"
 - 若任务属于跨模块、图任务或长链调试，**应当** 同时更新 `.github/task-runs/<日期-任务名>/task-report.md` 与 `dispatch-log.md`
 
@@ -98,4 +114,4 @@ applyTo: "**"
 - 记忆文件使用中文
 - 保持简洁，只记录关键信息，不要长篇大论
 - 不要删除历史记录，只追加新内容
-- 更新时保持文件结构不变
+- 更新时保持文件结构不变（对 DB-backed 文件，"结构"指 stored 原文的结构，不是 8 行 shim）

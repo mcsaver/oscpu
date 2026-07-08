@@ -286,6 +286,24 @@ module OooDispatchBackend #(
                     (free_count_w >= (dispatch0_alloc_w ?
                                       {{(FREE_COUNT_W-2){1'b0}}, 2'd2} :
                                       {{(FREE_COUNT_W-1){1'b0}}, 1'b1}));
+  // B2 ROB-walk 声明前置：以下信号的驱动逻辑在文件后段，但本行起即被引用；
+  // iverilog 14 对 net-declaration-assignment 中的前向引用无法绑定(12 才容忍)，故声明上移。
+  wire rob_recover_active_w;
+  wire rob_walk0_valid_w;
+  wire [`REG_ADDR_W-1:0] rob_walk0_arch_rd_w;
+  wire [PHY_REG_ADDR_W-1:0] rob_walk0_old_pdest_w;
+  wire [PHY_REG_ADDR_W-1:0] rob_walk0_new_pdest_w;
+  wire rob_walk0_rd_en_w;
+  wire rob_walk1_valid_w;
+  wire [`REG_ADDR_W-1:0] rob_walk1_arch_rd_w;
+  wire [PHY_REG_ADDR_W-1:0] rob_walk1_old_pdest_w;
+  wire [PHY_REG_ADDR_W-1:0] rob_walk1_new_pdest_w;
+  wire rob_walk1_rd_en_w;
+  wire rename_restore0_en_w;
+  wire rename_restore1_en_w;
+  reg kill_valid_q;
+  reg [ROB_INDEX_W-1:0] kill_idx_q;
+
   // Dispatch owner 直接用容量计数生成 ready，避免 parent fire 再反喂
   // ROB/IQ ready 形成跨层组合环；子模块仍接收同一个 fire 更新状态。
   // B2 关键：ROB 在 recover_active(walk 中) 或 kill 脉冲当拍会冻结 tail 不分配，IQ 同拍 squash/gate；
@@ -402,6 +420,8 @@ module OooDispatchBackend #(
     .debug_map_o(debug_map_unused_w)
   );
 
+  // 声明须先于下方实例端口引用(iverilog 14 拒绝输出端口的前向引用)。
+  wire busy_raw_unused_w;
   OooBusyTable #(
     .PHY_REG_ADDR_W(PHY_REG_ADDR_W)
   ) u_busy_table (
@@ -427,28 +447,15 @@ module OooDispatchBackend #(
     .query_raw_preg_i({PHY_REG_ADDR_W{1'b0}}),
     .query_raw_ready_o(busy_raw_unused_w)
   );
-  wire busy_raw_unused_w;
 
   // B2 ROB-walk 恢复数据通路（Step A：结构接通、行为中性——kill 源暂 0 → recover 永不触发 → 各 mux 选常规路径）。
-  wire rob_recover_active_w;
-  wire rob_walk0_valid_w;
-  wire [`REG_ADDR_W-1:0] rob_walk0_arch_rd_w;
-  wire [PHY_REG_ADDR_W-1:0] rob_walk0_old_pdest_w;
-  wire [PHY_REG_ADDR_W-1:0] rob_walk0_new_pdest_w;
-  wire rob_walk0_rd_en_w;
-  wire rob_walk1_valid_w;
-  wire [`REG_ADDR_W-1:0] rob_walk1_arch_rd_w;
-  wire [PHY_REG_ADDR_W-1:0] rob_walk1_old_pdest_w;
-  wire [PHY_REG_ADDR_W-1:0] rob_walk1_new_pdest_w;
-  wire rob_walk1_rd_en_w;
+  // （walk/kill 相关声明已前置到 dispatch_freeze_w 之前，此处只留驱动逻辑。）
   // B2 Step B：后端显式 branch/JALR mispredict(branch_mispredict_valid_i) 驱动 ROB-walk kill；
   // kill_rob_idx 来自后端解析控制流 rob_idx（ROB-walk 全阵列 restore，无 checkpoint）。
   wire rob_walk_mode_w = `OOO_ROB_WALK_MODE;
   // mispredict 与 backend 解析组合相连；直接驱动 kill 会与 dispatch_ready 成组合环
   // (mispredict→recovering→dispatch_ready→issue→branch_resolve→mispredict)。故 kill 打一拍寄存打破环：
   // 前端 redirect 仍当拍生效；后端 ROB-walk 恢复延后 1 拍（mispredicted 分支非 head，wrong-path 当拍来不及提交）。
-  reg kill_valid_q;
-  reg [ROB_INDEX_W-1:0] kill_idx_q;
   always @(posedge clk) begin
     if (rst || flush_i) begin
       kill_valid_q <= 1'b0;
@@ -461,8 +468,8 @@ module OooDispatchBackend #(
   wire rob_kill_valid_w = kill_valid_q;
   wire [ROB_INDEX_W-1:0] rob_kill_idx_w = kill_idx_q;
   // walk→rename restore：恢复 map[arch]=old_pdest（仅 squashed 且 rd_en）。
-  wire rename_restore0_en_w = rob_walk0_valid_w && rob_walk0_rd_en_w;
-  wire rename_restore1_en_w = rob_walk1_valid_w && rob_walk1_rd_en_w;
+  assign rename_restore0_en_w = rob_walk0_valid_w && rob_walk0_rd_en_w;
+  assign rename_restore1_en_w = rob_walk1_valid_w && rob_walk1_rd_en_w;
   // FP walk 分流(FPR 目的 rd_en=0 → 整数 restore/free 天然跳过; is_fp_rd 单独出)
   wire rob_walk0_is_fp_w;
   wire rob_walk1_is_fp_w;

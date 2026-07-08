@@ -84,6 +84,11 @@ module CsrFile (
   localparam integer PMP_CFG_CSR_COUNT = 2;
   localparam integer PMP_ADDR_COUNT = 16;
 
+  // PMP 寄存器堆声明必须先于下方引用它的函数(pmpcfg_entry_value 等)：
+  // iverilog 14.0 拒绝"函数内引用后声明的模块级变量"(declaration after use)，12.0 才容忍。
+  reg [`XLEN-1:0] csr_pmpcfg_q [0:PMP_CFG_CSR_COUNT-1];
+  reg [`XLEN-1:0] csr_pmpaddr_q [0:PMP_ADDR_COUNT-1];
+
   function csr_counter;
     input [11:0] csr_addr;
     begin
@@ -452,8 +457,6 @@ module CsrFile (
   reg [`XLEN-1:0] csr_scounteren_q;
   reg [`XLEN-1:0] csr_mcountinhibit_q;
   reg [`XLEN-1:0] csr_menvcfg_q;
-  reg [`XLEN-1:0] csr_pmpcfg_q [0:PMP_CFG_CSR_COUNT-1];
-  reg [`XLEN-1:0] csr_pmpaddr_q [0:PMP_ADDR_COUNT-1];
   reg [4:0] csr_fflags_q;
   reg [2:0] csr_frm_q;
   integer pmp_reset_idx;
