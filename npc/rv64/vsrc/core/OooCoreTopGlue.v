@@ -140,6 +140,9 @@ module OooCoreTopGlue #(
   output [ISSUE_COUNT_W-1:0] issue_count_o
 );
 
+  // 声明前置：iverilog 14 拒绝前向引用（下行 assign 引用 halted_q）
+  wire halted_q;
+
   assign csr_cycle_count_enable_w = run_i && !halted_q;
 
   wire [`XLEN-1:0] next_fetch_pc_q;
@@ -152,7 +155,6 @@ module OooCoreTopGlue #(
 
   wire trap_valid_q;
   wire exit_valid_q;
-  wire halted_q;
   wire stop_pending_q;
   wire pending_exit_q;
   wire pending_branch_q;
@@ -342,6 +344,29 @@ module OooCoreTopGlue #(
   wire core_commit0_is_fp_rd_w;
   wire core_commit1_is_fp_rd_w;
   wire [4:0] core_commit1_fflags_w;
+  // 声明前置：iverilog 14 拒绝前向引用——commit0/commit1 字段组整体上移到下方 F8 assign 之前
+  wire core_commit0_valid_w;
+  wire [`XLEN-1:0] core_commit0_pc_w;
+  wire [`XLEN-1:0] core_commit0_next_pc_w;
+  wire [`INST_W-1:0] core_commit0_inst_w;
+  wire core_commit0_rd_en_w;
+  wire [`REG_ADDR_W-1:0] core_commit0_rd_addr_w;
+  wire [`XLEN-1:0] core_commit0_rd_data_w;
+  wire core_commit0_exception_w;
+  wire [`TRAP_CAUSE_W-1:0] core_commit0_cause_w;
+  wire [`XLEN-1:0] core_commit0_tval_w;
+  wire core_commit0_write_w;
+  wire core_commit1_valid_w;
+  wire [`XLEN-1:0] core_commit1_pc_w;
+  wire [`XLEN-1:0] core_commit1_next_pc_w;
+  wire [`INST_W-1:0] core_commit1_inst_w;
+  wire core_commit1_rd_en_w;
+  wire [`REG_ADDR_W-1:0] core_commit1_rd_addr_w;
+  wire [`XLEN-1:0] core_commit1_rd_data_w;
+  wire core_commit1_exception_w;
+  wire [`TRAP_CAUSE_W-1:0] core_commit1_cause_w;
+  wire [`XLEN-1:0] core_commit1_tval_w;
+  wire core_commit1_write_w;
   // F8: 写 FPR 或产生 fflags 的 FP 指令提交 → mstatus.FS=Dirty 脉冲
   assign fp_dirty_commit_w =
       (core_commit0_valid_w && !core_commit0_exception_w &&
@@ -376,6 +401,12 @@ module OooCoreTopGlue #(
   // 后端内部已用于 ROB-walk kill；此 glue 导出份暂无消费者（原拟接统一 redirect arbiter，该地基已删档），
   // 保留为 driven-but-unused（Verilator UNUSEDSIGNAL 已全局抑制），若重启 redirect 收口可直接接。
   wire [`OOO_ROB_INDEX_W-1:0] core_branch_resolve_rob_idx_w;
+  // 【P4 shadow】ROB 队头指针(经 ExecuteBackend←AluCoreSlice←AluDecodeBackend←IntBackend←OooRob
+  // 透传)与前端 E4 观测口——shadow RedirectArbiter(见文末 `ifdef OOO_ASSERT 段)的年龄基准与
+  // direct 口输入; 无 OOO_ASSERT 时为 driven-but-unused(UNUSEDSIGNAL 全局抑制), 零综合影响。
+  wire [ROB_INDEX_W-1:0] core_rob_head_idx_w;
+  wire e4_redirect_valid_w;
+  wire [`XLEN-1:0] e4_redirect_pc_w;
   // B2 片4：后端 branch/JALR 显式 mispredict 脉冲，上送前端做 redirect。
   wire core_branch_resolve_mispredict_w;
   // 【F2】BPU issue-resolve 回训随行(execute → frontend)
@@ -393,28 +424,6 @@ module OooCoreTopGlue #(
   // 常量 0 tie-off 逐位中性；下游 OooFrontend/RecoveryGate 端口保留读此 0。
   wire core_pending_load_branch_dep_w = 1'b0;
   wire [`XLEN-1:0] a0_data_w;
-  wire core_commit0_valid_w;
-  wire [`XLEN-1:0] core_commit0_pc_w;
-  wire [`XLEN-1:0] core_commit0_next_pc_w;
-  wire [`INST_W-1:0] core_commit0_inst_w;
-  wire core_commit0_rd_en_w;
-  wire [`REG_ADDR_W-1:0] core_commit0_rd_addr_w;
-  wire [`XLEN-1:0] core_commit0_rd_data_w;
-  wire core_commit0_exception_w;
-  wire [`TRAP_CAUSE_W-1:0] core_commit0_cause_w;
-  wire [`XLEN-1:0] core_commit0_tval_w;
-  wire core_commit0_write_w;
-  wire core_commit1_valid_w;
-  wire [`XLEN-1:0] core_commit1_pc_w;
-  wire [`XLEN-1:0] core_commit1_next_pc_w;
-  wire [`INST_W-1:0] core_commit1_inst_w;
-  wire core_commit1_rd_en_w;
-  wire [`REG_ADDR_W-1:0] core_commit1_rd_addr_w;
-  wire [`XLEN-1:0] core_commit1_rd_data_w;
-  wire core_commit1_exception_w;
-  wire [`TRAP_CAUSE_W-1:0] core_commit1_cause_w;
-  wire [`XLEN-1:0] core_commit1_tval_w;
-  wire core_commit1_write_w;
   wire [`XLEN * `REG_NUM - 1:0] core_debug_gprs_w;
   wire pending_system_satp_write_commit_w;
   wire pending_system_sfence_commit_w;
@@ -448,6 +457,9 @@ module OooCoreTopGlue #(
   wire synth_lane1_branch_append_w;
   wire dispatch1_optional_w;
   wire synth_lane1_branch_drop_match_w = 1'b0;  // [死硅 tie-off] synth lane1-ret 家族已删
+
+  // 声明前置：iverilog 14 拒绝前向引用（u_writeback 端口引用 drain_complete_w）
+  wire drain_complete_w;
 
   OooWriteback u_writeback (
     .clk(clk),
@@ -544,7 +556,6 @@ module OooCoreTopGlue #(
   wire pending_branch_commit_resolve_w;
   wire pending_branch_match_clear_w;
   wire pending_replay_wait_w;
-  wire drain_complete_w;
 
   wire branch_bpu_lookup_event_w;
   wire branch_bpu_lookup_bht_valid_w;
@@ -704,6 +715,7 @@ module OooCoreTopGlue #(
     .pending_branch_rs2_data_w(pending_branch_rs2_data_w),
     .pending_branch_taken_w(pending_branch_taken_w),
     .rob_count_o(rob_count_o),
+    .rob_head_idx_o(core_rob_head_idx_w),
     .rst(rst),
     .stop_pending_q(stop_pending_q)
   );
@@ -1139,6 +1151,8 @@ module OooCoreTopGlue #(
     .dispatch_fire_w(dispatch_fire_w),
     .dispatch_unsupported_w(dispatch_unsupported_w),
     .dispatch_valid_w(dispatch_valid_w),
+    .e4_redirect_valid_o(e4_redirect_valid_w),
+    .e4_redirect_pc_o(e4_redirect_pc_w),
     .drain_complete_w(drain_complete_w),
     .execute0_valid_unused_w(execute0_valid_unused_w),
     .execute1_valid_unused_w(execute1_valid_unused_w),
@@ -1278,6 +1292,168 @@ module OooCoreTopGlue #(
     .trap_redirect_squash_q(trap_redirect_squash_q),
     .trap_valid_q(trap_valid_q)
   );
+
+`ifdef OOO_ASSERT
+  // ════ 【P4 shadow】统一 redirect 年龄律仲裁器 影子等价段（pipeline-stage-boundary.md §5）════
+  // assert-then-converge：复活的 OooRedirectArbiter 并行计算赢家，每拍断言与现行散落 redirect
+  // 逻辑（OooFetchPcOutstandingSequencer 隐式文本序 + FetchRequestMux 优先级链）等价；全绿后
+  // 才切消费点。本段仅 OOO_ASSERT 下编译，不驱动任何功能信号，零综合影响。
+  // 事件族映射（ooo-flush-redirect-contract.md）：覆盖 E1/E3/E4/E5/E6——默认 flag 下
+  // next_fetch_pc_q 的全部活跃终态写者（=Sequencer INV-2 的 cond_b/d/e/f 谓词集）。
+  // E2/E5-head0 支 flag=0 零 exercise（幸存者偏差，shadow 全绿不构成其等价证据）；
+  // E7/E8/E9 半死/影子臂进排除谓词；E10 掩码/E11 mmu_flush 与控制流正交，不并入。
+  // 已知双写漂移风险：本段谓词与 Sequencer 内 INV-2 谓词是同一文本序的两份人工镜像，
+  // 漂移方向=断言误报（fail-loud，可接受）。
+
+  // ── commit 家族 pre-mux（E1>E5>E6，照 OooFetchPcOutstandingSequencer 文本序）──
+  // E1: commit trap/xret（seq:271，文本最后=最高优先；恒 ROB head，age≡0）
+  wire shadow_e1_valid_w = csr_trap_mem_valid_w;
+  // E5: CSR 提交 redirect（seq:210-216）。head0 支默认 flag=0 恒 0（零 exercise）。
+  wire shadow_e5_valid_w = !direct_frontend_flush_w &&
+      (pending_system_csr_commit_w || head0_csr_commit_w);
+  wire [`XLEN-1:0] shadow_e5_pc_w =
+      head0_csr_commit_w ? core_commit0_next_pc_w : pending_system_next_pc_q;
+  // E6: drain 终态（seq:217-255），owner 序 arch_trap>system>branch>jump>mem 照抄。
+  // seq 的 drain_complete_i 在 u_frontend 内为 stop_pending_q && drain_complete_w。
+  wire shadow_e6_base_w = !csr_trap_mem_valid_w && !direct_frontend_flush_w &&
+      stop_pending_q && drain_complete_w;
+  wire shadow_e6_branch_undisp_w = pending_branch_q && !pending_branch_dispatched_q;
+  wire shadow_e6_sel_arch_w = pending_arch_trap_q;
+  wire shadow_e6_sel_system_w = !pending_arch_trap_q && pending_system_q;
+  wire shadow_e6_sel_branch_w = !pending_arch_trap_q && !pending_system_q &&
+      shadow_e6_branch_undisp_w;
+  wire shadow_e6_sel_jump_w = !pending_arch_trap_q && !pending_system_q &&
+      !shadow_e6_branch_undisp_w && pending_jump_q;
+  wire shadow_e6_sel_mem_w = !pending_arch_trap_q && !pending_system_q &&
+      !shadow_e6_branch_undisp_w && !pending_jump_q && pending_mem_q;  // 恒 0（死硅 tie-off）
+  // misaligned 的 E6-branch 臂不写 next_fetch_pc（seq:236 门）→ 不算 PC 赢家。
+  wire shadow_e6_valid_w = shadow_e6_base_w &&
+      (shadow_e6_sel_arch_w || shadow_e6_sel_system_w ||
+       (shadow_e6_sel_branch_w && !pending_branch_misaligned_w) ||
+       shadow_e6_sel_jump_w || shadow_e6_sel_mem_w);
+  // E6-jump 臂目标：seq 用 jalr_prefetch_hit ? hit_packet_next_pc : pending_jump_target，
+  // 二者在 u_frontend 内均为死硅 tie-0（OooFrontend.v jalr prefetch 家族/pending_jump_target_q）
+  // → 此处忠实镜像为常量 0（该臂若真触发即是 bug，PC 断言会连带暴露）。
+  wire [`XLEN-1:0] shadow_e6_pc_w =
+      shadow_e6_sel_arch_w ? csr_trap_target_w :
+      shadow_e6_sel_system_w ?
+          ((pending_system_ecall_q || pending_system_irq_q) ? csr_trap_target_w :
+           (pending_system_mret_q ? csr_ret_target_w : pending_system_next_pc_q)) :
+      shadow_e6_sel_branch_w ? pending_branch_next_pc_w :
+      shadow_e6_sel_jump_w ? {`XLEN{1'b0}} :
+      pending_mem_next_pc_q;
+
+  // ── E3 branch 口（契约 §5.2，rob_idx 已 plumb）── misaligned 拍现行不写 next_fetch_pc
+  // （seq:145/:185/:264 门）→ valid 必须含 !misaligned，否则 shadow 单方有赢家而现行不写=误报。
+  wire shadow_branch_valid_w =
+      branch_resolve_untracked_w && !core_branch_resolve_misaligned_w;
+
+  // ── GAP-2 甲门（现行序，切换时删除=行为变化单独验证）──
+  // 现行 else-if 链让 E3-untracked（seq:178/:263）压过 E5（:210）/E6（:217）；纯年龄律则
+  // commit 家族（age0 最老）应胜。把现行序显式编码进 shadow 输入端使等价断言全域可判；
+  // 本门是 GAP-2 的可 grep 实体。用 raw untracked（不含 !misaligned）镜像 seq:178 的
+  // arm-taken 抢占（其条件不含 misaligned，misaligned 拍同样吃掉 else-if 链后续臂）。
+  // E1（seq:271 文本最后）不受此门。
+  wire shadow_commit_gate_w = !branch_resolve_untracked_w;  // GAP-2 现行序，切换时删除
+  wire shadow_trap_valid_w = shadow_e1_valid_w ||
+      ((shadow_e5_valid_w || shadow_e6_valid_w) && shadow_commit_gate_w);
+  wire [`XLEN-1:0] shadow_trap_pc_w =
+      shadow_e1_valid_w ? csr_trap_target_w :
+      shadow_e5_valid_w ? shadow_e5_pc_w : shadow_e6_pc_w;
+
+  // ── 排除谓词：E7/E8/E9 臂（半死/影子态，契约排除集）在场的拍不作等价判定 ──
+  // 漂移方向=断言少判（fail-safe）；这些臂若复活应回填 shadow 口而非扩大排除集。
+  wire shadow_no_excluded_arm_w =
+      !pending_branch_commit_resolve_w &&   // E7 commit-resolve 臂（seq:151）
+      !pending_branch_match_clear_w &&      // E7 match-clear 臂（seq:159）
+      !pending_jump_resolve_ready_w &&      // E8 jump resolve 臂（seq:188）
+      !branch_spec_resolve_valid_w;         // E9 branch_spec restore 臂（seq:137）
+
+  // ── shadow arbiter 实例（纯组合年龄律 argmin 单赢家，B2 共享地基复活件）──
+  wire shadow_redirect_valid_w;
+  wire [`XLEN-1:0] shadow_redirect_pc_w;
+  wire [ROB_INDEX_W-1:0] shadow_redirect_kill_idx_w;
+  wire [`REDIR_REASON_W-1:0] shadow_redirect_reason_w;
+  wire shadow_redirect_flush_fetch_w;
+  wire shadow_redirect_flush_backend_w;
+  OooRedirectArbiter u_shadow_redirect_arbiter (
+    .rob_head_idx_i(core_rob_head_idx_w),
+    // trap 口 = commit 家族（E1/E5/E6 pre-mux）：commit-time 源恒 ROB head（age≡0）
+    .trap_valid_i(shadow_trap_valid_w),
+    .trap_pc_i(shadow_trap_pc_w),
+    .trap_rob_idx_i(core_rob_head_idx_w),
+    .trap_reason_i(`REDIR_REASON_TRAP),
+    .trap_flush_fetch_i(1'b1),
+    .trap_flush_backend_i(1'b1),
+    // branch 口 = E3（后端 resolve 已带真 rob_idx）
+    .branch_valid_i(shadow_branch_valid_w),
+    .branch_pc_i(core_branch_resolve_next_pc_w),
+    .branch_rob_idx_i(core_branch_resolve_rob_idx_w),
+    .branch_reason_i(`REDIR_REASON_BRANCH_MISS),
+    .branch_flush_fetch_i(1'b1),
+    .branch_flush_backend_i(1'b1),
+    // direct 口 = E4：取指侧无 age（契约"最大缺口"），喂 head-1 哨兵（age=2^W-1 恒最年轻——
+    // dispatch 拍指令构造上年轻于任何后端已解析分支；tie 时类序 branch>direct 兜底仍正确）
+    .direct_valid_i(e4_redirect_valid_w),
+    .direct_pc_i(e4_redirect_pc_w),
+    .direct_rob_idx_i(core_rob_head_idx_w - {{(ROB_INDEX_W-1){1'b0}}, 1'b1}),
+    .direct_reason_i(`REDIR_REASON_DIRECT),
+    .direct_flush_fetch_i(1'b1),
+    .direct_flush_backend_i(1'b0),
+    .redirect_valid_o(shadow_redirect_valid_w),
+    .redirect_pc_o(shadow_redirect_pc_w),
+    .redirect_kill_idx_o(shadow_redirect_kill_idx_w),
+    .redirect_reason_o(shadow_redirect_reason_w),
+    .redirect_flush_fetch_o(shadow_redirect_flush_fetch_w),
+    .redirect_flush_backend_o(shadow_redirect_flush_backend_w)
+  );
+  wire shadow_win_branch_w = shadow_redirect_valid_w &&
+      (shadow_redirect_reason_w == `REDIR_REASON_BRANCH_MISS);
+  wire shadow_arb_unused_w = shadow_redirect_flush_fetch_w |
+      shadow_redirect_flush_backend_w | (|shadow_redirect_kill_idx_w);
+
+  // ── 赢家寄存：事件拍 t 组合算赢家 → 寄存 → t+1 与 nonblocking 落盘的现行决策对照。
+  // 复位域镜像 u_fetch_pc_outstanding 的 rst||flush_i（flush 拍事件写不落盘）；
+  // nuke 期望同镜像 FlushSequencer/CommitSequencer 的 rst||flush_i 域。
+  reg shadow_valid_q;
+  reg [`XLEN-1:0] shadow_pc_q;
+  reg shadow_nuke_exp_q;
+  always @(posedge clk) begin
+    if (rst || flush_i) begin
+      shadow_valid_q <= 1'b0;
+      shadow_pc_q <= {`XLEN{1'b0}};
+      shadow_nuke_exp_q <= 1'b0;
+    end else begin
+      shadow_valid_q <= shadow_redirect_valid_w && shadow_no_excluded_arm_w;
+      shadow_pc_q <= shadow_redirect_pc_w;
+      shadow_nuke_exp_q <= csr_trap_mem_valid_w || head0_csr_commit_w;
+    end
+  end
+
+  always @(posedge clk) if (!rst) begin
+    // SHADOW-EQ-PC（主证据断言）：上拍 shadow 有赢家（且非排除拍）→ 本拍 next_fetch_pc_q
+    // 必等赢家 PC——现行机制隐式文本序 vs 年龄律（+GAP-2 甲门）全域等价。
+    if (shadow_valid_q && (next_fetch_pc_q !== shadow_pc_q))
+      $error("[P4-SHADOW-EQ-PC] shadow 赢家 PC 与现行 next_fetch_pc 不一致: shadow=%h rtl=%h @%0t",
+             shadow_pc_q, next_fetch_pc_q, $time);
+    // SHADOW-EQ-KILL：E3 组合同拍——shadow branch 口赢家 ⟺ 现行 untracked redirect fire。
+    // E1 同拍排除进 oracle：E1 恒 age0 必胜 branch（现行文本序 seq:271 亦压过 :263），
+    // 该拍后端 kill（ROB-walk）仍独立发出，不属本断言口径。
+    if (shadow_no_excluded_arm_w &&
+        (shadow_win_branch_w !== (branch_resolve_untracked_w &&
+                                  !core_branch_resolve_misaligned_w &&
+                                  !csr_trap_mem_valid_w)))
+      $error("[P4-SHADOW-EQ-KILL] shadow branch 赢家与现行 untracked redirect 不一致: win=%b untracked=%b misalign=%b e1=%b @%0t",
+             shadow_win_branch_w, branch_resolve_untracked_w,
+             core_branch_resolve_misaligned_w, csr_trap_mem_valid_w, $time);
+    // SHADOW-EQ-NUKE：上拍 E1/head0-CSR 类赢家 ⟺ 本拍 core_trap_flush_q∥core_serial_flush_q
+    //（后端 nuke 晚 1 拍寄存：OooControlFlushSequencer/OooControlCommitSequencer）。
+    // 诚实标注：与 E1 同源近恒真，价值=钉住 trap_flush_req/serial_flush 源不被改接。
+    if (shadow_nuke_exp_q !== (core_trap_flush_q || core_serial_flush_q))
+      $error("[P4-SHADOW-EQ-NUKE] E1/head0-CSR 赢家与后端 nuke 脉冲不一致: exp=%b trap_flush=%b serial_flush=%b @%0t",
+             shadow_nuke_exp_q, core_trap_flush_q, core_serial_flush_q, $time);
+  end
+`endif
 
 endmodule
 /* verilator lint_on UNOPTFLAT */

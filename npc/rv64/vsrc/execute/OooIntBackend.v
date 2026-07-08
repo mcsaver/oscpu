@@ -155,7 +155,12 @@ module OooIntBackend #(
   output dispatch_branch_resolve_valid_o,
   output [`XLEN-1:0] dispatch_branch_resolve_pc_o,
   output [`XLEN-1:0] dispatch_branch_resolve_next_pc_o,
-  output dispatch_branch_resolve_misaligned_o
+  output dispatch_branch_resolve_misaligned_o,
+
+  // 【P4 shadow】ROB 队头指针观测口（→AluDecodeBackend→AluCoreSlice→ExecuteBackend→glue）：
+  // 供 OooCoreTopGlue 的 shadow RedirectArbiter 年龄律（age = rob_idx - head）；也是
+  // flush 单点化真 arbiter 收敛所需的 plumbing（pipeline-stage-boundary.md §5），非一次性。
+  output [ROB_INDEX_W-1:0] rob_head_idx_o
 );
 
   localparam [1:0] CLMUL_OP_LOW = 2'd0;
@@ -297,6 +302,12 @@ module OooIntBackend #(
   wire dispatch1_src2_ready_w;
   wire [ROB_INDEX_W-1:0] rob_head_idx_w;
   wire rob_head_valid_w;
+  // 【P4 shadow】队头指针透出（驱动源=下方 u_rob.rob_head_idx_o，纯观测，不改任何现有行为）
+  assign rob_head_idx_o = rob_head_idx_w;
+  // 声明前置：iverilog 14 拒绝前向引用（驱动仍在原处）
+  wire branch_resolve_mispredict_w;
+  wire sq_alloc0_ready_w;
+  wire sq_alloc1_ready_w;
 
   wire unused_issue_ctrl_bits_w =
       (|{issue0_ctrl_w[42:24], issue0_ctrl_w[15:0]}) |
@@ -627,6 +638,10 @@ module OooIntBackend #(
     end
   endfunction
 
+  // 声明前置：iverilog 14 拒绝前向引用（驱动/定义仍在后文原处）
+  wire issue0_current_result_valid_w;
+  wire [`XLEN-1:0] issue0_wb_data_w;
+
   wire issue1_src1_issue0_forward_w =
       issue0_current_result_valid_w &&
       (issue1_src1_preg_w == issue0_pdest_w) &&
@@ -661,7 +676,7 @@ module OooIntBackend #(
   wire [`XLEN-1:0] issue1_alu_result_final_w;
   wire [`XLEN-1:0] issue0_exec_result_w;
   wire [`XLEN-1:0] issue1_exec_result_w;
-  wire [`XLEN-1:0] issue0_wb_data_w;
+  // issue0_wb_data_w 声明已前置到 issue1 前递 wire 之前(iverilog 14)
   wire [`XLEN-1:0] issue1_wb_data_w;
   wire issue0_is_branch_w = issue0_valid_w && issue0_ctrl_w[`CTRL_BRANCH_BIT];
   wire issue1_is_branch_w = issue1_valid_w && issue1_ctrl_w[`CTRL_BRANCH_BIT];
@@ -877,8 +892,7 @@ module OooIntBackend #(
   reg [`XLEN-1:0] mem_store_wdata_q;   // probe 完成后回填 SQ 的 store 数据
   reg [`STRB_W-1:0] mem_store_wstrb_q;
   reg drain_inflight_q;                // SQ drain 落存事务在飞(退休副作用, flush 免疫)
-  wire sq_alloc0_ready_w;
-  wire sq_alloc1_ready_w;
+  // sq_alloc0/1_ready_w 声明已前置到 u_dispatch_backend 实例之前(iverilog 14)
   wire sq_drain_valid_w;
   wire [`XLEN-1:0] sq_drain_addr_w;
   wire [`XLEN-1:0] sq_drain_data_w;
@@ -910,6 +924,10 @@ module OooIntBackend #(
   wire mem_amo_write_misaligned_unused_w;
   wire [`XLEN-1:0] mem_amo_old_value_w;
   wire [`XLEN-1:0] mem_amo_result_value_w;
+  // 声明前置：iverilog 14 拒绝前向引用（由后文 u_mem_inflight_queue 驱动）
+  wire [1:0] miq_head_size_w;
+  wire miq_head_unsigned_w;
+  wire [`XLEN-1:0] miq_head_addr_w;
 
   LSU u_mem_rsp_lsu (
     // rsp 数据展开按 MIQ 队头(LEGACY entry 的字段与单例一致, 恒可用 head)
@@ -975,9 +993,7 @@ module OooIntBackend #(
   wire [ROB_INDEX_W-1:0] miq_head_rob_w;
   wire [PHY_REG_ADDR_W-1:0] miq_head_pdest_w;
   wire miq_head_pdest_fp_w;
-  wire [1:0] miq_head_size_w;
-  wire miq_head_unsigned_w;
-  wire [`XLEN-1:0] miq_head_addr_w;
+  // miq_head_size/unsigned/addr_w 声明已前置到 u_mem_rsp_lsu 之前(iverilog 14)
   wire [`XLEN-1:0] miq_head_wdata_w;
   wire [`STRB_W-1:0] miq_head_wstrb_w;
   wire [MIQ_ENTRY_W:0] miq_count_w;
@@ -1091,6 +1107,72 @@ module OooIntBackend #(
   // system/trap/FP 等串行点等它(mem_idle_o 保持原语义, 供分支恢复 quiet 判定)。
   assign mem_retire_quiet_o =
       !sq_mode_w || (sq_empty_w && !drain_inflight_q);
+  // 【级间边界治理 P1】EX→WB 级间寄存簇提取为 PipeStageReg 实例
+  // (spec: design/arch/pipeline-stage-boundary.md §4 P1——全核唯一真实 stage 寄存簇)。
+  // payload 位段布局(144b/lane, 两 lane 一致; rob4+pdest6+result64+exc1+cause5+tval64):
+  //   {rob_idx[143:140], pdest[139:134], result[133:70],
+  //    exception[69], cause[68:64], tval[63:0]}
+  // up_valid/up_payload 由原 always 各赋值臂等价改写的组合逻辑生成(assign 在原
+  // always 块位置, 见后文; 声明前置——iverilog 14 拒绝前向引用)。
+  wire ex0_up_valid_w;
+  wire [143:0] ex0_up_payload_w;
+  wire ex0_up_ready_unused_w;
+  wire [143:0] ex0_down_payload_w;
+  wire ex0_valid_q;
+  wire ex1_up_valid_w;
+  wire [143:0] ex1_up_payload_w;
+  wire ex1_up_ready_unused_w;
+  wire [143:0] ex1_down_payload_w;
+  wire ex1_valid_q;
+
+  PipeStageReg #(.WIDTH(144)) u_ex0_stage (
+    .clk(clk),
+    .rst(rst),
+    // flush: 等价于原 flush 臂 rst||flush_i||checkpoint_restore_i(rst 原语内部已处理)
+    .flush_i(flush_i || checkpoint_restore_i),
+    // kill: 现状契约 = ROB-walk kill 不清 EX→WB 级, 晚到 wb 由 ROB squash 吞(spec §3⑥/§4 P1)
+    .kill_i(1'b0),
+    .up_valid_i(ex0_up_valid_w),
+    // up_ready: down_ready 恒 1 → up_ready 恒 1, 上游 issue 无反压消费点(现状语义)
+    .up_ready_o(ex0_up_ready_unused_w),
+    .up_payload_i(ex0_up_payload_w),
+    .down_valid_o(ex0_valid_q),
+    // down_ready: ROB wb 口恒收(ex_q 最高优先、单拍必消费)的现状语义; 未来 wb 仲裁引入反压再改
+    .down_ready_i(1'b1),
+    .down_payload_o(ex0_down_payload_w)
+  );
+  PipeStageReg #(.WIDTH(144)) u_ex1_stage (
+    .clk(clk),
+    .rst(rst),
+    // flush: 等价于原 flush 臂 rst||flush_i||checkpoint_restore_i(rst 原语内部已处理)
+    .flush_i(flush_i || checkpoint_restore_i),
+    // kill: 现状契约 = ROB-walk kill 不清 EX→WB 级, 晚到 wb 由 ROB squash 吞(spec §3⑥/§4 P1)
+    .kill_i(1'b0),
+    .up_valid_i(ex1_up_valid_w),
+    // up_ready: down_ready 恒 1 → up_ready 恒 1, 上游 issue 无反压消费点(现状语义)
+    .up_ready_o(ex1_up_ready_unused_w),
+    .up_payload_i(ex1_up_payload_w),
+    .down_valid_o(ex1_valid_q),
+    // down_ready: ROB wb 口恒收(ex_q 最高优先、单拍必消费)的现状语义; 未来 wb 仲裁引入反压再改
+    .down_ready_i(1'b1),
+    .down_payload_o(ex1_down_payload_w)
+  );
+
+  // _q 别名: 语义仍是寄存器输出(寄存器在 PipeStageReg 内), 下游 wb mux 读点零文本改动;
+  // 提取见 design/arch/pipeline-stage-boundary.md P1。payload 仅 exN_valid_q=1 拍有效
+  // (flush/未装载拍留脏——全核 valid-only 惯例, 消费方不得在 valid=0 时读)。
+  wire [ROB_INDEX_W-1:0] ex0_rob_idx_q = ex0_down_payload_w[143:140];
+  wire [PHY_REG_ADDR_W-1:0] ex0_pdest_q = ex0_down_payload_w[139:134];
+  wire [`XLEN-1:0] ex0_result_q = ex0_down_payload_w[133:70];
+  wire ex0_exception_q = ex0_down_payload_w[69];
+  wire [`TRAP_CAUSE_W-1:0] ex0_cause_q = ex0_down_payload_w[68:64];
+  wire [`XLEN-1:0] ex0_tval_q = ex0_down_payload_w[63:0];
+  wire [ROB_INDEX_W-1:0] ex1_rob_idx_q = ex1_down_payload_w[143:140];
+  wire [PHY_REG_ADDR_W-1:0] ex1_pdest_q = ex1_down_payload_w[139:134];
+  wire [`XLEN-1:0] ex1_result_q = ex1_down_payload_w[133:70];
+  wire ex1_exception_q = ex1_down_payload_w[69];
+  wire [`TRAP_CAUSE_W-1:0] ex1_cause_q = ex1_down_payload_w[68:64];
+  wire [`XLEN-1:0] ex1_tval_q = ex1_down_payload_w[63:0];
   wire [1:0] wb_free_count_w =
       {1'b0, !ex0_valid_q} + {1'b0, !ex1_valid_q};
   wire wb_slot_free_w = (wb_free_count_w != 2'b00);
@@ -1654,7 +1736,8 @@ module OooIntBackend #(
       (issue1_ctrlflow_next_pc_w != issue1_pred_npc_w) &&
       !issue1_ctrlflow_misaligned_w;
 
-  wire issue0_current_result_valid_w =
+  // （声明已前置到 issue1 前递 wire 之前，iverilog 14 拒绝前向引用）
+  assign issue0_current_result_valid_w =
       issue0_fire_w && !issue0_is_mem_w && !issue0_is_muldiv_w &&
       !issue0_is_clmul_w &&
       (issue0_pdest_w != {PHY_REG_ADDR_W{1'b0}});
@@ -1890,20 +1973,61 @@ module OooIntBackend #(
   assign miq_push_addr_w = mem_req_addr_o;
   assign miq_push_wdata_w = mem_req_wdata_o;
   assign miq_push_wstrb_w = mem_req_wstrb_o;
-  reg ex0_valid_q;
-  reg [ROB_INDEX_W-1:0] ex0_rob_idx_q;
-  reg [PHY_REG_ADDR_W-1:0] ex0_pdest_q;
-  reg [`XLEN-1:0] ex0_result_q;
-  reg ex0_exception_q;
-  reg [`TRAP_CAUSE_W-1:0] ex0_cause_q;
-  reg [`XLEN-1:0] ex0_tval_q;
-  reg ex1_valid_q;
-  reg [ROB_INDEX_W-1:0] ex1_rob_idx_q;
-  reg [PHY_REG_ADDR_W-1:0] ex1_pdest_q;
-  reg [`XLEN-1:0] ex1_result_q;
-  reg ex1_exception_q;
-  reg [`TRAP_CAUSE_W-1:0] ex1_cause_q;
-  reg [`XLEN-1:0] ex1_tval_q;
+  // 【级间边界治理 P1】原 always 内 ex0/ex1 赋值臂等价改写为组合 up_valid/up_payload
+  // 生成——"功能模块退化为纯组合 + 写入下一级 PipeStageReg"的目标形态
+  // (design/arch/pipeline-stage-boundary.md §4 P1; 实例与位段布局见声明处)。
+  // 原"未命中臂写全 0 payload"语义不保留: PipeStageReg 在 up_valid=0 拍不锁存 payload
+  // (留脏), 下游 wb0/wb1 mux 全部以 exN_valid_q 为最高优先选择条件, wb_free_count_w
+  // 只读 valid——已逐点核对, 无 valid=0 读 payload 的消费点。
+  // ex0 up_valid: 原 ex0_valid_q next-state 表达式原文迁移。
+  assign ex0_up_valid_w = issue0_fire_w && !issue0_is_muldiv_w &&
+                          !issue0_is_clmul_w &&
+                          (!issue0_is_mem_w || issue0_mem_exception_w ||
+                           issue0_sq_fwd_w);
+  // ex0 payload: 原三条件臂(sq_fwd > 非访存 ALU > 访存非对齐异常)在 up_valid=1 下
+  // 恰好三选一; 各臂的 fire/muldiv/clmul 限定词已被 up_valid 吸收(valid=0 拍不装载)。
+  wire ex0_up_exception_w = !issue0_sq_fwd_w && issue0_is_mem_w &&
+                            issue0_mem_exception_w;
+  // 【LSQ·前递】load 命中 SQ 全覆盖 entry, 单拍完成(不访存)→ 直取前递数据。
+  wire [`XLEN-1:0] ex0_up_result_w =
+      issue0_sq_fwd_w ? issue0_sq_fwd_data_w :
+      !issue0_is_mem_w ? ((issue0_is_sc_w && !issue0_sc_success_w) ?
+                          {{(`XLEN-1){1'b0}}, 1'b1} : issue0_wb_data_w) :
+      {`XLEN{1'b0}};
+  // AMO/SC 非对齐报 Store/AMO,但 LR 非对齐报 Load(NEMU 金标:funct5==LR→LOAD_MISALIGN)。
+  wire [`TRAP_CAUSE_W-1:0] ex0_up_cause_w =
+      ex0_up_exception_w ?
+      (((issue0_is_load_w && !issue0_is_amo_w) || issue0_is_lr_w) ?
+       `EXC_LOAD_ADDR_MISALIGN : `EXC_STORE_ADDR_MISALIGN) :
+      {`TRAP_CAUSE_W{1'b0}};
+  wire [`XLEN-1:0] ex0_up_tval_w =
+      ex0_up_exception_w ? issue0_alu_result_w : {`XLEN{1'b0}};
+  assign ex0_up_payload_w =
+      {issue0_rob_idx_w, issue0_pdest_w, ex0_up_result_w,
+       ex0_up_exception_w, ex0_up_cause_w, ex0_up_tval_w};
+  // ex1 up_valid: 原 ex1_valid_q next-state 表达式原文迁移。
+  assign ex1_up_valid_w = issue1_fire_w && !issue1_is_muldiv_w &&
+                          !issue1_is_clmul_w &&
+                          (!issue1_is_mem_w || issue1_mem_exception_w ||
+                           issue1_sq_fwd_w);
+  // ex1 payload: 原单臂内嵌 mux 原文迁移(注意与 ex0 的既有不对称: ex1 的 exception
+  // 不被 sq_fwd 压 0——现状语义原样保持, 不做顺手加固)。
+  wire ex1_up_exception_w = issue1_mem_exception_w;
+  wire [`XLEN-1:0] ex1_up_result_w =
+      issue1_sq_fwd_w ? issue1_sq_fwd_data_w :
+      issue1_mem_exception_w ? {`XLEN{1'b0}} :
+      ((issue1_is_sc_w && !issue1_sc_success_w) ?
+       {{(`XLEN-1){1'b0}}, 1'b1} : issue1_wb_data_w);
+  wire [`TRAP_CAUSE_W-1:0] ex1_up_cause_w =
+      issue1_mem_exception_w ?
+      (((issue1_is_load_w && !issue1_is_amo_w) || issue1_is_lr_w) ?
+       `EXC_LOAD_ADDR_MISALIGN : `EXC_STORE_ADDR_MISALIGN) :
+      {`TRAP_CAUSE_W{1'b0}};
+  wire [`XLEN-1:0] ex1_up_tval_w =
+      issue1_mem_exception_w ? issue1_alu_result_w : {`XLEN{1'b0}};
+  assign ex1_up_payload_w =
+      {issue1_rob_idx_w, issue1_pdest_w, ex1_up_result_w,
+       ex1_up_exception_w, ex1_up_cause_w, ex1_up_tval_w};
 
   always @(posedge clk) begin
     if (rst || flush_i || checkpoint_restore_i) begin
@@ -1942,20 +2066,7 @@ module OooIntBackend #(
       mem_buffer_wstrb_q <= {`STRB_W{1'b0}};
       reservation_valid_q <= 1'b0;
       reservation_addr_q <= {`XLEN{1'b0}};
-      ex0_valid_q <= 1'b0;
-      ex0_rob_idx_q <= {ROB_INDEX_W{1'b0}};
-      ex0_pdest_q <= {PHY_REG_ADDR_W{1'b0}};
-      ex0_result_q <= {`XLEN{1'b0}};
-      ex0_exception_q <= 1'b0;
-      ex0_cause_q <= {`TRAP_CAUSE_W{1'b0}};
-      ex0_tval_q <= {`XLEN{1'b0}};
-      ex1_valid_q <= 1'b0;
-      ex1_rob_idx_q <= {ROB_INDEX_W{1'b0}};
-      ex1_pdest_q <= {PHY_REG_ADDR_W{1'b0}};
-      ex1_result_q <= {`XLEN{1'b0}};
-      ex1_exception_q <= 1'b0;
-      ex1_cause_q <= {`TRAP_CAUSE_W{1'b0}};
-      ex1_tval_q <= {`XLEN{1'b0}};
+      // ex0/ex1 EX→WB 级间簇已提取为 PipeStageReg 实例(flush 臂由其 flush_i 端口等价承载)
     end else begin
       if (mem_amo_read_rsp_w) begin
         mem_amo_write_phase_q <= 1'b1;
@@ -2118,74 +2229,8 @@ module OooIntBackend #(
         mem_buffer_wdata_q <= issue1_mem_wdata_w;
         mem_buffer_wstrb_q <= issue1_mem_wstrb_w;
       end
-
-      ex0_valid_q <= issue0_fire_w && !issue0_is_muldiv_w &&
-                     !issue0_is_clmul_w &&
-                     (!issue0_is_mem_w || issue0_mem_exception_w ||
-                      issue0_sq_fwd_w);
-      if (issue0_fire_w && issue0_sq_fwd_w) begin
-        // 【LSQ·前递】load 命中 SQ 全覆盖 entry, 单拍完成(不访存)。
-        ex0_rob_idx_q <= issue0_rob_idx_w;
-        ex0_pdest_q <= issue0_pdest_w;
-        ex0_result_q <= issue0_sq_fwd_data_w;
-        ex0_exception_q <= 1'b0;
-        ex0_cause_q <= {`TRAP_CAUSE_W{1'b0}};
-        ex0_tval_q <= {`XLEN{1'b0}};
-      end else if (issue0_fire_w && !issue0_is_mem_w && !issue0_is_muldiv_w &&
-          !issue0_is_clmul_w) begin
-        ex0_rob_idx_q <= issue0_rob_idx_w;
-        ex0_pdest_q <= issue0_pdest_w;
-        ex0_result_q <= (issue0_is_sc_w && !issue0_sc_success_w) ?
-                        {{(`XLEN-1){1'b0}}, 1'b1} : issue0_wb_data_w;
-        ex0_exception_q <= 1'b0;
-        ex0_cause_q <= {`TRAP_CAUSE_W{1'b0}};
-        ex0_tval_q <= {`XLEN{1'b0}};
-      end else if (issue0_fire_w && issue0_mem_exception_w) begin
-        ex0_rob_idx_q <= issue0_rob_idx_w;
-        ex0_pdest_q <= issue0_pdest_w;
-        ex0_result_q <= {`XLEN{1'b0}};
-        ex0_exception_q <= 1'b1;
-        // AMO/SC 非对齐报 Store/AMO,但 LR 非对齐报 Load(NEMU 金标:funct5==LR→LOAD_MISALIGN)。
-        ex0_cause_q <= ((issue0_is_load_w && !issue0_is_amo_w) || issue0_is_lr_w) ?
-                       `EXC_LOAD_ADDR_MISALIGN :
-                       `EXC_STORE_ADDR_MISALIGN;
-        ex0_tval_q <= issue0_alu_result_w;
-      end else begin
-        ex0_rob_idx_q <= {ROB_INDEX_W{1'b0}};
-        ex0_pdest_q <= {PHY_REG_ADDR_W{1'b0}};
-        ex0_result_q <= {`XLEN{1'b0}};
-        ex0_exception_q <= 1'b0;
-        ex0_cause_q <= {`TRAP_CAUSE_W{1'b0}};
-        ex0_tval_q <= {`XLEN{1'b0}};
-      end
-
-      ex1_valid_q <= issue1_fire_w && !issue1_is_muldiv_w &&
-                     !issue1_is_clmul_w &&
-                     (!issue1_is_mem_w || issue1_mem_exception_w ||
-                      issue1_sq_fwd_w);
-      if (issue1_fire_w && !issue1_is_muldiv_w && !issue1_is_clmul_w) begin
-        ex1_rob_idx_q <= issue1_rob_idx_w;
-        ex1_pdest_q <= issue1_pdest_w;
-        ex1_result_q <= issue1_sq_fwd_w ? issue1_sq_fwd_data_w :
-                        issue1_mem_exception_w ? {`XLEN{1'b0}} :
-                        ((issue1_is_sc_w && !issue1_sc_success_w) ?
-                         {{(`XLEN-1){1'b0}}, 1'b1} : issue1_wb_data_w);
-        ex1_exception_q <= issue1_mem_exception_w;
-        ex1_cause_q <= issue1_mem_exception_w ?
-                       (((issue1_is_load_w && !issue1_is_amo_w) || issue1_is_lr_w) ?
-                        `EXC_LOAD_ADDR_MISALIGN :
-                        `EXC_STORE_ADDR_MISALIGN) :
-                       {`TRAP_CAUSE_W{1'b0}};
-        ex1_tval_q <= issue1_mem_exception_w ? issue1_alu_result_w :
-                                                {`XLEN{1'b0}};
-      end else begin
-        ex1_rob_idx_q <= {ROB_INDEX_W{1'b0}};
-        ex1_pdest_q <= {PHY_REG_ADDR_W{1'b0}};
-        ex1_result_q <= {`XLEN{1'b0}};
-        ex1_exception_q <= 1'b0;
-        ex1_cause_q <= {`TRAP_CAUSE_W{1'b0}};
-        ex1_tval_q <= {`XLEN{1'b0}};
-      end
+      // ex0/ex1 EX→WB 级间簇装载臂已等价改写为组合 up_valid/up_payload(见 always 前),
+      // 寄存本体在 PipeStageReg 实例 u_ex0_stage/u_ex1_stage 内。
     end
   end
 
@@ -2355,7 +2400,8 @@ module OooIntBackend #(
   assign branch_resolve_bht_idx_o =
       branch_resolve_pick1_w ? issue1_bht_idx_w : issue0_bht_idx_w;
   // 片2 计算、片4 接线导出：被选中 lane 的 mispredict 脉冲（mode=1 驱动 ROB-walk kill + redirect）。
-  wire branch_resolve_mispredict_w =
+  // （声明已前置到 u_dispatch_backend 之前，iverilog 14 拒绝前向引用）
+  assign branch_resolve_mispredict_w =
       branch_resolve_pick1_w ? issue1_redirect_w : issue0_redirect_w;
 `ifdef DBRA_PROBE
   always @(posedge clk) begin

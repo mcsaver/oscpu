@@ -248,6 +248,11 @@ module OooFpBackend #(
   wire [PHY_REG_ADDR_W-1:0] free1_preg_w =
       recover_active_i ? walk1_new_pdest_i : commit1_fp_old_pdest_i;
 
+  // 声明前置，iverilog 14 拒绝前向引用(实例端口连接须先声明)
+  wire [`OOO_FREE_COUNT_W-1:0] fp_free_count_unused_w;
+  wire fp_free_empty_unused_w;
+  wire fp_free_full_unused_w;
+
   OooFreeList #(
     .PHY_REG_ADDR_W(PHY_REG_ADDR_W)
   ) u_fp_free_list (
@@ -268,9 +273,6 @@ module OooFpBackend #(
     .empty_o(fp_free_empty_unused_w),
     .full_o(fp_free_full_unused_w)
   );
-  wire [`OOO_FREE_COUNT_W-1:0] fp_free_count_unused_w;
-  wire fp_free_empty_unused_w;
-  wire fp_free_full_unused_w;
 
   // 自建 FP busy 数组: alloc 拍置忙(时序), wakeup 拍清(时序);
   // 查询=裸读+wakeup 同拍前视(不含 alloc 前视——lane 序保证源非同拍 alloc)。
@@ -408,6 +410,8 @@ module OooFpBackend #(
   wire issue_dst_gpr_w;
   wire issue_dst_en_w;
   wire [PHY_REG_ADDR_W-1:0] issue_gpr_preg_w;
+  // 声明前置，iverilog 14 拒绝前向引用(实例端口连接须先声明)
+  wire [3:0] fp_iq_count_unused_w;
 
   assign disp_ready_o = iq_dispatch_ready_w &&
                         (!disp_frd_en_i || fp_alloc0_ready_o) &&
@@ -494,7 +498,6 @@ module OooFpBackend #(
     .issue_gpr_preg_o(issue_gpr_preg_w),
     .count_o(fp_iq_count_unused_w)
   );
-  wire [3:0] fp_iq_count_unused_w;
 
   assign gpr_read_addr_o = issue_gpr_preg_w;
 
@@ -573,7 +576,10 @@ module OooFpBackend #(
   // 执行资源 ready
   wire long_div_busy_w;
   wire long_sqrt_busy_w;
-  reg exec1_valid_q;   // 组合类 1 拍寄存(占用时 IQ 不发组合类)
+  // 组合类 1 拍寄存的 valid(占用时 IQ 不发组合类)——P2 提取后由 u_exec1_stage
+  // 的 down_valid_o 驱动; 声明前置，iverilog 14 拒绝前向引用(issue_ready_w 引用)
+  wire exec1_valid_q;
+  reg long_meta_valid_q;
   wire long_busy_any_w = long_div_busy_w || long_sqrt_busy_w;
   wire issue_is_comb_w = op_sgnj_w || op_minmax_w || op_cmp_w || op_class_w ||
                          op_mv_to_gpr_w || op_mv_to_fpr_w || op_cvt_to_gpr_w ||
@@ -637,10 +643,9 @@ module OooFpBackend #(
     .out_fflags_o(arith_out_fflags_w)
   );
 
-  // div/sqrt: 单在飞(busy 背压); meta 在本层寄存
+  // div/sqrt: 单在飞(busy 背压); meta 在本层寄存(long_meta_valid_q 声明已前置)
   reg [ROB_INDEX_W-1:0] long_rob_q;
   reg [PHY_REG_ADDR_W-1:0] long_pdest_q;
-  reg long_meta_valid_q;
   wire long_done_w;
   wire [`XLEN-1:0] long_result_w;
   wire [4:0] long_fflags_w;
@@ -779,12 +784,39 @@ module OooFpBackend #(
       (op_cvt_int_to_fpr_w || op_cvt_fpr_to_fpr_w) ? cvt_to_fpr_fflags_w :
                         5'b00000;
 
-  reg [ROB_INDEX_W-1:0] exec1_rob_q;
-  reg [PHY_REG_ADDR_W-1:0] exec1_pdest_q;
-  reg exec1_dst_gpr_q;
-  reg exec1_dst_en_q;
-  reg [`XLEN-1:0] exec1_value_q;
-  reg [4:0] exec1_fflags_q;
+  // ===========================================================================
+  // exec1 级间寄存(P2 提取刀): 组合类结果的 1 拍 stage 簇归一为 PipeStageReg。
+  // payload 81b 布局 {rob[80:77],pdest[76:71],dst_gpr[70],dst_en[69],value[68:5],fflags[4:0]}。
+  // flush 后 payload 留脏(原语惯例)——全部消费点经 exec1_take_w/exec1_valid_q 门控,
+  // 无 valid=0 读 payload。位段别名 wire 使下游消费点零文本改动。
+  // ===========================================================================
+  wire [80:0] exec1_stage_payload_w;
+  wire exec1_stage_up_ready_unused_w; // issue_ready_w 保留 !exec1_valid_q 项(语义中性), up_ready_o 悬空
+  wire [ROB_INDEX_W-1:0] exec1_rob_q = exec1_stage_payload_w[80:77];
+  wire [PHY_REG_ADDR_W-1:0] exec1_pdest_q = exec1_stage_payload_w[76:71];
+  wire exec1_dst_gpr_q = exec1_stage_payload_w[70];
+  wire exec1_dst_en_q = exec1_stage_payload_w[69];
+  wire [`XLEN-1:0] exec1_value_q = exec1_stage_payload_w[68:5];
+  wire [4:0] exec1_fflags_q = exec1_stage_payload_w[4:0];
+  // kill 年龄判定留使用方(原语契约⑥): rob 从 down_payload 位段取, 环形 age 比较
+  wire exec1_kill_w = kill_valid_i && exec1_valid_q &&
+      ((exec1_rob_q - rob_head_idx_i) > (kill_rob_idx_i - rob_head_idx_i));
+
+  PipeStageReg #(
+    .WIDTH(81)
+  ) u_exec1_stage (
+    .clk(clk),
+    .rst(rst),
+    .flush_i(flush_i),           // nuke 族; recover/checkpoint 不清 exec1(现状语义)
+    .kill_i(exec1_kill_w),
+    .up_valid_i(issue_fire_w && issue_is_comb_w),
+    .up_ready_o(exec1_stage_up_ready_unused_w),
+    .up_payload_i({issue_rob_idx_w, issue_pdest_w, issue_dst_gpr_w,
+                   issue_dst_en_w, comb_value_w, comb_fflags_w}),
+    .down_valid_o(exec1_valid_q),
+    .down_ready_i(!arith_out_valid_w), // 唯一阻塞源=arith 完成仲裁优先
+    .down_payload_o(exec1_stage_payload_w)
+  );
 
   // ===========================================================================
   // 完成仲裁 + 完成 FIFO(优先: arith(无背压) > exec1(保持) > long(done 保持))
@@ -851,13 +883,6 @@ module OooFpBackend #(
       df_head_q <= {DONE_FIFO_W{1'b0}};
       df_tail_q <= {DONE_FIFO_W{1'b0}};
       done_fifo_count_q <= 4'd0;
-      exec1_valid_q <= 1'b0;
-      exec1_rob_q <= {ROB_INDEX_W{1'b0}};
-      exec1_pdest_q <= {PHY_REG_ADDR_W{1'b0}};
-      exec1_dst_gpr_q <= 1'b0;
-      exec1_dst_en_q <= 1'b0;
-      exec1_value_q <= {`XLEN{1'b0}};
-      exec1_fflags_q <= 5'b00000;
       for (dfi = 0; dfi < DONE_FIFO_N; dfi = dfi + 1) begin
         df_rob_q[dfi] <= {ROB_INDEX_W{1'b0}};
         df_killed_q[dfi] <= 1'b0;
@@ -867,25 +892,7 @@ module OooFpBackend #(
         df_fflags_q[dfi] <= 5'b00000;
       end
     end else begin
-      // exec1 装载(组合类发射拍)/清除(被仲裁收取)
-      if (issue_fire_w && issue_is_comb_w) begin
-        exec1_valid_q <= 1'b1;
-        exec1_rob_q <= issue_rob_idx_w;
-        exec1_pdest_q <= issue_pdest_w;
-        exec1_dst_gpr_q <= issue_dst_gpr_w;
-        exec1_dst_en_q <= issue_dst_en_w;
-        exec1_value_q <= comb_value_w;
-        exec1_fflags_q <= comb_fflags_w;
-      end else if (exec1_take_w) begin
-        exec1_valid_q <= 1'b0;
-      end
-      // exec1 的 kill(结果不 wb)
-      if (kill_valid_i && exec1_valid_q &&
-          ((exec1_rob_q - rob_head_idx_i) >
-           (kill_rob_idx_i - rob_head_idx_i))) begin
-        exec1_valid_q <= 1'b0;
-      end
-
+      // exec1 装载/收取/kill 已提取进 u_exec1_stage(PipeStageReg), 本块只剩 done FIFO
       if (kill_valid_i) begin : df_kill_blk
         integer dk;
         for (dk = 0; dk < DONE_FIFO_N; dk = dk + 1) begin

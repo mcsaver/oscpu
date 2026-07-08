@@ -194,6 +194,12 @@ module OooFrontend #(
   output dispatch_fire_w,
   output dispatch_unsupported_w,
   output dispatch_valid_w,
+  // 【P4 shadow】E4(direct 控制流 redirect)观测口：与 u_fetch_pc_outstanding 的
+  // direct_frontend_flush 装载臂(OooFetchPcOutstandingSequencer.v:124-129)组合等价构造，
+  // 供 OooCoreTopGlue 的 shadow RedirectArbiter 作 direct 口输入（取指侧无 rob_idx，
+  // 契约"最大缺口"的免 plumbing 构造式）。纯观测输出，不驱动任何功能逻辑。
+  output e4_redirect_valid_o,
+  output [`XLEN-1:0] e4_redirect_pc_o,
   output fetch_req_fire_w,
   output [`XLEN-1:0] fetch_req_pc_o,
   output fetch_req_valid_o,
@@ -781,6 +787,9 @@ module OooFrontend #(
   end
   assign head0_csr_inflight_w = head0_csr_inflight_q;
 
+  // 声明前置(原在 direct_fire_succ_w 簇旁): iverilog 14 拒绝实例端口前向引用
+  wire dbranch_dual_go_w;
+
   OooFrontendDispatchGate u_frontend_dispatch_gate (
     .dispatch_valid_i(dispatch_valid_w),
     .dispatch0_csr_i(dispatch0_csr_w),
@@ -1171,6 +1180,10 @@ module OooFrontend #(
   );
 
 
+  // 声明前置(赋值仍在原 JALR-spec 簇内): iverilog 14 拒绝实例端口前向引用
+  wire direct_jump_spec_fire_w;
+  wire [`XLEN-1:0] jalr_spec_pred_target_w;
+
   OooFetchRequestMux u_fetch_request_mux (
     .outstanding_valid_i(outstanding_valid_q),
     .fetch_rsp_fire_i(fetch_rsp_fire_w),
@@ -1336,11 +1349,11 @@ module OooFrontend #(
   wire jalr_spec_btb_hit_w = 1'b0;   // JALR-BTB 表恒空 → spec 查询恒 miss（死硅拆除 tie-off）
   wire [`XLEN-1:0] jalr_spec_btb_target_w = {`XLEN{1'b0}};  // 上同，miss 时 don't-care
   // 预测目标优先级：return-hint→RAS top；否则 BTB hit→BTB target；兜底=fallthrough(pc+ilen)。
-  wire [`XLEN-1:0] jalr_spec_pred_target_w =
+  assign jalr_spec_pred_target_w =
       jalr_spec_use_ras_w ? ras_top_w :
       jalr_spec_btb_hit_w ? jalr_spec_btb_target_w :
                             head_next_pc0_w;
-  wire direct_jump_spec_fire_w = direct_jump_spec_start_w;
+  assign direct_jump_spec_fire_w = direct_jump_spec_start_w;
 
 
 
@@ -1562,7 +1575,6 @@ module OooFrontend #(
   // 机械同源, 结构性消灭 #105 障碍②(拍内解析/spec 臂不同源错配)族。臂序保持
   // 原 OutstandingSequencer 优先级: jal > ret > branch(lane1_ret > target > fallthrough
   // > 拍内解析 > spec > 顺序) > jump_spec。
-  wire dbranch_dual_go_w;
   wire [`XLEN-1:0] direct_fire_succ_w =
       direct_jal_fire_w ? direct_jal_target_w :
       (direct_ret0_fire_w || direct_ret1_fire_w) ? direct_ret_target_w :
@@ -1576,6 +1588,18 @@ module OooFrontend #(
           (direct_branch1_fire_w ? head_next_pc1_w : head_next_pc0_w)) :
       direct_jump_spec_fire_w ? jalr_spec_pred_target_w :
       head_pred_succ_w;
+  // 【P4 shadow】E4 观测口构造式：照抄 OooFetchPcOutstandingSequencer.v:124-129 装载臂——
+  // valid = direct_frontend_flush 拍任一 direct fire；pc = direct_fire_succ，
+  // 分支 fallthrough capture 拍覆写为 fetch_rsp_packet_next_pc（与该臂内层 if 同序）。
+  assign e4_redirect_valid_o = direct_frontend_flush_w &&
+      (direct_jal_fire_w || direct_ret0_fire_w || direct_ret1_fire_w ||
+       direct_branch0_fire_w || direct_branch1_fire_w ||
+       direct_jump_spec_fire_w);
+  assign e4_redirect_pc_o =
+      ((direct_branch0_fire_w || direct_branch1_fire_w) &&
+       branch_fallthrough_capture_rsp_w) ? fetch_rsp_packet_next_pc_w
+                                         : direct_fire_succ_w;
+
   wire d0_ctrlflow_fired_w =
       direct_jal0_fire_w || direct_ret0_fire_w || direct_branch0_fire_w ||
       direct_jump_spec_fire_w;

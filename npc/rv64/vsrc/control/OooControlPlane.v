@@ -785,6 +785,32 @@ module OooControlPlane #(
       $fatal;
     end
   end
+
+  // ── 契约 INV-3b (GAP-2 互斥推广, P4 shadow 乙断言): E5-pending_system / E6-drain 终态支 ──
+  // INV-3 只钉了 head0 支; 此处把 co-request 互斥推广到 commit 家族其余活跃成员:
+  // pending-system CSR 提交 redirect(E5) 与 drain 终态 redirect(E6) 的拍, 若同拍
+  // younger-branch untracked mispredict 也在请求 redirect, 现行文本序(Sequencer E3 :178
+  // 早于 E5 :210/E6 :217)让 E3 赢——OooCoreTopGlue 的 shadow GAP-2 甲门显式编码了该序。
+  // 互斥若真成立则本断言恒静默、甲门恒透明; 一旦违反即响 = 契约 §5.7 的"收敛触发条件
+  // 到了"信号。监测型(不 $fatal), 独立于 shadow 等价断言记录冲突拍。谓词照抄 Sequencer
+  // E5/E6 臂条件(drain_complete_i = stop_pending_q && drain_complete_w, 见 OooFrontend 实例)。
+  wire inv3b_commit_family_redirect_w =
+      (!direct_frontend_flush_w &&
+       (pending_system_csr_commit_w || head0_csr_commit_w)) ||           // E5
+      (!csr_trap_mem_valid_w && !direct_frontend_flush_w &&
+       stop_pending_q && drain_complete_w &&
+       (pending_arch_trap_q || pending_system_q ||
+        (pending_branch_q && !pending_branch_dispatched_q) ||
+        pending_jump_q || pending_mem_q));                               // E6
+  always @(posedge clk) begin
+    if (!rst && !flush_i &&
+        inv3b_commit_family_redirect_w && branch_resolve_untracked_w) begin
+      $error("[FLUSH-CONTRACT INV-3b] commit 家族(E5/E6) redirect 与 younger-branch untracked mispredict 同拍(GAP-2 互斥被违反): e5=%b e6=%b untracked=%b",
+             (!direct_frontend_flush_w &&
+              (pending_system_csr_commit_w || head0_csr_commit_w)),
+             (stop_pending_q && drain_complete_w), branch_resolve_untracked_w);
+    end
+  end
 `endif
 
 `ifdef OOO_ASSERT

@@ -115,7 +115,10 @@ module OooAluDecodeBackend #(
   output dispatch_branch_resolve_valid_o,
   output [`XLEN-1:0] dispatch_branch_resolve_pc_o,
   output [`XLEN-1:0] dispatch_branch_resolve_next_pc_o,
-  output dispatch_branch_resolve_misaligned_o
+  output dispatch_branch_resolve_misaligned_o,
+
+  // 【P4 shadow】ROB 队头指针透传（IntBackend→本层→AluCoreSlice，纯观测端口）
+  output [ROB_INDEX_W-1:0] rob_head_idx_o
 );
 
   wire [`CTRL_BUS_W-1:0] decode0_ctrl_w;
@@ -513,7 +516,8 @@ module OooAluDecodeBackend #(
 	    .dispatch_branch_resolve_valid_o(dispatch_branch_resolve_valid_o),
 	    .dispatch_branch_resolve_pc_o(dispatch_branch_resolve_pc_o),
 	    .dispatch_branch_resolve_next_pc_o(dispatch_branch_resolve_next_pc_o),
-	    .dispatch_branch_resolve_misaligned_o(dispatch_branch_resolve_misaligned_o)
+	    .dispatch_branch_resolve_misaligned_o(dispatch_branch_resolve_misaligned_o),
+	    .rob_head_idx_o(rob_head_idx_o)
   );
 
 endmodule

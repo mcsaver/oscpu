@@ -125,7 +125,9 @@ module OooExecuteBackend #(
   output [FREE_COUNT_W-1:0] free_count_o,
   output [ISSUE_COUNT_W-1:0] issue_count_o,
   output pending_branch_taken_w,
-  output [ROB_COUNT_W-1:0] rob_count_o
+  output [ROB_COUNT_W-1:0] rob_count_o,
+  // 【P4 shadow】ROB 队头指针透传（AluCoreSlice→本层→OooCoreTopGlue，纯观测端口）
+  output [ROB_INDEX_W-1:0] rob_head_idx_o
 );
 
 
@@ -249,6 +251,7 @@ module OooExecuteBackend #(
 	    .dispatch_branch_resolve_pc_o(core_dispatch_branch_resolve_pc_w),
 	    .dispatch_branch_resolve_next_pc_o(core_dispatch_branch_resolve_next_pc_w),
 	    .dispatch_branch_resolve_misaligned_o(core_dispatch_branch_resolve_misaligned_w),
+	    .rob_head_idx_o(rob_head_idx_o),
 	    .retire_count_o(core_retire_count_w),
     .a0_data_o(a0_data_w),
     .debug_gprs_o(core_debug_gprs_w)
