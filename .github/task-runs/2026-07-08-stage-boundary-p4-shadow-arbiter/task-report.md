@@ -69,7 +69,10 @@
   **NpcTop 全核 stdcell 综合 4670.49s 首次跑通**（对照：flatten 全核 6000s×2 timeout）。
   ABC 10 块独立 mapping，首个全核 PPA 概览：总 stdcell ~855k area（不含 4 黑盒宏），
   关键路径大户 IntBackend(delay 89)/FpBackend(90)；PipeStageReg 实例各 5 gates（纯打拍零逻辑）。
-  宏合同 checker 新网表全 PASS + iEDA 兼容 PASS。iEDA STA smoke：3600s timeout——
+  宏合同 checker 新网表全 PASS + iEDA 兼容 PASS。iEDA STA 后续(占位 Liberty 落地后)：
+  not-exist 清零、进 forward propagation 仍 3600s timeout(40 万 cell 性能墙,工具侧)；
+  **分模块 OOC STA 路线实证：OooRob OOC 数分钟出全工程第一份 rpt/pwr(@100MHz 全 slack
+  MET 余量~9.1ns、功耗 56mW)**。原 smoke 记录：3600s timeout——
   较此前有推进(进到 StaDataPropagation 的 endpoint 枚举，之前是静默卡死)但 rpt/pwr
   仍未产出；工作假设=四黑盒(Sram×2/FpArithGate/BPU)无 Liberty timing 模型致
   data propagation 无法收敛，下一步=bsg_fakeram 生成两个 Sram 规格的 .lib 接入
