@@ -4,17 +4,21 @@
 // OoO D-cache 外部观测 facts。
 // 归属：OooDataWordCache 的 debug/common 三层观测模型第 3 层。
 // 用途：给仿真 checker 和 focused TB 一个稳定的语义位号表，不规定综合 RTL 的物理编码。
+//
+// 【SRAM 同步读参照系】读口为单口两拍协议：LOOKUP_ISSUE 在发射拍(en=1)，
+// LOOKUP_HIT/LOOKUP_MISS 在次拍(判决拍)、针对上拍锁存的 lookup 地址。
+// 原 REQ_HIT/WALK_HIT 双组合视图随 req/walk 读口合并为单 lookup 口而统一；
+// 跨线阻断与窗口移位职责移至桥判决拍(read_cross_q/paddr_q[2:0])。
+// REQ_UNCACHED/REQ_LINE_CROSS 仍是纯地址 0-cycle 组合视图。
 
-`define OOO_DWC_REQ_UNCACHED       0  // req 地址不在 PMEM cacheable 窗口
-`define OOO_DWC_REQ_LINE_CROSS     1  // req 字节窗口跨 8B line，必须 miss 且桥侧不 fill
-`define OOO_DWC_REQ_HIT            2  // req 命中当前 line
-`define OOO_DWC_REQ_MISS           3  // req cacheable 且未命中或跨线
-`define OOO_DWC_WALK_HIT           4  // PTW leaf PTE 8B 读命中 D-cache
-`define OOO_DWC_WALK_MISS          5  // PTW leaf PTE cacheable 但未命中
-`define OOO_DWC_FILL               6  // 对齐 8B line fill
-`define OOO_DWC_STORE_COMMIT       7  // 已提交 store 或 A/D 写回维护 D-cache
-`define OOO_DWC_STORE_LINE_CROSS   8  // store 字节窗口跨 8B line，保守失效两线
-`define OOO_DWC_INVALIDATE_ALL     9  // 全失效维护事件
-`define OOO_DWC_FACTS_W           10
+`define OOO_DWC_REQ_UNCACHED       0  // req 地址不在 PMEM cacheable 窗口(组合)
+`define OOO_DWC_REQ_LINE_CROSS     1  // req 字节窗口跨 8B line(组合), 桥侧必按 miss 处理且不 fill
+`define OOO_DWC_LOOKUP_ISSUE       2  // 单读口发射拍(lookup_en), 次拍判决
+`define OOO_DWC_LOOKUP_HIT         3  // 判决拍命中(锁存地址 cacheable+valid+tag)
+`define OOO_DWC_LOOKUP_MISS        4  // 判决拍未命中
+`define OOO_DWC_FILL               5  // 对齐 8B line fill(唯一 SRAM 写路径)
+`define OOO_DWC_STORE_COMMIT       6  // 已提交 store 或 A/D 写回维护: 无条件失效相关 line
+`define OOO_DWC_STORE_LINE_CROSS   7  // store 字节窗口跨 8B line, 失效两线
+`define OOO_DWC_FACTS_W            8
 
 `endif

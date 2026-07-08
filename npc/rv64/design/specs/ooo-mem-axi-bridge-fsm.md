@@ -12,6 +12,7 @@
 | 状态 | 含义 |
 |---|---|
 | S_IDLE | 空闲，可接受新请求(`accept_request`) |
+| S_LOOKUP | 【SRAM 同步读】dcache 判决态：上拍已发单口读，本拍 SRAM rdata 有效，判 hit(→S_RESP)/miss(当拍发 AR) |
 | S_WALK_AR/S_WALK_R | Sv39 页表遍历 发 AR / 收 PTE |
 | S_READ_ADDR/S_READ_DATA | load: 发读地址 / 收读数据 |
 | S_WRITE_REQ | store: 发 AW+W |
@@ -20,15 +21,18 @@
 
 ## 3. 正常转移（`else` 分支，flush_i=0 且 drop_rsp_q=0）
 ```
- S_IDLE --req(load,hit)----------------------------> S_RESP
- S_IDLE --req(load,miss,no-trans)-----------------> S_READ_ADDR -> S_READ_DATA -(rvalid)-> S_RESP
-                                                    (accept 拍 arready 即 fire 时跳过 S_READ_ADDR 直入 S_READ_DATA)
+ S_IDLE --req(load,可翻译无fault)------------------> S_LOOKUP(fire 拍发 dcache 同步读+锁 paddr_q/wstrb_q/read_cross_q)
+ S_LOOKUP --(hit 且 !read_cross_q)-----------------> S_RESP(判决拍锁 rsp_rdata = line >> {paddr_q[2:0],3'b0})
+ S_LOOKUP --(miss/跨线)----------------------------> S_READ_ADDR -> S_READ_DATA -(rvalid)-> S_RESP
+                                                    (判决拍当拍发 AR;arready 即 fire 时跳过 S_READ_ADDR 直入 S_READ_DATA)
  S_IDLE --req(store,probe)------------------------> S_RESP(不写内存,PA 经 rsp_rdata 回传)
  S_IDLE --req(store,no-trans)---------------------> S_WRITE_REQ -(aw&w)-> {S_RESP(PMEM 解耦,B 交 bpend_q) | S_WRITE_RESP -(bvalid)-> S_RESP(MMIO/uncacheable)}
- S_IDLE --req(need-trans,tlb-miss)----------------> S_WALK_AR -> S_WALK_R -(...)-> {S_RESP | S_READ_ADDR | S_WRITE_REQ | 下一级 S_WALK_AR}
+ S_IDLE --req(need-trans,tlb-miss)----------------> S_WALK_AR -> S_WALK_R -(...)-> {S_RESP | S_LOOKUP | S_WRITE_REQ | 下一级 S_WALK_AR}
+ S_WALK_R --(leaf-ok,read)-------------------------> S_LOOKUP(当拍发 dcache 读,addr=walk_leaf_paddr_w)
+ S_AD_UPDATE --(b-ok,read)-------------------------> S_LOOKUP(当拍发 dcache 读,addr=paddr_q)
  S_WALK_AR --(PTE 读地址 PMP 违例,F9)-------------> S_RESP(access fault,不发 AR)
  S_IDLE --req(pmp/perm/page fault)----------------> S_RESP(error/page_fault 置位)
- S_RESP --(rsp_ready)-----------------------------> S_IDLE(同拍新请求 fire 则直接 accept,back-to-back)
+ S_RESP --(rsp_ready)-----------------------------> S_IDLE(同拍新请求 fire 则直接 accept,back-to-back;读请求 fire 同样进 S_LOOKUP)
 ```
 要点：
 - **store 分两类（B1 已落地）**：PMEM store 在 `aw&w` 完成拍即到 S_RESP（数据已落 PMEM，`bresp`
@@ -38,10 +42,19 @@
 - **事务三属性（LSQ·SQ 切换新增）**：`probe`=write 探测（翻译+PMP 走完不写内存，PA 经 rsp_rdata
   回传）；`pretrans`=地址已是 PA（SQ drain 落存），跳过翻译/PMP；`nokill`=flush/drop 对该事务
   失效（已退休 store 写必达）。三位全 0 时行为与旧版一致。
-- **line 读（LSQ Phase2+3）**：dcache 为 32KB 直映 word cache（`OOO_DATA_WORD_CACHE_INDEX_W=12`）；读 miss 不跨
-  8B line 时发 line 对齐 AR（低 3 位清零）、回填整 line、`rsp_rdata` 按 line 内偏移（`paddr_q[2:0]`）
-  右移出 CPU 视图；跨线（`read_cross_q`）按原地址窗口读且不 fill。D-cache 模块级 hit/fill/store
-  维护语义由 `ooo-data-word-cache.md` 冻结，桥 spec 只约束事务级 FSM 与 AXI 行为。
+- **line 读（LSQ Phase2+3 → SRAM 同步读）**：dcache 为 32KB 直映 word cache（`OOO_DATA_WORD_CACHE_INDEX_W=12`，
+  tag+data 已进 1RW 同步读宏 Sram4096x113）。读请求(可翻译、无 fault)fire 拍发 dcache 单口读并锁
+  `paddr_q/wstrb_q/read_cross_q` → **S_LOOKUP 判决拍**：hit 且不跨线 → `rsp_rdata` 按 line 内偏移
+  （`paddr_q[2:0]`）右移出 CPU 视图 → S_RESP；miss/跨线 → 判决拍当拍发 AR（不跨线发 line 对齐 AR、
+  回填整 line；跨线按原地址窗口读且不 fill）。**load hit 1→2 拍、miss AR 晚 1 拍**是 SRAM 化一期
+  接受的代价；store/probe/fault/walk 分流决策不依赖 dcache，仍在 fire 拍完成。walk 路径
+  （S_WALK_R leaf-ok read 与 S_AD_UPDATE b-ok read）同样发 dcache 读进同一 S_LOOKUP 统一判决——
+  此举顺手修复两个既有 bug：① 旧 walk 组合口无移位无跨线检查、把未移位整行当 rsp_rdata（S/U 态
+  walk-leaf 命中 + offset≠0 时 load 回错值）；② S_AD_UPDATE 的 walk 命中判定依赖 R 通道已完事的
+  live `lsu_axi_rdata_i`（靠 xbar 保持 rdata 才碰巧对）——现统一用锁存 `paddr_q`。
+  `req_ready` 在 S_LOOKUP 为 0（单 outstanding 不变）；`read_cross_q` 在 accept 拍按 VA 低 3 位判定，
+  VA/PA 页内偏移相同故对 walk 路径同样成立。D-cache 模块级 lookup/fill/store 维护语义由
+  `ooo-data-word-cache.md` 冻结（store 维护一期为无条件失效），桥 spec 只约束事务级 FSM 与 AXI 行为。
 - **PTW 隐式访问 PMP（F9）**：每级 PTE 读地址（`walk_pte_addr_w`）经独立 PmpChecker 检查，违例在
   S_WALK_AR 直接转 S_RESP 报 access fault（非 page fault），不发 AR。
 - **Svnapot 64KiB**：PTW 只接受 level0 leaf 且 `PTE.N=1 && PTE.PPN[3:0]=4'b1000`；非 leaf、
@@ -53,10 +66,12 @@
 ## 4. flush / drain 路径（`if (flush_i || drop_rsp_q)` 分支）
 `drop_rsp_q` = "本地已放弃当前事务、但下游可能仍会回一个需吞掉的响应" 的粘滞标志。
 - `cpu_kill_w = flush_i || drop_rsp_q`：拉低对外 valid/ready，阻止把被取消事务的结果当真。
-- 各状态被 flush 时：读地址态直接回 S_IDLE；读数据/PTE 态 flush 当拍**本地直接释放**回 S_IDLE
+- 各状态被 flush 时：读地址态与 **S_LOOKUP**（dcache 读无外部副作用）直接回 S_IDLE；读数据/PTE 态
+  flush 当拍**本地直接释放**回 S_IDLE
   （读无外部副作用，依赖 flush 同步请求 xbar abort/drop，不再等 R；`drop_rsp_q` 现只服务写路径）；
   写态用 `write_drain_w` 把 AW/W 发完(避免半截事务挂总线)，收到 B 后清 drop。S_RESP/S_IDLE 态
-  清零并回 S_IDLE。
+  清零并回 S_IDLE。walk/A-D 路的 dcache 读发射（`walk_read_lookup_fire_w/ad_read_lookup_fire_w`）
+  只在 FSM 正常推进分支有效，flush 拍不发。
 - 不变量：被 flush 的事务，其 AXI 响应必须被吞掉且不得置 `mem*_rsp_valid`（**nokill 事务例外**：
   `nokill_busy_w` 使 flush/drop 对其推进与响应握手均无效，写必达）；半截写必须发完再丢 B。
 
@@ -86,6 +101,15 @@
 - 2026-07-03（doc-lifecycle 审计补漂移）：F9 PTE 读地址 PMP（S_WALK_AR 可直转 S_RESP）、line 读
   （32KB dcache/对齐 AR 回填/跨线窗口读）、accept 拍 AR 直发跳过 S_READ_ADDR、S_RESP back-to-back accept。
 - 2026-07-07：补齐 Svnapot 64KiB leaf 判定、PA 拼接与 DTLB hit 复核 level 约束。
+- 2026-07-08：**dcache SRAM 同步读接入**——新增 S_LOOKUP 判决态：读请求 fire 拍发 dcache 单口读，
+  次拍判决 hit(→S_RESP)/miss(当拍发 AR，复用 `pend_read_araddr_w` 支路，`req_*` AR 直通支路删除)；
+  hit 判定/窗口移位/跨线阻断统一用锁存 `paddr_q/read_cross_q`。walk（S_WALK_R leaf-ok read）与
+  S_AD_UPDATE read 分支改经同一 S_LOOKUP，顺手修复 walk 组合口无移位无跨线检查回错值、
+  S_AD_UPDATE 依赖 live `lsu_axi_rdata_i` 两个既有 bug。load hit 1→2 拍（一期代价）。
+  `store_invalidate_all_i` 死口删除；store 维护随 dcache 一期改无条件失效（见
+  `ooo-data-word-cache.md` §4）。sim 统计探针 `req_dcache_hit_w` 改为判决拍粘滞值
+  （`CONFIG_NPC_SIM_STATS` 构建专用，NpcSimTop 的 fire&&hit 表达式变为错位一拍近似，
+  精确化归宏合同收尾统一改 NpcSimTop）。
 
 ## 已知隐患(2026-06-28 bug-hunt,当前不可触发)
 - "至多一个未收 B" 不变量未由桥自身保证,依赖外部 `AxiLiteXbar` 串行化写;接流水化写互连会 B 归因 off-by-one。详见 `.github/memory/known-issues.md`(隐患A)。IP 复用前应桥内自保证(accept 新写前 `!bpend_q` 或 B 计数+归属)。

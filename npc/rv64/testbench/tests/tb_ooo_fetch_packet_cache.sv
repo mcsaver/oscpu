@@ -7,6 +7,7 @@ module tb_ooo_fetch_packet_cache;
   reg rst;
   reg clear;
 
+  reg lookup_en;
   reg lookup_paging;
   reg [1:0] lookup_priv;
   reg [`XLEN-1:0] lookup_satp;
@@ -43,6 +44,7 @@ module tb_ooo_fetch_packet_cache;
     .clk(clk),
     .rst(rst),
     .clear_i(clear),
+    .lookup_en_i(lookup_en),
     .lookup_paging_i(lookup_paging),
     .lookup_priv_i(lookup_priv),
     .lookup_satp_i(lookup_satp),
@@ -70,6 +72,7 @@ module tb_ooo_fetch_packet_cache;
     .clk(clk),
     .rst(rst),
     .clear_i(clear),
+    .lookup_en_i(lookup_en),
     .lookup_paging_i(lookup_paging),
     .lookup_priv_i(lookup_priv),
     .lookup_satp_i(lookup_satp),
@@ -107,6 +110,7 @@ module tb_ooo_fetch_packet_cache;
   task automatic clear_inputs;
     begin
       clear = 1'b0;
+      lookup_en = 1'b0;
       lookup_paging = 1'b0;
       lookup_priv = 2'd0;
       lookup_satp = {`XLEN{1'b0}};
@@ -150,6 +154,8 @@ module tb_ooo_fetch_packet_cache;
     end
   endtask
 
+  // 两拍协议(1-cycle SRAM 同步读合同): fire 拍驱动请求+lookup_en, 打一拍后进入
+  // 判决拍(lookup_*_o 针对 fire 拍锁存请求有效), 随后 expect_lookup 组合采样。
   task automatic set_lookup;
     input do_paging;
     input [1:0] priv;
@@ -160,6 +166,9 @@ module tb_ooo_fetch_packet_cache;
       lookup_priv = priv;
       lookup_satp = satp;
       lookup_pc = pc;
+      lookup_en = 1'b1;
+      tick();          // fire 拍→判决拍: SRAM 读发射+请求锁存
+      lookup_en = 1'b0;
       #1;
     end
   endtask
@@ -281,6 +290,44 @@ module tb_ooo_fetch_packet_cache;
     expect_lookup("refill after blocked fill", 1'b1, 1'b1,
                   32'h0000_0213, 2'b00, 32'h0000_8293, 2'b00);
 
+    // 【两拍窗口①】store 与 lookup fire 同拍: 盲失效在拍尾清 valid(判决拍 FF 读见
+    // 新值)+锁存旁路 lkp_inv 双保险 → 判决拍 context/hit 都为 0。
+    lookup_paging = 1'b0;
+    lookup_priv = 2'd0;
+    lookup_satp = {`XLEN{1'b0}};
+    lookup_pc = PC2;
+    invalidate_addr = PC2 + 64'd4;
+    invalidate_valid = 1'b1;
+    lookup_en = 1'b1;
+    tick();
+    lookup_en = 1'b0;
+    invalidate_valid = 1'b0;
+    #1;
+    expect_lookup("fire-cycle store blocks hit (window 1)", 1'b0, 1'b0,
+                  32'h0, 2'b00, 32'h0, 2'b00);
+
+    // 【两拍窗口②】store 在判决拍才到达: 该 store 的盲失效拍尾才写 FF, 判决拍
+    // valid 仍=1(context hit), 必须靠锁存 pc 旁路把 hit 压 0。
+    fill_packet(1'b0, 2'd0, {`XLEN{1'b0}}, PC2,
+                32'h0000_0213, 2'b00, 32'h0000_8293, 2'b00);
+    lookup_pc = PC2;
+    lookup_en = 1'b1;
+    tick();                     // fire 拍(无 store)→判决拍
+    lookup_en = 1'b0;
+    invalidate_addr = PC2 + 64'd4;
+    invalidate_valid = 1'b1;    // 判决拍才出现的 store footprint
+    #1;
+    expect_lookup("decision-cycle store blocks hit (window 2)", 1'b1, 1'b0,
+                  32'h0, 2'b00, 32'h0, 2'b00);
+    tick();                     // 拍尾: 该 store 的盲失效写入 valid FF
+    invalidate_valid = 1'b0;
+    #1;
+    set_lookup(1'b0, 2'd0, {`XLEN{1'b0}}, PC2);
+    expect_lookup("decision-cycle store invalidated entry", 1'b0, 1'b0,
+                  32'h0, 2'b00, 32'h0, 2'b00);
+
+    fill_packet(1'b0, 2'd0, {`XLEN{1'b0}}, PC2,
+                32'h0000_0213, 2'b00, 32'h0000_8293, 2'b00);
     clear = 1'b1;
     tick();
     clear = 1'b0;

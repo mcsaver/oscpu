@@ -64,6 +64,9 @@ module OooMemAxiBridge (
   localparam [3:0] S_WRITE_RESP = 4'd6;
   localparam [3:0] S_RESP = 4'd7;
   localparam [3:0] S_AD_UPDATE = 4'd8;   // HW A/D: 写回 leaf PTE 置 A(D)位, 再续原访问
+  // 【SRAM 同步读】dcache 判决态: 上拍已发 dcache 单口读(发射拍), 本拍 SRAM rdata
+  // 有效, 判 hit(→S_RESP)/miss(当拍发 AR)。load hit 1→2 拍是一期接受的代价。
+  localparam [3:0] S_LOOKUP = 4'd9;
   localparam [`XLEN-1:0] PTE_A_BIT = {{(`XLEN-7){1'b0}}, 7'h40};  // bit 6 (Accessed)
   localparam [`XLEN-1:0] PTE_D_BIT = {{(`XLEN-8){1'b0}}, 8'h80};  // bit 7 (Dirty)
   // 【LSQ Phase2+3】8KB(2^10×8B)直映对 CoreMark 工作集 miss 率 47.6%——
@@ -332,23 +335,13 @@ module OooMemAxiBridge (
       (!req_translate_w || req_dtlb_hit_w) && req_pmp_fault_raw_w &&
       !mem0_req_pretrans_i;
   wire req_dcacheable_unused_w;
-  wire req_dcache_hit_raw_w;
   wire req_line_cross_w;
-  wire [`XLEN-1:0] req_dcache_data_w;
-  wire req_dcache_hit_w =
-      (!req_translate_w || req_dtlb_hit_w) && req_dcache_hit_raw_w;
-  wire req_read_miss_fire_w =
-      mem0_req_fire_w && !req_write_w &&
-      (!req_translate_w || req_dtlb_hit_w) && !req_data_pmp_fault_w &&
-      !req_dcache_hit_w;
   wire [`XLEN-1:0] walk_pte_addr_w =
       pte_addr(walk_ppn_q, addr_q, walk_level_q);
   wire [`XLEN-1:0] walk_leaf_paddr_w =
       leaf_paddr(lsu_axi_rdata_i, addr_q, walk_level_q);
   wire walk_leaf_pmp_fault_w;
   wire walk_leaf_dcacheable_unused_w;
-  wire walk_leaf_dcache_hit_w;
-  wire [`XLEN-1:0] walk_leaf_dcache_data_w;
   wire write_paddr_virtio_blk_w =
       ((paddr_q & `NPC_AXI_VIRTIO_BLK_MASK) == `NPC_AXI_VIRTIO_BLK_BASE);
   wire dtlb_leaf_ok_w =
@@ -371,6 +364,8 @@ module OooMemAxiBridge (
   wire dcache_read_fill_valid_w =
       !cpu_kill_w && (state_q == S_READ_DATA) && lsu_axi_rvalid_i &&
       (lsu_axi_rresp_i == 2'b00) && !read_cross_q;
+  // 声明前置，iverilog 14 拒绝前向引用(赋值仍在下方 B 通道段)。
+  wire store_decouple_w;
   // 解耦 store 在数据落 PMEM 当拍(S_WRITE_REQ 两 beat 完成且走解耦)就必须更新/失效 dcache，
   // 否则跳过 S_WRITE_RESP 会漏掉 dcache 维护、令同地址后续 load 命中旧值(MEM-I2 破坏)。
   wire store_decouple_commit_w =
@@ -382,6 +377,38 @@ module OooMemAxiBridge (
        (lsu_axi_bresp_i == 2'b00)) ||
       store_decouple_commit_w ||
       ad_update_b_ok_w;   // HW A/D: PTE 写回也维护 dcache(否则读 PTE 得 stale A/D, rv64si-dirty 破)
+
+  // 【SRAM 同步读】dcache 单读口发射条件(三源所在状态互斥, 见 dcache spec):
+  //   req 路: accept 拍 read-可翻译-无 fault(条件须与 accept_request 读分支严格一致);
+  //   walk 路: S_WALK_R leaf-ok read——改经 S_LOOKUP 顺手修复旧 walk 组合口
+  //     无移位无跨线检查回错值的 bug(判决拍统一 paddr_q 移位/read_cross_q 阻断);
+  //   A/D 路: S_AD_UPDATE b-ok read——改用锁存 paddr_q, 消灭对 R 通道残留
+  //     lsu_axi_rdata_i 的依赖(第二个既有 bug)。
+  wire req_read_lookup_fire_w =
+      mem0_req_fire_w && !req_write_w &&
+      (!req_translate_w || req_dtlb_hit_w) &&
+      !req_data_pmp_fault_w &&
+      !(req_translate_w && req_dtlb_perm_fault_w);
+  wire walk_read_lookup_fire_w =
+      dtlb_leaf_ok_w && !walk_leaf_pmp_fault_w && !walk_ad_needed_w &&
+      !write_q;
+  wire ad_read_lookup_fire_w =
+      ad_update_b_ok_w &&
+      (aw_done_q || aw_fire_w) && (w_done_q || w_fire_w) && !write_q;
+  // walk/A/D 路只在 FSM 正常推进分支发读(flush/drop 拍事务被释放, 不发)。
+  // req 路的 fire 已经由 req_slot_ready_w 含 !cpu_kill_w 把关。
+  wire fsm_normal_w = !cpu_kill_w || nokill_busy_w;
+  wire dcache_lookup_en_w =
+      req_read_lookup_fire_w ||
+      (fsm_normal_w && (walk_read_lookup_fire_w || ad_read_lookup_fire_w));
+  wire [`XLEN-1:0] dcache_lookup_addr_w =
+      req_read_lookup_fire_w  ? req_cache_addr_w :
+      walk_read_lookup_fire_w ? walk_leaf_paddr_w : paddr_q;
+  wire dcache_lookup_hit_w;
+  wire [`XLEN-1:0] dcache_lookup_line_w;
+  // S_LOOKUP 判决: 跨线阻断统一用锁存 read_cross_q(accept 拍按 VA 低 3 位判,
+  // VA/PA 页内偏移相同故对 walk 路同样成立), 窗口移位统一用锁存 paddr_q[2:0]。
+  wire dcache_lookup_hit_final_w = dcache_lookup_hit_w && !read_cross_q;
 
   OooSv39Tlb #(
     .INDEX_W(DTLB_INDEX_W)
@@ -450,25 +477,26 @@ module OooMemAxiBridge (
     .req_lookup_addr_i(req_cache_addr_w),
     .req_nbytes_i(req_access_size_w),
     .req_cacheable_o(req_dcacheable_unused_w),
-    .req_hit_o(req_dcache_hit_raw_w),
     .req_line_cross_o(req_line_cross_w),
-    .req_data_o(req_dcache_data_w),
     .walk_lookup_addr_i(walk_leaf_paddr_w),
     .walk_cacheable_o(walk_leaf_dcacheable_unused_w),
-    .walk_hit_o(walk_leaf_dcache_hit_w),
-    .walk_data_o(walk_leaf_dcache_data_w),
+    // 单读口两拍协议: 发射拍状态互斥 mux(req/walk/A-D 三源), 判决在 S_LOOKUP。
+    .lookup_en_i(dcache_lookup_en_w),
+    .lookup_addr_i(dcache_lookup_addr_w),
+    .lookup_hit_o(dcache_lookup_hit_w),
+    .lookup_line_o(dcache_lookup_line_w),
     .fill_valid_i(dcache_read_fill_valid_w),
     .fill_addr_i({paddr_q[`XLEN-1:3], 3'b000}),
     .fill_data_i(lsu_axi_rdata_i),
+    // 【SRAM 一期】store 维护 = 无条件失效(cache 内不读 tag 不写 SRAM)。
     .store_commit_i(dcache_store_commit_w),
-    // LSQ Phase 1：去掉核弹式全失效（原恒 1），改由 dcache 按 store 真实字节区间对
-    // {store_idx-1,idx,+1} 三邻域精确失效/合并（byte-window 模型下等价保持 store→load 可见性）。
-    .store_invalidate_all_i(1'b0),
     // HW A/D: PTE 写回拍(ad_update_b_ok_w)对 PTE 地址维护 dcache; 否则用 store 地址。
     .store_addr_i(ad_update_b_ok_w ? walk_pte_addr_w : paddr_q),
-    .store_data_i(ad_update_b_ok_w ? ad_pte_q : wdata_q),
     .store_wstrb_i(ad_update_b_ok_w ? {`STRB_W{1'b1}} : wstrb_q)
   );
+
+  // (sim 统计探针已精确化：NpcSimTop 改为 access 打一拍 + 直接采判决拍
+  //  dcache_lookup_hit_final_w，此处原粘滞近似探针删除。)
 
   assign mem0_req_ready_o = req_slot_ready_w;
 
@@ -479,23 +507,19 @@ module OooMemAxiBridge (
   assign mem0_rsp_page_fault_o = rsp_page_fault_q;
   assign translate_active_o = ctx_translate_w;
 
+  // 【SRAM 同步读】read miss 的 AR 从 fire 拍推迟到 S_LOOKUP 判决拍(晚 1 拍),
+  // 地址/strb 统一取锁存 paddr_q/wstrb_q, 原 req_* 直通支路随之删除。
   assign lsu_axi_arvalid_o =
       !cpu_kill_w &&
       (((state_q == S_WALK_AR) && !walk_pte_pmp_fault_w) ||
        (state_q == S_READ_ADDR) ||
-       req_read_miss_fire_w);
-  wire [`XLEN-1:0] req_read_araddr_w =
-      req_line_cross_w ? req_cache_addr_w
-                       : {req_cache_addr_w[`XLEN-1:3], 3'b000};
+       ((state_q == S_LOOKUP) && !dcache_lookup_hit_final_w));
   wire [`XLEN-1:0] pend_read_araddr_w =
       read_cross_q ? paddr_q : {paddr_q[`XLEN-1:3], 3'b000};
   assign lsu_axi_araddr_o =
-      (state_q == S_WALK_AR) ? walk_pte_addr_w :
-      req_read_miss_fire_w ? req_read_araddr_w : pend_read_araddr_w;
+      (state_q == S_WALK_AR) ? walk_pte_addr_w : pend_read_araddr_w;
   assign lsu_axi_arstrb_o =
       (state_q == S_WALK_AR) ? {`STRB_W{1'b1}} :
-      req_read_miss_fire_w ? (req_line_cross_w ? req_wstrb_w
-                                               : {`STRB_W{1'b1}}) :
       (read_cross_q ? wstrb_q : {`STRB_W{1'b1}});
   assign lsu_axi_rready_o = (state_q == S_WALK_R) || (state_q == S_READ_DATA);
   wire write_drain_w =
@@ -518,7 +542,7 @@ module OooMemAxiBridge (
   assign lsu_axi_bready_o =
       (state_q == S_WRITE_RESP) || bpend_q || (state_q == S_AD_UPDATE);
   // 仅 PMEM store 可提前完成(bresp 恒 OK)；!bpend_q 保证至多一个未收 B。
-  wire store_decouple_w =
+  assign store_decouple_w =
       ((paddr_q & `NPC_AXI_PMEM_MASK) == `NPC_AXI_PMEM_BASE) && !bpend_q;
 
   task automatic accept_request;
@@ -565,11 +589,10 @@ module OooMemAxiBridge (
         end else begin
           state_q <= S_WRITE_REQ;
         end
-      end else if (req_dcache_hit_w) begin
-        rsp_rdata_q <= req_dcache_data_w;
-        state_q <= S_RESP;
       end else begin
-        state_q <= lsu_axi_arready_i ? S_READ_DATA : S_READ_ADDR;
+        // 【SRAM 同步读】读路径统一经 S_LOOKUP: fire 拍已发 dcache 读
+        // (req_read_lookup_fire_w, 与本分支条件严格一致), 次拍判决 hit/miss。
+        state_q <= S_LOOKUP;
       end
     end
   endtask
@@ -613,7 +636,8 @@ module OooMemAxiBridge (
           drop_rsp_q <= 1'b0;
         end
 
-        S_WALK_AR, S_READ_ADDR: begin
+        // S_LOOKUP: dcache 读无外部副作用, flush 当拍直接释放。
+        S_WALK_AR, S_READ_ADDR, S_LOOKUP: begin
           state_q <= S_IDLE;
           aw_done_q <= 1'b0;
           w_done_q <= 1'b0;
@@ -759,13 +783,12 @@ module OooMemAxiBridge (
                   end else begin
                     state_q <= S_WRITE_REQ;
                   end
-                end else if (walk_leaf_dcache_hit_w) begin
-                  rsp_rdata_q <= walk_leaf_dcache_data_w;
-                  rsp_error_q <= 1'b0;
-                  rsp_page_fault_q <= 1'b0;
-                  state_q <= S_RESP;
                 end else begin
-                  state_q <= S_READ_ADDR;
+                  // 【SRAM 同步读】leaf-ok read: 当拍已发 dcache 读
+                  // (walk_read_lookup_fire_w, addr=walk_leaf_paddr_w), 统一
+                  // 进 S_LOOKUP 判决——修复旧 walk 组合口无移位无跨线检查
+                  // 直接回整行的错值 bug。
+                  state_q <= S_LOOKUP;
                 end
               end
             end else begin
@@ -773,6 +796,21 @@ module OooMemAxiBridge (
               walk_level_q <= walk_level_q - 2'd1;
               state_q <= S_WALK_AR;
             end
+          end
+        end
+
+        S_LOOKUP: begin
+          // 判决拍: SRAM rdata 对应上拍锁存的 lookup 地址(该地址已同拍锁进
+          // paddr_q)。命中数据统一按 paddr_q[2:0] 右移出窗口视图, 跨线由
+          // read_cross_q 阻断按 miss 走 AXI 窗口读。
+          if (dcache_lookup_hit_final_w) begin
+            rsp_rdata_q <= dcache_lookup_line_w >> {paddr_q[2:0], 3'b000};
+            rsp_error_q <= 1'b0;
+            rsp_page_fault_q <= 1'b0;
+            state_q <= S_RESP;
+          end else begin
+            // miss/跨线: 当拍发 AR(arvalid 组合含 S_LOOKUP-miss 项)。
+            state_q <= lsu_axi_arready_i ? S_READ_DATA : S_READ_ADDR;
           end
         end
 
@@ -846,13 +884,11 @@ module OooMemAxiBridge (
               end else begin
                 state_q <= S_WRITE_REQ;    // 真 store: 续写数据
               end
-            end else if (walk_leaf_dcache_hit_w) begin
-              rsp_rdata_q <= walk_leaf_dcache_data_w;
-              rsp_error_q <= 1'b0;
-              rsp_page_fault_q <= 1'b0;
-              state_q <= S_RESP;
             end else begin
-              state_q <= S_READ_ADDR;      // load miss: 续读数据
+              // 【SRAM 同步读】续 read: 当拍已发 dcache 读(ad_read_lookup_fire_w,
+              // addr=paddr_q, 不再依赖 R 通道残留的 lsu_axi_rdata_i), 统一进
+              // S_LOOKUP 判决。
+              state_q <= S_LOOKUP;
             end
           end
         end

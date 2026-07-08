@@ -1,5 +1,12 @@
 `include "define.v"
 
+// 取指包 cache —— SRAM 宏版。
+// 拓扑: payload/tag 全体(paging/priv/satp/pc/inst0/inst1/resp0/resp1)集中放进
+// 1 个 Sram4096x199 1RW 同步读宏; valid 保持 ENTRY_COUNT bit FF(SRAM 内容无复位,
+// 全清/失效语义由 valid FF 承担)。
+// 两拍 lookup 协议: lookup_en_i(fire 拍)锁存请求上下文并发射 SRAM 读; 次拍(判决拍)
+// lookup_*_o 针对 fire 拍锁存的请求有效, 其余拍输出恒 0(dec_en_q 门控)。
+// fill 与 lookup 由使用方(OooFetchAxiBridge FSM)保证不同拍 —— SRAM 1RW 合同。
 module OooFetchPacketCache #(
   parameter INDEX_W = `OOO_FETCH_PACKET_CACHE_INDEX_W,
   parameter ENTRY_COUNT = (1 << INDEX_W)
@@ -8,6 +15,7 @@ module OooFetchPacketCache #(
   input rst,
   input clear_i,
 
+  input lookup_en_i,
   input lookup_paging_i,
   input [1:0] lookup_priv_i,
   input [`XLEN-1:0] lookup_satp_i,
@@ -33,15 +41,20 @@ module OooFetchPacketCache #(
   input [`XLEN-1:0] invalidate_addr_i
 );
 
+  // SRAM 宏规格固定(4096x199); INDEX_W<12(focused TB 缩容)时地址高位补零。
+  localparam SRAM_ADDR_W = 12;
+  localparam SRAM_DATA_W = 199;
+
   reg [ENTRY_COUNT-1:0] valid_q;
-  reg paging_q [0:ENTRY_COUNT-1];
-  reg [1:0] priv_q [0:ENTRY_COUNT-1];
-  reg [`XLEN-1:0] satp_q [0:ENTRY_COUNT-1];
-  reg [`XLEN-1:0] pc_q [0:ENTRY_COUNT-1];
-  reg [`INST_W-1:0] inst0_q [0:ENTRY_COUNT-1];
-  reg [`INST_W-1:0] inst1_q [0:ENTRY_COUNT-1];
-  reg [1:0] resp0_q [0:ENTRY_COUNT-1];
-  reg [1:0] resp1_q [0:ENTRY_COUNT-1];
+
+  // fire 拍锁存的 lookup 请求(判决拍与 SRAM rdata_o 同参照系比较)。
+  reg dec_en_q;                       // 上拍发射过 lookup → 本拍为判决拍
+  reg lkp_paging_q;
+  reg [1:0] lkp_priv_q;
+  reg [`XLEN-1:0] lkp_satp_q;
+  reg [`XLEN-1:0] lkp_pc_q;
+  reg [INDEX_W-1:0] lkp_idx_q;
+  reg lkp_inv_q;                      // fire 拍 store footprint 旁路(窗口①)锁存
 
   localparam [INDEX_W-1:0] INVALIDATE_DELTA_1 = 1;
   localparam [INDEX_W-1:0] INVALIDATE_DELTA_2 = 2;
@@ -92,85 +105,112 @@ module OooFetchPacketCache #(
   wire fill_invalidated_w =
       invalidate_valid_i && same_fetch_window(fill_pc_i, invalidate_addr_i);
 
-  wire invalidate_m6_hit_w =
-      invalidate_valid_i && valid_q[invalidate_idx_m6_w] &&
-      same_fetch_window(pc_q[invalidate_idx_m6_w], invalidate_addr_i);
-  wire invalidate_m4_hit_w =
-      invalidate_valid_i && valid_q[invalidate_idx_m4_w] &&
-      same_fetch_window(pc_q[invalidate_idx_m4_w], invalidate_addr_i);
-  wire invalidate_m2_hit_w =
-      invalidate_valid_i && valid_q[invalidate_idx_m2_w] &&
-      same_fetch_window(pc_q[invalidate_idx_m2_w], invalidate_addr_i);
-  wire invalidate_p0_hit_w =
-      invalidate_valid_i && valid_q[invalidate_idx_p0_w] &&
-      same_fetch_window(pc_q[invalidate_idx_p0_w], invalidate_addr_i);
-  wire invalidate_p2_hit_w =
-      invalidate_valid_i && valid_q[invalidate_idx_p2_w] &&
-      same_fetch_window(pc_q[invalidate_idx_p2_w], invalidate_addr_i);
-  wire invalidate_p4_hit_w =
-      invalidate_valid_i && valid_q[invalidate_idx_p4_w] &&
-      same_fetch_window(pc_q[invalidate_idx_p4_w], invalidate_addr_i);
-  wire invalidate_p6_hit_w =
-      invalidate_valid_i && valid_q[invalidate_idx_p6_w] &&
-      same_fetch_window(pc_q[invalidate_idx_p6_w], invalidate_addr_i);
+  // ── SRAM 宏(1RW 同步读): 读口=lookup fire 拍, 写口=未被 store footprint 阻止的
+  //    fill 拍; 使用方 FSM 保证两者不同拍(见文末 OOO_ASSERT)。──
+  wire sram_we_w = fill_valid_i && !fill_invalidated_w;
+  wire sram_en_w = lookup_en_i || sram_we_w;
+  // 用 | 零扩展补齐宏 12b 地址口, 避免 INDEX_W=12 时出现 0 次复制拼接(非法)。
+  wire [SRAM_ADDR_W-1:0] sram_addr_w =
+      {SRAM_ADDR_W{1'b0}} | (sram_we_w ? fill_idx_w : lookup_idx_w);
+  // 位段布局(宏合同冻结): {paging[198], priv[197:196], satp[195:132], pc[131:68],
+  //                       inst0[67:36], inst1[35:4], resp0[3:2], resp1[1:0]}
+  wire [SRAM_DATA_W-1:0] sram_wdata_w =
+      {fill_paging_i, fill_priv_i, fill_satp_i, fill_pc_i,
+       fill_inst0_i, fill_inst1_i, fill_resp0_i, fill_resp1_i};
+  wire [SRAM_DATA_W-1:0] sram_rdata_w;
+
+  Sram4096x199 u_payload_sram (
+    .clk(clk),
+    .en_i(sram_en_w),
+    .we_i(sram_we_w),
+    .addr_i(sram_addr_w),
+    .wdata_i(sram_wdata_w),
+    .rdata_o(sram_rdata_w)
+  );
+
+  // 判决拍视图: SRAM 读出 entry 各字段(对应 fire 拍锁存的 index)。
+  wire ent_paging_w = sram_rdata_w[198];
+  wire [1:0] ent_priv_w = sram_rdata_w[197:196];
+  wire [`XLEN-1:0] ent_satp_w = sram_rdata_w[195:132];
+  wire [`XLEN-1:0] ent_pc_w = sram_rdata_w[131:68];
+  wire [`INST_W-1:0] ent_inst0_w = sram_rdata_w[67:36];
+  wire [`INST_W-1:0] ent_inst1_w = sram_rdata_w[35:4];
+  wire [1:0] ent_resp0_w = sram_rdata_w[3:2];
+  wire [1:0] ent_resp1_w = sram_rdata_w[1:0];
+
+  // valid 必须在判决拍用锁存 idx 读 FF(不能 fire 拍随 SRAM 走): fire 拍同拍到达的
+  // invalidate 在拍尾清 valid, 判决拍组合读才能看到新值(窗口①的 FF 侧封堵)。
+  wire dec_valid_w = valid_q[lkp_idx_q];
+  // 两拍窗口封堵: 窗口①=fire 拍 store(锁存旁路 lkp_inv_q, 与上述 FF 读双保险);
+  // 窗口②=判决拍才到的 store(其盲失效拍尾才写 FF, 本拍必须用锁存 pc 旁路挡 hit)。
+  wire dec_invalidated_w =
+      lkp_inv_q ||
+      (invalidate_valid_i && same_fetch_window(lkp_pc_q, invalidate_addr_i));
 
   assign lookup_context_hit_o =
-      valid_q[lookup_idx_w] &&
-      (paging_q[lookup_idx_w] == lookup_paging_i) &&
-      (!lookup_paging_i ||
-       ((priv_q[lookup_idx_w] == lookup_priv_i) &&
-        (satp_q[lookup_idx_w] == lookup_satp_i)));
+      dec_en_q && dec_valid_w &&
+      (ent_paging_w == lkp_paging_q) &&
+      (!lkp_paging_q ||
+       ((ent_priv_w == lkp_priv_q) && (ent_satp_w == lkp_satp_q)));
   assign lookup_hit_o =
       lookup_context_hit_o &&
-      (pc_q[lookup_idx_w] == lookup_pc_i) &&
-      !lookup_invalidated_w;
-  assign lookup_inst0_o = inst0_q[lookup_idx_w];
-  assign lookup_inst1_o = inst1_q[lookup_idx_w];
-  assign lookup_resp0_o = resp0_q[lookup_idx_w];
-  assign lookup_resp1_o = resp1_q[lookup_idx_w];
+      (ent_pc_w == lkp_pc_q) &&
+      !dec_invalidated_w;
+  assign lookup_inst0_o = ent_inst0_w;
+  assign lookup_inst1_o = ent_inst1_w;
+  assign lookup_resp0_o = ent_resp0_w;
+  assign lookup_resp1_o = ent_resp1_w;
+
+  always @(posedge clk) begin
+    if (rst) begin
+      dec_en_q <= 1'b0;
+    end else begin
+      dec_en_q <= lookup_en_i;
+    end
+    if (lookup_en_i) begin
+      lkp_paging_q <= lookup_paging_i;
+      lkp_priv_q <= lookup_priv_i;
+      lkp_satp_q <= lookup_satp_i;
+      lkp_pc_q <= lookup_pc_i;
+      lkp_idx_q <= lookup_idx_w;
+      lkp_inv_q <= lookup_invalidated_w;
+    end
+  end
 
   always @(posedge clk) begin
     if (rst || clear_i) begin
       valid_q <= {ENTRY_COUNT{1'b0}};
     end else begin
-      // 这里直接更新少数命中的 valid bit，避免组合 next-state 使用宽向量
-      // 动态位写；fill 保持最后赋值，匹配原有“未被覆盖的同拍 fill 胜出”语义。
-      if (invalidate_m6_hit_w) begin
+      // 盲失效: 7 邻域 index 无条件清 valid, 不再读 pc 比较(pc 的 7 个失效读口随
+      // SRAM 化物理消灭)。与 store 足迹重叠的取指包 index 必落在 m6..p6 邻域(超集
+      // 覆盖已证明), 多清的只是同 index 异 PC 的 entry —— 损 hit 率不损正确性。
+      if (invalidate_valid_i) begin
         valid_q[invalidate_idx_m6_w] <= 1'b0;
-      end
-      if (invalidate_m4_hit_w) begin
         valid_q[invalidate_idx_m4_w] <= 1'b0;
-      end
-      if (invalidate_m2_hit_w) begin
         valid_q[invalidate_idx_m2_w] <= 1'b0;
-      end
-      if (invalidate_p0_hit_w) begin
         valid_q[invalidate_idx_p0_w] <= 1'b0;
-      end
-      if (invalidate_p2_hit_w) begin
         valid_q[invalidate_idx_p2_w] <= 1'b0;
-      end
-      if (invalidate_p4_hit_w) begin
         valid_q[invalidate_idx_p4_w] <= 1'b0;
-      end
-      if (invalidate_p6_hit_w) begin
         valid_q[invalidate_idx_p6_w] <= 1'b0;
       end
+      // 后写胜出: 同拍未被阻止的 fill 覆盖同 index 盲失效(fill 内容与该 store 无
+      // 足迹重叠, 是刚从内存取回的真值), 维持原"未被覆盖的同拍 fill 胜出"语义。
       if (fill_valid_i && !fill_invalidated_w) begin
         valid_q[fill_idx_w] <= 1'b1;
       end
-
-      if (fill_valid_i && !fill_invalidated_w) begin
-        paging_q[fill_idx_w] <= fill_paging_i;
-        priv_q[fill_idx_w] <= fill_priv_i;
-        satp_q[fill_idx_w] <= fill_satp_i;
-        pc_q[fill_idx_w] <= fill_pc_i;
-        inst0_q[fill_idx_w] <= fill_inst0_i;
-        inst1_q[fill_idx_w] <= fill_inst1_i;
-        resp0_q[fill_idx_w] <= fill_resp0_i;
-        resp1_q[fill_idx_w] <= fill_resp1_i;
-      end
     end
   end
+
+`ifdef OOO_ASSERT
+  // ── 契约: SRAM 1RW 读写不同拍(读写同拍=宏使用违约)。使用方 FSM 保证 lookup fire
+  // 仅在 S_IDLE/S_RESP、fill 仅在 S_R0/S_R1, 状态互斥。立即断言, 仅 OOO_ASSERT 编入。
+  always @(posedge clk) begin
+    if (!rst && lookup_en_i && fill_valid_i) begin
+      $error("[CONTRACT-FPC-1RW] lookup_en and fill in same cycle violates 1RW SRAM: lookup_pc=%h fill_pc=%h @%0t",
+             lookup_pc_i, fill_pc_i, $time);
+      $fatal;
+    end
+  end
+`endif
 
 endmodule

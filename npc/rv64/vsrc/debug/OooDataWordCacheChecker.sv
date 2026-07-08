@@ -1,5 +1,9 @@
 // OooDataWordCache 外部观测 checker。
 // 只用于仿真/测试的 debug 层：读 ① 层真实信号，投影 common facts，并用立即断言审核接口语义。
+// 【SRAM 同步读】单读口两拍协议下, hit 类断言以"判决拍针对上拍锁存地址"为参照系
+// (checker 自带一份发射拍锁存), 原 DWC-HIT-GATE/DWC-WALK-HIT-GATE 两个同拍断言
+// 随 req/walk 读口合并为单 lookup 口而合一为打拍版; 纯地址组合断言
+// (REQ-CACHEABLE/WALK-CACHEABLE/LINE-CROSS)保持同拍不变。
 `include "define.v"
 `include "common/OooDataWordCacheFacts.vh"
 
@@ -10,18 +14,19 @@ module OooDataWordCacheChecker (
   input wire [`XLEN-1:0] req_lookup_addr_i,
   input wire [3:0] req_nbytes_i,
   input wire req_cacheable_i,
-  input wire req_hit_i,
   input wire req_line_cross_i,
 
   input wire [`XLEN-1:0] walk_lookup_addr_i,
   input wire walk_cacheable_i,
-  input wire walk_hit_i,
+
+  input wire lookup_en_i,
+  input wire [`XLEN-1:0] lookup_addr_i,
+  input wire lookup_hit_i,
 
   input wire fill_valid_i,
   input wire [`XLEN-1:0] fill_addr_i,
 
   input wire store_commit_i,
-  input wire store_invalidate_all_i,
   input wire [`XLEN-1:0] store_addr_i,
   input wire [`STRB_W-1:0] store_wstrb_i
 );
@@ -58,20 +63,29 @@ module OooDataWordCacheChecker (
       {1'b0, store_addr_i[2:0]} + {1'b0, store_nbytes_w};
   wire store_line_cross_w = store_window_end_w > 5'd8;
 
+  // 发射拍锁存(判决拍参照系): lookup_hit_i 对应上一拍的 lookup_addr_i。
+  reg lookup_pend_q;
+  reg [`XLEN-1:0] lookup_addr_q;
+  always @(posedge clk) begin
+    if (rst)
+      lookup_pend_q <= 1'b0;
+    else
+      lookup_pend_q <= lookup_en_i;
+    if (lookup_en_i)
+      lookup_addr_q <= lookup_addr_i;
+  end
+
   wire [`OOO_DWC_FACTS_W-1:0] facts_w;
   assign facts_w[`OOO_DWC_REQ_UNCACHED] =
       !cacheable_addr(req_lookup_addr_i);
   assign facts_w[`OOO_DWC_REQ_LINE_CROSS] = req_line_cross_i;
-  assign facts_w[`OOO_DWC_REQ_HIT] = req_hit_i;
-  assign facts_w[`OOO_DWC_REQ_MISS] =
-      req_cacheable_i && (!req_hit_i || req_line_cross_i);
-  assign facts_w[`OOO_DWC_WALK_HIT] = walk_hit_i;
-  assign facts_w[`OOO_DWC_WALK_MISS] = walk_cacheable_i && !walk_hit_i;
+  assign facts_w[`OOO_DWC_LOOKUP_ISSUE] = lookup_en_i;
+  assign facts_w[`OOO_DWC_LOOKUP_HIT] = lookup_hit_i;
+  assign facts_w[`OOO_DWC_LOOKUP_MISS] = lookup_pend_q && !lookup_hit_i;
   assign facts_w[`OOO_DWC_FILL] = fill_valid_i;
   assign facts_w[`OOO_DWC_STORE_COMMIT] = store_commit_i;
   assign facts_w[`OOO_DWC_STORE_LINE_CROSS] =
-      store_commit_i && !store_invalidate_all_i && store_line_cross_w;
-  assign facts_w[`OOO_DWC_INVALIDATE_ALL] = store_invalidate_all_i;
+      store_commit_i && store_line_cross_w;
 
   wire _unused_facts_w =
       |facts_w | (|walk_lookup_addr_i) | (|fill_addr_i) |
@@ -113,18 +127,21 @@ module OooDataWordCacheChecker (
     end
   end
 
+  // DWC-HIT-GATE(打拍版, 合并原 REQ/WALK 两同拍断言): hit 只允许出现在判决拍
+  // (上拍有发射), 且锁存 lookup 地址必须 cacheable。跨线阻断已移至桥判决拍
+  // (read_cross_q), 由 tb_ooo_mem_axi_bridge 的跨线读场景审核。
   always @(posedge clk) begin
-    if (!rst && req_hit_i && (!req_cacheable_i || req_line_cross_i)) begin
-      $error("[DWC-HIT-GATE] hit requires cacheable and non-cross: addr=%h cacheable=%b cross=%b @%0t",
-             req_lookup_addr_i, req_cacheable_i, req_line_cross_i, $time);
+    if (!rst && lookup_hit_i && !lookup_pend_q) begin
+      $error("[DWC-HIT-GATE] hit outside decision cycle (no lookup issued last cycle) @%0t",
+             $time);
       $fatal;
     end
   end
 
   always @(posedge clk) begin
-    if (!rst && walk_hit_i && !walk_cacheable_i) begin
-      $error("[DWC-WALK-HIT-GATE] PTW hit on uncacheable addr=%h @%0t",
-             walk_lookup_addr_i, $time);
+    if (!rst && lookup_hit_i && !cacheable_addr(lookup_addr_q)) begin
+      $error("[DWC-HIT-GATE] hit on uncacheable latched addr=%h @%0t",
+             lookup_addr_q, $time);
       $fatal;
     end
   end
@@ -134,14 +151,6 @@ module OooDataWordCacheChecker (
         (!cacheable_addr(fill_addr_i) || (fill_addr_i[2:0] != 3'b000))) begin
       $error("[DWC-FILL-ADDR] fill must be PMEM cacheable and 8B aligned: addr=%h @%0t",
              fill_addr_i, $time);
-      $fatal;
-    end
-  end
-
-  always @(posedge clk) begin
-    if (!rst && store_invalidate_all_i && !store_commit_i) begin
-      $error("[DWC-INVALL] invalidate_all must be attached to store_commit @%0t",
-             $time);
       $fatal;
     end
   end

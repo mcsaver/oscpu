@@ -16,17 +16,18 @@ from pathlib import Path
 
 
 REQUIRED_SPEC_PATTERNS = {
-    "section": r"##\s+8\.\s+Macro/OOC Contract v0",
-    "req_read_latency": r"req read latency\s*\|\s*`0 cycle`",
-    "walk_read_latency": r"walk read latency\s*\|\s*`0 cycle`",
+    "section": r"##\s+8\.\s+Macro/OOC Contract v1",
+    "lookup_read_latency": r"lookup read latency\s*\|\s*`1 cycle`",
+    "addr_attribute_latency": r"addr-attribute latency\s*\|\s*`0 cycle`",
     "write_visibility": r"write visibility\s*\|\s*`next cycle`",
-    "same_cycle_priority": r"same-cycle priority\s*\|\s*fill then store",
+    "rw_conflict": r"read/write conflict\s*\|\s*禁止\(1RW\)",
     "reset_model": r"reset\s*\|\s*valid-only clear",
-    "read_ports": r"read ports\s*\|\s*two combinational views",
+    "read_ports": r"read ports\s*\|\s*one synchronous read port",
     "entries": r"entries\s*\|\s*`4096`",
+    "sram_macro_bits": r"SRAM macro bits\s*\|\s*`4096 \* 113 = 462848`",
     "data_bits": r"data bits\s*\|\s*`4096 \* 64 = 262144`",
     "tag_bits": r"tag bits\s*\|\s*`4096 \* \(64 - 3 - 12\) = 200704`",
-    "valid_bits": r"valid bits\s*\|\s*`4096`",
+    "valid_bits": r"valid bits \(FF\)\s*\|\s*`4096`",
     "total_bits": r"total state bits\s*\|\s*`466944`",
     "not_signoff": r"not stdcell area|不是 stdcell area",
     "liberty_open": r"Liberty/LEF|OOC timing report",
@@ -34,10 +35,10 @@ REQUIRED_SPEC_PATTERNS = {
 
 REQUIRED_BOUNDARY_PATTERNS = {
     "dcache_row": r"\|\s*OooDataWordCache\s*\|",
-    "placeholder_v0": r"OooDataWordCache[^\n]*Placeholder v0 defined",
-    "zero_cycle": r"OooDataWordCache[^\n]*0-cycle req/walk read",
+    "sram_macro_v1": r"OooDataWordCache[^\n]*SRAM macro v1",
+    "one_cycle": r"OooDataWordCache[^\n]*1-cycle sync lookup read",
     "next_cycle": r"OooDataWordCache[^\n]*next-cycle write visibility",
-    "fill_store": r"OooDataWordCache[^\n]*fill-then-store priority",
+    "store_invalidate": r"OooDataWordCache[^\n]*unconditional store invalidate",
     "state_bits": r"OooDataWordCache[^\n]*466944 state-bit",
     "liberty_open": r"OooDataWordCache[^\n]*Liberty/LEF/OOC timing still open",
     "real_model_task": r"OooDataWordCache[^\n]*real Liberty/LEF macro model|OooDataWordCache[^\n]*OOC timing report",

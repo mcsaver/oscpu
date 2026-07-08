@@ -1,5 +1,7 @@
 // OooFetchPacketCache 外部观测 checker。
 // 只用于仿真/测试的 debug 层：读真实端口，投影 common facts，并审核 cache-visible spec 语义。
+// SRAM 同步读两拍协议参照系：checker 在 fire 拍(lookup_en_i)自行锁存请求，
+// 判决拍(次拍)对 lookup_hit_i/lookup_context_hit_i 断言 —— 与 DUT 内部锁存同参照系。
 `include "define.v"
 `include "common/OooFetchPacketCacheFacts.vh"
 
@@ -8,6 +10,7 @@ module OooFetchPacketCacheChecker (
   input wire rst,
   input wire clear_i,
 
+  input wire lookup_en_i,
   input wire lookup_paging_i,
   input wire [1:0] lookup_priv_i,
   input wire [`XLEN-1:0] lookup_satp_i,
@@ -37,8 +40,29 @@ module OooFetchPacketCacheChecker (
     end
   endfunction
 
+  // fire 拍锁存(两拍协议影子模型): lkp_en_q=1 的拍即判决拍。
+  reg lkp_en_q;
+  reg [`XLEN-1:0] lkp_pc_q;
+  reg lkp_inv_fire_q;
+  always @(posedge clk) begin
+    if (rst) begin
+      lkp_en_q <= 1'b0;
+    end else begin
+      lkp_en_q <= lookup_en_i;
+    end
+    if (lookup_en_i) begin
+      lkp_pc_q <= lookup_pc_i;
+      lkp_inv_fire_q <= invalidate_valid_i &&
+                        same_fetch_window(lookup_pc_i, invalidate_addr_i);
+    end
+  end
+
+  // 两拍窗口: 窗口①=fire 拍 store footprint(锁存), 窗口②=判决拍 store footprint
+  // (锁存 pc 对当拍 invalidate)。任一重叠都必须挡 hit。
   wire lookup_invalidated_w =
-      invalidate_valid_i && same_fetch_window(lookup_pc_i, invalidate_addr_i);
+      lkp_en_q &&
+      (lkp_inv_fire_q ||
+       (invalidate_valid_i && same_fetch_window(lkp_pc_q, invalidate_addr_i)));
   wire fill_blocked_by_store_w =
       fill_valid_i && invalidate_valid_i &&
       same_fetch_window(fill_pc_i, invalidate_addr_i);
@@ -60,17 +84,26 @@ module OooFetchPacketCacheChecker (
 
 `ifdef OOO_ASSERT
   always @(posedge clk) begin
-    if (!rst && lookup_hit_i && !lookup_context_hit_i) begin
+    if (!rst && lkp_en_q && lookup_hit_i && !lookup_context_hit_i) begin
       $error("[FPC-HIT-GATE] lookup_hit requires lookup_context_hit: pc=%h @%0t",
-             lookup_pc_i, $time);
+             lkp_pc_q, $time);
+      $fatal;
+    end
+  end
+
+  // 非判决拍 hit 输出必须为 0(dec_en_q 门控合同): 防止 stale SRAM rdata 被误当命中。
+  always @(posedge clk) begin
+    if (!rst && lookup_hit_i && !lkp_en_q) begin
+      $error("[FPC-HIT-FRAME] lookup_hit outside decision cycle (no lookup issued last cycle) @%0t",
+             $time);
       $fatal;
     end
   end
 
   always @(posedge clk) begin
-    if (!rst && lookup_hit_i && lookup_invalidated_w) begin
-      $error("[FPC-LOOKUP-INVALIDATED] same-cycle store footprint must block hit: pc=%h store=%h @%0t",
-             lookup_pc_i, invalidate_addr_i, $time);
+    if (!rst && lkp_en_q && lookup_hit_i && lookup_invalidated_w) begin
+      $error("[FPC-LOOKUP-INVALIDATED] fire/decision-cycle store footprint must block hit: pc=%h store=%h @%0t",
+             lkp_pc_q, invalidate_addr_i, $time);
       $fatal;
     end
   end

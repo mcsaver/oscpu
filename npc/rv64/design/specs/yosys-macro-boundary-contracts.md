@@ -20,12 +20,20 @@
   iEDA STA smoke 已能越过 Verilog parser 并进入 timing/data propagation；`2400s` 窗口仍未写出
   `NpcTop.rpt/.pwr`，因此 STA smoke completion 仍 open。
 
+### 1.1 v1 边界迁移(2026-07-08 SRAM 化)
+
+`OooFetchPacketCache`/`OooDataWordCache` 已完成 SRAM 宏化重构：两模块的控制逻辑
+(tag 比较/valid FF/盲失效)改为可综合 stdcell，存储阵列下沉为模块内部的
+`Sram4096x199`/`Sram4096x113`(1RW 同步读，`vsrc/sram/` 独立管理)。因此 `NpcTop`
+综合的 blackbox 集从"四模块"迁移为 `Sram4096x199 Sram4096x113 OooFpArithGate
+OooBranchDirectionPredictor`；netlist 实例检查对两 cache 改为检查其内部 SRAM 宏实例。
+
 ## 2. 合同表
 
 | Module | RTL/source | Netlist instance | Boundary kind | Timing/area status | Semantic audit | Next task | Evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| OooFetchPacketCache | `vsrc/cache/OooFetchPacketCache.v`; dedicated spec `ooo-fetch-packet-cache.md`; bridge owner `ooo-fetch-axi-bridge.md` | `u_fetch_packet_cache` | fetch packet memory macro / blackbox candidate | Placeholder v0 defined: 0-cycle lookup read, next-cycle fill/invalidate visibility, clear-valid-only, 819200 state-bit lower bound; Liberty/LEF/OOC timing still open | Partial: dedicated spec, `OooFetchPacketCacheFacts.vh`, `OooFetchPacketCacheChecker.sv`, and `tb_ooo_fetch_packet_cache` cover context/hit/fill/invalidate/clear; no top XMR non-vacuum evidence yet | Provide real Liberty/LEF macro model or OOC timing report and top-level constraints; if hooked to SIM_TOP, record non-vacuum debug evidence | `.github/task-runs/2026-07-08-fetch-packet-cache-macro-placeholder/` plus four-blackbox runs |
-| OooDataWordCache | `vsrc/cache/OooDataWordCache.v`; dedicated spec `ooo-data-word-cache.md`; bridge owner `ooo-mem-axi-bridge-fsm.md` | `u_dcache` | data cache memory macro / blackbox candidate | Placeholder v0 defined: 0-cycle req/walk read, next-cycle write visibility, fill-then-store priority, 466944 state-bit lower bound; Liberty/LEF/OOC timing still open | Partial: dedicated spec, `OooDataWordCacheFacts.vh`, `OooDataWordCacheChecker.sv`, and `tb_ooo_data_word_cache` cover hit/fill/window/store/invalidate; no top XMR non-vacuum evidence yet | Provide real Liberty/LEF macro model or OOC timing report and top-level constraints; if hooked to SIM_TOP, record non-vacuum debug evidence | `.github/task-runs/2026-07-08-data-word-cache-macro-placeholder/` plus semantic/four-blackbox runs |
+| OooFetchPacketCache | `vsrc/cache/OooFetchPacketCache.v`; dedicated spec `ooo-fetch-packet-cache.md`; bridge owner `ooo-fetch-axi-bridge.md` | `u_fetch_packet_cache` (control logic now stdcell; internal `Sram4096x199` is the blackbox) | fetch packet payload SRAM macro inside module | SRAM macro v1: 1-cycle sync lookup read, next-lookup-issue fill/invalidate visibility, blind 7-neighbor invalidate, clear-valid-only, 819200 state-bit lower bound (815104 SRAM macro + 4096 valid FF); Liberty/LEF/OOC timing still open | Partial: dedicated spec v1, `OooFetchPacketCacheFacts.vh`, `OooFetchPacketCacheChecker.sv` (判决拍打拍), and `tb_ooo_fetch_packet_cache` two-phase protocol cover context/hit/fill/invalidate/clear; no top XMR non-vacuum evidence yet | Provide real Liberty/LEF macro model (fakeram/工艺) for `Sram4096x199` or OOC timing report and top-level constraints | `.github/task-runs/2026-07-08-fetch-packet-cache-macro-placeholder/` plus SRAM refactor runs |
+| OooDataWordCache | `vsrc/cache/OooDataWordCache.v`; dedicated spec `ooo-data-word-cache.md`; bridge owner `ooo-mem-axi-bridge-fsm.md` | `u_dcache` (control logic now stdcell; internal `Sram4096x113` is the blackbox) | data cache tag+data SRAM macro inside module | SRAM macro v1: 1-cycle sync lookup read (merged req/walk single port), next-cycle write visibility, unconditional store invalidate, 466944 state-bit lower bound (462848 SRAM macro + 4096 valid FF); Liberty/LEF/OOC timing still open | Partial: dedicated spec v1, `OooDataWordCacheFacts.vh`, `OooDataWordCacheChecker.sv` (判决拍打拍), and `tb_ooo_data_word_cache` two-phase protocol cover hit/fill/window/store-invalidate; no top XMR non-vacuum evidence yet | Provide real Liberty/LEF macro model (fakeram/工艺) for `Sram4096x113` or OOC timing report and top-level constraints | `.github/task-runs/2026-07-08-data-word-cache-macro-placeholder/` plus SRAM refactor runs |
 | OooFpArithGate | `vsrc/execute/OooFpArithGate.v`; `ooo-fp-arith-gate.md` | `u_fp_arith` | FP arithmetic macro / OOC split candidate | Decision placeholder v0 defined: production semantic boundary remains 5-cycle `OooFpArithGate`; module-level blackbox only non-signoff OOC boundary; OOC coarse PASS but full stdcell still open; Liberty/LEF/OOC timing still open | Partial: dedicated spec, focused `tb_ooo_fp_arith_gate`, contract assert, deterministic mixed precision, kill/flush/meta checks; no common/debug facts required while boundary remains local; if latency/backend boundary changes, add facts/checker | Provide full-module OOC timing report or production child split for Mul/FMA cones and top-level constraints; add random B-FP pressure if latency/boundary changes | `.github/task-runs/2026-07-08-fp-arith-macro-decision/`, `.github/task-runs/2026-07-08-fp-arith-internal-cones/`, and four-blackbox run |
 | OooBranchDirectionPredictor | `vsrc/frontend/OooBranchDirectionPredictor.v`; `ooo-branch-direction-predictor.md` | `u_branch_direction_predictor` | predictor table macro / blackbox candidate | Placeholder v0 defined: 0-cycle two-lookup read, next-cycle issue-resolve update visibility, valid-only table clear plus GHR zero, 26892 state-bit lower bound; Liberty/LEF/OOC timing still open | Partial: dedicated spec, `OooBranchDirectionPredictorFacts.vh`, `OooBranchDirectionPredictorChecker.sv`, and `tb_ooo_branch_direction_predictor` cover static fallback/counter/GHR/dual-lookup/update; no top XMR non-vacuum evidence yet | Provide real Liberty/LEF macro model or OOC timing report and top-level constraints; if hooked to SIM_TOP, record non-vacuum debug evidence | `.github/task-runs/2026-07-08-branch-direction-predictor-macro-placeholder/` plus four-blackbox runs |
 
@@ -84,6 +92,10 @@ python3 yosys-sta/scripts/check_ieda_netlist_compat.py \
 
 ## 6. 变更记录
 
+- 2026-07-08：**FPC/DWC 迁移到 SRAM macro v1**。两 cache 控制逻辑 stdcell 化，存储下沉
+  `Sram4096x199`/`Sram4096x113`(1RW 同步读+1 拍，`vsrc/sram/`)；桥 FSM 各加 S_LOOKUP 判决态；
+  DWC store 改无条件失效(一期取舍)；FPC SMC 失效改 7 邻域盲失效；顶层 blackbox 集同步迁移。
+  focused TB×4 + 全量 module TB 84/84 + lint 全绿。dedicated spec 均升 v1。
 - 2026-07-08：新增四黑盒 macro-boundary contract。目标是把 `NpcTop` 四黑盒综合后的下一步任务
   落到可检查文档和后续 timing/area/OOC 工作清单中。
 - 2026-07-08：`OooDataWordCache` 行更新为 placeholder v0：0-cycle read、next-cycle write

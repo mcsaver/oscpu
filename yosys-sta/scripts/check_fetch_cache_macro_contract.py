@@ -16,16 +16,17 @@ from pathlib import Path
 
 
 REQUIRED_SPEC_PATTERNS = {
-    "section": r"##\s+8\.\s+Macro/OOC Contract v0",
-    "lookup_read_latency": r"lookup read latency\s*\|\s*`0 cycle`",
-    "write_visibility": r"write visibility\s*\|\s*`next cycle`",
-    "same_cycle_priority": r"same-cycle priority\s*\|\s*reset/clear > invalidate > non-blocked fill",
+    "section": r"##\s+8\.\s+Macro/OOC Contract v1",
+    "lookup_read_latency": r"lookup read latency\s*\|\s*`1 cycle`",
+    "write_visibility": r"write visibility\s*\|\s*`next lookup issue`",
+    "same_cycle_priority": r"same-cycle priority\s*\|\s*reset/clear > blind invalidate > non-blocked fill",
     "reset_model": r"reset\s*\|\s*valid-only clear",
-    "read_ports": r"read ports\s*\|\s*one combinational view",
+    "read_ports": r"read ports\s*\|\s*one synchronous 1RW SRAM port",
     "entries": r"entries\s*\|\s*`4096`",
-    "valid_bits": r"valid bits\s*\|\s*`4096`",
-    "context_bits": r"context bits\s*\|\s*`4096 \* \(1 \+ 2 \+ 64\) = 274432`",
-    "pc_bits": r"pc bits\s*\|\s*`4096 \* 64 = 262144`",
+    "valid_bits": r"valid bits \(FF\)\s*\|\s*`4096`",
+    "sram_macro_bits": r"SRAM macro bits \(`Sram4096x199`\)\s*\|\s*`4096 \* 199 = 815104`",
+    "context_bits": r"context bits[^|]*\|\s*`4096 \* \(1 \+ 2 \+ 64\) = 274432`",
+    "pc_bits": r"pc tag bits\s*\|\s*`4096 \* 64 = 262144`",
     "payload_bits": r"packet payload bits\s*\|\s*`4096 \* \(32 \+ 2 \+ 32 \+ 2\) = 278528`",
     "total_bits": r"total state bits\s*\|\s*`819200`",
     "not_signoff": r"not stdcell area|不是 stdcell area",
@@ -34,9 +35,9 @@ REQUIRED_SPEC_PATTERNS = {
 
 REQUIRED_BOUNDARY_PATTERNS = {
     "fetch_row": r"\|\s*OooFetchPacketCache\s*\|",
-    "placeholder_v0": r"OooFetchPacketCache[^\n]*Placeholder v0 defined",
-    "zero_cycle": r"OooFetchPacketCache[^\n]*0-cycle lookup read",
-    "next_cycle": r"OooFetchPacketCache[^\n]*next-cycle fill/invalidate visibility",
+    "sram_macro_v1": r"OooFetchPacketCache[^\n]*SRAM macro v1",
+    "one_cycle": r"OooFetchPacketCache[^\n]*1-cycle sync lookup read",
+    "next_visibility": r"OooFetchPacketCache[^\n]*next-lookup-issue fill/invalidate visibility",
     "clear_valid": r"OooFetchPacketCache[^\n]*clear-valid-only",
     "state_bits": r"OooFetchPacketCache[^\n]*819200 state-bit",
     "liberty_open": r"OooFetchPacketCache[^\n]*Liberty/LEF/OOC timing still open",

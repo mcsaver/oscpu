@@ -24,6 +24,15 @@ DEFAULT_MODULES = (
     "OooBranchDirectionPredictor",
 )
 
+# SRAM 宏化(2026-07-08)后两 cache 控制逻辑随顶层展平，netlist 里保留的黑盒
+# 是其内部 SRAM 宏实例；FP/BPU 仍以模块本体为黑盒。
+NETLIST_BLACKBOX_OF = {
+    "OooFetchPacketCache": "Sram4096x199",
+    "OooDataWordCache": "Sram4096x113",
+    "OooFpArithGate": "OooFpArithGate",
+    "OooBranchDirectionPredictor": "OooBranchDirectionPredictor",
+}
+
 
 def read_text(path: Path) -> str:
     try:
@@ -120,15 +129,17 @@ def check_netlist_instances(netlist: Path, modules: tuple[str, ...]) -> None:
     text = read_text(netlist)
     missing: list[str] = []
     for module in modules:
-        pattern = re.compile(rf"(?m)^\s*{re.escape(module)}\s+\S+\s*\(")
+        boxed = NETLIST_BLACKBOX_OF.get(module, module)
+        pattern = re.compile(rf"(?m)^\s*{re.escape(boxed)}\s+\S+\s*\(")
         if not pattern.search(text):
-            missing.append(module)
+            missing.append(f"{module}(blackbox={boxed})")
     if missing:
         raise SystemExit(
             "FAIL netlist missing macro-boundary instances: " + ", ".join(missing)
         )
     for module in modules:
-        print(f"PASS netlist instance module={module} file={netlist}")
+        boxed = NETLIST_BLACKBOX_OF.get(module, module)
+        print(f"PASS netlist instance module={module} blackbox={boxed} file={netlist}")
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:

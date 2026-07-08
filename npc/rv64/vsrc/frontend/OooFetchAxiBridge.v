@@ -55,6 +55,7 @@ module OooFetchAxiBridge (
   localparam [3:0] S_R1 = 4'd6;
   localparam [3:0] S_RESP = 4'd7;
   localparam [3:0] S_AD_UPDATE = 4'd8;  // HW A 更新: 写回 leaf PTE 置 A 位, 再 re-walk 续原取指
+  localparam [3:0] S_LOOKUP = 4'd9;     // 取指包 cache SRAM 同步读判决拍(fire 次拍, ready=0)
   localparam [`XLEN-1:0] PTE_A_BIT = {{(`XLEN-7){1'b0}}, 7'h40};  // bit 6 (Accessed)
   localparam [1:0] RESP_OK = 2'b00;
   localparam [1:0] RESP_ACCESS_FAULT = 2'b01;
@@ -243,6 +244,10 @@ module OooFetchAxiBridge (
       req_first_page_bytes_full_w[2:0];
   wire cache_hit_raw_w;
   wire pmp_active_w = (pmpcfg_i != {`PMP_CFG_BUS_W{1'b0}});
+  // 声明前置，iverilog 14 拒绝前向引用（下方 cache_hit_w 提前引用这三个信号）
+  wire req_itlb_hit_w;
+  wire req_exec_pmp_fault_w;
+  wire req_exec1_pmp_fault_w;
   // 为什么这么改：原实现只要 PMP 有任何活动条目就整体禁用取指包 cache
   // (cache_hit && !pmp_active)，导致真实 Linux/OpenSBI(总会配 PMP)下每次取指都
   // miss、退到慢速 AXI 取指，CPI 近乎翻倍。其实 PMP 权限本就每拍按当前 pmpcfg
@@ -250,9 +255,11 @@ module OooFetchAxiBridge (
   // 整个 cache。这样 PMP 会 fault 时 cache_hit=0 落到下方 fault 分支(语义不变)，
   // PMP 放行(Linux 下 DRAM 整片 RWX 的常态)时命中生效、恢复性能。
   // 非 PMP 场景(pmp_active=0)走 1'b1 分支，行为与原实现逐位一致。
+  // SRAM 化后本式仅在 S_LOOKUP(判决拍)有意义：cache_hit_raw_w 是 SRAM 同步读结果，
+  // ITLB/PMP 复检全部用 fire 拍锁存的请求上下文(paging_q/pc_q/req_priv_q/req_satp_q)。
   wire cache_hit_w = cache_hit_raw_w &&
       (pmp_active_w ? (!req_exec_pmp_fault_w && !req_exec1_pmp_fault_w &&
-                       (!req_paging_w || req_itlb_hit_w))
+                       (!paging_q || req_itlb_hit_w))
                     : 1'b1);
   wire fetch_cache_context_unused_w;
   wire [`INST_W-1:0] cache_inst0_w;
@@ -263,23 +270,28 @@ module OooFetchAxiBridge (
   wire [`XLEN-1:0] req_itlb_pte_w;
   wire [1:0] req_itlb_level_w;
   wire [`XLEN-1:0] req_itlb_paddr_w;
+  // 判决拍(S_LOOKUP)复检链全部改用 fire 拍锁存值: svpbmt/priv/paging/pc 取
+  // req_svpbmt_en_q/req_priv_q/paging_q/pc_q, 与 cache 内部锁存的请求同参照系。
+  // pmpcfg/pmpaddr 仍取当拍输入(CSR 写经串行化, 无在飞取指请求交叠)。
   wire req_itlb_perm_fault_w =
       req_itlb_context_hit_w &&
-      (pte_reserved_fault(req_itlb_pte_w, svpbmt_en_i, req_itlb_level_w) ||
-       exec_permission_fault(req_itlb_pte_w, priv_mode_i));
-  wire req_itlb_hit_w = req_itlb_context_hit_w && !req_itlb_perm_fault_w;
+      (pte_reserved_fault(req_itlb_pte_w, req_svpbmt_en_q, req_itlb_level_w) ||
+       exec_permission_fault(req_itlb_pte_w, req_priv_q));
+  assign req_itlb_hit_w = req_itlb_context_hit_w && !req_itlb_perm_fault_w;
   wire [`XLEN-1:0] req_exec_paddr_w =
-      (req_paging_w && req_itlb_hit_w) ? req_itlb_paddr_w : fetch_req_pc_i;
+      (paging_q && req_itlb_hit_w) ? req_itlb_paddr_w : pc_q;
   wire [`XLEN-1:0] req_exec1_paddr_w = req_exec_paddr_w + 64'd4;
   wire req_exec_pmp_fault_raw_w;
   wire req_exec1_pmp_fault_raw_w;
-  wire req_exec_pmp_fault_w =
-      (!req_paging_w || req_itlb_hit_w) && req_exec_pmp_fault_raw_w;
-  wire req_exec1_pmp_fault_w =
-      (!req_paging_w || req_itlb_hit_w) && req_exec1_pmp_fault_raw_w;
+  assign req_exec_pmp_fault_w =
+      (!paging_q || req_itlb_hit_w) && req_exec_pmp_fault_raw_w;
+  assign req_exec1_pmp_fault_w =
+      (!paging_q || req_itlb_hit_w) && req_exec1_pmp_fault_raw_w;
   wire fetch_req_fire_w = fetch_req_valid_i && fetch_req_ready_o;
-  wire fetch_req_direct_miss_fire_w =
-      fetch_req_fire_w && !req_paging_w && !req_exec_pmp_fault_w && !cache_hit_w;
+  // direct miss 的 AR 从 fire 拍移到 S_LOOKUP 判决拍(同步读 +1 拍)。
+  wire lookup_direct_miss_w =
+      (state_q == S_LOOKUP) && !paging_q && !req_exec_pmp_fault_w &&
+      !cache_hit_w;
   wire [`XLEN-1:0] pc_packet_end_w = pc_q + 64'd7;
   wire [`XLEN-1:0] pc_second_page_vaddr_w =
       {pc_q[`XLEN-1:12], 12'b0} + 64'd4096;
@@ -342,10 +354,13 @@ module OooFetchAxiBridge (
       fetch_cache_fill_r1_w ? resp0_q : RESP_OK;
   wire [1:0] fetch_cache_fill_resp1_w = resp1_q;
 
+  // 两拍 lookup 协议: fire 拍(fetch_req_fire_w)发射 lookup_en 并传当拍请求上下文,
+  // cache 内部锁存; 判决拍(S_LOOKUP)输出 cache_hit_raw_w/inst/resp 针对锁存请求有效。
   OooFetchPacketCache u_fetch_packet_cache (
     .clk(clk),
     .rst(rst),
     .clear_i(mmu_flush_i),
+    .lookup_en_i(fetch_req_fire_w),
     .lookup_paging_i(req_paging_w),
     .lookup_priv_i(priv_mode_i),
     .lookup_satp_i(satp_i),
@@ -369,15 +384,17 @@ module OooFetchAxiBridge (
     .invalidate_addr_i(invalidate_addr_i)
   );
 
+  // ITLB lookup 消费点已移到 S_LOOKUP 判决拍, 输入改用 fire 拍锁存值, 使其组合
+  // 输出与取指包 cache SRAM rdata_o 在判决拍对齐(ITLB 本体保持 FF 组合读, 不 SRAM 化)。
   OooSv39Tlb #(
     .INDEX_W(ITLB_INDEX_W)
   ) u_itlb (
     .clk(clk),
     .rst(rst),
     .clear_i(mmu_flush_i),
-    .lookup_valid_i(req_paging_w),
-    .lookup_vaddr_i(fetch_req_pc_i),
-    .lookup_satp_i(satp_i),
+    .lookup_valid_i(paging_q),
+    .lookup_vaddr_i(pc_q),
+    .lookup_satp_i(req_satp_q),
     .lookup_context_hit_o(req_itlb_context_hit_w),
     .lookup_pte_o(req_itlb_pte_w),
     .lookup_level_o(req_itlb_level_w),
@@ -392,7 +409,7 @@ module OooFetchAxiBridge (
   PmpChecker u_req_exec_pmp_checker (
     .paddr_i(req_exec_paddr_w),
     .access_size_i(4'd4),
-    .priv_mode_i(priv_mode_i),
+    .priv_mode_i(req_priv_q),
     .access_read_i(1'b0),
     .access_write_i(1'b0),
     .access_exec_i(1'b1),
@@ -404,7 +421,7 @@ module OooFetchAxiBridge (
   PmpChecker u_req_exec1_pmp_checker (
     .paddr_i(req_exec1_paddr_w),
     .access_size_i(4'd4),
-    .priv_mode_i(priv_mode_i),
+    .priv_mode_i(req_priv_q),
     .access_read_i(1'b0),
     .access_write_i(1'b0),
     .access_exec_i(1'b1),
@@ -454,6 +471,8 @@ module OooFetchAxiBridge (
   );
 
   // packet cache 使用 PC+satp/priv 做上下文 tag；ITLB 命中只缓存翻译，不绕过取指权限。
+  // S_LOOKUP(判决拍)不在 ready 集合 → fire 后至少隔 1 拍才接下一请求
+  // (hit 延迟 1→2 拍、吞吐 1→1/2, SRAM 同步读一期接受的代价)。
   assign fetch_req_ready_o = (state_q == S_IDLE) ||
                              ((state_q == S_RESP) && fetch_rsp_ready_i);
   assign fetch_rsp_valid_o = (state_q == S_RESP);
@@ -465,11 +484,12 @@ module OooFetchAxiBridge (
   assign ifu_axi_arvalid_o =
       ((state_q == S_WALK_AR) && !walk_pte_pmp_fault_w) || (state_q == S_AR0) ||
       (state_q == S_AR1) ||
-      fetch_req_direct_miss_fire_w;
+      lookup_direct_miss_w;
+  // direct miss 在 S_LOOKUP 发 AR 时 paging_q=0, fetch0_addr_w=pc_q(=fire 拍锁存的
+  // 请求 PC), 无需单列 araddr 臂。
   assign ifu_axi_araddr_o =
       (state_q == S_WALK_AR) ? walk_pte_addr_w :
       (state_q == S_AR1) ? paddr1_q :
-      fetch_req_direct_miss_fire_w ? fetch_req_pc_i :
       fetch0_addr_w;
   assign ifu_axi_rready_o =
       (state_q == S_WALK_R) || (state_q == S_R0) || (state_q == S_R1);
@@ -517,6 +537,8 @@ module OooFetchAxiBridge (
     end else begin
       case (state_q)
         S_IDLE: begin
+          // fire 拍只锁存请求上下文并发射 cache 同步读(lookup_en_i=fetch_req_fire_w),
+          // hit/fault/walk 判决整体移到次拍 S_LOOKUP(SRAM 1-cycle 同步读合同)。
           if (fetch_req_fire_w) begin
             pc_q <= fetch_req_pc_i;
             paddr0_q <= fetch_req_pc_i;
@@ -533,52 +555,59 @@ module OooFetchAxiBridge (
             req_priv_q <= priv_mode_i;
             req_satp_q <= satp_i;
             req_svpbmt_en_q <= svpbmt_en_i;
-            if (cache_hit_w) begin
-              inst0_q <= cache_inst0_w;
-              inst1_q <= cache_inst1_w;
-              resp0_q <= cache_resp0_w;
-              resp1_q <= cache_resp1_w;
-              state_q <= S_RESP;
-            end else if (req_exec_pmp_fault_w) begin
-              resp0_q <= RESP_ACCESS_FAULT;
-              resp1_q <= RESP_ACCESS_FAULT;
-              state_q <= S_RESP;
-            end else if (req_paging_w && req_itlb_perm_fault_w) begin
+            state_q <= S_LOOKUP;
+          end
+        end
+
+        S_LOOKUP: begin
+          // 判决拍: cache_hit_raw_w=SRAM 同步读结果, ITLB/PMP 复检用 fire 拍锁存值。
+          // 本拍 fetch_req_ready_o=0; direct miss 的 AR 由 lookup_direct_miss_w 当拍
+          // 发起; mmu_flush 经顶部复位分支回 S_IDLE, 本判决自然作废。
+          if (cache_hit_w) begin
+            inst0_q <= cache_inst0_w;
+            inst1_q <= cache_inst1_w;
+            resp0_q <= cache_resp0_w;
+            resp1_q <= cache_resp1_w;
+            state_q <= S_RESP;
+          end else if (req_exec_pmp_fault_w) begin
+            resp0_q <= RESP_ACCESS_FAULT;
+            resp1_q <= RESP_ACCESS_FAULT;
+            state_q <= S_RESP;
+          end else if (paging_q && req_itlb_perm_fault_w) begin
+            resp0_q <= RESP_PAGE_FAULT;
+            resp1_q <= RESP_PAGE_FAULT;
+            state_q <= S_RESP;
+          end else if (paging_q && req_itlb_hit_w) begin
+            paddr0_q <= req_itlb_paddr_w;
+            resp0_q <= RESP_OK;
+            if (same_fetch_page_w) begin
+              paddr1_q <= req_itlb_paddr_w + 64'd4;
+              resp1_q <= req_exec1_pmp_fault_w ? RESP_ACCESS_FAULT :
+                                                  RESP_OK;
+              state_q <= S_AR0;
+            end else if (canonical_sv39(pc_second_page_vaddr_w)) begin
+              walk_second_q <= 1'b1;
+              walk_level_q <= 2'd2;
+              walk_ppn_q <= req_satp_q[43:0];
+              state_q <= S_WALK_AR;
+            end else begin
+              resp1_q <= RESP_PAGE_FAULT;
+              state_q <= S_AR0;
+            end
+          end else if (paging_q) begin
+            if (canonical_sv39(pc_q)) begin
+              walk_second_q <= 1'b0;
+              walk_level_q <= 2'd2;
+              walk_ppn_q <= req_satp_q[43:0];
+              state_q <= S_WALK_AR;
+            end else begin
               resp0_q <= RESP_PAGE_FAULT;
               resp1_q <= RESP_PAGE_FAULT;
               state_q <= S_RESP;
-            end else if (req_paging_w && req_itlb_hit_w) begin
-              paddr0_q <= req_itlb_paddr_w;
-              resp0_q <= RESP_OK;
-              if (req_same_fetch_page_w) begin
-                paddr1_q <= req_itlb_paddr_w + 64'd4;
-                resp1_q <= req_exec1_pmp_fault_w ? RESP_ACCESS_FAULT :
-                                                    RESP_OK;
-                state_q <= S_AR0;
-              end else if (canonical_sv39(req_second_page_vaddr_w)) begin
-                walk_second_q <= 1'b1;
-                walk_level_q <= 2'd2;
-                walk_ppn_q <= satp_i[43:0];
-                state_q <= S_WALK_AR;
-              end else begin
-                resp1_q <= RESP_PAGE_FAULT;
-                state_q <= S_AR0;
-              end
-            end else if (req_paging_w) begin
-              if (canonical_sv39(fetch_req_pc_i)) begin
-                walk_second_q <= 1'b0;
-                walk_level_q <= 2'd2;
-                walk_ppn_q <= satp_i[43:0];
-                state_q <= S_WALK_AR;
-              end else begin
-                resp0_q <= RESP_PAGE_FAULT;
-                resp1_q <= RESP_PAGE_FAULT;
-                state_q <= S_RESP;
-              end
-            end else begin
-              resp1_q <= req_exec1_pmp_fault_w ? RESP_ACCESS_FAULT : RESP_OK;
-              state_q <= ifu_axi_arready_i ? S_R0 : S_AR0;
             end
+          end else begin
+            resp1_q <= req_exec1_pmp_fault_w ? RESP_ACCESS_FAULT : RESP_OK;
+            state_q <= ifu_axi_arready_i ? S_R0 : S_AR0;
           end
         end
 
@@ -764,6 +793,8 @@ module OooFetchAxiBridge (
         end
 
         S_RESP: begin
+          // back-to-back accept: 与 S_IDLE 同为 fire 拍, 只锁存请求并进 S_LOOKUP
+          // (fetch_req_fire_w = valid && S_RESP && rsp_ready, 同拍发射 lookup_en_i)。
           if (fetch_rsp_ready_i) begin
             if (fetch_req_valid_i) begin
               pc_q <= fetch_req_pc_i;
@@ -781,53 +812,7 @@ module OooFetchAxiBridge (
               req_priv_q <= priv_mode_i;
               req_satp_q <= satp_i;
               req_svpbmt_en_q <= svpbmt_en_i;
-              if (cache_hit_w) begin
-                inst0_q <= cache_inst0_w;
-                inst1_q <= cache_inst1_w;
-                resp0_q <= cache_resp0_w;
-                resp1_q <= cache_resp1_w;
-                state_q <= S_RESP;
-              end else if (req_exec_pmp_fault_w) begin
-                resp0_q <= RESP_ACCESS_FAULT;
-                resp1_q <= RESP_ACCESS_FAULT;
-                state_q <= S_RESP;
-              end else if (req_paging_w && req_itlb_perm_fault_w) begin
-                resp0_q <= RESP_PAGE_FAULT;
-                resp1_q <= RESP_PAGE_FAULT;
-                state_q <= S_RESP;
-              end else if (req_paging_w && req_itlb_hit_w) begin
-                paddr0_q <= req_itlb_paddr_w;
-                resp0_q <= RESP_OK;
-                if (req_same_fetch_page_w) begin
-                  paddr1_q <= req_itlb_paddr_w + 64'd4;
-                  resp1_q <= req_exec1_pmp_fault_w ? RESP_ACCESS_FAULT :
-                                                      RESP_OK;
-                  state_q <= S_AR0;
-                end else if (canonical_sv39(req_second_page_vaddr_w)) begin
-                  walk_second_q <= 1'b1;
-                  walk_level_q <= 2'd2;
-                  walk_ppn_q <= satp_i[43:0];
-                  state_q <= S_WALK_AR;
-                end else begin
-                  resp1_q <= RESP_PAGE_FAULT;
-                  state_q <= S_AR0;
-                end
-              end else if (req_paging_w) begin
-                if (canonical_sv39(fetch_req_pc_i)) begin
-                  walk_second_q <= 1'b0;
-                  walk_level_q <= 2'd2;
-                  walk_ppn_q <= satp_i[43:0];
-                  state_q <= S_WALK_AR;
-                end else begin
-                  resp0_q <= RESP_PAGE_FAULT;
-                  resp1_q <= RESP_PAGE_FAULT;
-                  state_q <= S_RESP;
-                end
-              end else begin
-                resp1_q <= req_exec1_pmp_fault_w ? RESP_ACCESS_FAULT :
-                                                    RESP_OK;
-                state_q <= ifu_axi_arready_i ? S_R0 : S_AR0;
-              end
+              state_q <= S_LOOKUP;
             end else begin
               state_q <= S_IDLE;
             end

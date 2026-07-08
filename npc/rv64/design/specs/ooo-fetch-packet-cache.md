@@ -24,38 +24,53 @@
 
 | 端口组 | 方向 | 契约 |
 | --- | --- | --- |
-| `lookup_paging_i/lookup_priv_i/lookup_satp_i` | 输入 | lookup 上下文。paged lookup 必须比较 paging、priv、satp；bare lookup 只比较 paging=0，不比较 priv/satp。 |
-| `lookup_pc_i` | 输入 | lookup packet PC。index 由 `lookup_pc_i[INDEX_W:1]` 形成。 |
-| `lookup_context_hit_o` | 输出 | valid、paging 和 paged context 命中时为 1；不要求 exact PC 命中。 |
-| `lookup_hit_o` | 输出 | `lookup_context_hit_o`、exact PC 和非同拍 store footprint invalidation 同时满足时为 1。 |
-| `lookup_inst*/lookup_resp*` | 输出 | 当前 index 的 packet payload。只有 `lookup_hit_o=1` 时 payload 才有语义。 |
-| `fill_valid_i/fill_*` | 输入 | 在 `posedge clk` 写入一条 packet；若同拍 store footprint 与 fill PC 重叠，fill 必须被阻止。 |
-| `invalidate_valid_i/invalidate_addr_i` | 输入 | 已提交 store 驱动的 SMC 失效。失效窗口按 8B store footprint 与 8B fetch window overlap 判定。 |
+| `lookup_en_i` | 输入 | lookup fire 拍使能。当拍锁存 lookup 请求并发射 SRAM 同步读；**次拍(判决拍)** lookup 输出针对该锁存请求有效。fire 拍与 fill 拍必须互斥(SRAM 1RW)。 |
+| `lookup_paging_i/lookup_priv_i/lookup_satp_i` | 输入 | lookup 上下文(fire 拍采样)。paged lookup 必须比较 paging、priv、satp；bare lookup 只比较 paging=0，不比较 priv/satp。 |
+| `lookup_pc_i` | 输入 | lookup packet PC(fire 拍采样)。index 由 `lookup_pc_i[INDEX_W:1]` 形成。 |
+| `lookup_context_hit_o` | 输出 | 判决拍有效：valid、paging 和 paged context 命中时为 1；不要求 exact PC 命中。非判决拍恒 0。 |
+| `lookup_hit_o` | 输出 | 判决拍有效：`lookup_context_hit_o`、exact PC，且 fire 拍与判决拍两拍窗口内均无 store footprint 重叠时为 1。非判决拍恒 0。 |
+| `lookup_inst*/lookup_resp*` | 输出 | 判决拍的 SRAM 读出 payload。只有 `lookup_hit_o=1` 时才有语义。 |
+| `fill_valid_i/fill_*` | 输入 | 在 `posedge clk` 写入一条 packet(SRAM 写口)；若同拍 store footprint 与 fill PC 重叠，fill 必须被阻止。 |
+| `invalidate_valid_i/invalidate_addr_i` | 输入 | 已提交 store 驱动的 SMC 失效。盲失效：直接清 7 邻域 index 的 valid FF，不读 pc 比较。 |
 | `clear_i` | 输入 | fence.i/sfence/satp 类整体失效入口。reset/clear 只清 valid。 |
 
 ## 3. 状态与时序模型
 
 - 默认 `INDEX_W=12`、`ENTRY_COUNT=4096`，直映 VIVT。
-- 每 entry 记录 `valid`、`paging`、`priv`、`satp`、`pc`、`inst0/inst1`、`resp0/resp1`。
-- lookup 为组合查询；fill/invalidate/clear 在 `posedge clk` 生效。
+- payload/tag 全体(`paging/priv/satp/pc/inst0/inst1/resp0/resp1`)集中在 1 个
+  `Sram4096x199` 1RW 同步读宏；位段布局
+  `{paging[198], priv[197:196], satp[195:132], pc[131:68], inst0[67:36], inst1[35:4], resp0[3:2], resp1[1:0]}`。
+  `valid` 保持 `ENTRY_COUNT` bit FF(SRAM 内容无复位，全清/失效语义由 valid FF 承担)。
+- lookup 为两拍协议：fire 拍(`lookup_en_i`)锁存请求+发射 SRAM 读，判决拍(次拍)输出有效；
+  fill/invalidate/clear 在 `posedge clk` 生效。
+- valid 在**判决拍**用锁存 index 组合读 FF(不随 SRAM 走)：fire 拍同拍到达的 invalidate
+  在拍尾清 valid，判决拍即可见(两拍窗口①的 FF 侧封堵)。
+- 两拍 store 窗口封堵：窗口①(fire 拍 store)由锁存旁路+判决拍 valid 读双保险；
+  窗口②(判决拍才到的 store)由锁存 pc 对当拍 invalidate 的旁路比较压掉 hit。
 - reset/clear 只清 `valid_q`；payload/context 在 invalid entry 中不可作为语义值使用。
-- 同拍优先级为 reset/clear 优先；否则 invalidate 清命中 entry，且与同拍 store footprint 重叠的
-  fill 被阻止；未阻止的 fill 在同一时钟沿写入并从下一拍 lookup 可见。
-- invalidate 候选 index 覆盖 m6/m4/m2/p0/p2/p4/p6，保证 8B store footprint 的高半取指包
-  `pc=base+4/base+6` 不漏失效。
+- 同拍优先级为 reset/clear 优先；否则盲失效清 7 邻域 valid，且与同拍 store footprint 重叠的
+  fill 被阻止；未阻止的 fill(同 index 后写胜出)在同一时钟沿写入，从下一次 lookup fire 起可见。
+- 盲失效候选 index 覆盖 m6/m4/m2/p0/p2/p4/p6：与 store 足迹重叠的取指包 index 必落在该
+  邻域内(精确失效集合的严格超集)，多清同 index 异 PC 的 entry 只损 hit 率不损正确性；
+  8B store footprint 的高半取指包 `pc=base+4/base+6` 不漏失效。
 
 ## 4. 不变量
 
-- **FPC-I1 hit gating**：`lookup_hit_o -> lookup_context_hit_o`。
-- **FPC-I2 same-cycle store block**：lookup PC 与同拍 store footprint 重叠时，`lookup_hit_o` 必须为 0。
+- **FPC-I1 hit gating**：`lookup_hit_o -> lookup_context_hit_o`(判决拍)。
+- **FPC-I2 two-cycle store block**：锁存 lookup PC 与 fire 拍**或**判决拍 store footprint
+  重叠时，`lookup_hit_o` 必须为 0(两拍窗口都要封)。
 - **FPC-I3 paged context**：paged lookup 命中必须同时匹配 `priv` 与 `satp`。
 - **FPC-I4 bare context**：bare lookup 不比较 `priv/satp`；同 index、paging=0 的 entry 允许在不同
   priv/satp 输入下 context hit。
 - **FPC-I5 exact PC**：context hit 不等于 packet hit；`lookup_hit_o` 仍必须 exact PC 匹配。
 - **FPC-I6 blocked fill**：fill PC 与同拍 store footprint 重叠时，不得写入 valid packet。
 - **FPC-I7 valid-only reset/clear**：reset/clear 后不得命中；payload/context 残值无语义。
-- **FPC-I8 8B SMC footprint**：store 地址对应的 8B footprint 必须覆盖 m6/m4/m2/p0/p2/p4/p6
-  候选 entry，不得只按 4B store footprint 失效。
+- **FPC-I8 8B SMC blind footprint**：store 地址对应的 8B footprint 必须盲清 m6/m4/m2/p0/p2/p4/p6
+  候选 index 的 valid(不读 pc 比较，超集覆盖)，不得只按 4B store footprint 失效。
+- **FPC-I9 decision frame**：非判决拍(上一拍无 `lookup_en_i`)时 `lookup_hit_o` 必须为 0，
+  防止 stale SRAM rdata 被误当命中。
+- **FPC-I10 1RW exclusivity**：`lookup_en_i` 与 `fill_valid_i` 不得同拍(使用方 FSM 保证；
+  cache 内 `OOO_ASSERT` 立即断言 `[CONTRACT-FPC-1RW]` 把关)。
 
 ## 5. debug/common 审核
 
@@ -63,9 +78,13 @@
 
 - `vsrc/common/OooFetchPacketCacheFacts.vh`：定义 `LOOKUP_CONTEXT_HIT`、`LOOKUP_HIT`、
   `LOOKUP_INVALIDATED`、`FILL_BLOCKED_BY_STORE`、`INVALIDATE`、`CLEAR` 等外部观测 facts。
-  该表只描述 spec 语义，不规定 cache 的物理编码。
-- `vsrc/debug/OooFetchPacketCacheChecker.sv`：在 focused TB 中旁挂到真实端口，投影 facts 并用
-  立即断言检查 FPC-I1/FPC-I2。它不进入 `RTL_CORE_SRCS`，不参与综合面积。
+  lookup 类 facts 的参照系是判决拍(fire 拍锁存请求)；该表只描述 spec 语义，不规定
+  cache 的物理编码。
+- `vsrc/debug/OooFetchPacketCacheChecker.sv`：在 focused TB 中旁挂到真实端口，自建 fire 拍
+  锁存影子模型(`lookup_en_i` 次拍为判决拍)，投影 facts 并用立即断言检查
+  FPC-I1(`FPC-HIT-GATE`)/FPC-I2(`FPC-LOOKUP-INVALIDATED`，两拍窗口)/FPC-I9(`FPC-HIT-FRAME`)。
+  它不进入 `RTL_CORE_SRCS`，不参与综合面积。FPC-I10 的 `[CONTRACT-FPC-1RW]` 断言在
+  cache RTL 内(`OOO_ASSERT` 编译门控)。
 
 后续若把取指包 cache 换成 SRAM/macro/OOC module，必须先保持本 checker PASS，或在本文件中
 记录被替代的不变量、替代检查和豁免理由。
@@ -82,7 +101,11 @@
 - 8B store footprint 对 `pc=base+4/base+6` 高半取指包失效；
 - 同拍 store footprint 阻止同窗口 fill；
 - blocked fill 后 refill 可见；
+- 两拍窗口①：store 与 lookup fire 同拍时判决拍 miss；
+- 两拍窗口②：store 在判决拍才到达时 context hit 但 hit 被旁路压 0，且下一拍 entry 已被盲失效；
 - clear 整体清 valid。
+
+所有 lookup 都按两拍协议驱动(`set_lookup` 内含 fire 拍 tick，判决拍采样)。
 
 建议命令：
 
@@ -98,30 +121,34 @@ make -C npc/rv64/testbench TESTS=tb_ooo_fetch_packet_cache \
 - [x] focused TB 覆盖 context/hit/fill/invalidate/clear 语义。
 - [x] 定义 memory-preserve/OOC placeholder v0 的读写端口、同拍失效/fill 优先级和 reset/valid 初始化假设。
 - [x] 给 Yosys-STA 报告提供 non-signoff timing/area placeholder v0，避免 unknown area 被误当闭合。
+- [x] payload/tag 落 `Sram4096x199` 1RW 同步读行为宏(两拍 lookup 协议+7 邻域盲失效)，
+  bridge FSM 加 `S_LOOKUP` 判决拍，checker/focused TB 同刀迁移(Contract v1)。
 - [ ] 提供 iEDA/Yosys 可读的真实 Liberty/LEF macro model，或 OOC timing report + 顶层约束接入。
 - [ ] 若接入仿真顶层 XMR checker，需登记非真空 evidence；若只保留 focused TB，macro-boundary
   task-run 必须说明边界为何足够局部。
 
-## 8. Macro/OOC Contract v0
+## 8. Macro/OOC Contract v1
 
-> 状态：ACTIVE placeholder。该节只给综合/STA 报告一个可审计的假设边界，不是面积/时序签核。
+> 状态：ACTIVE。v1 起 payload/tag 已真实落进 `Sram4096x199` 1RW 同步读宏
+> (`vsrc/sram/Sram4096x199.v` 行为模型，综合期黑盒化)；本节描述该宏边界的可审计合同，
+> 仍不是面积/时序签核。
 
 ### 8.1 当前选择
 
-v0 采用 **module-level OOC/blackbox boundary**：顶层 `NpcTop` synthesis 可以继续把
-`OooFetchPacketCache` 保留为边界单元；生产 RTL 仍使用当前 Verilog 实现。后续若替换为 SRAM
-wrapper，必须先证明 wrapper 对 §2/§3/§4 的外部语义等价，或同步更新 fetch bridge 与 focused TB。
+v1 采用 **SRAM-macro-inside-module boundary**：模块名 `OooFetchPacketCache` 保持不变
+(宏合同 checker 冻结)，`Sram4096x199` 例化在模块**内部**；valid 与 lookup 请求锁存
+仍是模块内 FF。对外语义按 §2/§3/§4 的两拍协议冻结。
 
 ### 8.2 端口与时序假设
 
-| 类别 | v0 假设 | 说明 |
+| 类别 | v1 假设 | 说明 |
 | --- | --- | --- |
-| lookup read latency | `0 cycle` | `lookup_*` 到 `lookup_context_hit_o/lookup_hit_o/lookup_inst*/lookup_resp*` 保持组合可见。 |
-| write edge | `posedge clk` | `fill_valid_i`、`invalidate_valid_i` 与 `clear_i` 均在时钟沿维护内部状态。 |
-| write visibility | `next cycle` | fill/invalidate/clear 对后续 hit/payload 的可见性从下一拍开始；当前 TB 按该模型审核。 |
-| same-cycle priority | reset/clear > invalidate > non-blocked fill | reset/clear 清 valid；store footprint 命中的 fill 被阻止；未阻止 fill 写入并下一拍可见。 |
-| reset | valid-only clear | reset/clear 只清 `valid_q`；context/payload 在 invalid entry 中无语义值。 |
-| read ports | one combinational view | 当前只有一组 lookup 组合读视图。SRAM 化前必须证明读延迟、旁路和 invalidation 同拍行为不漂移。 |
+| lookup read latency | `1 cycle` | 同步读：`lookup_en_i` fire 拍锁存请求+发射 SRAM 读，次拍(判决拍)`lookup_context_hit_o/lookup_hit_o/lookup_inst*/lookup_resp*` 针对锁存请求有效；非判决拍 hit 输出恒 0。 |
+| write edge | `posedge clk` | `fill_valid_i`(SRAM 写口)、`invalidate_valid_i` 与 `clear_i`(valid FF) 均在时钟沿维护内部状态。 |
+| write visibility | `next lookup issue` | fill/invalidate/clear 在拍尾生效；对下一次 fire 的 lookup(判决拍再 +1 拍)可见。fire 拍同拍 invalidate 由判决拍 valid FF 读+锁存旁路封堵，判决拍同拍 invalidate 由锁存 pc 旁路封堵。 |
+| same-cycle priority | reset/clear > blind invalidate > non-blocked fill | reset/clear 清 valid；盲失效清 7 邻域 index；store footprint 命中的 fill 被阻止；未阻止 fill 同 index 后写胜出。 |
+| reset | valid-only clear | reset/clear 只清 `valid_q`；SRAM 内容无复位，invalid entry 的 context/payload 无语义值。 |
+| read ports | one synchronous 1RW SRAM port | lookup 读(fire 拍)与 fill 写分拍复用同一 1RW 口，使用方 FSM 保证互斥(`[CONTRACT-FPC-1RW]` 断言)；valid 为判决拍组合读 FF，不走 SRAM。 |
 
 ### 8.3 Area Placeholder
 
@@ -130,10 +157,11 @@ wrapper，必须先证明 wrapper 对 §2/§3/§4 的外部语义等价，或同
 | 项 | 数值 |
 | --- | --- |
 | entries | `4096` |
-| valid bits | `4096` |
-| context bits | `4096 * (1 + 2 + 64) = 274432` |
-| pc bits | `4096 * 64 = 262144` |
-| packet payload bits | `4096 * (32 + 2 + 32 + 2) = 278528` |
+| valid bits (FF) | `4096` |
+| SRAM macro bits (`Sram4096x199`) | `4096 * 199 = 815104` |
+| — 其中 context bits (paging/priv/satp) | `4096 * (1 + 2 + 64) = 274432` |
+| — 其中 pc tag bits | `4096 * 64 = 262144` |
+| — 其中 packet payload bits | `4096 * (32 + 2 + 32 + 2) = 278528` |
 | total state bits | `819200` |
 
 该数字只是 state-capacity lower bound，不是 stdcell area、SRAM compiler area、leakage 或 timing closure。
@@ -156,3 +184,9 @@ wrapper，必须先证明 wrapper 对 §2/§3/§4 的外部语义等价，或同
 - 2026-07-08：新增 Macro/OOC Contract v0，定义取指包 cache placeholder 的 0-cycle lookup read、
   next-cycle fill/invalidate/clear visibility、same-cycle store block fill 和 819200 state-bit lower bound；
   真实 Liberty/LEF/OOC STA 仍未闭合。
+- 2026-07-08(SRAM 化)：Contract v0→v1。payload/tag 8 阵列合并进 `Sram4096x199` 1RW 同步读宏
+  (模块内例化，模块名不变)；lookup 改两拍协议(`lookup_en_i` fire 拍→判决拍输出，
+  1-cycle read latency)；SMC invalidate 改 7 邻域盲失效(pc 失效读口消灭，超集覆盖)；
+  新增 FPC-I9(判决拍框架)/FPC-I10(1RW 互斥) 与 `[CONTRACT-FPC-1RW]`/`FPC-HIT-FRAME` 断言；
+  satp/paging/priv tag 原样保留(`OOO_CSR_QUEUE_HEAD=1` 时 satp 写不拉 mmu_flush，
+  satp tag 是唯一防线)。819200 state bits 数值不变(4096 valid FF + 815104 SRAM 宏 bits)。

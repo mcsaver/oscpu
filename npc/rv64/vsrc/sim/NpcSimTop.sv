@@ -680,20 +680,32 @@ module NpcSimTop (
 
 `ifdef CONFIG_NPC_SIM_STATS
   // RV64 只保留 OoO/superscalar core，cache/BPU/pipe 统计均从 OoO bridge/core 只读观察。
-  assign sim_icache_access_w = u_top.u_core.u_ooo_fetch_bridge.fetch_req_fire_w;
-  assign sim_icache_hit_w = sim_icache_access_w &&
+  // SRAM 同步读(2026-07-08)后 hit 在判决拍(fire 次拍)才有效：access 打一拍与判决拍对齐。
+  // fetch 侧 fire 后必进 S_LOOKUP 判决；mem 侧 fault/translate-miss 的 read 不经判决,
+  // cache hit 输出带 pend 门控恒 0 → 记 miss,与旧"fault 亦计 miss"语义一致。
+  reg sim_icache_access_q;
+  reg sim_dcache_read_access_q;
+  always @(posedge clk) begin
+    sim_icache_access_q <= u_top.u_core.u_ooo_fetch_bridge.fetch_req_fire_w;
+    sim_dcache_read_access_q <=
+        u_top.u_core.u_ooo_mem_bridge.mem0_req_fire_w &&
+        !u_top.u_core.u_ooo_mem_bridge.req_write_w;
+  end
+  assign sim_icache_access_w = sim_icache_access_q;
+  assign sim_icache_hit_w = sim_icache_access_q &&
                             u_top.u_core.u_ooo_fetch_bridge.cache_hit_w;
-  assign sim_icache_miss_w = sim_icache_access_w &&
+  assign sim_icache_miss_w = sim_icache_access_q &&
                              !u_top.u_core.u_ooo_fetch_bridge.cache_hit_w;
   assign sim_dcache_access_w =
       u_top.u_core.u_ooo_mem_bridge.mem0_req_fire_w;
   assign sim_dcache_store_access_w =
       sim_dcache_access_w && u_top.u_core.u_ooo_mem_bridge.req_write_w;
   assign sim_dcache_hit_w =
-      sim_dcache_access_w && u_top.u_core.u_ooo_mem_bridge.req_dcache_hit_w;
+      sim_dcache_read_access_q &&
+      u_top.u_core.u_ooo_mem_bridge.dcache_lookup_hit_final_w;
   assign sim_dcache_miss_w =
-      sim_dcache_access_w && !u_top.u_core.u_ooo_mem_bridge.req_write_w &&
-      !u_top.u_core.u_ooo_mem_bridge.req_dcache_hit_w;
+      sim_dcache_read_access_q &&
+      !u_top.u_core.u_ooo_mem_bridge.dcache_lookup_hit_final_w;
   assign sim_dcache_writeback_w = 1'b0;
   assign sim_dcache_write_through_w = 1'b0;
   assign sim_control_event_w = 1'b0;
@@ -998,14 +1010,26 @@ module NpcSimTop (
         );
       end
 
+      // SRAM 同步读后 hit/miss 在判决拍(fire 次拍)才有效：access/store 仍在
+      // fire 拍计数，hit/miss 改在判决拍单独上报(C 侧为累加语义，两次调用等价)。
       if (sim_dcache_access_w) begin
         npc_dcache_event(
           32'd1,
-          sim_dcache_hit_w ? 32'd1 : 32'd0,
-          sim_dcache_miss_w ? 32'd1 : 32'd0,
+          32'd0,
+          32'd0,
           32'd0,
           sim_dcache_write_through_w ? 32'd1 : 32'd0,
           sim_dcache_store_access_w ? 32'd1 : 32'd0
+        );
+      end
+      if (sim_dcache_read_access_q) begin
+        npc_dcache_event(
+          32'd0,
+          sim_dcache_hit_w ? 32'd1 : 32'd0,
+          sim_dcache_miss_w ? 32'd1 : 32'd0,
+          32'd0,
+          32'd0,
+          32'd0
         );
       end
 

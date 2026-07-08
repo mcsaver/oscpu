@@ -221,6 +221,9 @@ module tb_ooo_mem_axi_bridge;
     end
   endfunction
 
+  // 【1-cycle 同步读】读请求 fire 拍只发 dcache SRAM 读(不发 AR), 次拍 S_LOOKUP
+  // 判决 miss 后才发 AR——本 task 只用于 miss 场景, AR 检查右移一拍, task 结束时
+  // 桥已进 S_READ_DATA(与旧组合读版对调用方等价)。
   task automatic issue_mem0_read_strb;
     input [`XLEN-1:0] addr;
     input [`STRB_W-1:0] strb;
@@ -234,6 +237,10 @@ module tb_ooo_mem_axi_bridge;
       lsu_axi_arready = 1'b1;
       #1;
       tb_check1("mem0 read request ready", mem0_req_ready, 1'b1);
+      tb_check1("mem0 read no AR at fire", lsu_axi_arvalid, 1'b0);
+      tick();
+      mem0_req_valid = 1'b0;
+      #1;
       tb_check1("mem0 read issues AR", lsu_axi_arvalid, 1'b1);
       tb_check64("mem0 read AR address", lsu_axi_araddr,
                  is_cross_r ? addr : {addr[`XLEN-1:3], 3'b000});
@@ -241,7 +248,6 @@ module tb_ooo_mem_axi_bridge;
                  is_cross_r ? {{(`XLEN-`STRB_W){1'b0}}, strb}
                        : {{(`XLEN-`STRB_W){1'b0}}, {`STRB_W{1'b1}}});
       tick();
-      mem0_req_valid = 1'b0;
       lsu_axi_arready = 1'b0;
     end
   endtask
@@ -255,6 +261,55 @@ module tb_ooo_mem_axi_bridge;
       lsu_axi_rvalid = 1'b0;
       #1;
       tb_check1("masked read response valid", mem0_rsp_valid, 1'b1);
+      // 窗口视图: 对齐 line 右移 paddr[2:0]*8(off=5)
+      tb_check64("masked read window data", mem0_rsp_rdata,
+                 64'h0000_0000_0001_0203);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+    end
+  endtask
+
+  // 【1-cycle 同步读】hit 路径统一在 S_LOOKUP 判决拍以锁存 paddr_q[2:0] 移位;
+  // 本场景补两块原 cache 组合口负责、SRAM 化后移到桥判决拍的语义审核:
+  //   (a) unaligned hit 的窗口移位视图(接住 cache TB 里被移走的移位检查);
+  //   (b) 跨线窗口即使 line 有效也必须 miss 走 AXI 原窗口读(read_cross_q 阻断
+  //       hit——DWC-I2 的桥侧新落点)。
+  task automatic cached_window_shift_and_cross_block;
+    begin
+      // (a) 前场景已 fill line 0x8000_1000=0x0102_0304_0506_0708; 同址 unaligned hit
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = 64'h0000_0000_8000_1005;
+      mem0_req_wstrb = 8'b0010_0000;
+      lsu_axi_arready = 1'b1;   // 陷阱: hit 判决拍不得发 AR
+      #1;
+      tb_check1("cached window read ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("cached window hit no AR", lsu_axi_arvalid, 1'b0);
+      tick();
+      lsu_axi_arready = 1'b0;
+      #1;
+      tb_check1("cached window response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("cached window shifted data", mem0_rsp_rdata,
+                 64'h0000_0000_0001_0203);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+
+      // (b) 跨线窗口(off=6, 4B): line 0x8000_1000 有效仍必须 miss(原窗口 AR,
+      //     数据原样回传、不 fill)
+      issue_mem0_read_strb(64'h0000_0000_8000_1006, 8'b0000_1111);
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'h1a2b_3c4d_5e6f_7081;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("cross-line read response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("cross-line read data passthrough", mem0_rsp_rdata,
+                 64'h1a2b_3c4d_5e6f_7081);
       mem0_rsp_ready = 1'b1;
       tick();
       mem0_rsp_ready = 1'b0;
@@ -399,9 +454,14 @@ module tb_ooo_mem_axi_bridge;
       mem0_req_write = 1'b0;
       mem0_req_addr = 64'h0000_0000_8000_5000;
       #1;
-      tb_check1("post-abort read hits cache", lsu_axi_arvalid, 1'b0);
+      tb_check1("post-abort read no AR at fire", lsu_axi_arvalid, 1'b0);
       tick();
       mem0_req_valid = 1'b0;
+      // 【1-cycle 同步读】hit 判定移至 S_LOOKUP 判决拍(+1 拍): aborted store
+      // 未 commit 不失效 line, 判决拍命中、不发 AR。
+      #1;
+      tb_check1("post-abort read hits cache", lsu_axi_arvalid, 1'b0);
+      tick();
       #1;
       tb_check1("post-abort cached response valid", mem0_rsp_valid, 1'b1);
       tb_check64("aborted store must not update dcache", mem0_rsp_rdata,
@@ -441,13 +501,28 @@ module tb_ooo_mem_axi_bridge;
       mem0_req_valid = 1'b1;
       mem0_req_write = 1'b0;
       mem0_req_addr = 64'h0000_0000_8000_5000;
+      lsu_axi_arready = 1'b1;
       #1;
-      tb_check1("post-commit read hits cache", lsu_axi_arvalid, 1'b0);
+      tb_check1("post-commit read no AR at fire", lsu_axi_arvalid, 1'b0);
       tick();
       mem0_req_valid = 1'b0;
+      // 【SRAM 一期·无条件失效】committed store 直接失效 line(write-update
+      // 保热已刻意丢弃): 同址读判决拍必 miss 走 AXI 重取, store 数据可见性
+      // 经 MEM-I2(数据已落 PMEM)由 slave 回传, 而非 cache 保热。
       #1;
-      tb_check1("post-commit cached response valid", mem0_rsp_valid, 1'b1);
-      tb_check64("committed store updates dcache", mem0_rsp_rdata,
+      tb_check1("post-commit read misses invalidated line",
+                lsu_axi_arvalid, 1'b1);
+      tb_check64("post-commit reload AR address", lsu_axi_araddr,
+                 64'h0000_0000_8000_5000);
+      tick();
+      lsu_axi_arready = 1'b0;
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'haaaa_bbbb_cccc_dddd;   // store 后的 PMEM 内容
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("post-commit reload response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("committed store data visible via reload", mem0_rsp_rdata,
                  64'haaaa_bbbb_cccc_dddd);
       mem0_rsp_ready = 1'b1;
       tick();
@@ -483,13 +558,27 @@ module tb_ooo_mem_axi_bridge;
       mem0_req_valid = 1'b1;
       mem0_req_write = 1'b0;
       mem0_req_addr = 64'h0000_0000_8000_5000;
+      lsu_axi_arready = 1'b1;
       #1;
-      tb_check1("post-drain read hits cache", lsu_axi_arvalid, 1'b0);
+      tb_check1("post-drain read no AR at fire", lsu_axi_arvalid, 1'b0);
       tick();
       mem0_req_valid = 1'b0;
+      // 【SRAM 一期·无条件失效】flush 下 drain 的 store 同样在完成拍失效 line
+      // (untracked-over-flush 语义保持): 同址读 miss 走 AXI 重取新值。
       #1;
-      tb_check1("post-drain cached response valid", mem0_rsp_valid, 1'b1);
-      tb_check64("drained store updates dcache", mem0_rsp_rdata,
+      tb_check1("post-drain read misses invalidated line",
+                lsu_axi_arvalid, 1'b1);
+      tb_check64("post-drain reload AR address", lsu_axi_araddr,
+                 64'h0000_0000_8000_5000);
+      tick();
+      lsu_axi_arready = 1'b0;
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'h1234_5678_9abc_def0;   // drain store 后的 PMEM 内容
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("post-drain reload response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("drained store data visible via reload", mem0_rsp_rdata,
                  64'h1234_5678_9abc_def0);
       mem0_rsp_ready = 1'b1;
       tick();
@@ -561,15 +650,57 @@ module tb_ooo_mem_axi_bridge;
       lsu_axi_arready = 1'b1;
       #1;
       tb_check1("sv39 repeat request ready", mem0_req_ready, 1'b1);
-      // 第二次同页同字访问应由 DTLB + 物理 data cache 命中，不再发 page-walk/data AR。
-      tb_check1("sv39 repeat request no AXI AR", lsu_axi_arvalid, 1'b0);
+      tb_check1("sv39 repeat no AR at fire", lsu_axi_arvalid, 1'b0);
       tick();
       mem0_req_valid = 1'b0;
+      // 【1-cycle 同步读】第二次同页同字访问由 DTLB + 物理 data cache 命中:
+      // hit 判定移至 S_LOOKUP 判决拍(+1 拍), 判决拍不发 page-walk/data AR。
+      #1;
+      tb_check1("sv39 repeat request no AXI AR", lsu_axi_arvalid, 1'b0);
+      tick();
       lsu_axi_arready = 1'b0;
-
       #1;
       tb_check1("sv39 repeat response valid", mem0_rsp_valid, 1'b1);
       tb_check64("sv39 repeat response data", mem0_rsp_rdata,
+                 64'hfeed_face_cafe_beef);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+
+      // 【新增·walk-hit 路径】mmu_flush 清 DTLB(物理索引 dcache 不清)后重访:
+      // TLB miss → walk 读 PTE → leaf-ok 拍发 dcache 读 → S_LOOKUP 判决 hit,
+      // 不发 data AR。该路径覆盖旧 walk 组合口(无移位/无跨线检查)错值 bug 的
+      // 修复落点: 判决拍统一按锁存 paddr_q 移位。
+      mmu_flush = 1'b1;
+      tick();
+      mmu_flush = 1'b0;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = DATA_VA;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      #1;
+      tb_check1("sv39 walk-hit request ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("sv39 walk-hit walk AR valid", lsu_axi_arvalid, 1'b1);
+      tb_check64("sv39 walk-hit walk PTE address", lsu_axi_araddr,
+                 ROOT_PT + 64'd16);
+      lsu_axi_arready = 1'b1;
+      tick();
+      lsu_axi_arready = 1'b0;
+      #1;
+      tb_check1("sv39 walk-hit waits PTE", lsu_axi_rready, 1'b1);
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = SUPERPAGE_PTE;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("sv39 walk-hit no data AR", lsu_axi_arvalid, 1'b0);
+      tick();
+      #1;
+      tb_check1("sv39 walk-hit response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("sv39 walk-hit response data", mem0_rsp_rdata,
                  64'hfeed_face_cafe_beef);
       mem0_rsp_ready = 1'b1;
       tick();
@@ -801,6 +932,7 @@ module tb_ooo_mem_axi_bridge;
     held_response_flush_drop();
     inflight_read_flush_abort();
     read_arstrb_tracks_load_mask();
+    cached_window_shift_and_cross_block();
     partial_write_flush_drain();
     flushed_store_does_not_poison_dcache();
     sv39_leaf_ad_update("sv39 A=0 load triggers HW A update", 1'b0,
