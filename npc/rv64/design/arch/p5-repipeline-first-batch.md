@@ -44,6 +44,18 @@
   （删 bypass 后"当拍 dispatch 写入+同拍 kill"的新写项须被 IQ kill younger-后缀清除覆盖）；
   TB 契约重写不可弱化；负测试=故意保留一条 bypass 臂应使新断言 fire。
 
+### 第一批 S2 验证结果（2026-07-09 全核 STA 实测）
+
+| 指标 | 两刀前 | 两刀后 | 变化 |
+| --- | --- | --- | --- |
+| WNS @100MHz | −10.31ns | **−6.04ns** | +4.27ns（41%） |
+| TNS | −169177 | **−49765** | −70% |
+| 实际 Fmax（typ, 占位宏 lib） | ~50MHz | **~62MHz** | +24% |
+| CoreMark CPI | 3.190 | 3.197 | +0.23% |
+
+新关键路径 = 预估的新头段（新起点 FF → IQ select → PRF 读 → AGU/SQ → 桥 → dcache addr
+≈16ns，终点仍 dcache SRAM）——**刀 M（桥侧 req 寄存站）正好切它，第二批主刀确认**。
+
 ## 2. 第二批预告（S2 数据后决策，另立实施记录）
 
 - **刀 M（桥侧 req 寄存站）**：mem_req 桥内寄存、dcache lookup 次拍（load hit 2→3 拍，
