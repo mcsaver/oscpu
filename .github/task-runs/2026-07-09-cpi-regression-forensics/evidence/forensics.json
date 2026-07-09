@@ -1,0 +1,191 @@
+{
+ "timeline": {
+  "datapoints": [
+   {
+    "date": "2026-05-30",
+    "workload": "CoreMark 10迭代 + 同日1000迭代完整跑",
+    "cpi_or_metric": "CPI=0.783 (cycles=2518692/commits=3216171); 1000迭代 CPI=0.779",
+    "source": ".github/memory/modules/am-kernels.md:48",
+    "context": "历史最好记录,'仍低于 0.8'。commits≈3.216M 与今日二进制一致,直接可比"
+   },
+   {
+    "date": "2026-05-31",
+    "workload": "CoreMark 10迭代",
+    "cpi_or_metric": "CPI=0.828 (cycles=2661725/commits=3216115)",
+    "source": ".github/memory/modules/am-kernels.md:47",
+    "context": "'CPI 暂时回退到 0.8 以上…需恢复历史 CPI=0.783/0.779';同文件:13 称 focused 回归'不作为 CPI<0.8 benchmark 证据'"
+   },
+   {
+    "date": "2026-06-28",
+    "workload": "CoreMark(50M-cycle 窗口)",
+    "cpi_or_metric": "CPI ≈1.02",
+    "source": "npc/rv64/design/arch/history/EVAL-REPORT-2026-06-28.md:69",
+    "context": "EVAL-REPORT 真实代码 CPI 画像;当时完整迭代 RTL 仿真不可行,用窗口法"
+   },
+   {
+    "date": "2026-06-28",
+    "workload": "AM 加权(eval --all)",
+    "cpi_or_metric": "加权 CPI=1.2647 (cycles=187299/commits=148092)",
+    "source": "npc/rv64/design/arch/history/EVAL-REPORT-2026-06-28.md:19",
+    "context": "同报告;最低单测 crc32 0.56,最高 counteren-time 3.33"
+   },
+   {
+    "date": "2026-06-28(历史实验)",
+    "workload": "AM 加权(B-cut-1 dispatch→issue bypass 全禁实验)",
+    "cpi_or_metric": "1.2647→1.3340 (+5.5%),当时未 ship",
+    "source": "npc/rv64/design/arch/timing-dispatch-issue-path.md:105-107",
+    "context": "P5 刀B 的历史依据;2026-07-09-p5-recon/plan.md:22 引用"
+   },
+   {
+    "date": "2026-06-29",
+    "workload": "AM 加权(function→always@* 重构 campaign,17 提交)",
+    "cpi_or_metric": "CPI 1.3386 全程零变化",
+    "source": "npc/rv64/design/arch/history/EVAL-REPORT-2026-06-28.md:153 (§11, commit 66ec1d2aa 06-29 02:37)",
+    "context": "纯容器变换,cycle-exact 中性证据"
+   },
+   {
+    "date": "2026-07-03 01:35",
+    "workload": "CoreMark 10迭代",
+    "cpi_or_metric": "CoreMark/MHz 2.612→2.869 (+10%) ≈ CPI 1.23→1.12",
+    "source": "commit a00b96ddb; npc/rv64/design/specs/history/ooo-lsq-implementation-plan.md:233",
+    "context": "B-LSQ Phase2+3:MIQ 在飞队列 + dcache byte-window→8B line 重写,miss 274347→5833(-98%)"
+   },
+   {
+    "date": "2026-07-03 11:17",
+    "workload": "CoreMark 10迭代",
+    "cpi_or_metric": "CoreMark/MHz 2.869→3.395 (+18.3%), IPC≈1.077 → CPI≈0.93",
+    "source": "commit 926a2ef6d; npc/rv64/design/specs/history/ooo-f2-per-packet-pred-implementation-plan.md:92; db-backup project-status.md:127",
+    "context": "F2 真分支预测落地。branch_flush 34.7%→19.4%, BPU accuracy 92.7%。这是 6/28 之后的性能峰值,也是 SRAM 化前最后一个有记录的 CoreMark 测量"
+   },
+   {
+    "date": "2026-07-04",
+    "workload": "AM 加权(eval)",
+    "cpi_or_metric": "preB4=1.2290 → B4-FINAL=1.2290(逐位持平); phase1-csr-head=1.2216",
+    "source": "npc/rv64/eval/results/20260704-111701-baseline-preB4/summary.md, 20260704-161922-B4-FINAL/summary.md, 20260704-222250-phase1-csr-head/summary.md",
+    "context": "B4 死硅删除 9 批 cycle-exact 中性的直接证据;此窗口未测 CoreMark"
+   },
+   {
+    "date": "2026-07-06",
+    "workload": "AM 加权(eval)",
+    "cpi_or_metric": "加权 CPI=1.2638 (cycles=193240/commits=152902)",
+    "source": "npc/rv64/eval/results/20260706-113836/summary.md 与 20260706-185713-hw-ad-fixed/summary.md",
+    "context": "fence.i 默认 ON(21252d2cb 07-06 00:37)/Sv39 HW A/D 时代;AM 侧无异常,CoreMark 此窗口无测量"
+   },
+   {
+    "date": "2026-07-07~08(测量真空)",
+    "workload": "CoreMark(未测)",
+    "cpi_or_metric": "3.395→1.157 的坠崖发生于此,无中间数据点",
+    "source": "db-backup files/.github/memory/project-status.md:21('07-07~08 综合向 RTL 重写…后无全量回归记录'); commit c11cc172a(07-08 10:12 'now')含 OooMulDivUnit.v 新增 STATE_MUL_RUN/mul_count_q=64(vsrc/execute/OooMulDivUnit.v:265)",
+    "context": "综合驱动重写:MulDiv 迭代化(MUL 单拍→64 拍迭代,CoreMark 乘法密集,~3x 周期膨胀主嫌)+PmpChecker range-share+cache INDEX_W 宏化。CPI 0.93→2.69 的最大一跳在 SRAM 宏化之前"
+   },
+   {
+    "date": "2026-07-08 ~11:33",
+    "workload": "CoreMark 10迭代",
+    "cpi_or_metric": "CoreMark/MHz 1.157 → 推算 CPI≈2.69 (timed-cycles≈8.64M/commits≈3.219M)",
+    "source": "db-backup files/.github/memory/project-status.md:21; .github/task-runs/2026-07-08-sram-macro-refactor/task-report.md:65(作为基线侧)",
+    "context": "iverilog14 门禁恢复验证时首次实测,即 SRAM 宏化前的最后一个 CoreMark 数字"
+   },
+   {
+    "date": "2026-07-08 22:27",
+    "workload": "CoreMark 10迭代",
+    "cpi_or_metric": "CoreMark/MHz 1.157→0.966 (-16.5%)",
+    "source": ".github/task-runs/2026-07-08-sram-macro-refactor/task-report.md:65,70-74; commit 78c7a1a1f",
+    "context": "FPC/DWC SRAM 宏化(+1拍同步读)。主因=store 无条件失效丢 write-update:dcache load hit 99.3%→76.4%(miss 3784→139221);icache 盲失效代价可忽略(miss 1671→6413)。BPU 未 SRAM 化(仅综合黑盒)"
+   },
+   {
+    "date": "2026-07-08",
+    "workload": "CoreMark 10迭代(P2/P4 shadow 后)",
+    "cpi_or_metric": "0.966/MHz 持平",
+    "source": ".github/task-runs/2026-07-08-stage-boundary-p4-shadow-arbiter/task-report.md:56",
+    "context": "级间边界治理 P2/P4 零性能影响"
+   },
+   {
+    "date": "2026-07-09 01:10",
+    "workload": "CoreMark 10迭代",
+    "cpi_or_metric": "CPI=3.235 (cycles=10413705/commits=3218614), 0.966/MHz 持平",
+    "source": ".github/task-runs/2026-07-09-redirect-arbiter-switch/knife1-coremark10.log:109,116; commit 8329ffaf7",
+    "context": "flush 单点化完成刀;这是 SRAM 化后第一份带完整 CPI 打印的直接测量"
+   },
+   {
+    "date": "2026-07-09 01:47",
+    "workload": "CoreMark 10迭代",
+    "cpi_or_metric": "CoreMark/MHz 0.966→0.980; dcache miss 139221→3770(-97.3%), load hit 76.4%→99.30%",
+    "source": ".github/task-runs/2026-07-08-percore-ooc-sta/task-report.md:30(任务3); commit faba82262; db-backup project-status.md:16",
+    "context": "dcache write-update 恢复(2 拍 RMW+bit-write-mask 宏),收复 SRAM 化 dcache 损失,但 MulDiv 坠崖未收复"
+   },
+   {
+    "date": "2026-07-09(P5 S0 基线)",
+    "workload": "CoreMark 10迭代",
+    "cpi_or_metric": "CPI=3.190 (cycles=10267729/commits=3218614, 0.980/MHz)",
+    "source": ".github/task-runs/2026-07-09-p5-first-batch/s0-coremark-bypass-on.log:121; knife-B-iq-bypass-removal.md:10",
+    "context": "P5 重新流水化 S0 重测(p5-recon/plan.md:62 规划,实测落在 p5-first-batch)。p5-recon 本体只有 plan.md/anatomy.md,无独立测量"
+   },
+   {
+    "date": "2026-07-09 11:05",
+    "workload": "CoreMark 10迭代",
+    "cpi_or_metric": "CPI 3.190→3.197 (+0.23%, cycles=10291429, 0.978/MHz)",
+    "source": ".github/task-runs/2026-07-09-p5-first-batch/s1-coremark-after-deletion.log:119; npc/rv64/design/arch/p5-repipeline-first-batch.md:54; commit fc655fa07",
+    "context": "P5 第一批刀B:删 IQ dispatch→issue bypass + PLIC/CLINT 中断出口打拍;WNS -10.31→-6.04(+41%)"
+   },
+   {
+    "date": "2026-07-09 15:47",
+    "workload": "CoreMark 10迭代",
+    "cpi_or_metric": "CPI 3.197→3.280 (+2.57%, cycles=10555505, 0.953/MHz)",
+    "source": ".github/task-runs/2026-07-09-p5-knife-m/m5-coremark-knife-m.log:113; npc/rv64/design/arch/p5-repipeline-first-batch.md:72,90; commit bdab6136d",
+    "context": "P5 刀M:桥侧 req 寄存站(load hit +1 拍),优于 +3~8% 预估带"
+   }
+  ],
+  "zero_point_eight_origin": "“~0.8”出自 .github/memory/modules/am-kernels.md:47-48(镜像于 db-backup):2026-05-30 CoreMark 10 迭代 CPI=0.783(cycles=2518692/commits=3216171)、同日 1000 迭代完整跑 CPI=0.779;2026-05-31 回退到 CPI=0.828 时被记为“暂时回退到 0.8 以上…后续需恢复历史 CPI=0.783/0.779”,且同文件 :13 把“CPI<0.8”当作 benchmark 达标线措辞。这是全仓唯一记录 0.8x CoreMark CPI 的地方,属 2026-05-30/31 时期(OoO 核早期,与今日同一 10 迭代二进制 commits≈3.216M,数字直接可比)。注意:F2 落地后(07-03)最好也只到 CPI≈0.93(IPC≈1.077),6 月下旬为 ~1.02,故“0.8”是 5 月底的峰值记忆,7 月任何时点都未真正回到 0.8x。",
+  "sram_refactor_before_after": "SRAM 宏化(commit 78c7a1a1f, 07-08 22:27)两侧直接测量:前=CoreMark/MHz 1.157(07-08 上午 iverilog14 门禁恢复验证实测,db-backup project-status.md:21;推算 CPI≈2.69),后=0.966(-16.5%, sram-macro-refactor/task-report.md:65),后侧带完整 CPI 打印的实测为 CPI=3.235/cycles=10413705(redirect-arbiter-switch/knife1-coremark10.log:116, 0.966 持平)。归因:store 无条件失效丢 write-update 使 dcache load hit 99.3%→76.4%(miss 3784→139221)是 -16.5% 主因,07-09 write-update 恢复后收回到 0.980(miss 3770)。但关键澄清:从 F2 后 3.395/MHz(CPI≈0.93, 07-03)到 1.157(CPI≈2.69)的最大跳变发生在 SRAM 宏化【之前】,落在 07-07~08 “综合向 RTL 重写(MulDiv 迭代化/PmpChecker range-share/cache INDEX_W 宏化)后无全量回归记录”的测量真空里(project-status.md:21 原话);其中 MulDiv 迭代化(commit c11cc172a 07-08 10:12,OooMulDivUnit.v 新增 STATE_MUL_RUN,mul_count_q=64 → 乘法单拍变 64 拍)是量级上唯一能解释 ~3x 周期膨胀的改动(CoreMark 乘法密集;AM 加权 CPI 在 07-06 仍 1.2638 正常,说明退化集中在乘法型负载)。即 0.93→3.28 分解为:MulDiv 迭代化 ≈0.93→2.69(无中间实测,区间归因)、SRAM 宏化 2.69→3.235、write-update 恢复 →3.190、P5 刀B/刀M 有意换时序 →3.197→3.280。"
+ },
+ "fetchSide": {
+  "hit_latency_now": "2 拍(fire→resp)。fire 拍(S_IDLE 或 S_RESP back-to-back)锁存请求并发射 Sram4096x199 同步读(lookup_en_i=fetch_req_fire_w)→次拍 S_LOOKUP 判决拍(SRAM rdata 出数、cache_hit_w=SRAM hit∧PMP/ITLB 复检、锁存 inst0/1_q)→第 3 拍 S_RESP 时 fetch_rsp_valid_o=1。即 resp 在 fire 后第 2 拍有效。",
+  "hit_latency_before_sram": "1 拍。SRAM 化前(78c7a1a1f^ 即 2026-07-08 22:27 前)cache 为 FF 阵列 0-cycle 组合读:fire 当拍 cache_hit_w/cache_inst*_w 即有效并在 S_IDLE/S_RESP 的 fire 拍内直接锁存,次拍进 S_RESP 出 resp;组合读当拍出数,resp 延迟仅 1 拍,且 S_RESP back-to-back 下每拍稳定交付一包。",
+  "pipelined_or_serial": "半串行 2 拍环,非流水。FSM 不需回 IDLE:S_RESP 在 rsp_ready 同拍可 back-to-back 接受下一请求直接进 S_LOOKUP(OooFetchAxiBridge.v:795-815);但 S_LOOKUP 判决拍不在 ready 集合(fetch_req_ready_o 仅 S_IDLE 或 S_RESP∧rsp_ready,v:476-477),相邻 hit 的 lookup 无重叠,稳态节奏 S_RESP(fire)→S_LOOKUP→S_RESP(fire)…每 2 拍 1 包。1RW 宏合同(lookup 与 fill 不同拍,OOO_ASSERT 断言)也排除了读读/读写同拍重叠。",
+  "throughput_ceiling": "前端供给上限 = 1 包/2 拍 × 2 指令/包 = 1 指令/拍(100% hit、消费端恒 ready 的最好情况),为双发射需求 2 指令/拍的 50%;SRAM 化前为 1 包/拍 = 2 指令/拍 = 100% 喂饱。代码注释自证:\"hit 延迟 1→2 拍、吞吐 1→1/2, SRAM 同步读一期接受的代价\"。CoreMark 语境 hit 率 99.68%(miss 仅 6653/2096685),瓶颈是该 50% 吞吐上限而非 miss。BPU 宏占位为 0-cycle 合同、未加拍,不叠加额外重定向气泡。",
+  "evidence": [
+   "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v:58 — S_LOOKUP=4'd9 定义:'取指包 cache SRAM 同步读判决拍(fire 次拍, ready=0)'",
+   "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v:474-478 — fetch_req_ready_o=(S_IDLE)||(S_RESP&&rsp_ready), S_LOOKUP 不在 ready 集合;注释原文'hit 延迟 1→2 拍、吞吐 1→1/2, SRAM 同步读一期接受的代价';fetch_rsp_valid_o=(state_q==S_RESP)",
+   "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v:539-559 — S_IDLE fire 拍只锁存上下文并发射 lookup(lookup_en_i=fetch_req_fire_w, v:363),state→S_LOOKUP",
+   "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v:562-571 — S_LOOKUP 判决拍:cache_hit_w 则锁存 cache_inst0/1_w→S_RESP(hit 共 2 拍)",
+   "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v:795-815 — S_RESP back-to-back accept:rsp_ready∧req_valid 同拍锁存新请求→S_LOOKUP,不回 IDLE;否则→S_IDLE",
+   "npc/rv64/vsrc/cache/OooFetchPacketCache.v:7-8,122-129,164-178 — 两拍 lookup 协议:fire 拍锁存+发射 Sram4096x199 读,次拍 dec_en_q 门控输出;非判决拍 hit 恒 0",
+   "npc/rv64/vsrc/cache/OooFetchPacketCache.v:204-213 — OOO_ASSERT 1RW 合同:lookup 与 fill 同拍即 $fatal(读写不可重叠)",
+   "git 78c7a1a1f (2026-07-08) 'rv64 SRAM 宏化: FPC/DWC 存储下沉 1RW 同步读宏+两桥 S_LOOKUP 判决态+宏合同 v1' — SRAM 化提交;其父 78c7a1a1f^ 为旧版",
+   "git show 78c7a1a1f^:OooFetchAxiBridge.v — 旧版 S_IDLE(~line 536)与 S_RESP(~line 784)fire 拍内 if(cache_hit_w) 当拍锁存 cache_inst*_w→S_RESP:组合 0-cycle 读、hit 延迟 1 拍、back-to-back 每拍 1 包",
+   "npc/rv64/design/specs/ooo-fetch-packet-cache.md:146 — 宏合同 v1:'lookup read latency | 1 cycle'(同步读判决拍)",
+   "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v:28-35,81-151 — BPU 本体未 SRAM 化:bht_q/local_pht_q 等 FF 阵列,双 lookup 纯组合(assign 直出),update 次拍写 FF",
+   "npc/rv64/design/specs/ooo-branch-direction-predictor.md:89 — BPU 宏合同冻结 'lookup read latency | 0 cycle'(组合可见);§8 声明 ACTIVE placeholder 仅为综合/STA 审计边界",
+   "yosys-sta/scripts/check_bpu_macro_contract.py:20-33 — 门禁强制 spec 含 '0 cycle' lookup、'two combinational views'、'next cycle' update——BPU 占位是文档+黑盒 STA 合同,非 RTL 加拍,预测不晚、无新增重定向气泡",
+   "npc/rv64/design/specs/yosys-macro-boundary-contracts.md:38 — 边界表 BPU 行:'Placeholder v0 defined: 0-cycle two-lookup read, next-cycle issue-resolve update visibility…Liberty/LEF/OOC timing still open'",
+   "npc/rv64/vsrc/frontend/OooFrontend.v:1757-1765 — 预测消费点:u_branch_direction_predictor 组合输出 head0_branch_pred_taken_w 当拍用于头包分类/pred_npc,时序与宏化前一致",
+   "npc/rv64/vsrc/sim/NpcSimTop.sv:683-702 — CONFIG_NPC_SIM_STATS:SRAM 化后 access 打一拍(sim_icache_access_q)与判决拍 cache_hit_w 配对计数",
+   ".github/task-runs/2026-07-09-p5-knife-m/m5-coremark-final-sources.log:139 — CoreMark icache: access=2096685, hit=2090032, miss=6653 → hit 率 99.68%",
+   ".github/task-runs/2026-07-08-sram-macro-refactor/task-report.md:71 — 'icache：盲失效后 hit 率仍 99.7%（miss 1671→6413，+0.23%）'——SRAM 化+7 邻域盲失效的 hit 率代价可忽略"
+  ]
+ },
+ "memSide": {
+  "hit_latency_now": "3 拍(fire→wb):拍N=AGU(issue lane ALU→LSU)出EA并 mem0_req fire 进桥侧寄存站(刀M,只锁存零计算);拍N+1=stage_advance(DTLB/PMP/dcache lookup 发射+accept→S_LOOKUP);拍N+2=S_LOOKUP 判决拍(SRAM rdata 有效,hit→锁 rsp_rdata_q);拍N+3=S_RESP,rsp_valid 且后端同拍消费直进 wb mux(wb 数据当拍有效)。演进:SRAM宏化(78c7a1a1f,07-08)1→2拍,刀M寄存站(bdab6136d,07-09)2→3拍(CoreMark CPI 3.197→3.280,+2.57%)。",
+  "hit_latency_before_sram": "1 拍(fire→wb):SRAM 化前 dcache 为组合读(req_dcache_hit_w/req_dcache_data_w 直连 fire 拍),accept_request 同拍锁 rsp_rdata_q→S_RESP,次拍 rsp/wb;且 S_RESP 消费拍可 back-to-back 再 fire,吞吐 1 load hit/拍(现文件 OooMemAxiBridge.v:72-73 注释自证\"hit 已 1 req/拍 back-to-back\")。",
+  "pipelined_or_serial": "串行 FSM + 1 深 skid(寄存站),非全流水:桥单 outstanding,第二个独立 load 可在首 load 处于 S_LOOKUP/S_RESP 时 fire 进寄存站,S_RESP 消费拍可 back-to-back advance 下一项;但 S_LOOKUP 判决拍禁止 advance(stage_advance_w 仅 S_IDLE 或 S_RESP&&rsp_ready)→ 稳态节拍 2 拍/load hit(advance/lookup 与上一项 S_RESP 重叠,S_LOOKUP 独占)。MIQ 深度4 支持背靠背在飞记账,但桥内实际并发上限=FSM 1项+寄存站 1项。store 路径:plain store 占桥两次(issue 拍 PROBE 2 拍占 FSM+退休后 DRAIN 落存~3拍,drain 最低优先级单在飞);store commit 的 2 拍 RMW 判决拍 rmw_busy 压制 stage_advance=store 后对后续 load 恰 1 bubble;drain 在飞期间 load 只能在寄存站/MIQ 排队等 FSM,另有 load 与更老在飞 PROBE 同地址的 issue 级阻塞。",
+  "throughput_ceiling": "现在:0.5 load hit/拍(2 拍/load 串行节拍);store 均摊桥占用≈probe 2拍+drain~4拍(含 RMW bubble)。CoreMark 25-30% 访存、load:store≈2:1 下:纯 load 给 CPI 的下限贡献=0.25~0.30×2≈0.5~0.6 拍/指令;计入 store(每 mem op 均摊≈3.3 拍桥占用)→ mem 侧串行通道 CPI 地板≈0.8~1.0 拍/指令,约占实测 CPI 3.28 的 25-30%。SRAM 化前吞吐 1 load/拍,同口径地板仅≈0.3~0.4。3 拍 load-to-use 时延对依赖链的附加 stall 不含在此吞吐界内。",
+  "evidence": [
+   "npc/rv64/vsrc/memory/OooMemAxiBridge.v:67-69 — S_LOOKUP 态定义+注释'load hit 1→2 拍是一期接受的代价'",
+   "npc/rv64/vsrc/memory/OooMemAxiBridge.v:103-117 — 刀M 桥侧 req 寄存站(fire 拍零计算只锁存 8 字段, 翻译/dcache 发射推迟到 advance 拍)",
+   "npc/rv64/vsrc/memory/OooMemAxiBridge.v:333-336 — stage_advance_w = stg_valid && !rmw_busy && (S_IDLE || (S_RESP&&rsp_ready)):S_LOOKUP 拍不能收新项=2拍/load 串行节拍;RMW 判决拍压 advance=store 后 1 bubble",
+   "npc/rv64/vsrc/memory/OooMemAxiBridge.v:551 — mem0_req_ready_o = !flush && (!stg_valid || stage_advance):1 深 skid 允许 fire 与在飞事务重叠",
+   "npc/rv64/vsrc/memory/OooMemAxiBridge.v:646-650,861-876 — accept→S_LOOKUP;S_LOOKUP 判决拍 hit→S_RESP(锁 rsp_rdata_q)/miss 当拍发 AR",
+   "npc/rv64/vsrc/memory/OooMemAxiBridge.v:72-73 — 注释'hit 已 1 req/拍 back-to-back'(SRAM 化前吞吐佐证)",
+   "npc/rv64/vsrc/cache/OooDataWordCache.v:21-29,144-166 — store 2 拍 RMW write-update:commit 拍占宏口读+锁上下文,判决拍 rmw_busy_o=1 桥压 advance='store 后 1 bubble';bit-write-mask 只写被覆盖字节",
+   "npc/rv64/vsrc/execute/OooIntBackend.v:969-973 — MIQ 深度4, 'plain LOAD/PROBE/DRAIN 可背靠背在飞(桥 back-to-back 已支持)', rsp 恒配队头",
+   "npc/rv64/vsrc/execute/OooIntBackend.v:1181-1195 — mem_rsp_ready(load 需 wb 槽)与 miq_pop=rsp 消费拍出队",
+   "npc/rv64/vsrc/execute/OooIntBackend.v:1882-1891 — sq_drain_req 最低优先级共用 mem0 口(amo写>buffer>issue0>issue1>drain), 单在飞 drain_inflight_q",
+   "npc/rv64/vsrc/execute/OooIntBackend.v:1496-1525 — load 对更老在飞 PROBE 同地址的 issue 级阻塞",
+   "npc/rv64/vsrc/execute/OooIntBackend.v:800-812 — AGU=issue lane ALU(issue0_alu_result_w)→LSU→同拍 mem req(刀M 前组合贯通到 dcache, 刀M 后止于寄存站)",
+   "npc/rv64/vsrc/execute/OooIntBackend.v:2246-2249,2300-2302 — rsp fire 拍组合直进 wb0/wb1 mux(wb 数据当拍有效, 无额外寄存拍)",
+   "git 78c7a1a1f~1 OooMemAxiBridge.v:334-343,568-570 — SRAM 化前 fire 拍组合命中(req_dcache_hit_w/req_dcache_data_w), accept 同拍锁 rsp_rdata_q→S_RESP=1 拍 hit",
+   "git bdab6136d commit msg — 刀M:load hit 2→3拍, CoreMark CPI 3.197→3.280(+2.57%), dcache miss 3770 持平; 78c7a1a1f(07-08 SRAM 宏化+S_LOOKUP), faba82262(07-09 RMW write-update, miss -97.3%)"
+  ]
+ },
+ "synthesis": "## 交叉核验结论(对抗审查)\n\n### 一、时间线自洽性核验\n\n**换算常数核验(强)**:CoreMark/MHz × CPI 应为常数(commits 固定 ≈3.2186M)。四个双打印点:0.966×3.235=3.125、0.980×3.190=3.126、0.978×3.197=3.127、0.953×3.280=3.126,一致到 0.06%,SRAM 化后各点**高度自洽**。1.157 推算 CPI=3.126/1.157=2.70≈材料\"≈2.69\" ✓。07-03 点 3.395×0.9285=3.152 偏 0.8%(timed/total cycles 口径差,可接受)。刀M 3.280(cycles=10555505)与刀1 3.235(cycles=10413705)均在 log 原文中核实无误。\n\n**乘性链加和**(0.783→3.280, ΔCPI=+2.497):\n| 段 | ΔCPI | 锚定 |\n|---|---|---|\n| 05-30→07-03(5-6月净回退) | +0.147 | 两端实测,过程混杂 |\n| 07-07~08 综合向重写 | +1.76 | 两端实测,**区间内无测量** |\n| SRAM 宏化(净,含后续恢复) | +0.50 | 1.157→0.966→0.980 差分 |\n| 刀B | +0.007 | 直接差分 |\n| 刀M | +0.083 | 直接差分 |\n| **合计** | **+2.50** | =3.28−0.78 ✓ **闭合** |\n\n链条数值上完全闭合,但\"0.8→3.28\"叙事起点有水分:0.8 是 5 月底峰值,7 月实际起点是 0.93(F2 后),0.783→0.93 段(+6%)无归因。\n\n### 二、吞吐上限定量核对\n\n- **fetch**:源码核实(OooFetchAxiBridge.v:474-478 S_LOOKUP 不在 ready 集合)属实,上限 1包/2拍×2指令=1 指令/拍 → **CPI 下限 1.0**。实测 3.28≫1.0,fetch 上限是必要地板而非充分解释。且 1 指令/拍是乐观值——假设每包 2 条有效指令,taken 分支截断包会进一步压低,材料未测包利用率。\n- **mem**:结论 0.8~1.0 拍/指令**碰巧对但推导错**。\"纯 load 0.25~0.30×2≈0.5~0.6\"把全部访存按 load 计;刀M log 实测 load access=538512(16.7%)、store=297310(9.2%),load 侧应为 0.167×2≈0.33,加 store 6 拍均摊 0.092×6≈0.55,合计 ≈0.89——落在 0.8~1.0 带内,但中间步骤算术有误。\n- **叠加方法学缺陷**:fetch 地板 1.0(\"占30%\")+mem 0.89(\"占25-30%\")+MulDiv +1.76(\"占54%\")加起来超 100%——这些是**并行资源的下限,应取重叠后的组合而非加性份额**。材料把下限当贡献份额,不严格但量级不矛盾(1.89 地板+MulDiv 串行重叠后≈3.28 可行)。\n- **材料漏掉的现成证据**:刀M log 自带 ooo_window 分解(fetch=65.2%、mem=27.4%、hazard=31.9%、branch_flush=8.1%;刀1 时 fetch=63.5%/mem=34.9%),直接支持\"fetch 供给是最广等待源\",两份材料均未引用。\n\n### 三、最终归因表(0.783→3.280)\n\n| 因素 | ΔCPI | 占比 | 证据强度 |\n|---|---|---|---|\n| MulDiv 迭代化为主的 07-07~08 重写 | +1.76 | **70%** | **中**:我核实 c11cc172a^ MUL=组合乘单拍(`selected_prod=op1_ext*op2_ext`)、c11cc172a 后=固定 64 拍无早退出+单 outstanding 阻塞(OooMulDivUnit.v:265,296-303);同区间 a22eece7c 仅 Svnapot 功能修正、PmpChecker 为组合重构,排除法成立;但**无隔离差分**,反推需 MUL 占比≈2.7% 无指令 mix 实测佐证 |\n| SRAM 化持久代价 | +0.50 | 20% | **强**(差分 1.157→0.966);内部拆分见下条修正 |\n| 刀M(load hit 2→3拍) | +0.083 | 3.3% | 强 |\n| 5-6月净回退 | +0.147 | 5.9% | 弱-中 |\n| 刀B | +0.007 | 0.3% | 强 |\n| write-update 窗口 | 终态≈0(峰值+0.045) | 0 | 强(faba82262 差分) |\n| BPU 晚一拍 | 0 | 0 | 强(FF 阵列组合读,未 SRAM 化,材料证据链完整) |\n\n### 四、站不住/证据不足的论断\n\n1. **最大问题——\"store 丢 write-update 是 SRAM 化 -16.5% 主因\"被材料自己的差分证伪**:07-09 恢复 write-update 后 miss 139221→3770(-97.3%),CPI 却只收回 3.235→3.190(146k cycles,1.4pp/16.5pp≈**8%**)。说明 dcache miss 惩罚在当时机器状态下几乎被掩盖。SRAM 化持久代价 +0.50 CPI 的主体应重归因为 **fetch 吞吐 1→1/2(地板抬升恰 +0.5,与残差惊人吻合)+ load hit +1 拍**。时间线条目\"主因=store 无条件失效\"与\"07-09 收复 dcache 损失\"两句自相矛盾(0.980 远未回 1.157)。\n2. **\"AM 07-06 仍 1.2638 正常,说明退化集中在乘法型负载\"时序不成立**:07-06 测量在 07-07~08 重写**之前**,只能证明重写前正常,不能作为重写后负载特异性的证据(缺重写后 AM eval)。\n3. mem 侧\"纯 load 下限 0.5~0.6\"算术错误(见上),结论靠 store 项凑对。\n4. \"mem 侧占 3.28 的 25-30%\"的加性份额表述方法学不当(并行下限)。\n5. MulDiv +1.76 是区间归因,\"量级上唯一能解释\"是排除法;定案需隔离实验(MUL 临时改回组合乘重测 CoreMark)。\n6. fetch\"1 指令/拍上限\"未扣包利用率,真实供给上限更低,即 fetch 在 SRAM 化中的贡献可能大于 0.5。\n\n### 不确定项\n- MUL 动态占比无实测(反推需 ~2.7%,CoreMark matrix 密集下可信但未验证)\n- 0.93→2.69 区间内 PmpChecker/INDEX_W/盲失效的残余贡献未隔离(源码审查显示量级不足,但非测量)\n- store 桥占用 6 拍均摊及 drain 与 load 的重叠度未测,mem 地板 ±0.2 不确定带\n- 0.783 对应 CoreMark/MHz≈3.99 无原始记录可交叉验证\n\n关键文件:npc/rv64/vsrc/execute/OooMulDivUnit.v:265(mul_count_q<=64)、npc/rv64/vsrc/frontend/OooFetchAxiBridge.v:474-478、npc/rv64/vsrc/memory/OooMemAxiBridge.v:333-336、.github/task-runs/2026-07-09-p5-knife-m/m5-coremark-knife-m.log(ooo_window 分解,未被材料利用)。"
+}
