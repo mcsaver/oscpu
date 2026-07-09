@@ -32,10 +32,21 @@ applyTo: "**"
 >
 > - **读原文**：`python3 scripts/github_index_db.py load --source stored --path <仓库相对路径>`；
 >   批量召回优先 `brief <关键词> --profile <profile>`。
-> - **更新**：先 `load` 出全文到临时文件修改，再
->   `python3 scripts/github_index_db.py update-stored <仓库相对路径> --from-file <临时文件>`。
->   **禁止直接编辑或追加 shim 文件本体**——那会造成 live/stored 分叉
->   （`audit-db-first` strict 会 FAIL），且内容在下次 `materialize` 时丢失。
+> - **更新（铁律，违反=数据灾难）**：`update-stored` 是**整体替换**语义——你喂给它
+>   什么，stored 全文就变成什么。因此追加条目 **必须** 三步走：
+>   ① `load --source stored` 导出全文到临时文件；② 在临时文件中追加/修改；
+>   ③ `update-stored <路径> --from-file <临时文件> --refresh-shim`。
+>   **绝对禁止**把"只含新条目的短文"直接喂给 `update-stored`——那会把整份
+>   文档（可能数百 KB 的项目史）替换成几行新内容。2026-07-09 实锤事故：
+>   某实施 agent 跳过 ① 直接写入单条目，project-status.md（613KB）与
+>   modules/npc.md（575KB）被整体覆盖为 8.4KB/528B，靠会话残留导出才恢复。
+> - **写回后必须自检**：`update-stored` 输出的 `bytes=` 必须 **≥ 改前全文字节数**
+>   （追加场景只增不减）。发现缩水立即停止后续写操作并从
+>   `.github/db-backup/files/` 恢复。度量坑：直接查 sqlite 时 `LENGTH(content)`
+>   返回**字符数**非字节数（中文 UTF-8 两者差 ~30%），勿跨单位比较。
+> - **委托写回的责任划分**：主会话把任务派给子 agent 时，若允许其更新 memory，
+>   prompt 中 **必须** 原文附上本三步协议；否则子 agent 只交回"待追加条目文本"，
+>   由主会话统一执行写回。
 > - **一致性审计**：`python3 scripts/github_index_db.py audit-db-first`。
 >
 > 完整 DB 工作流（`promote`/`materialize`/`restore`/`snapshot-stored` 等）见
