@@ -179,6 +179,23 @@ module OooMulDivUnit #(
   wire [6:0] div_count_init_w = 7'd64 - div_clz_even_w;
   wire req_op1_zero_w = (req_op1_abs_w == {`XLEN{1'b0}});
 
+  // MUL 侧 CLZ 早退出 + 操作数 swap。幅值乘法可交换,mul_neg=op1_neg^op2_neg 与角色
+  // 无关(MULHSU 的非对称符号提取在 swap 之前的原始角色上完成)——swap 符号代价为零。
+  // 选小幅值当 multiplier(a<b ⇒ clz(a)≥clz(b),无符号比较与 clz 比较单调等价)。
+  wire mul_swap_w = req_mul_op1_abs_w < req_mul_op2_abs_w;
+  wire [`XLEN-1:0] mul_mcand_sel_w =
+      mul_swap_w ? req_mul_op2_abs_w : req_mul_op1_abs_w;
+  wire [`XLEN-1:0] mul_mplier_sel_w =
+      mul_swap_w ? req_mul_op1_abs_w : req_mul_op2_abs_w;
+  wire [6:0] mul_clz_w = div_clz64(mul_mplier_sel_w);
+  wire [6:0] mul_clz_even_w = {mul_clz_w[6:1], 1'b0};
+  wire [6:0] mul_count_init_w = 7'd64 - mul_clz_even_w;
+  // 零特判必须查两侧: 只查固定一侧在 op1=0+swap 场景漏判 → count_init=0 绕回
+  // ~64 拍(结果仍正确、全门禁假 pass)。任一幅值 0 ⇒ 积恒 0,全变体(含 MULH 族
+  // 高位/negate/word sext)结果都是 0,装载拍直进 RESP。
+  wire mul_any_zero_w = (req_mul_op1_abs_w == {`XLEN{1'b0}}) ||
+                        (req_mul_op2_abs_w == {`XLEN{1'b0}});
+
   // 为什么这么改：radix-2 每周期只解出 1 个商位(word 32 拍/dword 64 拍)。改为 radix-4
   // 每周期解出 2 个商位(word 16 拍/dword 32 拍)——把当前部分余数左移 2 位并带入被除数
   // 高 2 位形成 partial，与 {1,2,3}×divisor 比较选商位 q∈{0..3}，减去 q×divisor 得新余数。
@@ -214,18 +231,18 @@ module OooMulDivUnit #(
       div_word_q ? sign_extend_word(div_result_raw_w[31:0]) :
                    div_result_raw_w;
 
-  // UC-A mispredict-kill: age 表达式逐字复用 OooFpArithGate fp_meta_killed —— 严格年轻 '>'(kill 点自身
-  // NOT killed)、三操作数同宽 ROB_INDEX_W 无符号模减(ROB 环上把队头旋到 0 天然处理 wrap)。kill_valid_i=0
-  // 时恒 0 → 下方 gate 全退化为原逻辑, 行为逐字不变。
-  function muldiv_killed;
-    input [ROB_INDEX_W-1:0] idx;
-    muldiv_killed = kill_valid_i &&
-        ((idx - rob_head_idx_i) > (kill_rob_idx_i - rob_head_idx_i));
-  endfunction
+  // UC-A mispredict-kill: age 表达式与 OooFpArithGate fp_meta_killed 同构 —— 严格年轻 '>'(kill 点自身
+  // NOT killed)、三操作数同宽 ROB_INDEX_W 无符号模减(ROB 环上把队头旋到 0 天然处理 wrap)。
+  // 刀X 修复: 原 function 形态在 iverilog 下函数体引用的 kill_valid_i/kill_rob_idx_i/rob_head_idx_i
+  // 不进连续赋值敏感列表(hidden dependency), kill 脉冲被无视——展开为显式 wire(行为等价,
+  // Verilator 两形态一致, iverilog 仅展开形态正确)。函数体引用模块级变量禁令家族。
+  wire [ROB_INDEX_W-1:0] kill_age_thresh_w = kill_rob_idx_i - rob_head_idx_i;
+  wire [ROB_INDEX_W-1:0] kill_age_resp_w = resp_rob_idx_q - rob_head_idx_i;
+  wire [ROB_INDEX_W-1:0] kill_age_req_w = req_rob_idx_i - rob_head_idx_i;
   wire kill_inflight_w =
       ((state_q == STATE_MUL_RUN) || (state_q == STATE_DIV_RUN) || (state_q == STATE_RESP)) &&
-      muldiv_killed(resp_rob_idx_q);
-  wire kill_new_req_w = req_fire_w && muldiv_killed(req_rob_idx_i);
+      kill_valid_i && (kill_age_resp_w > kill_age_thresh_w);
+  wire kill_new_req_w = req_fire_w && kill_valid_i && (kill_age_req_w > kill_age_thresh_w);
 
   assign req_ready_o = state_q == STATE_IDLE;
   // 组合抹 resp_valid_o(载重项, 对齐 FP out_valid_o 的 && !killed): kill 命中 STATE_RESP 当拍即不写脏值
@@ -271,17 +288,23 @@ module OooMulDivUnit #(
             resp_rob_idx_q <= req_rob_idx_i;
             resp_pdest_q <= req_pdest_i;
             if (!req_is_div_w) begin
-              mul_acc_q <= {(`XLEN*2){1'b0}};
-              mul_multiplicand_q <= {{`XLEN{1'b0}}, req_mul_op1_abs_w};
-              // 3M 装载拍预算(128 位语境下 (M<<1)+M,有效宽 66 位),镜像 div_d3_q
-              mul_m3_q <= {{(`XLEN-1){1'b0}}, req_mul_op1_abs_w, 1'b0} +
-                          {{`XLEN{1'b0}}, req_mul_op1_abs_w};
-              mul_multiplier_q <= req_mul_op2_abs_w;
-              mul_count_q <= 7'd64;
-              mul_funct3_q <= req_funct3_w;
-              mul_word_q <= req_word_i;
-              mul_neg_q <= req_mul_neg_w;
-              state_q <= STATE_MUL_RUN;
+              if (mul_any_zero_w) begin
+                // R1 防线: 任一幅值 0 装载拍直进 RESP,禁走 count_init=0 绕回
+                resp_data_q <= {`XLEN{1'b0}};
+                state_q <= STATE_RESP;
+              end else begin
+                mul_acc_q <= {(`XLEN*2){1'b0}};
+                mul_multiplicand_q <= {{`XLEN{1'b0}}, mul_mcand_sel_w};
+                // 3M 装载拍预算(128 位语境下 (M<<1)+M,有效宽 66 位),镜像 div_d3_q
+                mul_m3_q <= {{(`XLEN-1){1'b0}}, mul_mcand_sel_w, 1'b0} +
+                            {{`XLEN{1'b0}}, mul_mcand_sel_w};
+                mul_multiplier_q <= mul_mplier_sel_w;
+                mul_count_q <= mul_count_init_w;
+                mul_funct3_q <= req_funct3_w;
+                mul_word_q <= req_word_i;
+                mul_neg_q <= req_mul_neg_w;
+                state_q <= STATE_MUL_RUN;
+              end
             end else if (req_div_by_zero_w || req_signed_overflow_w) begin
               resp_data_q <= req_special_result_final_w;
               state_q <= STATE_RESP;
@@ -346,5 +369,70 @@ module OooMulDivUnit #(
       endcase
     end
   end
+
+`ifdef OOO_ASSERT
+  // MD-I6/MD-I7: MUL 早退出等价与拍数不变量(sim-only,行为乘法金标准)。
+  // golden 在装载拍用 * 一步算出最终期望 resp_data(含 negate+funct3 切片+word sext),
+  // RESP 拍纯等值比对——断言逻辑最小化,写错方向假 fail 的面最小。
+  wire [(`XLEN*2)-1:0] md_g_prod_w = req_mul_op1_abs_w * req_mul_op2_abs_w;
+  wire [(`XLEN*2)-1:0] md_g_sprod_w =
+      req_mul_neg_w ? (~md_g_prod_w + {{((`XLEN*2)-1){1'b0}}, 1'b1}) : md_g_prod_w;
+  reg [`XLEN-1:0] md_g_raw_w;
+  always @(*) begin
+    case (req_funct3_w)
+      3'b000: md_g_raw_w = md_g_sprod_w[`XLEN-1:0];
+      3'b001,
+      3'b010,
+      3'b011: md_g_raw_w = md_g_sprod_w[(`XLEN*2)-1:`XLEN];
+      default: md_g_raw_w = {`XLEN{1'b0}};
+    endcase
+  end
+  wire [`XLEN-1:0] md_g_final_w =
+      req_word_i ? sign_extend_word(md_g_raw_w[31:0]) : md_g_raw_w;
+
+  reg [`XLEN-1:0] md_mul_golden_q;
+  reg md_mul_golden_valid_q;
+  reg [6:0] md_mul_expect_iters_q;
+  reg [7:0] md_mul_iters_q;
+  wire md_mul_load_w = (state_q == STATE_IDLE) && req_fire_w &&
+                       !kill_new_req_w && !req_is_div_w;
+  always @(posedge clk) begin
+    if (rst || flush_i || kill_inflight_w) begin
+      md_mul_golden_valid_q <= 1'b0;
+      md_mul_iters_q <= 8'd0;
+    end else if (md_mul_load_w) begin
+      md_mul_golden_q <= md_g_final_w;
+      md_mul_golden_valid_q <= 1'b1;
+      md_mul_expect_iters_q <= mul_any_zero_w ? 7'd0 : (mul_count_init_w >> 1);
+      md_mul_iters_q <= 8'd0;
+      // MD-I7: 非零装载的 count_init 恒偶且 >=2(零特判保证不进 MUL_RUN 绕回)
+      if (!mul_any_zero_w &&
+          (mul_count_init_w[0] || (mul_count_init_w < 7'd2))) begin
+        $error("[MD-I7] MUL count_init=%0d 非偶或 <2 @%0t", mul_count_init_w, $time);
+        $fatal;
+      end
+    end else if ((state_q == STATE_IDLE) && req_fire_w && !kill_new_req_w) begin
+      md_mul_golden_valid_q <= 1'b0;  // DIV 装载: 清 MUL golden,DIV 的 RESP 不比对
+      md_mul_iters_q <= 8'd0;
+    end else if (state_q == STATE_MUL_RUN) begin
+      md_mul_iters_q <= md_mul_iters_q + 8'd1;
+      // 拍数精确不变量: MUL_RUN 总拍数必须恰为 count_init/2——早退出被放宽/绕回即 fire
+      if ((mul_count_q == 7'd2) &&
+          ((md_mul_iters_q + 8'd1) != {1'b0, md_mul_expect_iters_q})) begin
+        $error("[MD-I7] MUL 拍数=%0d != 预期 %0d @%0t",
+               md_mul_iters_q + 8'd1, md_mul_expect_iters_q, $time);
+        $fatal;
+      end
+    end else if ((state_q == STATE_RESP) && resp_valid_o && resp_ready_i) begin
+      // MD-I6: RESP 消费拍终值等价比对(迭代路径与零特判路径统一在此)
+      if (md_mul_golden_valid_q && (resp_data_o !== md_mul_golden_q)) begin
+        $error("[MD-I6] MUL resp=%h != golden=%h @%0t",
+               resp_data_o, md_mul_golden_q, $time);
+        $fatal;
+      end
+      md_mul_golden_valid_q <= 1'b0;
+    end
+  end
+`endif
 
 endmodule
