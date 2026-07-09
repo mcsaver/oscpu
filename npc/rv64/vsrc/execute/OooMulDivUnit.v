@@ -234,8 +234,8 @@ module OooMulDivUnit #(
   // UC-A mispredict-kill: age 表达式与 OooFpArithGate fp_meta_killed 同构 —— 严格年轻 '>'(kill 点自身
   // NOT killed)、三操作数同宽 ROB_INDEX_W 无符号模减(ROB 环上把队头旋到 0 天然处理 wrap)。
   // 刀X 修复: 原 function 形态在 iverilog 下函数体引用的 kill_valid_i/kill_rob_idx_i/rob_head_idx_i
-  // 不进连续赋值敏感列表(hidden dependency), kill 脉冲被无视——展开为显式 wire(行为等价,
-  // Verilator 两形态一致, iverilog 仅展开形态正确)。函数体引用模块级变量禁令家族。
+  // 不进连续赋值敏感列表(hidden dependency), kill 脉冲被无视——展开为显式 wire。
+  // 两仿真器中仅展开形态在 iverilog 下正确(另一家两形态一致)。函数体引用模块级变量禁令家族。
   wire [ROB_INDEX_W-1:0] kill_age_thresh_w = kill_rob_idx_i - rob_head_idx_i;
   wire [ROB_INDEX_W-1:0] kill_age_resp_w = resp_rob_idx_q - rob_head_idx_i;
   wire [ROB_INDEX_W-1:0] kill_age_req_w = req_rob_idx_i - rob_head_idx_i;
