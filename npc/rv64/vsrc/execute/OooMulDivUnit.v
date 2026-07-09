@@ -52,6 +52,9 @@ module OooMulDivUnit #(
   reg div_word_q;
   reg [(`XLEN*2)-1:0] mul_acc_q;
   reg [(`XLEN*2)-1:0] mul_multiplicand_q;
+  // radix-4: 3×multiplicand 在乘法期间与 multiplicand 保持 ×3 关系(两者同步 <<2),
+  // 装载拍算一次并寄存,移出每拍迭代环(镜像 div_d3_q 的时序优化)。
+  reg [(`XLEN*2)-1:0] mul_m3_q;
   reg [`XLEN-1:0] mul_multiplier_q;
   reg [6:0] mul_count_q;
   reg [2:0] mul_funct3_q;
@@ -120,13 +123,21 @@ module OooMulDivUnit #(
       req_word_i ? sign_extend_word(req_special_result_w[31:0]) :
                    req_special_result_w;
 
+  // radix-4 无符号数字迭代(非 Booth): 每拍消费 multiplier 低 2 位 digit∈{0..3},
+  // addend 从 {0, M, M<<1, 3M(寄存)} 四选一,加法器仍是同一条 128 位。
+  // 移位丢高位安全: digit_k 非零时部分积 digit_k×M×4^k ≤ 幅值积 < 2^128(multiplier ≥ digit_k×4^k)。
+  wire [1:0] mul_digit_w = mul_multiplier_q[1:0];
   wire [(`XLEN*2)-1:0] mul_addend_w =
-      mul_multiplier_q[0] ? mul_multiplicand_q : {(`XLEN*2){1'b0}};
+      (mul_digit_w == 2'd3) ? mul_m3_q :
+      (mul_digit_w == 2'd2) ? {mul_multiplicand_q[(`XLEN*2)-2:0], 1'b0} :
+      (mul_digit_w == 2'd1) ? mul_multiplicand_q : {(`XLEN*2){1'b0}};
   wire [(`XLEN*2)-1:0] mul_acc_next_w = mul_acc_q + mul_addend_w;
   wire [(`XLEN*2)-1:0] mul_multiplicand_next_w =
-      {mul_multiplicand_q[(`XLEN*2)-2:0], 1'b0};
+      {mul_multiplicand_q[(`XLEN*2)-3:0], 2'b00};
+  // 3M<<2 = 3×(M<<2),×3 关系逐拍保持,零额外加法
+  wire [(`XLEN*2)-1:0] mul_m3_next_w = {mul_m3_q[(`XLEN*2)-3:0], 2'b00};
   wire [`XLEN-1:0] mul_multiplier_next_w =
-      {1'b0, mul_multiplier_q[`XLEN-1:1]};
+      {2'b00, mul_multiplier_q[`XLEN-1:2]};
   wire [(`XLEN*2)-1:0] mul_product_final_w =
       mul_neg_q ? (~mul_acc_next_w + {{((`XLEN*2)-1){1'b0}}, 1'b1}) :
                   mul_acc_next_w;
@@ -241,6 +252,7 @@ module OooMulDivUnit #(
       div_word_q <= 1'b0;
       mul_acc_q <= {(`XLEN*2){1'b0}};
       mul_multiplicand_q <= {(`XLEN*2){1'b0}};
+      mul_m3_q <= {(`XLEN*2){1'b0}};
       mul_multiplier_q <= {`XLEN{1'b0}};
       mul_count_q <= 7'd0;
       mul_funct3_q <= 3'b000;
@@ -261,6 +273,9 @@ module OooMulDivUnit #(
             if (!req_is_div_w) begin
               mul_acc_q <= {(`XLEN*2){1'b0}};
               mul_multiplicand_q <= {{`XLEN{1'b0}}, req_mul_op1_abs_w};
+              // 3M 装载拍预算(128 位语境下 (M<<1)+M,有效宽 66 位),镜像 div_d3_q
+              mul_m3_q <= {{(`XLEN-1){1'b0}}, req_mul_op1_abs_w, 1'b0} +
+                          {{`XLEN{1'b0}}, req_mul_op1_abs_w};
               mul_multiplier_q <= req_mul_op2_abs_w;
               mul_count_q <= 7'd64;
               mul_funct3_q <= req_funct3_w;
@@ -296,9 +311,10 @@ module OooMulDivUnit #(
         STATE_MUL_RUN: begin
           mul_acc_q <= mul_acc_next_w;
           mul_multiplicand_q <= mul_multiplicand_next_w;
+          mul_m3_q <= mul_m3_next_w;
           mul_multiplier_q <= mul_multiplier_next_w;
-          mul_count_q <= mul_count_q - 7'd1;
-          if (mul_count_q == 7'd1) begin
+          mul_count_q <= mul_count_q - 7'd2;  // radix-4: 每拍消费 2 位
+          if (mul_count_q == 7'd2) begin      // 处理完最后 2 位即收尾(镜像 DIV)
             resp_data_q <= mul_result_final_w;
             state_q <= STATE_RESP;
           end
