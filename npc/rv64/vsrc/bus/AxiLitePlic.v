@@ -31,7 +31,7 @@ module AxiLitePlic #(
   output [1:0] s_axi_bresp_o,
 
   input [SOURCE_NUM-1:0] source_irq_i,
-  output external_irq_o
+  output reg external_irq_o
 );
 
   localparam [21:0] PLIC_PRIORITY_BASE = 22'h000000;
@@ -135,7 +135,12 @@ module AxiLitePlic #(
   assign s_axi_awready_o = !aw_seen_q && !s_axi_bvalid_o;
   assign s_axi_wready_o = !w_seen_q && !s_axi_bvalid_o;
   assign s_axi_bresp_o = 2'b00;
-  assign external_irq_o = (m_claim_id_r != 5'd0) || (s_claim_id_r != 5'd0);
+  // P5 刀P:external_irq 出口寄存一拍。外部中断 pending 本就异步于指令流,
+  // mip.MEIP/SEIP 的采样没有任何拍数承诺,晚一拍可见不改变架构语义;
+  // 打拍斩断"PLIC 优先级比较森林→CsrFile irq_pending→frontend dispatch 门控"
+  // 的组合直通(全核关键路径头段 0–3.4ns,白送 3.4ns)。claim/complete 仲裁
+  // 仍取组合 m/s_claim_id_r(AXI 读拍语义不变),只有对核可见的 irq 输出晚一拍。
+  wire external_irq_next_w = (m_claim_id_r != 5'd0) || (s_claim_id_r != 5'd0);
   assign write_data_pad_w[31:0] = write_data_w[31:0];
   assign write_strb_pad_w[3:0] = write_strb_w[3:0];
 
@@ -367,11 +372,14 @@ module AxiLitePlic #(
       enable_s_q <= {SOURCE_NUM{1'b0}};
       threshold_m_q <= 32'h0;
       threshold_s_q <= 32'h0;
+      external_irq_o <= 1'b0;
       for (i = 0; i < SOURCE_NUM; i = i + 1)
         priority_q[i] <= 32'h0;
     end else begin
       pending_q <= pending_next_r;
       in_service_q <= in_service_next_r;
+      // P5 刀P:出口打拍(见 external_irq_next_w 处注释)
+      external_irq_o <= external_irq_next_w;
 
       if (s_axi_rvalid_o && s_axi_rready_i)
         s_axi_rvalid_o <= 1'b0;

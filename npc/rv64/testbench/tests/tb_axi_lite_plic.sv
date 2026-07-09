@@ -218,6 +218,10 @@ module tb_axi_lite_plic;
     source_irq[1] = 1'b1;
     `TB_TICK(clk);
     source_irq[1] = 1'b0;
+    // P5 刀P:external_irq_o 出口寄存一拍——pending 入队拍输出仍为旧值,下一拍才可见。
+    // 本检查在旧组合直通实现下必失败(负测试证据),不可删/不可弱化。
+    tb_check1("external irq registered holds low one beat", external_irq, 1'b0);
+    `TB_TICK(clk);
     tb_check1("external irq set by source", external_irq, 1'b1);
     axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0000_1000, 32'h2);
     axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h1);
@@ -227,6 +231,7 @@ module tb_axi_lite_plic;
 
     source_irq[1] = 1'b1;
     `TB_TICK(clk);
+    `TB_TICK(clk); // P5 刀P:出口寄存一拍,中断可见性 +1 拍
     tb_check1("level source sets irq", external_irq, 1'b1);
     axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h1);
     tb_check1("claim enters in-service", external_irq, 1'b0);
@@ -253,6 +258,7 @@ module tb_axi_lite_plic;
     source_irq[2] = 1'b1;
     `TB_TICK(clk);
     source_irq[2] = 1'b0;
+    `TB_TICK(clk); // P5 刀P:出口寄存一拍,中断可见性 +1 拍
     tb_check1("source2 irq set", external_irq, 1'b1);
     axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0000_1000, 32'h4);
     axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h2);
@@ -277,6 +283,7 @@ module tb_axi_lite_plic;
     source_irq[9] = 1'b1;
     `TB_TICK(clk);
     source_irq[9] = 1'b0;
+    `TB_TICK(clk); // P5 刀P:出口寄存一拍,中断可见性 +1 拍
     tb_check1("byte1 enable strobe accepts source9", external_irq, 1'b1);
     axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0000_1000, 32'h0000_0200);
     axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h9);

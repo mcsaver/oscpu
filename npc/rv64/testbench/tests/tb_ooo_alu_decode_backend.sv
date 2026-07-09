@@ -295,13 +295,20 @@ module tb_ooo_alu_decode_backend;
     `TB_TICK(clk);
     clear_dispatch();
     #1;
-    tb_check32("raw dependent bypasses iq", {28'b0, issue_count}, 32'd0);
+    // 【P5 刀 B】IQ dispatch→issue 同拍 bypass 已删除:RAW 对先入队,producer 次拍发射,
+    // consumer 等 producer 的 wb wakeup(同拍 wakeup→select 直通),两者依次经 commit0 退休。
+    tb_check32("raw dependent pair queued", {28'b0, issue_count}, 32'd2);
+    `TB_TICK(clk);
+    #1;
+    tb_check32("raw consumer waits in iq", {28'b0, issue_count}, 32'd1);
     tb_check1("raw producer execute", execute0_valid, 1'b1);
-    tb_check1("raw consumer execute with same-cycle forward", execute1_valid, 1'b1);
     tb_check1("raw producer commit via wb bypass", commit0_valid, 1'b1);
-    tb_check1("raw consumer commit via wb bypass", commit1_valid, 1'b1);
     tb_check32("raw producer data via wb bypass", commit0_data, 32'd7);
-    tb_check32("raw consumer data via wb bypass", commit1_data, 32'd10);
+    `TB_TICK(clk);
+    #1;
+    tb_check1("raw consumer execute after wakeup", execute0_valid, 1'b1);
+    tb_check1("raw consumer commit via wb bypass", commit0_valid, 1'b1);
+    tb_check32("raw consumer data via wb bypass", commit0_data, 32'd10);
     `TB_TICK(clk);
     #1;
 

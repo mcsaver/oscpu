@@ -123,6 +123,21 @@ B 类额外需:搭整核 `synth.tcl` 全核 P&R(非 OOC)取真实 WNS,再判净�
 Fmax-critical 且可接受 5.5% CPI。届时实施 B-cut-1(最简且 Pareto 最优)+ 同步更新 tb_ooo_int_issue_queue
 的旁路时序契约(断言新行为,不可弱化真检查)。
 
+### 6c.1 【2026-07-09 状态更新:B-cut-1 已作为 P5 刀 B 落地 ship】
+重启条件实质满足后重测并实施(决策链见 `p5-repipeline-first-batch.md`):
+1. **重启条件①的替代满足**:yosys-sta+OpenSTA 全核流程已建(WSL 可跑),全核 @100MHz WNS
+   −10.31ns 的 top10 全部为同一条 19.8ns/240 级路径,IQ dispatch→issue bypass 直通是其中
+   缝合前端锥与后端锥的一段(解剖存 `.github/task-runs/2026-07-09-p5-recon/`)。
+2. **S0 现核 CPI 重测(2026-07-09,CoreMark 10 迭代)**:bypass-on 10,267,729 cycles
+   (CPI 3.190) vs bypass-off 10,291,429 cycles(CPI 3.197)= **+0.23%**,远低于老核
+   (F2/SQ/FP 大改前)的 +5.5%——F2 真分支预测/SQ/FP 拆簇后旁路的 CPI 价值已萎缩,
+   本表上方 06-28 的 CPI 数据仅存历史参考价值。
+3. **实施**:`OooIntIssueQueue.v` bypass 族整体删除(select 唯一真源=寄存阵列项,
+   新增 IQ-NO-BYPASS/IQ-KILL-NO-DISPATCH 立即断言),`tb_ooo_int_issue_queue` 契约按
+   N+1 拍口径重写(负测试:临时保留一条 bypass 臂断言即 fire,证据存
+   `.github/task-runs/2026-07-09-p5-first-batch/`);上层集成 TB(tb_ooo_dispatch_backend/
+   tb_ooo_int_backend)同步适配新时序。现行契约见 `../specs/ooo-int-issue-queue.md`。
+
 ## 7. 变更记录
 - 2026-06-28：基于 OOC 实测关键路径(39 级 free_list→busy_table→issue_queue 单拍链)建立规范,
   分 A(CPI-中性组合重构,可验)/B(流水化,需 P&R)两路,B 暂缓。

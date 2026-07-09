@@ -519,6 +519,8 @@ module tb_ooo_int_backend;
     end
   endtask
 
+  // 【P5 刀 B】IQ dispatch→issue 同拍 bypass 已删除:dispatch 拍只入队(issue_count=2),
+  // 次拍从寄存项双发,再次拍 EX+wb 直通 commit——整链较旧契约后移一拍。
   task automatic tick_dispatch_to_commit;
     input [1023:0] label;
     input [`XLEN-1:0] exp0;
@@ -531,7 +533,11 @@ module tb_ooo_int_backend;
       clear_dispatch();
       #1;
       tb_check32({label, " rob has two entries"}, {27'b0, rob_count}, 32'd2);
-      tb_check32({label, " ready uops bypass iq"}, {28'b0, issue_count}, 32'd0);
+      tb_check32({label, " ready uops queued in iq"}, {28'b0, issue_count}, 32'd2);
+      tb_check1({label, " no same-cycle execute"}, execute0_valid, 1'b0);
+      `TB_TICK(clk);
+      #1;
+      tb_check32({label, " queued pair issues"}, {28'b0, issue_count}, 32'd0);
       tb_check1({label, " execute0 captures"}, execute0_valid, 1'b1);
       tb_check1({label, " execute1 captures"}, execute1_valid, 1'b1);
       tb_check1({label, " commit0 valid via wb bypass"}, commit0_valid, 1'b1);
@@ -629,13 +635,21 @@ module tb_ooo_int_backend;
     `TB_TICK(clk);
     clear_dispatch();
     #1;
-    tb_check32("dependent consumer forwards without queue", {28'b0, issue_count}, 32'd0);
+    // N+1 契约:两条 uop 均先入队;producer 先发,consumer 等 producer 的 wb wakeup
+    // (同拍 wakeup→select 直通),依次经 commit0 退休——不再有同拍双发前递/双 commit。
+    tb_check32("dependent pair queued", {28'b0, issue_count}, 32'd2);
+    `TB_TICK(clk);
+    #1;
+    tb_check32("consumer waits in iq", {28'b0, issue_count}, 32'd1);
     tb_check1("producer enters execute", execute0_valid, 1'b1);
-    tb_check1("consumer enters execute via issue0 forward", execute1_valid, 1'b1);
     tb_check1("producer commits via wb bypass", commit0_valid, 1'b1);
-    tb_check1("consumer commits via same-cycle forward", commit1_valid, 1'b1);
     tb_check32("producer result via wb bypass", commit0_data, 32'd7);
-    tb_check32("consumer result uses producer value", commit1_data, 32'd10);
+    `TB_TICK(clk);
+    #1;
+    tb_check32("consumer issues on wb wakeup", {28'b0, issue_count}, 32'd0);
+    tb_check1("consumer enters execute", execute0_valid, 1'b1);
+    tb_check1("consumer commits via wb bypass", commit0_valid, 1'b1);
+    tb_check32("consumer result uses producer value", commit0_data, 32'd10);
 
     `TB_TICK(clk);
     #1;
@@ -652,7 +666,7 @@ module tb_ooo_int_backend;
     `TB_TICK(clk);
     clear_dispatch();
     #1;
-    tb_check32("branch bypass producer bypasses iq", {28'b0, issue_count}, 32'd0);
+    tb_check32("branch producer queued in iq", {28'b0, issue_count}, 32'd1);
 
     set_dispatch0(32'h8000_0804,
                   make_branch_ctrl(`CMP_OP_EQ),
@@ -691,6 +705,13 @@ module tb_ooo_int_backend;
     `TB_TICK(clk);
     clear_dispatch();
     #1;
+    // 【P5 刀 B】setup uop 需 issue(次拍)+EX/commit(再次拍):先排干再投依赖对,
+    // 避免 rob 残留与 x17 busy 未清。
+    `TB_TICK(clk);
+    #1;
+    `TB_TICK(clk);
+    #1;
+    tb_check32("bitmanip setup drains", {27'b0, rob_count}, 32'd0);
 
     // Zbb count 类指令走 bitmanip helper 的 byte 分层组合树，direct TB 锁住 64-bit 边界值。
     set_dispatch0(32'h8000_1810, make_bitmanip_ctrl(),
@@ -738,6 +759,10 @@ module tb_ooo_int_backend;
     `TB_TICK(clk);
     clear_dispatch();
     #1;
+    // 【P5 刀 B】dispatch 次拍 issue、再次拍才进 EX;flush 打在 EX 拍。
+    tb_check32("flush setup queued", {28'b0, issue_count}, 32'd1);
+    `TB_TICK(clk);
+    #1;
     tb_check1("flush setup execute valid", execute0_valid, 1'b1);
     flush = 1'b1;
     `TB_TICK(clk);
@@ -757,25 +782,30 @@ module tb_ooo_int_backend;
 	                  5'd0, 5'd0, 5'd15, 32'h8000_0270);  // 【F2】EA 入 pmem: 非 pmem load 现按 MMIO 队头独占, 本场景测 buffer 串行化
 	    #1;
 	    tb_check1("buffer seed load dispatch ready", dispatch0_ready, 1'b1);
-	    tb_check1("buffer seed load request visible", mem_req_valid, 1'b1);
-	    tb_check1("buffer seed load is read", mem_req_write, 1'b0);
-	    tb_check32("buffer seed load addr", mem_req_addr, 32'h8000_0270);
+	    // 【P5 刀 B】load 不再 dispatch 拍直通:req 在 issue 拍(次拍)组合出 AGU 才可见。
+	    tb_check1("no same-cycle load request", mem_req_valid, 1'b0);
 	    `TB_TICK(clk);
 	    clear_dispatch();
 	    #1;
+	    tb_check1("buffer seed load request visible", mem_req_valid, 1'b1);
+	    tb_check1("buffer seed load is read", mem_req_write, 1'b0);
+	    tb_check32("buffer seed load addr", mem_req_addr, 32'h8000_0270);
 
 	    set_dispatch0(32'h8000_2604,
 	                  make_load_ctrl(`MEM_SIZE_HALF, 1'b1),
 	                  5'd0, 5'd0, 5'd16, 32'h8000_0276);
 	    #1;
 	    tb_check1("buffered lhu dispatch ready", dispatch0_ready, 1'b1);
+	    `TB_TICK(clk);
+	    clear_dispatch();
+	    #1;
 	    // 【LSQ/MIQ 语义】plain load 背靠背在飞(rsp 恒配 MIQ 队头), 旧"单例串行等待"
 	    // 断言依赖第一条 load 落 MMIO 区占 mem_pending 的巧合, 地址入 pmem 后按真语义更新。
+	    // 【P5 刀 B】第二条 load 的 req 同样在其 issue 拍(dispatch 次拍)可见。
 	    tb_check1("plain lhu back-to-back issues", mem_req_valid, 1'b1);
 	    tb_check1("plain lhu back-to-back is read", mem_req_write, 1'b0);
 	    tb_check32("plain lhu back-to-back addr", mem_req_addr, 32'h8000_0276);
 	    `TB_TICK(clk);
-	    clear_dispatch();
 	    #1;
 	    tb_check1("no third request in flight", mem_req_valid, 1'b0);
 
@@ -830,7 +860,11 @@ module tb_ooo_int_backend;
 	    `TB_TICK(clk);
 	    clear_dispatch();
 	    #1;
-	    tb_check32("dual alu under mem pending bypass iq", {28'b0, issue_count}, 32'd0);
+	    // 【P5 刀 B】双 ALU 先入队,次拍双发,再次拍进 EX——wb 口占满/rsp 反压后移一拍。
+	    tb_check32("dual alu under mem pending queued", {28'b0, issue_count}, 32'd2);
+	    `TB_TICK(clk);
+	    #1;
+	    tb_check32("dual alu under mem pending issues", {28'b0, issue_count}, 32'd0);
 	    mem_rsp_valid = 1'b1;
 	    mem_rsp_rdata = 32'h0;
 	    mem_rsp_error = 1'b0;
@@ -870,6 +904,11 @@ module tb_ooo_int_backend;
 	                  5'd0, 5'd0, 5'd0, 32'h0000_0100);
 	    `TB_TICK(clk);
 	    clear_dispatch();
+	    #1;
+	    // 【P5 刀 B】ALU+store 先同拍入队(store 有更老 valid 项,整拍被序阻塞);
+	    // ALU 次拍发射、再次拍 EX/commit,store 随后独占发射。
+	    tb_check32("alu+store pair queued", {28'b0, issue_count}, 32'd2);
+	    `TB_TICK(clk);
 	    #1;
 	    tb_check32("lane1 store waits in iq", {28'b0, issue_count}, 32'd1);
 	    tb_check1("lane0 alu writes before delayed lane1 store", execute0_valid, 1'b1);

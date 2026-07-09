@@ -339,28 +339,32 @@ module tb_ooo_dispatch_backend;
     tb_check32("initial rob count", {27'b0, rob_count}, 32'd0);
     tb_check32("initial issue count", {28'b0, issue_count}, 32'd0);
 
+    // 【P5 刀 B】IQ dispatch→issue 同拍 bypass 已删除:dispatch 项当拍只入队,
+    // 次拍(N+1)起才从寄存项发射;依赖 uop 等 wb wakeup(同拍 wakeup→select 直通保留)。
     set_dispatch0(32'h8000_0000, 5'd1, 1'b1, 5'd2, 1'b1, 5'd5, 1'b1);
     set_dispatch1(32'h8000_0004, 5'd5, 1'b1, 5'd3, 1'b1, 5'd6, 1'b1);
     #1;
     tb_check1("dual dispatch0 ready", dispatch0_ready, 1'b1);
     tb_check1("dual dispatch1 ready", dispatch1_ready, 1'b1);
-    tb_check1("dispatch bypass older independent uop", issue0_valid, 1'b1);
-    tb_check32("dispatch bypass older issue pc", issue0_pc, 32'h8000_0000);
-    tb_check32("dispatch bypass older issue rob", {28'b0, issue0_rob_idx}, 32'd0);
-    tb_check32("dispatch bypass older src1 preg", {26'b0, issue0_src1_preg}, 32'd1);
-    tb_check32("dispatch bypass older src2 preg", {26'b0, issue0_src2_preg}, 32'd2);
-    tb_check32("dispatch bypass older pdest", {26'b0, issue0_pdest}, 32'd32);
-    tb_check1("dispatch bypass younger uses lane0 forward", issue1_valid, 1'b1);
-    tb_check32("dispatch bypass younger issue pc", issue1_pc, 32'h8000_0004);
-    tb_check32("dispatch bypass younger source sees lane0 pdest", {26'b0, issue1_src1_preg}, 32'd32);
-    tb_check32("dispatch bypass younger pdest", {26'b0, issue1_pdest}, 32'd33);
+    tb_check1("no same-cycle dispatch issue0", issue0_valid, 1'b0);
+    tb_check1("no same-cycle dispatch issue1", issue1_valid, 1'b0);
     `TB_TICK(clk);
     clear_inputs();
     #1;
 
     tb_check32("two physical regs allocated", {25'b0, free_count}, 32'd30);
     tb_check32("two rob entries allocated", {27'b0, rob_count}, 32'd2);
-    tb_check32("dependent uop issued via forward", {28'b0, issue_count}, 32'd0);
+    tb_check32("both uops queued in iq", {28'b0, issue_count}, 32'd2);
+    tb_check1("queued older independent uop issues", issue0_valid, 1'b1);
+    tb_check32("queued older issue pc", issue0_pc, 32'h8000_0000);
+    tb_check32("queued older issue rob", {28'b0, issue0_rob_idx}, 32'd0);
+    tb_check32("queued older src1 preg", {26'b0, issue0_src1_preg}, 32'd1);
+    tb_check32("queued older src2 preg", {26'b0, issue0_src2_preg}, 32'd2);
+    tb_check32("queued older pdest", {26'b0, issue0_pdest}, 32'd32);
+    tb_check1("dependent younger waits for wakeup", issue1_valid, 1'b0);
+    `TB_TICK(clk);
+    #1;
+    tb_check32("dependent uop remains queued", {28'b0, issue_count}, 32'd1);
 
     wb0_valid = 1'b1;
     wb0_rob_idx = 4'd0;
@@ -371,6 +375,10 @@ module tb_ooo_dispatch_backend;
     tb_check32("lane0 commit old pdest via wb bypass", {26'b0, commit0_old_pdest}, 32'd5);
     tb_check32("lane0 commit new pdest via wb bypass", {26'b0, commit0_new_pdest}, 32'd32);
     tb_check32("lane0 commit data via wb bypass", commit0_data, 32'h1111_0005);
+    tb_check1("dependent wakes on wb wakeup", issue0_valid, 1'b1);
+    tb_check32("woken dependent issue pc", issue0_pc, 32'h8000_0004);
+    tb_check32("woken dependent sees lane0 pdest", {26'b0, issue0_src1_preg}, 32'd32);
+    tb_check32("woken dependent pdest", {26'b0, issue0_pdest}, 32'd33);
     `TB_TICK(clk);
     clear_inputs();
 
@@ -393,14 +401,19 @@ module tb_ooo_dispatch_backend;
     set_dispatch0(32'h8000_0010, 5'd1, 1'b1, 5'd2, 1'b1, 5'd7, 1'b1);
     set_dispatch1(32'h8000_0014, 5'd3, 1'b1, 5'd4, 1'b1, 5'd7, 1'b1);
     #1;
-    tb_check1("waw older dispatch bypass valid", issue0_valid, 1'b1);
-    tb_check1("waw younger dispatch bypass valid", issue1_valid, 1'b1);
-    tb_check32("waw older dispatch bypass pc", issue0_pc, 32'h8000_0010);
-    tb_check32("waw younger dispatch bypass pc", issue1_pc, 32'h8000_0014);
+    tb_check1("waw no same-cycle issue0", issue0_valid, 1'b0);
+    tb_check1("waw no same-cycle issue1", issue1_valid, 1'b0);
     `TB_TICK(clk);
     clear_inputs();
     #1;
-    tb_check32("waw dispatch bypass leaves issue queue empty",
+    tb_check32("waw pair queued", {28'b0, issue_count}, 32'd2);
+    tb_check1("waw older queued issue valid", issue0_valid, 1'b1);
+    tb_check1("waw younger queued issue valid", issue1_valid, 1'b1);
+    tb_check32("waw older queued issue pc", issue0_pc, 32'h8000_0010);
+    tb_check32("waw younger queued issue pc", issue1_pc, 32'h8000_0014);
+    `TB_TICK(clk);
+    #1;
+    tb_check32("waw dual issue leaves issue queue empty",
                {28'b0, issue_count}, 32'd0);
 
     wb0_valid = 1'b1;

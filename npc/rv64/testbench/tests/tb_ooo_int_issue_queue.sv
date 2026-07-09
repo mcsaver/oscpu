@@ -1,5 +1,15 @@
 `include "define.v"
 
+// tb_ooo_int_issue_queue —— P5 刀 B(2026-07-09)后的 IQ 契约:
+// 1. 【N+1 发射口径】dispatch 项当拍只写入阵列,当拍 issue*_valid 不得由 dispatch 活值拉高
+//    (dispatch→issue 同拍 bypass 已整体删除);次拍起才可被 select 发射。
+// 2. 【wakeup 直通保留】寄存项的同拍 wakeup→select 直通仍然有效(唤醒 CAM 非 bypass);
+//    dispatch 当拍撞上匹配 wakeup 时,写入阵列的 ready 位吸收该唤醒(IQ-I2 无漏唤醒)。
+// 3. select 唯一真源=已寄存 valid_q 项,由 RTL 内 IQ-NO-BYPASS 立即断言看护
+//    (本 TB 带 -DOOO_ASSERT 编译,断言命中会打印 [IQ-NO-BYPASS])。
+// 4. kill/recover/flush 语义不变:kill 拍压 issue、squash 更年轻后缀、幸存前缀同拍吸收 wakeup。
+// 断言与检查不可弱化;负测试(临时保留一条 bypass 臂使断言 fire)证据存
+// .github/task-runs/2026-07-09-p5-first-batch/。
 module tb_ooo_int_issue_queue;
   `include "tb_common.svh"
 
@@ -80,6 +90,8 @@ module tb_ooo_int_issue_queue;
     .dispatch0_pc_i(dispatch0_pc),
     .dispatch0_next_pc_i(dispatch0_pc + 32'd4),
     .dispatch0_pred_npc_i('0),
+    .dispatch0_bht_idx_i('0),
+    .dispatch0_pred_taken_i(1'b0),
     .dispatch0_inst_i(dispatch0_inst),
     .dispatch0_ctrl_i(dispatch0_ctrl),
     .dispatch0_rob_idx_i(dispatch0_rob_idx),
@@ -99,6 +111,8 @@ module tb_ooo_int_issue_queue;
     .dispatch1_pc_i(dispatch1_pc),
     .dispatch1_next_pc_i(dispatch1_pc + 32'd4),
     .dispatch1_pred_npc_i('0),
+    .dispatch1_bht_idx_i('0),
+    .dispatch1_pred_taken_i(1'b0),
     .dispatch1_inst_i(dispatch1_inst),
     .dispatch1_ctrl_i(dispatch1_ctrl),
     .dispatch1_rob_idx_i(dispatch1_rob_idx),
@@ -250,230 +264,155 @@ module tb_ooo_int_issue_queue;
     end
   endtask
 
-  function [`INST_W-1:0] inst_op;
-    input [6:0] funct7;
-    input [4:0] rs2;
-    input [4:0] rs1;
-    input [2:0] funct3;
-    input [4:0] rd;
-    begin
-      inst_op = {funct7, rs2, rs1, funct3, rd, `OPCODE_OP};
-    end
-  endfunction
-
-  task automatic mark_clmul0;
-    begin
-      dispatch0_ctrl[`CTRL_BITMANIP_BIT] = 1'b1;
-      dispatch0_inst = inst_op(7'h05, 5'd2, 5'd1, `FUNCT3_SLL, 5'd3);
-    end
-  endtask
-
   initial begin
     tb_errors = 0;
     reset_dut();
     tb_check1("reset empty", empty, 1'b1);
 
+    // ===== S2 单发 N+1 契约:dispatch 当拍绝不发射,次拍从寄存项发射 =====
     set_dispatch0(32'h8000_0000, 4'd0, 6'd1, 1'b1, 6'd2, 1'b1, 6'd32);
-    set_dispatch1(32'h8000_0004, 4'd1, 6'd5, 1'b0, 6'd3, 1'b1, 6'd33);
     #1;
     tb_check1("dispatch0 ready", dispatch0_ready, 1'b1);
     tb_check1("dispatch1 ready", dispatch1_ready, 1'b1);
-    tb_check1("dispatch bypass issues ready lane0", issue0_valid, 1'b1);
-    tb_check32("dispatch bypass lane0 pc", issue0_pc, 32'h8000_0000);
-    tb_check1("dispatch bypass keeps waiting lane1", issue1_valid, 1'b0);
+    tb_check1("no same-cycle bypass issue0", issue0_valid, 1'b0);
+    tb_check1("no same-cycle bypass issue1", issue1_valid, 1'b0);
     `TB_TICK(clk);
     clear_inputs();
     #1;
-    tb_check32("only waiting lane remains after bypass", {28'b0, count}, 32'd1);
-    tb_check1("waiting lane not ready yet", issue0_valid, 1'b0);
-
-    wakeup0_valid = 1'b1;
-    wakeup0_pdest = 6'd5;
+    tb_check32("queued after dispatch", {28'b0, count}, 32'd1);
+    tb_check1("next-cycle issue from queue", issue0_valid, 1'b1);
+    tb_check32("next-cycle issue pc", issue0_pc, 32'h8000_0000);
+    tb_check32("next-cycle issue imm", issue0_imm, 32'h8000_0010);
+    tb_check1("single entry keeps issue1 idle", issue1_valid, 1'b0);
+    `TB_TICK(clk);
+    clear_inputs();
     #1;
-    tb_check1("wakeup makes waiting uop issuable", issue0_valid, 1'b1);
-    tb_check32("wakeup issue pc", issue0_pc, 32'h8000_0004);
+    tb_check1("empty after single issue", empty, 1'b1);
+
+    // ===== S3 双发 N+1 契约:双 dispatch 次拍程序序双发 =====
+    set_dispatch0(32'h8000_0010, 4'd2, 6'd1, 1'b1, 6'd2, 1'b1, 6'd34);
+    set_dispatch1(32'h8000_0014, 4'd3, 6'd3, 1'b1, 6'd4, 1'b1, 6'd35);
+    #1;
+    tb_check1("dual dispatch no same-cycle issue0", issue0_valid, 1'b0);
+    tb_check1("dual dispatch no same-cycle issue1", issue1_valid, 1'b0);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check32("dual dispatch queued", {28'b0, count}, 32'd2);
+    tb_check1("dual issue0 valid", issue0_valid, 1'b1);
+    tb_check1("dual issue1 valid", issue1_valid, 1'b1);
+    tb_check32("dual issue0 oldest pc", issue0_pc, 32'h8000_0010);
+    tb_check32("dual issue1 younger pc", issue1_pc, 32'h8000_0014);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("empty after dual issue", empty, 1'b1);
+
+    // ===== S4 依赖对:issue1 无同拍前递;寄存项 wakeup→select 直通保留 =====
+    set_dispatch0(32'h8000_0020, 4'd4, 6'd1, 1'b1, 6'd2, 1'b1, 6'd40);
+    set_dispatch1(32'h8000_0024, 4'd5, 6'd40, 1'b0, 6'd3, 1'b1, 6'd41);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("producer issues", issue0_valid, 1'b1);
+    tb_check32("producer pc", issue0_pc, 32'h8000_0020);
+    tb_check1("dependent lane1 waits (no forward)", issue1_valid, 1'b0);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check32("dependent stays queued", {28'b0, count}, 32'd1);
+    tb_check1("dependent not ready yet", issue0_valid, 1'b0);
+    wakeup0_valid = 1'b1;
+    wakeup0_pdest = 6'd40;
+    #1;
+    tb_check1("same-cycle wakeup selects queued entry", issue0_valid, 1'b1);
+    tb_check32("wakeup issue pc", issue0_pc, 32'h8000_0024);
     `TB_TICK(clk);
     clear_inputs();
     #1;
     tb_check1("empty after wakeup issue", empty, 1'b1);
 
-    set_dispatch0(32'h8000_0008, 4'd8, 6'd1, 1'b1, 6'd2, 1'b1, 6'd40);
-    mark_clmul0();
-    set_dispatch1(32'h8000_000c, 4'd9, 6'd40, 1'b0, 6'd0, 1'b1, 6'd41);
-    #1;
-    tb_check1("clmul can issue when operands ready", issue0_valid, 1'b1);
-    tb_check1("clmul cannot forward to dependent lane1", issue1_valid, 1'b0);
-    `TB_TICK(clk);
-    clear_inputs();
-    #1;
-    tb_check32("clmul dependent waits in iq", {28'b0, count}, 32'd1);
+    // ===== S5 dispatch 撞同拍 wakeup:当拍不发射,写入吸收唤醒(IQ-I2 无漏唤醒) =====
+    set_dispatch0(32'h8000_0030, 4'd6, 6'd9, 1'b0, 6'd0, 1'b1, 6'd38);
     wakeup0_valid = 1'b1;
-    wakeup0_pdest = 6'd40;
+    wakeup0_pdest = 6'd9;
     #1;
-    tb_check1("clmul wakeup releases dependent", issue0_valid, 1'b1);
+    tb_check1("wakeup does not enable same-cycle dispatch issue",
+              issue0_valid, 1'b0);
     `TB_TICK(clk);
     clear_inputs();
     #1;
-    tb_check1("empty after clmul dependent wakeup", empty, 1'b1);
-
-    set_dispatch0(32'h8000_0010, 4'd2, 6'd1, 1'b1, 6'd2, 1'b1, 6'd34);
-    set_dispatch1(32'h8000_0014, 4'd3, 6'd3, 1'b1, 6'd4, 1'b1, 6'd35);
-    #1;
-    tb_check1("dual dispatch bypass issue0 valid", issue0_valid, 1'b1);
-    tb_check1("dual dispatch bypass issue1 valid", issue1_valid, 1'b1);
-    tb_check32("dual dispatch bypass issue0 pc", issue0_pc, 32'h8000_0010);
-    tb_check32("dual dispatch bypass issue1 pc", issue1_pc, 32'h8000_0014);
+    tb_check1("absorbed wakeup issues next cycle", issue0_valid, 1'b1);
+    tb_check32("absorbed wakeup issue pc", issue0_pc, 32'h8000_0030);
     `TB_TICK(clk);
     clear_inputs();
     #1;
-	    tb_check1("empty after dual dispatch bypass", empty, 1'b1);
+    tb_check1("empty after absorbed wakeup issue", empty, 1'b1);
 
-    // ===== mode=0 专有：control-flow（branch/JAL）dispatch-bypass 契约 =====
-    // mode=1（OOO_ROB_WALK_MODE）设计性禁用控制流 dispatch-bypass，强制经 IQ 寄存项发射，
-    // 以打破 pred_npc→mispredict→redirect→预测后继 组合环；该语义由 riscv-tests 135/0 端到端覆盖。
-    if (!`OOO_ROB_WALK_MODE) begin
-    set_dispatch0(32'h8000_0018, 4'd13, 6'd1, 1'b1, 6'd2, 1'b1, 6'd45);
-    set_dispatch1(32'h8000_001c, 4'd14, 6'd3, 1'b1, 6'd4, 1'b1, 6'd0);
-    dispatch1_ctrl[`CTRL_BRANCH_BIT] = 1'b1;
-    #1;
-    tb_check1("lane1 branch bypass issue0 valid", issue0_valid, 1'b1);
-    tb_check1("lane1 branch bypass issue1 valid", issue1_valid, 1'b1);
-    tb_check32("lane1 branch bypass issue1 pc", issue1_pc, 32'h8000_001c);
-    `TB_TICK(clk);
-    clear_inputs();
-    #1;
-    tb_check1("empty after lane1 branch bypass", empty, 1'b1);
-
-    set_dispatch0(32'h8000_0064, 4'd1, 6'd1, 1'b1, 6'd2, 1'b1, 6'd0);
-    dispatch0_ctrl[`CTRL_BRANCH_BIT] = 1'b1;
-    set_dispatch1(32'h8000_0068, 4'd2, 6'd3, 1'b1, 6'd4, 1'b1, 6'd53);
-    dispatch1_optional = 1'b1;
-    #1;
-    tb_check1("optional lane1 behind branch issue0 valid", issue0_valid,
-              1'b1);
-    tb_check1("optional lane1 behind branch issue1 valid", issue1_valid,
-              1'b1);
-    tb_check32("optional lane1 behind branch issue1 pc", issue1_pc,
-               32'h8000_0068);
-    `TB_TICK(clk);
-    clear_inputs();
-    #1;
-    tb_check1("empty after optional lane1 branch pair", empty, 1'b1);
-
-    set_dispatch0(32'h8000_006c, 4'd3, 6'd1, 1'b1, 6'd2, 1'b1, 6'd0);
-    dispatch0_ctrl[`CTRL_BRANCH_BIT] = 1'b1;
-    set_dispatch1(32'h8000_0070, 4'd4, 6'd3, 1'b1, 6'd0, 1'b1, 6'd54);
+    // ===== S6 访存程序序:store 队头先行,younger load 被阻塞;store 不上 issue1 =====
+    set_dispatch0(32'h8000_0040, 4'd7, 6'd1, 1'b1, 6'd2, 1'b1, 6'd0);
+    dispatch0_ctrl[`CTRL_STORE_BIT] = 1'b1;
+    set_dispatch1(32'h8000_0044, 4'd8, 6'd3, 1'b1, 6'd0, 1'b1, 6'd54);
     dispatch1_ctrl[`CTRL_LOAD_BIT] = 1'b1;
-    dispatch1_optional = 1'b1;
-    #1;
-    tb_check1("optional lane1 load behind branch issue0 valid", issue0_valid,
-              1'b1);
-    tb_check1("optional lane1 load behind branch issue1 valid", issue1_valid,
-              1'b1);
-    tb_check32("optional lane1 load behind branch issue1 pc", issue1_pc,
-               32'h8000_0070);
     `TB_TICK(clk);
     clear_inputs();
     #1;
-    tb_check1("empty after optional lane1 load branch pair", empty, 1'b1);
-
-    set_dispatch0(32'h8000_0038, 4'd15, 6'd1, 1'b1, 6'd2, 1'b1, 6'd46);
-    set_dispatch1(32'h8000_003c, 4'd0, 6'd3, 1'b1, 6'd4, 1'b1, 6'd47);
-    dispatch1_ctrl[`CTRL_JAL_BIT] = 1'b1;
-    #1;
-    tb_check1("lane1 jal bypass issue0 valid", issue0_valid, 1'b1);
-    tb_check1("lane1 jal bypass issue1 valid", issue1_valid, 1'b1);
-    tb_check32("lane1 jal bypass issue1 pc", issue1_pc, 32'h8000_003c);
+    tb_check1("oldest store issues", issue0_valid, 1'b1);
+    tb_check32("oldest store pc", issue0_pc, 32'h8000_0040);
+    tb_check1("younger load blocked by older store", issue1_valid, 1'b0);
     `TB_TICK(clk);
     clear_inputs();
     #1;
-	    tb_check1("empty after lane1 jal bypass", empty, 1'b1);
-
-    set_dispatch0(32'h8000_0060, 4'd0, 6'd0, 1'b1, 6'd0, 1'b1, 6'd52);
-    dispatch0_ctrl[`CTRL_JAL_BIT] = 1'b1;
-    #1;
-    tb_check1("lane0 jal bypass issue0 valid", issue0_valid, 1'b1);
-    tb_check1("lane0 jal bypass keeps issue1 idle", issue1_valid, 1'b0);
-    tb_check32("lane0 jal bypass issue0 pc", issue0_pc, 32'h8000_0060);
+    tb_check32("load remains queued", {28'b0, count}, 32'd1);
+    tb_check1("load released after store", issue0_valid, 1'b1);
+    tb_check32("released load pc", issue0_pc, 32'h8000_0044);
     `TB_TICK(clk);
     clear_inputs();
     #1;
-	    tb_check1("empty after lane0 jal bypass", empty, 1'b1);
+    tb_check1("empty after store-load order", empty, 1'b1);
 
+    // ===== S7 issue_mem_block 压制 mem 类寄存项 =====
+    set_dispatch0(32'h8000_0050, 4'd9, 6'd1, 1'b1, 6'd2, 1'b1, 6'd42);
+    dispatch0_ctrl[`CTRL_LOAD_BIT] = 1'b1;
+    `TB_TICK(clk);
+    clear_inputs();
+    issue_mem_block = 1'b1;
+    #1;
+    tb_check1("mem block gates queued load", issue0_valid, 1'b0);
+    issue_mem_block = 1'b0;
+    #1;
+    tb_check1("mem unblock releases load", issue0_valid, 1'b1);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("empty after mem block scenario", empty, 1'b1);
+
+    // ===== S8 反压非承诺:issue_ready=0 时 valid 保持、项不丢,ready 恢复即发射 =====
     issue0_ready = 1'b0;
-    set_dispatch0(32'h8000_0040, 4'd1, 6'd1, 1'b1, 6'd2, 1'b1, 6'd48);
-    `TB_TICK(clk);
-    clear_inputs();
-    issue0_ready = 1'b1;
-    set_dispatch0(32'h8000_0044, 4'd2, 6'd0, 1'b1, 6'd0, 1'b1, 6'd49);
-    dispatch0_ctrl[`CTRL_JAL_BIT] = 1'b1;
-    #1;
-    tb_check1("lane0 jal issue1 bypass issue0 valid", issue0_valid, 1'b1);
-    tb_check1("lane0 jal issue1 bypass issue1 valid", issue1_valid, 1'b1);
-    tb_check32("lane0 jal issue1 bypass older pc", issue0_pc, 32'h8000_0040);
-    tb_check32("lane0 jal issue1 bypass jal pc", issue1_pc, 32'h8000_0044);
+    set_dispatch0(32'h8000_0060, 4'd10, 6'd1, 1'b1, 6'd2, 1'b1, 6'd48);
     `TB_TICK(clk);
     clear_inputs();
     #1;
-	    tb_check1("empty after lane0 jal issue1 bypass", empty, 1'b1);
-    end // if (!`OOO_ROB_WALK_MODE)：control-flow dispatch-bypass 为 mode=0 专有契约
-
-	    set_dispatch0(32'h8000_0048, 4'd3, 6'd20, 1'b0, 6'd0, 1'b1, 6'd50);
-	    `TB_TICK(clk);
-	    clear_inputs();
-	    #1;
-	    tb_check32("unready entry queued before dispatch bypass", {28'b0, count},
-	               32'd1);
-	    tb_check1("unready entry blocks issue", issue0_valid, 1'b0);
-	    set_dispatch0(32'h8000_004c, 4'd4, 6'd1, 1'b1, 6'd2, 1'b1, 6'd51);
-	    #1;
-	    tb_check1("dispatch bypass beside unready entry valid", issue0_valid,
-	              1'b1);
-	    tb_check32("dispatch bypass beside unready entry pc", issue0_pc,
-	               32'h8000_004c);
-	    `TB_TICK(clk);
-	    clear_inputs();
-	    #1;
-	    tb_check32("dispatch bypass preserves unready queue entry",
-	               {28'b0, count}, 32'd1);
-	    tb_check1("preserved unready entry still waits", issue0_valid, 1'b0);
-	    wakeup0_valid = 1'b1;
-	    wakeup0_pdest = 6'd20;
-	    #1;
-	    tb_check1("preserved entry wakes", issue0_valid, 1'b1);
-	    tb_check32("preserved entry issue pc", issue0_pc, 32'h8000_0048);
-	    `TB_TICK(clk);
-	    clear_inputs();
-	    #1;
-	    tb_check1("preserved entry drains", empty, 1'b1);
-
-	    set_dispatch0(32'h8000_0020, 4'd4, 6'd1, 1'b1, 6'd2, 1'b1, 6'd36);
-	    set_dispatch1(32'h8000_0024, 4'd5, 6'd3, 1'b1, 6'd4, 1'b1, 6'd37);
-    issue0_ready = 1'b0;
-    issue1_ready = 1'b1;
-    #1;
-    tb_check1("dispatch bypass respects issue0 backpressure", issue0_valid, 1'b1);
-    tb_check1("independent issue1 bypass under issue0 backpressure",
-              issue1_valid, 1'b1);
-    tb_check32("independent issue1 bypass pc", issue1_pc, 32'h8000_0024);
+    tb_check1("backpressure holds valid", issue0_valid, 1'b1);
+    tb_check32("backpressure keeps entry", {28'b0, count}, 32'd1);
     `TB_TICK(clk);
-    clear_inputs();
     #1;
-    tb_check32("backpressure keeps lane0 entry", {28'b0, count}, 32'd1);
+    tb_check32("no fire under backpressure", {28'b0, count}, 32'd1);
     issue0_ready = 1'b1;
     `TB_TICK(clk);
     #1;
-    tb_check1("entries drain after ready", empty, 1'b1);
+    tb_check1("entry drains after ready", empty, 1'b1);
 
+    // ===== S9 双 load 成对发射(issue1 可载 load,不可载 store) =====
     issue0_ready = 1'b0;
     issue1_ready = 1'b0;
-    set_dispatch0(32'h8000_0028, 4'd10, 6'd1, 1'b1, 6'd2, 1'b1, 6'd42);
+    set_dispatch0(32'h8000_0070, 4'd11, 6'd1, 1'b1, 6'd2, 1'b1, 6'd43);
     dispatch0_ctrl[`CTRL_LOAD_BIT] = 1'b1;
-    set_dispatch1(32'h8000_002c, 4'd11, 6'd3, 1'b1, 6'd4, 1'b1, 6'd43);
+    set_dispatch1(32'h8000_0074, 4'd12, 6'd3, 1'b1, 6'd4, 1'b1, 6'd44);
     dispatch1_ctrl[`CTRL_LOAD_BIT] = 1'b1;
     `TB_TICK(clk);
     clear_inputs();
-    set_dispatch0(32'h8000_0034, 4'd12, 6'd5, 1'b1, 6'd6, 1'b1, 6'd44);
+    set_dispatch0(32'h8000_0078, 4'd13, 6'd5, 1'b1, 6'd6, 1'b1, 6'd45);
     `TB_TICK(clk);
     clear_inputs();
     #1;
@@ -482,33 +421,98 @@ module tb_ooo_int_issue_queue;
     issue1_ready = 1'b1;
     #1;
     tb_check1("dual load issue0 valid", issue0_valid, 1'b1);
-	    tb_check1("dual load issue1 valid", issue1_valid, 1'b1);
-	    tb_check32("dual load issue0 oldest load", issue0_pc, 32'h8000_0028);
-	    tb_check32("dual load issue1 second load", issue1_pc, 32'h8000_002c);
-	    `TB_TICK(clk);
-	    #1;
-	    tb_check32("dual load leaves later alu", {28'b0, count}, 32'd1);
-	    tb_check32("dual load remaining pc", issue0_pc, 32'h8000_0034);
+    tb_check1("dual load issue1 valid", issue1_valid, 1'b1);
+    tb_check32("dual load issue0 oldest load", issue0_pc, 32'h8000_0070);
+    tb_check32("dual load issue1 second load", issue1_pc, 32'h8000_0074);
+    `TB_TICK(clk);
+    #1;
+    tb_check32("dual load leaves later alu", {28'b0, count}, 32'd1);
+    tb_check32("dual load remaining pc", issue0_pc, 32'h8000_0078);
     `TB_TICK(clk);
     #1;
     tb_check1("dual load drains", empty, 1'b1);
 
-    set_dispatch0(32'h8000_0030, 4'd6, 6'd9, 1'b0, 6'd0, 1'b1, 6'd38);
-    wakeup0_valid = 1'b1;
-    wakeup0_pdest = 6'd9;
-    #1;
-    tb_check1("dispatch bypass sees same-cycle wakeup", issue0_valid, 1'b1);
-    tb_check32("same-cycle wakeup bypass pc", issue0_pc, 32'h8000_0030);
+    // ===== S10 乱序 select:ready 新项越过 unready 老项,但仍须先寄存(N+1) =====
+    set_dispatch0(32'h8000_0080, 4'd14, 6'd20, 1'b0, 6'd0, 1'b1, 6'd50);
     `TB_TICK(clk);
     clear_inputs();
     #1;
-    tb_check1("same-cycle wakeup bypass drains", empty, 1'b1);
-
-    // checkpoint capture/restore 场景已删（dead silicon，ROB-walk 取代）；
-    // 净效果 = IQ 排空回到场景前（empty），issue0/1_ready 维持 1/1，此处保持该态。
+    tb_check32("unready entry queued", {28'b0, count}, 32'd1);
+    tb_check1("unready entry blocks issue", issue0_valid, 1'b0);
+    set_dispatch0(32'h8000_0084, 4'd15, 6'd1, 1'b1, 6'd2, 1'b1, 6'd51);
+    #1;
+    tb_check1("ready dispatch never issues same cycle", issue0_valid, 1'b0);
+    `TB_TICK(clk);
     clear_inputs();
+    #1;
+    tb_check32("both entries queued", {28'b0, count}, 32'd2);
+    tb_check1("registered entry overtakes unready older", issue0_valid, 1'b1);
+    tb_check32("overtaking issue pc", issue0_pc, 32'h8000_0084);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check32("unready entry preserved", {28'b0, count}, 32'd1);
+    wakeup0_valid = 1'b1;
+    wakeup0_pdest = 6'd20;
+    #1;
+    tb_check1("preserved entry wakes", issue0_valid, 1'b1);
+    tb_check32("preserved entry issue pc", issue0_pc, 32'h8000_0080);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("preserved entry drains", empty, 1'b1);
 
-    set_dispatch0(32'h8000_0040, 4'd7, 6'd1, 1'b1, 6'd2, 1'b1, 6'd39);
+    // ===== S11 kill:压 issue、squash 更年轻后缀、幸存前缀同拍吸收 wakeup =====
+    issue0_ready = 1'b0;
+    issue1_ready = 1'b0;
+    set_dispatch0(32'h8000_0090, 4'd1, 6'd21, 1'b0, 6'd0, 1'b1, 6'd52);
+    set_dispatch1(32'h8000_0094, 4'd2, 6'd1, 1'b1, 6'd2, 1'b1, 6'd53);
+    `TB_TICK(clk);
+    clear_inputs();
+    set_dispatch0(32'h8000_0098, 4'd3, 6'd3, 1'b1, 6'd4, 1'b1, 6'd55);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check32("kill setup count", {28'b0, count}, 32'd3);
+    tb_check1("ready younger visible before kill", issue0_valid, 1'b1);
+    issue0_ready = 1'b1;
+    issue1_ready = 1'b1;
+    kill_valid = 1'b1;
+    kill_rob_idx = 4'd1;
+    rob_head_idx = 4'd1;
+    wakeup0_valid = 1'b1;
+    wakeup0_pdest = 6'd21;
+    #1;
+    tb_check1("kill gates issue0", issue0_valid, 1'b0);
+    tb_check1("kill gates issue1", issue1_valid, 1'b0);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check32("kill squashes younger suffix", {28'b0, count}, 32'd1);
+    tb_check1("survivor absorbed kill-cycle wakeup", issue0_valid, 1'b1);
+    tb_check32("survivor pc", issue0_pc, 32'h8000_0090);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("empty after kill scenario", empty, 1'b1);
+
+    // ===== S12 recover 冻结发射 =====
+    set_dispatch0(32'h8000_00a0, 4'd4, 6'd1, 1'b1, 6'd2, 1'b1, 6'd56);
+    `TB_TICK(clk);
+    clear_inputs();
+    recover_active = 1'b1;
+    #1;
+    tb_check1("recover freezes issue", issue0_valid, 1'b0);
+    recover_active = 1'b0;
+    #1;
+    tb_check1("issue resumes after recover", issue0_valid, 1'b1);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("empty after recover scenario", empty, 1'b1);
+
+    // ===== S13 flush 清队 =====
+    set_dispatch0(32'h8000_00b0, 4'd5, 6'd1, 1'b1, 6'd2, 1'b1, 6'd57);
     `TB_TICK(clk);
     clear_inputs();
     flush = 1'b1;

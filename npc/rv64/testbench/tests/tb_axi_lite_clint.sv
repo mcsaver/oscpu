@@ -421,6 +421,30 @@ module tb_axi_lite_clint;
     axi_write_word(`NPC_AXI_CLINT_BASE + 32'h0000_4000, 32'h0000_000a, 4'b1111);
     tb_check1("mtip irq clear by compare", mtip_irq, 1'b0);
 
+    // P5 刀P 同链核查:mtip_irq_o 出口寄存一拍——mtimecmp 写完成拍(write_done 边沿)
+    // 输出仍保持旧比较值,下一拍才翻转。"holds low one beat" 在旧组合直通实现下
+    // 必失败(负测试证据),不可删/不可弱化。当前状态:mtime=5,mtimecmp=0xa,mtip=0。
+    awaddr = `NPC_AXI_CLINT_BASE + 32'h0000_4000;
+    wdata = 32'h0000_0003;
+    wstrb = 4'b1111;
+    awvalid = 1'b1;
+    wvalid = 1'b1;
+    bready = 1'b1;
+    #1;
+    tb_check1("latency probe awready", awready, 1'b1);
+    tb_check1("latency probe wready", wready, 1'b1);
+    `TB_TICK(clk); // 写完成拍:mtimecmp_q<=3;mtip 寄存器此拍采样的仍是旧比较结果
+    awvalid = 1'b0;
+    wvalid = 1'b0;
+    #1;
+    tb_check1("latency probe bvalid", bvalid, 1'b1);
+    tb_check1("mtip holds low one beat after cmp write", mtip_irq, 1'b0);
+    `TB_TICK(clk); // 下一拍:寄存器采到 (mtime=5 >= mtimecmp=3)
+    bready = 1'b0;
+    tb_check1("mtip asserts on next beat", mtip_irq, 1'b1);
+    axi_write_word(`NPC_AXI_CLINT_BASE + 32'h0000_4000, 32'h0000_000a, 4'b1111);
+    tb_check1("mtip clears after latency probe restore", mtip_irq, 1'b0);
+
     axi64_read_word(`NPC_AXI_CLINT_BASE + 64'h0000_4000, 64'hffff_ffff_ffff_ffff);
     axi64_write_word(`NPC_AXI_CLINT_BASE + 64'h0000_4000, 64'h1357_9bdf_2468_ace0, 8'hff);
     axi64_read_word(`NPC_AXI_CLINT_BASE + 64'h0000_4000, 64'h1357_9bdf_2468_ace0);

@@ -32,7 +32,7 @@ module AxiLiteClint #(
 
   output [63:0] mtime_o,
   output msip_irq_o,
-  output mtip_irq_o
+  output reg mtip_irq_o
 );
 
   localparam [15:0] CLINT_MSIP_OFFSET      = 16'h0000;
@@ -75,8 +75,13 @@ module AxiLiteClint #(
   assign s_axi_wready_o = !w_seen_q && !s_axi_bvalid_o;
   assign s_axi_bresp_o = 2'b00;
   assign mtime_o = mtime_q;
+  // msip_irq_o 直连寄存器 msip_q,本就无组合锥,毋需再打拍。
   assign msip_irq_o = msip_q;
-  assign mtip_irq_o = (mtime_q >= mtimecmp_q);
+  // P5 刀P 同链核查:mtip 原为 64 位幅值比较组合直通输出,与 PLIC external_irq
+  // 同属"设备比较锥→CsrFile irq_pending→frontend dispatch 门控"直通家族。
+  // 中断 pending 异步语义允许 +1 拍可见(mip.MTIP 采样无拍数承诺),出口寄存一拍
+  // 斩断该组合直通(P5 刀P,白送时序余量)。
+  wire mtip_irq_next_w = (mtime_q >= mtimecmp_q);
 
   assign write_data_pad_w[31:0] = write_data_w[31:0];
   assign write_strb_pad_w[3:0] = write_strb_w[3:0];
@@ -176,7 +181,10 @@ module AxiLiteClint #(
       mtimecmp_q <= 64'hffff_ffff_ffff_ffff;
       mtime_q <= 64'h0;
       mtime_div_q <= 32'h0;
+      mtip_irq_o <= 1'b0;
     end else begin
+      // P5 刀P:mtip 出口打拍(见 mtip_irq_next_w 处注释)
+      mtip_irq_o <= mtip_irq_next_w;
       if (mtime_tick_w) begin
         mtime_div_q <= 32'h0;
         mtime_q <= mtime_q + MTIME_INCREMENT;
