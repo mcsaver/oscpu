@@ -1921,6 +1921,10 @@ module OooIntBackend #(
   assign mem_req_nokill_o = sq_drain_req_valid_w;
 
   // ============ MIQ push(与桥 req fire 同拍, 优先级与 req mux 一致) ============
+  // 【P5 刀 M】fire 语义重释=进桥侧 req 寄存站(翻译/dcache 发射推迟到桥内 advance
+  // 拍); push 时点不变——寄存站占用即记账, mem_idle 等独占谓词自动计入(跨模块断言
+  // KM-STG-MIQ 固化)。桥 ready 含 !flush_i ⟺ flush 拍无 fire ⟺ MIQ else-if flush
+  // 分支不会漏记 push。
   wire mem_req_fire_any_w = mem_req_valid_o && mem_req_ready_i;
   wire push_amo_write_w = mem_amo_write_req_valid_w && mem_req_ready_i;
   wire push_buffer_w = mem_buffer_req_fire_w;

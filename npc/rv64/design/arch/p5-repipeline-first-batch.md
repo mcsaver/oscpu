@@ -61,6 +61,19 @@
 - **刀 M（桥侧 req 寄存站）**：mem_req 桥内寄存、dcache lookup 次拍（load hit 2→3 拍，
   CPI 估 +3~8% 需实测）。六类契约草案已在侦查存档（MIQ push 时点/nokill 透传/AMO 独占
   谓词计入寄存站——mem_quiet 中间态死锁家族教训）。B+M 后预估 ~9.3ns（~105MHz）。
+  - **落地（2026-07-09）**：行号级契约（`../../../../.github/task-runs/2026-07-09-p5-recon/plan.md`
+    侦查报告）逐条实施——fire 拍零计算锁存 8 字段寄存站，翻译/PMP/dcache 发射/分流决策
+    整体迁 `stage_advance` 拍；ready=`!flush_i && (!stg_valid_q || stage_advance_w)`
+    （`!flush_i` 保 MIQ 双射铁律；drop 窗口免费 skid；rmw 迁入 advance=bubble 观察点改
+    寄存站保持）；nokill flush 拍存活/照常 advance；MIQ push 时点零改动（fire 语义重释）；
+    独占谓词族经 MIQ 自动计入（KM-STG-MIQ 断言）+ CSR 上下文 advance 拍采样由
+    serialize-at-retire 保证（KM-STG-CTX 断言）。桥 TB 契约重写（+1 拍口径、skid/
+    PSR-HOLD/nokill 存活定向、负测试锚点）；module TB 86/86、lint 双变体、check-contract
+    29≥20；**CoreMark 10 迭代 0xfcaf，CPI 3.197→3.280（+2.57%，优于 +3~8% 预估带）**。
+    负测试 4 组（fire 拍 lookup/rmw 谓词漏站/nokill 被清/MIQ drain 漏记账→KM-STG-MIQ）
+    fire→复原 0 fire。spec：`ooo-mem-axi-bridge-fsm.md` §2/§3/§5 已更新。大节点
+    riscv177/AM/linux-mini 与全核 STA（M6）按 difftest 整体收口策略另排。
+    实施记录：`../../../../.github/task-runs/2026-07-09-p5-knife-m/`。
 - **刀 A（Issue→RegRead/EX 打拍+确定性早唤醒）**：本核利好=ALU 类从 issue-reg 广播是
   确定性早唤醒非投机（EX 恒 1 拍/ex_q 恒收/PRF 写透）；真雷=mem 类队头独占谓词依赖
   EX 拍地址，驻留 issue-reg 堵死 store 端口=队头序死锁家族。**完整形态绑定 LSQ 战役**，
@@ -76,3 +89,4 @@
 ## 4. 变更记录
 
 - 2026-07-09：spec 冻结；刀 P/刀 B 排期，刀 M/A 预告。
+- 2026-07-09（同日）：刀 M 落地（§2 落地记录；CPI +2.57%，module TB 86/86，负测试 4 组）。

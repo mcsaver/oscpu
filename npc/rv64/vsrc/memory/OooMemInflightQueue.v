@@ -28,7 +28,8 @@ module OooMemInflightQueue #(
   input rst,
   input flush_i,
 
-  // push(发射拍, 与桥 req fire 同拍)
+  // push(发射拍, 与桥 req fire 同拍——【P5 刀 M】fire 语义=进桥侧 req 寄存站,
+  // 事务从进站起即被记账, 桥内寄存站项↔MIQ 项保持双射)
   input push_valid_i,
   input [1:0] push_kind_i,
   input [ROB_INDEX_W-1:0] push_rob_idx_i,

@@ -221,9 +221,10 @@ module tb_ooo_mem_axi_bridge;
     end
   endfunction
 
-  // 【1-cycle 同步读】读请求 fire 拍只发 dcache SRAM 读(不发 AR), 次拍 S_LOOKUP
-  // 判决 miss 后才发 AR——本 task 只用于 miss 场景, AR 检查右移一拍, task 结束时
-  // 桥已进 S_READ_DATA(与旧组合读版对调用方等价)。
+  // 【刀 M·寄存站】读请求 fire 拍只进寄存站(零计算, 不发 lookup/AR); 次拍
+  // stage_advance 发 dcache SRAM 读(不发 AR); 再次拍 S_LOOKUP 判决 miss 后才发
+  // AR——本 task 只用于 miss 场景, AR 检查较 SRAM 同步读版再右移一拍, task 结束
+  // 时桥已进 S_READ_DATA(对调用方等价)。
   task automatic issue_mem0_read_strb;
     input [`XLEN-1:0] addr;
     input [`STRB_W-1:0] strb;
@@ -238,8 +239,18 @@ module tb_ooo_mem_axi_bridge;
       #1;
       tb_check1("mem0 read request ready", mem0_req_ready, 1'b1);
       tb_check1("mem0 read no AR at fire", lsu_axi_arvalid, 1'b0);
+      // 【刀 M·负测试锚点】fire 拍(寄存站空)不得出现 req 源 dcache lookup——
+      // 对旧"fire 拍发 lookup"实现本检查必 FAIL(负测试证据存 task-runs)。
+      tb_check1("mem0 read no req lookup at fire", dut.req_read_lookup_fire_w,
+                1'b0);
       tick();
       mem0_req_valid = 1'b0;
+      #1;
+      // advance 拍: 寄存站项进 FSM 并发 dcache lookup, AR 最早在判决拍。
+      tb_check1("mem0 read advance no AR", lsu_axi_arvalid, 1'b0);
+      tb_check1("mem0 read req lookup at advance", dut.req_read_lookup_fire_w,
+                1'b1);
+      tick();
       #1;
       tb_check1("mem0 read issues AR", lsu_axi_arvalid, 1'b1);
       tb_check64("mem0 read AR address", lsu_axi_araddr,
@@ -270,8 +281,9 @@ module tb_ooo_mem_axi_bridge;
     end
   endtask
 
-  // 【1-cycle 同步读】hit 路径统一在 S_LOOKUP 判决拍以锁存 paddr_q[2:0] 移位;
-  // 本场景补两块原 cache 组合口负责、SRAM 化后移到桥判决拍的语义审核:
+  // 【刀 M+SRAM 同步读】hit 路径统一在 S_LOOKUP 判决拍以锁存 paddr_q[2:0] 移位
+  // (fire→advance→判决→S_RESP, 共 +1 拍); 本场景补两块原 cache 组合口负责、
+  // SRAM 化后移到桥判决拍的语义审核:
   //   (a) unaligned hit 的窗口移位视图(接住 cache TB 里被移走的移位检查);
   //   (b) 跨线窗口即使 line 有效也必须 miss 走 AXI 原窗口读(read_cross_q 阻断
   //       hit——DWC-I2 的桥侧新落点)。
@@ -282,11 +294,14 @@ module tb_ooo_mem_axi_bridge;
       mem0_req_write = 1'b0;
       mem0_req_addr = 64'h0000_0000_8000_1005;
       mem0_req_wstrb = 8'b0010_0000;
-      lsu_axi_arready = 1'b1;   // 陷阱: hit 判决拍不得发 AR
+      lsu_axi_arready = 1'b1;   // 陷阱: advance/判决拍均不得发 AR
       #1;
       tb_check1("cached window read ready", mem0_req_ready, 1'b1);
       tick();
       mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("cached window advance no AR", lsu_axi_arvalid, 1'b0);
+      tick();
       #1;
       tb_check1("cached window hit no AR", lsu_axi_arvalid, 1'b0);
       tick();
@@ -388,6 +403,10 @@ module tb_ooo_mem_axi_bridge;
       lsu_axi_awready = 1'b1;
       lsu_axi_wready = 1'b0;
       #1;
+      // 【刀 M】advance 拍: 寄存站项进 FSM, AW/W 最早次拍可见。
+      tb_check1("write advance no AW", lsu_axi_awvalid, 1'b0);
+      tick();
+      #1;
       tb_check1("write issues AW", lsu_axi_awvalid, 1'b1);
       tb_check1("write issues W", lsu_axi_wvalid, 1'b1);
       tb_check64("write AW address", lsu_axi_awaddr,
@@ -404,19 +423,55 @@ module tb_ooo_mem_axi_bridge;
       tick();
       flush = 1'b0;
       lsu_axi_wready = 1'b0;
+      // 【刀 M·免费 skid】drop 窗口 ready=1: 在 B 等待拍把 correct-path load
+      // 提前送进寄存站排队(旧契约此处 ready=0), advance 由 state 门挡住。
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = 64'h0000_0000_8000_4100;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
       #1;
       tb_check1("write drain waits for B", lsu_axi_bready, 1'b1);
       tb_check1("write drain suppresses response", mem0_rsp_valid, 1'b0);
+      tb_check1("drop window accepts into stage (skid)", mem0_req_ready, 1'b1);
 
       lsu_axi_bvalid = 1'b1;
       tick();
       lsu_axi_bvalid = 1'b0;
+      mem0_req_valid = 1'b0;
       #1;
-      // 【store RMW】drain store 的 B-ok 次拍是 RMW 判决拍(write-update 合并
-      // 落宏), req_ready 压 1 bubble 后才回 idle。
-      tb_check1("write drain rmw bubble blocks accept", mem0_req_ready, 1'b0);
+      // 【store RMW×刀 M】drain store 的 B-ok 次拍是 RMW 判决拍(write-update
+      // 合并落宏): bubble 观察点从旧 req_ready 压制改为寄存站保持——站内 load
+      // 本拍不得 advance/发 lookup(bubble 数不变, 契约不弱化)。
+      tb_check1("write drain rmw bubble holds staged load",
+                dut.stage_advance_w, 1'b0);
+      tb_check1("write drain rmw bubble no req lookup",
+                dut.req_read_lookup_fire_w, 1'b0);
       tb_check1("write drain never exposes response", mem0_rsp_valid, 1'b0);
       tick();
+      #1;
+      // RMW 结束次拍: 站内 load 恢复 advance(发 lookup)。
+      tb_check1("staged load advances after rmw bubble",
+                dut.stage_advance_w, 1'b1);
+      lsu_axi_arready = 1'b1;
+      tick();
+      #1;
+      // 判决拍: 0x8000_4100 未 fill → miss 发 AR, 走通整条 skid load。
+      tb_check1("post-drain skid load issues AR", lsu_axi_arvalid, 1'b1);
+      tb_check64("post-drain skid load AR address", lsu_axi_araddr,
+                 64'h0000_0000_8000_4100);
+      tick();
+      lsu_axi_arready = 1'b0;
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'h5a5a_a5a5_5a5a_a5a5;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("post-drain skid load response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("post-drain skid load response data", mem0_rsp_rdata,
+                 64'h5a5a_a5a5_5a5a_a5a5);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
       #1;
       tb_check1("bridge idle after write drain", mem0_req_ready, 1'b1);
     end
@@ -450,10 +505,14 @@ module tb_ooo_mem_axi_bridge;
       flush = 1'b1;
       #1;
       tb_check1("aborted store hides response", mem0_rsp_valid, 1'b0);
+      // 【刀 M】flush 拍站内 plain store 被当拍清除(未 advance 即止损, 比现状
+      // 更早): 全程不得出现 AW。
+      tb_check1("aborted store never issues AW", lsu_axi_awvalid, 1'b0);
       tick();
       flush = 1'b0;
       #1;
       tb_check1("aborted store returns idle", mem0_req_ready, 1'b1);
+      tb_check1("aborted store cleared from stage", dut.stg_valid_q, 1'b0);
 
       mem0_req_valid = 1'b1;
       mem0_req_write = 1'b0;
@@ -462,8 +521,11 @@ module tb_ooo_mem_axi_bridge;
       tb_check1("post-abort read no AR at fire", lsu_axi_arvalid, 1'b0);
       tick();
       mem0_req_valid = 1'b0;
-      // 【1-cycle 同步读】hit 判定移至 S_LOOKUP 判决拍(+1 拍): aborted store
-      // 未 commit 不失效 line, 判决拍命中、不发 AR。
+      // 【刀 M+1-cycle 同步读】hit 判定在 S_LOOKUP 判决拍(advance 次拍):
+      // aborted store 未 commit 不失效 line, 判决拍命中、不发 AR。
+      #1;
+      tb_check1("post-abort read advance no AR", lsu_axi_arvalid, 1'b0);
+      tick();
       #1;
       tb_check1("post-abort read hits cache", lsu_axi_arvalid, 1'b0);
       tick();
@@ -486,6 +548,9 @@ module tb_ooo_mem_axi_bridge;
       tb_check1("committed store request ready", mem0_req_ready, 1'b1);
       tick();
       mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("committed store advance no AW", lsu_axi_awvalid, 1'b0);
+      tick();
       #1;
       tb_check1("committed store issues AW", lsu_axi_awvalid, 1'b1);
       tb_check1("committed store issues W", lsu_axi_wvalid, 1'b1);
@@ -515,6 +580,9 @@ module tb_ooo_mem_axi_bridge;
       // line 保持有效且已含新数据: 同址读判决拍命中, 不发 AR, 数据来自 cache
       // (与 PMEM 一致, MEM-I2 下 store 数据已落 PMEM)。
       #1;
+      tb_check1("post-commit read advance no AR", lsu_axi_arvalid, 1'b0);
+      tick();
+      #1;
       tb_check1("post-commit read hits updated line", lsu_axi_arvalid, 1'b0);
       tick();
       lsu_axi_arready = 1'b0;
@@ -537,6 +605,9 @@ module tb_ooo_mem_axi_bridge;
       tb_check1("drained store request ready", mem0_req_ready, 1'b1);
       tick();
       mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("drained store advance no AW", lsu_axi_awvalid, 1'b0);
+      tick();
       #1;
       tb_check1("drained store issues AW", lsu_axi_awvalid, 1'b1);
       tb_check1("drained store issues W", lsu_axi_wvalid, 1'b1);
@@ -565,6 +636,9 @@ module tb_ooo_mem_axi_bridge;
       // 合并进 line(untracked-over-flush 语义保持: 数据已落 PMEM, cache 与
       // PMEM 一致): 同址读命中新值, 不发 AR。
       #1;
+      tb_check1("post-drain read advance no AR", lsu_axi_arvalid, 1'b0);
+      tick();
+      #1;
       tb_check1("post-drain read hits updated line", lsu_axi_arvalid, 1'b0);
       tick();
       lsu_axi_arready = 1'b0;
@@ -578,10 +652,11 @@ module tb_ooo_mem_axi_bridge;
     end
   endtask
 
-  // 【store RMW 定向】write-update 的 2 拍 RMW 与读口仲裁:
-  //   (a) store 完成次拍(RMW 判决拍)rmw_busy 压 req_ready——S_RESP back-to-back
-  //       accept 被压出 1 bubble, 新请求最早在再次拍被接受;
-  //   (b) bubble 后的同址 load 命中 RMW 合并后的 line(部分字节 wstrb 合并,
+  // 【store RMW×刀 M 定向】write-update 的 2 拍 RMW 与读口仲裁:
+  //   (a) store advance 拍站口即空出——back-to-back load 当拍进寄存站(免费 skid);
+  //   (b) store 完成次拍(RMW 判决拍)rmw_busy 压 stage_advance——站内 load 被
+  //       保持 1 bubble(观察点从旧 req_ready 压制改为寄存站保持, 契约不弱化);
+  //   (c) bubble 后的同址 load 命中 RMW 合并后的 line(部分字节 wstrb 合并,
   //       数据来自 cache 而非 AXI——本场景 R 通道全程不驱动即为证明)。
   task automatic store_rmw_write_update_and_bubble;
     begin
@@ -608,11 +683,18 @@ module tb_ooo_mem_axi_bridge;
       #1;
       tb_check1("rmw store request ready", mem0_req_ready, 1'b1);
       tick();
-      // 同拍立即换上 back-to-back load 请求(考 req_ready 压制)
+      // 同拍立即换上 back-to-back load 请求(考寄存站 back-to-back+RMW 保持)
       mem0_req_write = 1'b0;
       mem0_req_addr = 64'h0000_0000_8000_7000;
       mem0_req_wstrb = {`STRB_W{1'b1}};
       mem0_rsp_ready = 1'b1;
+      #1;
+      // store advance 拍: 站口腾出, back-to-back load 可当拍 fire 进站。
+      tb_check1("rmw store advance accepts next (stage b2b)",
+                mem0_req_ready, 1'b1);
+      tb_check1("rmw store advance no AW yet", lsu_axi_awvalid, 1'b0);
+      tick();
+      mem0_req_valid = 1'b0;
       #1;
       tb_check1("rmw store issues AW", lsu_axi_awvalid, 1'b1);
       tb_check1("rmw store issues W", lsu_axi_wvalid, 1'b1);
@@ -620,20 +702,22 @@ module tb_ooo_mem_axi_bridge;
       lsu_axi_awready = 1'b0;
       lsu_axi_wready = 1'b0;
       #1;
-      // RMW 判决拍: store 响应有效(S_RESP), 但 rmw_busy 必须压住 back-to-back
-      // accept(req_ready=0)——这就是 store 后 1 bubble。
+      // RMW 判决拍: store 响应有效(S_RESP)且被消费, 但 rmw_busy 必须压住站内
+      // load 的 advance(不发 lookup)——这就是 store 后 1 bubble 的新观察点。
       tb_check1("rmw decision cycle store response valid", mem0_rsp_valid,
                 1'b1);
-      tb_check1("rmw decision cycle blocks accept (1 bubble)",
-                mem0_req_ready, 1'b0);
+      tb_check1("rmw decision cycle holds staged load (1 bubble)",
+                dut.stage_advance_w, 1'b0);
+      tb_check1("rmw decision cycle no req lookup",
+                dut.req_read_lookup_fire_w, 1'b0);
       tick();
+      mem0_rsp_ready = 1'b0;
       #1;
-      // bubble 之后恢复接受(响应已被消费, 桥回 S_IDLE)
-      tb_check1("bridge accepts after rmw bubble", mem0_req_ready, 1'b1);
+      // bubble 之后站内 load 恢复 advance(发 lookup)。
+      tb_check1("staged load advances after rmw bubble",
+                dut.stage_advance_w, 1'b1);
       lsu_axi_arready = 1'b1;   // 陷阱: 命中不得发 AR
       tick();
-      mem0_req_valid = 1'b0;
-      mem0_rsp_ready = 1'b0;
       #1;
       tb_check1("post-rmw load hits merged line (no AR)", lsu_axi_arvalid,
                 1'b0);
@@ -668,6 +752,11 @@ module tb_ooo_mem_axi_bridge;
       tb_check1("sv39 first request no direct data AR", lsu_axi_arvalid, 1'b0);
       tick();
       mem0_req_valid = 1'b0;
+
+      #1;
+      // 【刀 M】advance 拍才做 DTLB 判定并转 S_WALK_AR, walk AR 次拍可见。
+      tb_check1("sv39 advance no walk AR yet", lsu_axi_arvalid, 1'b0);
+      tick();
 
       #1;
       tb_check1("sv39 first walk AR valid", lsu_axi_arvalid, 1'b1);
@@ -722,8 +811,12 @@ module tb_ooo_mem_axi_bridge;
       tb_check1("sv39 repeat no AR at fire", lsu_axi_arvalid, 1'b0);
       tick();
       mem0_req_valid = 1'b0;
-      // 【1-cycle 同步读】第二次同页同字访问由 DTLB + 物理 data cache 命中:
-      // hit 判定移至 S_LOOKUP 判决拍(+1 拍), 判决拍不发 page-walk/data AR。
+      // 【刀 M+1-cycle 同步读】第二次同页同字访问由 DTLB + 物理 data cache 命中:
+      // advance 拍 DTLB 命中发 lookup, hit 判定在 S_LOOKUP 判决拍, 全程不发
+      // page-walk/data AR。
+      #1;
+      tb_check1("sv39 repeat advance no AXI AR", lsu_axi_arvalid, 1'b0);
+      tick();
       #1;
       tb_check1("sv39 repeat request no AXI AR", lsu_axi_arvalid, 1'b0);
       tick();
@@ -751,6 +844,9 @@ module tb_ooo_mem_axi_bridge;
       tb_check1("sv39 walk-hit request ready", mem0_req_ready, 1'b1);
       tick();
       mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("sv39 walk-hit advance no AR yet", lsu_axi_arvalid, 1'b0);
+      tick();
       #1;
       tb_check1("sv39 walk-hit walk AR valid", lsu_axi_arvalid, 1'b1);
       tb_check64("sv39 walk-hit walk PTE address", lsu_axi_araddr,
@@ -810,6 +906,10 @@ module tb_ooo_mem_axi_bridge;
                 1'b0);
       tick();
       mem0_req_valid = 1'b0;
+
+      #1;
+      tb_check1("sv39 A/D update advance no AR yet", lsu_axi_arvalid, 1'b0);
+      tick();
 
       #1;
       tb_check1("sv39 A/D update walk AR valid", lsu_axi_arvalid, 1'b1);
@@ -922,6 +1022,10 @@ module tb_ooo_mem_axi_bridge;
       mem0_req_valid = 1'b0;
       mem0_req_probe = 1'b0;
       #1;
+      // 【刀 M】probe 短路判定在 advance 拍完成, rsp 次拍可见。
+      tb_check1("probe advance no response yet", mem0_rsp_valid, 1'b0);
+      tick();
+      #1;
       tb_check1("probe response valid", mem0_rsp_valid, 1'b1);
       tb_check1("probe no error", mem0_rsp_error, 1'b0);
       tb_check1("probe no page fault", mem0_rsp_page_fault, 1'b0);
@@ -935,8 +1039,9 @@ module tb_ooo_mem_axi_bridge;
     end
   endtask
 
-  // 【LSQ·SQ 切换】pretrans+nokill(退休 store 落存): 跳过翻译直写 PA, 且 flush
-  // 期间事务照常推进(写必达)、响应不被 kill 压制。
+  // 【LSQ·SQ 切换×刀 M】pretrans+nokill(退休 store 落存): 跳过翻译直写 PA, 且
+  // flush 期间事务照常推进(写必达)——寄存站项 flush 拍经 nokill 豁免照常
+  // advance 进 FSM, 响应不被 kill 压制。
   task automatic pretrans_nokill_store_survives_flush;
     begin
       clear_inputs();
@@ -954,8 +1059,13 @@ module tb_ooo_mem_axi_bridge;
       mem0_req_valid = 1'b0;
       mem0_req_pretrans = 1'b0;
       mem0_req_nokill = 1'b0;
-      // 立刻 flush: nokill 事务必须继续发出 AW/W 并完成
+      // 立刻 flush: 站内 nokill 项必须在 flush 拍照常 advance 进 FSM(写必达)
       flush = 1'b1;
+      #1;
+      tb_check1("nokill staged item advances under flush",
+                dut.stage_advance_w, 1'b1);
+      tb_check1("nokill advance cycle no AW yet", lsu_axi_awvalid, 1'b0);
+      tick();
       #1;
       tb_check1("nokill write still issues AW under flush",
                 lsu_axi_awvalid, 1'b1);
@@ -976,6 +1086,118 @@ module tb_ooo_mem_axi_bridge;
       mem0_rsp_ready = 1'b0;
       flush = 1'b0;
       // 后台 B 由 bpend 吸收
+      lsu_axi_bvalid = 1'b1;
+      tick();
+      lsu_axi_bvalid = 1'b0;
+      tick();
+    end
+  endtask
+
+  // 【刀 M·定向】寄存站 skid 保持(PSR-HOLD 型)与 flush 语义:
+  //   (a) FSM 忙(等 R)期间 ready=1——plain load 提前进站排队并字段冻结
+  //       (BRG-STG-HOLD 断言同拍在跑), 站满后 ready=0(单深度), flush 把未发射
+  //       的 plain 项当拍清除(比现状更早止损: 全程不发任何 lookup/AR/rsp);
+  //   (b) nokill(pretrans drain 落存)项 flush 拍原地存活(BRG-STG-NOKILL),
+  //       flush 解除后照常 advance 完成写(写必达)。
+  task automatic stage_skid_hold_and_flush_semantics;
+    begin
+      clear_inputs();
+      tick();
+      // (a) 底座: 慢读 A(miss, 不给 R)占住 FSM
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = 64'h0000_0000_8000_8000;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      lsu_axi_arready = 1'b1;
+      #1;
+      tb_check1("skid base read ready", mem0_req_ready, 1'b1);
+      tick();
+      // A advance 拍立刻换上第二个 load B: back-to-back 进站
+      mem0_req_addr = 64'h0000_0000_8000_8100;
+      #1;
+      tb_check1("skid back-to-back ready during advance",
+                mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      #1;
+      // A 判决拍(miss→AR); B 在站保持: FSM 忙 → advance=0, 单深度 → ready=0
+      tb_check1("skid holds while busy (no advance)",
+                dut.stage_advance_w, 1'b0);
+      tb_check1("skid full blocks ready", mem0_req_ready, 1'b0);
+      tick();
+      lsu_axi_arready = 1'b0;
+      #1;
+      // A 等 R; B 字段冻结检查(BRG-STG-HOLD 的 TB 对照)
+      tb_check1("skid staged item persists", dut.stg_valid_q, 1'b1);
+      tb_check64("skid staged addr frozen", dut.stg_addr_q,
+                 64'h0000_0000_8000_8100);
+      // flush: FSM 的 A 走读 abort(本地释放), 站内 plain B 被当拍清除
+      flush = 1'b1;
+      tick();
+      flush = 1'b0;
+      #1;
+      tb_check1("flush clears staged plain load", dut.stg_valid_q, 1'b0);
+      tb_check1("flushed staged load never ARs", lsu_axi_arvalid, 1'b0);
+      tb_check1("bridge ready after skid flush", mem0_req_ready, 1'b1);
+      tick();
+      #1;
+      tb_check1("no ghost AR after skid flush", lsu_axi_arvalid, 1'b0);
+      tb_check1("no ghost response after skid flush", mem0_rsp_valid, 1'b0);
+
+      // (b) nokill 项 flush 拍存活: 慢读 C 占 FSM, drain(nokill)进站, flush
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = 64'h0000_0000_8000_8200;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      lsu_axi_arready = 1'b1;
+      #1;
+      tb_check1("nokill-hold base read ready", mem0_req_ready, 1'b1);
+      tick();
+      // C advance 拍换上 drain 落存(pretrans+nokill write)进站
+      mem0_req_write = 1'b1;
+      mem0_req_pretrans = 1'b1;
+      mem0_req_nokill = 1'b1;
+      mem0_req_addr = 64'h0000_0000_8000_8300;
+      mem0_req_wdata = 64'hc001_c0de_0000_ffff;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      #1;
+      tb_check1("nokill-hold drain enters stage", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      mem0_req_pretrans = 1'b0;
+      mem0_req_nokill = 1'b0;
+      mem0_req_write = 1'b0;
+      #1;
+      tick();   // C 判决拍 miss→AR fire→S_READ_DATA
+      lsu_axi_arready = 1'b0;
+      // flush 拍: C(S_READ_DATA)本地释放; 站内 nokill 项不得被清除
+      flush = 1'b1;
+      #1;
+      tb_check1("nokill staged survives flush cycle", dut.stg_valid_q, 1'b1);
+      tick();
+      flush = 1'b0;
+      #1;
+      tb_check1("nokill staged still valid after flush",
+                dut.stg_valid_q, 1'b1);
+      tb_check1("nokill staged advances after flush",
+                dut.stage_advance_w, 1'b1);
+      tick();
+      #1;
+      tb_check1("nokill staged store issues AW", lsu_axi_awvalid, 1'b1);
+      tb_check64("nokill staged store AW address", lsu_axi_awaddr,
+                 64'h0000_0000_8000_8300);
+      lsu_axi_awready = 1'b1;
+      lsu_axi_wready = 1'b1;
+      tick();
+      lsu_axi_awready = 1'b0;
+      lsu_axi_wready = 1'b0;
+      #1;
+      tb_check1("nokill staged store response valid", mem0_rsp_valid, 1'b1);
+      tb_check1("nokill staged store no error", mem0_rsp_error, 1'b0);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+      // 后台 B 由 bpend 吸收; 再空转一拍越过 RMW 判决拍
       lsu_axi_bvalid = 1'b1;
       tick();
       lsu_axi_bvalid = 1'b0;
@@ -1012,6 +1234,7 @@ module tb_ooo_mem_axi_bridge;
     sv39_dtlb_and_paddr_cache_hit();
     probe_write_returns_pa();
     pretrans_nokill_store_survives_flush();
+    stage_skid_hold_and_flush_semantics();
 
     tb_check1("unused outputs settle", unused_outputs, unused_outputs);
     tb_finish("tb_ooo_mem_axi_bridge");

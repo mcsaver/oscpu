@@ -680,7 +680,11 @@ module NpcSimTop (
 
 `ifdef CONFIG_NPC_SIM_STATS
   // RV64 只保留 OoO/superscalar core，cache/BPU/pipe 统计均从 OoO bridge/core 只读观察。
-  // SRAM 同步读(2026-07-08)后 hit 在判决拍(fire 次拍)才有效：access 打一拍与判决拍对齐。
+  // SRAM 同步读(2026-07-08)后 hit 在判决拍才有效：access 打一拍与判决拍对齐。
+  // 【P5 刀 M】mem 侧统计打拍源从 mem0_req_fire_w 改为桥内 stage_advance_w:
+  // fire 拍只进寄存站, dcache lookup 在 advance 拍发射、判决在其次拍——沿用
+  // fire 源会使 hit 配对错 1 拍; access 口径=advance(真正消费翻译/dcache 资源
+  // 的拍), flush 清掉的寄存站项不计。fetch 侧不变。
   // fetch 侧 fire 后必进 S_LOOKUP 判决；mem 侧 fault/translate-miss 的 read 不经判决,
   // cache hit 输出带 pend 门控恒 0 → 记 miss,与旧"fault 亦计 miss"语义一致。
   reg sim_icache_access_q;
@@ -688,7 +692,7 @@ module NpcSimTop (
   always @(posedge clk) begin
     sim_icache_access_q <= u_top.u_core.u_ooo_fetch_bridge.fetch_req_fire_w;
     sim_dcache_read_access_q <=
-        u_top.u_core.u_ooo_mem_bridge.mem0_req_fire_w &&
+        u_top.u_core.u_ooo_mem_bridge.stage_advance_w &&
         !u_top.u_core.u_ooo_mem_bridge.req_write_w;
   end
   assign sim_icache_access_w = sim_icache_access_q;
@@ -697,7 +701,7 @@ module NpcSimTop (
   assign sim_icache_miss_w = sim_icache_access_q &&
                              !u_top.u_core.u_ooo_fetch_bridge.cache_hit_w;
   assign sim_dcache_access_w =
-      u_top.u_core.u_ooo_mem_bridge.mem0_req_fire_w;
+      u_top.u_core.u_ooo_mem_bridge.stage_advance_w;
   assign sim_dcache_store_access_w =
       sim_dcache_access_w && u_top.u_core.u_ooo_mem_bridge.req_write_w;
   assign sim_dcache_hit_w =
@@ -761,6 +765,8 @@ module NpcSimTop (
   wire sim_ooo_mem_busy_w =
       u_top.u_core.u_ooo_core.pending_mem_q ||
       (u_top.u_core.u_ooo_mem_bridge.state_q != 4'd0) ||
+      // 【刀 M】寄存站占用也算 mem busy(FSM idle+站内保持的拍, 如 RMW hold)
+      u_top.u_core.u_ooo_mem_bridge.stg_valid_q ||
       u_top.u_core.u_ooo_mem_bridge.mem0_req_fire_w;
   wire sim_ooo_axi_wait_w =
       (u_top.ifu_axi_arvalid_w && !u_top.ifu_axi_arready_w) ||
@@ -1235,6 +1241,75 @@ module NpcSimTop (
     .ad_pte_i       (`ADM_XMR.ad_pte_q)
   );
 `undef ADM_XMR
+`endif
+
+  // ─────────────────────────────────────────────────────────────────────────────────────────
+  // 【P5 刀 M】桥侧 req 寄存站跨模块守卫(mem_quiet 死锁家族, 立即断言形态):
+  //   ① KM-STG-MIQ: 寄存站占用 ⇒ MIQ 非空——push 与进站(fire)同拍、pop 在 rsp 消费
+  //      拍, 故独占谓词族(mem_idle/mem_amo_slot/mem_retire_quiet)自动把寄存站计入,
+  //      任何消费点无需加 term; 若 MIQ push 漏记账或桥/MIQ 两侧 flush 源相位失配
+  //      (桥=ooo_mem_flush_w vs MIQ=flush_i||checkpoint_restore_i, 双射义务), 本断言
+  //      当拍抓获。
+  //   ② KM-STG-CTX: 寄存站占用期 CSR 翻译上下文(satp/mstatus/priv/svpbmt)冻结——
+  //      accept 推迟到 advance 拍的合法性依赖 serialize-at-retire(寄存站占用 ⇒
+  //      mem_idle=0 ⇒ head0-CSR/trap 不能退休), advance 拍上下文必与 fire 拍一致。
+  //      pretrans(SQ drain 落存, nokill 跨 flush 存活)豁免: 其 accept 跳过翻译/PMP,
+  //      上下文不敏感, 且 trap 拍(mstatus/priv 更新)其站内存活属既定语义。
+  // ─────────────────────────────────────────────────────────────────────────────────────────
+`ifdef OOO_ASSERT
+`define KM_BRG_XMR u_top.u_core.u_ooo_mem_bridge
+`define KM_IBE_XMR u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+  reg km_ctx_seen_q;
+  reg [`XLEN-1:0] km_ctx_satp_q;
+  reg [`XLEN-1:0] km_ctx_mstatus_q;
+  reg [1:0] km_ctx_priv_q;
+  reg km_ctx_svpbmt_q;
+  // 武装计数：复位释放后延迟 3 拍才启用断言——x-assign 随机初始化下复位拉起前的
+  // 起始拍会以随机 stg_valid/miq 态误触发($fatal 挂仿真;rv64uf-p-fadd 大节点回归
+  // 首次暴露,module TB 不含 NpcSimTop 未覆盖)。km_arm_q 必须**声明初始化**:
+  // 本工程 --x-initial fast 会给未显式初始化的 reg 填非零快速值(计数器可能
+  // 直接=3 当拍武装),显式初始化不受其影响。(本文件 sim-only,声明初始化+过程赋值
+  // 的 PROCASSINIT 告警在此局部豁免——观测计数器必须有确定初值,这正是意图。)
+  /* verilator lint_off PROCASSINIT */
+  reg [1:0] km_arm_q = 2'b00;
+  /* verilator lint_on PROCASSINIT */
+  always @(posedge clk) begin
+    if (rst) begin
+      km_ctx_seen_q <= 1'b0;
+      km_arm_q <= 2'b00;
+    end else begin
+      if (km_arm_q != 2'b11) begin
+        km_arm_q <= km_arm_q + 2'b01;
+      end
+      // $time 门：Verilator 中声明初始化与第一个 posedge 存在调度竞争(@0 沿可能
+      // 先于 initial 生效读到 x-initial fast 的非零填充值),仿真时刻是唯一与
+      // 寄存器初始化顺序无关的武装依据;200 保守覆盖 TB 复位序列。
+      if (($time > 64'd200) && (km_arm_q == 2'b11) &&
+          `KM_BRG_XMR.stg_valid_q && `KM_IBE_XMR.miq_empty_w) begin
+        $error("[KM-STG-MIQ] 桥寄存站占用但 MIQ 记账为空 @%0t", $time);
+        $fatal;
+      end
+      if (($time > 64'd200) && (km_arm_q == 2'b11) &&
+          `KM_BRG_XMR.stg_valid_q && !`KM_BRG_XMR.stg_pretrans_q &&
+          km_ctx_seen_q &&
+          ((`KM_BRG_XMR.satp_i != km_ctx_satp_q) ||
+           (`KM_BRG_XMR.mstatus_i != km_ctx_mstatus_q) ||
+           (`KM_BRG_XMR.priv_mode_i != km_ctx_priv_q) ||
+           (`KM_BRG_XMR.svpbmt_en_i != km_ctx_svpbmt_q))) begin
+        $error("[KM-STG-CTX] 寄存站占用期 CSR 翻译上下文被改写 @%0t", $time);
+        $fatal;
+      end
+      if (`KM_BRG_XMR.mem0_req_fire_w) begin
+        km_ctx_seen_q <= 1'b1;
+        km_ctx_satp_q <= `KM_BRG_XMR.satp_i;
+        km_ctx_mstatus_q <= `KM_BRG_XMR.mstatus_i;
+        km_ctx_priv_q <= `KM_BRG_XMR.priv_mode_i;
+        km_ctx_svpbmt_q <= `KM_BRG_XMR.svpbmt_en_i;
+      end
+    end
+  end
+`undef KM_BRG_XMR
+`undef KM_IBE_XMR
 `endif
 
 endmodule

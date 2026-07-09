@@ -6,12 +6,15 @@
 
 ## 1. 目的与范围
 把后端 lane0/lane1 的访存请求（含 Sv39 翻译、PMP、dcache）落到 LSU AXI 总线，并把结果回送后端。
-单事务在飞（single outstanding）。本规范只描述控制 FSM 与响应/flush 时序，不展开 PTW/PMP 细节。
+FSM 单事务在飞（single outstanding）+ 桥侧 req 寄存站单深度排队（P5 刀 M：桥内至多
+"1 站内待发 + 1 FSM 在飞"，两者都记账在 MIQ）。本规范只描述控制 FSM 与响应/flush 时序，
+不展开 PTW/PMP 细节。
 
-## 2. 状态
+## 2. 状态与 req 寄存站
 | 状态 | 含义 |
 |---|---|
-| S_IDLE | 空闲，可接受新请求(`accept_request`) |
+| （req 寄存站） | 【P5 刀 M】非 FSM 状态：`stg_*_q` 8 字段(valid/addr/wdata/wstrb/write/probe/pretrans/nokill)。req fire 拍**零计算**只锁存字段（core 侧 req mux 组合、次拍即消失，必须当拍接住）；翻译(DTLB CAM)/PMP/dcache 发射/全部分流决策推迟到 `stage_advance_w` 拍。CSR 上下文(priv/mstatus/satp/svpbmt/pmp)不进站——寄存站占用⇒MIQ 非空⇒mem_idle=0⇒CSR/trap 不能退休(serialize-at-retire)，advance 拍上下文必与 fire 拍相同（KM-STG-CTX 断言固化） |
+| S_IDLE | 空闲，等寄存站项 advance(`accept_request` 从 `stg_*` 取数) |
 | S_LOOKUP | 【SRAM 同步读】dcache 判决态：上拍已发单口读，本拍 SRAM rdata 有效，判 hit(→S_RESP)/miss(当拍发 AR) |
 | S_WALK_AR/S_WALK_R | Sv39 页表遍历 发 AR / 收 PTE |
 | S_READ_ADDR/S_READ_DATA | load: 发读地址 / 收读数据 |
@@ -19,20 +22,40 @@
 | S_WRITE_RESP | store: 等 B |
 | S_RESP | 向后端拉 `mem*_rsp_valid`，等 `rsp_ready` 后回 S_IDLE |
 
-## 3. 正常转移（`else` 分支，flush_i=0 且 drop_rsp_q=0）
+寄存站进出与 ready（`stage_advance_w` = FSM 收下寄存站项的时机 = 原 accept 语义时点）：
 ```
- S_IDLE --req(load,可翻译无fault)------------------> S_LOOKUP(fire 拍发 dcache 同步读+锁 paddr_q/wstrb_q/read_cross_q)
+stage_advance_w  = stg_valid_q && !dcache_rmw_busy_w &&
+                   (S_IDLE || (S_RESP && rsp_ready_w)) &&
+                   (!cpu_kill_w || stg_nokill_q)
+mem0_req_ready_o = !flush_i && (!stg_valid_q || stage_advance_w)
+```
+- `!flush_i` 必须保留在 ready（关键决策，非可选）：MIQ 的 flush 分支是 else-if，flush 拍
+  push 被忽略——flush 拍若允许 fire 即"桥内有事务、MIQ 无记账"（rsp 无主/序配对破坏）。
+  ready 含 `!flush_i` ⟺ MIQ 不漏记 ⟺ 寄存站项↔MIQ 项双射（BRG-NOFIRE-FLUSH +
+  跨模块 KM-STG-MIQ 断言化）。
+- `drop_rsp_q` 退出 ready：drain 窗口寄存站可提前收下 correct-path 请求排队（免费 skid，
+  部分抵消 +1 拍 CPI），advance 由 state 门天然挡住。
+- `rmw_busy` 从 ready 迁入 advance：RMW 判决拍请求可进站，bubble 观察点从 ready 压制变
+  寄存站保持（bubble 数不变，见 §3 要点）。
+- flush 拍：非 nokill 站内项当拍清除（未发射即止损，全程不发 lookup/AR/rsp，比旧"进 FSM
+  再 drain"更早）；nokill（SQ drain 落存）项存活，且可在 flush 拍照常 advance 进 FSM
+  （写必达，BRG-STG-NOKILL 断言）。
+
+## 3. 正常转移（`else` 分支，flush_i=0 且 drop_rsp_q=0；req=寄存站项 advance）
+```
+ (寄存站) --advance(load,可翻译无fault)------------> S_LOOKUP(advance 拍发 dcache 同步读+锁 paddr_q/wstrb_q/read_cross_q)
  S_LOOKUP --(hit 且 !read_cross_q)-----------------> S_RESP(判决拍锁 rsp_rdata = line >> {paddr_q[2:0],3'b0})
  S_LOOKUP --(miss/跨线)----------------------------> S_READ_ADDR -> S_READ_DATA -(rvalid)-> S_RESP
                                                     (判决拍当拍发 AR;arready 即 fire 时跳过 S_READ_ADDR 直入 S_READ_DATA)
- S_IDLE --req(store,probe)------------------------> S_RESP(不写内存,PA 经 rsp_rdata 回传)
- S_IDLE --req(store,no-trans)---------------------> S_WRITE_REQ -(aw&w)-> {S_RESP(PMEM 解耦,B 交 bpend_q) | S_WRITE_RESP -(bvalid)-> S_RESP(MMIO/uncacheable)}
- S_IDLE --req(need-trans,tlb-miss)----------------> S_WALK_AR -> S_WALK_R -(...)-> {S_RESP | S_LOOKUP | S_WRITE_REQ | 下一级 S_WALK_AR}
+ (寄存站) --advance(store,probe)-------------------> S_RESP(不写内存,PA 经 rsp_rdata 回传)
+ (寄存站) --advance(store,no-trans)----------------> S_WRITE_REQ -(aw&w)-> {S_RESP(PMEM 解耦,B 交 bpend_q) | S_WRITE_RESP -(bvalid)-> S_RESP(MMIO/uncacheable)}
+ (寄存站) --advance(need-trans,tlb-miss)-----------> S_WALK_AR -> S_WALK_R -(...)-> {S_RESP | S_LOOKUP | S_WRITE_REQ | 下一级 S_WALK_AR}
  S_WALK_R --(leaf-ok,read)-------------------------> S_LOOKUP(当拍发 dcache 读,addr=walk_leaf_paddr_w)
  S_AD_UPDATE --(b-ok,read)-------------------------> S_LOOKUP(当拍发 dcache 读,addr=paddr_q)
  S_WALK_AR --(PTE 读地址 PMP 违例,F9)-------------> S_RESP(access fault,不发 AR)
- S_IDLE --req(pmp/perm/page fault)----------------> S_RESP(error/page_fault 置位)
- S_RESP --(rsp_ready)-----------------------------> S_IDLE(同拍新请求 fire 则直接 accept,back-to-back;读请求 fire 同样进 S_LOOKUP)
+ (寄存站) --advance(pmp/perm/page fault)-----------> S_RESP(error/page_fault 置位)
+ S_RESP --(rsp_ready)-----------------------------> S_IDLE(站内有项则同拍 advance 直接 accept,back-to-back;
+                                                    且 advance 拍站口腾出、新请求可同拍 fire 进站)
 ```
 要点：
 - **store 分两类（B1 已落地）**：PMEM store 在 `aw&w` 完成拍即到 S_RESP（数据已落 PMEM，`bresp`
@@ -56,11 +79,12 @@
   VA/PA 页内偏移相同故对 walk 路径同样成立。D-cache 模块级 lookup/fill/store 维护语义由
   `ooo-data-word-cache.md` 冻结（store 维护 = 2 拍 RMW write-update，v1.1），桥 spec 只约束
   事务级 FSM 与 AXI 行为。
-- **store RMW write-update（2026-07-09 赎回）**：真 store commit（S_WRITE_REQ 解耦拍 /
-  S_WRITE_RESP b-ok 拍——两拍均非 lookup/fill 消费态，dcache 宏读口空闲）即 dcache RMW 发射拍；
-  次拍（判决拍，状态必∈{S_RESP,S_IDLE}）dcache 拉 `rmw_busy_o` 占宏口，桥以
-  `!dcache_rmw_busy_w` 压 `req_slot_ready`——**store 完成后 1 bubble**（S_RESP back-to-back
-  accept 被压一拍）。`dcache_lookup_en_w`/S_LOOKUP-miss 的 arvalid 与状态转移同加
+- **store RMW write-update（2026-07-09 赎回，刀 M 重述观察点）**：真 store commit
+  （S_WRITE_REQ 解耦拍 / S_WRITE_RESP b-ok 拍——两拍均非 lookup/fill 消费态，dcache 宏读口
+  空闲）即 dcache RMW 发射拍；次拍（判决拍，状态必∈{S_RESP,S_IDLE}）dcache 拉 `rmw_busy_o`
+  占宏口，桥以 `!dcache_rmw_busy_w` 压 `stage_advance_w`——**store 完成后 1 bubble**
+  （站内项被保持一拍；判决拍 ready 可为 1=新请求可进站排队，bubble 数不变）。
+  `dcache_lookup_en_w`/S_LOOKUP-miss 的 arvalid 与状态转移同加
   `!rmw_busy` 安全网（状态互斥下恒不触发，MEM-RMW-PORT 断言把关）。
   `store_decouple_commit_w` 限定 FSM 正常推进分支（`fsm_normal_w`）：flush-drain 拍
   FSM 进 S_WRITE_RESP 等 B、改由 b-ok 拍单次提交，消灭同一 store 双 commit（第二次 RMW
@@ -71,9 +95,10 @@
 - **Svnapot 64KiB**：PTW 只接受 level0 leaf 且 `PTE.N=1 && PTE.PPN[3:0]=4'b1000`；非 leaf、
   level1/2 leaf 或其它 NAPOT 编码均报 load/store page fault。合法 leaf 的 PA 拼接使用 VA[15:12]
   替代 PTE.PPN[3:0]，再进入 PMP、dcache 或 AXI 访问；DTLB hit 复核必须带 leaf level。
-- 单 outstanding 由**状态**强制：`req_slot_ready_w = !cpu_kill && !dcache_rmw_busy &&
-  (S_IDLE || (S_RESP && rsp_ready))`，写/读事务进行中(非 S_IDLE/S_RESP)不接受新请求；
-  dcache RMW 判决拍(store 完成次拍)额外压 1 拍。**与 drop_rsp_q 无关**。
+- FSM 单 outstanding 由**状态**强制：`stage_advance_w` 只在 S_IDLE 或 (S_RESP && rsp_ready)
+  放行，写/读事务进行中(非 S_IDLE/S_RESP)寄存站项不进 FSM；dcache RMW 判决拍(store 完成次拍)
+  额外压 1 拍。ready 只看寄存站占用（`!flush_i && (!stg_valid_q || stage_advance_w)`），
+  **与 drop_rsp_q 无关**——FSM 忙/drain 期间新请求可进站排队（单深度）。
 
 ## 4. flush / drain 路径（`if (flush_i || drop_rsp_q)` 分支）
 `drop_rsp_q` = "本地已放弃当前事务、但下游可能仍会回一个需吞掉的响应" 的粘滞标志。
@@ -84,18 +109,32 @@
   写态用 `write_drain_w` 把 AW/W 发完(避免半截事务挂总线)，收到 B 后清 drop。S_RESP/S_IDLE 态
   清零并回 S_IDLE。walk/A-D 路的 dcache 读发射（`walk_read_lookup_fire_w/ad_read_lookup_fire_w`）
   只在 FSM 正常推进分支有效，flush 拍不发。
+- 【刀 M】寄存站 flush 臂：`flush_i && !stg_nokill_q → stg_valid_q<=0`（payload 留脏，全核
+  valid-only 惯例）。站内项=**未发** AXI/dcache 事务，flush 可清（比 FSM 内 drain 更早止损）；
+  MIQ 侧同拍 flush-compress 掉对应 LOAD/PROBE 项，双射不破。mispredict/ROB-walk kill 不触桥
+  （现状无 kill 口），站内 killed LOAD/PROBE 照常推进发射，rsp 由 MIQ `head_killed` 恒收吞掉。
 - 不变量：被 flush 的事务，其 AXI 响应必须被吞掉且不得置 `mem*_rsp_valid`（**nokill 事务例外**：
-  `nokill_busy_w` 使 flush/drop 对其推进与响应握手均无效，写必达）；半截写必须发完再丢 B。
+  `nokill_busy_w` 使 flush/drop 对其推进与响应握手均无效，写必达；站内 nokill 项同理存活并可
+  flush 拍 advance）；半截写必须发完再丢 B。
 
 ## 5. 关键不变量
-- **MEM-I1 单事务**：非 S_IDLE/S_RESP 不接受新请求。
+- **MEM-I1 单事务（刀 M 重述）**：FSM 单事务在飞——非 S_IDLE/(S_RESP&&rsp_ready) 寄存站项不
+  advance；桥内至多 1 站内 + 1 FSM 在飞，两者都在 MIQ 记账（KM-STG-MIQ：`stg_valid_q ⇒
+  !miq_empty`，mem_quiet 独占谓词族自动计入寄存站，任何消费点无需加 term）。
 - **MEM-I2 写顺序可见性**：sim slave 在 `AW.fire&&W.fire` 当拍写 PMEM，B 在其后一拍 ⇒ store 数据
   在 write_complete 当拍即对后续访问可见。
 - **MEM-I3 精确异常（B1/SQ 后收窄）**：仅 MMIO/uncacheable store 的总线错误经 `bresp`→`rsp_error`
   在 S_RESP 报告；PMEM 解耦 store 假设 `bresp` 恒 OK（B 后台吸收不报错）；SQ 语义下 plain store 的
   翻译/PMP fault 已在发射拍 probe 前置，退休后 drain 的总线错误仅 `[SQ-DRAIN-ERROR]` 警告。
   flush 中的响应必须吞掉。
-- **MEM-I4 无 ready/valid 组合环**：`req_slot_ready` 只依赖 state/rsp_ready，不依赖本拍新请求是否 fire。
+- **MEM-I4 无 ready/valid 组合环**：`mem0_req_ready` 只依赖 flush/寄存站占用/state/rmw/rsp_ready，
+  不依赖本拍新请求是否 fire（valid）。
+- **桥内断言族（OOO_ASSERT，立即断言）**：MEM-RMW-PORT（RMW 判决拍宏读口独占）、
+  BRG-NOFIRE-FLUSH（flush 拍无 fire）、BRG-ADV-NODROP（advance ⇒ drop_rsp_q=0）、
+  BRG-STG-LOOKUP（req 源 lookup 只在 advance 拍）、BRG-STG-HOLD（stall 拍站内字段冻结）、
+  BRG-STG-NOKILL（flush 拍未 advance 的 nokill 项次拍存活）；跨模块（NpcSimTop）：
+  KM-STG-MIQ（站占用⇒MIQ 非空）、KM-STG-CTX（站占用期 satp/mstatus/priv/svpbmt 冻结，
+  pretrans 豁免）。
 
 ## 6. B1(store 写回解耦) 的安全改造点（据本规范；**已落地**——`bpend_q`+`store_decouple_w`，见 §3 要点）
 - 目标：store 在 `aw&w done`(数据已落 PMEM, MEM-I2) 后即推进，不占用桥等 B；B 交独立 `bpend_q` 跟踪器。
@@ -129,6 +168,17 @@
   MEM-RMW-PORT 断言。A/D PTE 写回维护保持无条件失效（`store_rmw_en_i=0`）。
   桥 TB：post-commit/post-drain 同址读改回 hit 预期、drain 完成后 1 bubble、新增
   `store_rmw_write_update_and_bubble` 定向（ready 压制 + 字节合并数据回读）。
+- 2026-07-09（同日，P5 刀 M）：**桥侧 req 寄存站落地**——req fire 拍零计算只锁存 8 字段
+  （§2 寄存站行），翻译/PMP/dcache 发射/分流决策整体推迟到 `stage_advance_w` 拍
+  （load hit 2→3 拍）；ready 重定义为 `!flush_i && (!stg_valid_q || stage_advance_w)`
+  （`!flush_i` 保 MIQ 双射；drop_rsp_q 退出 ready=免费 skid；rmw_busy 迁入 advance）；
+  FSM 两处 accept 调用上提为 stage_advance 最高优先分支；寄存站 flush 臂清非 nokill 项、
+  nokill 项存活/flush 拍照常 advance（写必达）；MIQ push 时点不变（fire 语义重释=进站）、
+  独占谓词族经 MIQ 自动计入寄存站。新增桥内 BRG-* 断言族 + NpcSimTop 跨模块 KM-STG-MIQ/
+  KM-STG-CTX；NpcSimTop dcache 统计打拍源 fire→advance。桥 TB 全量对拍 +1 并新增
+  skid/PSR-HOLD/nokill-flush 存活定向与负测试锚点（fire 拍 req 源 lookup 恒 0）。
+  CoreMark 10 迭代 0xfcaf，CPI 3.197→3.280（+2.57%，低于 +3~8% 预估带）。
+  实施记录：`.github/task-runs/2026-07-09-p5-knife-m/`。
 
 ## 已知隐患(2026-06-28 bug-hunt,当前不可触发)
 - "至多一个未收 B" 不变量未由桥自身保证,依赖外部 `AxiLiteXbar` 串行化写;接流水化写互连会 B 归因 off-by-one。详见 `.github/memory/known-issues.md`(隐患A)。IP 复用前应桥内自保证(accept 新写前 `!bpend_q` 或 B 计数+归属)。

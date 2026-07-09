@@ -96,10 +96,25 @@ module OooMemAxiBridge (
   // 仅对 PMEM(bresp 恒 OK)解耦；MMIO/可错 store 仍等 B 以保精确异常(MEM-I3)。详见
   // design/specs/ooo-mem-axi-bridge-fsm.md 与 design/arch/mem-store-decouple.md。
   reg bpend_q;
-  // 【LSQ·SQ 切换】当前事务属性(accept 拍锁存, 每次 accept 覆盖)。pretrans 的效果
-  // (跳过翻译/PMP)全部在 accept 拍组合完成, 无需寄存。
+  // 【LSQ·SQ 切换】当前事务属性(advance 拍锁存, 每次 accept 覆盖)。pretrans 的效果
+  // (跳过翻译/PMP)全部在 advance 拍组合完成, 无需再寄存进 FSM。
   reg probe_q;
   reg nokill_q;
+  // 【P5 刀 M·桥侧 req 寄存站】req fire(=accept)拍只锁存 CPU 侧请求 8 字段, 零计算;
+  // 翻译(DTLB CAM)/PMP/dcache 发射/全部分流决策整体推迟到 stage_advance 拍
+  // (accept_request 改从寄存站取数)。必须留在 fire 拍的只有字段锁存本身——core 侧
+  // req mux 是组合的、次拍即消失(SQ drain fire 次拍 drain_inflight_q 置位撤 valid,
+  // probe 同理)。CSR 上下文(priv/mstatus/satp/svpbmt/pmp)不进寄存站: 寄存站占用 ⇒
+  // MIQ 非空 ⇒ mem_idle=0 ⇒ head0-CSR/sfence 被 serialize-at-retire 挡住不能退休,
+  // advance 拍上下文与 fire 拍必同(NpcSimTop 跨模块立即断言固化, 勿改为多锁上下文)。
+  reg stg_valid_q;
+  reg [`XLEN-1:0] stg_addr_q;
+  reg [`XLEN-1:0] stg_wdata_q;
+  reg [`STRB_W-1:0] stg_wstrb_q;
+  reg stg_write_q;
+  reg stg_probe_q;
+  reg stg_pretrans_q;
+  reg stg_nokill_q;
   // 【line-dcache】本读事务是否跨 8B line(跨线走窗口读不 fill; 不跨线发对齐
   // AR, 回填 line 并把窗口视图给 CPU)
   reg read_cross_q;
@@ -292,7 +307,8 @@ module OooMemAxiBridge (
   wire [1:0] req_priv_w = effective_data_priv(priv_mode_i, mstatus_i);
   wire ctx_translate_w = sv39_enabled(req_priv_w, satp_i);
   // pretrans 请求地址已是 PA:跳过翻译(req_cache_addr_w 直取 req_addr)与 PMP(probe 拍已查)。
-  wire req_translate_w = ctx_translate_w && !mem0_req_pretrans_i;
+  // 【刀 M】req_* 簇整体换源为寄存站字段(advance 拍求值), 不再直连 mem0_req_* 输入。
+  wire req_translate_w = ctx_translate_w && !stg_pretrans_q;
   wire mem0_req_fire_w = mem0_req_valid_i && mem0_req_ready_o;
   wire aw_fire_w = lsu_axi_awvalid_o && lsu_axi_awready_i;
   wire w_fire_w = lsu_axi_wvalid_o && lsu_axi_wready_i;
@@ -305,16 +321,23 @@ module OooMemAxiBridge (
   wire nokill_busy_w = nokill_q && (state_q != S_IDLE);
   // FSM 正常推进分支选择条件(flush/drop 拍走 drain 分支; nokill 事务免疫)。
   wire fsm_normal_w = !cpu_kill_w || nokill_busy_w;
-  // 【store RMW】dcache store write-update 判决拍占宏口: 该拍压 req_ready
-  // (store 后 1 bubble), 阻止 S_IDLE/S_RESP back-to-back accept 发 lookup 抢口。
+  // 【store RMW】dcache store write-update 判决拍占宏口: 该拍压 stage_advance
+  // (store 后 1 bubble, 观察点从旧 req_ready 压制改为寄存站保持), 阻止
+  // S_IDLE/S_RESP back-to-back advance 发 lookup 抢口。
   wire dcache_rmw_busy_w;
-  wire req_slot_ready_w = !cpu_kill_w && !dcache_rmw_busy_w &&
-                          ((state_q == S_IDLE) ||
-                           ((state_q == S_RESP) && rsp_ready_w));
-  wire req_write_w = mem0_req_write_i;
-  wire [`XLEN-1:0] req_addr_w = mem0_req_addr_i;
-  wire [`XLEN-1:0] req_wdata_w = mem0_req_wdata_i;
-  wire [`STRB_W-1:0] req_wstrb_w = mem0_req_wstrb_i;
+  // 【刀 M】stage_advance = FSM 收下寄存站项的时机(原 req_slot_ready 的 state 条件
+  // + rmw_busy 迁入 + nokill 豁免 cpu_kill), advance 拍执行迁移后的 accept_request。
+  // S_IDLE/S_RESP 态 drop_rsp_q 恒 0(FSM 不变量, BRG-ADV-NODROP 断言化), 故 cpu_kill
+  // 项在可 advance 的状态里实际等价 flush_i——nokill(SQ drain 落存)项 flush 拍照常
+  // 进 FSM(写必达), 非 nokill 项 flush 拍被挡且同拍被寄存站 flush 臂清除。
+  wire stage_advance_w = stg_valid_q && !dcache_rmw_busy_w &&
+                         ((state_q == S_IDLE) ||
+                          ((state_q == S_RESP) && rsp_ready_w)) &&
+                         (!cpu_kill_w || stg_nokill_q);
+  wire req_write_w = stg_write_q;
+  wire [`XLEN-1:0] req_addr_w = stg_addr_q;
+  wire [`XLEN-1:0] req_wdata_w = stg_wdata_q;
+  wire [`STRB_W-1:0] req_wstrb_w = stg_wstrb_q;
   wire [3:0] req_access_size_w = access_size_from_wstrb(req_wstrb_w);
   wire [3:0] active_access_size_w = access_size_from_wstrb(wstrb_q);
   wire req_dtlb_context_hit_w;
@@ -338,7 +361,7 @@ module OooMemAxiBridge (
   wire req_pmp_fault_raw_w;
   wire req_data_pmp_fault_w =
       (!req_translate_w || req_dtlb_hit_w) && req_pmp_fault_raw_w &&
-      !mem0_req_pretrans_i;
+      !stg_pretrans_q;
   wire req_dcacheable_unused_w;
   wire req_line_cross_w;
   wire [`XLEN-1:0] walk_pte_addr_w =
@@ -388,13 +411,14 @@ module OooMemAxiBridge (
       ad_update_b_ok_w;   // HW A/D: PTE 写回也维护 dcache(否则读 PTE 得 stale A/D, rv64si-dirty 破)
 
   // 【SRAM 同步读】dcache 单读口发射条件(三源所在状态互斥, 见 dcache spec):
-  //   req 路: accept 拍 read-可翻译-无 fault(条件须与 accept_request 读分支严格一致);
+  //   req 路: 【刀 M】stage_advance 拍 read-可翻译-无 fault(原 fire 拍, 已随寄存站
+  //     推迟一拍; 条件须与 accept_request 读分支严格一致);
   //   walk 路: S_WALK_R leaf-ok read——改经 S_LOOKUP 顺手修复旧 walk 组合口
   //     无移位无跨线检查回错值的 bug(判决拍统一 paddr_q 移位/read_cross_q 阻断);
   //   A/D 路: S_AD_UPDATE b-ok read——改用锁存 paddr_q, 消灭对 R 通道残留
   //     lsu_axi_rdata_i 的依赖(第二个既有 bug)。
   wire req_read_lookup_fire_w =
-      mem0_req_fire_w && !req_write_w &&
+      stage_advance_w && !req_write_w &&
       (!req_translate_w || req_dtlb_hit_w) &&
       !req_data_pmp_fault_w &&
       !(req_translate_w && req_dtlb_perm_fault_w);
@@ -405,7 +429,8 @@ module OooMemAxiBridge (
       ad_update_b_ok_w &&
       (aw_done_q || aw_fire_w) && (w_done_q || w_fire_w) && !write_q;
   // walk/A/D 路只在 FSM 正常推进分支发读(flush/drop 拍事务被释放, 不发)。
-  // req 路的 fire 已经由 req_slot_ready_w 含 !cpu_kill_w 把关。
+  // req 路已由 stage_advance_w 含 (!cpu_kill_w||stg_nokill_q) 与 !rmw_busy 把关
+  // (nokill 恒 write, 不落入 read-lookup 分支)。
   // 【store RMW】判决拍宏口被 RMW 占用, lookup 一律不发(!rmw_busy 是安全网:
   // 三源所在状态与 RMW 判决拍状态互斥, 由下方 OOO_ASSERT 证实恒不触发)。
   wire dcache_lookup_en_w =
@@ -514,7 +539,16 @@ module OooMemAxiBridge (
   // (sim 统计探针已精确化：NpcSimTop 改为 access 打一拍 + 直接采判决拍
   //  dcache_lookup_hit_final_w，此处原粘滞近似探针删除。)
 
-  assign mem0_req_ready_o = req_slot_ready_w;
+  // 【刀 M】ready = 寄存站可收新请求(空位, 或本拍 advance 腾位=back-to-back)。
+  // ① `!flush_i` 必须保留(关键决策, 非可选): MIQ 的 flush 分支是 else-if 结构,
+  //    flush 拍 push 被忽略——若 flush 拍允许 fire 会产生"桥内有事务、MIQ 无记账"
+  //    (rsp 无主/序配对破坏)。ready 含 !flush_i ⟺ MIQ 不 push, 保住寄存站项↔MIQ
+  //    项双射(BRG-NOFIRE-FLUSH 断言化)。flush_i 为寄存源, 不损时序。
+  // ② drop_rsp_q 退出 ready: drain 窗口寄存站可提前收下 correct-path 请求排队
+  //    (免费 skid, 部分抵消 +1 拍 CPI), advance 由 state 门天然挡住。
+  // ③ rmw_busy 退出 ready(迁入 stage_advance): RMW 判决拍请求可进站, lookup/rsp
+  //    推迟——bubble 数不变, 观察点从 ready 压制变寄存站保持。
+  assign mem0_req_ready_o = !flush_i && (!stg_valid_q || stage_advance_w);
 
   assign mem0_rsp_valid_o =
       (state_q == S_RESP) && (!cpu_kill_w || nokill_busy_w);
@@ -563,6 +597,8 @@ module OooMemAxiBridge (
   assign store_decouple_w =
       ((paddr_q & `NPC_AXI_PMEM_MASK) == `NPC_AXI_PMEM_BASE) && !bpend_q;
 
+  // 【刀 M】accept_request 的调用时机从 req fire 拍改为 stage_advance 拍, 全部
+  // 数据源经 req_*_w 簇取自寄存站(stg_*); 分流决策文本与旧版逐字一致。
   task automatic accept_request;
     begin
       write_q <= req_write_w;
@@ -574,8 +610,8 @@ module OooMemAxiBridge (
       read_cross_q <= req_line_cross_w;
       wdata_q <= req_wdata_w;
       wstrb_q <= req_wstrb_w;
-      probe_q <= mem0_req_probe_i && req_write_w;
-      nokill_q <= mem0_req_nokill_i;
+      probe_q <= stg_probe_q && req_write_w;
+      nokill_q <= stg_nokill_q;
       rsp_rdata_q <= {`XLEN{1'b0}};
       rsp_error_q <= 1'b0;
       rsp_page_fault_q <= 1'b0;
@@ -600,7 +636,7 @@ module OooMemAxiBridge (
           state_q <= S_RESP;
         end
       end else if (req_write_w) begin
-        if (mem0_req_probe_i) begin
+        if (stg_probe_q) begin
           // 【LSQ·SQ 切换】write 探测:翻译+PMP 已过, 不写内存, PA 经 rsp_rdata 回传。
           rsp_rdata_q <= req_cache_addr_w;
           state_q <= S_RESP;
@@ -644,8 +680,15 @@ module OooMemAxiBridge (
       if (bpend_q && lsu_axi_bvalid_i) begin
         bpend_q <= 1'b0;
       end
-      // nokill 事务(退休 store 落存)对 flush/drop 免疫, 走正常推进分支直到完成。
-      if ((flush_i || drop_rsp_q) && !nokill_busy_w) begin
+      // 【刀 M】寄存站项进 FSM(stage_advance 拍)最高优先: 只可能发生在 S_IDLE 或
+      // S_RESP&&rsp_ready(两态 drop_rsp_q 恒 0、无遗留清理义务, done 位由
+      // accept_request 清零)。nokill 项经 (!cpu_kill_w||stg_nokill_q) 豁免, flush
+      // 拍也照常进 FSM(写必达; 此时若在 S_RESP, 被顶替的旧响应本就属被 kill 事务,
+      // 与旧 flush-drain 臂的丢弃行为一致); 非 nokill 项 flush/drop 拍 advance=0,
+      // FSM 走下方 drain/正常分支。
+      if (stage_advance_w) begin
+        accept_request();
+      end else if ((flush_i || drop_rsp_q) && !nokill_busy_w) begin
       case (state_q)
         S_IDLE: begin
           state_q <= S_IDLE;
@@ -736,12 +779,10 @@ module OooMemAxiBridge (
       end else begin
       case (state_q)
         S_IDLE: begin
+          // 【刀 M】accept 调用已上提为 stage_advance 最高优先分支, 本臂只清 done 位。
           aw_done_q <= 1'b0;
           w_done_q <= 1'b0;
           drop_rsp_q <= 1'b0;
-          if (mem0_req_fire_w) begin
-            accept_request();
-          end
         end
 
         S_WALK_AR: begin
@@ -914,14 +955,12 @@ module OooMemAxiBridge (
         end
 
         S_RESP: begin
+          // 【刀 M】back-to-back accept 已上提为 stage_advance 分支(该分支同时覆盖
+          // rsp 消费拍), 本臂只处理"rsp 被消费且无寄存站项可进"的回 IDLE。
           if (rsp_ready_w) begin
             aw_done_q <= 1'b0;
             w_done_q <= 1'b0;
-            if (mem0_req_fire_w) begin
-              accept_request();
-            end else begin
-              state_q <= S_IDLE;
-            end
+            state_q <= S_IDLE;
           end
         end
 
@@ -933,10 +972,41 @@ module OooMemAxiBridge (
     end
   end
 
+  // 【刀 M】寄存站装载/弹出/flush。fire 优先(fire ⇒ ready ⇒ 空位或本拍 advance
+  // 腾位, 覆盖写即弹出+重装); flush 拍 ready 含 !flush_i 恒无 fire; nokill 项对
+  // flush 免疫——可在 flush 拍经 advance 弹出, 或原地存活等待 advance(写必达)。
+  // payload 在 valid=0 拍留脏(全核 valid-only 惯例, 消费方不得读)。
+  always @(posedge clk) begin
+    if (rst) begin
+      stg_valid_q <= 1'b0;
+      stg_addr_q <= {`XLEN{1'b0}};
+      stg_wdata_q <= {`XLEN{1'b0}};
+      stg_wstrb_q <= {`STRB_W{1'b0}};
+      stg_write_q <= 1'b0;
+      stg_probe_q <= 1'b0;
+      stg_pretrans_q <= 1'b0;
+      stg_nokill_q <= 1'b0;
+    end else if (mem0_req_fire_w) begin
+      stg_valid_q <= 1'b1;
+      stg_addr_q <= mem0_req_addr_i;
+      stg_wdata_q <= mem0_req_wdata_i;
+      stg_wstrb_q <= mem0_req_wstrb_i;
+      stg_write_q <= mem0_req_write_i;
+      stg_probe_q <= mem0_req_probe_i;
+      stg_pretrans_q <= mem0_req_pretrans_i;
+      stg_nokill_q <= mem0_req_nokill_i;
+    end else if (stage_advance_w) begin
+      stg_valid_q <= 1'b0;
+    end else if (flush_i && !stg_nokill_q) begin
+      stg_valid_q <= 1'b0;
+    end
+  end
+
 `ifdef OOO_ASSERT
   // 【store RMW 读口互斥】RMW 判决拍(rmw_busy)宏口被占, 桥侧不得出现任何
   // 会用口的动作: 三源 lookup 发射意图/fill/S_LOOKUP 判决。由 FSM 状态互斥
-  // (RMW 判决拍状态∈{S_RESP,S_IDLE})+req_ready 压制保证, 违反即门控链被破坏。
+  // (RMW 判决拍状态∈{S_RESP,S_IDLE})+stage_advance 压制(刀 M 后 req 源随
+  // advance 迁移, !rmw_busy 项迁入 stage_advance_w)保证, 违反即门控链被破坏。
   always @(posedge clk) begin
     if (!rst && dcache_rmw_busy_w &&
         (req_read_lookup_fire_w || walk_read_lookup_fire_w ||
@@ -946,6 +1016,66 @@ module OooMemAxiBridge (
              state_q, req_read_lookup_fire_w, walk_read_lookup_fire_w,
              ad_read_lookup_fire_w, dcache_read_fill_valid_w, $time);
       $fatal;
+    end
+  end
+
+  // 【刀 M·寄存站契约断言族】全部立即断言形态(SVA 命中 0 教训)。
+  reg assert_stg_valid_r;
+  reg assert_fire_r;
+  reg assert_nokill_hold_r;
+  reg [`XLEN-1:0] assert_stg_addr_r;
+  reg [`XLEN-1:0] assert_stg_wdata_r;
+  reg [`STRB_W-1:0] assert_stg_wstrb_r;
+  reg [3:0] assert_stg_attr_r;
+  always @(posedge clk) begin
+    if (rst) begin
+      assert_stg_valid_r <= 1'b0;
+      assert_fire_r <= 1'b0;
+      assert_nokill_hold_r <= 1'b0;
+    end else begin
+      // BRG-NOFIRE-FLUSH: flush 拍不得 fire(ready 含 !flush_i ⟺ 寄存站↔MIQ 双射,
+      // MIQ flush 分支是 else-if、flush 拍 push 被忽略)。
+      if (mem0_req_fire_w && flush_i) begin
+        $error("[BRG-NOFIRE-FLUSH] flush 拍出现 mem0_req fire @%0t", $time);
+        $fatal;
+      end
+      // BRG-ADV-NODROP: advance 只可能发生在 drop_rsp_q=0 的拍
+      // (S_IDLE/S_RESP 态 drop 恒 0 的 FSM 不变量, 上提 accept 分支依赖它)。
+      if (stage_advance_w && drop_rsp_q) begin
+        $error("[BRG-ADV-NODROP] drop_rsp_q=1 拍出现 stage_advance @%0t", $time);
+        $fatal;
+      end
+      // BRG-STG-LOOKUP: req 源 dcache lookup 只允许出现在 stage_advance 拍
+      // (fire 拍恒 0——旧"fire 拍发 lookup"路径已被寄存站切断)。
+      if (req_read_lookup_fire_w && !stage_advance_w) begin
+        $error("[BRG-STG-LOOKUP] 非 advance 拍出现 req 源 dcache lookup @%0t",
+               $time);
+        $fatal;
+      end
+      // BRG-STG-HOLD: 上拍占用且未重装(fire), 本拍仍占用 ⇒ 字段冻结(PSR-HOLD 型)。
+      if (assert_stg_valid_r && !assert_fire_r && stg_valid_q &&
+          ((stg_addr_q != assert_stg_addr_r) ||
+           (stg_wdata_q != assert_stg_wdata_r) ||
+           (stg_wstrb_q != assert_stg_wstrb_r) ||
+           ({stg_write_q, stg_probe_q, stg_pretrans_q, stg_nokill_q} !=
+            assert_stg_attr_r))) begin
+        $error("[BRG-STG-HOLD] stall 拍寄存站字段被改写 @%0t", $time);
+        $fatal;
+      end
+      // BRG-STG-NOKILL: flush 拍未 advance 的 nokill 项次拍必须存活(写必达)。
+      if (assert_nokill_hold_r && !stg_valid_q) begin
+        $error("[BRG-STG-NOKILL] flush 拍 nokill 寄存站项被丢弃 @%0t", $time);
+        $fatal;
+      end
+      assert_stg_valid_r <= stg_valid_q;
+      assert_fire_r <= mem0_req_fire_w;
+      assert_nokill_hold_r <= flush_i && stg_valid_q && stg_nokill_q &&
+                              !stage_advance_w;
+      assert_stg_addr_r <= stg_addr_q;
+      assert_stg_wdata_r <= stg_wdata_q;
+      assert_stg_wstrb_r <= stg_wstrb_q;
+      assert_stg_attr_r <= {stg_write_q, stg_probe_q, stg_pretrans_q,
+                            stg_nokill_q};
     end
   end
 `endif

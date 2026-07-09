@@ -30,7 +30,7 @@
 | `fill_valid_i/fill_addr_i/fill_data_i` | 输入 | 读 miss 回填对齐 8B line，全 1 掩码整行写。`fill_addr_i[2:0]==0` 必须保持。 |
 | `store_commit_i/store_addr_i/store_wdata_i/store_wstrb_i` | 输入 | store/A-D 维护脉冲。`store_rmw_en_i=1`(真 store commit)：**2 拍 RMW write-update**——commit 拍占宏口读 `st_idx` 并锁存上下文，次拍 valid+tag match 则以 wmask 只写 line 内被覆盖的 data 字节(tag 段掩码 0，store 不写 tag)，miss 无动作(write-no-allocate)；跨线 store 的下一行(p1)仍在 commit 拍无条件清 valid(跨线 RMW 不做，保守失效)，本行照常线内合并。`store_wdata_i` 为窗口数据(低位起，与 wstrb 位对齐)。 |
 | `store_rmw_en_i` | 输入 | 0 = HW A/D PTE 写回维护路：保持无条件失效(清 valid FF，不读不写宏，0 额外拍，含跨线 p1)——该拍桥的 read 续访问可能同拍发 lookup(宏读口不空闲)。 |
-| `rmw_busy_o` | 输出 | RMW 判决拍(commit 次拍)恒且仅该拍为 1：宏口被 RMW 占用，桥必须压 `req_ready`/不发 lookup(store 后 1 bubble)。 |
+| `rmw_busy_o` | 输出 | RMW 判决拍(commit 次拍)恒且仅该拍为 1：宏口被 RMW 占用，桥必须压 `stage_advance`(刀 M 后; 原 req_ready)/不发 lookup(store 后 1 bubble)。 |
 
 已删除端口(2026-07-08 SRAM 化)：`req_hit_o/req_data_o/walk_hit_o/walk_data_o`(并入
 单 lookup 口)、`store_invalidate_all_i`(桥侧恒 0 的死口，物理删除)。
@@ -51,7 +51,7 @@
   {idx, tag, line 掩码=wstrb<<off(8b 截断即线内字节), line 数据=wdata<<off*8}；判决拍
   (`rmw_busy_o=1`)`valid[idx] && 宏 tag 段==锁存 tag` 时以 wmask={tag 段 0, data 段按
   掩码展开字节}写宏，miss 无动作。桥保证 commit 拍宏读口空闲(S_WRITE_REQ 解耦拍/
-  S_WRITE_RESP b-ok 拍不发 lookup/fill)，判决拍以 `rmw_busy_o` 压 `req_ready`(store 后
+  S_WRITE_RESP b-ok 拍不发 lookup/fill)，判决拍以 `rmw_busy_o` 压 `stage_advance`(刀 M 后; store 后
   1 bubble)。
 - reset 只清 `valid_q`；SRAM 内容无复位，invalid entry 的 tag/data 不可作为语义值使用。
 - fill/lookup 发射/RMW 读/RMW 判决拍四占用者由桥 FSM 状态互斥保证两两不同拍
@@ -78,7 +78,7 @@
   line(p1，不比 tag，跨线 RMW 不做)；本 line 照常线内合并(掩码 8b 截断天然只含线内字节)。
 - **DWC-I7 fill alignment**：fill 地址必须为 PMEM cacheable 且 8B 对齐。
 - **DWC-I8 1RW 宏口互斥**：lookup 发射/fill 写/RMW 读(commit 拍)/RMW 判决拍四占用者
-  两两不得同拍(桥 FSM 状态互斥+`rmw_busy_o` 压 `req_ready` 保证；模块内与桥内
+  两两不得同拍(桥 FSM 状态互斥+`rmw_busy_o` 压 `stage_advance` 保证；模块内与桥内
   OOO_ASSERT 立即断言)。
 - **DWC-I9 rmw_busy 恰位**：`rmw_busy_o` 恰为 cacheable RMW commit 的次拍(不多不少)，
   桥据此产生 store 后 1 bubble；checker `DWC-RMW-BUSY` 以独立 pend 模型审计。
@@ -125,7 +125,7 @@ tick 后判决拍观测)：
 
 桥侧配套(`tb_ooo_mem_axi_bridge`)：post-commit/post-drain 同址读命中合并后
 line(不发 AR)；`store_rmw_write_update_and_bubble` 定向审核 RMW 判决拍压
-`req_ready`(store 后 1 bubble)与字节合并数据经真实桥路径回读。
+`stage_advance`(站内保持=store 后 1 bubble, 刀 M 后判决拍 ready 可为 1=进寄存站排队)与字节合并数据经真实桥路径回读。
 
 建议命令：
 
@@ -173,7 +173,7 @@ bit-write-mask 端口(真实 SRAM 宏常见变体)，赎回 store write-update(2
 | write visibility | `next cycle` | fill/store 对 valid FF 从下一拍可见；fill/RMW 写数据对"下一次 lookup 判决"可见(发射拍在写拍之后即可见，最短 写拍+1 发射、+2 判决)。 |
 | store maintenance | `2-cycle RMW write-update` | commit 拍占宏口读 st_idx+锁存上下文；判决拍(`rmw_busy_o`)valid+tag match 则 wmask 写 data 段(tag 段掩码 0)，miss 无动作；跨线 p1 与 A/D 维护路(`store_rmw_en_i=0`)保守失效。 |
 | same-cycle priority | 状态互斥(不发生) | fill 与 store commit/RMW 判决拍由桥 FSM 状态互斥保证不同拍；RTL 写法 store 失效后写(保守方向)。 |
-| read/write conflict | 禁止(1RW) | 宏口四占用者(lookup 发射/fill 写/RMW 读/RMW 判决拍)两两不得重合；`rmw_busy_o` 压 `req_ready` 出 store 后 1 bubble；OOO_ASSERT 立即断言把关(模块内 1RW + 桥内 MEM-RMW-PORT)。 |
+| read/write conflict | 禁止(1RW) | 宏口四占用者(lookup 发射/fill 写/RMW 读/RMW 判决拍)两两不得重合；`rmw_busy_o` 压 `stage_advance` 出 store 后 1 bubble(刀 M 后)；OOO_ASSERT 立即断言把关(模块内 1RW + 桥内 MEM-RMW-PORT)。 |
 | reset | valid-only clear | reset 清 `valid_q`；SRAM 内容无复位，invalid entry 无语义值。 |
 | read ports | one synchronous read port | 原 req/walk two combinational views 已合并；互斥性由桥 FSM 状态证明({S_IDLE,S_RESP}∩{S_WALK_R,S_AD_UPDATE}=∅)。 |
 | write mask | per-bit `wmask_i[112:0]` | bit-write-mask 宏变体：写拍仅 wmask=1 位落 wdata；fill 全 1；RMW 只展开 data 段字节掩码。 |
@@ -221,7 +221,7 @@ bit-write-mask 端口(真实 SRAM 宏常见变体)，赎回 store write-update(2
   宏加 `wmask_i[112:0]` bit-write-mask 端口(fill 全 1 掩码；store 只写 data 段字节，
   tag 段掩码 0)；真 store commit 拍(桥 S_WRITE_REQ 解耦/S_WRITE_RESP b-ok，读口空闲)
   占宏口读+锁存上下文，次拍 tag match 则线内字节合并写、miss 无动作，`rmw_busy_o`
-  压桥 `req_ready`(store 后 1 bubble)；跨线 p1 保守失效；A/D PTE 写回维护路保持无条件
+  压桥 `stage_advance`(store 后 1 bubble, 刀 M 后)；跨线 p1 保守失效；A/D PTE 写回维护路保持无条件
   失效(该拍 read 续访问可能同拍发 lookup，读口不空闲)。桥侧
   `store_decouple_commit_w` 限定正常推进分支(消灭 flush-drain 双 commit 与 RMW 撞拍)。
   新增 DWC-I9 与 checker DWC-RMW-BUSY/PORT/B2B；facts 加 STORE_RMW_ISSUE/BUSY；
