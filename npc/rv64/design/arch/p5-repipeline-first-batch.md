@@ -80,6 +80,20 @@
   本批不做。
 - 达成 ~100MHz 后新瓶颈=FpBackend（ABC delay 90）/FetchAxiBridge（50），P5 不治。
 
+### 刀 M S2 验证结果（2026-07-09 全核 STA 实测）
+
+| 指标 | 刀 M 前 | 刀 M 后 | 解读 |
+| --- | --- | --- | --- |
+| WNS @100MHz | −6.04ns | **−6.06ns** | 持平——mem 链已被切断，WNS 转由 fetch 侧等高路径决定 |
+| TNS | −49765 | −49431 | 微降 |
+| top 违例终点 | u_dcache.u_sram（mem 地址链） | **u_fetch_packet_cache.u_payload_sram（fetch 判决链）** | **换人=刀 M 局部目标达成** |
+| CoreMark CPI | 3.197 | 3.280（+2.57%） | 优于 +3~8% 预估带 |
+
+剩余 ~6ns 违例 = 两族等高路径：①fetch 桥 S_LOOKUP 判决链（ITLB/PMP/tag 比较全组合）
+→ packet cache SRAM 地址；②顶层控制 FF 穿 core(168 cell)→双桥的扇出链。
+**第三批主刀 = 刀 F（fetch 侧对称寄存站/判决链拆分）**——与刀 M 同型，
+fetch req 桥内寄存或判决链再切一拍（fetch hit 2→3 拍，需实测取指带宽代价）。
+
 ## 3. 验证策略
 
 每刀：focused TB → 全量 module TB → lint 双变体 → check-contract 计数不降 →
