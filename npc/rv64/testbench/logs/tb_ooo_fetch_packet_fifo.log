@@ -1,0 +1,13 @@
+[TEST] tb_ooo_fetch_packet_fifo
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_ooo_fetch_packet_fifo -o build/tb_ooo_fetch_packet_fifo.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchPacketFifo.v tests/tb_ooo_fetch_packet_fifo.sv
+tests/tb_ooo_fetch_packet_fifo.sv:66: warning: Instantiating module OooFetchPacketFifo with dangling input port 36 (fill_pred_valid_i) floating.
+tests/tb_ooo_fetch_packet_fifo.sv:66: warning: Instantiating module OooFetchPacketFifo with dangling input port 37 (fill_pred_idx_i) floating.
+tests/tb_ooo_fetch_packet_fifo.sv:66: warning: Instantiating module OooFetchPacketFifo with dangling input port 38 (fill_pred_taken0_i) floating.
+tests/tb_ooo_fetch_packet_fifo.sv:66: warning: Instantiating module OooFetchPacketFifo with dangling input port 39 (fill_pred_taken1_i) floating.
+tests/tb_ooo_fetch_packet_fifo.sv:66: warning: Instantiating module OooFetchPacketFifo with dangling input port 40 (fill_bht_idx0_i) floating.
+tests/tb_ooo_fetch_packet_fifo.sv:66: warning: Instantiating module OooFetchPacketFifo with dangling input port 41 (fill_bht_idx1_i) floating.
+tests/tb_ooo_fetch_packet_fifo.sv:66: warning: Instantiating module OooFetchPacketFifo with dangling input port 42 (fill_bht_valid0_i) floating.
+tests/tb_ooo_fetch_packet_fifo.sv:66: warning: Instantiating module OooFetchPacketFifo with dangling input port 43 (fill_bht_valid1_i) floating.
+[PASS] tb_ooo_fetch_packet_fifo
+common/tb_common.svh:32: $finish called at 22 (1s)
+[RESULT] PASS
