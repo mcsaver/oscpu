@@ -62,6 +62,24 @@ DATA_W 保持 64（ysyxSoC 32-bit 的降宽桥属 SoC 对接刀，xbar 参数勿
 | UART RBR pop 判据搬迁 | 低 | 等价性用例 |
 | bpend_q 与单 ID 写保序 | 低 | xbar busy+!bpend_q 双保证；AXI4 同 ID 保序覆盖将来放宽 |
 
-## 5. 变更记录
+## 5. 落地记录（2026-07-10 同日，S1-S5 全部完成）
+
+- **架构定型**：主干（master 桥↔NpcAxiBus↔AxiXbar master 口）=完整 AXI4
+  （ID/LEN/SIZE/BURST/PROT/LAST 全信号集，单 beat 常量位）；xbar slave 口与
+  外设保持 AXI4-Lite（工业标准形态，外设文件名 AxiClint/AxiPlic/AxiToUart/
+  AxiVirtioBlk 已随战役去 Lite 前缀，协议注记在各头注）。AxiXbar=AXI4↔AXI4-Lite
+  转换互连。
+- S1（`6db4acedd`）：fetch 桥 S_DRAIN+mem 桥 drop_rsp_q 持械自吞；
+  S2（`5d79a0fdf`）：xbar 删 abort 边带与 drop 臂（反死锁 buffer 保留），
+  顺手修 NpcSimTop active_port_q 悬空引用；S3-S5（`e3352c7fe`）：arstrb→ARSIZE
+  /aruser→ARPROT[2]/常量协议位/RID-BID 回环/UART RBR 判据等价搬迁/全链改名。
+- **验证**：module TB 86/86、lint 零告警、check-contract 32；CoreMark
+  **cycle-exact（3342044 拍与战役前逐拍一致，零行为变化承诺兑现）** 0xfcaf；
+  difftest 收口（NEMU ref）riscv 177/177+AM+CoreMark 全零 mismatch。
+- 后续（SoC 对接刀）：64→32 降宽桥+len=1 burst；S4 协议断言（AR fire 时
+  LEN==0/RID 匹配）未随刀补，留小刀。
+
+## 6. 变更记录
 
 - 2026-07-10：spec 冻结（最小合规子集+方案 B 自吞+六步实施）。
+- 2026-07-10（同日）：S1-S5 落地+difftest 收口（§5）。
