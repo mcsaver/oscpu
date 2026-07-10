@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T11:40:43+00:00",
-  "updated_at": "2026-07-08T20:29:53+00:00",
+  "updated_at": "2026-07-10T07:01:21+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -28722,6 +28722,206 @@
       "sha256": "a64317a6ac5383b9bd75cddce57b475da011443bf76aaed4c7a04fb7136d837d",
       "backup_source": "filesystem",
       "archived_at": "2026-07-08T20:29:53+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-knife-d-closeout/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6569,
+      "sha256": "07214b471f81d4bc69eaa55acb53df94d9eebe5b0410fa2763c596066854caec",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T06:12:28+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-knife-d-closeout/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5824,
+      "sha256": "02a2a4d32840e5160357987f787e77ff1979d3a11527214f2272b3192ad96a65",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T06:12:28+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-knife-d-closeout/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4358,
+      "sha256": "0dc962287988d1c9ca6271f188d74d7a19d92011302f598ff55a6f4ed3e21719",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T06:12:28+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-knife-d-closeout/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T06:12:28+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-knife-d-closeout/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4459,
+      "sha256": "8ad2313c735ee71b15a017dc0891c97c02f3b42a7a5a58856baba9e2cfa9a5b3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T06:12:28+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-knife-f-closeout/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6569,
+      "sha256": "b0bb6c231cae0c28ea3784db8c043b6abada61050fa9b03c8055f8f502130abb",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T04:48:58+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-knife-f-closeout/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5824,
+      "sha256": "67b17fb24e1178029434bfef0b0328ddbd96163b92e80a9d345a009770300f1b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T04:48:58+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-knife-f-closeout/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4358,
+      "sha256": "afb55013b52311849fca177be6e16d39d47bf45aac34dbe7f6bd34ece60d0f2c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T04:48:58+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-knife-f-closeout/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T04:48:58+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-knife-f-closeout/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4459,
+      "sha256": "66c4611ab09a788bc1133275466e348a8d0c9ad98e41077b77b32d096e80870e",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T04:48:58+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-knife-k1-closeout/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6570,
+      "sha256": "89c4baa86cbfc663125c1c5934d9f6070f9603802a586e28155041cae0a0a326",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T07:01:21+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-knife-k1-closeout/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5841,
+      "sha256": "93fd4936eefee8cb8189bee7f10892bd3cf54879370b3837be600173a64acff7",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T07:01:21+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-knife-k1-closeout/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4368,
+      "sha256": "42875dfd95bc54781e30c44744e93d94d1aeb0a072a05425d93023750f52f1f9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T07:01:21+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-knife-k1-closeout/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T07:01:21+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-knife-k1-closeout/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4473,
+      "sha256": "fcf44a8aa560cc8f9d1c175c7b42e54a00eddff3cd6583ca2c34a513ad1d769c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T07:01:21+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-knife-x-closeout-sta/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 10231,
+      "sha256": "914222dda11226fb027a468163558449e6ad63e6fccf5278d2ca44aab37e0cc3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T03:04:59+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-knife-x-closeout-sta/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 6917,
+      "sha256": "95d04b918c99f0662b2f510772001ceb7f915c175e73ecf33a69e7227e1dc109",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T03:04:59+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-knife-x-closeout-sta/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 5248,
+      "sha256": "8e4887329b967be2c9a31ed5391418f657f19ec2fa6172fbe936cb6e74d1c86f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T03:04:59+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-knife-x-closeout-sta/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1224,
+      "sha256": "dde391f86398c9befee19f7e780eeb9547b77edb2df5de88b5c3652f595e3bf2",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T03:04:59+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-knife-x-closeout-sta/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4785,
+      "sha256": "6cf959dfe59d619acddbda26b0f4102fbc73c4de606a57a393366b1a7fe2d08f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T03:04:59+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-knife-x-closeout/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6569,
+      "sha256": "612f1e0e0bd7909bcc2bdc253adc979a8bae2c0acccd011572d4ba4cc70287b4",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T03:04:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-knife-x-closeout/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5824,
+      "sha256": "8caf5b370ebd63b4b68656f5e3573ba088a351f1bd636545ab2375f4b527d14f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T03:04:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-knife-x-closeout/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4358,
+      "sha256": "906ee6665efc189463a9c9e0bf3a9357e8642792b3b16a5b110ccf84d87cec07",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T03:04:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-knife-x-closeout/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T03:04:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-knife-x-closeout/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4459,
+      "sha256": "fd9d71c941964d8ad38e7e6bc837d8ab43e925e1c16c17150c25001456c3d6f5",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T03:04:26+00:00"
     }
   ]
 }
