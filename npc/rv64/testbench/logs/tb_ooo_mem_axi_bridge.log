@@ -388,5 +388,5 @@
 /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/PmpChecker.v:131: warning: @* is sensitive to all 16 words in array 'entry_addr_w'.
 /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/PmpChecker.v:163: warning: @* is sensitive to all 16 words in array 'entry_cfg_w'.
 [PASS] tb_ooo_mem_axi_bridge
-common/tb_common.svh:32: $finish called at 490 (1s)
+common/tb_common.svh:32: $finish called at 468 (1s)
 [RESULT] PASS
