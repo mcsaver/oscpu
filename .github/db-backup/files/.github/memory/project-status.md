@@ -11,6 +11,7 @@
 - [ ] 综合分析通过
 ## 已完成的工作
 <!-- 按时间倒序记录，格式: - [日期] 简要描述 -->
+- [2026-07-10] 三刀 difftest 收口零 mismatch + 刀K1 落地(CPI 1.140→1.038);五步累计 3.280→1.038(-68%);刀B2(fetch-time BPU)spec 冻结待实施;详证 modules/npc.md 同日条目。
 - [2026-07-10] 刀D 落地:dcache hit 融合拍,CoreMark CPI 1.206→1.140;三刀累计 3.280→1.140(-65%);时序 0.36ns 阈值内;riscv 177/177 全绿;详证 modules/npc.md 同日条目。
 - [2026-07-10] 刀F 落地:fetch hit 融合拍 1包/拍,CoreMark CPI 1.633→1.206(-26%,两刀累计 -63%);R1 时序风险实测触发→snoop 链单 bit 降级臂修复(WNS -5.69 中性);riscv 177/177+86/86 全绿;详证 modules/npc.md 同日条目与 .github/task-runs/2026-07-10-knife-f-impl/。
 - [2026-07-10] 刀X 落地:MUL radix-4+CLZ 早退出+swap,CoreMark CPI 3.280→1.633(-50.2%);riscv 177/177+AM+TB 全绿;时序中性;修 muldiv_killed iverilog hidden-dependency 潜伏 bug;fetch 等待 90.8% 成唯一瓶颈(刀F 铁证);详证 .github/task-runs/2026-07-09-knife-x-mul-impl/ 与 modules/npc.md 同日条目。
