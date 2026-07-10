@@ -20,6 +20,14 @@ module OooFetchPacketFifo #(
   input [`INST_W-1:0] seed_inst1_i,
   input [1:0] seed_resp0_i,
   input [1:0] seed_resp1_i,
+  // 【B2 S1】per-slot 预测位(resp 拍 BPU lookup 一次定格, 随包存储;
+  // dispatch 拍只消费存储位, 活查询口物理断开——F2 #105 两点查询分歧教训)。
+  input seed_pred_taken0_i,
+  input seed_pred_taken1_i,
+  input [`BPU_BHT_INDEX_W-1:0] seed_bht_idx0_i,
+  input [`BPU_BHT_INDEX_W-1:0] seed_bht_idx1_i,
+  input seed_bht_valid0_i,
+  input seed_bht_valid1_i,
 
   input enqueue_i,
   input [`XLEN-1:0] enqueue_pc0_i,
@@ -31,6 +39,12 @@ module OooFetchPacketFifo #(
   input [`INST_W-1:0] enqueue_inst1_i,
   input [1:0] enqueue_resp0_i,
   input [1:0] enqueue_resp1_i,
+  input enqueue_pred_taken0_i,
+  input enqueue_pred_taken1_i,
+  input [`BPU_BHT_INDEX_W-1:0] enqueue_bht_idx0_i,
+  input [`BPU_BHT_INDEX_W-1:0] enqueue_bht_idx1_i,
+  input enqueue_bht_valid0_i,
+  input enqueue_bht_valid1_i,
 
   input pop_i,
 
@@ -44,6 +58,12 @@ module OooFetchPacketFifo #(
   output [`INST_W-1:0] head_inst1_o,
   output [1:0] head_resp0_o,
   output [1:0] head_resp1_o,
+  output head_pred_taken0_o,
+  output head_pred_taken1_o,
+  output [`BPU_BHT_INDEX_W-1:0] head_bht_idx0_o,
+  output [`BPU_BHT_INDEX_W-1:0] head_bht_idx1_o,
+  output head_bht_valid0_o,
+  output head_bht_valid1_o,
   output [`XLEN-1:0] head1_pc0_o,   // B2: 下一条 FIFO entry 的 pc0（head packet 的预测后继，count>=2 时有效）
   output [FETCH_COUNT_W-1:0] count_o
 );
@@ -69,6 +89,12 @@ module OooFetchPacketFifo #(
   reg [`INST_W-1:0] inst1_q [0:FETCH_PACKET_COUNT-1];
   reg [1:0] resp0_q [0:FETCH_PACKET_COUNT-1];
   reg [1:0] resp1_q [0:FETCH_PACKET_COUNT-1];
+  reg pred_taken0_q [0:FETCH_PACKET_COUNT-1];
+  reg pred_taken1_q [0:FETCH_PACKET_COUNT-1];
+  reg [`BPU_BHT_INDEX_W-1:0] bht_idx0_q [0:FETCH_PACKET_COUNT-1];
+  reg [`BPU_BHT_INDEX_W-1:0] bht_idx1_q [0:FETCH_PACKET_COUNT-1];
+  reg bht_valid0_q [0:FETCH_PACKET_COUNT-1];
+  reg bht_valid1_q [0:FETCH_PACKET_COUNT-1];
 
   integer reset_idx;
 
@@ -89,6 +115,12 @@ module OooFetchPacketFifo #(
   assign head_inst1_o = inst1_q[head_q];
   assign head_resp0_o = resp0_q[head_q];
   assign head_resp1_o = resp1_q[head_q];
+  assign head_pred_taken0_o = pred_taken0_q[head_q];
+  assign head_pred_taken1_o = pred_taken1_q[head_q];
+  assign head_bht_idx0_o = bht_idx0_q[head_q];
+  assign head_bht_idx1_o = bht_idx1_q[head_q];
+  assign head_bht_valid0_o = bht_valid0_q[head_q];
+  assign head_bht_valid1_o = bht_valid1_q[head_q];
   assign head1_pc0_o = pc0_q[ptr_inc(head_q)];
   assign count_o = count_q;
 
@@ -108,6 +140,12 @@ module OooFetchPacketFifo #(
         inst1_q[reset_idx] <= {`INST_W{1'b0}};
         resp0_q[reset_idx] <= 2'b00;
         resp1_q[reset_idx] <= 2'b00;
+        pred_taken0_q[reset_idx] <= 1'b0;
+        pred_taken1_q[reset_idx] <= 1'b0;
+        bht_idx0_q[reset_idx] <= {`BPU_BHT_INDEX_W{1'b0}};
+        bht_idx1_q[reset_idx] <= {`BPU_BHT_INDEX_W{1'b0}};
+        bht_valid0_q[reset_idx] <= 1'b0;
+        bht_valid1_q[reset_idx] <= 1'b0;
       end
     end else if (clear_i) begin
       head_q <= FIFO_PTR_ZERO;
@@ -126,6 +164,12 @@ module OooFetchPacketFifo #(
       inst1_q[FIFO_PTR_ZERO] <= seed_inst1_i;
       resp0_q[FIFO_PTR_ZERO] <= seed_resp0_i;
       resp1_q[FIFO_PTR_ZERO] <= seed_resp1_i;
+      pred_taken0_q[FIFO_PTR_ZERO] <= seed_pred_taken0_i;
+      pred_taken1_q[FIFO_PTR_ZERO] <= seed_pred_taken1_i;
+      bht_idx0_q[FIFO_PTR_ZERO] <= seed_bht_idx0_i;
+      bht_idx1_q[FIFO_PTR_ZERO] <= seed_bht_idx1_i;
+      bht_valid0_q[FIFO_PTR_ZERO] <= seed_bht_valid0_i;
+      bht_valid1_q[FIFO_PTR_ZERO] <= seed_bht_valid1_i;
     end else begin
       if (enqueue_i) begin
         pc0_q[tail_q] <= enqueue_pc0_i;
@@ -137,6 +181,12 @@ module OooFetchPacketFifo #(
         inst1_q[tail_q] <= enqueue_inst1_i;
         resp0_q[tail_q] <= enqueue_resp0_i;
         resp1_q[tail_q] <= enqueue_resp1_i;
+        pred_taken0_q[tail_q] <= enqueue_pred_taken0_i;
+        pred_taken1_q[tail_q] <= enqueue_pred_taken1_i;
+        bht_idx0_q[tail_q] <= enqueue_bht_idx0_i;
+        bht_idx1_q[tail_q] <= enqueue_bht_idx1_i;
+        bht_valid0_q[tail_q] <= enqueue_bht_valid0_i;
+        bht_valid1_q[tail_q] <= enqueue_bht_valid1_i;
         tail_q <= ptr_inc(tail_q);
       end
 

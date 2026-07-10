@@ -391,6 +391,22 @@ module OooFrontend #(
   wire [`XLEN-1:0] fetch_dec1_next_pc_w;
   wire [`XLEN-1:0] fetch_dec1_pc_w;
   wire [1:0] fetch_dec1_resp_w;
+  // 【B2 S1】resp 拍(判决/enqueue 拍)BPU lookup: 分支识别+B-imm 从 PacketDecode
+  // 组合出, BPU lookup 输入随之前移; 预测结果(pred_taken/bht_idx/bht_valid)当拍
+  // 随包写入 FIFO——预测一次定格, dispatch 拍只消费存储位(head0/1_branch_* 改由
+  // HeadMux 存储位驱动, BPU 的 head 拍活查询口物理断开=F2 #105 家族免疫)。
+  wire fetch_dec0_branch_w;
+  wire [`XLEN-1:0] fetch_dec0_bimm_w;
+  wire fetch_dec1_branch_w;
+  wire [`XLEN-1:0] fetch_dec1_bimm_w;
+  wire [`BPU_BHT_INDEX_W-1:0] fetch_dec0_bht_idx_w;
+  wire fetch_dec0_bht_valid_w;
+  wire fetch_dec0_pred_taken_w;
+  wire fetch_dec0_predict_strong_w;
+  wire [`BPU_BHT_INDEX_W-1:0] fetch_dec1_bht_idx_w;
+  wire fetch_dec1_bht_valid_w;
+  wire fetch_dec1_pred_taken_w;
+  wire fetch_dec1_predict_strong_w;
   wire fetch_request_blocked_by_trap_w;
   wire fetch_rsp_can_drop_w;
   wire fetch_rsp_can_enqueue_w;
@@ -411,6 +427,12 @@ module OooFrontend #(
   wire [`XLEN-1:0] fifo_head1_pc0_w;
   wire [1:0] fifo_head_resp0_w;
   wire [1:0] fifo_head_resp1_w;
+  wire [`BPU_BHT_INDEX_W-1:0] fifo_head_bht_idx0_w;
+  wire [`BPU_BHT_INDEX_W-1:0] fifo_head_bht_idx1_w;
+  wire fifo_head_bht_valid0_w;
+  wire fifo_head_bht_valid1_w;
+  wire fifo_head_pred_taken0_w;
+  wire fifo_head_pred_taken1_w;
   wire fifo_pop_w;
   wire fifo_reserve_available_w;
   wire [`INST_W-1:0] fifo_seed_inst0_w;
@@ -422,14 +444,21 @@ module OooFrontend #(
   wire [`XLEN-1:0] fifo_seed_pc1_w;
   wire [1:0] fifo_seed_resp0_w;
   wire [1:0] fifo_seed_resp1_w;
+  wire [`BPU_BHT_INDEX_W-1:0] fifo_seed_bht_idx0_w;
+  wire [`BPU_BHT_INDEX_W-1:0] fifo_seed_bht_idx1_w;
+  wire fifo_seed_bht_valid0_w;
+  wire fifo_seed_bht_valid1_w;
+  wire fifo_seed_pred_taken0_w;
+  wire fifo_seed_pred_taken1_w;
   wire fifo_seed_valid_w;
   wire fifo_storage_head_valid_w;
   wire fifo_storage_pop_w;
   wire frontend_dispatch_to_backend_valid_w;
+  // 【B2 S1】head0/1_branch_{bht_idx,bht_valid,pred_taken}: 包内存储位(FIFO 经
+  // HeadMux 读出), 不再是 BPU head 拍活查询直通。
   wire [`BPU_BHT_INDEX_W-1:0] head0_branch_bht_idx_w;
   wire head0_branch_bht_valid_w;
   wire head0_branch_pred_taken_w;
-  wire head0_branch_predict_strong_w;
   wire head0_branch_raw_w;
   wire [`XLEN-1:0] head0_branch_target_w;
   wire head0_ebreak_raw_w;
@@ -476,7 +505,6 @@ module OooFrontend #(
   wire [`BPU_BHT_INDEX_W-1:0] head1_branch_bht_idx_w;
   wire head1_branch_bht_valid_w;
   wire head1_branch_pred_taken_w;
-  wire head1_branch_predict_strong_w;
   wire head1_branch_raw_w;
   wire head1_ebreak_raw_w;
   wire head1_exit_raw_w;
@@ -988,6 +1016,10 @@ module OooFrontend #(
     .dec1_inst_o(fetch_dec1_inst_w),
     .dec1_resp_o(fetch_dec1_resp_w),
     .dec1_control_stop_o(fetch_dec1_control_stop_w),
+    .dec0_branch_o(fetch_dec0_branch_w),
+    .dec0_bimm_o(fetch_dec0_bimm_w),
+    .dec1_branch_o(fetch_dec1_branch_w),
+    .dec1_bimm_o(fetch_dec1_bimm_w),
     .packet_next_pc_o(fetch_rsp_packet_next_pc_w)
   );
 
@@ -1004,6 +1036,12 @@ module OooFrontend #(
     .bypass_inst1_i(fetch_dec1_inst_w),
     .bypass_resp0_i(fetch_dec0_resp_w),
     .bypass_resp1_i(fetch_dec1_resp_w),
+    .bypass_pred_taken0_i(fetch_dec0_pred_taken_w),
+    .bypass_pred_taken1_i(fetch_dec1_pred_taken_w),
+    .bypass_bht_idx0_i(fetch_dec0_bht_idx_w),
+    .bypass_bht_idx1_i(fetch_dec1_bht_idx_w),
+    .bypass_bht_valid0_i(fetch_dec0_bht_valid_w),
+    .bypass_bht_valid1_i(fetch_dec1_bht_valid_w),
     .fifo_pc0_i(fifo_head_pc0_w),
     .fifo_pc1_i(fifo_head_pc1_w),
     .fifo_next_pc0_i(fifo_head_next_pc0_w),
@@ -1013,6 +1051,12 @@ module OooFrontend #(
     .fifo_inst1_i(fifo_head_inst1_w),
     .fifo_resp0_i(fifo_head_resp0_w),
     .fifo_resp1_i(fifo_head_resp1_w),
+    .fifo_pred_taken0_i(fifo_head_pred_taken0_w),
+    .fifo_pred_taken1_i(fifo_head_pred_taken1_w),
+    .fifo_bht_idx0_i(fifo_head_bht_idx0_w),
+    .fifo_bht_idx1_i(fifo_head_bht_idx1_w),
+    .fifo_bht_valid0_i(fifo_head_bht_valid0_w),
+    .fifo_bht_valid1_i(fifo_head_bht_valid1_w),
     .head_has_packet_o(fifo_has_packet_w),
     .head_pc0_o(head_pc_w),
     .head_pc1_o(head_pc1_w),
@@ -1022,7 +1066,13 @@ module OooFrontend #(
     .head_inst0_o(head_inst0_w),
     .head_inst1_o(head_inst1_w),
     .head_resp0_o(head_resp0_w),
-    .head_resp1_o(head_resp1_w)
+    .head_resp1_o(head_resp1_w),
+    .head_pred_taken0_o(head0_branch_pred_taken_w),
+    .head_pred_taken1_o(head1_branch_pred_taken_w),
+    .head_bht_idx0_o(head0_branch_bht_idx_w),
+    .head_bht_idx1_o(head1_branch_bht_idx_w),
+    .head_bht_valid0_o(head0_branch_bht_valid_w),
+    .head_bht_valid1_o(head1_branch_bht_valid_w)
   );
 
 
@@ -1575,6 +1625,12 @@ module OooFrontend #(
     .fallthrough_inst1_i(fetch_dec1_inst_w),
     .fallthrough_resp0_i(fetch_dec0_resp_w),
     .fallthrough_resp1_i(fetch_dec1_resp_w),
+    .fallthrough_pred_taken0_i(fetch_dec0_pred_taken_w),
+    .fallthrough_pred_taken1_i(fetch_dec1_pred_taken_w),
+    .fallthrough_bht_idx0_i(fetch_dec0_bht_idx_w),
+    .fallthrough_bht_idx1_i(fetch_dec1_bht_idx_w),
+    .fallthrough_bht_valid0_i(fetch_dec0_bht_valid_w),
+    .fallthrough_bht_valid1_i(fetch_dec1_bht_valid_w),
     .branch_pc0_i(branch_prefetch_hit_pc0_w),
     .branch_pc1_i(branch_prefetch_hit_pc1_w),
     .branch_next_pc0_i(branch_prefetch_hit_next_pc0_w),
@@ -1603,7 +1659,13 @@ module OooFrontend #(
     .seed_inst0_o(fifo_seed_inst0_w),
     .seed_inst1_o(fifo_seed_inst1_w),
     .seed_resp0_o(fifo_seed_resp0_w),
-    .seed_resp1_o(fifo_seed_resp1_w)
+    .seed_resp1_o(fifo_seed_resp1_w),
+    .seed_pred_taken0_o(fifo_seed_pred_taken0_w),
+    .seed_pred_taken1_o(fifo_seed_pred_taken1_w),
+    .seed_bht_idx0_o(fifo_seed_bht_idx0_w),
+    .seed_bht_idx1_o(fifo_seed_bht_idx1_w),
+    .seed_bht_valid0_o(fifo_seed_bht_valid0_w),
+    .seed_bht_valid1_o(fifo_seed_bht_valid1_w)
   );
 
 
@@ -1624,6 +1686,12 @@ module OooFrontend #(
     .seed_inst1_i(fifo_seed_inst1_w),
     .seed_resp0_i(fifo_seed_resp0_w),
     .seed_resp1_i(fifo_seed_resp1_w),
+    .seed_pred_taken0_i(fifo_seed_pred_taken0_w),
+    .seed_pred_taken1_i(fifo_seed_pred_taken1_w),
+    .seed_bht_idx0_i(fifo_seed_bht_idx0_w),
+    .seed_bht_idx1_i(fifo_seed_bht_idx1_w),
+    .seed_bht_valid0_i(fifo_seed_bht_valid0_w),
+    .seed_bht_valid1_i(fifo_seed_bht_valid1_w),
     .enqueue_i(fetch_rsp_enqueue_w),
     .enqueue_pc0_i(fetch_dec0_pc_w),
     .enqueue_pc1_i(fetch_dec1_pc_w),
@@ -1634,6 +1702,12 @@ module OooFrontend #(
     .enqueue_inst1_i(fetch_dec1_inst_w),
     .enqueue_resp0_i(fetch_dec0_resp_w),
     .enqueue_resp1_i(fetch_dec1_resp_w),
+    .enqueue_pred_taken0_i(fetch_dec0_pred_taken_w),
+    .enqueue_pred_taken1_i(fetch_dec1_pred_taken_w),
+    .enqueue_bht_idx0_i(fetch_dec0_bht_idx_w),
+    .enqueue_bht_idx1_i(fetch_dec1_bht_idx_w),
+    .enqueue_bht_valid0_i(fetch_dec0_bht_valid_w),
+    .enqueue_bht_valid1_i(fetch_dec1_bht_valid_w),
     .pop_i(fifo_storage_pop_w),
     .head_valid_o(fifo_storage_head_valid_w),
     .head_pc0_o(fifo_head_pc0_w),
@@ -1645,6 +1719,12 @@ module OooFrontend #(
     .head_inst1_o(fifo_head_inst1_w),
     .head_resp0_o(fifo_head_resp0_w),
     .head_resp1_o(fifo_head_resp1_w),
+    .head_pred_taken0_o(fifo_head_pred_taken0_w),
+    .head_pred_taken1_o(fifo_head_pred_taken1_w),
+    .head_bht_idx0_o(fifo_head_bht_idx0_w),
+    .head_bht_idx1_o(fifo_head_bht_idx1_w),
+    .head_bht_valid0_o(fifo_head_bht_valid0_w),
+    .head_bht_valid1_o(fifo_head_bht_valid1_w),
     .head1_pc0_o(fifo_head1_pc0_w),
     .count_o(fifo_count_q)
   );
@@ -1716,8 +1796,10 @@ module OooFrontend #(
       (dispatch0_jump_w && !dispatch0_return_w) ||
       dispatch0_csr_w;   // 【serialize Phase1 §4#3】head0-CSR 单发, 禁 lane1 影子(younger 不与 CSR 同包进 ROB)
 
-  // 【F2】dispatch 载荷: BHT 查询快照直通(prefetch/pending 臂非分支, 后端只在
-  // is_branch 时消费, 载荷错位无害)
+  // 【F2→B2 S1】dispatch 载荷: BHT 查询快照=包内存储位(fetch resp 拍定格, FIFO 经
+  // HeadMux 读出; 不再是 head 拍活查询直通)。prefetch/pending 臂非分支, 后端只在
+  // is_branch 时消费, 载荷错位无害。resolve 拍 BPU 回训用的 bht_idx 即此存储位
+  // ——训 fetch 拍查过的表项。
   assign core_dispatch0_bht_idx_w = head0_branch_bht_idx_w;
   assign core_dispatch0_pred_taken_w = head0_branch_pred_taken_w;
   assign core_dispatch1_bht_idx_w = head1_branch_bht_idx_w;
@@ -1760,22 +1842,28 @@ module OooFrontend #(
   );
 
 
+  // 【B2 S1】BPU lookup 接线迁移: head 拍(FIFO head 活查询)→ fetch resp 拍(判决/
+  // enqueue 拍)。lookup 输入=PacketDecode 组合输出(dec pc + B-imm, 分支时与
+  // DecodeStage head imm 逐位同式); 输出当拍随包写 FIFO(enqueue/fallthrough-seed),
+  // dispatch 拍全部消费存储位。BPU 本体零改动; head 拍活查询口物理断开(本实例是
+  // lookup 唯一查询口, 无双查询)。GHR 演进时点差异(resp↔dispatch 间的 resolve
+  // update)仅影响预测值, 不改任何架构行为路径(S1 行为语义等价台阶)。
   OooBranchDirectionPredictor u_branch_direction_predictor (
     .clk(clk),
     .rst(rst),
     .clear_i(flush_i),
-    .lookup0_pc_i(head_pc_w),
-    .lookup0_imm_i(head0_imm_w),
-    .lookup0_bht_idx_o(head0_branch_bht_idx_w),
-    .lookup0_bht_valid_o(head0_branch_bht_valid_w),
-    .lookup0_pred_taken_o(head0_branch_pred_taken_w),
-    .lookup0_predict_strong_o(head0_branch_predict_strong_w),
-    .lookup1_pc_i(head_pc1_w),
-    .lookup1_imm_i(head1_imm_w),
-    .lookup1_bht_idx_o(head1_branch_bht_idx_w),
-    .lookup1_bht_valid_o(head1_branch_bht_valid_w),
-    .lookup1_pred_taken_o(head1_branch_pred_taken_w),
-    .lookup1_predict_strong_o(head1_branch_predict_strong_w),
+    .lookup0_pc_i(fetch_dec0_pc_w),
+    .lookup0_imm_i(fetch_dec0_bimm_w),
+    .lookup0_bht_idx_o(fetch_dec0_bht_idx_w),
+    .lookup0_bht_valid_o(fetch_dec0_bht_valid_w),
+    .lookup0_pred_taken_o(fetch_dec0_pred_taken_w),
+    .lookup0_predict_strong_o(fetch_dec0_predict_strong_w),
+    .lookup1_pc_i(fetch_dec1_pc_w),
+    .lookup1_imm_i(fetch_dec1_bimm_w),
+    .lookup1_bht_idx_o(fetch_dec1_bht_idx_w),
+    .lookup1_bht_valid_o(fetch_dec1_bht_valid_w),
+    .lookup1_pred_taken_o(fetch_dec1_pred_taken_w),
+    .lookup1_predict_strong_o(fetch_dec1_predict_strong_w),
     .update_valid_i(branch_bpu_update_valid_w),
     .update_pc_i(branch_bpu_update_pc_w),
     .update_bht_idx_i(branch_bpu_update_bht_idx_w),
@@ -2048,6 +2136,12 @@ module OooFrontend #(
       head0_fp_double_w | head0_fp_gpr_write_w | head0_fp_load_raw_w |
       head0_fp_store_raw_w | head1_fp_double_w | head1_fp_enabled_w |
       head1_fp_gpr_write_w | head1_fp_load_raw_w | head1_fp_store_raw_w;
+
+  // 【B2 S1】resp 拍分支识别位(dec*_branch)与 predict_strong 本台阶无 RTL 消费者
+  // (branch 位=S2 taken 拍断融合的判定输入; strong 位原 head 拍版也仅 checker 消费)。
+  wire frontend_fetch_dec_pred_unused_w =
+      fetch_dec0_branch_w | fetch_dec1_branch_w |
+      fetch_dec0_predict_strong_w | fetch_dec1_predict_strong_w;
 
 `ifdef OOO_ASSERT
   // INV-1' (flush-redirect 契约 §4, GAP-1 后继, P4 切消费点改口径): arbiter branch 口

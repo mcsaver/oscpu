@@ -18,6 +18,13 @@ module tb_ooo_fetch_packet_fifo;
   reg [`INST_W-1:0] seed_inst1;
   reg [1:0] seed_resp0;
   reg [1:0] seed_resp1;
+  // B2 S1: per-slot 预测位随包存储
+  reg seed_pred_taken0;
+  reg seed_pred_taken1;
+  reg [`BPU_BHT_INDEX_W-1:0] seed_bht_idx0;
+  reg [`BPU_BHT_INDEX_W-1:0] seed_bht_idx1;
+  reg seed_bht_valid0;
+  reg seed_bht_valid1;
   reg enqueue;
   reg [`XLEN-1:0] enqueue_pc0;
   reg [`XLEN-1:0] enqueue_pc1;
@@ -28,6 +35,12 @@ module tb_ooo_fetch_packet_fifo;
   reg [`INST_W-1:0] enqueue_inst1;
   reg [1:0] enqueue_resp0;
   reg [1:0] enqueue_resp1;
+  reg enqueue_pred_taken0;
+  reg enqueue_pred_taken1;
+  reg [`BPU_BHT_INDEX_W-1:0] enqueue_bht_idx0;
+  reg [`BPU_BHT_INDEX_W-1:0] enqueue_bht_idx1;
+  reg enqueue_bht_valid0;
+  reg enqueue_bht_valid1;
   reg pop;
   wire head_valid;
   wire [`XLEN-1:0] head_pc0;
@@ -39,6 +52,12 @@ module tb_ooo_fetch_packet_fifo;
   wire [`INST_W-1:0] head_inst1;
   wire [1:0] head_resp0;
   wire [1:0] head_resp1;
+  wire head_pred_taken0;
+  wire head_pred_taken1;
+  wire [`BPU_BHT_INDEX_W-1:0] head_bht_idx0;
+  wire [`BPU_BHT_INDEX_W-1:0] head_bht_idx1;
+  wire head_bht_valid0;
+  wire head_bht_valid1;
   wire [FETCH_COUNT_W-1:0] count;
 
   OooFetchPacketFifo #(
@@ -58,6 +77,12 @@ module tb_ooo_fetch_packet_fifo;
     .seed_inst1_i(seed_inst1),
     .seed_resp0_i(seed_resp0),
     .seed_resp1_i(seed_resp1),
+    .seed_pred_taken0_i(seed_pred_taken0),
+    .seed_pred_taken1_i(seed_pred_taken1),
+    .seed_bht_idx0_i(seed_bht_idx0),
+    .seed_bht_idx1_i(seed_bht_idx1),
+    .seed_bht_valid0_i(seed_bht_valid0),
+    .seed_bht_valid1_i(seed_bht_valid1),
     .enqueue_i(enqueue),
     .enqueue_pc0_i(enqueue_pc0),
     .enqueue_pc1_i(enqueue_pc1),
@@ -68,6 +93,12 @@ module tb_ooo_fetch_packet_fifo;
     .enqueue_inst1_i(enqueue_inst1),
     .enqueue_resp0_i(enqueue_resp0),
     .enqueue_resp1_i(enqueue_resp1),
+    .enqueue_pred_taken0_i(enqueue_pred_taken0),
+    .enqueue_pred_taken1_i(enqueue_pred_taken1),
+    .enqueue_bht_idx0_i(enqueue_bht_idx0),
+    .enqueue_bht_idx1_i(enqueue_bht_idx1),
+    .enqueue_bht_valid0_i(enqueue_bht_valid0),
+    .enqueue_bht_valid1_i(enqueue_bht_valid1),
     .pop_i(pop),
     .head_valid_o(head_valid),
     .head_pc0_o(head_pc0),
@@ -79,6 +110,12 @@ module tb_ooo_fetch_packet_fifo;
     .head_inst1_o(head_inst1),
     .head_resp0_o(head_resp0),
     .head_resp1_o(head_resp1),
+    .head_pred_taken0_o(head_pred_taken0),
+    .head_pred_taken1_o(head_pred_taken1),
+    .head_bht_idx0_o(head_bht_idx0),
+    .head_bht_idx1_o(head_bht_idx1),
+    .head_bht_valid0_o(head_bht_valid0),
+    .head_bht_valid1_o(head_bht_valid1),
     .count_o(count)
   );
 
@@ -114,6 +151,28 @@ module tb_ooo_fetch_packet_fifo;
     end
   endtask
 
+  // B2 S1: per-packet 预测位由 pc 派生(每包唯一)——head 读出必须与写入包逐位一致
+  function automatic pred_taken0_of;
+    input [`XLEN-1:0] pc;
+    begin pred_taken0_of = pc[12]; end
+  endfunction
+  function automatic pred_taken1_of;
+    input [`XLEN-1:0] pc;
+    begin pred_taken1_of = ~pc[12]; end
+  endfunction
+  function automatic [`BPU_BHT_INDEX_W-1:0] bht_idx0_of;
+    input [`XLEN-1:0] pc;
+    begin bht_idx0_of = pc[`BPU_BHT_INDEX_W+1:2]; end
+  endfunction
+  function automatic [`BPU_BHT_INDEX_W-1:0] bht_idx1_of;
+    input [`XLEN-1:0] pc;
+    begin bht_idx1_of = ~pc[`BPU_BHT_INDEX_W+1:2]; end
+  endfunction
+  function automatic bht_valid1_of;
+    input [`XLEN-1:0] pc;
+    begin bht_valid1_of = pc[13]; end
+  endfunction
+
   task automatic drive_enqueue_packet;
     input [`XLEN-1:0] pc;
     input [`INST_W-1:0] inst0;
@@ -129,6 +188,12 @@ module tb_ooo_fetch_packet_fifo;
       enqueue_inst1 = inst1;
       enqueue_resp0 = 2'b00;
       enqueue_resp1 = 2'b00;
+      enqueue_pred_taken0 = pred_taken0_of(pc);
+      enqueue_pred_taken1 = pred_taken1_of(pc);
+      enqueue_bht_idx0 = bht_idx0_of(pc);
+      enqueue_bht_idx1 = bht_idx1_of(pc);
+      enqueue_bht_valid0 = 1'b1;
+      enqueue_bht_valid1 = bht_valid1_of(pc);
     end
   endtask
 
@@ -147,6 +212,12 @@ module tb_ooo_fetch_packet_fifo;
       seed_inst1 = inst1;
       seed_resp0 = 2'b00;
       seed_resp1 = 2'b01;
+      seed_pred_taken0 = pred_taken0_of(pc);
+      seed_pred_taken1 = pred_taken1_of(pc);
+      seed_bht_idx0 = bht_idx0_of(pc);
+      seed_bht_idx1 = bht_idx1_of(pc);
+      seed_bht_valid0 = 1'b1;
+      seed_bht_valid1 = bht_valid1_of(pc);
     end
   endtask
 
@@ -178,6 +249,17 @@ module tb_ooo_fetch_packet_fifo;
       tb_check1({what, " resp0 bit1"}, head_resp0[1], 1'b0);
       tb_check1({what, " resp1 bit0"}, head_resp1[0], resp1[0]);
       tb_check1({what, " resp1 bit1"}, head_resp1[1], resp1[1]);
+      // B2 S1: 预测位随包(写入拍定格, head 读出与包内容逐位一致)
+      tb_check1({what, " pred_taken0"}, head_pred_taken0, pred_taken0_of(pc));
+      tb_check1({what, " pred_taken1"}, head_pred_taken1, pred_taken1_of(pc));
+      tb_check32({what, " bht_idx0"},
+                 {{(32-`BPU_BHT_INDEX_W){1'b0}}, head_bht_idx0},
+                 {{(32-`BPU_BHT_INDEX_W){1'b0}}, bht_idx0_of(pc)});
+      tb_check32({what, " bht_idx1"},
+                 {{(32-`BPU_BHT_INDEX_W){1'b0}}, head_bht_idx1},
+                 {{(32-`BPU_BHT_INDEX_W){1'b0}}, bht_idx1_of(pc)});
+      tb_check1({what, " bht_valid0"}, head_bht_valid0, 1'b1);
+      tb_check1({what, " bht_valid1"}, head_bht_valid1, bht_valid1_of(pc));
     end
   endtask
 
@@ -195,6 +277,12 @@ module tb_ooo_fetch_packet_fifo;
     seed_inst1 = {`INST_W{1'b0}};
     seed_resp0 = 2'b00;
     seed_resp1 = 2'b00;
+    seed_pred_taken0 = 1'b0;
+    seed_pred_taken1 = 1'b0;
+    seed_bht_idx0 = {`BPU_BHT_INDEX_W{1'b0}};
+    seed_bht_idx1 = {`BPU_BHT_INDEX_W{1'b0}};
+    seed_bht_valid0 = 1'b0;
+    seed_bht_valid1 = 1'b0;
     enqueue = 1'b0;
     enqueue_pc0 = {`XLEN{1'b0}};
     enqueue_pc1 = {`XLEN{1'b0}};
@@ -205,6 +293,12 @@ module tb_ooo_fetch_packet_fifo;
     enqueue_inst1 = {`INST_W{1'b0}};
     enqueue_resp0 = 2'b00;
     enqueue_resp1 = 2'b00;
+    enqueue_pred_taken0 = 1'b0;
+    enqueue_pred_taken1 = 1'b0;
+    enqueue_bht_idx0 = {`BPU_BHT_INDEX_W{1'b0}};
+    enqueue_bht_idx1 = {`BPU_BHT_INDEX_W{1'b0}};
+    enqueue_bht_valid0 = 1'b0;
+    enqueue_bht_valid1 = 1'b0;
     pop = 1'b0;
     tb_errors = 0;
 

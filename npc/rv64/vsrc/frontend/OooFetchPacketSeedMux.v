@@ -36,6 +36,14 @@ module OooFetchPacketSeedMux (
   input [`INST_W-1:0] fallthrough_inst1_i,
   input [1:0] fallthrough_resp0_i,
   input [1:0] fallthrough_resp1_i,
+  // 【B2 S1】fallthrough capture 的预测位: payload 与 enqueue 同拍同包(fetch_dec*),
+  // 直接跟随 resp 拍 BPU lookup 组合输出——与 enqueue 路径机械同源, 预测一次定格。
+  input fallthrough_pred_taken0_i,
+  input fallthrough_pred_taken1_i,
+  input [`BPU_BHT_INDEX_W-1:0] fallthrough_bht_idx0_i,
+  input [`BPU_BHT_INDEX_W-1:0] fallthrough_bht_idx1_i,
+  input fallthrough_bht_valid0_i,
+  input fallthrough_bht_valid1_i,
 
   input [`XLEN-1:0] branch_pc0_i,
   input [`XLEN-1:0] branch_pc1_i,
@@ -67,7 +75,13 @@ module OooFetchPacketSeedMux (
   output reg [`INST_W-1:0] seed_inst0_o,
   output reg [`INST_W-1:0] seed_inst1_o,
   output reg [1:0] seed_resp0_o,
-  output reg [1:0] seed_resp1_o
+  output reg [1:0] seed_resp1_o,
+  output reg seed_pred_taken0_o,
+  output reg seed_pred_taken1_o,
+  output reg [`BPU_BHT_INDEX_W-1:0] seed_bht_idx0_o,
+  output reg [`BPU_BHT_INDEX_W-1:0] seed_bht_idx1_o,
+  output reg seed_bht_valid0_o,
+  output reg seed_bht_valid1_o
 );
 
   task set_seed;
@@ -80,6 +94,12 @@ module OooFetchPacketSeedMux (
     input [`INST_W-1:0] inst1;
     input [1:0] resp0;
     input [1:0] resp1;
+    input pred_taken0;
+    input pred_taken1;
+    input [`BPU_BHT_INDEX_W-1:0] bht_idx0;
+    input [`BPU_BHT_INDEX_W-1:0] bht_idx1;
+    input bht_valid0;
+    input bht_valid1;
     begin
       clear_o = 1'b0;
       seed_valid_o = 1'b1;
@@ -92,6 +112,12 @@ module OooFetchPacketSeedMux (
       seed_inst1_o = inst1;
       seed_resp0_o = resp0;
       seed_resp1_o = resp1;
+      seed_pred_taken0_o = pred_taken0;
+      seed_pred_taken1_o = pred_taken1;
+      seed_bht_idx0_o = bht_idx0;
+      seed_bht_idx1_o = bht_idx1;
+      seed_bht_valid0_o = bht_valid0;
+      seed_bht_valid1_o = bht_valid1;
     end
   endtask
 
@@ -114,6 +140,12 @@ module OooFetchPacketSeedMux (
     seed_inst1_o = {`INST_W{1'b0}};
     seed_resp0_o = 2'b00;
     seed_resp1_o = 2'b00;
+    seed_pred_taken0_o = 1'b0;
+    seed_pred_taken1_o = 1'b0;
+    seed_bht_idx0_o = {`BPU_BHT_INDEX_W{1'b0}};
+    seed_bht_idx1_o = {`BPU_BHT_INDEX_W{1'b0}};
+    seed_bht_valid0_o = 1'b0;
+    seed_bht_valid1_o = 1'b0;
 
     if (csr_trap_i) begin
       set_clear;
@@ -124,7 +156,10 @@ module OooFetchPacketSeedMux (
                  fallthrough_next_pc0_i, fallthrough_next_pc1_i,
                  fallthrough_packet_next_pc_i, fallthrough_inst0_i,
                  fallthrough_inst1_i, fallthrough_resp0_i,
-                 fallthrough_resp1_i);
+                 fallthrough_resp1_i,
+                 fallthrough_pred_taken0_i, fallthrough_pred_taken1_i,
+                 fallthrough_bht_idx0_i, fallthrough_bht_idx1_i,
+                 fallthrough_bht_valid0_i, fallthrough_bht_valid1_i);
       end
     end
 
@@ -138,9 +173,12 @@ module OooFetchPacketSeedMux (
       if (pending_branch_misaligned_i) begin
         set_clear;
       end else if (branch_prefetch_hit_i) begin
+        // 死硅臂(hit 恒0): 预测位=静态 not-taken 安全值 0。
         set_seed(branch_pc0_i, branch_pc1_i, branch_next_pc0_i,
                  branch_next_pc1_i, branch_packet_next_pc_i, branch_inst0_i,
-                 branch_inst1_i, branch_resp0_i, branch_resp1_i);
+                 branch_inst1_i, branch_resp0_i, branch_resp1_i,
+                 1'b0, 1'b0, {`BPU_BHT_INDEX_W{1'b0}},
+                 {`BPU_BHT_INDEX_W{1'b0}}, 1'b0, 1'b0);
       end else begin
         set_clear;
       end
@@ -151,9 +189,12 @@ module OooFetchPacketSeedMux (
         set_clear;
       end else if (pending_jump_redirect_i) begin
         if (jalr_prefetch_hit_i) begin
+          // 死硅臂(hit 恒0): 预测位=静态 not-taken 安全值 0。
           set_seed(jalr_pc0_i, jalr_pc1_i, jalr_next_pc0_i,
                    jalr_next_pc1_i, jalr_packet_next_pc_i, jalr_inst0_i,
-                   jalr_inst1_i, jalr_resp0_i, jalr_resp1_i);
+                   jalr_inst1_i, jalr_resp0_i, jalr_resp1_i,
+                   1'b0, 1'b0, {`BPU_BHT_INDEX_W{1'b0}},
+                   {`BPU_BHT_INDEX_W{1'b0}}, 1'b0, 1'b0);
         end else begin
           set_clear;
         end
@@ -175,9 +216,12 @@ module OooFetchPacketSeedMux (
         set_clear;
       end else if (drain_pending_jump_i) begin
         if (jalr_prefetch_hit_i) begin
+          // 死硅臂(hit 恒0): 预测位=静态 not-taken 安全值 0。
           set_seed(jalr_pc0_i, jalr_pc1_i, jalr_next_pc0_i,
                    jalr_next_pc1_i, jalr_packet_next_pc_i, jalr_inst0_i,
-                   jalr_inst1_i, jalr_resp0_i, jalr_resp1_i);
+                   jalr_inst1_i, jalr_resp0_i, jalr_resp1_i,
+                   1'b0, 1'b0, {`BPU_BHT_INDEX_W{1'b0}},
+                   {`BPU_BHT_INDEX_W{1'b0}}, 1'b0, 1'b0);
         end else begin
           set_clear;
         end

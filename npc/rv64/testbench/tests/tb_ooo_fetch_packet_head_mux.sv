@@ -14,6 +14,13 @@ module tb_ooo_fetch_packet_head_mux;
   reg [`INST_W-1:0] bypass_inst1;
   reg [1:0] bypass_resp0;
   reg [1:0] bypass_resp1;
+  // B2 S1: per-slot 预测位管道化
+  reg bypass_pred_taken0;
+  reg bypass_pred_taken1;
+  reg [`BPU_BHT_INDEX_W-1:0] bypass_bht_idx0;
+  reg [`BPU_BHT_INDEX_W-1:0] bypass_bht_idx1;
+  reg bypass_bht_valid0;
+  reg bypass_bht_valid1;
 
   reg [`XLEN-1:0] fifo_pc0;
   reg [`XLEN-1:0] fifo_pc1;
@@ -24,6 +31,12 @@ module tb_ooo_fetch_packet_head_mux;
   reg [`INST_W-1:0] fifo_inst1;
   reg [1:0] fifo_resp0;
   reg [1:0] fifo_resp1;
+  reg fifo_pred_taken0;
+  reg fifo_pred_taken1;
+  reg [`BPU_BHT_INDEX_W-1:0] fifo_bht_idx0;
+  reg [`BPU_BHT_INDEX_W-1:0] fifo_bht_idx1;
+  reg fifo_bht_valid0;
+  reg fifo_bht_valid1;
 
   wire head_has_packet;
   wire [`XLEN-1:0] head_pc0;
@@ -35,6 +48,12 @@ module tb_ooo_fetch_packet_head_mux;
   wire [`INST_W-1:0] head_inst1;
   wire [1:0] head_resp0;
   wire [1:0] head_resp1;
+  wire head_pred_taken0;
+  wire head_pred_taken1;
+  wire [`BPU_BHT_INDEX_W-1:0] head_bht_idx0;
+  wire [`BPU_BHT_INDEX_W-1:0] head_bht_idx1;
+  wire head_bht_valid0;
+  wire head_bht_valid1;
 
   OooFetchPacketHeadMux dut (
     .bypass_valid_i(bypass_valid),
@@ -48,6 +67,12 @@ module tb_ooo_fetch_packet_head_mux;
     .bypass_inst1_i(bypass_inst1),
     .bypass_resp0_i(bypass_resp0),
     .bypass_resp1_i(bypass_resp1),
+    .bypass_pred_taken0_i(bypass_pred_taken0),
+    .bypass_pred_taken1_i(bypass_pred_taken1),
+    .bypass_bht_idx0_i(bypass_bht_idx0),
+    .bypass_bht_idx1_i(bypass_bht_idx1),
+    .bypass_bht_valid0_i(bypass_bht_valid0),
+    .bypass_bht_valid1_i(bypass_bht_valid1),
     .fifo_pc0_i(fifo_pc0),
     .fifo_pc1_i(fifo_pc1),
     .fifo_next_pc0_i(fifo_next_pc0),
@@ -57,6 +82,12 @@ module tb_ooo_fetch_packet_head_mux;
     .fifo_inst1_i(fifo_inst1),
     .fifo_resp0_i(fifo_resp0),
     .fifo_resp1_i(fifo_resp1),
+    .fifo_pred_taken0_i(fifo_pred_taken0),
+    .fifo_pred_taken1_i(fifo_pred_taken1),
+    .fifo_bht_idx0_i(fifo_bht_idx0),
+    .fifo_bht_idx1_i(fifo_bht_idx1),
+    .fifo_bht_valid0_i(fifo_bht_valid0),
+    .fifo_bht_valid1_i(fifo_bht_valid1),
     .head_has_packet_o(head_has_packet),
     .head_pc0_o(head_pc0),
     .head_pc1_o(head_pc1),
@@ -66,7 +97,13 @@ module tb_ooo_fetch_packet_head_mux;
     .head_inst0_o(head_inst0),
     .head_inst1_o(head_inst1),
     .head_resp0_o(head_resp0),
-    .head_resp1_o(head_resp1)
+    .head_resp1_o(head_resp1),
+    .head_pred_taken0_o(head_pred_taken0),
+    .head_pred_taken1_o(head_pred_taken1),
+    .head_bht_idx0_o(head_bht_idx0),
+    .head_bht_idx1_o(head_bht_idx1),
+    .head_bht_valid0_o(head_bht_valid0),
+    .head_bht_valid1_o(head_bht_valid1)
   );
 
   task automatic check_xlen;
@@ -107,6 +144,29 @@ module tb_ooo_fetch_packet_head_mux;
     end
   endtask
 
+  // B2 S1: 预测位随包管道化——头包预测字段必须与被选源逐位一致
+  task automatic check_pred;
+    input [1023:0] tag;
+    input exp_pred_taken0;
+    input exp_pred_taken1;
+    input [`BPU_BHT_INDEX_W-1:0] exp_bht_idx0;
+    input [`BPU_BHT_INDEX_W-1:0] exp_bht_idx1;
+    input exp_bht_valid0;
+    input exp_bht_valid1;
+    begin
+      tb_check1({tag, " pred_taken0"}, head_pred_taken0, exp_pred_taken0);
+      tb_check1({tag, " pred_taken1"}, head_pred_taken1, exp_pred_taken1);
+      tb_check32({tag, " bht_idx0"},
+                 {{(32-`BPU_BHT_INDEX_W){1'b0}}, head_bht_idx0},
+                 {{(32-`BPU_BHT_INDEX_W){1'b0}}, exp_bht_idx0});
+      tb_check32({tag, " bht_idx1"},
+                 {{(32-`BPU_BHT_INDEX_W){1'b0}}, head_bht_idx1},
+                 {{(32-`BPU_BHT_INDEX_W){1'b0}}, exp_bht_idx1});
+      tb_check1({tag, " bht_valid0"}, head_bht_valid0, exp_bht_valid0);
+      tb_check1({tag, " bht_valid1"}, head_bht_valid1, exp_bht_valid1);
+    end
+  endtask
+
   task automatic drive_defaults;
     begin
       bypass_valid = 1'b0;
@@ -129,6 +189,18 @@ module tb_ooo_fetch_packet_head_mux;
       fifo_inst1 = 32'h0030_0193;
       fifo_resp0 = 2'b00;
       fifo_resp1 = 2'b11;
+      bypass_pred_taken0 = 1'b1;
+      bypass_pred_taken1 = 1'b0;
+      bypass_bht_idx0 = `BPU_BHT_INDEX_W'h1a5;
+      bypass_bht_idx1 = `BPU_BHT_INDEX_W'h05a;
+      bypass_bht_valid0 = 1'b1;
+      bypass_bht_valid1 = 1'b0;
+      fifo_pred_taken0 = 1'b0;
+      fifo_pred_taken1 = 1'b1;
+      fifo_bht_idx0 = `BPU_BHT_INDEX_W'h233;
+      fifo_bht_idx1 = `BPU_BHT_INDEX_W'h0cc;
+      fifo_bht_valid0 = 1'b0;
+      fifo_bht_valid1 = 1'b1;
       #1;
     end
   endtask
@@ -149,6 +221,9 @@ module tb_ooo_fetch_packet_head_mux;
     check_packet("fifo selected", fifo_pc0, fifo_pc1, fifo_next_pc0,
                  fifo_next_pc1, fifo_packet_next_pc, fifo_inst0, fifo_inst1,
                  fifo_resp0, fifo_resp1);
+    check_pred("fifo selected", fifo_pred_taken0, fifo_pred_taken1,
+               fifo_bht_idx0, fifo_bht_idx1, fifo_bht_valid0,
+               fifo_bht_valid1);
 
     drive_defaults();
     bypass_valid = 1'b1;
@@ -157,6 +232,9 @@ module tb_ooo_fetch_packet_head_mux;
     check_packet("bypass selected", bypass_pc0, bypass_pc1, bypass_next_pc0,
                  bypass_next_pc1, bypass_packet_next_pc, bypass_inst0,
                  bypass_inst1, bypass_resp0, bypass_resp1);
+    check_pred("bypass selected", bypass_pred_taken0, bypass_pred_taken1,
+               bypass_bht_idx0, bypass_bht_idx1, bypass_bht_valid0,
+               bypass_bht_valid1);
 
     drive_defaults();
     bypass_valid = 1'b1;
@@ -166,6 +244,9 @@ module tb_ooo_fetch_packet_head_mux;
     check_packet("bypass wins over fifo", bypass_pc0, bypass_pc1,
                  bypass_next_pc0, bypass_next_pc1, bypass_packet_next_pc,
                  bypass_inst0, bypass_inst1, bypass_resp0, bypass_resp1);
+    check_pred("bypass wins over fifo", bypass_pred_taken0,
+               bypass_pred_taken1, bypass_bht_idx0, bypass_bht_idx1,
+               bypass_bht_valid0, bypass_bht_valid1);
 
     tb_finish("tb_ooo_fetch_packet_head_mux");
   end
