@@ -1314,6 +1314,8 @@ module OooFrontend #(
     .branch_prefetch_req_valid_i(branch_prefetch_req_valid_w),
     .branch_prefetch_req_pc_i(branch_prefetch_req_pc_w),
     .direct_jump_spec_fire_i(direct_jump_spec_fire_w),
+    .direct_branch0_fire_i(direct_branch0_fire_w),
+    .direct_branch1_fire_i(direct_branch1_fire_w),
     .redirect_valid_i(redirect_valid_w),
     .redirect_pc_i(redirect_pc_w),
     .direct_redirect_fetch_o(direct_redirect_fetch_w),

@@ -26,6 +26,8 @@ module tb_ooo_fetch_request_mux;
   reg branch_prefetch_req_valid;
   reg [`XLEN-1:0] branch_prefetch_req_pc;
   reg direct_jump_spec_fire;
+  reg direct_branch0_fire;
+  reg direct_branch1_fire;
   reg redirect_valid;
   reg [`XLEN-1:0] redirect_pc;
 
@@ -57,6 +59,8 @@ module tb_ooo_fetch_request_mux;
     .branch_prefetch_req_valid_i(branch_prefetch_req_valid),
     .branch_prefetch_req_pc_i(branch_prefetch_req_pc),
     .direct_jump_spec_fire_i(direct_jump_spec_fire),
+    .direct_branch0_fire_i(direct_branch0_fire),
+    .direct_branch1_fire_i(direct_branch1_fire),
     .redirect_valid_i(redirect_valid),
     .redirect_pc_i(redirect_pc),
     .direct_redirect_fetch_o(direct_redirect_fetch),
@@ -100,6 +104,8 @@ module tb_ooo_fetch_request_mux;
       branch_prefetch_req_valid = 1'b0;
       branch_prefetch_req_pc = 64'h0000_0000_0000_4000;
       direct_jump_spec_fire = 1'b0;
+      direct_branch0_fire = 1'b0;
+      direct_branch1_fire = 1'b0;
       redirect_valid = 1'b0;
       redirect_pc = 64'h0000_0000_0000_5000;
       #1;
@@ -210,6 +216,28 @@ module tb_ooo_fetch_request_mux;
     direct_jump_spec_fire = 1'b1;
     #1;
     tb_check1("jump spec still in direct OR", direct_redirect_fetch, 1'b1);
+
+    // 刀K1: taken/solo 分支 fire 同拍 redirect valid(PC 走 arbiter, 本口只补 valid)
+    reset_inputs();
+    redirect_valid = 1'b1;
+    redirect_pc = 64'h7000;
+    direct_branch0_fire = 1'b1;
+    #1;
+    tb_check1("K1 branch0 fire redirect valid", redirect_fetch_req_valid, 1'b1);
+    check_xlen("K1 branch0 fire pc via arbiter", redirect_fetch_pc, 64'h7000);
+    direct_branch0_fire = 1'b0;
+    direct_branch1_fire = 1'b1;
+    #1;
+    tb_check1("K1 branch1 fire redirect valid", redirect_fetch_req_valid, 1'b1);
+    direct_branch1_fire = 1'b0;
+    #1;
+    tb_check1("K1 no fire no valid", redirect_fetch_req_valid, 1'b0);
+    // K1 outstanding 门保持: 在飞且非 rsp fire 拍, branch fire 也不得发
+    direct_branch0_fire = 1'b1;
+    outstanding_valid = 1'b1;
+    fetch_rsp_fire = 1'b0;
+    #1;
+    tb_check1("K1 outstanding gates branch fire", redirect_fetch_req_valid, 1'b0);
 
     tb_finish("tb_ooo_fetch_request_mux");
   end
