@@ -36,11 +36,11 @@ library (OooBranchDirectionPredictor) {
     voltage : 1.2;
   }
   default_operating_conditions : macro_placeholder_tt_1p2_25;
-  type (bus_12) {
+  type (bus_10) {
     base_type : array;
     data_type : bit;
-    bit_width : 12;
-    bit_from : 11;
+    bit_width : 10;
+    bit_from : 9;
     bit_to : 0;
     downto : true;
   }
@@ -258,7 +258,7 @@ library (OooBranchDirectionPredictor) {
       }
     }
     bus (update_bht_idx_i) {
-      bus_type : bus_12;
+      bus_type : bus_10;
       direction : input;
       capacitance : 0.010;
       timing () {
@@ -307,7 +307,7 @@ library (OooBranchDirectionPredictor) {
       }
     }
     bus (lookup0_bht_idx_o) {
-      bus_type : bus_12;
+      bus_type : bus_10;
       direction : output;
       max_capacitance : 0.500;
       timing () {
@@ -392,7 +392,7 @@ library (OooBranchDirectionPredictor) {
       }
     }
     bus (lookup1_bht_idx_o) {
-      bus_type : bus_12;
+      bus_type : bus_10;
       direction : output;
       max_capacitance : 0.500;
       timing () {

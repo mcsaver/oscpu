@@ -81,6 +81,21 @@ K1 已吃掉每事件 1 拍；方案 A 增量=再省 1 拍（断融合形态）+
 | R4 | F2 kill 窗口家族①②（flush 拍旧值泄漏/同拍 push 漏标） | 改流 mux 当拍赢+断言；E3×enqueue 真值表 TB |
 | R5 | 契约文档漂移 | ooo-flush-redirect-contract.md 同刀修订（K1 已开先例） |
 
-## 6. 变更记录
+## 6. S1 落地记录（2026-07-10）
+
+- S1 台阶落地（`fac7468ca`）：BPU lookup 迁 resp 拍、预测位随包存 FIFO（+6 字段）、
+  dispatch 全存储位消费（活查询口物理断开）。CoreMark CPI 1.064 持平（cycle 中性✓）、
+  accuracy 88.6%（-0.1pp，GHR 时点前移预期微变）；86/86+lint 双变体+contract 32+
+  riscv 177/177+0xfcaf 全绿。seed fallthrough 臂预测位接同拍 BPU 组合输出
+  （防 bht_idx=0 回训污染——实施中的正确决策）。
+- **STA 验收暴露新锥（WNS -7.51→-10.78）**：BPU lookup 挂在融合组合 rsp 上，
+  接在 dcache rdata→…→fetch 融合交付→dec→imm 提取→BPU lookup 的长链尾部——
+  比 spec R1 预想深（R1 只预防了"pred→改流"方向，未预防"数据→lookup 输入"方向）。
+- **S1.5（下一步，先于 S2）**：lookup 挪到 enqueue 次拍——预测位补写 FIFO 表项
+  （包在 FIFO 至少驻留 1 拍，dispatch 前补写完成；FIFO 空直达 head 场景 fallback
+  静态预测位）。把 BPU 查询彻底摘出融合组合拍，锥断开。
+
+## 7. 变更记录
 
 - 2026-07-10：spec 冻结（K1 前置已落地；断融合形态定为默认）。
+- 2026-07-10（同日）：S1 落地+STA 暴露 lookup 锥+S1.5 方案（§6）。
