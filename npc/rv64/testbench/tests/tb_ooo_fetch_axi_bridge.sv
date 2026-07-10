@@ -61,6 +61,13 @@ module tb_ooo_fetch_axi_bridge;
   localparam [`XLEN-1:0] PTE_USER_X_NO_ACCESS_FLAGS = 64'h09f;
   localparam [`XLEN-1:0] PTE_SUP_X_FLAGS = 64'h0cf;
   localparam [`XLEN-1:0] USER_INST_BEAT = 64'h0010_0093_0000_0013;
+  // 刀F 融合拍用例: M 模式直取地址(paging off), 不同 cache index
+  localparam [`XLEN-1:0] FUSION_PC1 = 64'h0000_0000_8000_1000;
+  localparam [`XLEN-1:0] FUSION_PC2 = 64'h0000_0000_8000_2000;
+  localparam [`XLEN-1:0] FUSION_PC3_COLD = 64'h0000_0000_8000_3000;
+  localparam [`XLEN-1:0] FUSION_BEAT1 = 64'h0020_0113_0000_0013;
+  localparam [`XLEN-1:0] FUSION_BEAT2 = 64'h0030_0193_0000_0013;
+  localparam [`XLEN-1:0] FUSION_BEAT3 = 64'h0040_0213_0000_0013;
   localparam [`XLEN-1:0] CROSS_FIRST_BEAT = 64'hcccc_cccc_97de_1693;
   localparam [`XLEN-1:0] CROSS_SECOND_BEAT = 64'h0073_0016_8693_0024;
   localparam [`XLEN-1:0] CROSS_MERGED_BEAT = 64'h0016_8693_0024_1693;
@@ -496,6 +503,75 @@ module tb_ooo_fetch_axi_bridge;
     walk_to_cross_fetch("cross-page packet uses translated next page");
     expect_rsp("cross-page packet merges non-contiguous pages",
                RESP_OK, RESP_OK, CROSS_MERGED_BEAT);
+
+    // ===== 刀F 融合拍定向用例(hit 流 1 包/拍契约) =====
+    // 预热两个 M 模式直取包(miss+fill)
+    start_fetch("fusion warm pc1 accepted", FUSION_PC1, `PRIV_M);
+    expect_ar("fusion warm pc1 goes axi", FUSION_PC1);
+    drive_r(FUSION_BEAT1, RESP_OK);
+    expect_rsp("fusion warm pc1 resp", RESP_OK, RESP_OK, FUSION_BEAT1);
+    start_fetch("fusion warm pc2 accepted", FUSION_PC2, `PRIV_M);
+    expect_ar("fusion warm pc2 goes axi", FUSION_PC2);
+    drive_r(FUSION_BEAT2, RESP_OK);
+    expect_rsp("fusion warm pc2 resp", RESP_OK, RESP_OK, FUSION_BEAT2);
+
+    // hit 1 拍口径 + 融合拍 back-to-back: fire 次拍 rsp 组合可见且同拍收下一请求
+    priv_mode = `PRIV_M;
+    fetch_req_pc = FUSION_PC1;
+    fetch_req_valid = 1'b1;
+    fetch_rsp_ready = 1'b1;
+    #1;
+    tb_check1("fusion refetch pc1 ready", fetch_req_ready, 1'b1);
+    tick();                       // fire PC1 → 判决拍
+    fetch_req_pc = FUSION_PC2;    // 判决拍驱动下一请求(valid 保持)
+    #1;
+    tb_check1("fusion hit rsp in 1 cycle", fetch_rsp_valid, 1'b1);
+    tb_check32_local("fusion hit inst0", fetch_rsp_inst0,
+                     FUSION_BEAT1[`INST_W-1:0]);
+    tb_check1("fusion beat accepts next req", fetch_req_ready, 1'b1);
+    tick();                       // 融合拍: PC1 rsp 消费 + PC2 fire, 留 S_LOOKUP
+    fetch_req_valid = 1'b0;
+    #1;
+    tb_check1("fusion back-to-back second rsp", fetch_rsp_valid, 1'b1);
+    tb_check32_local("fusion second inst0", fetch_rsp_inst0,
+                     FUSION_BEAT2[`INST_W-1:0]);
+    tick();                       // PC2 rsp 消费, 无新请求 → S_IDLE
+    fetch_rsp_ready = 1'b0;
+    #1;
+    tb_check1("fusion drain back to idle ready", fetch_req_ready, 1'b1);
+
+    // rsp 反压: hit 拍 rsp_ready=0 → 组合 rsp 保持 valid 但 ready=0, 次拍落寄存 S_RESP
+    fetch_req_pc = FUSION_PC1;
+    fetch_req_valid = 1'b1;
+    fetch_rsp_ready = 1'b0;
+    #1;
+    tick();                       // fire → 判决拍
+    fetch_req_valid = 1'b0;
+    #1;
+    tb_check1("stalled hit rsp valid", fetch_rsp_valid, 1'b1);
+    tb_check1("stalled hit not ready for next", fetch_req_ready, 1'b0);
+    tick();                       // 落寄存进 S_RESP(天然 skid)
+    #1;
+    tb_check1("skid holds rsp valid", fetch_rsp_valid, 1'b1);
+    tb_check32_local("skid holds inst0", fetch_rsp_inst0,
+                     FUSION_BEAT1[`INST_W-1:0]);
+    fetch_rsp_ready = 1'b1;
+    tick();                       // 消费
+    fetch_rsp_ready = 1'b0;
+
+    // miss 拍 ready=0: 冷地址判决拍不受理新请求(1RW/上下文单套防线)
+    fetch_req_pc = FUSION_PC3_COLD;
+    fetch_req_valid = 1'b1;
+    fetch_rsp_ready = 1'b1;
+    #1;
+    tick();                       // fire → 判决拍(miss)
+    #1;
+    tb_check1("miss beat rsp not valid", fetch_rsp_valid, 1'b0);
+    tb_check1("miss beat not ready", fetch_req_ready, 1'b0);
+    fetch_req_valid = 1'b0;
+    expect_ar("miss beat direct AR", FUSION_PC3_COLD);
+    drive_r(FUSION_BEAT3, RESP_OK);
+    expect_rsp("miss path resp unchanged", RESP_OK, RESP_OK, FUSION_BEAT3);
 
     tb_finish("tb_ooo_fetch_axi_bridge");
   end

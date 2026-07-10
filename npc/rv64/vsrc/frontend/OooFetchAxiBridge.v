@@ -471,15 +471,18 @@ module OooFetchAxiBridge (
   );
 
   // packet cache 使用 PC+satp/priv 做上下文 tag；ITLB 命中只缓存翻译，不绕过取指权限。
-  // S_LOOKUP(判决拍)不在 ready 集合 → fire 后至少隔 1 拍才接下一请求
-  // (hit 延迟 1→2 拍、吞吐 1→1/2, SRAM 同步读一期接受的代价)。
+  // 刀F 融合拍: S_LOOKUP 命中拍组合响应(payload 走 cache_*_w 直出), 同拍可接受新请求
+  // (该拍即新 fire 拍)——hit 流恢复 1 包/拍。miss/fault 拍 ready=0, walk/AXI 路径不变;
+  // rsp 不 ready 时走落寄存进 S_RESP 的既有路径(S_RESP=天然 skid)。
+  wire lookup_hit_resp_w = (state_q == S_LOOKUP) && cache_hit_w;
   assign fetch_req_ready_o = (state_q == S_IDLE) ||
-                             ((state_q == S_RESP) && fetch_rsp_ready_i);
-  assign fetch_rsp_valid_o = (state_q == S_RESP);
-  assign fetch_rsp_inst0_o = inst0_q;
-  assign fetch_rsp_inst1_o = inst1_q;
-  assign fetch_rsp_resp0_o = resp0_q;
-  assign fetch_rsp_resp1_o = resp1_q;
+                             ((state_q == S_RESP) && fetch_rsp_ready_i) ||
+                             (lookup_hit_resp_w && fetch_rsp_ready_i);
+  assign fetch_rsp_valid_o = (state_q == S_RESP) || lookup_hit_resp_w;
+  assign fetch_rsp_inst0_o = lookup_hit_resp_w ? cache_inst0_w : inst0_q;
+  assign fetch_rsp_inst1_o = lookup_hit_resp_w ? cache_inst1_w : inst1_q;
+  assign fetch_rsp_resp0_o = lookup_hit_resp_w ? cache_resp0_w : resp0_q;
+  assign fetch_rsp_resp1_o = lookup_hit_resp_w ? cache_resp1_w : resp1_q;
 
   assign ifu_axi_arvalid_o =
       ((state_q == S_WALK_AR) && !walk_pte_pmp_fault_w) || (state_q == S_AR0) ||
@@ -561,14 +564,42 @@ module OooFetchAxiBridge (
 
         S_LOOKUP: begin
           // 判决拍: cache_hit_raw_w=SRAM 同步读结果, ITLB/PMP 复检用 fire 拍锁存值。
-          // 本拍 fetch_req_ready_o=0; direct miss 的 AR 由 lookup_direct_miss_w 当拍
-          // 发起; mmu_flush 经顶部复位分支回 S_IDLE, 本判决自然作废。
+          // 刀F 融合拍: hit 响应本拍组合交付(见 fetch_rsp_valid_o 组合臂); miss/fault
+          // 拍 ready=0; direct miss 的 AR 由 lookup_direct_miss_w 当拍发起;
+          // mmu_flush 经顶部复位分支回 S_IDLE, 本判决自然作废。
           if (cache_hit_w) begin
-            inst0_q <= cache_inst0_w;
-            inst1_q <= cache_inst1_w;
-            resp0_q <= cache_resp0_w;
-            resp1_q <= cache_resp1_w;
-            state_q <= S_RESP;
+            if (fetch_rsp_ready_i) begin
+              if (fetch_req_valid_i) begin
+                // 融合拍=新 fire 拍: 锁新上下文+发射新 SRAM 读(lookup_en_i 自动覆盖),
+                // 留在 S_LOOKUP —— hit 稳态 1 包/拍。
+                pc_q <= fetch_req_pc_i;
+                paddr0_q <= fetch_req_pc_i;
+                paddr1_q <= req_cross_fetch_page_w ? req_second_page_vaddr_w :
+                                                       (fetch_req_pc_i + 64'd4);
+                packet_cross_page_q <= req_cross_fetch_page_w;
+                packet_first_bytes_q <= req_first_page_bytes_w;
+                first_beat_q <= {`XLEN{1'b0}};
+                inst0_q <= {`INST_W{1'b0}};
+                inst1_q <= {`INST_W{1'b0}};
+                resp0_q <= RESP_OK;
+                resp1_q <= RESP_OK;
+                paging_q <= req_paging_w;
+                req_priv_q <= priv_mode_i;
+                req_satp_q <= satp_i;
+                req_svpbmt_en_q <= svpbmt_en_i;
+                state_q <= S_LOOKUP;
+              end else begin
+                // 响应已组合交付且无新请求 → 直接回 IDLE(不经 S_RESP)
+                state_q <= S_IDLE;
+              end
+            end else begin
+              // rsp 反压: 落寄存进 S_RESP(天然 skid, dec_en 一拍性/失效窗口问题随之消失)
+              inst0_q <= cache_inst0_w;
+              inst1_q <= cache_inst1_w;
+              resp0_q <= cache_resp0_w;
+              resp1_q <= cache_resp1_w;
+              state_q <= S_RESP;
+            end
           end else if (req_exec_pmp_fault_w) begin
             resp0_q <= RESP_ACCESS_FAULT;
             resp1_q <= RESP_ACCESS_FAULT;
