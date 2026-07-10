@@ -330,9 +330,14 @@ module OooMemAxiBridge (
   // S_IDLE/S_RESP 态 drop_rsp_q 恒 0(FSM 不变量, BRG-ADV-NODROP 断言化), 故 cpu_kill
   // 项在可 advance 的状态里实际等价 flush_i——nokill(SQ drain 落存)项 flush 拍照常
   // 进 FSM(写必达), 非 nokill 项 flush 拍被挡且同拍被寄存站 flush 臂清除。
+  // 刀D 融合谓词: S_LOOKUP 命中拍组合响应(load hit 流 1 拍/load)。声明先行、
+  // assign 在 dcache hit 判定之后(iverilog14 net-decl-assign 前向引用禁令的
+  // 拆声明修复形态)。谓词含 !cpu_kill(p42 型污染防线: 被 kill load 禁经融合臂交付)。
+  wire lookup_hit_fusion_w;
   wire stage_advance_w = stg_valid_q && !dcache_rmw_busy_w &&
                          ((state_q == S_IDLE) ||
-                          ((state_q == S_RESP) && rsp_ready_w)) &&
+                          ((state_q == S_RESP) && rsp_ready_w) ||
+                          (lookup_hit_fusion_w && rsp_ready_w)) &&
                          (!cpu_kill_w || stg_nokill_q);
   wire req_write_w = stg_write_q;
   wire [`XLEN-1:0] req_addr_w = stg_addr_q;
@@ -445,6 +450,11 @@ module OooMemAxiBridge (
   // S_LOOKUP 判决: 跨线阻断统一用锁存 read_cross_q(accept 拍按 VA 低 3 位判,
   // VA/PA 页内偏移相同故对 walk 路同样成立), 窗口移位统一用锁存 paddr_q[2:0]。
   wire dcache_lookup_hit_final_w = dcache_lookup_hit_w && !read_cross_q;
+  // 刀D 融合谓词 assign(声明见 stage_advance_w 前): hit 锥输入全 FF/锁存
+  // (lookup_pend/cacheable/valid FF+锁存 tag 比较), 无 fetch 窗口②那样的当拍
+  // snoop 地址比较链——无需降级臂(详 design/arch/knife-d-dcache-hit-fusion.md)。
+  assign lookup_hit_fusion_w = (state_q == S_LOOKUP) &&
+                               dcache_lookup_hit_final_w && !cpu_kill_w;
 
   OooSv39Tlb #(
     .INDEX_W(DTLB_INDEX_W)
@@ -550,11 +560,15 @@ module OooMemAxiBridge (
   //    推迟——bubble 数不变, 观察点从 ready 压制变寄存站保持。
   assign mem0_req_ready_o = !flush_i && (!stg_valid_q || stage_advance_w);
 
+  // 刀D 融合拍: hit 拍组合交付 rsp(payload 与现行锁存表达式同源); 反压/kill 拍
+  // 融合关闭走落寄存 S_RESP 路径(天然 skid)。
   assign mem0_rsp_valid_o =
-      (state_q == S_RESP) && (!cpu_kill_w || nokill_busy_w);
-  assign mem0_rsp_rdata_o = rsp_rdata_q;
-  assign mem0_rsp_error_o = rsp_error_q;
-  assign mem0_rsp_page_fault_o = rsp_page_fault_q;
+      ((state_q == S_RESP) && (!cpu_kill_w || nokill_busy_w)) ||
+      lookup_hit_fusion_w;
+  assign mem0_rsp_rdata_o = lookup_hit_fusion_w ?
+      (dcache_lookup_line_w >> {paddr_q[2:0], 3'b000}) : rsp_rdata_q;
+  assign mem0_rsp_error_o = lookup_hit_fusion_w ? 1'b0 : rsp_error_q;
+  assign mem0_rsp_page_fault_o = lookup_hit_fusion_w ? 1'b0 : rsp_page_fault_q;
   assign translate_active_o = ctx_translate_w;
 
   // 【SRAM 同步读】read miss 的 AR 从 fire 拍推迟到 S_LOOKUP 判决拍(晚 1 拍),
@@ -863,10 +877,21 @@ module OooMemAxiBridge (
           // paddr_q)。命中数据统一按 paddr_q[2:0] 右移出窗口视图, 跨线由
           // read_cross_q 阻断按 miss 走 AXI 窗口读。
           if (dcache_lookup_hit_final_w) begin
-            rsp_rdata_q <= dcache_lookup_line_w >> {paddr_q[2:0], 3'b000};
-            rsp_error_q <= 1'b0;
-            rsp_page_fault_q <= 1'b0;
-            state_q <= S_RESP;
+            if (lookup_hit_fusion_w && rsp_ready_w) begin
+              // 刀D 融合拍: rsp 本拍已组合交付。有下一项时本臂不执行(最高优先
+              // advance 分支已 accept_request 决定去向); 走到这里=站空或 rmw
+              // 占口, 回 IDLE 等下一项。
+              state_q <= S_IDLE;
+              aw_done_q <= 1'b0;
+              w_done_q <= 1'b0;
+            end else begin
+              // rsp 反压 或 kill 拍(融合谓词含 !cpu_kill): 落寄存进 S_RESP
+              // (kill 事务由 S_RESP 的 rsp_valid 门与 drain 逻辑照常清理)
+              rsp_rdata_q <= dcache_lookup_line_w >> {paddr_q[2:0], 3'b000};
+              rsp_error_q <= 1'b0;
+              rsp_page_fault_q <= 1'b0;
+              state_q <= S_RESP;
+            end
           end else begin
             // miss/跨线: 当拍发 AR(arvalid 组合含 S_LOOKUP-miss 项)。转移条件
             // 与 arvalid 的 !rmw_busy 门一致, 保持 AR 握手协议自洽。

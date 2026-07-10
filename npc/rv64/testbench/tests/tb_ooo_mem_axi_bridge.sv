@@ -1205,6 +1205,130 @@ module tb_ooo_mem_axi_bridge;
     end
   endtask
 
+  // ===== 刀D 融合拍定向用例(load hit 流 1 拍/load 契约) =====
+  // 前置: cached_window 场景已 fill line 0x8000_1000=0x0102_0304_0506_0708。
+  task automatic dcache_hit_fusion_cases;
+    begin
+      // (a) 融合拍 back-to-back: 两个 hit load 连发, 稳态 1 拍/load
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = 64'h0000_0000_8000_1000;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      mem0_rsp_ready = 1'b1;
+      lsu_axi_arready = 1'b1;   // 陷阱: 全程不得发 AR
+      #1;
+      tb_check1("fusion load1 ready", mem0_req_ready, 1'b1);
+      tick();                    // fire load1 进寄存站
+      #1;
+      tb_check1("fusion load1 advance lookup", dut.req_read_lookup_fire_w,
+                1'b1);
+      tick();                    // advance: load1 发 lookup, load2 fire 进站
+      #1;
+      // 判决拍=融合拍: load1 rsp 组合交付, 同拍 advance load2 发 lookup
+      tb_check1("fusion beat rsp valid (1-cycle hit)", mem0_rsp_valid, 1'b1);
+      tb_check64("fusion beat rdata", mem0_rsp_rdata, 64'h0102_0304_0506_0708);
+      tb_check1("fusion beat advances next", dut.stage_advance_w, 1'b1);
+      tb_check1("fusion beat next lookup fires", dut.req_read_lookup_fire_w,
+                1'b1);
+      tick();                    // 融合拍结束: load2 进判决拍
+      mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("fusion back-to-back second rsp", mem0_rsp_valid, 1'b1);
+      tb_check64("fusion second rdata", mem0_rsp_rdata,
+                 64'h0102_0304_0506_0708);
+      tb_check1("fusion no AR throughout", lsu_axi_arvalid, 1'b0);
+      tick();                    // load2 消费, 站空回 IDLE
+      mem0_rsp_ready = 1'b0;
+      lsu_axi_arready = 1'b0;
+      #1;
+      tb_check1("fusion drain back to ready", mem0_req_ready, 1'b1);
+
+      // (b) rsp 反压: hit 拍 rsp_ready=0 → 组合 rsp 不消费, 落寄存 S_RESP(skid)
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = 64'h0000_0000_8000_1000;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      mem0_rsp_ready = 1'b0;
+      #1;
+      tick();                    // fire
+      mem0_req_valid = 1'b0;
+      #1;
+      tick();                    // advance 发 lookup
+      #1;
+      tb_check1("stalled hit rsp valid", mem0_rsp_valid, 1'b1);
+      tick();                    // 落寄存进 S_RESP
+      #1;
+      tb_check1("skid holds rsp", mem0_rsp_valid, 1'b1);
+      tb_check64("skid holds rdata", mem0_rsp_rdata, 64'h0102_0304_0506_0708);
+      mem0_rsp_ready = 1'b1;
+      tick();                    // 消费
+      mem0_rsp_ready = 1'b0;
+
+      // (d) miss 拍禁 advance: miss load 判决拍时站中已有下一项——advance 必须
+      // 等 S_RESP 消费拍(mutation 杀手: advance 放宽到 miss 拍会覆写 paddr_q,
+      // AR 地址错/事务丢失)
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = 64'h0000_0000_8000_4000;  // 冷地址(miss), 与 0x8000_1000 不同 index
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      mem0_rsp_ready = 1'b1;
+      lsu_axi_arready = 1'b1;
+      #1;
+      tick();                    // fire miss-load 进寄存站
+      mem0_req_addr = 64'h0000_0000_8000_1000;  // 下一项(hit 地址)排队
+      #1;
+      tick();                    // advance: miss-load 发 lookup, 下一项 fire 进站
+      mem0_req_valid = 1'b0;
+      #1;
+      // miss 判决拍: 站有项但不得 advance(否则 paddr_q 被覆写)
+      tb_check1("miss beat no advance", dut.stage_advance_w, 1'b0);
+      tb_check1("miss beat no rsp", mem0_rsp_valid, 1'b0);
+      tb_check1("miss beat AR fires", lsu_axi_arvalid, 1'b1);
+      tb_check64("miss beat AR addr intact", lsu_axi_araddr,
+                 64'h0000_0000_8000_4000);
+      tick();                    // AR 握手 → S_READ_DATA
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'hdead_beef_0000_4000;
+      lsu_axi_rresp = 2'b00;
+      #1;
+      tick();                    // R beat → fill+S_RESP
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("miss resolved rsp", mem0_rsp_valid, 1'b1);
+      tb_check64("miss resolved rdata", mem0_rsp_rdata,
+                 64'hdead_beef_0000_4000);
+      tick();                    // S_RESP 消费拍: 同拍 advance 下一项(hit)发 lookup
+      #1;                        // 下一项判决拍(融合): rsp 组合交付
+      tb_check1("queued hit rsp after miss", mem0_rsp_valid, 1'b1);
+      tb_check64("queued hit rdata", mem0_rsp_rdata, 64'h0102_0304_0506_0708);
+      tick();
+      mem0_rsp_ready = 1'b0;
+      lsu_axi_arready = 1'b0;
+      #1;
+
+      // (c) flush(kill)拍融合关断: 判决拍撞 flush → 谓词含 !cpu_kill,
+      // rsp 不得组合交付(p42 型污染防线), flush 分支释放 S_LOOKUP
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = 64'h0000_0000_8000_1000;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      mem0_rsp_ready = 1'b1;
+      #1;
+      tick();                    // fire
+      mem0_req_valid = 1'b0;
+      #1;
+      tick();                    // advance 发 lookup
+      flush = 1'b1;
+      #1;
+      tb_check1("flush beat masks fusion rsp", mem0_rsp_valid, 1'b0);
+      tick();                    // flush 分支释放 S_LOOKUP
+      flush = 1'b0;
+      mem0_rsp_ready = 1'b0;
+      #1;
+      tb_check1("flush drained back to ready", mem0_req_ready, 1'b1);
+    end
+  endtask
+
   wire unused_outputs =
       mem0_rsp_error | mem0_rsp_page_fault | (|lsu_axi_wstrb) |
       mem_translate_active;
@@ -1224,6 +1348,7 @@ module tb_ooo_mem_axi_bridge;
     inflight_read_flush_abort();
     read_arstrb_tracks_load_mask();
     cached_window_shift_and_cross_block();
+    dcache_hit_fusion_cases();
     partial_write_flush_drain();
     flushed_store_does_not_poison_dcache();
     store_rmw_write_update_and_bubble();
