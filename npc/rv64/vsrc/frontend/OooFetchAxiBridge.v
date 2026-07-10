@@ -56,6 +56,10 @@ module OooFetchAxiBridge (
   localparam [3:0] S_RESP = 4'd7;
   localparam [3:0] S_AD_UPDATE = 4'd8;  // HW A 更新: 写回 leaf PTE 置 A 位, 再 re-walk 续原取指
   localparam [3:0] S_LOOKUP = 4'd9;     // 取指包 cache SRAM 同步读判决拍(fire 次拍, ready=0)
+  // 【AXI4 化 S1】mmu_flush 命中在飞 AXI 读(AR 已 fire、R 未归)时的自吞排水态:
+  // rready 保持拉高吞掉 R 后才回 IDLE; 期间 fetch_req_ready=0(防新请求与残 R 串包)。
+  // 取代旧"xbar abort 边带吞 R"机制——master 自吞使互连成为纯标准 AXI4。
+  localparam [3:0] S_DRAIN = 4'd10;
   localparam [`XLEN-1:0] PTE_A_BIT = {{(`XLEN-7){1'b0}}, 7'h40};  // bit 6 (Accessed)
   localparam [1:0] RESP_OK = 2'b00;
   localparam [1:0] RESP_ACCESS_FAULT = 2'b01;
@@ -494,10 +498,11 @@ module OooFetchAxiBridge (
   assign fetch_rsp_resp0_o = lookup_hit_resp_w ? cache_resp0_w : resp0_q;
   assign fetch_rsp_resp1_o = lookup_hit_resp_w ? cache_resp1_w : resp1_q;
 
+  // 【AXI4 化 S1】flush 拍不发新 AR(撤销待发读, 无 orphan; 已 fire 的读走 S_DRAIN 自吞)
   assign ifu_axi_arvalid_o =
-      ((state_q == S_WALK_AR) && !walk_pte_pmp_fault_w) || (state_q == S_AR0) ||
-      (state_q == S_AR1) ||
-      lookup_direct_miss_w;
+      (((state_q == S_WALK_AR) && !walk_pte_pmp_fault_w) || (state_q == S_AR0) ||
+       (state_q == S_AR1) ||
+       lookup_direct_miss_w) && !mmu_flush_i;
   // direct miss 在 S_LOOKUP 发 AR 时 paging_q=0, fetch0_addr_w=pc_q(=fire 拍锁存的
   // 请求 PC), 无需单列 araddr 臂。
   assign ifu_axi_araddr_o =
@@ -505,7 +510,14 @@ module OooFetchAxiBridge (
       (state_q == S_AR1) ? paddr1_q :
       fetch0_addr_w;
   assign ifu_axi_rready_o =
-      (state_q == S_WALK_R) || (state_q == S_R0) || (state_q == S_R1);
+      (state_q == S_WALK_R) || (state_q == S_R0) || (state_q == S_R1) ||
+      (state_q == S_DRAIN);
+  // 【AXI4 化 S1】在飞 AXI 读判定(等 R 态=AR 已 fire): flush 拍若 R 未同拍到达,
+  // 转 S_DRAIN 吞 R; R 同拍 fire 则本拍即消费完, 直接回 IDLE。
+  wire ifu_axi_read_inflight_w =
+      (state_q == S_WALK_R) || (state_q == S_R0) || (state_q == S_R1) ||
+      (state_q == S_DRAIN);
+  wire ifu_axi_r_fire_w = ifu_axi_rvalid_i && ifu_axi_rready_o;
 
   // HW A 更新写通道：awaddr = 本级 leaf PTE 地址(walk_pte_addr_w 在 S_AD_UPDATE 期间仍有效,
   // 因 walk_ppn_q/walk_level_q 不变), wdata = 置 A 位的 PTE, wstrb 全 8B。写落 always-ready
@@ -522,7 +534,10 @@ module OooFetchAxiBridge (
 
   always @(posedge clk) begin
     if (rst || mmu_flush_i) begin
-      state_q <= S_IDLE;
+      // 【AXI4 化 S1】在飞 AXI 读未归时进 S_DRAIN 自吞 R(rst 恒回 IDLE——复位下
+      // 总线整体复位, 无残 R); 其余上下文照常全清。
+      state_q <= (!rst && ifu_axi_read_inflight_w && !ifu_axi_r_fire_w) ?
+                 S_DRAIN : S_IDLE;
       paging_q <= 1'b0;
       req_priv_q <= `PRIV_M;
       req_satp_q <= {`XLEN{1'b0}};
@@ -858,6 +873,14 @@ module OooFetchAxiBridge (
             end else begin
               state_q <= S_IDLE;
             end
+          end
+        end
+
+        S_DRAIN: begin
+          // 【AXI4 化 S1】吞掉被 flush 作废的在飞 R(单 beat), 吞完回 IDLE。
+          // 本态 fetch_req_ready=0/arvalid=0/rsp_valid=0, 仅 rready=1。
+          if (ifu_axi_rvalid_i) begin
+            state_q <= S_IDLE;
           end
         end
 

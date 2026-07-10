@@ -720,12 +720,10 @@ module OooMemAxiBridge (
         end
 
         S_WALK_R, S_READ_DATA: begin
-          if (flush_i) begin
-            // 读事务无外部副作用，flush 会同步请求 xbar abort/drop；
-            // 本地直接释放，避免等待一个已被下游取消的 R 响应。
-            state_q <= S_IDLE;
-            drop_rsp_q <= 1'b0;
-          end else if (lsu_axi_rvalid_i) begin
+          // 【AXI4 化 S1】flush 拍不再依赖 xbar abort 吞 R——本地自吞: R 到达拍
+          // 释放, 未到则置 drop_rsp_q 持械等待(rready 随 state 保持; dcache/DTLB
+          // fill 经 !cpu_kill_w 门 drain 期自动禁止)。
+          if (lsu_axi_rvalid_i) begin
             state_q <= S_IDLE;
             drop_rsp_q <= 1'b0;
           end else begin

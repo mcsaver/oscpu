@@ -615,6 +615,51 @@ module tb_ooo_fetch_axi_bridge;
     drive_r(FUSION_BEAT3, RESP_OK);
     expect_rsp("miss path resp unchanged", RESP_OK, RESP_OK, FUSION_BEAT3);
 
+    // ===== AXI4 化 S1: mmu_flush 在飞读自吞(S_DRAIN)定向用例 =====
+    // 先清 ITLB/cache(前序用例热态), 保证下面 fetch 走完整 walk
+    mmu_flush = 1'b1;
+    tick();
+    mmu_flush = 1'b0;
+    tick();
+    // walk 中途(等 R 态)flush: 桥不再依赖 xbar abort, 自己保持 rready 吞 R 后回 IDLE
+    start_fetch("drain case walk fetch accepted", USER_VA, `PRIV_U);
+    expect_ar("drain case walk first AR", pte_addr(ROOT_PT, USER_VA, 2'd2));
+    // AR 已 fire, 桥在 S_WALK_R 等 R —— 此拍打 mmu_flush
+    mmu_flush = 1'b1;
+    #1;
+    tb_check1("drain: no new AR during flush", ifu_axi_arvalid, 1'b0);
+    tick();
+    mmu_flush = 1'b0;
+    #1;
+    // 桥应在 S_DRAIN: ready 压住、rready 保持
+    tb_check1("drain: req not ready while draining", fetch_req_ready, 1'b0);
+    tb_check1("drain: rready held to swallow R", ifu_axi_rready, 1'b1);
+    tb_check1("drain: no rsp during drain", fetch_rsp_valid, 1'b0);
+    // 残 R 到达 → 吞掉回 IDLE
+    ifu_axi_rvalid = 1'b1;
+    ifu_axi_rdata = 64'hbad0_bad0_bad0_bad0;
+    tick();
+    ifu_axi_rvalid = 1'b0;
+    #1;
+    tb_check1("drain: back to ready after swallow", fetch_req_ready, 1'b1);
+    tb_check1("drain: swallowed rsp not delivered", fetch_rsp_valid, 1'b0);
+    // 后续正常取指不受影响
+    start_fetch("post-drain fetch accepted", USER_VA, `PRIV_U);
+    walk_to_fetch("post-drain walk works", USER_VA, USER_PA,
+                  PTE_USER_X_FLAGS, USER_INST_BEAT);
+    expect_rsp("post-drain rsp ok", RESP_OK, RESP_OK, USER_INST_BEAT);
+    // flush 拍 R 同拍到达: 本拍即消费, 不进 DRAIN 直接回 IDLE
+    start_fetch("same-beat case fetch accepted", CROSS_VA, `PRIV_U);
+    expect_ar("same-beat walk AR", pte_addr(ROOT_PT, CROSS_VA, 2'd2));
+    mmu_flush = 1'b1;
+    ifu_axi_rvalid = 1'b1;
+    ifu_axi_rdata = 64'h0;
+    tick();
+    mmu_flush = 1'b0;
+    ifu_axi_rvalid = 1'b0;
+    #1;
+    tb_check1("same-beat flush+R back to idle", fetch_req_ready, 1'b1);
+
     tb_finish("tb_ooo_fetch_axi_bridge");
   end
 endmodule

@@ -369,9 +369,17 @@ module tb_ooo_mem_axi_bridge;
       tick();
       flush = 1'b0;
       #1;
-      tb_check1("aborted read no longer waits for R", lsu_axi_rready, 1'b0);
-      tb_check1("aborted read has no CPU response", mem0_rsp_valid, 1'b0);
-      tb_check1("bridge idle after read abort", mem0_req_ready, 1'b1);
+      // 【AXI4 化 S1 契约反转】flush 后桥不再即刻空闲(旧=依赖 xbar abort 吞 R),
+      // 改为本地持械等 R(drop_rsp_q)——rready 保持, 吞完残 R 才回 IDLE。
+      tb_check1("flushed read keeps draining R", lsu_axi_rready, 1'b1);
+      tb_check1("flushed read has no CPU response", mem0_rsp_valid, 1'b0);
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'hdead_dead_dead_dead;  // 残 R: 必须被吞掉不上交
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("stale R swallowed no response", mem0_rsp_valid, 1'b0);
+      tb_check1("bridge idle after drain", mem0_req_ready, 1'b1);
 
       issue_mem0_read(64'h0000_0000_8000_3008);
       lsu_axi_rvalid = 1'b1;
@@ -1143,6 +1151,13 @@ module tb_ooo_mem_axi_bridge;
       #1;
       tb_check1("no ghost AR after skid flush", lsu_axi_arvalid, 1'b0);
       tb_check1("no ghost response after skid flush", mem0_rsp_valid, 1'b0);
+      // 【AXI4 化 S1】A 的残 R 排水(新契约: 桥自吞, 不再依赖 xbar abort)
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'h0;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("skid flush drained back to idle", mem0_req_ready, 1'b1);
 
       // (b) nokill 项 flush 拍存活: 慢读 C 占 FSM, drain(nokill)进站, flush
       mem0_req_valid = 1'b1;
@@ -1179,7 +1194,13 @@ module tb_ooo_mem_axi_bridge;
       #1;
       tb_check1("nokill staged still valid after flush",
                 dut.stg_valid_q, 1'b1);
-      tb_check1("nokill staged advances after flush",
+      // 【AXI4 化 S1】C 的残 R 先排水(drop_rsp_q 持械), 排完 nokill 才 advance
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'h0;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("nokill staged advances after drain",
                 dut.stage_advance_w, 1'b1);
       tick();
       #1;
