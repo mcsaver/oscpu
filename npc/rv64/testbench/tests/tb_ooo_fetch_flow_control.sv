@@ -44,6 +44,7 @@ module tb_ooo_fetch_flow_control;
     .fetch_req_ready_i(fetch_req_ready),
     .fetch_request_blocked_by_trap_i(fetch_request_blocked_by_trap),
     .redirect_fetch_req_valid_i(redirect_fetch_req_valid),
+    .resolve_redirect_block_i(1'b0),
     .branch_prefetch_req_valid_i(branch_prefetch_req_valid),
     .can_run_i(can_run),
     .stop_head_i(stop_head),

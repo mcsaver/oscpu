@@ -44,6 +44,12 @@ module OooFetchRequestMux (
 
   output direct_redirect_fetch_o,
   output redirect_fetch_req_valid_o,
+  // 【时序 T1】resolve 族 redirect(E3 untracked/E7 resolve/E9 spec)不再同拍发取指
+  // (砍 dcache-rdata→…→resolve→fetch SRAM addr 全流水贯通链的尾段 ~2.5ns);
+  // 本口=当拍封顺序臂(next_fetch_pc_q 拍尾才写 target, 防旧值 wrong-path 请求
+  // ——F2 障碍①同族), 次拍顺序臂发 arb 终写的 target(+1 拍 mispredict penalty,
+  // 低频 ~8% 分支)。direct fire(预测, 高频)保持同拍(K1 收益不动)。
+  output resolve_redirect_block_o,
   output [`XLEN-1:0] redirect_fetch_pc_o,
   output [`XLEN-1:0] fetch_req_pc_o
 );
@@ -62,13 +68,14 @@ module OooFetchRequestMux (
       direct_branch_resolve_redirect_i ||
       direct_jump_spec_fire_i;
 
+  assign resolve_redirect_block_o =
+      branch_resolve_redirect_i ||
+      branch_spec_redirect_i ||
+      branch_resolve_untracked_redirect_i;
   assign redirect_fetch_req_valid_o =
       (direct_redirect_fetch_o ||
        direct_branch0_fire_i ||
-       direct_branch1_fire_i ||
-       branch_resolve_redirect_i ||
-       branch_spec_redirect_i ||
-       branch_resolve_untracked_redirect_i) &&
+       direct_branch1_fire_i) &&
       (!branch_fallthrough_dispatch_i ||
        !branch_fallthrough_outstanding_match_i) &&
       (!outstanding_valid_i || fetch_rsp_fire_i);

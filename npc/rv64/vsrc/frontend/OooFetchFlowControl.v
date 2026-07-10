@@ -6,6 +6,7 @@ module OooFetchFlowControl #(
   input fetch_req_ready_i,
   input fetch_request_blocked_by_trap_i,
   input redirect_fetch_req_valid_i,
+  input resolve_redirect_block_i,
   input branch_prefetch_req_valid_i,
   input can_run_i,
   input stop_head_i,
@@ -64,10 +65,13 @@ module OooFetchFlowControl #(
   // (重取目标下拍才可见), 顺序请求会以 wrong-path 旧地址发出并被 flush 臂登记为
   // 合法 outstanding → wrong-path 包入 FIFO 提交。旧机器靠恒 mispredict 的二次
   // redirect 清洗掩盖; 免 redirect 后必须在源头封死(jal/ret 等经 redirect 臂不受影响)。
+  // 【时序 T1】resolve redirect 拍同样封顺序臂(next_fetch_pc_q 旧值, 障碍①同族);
+  // target 次拍经顺序臂发出。
   assign can_issue_request_o = can_run_i && !stop_head_i &&
                                !fetch_rsp_control_stop_i &&
                                !discard_fetch_rsp_i &&
                                !direct_frontend_flush_i &&
+                               !resolve_redirect_block_i &&
                                fifo_reserve_available_i &&
                                (!outstanding_valid_i || fetch_rsp_fire_o);
   assign fetch_req_valid_o =

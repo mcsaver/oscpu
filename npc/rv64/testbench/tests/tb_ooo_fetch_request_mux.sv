@@ -33,6 +33,7 @@ module tb_ooo_fetch_request_mux;
 
   wire direct_redirect_fetch;
   wire redirect_fetch_req_valid;
+  wire resolve_redirect_block;
   wire [`XLEN-1:0] redirect_fetch_pc;
   wire [`XLEN-1:0] fetch_req_pc;
 
@@ -65,6 +66,7 @@ module tb_ooo_fetch_request_mux;
     .redirect_pc_i(redirect_pc),
     .direct_redirect_fetch_o(direct_redirect_fetch),
     .redirect_fetch_req_valid_o(redirect_fetch_req_valid),
+    .resolve_redirect_block_o(resolve_redirect_block),
     .redirect_fetch_pc_o(redirect_fetch_pc),
     .fetch_req_pc_o(fetch_req_pc)
   );
@@ -155,7 +157,9 @@ module tb_ooo_fetch_request_mux;
     redirect_valid = 1'b1;
     redirect_pc = core_branch_resolve_next_pc;  // branch 口赢家 = resolve 真 target
     #1;
-    tb_check1("untracked drives redirect valid", redirect_fetch_req_valid, 1'b1);
+    // 【时序 T1 契约反转】resolve 族不再同拍发取指——block 信号封顺序臂, 次拍发 target
+    tb_check1("untracked blocks seq not fires", redirect_fetch_req_valid, 1'b0);
+    tb_check1("untracked raises resolve block", resolve_redirect_block, 1'b1);
     check_xlen("untracked winner pc", redirect_fetch_pc,
                core_branch_resolve_next_pc);
 
@@ -163,8 +167,9 @@ module tb_ooo_fetch_request_mux;
     reset_inputs();
     branch_resolve_redirect = 1'b1;
     #1;
-    tb_check1("branch resolve drives redirect valid",
-              redirect_fetch_req_valid, 1'b1);
+    tb_check1("branch resolve blocks not fires",
+              redirect_fetch_req_valid, 1'b0);
+    tb_check1("branch resolve raises block", resolve_redirect_block, 1'b1);
     check_xlen("no-arb default selects core branch resolve", redirect_fetch_pc,
                core_branch_resolve_next_pc);
 

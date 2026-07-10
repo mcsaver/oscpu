@@ -1290,6 +1290,8 @@ module OooFrontend #(
       redirect_flush_fetch_w | redirect_flush_backend_w |
       (|redirect_reason_w);
 
+  // 【时序 T1】resolve 族 redirect 当拍封顺序臂、次拍发 target(内部信号)
+  wire resolve_redirect_block_w;
   OooFetchRequestMux u_fetch_request_mux (
     .outstanding_valid_i(outstanding_valid_q),
     .fetch_rsp_fire_i(fetch_rsp_fire_w),
@@ -1320,6 +1322,7 @@ module OooFrontend #(
     .redirect_pc_i(redirect_pc_w),
     .direct_redirect_fetch_o(direct_redirect_fetch_w),
     .redirect_fetch_req_valid_o(redirect_fetch_req_valid_w),
+    .resolve_redirect_block_o(resolve_redirect_block_w),
     .redirect_fetch_pc_o(redirect_fetch_pc_w),
     .fetch_req_pc_o(fetch_req_pc_o)
   );
@@ -1376,6 +1379,7 @@ module OooFrontend #(
     .fetch_req_ready_i(fetch_req_ready_i),
     .fetch_request_blocked_by_trap_i(fetch_request_blocked_by_trap_w),
     .redirect_fetch_req_valid_i(redirect_fetch_req_valid_w),
+    .resolve_redirect_block_i(resolve_redirect_block_w),
     .branch_prefetch_req_valid_i(branch_prefetch_req_valid_w),
     .can_run_i(can_run_w),
     .stop_head_i(stop_head_w),
