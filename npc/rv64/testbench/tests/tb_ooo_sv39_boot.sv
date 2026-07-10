@@ -9,7 +9,6 @@ module tb_ooo_sv39_boot;
   wire ifu_axi_arvalid;
   reg ifu_axi_arready;
   wire [`XLEN-1:0] ifu_axi_araddr;
-  wire ifu_axi_abort;
   reg ifu_axi_rvalid;
   wire ifu_axi_rready;
   reg [`XLEN-1:0] ifu_axi_rdata;
@@ -110,7 +109,6 @@ module tb_ooo_sv39_boot;
     .ifu_axi_arvalid_o(ifu_axi_arvalid),
     .ifu_axi_arready_i(ifu_axi_arready),
     .ifu_axi_araddr_o(ifu_axi_araddr),
-    .ifu_axi_abort_o(ifu_axi_abort),
     .ifu_axi_rvalid_i(ifu_axi_rvalid),
     .ifu_axi_rready_o(ifu_axi_rready),
     .ifu_axi_rdata_i(ifu_axi_rdata),
@@ -778,7 +776,7 @@ module tb_ooo_sv39_boot;
   end
 
   wire unused_w =
-      ifu_axi_abort | (|commit0_pc) | (|commit0_next_pc) |
+      (|commit0_pc) | (|commit0_next_pc) |
       commit0_rd_en | (|commit0_rd_addr) | (|commit0_rd_data) |
       commit0_exception | commit0_write | commit1_rd_en |
       (|commit1_pc) | (|commit1_next_pc) | (|commit1_rd_addr) |
