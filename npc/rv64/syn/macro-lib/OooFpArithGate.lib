@@ -1,7 +1,7 @@
 /* OooFpArithGate.lib — non-signoff placeholder liberty
  * 占位模型:数字无物理意义,仅用于 iEDA STA 图闭合(宏合同 v1)。
- * 全端口按寄存器边界宏抽象:input setup 0.500ns/hold 0.100ns 对 clk;
- * output 从 clk 上升沿 1.000ns 固定 delay;pin cap 0.010pf。
+ * 全端口按寄存器边界宏抽象:input setup 2.782ns/hold 0.100ns 对 clk;
+ * output 从 clk 上升沿 0.633ns 固定 delay;pin cap 0.010pf。
  * 单位/操作条件数值对齐 icsprout55 (1ns/1pf/1.2V/25C)。
  * 由 gen_macro_libs.py 生成(2026-07-10),勿手改——改端口表后重跑生成器。
  */
@@ -99,10 +99,10 @@ library (OooFpArithGate) {
         related_pin : "clk";
         timing_type : setup_rising;
         rise_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
         fall_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
       }
       timing () {
@@ -123,10 +123,10 @@ library (OooFpArithGate) {
         related_pin : "clk";
         timing_type : setup_rising;
         rise_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
         fall_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
       }
       timing () {
@@ -147,10 +147,10 @@ library (OooFpArithGate) {
         related_pin : "clk";
         timing_type : setup_rising;
         rise_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
         fall_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
       }
       timing () {
@@ -172,10 +172,10 @@ library (OooFpArithGate) {
         related_pin : "clk";
         timing_type : setup_rising;
         rise_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
         fall_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
       }
       timing () {
@@ -197,10 +197,10 @@ library (OooFpArithGate) {
         related_pin : "clk";
         timing_type : setup_rising;
         rise_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
         fall_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
       }
       timing () {
@@ -222,10 +222,10 @@ library (OooFpArithGate) {
         related_pin : "clk";
         timing_type : setup_rising;
         rise_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
         fall_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
       }
       timing () {
@@ -246,10 +246,10 @@ library (OooFpArithGate) {
         related_pin : "clk";
         timing_type : setup_rising;
         rise_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
         fall_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
       }
       timing () {
@@ -270,10 +270,10 @@ library (OooFpArithGate) {
         related_pin : "clk";
         timing_type : setup_rising;
         rise_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
         fall_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
       }
       timing () {
@@ -294,10 +294,10 @@ library (OooFpArithGate) {
         related_pin : "clk";
         timing_type : setup_rising;
         rise_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
         fall_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
       }
       timing () {
@@ -318,10 +318,10 @@ library (OooFpArithGate) {
         related_pin : "clk";
         timing_type : setup_rising;
         rise_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
         fall_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
       }
       timing () {
@@ -343,10 +343,10 @@ library (OooFpArithGate) {
         related_pin : "clk";
         timing_type : setup_rising;
         rise_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
         fall_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
       }
       timing () {
@@ -367,10 +367,10 @@ library (OooFpArithGate) {
         related_pin : "clk";
         timing_type : setup_rising;
         rise_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
         fall_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
       }
       timing () {
@@ -392,10 +392,10 @@ library (OooFpArithGate) {
         related_pin : "clk";
         timing_type : setup_rising;
         rise_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
         fall_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
       }
       timing () {
@@ -417,10 +417,10 @@ library (OooFpArithGate) {
         related_pin : "clk";
         timing_type : setup_rising;
         rise_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
         fall_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
       }
       timing () {
@@ -442,10 +442,10 @@ library (OooFpArithGate) {
         related_pin : "clk";
         timing_type : setup_rising;
         rise_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
         fall_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
       }
       timing () {
@@ -466,10 +466,10 @@ library (OooFpArithGate) {
         related_pin : "clk";
         timing_type : setup_rising;
         rise_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
         fall_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
       }
       timing () {
@@ -491,10 +491,10 @@ library (OooFpArithGate) {
         related_pin : "clk";
         timing_type : setup_rising;
         rise_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
         fall_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
       }
       timing () {
@@ -516,10 +516,10 @@ library (OooFpArithGate) {
         related_pin : "clk";
         timing_type : setup_rising;
         rise_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
         fall_constraint (scalar) {
-          values ("0.500");
+          values ("2.782");
         }
       }
       timing () {
@@ -542,10 +542,10 @@ library (OooFpArithGate) {
         timing_type : rising_edge;
         timing_sense : non_unate;
         cell_rise (scalar) {
-          values ("1.000");
+          values ("0.633");
         }
         cell_fall (scalar) {
-          values ("1.000");
+          values ("0.633");
         }
         rise_transition (scalar) {
           values ("0.100");
@@ -564,10 +564,10 @@ library (OooFpArithGate) {
         timing_type : rising_edge;
         timing_sense : non_unate;
         cell_rise (scalar) {
-          values ("1.000");
+          values ("0.633");
         }
         cell_fall (scalar) {
-          values ("1.000");
+          values ("0.633");
         }
         rise_transition (scalar) {
           values ("0.100");
@@ -586,10 +586,10 @@ library (OooFpArithGate) {
         timing_type : rising_edge;
         timing_sense : non_unate;
         cell_rise (scalar) {
-          values ("1.000");
+          values ("0.633");
         }
         cell_fall (scalar) {
-          values ("1.000");
+          values ("0.633");
         }
         rise_transition (scalar) {
           values ("0.100");
@@ -608,10 +608,10 @@ library (OooFpArithGate) {
         timing_type : rising_edge;
         timing_sense : non_unate;
         cell_rise (scalar) {
-          values ("1.000");
+          values ("0.633");
         }
         cell_fall (scalar) {
-          values ("1.000");
+          values ("0.633");
         }
         rise_transition (scalar) {
           values ("0.100");
@@ -630,10 +630,10 @@ library (OooFpArithGate) {
         timing_type : rising_edge;
         timing_sense : non_unate;
         cell_rise (scalar) {
-          values ("1.000");
+          values ("0.633");
         }
         cell_fall (scalar) {
-          values ("1.000");
+          values ("0.633");
         }
         rise_transition (scalar) {
           values ("0.100");
@@ -652,10 +652,10 @@ library (OooFpArithGate) {
         timing_type : rising_edge;
         timing_sense : non_unate;
         cell_rise (scalar) {
-          values ("1.000");
+          values ("0.633");
         }
         cell_fall (scalar) {
-          values ("1.000");
+          values ("0.633");
         }
         rise_transition (scalar) {
           values ("0.100");
@@ -673,10 +673,10 @@ library (OooFpArithGate) {
         timing_type : rising_edge;
         timing_sense : non_unate;
         cell_rise (scalar) {
-          values ("1.000");
+          values ("0.633");
         }
         cell_fall (scalar) {
-          values ("1.000");
+          values ("0.633");
         }
         rise_transition (scalar) {
           values ("0.100");
@@ -694,10 +694,10 @@ library (OooFpArithGate) {
         timing_type : rising_edge;
         timing_sense : non_unate;
         cell_rise (scalar) {
-          values ("1.000");
+          values ("0.633");
         }
         cell_fall (scalar) {
-          values ("1.000");
+          values ("0.633");
         }
         rise_transition (scalar) {
           values ("0.100");
@@ -716,10 +716,10 @@ library (OooFpArithGate) {
         timing_type : rising_edge;
         timing_sense : non_unate;
         cell_rise (scalar) {
-          values ("1.000");
+          values ("0.633");
         }
         cell_fall (scalar) {
-          values ("1.000");
+          values ("0.633");
         }
         rise_transition (scalar) {
           values ("0.100");
@@ -738,10 +738,10 @@ library (OooFpArithGate) {
         timing_type : rising_edge;
         timing_sense : non_unate;
         cell_rise (scalar) {
-          values ("1.000");
+          values ("0.633");
         }
         cell_fall (scalar) {
-          values ("1.000");
+          values ("0.633");
         }
         rise_transition (scalar) {
           values ("0.100");
@@ -760,10 +760,10 @@ library (OooFpArithGate) {
         timing_type : rising_edge;
         timing_sense : non_unate;
         cell_rise (scalar) {
-          values ("1.000");
+          values ("0.633");
         }
         cell_fall (scalar) {
-          values ("1.000");
+          values ("0.633");
         }
         rise_transition (scalar) {
           values ("0.100");
@@ -782,10 +782,10 @@ library (OooFpArithGate) {
         timing_type : rising_edge;
         timing_sense : non_unate;
         cell_rise (scalar) {
-          values ("1.000");
+          values ("0.633");
         }
         cell_fall (scalar) {
-          values ("1.000");
+          values ("0.633");
         }
         rise_transition (scalar) {
           values ("0.100");

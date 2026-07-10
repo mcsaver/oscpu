@@ -1,7 +1,7 @@
 /* OooBranchDirectionPredictor.lib — non-signoff placeholder liberty
  * 占位模型:数字无物理意义,仅用于 iEDA STA 图闭合(宏合同 v1)。
  * 全端口按寄存器边界宏抽象:input setup 0.500ns/hold 0.100ns 对 clk;
- * output 从 clk 上升沿 1.000ns 固定 delay;pin cap 0.010pf。
+ * output 从 clk 上升沿 1.447ns 固定 delay;pin cap 0.010pf。
  * 单位/操作条件数值对齐 icsprout55 (1ns/1pf/1.2V/25C)。
  * 由 gen_macro_libs.py 生成(2026-07-10),勿手改——改端口表后重跑生成器。
  */
@@ -315,10 +315,10 @@ library (OooBranchDirectionPredictor) {
         timing_type : rising_edge;
         timing_sense : non_unate;
         cell_rise (scalar) {
-          values ("1.000");
+          values ("1.447");
         }
         cell_fall (scalar) {
-          values ("1.000");
+          values ("1.447");
         }
         rise_transition (scalar) {
           values ("0.100");
@@ -336,10 +336,10 @@ library (OooBranchDirectionPredictor) {
         timing_type : rising_edge;
         timing_sense : non_unate;
         cell_rise (scalar) {
-          values ("1.000");
+          values ("1.447");
         }
         cell_fall (scalar) {
-          values ("1.000");
+          values ("1.447");
         }
         rise_transition (scalar) {
           values ("0.100");
@@ -357,10 +357,10 @@ library (OooBranchDirectionPredictor) {
         timing_type : rising_edge;
         timing_sense : non_unate;
         cell_rise (scalar) {
-          values ("1.000");
+          values ("1.447");
         }
         cell_fall (scalar) {
-          values ("1.000");
+          values ("1.447");
         }
         rise_transition (scalar) {
           values ("0.100");
@@ -378,10 +378,10 @@ library (OooBranchDirectionPredictor) {
         timing_type : rising_edge;
         timing_sense : non_unate;
         cell_rise (scalar) {
-          values ("1.000");
+          values ("1.447");
         }
         cell_fall (scalar) {
-          values ("1.000");
+          values ("1.447");
         }
         rise_transition (scalar) {
           values ("0.100");
@@ -400,10 +400,10 @@ library (OooBranchDirectionPredictor) {
         timing_type : rising_edge;
         timing_sense : non_unate;
         cell_rise (scalar) {
-          values ("1.000");
+          values ("1.447");
         }
         cell_fall (scalar) {
-          values ("1.000");
+          values ("1.447");
         }
         rise_transition (scalar) {
           values ("0.100");
@@ -421,10 +421,10 @@ library (OooBranchDirectionPredictor) {
         timing_type : rising_edge;
         timing_sense : non_unate;
         cell_rise (scalar) {
-          values ("1.000");
+          values ("1.447");
         }
         cell_fall (scalar) {
-          values ("1.000");
+          values ("1.447");
         }
         rise_transition (scalar) {
           values ("0.100");
@@ -442,10 +442,10 @@ library (OooBranchDirectionPredictor) {
         timing_type : rising_edge;
         timing_sense : non_unate;
         cell_rise (scalar) {
-          values ("1.000");
+          values ("1.447");
         }
         cell_fall (scalar) {
-          values ("1.000");
+          values ("1.447");
         }
         rise_transition (scalar) {
           values ("0.100");
@@ -463,10 +463,10 @@ library (OooBranchDirectionPredictor) {
         timing_type : rising_edge;
         timing_sense : non_unate;
         cell_rise (scalar) {
-          values ("1.000");
+          values ("1.447");
         }
         cell_fall (scalar) {
-          values ("1.000");
+          values ("1.447");
         }
         rise_transition (scalar) {
           values ("0.100");

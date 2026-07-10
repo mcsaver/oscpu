@@ -32,9 +32,17 @@ CLK2Q_NS = "1.000"
 #   Sram4096x199: clk-to-q 1.543ns / setup 1.842ns (占位曾 1.0/0.5, setup 差 3.7x!)
 #   Sram4096x113: clk-to-q 1.285ns / setup 0.763ns
 # BPU/OooFpArithGate 保持占位——它们不是 SRAM, 真实化需 OOC 综合提取(留后续)。
+# 【T4(2026-07-10)】OOC 综合实测(OpenSTA, 10ns 约束):
+#   OooFpArithGate: in→reg 2.782ns(setup)/reg→out 0.633ns(clk2q)——真值化。
+#   OooBranchDirectionPredictor: lookup(reg→out)实测 1.447ns 真值化;
+#     ★update(in→reg)实测 57.0ns(4096 项 FF 阵列写 decode+双表串联, ABC lev 30
+#     压不动)——**已知重大结构债**, 不写进 lib(会淹没全核 STA), setup 留占位;
+#     修复=BPU 表降容/SRAM 化/update 流水化, 独立刀(见 timing 战役 task-run)。
 CELL_TIMING = {
     "Sram4096x199": ("1.842", "0.100", "1.543"),
     "Sram4096x113": ("0.763", "0.100", "1.285"),
+    "OooFpArithGate": ("2.782", "0.100", "0.633"),
+    "OooBranchDirectionPredictor": ("0.500", "0.100", "1.447"),
 }
 OUT_TRANS_NS = "0.100"
 PIN_CAP_PF = "0.010"
