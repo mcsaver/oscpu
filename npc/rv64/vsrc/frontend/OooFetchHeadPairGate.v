@@ -4,6 +4,10 @@
 // 双槽 fetch head 组合 owner：只收敛可见性、单槽分类实例和 lane0 dispatch facts。
 module OooFetchHeadPairGate (
   input fifo_has_packet_i,
+  // 【B2 S2】slot1 截断位(包内存储): slot0 预测 taken 的包 slot1=wrong-path。在
+  // head1 谓词族总源(head1_decode_valid + head_fetch_fault1)单点门控, ~40 个
+  // head1_* 输出经 classify decode_valid=0 全部归 0——不逐消费者补(R3 幽灵 lane1)。
+  input head_slot1_valid_i,
   input [1:0] head_resp0_i,
   input [1:0] head_resp1_i,
   input [`INST_W-1:0] head_inst0_i,
@@ -186,8 +190,10 @@ module OooFetchHeadPairGate (
     .facts_o(head0_facts_o)
   );
 
+  // 【B2 S2】slot1_valid=0(slot0 预测 taken 截断)时 slot1 是 wrong-path: fault 不报
+  // (预测对时该 slot 架构上不存在; 预测错走后端 mispredict redirect 重取, fault 重现)。
   assign head_fetch_fault1_o =
-      fifo_has_packet_i && !head_fetch_fault0_o &&
+      fifo_has_packet_i && head_slot1_valid_i && !head_fetch_fault0_o &&
       !head0_facts_o[`OOO_SLOT_FACT_BRANCH] &&
       !head0_facts_o[`OOO_SLOT_FACT_JUMP] &&
       !head0_facts_o[`OOO_SLOT_FACT_STOP] && (head_resp1_i != 2'b00);
@@ -202,7 +208,7 @@ module OooFetchHeadPairGate (
   // 与 OooFetchHeadClassifyGate 注释所述"head0=FP 压制 head1"的 FP 家族 bug 同类(FP 已修, 分支同理);
   // JUMP/STOP 的压制保留(不在本 bug 覆盖, 避免扩大改动面)。head_fetch_fault1 保持(与 resp1==0 互斥, 无关)。
   assign head1_decode_valid_w =
-      fifo_has_packet_i && !head_fetch_fault0_o &&
+      fifo_has_packet_i && head_slot1_valid_i && !head_fetch_fault0_o &&
       !head0_facts_o[`OOO_SLOT_FACT_JUMP] &&
       !head0_facts_o[`OOO_SLOT_FACT_STOP] && (head_resp1_i == 2'b00);
 

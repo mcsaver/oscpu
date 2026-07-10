@@ -7,10 +7,12 @@ module OooFrontendDispatchGate (
   input dispatch0_system_i,
   input dispatch0_csr_i,   // 【serialize Phase1 §4#1】合法 head0-CSR: 放行进 ROB(其余 system op 仍拦)
   input dispatch0_fp_i,
-  // 【F2】纯 BHT 寄存输出(不经 fire-mux, 不含 ready)——dual 资格/branch1 fire gate 用,
+  // 【F2→B2 S1】包内存储预测位(不经 fire-mux, 不含 ready)——dual 资格用,
   // 谓词无 ready 依赖故不与 dispatch pair-ready 成组合环(#110 边界 3 的破环约束)。
   input head0_branch_pred_taken_i,
-  input head1_branch_pred_taken_i,
+  // 【B2 S2】slot1 截断位(包内存储): dual_go 显式含 slot1_valid(spec §1)。机械上
+  // slot1_valid=0 ⟹ 存储 pred_taken0=1 ⟹ dual_go 已为 0, 此项为同源防御。
+  input head_slot1_valid_i,
   input dispatch0_branch_i,
   input dispatch0_jal_i,
   input dispatch0_jump_i,
@@ -62,6 +64,7 @@ module OooFrontendDispatchGate (
   assign dbranch_dual_go_o =
       dispatch_valid_i && dispatch0_branch_i &&
       !head0_branch_pred_taken_i &&
+      head_slot1_valid_i &&
       !head_fetch_fault1_i &&
       !head1_exit_raw_i &&
       !head1_system_raw_i &&
@@ -164,9 +167,10 @@ module OooFrontendDispatchGate (
       dispatch0_jal_i && !dispatch0_unsupported_i && dispatch0_ready_i;
   assign direct_jal1_fire_o = dispatch_fire_o && head1_jal_raw_i;
   assign direct_ret1_fire_o = dispatch_fire_o && dispatch1_return_o;
-  // 【F2】head1 分支同样只在预测 taken 时 fire(flush+重取 target);
-  // not-taken 预测 → 不 fire, 顺序流继续, pred_npc(d1)=下包 pc0/哨兵。
-  assign direct_branch1_fire_o = dispatch_fire_o && head1_branch_raw_i &&
-                                 head1_branch_pred_taken_i;
+  // 【B2 S2 死化】head1 taken 分支不再 dispatch 拍 fire(flush+重取)——预测介入点已
+  // 前移 fetch resp 拍: taken 在包 enqueue 拍即改流顺序取指(pred_next_pc 随包存储,
+  // pred_npc(d1)=包内 pred_next_pc=target), 双发照走、免 flush。fire 保留会 flush 掉
+  // 已正确预取的 target 路径且破坏 pred_npc 机械一致性(spec §1, 不作兜底)。
+  assign direct_branch1_fire_o = 1'b0;
 
 endmodule

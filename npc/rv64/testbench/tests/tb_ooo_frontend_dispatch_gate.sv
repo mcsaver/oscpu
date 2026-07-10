@@ -27,6 +27,9 @@ module tb_ooo_frontend_dispatch_gate;
   reg head1_jal_call_raw;
   reg head1_return_candidate;
   reg lane0_before_ret_safe;
+  // 【B2 S2】包内存储位: head0 预测方向 + slot1 截断位(dual_go 谓词输入)
+  reg head0_branch_pred_taken;
+  reg head_slot1_valid;
 
   wire dispatch1_direct_jal;
   wire dispatch1_return;
@@ -41,14 +44,15 @@ module tb_ooo_frontend_dispatch_gate;
   wire direct_jal1_fire;
   wire direct_ret1_fire;
   wire direct_branch1_fire;
+  wire dbranch_dual_go;
 
   OooFrontendDispatchGate dut (
     .dispatch_valid_i(dispatch_valid),
-    // 【F2】新输入: TB 场景默认 not-taken 预测但 head1 不平凡不成立时(raw=0),
-    // dual_go 只由 pred_taken 决定; 置 pred_taken=1 使 dual_go=0, 保持原 direct
-    // 模型场景语义(分支拍 lane1 禁)不变。lane1 branch fire 场景单独驱动 head1 侧。
-    .head0_branch_pred_taken_i(1'b1),
-    .head1_branch_pred_taken_i(1'b1),
+    // 【F2→B2 S2】存储预测位默认 taken(dual_go=0, 保持原 direct 模型场景语义);
+    // dual_go/截断契约场景单独驱动。head1_branch_pred_taken_i 端口已删(branch1
+    // fire 死化后无消费), 换 slot1 截断位。
+    .head0_branch_pred_taken_i(head0_branch_pred_taken),
+    .head_slot1_valid_i(head_slot1_valid),
     .dispatch0_unsupported_raw_i(1'b0),
     .dispatch1_unsupported_raw_i(1'b0),
     .dispatch0_exit_i(dispatch0_exit),
@@ -87,7 +91,8 @@ module tb_ooo_frontend_dispatch_gate;
     .direct_jal0_fire_o(direct_jal0_fire),
     .direct_jal1_fire_o(direct_jal1_fire),
     .direct_ret1_fire_o(direct_ret1_fire),
-    .direct_branch1_fire_o(direct_branch1_fire)
+    .direct_branch1_fire_o(direct_branch1_fire),
+    .dbranch_dual_go_o(dbranch_dual_go)
   );
 
   task automatic reset_inputs;
@@ -117,6 +122,8 @@ module tb_ooo_frontend_dispatch_gate;
       head1_jal_call_raw = 1'b0;
       head1_return_candidate = 1'b0;
       lane0_before_ret_safe = 1'b0;
+      head0_branch_pred_taken = 1'b1;
+      head_slot1_valid = 1'b1;
       #1;
     end
   endtask
@@ -166,7 +173,10 @@ module tb_ooo_frontend_dispatch_gate;
     head1_branch_raw = 1'b1;
     #1;
     tb_check1("lane1 direct branch candidate", direct_branch1_dispatch_valid, 1'b1);
-    tb_check1("lane1 direct branch fire", direct_branch1_fire, 1'b1);
+    // 【B2 S2】head1 taken 分支不再 dispatch 拍 fire(预测介入点前移 fetch resp 拍,
+    // taken 已在包 enqueue 拍改流顺序取指): fire 恒 0, 双发照走。
+    tb_check1("S2: lane1 branch never fires (fetch-time pred)", direct_branch1_fire, 1'b0);
+    tb_check1("S2: lane1 branch still dual dispatches", dispatch_fire, 1'b1);
 
     reset_inputs();
     head1_branch_raw = 1'b1;
@@ -216,8 +226,34 @@ module tb_ooo_frontend_dispatch_gate;
     reset_inputs();
     dispatch0_branch = 1'b1;
     #1;
-    tb_check1("slot0 branch blocks lane1 base", dispatch_fire, 1'b0);
+    tb_check1("slot0 taken branch blocks lane1 base (solo)", dispatch_fire, 1'b0);
+    tb_check1("slot0 taken branch dual_go=0", dbranch_dual_go, 1'b0);
     tb_check1("slot0 branch no unsupported", dispatch_unsupported, 1'b0);
+
+    // 【B2 S2】dual_go 存储位驱动契约: stored not-taken && slot1_valid && head1 平凡
+    reset_inputs();
+    dispatch0_branch = 1'b1;
+    head0_branch_pred_taken = 1'b0;
+    #1;
+    tb_check1("S2: not-taken branch dual_go", dbranch_dual_go, 1'b1);
+    tb_check1("S2: not-taken branch dual dispatches", dispatch_fire, 1'b1);
+
+    // 截断位防御: slot1_valid=0(理论上蕴含 pred_taken0=1, 此处独立驱动验证 gate)
+    reset_inputs();
+    dispatch0_branch = 1'b1;
+    head0_branch_pred_taken = 1'b0;
+    head_slot1_valid = 1'b0;
+    #1;
+    tb_check1("S2: slot1_valid=0 blocks dual_go", dbranch_dual_go, 1'b0);
+    tb_check1("S2: truncated packet solo dispatch", dispatch_fire, 1'b0);
+
+    // not-taken 但 head1 system: dual_go 禁(F2 修复史 rv64mi-illegal 家族)
+    reset_inputs();
+    dispatch0_branch = 1'b1;
+    head0_branch_pred_taken = 1'b0;
+    head1_system_raw = 1'b1;
+    #1;
+    tb_check1("S2: head1 system blocks dual_go", dbranch_dual_go, 1'b0);
 
     reset_inputs();
     dispatch0_ready = 1'b0;

@@ -7,11 +7,13 @@
 // /E9 branch_spec_redirect 保留臂)兜底 core_branch_resolve_next_pc(与原链默认档一致)。
 // valid/流控职责(direct_redirect_fetch_o/redirect_fetch_req_valid_o/fetch_req_pc_o 三段)
 // 原样保留——它们不是 PC 真源。
-// 【刀 K1(2026-07-10)】P4 契约禁止项①(taken 分支同拍取指请求=时序变化)已随性能刀
-// 战役有意作废: branch0/1_fire 加进 redirect_fetch_req_valid 或集(PC 经 arbiter e4
-// 臂已就位), taken 分支重取从"fire 次拍顺序臂"提前到 fire 同拍, 空窗 3 拍→2 拍。
-// direct_redirect_fetch_o 的成员集保持不含 branch fire(两个 direct 定义故意不一致
-// 的收口问题不在本刀顺手处理——历史禁忌③)。
+// 【刀 K1(2026-07-10)→B2 S2 取代】K1 曾把 branch0/1_fire 加进 redirect_fetch_req_valid
+// 或集(taken 分支 fire 同拍重取, 空窗 3→2 拍); B2 S2 预测介入点前移 fetch resp 拍后
+// 分支 fire 物理死化, 两项随之删除——taken 重取降格为"顺序流地址选择"(rsp 拍
+// Sequencer 顺序推进臂写包 pred_next_pc, 次拍顺序臂发 target), 不再经 redirect 臂。
+// 顺序臂 rsp 项保持 fetch_rsp_packet_next_pc(fall-through): pred-taken 拍顺序请求被
+// OooFetchFlowControl.pred_taken_block 关断, not-taken 拍 pred_next_pc≡packet_next_pc
+// ——语义等价且 BPU/imm 加法锥不进 fetch_req_pc(刀 F WNS 家族禁令)。
 `include "define.v"
 
 module OooFetchRequestMux (
@@ -35,9 +37,6 @@ module OooFetchRequestMux (
   input branch_prefetch_req_valid_i,
   input [`XLEN-1:0] branch_prefetch_req_pc_i,
   input direct_jump_spec_fire_i,           // B2: 非返回 JALR 投机续取
-  // 刀 K1: taken/solo 分支 fire 同拍重取(PC 走 arbiter e4 臂, 本口只补 valid)
-  input direct_branch0_fire_i,
-  input direct_branch1_fire_i,
   // 【P4】统一 redirect 仲裁赢家(OooRedirectArbiter 输出, 单一 PC 真源)
   input redirect_valid_i,
   input [`XLEN-1:0] redirect_pc_i,
@@ -73,9 +72,7 @@ module OooFetchRequestMux (
       branch_spec_redirect_i ||
       branch_resolve_untracked_redirect_i;
   assign redirect_fetch_req_valid_o =
-      (direct_redirect_fetch_o ||
-       direct_branch0_fire_i ||
-       direct_branch1_fire_i) &&
+      direct_redirect_fetch_o &&
       (!branch_fallthrough_dispatch_i ||
        !branch_fallthrough_outstanding_match_i) &&
       (!outstanding_valid_i || fetch_rsp_fire_i);

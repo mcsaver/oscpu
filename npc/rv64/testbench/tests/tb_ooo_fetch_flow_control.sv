@@ -24,6 +24,7 @@ module tb_ooo_fetch_flow_control;
   reg trap_valid;
   reg exit_valid;
 
+  reg pred_taken_block;   // 【B2 S2】pred-taken 改流拍封顺序臂(T1 block 同型)
   wire can_issue_request;
   wire fetch_req_valid;
   wire fetch_req_fire;
@@ -45,6 +46,7 @@ module tb_ooo_fetch_flow_control;
     .fetch_request_blocked_by_trap_i(fetch_request_blocked_by_trap),
     .redirect_fetch_req_valid_i(redirect_fetch_req_valid),
     .resolve_redirect_block_i(1'b0),
+    .pred_taken_block_i(pred_taken_block),
     .branch_prefetch_req_valid_i(branch_prefetch_req_valid),
     .can_run_i(can_run),
     .stop_head_i(stop_head),
@@ -77,6 +79,7 @@ module tb_ooo_fetch_flow_control;
 
   task automatic reset_inputs;
     begin
+      pred_taken_block = 1'b0;
       fetch_rsp_valid = 1'b0;
       fetch_req_ready = 1'b1;
       fetch_request_blocked_by_trap = 1'b0;
@@ -122,6 +125,19 @@ module tb_ooo_fetch_flow_control;
     tb_check1("response fire releases request issue", can_issue_request, 1'b1);
     tb_check1("same-cycle response allows request valid", fetch_req_valid, 1'b1);
     tb_check1("response enqueues", fetch_rsp_enqueue, 1'b1);
+
+    // 【B2 S2】pred-taken 改流拍断融合: 该拍融合连发的组合顺序地址是 fall-through
+    // 旧值(wrong-path), block 必须压掉 can_issue(target 次拍经顺序臂发出);
+    // enqueue/rsp ready 不受影响(包照常入队, 预测位随包定格)。
+    reset_inputs();
+    outstanding_valid = 1'b1;
+    fetch_rsp_valid = 1'b1;
+    pred_taken_block = 1'b1;
+    #1;
+    tb_check1("S2: pred-taken block kills fused issue", can_issue_request, 1'b0);
+    tb_check1("S2: pred-taken block kills request valid", fetch_req_valid, 1'b0);
+    tb_check1("S2: pred-taken block keeps rsp ready", fetch_rsp_ready, 1'b1);
+    tb_check1("S2: pred-taken block keeps enqueue", fetch_rsp_enqueue, 1'b1);
 
     reset_inputs();
     outstanding_valid = 1'b1;

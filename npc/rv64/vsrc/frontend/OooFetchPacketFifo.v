@@ -28,6 +28,9 @@ module OooFetchPacketFifo #(
   input [`BPU_BHT_INDEX_W-1:0] seed_bht_idx1_i,
   input seed_bht_valid0_i,
   input seed_bht_valid1_i,
+  // 【B2 S2】slot1 截断位: slot0 预测 taken 时包内截断(slot1=wrong-path, 随包存 0),
+  // head1 谓词族在 OooFetchHeadPairGate facts 生成处单点门控。
+  input seed_slot1_valid_i,
 
   input enqueue_i,
   input [`XLEN-1:0] enqueue_pc0_i,
@@ -45,6 +48,7 @@ module OooFetchPacketFifo #(
   input [`BPU_BHT_INDEX_W-1:0] enqueue_bht_idx1_i,
   input enqueue_bht_valid0_i,
   input enqueue_bht_valid1_i,
+  input enqueue_slot1_valid_i,
 
   input pop_i,
 
@@ -64,7 +68,9 @@ module OooFetchPacketFifo #(
   output [`BPU_BHT_INDEX_W-1:0] head_bht_idx1_o,
   output head_bht_valid0_o,
   output head_bht_valid1_o,
-  output [`XLEN-1:0] head1_pc0_o,   // B2: 下一条 FIFO entry 的 pc0（head packet 的预测后继，count>=2 时有效）
+  output head_slot1_valid_o,
+  // 【B2 S2】head1_pc0_o(下一 entry pc0, F2 pred_npc 哨兵源)已删——pred_npc 改从包内
+  // pred_next_pc(packet_next_pc 字段改造承载)直取, count<2 哨兵缺口随之消灭。
   output [FETCH_COUNT_W-1:0] count_o
 );
 
@@ -95,6 +101,7 @@ module OooFetchPacketFifo #(
   reg [`BPU_BHT_INDEX_W-1:0] bht_idx1_q [0:FETCH_PACKET_COUNT-1];
   reg bht_valid0_q [0:FETCH_PACKET_COUNT-1];
   reg bht_valid1_q [0:FETCH_PACKET_COUNT-1];
+  reg slot1_valid_q [0:FETCH_PACKET_COUNT-1];
 
   integer reset_idx;
 
@@ -121,7 +128,7 @@ module OooFetchPacketFifo #(
   assign head_bht_idx1_o = bht_idx1_q[head_q];
   assign head_bht_valid0_o = bht_valid0_q[head_q];
   assign head_bht_valid1_o = bht_valid1_q[head_q];
-  assign head1_pc0_o = pc0_q[ptr_inc(head_q)];
+  assign head_slot1_valid_o = slot1_valid_q[head_q];
   assign count_o = count_q;
 
   always @(posedge clk) begin
@@ -146,6 +153,7 @@ module OooFetchPacketFifo #(
         bht_idx1_q[reset_idx] <= {`BPU_BHT_INDEX_W{1'b0}};
         bht_valid0_q[reset_idx] <= 1'b0;
         bht_valid1_q[reset_idx] <= 1'b0;
+        slot1_valid_q[reset_idx] <= 1'b1;
       end
     end else if (clear_i) begin
       head_q <= FIFO_PTR_ZERO;
@@ -170,6 +178,7 @@ module OooFetchPacketFifo #(
       bht_idx1_q[FIFO_PTR_ZERO] <= seed_bht_idx1_i;
       bht_valid0_q[FIFO_PTR_ZERO] <= seed_bht_valid0_i;
       bht_valid1_q[FIFO_PTR_ZERO] <= seed_bht_valid1_i;
+      slot1_valid_q[FIFO_PTR_ZERO] <= seed_slot1_valid_i;
     end else begin
       if (enqueue_i) begin
         pc0_q[tail_q] <= enqueue_pc0_i;
@@ -187,6 +196,7 @@ module OooFetchPacketFifo #(
         bht_idx1_q[tail_q] <= enqueue_bht_idx1_i;
         bht_valid0_q[tail_q] <= enqueue_bht_valid0_i;
         bht_valid1_q[tail_q] <= enqueue_bht_valid1_i;
+        slot1_valid_q[tail_q] <= enqueue_slot1_valid_i;
         tail_q <= ptr_inc(tail_q);
       end
 

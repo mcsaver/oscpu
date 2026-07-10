@@ -407,6 +407,18 @@ module OooFrontend #(
   wire fetch_dec1_bht_valid_w;
   wire fetch_dec1_pred_taken_w;
   wire fetch_dec1_predict_strong_w;
+  // 【B2 S2】resp 拍包级预测判决(声明前置, assign 在 PacketDecode 实例后):
+  // fault slot(resp!=OK)不预测; 双分支包 slot0 优先; slot0 taken → 包内截断
+  // (slot1_valid=0)+pred_next_pc=pc0+bimm0; slot0 not-taken 且 slot1 taken →
+  // 整包有效+pred_next_pc=pc1+bimm1; 均 not-taken → pred_next_pc=packet_next_pc。
+  wire fetch_pred0_taken_w;
+  wire fetch_pred1_taken_w;
+  wire fetch_slot1_valid_w;
+  wire [`XLEN-1:0] fetch_pred_next_pc_w;
+  wire fetch_pred_taken_block_w;
+  wire fetch_pred_taken_redirect_w;
+  wire fetch_dec0_control_stop_nb_w;
+  wire fetch_dec1_control_stop_nb_w;
   wire fetch_request_blocked_by_trap_w;
   wire fetch_rsp_can_drop_w;
   wire fetch_rsp_can_enqueue_w;
@@ -424,7 +436,6 @@ module OooFrontend #(
   wire [`XLEN-1:0] fifo_head_packet_next_pc_w;
   wire [`XLEN-1:0] fifo_head_pc0_w;
   wire [`XLEN-1:0] fifo_head_pc1_w;
-  wire [`XLEN-1:0] fifo_head1_pc0_w;
   wire [1:0] fifo_head_resp0_w;
   wire [1:0] fifo_head_resp1_w;
   wire [`BPU_BHT_INDEX_W-1:0] fifo_head_bht_idx0_w;
@@ -433,6 +444,8 @@ module OooFrontend #(
   wire fifo_head_bht_valid1_w;
   wire fifo_head_pred_taken0_w;
   wire fifo_head_pred_taken1_w;
+  wire fifo_head_slot1_valid_w;
+  wire head_slot1_valid_w;
   wire fifo_pop_w;
   wire fifo_reserve_available_w;
   wire [`INST_W-1:0] fifo_seed_inst0_w;
@@ -450,6 +463,7 @@ module OooFrontend #(
   wire fifo_seed_bht_valid1_w;
   wire fifo_seed_pred_taken0_w;
   wire fifo_seed_pred_taken1_w;
+  wire fifo_seed_slot1_valid_w;
   wire fifo_seed_valid_w;
   wire fifo_storage_head_valid_w;
   wire fifo_storage_pop_w;
@@ -620,6 +634,7 @@ module OooFrontend #(
 
   OooFetchHeadPairGate u_fetch_head_pair_gate (
     .fifo_has_packet_i(fifo_has_packet_w),
+    .head_slot1_valid_i(head_slot1_valid_w),
     .head_resp0_i(head_resp0_w),
     .head_resp1_i(head_resp1_w),
     .head_inst0_i(head_inst0_w),
@@ -819,7 +834,7 @@ module OooFrontend #(
     .dispatch_valid_i(dispatch_valid_w),
     .dispatch0_csr_i(dispatch0_csr_w),
     .head0_branch_pred_taken_i(head0_branch_pred_taken_w),
-    .head1_branch_pred_taken_i(head1_branch_pred_taken_w),
+    .head_slot1_valid_i(head_slot1_valid_w),
     .dispatch0_exit_i(dispatch0_exit_w),
     .dispatch0_arch_trap_i(dispatch0_arch_trap_w),
     .dispatch0_system_i(dispatch0_system_w),
@@ -1023,6 +1038,48 @@ module OooFrontend #(
     .packet_next_pc_o(fetch_rsp_packet_next_pc_w)
   );
 
+  // ═══ 【B2 S2】resp 拍包级预测判决("包内预测位 + taken 拍断融合", spec §1) ═══
+  // fault slot(resp!=OK)不预测; 双分支包 slot0 优先(slot0 taken 时 slot1 预测无意义)。
+  assign fetch_pred0_taken_w =
+      fetch_dec0_branch_w && (fetch_dec0_resp_w == 2'b00) &&
+      fetch_dec0_pred_taken_w;
+  assign fetch_pred1_taken_w =
+      !fetch_pred0_taken_w &&
+      fetch_dec1_branch_w && (fetch_dec1_resp_w == 2'b00) &&
+      fetch_dec1_pred_taken_w;
+  // slot0 taken → 包内截断: slot1=wrong-path, 随包存 0, head1 谓词族在
+  // OooFetchHeadPairGate facts 生成处单点门控(禁用 resp 字段/NOP 替换编码——
+  // resp 是 fault 通道, 混用撞 fetch-fault drain 路径)。
+  assign fetch_slot1_valid_w = !fetch_pred0_taken_w;
+  // 包级预测后继(随包存 FIFO packet_next_pc 字段=改造承载, 同时喂 Sequencer 顺序
+  // 推进臂完成 resp 拍改流): taken=分支 target(pc+bimm), 否则=fall-through。
+  // 该值只进寄存器 D 端(FIFO 表项/next_fetch_pc_q), 禁止组合进 fetch_req_pc
+  // (刀 F WNS 家族: BPU 两级串联读+imm 加法器进取指回环)。
+  assign fetch_pred_next_pc_w =
+      fetch_pred0_taken_w ? (fetch_dec0_pc_w + fetch_dec0_bimm_w) :
+      fetch_pred1_taken_w ? (fetch_dec1_pc_w + fetch_dec1_bimm_w) :
+                            fetch_rsp_packet_next_pc_w;
+  // taken 拍断融合关断(单 bit → OooFetchFlowControl.can_issue): 该拍融合连发的
+  // 组合顺序地址是 fall-through 旧值(wrong-path), 压掉当拍顺序请求, target 拍尾
+  // 写进 next_fetch_pc_q, 次拍顺序臂发出——仅 taken 包付 1 拍。门用 rsp_valid 而非
+  // enqueue(FlowControl 输出), 避免输出→输入组合回绕; 多压集(discard/drop/满)拍
+  // can_issue 本就被既有项压死, 逐位中性。
+  assign fetch_pred_taken_block_w =
+      fetch_rsp_valid_i && (fetch_pred0_taken_w || fetch_pred1_taken_w);
+  // pred-taken 改流事件(精确口径: 包真实入队拍): 断言/观测消费(branch_flush 桶
+  // 迁移口), 不进数据通路。
+  assign fetch_pred_taken_redirect_w =
+      fetch_rsp_enqueue_w && (fetch_pred0_taken_w || fetch_pred1_taken_w);
+  // 非分支类 control stop(resp fault/JAL/JALR/SYSTEM): 纯分支包放行 rsp 拍融合
+  // 连发(顺序地址=fall-through=not-taken 预测流; taken 拍由上面 block 关断)。
+  // 分支项须以 resp==OK 限定——fault slot 的垃圾位形似 BRANCH 时仍必须 stop。
+  assign fetch_dec0_control_stop_nb_w =
+      fetch_dec0_control_stop_w &&
+      !(fetch_dec0_branch_w && (fetch_dec0_resp_w == 2'b00));
+  assign fetch_dec1_control_stop_nb_w =
+      fetch_dec1_control_stop_w &&
+      !(fetch_dec1_branch_w && (fetch_dec1_resp_w == 2'b00));
+
 
   OooFetchPacketHeadMux u_fetch_packet_head_mux (
     .bypass_valid_i(fetch_rsp_dispatch_bypass_w),
@@ -1031,7 +1088,9 @@ module OooFrontend #(
     .bypass_pc1_i(fetch_dec1_pc_w),
     .bypass_next_pc0_i(fetch_dec0_next_pc_w),
     .bypass_next_pc1_i(fetch_dec1_next_pc_w),
-    .bypass_packet_next_pc_i(fetch_rsp_packet_next_pc_w),
+    // 【B2 S2】packet_next_pc 字段改造承载包级 pred_next_pc(bypass 臂死硅 tie-0,
+    // 接同拍组合保同源)。
+    .bypass_packet_next_pc_i(fetch_pred_next_pc_w),
     .bypass_inst0_i(fetch_dec0_inst_w),
     .bypass_inst1_i(fetch_dec1_inst_w),
     .bypass_resp0_i(fetch_dec0_resp_w),
@@ -1042,6 +1101,7 @@ module OooFrontend #(
     .bypass_bht_idx1_i(fetch_dec1_bht_idx_w),
     .bypass_bht_valid0_i(fetch_dec0_bht_valid_w),
     .bypass_bht_valid1_i(fetch_dec1_bht_valid_w),
+    .bypass_slot1_valid_i(fetch_slot1_valid_w),
     .fifo_pc0_i(fifo_head_pc0_w),
     .fifo_pc1_i(fifo_head_pc1_w),
     .fifo_next_pc0_i(fifo_head_next_pc0_w),
@@ -1057,6 +1117,7 @@ module OooFrontend #(
     .fifo_bht_idx1_i(fifo_head_bht_idx1_w),
     .fifo_bht_valid0_i(fifo_head_bht_valid0_w),
     .fifo_bht_valid1_i(fifo_head_bht_valid1_w),
+    .fifo_slot1_valid_i(fifo_head_slot1_valid_w),
     .head_has_packet_o(fifo_has_packet_w),
     .head_pc0_o(head_pc_w),
     .head_pc1_o(head_pc1_w),
@@ -1072,7 +1133,8 @@ module OooFrontend #(
     .head_bht_idx0_o(head0_branch_bht_idx_w),
     .head_bht_idx1_o(head1_branch_bht_idx_w),
     .head_bht_valid0_o(head0_branch_bht_valid_w),
-    .head_bht_valid1_o(head1_branch_bht_valid_w)
+    .head_bht_valid1_o(head1_branch_bht_valid_w),
+    .head_slot1_valid_o(head_slot1_valid_w)
   );
 
 
@@ -1366,8 +1428,6 @@ module OooFrontend #(
     .branch_prefetch_req_valid_i(branch_prefetch_req_valid_w),
     .branch_prefetch_req_pc_i(branch_prefetch_req_pc_w),
     .direct_jump_spec_fire_i(direct_jump_spec_fire_w),
-    .direct_branch0_fire_i(direct_branch0_fire_w),
-    .direct_branch1_fire_i(direct_branch1_fire_w),
     .redirect_valid_i(redirect_valid_w),
     .redirect_pc_i(redirect_pc_w),
     .direct_redirect_fetch_o(direct_redirect_fetch_w),
@@ -1380,8 +1440,6 @@ module OooFrontend #(
 
   OooFrontendActionGate u_frontend_action_gate (
     .direct_jal_fire_i(direct_jal_fire_w),
-    .direct_branch0_fire_i(direct_branch0_fire_w),
-    .direct_branch1_fire_i(direct_branch1_fire_w),
     .direct_ret0_fire_i(direct_ret0_fire_w),
     .direct_ret1_fire_i(direct_ret1_fire_w),
     .can_run_i(can_run_w),
@@ -1398,7 +1456,6 @@ module OooFrontend #(
     .dispatch0_jump_i(dispatch0_jump_w),
     .dispatch1_barrier_i(dispatch1_barrier_w),
     .dispatch1_direct_jal_i(dispatch1_direct_jal_w),
-    .direct_branch1_dispatch_valid_i(direct_branch1_dispatch_valid_w),
     .dispatch_unsupported_i(dispatch_unsupported_w),
     .dispatch_fire_i(dispatch_fire_w),
     .dbranch_dispatch_fire_i(dbranch_dispatch_fire_w),
@@ -1407,8 +1464,9 @@ module OooFrontend #(
     .direct_jump_spec_fire_i(direct_jump_spec_fire_w),
     .fetch_rsp_fire_i(fetch_rsp_fire_w),
     .fetch_rsp_can_enqueue_i(fetch_rsp_can_enqueue_w),
-    .fetch_dec0_control_stop_i(fetch_dec0_control_stop_w),
-    .fetch_dec1_control_stop_i(fetch_dec1_control_stop_w),
+    // 【B2 S2】非分支类 stop(纯分支包放行融合连发, taken 拍由 pred block 关断)
+    .fetch_dec0_control_stop_i(fetch_dec0_control_stop_nb_w),
+    .fetch_dec1_control_stop_i(fetch_dec1_control_stop_nb_w),
     .csr_trap_mem_valid_i(csr_trap_mem_valid_w),
     .csr_trap_ex_valid_i(csr_trap_ex_valid_w),
     .csr_trap_irq_valid_i(csr_trap_irq_valid_w),
@@ -1430,6 +1488,7 @@ module OooFrontend #(
     .fetch_request_blocked_by_trap_i(fetch_request_blocked_by_trap_w),
     .redirect_fetch_req_valid_i(redirect_fetch_req_valid_w),
     .resolve_redirect_block_i(resolve_redirect_block_w),
+    .pred_taken_block_i(fetch_pred_taken_block_w),
     .branch_prefetch_req_valid_i(branch_prefetch_req_valid_w),
     .can_run_i(can_run_w),
     .stop_head_i(stop_head_w),
@@ -1620,7 +1679,8 @@ module OooFrontend #(
     .fallthrough_pc1_i(fetch_dec1_pc_w),
     .fallthrough_next_pc0_i(fetch_dec0_next_pc_w),
     .fallthrough_next_pc1_i(fetch_dec1_next_pc_w),
-    .fallthrough_packet_next_pc_i(fetch_rsp_packet_next_pc_w),
+    // 【B2 S2】packet_next_pc 字段改造承载包级 pred_next_pc(与 enqueue 同拍同源)
+    .fallthrough_packet_next_pc_i(fetch_pred_next_pc_w),
     .fallthrough_inst0_i(fetch_dec0_inst_w),
     .fallthrough_inst1_i(fetch_dec1_inst_w),
     .fallthrough_resp0_i(fetch_dec0_resp_w),
@@ -1631,6 +1691,7 @@ module OooFrontend #(
     .fallthrough_bht_idx1_i(fetch_dec1_bht_idx_w),
     .fallthrough_bht_valid0_i(fetch_dec0_bht_valid_w),
     .fallthrough_bht_valid1_i(fetch_dec1_bht_valid_w),
+    .fallthrough_slot1_valid_i(fetch_slot1_valid_w),
     .branch_pc0_i(branch_prefetch_hit_pc0_w),
     .branch_pc1_i(branch_prefetch_hit_pc1_w),
     .branch_next_pc0_i(branch_prefetch_hit_next_pc0_w),
@@ -1665,7 +1726,8 @@ module OooFrontend #(
     .seed_bht_idx0_o(fifo_seed_bht_idx0_w),
     .seed_bht_idx1_o(fifo_seed_bht_idx1_w),
     .seed_bht_valid0_o(fifo_seed_bht_valid0_w),
-    .seed_bht_valid1_o(fifo_seed_bht_valid1_w)
+    .seed_bht_valid1_o(fifo_seed_bht_valid1_w),
+    .seed_slot1_valid_o(fifo_seed_slot1_valid_w)
   );
 
 
@@ -1692,12 +1754,16 @@ module OooFrontend #(
     .seed_bht_idx1_i(fifo_seed_bht_idx1_w),
     .seed_bht_valid0_i(fifo_seed_bht_valid0_w),
     .seed_bht_valid1_i(fifo_seed_bht_valid1_w),
+    .seed_slot1_valid_i(fifo_seed_slot1_valid_w),
     .enqueue_i(fetch_rsp_enqueue_w),
     .enqueue_pc0_i(fetch_dec0_pc_w),
     .enqueue_pc1_i(fetch_dec1_pc_w),
     .enqueue_next_pc0_i(fetch_dec0_next_pc_w),
     .enqueue_next_pc1_i(fetch_dec1_next_pc_w),
-    .enqueue_packet_next_pc_i(fetch_rsp_packet_next_pc_w),
+    // 【B2 S2】packet_next_pc 字段改造承载包级 pred_next_pc: head 侧消费者
+    // (head_pred_succ→dispatch pred_npc)语义="前端实际取指后继"——含 taken 预测
+    // 改流, 机械同源于 Sequencer 顺序推进臂输入, count<2 哨兵缺口消灭。
+    .enqueue_packet_next_pc_i(fetch_pred_next_pc_w),
     .enqueue_inst0_i(fetch_dec0_inst_w),
     .enqueue_inst1_i(fetch_dec1_inst_w),
     .enqueue_resp0_i(fetch_dec0_resp_w),
@@ -1708,6 +1774,7 @@ module OooFrontend #(
     .enqueue_bht_idx1_i(fetch_dec1_bht_idx_w),
     .enqueue_bht_valid0_i(fetch_dec0_bht_valid_w),
     .enqueue_bht_valid1_i(fetch_dec1_bht_valid_w),
+    .enqueue_slot1_valid_i(fetch_slot1_valid_w),
     .pop_i(fifo_storage_pop_w),
     .head_valid_o(fifo_storage_head_valid_w),
     .head_pc0_o(fifo_head_pc0_w),
@@ -1725,32 +1792,17 @@ module OooFrontend #(
     .head_bht_idx1_o(fifo_head_bht_idx1_w),
     .head_bht_valid0_o(fifo_head_bht_valid0_w),
     .head_bht_valid1_o(fifo_head_bht_valid1_w),
-    .head1_pc0_o(fifo_head1_pc0_w),
+    .head_slot1_valid_o(fifo_head_slot1_valid_w),
     .count_o(fifo_count_q)
   );
 
-  // B2: head packet 的「预测后继 PC」= 下一条 FIFO entry 的 pc0（前端按预测序取指，故 next entry 即预测后继）。
-  // count>=2：next entry 正确且 loop-free。count==1：退回寄存 next_fetch_pc_q（前沿==head 后继，正确）。
-  // 【已知遗留】count==0 bypass：next_fetch_pc_q 当拍尚未从本 packet pc 更新到后继 → pred 滞后指向本 packet 自身，
-  //   使 bypass 的 predicted-taken 分支被判 mis 错误。正解=用「前端-only 的组合下一取指 PC」(去掉后端 redirect 项
-  //   以免与 backend mispredict 成组合环)，待续。fetch_req_pc_o 含后端 redirect 不可直接用(UNOPTFLAT)。
-  // head packet 的「预测后继 PC」= pred_npc 源。count>=2：下一条 FIFO entry pc0（前端按预测序取指，正确）。
-  // count<2(含 bypass)：暂用寄存 next_fetch_pc_q——它滞后指向 head 自身 → 每分支伪 mispredict 但 redirect 恒指向
-  //   架构后继（功能正确/慢），比「组合精确重建前端预测」更鲁棒（后者须逐 case 与前端实际取指一致，易漏）。
-  // pred_npc 源:count>=2 用下一条 FIFO entry 的 pc0(=前端实际取指的下一包首 PC,含预测-taken
-  //   重定向,正确);count<2 暂用寄存 next_fetch_pc_q(滞后,F2 count<2 缺口)。
-  //   注意:packet_next_pc 是 fall-through(顺序后继),不含 taken 预测,故不能直接当 pred_npc。
-  // 【F2·domain-A 哨兵版】pred_npc 语义 = 前端实际取指后继。domain-A 下前端对分支不再
-  //   按 BHT 重定向(direct fire 关闭), 实际后继恒为顺序流: count>=2 时 = 下一 FIFO 包 pc0
-  //   (真值, 可比对→not-taken 分支免 redirect); count<2 时下一包尚未取回、后继未知 →
-  //   给非法哨兵值 64'h1(指令地址至少 2 对齐, 恒不等于任何架构 next_pc)→必判 mispredict
-  //   →安全 redirect。取代旧 next_fetch_pc_q 滞后近似(其值可能凑巧等于 next_pc → 漏判
-  //   wrong-path, 即 #105 旧 46/88 的根因)。
-  // pred_npc 源(F2 foundation, 强制项下不生效): count>=2 = 下一 FIFO 包 pc0;
-  // count<2 = 64'h1 哨兵(恒 mispredict 兜底, 取代旧 next_fetch_pc_q 滞后近似)。
-  wire [`XLEN-1:0] head_pred_succ_w =
-      (fifo_count_q >= {{(FETCH_COUNT_W-2){1'b0}}, 2'd2}) ? fifo_head1_pc0_w
-                                                          : 64'h1;
+  // 【B2 S2】pred_npc 源=包内 pred_next_pc(FIFO packet_next_pc 字段改造承载, 经
+  // HeadMux 读出): resp 拍定格的"前端实际取指后继"——taken 预测=分支 target, 否则
+  // =fall-through。与 Sequencer 顺序推进臂写入 next_fetch_pc_q 的值机械同源(同一
+  // fetch_pred_next_pc_w), pred 与实际取指结构性一致(#105 障碍②族免疫)。
+  // F2 count<2 哨兵臂(64'h1 恒 mispredict 兜底: "target 包未到→伪 mispredict 全代价
+  // redirect")与 fifo_head1_pc0 下包读口随之消灭——包内直取不依赖下包是否到达。
+  wire [`XLEN-1:0] head_pred_succ_w = head_packet_next_pc_w;
 
   // ===== 【F2 单源化】本拍 direct fire 的实际重取目标 =====
   // 与 OooFetchPcOutstandingSequencer 的 next_fetch 更新共享同一 wire(该模块的内部
@@ -1758,6 +1810,8 @@ module OooFrontend #(
   // 机械同源, 结构性消灭 #105 障碍②(拍内解析/spec 臂不同源错配)族。臂序保持
   // 原 OutstandingSequencer 优先级: jal > ret > branch(lane1_ret > target > fallthrough
   // > 拍内解析 > spec > 顺序) > jump_spec。
+  // 【B2 S2】direct_branch_fire_w 恒 0(分支 fire 物理死化)→ branch 整臂死硅, 证据化
+  // 保留(B4 处置惯例); 分支重取目标现随包存 pred_next_pc(默认档 head_pred_succ_w)。
   wire [`XLEN-1:0] direct_fire_succ_w =
       direct_jal_fire_w ? direct_jal_target_w :
       (direct_ret0_fire_w || direct_ret1_fire_w) ? direct_ret_target_w :
@@ -1773,18 +1827,18 @@ module OooFrontend #(
       head_pred_succ_w;
   // 【P4】E4 direct redirect 构造式(arbiter direct 口输入, 声明前置于 arbiter 实例旁):
   // 照原 OooFetchPcOutstandingSequencer E4 装载臂——valid = direct_frontend_flush 拍
-  // 任一 direct fire; pc = direct_fire_succ, 分支 fallthrough capture 拍覆写为
-  // fetch_rsp_packet_next_pc(与原臂内层 if 同序)。shadow 阶段为观测输出口, 切消费点
+  // 任一 direct fire; pc = direct_fire_succ。shadow 阶段为观测输出口, 切消费点
   // 后转为生产信号(原 Sequencer 内层 PC 写已删, 经 arbiter 终写回注)。
+  // 【B2 S2】branch0/1_fire 项已去(分支 fire 物理死化, taken 降格为顺序流地址选择,
+  // E4 只剩 jal/ret/jump_spec); 分支 fallthrough-capture 的 packet_next_pc 覆写臂
+  // 随 capture 谓词(依赖 branch0_fire)死亡, 一并删除。
   assign e4_redirect_valid_w = direct_frontend_flush_w &&
       (direct_jal_fire_w || direct_ret0_fire_w || direct_ret1_fire_w ||
-       direct_branch0_fire_w || direct_branch1_fire_w ||
        direct_jump_spec_fire_w);
-  assign e4_redirect_pc_w =
-      ((direct_branch0_fire_w || direct_branch1_fire_w) &&
-       branch_fallthrough_capture_rsp_w) ? fetch_rsp_packet_next_pc_w
-                                         : direct_fire_succ_w;
+  assign e4_redirect_pc_w = direct_fire_succ_w;
 
+  // 【B2 S2】branch0/1_fire 项恒 0(死化保留): 分支 lane 的 pred_npc 走非 fired 臂
+  // = head_pred_succ_w(包内 pred_next_pc)——taken=target/not-taken=fall-through。
   wire d0_ctrlflow_fired_w =
       direct_jal0_fire_w || direct_ret0_fire_w || direct_branch0_fire_w ||
       direct_jump_spec_fire_w;
@@ -2055,7 +2109,10 @@ module OooFrontend #(
       .fetch_rsp_enqueue_i(fetch_rsp_enqueue_w),
       .fetch_rsp_bypass_consumed_i(fetch_rsp_bypass_consumed_w),
       .fetch_rsp_fire_i(fetch_rsp_fire_w),
-      .fetch_rsp_packet_next_pc_i(fetch_rsp_packet_next_pc_w),
+      // 【B2 S2 改流落点】顺序推进臂输入换包级 pred_next_pc: taken 预测拍把分支
+      // target 写进 next_fetch_pc_q(当拍融合请求被 pred_taken_block 关断), 次拍
+      // 顺序臂发出——resp 拍改流, 断融合形态。其余拍逐位等于 packet_next_pc。
+      .fetch_rsp_packet_next_pc_i(fetch_pred_next_pc_w),
       .fetch_req_fire_i(fetch_req_fire_w),
       .fetch_req_pc_i(fetch_req_pc_o),
       .csr_trap_mem_valid_i(csr_trap_mem_valid_w),
@@ -2137,10 +2194,9 @@ module OooFrontend #(
       head0_fp_store_raw_w | head1_fp_double_w | head1_fp_enabled_w |
       head1_fp_gpr_write_w | head1_fp_load_raw_w | head1_fp_store_raw_w;
 
-  // 【B2 S1】resp 拍分支识别位(dec*_branch)与 predict_strong 本台阶无 RTL 消费者
-  // (branch 位=S2 taken 拍断融合的判定输入; strong 位原 head 拍版也仅 checker 消费)。
+  // 【B2 S2】dec*_branch 已被包级预测判决消费(S1 预留兑现); predict_strong 仍仅
+  // checker 消费。
   wire frontend_fetch_dec_pred_unused_w =
-      fetch_dec0_branch_w | fetch_dec1_branch_w |
       fetch_dec0_predict_strong_w | fetch_dec1_predict_strong_w;
 
 `ifdef OOO_ASSERT
@@ -2164,6 +2220,43 @@ module OooFrontend #(
   always @(posedge clk) if (!rst)
     if (direct_redirect_fetch_w && !direct_frontend_flush_w)
       $error("[FLUSH-CONTRACT GAP-3] mux direct_redirect_fetch 置位而 FE direct_frontend_flush 未置位: fetch_req 被 mux 重定向但 sequencer 未 latch next_fetch/未 reset outstanding -> 两落点分叉 @%0t", $time);
+
+  // 【B2 S2 契约】pred-taken 包改流拍 ⇒ 下一顺序取指请求 pc == 预测 target
+  // (F2 障碍①家族: 改流拍顺序臂旧值泄漏)。改流拍寄存 target, 追踪至下一 req fire;
+  // 途中任何 redirect/flush/FIFO clear 拍取消追踪(wrong-path 预测禁止改流——该拍
+  // next_fetch_pc_q 已被文本更后的 arb 终写/req_fire 臂覆盖, 断言域随之关闭);
+  // redirect/prefetch 臂请求不属顺序臂, 排除。立即断言形态(architecture-first)。
+  reg b2s2_pred_redirect_pending_q;
+  reg [`XLEN-1:0] b2s2_pred_target_q;
+  always @(posedge clk) begin
+    if (rst || flush_i) begin
+      b2s2_pred_redirect_pending_q <= 1'b0;
+      b2s2_pred_target_q <= {`XLEN{1'b0}};
+    end else if (redirect_valid_w || csr_trap_mem_valid_w ||
+                 direct_frontend_flush_w || fifo_clear_w) begin
+      b2s2_pred_redirect_pending_q <= 1'b0;
+    end else if (fetch_pred_taken_redirect_w) begin
+      b2s2_pred_redirect_pending_q <= 1'b1;
+      b2s2_pred_target_q <= fetch_pred_next_pc_w;
+    end else if (fetch_req_fire_w) begin
+      b2s2_pred_redirect_pending_q <= 1'b0;
+    end
+  end
+  always @(posedge clk) if (!rst) begin
+    if (b2s2_pred_redirect_pending_q && fetch_req_fire_w &&
+        !redirect_fetch_req_valid_w && !branch_prefetch_req_valid_w &&
+        (fetch_req_pc_o !== b2s2_pred_target_q))
+      $error("[B2S2-PRED-REDIRECT] pred-taken 改流后首个顺序取指请求 pc=%h != 预测 target=%h @%0t",
+             fetch_req_pc_o, b2s2_pred_target_q, $time);
+  end
+
+  // 【B2 S2 契约】断融合等价性: pred-taken 拍(rsp 有效且包将入队)顺序臂请求必须被
+  // 关断——can_issue 泄漏 = 融合连发以 fall-through 旧地址发出 wrong-path 请求并被
+  // 登记为合法 outstanding(障碍①同族)。
+  always @(posedge clk) if (!rst) begin
+    if (fetch_pred_taken_redirect_w && can_issue_request_w)
+      $error("[B2S2-PRED-BLOCK] pred-taken 改流拍顺序取指臂未被关断(can_issue 泄漏) @%0t", $time);
+  end
 `endif
 
 endmodule

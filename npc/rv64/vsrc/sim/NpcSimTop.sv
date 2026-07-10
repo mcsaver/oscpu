@@ -785,8 +785,12 @@ module NpcSimTop (
         (u_top.u_core.u_ooo_core.dispatch_valid_w &&
          (!u_top.u_core.u_ooo_core.dispatch0_ready_w ||
           !u_top.u_core.u_ooo_core.dispatch1_ready_w))));
+  // 【B2 S2 观测口迁移】direct fire 家族不再含分支(fire 物理死化), taken 预测改为
+  // fetch resp 拍改流(fetch_pred_taken_redirect: 包入队且预测 taken, 断融合付 1 拍)
+  // ——事件拍口径随迁, 避免收益数字失真(桶语义=控制流打断顺序取指的拍)。
   wire sim_ooo_branch_flush_w =
       u_top.u_core.u_ooo_core.direct_frontend_flush_w ||
+      u_top.u_core.u_ooo_core.u_frontend.fetch_pred_taken_redirect_w ||
       u_top.u_core.u_ooo_core.branch_resolve_redirect_w ||
       u_top.u_core.u_ooo_core.branch_spec_redirect_w ||
       u_top.u_core.u_ooo_core.branch_resolve_untracked_redirect_w ||

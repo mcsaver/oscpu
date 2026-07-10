@@ -44,6 +44,8 @@ module OooFetchPacketSeedMux (
   input [`BPU_BHT_INDEX_W-1:0] fallthrough_bht_idx1_i,
   input fallthrough_bht_valid0_i,
   input fallthrough_bht_valid1_i,
+  // 【B2 S2】slot1 截断位: 与 enqueue 同拍同包(fetch resp 组合), 机械同源。
+  input fallthrough_slot1_valid_i,
 
   input [`XLEN-1:0] branch_pc0_i,
   input [`XLEN-1:0] branch_pc1_i,
@@ -81,7 +83,8 @@ module OooFetchPacketSeedMux (
   output reg [`BPU_BHT_INDEX_W-1:0] seed_bht_idx0_o,
   output reg [`BPU_BHT_INDEX_W-1:0] seed_bht_idx1_o,
   output reg seed_bht_valid0_o,
-  output reg seed_bht_valid1_o
+  output reg seed_bht_valid1_o,
+  output reg seed_slot1_valid_o
 );
 
   task set_seed;
@@ -100,6 +103,7 @@ module OooFetchPacketSeedMux (
     input [`BPU_BHT_INDEX_W-1:0] bht_idx1;
     input bht_valid0;
     input bht_valid1;
+    input slot1_valid;
     begin
       clear_o = 1'b0;
       seed_valid_o = 1'b1;
@@ -118,6 +122,7 @@ module OooFetchPacketSeedMux (
       seed_bht_idx1_o = bht_idx1;
       seed_bht_valid0_o = bht_valid0;
       seed_bht_valid1_o = bht_valid1;
+      seed_slot1_valid_o = slot1_valid;
     end
   endtask
 
@@ -146,6 +151,7 @@ module OooFetchPacketSeedMux (
     seed_bht_idx1_o = {`BPU_BHT_INDEX_W{1'b0}};
     seed_bht_valid0_o = 1'b0;
     seed_bht_valid1_o = 1'b0;
+    seed_slot1_valid_o = 1'b1;
 
     if (csr_trap_i) begin
       set_clear;
@@ -159,7 +165,8 @@ module OooFetchPacketSeedMux (
                  fallthrough_resp1_i,
                  fallthrough_pred_taken0_i, fallthrough_pred_taken1_i,
                  fallthrough_bht_idx0_i, fallthrough_bht_idx1_i,
-                 fallthrough_bht_valid0_i, fallthrough_bht_valid1_i);
+                 fallthrough_bht_valid0_i, fallthrough_bht_valid1_i,
+                 fallthrough_slot1_valid_i);
       end
     end
 
@@ -173,12 +180,12 @@ module OooFetchPacketSeedMux (
       if (pending_branch_misaligned_i) begin
         set_clear;
       end else if (branch_prefetch_hit_i) begin
-        // 死硅臂(hit 恒0): 预测位=静态 not-taken 安全值 0。
+        // 死硅臂(hit 恒0): 预测位=静态 not-taken 安全值 0, slot1_valid=1(整包有效)。
         set_seed(branch_pc0_i, branch_pc1_i, branch_next_pc0_i,
                  branch_next_pc1_i, branch_packet_next_pc_i, branch_inst0_i,
                  branch_inst1_i, branch_resp0_i, branch_resp1_i,
                  1'b0, 1'b0, {`BPU_BHT_INDEX_W{1'b0}},
-                 {`BPU_BHT_INDEX_W{1'b0}}, 1'b0, 1'b0);
+                 {`BPU_BHT_INDEX_W{1'b0}}, 1'b0, 1'b0, 1'b1);
       end else begin
         set_clear;
       end
@@ -194,7 +201,7 @@ module OooFetchPacketSeedMux (
                    jalr_next_pc1_i, jalr_packet_next_pc_i, jalr_inst0_i,
                    jalr_inst1_i, jalr_resp0_i, jalr_resp1_i,
                    1'b0, 1'b0, {`BPU_BHT_INDEX_W{1'b0}},
-                   {`BPU_BHT_INDEX_W{1'b0}}, 1'b0, 1'b0);
+                   {`BPU_BHT_INDEX_W{1'b0}}, 1'b0, 1'b0, 1'b1);
         end else begin
           set_clear;
         end
@@ -221,7 +228,7 @@ module OooFetchPacketSeedMux (
                    jalr_next_pc1_i, jalr_packet_next_pc_i, jalr_inst0_i,
                    jalr_inst1_i, jalr_resp0_i, jalr_resp1_i,
                    1'b0, 1'b0, {`BPU_BHT_INDEX_W{1'b0}},
-                   {`BPU_BHT_INDEX_W{1'b0}}, 1'b0, 1'b0);
+                   {`BPU_BHT_INDEX_W{1'b0}}, 1'b0, 1'b0, 1'b1);
         end else begin
           set_clear;
         end

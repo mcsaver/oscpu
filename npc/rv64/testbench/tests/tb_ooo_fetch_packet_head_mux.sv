@@ -21,6 +21,7 @@ module tb_ooo_fetch_packet_head_mux;
   reg [`BPU_BHT_INDEX_W-1:0] bypass_bht_idx1;
   reg bypass_bht_valid0;
   reg bypass_bht_valid1;
+  reg bypass_slot1_valid;   // B2 S2: 截断位管道化
 
   reg [`XLEN-1:0] fifo_pc0;
   reg [`XLEN-1:0] fifo_pc1;
@@ -37,6 +38,7 @@ module tb_ooo_fetch_packet_head_mux;
   reg [`BPU_BHT_INDEX_W-1:0] fifo_bht_idx1;
   reg fifo_bht_valid0;
   reg fifo_bht_valid1;
+  reg fifo_slot1_valid;
 
   wire head_has_packet;
   wire [`XLEN-1:0] head_pc0;
@@ -54,6 +56,7 @@ module tb_ooo_fetch_packet_head_mux;
   wire [`BPU_BHT_INDEX_W-1:0] head_bht_idx1;
   wire head_bht_valid0;
   wire head_bht_valid1;
+  wire head_slot1_valid;
 
   OooFetchPacketHeadMux dut (
     .bypass_valid_i(bypass_valid),
@@ -73,6 +76,7 @@ module tb_ooo_fetch_packet_head_mux;
     .bypass_bht_idx1_i(bypass_bht_idx1),
     .bypass_bht_valid0_i(bypass_bht_valid0),
     .bypass_bht_valid1_i(bypass_bht_valid1),
+    .bypass_slot1_valid_i(bypass_slot1_valid),
     .fifo_pc0_i(fifo_pc0),
     .fifo_pc1_i(fifo_pc1),
     .fifo_next_pc0_i(fifo_next_pc0),
@@ -88,6 +92,7 @@ module tb_ooo_fetch_packet_head_mux;
     .fifo_bht_idx1_i(fifo_bht_idx1),
     .fifo_bht_valid0_i(fifo_bht_valid0),
     .fifo_bht_valid1_i(fifo_bht_valid1),
+    .fifo_slot1_valid_i(fifo_slot1_valid),
     .head_has_packet_o(head_has_packet),
     .head_pc0_o(head_pc0),
     .head_pc1_o(head_pc1),
@@ -103,7 +108,8 @@ module tb_ooo_fetch_packet_head_mux;
     .head_bht_idx0_o(head_bht_idx0),
     .head_bht_idx1_o(head_bht_idx1),
     .head_bht_valid0_o(head_bht_valid0),
-    .head_bht_valid1_o(head_bht_valid1)
+    .head_bht_valid1_o(head_bht_valid1),
+    .head_slot1_valid_o(head_slot1_valid)
   );
 
   task automatic check_xlen;
@@ -153,6 +159,7 @@ module tb_ooo_fetch_packet_head_mux;
     input [`BPU_BHT_INDEX_W-1:0] exp_bht_idx1;
     input exp_bht_valid0;
     input exp_bht_valid1;
+    input exp_slot1_valid;
     begin
       tb_check1({tag, " pred_taken0"}, head_pred_taken0, exp_pred_taken0);
       tb_check1({tag, " pred_taken1"}, head_pred_taken1, exp_pred_taken1);
@@ -164,6 +171,7 @@ module tb_ooo_fetch_packet_head_mux;
                  {{(32-`BPU_BHT_INDEX_W){1'b0}}, exp_bht_idx1});
       tb_check1({tag, " bht_valid0"}, head_bht_valid0, exp_bht_valid0);
       tb_check1({tag, " bht_valid1"}, head_bht_valid1, exp_bht_valid1);
+      tb_check1({tag, " slot1_valid"}, head_slot1_valid, exp_slot1_valid);
     end
   endtask
 
@@ -195,12 +203,14 @@ module tb_ooo_fetch_packet_head_mux;
       bypass_bht_idx1 = `BPU_BHT_INDEX_W'h05a;
       bypass_bht_valid0 = 1'b1;
       bypass_bht_valid1 = 1'b0;
+      bypass_slot1_valid = 1'b0;
       fifo_pred_taken0 = 1'b0;
       fifo_pred_taken1 = 1'b1;
       fifo_bht_idx0 = `BPU_BHT_INDEX_W'h233;
       fifo_bht_idx1 = `BPU_BHT_INDEX_W'h0cc;
       fifo_bht_valid0 = 1'b0;
       fifo_bht_valid1 = 1'b1;
+      fifo_slot1_valid = 1'b1;
       #1;
     end
   endtask
@@ -223,7 +233,7 @@ module tb_ooo_fetch_packet_head_mux;
                  fifo_resp0, fifo_resp1);
     check_pred("fifo selected", fifo_pred_taken0, fifo_pred_taken1,
                fifo_bht_idx0, fifo_bht_idx1, fifo_bht_valid0,
-               fifo_bht_valid1);
+               fifo_bht_valid1, fifo_slot1_valid);
 
     drive_defaults();
     bypass_valid = 1'b1;
@@ -234,7 +244,7 @@ module tb_ooo_fetch_packet_head_mux;
                  bypass_inst1, bypass_resp0, bypass_resp1);
     check_pred("bypass selected", bypass_pred_taken0, bypass_pred_taken1,
                bypass_bht_idx0, bypass_bht_idx1, bypass_bht_valid0,
-               bypass_bht_valid1);
+               bypass_bht_valid1, bypass_slot1_valid);
 
     drive_defaults();
     bypass_valid = 1'b1;
@@ -246,7 +256,7 @@ module tb_ooo_fetch_packet_head_mux;
                  bypass_inst0, bypass_inst1, bypass_resp0, bypass_resp1);
     check_pred("bypass wins over fifo", bypass_pred_taken0,
                bypass_pred_taken1, bypass_bht_idx0, bypass_bht_idx1,
-               bypass_bht_valid0, bypass_bht_valid1);
+               bypass_bht_valid0, bypass_bht_valid1, bypass_slot1_valid);
 
     tb_finish("tb_ooo_fetch_packet_head_mux");
   end

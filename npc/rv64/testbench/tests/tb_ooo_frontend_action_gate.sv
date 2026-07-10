@@ -2,8 +2,6 @@
 
 module tb_ooo_frontend_action_gate;
   reg direct_jal_fire;
-  reg direct_branch0_fire;
-  reg direct_branch1_fire;
   reg direct_ret0_fire;
   reg direct_ret1_fire;
   reg can_run;
@@ -18,7 +16,6 @@ module tb_ooo_frontend_action_gate;
   reg dispatch0_jump;
   reg dispatch1_barrier;
   reg dispatch1_direct_jal;
-  reg direct_branch1_dispatch_valid;
   reg dispatch_unsupported;
   reg dispatch_fire;
   reg dbranch_dispatch_fire;  // domain-A: 分支普通 dispatch fire(pop 源)
@@ -41,9 +38,8 @@ module tb_ooo_frontend_action_gate;
   wire fetch_request_blocked_by_trap;
 
   OooFrontendActionGate dut (
+    // 【B2 S2】direct_branch0/1_fire_i 端口已删(分支 fire 物理死化)
     .direct_jal_fire_i(direct_jal_fire),
-    .direct_branch0_fire_i(direct_branch0_fire),
-    .direct_branch1_fire_i(direct_branch1_fire),
     .direct_ret0_fire_i(direct_ret0_fire),
     .direct_ret1_fire_i(direct_ret1_fire),
     .can_run_i(can_run),
@@ -60,7 +56,6 @@ module tb_ooo_frontend_action_gate;
     .dispatch0_jump_i(dispatch0_jump),
     .dispatch1_barrier_i(dispatch1_barrier),
     .dispatch1_direct_jal_i(dispatch1_direct_jal),
-    .direct_branch1_dispatch_valid_i(direct_branch1_dispatch_valid),
     .dispatch_unsupported_i(dispatch_unsupported),
     .dispatch_fire_i(dispatch_fire),
     .dbranch_dispatch_fire_i(dbranch_dispatch_fire),
@@ -86,8 +81,6 @@ module tb_ooo_frontend_action_gate;
   task automatic reset_inputs;
     begin
       direct_jal_fire = 1'b0;
-      direct_branch0_fire = 1'b0;
-      direct_branch1_fire = 1'b0;
       direct_ret0_fire = 1'b0;
       direct_ret1_fire = 1'b0;
       can_run = 1'b1;
@@ -102,7 +95,6 @@ module tb_ooo_frontend_action_gate;
       dispatch0_jump = 1'b0;
       dispatch1_barrier = 1'b0;
       dispatch1_direct_jal = 1'b0;
-      direct_branch1_dispatch_valid = 1'b0;
       dispatch_unsupported = 1'b0;
       dispatch_fire = 1'b0;
       dbranch_dispatch_fire = 1'b0;
@@ -131,11 +123,8 @@ module tb_ooo_frontend_action_gate;
     tb_check1("idle no control stop", fetch_rsp_control_stop, 1'b0);
     tb_check1("idle request unblocked", fetch_request_blocked_by_trap, 1'b0);
 
-    reset_inputs();
-    direct_branch1_fire = 1'b1;
-    #1;
-    tb_check1("direct branch flushes frontend", direct_frontend_flush, 1'b1);
-    tb_check1("direct branch does not imply fifo pop", fifo_pop, 1'b0);
+    // 【B2 S2】分支 fire 已物理死化(端口删除): taken 分支不再是 flush 事件,
+    // 顺序取指流即预测流——flush 或集只剩 jal/ret/jump_spec(下方 case 覆盖)。
 
     reset_inputs();
     direct_ret0_fire = 1'b1;
@@ -158,6 +147,13 @@ module tb_ooo_frontend_action_gate;
     dispatch1_barrier = 1'b1;
     #1;
     tb_check1("lane1 barrier stops head", stop_head, 1'b1);
+
+    // 【B2 S2】head1 分支(direct_branch1_dispatch_valid 臂已删)不再停头:
+    // 双发免 flush, head 期间顺序取指地址=包内 pred_next_pc(预测流)。
+    // 该拍其余停头项全 0 时 stop_head 必须为 0(放宽契约)。
+    reset_inputs();
+    #1;
+    tb_check1("S2: head1 branch packet no longer stops head", stop_head, 1'b0);
 
     reset_inputs();
     dispatch_unsupported = 1'b1;

@@ -20,6 +20,11 @@ module OooFetchPcOutstandingSequencer (
   input fetch_rsp_enqueue_i,
   input fetch_rsp_bypass_consumed_i,
   input fetch_rsp_fire_i,
+  // 【B2 S2】父模块接线已换为包级 pred_next_pc(taken 预测拍=分支 target, 其余拍
+  // ≡fall-through packet_next_pc): 顺序推进臂(非终态)写它即完成 resp 拍改流——
+  // "顺序流地址变化"非新事件, outstanding/discard/seed/clear 记账零触碰(侦查 §四)。
+  // 同拍 redirect 家族(E1/E3/E5/E6 及 direct flush 拍 req_fire 臂)由文本更后的写者
+  // 覆盖, wrong-path 预测改流被机械取消(F2 障碍①家族免疫)。
   input [`XLEN-1:0] fetch_rsp_packet_next_pc_i,
   input fetch_req_fire_i,
   input [`XLEN-1:0] fetch_req_pc_i,

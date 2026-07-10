@@ -242,6 +242,38 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
                 64'h0000_0000_8000_1004, 1'b0,
                 64'h0000_0000_8000_1000, 1'b0);
 
+    // ── 【B2 S2】pred-taken 改流 = 顺序推进臂写包 pred_next_pc(非顺序 fall-through) ──
+    // 父模块接线已把 packet_next_pc 口换成包级 pred_next_pc: taken 拍融合请求被
+    // FlowControl.pred_taken_block 关断(本拍无 req_fire), 顺序推进臂把 target 写进
+    // next_fetch_pc_q, 次拍顺序臂发出——resp 拍改流, 记账臂零触碰。
+    reset_dut(64'h0000_0000_8000_0000);
+    issue_fetch(64'h0000_0000_8000_1000);
+    clear_inputs();
+    fetch_rsp_fire = 1'b1;
+    fetch_rsp_enqueue = 1'b1;
+    fetch_rsp_packet_next_pc = 64'h0000_0000_8000_9100;   // 包 pred_next_pc=分支 target
+    tick();
+    check_state("S2 pred-taken redirect latches branch target",
+                64'h0000_0000_8000_9100, 1'b0,
+                64'h0000_0000_8000_1000, 1'b0);
+
+    // ── 【B2 S2】E3 redirect 拍与同拍 rsp enqueue 竞争(真值表, F2 家族②) ──
+    // 同拍: 顺序推进臂(enqueue, 写 wrong-path 包 pred_next_pc) vs E3 untracked 记账
+    // + arb 终写(redirect_pc)。文本最后的 arb 终写必须赢——wrong-path 预测改流被
+    // 机械取消; E3 记账臂(outstanding 清)照常执行(discard: rsp 本拍已 fire, 不置)。
+    reset_dut(64'h0000_0000_8000_0000);
+    issue_fetch(64'h0000_0000_8000_a000);
+    clear_inputs();
+    fetch_rsp_fire = 1'b1;
+    fetch_rsp_enqueue = 1'b1;
+    fetch_rsp_packet_next_pc = 64'h0000_0000_8000_a100;   // wrong-path 包 pred
+    branch_resolve_untracked = 1'b1;                      // E3 backend mispredict
+    redirect_valid = 1'b1;
+    redirect_pc = 64'h0000_0000_8000_b000;                // arbiter branch 口赢家
+    tick();
+    check_state("S2 E3-over-enqueue: arb final write beats pred redirect",
+                64'h0000_0000_8000_b000, 1'b0, {`XLEN{1'b0}}, 1'b0);
+
     // ── E7 commit_resolve(保留臂, 记账+PC 都在模块内) ──
     reset_dut(64'h0000_0000_8000_0000);
     issue_fetch(64'h0000_0000_8000_2000);

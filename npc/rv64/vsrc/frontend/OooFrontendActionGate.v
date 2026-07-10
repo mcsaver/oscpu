@@ -1,9 +1,10 @@
 // Pure combinational action predicates for the OoO front-end shell.
 `include "define.v"
+// 【B2 S2】direct_branch0/1_fire_i 端口已删(分支 fire 物理死化, 预测介入点前移
+// fetch resp 拍): direct_frontend_flush 或集、stop_head 的 branch1 臂随之去项——
+// taken 分支不再是 flush 事件, 顺序取指流即预测流。
 module OooFrontendActionGate (
   input direct_jal_fire_i,
-  input direct_branch0_fire_i,
-  input direct_branch1_fire_i,
   input direct_ret0_fire_i,
   input direct_ret1_fire_i,
   input can_run_i,
@@ -20,7 +21,6 @@ module OooFrontendActionGate (
   input dispatch0_jump_i,
   input dispatch1_barrier_i,
   input dispatch1_direct_jal_i,
-  input direct_branch1_dispatch_valid_i,
   input dispatch_unsupported_i,
   input dispatch_fire_i,
   input dbranch_dispatch_fire_i,  // domain-A: 分支普通 dispatch fire(pop 源)
@@ -29,6 +29,10 @@ module OooFrontendActionGate (
   input direct_jump_spec_fire_i,   // B2: 非返回 JALR 投机续取 → 触发前端 flush 重定向
   input fetch_rsp_fire_i,
   input fetch_rsp_can_enqueue_i,
+  // 【B2 S2】接线语义收窄为"非分支类 control stop"(resp fault/JAL/JALR/SYSTEM):
+  // 纯分支包放行 rsp 拍融合连发(顺序臂地址=fall-through=not-taken 预测流; taken 包
+  // 由 pred_taken_block 单 bit 关断——见 OooFetchFlowControl)。上游 OooFrontend 组合
+  // fetch_dec*_control_stop_nb_w = control_stop && !(branch && resp==OK)。
   input fetch_dec0_control_stop_i,
   input fetch_dec1_control_stop_i,
   input csr_trap_mem_valid_i,
@@ -46,8 +50,6 @@ module OooFrontendActionGate (
 
   assign direct_frontend_flush_o =
       direct_jal_fire_i ||
-      direct_branch0_fire_i ||
-      direct_branch1_fire_i ||
       direct_ret0_fire_i ||
       direct_ret1_fire_i ||
       direct_jump_spec_fire_i;
@@ -65,7 +67,8 @@ module OooFrontendActionGate (
        dispatch0_jump_i ||
        dispatch1_barrier_i ||
        dispatch1_direct_jal_i ||
-       direct_branch1_dispatch_valid_i ||
+       // 【B2 S2】direct_branch1_dispatch_valid 臂已删: head1 分支不再 dispatch 拍
+       // fire/flush, head 期间顺序取指地址=包内 pred_next_pc(预测流), 无需停头。
        dispatch_unsupported_i);
 
   assign fifo_pop_o =

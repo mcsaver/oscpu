@@ -1085,6 +1085,12 @@ module OooIntBackend #(
       !((issue0_mem_addr_w & `NPC_AXI_PMEM_MASK) == `NPC_AXI_PMEM_BASE);
   wire issue1_mem_mmio_w =
       !((issue1_mem_addr_w & `NPC_AXI_PMEM_MASK) == `NPC_AXI_PMEM_BASE);
+  // 独占族(AMO/LR/SC/MMIO-load): 走 LEGACY 单例通道, 桥资源判定用 amo_slot(MIQ 空)。
+  // (声明前置到 can_fire 之前——B2 S2 修 can_fire↔req-mux slot 分派不同源潜伏 bug)
+  wire issue0_mem_needs_excl_w =
+      issue0_is_amo_w || (issue0_is_load_w && issue0_mem_mmio_w);
+  wire issue1_mem_needs_excl_w =
+      issue1_is_amo_w || (issue1_is_load_w && issue1_mem_mmio_w);
   wire issue_block_w =
       checkpoint_capture_i || checkpoint_quiesce_i;
   // rsp 归属 = MIQ 队头。LEGACY 头沿旧 mem_pending_q 语义; plain 头按 kind 分派。
@@ -1582,6 +1588,15 @@ module OooIntBackend #(
       (sq_mode_w && issue1_is_plain_store_w) ||
       (rob_head_valid_w && (issue1_rob_idx_w == rob_head_idx_w) &&
        !(issue1_is_load_w && !issue1_is_amo_w && issue1_sq_block_r));
+  // 【B2 S2 潜伏 bug 修复(root cause)】桥资源项必须与 req mux 的 slot 分派机械同源:
+  // 独占族(AMO/MMIO-load)在 req mux 侧(issue*_mem_req_valid)用 mem_amo_slot_open
+  // (MIQ 空), 此处原用 mem_request_slot_open(仅非满)——分歧窗口(如 SQ drain 在飞拍,
+  // MIQ 非空)里队头 MMIO lw 被 IQ 发射出队+mem_pending 置位, 而 issue0_mem_req_valid=0
+  // 使桥请求从未发出 → LEGACY 事务凭空丢失, rsp 永不回 → mem_pending 永卡死锁
+  // (CoreMark __am_timer_init MMIO lw 实测)。S2 前分支 fire/flush 断流使"drain 在飞
+  // ∧ MMIO 队头"相位几乎不可达(幸存者偏差), S2 取指不断流后必踩。
+  // 同修: 末项(pending 在飞走 buffer 等待通道)从 !is_amo 收紧为 !needs_excl——
+  // MMIO load 不得进 plain buffer 通道(kind=LOAD 会绕开 LEGACY 独占序)。
   wire issue0_mem_can_fire_w =
       issue0_is_mem_w &&
       !mem_issue_block_w &&
@@ -1589,9 +1604,11 @@ module OooIntBackend #(
       (!issue0_is_amo_w || amo_sq_quiet_w) &&
       (issue0_mem_exception_w ||
        issue0_sq_fwd_w ||
-       (!mem_buffer_valid_q && mem_request_slot_open_w &&
+       (!mem_buffer_valid_q &&
+        (issue0_mem_needs_excl_w ? mem_amo_slot_open_w
+                                 : mem_request_slot_open_w) &&
         mem_req_ready_i) ||
-       (!issue0_is_amo_w && mem_pending_q && !mem_rsp_fire_w &&
+       (!issue0_mem_needs_excl_w && mem_pending_q && !mem_rsp_fire_w &&
         !mem_buffer_valid_q));
   wire issue1_mem_can_fire_w =
       issue1_is_mem_w &&
@@ -1603,7 +1620,9 @@ module OooIntBackend #(
       (issue1_mem_exception_w ||
        issue1_sq_fwd_w ||
        ((!issue0_is_mem_w || issue0_mem_exception_w) &&
-        !mem_buffer_valid_q && mem_request_slot_open_w &&
+        !mem_buffer_valid_q &&
+        (issue1_mem_needs_excl_w ? mem_amo_slot_open_w
+                                 : mem_request_slot_open_w) &&
         mem_req_ready_i));
 
   // LR/SC 修复:reservation 由前序 LR 的内存响应(晚于 LR issue 数拍)才置位，而 SC 的
@@ -1839,8 +1858,7 @@ module OooIntBackend #(
   wire mem_buffer_req_valid_w =
       mem_buffer_valid_q && mem_request_slot_open_w;
   wire mem_buffer_req_fire_w = mem_buffer_req_valid_w && mem_req_ready_i;
-  wire issue0_mem_needs_excl_w =
-      issue0_is_amo_w || (issue0_is_load_w && issue0_mem_mmio_w);
+  // issue0_mem_needs_excl_w 声明已前置(B2 S2, can_fire 同源分派需要)
   wire issue0_mem_req_valid_w =
       issue0_valid_w && issue0_is_mem_w && !issue0_mem_exception_w &&
       // AMO 未 SQ 静默时不得占请求 mux(否则饿死更低优先级的 drain=死锁环)
@@ -1856,8 +1874,7 @@ module OooIntBackend #(
       !mem_buffer_valid_q;
   wire issue1_mem_buffer_fire_w =
       1'b0;
-  wire issue1_mem_needs_excl_w =
-      issue1_is_amo_w || (issue1_is_load_w && issue1_mem_mmio_w);
+  // issue1_mem_needs_excl_w 声明已前置(B2 S2, can_fire 同源分派需要)
   wire issue1_mem_req_valid_w =
       issue1_valid_w && issue1_is_mem_w && !issue1_mem_exception_w &&
       (!issue1_is_amo_w || amo_sq_quiet_w) && !issue1_sq_fwd_w &&

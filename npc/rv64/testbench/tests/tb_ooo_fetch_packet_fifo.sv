@@ -25,6 +25,7 @@ module tb_ooo_fetch_packet_fifo;
   reg [`BPU_BHT_INDEX_W-1:0] seed_bht_idx1;
   reg seed_bht_valid0;
   reg seed_bht_valid1;
+  reg seed_slot1_valid;   // B2 S2: slot1 截断位随包
   reg enqueue;
   reg [`XLEN-1:0] enqueue_pc0;
   reg [`XLEN-1:0] enqueue_pc1;
@@ -41,6 +42,7 @@ module tb_ooo_fetch_packet_fifo;
   reg [`BPU_BHT_INDEX_W-1:0] enqueue_bht_idx1;
   reg enqueue_bht_valid0;
   reg enqueue_bht_valid1;
+  reg enqueue_slot1_valid;
   reg pop;
   wire head_valid;
   wire [`XLEN-1:0] head_pc0;
@@ -58,6 +60,7 @@ module tb_ooo_fetch_packet_fifo;
   wire [`BPU_BHT_INDEX_W-1:0] head_bht_idx1;
   wire head_bht_valid0;
   wire head_bht_valid1;
+  wire head_slot1_valid;
   wire [FETCH_COUNT_W-1:0] count;
 
   OooFetchPacketFifo #(
@@ -83,6 +86,7 @@ module tb_ooo_fetch_packet_fifo;
     .seed_bht_idx1_i(seed_bht_idx1),
     .seed_bht_valid0_i(seed_bht_valid0),
     .seed_bht_valid1_i(seed_bht_valid1),
+    .seed_slot1_valid_i(seed_slot1_valid),
     .enqueue_i(enqueue),
     .enqueue_pc0_i(enqueue_pc0),
     .enqueue_pc1_i(enqueue_pc1),
@@ -99,6 +103,7 @@ module tb_ooo_fetch_packet_fifo;
     .enqueue_bht_idx1_i(enqueue_bht_idx1),
     .enqueue_bht_valid0_i(enqueue_bht_valid0),
     .enqueue_bht_valid1_i(enqueue_bht_valid1),
+    .enqueue_slot1_valid_i(enqueue_slot1_valid),
     .pop_i(pop),
     .head_valid_o(head_valid),
     .head_pc0_o(head_pc0),
@@ -116,6 +121,7 @@ module tb_ooo_fetch_packet_fifo;
     .head_bht_idx1_o(head_bht_idx1),
     .head_bht_valid0_o(head_bht_valid0),
     .head_bht_valid1_o(head_bht_valid1),
+    .head_slot1_valid_o(head_slot1_valid),
     .count_o(count)
   );
 
@@ -172,6 +178,11 @@ module tb_ooo_fetch_packet_fifo;
     input [`XLEN-1:0] pc;
     begin bht_valid1_of = pc[13]; end
   endfunction
+  // B2 S2: 截断位与 slot0 pred-taken 语义互斥(taken 则截断)
+  function automatic slot1_valid_of;
+    input [`XLEN-1:0] pc;
+    begin slot1_valid_of = ~pred_taken0_of(pc); end
+  endfunction
 
   task automatic drive_enqueue_packet;
     input [`XLEN-1:0] pc;
@@ -194,6 +205,7 @@ module tb_ooo_fetch_packet_fifo;
       enqueue_bht_idx1 = bht_idx1_of(pc);
       enqueue_bht_valid0 = 1'b1;
       enqueue_bht_valid1 = bht_valid1_of(pc);
+      enqueue_slot1_valid = slot1_valid_of(pc);
     end
   endtask
 
@@ -218,6 +230,7 @@ module tb_ooo_fetch_packet_fifo;
       seed_bht_idx1 = bht_idx1_of(pc);
       seed_bht_valid0 = 1'b1;
       seed_bht_valid1 = bht_valid1_of(pc);
+      seed_slot1_valid = slot1_valid_of(pc);
     end
   endtask
 
@@ -260,6 +273,8 @@ module tb_ooo_fetch_packet_fifo;
                  {{(32-`BPU_BHT_INDEX_W){1'b0}}, bht_idx1_of(pc)});
       tb_check1({what, " bht_valid0"}, head_bht_valid0, 1'b1);
       tb_check1({what, " bht_valid1"}, head_bht_valid1, bht_valid1_of(pc));
+      // B2 S2: 截断位随包(写入拍定格)
+      tb_check1({what, " slot1_valid"}, head_slot1_valid, slot1_valid_of(pc));
     end
   endtask
 
@@ -283,6 +298,7 @@ module tb_ooo_fetch_packet_fifo;
     seed_bht_idx1 = {`BPU_BHT_INDEX_W{1'b0}};
     seed_bht_valid0 = 1'b0;
     seed_bht_valid1 = 1'b0;
+    seed_slot1_valid = 1'b1;
     enqueue = 1'b0;
     enqueue_pc0 = {`XLEN{1'b0}};
     enqueue_pc1 = {`XLEN{1'b0}};
@@ -299,6 +315,7 @@ module tb_ooo_fetch_packet_fifo;
     enqueue_bht_idx1 = {`BPU_BHT_INDEX_W{1'b0}};
     enqueue_bht_valid0 = 1'b0;
     enqueue_bht_valid1 = 1'b0;
+    enqueue_slot1_valid = 1'b1;
     pop = 1'b0;
     tb_errors = 0;
 

@@ -5,6 +5,7 @@ module tb_ooo_fetch_head_pair_gate;
   `include "tb_common.svh"
 
   reg fifo_has_packet;
+  reg head_slot1_valid;   // 【B2 S2】slot1 截断位(slot0 pred-taken 时=0)
   reg [1:0] head_resp0;
   reg [1:0] head_resp1;
   reg [`INST_W-1:0] head_inst0;
@@ -125,6 +126,7 @@ module tb_ooo_fetch_head_pair_gate;
 
   OooFetchHeadPairGate dut (
     .fifo_has_packet_i(fifo_has_packet),
+    .head_slot1_valid_i(head_slot1_valid),
     .head_resp0_i(head_resp0),
     .head_resp1_i(head_resp1),
     .head_inst0_i(head_inst0),
@@ -240,6 +242,7 @@ module tb_ooo_fetch_head_pair_gate;
   task automatic reset_inputs;
     begin
       fifo_has_packet = 1'b1;
+      head_slot1_valid = 1'b1;
       head_resp0 = 2'b00;
       head_resp1 = 2'b00;
       head_inst0 = INST_ADDI;
@@ -286,6 +289,20 @@ module tb_ooo_fetch_head_pair_gate;
     tb_check1("idle no head0 branch", head0_branch_raw, 1'b0);
     tb_check1("idle no head1 branch", head1_branch_raw, 1'b0);
     tb_check1("idle no fetch fault", head_fetch_fault, 1'b0);
+
+    // 【B2 S2】截断位单点门控: slot1_valid=0(slot0 pred-taken 包)时 head1 谓词族
+    // 在 facts 生成处(head1_decode_valid/head_fetch_fault1)归 0——幽灵 lane1 免疫;
+    // wrong-path slot1 的 fault 也不得上报(预测错走后端 mispredict 重取后再现)。
+    reset_inputs();
+    head_slot1_valid = 1'b0;
+    set_ctrl1_bit(`CTRL_BRANCH_BIT, 1'b1);
+    head_resp1 = 2'b01;
+    #1;
+    tb_check1("S2: truncated slot1 no branch fact", head1_branch_raw, 1'b0);
+    tb_check1("S2: truncated slot1 no fault1", head_fetch_fault1, 1'b0);
+    tb_check1("S2: truncated slot1 facts all zero", |head1_facts, 1'b0);
+    tb_check1("S2: truncated slot1 no stop", head1_stop_raw, 1'b0);
+    tb_check1("S2: truncated packet still dispatches head0", dispatch_valid, 1'b1);
 
     reset_inputs();
     tb_check1("dual alu dispatch valid", dispatch_valid, 1'b1);

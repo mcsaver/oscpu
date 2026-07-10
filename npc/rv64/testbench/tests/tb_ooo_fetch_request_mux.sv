@@ -26,8 +26,6 @@ module tb_ooo_fetch_request_mux;
   reg branch_prefetch_req_valid;
   reg [`XLEN-1:0] branch_prefetch_req_pc;
   reg direct_jump_spec_fire;
-  reg direct_branch0_fire;
-  reg direct_branch1_fire;
   reg redirect_valid;
   reg [`XLEN-1:0] redirect_pc;
 
@@ -60,8 +58,6 @@ module tb_ooo_fetch_request_mux;
     .branch_prefetch_req_valid_i(branch_prefetch_req_valid),
     .branch_prefetch_req_pc_i(branch_prefetch_req_pc),
     .direct_jump_spec_fire_i(direct_jump_spec_fire),
-    .direct_branch0_fire_i(direct_branch0_fire),
-    .direct_branch1_fire_i(direct_branch1_fire),
     .redirect_valid_i(redirect_valid),
     .redirect_pc_i(redirect_pc),
     .direct_redirect_fetch_o(direct_redirect_fetch),
@@ -106,8 +102,6 @@ module tb_ooo_fetch_request_mux;
       branch_prefetch_req_valid = 1'b0;
       branch_prefetch_req_pc = 64'h0000_0000_0000_4000;
       direct_jump_spec_fire = 1'b0;
-      direct_branch0_fire = 1'b0;
-      direct_branch1_fire = 1'b0;
       redirect_valid = 1'b0;
       redirect_pc = 64'h0000_0000_0000_5000;
       #1;
@@ -222,27 +216,24 @@ module tb_ooo_fetch_request_mux;
     #1;
     tb_check1("jump spec still in direct OR", direct_redirect_fetch, 1'b1);
 
-    // 刀K1: taken/solo 分支 fire 同拍 redirect valid(PC 走 arbiter, 本口只补 valid)
+    // 【B2 S2】刀 K1 的 branch0/1_fire 两口已删(分支 fire 物理死化, taken 重取
+    // 降格为顺序流地址选择): redirect_fetch_req_valid 只由 direct_redirect_fetch
+    // 家族(jal/ret/jump_spec 等)驱动, arbiter 赢家拍无 direct 成员时不得发请求。
     reset_inputs();
     redirect_valid = 1'b1;
     redirect_pc = 64'h7000;
-    direct_branch0_fire = 1'b1;
     #1;
-    tb_check1("K1 branch0 fire redirect valid", redirect_fetch_req_valid, 1'b1);
-    check_xlen("K1 branch0 fire pc via arbiter", redirect_fetch_pc, 64'h7000);
-    direct_branch0_fire = 1'b0;
-    direct_branch1_fire = 1'b1;
-    #1;
-    tb_check1("K1 branch1 fire redirect valid", redirect_fetch_req_valid, 1'b1);
-    direct_branch1_fire = 1'b0;
-    #1;
-    tb_check1("K1 no fire no valid", redirect_fetch_req_valid, 1'b0);
-    // K1 outstanding 门保持: 在飞且非 rsp fire 拍, branch fire 也不得发
-    direct_branch0_fire = 1'b1;
+    tb_check1("S2: arbiter winner alone no fetch request",
+              redirect_fetch_req_valid, 1'b0);
+    check_xlen("S2: arbiter pc passthrough kept", redirect_fetch_pc, 64'h7000);
+    // 顺序臂 rsp 项保持 fall-through(taken 拍由 FlowControl.pred_taken_block 关断,
+    // not-taken 拍 pred_next_pc≡packet_next_pc): 融合拍地址=packet_next_pc。
+    reset_inputs();
     outstanding_valid = 1'b1;
-    fetch_rsp_fire = 1'b0;
+    fetch_rsp_fire = 1'b1;
+    fetch_rsp_packet_next_pc = 64'h5678;
     #1;
-    tb_check1("K1 outstanding gates branch fire", redirect_fetch_req_valid, 1'b0);
+    check_xlen("S2: fused seq arm uses fall-through", fetch_req_pc, 64'h5678);
 
     tb_finish("tb_ooo_fetch_request_mux");
   end

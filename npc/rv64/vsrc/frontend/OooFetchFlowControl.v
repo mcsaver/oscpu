@@ -7,6 +7,11 @@ module OooFetchFlowControl #(
   input fetch_request_blocked_by_trap_i,
   input redirect_fetch_req_valid_i,
   input resolve_redirect_block_i,
+  // 【B2 S2】pred-taken 改流拍封顺序臂(T1 resolve_redirect_block 同型): 该拍融合
+  // 连发的组合地址仍是 fall-through 旧顺序值(wrong-path), target 拍尾才写进
+  // next_fetch_pc_q(Sequencer 顺序推进臂输入已换包 pred_next_pc), 次拍顺序臂发出。
+  // 单 bit 关断, fetch_req_pc 组合锥零增长(禁止 taken 拍组合改流——刀 F WNS 家族)。
+  input pred_taken_block_i,
   input branch_prefetch_req_valid_i,
   input can_run_i,
   input stop_head_i,
@@ -69,6 +74,7 @@ module OooFetchFlowControl #(
   // target 次拍经顺序臂发出。
   assign can_issue_request_o = can_run_i && !stop_head_i &&
                                !fetch_rsp_control_stop_i &&
+                               !pred_taken_block_i &&
                                !discard_fetch_rsp_i &&
                                !direct_frontend_flush_i &&
                                !resolve_redirect_block_i &&

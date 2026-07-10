@@ -41,6 +41,7 @@ module tb_ooo_fetch_packet_seed_mux;
   reg [`BPU_BHT_INDEX_W-1:0] fallthrough_bht_idx1;
   reg fallthrough_bht_valid0;
   reg fallthrough_bht_valid1;
+  reg fallthrough_slot1_valid;   // B2 S2: 截断位与 enqueue 同拍同源
 
   reg [`XLEN-1:0] branch_pc0;
   reg [`XLEN-1:0] branch_pc1;
@@ -79,6 +80,7 @@ module tb_ooo_fetch_packet_seed_mux;
   wire [`BPU_BHT_INDEX_W-1:0] seed_bht_idx1;
   wire seed_bht_valid0;
   wire seed_bht_valid1;
+  wire seed_slot1_valid;
 
   OooFetchPacketSeedMux dut (
     .csr_trap_i(csr_trap),
@@ -118,6 +120,7 @@ module tb_ooo_fetch_packet_seed_mux;
     .fallthrough_bht_idx1_i(fallthrough_bht_idx1),
     .fallthrough_bht_valid0_i(fallthrough_bht_valid0),
     .fallthrough_bht_valid1_i(fallthrough_bht_valid1),
+    .fallthrough_slot1_valid_i(fallthrough_slot1_valid),
     .branch_pc0_i(branch_pc0),
     .branch_pc1_i(branch_pc1),
     .branch_next_pc0_i(branch_next_pc0),
@@ -152,7 +155,8 @@ module tb_ooo_fetch_packet_seed_mux;
     .seed_bht_idx0_o(seed_bht_idx0),
     .seed_bht_idx1_o(seed_bht_idx1),
     .seed_bht_valid0_o(seed_bht_valid0),
-    .seed_bht_valid1_o(seed_bht_valid1)
+    .seed_bht_valid1_o(seed_bht_valid1),
+    .seed_slot1_valid_o(seed_slot1_valid)
   );
 
   task automatic check_xlen;
@@ -195,7 +199,8 @@ module tb_ooo_fetch_packet_seed_mux;
     end
   endtask
 
-  // B2 S1: seed 包预测位契约——fallthrough 臂跟随 BPU 组合输出, 死硅臂恒 0
+  // B2 S1/S2: seed 包预测位+截断位契约——fallthrough 臂跟随 BPU 组合输出,
+  // 死硅臂预测恒 0、slot1_valid 恒 1(整包有效安全值)。
   task automatic check_seed_pred;
     input [1023:0] tag;
     input exp_pred_taken0;
@@ -204,6 +209,7 @@ module tb_ooo_fetch_packet_seed_mux;
     input [`BPU_BHT_INDEX_W-1:0] exp_bht_idx1;
     input exp_bht_valid0;
     input exp_bht_valid1;
+    input exp_slot1_valid;
     begin
       tb_check1({tag, " pred_taken0"}, seed_pred_taken0, exp_pred_taken0);
       tb_check1({tag, " pred_taken1"}, seed_pred_taken1, exp_pred_taken1);
@@ -215,6 +221,7 @@ module tb_ooo_fetch_packet_seed_mux;
                  {{(32-`BPU_BHT_INDEX_W){1'b0}}, exp_bht_idx1});
       tb_check1({tag, " bht_valid0"}, seed_bht_valid0, exp_bht_valid0);
       tb_check1({tag, " bht_valid1"}, seed_bht_valid1, exp_bht_valid1);
+      tb_check1({tag, " slot1_valid"}, seed_slot1_valid, exp_slot1_valid);
     end
   endtask
 
@@ -274,6 +281,7 @@ module tb_ooo_fetch_packet_seed_mux;
       fallthrough_bht_idx1 = `BPU_BHT_INDEX_W'h148;
       fallthrough_bht_valid0 = 1'b1;
       fallthrough_bht_valid1 = 1'b0;
+      fallthrough_slot1_valid = 1'b0;   // 截断态(与 pred_taken0=1 语义一致)
 
       branch_pc0 = 64'h0000_0000_0000_2000;
       branch_pc1 = 64'h0000_0000_0000_2002;
@@ -316,7 +324,8 @@ module tb_ooo_fetch_packet_seed_mux;
     check_seed_pred("direct flush fallthrough seed pred",
                     fallthrough_pred_taken0, fallthrough_pred_taken1,
                     fallthrough_bht_idx0, fallthrough_bht_idx1,
-                    fallthrough_bht_valid0, fallthrough_bht_valid1);
+                    fallthrough_bht_valid0, fallthrough_bht_valid1,
+                    fallthrough_slot1_valid);
 
     reset_inputs();
     csr_trap = 1'b1;
@@ -342,7 +351,7 @@ module tb_ooo_fetch_packet_seed_mux;
                       branch_inst1, branch_resp0, branch_resp1);
     check_seed_pred("branch prefetch seed pred is static zero",
                     1'b0, 1'b0, {`BPU_BHT_INDEX_W{1'b0}},
-                    {`BPU_BHT_INDEX_W{1'b0}}, 1'b0, 1'b0);
+                    {`BPU_BHT_INDEX_W{1'b0}}, 1'b0, 1'b0, 1'b1);
 
     reset_inputs();
     pending_branch_commit_resolve = 1'b1;
@@ -374,7 +383,7 @@ module tb_ooo_fetch_packet_seed_mux;
                       jalr_resp0, jalr_resp1);
     check_seed_pred("jalr prefetch seed pred is static zero",
                     1'b0, 1'b0, {`BPU_BHT_INDEX_W{1'b0}},
-                    {`BPU_BHT_INDEX_W{1'b0}}, 1'b0, 1'b0);
+                    {`BPU_BHT_INDEX_W{1'b0}}, 1'b0, 1'b0, 1'b1);
 
     reset_inputs();
     pending_jump_resolve = 1'b1;

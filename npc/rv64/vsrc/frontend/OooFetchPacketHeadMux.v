@@ -22,6 +22,8 @@ module OooFetchPacketHeadMux (
   input [`BPU_BHT_INDEX_W-1:0] bypass_bht_idx1_i,
   input bypass_bht_valid0_i,
   input bypass_bht_valid1_i,
+  // 【B2 S2】slot1 截断位管道化(bypass 臂上游 tie-0, 接 resp 拍组合输出保同源)。
+  input bypass_slot1_valid_i,
 
   input [`XLEN-1:0] fifo_pc0_i,
   input [`XLEN-1:0] fifo_pc1_i,
@@ -38,6 +40,7 @@ module OooFetchPacketHeadMux (
   input [`BPU_BHT_INDEX_W-1:0] fifo_bht_idx1_i,
   input fifo_bht_valid0_i,
   input fifo_bht_valid1_i,
+  input fifo_slot1_valid_i,
 
   output head_has_packet_o,
   output [`XLEN-1:0] head_pc0_o,
@@ -54,7 +57,8 @@ module OooFetchPacketHeadMux (
   output [`BPU_BHT_INDEX_W-1:0] head_bht_idx0_o,
   output [`BPU_BHT_INDEX_W-1:0] head_bht_idx1_o,
   output head_bht_valid0_o,
-  output head_bht_valid1_o
+  output head_bht_valid1_o,
+  output head_slot1_valid_o
 );
 
   assign head_has_packet_o = bypass_valid_i || fifo_head_valid_i;
@@ -82,5 +86,7 @@ module OooFetchPacketHeadMux (
                                               fifo_bht_valid0_i;
   assign head_bht_valid1_o = bypass_valid_i ? bypass_bht_valid1_i :
                                               fifo_bht_valid1_i;
+  assign head_slot1_valid_o = bypass_valid_i ? bypass_slot1_valid_i :
+                                               fifo_slot1_valid_i;
 
 endmodule
