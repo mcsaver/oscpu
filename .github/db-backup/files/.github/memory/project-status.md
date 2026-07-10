@@ -11,6 +11,7 @@
 - [ ] 综合分析通过
 ## 已完成的工作
 <!-- 按时间倒序记录，格式: - [日期] 简要描述 -->
+- [2026-07-10] 时序 T1+T2+T4 落地:WNS -6.98,贯通链切断;BPU update 57ns 隐藏债曝光(修复刀优先级最前);CPI 1.206(T2 回滚观察);riscv 177/177+difftest 零 mismatch;详证 modules/npc.md 同日条目。
 - [2026-07-10] 时序战役 S0:SRAM 真弧接入(CACTI),可信 STA WNS -7.49;top 路径=三性能刀叠加的全流水贯通链已解剖,排刀选项 T1-T4 冻结待点单;详证 modules/npc.md 同日条目。
 - [2026-07-10] AXI4 化战役落地:主干完整 AXI4+外设 AXI4-Lite,文件名去 Lite;CoreMark cycle-exact+difftest 零 mismatch;详证 modules/npc.md 同日条目与 .github/task-runs/2026-07-10-axi4-campaign/。
 - [2026-07-10] 三刀 difftest 收口零 mismatch + 刀K1 落地(CPI 1.140→1.038);五步累计 3.280→1.038(-68%);刀B2(fetch-time BPU)spec 冻结待实施;详证 modules/npc.md 同日条目。
