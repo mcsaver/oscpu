@@ -261,6 +261,15 @@ module OooFetchAxiBridge (
       (pmp_active_w ? (!req_exec_pmp_fault_w && !req_exec1_pmp_fault_w &&
                        (!paging_q || req_itlb_hit_w))
                     : 1'b1);
+  // 刀F 融合拍专用 hit: 用不含窗口②当拍 snoop 地址比较的 no_snoop 版, 叠加
+  // !invalidate_valid_i(单 bit)关断——invalidate 拍融合降级走精确寄存路径
+  // (S_RESP, +1 拍), 切断 SQ snoop 跨模块链与取指发射决策(ready/fire/SRAM addr)
+  // 的串联(全核 top 违例族修复)。invalidate_valid_i=0 时本式==cache_hit_w。
+  wire cache_hit_no_snoop_raw_w;
+  wire cache_hit_fusion_w = cache_hit_no_snoop_raw_w && !invalidate_valid_i &&
+      (pmp_active_w ? (!req_exec_pmp_fault_w && !req_exec1_pmp_fault_w &&
+                       (!paging_q || req_itlb_hit_w))
+                    : 1'b1);
   wire fetch_cache_context_unused_w;
   wire [`INST_W-1:0] cache_inst0_w;
   wire [`INST_W-1:0] cache_inst1_w;
@@ -367,6 +376,7 @@ module OooFetchAxiBridge (
     .lookup_pc_i(fetch_req_pc_i),
     .lookup_context_hit_o(fetch_cache_context_unused_w),
     .lookup_hit_o(cache_hit_raw_w),
+    .lookup_hit_no_snoop_o(cache_hit_no_snoop_raw_w),
     .lookup_inst0_o(cache_inst0_w),
     .lookup_resp0_o(cache_resp0_w),
     .lookup_inst1_o(cache_inst1_w),
@@ -474,7 +484,7 @@ module OooFetchAxiBridge (
   // 刀F 融合拍: S_LOOKUP 命中拍组合响应(payload 走 cache_*_w 直出), 同拍可接受新请求
   // (该拍即新 fire 拍)——hit 流恢复 1 包/拍。miss/fault 拍 ready=0, walk/AXI 路径不变;
   // rsp 不 ready 时走落寄存进 S_RESP 的既有路径(S_RESP=天然 skid)。
-  wire lookup_hit_resp_w = (state_q == S_LOOKUP) && cache_hit_w;
+  wire lookup_hit_resp_w = (state_q == S_LOOKUP) && cache_hit_fusion_w;
   assign fetch_req_ready_o = (state_q == S_IDLE) ||
                              ((state_q == S_RESP) && fetch_rsp_ready_i) ||
                              (lookup_hit_resp_w && fetch_rsp_ready_i);
@@ -568,7 +578,7 @@ module OooFetchAxiBridge (
           // 拍 ready=0; direct miss 的 AR 由 lookup_direct_miss_w 当拍发起;
           // mmu_flush 经顶部复位分支回 S_IDLE, 本判决自然作废。
           if (cache_hit_w) begin
-            if (fetch_rsp_ready_i) begin
+            if (cache_hit_fusion_w && fetch_rsp_ready_i) begin
               if (fetch_req_valid_i) begin
                 // 融合拍=新 fire 拍: 锁新上下文+发射新 SRAM 读(lookup_en_i 自动覆盖),
                 // 留在 S_LOOKUP —— hit 稳态 1 包/拍。
@@ -593,7 +603,8 @@ module OooFetchAxiBridge (
                 state_q <= S_IDLE;
               end
             end else begin
-              // rsp 反压: 落寄存进 S_RESP(天然 skid, dec_en 一拍性/失效窗口问题随之消失)
+              // rsp 反压 或 invalidate 拍融合关断: 落寄存进 S_RESP(天然 skid;
+              // 精确 hit 语义含窗口②在此路径照常成立)
               inst0_q <= cache_inst0_w;
               inst1_q <= cache_inst1_w;
               resp0_q <= cache_resp0_w;

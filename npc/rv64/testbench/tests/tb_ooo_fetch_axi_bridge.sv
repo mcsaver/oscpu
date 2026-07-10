@@ -559,6 +559,48 @@ module tb_ooo_fetch_axi_bridge;
     tick();                       // 消费
     fetch_rsp_ready = 1'b0;
 
+    // invalidate 拍融合关断: 判决拍撞不同地址的失效 → 组合 rsp 关闭(降级),
+    // 次拍经 S_RESP 精确交付(数据不损)
+    fetch_req_pc = FUSION_PC2;
+    fetch_req_valid = 1'b1;
+    fetch_rsp_ready = 1'b1;
+    #1;
+    tick();                       // fire → 判决拍
+    fetch_req_valid = 1'b0;
+    invalidate_valid = 1'b1;
+    invalidate_addr = 64'h0000_0000_8000_5000;  // 不同 window 的失效
+    #1;
+    tb_check1("invalidate beat degrades fusion", fetch_rsp_valid, 1'b0);
+    tb_check1("invalidate beat not ready", fetch_req_ready, 1'b0);
+    tick();                       // 落寄存进 S_RESP
+    invalidate_valid = 1'b0;
+    #1;
+    tb_check1("degraded hit delivered via skid", fetch_rsp_valid, 1'b1);
+    tb_check32_local("degraded hit inst0 intact", fetch_rsp_inst0,
+                     FUSION_BEAT2[`INST_W-1:0]);
+    tick();                       // 消费
+    fetch_rsp_ready = 1'b0;
+
+    // invalidate 同 window 撞判决拍: 精确 hit 被杀 → 走 miss(AR), 不交付 stale 包
+    fetch_req_pc = FUSION_PC2;
+    fetch_req_valid = 1'b1;
+    fetch_rsp_ready = 1'b1;
+    #1;
+    tick();                       // fire → 判决拍
+    fetch_req_valid = 1'b0;
+    invalidate_valid = 1'b1;
+    invalidate_addr = FUSION_PC2;  // 同 window 失效(窗口②)
+    #1;
+    tb_check1("same-window invalidate kills hit", fetch_rsp_valid, 1'b0);
+    // direct miss 的 AR 在判决拍当拍发出(arready 恒 1 → 本拍即 fire, 次拍进 S_R0)
+    tb_check1("invalidated packet refetch AR on decision beat",
+              ifu_axi_arvalid, 1'b1);
+    tb_check64_local("refetch AR addr", ifu_axi_araddr, FUSION_PC2);
+    tick();
+    invalidate_valid = 1'b0;
+    drive_r(FUSION_BEAT2, RESP_OK);
+    expect_rsp("refetched packet resp", RESP_OK, RESP_OK, FUSION_BEAT2);
+
     // miss 拍 ready=0: 冷地址判决拍不受理新请求(1RW/上下文单套防线)
     fetch_req_pc = FUSION_PC3_COLD;
     fetch_req_valid = 1'b1;

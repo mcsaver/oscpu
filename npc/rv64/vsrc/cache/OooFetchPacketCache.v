@@ -22,6 +22,7 @@ module OooFetchPacketCache #(
   input [`XLEN-1:0] lookup_pc_i,
   output lookup_context_hit_o,
   output lookup_hit_o,
+  output lookup_hit_no_snoop_o,
   output [`INST_W-1:0] lookup_inst0_o,
   output [1:0] lookup_resp0_o,
   output [`INST_W-1:0] lookup_inst1_o,
@@ -156,6 +157,14 @@ module OooFetchPacketCache #(
       lookup_context_hit_o &&
       (ent_pc_w == lkp_pc_q) &&
       !dec_invalidated_w;
+  // 刀F 时序修复: 融合拍专用 hit——不含窗口②当拍 invalidate 地址比较(那条链把
+  // SQ snoop 跨模块路径串进取指发射决策=全核 top 违例族)。使用方必须叠加
+  // !invalidate_valid_i(单 bit)关断融合: inv_valid=0 时本式==lookup_hit_o(精确),
+  // inv_valid=1 时融合关闭走精确寄存路径——融合臂交付的恒为精确 hit。
+  assign lookup_hit_no_snoop_o =
+      lookup_context_hit_o &&
+      (ent_pc_w == lkp_pc_q) &&
+      !lkp_inv_q;
   assign lookup_inst0_o = ent_inst0_w;
   assign lookup_inst1_o = ent_inst1_w;
   assign lookup_resp0_o = ent_resp0_w;
@@ -173,8 +182,12 @@ module OooFetchPacketCache #(
       lkp_satp_q <= lookup_satp_i;
       lkp_pc_q <= lookup_pc_i;
       lkp_idx_q <= lookup_idx_w;
-      lkp_inv_q <= lookup_invalidated_w;
     end
+    // 刀F 时序修复: lkp_inv_q 无条件锁存(去 CE)——CE=fire 含融合 hit 锥, 与 D 端的
+    // snoop 地址比较链在 CE-mux 上串联成 top 违例。无条件锁存等价: fire 拍锁的即
+    // fire 拍比较; 非 fire 拍锁到的值因 dec_en_q=0 不被消费; 判决拍组合读的是
+    // fire 拍锁存值(非阻塞拍尾覆写无害)。
+    lkp_inv_q <= lookup_invalidated_w;
   end
 
   always @(posedge clk) begin
