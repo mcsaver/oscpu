@@ -1,7 +1,7 @@
 // AXI-Lite 到 UART native 寄存器接口的适配器。
 // UART 本体不感知 AXI；本模块只负责把 single-beat AXI-Lite 事务翻译为
 // UART 的单拍寄存器读写访问。
-module AxiLiteToUart #(
+module AxiToUart #(
   parameter ADDR_W = 32,
   parameter DATA_W = 32,
   parameter STRB_W = DATA_W / 8
@@ -12,7 +12,6 @@ module AxiLiteToUart #(
   input s_axi_arvalid_i,
   output s_axi_arready_o,
   input [ADDR_W-1:0] s_axi_araddr_i,
-  input [STRB_W-1:0] s_axi_arstrb_i,
   output reg s_axi_rvalid_o,
   input s_axi_rready_i,
   output reg [DATA_W-1:0] s_axi_rdata_o,
@@ -86,7 +85,6 @@ module AxiLiteToUart #(
     .rst(rst),
     .reg_read_valid_i(ar_fire_w),
     .reg_read_addr_i(s_axi_araddr_i[11:0]),
-    .reg_read_strb_i(s_axi_arstrb_i),
     .reg_read_data_o(uart_rdata_w),
     .reg_write_valid_i(write_done_w),
     .reg_write_addr_i(write_addr_low_w),

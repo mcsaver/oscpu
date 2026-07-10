@@ -5,7 +5,6 @@ module tb_uart;
   reg rst;
   reg read_valid;
   reg [11:0] read_addr;
-  reg [3:0] read_strb;
   wire [31:0] read_data;
   reg write_valid;
   reg [11:0] write_addr;
@@ -22,7 +21,6 @@ module tb_uart;
 
   reg read_valid64;
   reg [11:0] read_addr64;
-  reg [7:0] read_strb64;
   wire [63:0] read_data64;
   reg write_valid64;
   reg [11:0] write_addr64;
@@ -43,7 +41,6 @@ module tb_uart;
     .rst(rst),
     .reg_read_valid_i(read_valid),
     .reg_read_addr_i(read_addr),
-    .reg_read_strb_i(read_strb),
     .reg_read_data_o(read_data),
     .reg_write_valid_i(write_valid),
     .reg_write_addr_i(write_addr),
@@ -67,7 +64,6 @@ module tb_uart;
     .rst(rst),
     .reg_read_valid_i(read_valid64),
     .reg_read_addr_i(read_addr64),
-    .reg_read_strb_i(read_strb64),
     .reg_read_data_o(read_data64),
     .reg_write_valid_i(write_valid64),
     .reg_write_addr_i(write_addr64),
@@ -135,7 +131,6 @@ module tb_uart;
       rst = 1'b1;
       read_valid = 1'b0;
       read_addr = 12'h000;
-      read_strb = 4'hf;
       write_valid = 1'b0;
       write_addr = 12'h000;
       write_data = 32'h0;
@@ -144,7 +139,6 @@ module tb_uart;
       rx_data = 8'h00;
       read_valid64 = 1'b0;
       read_addr64 = 12'h000;
-      read_strb64 = 8'hff;
       write_valid64 = 1'b0;
       write_addr64 = 12'h000;
       write_data64 = 64'h0;
@@ -378,42 +372,40 @@ module tb_uart;
     rx_data64 = 8'h00;
     #1;
     tb_check1("uart64 lane probe irq pending", irq64, 1'b1);
+    // 【AXI4 化 S3】读 strb 已删(RBR pop 判据=读命中 offset 0 且非 DLAB):
+    // "lane 读不 pop"的等价用例改用非 0 偏移读表达。
     read_valid64 = 1'b1;
-    read_addr64 = 12'h000;
-    read_strb64 = 8'b0000_0100;
+    read_addr64 = 12'h004;
     #1;
-    tb_check64_local("uart64 lane2 iir sees rx window", read_data64,
-                     64'h0000_6101_13c4_053c);
-    tb_check1("uart64 lane2 iir keeps rx byte", rx_ready64, 1'b0);
+    tb_check64_local("uart64 offset4 sees lsr window", read_data64,
+                     64'h0000_0000_0000_6101);
+    tb_check1("uart64 offset4 read keeps rx byte", rx_ready64, 1'b0);
     `TB_TICK(clk);
     read_valid64 = 1'b0;
     #1;
-    tb_check1("uart64 lane2 iir keeps irq", irq64, 1'b1);
+    tb_check1("uart64 offset4 read keeps irq", irq64, 1'b1);
+
+    read_valid64 = 1'b1;
+    read_addr64 = 12'h005;
+    #1;
+    tb_check64_local("uart64 offset5 sees lsr byte", read_data64,
+                     64'h0000_0000_0000_0061);
+    tb_check1("uart64 offset5 read keeps rx byte", rx_ready64, 1'b0);
+    `TB_TICK(clk);
+    read_valid64 = 1'b0;
+    #1;
+    tb_check1("uart64 offset5 read keeps irq", irq64, 1'b1);
 
     read_valid64 = 1'b1;
     read_addr64 = 12'h000;
-    read_strb64 = 8'b0010_0000;
     #1;
-    tb_check64_local("uart64 lane5 lsr sees rx window", read_data64,
+    tb_check64_local("uart64 offset0 rbr sees rx window", read_data64,
                      64'h0000_6101_13c4_053c);
-    tb_check1("uart64 lane5 lsr keeps rx byte", rx_ready64, 1'b0);
+    tb_check1("uart64 offset0 rbr opens ready", rx_ready64, 1'b1);
     `TB_TICK(clk);
     read_valid64 = 1'b0;
     #1;
-    tb_check1("uart64 lane5 lsr keeps irq", irq64, 1'b1);
-
-    read_valid64 = 1'b1;
-    read_addr64 = 12'h000;
-    read_strb64 = 8'b0000_0001;
-    #1;
-    tb_check64_local("uart64 lane0 rbr sees rx window", read_data64,
-                     64'h0000_6101_13c4_053c);
-    tb_check1("uart64 lane0 rbr opens ready", rx_ready64, 1'b1);
-    `TB_TICK(clk);
-    read_valid64 = 1'b0;
-    read_strb64 = 8'hff;
-    #1;
-    tb_check1("uart64 lane0 rbr clears irq", irq64, 1'b0);
+    tb_check1("uart64 offset0 rbr clears irq", irq64, 1'b0);
 
     for (linux_rx_idx = 0; linux_rx_idx < 24; linux_rx_idx = linux_rx_idx + 1) begin
       tb_check1("uart64 linux window ready before rx", rx_ready64, 1'b1);

@@ -32,7 +32,7 @@ module tb_ooo_mem_axi_bridge;
   wire lsu_axi_arvalid;
   reg lsu_axi_arready;
   wire [`XLEN-1:0] lsu_axi_araddr;
-  wire [`STRB_W-1:0] lsu_axi_arstrb;
+  wire [2:0] lsu_axi_arsize;
   reg lsu_axi_rvalid;
   wire lsu_axi_rready;
   reg [`XLEN-1:0] lsu_axi_rdata;
@@ -95,7 +95,7 @@ module tb_ooo_mem_axi_bridge;
     .lsu_axi_arvalid_o(lsu_axi_arvalid),
     .lsu_axi_arready_i(lsu_axi_arready),
     .lsu_axi_araddr_o(lsu_axi_araddr),
-    .lsu_axi_arstrb_o(lsu_axi_arstrb),
+    .lsu_axi_arsize_o(lsu_axi_arsize),
     .lsu_axi_rvalid_i(lsu_axi_rvalid),
     .lsu_axi_rready_o(lsu_axi_rready),
     .lsu_axi_rdata_i(lsu_axi_rdata),
@@ -208,8 +208,8 @@ module tb_ooo_mem_axi_bridge;
     end
   endtask
 
-  // 【line-dcache】读 miss 语义: 不跨线 → 对齐 AR(addr&~7)+strb 全 1(取整线);
-  // 跨线 → 原窗口 AR+原 strb(uncached 直读)。
+  // 【line-dcache】读 miss 语义(AXI4 化 S3 后以 ARSIZE 表达): 不跨线 → 对齐
+  // AR(addr&~7)+ARSIZE=8B(取整线); 跨线 → 原窗口 AR+ARSIZE=log2(访问宽度)。
   function automatic [3:0] strb_nbytes;
     input [`STRB_W-1:0] strb;
     integer bi;
@@ -218,6 +218,15 @@ module tb_ooo_mem_axi_bridge;
       for (bi = 0; bi < `STRB_W; bi = bi + 1)
         if (strb[bi]) strb_nbytes = strb_nbytes + 4'd1;
       if (strb_nbytes == 4'd0) strb_nbytes = 4'd1;
+    end
+  endfunction
+
+  function automatic [2:0] axsize_from_nbytes;
+    input [3:0] nbytes;
+    begin
+      axsize_from_nbytes = (nbytes >= 4'd8) ? 3'd3 :
+                           (nbytes >= 4'd4) ? 3'd2 :
+                           (nbytes >= 4'd2) ? 3'd1 : 3'd0;
     end
   endfunction
 
@@ -255,15 +264,15 @@ module tb_ooo_mem_axi_bridge;
       tb_check1("mem0 read issues AR", lsu_axi_arvalid, 1'b1);
       tb_check64("mem0 read AR address", lsu_axi_araddr,
                  is_cross_r ? addr : {addr[`XLEN-1:3], 3'b000});
-      tb_check64("mem0 read AR strb", {{(`XLEN-`STRB_W){1'b0}}, lsu_axi_arstrb},
-                 is_cross_r ? {{(`XLEN-`STRB_W){1'b0}}, strb}
-                       : {{(`XLEN-`STRB_W){1'b0}}, {`STRB_W{1'b1}}});
+      tb_check64("mem0 read AR size", {{(`XLEN-3){1'b0}}, lsu_axi_arsize},
+                 is_cross_r ? {{(`XLEN-3){1'b0}}, axsize_from_nbytes(strb_nbytes(strb))}
+                       : {{(`XLEN-3){1'b0}}, 3'd3});
       tick();
       lsu_axi_arready = 1'b0;
     end
   endtask
 
-  task automatic read_arstrb_tracks_load_mask;
+  task automatic read_arsize_tracks_load_mask;
     begin
       issue_mem0_read_strb(64'h0000_0000_8000_1005, 8'b0010_0000);
       lsu_axi_rvalid = 1'b1;
@@ -770,9 +779,9 @@ module tb_ooo_mem_axi_bridge;
       tb_check1("sv39 first walk AR valid", lsu_axi_arvalid, 1'b1);
       tb_check64("sv39 first walk PTE address", lsu_axi_araddr,
                  ROOT_PT + 64'd16);
-      tb_check64("sv39 first walk AR strb",
-                 {{(`XLEN-`STRB_W){1'b0}}, lsu_axi_arstrb},
-                 {{(`XLEN-`STRB_W){1'b0}}, {`STRB_W{1'b1}}});
+      tb_check64("sv39 first walk AR size",
+                 {{(`XLEN-3){1'b0}}, lsu_axi_arsize},
+                 {{(`XLEN-3){1'b0}}, 3'd3});
       lsu_axi_arready = 1'b1;
       tick();
       lsu_axi_arready = 1'b0;
@@ -787,9 +796,9 @@ module tb_ooo_mem_axi_bridge;
       #1;
       tb_check1("sv39 translated data AR valid", lsu_axi_arvalid, 1'b1);
       tb_check64("sv39 translated data AR physical", lsu_axi_araddr, DATA_PA);
-      tb_check64("sv39 translated data AR strb",
-                 {{(`XLEN-`STRB_W){1'b0}}, lsu_axi_arstrb},
-                 {{(`XLEN-`STRB_W){1'b0}}, {`STRB_W{1'b1}}});
+      tb_check64("sv39 translated data AR size",
+                 {{(`XLEN-3){1'b0}}, lsu_axi_arsize},
+                 {{(`XLEN-3){1'b0}}, 3'd3});
       lsu_axi_arready = 1'b1;
       tick();
       lsu_axi_arready = 1'b0;
@@ -1367,7 +1376,7 @@ module tb_ooo_mem_axi_bridge;
 
     held_response_flush_drop();
     inflight_read_flush_abort();
-    read_arstrb_tracks_load_mask();
+    read_arsize_tracks_load_mask();
     cached_window_shift_and_cross_block();
     dcache_hit_fusion_cases();
     partial_write_flush_drain();

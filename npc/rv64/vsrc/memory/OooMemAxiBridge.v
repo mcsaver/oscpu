@@ -38,7 +38,11 @@ module OooMemAxiBridge (
   output lsu_axi_arvalid_o,
   input lsu_axi_arready_i,
   output [`XLEN-1:0] lsu_axi_araddr_o,
-  output [`STRB_W-1:0] lsu_axi_arstrb_o,
+  output [3:0] lsu_axi_arid_o,
+  output [7:0] lsu_axi_arlen_o,
+  output [2:0] lsu_axi_arsize_o,
+  output [1:0] lsu_axi_arburst_o,
+  output [2:0] lsu_axi_arprot_o,
   input lsu_axi_rvalid_i,
   output lsu_axi_rready_o,
   input [`XLEN-1:0] lsu_axi_rdata_i,
@@ -46,14 +50,31 @@ module OooMemAxiBridge (
   output lsu_axi_awvalid_o,
   input lsu_axi_awready_i,
   output [`XLEN-1:0] lsu_axi_awaddr_o,
+  output [3:0] lsu_axi_awid_o,
+  output [7:0] lsu_axi_awlen_o,
+  output [2:0] lsu_axi_awsize_o,
+  output [1:0] lsu_axi_awburst_o,
   output lsu_axi_wvalid_o,
   input lsu_axi_wready_i,
   output [`XLEN-1:0] lsu_axi_wdata_o,
   output [`STRB_W-1:0] lsu_axi_wstrb_o,
+  output lsu_axi_wlast_o,
   input lsu_axi_bvalid_i,
   output lsu_axi_bready_o,
   input [1:0] lsu_axi_bresp_i
 );
+
+  // 【AXI4 化 S4】常量协议位: LSU ID 恒 4'd1、单 beat(LEN=0/WLAST=1)、INCR、
+  // data access(ARPROT[2]=0)、AWSIZE 恒 8B(WSTRB 仍是字节权威)。
+  assign lsu_axi_arid_o = 4'd1;
+  assign lsu_axi_arlen_o = 8'd0;
+  assign lsu_axi_arburst_o = 2'b01;
+  assign lsu_axi_arprot_o = 3'b000;
+  assign lsu_axi_awid_o = 4'd1;
+  assign lsu_axi_awlen_o = 8'd0;
+  assign lsu_axi_awsize_o = 3'd3;
+  assign lsu_axi_awburst_o = 2'b01;
+  assign lsu_axi_wlast_o = 1'b1;
 
   localparam [3:0] S_IDLE = 4'd0;
   localparam [3:0] S_WALK_AR = 4'd1;
@@ -301,6 +322,16 @@ module OooMemAxiBridge (
       end
       if (access_size_from_wstrb == 4'd0)
         access_size_from_wstrb = 4'd1;
+    end
+  endfunction
+
+  // AXI AxSIZE 编码: log2(字节数)。输入为 1/2/4/8。
+  function [2:0] axsize_from_bytes;
+    input [3:0] nbytes;
+    begin
+      axsize_from_bytes = (nbytes >= 4'd8) ? 3'd3 :
+                          (nbytes >= 4'd4) ? 3'd2 :
+                          (nbytes >= 4'd2) ? 3'd1 : 3'd0;
     end
   endfunction
 
@@ -584,9 +615,12 @@ module OooMemAxiBridge (
       read_cross_q ? paddr_q : {paddr_q[`XLEN-1:3], 3'b000};
   assign lsu_axi_araddr_o =
       (state_q == S_WALK_AR) ? walk_pte_addr_w : pend_read_araddr_w;
-  assign lsu_axi_arstrb_o =
-      (state_q == S_WALK_AR) ? {`STRB_W{1'b1}} :
-      (read_cross_q ? wstrb_q : {`STRB_W{1'b1}});
+  // 【AXI4 化 S3】arstrb(非标)→ARSIZE: walk/对齐 line 读=8B; 跨线窗口读=实际访问
+  // 宽度(log2(popcount(wstrb)), 配非对齐 araddr)。slave 侧(DPI pmem)本就整 8B 读
+  // 由 master 取窗口, 行为零变化。
+  assign lsu_axi_arsize_o =
+      (state_q == S_WALK_AR) ? 3'd3 :
+      (read_cross_q ? axsize_from_bytes(access_size_from_wstrb(wstrb_q)) : 3'd3);
   assign lsu_axi_rready_o = (state_q == S_WALK_R) || (state_q == S_READ_DATA);
   wire write_drain_w =
       drop_rsp_q || (flush_i && (aw_done_q || w_done_q));

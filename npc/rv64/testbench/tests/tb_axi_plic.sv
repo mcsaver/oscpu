@@ -1,6 +1,6 @@
 `include "define.v"
 
-module tb_axi_lite_plic;
+module tb_axi_plic;
   `include "tb_common.svh"
 
   reg clk;
@@ -28,7 +28,7 @@ module tb_axi_lite_plic;
   reg [31:0] source_irq;
   wire external_irq;
 
-  AxiLitePlic #(
+  AxiPlic #(
     .ADDR_W(`XLEN),
     .DATA_W(`XLEN),
     .STRB_W(`STRB_W)
@@ -298,6 +298,6 @@ module tb_axi_lite_plic;
     axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h9, {{(`STRB_W-4){1'b0}}, 4'hf});
     tb_check1("byte1 software pending completes", external_irq, 1'b0);
 
-    tb_finish("tb_axi_lite_plic");
+    tb_finish("tb_axi_plic");
   end
 endmodule

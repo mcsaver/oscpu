@@ -1,7 +1,7 @@
 `include "define.v"
 
 // CLINT-like 设备提供 M-mode 软件/定时器中断源；core 只消费标准 irq_* 信号。
-module AxiLiteClint #(
+module AxiClint #(
   parameter ADDR_W = 32,
   parameter DATA_W = 32,
   parameter STRB_W = DATA_W / 8,

@@ -1,14 +1,20 @@
-// 参数化 single-beat AXI-like crossbar(AXI4 化战役进行中)。
+// 参数化 single-beat crossbar: master 口 AXI4 / slave 口 AXI4-Lite 转换互连。
+// master 口收完整 AXI4 信号集(ID/LEN/SIZE/BURST/PROT/LAST), 单 outstanding
+// 单 beat(LEN 恒 0); R/B 按 owner 记账回环 RID/BID, RLAST 恒 1。slave 口保持
+// AXI4-Lite(外设挂 Lite 的工业标准形态), 仅 AR 侧多一路 ARPROT 供 DPI slave
+// 区分 instruction/data access。
 // 【AXI4 化 S2(2026-07-10)】读 abort 边带(m_read_abort_i)与 rd_drop_q 吞 R 机制
 // 已删除——在飞读的丢弃责任移交 master 桥自吞(fetch 桥 S_DRAIN/mem 桥 drop_rsp_q,
 // 见 design/specs/axi4-bus.md §2)。"master 暂不 ready 也先收 R 进 buffer 防
-// IFU 阻塞 LSU 死锁"的反死锁逻辑原样保留。S3/S4 将补 ID/SIZE/BURST/LAST。
+// IFU 阻塞 LSU 死锁"的反死锁逻辑原样保留。
+// 【AXI4 化 S3/S4(2026-07-10)】arstrb(非标)→ARSIZE、aruser→ARPROT[2]; 补
+// ID/LEN/BURST/LAST 常量位与 RID/BID 回环(rd_id_q/wr_id_q 按 slave 锁存,
+// buffer 路径 rd_resp_id_q 同存)。
 
-module AxiLiteXbar #(
+module AxiXbar #(
   parameter ADDR_W = 32,
   parameter DATA_W = 32,
   parameter STRB_W = DATA_W / 8,
-  parameter ARUSER_W = 1,
   parameter M_COUNT = 2,
   parameter S_COUNT = 1,
   parameter DEFAULT_SLAVE = 0,
@@ -21,29 +27,39 @@ module AxiLiteXbar #(
   input [M_COUNT-1:0] m_arvalid_i,
   output [M_COUNT-1:0] m_arready_o,
   input [M_COUNT*ADDR_W-1:0] m_araddr_i,
-  input [M_COUNT*STRB_W-1:0] m_arstrb_i,
-  input [M_COUNT*ARUSER_W-1:0] m_aruser_i,
+  input [M_COUNT*4-1:0] m_arid_i,
+  input [M_COUNT*8-1:0] m_arlen_i,
+  input [M_COUNT*3-1:0] m_arsize_i,
+  input [M_COUNT*2-1:0] m_arburst_i,
+  input [M_COUNT*3-1:0] m_arprot_i,
   output [M_COUNT-1:0] m_rvalid_o,
   input [M_COUNT-1:0] m_rready_i,
   output [M_COUNT*DATA_W-1:0] m_rdata_o,
   output [M_COUNT*2-1:0] m_rresp_o,
+  output [M_COUNT*4-1:0] m_rid_o,
+  output [M_COUNT-1:0] m_rlast_o,
 
   input [M_COUNT-1:0] m_awvalid_i,
   output [M_COUNT-1:0] m_awready_o,
   input [M_COUNT*ADDR_W-1:0] m_awaddr_i,
+  input [M_COUNT*4-1:0] m_awid_i,
+  input [M_COUNT*8-1:0] m_awlen_i,
+  input [M_COUNT*3-1:0] m_awsize_i,
+  input [M_COUNT*2-1:0] m_awburst_i,
   input [M_COUNT-1:0] m_wvalid_i,
   output [M_COUNT-1:0] m_wready_o,
   input [M_COUNT*DATA_W-1:0] m_wdata_i,
   input [M_COUNT*STRB_W-1:0] m_wstrb_i,
+  input [M_COUNT-1:0] m_wlast_i,
   output [M_COUNT-1:0] m_bvalid_o,
   input [M_COUNT-1:0] m_bready_i,
   output [M_COUNT*2-1:0] m_bresp_o,
+  output [M_COUNT*4-1:0] m_bid_o,
 
   output [S_COUNT-1:0] s_arvalid_o,
   input [S_COUNT-1:0] s_arready_i,
   output [S_COUNT*ADDR_W-1:0] s_araddr_o,
-  output [S_COUNT*STRB_W-1:0] s_arstrb_o,
-  output [S_COUNT*ARUSER_W-1:0] s_aruser_o,
+  output [S_COUNT*3-1:0] s_arprot_o,
   input [S_COUNT-1:0] s_rvalid_i,
   output [S_COUNT-1:0] s_rready_o,
   input [S_COUNT*DATA_W-1:0] s_rdata_i,
@@ -63,6 +79,11 @@ module AxiLiteXbar #(
 
   localparam MASTER_W = (M_COUNT <= 1) ? 1 : $clog2(M_COUNT);
   localparam SLAVE_W = (S_COUNT <= 1) ? 1 : $clog2(S_COUNT);
+
+  // AXI4 协议陪跑位: 单 outstanding 单 beat 互连里 SIZE/LEN/BURST/WLAST 无
+  // 消费者(slave 口是 AXI4-Lite, DPI slave 恒整 beat 访问), 端口保留、汇 unused。
+  wire unused_axi4_meta_w = |{m_arsize_i, m_arlen_i, m_arburst_i,
+                              m_awlen_i, m_awsize_i, m_awburst_i, m_wlast_i};
 
   function [ADDR_W-1:0] m_addr_slice;
     input [M_COUNT*ADDR_W-1:0] bus;
@@ -88,11 +109,19 @@ module AxiLiteXbar #(
     end
   endfunction
 
-  function [ARUSER_W-1:0] m_user_slice;
-    input [M_COUNT*ARUSER_W-1:0] bus;
+  function [2:0] m_prot_slice;
+    input [M_COUNT*3-1:0] bus;
     input [MASTER_W-1:0] idx;
     begin
-      m_user_slice = bus[idx*ARUSER_W +: ARUSER_W];
+      m_prot_slice = bus[idx*3 +: 3];
+    end
+  endfunction
+
+  function [3:0] m_id_slice;
+    input [M_COUNT*4-1:0] bus;
+    input [MASTER_W-1:0] idx;
+    begin
+      m_id_slice = bus[idx*4 +: 4];
     end
   endfunction
 
@@ -160,13 +189,14 @@ module AxiLiteXbar #(
   reg [M_COUNT-1:0] m_rvalid_r;
   reg [M_COUNT*DATA_W-1:0] m_rdata_r;
   reg [M_COUNT*2-1:0] m_rresp_r;
+  reg [M_COUNT*4-1:0] m_rid_r;
   reg [M_COUNT-1:0] m_bvalid_r;
   reg [M_COUNT*2-1:0] m_bresp_r;
+  reg [M_COUNT*4-1:0] m_bid_r;
 
   reg [S_COUNT-1:0] s_arvalid_r;
   reg [S_COUNT*ADDR_W-1:0] s_araddr_r;
-  reg [S_COUNT*STRB_W-1:0] s_arstrb_r;
-  reg [S_COUNT*ARUSER_W-1:0] s_aruser_r;
+  reg [S_COUNT*3-1:0] s_arprot_r;
   reg [S_COUNT-1:0] s_rready_r;
   reg [S_COUNT-1:0] s_awvalid_r;
   reg [S_COUNT*ADDR_W-1:0] s_awaddr_r;
@@ -179,18 +209,20 @@ module AxiLiteXbar #(
   reg [M_COUNT-1:0] rd_resp_valid_q;
   reg [DATA_W-1:0] rd_resp_data_q [0:M_COUNT-1];
   reg [1:0] rd_resp_resp_q [0:M_COUNT-1];
+  reg [3:0] rd_resp_id_q [0:M_COUNT-1];
   reg [S_COUNT-1:0] rd_active_q;
   reg [S_COUNT-1:0] rd_ar_sent_q;
   reg [MASTER_W-1:0] rd_owner_q [0:S_COUNT-1];
   reg [MASTER_W-1:0] rd_rr_q [0:S_COUNT-1];
   reg [ADDR_W-1:0] rd_addr_q [0:S_COUNT-1];
-  reg [STRB_W-1:0] rd_strb_q [0:S_COUNT-1];
-  reg [ARUSER_W-1:0] rd_user_q [0:S_COUNT-1];
+  reg [2:0] rd_prot_q [0:S_COUNT-1];
+  reg [3:0] rd_id_q [0:S_COUNT-1];
 
   reg [M_COUNT-1:0] wr_master_busy_q;
   reg [M_COUNT-1:0] wr_aw_hold_q;
   reg [M_COUNT-1:0] wr_w_hold_q;
   reg [ADDR_W-1:0] wr_awaddr_q [0:M_COUNT-1];
+  reg [3:0] wr_awid_q [0:M_COUNT-1];
   reg [SLAVE_W-1:0] wr_awtarget_q [0:M_COUNT-1];
   reg [DATA_W-1:0] wr_wdata_q [0:M_COUNT-1];
   reg [STRB_W-1:0] wr_wstrb_q [0:M_COUNT-1];
@@ -203,6 +235,7 @@ module AxiLiteXbar #(
   reg [ADDR_W-1:0] wr_addr_q [0:S_COUNT-1];
   reg [DATA_W-1:0] wr_data_q [0:S_COUNT-1];
   reg [STRB_W-1:0] wr_strb_q [0:S_COUNT-1];
+  reg [3:0] wr_id_q [0:S_COUNT-1];
 
   reg [S_COUNT-1:0] rd_grant_valid_r;
   reg [MASTER_W-1:0] rd_grant_master_r [0:S_COUNT-1];
@@ -217,13 +250,16 @@ module AxiLiteXbar #(
   assign m_rvalid_o = m_rvalid_r;
   assign m_rdata_o = m_rdata_r;
   assign m_rresp_o = m_rresp_r;
+  assign m_rid_o = m_rid_r;
+  // 单 beat 互连: RLAST 恒 1。
+  assign m_rlast_o = {M_COUNT{1'b1}};
   assign m_bvalid_o = m_bvalid_r;
   assign m_bresp_o = m_bresp_r;
+  assign m_bid_o = m_bid_r;
 
   assign s_arvalid_o = s_arvalid_r;
   assign s_araddr_o = s_araddr_r;
-  assign s_arstrb_o = s_arstrb_r;
-  assign s_aruser_o = s_aruser_r;
+  assign s_arprot_o = s_arprot_r;
   assign s_rready_o = s_rready_r;
   assign s_awvalid_o = s_awvalid_r;
   assign s_awaddr_o = s_awaddr_r;
@@ -245,13 +281,14 @@ module AxiLiteXbar #(
     m_rvalid_r = {M_COUNT{1'b0}};
     m_rdata_r = {M_COUNT*DATA_W{1'b0}};
     m_rresp_r = {M_COUNT*2{1'b0}};
+    m_rid_r = {M_COUNT*4{1'b0}};
     m_bvalid_r = {M_COUNT{1'b0}};
     m_bresp_r = {M_COUNT*2{1'b0}};
+    m_bid_r = {M_COUNT*4{1'b0}};
 
     s_arvalid_r = {S_COUNT{1'b0}};
     s_araddr_r = {S_COUNT*ADDR_W{1'b0}};
-    s_arstrb_r = {S_COUNT*STRB_W{1'b0}};
-    s_aruser_r = {S_COUNT*ARUSER_W{1'b0}};
+    s_arprot_r = {S_COUNT*3{1'b0}};
     s_rready_r = {S_COUNT{1'b0}};
     s_awvalid_r = {S_COUNT{1'b0}};
     s_awaddr_r = {S_COUNT*ADDR_W{1'b0}};
@@ -279,6 +316,7 @@ module AxiLiteXbar #(
         m_rvalid_r[m] = 1'b1;
         m_rdata_r[m*DATA_W +: DATA_W] = rd_resp_data_q[m];
         m_rresp_r[m*2 +: 2] = rd_resp_resp_q[m];
+        m_rid_r[m*4 +: 4] = rd_resp_id_q[m];
       end
     end
 
@@ -325,8 +363,7 @@ module AxiLiteXbar #(
       if (rd_active_q[s] && !rd_ar_sent_q[s]) begin
         s_arvalid_r[s] = 1'b1;
         s_araddr_r[s*ADDR_W +: ADDR_W] = rd_addr_q[s];
-        s_arstrb_r[s*STRB_W +: STRB_W] = rd_strb_q[s];
-        s_aruser_r[s*ARUSER_W +: ARUSER_W] = rd_user_q[s];
+        s_arprot_r[s*3 +: 3] = rd_prot_q[s];
       end
 
       if (rd_active_q[s] && rd_ar_sent_q[s]) begin
@@ -335,6 +372,7 @@ module AxiLiteXbar #(
           m_rvalid_r[owner] = s_rvalid_i[s];
           m_rdata_r[owner*DATA_W +: DATA_W] = s_rdata_i[s*DATA_W +: DATA_W];
           m_rresp_r[owner*2 +: 2] = s_rresp_i[s*2 +: 2];
+          m_rid_r[owner*4 +: 4] = rd_id_q[s];
           // 即使 master 暂时不 ready，也先把 response 收进 master-side buffer，
           // 释放 slave，避免 IFU response 阻塞 LSU miss 形成结构死锁。
           s_rready_r[s] = 1'b1;
@@ -402,6 +440,7 @@ module AxiLiteXbar #(
         owner = master_int(wr_owner_q[s]);
         m_bvalid_r[owner] = s_bvalid_i[s];
         m_bresp_r[owner*2 +: 2] = s_bresp_i[s*2 +: 2];
+        m_bid_r[owner*4 +: 4] = wr_id_q[s];
         s_bready_r[s] = m_bready_i[owner];
       end
     end
@@ -422,7 +461,9 @@ module AxiLiteXbar #(
       for (m = 0; m < M_COUNT; m = m + 1) begin
         rd_resp_data_q[m] <= {DATA_W{1'b0}};
         rd_resp_resp_q[m] <= 2'b00;
+        rd_resp_id_q[m] <= 4'd0;
         wr_awaddr_q[m] <= {ADDR_W{1'b0}};
+        wr_awid_q[m] <= 4'd0;
         wr_awtarget_q[m] <= {SLAVE_W{1'b0}};
         wr_wdata_q[m] <= {DATA_W{1'b0}};
         wr_wstrb_q[m] <= {STRB_W{1'b0}};
@@ -431,13 +472,14 @@ module AxiLiteXbar #(
         rd_owner_q[s] <= {MASTER_W{1'b0}};
         rd_rr_q[s] <= {MASTER_W{1'b0}};
         rd_addr_q[s] <= {ADDR_W{1'b0}};
-        rd_strb_q[s] <= {STRB_W{1'b0}};
-        rd_user_q[s] <= {ARUSER_W{1'b0}};
+        rd_prot_q[s] <= 3'd0;
+        rd_id_q[s] <= 4'd0;
         wr_owner_q[s] <= {MASTER_W{1'b0}};
         wr_rr_q[s] <= {MASTER_W{1'b0}};
         wr_addr_q[s] <= {ADDR_W{1'b0}};
         wr_data_q[s] <= {DATA_W{1'b0}};
         wr_strb_q[s] <= {STRB_W{1'b0}};
+        wr_id_q[s] <= 4'd0;
       end
     end else begin
       for (m = 0; m < M_COUNT; m = m + 1) begin
@@ -464,6 +506,7 @@ module AxiLiteXbar #(
             rd_resp_valid_q[master_int(rd_owner_q[s])] <= 1'b1;
             rd_resp_data_q[master_int(rd_owner_q[s])] <= s_rdata_i[s*DATA_W +: DATA_W];
             rd_resp_resp_q[master_int(rd_owner_q[s])] <= s_rresp_i[s*2 +: 2];
+            rd_resp_id_q[master_int(rd_owner_q[s])] <= rd_id_q[s];
           end
         end
 
@@ -472,8 +515,8 @@ module AxiLiteXbar #(
           rd_ar_sent_q[s] <= 1'b0;
           rd_owner_q[s] <= rd_grant_master_r[s];
           rd_addr_q[s] <= m_addr_slice(m_araddr_i, master_int(rd_grant_master_r[s]));
-          rd_strb_q[s] <= m_strb_slice(m_arstrb_i, master_int(rd_grant_master_r[s]));
-          rd_user_q[s] <= m_user_slice(m_aruser_i, master_int(rd_grant_master_r[s]));
+          rd_prot_q[s] <= m_prot_slice(m_arprot_i, master_int(rd_grant_master_r[s]));
+          rd_id_q[s] <= m_id_slice(m_arid_i, master_int(rd_grant_master_r[s]));
           rd_master_busy_q[master_int(rd_grant_master_r[s])] <= 1'b1;
           rd_rr_q[s] <= (master_int(rd_grant_master_r[s]) == (M_COUNT - 1)) ?
                          {MASTER_W{1'b0}} :
@@ -485,6 +528,7 @@ module AxiLiteXbar #(
         if (m_awvalid_i[m] && m_awready_r[m]) begin
           wr_aw_hold_q[m] <= 1'b1;
           wr_awaddr_q[m] <= m_addr_slice(m_awaddr_i, m);
+          wr_awid_q[m] <= m_id_slice(m_awid_i, m);
           wr_awtarget_q[m] <= awtarget_decode_r[m];
         end
 
@@ -522,6 +566,7 @@ module AxiLiteXbar #(
           wr_addr_q[s] <= wr_awaddr_q[master_int(wr_grant_master_r[s])];
           wr_data_q[s] <= wr_wdata_q[master_int(wr_grant_master_r[s])];
           wr_strb_q[s] <= wr_wstrb_q[master_int(wr_grant_master_r[s])];
+          wr_id_q[s] <= wr_awid_q[master_int(wr_grant_master_r[s])];
           wr_aw_hold_q[master_int(wr_grant_master_r[s])] <= 1'b0;
           wr_w_hold_q[master_int(wr_grant_master_r[s])] <= 1'b0;
           wr_master_busy_q[master_int(wr_grant_master_r[s])] <= 1'b1;

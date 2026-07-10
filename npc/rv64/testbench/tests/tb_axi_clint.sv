@@ -1,6 +1,6 @@
 `include "define.v"
 
-module tb_axi_lite_clint;
+module tb_axi_clint;
   `include "tb_common.svh"
 
   reg clk;
@@ -76,7 +76,7 @@ module tb_axi_lite_clint;
   wire axi64_msip_irq;
   wire axi64_mtip_irq;
 
-  AxiLiteClint #(
+  AxiClint #(
     .MTIME_INCREMENT(64'd0)
   ) dut (
     .clk(clk),
@@ -103,7 +103,7 @@ module tb_axi_lite_clint;
     .mtip_irq_o(mtip_irq)
   );
 
-  AxiLiteClint #(
+  AxiClint #(
     .MTIME_INCREMENT(64'd1)
   ) inc_dut (
     .clk(clk),
@@ -135,7 +135,7 @@ module tb_axi_lite_clint;
       inc_msip_irq, inc_mtip_irq
   };
 
-  AxiLiteClint #(
+  AxiClint #(
     .MTIME_INCREMENT(64'd1),
     .MTIME_DIVISOR(32'd4)
   ) div_dut (
@@ -168,7 +168,7 @@ module tb_axi_lite_clint;
       div_msip_irq, div_mtip_irq
   };
 
-  AxiLiteClint #(
+  AxiClint #(
     .ADDR_W(64),
     .DATA_W(64),
     .STRB_W(8),
@@ -470,6 +470,6 @@ module tb_axi_lite_clint;
     axi64_write_word(`NPC_AXI_CLINT_BASE + 64'h0000_4000, 64'h0000_0000_0000_000a, 8'hff);
     tb_check1("mtip64 irq clear by aligned compare", axi64_mtip_irq, 1'b0);
 
-    tb_finish("tb_axi_lite_clint");
+    tb_finish("tb_axi_clint");
   end
 endmodule

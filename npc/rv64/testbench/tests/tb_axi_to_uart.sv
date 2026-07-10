@@ -1,4 +1,4 @@
-module tb_axi_lite_to_uart;
+module tb_axi_to_uart;
   `include "tb_common.svh"
 
   reg clk;
@@ -7,7 +7,6 @@ module tb_axi_lite_to_uart;
   reg arvalid;
   wire arready;
   reg [31:0] araddr;
-  reg [3:0] arstrb;
   wire rvalid;
   reg rready;
   wire [31:0] rdata;
@@ -37,13 +36,12 @@ module tb_axi_lite_to_uart;
   wire rx_ready;
   wire irq;
 
-  AxiLiteToUart dut (
+  AxiToUart dut (
     .clk(clk),
     .rst(rst),
     .s_axi_arvalid_i(arvalid),
     .s_axi_arready_o(arready),
     .s_axi_araddr_i(araddr),
-    .s_axi_arstrb_i(arstrb),
     .s_axi_rvalid_o(rvalid),
     .s_axi_rready_i(rready),
     .s_axi_rdata_o(rdata),
@@ -78,7 +76,6 @@ module tb_axi_lite_to_uart;
       rst = 1'b1;
       arvalid = 1'b0;
       araddr = 32'h0;
-      arstrb = 4'hf;
       rready = 1'b0;
       awvalid = 1'b0;
       awaddr = 32'h0;
@@ -99,17 +96,7 @@ module tb_axi_lite_to_uart;
     input [31:0] addr;
     input [31:0] exp_data;
     begin
-      axi_read_word_strb(addr, 4'hf, exp_data);
-    end
-  endtask
-
-  task automatic axi_read_word_strb;
-    input [31:0] addr;
-    input [3:0] strb;
-    input [31:0] exp_data;
-    begin
       araddr = addr;
-      arstrb = strb;
       arvalid = 1'b1;
       rready = 1'b0;
       #1;
@@ -127,7 +114,6 @@ module tb_axi_lite_to_uart;
       rready = 1'b1;
       `TB_TICK(clk);
       rready = 1'b0;
-      arstrb = 4'hf;
     end
   endtask
 
@@ -204,11 +190,14 @@ module tb_axi_lite_to_uart;
     rx_data = 8'h00;
     #1;
     tb_check1("rx ier raises irq", irq, 1'b1);
-    axi_read_word_strb(32'h1000_0000, 4'b0100, 32'h0004_015b);
+    // 【AXI4 化 S3】arstrb 已删: RBR pop 判据=读命中 offset 0(非 DLAB)。
+    // 等价用例: 非 0 偏移读(LSR 窗口)不 pop; 对齐 0 读 pop——与现行总线
+    // "对齐地址+全 1 strb"形态逐位等价。
+    axi_read_word(32'h1000_0004, 32'h0000_6101);
     #1;
-    tb_check1("iir lane axi read keeps rx byte", rx_ready, 1'b0);
-    tb_check1("iir lane axi read keeps irq", irq, 1'b1);
-    axi_read_word_strb(32'h1000_0000, 4'b0001, 32'h0004_015b);
+    tb_check1("offset4 axi read keeps rx byte", rx_ready, 1'b0);
+    tb_check1("offset4 axi read keeps irq", irq, 1'b1);
+    axi_read_word(32'h1000_0000, 32'h0004_015b);
     #1;
     tb_check1("rx irq clears after axi rbr", irq, 1'b0);
     axi_write_word(32'h1000_0000, 32'h0001_0000, 4'b0100, 1'b0, 8'h00);
@@ -223,6 +212,6 @@ module tb_axi_lite_to_uart;
     axi_write_word(32'h1000_0000, 32'h0000_0000, 4'b1000, 1'b0, 8'h00);
     axi_write_word(32'h1000_0000, 32'h0000_0044, 4'b0001, 1'b1, 8'h44);
 
-    tb_finish("tb_axi_lite_to_uart");
+    tb_finish("tb_axi_to_uart");
   end
 endmodule

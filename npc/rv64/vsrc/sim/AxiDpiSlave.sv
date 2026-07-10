@@ -28,7 +28,7 @@ module AxiDpiSlave (
   input logic s_axi_arvalid_i,
   output logic s_axi_arready_o,
   input logic [`XLEN-1:0] s_axi_araddr_i,
-  input logic s_axi_aruser_i,
+  input logic [2:0] s_axi_arprot_i,
   output logic s_axi_rvalid_o,
   input logic s_axi_rready_i,
   output logic [`XLEN-1:0] s_axi_rdata_o,
@@ -91,7 +91,8 @@ module AxiDpiSlave (
       end
 
       if (ar_fire_w) begin
-        if (s_axi_aruser_i == 1'b0) begin
+        // 【AXI4 化 S3】aruser→ARPROT[2](AXI 语义: bit2=1 表 instruction access)。
+        if (s_axi_arprot_i[2]) begin
           npc_ifetch(s_axi_araddr_i, bus_data_v, bus_error_v);
         end else begin
           npc_mem_read(s_axi_araddr_i, bus_data_v, bus_error_v);

@@ -10,7 +10,6 @@ module Uart #(
 
   input reg_read_valid_i,
   input [11:0] reg_read_addr_i,
-  input [STRB_W-1:0] reg_read_strb_i,
   output [DATA_W-1:0] reg_read_data_o,
 
   input reg_write_valid_i,
@@ -46,11 +45,12 @@ module Uart #(
   wire dlab_w = lcr_q[7];
   wire fifo_enabled_w = fcr_q[0];
   wire thre_ready_w = 1'b1;
-  wire [7:0] reg_read_strb_pad_w;
+  // 【AXI4 化 S3】读 strb(非标 arstrb)已删: RBR pop 判据只看"读命中 offset 0
+  // 且非 DLAB"。现行总线对不跨线读恒发对齐地址+全 1 strb, lane 信息本已丢失,
+  // 新判据与旧 strb[0] 判据逐位等价。
   wire rbr_read_fire_w =
       reg_read_valid_i &&
       (reg_read_addr_i == UART_RBR_THR_DLL_OFFSET) &&
-      reg_read_strb_pad_w[0] &&
       !dlab_w;
   wire rx_irq_pending_w = ier_q[0] && rx_valid_q;
   wire thre_irq_pending_w = ier_q[1] && thre_ready_w;
@@ -70,7 +70,6 @@ module Uart #(
   wire [63:0] reg_write_data_pad_w;
   wire [7:0] reg_write_strb_pad_w;
 
-  assign reg_read_strb_pad_w[3:0] = reg_read_strb_i[3:0];
   assign reg_write_data_pad_w[31:0] = reg_write_data_i[31:0];
   assign reg_write_strb_pad_w[3:0] = reg_write_strb_i[3:0];
   generate
@@ -80,10 +79,8 @@ module Uart #(
       assign reg_write_data_pad_w[63:32] = 32'b0;
     end
     if (STRB_W > 4) begin : gen_uart_strb_high_lanes
-      assign reg_read_strb_pad_w[7:4] = reg_read_strb_i[7:4];
       assign reg_write_strb_pad_w[7:4] = reg_write_strb_i[7:4];
     end else begin : gen_uart_strb_high_zero
-      assign reg_read_strb_pad_w[7:4] = 4'b0;
       assign reg_write_strb_pad_w[7:4] = 4'b0;
     end
   endgenerate

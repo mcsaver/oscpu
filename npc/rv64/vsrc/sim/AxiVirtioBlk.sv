@@ -21,7 +21,7 @@ import "DPI-C" task npc_virtio_blk_irq(
   output bit irq
 );
 
-module AxiLiteVirtioBlk #(
+module AxiVirtioBlk #(
   parameter ADDR_W = 32,
   parameter DATA_W = 32,
   parameter STRB_W = DATA_W / 8

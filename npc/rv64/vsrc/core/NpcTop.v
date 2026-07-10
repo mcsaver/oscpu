@@ -10,7 +10,7 @@ module NpcTop (
   output psram_axi_arvalid_o,
   input psram_axi_arready_i,
   output [`XLEN-1:0] psram_axi_araddr_o,
-  output psram_axi_aruser_o,
+  output [2:0] psram_axi_arprot_o,
   input psram_axi_rvalid_i,
   output psram_axi_rready_o,
   input [`XLEN-1:0] psram_axi_rdata_i,
@@ -29,7 +29,7 @@ module NpcTop (
   output sdram_axi_arvalid_o,
   input sdram_axi_arready_i,
   output [`XLEN-1:0] sdram_axi_araddr_o,
-  output sdram_axi_aruser_o,
+  output [2:0] sdram_axi_arprot_o,
   input sdram_axi_rvalid_i,
   output sdram_axi_rready_o,
   input [`XLEN-1:0] sdram_axi_rdata_i,
@@ -48,7 +48,7 @@ module NpcTop (
   output legacy_mmio_axi_arvalid_o,
   input legacy_mmio_axi_arready_i,
   output [`XLEN-1:0] legacy_mmio_axi_araddr_o,
-  output legacy_mmio_axi_aruser_o,
+  output [2:0] legacy_mmio_axi_arprot_o,
   input legacy_mmio_axi_rvalid_i,
   output legacy_mmio_axi_rready_o,
   input [`XLEN-1:0] legacy_mmio_axi_rdata_i,
@@ -67,7 +67,7 @@ module NpcTop (
   output virtio_blk_axi_arvalid_o,
   input virtio_blk_axi_arready_i,
   output [`XLEN-1:0] virtio_blk_axi_araddr_o,
-  output virtio_blk_axi_aruser_o,
+  output [2:0] virtio_blk_axi_arprot_o,
   input virtio_blk_axi_rvalid_i,
   output virtio_blk_axi_rready_o,
   input [`XLEN-1:0] virtio_blk_axi_rdata_i,
@@ -180,6 +180,11 @@ module NpcTop (
   wire ifu_axi_arvalid_w;
   wire ifu_axi_arready_w;
   wire [`XLEN-1:0] ifu_axi_araddr_w;
+  wire [3:0] ifu_axi_arid_w;
+  wire [7:0] ifu_axi_arlen_w;
+  wire [2:0] ifu_axi_arsize_w;
+  wire [1:0] ifu_axi_arburst_w;
+  wire [2:0] ifu_axi_arprot_w;
   wire ifu_axi_rvalid_w;
   wire ifu_axi_rready_w;
   wire [`XLEN-1:0] ifu_axi_rdata_w;
@@ -188,10 +193,15 @@ module NpcTop (
   wire ifu_axi_awvalid_w;
   wire ifu_axi_awready_w;
   wire [`XLEN-1:0] ifu_axi_awaddr_w;
+  wire [3:0] ifu_axi_awid_w;
+  wire [7:0] ifu_axi_awlen_w;
+  wire [2:0] ifu_axi_awsize_w;
+  wire [1:0] ifu_axi_awburst_w;
   wire ifu_axi_wvalid_w;
   wire ifu_axi_wready_w;
   wire [`XLEN-1:0] ifu_axi_wdata_w;
   wire [`STRB_W-1:0] ifu_axi_wstrb_w;
+  wire ifu_axi_wlast_w;
   wire ifu_axi_bvalid_w;
   wire ifu_axi_bready_w;
   wire [1:0] ifu_axi_bresp_w;
@@ -199,7 +209,11 @@ module NpcTop (
   wire lsu_axi_arvalid_w;
   wire lsu_axi_arready_w;
   wire [`XLEN-1:0] lsu_axi_araddr_w;
-  wire [`STRB_W-1:0] lsu_axi_arstrb_w;
+  wire [3:0] lsu_axi_arid_w;
+  wire [7:0] lsu_axi_arlen_w;
+  wire [2:0] lsu_axi_arsize_w;
+  wire [1:0] lsu_axi_arburst_w;
+  wire [2:0] lsu_axi_arprot_w;
   wire lsu_axi_rvalid_w;
   wire lsu_axi_rready_w;
   wire [`XLEN-1:0] lsu_axi_rdata_w;
@@ -207,10 +221,15 @@ module NpcTop (
   wire lsu_axi_awvalid_w;
   wire lsu_axi_awready_w;
   wire [`XLEN-1:0] lsu_axi_awaddr_w;
+  wire [3:0] lsu_axi_awid_w;
+  wire [7:0] lsu_axi_awlen_w;
+  wire [2:0] lsu_axi_awsize_w;
+  wire [1:0] lsu_axi_awburst_w;
   wire lsu_axi_wvalid_w;
   wire lsu_axi_wready_w;
   wire [`XLEN-1:0] lsu_axi_wdata_w;
   wire [`STRB_W-1:0] lsu_axi_wstrb_w;
+  wire lsu_axi_wlast_w;
   wire lsu_axi_bvalid_w;
   wire lsu_axi_bready_w;
   wire [1:0] lsu_axi_bresp_w;
@@ -218,8 +237,7 @@ module NpcTop (
   wire [AXI_S_COUNT-1:0] bus_axi_arvalid_w;
   wire [AXI_S_COUNT-1:0] bus_axi_arready_w;
   wire [AXI_S_COUNT*`XLEN-1:0] bus_axi_araddr_w;
-  wire [AXI_S_COUNT*`STRB_W-1:0] bus_axi_arstrb_w;
-  wire [AXI_S_COUNT-1:0] bus_axi_aruser_w;
+  wire [AXI_S_COUNT*3-1:0] bus_axi_arprot_w;
   wire [AXI_S_COUNT-1:0] bus_axi_rvalid_w;
   wire [AXI_S_COUNT-1:0] bus_axi_rready_w;
   wire [AXI_S_COUNT*`XLEN-1:0] bus_axi_rdata_w;
@@ -249,6 +267,11 @@ module NpcTop (
     .ifu_axi_arvalid_o(ifu_axi_arvalid_w),
     .ifu_axi_arready_i(ifu_axi_arready_w),
     .ifu_axi_araddr_o(ifu_axi_araddr_w),
+    .ifu_axi_arid_o(ifu_axi_arid_w),
+    .ifu_axi_arlen_o(ifu_axi_arlen_w),
+    .ifu_axi_arsize_o(ifu_axi_arsize_w),
+    .ifu_axi_arburst_o(ifu_axi_arburst_w),
+    .ifu_axi_arprot_o(ifu_axi_arprot_w),
     .ifu_axi_rvalid_i(ifu_axi_rvalid_w),
     .ifu_axi_rready_o(ifu_axi_rready_w),
     .ifu_axi_rdata_i(ifu_axi_rdata_w),
@@ -256,17 +279,26 @@ module NpcTop (
     .ifu_axi_awvalid_o(ifu_axi_awvalid_w),
     .ifu_axi_awready_i(ifu_axi_awready_w),
     .ifu_axi_awaddr_o(ifu_axi_awaddr_w),
+    .ifu_axi_awid_o(ifu_axi_awid_w),
+    .ifu_axi_awlen_o(ifu_axi_awlen_w),
+    .ifu_axi_awsize_o(ifu_axi_awsize_w),
+    .ifu_axi_awburst_o(ifu_axi_awburst_w),
     .ifu_axi_wvalid_o(ifu_axi_wvalid_w),
     .ifu_axi_wready_i(ifu_axi_wready_w),
     .ifu_axi_wdata_o(ifu_axi_wdata_w),
     .ifu_axi_wstrb_o(ifu_axi_wstrb_w),
+    .ifu_axi_wlast_o(ifu_axi_wlast_w),
     .ifu_axi_bvalid_i(ifu_axi_bvalid_w),
     .ifu_axi_bready_o(ifu_axi_bready_w),
     .ifu_axi_bresp_i(ifu_axi_bresp_w),
     .lsu_axi_arvalid_o(lsu_axi_arvalid_w),
     .lsu_axi_arready_i(lsu_axi_arready_w),
     .lsu_axi_araddr_o(lsu_axi_araddr_w),
-    .lsu_axi_arstrb_o(lsu_axi_arstrb_w),
+    .lsu_axi_arid_o(lsu_axi_arid_w),
+    .lsu_axi_arlen_o(lsu_axi_arlen_w),
+    .lsu_axi_arsize_o(lsu_axi_arsize_w),
+    .lsu_axi_arburst_o(lsu_axi_arburst_w),
+    .lsu_axi_arprot_o(lsu_axi_arprot_w),
     .lsu_axi_rvalid_i(lsu_axi_rvalid_w),
     .lsu_axi_rready_o(lsu_axi_rready_w),
     .lsu_axi_rdata_i(lsu_axi_rdata_w),
@@ -274,10 +306,15 @@ module NpcTop (
     .lsu_axi_awvalid_o(lsu_axi_awvalid_w),
     .lsu_axi_awready_i(lsu_axi_awready_w),
     .lsu_axi_awaddr_o(lsu_axi_awaddr_w),
+    .lsu_axi_awid_o(lsu_axi_awid_w),
+    .lsu_axi_awlen_o(lsu_axi_awlen_w),
+    .lsu_axi_awsize_o(lsu_axi_awsize_w),
+    .lsu_axi_awburst_o(lsu_axi_awburst_w),
     .lsu_axi_wvalid_o(lsu_axi_wvalid_w),
     .lsu_axi_wready_i(lsu_axi_wready_w),
     .lsu_axi_wdata_o(lsu_axi_wdata_w),
     .lsu_axi_wstrb_o(lsu_axi_wstrb_w),
+    .lsu_axi_wlast_o(lsu_axi_wlast_w),
     .lsu_axi_bvalid_i(lsu_axi_bvalid_w),
     .lsu_axi_bready_o(lsu_axi_bready_w),
     .lsu_axi_bresp_i(lsu_axi_bresp_w),
@@ -354,6 +391,11 @@ module NpcTop (
     .ifu_axi_arvalid_i(ifu_axi_arvalid_w),
     .ifu_axi_arready_o(ifu_axi_arready_w),
     .ifu_axi_araddr_i(ifu_axi_araddr_w),
+    .ifu_axi_arid_i(ifu_axi_arid_w),
+    .ifu_axi_arlen_i(ifu_axi_arlen_w),
+    .ifu_axi_arsize_i(ifu_axi_arsize_w),
+    .ifu_axi_arburst_i(ifu_axi_arburst_w),
+    .ifu_axi_arprot_i(ifu_axi_arprot_w),
     .ifu_axi_rvalid_o(ifu_axi_rvalid_w),
     .ifu_axi_rready_i(ifu_axi_rready_w),
     .ifu_axi_rdata_o(ifu_axi_rdata_w),
@@ -361,17 +403,26 @@ module NpcTop (
     .ifu_axi_awvalid_i(ifu_axi_awvalid_w),
     .ifu_axi_awready_o(ifu_axi_awready_w),
     .ifu_axi_awaddr_i(ifu_axi_awaddr_w),
+    .ifu_axi_awid_i(ifu_axi_awid_w),
+    .ifu_axi_awlen_i(ifu_axi_awlen_w),
+    .ifu_axi_awsize_i(ifu_axi_awsize_w),
+    .ifu_axi_awburst_i(ifu_axi_awburst_w),
     .ifu_axi_wvalid_i(ifu_axi_wvalid_w),
     .ifu_axi_wready_o(ifu_axi_wready_w),
     .ifu_axi_wdata_i(ifu_axi_wdata_w),
     .ifu_axi_wstrb_i(ifu_axi_wstrb_w),
+    .ifu_axi_wlast_i(ifu_axi_wlast_w),
     .ifu_axi_bvalid_o(ifu_axi_bvalid_w),
     .ifu_axi_bready_i(ifu_axi_bready_w),
     .ifu_axi_bresp_o(ifu_axi_bresp_w),
     .lsu_axi_arvalid_i(lsu_axi_arvalid_w),
     .lsu_axi_arready_o(lsu_axi_arready_w),
     .lsu_axi_araddr_i(lsu_axi_araddr_w),
-    .lsu_axi_arstrb_i(lsu_axi_arstrb_w),
+    .lsu_axi_arid_i(lsu_axi_arid_w),
+    .lsu_axi_arlen_i(lsu_axi_arlen_w),
+    .lsu_axi_arsize_i(lsu_axi_arsize_w),
+    .lsu_axi_arburst_i(lsu_axi_arburst_w),
+    .lsu_axi_arprot_i(lsu_axi_arprot_w),
     .lsu_axi_rvalid_o(lsu_axi_rvalid_w),
     .lsu_axi_rready_i(lsu_axi_rready_w),
     .lsu_axi_rdata_o(lsu_axi_rdata_w),
@@ -379,18 +430,22 @@ module NpcTop (
     .lsu_axi_awvalid_i(lsu_axi_awvalid_w),
     .lsu_axi_awready_o(lsu_axi_awready_w),
     .lsu_axi_awaddr_i(lsu_axi_awaddr_w),
+    .lsu_axi_awid_i(lsu_axi_awid_w),
+    .lsu_axi_awlen_i(lsu_axi_awlen_w),
+    .lsu_axi_awsize_i(lsu_axi_awsize_w),
+    .lsu_axi_awburst_i(lsu_axi_awburst_w),
     .lsu_axi_wvalid_i(lsu_axi_wvalid_w),
     .lsu_axi_wready_o(lsu_axi_wready_w),
     .lsu_axi_wdata_i(lsu_axi_wdata_w),
     .lsu_axi_wstrb_i(lsu_axi_wstrb_w),
+    .lsu_axi_wlast_i(lsu_axi_wlast_w),
     .lsu_axi_bvalid_o(lsu_axi_bvalid_w),
     .lsu_axi_bready_i(lsu_axi_bready_w),
     .lsu_axi_bresp_o(lsu_axi_bresp_w),
     .s_axi_arvalid_o(bus_axi_arvalid_w),
     .s_axi_arready_i(bus_axi_arready_w),
     .s_axi_araddr_o(bus_axi_araddr_w),
-    .s_axi_arstrb_o(bus_axi_arstrb_w),
-    .s_axi_aruser_o(bus_axi_aruser_w),
+    .s_axi_arprot_o(bus_axi_arprot_w),
     .s_axi_rvalid_i(bus_axi_rvalid_w),
     .s_axi_rready_o(bus_axi_rready_w),
     .s_axi_rdata_i(bus_axi_rdata_w),
@@ -407,7 +462,7 @@ module NpcTop (
     .s_axi_bresp_i(bus_axi_bresp_w)
   );
 
-  AxiLiteToUart #(
+  AxiToUart #(
     .ADDR_W(`XLEN),
     .DATA_W(`XLEN),
     .STRB_W(`STRB_W)
@@ -417,7 +472,6 @@ module NpcTop (
     .s_axi_arvalid_i(bus_axi_arvalid_w[AXI_S_UART]),
     .s_axi_arready_o(bus_axi_arready_w[AXI_S_UART]),
     .s_axi_araddr_i(bus_axi_araddr_w[AXI_S_UART*`XLEN +: `XLEN]),
-    .s_axi_arstrb_i(bus_axi_arstrb_w[AXI_S_UART*`STRB_W +: `STRB_W]),
     .s_axi_rvalid_o(bus_axi_rvalid_w[AXI_S_UART]),
     .s_axi_rready_i(bus_axi_rready_w[AXI_S_UART]),
     .s_axi_rdata_o(bus_axi_rdata_w[AXI_S_UART*`XLEN +: `XLEN]),
@@ -446,7 +500,7 @@ module NpcTop (
     .uart_irq_o(uart_irq_w)
   );
 
-  AxiLiteClint #(
+  AxiClint #(
     .ADDR_W(`XLEN),
     .DATA_W(`XLEN),
     .STRB_W(`STRB_W),
@@ -481,7 +535,7 @@ module NpcTop (
   assign plic_external_irq_o = plic_external_irq_w;
   assign plic_sources_w = {29'd0, virtio_blk_irq_i, uart_irq_w, 1'b0};
 
-  AxiLitePlic #(
+  AxiPlic #(
     .ADDR_W(`XLEN),
     .DATA_W(`XLEN),
     .STRB_W(`STRB_W),
@@ -513,7 +567,7 @@ module NpcTop (
   assign psram_axi_arvalid_o = bus_axi_arvalid_w[AXI_S_PSRAM];
   assign bus_axi_arready_w[AXI_S_PSRAM] = psram_axi_arready_i;
   assign psram_axi_araddr_o = bus_axi_araddr_w[AXI_S_PSRAM*`XLEN +: `XLEN];
-  assign psram_axi_aruser_o = bus_axi_aruser_w[AXI_S_PSRAM];
+  assign psram_axi_arprot_o = bus_axi_arprot_w[AXI_S_PSRAM*3 +: 3];
   assign bus_axi_rvalid_w[AXI_S_PSRAM] = psram_axi_rvalid_i;
   assign psram_axi_rready_o = bus_axi_rready_w[AXI_S_PSRAM];
   assign bus_axi_rdata_w[AXI_S_PSRAM*`XLEN +: `XLEN] = psram_axi_rdata_i;
@@ -533,7 +587,7 @@ module NpcTop (
   assign bus_axi_arready_w[AXI_S_SDRAM] = sdram_axi_arready_i;
   assign sdram_axi_araddr_o =
       bus_axi_araddr_w[AXI_S_SDRAM*`XLEN +: `XLEN];
-  assign sdram_axi_aruser_o = bus_axi_aruser_w[AXI_S_SDRAM];
+  assign sdram_axi_arprot_o = bus_axi_arprot_w[AXI_S_SDRAM*3 +: 3];
   assign bus_axi_rvalid_w[AXI_S_SDRAM] = sdram_axi_rvalid_i;
   assign sdram_axi_rready_o = bus_axi_rready_w[AXI_S_SDRAM];
   assign bus_axi_rdata_w[AXI_S_SDRAM*`XLEN +: `XLEN] = sdram_axi_rdata_i;
@@ -555,7 +609,7 @@ module NpcTop (
   assign bus_axi_arready_w[AXI_S_LEGACY_MMIO] = legacy_mmio_axi_arready_i;
   assign legacy_mmio_axi_araddr_o =
       bus_axi_araddr_w[AXI_S_LEGACY_MMIO*`XLEN +: `XLEN];
-  assign legacy_mmio_axi_aruser_o = bus_axi_aruser_w[AXI_S_LEGACY_MMIO];
+  assign legacy_mmio_axi_arprot_o = bus_axi_arprot_w[AXI_S_LEGACY_MMIO*3 +: 3];
   assign bus_axi_rvalid_w[AXI_S_LEGACY_MMIO] = legacy_mmio_axi_rvalid_i;
   assign legacy_mmio_axi_rready_o = bus_axi_rready_w[AXI_S_LEGACY_MMIO];
   assign bus_axi_rdata_w[AXI_S_LEGACY_MMIO*`XLEN +: `XLEN] =
@@ -581,7 +635,7 @@ module NpcTop (
   assign bus_axi_arready_w[AXI_S_VIRTIO_BLK] = virtio_blk_axi_arready_i;
   assign virtio_blk_axi_araddr_o =
       bus_axi_araddr_w[AXI_S_VIRTIO_BLK*`XLEN +: `XLEN];
-  assign virtio_blk_axi_aruser_o = bus_axi_aruser_w[AXI_S_VIRTIO_BLK];
+  assign virtio_blk_axi_arprot_o = bus_axi_arprot_w[AXI_S_VIRTIO_BLK*3 +: 3];
   assign bus_axi_rvalid_w[AXI_S_VIRTIO_BLK] = virtio_blk_axi_rvalid_i;
   assign virtio_blk_axi_rready_o = bus_axi_rready_w[AXI_S_VIRTIO_BLK];
   assign bus_axi_rdata_w[AXI_S_VIRTIO_BLK*`XLEN +: `XLEN] =
@@ -628,7 +682,7 @@ module NpcTop (
         );
         wire unused_stub_payload_w = |{
             bus_axi_araddr_w[stub_idx*`XLEN +: `XLEN],
-            bus_axi_aruser_w[stub_idx],
+            bus_axi_arprot_w[stub_idx*3 +: 3],
             bus_axi_awaddr_w[stub_idx*`XLEN +: `XLEN],
             bus_axi_wdata_w[stub_idx*`XLEN +: `XLEN],
             bus_axi_wstrb_w[stub_idx*`STRB_W +: `STRB_W]

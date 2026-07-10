@@ -26,10 +26,10 @@ TESTS := \
   tb_lsu \
   tb_pmp_checker \
   tb_uart \
-  tb_axi_lite_to_uart \
-  tb_axi_lite_clint \
-  tb_axi_lite_plic \
-  tb_axi_lite_xbar \
+  tb_axi_to_uart \
+  tb_axi_clint \
+  tb_axi_plic \
+  tb_axi_xbar \
   tb_csr_file \
   tb_decode_unit \
   tb_decode_stage \
@@ -112,10 +112,10 @@ TB_SRCS_tb_lsu_datapath := tests/tb_lsu_datapath.sv $(RTL_LSU_DATAPATH)
 TB_SRCS_tb_lsu := tests/tb_lsu.sv $(RTL_LSU_CONTROL) $(RTL_LSU_DATAPATH) $(RTL_LSU)
 TB_SRCS_tb_pmp_checker := tests/tb_pmp_checker.sv $(RTL_PMP_CHECKER)
 TB_SRCS_tb_uart := tests/tb_uart.sv $(RTL_UART)
-TB_SRCS_tb_axi_lite_to_uart := tests/tb_axi_lite_to_uart.sv $(RTL_UART) $(RTL_AXI_LITE_TO_UART)
-TB_SRCS_tb_axi_lite_clint := tests/tb_axi_lite_clint.sv $(RTL_AXI_LITE_CLINT)
-TB_SRCS_tb_axi_lite_plic := tests/tb_axi_lite_plic.sv $(RTL_AXI_LITE_PLIC)
-TB_SRCS_tb_axi_lite_xbar := tests/tb_axi_lite_xbar.sv $(RTL_AXI_LITE_XBAR)
+TB_SRCS_tb_axi_to_uart := tests/tb_axi_to_uart.sv $(RTL_UART) $(RTL_AXI_TO_UART)
+TB_SRCS_tb_axi_clint := tests/tb_axi_clint.sv $(RTL_AXI_CLINT)
+TB_SRCS_tb_axi_plic := tests/tb_axi_plic.sv $(RTL_AXI_PLIC)
+TB_SRCS_tb_axi_xbar := tests/tb_axi_xbar.sv $(RTL_AXI_XBAR)
 TB_SRCS_tb_csr_file := tests/tb_csr_file.sv $(RTL_CSR_FILE)
 TB_SRCS_tb_decode_unit := tests/tb_decode_unit.sv $(RTL_DECODE_UNIT)
 TB_SRCS_tb_decode_stage := tests/tb_decode_stage.sv $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(RTL_DECODE_STAGE)

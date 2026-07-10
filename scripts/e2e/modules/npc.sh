@@ -120,7 +120,7 @@ e2e_npc_rv64_uart_rx_smoke() {
 
   set -o pipefail
   make -C "$E2E_ROOT_DIR/npc/rv64/testbench" \
-    TESTS="tb_uart tb_axi_lite_to_uart" \
+    TESTS="tb_uart tb_axi_to_uart" \
     RESULT_DIR="$result_dir/module-testbench" run 2>&1 | tee "$tb_log"
   local tb_rc=${PIPESTATUS[0]}
   if [[ $tb_rc -ne 0 ]]; then
@@ -143,7 +143,7 @@ e2e_npc_rv64_uart_rx_smoke() {
   echo "[npc-rv64] evidence=$(e2e_relpath "$runtime_dir/npc.log")"
 
   grep -q -- '- PASS tb_uart' "$tb_log"
-  grep -q -- '- PASS tb_axi_lite_to_uart' "$tb_log"
+  grep -q -- '- PASS tb_axi_to_uart' "$tb_log"
   grep -q "uart-rx.*loaded bytes=2.*wait='OpenSBI'" "$run_log"
   grep -q "uart-rx.*waiting for guest output pattern='OpenSBI'" "$run_log"
   grep -q 'OpenSBI' "$run_log"
@@ -250,7 +250,7 @@ e2e_npc_rv64_systemd_guest_check_contract() {
   e2e_print_required_files \
     Linux/scripts/check-npc-systemd-guest.sh \
     Linux/Makefile \
-    npc/rv64/vsrc/bus/AxiLiteClint.v \
+    npc/rv64/vsrc/bus/AxiClint.v \
     npc/rv64/vsrc/core/NpcTop.v \
     npc/rv64/csrc/dpi.c \
     npc/rv64/csrc/cpu/cpu-exec.cpp \
@@ -274,7 +274,7 @@ e2e_npc_rv64_systemd_guest_check_contract() {
   grep -q 'LOG_DIR=$(abspath_from_cwd "$LOG_DIR")' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
   grep -q 'Timed out waiting for device .*ttyS0' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
   grep -q 'Failed to start .*Create System Users' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
-  grep -q 'MTIME_DIVISOR' "$E2E_ROOT_DIR/npc/rv64/vsrc/bus/AxiLiteClint.v"
+  grep -q 'MTIME_DIVISOR' "$E2E_ROOT_DIR/npc/rv64/vsrc/bus/AxiClint.v"
   grep -q "CLINT_MTIME_DIVISOR = 32'd10" "$E2E_ROOT_DIR/npc/rv64/vsrc/core/NpcTop.v"
   grep -q 'NPC_USER_ECALL_TRACE' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
   grep -q 'NPC_USER_ECALL_TRACE_PRIV' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"

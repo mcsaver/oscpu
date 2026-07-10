@@ -17,7 +17,7 @@ module tb_ooo_sv39_boot;
   wire lsu_axi_arvalid;
   reg lsu_axi_arready;
   wire [`XLEN-1:0] lsu_axi_araddr;
-  wire [`STRB_W-1:0] lsu_axi_arstrb;
+  wire [2:0] lsu_axi_arsize;
   reg lsu_axi_rvalid;
   wire lsu_axi_rready;
   reg [`XLEN-1:0] lsu_axi_rdata;
@@ -116,7 +116,7 @@ module tb_ooo_sv39_boot;
     .lsu_axi_arvalid_o(lsu_axi_arvalid),
     .lsu_axi_arready_i(lsu_axi_arready),
     .lsu_axi_araddr_o(lsu_axi_araddr),
-    .lsu_axi_arstrb_o(lsu_axi_arstrb),
+    .lsu_axi_arsize_o(lsu_axi_arsize),
     .lsu_axi_rvalid_i(lsu_axi_rvalid),
     .lsu_axi_rready_o(lsu_axi_rready),
     .lsu_axi_rdata_i(lsu_axi_rdata),
@@ -538,10 +538,10 @@ module tb_ooo_sv39_boot;
     end else begin
       if (lsu_axi_rvalid && lsu_axi_rready) lsu_axi_rvalid <= 1'b0;
       if (lsu_axi_arvalid && lsu_axi_arready) begin
-        if (lsu_axi_arstrb !== {`STRB_W{1'b1}}) begin
+        if (lsu_axi_arsize !== 3'd3) begin
           tb_errors = tb_errors + 1;
-          $display("[CHECK-FAIL] LSU sv39 AR strb got=0x%0x expected=0x%0x",
-                   lsu_axi_arstrb, {`STRB_W{1'b1}});
+          $display("[CHECK-FAIL] LSU sv39 AR size got=0x%0x expected=0x%0x",
+                   lsu_axi_arsize, 3'd3);
         end
         lsu_axi_rvalid <= 1'b1;
         lsu_axi_rdata <= read64(lsu_axi_araddr);

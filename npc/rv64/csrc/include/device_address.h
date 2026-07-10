@@ -14,9 +14,9 @@
 // 分工:
 //   - serial : 真 RTL UART @ 0x10000000 (Uart.v; 写 THR 触发 npc_uart_event → host 输出
 //              + npc_difftest_skip_ref, 见 csrc/dpi.c)。csrc 不再单独建 serial 模型。
-//   - clint/plic : 真 RTL (AxiLiteClint/AxiLitePlic), AM 不作功能数据读。
+//   - clint/plic : 真 RTL (AxiClint/AxiPlic), AM 不作功能数据读。
 //   - rtc/kbd/vga/fb : 无 RTL 的简易 csrc 仿真设备, 集中在 DPI 窗口
-//              [0x12000000, 0x14000000) (RTL AxiLiteXbar 的 LEGACY_MMIO slave→DPI→
+//              [0x12000000, 0x14000000) (RTL AxiXbar 的 LEGACY_MMIO slave→DPI→
 //              csrc paddr.c→设备回调, 每次访问触发 skip_ref, 故 difftest 安全)。
 // ============================================================================
 

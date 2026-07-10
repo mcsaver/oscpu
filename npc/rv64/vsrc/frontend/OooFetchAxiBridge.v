@@ -27,6 +27,11 @@ module OooFetchAxiBridge (
   output ifu_axi_arvalid_o,
   input ifu_axi_arready_i,
   output [`XLEN-1:0] ifu_axi_araddr_o,
+  output [3:0] ifu_axi_arid_o,
+  output [7:0] ifu_axi_arlen_o,
+  output [2:0] ifu_axi_arsize_o,
+  output [1:0] ifu_axi_arburst_o,
+  output [2:0] ifu_axi_arprot_o,
   input ifu_axi_rvalid_i,
   output ifu_axi_rready_o,
   input [`XLEN-1:0] ifu_axi_rdata_i,
@@ -37,14 +42,32 @@ module OooFetchAxiBridge (
   output ifu_axi_awvalid_o,
   input ifu_axi_awready_i,
   output [`XLEN-1:0] ifu_axi_awaddr_o,
+  output [3:0] ifu_axi_awid_o,
+  output [7:0] ifu_axi_awlen_o,
+  output [2:0] ifu_axi_awsize_o,
+  output [1:0] ifu_axi_awburst_o,
   output ifu_axi_wvalid_o,
   input ifu_axi_wready_i,
   output [`XLEN-1:0] ifu_axi_wdata_o,
   output [`STRB_W-1:0] ifu_axi_wstrb_o,
+  output ifu_axi_wlast_o,
   input ifu_axi_bvalid_i,
   output ifu_axi_bready_o,
   input [1:0] ifu_axi_bresp_i
 );
+
+  // 【AXI4 化 S4】常量协议位: IFU ID 恒 4'd0、单 beat(LEN=0/WLAST=1)、INCR、
+  // 8B 读写、instruction access(ARPROT[2]=1, AXI 语义 instruction=1)。
+  assign ifu_axi_arid_o = 4'd0;
+  assign ifu_axi_arlen_o = 8'd0;
+  assign ifu_axi_arsize_o = 3'd3;
+  assign ifu_axi_arburst_o = 2'b01;
+  assign ifu_axi_arprot_o = 3'b100;
+  assign ifu_axi_awid_o = 4'd0;
+  assign ifu_axi_awlen_o = 8'd0;
+  assign ifu_axi_awsize_o = 3'd3;
+  assign ifu_axi_awburst_o = 2'b01;
+  assign ifu_axi_wlast_o = 1'b1;
 
   localparam [3:0] S_IDLE = 4'd0;
   localparam [3:0] S_WALK_AR = 4'd1;

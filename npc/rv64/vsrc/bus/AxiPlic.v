@@ -2,7 +2,7 @@
 
 // PLIC-like 最小外部中断控制器。rootfs 路线需要 UART 与 virtio-blk
 // 同时可中断，因此这里按标准 bitmap 形态支持 source 1..31。
-module AxiLitePlic #(
+module AxiPlic #(
   parameter ADDR_W = `XLEN,
   parameter DATA_W = `XLEN,
   parameter STRB_W = DATA_W / 8,
