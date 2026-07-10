@@ -1,0 +1,5 @@
+software-flow-contract	software-flow	software-flow	PASS	software-flow agent + profile + memory	软件开发全流程 agent 合约入口存在	.github/task-runs/2026-07-10-2026-07-10-knife-f-closeout/evidence/software-flow-contract.log
+npc-sim-contract	npc	npc	PASS	npc/sim + backend manifests	NPC 开发环境入口只检查 NPC 仿真后端合同	.github/task-runs/2026-07-10-2026-07-10-knife-f-closeout/evidence/npc-sim-contract.log
+npc-single-contract	npc	npc	PASS	npc/single Makefile/Kconfig/vsrc/csrc	NPC single 后端合约入口存在	.github/task-runs/2026-07-10-2026-07-10-knife-f-closeout/evidence/npc-single-contract.log
+npc-soc-contract	npc	npc	PASS	npc/soc + ysyxSoC CPU ABI	NPC SoC 后端合约入口存在	.github/task-runs/2026-07-10-2026-07-10-knife-f-closeout/evidence/npc-soc-contract.log
+npc-rv64-contract	npc	npc	PASS	npc/rv64 + Linux README	NPC RV64 Linux 入口合约存在但不跑 NEMU Ubuntu gate	.github/task-runs/2026-07-10-2026-07-10-knife-f-closeout/evidence/npc-rv64-contract.log
