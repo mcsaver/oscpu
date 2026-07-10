@@ -54,6 +54,28 @@ S2：桥 TB 定向（融合连发/skid/miss 拍不 advance/kill 拍融合关断/
 S3：module TB 全量+riscv 177+CoreMark+全核综合/STA（R1' 判定 vs 基线 -5.69）；
 文档/memory 收尾。
 
-## 5. 变更记录
+## 5. 落地记录（2026-07-10 同日）
+
+| 指标 | 刀 D 前 | 刀 D 后 |
+| --- | --- | --- |
+| CoreMark CPI | 1.206 | **1.140（-5.5%，0xfcaf）** |
+| CoreMark cycles | 3881109 | 3667974 |
+| mem 等待桶 | 66.7% | 56.6% |
+| WNS @100MHz | -5.69 | **-6.05（劣化 0.36ns，阈值内，R1' 未触发）** |
+
+- 收益 0.066 落在预估带（0.09~0.16）下沿偏外——重叠折扣比预估大（fetch 87.9%
+  仍掩盖大量 mem 等待）。
+- 新 top 路径=dcache SRAM rdata→hit→发射决策锥（MIQ/SQ 记账→跨模块到 fetch
+  lkp_inv_q / mem state_q）——融合拍预期形态；累计两融合刀 WNS -5.59→-6.05
+  （-0.46），**后续刀再劣化需回头治 dcache-rdata 发射锥**（缓解=收窄融合条件为
+  FF 谓词/预移位，spec §3 R1' 预案）。
+- mutation 首轮逃逸教训：advance 放宽到 miss 拍在"站空"用例下无症状——杀手用例
+  必须构造"miss 判决拍+站有下一项"（上下文覆写才显形）；且 TB 地址选择要避开
+  直映 index 冲突（0x9000 与 0x1000 差 0x8000 同 index，fill 顶掉预热 line）。
+- 验证：桥 TB 定向 4 组+mutation 闭环；86/86+lint+contract 32；riscv 177/177
+  （含特权）；CoreMark 0xfcaf。
+
+## 6. 变更记录
 
 - 2026-07-10：spec 冻结。
+- 2026-07-10（同日）：落地（§5）。

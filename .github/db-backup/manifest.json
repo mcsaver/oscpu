@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-13T07:57:11+00:00",
-  "updated_at": "2026-07-10T04:48:17+00:00",
+  "updated_at": "2026-07-10T06:11:44+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -814,10 +814,10 @@
     {
       "path": ".github/memory/modules/npc.md",
       "kind": "memory-module",
-      "size_bytes": 580541,
-      "sha256": "e804b6048bacd2fc794e9284272ff5ba1b3b8e579dd1a8232b71478d8f42d1a3",
+      "size_bytes": 581830,
+      "sha256": "46cfc2f0af19959478b6a6d94b9183e9126af725606e7962730bdf9017254aa0",
       "backup_source": "database",
-      "archived_at": "2026-07-10T04:48:17+00:00"
+      "archived_at": "2026-07-10T06:11:43+00:00"
     },
     {
       "path": ".github/memory/modules/software-flow.md",
@@ -846,10 +846,10 @@
     {
       "path": ".github/memory/project-status.md",
       "kind": "memory",
-      "size_bytes": 615565,
-      "sha256": "924bed863fb60fb8dfb781975d870a58acd88ee6bdcc2a4e656fdd791f0d5573",
+      "size_bytes": 615756,
+      "sha256": "82ed426ce98d7b83c92ab4168da8adad9d22b71308ee2dcb307f4d4ad8d18bf6",
       "backup_source": "database",
-      "archived_at": "2026-07-10T04:48:17+00:00"
+      "archived_at": "2026-07-10T06:11:44+00:00"
     },
     {
       "path": ".github/task-runs/2026-04-13-npc-dpic-bringup/dispatch-log.md",
