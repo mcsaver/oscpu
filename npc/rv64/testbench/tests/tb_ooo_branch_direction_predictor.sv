@@ -111,6 +111,7 @@ module tb_ooo_branch_direction_predictor;
       update_valid = 1'b1;
       tick();
       update_valid = 1'b0;
+      tick();   // 【update 两拍流水】stage2 写表拍(训练可见性 1→2 拍)
       settle();
     end
   endtask

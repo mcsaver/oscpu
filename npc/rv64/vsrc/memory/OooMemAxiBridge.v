@@ -484,10 +484,10 @@ module OooMemAxiBridge (
   // 刀D 融合谓词 assign(声明见 stage_advance_w 前): hit 锥输入全 FF/锁存
   // (lookup_pend/cacheable/valid FF+锁存 tag 比较), 无 fetch 窗口②那样的当拍
   // snoop 地址比较链——无需降级臂(详 design/arch/knife-d-dcache-hit-fusion.md)。
-  // 【时序 T2】融合谓词 tie-0: 撤刀 D 组合交付(链头退回 rsp_rdata_q FF,切断
-  // dcache SRAM rdata(clk2q 1.285)起头的全流水贯通链)。CPI 回吐 ~0.066;死逻辑
-  // 由综合器自动剪除。若后续时序余量恢复可重新使能(条件收窄为 FF 谓词形态)。
-  assign lookup_hit_fusion_w = 1'b0;
+  // 【T2 回滚(2026-07-10)】实验证明回吐 +0.143 CPI 超预估一倍, T1 已切断贯通链
+  // 尾段——恢复刀 D 融合, STA 实验对比见 timing-t124 task-report 决策建议 1。
+  assign lookup_hit_fusion_w = (state_q == S_LOOKUP) &&
+                               dcache_lookup_hit_final_w && !cpu_kill_w;
 
   OooSv39Tlb #(
     .INDEX_W(DTLB_INDEX_W)

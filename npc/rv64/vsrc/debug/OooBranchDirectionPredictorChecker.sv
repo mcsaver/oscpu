@@ -237,24 +237,45 @@ module OooBranchDirectionPredictorChecker (
   end
 `endif
 
+  // 【update 两拍流水】参考模型与 DUT 同步: stage1 寄存(GHR 当拍), stage2 写表。
+  reg mdl_upd_valid_q;
+  reg mdl_upd_taken_q;
+  reg [`BPU_BHT_INDEX_W-1:0] mdl_upd_bht_idx_q;
+  reg [`BPU_LOCAL_HISTORY_INDEX_W-1:0] mdl_upd_lhist_idx_q;
+  reg [`BPU_LOCAL_PHT_INDEX_W-1:0] mdl_upd_lpht_idx_q;
+  reg [`BPU_LOCAL_HISTORY_W-1:0] mdl_upd_lhist_q;
+  reg [1:0] mdl_upd_bht_ctr_q;
+  reg [1:0] mdl_upd_lpht_ctr_q;
   always @(posedge clk) begin
     if (rst || clear_i) begin
       model_ghr_q <= {`BPU_BHT_INDEX_W{1'b0}};
       model_bht_valid_q <= {`BPU_BHT_ENTRIES{1'b0}};
       model_local_hist_valid_q <= {`BPU_LOCAL_HISTORY_ENTRIES{1'b0}};
       model_local_pht_valid_q <= {`BPU_LOCAL_PHT_ENTRIES{1'b0}};
-    end else if (update_valid_i) begin
-      model_bht_valid_q[update_bht_idx_i] <= 1'b1;
-      model_bht_q[update_bht_idx_i] <=
-          counter_train(update_bht_counter_w, update_taken_i);
-      model_ghr_q <= {model_ghr_q[`BPU_BHT_INDEX_W-2:0], update_taken_i};
-
-      model_local_pht_valid_q[update_local_pht_idx_w] <= 1'b1;
-      model_local_pht_q[update_local_pht_idx_w] <=
-          counter_train(update_local_pht_counter_w, update_taken_i);
-      model_local_hist_valid_q[update_local_hist_idx_w] <= 1'b1;
-      model_local_hist_q[update_local_hist_idx_w] <=
-          {update_local_hist_w[`BPU_LOCAL_HISTORY_W-2:0], update_taken_i};
+      mdl_upd_valid_q <= 1'b0;
+    end else begin
+      mdl_upd_valid_q <= update_valid_i;
+      if (update_valid_i) begin
+        mdl_upd_taken_q <= update_taken_i;
+        mdl_upd_bht_idx_q <= update_bht_idx_i;
+        mdl_upd_lhist_idx_q <= update_local_hist_idx_w;
+        mdl_upd_lpht_idx_q <= update_local_pht_idx_w;
+        mdl_upd_lhist_q <= update_local_hist_w;
+        mdl_upd_bht_ctr_q <= update_bht_counter_w;
+        mdl_upd_lpht_ctr_q <= update_local_pht_counter_w;
+        model_ghr_q <= {model_ghr_q[`BPU_BHT_INDEX_W-2:0], update_taken_i};
+      end
+      if (mdl_upd_valid_q) begin
+        model_bht_valid_q[mdl_upd_bht_idx_q] <= 1'b1;
+        model_bht_q[mdl_upd_bht_idx_q] <=
+            counter_train(mdl_upd_bht_ctr_q, mdl_upd_taken_q);
+        model_local_pht_valid_q[mdl_upd_lpht_idx_q] <= 1'b1;
+        model_local_pht_q[mdl_upd_lpht_idx_q] <=
+            counter_train(mdl_upd_lpht_ctr_q, mdl_upd_taken_q);
+        model_local_hist_valid_q[mdl_upd_lhist_idx_q] <= 1'b1;
+        model_local_hist_q[mdl_upd_lhist_idx_q] <=
+            {mdl_upd_lhist_q[`BPU_LOCAL_HISTORY_W-2:0], mdl_upd_taken_q};
+      end
     end
   end
 

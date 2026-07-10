@@ -1239,7 +1239,7 @@ module tb_ooo_mem_axi_bridge;
   // 【时序 T2】融合谓词已 tie-0(链头退回 FF), FUSION_EN=0 跳过融合契约用例;
   // 将来重新使能融合时改回 1。(c)(d) 的 flush 关断/miss 拍禁 advance 两用例
   // 与 tie-0 兼容, 保持常开。
-  localparam FUSION_EN = 1'b0;
+  localparam FUSION_EN = 1'b1;
   task automatic dcache_hit_fusion_cases;
     begin
       if (FUSION_EN) begin

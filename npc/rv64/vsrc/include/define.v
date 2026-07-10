@@ -172,7 +172,10 @@
 `endif
 
 `ifndef BPU_BHT_INDEX_W
-`define BPU_BHT_INDEX_W    12
+// 【BPU 降容(2026-07-10 时序债)】4096→1024: OOC 实测 4096 项 FF 表的 update 写
+// 扇出网络 46ns/读 mux 深锥是 57ns 债主体, 降 4 倍直接砍两级; CoreMark accuracy
+// 实测对比见 timing 战役 task-run(基线 92.0%)。
+`define BPU_BHT_INDEX_W    10
 `endif
 `ifndef BPU_BHT_ENTRIES
 `define BPU_BHT_ENTRIES    (1 << `BPU_BHT_INDEX_W)

@@ -89,7 +89,7 @@ SRAM wrapper 或多表 macro 组合，必须先证明 wrapper 对 §2/§3 的外
 | lookup read latency | `0 cycle` | `lookup*_pc_i/lookup*_imm_i` 到 `lookup*_bht_idx_o/lookup*_bht_valid_o/lookup*_pred_taken_o/lookup*_predict_strong_o` 保持组合可见。 |
 | read ports | two combinational views | lookup0/lookup1 当前同拍读同一组预测表，纯读互不干扰。单/双口 SRAM 化前必须证明仲裁、复制或延迟合同。 |
 | update edge | `posedge clk` | `update_valid_i` 在 issue-resolve 拍训练 BHT/local PHT/local history，并移入 GHR。 |
-| update visibility | `next cycle` | update 对后续 lookup index、valid、counter 和 history 的可见性从下一拍开始；同拍 lookup 看旧表。 |
+| update visibility | `two cycles` | 【update 两拍流水(2026-07-10 时序债修复)】stage1 寄存输入+读老值(GHR 当拍更新)，stage2 训练写表——表项可见性从第 2 拍开始；back-to-back 同表项 RAW 丢一次训练增量(启发式可容忍)。OOC 实测 update in→reg 57ns→流水化后压半。 |
 | reset/clear | valid-only table clear plus GHR zero | reset/clear 清 BHT/local valid 并把 GHR 置 0；counter/history payload 在 invalid entry 中无语义值。 |
 | update source | issue-resolve only | 不做投机期污染；wrong-path 分支被 walk kill 后不 issue，不进入 update。 |
 

@@ -19,7 +19,7 @@ REQUIRED_SPEC_PATTERNS = {
     "section": r"##\s+8\.\s+Macro/OOC Contract v0",
     "lookup_read_latency": r"lookup read latency\s*\|\s*`0 cycle`",
     "read_ports": r"read ports\s*\|\s*two combinational views",
-    "update_visibility": r"update visibility\s*\|\s*`next cycle`",
+    "update_visibility": r"update visibility\s*\|\s*`two cycles`",
     "reset_clear": r"reset/clear\s*\|\s*valid-only table clear plus GHR zero",
     "update_source": r"update source\s*\|\s*issue-resolve only",
     "bht_valid_bits": r"gshare BHT valid bits\s*\|\s*`4096`",

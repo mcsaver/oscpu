@@ -171,25 +171,54 @@ module OooBranchDirectionPredictor (
       (|lookup0_pc_i) | (|lookup0_imm_i) |
       (|lookup1_pc_i) | (|lookup1_imm_i) | (|update_pc_i);
 
+  // 【BPU update 两拍流水(2026-07-10 时序债修复)】OOC 实测 update in→reg 57ns
+  // (读老值 4096:1 mux → counter_train → 写使能 decode 单拍串联)。切拍点=读/写
+  // 分离: stage1(resolve 拍)寄存输入+读老值(读 mux 留本拍), stage2 训练+写表
+  // (写 decode 留次拍)。语义: 训练晚 1 拍零正确性影响(启发式); back-to-back 同
+  // 表项 RAW(stage1 读到未含上一条训练的旧值)=丢一次计数器增量, 可容忍。
+  // GHR 留 stage1 当拍更新(链短, lookup 用最新全局历史保精度)。
+  reg upd_valid_q;
+  reg upd_taken_q;
+  reg [`BPU_BHT_INDEX_W-1:0] upd_bht_idx_q;
+  reg [`BPU_LOCAL_HISTORY_INDEX_W-1:0] upd_lhist_idx_q;
+  reg [`BPU_LOCAL_PHT_INDEX_W-1:0] upd_lpht_idx_q;
+  reg [`BPU_LOCAL_HISTORY_W-1:0] upd_lhist_q;
+  reg [1:0] upd_bht_ctr_q;
+  reg [1:0] upd_lpht_ctr_q;
+
   always @(posedge clk) begin
     if (rst || clear_i) begin
       // 预测表 payload 在 invalid 时不可见，清表只清 valid 和全局历史。
+      // clear 同时清 update 流水在飞项(fence.i/satp 语境下丢一次训练无害)。
       ghr_q <= {`BPU_BHT_INDEX_W{1'b0}};
       bht_valid_q <= {`BPU_BHT_ENTRIES{1'b0}};
       local_hist_valid_q <= {`BPU_LOCAL_HISTORY_ENTRIES{1'b0}};
       local_pht_valid_q <= {`BPU_LOCAL_PHT_ENTRIES{1'b0}};
-    end else if (update_valid_i) begin
-      bht_valid_q[update_bht_idx_i] <= 1'b1;
-      bht_q[update_bht_idx_i] <=
-          counter_train(update_bht_counter_w, update_taken_i);
-      ghr_q <= {ghr_q[`BPU_BHT_INDEX_W-2:0], update_taken_i};
-
-      local_pht_valid_q[update_local_pht_idx_w] <= 1'b1;
-      local_pht_q[update_local_pht_idx_w] <=
-          counter_train(update_local_pht_counter_w, update_taken_i);
-      local_hist_valid_q[update_local_hist_idx_w] <= 1'b1;
-      local_hist_q[update_local_hist_idx_w] <=
-          {update_local_hist_w[`BPU_LOCAL_HISTORY_W-2:0], update_taken_i};
+      upd_valid_q <= 1'b0;
+    end else begin
+      // stage1: 寄存输入+读老值; GHR 当拍更新
+      upd_valid_q <= update_valid_i;
+      if (update_valid_i) begin
+        upd_taken_q <= update_taken_i;
+        upd_bht_idx_q <= update_bht_idx_i;
+        upd_lhist_idx_q <= update_local_hist_idx_w;
+        upd_lpht_idx_q <= update_local_pht_idx_w;
+        upd_lhist_q <= update_local_hist_w;
+        upd_bht_ctr_q <= update_bht_counter_w;
+        upd_lpht_ctr_q <= update_local_pht_counter_w;
+        ghr_q <= {ghr_q[`BPU_BHT_INDEX_W-2:0], update_taken_i};
+      end
+      // stage2: 训练+写表
+      if (upd_valid_q) begin
+        bht_valid_q[upd_bht_idx_q] <= 1'b1;
+        bht_q[upd_bht_idx_q] <= counter_train(upd_bht_ctr_q, upd_taken_q);
+        local_pht_valid_q[upd_lpht_idx_q] <= 1'b1;
+        local_pht_q[upd_lpht_idx_q] <=
+            counter_train(upd_lpht_ctr_q, upd_taken_q);
+        local_hist_valid_q[upd_lhist_idx_q] <= 1'b1;
+        local_hist_q[upd_lhist_idx_q] <=
+            {upd_lhist_q[`BPU_LOCAL_HISTORY_W-2:0], upd_taken_q};
+      end
     end
   end
 
