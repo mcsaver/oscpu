@@ -1,0 +1,89 @@
+make[1]: Entering directory '/home/lyg/PA/ysyx-workbench/npc/rv64'
+[1;34m[log.c:145 npc_init_log] Log is written to build/linux-logs/npc-linux.log[0m
+[1;34m[paddr.c:83 npc_init_mem] physical memory area [0x0000000080000000, 0x00000000bfffffff][0m
+[1;34m[paddr.c:142 npc_load_img_at] The image is /home/lyg/PA/ysyx-workbench/am-kernels/benchmarks/coremark/build/coremark-riscv64-npc.bin, size = 1068536[0m
+[1;34m[map.c:76 npc_add_mmio_map] Add mmio map 'rtc' at [0x12000048, 0x1200004f][0m
+[1;34m[map.c:76 npc_add_mmio_map] Add mmio map 'keyboard' at [0x12000060, 0x12000063][0m
+[1;34m[vga.c:186 npc_vga_init] NPC VGA disabled; GPU_CONFIG will report present=false.[0m
+[1;34m[map.c:76 npc_add_mmio_map] Add mmio map 'vgactl' at [0x12000100, 0x12000107][0m
+[1;34m[map.c:76 npc_add_mmio_map] Add mmio map 'framebuffer' at [0x13000000, 0x131fffff][0m
+[1;34m[virtio_blk.c:522 virtio-blk] disabled: no --block image[0m
+***reset***
+[1;34m[monitor.c:41 welcome] Wave Trace: [1;31mOFF[0m[0m
+[1;34m[monitor.c:42 welcome] Text Trace: [1;31mOFF[0m (itrace=off, mtrace=off, dtrace=off)[0m
+[1;34m[monitor.c:44 welcome] Difftest: [1;31mOFF[0m[0m
+[1;34m[monitor.c:45 welcome] Build time: 19:47:45, Jul  9 2026[0m
+Welcome to [1;33m[1;41mriscv64[0m-NPC!
+For help, type "help"
+Running CoreMark for 10 iterations
+[1;34m[cpu-exec.cpp:1335 ooo_window] window cycles=1..1000000 n=1000000 retire=616502 exec=623692 dispatch=649284 fetch=909392(90.9%) mem=495814(49.6%) axi_wait=59815(6.0%) hazard=5115(0.5%) branch_flush=110785(11.1%) exception=0(0.0%)[0m
+[1;34m[cpu-exec.cpp:1335 ooo_window] window cycles=1000001..2000000 n=1000000 retire=617480 exec=624122 dispatch=650625 fetch=908854(90.9%) mem=492915(49.3%) axi_wait=56421(5.6%) hazard=4795(0.5%) branch_flush=110567(11.1%) exception=0(0.0%)[0m
+[1;34m[cpu-exec.cpp:1335 ooo_window] window cycles=2000001..3000000 n=1000000 retire=613014 exec=619456 dispatch=647673 fetch=907381(90.7%) mem=501201(50.1%) axi_wait=56470(5.6%) hazard=4599(0.5%) branch_flush=110650(11.1%) exception=0(0.0%)[0m
+[1;34m[cpu-exec.cpp:1335 ooo_window] window cycles=3000001..4000000 n=1000000 retire=614580 exec=620717 dispatch=649280 fetch=908071(90.8%) mem=499765(50.0%) axi_wait=56722(5.7%) hazard=4576(0.5%) branch_flush=110779(11.1%) exception=0(0.0%)[0m
+[1;34m[cpu-exec.cpp:1335 ooo_window] window cycles=4000001..5000000 n=1000000 retire=607329 exec=614101 dispatch=642861 fetch=907370(90.7%) mem=501747(50.2%) axi_wait=58220(5.8%) hazard=4617(0.5%) branch_flush=111911(11.2%) exception=0(0.0%)[0m
+2K performance run parameters for coremark.
+CoreMark Size    : 666
+Total time (ms)  : 5189
+Iterations       : 10
+Compiler version : GCC13.3.0
+seedcrc          : 0xe9f5
+[0]crclist       : 0xe714
+[0]crcmatrix     : 0x1fd7
+[0]crcstate      : 0x8e3a
+[0]crcfinal      : 0xfcaf
+Finised in 5189 ms.
+==================================================
+CoreMark PASS       5 Marks
+                vs. 100000 Marks (i7-7700K @ 4.20GHz)
+CoreMark/MHz     : 1.927  (freq-independent = 1e6 x 10 iters / timed-cycles)
+[1;34m[cpu-exec.cpp:2000 cpu_exec] npc: [1;32mHIT GOOD TRAP[0m at pc = 0x0000000080002010[0m
+[1;34m[cpu-exec.cpp:2013 report_run_result] exit via ebreak, code=0, cycles=5254589, commits=3218532[0m
+[1;34m[cpu-exec.cpp:1754 statistic] host time spent = 23678874 us[0m
+[1;34m[cpu-exec.cpp:1756 statistic] total guest instructions = 3218532[0m
+[1;34m[cpu-exec.cpp:1759 statistic] total guest cycles = 5254589[0m
+[1;34m[cpu-exec.cpp:1761 statistic] CLINT mtime = 525458 (= cycles/10, expected 525458, delta=+0, match=yes)[0m
+[1;34m[cpu-exec.cpp:1768 statistic] CPI (cycles/instruction) = 1.633[0m
+[1;34m[cpu-exec.cpp:1772 statistic] simulation frequency = 135924 inst/s[0m
+[1;34m[cpu-exec.cpp:1545 statistic] === Branch/Jump Statistics ===[0m
+[1;34m[cpu-exec.cpp:1546 statistic]   conditional branch  = 591120 (taken 0, not-taken 591120, taken rate 0.0%)[0m
+[1;34m[cpu-exec.cpp:1550 statistic]   JAL  (unconditional) = 43120[0m
+[1;34m[cpu-exec.cpp:1551 statistic]   JALR (indirect/ret)  = 22277[0m
+[1;34m[cpu-exec.cpp:1552 statistic]   total jump/branch    = 656517 (20.4% of all instructions)[0m
+[1;34m[cpu-exec.cpp:1554 statistic] === BPU Prediction Statistics ===[0m
+[1;34m[cpu-exec.cpp:1555 statistic]   branch accuracy      = 469578/510648 correct, 41070 mispredict (92.0%)[0m
+[1;34m[cpu-exec.cpp:1560 statistic]   branch direction     = 469578/510648 correct (92.0%), dir miss=41070, gshare cold=8721[0m
+[1;34m[cpu-exec.cpp:1566 statistic]   JAL accuracy         = 43120/43120 correct (100.0%)[0m
+[1;34m[cpu-exec.cpp:1570 statistic]   JALR accuracy        = 22277/22277 correct (100.0%)[0m
+[1;34m[cpu-exec.cpp:1574 statistic]   return accuracy      = 18938/18938 correct (100.0%)[0m
+[1;34m[cpu-exec.cpp:1578 statistic]   BTB JALR lookup      = hit 0, miss 0[0m
+[1;34m[cpu-exec.cpp:1581 statistic]   direction predictor  = correct 469578, miss 41070[0m
+[1;34m[cpu-exec.cpp:1584 statistic]   RAS lookup           = hit 3, miss/underflow 0, overflow 0[0m
+[1;34m[cpu-exec.cpp:1588 statistic]   top branch miss PCs  =[0m
+[1;34m[cpu-exec.cpp:1600 statistic]     #1 pc=0x80000290 miss=5714[0m
+[1;34m[cpu-exec.cpp:1600 statistic]     #2 pc=0x80000330 miss=2252[0m
+[1;34m[cpu-exec.cpp:1600 statistic]     #3 pc=0x800010cc miss=2089[0m
+[1;34m[cpu-exec.cpp:1600 statistic]     #4 pc=0x80000b2c miss=2042[0m
+[1;34m[cpu-exec.cpp:1600 statistic]     #5 pc=0x8000116c miss=1832[0m
+[1;34m[cpu-exec.cpp:1600 statistic]     #6 pc=0x800011cc miss=1788[0m
+[1;34m[cpu-exec.cpp:1600 statistic]     #7 pc=0x800011d8 miss=1743[0m
+[1;34m[cpu-exec.cpp:1600 statistic]     #8 pc=0x80001164 miss=1658[0m
+[1;34m[cpu-exec.cpp:1611 statistic] === Cache Statistics ===[0m
+[1;34m[cpu-exec.cpp:1612 statistic] icache: access=1983553, hit=1976919, miss=6634[0m
+[1;34m[cpu-exec.cpp:1616 statistic] dcache: access=835757, hit=534701, miss=3770[0m
+[1;34m[cpu-exec.cpp:1620 statistic] dcache load: access=538471, hit=0, miss=0[0m
+[1;34m[cpu-exec.cpp:1624 statistic] dcache store: access=297286, hit=0, miss=0[0m
+[1;34m[cpu-exec.cpp:1628 statistic] dcache writeback = 0, write-through store = 0[0m
+[1;34m[cpu-exec.cpp:1638 statistic] === OoO Pipeline Statistics ===[0m
+[1;34m[cpu-exec.cpp:1639 statistic] ooo cycles observed = 5254589[0m
+[1;34m[cpu-exec.cpp:1641 statistic] retire hist 0/1/2 = 2997111/1296424/961054[0m
+[1;34m[cpu-exec.cpp:1645 statistic] execute hist 0/1/2 = 2820511/1615217/818861[0m
+[1;34m[cpu-exec.cpp:1649 statistic] dispatch hist 0/1/2 = 3420043/270967/1563579[0m
+[1;34m[cpu-exec.cpp:1653 statistic] fetch req valid/fire = 1983572/1983552, rsp fire=1983552, enqueue=1852748, bypass=0[0m
+[1;34m[cpu-exec.cpp:1659 statistic] control wait cycles: stop=22, branch=0, jump=0, mem=0, synth-ret=0, commit1-block=0[0m
+[1;34m[cpu-exec.cpp:1666 statistic] cycle buckets (overlap): fetch=4771469(90.8%), mem=2626129(50.0%), axi_wait=307130(5.8%), hazard=26356(0.5%), branch_flush=585160(11.1%), exception=0(0.0%)[0m
+[1;34m[cpu-exec.cpp:1684 statistic] branch prefetch fire/hit = 0/0[0m
+[1;34m[cpu-exec.cpp:1687 statistic] top branch wait PCs =[0m
+[1;34m[cpu-exec.cpp:1709 statistic] top jump wait PCs =[0m
+[1;34m[cpu-exec.cpp:1730 statistic] mem req0/req1/rsp0/rsp1 = 835757/0/835757/0[0m
+[1;34m[cpu-exec.cpp:1335 ooo_window] partial cycles=5000001..5254589 n=254589 retire=149627 exec=150851 dispatch=158402 fetch=230401(90.5%) mem=134687(52.9%) axi_wait=19482(7.7%) hazard=2654(1.0%) branch_flush=30468(12.0%) exception=0(0.0%)[0m
+make[1]: Leaving directory '/home/lyg/PA/ysyx-workbench/npc/rv64'
