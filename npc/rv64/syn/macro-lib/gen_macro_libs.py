@@ -23,9 +23,19 @@ build/sta/NpcTop-*/NpcTop.netlist.v 与 RTL module 声明核对);RTL 端口变�
 import os
 from datetime import date
 
+# 默认占位弧(BPU/FpArithGate 仍 non-signoff)
 SETUP_NS = "0.500"
 HOLD_NS = "0.100"
 CLK2Q_NS = "1.000"
+# 【时序战役 S0(2026-07-10)】SRAM 两颗宏换 CACTI 65nm 实测弧(bsg_fakeram +
+# 修改版 CACTI, cfg=~/tools/bsg_fakeram/npc_sram.cfg, 65nm 保守近似 55nm):
+#   Sram4096x199: clk-to-q 1.543ns / setup 1.842ns (占位曾 1.0/0.5, setup 差 3.7x!)
+#   Sram4096x113: clk-to-q 1.285ns / setup 0.763ns
+# BPU/OooFpArithGate 保持占位——它们不是 SRAM, 真实化需 OOC 综合提取(留后续)。
+CELL_TIMING = {
+    "Sram4096x199": ("1.842", "0.100", "1.543"),
+    "Sram4096x113": ("0.763", "0.100", "1.285"),
+}
 OUT_TRANS_NS = "0.100"
 PIN_CAP_PF = "0.010"
 MAX_CAP_PF = "0.500"
@@ -115,14 +125,16 @@ def bus_type_name(width):
 
 
 def emit_lib(cell_name, clk_pin, ports):
+    setup_ns, hold_ns, clk2q_ns = CELL_TIMING.get(
+        cell_name, (SETUP_NS, HOLD_NS, CLK2Q_NS))
     widths = sorted({w for _, w, _ in ports if w > 1})
     L = []
     L.append("/* %s.lib — non-signoff placeholder liberty" % cell_name)
     L.append(" * 占位模型:数字无物理意义,仅用于 iEDA STA 图闭合(宏合同 v1)。")
     L.append(" * 全端口按寄存器边界宏抽象:input setup %sns/hold %sns 对 clk;"
-             % (SETUP_NS, HOLD_NS))
+             % (setup_ns, hold_ns))
     L.append(" * output 从 clk 上升沿 %sns 固定 delay;pin cap %spf。"
-             % (CLK2Q_NS, PIN_CAP_PF))
+             % (clk2q_ns, PIN_CAP_PF))
     L.append(" * 单位/操作条件数值对齐 icsprout55 (1ns/1pf/1.2V/25C)。")
     L.append(" * 由 gen_macro_libs.py 生成(%s),勿手改——改端口表后重跑生成器。"
              % date.today().isoformat())
@@ -184,8 +196,8 @@ def emit_lib(cell_name, clk_pin, ports):
         L.append("      direction : %s;" % direction)
         if direction == "input":
             L.append("      capacitance : %s;" % PIN_CAP_PF)
-            for ttype, val in (("setup_rising", SETUP_NS),
-                               ("hold_rising", HOLD_NS)):
+            for ttype, val in (("setup_rising", setup_ns),
+                               ("hold_rising", hold_ns)):
                 L.append("      timing () {")
                 L.append("        related_pin : \"%s\";" % clk_pin)
                 L.append("        timing_type : %s;" % ttype)
@@ -203,10 +215,10 @@ def emit_lib(cell_name, clk_pin, ports):
             L.append("        timing_type : rising_edge;")
             L.append("        timing_sense : non_unate;")
             L.append("        cell_rise (scalar) {")
-            L.append("          values (\"%s\");" % CLK2Q_NS)
+            L.append("          values (\"%s\");" % clk2q_ns)
             L.append("        }")
             L.append("        cell_fall (scalar) {")
-            L.append("          values (\"%s\");" % CLK2Q_NS)
+            L.append("          values (\"%s\");" % clk2q_ns)
             L.append("        }")
             L.append("        rise_transition (scalar) {")
             L.append("          values (\"%s\");" % OUT_TRANS_NS)
