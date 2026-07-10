@@ -530,7 +530,7 @@ module NpcSimTop (
     u_top.ifu_axi_arready_w,
     u_top.ifu_axi_arvalid_w,
     u_top.u_core.u_ooo_mem_bridge.drop_rsp_q,
-    u_top.u_core.u_ooo_mem_bridge.active_port_q,
+    u_top.u_core.u_ooo_mem_bridge.drop_rsp_q,  // 修悬空引用: active_port_q 已删(刀M时代)
     u_top.u_core.u_ooo_mem_bridge.write_q,
     u_top.u_core.u_ooo_mem_bridge.state_q,
     u_top.u_core.u_ooo_fetch_bridge.walk_second_q,
@@ -546,7 +546,7 @@ module NpcSimTop (
   };
   assign debug_bus2_flags_o = {
     15'd0,
-    u_top.u_bus.u_xbar.rd_drop_q,
+    u_top.u_bus.u_xbar.rd_ar_sent_q,  // AXI4化S2: rd_drop_q 已删,占位换 ar_sent
     u_top.u_bus.u_xbar.rd_ar_sent_q,
     u_top.u_bus.u_xbar.rd_owner_q[AXI_S_DEFAULT],
     u_top.u_bus.u_xbar.rd_owner_q[AXI_S_SRAM],
@@ -556,8 +556,8 @@ module NpcSimTop (
     u_top.bus_axi_rvalid_w[AXI_S_SRAM],
     u_top.bus_axi_arready_w[AXI_S_SRAM],
     u_top.bus_axi_arvalid_w[AXI_S_SRAM],
-    u_top.lsu_axi_abort_w,
-    u_top.ifu_axi_abort_w,
+    u_top.u_core.u_ooo_mem_bridge.flush_i,   // AXI4化S2: abort 边带已删,探针改引等价 flush 源
+    u_top.u_core.u_ooo_fetch_bridge.mmu_flush_i,
     u_top.u_core.u_ooo_mem_bridge.flush_i,
     u_top.u_core.u_ooo_fetch_bridge.mmu_flush_i
   };

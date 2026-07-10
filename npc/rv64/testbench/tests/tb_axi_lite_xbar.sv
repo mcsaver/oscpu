@@ -27,7 +27,6 @@ module tb_axi_lite_xbar;
   reg [M_COUNT*ADDR_W-1:0] m_araddr;
   reg [M_COUNT*STRB_W-1:0] m_arstrb;
   reg [M_COUNT*ARUSER_W-1:0] m_aruser;
-  reg [M_COUNT-1:0] m_read_abort;
   wire [M_COUNT-1:0] m_rvalid;
   reg [M_COUNT-1:0] m_rready;
   wire [M_COUNT*DATA_W-1:0] m_rdata;
@@ -83,7 +82,6 @@ module tb_axi_lite_xbar;
     .m_araddr_i(m_araddr),
     .m_arstrb_i(m_arstrb),
     .m_aruser_i(m_aruser),
-    .m_read_abort_i(m_read_abort),
     .m_rvalid_o(m_rvalid),
     .m_rready_i(m_rready),
     .m_rdata_o(m_rdata),
@@ -125,7 +123,6 @@ module tb_axi_lite_xbar;
       m_araddr = {M_COUNT*ADDR_W{1'b0}};
       m_arstrb = {M_COUNT*STRB_W{1'b0}};
       m_aruser = {M_COUNT*ARUSER_W{1'b0}};
-      m_read_abort = {M_COUNT{1'b0}};
       m_rready = {M_COUNT{1'b0}};
       m_awvalid = {M_COUNT{1'b0}};
       m_awaddr = {M_COUNT*ADDR_W{1'b0}};
@@ -273,30 +270,30 @@ module tb_axi_lite_xbar;
     #1;
     tb_check1("buffered read consumed", m_rvalid[0], 1'b0);
 
+    // 【AXI4 化 S2】abort 边带已删——丢弃责任移交 master 桥自吞(桥 TB drain 用例)。
+    // xbar 视角: 被 flush 作废的读也是一个正常完成的读(master rready 收下丢弃)。
     drive_read(1, 32'h1000_0040, 1'b1);
     s_arready[1] = 1'b1;
     #1;
-    tb_check1("abort read grants master1", m_arready[1], 1'b1);
+    tb_check1("flushed read still grants master1", m_arready[1], 1'b1);
     `TB_TICK(clk);
     m_arvalid[1] = 1'b0;
     #1;
-    check_slave_read_addr("abort read", 1, 32'h1000_0040, 1'b1);
+    check_slave_read_addr("flushed read", 1, 32'h1000_0040, 1'b1);
     `TB_TICK(clk);
     s_arready[1] = 1'b0;
-    m_read_abort[1] = 1'b1;
-    `TB_TICK(clk);
+    m_rready[1] = 1'b1;   // master 自吞: 保持 rready 收响应
     drive_read_response(1, 32'hbad0_0001, 2'b11);
     #1;
-    tb_check1("abort read drains slave response", s_rready[1], 1'b1);
-    tb_check1("abort read suppresses master response", m_rvalid[1], 1'b0);
+    tb_check1("flushed read delivered to master", m_rvalid[1], 1'b1);
     `TB_TICK(clk);
     s_rvalid[1] = 1'b0;
-    m_read_abort[1] = 1'b0;
+    m_rready[1] = 1'b0;
     #1;
     drive_read(1, 32'h1000_0044, 1'b0);
     s_arready[1] = 1'b1;
     #1;
-    tb_check1("abort read releases master1", m_arready[1], 1'b1);
+    tb_check1("next read grants master1", m_arready[1], 1'b1);
     `TB_TICK(clk);
     m_arvalid[1] = 1'b0;
     `TB_TICK(clk);
@@ -304,7 +301,7 @@ module tb_axi_lite_xbar;
     m_rready[1] = 1'b1;
     drive_read_response(1, 32'h1234_5678, 2'b00);
     #1;
-    check_master_read_data("post-abort read", 1, 32'h1234_5678, 2'b00);
+    check_master_read_data("post-flush read", 1, 32'h1234_5678, 2'b00);
     `TB_TICK(clk);
     s_rvalid[1] = 1'b0;
     m_rready[1] = 1'b0;

@@ -1,6 +1,8 @@
-// 参数化 single-beat AXI-like crossbar。
-// 当前 NPC cache miss 侧还没有 AXI4 ID/burst，本模块先把 valid/ready 通道、
-// 地址译码和 response route 独立出来，后续扩设备时不再改 core/cache。
+// 参数化 single-beat AXI-like crossbar(AXI4 化战役进行中)。
+// 【AXI4 化 S2(2026-07-10)】读 abort 边带(m_read_abort_i)与 rd_drop_q 吞 R 机制
+// 已删除——在飞读的丢弃责任移交 master 桥自吞(fetch 桥 S_DRAIN/mem 桥 drop_rsp_q,
+// 见 design/specs/axi4-bus.md §2)。"master 暂不 ready 也先收 R 进 buffer 防
+// IFU 阻塞 LSU 死锁"的反死锁逻辑原样保留。S3/S4 将补 ID/SIZE/BURST/LAST。
 
 module AxiLiteXbar #(
   parameter ADDR_W = 32,
@@ -21,7 +23,6 @@ module AxiLiteXbar #(
   input [M_COUNT*ADDR_W-1:0] m_araddr_i,
   input [M_COUNT*STRB_W-1:0] m_arstrb_i,
   input [M_COUNT*ARUSER_W-1:0] m_aruser_i,
-  input [M_COUNT-1:0] m_read_abort_i,
   output [M_COUNT-1:0] m_rvalid_o,
   input [M_COUNT-1:0] m_rready_i,
   output [M_COUNT*DATA_W-1:0] m_rdata_o,
@@ -180,7 +181,6 @@ module AxiLiteXbar #(
   reg [1:0] rd_resp_resp_q [0:M_COUNT-1];
   reg [S_COUNT-1:0] rd_active_q;
   reg [S_COUNT-1:0] rd_ar_sent_q;
-  reg [S_COUNT-1:0] rd_drop_q;
   reg [MASTER_W-1:0] rd_owner_q [0:S_COUNT-1];
   reg [MASTER_W-1:0] rd_rr_q [0:S_COUNT-1];
   reg [ADDR_W-1:0] rd_addr_q [0:S_COUNT-1];
@@ -287,25 +287,21 @@ module AxiLiteXbar #(
         if (M_COUNT == 2) begin
           // 当前 RV64 平台真实使用 IFU/LSU 两个 master；显式两路选择避免综合成可变扫描链。
           if (rd_rr_q[s] == master_idx(0)) begin
-            if (m_arvalid_i[0] && !rd_master_busy_q[0] &&
-                !m_read_abort_i[0] && (artarget_decode_r[0] == slave_idx(s))) begin
+            if (m_arvalid_i[0] && !rd_master_busy_q[0] && (artarget_decode_r[0] == slave_idx(s))) begin
               rd_grant_valid_r[s] = 1'b1;
               rd_grant_master_r[s] = master_idx(0);
               m_arready_r[0] = 1'b1;
-            end else if (m_arvalid_i[1] && !rd_master_busy_q[1] &&
-                         !m_read_abort_i[1] && (artarget_decode_r[1] == slave_idx(s))) begin
+            end else if (m_arvalid_i[1] && !rd_master_busy_q[1] && (artarget_decode_r[1] == slave_idx(s))) begin
               rd_grant_valid_r[s] = 1'b1;
               rd_grant_master_r[s] = master_idx(1);
               m_arready_r[1] = 1'b1;
             end
           end else begin
-            if (m_arvalid_i[1] && !rd_master_busy_q[1] &&
-                !m_read_abort_i[1] && (artarget_decode_r[1] == slave_idx(s))) begin
+            if (m_arvalid_i[1] && !rd_master_busy_q[1] && (artarget_decode_r[1] == slave_idx(s))) begin
               rd_grant_valid_r[s] = 1'b1;
               rd_grant_master_r[s] = master_idx(1);
               m_arready_r[1] = 1'b1;
-            end else if (m_arvalid_i[0] && !rd_master_busy_q[0] &&
-                         !m_read_abort_i[0] && (artarget_decode_r[0] == slave_idx(s))) begin
+            end else if (m_arvalid_i[0] && !rd_master_busy_q[0] && (artarget_decode_r[0] == slave_idx(s))) begin
               rd_grant_valid_r[s] = 1'b1;
               rd_grant_master_r[s] = master_idx(0);
               m_arready_r[0] = 1'b1;
@@ -317,7 +313,6 @@ module AxiLiteXbar #(
             if (cand >= M_COUNT) cand = cand - M_COUNT;
             if (!rd_grant_valid_r[s] &&
                 m_arvalid_i[cand] && !rd_master_busy_q[cand] &&
-                !m_read_abort_i[cand] &&
                 (artarget_decode_r[cand] == slave_idx(s))) begin
               rd_grant_valid_r[s] = 1'b1;
               rd_grant_master_r[s] = master_idx(cand);
@@ -336,9 +331,7 @@ module AxiLiteXbar #(
 
       if (rd_active_q[s] && rd_ar_sent_q[s]) begin
         owner = master_int(rd_owner_q[s]);
-        if (rd_drop_q[s] || m_read_abort_i[owner]) begin
-          s_rready_r[s] = 1'b1;
-        end else if (!rd_resp_valid_q[owner]) begin
+        if (!rd_resp_valid_q[owner]) begin
           m_rvalid_r[owner] = s_rvalid_i[s];
           m_rdata_r[owner*DATA_W +: DATA_W] = s_rdata_i[s*DATA_W +: DATA_W];
           m_rresp_r[owner*2 +: 2] = s_rresp_i[s*2 +: 2];
@@ -423,7 +416,6 @@ module AxiLiteXbar #(
       wr_w_hold_q <= {M_COUNT{1'b0}};
       rd_active_q <= {S_COUNT{1'b0}};
       rd_ar_sent_q <= {S_COUNT{1'b0}};
-      rd_drop_q <= {S_COUNT{1'b0}};
       wr_active_q <= {S_COUNT{1'b0}};
       wr_aw_sent_q <= {S_COUNT{1'b0}};
       wr_w_sent_q <= {S_COUNT{1'b0}};
@@ -454,10 +446,6 @@ module AxiLiteXbar #(
           rd_master_busy_q[m] <= 1'b0;
         end
 
-        if (m_read_abort_i[m] && rd_resp_valid_q[m]) begin
-          rd_resp_valid_q[m] <= 1'b0;
-          rd_master_busy_q[m] <= 1'b0;
-        end
       end
 
       for (s = 0; s < S_COUNT; s = s + 1) begin
@@ -470,35 +458,18 @@ module AxiLiteXbar #(
             s_rvalid_i[s] && s_rready_r[s]) begin
           rd_active_q[s] <= 1'b0;
           rd_ar_sent_q[s] <= 1'b0;
-          rd_drop_q[s] <= 1'b0;
-          if (rd_drop_q[s] || m_read_abort_i[master_int(rd_owner_q[s])]) begin
-            rd_master_busy_q[master_int(rd_owner_q[s])] <= 1'b0;
-          end else if (m_rready_i[master_int(rd_owner_q[s])]) begin
+          if (m_rready_i[master_int(rd_owner_q[s])]) begin
             rd_master_busy_q[master_int(rd_owner_q[s])] <= 1'b0;
           end else begin
             rd_resp_valid_q[master_int(rd_owner_q[s])] <= 1'b1;
             rd_resp_data_q[master_int(rd_owner_q[s])] <= s_rdata_i[s*DATA_W +: DATA_W];
             rd_resp_resp_q[master_int(rd_owner_q[s])] <= s_rresp_i[s*2 +: 2];
           end
-        end else if (rd_active_q[s] &&
-                     m_read_abort_i[master_int(rd_owner_q[s])]) begin
-          if (rd_ar_sent_q[s] || (s_arvalid_r[s] && s_arready_i[s])) begin
-            // AR 已经在当前或更早周期被 slave 接收，不能凭空取消；
-            // 保持 master busy，等 R 返回后按 drop 丢弃，避免留下 orphan response。
-            rd_ar_sent_q[s] <= 1'b1;
-            rd_drop_q[s] <= 1'b1;
-          end else begin
-            rd_active_q[s] <= 1'b0;
-            rd_ar_sent_q[s] <= 1'b0;
-            rd_drop_q[s] <= 1'b0;
-            rd_master_busy_q[master_int(rd_owner_q[s])] <= 1'b0;
-          end
         end
 
         if (!rd_active_q[s] && rd_grant_valid_r[s]) begin
           rd_active_q[s] <= 1'b1;
           rd_ar_sent_q[s] <= 1'b0;
-          rd_drop_q[s] <= 1'b0;
           rd_owner_q[s] <= rd_grant_master_r[s];
           rd_addr_q[s] <= m_addr_slice(m_araddr_i, master_int(rd_grant_master_r[s]));
           rd_strb_q[s] <= m_strb_slice(m_arstrb_i, master_int(rd_grant_master_r[s]));

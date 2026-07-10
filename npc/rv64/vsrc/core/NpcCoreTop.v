@@ -9,7 +9,6 @@ module NpcCoreTop (
   output ifu_axi_arvalid_o,
   input ifu_axi_arready_i,
   output [`XLEN-1:0] ifu_axi_araddr_o,
-  output ifu_axi_abort_o,
   input ifu_axi_rvalid_i,
   output ifu_axi_rready_o,
   input [`XLEN-1:0] ifu_axi_rdata_i,
@@ -30,7 +29,6 @@ module NpcCoreTop (
   input lsu_axi_arready_i,
   output [`XLEN-1:0] lsu_axi_araddr_o,
   output [`STRB_W-1:0] lsu_axi_arstrb_o,
-  output lsu_axi_abort_o,
   input lsu_axi_rvalid_i,
   output lsu_axi_rready_o,
   input [`XLEN-1:0] lsu_axi_rdata_i,
@@ -393,7 +391,7 @@ module NpcCoreTop (
     .csr_zimm_i(ooo_csr_access_rs1_idx_w),
     // 【serialize Phase1 §E5】CSR 状态写在 drain 路(pending_system_csr_commit) 或 head0 队头路(mem 静默拍) fire。
     // csr_valid_i/addr/rs1 已由 csr_access_* 覆盖 head0-CSR(core_commit0_csr 优先); satp state 也经此写(内部 :759)。
-    // 注: satp 的 mmu_flush(ifu_axi_abort)不在 head0 拍开(靠 serial_flush redirect + ITLB satp-tag miss)。
+    // 注: satp 的 mmu_flush 不在 head0 拍开(靠 serial_flush redirect + ITLB satp-tag miss)。
     .csr_commit_i(ooo_pending_system_csr_commit_w || ooo_head0_csr_commit_w),
     .csr_rdata_o(ooo_csr_rdata_w),
     .csr_illegal_o(ooo_csr_illegal_w),
@@ -433,8 +431,6 @@ module NpcCoreTop (
     .pmpaddr_o(ooo_pmpaddr_w)
   );
 
-  assign ifu_axi_abort_o = ooo_mmu_flush_w;
-  assign lsu_axi_abort_o = ooo_mem_flush_w;
   assign exit_pc_o = debug_pc_o;
 
 endmodule

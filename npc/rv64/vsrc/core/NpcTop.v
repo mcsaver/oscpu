@@ -214,8 +214,6 @@ module NpcTop (
   wire lsu_axi_bvalid_w;
   wire lsu_axi_bready_w;
   wire [1:0] lsu_axi_bresp_w;
-  wire ifu_axi_abort_w;
-  wire lsu_axi_abort_w;
 
   wire [AXI_S_COUNT-1:0] bus_axi_arvalid_w;
   wire [AXI_S_COUNT-1:0] bus_axi_arready_w;
@@ -251,7 +249,6 @@ module NpcTop (
     .ifu_axi_arvalid_o(ifu_axi_arvalid_w),
     .ifu_axi_arready_i(ifu_axi_arready_w),
     .ifu_axi_araddr_o(ifu_axi_araddr_w),
-    .ifu_axi_abort_o(ifu_axi_abort_w),
     .ifu_axi_rvalid_i(ifu_axi_rvalid_w),
     .ifu_axi_rready_o(ifu_axi_rready_w),
     .ifu_axi_rdata_i(ifu_axi_rdata_w),
@@ -270,7 +267,6 @@ module NpcTop (
     .lsu_axi_arready_i(lsu_axi_arready_w),
     .lsu_axi_araddr_o(lsu_axi_araddr_w),
     .lsu_axi_arstrb_o(lsu_axi_arstrb_w),
-    .lsu_axi_abort_o(lsu_axi_abort_w),
     .lsu_axi_rvalid_i(lsu_axi_rvalid_w),
     .lsu_axi_rready_o(lsu_axi_rready_w),
     .lsu_axi_rdata_i(lsu_axi_rdata_w),
@@ -358,7 +354,6 @@ module NpcTop (
     .ifu_axi_arvalid_i(ifu_axi_arvalid_w),
     .ifu_axi_arready_o(ifu_axi_arready_w),
     .ifu_axi_araddr_i(ifu_axi_araddr_w),
-    .ifu_axi_abort_i(ifu_axi_abort_w),
     .ifu_axi_rvalid_o(ifu_axi_rvalid_w),
     .ifu_axi_rready_i(ifu_axi_rready_w),
     .ifu_axi_rdata_o(ifu_axi_rdata_w),
@@ -377,7 +372,6 @@ module NpcTop (
     .lsu_axi_arready_o(lsu_axi_arready_w),
     .lsu_axi_araddr_i(lsu_axi_araddr_w),
     .lsu_axi_arstrb_i(lsu_axi_arstrb_w),
-    .lsu_axi_abort_i(lsu_axi_abort_w),
     .lsu_axi_rvalid_o(lsu_axi_rvalid_w),
     .lsu_axi_rready_i(lsu_axi_rready_w),
     .lsu_axi_rdata_o(lsu_axi_rdata_w),
