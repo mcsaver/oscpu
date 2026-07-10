@@ -69,6 +69,33 @@
   对比）；全核综合+OpenSTA（R1 判定：WNS 与判决锥对比刀 X 后基线 -5.59）；
   spec/task-run/memory 收尾。
 
-## 6. 变更记录
+## 6. 落地记录（2026-07-10 同日）
+
+| 指标 | 刀 F 前 | 刀 F 后 | 解读 |
+| --- | --- | --- | --- |
+| CoreMark CPI | 1.633 | **1.206** | **-26%（0xfcaf GOOD TRAP）** |
+| CoreMark cycles | 5254589 | 3881109 | fetch 等待桶绝对值 -29% |
+| WNS @100MHz | -5.59 | -5.69 | 时序中性（0.10ns 扰动带内） |
+| 等待源(overlap) | fetch 90.8% | fetch 86.9%/mem 66.7%/branch_flush 16.8% | mem 升至第一顺位竞争者 |
+
+**R1 实测触发与修复**：首版 WNS -6.73（劣化 1.14ns>0.5ns 阈值），top10 全族=
+SQ snoop→fetch 桥（lkp_inv_q/SRAM addr/first_beat CE）——融合拍 fire 依赖
+cache_hit_w，其**窗口②当拍 invalidate 地址比较**把跨模块 store 失效链串进取指
+发射决策全家。修复两步：①cache 新增 `lookup_hit_no_snoop_o`（不含窗口②项），
+融合臂=no_snoop hit && `!invalidate_valid_i`（单 bit 关断）——invalidate 拍融合
+降级走精确寄存路径（正确性论证：inv_valid=0 时两式相等，inv_valid=1 时融合关闭
+⇒ fusion⇒精确 hit 恒成立）；②`lkp_inv_q` 去 CE 无条件锁存（切断 CE-mux 串联；
+非 fire 拍锁到的值因 dec_en_q=0 不被消费）。修复后 WNS -5.69、CPI 1.206
+（降级臂零代价）。**教训：融合类优化把"判定"变成"发射决策"时，判定锥里的每条
+输入链（尤其跨模块 snoop/失效类）都会被提升为发射关键路径——设计时要按输入链
+逐条审查，把低频精确性条件（如失效撞拍）用单 bit 降级臂隔离。**
+
+验证：module TB 86/86（桥 TB 新增融合连发/skid/miss 拍 ready=0/invalidate 降级/
+同 window 失效杀 hit 定向用例；mutation=ready 放宽到 miss 拍被"miss beat not
+ready"逮住）；lint 双变体；check-contract 32；riscv-tests 177/177（含特权）；
+CoreMark 0xfcaf。
+
+## 7. 变更记录
 
 - 2026-07-10：spec 冻结（方案 A；B 否决=F2 雷区+改动半径；C 留作退出条件升级项）。
+- 2026-07-10（同日）：落地+R1 触发与修复（§6）。
