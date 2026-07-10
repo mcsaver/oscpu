@@ -95,7 +95,30 @@ K1 已吃掉每事件 1 拍；方案 A 增量=再省 1 拍（断融合形态）+
   （包在 FIFO 至少驻留 1 拍，dispatch 前补写完成；FIFO 空直达 head 场景 fallback
   静态预测位）。把 BPU 查询彻底摘出融合组合拍，锥断开。
 
-## 7. 变更记录
+## 7. S1.5 实验与 S2/S3 落地记录（2026-07-11）
+
+- **S1.5（lookup 挪 enqueue 次拍+FIFO 补写）实验失败已回退**：accuracy 88.6→78.4%
+  （-10.2pp），fill-bypass 修正无效（探针实锤 update 482559 全回训/表 pop 533=
+  表热——非断链非表空，判为 GHR 采样点错位类精度稀释，追根不经济）。
+  教训：**BPU lookup 时点是精度敏感点，勿再动**。
+- **S2 主刀落地（`a50f0abe6`）：CoreMark CPI 1.064→0.877（-17.6%），越过 F2 峰值
+  0.93**。断融合改流（pred_next_pc 只进寄存 D 端+taken 拍单 bit 关断）、分支
+  direct fire 死化、E4 去 branch、K1 两口删除（使命被 S2 取代）、slot1_valid
+  截断位 facts 单点门控、count<2 哨兵消灭、观测口迁移。accuracy 88.6→85.6%
+  （-3pp，fetch-ahead 加深 GHR 错位——预测质量债，候选"GHR 投机恢复"独立刀）。
+  **顺手修复预存潜伏 bug**：IntBackend 独占族（AMO/MMIO-load）can_fire 与
+  req mux 的 slot 分派不同源→SQ drain 在飞拍 MMIO 事务凭空丢失死锁
+  （S2 改变相位后暴露，幸存者偏差；commitwatch+单行对照定位，root cause 修复）。
+- **S3 收口**：difftest（NEMU）riscv 177/177+CoreMark 全零 mismatch；
+  86/86+lint 双变体+contract 34。
+- **STA 遗留（诚实记录）**：WNS -15.37——pred 判决（BPU 表读+pc+bimm 加法）挂在
+  融合拍，而融合拍控制前缀（dcache rdata→jal/ret direct fire→redirect→fetch
+  fire→判决/enqueue 单拍贯通）自刀 F/D/K1 时代即存在，B2 雪上加霜。**结构性
+  治理需"fetch 前端拍界重划"级方案（方案 C 对齐取指/redirect 全次拍化/BPU
+  SRAM 化），独立战役立项**——B2 的 CPI 收益（-17.6%）与该时序债解耦先入账。
+
+## 8. 变更记录
 
 - 2026-07-10：spec 冻结（K1 前置已落地；断融合形态定为默认）。
-- 2026-07-10（同日）：S1 落地+STA 暴露 lookup 锥+S1.5 方案（§6）。
+- 2026-07-10：S1 落地+STA 暴露 lookup 锥+S1.5 方案（§6）。
+- 2026-07-11：S1.5 实验回退；S2/S3 落地（§7）；时序债移交独立战役。
