@@ -1236,9 +1236,13 @@ module tb_ooo_mem_axi_bridge;
   endtask
 
   // ===== 刀D 融合拍定向用例(load hit 流 1 拍/load 契约) =====
-  // 前置: cached_window 场景已 fill line 0x8000_1000=0x0102_0304_0506_0708。
+  // 【时序 T2】融合谓词已 tie-0(链头退回 FF), FUSION_EN=0 跳过融合契约用例;
+  // 将来重新使能融合时改回 1。(c)(d) 的 flush 关断/miss 拍禁 advance 两用例
+  // 与 tie-0 兼容, 保持常开。
+  localparam FUSION_EN = 1'b0;
   task automatic dcache_hit_fusion_cases;
     begin
+      if (FUSION_EN) begin
       // (a) 融合拍 back-to-back: 两个 hit load 连发, 稳态 1 拍/load
       mem0_req_valid = 1'b1;
       mem0_req_write = 1'b0;
@@ -1294,6 +1298,8 @@ module tb_ooo_mem_axi_bridge;
       tick();                    // 消费
       mem0_rsp_ready = 1'b0;
 
+      end  // FUSION_EN (a)(b)
+
       // (d) miss 拍禁 advance: miss load 判决拍时站中已有下一项——advance 必须
       // 等 S_RESP 消费拍(mutation 杀手: advance 放宽到 miss 拍会覆写 paddr_q,
       // AR 地址错/事务丢失)
@@ -1328,9 +1334,16 @@ module tb_ooo_mem_axi_bridge;
       tb_check64("miss resolved rdata", mem0_rsp_rdata,
                  64'hdead_beef_0000_4000);
       tick();                    // S_RESP 消费拍: 同拍 advance 下一项(hit)发 lookup
-      #1;                        // 下一项判决拍(融合): rsp 组合交付
-      tb_check1("queued hit rsp after miss", mem0_rsp_valid, 1'b1);
-      tb_check64("queued hit rdata", mem0_rsp_rdata, 64'h0102_0304_0506_0708);
+      #1;                        // 下一项判决拍
+      if (FUSION_EN) begin
+        tb_check1("queued hit rsp after miss", mem0_rsp_valid, 1'b1);
+        tb_check64("queued hit rdata", mem0_rsp_rdata, 64'h0102_0304_0506_0708);
+      end else begin
+        tick();                  // T2: 落寄存, S_RESP 拍交付
+        #1;
+        tb_check1("queued hit rsp after miss", mem0_rsp_valid, 1'b1);
+        tb_check64("queued hit rdata", mem0_rsp_rdata, 64'h0102_0304_0506_0708);
+      end
       tick();
       mem0_rsp_ready = 1'b0;
       lsu_axi_arready = 1'b0;
