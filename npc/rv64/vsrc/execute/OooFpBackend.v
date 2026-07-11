@@ -280,6 +280,9 @@ module OooFpBackend #(
   integer bi;
   wire fp_result_wb_valid_w;
   wire [PHY_REG_ADDR_W-1:0] fp_result_wb_preg_w;
+  wire fp_result_wb_frd_w;
+  // 完成事务仍进入 ROB/GPR 域；只有真实 FPR 目的才可触碰 FP ready/wake/write 域。
+  wire fp_fpr_complete_w = fp_result_wb_valid_w && fp_result_wb_frd_w;
 
   function fp_src_ready;
     input [PHY_REG_ADDR_W-1:0] preg;
@@ -300,7 +303,7 @@ module OooFpBackend #(
         fp_busy_q[bi] <= 1'b0;
       end
     end else begin
-      if (fp_result_wb_valid_w)
+      if (fp_fpr_complete_w)
         fp_busy_q[fp_result_wb_preg_w] <= 1'b0;
       if (fpld_wb_valid_i)
         fp_busy_q[fpld_wb_pdest_i] <= 1'b0;
@@ -329,28 +332,28 @@ module OooFpBackend #(
   wire [PHY_REG_ADDR_W-1:0] map_read1_fs3_preg_w =
       lane1_fs3_hit0_w ? freelist_alloc0_preg_w : fp_map_q[disp1_fs3_arch_i];
   wire busy_fs1_w = fp_src_ready(map_read_fs1_preg_w,
-      fp_result_wb_valid_w, fp_result_wb_preg_w, fpld_wb_valid_i, fpld_wb_pdest_i);
+      fp_fpr_complete_w, fp_result_wb_preg_w, fpld_wb_valid_i, fpld_wb_pdest_i);
   wire busy_fs2_w = fp_src_ready(map_read_fs2_preg_w,
-      fp_result_wb_valid_w, fp_result_wb_preg_w, fpld_wb_valid_i, fpld_wb_pdest_i);
+      fp_fpr_complete_w, fp_result_wb_preg_w, fpld_wb_valid_i, fpld_wb_pdest_i);
   wire busy_fs3_w = fp_src_ready(map_read_fs3_preg_w,
-      fp_result_wb_valid_w, fp_result_wb_preg_w, fpld_wb_valid_i, fpld_wb_pdest_i);
+      fp_fpr_complete_w, fp_result_wb_preg_w, fpld_wb_valid_i, fpld_wb_pdest_i);
   wire busy1_fs1_w = !lane1_fs1_hit0_w && fp_src_ready(map_read1_fs1_preg_w,
-      fp_result_wb_valid_w, fp_result_wb_preg_w, fpld_wb_valid_i, fpld_wb_pdest_i);
+      fp_fpr_complete_w, fp_result_wb_preg_w, fpld_wb_valid_i, fpld_wb_pdest_i);
   wire busy1_fs2_w = !lane1_fs2_hit0_w && fp_src_ready(map_read1_fs2_preg_w,
-      fp_result_wb_valid_w, fp_result_wb_preg_w, fpld_wb_valid_i, fpld_wb_pdest_i);
+      fp_fpr_complete_w, fp_result_wb_preg_w, fpld_wb_valid_i, fpld_wb_pdest_i);
   wire busy1_fs3_w = !lane1_fs3_hit0_w && fp_src_ready(map_read1_fs3_preg_w,
-      fp_result_wb_valid_w, fp_result_wb_preg_w, fpld_wb_valid_i, fpld_wb_pdest_i);
+      fp_fpr_complete_w, fp_result_wb_preg_w, fpld_wb_valid_i, fpld_wb_pdest_i);
   assign fpst0_query_preg_o = fp_map_q[fpst0_query_arch_i];
   assign fpst0_query_ready_o = fp_src_ready(fpst0_query_preg_o,
-      fp_result_wb_valid_w, fp_result_wb_preg_w, fpld_wb_valid_i, fpld_wb_pdest_i);
+      fp_fpr_complete_w, fp_result_wb_preg_w, fpld_wb_valid_i, fpld_wb_pdest_i);
   wire fpst1_hit0_w =
       lane0_frd_intent_w && (fpst1_query_arch_i == lane0_frd_arch_w);
   assign fpst1_query_preg_o =
       fpst1_hit0_w ? freelist_alloc0_preg_w : fp_map_q[fpst1_query_arch_i];
   assign fpst1_query_ready_o = !fpst1_hit0_w && fp_src_ready(fpst1_query_preg_o,
-      fp_result_wb_valid_w, fp_result_wb_preg_w, fpld_wb_valid_i, fpld_wb_pdest_i);
+      fp_fpr_complete_w, fp_result_wb_preg_w, fpld_wb_valid_i, fpld_wb_pdest_i);
 
-  assign fp_wake0_valid_o = fp_result_wb_valid_w;
+  assign fp_wake0_valid_o = fp_fpr_complete_w;
   assign fp_wake0_preg_o = fp_result_wb_preg_w;
   assign fp_wake1_valid_o = fpld_wb_valid_i;
   assign fp_wake1_preg_o = fpld_wb_pdest_i;
@@ -365,7 +368,6 @@ module OooFpBackend #(
   wire [`XLEN-1:0] issue_fs1_data_w;
   wire [`XLEN-1:0] issue_fs2_data_w;
   wire [`XLEN-1:0] issue_fs3_data_w;
-  wire fp_result_wb_frd_w;
   wire [`XLEN-1:0] fp_result_wb_value_w;
   // FLW 载入 NaN-box(高 32 全 1); FLD 直存
   wire [`XLEN-1:0] fpld_boxed_data_w =
@@ -388,7 +390,7 @@ module OooFpBackend #(
     .read2_data_o(issue_fs3_data_w),
     .read3_addr_i(fpst_read_preg_i),
     .read3_data_o(fpst_read_data_o),
-    .write0_valid_i(fp_result_wb_valid_w && fp_result_wb_frd_w),
+    .write0_valid_i(fp_fpr_complete_w),
     .write0_addr_i(fp_result_wb_preg_w),
     .write0_data_i(fp_result_wb_value_w),
     .write1_valid_i(fpld_wb_valid_i),
@@ -919,6 +921,15 @@ module OooFpBackend #(
                            {3'b000, df_push_w} - {3'b000, df_pop_w};
     end
   end
+
+`ifdef OOO_ASSERT
+  // GPR 目的 FP completion 只能完成 ROB/整数写回，禁止跨域广播 FPR wake。
+  always @(posedge clk) begin
+    if (!rst && !flush_i && fp_result_wb_valid_w &&
+        !fp_result_wb_frd_w && fp_wake0_valid_o)
+      $fatal(1, "GPR-destination FP completion woke FPR domain");
+  end
+`endif
 
 
 endmodule

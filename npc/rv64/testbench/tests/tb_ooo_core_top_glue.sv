@@ -88,6 +88,8 @@ module tb_ooo_core_top_glue;
   reg saw_branch_dispatch_resolve;
   reg saw_control_fallthrough_fetch;
   reg saw_lane1_ret_fallthrough;
+  reg saw_fp_gpr_completion;
+  reg saw_fp_gpr_completion_wake;
   reg [4:0] program_mode;
   reg [`XLEN-1:0] fault_addr;
   reg [`XLEN-1:0] data_mem_word;
@@ -186,6 +188,17 @@ module tb_ooo_core_top_glue;
     .rob_count_o(rob_count),
     .issue_count_o(issue_count)
   );
+
+  // FP completion 域合同只读观察：证明 GPR 目的事务真实发生且不误唤醒 FPR 域。
+  wire fp_result_wb_valid =
+      dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+         .u_fp_backend.fp_result_wb_valid_w;
+  wire fp_result_wb_frd =
+      dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+         .u_fp_backend.fp_result_wb_frd_w;
+  wire fp_wake0_valid =
+      dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+         .u_fp_backend.fp_wake0_valid_o;
 
   function [`XLEN-1:0] gpr;
     input [`REG_ADDR_W-1:0] idx;
@@ -293,6 +306,15 @@ module tb_ooo_core_top_glue;
     input [4:0] rs1;
     begin
       inst_fmv_w_x = {7'b1111000, 5'b00000, rs1, 3'b000, rd,
+                      `OPCODE_OP_FP};
+    end
+  endfunction
+
+  function [`INST_W-1:0] inst_fmv_x_w;
+    input [4:0] rd;
+    input [4:0] fs1;
+    begin
+      inst_fmv_x_w = {7'b1110000, 5'b00000, fs1, 3'b000, rd,
                       `OPCODE_OP_FP};
     end
   endfunction
@@ -567,8 +589,9 @@ module tb_ooo_core_top_glue;
               32'h8000_0004: program_word = inst_csrrs(5'd0, `CSR_MSTATUS,
                                                        5'd11);
               32'h8000_0008: program_word = inst_fmv_w_x(5'd0, 5'd0);
-              32'h8000_000c: program_word = inst_addi(5'd5, 5'd0, 12'd7);
-              32'h8000_0010: program_word = inst_ebreak();
+              32'h8000_000c: program_word = inst_fmv_x_w(5'd6, 5'd0);
+              32'h8000_0010: program_word = inst_addi(5'd5, 5'd0, 12'd7);
+              32'h8000_0014: program_word = inst_ebreak();
               default:       program_word = inst_beq_self();
             endcase
           end
@@ -629,6 +652,8 @@ module tb_ooo_core_top_glue;
       saw_branch_dispatch_resolve = 1'b0;
       saw_control_fallthrough_fetch = 1'b0;
       saw_lane1_ret_fallthrough = 1'b0;
+      saw_fp_gpr_completion = 1'b0;
+      saw_fp_gpr_completion_wake = 1'b0;
       program_mode = mode_i;
       fault_addr = fault_addr_i;
       `TB_TICK(clk);
@@ -733,6 +758,8 @@ module tb_ooo_core_top_glue;
       saw_backend_branch_resolve <= 1'b0;
       saw_control_fallthrough_fetch <= 1'b0;
       saw_lane1_ret_fallthrough <= 1'b0;
+      saw_fp_gpr_completion <= 1'b0;
+      saw_fp_gpr_completion_wake <= 1'b0;
     end else begin
       commit_total <= commit_total + commit0_valid + commit1_valid;
       if (fetch_req_valid && fetch_req_ready) begin
@@ -801,6 +828,11 @@ module tb_ooo_core_top_glue;
           fetch_req_valid && fetch_req_ready &&
           fetch_req_pc == 32'h8000_0008) begin
         saw_control_fallthrough_fetch <= 1'b1;
+      end
+      if (fp_result_wb_valid && !fp_result_wb_frd) begin
+        saw_fp_gpr_completion <= 1'b1;
+        if (fp_wake0_valid)
+          saw_fp_gpr_completion_wake <= 1'b1;
       end
     end
   end
@@ -1109,7 +1141,12 @@ module tb_ooo_core_top_glue;
     tb_check1("fmv.w.x reaches ebreak", exit_valid, 1'b1);
     tb_check1("fmv.w.x is not trap", trap_valid, 1'b0);
     tb_check32("fmv.w.x follows FP decode path", gpr(5'd5), 32'd7);
-    tb_check32("fmv.w.x retires before ebreak", commit_total, 32'd4);
+    tb_check32("fmv.x.w writes integer destination", gpr(5'd6), 32'd0);
+    tb_check32("fmv.w.x/fmv.x.w retire before ebreak", commit_total, 32'd5);
+    tb_check1("GPR-destination FP completion observed",
+              saw_fp_gpr_completion, 1'b1);
+    tb_check1("GPR-destination FP completion does not wake FPR domain",
+              saw_fp_gpr_completion_wake, 1'b0);
     tb_check1("fmv.w.x ebreak flag", exit_is_ebreak, 1'b1);
 
     reset_dut(MODE_EBREAK, 32'h0000_0000);
