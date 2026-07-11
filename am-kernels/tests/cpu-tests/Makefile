@@ -1,8 +1,7 @@
-.PHONY: all run gdb clean latest $(ALL)
+.PHONY: all run gdb clean latest c prepare-result check-results $(ALL)
 
-##结果文件：先清空结果文件，用于汇总各测试的PASS/FAIL
+##结果文件：由 prepare-result 在实际运行测试前初始化
 RESULT = .result
-$(shell > $(RESULT))
 
 ##颜色定义
 COLOR_RED   = \033[1;31m
@@ -24,7 +23,7 @@ $(ALL): %: Makefile.%
 ##2.用该Makefile构建并运行当前目标
 ##3.将PASS/FAIL写入.result
 ##4.删除临时Makefile
-Makefile.%: tests/%.c latest
+Makefile.%: tests/%.c latest | prepare-result
 	@/bin/echo -e "NAME = $*\nSRCS = $<\ninclude $${AM_HOME}/Makefile" > $@
 	@if make -s -f $@ ARCH=$(ARCH) $(MAKECMDGOALS); then \
 		printf "[%14s] $(COLOR_GREEN)PASS$(COLOR_NONE)\n" $* >> $(RESULT); \
@@ -32,11 +31,21 @@ Makefile.%: tests/%.c latest
 		printf "[%14s] $(COLOR_RED)***FAIL***$(COLOR_NONE)\n" $* >> $(RESULT); \
 	fi
 	-@rm -f Makefile.$*
+##只在本次 make 需要运行测试时初始化一次结果文件；并行 append 均等待该目标
+prepare-result:
+	@: > $(RESULT)
 
-##run目标：先构建所有测试，再输出.result并删除它
+##校验已有结果文件；不得依赖 prepare-result，以免检查前截断结果
+check-results:
+	@python3 scripts/check_results.py --result "$(RESULT)" --expected $(sort $(ALL))
+
+##run目标：先构建所有测试，再输出、校验并删除.result
 run: all
-	@cat $(RESULT)
-	@rm $(RESULT)
+	@cat "$(RESULT)"; \
+	python3 scripts/check_results.py --result "$(RESULT)" --expected $(sort $(ALL)); \
+	rc=$$?; \
+	rm -f "$(RESULT)"; \
+	exit $$rc
 
 ##gdb目标
 gdb: all
@@ -46,8 +55,11 @@ clean:
 	rm -rf Makefile.* build/
 
 c: all
-	@cat $(RESULT)
-	@rm $(RESULT)
+	@cat "$(RESULT)"; \
+	python3 scripts/check_results.py --result "$(RESULT)" --expected $(sort $(ALL)); \
+	rc=$$?; \
+	rm -f "$(RESULT)"; \
+	exit $$rc
 
 ##空目标，用于触发依赖链(可能被其他规则用作“总是更新”)
 latest:
