@@ -1,4 +1,5 @@
 `timescale 1ns/1ps
+`include "define.v"
 
 module tb_ooo_stop_pending_sequencer;
   reg clk;
@@ -23,6 +24,8 @@ module tb_ooo_stop_pending_sequencer;
   reg pending_mem_resolve_ready;
   reg system_csr_dispatch_fire;
   reg pending_system_csr_commit;
+  reg head0_csr_commit;
+  reg head0_csr_inflight;
   reg drain_complete;
   reg can_run;
   reg fifo_has_packet;
@@ -69,6 +72,8 @@ module tb_ooo_stop_pending_sequencer;
     .pending_mem_resolve_ready_i(pending_mem_resolve_ready),
     .system_csr_dispatch_fire_i(system_csr_dispatch_fire),
     .pending_system_csr_commit_i(pending_system_csr_commit),
+    .head0_csr_commit_i(head0_csr_commit),
+    .head0_csr_inflight_i(head0_csr_inflight),
     .drain_complete_i(drain_complete),
     .can_run_i(can_run),
     .fifo_has_packet_i(fifo_has_packet),
@@ -128,6 +133,8 @@ module tb_ooo_stop_pending_sequencer;
       pending_mem_resolve_ready = 1'b0;
       system_csr_dispatch_fire = 1'b0;
       pending_system_csr_commit = 1'b0;
+      head0_csr_commit = 1'b0;
+      head0_csr_inflight = 1'b0;
       drain_complete = 1'b0;
       can_run = 1'b0;
       fifo_has_packet = 1'b0;
@@ -189,7 +196,8 @@ module tb_ooo_stop_pending_sequencer;
     direct_branch0_fire = 1'b1;
     direct_branch_resolve_redirect = 1'b0;
     tick();
-    expect_stop("direct branch no redirect sets", 1'b1);
+    expect_stop("direct branch follows configured branch domain",
+                `OOO_DBRANCH_DOMAIN_A ? 1'b0 : 1'b1);
 
     clear_inputs();
     direct_frontend_flush = 1'b1;
@@ -239,6 +247,16 @@ module tb_ooo_stop_pending_sequencer;
     pending_system_csr_commit = 1'b1;
     tick();
     expect_stop("csr commit clears", 1'b0);
+
+    clear_inputs();
+    head0_csr_inflight = 1'b1;
+    tick();
+    expect_stop("head0 csr inflight holds", 1'b1);
+    clear_inputs();
+    head0_csr_commit = 1'b1;
+    head0_csr_inflight = 1'b1;
+    tick();
+    expect_stop("head0 csr commit excludes inflight hold", 1'b0);
 
     set_from_irq();
     clear_inputs();
@@ -313,7 +331,6 @@ module tb_ooo_stop_pending_sequencer;
       $display("PASS tb_ooo_stop_pending_sequencer");
       $finish;
     end
-    $display("FAIL tb_ooo_stop_pending_sequencer errors=%0d", errors);
-    $finish(1);
+    $fatal(1, "FAIL tb_ooo_stop_pending_sequencer errors=%0d", errors);
   end
 endmodule

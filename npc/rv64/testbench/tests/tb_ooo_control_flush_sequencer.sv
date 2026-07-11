@@ -148,7 +148,6 @@ module tb_ooo_control_flush_sequencer;
       $display("PASS tb_ooo_control_flush_sequencer");
       $finish;
     end
-    $display("FAIL tb_ooo_control_flush_sequencer errors=%0d", errors);
-    $finish(1);
+    $fatal(1, "FAIL tb_ooo_control_flush_sequencer errors=%0d", errors);
   end
 endmodule

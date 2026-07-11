@@ -16,6 +16,7 @@ module tb_ooo_pending_system_sequencer;
   reg capture_head0_mret;
   reg capture_head0_wfi;
   reg capture_head0_sfence;
+  reg capture_head0_fencei;
   reg [`XLEN-1:0] capture_head0_pc;
   reg [`INST_W-1:0] capture_head0_inst;
   reg [`XLEN-1:0] capture_head0_next_pc;
@@ -26,6 +27,7 @@ module tb_ooo_pending_system_sequencer;
   reg capture_lane1_mret;
   reg capture_lane1_wfi;
   reg capture_lane1_sfence;
+  reg capture_lane1_fencei;
   reg [`XLEN-1:0] capture_lane1_pc;
   reg [`INST_W-1:0] capture_lane1_inst;
   reg [`XLEN-1:0] capture_lane1_next_pc;
@@ -38,6 +40,7 @@ module tb_ooo_pending_system_sequencer;
   wire mret;
   wire wfi;
   wire sfence;
+  wire fencei;
   wire irq;
   wire [`XLEN-1:0] pc;
   wire [`INST_W-1:0] inst;
@@ -64,6 +67,7 @@ module tb_ooo_pending_system_sequencer;
     .capture_head0_mret_i(capture_head0_mret),
     .capture_head0_wfi_i(capture_head0_wfi),
     .capture_head0_sfence_i(capture_head0_sfence),
+    .capture_head0_fencei_i(capture_head0_fencei),
     .capture_head0_pc_i(capture_head0_pc),
     .capture_head0_inst_i(capture_head0_inst),
     .capture_head0_next_pc_i(capture_head0_next_pc),
@@ -74,6 +78,7 @@ module tb_ooo_pending_system_sequencer;
     .capture_lane1_mret_i(capture_lane1_mret),
     .capture_lane1_wfi_i(capture_lane1_wfi),
     .capture_lane1_sfence_i(capture_lane1_sfence),
+    .capture_lane1_fencei_i(capture_lane1_fencei),
     .capture_lane1_pc_i(capture_lane1_pc),
     .capture_lane1_inst_i(capture_lane1_inst),
     .capture_lane1_next_pc_i(capture_lane1_next_pc),
@@ -85,6 +90,7 @@ module tb_ooo_pending_system_sequencer;
     .mret_o(mret),
     .wfi_o(wfi),
     .sfence_o(sfence),
+    .fencei_o(fencei),
     .irq_o(irq),
     .pc_o(pc),
     .inst_o(inst),
@@ -103,6 +109,19 @@ module tb_ooo_pending_system_sequencer;
     begin
       if (actual !== expected) begin
         $display("FAIL %0s actual=%0b expected=%0b", name, actual, expected);
+        errors = errors + 1;
+      end
+    end
+  endtask
+
+  task automatic tb_check_cause;
+    input [255:0] name;
+    input [`TRAP_CAUSE_W-1:0] actual;
+    input [`TRAP_CAUSE_W-1:0] expected;
+    begin
+      if (actual !== expected) begin
+        $display("FAIL %0s actual=0x%0h expected=0x%0h",
+                 name, actual, expected);
         errors = errors + 1;
       end
     end
@@ -141,13 +160,14 @@ module tb_ooo_pending_system_sequencer;
       dispatch_fire = 1'b0;
       capture_irq = 1'b0;
       capture_irq_pc = 64'h0000_0000_8000_1000;
-      capture_irq_cause = 64'h8000_0000_0000_0007;
+      capture_irq_cause = 5'd7;
       capture_head0 = 1'b0;
       capture_head0_csr = 1'b0;
       capture_head0_ecall = 1'b0;
       capture_head0_mret = 1'b0;
       capture_head0_wfi = 1'b0;
       capture_head0_sfence = 1'b0;
+      capture_head0_fencei = 1'b0;
       capture_head0_pc = 64'h0000_0000_8000_2000;
       capture_head0_inst = 32'h3050_9073;
       capture_head0_next_pc = 64'h0000_0000_8000_2004;
@@ -158,6 +178,7 @@ module tb_ooo_pending_system_sequencer;
       capture_lane1_mret = 1'b0;
       capture_lane1_wfi = 1'b0;
       capture_lane1_sfence = 1'b0;
+      capture_lane1_fencei = 1'b0;
       capture_lane1_pc = 64'h0000_0000_8000_3002;
       capture_lane1_inst = 32'h1020_0073;
       capture_lane1_next_pc = 64'h0000_0000_8000_3006;
@@ -182,6 +203,7 @@ module tb_ooo_pending_system_sequencer;
       tb_check1({name, " mret"}, mret, 1'b0);
       tb_check1({name, " wfi"}, wfi, 1'b0);
       tb_check1({name, " sfence"}, sfence, 1'b0);
+      tb_check1({name, " fencei"}, fencei, 1'b0);
       tb_check1({name, " irq"}, irq, 1'b0);
     end
   endtask
@@ -200,7 +222,7 @@ module tb_ooo_pending_system_sequencer;
     clear_inputs();
     capture_irq = 1'b1;
     capture_irq_pc = 64'h0000_0000_8000_1234;
-    capture_irq_cause = 64'h8000_0000_0000_000b;
+    capture_irq_cause = 5'd11;
     tick();
     tb_check1("irq valid", valid, 1'b1);
     tb_check1("irq dispatched", dispatched, 1'b0);
@@ -210,7 +232,7 @@ module tb_ooo_pending_system_sequencer;
     tb_check_inst("irq inst zero", inst, {`INST_W{1'b0}});
     tb_check64("irq next pc", next_pc, 64'h0000_0000_8000_1234);
     tb_check64("irq csr rdata zero", csr_rdata, {`XLEN{1'b0}});
-    tb_check64("irq cause", irq_cause, 64'h8000_0000_0000_000b);
+    tb_check_cause("irq cause code", irq_cause, 5'd11);
 
     clear_inputs();
     dispatch_fire = 1'b1;
@@ -236,11 +258,13 @@ module tb_ooo_pending_system_sequencer;
     capture_head0_csr = 1'b1;
     capture_head0_mret = 1'b1;
     capture_head0_sfence = 1'b1;
+    capture_head0_fencei = 1'b1;
     tick();
     tb_check1("head0 valid", valid, 1'b1);
     tb_check1("head0 csr", csr, 1'b1);
     tb_check1("head0 mret", mret, 1'b1);
     tb_check1("head0 sfence", sfence, 1'b1);
+    tb_check1("head0 fencei", fencei, 1'b1);
     tb_check1("head0 irq clear", irq, 1'b0);
     tb_check64("head0 pc", pc, 64'h0000_0000_8000_2000);
     tb_check_inst("head0 inst", inst, 32'h3050_9073);
@@ -261,11 +285,13 @@ module tb_ooo_pending_system_sequencer;
     capture_lane1_csr = 1'b1;
     capture_lane1_ecall = 1'b1;
     capture_lane1_wfi = 1'b1;
+    capture_lane1_fencei = 1'b1;
     tick();
     tb_check1("lane1 valid", valid, 1'b1);
     tb_check1("lane1 csr", csr, 1'b1);
     tb_check1("lane1 ecall", ecall, 1'b1);
     tb_check1("lane1 wfi", wfi, 1'b1);
+    tb_check1("lane1 fencei", fencei, 1'b1);
     tb_check1("lane1 dispatched reset", dispatched, 1'b0);
     tb_check64("lane1 pc", pc, 64'h0000_0000_8000_3002);
     tb_check_inst("lane1 inst", inst, 32'h1020_0073);
@@ -292,7 +318,6 @@ module tb_ooo_pending_system_sequencer;
       $display("PASS tb_ooo_pending_system_sequencer");
       $finish;
     end
-    $display("FAIL tb_ooo_pending_system_sequencer errors=%0d", errors);
-    $finish(1);
+    $fatal(1, "FAIL tb_ooo_pending_system_sequencer errors=%0d", errors);
   end
 endmodule

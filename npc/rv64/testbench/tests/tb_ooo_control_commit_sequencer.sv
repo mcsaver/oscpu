@@ -29,6 +29,7 @@ module tb_ooo_control_commit_sequencer;
 
   reg drain_pending_jump;
   reg drain_pending_mem;
+  reg head0_csr_commit;
 
 
   wire ctrl_commit_valid;
@@ -68,6 +69,7 @@ module tb_ooo_control_commit_sequencer;
     .pending_branch_next_pc_i(pending_branch_next_pc),
     .drain_pending_jump_i(drain_pending_jump),
     .drain_pending_mem_i(drain_pending_mem),
+    .head0_csr_commit_i(head0_csr_commit),
     .ctrl_commit_valid_o(ctrl_commit_valid),
     .ctrl_commit_pc_o(ctrl_commit_pc),
     .ctrl_commit_inst_o(ctrl_commit_inst),
@@ -141,6 +143,7 @@ module tb_ooo_control_commit_sequencer;
       pending_branch_next_pc = 64'h8000_0400;
       drain_pending_jump = 1'b0;
       drain_pending_mem = 1'b0;
+      head0_csr_commit = 1'b0;
     end
   endtask
 
@@ -185,6 +188,16 @@ module tb_ooo_control_commit_sequencer;
     clear_inputs();
     tick();
     expect_idle("jump pulse clears");
+
+    // 队头 CSR 提交只触发一拍串行化 flush，不伪造控制提交。
+    clear_inputs();
+    head0_csr_commit = 1'b1;
+    tick();
+    tb_check1("head0 csr serial pulse", core_serial_flush, 1'b1);
+    tb_check1("head0 csr no pseudo commit", ctrl_commit_valid, 1'b0);
+    clear_inputs();
+    tick();
+    expect_idle("head0 csr serial pulse clears");
 
     clear_inputs();
     drain_complete = 1'b1;
@@ -255,10 +268,10 @@ module tb_ooo_control_commit_sequencer;
     tb_check64("jump priority pc", ctrl_commit_pc, 64'h8000_6000);
     tb_check1("jump priority no serial", core_serial_flush, 1'b0);
 
-    if (errors == 0)
+    if (errors == 0) begin
       $display("PASS tb_ooo_control_commit_sequencer");
-    else
-      $display("FAIL tb_ooo_control_commit_sequencer errors=%0d", errors);
-    $finish(errors == 0 ? 0 : 1);
+      $finish;
+    end
+    $fatal(1, "FAIL tb_ooo_control_commit_sequencer errors=%0d", errors);
   end
 endmodule
