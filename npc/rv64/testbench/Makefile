@@ -7,6 +7,8 @@ RESULT_DIR ?= ../perf/results/$(RESULT_TIMESTAMP)/module-testbench
 LOG_DIR := $(RESULT_DIR)/logs
 
 IVERILOG ?= iverilog
+PYTHON ?= python3
+TB_RESULT_CHECKER := scripts/check_tb_result.py
 # iverilog 与 vvp 必须同源同版本：14.0 编译产物喂 12.0 runtime 会拒跑
 # ("VVP input file 14.0 can not be run with run time version 12.0")。
 # 取实际命中 iverilog 的同目录 vvp，找不到才退回 PATH。
@@ -198,17 +200,29 @@ run: $(TESTS:%=$(LOG_DIR)/%.log) summary
 	@cat $(RESULT_DIR)/summary.txt
 
 define RUN_TEST
-$(LOG_DIR)/$(1).log: $$(sort $$(TB_SRCS_$(1))) common/tb_common.svh common/rv32_encode.svh Makefile
+$(LOG_DIR)/$(1).log: $$(sort $$(TB_SRCS_$(1))) common/tb_common.svh common/rv32_encode.svh $$(TB_RESULT_CHECKER) Makefile
 	@mkdir -p $(BUILD_DIR) $(LOG_DIR)
 	@tmp="$$@.tmp"; \
 	echo "[TEST] $(1)" > "$$$$tmp"; \
 	echo "[COMPILE] $(IVERILOG) $(IVFLAGS) -s $(1) -o $(BUILD_DIR)/$(1).vvp $$(sort $$(TB_SRCS_$(1)))" >> "$$$$tmp"; \
-	if $(IVERILOG) $(IVFLAGS) -s $(1) -o $(BUILD_DIR)/$(1).vvp $$(sort $$(TB_SRCS_$(1))) >> "$$$$tmp" 2>&1 && \
-	   $(VVP) $(BUILD_DIR)/$(1).vvp >> "$$$$tmp" 2>&1; then \
+	$(IVERILOG) $(IVFLAGS) -s $(1) -o $(BUILD_DIR)/$(1).vvp $$(sort $$(TB_SRCS_$(1))) >> "$$$$tmp" 2>&1; \
+	compile_rc=$$$$?; \
+	sim_rc=0; \
+	if [ "$$$$compile_rc" -eq 0 ]; then \
+	  $(VVP) $(BUILD_DIR)/$(1).vvp >> "$$$$tmp" 2>&1; \
+	  sim_rc=$$$$?; \
+	fi; \
+	$(PYTHON) $(TB_RESULT_CHECKER) \
+	  --test "$(1)" \
+	  --source "$$(firstword $$(TB_SRCS_$(1)))" \
+	  --log "$$$$tmp" \
+	  --compile-rc "$$$$compile_rc" \
+	  --sim-rc "$$$$sim_rc" >> "$$$$tmp" 2>&1; \
+	status=$$$$?; \
+	if [ "$$$$status" -eq 0 ]; then \
 	  echo "[RESULT] PASS" >> "$$$$tmp"; \
 	  mv "$$$$tmp" "$$@"; \
 	else \
-	  status=$$$$?; \
 	  echo "[RESULT] FAIL status=$$$$status" >> "$$$$tmp"; \
 	  mv "$$$$tmp" "$$@"; \
 	  exit $$$$status; \

@@ -11,6 +11,7 @@ from npc.rv64.testbench.scripts.check_tb_result import classify, strip_ansi
 
 TEST_NAME = "tb_example"
 CHECKER = Path(__file__).with_name("check_tb_result.py")
+REPO_ROOT = Path(__file__).resolve().parents[4]
 
 
 class CheckTbResultTest(unittest.TestCase):
@@ -240,6 +241,63 @@ end
                 )
                 self.assertEqual(2, completed.returncode)
                 self.assertTrue(completed.stderr)
+
+
+class MakeRunnerIntegrationTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp_dir.cleanup)
+        self.result_root = Path(self.temp_dir.name)
+
+    def run_make_fixture(
+        self, test_name: str, result_name: str
+    ) -> tuple[subprocess.CompletedProcess[str], str]:
+        result_dir = self.result_root / result_name
+        completed = subprocess.run(
+            [
+                "make",
+                "-C",
+                "npc/rv64/testbench",
+                f"TESTS={test_name}",
+                f"TB_SRCS_{test_name}=scripts/fixtures/{test_name}.sv",
+                f"RESULT_DIR={result_dir}",
+                "run",
+            ],
+            cwd=REPO_ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        log_path = result_dir / "logs" / f"{test_name}.log"
+        self.assertTrue(
+            log_path.is_file(),
+            f"missing {log_path}\nstdout:\n{completed.stdout}\nstderr:\n{completed.stderr}",
+        )
+        return completed, log_path.read_text(encoding="utf-8")
+
+    def test_make_rejects_false_green_fixture(self) -> None:
+        completed, log_text = self.run_make_fixture(
+            "tb_false_green", "false"
+        )
+
+        self.assertNotEqual(
+            0,
+            completed.returncode,
+            f"stdout:\n{completed.stdout}\nstderr:\n{completed.stderr}",
+        )
+        self.assertIn("[RESULT] FAIL", log_text)
+
+    def test_make_accepts_true_green_fixture(self) -> None:
+        completed, log_text = self.run_make_fixture(
+            "tb_true_green", "true"
+        )
+
+        self.assertEqual(
+            0,
+            completed.returncode,
+            f"stdout:\n{completed.stdout}\nstderr:\n{completed.stderr}",
+        )
+        self.assertIn("[RESULT] PASS", log_text)
 
 
 if __name__ == "__main__":
