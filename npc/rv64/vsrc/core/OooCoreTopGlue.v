@@ -728,6 +728,8 @@ module OooCoreTopGlue #(
   // lane1 memory barrier pending owner 移入 memory helper，父模块仍负责全局仲裁。
 
   OooMemoryAccess u_memory_access (
+    .clk(clk),
+    .rst(rst),
     .backend_drained_q(backend_drained_q),
     .checkpoint_mem_flush_q(checkpoint_mem_flush_q),
     .core_local_flush_w(core_local_flush_w),

@@ -1,6 +1,8 @@
 `include "define.v"
 
 module OooMemoryRequestGate (
+  input clk,
+  input rst,
   input core_local_flush_i,
   input checkpoint_mem_flush_i,
   input pending_system_satp_write_commit_i,
@@ -59,8 +61,17 @@ module OooMemoryRequestGate (
       core_mem_rsp_ready_i;
 
   assign mem_flush_o = core_local_flush_i || checkpoint_mem_flush_i;
-  assign mmu_flush_o =
-      pending_system_satp_write_commit_i || pending_system_sfence_commit_i ||
-      pending_system_fencei_commit_i;   // fence.i：整块清取指包(clear_i) + fetch 桥复位
+  // 【拓扑防火墙 v2(2026-07-11)】mmu_flush 出口打拍: 组合生成链(rsp→wb→ROB
+  // commit→retire_count→drain_complete→本式)当拍打进 fetch/mem 桥与 cache/TLB
+  // 清除口, 是 dcache-rdata→…→fetch dec→pred 传递闭包的真缝合点。satp/sfence/
+  // fence.i 都是 stop+drain 整机静止事件, flush 晚一拍到达零语义影响(重启取指
+  // 本就在 serialize 开销里)。全体消费者同拍延迟, 一致性保持。
+  reg mmu_flush_q;
+  always @(posedge clk) begin
+    mmu_flush_q <= !rst &&
+        (pending_system_satp_write_commit_i || pending_system_sfence_commit_i ||
+         pending_system_fencei_commit_i);
+  end
+  assign mmu_flush_o = mmu_flush_q;
 
 endmodule

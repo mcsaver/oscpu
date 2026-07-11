@@ -185,9 +185,19 @@ module NpcCoreTop (
   wire [`TRAP_CAUSE_W-1:0] ooo_csr_ecall_cause_w;
 
   // mem1(双发射 load 第二端口)死硅删除后,icache 失效只由 mem0 store fire 触发。
-  wire ooo_icache_invalidate_valid_w =
-      ooo_mem0_req_valid_w && ooo_mem0_req_ready_w && ooo_mem0_req_write_w;
-  wire [`XLEN-1:0] ooo_icache_invalidate_addr_w = ooo_mem0_req_addr_w;
+  // 【拓扑防火墙 v2(2026-07-11)】盲失效打一拍: 斩断 backend AGU→fetch 融合关断→
+  // dec→pred 的跨域缝合(25ns 传递闭包的 13.5ns 切点)。SMC 语义合法: 无 fence.i
+  // 的自修改代码无架构承诺(NEMU 参考模型无 icache, difftest 不敏感), 盲失效晚
+  // 一拍仍是 fence.i 之外的保守防线; fence.i 走 mmu_flush 全清不受影响。
+  reg icache_inv_valid_q;
+  reg [`XLEN-1:0] icache_inv_addr_q;
+  always @(posedge clk) begin
+    icache_inv_valid_q <= !rst && ooo_mem0_req_valid_w && ooo_mem0_req_ready_w &&
+                          ooo_mem0_req_write_w;
+    icache_inv_addr_q <= ooo_mem0_req_addr_w;
+  end
+  wire ooo_icache_invalidate_valid_w = icache_inv_valid_q;
+  wire [`XLEN-1:0] ooo_icache_invalidate_addr_w = icache_inv_addr_q;
 
   OooFetchAxiBridge u_ooo_fetch_bridge (
     .clk(clk),

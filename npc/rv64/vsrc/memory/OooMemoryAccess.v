@@ -5,6 +5,8 @@
 // → OooPendingMemorySequencer 的 capture 恒 0（结构不可达），整链退休。本 wrapper 现仅
 // 承载活的访存请求门 OooMemoryRequestGate（纯组合，故已无 clk/rst/flush）。
 module OooMemoryAccess (
+  input clk,
+  input rst,
   input backend_drained_q,
   input checkpoint_mem_flush_q,
   input core_local_flush_w,
@@ -38,6 +40,8 @@ module OooMemoryAccess (
 
 
   OooMemoryRequestGate u_memory_request_gate (
+    .clk(clk),
+    .rst(rst),
     .core_local_flush_i(core_local_flush_w),
     .checkpoint_mem_flush_i(checkpoint_mem_flush_q),
     .pending_system_satp_write_commit_i(pending_system_satp_write_commit_w),

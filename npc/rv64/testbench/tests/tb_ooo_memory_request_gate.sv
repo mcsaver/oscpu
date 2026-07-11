@@ -30,11 +30,16 @@ module tb_ooo_memory_request_gate;
   wire mem_flush;
   wire mmu_flush;
 
+  reg tb_clk;
+  initial tb_clk = 1'b0;
   OooMemoryRequestGate dut (
+    .clk(tb_clk),
+    .rst(1'b0),
     .core_local_flush_i(core_local_flush),
     .checkpoint_mem_flush_i(checkpoint_mem_flush),
     .pending_system_satp_write_commit_i(pending_system_satp_write_commit),
     .pending_system_sfence_commit_i(pending_system_sfence_commit),
+    .pending_system_fencei_commit_i(1'b0),
     .stop_pending_i(stop_pending),
     .backend_drained_i(backend_drained),
     .core_mem_req_valid_i(core_mem_req_valid),
@@ -125,14 +130,21 @@ module tb_ooo_memory_request_gate;
     #1;
     tb_check1("checkpoint mem flush", mem_flush, 1'b1);
 
+    // 【拓扑防火墙 v2】mmu_flush 出口打拍(组合→次拍可见)
     clear_inputs();
     pending_system_satp_write_commit = 1'b1;
-    #1;
-    tb_check1("satp mmu flush", mmu_flush, 1'b1);
+    #1 tb_clk = 1'b1; #1 tb_clk = 1'b0;
     pending_system_satp_write_commit = 1'b0;
-    pending_system_sfence_commit = 1'b1;
     #1;
-    tb_check1("sfence mmu flush", mmu_flush, 1'b1);
+    tb_check1("satp mmu flush next cycle", mmu_flush, 1'b1);
+    #1 tb_clk = 1'b1; #1 tb_clk = 1'b0;
+    #1;
+    tb_check1("satp mmu flush single pulse", mmu_flush, 1'b0);
+    pending_system_sfence_commit = 1'b1;
+    #1 tb_clk = 1'b1; #1 tb_clk = 1'b0;
+    pending_system_sfence_commit = 1'b0;
+    #1;
+    tb_check1("sfence mmu flush next cycle", mmu_flush, 1'b1);
 
     tb_finish("tb_ooo_memory_request_gate");
   end
