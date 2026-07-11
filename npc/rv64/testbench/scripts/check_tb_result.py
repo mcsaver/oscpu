@@ -14,6 +14,7 @@ _ANSI_ESCAPE_RE = re.compile(
 _FINISH_ARGUMENT_RE = re.compile(r"\$finish\b\s*\(([^)]*)\)", re.DOTALL)
 _FAIL_MARKER_RE = re.compile(r"(?<![A-Za-z0-9_])FAIL(?![A-Za-z0-9_])")
 _ERROR_COUNT_RE = re.compile(r"\berrors\s*=\s*([+-]?\d+)\b", re.IGNORECASE)
+_STRING_SENTINEL = "S"
 
 
 def strip_ansi(text: str) -> str:
@@ -45,7 +46,7 @@ def _mask_sv_comments_and_strings(source_text: str) -> str:
                 state = "block_comment"
                 continue
             if char == '"':
-                masked[index] = " "
+                masked[index] = _STRING_SENTINEL
                 index += 1
                 state = "string"
                 continue
@@ -72,18 +73,18 @@ def _mask_sv_comments_and_strings(source_text: str) -> str:
             continue
 
         if char == "\\" and following:
-            masked[index] = " "
+            masked[index] = _STRING_SENTINEL
             if following != "\n":
-                masked[index + 1] = " "
+                masked[index + 1] = _STRING_SENTINEL
             index += 2
             continue
         if char == '"':
-            masked[index] = " "
+            masked[index] = _STRING_SENTINEL
             index += 1
             state = "code"
             continue
         if char != "\n":
-            masked[index] = " "
+            masked[index] = _STRING_SENTINEL
         index += 1
 
     return "".join(masked)

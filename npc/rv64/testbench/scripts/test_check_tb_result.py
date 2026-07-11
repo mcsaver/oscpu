@@ -143,6 +143,13 @@ end
 
         self.assertEqual([], self.classify_fixture(source=source))
 
+    def test_string_finish_arguments_are_legacy_failures(self) -> None:
+        for finish in ('$finish("failure");', '$finish("0");'):
+            with self.subTest(finish=finish):
+                reasons = self.classify_fixture(source=f"initial {finish}\n")
+                self.assertTrue(reasons)
+                self.assertTrue(any("$finish" in reason for reason in reasons))
+
     def test_comment_separated_zero_finish_is_allowed(self) -> None:
         for source in (
             "initial $finish /* allowed */ (0);\n",
@@ -206,6 +213,33 @@ end
         )
         self.assertEqual(2, missing_source.returncode)
         self.assertTrue(missing_source.stderr)
+
+    def test_cli_missing_arguments_and_invalid_integer_exit_two(self) -> None:
+        valid_prefix = [
+            sys.executable,
+            str(CHECKER),
+            "--test",
+            TEST_NAME,
+            "--source",
+            str(self.source_path),
+            "--log",
+            str(self.log_path),
+        ]
+        cases = (
+            valid_prefix,
+            valid_prefix + ["--compile-rc", "not-an-integer", "--sim-rc", "0"],
+        )
+
+        for command in cases:
+            with self.subTest(command=command):
+                completed = subprocess.run(
+                    command,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual(2, completed.returncode)
+                self.assertTrue(completed.stderr)
 
 
 if __name__ == "__main__":
