@@ -1,0 +1,112 @@
+{
+  "artifacts": {
+    "context_brief": ".github/task-runs/2026-07-11-rv64-f0-strict-guard-npc-dev/context-brief.md",
+    "dispatch_log": ".github/task-runs/2026-07-11-rv64-f0-strict-guard-npc-dev/dispatch-log.md",
+    "evidence_dir": ".github/task-runs/2026-07-11-rv64-f0-strict-guard-npc-dev/evidence",
+    "evidence_index": ".github/task-runs/2026-07-11-rv64-f0-strict-guard-npc-dev/evidence-index.md",
+    "nodes": ".github/task-runs/2026-07-11-rv64-f0-strict-guard-npc-dev/nodes.tsv",
+    "profile_resolve": ".github/task-runs/2026-07-11-rv64-f0-strict-guard-npc-dev/profile-resolve.md",
+    "run_dir": ".github/task-runs/2026-07-11-rv64-f0-strict-guard-npc-dev",
+    "run_manifest": ".github/task-runs/2026-07-11-rv64-f0-strict-guard-npc-dev/run-manifest.json",
+    "task_report": ".github/task-runs/2026-07-11-rv64-f0-strict-guard-npc-dev/task-report.md"
+  },
+  "db": {
+    "markdown_archive": true,
+    "raw_evidence_index_only": true
+  },
+  "evidence": {
+    "asset_count": 6,
+    "by_kind": {
+      "log": 5,
+      "tsv": 1
+    },
+    "total_size_bytes": 4323
+  },
+  "final_result": "profile=npc-dev 通过，当前 modular e2e 证据链可复用。",
+  "git": {
+    "branch": "ai",
+    "head": "873f9b13f",
+    "upstream": "myfork/ai"
+  },
+  "graph_mode": "static",
+  "graph_template": "modular-agent-e2e",
+  "node_counts": {
+    "by_status": {
+      "PASS": 5
+    },
+    "total": 5
+  },
+  "nodes": [
+    {
+      "evidence": ".github/task-runs/2026-07-11-rv64-f0-strict-guard-npc-dev/evidence/software-flow-contract.log",
+      "inputs": "software-flow agent + profile + memory",
+      "module": "software-flow",
+      "node_id": "software-flow-contract",
+      "outputs": "软件开发全流程 agent 合约入口存在",
+      "owner_agent": "software-flow",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-11-rv64-f0-strict-guard-npc-dev/evidence/npc-sim-contract.log",
+      "inputs": "npc/sim + backend manifests",
+      "module": "npc",
+      "node_id": "npc-sim-contract",
+      "outputs": "NPC 开发环境入口只检查 NPC 仿真后端合同",
+      "owner_agent": "npc",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-11-rv64-f0-strict-guard-npc-dev/evidence/npc-single-contract.log",
+      "inputs": "npc/single Makefile/Kconfig/vsrc/csrc",
+      "module": "npc",
+      "node_id": "npc-single-contract",
+      "outputs": "NPC single 后端合约入口存在",
+      "owner_agent": "npc",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-11-rv64-f0-strict-guard-npc-dev/evidence/npc-soc-contract.log",
+      "inputs": "npc/soc + ysyxSoC CPU ABI",
+      "module": "npc",
+      "node_id": "npc-soc-contract",
+      "outputs": "NPC SoC 后端合约入口存在",
+      "owner_agent": "npc",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-11-rv64-f0-strict-guard-npc-dev/evidence/npc-rv64-contract.log",
+      "inputs": "npc/rv64 + Linux README",
+      "module": "npc",
+      "node_id": "npc-rv64-contract",
+      "outputs": "NPC RV64 Linux 入口合约存在但不跑 NEMU Ubuntu gate",
+      "owner_agent": "npc",
+      "status": "PASS"
+    }
+  ],
+  "profile": "npc-dev",
+  "run_id": "2026-07-11-rv64-f0-strict-guard-npc-dev",
+  "schema_version": 1,
+  "started_at": "2026-07-11 21:32:58 +0800",
+  "state_traceback": {
+    "current_state": "persist",
+    "evidence_policy": "task-report + dispatch-log + run-manifest + evidence-index",
+    "failure_reason": "",
+    "failure_state": "",
+    "inspector": "agent-system",
+    "reviewer": "ysyx-coordinator",
+    "rollback_target": "",
+    "state_sequence": [
+      "recall_context",
+      "classify_layer",
+      "plan_graph",
+      "implement",
+      "verify",
+      "inspect",
+      "persist"
+    ]
+  },
+  "status": "completed",
+  "task_slug": "rv64-f0-strict-guard-npc-dev",
+  "trace_id": "e2e:2026-07-11-rv64-f0-strict-guard-npc-dev",
+  "updated_at": "2026-07-11 21:32:59 +0800"
+}
