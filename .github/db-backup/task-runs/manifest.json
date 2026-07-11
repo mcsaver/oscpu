@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T11:40:43+00:00",
-  "updated_at": "2026-07-10T07:01:21+00:00",
+  "updated_at": "2026-07-11T16:32:09+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -28724,6 +28724,86 @@
       "archived_at": "2026-07-08T20:29:53+00:00"
     },
     {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-axi4-closeout/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6566,
+      "sha256": "fc345542ca9a6ec909d3704d43255962434ac0c85622a486e734847918b47b93",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T08:44:44+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-axi4-closeout/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5773,
+      "sha256": "650d7fb4a0e5d71ff30fe7f5fcb2964142a813e55deb1953b3c9554472420daa",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T08:44:44+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-axi4-closeout/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4330,
+      "sha256": "e462cc41fc02b17360d8a6012ed11bc82be10c654ee23f4de9fd95bf1f8d5080",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T08:44:44+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-axi4-closeout/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T08:44:44+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-axi4-closeout/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4417,
+      "sha256": "83bd779d42d3c8a262500503af3d3f7e7e0bcac7be648eeeb4c842951f12ab0a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T08:44:44+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-bpu-t2-closeout/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6568,
+      "sha256": "0ee42f5941295df25b33c2bd0535ba7acf9937142b0ff11137ed2293bb9853ee",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T11:48:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-bpu-t2-closeout/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5807,
+      "sha256": "fdf8f7a909e1240a08bda31b0ed09e6c9a0bfe96a5d13809f42cccc7f4a73800",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T11:48:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-bpu-t2-closeout/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4350,
+      "sha256": "c7f6755be93b9a24f4e73a0ee31aee45c4e48ae1dfb81d216cbf0b006ad8a6c7",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T11:48:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-bpu-t2-closeout/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T11:48:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-bpu-t2-closeout/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4445,
+      "sha256": "1f6a0cc6b497ceb25690ac62dd954c4d893e8611d9942b8a0945e169bc34f91a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T11:48:24+00:00"
+    },
+    {
       "path": ".github/task-runs/2026-07-10-2026-07-10-knife-d-closeout/context-brief.md",
       "kind": "task-run",
       "size_bytes": 6569,
@@ -28922,6 +29002,910 @@
       "sha256": "fd9d71c941964d8ad38e7e6bc837d8ab43e925e1c16c17150c25001456c3d6f5",
       "backup_source": "filesystem",
       "archived_at": "2026-07-10T03:04:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-timing-t124-closeout/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6573,
+      "sha256": "adcbfe1502da635379c0316309f43b07fb7d626d543dc13fec95515a4b750468",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T11:02:29+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-timing-t124-closeout/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5892,
+      "sha256": "6d209f54af98f22911f55d33d22d8ccff4d713964125b948b16330f72aded051",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T11:02:29+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-timing-t124-closeout/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4395,
+      "sha256": "1b7bf667db4dcd62faf8f56bd53e0c6ea6f9f6e66c83a402e780a275a428073c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T11:02:29+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-timing-t124-closeout/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T11:02:29+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-10-2026-07-10-timing-t124-closeout/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4515,
+      "sha256": "5d496b1ee39edb25a6e48cd7cb2eebbeec1dd050fad5e2cdda1f34c1b90b402e",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T11:02:29+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-2026-07-11-b2-closeout/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6564,
+      "sha256": "60104bf53bdb495f012592e2b7d680bab0d93e55968ec48124caf8a4d15633c6",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T18:31:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-2026-07-11-b2-closeout/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5739,
+      "sha256": "35c7a5f56fc28dc938221da4ee94467a4f9cdfc8812d042ada71a23a10a13f01",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T18:31:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-2026-07-11-b2-closeout/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4312,
+      "sha256": "4450e6a6c7c8b436b994416172c13116865e74aaf054596934fae738acef421b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T18:31:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-2026-07-11-b2-closeout/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T18:31:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-2026-07-11-b2-closeout/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4389,
+      "sha256": "bb69cf9f4500c03a584579e9924077a985fc3f6a0fe0bc1c478f39f313f04faa",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-10T18:31:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-2026-07-11-firewall-closeout/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6570,
+      "sha256": "659beea824ef6d70b8d992db0a33712b38bbbdb0a49da01ca4dda6400dfe2c4b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T05:40:08+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-2026-07-11-firewall-closeout/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5841,
+      "sha256": "436fbd198fb53bb8bc6429020dbe601a151cff17cf5a82f71251931bd9b85073",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T05:40:08+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-2026-07-11-firewall-closeout/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4368,
+      "sha256": "973389a98050a5001a912dacff8b173d5c206f844bbee17ed35aedff9c25397f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T05:40:08+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-2026-07-11-firewall-closeout/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T05:40:08+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-2026-07-11-firewall-closeout/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4473,
+      "sha256": "1162e773d2993e6b9c0dd3e47239cba66f6cd854ce480e82a675643eb1611a0c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T05:40:08+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-agent-e2e-npc-dev/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 13995,
+      "sha256": "f1c3677169b130423f4a0b3f94cfb070ed48535a379714676970b3a9dc4d3075",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T08:37:01+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-agent-e2e-npc-dev/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5654,
+      "sha256": "1454b80c82aa5559a3582b075b6fc766590aea5bbe1e15fcd026904b6acd3b6f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T08:37:01+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-agent-e2e-npc-dev/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4266,
+      "sha256": "a8454073c3936658d4c64a217b776d21eab91812c123442ac391964f4037ea64",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T08:37:01+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-agent-e2e-npc-dev/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T08:37:01+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-agent-e2e-npc-dev/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4319,
+      "sha256": "0f7625155685e9570363b0c240eacb61f7bc0fc5c1227d46ec28867e4624227c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T08:37:01+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-knife-b2-s2s3/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 2060,
+      "sha256": "39eb592ba37f7f545c2215817bb252fda4149b6347d541df7521102158c8080a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:31:42+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-knife-b2-s2s3/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 1712,
+      "sha256": "044b64ffd3432c2b12b4db4afb24ca7587d364b2de6d2610bf9cafdda996ef70",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:31:42+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-authority-evidence-final-npc-dev/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6579,
+      "sha256": "46c9993ccd9cbc5d4e8147748b72b1f153d38e00a40c62ec69005349aed18097",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T14:03:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-authority-evidence-final-npc-dev/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5994,
+      "sha256": "a31cbdeeaddbca39e0d61297915f52f6c4d5658f8d10e8cdabb2eff9288e424f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T14:03:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-authority-evidence-final-npc-dev/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4448,
+      "sha256": "53b25fd189e0e0b2186d4249bffcacff8c270bae8462b9f7852f2d7f43b01472",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T14:03:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-authority-evidence-final-npc-dev/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T14:03:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-authority-evidence-final-npc-dev/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4599,
+      "sha256": "4dc77784eb746fc29a4b6efbdc7cff7d02f11ae8fcbad1f62551468c324e6f90",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T14:03:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-doc-authority-refresh-agent-system/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 8982,
+      "sha256": "d462c0ea94e35af72c5e402ea454db1e5ac831d8c7cae096398a9f9684c212d4",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T08:38:20+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-doc-authority-refresh-agent-system/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5577,
+      "sha256": "e6f9abfd21b9a866dd0ba7ab19aca29f1ce84f704e63e7081a68adb82b586593",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T08:38:20+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-doc-authority-refresh-agent-system/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4223,
+      "sha256": "2586112c6c51f0614d9e958c0f2f7ee0b6a86a51698d79da4f0696e99d174f46",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T08:38:20+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-doc-authority-refresh-agent-system/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1673,
+      "sha256": "8b3d126d3085198342ff9baaf11ab584946588b0f3e6cb90887f03a220bfff7c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T08:38:20+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-doc-authority-refresh-agent-system/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4707,
+      "sha256": "eee1a8392c780006888eb729217ec97478e1a480e2607ff5ba9553ff8e06d867",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T08:38:20+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-doc-authority-refresh-npc-dev-final/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6582,
+      "sha256": "3806bb781b9d705523f49e1708ae6e9335a436b1f22fa87465cb29d61c0f8a8f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T08:49:44+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-doc-authority-refresh-npc-dev-final/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 6045,
+      "sha256": "59b363e8f362dd52c5fea485cc0ed6884da86b230e89a728c3f6d34c47b7af92",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T08:49:44+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-doc-authority-refresh-npc-dev-final/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4476,
+      "sha256": "7073daa20dd320a1b7bd3229942f721f9433702fc53f6a0718f8a71fa0147e42",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T08:49:44+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-doc-authority-refresh-npc-dev-final/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T08:49:44+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-doc-authority-refresh-npc-dev-final/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4641,
+      "sha256": "1ca9b488d2d6accfd5ff5086705523c4cf87ed6414e7d3f2e66625962e1937f3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T08:49:44+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-doc-authority-refresh-npc-dev-verified/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6585,
+      "sha256": "41c086cfc3a844c2a2a9bb3fb61f8abc91bfff9fbdd70696ccc3c746aca44c31",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T08:51:48+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-doc-authority-refresh-npc-dev-verified/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 6096,
+      "sha256": "60f9a4ad2824c885c3facb46309428ddb9d14b33c7196ccda501692b38bd2393",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T08:51:48+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-doc-authority-refresh-npc-dev-verified/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4503,
+      "sha256": "604ff5223ffb1babe562a8f56f5eee5faf09895eb6b6eab4d97a0ef898e25289",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T08:51:48+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-doc-authority-refresh-npc-dev-verified/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T08:51:48+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-doc-authority-refresh-npc-dev-verified/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4683,
+      "sha256": "9110cd609f995a3001b072969f1f8b127dfc3692debff68d757157f4df5665d8",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T08:51:48+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-f0-closeout-final-npc-dev/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6572,
+      "sha256": "2d23961593b35b3f93d5b80eeac847f1b95134ab81a4cdc2b5a5f2f0fdef541a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T13:57:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-f0-closeout-final-npc-dev/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5875,
+      "sha256": "b763b03f814491435ba2db8ecbc2c8f7743bbf352cef5261ff36605bfe22fa10",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T13:57:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-f0-closeout-final-npc-dev/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4386,
+      "sha256": "b36ca8383514ea24b0121946e192c4f38fe471fd0500007ff7db62fa4afa067d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T13:57:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-f0-closeout-final-npc-dev/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T13:57:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-f0-closeout-final-npc-dev/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4501,
+      "sha256": "0e1fed6a5eadd9aa4ef9dabe328927d83ece0fd91becff4d1a126ab2ce8ac3bb",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T13:57:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-f0-closeout-npc-dev/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6566,
+      "sha256": "7790d1e90c1c480514f37c263c6a508bb99c3ea40b37cbc92fcf3cbfe3c2117d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T13:46:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-f0-closeout-npc-dev/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5773,
+      "sha256": "6ef50c0187c26713852f7c50366b7d1ffdd06646011426cce990103f021ba78c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T13:46:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-f0-closeout-npc-dev/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4330,
+      "sha256": "51362b7d8d872b36ea170df2f388d45fdc04069d686d9e0937b15b63260abc2d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T13:46:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-f0-closeout-npc-dev/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T13:46:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-f0-closeout-npc-dev/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4417,
+      "sha256": "2e8e9d058cf73b42e6a01383b7a7f1acd9d9bd033b9fc86e2fcb3d660e214b26",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T13:46:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-f0-strict-guard-npc-dev/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6570,
+      "sha256": "7214ca163d15d7e4aff6c780178491e61fe1c2e84aef4a33c5d054843360cc4b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T13:33:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-f0-strict-guard-npc-dev/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5841,
+      "sha256": "87a1c0141d7705c45bd487d575b7f96508de7f94a22d0587d775779cad4d2d83",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T13:33:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-f0-strict-guard-npc-dev/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4368,
+      "sha256": "028c8353f0afbefb985dc5bb1a47640d73adb510c1698435b6bc8466215f6517",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T13:33:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-f0-strict-guard-npc-dev/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T13:33:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-rv64-f0-strict-guard-npc-dev/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4473,
+      "sha256": "d91e0b5dcf5785e0c712077b7e146438182e925d480d8f94f89309b60b079d01",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T13:33:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-artifact-final-agent-system/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 8983,
+      "sha256": "f57728f4bb2bf4b811a4cbe26f42e8f5538066d1f567d86f8b61603d25d62a45",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:43:32+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-artifact-final-agent-system/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11563,
+      "sha256": "69680737b2a23a375e34f704376f85846d1fda225a95de5051ab242427ef5eb4",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:43:32+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-artifact-final-agent-system/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 7469,
+      "sha256": "f3f9b9dc22a1daf0975481ae54683b778f9d72741da68507382bedf01c4424d4",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:43:32+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-artifact-final-agent-system/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1673,
+      "sha256": "8b3d126d3085198342ff9baaf11ab584946588b0f3e6cb90887f03a220bfff7c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:43:32+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-artifact-final-agent-system/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6361,
+      "sha256": "01a7cfeed03c6f69b5b7bc33bf48b9a7ef46926bb704b35910896c950071e6ef",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:43:32+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-artifact-final-npc-dev/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6577,
+      "sha256": "bc22f8d867dd8cd1ad5d2b998ca2aee916b3e532138baec818deaca5fddd97da",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:43:42+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-artifact-final-npc-dev/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5960,
+      "sha256": "246101d7c80b810c4f79520526df71bb28486eeee5b437525fcdd16f4d409240",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:43:42+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-artifact-final-npc-dev/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4430,
+      "sha256": "8da84a0dc11646182911fd32bb1c02438c1b46f343c96290c5740496f3285272",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:43:42+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-artifact-final-npc-dev/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:43:42+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-artifact-final-npc-dev/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4571,
+      "sha256": "1a7b438383e63205278c42fd969c35668d6493980cba1869a210f1888a236556",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:43:42+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-artifact-fix-npc-dev/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 6575,
+      "sha256": "54eadd3c505298d4a143fdb9d941fcd275280c232931674ac38e57f087b5bc0a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:32:41+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-artifact-fix-npc-dev/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5926,
+      "sha256": "292625494768c7fb9123908ec5d5cd1042e8d44c1d20be0f0a1769fcf3e4ff69",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:32:41+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-artifact-fix-npc-dev/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4413,
+      "sha256": "9aa18b483210ca8a2ae3167ebe40322fa1772889cce9d3a17be5a5daf4fe95e4",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:32:41+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-artifact-fix-npc-dev/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:32:41+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-artifact-fix-npc-dev/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4543,
+      "sha256": "824ba559facc68fdcade21292a5156ad3f6e67c866f67956c26828f8d8f497c2",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:32:41+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-artifact-lifecycle-fix/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 843,
+      "sha256": "24dd22a612f60d78b834095fff5230850860f8d6e783db759221f6edb1b67473",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:42:55+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-artifact-lifecycle-fix/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 824,
+      "sha256": "15ea34f1215f3877e85de88ac0421b2377f214068afa307219b85fa71b32e97b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:42:55+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-artifact-lifecycle-fix/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 2327,
+      "sha256": "026d483c744e95cbf286f37cb436ca94332483d2397f9885923dbf3408076700",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:42:55+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-artifact-lifecycle-fix/implementation-plan.md",
+      "kind": "task-run",
+      "size_bytes": 3326,
+      "sha256": "3f450325c96e8489434573844408939ad10cd5fbc25bc7a73b9b1045c664eade",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:42:55+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-artifact-lifecycle-fix/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 522,
+      "sha256": "7a5cb64e2295265a8ed07fc7961c08199862113e939b84e259a3172b6a90650e",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:42:55+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-artifact-lifecycle-fix/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 1109,
+      "sha256": "d85b3a0f36eac77b1eb368bfc099012362abfd9c0337b194406975f5641e4ef2",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:42:55+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-runtime-artifact-boundary/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 8981,
+      "sha256": "b23af93f623879bcf73e627d37e52430a56c1eb0d87ad67a68872130811a4dd0",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:32:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-runtime-artifact-boundary/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11513,
+      "sha256": "a6ab944eea716de36c49aff830f2de2cb95b9595c7e5b51424346396c20a90db",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:32:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-runtime-artifact-boundary/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 7444,
+      "sha256": "d7f0744ecd1a472b5af5c57a20fe2fc6c712f9ed7fb7d22e9d2b69332c0c0307",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:32:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-runtime-artifact-boundary/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1673,
+      "sha256": "8b3d126d3085198342ff9baaf11ab584946588b0f3e6cb90887f03a220bfff7c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:32:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-runtime-artifact-boundary/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6325,
+      "sha256": "23b6142662779b415334d58a5a9b47e71261926d5c164c179f4c225315d73f73",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T10:32:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-semantic-freshness-agent-system-2/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 11526,
+      "sha256": "99811c930b3e4a5338670b273a70c0ad4c8fadc9e72b2de8f817325e007c3052",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T15:59:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-semantic-freshness-agent-system-2/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11711,
+      "sha256": "fb2ad567371f3abd33bac0f08e4b8230efab3788e92bca35d1eabb85bc87dbe9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T15:59:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-semantic-freshness-agent-system-2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 6233,
+      "sha256": "84a08039807f389319efb386220b3530a9fe792fa00f8684a5d1cc78a83da442",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T15:59:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-semantic-freshness-agent-system-2/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1673,
+      "sha256": "8b3d126d3085198342ff9baaf11ab584946588b0f3e6cb90887f03a220bfff7c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T15:59:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-semantic-freshness-agent-system-2/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6467,
+      "sha256": "b4f60450daa82a6b197753330944928684a15c0ccd84ce298b14fe788fc52419",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T15:59:31+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-semantic-freshness-agent-system/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 10119,
+      "sha256": "189ca0e19ad7d965f09115e9c23b4174934fa025bdf755ae33c2e6c2f52c7198",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T15:58:19+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-semantic-freshness-agent-system/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11663,
+      "sha256": "17386c792368730f8312df9879d733799f545c7219224fe2bb909b63d2e55af0",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T15:58:19+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-semantic-freshness-agent-system/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 6213,
+      "sha256": "fb91fb3318a8e78fc41a4f81b950888414708ea296fcc66ed11f699c98bb22c5",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T15:58:19+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-semantic-freshness-agent-system/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1673,
+      "sha256": "8b3d126d3085198342ff9baaf11ab584946588b0f3e6cb90887f03a220bfff7c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T15:58:19+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-11-strict-guard-semantic-freshness-agent-system/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6433,
+      "sha256": "cfff5f6686d603c124a351ddb60075a5feba55b41bb651e1c83556796cc20f94",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T15:58:19+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-strict-guard-memory-history-restore-agent-system/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 10123,
+      "sha256": "557bef3e5adb6754368f530270cbf837aaf41b3b2f14c900c29afa95a8a78138",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T16:32:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-strict-guard-memory-history-restore-agent-system/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11763,
+      "sha256": "33741d1a9f2354d865e1eaf3ec5d4e79575b28e89811aee0d210434cbe00e145",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T16:32:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-strict-guard-memory-history-restore-agent-system/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 6257,
+      "sha256": "08eb7137237ea4b652594317cac9a8ad169229cdcb85d6fd0fc59b5cf377c63d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T16:32:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-strict-guard-memory-history-restore-agent-system/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1673,
+      "sha256": "8b3d126d3085198342ff9baaf11ab584946588b0f3e6cb90887f03a220bfff7c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T16:32:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-strict-guard-memory-history-restore-agent-system/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6505,
+      "sha256": "3b1d9ebe39dbb7414779a9481e6ed7a61aeb484a367a7085ce1fc1310f399ec7",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T16:32:09+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-strict-guard-semantic-freshness-agent-system-2/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 11679,
+      "sha256": "1355e3375458a009207a042787ce0be72f6d1edbc00c77600e2a9a90b55c6f24",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T16:03:49+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-strict-guard-semantic-freshness-agent-system-2/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11711,
+      "sha256": "6f751b26dde6d7c882be738573e6d7584279bb62e940e88d7ed2dc2452761c48",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T16:03:49+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-strict-guard-semantic-freshness-agent-system-2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 6233,
+      "sha256": "e996c1962d7c230679c4ac50e756eac7f03e6032f8f9637a57c64731a65f860a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T16:03:49+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-strict-guard-semantic-freshness-agent-system-2/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1673,
+      "sha256": "8b3d126d3085198342ff9baaf11ab584946588b0f3e6cb90887f03a220bfff7c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T16:03:49+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-strict-guard-semantic-freshness-agent-system-2/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6467,
+      "sha256": "2e57ebe189b6b66d2c71ae92448446eefbcb32efa776e857c55cdc8bf55bf46f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T16:03:49+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-strict-guard-semantic-freshness-agent-system-3/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 11679,
+      "sha256": "1355e3375458a009207a042787ce0be72f6d1edbc00c77600e2a9a90b55c6f24",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T16:16:34+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-strict-guard-semantic-freshness-agent-system-3/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11711,
+      "sha256": "3128cb29c6f63873ef8d00adaca86ed488603fb1ee28638ee5e03f053adcaa31",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T16:16:34+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-strict-guard-semantic-freshness-agent-system-3/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 6233,
+      "sha256": "0877ca336e33e4ccca5ad8a40ed20972db35ec6b4fea9c460e609189af7fa940",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T16:16:34+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-strict-guard-semantic-freshness-agent-system-3/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1673,
+      "sha256": "8b3d126d3085198342ff9baaf11ab584946588b0f3e6cb90887f03a220bfff7c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T16:16:34+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-strict-guard-semantic-freshness-agent-system-3/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6467,
+      "sha256": "ccb7dc889dcb42886202e1da89177be8daa78ce7ba250c0174472587671c5177",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T16:16:34+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-strict-guard-semantic-freshness-agent-system/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 11679,
+      "sha256": "1355e3375458a009207a042787ce0be72f6d1edbc00c77600e2a9a90b55c6f24",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T16:00:41+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-strict-guard-semantic-freshness-agent-system/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11663,
+      "sha256": "95e115f3d7701c12678c16ba0ae1abf9876b54173c4b750036337c30a539d4cc",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T16:00:41+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-strict-guard-semantic-freshness-agent-system/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 6213,
+      "sha256": "dc809e6cb94eba644a2947739476c262f101aab5cd71e01fd38b22e47552d813",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T16:00:41+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-strict-guard-semantic-freshness-agent-system/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1673,
+      "sha256": "8b3d126d3085198342ff9baaf11ab584946588b0f3e6cb90887f03a220bfff7c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T16:00:41+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-strict-guard-semantic-freshness-agent-system/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6433,
+      "sha256": "086abe166aa8b17b997d04d508e2da207bb94f26da0cb839bf15e499a593c1d9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T16:00:41+00:00"
     }
   ]
 }

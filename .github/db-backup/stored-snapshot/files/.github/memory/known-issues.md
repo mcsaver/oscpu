@@ -31,7 +31,17 @@
 - **建议修复顺序**: 下一步按 `yosys-macro-boundary-contracts.md` 逐项推进真实 timing/area/OOC：`OooFetchPacketCache`、`OooDataWordCache` 与 `OooBranchDirectionPredictor` 已有 dedicated spec/checker 与 placeholder v0，后续应转为真实 SRAM/Liberty/LEF macro model 或 OOC timing report，并把 top-level STA 对 blackbox input/output delay、area、power 的假设列入 task-run；`OooFpArithGate` 已有 decision placeholder v0，后续应产出 full-module OOC timing report，或形成 Mul/FMA production child split/top constraints。同时，iEDA active blocker 已从 parser 方言后移到 `StaDataPropagation` 长尾，需继续拆解为什么 `2400s` 未生成 `NpcTop.rpt/.pwr`。每次修改宏边界合同后跑 `python3 yosys-sta/scripts/check_macro_contracts.py`，涉及 BPU/Fetch/D-cache/FP placeholder 时分别追加 `python3 yosys-sta/scripts/check_bpu_macro_contract.py` / `python3 yosys-sta/scripts/check_fetch_cache_macro_contract.py` / `python3 yosys-sta/scripts/check_dcache_macro_contract.py` / `python3 yosys-sta/scripts/check_fp_arith_macro_contract.py`；进入 iEDA 前追加 `python3 yosys-sta/scripts/check_ieda_netlist_compat.py`。`debug/` 与 `common/` 的作用之一是审核 RTL 是否符合 spec 语义；上述边界优化必须用 facts/checker/TB 审核 predictor update/predict、cache hit/invalid/fill、B-FP meta、kill age、redirect/facts 与 fflags 对齐语义。不要因 contract checker PASS、PmpChecker/MulDiv/AddSub/internal cone OOC PASS、BPU/Fetch/D-cache/FP placeholder checker PASS、iEDA netlist preflight PASS 或四黑盒网表产出越级宣称全顶 STA-ready。
 - **证据**: `.github/task-runs/2026-07-07-yosys-rv64-synth-probe/`；`.github/task-runs/2026-07-07-yosys-fetch-packet-cache-valid-next/`；`.github/task-runs/2026-07-08-yosys-pmpchecker-range-share/`；`.github/task-runs/2026-07-08-yosys-fetch-cache-index-config/`；`.github/task-runs/2026-07-08-yosys-fp-arith-gate-ooc/`；`.github/task-runs/2026-07-08-fp-arith-cone-ooc/`；`.github/task-runs/2026-07-08-fp-arith-internal-cones/`；`.github/task-runs/2026-07-08-fp-arith-macro-decision/`；`.github/task-runs/2026-07-08-ieda-netlist-compat/`；`.github/task-runs/2026-07-08-npctop-cache-fp-blackbox-syn/`；`.github/task-runs/2026-07-08-npctop-cache-data-fp-blackbox-syn/`；`.github/task-runs/2026-07-08-npctop-cache-data-fp-bpu-blackbox-syn/`；`.github/task-runs/2026-07-08-yosys-sta-flow-versioned/`；`.github/task-runs/2026-07-08-yosys-macro-boundary-contracts/`；`.github/task-runs/2026-07-08-data-word-cache-semantic-contract/`；`.github/task-runs/2026-07-08-data-word-cache-macro-placeholder/`；`.github/task-runs/2026-07-08-fetch-packet-cache-macro-placeholder/`；`.github/task-runs/2026-07-08-branch-direction-predictor-macro-placeholder/`。
 
-### [111] rv64 全 RTL 重读定死的正确性缺口家族(2026-07-03, 4 项硬缺口+合规清单, 均未修)
+### [113] RV64 代码优先复审重新打开接口合同与验证聚合缺口（2026-07-11）
+
+- **模块**: NPC / RV64 OoO / frontend-control-memory contracts / regression result aggregation
+- **范围更正**: [111] 的“4/4 全修、已知正确性缺口清零”只表示 2026-07-03 当时登记的四项家族已关闭，不能解释为当前 RTL 的全部正确性合同永久清零。2026-07-11 代码优先复审在后续 RTL 上重新登记 FDG-G1、XRET-G1、IFU-AXI-G1、IFU-FETCH-G2、PTW-PMP-G1、MIQ-G1、INSTRET-G1；证据等级和可达性边界见 current snapshot。
+- **验证聚合缺口**: `perf/results/20260711-125729/module-testbench/summary.txt` 写 86/86 PASS，但 `tb_ooo_control_commit_sequencer.log`、`tb_ooo_pending_system_sequencer.log`、`tb_ooo_stop_pending_sequencer.log` 均先出现 FAIL 与 `$finish(1)`，随后仍输出 `[RESULT] PASS`。`core-regress/20260711-133547-973361/am-cpu-tests.log` 列出 59 项，实际 58 PASS、`fp-difftest-probe` FAIL，但上层仍写 AM PASS / `overall_rc=0`。
+- **可采信边界**: 同轮 177 项 official riscv-tests 有逐项 PASS 记录；module 86/86 与 AM PASS 只能称“摘要文本”，不能作为全绿证明。当前 `.config` 未开启 Difftest。
+- **F0 已解决（2026-07-11）**: module checker 已同时核验 compile/sim rc、测试自身精确 PASS、failure marker、error count 与失败型 `$finish`；AM checker 已拒绝 FAIL/缺项/重复/未知/损坏行并上传 rc。三个 sequencer TB 已按 current contract 更新。`OooFpBackend` 的 FPR busy/bypass/wakeup/write 已统一使用 `valid && frd`，GPR 目的 FP completion 不再因 preg 数字别名误唤醒 FPR。新鲜结果为 module 86/86、AM 59/59（`fp-difftest-probe` 明确 Difftest ON）、official 177/177、strict guard PASS。因此本条中的“验证聚合缺口”和 FP 域资格问题已关闭；FDG-G1/XRET-G1/IFU-AXI-G1 等 F1 接口合同仍保持活跃，本条不能整体移入已解决区。
+- **稳定教训**: integer preg 与 FPR preg 即使数值相同也属于不同寄存器域；任何 busy clear、source bypass、wakeup 或物理寄存器写使能都必须带 destination-domain qualifier，不能只用 completion valid。
+- **当前权威与证据**: `npc/rv64/design/arch/rtl-ground-truth-2026-07-11.md`、`npc/rv64/design/arch/rv64-200mhz-completion-design.md`、task-run `2026-07-11-rv64-f0-truthful-regression`。
+
+### [111] rv64 全 RTL 重读定死的正确性缺口家族(2026-07-03 定死; 2026-07-06 已 4/4 全修+合规批闭合)
 
 - **模块**: NPC / RV64 OoO 核 / 取指包 cache / 数据桥 / difftest
 - **背景**: 全 RTL 从零重读(9 路审计+矛盾裁定+追问形式化验证, task-run
@@ -44,7 +54,8 @@
   ①的 **#3A 8B 足迹漏失效已修**(700c9e894, same_fetch_window +3→+7 + 邻域补 p4/p6, packet cache 模块 TB 证否)、
   ①的 **#3B fence.i 真 flush 单列**(6-8 模块=CTRL_BUS_W 扩宽 + 复制 sfence pending_system 提交路径, 覆盖"投机越
   fence.i 已入 ROB 的年轻改写指令"、与 #3A 部分冗余、无测试可验、fence.i 罕用故 perf 影响小, 设计推荐评估后单做
-  ——**当前唯一剩余的已知正确性缺口**)。合规清单: wfi-TW/zb-overwide(ed96f679e)、frm-DYN(700c9e894)全修;
+  ——~~当前唯一剩余的已知正确性缺口~~ **[2026-07-08 校正] 该句已过时：#3B 已于 2026-07-06
+  root-cause 修复(21252d2cb, 见本条进度行开头), 修后已知正确性缺口清零**)。合规清单: wfi-TW/zb-overwide(ed96f679e)、frm-DYN(700c9e894)全修;
   理论风险 DirectBranchResolveGate issue 臂 tie-off 亦已做(fece978e6)。以下原文保留供追溯。
 - **①SMC/fence.i 洞(结构性, 软件无法规避)**: 取指包 cache 逐 store 失效把 store 足迹硬编码 4 字节
   (`OooFetchPacketCache.v:61-82` 谓词+index 扫描集双重排除), 对齐 8B store(sd/FSD/SC.D/AMO*.D)
@@ -365,8 +376,12 @@
 - **验证**: `py_compile` PASS；`bash -n scripts/e2e/modules/github_index.sh scripts/agent-e2e.sh` PASS；`.github/task-runs/2026-06-22-2026-06-22-db-doctor-unrelated-history-shim-fix/` 的 `github-index` profile PASS，日志含 `PASS github-index doctor hides historical task-run drift in default output`、`PASS github-index doctor hides old agent shim stale drift in default output` 和 `PASS github-index doctor default read path avoids WAL write lock`。
 - **教训**: agent/e2e 合同也必须遵守代码所有权边界。历史 manual log/旧 shim 可以作为 diagnostics 保留，但合同错指文件属于当前环境 bug，必须修合同并 rerun，不能靠口头说明“和本轮无关”跳过。
 
-### [84] NPC RV64D 缺 FMA 导致 full Ubuntu `plymouth` SIGILL（未修）
+### [84] NPC RV64D 缺 FMA 导致 full Ubuntu `plymouth` SIGILL（已修：FMA 已落地）
 
+- **【2026-07-08 状态校正】**: 标题原写"未修"已过时——`FMADD/FMSUB/FNMSUB/FNMADD.{S,D}` 已在
+  `OooFpArithGate.v` 以 fused 单舍入实现并 difftest bit-exact 对齐 NEMU(SoftFloat)；[96] 后续
+  full-login 负向扫描确认 plymouth SIGILL absent，前沿已推进到 post-generator systemd/userspace。
+  以下原文保留供追溯。
 - **模块**: NPC / RV64 ISA / FP/FMA / Ubuntu 22.04 full login path
 - **现象**: preseeded full-login run `npc-systemd-login-full-generators-enabled/` 已跳过旧 `Create System Users` 前沿，但在到达 `__NPC_LOGIN_CHECK_DONE__ rc=0` 前出现 `plymouth[64]: unhandled signal 4`，dmesg/console 给出 `badaddr: 0000000072f57543 cause: 2`。同一 run 仍停在 2.5B-cycle 预算内，`cycles=2500000000`、`commits=1248307994`、`run.rc=2`。
 - **根因定位**: 对 full-login rootfs 中 `usr/lib/riscv64-linux-gnu/libply.so.5.0.0` 反汇编，fault offset `0xc7b4` 对应 `fmadd.d fa0,fa0,fa5,fa4`。这说明当前失败不再是 UART、`/dev/ttyS0` unit dependency 或 sysusers 预算，而是 NPC RV64 FP 指令面缺 FMA。
@@ -976,8 +991,12 @@
 - **修复**: 暂未修复；可选方向是为 perf/legacy 仿真保留精简 5-slot 地址图、把未实现窗口合并到单 default stub，或重写 crossbar 为层级/区间优先译码，避免每拍扫描所有预留窗口。
 - **教训**: 为未来 SoC 预留地址窗口也会改变仿真模型的热路径复杂度；功能兼容改动如果落在每拍组合逻辑上，需要同步做 host 仿真性能 A/B。
 
-### [23] 本机缺少 `oss-cad-suite/bin/yosys`，RTL cache 接入后的综合/STA 尚未复跑
+### [23] 本机缺少 `oss-cad-suite/bin/yosys`，RTL cache 接入后的综合/STA 尚未复跑（工具链已就位）
 
+- **【2026-07-08 状态校正】**: "本机缺少 oss-cad-suite"前提已过时——工作区已接入完整
+  oss-cad-suite(`oss-cad-suite/bin/{yosys,iverilog,vvp,...}`)，rv64 侧 Yosys→iEDA 流程已在
+  known-issues[112] 主线活跃使用。剩余未闭合部分仅为 npc/single 侧 cache 接入后的综合/STA
+  复跑（由 [15] 等 PPA 线跟踪）。以下原文保留供追溯。
 - **模块**: NPC / Yosys-STA / 环境
 - **现象**: `make -C npc/single syn-check-env` 直接失败，提示缺少 `/home/lyg/PA/ysyx-workbench/oss-cad-suite/bin/yosys`；因此本轮 ASIC 层级 I/D cache 接入后只完成了 Verilator lint/build 与 difftest/benchmark 功能验证，未产生新的综合网表、时序、面积、功耗报告。
 - **根因**: 当前工作区期望的 oss-cad-suite 工具链路径不存在或未安装，`npc/single/Makefile` 的综合入口检查在进入 Yosys 前终止。

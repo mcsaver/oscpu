@@ -17,6 +17,26 @@
 
 ## 架构决策
 
+### [39] 编码/状态机化 ≈ 面积中性 → Debug 两分类 + 状态机编码值得性判据
+
+- **日期**: 2026-07-06
+- **状态**: 已决定（方案层），未落地
+- **上下文**: 从"把 flush 契约断言内嵌进可综合 `.v` 是否违背'底层可综合核 / 顶层仿真核'分离理念"的质疑出发，讨论把控制状态编码化的成本效益。用户担忧全核状态编码 = 大改 + 增面积功耗 + 无性能收益。
+- **决策**: 三点。① **编码 ≈ 面积中性**: 纯组合仲裁的编码是重命名（综合 flatten + 布尔优化消掉中间 wire / encode-decode 对，门级网表逐门一致，EDA 自动解决）; 真 FSM 的状态编码不增寄存器（信息量守恒前提，`fsm_recode` 自动权衡 binary/one-hot）; 悬空 debug 端口被 DCE（可慷慨引出，例化不接 = 零面积）。故"是否值得"不是 PPA 问题，而是"重构工作量 + 重写引 bug 风险 ⟷ 可读/可维护/可验证收益"的软件工程问题。② **Debug 两分类，物理归属不同**: (1) 符合 spec 的 FSM 转移验证接口 → `.sv` checker → `SIM_TOP_SRCS`（DCE 零面积）; (2) 开放给 OS 的内部信号 → 可综合 debug IP（RISC-V Debug Module/HPM/trace）→ `RTL_CORE_SRCS`（面积必要）。③ **状态机编码值得性判据**: 第一刀 = 真 FSM（跨拍转移）vs 无记忆组合仲裁——后者只配 observability 投影，不做状态机化; 值得编码的是"真 FSM + 非法态致命 + 多 reg 交织 + 跨模块共享 + 持续演进/反复出 bug"的热点。
+- **理由**: 编码零面积论证把面积从天平移除，使决策清晰化。两分类避免把仿真验证信号误塞进硅。判据防止把 architecture-first 误读成"全核强制编码"（那才是用户担忧的大改 + 无收益）。
+- **影响**: 后续 debug/observability 落地按 `npc/rv64/design/specs/ooo-debug-observability-architecture.md`; `interface-contract-first.instructions.md` 将补端口约定 + 判据（只规范真 FSM 热点，非全核强制）。关键 caveat: **Moore/Mealy 一致性**（状态机化勿改 cycle 行为，difftest 会抓）; **零面积重命名 ⊥ 非法态收紧**是张力（分清哪块拿零面积、哪块拿 bug-prevention）。`redirect_status` 探索已回滚（redirect 是无记忆组合仲裁、非 FSM，选错样板；枚举设计记档备将来 observability 重建）。本决策的前半段（GAP-3/7 内嵌断言落地、baseline 7→9、回归全绿恒静默）属 flush GAP 收口延续，见 project-status。
+
+### [38] rv64 核采用 architecture-first（接口/控制契约先行），缺口主要是"强制装置"而非文档
+
+- **日期**: 2026-07-05
+- **状态**: 已决定
+- **上下文**: 对 21 个历史调试会话（约一周，总编译 1353 / 跑测 916 / 改代码 1428 次）做元复盘，追问"为什么 debug 慢、为什么有 spec 仍反复出 bug"。发现 debug 慢一半是 RTL 媒介固有（改一行≈重编一次整仿真器，Edit/COMPILE=1.06；bug 常要跑 3.2M 指令才现形），一半是流程（安全网掩盖真因、量具噪声）；"有 spec 仍出 bug"的根不在 spec 质量——54 个 bug 中 spec 本身写错仅约 14%，"spec 对但无可执行护栏"占多数。用户进一步诊断根因是一开始 RTL-first、没写明 stall/flush 等控制契约。
+- **决策**: rv64 后续按 architecture-first 推进，但把"datasheet 先行"精确为"接口/控制契约先行"——先冻结六类可判定跨模块契约（握手 / 反压 stall 单向 DAG / flush「谁清谁保持」表+优先级全序 / 异常序 / 访存序 / 投机恢复单一真源），再写改块内 RTL。承认核心缺口是"强制装置"（回归覆盖 + 可执行检查 + 加深金模型）而非文档：契约缺失是最大一族但占不满一半，近一半 bug（跨模块涌现 + 纯译码/数值/harness 噪声）写再多契约也防不住。
+- **理由**: 单模块 spec 挡不住跨模块涌现；散文契约不会自动报警；实现会悄悄偏离且无护栏。防住 bug 的是把契约转成连续运行的可执行检查，不是更多文档。是 [19]（根因非补丁）在架构层的延伸、[18]（产物与记忆分层）的方法论化；业界并非纯瀑布，正确姿势是"契约冻结 + 受控迭代"。
+- **落地约束（已复核）**: 全核 SVA 时序断言命中 0、Verilator flags 无 `--assert` → 断言须用立即断言 `always @(posedge clk) if (违约) $error(...)`（iverilog + Verilator 通吃），不能用 `|->`/`$stable`；两种烂法须防（真空通过 / 照 RTL 写的同盲区）。`design/arch/ooo-core-architecture.md` C7/§7 自认"≥12 redirect/flush 源、≥5 汇合、无统一优先级链" → flush 是结构缺陷，应局部重写成单点优先编码仲裁器（true by construction），而非"加表 + 挂断言"。判据：非法状态随源数组合爆炸且无单一收敛点 → 重写；边界清晰状态小 → 立即断言够。`design/arch/SPEC-TEMPLATE.md` §2/§3 已是正确契约骨架但 specs/ 从没填过一次。
+- **本周最小起步**: ①`rv64ua/uf/ud` 加进默认回归（近一半涌现 bug 唯一现实拦截网，零成本）；②30 分钟 `--assert` 立即断言探针验证工具链能否走"契约转可执行检查"。大表 / flush 重写排其后。
+- **影响 / 完整分析**: 后续 rv64 bug 修复与新模块开发应先答"该模块什么条件 stall、flush 来时清谁保持谁"再写逻辑；完整两份报告 + 证据见 `.github/task-runs/2026-07-05-rv64-debug-methodology-reflection/`，auto-memory `rv64-architecture-first-reflection`。
+
 ### [37] 软件开发全流程采用独立 `software-flow` agent
 
 - **日期**: 2026-06-09

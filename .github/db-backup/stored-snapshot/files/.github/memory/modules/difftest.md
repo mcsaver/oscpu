@@ -2,6 +2,57 @@
 
 ## 当前状态
 <!-- DiffTest 配置与通过情况 -->
+- 2026-07-07: **ROADMAP/serialize 文档已按 full-state difftest 现状校正**。过期叙述“difftest 不比 CSR/CSR 侧盲区”已从当前决策链移除；真实状态是 NPC↔NEMU 已比较 GPR/PC、确定性 CSR+priv、FPR、fflags/frm，并对 xret/fcvt/FS、counter、异步中断等按既有策略 skip/sync/mask。本轮只同步注释与文档，不改变 compare 逻辑；B7 后续可在该金标准护栏下推进 flag ON，但仍需 Linux smoke 与 `-v-`/full-state 覆盖。验证：`make -C npc/rv64 -j2` PASS，`make -C npc/rv64 check-contract` PASS。
+- 2026-07-07: **ssvnapot/Svnapot 覆盖边界已闭合**。此前完整 riscv-tests 全状态 difftest 记录的唯一真扩展范围分歧是：NEMU 已按 sail-rv64-max 实现 Svnapot 64KiB NAPOT leaf，NPC 对 leaf PTE.N=1 仍 reserved fault；两侧各自合规但扩展范围不同。本轮 NPC 补齐同等 Svnapot 64KiB 行为后，`rv64ssvnapot-p-napot` 在 NPC+NEMU full-state difftest 下 TOHOST PASS（cycles=448/commits=171），说明 instruction/data PTW、TLB hit 复核与 NEMU reference 的 Svnapot 行为已锁步。注意 riscv-tests vendored 目录已去 `.git`，旧 `npc-rv64-core-regress.sh --riscv-tests-dir` 会把它识别为“checkout not found”而 SKIP；本轮用 `nm` 读取 tohost + `objcopy` 生成 bin 后直接运行 NpcSimTop。**（2026-07-08 已修：脚本存在性判据从 `.git` 改为 `isa/Makefile`，`--riscv-tests` 恢复可用，riscv-tests 177/177 复验全绿。）**
+- 2026-07-07: **golden guard 逐个修分歧(3 项, commit 8edf35e4f/9e362d965/66e25b53a)——解锁 riscv-tests FP 全状态 difftest**。全状态 difftest 就位后作为持续 golden guard 逐个暴露并修 NPC↔NEMU 分歧, 一切以官方 RISC-V spec 为裁决: **(1) CSR 0x744(mnstatus)**——RV64 NEMU 取 illegal(未实现 Smrnmi, spec-correct), NPC 假 no-op(RV32 时代遗留)→ 移除 no-op 匹配(自主 trap 恢复兜底)。**(2) mstatus.FS mask**——rv64ud-p-recoding 暴露 FS 分歧, root-cause=第一条 FP 指令(fld)与整数指令双提交, FS-dirty 副作用 NBA 下一拍才可见, 同拍快照看不到; spec 明确允许 FS dirty 追踪不精确 → mask FS[14:13]+SD[63](似 mcycle 掩码)。**(3) ★FPR shadow**——FS mask 后暴露 FPR 同源 co-issue 时序 artifact(fld f0 ref=-inf dut=0); 根本修=FPR shadow(对称 GPR): FP 写复用整数 commit 的 rd_data/rd_addr(=FP 结果/addr, OooIntBackend:2515), 加 is_fp flag → cpu-exec shadow_fpr[rd]=rd_data 逐提交精确, 且 FPR 从延迟比较**移到直接比较**(shadow 是 post-K 值似 GPR, 非 arch-snapshot 的 post-(K-1))。**验证**: rv64uf/rv64ud FP 全状态 difftest 从全 FAIL → **20/21 PASS**(含 recoding/fcvt/structural co-issue 全修); 全套 AM **56 GOOD**; 非-difftest core-regress overall_rc=0 无回归。剩 rv64ud-p-move=独立 bin 加载问题(TOHOST FAIL pc=0x0)非 difftest。注: 阶段2 旧 arch-snapshot FPR 通道(npc_arch_fpr_event/diff_fpr_snap)保留但弃用(冗余 XMR 可清理)。
+- 2026-07-06: **RV64 difftest 全状态扩展 阶段2/3/4 落地(commit 199aeebbc + d67754c3b)**。**阶段2 FPR**:
+  独立通道(对称 CSR)——NEMU `difftest_fpr_snapshot(fpr[32])` + NPC 每 commit 拍 XMR 读 arch FPR(深路径
+  `u_ooo_core.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend.u_fp_backend.arch_fprs_flat_w`,
+  32 scalar DPI)+ 延迟一拍比较。★验证: 全套 rv64uf/rv64ud FP 计算 FPR 误报=0(含双提交 FP,全 TOHOST PASS),
+  fp-difftest-probe 注入分歧被正确抓。**阶段3 掩码**: 比较改 `kCsrCmpList` 选择性索引=确定性 CSR[0..16]
+  + fflags/frm 纳入; mie/mip/mcycle/minstret 排除。**阶段1.5**: 确认 skip-xret 是正确处理(xret 的 CSR
+  效果在下一条验证), 非临时缓解。**阶段4 中断同步**: NPC 取异步中断(csr_trap_irq)补报 `npc_handled_trap_event`
+  kind=2 → cpu-exec 登记 pending → difftest.cpp【集成进自主 trap 恢复】: control-flow mismatch 时若 NPC
+  报了中断则让 NEMU `difftest_raise_intr(mcause)`(NPC 主导时刻)否则 exec faulting——统一处理异常(faulting
+  不 commit)+中断(异步指令边界取)。**验证**: 4 个异步中断(plic-sirq/uart-plic-sirq/sbi-timer/sbi-ipi-reset-hsm)
+  从 ABORT → HIT GOOD; 全套 AM 全状态 difftest **GOOD 51→56**(阶段1→item5→阶段4)。剩 3 ABORT:
+  fp-difftest-probe(故意 probe 预期 abort)+ counteren-time/misa-priv(counter/misa 读值 GPR 分歧, golden
+  guard 暴露的真分歧逐个修 backlog)。非-difftest core-regress overall_rc=0 无回归。★**CSR golden guard
+  暴露真分歧 backlog**: CSR 0x744(mnstatus/Smrnmi)——NEMU 取 illegal trap、NPC 不取(NPC 未实现 CSR 的
+  illegal 检测缺口, 阻 riscv-tests difftest); counter/misa 读值差异。这些是全状态 difftest 作为持续
+  golden guard 的产出。
+- 2026-07-06: **misalign 策略对齐 + difftest 自主 trap 恢复(commit 0a399a878)**。消除 sv39-xpage-misalign
+  的 NPC↔NEMU 发散。**(1) NEMU 普通 load/store misaligned 也 fault**(对齐 NPC 硬件 LSUControl 的 addr%size):
+  rv64i.c `exec_rv64i_load/store` 入口按 `len=1<<(funct3&3)` 查 `addr%len` → CAUSE_LOAD/STORE_MISALIGNED
+  (tval=addr); fp.c `exec_rvf_load/store` 同; compressed.c 的 c.sw/c.sd/c.swsp/c.sdsp 改走 exec_rv64i_store。
+  AMO 已自查、页表 walk 走 dcache_peek(非 Mr/Mw)、decode_cache 取指走 Mr → 均不受影响(故不改 Mr/Mw 宏)。
+  **(2) ★difftest 自主 trap 恢复(通用 exception 同步, difftest.cpp)**: NPC 的 exception faulting 指令
+  【不 commit】(直接 trap 到 handler)→ difftest 收不到、NEMU 停在 faulting 指令 → dut handler 首条 commit
+  失配。修: control-flow mismatch 时让 NEMU exec(1) 执行 faulting 指令, 若同 fault 则 trap 到同一 handler(pc)
+  对齐、否则才真 mismatch, 并刷新延迟 CSR pending 为 trap 后 ref CSR。**通用处理任意 NPC 同步异常**(misalign/
+  page/access/illegal), faulting 指令的存在与 handler 入口由 dut commit 流隐式给出。**验证**: sv39-xpage-misalign
+  从 ABORT → HIT GOOD; 全套 AM 全状态 difftest GOOD 51→52; 剩 7 ABORT 全是其它类别(4 个异步中断 PLIC/timer/
+  SBI-IPI 需 difftest 中断同步 + counteren-time/misa-priv/fp-difftest-probe 各自), 非 misalign。52 GOOD 证
+  NEMU 对合法访存不误 fault。未改 NPC RTL, 非-difftest 不受影响。
+- 2026-07-06: **RV64 difftest 全状态扩展 阶段1 落地: CSR + priv 比较通道(commit f4e115fc8)**。在 gpr+pc
+  之上新增 **CSR+priv 比较旁路通道**(不动 regcpy 的 gpr+pc memcpy, 分阶段友好)。机制跨四层: NEMU
+  `isa_difftest_csr_snapshot`(dut.c 按固定索引扁平化 CSR+priv)+ ref.c 导出 `difftest_csr_snapshot`;
+  NPC NpcSimTop 每 commit 拍 XMR 读 u_csr_file → `npc_arch_csr_event` DPI(23 scalar); cpu-exec
+  `g_dut_csr_live`+CommitEvent.csr 快照; difftest.cpp 可选 dlsym(旧 ref.so 降级只比 gpr/pc)。阶段1 比较
+  索引 [0,17)(mstatus/mepc/mcause/mtvec/mtval/mscratch + S 态 + medeleg/mideleg/satp/mcounteren/
+  scounteren + priv)。★**两个 snapshot 时序修正(非功能 bug)**: (1)**延迟一拍比较**——每拍 XMR 读的
+  csr_*_q 因 CSR 写 NBA 在同拍 always_ff 读之后 → 滞后一拍, 用「当前 DUT CSR(上条写后) vs 暂存上条
+  ref CSR」抵消; (2)**skip xret**——mret/sret 的 mstatus/priv 更新时序与 csrw 不一致使统一滞后模型
+  失配(测试仍 HIT GOOD), 暂跳过 xret 比较点(阶段1.5 根本修=RTL 暴露 CSR next-state 组合 wire)。诊断开关
+  `NPC_DIFF_CSR_WARN`(每类分歧打印一次不中止)。**验证: ★零新增 abort** —— 全套 AM 全状态 difftest
+  GOOD=51/59; 剩 8 ABORT 全是 GPR/PC 层已有 control-flow mismatch(sv39-xpage-misalign=misalign 差待
+  对齐; counteren-time/sbi-timer/plic-sirq/uart-plic-sirq/sbi-ipi-reset-hsm/misa-priv/fp-difftest-probe
+  =timer/中断/SBI/FP 异步难对齐), CSR 字段全空(非 CSR 引入); sv39-ad-bits/ras-relocate 的 CSR+priv 全对齐。
+  非-difftest core-regress overall_rc=0 无回归。**剩: 阶段1.5(xret/trap 时序精化)+阶段2(FPR)+阶段3
+  (counter/mip 掩码)**。
+- 2026-07-06: **RV64 NPC↔NEMU difftest 验证 Sv39 HW-managed A/D 对齐成功**。NPC 已把 Sv39 A/D 从 SW-managed(缺失即 page fault)全面改为 HW-managed(Svadu, 对齐 NEMU) —— 数据侧 `020499a70` + 取指侧 `d3302ee9b` + 观测层 checker `6b5da3e99`。流程: 备份 NPC 三件套(.config/auto.conf/autoconf.h)+NEMU .config → `make -C npc/rv64 difftest-ref`(建 NEMU 参考 `nemu/build/riscv64-nemu-interpreter-so`, GUEST_ISA=riscv64 含 SoftFloat) → `sed CONFIG_NPC_DIFFTEST=y` + `tool/kconfig/build/conf --syncconfig Kconfig`(三处一致) → 构建 → `./build/NpcSimTop -i <bin> -b`(difftest 默认 on) → 恢复配置。**验证**: `sv39-ad-bits`(A/D 专测) HIT GOOD TRAP 全程锁步无 mismatch + `sv39-ras-relocate` + 5 compute 测试均锁步 → A/D 路径不再是 NPC↔NEMU 发散源。★**当前 RV64 difftest 比较范围仍是提交后 GPR/PC(DIFFTEST_REG_SIZE=33)**, CSR/FP 未比(step 4 待扩)。
+- 2026-07-06: **★difftest misalign 策略差(step 4 待处理)**: `sv39-xpage-misalign` difftest **发散** = control-flow mismatch(NPC 提交 trap 处理器读 mcause=6, NEMU 顺序执行)。根因 = **misaligned 普通访存策略差**: NPC 硬件对 misaligned load/store 取 fault(cause 4/6, spec 允许), NEMU 只对 AMO 查对齐(`nemu/src/isa/riscv64/inst/amo.c`), 普通访存 misaligned 经 `vaddr_read/write` 透明处理**不 fault**。**与 A/D 无关**(A/D 是 page-fault cause 13/15)。step 4 全状态 difftest 扩展前须先对齐 misalign 策略(令 NEMU 也 fault, 或 difftest skip misalign, 或测试避 misalign)。
+- 2026-07-06: **★config 备份/还原坑(再次踩)**: 启用 `CONFIG_NPC_DIFFTEST=y` 后备份/还原 NPC config **必须含三件套** `.config` + `include/config/auto.conf`(make 变量) + `include/generated/autoconf.h`(C 宏), 只还原部分会导致 auto.conf(=y)↔autoconf.h(off) 不一致 → difftest.cpp 编译又撞 header stub 假重定义(红鲱鱼)。修/验证用 `conf --syncconfig Kconfig` 从 `.config` 一致重生成; 三处 `grep DIFFTEST` 必须同号。
 - 2026-05-24: SoC MROM/SRAM 初始同步已加上双重门控：NPC 侧 `CONFIG_NPC_SOC_DIFFTEST=y` 只表示允许 SoC 本地存储同步，真正执行前还会 `dlsym()` reference so 的 `soc_sim_in_range()` 并确认 NEMU 报告 MROM/SRAM 在 SoC 地址空间内。这样只有 NEMU 以 `CONFIG_SOC_SIM=y` 构建时才会走 `difftest_memcpy(MROM/SRAM)`；若 reset PC 落在 MROM 但 reference 不是 SoC 模式，会在 NPC 初始化阶段报出配置不匹配，而不是让普通 NEMU PMEM assert。验证：`nm -D nemu/build/riscv32-nemu-interpreter-so` 可见 `soc_sim_in_range`，`riscv32-ysyxsoc` cpu-tests 39/39 PASS。
 - 2026-05-24: NPC SoC difftest 已按 MROM/SRAM 模式重新接上：`npc/soc/csrc/memory/paddr.c` 暴露 `NpcDifftestMemRegion` 枚举，目前列出 MROM 与 SRAM；`cpu/difftest.cpp` 在 `difftest_init()` 后先用既有 `difftest_memcpy(..., DIFFTEST_TO_REF)` 同步整段 MROM/SRAM，再设置 reset PC，不新增 DiffTest API。为了保留简洁默认配置，新增 `npc/soc/configs/difftest_defconfig`，验证时使用 `make -C npc/sim BACKEND=soc backend-difftest_defconfig` 打开 `CONFIG_NPC_DIFFTEST=y`。验证：NEMU `riscv32-soc_defconfig` + `make -C npc/sim BACKEND=soc difftest-ref -j4` PASS；`ARCH=riscv32-ysyxsoc` cpu-tests 在 `NPC_RUN_ARGS="--diff=default --no-progress -m 0"` 下 39/39 PASS，日志每项启动可见 `[npc-diff] sync mrom` 与 `[npc-diff] sync sram`。
 - 2026-05-23: NPC SoC 后端现在可使用 NEMU `CONFIG_SOC_SIM` reference 跑通 difftest。流程为先让 NEMU 处于 `riscv32-soc_defconfig`，再执行 `make -C npc/sim BACKEND=soc difftest-ref` 生成 `/home/lyg/PA/ysyx-workbench/nemu/build/riscv32-nemu-interpreter-so`；`npc/soc` 需使用 `default_defconfig` 或等价配置打开 `CONFIG_NPC_DIFFTEST=y`，性能配置会主动拒绝 `--diff`。验证命令：`AM_HOME=/home/lyg/PA/ysyx-workbench/abstract-machine NEMU_HOME=/home/lyg/PA/ysyx-workbench/nemu timeout 900s make -C am-kernels/tests/cpu-tests ARCH=riscv32-npc run NPC_SIM_BACKEND=soc NPC_RUN_ARGS="--diff=default --no-progress -m 0"`，38/38 PASS，启动日志显示 `Difftest: ON`。本轮还修复了 reference so 中 Capstone 相对路径导致的段错误；当前 difftest 比较范围仍是提交后 GPR/PC，不比较 SoC 外设内部状态。
