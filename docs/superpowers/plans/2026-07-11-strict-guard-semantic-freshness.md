@@ -223,8 +223,14 @@ git diff --check
 
 Expected: DB-first audit PASS and no whitespace errors.
 
-- [ ] **Step 4: Commit exact evidence and snapshot paths**
+- [x] **Step 4: Commit exact evidence and snapshot paths**
 
 Stage only the new semantic-freshness task-run and intended DB snapshot paths.
 Confirm that build/linux-logs/npc-linux.log, the three pre-existing dirty RV64
 RTL files, and .superpowers are absent from the index before committing.
+
+Completed as reviewed commits `2d881234d` (manuals, plan, and semantic guard
+evidence) and `b80255ef2` (restored retained history, DB-backed shims,
+snapshots, and fresh memory evidence). The reviewer-discovered historical
+memory deletion was repaired before the second commit; user-owned RTL, logs,
+and `.superpowers/` were excluded from both indexes.
