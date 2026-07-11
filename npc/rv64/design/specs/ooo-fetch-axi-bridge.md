@@ -1,7 +1,8 @@
 # 规范：取指 AXI 桥 OooFetchAxiBridge
 
 > 模块：`vsrc/frontend/OooFetchAxiBridge.v`。模板见 `../arch/SPEC-TEMPLATE.md`。
-> 状态：**已实现并验证**（含 iter1 取指 cache PMP 门控修复、fence.i 真 flush、Svnapot 64KiB）。
+> 状态：**主路径已实现**（含 iter1 取指 cache PMP 门控、fence.i 真 flush、Svnapot
+> 64KiB 与硬件 A update）；§9 的三个开放合同尚未闭合，不能写成无条件“已完整验证”。
 
 ## 1. 目的与范围
 把前端取指请求(PC)落到 IFU AXI，返回一个 **fetch packet**（两条对齐的 32-bit 槽，支持 RVC）。
@@ -12,7 +13,7 @@
 ## 2. 接口（要点）
 | 信号 | 含义 |
 | --- | --- |
-| `fetch_req_valid_i/ready_o` + `fetch_req_pc_i` | 取指请求。fire 后一拍(S_LOOKUP 判决拍)`ready=0`：hit 延迟 2 拍、back-to-back 吞吐 1/2(SRAM 同步读一期代价) |
+| `fetch_req_valid_i/ready_o` + `fetch_req_pc_i` | 取指请求。fire 后在下一拍 S_LOOKUP 判决；hit 且 response 可接收时可同拍受理下一请求，命中稳态吞吐 1 packet/cycle |
 | `fetch_rsp_*`（inst0/inst1/resp0/resp1） | 返回包(两槽+各自 resp；packet next_pc 由前端 decode 计算，桥不输出) |
 | `priv_mode_i/satp_i/svpbmt_en_i` + `pmpcfg_i/pmpaddr_i` | 翻译/权限上下文 |
 | `mmu_flush_i`（sfence/satp/fence.i commit） | ITLB/walk 与取指包 cache 整体失效（模块无独立 `flush_i` 端口） |
@@ -20,9 +21,10 @@
 
 ## 3. 主要数据通路
 - **取指包 cache** `OooFetchPacketCache`：按 {PC, satp/priv 上下文} 命中，返回 inst0/1+resp0/1。
-  SRAM 同步读两拍协议：fire 拍(`fetch_req_fire_w`)发射 `lookup_en_i` 并锁存请求上下文
+  SRAM 同步读协议：fire 拍(`fetch_req_fire_w`)发射 `lookup_en_i` 并锁存请求上下文
   (pc_q/paging_q/req_priv_q/req_satp_q)，判决在次拍 `S_LOOKUP` 完成；fill 只在 S_R0/S_R1，
-  与 lookup fire(S_IDLE/S_RESP)状态互斥(cache 内 1RW 断言把关)。
+  与 lookup fire 状态互斥(cache 内 1RW 断言把关)。S_LOOKUP hit 组合回包且
+  `fetch_rsp_ready_i=1` 时可融合下一次 request accept，因此稳态不是 1/2。
 - **ITLB** `OooSv39Tlb`：paging 时翻译 PC→paddr；miss 触发 page table walk(S_WALK_*)。
   lookup 输入接 fire 拍锁存值(pc_q/req_satp_q/paging_q)，使组合输出与 cache SRAM 读数在
   判决拍对齐；ITLB 本体保持 FF，不 SRAM 化。
@@ -54,24 +56,27 @@ fetch_cache_fill_valid_w = (fill_r0 || fill_r1);   // 不再被 pmp_active 门�
 
 ## 5. 状态机（简）
 ```
- S_IDLE/S_RESP --req fire(锁存+lookup_en)--> S_LOOKUP        (fire 拍, ready 集合)
- S_LOOKUP --hit--> S_RESP                                    (判决拍, ready=0)
+ S_IDLE/S_RESP --req fire(锁存+lookup_en)--> S_LOOKUP
+ S_LOOKUP --hit+rsp_ready--> S_LOOKUP(同拍接受下一请求) / S_RESP
  S_LOOKUP --miss,no-trans--> S_AR0/S_R0[/S_AR1/S_R1 跨页] --> S_RESP
  S_LOOKUP --need-trans,itlb-miss--> S_WALK_AR/S_WALK_R(三级) --> 取指/RESP
+ S_WALK_R --leaf A=0--> S_AD_UPDATE(AW/W 独立握手,等 B) --> re-walk
  S_LOOKUP --pmp/page fault--> S_RESP(resp=ACCESS_FAULT/PAGE_FAULT)
- 任意态 --mmu_flush--> S_IDLE(S_LOOKUP 判决作废, cache 同步读结果自然丢弃)
+ 已发读 --mmu_flush--> S_DRAIN(消费返回后回 IDLE)
+ 其它无已发事务状态 --mmu_flush--> S_IDLE
 ```
 direct miss 的 AR 在 S_LOOKUP 判决拍发起(`lookup_direct_miss_w`)；hit 快速路径
-fire→S_LOOKUP→S_RESP = 2 拍(SRAM 化前为 1 拍)。
-A/D：leaf PTE 的 A=0 → instruction page fault(核非 Svadu，软件管理 A/D)。reserved 扩展位检查在
-Svpbmt/Svnapot 规则之后完成；ITLB 命中复核也必须带 leaf level，避免把合法 NAPOT hit 当成保留位 fault。
+fire→S_LOOKUP 判决，命中稳态可 1 packet/cycle。
+A/D：leaf PTE 的 A=0 进入 `S_AD_UPDATE`，AW/W 可独立握手；两通道完成并收到 B 后
+重新 page walk，再填 ITLB。reserved 扩展位检查在 Svpbmt/Svnapot 规则之后完成；ITLB
+命中复核也必须带 leaf level，避免把合法 NAPOT hit 当成保留位 fault。
 
 ## 6. 验证
 - riscv-tests `rv64ui`(取指正确性)、`rv64mi/si`(特权/翻译)、ACT4 Sv39/PMP。
 - iter1 A/B(同配 PMP)：add 2052→1086、matrix-mul 22094→8508；riscv-tests 271/0 不变。
 - 自修改代码：`invalidate_*` 逐 store 失效路径覆盖 8B store footprint；fence.i 作为 stop/drain 系统指令在
   commit 拍拉 `mmu_flush_i`，整块清 ITLB 与取指包 cache，并配合 redirect 保证后续重新取指。
-  历史缺口见 `../arch/rtl-ground-truth-2026-07-03.md` §3.1；当前 RTL 已由 `CTRL_FENCEI_BIT`
+  历史缺口见 `../arch/history/rtl-ground-truth-2026-07-03.md` §3.1（已归档）；当前 RTL 已由 `CTRL_FENCEI_BIT`
   与 `OooFetchPacketCache.same_fetch_window` 的 8B footprint 修复。
 
 ## 7. 关键路径
@@ -91,7 +96,39 @@ cache 模块级 1-cycle 同步读两拍协议、盲失效与 819200 state-bit lo
 - 2026-07-08(SRAM 化)：新增 `S_LOOKUP` 判决拍状态(取指包 cache 1-cycle SRAM 同步读)：
   fire 拍(S_IDLE/S_RESP accept)只锁存请求+发射 lookup_en，hit/fault/walk 判决整体搬进
   S_LOOKUP(ITLB/PMP 用锁存值)；direct-miss AR 移到判决拍；hit 延迟 1→2 拍、吞吐 1→1/2
-  (一期接受，重叠流水列二期)；FB-I1 的 PMP 检查拍参照系改判决拍。
+  (一期接受，重叠流水列二期；该吞吐限制已被 2026-07-11 hit fusion 超越)；FB-I1 的
+  PMP 检查拍参照系改判决拍。
+- 2026-07-11：同步 hit fusion、硬件 A update、read S_DRAIN，并把 IFU partial-write flush
+  与 page-end C fault 归属登记为开放合同。
 
 ## 已知隐患(2026-06-28 bug-hunt)
 - **[已修复]** 跨页已缓存包槽1 PMP 复检用错物理地址(`req_exec1_paddr_w=paddr0+4` 对跨页是错页);PMP 运行期 allow→deny 第二页且无取指 cache 失效时可绕过槽1 PMP。详见 `.github/memory/known-issues.md`(隐患B)。根因修复:**跨页取指包不缓存**(fill 条件含 `!packet_cross_page_q`,每次重取经 walk-leaf checker 用正确物理地址重查两页 PMP,`OooFetchAxiBridge.v:279-296` 注释自证);非跨页包内 `paddr0+4` 恒同页,复检恒正确。
+
+## 9. 开放合同（2026-07-11）
+
+### IFU-AXI-G1：A-update 写通道的 flush-drain
+
+**目标合同**：AW、W 或二者任一已经握手后，flush 只能停止产生新事务，不能遗弃已接受
+channel；必须补齐剩余 channel 并消费 B，或由明确的事务 owner 完整接管。
+
+**当前 RTL**：读通道有 `S_DRAIN`；`S_AD_UPDATE` 的 AW/W 独立 fire 后，
+`mmu_flush_i` 会回 IDLE、清 `aw_done/w_done` 并撤 `BREADY`。AW-only + flush 已在 bridge
+局部动态复现；与 xbar 的最终错配/停顿后果仍需 bridge+xbar 联测。
+
+### IFU-FETCH-G2：page-end 压缩指令的 fault 归属
+
+**目标合同**：`resp0` 只能由当前实际指令需要的字节决定。若 PC=page+0xFFE 且 inst0
+为 16-bit，下一页只属于下一条指令，下一页 fault 不得覆盖当前 inst0。
+
+**当前 RTL**：`first_inst_cross_page` 仍以 `first_bytes<4` 判定，在上述场景会把
+`resp1` 覆写到 `resp0`。局部可达 bridge 状态 + 真实 packet decoder 已复现；尚缺完整
+Sv39 页表端到端矩阵。
+
+### PTW-PMP-G1：A-update PTE 写回必须独立做 PMP WRITE 判定
+
+**目标合同**：walker 对 PTE 地址的 READ 许可不能替代后续 A 位写回许可。进入
+`S_AD_UPDATE` 前，必须按 PTE 物理地址、写宽度和 PTW 有效特权执行独立 PMP WRITE
+检查；拒绝时不得发 AW/W，并按冻结的平台合同返回 access fault。
+
+**当前 RTL**：walker 读 PTE 时有 read-side PMP 判定，但 A-update 发 AW/W 前未见独立
+WRITE checker。该合同同时适用于数据桥，配套 owner 见 `ooo-mem-axi-bridge-fsm.md`。

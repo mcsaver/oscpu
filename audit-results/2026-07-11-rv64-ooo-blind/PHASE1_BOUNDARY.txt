@@ -1,0 +1,31 @@
+RV64 OoO Core blind architecture audit
+Phase 1 boundary: source-only, before document comparison
+Date: 2026-07-11 (Asia/Shanghai)
+
+Rules for this phase:
+- Do not open or read any *.md or *.MD file.
+- Do not use prior task-run/document conclusions as architectural evidence.
+- Reconstruct topology and behavior from current non-Markdown RTL, build configuration,
+  executable tests, and machine-generated non-Markdown reports only.
+- Every frozen conclusion must cite current source file and line numbers.
+- Facts, architectural inferences, and unverified hypotheses must be labeled separately.
+
+Primary RTL scope:
+- npc/rv64/vsrc/core
+- npc/rv64/vsrc/frontend
+- npc/rv64/vsrc/decode
+- npc/rv64/vsrc/rename_allocate
+- npc/rv64/vsrc/scheduling
+- npc/rv64/vsrc/regread_bypass
+- npc/rv64/vsrc/execute
+- npc/rv64/vsrc/memory
+- npc/rv64/vsrc/cache
+- npc/rv64/vsrc/writeback
+- npc/rv64/vsrc/control
+- npc/rv64/vsrc/include/define.v
+
+Pre-existing dirty-worktree paths observed before audit artifacts were added:
+- .github/db-backup/task-runs/manifest.json
+- build/linux-logs/npc-linux.log
+
+Those pre-existing changes are user-owned and must not be modified by this audit.

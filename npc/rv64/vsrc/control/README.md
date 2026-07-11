@@ -13,7 +13,7 @@ CSR 边界、terminal trap/exit 输出、PMU、power/clock gating 和未来 SMT 
 > `OooPendingDispatchArbiter` 的 branch/jump/memory capture 被 `!rob_walk_mode`
 > 门死，`OooPendingDrainResolveGate` 的 jump/mem dispatch 臂恒空转；
 > `OooCoreSliceControlGate` 的 branch checkpoint 臂恒 gate 0。存活的域 B（stop_pending + 全后端 drain 串行化）
-> 只剩 system/trap/IRQ 类。证据见 `../../design/arch/rtl-ground-truth-2026-07-03.md`
+> 只剩 system/trap/IRQ 类。当前证据见 `../../design/arch/rtl-ground-truth-2026-07-11.md`
 > §4，拆除计划见 `../../design/arch/ooo-core-architecture.md` §8.3。下文保留各
 > owner 的设计语义描述。
 

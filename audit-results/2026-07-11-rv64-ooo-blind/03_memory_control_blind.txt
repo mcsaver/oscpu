@@ -1,0 +1,1520 @@
+RV64 OoO Core 盲读审计：内存、控制、特权与提交子系统
+审计日期：2026-07-11
+审计范围：npc/rv64 下非 Markdown RTL/源文件
+审计身份：memory/control 子任务
+
+===============================================================================
+0. 审计边界与证据纪律
+===============================================================================
+
+本文件是阶段一“盲读”产物。生成本文件之前没有打开、搜索或引用任何 .md/.MD
+文件内容，也没有读取 .github/task-runs 或设计说明。结论只来自 RTL/非 Markdown
+源码。因而本文件刻意不做“源码结论 vs 既有文档”对照；该对照应由主任务在阶段二
+解除盲读边界后完成。
+
+结论标签：
+
+  [事实]     可由所列 RTL 直接确认。
+  [推断]     由多处 RTL 组合得到，逻辑上较强，但建议用定向仿真/形式验证复核。
+  [待验证]   依赖外部从设备、时序可达性或未在本子任务覆盖的模块。
+
+行号均指审计时工作区版本，形式为“文件:起始行-结束行”。
+
+===============================================================================
+1. 结论摘要
+===============================================================================
+
+这不是一个只有顺序 LSU 的“伪 OoO”核心。整数前端/ROB/IQ 允许乱序准备和双提交，
+普通 load 可越过较老的非 store 指令，普通 store 也允许在到达 ROB 头以前完成地址
+翻译与权限探测。核心通过 4 项 store queue 把“store 已完成并退休”和“store 真正写到
+总线”分开，从而具备真实的投机执行及精确异常骨架。
+
+但是，内存侧的物理并行度远低于 ROB/IQ 表面容量：一个有效 LSU 请求端口、一个
+active bridge FSM、一个 staged request、单 walker、单 store drain、无 MSHR。4 项 MIQ
+更像返回顺序账本，而不是 4 个真正独立的 miss slot。D-cache 是 32 KiB、8 B line、
+direct-mapped、write-through/no-write-allocate 的本地 cache。Sv39、PMP、A/D 位更新、
+superpage、Svnapot64K 等功能覆盖面不低，但存在若干架构正确性缺口。
+
+本子任务最重要的高风险结论如下：
+
+  1. [事实/高风险] PTW 对页表项只做 PMP read 检查；当需要硬件设置 A/D 位时，后续
+     PTE write 没有 PMP write 权限检查。因此“可读但不可写”的页表物理页仍可能被
+     核心修改。证据：OooMemAxiBridge.v:536-550, 631-647, 875-882。
+
+  2. [事实/高风险] MRET/SRET 的 decode 和系统操作分类缺少完整的当前特权级合法性
+     检查：MRET 并未限制为 M-mode，SRET 在 U-mode 也没有被判非法；CsrFile 随后会
+     直接执行对应状态恢复。这是潜在的控制流与特权状态合法性缺口。证据：
+     DecodeUnit.v:710-755；OooFetchHeadClassifyGate.v:116-150；CsrFile.v:721-727。
+
+  3. [推断/高风险] 全局 flush 与 DRAIN response 同拍时，SQ 和 drain_inflight 会消费
+     response，但 MIQ 的 flush 分支只“保留 DRAIN”而不执行 pop，可能遗留一个永远等
+     不到第二次响应的幽灵 DRAIN，令 mem_idle 永久为假。证据：
+     OooMemInflightQueue.v:129-191, 215-220；OooIntBackend.v:1185-1201,
+     2661-2676；OooMemAxiBridge.v:349-354, 600-602。需要定向测试确认同拍可达性。
+
+  4. [事实/高风险] 普通 FENCE 被 decode 成合法 no-op，AMO 的 aq/rl 位没有落实到排序
+     控制；LR/SC/AMO 只有核内串行，没有 AXI exclusive/lock 或 coherence，因此无法对
+     其他 hart、DMA 或外部 master 保证原子性及 RVWMO 的系统级排序。证据：
+     DecodeUnit.v:359-425, 781-800；OooAmoGate.v:24-95；
+     OooIntBackend.v:1202-1219, 1891-1893, 2092-2147。
+
+  5. [事实/高风险] 普通 store 在“翻译/PMP probe”后即可被 ROB 视为完成并退休；真正
+     总线写发生在 committed SQ drain。drain 的写响应错误不能再形成精确异常，源码只
+     输出诊断日志；PMEM 路径甚至可以在 B response 前完成核心侧 store response。
+     证据：OooIntBackend.v:2593-2724, 2798-2804；
+     OooMemAxiBridge.v:115-123, 648-650。
+
+  6. [事实/高风险] 在 Sv39 下，MMIO/PMEM 分类使用翻译前的有效地址。若一个数值落在
+     PMEM 窗口的 VA 被映射到设备 PA，该 load 可能被当作普通可投机 load，产生错误
+     路径设备副作用；反方向映射则被过度串行化。证据：OooIntBackend.v:1083-1093，
+     再结合 bridge 在翻译后才得到最终 PA 的状态流。
+
+  7. [事实/高风险] minstret 的增量来自 ROB commit valid 数，异常 ROB entry 也会形成
+     commit valid，故触发同步异常的指令看起来会被计为 retired。证据：
+     OooRob.v:282-343；OooAluCoreSlice.v:255-278；NpcCoreTop.v:428-433；
+     CsrFile.v:670-674。
+
+除这些问题外，设计的优点也很清楚：异常优先级、双提交 lane 间的精确性、分支回滚
+对 ROB/MIQ/SQ 的年龄处理、store 先 probe 后退休的基本模型、PMP first-match/full-
+coverage 逻辑、TLB 的 SATP 完整 tag、页表 A/D 自动更新、cache hit 融合流水，以及
+读写通道独立的总线 crossbar，均体现了系统化实现而非简单拼接。
+
+===============================================================================
+2. 拓扑重建
+===============================================================================
+
+2.1 主数据通路
+
+  frontend/decode/rename
+          |
+          v
+  8-entry ordered issue queue
+          |  最多选两个 integer uop；只有一个有效 memory request 入口
+          v
+  LSU address/data/exception generation
+          |
+          +----------------------- plain store -----------------------------+
+          |                                                              |
+          |                 PROBE: 翻译 + PMP，不写总线                    |
+          |                                                              v
+          |                                                      4-entry SQ
+          |                                                fill -> retire -> commit
+          |                                                              |
+          |                                             单项、最低优先级 DRAIN
+          |                                                              |
+          +---- load / AMO / LR-SC / probe / drain -----------------------+
+                                         |
+                                         v
+                              request priority mux
+                                         |
+                                         v
+                              4-entry in-order MIQ
+                                         |
+                                         v
+                         OooMemoryAccess request gate
+                               （本质上是透传门）
+                                         |
+                                         v
+                   OooMemAxiBridge: 1 staged req + 1 active FSM
+                       /              |                 \
+                    DTLB/PTW         PMP              D-cache
+                       \              |                 /
+                                         |
+                                         v
+                                LSU AXI master
+                                         |
+                                         v
+                       NpcAxiBus / 2-master 16-slave xbar
+                                         |
+       CLINT/PLIC/UART/SRAM/MROM/FLASH/PSRAM/SDRAM/chiplink/default stubs...
+
+2.2 控制/异常/提交通路
+
+  frontend head classification
+      |  IRQ / fetch fault / CSR / ecall / xRET / WFI / SFENCE / FENCE.I
+      v
+  single pending-system sequencer + stop-fetch state
+      |
+      v
+  drain resolve gate
+      |  等待 ROB=0、IQ=0、SQ/drain 静默、无真实 retire pulse
+      v
+  CSR access/trap mux -> CsrFile -> redirect/trap state
+      |
+      v
+  registered trap/serial flush
+      |
+      +-> frontend/ROB/IQ/MIQ/SQ/bridge flush or kill
+      +-> optional TLB/cache flush
+
+普通 ALU/load/store 指令走 16-entry ROB 的双提交。默认 CSR-head-queue 功能关闭，
+SYSTEM/CSR 在前端 head 捕获后停止 younger 指令，先把后端完全排空，再独占执行。
+
+===============================================================================
+3. 可确认的容量、带宽与结构参数
+===============================================================================
+
+  项目                         容量/带宽                    证据
+  ---------------------------  ---------------------------  -------------------
+  XLEN                         64 bit                       define.v:5-15
+  integer physical registers   64                           define.v:21-52
+  ROB                          16 entries，最多双提交       OooRob.v:5-9
+  integer issue queue          8 entries                    OooIntIssueQueue.v:13-18
+  store queue                  4 entries                    OooIntBackend.v:885-887
+  memory inflight queue        4 entries                    OooIntBackend.v:973-978
+  DTLB                         64 项，direct-mapped          OooSv39Tlb.v:3-5
+  D-cache                      4096 x (tag+64b)，8B line    OooDataWordCache.v:35-39,75
+  D-cache nominal data size    32 KiB                       由上项直接计算
+  bridge request station       1 staged request             OooMemAxiBridge.v:124-138
+  bridge active transaction    1 FSM                        OooMemAxiBridge.v:79-90
+  page walker                  1 serialized walker          同一 bridge FSM 状态机
+  store drain                  1 outstanding                OooIntBackend.v:2661-2676
+  xbar masters/slaves          2 / 16                       AxiXbar.v:1-12；NpcTop.v:140-178
+  AXI transaction model        single-beat/single-outstanding AxiXbar.v:83-86,208-238
+
+关键判断：[事实] MIQ 的 4 项不是 4 个并行 cache miss/MSHR。bridge 只能保留一个 active
+FSM 事务和一个 staged request；miss、PTW、uncached 访问都会被串行化。cache hit 且响应
+端 ready 时可以利用 fused lookup 近似做到每拍接受一个请求，但一旦 miss 或 walk，吞吐
+会迅速退化。证据：OooMemAxiBridge.v:368-372, 585-607。
+
+===============================================================================
+4. Issue/LSU/SQ/MIQ 的排序模型
+===============================================================================
+
+4.1 issue queue 的选择规则
+
+[事实]
+
+  - 选择逻辑按程序序扫描 IQ。
+  - load 不能越过 older store。
+  - store 不能越过任何 older valid IQ entry，不只是 older memory 指令。
+  - issue lane 1 永远不发 store。
+  - 两条 memory uop 同拍只允许“两条都是 load”；后端请求 mux 最终仍只接收其中一个
+    有效 memory request。
+
+证据：OooIntIssueQueue.v:238-283；OooIntBackend.v:1600-1626。
+
+评价：
+
+  优点：store 程序序很保守，容易维护精确状态；load 不会静态越过尚未发射的 older
+        store，避免依赖预测器。
+  缺点：store 被所有 older IQ entry 阻塞，显著限制 store address generation；没有
+        memory-dependence prediction，也没有真正双 LSU port。
+
+4.2 普通 store 的两阶段执行
+
+[事实]
+
+  - plain store 在 SQ 模式下先发 PROBE。
+  - PROBE 完成地址翻译和 PMP 检查，返回最终 PA；不会写 cache/AXI。
+  - SQ 按程序序分配，保存 PA/data/mask；PROBE 完成后 ROB 可标记 done。
+  - ROB retirement 将对应 SQ entry 标为 committed。
+  - 只有 committed head 由单独 drain 路径真实写出；drain 带 pretrans+nokill。
+
+证据：OooIntBackend.v:1564-1590, 1891-1996, 2593-2724；
+OooStoreQueue.v:131-155,232-267。
+
+评价：
+
+  优点：错误路径 store 不会产生外部写副作用；store 的翻译/PMP fault 可以精确入 ROB；
+        committed store 能跨全局 flush 存活并继续排空。
+  缺点：SQ 只有 4 项且 drain 单发，store-heavy workload 很快反压；写总线错误发生在
+        退休之后，无法精确归责；pretrans drain 依赖“probe 后所有相关翻译/PMP 状态
+        更新都经过系统级 drain”这一全局不变量。
+
+4.3 load-store 相关性和 forwarding
+
+[事实]
+
+  - Bare PMEM 路径通过 8-byte line/字节范围判断 overlap。
+  - forwarding 只支持一个“最年轻 older store”完整覆盖 load 的情况。
+  - partial forwarding、多 store 合并没有实现；不能完整覆盖就 stall。
+  - floating-point load forwarding 明确禁用。
+  - Sv39 下 SQ 保存 PA，而待发 load 尚为 VA，因此实现选择关闭 forwarding，并把较老
+    filled SQ 项作为保守阻塞条件。
+  - MMIO load 使用独占/ROB-head 约束，不做通常的投机 forwarding。
+
+证据：OooIntBackend.v:1241-1563，尤其 1318-1494、1455-1464。
+
+评价：Bare 模式下对简单 store-to-load forwarding 有实际支持，但覆盖面窄；Sv39 下
+几乎回到“较老 store 未 drain 就不让 load 走”的保守模型，是内存性能的主要瓶颈。
+更成熟实现通常会在 store queue 同时保存 VA page-offset/地址有效位，先做 VA low-bit
+依赖判断，翻译后再做 PA disambiguation，或配置 replay。
+
+4.4 MIQ 的语义
+
+[事实]
+
+MIQ kind 包含 LOAD、PROBE、DRAIN、LEGACY。请求在 bridge req handshake 时入队，response
+按队头解释。branch recovery 会把 younger LOAD/PROBE 标记 killed；其响应仍被接收，但
+不写回架构状态。全局 flush 会删除普通项、保留 DRAIN。证据：
+OooMemInflightQueue.v:129-232；OooIntBackend.v:1940-1996。
+
+[推断/高风险竞态]
+
+flush 分支和 normal pop 分支互斥。若 `flush_i` 与 DRAIN response 同拍：
+
+  1. bridge 因 nokill 仍把 response 暴露出来；
+  2. backend/SQ 消费 response、清 drain_inflight、pop SQ；
+  3. MIQ 进入 flush 分支，仅重新压缩并保留 DRAIN，没有执行 pop；
+  4. 此后再无该 DRAIN 的第二个 response，MIQ 永久非空。
+
+证据：OooMemInflightQueue.v:164-191,215-220；OooIntBackend.v:1185-1201,
+2661-2676；OooMemAxiBridge.v:349-354,600-602。
+
+建议最小定向验证：构造 retired store 的 B/RSP 到达周期，同时由后一条异常触发 trap
+flush，检查 MIQ count、SQ count、drain_inflight、mem_idle 在 10 个周期内能否归零。
+修复方向应是定义 flush+pop 的确定语义：先消费同拍队头，再从剩余项中过滤 DRAIN，
+或阻止其他模块在 MIQ 未 pop 时消费 response。
+
+[推断/扩展性缺陷]
+
+backend 在 MIQ full 且同拍 pop 时可允许新 request，但 MIQ 内部 `push_fire` 无条件要求
+not full。如果未来 bridge/MIQ 真能积满，可能发生“请求已被 bridge 接受但 MIQ 未记账”。
+当前 bridge 的 active+staged 深度可能使 4 项 full 不可达，所以更像 latent landmine。
+证据：OooIntBackend.v:1214-1219；OooMemInflightQueue.v:143-144。
+
+===============================================================================
+5. 对齐、访问粒度与 AXI 语义
+===============================================================================
+
+5.1 misaligned 支持
+
+[事实]
+
+  - LSU 生成低位连续的 1/2/4/8 byte WSTRB 并检测 misaligned。
+  - 普通 load/store 可处理页内 misaligned。
+  - Sv39 下跨 4 KiB 页的访问被强制报 address-misaligned，而不是做双页翻译/精确判断。
+  - AMO 必须自然对齐。
+  - 同一 8-byte line 的 read 会对齐抓取 8 B 后 shift；跨 line read 改走 exact-address
+    window，且不填 cache。
+
+证据：LSUControl.v:22-40；LSUDataPath.v:15-23；OooIntBackend.v:1050-1082；
+OooMemAxiBridge.v:609-627,945-953。
+
+5.2 非标准的总线 byte-window 约定
+
+[事实]
+
+bridge 的 unaligned write 使用 exact unaligned AWADDR，但 WDATA/WSTRB 从 lane 0 开始，
+AWSIZE 固定为 8 B；cross-line read 也期待从 exact address 返回低位打包窗口。crossbar
+忽略 AxSIZE/LEN/BURST/WLAST；仿真 DPI slave 同样把 exact address、低位 data/mask 直接
+交给宿主。证据：OooMemAxiBridge.v:67-77,637-644；AxiXbar.v:83-86；
+AxiDpiSlave.sv:93-123。
+
+评价：这在项目内部可以形成一致的“地址指向 byte window 起点、数据永远低位对齐”
+协议，但不是标准 AXI/AXI-Lite lane 语义。连接普通外部 IP 时，unaligned 访问可能写错
+byte lane；一个访问跨越 address-map/slave 边界时，xbar 只按起始地址选择一个 slave，
+没有拆分能力。[待验证] 所有板级外设适配器是否都显式实现了该约定。
+
+===============================================================================
+6. D-cache
+===============================================================================
+
+6.1 已实现结构
+
+[事实]
+
+  - 4096 sets，1 way，8-byte line，名义数据容量 32 KiB。
+  - physical tag，cacheable 条件仅由最终 PA 命中固定 PMEM mask/base 决定。
+  - SRAM 为 synchronous 1RW，lookup 是两级时序。
+  - read miss allocate；cross-line read 不 allocate。
+  - write-through、no-write-allocate。
+  - store 完成后若 tag hit，则通过两周期 RMW 更新 cache；miss 不分配。
+  - cross-line write 会对第二条 line 做保守 invalidation。
+  - PTW A/D PTE update 会 invalidation 对应 cache line。
+  - valid bits 用触发器并支持全清。
+
+证据：OooDataWordCache.v:35-39,75,93-98,124-253；
+OooMemAxiBridge.v:428-447,553-579。
+
+6.2 优点
+
+  - physical tag 避免 synonym/coherence-with-TLB-flush 问题。
+  - write-through 降低 dirty eviction、精确回写和 flush 的复杂度。
+  - cache-hit fused path 在 downstream ready 时可以形成较好 hit throughput。
+  - A/D 位写回与 D-cache invalidation 有显式联动，避免保留旧 PTE 数据副本。
+
+6.3 性能与功能限制
+
+[事实]
+
+  - direct-mapped，8 B line：空间局部性利用弱，冲突 miss 很高。
+  - 无 MSHR、non-blocking miss、prefetch、victim、ECC/parity、dirty/writeback。
+  - store-hit RMW 占用单口 SRAM 并产生 bubble。
+  - cacheability 只看固定 PA mask，不看页表 PBMT 属性。
+  - 没有任何 cache coherence 或外部 invalidation/snoop。
+
+评价：该 cache 更像降低随机 64-bit PMEM read latency 的 word cache，而不是面向 OoO
+核的高带宽层级。ROB=16、IQ=8 也许能容忍部分 hit latency，但一个 miss 就独占 bridge；
+对于指针追逐、冲突模式和 DMA 共享内存，表现/正确性边界都很明显。
+
+===============================================================================
+7. Sv39 DTLB/PTW
+===============================================================================
+
+7.1 已实现功能
+
+[事实]
+
+  - Bare/Sv39；三层 page walk。
+  - 4 KiB、2 MiB、1 GiB leaf。
+  - Svnapot 64 KiB leaf 地址形成。
+  - canonical VA 检查。
+  - R/W/X/U、SUM、MXR、MPRV/effective privilege 检查。
+  - A/D 位不足时硬件更新 PTE。
+  - 64-entry direct-mapped DTLB；entry 保存完整 SATP、PTE、leaf level。
+  - superpage match 只比较相应 VPN 高位，PA 按 level 正确拼接。
+  - mmu_flush 全清 TLB；SATP/SFENCE/FENCE.I 相关刷新在系统 drain 后进行。
+
+证据：OooSv39Tlb.v:3-5,53-113；OooMemAxiBridge.v:143-311,338-425,
+654-703,838-907,988-1015；OooMemoryRequestGate.v:63-75。
+
+7.2 优点
+
+  - 使用完整 SATP 参与 tag，相比只 tag ASID/VPN 更保守，不易把不同 root 的项混用。
+  - permission check 和 PA generation 同时覆盖 TLB hit 与 walker leaf。
+  - A/D 自动更新使常见 OS 页表无需 software fault path。
+  - superpage、NAPOT 支持超出最小 Sv39 教学实现。
+
+7.3 限制
+
+[事实]
+
+  - direct-mapped index 固定取 VA[17:12]。同 index 冲突明显；superpage/NAPOT 的每个低
+    VPN index 仍需各自 refill，不能像 fully associative superpage TLB 一项覆盖多 index。
+  - SFENCE/SINVAL 只做全清，忽略 rs1/rs2 的 VA/ASID 选择性语义。
+  - 单 walker；PTE read 和普通数据访问共用 LSU AXI；无 page-walk cache。
+  - 跨 4 KiB misaligned 不做两次翻译。
+  - PBMTE 只参与 PTE PBMT 编码合法性判断；没有看到 PBMT 对 cacheability、ordering、
+    idempotency 的实际影响。
+
+PBMT 证据：CsrFile.v:82,624；OooMemAxiBridge.v:216-235；cacheable 判定仍固定在
+OooDataWordCache.v:93-98,124-128。
+
+7.4 PTW A/D 更新的 PMP 缺口
+
+[事实/高置信]
+
+walker 在读取 PTE 时把 PTE PA 送 PMP checker，access type 是 READ。发现 leaf A/D 位
+缺失后进入 S_AD_UPDATE，随后 AW/W write path 无第二次 PMP WRITE 检查。于是一个 PMP
+区域若允许 S-mode read 但不允许 write，硬件仍会写 PTE。证据：
+OooMemAxiBridge.v:536-550,631-647,875-882。
+
+影响：违反 PMP 对隐式 page-table access 的保护；可能使低特权翻译间接修改只读物理
+页表区。建议修复为：A/D update 前以 PTE physical address、完整 PTE access size 和
+WRITE access type 再做一次 PMP 检查，失败时返回对应 access fault，且不能发 AW/W。
+另需确认 spec 对隐式 PTE access 的 effective privilege/locked entry 规则。
+
+7.5 PTE 整体读改写的并发性
+
+[事实] A/D 更新是“读出整个 PTE -> 修改位 -> 普通 AXI write whole PTE”，没有原子
+exclusive/compare-and-swap。若其他 hart 或 DMA 同时更新同一 PTE，可能覆盖对方更新。
+
+[待验证] 当前 SoC 是否严格单 hart、无能修改页表的 DMA；若是，则当前实现可作为平台
+限制。如果未来多 hart，需要原子 RMW、page-table ownership 协议或 software A/D。
+
+===============================================================================
+8. PMP
+===============================================================================
+
+8.1 已实现
+
+[事实]
+
+  - 16 entries。
+  - OFF/TOR/NA4/NAPOT address matching。
+  - lowest-numbered matching entry 优先。
+  - 一个访问必须被首个 overlap entry 完整覆盖，否则 fault。
+  - S/U 无匹配默认拒绝；M-mode 只受 locked entry 约束。
+  - address wrap/overflow fault。
+  - pmpcfg/pmpaddr WARL mask；lock 后配置和地址不可更改；locked TOR 也锁住前一边界。
+
+证据：PmpChecker.v:31-62,79-179；CsrFile.v:209-310,629-635,730-785。
+
+8.2 限制
+
+[事实]
+
+  - 未见 Smepmp/ePMP MML/MMWP/RLB 等扩展。
+  - pretranslated SQ drain 跳过 PMP，完全依赖较早 probe 和控制面 drain 不变量。
+  - PTW A/D update 存在上一节的 WRITE 检查缺口。
+
+评价：基本 PMP matching 算法较完整；风险主要不在 checker 本身，而在某些隐式/延迟
+memory operation 是否全都经过正确 access type 的 checker。
+
+===============================================================================
+9. 原子指令、LR/SC 与内存序
+===============================================================================
+
+9.1 已实现范围
+
+[事实]
+
+decode 支持 LR/SC 和 AMOSWAP/ADD/XOR/AND/OR/MIN/MAX/MINU/MAXU，W/D 两种宽度。AMO
+在核内走独占 legacy 路径：要求 MIQ 静默，先 read，计算，再普通 write。LR reservation
+是一个本地地址寄存器；本地 store/flush 等事件会使其失效。证据：
+DecodeUnit.v:359-425；OooAmoGate.v:24-95；OooIntBackend.v:828-842,
+1202-1219,1891-1893,2092-2147。
+
+9.2 正确性边界
+
+[事实]
+
+  - 没有 AXI exclusive transaction、lock signal 或 cache-coherence ownership。
+  - reservation 没有外部 snoop/invalidation。
+  - AMO 的 read 和 write 是两个普通总线事务。
+
+结论：对“只有本核能触碰该地址”的单核平台，核内串行可以给出局部正确结果；对另一
+hart、DMA、chiplink master 或外设发起的并发访问，不具备架构原子性。LR/SC 可能在
+外部写后错误成功，AMO 可能丢失并发更新。
+
+9.3 FENCE 与 aq/rl
+
+[事实/高置信]
+
+普通 FENCE 明确 decode 为合法 no-op；只有 FENCE.I 进入系统 drain/flush。AMO 指令虽
+被识别，但 aq/rl 位没有形成排序控制信号。证据：DecodeUnit.v:359-425,781-800；
+OooFrontendUopSafety.v:24-38。
+
+影响：当前保守的 IQ/SQ 规则偶然覆盖一部分单核 program-order，但不能替代 RVWMO
+barrier，尤其无法约束：
+
+  - 已发 AW/W 但尚未收到 B 的 store 与后续访问；
+  - 对不同 xbar slave 的 read/write channel ordering；
+  - 外部观察者、DMA、设备寄存器顺序；
+  - acquire load 之后、release store 之前的全局可见性。
+
+建议需要一个明确的 memory ordering contract：定义 FENCE predecessor/successor bits
+如何 drain load/MIQ/SQ/bridge/B-pending，以及 aq/rl 如何复用同一 barrier primitive。
+
+9.4 store B response 与可见性
+
+[事实]
+
+PMEM store 可在 AW+W handshake 后向核心完成，只用一个 bpend_q 等待后续 B；MMIO 路径
+在 bridge 内等待 B。只有在无 pending B 时才能再发符合条件的 PMEM store。证据：
+OooMemAxiBridge.v:115-123,648-650。
+
+[待验证]
+
+write channel 与随后 read channel 在目标 slave 上的 ordering，以及 cache-miss load 是否
+可能在前一 store 真正生效前观察旧值，取决于 xbar/slave 的接受与响应约定。cache hit
+会在 store RMW 后看到新值，但 write-no-allocate miss/uncached 路径不一定受该保护。
+
+===============================================================================
+10. MMIO、异常精度与副作用控制
+===============================================================================
+
+10.1 普通 MMIO load 的分类时机
+
+[事实]
+
+backend 在 translation 之前，用 issue effective address 是否落在固定 PMEM window 来
+决定 MMIO。MMIO load 被要求到 ROB head/后端安静后执行，普通 PMEM load 可投机。
+证据：OooIntBackend.v:1083-1093,1564-1590。
+
+[推断/高风险]
+
+Sv39 允许任意 VA 映射设备 PA。如果 VA 数值恰在 0x80000000--0x8fffffff 的 PMEM window，
+但 PTE 指向设备 PA，该访问会在翻译前被当普通可投机 load；翻译后 bridge 才知道设备
+PA，已无法恢复“禁止错误路径副作用”的约束。反向情况（普通 DRAM PA 由 window 外 VA
+映射）则被误当 MMIO，正确但很慢。
+
+修复方向：以翻译后的 PA/PBMT/PMA 决定 side-effecting 属性；在属性未知前，load 不能
+越过精确性边界。可将 translation 和 memory issue 拆开，或让 bridge 在 PA classify 后
+请求 ROB-head authorization。
+
+10.2 store 错误精度
+
+[事实/高风险]
+
+store PROBE 只证明 translation/PMP 成功，不证明目标 AXI slave 最终写成功。ROB 可在
+probe 后退休 store；实际 drain 若收到 error，backend 仅输出 `[SQ-DRAIN-ERROR]`，不能
+回滚到已退休指令。证据：OooIntBackend.v:2593-2724,2798-2804。
+
+PMEM 路径又在 B response 前完成核心侧 response，因此晚到 BRESP error 更难归责。
+这意味着 bus fault/default slave error 对普通 store 不是精确异常。若平台规范保证 PMEM
+永不返回写错误，需要把它写成明确 contract；否则 ROB/SQ 必须推迟 architectural retire
+或引入可追踪、可恢复的 deferred store fault 机制。
+
+===============================================================================
+11. AXI bridge 与 crossbar
+===============================================================================
+
+11.1 bridge
+
+[事实]
+
+FSM 状态包括 IDLE、walk AR/R、read address/data、write request/response、RESP、AD_UPDATE、
+LOOKUP。一个 request station 可与 active FSM 重叠；只有 IDLE、RESP consumed 或 fused
+cache hit 时前进。证据：OooMemAxiBridge.v:79-90,124-138,368-372,585-607。
+
+优点：
+
+  - request station 将上游 handshake 与长事务隔离。
+  - cache hit 能不经过完整 AXI FSM。
+  - flush 会杀掉普通事务，但 nokill drain 可存活。
+  - request ready 在 flush/mmu_flush 周期关闭，保护 MIQ 与 station 的一一对应。
+
+限制：
+
+  - 所有 miss、uncached、PTW、AMO 串行。
+  - AXI ID 固定/未用于多 outstanding 和乱序返回。
+  - 只有一个 pending PMEM B。
+  - 没有 replay/MSHR/critical-word-first/burst fill。
+
+11.2 xbar
+
+[事实]
+
+2 master、16 slave；master-facing 信号近似 AXI4，slave-facing 实际是 single-beat
+AXI4-Lite 语义。每个 master 有一个 read busy/response buffer 和一个 write busy；每个
+slave 各有一个 active read/write，读写通道相互独立；同 slave 仲裁 round-robin。
+证据：AxiXbar.v:1-12,83-86,208-238,323-445,499-510。
+
+优点：master response buffer 可避免一个 master 阻塞 slave 返回；per-slave round-robin
+比固定优先级公平；读写并行。
+
+限制：无 burst、多 outstanding、ID routing、跨边界 split；高延迟 slave 可长时间占住
+相应 master 的通道。固定两 master 拓扑也没有 coherence/interconnect ordering point。
+
+11.3 地址图
+
+[事实]
+
+NpcTop 实例化/路由 16 个 slave slot，包括 CLINT、PLIC、SRAM、UART、virtio、GPIO、PS2、
+MROM、VGA、FLASH、chiplink MMIO、PSRAM、legacy MMIO、SDRAM、chiplink mem、default。
+若干 slot 是 error/default stub；UART/CLINT/PLIC 有内部实现，另一些依赖外部接口。
+证据：NpcTop.v:140-178,367-387,536-689。
+
+===============================================================================
+12. flush、分支恢复与 committed store 生存
+===============================================================================
+
+12.1 branch recovery
+
+[事实]
+
+  - ROB 进行按年龄的多周期逆向 walk，最多每拍处理两项；kill 期间冻结 commit/dispatch。
+  - MIQ 将 younger LOAD/PROBE 标 killed，响应到达后静默丢弃。
+  - SQ 根据 ROB age 删除 younger uncommitted entries；committed entries 保留。
+
+证据：OooRob.v:240-267,351-432；OooMemInflightQueue.v:193-232；
+OooStoreQueue.v:131-155,232-267。
+
+12.2 global/trap/serial flush
+
+[事实]
+
+  - bridge 普通事务被 kill/drain，nokill SQ drain 继续完成。
+  - request station 仅保留 nokill request。
+  - MIQ flush 后只保留 DRAIN kind。
+  - SQ 清 uncommitted，保留 committed。
+  - drain_inflight 保证同一时刻只有一项真实 store write。
+
+证据：OooMemAxiBridge.v:349-372,743-828,1036-1063；
+OooMemInflightQueue.v:129-191；OooIntBackend.v:2661-2676。
+
+评价：整体策略正确地把“已退休 store 不能被 trap 抹掉”作为不变量，这是 store queue
+设计的强项。但本报告 4.4 节的 flush+response 同拍竞态正发生在该复杂边界，必须测试。
+
+===============================================================================
+13. CSR、特权、interrupt、trap 与系统指令
+===============================================================================
+
+13.1 系统操作串行策略
+
+[事实]
+
+默认 `OOO_CSR_QUEUE_HEAD=0`。CSR/SYSTEM 在 frontend head 被 single pending sequencer 捕获，
+停止 younger fetch/dispatch。drain gate 等待 ROB/IQ 空、没有真实 retire pulse、memory
+retire quiet（SQ 空且无 drain）后，才执行 CSR、ecall、IRQ、xRET、WFI、SFENCE、FENCE.I。
+CSR 可在后端排空后单独进入 ROB，在 commit 时写 CsrFile。证据：
+define.v:581-588；OooPendingSystemSequencer.v:75-168；
+OooPendingDrainResolveGate.v:45-83；OooCsrAccessRequestMux.v:43-86。
+
+优点：控制状态变更与投机 memory/branch 隔离，极大降低精确 trap 和 SATP/PMP 变更的
+复杂度。缺点：CSR/interrupt latency 很高，任何 SYSTEM 都近似全流水线 barrier；无法让
+无副作用 CSR 走常规 OoO/rename。
+
+13.2 trap/redirect/flush
+
+[事实]
+
+commit exception 精确进入 trap mux；ecall/IRQ/xRET 在 drain 后处理。trap/serial flush
+注册一拍后广播。commit exception 优先于同拍 IRQ；双提交时 lane1 只有在 lane0 非异常
+时才能提交。证据：OooCsrTrapRequestMux.v:57-100；
+OooControlFlushSequencer.v:19-35；OooRob.v:282-343。
+
+13.3 CsrFile 覆盖面
+
+[事实]
+
+实现 M/S/U 基本状态、mstatus/sstatus、medeleg/mideleg、mtvec/stvec、epc/cause/tval、
+mie/mip、satp、counter/counteren、menvcfg.PBMTE、16-entry PMP、fcsr 和最小 trigger CSR
+外壳。SATP 只接受 Bare/Sv39。mtvec/stvec 被 WARL 成 direct mode。misa 固定声明
+U/S/M/I/A/C/F/D/B。证据：CsrFile.v:5-82,209-310,419-426,498-541,624-785。
+
+限制：未见 H/debug 完整状态、Smepmp；trigger CSR 更像 stub。direct-only trap vector 是
+合法 WARL 选择，但没有 vectored interrupt 性能。
+
+13.4 xRET 特权检查缺失
+
+[事实/高风险]
+
+DecodeUnit 把 MRET/SRET 识别为合法系统指令。head classifier 只检查：SFENCE 的 U/TVM、
+SRET 在 S-mode 且 TSR、WFI 的 TW；没有“MRET current privilege 必须为 M”，也没有
+“SRET 在 U-mode 非法”。CsrFile 对任何当前 mode 都会执行对应 xret state transition。
+证据：DecodeUnit.v:710-755；OooFetchHeadClassifyGate.v:116-150；CsrFile.v:721-727。
+
+影响：低特权代码可能跳转到 mepc/sepc，并按保存的 MPP/SPP 恢复 privilege。具体可利用
+程度取决于这些 CSR 的可写权限和此前 trap 状态，但架构合法性本身已不成立。
+
+建议定向测试：
+
+  - U-mode 执行 MRET，应 illegal instruction；
+  - S-mode 执行 MRET，应 illegal instruction；
+  - U-mode 执行 SRET，应 illegal instruction；
+  - S-mode 且 mstatus.TSR=1 执行 SRET，应 illegal instruction；
+  - M-mode 执行 SRET 的 spec 规则也要按目标 ISA 版本核对。
+
+13.5 interrupt 模型
+
+[事实]
+
+interrupt priority 为 MEI > MSI > MTI > SEI > SSI > STI。CLINT/PLIC 输入通过 delegation
+相关逻辑形成 M/S pending；PLIC 顶层只有聚合输出/上下文选择。证据：
+CsrFile.v:498-541,625-627；AxiPlic.v:143；NpcTop.v:536-564。
+
+[待验证]
+
+当前把 machine timer/software external lines 按 mideleg 转成 supervisor pending 的方式
+带有平台定制色彩，不等同于所有标准 CLINT/IMSIC/PLIC 拓扑。需结合软件栈和设备模型
+验证 STIP/SSIP 的来源、清除语义以及 PLIC M/S context 是否一致。
+
+13.6 WFI、FENCE.I、SFENCE、EBREAK
+
+[事实]
+
+  - WFI 被串行并 pseudo-retire，但不进入真正 sleep；TW 可使低特权 WFI 非法。
+  - FENCE.I 完整 drain、前端重定向/取指 cache 清理。
+  - SFENCE/SINVAL 完整 drain 后全局 TLB/cache flush，忽略选择性 operand。
+  - 非 semihost EBREAK 被当作终止/exit，而不是架构 breakpoint trap。
+
+证据：OooFetchHeadClassifyGate.v:116-160；OooControlCommitSequencer.v:59-122；
+DecodeUnit.v:781-800。
+
+评价：WFI no-op 是允许的一种实现方式（只要 interrupt/非法规则正确），全量 SFENCE 是
+合法但慢的保守实现。把 EBREAK 作为仿真退出则是明确的运行环境特化，会影响通用 OS/
+debugger 兼容性。
+
+===============================================================================
+14. ROB、commit、minstret 与可观察输出
+===============================================================================
+
+14.1 ROB/commit
+
+[事实]
+
+16-entry ROB，最多双 dispatch/双 commit；full 边界没有同拍 commit 释放 slot 的借用。
+writeback-to-head 有 commit bypass。lane0/lane1 异常顺序精确，lane0 exception 阻止 lane1
+commit。branch mispredict 通过多周期 reverse walk 恢复。证据：
+OooRob.v:189-239,240-267,282-343,351-432。
+
+优点：小 ROB 条件下逻辑清晰，双提交异常规则正确，恢复年龄关系明确。缺点：reverse
+walk 增加深分支恢复延迟；无 slot borrowing 降低满载吞吐；控制类指令的全排空进一步
+减少有效窗口。
+
+14.2 pseudo commit 与输出复用
+
+[事实]
+
+drained SYSTEM/branch 等可产生 control pseudo-commit；control commit 覆盖 real lane0 并
+抑制 lane1，依赖 drain 保证结构互斥。外部输出提供 commit/trap/exit/debug；NpcCoreTop
+内部将 run=1、commit ready=1、external flush=0 硬接。证据：
+OooControlCommitSequencer.v:59-122；OooCommitOutputMux.v:84-151；
+OooTrapExitOutputSequencer.v:26-51；OooCoreObservableOutputGate.v:54-84；
+NpcCoreTop.v:306-385。
+
+14.3 minstret 计数异常
+
+[事实/高置信]
+
+OooAluCoreSlice 的 retire_count 统计 commit valid，ROB 对带 exception 的 head entry 仍产生
+commit valid 以驱动精确 trap。该 retire_count 进入 CsrFile minstret 增量。因此同步异常
+指令可能被计入 minstret，违反“成功退休指令”语义。证据：OooRob.v:282-343；
+OooAluCoreSlice.v:255-278；NpcCoreTop.v:428-433；CsrFile.v:670-674。
+
+建议修复：retire_count 排除 commit_exception lane，并明确 control pseudo-commit 中哪些
+操作按架构算 retired（例如合法 FENCE.I/xRET）而 trap/interrupt 入口不算。
+
+14.4 可选 CSR head queue
+
+[事实]
+
+源码存在可选 CSR-at-ROB-head 模式，但默认关闭；相关注释/assertion 表明 memory quiet
+接口与 SQ empty/drain 的语义尚有漂移。当前生产路径不受其直接影响，但打开该开关前
+需要重新验证 deadlock/flush/CSR side effect。证据：define.v:581-588；
+OooIntBackend.v:447-452；OooRob.v 对该参数的条件逻辑。
+
+===============================================================================
+15. 架构优点汇总
+===============================================================================
+
+以下均是盲读 RTL 后可确认的正面特征：
+
+  1. [事实] store probe + commit + drain 三阶段，把精确 translation/PMP fault、错误路径
+     抑制和 committed side effect 生存分开，骨架合理。
+
+  2. [事实] ROB 双提交对 lane exception 的优先级处理明确，writeback bypass 和 branch
+     age-walk 也避免常见“同拍完成/恢复”漏项。
+
+  3. [事实] MIQ/SQ 对 branch kill 使用 ROB 年龄，而非粗暴全清；committed store 可跨
+     trap flush 生存。
+
+  4. [事实] Sv39 不只是最小 4 KiB：有 superpage、Svnapot64K、SUM/MXR/MPRV、A/D update。
+
+  5. [事实] PMP checker 有 first-match、full coverage、TOR/NA4/NAPOT 和 lock 语义。
+
+  6. [事实] DTLB tag 保存完整 SATP，保守隔离不同页表根；D-cache physical tag 也简化
+     address-space switch。
+
+  7. [事实] cache-hit fused path、bridge request station、crossbar response buffering表明
+     设计考虑了握手解耦，不是完全 combinational memory path。
+
+  8. [事实] SYSTEM/CSR 全 drain 虽昂贵，但对 SATP/PMP/trap 状态变更提供了清晰的一致性
+     边界，适合先保证单核精确性。
+
+===============================================================================
+16. 未实现、部分实现和可扩展性限制
+===============================================================================
+
+16.1 明确未实现或等价 no-op
+
+  - 普通 FENCE 的实际 barrier 语义。
+  - aq/rl ordering。
+  - external coherent LR/SC/AMO。
+  - D-cache coherence/snoop。
+  - nonblocking cache/MSHR、多 miss、burst line fill、prefetch、ECC。
+  - selective SFENCE/SINVAL。
+  - true WFI sleep。
+  - vectored trap entry。
+  - full debug/trigger subsystem。
+  - Smepmp/ePMP。
+  - standard AXI unaligned-lane adaptation。
+
+16.2 已实现但覆盖有限
+
+  - store-to-load forwarding：仅 Bare、integer load、单个 store 完整覆盖。
+  - misaligned：页内支持，Sv39 跨页不支持。
+  - Svpbmt/PBMTE：检查编码合法性，但未贯彻 memory type/cache/order。
+  - AMO/LRSC：单核局部串行，不对外部 observer 原子。
+  - store fault：probe/PMP 精确，actual bus error 不精确。
+  - cache：只固定 PA PMEM window cacheable，8-byte direct-mapped word cache。
+  - CSR OoO：默认全序列化；可选 head queue 尚非成熟路径。
+
+16.3 主要扩展瓶颈
+
+  - ROB16/IQ8 对应的 memory concurrency 只有 active+staged，窗口利用不匹配。
+  - SQ4 + 单 drain 限制 store bandwidth。
+  - Sv39 禁用 forwarding，store-heavy/混合 load-store 序列会频繁停顿。
+  - direct-mapped TLB/cache 产生 conflict thrash。
+  - 单 walker 与数据流共用 bridge，TLB miss 阻断其他 memory 请求。
+  - 全量 system drain 和全量 TLB flush 增加 OS/interrupt 路径延迟。
+  - xbar single-outstanding/single-beat 限制 DRAM/外部总线吞吐。
+
+===============================================================================
+17. 风险排序与建议验证清单
+===============================================================================
+
+P0：建议在宣称特权/内存正确性前修复或证伪
+
+  P0.1 PTW A/D update 缺少 PMP WRITE 检查。
+       验证：PMP 对页表页 R=1/W=0，访问 A=0 或 D=0 leaf；必须 access fault 且无 AW/W。
+
+  P0.2 MRET/SRET current-privilege legality 缺失。
+       验证：U/S 模式非法组合，观察是否错误 redirect 或改变特权状态。
+
+  P0.3 flush + DRAIN response 同拍的 MIQ 幽灵项。
+       验证：同拍 trap_flush 与 drain rsp；检查最终 mem_idle。
+
+  P0.4 Sv39 下翻译前 MMIO 分类导致 speculative device read。
+       验证：PMEM-window VA 映射 UART/PLIC PA，错误路径 load 不得触发设备 read。
+
+  P0.5 store actual BRESP/SLVERR 无精确异常。
+       验证：store probe 成功、drain 到 error slave；检查架构 trap 和已退休状态。
+
+P1：ISA/平台一致性缺口
+
+  P1.1 普通 FENCE/aq/rl 没有真实排序。
+  P1.2 LR/SC/AMO 无 external atomicity/coherence。
+  P1.3 minstret 可能计入 trapping instruction。
+  P1.4 PBMT 合法但属性未生效。
+  P1.5 非 semihost EBREAK 直接 exit。
+  P1.6 非标准 unaligned AXI byte-window 与外部 IP 兼容性。
+
+P2：性能和扩展性
+
+  P2.1 4-entry MIQ 但仅 active+staged 实际并发。
+  P2.2 SQ4/单 drain；Sv39 forwarding 禁用。
+  P2.3 direct-mapped 8B-line D-cache、direct-mapped DTLB。
+  P2.4 single walker、无 walk cache、全量 SFENCE。
+  P2.5 SYSTEM/IRQ 全后端 drain。
+  P2.6 xbar single-beat/single-outstanding。
+
+建议的 directed test/assertion：
+
+  A. assert bridge req handshake 与 MIQ push 一一对应；response 与 MIQ pop 一一对应。
+  B. assert flush 后有限周期内，若 AXI 最终响应，则 MIQ/SQ/drain_inflight 可归零。
+  C. cover flush && response && MIQ_head==DRAIN。
+  D. assert pretrans drain 的 PA/permission 来自同一 SQ entry 的成功 probe，且其间无未 drain
+     的 SATP/PMP 修改。
+  E. assert side-effecting PA 的 load 只有 ROB-head、非 killed 状态才发 slave AR。
+  F. assert PTW AW/W 必须伴随 PMP WRITE allow。
+  G. assert exception commit lane 不增加 minstret。
+  H. multi-agent/DMA litmus：LR/SC 外部写、AMO lost update、FENCE message passing。
+  I. unaligned 1/2/4/8-byte 访问覆盖每个 byte offset、line boundary、page boundary、slave
+     boundary，分别对 DPI memory 和真实 AXI-Lite IP 检查。
+
+===============================================================================
+18. “事实 / 推断 / 待验证”最终清单
+===============================================================================
+
+18.1 事实
+
+  - ROB16、IQ8、SQ4、MIQ4、DTLB64、D-cache32KiB/8B/direct-mapped。
+  - 一条有效 LSU memory request path；bridge 一个 active FSM + 一个 staged request。
+  - plain store probe 后进 SQ、退休后 drain；DRAIN pretrans+nokill。
+  - Bare 有受限 forwarding，Sv39 forwarding 关闭。
+  - D-cache physical/write-through/no-write-allocate，无 coherence/MSHR。
+  - Sv39 3-level/superpage/NAPOT/A-D update；TLB direct-mapped/full flush。
+  - PMP16/TOR/NA4/NAPOT/lock/first-match。
+  - PTW A/D write 没有 PMP WRITE check。
+  - FENCE no-op、aq/rl 无排序、AMO 无 AXI atomic/coherence。
+  - MMIO 在翻译前按 VA 数值分类。
+  - store drain error 不能形成精确 trap。
+  - MRET/SRET 缺少完整 current privilege legality。
+  - SYSTEM/CSR/IRQ 默认全 drain 串行。
+  - trapping ROB entry 的 commit valid 被 retire_count 统计。
+
+18.2 推断
+
+  - flush 与 DRAIN response 同拍可能留下 MIQ ghost entry/deadlock。
+  - Sv39 VA->device PA 可造成错误路径设备 read 副作用。
+  - MIQ full+pop+push 接口不一致在未来增加 bridge 并发后会丢记账。
+  - PMEM AW/W 早完成加独立 read channel，可能不足以形成软件期待的 store-load barrier。
+  - xRET 缺口在特定保存状态下会产生实际特权状态或控制流偏差。
+
+18.3 待验证
+
+  - DRAIN-response/flush 竞态在现有调度中是否可稳定 cover。
+  - 现有 bridge 限制下 MIQ full 是否完全不可达。
+  - 所有真实外设/FPGA AXI adapter 是否实现项目自定义 byte-window 语义。
+  - 平台是否保证 PMEM 永不返回 BRESP error。
+  - 外部 master/DMA 是否会与 CPU 共享 atomic/page-table/cacheable memory。
+  - CLINT/PLIC delegation 和 S-mode pending 语义是否与当前软件栈一致。
+  - PBMT 页实际是否可能由软件使用；若使用，当前 fixed-PMEM cache policy 是否已造成
+    可见错误。
+
+===============================================================================
+19. 阶段二文档对照时应重点检索的主题
+===============================================================================
+
+本节只给后续对照索引，不包含任何文档内容或结论：
+
+  - 文档是否仍把 store queue、MIQ 或 bridge 描述为多 outstanding/nonblocking。
+  - 文档是否声称 FENCE、aq/rl、LR/SC/AMO 完整符合 RVWMO/多主机原子性。
+  - 文档是否声称 Svpbmt 已完整支持，而非仅编码合法性检查。
+  - 文档是否声称任意 Sv39 MMIO 映射都具备精确副作用抑制。
+  - 文档是否声称 store access fault/AXI error 都是精确异常。
+  - 文档是否列出 PTW A/D update 的 PMP write check。
+  - 文档是否声称 xRET privilege checks 完整。
+  - 文档是否把 EBREAK 描述为 breakpoint trap，而 RTL 直接 exit。
+  - 文档是否把 D-cache 描述为更大 line、多 way、write-back 或 nonblocking。
+  - 文档是否仍声称 Sv39 store-to-load forwarding 已开启。
+  - 文档是否声称 MIQ 深度 4 等于 4 个真实并行 memory transaction。
+  - 文档是否记录 custom unaligned AXI byte-window 约定及外设适配要求。
+  - 文档是否记录 minstret 对 exception entry 的计数问题。
+  - 文档是否记录 flush+DRAIN response 同拍风险和相应回归测试。
+
+===============================================================================
+20. 源码证据索引
+===============================================================================
+
+容量/开关：
+  npc/rv64/vsrc/include/define.v:5-52,581-588
+  npc/rv64/vsrc/writeback/OooRob.v:5-9
+  npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:13-18
+  npc/rv64/vsrc/execute/OooIntBackend.v:885-887,973-978
+
+issue/LSU/SQ/MIQ：
+  npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:238-283
+  npc/rv64/vsrc/execute/OooIntBackend.v:1050-1093,1202-1219,1241-1626,
+                                         1891-1996,2092-2147,2593-2804
+  npc/rv64/vsrc/memory/OooStoreQueue.v:131-155,232-267
+  npc/rv64/vsrc/memory/OooMemInflightQueue.v:129-232
+  npc/rv64/vsrc/memory/LSUControl.v:22-40
+  npc/rv64/vsrc/memory/LSUDataPath.v:15-23
+
+bridge/cache/TLB/PMP：
+  npc/rv64/vsrc/memory/OooMemAxiBridge.v:67-138,143-311,338-447,512-703,
+                                         743-907,945-1015,1036-1063
+  npc/rv64/vsrc/cache/OooDataWordCache.v:35-253
+  npc/rv64/vsrc/memory/OooSv39Tlb.v:3-113
+  npc/rv64/vsrc/memory/PmpChecker.v:31-179
+  npc/rv64/vsrc/memory/OooMemoryRequestGate.v:63-75
+
+总线/SoC：
+  npc/rv64/vsrc/bus/AxiXbar.v:1-12,83-86,208-238,323-510
+  npc/rv64/vsrc/sim/AxiDpiSlave.sv:93-123
+  npc/rv64/vsrc/core/NpcTop.v:140-178,367-387,536-689
+
+decode/atomic/control/CSR：
+  npc/rv64/vsrc/decode/DecodeUnit.v:359-425,710-800
+  npc/rv64/vsrc/execute/OooAmoGate.v:24-95
+  npc/rv64/vsrc/frontend/OooFetchHeadClassifyGate.v:116-160
+  npc/rv64/vsrc/control/OooPendingSystemSequencer.v:75-168
+  npc/rv64/vsrc/control/OooPendingDrainResolveGate.v:45-83
+  npc/rv64/vsrc/control/OooCsrAccessRequestMux.v:43-86
+  npc/rv64/vsrc/control/OooCsrTrapRequestMux.v:57-100
+  npc/rv64/vsrc/control/OooControlFlushSequencer.v:19-35
+  npc/rv64/vsrc/core/CsrFile.v:5-82,209-310,419-426,498-541,624-800
+
+ROB/commit/output：
+  npc/rv64/vsrc/writeback/OooRob.v:189-432
+  npc/rv64/vsrc/execute/OooAluCoreSlice.v:255-278
+  npc/rv64/vsrc/writeback/OooControlCommitSequencer.v:59-122
+  npc/rv64/vsrc/writeback/OooCommitOutputMux.v:84-151
+  npc/rv64/vsrc/control/OooTrapExitOutputSequencer.v:26-51
+  npc/rv64/vsrc/control/OooCoreObservableOutputGate.v:54-84
+  npc/rv64/vsrc/core/NpcCoreTop.v:306-433
+
+===============================================================================
+21. 子任务交付判断
+===============================================================================
+
+实现者视角：已完成内存/控制子系统的盲读拓扑重建，覆盖 LSU、IQ memory ordering、SQ、
+MIQ、bridge、D-cache、DTLB/PTW、PMP、atomic、AXI、CSR/privilege/interrupt/trap、ROB commit
+和顶层可观察输出，并给出逐项源文件行号。
+
+审查者视角：尚不能把所有“推断”升级为已证实 bug。最需要反例验证的是 flush+DRAIN
+同拍、VA/PA MMIO 投机副作用、PMEM B response ordering 和 xRET 可利用路径。阶段二文档
+对照尚未进行，这是盲读边界的有意结果，不是遗漏。
+
+本文件可作为上下文压缩后的独立恢复点。
+
+===============================================================================
+22. 审查者人格复核：三项高风险结论的反证、可达性与置信度
+===============================================================================
+
+复核日期：2026-07-11
+边界：继续严格阶段一；本节仍未打开、搜索或引用任何 Markdown 内容，未修改 RTL。
+
+本节优先寻找能推翻第 1--21 节结论的控制不变量。若本节与前文措辞冲突，以本节的
+修订判断为准。
+
+-------------------------------------------------------------------------------
+22.1 MRET/SRET current-privilege legality：TSR 正确，current mode 检查确有缺口
+-------------------------------------------------------------------------------
+
+22.1.1 先给修订结论
+
+  A. [事实/置信度 0.99] S-mode 执行 SRET 且 mstatus.TSR=1 的 illegal 路径已经正确
+     实现；前文不能把 TSR 包含在“xRET 检查缺失”里。
+
+  B. [事实/置信度 0.99] MRET 在 S/U mode 没有被判 illegal。
+
+  C. [事实/置信度 0.99] SRET 在 U-mode 没有被判 illegal。
+
+  D. [事实/置信度 0.99] B/C 两种情况下，指令会进入 pending-system、等待 drain，最终
+     形成 real_mret_valid 或 sret_valid；CsrFile 没有二次 legality check，会实际更新
+     privilege/mstatus，并使用 mepc/sepc 重定向。
+
+  E. [推断/置信度 0.60] “必然进入更高特权级”不是无条件结论。常规 MRET/SRET 会清 MPP/SPP，
+     因此低特权非法 xRET 的目标 privilege 常常仍是 U；但它仍是高置信 ISA 合规和控制流
+     完整性缺陷。升到更高 privilege 需要 M-mode 先前留下特定 MPP/SPP 状态，或存在另一条
+     状态构造路径。前文“潜在特权状态偏差”的架构影响应按此降级为条件性。
+
+22.1.2 decode 与 head classify 的逐信号路径
+
+MRET（current privilege=S 或 U）的最小路径：
+
+  DecodeUnit:
+    funct12=MRET
+    -> CTRL_ILLEGAL=0
+    -> CTRL_MRET=1
+
+  OooFetchHeadClassifyGate:
+    ctrl_legal=1
+    -> mret_raw=1, sret_raw=0, xret_raw=1
+    -> sfence_u_illegal=0
+    -> sfence_tvm_illegal=0
+    -> sret_tsr_illegal=0（只以 sret_raw 为前提）
+    -> wfi_tw_illegal=0
+    -> priv_system_illegal=0
+    -> arch_trap_raw=0
+    -> system_raw=1, stop_raw=1
+
+  Pending dispatch:
+    dispatch0_system=1 && !dispatch0_arch_trap && !csr_illegal
+    -> pending_system_capture_head0=1
+    -> capture_head0_mret=head0_xret_raw=1
+
+  Pending sequencer / drain:
+    pending_system_mret_q=1，instruction 原值被保存
+    -> stop_pending + drain_complete
+    -> OooCsrTrapRequestMux.mret_valid=1
+    -> funct12!=SRET，所以 real_mret_valid=1
+
+  CsrFile:
+    trap_mem/ex/irq 均无效
+    -> mret_valid 分支执行
+    -> priv_mode_q <= MPP
+    -> mstatus <= mret_mstatus(...)
+    -> ret_target=mepc
+
+SRET（current privilege=U）的路径相同，仅末端由保存的 funct12 分出 sret_valid=1，随后：
+
+    priv_mode_q <= SPP ? S : U
+    mstatus <= sret_mstatus(...)
+    ret_target=sepc
+
+关键证据：
+
+  - DecodeUnit.v:710-755：MRET/SRET 无条件清 CTRL_ILLEGAL，没有 privilege 输入。
+  - OooFetchHeadClassifyGate.v:124-150：唯一 xRET 相关 illegal 项是
+    `sret_raw && priv==S && TSR`；没有 MRET current-mode 或 SRET@U 项。
+  - OooPendingDispatchArbiter.v:156-165：只要不是 arch_trap，SYSTEM 被 capture。
+  - OooControlPlane.v:525-568：xret_raw 直接作为 capture_*_mret 输入，instruction 被保存。
+  - OooCsrTrapRequestMux.v:57-100：drain 后只按 funct12 区分 SRET/MRET，不重新检查 mode。
+  - CsrFile.v:613-616,676-728：trap 优先级之后直接执行 mret/sret，并输出返回地址。
+
+22.1.3 对 TSR 的反证：为什么它不会误执行 SRET
+
+S-mode、SRET、TSR=1 时，虽然 sret_raw/xret_raw/system_raw 同时为 1，但并不会既 trap 又
+xret：
+
+  1. OooFetchHeadClassifyGate.v:137-150 令 sret_tsr_illegal=1、
+     priv_system_illegal=1。
+  2. 同模块 :158-160 令 arch_trap_raw=1。
+  3. head0 路 OooPendingDispatchArbiter.v:158-164 以 !dispatch0_arch_trap 为 SYSTEM
+     capture 前提，因此 pending_system_capture_head0=0。
+  4. lane1 路 OooPendingLane1CaptureGate.v:42-44 同样要求 !arch_trap_raw，SYSTEM capture=0；
+     :49-70 形成 illegal-instruction trap payload。
+  5. 因 pending_system_mret 不会置位，OooCsrTrapRequestMux 不会生成 mret_valid；drain 后
+     只生成 pending_arch_trap_fire/trap_ex。
+  6. CsrFile 即使理论上同拍收到 trap 和 xret，:676-727 的 trap if/else priority 也会先
+     处理 trap；实际此路径中 xret 已在上游被挡掉。
+
+所以以下行为分别为：
+
+  current=M, MRET             合法，执行 MRET。
+  current=S, MRET             本 RTL 错误地合法并执行。
+  current=U, MRET             本 RTL 错误地合法并执行。
+  current=M, SRET, TSR=任意   TSR 不约束 M-mode，执行 SRET。
+  current=S, SRET, TSR=0      合法，执行 SRET。
+  current=S, SRET, TSR=1      正确产生 illegal instruction，不执行 SRET。
+  current=U, SRET             本 RTL 错误地合法并执行，不论存储的 TSR 值。
+
+22.1.4 安全影响校准
+
+必须区分三件事：
+
+  - ISA legality：确定错误，高置信。
+  - 任意 mepc/sepc redirect：确定发生，高置信；即使最终 privilege 仍是 U，也可能造成
+    非法控制流跳转、异常状态破坏或 DoS。
+  - 从 U/S 提升到 S/M：条件性。MPP/SPP 由更高特权软件控制，常规 xRET 会清零相应栈位。
+    一个具体可利用例是可信 M-mode 先留下 MPP=M，再通过另一条路径进入 S，之后 S-mode
+    非法 MRET 才可能回到 M；是否存在自然软件序列需要系统级测试，不能仅凭此 RTL 宣称
+    无条件 privilege escalation。
+
+建议断言/测试：
+
+  assert mret_valid -> current_priv==M;
+  assert sret_valid -> current_priv!=U;
+  assert (current_priv==S && SRET && TSR) -> illegal && !sret_valid;
+  分别设置 MPP/SPP=0/1/3，执行低特权非法 xRET，检查 trap、PC、priv 和 mstatus 全部状态。
+
+-------------------------------------------------------------------------------
+22.2 flush + DRAIN response：模块级已复现，trap 整链存在明确可达序列
+-------------------------------------------------------------------------------
+
+22.2.1 修订结论
+
+  A. [事实/单元级置信度 1.00] OooMemInflightQueue 在 flush_i=1、pop_valid_i=1、head=DRAIN
+     同拍时，flush 分支优先，旧 DRAIN 被重新压缩保留，pop 被忽略。协作审计的
+     tb_miq_flush_drain_pop.v 已复现同拍后 count=1 且持续。
+
+  B. [推断并由逐信号闭包支持/整链置信度 0.95] 默认配置下，ROB commit exception 产生
+     的 trap flush 不受 mem_retire_quiet/SQ 状态门控；一个更老、已退休 store 的 nokill
+     DRAIN 可在该 flush 拍进入 response。bridge、SQ、drain_inflight 都会消费，只有 MIQ
+     不 pop，形成 ghost DRAIN。
+
+  C. [事实/置信度 0.99] serial flush 有足够的不变量避免该同拍：in-flight DRAIN 令
+     mem_idle=0，CSR commit 被挡；pending-system 路径还会等待 SQ/drain quiet。它不是默认
+     配置下的触发源。
+
+  D. [事实+条件推断] checkpoint restore 在当前 `OOO_ROB_WALK_MODE=1` 配置下旧 checkpoint
+     路径基本不可达，因此不是当前默认触发源；若编译为 mode=0，MIQ 当拍直接 flush、bridge
+     flush 又晚一拍，older committed SQ drain 仍可能与 restore response 同拍，需单独验证。
+
+22.2.2 MIQ 本地优先级
+
+OooMemInflightQueue.v:143-144 同时形成：
+
+  push_fire = push_valid && !full
+  pop_fire  = pop_valid && head_valid
+
+但时序块是：
+
+  if reset
+  else if flush
+      扫描旧队列，保留所有 DRAIN；count<=keep_count
+  else
+      执行 push/pop；count<=count+push-pop
+
+因此 flush 同拍的 pop_fire 即使组合为 1，也没有任何时序消费者。flush 扫描读的是旧
+valid/kind，必然重新保留正在被响应的 DRAIN。证据：OooMemInflightQueue.v:129-191,
+193-220。
+
+22.2.3 默认 trap 路径的最小整链周期序列
+
+构造条件：
+
+  - store S 比异常指令 X 老；S 已从 ROB 退休，SQ head 已 committed/filled。
+  - X 已完成并即将成为 ROB head。
+  - DRAIN 物理地址在 PMEM，AXI AW/W 可同拍接受；非 PMEM 等 B 的路径也能构造，只多等待。
+  - MIQ 此时只有 S 的 DRAIN，bridge station/active 状态按下述推进。
+
+周期 T0（DRAIN request fire）：
+
+  sq_drain_valid=1
+  drain_inflight_q=0
+  mem_req_ready=1
+  -> sq_drain_req_fire=1
+  -> bridge stg 收下 addr/data/pretrans=1/nokill=1
+  -> MIQ push kind=DRAIN
+  -> drain_inflight_q 在沿后变 1
+
+周期 T1（station -> active FSM）：
+
+  bridge state=IDLE, stg_valid=1, stg_nokill=1
+  -> stage_advance=1
+  -> accept_request
+  -> nokill_q=1, state=S_WRITE_REQ
+
+周期 T2（关键对齐周期，异常提交与 store AW/W 完成同拍）：
+
+  bridge state=S_WRITE_REQ
+  aw_fire=1, w_fire=1, paddr 属 PMEM, bpend=0
+  -> store_decouple=1
+  -> edge 后 bridge state=S_RESP, nokill_q=1, bpend_q=1
+
+  同一周期 X 在 ROB head：
+  commit0_valid=1 && commit0_exception=1
+  -> csr_trap_mem_valid=1
+  -> edge 后 OooControlFlushSequencer.core_trap_flush_q=1
+
+周期 T3（发生故障的 flush + response 同拍）：
+
+  控制：
+    core_trap_flush_q=1
+    -> core_local_flush=1
+    -> IntBackend.flush_i=1
+    -> OooMemoryRequestGate.mem_flush=1
+    -> bridge.flush_i=1
+
+  bridge：
+    state=S_RESP, nokill_q=1
+    cpu_kill=1
+    nokill_busy=1
+    mem_rsp_valid=(S_RESP && (!cpu_kill || nokill_busy))=1
+
+  backend response：
+    MIQ head_valid=1, head_kind=DRAIN
+    -> miq_drain_rsp_wants=1
+    -> mem_rsp_ready=1（DRAIN 恒 ready）
+    -> miq_drain_rsp_fire=1
+    -> miq_pop=1
+    -> sq_drain_rsp_fire=1
+
+  本周期不会发新的 drain：
+    bridge mem_req_ready 含 !flush_i，故为 0；旧 drain_inflight 又仍为 1。
+
+周期 T3 的时钟沿，各模块产生不同结果：
+
+  MIQ：
+    flush 分支优先于 pop
+    -> 重新保留旧 DRAIN
+    -> count=1, head=0, kind=DRAIN
+
+  SQ：
+    drain_release=drain_fire && drain_valid=1
+    -> old head valid=0, head=head+1
+    -> flush 分支 count=survive_count(1)-drain_release(1)=0
+
+  drain_inflight：
+    无 req_fire，有 rsp_fire
+    -> drain_inflight_q=0
+
+  bridge：
+    active nokill 令 fsm_normal=1
+    S_RESP && rsp_ready
+    -> state=IDLE，response 已完成且不会重发
+
+周期 T4：
+
+  MIQ count=1/head=DRAIN
+  SQ count=0/drain_valid=0
+  drain_inflight=0
+  bridge IDLE/rsp_valid=0
+  -> ghost DRAIN 已形成，没有未来匹配 response。
+
+关键证据：
+
+  - trap 不等 memory quiet：OooRob.v:269-294 仅可选 CSR head 有 mem hold，普通 exception
+    可 commit；OooControlFlushSequencer.v:19-35 把 csr_trap_mem_valid 打成下一拍 flush。
+  - local flush 路：OooControlPlane.v:485-518；OooCoreSliceControlGate.v:39-46。
+  - bridge nokill response：OooMemAxiBridge.v:349-372,585-602,706-743,957-985,
+    1018-1025。
+  - backend DRAIN 恒收：OooIntBackend.v:1097-1108,1185-1201,2661-2676。
+  - SQ flush+release 同时生效：OooStoreQueue.v:96-99,131-155,186-245。
+  - MIQ flush 吞 pop：OooMemInflightQueue.v:129-220。
+
+22.2.4 为什么“更老 store 已退休、年轻 exception 提交”并不矛盾
+
+ROB retirement 和 store 对外完成已由 SQ 解耦。S 可以在更早周期完成 PROBE 并从 ROB
+退休，继续以 committed SQ entry 存在；X 随后成为 ROB head。OooRob 的普通 exception
+commit 不检查 mem_retire_quiet，只有可选 CSR head 路检查 mem_quiet。因此控制面没有
+“X trap 前 S 的 DRAIN 必须完成”这一不变量。
+
+只需 T2 的 exception commit 与 bridge 从 S_WRITE_REQ/S_WRITE_RESP 转到 S_RESP 的时钟沿
+对齐。DRAIN ready 恒为 1，所以 response 不会在 S_RESP 保持多拍；触发窗口确实只有一拍，
+但 commit 和 AXI 完成是独立事件，RTL 没有互斥门，因此它是低概率但真实可 cover 的竞态。
+
+22.2.5 三类 flush 源逐项反证
+
+  1. ROB commit exception -> trap flush：
+     可达，置信度 0.95。没有 SQ/mem_retire_quiet gate，是默认配置的主触发源。
+
+  2. serial flush：
+     当前路径不可达该同拍，置信度 0.99。
+
+     - 默认 OOO_CSR_QUEUE_HEAD=0 时，CSR/SYSTEM 走 pending drain；backend_drained 要求
+       mem_retire_quiet，即 SQ empty 且 !drain_inflight。
+     - 可选 head-CSR 路打开时，OooRob 的 mem_quiet_i 实际接 mem_idle；DRAIN 在 MIQ 中
+       令 mem_idle=0，所以 DRAIN response 周期不能 commit CSR。
+     - 若 CSR commit 与一个新 DRAIN request 同拍，serial_flush 是下一拍，而 DRAIN 此时
+       最多只在 bridge station/刚进入 FSM，按现有至少一拍 station 边界不可能已有 response。
+
+     证据：OooIntBackend.v:447-452,1110-1115；OooRob.v:269-293；
+     OooControlCommitSequencer.v:32-34,73-122；OooPendingDrainResolveGate.v:49-54。
+
+  3. checkpoint restore：
+     默认配置不可达，条件配置置信度 0.65。
+
+     - define.v:565-566 固定 OOO_ROB_WALK_MODE=1。
+     - mode=1 的 mispredict 走 ROB walk/untracked redirect，不建立旧 branch-spec checkpoint；
+       OooBranchResolveRecoveryGate.v:50-66,85-94。
+     - 若改为 mode=0，checkpoint capture 要求 core_mem_idle，故 capture 当拍之前没有 active
+       MIQ DRAIN；但 SQ 不属于 mem_idle，committed SQ head 可以在 capture 同拍或其后 launch
+       DRAIN。branch 解析若恰在 DRAIN response 周期 restore，MIQ 的 checkpoint_restore_i
+       当拍直接 flush，而 bridge 的 checkpoint_mem_flush_q 晚一拍，仍满足竞态条件。
+
+22.2.6 ghost 的后续破坏不只“mem_idle 永假”
+
+ghost 后，mem_idle 因 MIQ 非空而持续为 0，但 backend_drained 的组合式主要依赖 SQ quiet，
+所以未必立即冻结所有非 memory 指令。更危险的后续是 response 错位：
+
+  1. trap handler 发一个新 LOAD；MIQ 把 LOAD push 在 ghost DRAIN 后。
+  2. bridge 正常完成该 LOAD。
+  3. backend 仍按 MIQ head=DRAIN 解释这个 response，错误地把它当 drain completion 并 pop
+     ghost；SQ 已空，因此 SQ 不再释放任何项。
+  4. 真正的 LOAD MIQ entry 现在成为 head，但它的唯一 response 已被消费，再也不能 WB。
+
+结果是 trap handler load/后续 AMO/fence 等永久停顿，而非仅一个无害的 idle 统计错误。
+
+建议修复契约：flush 拍若 head response 已 handshake，应先 pop，再对“pop 后的旧队列”
+做 DRAIN filter；或者在 MIQ flush 分支显式排除 `rd==head && pop_fire`。另一个方向是让
+backend 在 flush 拍不消费 DRAIN response，但这要求 bridge/SQ/drain_inflight 三方同时
+保持并在下一拍重放，改动更大。
+
+建议新增断言：
+
+  assert !(flush && miq_head_drain && mem_rsp_valid && mem_rsp_ready);
+  或在支持该同拍后：assert flush&&drain_rsp_fire |=> miq_count==old_keep_count-1;
+  assert 每个 bridge response handshake 恰好使对应 MIQ 项消失；
+  cover trap_flush && bridge_state==S_RESP && bridge_nokill && MIQ_head==DRAIN。
+
+-------------------------------------------------------------------------------
+22.3 Sv39 MMIO 分类：错误的是投机资格，physical cacheability 路径本身正确
+-------------------------------------------------------------------------------
+
+22.3.1 修订结论
+
+  A. [事实/置信度 0.99] backend 使用 LSU 的 effective address，也就是翻译前 VA，执行
+     PMEM/MMIO 分类。
+
+  B. [事实/置信度 0.99] 当 VA 数值落在 PMEM window、但 PTE 映射到设备 PA 时，该 load
+     被当作普通 non-exclusive LOAD：无需 ROB head，允许投机发射，MIQ kind=LOAD。
+
+  C. [事实+可达性推断/置信度 0.95] older unresolved branch 后的此类 load 可在 branch
+     resolve 前发出；即使随后 MIQ entry 被 kill，bridge 不会因 ROB-walk branch kill 而
+     撤销事务，因此设备 AR side effect 可发生在错误路径。
+
+  D. [反证/置信度 0.99] “设备数据会因此进入 D-cache”这一说法不成立。bridge 在 DTLB
+     hit/PTW leaf 后用最终 PA 做 D-cache cacheable/tag/fill 判断；设备 PA 不命中 PMEM mask，
+     lookup 必 miss且 fill_we=0。错误路径是 speculative uncached AXI read，不是错误缓存。
+
+  E. [事实/置信度 0.99] 反方向映射（VA 数值在 PMEM window 外、PA 实际是 PMEM）会被
+     backend 过度保守地归为 LEGACY/ROB-head，但 bridge 仍按 PA 正确使用 D-cache；这是
+     性能/并发损失，不是错误地 uncached PMEM。
+
+22.3.2 VA 来源证明
+
+  OooIntBackend.v:800-825：
+    issue*_alu_result 作为 LSU.eff_addr_i。
+
+  LSUDataPath.v:20-23：
+    mem_addr_o = eff_addr_i，不做翻译。
+
+  OooIntBackend.v:1083-1093：
+    issue*_mem_mmio = !((issue*_mem_addr & PMEM_MASK)==PMEM_BASE)
+    issue*_mem_needs_excl = AMO || (LOAD && issue*_mem_mmio)
+
+翻译只发生在下游 OooMemAxiBridge；因此此处没有任何 PA/PBMT/PMA 信息可供分类。
+
+22.3.3 一个完全可构造的映射
+
+  current mode = S 或 U，satp.mode=Sv39
+  VA = 0x0000_0000_8000_0000（canonical，数值命中 PMEM window）
+  PTE.PPN -> PA = 0x0000_0000_1000_0000（UART）
+  PTE permission/A 位有效，PMP 允许最终 PA read
+
+地址常量证据：define.v:83-87 定义 UART base=0x10000000；:151-155 定义 PMEM window
+0x80000000/掩码 0xf0000000。Sv39 PTE 没有要求 VA 和 PA 同窗口，bridge 也没有此限制。
+
+22.3.4 从错误分类到设备 AR 的逐信号路径
+
+backend 发射资格：
+
+  issue_mem_addr=VA 0x80000000
+  -> issue_mem_mmio=0
+  -> issue_mem_needs_excl=0
+  -> issue_mem_order_ready 走 plain-load 臂，只检查 older-store/SQ/MIQ-probe hazard
+  -> 不要求 issue_rob_idx==rob_head_idx
+  -> MIQ 有 slot、bridge ready 即可 issue
+
+MIQ 记账：
+
+  issue_is_excl_kind=0
+  -> miq_push_kind=LOAD，而不是 LEGACY
+
+branch speculation：
+
+  - OooIntIssueQueue.v:238-283 只让 load 等 older store，不让 load 等 older branch/ALU；
+    older branch operand 未 ready 时，younger ready load 可被 select。
+  - OooIntBackend.v:1571-1590 只有被 VA 判为 MMIO 的 load 才必须 ROB head；本例不满足。
+  - OOO_ROB_WALK_MODE=1 时 OooCoreSliceControlGate.v:29-40 不因 branch speculation 阻断
+    memory issue。
+
+bridge 翻译和物理访问：
+
+  req_translate=1
+  -> DTLB hit 得 req_translated_paddr=0x10000000，或 PTW leaf 后得到同一 PA
+  -> paddr_q/req_cache_addr 取最终 PA
+  -> PMP 对最终 PA read 检查
+  -> D-cache lookup_addr 取最终 PA
+  -> PA 不命中 PMEM mask，lookup_cacheable=0，必 miss
+  -> S_LOOKUP/S_READ_ADDR 发 AXI AR，地址为 paddr_q 对齐窗口
+  -> xbar 按 0x10000000 选择 UART slave
+
+证据：OooMemAxiBridge.v:382-425,449-568,609-627,654-703；
+OooDataWordCache.v:93-98,168-228。
+
+branch kill 后：
+
+  OooMemInflightQueue.v:193-232 只把 younger LOAD/PROBE 的 killed bit 置 1；
+  OooIntBackend.v:2258-2264 在 response 时禁止 killed LOAD WB；
+  但 ROB-walk branch mispredict 不进入 OooMemoryRequestGate.mem_flush，bridge 不收到 kill。
+  即使 kill 发生在 device AR 之前，已进 bridge station/FSM 的事务仍继续翻译并发 AR。
+
+因此 killed 机制只保护寄存器/ROB 不被迟到数据污染，不能撤销设备读的外部副作用。
+
+22.3.5 D-cache 反证细节
+
+DTLB hit 时，req_cache_addr=req_translated_paddr；DTLB miss 时，walk_read_lookup 的地址直接
+取 walk_leaf_paddr。两条路径都不是 VA。OooDataWordCache：
+
+  lookup_cacheable_q <= cacheable_addr(lookup_addr)
+  lookup_hit = lookup_pend && lookup_cacheable && valid && tag_match
+  fill_we = fill_valid && cacheable_addr(fill_addr)
+
+所以 UART/PLIC/CLINT 等 PMEM-window 外 PA 既不会 hit，也不会 fill。前文应保留“错误路径
+MMIO side effect”结论，但删除“可能按 PMEM cache hit 返回/缓存设备数据”的暗示。
+
+22.3.6 反向映射与 store 路径
+
+反向映射示例：VA=0x40000000，PTE->PA=0x80000000。
+
+  - backend 按 VA 判 MMIO，强制 ROB head、MIQ empty、LEGACY 单例；
+  - bridge 翻译后按 PA 判 cacheable，仍可正常 D-cache hit/fill；
+  - 所以结果通常正确但显著损失性能。
+
+plain store 不存在同样的“错误路径设备写”：它只投机发 PROBE，真实 write 在退休后的
+pretranslated SQ DRAIN；SQ 保存的是 probe 返回的 PA，bridge 最终 store_decouple/cache
+维护也按 PA 分类。不过 load 对 store 的排序和 MMIO 属性仍可能因 VA/PA 信息分层而过度
+保守或依赖全局 blind block。
+
+22.3.7 与 aligned 8-byte device read 的独立问题
+
+bridge 对非 cross-line read（包括 uncached MMIO）把 ARADDR 对齐到 8-byte line，再从返回
+数据右移出目标 byte。UART 本体确实构造 8-byte 连续寄存器窗口，因此数据值可取对；但
+其 RBR pop 判据只看对齐后的 reg_read_addr==offset0。于是读取同一 8-byte window 内的 LSR
+等 offset 也可能触发 offset0 的 RX pop。证据：OooMemAxiBridge.v:609-627；
+AxiToUart.v:66-88,122-125；Uart.v:48-65,121-163。
+
+这是物理 MMIO beat/lane side-effect 设计问题，即使 VA 正确分类为 LEGACY 也存在；不要把
+它与本节的“翻译前投机资格分类”混为同一个 root cause。但 VA->device 映射错误投机时，
+它会放大错误路径设备副作用。
+
+22.3.8 建议验证与修复边界
+
+定向测试：
+
+  1. S-mode 建页：VA 0x80000000 -> UART PA 0x10000000；在一条最终 mispredict 的 older
+     branch 后执行 load。监视 UART `reg_read_valid_i`，wrong-path 情况必须为 0。
+  2. 同一 PA 用 VA 0x40000000 映射，确认功能正确但当前只能 ROB-head/LEGACY 发射。
+  3. 监视 D-cache lookup_cacheable/fill_we，设备 PA 必须均为 0；该测试用于防止把 root
+     cause 误归因到 cache。
+  4. 分别读 UART offsets 0..7，确认只有 architectural RBR read 才 pop RX。
+
+结构性修复不能只把 Sv39 时所有 load 都当 MMIO（虽可保正确但性能极差）。需要在 PA
+已知之后建立 authorization point：translation/PMA/PBMT 得出 side-effecting 属性，若是
+设备访问则必须等 ROB head 且确认未被 squash，之后才能发 slave AR。普通 PA 才进入可
+投机 LOAD/D-cache 路径。也可把 translation 与 actual memory access 拆成两阶段队列。
+
+-------------------------------------------------------------------------------
+22.4 三项复核后的最终风险评级
+-------------------------------------------------------------------------------
+
+  项目                                      正确性结论                 置信度
+  ----------------------------------------  -------------------------  ------
+  SRET@S + TSR=1                           已正确 trap                0.99
+  MRET@S/U                                 legality 缺口且会执行      0.99
+  SRET@U                                   legality 缺口且会执行      0.99
+  低特权 xRET 必然进入更高特权级           不能成立；影响依赖栈状态   0.60
+  MIQ flush+pop 本地 ghost                 已单元复现                 1.00
+  默认 trap 整链触发 ghost                 明确可达                   0.95
+  serial flush 触发同一 ghost              当前控制不变量排除         0.99
+  default mode checkpoint 触发             当前配置基本不可达         0.95
+  mode=0 checkpoint 触发                   条件可达，待整链 cover      0.65
+  Sv39 VA->device PA 错误路径设备读         明确可达                   0.95
+  上述设备数据错误进入 D-cache             已反证，不成立             0.99
+  VA-window 外 -> PMEM PA                  正确但过度串行             0.99
+
+审查者最终意见：三项中有两项需要纠正原措辞，但没有消除核心问题。xRET 的 TSR 子路径是
+正确的，架构影响也不应无条件称作进入更高特权级；Sv39 MMIO 的 physical cacheability 是正确的。
+相反，MIQ 竞态经 unit reproduction 和 trap 整链闭包后，比前文“待定向验证”的评级更强，
+应优先修复并加全核 cover/regression。

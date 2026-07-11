@@ -7,7 +7,8 @@
 > 定位：把 system/trap 指令从"全局 stop_pending + 全后端 drain"改为"ROB 队头执行 + 退休刷 younger"，
 > **架构语义不变**（cycle 会变，故 cycle-exact 中性不适用），之后物理删除
 > `OooStopPendingSequencer`/`OooPendingDrainResolveGate`/`OooPendingDispatchArbiter` 等机制。
-> 配套：宪法 `ooo-core-architecture.md` §8.3/§8.4、真相基线 `rtl-ground-truth-2026-07-03.md` §2.2/§4。
+> 配套：宪法 `ooo-core-architecture.md` §8.3/§8.4、CURRENT snapshot
+> `rtl-ground-truth-2026-07-11.md`。
 
 ## 0. 结论先行
 

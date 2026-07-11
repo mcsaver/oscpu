@@ -19,7 +19,7 @@
 ## 归档清单（2026-07-03，全 RTL 重读审计）
 
 > 依据：2026-07-03 无文档依赖的全 RTL 重读（9 路审计+矛盾裁定+追问验证，真相基线
-> `../../arch/rtl-ground-truth-2026-07-03.md`，task-run
+> `../../arch/history/rtl-ground-truth-2026-07-03.md`（已归档），task-run
 > `.github/task-runs/2026-07-03-rv64-rtl-reread-audit/`）后对全部 85 份文档的逐份审计
 > （6 CURRENT / 67 DRIFT_FIXED / 12 归档，另 3 份 arch 过程文档归 `../../arch/history/`）。
 
@@ -44,7 +44,7 @@
 ## 归档清单（2026-07-04，B4 死硅物理删除）
 
 > 依据：B4 死硅物理删除（真相基线 §4 逐项 cycle-exact 中性删除，见
-> `../../arch/rtl-ground-truth-2026-07-03.md` §4 逐行 commit）。以下 12 份 spec 描述的模块已物理删除
+> `../../arch/history/rtl-ground-truth-2026-07-03.md` §4（已归档）逐行 commit）。以下 12 份 spec 描述的模块已物理删除
 > （文件 + filelist + 实例化全删），按"删模块→spec 归档"从 `design/specs/` 移入。
 
 | 文件 | 类别 | 归档原因（模块已 B4 物理删除） | 现状参考 |
@@ -65,3 +65,9 @@
 > 保留在 `design/specs/`（模块未删，B4 只删死臂或证明不可安全删）：`ooo-branch-bpu-update-gate.md`（模块存活，
 > 仅删旧四臂保留 issue-resolve）、`ooo-branch-spec-tracker.md` / `ooo-branch-resolve-recovery-gate.md` /
 > `ooo-control-commit-sequencer.md` 等（融合活+死或 KEEP，见真相基线 §4 保留说明）。
+
+## 归档清单（2026-07-06，Sv39 HW A/D 实施计划落地）
+
+| 文件 | 类别 | 归档原因 | 现状参考 |
+| --- | --- | --- | --- |
+| `ooo-sv39-hw-ad-update.md` | SUPERSEDED | 数据侧/取指侧 HW-managed A/D 主路径与观测 checker 已落地；2026-07-11 复审重新打开 PTE 写 PMP 与 IFU A-update partial-write flush-drain 两项边界，因此本实施计划不再描述现状 | `../ooo-fetch-axi-bridge.md` + `../ooo-mem-axi-bridge-fsm.md` + `../../arch/rtl-ground-truth-2026-07-11.md` |

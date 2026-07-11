@@ -10,7 +10,8 @@ metadata:
 **〔2026-07-03 更新〕宪法已升 v0.2**(随全 RTL 重读同步【现状】层, 见 [[rv64core-audit-baseline]]):
 两执行域图景已过时——域 B 只剩 system/trap 类, branch/jump/fp/mem 已迁域 A(F2/FP 簇/SQ),
 E2/E3 副作用例外已消除, branch_event 已有显式 mispredict。下文 v0.1 框架与 B2 失败史仍是
-有效历史记录(负结论防重蹈), 但**现状以 `rtl-ground-truth-2026-07-03.md` 为准**。
+有效历史记录(负结论防重蹈), 但**现状以 `rtl-ground-truth-2026-07-11.md` 为准**；
+07-03 snapshot 已归档。
 文档归档: b2-branch-spec-redirect.md 等已移 `design/arch/history/`。
 
 RV64 乱序核新立**微架构宪法**：`npc/rv64/design/arch/ooo-core-architecture.md`（v0.1，2026-06-29→v0.2，2026-07-03）。

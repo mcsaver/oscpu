@@ -92,6 +92,10 @@ mem0_req_ready_o = !flush_i && (!stg_valid_q || stage_advance_w)
   （`store_rmw_en_i=0`，无条件失效）——该拍的 read 续访问可能同拍发 lookup，宏读口不空闲。
 - **PTW 隐式访问 PMP（F9）**：每级 PTE 读地址（`walk_pte_addr_w`）经独立 PmpChecker 检查，违例在
   S_WALK_AR 直接转 S_RESP 报 access fault（非 page fault），不发 AR。
+- **KNOWN GAP PTW-PMP-G1（PTE 写回）**：F9 只证明 PTE READ 许可；进入
+  `S_AD_UPDATE` 写 A/D 位前未见对同一 PTE 物理地址执行独立 PMP WRITE 检查。目标是
+  WRITE 拒绝时不发 AW/W，并按明确平台合同返回 access fault；取指侧同一合同见
+  `ooo-fetch-axi-bridge.md`。
 - **Svnapot 64KiB**：PTW 只接受 level0 leaf 且 `PTE.N=1 && PTE.PPN[3:0]=4'b1000`；非 leaf、
   level1/2 leaf 或其它 NAPOT 编码均报 load/store page fault。合法 leaf 的 PA 拼接使用 VA[15:12]
   替代 PTE.PPN[3:0]，再进入 PMP、dcache 或 AXI 访问；DTLB hit 复核必须带 leaf level。
@@ -179,6 +183,8 @@ mem0_req_ready_o = !flush_i && (!stg_valid_q || stage_advance_w)
   skid/PSR-HOLD/nokill-flush 存活定向与负测试锚点（fire 拍 req 源 lookup 恒 0）。
   CoreMark 10 迭代 0xfcaf，CPI 3.197→3.280（+2.57%，低于 +3~8% 预估带）。
   实施记录：`.github/task-runs/2026-07-09-p5-knife-m/`。
+- 2026-07-11：把 F9 的 PTE READ 范围与 A/D PTE WRITE 权限分开，登记
+  `PTW-PMP-G1`；本次只更新合同，不表示 RTL 已补 WRITE checker。
 
 ## 已知隐患(2026-06-28 bug-hunt,当前不可触发)
 - "至多一个未收 B" 不变量未由桥自身保证,依赖外部 `AxiLiteXbar` 串行化写;接流水化写互连会 B 归因 off-by-one。详见 `.github/memory/known-issues.md`(隐患A)。IP 复用前应桥内自保证(accept 新写前 `!bpend_q` 或 B 计数+归属)。

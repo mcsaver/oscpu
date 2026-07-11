@@ -7,7 +7,9 @@ metadata:
   originSessionId: 76369d5c-65e7-46d2-ae43-bf343854733a
 ---
 
-**查 rv64 核现状的唯一权威入口(2026-07-03 起)**: `npc/rv64/design/arch/rtl-ground-truth-2026-07-03.md`
+**查 rv64 核现状的权威入口(2026-07-11 起)**：
+`npc/rv64/design/arch/rtl-ground-truth-2026-07-11.md`。本文件记录的 07-03 结论按历史
+baseline 阅读；原 snapshot 已移到 `npc/rv64/design/arch/history/rtl-ground-truth-2026-07-03.md`（已归档）。
 (全 RTL 无文档依赖重读的真相基线: 能力/缺口/死硅普查/参数表, 全带 file:line 证据;
 证据全文 `.github/task-runs/2026-07-03-rv64-rtl-reread-audit/report-*.json` + answers.json)。
 分析该核时**先读基线再对照代码**, 不要信旧记忆/旧文档的图景。

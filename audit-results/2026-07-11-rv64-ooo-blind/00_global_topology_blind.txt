@@ -1,0 +1,339 @@
+RV64 OoO Core 阶段一代码盲审：全局拓扑与架构基线
+日期：2026-07-11
+基线提交：cab1814b0622e53e1e62f2b0fc17ed6873c72ba2
+范围：npc/rv64 的非 Markdown RTL、构建配置、当天回归结果与综合/STA 产物。
+
+阶段边界
+  本文件在没有读取、搜索或引用任何 .md/.MD 内容的前提下形成。
+  它是后续文档对比的冻结候选基线，不含任何来自设计说明、memory 或 task-run 的先验结论。
+  源码注释中偶然出现文档文件名不等于读取文档内容。
+
+证据标签
+  [事实] 由当前 RTL/配置/现有工具产物直接支持。
+  [推断] 由多处事实连接而成，尚未用定向测试直接观测。
+  [待验证] 静态审查发现可疑契约，需要仿真或形式化确认可达性与后果。
+
+===============================================================================
+一、总评
+===============================================================================
+
+1. [事实] 这不是“顺序核外围套 OoO 名称”，而是一个已经闭环的小型、名义 2-wide
+   RV64 OoO：双取指/双 dispatch、整数双 issue、双全局 writeback、双 in-order commit，
+   具备整数和浮点独立 rename、物理寄存器、IQ、ROB、分支错误恢复、SQ/MIQ 和精确异常主链。
+
+2. [事实] “2-wide”只在整数短流水的中心区成立。前端可形成两个 uop，整数有两条短 EX，
+   但物理访存口、FP issue、mul/div、CLMUL、FP div/sqrt、控制/CSR 串行路径大多是 1-wide；
+   16-entry ROB、8-entry IQ、4-entry SQ/MIQ 很难隐藏 32/56/64 拍的长延迟。
+
+3. [事实] 架构覆盖面相当广：RV64 I/M/A/F/D/C、Zicsr/Zifencei、Zba/Zbb/Zbc/Zbs、
+   M/S/U、Sv39、PMP、页表 A/D 硬件更新、Svpbmt、时钟/中断/委托、LR/SC/AMO。
+   但 V/H、half FP、真正 debug/trigger、NMI、多核一致性以及更现代的非阻塞缓存结构没有实现。
+
+4. [推断] 当前最突出的架构取舍是“用保守串行化换简单正确性”：ROB walk 取代多分支
+   checkpoint；Sv39 store/load 冲突不明时 blind wait；AMO 在 ROB head 独占；CSR 默认 drain。
+   优点是状态机和精确恢复可理解，缺点是 OoO 窗口的有效并行度明显低于名义宽度。
+
+5. [事实] 当前 100 MHz whole-core STA 不收敛。最差路径从 IFU bridge 的 pc_q 出发，
+   穿过 ITLB/PMP/cache 选择、RVC/分支识别/立即数/next-PC，再到 frontend outstanding PC 寄存器；
+   arrival 15.321 ns、required 9.973 ns、slack -5.348 ns。按该理想时钟/标准单元模型，
+   该路径只对应约 65.3 MHz；它是跨模块拓扑问题，不是一处局部 ALU 慢。
+   证据：npc/rv64/build/sta/NpcTop-100MHz/NpcTop.opensta.rpt:2-107。
+
+6. [事实，更正] 当天聚合摘要写 86/86 module testbench、lint/build/AM PASS 与
+   overall_rc=0，但原始日志显示三份 module TB 失败、AM 为 58/59；只有 177 个
+   riscv-tests 的逐项 PASS 可直接采信。详见 `VALIDATION_ERRATUM.txt`。当前 .config 明确关闭 difftest，且没有发现 RV64
+   formal/riscv-dv/RVWMO litmus 基础设施；因此现有绿灯不能覆盖非法 FP、FENCE、满队列同拍边界、
+   晚到总线错误、随机 OoO race 等问题。
+
+===============================================================================
+二、从代码重建的层次拓扑
+===============================================================================
+
+NpcCoreTop
+  ├─ OooFetchAxiBridge                         独立 IFU AXI master
+  │    ├─ OooFetchPacketCache                  4096×199b、direct-mapped
+  │    ├─ OooSv39Tlb                           64-entry ITLB
+  │    └─ 5× OooPmpChecker + 页表 walker/A-bit update
+  ├─ OooMemAxiBridge                           单 LSU 请求口、独立 AXI master
+  │    ├─ OooDataWordCache                     4096×(tag+64b)、direct-mapped
+  │    ├─ OooSv39Tlb                           64-entry DTLB
+  │    └─ 3× OooPmpChecker + 页表 walker/A/D update
+  ├─ OooCoreTopGlue
+  │    ├─ OooFrontend
+  │    │    ├─ OooFetchPacketFifo              4 packets
+  │    │    ├─ OooFetchPacketDecode/RVC        每 packet 最多 2 uop
+  │    │    ├─ OooBranchDirectionPredictor     gshare + local
+  │    │    ├─ OooRasStack                     32 entries
+  │    │    └─ dispatch/pending/redirect gates
+  │    ├─ OooExecuteBackend
+  │    │    └─ OooAluCoreSlice/OooAluDecodeBackend
+  │    │         └─ OooIntBackend
+  │    │              ├─ OooDispatchBackend
+  │    │              │    ├─ int FreeList/RenameMap/BusyTable
+  │    │              │    ├─ OooRob            16 entries
+  │    │              │    └─ OooIntIssueQueue  8 entries
+  │    │              ├─ int PRF 64×64, 5R2W + committed GPR
+  │    │              ├─ 2× ALU/compare/bitmanip short pipe
+  │    │              ├─ 1× radix-4 MulDiv; 1× iterative CLMUL
+  │    │              ├─ OooFpBackend
+  │    │              │    ├─ FP map/free/busy + FP IQ(8)
+  │    │              │    ├─ FP PRF 64×64, 4R2W + committed FPR
+  │    │              │    ├─ 5-stage arith/FMA + comb/convert
+  │    │              │    └─ single in-flight div/sqrt domain
+  │    │              ├─ OooMemInflightQueue    4 entries
+  │    │              └─ OooStoreQueue          4 entries
+  │    ├─ OooMemoryAccess / OooControlPlane
+  │    └─ OooWriteback
+  └─ CsrFile                                    M/S/U trap/CSR/PMP/fcsr
+
+顶层事实：
+  - NpcCoreTop.v:202-304 实例化 IFU/LSU bridge；306-426 实例化 core glue；428-479 为 CSR。
+  - CoreTopGlue 中的活跃主模块位于 462、595、730、769、812、1024 行附近。
+  - 顶层将 run=1、commit_ready=1、外部 flush=0，故停机/提交反压不是公开微架构能力。
+  - IFU 与 LSU 是两个 AXI master，但 LSU 内部只有一个物理请求选择口；这不是双 memory pipe。
+
+===============================================================================
+三、真实容量与吞吐边界
+===============================================================================
+
+前端
+  - fetch/decode：每 packet 最多 2 uop；packet FIFO 深 4。
+  - fetch packet cache：4096 entry × 199 bit；index 按 PC 的 2-byte 粒度。
+  - BPU：1024-entry gshare BHT、10-bit GHR；256×8 local history；4096 local counters；
+    没有 live chooser table，也没有活跃的通用 JALR target BTB。
+  - RAS：32 entry；返回可预测，普通间接跳转主要依赖执行后纠错。
+
+后端
+  - integer PRF 64，初始 32 个空闲；ROB 16；integer IQ 8。
+  - dispatch 2；integer issue 最多 2；global WB 2；commit 2。
+  - FP PRF 64、FP IQ 8、双 enqueue 但单 issue。
+  - MIQ 4、SQ 4；每拍最多一个真实 memory request。
+  - integer mul/div 单实例、非特殊最坏约 32 RUN 拍；CLMUL 单实例固定 64 次迭代。
+  - FP add/mul/FMA 5-stage、吞吐 1/cycle；FP div/sqrt 共享单个 long-meta 域，约 56 步。
+
+存储层次
+  - ITLB/DTLB 各 64-entry direct-mapped/context-tagged。
+  - instruction packet cache 宏数据约 815,104 bit（约 99.5 KiB，不含外围）；但索引覆盖
+    仅 4096 个 2-byte 起点，连续 packet 会保存大量重叠字节和完整上下文，容量效率很低。
+  - D-cache data 容量 4096×8 byte=32 KiB；8-byte line、direct-mapped、write-no-allocate，
+    store hit 用 read-modify-write。没有 associativity、MSHR、nonblocking miss、L2 或 coherence。
+
+===============================================================================
+四、关键数据流和恢复流
+===============================================================================
+
+4.1 Fetch/预测
+  [事实] bridge 给出 PC 对应 packet，命中/翻译/PMP 结果直接进入 RVC 解压、第二条边界判定、
+  分支立即数和 packet next-PC 组合逻辑。这个“响应即解码并反馈下一取指 PC”的拓扑减少命中延迟，
+  但正是当前 15.3 ns 关键路径的根因。
+
+  [事实] 条件分支方向预测是 gshare/local 的启发式选择；GHR 在执行 resolve 后更新而非 speculative
+  update。back-to-back 同表项训练只有一套更新口；双 issue 同拍两条已解 control-flow 也只导出一套
+  resolve/training metadata，因此 lane1 的正确预测训练可丢失。影响首先是预测质量而非提交正确性。
+
+4.2 Rename/dispatch/issue
+  [事实] 两 lane 同拍完成 free-list allocation、map 读取/写入、busy 查询和 ROB/IQ 入队；lane1
+  能看到 lane0 的新 map，覆盖同拍 RAW/WAW。integer IQ 是程序序紧凑数组，扫描 oldest-ready 后
+  每拍全量 compact；dispatch 项不能同拍 bypass 到 issue。
+
+  [推断] 8 项虽浅，但全 payload 搬移、wakeup CAM、memory prefix ordering、PRF 异步多口读构成
+  高切换和宽组合网络。若扩容而不改成稀疏 IQ/age tag/banked payload，PPA 会非线性恶化。
+
+4.3 Memory
+  [事实] load 可以乱序到达单 LSU 口，但 IQ/SQ 规则很保守：旧 store 未知时挡 load；Sv39 下
+  为避免 VA/PA alias 对所有更老 SQ store blind wait；FP load 不做 SQ forwarding。
+
+  [事实] plain store 先做无副作用 translation/PMP probe，填入 SQ并把 ROB 标 done；只有 ROB commit
+  后，committed SQ head 才以 pretranslated/nokill 请求真实 drain。这样避免 wrong-path store，且可做
+  部分 store-to-load forwarding；代价是 SQ4 很快成为 store-heavy 背压点。
+
+  [事实] AMO/LR/SC 在 ROB head、MIQ/SQ quiet 的独占条件下运行；aq/rl 没有独立调度语义，实际
+  行为通常强于 ISA 最低要求，正确性保守但性能损失大。
+
+4.4 Commit/recovery
+  [事实] ROB 只让 done 的 head0/head1 顺序提交，head0 exception 阻止 head1；GPR/FPR 和 fflags
+  只在无异常 commit 时更新。trap/full serial flush 从 committed arch files 重建 speculative PRF/map。
+
+  [事实] branch mispredict 不依赖全 map checkpoint：IQ/SQ/MIQ/执行器先按 ROB age kill，ROB 从
+  tail-1 逆向每拍 walk 2 entry，逐项恢复 old pdest 并释放 new pdest。它能容纳多个在飞分支，
+  但最坏 15 个 younger entry 需约 8 个 walk 拍，期间 dispatch/commit/issue 冻结。
+
+===============================================================================
+五、优点
+===============================================================================
+
+1. 微架构闭环完整：整数与 FP 都有 rename/PRF/IQ/ROB/commit，长延迟执行和 memory response 能
+   backpressure，不是只对 benchmark 常用 ALU 的“伪乱序”。
+
+2. 精确异常主链清楚：cause/tval 从 decode/execute/translation/PMP/response 进入 ROB，队头异常
+   单独提交到 CSR trap，架构 RF 不被异常指令污染。
+
+3. 恢复方案适合当前小窗口：ROB-walk 状态少、容易审计；full flush 从 committed 状态重建，
+   避免多 checkpoint 和复杂 free-list snapshot。
+
+4. store 路径已有真正的 speculative probe→SQ→commit→drain，而不是粗暴地让所有 store 到 ROB
+   head 才计算地址。Bare/PA 下还能选择最年轻的更老 store 做覆盖 forwarding。
+
+5. ISA/特权覆盖远超最小教学核：F/D 独立 rename、A 扩展、Sv39/PMP/A-D update、委托/中断等
+   已贯穿真实数据流。
+
+6. 工程分层有意识：119 个 Verilog module、wrapper/gate/fact 模块化；23 个 RTL 文件包含
+   OOO_ASSERT，正常 Verilator build 打开 --assert/+define+OOO_ASSERT。当天回归提供了良好基线。
+
+===============================================================================
+六、缺点与优先级风险
+===============================================================================
+
+P0/P1：可能影响架构正确性
+
+A. [事实+语义推断] 普通 FENCE 被 decode 成合法 no-op，后端没有消费 FENCE/MISC_MEM 控制位；
+   它不等待 committed SQ drain，也不阻止 younger load 请求。older store A、FENCE rw,rw、younger
+   load B 可形成违反 RVWMO 屏障的窗口。fence.i 是另一条已实现的 serial flush 路径，不能替代 FENCE。
+
+A2. [局部状态动态复现，架构错误] PC=page+0xFFE 时，合法 16-bit C 指令全部位于当前页；
+   但 fetch bridge 以“本 packet 前 4B 是否跨页”代替“实际首条指令是否跨页”，会在下一页
+   page/access fault 时把 resp1 覆写到 resp0。真实 decoder 随后给当前 C 指令标 fault，导致早一条
+   trap。已用 C.NOP + second-page page fault 复现关键状态转移，详见 fetch_page_end_c_fault_result.txt。
+
+A3. [局部状态动态复现，AXI 协议错误] IFU page walker 设置 PTE.A 时允许 AW/W 独立握手，
+   但 mmu_flush 只排水 read，不排水 partial write/B。AW-only 后 flush 已观测 bridge 清状态并停止
+   W/BREADY；真实 xbar 会继续 hold 已接受 channel，下一次更新可能交叉配对或停滞。详见
+   fetch_ad_flush_partial_result.txt。
+
+B. [模块动态复现；当前默认整核不可达，高置信] MIQ 父层用 (!full || pop) 承诺 full+pop
+   可同拍接收新请求，但 MIQ 内部 push_fire 仍要求 !full。独立 4-entry 定向测试已观测
+   count 4→3 且新 ROB id 未记账，证明模块接口契约错误。对抗复核同时证明当前 bridge 只有
+   1 active + 1 staged，从 reset 归纳 MIQ count≤2，默认 ENTRY_N=4 时到不了 full。
+   因此当前应定性为潜伏缺陷/未来多-outstanding 阻塞项，而非默认核已可触发故障；它也说明
+   名义 4-entry MIQ 的后两项在当前拓扑中不可利用。详见 miq_full_pop_result.txt。
+
+C. [待验证，高置信] FP decode adapter 对任何 OP-FP/FMA opcode 直接旁路为 FP uop，没有完整检查
+   funct/fmt/rs2/rm。FpBackend 对未知分类仍可能 issue 并从 FP IQ 删除，却没有 completion source，
+   可能使 ROB 永久不 done；reserved rm 101/110 的 round helper default 又按 RNE 处理。
+
+D. [事实] store 在 probe 成功后可架构退休，真正 drain 的 AXI SLVERR/DECERR 发生时只打印并释放
+   SQ entry，已无法生成精确 store access fault。translation/PMP fault 可在 probe 捕获，但最终
+   slave/互连晚错误不在此保证内。
+
+D2. [动态复现，架构错误] xRET 当前特权级检查不完整：S/U-mode 的 MRET、U-mode 的 SRET
+   均被真实 decode/classify 链当作合法 system；只有 S-mode+TSR 的 SRET 正确非法。CsrFile 下游
+   不复查 privilege，会直接按 MPP/SPP 跳转并改变状态。详见 xret_privilege_result.txt。
+
+D3. [事实+语义推断] minstret 增量直接统计 ROB commit valid，而 trapping head 为驱动精确
+   trap 也会 commit_valid=1；因此同步异常指令可能被计入 minstret。retire_count 应排除
+   commit_exception，并明确 control pseudo-commit 的计数契约。
+
+D4. [高置信整链推断] Sv39 下 MMIO 属性在翻译前按 effective VA 是否落在固定 PMEM window
+   分类。VA 看似 PMEM、PTE 却映射到 UART/PLIC PA 时，backend 把 load 当普通可投机 LOAD；
+   bridge 按最终 PA 正确选择非缓存路径，所以不是“缓存设备数据”，但 uncached AR 的设备读副作用
+   已发生，之后 MIQ kill 只能丢 response，不能撤销副作用。反向映射则安全但被错误串行化。
+
+D5. [RTL 事实，权限缺口] IFU/LSU page walker 读取 PTE 时只以 READ 类型经过 PMP checker；
+   leaf 需要设置 A/D 后直接走 S_AD_UPDATE AW/W，没有再用 WRITE 类型检查 PTE 物理地址。
+   “PTE 可读、不可写”的 PMP 配置仍会向总线发隐式写。应在写前独立做 PMP WRITE 判定。
+
+D6. [整链 RTL 事实，设备副作用错误] 非跨 8-byte line 的 load 一律把 AXI ARADDR 向下
+   对齐到 8B并读完整 beat，再在 core 内右移。读 UART offset 1..7（例如 LSR=5）时，UART
+   实际看到的 reg_read_addr 仍为 offset0；其 RBR pop 判据只看 offset0，因此查询 LSR 也可能
+   弹出接收字节。数据 lane 可取对，但设备读副作用归属错误。根因是 LSU 丢失 read lane/size
+   语义后把对齐 full-beat 直接交给 side-effecting slave。
+
+E. [待验证] CLMUL kill helper 函数直接引用函数外 kill 信号；同工程 MulDiv 已明确规避 Icarus
+   hidden sensitivity 问题。若仿真器漏敏感，wrong-path CLMUL 可能迟到 WB 并撞复用 ROB index。
+
+E2. [模块动态复现；默认整核可达获高置信逐信号支持] MIQ 的 flush 分支保留 DRAIN，却忽略同拍 pop。
+   nokill bridge response、SQ release 和 drain_inflight 清除都可在 flush 拍发生，因而 MIQ 会留下
+   再也等不到第二个 response 的 ghost DRAIN，mem_idle 可能永久为假。serial SYSTEM flush 因
+   等 mem quiet 不可撞；但年轻同步异常的 trap flush 不等待更老 retired store 后台 DRAIN，故默认
+   路径可重叠。仍需整核 directed test 给出真实波形。详见
+   miq_flush_drain_pop_result.txt。
+
+P1/P2：性能、PPA、可扩展性
+
+F. 当前 100 MHz 时序差 5.348 ns；应在 IFU bridge→packet decode→next-PC 之间增加明确 stage/cut，
+   同时重构 RVC/分支识别与 packet cache 组织，而不是只做 cell sizing。
+
+G. 通用 JALR 没有活跃 target predictor；方向历史不 speculative；正确 lane1 branch update 可能丢失；
+   32-entry RAS 只能补 return。错误恢复又要 ROB walk，间接跳转/分支密集 workload 代价会放大。
+
+H. CSR 默认不是 queue-head execute，而是 pending + drain；ecall/xret/WFI/sfence/fence.i 也需控制平面
+   串行。WFI 被配置成立即 no-op，没有 sleep/低功耗等待。
+
+I. cache/TLB 简单但低效：direct-mapped、8-byte D-line、I packet 大量重叠、单 outstanding/阻塞式
+   walker/bridge；这更像便于正确性推进的第一版 memory hierarchy，不适合追求 IPC/带宽。
+
+J. 两套 flop-based 多口 PRF、全数组 reset/flush/copy、全压缩 IQ、双 bitmanip 复制、宽 glue tieoff
+   会造成面积/功耗/时序负担；扩大 ROB/IQ 前必须先改数据结构和流水边界。
+
+K. 参数化并未端到端：EX/FP payload 对 ROB index 4 bit、preg 6 bit 有硬切片；覆盖宏参数可能静默
+   truncate/pad。当前默认配置可用，不应把“可传 parameter”误认为“已支持其他容量”。
+
+L. wrong-path FP div/sqrt 只清 metadata，不取消约 56 步迭代；恢复后新 long-op 仍被 busy 挡住。
+
+===============================================================================
+七、实现、受限、缺失清单
+===============================================================================
+
+已实现并接通
+  - RV64I/M/A/F/D/C；Zba/Zbb/Zbc/Zbs；Zicsr/Zifencei。
+  - M/S/U 特权、Sv39、PMP(16)、PBMTE/Svpbmt、A/D HW update、timer/external/software interrupts。
+  - 双 rename/整数 issue/WB/commit；独立 FP rename；精确 ROB；branch age kill + ROB walk。
+  - LR/SC/AMO、misaligned access、部分 SQ forwarding、MMIO 保守独占。
+  - direct-mapped I-packet/D-word caches；独立 IFU/LSU AXI master。
+
+实现但明显受限
+  - “2-wide”只在短整数中心路径；memory/FP/long op 为单通道或单在飞。
+  - branch predictor 无 chooser、无通用 indirect target predictor，history/update 带宽有限。
+  - store/load disambiguation 以 blind block 为主，无 violation detection/replay。
+  - CSR/system 默认全 drain；WFI 无 sleep。
+  - cache 阻塞、direct-mapped、8-byte line、无 MSHR/L2/coherence。
+  - debug/trigger CSR 仅常量/空实现，不是 RISC-V Debug Module。
+
+未实现或当前找不到活跃实现
+  - 普通 FENCE 的 pred/succ memory ordering。
+  - 完整 FP illegal/reserved encoding 检查。
+  - retired store 的 late bus error 精确恢复。
+  - RVV、H、Zfh/half FP、NMI/Smrnmi、真实 debug/trigger、多核/一致性。
+  - 通用非阻塞 cache、load queue、memory dependence predictor/replay。
+  - RV64 formal、riscv-dv/random differential、RVWMO litmus 验证闭环。
+
+===============================================================================
+八、PPA 与验证证据应如何解读
+===============================================================================
+
+1. STA 是当前 RTL 后的 whole-core 产物，能证明 100 MHz 目标未满足；但它使用 ideal clock 和给定
+   library/netlist，不等同于 post-route silicon fmax。
+
+2. synth_stat 报告 top known-cell area 1,592,216.92，其中 sequential 428,742.16 (26.93%)；但
+   Sram4096x199、Sram4096x113、OooFpArithGate、OooBranchDirectionPredictor 的 area 均 unknown。
+   因而 1.59M 不是完整核面积，不能据此下“面积已经很小/很大”的绝对结论。
+
+3. OpenSTA power 报 total 59.4 mW，但 Macro 恰为 0 W；上述最大 SRAM/FP/BPU 宏没有真实功耗。
+   这个数只能比较已建模标准单元，不是可信的 full-chip power。
+
+4. 当前 regression 的广度值得肯定，却是 directed ISA/tohost 为主且 difftest 关闭。它证明常用途径
+   没有明显回归，不证明全部退休态逐指令一致，也不证明 memory model、非法编码和随机并发边界。
+
+===============================================================================
+九、阶段一结论的推荐排序
+===============================================================================
+
+P0 正确性验证：
+  1) FP illegal matrix；2) FENCE RVWMO litmus；3) 页末 C 指令跨页 fault 精确性；
+  4) store drain late error；5) CLMUL kill across Icarus/Verilator。
+
+P1 架构修整：
+  1) 切断 IFU→RVC/branch→next-PC 15.3 ns 路径；
+  2) 补齐 FP decoder 的 fail-closed illegal 路径；
+  3) 明确实现 FENCE 与 store error 架构契约；
+  4) 修 MIQ ready/valid 守恒、写明 count≤2 的当前拓扑约束并加入 request/metadata assertion。
+
+P2 性能结构：
+  1) 稀疏/分 bank IQ 与 payload read stage；2) live indirect predictor/更新队列；
+  3) 更合理 cache line/associativity/MSHR；4) 扩 SQ/MIQ 前先做 load-store replay 设计；
+  5) 将 CSR queue-head 作为可验证的默认路径；6) long-op kill 与 fair completion arbitration。
+
+阶段一状态
+  - 本全局报告只来自代码和非 Markdown 产物。
+  - 前端、后端、内存/控制三个独立报告用于补充细节与互相反证。
+  - 在 PHASE1_FROZEN.txt 生成前，风险项仍允许因交叉审查被降级、改写或撤回。

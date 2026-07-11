@@ -1,0 +1,31 @@
+MIQ flush + DRAIN response 同拍定向复现结果
+日期：2026-07-11
+阶段边界：未读取任何 Markdown；未修改 DUT RTL。
+
+测试源：audit-results/2026-07-11-rv64-ooo-blind/tb_miq_flush_drain_pop.v
+DUT：npc/rv64/vsrc/memory/OooMemInflightQueue.v
+
+实际输出：
+  BUG_REPRODUCED ghost_drain count=1 kind=2
+
+判定：
+  [动态事实] MIQ 内只有一个 DRAIN 时，flush_i 与 pop_valid_i 同拍，flush 分支优先并把
+  DRAIN 压缩保留，完全忽略 normal pop。之后没有新 response，count 持续为 1。
+
+整链静态链路：
+  - OooMemInflightQueue.v:164-191 的 flush 分支与 215-220 的 pop 分支互斥。
+  - OooIntBackend.v:1185-1201 令 DRAIN response 无条件 ready/fire，并产生 miq_pop。
+  - OooIntBackend.v:2665-2676 同一 fire 会释放 SQ head、清 drain_inflight。
+  - OooStoreQueue.v:223-244 明确允许 flush 拍 drain_release，count 会减一。
+  - OooMemAxiBridge.v:349-354、600-602 令 nokill DRAIN 在 flush 下仍交付 response。
+
+当前可达性（整链对抗复核）：
+  - serial SYSTEM flush 明确等待 mem quiet，默认配置下不会与 DRAIN response 同拍。
+  - ROB head 同步异常提交会形成 csr_trap_mem_valid，并在下一拍触发 core_trap_flush；该路径
+    不等待 SQ/MIQ quiet。更老 store 已退休但仍在后台 DRAIN 完全可能与年轻异常共存，bridge
+    的 nokill 属性又保证该 DRAIN response 在 flush 拍仍可交付。
+  - checkpoint restore 在默认 ROB_WALK_MODE=1 下基本为死路；非默认 mode=0 需另审。
+
+  因而“当前默认整核存在可达竞态”已获逐信号高置信支持，但尚未用完整 NpcCoreTop 程序/波形
+  end-to-end 复现。修复必须让 MIQ flush 先消费同拍 pop，再过滤剩余 DRAIN，或在 flush 拍禁止
+  SQ/bridge 消费该 response，且加入 `flush && pop && head_kind==DRAIN` cover/assert。

@@ -6,8 +6,8 @@
 
 - ISA 目标：当前活动 OoO 核已实现 RV64IMAFDC + `Zba/Zbb/Zbc/Zbs` + Zicsr，
   M/S/U 三特权级 + Sv39 虚存（硬件 PTW + I/D TLB）+ PMP×16；更细的实现边界
-  （能力/缺口/死硅）以 `design/arch/rtl-ground-truth-2026-07-03.md`
-  （RTL 重读真相基线）、`vsrc/README.md` 和 core-regress 结果为准。
+  （能力、限制与开放合同）以 `design/arch/rtl-ground-truth-2026-07-11.md`
+  （CURRENT snapshot）、`design/arch/ooo-core-architecture.md` 和 `vsrc/README.md` 为准。
 - 数据宽度：`XLEN=64`，PC/GPR/CSR/AXI data/DPI payload 均按 64 位处理。
 - 访存宽度：LSU 使用 8-byte bus word 和 `WSTRB[7:0]`，支持 byte/half/word/dword load/store。
 - 运行入口：外部请优先使用 `npc/sim` 或 AM 的 `ARCH=riscv64-npc`，不要直接把上层脚本绑到 `npc/rv64` 私有路径。
@@ -36,6 +36,12 @@ artifact，不随仓库提交；缺失时可用脚本的 `--fetch-riscv-tests` �
 脚本也支持 `--riscv-privileged` 追加 `rv64mi/rv64si`，以及
 `--riscv-filter REGEX` 对单项失败做快速复现。
 
+> **当前结果判读（2026-07-11，F0 收口后）**：module runner 与 AM 聚合器已上传真实
+> 子层退出码，并拒绝 failure marker、缺项、重复项或外层 PASS 冒充测试成功。新鲜证据为
+> module 86/86、AM 59/59（`fp-difftest-probe` 明确 Difftest ON）和 official
+> riscv-tests 177/177；core-regress 的 module/lint/build/AM 子层与 `overall_rc=0` 一致。
+> 证据入口：`.github/task-runs/2026-07-11-rv64-f0-truthful-regression/`。
+
 RISC-V Architecture Tests / ACT4(已迁至 am-kernels/arch-test，2026-07-02)：
 
 ```bash
@@ -61,13 +67,13 @@ make -C am-kernels/tests/cpu-tests ARCH=riscv64-npc run \
   NPC_RUN_ARGS="--no-progress --max-cycles 20000000"
 ```
 
-当前核级验证结果：AM `ARCH=riscv64-npc` cpu-tests `56/56 PASS`；官方
-`riscv-tests` core-regress 默认套件现为
-`rv64ui/rv64um/rv64ua/rv64uc/rv64uf/rv64ud/rv64uzba/rv64uzbb/rv64uzbc/rv64uzbs`
-十套件（2026-06-26 以该扩展组合跑出 `153 tests attempted` 全 PASS；
-更早的 7 套件默认组合为 `111` 个 p-mode 用例通过，追加
-`--riscv-privileged` 即 `rv64mi/rv64si` 后为 `135` 个用例通过）。官方 `riscv-tests` 通过 NPC 的
-`--tohost=ADDR` watcher 判定 PASS/FAIL。ACT4 目前已完成 framework
+当前核级验证裁决（2026-07-11，F0 收口后）：official `riscv-tests` 默认+特权组合
+177/177、AM 59/59、module 86/86 均为真实退出码通过；三个 sequencer TB 已按 current
+接口刷新，FP GPR-destination completion 已从 FPR busy/bypass/wakeup/write 域隔离。
+完整范围与仍开放的 F1-F3 合同见 `design/arch/rtl-ground-truth-2026-07-11.md` §5/§6 和
+`design/arch/rv64-200mhz-completion-design.md`。
+
+以下为历史验证记录。ACT4 目前已完成 framework
 生成 smoke、xPack GCC 15.2.0-1 compiler gate、testsuite artifact 内 Ruby
 headers gate、RV64I/RV64M final self-checking ELF 生成与 NPC 执行；ACT4
 `rv64i/I` suite `51/51 PASS`，`rv64i/M` suite `13/13 PASS`。2026-06-27
@@ -110,12 +116,16 @@ decode 后，ACT4 `priv/Sv` 33/33 PASS，`priv/Svpbmt` 4/4 PASS，
 ## Difftest 状态
 
 difftest 以本仓库 NEMU 为参考模型（`nemu/src/isa/riscv64` 已完整可用），
-`make -C npc/rv64 difftest-ref` 一键构建参考 `.so`（NEMU
-`riscv64-npc_defconfig` + `SHARE=1`，注意备份/恢复 NEMU `.config`）。
+`make -C npc/rv64 difftest-ref` 构建参考 `.so`（NEMU
+`riscv64-npc_defconfig` + `SHARE=1`）；该目标会切换 NEMU 配置，调用者若要保持自定义
+NEMU `.config`，须在 wrapper 中显式备份/恢复。
 `configs/default_defconfig` 默认打开 `CONFIG_NPC_DIFFTEST=y`；Kconfig 裸默认与
-`rv64_perf_defconfig` 为 n（perf 构建编译期剔除 difftest 运行时）。比对语义：
-逐 commit 比 PC + 32 GPR，不比 CSR/FPR/内存；MMIO load 在 commit 拍按指令解码
-EA 判定 skip。详见 `design/arch/rtl-ground-truth-2026-07-03.md` §2.5/§3.4。
+`rv64_perf_defconfig` 为 n（perf 构建编译期剔除 difftest 运行时）。当前实现可比较
+PC/GPR、FPR、确定性 CSR、privilege、fflags/frm，并对异常/中断/counter 做现有同步或
+掩码处理；MMIO load 在 commit 拍按指令解码 EA 判定 skip。当前工作区 `.config` 仍未开启
+Difftest，因此常规 current-config core-regress 不能冒充逐退休全状态对拍；F0 另用
+`default_defconfig` 构建并取得 `Difftest: ON` 的 AM 59/59 证据，随后按哈希恢复配置。详见
+`design/arch/rtl-ground-truth-2026-07-11.md` §6.3。
 
 ## 生成物
 

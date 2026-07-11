@@ -11,11 +11,10 @@
 > 目录与 owner。但这些 owner 之间的关系主要是**历史演化**出来的，而不是先有一张架构图、再让代码服从它。
 > 本文件就是那张图。下一步重构应**反过来用本文件约束实现**。
 >
-> **版本**：v0.2（2026-07-03，随全 RTL 从零重读同步【现状】层；v0.1 为 2026-06-29 草案）。
-> 证据来源：2026-07-03 的 9 路无文档依赖 RTL 重读 + 矛盾裁定 + 追问验证
-> （`.github/task-runs/2026-07-03-rv64-rtl-reread-audit/`），现状快照见
-> **`rtl-ground-truth-2026-07-03.md`（与本文件冲突时以其证据为准）**；v0.1 证据见
-> `.github/task-runs/2026-06-29-rv64-ooo-core-architecture-constitution/`。
+> **版本**：v0.3（2026-07-11，同步 current topology 与开放合同；v0.2 为 2026-07-03
+> 重读版，v0.1 为 2026-06-29 草案）。当前 `as-is` 快照见
+> **`rtl-ground-truth-2026-07-11.md`**；07-03 时点证据保留在
+> `history/rtl-ground-truth-2026-07-03.md`（已归档）。
 > **配套**：流程/优先级 backlog 见 `ROADMAP.md`；逐模块规范见 `../specs/`；模板见 `SPEC-TEMPLATE.md`。
 > 本文件是 `ROADMAP` 中 B2（redirect FSM）/ B3（spec 体系）/ B4（文件组织）/ B-LSQ 的**共同父规范**。
 
@@ -33,6 +32,19 @@
    - 【迁移】= 从现状到目标的可执行路径，映射到 `ROADMAP` backlog。
 3. **本文件不替代** spec：数据对象的**字段语义**在这里规定一次（single source of truth），
    各模块 spec 只描述自己如何生产/消费这些字段，不得各自重新定义同名对象。
+
+### 0.1 v0.3 现状校正摘要（2026-07-11）
+
+- `OooRedirectArbiter` 已进入编译清单并在 `OooFrontend` 生产实例化，fetch redirect PC
+  已按年龄律单源化；kill/reason/flush_backend 仍未成为全控制面的唯一来源。
+- pending branch/jump/memory 与 synthetic lane1-ret 相关模块已物理删除；域 B 当前只保留
+  system/trap/IRQ/fault 类 pending+drain 主路径。
+- `DecodeStage` 当前共 4 个实例（frontend 2、backend 2），int PRF 当前为 5R2W；旧
+  “8实例/10R2W”是 07-03 以前的拓扑。
+- commit 观察接口仍以分立信号为主，不能称为统一 `commit_event` 类型；CsrFile 的
+  `minstret` 当前还接 raw ROB count，见 `INSTRET-G1`。
+- 当前优先关闭 `arch_trap -> no backend dispatch`、xRET current-mode、IFU A-update
+  write-drain、page-end C fault 与唯一 retirement source 等合同，再扩窗口或 memory MLP。
 
 ---
 
@@ -54,8 +66,8 @@
 > 非法指令类 arch-trap、中断注入、lane1 barrier。
 > **branch/jump（F2 真预测 + issue 解析 + ROB-walk）、fp（独立 rename/IQ/流水簇 + 经 ROB 提交）、
 > load/store/AMO（SQ probe/drain + MIQ）已全部迁回域 A**；
-> `pending_branch / pending_jump / pending_mem` 三通道已被形式化证死（capture 恒 0，
-> 见 `rtl-ground-truth-2026-07-03.md` §4），pending-FP 壳已物理删除。
+> `pending_branch / pending_jump / pending_mem` 与 pending-FP 相关模块均已物理删除；
+> 当前只剩 system/trap/IRQ/fault 类 pending+drain 路径。
 > 即：v0.1 的"对所有控制流/访存/FP/系统指令退化为近顺序"**已不再成立**，
 > 残余串行仅限稀少的 system/trap 类（这正是 §8.2 裁定 KEEP 的那一半）。
 
@@ -83,13 +95,13 @@
 
 | # | 宪法原则 | 【现状】偏离 |
 | --- | --- | --- |
-| **C1** | **Frontend 只生产"预测路径上的 fetch packet + 预测信息"**，不拥有数据通路语义与全局恢复语义。 | 偏离重。前端 55 子模块中 >40% 与恢复/重定向相关，承载三级分支恢复、RAS、pending branch/jump 串行（已证死待删）、dispatch gating（`vsrc/frontend/OooFrontend.v`、`OooBranchResolveRecoveryGate.v`）。 |
+| **C1** | **Frontend 只生产"预测路径上的 fetch packet + 预测信息"**，不拥有数据通路语义与全局恢复语义。 | 仍有偏离。前端承载 RAS、dispatch gating、fetch redirect PC arbiter 与取指 outstanding；pending branch/jump 已删除。 |
 | **C2** | **Decode/Rename 把 fetch packet 变成带物理寄存器的 uop**，且 uop 有**统一字段契约**。 | 偏离中。uop 是**散线**，无打包结构；复用 50-bit legacy `CTRL_BUS`（`define.v:598-643`）。decode 在 2 处被实例化。 |
 | **C3** | **Scheduler 只负责 ready / select / issue**。 | 基本达成。`OooIntIssueQueue` 核心是干净的 oldest-ready 选择；附带 dispatch-bypass/mem-order/load-branch 快路径属"调度脚手架"非语义掺杂（`vsrc/scheduling/OooIntIssueQueue.v`）。 |
 | **C4** | **Execute cluster 只产生 `result_event` / `branch_event` / `mem_event`**。 | 部分达成（域 A）。事件存在但为散线非统一束（`vsrc/execute/OooIntBackend.v`）；FP 已是独立执行簇 `OooFpBackend`（2026-07-02，pending 旁路已删）。 |
-| **C5** | **Memory ordering 只负责 load/store 顺序与副作用提交**。 | 部分。SQ(4)+probe/drain+store→load 前递已落地（LSQ Phase2/3）；桥仍单 outstanding 串行 FSM（`OooMemAxiBridge`）；`OooPendingMemorySequencer` 已证死（capture 恒 0）。 |
+| **C5** | **Memory ordering 只负责 load/store 顺序与副作用提交**。 | 部分。SQ(4)+probe/drain+store→load 前递已落地（LSQ Phase2/3）；桥仍单 outstanding 串行 FSM（`OooMemAxiBridge`）；历史 `OooPendingMemorySequencer` owner 已物理删除。 |
 | **C6** | **Commit 是唯一允许改变架构状态的地方**（受规约的例外须显式登记）。 | 基本达成 + 一个**受规约例外**：E1 SQ 退休后 drain 落存（E2 FPR / E3 fflags 已随 FP 簇消除）。详见 §7.1。 |
-| **C7** | **ControlPlane 只仲裁 redirect / trap / flush，不直接拥有数据通路语义**；且 redirect/flush 应有**单一仲裁语义**。 | 偏离重。控制面是"补丁总线"：≥12 类 redirect/flush 源、≥5 处汇合点、无统一事件类型与优先级链（`vsrc/control/*`）。 |
+| **C7** | **ControlPlane 只仲裁 redirect / trap / flush，不直接拥有数据通路语义**；且 redirect/flush 应有**单一仲裁语义**。 | 部分达成：fetch redirect PC 已由年龄律 arbiter 单源化；后端 kill、reason、flush 与 trap/pending 副作用仍分散。 |
 
 一句话宪法：
 
@@ -101,11 +113,11 @@
 
 ## 3. 真实模块层级与子系统边界
 
-### 3.1 【现状】实例化树（2026-07-03 重读实测，非愿景）
+### 3.1 【现状】实例化树（2026-07-11 重读实测，非愿景）
 
 ```text
-NpcSimTop (仿真壳: 3×AxiDpiSlave + AxiLiteVirtioBlk + DPI 事件泵)
-└── NpcTop (可综合 SoC: NpcAxiBus→AxiLiteXbar 2M×16S + UART/CLINT/PLIC + 9 stub 窗)
+NpcSimTop (仿真壳 + DPI 设备/事件)
+└── NpcTop (可综合 SoC: NpcAxiBus/AxiXbar 2M×16S + UART/CLINT/PLIC)
     └── NpcCoreTop (u_core)
         ├── OooFetchAxiBridge   取指桥：ITLB+硬件 PTW+取指包 cache(4096)+PMP×5   core/NpcCoreTop.v:163
         ├── OooMemAxiBridge     数据桥：DTLB+硬件 PTW+dcache(32KB)+PMP×3+单-outstanding FSM  :192
@@ -113,30 +125,28 @@ NpcSimTop (仿真壳: 3×AxiDpiSlave + AxiLiteVirtioBlk + DPI 事件泵)
         └── OooCoreTopGlue (1315 行) —— 核内主互联；存储/流控/重定向"策略"仍集中在此    :238
             ├── OooFrontend        子系统 wrapper（取指/FIFO/分类/预测/派发 mux，~44 子模块）
             │   ├── OooFetchPacketDecode → OooRvcDecompressor ×2 / OooFetchPacketFifo(4)
-            │   ├── OooBranchDirectionPredictor / OooRasStack(32) / OooJalrBtb(死:恒空)
-            │   ├── OooBranchResolveRecoveryGate / OooDirectControlFlowGate / OooFetchRequestMux …
-            │   └── OooPendingBranch/JumpSequencer + prefetch 家族 + BTC（全部死路,待 B4 删）
+            │   ├── OooBranchDirectionPredictor / OooRasStack(32)
+            │   └── OooRedirectArbiter / OooBranchResolveRecoveryGate / OooFetchRequestMux …
             ├── OooExecuteBackend  子系统 wrapper
             │   └── OooAluCoreSlice
             │       ├── OooArchRegFile  ★ 架构 GPR（committed）仍在"ALU core slice"内
             │       └── OooAluDecodeBackend（DecodeStage ×2 + supported 白名单 + FP 旁路合成）
-            │           └── OooIntBackend (2929 行)
+            │           └── OooIntBackend
             │               ├── OooDispatchBackend
             │               │   ├── OooFreeList / OooRenameMap / OooBusyTable
             │               │   ├── OooRob(16)   ★ ROB 仍在"dispatch backend"内
             │               │   └── OooIntIssueQueue(8)
-            │               ├── OooPhysRegFile(64,10R2W) / ALU×2 / MulDiv / Clmul / Bitmanip×2 / AmoGate
+            │               ├── OooPhysRegFile(64,5R2W) / ALU×2 / MulDiv / Clmul / Bitmanip×2 / AmoGate
             │               ├── OooStoreQueue(4) / OooMemInflightQueue(4) / LSU helper ×4
             │               └── OooFpBackend  ★ FP 簇（2026-07-02 落地,pending 壳已删）
             │                   ├── FP rename(map32+FreeList 复用+busy) / OooFpIssueQueue(8)
             │                   ├── OooFpPhysRegFile(64,4R2W) / OooFpRegFile(架构 FPR,commit 写)
             │                   └── OooFpArithGate(FADD3/FMUL3/FMA5) / Convert / LongOp(Div/Sqrt 57拍)
             │                     / Compare / Classify / Sgnj gate
-            ├── OooMemoryAccess    子系统 wrapper（OooPendingMemorySequencer=证死 / RequestGate=纯透传）
-            ├── OooControlPlane    子系统 wrapper（13 实例：CSR mux×2 / PendingDispatchArbiter
+            ├── OooMemoryAccess    子系统 wrapper（当前 owner 为 OooMemoryRequestGate）
+            ├── OooControlPlane    子系统 wrapper（CSR mux / PendingDispatchArbiter
             │                      / Flush / PendingSystem / PendingTrapExit / StopPending / TrapExit mux…）
-            ├── OooWriteback       子系统 wrapper（ControlCommitSequencer / CommitOutputMux
-            │                      / SyntheticLane1Ret{Seq,Gate}=设计路径死）
+            ├── OooWriteback       子系统 wrapper（ControlCommitSequencer / CommitOutputMux）
             └── OooPendingOperandReadGate（域 B 架构操作数读）
 ```
 
@@ -150,8 +160,8 @@ FP 改为 `OooIntBackend` 内的 `OooFpBackend` 真乱序簇；`OooFpRegFile` �
    "纯结构聚合，从 OooCoreTopGlue 抽出 N 个实例"，且 "Storage and flow-control decisions stay in
    OooCoreTopGlue"。即目录干净，但**真正的互联策略仍在那个 1315 行的 glue 里**，wrapper 只是把实例
    分组搬了出去。这正是"干净 owner，但关系是历史演化"的字面证据。
-2. **`DecodeStage` 被实例化 2 处共 8 份**（前端 6×、`OooAluDecodeBackend` 2×）。译码没有单一 owner 阶段，
-   前端为分类/预取做一份、后端为真正 dispatch 再做一份。
+2. **`DecodeStage` 当前共 4 个实例**（前端 2×、`OooAluDecodeBackend` 2×）。译码仍没有
+   单一 owner 阶段，但旧“前端6×/共8份”已过时。
 3. **架构 GPR（committed `OooArchRegFile`）在 `OooAluCoreSlice` 内**（执行簇），而 **ROB 在 `OooDispatchBackend`
    内**，commit 决策逻辑却在 `OooWriteback`。即"产生 commit 决定（ROB@dispatch）→ 经 writeback mux →
    写 arch GPR（@execute）"跨了三个子系统，最重要的架构状态离它的提交决策点很远。
@@ -167,7 +177,7 @@ FP 改为 `OooIntBackend` 内的 `OooFpBackend` 真乱序簇；`OooFpRegFile` �
 
 > 【迁移】对应 `ROADMAP` B4（文件组织）。**不要求大重写**，但每次触碰这些边界时，应：
 > (a) 把"策略"从 `OooCoreTopGlue` 下沉到对应子系统；(b) 把 `OooArchRegFile` 归位到 writeback/commit 域；
-> (c) 评估前端 6 份 `DecodeStage` 的预译码能否收敛到"预解码（轻）+ 后端译码（全）"两类。
+> (c) 评估前端/后端各 2 份 `DecodeStage` 能否进一步收敛为“预解码（轻）+ 后端译码（全）”两类。
 > 这些是低风险结构变换，build/gate 不变即可逐步收口。
 
 ---
@@ -200,26 +210,27 @@ FP 改为 `OooIntBackend` 内的 `OooFpBackend` 真乱序簇；`OooFpRegFile` �
 | Decode/Rename | OooAluDecodeBackend + OooRenameMap/FreeList | `fetch_packet` → `uop`（+ 物理寄存器 prs/prd/old_prd + ctrl） |
 | Dispatch | OooDispatchBackend（含 OooRob/OooBusyTable） | `uop` → ROB entry + IQ entry（+ rob_idx + src ready） |
 | Schedule | OooIntIssueQueue | IQ entry → `issued_uop`（oldest-ready，2-wide） |
-| Reg-read | OooPhysRegFile（10R2W，其中 5 读口死硅 + 写-读旁路） | `issued_uop` → 带操作数值的 uop |
+| Reg-read | OooPhysRegFile（5R2W + 写-读旁路） | `issued_uop` → 带操作数值的 uop |
 | Execute | OooIntBackend（ALU/MulDiv/CLMUL/Bitmanip/AMO/Compare） | uop → `result_event` / `branch_event` |
 | Writeback | wb0/wb1 通道 → ROB + PRF + busy-table 唤醒 | `result_event` → ROB done + PRF 写 + 唤醒广播 |
 | Commit | OooRob → OooCommitOutputMux → OooArchRegFile | ROB head → `commit_event` → 写 arch GPR / free old_preg / 更新 RRAT |
 
-### 4.2 域 B 旁路（branch/jump/mem-barrier/fp/system/trap）
+### 4.2 域 B 旁路（当前仅 system/trap/IRQ/fault 类）
 
 ```text
-   fetch_packet ── 分类(facts) ── OooPendingDispatchArbiter 仲裁 ── capture 进单 entry pending owner
+   fetch_packet ── 分类(facts) ── OooPendingDispatchArbiter 仲裁 ── capture system/trap pending
                                           │                                    │
                                   置 stop_pending（OooStopPendingSequencer）   保存该指令全部 payload
                                           │
                                   backend 完全 drain（ROB/IQ 清空，OooPendingDrainResolveGate）
                                           │
-                          resolve（分支比较 / JALR 目标 / 访存 / FP 计算 / CSR 副作用 / trap 进入）
+                          resolve（CSR/system 副作用 / trap/xRET/IRQ 边界）
                                           │
                           commit / redirect / trap ── 清 stop_pending ── 恢复取指
 ```
 
-> 【宪法 C-LIFE-B】域 B 的每一种 pending 轨迹**必须**在 §8 的普查表中登记其 `classifies_as`、
+> branch/jump/memory/FP 已进入域 A 或删除对应 pending owner。 【宪法 C-LIFE-B】域 B 的
+> 每一种 pending 轨迹**必须**在 §8 的普查表中登记其 `classifies_as`、
 > `serializes`、`trigger`、`on_main_path`、`long_term_replacement`。未登记的新 pending 不允许引入。
 
 ---
@@ -287,24 +298,29 @@ v0.1 记录的"无显式 mispredict、靠隐式比对"已随 F2 落地而解决�
 `mem_event`（`vsrc/memory/OooMemAxiBridge.v`）：现状不是统一束，而是
 `mem_req_valid/mem_rsp_valid/mem_rsp_rdata/mem_rsp_error/mem_rsp_page_fault` 等独立接口。
 
-> 【宪法 C-EVT】执行簇对后级**只**经这三类 event 通信。【目标】把每类收敛为带 `valid` 的统一束，
-> 并给 `branch_event` 增加**显式 `mispredict` 位**（消除"靠 next_pc 比对隐式判定"的脆弱性），对应 `ROADMAP` B2。
+> 【宪法 C-EVT】执行簇对后级**只**经这三类 event 通信。【目标】把当前散线收敛为带
+> `valid` 的统一束，并保留已经存在的显式 `mispredict` 与 BPU 回训字段；不再把“新增
+> mispredict 位”列作未完成项。
 
 ### 5.4 `commit_event`
 
-【现状】**已是统一束**（域 A 唯一干净的事件，`is_unified_bundle=true`）。
-`vsrc/writeback/OooRob.v:280-335` + `OooCommitOutputMux.v:95-198`，双通道 commit0/commit1。
+【现状】commit0/commit1 的字段在 ROB、output mux 与顶层之间较集中，但物理接口仍是
+多条分立信号，不是单一打包类型；`is_unified_bundle=false`。
 
 字段：`{valid, pc, next_pc, inst, rd_en, arch_rd, old_pdest, new_pdest, data, exception, cause, tval}`。
 精确异常：异常项阻止 commit1（`OooRob.v:282-285`，ROB-I2）；commit0 必为 head、commit1 必为 head+1。
-合成 lane1 ret（`OooSyntheticLane1Ret*`）：双发射分支取消时的虚拟退休项，**不写架构状态**（仅计退休数）。
+`OooSyntheticLane1Ret*` 相关模块已物理删除。control pseudo-commit 仍由
+`OooControlCommitSequencer` 经 output mux 合并观察；CsrFile 的 `minstret` 尚未消费这个
+合并边界，见 `INSTRET-G1`。
 
 > 【宪法 C-OBJ-COMMIT】`commit_event` 是架构可见的程序序退休点，字段以本表为准。其它对象不得复制其语义。
 
 ### 5.5 `redirect_event`（取指重定向，**目标统一格式**）
 
-【现状】**无统一 redirect_event**。取指 PC 重定向有 10+ 源，由前端 `OooFetchRequestMux` 按优先级链择一
-（direct jal/ret/branch、pending jump、branch-resolve、branch-spec restore、untracked…见 §7.3）。
+【现状】fetch redirect PC 已由 `OooRedirectArbiter` 对 trap/branch/direct 三个家族按 ROB
+年龄选出单一 winner，并送 `OooFetchRequestMux` 与 PC sequencer。arbiter 的
+kill/reason/flush_backend 输出当前未被整个控制面统一消费，因此只能称“fetch PC 单源化”，
+不能称完整 control event 已统一。
 
 > 【目标 C-OBJ-REDIR】统一为单一对象，由**单一 control-flow arbiter** 仲裁：
 > ```text
@@ -312,14 +328,15 @@ v0.1 记录的"无显式 mispredict、靠隐式比对"已随 F2 落地而解决�
 >   valid
 >   pc                  // 目标 PC
 >   reason              // branch_miss / xret / trap / sfence / fence_i / debug / jalr / …
->   priority            // 三档：IMMEDIATE > DEFERRED > TRAP_COMMITTED
+>   age / tie_break     // 年龄主判据；同 age 再按类裁决
 >   kill_younger_than   // rob_idx 或 spec tag
 >   flush_fetch         // 冲前端
 >   flush_backend       // 冲后端（squash younger）
 > }
 > ```
 > 所有 branch miss / trap / xret / sfence / fence.i / debug-exit 都成为该仲裁器的**输入**。
-> 对应 `ROADMAP` B2（redirect/PC sequencer 改显式状态机，先补定向 TB）。
+> fetch PC 子目标已经落地；剩余是把 kill/reason/flush_backend 与 trap/pending 副作用收敛到
+> 同一可判定合同，对应 `ROADMAP` B2 后续。
 
 ### 5.6 `trap_event` / `exit_event`
 
@@ -346,7 +363,7 @@ v0.1 记录的"无显式 mispredict、靠隐式比对"已随 F2 落地而解决�
 | free list（int + fp 各一） | `OooFreeList` ×2 实例 | alloc（rename）/ free（commit）/ walk 回收 | rename + commit + walk |
 | busy table（int + fp） | `OooBusyTable` + fp_busy 数组 | alloc 置忙 / wakeup 置就绪（同拍 alloc 胜） | rename + writeback |
 | ROB(16) | `OooRob`（★在 OooDispatchBackend 内） | dispatch 入队 / wb 置 done / commit 出队 / ROB-walk 反向 squash | dispatch+writeback+commit+walk |
-| 架构 PC / 取指 PC | `OooFetchPcOutstandingSequencer` | 多源 redirect mux | fetch/redirect |
+| 架构 PC / 取指 PC | `OooFetchPcOutstandingSequencer` | 顺序推进 + `OooRedirectArbiter` winner | fetch/redirect |
 | ~~投机恢复检查点（map/free/busy/IQ/ROB 五套影子）~~ | 各自模块 checkpoint_*_q | **死硅**：`cp_*` 在 mode=1 下恒 gate 0，已被 ROB-walk 取代（待 B4 删除） | — |
 | Store Queue（4 项） | `OooStoreQueue`（在 OooIntBackend 内） | 发射拍 probe 回填 PA+data / commit 置 committed / 队头 drain 落存 | issue + commit + drain |
 | CSR（mstatus/mtvec/mepc/mcause/medeleg/mie/mip/…） | `CsrFile` | CSR 写指令（commit）/ trap 自动更新 | **commit** + trap |
@@ -394,11 +411,12 @@ RAS 清空（权限边界 / spec restore，`OooRasUpdateGate.v:25-29`）、各 p
 
 ### 7.3 redirect/flush/trap 单一仲裁（C7 细则）
 
-【现状】审计实测：**redirect/flush 源 ≥12 类，汇合点 ≥5 处，无统一优先级链**：
+【现状】fetch redirect PC 已单源化，但 flush/trap/kill 副作用仍有多个汇合点：
 
 | 汇合点 | 负责的源 |
 | --- | --- |
-| `OooFetchRequestMux`（前端） | 取指 PC 重定向优先级链：direct jal/ret/branch、pending jump、branch-resolve、branch-spec restore、untracked-resolve（10+ 源） |
+| `OooRedirectArbiter`（前端生产实例） | trap/branch/direct 家族按年龄律选择唯一 fetch redirect PC |
+| `OooFetchRequestMux`（前端） | 消费 arbiter winner；同拍 redirect request 兼容输出已退役 |
 | `OooFrontendActionGate` | direct 前端 flush（direct branch/jal/ret fire） |
 | `OooCsrTrapRequestMux` | commit 异常、pending arch-trap、pending ECALL、IRQ、xret 特权边界 |
 | `OooTrapExitEventMux` | pending 分支/跳转 misalign、drain 终态 trap/exit（ebreak） |
@@ -408,12 +426,9 @@ RAS 清空（权限边界 / spec restore，`OooRasUpdateGate.v:25-29`）、各 p
 > `redirect_request`。**仲裁主判据＝年龄**：同拍多源取 age 最老（`rob_idx − rob_head`，环形）者胜——
 > 更老的重定向会 squash 更年轻的源本身；同 age 平手按类 `trap > branch > direct`（trap/xret 恒在 commit/head=最老，
 > 年龄律已天然给它最高）。`IMMEDIATE`(dispatch 直算)/`DEFERRED`(后端误预测)/`TRAP_COMMITTED`(commit) 三类只**描述典型 age 位置、非固定覆盖序**。
-> 〔2026-07-03 更新：曾有"已实现地基"`vsrc/control/OooRedirectArbiter.v` + `tb_ooo_redirect_arbiter.sv`
-> （13 例 RED→GREEN，年龄律 selector），但该模块**从未进编译清单/从未实例化**，属已验证但未接线的死文件；
-> 经决策**删档减负**（模块+TB+filelist 变量+`REDIR_REASON_*` 宏全删，2026-07-03）。
-> C7 统一仲裁**仍是目标**，但不再保留未接线的独立地基文件——待真正做 redirect 收口时从 git 历史复活或重导出。
-> 当前 redirect 仲裁仍由 `OooFetchRequestMux` 隐式优先级链与多汇合点分散承担。〕
-> 对应 `ROADMAP` B2。〔修正：本节初稿的"IMMEDIATE>DEFERRED>TRAP_COMMITTED 固定优先级"不正确，实现时改为年龄律，详见 `history/b2-branch-spec-redirect.md` §3.2（已归档）。〕
+> 〔2026-07-11 更新〕07-03 的“arbiter 未接线/已删档”只保留为历史：当前模块已进入
+> filelist 并在 `OooFrontend` 生产实例化。C7 的 fetch-PC 子目标已完成，完整 control event
+> 统一仍是目标。年龄律为主判据，不能退回固定类优先级。
 
 ---
 
@@ -424,8 +439,8 @@ RAS 清空（权限边界 / spec restore，`OooRasUpdateGate.v:25-29`）、各 p
 v0.1 审计确认的「pending 隐藏主干」（6 类指令各一个单 entry owner、每条难指令全后端 drain）
 **在 2026-07-03 重读中已确认收缩**：`stop_pending` 的置位源只剩 system/trap/IRQ/fault/lane1-barrier 类
 （`OooStopPendingSequencer.v:111-139`；分支臂被 `OOO_DBRANCH_DOMAIN_A` 关闭、FP 臂端口保留但 unused）。
-branch/jump/mem/fp 四个 pending owner 的 capture 已全部恒 0 或物理删除（证据见
-`rtl-ground-truth-2026-07-03.md` §4）。对仍走域 B 的 CSR/系统指令，每条数十拍的全排空成本不变——
+branch/jump/mem/fp 四个 pending owner 已物理删除。对仍走域 B 的 CSR/系统指令，
+每条数十拍的全排空成本不变——
 这是 KEEP 项的固有代价，可在 serialize-at-retire 清理时再收窄。
 
 ### 8.2 域 B 的两半：必须拆 vs 可保留
@@ -447,9 +462,9 @@ branch/jump/mem/fp 四个 pending owner 的 capture 已全部恒 0 或物理删�
 
 | owner | 类 | 现状机制 | 裁决 | 目标：被谁取代 | ROADMAP |
 | --- | --- | --- | --- | --- | --- |
-| `OooPendingBranchSequencer` | branch | ~~单 entry + 全 drain~~ | **✅ 功能 ELIMINATED（2026-07-03）** | 已由「后端 issue 解析 + 显式 mispredict + ROB-walk 恢复 + **F2 真预测（pred_npc 单源, 预测正确免 redirect）**」取代（`../specs/history/ooo-f2-per-packet-pred-implementation-plan.md`，已归档）；pending 壳在 mode=1 为死路（capture 门控恒 0），文件删除待 B4 清理 | B2 ✅（tag/多 checkpoint 未做, ROB-walk 版够用） |
-| `OooPendingJumpSequencer` | jump | ~~单 entry + 全 drain~~ | **✅ 功能 ELIMINATED（2026-07-03）** | JAL 前端直算（pc+imm, F2 后恒免 redirect）；JALR 走 RAS/BTB 投机续取 + 后端解析 mispredict（同分支机制）；pending 壳同上为死路 | B2 ✅ |
-| `OooPendingMemorySequencer` + 单-outstanding 桥 | mem | ~~lane1 barrier~~ | **✅ 功能 ELIMINATED（2026-07-03 证实）** | 重读形式化证明 pending_mem capture 恒 0（lane1 barrier 条件与 FACT_MEM 严格互斥）——**该通道从未可达**，可整链删除；SQ(4)+probe/drain+store→load 前递+MIQ(4) 已落地（LSQ Phase2/3）。**剩余 = 性能残件**：LQ/依赖预测/replay、MSHR、多 outstanding 桥 | B-LSQ（残件） |
+| `OooPendingBranchSequencer` | branch | 历史单 entry + 全 drain | **✅ DELETED** | 后端 issue 解析 + 显式 mispredict + ROB-walk；fetch redirect PC 已由 arbiter 单源化 | B2 fetch-PC 子目标完成 |
+| `OooPendingJumpSequencer` | jump | 历史单 entry + 全 drain | **✅ DELETED** | JAL 前端直算；JALR 由后端解析，RAS 仅在保守窗口使用；普通 JALR target predictor 当前缺失 | B2 残余性能项 |
+| `OooPendingMemorySequencer` | mem | 历史 lane1 barrier | **✅ DELETED** | SQ(4)+probe/drain+受限 forwarding+MIQ(4) 已落地；LQ/replay/MSHR/多 outstanding 仍未做 | B-LSQ（残件） |
 | `OooPendingFpSequencer` + `OooFpPendingExec` | fp | ~~单 entry，mem→long→compute 串行~~ | **✅ ELIMINATED（2026-07-02）** | 已由 `OooFpBackend`（FP rename + FpIQ + 执行簇 + 经 ROB 真 commit）取代；pending-FP 壳四文件删除、E2/E3 消除、fflags/FS-dirty 走 commit（`../specs/history/ooo-fp-cluster-implementation-plan.md` §8/§9，已归档） | 新 B-FP ✅ |
 | `OooPendingSystemSequencer` | system | drain + 执行 | **KEEP** | 改"ROB 队头执行 + 退休刷 younger"标志位（语义不变，去掉全局 `stop_pending` 依赖） | 清理 |
 | `OooPendingTrapExitSequencer` | trap | drain + 执行 | **KEEP / 瘦身** | 精确异常本就由 ROB 队头承接（exception 字段 + commit1 阻塞已在）；瘦掉冗余脚手架 | 清理 |
@@ -488,8 +503,9 @@ Recovery：branch tag + 多级 checkpoint / ROB-walk；单一 redirect arbiter�
 
 1. **多级分支投机 + 统一 redirect**（B2+B6）：**✅ 主体完成（2026-07-03, F2 整体落地）**——
    多条投机分支在飞、后端解析 cond+JAL+JALR 产出显式 mispredict + kill-younger-than（ROB-walk）、
-   真方向/目标预测（BHT resolve-update + RAS/BTB）、预测正确免 redirect（pred_npc 单源）。
-   branch tag/多 checkpoint 未做（单 ROB-walk 恢复够用, 需求出现再升级）。`branch`+`jump` 功能已拆。
+   条件分支方向预测（gshare/local BHT resolve-update）与保守窗口内的 return RAS、预测正确
+   免 redirect（pred_npc 单源）。普通 JALR target predictor/BTB 当前没有实现；branch tag/多
+   checkpoint 也未做（单 ROB-walk 恢复够用，需求出现再升级）。`branch`+`jump` pending 功能已拆。
 2. **LSQ**（B-LSQ）：**◐ 部分完成（2026-07-03 状态）**——SQ(4)+发射拍 probe+退休 drain、
    store→load 前递、load 乱序投机发射+三层歧义保护、ROB-walk 年龄 squash 均已落地（Phase2/3）；
    **未做**：LQ/依赖预测/load replay、MSHR、多 outstanding 桥（真实 MLP≈1 的封顶仍在），
@@ -522,10 +538,10 @@ Recovery：branch tag + 多级 checkpoint / ROB-walk；单一 redirect arbiter�
 | Frontend 拥有过多全局恢复语义 | **confirmed** | aspirational（待收口） | 中 → B2 + B4 |
 | 缺统一 uop 格式（散线 + 复用 legacy CTRL_BUS） | **confirmed** | aspirational | 中 → B4 |
 | Scheduler 已只管 ready/select/issue | **partially（基本达成）** | already-true（核心） | 低（维持） |
-| Execute 只产 result/branch/mem event | **partially**（散线非束；FP 非簇） | 部分达成 | 中 → B2（事件束 + 显式 mispredict） |
+| Execute 只产 result/branch/mem event | **partially**（散线非束；FP 已为独立簇） | 部分达成 | 中 → B2（事件束/统一完成合同） |
 | Commit 是唯一改架构状态点 | **partially**（+3 受规约例外；2026-07-03：仅余 E1） | already-true（GPR/精确异常）| E2/E3 已由 FP 迁移消解 |
-| ControlPlane 是补丁总线、redirect 来源多 | **confirmed** | aspirational | 高 → B2（单 arbiter） |
-| pending 是隐藏串行主干 | **confirmed→已拆除**（2026-07-03：四类 capture 恒 0/已删，仅 system/trap 在用） | 死壳物理删除待 B4 | 低 → B4 清理 |
+| ControlPlane 是补丁总线、redirect 来源多 | **partially closed**（fetch PC 已单 arbiter；其它副作用分散） | mixed | 高 → B2 后续 |
+| pending 是隐藏串行主干 | **已收缩**（branch/jump/mem/fp owner 已删，仅 system/trap 在用） | system/trap pending 仍活 | B7 专项 |
 | pending_mem 应被 LSQ 替代 | **superseded**（重读证明 pending_mem 从未可达；SQ/前递已落地） | 剩余=LQ/MSHR/多 outstanding 性能残件 | 中 → B-LSQ 残件 |
 
 > **读法**：`already-true` = 宪法已基本满足，维持即可；`aspirational` = 宪法是目标、现状偏离，

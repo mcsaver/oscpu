@@ -1,0 +1,109 @@
+RV64 OoO Core 代码优先架构审计：证据索引
+日期：2026-07-11
+代码快照：cab1814b0622e53e1e62f2b0fc17ed6873c72ba2
+
+阅读顺序
+========
+
+1. 05_FINAL_ARCHITECTURE_ASSESSMENT.txt
+   最终结论：真实拓扑、容量、优缺点、已实现/部分实现/未实现、优先级与演进方向。
+
+2. 04_DOCUMENT_COMPARISON.txt
+   当前 RTL 与 Markdown 对照；区分 active 漂移、dated snapshot、history 与过强表述；
+   含35条过时结论短表。
+
+3. PHASE1_FROZEN.txt
+   在读取 RV64 设计 Markdown 之前冻结的代码事实，是文档对照的独立基线。
+
+4. VALIDATION_ERRATUM.txt
+   更正聚合摘要假绿：177 项 riscv-tests 逐项 PASS；AM 实际 58/59；三份 module
+   原始日志失败但被汇总成 PASS。
+
+5. 00_global_topology_blind.txt
+   全局层次、控制流、宽度、容量和 PPA 盲读记录。
+
+6. 01_frontend_blind.txt
+   IFU、packet/RVC、BPU/RAS、dispatch、redirect、ROB/control 盲读记录。
+
+7. 02_backend_blind.txt
+   rename/IQ/execute/FP/completion/commit 盲读记录。
+
+8. 03_memory_control_blind.txt
+   LSU、SQ/MIQ、Sv39/PMP、cache、AXI、CSR/system 盲读记录。
+
+阶段边界
+========
+
+PHASE1_BOUNDARY.txt
+  记录“先代码、后 Markdown”的方法边界。
+
+PHASE1_FROZEN.txt
+  记录冻结后的源码事实、推断等级、已知反例和审查者降级结论。
+
+定向动态证据
+============
+
+run_phase1_directed.sh
+  一键重新编译并运行以下六组 RTL 定向检查；不修改 DUT。
+
+1. tb_fp_legality_classify.sv
+   结果：fp_legality_classify_result.txt
+   覆盖：非法/保留 FP 编码 classification + frontend dispatch gate；合法 FADD.S 正对照。
+
+2. tb_xret_privilege_classify.sv
+   结果：xret_privilege_result.txt
+   覆盖：MRET-from-S/U、SRET-from-U；SRET-from-S+TSR 正对照。
+
+3. tb_fetch_page_end_c_fault.sv
+   结果：fetch_page_end_c_fault_result.txt
+   覆盖：page+0xFFE C 指令与下一页 fault 的归属。
+
+4. tb_fetch_ad_flush_partial.sv
+   结果：fetch_ad_flush_partial_result.txt
+   覆盖：IFU S_AD_UPDATE 的 AW/W 偏斜与 mmu_flush。
+
+5. tb_miq_flush_drain_pop.v
+   结果：miq_flush_drain_pop_result.txt
+   覆盖：MIQ 中仅有 DRAIN 时 flush+pop 同拍。
+
+6. tb_miq_full_pop.v
+   结果：miq_full_pop_result.txt
+   覆盖：MIQ full+pop+push 模块合同；报告明确把当前整核可达性降级为不可达。
+
+已有整核/工程证据
+================
+
+module testbench：
+  npc/rv64/perf/results/20260711-125729/module-testbench/summary.txt
+  聚合摘要：86/86 PASS。
+  原始日志：至少三项 testbench 先 FAIL / `$finish(1)`，随后仍输出 `[RESULT] PASS`；
+  不能据此证明 86 项全过，详见 VALIDATION_ERRATUM.txt。
+
+core regression：
+  npc/rv64/perf/results/core-regress/20260711-133547-973361/summary.txt
+  npc/rv64/perf/results/core-regress/20260711-133547-973361/status.txt
+  结果：177 riscv-tests 逐项 PASS；AM 原始日志为 58/59，`fp-difftest-probe` FAIL，
+  但摘要仍标 AM PASS 且 overall_rc=0，因此聚合结果存在假绿。
+  边界：当前 .config 未开启 CONFIG_NPC_DIFFTEST。
+
+whole-core STA：
+  npc/rv64/build/sta/NpcTop-100MHz/NpcTop.opensta.rpt
+  结果：WNS约 -5.35ns；最差路径 IFU bridge pc_q -> frontend next_fetch_pc。
+  边界：现有宏 liberty/ideal clock 模型，不是 post-route signoff。
+
+结果等级
+========
+
+[代码事实]  当前 RTL/配置直接决定。
+[定向事实]  本目录 testbench 已观察到。
+[整链推断]  已追到真实调用链，但尚无完整 NpcCoreTop 程序/波形。
+[受限项]    能力存在，但适用范围、吞吐或平台合同有限。
+[缺失项]    当前活跃 RTL 找不到对应能力，或明确为 no-op/tie-off。
+[历史快照]  对旧时点可能正确，但不得继续作为 current truth。
+
+变更范围
+========
+
+  - 本审计没有修改 npc/rv64 DUT RTL。
+  - 本审计没有重写既有设计 Markdown。
+  - 新增/更新仅限本审计目录、对应 task-run 与 DB memory 收尾记录。

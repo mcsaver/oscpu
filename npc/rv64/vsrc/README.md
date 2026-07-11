@@ -34,7 +34,8 @@
 > pending-FP 通道已物理拆除，FP 为真乱序簇。分支/JAL/JALR 现走 F2 真预测
 > （pred_npc 单源随 uop 下行、issue 级
 > 统一解析、ROB-walk 恢复），load/store/AMO 走 SQ+probe/drain+MIQ，域 B 只剩
-> system/trap/IRQ 类。死硅清单与证据见 `../design/arch/rtl-ground-truth-2026-07-03.md`
+> system/trap/IRQ 类。当前拓扑、开放合同与历史边界见
+> `../design/arch/rtl-ground-truth-2026-07-11.md`
 > §4，拆除计划见 `../design/arch/ooo-core-architecture.md` §8.3。涉及死硅的条目
 > 仅保留设计语义描述。
 

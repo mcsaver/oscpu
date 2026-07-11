@@ -1,5 +1,8 @@
 # OoO Frontend Dispatch Gate
 
+> **状态（2026-07-11）**：模块仍在活跃主路径；本文同时记录 CURRENT 行为与
+> `FDG-G1` 开放合同，不把已分类为 trap 误写成已经阻止 backend dispatch。
+
 ## 1. 需求
 
 `OooFrontendDispatchGate` 负责收敛 `OooAluFetchCore`（现已重构为 `OooFrontend`
@@ -10,8 +13,8 @@ wrapper）中 dispatch 入口的纯组合 gating：
 - lane1 direct branch candidate。
 - lane1 barrier / unsupported 判定。
 - normal dispatch fire。
-- direct JAL0/JAL1、direct ret1、direct branch1 fire（F2：branch1 仅在预测
-  taken 时 fire；not-taken 预测走顺序双发）。
+- direct JAL0/JAL1、direct ret1 fire。`direct_branch1_fire_o` 是兼容输出，当前固定为 0；
+  taken 预测已经前移到 fetch-response，dispatch 拍不再执行 branch1 fast fire。
 - 【F2】head0 分支双发资格 `dbranch_dual_go`（预测 not-taken 且 head1 平凡 →
   不 fire 不 flush，原子双发）与 domain-A 分支普通 dispatch fire
   `dbranch_dispatch_fire`（FIFO pop 源）。
@@ -38,7 +41,9 @@ wrapper）中 dispatch 入口的纯组合 gating：
 - `dispatch1_barrier_o` 表示 slot1 需要形成 lane1 barrier，而不是普通双发。
 - `dispatch1_control_unsupported_o` 与 `dispatch_unsupported_o` 保持旧 unsupported 边界。
 - `dispatch_fire_o` 表示普通 slot0/slot1 双发。
-- `dispatch1_barrier_fire_o`、`direct_jal0_fire_o`、`direct_jal1_fire_o`、`direct_ret1_fire_o`、`direct_branch1_fire_o` 是父模块后续控制使用的 action fire。
+- `dispatch1_barrier_fire_o`、`direct_jal0_fire_o`、`direct_jal1_fire_o`、
+  `direct_ret1_fire_o` 是父模块后续控制使用的 action fire；
+  `direct_branch1_fire_o` 当前固定为 0。
 - `dbranch_dual_go_o`、`dbranch_dispatch_fire_o`、`frontend_dispatch_to_backend_valid_o`、`lane1_barrier_dispatch0_valid_o` 供 dispatch mux 与 FIFO pop 消费。
 
 ## 3. 状态机
@@ -55,7 +60,14 @@ wrapper）中 dispatch 入口的纯组合 gating：
   `OOO_ROB_WALK_MODE=1` 下走 de-pend 双发（`dispatch1_depend_jump`）而非 barrier。
 - 旧 `dispatch_unsupported` 语义必须保留：它排除 slot0 branch/JALR，但不额外排除 slot0 JAL；slot0 JAL 自己由 direct JAL path 消费。
 - `dispatch1_mem_unsupported_o` 当前固定为 0，表示 lane1 memory 不再作为 unsupported 边界。
-- 不改变 direct branch0、pending branch/jump/mem/fp/system、commit、trap 或 redirect 时序所有权。
+- 不改变 direct branch0、仍活的 pending system/trap、commit 或 redirect 时序所有权；
+  已删除的 pending branch/jump/mem/fp 四类不再属于本模块职责。
+- **CURRENT**：head1 `arch_trap` 形成 barrier，只允许更老的 slot0 走
+  `lane1_barrier_dispatch0_valid_o`；trap 槽本身不作为普通 lane1 backend dispatch。
+- **KNOWN GAP FDG-G1**：head0 的承重合同应为
+  `dispatch0_arch_trap_i -> !frontend_dispatch_to_backend_valid_o`。当前 RTL 的主
+  backend valid 方程没有该门控，trap-classified head0 仍可呈现给 backend。四类 FP
+  代表编码已动态覆盖到本 gate；最终 ROB 停顿或执行后果仍属整链静态判断。
 
 ## 5. 数据通路
 
@@ -64,4 +76,11 @@ wrapper）中 dispatch 入口的纯组合 gating：
 2. 在 lane1 base 下生成 direct JAL、return、branch candidate。
 3. 在 lane1 base 下生成 barrier 与 control unsupported。
 4. 普通 `dispatch_fire` 要求 lane1 base、无 barrier、无 unsupported、两个 dispatch ready。
-5. direct fire 输出只做 action 组合，不修改状态。
+5. direct JAL/return fire 只做 action 组合，不修改状态；branch1 fire 固定为 0。
+
+## 6. 验证补充（2026-07-11）
+
+- 必须保留合法 FADD.S 的正对照。
+- 必须覆盖 unknown OP-FP funct7、reserved FMA fmt、reserved static rm、
+  DYN+reserved frm，并检查 `arch_trap && frontend_dispatch_to_backend_valid`。
+- 当前上述反例是 **KNOWN GAP**，不得把测试目标写成已满足的不变量。

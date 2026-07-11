@@ -1,0 +1,33 @@
+页末压缩指令 + 下一页 fault 定向复现结果
+日期：2026-07-11
+阶段边界：未读取任何 Markdown；未修改 DUT RTL。
+
+测试源：audit-results/2026-07-11-rv64-ooo-blind/tb_fetch_page_end_c_fault.sv
+DUT：OooFetchAxiBridge + OooFetchPacketDecode
+
+测试方法：
+  将 bridge 置于一个由 RTL 路径可形成的 S_R0 局部状态：PC=0x80000ffe，第一页还剩 2B，
+  第二页 walk 已产生 instruction page fault(resp1=2'b10)，第一 beat 的低 16 bit 为
+  0x0001(C.NOP)，第一 beat 自身 AXI response 为 OK。随后让 S_R0 消费第一 beat，并把 bridge
+  输出直接送入真实 packet decoder。
+
+实际输出：
+  BUG_REPRODUCED pc=0000000080000ffe c_half=0001
+                 next_pc=0000000080001000 resp0=10
+
+判定：
+  [动态事实] C.NOP 的全部 2B 都在第一页，decoder 正确识别其 next_pc=下一页起点；但 bridge
+  因 packet_first_bytes<4，把仅属于下一条指令地址的 resp1 page fault 覆写到 resp0，decoder
+  因而把当前 C.NOP 标为 page fault。当前指令会比架构要求早一条 trap。
+
+RTL 链：
+  - OooFetchAxiBridge.v:261-271 计算第一页剩余字节；352-353 用“<4”判断第一指令跨页。
+  - OooFetchAxiBridge.v:821-828 在第二页 fault 时将 resp1 覆写 resp0。
+  - OooFetchPacketDecode.v:35-43 只有看到低半字后才知道 dec0 是 16-bit；61-75 无条件让
+    dec0 消费 resp0。
+
+证据边界：
+  本测试直接 deposit 了 S_R0 局部状态，而非从完整 Sv39 页表搭建 end-to-end 场景；因此它
+  证明了关键状态转移和 decoder 后果。上游 walk 对跨页第二页 fault 明确写 resp1 后回 S_AR0
+  （OooFetchAxiBridge.v:697-803），故未发现阻止该局部状态可达的约束。仍建议补一个完整页表
+  回归，以永久覆盖 C.NOP/32-bit × page/PMP/AXI fault 矩阵。

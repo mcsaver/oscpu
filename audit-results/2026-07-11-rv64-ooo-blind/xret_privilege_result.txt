@@ -1,0 +1,29 @@
+xRET 当前特权级合法性定向复现结果
+日期：2026-07-11
+阶段边界：未读取任何 Markdown；未修改 DUT RTL。
+
+测试源：audit-results/2026-07-11-rv64-ooo-blind/tb_xret_privilege_classify.sv
+DUT：DecodeUnit + OooFetchHeadClassifyGate（真实 decode→frontend legality 链）
+
+实际输出：
+  MISSING_ILLEGAL MRET-from-S priv=1 inst=30200073
+  MISSING_ILLEGAL MRET-from-U priv=0 inst=30200073
+  MISSING_ILLEGAL SRET-from-U priv=0 inst=10200073
+  POSITIVE_CONTROL SRET-from-S-with-TSR traps
+
+判定：
+  [动态事实] 三个低特权非法组合都被分类成 xret/system，priv_system_illegal=0、arch_trap=0；
+  现有 S-mode+TSR 的 SRET 检查可正常触发，说明测试并非未接通 legality 输出。
+
+RTL 根因：
+  - DecodeUnit.v:710-755 不带当前 privilege，MRET/SRET opcode 均标合法 system。
+  - OooFetchHeadClassifyGate.v:132-150 只有 SFENCE-U/TVM、SRET-S+TSR、WFI-TW 检查；
+    缺 MRET priv!=M 和 SRET priv==U。
+  - CsrFile.v:721-727 在 mret_valid/sret_valid 时不再检查当前 privilege，直接按 MPP/SPP
+    改 priv_mode/mstatus；所以缺口不是仅影响可观测分类，而会进入真实 xRET state transition。
+
+架构影响：
+  MRET 应只允许 M-mode；SRET 在 U-mode 应 illegal（M-mode 执行 SRET 的规则另行按目标规范
+  版本确认）。当前 S/U 可错误执行 MRET，U 可错误执行 SRET，跳向 mepc/sepc 并消费保存状态。
+  进入更高 privilege 取决于当时 MPP/SPP 的残留/预置值，不能无条件宣称“必然升到更高特权级”；
+  但 illegal-instruction 语义和控制流完整性偏差本身是确定的。

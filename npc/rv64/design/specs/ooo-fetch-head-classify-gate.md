@@ -22,6 +22,7 @@ FP 子译码、privileged 非法检查、pending/CSR/trap glue 和提交修饰�
 - CSR、ECALL、EBREAK、MRET/SRET、WFI、SFENCE/SINVAL 事实。
 - U-mode supervisor fence illegal、S-mode TVM fence illegal、S-mode TSR SRET illegal
   和 FS-off FP illegal。
+- current-mode xRET 检查的当前实现边界；目标合同见下文 `XRET-G1`。
 - base decoder illegal 对 FP 合法指令的豁免。
 - `exit_raw`、`system_raw`、`arch_trap_raw`、`stop_raw`、`fp_enabled` 等父模块
   下游需要的组合输出。
@@ -57,13 +58,19 @@ FP 子译码、privileged 非法检查、pending/CSR/trap glue 和提交修饰�
 
 - `fetch_fault_i=1` 时，branch/jump/mem/fp/system/exit facts 必须为 0，
   `arch_trap_raw_o=1`、`stop_raw_o=1`。
-- `illegal_raw_o = decode_illegal && !fp_raw`；合法 FP 指令不能被整数 decoder 的
-  `CTRL_ILLEGAL_BIT` 抢先变成 base illegal trap。
-- FS-off FP illegal 与 base illegal 分离；`fp_enabled_o = fp_raw && !fp_disabled`。
+- `illegal_raw_o = (decode_illegal && !fp_raw) || fp_dyn_frm_illegal`；合法 FP 指令不能
+  被整数 decoder 的 `CTRL_ILLEGAL_BIT` 抢先变成 base illegal trap，DYN 舍入还必须检查
+  committed `frm` 是否为保留值。
+- FS-off FP illegal 与 base illegal 分离；
+  `fp_enabled_o = fp_raw && !fp_disabled && !fp_dyn_frm_illegal`。
 - `sfence.vma` 与 `sinval.vma` 受 `mstatus.TVM` 约束；
   `sfence.w.inval` 与 `sfence.inval.ir` 只作为 supervisor 序列化点，不受 TVM 约束。
 - U-mode 下所有 supervisor fence 都 illegal。
-- S-mode 且 `mstatus.TSR=1` 时 SRET illegal。
+- **CURRENT**：`priv_system_illegal` 当前包含 supervisor fence from U、
+  S-mode TVM fence、S-mode+TSR 的 SRET、以及受 TW 约束的 WFI。
+- **KNOWN GAP XRET-G1**：当前缺 `MRET && priv_mode!=M` 与
+  `SRET && priv_mode==U`。目标合同是 MRET 仅 M-mode 合法；SRET 在 U-mode 非法，
+  S-mode 还受 TSR 约束。`CsrFile` 不复查 current mode，不能依赖下游兜底。
 - semihost EBREAK 不产生 `exit_raw_o`，但必须产生 `arch_trap_raw_o`，保持原先
   semihost trap 观测路径。
 - 本模块不读取或修改 pending、CSR 文件、FPR、ROB、FIFO、RAS、BPU 或 PC/outstanding
@@ -76,8 +83,8 @@ FP 子译码、privileged 非法检查、pending/CSR/trap glue 和提交修饰�
    门控。
 3. privileged illegal facts 使用 `priv_mode_i` 与 `mstatus_i` 组合判断。
 4. `system_raw_o` 汇总 ECALL/CSR/xRET/WFI/SFENCE。
-5. `arch_trap_raw_o` 汇总 fetch fault、base illegal、semihost EBREAK、FS-off FP 和
-   privileged illegal。
+5. `arch_trap_raw_o` 汇总 fetch fault、base/DYN-frm illegal、semihost EBREAK、
+   FS-off FP、privileged illegal 与 `unsupported_residual`。
 6. `stop_raw_o` 汇总 fetch fault/exit/system/arch trap；FP 已迁域 A，
    `fp_raw` 不再属 stop 类（普通 dispatch 进 ROB/FP 簇；FS-off 经 arch trap 仍 stop）。
 
@@ -91,11 +98,13 @@ FP 子译码、privileged 非法检查、pending/CSR/trap glue 和提交修饰�
 - FS-off FP：产生 arch trap。
 - CSR/ECALL：产生 system/stop。
 - 普通 EBREAK 与 semihost EBREAK 分流。
-- MRET/SRET 分类。
-- SRET under S-mode TSR。
+- MRET/SRET 分类；MRET-from-S/U、SRET-from-U 三类 current-mode 反例。
+- SRET under S-mode TSR 正对照。
 - SFENCE/SINVAL under U-mode illegal。
 - S-mode TVM 只作用于 `sfence.vma/sinval.vma`。
 - fetch fault 产生 arch trap/stop，并抑制其它类别 facts。
+- 跨模块检查 `arch_trap_raw_o && frontend_dispatch_to_backend_valid_o`；当前 head0 FP
+  代表反例应标为 KNOWN GAP，而不是 PASS 条件。
 
 实现后最小回归：
 
@@ -116,6 +125,13 @@ FP 子译码、privileged 非法检查、pending/CSR/trap glue 和提交修饰�
 - `make -C npc/rv64 lint` PASS。
 - `make -C npc/rv64 -j2` PASS。
 - official smoke：`rv64ui/rv64mi/rv64si` `overall_rc=0`。
+
+### 2026-07-11 复审边界
+
+- 既有 classifier 单测证明局部分类主路径，不证明 current-mode xRET 完整，也不证明
+  `arch_trap` 已在 dispatch gate 关闭 backend valid。
+- MRET-from-S/U、SRET-from-U 已在真实 decode/classify 链复现为缺少 illegal；
+  SRET-from-S+TSR 正对照正常。
 
 ## 实施顺序
 

@@ -1,6 +1,7 @@
 # 规范：控制状态寄存器文件 CsrFile
 
-> 模块：`vsrc/core/CsrFile.v`。模板见 `../arch/SPEC-TEMPLATE.md`。状态：已实现并验证(ACT4/riscv-tests 特权 gate)。
+> 模块：`vsrc/core/CsrFile.v`。模板见 `../arch/SPEC-TEMPLATE.md`。状态：主路径已实现；
+> xRET current-mode 与 `minstret` 系统级输入合同仍有开放项。
 > 由 `core/NpcCoreTop.v` 直接例化，`OooCoreTopGlue` 只导出 CSR access/trap/fflags/retire 事件并消费状态。
 
 ## 1. 目的与范围
@@ -19,14 +20,27 @@ RV64 特权状态机:M/S/U 三态、CSR 读写、trap/中断进入与 xRET 返�
 ## 3. trap / 返回时序模型
 - **进入 M**(`trap_to_m_mstatus`):MIE→MPIE、清 MIE、MPP←from_priv;mepc←pc、mcause/mtval 置位;priv→M;pc←mtvec。
 - **进入 S**(委托时,`trap_to_s_mstatus`):SIE→SPIE、清 SIE、SPP←(from==S);sepc/scause/stval;priv→S;pc←stvec。
-- **mret**:MPIE→MIE、priv←MPP、MPP←U;pc←mepc。**sret**:SPIE→SIE、priv←SPP、SPP←U;pc←sepc。
+- **mret**:收到已判定合法的请求后，MPIE→MIE、priv←MPP、MPP←U;pc←mepc。
+  **sret**:收到已判定合法的请求后，SPIE→SIE、priv←SPP、SPP←U;pc←sepc。
 - 委托:异常按 medeleg、中断按 mideleg 决定 trap 到 M 还是 S(且当前 priv ≤ S)。
 
+**KNOWN GAP XRET-G1**：xRET current-mode 合法性由上游 classifier 负责，CsrFile 不复查。
+当前上游缺 `MRET && priv!=M` 与 `SRET && priv==U`，因此本节只能描述“合法请求到达后”
+的状态转移，不能把 current-mode gate 写成已完整验证。
+
 ## 4. 不变量
-- **CSR-I1 特权合法性**:CSR 访问按 addr[9:8](最低特权)与 addr[11:10](读写)校验;非法→illegal instruction(由 probe gate 上报)。
+- **CSR-I1 特权合法性**：CSR 访问按 `addr[9:8]`（最低特权）与 `addr[11:10]`（读写）
+  校验；非法访问产生 illegal instruction（由 probe gate 上报）。
 - **CSR-I2 精确性**:CSR 副作用只在该 CSR 指令/ trap 提交边界生效(配合 ROB 精确提交)。
 - **CSR-I3 mstatus 派生**:SD 由 FS==Dirty 派生;SXL/UXL 固定 RV64;WARL 位按规范钳位(已知例外:medeleg/mideleg 无只读 0 掩码,见 §2)。
-- **CSR-I4 计数器**:minstret/mcycle 受 mcountinhibit 抑制;按 retire 数(instret_inc)递增。
+- **CSR-I4（模块内）计数器**：CsrFile 按 `instret_inc_i` 加 `minstret`，并受
+  `mcountinhibit.IR` 抑制。
+- **CSR-I4（系统合同）**：`instret_inc_i` 必须来自唯一 ISA-retirement 计数源：异常项
+  不计，实际退休的 control-path 指令各计一次。
+- **KNOWN GAP INSTRET-G1**：`NpcCoreTop` 当前接入 raw `ooo_core_retire_count_w`，不是
+  ISA 过滤后的唯一源；异常 commit-valid 可进入计数，而 mret/sret/wfi/sfence/fence.i
+  等 control pseudo-commit 不在该 raw 输入中。此结论来自整机静态接线，尚无专门计数器
+  程序波形。
 
 ## 5. 关键路径
 Vivado OOC:CsrFile 22 逻辑级/logic 3.9ns,主要是 64-bit minstret 计数器加法器(16 CARRY4,专用进位,快);
@@ -40,3 +54,4 @@ Vivado OOC:CsrFile 22 逻辑级/logic 3.9ns,主要是 64-bit minstret 计数器�
 ## 7. 变更记录
 - 2026-06-28：逆向文档化(M/S 特权 / trap-return 栈 / 委托 / PMP/satp/counters / 不变量)。
 - 2026-07-03：补登 FP CSR 域(fflags/frm/fcsr、fp_dirty→FS=Dirty、frm_o)与 mcounteren/scounteren、menvcfg(PBMTE),对齐 FP 簇落地后的 RTL 现状。
+- 2026-07-11：补充 xRET current-mode 与唯一 ISA-retirement 计数源的跨模块合同。

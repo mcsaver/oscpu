@@ -1,0 +1,451 @@
+RV64 OoO Core：当前 RTL 与 Markdown 文档对照报告
+日期：2026-07-11（Asia/Shanghai）
+代码快照：cab1814b0622e53e1e62f2b0fc17ed6873c72ba2
+
+===============================================================================
+0. 对照方法与裁决规则
+===============================================================================
+
+本报告只在 PHASE1_FROZEN.txt 已冻结之后读取 RV64 设计 Markdown。对照顺序是：
+
+  1. 先按当前 RTL、非 Markdown 构建/回归/STA 产物建立代码事实；
+  2. 再读取 active/normative spec、active README、snapshot、plan、history 和 DB memory；
+  3. 只有 active/current 文档与当前 RTL 冲突时，才记为“当前规范漂移”；
+  4. dated snapshot 与 immutable task-run 保留历史价值，只记为“不可再当当前结论”；
+  5. 计划中明确写出的验收合同若被标记 complete、但当前 RTL 不满足，则记为“闭环结论
+     过强”，而不是改写历史计划；
+  6. 静态调用链、局部定向仿真、整核回归、STA 分别标明，互不冒充。
+
+生命周期依据：
+  .github/instructions/doc-lifecycle.instructions.md:13-21,26-39
+
+本轮没有改写既有 RV64 设计文档；本文件给出应该更新、降级或保留的清单。
+
+===============================================================================
+1. 文档中仍准确、可继续保留的结论
+===============================================================================
+
+1.1 核心规模与大部分容量
+
+  - ROB16、整数 IQ8、FP IQ8、SQ4、MIQ4、int/FP PRF 各64、fetch FIFO4、RAS32、
+    ITLB/DTLB 各64、双 dispatch/双 commit 等描述仍与当前 RTL 一致。
+  - 历史证据：arch/history/rtl-ground-truth-2026-07-03.md:18-30（已归档；排除其 BPU/端口细节）；
+    ROADMAP.md:22；define.v:21-43；OooRob.v:269-305。
+  - 限定：MIQ 的名义深度是4，当前 bridge 的真实并发上界却只有 active+staged 两笔；
+    “容量4”不能被解释为4个并行 AXI 请求。
+
+1.2 fetch packet、RVC 与当前 hit 吞吐
+
+  - 8B packet、最多展开两条、支持 16/32 位混合与跨 word 拼接的模块文档准确。
+  - 当前 S_LOOKUP hit fusion 后，命中稳态已经是 1 packet/cycle；这一点在
+    knife-f-fetch-hit-fusion.md:25-45 和 topology-analysis-2026-07-11.md:102-111
+    中准确，在旧 ACTIVE bridge spec 中尚未同步。
+  - 证据：OooFetchPacketDecode.v:35-94；OooFetchAxiBridge.v:510-525,616-645。
+
+1.3 前端真实限制
+
+  - IFU 单 outstanding、miss/PTW 串行的描述准确。
+  - 普通 JALR target predictor/BTB 当前不生效，RAS 使用窗口保守，这些限制已有文档记录。
+  - fetch-time branch prediction、slot0 taken 截断 slot1、同拍训练单源等新 knife 文档准确。
+  - redirect PC 已由 OooRedirectArbiter 单源化，但后端 kill/nuke 和其他副作用仍分散；
+    pipeline-stage-boundary.md:70,73-96 与 ooo-flush-redirect-contract.md:88-106,
+    347-350 对这个边界写得正确。
+
+1.4 ROB、恢复与默认 system/trap 流程
+
+  - 双宽按序提交、head0 exception 阻断 lane1、kill 拍冻结提交、反向 walk 每拍两项、
+    recovery 窗口吸收存活项 writeback 等描述与 OooRob.v:189-499 一致。
+  - 默认配置下，非 CSR system/trap 走 pending + backend drain；执行异常随 ROB 到 head
+    后上报。这一大方向在 serialize-at-retire.md 与 ooo-csr-trap-request-mux.md 中准确。
+
+1.5 Dcache、PMP 与存储真实并发
+
+  - ooo-data-word-cache.md 对 8B line、4096 行、约32KiB data、direct-mapped、
+    write-no-allocate、store 两拍 RMW 的说明准确。
+  - pmp-checker.md 对16项、TOR/NA4/NAPOT、最低编号优先、full-coverage、M-mode lock
+    语义的说明准确。
+  - mem-lsq.md 与 ooo-mem-axi-bridge-fsm.md 对 SQ4/MIQ4 以及真实 MLP 约等于1的
+    大方向准确。
+
+1.6 FP 短算术门局部性能
+
+  - ooo-fp-arith-gate.md 把外部可见结果对齐到第5拍，并把 1 launch/cycle 限定为无回压
+    的局部峰值，这与当前 RTL 一致。
+  - 这不是整个 FP cluster 的持续吞吐承诺：FP IQ 单发、done FIFO、组合结果寄存器和
+    div/sqrt 单在飞都会形成额外限制。
+
+1.7 最小 AXI4 子集
+
+  - axi4-bus.md 前部对单拍、LEN=0、无多 outstanding、向 AXI4-Lite 从端收缩的说明
+    基本准确。
+  - “AXI4 端口存在”不等于支持 burst、多 ID 并行、exclusive、lock 或 coherence；
+    后文若写成“完整 AXI4”，应收窄为“当前工程使用的单拍最小子集”。
+
+1.8 当前验证与时序结果
+
+  - topology-analysis-2026-07-11.md:74-111 中 WNS约 -5.35ns、CoreMark CPI 0.886、
+    177项 riscv-tests 的 post-change 结果与逐项产物相符；其中“86个 module TB 全过”
+    与三份原始日志冲突，AM 原始结果也实际为 58/59，详见 `VALIDATION_ERRATUM.txt`。
+  - 这些数字必须附带范围：当前 .config 未开启 CONFIG_NPC_DIFFTEST；CPI是 CoreMark
+    专项值；OpenSTA 使用现有 liberty/ideal-clock 模型，不是布局布线后签核结论。
+
+===============================================================================
+2. 历史快照中已经过时、但不应抹掉的结论
+===============================================================================
+
+主要对象：npc/rv64/design/arch/history/rtl-ground-truth-2026-07-03.md（现已归档）。
+该文件标题和 ROADMAP.md:7-9 都表明它是 2026-07-03 时点快照。以下内容对当时可能有
+历史价值，但不能再被 README 或 ROADMAP 当作当前 RTL ground truth：
+
+2.1 Zifencei
+
+  旧结论：line 14、106-116 将 fence.i 写成 no-op/待修。
+  当前事实：DecodeUnit.v:787-801、OooControlPlane.v:239-241、
+            OooMemoryRequestGate.v:63-75 已形成真正 commit/mmu_flush/重取路径。
+  裁决：历史结论已被实现超越。
+
+2.2 Sv39 A/D
+
+  旧结论：line 65-67 称 A/D 由软件管理，A=0 直接页故障。
+  当前事实：IFU 会更新 A；LSU 会更新 A/D，B 成功后重 walk/填 TLB。
+  裁决：历史结论已被实现超越；但当前 A/D 写回仍有 PMP WRITE 与 flush-drain 合同缺口。
+
+2.3 BPU 容量
+
+  旧结论：line 31 为 gshare4096/GHR12。
+  当前事实：define.v:174-205 为 gshare1024/GHR10；local history 256x8、local PHT4096。
+  裁决：容量和 state-bit 统计都需重算。
+
+2.4 fetch prediction 位置
+
+  旧结论：line 79-86 仍是 dispatch fast-fire/flush 改流。
+  当前事实：taken prediction 已前移到 fetch response；head1 direct branch fire 固定为0。
+  裁决：被 07-11 fetch-time prediction 超越。
+
+2.5 访存边界
+
+  旧结论：line 77 可读成“任意非对齐普通 load/store 均支持”。
+  当前事实：开启翻译且跨页时当前实现会生成 misaligned trap；同文件 line117-127 已记录
+            后续变化。
+  裁决：文件内部已经自相矛盾，旧句不能继续作为当前能力承诺。
+
+2.6 FP 与乘法延迟
+
+  旧结论：line34-35 以 FADD/FMUL 3级、multiply 2-cycle 描述当前执行域。
+  当前事实：短 FP 内部 add2/mul3/FMA5，但外部结果对齐到第5拍；整数乘除是迭代 FSM。
+  裁决：旧表需要按“内部子流水/外部完成延迟”拆开重写。
+
+2.7 物理寄存器端口与 decode 实例数
+
+  旧结论：line25 的 int PRF 10R2W、architecture.md:153-154 的8个 DecodeStage。
+  当前事实：OooPhysRegFile.v 当前接口为5R2W；DecodeStage 实例共4个（frontend2、
+            backend2）。
+  裁决：拓扑数字已过时。
+
+2.8 fetch packet cache 面积口径
+
+  旧结论：line28 的约34KiB。
+  当前事实：当前数组是4096x199 bit，仅 payload 原始 bit 已约99.5KiB，另有 valid/外围逻辑。
+  裁决：旧容量估算已过时，且不能直接等同综合宏面积。
+
+2.9 Difftest 范围
+
+  旧结论：line93-94、173-175 称仅比较 GPR/PC、不比较 CSR/FP 状态。
+  当前事实：csrc/cpu/difftest.cpp:26-62,75-129,375-397 已覆盖 FPR、CSR、priv、
+            fflags/frm；当前构建配置是否开启仍需另行说明。
+  裁决：实现能力描述已过时，当前 .config 未开启又是另一个运行范围事实。
+
+2.10 STA 可用性
+
+  旧结论：line177 称 whole-core timing 仍依赖未来 OOC。
+  当前事实：已有 NpcTop OpenSTA，WNS约 -5.35ns；但宏模型/ideal clock 条件仍非 signoff。
+  裁决：从“没有结果”更新为“已有可做相对比较的全核结果，精度仍有限”。
+
+===============================================================================
+3. 当前 active/normative 文档的直接漂移
+===============================================================================
+
+3.1 顶层入口、路线图与 normative architecture
+
+  A. npc/rv64/README.md:7-10,64-118
+     - 继续把 07-03 snapshot 指为当前裁决依据；
+     - 回归规模仍是旧数字；
+     - Difftest 仍写成仅 GPR/PC；
+     - “make core-regress 默认总会运行官方测试”表述过强，脚本 auto 路径仍可能跳过
+       vendored riscv-tests。
+
+  B. npc/rv64/design/README.md:27-33
+     - 当前状态仍停在 07-03/旧 DispatchBackend 时序瓶颈；
+     - 当前最差路径已经在 frontend/IFU next-PC 回环；
+     - 文档数量和直接绑定 task-run 的 current 叙述也需同步。
+
+  C. npc/rv64/design/arch/ROADMAP.md:12-25,43-53,77,127-149
+     - 旧的82/355/59 gate 数、旧 WNS 和“正确性缺口清零”不再成立；
+     - line77 称 redirect arbiter 未接入，但当前已是 fetch redirect PC 生产路径；
+     - 已完成、失败尝试和当前剩余项混在同一 active 计划中。
+
+  D. npc/rv64/design/arch/ooo-core-architecture.md
+     - line304-322,395-416 仍称没有统一 redirect arbiter/RequestMux 10+源链；
+       当前只能改为“fetch redirect PC 已单源化，其他副作用仍分散”。
+     - line102-154 的模块树、实例数和若干 owner 已落后于 dead-path 删除。
+     - line376 与381-382 内部冲突：前者暗示 MMIO/store B error 可精确，后者正确承认
+       retire 后 drain error 只能报告。
+     - line451 仍把普通 JALR 与 RAS/BTB 并列，当前普通 BTB 路径不存在。
+     - line522-529 gap 表仍把已完成和未完成项混杂；FP 已是独立 cluster，不能再写成
+       “无 FP cluster”。
+     - C1-C7 的 owner/state/组合闭包原则仍有价值，应保留；【现状】层需重建。
+
+3.2 前端 active specs
+
+  A. ooo-fetch-axi-bridge.md:15,55-75,91-94
+     - hit steady throughput 仍写 1 packet/2 cycles，当前为1/cycle；
+     - FSM 漏掉 S_AD_UPDATE；
+     - A=0 软件管理已过时；
+     - flush “直接 idle/所有已发事务都排水”没有覆盖 A-update AW/W/B 偏斜。
+
+  B. ooo-branch-direction-predictor.md:10-16,96-110
+     - 仍用 gshare4096/GHR12 及旧 state-bit；
+     - “不在 Fmax 路径/弱于 Dispatch”不再有当前 whole-core STA 支撑；BPU 宏模型未知
+       也必须写入边界。
+
+  C. ooo-frontend-dispatch-gate.md:13-17,35-67
+     - 仍称 head1 taken branch 在 dispatch 拍 direct fire；RTL已固定0；
+     - 只规定 slot0 trap 阻断 lane1，遗漏 slot0 自身不得送入 backend 的承重合同。
+
+  D. ooo-fetch-head-pair-gate.md:42-48,60-64,85-96
+     - 仍说 head0 branch 抑制 head1 decode；当前只有 JUMP/STOP 抑制，branch 已不抑制。
+
+  E. ooo-fetch-request-mux.md:3-17,48-58
+     - 仍保留同拍 redirect request valid 语义；当前 redirect_fetch_req_valid_o 固定0，
+       redirect PC 先落 sequencer，下一拍从顺序请求臂发出。
+
+  F. ooo-control-commit-sequencer.md:1-4,43-50
+     - 称 core_serial_flush 在 RTL 没有 setter；当前 head0 CSR commit 已能产生一拍脉冲。
+       默认 OOO_CSR_QUEUE_HEAD=0 使该路径通常休眠，不等于“没有 setter”。
+
+  G. ooo-fetch-head-classify-gate.md:22-27,56-99
+     - 公式漏掉 fp_dyn_frm_illegal 与 unsupported_residual；
+     - xRET 只写 S-mode+TSR 的 SRET 检查，漏 MRET仅M、SRET不得在U 的当前 mode 合法性；
+     - 验证计划没有覆盖 trap-classified 同时 backend-present 的跨模块组合。
+
+  H. ooo-flush-redirect-contract.md:25-27,45-69,347-370
+     - fetch fault 被称为 committed trap，不精确；它是 pending 后等待 drain 的架构边界
+       trap，并非 ROB exception commit；
+     - “所有已发 AXI 都会 drain”对 IFU A-update 写通道过强；
+     - 旧 xbar abort 与 UC-E 文字已被 master self-drain 方案超越；
+     - arbiter 部分对 fetch PC 单源化的限定是准确的，应保留。
+
+3.3 后端、内存与 CSR active specs
+
+  A. ooo-mem-axi-bridge-fsm.md:61-64,103-128,183
+     - “MMIO/uncacheable B error 可形成精确异常”与当前 retire 后 SQ drain 不符；
+     - line127-128 自己又正确承认 late drain 只能报告，文件内部冲突；
+     - flush 仍混有旧 xbar abort/AxiLiteXbar 名称；
+     - 硬件 A/D 主路径已部分更新，但未写 A/D PTE write 的独立 PMP WRITE 检查。
+
+  B. ooo-memory-access.md:18-37 与 ooo-sv39-tlb.md:18,29,33
+     - flush source 漏 fence.i；
+     - 仍称软件管理 A/D；
+     - 仍列已删除的 pending sequencer/双 owner；当前 OooMemoryAccess 只剩一个真实请求 gate。
+
+  C. mem-lsq.md:13-28
+     - store-to-load forwarding 的“M-mode非MMIO”说法过宽；真实条件是 translation inactive、
+       PMEM、整数目的且旧 store 完整覆盖 load，FP load 不走该 forwarding。
+
+  D. ooo-csrfile.md 与 ooo-commit-output-mux.md
+     - 模块级各自描述看似正确，但缺少系统级唯一 retirement 源合同；
+     - NpcCoreTop 当前把 raw ROB retire count 接入 CsrFile，而不是 output mux 合并后的值；
+       exception entry 会多计，mret/sret/wfi/sfence/fence.i 等 pseudo commit 会漏计。
+
+  E. axi4-bus.md:26-28
+     - 把对齐 full-beat UART 读取写成等价转换过强；原访问 lane/size 已丢失，读取
+       offset1..7 时从设备仍可能看到 offset0 beat 并消费 RX。
+
+3.4 模块索引与 owner 文档
+
+  A. npc/rv64/vsrc/README.md:6-39,60-63,108-126
+     - 仍列多个已物理删除的 branch prefetch、pending/synthetic sequencer；
+     - 对 byte-window、软件 A/D、active owner 的说明过时。
+
+  B. ooo-core-top-glue.md:15-25,57
+     - 当前表仍列已删除的 BranchPrefetchRequestGate/PredictorUpdate/Synthetic owner；
+     - wrapper/实例数量也未同步当前 glue。
+
+  C. ooo-ras-update-gate.md:16、ooo-pending-dispatch-arbiter.md:88-92、
+     ooo-writeback.md:标题及20-24
+     - 仍引用 ReturnContBuffer、已删除 pending branch/jump/memory sequencer 或旧4 owner；
+     - 当前 writeback 真实 owner 数为2。
+
+  D. design/specs/README.md
+     - 对 dead-path 删除与 redirect 新结构有较多正确内容；
+     - “85 docs audited/67 drift fixed”等一次性计数已经不能代表当前覆盖率。
+
+3.5 snapshot/实施记录混合文档
+
+  topology-analysis-2026-07-11.md:
+    - line3-6、44-63 是 pre-change 基线/预测，却用“当前”容易误读；
+    - line74-111 才是 post-change 结果，与现有产物一致；
+    - “backend 域已收敛”最多表示不在当前 top-40 endpoint，不能推出所有 backend path
+      都满足10ns；
+    - CPI0.886 是 CoreMark 专项，不能外推所有 workload。
+
+===============================================================================
+4. 文档体系遗漏或表述过强的关键结论
+===============================================================================
+
+4.1 缺少跨模块合同：arch_trap -> 不得送 backend
+
+  文档现状：ooo-frontend-dispatch-gate.md 只写 lane1 barrier，没有冻结 lane0 自身合同。
+  当前证据：四类非法/保留 FP 编码均出现 arch_trap=1 且 backend-valid=1；合法 FADD.S
+            正对照通过。见 fp_legality_classify_result.txt。
+  RTL链：OooFpDecode -> OooFetchHeadClassifyGate -> OooFrontendDispatchGate ->
+         OooFrontendBackendDispatchMux -> OooAluDecodeBackend -> OooFpBackend。
+  裁决：“F/D 全集已实现并验证”“正确性缺口清零”均过强。
+  证据边界：动态覆盖到 dispatch gate；未知操作最终卡住 ROB、已知操作被执行的后果是
+            全链静态推断，尚无整核退休/停顿波形。
+
+4.2 缺少 xRET 当前 mode 合法性合同
+
+  文档现状：只覆盖 SRET+TSR；CsrFile 直接描述副作用，没有要求下游复查 mode。
+  当前证据：MRET-from-S、MRET-from-U、SRET-from-U 三类均未产生 illegal；TSR 正对照正常。
+  裁决：文档遗漏与 RTL 缺口一致，不能继续写成 privileged system 指令已完整验证。
+
+4.3 缺少唯一 ISA retirement/minstret 源合同
+
+  文档现状：CSR 和 output mux 各自局部正确，但没有冻结“异常项不退休、pseudo commit
+            如何计数、CsrFile 只接哪一个源”。
+  当前事实：raw ROB count 被直接接入 CsrFile；exception entry 多计，control pseudo commit
+            漏计。
+  裁决：模块级说明不能替代整机接线合同。
+
+4.4 flush/AXI 合同没有覆盖 IFU A-update 写通道
+
+  文档现状：`design/specs/history/ooo-sv39-hw-ad-update.md:23,44`（已归档）曾明确要求 PTE write PMP 检查和
+            flush-during-write drain，line119-122 又宣告完成；ACTIVE fetch/flush specs
+            没有完整保留这两条合同。
+  当前证据：AW-only 后 flush 会丢失 aw_done/w_done/BREADY 状态；IFU/LSU A/D write
+            也没有独立 PMP WRITE check。
+  裁决：计划的“完成”结论过强；它应保留为历史，但当前规范必须重新打开两项验收。
+
+4.5 page-end C 指令的 fault 归属合同缺失
+
+  文档现状：fetch bridge 讨论跨页，但没有冻结“只有当前实际指令需要的字节才能决定
+            resp0”的合同。
+  当前证据：page+0xFFE 的 C.NOP 被下一页 fault 提前归属；局部状态+真实 decoder 已复现。
+  裁决：“跨页 fault 独立归属”“MMU fault 精确”若不附该边界，表述过强。
+
+4.6 store response 精确性表述过强
+
+  probe 阶段 translation/PMP fault 可以精确写 ROB；retired store 的 drain B error 已无 ROB
+  entry，只能计数/打印并释放 SQ。文档必须把这两个阶段拆开，不能笼统写“等待 B 即精确”。
+
+4.7 普通 FENCE 当前语义未明确记录
+
+  当前 DecodeUnit 将普通 FENCE 译为合法 no-op，pred/succ 不进入任何排序控制；fence.i
+  是另一条已经实现的 serial flush 路径。文档集中写了 FENCE.I/SFENCE.VMA，却没有明确
+  普通 FENCE 的能力边界。其可观察差异仍需多 observer/RVWMO litmus，不应越级宣称整核
+  已动态违反某个具体用例。
+
+4.8 A 扩展缺少平台适用范围
+
+  decode 与单 hart 本地执行覆盖 LR/SC/AMO 主路径，但 reservation 只是本地状态，外部写
+  不会通知；AMO 由分开的读写事务组成，AXI 没有 exclusive/lock/coherence。文档中的
+  “RV64A 全集”必须限定为当前单 hart、本地串行平台模型，不能外推到多主系统。
+
+4.9 设备访问语义缺少两个边界
+
+  - Sv39 下是否允许 load 投机，当前按翻译前 VA 是否落 PMEM 数值窗决定；最终 PA 虽能
+    正确绕过 Dcache，但设备读时机可能早于不可撤销边界。
+  - 非跨 line 的 device load 对齐成 full beat 后，原 lane/size 不再传到从设备；带读取
+    副作用的 offset 寄存器可能收到错误归属。
+  两项目前以静态调用链为主，文档不应写成无条件“MMIO 功能正确”。
+
+4.10 redirect 与 commit 的“统一”用词应收窄
+
+  - redirect PC 当前已单源化；kill/reason/flush 等控制副作用尚未完全消费 arbiter 输出。
+  - commit 接口较集中，但仍是多条分立信号，不等同于统一 commit_event bundle。
+  - BranchSpecTracker 只有单 active/checkpoint 记录，文档不能无证据声称自然支持多个同时
+    未决分支。
+
+===============================================================================
+5. 过时结论清单（面向更新工作的短表）
+===============================================================================
+
+编号  当前文档结论                                      裁决
+----  ------------------------------------------------  ------------------------
+D01   07-03 ground truth 仍是当前冲突裁决基线            过时；降为 dated snapshot
+D02   fence.i 是 no-op                                  过时；当前已真实 flush/refetch
+D03   Sv39 A/D 只由软件管理                              过时；当前 IFU/LSU 有硬件更新
+D04   gshare4096/GHR12                                  过时；当前1024/10
+D05   fetch cache约34KiB                                过时；当前4096x199 payload
+D06   fetch hit 1 packet/2 cycles                       过时；当前稳态1/cycle
+D07   taken branch 在 dispatch fast-fire                过时；已前移 fetch response
+D08   head0 branch 必须压制 head1 decode                过时；当前只 JUMP/STOP 压制
+D09   同拍 redirect request 仍有效                       过时；当前固定0、下一拍顺序发
+D10   当前没有 redirect arbiter                          过时；fetch PC已单源化
+D11   所有 redirect/flush/kill 已完全统一                过强；只完成 fetch PC 单源化
+D12   core_serial_flush 在 RTL 无 setter                 过时；有 setter但默认路径休眠
+D13   IFU A-update flush 自动完整排水                    错误；AW/W/B偏斜未排水
+D14   A/D PTE 写回已完成 PMP WRITE 验收                  错误；未见独立WRITE检查
+D15   任意非对齐普通访存均支持                           过时；翻译跨页有trap限制
+D16   Difftest 只比较 PC/GPR                             过时；实现已覆盖更多状态
+D17   “当前回归绿”可推出所有保留 FP 编码正确              过强；已有定向反例
+D18   xRET privilege legality 已完整                     过强；三类 current-mode 缺口
+D19   minstret 等于 ISA retirement                       错误；整机接线源不等价
+D20   store 等到 B 即可保证精确异常                      错误；retire后 drain 不能精确
+D21   普通 FENCE 已实现 pred/succ 排序                   缺失；当前是合法 no-op
+D22   “RV64A 全集”可外推到多主平台                       过强；仅本地 hart 模型
+D23   “完整 AXI4”                                       过强；单拍最小子集
+D24   对齐 full-beat device read 总是等价                过强；副作用 lane/size 丢失
+D25   MMIO 在任意 Sv39 映射下都不可能投机                过强；资格按翻译前VA分类
+D26   FP add/mul 整簇持续每拍完成                         过强；仅短算术门局部峰值
+D27   FP add外部3拍、multiply固定2拍                     过时；FP统一5拍输出、整数迭代
+D28   int PRF 10R2W、DecodeStage 8实例                   过时；当前5R2W、4实例
+D29   当前最差路径在 DispatchBackend                     过时；当前在IFU/frontend回环
+D30   现有 WNS可直接换算布局布线后Fmax                    过强；仅当前模型相对比较
+D31   topology 文档 pre-change 预测是 current result      误标；§5才是post-change结果
+D32   backend不在top-40即可证明全域满足10ns              过强；只能证明未进当前top-40
+D33   MIQ4等于4笔真实并行总线事务                         过强；当前结构上界约2元数据/1活动
+D34   已自然支持多个同时未决分支                          证据不足；仅单active/checkpoint
+D35   旧 pending/prefetch/synthetic owner 仍在活跃拓扑     过时；多个模块已物理删除
+
+===============================================================================
+6. 文档处理建议（本轮未执行）
+===============================================================================
+
+优先级 P0：active current 层
+  1. 更新 npc/rv64/README.md、design/README.md、ROADMAP.md 的当前数字与 authority 指针；
+  2. 重写 ooo-core-architecture.md 的【现状】拓扑，保留 C1-C7 原则；
+  3. 修订 frontend dispatch/classify、fetch bridge、flush、mem bridge、CSR retirement 五组
+     跨模块合同；
+  4. 在 ISA/平台能力表中明确普通 FENCE、xRET、A扩展、AXI最小子集和设备访问边界。
+
+优先级 P1：snapshot/history 层
+  1. 07-03 snapshot 已移入 `arch/history/`；current authority 已切到
+     `rtl-ground-truth-2026-07-11.md`，历史正文保持不改；
+  2. 给 topology-analysis-2026-07-11.md 明确标注 §1-4 pre-change、§5 post-change；
+  3. `ooo-sv39-hw-ad-update.md` 已纳入 history index，两条验收合同已在 active spec 重新打开；
+  4. task-runs 保持 immutable，只由 active 文档链接证据，不承担 current truth。
+
+优先级 P2：owner/index 层
+  1. 清理 vsrc/README、core-top-glue、writeback、RAS/pending specs 中已删除 owner；
+  2. 移除一次性“已审计文档数/已修漂移数”作为长期正确性指标；
+  3. DB project-status/modules/npc 更新为本轮结果；known-issues 中旧“全部清零”和
+     “尚无 full synthesis”需重判，yosys-sta 历史值明确为 dated record。
+
+===============================================================================
+7. 审查者复核与证据边界
+===============================================================================
+
+  - 历史快照中的旧数字不等于文档当时写错；真正的问题是 active 索引仍把它指作当前事实。
+  - 177 riscv-tests 的逐项 PASS 是有效绿灯；module 摘要和 AM 摘要存在假绿：三份
+    module 原始日志失败，AM 为 58/59。当前 .config 也未启用 Difftest，且这些回归
+    没有覆盖本轮定向并发/非法编码边界。
+  - FP 最终 ROB 停顿/误执行、MIQ默认整核 flush竞态、Sv39设备读时机目前是全链静态或
+    局部动态证据，不能冒充完整 NpcCoreTop 程序波形。
+  - MIQ full+pop 的模块合同确有反例，但当前 bridge 结构使 MIQ4 不可填满；它不是当前
+    默认核已证实可达的运行问题。
+  - STA 的 WNS、TNS 与约65MHz量级只用于当前模型下的结构比较；SRAM、FP arith、BPU 等
+    宏的 area/power/timing 不完整，不能当签核数据。
+  - 本轮结论是“当前代码与文档的一致性审计”，不是 ISA 全形式证明，也不是 Linux、
+    多核一致性或物理实现签核。

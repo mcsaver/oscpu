@@ -5,7 +5,7 @@
 - [OoO core architecture constitution](ooo-core-architecture-constitution.md) — 宪法已升v0.2(现状层随2026-07-03重读同步); B2失败史负结论仍有效; 现状查rtl-ground-truth基线
 - [Single-line cross-signal probe debug](single-line-cross-signal-probe-debug.md) — 多轮分散探针卡住时，改用单行对照表把数据通路上下游信号排同一时间轴（波形的文本等价物），一行定位
 - [CoreMark mode=1 spec wrong-path fixes](coremark-mode1-spec-wrongpath.md) — mode=1 全绿:CoreMark(0xfcaf)+riscv-tests 135/0+sv39+module TB 113/113; 6 个修复(redirect 优先级/cause residual/untracked-over-flush/clear_arch_squash/fetch-fault gate 去除/de-pend 单元 TB 对齐)
-- [rv64core audit baseline](rv64core-audit-baseline.md) — **rv64 现状权威入口=design/arch/rtl-ground-truth-2026-07-03.md(全RTL重读真相基线)**; 域B只剩system/trap; 4硬缺口#111已修3.5(仅#3B fence.i真flush单列=当前唯一已知正确性缺口)+合规批全修; 死硅普查表; 旧两执行域图景已过时
+- [rv64core audit baseline](rv64core-audit-baseline.md) — **rv64 CURRENT 入口=`design/arch/rtl-ground-truth-2026-07-11.md`**；07-03 baseline 已归档。当前仍有 trap-dispatch、xRET、IFU A-update/page-end C、minstret 等开放合同，旧“正确性缺口清零”结论已过时。
 - [rv64mi-illegal F2 head1译码bug(已修)](rv64mi-illegal-preexisting-f2-fail.md) — **已修复**:riscv-tests 353/354→355/0; 根因=OooFetchHeadPairGate head0=分支时head1不译码→head1_system_raw=0→lane1 CSR双发进domain-A读0(FP家族的分支版); 方法学=commitwatch/trapwatch免重编取架构退休真相(dispatch探针会被confound)
 - [Respond and think in Chinese](respond-and-think-in-chinese.md) — 用户要求回复 AND 思考链全程用中文
 - [Device address unified map](device-address-unified-map.md) — AM/NEMU/NPC 三侧设备地址统一到 device_address.h 单一真源(SoC 图/RV32 legacy 封存/一致性门禁/CoreMark difftest 坑)

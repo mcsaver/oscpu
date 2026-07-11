@@ -107,8 +107,11 @@ ACTIVE ──漂移──▶ ACTIVE(已校正) ──模块判死──▶ ACTIV
   `2026-07-03-rv64-rtl-reread-audit/`：6 CURRENT/67 校正/12 归档）；第二轮为
   doc-lifecycle-audit 工作流首次验证运行，86 份（62 CURRENT/16 校正/8 归档，
   抓到第一轮漏改的宪法 §2 表并归档 `design/study/` 整目录，
-  结果 `verify-run-results.json` 固化于同一 task-run）。
-- **权威现状快照**：`npc/rv64/design/arch/rtl-ground-truth-2026-07-03.md`。
-- **归档区**：`npc/rv64/design/specs/history/`（15 份）、`npc/rv64/design/arch/history/`（3 份）、
+  结果 `verify-run-results.json` 固化于同一 task-run）。2026-07-11 代码优先复审完成
+  authority 刷新：旧 snapshot 归档、current 入口与承重 spec 就地校正；这是一轮定向
+  生命周期推进，不冒充新的全量文档审计计数。
+- **权威现状快照**：`npc/rv64/design/arch/rtl-ground-truth-2026-07-11.md`；
+  `arch/history/rtl-ground-truth-2026-07-03.md` 已归档。
+- **归档区**：`npc/rv64/design/specs/history/`、`npc/rv64/design/arch/history/`、
   `npc/rv64/design/history/`（目录级：`study/` 8 份）。
 - **待处置队列**：死硅物理拆除对应的 spec 摘除（随宪法 §8.3 B4 清理执行）。

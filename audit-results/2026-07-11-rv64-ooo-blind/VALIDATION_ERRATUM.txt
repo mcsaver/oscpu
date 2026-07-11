@@ -1,0 +1,41 @@
+RV64 OoO Core 代码优先架构审计：验证结果勘误
+日期：2026-07-11
+
+勘误范围
+========
+
+本文件只更正本目录中对既有回归产物的解读，不修改 DUT、testbench 或回归脚本。
+
+1. 官方 riscv-tests
+==================
+
+`npc/rv64/perf/results/core-regress/20260711-133547-973361/summary.txt` 中 177 个
+riscv-tests 的逐项结果均为 PASS；这一结论保持有效。
+
+2. AM cpu-tests
+===============
+
+聚合摘要把 `am-cpu-tests` 标为 PASS，但原始日志
+`npc/rv64/perf/results/core-regress/20260711-133547-973361/am-cpu-tests.log`
+列出 59 项，其中 58 项 PASS，`fp-difftest-probe` 为 `***FAIL***`。因此当前证据应写为
+“58/59，聚合摘要假绿”，不能写成 AM 全绿。
+
+3. module testbench
+===================
+
+`npc/rv64/perf/results/20260711-125729/module-testbench/summary.txt` 报告 86/86 PASS，
+但以下三份原始日志先报告断言失败和 `$finish(1)`，随后又输出 `[RESULT] PASS`：
+
+  - `logs/tb_ooo_control_commit_sequencer.log`：7 项失败；
+  - `logs/tb_ooo_pending_system_sequencer.log`：1 项失败；
+  - `logs/tb_ooo_stop_pending_sequencer.log`：1 项失败。
+
+因此 86/86 只能描述聚合摘要文本，不能作为 86 个 testbench 均通过的证明。当前至少
+三项 testbench 的原始日志与聚合结果冲突，需先修正结果判定链，再重新运行回归。
+
+4. 使用规则
+===========
+
+本目录中的 `INDEX.txt`、`PHASE1_FROZEN.txt`、`04_DOCUMENT_COMPARISON.txt` 和
+`05_FINAL_ARCHITECTURE_ASSESSMENT.txt` 已同步采用本勘误。此前 task-run 是不可变历史证据；
+当前结论以本勘误和 `npc/rv64/design/arch/rtl-ground-truth-2026-07-11.md` 为准。

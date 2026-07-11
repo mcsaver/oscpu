@@ -1,9 +1,16 @@
 # 全电路拓扑分析：拍界地图、融合经济学与结构重划方案（2026-07-11）
 
-> 性质：架构分析文档（用户点题"从整个电路的拓扑结构分析架构上的优化"）。
-> 数据源：真弧 STA top-40 全族解剖（`build/sta/NpcTop-100MHz/topo40.rpt`）+
-> 性能战役全部刀的实测 CPI 账（各 task-run）。
-> 现状：CoreMark CPI 0.877 / WNS -15.37 @100MHz（真弧）。
+> 性质：snapshot / 实施记录。§1-§4 是本轮修改前的 baseline 与方案预测；§5 是同日
+> post-change 结果，§6 是可提炼的方法学。本文不作为 current authority；当前现状见
+> `rtl-ground-truth-2026-07-11.md`。
+> 数据源：真弧 STA top-40 全族解剖（派生索引：
+> `.github/task-runs/2026-07-11-knife-b2-s2s3/evidence-index.md`；本地 raw：
+> `.github/task-runs/2026-07-11-knife-b2-s2s3/evidence/topo40.rpt`，
+> SHA-256 `f2b292686adef90056a7fe0ea7977d6a0085d98a7d5aa9cf0c3b346ffe10d512`）+
+> 性能战役全部刀的实测 CPI 账（各 task-run）。post-firewall 报告位于
+> `npc/rv64/build/sta/NpcTop-100MHz/topo40.rpt`。上述 raw 路径属于 ignored runtime
+> artifact，clean checkout 不保证存在；可持久追溯信息以派生索引中的 size/hash 为准。
+> pre-change baseline：CoreMark CPI 0.877 / WNS -15.37 @100MHz（真弧）。
 
 ## 1. 拍界地图：一拍内的架构事件传递闭包
 
@@ -71,7 +78,7 @@ dcache SRAM rdata (clk2q 1.28)                       ── MEM 级
 | dcache 融合切除 | T2 已证形态（tie-0 可逆） | backend 域不够 9.1ns 时的调节阀 |
 | SQ snoop 打拍 | snoop→fetch 失效链（历史 top 族 B） | 防火墙不治此族；需 SMC 窗口语义论证，独立小刀 |
 
-## 5. 防火墙战役落地记录（2026-07-11 同日，全部完成+统一测试）
+## 5. 防火墙战役落地记录（2026-07-11 同日，post-change 结果）
 
 ### 实施三刀（真链解剖推翻了 §3 的预判——redirect 防火墙只是序章）
 
@@ -93,11 +100,23 @@ dcache SRAM rdata (clk2q 1.28)                       ── MEM 级
   **教训：给"广播式复位类信号"打拍时，必须审计所有"该信号拍不得发生"的
   同拍事件（fire/enqueue 类），配套压 ready。**
 
-### 统一测试（全绿）
+### 统一测试（2026-07-11 日志复核校正）
 
-module TB 86/86、lint 双变体、riscv-tests 177/177（含特权）、
-**difftest（NEMU）riscv 177/177+CoreMark 全零 mismatch**、CoreMark 0xfcaf
-CPI 0.886、WNS -5.35/TNS -34780。
+summary 层曾记录 module TB 86/86、lint、riscv-tests 177/177、AM PASS 与
+overall_rc=0；日志级复核后，当前可采信范围应改为：
+
+- official riscv-tests 177 项逐项 PASS；
+- CoreMark 0xfcaf、CPI 0.886；WNS -5.35/TNS -34780；
+- module summary 的 86/86 不能直接采信：3 个原始 TB 日志含 FAIL 后仍写 `[RESULT] PASS`；
+- AM 实际 58/59，`fp-difftest-probe` FAIL；
+- 当前 `.config` 未开启 Difftest，不能用本轮 core-regress 声称 177 项/ CoreMark 全状态对拍。
+
+因此本战役当时的时序/CPI 结果仍成立，但“统一测试全绿”结论撤回。
+
+**后续 F0 收口（同日）**：结果聚合器、三个 sequencer TB 和 FP destination-domain
+资格已另行闭合；新鲜结果为 module 86/86、AM 59/59（Difftest ON）、official
+177/177。本节保留的是 F0 前审计事实，current gate 以
+`.github/task-runs/2026-07-11-rv64-f0-truthful-regression/` 为准。
 
 ### 新拓扑（防火墙后 top-40 全景）
 
@@ -108,7 +127,8 @@ next_fetch_pc（同链→sequencer）。约 -5.4ns 的域内链构成：fetch �
 虚胖，真实后端 buffer 树可大幅缓解）→bimm→pred 判决→寄存。
 下一步候选（frontend 域内战役）：①dec1_branch 高扇出手动 buffer/逻辑复制
 （先试，虚胖可能占大头）；②pred 判决挪包驻留拍（lookup 不动）；③方案 C
-对齐取指（结构级，消 dec 依赖）。backend 域已收敛（不再出现在 top-40）。
+对齐取指（结构级，消 dec 依赖）。backend 不在当前 top-40，只能说明它未进入这组最差
+endpoint，不能推出所有 backend 路径已经满足 10ns。
 
 ## 6. 方法学固化（进宪法候选）
 

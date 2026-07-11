@@ -4,7 +4,12 @@
 其余为 decompose 阶段的简明 owner 边界笔记(见 `../../vsrc/README.md` 总览)。
 模板见 `../arch/SPEC-TEMPLATE.md`。动 RTL 前先写/更新对应 spec。
 
-> **2026-07-03 全量重审**:随全 RTL 从零重读(真相基线 `../arch/rtl-ground-truth-2026-07-03.md`),
+> **2026-07-11 authority 刷新**：当前实现快照为
+> `../arch/rtl-ground-truth-2026-07-11.md`；2026-07-03 全量重审快照已移入
+> `../arch/history/rtl-ground-truth-2026-07-03.md`（已归档）。07-11 先校正当前
+> authority 与承重合同，不把一次性“已审计份数”继续作为现状正确性指标。
+>
+> **2026-07-03 全量重审历史**：随全 RTL 从零重读，
 > 对全部 85 份文档逐份审计:**6 CURRENT / 67 DRIFT_FIXED(已校正) / 12 归档**。
 > 对应死硅/死通道的活模块 spec 均已在标题下加 ⚠️ 状态注记(模块仍编译实例化,功能被
 > 编译期常量或结构性不可达证死,拆除计划见宪法 §8.3)。归档件见 `history/README.md` 与
@@ -30,22 +35,26 @@
 - `yosys-macro-boundary-contracts` — Yosys 四黑盒宏/OOC 边界合同（timing/area/语义缺口与任务清单）
 - `ooo-memory-access`(wrapper)〔`ooo-pending-memory-sequencer` 已 B4 物理删除 → `history/`〕
 - LSQ 现状:SQ(4)+probe/drain+store→load 前递已落地,LQ/MSHR/多 outstanding 未做
-  (见真相基线 §2.3/§3.3;实施方案已归档 `history/ooo-lsq-implementation-plan.md`)
+  (见 current snapshot §2/§4；实施方案已归档 `history/ooo-lsq-implementation-plan.md`)
+- HW A/D 当前语义由 `ooo-fetch-axi-bridge` 与 `ooo-mem-axi-bridge-fsm` 承载；一次性实施
+  计划 `history/ooo-sv39-hw-ad-update.md` 已归档。PTE write PMP 与 IFU partial-write
+  flush-drain 两项边界已在 active spec 重新打开。
 
 ## 取指 / 前端 / 分支预测
-- ★ `ooo-fetch-axi-bridge` — 取指桥(ITLB+硬件 PTW+取指包 cache+PMP;SMC 失效缺口见 known-issues #111)
+- ★ `ooo-fetch-axi-bridge` — 取指桥(ITLB+硬件 PTW+硬件 A update+取指包 cache+PMP；
+  当前开放 IFU A-update flush-drain 与 page-end C fault 归属合同)
 - ★ `ooo-fetch-packet-cache` — 取指包 cache 语义、debug/common checker 与 macro/OOC 前置合同
 - `ooo-fetch-packet-*`、`ooo-fetch-pc-outstanding-sequencer`、`ooo-fetch-request-mux`、
   `ooo-frontend-*-gate`、`ooo-fetch-head-*-gate`
 - 活预测件:`ooo-branch-direction-predictor`(gshare+局部混合，含 debug/common checker 与 macro/OOC 前置合同)、`ooo-direct-*`、`ooo-ras-*`、
   `ooo-branch-bpu-update-gate`(issue-resolve 单源)、`ooo-branch-resolve-recovery-gate`、
   `ooo-backend-drain-tracker`
-- 已 B4 物理删除(spec 归档 `history/`,见真相基线 §4 逐行 commit):`ooo-pending-branch/jump-sequencer`、
+- 已 B4 物理删除(spec 归档 `history/`,历史证据见 07-03 已归档 snapshot §4):`ooo-pending-branch/jump-sequencer`、
   `ooo-pending-control-resolve-gate`、`ooo-branch-prefetch-*`、`ooo-branch-target-cache-control-gate`、
   `ooo-jalr-prefetch-status-gate`、`ooo-fetch-packet-hit-mux`
 - ⚠️ 保留死码(融合活+死/门控死臂,模块存活未删):`ooo-branch-spec-tracker`(checkpoint 死,RAS 压制副作用仍活)、
   `ooo-branch-append-dispatch-gate`(BRANCH_APPEND_DISPATCH_ENABLE=0)、`ooo-branch-bpu-update-gate`(旧四臂删,issue-resolve 单源存活)
-- F2 真预测现状见真相基线 §2.4(实施方案已归档)
+- F2 真预测现状见 current snapshot §3(实施方案已归档)
 
 ## 控制面 / 提交 / CSR
 - ★ `ooo-flush-redirect-contract` — **flush/redirect 契约（现状冻结 v1）**：E1-E13 源总表(源×[清|保持])+优先级全序(年龄律)+三铁律核对+INV-1..5 承重不变量(立即断言草案)+C-OBJ-REDIR 单点仲裁器重写裁决(assert-then-converge)。触碰 flush/redirect/stall/序 的改动的前置契约（依据 decisions [38] + 宪法 §7 C7）。
@@ -59,7 +68,7 @@
 - `ooo-core-top-glue`、`ooo-writeback`、`ooo-control-plane`、`ooo-memory-access`(子系统 wrapper)
 
 ## 说明
-- 整体架构见 `../arch/ooo-core-architecture.md`(宪法 v0.2)与
-  `../arch/rtl-ground-truth-2026-07-03.md`(现状真相基线);流程/优先级见 `../arch/ROADMAP.md`。
+- 整体架构见 `../arch/ooo-core-architecture.md` 与
+  `../arch/rtl-ground-truth-2026-07-11.md`(CURRENT snapshot)；流程/优先级见 `../arch/ROADMAP.md`。
 - **归档区**:`history/`(spec 与一次性实施方案)、`../arch/history/`(arch 过程文档),
   各自 README 有逐份归档原因与现状参考。

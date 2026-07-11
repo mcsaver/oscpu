@@ -1,0 +1,34 @@
+FP 编码合法性整链分类定向结果
+日期：2026-07-11
+阶段边界：未读取 RV64 设计 Markdown；未修改 DUT RTL。
+
+测试源：audit-results/2026-07-11-rv64-ooo-blind/tb_fp_legality_classify.sv
+DUT 链：DecodeUnit + OooFpDecode + OooFetchHeadClassifyGate
+
+实际输出（扩展到 dispatch gate 后）：
+  TRAP_CLASSIFIED_BUT_BACKEND_PRESENT unknown OP-FP funct7 fp_raw=0
+  TRAP_CLASSIFIED_BUT_BACKEND_PRESENT reserved FMA fmt fp_raw=0
+  TRAP_CLASSIFIED_BUT_BACKEND_PRESENT reserved static rm fp_raw=0
+  TRAP_CLASSIFIED_BUT_BACKEND_PRESENT reserved dynamic frm fp_raw=1
+  PATH_OK accepted legal FADD.S
+
+修订判定：
+  第一次“整核结论不成立”的判断已被跨模块调用链反证，必须撤回。当前真实链路是：
+  前端分类器产生 arch_trap，但 OooFrontendDispatchGate 的
+  frontend_dispatch_to_backend_valid 没有排除 dispatch0_arch_trap；随后
+  OooAluDecodeBackend 又只按 opcode 重建 d0_is_fp。因此 head0 的 OP-FP/FMA 非法编码仍可
+  同拍被呈现给后端。未知 funct 进入 FP IQ 后缺少 completion，已知算子但非法 rm/fmt 则
+  可能执行。最终结论以扩展后的 dispatch-gate 测试与全链静态证据为准。
+
+源码链：
+  - OooFpDecode.v:53-67,96-152：识别受支持的 S/D 运算及静态 rm/fmt。
+  - OooFetchHeadClassifyGate.v:95-106,155-160：检查动态 frm并生成 illegal/fp_enabled。
+  - OooFrontendDispatchGate.v:156-163：backend valid 未排除 dispatch0_arch_trap。
+  - OooFrontendBackendDispatchMux.v:84-92：上述 valid 直接并入 core_dispatch0_valid。
+  - OooAluDecodeBackend.v:250-308,369-389：后端按 opcode 重新判 d0_is_fp 并放行。
+  - OooFpBackend.v:522-594：未知分类可 issue，但没有相应 completion 类别。
+
+证据边界：
+  本测试覆盖四类代表编码和一个合法正对照，不是全部 FP 编码的穷举证明；它动态覆盖到
+  frontend dispatch gate，后端 IQ/完成路径仍由静态调用链支持。建议后续增加整核退休/停滞
+  波形，把不同非法子类的最终后果逐项锁定。

@@ -1,0 +1,335 @@
+RV64 OoO Core 阶段一冻结基线
+日期：2026-07-11（Asia/Shanghai）
+代码快照：cab1814b0622e53e1e62f2b0fc17ed6873c72ba2
+
+===============================================================================
+0. 方法与边界
+===============================================================================
+
+本文件冻结“先读代码、后对文档”的阶段一结论。架构证据来自：
+
+  1. 当前 npc/rv64 非 Markdown RTL、构建配置、机器生成日志与 STA/综合产物；
+  2. 上次中断前已写入本目录的四份源码盲读报告；
+  3. 三个不继承本轮上下文、明确禁止读取任何 Markdown 的独立子代理；
+  4. 六组本地 RTL 定向检查，均未修改 DUT。
+
+仓库治理规则强制主代理开工前读取少量全局工作流 Markdown，因此不能声称“主代理从未
+看过任何 Markdown”。为保持架构发现独立性，下面的冻结结论只采用 fresh 子代理和当前
+源码/测试证据；尚未读取或引用 npc/rv64 设计说明、模块 memory、历史 task-run 的架构
+结论。阶段二会显式解除该边界并做文档对照。
+
+标签：
+  [代码事实] 当前 RTL/配置直接决定。
+  [定向事实] 已用局部或跨模块 RTL testbench 观察到。
+  [整链推断] 已连接实际调用链，但尚无完整 NpcCoreTop 程序/波形。
+  [受限项] 功能存在，但适用范围或吞吐受限。
+  [缺失项] 当前活跃 RTL 找不到对应能力，或明确等价 no-op/tie-off。
+
+===============================================================================
+1. 当前真实拓扑
+===============================================================================
+
+NpcSimTop                         Verilator/DPI 仿真 shell，不是综合核
+  └─ NpcTop                       SoC/综合顶层，含总线与设备
+      ├─ NpcCoreTop               CPU 对外边界：IFU/LSU 两个 64-bit master
+      │   ├─ OooFetchAxiBridge    IFU、packet cache、ITLB/PTW/PMP/A update
+      │   ├─ OooMemAxiBridge      LSU bridge、D-cache、DTLB/PTW/PMP/A-D update
+      │   ├─ OooCoreTopGlue       实际微架构装配根
+      │   │   ├─ OooFrontend      packet FIFO/RVC/BPU/RAS/dispatch/redirect
+      │   │   ├─ OooExecuteBackend
+      │   │   │   └─ OooIntBackend
+      │   │   │       ├─ rename/free/busy + ROB + integer IQ
+      │   │   │       ├─ 2x short integer EX + MulDiv + CLMUL
+      │   │   │       ├─ OooFpBackend
+      │   │   │       ├─ MIQ + SQ + single memory request mux
+      │   │   │       └─ two-port global completion/writeback
+      │   │   ├─ OooMemoryAccess
+      │   │   ├─ OooControlPlane
+      │   │   └─ OooWriteback
+      │   └─ CsrFile
+      ├─ NpcAxiBus/AxiXbar        2 master、16 slave slot
+      ├─ UART/CLINT/PLIC
+      └─ 外部 memory/MMIO 端口与 default slave
+
+关键证据：
+  npc/rv64/vsrc/core/NpcCoreTop.v:202-480
+  npc/rv64/vsrc/core/OooCoreTopGlue.v:462,595,730,769,812,1024
+  npc/rv64/vsrc/core/NpcTop.v:264-692
+  npc/rv64/vsrc/sim/NpcSimTop.sv:162-178,335-679
+
+架构定性：这是一颗已经闭环的小窗口 RV64 OoO 单核，不是顺序核外围加 OoO 命名；但
+“2-wide”只完整覆盖前端、整数短执行、全局完成和顺序提交的中心区域。FP issue、真实
+memory request、MulDiv、CLMUL、AMO、PTW、CSR/system 等域大多为单通道或单在飞。
+
+===============================================================================
+2. 宽度、容量与真实并行度
+===============================================================================
+
+  XLEN                         64
+  fetch/decode/dispatch        每拍最多 2 条展开指令
+  fetch packet FIFO            4 包，每包最多 2 条
+  IFU outstanding              1
+  integer physical register    64（初始空闲 32）
+  FP physical register         64（独立 rename/free/busy/PRF）
+  ROB                          16，dispatch 2 / commit 2
+  integer IQ                   8，enqueue 2 / issue 最多 2
+  FP IQ                        8，enqueue 2 / issue 1
+  global completion/WB         2
+  SQ                           4，单 drain
+  MIQ                          4；当前 bridge 真实并发上界为 active+staged 两笔
+  RAS                          32
+  ITLB / DTLB                  各 64，直接映射
+  BPU                          gshare 1024 + GHR10；local history 256x8；PHT4096
+  fetch packet cache           4096x199 bit，精确 PC packet，直接映射
+  D-cache                      4096x8 byte=32 KiB，8B line，直接映射
+  integer MulDiv               单实例、单在飞，radix-4/CLZ
+  CLMUL                        单实例、64 次迭代
+  FP add/mul/FMA               五级、launch 1/cycle
+  FP div/sqrt                  共享一个 long-meta 域，约 56 步、单在飞
+
+证据：
+  npc/rv64/vsrc/include/define.v:5-52,174-205,563-588
+  npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:129-170,222-288
+  npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:190-233,318-362
+  npc/rv64/vsrc/writeback/OooRob.v:125-177,280-349
+  npc/rv64/vsrc/execute/OooFpBackend.v:145-275,569-705,853-920
+  npc/rv64/vsrc/memory/OooMemAxiBridge.v:79-138,368-372
+
+这不是一条固定“八级流水”能准确概括的线性管线；更准确的描述是 packet 前端、
+rename/ROB、整数/FP 两类 IQ、多个可变延迟执行域、统一双完成口、顺序双提交和独立
+memory/CSR 状态机组成的解耦拓扑。
+
+===============================================================================
+3. 已确认的架构优点
+===============================================================================
+
+1. [代码事实] int/FP 都有 rename、物理寄存器、busy、IQ、ROB/commit 关联，FP fflags
+   也随 ROB 精确提交；不是只把 ALU 做成乱序的局部演示。
+
+2. [代码事实] lane1 rename 能看到 lane0 同拍新映射，覆盖 RAW/WAW；allocation 优先于
+   旧 wakeup，避免物理寄存器同拍复用被错误唤醒。
+
+3. [代码事实] ROB 保持顺序双提交，head0 exception 阻止 head1；执行/翻译/PMP 的
+   cause/tval 先写 ROB，再由队头进入 trap 主链。
+
+4. [代码事实] 分支恢复采用 ROB age kill + tail reverse walk，每拍恢复两项 int/FP map
+   和 free-list；状态比多 checkpoint 简单，适合当前 16 项窗口。
+
+5. [代码事实] plain store 采用 probe -> SQ fill -> ROB retire -> committed drain，错误
+   路径 store 不会直接写总线；Bare/PMEM 的整数 load 还有受限 forwarding。
+
+6. [代码事实] Sv39 覆盖 4 KiB/2 MiB/1 GiB、Svnapot64K、SUM/MXR/MPRV、A/D update；
+   PMP 有 16 项、first-match/full-coverage、TOR/NA4/NAPOT/lock。
+
+7. [代码事实] xbar 分离 AW/W、per-slave round-robin，并为暂时不能接收的 read response
+   设置 buffer；握手层次不只是简单组合拼接。
+
+8. [代码事实] long-op/memory/FP completion 均能被 ready 反压；普通 EX 占满两口时不会
+   直接丢弃完成结果。
+
+9. [代码事实] 当前工程已有较广的模块/ISA 回归和全核 STA 产物，便于把结构判断与客观
+   证据连接起来。
+
+===============================================================================
+4. 主要性能、PPA 与扩展性限制
+===============================================================================
+
+前端：
+  - [受限项] 每个 8B packet 只提取两条；高 RVC 密度时后 4B 会被重新取，缺 byte queue。
+  - [缺失项] 普通 JALR BTB、branch target cache、branch prefetch、return continuation
+    均为 tie-off；普通间接跳转主要等后端纠正。
+  - [受限项] RAS 只有在 ROB 空等保守条件下才被视为可靠，常规投机调用链收益有限。
+  - [受限项] BPU 每拍只训练一条；同 index 背靠背更新可少一次演进；history 非投机。
+  - [受限项] IFU 单 outstanding，redirect 不能取消已有 miss/PTW，目标路径需等待旧响应。
+  - [PPA] 取指响应 -> RVC/分支识别/BPU -> next PC 回环是当前 whole-core 最差路径。
+
+后端：
+  - [PPA] 8 项整数 IQ 每拍全表 oldest-ready 扫描、wakeup compare 和全 payload compact；
+    扩容前应改稀疏/分 bank/age-tag 结构。
+  - [PPA] int 5R2W 与 FP 4R2W PRF 均以异步多口寄存器阵列描述；双 bitmanip 复制。
+  - [受限项] dispatch 无同拍 issue bypass；ROB/IQ 满时也不普遍借用同拍 pop/commit 槽。
+  - [受限项] global completion 固定优先 EX > memory > MulDiv > CLMUL > FP，长尾抖动大。
+  - [受限项] wrong-path FP div/sqrt 只清 metadata，不取消迭代器，仍占用约 56 步。
+  - [维护性] 若干 payload 把 ROB index 固定切 4 bit、preg 固定切 6 bit，参数化未贯通。
+
+内存：
+  - [受限项] 一个实际 request port、一个 active FSM、一个 staged request、单 PTW、单 drain。
+  - [受限项] SQ4 很容易先于 ROB16 背压；FP load 不转发，Sv39 下 load-store 消歧保守。
+  - [缺失项] load queue、memory dependence predictor、violation detection/replay、MSHR、
+    hit-under-miss、prefetch、L2、coherence/ECC。
+  - [受限项] D-cache 8B line、direct-mapped、write-no-allocate；空间局部性和冲突行为较差。
+  - [受限项] 总线单拍、每 master 单 outstanding；接口字段存在不等于 burst/ID 并行生效。
+
+控制/ISA/平台：
+  - [受限项] 默认 CSR/system/interrupt 走 pending+full drain；CSR queue-head 开关默认 0。
+  - [缺失项] true WFI sleep、selective SFENCE/SINVAL、vectored trap、完整 trigger/debug、NMI、
+    H、V、Zfh/half FP、多核和 cache coherence。
+  - [受限项] A 扩展只有本 hart 内部 reservation/串行化，没有外部 invalidation/snoop 或
+    AXI exclusive/lock；多主设备下不能据此宣称平台级原子性。
+
+===============================================================================
+5. 当前代码已确认的功能缺口
+===============================================================================
+
+5.1 head0 非法 OP-FP/FMA 被分类为 trap 后仍呈现给后端
+
+  [定向事实] 未知 OP-FP funct、reserved FMA fmt、reserved static rm、DYN+reserved frm
+  四类均出现 illegal/trap=1，同时 frontend_dispatch_to_backend_valid=1；合法 FADD.S
+  正对照正常。测试：tb_fp_legality_classify.sv。
+
+  [代码事实] OooFrontendDispatchGate.v:156-163 未用 dispatch0_arch_trap 关闭主 backend
+  valid；BackendDispatchMux.v:84-103 将其直接 OR 入 core_dispatch0_valid；
+  OooAluDecodeBackend.v:250-261,350-389 又只按 opcode 重建 d0_is_fp 并放行。
+
+  [整链推断] 未知 funct 可从 FP IQ 消失却没有 completion，ROB 永不 done，pending trap
+  也无法完成 drain；命中已有算子但 rm/fmt 非法的编码则可能先执行/退休，再进入 trap。
+  head1 arch trap 有 barrier，FP load/store reserved funct3 也不走该宽旁路，问题范围主要是
+  head0 OP-FP/FMA 域。
+
+5.2 xRET 当前特权级合法性不完整
+
+  [定向事实] S/U-mode MRET 与 U-mode SRET 被真实 decode/classify 链当成合法 system；
+  S-mode+TSR 的 SRET 正对照能正确 trap。测试：tb_xret_privilege_classify.sv。
+
+  [代码事实] OooFetchHeadClassifyGate.v:132-150 只检查 SFENCE-U/TVM、SRET-TSR、WFI-TW；
+  CsrFile.v:721-728 下游不复查当前 mode，直接执行返回状态转换。
+
+5.3 页末 16-bit 指令会被下一页 fault 提前归到当前指令
+
+  [定向事实] PC=page+0xFFE、当前页 C.NOP、下一页 page fault 时，真实 packet decoder
+  得到当前 C 指令 next PC 正确，但 bridge 把 resp1 fault 覆写到 resp0。测试：
+  tb_fetch_page_end_c_fault.sv。
+
+  [代码事实] OooFetchAxiBridge.v:261-271,331-353 用“packet 首 4B 是否跨页”代替
+  “首条实际指令长度”；:821-828 覆写 resp0；PacketDecode.v:35-43,61-75 随后消费它。
+
+5.4 IFU PTW A-bit 写回在 mmu_flush 下没有完整排水
+
+  [定向事实] S_AD_UPDATE 中 AW 单独握手后施加 mmu_flush，bridge 立即回 IDLE、清 done、
+  停止 W/BREADY。测试：tb_fetch_ad_flush_partial.sv。
+
+  [代码事实] OooFetchAxiBridge.v:548-590 的 AW/W 可独立握手，但 flush 只给读通道 S_DRAIN；
+  AxiXbar.v:221-238,383-445 会分别 hold AW/W，需后续配对并收 B 才释放。
+
+5.5 MIQ flush 与 DRAIN response 同拍会保留 ghost entry
+
+  [定向事实] 队列只有一个 DRAIN 时，flush+pop 同拍后 count 仍为 1，之后没有第二响应。
+  测试：tb_miq_flush_drain_pop.v。
+
+  [代码事实] MIQ flush 分支优先且只压缩保留 DRAIN，忽略同拍 pop；backend 同拍会释放
+  SQ head 并清 drain_inflight。年轻同步异常的 trap flush 不要求更老 retired store 的
+  后台 DRAIN 已结束，因此默认整链存在可达周期序列；尚缺完整 NpcCoreTop 波形。
+
+5.6 普通 FENCE 没有 pred/succ 排序动作
+
+  [代码事实] DecodeUnit.v:781-786 明确将普通 FENCE 译为合法 no-op；IQ/LSU 没有消费
+  pred/succ。fence.i 是已实现的另一条 serial flush 路径，不能替代普通 FENCE。
+
+  [边界] 单 hart 且没有外部 observer 时不一定形成可观察差异；多主设备/RVWMO 合规性需
+  litmus 验证。应定性为“功能未实现”，不把任意单线程序列越级称为已复现错误。
+
+5.7 PTW A/D 写回没有独立 PMP WRITE 判定
+
+  [代码事实] IFU/LSU walker 对 PTE 读取使用 read checker；leaf 需设置 A/D 后直接进入
+  S_AD_UPDATE 发 AW/W，没有再次以 WRITE 类型检查 PTE 物理地址。
+
+5.8 retired store 的真实写响应错误不能形成精确 store exception
+
+  [代码事实] plain store 在 probe 成功后可退休；后台 drain error 只计数/打印并释放 SQ，
+  已没有 ROB entry 可承载精确异常。PMEM 还可在 AW+W 后提前给 core 成功，依赖该窗口
+  永远返回 OK 的平台契约。
+
+5.9 Sv39 设备访问的投机资格按翻译前 VA 数值决定
+
+  [代码事实] OooIntBackend.v:1083-1093 用 effective VA 是否落入固定 PMEM window 决定
+  LOAD 还是独占 LEGACY；bridge 到后续状态才得到最终 PA。
+
+  [整链推断] VA 看似 PMEM、PTE 映射到设备 PA时，load 可先作为普通投机 LOAD 发出；
+  bridge 会按最终 PA 正确选择非缓存路径，所以“设备数据进入 cache”不成立，但设备读动作
+  已发生且不能被随后 kill 撤销。反向映射则正确但被过度串行化。
+
+5.10 对齐 full-beat 设备读丢失原访问 lane/size 的副作用归属
+
+  [代码事实] 非跨 8B line 的 load 将 ARADDR 向下对齐、读取 8B 后在 core 内右移；
+  UART 的 RBR pop 只看实际收到的 offset0 read。读取 UART offset1..7 时，数据 lane 可右移
+  得到目标寄存器值，但 UART 仍看到 offset0 beat read并可能消费 RX 数据。
+
+5.11 minstret 计数源不等于 ISA retirement
+
+  [代码事实] OooAluCoreSlice.v:278 直接统计 ROB commit valid，未排除 exception entry；
+  NpcCoreTop.v:433 将该数送 CsrFile。异常指令会被多计，而 control sequencer 的
+  mret/sret/wfi/sfence/fence.i pseudo commit 又不在该输入中，会被漏计。
+
+===============================================================================
+6. 模块契约成立但当前默认整核不可达/未完全证实的项目
+===============================================================================
+
+1. MIQ full+pop+push：
+   [定向事实] MIQ 满时同拍 pop+push 只执行 pop，父层却把 full+pop 当 slot open。
+   [整链降级] 当前 bridge 只有 active+staged 两笔，从 reset 可归纳 MIQ count<=2；默认
+   ENTRY_N=4 到不了 full。它是潜伏接口缺陷和未来多 outstanding 扩展阻塞项，不是当前
+   默认核已经可触发的运行错误。
+
+2. CLMUL kill helper：
+   函数引用函数外 kill 信号；同项目 MulDiv 曾为 Icarus hidden sensitivity 显式展开。
+   硬件组合含义与 Verilator 未见反例，保留为模拟器可移植性待验证项。
+
+3. late WB 只按 ROB idx：
+   ROB 主要功能门控没有 generation tag/pdest 身份，断言才检查 pdest；但现有各长生产者
+   都有 kill/保留迟到 response 的机制，本轮没有构造出跨槽复用的可达反例。保留断言，
+   不列确认错误。
+
+4. 自定义 unaligned byte-window：
+   内部 xbar/从设备忽略或不传播部分标准 AXI 元数据，DPI memory 按精确地址返回连续 8B。
+   当前仿真平台自洽；接标准 AXI/AXI-Lite IP 时必须增加 lane/beat adapter 或冻结自定义
+   契约。它是接口可移植性限制，不能仅凭端口命名判定当前仿真路径错误。
+
+===============================================================================
+7. 验证与 PPA 证据
+===============================================================================
+
+已有非 Markdown 回归产物：
+  - module testbench：聚合摘要写成 86/86 PASS，但三份原始日志先出现 FAIL 与
+    `$finish(1)`，随后仍输出 `[RESULT] PASS`；该摘要存在假绿，不能证明 86 项全过
+    npc/rv64/perf/results/20260711-125729/module-testbench/summary.txt
+  - core regression：177 个 riscv-tests 逐项 PASS；聚合摘要虽把 AM 标为 PASS，
+    但 `am-cpu-tests.log` 实际为 58/59，`fp-difftest-probe` 失败；overall_rc=0 不能
+    证明整个回归全绿
+    npc/rv64/perf/results/core-regress/20260711-133547-973361/{summary,status}.txt
+  - 完整更正与原始日志路径见 `VALIDATION_ERRATUM.txt`
+  - 当前 .config：CONFIG_NPC_DIFFTEST 未开启。因此这些绿灯不能证明随机退休态对拍、
+    memory-order litmus、非法 FP 整链和上述并发边界全部正确。
+
+本轮重跑定向检查：
+  - MIQ full+pop+push：模块契约反例复现；当前整核不可达。
+  - MIQ flush+pop+DRAIN：ghost entry 复现。
+  - page-end C + next-page fault：fault 提前归属复现。
+  - IFU A-update AW-only + flush：partial write 状态丢失复现。
+  - xRET current-mode legality：三类缺口复现，TSR 正对照正常。
+  - FP classify + dispatch gate：四类均 trap-classified 但 backend-valid，合法正对照正常。
+
+whole-core STA：
+  - 100 MHz 目标下最差 arrival 15.321 ns、required 9.973 ns、slack -5.348 ns；
+    起点 IFU bridge pc_q，终点 frontend outstanding next_fetch_pc。该模型约对应 65.3 MHz
+    量级，且是跨 IFU cache/TLB/PMP/RVC/BPU/next-PC 的拓扑长链。
+  - synth_stat 的 top known-cell area 为 1,592,216.92，但两个 SRAM、FP arith、BPU area
+    为 unknown；power 中 Macro=0。因此面积/功耗只能做已建模单元比较，不能当完整核数字。
+
+===============================================================================
+8. 阶段一审查者结论
+===============================================================================
+
+实现者视角：已经从当前源码重建顶层、数据流、恢复流、容量、执行资源、存储层次和
+综合/仿真边界，并用六组定向检查强化关键判断。
+
+审查者视角：
+  - 已关闭一个重要假反证：前端 FP classify 正确不等于 backend dispatch 被关闭；最终
+    调用链和动态 gate 检查证明 head0 漏门仍存在。
+  - 已降级一个越级结论：MIQ full+pop 模块契约确有问题，但当前 bridge 无法填满 MIQ4。
+  - 已纠正两处措辞：xRET 只报告 ISA 当前 mode 合法性，不推导无条件状态提升；Sv39
+    VA->device PA 的问题是投机资格/设备读时机，不是设备数据进入 D-cache。
+  - 多个关键项仍只有局部动态或整链静态证据，不能冒充完整 Linux/Ubuntu、形式证明或
+    post-route signoff。
+
+从本文件写入起，阶段二对任何文档的判断都必须以本冻结基线为一侧；如果文档提供新的
+可执行反例，只能在对照报告中显式修订，不能静默改写阶段一历史。

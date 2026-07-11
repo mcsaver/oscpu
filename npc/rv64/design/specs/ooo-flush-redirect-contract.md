@@ -1,12 +1,13 @@
-# rv64 OoO 核 flush / redirect 契约（现状冻结 v1）
+# rv64 OoO 核 flush / redirect 契约（现状冻结 v2）
 
 > **类型**：跨模块架构级 **接口契约（contract spec）** —— 非重写方案。本文件只**描述现状 + 指出缺口 + 冻结不变量**，不落地任何 RTL 改动。
 >
 > **依据**：
 > - 编排层 `decisions [38]`：将 ①flush 契约冻结 ②C-OBJ-REDIR 重写评估 ③对抗审查 三份逆向结果**融为一份可落盘、可进 check-contract 的契约**。
-> - 宪法 `design/arch/ooo-core-architecture.md` **§7 / C7**（控制面 = 补丁总线判词：≥12 源、≥7 汇合点、无统一优先级仲裁器）。
+> - 宪法 `design/arch/ooo-core-architecture.md` **§7 / C7**（fetch redirect PC 已有年龄律
+>   arbiter；后端 kill/reason/flush 与 pending/事务层仍未形成统一 control event）。
 > - 宪法 **§5.5 C-OBJ-REDIR**（`ooo-core-architecture.md:304-322`，`redirect_event` 目标统一格式）+ **§C7 年龄律 + arbiter 删档记录**（`:407-416`）。
-> - 现状活跃度真源：`design/arch/rtl-ground-truth-2026-07-03.md §4`。
+> - 现状活跃度真源：`design/arch/rtl-ground-truth-2026-07-11.md`。
 > - 逆向来源：四子系统 JSON（fetch / 后端 flush / AXI / stop-pending）+ 本轮 C-OBJ-REDIR 重写评估 + 对抗审查（含一处跨子系统纠正 GAP-5、一处漏项 FP/MulDiv 簇）。
 >
 > **契约先行声明（SPEC-TEMPLATE §2 强制）**：**本表是一切"触碰 flush / redirect / trap 序 / 投机恢复"改动的前置契约**。触碰 §1 列出的任一汇合点、或新增/删除任一 flush 源，动 RTL 前必须先在此更新 §2 源总表 + §2 优先级全序 + §4 不变量断言，并保证 `make -C npc/rv64 check-contract` 计数不回退。填不出 = 未理解上下游 = 禁止改 RTL。
@@ -22,9 +23,12 @@
 **解决什么**：把散落在 fetch / 后端 / AXI / stop-pending / FP 簇的 flush·redirect·kill 施加点，归并成**单一去重视图**，钉住"三条铁律 + 优先级全序 + 承重不变量"，作为 C7「补丁总线」收口与 `OOO_CSR_QUEUE_HEAD=1` 全 Linux 推进的前置产物。
 
 **边界（不负责）**：
-- 不负责 **E11 mmu_flush**（DTLB 专清）——与控制流 flush **正交**，仅在 §1 源表列出以声明"已考虑并排除出控制流仲裁"。
-- 不负责 **铁律②的 AXI 事务级 drain-vs-kill**（`nokill_busy vs cpu_kill`）——这是**事务层**仲裁，与"选哪个 PC / squash 谁"的**控制流层**是两层，保持分离（§3 铁律②）。
-- 不负责 **fetch-fault**：`OooFetchHeadClassifyGate.fetch_fault_i` 是**译码期分类**，经 head-classify 收敛为 committed trap 走 E1，**不是独立 redirect 源**。本契约**显式排除**它（对抗审查挑战#1 要求：读者须能区分"排除了"与"漏了"）。
+- E11 `mmu_flush` 与控制流 redirect **正交**，但它会清 TLB/cache/请求上下文并影响桥
+  FSM；因此在源表和铁律②中冻结它与事务 drain 的边界，不参与 PC winner 仲裁。
+- 铁律②的 AXI 事务级 drain-vs-kill 与“选哪个 PC / squash 谁”分层，但仍是本契约必须
+  给出 CURRENT/KNOWN GAP 裁决的承重合同。
+- `fetch_fault_i` 是槽分类事实，经 pending arch-trap 捕获并等待 drain 后进入 trap 边界；
+  它不是 ROB committed exception，也不是独立 redirect 源。
 - 不重写、不拆任何模块（重写裁决见 §5）。
 
 ### 0. 约定与默认编译 flag
@@ -37,7 +41,7 @@
 | `OOO_DBRANCH_DOMAIN_A` | :548 | `1'b1` | direct 分支经普通 dispatch 进 ROB，不再 stop+drain |
 | `OOO_CSR_QUEUE_HEAD` | :557 | `1'b0` | **serialize-at-retire 队头化 + serial_flush 整条链默认休眠**；CSR 走 drain 路 |
 
-**活跃度标注**：**[活]** = 默认构建下会触发；**[休]** = 默认 flag 下恒 0（仅 flag ON 活）；**[死]** = 端口接常量 / 结构性从不触发；**[半死]** = 非 flag 门控但默认模式下运行时几乎不命中（对照 `rtl-ground-truth-2026-07-03.md §4`）。
+**活跃度标注**：**[活]** = 默认构建下会触发；**[休]** = 默认 flag 下恒 0（仅 flag ON 活）；**[死]** = 端口接常量 / 结构性从不触发；**[半死]** = 非 flag 门控但默认模式下运行时几乎不命中（对照 `rtl-ground-truth-2026-07-11.md`）。
 
 > ⚠️ **幸存者偏差告警（对抗审查挑战#3，系统性）**：默认 `OOO_CSR_QUEUE_HEAD=0` 下 **E2 serial_flush / E5-head0 支 / GAP-8 head0_csr_inflight / GAP-5「serial 恒在 SQ 空拍」整条 serialize 机理全部休眠 [休]**。本契约引用的头号绿证据（riscv 355/0 + AM 57/58 + CoreMark 0xfcaf + sv39 boot + linux-mini）**全部跑在 flag=0**。因此**凡触及 serialize 的"成立"，其证据强度 = "flag=0 下不触发"，而非"flag=1 绿回归背书"**（memory「翻 1 待完整 Linux boot」尚未完成）。§3/§4 凡属此类，一律带此 caveat，不得读作 settled。
 
@@ -46,11 +50,37 @@
 - **铁律②** 已发出的 AXI 事务不得被 kill，只能 drain 到完成。
 - **铁律③** CSR 写在 commit 拍即架构可见，flush 不得撤销。
 
+> **2026-07-11 CURRENT 裁决**：铁律②是必须满足的目标合同，但当前只能判为**部分满足**。
+> backend nokill store 与 IFU 已发读具备 drain 路径；IFU `S_AD_UPDATE` 的 AW/W/B 未纳入
+> `mmu_flush` drain，见 `IFU-AXI-G1`。下文 2026-07-05 的“成立（带存疑）”记录保留为
+> 历史推导，不再覆盖本裁决。
+
 ---
 
 ## 2. 接口契约
 
-### 2.1 flush / redirect 源总表（跨子系统去重，源 × [清 | 保持]）
+### 2.1 flush / redirect 源总表（CURRENT overlay + 历史冻结底稿）
+
+#### 2.1.1 2026-07-11 CURRENT overlay
+
+下表只列 07-09 P4 后发生 owner/活跃度变化的源；它覆盖随后 2026-07-05 详细表中的
+fetch 落点与活跃度列。未列源继续使用详细表，但仍受 §2.2 current arbiter 裁决约束。
+
+| 源 | 当前 fetch owner / 活跃度 | 当前裁决 |
+| --- | --- | --- |
+| E1 committed trap/exit | `OooFrontend` commit-family pre-mux -> `OooRedirectArbiter` trap port | [活]；不再直接拥有 Sequencer PC 写 |
+| E3 branch mispredict | `OooRedirectArbiter` branch port，携真实 `rob_idx` | [活]；赢家单点回注 fetch |
+| E4 direct dispatch | `OooRedirectArbiter` direct port，使用 head-1 年龄哨兵 | [活]；严格年轻于在飞 branch/commit 源 |
+| E5 CSR commit | commit-family pre-mux -> arbiter trap port | pending-system 支 [活]；head0 支默认 [休] |
+| E6 drain complete | commit-family pre-mux 只保留 arch-trap/system/xRET 主路径 | branch/jump/memory owner 已删除或 tie-off，不再是当前域 B 家族 |
+| E7 pending branch resolve | Sequencer 遗留排除臂；capture owner 已删、默认不可达 | [死/遗留]，不作为 current branch redirect |
+| E8 pending jump resolve | `OooFrontend` tie-0 的 Sequencer 遗留臂 | [死]，不作为 current JALR redirect |
+| E11 `mmu_flush` | I/D bridge 正交事务边界 | IFU 已发读进 `S_DRAIN`；D-side 与 A-update write 不能由此句外推，见 §3 |
+
+#### 2.1.2 2026-07-05 详细冻结表（历史底稿）
+
+> 下表保留当时的多点施加和清/保持推导，便于追踪 assertion 来源；其中 E1/E3-E8 的
+> fetch file:line 与活跃度是 pre-P4 记录，不得覆盖上面的 CURRENT overlay。
 
 同一逻辑事件在多点施加者归并为一行，"施加点"列全部落点。汇合信号 `core_local_flush` / `mem_flush` 不列为独立源（它们是 E1/E2/E9 的 OR 漏斗，见 §2.3）。
 
@@ -66,11 +96,11 @@
 | **E8** | **pending_jump drain-resolve**（域 B JALR/nolink） | `OooFetchPcOutstandingSequencer.v:188-209` [验证]；stop `:98-107` [验证] | `!direct_flush && pending_jump_resolve_ready`；misaligned / nolink / redirect_after_dispatch | both | `next_fetch_pc← jalr_prefetch_hit_next_pc / pending_jump_resolved_target`；stop←0 | jalr prefetch 命中在飞取指；committed/SQ/AXI/CSR | **[半死]** |
 | **E9** | **branch_spec_restore / checkpoint**（legacy 单级 checkpoint 恢复） | fetch `OooFetchPcOutstandingSequencer.v:137-149` [验证]；mem `OooControlFlushSequencer.v:29`→`OooMemoryRequestGate.v:60` [逆向]；MIQ `OooIntBackend.v:999` [逆向] | `!direct_flush && branch_spec_resolve_valid && !pred_match`；`rob_walk_mode` 下 `branch_spec_active≡0` | both | checkpoint rename/free 单级回滚；`checkpoint_mem_flush`→dcache/AXI；MIQ 清被 restore 项 | committed/arch RF/CSR；不整清 ROB | **[死]**（rob_walk 下失活） |
 | **E10** | **trap_redirect_squash**（priv 边界 redirect 屏蔽，非清除） | `OooControlFlushSequencer.v:26-28` [逆向]；消费 `OooBranchResolveRecoveryGate.v:74-75,93-94,102-103`、`OooDirectBranchResolveGate.v:105-106` [逆向] | `priv_predictor_boundary`(trap/mret/sret 边界) 置位，sticky 到 `backend_drained` 落 | fetch（掩码） | **不清任何状态**；把 younger branch redirect 拍平为 0，保证 priv drain 期 trap/xret 目标不被 younger 覆盖 | 全部后端/前端状态 | [活] |
-| **E11** | **mmu_flush**（satp / sfence.vma / **fence.i** 提交，TLB + 取指 cache 清） | `OooMemoryRequestGate.v:61-62`→`OooMemAxiBridge.v:355 u_dtlb.clear_i` [验证/逆向] | `pending_system_satp_write_commit ‖ pending_system_sfence_commit ‖ pending_system_fencei_commit`(2026-07-06 加 fence.i) | backend(DTLB)+fetch(取指cache) | DTLB 全清 + **fence.i/sfence 经 OooFetchAxiBridge.mmu_flush_i→OooFetchPacketCache.clear_i 整块清取指 cache**(SMC 一致性;2026-07-06 fence.i 修复时校正:mmu_flush 不止清 DTLB) | FSM/dcache(PA 索引)/在飞事务全不动 | [活] |
+| **E11** | **mmu_flush**（satp / sfence.vma / **fence.i** 提交） | `OooMemoryRequestGate` 汇合后送 I/D bridge | `pending_system_satp_write_commit ‖ pending_system_sfence_commit ‖ pending_system_fencei_commit` | backend+fetch | 清 TLB/取指 cache/请求上下文；已发读转 `S_DRAIN`；IFU A-update partial write 当前会被直接清状态（KNOWN GAP） | committed store；具备 drain owner 的已发事务 | [活] |
 | **E12** | **pending 影子 capture / clear**（dispatch 拍投机捕获 + squash 清） | capture `OooPendingDispatchArbiter.v:156-165,197-288` [逆向]；clear/squash `:190-195,313-333`→`OooPendingTrapExitSequencer.v:42-88` [逆向] | capture_base 下队头 irq/system/fault/arch_trap/exit 快照进单寄存器；清由 E1/E3/E4/drain 各源 OR | backend（影子态） | 写/清 `pending_system`、`pending_arch_trap/exit/cause/pc/tval` 单寄存器；`clear_arch_squash` 仅当 `cause==ILLEGAL_INST` 抹 residual | committed/AXI/CSR/arch RF 全不动（只动投机影子） | [活] |
 | **E13** | **global flush_i（顶层核 flush 端口）** | `OooFrontend.v:1828 .rst(rst‖flush_i)`；`NpcCoreTop.v:249 .flush_i(1'b0)` [逆向] | 恒 0 | fetch | `rst‖flush_i` 退化为 rst | — | **[死]**（tied 0，建议标 dead port，见 UC-10） |
 
-#### 2.1a FP / MulDiv flush+kill 簇展开（对抗审查挑战#1 补漏 —— E1/E3 的物理扇出）
+#### 2.1.3 FP / MulDiv flush+kill 簇展开（对抗审查挑战#1 补漏 —— E1/E3 的物理扇出）
 
 > **为何补**：`branch_resolve_mispredict_w` / `flush_i` 一条线同拍扇进 IntIQ + **FpIQ + FpArith + FpBackend DONE_FIFO** + MIQ + ROB-walk + SQ boundary。原逆向仅列 Int 侧，漏掉一整个**活跃、已测（rv64uf/ud 23/23 正跑）**的 FP 多周期在飞 squash 路径。此漏项**加重**而非减轻 C7 判词——真实 flush sink 扇出比契约原画更宽。入口 `OooIntBackend.v:2410-2413` 本轮 [验证]；下列内部落点 [审查]（对抗审查亲验，本 spec 采信）。
 
@@ -162,7 +192,10 @@ kill/reason/flush_backend 输出本刀 unused-sink——后端 kill/nuke 通道�
 | 6 | stop_pending | `OooStopPendingSequencer.v:64-159` | 单 always 块隐式优先链 |
 | 7 | 铁律②裁决面 | `OooMemAxiBridge.v:565 nokill_busy vs cpu_kill` | 事务层旁路 |
 
-**六机制无统一 event 类型、无显式优先级仲裁器**：fetch 侧靠两处人工保持「untracked>flush」一致（GAP-1）、后端靠扁平 OR + 程序结构（GAP-4）、stop_pending 靠语句顺序（GAP-7）、AXI 靠 nokill 旁路（铁律②）。**这正是宪法 §7 / C7「控制面 = 补丁总线」判词的一线证据。**
+**CURRENT 裁决**：fetch PC 的两处人工择一已由 arbiter 单赢家取代，GAP-1/GAP-2 在
+fetch 侧关闭；但全控制面仍没有统一 event 类型。后端靠扁平 OR（GAP-4）、stop_pending
+靠语句顺序（GAP-7）、事务层靠各 bridge 的 drain/nokill owner（铁律②）。因此 C7 当前
+应读作“fetch-PC 已收敛、其它消费面仍分散”，不能再概括为“全核无 arbiter”。
 
 ---
 
@@ -174,12 +207,18 @@ kill/reason/flush_backend 输出本刀 unused-sink——后端 kill/nuke 通道�
 - `OooMemInflightQueue` 压缩保 `KIND_DRAIN`（退休 store 落存）[逆向 `:163-190`]；`kill_valid`(mispredict) 只标 LOAD/PROBE，不动 DRAIN。
 - **✅ 跨子系统纠正（GAP-5，对抗审查复核确认准）**：子系统4 称"serial/trap_flush 不碰 SQ（`sq_flush_valid=flush_i‖branch_mispredict`）"。实测 `OooExecuteBackend.v:150 .flush_i(core_local_flush_w)` [验证] → `OooIntBackend.v:2590 sq_flush_valid_w = flush_i || branch_resolve_mispredict_w` [验证] → `OooStoreQueue.flush_all_i` = **core_local_flush（含 trap/serial）**。故 trap/serial **确实进 SQ flush_all**，清 CSR-之后 younger 的未 committed store（这正是 serialize 应做的），committed 仍恒存活。**铁律①结论不变，但子系统4 陈述的机制不准**：正确性来自"committed survive + serial_flush 恒在 mem_quiet(SQ 空) 拍"，**非**"serial 被排除出 SQ 路"。此为 §4 INV-4 挂靠的构造不变量。
 
-### 铁律② 不得 kill 已发 AXI（只能 drain 完）—— **✅ 成立（带存疑）**
+### 铁律② 不得 kill 已发 AXI（只能 drain 完）—— **⚠️ 部分满足 / IFU-AXI-G1 开放**
 
-- `OooMemAxiBridge.v:278-281,563-565` [验证]：`nokill_busy_w=nokill_q && state!=IDLE`，`(flush‖drop)&&!nokill_busy_w` —— nokill 事务对 flush/drop 免疫，`awvalid/wvalid/rsp_valid` 持续，**写必达**；`write_drain` 排空已发 beat 不撕裂事务。
+- `OooMemAxiBridge`：nokill committed-store 对 flush/drop 免疫，`write_drain` 排空已发 beat。
+- D-side 普通可取消读在 bridge 本地释放，把迟到 R 的 ownership 交给 xbar abort/drop
+  合同；它没有 IFU 式 `S_DRAIN`。因此 E11 的“已发读转 S_DRAIN”只适用于 IFU，不能
+  外推到 D-side。
 - `OooMemoryRequestGate.v:49 mem_req_nokill_o = core_mem_req_nokill_i` [验证] **直通**不受 flush 门控。
-- **不对称存疑**：serial_flush 路有 `mem_quiet` 前置门（`OooRob.v:59-64 head0_csr_mem_hold=OOO_CSR_QUEUE_HEAD && head0_is_csr && !mem_quiet` [验证]，注释证实：serial 必须等 mem_quiet 否则 abort 在飞 AXI→老 store 卡队头→drain 死锁），**但 trap-flush 路无此前置门**。committed-store 在飞 AXI 于 trap 提交拍仅靠 `nokill` 免疫。
-- **存疑（承子系统2/3）**：(a) `S_WALK_R/S_READ_DATA` flush→IDLE 放弃已发 AR 的 R，依赖 xbar 真 abort（读无架构副作用，风险限握手）；(b) 非-nokill 写在无 beat 发出时整笔丢弃（`:604`），需确认 AMO/LR/SC 通道确为 nokill —— **`mem_req_nokill_o` 是直通，真正的 nokill 判定在更上游 IntBackend AMO 通道，本轮未打开核实，存疑保留**。
+- `OooFetchAxiBridge`：已发读响应由 `S_DRAIN` 消费，不再依赖旧 xbar read-abort 描述。
+- **KNOWN GAP IFU-AXI-G1**：`S_AD_UPDATE` 的 AW/W 可独立握手；`mmu_flush` 会直接回
+  IDLE、清 `aw_done/w_done` 并撤 `BREADY`，未对 partial write 排水。AW-only+flush
+  已局部动态复现；xbar 后果仍需联测。
+- AMO/LR/SC 的 nokill 分类仍应由 memory-path spec 独立冻结，不能由本节直通线推定。
 
 ### 铁律③ CSR 写 commit 拍即架构可见、flush 不撤 —— **⚠️ 结构上成立，但默认回归零覆盖（对抗审查挑战#2 降级）**
 
@@ -194,16 +233,23 @@ kill/reason/flush_backend 输出本刀 unused-sink——后端 kill/nuke 通道�
 | 铁律 | 裁决 | 证据强度 |
 |---|---|---|
 | ① committed store 不清 | **✅ 成立** | `OooStoreQueue.v:145-149 survive_r` [验证] + GAP-5 纠正复核 |
-| ② 不 kill 已发 AXI | **✅ 成立（带存疑）** | `OooMemAxiBridge.v:565` [验证]；AMO/LR/SC nokill 未核实（存疑） |
+| ② 不 kill 已发 AXI | **⚠️ 部分满足** | backend nokill + IFU read drain 已有；IFU A-update partial write 为 KNOWN GAP |
 | ③ CSR 写不撤 | **⚠️ 结构成立 / 默认回归零覆盖** | 次拍时序 [验证]，但挂 serial_flush（默认 [休]），无 flag=1 绿背书 |
 
 ---
 
-## 4. 不变量（Invariants）—— 承重条款 → 立即断言
+## 4. 不变量（Invariants）—— 承重条款与历史断言草案
+
+> **2026-07-11 状态**：本节代码块是 2026-07-05 的落地草案，不是 current RTL 的逐字
+> 镜像。GAP-1/GAP-2 的 fetch-PC 形态已被 P4 arbiter 从构造上关闭；当前实际 assertion
+> 名称、数量与比较点以 RTL 和 `check-contract` ratchet 为准。本节只保留不变量意图，
+> 不得复制其中 pre-P4 双落点 wire 名作为新实现。
 
 > **落地机制（对抗审查挑战#4/#5 纠正，承重）**：断言机制**必须**是可综合 `.v` 内的 `` `ifdef OOO_ASSERT ... $error(...) `endif ``，**不是** TB 侧 SV `assert`。理由 [验证]：全核回归走 Verilator 编译 `.v` + `csrc/cpu/difftest.cpp` 跑 CoreMark/Linux/difftest；`tb_*.sv` 是**逐模块单元 TB，从不包裹全核跑 CoreMark**——SV assert 装在模块 TB 里永远看不到全核 workload。真正接进全核回归的机制是 `Makefile:122 VERILATOR_FLAGS += +define+OOO_ASSERT` + `--assert`，`make check-contract`（`eval/check-contract.sh` [验证]）ratchet `$error(` 计数不回退（基线 `eval/contract-assert-baseline.txt`）。
 >
-> **现状：gate 已存在但近乎空转**——全核可综合 RTL **只有 1 条 `$error`**（`OooFetchPacketFifo.v`，baseline=**1** [验证]）。牙齿造好了、没咬东西。落地下列断言后 baseline 上调（**2026-07-05 实落 INV-1/2/3：1→4；INV-4 留翻 flag 那轮**，见 §8），check-contract 物理阻止它们被静默删。
+> **2026-07-05 当时状态**：gate 已存在但近乎空转——全核可综合 RTL 只有 1 条
+> `$error`（baseline=1）。随后 INV-1/2/3 使当时基线上调到 4；2026-07-11 current
+> baseline 已为 20，见 §5.7/§8。本段只保存 ratchet 的起点历史。
 >
 > **每条断言写完须故意制造一次违约确认会响**（防真空通过，SPEC-TEMPLATE §4 强制），且**编码独立于 RTL 真理**（防同盲区）。
 
@@ -258,7 +304,12 @@ kill/reason/flush_backend 输出本刀 unused-sink——后端 kill/nuke 通道�
 
 ---
 
-## 5. 重写评估：C-OBJ-REDIR 单点仲裁器裁决
+## 5. 历史迁移评估与当前剩余：C-OBJ-REDIR
+
+> **生命周期说明**：§5.1-§5.7 保存 2026-07-05“是否复活 arbiter、如何 shadow
+> 切换”的评估过程。fetch-PC 切片已于 2026-07-09 完成，因此“arbiter 已删/待复活”、
+> “mux+sequencer 两个 PC 生产者”和“现有系统全绿”均是历史前提，不裁决 current。
+> 当前剩余仅是让后端消费 arbiter 的 kill/reason/flush_backend，并继续保持事务层独立合同。
 
 ### 5.1 关键更正（先说，因为它改设计）：年龄律，不是优先编码器
 
@@ -269,14 +320,20 @@ kill/reason/flush_backend 输出本刀 unused-sink——后端 kill/nuke 通道�
 
 ### 5.2 两个 grounding 事实（决定"值不值"）
 
-1. **arbiter 已造好、验过、被删了**：`vsrc/control/OooRedirectArbiter.v` + `tb_ooo_redirect_arbiter.sv`（13 例 RED→GREEN，年龄律 selector，纯组合，113/113 绿），2026-07-03 因「从未接线」删档，commit **`fece978e6`**（[验证] git 可复活：`git show fece978e6^:vsrc/control/OooRedirectArbiter.v`）。**不是从零起步**。
-2. **年龄基准已 plumb 到后端**：`branch_resolve_rob_idx`（`OooExecuteBackend.v:65,242`、`OooIntBackend.v:145-147,315,1012`、FP kill 用 `:2413`）+ `rob_idx_older_than()` 原语（`OooIntBackend.v:1142`）已存在且被 ROB-walk/FP-kill 重度使用。**唯独取指侧（FetchRequestMux/PcSequencer）不带 age 字段**（`grep rob_idx/age` 空 [验证]）——主要新 plumbing 缺口。
+1. **历史事实与当前状态**：`OooRedirectArbiter` 曾在 2026-07-03 因未接线删除；P4 已将其
+   恢复并在 `OooFrontend` 生产实例化，13 例年龄律 TB 继续作为局部合同证据。
+2. **年龄字段已进入 fetch winner**：branch 使用真实 `rob_idx`，commit 家族使用 head，
+   direct 使用 head-1 哨兵。当前缺口不再是“取指侧无 age”，而是 arbiter 的
+   `kill_younger_than/reason/flush_backend` 尚未成为后端唯一消费源。
 
 ### 5.3 可行性：改动面
 
-**纯搬迁（机械、低风险）**：`OooFetchRequestMux.v:66-82` + `OooFetchPcOutstandingSequencer.v:93-277` 两个物理生产者的**择一逻辑** → 收进单个 `OooRedirectArbiter` 实例（各源 target 已在上游算好，arbiter 只 select 不 recompute）；后端 `OooCoreSliceControlGate.v:39-40` 扁平 OR → 改消费 arbiter 的 `flush_backend + reason`。
+**已完成切片**：`OooFetchRequestMux` 与 `OooFetchPcOutstandingSequencer` 的 redirect PC
+择一已收进 `OooRedirectArbiter`；GAP-1/GAP-2 的 fetch 侧目标已关闭。
 
-**要改语义 / 新 plumbing（收益在此）**：每源携 age(rob_idx) 到 arbiter；后端分支已有，缺 **E4 direct-dispatch 重定向的 dispatch-slot rob_idx**（从 `OooFrontend`/`OooFrontendActionGate` threading）；E1 trap / E5 csr-commit / E6 drain 都是 commit-time(head, age≈0) → 年龄律下**自动**压过 younger 分支 → **GAP-2 直接消解**（真正的正确性改进）。后端两套 squash（E1/E2 nuke vs E3 walk，GAP-4）用 `reason + kill_younger_than` 统一表达（机制不变，加类型标签替代扁平 OR）。
+**当前剩余**：后端两套 squash（E1/E2 nuke 与 E3 walk，GAP-4）仍由分散信号消费。
+后续若收敛，应使用 arbiter 已产生的 `reason + kill_younger_than + flush_backend` 表达，
+同时保留 `mmu_flush` 与 AXI drain/nokill 的正交 owner。
 
 **必须保持分离、不并入 arbiter**：E11 mmu_flush（正交）、铁律②的 AXI nokill_busy（事务层）、E10 trap_redirect_squash（年龄律会**吸收**它，最终可删但不是第一步）。
 
@@ -300,7 +357,8 @@ redirect_request {
 ```
 
 **「同拍两源都赢由构造不可能」的三条构造性论证（非运行时祈祷）**：
-1. **单一生产者**：arbiter 是 `{redirect next_fetch_pc, flush_backend, kill_younger_than}` 唯一 driver。今天两生产者(mux+seq)可互相不一致（GAP-1 两处人工同步）——收成一个，该失败模式**结构上不再可表示**。
+1. **单一生产者**：pre-P4 的 mux+sequencer 两个 PC 生产者可能不一致；P4 已把 redirect
+   winner 收成 arbiter 单一生产者，该失败模式在当前 fetch-PC 结构中不再可表示。
 2. **全序函数**：`argmin_age` 是函数，输出基数=1。不存在"两个都赢"的可表示状态（对比静态优先编码器排错序 = GAP-2，仍可选错）。
 3. **年龄律吻合现有正确直觉**：`OooFetchRequestMux.v:66-69` 注释已在手工逼近年龄律（后端已解析 mispredict 真 target 压过 younger dispatch 投机）。年龄律只是**把手工序形式化并推广**，是当前脆弱手排序的**正确泛化**。
 
@@ -311,24 +369,27 @@ redirect_request {
 
 **裁决：不是二选一 —— 立即断言（强制、便宜、高价值）+ 增量收敛（正确、不紧急、挂触发条件）。**
 
-- **不做 big-bang 重写（现在）**，三条理由：(1) 活路径 real workload 全绿——收敛是**去风险**不是修 bug，对单人+全绿系统 big-bang 是错误风险画像；(2) **本核有控制面 big-bang 活锁判死史**（`design/arch/history/b2-branch-spec-redirect.md §2.x` [验证]：一把点火休眠投机路径，riscv 255/16、分支密集 AM 全活锁撞满 max-cycles）；(3) 收益在活路径是可维护性/回归风险下降，非可观测正确性/性能红利。
+- **当时不做 big-bang 重写**，三条理由：(1) 2026-07-05 汇总层把活路径记录为绿，
+  因而收敛主要是维护性动作；2026-07-11 已发现 module/AM 聚合假绿，该前提不得用于
+  current 验证声明；(2) 本核有控制面 big-bang 活锁判死史；(3) 收益主要来自单一 owner
+  与可审计恢复语义，而不是直接性能红利。
 - **但不回避 C-OBJ-REDIR**：诚实动作正是 **assert-then-converge** —— 先把隐式不变量钉成运行时断言（判据乙落地），再用 **shadow-equivalence** 逐源迁进已验证 arbiter（判据甲落地），**每步 difftest 全绿门控，旧机制不证明等价不拆**。
 
 **「值不值」——挂触发条件，不搞美学重写**：纯为当前绿 workload，收敛不值一个 big-bang（低紧急度）；作为 **`OOO_CSR_QUEUE_HEAD=1` 全 Linux boot**（roadmap 既定，memory「翻 1 待完整 Linux boot」）+ **B-LSQ 投机 load 越分支**的**使能前置**，收敛变得**值**——这两个目标恰会往补丁总线堆源、正是**压垮 GAP-2/GAP-8 未证明互斥不变量的应力源**。故：**断言无条件现在做；arbiter 收敛作为下一次 serialize/Linux 推进的去风险前半段做，不单独立项。**
 
-### 5.6 成本 / 风险（单人 + 现有全绿）
+### 5.6 历史成本 / 风险评估（2026-07-05 汇总前提）
 
 | 路径 | 工时量级 | 回归风险 | 备注 |
 |---|---|---|---|
 | **Big-bang 重写** | 数天~ | **高**——取指侧 prefetch/outstanding/fallthrough-keep 大量 corner，一处漏改 CoreMark 卡死，bisect 难 | b2 §2.x 控制面 big-bang 活锁判死史 |
 | **Step 0 断言钉现状** | **数小时**（但非免费，见下） | **零行为风险** | 立即把 GAP-1 静默地雷变响亮断言；安全翻 `OOO_CSR_QUEUE_HEAD=1` 前置 |
-| **Step 1..N shadow-equivalence 逐源迁** | 每步 ~1 天 + 全回归 | **低**——切换前先有 cycle-exact 等价证据 | 复活 arbiter 并行算赢家、每拍 assert==活机制、跑绿再切 |
+| **Step 1..N shadow-equivalence 逐源迁** | 每步 ~1 天 + 全回归 | **低**——切换前先有 cycle-exact 等价证据 | 历史计划；fetch-PC 切片已按此完成，后端消费仍开放 |
 
 **shadow-equivalence 是黄金路径**：复活 `OooRedirectArbiter` 用同批源信号驱动、**输出先不接**，每拍 `assert(arbiter.winner_pc == 活 next_fetch_pc && arbiter.flush_backend == 活 core_local_flush)`，跑全绿回归（CoreMark + sv39 boot + riscv-tests）。断言在全回归守住 = **证明** arbiter 复现当前行为，然后才切消费，切换近零风险。**断言即等价检查**，直接复用 13-test 已验证 arbiter + 现成 difftest。
 
 ### 5.7 最小第一步（若推进，唯一安全小步）
 
-**Step 0：把 §4 承重不变量落成 in-RTL `` `ifdef OOO_ASSERT $error ``（进 check-contract ratchet），零行为改变。** 已落 INV-1/2/3、GAP-6 payload-lifetime、UC-A producer-sentinel 和 INV-4 两半；当前 baseline=11。INV-4 的 serial 半边按 §10.4 生命周期校正为 `mem_idle`，不是旧版 `SQ empty`。
+**Step 0：把 §4 承重不变量落成 in-RTL `` `ifdef OOO_ASSERT $error ``（进 check-contract ratchet），零行为改变。** 已落 INV-1/2/3、GAP-6 payload-lifetime、UC-A producer-sentinel 和 INV-4 两半；2026-07-07 当时 baseline=11，2026-07-11 文件值为 20。INV-4 的 serial 半边按 §10.4 生命周期校正为 `mem_idle`，不是旧版 `SQ empty`。
 
 > **对抗审查对 Step 0 的三处纠正（已并入）**：(1) 机制用 in-RTL `$error` under `OOO_ASSERT`（进 check-contract），**不是** TB SV assert（跑不到全核 workload）；(2)「数小时零风险」偏乐观——baseline=1，每条是**新写的 in-RTL 组合交叉核对 + threading 比较点**，仍便宜零行为风险但非"接现成框架"；(3)「钉住现状」对 INV-3/INV-4-serial **只在 flag=1 成立**（默认 serial_flush 恒不触发）。
 
@@ -367,17 +428,22 @@ redirect_request {
 - **UC-B｜铁律③默认回归零覆盖**：见 §3 降级。挂 serial_flush（默认 [休]），flag=1 全 Linux 绿之前不得读作 settled。
 - **UC-C｜系统性幸存者偏差**：头号绿证据全 flag=0；memory「flag ON real workload 全绿」**不在本契约证据集且本身不完整**。凡 serialize 类"成立" = "flag=0 不触发"，非 flag=1 背书。
 - **UC-D｜铁律② AMO/LR/SC nokill 未核实**：`mem_req_nokill_o` 直通，真正 nokill 判定在上游 IntBackend AMO 通道，本轮未打开，存疑保留（§3 铁律②）。
-- **UC-E｜铁律② 读事务 abort 依赖 xbar**：`S_WALK_R/S_READ_DATA` flush→IDLE 放弃已发 AR 的 R，依赖 xbar 真 abort（读无架构副作用，风险限握手）。
+- **UC-E｜铁律② IFU A-update partial write**：旧“读事务依赖 xbar abort”已被当前
+  IFU `S_DRAIN` 超越；现存缺口是 `S_AD_UPDATE` 的 AW/W/B 未随 `mmu_flush` 排水，
+  详见 `IFU-AXI-G1`。
 
 ### 6.4 活文档强制（对抗审查挑战#5 —— 本契约不沦为死文档的唯一结构性保证）
 
-> **你不缺 gate，缺的是把契约承重条款喂给那个已空转的 gate。** `Makefile:202 check-contract → eval/check-contract.sh` 强制三条：(1) `--assert` 在场、(2) `+define+OOO_ASSERT` 在场、(3) 可综合 `.v` 的 `$error` 计数不回退（对照 `eval/contract-assert-baseline.txt`）。已接进全核 Verilator 回归（`Makefile:122`）——in-RTL 断言会在 CoreMark/Linux/difftest 里**真的 fire**。2026-07-07 当前 baseline=11，Step 0 承重断言已不再空转；后续工作是把剩余 GAP 逐步收敛，而不是补 INV-4。
+> `Makefile:202 check-contract → eval/check-contract.sh` 强制三条：(1) `--assert` 在场、
+> (2) `+define+OOO_ASSERT` 在场、(3) 可综合 `.v` 的 `$error` 计数不回退（对照
+> `eval/contract-assert-baseline.txt`）。2026-07-11 baseline 文件值为 **20**；这证明 ratchet
+> 数量合同存在，不等于所有开放合同已有动态覆盖。
 
 - **UC-11｜本契约的落盘纪律**（三条，缺一即退化为"填一次不更新"的死文档）：
   1. **锚点迁信号名**：全文 `:NNN` 行号只作追溯，权威锚点是**模块名 + 信号名 + grep 模式**（可被 check-rtl-style/check-contract 机检）。RTL 插一行行号即漂，散文契约不得充当真源。
-  2. **四条承重不变量编码进 `.v`**：INV-1（`OooFetchPcOutstandingSequencer`）、INV-2（同拍 onehot）、INV-3（`OooControlPlane`）、INV-4（`OooRob` + `OooStoreQueue`），当前 baseline **11**，ratchet 物理阻止静默删。
+  2. **四条承重不变量编码进 `.v`**：INV-1（`OooFetchPcOutstandingSequencer`）、INV-2（同拍 onehot）、INV-3（`OooControlPlane`）、INV-4（`OooRob` + `OooStoreQueue`）；当前 baseline **20**，ratchet 物理阻止静默删。
   3. **散文契约降级为导航索引**：真源活在"RTL 一旦背离即 fail build"的 ratcheted 断言里，本 .md 指向那些断言，**不**充当真源。这与 doc-lifecycle 协议、interface-contract-first gate 完全同构。
-- **动作项（当前状态）**：Step 0 承重断言已分批落地并 ratchet 到 baseline=11；本文仍保留 GAP-3/GAP-4/GAP-7/GAP-8/GAP-9 作为后续 redirect/serialize 收敛 backlog。下一步不再是“补 INV-4”或“补 glue TB CsrFile stub”（后者已于 2026-07-07 接入 head0 commit 并验证），而是按 `serialize-at-retire-phase1.md §10.6` 补 flag ON 前置：完整 Linux boot 与 `-v-`/full-state difftest。
+- **动作项（当前状态）**：Step 0 承重断言已分批落地并 ratchet 到 baseline=20；本文仍保留 GAP-3/GAP-4/GAP-7/GAP-8/GAP-9 作为后续 redirect/serialize 收敛 backlog。下一步不再是“补 INV-4”或“补 glue TB CsrFile stub”（后者已于 2026-07-07 接入 head0 commit 并验证），而是按 `serialize-at-retire-phase1.md §10.6` 补 flag ON 前置：完整 Linux boot 与 `-v-`/full-state difftest。
 
 ---
 
@@ -412,3 +478,5 @@ redirect_request {
 - 2026-07-05: **UC-A root-cause 修复**——整数 MulDiv/CLMUL 独缺 mispredict-kill 端口(FP 全家有)。先加 ROB 生产者身份哨兵(OooRob)实证 rv64uzbc-p-clmul wrong-path clmul 结果撞号复用槽(A1 fire)=confirmed→给 OooMulDivUnit+OooClmulUnit 补 kill_valid/kill_rob_idx/rob_head_idx 三端口+age-squash(逐字照 OooFpArithGate fp_meta_killed 严格年轻>)+组合抹 resp_valid_o+父层接 branch_resolve_mispredict_w→A1 静默、module113+riscv177+am+CoreMark(0xfcaf)全绿。baseline 5→7。
 - 2026-07-06: **fence.i 引入新 flush 语义(#111 #3B 修复,commit 21252d2cb)**——fence.i 折进 system_raw→pending_system 序列化→退休拍 pending_system_fencei_commit 拉 mmu_flush(整块清取指 cache OooFetchPacketCache)+复用 E6 drain pending_system redirect(next_pc=pc+4)。E11 触发加 fencei_commit、校正其清取指 cache(非仅 DTLB,sfence 本就如此)。契约先行工作流要求触碰 flush 源更契约,此为落地收尾。
 - 2026-07-07: **INV-4 两半落成 in-RTL `OOO_ASSERT` 断言，baseline 9→11**。`OooRob` 新增 head0-CSR commit 不得发生在 `mem_quiet_i=0` 的断言；注意按 Phase1 §10.4 生命周期校正，`mem_quiet_i` 当前接 `mem_idle_o`，不含 `mem_retire_quiet/sq_empty`，否则 younger-store 会形成死锁。`OooStoreQueue` 新增 flush 不得清除 committed 或同拍 mark store 的断言。验证：`make -C npc/rv64 check-contract` PASS（11/11），`make -C npc/rv64 -j2` PASS，focused `tb_ooo_store_queue tb_ooo_rob` PASS。
+- 2026-07-11：现状源切到 07-11 snapshot；fetch fault 改为 drained pending trap；
+  铁律②按 IFU read-drain 与 A-update write-gap 分层，裁决降为部分满足。

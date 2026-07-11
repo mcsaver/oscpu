@@ -1,0 +1,42 @@
+MIQ full+pop+push 定向复现结果
+日期：2026-07-11
+阶段边界：未读取任何 Markdown；未修改 DUT RTL。
+
+测试源：audit-results/2026-07-11-rv64-ooo-blind/tb_miq_full_pop.v
+DUT：npc/rv64/vsrc/memory/OooMemInflightQueue.v
+
+命令：
+  iverilog -g2012 -I npc/rv64/vsrc/include -s tb_miq_full_pop \
+    -o audit-results/2026-07-11-rv64-ooo-blind/build/tb_miq_full_pop \
+    audit-results/2026-07-11-rv64-ooo-blind/tb_miq_full_pop.v \
+    npc/rv64/vsrc/memory/OooMemInflightQueue.v
+  vvp audit-results/2026-07-11-rv64-ooo-blind/build/tb_miq_full_pop
+
+实际输出：
+  BUG_REPRODUCED count=3 head=2 new_rob5_not_accounted
+
+判定：
+  [动态事实] 队列装满 ROB 1/2/3/4 后，同拍 pop ROB1 + push ROB5，DUT 只执行 pop；
+  count 从 4 降为 3，新 ROB5 不进入计数/队列语义。原因是 push_fire_w 只接受 !full_o，
+  而 pop_fire_w 未加入 push-ready：OooMemInflightQueue.v:143-144、193-220。
+
+当前顶层可达性（对抗复核后的降级结论）：
+  [RTL 事实] OooIntBackend.v:1212-1215 的确把 (!miq_full_w || miq_pop_w) 当 slot-open，
+  并在已接受请求时无条件拉高 miq_push_valid_w（1940-1952）。因此 MIQ 模块与父层 ready
+  契约不一致是事实。
+
+  [推断，高置信] 但当前 OooMemAxiBridge 只有 1 个 active FSM transaction + 1-entry stg。
+  从 reset 归纳：第一个 request 使 MIQ count=1；active 从 stg advance 且无 response pop 时，
+  最多再收一个 request，使 count=2；之后 stg 满时 ready=0。只有 S_RESP/rsp_ready 或 cache-hit
+  fusion/rsp_ready 才能在 active 状态腾出 stg，而这两种 advance 同拍都产生 response→MIQ pop；
+  即便同拍再接新 request，count 也不增加。flush 只会清/压缩，LEGACY 又要求独占。
+  所以现有 NpcCoreTop 下 MIQ count 的结构上界为 2，full=4 前提不可达。
+
+  这也揭示另一个拓扑事实：MIQ 名义 4-entry，但当前 bridge 最多支撑 active+staged 两笔，
+  4-entry 容量没有被实际利用。若未来替换成真正多 outstanding bridge，或将 ENTRY_N 配成 2，
+  这个已动态复现的 full+pop 契约错误会立即变成可触发故障。
+
+条件成立时的后果：
+  已发给 bridge 的新请求没有 MIQ metadata。后续 response 会与错误 head 配对，或在队列提前
+  变空时没有归属；具体表现取决于随后请求/响应序列。但当前默认整核无法把 count 推到 4，
+  因而不能把此模块反例报告为当前默认核的运行时可达 bug。

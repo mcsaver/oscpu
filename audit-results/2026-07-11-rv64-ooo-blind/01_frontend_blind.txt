@@ -1,0 +1,628 @@
+RV64 OoO Core 阶段一代码盲审：前端 / 取指 / 分支预测 / dispatch
+================================================================
+
+审计锚点
+--------
+代码快照：git cab1814b0622
+审计日期：2026-07-11
+范围：npc/rv64 当前非 Markdown 源码；重点为 OooFrontend、fetch packet FIFO/cache、
+      Fetch AXI bridge、RVC、BPU/BTC/RAS、redirect/recovery、前端到后端 dispatch。
+边界：本阶段没有打开、读取或搜索任何 Markdown 文件，也没有读取 .github/task-runs。
+      本文件因此只记录“从代码独立重建的 ground truth”，不提前吸收项目说明中的结论。
+
+判定标签：
+  [事实]   由当前 RTL/C/Testbench 直接推出。
+  [推断]   由组合路径、协议或微架构行为推出，尚未用波形/形式验证实测。
+  [待验证] 需要定向 TB、综合 STA、形式或系统负载确认。
+
+
+一、真实拓扑（从代码独立重建）
+--------------------------------
+
+1.1 全局前端闭环
+
+  OooFetchPcOutstandingSequencer
+      {next_fetch_pc, outstanding_valid, outstanding_pc, discard_rsp}
+                    |
+                    v
+  OooFetchRequestMux + OooFetchFlowControl
+                    |
+                    | req {valid,ready,pc}（最多 1 个 outstanding）
+                    v
+  OooFetchAxiBridge
+      +-- OooFetchPacketCache：精确 PC/上下文键控的 4096x199b 1RW SRAM
+      +-- OooSv39Tlb：64 项直接映射 ITLB
+      +-- 三级 Sv39 PTW / PMP / HW A-bit update
+      +-- AXI 单 beat 读写 FSM
+                    |
+                    | rsp {2x32b inst, 2x2b resp}
+                    v
+  OooFetchPacketDecode
+      +-- 2 个 OooRvcDecompressor
+      +-- 最多形成 2 条 32b 标准指令、各自 PC/next_pc/fault
+                    |
+                    +--> OooBranchDirectionPredictor（resp 拍双查询）
+                    |        gshare + local-history/local-PHT
+                    v
+  OooFetchPacketFifo（4 包，每包最多 2 条；预测位/BHT index 随包保存）
+                    |
+                    v
+  OooFetchPacketHeadMux（response bypass 当前恒禁，只选 FIFO）
+                    |
+                    +--> 2x DecodeStage + 2x HeadClassify（前端策略译码）
+                    v
+  OooFrontendDispatchGate + OooFrontendBackendDispatchMux
+                    |
+                    | 两 lane：pc/next_pc/inst/pred_npc/bht_idx/pred_taken
+                    v
+  OooAluDecodeBackend（再次 2x DecodeStage）
+                    |
+                    v
+  rename/free-list + 16-entry ROB + 8-entry integer IQ + issue
+                    |
+                    +--> issue-time branch/JAL/JALR resolve
+                              |--> BPU update（单路）
+                              |--> frontend redirect/FIFO clear
+                              `--> 1 拍后触发 ROB walk，最多反向回收 2 项/拍
+
+[事实] 顶层将 OooFrontend 的 req/rsp 直接接 OooFetchAxiBridge，再由 bridge 接 IFU
+AXI；store invalidate 在 NpcCoreTop 打一拍后送 fetch cache。
+证据：npc/rv64/vsrc/core/NpcCoreTop.v:187-221、306-327。
+
+[事实] 前端与后端之间不是单向流水寄存边界，而是双向组合握手：前端送 raw inst
+和 valid，后端重新译码并返回 ready/unsupported，前端再决定 pair fire、FIFO pop。
+证据：npc/rv64/vsrc/core/OooCoreTopGlue.v:575-592、595-660；
+      npc/rv64/vsrc/decode/OooAluDecodeBackend.v:136-152、369-389；
+      npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v:126-168。
+
+
+二、宽度、容量与带宽
+--------------------
+
+2.1 参数真值
+
+  XLEN                         64
+  指令对外标准宽度              32 bit（RVC 在前端展开）
+  fetch/decode/dispatch 宽度     最多 2 指令/拍
+  Fetch packet FIFO             2^2 = 4 包，count 宽 3 bit
+  每包                          最多 2 指令，故存储上限 8 指令
+  前端 outstanding              1 个请求
+  ROB                           2^4 = 16 项
+  Integer IQ                    2^3 = 8 项
+  Fetch packet cache            4096 项，直接映射，1RW，同步读
+  ITLB                          64 项，直接映射
+  RAS                           32 项
+  gshare BHT                    1024 x 2-bit + valid，GHR=10 bit
+  local history                 256 x 8-bit + valid
+  local PHT                     4096 x 2-bit + valid
+  IFU AXI                       ID=0，LEN=0，SIZE=8B，单 beat，单 outstanding
+
+[事实] 参数来源与 FIFO 真实数组深度一致。
+证据：npc/rv64/vsrc/include/define.v:30-47、174-210；
+      npc/rv64/vsrc/frontend/OooFetchPacketFifo.v:77-104；
+      npc/rv64/vsrc/frontend/OooFetchPcOutstandingSequencer.v:86-94；
+      npc/rv64/vsrc/writeback/OooRob.v:240-246；
+      npc/rv64/vsrc/frontend/OooRasStack.v:3-7、25-41。
+
+[事实] FIFO credit 把“存储中的包 + outstanding 请求”一起计入 4 包预算；有请求
+在飞时通常只允许 FIFO 占 3 包，响应到达并与 pop 同拍时可占满第 4 包。
+证据：npc/rv64/vsrc/frontend/OooFrontendRunGate.v:69-72；
+      npc/rv64/vsrc/frontend/OooFetchFlowControl.v:52-56、77-85。
+
+2.2 稳态吞吐与首包延迟
+
+[事实] fetch cache 命中时：请求 fire 的次拍为 SRAM 判决/组合 response 拍；若下游
+ready，同拍还能接受下一请求，因此 cache-hit 稳态可达 1 包/拍。
+证据：npc/rv64/vsrc/cache/OooFetchPacketCache.v:51-58、173-190；
+      npc/rv64/vsrc/frontend/OooFetchAxiBridge.v:511-525、616-645。
+
+[推断] FIFO 为空时，cache-hit 请求 N 拍 fire，N+1 拍 response 在拍尾 enqueue，
+最早 N+2 拍才从 FIFO head dispatch；response bypass 恒 0 明确牺牲了 1 拍首包延迟，
+但稳态 enqueue/pop 可并行，仍可达到 2 指令/拍。
+证据：npc/rv64/vsrc/frontend/OooFrontendRunGate.v:61-67；
+      npc/rv64/vsrc/frontend/OooFetchPacketFifo.v:182-211；
+      npc/rv64/vsrc/frontend/OooFrontend.v:1735-1798。
+
+[事实] cache miss、ITLB miss、跨页访问都由单套 FSM 串行处理；miss 判决拍 ready=0，
+没有 MSHR、hit-under-miss 或第二个 outstanding。
+证据：npc/rv64/vsrc/frontend/OooFetchAxiBridge.v:72-85、326-330、517-540、
+      616-695、697-850。
+
+
+三、fetch packet 与 RVC 数据流
+-----------------------------
+
+3.1 已实现
+
+[事实] bridge 给出从请求 PC 开始的 8 字节；PacketDecode 从 half0 开始解出两条
+指令：第一条可为 16/32 bit；第二条在第一条压缩时取 half1，否则取 half2；当第二条
+为 32 bit 且跨 32b word 时用 {half2,half1} 拼接。每条指令独立生成 PC/next_pc。
+证据：npc/rv64/vsrc/frontend/OooFetchPacketDecode.v:35-49、51-75。
+
+[事实] RVC 解压覆盖 RV64C/RV64DC 的主要三象限：整数/FP load-store、ADDIW、
+LUI/ADDI16SP、算术/移位、J/BEQZ/BNEZ、JR/JALR/EBREAK、stack load-store；保留/非法
+编码默认展开为 0，交给后级非法译码处理。
+证据：npc/rv64/vsrc/decode/OooRvcDecompressor.v:248-397、400-477。
+
+[事实] slot0 预测 taken 时，slot1_valid 随包存 0；head1 的 fault 和所有分类事实
+都在单点被压掉，避免 wrong-path lane1 成为“幽灵指令”。
+证据：npc/rv64/vsrc/frontend/OooFrontend.v:1043-1061；
+      npc/rv64/vsrc/frontend/OooFetchHeadPairGate.v:193-213；
+      npc/rv64/vsrc/frontend/OooFetchPacketFifo.v:98-104、193-199。
+
+3.2 带宽限制
+
+[事实] 无论 8 字节中有多少条 RVC，单包只解两条；两条均压缩时 packet_next_pc
+只前进 4 字节，后 4 字节被丢弃并在下一请求重取。没有 byte queue、suffix carry 或
+4x16-bit 提取器。
+证据：npc/rv64/vsrc/frontend/OooFetchPacketDecode.v:35-49、61-75、94。
+
+[推断] 高 RVC 密度代码的总线/packet-cache 数据利用率最低约 50%，dispatch 上限仍是
+2 指令/拍；相邻精确-PC cache entry 会保存重叠的 8 字节窗口，进一步放大容量浪费。
+证据：npc/rv64/vsrc/frontend/OooFetchPacketDecode.v:39-49、72-94；
+      npc/rv64/vsrc/cache/OooFetchPacketCache.v:64-69、85-86、116-120。
+
+
+四、fetch packet cache / ITLB / AXI
+----------------------------------
+
+4.1 cache 真实形态
+
+[事实] 这不是常规 line/set-associative I-cache，而是“精确 fetch-PC → 8-byte packet”
+的直接映射 memoization cache。index=PC[INDEX_W:1]，entry 同时存 paging、priv、完整
+satp、完整 PC、64b 指令字节和两路 resp；full PC 负责消除 index alias。
+证据：npc/rv64/vsrc/cache/OooFetchPacketCache.v:45-69、85-86、116-140、151-171。
+
+[事实] 物理宏固定为 4096x199 = 815104 bit = 99.5 KiB，另有 4096-bit valid FF。
+其中上下文/tag 131 bit（paging+priv+satp+pc）大于 inst+resp payload 68 bit；面积换取了
+实现简单、精确 PC 命中和 1 包/拍同步 SRAM 吞吐。
+证据：npc/rv64/vsrc/cache/OooFetchPacketCache.v:45-49、116-130；
+      npc/rv64/vsrc/sram/Sram4096x199.v:6-20。
+
+[事实] store snoop 对 7 个邻域 index 做盲 invalid；fill 与 lookup 共享 1RW 端口；
+PMP 在每次命中时复检，分页命中还要求 ITLB hit/权限通过。跨页 packet 明确不填 cache。
+证据：npc/rv64/vsrc/cache/OooFetchPacketCache.v:85-115、142-167、193-214；
+      npc/rv64/vsrc/frontend/OooFetchAxiBridge.v:278-299、365-382、393-422。
+
+[事实] ITLB 是 64 项直接映射，tag 为 VPN+完整 SATP，支持 4KiB/2MiB/1GiB leaf 和
+Svnapot PA 形成；superpage 仍按低 VPN 位直接索引，所以同一大页的不同 4KiB offset 会
+占不同 entry，正确但容量效率低。
+证据：npc/rv64/vsrc/memory/OooSv39Tlb.v:3-5、26-30、39-63、85-113。
+
+4.2 MMU/PTW 已实现能力
+
+[事实] IFU bridge 内建 Sv39 canonical 检查、三级 walk、superpage 对齐检查、Svnapot、
+Svpbmt reserved 检查、U/S execute 权限、PTE-read PMP、leaf execute PMP、跨页双翻译，
+以及 A=0 leaf 的硬件 A-bit 写回再 walk。
+证据：npc/rv64/vsrc/frontend/OooFetchAxiBridge.v:118-240、261-364、424-508、
+      697-803、852-875。
+
+[事实] IFU/LSU 是两个 master；crossbar 对每个 slave 做 round-robin，并在 master 暂不
+ready 时先吸收 read response，避免一个 master 的反压长期占住 slave。
+证据：npc/rv64/vsrc/bus/NpcAxiBus.v:93-108、191-250；
+      npc/rv64/vsrc/bus/AxiXbar.v:323-380、493-524。
+
+
+五、分支预测、JAL/JALR 与 RAS
+-----------------------------
+
+5.1 条件分支方向预测
+
+[事实] 预测在 fetch response 拍进行，而不是 request 拍：两 slot 同拍查询；方向表
+由 10-bit gshare（1024 项）与 8-bit local history + 4096 项 local PHT 组成；未训练项
+使用 BTFNT（imm 符号位）静态兜底。
+证据：npc/rv64/vsrc/frontend/OooFrontend.v:1018-1072、1900-1926；
+      npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v:28-35、67-147。
+
+[事实] hybrid 没有 chooser/meta table：local valid 且 gshare 非 strong 时选 local；
+local strong 时也选 local；其余选 gshare。双 slot 使用同一个未投机更新的 GHR。
+证据：npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v:67-75、97-147。
+
+[事实] 预测结果和 lookup 时的 BHT index 随 packet 进入 FIFO，dispatch 后再随 uop
+进入 IQ，issue resolve 时回传同一 index 训练，避免“fetch 查 A、resolve 训 B”。
+证据：npc/rv64/vsrc/frontend/OooFetchPacketFifo.v:23-33、98-104、193-199；
+      npc/rv64/vsrc/frontend/OooFrontend.v:1854-1861、1881-1925；
+      npc/rv64/vsrc/execute/OooIntBackend.v:2411-2426。
+
+[事实] slot0 taken 优先，slot1 被截断；slot0 not-taken 时允许 slot1 继续预测。
+not-taken 可与 response 同拍融合发下一顺序请求；taken 明确封掉该拍请求，把 target
+写入 next_fetch_pc，次拍才发，因此每个 predicted-taken 至少多 1 个前端取指空拍。
+证据：npc/rv64/vsrc/frontend/OooFrontend.v:1043-1072、2106-2117；
+      npc/rv64/vsrc/frontend/OooFetchFlowControl.v:71-90。
+
+5.2 JAL/JALR/RAS
+
+[事实] 没有 JAL BTB。JAL 到 FIFO head 后由 PC+imm 直算，dispatch uop 同时清前端，
+target 在 redirect arbiter 拍尾写 next_fetch_pc，下一拍取指。
+证据：npc/rv64/vsrc/frontend/OooDirectControlFlowGate.v:58-67；
+      npc/rv64/vsrc/frontend/OooFrontendActionGate.v:51-55；
+      npc/rv64/vsrc/frontend/OooFetchRequestMux.v:74-90。
+
+[事实] JALR-BTB 恒 miss；非 return JALR 默认预测 fallthrough，真实 target 在后端
+issue 时算 `(rs1+imm)&~1`，通常经 mispredict/ROB-walk 修正。lane0 JALR 会在 dispatch
+拍启动 fallthrough/RAS 续取；lane1 非 return JALR只随 pair 进后端，没有对称的 lane1
+spec redirect，等待后端 resolve。
+证据：npc/rv64/vsrc/frontend/OooFrontend.v:1205-1206、1549-1569、1843-1852；
+      npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v:101-113、149-163；
+      npc/rv64/vsrc/execute/OooIntBackend.v:1697-1735。
+
+[事实] RAS 深 32，但“可靠 direct return”资格要求 ROB count==0、无 stop/spec，且
+RAS reliable/nonempty；direct JAL call 也只有同样安全时才 push，unsafe call 直接 clear。
+证据：npc/rv64/vsrc/frontend/OooDirectRasCandidateGate.v:33-63；
+      npc/rv64/vsrc/frontend/OooDirectControlFlowGate.v:70-84；
+      npc/rv64/vsrc/frontend/OooRasUpdateGate.v:25-39。
+
+[事实] RAS overflow 时只覆盖最后一项并把 reliable 清 0；不会环形保留最近 32 层。
+证据：npc/rv64/vsrc/frontend/OooRasStack.v:29-41、55-66。
+
+
+六、dispatch 接口和控制流组合
+-----------------------------
+
+[事实] 正常 packet 采用 pair-atomic 双发：后端 dispatch0_ready 会预先检查 ROB/IQ/
+free-list/SQ 的双槽资格，dispatch1_ready 又依赖 dispatch0_fire；资源不足时 packet 保留，
+不会只发 lane0 后误 pop lane1。当前 dispatch1_optional 恒 0。
+证据：npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v:238-288、307-325；
+      npc/rv64/vsrc/frontend/OooBranchAppendDispatchGate.v:150-153；
+      npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v:140-168。
+
+[事实] 前端传给后端的控制流关键载荷是每 lane 的
+`pc,next_pc,inst,pred_npc,bht_idx,pred_taken`。pred_npc 对双发 lane0 指向 lane1.pc，
+对 packet 尾/分支指向 packet-level predicted successor；后端以“实际 next_pc != pred_npc”
+统一判定 branch/JAL/JALR mispredict。
+证据：npc/rv64/vsrc/frontend/OooFrontendBackendDispatchMux.v:160-175；
+      npc/rv64/vsrc/core/OooCoreTopGlue.v:575-592、647-660；
+      npc/rv64/vsrc/execute/OooIntBackend.v:1711-1756。
+
+[事实] lane0 not-taken branch 只有在 lane1 无 fault/system/trap/unsupported 时才双发；
+否则 branch 单发且 lane1 squash。此时 pred_npc 取 packet 末尾而非 lane1.pc，会故意制造
+一次 mispredict，把被 pop 的 lane1 重新取回，正确性由恢复路径兜底，代价是额外 walk。
+证据：npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v:64-82；
+      npc/rv64/vsrc/frontend/OooFrontend.v:1848-1852；
+      npc/rv64/vsrc/frontend/OooFrontendBackendDispatchMux.v:94-100、168-175。
+
+
+七、redirect / flush / ROB-walk 恢复
+-----------------------------------
+
+[事实] 活路径是多分支 ROB-walk 模式：pending_branch、pending_jump 以及旧 weak
+checkpoint 路径均已死化；条件分支、JAL、JALR 作为普通 uop 进入 ROB/IQ。
+证据：npc/rv64/vsrc/include/define.v:563-574；
+      npc/rv64/vsrc/frontend/OooFrontend.v:2010-2036；
+      npc/rv64/vsrc/frontend/OooDirectBranchResolveGate.v:61-71。
+
+[事实] 前端 PC redirect 有 trap/commit、后端 branch miss、dispatch direct 三源年龄
+仲裁：最老 ROB age 胜，同 age trap>branch>direct。branch mispredict 同拍清 FIFO并把
+target 在拍尾写 next_fetch_pc；所有同拍 redirect request 已恒禁，下一拍才发 target。
+证据：npc/rv64/vsrc/control/OooRedirectArbiter.v:66-104；
+      npc/rv64/vsrc/frontend/OooFetchPacketSeedMux.v:156-193；
+      npc/rv64/vsrc/frontend/OooFetchRequestMux.v:70-90；
+      npc/rv64/vsrc/frontend/OooFetchPcOutstandingSequencer.v:267-271。
+
+[事实] 后端 kill 不直接消费 redirect arbiter 的 kill/flush 输出；arbiter 的
+kill_idx/reason/flush_fetch/flush_backend 在 OooFrontend 被汇入 unused。真实后端 kill 仍由
+raw `branch_resolve_mispredict` 独立驱动，并打一拍后进入 ROB。
+证据：npc/rv64/vsrc/frontend/OooFrontend.v:1392-1403；
+      npc/rv64/vsrc/execute/OooIntBackend.v:316-327；
+      npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v:451-469。
+
+[事实] ROB walk 从 tail-1 向 mispredict uop 反向恢复，每拍最多清 2 项并恢复 rename/
+free-list；默认 16-entry ROB 最坏约需 8 拍。kill 打一拍期间新 dispatch 的 wrong-path
+uop 会被纳入随后 walk；kill/recover 拍冻结 commit/dispatch。
+证据：npc/rv64/vsrc/writeback/OooRob.v:240-253、282-303、376-432；
+      npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v:307-318、451-469。
+
+[推断] 4 包 FIFO 允许 target-path fetch 与 ROB walk 部分重叠，但 FIFO 很快会因后端
+ready=0 占满；恢复成本仍随 younger ROB 数量线性增长，不具备 checkpoint/rename-map
+单拍恢复能力。
+证据：npc/rv64/vsrc/frontend/OooFrontendRunGate.v:69-72；
+      npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v:313-322；
+      npc/rv64/vsrc/writeback/OooRob.v:376-410。
+
+
+八、明确已移除/恒禁的功能（不是“以后可能走到”的冷路径）
+---------------------------------------------------------
+
+[事实] 以下功能在当前默认配置中是 RTL 常量 0 或物理删除：
+
+  - branch prefetch request/buffer/hit/dispatch
+  - branch target cache（BTC）
+  - JALR BTB
+  - return continuation buffer/append
+  - response-to-dispatch bypass
+  - same-cycle branch target/fallthrough append
+  - same-cycle redirect fetch request
+  - direct branch dispatch-time resolve/fire
+  - pending branch / pending jump sequencer
+  - legacy single-checkpoint branch speculation
+
+证据：npc/rv64/vsrc/frontend/OooFrontend.v:1141-1237、1524-1545、2010-2038；
+      npc/rv64/vsrc/frontend/OooFrontendRunGate.v:61-67；
+      npc/rv64/vsrc/frontend/OooBranchAppendDispatchGate.v:68-82、95-153；
+      npc/rv64/vsrc/frontend/OooFetchRequestMux.v:74-80；
+      npc/rv64/vsrc/frontend/OooDirectControlFlowGate.v:50-57。
+
+[事实] 因而当前前端没有通用 BTB/间接目标预测器、非阻塞 I-cache、硬件预取器、
+byte-alignment queue、uop cache、宏融合或 >2 指令/拍的 RVC 提取能力。
+证据：上述模块实例/tie-off 以及
+      npc/rv64/vsrc/frontend/OooFetchPacketDecode.v:35-49、94；
+      npc/rv64/vsrc/frontend/OooFetchAxiBridge.v:72-116、517-540。
+
+
+九、优点（按代码成立，不依赖说明文档）
+---------------------------------------
+
+P1. [事实] 预测快照随 packet/uop threading，pred_npc 与真实 fetch successor 尽量
+机械同源，明显降低“查询时 GHR 与训练时 GHR 不同/预测值漂移”的接线风险。
+证据：OooFrontend.v:1053-1061、1764-1806、1854-1925。
+
+P2. [事实] slot0 taken 截断、pair-atomic dispatch、lane1 barrier/fault 分类组合得较完整，
+能在双发和 RVC 场景下避免 lane1 wrong-path 提交。
+证据：OooFrontendDispatchGate.v:64-145；OooFetchHeadPairGate.v:193-213。
+
+P3. [事实] fetch cache hit 保留 1 包/拍；失效窗口同时覆盖 lookup fire 拍和判决拍，
+invalidate 拍主动关闭融合并落入 S_RESP skid，处理了同步 SRAM 与 store snoop 的竞态。
+证据：OooFetchPacketCache.v:142-167；OooFetchAxiBridge.v:511-525、621-653。
+
+P4. [事实] PTW 的权限面较丰富：跨页、superpage、Svnapot、Svpbmt、PMP、A-bit update
+都有真实数据路，而非接口占位。
+证据：OooFetchAxiBridge.v:118-240、261-364、697-875。
+
+P5. [事实] branch redirect PC 有显式年龄仲裁；前端 FIFO、outstanding/discard、ROB/IQ/
+SQ 各自都有 kill/clear 机制，且 ROB walk 能恢复 rename/free-list，而不是全核一律清空。
+证据：OooRedirectArbiter.v:66-104；OooFetchPacketSeedMux.v:156-243；
+      OooRob.v:240-267、376-432。
+
+P6. [事实] xbar 使用 per-slave round-robin 和 response buffer，IFU/LSU 共享内存时具有
+基本公平性和反死锁考虑。
+证据：AxiXbar.v:323-380、493-524。
+
+
+十、关键问题、瓶颈与待验证风险
+--------------------------------
+
+F-01  [高置信架构正确性问题] 页末压缩指令会被后一页 fault 提前归罪
+------------------------------------------------------------------
+
+[事实] bridge 把“packet 第一页剩余字节 <4”定义为 first_inst_cross_page；当第二页
+page/access fault 时，它把 resp1 覆写到 resp0。PC=...FFE 时第一页还剩 2 字节。
+证据：npc/rv64/vsrc/frontend/OooFetchAxiBridge.v:261-271、331-353、
+      671-679、735-752、821-828、839-848。
+
+[事实] PacketDecode 只有在 half0[1:0]!=11 时才知道 dec0 是 16-bit；dec0 无条件消费
+resp0。也就是说，位于 ...FFE 的合法 C 指令完全落在第一页，却会因“下一条指令所在页”
+fault 而把当前 C 指令报 instruction page/access fault。
+证据：npc/rv64/vsrc/frontend/OooFetchPacketDecode.v:35-43、61-75。
+
+[结论] 这是精确异常边界错误：应先提交页末 16-bit 指令，再在 next PC 上报 fault；
+当前实现会早一条 trap。现有 cross-page TB 使用 CROSS_VA=...4FFE，但首半字 16'h1693
+低两位为 11（32-bit 跨页）且只覆盖双页成功，未覆盖“C 指令 + 第二页 fault”。
+证据：npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv:49-71、366-385、502-505。
+
+[待验证] 新增两类定向用例：PC=page+0xFFE，half0 分别为 C.NOP 与 32-bit 指令；
+第二页分别 page fault、PMP access fault、AXI R error，检查 resp0/提交 PC 精确性。
+
+
+F-02  [高风险 AXI 协议问题，需证明可达性] mmu_flush 可遗弃 A-bit 写事务
+---------------------------------------------------------------------
+
+[事实] S_AD_UPDATE 中 AW/W 独立握手并用 aw_done/w_done 记账，BREADY 只在该状态为 1；
+但 `rst || mmu_flush` 顶层分支无条件跳 IDLE/清 done，没有 write-drain 状态。
+证据：npc/rv64/vsrc/frontend/OooFetchAxiBridge.v:114-116、548-559、561-590、852-875。
+
+[事实] xbar 会独立 hold AW/W，并一直等二者凑齐及 B handshake 才释放 master busy。
+证据：npc/rv64/vsrc/bus/AxiXbar.v:221-238、383-445、527-558。
+
+[推断] 若 flush 发生在“只握 AW / 只握 W / AW+W 已握但 B 未回”任一窗口，bridge 会
+停止补发缺失 channel 或停止接 B。后果可能是 xbar partial write 永久占用，或下一次
+A-update 的新 W 与旧 AW 配对造成 PTE 写错，或旧 B 被下一事务误收。
+
+[待验证] 需要对 S_AD_UPDATE 三个偏斜窗口逐拍施加 mmu_flush，并把 bridge 与真实 xbar
+联测；当前 TB 只覆盖正常 A update 和在飞 READ 的 S_DRAIN，没有 write-flush 用例。
+证据：npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv:310-363、487-495、618-661。
+
+[推断] 该并发不能仅凭“system 已 stop+drain”判死：mmu_flush 是 system commit 后再打一拍，
+而 backend drain 口没有把 IFU bridge 的 PTW/A-update 状态纳入 drained 条件。因此需要波形/
+形式证明，而不能按控制面注释豁免。
+证据：npc/rv64/vsrc/memory/OooMemoryRequestGate.v:63-75；
+      npc/rv64/vsrc/frontend/OooBackendDrainTracker.v:3-24；
+      npc/rv64/vsrc/frontend/OooFetchAxiBridge.v:561-590。
+
+
+F-02B [高风险合法性问题] A-bit 写回只做 PTE-read PMP，没有 write PMP
+---------------------------------------------------------------
+
+[事实] page walk PTE checker 固定声明为 8B read（access_read=1、access_write=0）；
+leaf A=0 后直接进入 S_AD_UPDATE 发全字节 AW/W，没有第二个 write-permission checker。
+证据：npc/rv64/vsrc/frontend/OooFetchAxiBridge.v:494-508、548-557、763-770。
+
+[推断] 若 PMP 对页表物理区允许读而拒绝写，当前 IFU 仍会发出 PTE|A 写事务。对于要求
+隐式 A/D 更新也受物理写权限约束的实现，这是写权限检查缺失；即使下游最终回 error，也不应
+先把未获写许可的事务送到无 PMP 的 memory slave。
+
+[待验证] 增加“PTE read allow / write deny”的 PMP 定向用例；若平台契约明确把 PTW A-bit
+更新视作更高特权内部访问，也必须把该例外在接口/架构模型中显式冻结。
+
+
+F-03  [接口可移植性/保护边界风险] 8B 非对齐“AXI”依赖自定义 slave 语义
+----------------------------------------------------------------
+
+[事实] IFU 对所有取指都发 SIZE=8B、LEN=0，但 ARADDR 直接等于任意 2-byte-aligned PC/
+物理地址，不做 8B 对齐和 lane shift；RVC PC 可为 +2/+4/+6。
+证据：npc/rv64/vsrc/frontend/OooFetchAxiBridge.v:61-65、344-351、527-537。
+
+[事实] 内部 xbar 明确丢弃 SIZE/LEN/BURST/WLAST，slave 侧只有 full-beat addr/data；DPI
+slave 也忽略 size，直接从精确地址 host_read_word 8 字节。因此当前仿真能工作，是因为
+slave 实现的是“从任意偶地址返回连续 8B”的自定义契约，而不是一般 AXI 64-bit data-lane
+语义。
+证据：npc/rv64/vsrc/bus/AxiXbar.v:1-12、83-86；
+      npc/rv64/vsrc/sim/AxiDpiSlave.sv:93-102；
+      npc/rv64/csrc/dpi.c:302-307；npc/rv64/csrc/memory/paddr.c:169-177。
+
+[推断] 接标准 AXI slave/SoC 时，单 beat 非对齐 8B 未必返回完整 [PC,PC+7]；跨 4KiB
+页时第一 beat 甚至从页尾读穿到物理相邻页。需要两个 aligned beat + shift/merge，或把
+该接口明确命名并约束为 custom exact-address full-beat bus。
+
+[推断] 即使第二个 4B chunk 已被 PMP 标 fault，FSM 仍会发第一笔完整 8B read，只在
+resp1 元数据中标 fault；在当前 exact-address DPI 下会真实读取被拒半区，形成保护边界/
+侧信道风险。
+证据：npc/rv64/vsrc/frontend/OooFetchAxiBridge.v:287-299、317-330、655-693、806-828。
+
+
+F-04  [主要吞吐/恢复瓶颈] 单 outstanding、阻塞 miss，redirect 不能取消 bridge 请求
+----------------------------------------------------------------------------
+
+[事实] frontend outstanding 只有一个 bit/PC；bridge 也只有单请求 FSM。branch/direct
+redirect 只清 FIFO并设置 discard，不把 flush/cancel 送给 bridge；bridge 只有 mmu_flush。
+证据：npc/rv64/vsrc/frontend/OooFetchPcOutstandingSequencer.v:86-115、121-134；
+      npc/rv64/vsrc/frontend/OooFetchAxiBridge.v:3-25、72-116；
+      npc/rv64/vsrc/core/NpcCoreTop.v:202-221。
+
+[推断] 若 mispredict 时有 wrong-path cache miss/PTW/AXI read 在飞，target 请求必须等旧请求
+走到 response 并被 drop 后才能被 bridge 接受；外存/PTW 延迟会直接叠加到 mispredict
+penalty。wrong-path miss 仍可能 fill packet cache，造成无害但可观测的污染。
+
+[建议方向] 至少增加 bridge redirect epoch/kill，让未发 AR 的请求撤销、已发 read 自吞后
+立即优先接 target；更进一步是 2+ MSHR 或独立 request queue。
+
+
+F-05  [RAS 覆盖和状态一致性问题] 常见 return 路径会“用栈但不 pop”
+---------------------------------------------------------------
+
+[事实] direct return 只有 ROB==0 且 RAS reliable 时才成立；但 lane0 非-return-spec 的
+ret hint 只检查 `!ras_empty`，没有检查 reliable 或 rob_count，就会选 ras_top。
+证据：npc/rv64/vsrc/frontend/OooDirectRasCandidateGate.v:43-63；
+      npc/rv64/vsrc/frontend/OooFrontend.v:1554-1568。
+
+[事实] RAS pop 只由 direct_ret0/1、dead pending return 或 dead lane1-ret 触发；上述
+“ROB 非空但 ret-hint 使用 RAS”的 direct_jump_spec 不会 pop。
+证据：npc/rv64/vsrc/frontend/OooRasUpdateGate.v:31-39；
+      npc/rv64/vsrc/frontend/OooFrontend.v:2063-2079。
+
+[结论] ROB 非空而 RAS 非空时，return 可预测正确但栈顶不会弹出；若预测正确也不会被
+mispredict clear，后续 return 会反复看到 stale top。若 RAS overflow 后 reliable=0，
+spec ret-hint 仍会使用已声明不可靠的 top。后端 JALR resolve 能保架构正确，但命中率和
+嵌套调用稳定性差。
+
+[事实] 间接 call（JALR 写 x1/x5）没有 push 路径；只有 direct JAL call 和已死的
+pending_jump_call 能 push。
+证据：npc/rv64/vsrc/frontend/OooDirectControlFlowGate.v:70-84；
+      npc/rv64/vsrc/frontend/OooRasUpdateGate.v:37-39。
+
+
+F-06  [预测器训练限制] 单 update 丢双 resolve，且两拍 RAW 会丢增量
+-------------------------------------------------------------
+
+[事实] 两 issue lane 同拍都 resolve 且都预测正确时，resolve mux 只选 issue0，issue1
+不会回训；若 issue1 mispredict 才优先选 issue1。BPU 每拍最多接收一个 update。
+证据：npc/rv64/vsrc/execute/OooIntBackend.v:2391-2426；
+      npc/rv64/vsrc/frontend/OooBranchBpuUpdateGate.v:54-61。
+
+[事实] BPU update 被切成两拍；连续命中同 BHT/PHT/local-history entry 的 update，stage1
+会读到未含上一笔的旧值，代码本身允许丢一次 counter/history 演进。
+证据：npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v:153-179、189-221。
+
+[推断] younger wrong-path branch 可在 older unresolved branch 前先 issue/resolve；训练发生在
+issue resolve，而 kill 又晚一拍，BHT/local history/GHR 没有 ROB-age/commit gate 或 rollback，
+所以会受 wrong-path 污染。架构结果不受影响，但精度与跨域侧信道面受影响。
+证据：npc/rv64/vsrc/execute/OooIntBackend.v:1688-1735、2391-2426；
+      npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v:451-469；
+      npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v:189-221。
+
+
+F-07  [预测精度/时序瓶颈] 大型异步 FF 表处在 cache-hit 融合回环
+-------------------------------------------------------------
+
+[事实] gshare/local-history/local-PHT 都是 reg array 异步索引；两 lookup + update old-value
+读同时存在，local PHT 为 4096 项，hybrid 后还直接驱动 pred_taken。
+证据：npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v:28-35、81-147、153-169。
+
+[推断] cache-hit 融合拍存在长组合闭环路径：
+  SRAM rdata/tag/PMP/ITLB -> bridge rsp_valid/data -> RVC/length/branch decode ->
+  dual BPU table read/hybrid -> pred_taken_block/packet_next_pc -> fetch_req_valid/pc ->
+  bridge ready/fire -> 下一 SRAM lookup addr/en。
+证据：npc/rv64/vsrc/cache/OooFetchPacketCache.v:132-171；
+      npc/rv64/vsrc/frontend/OooFetchAxiBridge.v:511-525；
+      npc/rv64/vsrc/frontend/OooFrontend.v:1018-1081；
+      npc/rv64/vsrc/frontend/OooFetchFlowControl.v:77-91。
+
+[推断] FIFO 满且当拍靠 pop 腾槽时，还会叠加 backend capacity/free-list/SQ ready ->
+frontend pair fire -> FIFO pop -> rsp_ready -> bridge fusion ready 的跨模块反压链。
+证据：npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v:248-322；
+      npc/rv64/vsrc/frontend/OooFrontendActionGate.v:74-79；
+      npc/rv64/vsrc/frontend/OooFetchFlowControl.v:48-69；
+      npc/rv64/vsrc/frontend/OooFetchAxiBridge.v:517-520。
+
+[建议方向] 以预测/length 结果寄存或小型 predecode metadata SRAM 切环；若保持 1 包/拍，
+可把 cache tag/PMP 判决与 packet bytes 分开流水，并用 request queue 吸收一拍预测延迟。
+
+
+F-08  [面积/效率] packet cache 的 tag/context 明显大于数据
+-------------------------------------------------------
+
+[事实] 99.5KiB fetch packet SRAM 中，每项只有 8B 指令，完整 PC+SATP+priv/paging 占
+131bit；加上 RVC 重叠窗口，单位有效指令字节成本很高，且直接映射冲突无法用 way 缓解。
+证据：npc/rv64/vsrc/cache/OooFetchPacketCache.v:64-69、116-140；
+      npc/rv64/vsrc/frontend/OooFetchPacketDecode.v:35-49、94。
+
+[推断] 对同等约 100KiB 宏预算，常规物理/虚拟 indexed line cache（例如 2-way、32/64B
+line）会有更高空间局部性；当前设计的优势是无需 line fill/aligner，但面积收益比偏低。
+
+
+F-09  [恢复控制仍未真正单源化] redirect arbiter 只统一 PC，未统一后端 kill/flush
+--------------------------------------------------------------------------
+
+[事实] arbiter 已输出 kill_idx/reason/flush_fetch/flush_backend，但全部 unused；后端 ROB/IQ/
+SQ kill 仍直接挂 raw branch mispredict，trap/serial 又走另一套 nuke/flush sequencer。
+证据：npc/rv64/vsrc/frontend/OooFrontend.v:1358-1403；
+      npc/rv64/vsrc/execute/OooIntBackend.v:316-327、1789-1791、2663-2689。
+
+[推断] PC winner 与 backend kill winner 目前靠“事件不可达/后续全 flush”维持一致；新增
+redirect source 或改变同拍关系时容易再次出现 PC 选 A、backend kill B 的分叉。应最终让
+同一个 registered redirect request 同时驱动前端 clear、PC、ROB/IQ/SQ kill。
+
+
+F-10  [实现复杂度/关键路径] 前后端重复译码且 unsupported 组合回传
+--------------------------------------------------------------
+
+[事实] OooFrontend 对 FIFO head 做两次 DecodeStage用于分类，OooAluDecodeBackend 对同两条
+raw inst 再做两次 DecodeStage，再把 supported/unsupported/ready 组合送回前端。
+证据：npc/rv64/vsrc/frontend/OooFrontend.v:2041-2057；
+      npc/rv64/vsrc/decode/OooAluDecodeBackend.v:124-152、369-389。
+
+[推断] 这增加面积、译码一致性维护成本和 dispatch 跨层组合锥；长期更合理的边界是前端
+输出冻结的 uop/control bundle，后端只做资源/rename，或至少共享一个 decode truth source。
+
+
+十一、建议的下一步验证优先级
+----------------------------
+
+1. 必做正确性：构造 page+0xFFE 的 C 指令，下一页 page/PMP/AXI fault，验证 fault PC。
+2. 必做协议：A-bit update 的 AW-only、W-only、B-pending 三窗口分别施加 mmu_flush；
+   必须连真实 AxiXbar，不只测 bridge stub。
+3. 硬件接口：用严格 AXI slave model 验证 ARADDR=PC+{2,4,6}, SIZE=8B, LEN=0；明确
+   当前 full-beat exact-address contract 是否能在目标 SoC 上成立。
+4. 性能波形：统计 cache hit/miss、pred taken/not-taken、JALR/RAS hit、redirect 时 bridge
+   state、ROB walk cycles、FIFO occupancy；重点量化“wrong-path miss 阻塞 target”。
+5. STA：锁定 cache-hit fusion path 和 FIFO-full backend-ready path，不能只做模块 OOC。
+6. BPU：双 resolve 同拍训练丢失、same-index back-to-back RAW、wrong-path GHR 污染定向测。
+7. RAS：ROB 非空的 nested return、overflow reliable=0、JALR indirect call 定向测。
+
+
+十二、阶段一结论摘要
+--------------------
+
+当前前端不是“传统 BTB+I-cache+多 outstanding”的宽取指器，而是一个实现取舍很鲜明的
+2-wide packet machine：大容量精确-PC packet SRAM 提供 hit 稳态 1 包/拍，4 包 FIFO
+解耦后端；条件分支在 response 拍做 hybrid direction prediction，pred metadata 全程随包/
+随 uop；恢复依靠显式 PC 年龄仲裁 + 延后一拍的 2-entry/cycle ROB walk。
+
+它的强项是数据同源性、双槽 wrong-path 门控、MMU/PMP 功能覆盖和模块化断言意识；主要
+短板是取指完全阻塞、没有任何目标/间接预测、RVC 字节利用率低、RAS 过度保守且存在
+use-without-pop、一条很长的 cache-hit 融合组合链，以及 redirect 只统一了 PC 没统一 kill。
+
+最需要优先处理的不是“再加预测器”，而是三项潜在正确性/协议问题：
+  (1) 页末 16-bit 指令被下一页 fault 提前归罪；
+  (2) A-bit 写事务在 mmu_flush 下没有 drain/abort 完整协议。
+  (3) A-bit 隐式写回没有单独做 PTE write-PMP 检查。
+这三项在现有定向 TB 中都没有被覆盖。

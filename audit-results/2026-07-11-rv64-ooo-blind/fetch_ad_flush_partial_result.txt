@@ -1,0 +1,31 @@
+IFU PTW A-bit 写回与 mmu_flush 偏斜定向复现
+日期：2026-07-11
+阶段边界：未读取任何 Markdown；未修改 DUT RTL。
+
+测试源：audit-results/2026-07-11-rv64-ooo-blind/tb_fetch_ad_flush_partial.sv
+DUT：OooFetchAxiBridge
+
+实际输出：
+  BUG_REPRODUCED aw_accepted_then_flush state=0 awv=0 wv=0 br=0
+
+测试序列：
+  1. bridge 位于 S_AD_UPDATE，AWREADY=1、WREADY=0；
+  2. AW 单独 handshake，bridge 记 aw_done=1、w_done=0；
+  3. 下一拍 mmu_flush；
+  4. bridge 无条件回 S_IDLE，清 aw_done/w_done，并停止 AW/W/BREADY。
+
+判定：
+  [动态事实] bridge 会遗弃已经交给互连的 partial AXI write channel，注释所称“A 更新幂等，
+  flush 丢写不损正确性”没有处理 AW/W/B 三通道协议状态。AxiXbar 对 AW/W 各自 hold，必须凑齐
+  后才 grant；旧 AW 可能长期占用 master，或与下一次 A-update 的新 W 配对，继而造成 PTE
+  地址/数据错配或写通道停滞。
+
+RTL 链：
+  - OooFetchAxiBridge.v:548-559 允许 AW/W 独立 fire，S_AD_UPDATE 中分别记 done。
+  - OooFetchAxiBridge.v:561-590 的 rst||mmu_flush 分支只给 read 设置 S_DRAIN；write 直接清零。
+  - AxiXbar.v:221-238、383-445、527-572 独立 hold AW/W，直到两者组合并完成 B。
+
+证据边界：
+  本测试动态证明 bridge 的 partial-write 遗弃；与真实 xbar 的后果由 xbar RTL逐信号支持，
+  尚未做 bridge+xbar 的完整联测。backend drain 不包含 IFU bridge PTW 状态，而前端可以已有
+  younger outstanding fetch，因此 system/trap 的 mmu_flush 与 A-update 重叠未见结构性排除。

@@ -1,0 +1,413 @@
+RV64 OoO Core 阶段一代码盲审：后端拓扑、真实资源与风险
+日期：2026-07-11
+审计范围：npc/rv64 当前非 Markdown RTL；重点为 decode→rename/allocate/dispatch、整数/FP 调度、PRF/旁路、执行、写回、ROB/commit、恢复与精确异常。
+阶段边界：本文件只记录代码盲审结果；没有读取、搜索或引用任何 .md/.MD 内容，也没有读取 design 文档或 .github/task-runs。后续与文档对比必须由另一阶段完成。
+
+证据等级
+  [事实] RTL 直接决定，给出文件:行号。
+  [推断] 由多个 RTL 事实组合得到；仍给出推导链。
+  [待验证] 静态代码显示高风险或条件缺口，但需要定向仿真/综合确认可达性、工具行为或 PPA 数值。
+
+======================================================================
+一、结论摘要
+======================================================================
+
+1. [事实] 这是一个“名义 2-wide、实际资源不对称”的小窗口乱序核：默认 64 个整数物理寄存器、16 项 ROB、8 项整数 IQ；每拍最多 dispatch 2、整数 issue 2、writeback 2、commit 2。FP 有独立 64 项物理寄存器命名域和 8 项 IQ，但只有 1 条 FP issue 通道。默认参数见 npc/rv64/vsrc/include/define.v:21-41；2-wide dispatch/issue/commit 接口与实现见 npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v:26-195、npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:81-115、npc/rv64/vsrc/writeback/OooRob.v:282-305。
+
+2. [事实] 后端不是简单 ALU-only：已接入双 ALU、组合 Zba/Zbb/Zbs、单实例 radix-4/CLZ 整数 mul/div、单实例 64 拍 CLMUL、独立 FP rename/IQ/PRF、5 级吞吐型 FADD/FMUL/FMA、迭代 FP div/sqrt、4 项在飞内存队列、4 项主动 SQ、AMO/LR/SC、ROB-walk 分支恢复。主要结构实例见 npc/rv64/vsrc/execute/OooIntBackend.v:316-528、1783-1843、2470-2590、2680-2724。
+
+3. [事实] 精确提交的主框架是成立的：执行结果和 exception/cause/tval 先写 ROB，只有队头 done 才 commit；head0 异常禁止 head1 同拍提交；架构 GPR/FPR 写入都在 commit 且无异常时发生。证据见 npc/rv64/vsrc/writeback/OooRob.v:189-239、282-343，npc/rv64/vsrc/writeback/OooArchRegFile.v:36-61，npc/rv64/vsrc/execute/OooIntBackend.v:2580-2589。
+
+4. [事实] 分支误预测恢复不用完整 map checkpoint，而是 IQ 立即按 ROB age squash、ROB 每拍逆向 walk 2 项，还原 rename map 并回收 new pdest；full trap/serial flush 则把 map/free-list 重建为恒等映射，并从 committed 架构寄存器批量恢复 PRF。证据见 npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v:451-485，npc/rv64/vsrc/writeback/OooRob.v:240-267、376-432，npc/rv64/vsrc/rename_allocate/OooRenameMap.v:99-120，npc/rv64/vsrc/regread_bypass/OooPhysRegFile.v:76-98。
+
+5. [事实] 目前至少有三个“实现宣称强于真实语义”的关键缺口：
+   a) 普通 FENCE 被明确译为合法 no-op，没有形成内存序屏障，见 npc/rv64/vsrc/decode/DecodeUnit.v:781-786。
+   b) OP-FP/FMA 旁路只按 opcode 判支持，不做完整 FP 合法性检查；未识别 FP 编码可以从 IQ 消失而 ROB 永不 done，见 npc/rv64/vsrc/decode/OooAluDecodeBackend.v:250-308、369-389 与 npc/rv64/vsrc/execute/OooFpBackend.v:522-594、632-669、805-819。
+   c) plain store 在 probe 成功后可以先退休、后 drain；真实 drain 若返回 bus error 只打印告警，已经无法精确 trap，见 npc/rv64/vsrc/execute/OooIntBackend.v:2593-2659、2798-2804。
+
+6. [推断，高风险] MIQ 的“full+同拍 pop 借位”契约上下层不一致：父层允许 full 且 pop 时接受新请求，但 MIQ 自己仍以 !full 拒绝 push，可能造成已发出的内存请求没有元数据。父层见 npc/rv64/vsrc/execute/OooIntBackend.v:1210-1219、1940-1952；队列见 npc/rv64/vsrc/memory/OooMemInflightQueue.v:143-144、193-220。该条件若可达，会导致响应错配或死锁，优先级应为最高。
+
+7. [推断] 性能/PPA 的主要矛盾不是窗口太大，而是“小窗口却采用宽组合全扫描/全搬移”：整数 IQ 每拍对 8 项宽 payload 做 oldest-ready 扫描、wakeup CAM 和完整压缩；整数 PRF 是 64x64 的 5R2W 异步读寄存器阵列；FP PRF 是 4R2W；两个 lane 各复制一套大组合 bitmanip。证据见 npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:129-188、226-288、337-467，npc/rv64/vsrc/regread_bypass/OooPhysRegFile.v:34-98，npc/rv64/vsrc/regread_bypass/OooFpPhysRegFile.v:35-91，npc/rv64/vsrc/execute/OooIntBackend.v:705-758。
+
+======================================================================
+二、真实层次与数据流
+======================================================================
+
+2.1 活跃调用链
+
+  OooCoreTopGlue
+    → OooExecuteBackend
+      → OooAluCoreSlice
+        → OooAluDecodeBackend（双 DecodeStage + FP opcode 旁路）
+          → OooIntBackend
+            → OooDispatchBackend
+              → OooFreeList / OooRenameMap / OooBusyTable
+              → OooRob / OooIntIssueQueue
+            → OooPhysRegFile
+            → 双 ALU / 双组合 bitmanip / 单 MulDiv / 单 CLMUL
+            → LSU + MIQ + SQ
+            → OooFpBackend
+              → FP map/free/busy / OooFpIssueQueue / FP PRF
+              → FP arith pipeline / FP div-sqrt / comb gates / done FIFO
+            → 两口全局 writeback arbiter
+        → OooArchRegFile（commit 后架构 GPR）
+
+  [事实] 顶层到 execute wrapper 的实例链见 npc/rv64/vsrc/core/OooCoreTopGlue.v:595-601；execute wrapper 到 slice 见 npc/rv64/vsrc/execute/OooExecuteBackend.v:143-149；slice 到 decode/backend 见 npc/rv64/vsrc/execute/OooAluCoreSlice.v:145；decode adapter 到 IntBackend 见 npc/rv64/vsrc/decode/OooAluDecodeBackend.v:391-521。
+
+2.2 指令主路径
+
+  [事实] 每条整数指令由 DecodeStage 组合地产生 51-bit ctrl、rs1/rs2/rd 和立即数；双 lane 各有一套 DecodeStage。npc/rv64/vsrc/decode/DecodeStage.v:3-24；npc/rv64/vsrc/decode/OooAluDecodeBackend.v:124-152。
+
+  [事实] dispatch 同拍完成：资源准入 → free-list 取新 pdest → map 读源/old pdest → busy 查询源 ready → ROB/IQ 入队。lane1 的 rename 读取能看到 lane0 同拍新映射，正确覆盖 RAW/WAW。npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v:248-360；npc/rv64/vsrc/rename_allocate/OooRenameMap.v:61-97。
+
+  [事实] 整数 IQ 已删除 dispatch→issue 同拍 bypass；dispatch 项最早下一拍参与 select。npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:222-288、293-331。
+
+  [事实] 普通整数/bitmanip 在 issue 拍组合计算，进入 1 拍 EX→WB PipeStageReg；下一拍经两口 writeback 写 PRF、wakeup IQ、标 ROB done。npc/rv64/vsrc/execute/OooIntBackend.v:660-776、1116-1181、1997-2051、2317-2387。
+
+  [事实] ROB 对队头支持同拍 writeback→commit 前视，因此刚到 WB 的队头可直接退休，无需先写 done_q 再等一拍。npc/rv64/vsrc/writeback/OooRob.v:189-239、282-293。
+
+======================================================================
+三、真实容量、宽度、端口和吞吐
+======================================================================
+
+3.1 默认结构参数
+
+  整数物理寄存器：64（地址 6 bit）；架构映射 32；初始 free=32。
+    证据：npc/rv64/vsrc/include/define.v:21-29；npc/rv64/vsrc/rename_allocate/OooFreeList.v:36-43、93-104。
+
+  ROB：16 项（index 4 bit，count 5 bit）。
+    证据：npc/rv64/vsrc/include/define.v:30-35；npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v:238-246。
+
+  整数 IQ：8 项（index 3 bit，count 4 bit）。
+    证据：npc/rv64/vsrc/include/define.v:36-41；npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v:241-246、597-603。
+
+  FP 物理寄存器：64，FP free 初始 32；FP IQ 8 项。
+    证据：npc/rv64/vsrc/execute/OooFpBackend.v:195-275、375-397、425-429；npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:92-114。
+
+  SQ：active 默认模式下 4 项；MIQ：4 项；FP done FIFO：8 项。
+    证据：npc/rv64/vsrc/include/define.v:584-589；npc/rv64/vsrc/execute/OooIntBackend.v:882-909、969-978；npc/rv64/vsrc/execute/OooFpBackend.v:853-866。
+
+3.2 端口/峰值
+
+  Decode：2/cycle；rename/ROB allocate：2/cycle；整数 IQ enqueue：2/cycle。
+    证据：npc/rv64/vsrc/decode/OooAluDecodeBackend.v:136-152；npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v:258-336。
+
+  Integer issue：最多 2/cycle；两个 lane 均有 ALU、compare、组合 bitmanip。
+    证据：npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:238-278；npc/rv64/vsrc/execute/OooIntBackend.v:691-758。
+
+  PRF：整数 5R2W（4 个整数源读 + 1 个 FP 跨域 GPR 读），FP 4R2W（3 个算术源 + 1 个 store 数据读）。两者都有同拍写回旁路。
+    证据：npc/rv64/vsrc/regread_bypass/OooPhysRegFile.v:3-31、37-74；npc/rv64/vsrc/regread_bypass/OooFpPhysRegFile.v:3-32、38-68。
+
+  全局 writeback：2/cycle。每口优先级大体为本 lane EX > memory response > muldiv > clmul > FP done；FP 最低优先且有 backpressure。
+    证据：npc/rv64/vsrc/execute/OooIntBackend.v:2258-2286、2317-2384。
+
+  Commit：最多 2/cycle；commit1 必须伴随 commit0，且 head0 exception、外部 block、CSR 单发条件都会禁 commit1。
+    证据：npc/rv64/vsrc/writeback/OooRob.v:282-294、315-343。
+
+3.3 执行资源和延迟
+
+  双普通 ALU/双组合 bitmanip：1 拍 EX→WB，峰值 2/cycle。
+    证据：npc/rv64/vsrc/execute/OooIntBackend.v:705-758、1134-1164。
+
+  整数 MUL/DIV：全核单实例、单在飞；radix-4 每拍处理 2 bit，乘法与除法都用 CLZ/零值早退出，非特殊最坏约 32 个 RUN 拍，响应还可能等待 WB 槽。
+    证据：npc/rv64/vsrc/execute/OooMulDivUnit.v:31-62、126-203、247-252、285-359。
+
+  CLMUL/CLMULH/CLMULR：全核单实例、单在飞、固定 64 次迭代，之后等待 WB。
+    证据：npc/rv64/vsrc/execute/OooClmulUnit.v:30-64、77-81、102-148。
+
+  FP IQ：2 enqueue/cycle、1 issue/cycle，oldest-ready。
+    证据：npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:190-233、318-377。
+
+  FP add/sub/mul/FMA：统一 5 级 meta，对齐到 5 拍输出；可每拍 launch 1 条。
+    证据：npc/rv64/vsrc/execute/OooFpArithGate.v:1397-1408、1432-1491；npc/rv64/vsrc/execute/OooFpBackend.v:612-644。
+
+  FP compare/minmax/sgnj/class/move/convert：组合计算后进单个 1-entry PipeStageReg；最多 1 条在飞，且 completion 仲裁中低于 arith。
+    证据：npc/rv64/vsrc/execute/OooFpBackend.v:584-594、708-819、821-851。
+
+  FP div/sqrt：尽管内部各有迭代器，父层用一个 long_meta 且要求 div/sqrt 都不 busy，所以全局只允许一个 long op；两个迭代器默认都做 56 步，约 56 拍加收尾。
+    证据：npc/rv64/vsrc/execute/OooFpBackend.v:577-593、646-705；npc/rv64/vsrc/execute/OooFpDivIter.v:6-10、33-76；npc/rv64/vsrc/execute/OooFpSqrtIter.v:6-9、31-75。
+
+  Memory issue：IQ 可把 memory 放在任一 issue lane，但真实请求 mux 只有 1 口；issue1 memory 只有在 issue0 非 memory/exception 时才能走主口，因此峰值 1 memory request/cycle。
+    证据：npc/rv64/vsrc/execute/OooIntBackend.v:1600-1626、1672-1686、1862-1908。
+
+======================================================================
+四、Rename / Free-list / Busy-table 的正确性与代价
+======================================================================
+
+4.1 优点
+
+  [事实] lane1 源和 old pdest 对 lane0 同拍写有前视，双发 RAW/WAW 语义正确；lane1 最年轻，时序写 map 时 lane1 覆盖 lane0。npc/rv64/vsrc/rename_allocate/OooRenameMap.v:61-97、99-120。
+
+  [事实] busy query 同时考虑同拍 alloc 和两个 wakeup：alloc 优先判 not-ready，避免物理寄存器同拍复用被旧 wakeup 误唤醒。npc/rv64/vsrc/rename_allocate/OooBusyTable.v:45-99、101-119。
+
+  [事实] free-list 支持 2 alloc + 2 free，同拍先算 alloc 后允许 push；alloc1 把 head/head+1 并行读后做浅 mux。npc/rv64/vsrc/rename_allocate/OooFreeList.v:45-91、93-118。
+
+  [事实] full flush 能从架构 GPR/FPR 重建 speculative PRF，避免为每个 trap 保存完整 rename checkpoint。npc/rv64/vsrc/regread_bypass/OooPhysRegFile.v:81-89；npc/rv64/vsrc/regread_bypass/OooFpPhysRegFile.v:75-81。
+
+4.2 局限和关键路径
+
+  [推断] dispatch 组合锥同时包含 ROB/IQ/SQ/free 容量判断、free-list 异步读、rename map 多读口、busy 查询和 FP ready 交叉门；这会形成高扇出/多模块组合路径。证据链：npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v:248-360、362-449；npc/rv64/vsrc/execute/OooIntBackend.v:215-289。
+
+  [事实] 所有 map/busy/free/PRF 数组都带逐项同步 reset/flush 循环；在 ASIC/FPGA 上会妨碍 SRAM inference，并制造大 reset/flush 扇出和 mux。npc/rv64/vsrc/rename_allocate/OooFreeList.v:93-104；npc/rv64/vsrc/rename_allocate/OooRenameMap.v:99-103；npc/rv64/vsrc/rename_allocate/OooBusyTable.v:101-105；npc/rv64/vsrc/regread_bypass/OooPhysRegFile.v:76-89。
+
+  [事实] 容量参数并未贯穿到底：IntBackend 的 EX payload 固定 144 bit，并把 ROB/pdest 硬切为 4/6 bit；FpBackend 的 exec payload 固定 81 bit，也硬切 4/6 bit。修改 ROB_INDEX_W 或 PHY_REG_ADDR_W 会产生 padding/truncation，而不是安全参数化。
+    证据：npc/rv64/vsrc/execute/OooIntBackend.v:1116-1181；npc/rv64/vsrc/execute/OooFpBackend.v:787-819。
+
+======================================================================
+五、整数 IQ 的真实调度约束
+======================================================================
+
+5.1 一般调度
+
+  [事实] 队列始终按程序序紧凑存放，但允许扫描跳过未 ready 的非 memory 项；issue0 取最老 ready，issue1 取其后第一个满足附加资源限制的 ready 项。npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:226-288。
+
+  [事实] wakeup→select 同拍直通，消费者可在生产者 WB 的同拍 issue；但新 dispatch 不可同拍 issue。npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:244-261、285-295。
+
+  [事实] 每拍 issue 后，所有幸存项被组合压缩并重写整套 payload，再把最多两个 dispatch 项追加到尾部。npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:337-467。
+
+5.2 Memory 次序限制
+
+  [事实] load 若前面仍有任何 store IQ entry 就被挡；store 若前面有任何 valid IQ entry 就被挡。npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:231-248、280-283。
+
+  [事实] issue1 永不选择 store；若 issue0 是 memory，issue1 只有在两者都是 load 时才可能被 IQ 选中，但下游单 memory 口最终仍不允许两条都发请求。npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:269-275；npc/rv64/vsrc/execute/OooIntBackend.v:1618-1626。
+
+  [推断] active SQ 已让 plain store 的 issue 仅做无副作用 probe，本可更激进地越过无关旧 ALU；但 IQ 仍要求 store 是队列最老 valid，限制了 SQ 带来的 store-address/data 并行度。
+
+  [事实] Sv39 开启时 SQ 保存 PA、待发 load 只有 VA，代码选择对所有更老 SQ store 保守 blind block；禁用了地址不相关 load 的消歧和 forwarding。npc/rv64/vsrc/execute/OooIntBackend.v:1271-1315、1390-1452。
+
+  [事实] FP load 明确不使用 SQ forwarding，即便全覆盖命中也等待 store drain。npc/rv64/vsrc/execute/OooIntBackend.v:1455-1464。
+
+5.3 PPA/时序判断
+
+  [推断] 8 项队列虽然不大，但每项携带 PC/nextPC/predNPC/inst/51-bit ctrl/ROB id/多个 preg/imm/BPU/FP store 字段。全项扫描 + 四类 wakeup compare + memory order prefix + 全 payload compaction，是后端最明显的组合面积、切换功耗和关键路径热点之一。证据：npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:129-188、226-288、337-467。
+
+  [建议] 若做架构重构，优先考虑不搬移的稀疏 IQ（valid bitmap + age tag/ROB age）、分 bank/按 FU class 分队列、select 与 payload read 分级；这比单纯缩深度更能降低 mux/CAM 锥。
+
+======================================================================
+六、执行、旁路与写回
+======================================================================
+
+6.1 做得好的部分
+
+  [事实] PRF read 有两写口旁路，write1 优先；BusyTable/IQ 也对同拍 wakeup 前视，形成完整的 WB→ready→issue→PRF data 闭环。npc/rv64/vsrc/regread_bypass/OooPhysRegFile.v:37-74；npc/rv64/vsrc/rename_allocate/OooBusyTable.v:50-99；npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:201-211、244-261。
+
+  [事实] integer mul/div 对除零、有符号 overflow、word sign-extension 做了专门处理；radix-4 和 CLZ 早退在面积可控前提下降低常见延迟。npc/rv64/vsrc/execute/OooMulDivUnit.v:78-124、158-203、285-355。
+
+  [事实] FP add/mul/FMA 已真正切成多级流水，不再是单拍巨组合；结果统一对齐到 5 级 meta。npc/rv64/vsrc/execute/OooFpArithGate.v:1397-1491。
+
+  [事实] writeback 对 mem/muldiv/clmul/FP 都能反压，长延迟结果不会因为 WB 口被普通 ALU 占用而直接丢失。npc/rv64/vsrc/execute/OooIntBackend.v:2265-2315。
+
+6.2 限制
+
+  [推断] 全局 WB 仲裁是固定优先级，持续双 ALU 流可暂时饿住 mem/muldiv/clmul/FP；最终 ROB/IQ 压力通常会打断双 ALU 流，所以更像“有界但延迟抖动大”而不是永久 starvation。证据：npc/rv64/vsrc/execute/OooIntBackend.v:2265-2286、2317-2384。
+
+  [推断] 两套 64x64 多端口异步 PRF 以寄存器阵列描述，且双 ALU/双 bitmanip 全复制，面积和动态功耗会显著高于小窗口本身；FP arith 同时保留 single/double 两套数据通路并逐拍推进，也会有较高切换功耗。证据：npc/rv64/vsrc/regread_bypass/OooPhysRegFile.v:34-98；npc/rv64/vsrc/regread_bypass/OooFpPhysRegFile.v:35-91；npc/rv64/vsrc/execute/OooFpArithGate.v:62-95、1397-1476。
+
+  [事实] FP completion FIFO 物理深 8，但为了给最多 5 个已在 arith pipeline 的结果预留空间，只有 count<=2 才继续 issue；global FP WB 被压住时会较早停止整个 FP issue。npc/rv64/vsrc/execute/OooFpBackend.v:569-594、853-919。
+
+  [事实] wrong-path FP div/sqrt 被 kill 时父层只清 long_meta，不向迭代器发 kill/flush；迭代器会继续 busy 到约 56 步结束，在此期间新的 long op 仍被 long_busy_any 阻塞。npc/rv64/vsrc/execute/OooFpBackend.v:577-593、653-705；npc/rv64/vsrc/execute/OooFpDivIter.v:44-79；npc/rv64/vsrc/execute/OooFpSqrtIter.v:46-78。
+
+======================================================================
+七、FP 支持面与关键缺口
+======================================================================
+
+7.1 已实现
+
+  [事实] FLW/FLD/FSW/FSD；FADD/FSUB/FMUL/FDIV/FSQRT；四种 FMA；FSGNJ；FMIN/FMAX；比较；FCLASS；S/D 与 int 的转换；S↔D；FMV 跨域。分类入口见 npc/rv64/vsrc/execute/OooFpBackend.v:507-560。
+
+  [事实] FLW 被 NaN-box；FPR 有独立 rename/free/busy/PRF 和 committed 架构文件；FP 结果/fflags 随 ROB 精确提交。npc/rv64/vsrc/execute/OooFpBackend.v:145-168、170-397；npc/rv64/vsrc/execute/OooIntBackend.v:2287-2303、2474-2589。
+
+  [事实] 双 lane 都可 dispatch FP 算术/FP load，FP IQ 支持双 enqueue；旧的“FP 只走 lane0”限制已经不符合当前代码。npc/rv64/vsrc/decode/OooAluDecodeBackend.v:279-308、369-381；npc/rv64/vsrc/execute/OooFpBackend.v:66-97、416-478。
+
+7.2 严重合法性缺口
+
+  [事实] OooAluDecodeBackend 对任何 OP-FP opcode、任意四个 FMA opcode 都直接标 d*_is_fp，不再采用 DecodeUnit 的 illegal 结果；FMA fmt 只有 01 被当 double，其余全部落到 single，没有 reserved fmt 检查。npc/rv64/vsrc/decode/OooAluDecodeBackend.v:250-269、279-308、350-389。
+
+  [事实] FpBackend 只识别有限 funct7 列表，但 issue_ready 不要求“recognized”；未知 FP uop 仍可 issue_fire。实际 completion launch 仅发生在 op_arith/op_long/issue_is_comb 三类，未知编码不进入任何一类。npc/rv64/vsrc/execute/OooFpBackend.v:522-594、632-669、805-831。
+
+  [推断，严重] 未识别 OP-FP/FMA 编码会从 FP IQ 删除（issue_fire），但没有任何完成源给对应 ROB entry 置 done，最终 ROB 队头死锁，而不是抛 illegal instruction。IQ 删除证据：npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:208-221、318-320。
+
+  [事实] reserved rounding mode 101/110 没有 illegal 检查；eff_rm 直接选 inst.rm 或 frm，而共享 round helper 的 default 把非法值按 RNE 处理。npc/rv64/vsrc/execute/OooFpBackend.v:522-525；npc/rv64/vsrc/execute/OooFpRound.v:8-23。
+
+  [建议] 必须在 FP 旁路 decode 处生成“完整合法性”而不是 opcode 白名单：funct7、fmt、rs2 固定域、rm/frm、funct3、扩展可用性都要验证；非法 FP 应走与普通 illegal 相同的精确 trap 路径。并为 FP backend 加 recognized/default-done assertion，禁止 issue_fire && !recognized。
+
+======================================================================
+八、Memory/SQ/AMO 与精确异常
+======================================================================
+
+8.1 已实现的数据流
+
+  [事实] active SQ 模式下，plain store dispatch 即占 SQ；issue 时发 translation/PMP probe，不产生写副作用；probe 成功把 PA/data/strb 填入 SQ并通过 WB 标 ROB done；ROB commit 标 committed；只有 committed 队头随后以 pretrans+nokill drain 真正写内存。npc/rv64/vsrc/execute/OooIntBackend.v:882-909、1895-1938、2258-2312、2593-2724。
+
+  [事实] load 可检查更老 SQ；Bare/PA 模式下支持区间全覆盖 forwarding，选最年轻的更老重叠 store；Sv39、MMIO、地址未知时保守等待。npc/rv64/vsrc/execute/OooIntBackend.v:1271-1452。
+
+  [事实] AMO/LR/SC 是 LEGACY 独占族，要求 ROB head/内存序与 SQ quiet；AMO read fault 不进入 write phase；LR reservation 在响应时建立，SC 过早失败会被挡到队头重新评估。npc/rv64/vsrc/execute/OooIntBackend.v:1083-1103、1202-1219、1564-1643、2092-2215。
+
+  [事实] plain LOAD/PROBE/DRAIN 用 4 项 MIQ 顺序配对响应；mispredict 将年轻 LOAD/PROBE 标 killed，迟到响应静默丢弃；full flush 只保留 nokill DRAIN。npc/rv64/vsrc/memory/OooMemInflightQueue.v:3-20、129-140、164-233。
+
+8.2 异常路径
+
+  [事实] AMO 自然不对齐直接在 EX 生成 load/store misalign；Sv39 下 plain misaligned 跨 4KiB 页也被保守 trap，页内 misaligned 仍由硬件支持。npc/rv64/vsrc/execute/OooIntBackend.v:1050-1082、1997-2051。
+
+  [事实] load/probe/AMO 响应的 access/page fault 被编码成 cause/tval 并写 ROB；probe fault 不填 SQ，fault store 不会被 commit 标 committed。npc/rv64/vsrc/execute/OooIntBackend.v:2258-2312、2339-2384、2644-2659。
+
+  [事实] ROB 队头异常 commit 时 head1 被禁止，架构 RF 不写，CSR trap mux取 commit PC/cause/tval，随后 core trap flush 清 speculative 状态。npc/rv64/vsrc/writeback/OooRob.v:282-293；npc/rv64/vsrc/writeback/OooArchRegFile.v:36-43；npc/rv64/vsrc/control/OooCsrTrapRequestMux.v:60-72；npc/rv64/vsrc/control/OooCoreSliceControlGate.v:39-46。
+
+8.3 未完成/受限部分
+
+  [事实，严重] 普通 FENCE 没有 memory barrier 语义，只是普通 need_exec no-op；它既不等待 SQ drain，也不阻止 younger memory issue。npc/rv64/vsrc/decode/DecodeUnit.v:781-786；IQ 只把 LOAD/STORE 当 memory，见 npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:214-219、239-248。
+
+  [事实] fence.i 不是同一问题：默认宏打开后，它被当 SYSTEM 序列化并触发真正 flush。npc/rv64/vsrc/include/define.v:650-653；npc/rv64/vsrc/decode/DecodeUnit.v:787-801。
+
+  [事实，严重] retired store 的 drain bus error 无法精确上报；代码只做 $display 并仍释放 SQ entry。npc/rv64/vsrc/execute/OooIntBackend.v:2665-2677、2798-2804。translation/PMP fault 已由 probe 前置，但最终 slave/总线错误仍是缺口。
+
+  [事实] active SQ 深度只有 4，远小于 16-entry ROB；store-heavy workload 很容易让 dispatch 被 SQ 先行反压。npc/rv64/vsrc/execute/OooIntBackend.v:882-909；npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v:261-283、314-322。
+
+  [事实] aq/rl 没有独立控制位或调度语义；DecodeUnit 只看 AMO funct5/funct3。npc/rv64/vsrc/decode/DecodeUnit.v:359-425。当前 AMO 被队头+独占+SQ quiet 强序列化，通常比 aq/rl 要求更强，正确性偏保守、性能偏差。
+
+======================================================================
+九、ROB、Commit、Flush/Recovery
+======================================================================
+
+9.1 ROB/commit 优点
+
+  [事实] ROB 保存 pc/next_pc/inst、arch rd、old/new pdest、data、exception/cause/tval、FP rd/fflags，能支撑精确双提交和 rename 恢复。npc/rv64/vsrc/writeback/OooRob.v:125-144。
+
+  [事实] writeback 在恢复期仍会被更老存活项吸收，被 walk 到的年轻项随后清 valid/done，避免恢复期间丢失老指令完成。npc/rv64/vsrc/writeback/OooRob.v:376-410。
+
+  [事实] mispredict kill 当拍冻结 ROB dispatch/commit；ROB walk 从 tail-1 向后每拍 2 项，恢复 map[arch]=old_pdest 并 free new_pdest；同拍 WAW 时更老 walk lane 最终覆盖。npc/rv64/vsrc/writeback/OooRob.v:240-267、376-432；npc/rv64/vsrc/rename_allocate/OooRenameMap.v:104-111。
+
+9.2 恢复代价/风险
+
+  [推断] 最坏 15 个 younger entries 需要约 8 个 walk 拍，另有 mispredict→kill 寄存 1 拍和启动拍；恢复期间 dispatch/commit/issue 冻结。因此误预测代价随错误路径占用线性增长，换来不维护多 checkpoint 的较小状态成本。kill 寄存见 npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v:455-469；2/walk 见 npc/rv64/vsrc/writeback/OooRob.v:248-267、376-410。
+
+  [事实] IQ/SQ/MIQ/长执行器用 branch resolve 的即时 kill，而 ROB/IQ 主恢复使用打一拍后的 kill，代码依赖精细的“即时标 killed + 次拍 walk”契约。npc/rv64/vsrc/execute/OooIntBackend.v:1007-1029、1783-1831、2481-2488、2661-2689；npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v:455-469。
+
+  [事实] ROB 功能逻辑的 WB 命中条件只有 valid[rob_idx]，没有把 pdest/generation 纳入真正的写入门控；pdest 一致性只在 OOO_ASSERT 下报错。npc/rv64/vsrc/writeback/OooRob.v:381-395、414-458、512-527。
+
+  [推断] 因此任何漏 kill 的长延迟生产者都可能在 ROB index 复用后污染新 entry；FPR/no-rd 的 WB 常携 pdest=0，又会绕开当前 assertion。正确性高度依赖每类生产者的 kill 完整性。
+
+======================================================================
+十、优先级最高的代码问题/待验证项
+======================================================================
+
+B01  MIQ full+pop 借位契约不一致
+  等级：[推断，可能功能错误，最高优先]
+  事实 A：父层把 (!miq_full || miq_pop) 当作 slot open，可在 full 且响应 pop 同拍发新请求。npc/rv64/vsrc/execute/OooIntBackend.v:1210-1219。
+  事实 B：新请求 fire 后无条件生成 miq_push_valid。npc/rv64/vsrc/execute/OooIntBackend.v:1940-1952。
+  事实 C：MIQ 内部 push_fire 却要求 !full_o，没有把 pop_fire 计入 ready；full+pop 时 push 被丢，只执行 count-1。npc/rv64/vsrc/memory/OooMemInflightQueue.v:143-144、193-220。
+  后果推断：桥已经接收请求而 MIQ 未记录，随后响应会匹配错误 head 或在空队列下无人接收。
+  定向验证：强制 MIQ count=4、head rsp valid/ready、同拍新 load req fire；检查 push 后 count 应保持 4且新 tail metadata 存在。
+  修向：MIQ push_ready 应为 !full || pop_fire，并对 full+pop 的同址 head/tail 写优先次序做断言。
+
+B02  未识别 FP 编码被当支持，可能永远卡 ROB
+  等级：[推断，功能错误，最高优先]
+  推导详见第七节。建议最小测试：任取未实现 OP-FP funct7、reserved FMA fmt、rm=101/110；期望 illegal trap，观察当前是否 ROB head 永不 done或错误执行成 single/RNE。
+
+B03  FENCE 是 no-op，不满足 RVWMO 屏障
+  等级：[事实，功能缺失，高]
+  证据：npc/rv64/vsrc/decode/DecodeUnit.v:781-786；npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:214-219。
+  定向验证：older store 到地址 A 尚在 SQ 未 drain，FENCE rw,rw，younger load 地址 B；检查 younger load 是否可在 store 全局可见前请求。
+
+B04  store drain bus error 非精确
+  等级：[事实，功能缺失，高]
+  证据：npc/rv64/vsrc/execute/OooIntBackend.v:2798-2804。
+  建议：要么 probe 阶段完成能够确定最终 slave 响应的权限/映射检查，要么 store 不得在真实写响应前架构退休；后者需要 ROB/SQ 的 two-phase commit 设计。
+
+B05  CLMUL kill helper 仍引用函数外模块信号
+  等级：[待验证，仿真器相关高风险]
+  事实：OooClmulUnit 的 clmul_killed 函数只把 idx 作为形参，却在函数体直接读取 kill_valid_i/kill_rob_idx_i/rob_head_idx_i；连续赋值只显式传 idx。npc/rv64/vsrc/execute/OooClmulUnit.v:66-75。
+  旁证：同工程 OooMulDivUnit 明确说明这种 hidden dependency 在 Icarus 下不进入敏感集，并已改成显式 wire。npc/rv64/vsrc/execute/OooMulDivUnit.v:234-245。
+  风险：CLMUL 在 STATE_RESP/RUN 时可能漏看只跳变一个周期的 kill，产生迟到 WB 撞复用 ROB/preg。
+  修向：像 MulDiv 一样把三个 kill 信号全部写进显式 wire 表达式；FP arith 的 fp_meta_killed 连续输出门也应做同族审计，见 npc/rv64/vsrc/execute/OooFpArithGate.v:1410-1416、1479-1491。
+
+B06  wrong-path FP long op 不取消，恢复后仍占资源约 56 拍
+  等级：[事实，性能高]
+  证据：npc/rv64/vsrc/execute/OooFpBackend.v:577-593、700-704；两个 iter 仅接 flush，无 kill，见 npc/rv64/vsrc/execute/OooFpDivIter.v:12-19、44-79 和 npc/rv64/vsrc/execute/OooFpSqrtIter.v:11-18、46-78。
+
+B07  双控制流同拍只导出一条 resolve/BPU update
+  等级：[推断，性能/可观测性中]
+  事实：两个整数 issue lane 都能发 control flow，但 resolve 输出只有一套，pick1 优先“唯一/最老 mispredict”，两条都预测正确时默认取 issue0。npc/rv64/vsrc/execute/OooIntBackend.v:1697-1756、2388-2426。
+  后果：issue1 的正确条件分支训练可能丢失；若 issue0 是正确 JAL/JALR、issue1 是正确 branch，甚至该拍不训练方向表。
+  修向：功能 redirect 保持单仲裁，但 BPU training 应有双口或小队列，至少保存第二条正确 branch 更新。
+
+B08  d0=FP arithmetic、d1=integer 时 IQ 剩 1 槽会假性双发停顿
+  等级：[推断，性能低到中]
+  事实：pair ready 对 d1 是否需要 IQ 只检查 dispatch1_fp_arith，不扣除 d0_fp_arith 不占整数 IQ 的事实。npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v:279-283、314-322。
+  条件：integer IQ count=7，lane0 纯 FP arithmetic，lane1 integer。真实只需 1 个 IQ 槽，但 iq_pair_ready=false 且 d1_fp_arith=false，整对被挡。
+
+B09  参数化接口与固定 payload 位段冲突
+  等级：[事实，维护性/配置正确性高]
+  证据：npc/rv64/vsrc/execute/OooIntBackend.v:1116-1181；npc/rv64/vsrc/execute/OooFpBackend.v:787-819。
+  后果：外部覆盖 ROB/PRF 位宽可能静默截断，不应把这些参数视为已支持配置。
+
+B10  固定优先 WB 的完成延迟抖动与 FP backpressure
+  等级：[推断，性能中]
+  证据：npc/rv64/vsrc/execute/OooIntBackend.v:2265-2286、2317-2384；npc/rv64/vsrc/execute/OooFpBackend.v:569-594。
+  建议：为 long/mem/FP completion 设 age/fairness 或独立 completion queue，再统一写 ROB/PRF；至少统计最大等待拍数。
+
+======================================================================
+十一、实现与未实现/受限清单
+======================================================================
+
+已实现（代码事实）
+  - RV64 基础整数、word ops、M、A；Zba/Zbb/Zbs 组合路径与 Zbc CLMUL 迭代路径。
+    Decode/执行证据：npc/rv64/vsrc/decode/DecodeUnit.v:428-708；npc/rv64/vsrc/execute/OooBitmanipGate.v:230-344；npc/rv64/vsrc/execute/OooClmulUnit.v:30-156。
+  - S/D 浮点算术、FMA、转换、比较、分类、move、FP load/store；独立 FP rename 与精确 fflags commit。
+    证据：npc/rv64/vsrc/execute/OooFpBackend.v:145-397、507-560、612-919。
+  - 双发 rename、双整数 issue、双 WB、双 commit；同拍 WB→issue 与 WB→commit 前视。
+  - 16-entry ROB 精确提交；branch mispredict ROB-walk；trap full flush 架构态恢复。
+  - 4-entry SQ speculative probe + retire drain；4-entry MIQ；部分 store-to-load forwarding。
+  - AMO/LR/SC、misaligned handling、load/store page/access fault 精确进入 ROB。
+
+未实现或受限（代码事实/推断）
+  - 普通 FENCE 的顺序语义未实现；当前是 no-op。
+  - FP 完整合法性检查未实现；reserved funct/fmt/rm 处理不合规，未知指令可能 hang。
+  - store 真正 drain 的 late bus error 无法精确 trap。
+  - 没有真正的 load queue、内存依赖预测、violation detection/replay；依靠 IQ/SQ 保守阻塞。
+  - Sv39 下 VA/PA 别名问题通过 blind wait 解决，牺牲 load ILP；FP load 无 SQ forwarding。
+  - 一拍最多一个 memory request；AMO/FP long/CLMUL 都是单在飞。
+  - FP 虽双 dispatch，但单 issue；FP div/sqrt 固定约 56 步且 wrong-path 不早停。
+  - ROB/SQ/MIQ/IQ 都很浅，store-heavy 最先撞 4-entry SQ，FP-heavy 最先撞 single issue/global WB。
+  - 容量参数并非端到端可覆盖，EX payload 硬编码默认 4-bit ROB/6-bit preg。
+  - Vector、half/quad FP 等在本后端没有实现迹象；任何这类 opcode 不应被视为支持。
+
+======================================================================
+十二、总体优缺点评估
+======================================================================
+
+优点
+  1. 小而完整：rename、物理寄存器、IQ、ROB、精确 commit、mispredict recovery、FP 独立命名域都已闭环，不是顺序核套接口。
+  2. 恢复语义有实质设计：ROB-walk 同时恢复 int/FP map、free-list、IQ/SQ/MIQ 与长执行器，且保留恢复期老指令 WB。
+  3. memory 从“store 队头真写”推进到 probe→SQ→retire drain，并有部分 forwarding、MMIO/AMO 保守独占，方向正确。
+  4. 长算术没有用单拍 /、%、CLMUL/FMA 巨组合硬顶时序；integer radix-4/CLZ、FP 多级流水是合理的 PPA 取舍。
+  5. 精确异常 payload（cause/tval）贯穿 EX/memory→WB→ROB→CSR trap；架构 RF 在异常 commit 时明确不写。
+
+缺点
+  1. “2-wide”在 memory/FP/long-op 上大量退化为 1-wide；小 ROB/IQ/SQ 很难隐藏 32/56/64 拍长延迟。
+  2. 调度结构 PPA 粗重：整数 IQ 全压缩、PRF 多端口异步寄存器阵列、双大组合 bitmanip、wide combinational ready/wakeup 网络。
+  3. memory 顺序策略两头都偏：普通 load/store 为保正确性很保守，但 FENCE 又完全缺失；store late bus error 则牺牲精确性换吞吐。
+  4. FP backend 支持面扩展很快，但 decode 合法性/默认失败路径没有同步补齐，形成“合法指令能跑，非法编码会卡死/错算”的系统性洞。
+  5. 固定优先 completion 和未取消 wrong-path FP long op会放大长尾延迟。
+  6. 参数化外观强于真实参数化，默认宽度之外存在静默截断风险。
+
+======================================================================
+十三、建议的下一步验证（不属于本次盲审已执行证据）
+======================================================================
+
+P0 正确性
+  - MIQ-FULL-POP-PUSH：4 项满、pop+push 同拍，逐项检查请求/响应身份守恒。
+  - FP-ILLEGAL-MATRIX：未知 funct7、FMA reserved fmt、rm=101/110、DYN+非法 frm，必须 precise illegal，不得 hang。
+  - FENCE-LITMUS：SB/MP 类 litmus，加 SQ 未 drain 窗口，验证 pred/succ mask 和 rw ordering。
+  - STORE-LATE-ERR：让 probe 成功、真实 drain 返回 SLVERR，明确架构策略；当前代码只能暴露限制。
+  - CLMUL-KILL：RUN/RESP 各相位单拍 kill，Icarus 与 Verilator 对拍，确认 no stale WB。
+
+P1 性能/时序
+  - 统计 int IQ select/compact、dispatch ready、PRF async read+bypass、SQ/MIQ CAM、WB arbiter 的综合关键路径。
+  - 采集 ROB/IQ/SQ/MIQ occupancy、双 issue 利用率、memory issue、WB source wait、FP done FIFO count、long-op killed-busy 周期。
+  - 对比稀疏 IQ、不借 full+pop、WB completion queue、8-entry SQ、FP dual-issue 等单变量实验。
+
+静态盲审完成状态
+  - 已覆盖：decode、FP bypass decode、rename/free/busy、int/FP IQ、int/FP PRF/旁路、ALU/bitmanip/muldiv/clmul、FP 执行、memory/SQ/MIQ、writeback arbitration、ROB/commit、异常和两类 recovery。
+  - 未执行动态测试或综合；所有“待验证”均已明确标注。
+  - 本阶段未读取任何 Markdown 内容；因此本文件不包含“与文档相比哪些结论过时”的结论。
