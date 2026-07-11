@@ -591,7 +591,9 @@ module OooMemAxiBridge (
   //    (免费 skid, 部分抵消 +1 拍 CPI), advance 由 state 门天然挡住。
   // ③ rmw_busy 退出 ready(迁入 stage_advance): RMW 判决拍请求可进站, lookup/rsp
   //    推迟——bubble 数不变, 观察点从 ready 压制变寄存站保持。
-  assign mem0_req_ready_o = !flush_i && (!stg_valid_q || stage_advance_w);
+  // 【mmu_flush 打拍配套】mmu_flush 拍同样压 ready(复位分支吞 fire 请求防悬空)
+  assign mem0_req_ready_o = !flush_i && !mmu_flush_i &&
+                            (!stg_valid_q || stage_advance_w);
 
   // 刀D 融合拍: hit 拍组合交付 rsp(payload 与现行锁存表达式同源); 反压/kill 拍
   // 融合关闭走落寄存 S_RESP 路径(天然 skid)。

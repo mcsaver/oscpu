@@ -512,9 +512,12 @@ module OooFetchAxiBridge (
   // (该拍即新 fire 拍)——hit 流恢复 1 包/拍。miss/fault 拍 ready=0, walk/AXI 路径不变;
   // rsp 不 ready 时走落寄存进 S_RESP 的既有路径(S_RESP=天然 skid)。
   wire lookup_hit_resp_w = (state_q == S_LOOKUP) && cache_hit_fusion_w;
-  assign fetch_req_ready_o = (state_q == S_IDLE) ||
-                             ((state_q == S_RESP) && fetch_rsp_ready_i) ||
-                             (lookup_hit_resp_w && fetch_rsp_ready_i);
+  // 【mmu_flush 打拍配套】flush 拍不受理新请求: 复位分支会吞掉同拍 fire 的请求
+  // (sequencer 记账悬空→挂死), flush 拍压 ready 使请求次拍重发。
+  assign fetch_req_ready_o = !mmu_flush_i &&
+                             ((state_q == S_IDLE) ||
+                              ((state_q == S_RESP) && fetch_rsp_ready_i) ||
+                              (lookup_hit_resp_w && fetch_rsp_ready_i));
   assign fetch_rsp_valid_o = (state_q == S_RESP) || lookup_hit_resp_w;
   assign fetch_rsp_inst0_o = lookup_hit_resp_w ? cache_inst0_w : inst0_q;
   assign fetch_rsp_inst1_o = lookup_hit_resp_w ? cache_inst1_w : inst1_q;
