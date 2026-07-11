@@ -71,7 +71,46 @@ dcache SRAM rdata (clk2q 1.28)                       ── MEM 级
 | dcache 融合切除 | T2 已证形态（tie-0 可逆） | backend 域不够 9.1ns 时的调节阀 |
 | SQ snoop 打拍 | snoop→fetch 失效链（历史 top 族 B） | 防火墙不治此族；需 SMC 窗口语义论证，独立小刀 |
 
-## 5. 方法学固化（进宪法候选）
+## 5. 防火墙战役落地记录（2026-07-11 同日，全部完成+统一测试）
+
+### 实施三刀（真链解剖推翻了 §3 的预判——redirect 防火墙只是序章）
+
+| 刀 | 内容 | WNS 效果 | CPI 代价 |
+| --- | --- | --- | --- |
+| v1: redirect 全次拍化 | redirect_fetch_req_valid 退役，direct 族 fire 拍封顺序臂次拍发 target（K1 完全退役） | -15.37→-15.37（未切中——链不走 redirect！） | +0.010 |
+| v2a: 盲失效打拍 | store 发射→icache invalidate 寄存一拍（SMC 无架构承诺，合法） | -15.37→-12.56 | ~0 |
+| v2b: **mmu_flush 出口打拍** | 真缝合点=组合生成链（rsp→wb→ROB commit→retire_count→drain_complete→组合 flush→fetch 桥 ITLB/融合门）；satp/sfence/fence.i 整机静止事件晚一拍零语义 | **-12.56→-5.35** | ~0 |
+
+**合计：WNS -15.37 → -5.35（收回 10ns，历史最好），CPI 0.877→0.886（+0.009）。**
+
+### 教训与事故
+
+- **逐 cell 真链解剖两次推翻假设**（redirect 臂→invalidate→mmu_flush）——拓扑修复
+  必须先解剖后动刀，"语义上合理的缝合点"不等于"STA 上的真缝合点"。
+- **mmu_flush 打拍引发 0/178 全挂事故**：flush 晚一拍后与重启取指 fire 拍相撞，
+  复位分支吞掉已 fire 请求→sequencer 记账悬空挂死（fence.i 在全部 riscv-tests
+  crt 中）。修复=两桥 ready 加 flush 拍门（请求次拍重发，零代价）。
+  **教训：给"广播式复位类信号"打拍时，必须审计所有"该信号拍不得发生"的
+  同拍事件（fire/enqueue 类），配套压 ready。**
+
+### 统一测试（全绿）
+
+module TB 86/86、lint 双变体、riscv-tests 177/177（含特权）、
+**difftest（NEMU）riscv 177/177+CoreMark 全零 mismatch**、CoreMark 0xfcaf
+CPI 0.886、WNS -5.35/TNS -34780。
+
+### 新拓扑（防火墙后 top-40 全景）
+
+**跨域传递闭包已消灭**：40 条 top 路径全部收敛于 frontend 域内——
+25 条 fetch 桥→FIFO（融合判决→dec→pred→包字段寄存）、15 条 fetch 桥→
+next_fetch_pc（同链→sequencer）。约 -5.4ns 的域内链构成：fetch 桥 pc_q→
+融合判决（ITLB/PMP/tag）→rsp 交付→RVC 解压→分支识别（含 ~8ns 扇出布线
+虚胖，真实后端 buffer 树可大幅缓解）→bimm→pred 判决→寄存。
+下一步候选（frontend 域内战役）：①dec1_branch 高扇出手动 buffer/逻辑复制
+（先试，虚胖可能占大头）；②pred 判决挪包驻留拍（lookup 不动）；③方案 C
+对齐取指（结构级，消 dec 依赖）。backend 域已收敛（不再出现在 top-40）。
+
+## 6. 方法学固化（进宪法候选）
 
 1. **拍界预算制**：每个时序域(拍)有 ns 预算账本；任何"同拍化/融合"优化必须
    申报其所在域的预算占用，超预算即触发域重划评估——不再只看单刀 WNS 增量。
