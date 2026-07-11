@@ -136,8 +136,10 @@ module tb_ooo_fetch_request_mux;
     redirect_pc = 64'h0000_0000_0000_3000;   // arbiter direct 赢家(e4 构造式)
     #1;
     tb_check1("direct jal is direct redirect", direct_redirect_fetch, 1'b1);
-    tb_check1("direct jal redirect valid", redirect_fetch_req_valid, 1'b1);
-    check_xlen("redirect beats prefetch", fetch_req_pc, redirect_pc);
+    // 【redirect 防火墙契约】同拍发射退役: valid 恒 0, direct fire 体现在 block 源
+    tb_check1("firewall: jal no same-cycle fire", redirect_fetch_req_valid, 1'b0);
+    tb_check1("firewall: jal raises direct block", direct_redirect_fetch, 1'b1);
+    // 防火墙: redirect 拍请求被 block 不发, fetch_req_pc 该拍 don't-care
 
     reset_inputs();
     direct_ret1_fire = 1'b1;
@@ -192,9 +194,9 @@ module tb_ooo_fetch_request_mux;
     outstanding_valid = 1'b1;
     fetch_rsp_fire = 1'b1;
     #1;
-    tb_check1("response fire unblocks redirect", redirect_fetch_req_valid,
-              1'b1);
-    check_xlen("unblocked redirect wins", fetch_req_pc, redirect_pc);
+    tb_check1("firewall: rsp fire no same-cycle redirect", redirect_fetch_req_valid,
+              1'b0);
+    // 防火墙退役: unblocked redirect wins (redirect 拍请求不发, pc don\'t-care)
 
     reset_inputs();
     branch_resolve_redirect = 1'b1;

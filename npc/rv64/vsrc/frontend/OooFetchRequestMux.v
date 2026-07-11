@@ -71,11 +71,13 @@ module OooFetchRequestMux (
       branch_resolve_redirect_i ||
       branch_spec_redirect_i ||
       branch_resolve_untracked_redirect_i;
-  assign redirect_fetch_req_valid_o =
-      direct_redirect_fetch_o &&
-      (!branch_fallthrough_dispatch_i ||
-       !branch_fallthrough_outstanding_match_i) &&
-      (!outstanding_valid_i || fetch_rsp_fire_i);
+  // 【redirect 防火墙(2026-07-11 拓扑重划)】同拍 redirect 取指发射全体退役:
+  // backend→frontend 的唯一控制交叉点立强制拍界, 全部 redirect(direct jal/ret/
+  // jump_spec/pending_jump/trap 族)次拍经顺序臂发 arb 终写 target——切断
+  // dcache-rdata→direct fire→redirect→fetch fire 的跨域传递闭包(25ns 链)。
+  // direct fire 拍顺序臂由 direct_redirect_fetch_o 作 block 信号封死
+  // (F2 障碍①同族, FlowControl 侧)。CPI 代价=jal/ret 重取 +1 拍(~+0.05-0.10)。
+  assign redirect_fetch_req_valid_o = 1'b0;
 
   // 【P4 单源】arbiter 赢家 PC 透传; 无赢家拍(E7/E9 保留臂进 valid 但不进 arbiter)
   // 兜底 core_branch_resolve_next_pc——与原链 :81-82 默认档相同目标, 语义等价。

@@ -1488,6 +1488,7 @@ module OooFrontend #(
     .fetch_request_blocked_by_trap_i(fetch_request_blocked_by_trap_w),
     .redirect_fetch_req_valid_i(redirect_fetch_req_valid_w),
     .resolve_redirect_block_i(resolve_redirect_block_w),
+    .direct_redirect_block_i(direct_redirect_fetch_w),
     .pred_taken_block_i(fetch_pred_taken_block_w),
     .branch_prefetch_req_valid_i(branch_prefetch_req_valid_w),
     .can_run_i(can_run_w),

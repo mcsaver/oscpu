@@ -7,6 +7,8 @@ module OooFetchFlowControl #(
   input fetch_request_blocked_by_trap_i,
   input redirect_fetch_req_valid_i,
   input resolve_redirect_block_i,
+  // 【redirect 防火墙】direct 族 redirect 拍封顺序臂(次拍发 arb 终写 target)
+  input direct_redirect_block_i,
   // 【B2 S2】pred-taken 改流拍封顺序臂(T1 resolve_redirect_block 同型): 该拍融合
   // 连发的组合地址仍是 fall-through 旧顺序值(wrong-path), target 拍尾才写进
   // next_fetch_pc_q(Sequencer 顺序推进臂输入已换包 pred_next_pc), 次拍顺序臂发出。
@@ -78,6 +80,7 @@ module OooFetchFlowControl #(
                                !discard_fetch_rsp_i &&
                                !direct_frontend_flush_i &&
                                !resolve_redirect_block_i &&
+                               !direct_redirect_block_i &&
                                fifo_reserve_available_i &&
                                (!outstanding_valid_i || fetch_rsp_fire_o);
   assign fetch_req_valid_o =

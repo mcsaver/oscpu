@@ -77,6 +77,7 @@ module tb_ooo_core_top_glue;
   reg saw_return_fastpath;
   reg saw_branch_fastpath;
   reg saw_direct_redirect_fetch;
+  reg last_direct_redirect;
   reg saw_branch_redirect_fetch;
   reg saw_branch_shadow_prefetch;
   reg saw_branch_shadow_hit;
@@ -722,6 +723,7 @@ module tb_ooo_core_top_glue;
       saw_dual_commit <= 1'b0;
       saw_memory_rsp_req_overlap <= 1'b0;
       saw_direct_redirect_fetch <= 1'b0;
+      last_direct_redirect <= 1'b0;
       saw_branch_redirect_fetch <= 1'b0;
       saw_branch_shadow_prefetch <= 1'b0;
       saw_branch_shadow_hit <= 1'b0;
@@ -760,8 +762,9 @@ module tb_ooo_core_top_glue;
       if (dut.direct_branch0_fire_w || dut.direct_branch1_fire_w) begin
         saw_branch_fastpath <= 1'b1;
       end
-      if (dut.direct_redirect_fetch_w && dut.redirect_fetch_req_valid_w &&
-          fetch_req_valid && fetch_req_ready) begin
+      // 【redirect 防火墙】同拍发射退役: direct 拍寄存一拍, 次拍顺序臂 fire 即命中
+      last_direct_redirect <= dut.direct_redirect_fetch_w;
+      if (last_direct_redirect && fetch_req_valid && fetch_req_ready) begin
         saw_direct_redirect_fetch <= 1'b1;
       end
       if (dut.branch_resolve_redirect_w && dut.redirect_fetch_req_valid_w &&
