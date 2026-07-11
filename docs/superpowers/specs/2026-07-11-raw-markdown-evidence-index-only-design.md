@@ -30,10 +30,14 @@ Runtime location, not file extension, owns the retention decision.
    db_owned_kinds.
 4. Make archive-markdown reject raw evidence paths even if a future kind list
    accidentally includes them again.
-5. Add .md to the bounded index-evidence text suffixes.
-6. Count Markdown below the run's evidence directory as manifest assets while
-   continuing to exclude task-report and other top-level Markdown documents.
-7. Extend artifact-audit to reject raw paths in both db_documents and
+5. Select evidence assets by raw runtime location, so .md and binary payloads
+   follow the same bounded indexing path.
+6. Resolve both .github/task-runs/<run-id> and
+   .github/runtime-artifacts/<run-id> roots. Runtime task-run pointer files are
+   excluded from the asset set, and each root receives its own evidence index.
+7. Count only files below the run's evidence directory as manifest assets,
+   including Markdown while excluding nodes.tsv and other top-level pointers.
+8. Extend artifact-audit to reject raw paths in both db_documents and
    file_text.
 
 The current nine files will be indexed into evidence_assets, removed from Git
@@ -59,6 +63,9 @@ The github-index contract test creates evidence/note.md and must prove:
 - a general rebuild leaves no raw path in file_text;
 - archive-markdown leaves no raw path in db_documents;
 - the bounded evidence query can recall the Markdown marker.
+- runtime-artifact runs retain their own run id/index and exclude pointer files;
+- re-indexing runtime_demo cannot delete adjacent runtimeXdemo asset rows;
+- generated manifests report the exact md/log evidence-subtree asset kinds.
 
 Repository integration then requires github-index PASS, artifact-audit PASS,
 markdown coverage PASS, agent-system PASS, DB-first audit PASS, and strict

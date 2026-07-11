@@ -780,6 +780,7 @@ EOF
 # Evidence Note
 
 demo markdown evidence source
+__DEMO_MARKDOWN_MARKER__
 EOF
   cat > "$mini_repo/.github/task-runs/demo/evidence/demo.log" <<'EOF'
 PASS demo raw evidence
@@ -800,16 +801,20 @@ EOF
   ) || rc=1
   printf '%s\n' "$evidence_index_out"
   if grep -Fq -- '"op": "index-evidence"' <<< "$evidence_index_out" &&
-     grep -Fq -- '"assets": 2' <<< "$evidence_index_out" &&
+     grep -Fq -- '"assets": 3' <<< "$evidence_index_out" &&
      grep -Fq -- '.github/task-runs/demo/evidence-index.md' <<< "$evidence_index_out" &&
      grep -Fq -- '"stored_index_docs": [' <<< "$evidence_index_out" &&
      [[ -f "$mini_repo/.github/db-backup/stored-snapshot/files/.github/task-runs/demo/evidence-index.md" ]] &&
-     grep -Fq -- '__DEMO_MARKER__' "$mini_repo/.github/task-runs/demo/evidence-index.md"; then
+     grep -Fq -- '.github/task-runs/demo/evidence/note.md' "$mini_repo/.github/task-runs/demo/evidence-index.md" &&
+     grep -Fq -- '__DEMO_MARKDOWN_MARKER__' "$mini_repo/.github/task-runs/demo/evidence-index.md"; then
     printf 'PASS github-index indexes raw evidence assets and stores generated evidence-index docs\n'
   else
     printf 'FAIL github-index raw evidence asset index did not produce stored evidence-index summary\n'
     rc=1
   fi
+  python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" rebuild \
+    --repo-root "$mini_repo" \
+    --db "$mini_db" || rc=1
   python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" archive-markdown .github/task-runs/demo \
     --repo-root "$mini_repo" \
     --db "$mini_db" \
@@ -821,6 +826,147 @@ EOF
     printf 'PASS github-index archives task-run Markdown to DB while keeping live file and backup\n'
   else
     printf 'FAIL github-index archive-markdown did not preserve live task-run Markdown\n'
+    rc=1
+  fi
+  if python3 - "$mini_db" <<'PY'
+import sqlite3
+import sys
+
+conn = sqlite3.connect(sys.argv[1])
+pattern = ".github/task-runs/%/evidence/%"
+asset = conn.execute(
+    "SELECT COUNT(*) FROM evidence_assets WHERE path = ?",
+    (".github/task-runs/demo/evidence/note.md",),
+).fetchone()[0]
+file_text = conn.execute(
+    "SELECT COUNT(*) FROM file_text WHERE path LIKE ?",
+    (pattern,),
+).fetchone()[0]
+documents = conn.execute(
+    "SELECT COUNT(*) FROM db_documents WHERE path LIKE ?",
+    (pattern,),
+).fetchone()[0]
+conn.close()
+raise SystemExit(0 if (asset, file_text, documents) == (1, 0, 0) else 1)
+PY
+  then
+    printf 'PASS github-index keeps raw Markdown evidence in evidence_assets only\n'
+  else
+    printf 'FAIL github-index leaked raw Markdown evidence into a full-text document table\n'
+    rc=1
+  fi
+  local runtime_neighbor runtime_run runtime_index_out runtime_updated_at
+  runtime_run="$mini_repo/.github/runtime-artifacts/runtime_demo"
+  runtime_neighbor="$mini_repo/.github/runtime-artifacts/runtimeXdemo"
+  runtime_updated_at='2026-06-12 00:00:04 +0800'
+  mkdir -p "$runtime_run/evidence"
+  cat > "$runtime_run/nodes.tsv" <<'EOF'
+runtime-node	agent-system	github-index	PASS	input	output	evidence
+EOF
+  cat > "$runtime_run/task-report.md" <<'EOF'
+# Runtime Task Report
+
+- `task_slug`: runtime_demo
+- `profile`: github-index
+- `status`: completed
+- `updated_at`: 2026-06-12 00:00:04 +0800
+EOF
+  cat > "$runtime_run/evidence/note.md" <<'EOF'
+# Runtime Markdown Evidence
+
+__RUNTIME_MD_MARKER__
+EOF
+  cat > "$runtime_run/evidence/runtime.log" <<'EOF'
+PASS runtime bounded evidence
+EOF
+  (
+    E2E_ROOT_DIR="$mini_repo"
+    E2E_RUN_DIR="$runtime_run"
+    E2E_PROFILE=github-index
+    E2E_TASK_SLUG=runtime_demo
+    E2E_STARTED_AT='2026-06-12 00:00:03 +0800'
+    e2e_render_run_manifest completed PASS "$runtime_updated_at"
+  )
+  if python3 - "$runtime_run/run-manifest.json" <<'PY'
+import json
+import sys
+
+manifest = json.load(open(sys.argv[1], encoding="utf-8"))
+evidence = manifest["evidence"]
+expected_kinds = {"log": 1, "md": 1}
+raise SystemExit(
+    0
+    if evidence["asset_count"] == 2
+    and evidence["by_kind"] == expected_kinds
+    else 1
+)
+PY
+  then
+    printf 'PASS github-index run manifest counts only raw evidence subtree assets\n'
+  else
+    printf 'FAIL github-index run manifest mixed task-run pointers with raw evidence assets\n'
+    rc=1
+  fi
+  mkdir -p "$runtime_neighbor/evidence"
+  cat > "$runtime_neighbor/evidence/neighbor.log" <<'EOF'
+PASS adjacent runtime evidence must survive
+EOF
+  python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" index-evidence \
+    .github/runtime-artifacts/runtimeXdemo \
+    --repo-root "$mini_repo" \
+    --db "$mini_db" \
+    --yes >/dev/null || rc=1
+  runtime_index_out=$(
+    python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" index-evidence \
+      .github/runtime-artifacts/runtime_demo \
+      --repo-root "$mini_repo" \
+      --db "$mini_db" \
+      --write-index \
+      --yes \
+      --json
+  ) || rc=1
+  printf '%s\n' "$runtime_index_out"
+  if grep -Fq -- '"assets": 2' <<< "$runtime_index_out" &&
+     grep -Fq -- '"runtime_demo"' <<< "$runtime_index_out" &&
+     grep -Fq -- '.github/runtime-artifacts/runtime_demo/evidence-index.md' <<< "$runtime_index_out" &&
+     grep -Fq -- '__RUNTIME_MD_MARKER__' "$runtime_run/evidence-index.md" &&
+     python3 - "$mini_db" <<'PY'
+import sqlite3
+import sys
+
+conn = sqlite3.connect(sys.argv[1])
+current_paths = {
+    row[0]
+    for row in conn.execute(
+        "SELECT path FROM evidence_assets WHERE run_id = ?",
+        ("runtime_demo",),
+    )
+}
+neighbor_paths = {
+    row[0]
+    for row in conn.execute(
+        "SELECT path FROM evidence_assets WHERE run_id = ?",
+        ("runtimeXdemo",),
+    )
+}
+conn.close()
+expected = {
+    ".github/runtime-artifacts/runtime_demo/evidence/note.md",
+    ".github/runtime-artifacts/runtime_demo/evidence/runtime.log",
+}
+expected_neighbor = {
+    ".github/runtime-artifacts/runtimeXdemo/evidence/neighbor.log",
+}
+raise SystemExit(
+    0
+    if current_paths == expected and neighbor_paths == expected_neighbor
+    else 1
+)
+PY
+  then
+    printf 'PASS github-index isolates adjacent runtime roots during bounded asset cleanup\n'
+  else
+    printf 'FAIL github-index crossed runtime-root boundaries during asset cleanup\n'
     rc=1
   fi
   python3 "$E2E_ROOT_DIR/scripts/github_index_db.py" load \
@@ -852,7 +998,7 @@ EOF
      grep -Fq -- '"status": "completed"' <<< "$runs_out" &&
      grep -Fq -- '"profile_resolve_path": ".github/task-runs/demo/profile-resolve.md"' <<< "$runs_out" &&
      grep -Fq -- '"evidence_index_path": ".github/task-runs/demo/evidence-index.md"' <<< "$runs_out" &&
-     grep -Fq -- '"evidence_asset_count": 2' <<< "$runs_out" &&
+     grep -Fq -- '"evidence_asset_count": 3' <<< "$runs_out" &&
      grep -Fq -- '"expanded_node_count": 1' <<< "$runs_out" &&
      grep -Fq -- '"op": "runs"' <<< "$runs_api_out" &&
      grep -Fq -- '"run_id": "demo"' <<< "$runs_api_out"; then

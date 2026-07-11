@@ -103,12 +103,9 @@ if nodes_path.exists():
 evidence_by_kind = {}
 total_size = 0
 asset_count = 0
-if run_dir.exists():
-    for path in sorted(p for p in run_dir.rglob("*") if p.is_file()):
-        if path.name == "run-manifest.json":
-            continue
-        if path.suffix.lower() == ".md":
-            continue
+evidence_dir = run_dir / "evidence"
+if evidence_dir.exists():
+    for path in sorted(p for p in evidence_dir.rglob("*") if p.is_file()):
         kind = path.suffix.lower().lstrip(".") or "file"
         evidence_by_kind[kind] = evidence_by_kind.get(kind, 0) + 1
         total_size += path.stat().st_size

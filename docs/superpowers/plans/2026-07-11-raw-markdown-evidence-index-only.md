@@ -29,12 +29,12 @@ index-evidence owns bounded metadata, hashes, markers, and excerpts.
 - Consumes: index-evidence, rebuild, archive-markdown, and the mini SQLite DB.
 - Produces: a regression that requires evidence/note.md to be asset-only.
 
-- [ ] **Step 1: Require Markdown evidence indexing**
+- [x] **Step 1: Require Markdown evidence indexing**
 
 Change the mini-repository expectation from assets 2 to assets 3 and require
 the JSON output to name .github/task-runs/demo/evidence/note.md.
 
-- [ ] **Step 2: Require absence from full-text tables**
+- [x] **Step 2: Require absence from full-text tables**
 
 After rebuilding and archiving the mini repository, query SQLite with Python:
 
@@ -57,7 +57,19 @@ documents = conn.execute(
 raise SystemExit(0 if (asset, file_text, documents) == (1, 0, 0) else 1)
 ~~~
 
-- [ ] **Step 3: Run RED**
+- [x] **Step 3: Cover runtime roots and manifest scope**
+
+Create .github/runtime-artifacts/runtime_demo with top-level task-run pointers
+and md/log files below evidence/. Require index-evidence to record only the two
+raw assets under run_id runtime_demo and to write the pointer beside that
+runtime run. Render a real run-manifest.json and require evidence.by_kind to be
+exactly md=1 and log=1, excluding nodes.tsv.
+
+Use runtime_demo together with adjacent runtimeXdemo. Index the neighbor first,
+then re-index runtime_demo and require runtimeXdemo's evidence row to remain,
+proving SQL prefix cleanup treats underscore literally.
+
+- [x] **Step 4: Run RED**
 
 ~~~bash
 E2E_ARCHIVE_TASK_RUN_MARKDOWN_TO_DB=0 \
@@ -86,7 +98,7 @@ archive-markdown stores note.md as a document.
   evidence root.
 - Consumes: normalized repository-relative POSIX paths.
 
-- [ ] **Step 1: Add the shared path predicate**
+- [x] **Step 1: Add the shared path predicate**
 
 ~~~python
 def is_raw_evidence_path(rel_path: str) -> bool:
@@ -102,31 +114,38 @@ def is_raw_evidence_path(rel_path: str) -> bool:
 Call it from should_skip_path. Extend prune_ignored_index_rows to delete
 files/file_text/chunks/FTS rows matching both raw roots.
 
-- [ ] **Step 2: Remove raw evidence from DB-retained kinds**
+- [x] **Step 2: Remove raw evidence from DB-retained kinds**
 
 Delete task-evidence from DB_RETAINED_KINDS and from retention.db_owned_kinds
 in the schema contract. In archive_markdown_candidates, explicitly skip every
 path for which is_raw_evidence_path returns true.
 
-- [ ] **Step 3: Index Markdown as a bounded evidence asset**
+- [x] **Step 3: Index Markdown as a bounded evidence asset**
 
-Add ".md" to EVIDENCE_TEXT_SUFFIXES. Keep full content out of evidence_assets;
-only the existing hash, line count, summary, head/tail excerpts, and markers
-are stored.
+Make evidence_asset_candidates accept every file selected by
+is_raw_evidence_path instead of excluding the .md suffix. Keep full content
+out of evidence_assets; only the existing hash, line count, summary,
+head/tail excerpts, and markers are stored.
 
-- [ ] **Step 4: Count evidence Markdown in run manifests**
+- [x] **Step 4: Support both evidence run roots**
 
-In e2e_render_run_manifest, skip Markdown only when it is outside
-run_dir/evidence. Top-level task-run documents remain excluded from asset
-counts.
+Resolve task-run and runtime-artifact run roots separately, group cleanup and
+index generation by root rather than only run_id, and exclude top-level
+task-run pointer names from runtime asset candidates.
 
-- [ ] **Step 5: Enforce both full-text boundaries**
+- [x] **Step 5: Count evidence Markdown in run manifests**
+
+In e2e_render_run_manifest, enumerate only run_dir/evidence. This includes
+Markdown raw evidence while excluding top-level task-run pointers such as
+nodes.tsv and run-manifest.json.
+
+- [x] **Step 6: Enforce both full-text boundaries**
 
 Extend artifact-audit to report raw runtime paths found in file_text as well
 as db_documents. Exclude raw runtime roots from audit-markdown-coverage because
 artifact-audit is their authoritative retention gate.
 
-- [ ] **Step 6: Run GREEN**
+- [x] **Step 7: Run GREEN**
 
 ~~~bash
 python3 -m py_compile scripts/dev_memory/core.py scripts/dev_memory/maintenance.py
@@ -153,7 +172,7 @@ Expected: all commands exit zero.
 - Consumes: Task 2's index-only retention implementation.
 - Produces: no raw runtime path in db_documents/file_text and current indexes.
 
-- [ ] **Step 1: Re-index the three affected runs**
+- [x] **Step 1: Re-index the three affected runs**
 
 Run index-evidence --write-index --yes for:
 
@@ -161,16 +180,16 @@ Run index-evidence --write-index --yes for:
 - 2026-07-11-rv64-ooo-code-first-architecture-audit
 - 2026-07-11-strict-guard-artifact-lifecycle-fix
 
-- [ ] **Step 2: Prune historical document rows**
+- [x] **Step 2: Prune historical document rows**
 
 Materialize only the nine raw document paths to an ignored quarantine output
 and use --prune-non-retained. Rebuild the main DB to prune general full-text
 rows for both runtime roots.
 
-- [ ] **Step 3: Remove payloads from Git tracking**
+- [x] **Step 3: Confirm payloads remain outside Git tracking**
 
-Use git rm --cached with the exact nine paths. Confirm the files still exist
-locally and are ignored, and that each appears in evidence_assets.
+Confirm the exact nine paths are already untracked, still exist locally, are
+ignored, and each appears in evidence_assets. Do not add ignored payloads.
 
 - [ ] **Step 4: Verify the restored baseline**
 

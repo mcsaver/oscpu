@@ -80,7 +80,6 @@ DB_RETAINED_KINDS = {
     "task-report",
     "dispatch-log",
     "task-run",
-    "task-evidence",
 }
 DB_FIRST_KINDS = set(DB_RETAINED_KINDS)
 
@@ -442,6 +441,16 @@ def looks_binary(sample: bytes) -> bool:
     return b"\x00" in sample
 
 
+def is_raw_evidence_path(rel_path: str) -> bool:
+    normalized = rel_path.replace("\\", "/")
+    if normalized.startswith("./"):
+        normalized = normalized[2:]
+    return normalized.startswith(".github/runtime-artifacts/") or (
+        normalized.startswith(".github/task-runs/")
+        and "/evidence/" in normalized
+    )
+
+
 def matches_exclude(rel_path: str, excludes: Sequence[str]) -> bool:
     normalized = rel_path.replace("\\", "/").rstrip("/")
     for raw in excludes:
@@ -457,6 +466,8 @@ def should_skip_path(rel_path: str, db_rel_path: str, excludes: Sequence[str]) -
     parts = Path(rel_path).parts
     suffix = Path(rel_path).suffix.lower()
     if matches_exclude(rel_path, excludes):
+        return True
+    if is_raw_evidence_path(rel_path):
         return True
     if rel_path == db_rel_path:
         return True
@@ -947,9 +958,14 @@ def scan_files(
 
 
 def prune_ignored_index_rows(conn: sqlite3.Connection, has_fts5: bool) -> None:
-    prefixes = (".github/cache/", ".github/db-backup/", ".github/tmp/")
-    for prefix in prefixes:
-        like = prefix + "%"
+    patterns = (
+        ".github/cache/%",
+        ".github/db-backup/%",
+        ".github/tmp/%",
+        ".github/runtime-artifacts/%",
+        ".github/task-runs/%/evidence/%",
+    )
+    for like in patterns:
         if has_fts5:
             conn.execute("DELETE FROM file_fts WHERE path LIKE ?", (like,))
             conn.execute("DELETE FROM chunk_fts WHERE path LIKE ?", (like,))

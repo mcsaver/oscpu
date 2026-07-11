@@ -836,6 +836,7 @@ def archive_markdown_candidates(repo_root: Path, requested_paths: Sequence[str])
                 rel_path.startswith(".github/cache/")
                 or rel_path.startswith(".github/db-backup/")
                 or rel_path.startswith(".github/tmp/")
+                or is_raw_evidence_path(rel_path)
             ):
                 continue
             if rel_path in seen:
@@ -933,11 +934,37 @@ EVIDENCE_TEXT_SUFFIXES = {
 }
 
 
-def task_run_id_from_rel_path(rel_path: str) -> str:
+EVIDENCE_POINTER_NAMES = {
+    "context-brief.md",
+    "dispatch-log.md",
+    "evidence-index.md",
+    "nodes.tsv",
+    "profile-resolve.md",
+    "run-manifest.json",
+    "task-report.md",
+}
+
+
+def task_run_root_from_rel_path(rel_path: str) -> str:
     parts = Path(rel_path).parts
     if len(parts) >= 3 and parts[0] == ".github" and parts[1] == "task-runs":
-        return parts[2]
+        return "/".join(parts[:3])
+    if len(parts) >= 4 and parts[0] == ".github" and parts[1] == "runtime-artifacts":
+        return "/".join(parts[:3])
     return ""
+
+
+def task_run_id_from_rel_path(rel_path: str) -> str:
+    run_root = task_run_root_from_rel_path(rel_path)
+    return Path(run_root).name if run_root else ""
+
+
+def is_evidence_pointer_path(rel_path: str) -> bool:
+    run_root = task_run_root_from_rel_path(rel_path)
+    if not run_root:
+        return False
+    relative_parts = Path(rel_path).parts[3:]
+    return len(relative_parts) == 1 and relative_parts[0] in EVIDENCE_POINTER_NAMES
 
 
 def parse_markdown_fields(content: str) -> dict[str, str]:
@@ -949,8 +976,12 @@ def parse_markdown_fields(content: str) -> dict[str, str]:
     return fields
 
 
-def task_run_report_fields(repo_root: Path, conn: sqlite3.Connection, run_id: str) -> dict[str, str]:
-    rel_path = f".github/task-runs/{run_id}/task-report.md"
+def task_run_report_fields(
+    repo_root: Path,
+    conn: sqlite3.Connection,
+    run_root: str,
+) -> dict[str, str]:
+    rel_path = f"{run_root}/task-report.md"
     target = repo_root / rel_path
     content = ""
     if target.exists():
@@ -1078,13 +1109,15 @@ def evidence_asset_candidates(repo_root: Path, requested_paths: Sequence[str]) -
                 rel_path.startswith(".github/cache/")
                 or rel_path.startswith(".github/db-backup/")
                 or rel_path.startswith(".github/tmp/")
-                or rel_path.endswith(".md")
+                or not is_raw_evidence_path(rel_path)
+                or is_evidence_pointer_path(rel_path)
             ):
                 continue
             if ".git/" in rel_path or rel_path in seen:
                 continue
+            run_root = task_run_root_from_rel_path(rel_path)
             run_id = task_run_id_from_rel_path(rel_path)
-            if not run_id:
+            if not run_root or not run_id:
                 continue
             seen.add(rel_path)
             candidates.append(path)
@@ -1100,8 +1133,9 @@ def build_evidence_asset(
     excerpt_chars: int,
 ) -> dict[str, object]:
     rel_path = repo_path(path.relative_to(repo_root))
+    run_root = task_run_root_from_rel_path(rel_path)
     run_id = task_run_id_from_rel_path(rel_path)
-    fields = task_run_report_fields(repo_root, conn, run_id)
+    fields = task_run_report_fields(repo_root, conn, run_root)
     stat = path.stat()
     sample = read_evidence_sample(path, sample_bytes)
     head_text = sanitize_evidence_text(str(sample["head_text"]))
@@ -1114,6 +1148,7 @@ def build_evidence_asset(
     summary = evidence_summary(kind, stat.st_size, int(sample["line_count"]), markers, tail)
     return {
         "path": rel_path,
+        "run_root": run_root,
         "run_id": run_id,
         "task_slug": fields.get("task_slug", ""),
         "profile": fields.get("profile", ""),
@@ -1131,8 +1166,13 @@ def build_evidence_asset(
     }
 
 
-def write_evidence_index_markdown(repo_root: Path, run_id: str, assets: Sequence[dict[str, object]]) -> str:
-    target = repo_root / ".github" / "task-runs" / run_id / "evidence-index.md"
+def write_evidence_index_markdown(
+    repo_root: Path,
+    run_root: str,
+    assets: Sequence[dict[str, object]],
+) -> str:
+    target = repo_root / run_root / "evidence-index.md"
+    run_id = Path(run_root).name
     fields: dict[str, str] = {}
     if assets:
         fields = {
@@ -1194,19 +1234,29 @@ def index_evidence_assets(args: argparse.Namespace) -> int:
         for path in paths
     ]
     run_ids = sorted({str(asset["run_id"]) for asset in assets if asset.get("run_id")})
-    current_paths = {str(asset["path"]) for asset in assets}
+    assets_by_root: dict[str, list[dict[str, object]]] = {}
+    for asset in assets:
+        assets_by_root.setdefault(str(asset["run_root"]), []).append(asset)
     with conn:
-        for run_id in run_ids:
-            placeholders = ",".join("?" for _ in current_paths) if current_paths else "''"
-            params: list[object] = [run_id]
+        for run_root, run_assets in sorted(assets_by_root.items()):
+            current_paths = sorted(str(asset["path"]) for asset in run_assets)
+            placeholders = ",".join("?" for _ in current_paths)
+            run_prefix = f"{run_root}/"
+            params: list[object] = [run_prefix, run_prefix, *current_paths]
             if current_paths:
-                params.extend(sorted(current_paths))
                 conn.execute(
-                    f"DELETE FROM evidence_assets WHERE run_id = ? AND path NOT IN ({placeholders})",
+                    f"""
+                    DELETE FROM evidence_assets
+                    WHERE substr(path, 1, length(?)) = ?
+                      AND path NOT IN ({placeholders})
+                    """,
                     params,
                 )
             else:
-                conn.execute("DELETE FROM evidence_assets WHERE run_id = ?", (run_id,))
+                conn.execute(
+                    "DELETE FROM evidence_assets WHERE substr(path, 1, length(?)) = ?",
+                    (run_prefix, run_prefix),
+                )
         for asset in assets:
             conn.execute(
                 """
@@ -1237,19 +1287,21 @@ def index_evidence_assets(args: argparse.Namespace) -> int:
         record_event(
             conn,
             "index-evidence-assets",
-            {"assets": len(assets), "runs": run_ids, "write_index": bool(args.write_index)},
+            {
+                "assets": len(assets),
+                "runs": run_ids,
+                "run_roots": sorted(assets_by_root),
+                "write_index": bool(args.write_index),
+            },
         )
     index_docs: list[str] = []
     index_doc_statuses: dict[str, str] = {}
     stored_index_docs: list[str] = []
     backup_entries_written = 0
     if args.write_index:
-        assets_by_run: dict[str, list[dict[str, object]]] = {}
-        for asset in assets:
-            assets_by_run.setdefault(str(asset["run_id"]), []).append(asset)
         stored_items: list[IndexedFile] = []
-        for run_id, run_assets in sorted(assets_by_run.items()):
-            index_doc = write_evidence_index_markdown(repo_root, run_id, run_assets)
+        for run_root, run_assets in sorted(assets_by_root.items()):
+            index_doc = write_evidence_index_markdown(repo_root, run_root, run_assets)
             index_docs.append(index_doc)
             index_content = (repo_root / index_doc).read_text(encoding="utf-8")
             index_item = indexed_file_from_content(index_doc, index_content)
@@ -1755,7 +1807,7 @@ def audit_db_first(args: argparse.Namespace) -> int:
     return 0 if ok else 1
 
 
-EVIDENCE_MARKDOWN_KINDS = {"task-report", "dispatch-log", "task-run", "task-evidence"}
+EVIDENCE_MARKDOWN_KINDS = {"task-report", "dispatch-log", "task-run"}
 LIVE_RULE_MARKDOWN_KINDS = {"skill"}
 
 
@@ -1774,6 +1826,8 @@ def audit_markdown_coverage(args: argparse.Namespace) -> int:
           AND f.path NOT LIKE '.github/cache/%'
           AND f.path NOT LIKE '.github/db-backup/%'
           AND f.path NOT LIKE '.github/tmp/%'
+          AND f.path NOT LIKE '.github/runtime-artifacts/%'
+          AND f.path NOT LIKE '.github/task-runs/%/evidence/%'
         ORDER BY f.path
         """
     ).fetchall()
@@ -3260,6 +3314,18 @@ def validate_runtime_artifact_contract(
     ).fetchall()
     if raw_document_rows:
         errors.extend(f"raw runtime payload stored as db_document: {row['path']}" for row in raw_document_rows)
+    raw_fulltext_rows = conn.execute(
+        """
+        SELECT path
+        FROM file_text
+        WHERE path LIKE '.github/task-runs/%/evidence/%'
+           OR path LIKE '.github/runtime-artifacts/%'
+        ORDER BY path
+        LIMIT 20
+        """
+    ).fetchall()
+    if raw_fulltext_rows:
+        errors.extend(f"raw runtime payload stored as file_text: {row['path']}" for row in raw_fulltext_rows)
 
     tracked_errors: list[str] = []
     tracked_runtime_files = 0
@@ -3296,6 +3362,7 @@ def validate_runtime_artifact_contract(
         "ignore_patterns": len(required_ignore_patterns),
         "db_evidence_assets": int(asset_rows),
         "db_raw_documents": len(raw_document_rows),
+        "db_raw_fulltext": len(raw_fulltext_rows),
         "tracked_runtime_files": tracked_runtime_files,
         "tracked_heavy_files": tracked_heavy_files,
         "max_tracked_evidence_bytes": max_tracked,

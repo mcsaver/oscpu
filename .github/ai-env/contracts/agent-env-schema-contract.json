@@ -121,7 +121,7 @@
   },
   "retention": {
     "db_owned_markdown_must_be_shim": false,
-    "db_owned_kinds": ["memory", "memory-module", "task-report", "dispatch-log", "task-run", "task-evidence"],
+    "db_owned_kinds": ["memory", "memory-module", "task-report", "dispatch-log", "task-run"],
     "non_memory_log_documents_live_first": true,
     "task_run_markdown_archive": true,
     "raw_evidence_fulltext_in_db": false,
