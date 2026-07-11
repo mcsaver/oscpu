@@ -164,7 +164,7 @@ set delay_scripts [list \
   "+fx;mfs;strash;refactor;${abc_resyn2};${abc_retime_dly}; scleanup;${abc_choice};${abc_map_old_dly};${abc_area_recovery_1}; retime,-D,{D};&get,-n;&st;&dch;&nf;&put;${abc_fine_tune};stime,-p;print_stats -m" \
   \
   "+fx;mfs;strash;refactor;${abc_resyn2};${abc_retime_area};scleanup;${abc_choice2};${abc_map_new_area};${abc_choice2};${abc_map_old_dly};retime,-D,{D};&get,-n;&st;&dch;&nf;&put;${abc_fine_tune};stime,-p;print_stats -m" \
-  "+&get -n;&st;&dch;&nf;&put;&get -n;&st;&syn2;&if -g -K 6;&synch2;&nf;&put;&get -n;&st;&syn2;&if -g -K 6;&synch2;&nf;&put;&get -n;&st;&syn2;&if -g -K 6;&synch2;&nf;&put;&get -n;&st;&syn2;&if -g -K 6;&synch2;&nf;&put;&get -n;&st;&syn2;&if -g -K 6;&synch2;&nf;&put;buffer -c -N ${max_FO};topo;stime -c;upsize -c;dnsize -c;;stime,-p;print_stats -m" \
+  "+&get -n;&st;&dch;&nf,{D};&put;&get -n;&st;&syn2;&if -g -K 6;&synch2;&nf;&put;&get -n;&st;&syn2;&if -g -K 6;&synch2;&nf;&put;&get -n;&st;&syn2;&if -g -K 6;&synch2;&nf;&put;&get -n;&st;&syn2;&if -g -K 6;&synch2;&nf;&put;&get -n;&st;&syn2;&if -g -K 6;&synch2;&nf;&put;buffer -c -N ${max_FO};topo;stime -c;upsize,{D};dnsize,{D};;stime,-p;print_stats -m" \
   ]
 
 set area_scripts [list \
@@ -184,6 +184,13 @@ proc synth_strategy_format_err { } {
   log -stderr "\[ERROR] Misformatted SYNTH_STRATEGY (\"$SYNTH_STRATEGY\")."
   log -stderr "\[ERROR] Correct format is \"DELAY|AREA 0-[expr [llength $delay_scripts]-1]|0-[expr [llength $area_scripts]-1]\"."
   exit 1
+}
+
+proc strategy_consumes_delay_target {script} {
+  # Yosys only substitutes {D}; require it on an ABC command that actually
+  # consumes a delay target.  A decoy occurrence (for example in echo text)
+  # must not make a DELAY strategy appear constrained.
+  return [regexp {(^|;)[[:space:]]*(&nf|upsize|dnsize)[^;]*\{D\}} $script]
 }
 
 if { [llength $strategy_parts] != 2 } {
@@ -213,6 +220,16 @@ if { $strategy_type == "DELAY" } {
   set strategy_script [lindex $delay_scripts $strategy_type_idx]
 } else {
   set strategy_script [lindex $area_scripts $strategy_type_idx]
+}
+
+# Custom ABC scripts do not consume `abc -D` unless they contain {D}.  A
+# target-less DELAY strategy silently turns a frequency-specific synthesis run
+# into an unconstrained mapping run, while the later STA still reports against
+# the requested clock.  Fail closed so the netlist provenance cannot lie.
+if {$strategy_type == "DELAY" &&
+    ![strategy_consumes_delay_target $strategy_script]} {
+  puts stderr "\[ERROR\] DELAY strategy $strategy_name does not pass {D} to &nf/upsize/dnsize; refusing target-less ABC mapping."
+  exit 1
 }
 
 #===========================================================
@@ -312,6 +329,9 @@ dfflibmap {*}$LIBS {*}$EXCLUDE_CELLS
 opt -undriven -purge
 
 log "\[INFO\]: USING STRATEGY $strategy_name"
+if {$strategy_type == "DELAY"} {
+  log "\[INFO\]: ABC DELAY TARGET ${CLK_PERIOD_PS}ps (injected through {D})"
+}
 
 # technology mapping for cells
 abc -D "$CLK_PERIOD_PS" \

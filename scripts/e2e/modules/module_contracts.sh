@@ -151,12 +151,49 @@ e2e_ysyx_soc_contract() {
 
 e2e_yosys_sta_contract() {
   echo "[yosys-sta] contract"
+  local rc=0
   e2e_print_required_files \
     yosys-sta/Makefile \
+    yosys-sta/scripts/check_abc_delay_target_contract.py \
+    yosys-sta/scripts/test_abc_delay_target_contract.py \
     .github/agents/yosys-sta.agent.md \
-    .github/memory/modules/yosys-sta.md
+    .github/memory/modules/yosys-sta.md || rc=1
+  python3 "$E2E_ROOT_DIR/yosys-sta/scripts/test_abc_delay_target_contract.py" || rc=1
+  python3 "$E2E_ROOT_DIR/yosys-sta/scripts/check_abc_delay_target_contract.py" || rc=1
   echo
-  e2e_print_optional_tools yosys iEDA
+  e2e_print_optional_tools yosys iEDA || rc=1
+  return "$rc"
+}
+
+e2e_yosys_sta_contract_failure_propagation() {
+  echo "[yosys-sta] contract failure propagation"
+  local rc=0
+
+  if (
+    e2e_print_required_files() { return 1; }
+    python3() { return 0; }
+    e2e_print_optional_tools() { return 0; }
+    e2e_yosys_sta_contract >/dev/null 2>&1
+  ); then
+    echo "FAIL yosys-sta required-file failure was swallowed"
+    rc=1
+  else
+    echo "PASS yosys-sta required-file failure propagates"
+  fi
+
+  if (
+    e2e_print_required_files() { return 0; }
+    python3() { return 1; }
+    e2e_print_optional_tools() { return 0; }
+    e2e_yosys_sta_contract >/dev/null 2>&1
+  ); then
+    echo "FAIL yosys-sta checker failure was swallowed"
+    rc=1
+  else
+    echo "PASS yosys-sta checker failure propagates"
+  fi
+
+  return "$rc"
 }
 
 e2e_rv64_linux_contract() {
