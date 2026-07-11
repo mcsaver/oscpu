@@ -581,3 +581,10 @@ flush 契约诊断确认 UC-A：整数 MulDiv/CLMUL **独缺 mispredict-kill 端
 - **raw Markdown 索引边界已修**：task-run `evidence/**` 和 runtime-artifacts `<run-id>/**` 下的 raw Markdown 只登记到 bounded `evidence_assets`，不会进入 `db_documents/file_text/chunks/FTS`；archive/rebuild 会跳过并清理旧全文 payload。runtime root 清理使用精确前缀比较，避免 SQL LIKE `_` 通配误删 `runtime_demo`/`runtimeXdemo` 等相邻根。
 - **迁移与复审**：旧 raw payload 已清零（`raw_db_documents=0`、`raw_file_text=0`），三组历史 raw Markdown 已生成 evidence index；artifact-audit、Markdown coverage、DB-first 和 agent-system gates 均通过。独立 reviewer 在两轮中发现 legacy substring/微秒排序、NaN 与 dangling symlink 缺口，修正后最终 Critical=0/Important=0。
 - **提交边界**：实现提交为 `3f11ce1c7`（raw evidence index boundary）与 `b68fc1ec2`（semantic guard freshness），正式 profile 证据使用 task slug `strict-guard-semantic-freshness-agent-system` 的追加式 task-run 家族。此闭环只证明开发证据生命周期与 freshness 守门正确；parent“完整功能 + 物理 200 MHz”仍进行中，下一步仍是 T0 5 ns/OpenSTA 基线和 T1 frontend pipeline。
+## 2026-07-12 RV64 OoO 200 MHz T0 目标驱动重映射基线（含旧结论勘误）
+
+- **旧 `-12.63ns` 结论已降级为失效诊断**：HEAD `aa5f6c66f` 时自定义 ABC `DELAY-4` 没有 `{D}`，所以 `STA_CLK_FREQ_MHZ=200` 没有进入实际 `&nf/upsize/dnsize` 映射命令。旧 `DCache SRAM -> MIQ` 路径和 `WNS -12.63ns / TNS -153907.62ns` 不能称为 5ns 目标驱动重映射，也不能决定 T1 排序；产物已保留为 `*.pre-target-contract.*`。
+- 流程修复提交 `ee422740d` 后，在不暂存用户三个 dirty RTL 的前提下，以相同 dirty diff SHA-256 `ba530235...` 完成目标驱动重映射：105 个最终 ABC cone 均收到 `-D 5000.0`；Yosys `1404.66s`、峰值 `3650.20MB`、最终 0 problems，网表 `68,073,061` bytes，SHA-256 `5369c7e4...`。
+- 当前 non-signoff OpenSTA 5ns 结果为 **WNS `-15.74ns` / TNS `-196567.73ns`**；最差路径从 `OooStoreQueue` 状态 FF 到 `OooMemInflightQueue` D，arrival `20.709ns`、required `4.971ns`、slack `-15.739ns`，静态弧穿过 SQ/issue-ready/backend glue/PRF/双 ALU/MulDiv/IQ/PRF/双 ALU/MIQ。当前根因排序是后端 issue/execute/ready/kill 缺少寄存边界，不再是旧报告所称的 DCache completion 单链。
+- T1 候选是在两条 IQ issue 输出后增加独立 elastic stage，使 same-cycle wakeup/select 终止于 stage D，并在测试证明不可达/时序安全后删除 issue0->issue1 死前递与 PRF 当拍 write-through。该方案仍待设计批准与 TDD，不是已实现结论。
+- iEDA 同网表有界运行 600s 后停在 data backward propagation，未生成可用报告；当前数值真源为 OpenSTA。证据索引：`.github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline/`。边界仍为 ideal clock、无 SPEF/CTS/OCV/完整 IO 约束、四宏 placeholder Liberty，故不是物理 signoff。

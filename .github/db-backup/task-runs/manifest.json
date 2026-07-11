@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T11:40:43+00:00",
-  "updated_at": "2026-07-11T16:39:09+00:00",
+  "updated_at": "2026-07-11T19:07:00+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -29746,6 +29746,326 @@
       "sha256": "cfff5f6686d603c124a351ddb60075a5feba55b41bb651e1c83556796cc20f94",
       "backup_source": "filesystem",
       "archived_at": "2026-07-11T15:58:19+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-abc-delay-target-contract-agent-system-final/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 10119,
+      "sha256": "d59ba5130c7a6059463a467f2ad8788c8e8976701dd6aa9eafa0c5f1312989d0",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T18:02:25+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-abc-delay-target-contract-agent-system-final/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11663,
+      "sha256": "cdc2c7c88cae1ced6f51bc2b5a6c88c42f5f059434c705c4ee952104facbb6e2",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T18:02:25+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-abc-delay-target-contract-agent-system-final/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 6213,
+      "sha256": "38b3168fcd7c52cf1b43e8fe15f8999834b350fb3c0ad73bcb76203d7601ed73",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T18:02:25+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-abc-delay-target-contract-agent-system-final/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1673,
+      "sha256": "8b3d126d3085198342ff9baaf11ab584946588b0f3e6cb90887f03a220bfff7c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T18:02:25+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-abc-delay-target-contract-agent-system-final/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6433,
+      "sha256": "5d0ed0134698b76caa0d2fd44947ffb17eac91cfb793213988a59a740eb9a080",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T18:02:25+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-abc-delay-target-contract-agent-system/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 10113,
+      "sha256": "286a943d436893ea65bcbe934d59c776aacf13ba7f4cf3e372ae418ad43f4a0c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T17:50:46+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-abc-delay-target-contract-agent-system/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11513,
+      "sha256": "ba8c576fe1cf2a36da1814cfcf03214a75a3bf180b4fb80d4f77b5b4fd5fb538",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T17:50:46+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-abc-delay-target-contract-agent-system/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 6147,
+      "sha256": "68272317ae9f18e70f93714181b99587d1e986266089a8d697167bee069e2f27",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T17:50:46+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-abc-delay-target-contract-agent-system/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1673,
+      "sha256": "8b3d126d3085198342ff9baaf11ab584946588b0f3e6cb90887f03a220bfff7c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T17:50:46+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-abc-delay-target-contract-agent-system/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6325,
+      "sha256": "951b0be05aaa7604bd10112d212c9e82e81ad6b73e0c639f8794183246c44849",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T17:50:46+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-abc-delay-target-contract-final/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 11059,
+      "sha256": "8429aa68fddfbae3b4d419bbef6c84eb84f866511a6999f3f018a59d281704aa",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T18:07:22+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-abc-delay-target-contract-final/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 7966,
+      "sha256": "987c0318a7dc324ef6f005637431733395734360675e7990ee2fbdd899f734b1",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T18:07:22+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-abc-delay-target-contract-final/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4525,
+      "sha256": "ca2bbbdc48e3e963816a1ff2c3b2b8c730c7843bcb6aba64822f9e2e84e198a1",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T18:07:22+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-abc-delay-target-contract-final/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1224,
+      "sha256": "dde391f86398c9befee19f7e780eeb9547b77edb2df5de88b5c3652f595e3bf2",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T18:07:22+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-abc-delay-target-contract-final/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 5063,
+      "sha256": "f956e8be0b549c0bf32e6f831915691315776e632513dcc341ebdd8b1726fd6f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T18:07:22+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-abc-delay-target-contract/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 8423,
+      "sha256": "a2b71d2e4c9d5ef8bdb4106d9acf087915bdefb950b4c36bcf3bc92babd20e3d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T17:49:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-abc-delay-target-contract/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 6803,
+      "sha256": "bc368d3247ec157e99ffb8ea27a85b4214894bf090623fd25efacac4f1589072",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T17:49:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-abc-delay-target-contract/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 3953,
+      "sha256": "8c48183b540133af558ce630d7a6bc9bd8b0f003c66aafe6c7fdcc20ca7bac5b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T17:49:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-abc-delay-target-contract/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1224,
+      "sha256": "dde391f86398c9befee19f7e780eeb9547b77edb2df5de88b5c3652f595e3bf2",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T17:49:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-abc-delay-target-contract/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4695,
+      "sha256": "aa180af910ed4ee6166d0c2b4999199cb00e205b1a076021d19f153e185db524",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T17:49:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-npc-dev/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 7709,
+      "sha256": "2ad4e4c50ab807ba620a185c45b65b64aabcda20183a198acebf7ff85619cd73",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T17:39:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-npc-dev/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5943,
+      "sha256": "c3cc991c50da7ebabbf0e206f1b6d8fc88c8e07d7d40584551ccea50e72fe390",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T17:39:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-npc-dev/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 3130,
+      "sha256": "68559a6647b118ff1b4902cde03a8770d2a79f89a6619f1ecc14f63155b4da60",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T17:39:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-npc-dev/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T17:39:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-npc-dev/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4557,
+      "sha256": "2a6b0f38b525ffc72e7b5c7eb34c90040565f396683f4add28814fe8499f8952",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T17:39:26+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-yosys-sta/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 8434,
+      "sha256": "bec27d02de37268dfc673aa7d4fb4436554fc8881dbcc7ce45113cdb38f2ebec",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T17:39:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-yosys-sta/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 7012,
+      "sha256": "07449800186726483d592688793916789e849e24f5546ff711fea2f2f357b0c7",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T17:39:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-yosys-sta/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4005,
+      "sha256": "8672f478c4798293529d343feb5a5cf27393f3eea1850941667152821007c35b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T17:39:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-yosys-sta/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1224,
+      "sha256": "dde391f86398c9befee19f7e780eeb9547b77edb2df5de88b5c3652f595e3bf2",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T17:39:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-yosys-sta/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4860,
+      "sha256": "3b9d50fdff10ad0637102e78f639ddfa654c48897b97538b77c26bf299c0ff39",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T17:39:13+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-t0-target-driven-baseline-correction-npc-dev/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 7724,
+      "sha256": "4e54e49a68f025a960c99aa6337dc80a58046dda8ac5f97506f16e119cc71b5b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T19:07:00+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-t0-target-driven-baseline-correction-npc-dev/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 6198,
+      "sha256": "30c6202114c3899d28fb75d467ffec8013f5b12ab6d94e15bb295e6f5aa4a841",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T19:07:00+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-t0-target-driven-baseline-correction-npc-dev/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 3235,
+      "sha256": "55ca871872687e40c74450b1f89ff891e24936e3938b185fa7ad9079b5a1b4c8",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T19:07:00+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-t0-target-driven-baseline-correction-npc-dev/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T19:07:00+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-t0-target-driven-baseline-correction-npc-dev/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4767,
+      "sha256": "20b321ff89e43d100379f395caca52577bfd00ab048cb6ab3948db0789670b86",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T19:07:00+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-t0-target-driven-baseline-correction-yosys-sta/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 8449,
+      "sha256": "1929534b5a61a10be0d36fe75591a5855ac2b69fcf83ebcabcdf7d3588ad9dc3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T19:06:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-t0-target-driven-baseline-correction-yosys-sta/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 8386,
+      "sha256": "5d514f7adb082eacad27e15eb859fc73bad7fceab252321d0d8ec5a66dc087ef",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T19:06:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-t0-target-driven-baseline-correction-yosys-sta/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4705,
+      "sha256": "5da03f12f5be39dccde416da29b33f22ca43b9ff75fdb6243ae067f0f7cc3c06",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T19:06:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-t0-target-driven-baseline-correction-yosys-sta/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1224,
+      "sha256": "dde391f86398c9befee19f7e780eeb9547b77edb2df5de88b5c3652f595e3bf2",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T19:06:50+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-t0-target-driven-baseline-correction-yosys-sta/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 5383,
+      "sha256": "86fd81aaccf151ef8de9cf4ad947df6770573e30cab479772f1020acbe3ae388",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-11T19:06:50+00:00"
     },
     {
       "path": ".github/task-runs/2026-07-12-strict-guard-memory-history-restore-agent-system/context-brief.md",

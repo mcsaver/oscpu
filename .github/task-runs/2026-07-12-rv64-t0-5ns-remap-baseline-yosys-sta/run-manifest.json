@@ -1,0 +1,120 @@
+{
+  "artifacts": {
+    "context_brief": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-yosys-sta/context-brief.md",
+    "dispatch_log": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-yosys-sta/dispatch-log.md",
+    "evidence_dir": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-yosys-sta/evidence",
+    "evidence_index": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-yosys-sta/evidence-index.md",
+    "nodes": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-yosys-sta/nodes.tsv",
+    "profile_resolve": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-yosys-sta/profile-resolve.md",
+    "run_dir": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-yosys-sta",
+    "run_manifest": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-yosys-sta/run-manifest.json",
+    "task_report": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-yosys-sta/task-report.md"
+  },
+  "db": {
+    "markdown_archive": true,
+    "raw_evidence_index_only": true
+  },
+  "evidence": {
+    "asset_count": 6,
+    "by_kind": {
+      "log": 6
+    },
+    "total_size_bytes": 9718
+  },
+  "final_result": "profile=yosys-sta 通过，当前 modular e2e 证据链可复用。",
+  "git": {
+    "branch": "ai",
+    "head": "aa5f6c66f",
+    "upstream": "myfork/ai"
+  },
+  "graph_mode": "static",
+  "graph_template": "modular-agent-e2e",
+  "node_counts": {
+    "by_status": {
+      "PASS": 6
+    },
+    "total": 6
+  },
+  "nodes": [
+    {
+      "evidence": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-yosys-sta/evidence/recall-discovery.log",
+      "inputs": "AGENTS/copilot/instructions/memory/e2e profiles",
+      "module": "agent-system",
+      "node_id": "recall-discovery",
+      "outputs": "规则发现链和 e2e 配置入口存在",
+      "owner_agent": "agent-system",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-yosys-sta/evidence/tool-env-check.log",
+      "inputs": "agent-env + bash/git/make/python/gcc/verilator/toolchain",
+      "module": "toolchain",
+      "node_id": "tool-env-check",
+      "outputs": "非交互软环境、hard requirements 与 optional tools 可见",
+      "owner_agent": "agent-system",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-yosys-sta/evidence/npc-sim-status.log",
+      "inputs": "npc/sim Kconfig 与 backend mk",
+      "module": "hardware-flow",
+      "node_id": "npc-sim-status",
+      "outputs": "当前 npc/sim 后端状态",
+      "owner_agent": "hardware-flow",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-yosys-sta/evidence/npc-sim-contract.log",
+      "inputs": "npc/sim + backends",
+      "module": "npc",
+      "node_id": "npc-sim-contract",
+      "outputs": "NPC 统一仿真入口合约存在",
+      "owner_agent": "npc",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-yosys-sta/evidence/npc-single-contract.log",
+      "inputs": "npc/single Makefile/Kconfig/vsrc/csrc",
+      "module": "npc",
+      "node_id": "npc-single-contract",
+      "outputs": "NPC single 后端合约入口存在",
+      "owner_agent": "npc",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-yosys-sta/evidence/yosys-sta-contract.log",
+      "inputs": "yosys-sta Makefile/tools/memory",
+      "module": "yosys-sta",
+      "node_id": "yosys-sta-contract",
+      "outputs": "综合/STA 合约入口和工具状态可见",
+      "owner_agent": "yosys-sta",
+      "status": "PASS"
+    }
+  ],
+  "profile": "yosys-sta",
+  "run_id": "2026-07-12-rv64-t0-5ns-remap-baseline-yosys-sta",
+  "schema_version": 1,
+  "started_at": "2026-07-12 01:39:10 +0800",
+  "state_traceback": {
+    "current_state": "persist",
+    "evidence_policy": "task-report + dispatch-log + run-manifest + evidence-index",
+    "failure_reason": "",
+    "failure_state": "",
+    "inspector": "agent-system",
+    "reviewer": "ysyx-coordinator",
+    "rollback_target": "",
+    "state_sequence": [
+      "recall_context",
+      "classify_layer",
+      "plan_graph",
+      "implement",
+      "verify",
+      "inspect",
+      "persist"
+    ]
+  },
+  "status": "completed",
+  "task_slug": "rv64-t0-5ns-remap-baseline-yosys-sta",
+  "trace_id": "e2e:2026-07-12-rv64-t0-5ns-remap-baseline-yosys-sta",
+  "updated_at": "2026-07-12 01:39:12 +0800"
+}

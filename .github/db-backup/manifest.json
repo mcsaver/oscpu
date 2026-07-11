@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-13T07:57:11+00:00",
-  "updated_at": "2026-07-11T15:01:27+00:00",
+  "updated_at": "2026-07-11T19:04:47+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -1078,10 +1078,10 @@
     {
       "path": ".github/memory/modules/yosys-sta.md",
       "kind": "memory-module",
-      "size_bytes": 1736,
-      "sha256": "d7ab874f6773c89fd6ea90b66a7e33c9d19bca6acef933c1a81717c457c5b51b",
-      "backup_source": "filesystem",
-      "archived_at": "2026-06-22T00:20:40+00:00"
+      "size_bytes": 34077,
+      "sha256": "7e86ccf9e5dc743d16d1871ae361620dd0c065fa7fca2f8b1bbdea45a19f1875",
+      "backup_source": "database",
+      "archived_at": "2026-07-11T19:04:47+00:00"
     },
     {
       "path": ".github/memory/modules/ysyx-soc.md",
@@ -1094,10 +1094,10 @@
     {
       "path": ".github/memory/project-status.md",
       "kind": "memory",
-      "size_bytes": 617589,
-      "sha256": "62dff963713f7ed05efe4fb186b4e8108366b7a03082962f3c22661a05fa6942",
+      "size_bytes": 627685,
+      "sha256": "db845b96e6ded3b21a90b821a24e242ffb2f6574786b68880423516256602009",
       "backup_source": "database",
-      "archived_at": "2026-07-11T05:39:58+00:00"
+      "archived_at": "2026-07-11T19:04:47+00:00"
     },
     {
       "path": ".github/task-runs/2026-04-13-npc-dpic-bringup/dispatch-log.md",

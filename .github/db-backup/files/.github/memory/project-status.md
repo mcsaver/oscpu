@@ -542,3 +542,49 @@ flush 契约诊断确认 UC-A：整数 MulDiv/CLMUL **独缺 mispredict-kill 端
 针对“实现型 agent 优先交付、审查覆盖不足”的复盘结论，本轮把实现者/审查者对立写入工作区 agent 配置。根 `AGENTS.md`、`.github/AGENTS.md`、Copilot 指令和 `agent-system.agent.md` 现在要求交付前显式执行内部对抗：实现者人格负责给出改动、证据、完成边界和豁免理由；审查者人格负责主动寻找反例、覆盖洞、假绿、未读上下文、未跑 profile、验证不匹配和越级完成声明。冲突必须在最终回复、task-run 或 memory 中记录为“证据已关闭”或“剩余风险/下一步”；未解决冲突时只能交付子任务状态，不得声明整体完成。
 
 结构化合同同步到 `agent-env-review-routing.json`、`agent-env-policy.json` 和 `agent-env-state-traceability.json`，并由 `e2e_agent_system_reviewer_inspector_gate` 检查 `adversarial_personas`、`implementer_persona`、`reviewer_persona` 与 `conflict_resolution_required`。边界：这轮是配置和 e2e 自检层的强制，不等于真实多模型独立审查；高风险 RTL 仍应继续使用 refute/review 子任务、定向负例和非真空断言。
+
+## 2026-07-11 RV64 OoO 代码优先架构审计与文档对照
+
+- 状态：架构审计产物已完成，DUT RTL 未修改；最终证据目录为 `audit-results/2026-07-11-rv64-ooo-blind/`，主报告 `05_FINAL_ARCHITECTURE_ASSESSMENT.txt`，文档对照 `04_DOCUMENT_COMPARISON.txt`，冻结代码基线 `PHASE1_FROZEN.txt`，task-run 为 `.github/task-runs/2026-07-11-rv64-ooo-code-first-architecture-audit/`。
+- 方法：三个独立 reviewer 先禁止读取 RV64 设计 Markdown，分别检查全局拓扑、前端和后端；主线程冻结阶段一后运行六组定向 RTL testbench，再读取 active spec/snapshot/plan/history 做对照。报告显式区分代码事实、局部动态、整链推断、不可达模块合同与非 signoff PPA。
+- 当前结论：核是完整闭环的小窗口 RV64 OoO，不是名义乱序；中心宽度2、ROB16、int/FP PRF64+IQ8，但 FP/memory/IFU/PTW/long-op 多为单通道或单在飞。架构强项是 int/FP rename/精确提交、ROB恢复、SQ drain、Sv39/PMP 与工程验证；限制集中在前端packet/next-PC、IQ/PRF PPA、阻塞式 memory hierarchy 和 single-hart/minimal-AXI 平台边界。
+- 新审计项：FP trap-classified 后仍 backend-present、xRET current-mode 检查缺口、page-end C fault 提前归属、IFU A-update flush 未排水、MIQ flush+pop ghost 已有定向证据；A/D PTE write PMP、`minstret` 唯一源、store late B error、普通 FENCE、device lane/size 等以静态合同或待联测边界记录。没有把局部证据越级写成完整整核复现。
+- 文档状态：2026-07-03 ground-truth 应降为 dated snapshot；current README/ROADMAP/normative architecture 和若干 ACTIVE specs 未同步 fence.i、硬件A/D、BPU1024/GHR10、redirect PC arbiter、Difftest范围、当前WNS，并遗漏 trap-dispatch、xRET、minstret、A-update write-drain 跨模块合同。旧 task-run/snapshot 保留历史，不改写正文。
+- 验证范围：本轮定向脚本 exit 0；既有 module 86/86、177 riscv-tests、AM regression 为绿。当前 `.config` 未开启 Difftest；OpenSTA WNS约 -5.35ns 且宏模型/ideal clock 非物理签核条件。后续若修 RTL，需把 P0 合同转为常驻回归/断言并重跑匹配的 full regression。
+
+## 2026-07-11 RV64 OoO 当前文档权威刷新与验证勘误
+
+- current `as-is` 已切换到 `npc/rv64/design/arch/rtl-ground-truth-2026-07-11.md`；2026-07-03 快照已通过 `git mv` 进入 `design/arch/history/`，history index 将其标为 `SUPERSEDED`。活跃 README、架构宪法、ROADMAP 和六份关键 spec 已同步当前拓扑、容量与开放合同。
+- `design/specs/history/ooo-sv39-hw-ad-update.md` 已补入 history index；硬件 A/D 主路径仍属已实现，但 PTE write PMP 与 IFU A-update partial-write flush-drain 已在 active spec 重新登记为开放合同。
+- 代码优先审计的验证解释已勘误：177 个 official riscv-tests 逐项 PASS；AM 原始日志为 58/59，`fp-difftest-probe` FAIL；module summary 虽写 86/86，但三份原始日志先出现 FAIL / `$finish(1)` 后仍写 `[RESULT] PASS`。因此旧 task-run 中“module/AM 全绿”的表述只作不可变历史，不再作为 current truth。
+- 当前 P0 包括 FDG-G1、XRET-G1、IFU-AXI-G1、IFU-FETCH-G2、PTW-PMP-G1、MIQ-G1、INSTRET-G1；本任务只修文档与证据解释，没有修改 DUT、testbench 或结果聚合器。
+- 新 task-run：`.github/task-runs/2026-07-11-rv64-doc-authority-refresh/`；验证勘误：`audit-results/2026-07-11-rv64-ooo-blind/VALIDATION_ERRATUM.txt`。
+- strict-guard 豁免：`npc-dev` profile 已 fresh completed；`agent-system` profile 的定义校验为 9/9 OK，但实际执行被全局 `artifact-audit` 阻断，唯一报错是既存且本任务未修改的 `.github/task-runs/2026-07-11-knife-b2-s2s3/evidence/topo40.rpt`（1650168 bytes，超过 1 MiB tracked evidence 限制，来源 commit `757437e9d`）。本任务不删除、移动或改写该历史证据，因此 strict guard 不能记 PASS；按 `agent-e2e-workflow.instructions.md` 记录范围化豁免，待该证据按其 owner 的 artifact lifecycle 独立处置后再补 agent-system completed run。
+
+## 2026-07-11 Strict guard raw-evidence 生命周期修复
+
+- 上一节的 strict-guard 豁免已被本轮后续修复取代。根因不是 guard 阈值错误，而是 1,650,168-byte 的 raw STA 报告在已有 task-run evidence ignore 规则时仍被强制纳入 Git；来源提交为 `757437e9db207f76ad4675dee8063dce73024383`。
+- 修复采用标准 index-only 生命周期：三份 raw evidence 已登记尺寸、行数、SHA-256 与摘要并生成派生索引；超限报告只从 Git index 解除跟踪，本地原文件仍存在、仍命中 ignore，SHA-256 保持 `f2b292686adef90056a7fe0ea7977d6a0085d98a7d5aa9cf0c3b346ffe10d512`。没有调高 1 MiB 合同、删除或搬移报告，也没有给 legacy/manual run 伪造 e2e manifest。
+- 验证终态：全局 `artifact-audit` PASS（tracked runtime files 5666、tracked heavy files 0）；fresh `agent-system` 与 `npc-dev` profile 均 completed；strict guard 在 required profiles=2 下全部 PASS。DUT RTL 行为未因本修复改变。
+
+## 2026-07-11 RV64 F0 truthful regression 收口
+
+- F0 子任务已完成，但 parent“完整功能 + 物理 200 MHz”仍在进行中。module/AM runner 已从摘要文本改为真实子层 rc + 日志语义判定；三个陈旧 sequencer TB 已刷新 current contract；FP GPR-destination completion 已从 FPR busy/bypass/wakeup/write 域隔离。
+- 新鲜门禁：checker 17/17 + 11/11、module 86/86、AM 59/59（Difftest ON）、official riscv-tests 177/177、RTL style/contract/lint/build 与 core-regress overall_rc=0。独立审查 Critical=0/Important=0；npc-dev workflow 与 strict guard 均 PASS。
+- 稳定架构原则：GPR/FPR preg 的数值相同不代表同一寄存器域；所有 busy clear、bypass、wakeup 和 physical write 必须由 completion valid 与 destination-domain qualifier 共同授权。
+- NPC 配置验证前后哈希一致；F0 task-run 为 `2026-07-11-rv64-f0-truthful-regression`。下一阶段进入 F1 正确性合同与 T0/T1 5ns/frontend pipeline，F2/F3 和物理 200 MHz 尚未闭合。
+
+## 2026-07-11 Strict guard 语义新鲜度与 raw Markdown evidence 闭环
+
+- **false-pass 根因已修**：旧 strict guard 把 `task-report.md` 文件 mtime 当作 profile 完成时间；后续格式化/归档可在不重跑 profile 的情况下刷新 mtime，使旧 evidence 错误覆盖较新的源码。现在 `manifest.json.updated_at` 是权威语义时间，只有 manifest 缺失时才允许从 report 的唯一精确字段回退；report mtime 永不参与 freshness。
+- **fail-closed 合同已补齐**：候选按带时区 UTC 微秒时间选择最新；非对象 JSON、重复 JSON key、重复/前缀碰撞 report 字段、NaN/Infinity、profile/status 不匹配、缺失或无时区时间、manifest symlink（含 dangling）均被拒绝，非法输入只产生明确诊断而不抛 traceback。TDD 最终覆盖 19 个正反例。
+- **raw Markdown 索引边界已修**：task-run `evidence/**` 和 runtime-artifacts `<run-id>/**` 下的 raw Markdown 只登记到 bounded `evidence_assets`，不会进入 `db_documents/file_text/chunks/FTS`；archive/rebuild 会跳过并清理旧全文 payload。runtime root 清理使用精确前缀比较，避免 SQL LIKE `_` 通配误删 `runtime_demo`/`runtimeXdemo` 等相邻根。
+- **迁移与复审**：旧 raw payload 已清零（`raw_db_documents=0`、`raw_file_text=0`），三组历史 raw Markdown 已生成 evidence index；artifact-audit、Markdown coverage、DB-first 和 agent-system gates 均通过。独立 reviewer 在两轮中发现 legacy substring/微秒排序、NaN 与 dangling symlink 缺口，修正后最终 Critical=0/Important=0。
+- **提交边界**：实现提交为 `3f11ce1c7`（raw evidence index boundary）与 `b68fc1ec2`（semantic guard freshness），正式 profile 证据使用 task slug `strict-guard-semantic-freshness-agent-system` 的追加式 task-run 家族。此闭环只证明开发证据生命周期与 freshness 守门正确；parent“完整功能 + 物理 200 MHz”仍进行中，下一步仍是 T0 5 ns/OpenSTA 基线和 T1 frontend pipeline。
+## 2026-07-12 RV64 OoO 200 MHz T0 目标驱动重映射基线（含旧结论勘误）
+
+- **旧 `-12.63ns` 结论已降级为失效诊断**：HEAD `aa5f6c66f` 时自定义 ABC `DELAY-4` 没有 `{D}`，所以 `STA_CLK_FREQ_MHZ=200` 没有进入实际 `&nf/upsize/dnsize` 映射命令。旧 `DCache SRAM -> MIQ` 路径和 `WNS -12.63ns / TNS -153907.62ns` 不能称为 5ns 目标驱动重映射，也不能决定 T1 排序；产物已保留为 `*.pre-target-contract.*`。
+- 流程修复提交 `ee422740d` 后，在不暂存用户三个 dirty RTL 的前提下，以相同 dirty diff SHA-256 `ba530235...` 完成目标驱动重映射：105 个最终 ABC cone 均收到 `-D 5000.0`；Yosys `1404.66s`、峰值 `3650.20MB`、最终 0 problems，网表 `68,073,061` bytes，SHA-256 `5369c7e4...`。
+- 当前 non-signoff OpenSTA 5ns 结果为 **WNS `-15.74ns` / TNS `-196567.73ns`**；最差路径从 `OooStoreQueue` 状态 FF 到 `OooMemInflightQueue` D，arrival `20.709ns`、required `4.971ns`、slack `-15.739ns`，静态弧穿过 SQ/issue-ready/backend glue/PRF/双 ALU/MulDiv/IQ/PRF/双 ALU/MIQ。当前根因排序是后端 issue/execute/ready/kill 缺少寄存边界，不再是旧报告所称的 DCache completion 单链。
+- T1 候选是在两条 IQ issue 输出后增加独立 elastic stage，使 same-cycle wakeup/select 终止于 stage D，并在测试证明不可达/时序安全后删除 issue0->issue1 死前递与 PRF 当拍 write-through。该方案仍待设计批准与 TDD，不是已实现结论。
+- iEDA 同网表有界运行 600s 后停在 data backward propagation，未生成可用报告；当前数值真源为 OpenSTA。证据索引：`.github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline/`。边界仍为 ideal clock、无 SPEF/CTS/OCV/完整 IO 约束、四宏 placeholder Liberty，故不是物理 signoff。
