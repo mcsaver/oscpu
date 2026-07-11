@@ -19,8 +19,10 @@ even though the run manifest proved that execution finished earlier.
   old run fresh.
 - A valid legacy run without run-manifest.json remains usable when its report
   contains a timezone-qualified updated_at value.
+- Legacy profile, status, and updated_at fields must each occur exactly once
+  and match their complete values; prefixes and conflicting duplicates fail.
 - When several candidates are supplied, the newest semantically valid
-  candidate is selected deterministically.
+  candidate is selected with microsecond precision.
 - Manifest profile and status must agree with the requested profile and the
   completed report.
 
@@ -59,11 +61,16 @@ generator substantially. It remains a possible future hardening step.
 scripts/agent-e2e.sh gains one focused helper:
 
 - e2e_guard_evidence_updated_epoch(root, profile)
+  - Parse the report's profile, status, and updated_at as unique structured
+    fields and require exact profile/completed values.
   - If run-manifest.json exists, require JSON profile equal to profile,
-    status equal to completed, and a timezone-qualified updated_at.
+    status equal to completed, a timezone-qualified updated_at, an object
+    top-level value, no duplicate JSON keys, no NaN/Infinity constants, and
+    a regular non-symlink manifest path.
   - If no manifest exists, require a timezone-qualified updated_at in
     task-report.md.
-  - Print an integer Unix epoch on success; return non-zero otherwise.
+  - Print an integer UTC Unix epoch in microseconds on success; return
+    non-zero without traceback otherwise.
 
 e2e_guard_find_evidence_for_profile evaluates every explicit and automatically
 discovered evidence directory. A candidate qualifies only when:
@@ -84,6 +91,11 @@ The existing agent-system self-test receives four focused cases:
 - fresh manifest time plus deliberately old report mtime is accepted;
 - a manifest whose profile disagrees with the report is rejected;
 - two qualifying candidates select the one with the newer semantic time.
+- malformed/non-object manifests, missing fields, non-completed status,
+  timezone-less timestamps, non-finite JSON constants, duplicate JSON keys,
+  dangling manifest symlinks, legacy prefix collisions, and duplicate report
+  fields are rejected without traceback;
+- two timestamps within the same second retain fractional ordering.
 
 The RED run must fail against the current mtime implementation. The GREEN run,
 the complete agent-system profile, the strict guard, shell syntax checks, DB

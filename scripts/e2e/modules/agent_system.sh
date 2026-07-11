@@ -127,6 +127,7 @@ e2e_agent_system_discovery() {
   if grep -Fq 'E2E_GUARD_MODE=strict' "$runner_sh" &&
      grep -Fq 'e2e_guard_profiles_for_path' "$runner_sh" &&
      grep -Fq 'e2e_guard_evidence_has_db_recall' "$runner_sh" &&
+     grep -Fq 'e2e_guard_evidence_updated_epoch' "$runner_sh" &&
      grep -Fq 'missing_evidence profile=' "$runner_sh" &&
      grep -Fq -- '--guard-mode strict' "$E2E_ROOT_DIR/.github/AGENTS.md" &&
      grep -Fq -- '--guard-mode strict' "$E2E_ROOT_DIR/.github/instructions/agent-e2e-workflow.instructions.md" &&
@@ -141,17 +142,49 @@ e2e_agent_system_discovery() {
   fi
 
   local guard_tmp guard_paths guard_evidence guard_report_only
+  local guard_change_epoch guard_fresh_updated_at guard_newest_updated_at
+  local guard_stale_semantic guard_fresh_semantic guard_profile_mismatch
+  local guard_older_candidate guard_newest_candidate guard_select_out
+  local guard_manifest_status guard_manifest_missing guard_manifest_naive
+  local guard_manifest_invalid guard_manifest_nonobject guard_invalid_out
+  local guard_manifest_nonfinite guard_manifest_duplicate guard_manifest_dangling
+  local guard_legacy_prefix guard_legacy_duplicate
+  local guard_fraction_early guard_fraction_late guard_fraction_out guard_fraction_base
   guard_tmp=$(mktemp -d)
   guard_paths="$guard_tmp/paths.txt"
   guard_evidence="$guard_tmp/evidence-pass"
   guard_report_only="$guard_tmp/evidence-report-only"
+  guard_stale_semantic="$guard_tmp/evidence-stale-semantic"
+  guard_fresh_semantic="$guard_tmp/evidence-fresh-semantic"
+  guard_profile_mismatch="$guard_tmp/evidence-profile-mismatch"
+  guard_older_candidate="$guard_tmp/evidence-older-candidate"
+  guard_newest_candidate="$guard_tmp/evidence-newest-candidate"
+  guard_manifest_status="$guard_tmp/evidence-manifest-status"
+  guard_manifest_missing="$guard_tmp/evidence-manifest-missing"
+  guard_manifest_naive="$guard_tmp/evidence-manifest-naive"
+  guard_manifest_invalid="$guard_tmp/evidence-manifest-invalid"
+  guard_manifest_nonobject="$guard_tmp/evidence-manifest-nonobject"
+  guard_manifest_nonfinite="$guard_tmp/evidence-manifest-nonfinite"
+  guard_manifest_duplicate="$guard_tmp/evidence-manifest-duplicate"
+  guard_manifest_dangling="$guard_tmp/evidence-manifest-dangling"
+  guard_legacy_prefix="$guard_tmp/evidence-legacy-prefix"
+  guard_legacy_duplicate="$guard_tmp/evidence-legacy-duplicate"
+  guard_fraction_early="$guard_tmp/evidence-fraction-early"
+  guard_fraction_late="$guard_tmp/evidence-fraction-late"
+  guard_change_epoch=$(stat -c '%Y' "$E2E_ROOT_DIR/.github/AGENTS.md")
+  guard_fresh_updated_at=$(date -d "@$((guard_change_epoch + 1))" '+%Y-%m-%d %H:%M:%S %z')
+  guard_newest_updated_at=$(date -d "@$((guard_change_epoch + 2))" '+%Y-%m-%d %H:%M:%S %z')
+  guard_fraction_base=$(date -u -d "@$((guard_change_epoch + 3))" '+%Y-%m-%d %H:%M:%S')
   mkdir -p "$guard_evidence"
   cat > "$guard_evidence/task-report.md" <<'EOF'
 # 任务报告
 
 - `profile`: agent-system
 - `status`: completed
+- `updated_at`: __GUARD_UPDATED_AT__
 EOF
+  sed -i "s/__GUARD_UPDATED_AT__/$guard_fresh_updated_at/" \
+    "$guard_evidence/task-report.md"
   cat > "$guard_evidence/context-brief.md" <<'EOF'
 # Context Brief
 
@@ -167,11 +200,282 @@ EOF
 
 generated_by: github_index_db index-evidence
 EOF
+  touch -d "@$((guard_change_epoch + 1))" "$guard_evidence/task-report.md"
   printf '%s\n' '.github/AGENTS.md' > "$guard_paths"
   if "$runner_sh" --guard --guard-mode strict --paths-file "$guard_paths" --evidence-dir "$guard_evidence" >/dev/null 2>&1; then
     printf 'PASS e2e evidence guard accepts matching completed task-run evidence\n'
   else
     printf 'FAIL e2e evidence guard rejected matching completed task-run evidence\n'
+    evidence_guard_ok=0
+  fi
+  mkdir -p "$guard_stale_semantic" "$guard_fresh_semantic" "$guard_profile_mismatch"
+  mkdir -p "$guard_older_candidate" "$guard_newest_candidate"
+  cp -a "$guard_evidence/." "$guard_stale_semantic/"
+  cp -a "$guard_evidence/." "$guard_fresh_semantic/"
+  cp -a "$guard_evidence/." "$guard_profile_mismatch/"
+  cp -a "$guard_evidence/." "$guard_older_candidate/"
+  cp -a "$guard_evidence/." "$guard_newest_candidate/"
+  cat > "$guard_stale_semantic/run-manifest.json" <<'EOF'
+{
+  "profile": "agent-system",
+  "status": "completed",
+  "updated_at": "2000-01-01 00:00:00 +0000"
+}
+EOF
+  touch -d "@$((guard_change_epoch + 1))" "$guard_stale_semantic/task-report.md"
+  if "$runner_sh" --guard --guard-mode strict --paths-file "$guard_paths" \
+      --evidence-dir "$guard_stale_semantic" >/dev/null 2>&1; then
+    printf 'FAIL e2e evidence guard accepted stale semantic time after report touch\n'
+    evidence_guard_ok=0
+  else
+    printf 'PASS e2e evidence guard rejects stale semantic time after report touch\n'
+  fi
+  cat > "$guard_fresh_semantic/run-manifest.json" <<EOF
+{
+  "profile": "agent-system",
+  "status": "completed",
+  "updated_at": "$guard_fresh_updated_at"
+}
+EOF
+  touch -d '2000-01-01 00:00:00 +0000' "$guard_fresh_semantic/task-report.md"
+  if "$runner_sh" --guard --guard-mode strict --paths-file "$guard_paths" \
+      --evidence-dir "$guard_fresh_semantic" >/dev/null 2>&1; then
+    printf 'PASS e2e evidence guard accepts fresh semantic time with old report mtime\n'
+  else
+    printf 'FAIL e2e evidence guard rejected fresh semantic time with old report mtime\n'
+    evidence_guard_ok=0
+  fi
+  cat > "$guard_profile_mismatch/run-manifest.json" <<EOF
+{
+  "profile": "npc-dev",
+  "status": "completed",
+  "updated_at": "$guard_fresh_updated_at"
+}
+EOF
+  touch -d "@$((guard_change_epoch + 1))" "$guard_profile_mismatch/task-report.md"
+  if "$runner_sh" --guard --guard-mode strict --paths-file "$guard_paths" \
+      --evidence-dir "$guard_profile_mismatch" >/dev/null 2>&1; then
+    printf 'FAIL e2e evidence guard accepted manifest/report profile mismatch\n'
+    evidence_guard_ok=0
+  else
+    printf 'PASS e2e evidence guard rejects manifest/report profile mismatch\n'
+  fi
+  cat > "$guard_older_candidate/run-manifest.json" <<EOF
+{
+  "profile": "agent-system",
+  "status": "completed",
+  "updated_at": "$guard_fresh_updated_at"
+}
+EOF
+  cat > "$guard_newest_candidate/run-manifest.json" <<EOF
+{
+  "profile": "agent-system",
+  "status": "completed",
+  "updated_at": "$guard_newest_updated_at"
+}
+EOF
+  touch -d "@$((guard_change_epoch + 1))" \
+    "$guard_older_candidate/task-report.md" \
+    "$guard_newest_candidate/task-report.md"
+  if guard_select_out=$(
+    "$runner_sh" --guard --guard-mode strict --paths-file "$guard_paths" \
+      --evidence-dir "$guard_older_candidate" \
+      --evidence-dir "$guard_newest_candidate" 2>&1
+  ) &&
+     grep -Fq -- "evidence=$guard_newest_candidate" <<< "$guard_select_out"; then
+    printf 'PASS e2e evidence guard selects newest semantic evidence candidate\n'
+  else
+    printf '%s\n' "$guard_select_out"
+    printf 'FAIL e2e evidence guard did not select newest semantic evidence candidate\n'
+    evidence_guard_ok=0
+  fi
+  mkdir -p "$guard_manifest_status" "$guard_manifest_missing" "$guard_manifest_naive"
+  mkdir -p "$guard_manifest_invalid" "$guard_manifest_nonobject"
+  mkdir -p "$guard_manifest_nonfinite" "$guard_manifest_duplicate" "$guard_manifest_dangling"
+  mkdir -p "$guard_legacy_prefix" "$guard_legacy_duplicate"
+  mkdir -p "$guard_fraction_early" "$guard_fraction_late"
+  cp -a "$guard_evidence/." "$guard_manifest_status/"
+  cp -a "$guard_evidence/." "$guard_manifest_missing/"
+  cp -a "$guard_evidence/." "$guard_manifest_naive/"
+  cp -a "$guard_evidence/." "$guard_manifest_invalid/"
+  cp -a "$guard_evidence/." "$guard_manifest_nonobject/"
+  cp -a "$guard_evidence/." "$guard_manifest_nonfinite/"
+  cp -a "$guard_evidence/." "$guard_manifest_duplicate/"
+  cp -a "$guard_evidence/." "$guard_manifest_dangling/"
+  cp -a "$guard_evidence/." "$guard_legacy_prefix/"
+  cp -a "$guard_evidence/." "$guard_legacy_duplicate/"
+  cp -a "$guard_evidence/." "$guard_fraction_early/"
+  cp -a "$guard_evidence/." "$guard_fraction_late/"
+  cat > "$guard_manifest_status/run-manifest.json" <<EOF
+{
+  "profile": "agent-system",
+  "status": "blocked",
+  "updated_at": "$guard_fresh_updated_at"
+}
+EOF
+  if "$runner_sh" --guard --guard-mode strict --paths-file "$guard_paths" \
+      --evidence-dir "$guard_manifest_status" >/dev/null 2>&1; then
+    printf 'FAIL e2e evidence guard accepted non-completed manifest status\n'
+    evidence_guard_ok=0
+  else
+    printf 'PASS e2e evidence guard rejects non-completed manifest status\n'
+  fi
+  cat > "$guard_manifest_missing/run-manifest.json" <<'EOF'
+{
+  "profile": "agent-system",
+  "status": "completed"
+}
+EOF
+  if "$runner_sh" --guard --guard-mode strict --paths-file "$guard_paths" \
+      --evidence-dir "$guard_manifest_missing" >/dev/null 2>&1; then
+    printf 'FAIL e2e evidence guard accepted manifest without updated_at\n'
+    evidence_guard_ok=0
+  else
+    printf 'PASS e2e evidence guard rejects manifest without updated_at\n'
+  fi
+  cat > "$guard_manifest_naive/run-manifest.json" <<EOF
+{
+  "profile": "agent-system",
+  "status": "completed",
+  "updated_at": "$guard_fraction_base"
+}
+EOF
+  if "$runner_sh" --guard --guard-mode strict --paths-file "$guard_paths" \
+      --evidence-dir "$guard_manifest_naive" >/dev/null 2>&1; then
+    printf 'FAIL e2e evidence guard accepted timezone-less manifest timestamp\n'
+    evidence_guard_ok=0
+  else
+    printf 'PASS e2e evidence guard rejects timezone-less manifest timestamp\n'
+  fi
+  printf '{\n' > "$guard_manifest_invalid/run-manifest.json"
+  if guard_invalid_out=$(
+    "$runner_sh" --guard --guard-mode strict --paths-file "$guard_paths" \
+      --evidence-dir "$guard_manifest_invalid" 2>&1
+  ); then
+    printf 'FAIL e2e evidence guard accepted invalid manifest JSON\n'
+    evidence_guard_ok=0
+  elif grep -Fq -- 'Traceback' <<< "$guard_invalid_out"; then
+    printf '%s\n' "$guard_invalid_out"
+    printf 'FAIL e2e evidence guard leaked traceback for invalid manifest JSON\n'
+    evidence_guard_ok=0
+  else
+    printf 'PASS e2e evidence guard rejects invalid manifest JSON cleanly\n'
+  fi
+  printf '[]\n' > "$guard_manifest_nonobject/run-manifest.json"
+  if guard_invalid_out=$(
+    "$runner_sh" --guard --guard-mode strict --paths-file "$guard_paths" \
+      --evidence-dir "$guard_manifest_nonobject" 2>&1
+  ); then
+    printf 'FAIL e2e evidence guard accepted non-object manifest JSON\n'
+    evidence_guard_ok=0
+  elif grep -Fq -- 'Traceback' <<< "$guard_invalid_out"; then
+    printf '%s\n' "$guard_invalid_out"
+    printf 'FAIL e2e evidence guard leaked traceback for non-object manifest JSON\n'
+    evidence_guard_ok=0
+  else
+    printf 'PASS e2e evidence guard rejects non-object manifest JSON cleanly\n'
+  fi
+  cat > "$guard_manifest_nonfinite/run-manifest.json" <<EOF
+{
+  "profile": "agent-system",
+  "status": "completed",
+  "updated_at": "$guard_fresh_updated_at",
+  "extra": NaN
+}
+EOF
+  if guard_invalid_out=$(
+    "$runner_sh" --guard --guard-mode strict --paths-file "$guard_paths" \
+      --evidence-dir "$guard_manifest_nonfinite" 2>&1
+  ); then
+    printf 'FAIL e2e evidence guard accepted non-finite manifest JSON constant\n'
+    evidence_guard_ok=0
+  elif grep -Fq -- 'Traceback' <<< "$guard_invalid_out"; then
+    printf '%s\n' "$guard_invalid_out"
+    printf 'FAIL e2e evidence guard leaked traceback for non-finite JSON constant\n'
+    evidence_guard_ok=0
+  else
+    printf 'PASS e2e evidence guard rejects non-finite manifest JSON cleanly\n'
+  fi
+  cat > "$guard_manifest_duplicate/run-manifest.json" <<EOF
+{
+  "profile": "agent-system",
+  "profile": "npc-dev",
+  "status": "completed",
+  "updated_at": "$guard_fresh_updated_at"
+}
+EOF
+  if "$runner_sh" --guard --guard-mode strict --paths-file "$guard_paths" \
+      --evidence-dir "$guard_manifest_duplicate" >/dev/null 2>&1; then
+    printf 'FAIL e2e evidence guard accepted duplicate manifest JSON keys\n'
+    evidence_guard_ok=0
+  else
+    printf 'PASS e2e evidence guard rejects duplicate manifest JSON keys\n'
+  fi
+  ln -s 'missing-manifest.json' "$guard_manifest_dangling/run-manifest.json"
+  if "$runner_sh" --guard --guard-mode strict --paths-file "$guard_paths" \
+      --evidence-dir "$guard_manifest_dangling" >/dev/null 2>&1; then
+    printf 'FAIL e2e evidence guard accepted dangling manifest symlink as legacy evidence\n'
+    evidence_guard_ok=0
+  else
+    printf 'PASS e2e evidence guard rejects dangling manifest symlink\n'
+  fi
+  cat > "$guard_legacy_prefix/task-report.md" <<'EOF'
+# Legacy Prefix Collision
+
+- `profile`: agent-system-old
+- `status`: completed-with-warning
+- `updated_at`: __GUARD_UPDATED_AT__
+EOF
+  sed -i "s/__GUARD_UPDATED_AT__/$guard_fresh_updated_at/" \
+    "$guard_legacy_prefix/task-report.md"
+  if "$runner_sh" --guard --guard-mode strict --paths-file "$guard_paths" \
+      --evidence-dir "$guard_legacy_prefix" >/dev/null 2>&1; then
+    printf 'FAIL e2e evidence guard accepted legacy profile/status prefix collision\n'
+    evidence_guard_ok=0
+  else
+    printf 'PASS e2e evidence guard rejects legacy profile/status prefix collision\n'
+  fi
+  cat > "$guard_legacy_duplicate/task-report.md" <<'EOF'
+# Legacy Duplicate Fields
+
+- `profile`: agent-system
+- `profile`: npc-dev
+- `status`: completed
+- `updated_at`: __GUARD_UPDATED_AT__
+EOF
+  sed -i "s/__GUARD_UPDATED_AT__/$guard_fresh_updated_at/" \
+    "$guard_legacy_duplicate/task-report.md"
+  if "$runner_sh" --guard --guard-mode strict --paths-file "$guard_paths" \
+      --evidence-dir "$guard_legacy_duplicate" >/dev/null 2>&1; then
+    printf 'FAIL e2e evidence guard accepted conflicting legacy report fields\n'
+    evidence_guard_ok=0
+  else
+    printf 'PASS e2e evidence guard rejects conflicting legacy report fields\n'
+  fi
+  cat > "$guard_fraction_early/run-manifest.json" <<EOF
+{
+  "profile": "agent-system",
+  "status": "completed",
+  "updated_at": "$guard_fraction_base.100000 +0000"
+}
+EOF
+  cat > "$guard_fraction_late/run-manifest.json" <<EOF
+{
+  "profile": "agent-system",
+  "status": "completed",
+  "updated_at": "$guard_fraction_base.900000 +0000"
+}
+EOF
+  if guard_fraction_out=$(
+    "$runner_sh" --guard --guard-mode strict --paths-file "$guard_paths" \
+      --evidence-dir "$guard_fraction_early" \
+      --evidence-dir "$guard_fraction_late" 2>&1
+  ) &&
+     grep -Fq -- "evidence=$guard_fraction_late" <<< "$guard_fraction_out"; then
+    printf 'PASS e2e evidence guard preserves fractional timestamp ordering\n'
+  else
+    printf '%s\n' "$guard_fraction_out"
+    printf 'FAIL e2e evidence guard lost fractional timestamp ordering\n'
     evidence_guard_ok=0
   fi
   mkdir -p "$guard_report_only"

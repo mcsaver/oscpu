@@ -30,7 +30,7 @@ profile mapping and DB-recall checks unchanged.
 - Consumes: scripts/agent-e2e.sh --guard, --paths-file, and --evidence-dir.
 - Produces: shell regression cases that distinguish semantic time from mtime.
 
-- [ ] **Step 1: Extend the positive legacy fixture**
+- [x] **Step 1: Extend the positive legacy fixture**
 
 Record guard_updated_at from e2e_now and include it in the existing completed
 agent-system task report:
@@ -38,16 +38,18 @@ agent-system task report:
 ~~~bash
 local guard_updated_at
 guard_updated_at=$(e2e_now)
-cat > "$guard_evidence/task-report.md" <<EOF
+cat > "$guard_evidence/task-report.md" <<'EOF'
 # 任务报告
 
 - `profile`: agent-system
 - `status`: completed
-- `updated_at`: $guard_updated_at
+- `updated_at`: __GUARD_UPDATED_AT__
 EOF
+sed -i "s/__GUARD_UPDATED_AT__/$guard_updated_at/" \
+  "$guard_evidence/task-report.md"
 ~~~
 
-- [ ] **Step 2: Add stale-semantic and fresh-semantic fixtures**
+- [x] **Step 2: Add stale-semantic and fresh-semantic fixtures**
 
 Create complete DB-recall artifact sets. Give the stale fixture a manifest
 updated_at of 2000-01-01 00:00:00 +0000 and touch only its report. Give the
@@ -63,13 +65,20 @@ The stale invocation must return non-zero; the fresh invocation must return
 zero. Also add a fixture whose report says agent-system but whose manifest
 says npc-dev, and require rejection.
 
-- [ ] **Step 3: Add newest-candidate selection coverage**
+- [x] **Step 3: Add newest-candidate selection coverage**
 
 Pass two otherwise valid agent-system evidence directories, older first and
-newer second. Capture guard output and require evidence= to name the newer
-directory.
+newer second. Cover both distinct seconds and .100000/.900000 within one
+second. Capture guard output and require evidence= to name the newer directory.
 
-- [ ] **Step 4: Run the isolated RED profile**
+- [x] **Step 4: Add fail-closed parsing cases**
+
+Reject non-completed/missing/timezone-less manifest fields, malformed and
+non-object/non-finite JSON without traceback, duplicate JSON keys, dangling
+manifest symlinks, legacy profile/status prefix collisions, and duplicate
+conflicting report fields.
+
+- [x] **Step 5: Run the isolated RED profile**
 
 Run:
 
@@ -97,16 +106,18 @@ mtime rejection case reported as FAIL.
 - Consumes: an evidence directory containing run-manifest.json or a legacy
   task-report.md.
 
-- [ ] **Step 1: Add the timestamp helper**
+- [x] **Step 1: Add the timestamp helper**
 
 Implement a Bash wrapper around Python 3. The Python body must:
 
 ~~~python
-def parse_epoch(raw):
+def parse_epoch_us(raw):
     parsed = datetime.fromisoformat(raw.strip())
     if parsed.tzinfo is None:
         raise ValueError("timezone is required")
-    return int(parsed.timestamp())
+    parsed_utc = parsed.astimezone(timezone.utc)
+    delta = parsed_utc - datetime(1970, 1, 1, tzinfo=timezone.utc)
+    return (delta.days * 86400 + delta.seconds) * 1_000_000 + delta.microseconds
 ~~~
 
 When a manifest exists, parse JSON and require profile/status/updated_at.
@@ -116,28 +127,30 @@ Otherwise find this report form:
 - `updated_at`: 2026-07-11 22:03:18 +0800
 ~~~
 
-Print only the integer epoch and return non-zero for malformed input.
+Parse report profile/status/updated_at as unique exact fields. Parse manifest
+with duplicate-key/non-finite-constant rejection, require an object, and reject
+manifest symlinks. Print only the integer UTC microsecond epoch and return
+non-zero without traceback for malformed input.
 
-- [ ] **Step 2: Scan all candidates and choose the newest**
+- [x] **Step 2: Scan all candidates and choose the newest**
 
 Replace report_mtime qualification in
 e2e_guard_find_evidence_for_profile with:
 
 ~~~bash
-if e2e_guard_report_matches_profile "$report" "$profile" &&
-   e2e_guard_evidence_has_db_recall "$evidence_root" &&
-   evidence_epoch=$(e2e_guard_evidence_updated_epoch "$evidence_root" "$profile") &&
-   [[ $evidence_epoch =~ ^[0-9]+$ ]] &&
-   (( evidence_epoch >= min_change_epoch )) &&
-   (( evidence_epoch > best_epoch )); then
-  best_epoch=$evidence_epoch
+if e2e_guard_evidence_has_db_recall "$evidence_root" &&
+   evidence_epoch_us=$(e2e_guard_evidence_updated_epoch "$evidence_root" "$profile") &&
+   [[ $evidence_epoch_us =~ ^[0-9]+$ ]] &&
+   (( evidence_epoch_us >= min_change_us )) &&
+   (( evidence_epoch_us > best_epoch_us )); then
+  best_epoch_us=$evidence_epoch_us
   best_dir=${dir#./}
 fi
 ~~~
 
 After the loop, print best_dir only when non-empty.
 
-- [ ] **Step 3: Run syntax and GREEN tests**
+- [x] **Step 3: Run syntax and GREEN tests**
 
 Run:
 

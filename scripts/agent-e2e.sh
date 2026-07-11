@@ -487,18 +487,6 @@ e2e_guard_profiles_for_path() {
   esac
 }
 
-e2e_guard_report_matches_profile() {
-  local report=$1 profile=$2
-  [[ -f $report ]] || return 1
-  if ! grep -Fq -- '- `status`: completed' "$report" &&
-     ! grep -Fq -- 'status=completed' "$report"; then
-    return 1
-  fi
-  grep -Fq -- '- `profile`: '"$profile" "$report" ||
-    grep -Fq -- "profile=$profile" "$report" ||
-    grep -Fq -- "profile: $profile" "$report"
-}
-
 e2e_guard_evidence_has_db_recall() {
   local dir=$1
   [[ -f $dir/context-brief.md ]] || return 1
@@ -506,8 +494,117 @@ e2e_guard_evidence_has_db_recall() {
   [[ -f $dir/evidence-index.md ]] || return 1
 }
 
+e2e_guard_evidence_updated_epoch() {
+  local evidence_root=$1 profile=$2
+  python3 - "$evidence_root" "$profile" <<'PY'
+import json
+import re
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+evidence_root = Path(sys.argv[1])
+expected_profile = sys.argv[2]
+manifest_path = evidence_root / "run-manifest.json"
+report_path = evidence_root / "task-report.md"
+markdown_field_re = re.compile(
+    r"^-\s+`(profile|status|updated_at)`:\s*(.*?)\s*$"
+)
+plain_field_re = re.compile(
+    r"^(profile|status|updated_at)\s*[:=]\s*(.*?)\s*$"
+)
+
+
+def parse_epoch_us(raw: object) -> int:
+    if not isinstance(raw, str) or not raw.strip():
+        raise ValueError("missing timestamp")
+    parsed = datetime.fromisoformat(raw.strip())
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ValueError("timezone is required")
+    parsed_utc = parsed.astimezone(timezone.utc)
+    epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    delta = parsed_utc - epoch
+    value = (
+        (delta.days * 86400 + delta.seconds) * 1_000_000
+        + delta.microseconds
+    )
+    if value < 0:
+        raise ValueError("timestamp predates Unix epoch")
+    return value
+
+
+def parse_report_fields(report: str) -> dict[str, str]:
+    fields: dict[str, str] = {}
+    for raw_line in report.splitlines():
+        line = raw_line.strip()
+        match = markdown_field_re.fullmatch(line)
+        if match is None:
+            match = plain_field_re.fullmatch(line)
+        if match is None:
+            continue
+        key, value = match.groups()
+        if key in fields:
+            raise ValueError(f"duplicate report field: {key}")
+        fields[key] = value.strip()
+    if fields.get("profile") != expected_profile:
+        raise ValueError("report profile mismatch")
+    if fields.get("status") != "completed":
+        raise ValueError("report is not completed")
+    if not fields.get("updated_at"):
+        raise ValueError("report updated_at missing")
+    return fields
+
+
+def unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+
+def reject_json_constant(value: str) -> object:
+    raise ValueError(f"non-standard JSON constant: {value}")
+
+
+try:
+    report = report_path.read_text(encoding="utf-8")
+    report_fields = parse_report_fields(report)
+    updated_us = parse_epoch_us(report_fields["updated_at"])
+    if manifest_path.is_symlink():
+        raise ValueError("manifest symlinks are not accepted")
+    if manifest_path.exists():
+        manifest = json.loads(
+            manifest_path.read_text(encoding="utf-8"),
+            object_pairs_hook=unique_object,
+            parse_constant=reject_json_constant,
+        )
+        if not isinstance(manifest, dict):
+            raise ValueError("manifest must be a JSON object")
+        if manifest.get("profile") != expected_profile:
+            raise ValueError("manifest profile mismatch")
+        if manifest.get("status") != "completed":
+            raise ValueError("manifest is not completed")
+        updated_us = parse_epoch_us(manifest.get("updated_at"))
+except (
+    OSError,
+    OverflowError,
+    TypeError,
+    UnicodeError,
+    ValueError,
+    json.JSONDecodeError,
+):
+    raise SystemExit(1)
+
+print(updated_us)
+PY
+}
+
 e2e_guard_find_evidence_for_profile() {
-  local profile=$1 min_mtime=$2 dir report report_mtime evidence_root
+  local profile=$1 min_change_epoch=$2 dir report evidence_root evidence_epoch_us
+  local best_dir= best_epoch_us=-1 min_change_us
+  min_change_us=$((min_change_epoch * 1000000))
   for dir in "${E2E_GUARD_EVIDENCE_DIRS[@]}" "${E2E_GUARD_AUTO_EVIDENCE_DIRS[@]}"; do
     [[ -n $dir ]] || continue
     if [[ $dir = /* ]]; then
@@ -517,15 +614,17 @@ e2e_guard_find_evidence_for_profile() {
     fi
     report="$evidence_root/task-report.md"
     [[ -f $report ]] || continue
-    report_mtime=$(stat -c '%Y' "$report" 2>/dev/null || printf '0')
-    if [[ $report_mtime -ge $min_mtime ]] &&
-       e2e_guard_report_matches_profile "$report" "$profile" &&
-       e2e_guard_evidence_has_db_recall "$evidence_root"; then
-      printf '%s\n' "${dir#./}"
-      return 0
+    if e2e_guard_evidence_has_db_recall "$evidence_root" &&
+       evidence_epoch_us=$(e2e_guard_evidence_updated_epoch "$evidence_root" "$profile") &&
+       [[ $evidence_epoch_us =~ ^[0-9]+$ ]] &&
+       (( evidence_epoch_us >= min_change_us )) &&
+       (( evidence_epoch_us > best_epoch_us )); then
+      best_epoch_us=$evidence_epoch_us
+      best_dir=${dir#./}
     fi
   done
-  return 1
+  [[ -n $best_dir ]] || return 1
+  printf '%s\n' "$best_dir"
 }
 
 e2e_guard_run() {
