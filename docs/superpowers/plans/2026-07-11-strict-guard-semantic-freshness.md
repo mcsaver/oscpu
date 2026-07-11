@@ -74,13 +74,12 @@ directory.
 Run:
 
 ~~~bash
-rm -rf /tmp/ysyx-strict-guard-red
 E2E_ARCHIVE_TASK_RUN_MARKDOWN_TO_DB=0 \
 E2E_INDEX_TASK_RUN_EVIDENCE_ASSETS=0 \
 scripts/agent-e2e.sh \
   --profile agent-system \
   --task-slug strict-guard-semantic-red \
-  --run-dir /tmp/ysyx-strict-guard-red \
+  --run-dir .github/runtime-artifacts/strict-guard-semantic-red \
   --stop-on-fail
 ~~~
 
@@ -144,13 +143,12 @@ Run:
 
 ~~~bash
 bash -n scripts/agent-e2e.sh scripts/e2e/modules/agent_system.sh
-rm -rf /tmp/ysyx-strict-guard-green
 E2E_ARCHIVE_TASK_RUN_MARKDOWN_TO_DB=0 \
 E2E_INDEX_TASK_RUN_EVIDENCE_ASSETS=0 \
 scripts/agent-e2e.sh \
   --profile agent-system \
   --task-slug strict-guard-semantic-green \
-  --run-dir /tmp/ysyx-strict-guard-green \
+  --run-dir .github/runtime-artifacts/strict-guard-semantic-green \
   --stop-on-fail
 ~~~
 
