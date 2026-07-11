@@ -167,7 +167,7 @@ scripts/agent-e2e.sh \
 
 Expected: syntax exit 0 and agent-system profile completed.
 
-- [ ] **Step 4: Commit the code and regression**
+- [x] **Step 4: Commit the code and regression**
 
 ~~~bash
 git add scripts/agent-e2e.sh scripts/e2e/modules/agent_system.sh
@@ -178,7 +178,8 @@ git commit -m "agent e2e: use semantic guard freshness"
 ### Task 3: Persist evidence and verify integration
 
 **Files:**
-- Create: .github/task-runs/2026-07-11-strict-guard-semantic-freshness-agent-system/
+- Create: .github/task-runs/2026-07-12-strict-guard-semantic-freshness-agent-system-3/
+- Create: .github/task-runs/2026-07-12-strict-guard-semantic-freshness-agent-system-3/strict-guard-verification.md
 - Modify: retained agent-system/project memory through github_index_db.py
 - Modify: .github/db-backup/stored-snapshot/
 - Modify: .github/db-backup/task-runs/manifest.json
@@ -187,7 +188,7 @@ git commit -m "agent e2e: use semantic guard freshness"
 - Consumes: the GREEN implementation from Task 2.
 - Produces: current agent-system evidence, strict-guard proof, and DB snapshots.
 
-- [ ] **Step 1: Generate a repository evidence run**
+- [x] **Step 1: Generate a repository evidence run**
 
 ~~~bash
 scripts/agent-e2e.sh \
@@ -198,19 +199,20 @@ scripts/agent-e2e.sh \
 
 Expected: completed task report and run-manifest.json with final_result PASS.
 
-- [ ] **Step 2: Run strict guard with explicit current evidence**
+- [x] **Step 2: Run strict guard with explicit current evidence**
 
 ~~~bash
 scripts/agent-e2e.sh \
   --guard \
   --guard-mode strict \
-  --evidence-dir .github/task-runs/2026-07-11-strict-guard-semantic-freshness-agent-system
+  --evidence-dir .github/task-runs/2026-07-12-strict-guard-semantic-freshness-agent-system-3 \
+  --evidence-dir .github/task-runs/2026-07-11-rv64-authority-evidence-final-npc-dev
 ~~~
 
 Expected: agent-system PASS. Any unrelated profile requirement must be backed
 by a current matching run rather than bypassed.
 
-- [ ] **Step 3: Refresh and audit retained state**
+- [x] **Step 3: Refresh and audit retained state**
 
 ~~~bash
 python3 scripts/github_index_db.py snapshot-stored \

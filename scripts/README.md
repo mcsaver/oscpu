@@ -5,7 +5,7 @@
 ## 稳定入口
 
 - `scripts/agent-maintain.sh`：AI 环境维护总门禁。
-- `scripts/agent-e2e.sh`：e2e profile 调度器、profile validator，以及收尾 evidence/DB recall guard（`--guard --guard-mode strict`，检查 completed report、`context-brief.md`、`profile-resolve.md`、`evidence-index.md`）。
+- `scripts/agent-e2e.sh`：e2e profile 调度器、profile validator，以及收尾 evidence/DB recall guard（`--guard --guard-mode strict`，检查 completed report、`context-brief.md`、`profile-resolve.md`、`evidence-index.md`；拒绝冲突、重复、非有限数、无时区与 symlink manifest，并按 UTC 微秒选择最新的 manifest/report 语义完成时间，绝不使用文件 mtime）。
 - `scripts/package-ai-dev-env.sh`：商业交付包生成器，输出到 `dist/ai-dev-env-commercial-v1/package/`。
 - `scripts/github_index_db.py`：SQLite index、retained memory/log 和 evidence CLI wrapper。
 - `scripts/agent-env.sh`、`scripts/agent-run.sh`：非交互运行环境入口。

@@ -29,7 +29,7 @@ scripts/agent-e2e.sh --profile nemu-ubuntu-full-gate
 
 Windows `Start-Process wsl.exe` 启动长门时，`-- bash -lc "..."` 必须作为单个 argument string 传入。NEMU slow diagnostic 环境变量关闭 interpreter/fast-path 时，full focused gate 应保留自动 bootargs timeout 与 `NEMU_SYSTEMD_INPUT_CHUNK_BYTES=512` 证据，避免 serial 上传耗时被误判成 guest/NEMU 根因。
 
-收尾前运行 `scripts/agent-e2e.sh --guard --guard-mode strict`。该 guard 根据本轮工作树触碰路径推荐 profile，并检查当前 task-run evidence 是否包含对应 completed report、`context-brief.md`、`profile-resolve.md` 与 `evidence-index.md`；缺少证据或 DB 召回产物时先补跑建议 profile，或显式记录豁免理由。需要在 hook 中预检时可用 `--guard-mode warn`，需要测试特定路径时可用 `--paths-file`、`--path` 和 `--evidence-dir`。
+收尾前运行 `scripts/agent-e2e.sh --guard --guard-mode strict`。该 guard 根据本轮工作树触碰路径推荐 profile，并检查当前 task-run evidence 是否包含对应 completed report、`context-brief.md`、`profile-resolve.md` 与 `evidence-index.md`。每个候选都必须先通过 report 中唯一、精确的 `profile` / `status=completed` / `updated_at` 字段校验；存在普通文件 `run-manifest.json` 时，还必须校验其 JSON 对象、profile/status 一致性，并以 manifest 的带时区 `updated_at` 作为权威新鲜度时间，只有 manifest 缺失的历史 run 才使用 report 时间。task-report mtime 永不参与判定。非法、冲突、重复、NaN/Infinity、无时区或 symlink 输入均 fail closed；多个候选按 UTC 微秒完成时间选最新。缺少证据或 DB 召回产物时先补跑建议 profile，或显式记录豁免理由。需要在 hook 中预检时可用 `--guard-mode warn`，需要测试特定路径时可用 `--paths-file`、`--path` 和 `--evidence-dir`。
 
 ## 软件流程
 

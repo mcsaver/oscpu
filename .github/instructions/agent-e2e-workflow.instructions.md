@@ -23,7 +23,7 @@
 
 ## 完成判定
 
-收尾前运行 `scripts/agent-e2e.sh --guard --guard-mode strict`。guard 会读取当前工作树触碰路径（或 `--paths-file` / `--path` 指定路径），推导推荐 profile，并要求本轮 `.github/task-runs/` 中存在对应 profile 且时间不早于触发文件的 completed task report，同时存在 `context-brief.md`、`profile-resolve.md` 与 `evidence-index.md`，证明本轮没有绕过 DB recall / profile resolve / evidence index 链路。若缺证据，必须补跑建议的 `scripts/agent-e2e.sh --profile <profile> --task-slug <task> --stop-on-fail`，或在 task-run/memory/最终回复中写清豁免理由；不能用 difftest、riscv-tests、module TB 或 CoreMark 的 PASS 代替 agent/e2e workflow 证据契约。
+收尾前运行 `scripts/agent-e2e.sh --guard --guard-mode strict`。guard 会读取当前工作树触碰路径（或 `--paths-file` / `--path` 指定路径），推导推荐 profile，并要求候选 evidence 的语义完成时间不早于触发文件。每个候选都先校验 task report 中唯一、精确匹配的 `profile` / `status=completed` / `updated_at`；若存在普通文件 `run-manifest.json`，还要校验它是无重复键、无 NaN/Infinity 的 JSON 对象，profile/status 与 report 一致，并以 manifest 中带时区的 `updated_at` 作为唯一权威时间。仅对 manifest 缺失的历史证据使用 report 时间；报告文件 mtime、touch、复制或格式化不能刷新证据。缺字段、重复/冲突字段、非对象 manifest、profile/status 冲突、无时区时间或 manifest symlink（含 dangling）均 fail closed；多个合格候选按 UTC 微秒时间选择最新者。候选还必须同时存在 `context-brief.md`、`profile-resolve.md` 与 `evidence-index.md`，证明本轮没有绕过 DB recall / profile resolve / evidence index 链路。若缺证据，必须补跑建议的 `scripts/agent-e2e.sh --profile <profile> --task-slug <task> --stop-on-fail`，或在 task-run/memory/最终回复中写清豁免理由；不能用 difftest、riscv-tests、module TB 或 CoreMark 的 PASS 代替 agent/e2e workflow 证据契约。
 
 完成后必须查看 task-run report、profile resolve、关键 evidence、FAIL marker 和 memory 更新。不能只看外层退出码，也不能从 `.github/db-backup` 绕开当前 DB/index recall 链路问题。
 
