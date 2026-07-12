@@ -718,3 +718,23 @@ mismatch,与 FP 无关)。
   endpoint，TNS 只作辅助证据。结论是保留接口真实性和局部减载，不是 200MHz 完成；BPU 无
   真实组合弧、四宏 unknown area/power、ideal clock/no SPEF
   仍是硬边界。证据 `.github/task-runs/2026-07-12-rv64-f1a-bpu-static-taken/`。
+
+## 2026-07-12 IFU-AXI-G1：Svadu A-update flush-drain owner
+
+- 根因不是 A-bit 幂等性，而是 AXI owner 生命周期：旧 bridge 的 `rst || mmu_flush_i`
+  分支会在 `S_AD_UPDATE` 清 `aw_done_q/w_done_q` 并撤 AW/W/BREADY；xbar 已 capture/grant
+  channel 时无法猜测 master abort，故 B owner 永久悬空。old-RTL bridge 22 RED + xbar 3 RED
+  把内部状态错误和系统级 deadlock 同时钉死。
+- RTL 将 reset 单独处理；普通 `mmu_flush_i` 在 write owner 内只 sticky 置 `ad_drop_q`。
+  PTE address/data、AW/W accepted 状态保持，缺失 channel 继续 valid；
+  `write_complete=(aw_done||aw_fire)&&(w_done||w_fire)&&b_fire` 承认最后 channel 与 B 同拍。
+  effective drop 优先于正常 outcome，消费 B 后直接 IDLE 且不 re-walk/报旧 fault；无 drop
+  时保留原 B OK/error 路径。reset 仍可在 bridge+xbar/slave 共同复位边界清 owner。
+- `OOO_ASSERT` 增加 12 条 external-port shadow 合同；shadow completion 刻意不复用生产
+  done/completion，valid/payload 比较使用 X-safe 判定。11 个负场景触发 12 个精确 marker；
+  常驻 bridge matrix 覆盖 AW-first/W-first/repeated flush/stall/flush+last-W+B/B error，新增
+  bridge+xbar TB 进一步检查后一 master 的 slave 侧真实进展。
+- 最终 current-source：focused 2/2、module 88/88、contract50/style/lint、NPC rebuild 全绿；
+  同功能 FSM 的 Difftest-OFF core run AM59/official p-mode153/overall_rc=0。未做 Difftest、
+  rv64mi/rv64si 或新 STA，不能外推完整功能/200MHz。reviewer `NO BLOCKER`，证据
+  `.github/task-runs/2026-07-12-rv64-ifu-axi-g1-flush-drain/`；下一刀 `IFU-FETCH-G2`。

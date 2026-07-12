@@ -114,6 +114,9 @@ module OooFetchAxiBridge (
   reg [`XLEN-1:0] ad_pte_q;   // HW A: 置 A 位后的 leaf PTE(供 S_AD_UPDATE 写通道)
   reg aw_done_q;              // S_AD_UPDATE 的 AW 已握手(吸收 awready/wready 偏斜)
   reg w_done_q;               // S_AD_UPDATE 的 W 已握手
+  // mmu_flush 只作废旧取指语义，不能撤回已经呈现的 AXI write。该位 sticky 到 B completion，
+  // 让同一 S_AD_UPDATE 状态继续补齐 AW/W 并消费 B，完成后直接丢弃而非 re-walk/报旧 fault。
+  reg ad_drop_q;
 
   function sv39_enabled;
     input [1:0] priv_mode;
@@ -546,9 +549,8 @@ module OooFetchAxiBridge (
   wire ifu_axi_r_fire_w = ifu_axi_rvalid_i && ifu_axi_rready_o;
 
   // HW A 更新写通道：awaddr = 本级 leaf PTE 地址(walk_pte_addr_w 在 S_AD_UPDATE 期间仍有效,
-  // 因 walk_ppn_q/walk_level_q 不变), wdata = 置 A 位的 PTE, wstrb 全 8B。写落 always-ready
-  // PMEM(页表所在), AW/W 同拍握手; aw_done_q/w_done_q 吸收任何 awready/wready 偏斜。
-  // mmu_flush 期丢写对取指侧正确(A 更新是优化, re-fetch 幂等重做)。
+  // 因 walk_ppn_q/walk_level_q 不变), wdata = 置 A 位的 PTE, wstrb 全 8B。AW/W 可独立
+  // 握手；valid 一经呈现到 fire 前不可撤回。mmu_flush 只置 ad_drop_q，仍补齐 channel 并收 B。
   assign ifu_axi_awvalid_o = (state_q == S_AD_UPDATE) && !aw_done_q;
   assign ifu_axi_awaddr_o = walk_pte_addr_w;
   assign ifu_axi_wvalid_o = (state_q == S_AD_UPDATE) && !w_done_q;
@@ -557,12 +559,45 @@ module OooFetchAxiBridge (
   assign ifu_axi_bready_o = (state_q == S_AD_UPDATE);
   wire ifu_ad_aw_fire_w = ifu_axi_awvalid_o && ifu_axi_awready_i;
   wire ifu_ad_w_fire_w = ifu_axi_wvalid_o && ifu_axi_wready_i;
+  wire ifu_ad_aw_accepted_next_w = aw_done_q || ifu_ad_aw_fire_w;
+  wire ifu_ad_w_accepted_next_w = w_done_q || ifu_ad_w_fire_w;
+  wire ifu_ad_b_fire_w = ifu_axi_bvalid_i && ifu_axi_bready_o;
+  wire ifu_ad_write_complete_w = ifu_ad_aw_accepted_next_w &&
+                                 ifu_ad_w_accepted_next_w && ifu_ad_b_fire_w;
 
   always @(posedge clk) begin
-    if (rst || mmu_flush_i) begin
-      // 【AXI4 化 S1】在飞 AXI 读未归时进 S_DRAIN 自吞 R(rst 恒回 IDLE——复位下
-      // 总线整体复位, 无残 R); 其余上下文照常全清。
-      state_q <= (!rst && ifu_axi_read_inflight_w && !ifu_axi_r_fire_w) ?
+    if (rst) begin
+      // rst 代表 bridge+xbar/slave 共同复位，允许清除全部事务 owner。
+      state_q <= S_IDLE;
+      paging_q <= 1'b0;
+      req_priv_q <= `PRIV_M;
+      req_satp_q <= {`XLEN{1'b0}};
+      req_svpbmt_en_q <= 1'b0;
+      walk_second_q <= 1'b0;
+      walk_level_q <= 2'd0;
+      walk_ppn_q <= 44'd0;
+      pc_q <= {`XLEN{1'b0}};
+      paddr0_q <= {`XLEN{1'b0}};
+      paddr1_q <= {`XLEN{1'b0}};
+      packet_cross_page_q <= 1'b0;
+      packet_first_bytes_q <= 3'd0;
+      first_beat_q <= {`XLEN{1'b0}};
+      inst0_q <= {`INST_W{1'b0}};
+      inst1_q <= {`INST_W{1'b0}};
+      resp0_q <= RESP_OK;
+      resp1_q <= RESP_OK;
+      debug_last_pte_addr_q <= {`XLEN{1'b0}};
+      debug_last_pte_q <= {`XLEN{1'b0}};
+      debug_last_pte_level_q <= 2'd0;
+      debug_last_pte_second_q <= 1'b0;
+      ad_pte_q <= {`XLEN{1'b0}};
+      aw_done_q <= 1'b0;
+      w_done_q <= 1'b0;
+      ad_drop_q <= 1'b0;
+    end else if (mmu_flush_i && (state_q != S_AD_UPDATE)) begin
+      // mmu_flush 不是 AXI reset：未呈现 write 时仍按旧合同清 fetch 语义；已发读未归
+      // 则进 S_DRAIN 自吞。S_AD_UPDATE 必须落到下方 case 并行记录当拍 AW/W/B fire。
+      state_q <= (ifu_axi_read_inflight_w && !ifu_axi_r_fire_w) ?
                  S_DRAIN : S_IDLE;
       paging_q <= 1'b0;
       req_priv_q <= `PRIV_M;
@@ -588,6 +623,7 @@ module OooFetchAxiBridge (
       ad_pte_q <= {`XLEN{1'b0}};
       aw_done_q <= 1'b0;
       w_done_q <= 1'b0;
+      ad_drop_q <= 1'b0;
     end else begin
       case (state_q)
         S_IDLE: begin
@@ -767,6 +803,7 @@ module OooFetchAxiBridge (
                 ad_pte_q <= ifu_axi_rdata_i | PTE_A_BIT;
                 aw_done_q <= 1'b0;
                 w_done_q <= 1'b0;
+                ad_drop_q <= 1'b0;
                 state_q <= S_AD_UPDATE;
               end else begin
                 if (walk_second_q) begin
@@ -852,14 +889,19 @@ module OooFetchAxiBridge (
         S_AD_UPDATE: begin
           // 写回 PTE|A: 完成 AW/W + 吸收 B 后 re-walk 本级(walk_ppn_q/walk_level_q 未改,
           // 重读同一 leaf PTE 此时 A=1 → exec_ad_update_needed=0 → 走正常 leaf-OK 续流)。
-          // mmu_flush 会打回 S_IDLE 丢写(A 更新幂等, re-fetch 重做), 不损正确性。
+          // mmu_flush 只 sticky-drop 旧 fetch 语义；已呈现 AXI write 仍补齐 AW/W 并消费 B。
+          // 除全局 rst 外，先承认同拍 channel fire，再由 effective_drop 选择 completion 后继。
+          if (mmu_flush_i) ad_drop_q <= 1'b1;
           if (ifu_ad_aw_fire_w) aw_done_q <= 1'b1;
           if (ifu_ad_w_fire_w) w_done_q <= 1'b1;
-          if ((aw_done_q || ifu_ad_aw_fire_w) &&
-              (w_done_q || ifu_ad_w_fire_w) && ifu_axi_bvalid_i) begin
+          if (ifu_ad_write_complete_w) begin
             aw_done_q <= 1'b0;
             w_done_q <= 1'b0;
-            if (ifu_axi_bresp_i == RESP_OK) begin
+            ad_drop_q <= 1'b0;
+            if (ad_drop_q || mmu_flush_i) begin
+              // 已作废请求只关闭总线 owner；BRESP 不再属于任何架构可见 fetch。
+              state_q <= S_IDLE;
+            end else if (ifu_axi_bresp_i == RESP_OK) begin
               state_q <= S_WALK_AR;
             end else begin
               // A 写失败(极罕见: PTE 落不可写区) → 取指 access fault, 避免 A=0 无限重试。
@@ -916,5 +958,130 @@ module OooFetchAxiBridge (
       endcase
     end
   end
+
+`ifdef OOO_ASSERT
+  // IFU-AXI-G1 外部协议 shadow：只从端口 valid/fire 建 owner，不复用 aw_done/w_done/ad_drop，
+  // 避免实现与断言共享同一错误状态。综合时 OOO_ASSERT 关闭，不进入 PPA。
+  reg ad_assert_open_q;
+  reg ad_assert_aw_seen_q;
+  reg ad_assert_w_seen_q;
+  reg ad_assert_drop_q;
+  reg ad_assert_expect_idle_q;
+  reg ad_assert_aw_stall_q;
+  reg [`XLEN-1:0] ad_assert_awaddr_q;
+  reg [3:0] ad_assert_awid_q;
+  reg [7:0] ad_assert_awlen_q;
+  reg [2:0] ad_assert_awsize_q;
+  reg [1:0] ad_assert_awburst_q;
+  reg ad_assert_w_stall_q;
+  reg [`XLEN-1:0] ad_assert_wdata_q;
+  reg [`STRB_W-1:0] ad_assert_wstrb_q;
+  reg ad_assert_wlast_q;
+  wire ad_assert_aw_fire_w = ifu_axi_awvalid_o && ifu_axi_awready_i;
+  wire ad_assert_w_fire_w = ifu_axi_wvalid_o && ifu_axi_wready_i;
+  wire ad_assert_b_fire_w = ifu_axi_bvalid_i && ifu_axi_bready_o;
+  // 断言 completion 只消费 shadow seen + 原始端口 fire，刻意不复用生产
+  // aw_done_q/w_done_q/ifu_ad_write_complete_w，避免 completion 编码与 checker 同盲。
+  wire ad_assert_complete_w =
+      (ad_assert_aw_seen_q || ad_assert_aw_fire_w) &&
+      (ad_assert_w_seen_q || ad_assert_w_fire_w) && ad_assert_b_fire_w;
+
+  always @(posedge clk) begin
+    if (rst) begin
+      ad_assert_open_q <= 1'b0;
+      ad_assert_aw_seen_q <= 1'b0;
+      ad_assert_w_seen_q <= 1'b0;
+      ad_assert_drop_q <= 1'b0;
+      ad_assert_expect_idle_q <= 1'b0;
+      ad_assert_aw_stall_q <= 1'b0;
+      ad_assert_awaddr_q <= {`XLEN{1'b0}};
+      ad_assert_awid_q <= 4'd0;
+      ad_assert_awlen_q <= 8'd0;
+      ad_assert_awsize_q <= 3'd0;
+      ad_assert_awburst_q <= 2'd0;
+      ad_assert_w_stall_q <= 1'b0;
+      ad_assert_wdata_q <= {`XLEN{1'b0}};
+      ad_assert_wstrb_q <= {`STRB_W{1'b0}};
+      ad_assert_wlast_q <= 1'b0;
+    end else begin
+      if (ad_assert_aw_stall_q &&
+          ((ifu_axi_awvalid_o !== 1'b1) ||
+           (ifu_axi_awaddr_o !== ad_assert_awaddr_q) ||
+           (ifu_axi_awid_o !== ad_assert_awid_q) ||
+           (ifu_axi_awlen_o !== ad_assert_awlen_q) ||
+           (ifu_axi_awsize_o !== ad_assert_awsize_q) ||
+           (ifu_axi_awburst_o !== ad_assert_awburst_q)))
+        $error("[IFU-AD-AW-HOLD] stalled AW valid/payload changed before fire");
+      if (ad_assert_w_stall_q &&
+          ((ifu_axi_wvalid_o !== 1'b1) ||
+           (ifu_axi_wdata_o !== ad_assert_wdata_q) ||
+           (ifu_axi_wstrb_o !== ad_assert_wstrb_q) ||
+           (ifu_axi_wlast_o !== ad_assert_wlast_q)))
+        $error("[IFU-AD-W-HOLD] stalled W valid/payload changed before fire");
+      if (ad_assert_open_q && (state_q != S_AD_UPDATE))
+        $error("[IFU-AD-OWNER-LIVE] write owner left S_AD_UPDATE before complete B");
+      if (ad_assert_open_q && !ad_assert_aw_seen_q &&
+          (ifu_axi_awvalid_o !== 1'b1))
+        $error("[IFU-AD-OWNER-LIVE] pending AW was withdrawn before fire");
+      if (ad_assert_open_q && !ad_assert_w_seen_q &&
+          (ifu_axi_wvalid_o !== 1'b1))
+        $error("[IFU-AD-OWNER-LIVE] pending W was withdrawn before fire");
+      if (ad_assert_open_q && ad_assert_aw_seen_q &&
+          (ifu_axi_awvalid_o === 1'b1))
+        $error("[IFU-AD-OWNER-LIVE] accepted AW was re-issued");
+      if (ad_assert_open_q && ad_assert_w_seen_q &&
+          (ifu_axi_wvalid_o === 1'b1))
+        $error("[IFU-AD-OWNER-LIVE] accepted W was re-issued");
+      if (ad_assert_open_q && (ifu_axi_bready_o !== 1'b1))
+        $error("[IFU-AD-BREADY-HOLD] write owner withdrew BREADY before completion");
+      if (ad_assert_b_fire_w &&
+          !(ad_assert_aw_seen_q || ad_assert_aw_fire_w))
+        $error("[IFU-AD-B-ORDER] B fired before AW was accepted");
+      if (ad_assert_b_fire_w &&
+          !(ad_assert_w_seen_q || ad_assert_w_fire_w))
+        $error("[IFU-AD-B-ORDER] B fired before W was accepted");
+      if (ad_assert_drop_q &&
+          (fetch_req_ready_o || fetch_rsp_valid_o || ifu_axi_arvalid_o))
+        $error("[IFU-AD-DROP-QUIET] dropped write emitted fetch/response/read activity");
+      if (ad_assert_expect_idle_q && (state_q != S_IDLE))
+        $error("[IFU-AD-DROP-COMPLETE] dropped write did not retire to IDLE after B");
+
+      ad_assert_expect_idle_q <= 1'b0;
+      if (!ad_assert_open_q && (ifu_axi_awvalid_o || ifu_axi_wvalid_o)) begin
+        ad_assert_open_q <= 1'b1;
+        ad_assert_aw_seen_q <= ad_assert_aw_fire_w;
+        ad_assert_w_seen_q <= ad_assert_w_fire_w;
+        ad_assert_drop_q <= mmu_flush_i;
+      end else if (ad_assert_open_q) begin
+        if (ad_assert_aw_fire_w) ad_assert_aw_seen_q <= 1'b1;
+        if (ad_assert_w_fire_w) ad_assert_w_seen_q <= 1'b1;
+        if (mmu_flush_i) ad_assert_drop_q <= 1'b1;
+      end
+
+      if (ad_assert_complete_w) begin
+        ad_assert_open_q <= 1'b0;
+        ad_assert_aw_seen_q <= 1'b0;
+        ad_assert_w_seen_q <= 1'b0;
+        ad_assert_drop_q <= 1'b0;
+        ad_assert_expect_idle_q <= ad_assert_drop_q || mmu_flush_i;
+      end
+
+      ad_assert_aw_stall_q <= ifu_axi_awvalid_o && !ifu_axi_awready_i;
+      if (ifu_axi_awvalid_o && !ifu_axi_awready_i) begin
+        ad_assert_awaddr_q <= ifu_axi_awaddr_o;
+        ad_assert_awid_q <= ifu_axi_awid_o;
+        ad_assert_awlen_q <= ifu_axi_awlen_o;
+        ad_assert_awsize_q <= ifu_axi_awsize_o;
+        ad_assert_awburst_q <= ifu_axi_awburst_o;
+      end
+      ad_assert_w_stall_q <= ifu_axi_wvalid_o && !ifu_axi_wready_i;
+      if (ifu_axi_wvalid_o && !ifu_axi_wready_i) begin
+        ad_assert_wdata_q <= ifu_axi_wdata_o;
+        ad_assert_wstrb_q <= ifu_axi_wstrb_o;
+        ad_assert_wlast_q <= ifu_axi_wlast_o;
+      end
+    end
+  end
+`endif
 
 endmodule

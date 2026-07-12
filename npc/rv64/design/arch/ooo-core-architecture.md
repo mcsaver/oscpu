@@ -44,8 +44,8 @@
 - commit 观察接口仍以分立信号为主，不能称为统一 `commit_event` 类型；CsrFile 的
   `minstret` 当前还接 raw ROB count，见 `INSTRET-G1`。
 - `FDG-G1` 的 `arch_trap -> no backend dispatch`、`XRET-G1` current-mode legality 与
-  `MEM-ISSUE-G1` 的 lane1 dequeue/request/MIQ owner 同源已于 2026-07-12 关闭；当前优先继续
-  关闭 IFU A-update write-drain、page-end C fault、PTE-write PMP、MIQ ghost 与唯一 retirement
+  `MEM-ISSUE-G1` 的 lane1 dequeue/request/MIQ owner 同源、IFU A-update write-drain 已于
+  2026-07-12 关闭；当前优先继续关闭 page-end C fault、PTE-write PMP、MIQ ghost 与唯一 retirement
   source 等合同，再扩窗口或 memory MLP。
 
 ---

@@ -1,0 +1,9 @@
+node_id	owner_agent	depends_on	inputs	outputs	success_criteria	fallback	status
+recall-map	root+reviewers	-	DB brief/spec/RTL/TB/xbar	owner/dataflow map	all six contracts and dirty boundary mapped	stop	PASS
+freeze-contract	root	recall-map	owner map	SPEC §2/§3 + task report	AW/W/B/flush/reset priorities complete	re-audit	PASS
+bridge-red	root	freeze-contract	current bridge	failing focused log	fails only on flush-drain contract	fix test	PASS
+xbar-red	root+ifu_axi_test_plan	freeze-contract	bridge+xbar	owner-deadlock reproducer	later master blocked only on old RTL	fix harness	PASS
+implement-drain	root	bridge-red,xbar-red	frozen contracts	RTL + assertions	all REDs green; normal path unchanged	revert	PASS
+assert-nonvacuity	root+ifu_axi_rtl_review	implement-drain	external AXI ports	12 negative markers	independent shadow; no production-state common mode	fix checker	PASS
+regression	root	implement-drain,assert-nonvacuity	patched tree	focused/module/core/lint logs	current-source scoped gates pass	root-cause debug	PASS
+record-review	root+reviewers	regression	all evidence	memory/task-run/profile/guard	no blocker, no overclaim	deliver slice only	PASS

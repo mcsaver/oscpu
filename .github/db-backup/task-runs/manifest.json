@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T11:40:43+00:00",
-  "updated_at": "2026-07-12T13:14:58+00:00",
+  "updated_at": "2026-07-12T14:19:59+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -30186,6 +30186,86 @@
       "sha256": "ad7724852eec93227b4bae0ea5837e9510e41f8af3e12f13d6f176616ca5f874",
       "backup_source": "filesystem",
       "archived_at": "2026-07-12T13:13:22+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-ifu-axi-g1-flush-drain-npc-final-2/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 7714,
+      "sha256": "20aac2a441b2b34d0acadfe62e7701f3ef2f23eff74e9ae878685c3b587b5b45",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T14:19:59+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-ifu-axi-g1-flush-drain-npc-final-2/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 6028,
+      "sha256": "6edd6884ee1b3737ac3358a19a2d27d090f762e3271b97f069446efb00506ab8",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T14:19:59+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-ifu-axi-g1-flush-drain-npc-final-2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 3165,
+      "sha256": "8a49b4edf1c76f2d5c28bd99064504d77cccb990b768cc2c92e417ae7ae9b498",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T14:19:59+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-ifu-axi-g1-flush-drain-npc-final-2/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T14:19:59+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-ifu-axi-g1-flush-drain-npc-final-2/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4627,
+      "sha256": "fbbea6c6e63b9edc498bed9a78df7374cd31cee4ad59d1b929e967881ec9d177",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T14:19:59+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-ifu-axi-g1-flush-drain-npc-final/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 7712,
+      "sha256": "1246fb1c5dd2a55304dd3a6dc1b2fed55beaa200865416801d0f73e5f18a81f2",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T14:12:55+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-ifu-axi-g1-flush-drain-npc-final/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5994,
+      "sha256": "7bc748de8a8e32233569900fcabe77e8076d367c41ad01af4191598bf499a0d5",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T14:12:55+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-ifu-axi-g1-flush-drain-npc-final/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 3151,
+      "sha256": "645bc5705859070e8ce179b26553e8267061a5df74f8df9b616135932b4295df",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T14:12:55+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-ifu-axi-g1-flush-drain-npc-final/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T14:12:55+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-ifu-axi-g1-flush-drain-npc-final/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4599,
+      "sha256": "e11c4fed089eb188e55f5fae92ce1166a0e3b975472832325049813662c6d5ca",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T14:12:55+00:00"
     },
     {
       "path": ".github/task-runs/2026-07-12-rv64-raw-i1-dead-forward-reject-final/context-brief.md",

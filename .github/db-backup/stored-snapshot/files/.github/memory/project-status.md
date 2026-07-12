@@ -694,3 +694,25 @@ flush 契约诊断确认 UC-A：整数 MulDiv/CLMUL **独缺 mispredict-kill 端
   `.github/task-runs/2026-07-12-rv64-f1a-bpu-static-taken/`。parent goal 保持 active；功能优先级
   是 IFU-AXI-G1 写事务 flush-drain owner、IFU-FETCH-G2 跨页 fault provenance、PTW-PMP-G1
   PTE WRITE check，随后才进入 frontend/backend mandatory registered boundary。
+
+## 2026-07-12 RV64 IFU-AXI-G1 A-update flush-drain 合同关闭
+
+- `IFU-AXI-G1` 已关闭。旧 `OooFetchAxiBridge` 把 `rst || mmu_flush_i` 合并清零；flush
+  命中已经呈现或部分接受的 Svadu A-bit 写时会撤回 AW/W/BREADY，遗弃 `AxiXbar` write
+  owner。旧 RTL focused bridge 精确 22 个合同 RED，bridge+xbar 另有 3 个系统进展 RED：
+  IFU 不接 B、xbar owner 不释放、后一 master 永远到不了 slave。
+- 最终实现分离 reset 与普通 flush，并以 sticky `ad_drop_q` 区分“旧取指语义可丢”和
+  “已呈现总线事务必须排水”。`S_AD_UPDATE` 在 flush 后继续保持 PTE payload、补齐独立
+  AW/W、消费 B；completion 使用 `done_q || same-cycle fire`，drop 完成后无声回 IDLE，
+  非 drop 的 B=OK re-walk / B error access-fault 语义不变。
+- 新增 12 条基于外部 AXI port fire 的独立 shadow 断言，覆盖 channel stall/payload hold、
+  pending valid、accepted 不重发、owner/BREADY、B order、drop quiet 与 drop completion；
+  11 个故意违约场景精确触发全部 12 个 marker，并到达 `NEG-PROBES-DONE`。新增真实
+  bridge+xbar 常驻 TB，证明 IFU B handshake 后后一 master 的 AWADDR/WDATA/B 路由完整。
+- 最终当前源码门禁：focused 2/2、module 88/88、contract 50/50、RTL style、bundled
+  Verilator 5.051 lint 与 NPC rebuild 全 PASS。功能 FSM 同版的 Difftest-OFF core run 为
+  AM 59/59、official p-mode 153/153、`overall_rc=0`；该轮未覆盖 Difftest 或 rv64mi/rv64si。
+  独立 RTL/test-plan reviewer 均为 `NO BLOCKER`。
+- 证据：`.github/task-runs/2026-07-12-rv64-ifu-axi-g1-flush-drain/`。本刀没有新增 STA，
+  不声明完整功能或 200 MHz；parent goal 继续 active。下一 correctness slice 是
+  `IFU-FETCH-G2` 跨页 second-half fault provenance，随后关闭 `PTW-PMP-G1` PTE WRITE PMP。

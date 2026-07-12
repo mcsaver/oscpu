@@ -37,12 +37,12 @@
 - LSQ 现状:SQ(4)+probe/drain+store→load 前递已落地,LQ/MSHR/多 outstanding 未做
   (见 current snapshot §2/§4；实施方案已归档 `history/ooo-lsq-implementation-plan.md`)
 - HW A/D 当前语义由 `ooo-fetch-axi-bridge` 与 `ooo-mem-axi-bridge-fsm` 承载；一次性实施
-  计划 `history/ooo-sv39-hw-ad-update.md` 已归档。PTE write PMP 与 IFU partial-write
-  flush-drain 两项边界已在 active spec 重新打开。
+  计划 `history/ooo-sv39-hw-ad-update.md` 已归档。IFU partial-write flush-drain 已于
+  2026-07-12 关闭；PTE write PMP 边界仍在 active spec 开放。
 
 ## 取指 / 前端 / 分支预测
 - ★ `ooo-fetch-axi-bridge` — 取指桥(ITLB+硬件 PTW+硬件 A update+取指包 cache+PMP；
-  当前开放 IFU A-update flush-drain 与 page-end C fault 归属合同)
+  IFU A-update flush-drain 已关闭，当前开放 page-end C fault 与 PTE-write PMP 合同)
 - ★ `ooo-fetch-packet-cache` — 取指包 cache 语义、debug/common checker 与 macro/OOC 前置合同
 - `ooo-fetch-packet-*`、`ooo-fetch-pc-outstanding-sequencer`、`ooo-fetch-request-mux`、
   `ooo-frontend-*-gate`、`ooo-fetch-head-*-gate`

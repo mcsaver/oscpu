@@ -131,7 +131,9 @@ module/AM 才报告全绿。后续切片把这些 gate 作为回归基线，而�
    memory 共享端口时，IQ dequeue、request mux 与 MIQ owner 必须同源；旧 RTL 精确出现
    `fire=1/request=0` 丢事务，审查又用 head-blocked LR 锁住首版 `request=1/fire=0`
    幽灵 MIQ。最终正反例、module 87/87、Difftest-ON AM 59/59、official 177/177 均通过；
-4. IFU-AXI-G1：A/D partial write 遇 flush 必须排水；
+4. **IFU-AXI-G1（CLOSED 2026-07-12）**：A/D partial write 遇 flush 以 sticky drop
+   保持 AW/W/B owner；旧 RTL bridge+xbar RED，修复后 focused 2/2、module 88/88、
+   AM 59/59、official p-mode 153/153；
 5. IFU-FETCH-G2：page-end 16-bit 指令 fault 归属；
 6. PTW-PMP-G1：A/D PTE write 独立 PMP WRITE check；
 7. MIQ-G1：flush + 同拍 DRAIN pop 不得保留 ghost；

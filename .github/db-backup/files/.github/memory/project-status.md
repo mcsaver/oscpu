@@ -588,3 +588,131 @@ flush 契约诊断确认 UC-A：整数 MulDiv/CLMUL **独缺 mispredict-kill 端
 - 当前 non-signoff OpenSTA 5ns 结果为 **WNS `-15.74ns` / TNS `-196567.73ns`**；最差路径从 `OooStoreQueue` 状态 FF 到 `OooMemInflightQueue` D，arrival `20.709ns`、required `4.971ns`、slack `-15.739ns`，静态弧穿过 SQ/issue-ready/backend glue/PRF/双 ALU/MulDiv/IQ/PRF/双 ALU/MIQ。当前根因排序是后端 issue/execute/ready/kill 缺少寄存边界，不再是旧报告所称的 DCache completion 单链。
 - T1 候选是在两条 IQ issue 输出后增加独立 elastic stage，使 same-cycle wakeup/select 终止于 stage D，并在测试证明不可达/时序安全后删除 issue0->issue1 死前递与 PRF 当拍 write-through。该方案仍待设计批准与 TDD，不是已实现结论。
 - iEDA 同网表有界运行 600s 后停在 data backward propagation，未生成可用报告；当前数值真源为 OpenSTA。证据索引：`.github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline/`。边界仍为 ideal clock、无 SPEF/CTS/OCV/完整 IO 约束、四宏 placeholder Liberty，故不是物理 signoff。
+
+## 2026-07-12 RV64 F1 FDG-G1 arch-trap admission 合同关闭
+
+- `FDG-G1` 已按独立 correctness slice 关闭：根因是 `OooFrontendDispatchGate` 的 ordinary
+  backend-valid 方程复制 stop predicate 时遗漏 `dispatch0_arch_trap_i`；修复在唯一 admission
+  方程加入排除项，并在 `OooFrontend` 增加不重述 decode 的 `FDG-I1` 立即断言。
+- TDD 证据：旧 RTL 对 unknown OP-FP funct7、reserved FMA fmt、reserved static rm、
+  DYN+reserved frm 四类精确 RED（均只错 backend valid，errors=4）；修复后 focused 4/4，合法
+  FADD.S 正对照通过；故意强制 `arch_trap && backend_valid` 会触发 FDG-I1 且 runner 非零。
+- 新鲜功能门禁：module 87/87；bundled Verilator 5.051 core-regress overall_rc=0；
+  current-config AM 59/59（Difftest OFF）；official 177/177；另用 default_defconfig 跑
+  Difftest-ON AM 59/59。错误使用 system Verilator 5.020 的首次 run overall_rc=1，且其 official
+  结果可能复用旧 binary，已明确排除出 GREEN。
+- NPC/NEMU 六个配置文件按 SHA-256 恢复后，又 clean rebuild 当前 Difftest-OFF artifact，
+  fresh `add` AM smoke 明确打印 `Difftest: OFF` 并 PASS，避免旧 mtime 让 ON binary 残留。
+  structural gate 为 style PASS、contract `current=35 baseline=35`、lint PASS。
+- 证据：`.github/task-runs/2026-07-12-rv64-f1-fdg-g1/`。本刀只关闭功能合同；未据此
+  声称时序改善或 200 MHz 达标。parent 目标仍 active，下一步冻结/实现安全的 IQ→EX 专用
+  stage（含 selection stability、ROB age kill、staged-store barrier），并做 target-driven 5ns A/B。
+
+## 2026-07-12 RV64 F1 XRET-G1 current-mode 合同关闭
+
+- `XRET-G1` 已按独立 correctness slice 关闭：`OooFetchHeadClassifyGate` 在唯一
+  privileged-illegal 汇合点加入 `MRET && priv!=M` 与 `SRET && priv==U`；S-mode+TSR SRET
+  继续非法，M-mode SRET 不受 TSR 越权拦截，CsrFile 不复制第二份 legality decode。
+- 旧 RTL current-mode 矩阵精确 RED：MRET@S/U、SRET@U 三类各缺
+  `priv_system_illegal/arch_trap`，共 6 fail；MRET@M、SRET@S+TSR0/1、SRET@M+TSR1
+  正对照通过。修复只增加两个 2-bit privilege compare 与 OR 输入。
+- 真实编码整核回归覆盖 S-mode lane0 MRET 与 U-mode lane1 SRET：两者均形成 precise
+  illegal-instruction，`mepc/mtval` 正确，handler 返回后继续执行，非法 xRET 不提交；sticky
+  同时直接监视 CsrFile `real_mret/sret` 请求为 0，排除 arch-trap/system 双 owner 被优先级掩蔽的假绿。
+- 新鲜门禁：focused 5/5、current module 87/87、bundled core-regress overall_rc=0、
+  current-config AM 59/59（明确 Difftest OFF）、official 177/177；独立 Difftest-ON AM 59/59。
+  NPC/NEMU 六配置按 SHA-256 恢复后 clean rebuild OFF artifact，fresh `add` smoke 明确 OFF/PASS；
+  style、contract `35/35`、lint 与独立 reviewer 均 PASS。
+- 证据：`.github/task-runs/2026-07-12-rv64-f1-xret-g1/`。本刀无新 STA，不声称 200 MHz；
+  parent 目标继续 active。T3 预研已推翻普通 IQ→EX FIFO：oldest-ready admission 非 ROB-age
+  单调，年轻 ROB-head-dependent uop 可填满 stage 并与 late-wake older uop互等；后续必须改为
+  按类注册 credit + PRF/AGU 后 age-aware memory station，先冻结 liveness 合同再写 RTL。
+
+## 2026-07-12 RV64 F1 MEM-ISSUE-G1 双 lane memory owner 合同关闭
+
+- `MEM-ISSUE-G1` 已关闭：旧 `OooIntBackend` 在 lane0 misaligned LR.D + lane1 aligned PMEM
+  LW 同拍时，lane1 可从 IQ pop，却因 request-valid/fire 仍要求 `!issue0_is_mem` 而不产生
+  bridge request 或 MIQ owner，形成不可恢复的 ROB 丢事务。
+- 最终实现先抽不依赖 `mem_req_ready` 的 `issue0_mem_issue_eligible`（memory/order/SQ/AMO
+  公共资格），再用 `issue1_mem_port_available = !issue0_is_mem ||
+  (issue0_mem_exception && issue0_mem_issue_eligible)` 统一 lane1 can-fire、req-valid 与 req-fire。
+  `MEM-I1/I2` 从 IQ pop 与 `req_valid&&ready` 两端核对 request mux、MIQ push、ROB/pdest/kind owner。
+- 独立 reviewer 拒绝了首版过宽公式：更老 CLMUL 未完成、lane0 misaligned LR 尚非 ROB head
+  时，首版出现 `issue1 req_valid=1/fire=0` 且 MIQ 错入默认 DRAIN；常驻 head-blocked guard 精确
+  3 fail 后转绿。最终 reviewer 裁决 NO BLOCKER。
+- 新鲜门禁：focused 5/5、module 87/87、RTL style/lint、contract `37/37`；隔离 worktree 中
+  最终 RTL SHA-256 与主树一致，bundled Verilator 5.051 clean build、AM 59/59、official
+  177/177、`overall_rc=0`；独立 Difftest-ON AM 的 ON/reference marker 各 59、59/59 PASS。
+  主树 Difftest-OFF 配置哈希保持 `cb2cad6f...`，用户既有 dirty RTL/log 未纳入本刀。
+- 证据：`.github/task-runs/2026-07-12-rv64-f1-mem-issue-g1/`。本刀不含新 STA，不能声称
+  200 MHz；T0 仍为 5ns WNS `-15.74ns`。下一步先独立删除已证明不可达的 issue0→issue1
+  current-result forward，再冻结/实现 liveness-safe T3 memory prepared station 并做 CPI/5ns A/B。
+
+## 2026-07-12 RV64 RAW-I1 guard + dead-forward 删除候选拒绝
+
+- simultaneous valid 双 lane 无整数 RAW 已完成全链证明并落 `RAW-I1` 立即断言：双 valid、
+  issue0 RD_EN/integer-domain/nonzero-pdest 与 issue1 source-enable 精确门控，排除 invalid/x0/FPR
+  数字别名。三-uop 常驻回归在 producer WB 拍证明 A/C 分别落 issue0/issue1，issue1 只能从
+  WB→PRF write-through 取得 64-bit 值；消费边界 tag mutation 负探针 rc=1 且仅命中 RAW-I1。
+- 实验 B 曾删除 6 个 current-result/forward 符号并让 8 类 issue1 consumer 直连 PRF；功能
+  focused/module/lint 全绿，独立 reviewer 对语义给出 NO BLOCKER。但当前基线 fresh 5ns A/B
+  否决物理删除：WNS `-11.74→-11.74ns` 无改善，TNS 表面恶化 18.23%，backend/top area
+  同增 `851.76`，power `0.117→0.118W`，sequential area 不变。候选已完整回退，最终只交付
+  guard/TB/文档；production datapath 与已跑 AM59+official177+Difftest59 的 `c6b86f9a7` 相同。
+- 两侧均有 105 个 `&nf -D 5000.0` cone、0 post-map problem，top40 完全相同且 40/40 为
+  fetch bridge→frontend FIFO/PC-outstanding，0 条经 backend。OpenSTA 仍有 1851 unconstrained
+  endpoint 与 A/B 109/142 个组合环，TNS差值不可当物理确定退化；但 B 没有可信收益，按
+  fail-closed 门禁拒绝是唯一可交付结论。证据：
+  `.github/task-runs/2026-07-12-rv64-t3a-dead-crosslane-forward/`。
+- fresh A 当前 timing baseline 为 WNS `-11.74ns`/TNS `-122774.48ns`。top40 公共根是
+  `OooFetchAxiBridge.pc_q[13]`→ITLB/PMP/cache-hit→RVC decode→B-imm target；B-imm sign driver
+  fanout=294、Cload=0.716795pF，约为 cell max-cap 19.55×，slew=14.348ns，绝对 delay 属
+  placeholder/non-signoff 超表外推。即使乐观去掉虚载，桥→decode→target 仍约 8ns；下一刀
+  先修 BPU lookup 宽 immediate 虚负载并冻结 bridge response/prepared-packet 边界，不能再按
+  旧 T0 backend top path 排序。parent“完整功能 + 物理 200MHz”继续 active。
+
+## 2026-07-12 RV64 F1a BPU scalar static-fallback ABI
+
+- BPU lookup fallback 已从每 lane `lookup*_imm_i[63:0]` 收窄为 1-bit
+  `lookup*_static_taken_i`；唯一 owner 是对应 `fetch_dec*_bimm_w[XLEN-1]`，完整 B-imm 仍只在
+  frontend target adder 消费。predictor/table/GHR/update latency、fault/redirect gate 和 fetch
+  handshake 均未改变。active spec/checker 同步校正为 BHT1024、GHR10、state lower bound
+  17674 bit；placeholder Liberty 与 generator 已同步，旧 wide ABI 由机器 checker fail closed。
+- 独立审查发现 debug checker 的 hybrid selector 第二条件误读 `gshare_strong`；新增
+  “gshare strong valid + local invalid”可达反例，跨 posedge 后精确 RED，再把两 lane 修为
+  `local_strong`。新鲜 focused 2/2、module 87/87、lint/style、contract38/38、BPU/四宏 checker
+  全绿；首个仅组合 settle 的假绿不计入证据。当前 Difftest-OFF core regression 另有 clean
+  build、AM59/59、official p-mode build/run 153/153；本轮未覆盖 Difftest 或 rv64mi/rv64si。
+- 同输入 fresh 5ns A/B 只采用 `5bd7a1546` clean A 与 F1a B；旧 c6b/B 混版对照已判无效。
+  lane0/1 sign-driver output-net total cap 分别下降 0.514448/0.492580pF，worst through-cone slack 改善
+  6.567661/6.021283ns；全核 WNS 均为 -12.90ns，TNS 从 -198649.61 改善到 -197335.64ns
+  （+0.661451%），stdcell area +0.005646%、sequential area 不变。wide→scalar 同时少 126 个
+  placeholder setup endpoint，因此 TNS 只作辅助证据。top40 除 TNS 汇总外逐字相同，仍由后端
+  路径主导；candidate 按 ABI 真实化/目标 cone 减载保留，但 200MHz 未闭合。
+- 边界：四宏面积 unknown，BPU placeholder 无 lookup input→output 组合弧，vectorless macro
+  power 为 0，OpenSTA 无 SPEF/CTS/OCV，不能越级称为 signoff。task-run：
+  `.github/task-runs/2026-07-12-rv64-f1a-bpu-static-taken/`。parent goal 保持 active；功能优先级
+  是 IFU-AXI-G1 写事务 flush-drain owner、IFU-FETCH-G2 跨页 fault provenance、PTW-PMP-G1
+  PTE WRITE check，随后才进入 frontend/backend mandatory registered boundary。
+
+## 2026-07-12 RV64 IFU-AXI-G1 A-update flush-drain 合同关闭
+
+- `IFU-AXI-G1` 已关闭。旧 `OooFetchAxiBridge` 把 `rst || mmu_flush_i` 合并清零；flush
+  命中已经呈现或部分接受的 Svadu A-bit 写时会撤回 AW/W/BREADY，遗弃 `AxiXbar` write
+  owner。旧 RTL focused bridge 精确 22 个合同 RED，bridge+xbar 另有 3 个系统进展 RED：
+  IFU 不接 B、xbar owner 不释放、后一 master 永远到不了 slave。
+- 最终实现分离 reset 与普通 flush，并以 sticky `ad_drop_q` 区分“旧取指语义可丢”和
+  “已呈现总线事务必须排水”。`S_AD_UPDATE` 在 flush 后继续保持 PTE payload、补齐独立
+  AW/W、消费 B；completion 使用 `done_q || same-cycle fire`，drop 完成后无声回 IDLE，
+  非 drop 的 B=OK re-walk / B error access-fault 语义不变。
+- 新增 12 条基于外部 AXI port fire 的独立 shadow 断言，覆盖 channel stall/payload hold、
+  pending valid、accepted 不重发、owner/BREADY、B order、drop quiet 与 drop completion；
+  11 个故意违约场景精确触发全部 12 个 marker，并到达 `NEG-PROBES-DONE`。新增真实
+  bridge+xbar 常驻 TB，证明 IFU B handshake 后后一 master 的 AWADDR/WDATA/B 路由完整。
+- 最终当前源码门禁：focused 2/2、module 88/88、contract 50/50、RTL style、bundled
+  Verilator 5.051 lint 与 NPC rebuild 全 PASS。功能 FSM 同版的 Difftest-OFF core run 为
+  AM 59/59、official p-mode 153/153、`overall_rc=0`；该轮未覆盖 Difftest 或 rv64mi/rv64si。
+  独立 RTL/test-plan reviewer 均为 `NO BLOCKER`。
+- 证据：`.github/task-runs/2026-07-12-rv64-ifu-axi-g1-flush-drain/`。本刀没有新增 STA，
+  不声明完整功能或 200 MHz；parent goal 继续 active。下一 correctness slice 是
+  `IFU-FETCH-G2` 跨页 second-half fault provenance，随后关闭 `PTW-PMP-G1` PTE WRITE PMP。

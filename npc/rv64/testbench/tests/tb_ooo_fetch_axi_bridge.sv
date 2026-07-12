@@ -39,7 +39,12 @@ module tb_ooo_fetch_axi_bridge;
   reg [1:0] ifu_axi_bresp;
 
   localparam [1:0] RESP_OK = 2'b00;
+  localparam [1:0] RESP_ACCESS_FAULT = 2'b01;
   localparam [1:0] RESP_PAGE_FAULT = 2'b10;
+  localparam [3:0] S_IDLE_TB = 4'd0;
+  localparam [3:0] S_WALK_AR_TB = 4'd1;
+  localparam [3:0] S_RESP_TB = 4'd7;
+  localparam [3:0] S_AD_UPDATE_TB = 4'd8;
   localparam [`XLEN-1:0] PTE_A_BIT_TB = 64'h40;  // bit 6 (Accessed)
   localparam [`XLEN-1:0] ROOT_PT = 64'h0000_0000_8100_0000;
   localparam [`XLEN-1:0] L1_PT = 64'h0000_0000_8100_1000;
@@ -215,6 +220,72 @@ module tb_ooo_fetch_axi_bridge;
       repeat (3) tick();
       rst = 1'b0;
       tick();
+    end
+  endtask
+
+  // IFU-AXI-G1 focused case reset。这里不重写 clk，允许在主测试中多次重置同一 DUT。
+  task automatic reset_protocol_case;
+    begin
+      rst = 1'b1;
+      mmu_flush = 1'b0;
+      invalidate_valid = 1'b0;
+      invalidate_addr = {`XLEN{1'b0}};
+      priv_mode = `PRIV_M;
+      satp = {`XLEN{1'b0}};
+      svpbmt_en = 1'b0;
+      fetch_req_valid = 1'b0;
+      fetch_req_pc = {`XLEN{1'b0}};
+      fetch_rsp_ready = 1'b0;
+      ifu_axi_arready = 1'b1;
+      ifu_axi_rvalid = 1'b0;
+      ifu_axi_rdata = {`XLEN{1'b0}};
+      ifu_axi_rresp = RESP_OK;
+      ifu_axi_awready = 1'b0;
+      ifu_axi_wready = 1'b0;
+      ifu_axi_bvalid = 1'b0;
+      ifu_axi_bresp = RESP_OK;
+      repeat (3) tick();
+      rst = 1'b0;
+      tick();
+    end
+  endtask
+
+  // 直接把已验证的 walk 前缀投影到 S_AD_UPDATE，定向隔离 AXI owner 生命周期。
+  // payload 地址仍由真实 walk_pte_addr_w 计算，不绕过 DUT 的 AWADDR 数据通路。
+  task automatic seed_ad_update;
+    input [`XLEN-1:0] pte_data;
+    begin
+      @(negedge clk);
+      dut.state_q = S_AD_UPDATE_TB;
+      dut.walk_second_q = 1'b0;
+      dut.walk_level_q = 2'd0;
+      dut.walk_ppn_q = L0_PT[55:12];
+      dut.pc_q = USER_VA;
+      dut.ad_pte_q = pte_data;
+      dut.aw_done_q = 1'b0;
+      dut.w_done_q = 1'b0;
+      #1;
+      tb_check1("seeded A-update presents AW", ifu_axi_awvalid, 1'b1);
+      tb_check1("seeded A-update presents W", ifu_axi_wvalid, 1'b1);
+      tb_check1("seeded A-update presents BREADY", ifu_axi_bready, 1'b1);
+      tb_check64_local("seeded A-update AWADDR", ifu_axi_awaddr,
+                       pte_addr(L0_PT, USER_VA, 2'd0));
+      tb_check64_local("seeded A-update WDATA", ifu_axi_wdata, pte_data);
+    end
+  endtask
+
+  task automatic check_dropped_write_quiet;
+    input [1023:0] what;
+    begin
+      #1;
+      tb_check1(what, dut.state_q == S_IDLE_TB, 1'b1);
+      tb_check1("dropped A-update emits no fetch response", fetch_rsp_valid, 1'b0);
+      tb_check1("dropped A-update emits no re-walk AR", ifu_axi_arvalid, 1'b0);
+      repeat (2) begin
+        tick();
+        tb_check1("dropped A-update stays response-quiet", fetch_rsp_valid, 1'b0);
+        tb_check1("dropped A-update stays read-quiet", ifu_axi_arvalid, 1'b0);
+      end
     end
   endtask
 
@@ -659,6 +730,130 @@ module tb_ooo_fetch_axi_bridge;
     ifu_axi_rvalid = 1'b0;
     #1;
     tb_check1("same-beat flush+R back to idle", fetch_req_ready, 1'b1);
+
+    // ===== IFU-AXI-G1：flush 不得撤销已经呈现/部分接受的 A-update write =====
+    // AW-first：flush 后必须补齐 W 并消费 B；B error 属于已 drop 的旧请求，不得回 fault。
+    reset_protocol_case();
+    seed_ad_update(64'h0000_0000_1234_004f);
+    ifu_axi_awready = 1'b1;
+    ifu_axi_wready = 1'b0;
+    tick();
+    ifu_axi_awready = 1'b0;
+    tb_check1("A-update AW-first accepted", dut.aw_done_q, 1'b1);
+    tb_check1("A-update AW-first leaves W pending", dut.w_done_q, 1'b0);
+    mmu_flush = 1'b1;
+    tick();
+    mmu_flush = 1'b0;
+    #1;
+    tb_check1("flush keeps A-update write owner", dut.state_q == S_AD_UPDATE_TB, 1'b1);
+    tb_check1("flush preserves accepted AW", dut.aw_done_q, 1'b1);
+    tb_check1("flush keeps missing W valid", ifu_axi_wvalid, 1'b1);
+    tb_check1("flush keeps BREADY", ifu_axi_bready, 1'b1);
+    tb_check64_local("flush preserves W payload", ifu_axi_wdata,
+                     64'h0000_0000_1234_004f);
+    ifu_axi_wready = 1'b1;
+    tick();
+    ifu_axi_wready = 1'b0;
+    tb_check1("post-flush W accepted", dut.w_done_q, 1'b1);
+    ifu_axi_bvalid = 1'b1;
+    ifu_axi_bresp = 2'b10;
+    tick();
+    ifu_axi_bvalid = 1'b0;
+    ifu_axi_bresp = RESP_OK;
+    check_dropped_write_quiet("AW-first flush drains to IDLE");
+
+    // W-first 对称覆盖；flush 与最后缺失 AW 同拍，fire 必须被记账。
+    reset_protocol_case();
+    seed_ad_update(64'h0000_0000_5678_004f);
+    ifu_axi_awready = 1'b0;
+    ifu_axi_wready = 1'b1;
+    tick();
+    ifu_axi_wready = 1'b0;
+    tb_check1("A-update W-first accepted", dut.w_done_q, 1'b1);
+    mmu_flush = 1'b1;
+    ifu_axi_awready = 1'b1;
+    tick();
+    mmu_flush = 1'b0;
+    ifu_axi_awready = 1'b0;
+    #1;
+    tb_check1("flush+last AW keeps owner", dut.state_q == S_AD_UPDATE_TB, 1'b1);
+    tb_check1("flush+last AW records fire", dut.aw_done_q, 1'b1);
+    tb_check1("flush+last AW preserves prior W", dut.w_done_q, 1'b1);
+    tb_check1("both channels done waits B", ifu_axi_bready, 1'b1);
+    ifu_axi_bvalid = 1'b1;
+    tick();
+    ifu_axi_bvalid = 1'b0;
+    check_dropped_write_quiet("W-first flush drains to IDLE");
+
+    // accepted_next 承重边界：AW 已完成，flush + 最后 W fire + B fire 全同拍。
+    // 下游正常 AXI 通常在 W fire 后才给 B；本例是防御性压力测试，确保 completion 公式
+    // 不被 flush 分支吞掉，并钉住同拍有效的 accepted_next 语义。
+    reset_protocol_case();
+    seed_ad_update(64'h0000_0000_789a_004f);
+    ifu_axi_awready = 1'b1;
+    ifu_axi_wready = 1'b0;
+    tick();
+    ifu_axi_awready = 1'b0;
+    tb_check1("same-beat setup AW accepted", dut.aw_done_q, 1'b1);
+    mmu_flush = 1'b1;
+    ifu_axi_wready = 1'b1;
+    ifu_axi_bvalid = 1'b1;
+    ifu_axi_bresp = 2'b10;
+    tick();
+    mmu_flush = 1'b0;
+    ifu_axi_wready = 1'b0;
+    ifu_axi_bvalid = 1'b0;
+    ifu_axi_bresp = RESP_OK;
+    check_dropped_write_quiet("flush+last-W+B completes to IDLE");
+
+    // 两通道均被反压时 flush 仍不能撤 valid/payload；重复 flush 必须幂等。
+    reset_protocol_case();
+    seed_ad_update(64'h0000_0000_9abc_004f);
+    mmu_flush = 1'b1;
+    repeat (2) begin
+      tick();
+      #1;
+      tb_check1("repeated flush keeps AW valid", ifu_axi_awvalid, 1'b1);
+      tb_check1("repeated flush keeps W valid", ifu_axi_wvalid, 1'b1);
+      tb_check1("repeated flush keeps BREADY", ifu_axi_bready, 1'b1);
+      tb_check64_local("repeated flush keeps AWADDR", ifu_axi_awaddr,
+                       pte_addr(L0_PT, USER_VA, 2'd0));
+      tb_check64_local("repeated flush keeps WDATA", ifu_axi_wdata,
+                       64'h0000_0000_9abc_004f);
+    end
+    mmu_flush = 1'b0;
+    ifu_axi_awready = 1'b1;
+    ifu_axi_wready = 1'b1;
+    tick();
+    ifu_axi_awready = 1'b0;
+    ifu_axi_wready = 1'b0;
+    tb_check1("repeated-flush AW accepted", dut.aw_done_q, 1'b1);
+    tb_check1("repeated-flush W accepted", dut.w_done_q, 1'b1);
+    // flush 与 B 同拍：B 完成有效，但语义 drop 胜出，不能 re-walk。
+    mmu_flush = 1'b1;
+    ifu_axi_bvalid = 1'b1;
+    tick();
+    mmu_flush = 1'b0;
+    ifu_axi_bvalid = 1'b0;
+    check_dropped_write_quiet("flush+B drains to IDLE");
+
+    // 无 flush 的 B error 仍必须走原 access-fault 路径，证明 drop 没吞正常错误。
+    reset_protocol_case();
+    seed_ad_update(64'h0000_0000_def0_004f);
+    ifu_axi_awready = 1'b1;
+    ifu_axi_wready = 1'b1;
+    tick();
+    ifu_axi_awready = 1'b0;
+    ifu_axi_wready = 1'b0;
+    ifu_axi_bvalid = 1'b1;
+    ifu_axi_bresp = 2'b10;
+    tick();
+    ifu_axi_bvalid = 1'b0;
+    ifu_axi_bresp = RESP_OK;
+    #1;
+    tb_check1("non-flushed B error enters response", dut.state_q == S_RESP_TB, 1'b1);
+    tb_check2("non-flushed B error resp0", fetch_rsp_resp0, RESP_ACCESS_FAULT);
+    tb_check2("non-flushed B error resp1", fetch_rsp_resp1, RESP_ACCESS_FAULT);
 
     tb_finish("tb_ooo_fetch_axi_bridge");
   end

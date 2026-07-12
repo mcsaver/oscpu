@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T14:31:49+00:00",
-  "updated_at": "2026-07-12T13:22:32+00:00",
+  "updated_at": "2026-07-12T14:21:23+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -1014,10 +1014,10 @@
     {
       "path": ".github/memory/known-issues.md",
       "kind": "memory",
-      "size_bytes": 522378,
-      "sha256": "186b22b1e9c6273e5c35e6c8cc00425c8172b71d95b5b083b08507167b728588",
+      "size_bytes": 523606,
+      "sha256": "a01b1d1395c76beff7f93d11bb638558c0d070cd223ce15c7558d98f54d868c8",
       "backup_source": "database",
-      "archived_at": "2026-07-12T13:15:55+00:00"
+      "archived_at": "2026-07-12T14:15:06+00:00"
     },
     {
       "path": ".github/memory/modules/abstract-machine.md",
@@ -1070,10 +1070,10 @@
     {
       "path": ".github/memory/modules/npc.md",
       "kind": "memory-module",
-      "size_bytes": 606845,
-      "sha256": "62d2e480c93dec8dcd9aedecc5c32375a0887e9109d32c418e86ac40441c962b",
+      "size_bytes": 608528,
+      "sha256": "dad8b3b900c413dc8b66596b8110cd75f239ae84f24a52b2c7879c157af710a9",
       "backup_source": "database",
-      "archived_at": "2026-07-12T13:15:55+00:00"
+      "archived_at": "2026-07-12T14:15:06+00:00"
     },
     {
       "path": ".github/memory/modules/software-flow.md",
@@ -1102,10 +1102,10 @@
     {
       "path": ".github/memory/project-status.md",
       "kind": "memory",
-      "size_bytes": 636996,
-      "sha256": "41d2d3e3e10865b6f2b66bca84351df4c341044397a2ab4da10dd2b99430ea56",
+      "size_bytes": 638879,
+      "sha256": "7720d5198b18e0dcb6ee16c4d4ca3d72fa9f21b5ff0e304bfc597512fa4895ec",
       "backup_source": "database",
-      "archived_at": "2026-07-12T13:15:55+00:00"
+      "archived_at": "2026-07-12T14:15:01+00:00"
     },
     {
       "path": ".github/task-runs/2026-04-13-npc-dpic-bringup/dispatch-log.md",
@@ -42930,6 +42930,14 @@
       "sha256": "f87f7484d613563144083b548cf1036f2813fd3862940559b9d30f31fb62184e",
       "backup_source": "database",
       "archived_at": "2026-07-12T03:16:27+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-ifu-axi-g1-flush-drain/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 545698,
+      "sha256": "fc32eb3b8dc0ffef09ce058914c9a76e7d8162d827fd5c2086c988f85bf1a617",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T14:21:23+00:00"
     },
     {
       "path": ".github/task-runs/2026-07-12-rv64-t3a-dead-crosslane-forward/evidence-index.md",

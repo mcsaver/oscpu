@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-13T07:57:11+00:00",
-  "updated_at": "2026-07-12T13:23:54+00:00",
+  "updated_at": "2026-07-12T14:16:32+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -1006,10 +1006,10 @@
     {
       "path": ".github/memory/known-issues.md",
       "kind": "memory",
-      "size_bytes": 390277,
-      "sha256": "421fbfc3f8e62cac1961b47b355c489422da9a829bb18917572d52e021a7c876",
-      "backup_source": "filesystem",
-      "archived_at": "2026-06-23T04:02:03+00:00"
+      "size_bytes": 523606,
+      "sha256": "a01b1d1395c76beff7f93d11bb638558c0d070cd223ce15c7558d98f54d868c8",
+      "backup_source": "database",
+      "archived_at": "2026-07-12T14:16:32+00:00"
     },
     {
       "path": ".github/memory/modules/abstract-machine.md",
@@ -1062,10 +1062,10 @@
     {
       "path": ".github/memory/modules/npc.md",
       "kind": "memory-module",
-      "size_bytes": 593233,
-      "sha256": "f3c337a86253ddf0530fcfdf687125d618098ab288ef4a35ff14a2c5c317a35c",
+      "size_bytes": 608528,
+      "sha256": "dad8b3b900c413dc8b66596b8110cd75f239ae84f24a52b2c7879c157af710a9",
       "backup_source": "database",
-      "archived_at": "2026-07-11T05:39:58+00:00"
+      "archived_at": "2026-07-12T14:16:31+00:00"
     },
     {
       "path": ".github/memory/modules/software-flow.md",
@@ -1094,10 +1094,10 @@
     {
       "path": ".github/memory/project-status.md",
       "kind": "memory",
-      "size_bytes": 627685,
-      "sha256": "db845b96e6ded3b21a90b821a24e242ffb2f6574786b68880423516256602009",
+      "size_bytes": 638879,
+      "sha256": "7720d5198b18e0dcb6ee16c4d4ca3d72fa9f21b5ff0e304bfc597512fa4895ec",
       "backup_source": "database",
-      "archived_at": "2026-07-11T19:04:47+00:00"
+      "archived_at": "2026-07-12T14:16:31+00:00"
     },
     {
       "path": ".github/task-runs/2026-04-13-npc-dpic-bringup/dispatch-log.md",

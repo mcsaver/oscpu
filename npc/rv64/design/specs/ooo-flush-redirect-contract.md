@@ -50,10 +50,9 @@
 - **铁律②** 已发出的 AXI 事务不得被 kill，只能 drain 到完成。
 - **铁律③** CSR 写在 commit 拍即架构可见，flush 不得撤销。
 
-> **2026-07-11 CURRENT 裁决**：铁律②是必须满足的目标合同，但当前只能判为**部分满足**。
-> backend nokill store 与 IFU 已发读具备 drain 路径；IFU `S_AD_UPDATE` 的 AW/W/B 未纳入
-> `mmu_flush` drain，见 `IFU-AXI-G1`。下文 2026-07-05 的“成立（带存疑）”记录保留为
-> 历史推导，不再覆盖本裁决。
+> **2026-07-12 CURRENT 裁决**：IFU 已发读与 A-update AW/W/B 都具备本地 drain owner，
+> `IFU-AXI-G1` 已关闭；D-side 读/write/A-D 也由本地 `drop_rsp_q`/write owner 排水，不再依赖
+> xbar abort。全局铁律②仍因 AMO/LR/SC nokill 分类未完成专项核实（UC-D）保守判为**部分满足**。
 
 ---
 
@@ -75,7 +74,7 @@ fetch 落点与活跃度列。未列源继续使用详细表，但仍受 §2.2 c
 | E6 drain complete | commit-family pre-mux 只保留 arch-trap/system/xRET 主路径 | branch/jump/memory owner 已删除或 tie-off，不再是当前域 B 家族 |
 | E7 pending branch resolve | Sequencer 遗留排除臂；capture owner 已删、默认不可达 | [死/遗留]，不作为 current branch redirect |
 | E8 pending jump resolve | `OooFrontend` tie-0 的 Sequencer 遗留臂 | [死]，不作为 current JALR redirect |
-| E11 `mmu_flush` | I/D bridge 正交事务边界 | IFU 已发读进 `S_DRAIN`；D-side 与 A-update write 不能由此句外推，见 §3 |
+| E11 `mmu_flush` | I/D bridge 正交事务边界 | IFU 已发读进 `S_DRAIN`，A-update 写以 sticky drop 补齐 AW/W/B；D-side 独立本地 drain，见 §3 |
 
 #### 2.1.2 2026-07-05 详细冻结表（历史底稿）
 
@@ -96,7 +95,7 @@ fetch 落点与活跃度列。未列源继续使用详细表，但仍受 §2.2 c
 | **E8** | **pending_jump drain-resolve**（域 B JALR/nolink） | `OooFetchPcOutstandingSequencer.v:188-209` [验证]；stop `:98-107` [验证] | `!direct_flush && pending_jump_resolve_ready`；misaligned / nolink / redirect_after_dispatch | both | `next_fetch_pc← jalr_prefetch_hit_next_pc / pending_jump_resolved_target`；stop←0 | jalr prefetch 命中在飞取指；committed/SQ/AXI/CSR | **[半死]** |
 | **E9** | **branch_spec_restore / checkpoint**（legacy 单级 checkpoint 恢复） | fetch `OooFetchPcOutstandingSequencer.v:137-149` [验证]；mem `OooControlFlushSequencer.v:29`→`OooMemoryRequestGate.v:60` [逆向]；MIQ `OooIntBackend.v:999` [逆向] | `!direct_flush && branch_spec_resolve_valid && !pred_match`；`rob_walk_mode` 下 `branch_spec_active≡0` | both | checkpoint rename/free 单级回滚；`checkpoint_mem_flush`→dcache/AXI；MIQ 清被 restore 项 | committed/arch RF/CSR；不整清 ROB | **[死]**（rob_walk 下失活） |
 | **E10** | **trap_redirect_squash**（priv 边界 redirect 屏蔽，非清除） | `OooControlFlushSequencer.v:26-28` [逆向]；消费 `OooBranchResolveRecoveryGate.v:74-75,93-94,102-103`、`OooDirectBranchResolveGate.v:105-106` [逆向] | `priv_predictor_boundary`(trap/mret/sret 边界) 置位，sticky 到 `backend_drained` 落 | fetch（掩码） | **不清任何状态**；把 younger branch redirect 拍平为 0，保证 priv drain 期 trap/xret 目标不被 younger 覆盖 | 全部后端/前端状态 | [活] |
-| **E11** | **mmu_flush**（satp / sfence.vma / **fence.i** 提交） | `OooMemoryRequestGate` 汇合后送 I/D bridge | `pending_system_satp_write_commit ‖ pending_system_sfence_commit ‖ pending_system_fencei_commit` | backend+fetch | 清 TLB/取指 cache/请求上下文；已发读转 `S_DRAIN`；IFU A-update partial write 当前会被直接清状态（KNOWN GAP） | committed store；具备 drain owner 的已发事务 | [活] |
+| **E11** | **mmu_flush**（satp / sfence.vma / **fence.i** 提交） | `OooMemoryRequestGate` 汇合后送 I/D bridge | `pending_system_satp_write_commit ‖ pending_system_sfence_commit ‖ pending_system_fencei_commit` | backend+fetch | 清 TLB/取指 cache/旧请求语义；IFU 已发读转 `S_DRAIN`，A-update write sticky-drop 后补齐 AW/W/B | committed store；全部已呈现 IFU AXI owner；D-side 由独立本地 drain 合同保持 | [活] |
 | **E12** | **pending 影子 capture / clear**（dispatch 拍投机捕获 + squash 清） | capture `OooPendingDispatchArbiter.v:156-165,197-288` [逆向]；clear/squash `:190-195,313-333`→`OooPendingTrapExitSequencer.v:42-88` [逆向] | capture_base 下队头 irq/system/fault/arch_trap/exit 快照进单寄存器；清由 E1/E3/E4/drain 各源 OR | backend（影子态） | 写/清 `pending_system`、`pending_arch_trap/exit/cause/pc/tval` 单寄存器；`clear_arch_squash` 仅当 `cause==ILLEGAL_INST` 抹 residual | committed/AXI/CSR/arch RF 全不动（只动投机影子） | [活] |
 | **E13** | **global flush_i（顶层核 flush 端口）** | `OooFrontend.v:1828 .rst(rst‖flush_i)`；`NpcCoreTop.v:249 .flush_i(1'b0)` [逆向] | 恒 0 | fetch | `rst‖flush_i` 退化为 rst | — | **[死]**（tied 0，建议标 dead port，见 UC-10） |
 
@@ -207,17 +206,22 @@ fetch 侧关闭；但全控制面仍没有统一 event 类型。后端靠扁平 
 - `OooMemInflightQueue` 压缩保 `KIND_DRAIN`（退休 store 落存）[逆向 `:163-190`]；`kill_valid`(mispredict) 只标 LOAD/PROBE，不动 DRAIN。
 - **✅ 跨子系统纠正（GAP-5，对抗审查复核确认准）**：子系统4 称"serial/trap_flush 不碰 SQ（`sq_flush_valid=flush_i‖branch_mispredict`）"。实测 `OooExecuteBackend.v:150 .flush_i(core_local_flush_w)` [验证] → `OooIntBackend.v:2590 sq_flush_valid_w = flush_i || branch_resolve_mispredict_w` [验证] → `OooStoreQueue.flush_all_i` = **core_local_flush（含 trap/serial）**。故 trap/serial **确实进 SQ flush_all**，清 CSR-之后 younger 的未 committed store（这正是 serialize 应做的），committed 仍恒存活。**铁律①结论不变，但子系统4 陈述的机制不准**：正确性来自"committed survive + serial_flush 恒在 mem_quiet(SQ 空) 拍"，**非**"serial 被排除出 SQ 路"。此为 §4 INV-4 挂靠的构造不变量。
 
-### 铁律② 不得 kill 已发 AXI（只能 drain 完）—— **⚠️ 部分满足 / IFU-AXI-G1 开放**
+### 铁律② 不得 kill 已发 AXI（只能 drain 完）—— **⚠️ 全局部分满足 / IFU-AXI-G1 CLOSED**
 
 - `OooMemAxiBridge`：nokill committed-store 对 flush/drop 免疫，`write_drain` 排空已发 beat。
-- D-side 普通可取消读在 bridge 本地释放，把迟到 R 的 ownership 交给 xbar abort/drop
-  合同；它没有 IFU 式 `S_DRAIN`。因此 E11 的“已发读转 S_DRAIN”只适用于 IFU，不能
-  外推到 D-side。
+- D-side 普通可取消读不再交给 xbar abort/drop；`S_WALK_R/S_READ_DATA` 在 flush 下由
+  `drop_rsp_q` 保持本地 R owner 并禁止 cache/TLB fill，迟到 R 到达后才回 IDLE。D-side
+  写与 A/D update 同样补齐 AW/W/B 后 drop；它没有 IFU 同名 `S_DRAIN` 状态，但语义等价。
 - `OooMemoryRequestGate.v:49 mem_req_nokill_o = core_mem_req_nokill_i` [验证] **直通**不受 flush 门控。
 - `OooFetchAxiBridge`：已发读响应由 `S_DRAIN` 消费，不再依赖旧 xbar read-abort 描述。
-- **KNOWN GAP IFU-AXI-G1**：`S_AD_UPDATE` 的 AW/W 可独立握手；`mmu_flush` 会直接回
-  IDLE、清 `aw_done/w_done` 并撤 `BREADY`，未对 partial write 排水。AW-only+flush
-  已局部动态复现；xbar 后果仍需联测。
+- **IFU-AXI-G1 CLOSED 2026-07-12**：进入 `S_AD_UPDATE` 即视为 AW/W 已呈现；
+  `mmu_flush` 只能 sticky-drop 旧 fetch 语义，必须保持 PTE payload 与各 channel accepted 位，
+  补齐缺失 AW/W 并持续 `BREADY`。完整消费 B 后，有 drop 则回 IDLE 且忽略 BRESP，无 drop
+  才允许 re-walk/产生 B-error access fault。`rst > flush/drop > completion outcome > normal`
+  是同拍全序；flush 与最后 channel/B 同拍时 fire 有效而 drop 后继胜出，重复 flush 幂等。
+- **xbar 验收已通过**：bridge 排水消费 B 后，`AxiXbar` 释放 owner；预先排队的后一 master
+  以精确 AWADDR/WDATA 到达 slave 并收到 B。bridge 22 RED、bridge+xbar 3 RED 均在同一
+  用例转 GREEN；12 个独立 shadow 条件逐条负探针非真空，contract ratchet 50/50。
 - AMO/LR/SC 的 nokill 分类仍应由 memory-path spec 独立冻结，不能由本节直通线推定。
 
 ### 铁律③ CSR 写 commit 拍即架构可见、flush 不撤 —— **⚠️ 结构上成立，但默认回归零覆盖（对抗审查挑战#2 降级）**
@@ -233,7 +237,7 @@ fetch 侧关闭；但全控制面仍没有统一 event 类型。后端靠扁平 
 | 铁律 | 裁决 | 证据强度 |
 |---|---|---|
 | ① committed store 不清 | **✅ 成立** | `OooStoreQueue.v:145-149 survive_r` [验证] + GAP-5 纠正复核 |
-| ② 不 kill 已发 AXI | **⚠️ 部分满足** | backend nokill + IFU read drain 已有；IFU A-update partial write 为 KNOWN GAP |
+| ② 不 kill 已发 AXI | **⚠️ 全局部分满足** | backend nokill、I/D read/write drain 与 IFU A-update 均有 owner；AMO/LR/SC nokill 分类仍待专项核实（UC-D） |
 | ③ CSR 写不撤 | **⚠️ 结构成立 / 默认回归零覆盖** | 次拍时序 [验证]，但挂 serial_flush（默认 [休]），无 flag=1 绿背书 |
 
 ---
@@ -428,9 +432,9 @@ redirect_request {
 - **UC-B｜铁律③默认回归零覆盖**：见 §3 降级。挂 serial_flush（默认 [休]），flag=1 全 Linux 绿之前不得读作 settled。
 - **UC-C｜系统性幸存者偏差**：头号绿证据全 flag=0；memory「flag ON real workload 全绿」**不在本契约证据集且本身不完整**。凡 serialize 类"成立" = "flag=0 不触发"，非 flag=1 背书。
 - **UC-D｜铁律② AMO/LR/SC nokill 未核实**：`mem_req_nokill_o` 直通，真正 nokill 判定在上游 IntBackend AMO 通道，本轮未打开，存疑保留（§3 铁律②）。
-- **UC-E｜铁律② IFU A-update partial write**：旧“读事务依赖 xbar abort”已被当前
-  IFU `S_DRAIN` 超越；现存缺口是 `S_AD_UPDATE` 的 AW/W/B 未随 `mmu_flush` 排水，
-  详见 `IFU-AXI-G1`。
+- **UC-E｜铁律② IFU A-update partial write（✅ CLOSED 2026-07-12）**：IFU read 由
+  `S_DRAIN` 自吞；A-update write 由 `ad_drop_q` 保持 payload/accepted 位、补齐 AW/W 并消费
+  B 后回 IDLE。bridge+xbar 已证明 owner 释放与后一 master 进展；断言 ratchet 防回退。
 
 ### 6.4 活文档强制（对抗审查挑战#5 —— 本契约不沦为死文档的唯一结构性保证）
 
@@ -480,3 +484,6 @@ redirect_request {
 - 2026-07-07: **INV-4 两半落成 in-RTL `OOO_ASSERT` 断言，baseline 9→11**。`OooRob` 新增 head0-CSR commit 不得发生在 `mem_quiet_i=0` 的断言；注意按 Phase1 §10.4 生命周期校正，`mem_quiet_i` 当前接 `mem_idle_o`，不含 `mem_retire_quiet/sq_empty`，否则 younger-store 会形成死锁。`OooStoreQueue` 新增 flush 不得清除 committed 或同拍 mark store 的断言。验证：`make -C npc/rv64 check-contract` PASS（11/11），`make -C npc/rv64 -j2` PASS，focused `tb_ooo_store_queue tb_ooo_rob` PASS。
 - 2026-07-11：现状源切到 07-11 snapshot；fetch fault 改为 drained pending trap；
   铁律②按 IFU read-drain 与 A-update write-gap 分层，裁决降为部分满足。
+- 2026-07-12：关闭 IFU-AXI-G1；E11/铁律②/UC-E 改为 sticky-drop write drain 当前事实，
+  并校正 D-side 已使用本地 `drop_rsp_q`、不再依赖已删除的 xbar abort/drop。全局铁律②
+  仍因 UC-D 保守保持部分满足。

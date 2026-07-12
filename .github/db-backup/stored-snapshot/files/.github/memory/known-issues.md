@@ -45,8 +45,9 @@
 - **建议下一步**: 先把 BPU lookup 64-bit `imm` 收窄为实际消费的 static-taken/sign bit并
   修 placeholder pin-cap合同，取得可信排序；随后按 owner/credit 合同把 bridge raw response
   强制寄存，并在RVC/predecode与64-bit target之间加compact no-fallthrough prepared-packet
-  边界。同步关闭 [113] 仍开放的 IFU-AXI-G1、IFU-FETCH-G2、PTW-PMP-G1，不能以 repipeline
-  掩盖功能缺口。证据 `.github/task-runs/2026-07-12-rv64-t3a-dead-crosslane-forward/`。
+  边界。IFU-AXI-G1 已于 2026-07-12 关闭；继续关闭 [113] 的 IFU-FETCH-G2、PTW-PMP-G1，
+  不能以 repipeline 掩盖功能缺口。证据
+  `.github/task-runs/2026-07-12-rv64-t3a-dead-crosslane-forward/`。
 
 ### [113] RV64 代码优先复审重新打开接口合同与验证聚合缺口（2026-07-11）
 
@@ -54,13 +55,26 @@
 - **范围更正**: [111] 的“4/4 全修、已知正确性缺口清零”只表示 2026-07-03 当时登记的四项家族已关闭，不能解释为当前 RTL 的全部正确性合同永久清零。2026-07-11 代码优先复审在后续 RTL 上重新登记 FDG-G1、XRET-G1、IFU-AXI-G1、IFU-FETCH-G2、PTW-PMP-G1、MIQ-G1、INSTRET-G1；证据等级和可达性边界见 current snapshot。
 - **验证聚合缺口**: `perf/results/20260711-125729/module-testbench/summary.txt` 写 86/86 PASS，但 `tb_ooo_control_commit_sequencer.log`、`tb_ooo_pending_system_sequencer.log`、`tb_ooo_stop_pending_sequencer.log` 均先出现 FAIL 与 `$finish(1)`，随后仍输出 `[RESULT] PASS`。`core-regress/20260711-133547-973361/am-cpu-tests.log` 列出 59 项，实际 58 PASS、`fp-difftest-probe` FAIL，但上层仍写 AM PASS / `overall_rc=0`。
 - **可采信边界**: 同轮 177 项 official riscv-tests 有逐项 PASS 记录；module 86/86 与 AM PASS 只能称“摘要文本”，不能作为全绿证明。当前 `.config` 未开启 Difftest。
-- **F0 已解决（2026-07-11）**: module checker 已同时核验 compile/sim rc、测试自身精确 PASS、failure marker、error count 与失败型 `$finish`；AM checker 已拒绝 FAIL/缺项/重复/未知/损坏行并上传 rc。三个 sequencer TB 已按 current contract 更新。`OooFpBackend` 的 FPR busy/bypass/wakeup/write 已统一使用 `valid && frd`，GPR 目的 FP completion 不再因 preg 数字别名误唤醒 FPR。新鲜结果为 module 86/86、AM 59/59（`fp-difftest-probe` 明确 Difftest ON）、official 177/177、strict guard PASS。因此本条中的“验证聚合缺口”和 FP 域资格问题已关闭；FDG-G1/XRET-G1/IFU-AXI-G1 等 F1 接口合同仍保持活跃，本条不能整体移入已解决区。
+- **F0 已解决（2026-07-11）**: module checker 已同时核验 compile/sim rc、测试自身精确 PASS、failure marker、error count 与失败型 `$finish`；AM checker 已拒绝 FAIL/缺项/重复/未知/损坏行并上传 rc。三个 sequencer TB 已按 current contract 更新。`OooFpBackend` 的 FPR busy/bypass/wakeup/write 已统一使用 `valid && frd`，GPR 目的 FP completion 不再因 preg 数字别名误唤醒 FPR。新鲜结果为 module 86/86、AM 59/59（`fp-difftest-probe` 明确 Difftest ON）、official 177/177、strict guard PASS。因此本条中的“验证聚合缺口”和 FP 域资格问题已关闭；后续 F1 slice 状态见下列增量。本条仍因 IFU-FETCH-G2、PTW-PMP-G1、MIQ-G1、INSTRET-G1 与 store/device 边界保持 active，不能整体移入已解决区。
 - **FDG-G1 已解决（2026-07-12）**: ordinary backend admission 已门控
   `dispatch0_arch_trap_i`，并加入 FDG-I1 非真空断言。旧 RTL 四类非法 FP 精确 RED；修复后
   focused 4/4、module 87/87、Difftest-ON AM 59/59、official 177/177。配置恢复后已 clean
   rebuild Difftest-OFF artifact 并用 fresh AM smoke 证明 runtime OFF。FDG-G1 从本条 active
-  列表移除；XRET-G1、IFU-AXI-G1、IFU-FETCH-G2、PTW-PMP-G1、MIQ-G1、INSTRET-G1 与
-  store/device 边界仍开放，因此 [113] 仍保持 active。
+  列表移除；其余 slice 状态按下列增量记录。
+- **XRET-G1 已解决（2026-07-12）**: classifier 补 `MRET && priv!=M` 与
+  `SRET && priv==U`，复用唯一 arch-trap 链；旧 RTL 三类精确 6 RED。真实编码 head0/lane1
+  integration 证明 illegal cause/pc/tval 且 CsrFile mret/sret request 为 0；focused 5/5、
+  module 87/87、official 177/177、Difftest-ON AM 59/59，reviewer 无 blocker。
+- **MEM-ISSUE-G1 已解决（2026-07-12）**: lane0 memory exception 释放主端口时，lane1 的
+  IQ pop/request mux/bridge fire/MIQ push 统一到同一 eligible/owner 事实；reviewer 构造的
+  head-blocked ownerless request 反例已进入常驻 guard。focused 5/5、module 87/87、official
+  177/177、Difftest-ON AM 59/59。
+- **IFU-AXI-G1 已解决（2026-07-12）**: `S_AD_UPDATE` 遇 flush 以 sticky semantic drop
+  保持 payload、补齐 AW/W 并消费 B，完成后无声回 IDLE；旧 RTL bridge 22 RED、bridge+xbar
+  3 RED。最终 current-source focused 2/2、module 88/88、contract 50/50、lint/style/build
+  全绿，12 条独立 shadow 断言均有故意违约证据。未覆盖本轮 Difftest/rv64mi/rv64si，且
+  不提供新 STA；IFU-FETCH-G2、PTW-PMP-G1、MIQ-G1、INSTRET-G1 与 store/device 仍开放，
+  因此 [113] 保持 active。
 - **稳定教训**: integer preg 与 FPR preg 即使数值相同也属于不同寄存器域；任何 busy clear、source bypass、wakeup 或物理寄存器写使能都必须带 destination-domain qualifier，不能只用 completion valid。
 - **当前权威与证据**: `npc/rv64/design/arch/rtl-ground-truth-2026-07-11.md`、`npc/rv64/design/arch/rv64-200mhz-completion-design.md`、task-run `2026-07-11-rv64-f0-truthful-regression` 与 `2026-07-12-rv64-f1-fdg-g1`。
 

@@ -70,4 +70,4 @@
 
 | 文件 | 类别 | 归档原因 | 现状参考 |
 | --- | --- | --- | --- |
-| `ooo-sv39-hw-ad-update.md` | SUPERSEDED | 数据侧/取指侧 HW-managed A/D 主路径与观测 checker 已落地；2026-07-11 复审重新打开 PTE 写 PMP 与 IFU A-update partial-write flush-drain 两项边界，因此本实施计划不再描述现状 | `../ooo-fetch-axi-bridge.md` + `../ooo-mem-axi-bridge-fsm.md` + `../../arch/rtl-ground-truth-2026-07-11.md` |
+| `ooo-sv39-hw-ad-update.md` | SUPERSEDED | 数据侧/取指侧 HW-managed A/D 主路径与观测 checker 已落地；2026-07-11 复审打开的 IFU A-update partial-write flush-drain 已于 2026-07-12 关闭，PTE 写 PMP 仍开放；本实施计划不再描述现状 | `../ooo-fetch-axi-bridge.md` + `../ooo-mem-axi-bridge-fsm.md` + `../../arch/rtl-ground-truth-2026-07-11.md` |

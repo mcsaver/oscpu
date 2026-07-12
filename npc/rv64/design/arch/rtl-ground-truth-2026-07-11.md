@@ -122,11 +122,13 @@ NpcSimTop                         仿真 shell
    `MEM-I1/I2` 检查 IQ、request mux 与 MIQ owner；current module 87/87、Difftest-ON AM
    59/59、official 177/177 均通过。
 
-4. **IFU-AXI-G1 — A-update partial write 未随 flush 排水**
+4. **IFU-AXI-G1 — CLOSED 2026-07-12：A-update write flush-drain**
 
-   `OooFetchAxiBridge` 的读事务有 `S_DRAIN`；`S_AD_UPDATE` 中 AW/W 可独立握手，
-   但 `mmu_flush` 会直接清通道进度并回 IDLE。AW-only + flush 已在 bridge 局部复现；
-   与 xbar 的最终错配/停顿后果尚缺联测。
+   `OooFetchAxiBridge` 已把 reset 与 mmu flush 分离；`S_AD_UPDATE` 用 sticky `ad_drop_q`
+   作废旧 fetch 语义，同时保持 PTE payload 与 AW/W accepted 位，补齐 channel 并消费 B 后
+   才回 IDLE。旧 RTL bridge 22 RED、bridge+xbar 3 RED 精确复现 owner 遗弃/后一 master
+   无进展；修复后同用例、同拍 corner、12 条独立 shadow 负探针、module 88/88、AM 59/59
+   与 official p-mode 153/153 全绿。当前配置 Difftest OFF，privileged rv64mi/si 本轮未重跑。
 
 5. **IFU-FETCH-G2 — page-end C fault 归属**
 
