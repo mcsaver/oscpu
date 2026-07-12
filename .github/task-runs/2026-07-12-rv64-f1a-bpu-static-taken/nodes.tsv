@@ -1,0 +1,7 @@
+node_id	owner_agent	depends_on	inputs	outputs	success_criteria	fallback	status
+recall-map	root+bpu_lookup_iface	-	frontend/BPU/checker/macro	owner map	all refs and dirty hunk mapped	stop	PASS
+freeze-contract	root	recall-map	fresh 5ns cone/spec	scalar ABI contracts	six contracts + timing gate	re-audit	PASS
+structural-red	root	freeze-contract	current wide ABI	BPU-ST1 rc=1	fails for intended reason	fix RED	PASS
+implement-scalar	root	structural-red	frozen ABI	RTL/checker/TB/lib	rg zero old ABI + focused green	revert	PASS
+timing-ab	root+bpu_macro_timing	implement-scalar	same 5ns flow	fresh mapped comparison	credible no-overclaim report	reject candidate	PASS
+record-review	root+reviewer	implement-scalar,timing-ab	all evidence	memory/task-run/guard	no blocker	deliver slice only	PASS

@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-13T07:57:11+00:00",
-  "updated_at": "2026-07-12T05:31:21+00:00",
+  "updated_at": "2026-07-12T13:23:54+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -21138,6 +21138,150 @@
       "sha256": "23b6142662779b415334d58a5a9b47e71261926d5c164c179f4c225315d73f73",
       "backup_source": "filesystem",
       "archived_at": "2026-07-11T14:01:18+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1a-bpu-static-taken-agent-final/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 10111,
+      "sha256": "22d9af27581d664ad40b0375b73786c51a5990db651e7061f09606967084be2b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T13:23:54+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1a-bpu-static-taken-agent-final/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11488,
+      "sha256": "75f064a18d3c36a51b82110e9ba766ffb0b86f625c78446c7f49d2b4bd572c30",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T13:15:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1a-bpu-static-taken-agent-final/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 6136,
+      "sha256": "b53e1e4688c8b968aba91083c432c079523936beb710ae1d5676bee7a2a431e4",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T13:15:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1a-bpu-static-taken-agent-final/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1672,
+      "sha256": "848e738541006a520215f10fbdd6895161697d78d798cd29aa45decdfbcfdb5c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T13:23:54+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1a-bpu-static-taken-agent-final/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6307,
+      "sha256": "c864e9a81f4e3d6305d2a40378ff9e29de44fc91523d37dd6e667436c1a0a55f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T13:15:17+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1a-bpu-static-taken-npc-final/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 7709,
+      "sha256": "0d4700ab9e9444c2e5cde20847100f1647b782100969530e929c3733232bca56",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T13:23:54+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1a-bpu-static-taken-npc-final/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5960,
+      "sha256": "6067599b1502db09077ffde5c7e44758992c332cc79f6b233f57f21104b2b0b0",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T13:14:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1a-bpu-static-taken-npc-final/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 3137,
+      "sha256": "2ae5db543c13402a3855001b5ca785de76ed7b1f8729ef23c60f89cf719946bc",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T13:14:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1a-bpu-static-taken-npc-final/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 934,
+      "sha256": "a858a38f0aeeedafd595186e5912ef30f174ce3510979529140525388456fa54",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T13:23:54+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1a-bpu-static-taken-npc-final/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4571,
+      "sha256": "7fdcd52bfdcb4239a455f55921b615514d60f193f6c41e7ac2e770b70f412678",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T13:14:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1a-bpu-static-taken-yosys-final/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 8434,
+      "sha256": "3bdb2454003de4bd0d19621f2df7fcbb8816d0feebb22d45e3b2ff7e66bb97fe",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T13:23:54+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1a-bpu-static-taken-yosys-final/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 8092,
+      "sha256": "f291543393598526bf06320afcdb19b83d3a3965c0e5a22b1096ec9ced055213",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T13:14:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1a-bpu-static-taken-yosys-final/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4579,
+      "sha256": "b1e8670a10f6dc60facb706d3561ce46a65b39a06f8acf4a46d3ba1857bef565",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T13:14:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1a-bpu-static-taken-yosys-final/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1223,
+      "sha256": "7eca08b0fef4da2737bd783bdfd2d37d1860d93d620b65b4e8e94e74f466262f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T13:23:54+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1a-bpu-static-taken-yosys-final/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 5159,
+      "sha256": "ad7724852eec93227b4bae0ea5837e9510e41f8af3e12f13d6f176616ca5f874",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T13:14:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1a-bpu-static-taken/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 6566,
+      "sha256": "b822e21383533b27a59715552ce14052f14f24f08d955e8d1b8ab4e2beadcb30",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T13:15:55+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1a-bpu-static-taken/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 564456,
+      "sha256": "798ef27dcbbbd1f98b59299d06d224fb901b2ac35e734d2bd3f0307bced44df2",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T13:23:54+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1a-bpu-static-taken/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 7332,
+      "sha256": "9bc4c57e46a7f60370a7b842b63c170fe975a4ec1c03dab6ef4cc5a8152577ba",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T13:18:48+00:00"
     },
     {
       "path": ".github/task-runs/2026-07-12-rv64-t3a-dead-crosslane-forward/dispatch-log.md",

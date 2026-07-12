@@ -4,12 +4,13 @@
 
 ## 1. 目的与范围
 预测条件分支方向(taken/not-taken),双发射(2 lookup 口)。gshare(全局历史)+ local(局部历史)混合,
-2-bit 饱和计数器。只管方向;目标地址由 RAS 与前端直算(JAL=pc+imm、RET=RAS top;
+2-bit 饱和计数器。lookup 只接收 PC 与 1-bit `static_taken`；完整 branch immediate 留在前端
+目标地址通路。只管方向;目标地址由 RAS 与前端直算(JAL=pc+imm、RET=RAS top;
 JALR-BTB/BTC/pending jump sequencer 在 mode=1 下已判死,见 2026-07-03 RTL 重读基线)。
 
 ## 2. 结构
 ```
- gshare:  index = fn(PC, GHR)        → bht_q[idx] (2-bit 饱和)  [BPU_BHT_ENTRIES≈4096]
+ gshare:  index = fn(PC, GHR)        → bht_q[idx] (2-bit 饱和)  [BPU_BHT_ENTRIES=1024]
  local :  lh = local_hist_q[PC_idx(256 项×8b)] → local_pht_q[{pc[4:1],lh}] (2-bit) [PHT 4096]
  GHR(ghr_q): 全局分支历史移位寄存器(BHT_INDEX_W 位)
  lookup → pred_taken / predict_strong / bht_idx(供 update 回写)
@@ -18,16 +19,54 @@ JALR-BTB/BTC/pending jump sequencer 在 mode=1 下已判死,见 2026-07-03 RTL �
 - 每项带 valid 位:未训练(valid=0)时回退**静态预测**(如 backward-taken/forward-not-taken)。
 - 2-bit 计数器:`taken = valid ? (counter>=2) : static`;strong = 计数器在两端(00/11)。
 
+### 2.1 接口与六类合同（F1a scalar fallback ABI）
+
+| 类别 | 合同 |
+| --- | --- |
+| 握手 | 两路 lookup 都是 0-cycle 纯组合 view，无 valid/ready；`lookup*_static_taken_i` 只在所选表项 invalid 时决定 fallback。 |
+| stall/backpressure | 模块无 occupancy、无 stall 状态；parent stall 不在本模块捕获 lookup payload。 |
+| flush/clear | `rst || clear_i` 清 valid、GHR 与 update 流水 valid；同拍 update 被丢弃，优先级保持 `reset/clear > update stage1/stage2`。 |
+| 异常序 | predictor 不拥有异常、fault 或 redirect；非 branch/fault/invalid slot 是否消费预测仍由 frontend gate 单一决定。 |
+| 访存序 | 无 AXI/cache/访存 owner，接口收窄不改变请求、响应或信用。 |
+| 投机恢复/单一真源 | `fetch_dec*_bimm_w[XLEN-1]` 是两路 static fallback 的唯一真源；lower 63 immediate bits 禁止进入 predictor/macro ABI，GHR/update 语义不变。 |
+
+典型组合语义：`pred_taken = selected_valid ? selected_counter[1] : static_taken`。接口收窄
+不新增寄存级、不改变 lookup latency，也不允许在 predictor 内重新解码 immediate。
+
 ## 3. 不变量
 - **BP-I1 索引一致**:lookup 产出的 bht_idx 必须随 uop 传到 resolve,update 用同一 idx 回写(否则训错条目)。
 - **BP-I2 更新顺序**:GHR/计数器在 resolve(真实方向已知)时更新;投机期不污染(误预测恢复走
   pred_npc 显式 mispredict redirect + ROB-walk;BranchSpecTracker 的 checkpoint 机制已判死)。
 - **BP-I3 双发射**:lookup0/lookup1 同拍读同一表,需保证两口读不互相干扰(纯读)。
+- **BP-I4 静态 fallback ABI (`BPU-ST1`)**:两路外部 ABI 各只有 1-bit
+  `lookup*_static_taken_i`，且分别来自对应 slot B-imm 符号位。表项 valid 时 counter 必须覆盖
+  static bit；表项 invalid 时该 bit 必须直接决定方向，lane0/1 不得串线。
 - 预测错不影响正确性(只影响性能):误预测由后端 resolve→精确 redirect 纠正。
 
 ## 4. 关键路径
-Vivado OOC:13 逻辑级/logic ~3.4ns(local_hist→local_pht 索引+计数器),非 Fmax 瓶颈
-(<DispatchBackend 39 级)。BHT/PHT 4096×2-bit 综合为分布式 RAM/BRAM。
+2026-07-12 fresh 5ns A/B 以同一 `5bd7a1546` RTL 基线、Yosys/TCL/PDK、其余三颗 macro
+Liberty 与综合参数重跑；唯一有意差异是 BPU wide/static-scalar ABI 及匹配的 placeholder Liberty。
+旧 ABI 把相同 B-imm 符号网复制接到每 lane 的 52 个 `imm[63:12]` pin；predictor 行为只消费
+符号位。F1a 收窄为 1 个 `static_taken` pin，删除每 lane 51×0.01pF 的无语义 macro 输入负载。
+
+| 指标 | A：wide immediate | B：scalar static bit | 变化 |
+| --- | ---: | ---: | ---: |
+| lane0 sign-driver output-net total cap（range max） | 0.731442 pF | 0.216994 pF | -0.514448 pF |
+| lane1 sign-driver output-net total cap（range max） | 0.713429 pF | 0.220849 pF | -0.492580 pF |
+| lane0 sign-driver cell delay | 8.030481 ns | 2.409060 ns | -5.621421 ns |
+| lane1 sign-driver cell delay | 7.834482 ns | 2.454253 ns | -5.380229 ns |
+| lane0 worst through-cone slack | -11.855756 ns | -5.288095 ns | +6.567661 ns |
+| lane1 worst through-cone slack | -11.581460 ns | -5.560177 ns | +6.021283 ns |
+| full-chip WNS @ 5ns | -12.90 ns | -12.90 ns | 0.00 ns |
+| full-chip TNS @ 5ns | -198649.61 ns | -197335.64 ns | +1313.97 ns (+0.661451%) |
+| stdcell area（四宏 unknown） | 1567145.72 | 1567234.20 | +88.48 (+0.005646%) |
+
+两份 top40 路径逐字相同且都由后端瓶颈主导，只有全局 TNS 汇总不同。wide→scalar 同时删除
+126 个 placeholder input setup endpoint，因此 TNS 变化混合了端点数与共享网减载，只能作辅助
+证据；本刀按“ABI 真实化 + 目标 cone 明显减载”保留，不宣称 full-chip WNS 改善。面积差异远小于
+0.01%，且 BPU/memory/FP macro 面积仍 unknown；OpenSTA 功耗两侧都四舍五入为 0.118W、macro
+power 为 0，只能视为无可解释变化。placeholder 仍无真实 lookup input→output 组合弧，且无
+SPEF/CTS/OCV，所以该结果不是 200MHz signoff；下一瓶颈必须按后端/前端流水级继续切分。
 
 ## 5. debug/common 审核
 
@@ -49,6 +88,7 @@ Vivado OOC:13 逻辑级/logic ~3.4ns(local_hist→local_pht 索引+计数器),�
 
 - reset 后 GHR=0、BHT/local 表 invalid；
 - 未训练 entry 的 forward-not-taken / backward-taken 静态 fallback；
+- 两个 scalar static bit 独立，且训练后翻转 static bit 不得覆盖有效 counter；
 - not-taken 训练对 BHT 2-bit 计数器的弱/强状态演进；
 - clear 清 valid 与 GHR，payload 在 invalid entry 中无语义；
 - taken update 移入 GHR，并影响 lookup0/lookup1 的 gshare index；
@@ -86,7 +126,7 @@ SRAM wrapper 或多表 macro 组合，必须先证明 wrapper 对 §2/§3 的外
 
 | 类别 | v0 假设 | 说明 |
 | --- | --- | --- |
-| lookup read latency | `0 cycle` | `lookup*_pc_i/lookup*_imm_i` 到 `lookup*_bht_idx_o/lookup*_bht_valid_o/lookup*_pred_taken_o/lookup*_predict_strong_o` 保持组合可见。 |
+| lookup read latency | `0 cycle` | `lookup*_pc_i/lookup*_static_taken_i` 到 `lookup*_bht_idx_o/lookup*_bht_valid_o/lookup*_pred_taken_o/lookup*_predict_strong_o` 保持组合可见；每路 static fallback 仅 1 bit。 |
 | read ports | two combinational views | lookup0/lookup1 当前同拍读同一组预测表，纯读互不干扰。单/双口 SRAM 化前必须证明仲裁、复制或延迟合同。 |
 | update edge | `posedge clk` | `update_valid_i` 在 issue-resolve 拍训练 BHT/local PHT/local history，并移入 GHR。 |
 | update visibility | `two cycles` | 【update 两拍流水(2026-07-10 时序债修复)】stage1 寄存输入+读老值(GHR 当拍更新)，stage2 训练写表——表项可见性从第 2 拍开始；back-to-back 同表项 RAW 丢一次训练增量(启发式可容忍)。OOC 实测 update in→reg 57ns→流水化后压半。 |
@@ -95,19 +135,19 @@ SRAM wrapper 或多表 macro 组合，必须先证明 wrapper 对 §2/§3 的外
 
 ### 8.3 Area Placeholder
 
-默认参数来自 `define.v`：`BPU_BHT_INDEX_W=12`、`BPU_LOCAL_HISTORY_INDEX_W=8`、
+默认参数来自 `define.v`：`BPU_BHT_INDEX_W=10`、`BPU_LOCAL_HISTORY_INDEX_W=8`、
 `BPU_LOCAL_HISTORY_W=8`、`BPU_LOCAL_PHT_INDEX_W=12`，因此：
 
 | 项 | 数值 |
 | --- | --- |
-| gshare BHT valid bits | `4096` |
-| gshare BHT counter bits | `4096 * 2 = 8192` |
-| GHR bits | `12` |
+| gshare BHT valid bits | `1024` |
+| gshare BHT counter bits | `1024 * 2 = 2048` |
+| GHR bits | `10` |
 | local history valid bits | `256` |
 | local history bits | `256 * 8 = 2048` |
 | local PHT valid bits | `4096` |
 | local PHT counter bits | `4096 * 2 = 8192` |
-| total state bits | `26892` |
+| total state bits | `17674` |
 
 该数字只是 state-capacity lower bound，不是 stdcell area、SRAM compiler area、leakage 或 timing closure。
 在 Liberty/LEF 或 OOC timing report 接入前，`NpcTop` 报告必须继续把
@@ -134,3 +174,5 @@ SRAM wrapper 或多表 macro 组合，必须先证明 wrapper 对 §2/§3 的外
 - 2026-07-08：新增 debug/common checker、focused TB 和 Macro/OOC Contract v0，定义 BPU placeholder
   的 0-cycle lookup、next-cycle update visibility、valid-only table clear + GHR zero、26892 state-bit
   lower bound；真实 Liberty/LEF/OOC STA 仍未闭合。
+- 2026-07-12：F1a 冻结 `lookup*_imm_i[63:0]`→`lookup*_static_taken_i` 单 bit ABI；同步
+  placeholder Liberty/checker/TB，并按当前 1024-entry BHT 校正 state lower bound 为 17674 bit。

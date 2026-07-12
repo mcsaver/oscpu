@@ -391,8 +391,8 @@ module OooFrontend #(
   wire [`XLEN-1:0] fetch_dec1_next_pc_w;
   wire [`XLEN-1:0] fetch_dec1_pc_w;
   wire [1:0] fetch_dec1_resp_w;
-  // 【B2 S1】resp 拍(判决/enqueue 拍)BPU lookup: 分支识别+B-imm 从 PacketDecode
-  // 组合出, BPU lookup 输入随之前移; 预测结果(pred_taken/bht_idx/bht_valid)当拍
+  // 【B2 S1/F1a】resp 拍(判决/enqueue 拍)BPU lookup: 分支识别、PC 与 B-imm
+  // static-taken 符号位从 PacketDecode 组合出；完整 B-imm 仅留给 target adder。预测结果当拍
   // 随包写入 FIFO——预测一次定格, dispatch 拍只消费存储位(head0/1_branch_* 改由
   // HeadMux 存储位驱动, BPU 的 head 拍活查询口物理断开=F2 #105 家族免疫)。
   wire fetch_dec0_branch_w;
@@ -1898,9 +1898,10 @@ module OooFrontend #(
 
 
   // 【B2 S1】BPU lookup 接线迁移: head 拍(FIFO head 活查询)→ fetch resp 拍(判决/
-  // enqueue 拍)。lookup 输入=PacketDecode 组合输出(dec pc + B-imm, 分支时与
-  // DecodeStage head imm 逐位同式); 输出当拍随包写 FIFO(enqueue/fallthrough-seed),
-  // dispatch 拍全部消费存储位。BPU 本体零改动; head 拍活查询口物理断开(本实例是
+  // enqueue 拍)。lookup 输入=PacketDecode 组合输出(dec pc + B-imm sign；F1a scalar
+  // fallback ABI); 输出当拍随包写 FIFO(enqueue/fallthrough-seed),
+  // dispatch 拍全部消费存储位。BPU table/latency 逻辑不变，仅 fallback ABI 收窄；
+  // head 拍活查询口物理断开(本实例是
   // lookup 唯一查询口, 无双查询)。GHR 演进时点差异(resp↔dispatch 间的 resolve
   // update)仅影响预测值, 不改任何架构行为路径(S1 行为语义等价台阶)。
   OooBranchDirectionPredictor u_branch_direction_predictor (
@@ -1908,13 +1909,13 @@ module OooFrontend #(
     .rst(rst),
     .clear_i(flush_i),
     .lookup0_pc_i(fetch_dec0_pc_w),
-    .lookup0_imm_i(fetch_dec0_bimm_w),
+    .lookup0_static_taken_i(fetch_dec0_bimm_w[`XLEN-1]),
     .lookup0_bht_idx_o(fetch_dec0_bht_idx_w),
     .lookup0_bht_valid_o(fetch_dec0_bht_valid_w),
     .lookup0_pred_taken_o(fetch_dec0_pred_taken_w),
     .lookup0_predict_strong_o(fetch_dec0_predict_strong_w),
     .lookup1_pc_i(fetch_dec1_pc_w),
-    .lookup1_imm_i(fetch_dec1_bimm_w),
+    .lookup1_static_taken_i(fetch_dec1_bimm_w[`XLEN-1]),
     .lookup1_bht_idx_o(fetch_dec1_bht_idx_w),
     .lookup1_bht_valid_o(fetch_dec1_bht_valid_w),
     .lookup1_pred_taken_o(fetch_dec1_pred_taken_w),

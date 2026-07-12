@@ -679,3 +679,42 @@ mismatch,与 FP 无关)。
 - 验证：focused 5/5、module 87/87、style/lint、contract37/37、bundled Verilator 5.051
   隔离 clean build + AM59 + official177 `overall_rc=0`、Difftest-ON AM59。最终 reviewer
   NO BLOCKER。证据目录 `.github/task-runs/2026-07-12-rv64-f1-mem-issue-g1/`。
+
+- 2026-07-12: **RAW-I1 合同落地；dead current-result forward 物理删除 A/B 被拒绝并回退**。
+  rename lane1 RAW source 取得 lane0 新 pdest，BusyTable alloc 优先把它写成 not-ready；无
+  dispatch bypass/early-result wakeup 后，consumer 只能等正式 WB，因此 simultaneous valid
+  integer lanes 不可能 RAW。新增精确门控 `RAW-I1`、三-uop WB→PRF-write-through→issue1
+  回归和消费边界负探针；final focused 5/5、module87/87、style/lint、contract38/38。
+  删除候选语义安全但 mapped PPA 无收益：A/B各 105 target cone、0 problem，WNS同为
+  `-11.74ns`，B TNS更负、backend/top area +851.76、power报告 +0.001W；且 top40 两侧均
+  40/40 在 fetch/frontend，不含 backend。故生产 RTL保留 forward（当前相当于 PRF operand
+  fanout island），只交付 guard；待 registered boundary 后再重评，不把“代码少”冒充时序优化。
+  fresh top 根因是 bridge→ITLB/PMP→RVC→B-imm target 同拍，lane1 sign net fanout294、
+  0.716795pF/14.348ns，超 cell max-cap约19.55×；当前 OpenSTA仍有 placeholder宏、1851
+  unconstrained endpoints与组合环任意断开，绝对WNS非signoff。下一刀应先收窄BPU lookup
+  immediate/static-taken负载，再做 mandatory registered bridge response与 compact prepared
+  packet boundary；证据 `.github/task-runs/2026-07-12-rv64-t3a-dead-crosslane-forward/`。
+
+- 2026-07-12: **F1a BPU static fallback ABI 收窄并保留**。`OooBranchDirectionPredictor` 两路
+  lookup 不再接完整 64-bit B-imm，只接来自对应 PacketDecode B-imm 符号位的
+  `lookup*_static_taken_i`。完整 immediate 的 target-address owner 仍是 frontend；predictor
+  只在所选表项 invalid 时消费 static bit，valid counter 覆盖 static bit。无新增状态/握手，
+  `reset/clear > update pipeline`、two-cycle table update、GHR 与 fault/redirect consume gate 不变。
+  active macro facts 已校正为 BHT1024/GHR10/17674 state bits；合同 checker 同时审计 dedicated
+  §8、当前宏表行、RTL/frontend/debug/generator/Liberty，并用错误 bit owner 负探针和历史文本
+  false-green fixture 证明 fail closed。
+- debug checker 的 hybrid selector 曾把第二条件误写为 `gshare_strong`；可达 mixed-selector
+  用例（gshare strong valid、local invalid）必须跨 posedge 才能精确 RED。两 lane 改回
+  `local_strong` 后，最终 focused2/module87/lint/style/contract38/宏 checker 全绿。后续组合
+  checker 反例不得只 settle 后观察 DUT 输出而不触发 assertion sampling edge。当前
+  Difftest-OFF core regression 同时通过 clean build、AM59/59、official p-mode 153/153；
+  该轮不替代 Difftest 或 privileged rv64mi/rv64si。
+- 同配置 fresh 5ns A/B 的有效基线是 clean `5bd7a1546`，不是旧 c6b 报告。scalar ABI 使
+  lane0/1 sign-driver output-net total cap 分别 `0.731442→0.216994pF`、
+  `0.713429→0.220849pF`，driver
+  cell delay `8.030481→2.409060ns`、`7.834482→2.454253ns`，worst through slack 改善
+  6.567661/6.021283ns。全核 WNS `-12.90→-12.90ns`，TNS 改善 0.661451%，stdcell area
+  +0.005646%、sequential 不变，top40 路径逐字相同且仍在后端。wide→scalar 少 126 个 setup
+  endpoint，TNS 只作辅助证据。结论是保留接口真实性和局部减载，不是 200MHz 完成；BPU 无
+  真实组合弧、四宏 unknown area/power、ideal clock/no SPEF
+  仍是硬边界。证据 `.github/task-runs/2026-07-12-rv64-f1a-bpu-static-taken/`。

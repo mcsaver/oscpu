@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T14:31:49+00:00",
-  "updated_at": "2026-07-12T05:31:21+00:00",
+  "updated_at": "2026-07-12T13:22:32+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -1014,10 +1014,10 @@
     {
       "path": ".github/memory/known-issues.md",
       "kind": "memory",
-      "size_bytes": 519246,
-      "sha256": "e24d251595bd0d4415319297da6063897ea2669c8d0a0ae928e82181fe58dd2a",
+      "size_bytes": 522378,
+      "sha256": "186b22b1e9c6273e5c35e6c8cc00425c8172b71d95b5b083b08507167b728588",
       "backup_source": "database",
-      "archived_at": "2026-07-12T02:39:18+00:00"
+      "archived_at": "2026-07-12T13:15:55+00:00"
     },
     {
       "path": ".github/memory/modules/abstract-machine.md",
@@ -1070,10 +1070,10 @@
     {
       "path": ".github/memory/modules/npc.md",
       "kind": "memory-module",
-      "size_bytes": 603302,
-      "sha256": "e65b61456e749ad7080ba9ba2b36b6841cdbc5c6aea99cd82cce51af345589b0",
+      "size_bytes": 606845,
+      "sha256": "62d2e480c93dec8dcd9aedecc5c32375a0887e9109d32c418e86ac40441c962b",
       "backup_source": "database",
-      "archived_at": "2026-07-12T03:58:24+00:00"
+      "archived_at": "2026-07-12T13:15:55+00:00"
     },
     {
       "path": ".github/memory/modules/software-flow.md",
@@ -1102,10 +1102,10 @@
     {
       "path": ".github/memory/project-status.md",
       "kind": "memory",
-      "size_bytes": 632756,
-      "sha256": "253f138263d3362daa791f32d3bd3c5204180530a028547b65a039388ae8afef",
+      "size_bytes": 636996,
+      "sha256": "41d2d3e3e10865b6f2b66bca84351df4c341044397a2ab4da10dd2b99430ea56",
       "backup_source": "database",
-      "archived_at": "2026-07-12T03:58:23+00:00"
+      "archived_at": "2026-07-12T13:15:55+00:00"
     },
     {
       "path": ".github/task-runs/2026-04-13-npc-dpic-bringup/dispatch-log.md",
@@ -42934,10 +42934,10 @@
     {
       "path": ".github/task-runs/2026-07-12-rv64-t3a-dead-crosslane-forward/evidence-index.md",
       "kind": "task-run",
-      "size_bytes": 199853,
-      "sha256": "6fdcde9e391a0b59b9ab564a9bd6b942e679dcaa675bc28f0528e60c7fd8330e",
+      "size_bytes": 199885,
+      "sha256": "c521bc0fe269f7704eb5a4278db1ddc76c9ee6432948b156e2d430f12081d2cc",
       "backup_source": "filesystem",
-      "archived_at": "2026-07-12T05:31:21+00:00"
+      "archived_at": "2026-07-12T13:22:32+00:00"
     },
     {
       "path": ".github/task-runs/2026-07-12-strict-guard-semantic-freshness-agent-system-2/context-brief.md",

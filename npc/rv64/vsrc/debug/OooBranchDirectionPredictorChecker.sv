@@ -9,14 +9,14 @@ module OooBranchDirectionPredictorChecker (
   input wire clear_i,
 
   input wire [`XLEN-1:0] lookup0_pc_i,
-  input wire [`XLEN-1:0] lookup0_imm_i,
+  input wire lookup0_static_taken_i,
   input wire [`BPU_BHT_INDEX_W-1:0] lookup0_bht_idx_i,
   input wire lookup0_bht_valid_i,
   input wire lookup0_pred_taken_i,
   input wire lookup0_predict_strong_i,
 
   input wire [`XLEN-1:0] lookup1_pc_i,
-  input wire [`XLEN-1:0] lookup1_imm_i,
+  input wire lookup1_static_taken_i,
   input wire [`BPU_BHT_INDEX_W-1:0] lookup1_bht_idx_i,
   input wire lookup1_bht_valid_i,
   input wire lookup1_pred_taken_i,
@@ -79,8 +79,8 @@ module OooBranchDirectionPredictorChecker (
   wire exp_lookup1_bht_valid_w = model_bht_valid_q[exp_lookup1_bht_idx_w];
   wire [1:0] lookup0_gshare_ctr_w = model_bht_q[exp_lookup0_bht_idx_w];
   wire [1:0] lookup1_gshare_ctr_w = model_bht_q[exp_lookup1_bht_idx_w];
-  wire lookup0_static_taken_w = lookup0_imm_i[`XLEN-1];
-  wire lookup1_static_taken_w = lookup1_imm_i[`XLEN-1];
+  wire lookup0_static_taken_w = lookup0_static_taken_i;
+  wire lookup1_static_taken_w = lookup1_static_taken_i;
   wire exp_lookup0_gshare_taken_w =
       bht_counter_taken(exp_lookup0_bht_valid_w, lookup0_gshare_ctr_w,
                         lookup0_static_taken_w);
@@ -137,13 +137,13 @@ module OooBranchDirectionPredictorChecker (
   wire exp_lookup0_pred_taken_w =
       (exp_lookup0_local_valid_w && !exp_lookup0_gshare_strong_w) ?
       exp_lookup0_local_taken_w :
-      exp_lookup0_gshare_strong_w ? exp_lookup0_local_taken_w :
-                                    exp_lookup0_gshare_taken_w;
+      exp_lookup0_local_strong_w ? exp_lookup0_local_taken_w :
+                                   exp_lookup0_gshare_taken_w;
   wire exp_lookup1_pred_taken_w =
       (exp_lookup1_local_valid_w && !exp_lookup1_gshare_strong_w) ?
       exp_lookup1_local_taken_w :
-      exp_lookup1_gshare_strong_w ? exp_lookup1_local_taken_w :
-                                    exp_lookup1_gshare_taken_w;
+      exp_lookup1_local_strong_w ? exp_lookup1_local_taken_w :
+                                   exp_lookup1_gshare_taken_w;
   wire exp_lookup0_predict_strong_w =
       exp_lookup0_gshare_strong_w || exp_lookup0_local_strong_w;
   wire exp_lookup1_predict_strong_w =

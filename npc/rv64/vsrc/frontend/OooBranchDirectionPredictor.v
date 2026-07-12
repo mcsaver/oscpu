@@ -6,14 +6,14 @@ module OooBranchDirectionPredictor (
   input clear_i,
 
   input [`XLEN-1:0] lookup0_pc_i,
-  input [`XLEN-1:0] lookup0_imm_i,
+  input lookup0_static_taken_i,
   output [`BPU_BHT_INDEX_W-1:0] lookup0_bht_idx_o,
   output lookup0_bht_valid_o,
   output lookup0_pred_taken_o,
   output lookup0_predict_strong_o,
 
   input [`XLEN-1:0] lookup1_pc_i,
-  input [`XLEN-1:0] lookup1_imm_i,
+  input lookup1_static_taken_i,
   output [`BPU_BHT_INDEX_W-1:0] lookup1_bht_idx_o,
   output lookup1_bht_valid_o,
   output lookup1_pred_taken_o,
@@ -72,8 +72,8 @@ module OooBranchDirectionPredictor (
       lookup0_pc_idx_w ^ ghr_q;
   wire [`BPU_BHT_INDEX_W-1:0] lookup1_bht_idx_w =
       lookup1_pc_idx_w ^ ghr_q;
-  wire lookup0_static_taken_w = lookup0_imm_i[`XLEN-1];
-  wire lookup1_static_taken_w = lookup1_imm_i[`XLEN-1];
+  wire lookup0_static_taken_w = lookup0_static_taken_i;
+  wire lookup1_static_taken_w = lookup1_static_taken_i;
 
   assign lookup0_bht_idx_o = lookup0_bht_idx_w;
   assign lookup1_bht_idx_o = lookup1_bht_idx_w;
@@ -168,8 +168,8 @@ module OooBranchDirectionPredictor (
       local_pht_valid_q[update_local_pht_idx_w] ?
       local_pht_q[update_local_pht_idx_w] : `BPU_COUNTER_INIT;
   wire unused_predictor_input_bits_w =
-      (|lookup0_pc_i) | (|lookup0_imm_i) |
-      (|lookup1_pc_i) | (|lookup1_imm_i) | (|update_pc_i);
+      (|lookup0_pc_i) | lookup0_static_taken_i |
+      (|lookup1_pc_i) | lookup1_static_taken_i | (|update_pc_i);
 
   // 【BPU update 两拍流水(2026-07-10 时序债修复)】OOC 实测 update in→reg 57ns
   // (读老值 4096:1 mux → counter_train → 写使能 decode 单拍串联)。切拍点=读/写

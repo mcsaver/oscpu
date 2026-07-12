@@ -16,10 +16,13 @@ data propagation 不收敛），从而产出 rpt/pwr：
 **数字无物理意义，不做签核**（宏合同 v1 既定形态，见
 `npc/rv64/design/specs/yosys-macro-boundary-contracts.md`）。占位口径：
 
-- 全部按「寄存器边界宏」抽象：所有 input 对 clk 上升沿 setup 0.5ns / hold 0.1ns；
-  所有 output 从 clk 上升沿出 1.0ns 固定 delay（cell_rise/cell_fall scalar）。
-- BPU lookup 等纯组合路径同样挂 clk 弧——占位模型允许，与宏合同 latency
-  冻结语义一致；真实组合弧留给未来 OOC 特征化。
+- 全部按「寄存器边界宏」形式抽象：所有 input 对 clk 上升沿有 setup/hold，所有 output
+  有 clk→Q 固定 delay；每颗宏当前数值以 `gen_macro_libs.py::CELL_TIMING` 为准，并非统一
+  0.5/0.1/1.0ns。
+- BPU 的真实 lookup 是 0-cycle 组合 view；当前占位模型只给 input→clk setup 与
+  clk→output 分离弧，**不表达真实 input→output 组合延迟**，真实弧留给 OOC 特征化。
+- BPU static fallback ABI 每 lane 只有 1-bit `lookup*_static_taken_i`。完整 B-imm 不属于
+  predictor 边界；若重新出现 64-bit imm port，`check_bpu_macro_contract.py` 必须失败。
 - pin cap 0.01pf；单位/操作条件数值对齐 icsprout55 标准单元库
   （1ns / 1pf / 1.2V / 25C / slew_derate 0.5），操作条件名独立
   （`macro_placeholder_tt_1p2_25`）避免跨库同名冲突。

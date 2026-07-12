@@ -5,10 +5,9 @@
 不收敛),数字不做签核。宏合同 v1 既定形态,见
 npc/rv64/design/specs/yosys-macro-boundary-contracts.md。
 
-抽象:全部按「寄存器边界宏」——所有 input 对 clk 上升沿 setup 0.5ns/hold 0.1ns,
-所有 output 从 clk 上升沿出 cell_rise/cell_fall 1.0ns 固定值;pin cap 0.01pf。
-纯组合口(BPU lookup 等)也挂 clk 时序弧——占位模型允许,与宏合同 latency 冻结
-语义一致。
+抽象:按 CELL_TIMING 给所有 input 建对 clk 的 setup/hold、所有 output 建 clk→Q
+固定弧，pin cap 0.01pf。BPU 真实 lookup 是 0-cycle 组合 view；placeholder 没有
+input→output 组合弧，只能闭合当前顶层 timing graph，不能表达真实 lookup latency。
 
 单位/操作条件对齐 icsprout55 标准单元库
 (ics55_LLSC_H7CL_typ_tt_1p2_25_nldm.lib):time 1ns / cap 1pf / 1.2V / 25C /
@@ -23,7 +22,7 @@ build/sta/NpcTop-*/NpcTop.netlist.v 与 RTL module 声明核对);RTL 端口变�
 import os
 from datetime import date
 
-# 默认占位弧(BPU/FpArithGate 仍 non-signoff)
+# 默认占位弧；每颗宏的有效值以 CELL_TIMING 为准(BPU 仍 non-signoff)
 SETUP_NS = "0.500"
 HOLD_NS = "0.100"
 CLK2Q_NS = "1.000"
@@ -54,7 +53,7 @@ MAX_CAP_PF = "0.500"
 #   OooFpArithGate: vsrc/execute/OooFpArithGate.v (XLEN=64, ROB_IDX=4,
 #     PHY_REG_ADDR=6, fflags=5, rm=3, kind=2)
 #   OooBranchDirectionPredictor: vsrc/frontend/OooBranchDirectionPredictor.v
-#     (BPU_BHT_INDEX_W=12)
+#     (BPU_BHT_INDEX_W=10; 每路 lookup static fallback 仅 1 bit)
 CELLS = [
     ("Sram4096x199", "clk", [
         ("en_i", 1, "input"),
@@ -109,9 +108,9 @@ CELLS = [
         ("rst", 1, "input"),
         ("clear_i", 1, "input"),
         ("lookup0_pc_i", 64, "input"),
-        ("lookup0_imm_i", 64, "input"),
+        ("lookup0_static_taken_i", 1, "input"),
         ("lookup1_pc_i", 64, "input"),
-        ("lookup1_imm_i", 64, "input"),
+        ("lookup1_static_taken_i", 1, "input"),
         ("update_valid_i", 1, "input"),
         ("update_pc_i", 64, "input"),
         ("update_bht_idx_i", 10, "input"),   # BPU 降容 4096→1024(2026-07-10)

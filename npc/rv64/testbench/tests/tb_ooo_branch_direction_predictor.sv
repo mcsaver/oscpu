@@ -8,14 +8,14 @@ module tb_ooo_branch_direction_predictor;
   reg clear;
 
   reg [`XLEN-1:0] lookup0_pc;
-  reg [`XLEN-1:0] lookup0_imm;
+  reg lookup0_static_taken;
   wire [`BPU_BHT_INDEX_W-1:0] lookup0_bht_idx;
   wire lookup0_bht_valid;
   wire lookup0_pred_taken;
   wire lookup0_predict_strong;
 
   reg [`XLEN-1:0] lookup1_pc;
-  reg [`XLEN-1:0] lookup1_imm;
+  reg lookup1_static_taken;
   wire [`BPU_BHT_INDEX_W-1:0] lookup1_bht_idx;
   wire lookup1_bht_valid;
   wire lookup1_pred_taken;
@@ -28,21 +28,19 @@ module tb_ooo_branch_direction_predictor;
 
   localparam [`XLEN-1:0] PC0 = 64'h0000_0000_8000_1000;
   localparam [`XLEN-1:0] PC1 = 64'h0000_0000_8000_1020;
-  localparam [`XLEN-1:0] IMM_FWD = 64'h0000_0000_0000_0010;
-  localparam [`XLEN-1:0] IMM_BACK = 64'hffff_ffff_ffff_fff0;
 
   OooBranchDirectionPredictor dut (
     .clk(clk),
     .rst(rst),
     .clear_i(clear),
     .lookup0_pc_i(lookup0_pc),
-    .lookup0_imm_i(lookup0_imm),
+    .lookup0_static_taken_i(lookup0_static_taken),
     .lookup0_bht_idx_o(lookup0_bht_idx),
     .lookup0_bht_valid_o(lookup0_bht_valid),
     .lookup0_pred_taken_o(lookup0_pred_taken),
     .lookup0_predict_strong_o(lookup0_predict_strong),
     .lookup1_pc_i(lookup1_pc),
-    .lookup1_imm_i(lookup1_imm),
+    .lookup1_static_taken_i(lookup1_static_taken),
     .lookup1_bht_idx_o(lookup1_bht_idx),
     .lookup1_bht_valid_o(lookup1_bht_valid),
     .lookup1_pred_taken_o(lookup1_pred_taken),
@@ -58,13 +56,13 @@ module tb_ooo_branch_direction_predictor;
     .rst(rst),
     .clear_i(clear),
     .lookup0_pc_i(lookup0_pc),
-    .lookup0_imm_i(lookup0_imm),
+    .lookup0_static_taken_i(lookup0_static_taken),
     .lookup0_bht_idx_i(lookup0_bht_idx),
     .lookup0_bht_valid_i(lookup0_bht_valid),
     .lookup0_pred_taken_i(lookup0_pred_taken),
     .lookup0_predict_strong_i(lookup0_predict_strong),
     .lookup1_pc_i(lookup1_pc),
-    .lookup1_imm_i(lookup1_imm),
+    .lookup1_static_taken_i(lookup1_static_taken),
     .lookup1_bht_idx_i(lookup1_bht_idx),
     .lookup1_bht_valid_i(lookup1_bht_valid),
     .lookup1_pred_taken_i(lookup1_pred_taken),
@@ -91,9 +89,9 @@ module tb_ooo_branch_direction_predictor;
     begin
       clear = 1'b0;
       lookup0_pc = PC0;
-      lookup0_imm = IMM_FWD;
+      lookup0_static_taken = 1'b0;
       lookup1_pc = PC1;
-      lookup1_imm = IMM_BACK;
+      lookup1_static_taken = 1'b1;
       update_valid = 1'b0;
       update_pc = PC0;
       update_bht_idx = {`BPU_BHT_INDEX_W{1'b0}};
@@ -155,6 +153,12 @@ module tb_ooo_branch_direction_predictor;
     tb_check1("one NT train pred", lookup0_pred_taken, 1'b0);
     tb_check1("one NT train weak", lookup0_predict_strong, 1'b0);
 
+    lookup0_static_taken = 1'b1;
+    settle();
+    tb_check1("valid counter overrides flipped static bit",
+              lookup0_pred_taken, 1'b0);
+    lookup0_static_taken = 1'b0;
+
     train_lookup0(1'b0);
     tb_check1("two NT train valid", lookup0_bht_valid, 1'b1);
     tb_check1("two NT train pred", lookup0_pred_taken, 1'b0);
@@ -177,8 +181,20 @@ module tb_ooo_branch_direction_predictor;
                   PC1[`BPU_BHT_INDEX_W:1] ^ {{(`BPU_BHT_INDEX_W-1){1'b0}}, 1'b1});
     tb_check1("taken update new idx falls back static", lookup0_bht_valid, 1'b0);
 
+    // Mixed selector case: PC0+2 with GHR=1 aliases the trained gshare entry,
+    // while its local-history index is new/invalid. The strong gshare result
+    // must win; this catches a checker typo that used gshare_strong as the
+    // condition for selecting local fallback data.
+    lookup0_pc = PC0 + 64'd2;
+    lookup0_static_taken = 1'b0;
+    tick();
+    settle();
+    tb_check1("mixed selector gshare entry valid", lookup0_bht_valid, 1'b1);
+    tb_check1("mixed selector strong gshare taken", lookup0_pred_taken, 1'b1);
+    tb_check1("mixed selector strong flag", lookup0_predict_strong, 1'b1);
+
     lookup1_pc = PC1 + 64'd2;
-    lookup1_imm = IMM_FWD;
+    lookup1_static_taken = 1'b0;
     settle();
     tb_check1("lane1 independent static after ghr shift", lookup1_pred_taken, 1'b0);
 

@@ -31,6 +31,23 @@
 - **建议修复顺序**: 下一步按 `yosys-macro-boundary-contracts.md` 逐项推进真实 timing/area/OOC：`OooFetchPacketCache`、`OooDataWordCache` 与 `OooBranchDirectionPredictor` 已有 dedicated spec/checker 与 placeholder v0，后续应转为真实 SRAM/Liberty/LEF macro model 或 OOC timing report，并把 top-level STA 对 blackbox input/output delay、area、power 的假设列入 task-run；`OooFpArithGate` 已有 decision placeholder v0，后续应产出 full-module OOC timing report，或形成 Mul/FMA production child split/top constraints。同时，iEDA active blocker 已从 parser 方言后移到 `StaDataPropagation` 长尾，需继续拆解为什么 `2400s` 未生成 `NpcTop.rpt/.pwr`。每次修改宏边界合同后跑 `python3 yosys-sta/scripts/check_macro_contracts.py`，涉及 BPU/Fetch/D-cache/FP placeholder 时分别追加 `python3 yosys-sta/scripts/check_bpu_macro_contract.py` / `python3 yosys-sta/scripts/check_fetch_cache_macro_contract.py` / `python3 yosys-sta/scripts/check_dcache_macro_contract.py` / `python3 yosys-sta/scripts/check_fp_arith_macro_contract.py`；进入 iEDA 前追加 `python3 yosys-sta/scripts/check_ieda_netlist_compat.py`。`debug/` 与 `common/` 的作用之一是审核 RTL 是否符合 spec 语义；上述边界优化必须用 facts/checker/TB 审核 predictor update/predict、cache hit/invalid/fill、B-FP meta、kill age、redirect/facts 与 fflags 对齐语义。不要因 contract checker PASS、PmpChecker/MulDiv/AddSub/internal cone OOC PASS、BPU/Fetch/D-cache/FP placeholder checker PASS、iEDA netlist preflight PASS 或四黑盒网表产出越级宣称全顶 STA-ready。
 - **证据**: `.github/task-runs/2026-07-07-yosys-rv64-synth-probe/`；`.github/task-runs/2026-07-07-yosys-fetch-packet-cache-valid-next/`；`.github/task-runs/2026-07-08-yosys-pmpchecker-range-share/`；`.github/task-runs/2026-07-08-yosys-fetch-cache-index-config/`；`.github/task-runs/2026-07-08-yosys-fp-arith-gate-ooc/`；`.github/task-runs/2026-07-08-fp-arith-cone-ooc/`；`.github/task-runs/2026-07-08-fp-arith-internal-cones/`；`.github/task-runs/2026-07-08-fp-arith-macro-decision/`；`.github/task-runs/2026-07-08-ieda-netlist-compat/`；`.github/task-runs/2026-07-08-npctop-cache-fp-blackbox-syn/`；`.github/task-runs/2026-07-08-npctop-cache-data-fp-blackbox-syn/`；`.github/task-runs/2026-07-08-npctop-cache-data-fp-bpu-blackbox-syn/`；`.github/task-runs/2026-07-08-yosys-sta-flow-versioned/`；`.github/task-runs/2026-07-08-yosys-macro-boundary-contracts/`；`.github/task-runs/2026-07-08-data-word-cache-semantic-contract/`；`.github/task-runs/2026-07-08-data-word-cache-macro-placeholder/`；`.github/task-runs/2026-07-08-fetch-packet-cache-macro-placeholder/`；`.github/task-runs/2026-07-08-branch-direction-predictor-macro-placeholder/`。
 
+- **2026-07-12 current 5ns blocker 更新**: 当前可复现 A 基线为 NpcTop WNS `-11.74ns`、
+  TNS `-122774.48ns`，105/105 target cone、0 post-map problem；旧 T0 `-15.74ns` backend
+  family 不再是 current top。top40 40/40 同起点 `OooFetchAxiBridge.pc_q[13]`，经 ITLB/PMP/
+  cache-hit、RVC 与 B-imm target 到 FIFO/PC-outstanding。lane1 B-imm sign net fanout=294、
+  Cload=0.716795pF、slew=14.348ns，约超标准单元 max-cap 19.55×；仅 BPU placeholder 52 个
+  无功能意义的 imm pin 就占 0.520pF。该 7.871ns 单 cell arc 是 DRC-invalid NLDM 外推，
+  但乐观压到表内后整条仍约7.96ns，真实一拍架构也过深。
+- **约束/签核缺口仍 OPEN**: OpenSTA `check_setup` 有303 inputs无input-delay、1849 outputs无
+  output-delay、1851 unconstrained endpoints；A/B组合环为109/142，需任意断环；理想时钟、
+  无SPEF/CTS/OCV且四宏是placeholder。故任何绝对WNS/TNS只能用于pre-layout排序，不能称
+  物理200MHz。dead-forward删除候选在同口径下WNS无收益、其它可见PPA不优，已回退。
+- **建议下一步**: 先把 BPU lookup 64-bit `imm` 收窄为实际消费的 static-taken/sign bit并
+  修 placeholder pin-cap合同，取得可信排序；随后按 owner/credit 合同把 bridge raw response
+  强制寄存，并在RVC/predecode与64-bit target之间加compact no-fallthrough prepared-packet
+  边界。同步关闭 [113] 仍开放的 IFU-AXI-G1、IFU-FETCH-G2、PTW-PMP-G1，不能以 repipeline
+  掩盖功能缺口。证据 `.github/task-runs/2026-07-12-rv64-t3a-dead-crosslane-forward/`。
+
 ### [113] RV64 代码优先复审重新打开接口合同与验证聚合缺口（2026-07-11）
 
 - **模块**: NPC / RV64 OoO / frontend-control-memory contracts / regression result aggregation
@@ -1396,3 +1413,20 @@
   - **[已修·dirty, commit 154331ce6] rv64si-p-dirty(x5 ref=0 dut=1)**: ★★上一轮误判为"SW-managed 测试 vs HW-managed 架构冲突"——**错误结论, 已推翻**。逐指令探针(NEMU exec pc 流 + A/D update + vaddr_write)实锤真根因: **NEMU 一直是 HW-managed(A/D 探针 update 正常)**, 真正 bug 在 **NPC difftest 的 MMIO skip 用虚拟 EA 误判**。difftest.cpp 按 commit 拍解码 EA=gpr[rs1]+imm(★虚拟地址)判 `ea<NPC_PMEM_BASE`→MMIO skip ref(NEMU 不 exec 该指令、只同步寄存器不同步内存)。翻译开启(Sv39)时低虚拟地址可映射 pmem: dummy `la a0,dummy-DRAM_BASE` 使 VA=0x2008(<pmem_base)→PA=0x80002008(pmem), store 被误 skip→NEMU pc 从 0x1fc 直跳 0x204(跳过 0x200 store)→NEMU dummy 保持旧 0→ref=0。**修**: MMIO skip 只在地址翻译关闭(satp mode=0 或 effective priv=M, effective 取 MPRV→MPP)时用虚拟 EA 判; 翻译开启时低 VA 视为 pmem 映射不 skip。★影响面: 真 bug——翻译开启时任何映射 pmem 的低虚拟 store 都被误 skip(含 Linux 用户态低虚拟栈/堆 store), dirty 只是首个暴露者。修法对 satp=0(AM/CoreMark 裸机)恒等(amtest 预存 ABORT git stash 验证无关), 无回归。★教训: 深挖遇矛盾(NEMU"表现 SW-managed"与"mmu.c 是 HW-managed")时必须继续挖到实锤, 别停在"架构冲突"的推测结论。
   - **[已修·fcvt, commit 017708d5d] fcvt_w fflags.NV(rv64ud/uf-p-fcvt_w)**: ★上一轮"晚一拍"方向对但未实锤。加 fflags(idx21)逐拍探针实测证实: 处理 fcvt(K)拍 dut_ff=0/ref_ff=0; K+1 拍 dut_ff=0 但 ref_ff=10(分歧); K+2 拍 dut_ff=10(NV 晚一拍到)。机制: 整数 CSR commit 拍进 csr_*_q(滞后一拍, 延迟模型对齐); fcvt.w.s 的 fflags 经 **FP done-FIFO→fpwb→wb→commit→fcsr** 比整数 CSR 多一级延迟, 晚一拍进 csr_fflags_q。**NPC fflags 值完全正确、NV 确实置, 仅晚一拍**=difftest 比较时序 artifact, 非 NPC bug。**修**: difftest.cpp 对上一条=FP→GPR(opcode 0x53 + funct7 0x60/0x61=fcvt.w/wu/l/lu.s/d)的 fflags 跳过本拍比较(非漏验: sticky, NV 下一拍入 csr_fflags_q 由后续 sticky 值续校; fcvt.s.w 的 FP→FPR funct7=0x68/fcmp funct7=0x50 不匹配不误伤)。FP 全套无回归。
 - **验证无回归**: cpu-tests 全状态 difftest GOOD=58/59(仅 fp-difftest-probe 故意 probe); rv64mi+si 全套 sret/wfi 密集无回归; FP 全套(fcmp/fadd/fclass)无回归; misalign/MMIO-skip 改动对 satp=0 恒等。**★最终 riscv-tests 全套全状态 difftest 102/102 全绿★**(84→95 misalign→97 harness→98 illegal→99 breakpoint→100 dirty→102 fcvt)。四个深挖分歧全部实锤根因并修复; 两个上一轮的"非 bug"结论(dirty 架构冲突/fcvt 收益低)经用户追问后深挖推翻——dirty 实为 NPC difftest 虚拟 EA 判 MMIO 的真 bug(有 Linux 用户态影响面), fcvt 实锤晚一拍后精确修好。
+
+### [2026-07-12] BPU wide immediate placeholder 负载已关闭；200MHz 后端瓶颈仍开放
+
+- **已关闭的接口债**：BPU 行为从始至终只消费 B-imm sign，但旧 macro ABI 每 lane 暴露
+  64-bit immediate，sign extension 让 `imm[63:12]` 的 52 个 0.01pF placeholder pin 落在同一
+  高扇出网。F1a 改成每 lane 单个 `static_taken`，RTL/frontend/debug/TB/generator/Liberty/spec
+  全链一致，checker 同时拒绝旧宽口、错误 owner bit 和历史文本假绿。
+- **有效 A/B**：必须使用 clean `5bd7a1546` A 与 F1a B；早先 c6b A 对 5bd+F1a B 会把后端
+  映射差异混入结果，已明确判无效。fresh pair 的 sign-net cap 约各降 0.50pF，through-cone
+  slack 各改善约 6ns，TNS 改善 0.661451%，但 wide→scalar 也少了 126 个 placeholder setup
+  endpoint，故 TNS 只作辅助证据；WNS 仍为 -12.90ns，top40 后端路径完全不变。
+- **未闭合风险**：BPU placeholder 没有真实 lookup input→output 组合弧，四宏面积 unknown，
+  macro power=0，且无 SPEF/CTS/OCV；不能用本刀宣称 200MHz。当前功能 blocker 仍包括
+  IFU A-update write/flush 排水、page-end compressed fault provenance 与 PTE A/D WRITE PMP check；
+  当前时序 blocker 是后端/前端同拍组合链缺寄存边界。
+- **调试教训**：checker 的组合输出改变后，必须跨断言采样 posedge 验证 RED；本轮首个
+  settle-only mixed-selector 反例是假绿，补 tick 才暴露 `got=1 exp=0` 并修复 selector typo。

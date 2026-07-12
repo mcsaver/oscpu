@@ -647,3 +647,50 @@ flush 契约诊断确认 UC-A：整数 MulDiv/CLMUL **独缺 mispredict-kill 端
 - 证据：`.github/task-runs/2026-07-12-rv64-f1-mem-issue-g1/`。本刀不含新 STA，不能声称
   200 MHz；T0 仍为 5ns WNS `-15.74ns`。下一步先独立删除已证明不可达的 issue0→issue1
   current-result forward，再冻结/实现 liveness-safe T3 memory prepared station 并做 CPI/5ns A/B。
+
+## 2026-07-12 RV64 RAW-I1 guard + dead-forward 删除候选拒绝
+
+- simultaneous valid 双 lane 无整数 RAW 已完成全链证明并落 `RAW-I1` 立即断言：双 valid、
+  issue0 RD_EN/integer-domain/nonzero-pdest 与 issue1 source-enable 精确门控，排除 invalid/x0/FPR
+  数字别名。三-uop 常驻回归在 producer WB 拍证明 A/C 分别落 issue0/issue1，issue1 只能从
+  WB→PRF write-through 取得 64-bit 值；消费边界 tag mutation 负探针 rc=1 且仅命中 RAW-I1。
+- 实验 B 曾删除 6 个 current-result/forward 符号并让 8 类 issue1 consumer 直连 PRF；功能
+  focused/module/lint 全绿，独立 reviewer 对语义给出 NO BLOCKER。但当前基线 fresh 5ns A/B
+  否决物理删除：WNS `-11.74→-11.74ns` 无改善，TNS 表面恶化 18.23%，backend/top area
+  同增 `851.76`，power `0.117→0.118W`，sequential area 不变。候选已完整回退，最终只交付
+  guard/TB/文档；production datapath 与已跑 AM59+official177+Difftest59 的 `c6b86f9a7` 相同。
+- 两侧均有 105 个 `&nf -D 5000.0` cone、0 post-map problem，top40 完全相同且 40/40 为
+  fetch bridge→frontend FIFO/PC-outstanding，0 条经 backend。OpenSTA 仍有 1851 unconstrained
+  endpoint 与 A/B 109/142 个组合环，TNS差值不可当物理确定退化；但 B 没有可信收益，按
+  fail-closed 门禁拒绝是唯一可交付结论。证据：
+  `.github/task-runs/2026-07-12-rv64-t3a-dead-crosslane-forward/`。
+- fresh A 当前 timing baseline 为 WNS `-11.74ns`/TNS `-122774.48ns`。top40 公共根是
+  `OooFetchAxiBridge.pc_q[13]`→ITLB/PMP/cache-hit→RVC decode→B-imm target；B-imm sign driver
+  fanout=294、Cload=0.716795pF，约为 cell max-cap 19.55×，slew=14.348ns，绝对 delay 属
+  placeholder/non-signoff 超表外推。即使乐观去掉虚载，桥→decode→target 仍约 8ns；下一刀
+  先修 BPU lookup 宽 immediate 虚负载并冻结 bridge response/prepared-packet 边界，不能再按
+  旧 T0 backend top path 排序。parent“完整功能 + 物理 200MHz”继续 active。
+
+## 2026-07-12 RV64 F1a BPU scalar static-fallback ABI
+
+- BPU lookup fallback 已从每 lane `lookup*_imm_i[63:0]` 收窄为 1-bit
+  `lookup*_static_taken_i`；唯一 owner 是对应 `fetch_dec*_bimm_w[XLEN-1]`，完整 B-imm 仍只在
+  frontend target adder 消费。predictor/table/GHR/update latency、fault/redirect gate 和 fetch
+  handshake 均未改变。active spec/checker 同步校正为 BHT1024、GHR10、state lower bound
+  17674 bit；placeholder Liberty 与 generator 已同步，旧 wide ABI 由机器 checker fail closed。
+- 独立审查发现 debug checker 的 hybrid selector 第二条件误读 `gshare_strong`；新增
+  “gshare strong valid + local invalid”可达反例，跨 posedge 后精确 RED，再把两 lane 修为
+  `local_strong`。新鲜 focused 2/2、module 87/87、lint/style、contract38/38、BPU/四宏 checker
+  全绿；首个仅组合 settle 的假绿不计入证据。当前 Difftest-OFF core regression 另有 clean
+  build、AM59/59、official p-mode build/run 153/153；本轮未覆盖 Difftest 或 rv64mi/rv64si。
+- 同输入 fresh 5ns A/B 只采用 `5bd7a1546` clean A 与 F1a B；旧 c6b/B 混版对照已判无效。
+  lane0/1 sign-driver output-net total cap 分别下降 0.514448/0.492580pF，worst through-cone slack 改善
+  6.567661/6.021283ns；全核 WNS 均为 -12.90ns，TNS 从 -198649.61 改善到 -197335.64ns
+  （+0.661451%），stdcell area +0.005646%、sequential area 不变。wide→scalar 同时少 126 个
+  placeholder setup endpoint，因此 TNS 只作辅助证据。top40 除 TNS 汇总外逐字相同，仍由后端
+  路径主导；candidate 按 ABI 真实化/目标 cone 减载保留，但 200MHz 未闭合。
+- 边界：四宏面积 unknown，BPU placeholder 无 lookup input→output 组合弧，vectorless macro
+  power 为 0，OpenSTA 无 SPEF/CTS/OCV，不能越级称为 signoff。task-run：
+  `.github/task-runs/2026-07-12-rv64-f1a-bpu-static-taken/`。parent goal 保持 active；功能优先级
+  是 IFU-AXI-G1 写事务 flush-drain owner、IFU-FETCH-G2 跨页 fault provenance、PTW-PMP-G1
+  PTE WRITE check，随后才进入 frontend/backend mandatory registered boundary。
