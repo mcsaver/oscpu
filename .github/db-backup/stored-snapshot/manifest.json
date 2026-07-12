@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T14:31:49+00:00",
-  "updated_at": "2026-07-12T04:02:33+00:00",
+  "updated_at": "2026-07-12T05:31:21+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -42930,6 +42930,14 @@
       "sha256": "f87f7484d613563144083b548cf1036f2813fd3862940559b9d30f31fb62184e",
       "backup_source": "database",
       "archived_at": "2026-07-12T03:16:27+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-t3a-dead-crosslane-forward/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 199853,
+      "sha256": "6fdcde9e391a0b59b9ab564a9bd6b942e679dcaa675bc28f0528e60c7fd8330e",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T05:31:21+00:00"
     },
     {
       "path": ".github/task-runs/2026-07-12-strict-guard-semantic-freshness-agent-system-2/context-brief.md",

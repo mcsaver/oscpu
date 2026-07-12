@@ -99,7 +99,7 @@
 | --- | --- | --- |
 | **C1** | **Frontend 只生产"预测路径上的 fetch packet + 预测信息"**，不拥有数据通路语义与全局恢复语义。 | 仍有偏离。前端承载 RAS、dispatch gating、fetch redirect PC arbiter 与取指 outstanding；pending branch/jump 已删除。 |
 | **C2** | **Decode/Rename 把 fetch packet 变成带物理寄存器的 uop**，且 uop 有**统一字段契约**。 | 偏离中。uop 是**散线**，无打包结构；复用 50-bit legacy `CTRL_BUS`（`define.v:598-643`）。decode 在 2 处被实例化。 |
-| **C3** | **Scheduler 只负责 ready / select / issue**。 | 基本达成。`OooIntIssueQueue` 核心是干净的 oldest-ready 选择；附带 dispatch-bypass/mem-order/load-branch 快路径属"调度脚手架"非语义掺杂（`vsrc/scheduling/OooIntIssueQueue.v`）。 |
+| **C3** | **Scheduler 只负责 ready / select / issue**。 | 基本达成。`OooIntIssueQueue` 核心是 oldest-ready 选择；历史 dispatch-bypass/load-branch 快路径均已删除，现仅保留正式 wakeup、memory-order 与 kill/recover 调度约束（`vsrc/scheduling/OooIntIssueQueue.v`）。 |
 | **C4** | **Execute cluster 只产生 `result_event` / `branch_event` / `mem_event`**。 | 部分达成（域 A）。事件存在但为散线非统一束（`vsrc/execute/OooIntBackend.v`）；FP 已是独立执行簇 `OooFpBackend`（2026-07-02，pending 旁路已删）。 |
 | **C5** | **Memory ordering 只负责 load/store 顺序与副作用提交**。 | 部分。SQ(4)+probe/drain+store→load 前递已落地（LSQ Phase2/3）；桥仍单 outstanding 串行 FSM（`OooMemAxiBridge`）；历史 `OooPendingMemorySequencer` owner 已物理删除。 |
 | **C6** | **Commit 是唯一允许改变架构状态的地方**（受规约的例外须显式登记）。 | 基本达成 + 一个**受规约例外**：E1 SQ 退休后 drain 落存（E2 FPR / E3 fflags 已随 FP 簇消除）。详见 §7.1。 |

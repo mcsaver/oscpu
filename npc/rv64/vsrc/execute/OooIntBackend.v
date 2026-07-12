@@ -1696,6 +1696,25 @@ module OooIntBackend #(
 
   wire issue0_fire_w = issue0_valid_w && issue0_ready_w;
   wire issue1_fire_w = issue1_valid_w && issue1_ready_w;
+
+`ifdef OOO_ASSERT
+  // T3a RAW-I1：dispatch bypass 与 issue-result early wakeup 均已删除；因此同时
+  // 呈现的两个 integer issue lane 不可能存在 lane0→lane1 RAW。valid/source-enable/
+  // destination-domain/nonzero tag 门控排除 invalid 默认 payload、x0 与 FPR 数字别名。
+  always @(posedge clk) begin
+    if (!rst && issue0_valid_w && issue1_valid_w &&
+        issue0_ctrl_w[`CTRL_RD_EN_BIT] && !issue0_fp_pdest_w &&
+        (issue0_pdest_w != {PHY_REG_ADDR_W{1'b0}}) &&
+        ((issue1_ctrl_w[`CTRL_RS1_EN_BIT] &&
+          (issue1_src1_preg_w == issue0_pdest_w)) ||
+         (issue1_ctrl_w[`CTRL_RS2_EN_BIT] &&
+          (issue1_src2_preg_w == issue0_pdest_w)))) begin
+      $error("[INT-ISSUE-CONTRACT RAW-I1] simultaneous issue lanes contain integer RAW: issue0 rob=%0d pdest=%0d issue1 rob=%0d src1=%0d src2=%0d @%0t",
+             issue0_rob_idx_w, issue0_pdest_w, issue1_rob_idx_w,
+             issue1_src1_preg_w, issue1_src2_preg_w, $time);
+    end
+  end
+`endif
   wire issue0_muldiv_fire_w = issue0_fire_w && issue0_is_muldiv_w;
   wire issue1_muldiv_fire_w = issue1_fire_w && issue1_is_muldiv_w;
   wire issue0_clmul_fire_w = issue0_fire_w && issue0_is_clmul_w;

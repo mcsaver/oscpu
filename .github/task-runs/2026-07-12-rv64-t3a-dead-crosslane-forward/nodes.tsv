@@ -1,0 +1,9 @@
+node_id	owner_agent	depends_on	inputs	outputs	success_criteria	fallback	status
+recall-map	root+t3_prf_cut_audit	-	rename/busy/IQ/backend	unreachable proof	all owner paths reconciled	re-audit	PASS
+freeze-contract	root	recall-map	SPEC-TEMPLATE	six contracts/topology	all cells resolved	stop before RTL	PASS
+negative-probe	root+raw_forward_red	freeze-contract	RAW-I1 assertion	intentional violation	log has only RAW-I1/rejects run	fix probe	PASS
+implement-delete	root	negative-probe	frozen delete list	direct PRF consumers	structural zero + focused green	revert	PASS_EXPERIMENT
+timing-ab	root+dead_forward_timing	implement-delete	current-isolated 5ns settings	fresh A/B remap comparison	same settings + honest boundary	no timing claim	PASS_REJECT
+rollback-delete	root	timing-ab	regressive B	A production topology	final tests green + B absent	stop candidate	PASS
+full-regression	root	rollback-delete	final guard-only RTL	module/lint + parent full-core evidence	production datapath unchanged	fresh full core	PASS_REUSE
+record-review	root+reviewer	full-regression,timing-ab	all evidence	memory/task-run/guard	no blocker	deliver slice only	PASS

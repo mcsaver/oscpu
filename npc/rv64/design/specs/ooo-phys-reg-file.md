@@ -3,11 +3,10 @@
 > 模块：`vsrc/regread_bypass/OooPhysRegFile.v`。模板见 `../arch/SPEC-TEMPLATE.md`。状态：已实现并验证。
 
 ## 1. 目的与范围
-统一 PRF(整数),容量 PHY_REG_COUNT=64(`OOO_PHY_REG_ADDR_W`=6)。10 读口 + 2 写口(两 writeback)。
-有效读口 5 个:read0-3(issue0/1 的 src1/src2)与 read8(FP 簇 GPR 源);其余 5 口无效——read4/5
-(dispatch-branch 快解析,消费端死硅)、read6/7(读出数据声明后未用)、read9(地址接 0)
-(2026-07-03 RTL 重读确认,实际有效 5R2W)。提供同拍写-读旁路,使两拍 writeback 的新值同拍对
-新发射 uop 可见。不含 FP(见 OooFpPhysRegFile)。
+统一 PRF(整数),容量 PHY_REG_COUNT=64(`OOO_PHY_REG_ADDR_W`=6)，实体接口为 5R2W：read0-3
+服务 issue0/1 的 src1/src2，read8 服务 FP 簇 GPR 源，两个写口服务整数 writeback。
+历史 read4-7/9 死读口已随消费端物理删除。提供同拍写-读旁路，使 WB wakeup 后同拍 select
+的新发射 uop 直接取得新值。不含 FP(见 OooFpPhysRegFile)。
 
 ## 2. 接口与端口
 - 读:多个 `readN_addr_i`→`readN_data_o`(组合读)。

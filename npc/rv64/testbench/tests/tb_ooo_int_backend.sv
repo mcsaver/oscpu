@@ -850,6 +850,90 @@ module tb_ooo_int_backend;
     end
   endtask
 
+  task automatic run_lane1_prf_wb_wakeup;
+    begin
+      reset_dut();
+
+      // P 与依赖者 A 同拍 dispatch；P 发射的同一拍再 dispatch 依赖者 C。
+      // P 的 WB 拍，A/C 必须同时被 resident-IQ wakeup，按年龄分别占 issue0/1，
+      // 两条 lane 都通过 PRF write-through 取得 P 的值。这里证明 issue1 的合法活路径
+      // 不依赖 issue0-current-result mux，也为以后重新评估物理删除保留常驻覆盖。
+      set_dispatch0(32'h8000_0600,
+                    make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+                    5'd0, 5'd0, 5'd7, 64'h1122_3344_5566_7780);
+      set_dispatch1(32'h8000_0604,
+                    make_alu_ctrl(`OP1_SEL_RS1, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b1, 1'b0, 1'b1),
+                    5'd7, 5'd0, 5'd8, 64'd5);
+      #1;
+      tb_check1("lane1 PRF setup dispatch0 ready", dispatch0_ready, 1'b1);
+      tb_check1("lane1 PRF setup dispatch1 ready", dispatch1_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+
+      tb_check32("lane1 PRF setup keeps P/A resident",
+                 {28'b0, issue_count}, 32'd2);
+      tb_check1("lane1 PRF P selected alone", dut.issue0_valid_w, 1'b1);
+      tb_check32("lane1 PRF P occupies issue0", dut.issue0_pc_w[31:0],
+                 32'h8000_0600);
+      tb_check1("lane1 PRF A still waits", dut.issue1_valid_w, 1'b0);
+
+      set_dispatch0(32'h8000_0608,
+                    make_alu_ctrl(`OP1_SEL_RS1, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b1, 1'b0, 1'b1),
+                    5'd7, 5'd0, 5'd9, 64'd9);
+      #1;
+      tb_check1("lane1 PRF C dispatches while P issues", dispatch0_ready,
+                1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+
+      tb_check1("lane1 PRF producer WB visible", dut.wb0_valid_w, 1'b1);
+      tb_check1("lane1 PRF A wakes into issue0", dut.issue0_valid_w, 1'b1);
+      tb_check1("lane1 PRF C wakes into issue1", dut.issue1_valid_w, 1'b1);
+      tb_check32("lane1 PRF A issue PC", dut.issue0_pc_w[31:0],
+                 32'h8000_0604);
+      tb_check32("lane1 PRF C issue PC", dut.issue1_pc_w[31:0],
+                 32'h8000_0608);
+      tb_check1("lane1 PRF A fires", dut.issue0_fire_w, 1'b1);
+      tb_check1("lane1 PRF C fires", dut.issue1_fire_w, 1'b1);
+      tb_check32("lane1 PRF A source tag matches producer WB",
+                 {26'b0, dut.issue0_src1_preg_w},
+                 {26'b0, dut.wb0_pdest_w});
+      tb_check32("lane1 PRF C source tag matches producer WB",
+                 {26'b0, dut.issue1_src1_preg_w},
+                 {26'b0, dut.wb0_pdest_w});
+      tb_check1("lane1 PRF simultaneous lanes are not RAW",
+                dut.issue1_src1_preg_w != dut.issue0_pdest_w, 1'b1);
+      tb_check32("lane1 PRF issue1 source low via WB write-through",
+                 dut.issue1_src1_data_w[31:0], 32'h5566_7780);
+      tb_check32("lane1 PRF issue1 source high via WB write-through",
+                 dut.issue1_src1_data_w[63:32], 32'h1122_3344);
+
+      `TB_TICK(clk);
+      #1;
+      tb_check1("lane1 PRF A result commits", commit0_valid, 1'b1);
+      tb_check1("lane1 PRF C result commits", commit1_valid, 1'b1);
+      tb_check32("lane1 PRF A result low", commit0_data[31:0],
+                 32'h5566_7785);
+      tb_check32("lane1 PRF A result high", commit0_data[63:32],
+                 32'h1122_3344);
+      tb_check32("lane1 PRF C result low", commit1_data[31:0],
+                 32'h5566_7789);
+      tb_check32("lane1 PRF C result high", commit1_data[63:32],
+                 32'h1122_3344);
+
+      `TB_TICK(clk);
+      #1;
+      tb_check32("lane1 PRF ROB drains", {27'b0, rob_count}, 32'd0);
+      tb_check32("lane1 PRF IQ drains", {28'b0, issue_count}, 32'd0);
+      tb_check32("lane1 PRF freelist recovers", {25'b0, free_count}, 32'd32);
+    end
+  endtask
+
   initial begin
     tb_errors = 0;
     reset_dut();
@@ -857,6 +941,33 @@ module tb_ooo_int_backend;
     tb_check32("initial freelist count", {25'b0, free_count}, 32'd32);
     tb_check32("initial rob count", {27'b0, rob_count}, 32'd0);
     tb_check32("initial issue count", {28'b0, issue_count}, 32'd0);
+
+`ifdef RAW_I1_NEGATIVE_PROBE
+    // 非真空负探针：先建立两个合法 independent integer issue lane，再只 force
+    // issue1 enabled source tag 撞 issue0 integer pdest，证明 RAW-I1 立即断言有牙。
+    set_dispatch0(32'h8000_0f00,
+                  make_alu_ctrl(`OP1_SEL_RS1, `OP2_SEL_RS2, `ALU_OP_ADD,
+                                1'b1, 1'b1, 1'b1),
+                  5'd1, 5'd2, 5'd5, 64'd0);
+    set_dispatch1(32'h8000_0f04,
+                  make_alu_ctrl(`OP1_SEL_RS1, `OP2_SEL_RS2, `ALU_OP_ADD,
+                                1'b1, 1'b1, 1'b1),
+                  5'd3, 5'd4, 5'd6, 64'd0);
+    #1;
+    tb_check1("RAW-I1 probe dispatch0 ready", dispatch0_ready, 1'b1);
+    tb_check1("RAW-I1 probe dispatch1 ready", dispatch1_ready, 1'b1);
+    `TB_TICK(clk);
+    clear_dispatch();
+    #1;
+    tb_check1("RAW-I1 probe reaches issue0", dut.issue0_valid_w, 1'b1);
+    tb_check1("RAW-I1 probe reaches issue1", dut.issue1_valid_w, 1'b1);
+    force dut.issue1_src1_preg_w = dut.issue0_pdest_w;
+    $display("[RAW-I1-NEGATIVE-PROBE] forced issue1 src1=%0d to issue0 pdest=%0d",
+             dut.issue1_src1_preg_w, dut.issue0_pdest_w);
+    `TB_TICK(clk);
+    #1;
+    $finish_and_return(0);
+`endif
 
     set_dispatch0(32'h8000_0000,
                   make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM, `ALU_OP_ADD,
@@ -903,6 +1014,8 @@ module tb_ooo_int_backend;
     tb_check32("dependent rob drains", {27'b0, rob_count}, 32'd0);
     tb_check32("dependent iq drains", {28'b0, issue_count}, 32'd0);
     tb_check32("dependent freelist recovers", {25'b0, free_count}, 32'd32);
+
+    run_lane1_prf_wb_wakeup();
 
     set_dispatch0(32'h8000_0800,
                   make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM, `ALU_OP_ADD,
