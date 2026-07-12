@@ -1,0 +1,9 @@
+node_id	owner_agent	depends_on	status	output
+recall	root	-	PASS	context-brief.md; profile-resolve.md
+candidate-functional	root	recall	PASS	focused5; module93; RAW-I1 negative; CoreMark iter10
+loop-review	branch_packet_cut,wakeup_loop_cut,loop_family_cutset	recall	PASS	109-loop family/cut-set review
+fresh-synth	root	candidate-functional	PASS	dedicated B netlist; synth check; provenance
+opensta-ab	root,loop_family_cutset	fresh-synth	REJECT	WNS/TNS/loops/top40/area/power comparison
+rollback	root	opensta-ab	PASS	production RTL hash equals parent HEAD
+archive	root	opensta-ab	PASS	verified rejected-B tar.zst/inventory/SHA256SUMS
+record	root	rollback,archive	PASS	task report; memory; evidence index

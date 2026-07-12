@@ -59,13 +59,16 @@ F0 已于 2026-07-11 完成，证据见
 
 ### 2.2 时序
 
-- current-source 全核已按 5.000ns target 重新映射：105/105 个最终 ABC cone 收到
-  `-D 5000ps`，final check=0；OpenSTA WNS=`-9.99ns`、TNS=`-121006.91ns`；
+- current production A 全核已按 5.000ns target fresh 重新映射，final check=0；OpenSTA
+  WNS=`-10.001ns`、TNS=`-120125.49ns`，诊断临界周期约15.001ns/66.7MHz；
 - 最差路径 D-cache SRAM rdata→memory/int backend→branch recovery/fetch control→fetch packet
-  cache SRAM enable，arrival 13.144ns，宏 setup 1.842ns，诊断临界周期约 14.99ns；
+  cache SRAM enable；`check_setup` 仍有109个组合环，绝对 slack 受任意 cut point 污染；
 - top40 另有 39 条 D-cache SRAM→MIQ 路径；IFU-FETCH-G2 的 split/decoder 命名锥未进入 top40；
-- T3A/F1a 等历史 5ns 报告使用不同 RTL 或 BPU placeholder ABI，不把 WNS 数值变化机械归因于
-  单个切片。正式 T-PRE 仍要求 WNS≥0，且当前 ideal-clock/placeholder 宏不等于物理签核。
+- 2026-07-13 T3A current-top retry 以唯一 RTL 差异物理删除旧 forward arc，却使 WNS
+  `-10.182ns`、TNS `-142389.47ns`、loops142、area/power上升并暴露39条 FP exec1 tail，已回退；
+- 109环根因是108条 long-op full-WB feedback +1条 FP admission credit SCC。下一 T3 刀先以
+  EX/MEM-only fast broadcast 隔离 long-op 的同拍 IQ select/PRF bypass，再修 FP per-packet credit；
+  正式 T-PRE 仍要求 WNS≥0，且当前 ideal-clock/placeholder 宏不等于物理签核。
 
 ## 3. 总体路线裁决
 

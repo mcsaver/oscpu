@@ -740,3 +740,20 @@ mismatch,与 FP 无关)。
   同功能 FSM 的 Difftest-OFF core run AM59/official p-mode153/overall_rc=0。未做 Difftest、
   rv64mi/rv64si 或新 STA，不能外推完整功能/200MHz。reviewer `NO BLOCKER`，证据
   `.github/task-runs/2026-07-12-rv64-ifu-axi-g1-flush-drain/`；下一刀 `IFU-FETCH-G2`。
+
+## 2026-07-13 T3A current-top retry / long-op loop cut-set
+
+- RAW-I1 证明不变；在新的 current top40 上重试删除两路 issue0→issue1 current-result mux。
+  A/B 输入 identity 用临时 index 反向恢复 candidate 后的完整 `vsrc` binary-diff SHA 精确验证，
+  排除用户 frontend/debug/sim dirt 混入。focused5/module93/CoreMark iter10 全绿且 cycle-exact。
+- 删除在门级真实生效，但映射裁决再次拒绝：WNS `-10.001→-10.182ns`、TNS 恶化18.5%、
+  loops `109→142`、IntBackend/top area +851.76、power 0.118→0.120W；top39 从 MIQ 迁到
+  FP exec1。生产 RTL 已还原，失败网表/STA 已归档；不得以后端局部 lev40→39 越级宣称收益。
+- 109-loop baseline 的精确族：63 条命中 MulDiv response→WB，49 条命中 CLMUL response→WB，
+  重叠4，合计覆盖108；其中38走 PRF write-through、70走 IQ same-cycle wakeup/select。剩余1条
+  是 FP lane ready→DBE pair ready→lane0 FP allocation→FreeList lane1 credit→FP lane1 ready 真环。
+- 首选下一刀是 source-class quarantine，而不是延迟 branch kill：full WB 与 long-op current-kill
+  保持；新增物理独立的 EX/MEM-only fast `{valid,pdest,data}`，IQ select 与 PRF read0–3 只吃
+  fast，IQ compaction/dispatch/kill-survivor state 继续吸收 full wakeup。周期合同为 long-op WB
+  N 拍写 PRF/粘 IQ ready、N+1 select；ALU/load 仍 N 拍 select+bypass。只复用 full-WB payload
+  再加分类 bit 无法结构断环，禁止该假切法。

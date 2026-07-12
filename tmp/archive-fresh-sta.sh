@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly root=/home/lyg/PA/ysyx-workbench
-readonly bundle_root="${root}/tmp/2026-07-13-rv64-ifu-access-g1"
-readonly result_dir="${bundle_root}/sta-build/NpcTop-200MHz"
-readonly archive="${bundle_root}/NpcTop-200MHz-fresh.tar.zst"
+readonly root="${STA_ARCHIVE_ROOT:-/home/lyg/PA/ysyx-workbench}"
+readonly bundle_root="${STA_ARCHIVE_BUNDLE_ROOT:-${root}/tmp/2026-07-13-rv64-ifu-access-g1}"
+readonly result_dir="${STA_ARCHIVE_RESULT_DIR:-${bundle_root}/sta-build/NpcTop-200MHz}"
+readonly archive_name="${STA_ARCHIVE_NAME:-NpcTop-200MHz-fresh}"
+readonly archive="${bundle_root}/${archive_name}.tar.zst"
 readonly archive_tmp="${archive}.tmp.$$"
-readonly inventory="${bundle_root}/NpcTop-200MHz-fresh.inventory.tsv"
+readonly inventory="${bundle_root}/${archive_name}.inventory.tsv"
 readonly checksum="${bundle_root}/SHA256SUMS"
-readonly opensta_summary="${root}/.github/task-runs/2026-07-12-rv64-ifu-access-g1/evidence/opensta-current/opensta-current-summary.txt"
+readonly opensta_summary="${STA_ARCHIVE_OPENSTA_SUMMARY:-${root}/.github/task-runs/2026-07-12-rv64-ifu-access-g1/evidence/opensta-current/opensta-current-summary.txt}"
 
 cleanup() {
   rm -f -- "${archive_tmp}"

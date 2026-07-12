@@ -25,7 +25,7 @@
 | EX→WB | **唯一真实 stage 寄存簇**：`OooIntBackend.v` `ex0/ex1_*_q`（valid1+rob4+pdest6+result64+exception1+cause5+tval64 = 145b/lane ×2）。无条件每拍写、无 stall 保持（下游 ROB wb 口恒收）、flush 单臂清、kill 不清（晚到 wb 由 ROB squash 吞）——语义就是 down_ready≡1 的退化 PipeStageReg | **提取**（第一刀，最机械） |
 | Decode→Rename | **零寄存融合拍**：`OooAluDecodeBackend`/`DecodeStage` 全组合（0 个 posedge 块），上游最近寄存是 PacketFifo | **重新流水化**（插寄存=新增流水级，改 IPC，须单独决策） |
 | Rename→Dispatch | **零寄存融合拍**：rename map 读/freelist/busytable 全组合同拍写入 IQ/ROB 阵列；`OooDispatchBackend` 仅 kill_valid_q/kill_idx_q 一对破环寄存 | 同上 |
-| Issue→RegRead→EX | **零寄存融合拍**：resident IQ 的 WB wakeup→select 组合直通 PRF 写读旁路→ALU/AGU→ex_q；dispatch→issue 同拍 bypass 已于 2026-07-09 删除。issue0 current-result→issue1 mux 的合法 true arm由 RAW-I1 证明不可达，但 2026-07-12 物理删除 A/B 回退，当前暂留。fresh 5ns top40 已转为 fetch/frontend，旧 T0 backend 排序不再代表当前主锥 | 同上（且触碰唤醒时序，风险最高） |
+| Issue→RegRead→EX | **零寄存融合拍**：resident IQ 的 WB wakeup→select 组合直通 PRF 写读旁路→ALU/AGU→ex_q；dispatch→issue 同拍 bypass 已于 2026-07-09 删除。issue0 current-result→issue1 mux 的合法 true arm由 RAW-I1 证明不可达，但 2026-07-12 首次 A/B 与 2026-07-13 current-top retry 均因 full-chip PPA/timing 回退而还原。当前 production A top40=`1 fetch+39 MIQ`，且 `check_setup` 的109环精确分成108条 long-op response→full-WB→PRF/IQ→branch-kill feedback 与1条 FP admission credit真环；不能再把旧 frontend-only 排序当现状 | 同上（且触碰唤醒时序，风险最高）；首选只把 long-op 排除出同拍 select/read0–3 bypass，full WB/state wakeup 保留 |
 
 **推论**：①"提取"类动作语义中性可先行；②"重新流水化"类动作是微架构变更（改变 IPC、
 唤醒/前递时序、kill 窗口位置），每条必须走独立 spec + 用户决策，本 spec 只冻结其边界

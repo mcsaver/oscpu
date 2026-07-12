@@ -1,0 +1,8 @@
+bytes	sha256	path
+68150669	1b5250c7deaacc23cdbce009117094e570faa038336fc51e64e7aa15d72f1e74	tmp/2026-07-13-t3a-retry/sta-build/NpcTop-200MHz/NpcTop.netlist.v
+54646468	8472e28fa5d2ccdc415ead2820b332ff85a458d555532cff677f0db0a472d04d	tmp/2026-07-13-t3a-retry/sta-build/NpcTop-200MHz/NpcTop.netlist.v.sim
+41	651d740188ddb19c58fded2ec4185871ff23a1f453af22dc3f44583503743e7c	tmp/2026-07-13-t3a-retry/sta-build/NpcTop-200MHz/abc.sdc
+6262	3f8aba355b11c9df58142ed3b248bcee535536721146b451285ba806f3b5b982	tmp/2026-07-13-t3a-retry/sta-build/NpcTop-200MHz/synth_check.txt
+250502	10120b3e74836bc796c541c8d7d3cb91f0b7f967cc8e8f1fd860d425b6d498dc	tmp/2026-07-13-t3a-retry/sta-build/NpcTop-200MHz/synth_stat.txt
+758868654	14fc73760f98da37782c5501b9eed66a1064fc382a19b87b83f19722a83d3265	tmp/2026-07-13-t3a-retry/sta-build/NpcTop-200MHz/yosys.log
+2215	495253c6a114c42baf307d35e4c760c98891bdc38a767cba4626930b98618d34	tmp/2026-07-13-rv64-ifu-access-g1/sta-provenance.md

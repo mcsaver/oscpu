@@ -1457,3 +1457,23 @@
   当前时序 blocker 是后端/前端同拍组合链缺寄存边界。
 - **调试教训**：checker 的组合输出改变后，必须跨断言采样 posedge 验证 RED；本轮首个
   settle-only mixed-selector 反例是假绿，补 tick 才暴露 `got=1 exp=0` 并修复 selector typo。
+
+### [2026-07-13] RV64 long-op WB feedback 组合环与 FP dual-lane credit 真环仍开放
+
+- **状态：OPEN / current timing blocker。** IFU-ACCESS-G1 fresh A 的 `check_setup` 有109个
+  combinational loops。它们不经过 D-cache、MIQ、frontend 或 AXI；OpenSTA 的29种随机 gate
+  cut point 不能当成架构切点。
+- 108个环来自 MulDiv/CLMUL `resp_valid` 的当拍 branch-kill mask，经 full WB 回到 PRF
+  write-through 或 IQ same-cycle wakeup/select，再形成 branch resolve。ROB age/tag 语义使这些
+  环在合法动态状态不可激活，但 STA 无法推导，不能靠 false-path 或“实际不会走”作为流片输入。
+- 唯一 FP 环是真协议 SCC：lane1 FP ready→`d1_fp_ok`→DBE pair-ready→lane0 FP load/arith
+  allocation fire→FreeList/FP-IQ lane1 credit→lane1 FP ready。只把 FreeList `alloc1_ready` 改成
+  `count>=2` 可能暴露同 SCC 的 FP-IQ 支路，修复前必须冻结 per-packet resource demand 与
+  mandatory pair atomic-fire，禁止单边内部 fire/重复。
+- T3A retry 已证明单独删除 RAW-I1 dead current-result mux不是解法：旧 arc 虽消失，WNS/TNS、
+  loops(109→142)、area/power 全退，候选已回退。失败证据见
+  `.github/task-runs/2026-07-13-rv64-t3a-current-top-retry/`。
+- 首选顺序：先用独立 EX/MEM-only fast broadcast 把 long-op 排除出 IQ同拍select与整数PRF
+  bypass（full WB/state wakeup/kill不变），fresh STA目标 loops=1；再以 raw intent/actual accept
+  分离和寄存 resource credit 关闭 FP 真环。两刀都必须有非真空 RED、CoreMark/全回归和 fresh
+  5ns A/B；关闭前不得宣称 200MHz。

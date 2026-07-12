@@ -138,8 +138,41 @@ Fmax-critical 且可接受 5.5% CPI。届时实施 B-cut-1(最简且 Pareto 最�
    `.github/task-runs/2026-07-09-p5-first-batch/`);上层集成 TB(tb_ooo_dispatch_backend/
    tb_ooo_int_backend)同步适配新时序。现行契约见 `../specs/ooo-int-issue-queue.md`。
 
+### 6d 【2026-07-13 current-top retry 与下一切点】
+
+RAW-I1 证明 issue0-current-result→issue1 operand mux 的 true arm 对合法状态不可达。旧 T3A A/B
+时 top40 是 frontend-only，所以删除候选没有切中主路径并被拒绝；IFU-ACCESS-G1 fresh A 后，
+top40 变为 `1 fetch+39 MIQ` 且40条都穿过旧 mux，故以完整 binary-diff hash 证明唯一 RTL 差异后
+重试。候选功能 focused5/module93/CoreMark iter10 全绿、旧128-bit arc物理归零，但 full-chip
+结果仍是负收益：
+
+| metric | A retained | B removed | delta |
+| --- | ---: | ---: | ---: |
+| WNS | -10.001ns | -10.182ns | -181ps |
+| TNS | -120125.49ns | -142389.47ns | -18.5% |
+| loops | 109 | 142 | +33 |
+| known area | 1570633.96 | 1571485.72 | +851.76 |
+| total vectorless power | 0.118W | 0.120W | +1.7% |
+
+B top40 迁移为 `1 fetch+39 FP exec1`；局部 ABC lev40→39不能覆盖全芯片硬门禁，候选已还原。
+
+对 A 的109条 loop 做完整层级聚类后，108条由 MulDiv/CLMUL response 的当拍 kill mask，经 full
+WB 回到 PRF write-through（38）或 IQ same-cycle wakeup/select（70）形成；剩余1条是 FP dual-lane
+admission/free-list credit 真 SCC。下一刀不是延迟 branch kill，也不是给所有 WB 打一拍，而是：
+
+1. full WB 继续供 ROB、BusyTable、IQ compaction/dispatch/kill-survivor state update 与 PRF 时序写；
+2. 建立物理独立的 EX/MEM-only fast `{valid,pdest,data}`，不能复用 full-WB payload mux；
+3. IQ select 只看 fast wakeup，PRF read0–3只看 fast bypass；long-op 在N拍写PRF/粘ready，N+1才select；
+4. ALU/load 同拍 wakeup/select/write-through 保持，目标 fresh check_setup 为仅剩1条 FP环；
+5. FP SCC 再以 raw intent→state-only per-packet credit→joint admission→actual accept 分离修复，
+   mandatory lane1 必须 atomic pair fire；单改 FreeList `count>=2` 不是完整修复。
+
+证据 `.github/task-runs/2026-07-13-rv64-t3a-current-top-retry/`。
+
 ## 7. 变更记录
 - 2026-06-28：基于 OOC 实测关键路径(39 级 free_list→busy_table→issue_queue 单拍链)建立规范,
   分 A(CPI-中性组合重构,可验)/B(流水化,需 P&R)两路,B 暂缓。
 - 2026-07-03：RTL 重读复核——FP arith 流水化落地后,2026-06-29 的"FP FMA 封顶"修正注记已过时,
   补 2026-07-03 更新注;状态改"已定案"。§6c 负决策不变。
+- 2026-07-13：补 current-top dead-forward retry 负决策、109-loop 精确 cut-set 与
+  EX/MEM-only fast broadcast / FP state-only credit 两步下一架构。

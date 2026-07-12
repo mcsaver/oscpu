@@ -16,8 +16,10 @@
 - **select**:顺序扫描(oldest-first)选最老的 2 个 src1&src2 都 ready 的 uop → issue0/issue1。
   simultaneous valid 双 lane 的 enabled integer source 不可能 RAW：consumer 只能在 producer WB
   wakeup 后成为 ready；`RAW-I1` 在 backend 消费边界看护该不变量。current-result forward
-  的 true arm 在合法状态不可达，但 2026-07-12 fresh 5ns 删除 A/B 使 TNS/area 回退，故当前
-  物理 mux 暂留，避免用 RTL 代码直觉覆盖映射实测；待 registered boundary 落地后再重评。
+  的 true arm 在合法状态不可达，但 2026-07-12 与 2026-07-13 两次 fresh 5ns 删除 A/B 均被
+  物理证据拒绝。第二次虽让原 39 条 MIQ tail 退出 top40，仍使 WNS `-10.001→-10.182ns`、
+  TNS 恶化18.5%、loops `109→142`、area/power 上升并暴露39条更差 FP exec1 tail。因此当前
+  物理 mux 暂留，避免用 RTL 代码直觉覆盖映射实测；先切 long-op WB feedback 后再重评。
 - **compaction**:发射后剩余项向前压实保持程序序紧凑。
 - **dispatch→issue 时序(P5 刀 B,2026-07-09)**:dispatch 项当拍只写入阵列,**次拍(N+1)起
   才可被 select**——"dispatch 活值作虚拟队尾同拍参与 select"的 bypass 族(bypass 许可判定/
@@ -79,3 +81,8 @@ payload 直读。顺序扫描 select 仍随 ENTRY_COUNT 增深(故 iter2 撤回 
   负探针。物理删除实验因 WNS 无改善且 TNS/area/power 回退被拒绝，forward 与 PRF
   WB write-through 均保留；证据见
   `.github/task-runs/2026-07-12-rv64-t3a-dead-crosslane-forward/`。
+- 2026-07-13：因 current A top40 的40条路径均实际经过旧 mux，做唯一 RTL 差异 retry；
+  focused/module/CoreMark 全绿且旧 arc 真实消失，但 full-chip WNS/TNS/loops/area/power 再次
+  全面回退，候选还原。109-loop root 已收敛为108条 long-op full-WB feedback +1条 FP admission
+  SCC；下一刀只让 EX/MEM fast broadcast 参与同拍 select，full wakeup 仍粘入 IQ state。
+  证据 `.github/task-runs/2026-07-13-rv64-t3a-current-top-retry/`。

@@ -718,3 +718,22 @@ flush 契约诊断确认 UC-A：整数 MulDiv/CLMUL **独缺 mispredict-kill 端
 - 证据：`.github/task-runs/2026-07-12-rv64-ifu-axi-g1-flush-drain/`。本刀没有新增 STA，
   不声明完整功能或 200 MHz；parent goal 继续 active。下一 correctness slice 是
   `IFU-FETCH-G2` 跨页 second-half fault provenance，随后关闭 `PTW-PMP-G1` PTE WRITE PMP。
+
+## 2026-07-13 RV64 T3A current-top retry 再次否决
+
+- IFU-ACCESS-G1 fresh A 的 top40 已从旧 T3A 实验时的纯 frontend 迁移为
+  `1 fetch + 39 D-cache→MIQ`，且 40/40 都经过合法态不可达的 lane0-current-result→lane1
+  operand mux；因此在 RAW-I1 断言/负探针下重新做了一次唯一差异 fresh A/B。
+- 功能门禁全绿：focused 5/5、module 93/93、style/lint、contract60/59；CoreMark 10 iter
+  与 A cycle-exact（2,913,259 cycles、3,218,573 commits、CPI 0.905、CRC 0xfcaf）。候选网表
+  中旧 128-bit forward signal/arc 已物理消失，证明实验切点真实。
+- full-chip 硬门禁仍明确失败：WNS `-10.001→-10.182ns`、TNS
+  `-120125.49→-142389.47ns`、loops `109→142`、known area `+851.76`、vectorless power
+  `0.118→0.120W`；top40 迁移为 `1 fetch + 39 FP exec1`。候选已用 apply_patch 还原，生产
+  `OooIntBackend.v` hash 与 parent HEAD 精确相同。
+- rejected B fresh build 已以 22,332,695-byte tar.zst 留档并通过 zstd/tar/SHA 三层校验。
+  证据 `.github/task-runs/2026-07-13-rv64-t3a-current-top-retry/`；parent goal 继续 active。
+- 审查把 A 的 109 loops 收敛为 108 条 long-op response→WB→PRF/IQ→branch-kill feedback
+  和 1 条 FP dual-lane credit/ready 真环。下一 timing 刀采用独立 EX/MEM-only fast broadcast：
+  full WB 继续写 ROB/BusyTable/IQ state/PRF，MulDiv/CLMUL 只退出同拍 IQ select 与 PRF read0–3
+  bypass，预计只给 long-op dependency +1 拍并保留 ALU/load 快路；FP credit 环独立修复。
