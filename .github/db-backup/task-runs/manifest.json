@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T11:40:43+00:00",
-  "updated_at": "2026-07-12T03:20:22+00:00",
+  "updated_at": "2026-07-12T04:00:00+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -29986,6 +29986,46 @@
       "sha256": "a53b3f693e0719673239df705e328f5d6115de64f7a479a2c99fae0c22ecf228",
       "backup_source": "filesystem",
       "archived_at": "2026-07-12T02:38:03+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1-mem-issue-g1-final/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 7701,
+      "sha256": "c396e57702a65d9902913054a4e23cc482790c96dfbde84acca1655245fde2a7",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T04:00:00+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1-mem-issue-g1-final/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5807,
+      "sha256": "c0015cf07f66871db97c7f1eddb654849255ba981176f7fdbaa299c28e04a619",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T04:00:00+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1-mem-issue-g1-final/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 3074,
+      "sha256": "b068b54566b5b17a65dc6d189f660ec1e4aadbeaf1adc2a9e36ebd8b6aea88f9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T04:00:00+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1-mem-issue-g1-final/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T04:00:00+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1-mem-issue-g1-final/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4445,
+      "sha256": "a92033d856cbabad812ec5997657116b2481a64075518f42b11e7bc43d9925cd",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T04:00:00+00:00"
     },
     {
       "path": ".github/task-runs/2026-07-12-rv64-f1-xret-g1-final-npc-dev/context-brief.md",

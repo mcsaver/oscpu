@@ -660,3 +660,22 @@ mismatch,与 FP 无关)。
   单纯 age-select 或预留一个槽也不足。下一版拓扑必须按类分流、用 registered credit，并在
   PRF/AGU 后用 age-aware memory reservation station 管理 SQ/MIQ order；删 dead cross-lane forward
   与 int PRF write-through 需和相应 stage/断言原子验证。未做新 5ns STA。
+
+## 2026-07-12 MEM-ISSUE-G1 lane1 request/MIQ owner 同源
+
+- 根因链：`issue1_mem_can_fire` 已把 lane0 memory exception 视为主端口空闲，但
+  `issue1_mem_req_valid/request_fire` 仍复制 `!issue0_is_mem`。可达同拍 lane0 misaligned LR.D
+  + lane1 PMEM LW 产生 `issue1_fire=1, req_valid/fire=0, miq_count=0`，IQ entry 永久丢失。
+- 唯一资格链改为：`issue0_mem_issue_eligible = issue0_is_mem && !mem_issue_block &&
+  mem_order_ready && amo_sq_quiet`（不含 ready）；`issue1_mem_port_available = !issue0_is_mem ||
+  (issue0_mem_exception && issue0_mem_issue_eligible)`。lane1 can-fire、req-valid、req-fire 复用该
+  事实，未放宽 MMIO/AMO/SQ/order/flush/WB-wait 语义，也未引入 valid←ready 组合环。
+- reviewer 反例固定了第二方向：更老 CLMUL 占 ROB head 时，lane0 exception 尚不 eligible，
+  lane1 必须留 IQ 且 bridge/MIQ 均静默；首版过宽公式曾产生 ownerless DRAIN。正向用例同时
+  锁 request read/address、push_issue1、MIQ LOAD kind/ROB 及 post-edge head owner。
+- 两条 OOO_ASSERT：`MEM-I1` 守 normal lane1 IQ pop 必有 request fire；`MEM-I2` 以前件
+  `req_valid&&ready` 守 IQ/request/mux/MIQ 的 ROB/pdest/domain/kind 一致。contract baseline
+  从 35 ratchet 到 37。
+- 验证：focused 5/5、module 87/87、style/lint、contract37/37、bundled Verilator 5.051
+  隔离 clean build + AM59 + official177 `overall_rc=0`、Difftest-ON AM59。最终 reviewer
+  NO BLOCKER。证据目录 `.github/task-runs/2026-07-12-rv64-f1-mem-issue-g1/`。

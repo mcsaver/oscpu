@@ -603,6 +603,253 @@ module tb_ooo_int_backend;
     end
   endtask
 
+  // lane1 访存的 IQ pop 与主请求端口必须由同一个 owner/fire 判据驱动。
+  // 前一组 RED 锁住 lane0 异常释放端口的真分叉；后一组 guard 固化 WB 等待窗不可达证明。
+  task automatic run_lane1_mem_exception_owner_red;
+    reg owner_violation;
+    reg [ROB_INDEX_W-1:0] lane1_rob;
+    begin
+      reset_dut();
+
+      set_dispatch0(32'h8000_4ff0,
+                    make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+                    5'd0, 5'd0, 5'd1, 64'h0000_0301);
+      set_dispatch1(32'h8000_4ff4,
+                    make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+                    5'd0, 5'd0, 5'd2, 64'd1);
+      tick_dispatch_to_commit("lane1 owner A base setup", 64'h301, 64'd1);
+
+      set_dispatch0(32'h8000_5000,
+                    make_amo_ctrl(`MEM_SIZE_DWORD, 1'b1, 1'b0),
+                    5'd1, 5'd0, 5'd27, 64'd0);
+      dispatch0_inst = inst_amo(5'b00010, 5'd0, 5'd1,
+                                `FUNCT3_LD, 5'd27);
+      set_dispatch1(32'h8000_5004,
+                    make_load_ctrl(`MEM_SIZE_WORD, 1'b1),
+                    5'd0, 5'd0, 5'd28, 64'h8000_0280);
+      #1;
+      tb_check1("lane1 owner A dispatch0 ready", dispatch0_ready, 1'b1);
+      tb_check1("lane1 owner A dispatch1 ready", dispatch1_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+
+      tb_check1("lane1 owner A reaches lane0 mem exception",
+                dut.issue0_valid_w && dut.issue0_is_mem_w &&
+                dut.issue0_mem_exception_w, 1'b1);
+      tb_check1("lane1 owner A reaches normal lane1 mem offer",
+                dut.issue1_valid_w && dut.issue1_is_mem_w &&
+                !dut.issue1_mem_exception_w && !dut.issue1_sq_fwd_w, 1'b1);
+      lane1_rob = dut.issue1_rob_idx_w;
+      $display("[RED-OBS] lane1-owner-A issue1_fire=%0b req_valid=%0b req_fire=%0b mem_req_valid=%0b",
+               dut.issue1_fire_w, dut.issue1_mem_req_valid_w,
+               dut.issue1_mem_request_fire_w, mem_req_valid);
+      owner_violation =
+          dut.issue1_fire_w && dut.issue1_is_mem_w &&
+          !dut.issue1_mem_exception_w && !dut.issue1_sq_fwd_w &&
+          !(dut.issue1_mem_request_fire_w &&
+            dut.issue1_mem_req_valid_w && mem_req_valid);
+      tb_check1("lane1 owner A pop implies matching request fire",
+                !owner_violation, 1'b1);
+      tb_check1("lane1 owner A request is read", mem_req_write, 1'b0);
+      tb_check64("lane1 owner A request address", mem_req_addr,
+                 64'h8000_0280);
+      tb_check1("lane1 owner A request mux fire",
+                dut.mem_req_fire_any_w, 1'b1);
+      tb_check1("lane1 owner A selects issue1 owner",
+                dut.push_issue1_w, 1'b1);
+      tb_check1("lane1 owner A pushes miq", dut.miq_push_valid_w, 1'b1);
+      tb_check32("lane1 owner A miq kind is load",
+                 {30'b0, dut.miq_push_kind_w}, 32'd0);
+      tb_check32("lane1 owner A miq rob matches issue1",
+                 {{(32-ROB_INDEX_W){1'b0}}, dut.miq_push_rob_w},
+                 {{(32-ROB_INDEX_W){1'b0}}, lane1_rob});
+      `TB_TICK(clk);
+      #1;
+      $display("[RED-OBS] lane1-owner-A post-edge issue_count=%0d rob_count=%0d miq_count=%0d commit0=%0b commit1=%0b",
+               issue_count, rob_count, dut.miq_count_w,
+               commit0_valid, commit1_valid);
+      tb_check1("lane1 owner A miq head valid", dut.miq_head_valid_w, 1'b1);
+      tb_check32("lane1 owner A miq head kind is load",
+                 {30'b0, dut.miq_head_kind_w}, 32'd0);
+      tb_check32("lane1 owner A miq head rob preserved",
+                 {{(32-ROB_INDEX_W){1'b0}}, dut.miq_head_rob_w},
+                 {{(32-ROB_INDEX_W){1'b0}}, lane1_rob});
+      if (owner_violation) begin
+        tb_check32("lane1 owner A violated pair popped from iq",
+                   {28'b0, issue_count}, 32'd0);
+        tb_check32("lane1 owner A violated lane1 remains unfinished in rob",
+                   {27'b0, rob_count}, 32'd2);
+        tb_check1("lane1 owner A violated lane1 cannot commit",
+                  commit1_valid, 1'b0);
+      end
+    end
+  endtask
+
+  // 审查反例：lane0 虽为本地异常、不占 bridge port，但它若被更老未完成 uop
+  // 挡住，lane1 也不能先产生 request。否则 req mux/MIQ 会在 IQ 未 pop 时接收
+  // 一个没有 issue owner 的幽灵事务。
+  task automatic run_lane1_head_blocked_exception_owner_guard;
+    begin
+      reset_dut();
+
+      set_dispatch0(32'h8000_5050,
+                    make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+                    5'd0, 5'd0, 5'd1, 64'h0000_0301);
+      set_dispatch1(32'h8000_5054,
+                    make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+                    5'd0, 5'd0, 5'd2, 64'd1);
+      tick_dispatch_to_commit("lane1 owner blocked setup", 64'h301, 64'd1);
+
+      // 先让一个更老 CLMUL 离开 IQ、留在长操作单元中，使后续 LR 尚非 ROB head。
+      set_dispatch0(32'h8000_5060, make_bitmanip_op_ctrl(),
+                    5'd0, 5'd0, 5'd3, 64'd0);
+      dispatch0_inst = inst_op(7'h05, 5'd0, 5'd0, 3'b001, 5'd3);
+      #1;
+      tb_check1("lane1 owner blocked clmul dispatch ready",
+                dispatch0_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      `TB_TICK(clk);
+      #1;
+      tb_check32("lane1 owner blocked clmul leaves iq",
+                 {28'b0, issue_count}, 32'd0);
+      tb_check32("lane1 owner blocked clmul holds rob",
+                 {27'b0, rob_count}, 32'd1);
+      tb_check1("lane1 owner blocked clmul not complete",
+                commit0_valid, 1'b0);
+
+      set_dispatch0(32'h8000_5070,
+                    make_amo_ctrl(`MEM_SIZE_DWORD, 1'b1, 1'b0),
+                    5'd1, 5'd0, 5'd27, 64'd0);
+      dispatch0_inst = inst_amo(5'b00010, 5'd0, 5'd1,
+                                `FUNCT3_LD, 5'd27);
+      set_dispatch1(32'h8000_5074,
+                    make_load_ctrl(`MEM_SIZE_WORD, 1'b1),
+                    5'd0, 5'd0, 5'd28, 64'h8000_0280);
+      #1;
+      tb_check1("lane1 owner blocked dispatch0 ready", dispatch0_ready,
+                1'b1);
+      tb_check1("lane1 owner blocked dispatch1 ready", dispatch1_ready,
+                1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+
+      tb_check1("lane1 owner blocked reaches lane0 mem exception",
+                dut.issue0_valid_w && dut.issue0_is_mem_w &&
+                dut.issue0_mem_exception_w, 1'b1);
+      tb_check1("lane1 owner blocked lane0 cannot fire before rob head",
+                dut.issue0_mem_can_fire_w, 1'b0);
+      tb_check1("lane1 owner blocked port owner is unavailable",
+                dut.issue1_mem_port_available_w, 1'b0);
+      tb_check1("lane1 owner blocked reaches normal lane1 mem offer",
+                dut.issue1_valid_w && dut.issue1_is_mem_w &&
+                !dut.issue1_mem_exception_w && !dut.issue1_sq_fwd_w, 1'b1);
+      $display("[RED-OBS] lane1-owner-blocked issue0_can=%0b issue1_ready=%0b issue1_fire=%0b req_valid=%0b req_fire=%0b mem_req_valid=%0b",
+               dut.issue0_mem_can_fire_w, dut.issue1_ready_w,
+               dut.issue1_fire_w, dut.issue1_mem_req_valid_w,
+               dut.issue1_mem_request_fire_w, mem_req_valid);
+      tb_check1("lane1 owner blocked holds lane1 in iq",
+                dut.issue1_fire_w, 1'b0);
+      tb_check1("lane1 owner blocked forbids ownerless req valid",
+                dut.issue1_mem_req_valid_w, 1'b0);
+      tb_check1("lane1 owner blocked forbids ownerless bridge request",
+                mem_req_valid, 1'b0);
+      tb_check1("lane1 owner blocked forbids request mux fire",
+                dut.mem_req_fire_any_w, 1'b0);
+      tb_check1("lane1 owner blocked forbids miq push",
+                dut.miq_push_valid_w, 1'b0);
+      `TB_TICK(clk);
+      #1;
+      tb_check32("lane1 owner blocked keeps memory pair in iq",
+                 {28'b0, issue_count}, 32'd2);
+      tb_check32("lane1 owner blocked keeps miq empty",
+                 {28'b0, dut.miq_count_w}, 32'd0);
+      tb_check32("lane1 owner blocked keeps three rob entries",
+                 {27'b0, rob_count}, 32'd3);
+      tb_check1("lane1 owner blocked keeps miq head invalid",
+                dut.miq_head_valid_w, 1'b0);
+    end
+  endtask
+
+  task automatic run_lane1_mem_wb_wait_owner_guard;
+    begin
+      reset_dut();
+
+      // 先建立一个未返回的 MMIO load(LEGACY)，再让两条 ALU 占满 EX->WB 两口；同拍把
+      // 下一组 ALU+load 填入 IQ，从合法接口抵达 rsp-wait 与 lane1 offer 重叠窗。
+      set_dispatch0(32'h8000_5100,
+                    make_load_ctrl(`MEM_SIZE_WORD, 1'b1),
+                    5'd0, 5'd0, 5'd12, 64'h0000_0200);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check1("lane1 owner B seed legacy request", mem_req_valid, 1'b1);
+      `TB_TICK(clk);
+      #1;
+
+      set_dispatch0(32'h8000_5110,
+                    make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+                    5'd0, 5'd0, 5'd13, 64'd21);
+      set_dispatch1(32'h8000_5114,
+                    make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+                    5'd0, 5'd0, 5'd14, 64'd22);
+      #1;
+      tb_check1("lane1 owner B wb-fill dispatch0 ready", dispatch0_ready,
+                1'b1);
+      tb_check1("lane1 owner B wb-fill dispatch1 ready", dispatch1_ready,
+                1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+
+      set_dispatch0(32'h8000_5120,
+                    make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+                    5'd0, 5'd0, 5'd15, 64'd23);
+      set_dispatch1(32'h8000_5124,
+                    make_load_ctrl(`MEM_SIZE_WORD, 1'b1),
+                    5'd0, 5'd0, 5'd16, 64'h8000_0280);
+      #1;
+      tb_check1("lane1 owner B overlap dispatch0 ready", dispatch0_ready,
+                1'b1);
+      tb_check1("lane1 owner B overlap dispatch1 ready", dispatch1_ready,
+                1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = {`XLEN{1'b0}};
+      mem_rsp_error = 1'b0;
+      #1;
+
+      tb_check1("lane1 owner B reaches rsp waiting for wb",
+                dut.mem_rsp_waiting_for_wb_w, 1'b1);
+      tb_check1("lane1 owner B reaches normal lane1 mem offer",
+                dut.issue1_valid_w && dut.issue1_is_mem_w &&
+                !dut.issue1_mem_exception_w && !dut.issue1_sq_fwd_w, 1'b1);
+      $display("[RED-OBS] lane1-owner-B rsp_wait=%0b issue1_ready=%0b issue1_fire=%0b req_valid=%0b req_fire=%0b mem_req_valid=%0b",
+               dut.mem_rsp_waiting_for_wb_w, dut.issue1_ready_w,
+               dut.issue1_fire_w, dut.issue1_mem_req_valid_w,
+               dut.issue1_mem_request_fire_w, mem_req_valid);
+      // 静态蕴含链：rsp_wait -> !mem_legacy_slot_open -> !mem_request_slot_open
+      // -> !issue1_mem_req_valid。因此该怀疑窗合法接口下不可达，保留动态 guard 防回归。
+      tb_check1("lane1 owner B legacy slot closes while rsp waits",
+                dut.mem_legacy_slot_open_w, 1'b0);
+      tb_check1("lane1 owner B request slot closes while rsp waits",
+                dut.mem_request_slot_open_w, 1'b0);
+      tb_check1("lane1 owner B cannot request without matching IQ pop",
+                dut.issue1_mem_req_valid_w, 1'b0);
+    end
+  endtask
+
   initial begin
     tb_errors = 0;
     reset_dut();
@@ -1040,6 +1287,10 @@ module tb_ooo_int_backend;
     tb_check32("amoadd.w x0 rob drains", {27'b0, rob_count}, 32'd0);
     tb_check32("amoadd.w x0 iq drains", {28'b0, issue_count}, 32'd0);
     tb_check32("amoadd.w x0 freelist recovers", {25'b0, free_count}, 32'd32);
+
+    run_lane1_mem_exception_owner_red();
+    run_lane1_head_blocked_exception_owner_guard();
+    run_lane1_mem_wb_wait_owner_guard();
 
 	    tb_finish("tb_ooo_int_backend");
   end

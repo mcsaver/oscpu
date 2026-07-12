@@ -1597,11 +1597,13 @@ module OooIntBackend #(
   // ∧ MMIO 队头"相位几乎不可达(幸存者偏差), S2 取指不断流后必踩。
   // 同修: 末项(pending 在飞走 buffer 等待通道)从 !is_amo 收紧为 !needs_excl——
   // MMIO load 不得进 plain buffer 通道(kind=LOAD 会绕开 LEGACY 独占序)。
-  wire issue0_mem_can_fire_w =
+  wire issue0_mem_issue_eligible_w =
       issue0_is_mem_w &&
       !mem_issue_block_w &&
       issue0_mem_order_ready_w &&
-      (!issue0_is_amo_w || amo_sq_quiet_w) &&
+      (!issue0_is_amo_w || amo_sq_quiet_w);
+  wire issue0_mem_can_fire_w =
+      issue0_mem_issue_eligible_w &&
       (issue0_mem_exception_w ||
        issue0_sq_fwd_w ||
        (!mem_buffer_valid_q &&
@@ -1610,6 +1612,13 @@ module OooIntBackend #(
         mem_req_ready_i) ||
        (!issue0_mem_needs_excl_w && mem_pending_q && !mem_rsp_fire_w &&
         !mem_buffer_valid_q));
+  // MEM-ISSUE-G1: lane0 只有“本地异常且本拍本身可发射”才把主请求 owner 交给
+  // lane1。若异常访存仍被 ROB/order/SQ 条件挡住，cross-lane gate 会保留 lane1，
+  // request-valid 也必须同步为 0，禁止 IQ 未 pop 却先建立 bridge/MIQ 幽灵事务。
+  // 该 eligible 事实不依赖 mem_req_ready，保持 valid 不反向依赖 ready。
+  wire issue1_mem_port_available_w =
+      !issue0_is_mem_w ||
+      (issue0_mem_exception_w && issue0_mem_issue_eligible_w);
   wire issue1_mem_can_fire_w =
       issue1_is_mem_w &&
       !mem_issue_block_w &&
@@ -1619,7 +1628,7 @@ module OooIntBackend #(
       // (仅当 issue0 非访存时),原 dual-load-port1 分支恒不命中,已化简移除。
       (issue1_mem_exception_w ||
        issue1_sq_fwd_w ||
-       ((!issue0_is_mem_w || issue0_mem_exception_w) &&
+       (issue1_mem_port_available_w &&
         !mem_buffer_valid_q &&
         (issue1_mem_needs_excl_w ? mem_amo_slot_open_w
                                  : mem_request_slot_open_w) &&
@@ -1870,7 +1879,8 @@ module OooIntBackend #(
   wire issue1_mem_request_fire_w =
       issue1_fire_w && issue1_is_mem_w && !issue1_mem_exception_w &&
       !issue1_sq_fwd_w &&
-      !issue0_is_mem_w && mem_request_slot_open_w && mem_req_ready_i &&
+      issue1_mem_port_available_w && mem_request_slot_open_w &&
+      mem_req_ready_i &&
       !mem_buffer_valid_q;
   wire issue1_mem_buffer_fire_w =
       1'b0;
@@ -1878,7 +1888,7 @@ module OooIntBackend #(
   wire issue1_mem_req_valid_w =
       issue1_valid_w && issue1_is_mem_w && !issue1_mem_exception_w &&
       (!issue1_is_amo_w || amo_sq_quiet_w) && !issue1_sq_fwd_w &&
-      !issue0_is_mem_w &&
+      issue1_mem_port_available_w &&
       (issue1_mem_needs_excl_w ? mem_amo_slot_open_w
                                : mem_request_slot_open_w) &&
       !mem_buffer_valid_q &&
@@ -1948,6 +1958,7 @@ module OooIntBackend #(
   wire push_issue0_w = issue0_mem_request_fire_w;
   wire push_issue1_w = issue1_mem_request_fire_w;
   wire push_drain_w = sq_drain_req_fire_w;
+
   assign miq_push_valid_w = mem_req_fire_any_w;
   // kind: AMO 写阶段/AMO 族发射=LEGACY; drain=DRAIN; plain store(probe)=PROBE;
   // plain load=LOAD。buffer 只存 plain。
@@ -1994,6 +2005,34 @@ module OooIntBackend #(
   assign miq_push_addr_w = mem_req_addr_o;
   assign miq_push_wdata_w = mem_req_wdata_o;
   assign miq_push_wstrb_w = mem_req_wstrb_o;
+
+`ifdef OOO_ASSERT
+  // MEM-ISSUE-G1 owner 守恒：当前直连主端口路径中，正常 lane1 memory IQ pop
+  // 必须与同拍 request/MIQ owner fire 成对；反向从 req-valid 握手前件检查，
+  // 才能覆盖“bridge/MIQ 已接收但 IQ 未 pop”的幽灵请求反例。
+  always @(posedge clk) begin
+    if (!rst) begin
+      if (issue1_fire_w && issue1_is_mem_w &&
+          !issue1_mem_exception_w && !issue1_sq_fwd_w &&
+          !issue1_mem_request_fire_w) begin
+        $error("[MEM-ISSUE-CONTRACT MEM-I1] lane1 memory popped without request fire: rob=%0d pc=%h @%0t",
+               issue1_rob_idx_w, issue1_pc_w, $time);
+      end
+      if (issue1_mem_req_valid_w && mem_req_ready_i &&
+          !(issue1_fire_w && issue1_mem_request_fire_w && push_issue1_w &&
+            mem_req_valid_o && miq_push_valid_w &&
+            (miq_push_rob_w == issue1_rob_idx_w) &&
+            (miq_push_pdest_w == issue1_pdest_w) &&
+            (miq_push_pdest_fp_w == issue1_fp_pdest_w) &&
+            (miq_push_kind_w ==
+             (issue1_is_excl_kind_w ? MIQ_KIND_LEGACY :
+              issue1_is_plain_store_w ? MIQ_KIND_PROBE : MIQ_KIND_LOAD)))) begin
+        $error("[MEM-ISSUE-CONTRACT MEM-I2] lane1 req-valid handshake lacks matching IQ/MIQ owner: rob=%0d pc=%h @%0t",
+               issue1_rob_idx_w, issue1_pc_w, $time);
+      end
+    end
+  end
+`endif
   // 【级间边界治理 P1】原 always 内 ex0/ex1 赋值臂等价改写为组合 up_valid/up_payload
   // 生成——"功能模块退化为纯组合 + 写入下一级 PipeStageReg"的目标形态
   // (design/arch/pipeline-stage-boundary.md §4 P1; 实例与位段布局见声明处)。

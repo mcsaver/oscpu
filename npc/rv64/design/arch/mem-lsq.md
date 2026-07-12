@@ -18,6 +18,24 @@
 - **LSQ-I3 精确异常**:load page/access fault 在该 load 的 commit 边界精确上报;乱序返回的 fault 按 ROB 序提交。
 - **LSQ-I4 response ownership**:多事务 response 路由回正确后端端口,flush 正确 drain;无 ready/valid 组合环。
 
+### 2.1 MEM-ISSUE-G1 双 lane request owner 合同（2026-07-12，RTL 前冻结）
+
+- 先抽取不含 `mem_req_ready` 的 lane0 资格事实：
+  `issue0_mem_issue_eligible = issue0_is_mem && !mem_issue_block && mem_order_ready && amo_quiet`；
+  lane0 memory exception 只有在自身本拍 eligible 时才可把唯一 issue-side memory owner 交给 lane1：
+  `issue1_mem_port_available = !issue0_is_mem || (issue0_mem_exception && issue0_mem_issue_eligible)`。
+- lane1 normal memory 的 `can_fire/ready`、`req_valid/req_fire` 与 request mux/MIQ push 必须复用
+  同一个 port-available 事实；禁止任一条件单独复制 `!issue0_is_mem`。
+- 若 lane1 normal memory 从 IQ dequeue，则同拍必须存在 matching bridge request fire 与 MIQ owner；
+  exception/SQ-forward completion 是明确的非请求分支。反向地，issue-source request fire 必须对应
+  同拍 dequeue，未来引入 station 后则对应 held station owner。
+- flush/block/order/SQ/AMO/slot/bridge-ready 约束保持既有语义；本合同不放宽 memory ordering。
+- 旧 RTL 已以 misaligned LR.D(lane0)+aligned PMEM LW(lane1) 精确 RED：lane1 fire=1 而
+  req_valid/fire=0、MIQ空。修复必须让 lane0 exception completion 与 lane1 request 各归其 owner。
+- 审查负探针又证伪了过宽公式 `!issue0_is_mem || issue0_mem_exception`：更老 CLMUL 尚未完成时，
+  lane0 misaligned LR 尚非 ROB head，曾出现 lane1 `req_valid=1, fire=0` 且 MIQ 错入一条 ownerless
+  DRAIN。故“exception 本地完成”不等于“exception 本拍有资格完成”；eligible 必须进入唯一 owner 事实。
+
 ## 3. 增量路线(每步 difftest+eval 全绿才进下一步)
 - **step 0(基线)**:difftest 跑通计算+整数访存子集(已验证 8 测全过)。
 - **step 1**:桥读路径支持 2 outstanding AR(AXI 允许多读在飞)+1 深 read response skid,按发起序路由 R;

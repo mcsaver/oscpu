@@ -627,3 +627,23 @@ flush 契约诊断确认 UC-A：整数 MulDiv/CLMUL **独缺 mispredict-kill 端
   parent 目标继续 active。T3 预研已推翻普通 IQ→EX FIFO：oldest-ready admission 非 ROB-age
   单调，年轻 ROB-head-dependent uop 可填满 stage 并与 late-wake older uop互等；后续必须改为
   按类注册 credit + PRF/AGU 后 age-aware memory station，先冻结 liveness 合同再写 RTL。
+
+## 2026-07-12 RV64 F1 MEM-ISSUE-G1 双 lane memory owner 合同关闭
+
+- `MEM-ISSUE-G1` 已关闭：旧 `OooIntBackend` 在 lane0 misaligned LR.D + lane1 aligned PMEM
+  LW 同拍时，lane1 可从 IQ pop，却因 request-valid/fire 仍要求 `!issue0_is_mem` 而不产生
+  bridge request 或 MIQ owner，形成不可恢复的 ROB 丢事务。
+- 最终实现先抽不依赖 `mem_req_ready` 的 `issue0_mem_issue_eligible`（memory/order/SQ/AMO
+  公共资格），再用 `issue1_mem_port_available = !issue0_is_mem ||
+  (issue0_mem_exception && issue0_mem_issue_eligible)` 统一 lane1 can-fire、req-valid 与 req-fire。
+  `MEM-I1/I2` 从 IQ pop 与 `req_valid&&ready` 两端核对 request mux、MIQ push、ROB/pdest/kind owner。
+- 独立 reviewer 拒绝了首版过宽公式：更老 CLMUL 未完成、lane0 misaligned LR 尚非 ROB head
+  时，首版出现 `issue1 req_valid=1/fire=0` 且 MIQ 错入默认 DRAIN；常驻 head-blocked guard 精确
+  3 fail 后转绿。最终 reviewer 裁决 NO BLOCKER。
+- 新鲜门禁：focused 5/5、module 87/87、RTL style/lint、contract `37/37`；隔离 worktree 中
+  最终 RTL SHA-256 与主树一致，bundled Verilator 5.051 clean build、AM 59/59、official
+  177/177、`overall_rc=0`；独立 Difftest-ON AM 的 ON/reference marker 各 59、59/59 PASS。
+  主树 Difftest-OFF 配置哈希保持 `cb2cad6f...`，用户既有 dirty RTL/log 未纳入本刀。
+- 证据：`.github/task-runs/2026-07-12-rv64-f1-mem-issue-g1/`。本刀不含新 STA，不能声称
+  200 MHz；T0 仍为 5ns WNS `-15.74ns`。下一步先独立删除已证明不可达的 issue0→issue1
+  current-result forward，再冻结/实现 liveness-safe T3 memory prepared station 并做 CPI/5ns A/B。

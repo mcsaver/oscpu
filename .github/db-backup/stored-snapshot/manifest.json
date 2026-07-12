@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T14:31:49+00:00",
-  "updated_at": "2026-07-12T03:16:27+00:00",
+  "updated_at": "2026-07-12T04:02:33+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -1070,10 +1070,10 @@
     {
       "path": ".github/memory/modules/npc.md",
       "kind": "memory-module",
-      "size_bytes": 601745,
-      "sha256": "cdb8f1b4c804e46f37514267a3679e111910ebd3a48672968bcf92cacc1fa717",
+      "size_bytes": 603302,
+      "sha256": "e65b61456e749ad7080ba9ba2b36b6841cdbc5c6aea99cd82cce51af345589b0",
       "backup_source": "database",
-      "archived_at": "2026-07-12T03:12:49+00:00"
+      "archived_at": "2026-07-12T03:58:24+00:00"
     },
     {
       "path": ".github/memory/modules/software-flow.md",
@@ -1102,10 +1102,10 @@
     {
       "path": ".github/memory/project-status.md",
       "kind": "memory",
-      "size_bytes": 631031,
-      "sha256": "99f4e0b68b0ee04090ec7cd64cace5b99205c3e5ac62841d8c19a6ef5c34b00d",
+      "size_bytes": 632756,
+      "sha256": "253f138263d3362daa791f32d3bd3c5204180530a028547b65a039388ae8afef",
       "backup_source": "database",
-      "archived_at": "2026-07-12T03:12:49+00:00"
+      "archived_at": "2026-07-12T03:58:23+00:00"
     },
     {
       "path": ".github/task-runs/2026-04-13-npc-dpic-bringup/dispatch-log.md",
@@ -42914,6 +42914,14 @@
       "sha256": "dfc773bce1099341f99dad63bbe4dd6da577e6584579ec1bb497ba2d257a8ae4",
       "backup_source": "filesystem",
       "archived_at": "2026-07-12T02:44:47+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1-mem-issue-g1/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 2663,
+      "sha256": "2a28ff45bc257e0920f66163db918f72c1c29c6f00bd6239d24402a95f53246a",
+      "backup_source": "database",
+      "archived_at": "2026-07-12T04:02:33+00:00"
     },
     {
       "path": ".github/task-runs/2026-07-12-rv64-f1-xret-g1/evidence-index.md",

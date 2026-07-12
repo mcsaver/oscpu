@@ -1,0 +1,7 @@
+node_id	owner_agent	depends_on	inputs	outputs	success_criteria	fallback	status
+source-to-sink-map	root+t3a_integration_map	-	current IntBackend	owner mismatch	reachable source-to-sink proof	re-audit	PASS
+red-owner-window	mem_lane1_red	source-to-sink-map	lane0 exception + lane1 load	exact failing TB	fire without request is observed	shrink hierarchical probe	PASS
+freeze-contract	root	source-to-sink-map	SPEC-TEMPLATE + six contracts	filled spec/task report	all affected cells resolved	stop before RTL	PASS
+implement-owner	root	red-owner-window,freeze-contract	frozen owner fact	eligible+owner predicate reuse	positive+reviewer counterexample GREEN	revert slice	PASS
+full-regression	root	implement-owner	current RTL	module/lint/AM/official	all raw rc pass	localize and rerun	PASS
+record-review	root+reviewer	full-regression	all evidence	memory/task-run/guard	no unresolved reviewer objection	deliver slice only	PASS

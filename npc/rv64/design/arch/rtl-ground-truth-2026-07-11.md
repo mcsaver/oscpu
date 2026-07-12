@@ -1,6 +1,6 @@
 # RV64 OoO RTL Ground Truth — 2026-07-11
 
-> **类型**：snapshot + current delta（2026-07-12 FDG-G1 关闭后校正）。
+> **类型**：snapshot + current delta（2026-07-12 FDG/XRET/MEM-ISSUE-G1 关闭后校正）。
 >
 > **状态**：CURRENT。主体基于代码快照 `cab1814b0622e53e1e62f2b0fc17ed6873c72ba2`；
 > 2026-07-12 已同步 FDG-G1 关闭事实与新鲜回归证据。下一次结构性架构切片必须生成新的
@@ -113,34 +113,43 @@ NpcSimTop                         仿真 shell
    `mepc/mtval`、handler return 与 no illegal-xRET commit。current module 87/87、AM 59/59、
    official 177/177 均通过；CsrFile 不复制 legality decode。
 
-3. **IFU-AXI-G1 — A-update partial write 未随 flush 排水**
+3. **MEM-ISSUE-G1 — CLOSED 2026-07-12：lane1 dequeue/request/MIQ owner 同源**
+
+   `OooIntBackend` 已把 lane0 order/SQ/AMO 公共资格抽成不依赖 ready 的
+   `issue0_mem_issue_eligible`，并只在 lane0 非 memory 或本地异常且 eligible 时授予
+   lane1 memory port owner。旧 RTL 精确复现 IQ pop 无 request；独立 reviewer 又以更老
+   CLMUL + head-blocked misaligned LR 证伪过宽首版，锁住 request/MIQ 先于 IQ pop 的幽灵事务。
+   `MEM-I1/I2` 检查 IQ、request mux 与 MIQ owner；current module 87/87、Difftest-ON AM
+   59/59、official 177/177 均通过。
+
+4. **IFU-AXI-G1 — A-update partial write 未随 flush 排水**
 
    `OooFetchAxiBridge` 的读事务有 `S_DRAIN`；`S_AD_UPDATE` 中 AW/W 可独立握手，
    但 `mmu_flush` 会直接清通道进度并回 IDLE。AW-only + flush 已在 bridge 局部复现；
    与 xbar 的最终错配/停顿后果尚缺联测。
 
-4. **IFU-FETCH-G2 — page-end C fault 归属**
+5. **IFU-FETCH-G2 — page-end C fault 归属**
 
    PC=page+0xFFE 且当前指令为 16-bit 时，bridge 以“首 4B 是否跨页”判断首指令，
    会把下一页 fault 覆写到当前 C 指令的 `resp0`。局部可达状态 + 真实 packet decoder 已复现。
 
-5. **PTW-PMP-G1 — A/D PTE 写回缺独立 PMP WRITE 判定**
+6. **PTW-PMP-G1 — A/D PTE 写回缺独立 PMP WRITE 判定**
 
    walker 读取 PTE 时做 read check；进入 A/D update 后未见以 WRITE 类型重新检查 PTE
    物理地址。
 
-6. **MIQ-G1 — flush 与 DRAIN pop 同拍可留下 ghost entry**
+7. **MIQ-G1 — flush 与 DRAIN pop 同拍可留下 ghost entry**
 
    MIQ 局部动态已复现；年轻同步异常与更老 retired-store drain 的默认整链交叠为高置信
    静态序列，尚无完整 NpcCoreTop 程序波形。另一个 MIQ full+pop 模块反例在当前
    active+staged bridge 下不可达到 full=4，只是未来扩展前的潜伏接口项。
 
-7. **INSTRET-G1 — CsrFile 计数源不等于唯一 ISA retirement**
+8. **INSTRET-G1 — CsrFile 计数源不等于唯一 ISA retirement**
 
    `NpcCoreTop` 把 raw ROB commit count 接入 CsrFile；异常 entry 未过滤，control-path
    pseudo-commit 未合并。当前结论来自整机静态接线，尚无专门 counter 程序波形。
 
-8. **store/device 平台边界**
+9. **store/device 平台边界**
 
    retired store 的 late B error 已无 ROB entry，只能报告；Sv39 device 访问资格按翻译前
    VA 数值窗分类；对齐 full-beat device read 会丢原 lane/size。后两项仍需

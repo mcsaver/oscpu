@@ -127,12 +127,16 @@ module/AM 才报告全绿。后续切片把这些 gate 作为回归基线，而�
 2. **XRET-G1（CLOSED 2026-07-12）**：MRET/SRET current-mode 合法性；旧 RTL 三类反例
    精确 RED，修复后真实编码 head0/lane1 integration、module 87/87、AM 59/59、
    official 177/177 均通过；
-3. IFU-AXI-G1：A/D partial write 遇 flush 必须排水；
-4. IFU-FETCH-G2：page-end 16-bit 指令 fault 归属；
-5. PTW-PMP-G1：A/D PTE write 独立 PMP WRITE check；
-6. MIQ-G1：flush + 同拍 DRAIN pop 不得保留 ghost；
-7. INSTRET-G1：唯一 ISA retirement 源；
-8. store/device：late B error、翻译后地址分类、lane/size 与排序合同。
+3. **MEM-ISSUE-G1（CLOSED 2026-07-12）**：lane0 memory exception 与 lane1 normal
+   memory 共享端口时，IQ dequeue、request mux 与 MIQ owner 必须同源；旧 RTL 精确出现
+   `fire=1/request=0` 丢事务，审查又用 head-blocked LR 锁住首版 `request=1/fire=0`
+   幽灵 MIQ。最终正反例、module 87/87、Difftest-ON AM 59/59、official 177/177 均通过；
+4. IFU-AXI-G1：A/D partial write 遇 flush 必须排水；
+5. IFU-FETCH-G2：page-end 16-bit 指令 fault 归属；
+6. PTW-PMP-G1：A/D PTE write 独立 PMP WRITE check；
+7. MIQ-G1：flush + 同拍 DRAIN pop 不得保留 ghost；
+8. INSTRET-G1：唯一 ISA retirement 源；
+9. store/device：late B error、翻译后地址分类、lane/size 与排序合同。
 
 ### F2：声明 ISA/特权范围证明
 
