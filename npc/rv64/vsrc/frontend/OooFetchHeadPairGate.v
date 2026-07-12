@@ -190,11 +190,12 @@ module OooFetchHeadPairGate (
     .facts_o(head0_facts_o)
   );
 
-  // 【B2 S2】slot1_valid=0(slot0 预测 taken 截断)时 slot1 是 wrong-path: fault 不报
-  // (预测对时该 slot 架构上不存在; 预测错走后端 mispredict redirect 重取, fault 重现)。
+  // IFU-LANE1-OWNER：slot1_valid=0(slot0 预测 taken 截断)时 slot1 是 wrong-path，
+  // fault 不报；predicted-not-taken branch 的 slot1_valid=1，slot1 仍是当前顺序流的
+  // 精确候选，必须先保留 fault，待 branch resolve 决定提交还是 squash。不能仅因 head0
+  // 是 branch 就提前销毁 fault provenance。
   assign head_fetch_fault1_o =
       fifo_has_packet_i && head_slot1_valid_i && !head_fetch_fault0_o &&
-      !head0_facts_o[`OOO_SLOT_FACT_BRANCH] &&
       !head0_facts_o[`OOO_SLOT_FACT_JUMP] &&
       !head0_facts_o[`OOO_SLOT_FACT_STOP] && (head_resp1_i != 2'b00);
   assign head_fetch_fault_o = head_fetch_fault0_o | head_fetch_fault1_o;

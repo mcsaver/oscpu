@@ -337,6 +337,22 @@ module tb_ooo_mem_axi_bridge;
       mem0_rsp_ready = 1'b1;
       tick();
       mem0_rsp_ready = 1'b0;
+
+      // IFU-ACCESS-G1 总线刀只收窄 instruction read；LSU data 仍保留 exact-address /
+      // 低位窗口 ABI。用 off=5,size=4 再钉一行，防止 sized DPI 改造把 data narrow
+      // 误套成 instruction 的标准 byte-lane 布局。
+      issue_mem0_read_strb(64'h0000_0000_8000_1005, 8'b0000_1111);
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'h8877_6655_4433_2211;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("cross-line off5 size4 response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("cross-line off5 size4 data stays low-window", mem0_rsp_rdata,
+                 64'h8877_6655_4433_2211);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
     end
   endtask
 

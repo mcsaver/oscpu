@@ -1,8 +1,9 @@
 // 参数化 single-beat crossbar: master 口 AXI4 / slave 口 AXI4-Lite 转换互连。
 // master 口收完整 AXI4 信号集(ID/LEN/SIZE/BURST/PROT/LAST), 单 outstanding
-// 单 beat(LEN 恒 0); R/B 按 owner 记账回环 RID/BID, RLAST 恒 1。slave 口保持
-// AXI4-Lite(外设挂 Lite 的工业标准形态), 仅 AR 侧多一路 ARPROT 供 DPI slave
-// 区分 instruction/data access。
+// 单 beat(LEN 恒 0); R/B 按 owner 记账回环 RID/BID, RLAST 恒 1。slave 口保留
+// 单 beat 握手，并把 ARSIZE/ARPROT 与 ARADDR 一起锁存下传。SLAVE_EXEC_MASK 在
+// 仲裁前把 instruction read 的非可执行目标改投 default-error，设备侧永远看不到
+// 这类 ARVALID，因此拒绝取指不会触发 UART/CLINT/PLIC 等 read side effect。
 // 【AXI4 化 S2(2026-07-10)】读 abort 边带(m_read_abort_i)与 rd_drop_q 吞 R 机制
 // 已删除——在飞读的丢弃责任移交 master 桥自吞(fetch 桥 S_DRAIN/mem 桥 drop_rsp_q,
 // 见 design/specs/axi4-bus.md §2)。"master 暂不 ready 也先收 R 进 buffer 防
@@ -19,7 +20,8 @@ module AxiXbar #(
   parameter S_COUNT = 1,
   parameter DEFAULT_SLAVE = 0,
   parameter [S_COUNT*ADDR_W-1:0] SLAVE_BASE = {S_COUNT{32'h0000_0000}},
-  parameter [S_COUNT*ADDR_W-1:0] SLAVE_MASK = {S_COUNT{32'h0000_0000}}
+  parameter [S_COUNT*ADDR_W-1:0] SLAVE_MASK = {S_COUNT{32'h0000_0000}},
+  parameter [S_COUNT-1:0] SLAVE_EXEC_MASK = {S_COUNT{1'b1}}
 ) (
   input clk,
   input rst,
@@ -59,6 +61,7 @@ module AxiXbar #(
   output [S_COUNT-1:0] s_arvalid_o,
   input [S_COUNT-1:0] s_arready_i,
   output [S_COUNT*ADDR_W-1:0] s_araddr_o,
+  output [S_COUNT*3-1:0] s_arsize_o,
   output [S_COUNT*3-1:0] s_arprot_o,
   input [S_COUNT-1:0] s_rvalid_i,
   output [S_COUNT-1:0] s_rready_o,
@@ -80,9 +83,9 @@ module AxiXbar #(
   localparam MASTER_W = (M_COUNT <= 1) ? 1 : $clog2(M_COUNT);
   localparam SLAVE_W = (S_COUNT <= 1) ? 1 : $clog2(S_COUNT);
 
-  // AXI4 协议陪跑位: 单 outstanding 单 beat 互连里 SIZE/LEN/BURST/WLAST 无
-  // 消费者(slave 口是 AXI4-Lite, DPI slave 恒整 beat 访问), 端口保留、汇 unused。
-  wire unused_axi4_meta_w = |{m_arsize_i, m_arlen_i, m_arburst_i,
+  // 单 outstanding 单 beat互连不消费 burst 元数据；read SIZE 已成为 slave ABI，
+  // 不得再并入 unused。
+  wire unused_axi4_meta_w = |{m_arlen_i, m_arburst_i,
                               m_awlen_i, m_awsize_i, m_awburst_i, m_wlast_i};
 
   function [ADDR_W-1:0] m_addr_slice;
@@ -114,6 +117,14 @@ module AxiXbar #(
     input [MASTER_W-1:0] idx;
     begin
       m_prot_slice = bus[idx*3 +: 3];
+    end
+  endfunction
+
+  function [2:0] m_size_slice;
+    input [M_COUNT*3-1:0] bus;
+    input [MASTER_W-1:0] idx;
+    begin
+      m_size_slice = bus[idx*3 +: 3];
     end
   endfunction
 
@@ -183,6 +194,17 @@ module AxiXbar #(
     end
   endfunction
 
+  function [SLAVE_W-1:0] decode_read_slave;
+    input [ADDR_W-1:0] addr;
+    input [2:0] prot;
+    reg [SLAVE_W-1:0] decoded;
+    begin
+      decoded = decode_slave(addr);
+      decode_read_slave = (prot[2] && !SLAVE_EXEC_MASK[decoded]) ?
+                          default_slave_idx() : decoded;
+    end
+  endfunction
+
   reg [M_COUNT-1:0] m_arready_r;
   reg [M_COUNT-1:0] m_awready_r;
   reg [M_COUNT-1:0] m_wready_r;
@@ -196,6 +218,7 @@ module AxiXbar #(
 
   reg [S_COUNT-1:0] s_arvalid_r;
   reg [S_COUNT*ADDR_W-1:0] s_araddr_r;
+  reg [S_COUNT*3-1:0] s_arsize_r;
   reg [S_COUNT*3-1:0] s_arprot_r;
   reg [S_COUNT-1:0] s_rready_r;
   reg [S_COUNT-1:0] s_awvalid_r;
@@ -215,6 +238,7 @@ module AxiXbar #(
   reg [MASTER_W-1:0] rd_owner_q [0:S_COUNT-1];
   reg [MASTER_W-1:0] rd_rr_q [0:S_COUNT-1];
   reg [ADDR_W-1:0] rd_addr_q [0:S_COUNT-1];
+  reg [2:0] rd_size_q [0:S_COUNT-1];
   reg [2:0] rd_prot_q [0:S_COUNT-1];
   reg [3:0] rd_id_q [0:S_COUNT-1];
 
@@ -259,6 +283,7 @@ module AxiXbar #(
 
   assign s_arvalid_o = s_arvalid_r;
   assign s_araddr_o = s_araddr_r;
+  assign s_arsize_o = s_arsize_r;
   assign s_arprot_o = s_arprot_r;
   assign s_rready_o = s_rready_r;
   assign s_awvalid_o = s_awvalid_r;
@@ -288,6 +313,7 @@ module AxiXbar #(
 
     s_arvalid_r = {S_COUNT{1'b0}};
     s_araddr_r = {S_COUNT*ADDR_W{1'b0}};
+    s_arsize_r = {S_COUNT*3{1'b0}};
     s_arprot_r = {S_COUNT*3{1'b0}};
     s_rready_r = {S_COUNT{1'b0}};
     s_awvalid_r = {S_COUNT{1'b0}};
@@ -303,7 +329,8 @@ module AxiXbar #(
     owner = 0;
     // 每个 master 的目标 slave 只译码一次，再供各 slave 仲裁器复用。
     for (m = 0; m < M_COUNT; m = m + 1) begin
-      artarget_decode_r[m] = decode_slave(m_addr_slice(m_araddr_i, m));
+      artarget_decode_r[m] = decode_read_slave(
+          m_addr_slice(m_araddr_i, m), m_prot_slice(m_arprot_i, m));
       awtarget_decode_r[m] = decode_slave(m_addr_slice(m_awaddr_i, m));
     end
     for (s = 0; s < S_COUNT; s = s + 1) begin
@@ -363,6 +390,7 @@ module AxiXbar #(
       if (rd_active_q[s] && !rd_ar_sent_q[s]) begin
         s_arvalid_r[s] = 1'b1;
         s_araddr_r[s*ADDR_W +: ADDR_W] = rd_addr_q[s];
+        s_arsize_r[s*3 +: 3] = rd_size_q[s];
         s_arprot_r[s*3 +: 3] = rd_prot_q[s];
       end
 
@@ -472,6 +500,7 @@ module AxiXbar #(
         rd_owner_q[s] <= {MASTER_W{1'b0}};
         rd_rr_q[s] <= {MASTER_W{1'b0}};
         rd_addr_q[s] <= {ADDR_W{1'b0}};
+        rd_size_q[s] <= 3'd0;
         rd_prot_q[s] <= 3'd0;
         rd_id_q[s] <= 4'd0;
         wr_owner_q[s] <= {MASTER_W{1'b0}};
@@ -515,6 +544,7 @@ module AxiXbar #(
           rd_ar_sent_q[s] <= 1'b0;
           rd_owner_q[s] <= rd_grant_master_r[s];
           rd_addr_q[s] <= m_addr_slice(m_araddr_i, master_int(rd_grant_master_r[s]));
+          rd_size_q[s] <= m_size_slice(m_arsize_i, master_int(rd_grant_master_r[s]));
           rd_prot_q[s] <= m_prot_slice(m_arprot_i, master_int(rd_grant_master_r[s]));
           rd_id_q[s] <= m_id_slice(m_arid_i, master_int(rd_grant_master_r[s]));
           rd_master_busy_q[master_int(rd_grant_master_r[s])] <= 1'b1;

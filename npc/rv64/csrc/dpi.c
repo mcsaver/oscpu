@@ -307,11 +307,43 @@ void npc_ifetch(npc_paddr_t addr, npc_word_t *data, svBit *error) {
   if (!npc_paddr_read(addr, data, NPC_BUS_IFETCH)) { *error = 1; }
 }
 
+void npc_ifetch_sized(npc_paddr_t addr, uint32_t nbytes,
+                      npc_word_t *data, svBit *error) {
+  if (data == NULL || error == NULL) return;
+  *data = 0;
+  *error = 0;
+  if (nbytes == 0 || nbytes > sizeof(npc_word_t) ||
+      (nbytes & (nbytes - 1u)) != 0 ||
+      (addr & (npc_paddr_t)(nbytes - 1u)) != 0 ||
+      (addr & (sizeof(npc_word_t) - 1u)) + nbytes > sizeof(npc_word_t)) {
+    *error = 1;
+    return;
+  }
+  if (!npc_paddr_read_sized(addr, (size_t)nbytes, data, NPC_BUS_IFETCH)) {
+    *error = 1;
+  }
+}
+
 void npc_mem_read(npc_paddr_t addr, npc_word_t *data, svBit *error) {
   if (data == NULL || error == NULL) return;
   *data = 0;
   *error = 0;
   if (!npc_paddr_read(addr, data, NPC_BUS_LOAD)) { *error = 1; }
+}
+
+void npc_mem_read_sized(npc_paddr_t addr, uint32_t nbytes,
+                        npc_word_t *data, svBit *error) {
+  if (data == NULL || error == NULL) return;
+  *data = 0;
+  *error = 0;
+  if (nbytes == 0 || nbytes > sizeof(npc_word_t) ||
+      (nbytes & (nbytes - 1u)) != 0) {
+    *error = 1;
+    return;
+  }
+  if (!npc_paddr_read_sized(addr, (size_t)nbytes, data, NPC_BUS_LOAD)) {
+    *error = 1;
+  }
 }
 
 void npc_mem_write(npc_paddr_t addr, npc_word_t data, npc_word_t mask, svBit *error) {

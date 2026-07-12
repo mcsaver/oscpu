@@ -43,9 +43,11 @@ recovery 时序。
 
 - `fifo_has_packet_i` 为 0 时，所有 head/dispatch facts 必须为 0。
 - `head_fetch_fault0_o = fifo_has_packet_i && head_resp0_i != 0`。
-- lane1 只有在 FIFO 有包、lane0 无 fetch fault、lane0 不是 branch/jump/stop 且
+- lane1 decode 只有在 FIFO 有包、lane0 无 fetch fault、lane0 不是 branch/jump/stop 且
   slot1 response 正常时可见。
-- lane1 fetch fault 只有在 lane1 本可见、但 `head_resp1_i != 0` 时成立。
+- lane1 fetch fault 使用独立可见性：FIFO 有包、`slot1_valid=1`、lane0 无 fetch fault，
+  且 lane0 不是 jump/stop。pred-NT branch 的 slot1 属于当前顺序流，fault 必须保留；
+  predicted-taken 由 `slot1_valid=0` 抑制，避免 wrong-path fault。
 - `branch_spec_dispatch_block_o` 必须保持旧父模块语义：
   branch-spec active 时，任一 head fault/stop/control/mem 会阻止普通 dispatch。
 - `dispatch_valid_o` 必须保持旧父模块语义：
@@ -60,7 +62,8 @@ recovery 时序。
 ## 不变量
 
 - `head_fetch_fault0_o=1` 时，`head1_decode_valid` 内部为 0，lane1 分类 facts 为 0。
-- head0 branch/jump/stop 会抑制 lane1 decode 和 lane1 fetch fault。
+- head0 branch/jump/stop 会抑制 lane1 decode；只有 jump/stop（以及 branch 的
+  `slot1_valid=0`）抑制 lane1 fetch fault。不能仅因 head0 是 branch 就销毁 provenance。
 - `head_fetch_fault_o = head_fetch_fault0_o | head_fetch_fault1_o`。
 - branch-spec dispatch block 不应在 `branch_spec_active_i=0` 时拉高
   （默认 `OOO_ROB_WALK_MODE=1` 配置下 `branch_spec_active_i` 恒 0，故本输出恒 0；
@@ -75,7 +78,8 @@ recovery 时序。
 
 1. 根据 `fifo_has_packet_i/head_resp0_i` 生成 lane0 fetch fault 与 lane0 decode valid。
 2. 实例化 head0 `OooFetchHeadClassifyGate`，传入 slot1 作为 semihost exit peer。
-3. 根据 head0 branch/jump/stop 与 slot1 response 生成 lane1 fetch fault/decode valid。
+3. 分开生成 lane1 decode valid 与 fault visible：decode 受 branch/jump/stop 阻断；fault
+   对 pred-NT branch 保留，只由 `slot1_valid`、lane0 fault、jump/stop 决定。
 4. 实例化 head1 `OooFetchHeadClassifyGate`，传入 slot0 作为 semihost enter peer。
 5. 汇总 branch-spec dispatch block。
 6. 生成 `dispatch_valid` 和 lane0 dispatch facts。
@@ -86,7 +90,8 @@ recovery 时序。
 
 - idle 时所有 head/dispatch facts 为 0。
 - 普通双槽 ALU：lane0/lane1 可见，`dispatch_valid` 为 1。
-- lane0 branch 抑制 lane1 decode 与 lane1 fetch fault。
+- lane0 pred-NT branch 抑制 lane1 decode但保留 lane1 fetch fault；predicted-taken
+  `slot1_valid=0` 时 fault 被抑制。
 - lane0 illegal/stop 抑制 lane1 decode。
 - lane0 fetch fault 抑制 lane1 decode，并阻止 dispatch。
 - lane1 fetch fault 在 lane0 正常且 slot1 response fault 时成立，并纳入 head fault。
@@ -114,3 +119,6 @@ recovery 时序。
 - `make -C npc/rv64 lint` PASS。
 - `make -C npc/rv64` PASS。
 - official smoke：`rv64ui/rv64mi/rv64si` `overall_rc=0`，证据 `npc/rv64/perf/results/20260627-fetch-head-pair/core-regress-official/20260627-124346-64026/`。
+- 2026-07-13 IFU-LANE1-OWNER：旧 RTL 对 9 行 owner matrix 精确 5 RED；当前
+  pred-NT actual-NT/actual-taken、predicted-taken poison、ordinary PF/AF 与 head0 priority
+  全绿。整套 module 93/93、Difftest-ON AM 59/59、official 177/177。

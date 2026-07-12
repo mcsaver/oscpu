@@ -77,7 +77,10 @@ module OooFrontendDispatchGate (
       !dispatch0_exit_i &&
       !dispatch0_arch_trap_i &&
       !dispatch0_system_i &&
-      (!dispatch0_branch_i || dbranch_dual_go_o) &&
+      // pred-NT branch + lane1 fetch fault 不能 dual issue，但仍须进入 barrier：
+      // lane0 branch 先入 ROB，lane1 fault 被 pending owner 捕获；actual-taken 后 squash，
+      // actual-not-taken 则在 older branch 之后精确起 trap。
+      (!dispatch0_branch_i || dbranch_dual_go_o || head_fetch_fault1_i) &&
       !dispatch0_jal_i &&
       !dispatch0_jump_i;
 

@@ -23,8 +23,8 @@ module OooFetchAxiBridge (
   output [1:0] fetch_rsp_resp0_o,
   output [`INST_W-1:0] fetch_rsp_inst1_o,
   output [1:0] fetch_rsp_resp1_o,
-  // resp0 负责 packet 低地址起的连续字节数。普通包/缓存包恒为 4；跨页包为第一页
-  // 实际字节数。decoder 以该 split 和真实 RVC 长度把 segment resp 归一到 slot resp。
+  // resp0 负责 packet 低地址起的成功 prefix。完整成功/缓存包恒为 4；首个失败
+  // halfword 在 F 时为 F（允许 0）。decoder 以 split 和真实 RVC 长度归一到 slot resp。
   output [2:0] fetch_rsp_resp0_bytes_o,
 
   output ifu_axi_arvalid_o,
@@ -59,13 +59,11 @@ module OooFetchAxiBridge (
   input [1:0] ifu_axi_bresp_i
 );
 
-  // 【AXI4 化 S4】常量协议位: IFU ID 恒 4'd0、单 beat(LEN=0/WLAST=1)、INCR、
-  // 8B 读写、instruction access(ARPROT[2]=1, AXI 语义 instruction=1)。
+  // 单 beat AXI4 元数据。read SIZE/PROT 由当前 owner 决定：PTE walk 是
+  // data+8B，instruction footprint 是 exec+2B；write 仅用于对齐 8B PTE A 更新。
   assign ifu_axi_arid_o = 4'd0;
   assign ifu_axi_arlen_o = 8'd0;
-  assign ifu_axi_arsize_o = 3'd3;
   assign ifu_axi_arburst_o = 2'b01;
-  assign ifu_axi_arprot_o = 3'b100;
   assign ifu_axi_awid_o = 4'd0;
   assign ifu_axi_awlen_o = 8'd0;
   assign ifu_axi_awsize_o = 3'd3;
@@ -104,12 +102,14 @@ module OooFetchAxiBridge (
   reg [`XLEN-1:0] paddr0_q;
   reg [`XLEN-1:0] paddr1_q;
   reg packet_cross_page_q;
-  reg [2:0] packet_first_bytes_q;
-  reg [`XLEN-1:0] first_beat_q;
+  reg second_page_ready_q;
+  reg [2:0] fetch_offset_q;
+  reg [`XLEN-1:0] fetch_data_q;
   reg [`INST_W-1:0] inst0_q;
   reg [`INST_W-1:0] inst1_q;
   reg [1:0] resp0_q;
   reg [1:0] resp1_q;
+  reg [2:0] resp0_bytes_q;
   reg [`XLEN-1:0] debug_last_pte_addr_q;
   reg [`XLEN-1:0] debug_last_pte_q;
   reg [1:0] debug_last_pte_level_q;
@@ -120,6 +120,9 @@ module OooFetchAxiBridge (
   // mmu_flush 只作废旧取指语义，不能撤回已经呈现的 AXI write。该位 sticky 到 B completion，
   // 让同一 S_AD_UPDATE 状态继续补齐 AW/W 并消费 B，完成后直接丢弃而非 re-walk/报旧 fault。
   reg ad_drop_q;
+
+  assign ifu_axi_arsize_o = (state_q == S_WALK_AR) ? 3'd3 : 3'd1;
+  assign ifu_axi_arprot_o = (state_q == S_WALK_AR) ? 3'b000 : 3'b100;
 
   function sv39_enabled;
     input [1:0] priv_mode;
@@ -246,63 +249,42 @@ module OooFetchAxiBridge (
     end
   endfunction
 
-  function [`XLEN-1:0] merge_cross_page_packet;
-    input [`XLEN-1:0] first_beat;
-    input [`XLEN-1:0] second_beat;
-    input [2:0] first_bytes;
+  function [`XLEN-1:0] insert_fetch_halfword;
+    input [`XLEN-1:0] packet;
+    input [2:0] byte_offset;
+    input [15:0] halfword;
     begin
-      case (first_bytes)
-        3'd1: merge_cross_page_packet = {second_beat[55:0], first_beat[7:0]};
-        3'd2: merge_cross_page_packet = {second_beat[47:0], first_beat[15:0]};
-        3'd3: merge_cross_page_packet = {second_beat[39:0], first_beat[23:0]};
-        3'd4: merge_cross_page_packet = {second_beat[31:0], first_beat[31:0]};
-        3'd5: merge_cross_page_packet = {second_beat[23:0], first_beat[39:0]};
-        3'd6: merge_cross_page_packet = {second_beat[15:0], first_beat[47:0]};
-        3'd7: merge_cross_page_packet = {second_beat[7:0], first_beat[55:0]};
-        default: merge_cross_page_packet = first_beat;
+      insert_fetch_halfword = packet;
+      case (byte_offset)
+        3'd0: insert_fetch_halfword[15:0] = halfword;
+        3'd2: insert_fetch_halfword[31:16] = halfword;
+        3'd4: insert_fetch_halfword[47:32] = halfword;
+        3'd6: insert_fetch_halfword[63:48] = halfword;
+        default: insert_fetch_halfword = packet;
       endcase
     end
   endfunction
 
   wire req_paging_w = sv39_enabled(priv_mode_i, satp_i);
-  wire [`XLEN-1:0] req_packet_end_pc_w = fetch_req_pc_i + 64'd7;
-  wire [`XLEN-1:0] req_second_page_vaddr_w =
-      {fetch_req_pc_i[`XLEN-1:12], 12'b0} + 64'd4096;
-  wire [12:0] req_first_page_bytes_full_w =
-      13'd4096 - {1'b0, fetch_req_pc_i[11:0]};
-  wire req_same_fetch_page_w =
-      fetch_req_pc_i[`XLEN-1:12] == req_packet_end_pc_w[`XLEN-1:12];
-  wire req_cross_fetch_page_w = !req_same_fetch_page_w;
-  wire [2:0] req_first_page_bytes_w =
-      req_first_page_bytes_full_w[2:0];
   wire cache_hit_raw_w;
-  wire pmp_active_w = (pmpcfg_i != {`PMP_CFG_BUS_W{1'b0}});
   // 声明前置，iverilog 14 拒绝前向引用（下方 cache_hit_w 提前引用这三个信号）
   wire req_itlb_hit_w;
   wire req_exec_pmp_fault_w;
   wire req_exec1_pmp_fault_w;
-  // 为什么这么改：原实现只要 PMP 有任何活动条目就整体禁用取指包 cache
-  // (cache_hit && !pmp_active)，导致真实 Linux/OpenSBI(总会配 PMP)下每次取指都
-  // miss、退到慢速 AXI 取指，CPI 近乎翻倍。其实 PMP 权限本就每拍按当前 pmpcfg
-  // 独立计算(req_exec_pmp_fault_w)；安全做法是命中时仍要求 PMP 放行，而不是禁用
-  // 整个 cache。这样 PMP 会 fault 时 cache_hit=0 落到下方 fault 分支(语义不变)，
-  // PMP 放行(Linux 下 DRAM 整片 RWX 的常态)时命中生效、恢复性能。
-  // 非 PMP 场景(pmp_active=0)走 1'b1 分支，行为与原实现逐位一致。
-  // SRAM 化后本式仅在 S_LOOKUP(判决拍)有意义：cache_hit_raw_w 是 SRAM 同步读结果，
-  // ITLB/PMP 复检全部用 fire 拍锁存的请求上下文(paging_q/pc_q/req_priv_q/req_satp_q)。
+  // Fast hit 只接受两个固定 4B checker 都放行的保守充分条件。任何固定窗口拒绝
+  // 都只降级到下方 exact-halfword slow path，不能直接成为架构 fault。PMP checker
+  // 永远运行；S/U + 全零 pmpcfg 的 default-deny 不能再借 cache 绕过。
   wire cache_hit_w = cache_hit_raw_w &&
-      (pmp_active_w ? (!req_exec_pmp_fault_w && !req_exec1_pmp_fault_w &&
-                       (!paging_q || req_itlb_hit_w))
-                    : 1'b1);
+      !req_exec_pmp_fault_w && !req_exec1_pmp_fault_w &&
+      (!paging_q || req_itlb_hit_w);
   // 刀F 融合拍专用 hit: 用不含窗口②当拍 snoop 地址比较的 no_snoop 版, 叠加
   // !invalidate_valid_i(单 bit)关断——invalidate 拍融合降级走精确寄存路径
   // (S_RESP, +1 拍), 切断 SQ snoop 跨模块链与取指发射决策(ready/fire/SRAM addr)
   // 的串联(全核 top 违例族修复)。invalidate_valid_i=0 时本式==cache_hit_w。
   wire cache_hit_no_snoop_raw_w;
   wire cache_hit_fusion_w = cache_hit_no_snoop_raw_w && !invalidate_valid_i &&
-      (pmp_active_w ? (!req_exec_pmp_fault_w && !req_exec1_pmp_fault_w &&
-                       (!paging_q || req_itlb_hit_w))
-                    : 1'b1);
+      !req_exec_pmp_fault_w && !req_exec1_pmp_fault_w &&
+      (!paging_q || req_itlb_hit_w);
   wire fetch_cache_context_unused_w;
   wire [`INST_W-1:0] cache_inst0_w;
   wire [`INST_W-1:0] cache_inst1_w;
@@ -330,31 +312,67 @@ module OooFetchAxiBridge (
   assign req_exec1_pmp_fault_w =
       (!paging_q || req_itlb_hit_w) && req_exec1_pmp_fault_raw_w;
   wire fetch_req_fire_w = fetch_req_valid_i && fetch_req_ready_o;
-  // direct miss 的 AR 从 fire 拍移到 S_LOOKUP 判决拍(同步读 +1 拍)。
-  wire lookup_direct_miss_w =
-      (state_q == S_LOOKUP) && !paging_q && !req_exec_pmp_fault_w &&
-      !cache_hit_w;
-  wire [`XLEN-1:0] pc_packet_end_w = pc_q + 64'd7;
   wire [`XLEN-1:0] pc_second_page_vaddr_w =
       {pc_q[`XLEN-1:12], 12'b0} + 64'd4096;
   wire [`XLEN-1:0] walk_vaddr_w =
       walk_second_q ? pc_second_page_vaddr_w : pc_q;
   wire [`XLEN-1:0] walk_pte_addr_w =
       pte_addr(walk_ppn_q, walk_vaddr_w, walk_level_q);
-  wire [`XLEN-1:0] walk_leaf_exec_paddr_w =
-      leaf_paddr(ifu_axi_rdata_i, walk_vaddr_w, walk_level_q);
-  wire [`XLEN-1:0] walk_leaf_exec1_paddr_w =
-      walk_leaf_exec_paddr_w + 64'd4;
-  wire walk_leaf_exec_pmp_fault_w;
-  wire walk_leaf_exec1_pmp_fault_w;
-  wire [`XLEN-1:0] fetch0_addr_w = paging_q ? paddr0_q : pc_q;
-  wire same_fetch_page_w =
-      pc_q[`XLEN-1:12] == pc_packet_end_w[`XLEN-1:12];
-  wire [`INST_W-1:0] fetch_beat_inst0_w = ifu_axi_rdata_i[`INST_W-1:0];
-  wire [`INST_W-1:0] fetch_beat_inst1_w = ifu_axi_rdata_i[`XLEN-1:`INST_W];
-  wire [`XLEN-1:0] merged_cross_packet_w =
-      merge_cross_page_packet(first_beat_q, ifu_axi_rdata_i,
-                              packet_first_bytes_q);
+
+  // Miss path：每拍只处理一个已注册的 2B frontier。RDATA 仅决定下一拍 offset；
+  // 不允许 RDATA→length→ARVALID/ARADDR 的同拍组合链。
+  wire [`XLEN-1:0] fetch_current_vaddr_w =
+      pc_q + {{(`XLEN-3){1'b0}}, fetch_offset_q};
+  wire fetch_current_on_second_w =
+      fetch_current_vaddr_w[`XLEN-1:12] != pc_q[`XLEN-1:12];
+  wire [`XLEN-1:0] fetch_current_paddr_w = !paging_q ?
+      fetch_current_vaddr_w :
+      fetch_current_on_second_w ?
+          (paddr1_q + {{(`XLEN-12){1'b0}}, fetch_current_vaddr_w[11:0]}) :
+          (paddr0_q + {{(`XLEN-3){1'b0}}, fetch_offset_q});
+  wire [5:0] fetch_r_lane_shift_w = {fetch_current_paddr_w[2:0], 3'b000};
+  wire [`XLEN-1:0] fetch_r_low_window_w =
+      ifu_axi_rdata_i >> fetch_r_lane_shift_w;
+  wire [15:0] fetch_r_halfword_w = fetch_r_low_window_w[15:0];
+  wire [`XLEN-1:0] fetch_data_after_r_w =
+      insert_fetch_halfword(fetch_data_q, fetch_offset_q, fetch_r_halfword_w);
+
+  reg fetch_more_after_r_r;
+  reg [2:0] fetch_next_offset_r;
+  always @(*) begin
+    fetch_more_after_r_r = 1'b0;
+    fetch_next_offset_r = fetch_offset_q;
+    case (fetch_offset_q)
+      3'd0: begin
+        fetch_more_after_r_r = 1'b1;
+        fetch_next_offset_r = 3'd2;
+      end
+      3'd2: begin
+        // L0=C 时当前 halfword 是 L1 prefix；否则是 L0 tail。
+        fetch_more_after_r_r =
+            (fetch_data_after_r_w[1:0] == 2'b11) ||
+            (fetch_data_after_r_w[17:16] == 2'b11);
+        fetch_next_offset_r = 3'd4;
+      end
+      3'd4: begin
+        // L0=C 时当前是 L1 tail，必完成；L0=32 时当前是 L1 prefix。
+        fetch_more_after_r_r =
+            (fetch_data_after_r_w[1:0] == 2'b11) &&
+            (fetch_data_after_r_w[33:32] == 2'b11);
+        fetch_next_offset_r = 3'd6;
+      end
+      default: begin
+        fetch_more_after_r_r = 1'b0;
+        fetch_next_offset_r = fetch_offset_q;
+      end
+    endcase
+  end
+  wire fetch_more_after_r_w = fetch_more_after_r_r;
+  wire [2:0] fetch_next_offset_w = fetch_next_offset_r;
+  wire [`XLEN-1:0] fetch_next_vaddr_w =
+      pc_q + {{(`XLEN-3){1'b0}}, fetch_next_offset_w};
+  wire fetch_next_cross_page_w =
+      fetch_next_vaddr_w[`XLEN-1:12] != pc_q[`XLEN-1:12];
   wire itlb_fill_valid_w =
       !mmu_flush_i && (state_q == S_WALK_R) && ifu_axi_rvalid_i &&
       (ifu_axi_rresp_i == RESP_OK) &&
@@ -366,33 +384,19 @@ module OooFetchAxiBridge (
       // HW A: 首遍读到 A=0 的 PTE 不填 TLB(否则缓存 A=0 项); 待 S_AD_UPDATE 写完 re-walk
       // 读回 A=1 的 PTE 再填。TLB 因此永不缓存 A=0, TLB 命中路径无需 A 门控。
       !exec_ad_update_needed(ifu_axi_rdata_i);
-  wire fetch_cache_fill_r0_w =
+  wire fetch_cache_fill_complete_w =
       (state_q == S_R0) && ifu_axi_rvalid_i &&
       (ifu_axi_rresp_i == RESP_OK) &&
-      !packet_cross_page_q &&
-      (resp0_q == RESP_OK) && (resp1_q == RESP_OK);
-  // 不缓存跨页取指包:跨页包槽1 在下一物理页,而命中复检的 req_exec1_paddr_w=paddr0+4 是错页地址,
-  // PMP 运行期 allow→deny 第二页且无取指 cache 失效时会绕过槽1 PMP(known-issues 隐患B)。
-  // 跨页包改为每次重取(经 walk-leaf checker 用正确物理地址重查两页 PMP),结构性消除该隐患;
-  // 交付不受影响(走 inst*_q 寄存器,与 fill 分离),跨页包稀少(PC 跨 4KB 边界),CPI 影响可忽略。
-  wire fetch_cache_fill_r1_w =
-      (state_q == S_R1) && ifu_axi_rvalid_i &&
-      (ifu_axi_rresp_i == RESP_OK) &&
-      !packet_cross_page_q &&
-      (resp0_q == RESP_OK);
-  // 填充恒开：缓存的是真实取回的指令字节，存入安全；是否供给由 cache_hit_w 的
-  // PMP 放行门控决定。原来的 !pmp_active_w 门控会在 PMP 下让 cache 永不填充。
-  wire fetch_cache_fill_valid_w =
-      (fetch_cache_fill_r0_w || fetch_cache_fill_r1_w);
+      !fetch_more_after_r_w && !packet_cross_page_q;
+  // 只缓存 exact 成功 footprint；未取 tail 在 fetch_data_q reset 后保持确定性 0。
+  // 跨页包仍不缓存，避免 fast checker 的 paddr0+4 误代第二物理页。
+  wire fetch_cache_fill_valid_w = fetch_cache_fill_complete_w;
   wire [`INST_W-1:0] fetch_cache_fill_inst0_w =
-      fetch_cache_fill_r1_w ? merged_cross_packet_w[`INST_W-1:0] :
-                              fetch_beat_inst0_w;
+      fetch_data_after_r_w[`INST_W-1:0];
   wire [`INST_W-1:0] fetch_cache_fill_inst1_w =
-      fetch_cache_fill_r1_w ? merged_cross_packet_w[`XLEN-1:`INST_W] :
-                              fetch_beat_inst1_w;
-  wire [1:0] fetch_cache_fill_resp0_w =
-      fetch_cache_fill_r1_w ? resp0_q : RESP_OK;
-  wire [1:0] fetch_cache_fill_resp1_w = resp1_q;
+      fetch_data_after_r_w[`XLEN-1:`INST_W];
+  wire [1:0] fetch_cache_fill_resp0_w = RESP_OK;
+  wire [1:0] fetch_cache_fill_resp1_w = RESP_OK;
 
   // 两拍 lookup 协议: fire 拍(fetch_req_fire_w)发射 lookup_en 并传当拍请求上下文,
   // cache 内部锁存; 判决拍(S_LOOKUP)输出 cache_hit_raw_w/inst/resp 针对锁存请求有效。
@@ -471,28 +475,36 @@ module OooFetchAxiBridge (
     .fault_o(req_exec1_pmp_fault_raw_w)
   );
 
-  PmpChecker u_walk_leaf_exec_pmp_checker (
-    .paddr_i(walk_leaf_exec_paddr_w),
-    .access_size_i(4'd4),
+  // 架构 fault owner：AR 前按完全相同的 PA/2B 检查。固定 4B checker 只服务
+  // cache fast gate，绝不复用为 slow-path fault 判决。
+  wire fetch_current_pmp_fault_w;
+  PmpChecker u_fetch_current_pmp_checker (
+    .paddr_i(fetch_current_paddr_w),
+    .access_size_i(4'd2),
     .priv_mode_i(req_priv_q),
     .access_read_i(1'b0),
     .access_write_i(1'b0),
     .access_exec_i(1'b1),
     .pmpcfg_i(pmpcfg_i),
     .pmpaddr_i(pmpaddr_i),
-    .fault_o(walk_leaf_exec_pmp_fault_w)
+    .fault_o(fetch_current_pmp_fault_w)
   );
 
-  PmpChecker u_walk_leaf_exec1_pmp_checker (
-    .paddr_i(walk_leaf_exec1_paddr_w),
-    .access_size_i(4'd4),
+  // Leaf PTE 的 A=0 更新是可见 memory side effect；必须先用当前 frontier 的
+  // exact PA/2B 完成 EXEC PMP 判决，再允许写 A。S_AR0 会在真正发数据 AR 前复检。
+  wire [`XLEN-1:0] walk_leaf_current_paddr_w =
+      leaf_paddr(ifu_axi_rdata_i, fetch_current_vaddr_w, walk_level_q);
+  wire walk_leaf_current_pmp_fault_w;
+  PmpChecker u_walk_leaf_current_pmp_checker (
+    .paddr_i(walk_leaf_current_paddr_w),
+    .access_size_i(4'd2),
     .priv_mode_i(req_priv_q),
     .access_read_i(1'b0),
     .access_write_i(1'b0),
     .access_exec_i(1'b1),
     .pmpcfg_i(pmpcfg_i),
     .pmpaddr_i(pmpaddr_i),
-    .fault_o(walk_leaf_exec1_pmp_fault_w)
+    .fault_o(walk_leaf_current_pmp_fault_w)
   );
 
   // F9：取指页表 walk 的各级 PTE 读地址也必须受 PMP（priv-spec 隐式页表访问）。PTE 读是
@@ -527,29 +539,23 @@ module OooFetchAxiBridge (
   assign fetch_rsp_inst1_o = lookup_hit_resp_w ? cache_inst1_w : inst1_q;
   assign fetch_rsp_resp0_o = lookup_hit_resp_w ? cache_resp0_w : resp0_q;
   assign fetch_rsp_resp1_o = lookup_hit_resp_w ? cache_resp1_w : resp1_q;
-  // 非跨页 bridge/cache response 延续两个 32-bit word segment；跨页 response 则保留
-  // first-page/second-page byte provenance。跨页包不缓存，因此不存在 cache ABI 混用。
-  assign fetch_rsp_resp0_bytes_o = packet_cross_page_q ?
-                                    packet_first_bytes_q : 3'd4;
+  // successful-prefix/fault-suffix ABI：hit/完整成功恒 split=4；fault 的 split=首个
+  // 失败 halfword offset F（允许 F=0）。decoder 以真实长度决定 fault 属于哪一槽。
+  assign fetch_rsp_resp0_bytes_o = lookup_hit_resp_w ? 3'd4 : resp0_bytes_q;
 
   // 【AXI4 化 S1】flush 拍不发新 AR(撤销待发读, 无 orphan; 已 fire 的读走 S_DRAIN 自吞)
   assign ifu_axi_arvalid_o =
-      (((state_q == S_WALK_AR) && !walk_pte_pmp_fault_w) || (state_q == S_AR0) ||
-       (state_q == S_AR1) ||
-       lookup_direct_miss_w) && !mmu_flush_i;
-  // direct miss 在 S_LOOKUP 发 AR 时 paging_q=0, fetch0_addr_w=pc_q(=fire 拍锁存的
-  // 请求 PC), 无需单列 araddr 臂。
+      (((state_q == S_WALK_AR) && !walk_pte_pmp_fault_w) ||
+       ((state_q == S_AR0) && !fetch_current_pmp_fault_w)) && !mmu_flush_i;
   assign ifu_axi_araddr_o =
-      (state_q == S_WALK_AR) ? walk_pte_addr_w :
-      (state_q == S_AR1) ? paddr1_q :
-      fetch0_addr_w;
+      (state_q == S_WALK_AR) ? walk_pte_addr_w : fetch_current_paddr_w;
   assign ifu_axi_rready_o =
-      (state_q == S_WALK_R) || (state_q == S_R0) || (state_q == S_R1) ||
+      (state_q == S_WALK_R) || (state_q == S_R0) ||
       (state_q == S_DRAIN);
   // 【AXI4 化 S1】在飞 AXI 读判定(等 R 态=AR 已 fire): flush 拍若 R 未同拍到达,
   // 转 S_DRAIN 吞 R; R 同拍 fire 则本拍即消费完, 直接回 IDLE。
   wire ifu_axi_read_inflight_w =
-      (state_q == S_WALK_R) || (state_q == S_R0) || (state_q == S_R1) ||
+      (state_q == S_WALK_R) || (state_q == S_R0) ||
       (state_q == S_DRAIN);
   wire ifu_axi_r_fire_w = ifu_axi_rvalid_i && ifu_axi_rready_o;
 
@@ -585,12 +591,14 @@ module OooFetchAxiBridge (
       paddr0_q <= {`XLEN{1'b0}};
       paddr1_q <= {`XLEN{1'b0}};
       packet_cross_page_q <= 1'b0;
-      packet_first_bytes_q <= 3'd0;
-      first_beat_q <= {`XLEN{1'b0}};
+      second_page_ready_q <= 1'b0;
+      fetch_offset_q <= 3'd0;
+      fetch_data_q <= {`XLEN{1'b0}};
       inst0_q <= {`INST_W{1'b0}};
       inst1_q <= {`INST_W{1'b0}};
       resp0_q <= RESP_OK;
       resp1_q <= RESP_OK;
+      resp0_bytes_q <= 3'd4;
       debug_last_pte_addr_q <= {`XLEN{1'b0}};
       debug_last_pte_q <= {`XLEN{1'b0}};
       debug_last_pte_level_q <= 2'd0;
@@ -615,12 +623,14 @@ module OooFetchAxiBridge (
       paddr0_q <= {`XLEN{1'b0}};
       paddr1_q <= {`XLEN{1'b0}};
       packet_cross_page_q <= 1'b0;
-      packet_first_bytes_q <= 3'd0;
-      first_beat_q <= {`XLEN{1'b0}};
+      second_page_ready_q <= 1'b0;
+      fetch_offset_q <= 3'd0;
+      fetch_data_q <= {`XLEN{1'b0}};
       inst0_q <= {`INST_W{1'b0}};
       inst1_q <= {`INST_W{1'b0}};
       resp0_q <= RESP_OK;
       resp1_q <= RESP_OK;
+      resp0_bytes_q <= 3'd4;
       debug_last_pte_addr_q <= {`XLEN{1'b0}};
       debug_last_pte_q <= {`XLEN{1'b0}};
       debug_last_pte_level_q <= 2'd0;
@@ -637,15 +647,17 @@ module OooFetchAxiBridge (
           if (fetch_req_fire_w) begin
             pc_q <= fetch_req_pc_i;
             paddr0_q <= fetch_req_pc_i;
-            paddr1_q <= req_cross_fetch_page_w ? req_second_page_vaddr_w :
-                                                   (fetch_req_pc_i + 64'd4);
-            packet_cross_page_q <= req_cross_fetch_page_w;
-            packet_first_bytes_q <= req_first_page_bytes_w;
-            first_beat_q <= {`XLEN{1'b0}};
+            paddr1_q <= {`XLEN{1'b0}};
+            packet_cross_page_q <= 1'b0;
+            walk_second_q <= 1'b0;
+            second_page_ready_q <= 1'b0;
+            fetch_offset_q <= 3'd0;
+            fetch_data_q <= {`XLEN{1'b0}};
             inst0_q <= {`INST_W{1'b0}};
             inst1_q <= {`INST_W{1'b0}};
             resp0_q <= RESP_OK;
             resp1_q <= RESP_OK;
+            resp0_bytes_q <= 3'd4;
             paging_q <= req_paging_w;
             req_priv_q <= priv_mode_i;
             req_satp_q <= satp_i;
@@ -657,8 +669,8 @@ module OooFetchAxiBridge (
         S_LOOKUP: begin
           // 判决拍: cache_hit_raw_w=SRAM 同步读结果, ITLB/PMP 复检用 fire 拍锁存值。
           // 刀F 融合拍: hit 响应本拍组合交付(见 fetch_rsp_valid_o 组合臂); miss/fault
-          // 拍 ready=0; direct miss 的 AR 由 lookup_direct_miss_w 当拍发起;
-          // mmu_flush 经顶部复位分支回 S_IDLE, 本判决自然作废。
+          // 拍 ready=0；miss 进入 registered CHECK→AR→R，mmu_flush 经顶部复位
+          // 分支回 S_IDLE，本判决自然作废。
           if (cache_hit_w) begin
             if (cache_hit_fusion_w && fetch_rsp_ready_i) begin
               if (fetch_req_valid_i) begin
@@ -666,15 +678,17 @@ module OooFetchAxiBridge (
                 // 留在 S_LOOKUP —— hit 稳态 1 包/拍。
                 pc_q <= fetch_req_pc_i;
                 paddr0_q <= fetch_req_pc_i;
-                paddr1_q <= req_cross_fetch_page_w ? req_second_page_vaddr_w :
-                                                       (fetch_req_pc_i + 64'd4);
-                packet_cross_page_q <= req_cross_fetch_page_w;
-                packet_first_bytes_q <= req_first_page_bytes_w;
-                first_beat_q <= {`XLEN{1'b0}};
+                paddr1_q <= {`XLEN{1'b0}};
+                packet_cross_page_q <= 1'b0;
+                walk_second_q <= 1'b0;
+                second_page_ready_q <= 1'b0;
+                fetch_offset_q <= 3'd0;
+                fetch_data_q <= {`XLEN{1'b0}};
                 inst0_q <= {`INST_W{1'b0}};
                 inst1_q <= {`INST_W{1'b0}};
                 resp0_q <= RESP_OK;
                 resp1_q <= RESP_OK;
+                resp0_bytes_q <= 3'd4;
                 paging_q <= req_paging_w;
                 req_priv_q <= priv_mode_i;
                 req_satp_q <= satp_i;
@@ -691,33 +705,17 @@ module OooFetchAxiBridge (
               inst1_q <= cache_inst1_w;
               resp0_q <= cache_resp0_w;
               resp1_q <= cache_resp1_w;
+              resp0_bytes_q <= 3'd4;
               state_q <= S_RESP;
             end
-          end else if (req_exec_pmp_fault_w) begin
-            resp0_q <= RESP_ACCESS_FAULT;
-            resp1_q <= RESP_ACCESS_FAULT;
-            state_q <= S_RESP;
           end else if (paging_q && req_itlb_perm_fault_w) begin
-            resp0_q <= RESP_PAGE_FAULT;
+            resp0_q <= RESP_OK;
             resp1_q <= RESP_PAGE_FAULT;
+            resp0_bytes_q <= 3'd0;
             state_q <= S_RESP;
           end else if (paging_q && req_itlb_hit_w) begin
             paddr0_q <= req_itlb_paddr_w;
-            resp0_q <= RESP_OK;
-            if (same_fetch_page_w) begin
-              paddr1_q <= req_itlb_paddr_w + 64'd4;
-              resp1_q <= req_exec1_pmp_fault_w ? RESP_ACCESS_FAULT :
-                                                  RESP_OK;
-              state_q <= S_AR0;
-            end else if (canonical_sv39(pc_second_page_vaddr_w)) begin
-              walk_second_q <= 1'b1;
-              walk_level_q <= 2'd2;
-              walk_ppn_q <= req_satp_q[43:0];
-              state_q <= S_WALK_AR;
-            end else begin
-              resp1_q <= RESP_PAGE_FAULT;
-              state_q <= S_AR0;
-            end
+            state_q <= S_AR0;
           end else if (paging_q) begin
             if (canonical_sv39(pc_q)) begin
               walk_second_q <= 1'b0;
@@ -725,28 +723,26 @@ module OooFetchAxiBridge (
               walk_ppn_q <= req_satp_q[43:0];
               state_q <= S_WALK_AR;
             end else begin
-              resp0_q <= RESP_PAGE_FAULT;
+              resp0_q <= RESP_OK;
               resp1_q <= RESP_PAGE_FAULT;
+              resp0_bytes_q <= 3'd0;
               state_q <= S_RESP;
             end
           end else begin
-            resp1_q <= req_exec1_pmp_fault_w ? RESP_ACCESS_FAULT : RESP_OK;
-            state_q <= ifu_axi_arready_i ? S_R0 : S_AR0;
+            state_q <= S_AR0;
           end
         end
 
         S_WALK_AR: begin
-          // F9：PTE 读地址 PMP 违例 → 取指 access fault（非 page fault）。镜像 rresp≠OK 的
-          // 跨页双路处理：second 页 walk 失败只标 resp1 并回去取第一页，否则两槽都 access fault。
+          // PTE 隐式 data read 先做 8B PMP。无论第几页，失败 owner 都是当前
+          // registered halfword frontier；此前成功 prefix 保留，年轻访问停止。
           if (walk_pte_pmp_fault_w) begin
-            if (walk_second_q) begin
-              resp1_q <= RESP_ACCESS_FAULT;
-              state_q <= S_AR0;
-            end else begin
-              resp0_q <= RESP_ACCESS_FAULT;
-              resp1_q <= RESP_ACCESS_FAULT;
-              state_q <= S_RESP;
-            end
+            inst0_q <= fetch_data_q[`INST_W-1:0];
+            inst1_q <= fetch_data_q[`XLEN-1:`INST_W];
+            resp0_q <= RESP_OK;
+            resp1_q <= RESP_ACCESS_FAULT;
+            resp0_bytes_q <= fetch_offset_q;
+            state_q <= S_RESP;
           end else if (ifu_axi_arready_i) begin
             state_q <= S_WALK_R;
           end
@@ -759,48 +755,40 @@ module OooFetchAxiBridge (
             debug_last_pte_level_q <= walk_level_q;
             debug_last_pte_second_q <= walk_second_q;
             if (ifu_axi_rresp_i != RESP_OK) begin
-              if (walk_second_q) begin
-                resp1_q <= RESP_ACCESS_FAULT;
-                state_q <= S_AR0;
-              end else begin
-                resp0_q <= RESP_ACCESS_FAULT;
-                resp1_q <= RESP_ACCESS_FAULT;
-                state_q <= S_RESP;
-              end
+              inst0_q <= fetch_data_q[`INST_W-1:0];
+              inst1_q <= fetch_data_q[`XLEN-1:`INST_W];
+              resp0_q <= RESP_OK;
+              resp1_q <= RESP_ACCESS_FAULT;
+              resp0_bytes_q <= fetch_offset_q;
+              state_q <= S_RESP;
             end else if (pte_invalid(ifu_axi_rdata_i) ||
                          pte_reserved_fault(ifu_axi_rdata_i,
                                             req_svpbmt_en_q,
                                             walk_level_q) ||
                          (!pte_leaf(ifu_axi_rdata_i) &&
                           (walk_level_q == 2'd0))) begin
-              if (walk_second_q) begin
-                resp1_q <= RESP_PAGE_FAULT;
-                state_q <= S_AR0;
-              end else begin
-                resp0_q <= RESP_PAGE_FAULT;
-                resp1_q <= RESP_PAGE_FAULT;
-                state_q <= S_RESP;
-              end
+              inst0_q <= fetch_data_q[`INST_W-1:0];
+              inst1_q <= fetch_data_q[`XLEN-1:`INST_W];
+              resp0_q <= RESP_OK;
+              resp1_q <= RESP_PAGE_FAULT;
+              resp0_bytes_q <= fetch_offset_q;
+              state_q <= S_RESP;
             end else if (pte_leaf(ifu_axi_rdata_i)) begin
               if (superpage_misaligned(ifu_axi_rdata_i, walk_level_q) ||
                   exec_permission_fault(ifu_axi_rdata_i, req_priv_q)) begin
-                if (walk_second_q) begin
-                  resp1_q <= RESP_PAGE_FAULT;
-                  state_q <= S_AR0;
-                end else begin
-                  resp0_q <= RESP_PAGE_FAULT;
-                  resp1_q <= RESP_PAGE_FAULT;
-                  state_q <= S_RESP;
-                end
-              end else if (walk_leaf_exec_pmp_fault_w) begin
-                if (walk_second_q) begin
-                  resp1_q <= RESP_ACCESS_FAULT;
-                  state_q <= S_AR0;
-                end else begin
-                  resp0_q <= RESP_ACCESS_FAULT;
-                  resp1_q <= RESP_ACCESS_FAULT;
-                  state_q <= S_RESP;
-                end
+                inst0_q <= fetch_data_q[`INST_W-1:0];
+                inst1_q <= fetch_data_q[`XLEN-1:`INST_W];
+                resp0_q <= RESP_OK;
+                resp1_q <= RESP_PAGE_FAULT;
+                resp0_bytes_q <= fetch_offset_q;
+                state_q <= S_RESP;
+              end else if (walk_leaf_current_pmp_fault_w) begin
+                inst0_q <= fetch_data_q[`INST_W-1:0];
+                inst1_q <= fetch_data_q[`XLEN-1:`INST_W];
+                resp0_q <= RESP_OK;
+                resp1_q <= RESP_ACCESS_FAULT;
+                resp0_bytes_q <= fetch_offset_q;
+                state_q <= S_RESP;
               // HW A: 真权限+PMP 全过但 A=0 → 写回 PTE|A 后 re-walk 本级(读回 A=1 续原取指)。
               // walk_ppn_q/walk_level_q 保持不变 → walk_pte_addr_w 仍指向本 leaf PTE。
               // 置 A 后真 fault 已排除, 故不会与 fault 竞争(fault 分支在前, 优先)。
@@ -812,30 +800,16 @@ module OooFetchAxiBridge (
                 state_q <= S_AD_UPDATE;
               end else begin
                 if (walk_second_q) begin
-                paddr1_q <= leaf_paddr(ifu_axi_rdata_i,
-                                       pc_second_page_vaddr_w,
-                                       walk_level_q);
-                resp1_q <= RESP_OK;
-                state_q <= S_AR0;
-                end else begin
-                paddr0_q <= leaf_paddr(ifu_axi_rdata_i, pc_q, walk_level_q);
-                resp0_q <= RESP_OK;
-                if (same_fetch_page_w) begin
-                  paddr1_q <= leaf_paddr(ifu_axi_rdata_i, pc_q,
-                                         walk_level_q) + 64'd4;
-                  resp1_q <= walk_leaf_exec1_pmp_fault_w ?
-                             RESP_ACCESS_FAULT : RESP_OK;
+                  paddr1_q <= leaf_paddr(ifu_axi_rdata_i,
+                                         pc_second_page_vaddr_w,
+                                         walk_level_q);
+                  second_page_ready_q <= 1'b1;
                   state_q <= S_AR0;
-                end else if (canonical_sv39(pc_second_page_vaddr_w)) begin
-                  walk_second_q <= 1'b1;
-                  walk_level_q <= 2'd2;
-                  walk_ppn_q <= req_satp_q[43:0];
-                  state_q <= S_WALK_AR;
                 end else begin
-                  resp1_q <= RESP_PAGE_FAULT;
+                  paddr0_q <= leaf_paddr(ifu_axi_rdata_i, pc_q,
+                                         walk_level_q);
                   state_q <= S_AR0;
                 end
-              end
               end
             end else begin
               walk_ppn_q <= ifu_axi_rdata_i[53:10];
@@ -846,46 +820,69 @@ module OooFetchAxiBridge (
         end
 
         S_AR0: begin
-          if (ifu_axi_arready_i) begin
+          // CHECK→AR：PMP fault suppresses ARVALID and closes at this frontier。
+          if (fetch_current_pmp_fault_w) begin
+            inst0_q <= fetch_data_q[`INST_W-1:0];
+            inst1_q <= fetch_data_q[`XLEN-1:`INST_W];
+            resp0_q <= RESP_OK;
+            resp1_q <= RESP_ACCESS_FAULT;
+            resp0_bytes_q <= fetch_offset_q;
+            state_q <= S_RESP;
+          end else if (ifu_axi_arready_i) begin
             state_q <= S_R0;
           end
         end
 
         S_R0: begin
           if (ifu_axi_rvalid_i) begin
-            first_beat_q <= ifu_axi_rdata_i;
-            inst0_q <= fetch_beat_inst0_w;
-            inst1_q <= fetch_beat_inst1_w;
             if (ifu_axi_rresp_i != RESP_OK) begin
-              resp0_q <= RESP_ACCESS_FAULT;
-              // 普通包仍是两个 word response；跨页包的 resp1 已代表第二页 segment，
-              // 第一页 read error 不得改写其 provenance。slot0 fault 会在 decoder 阻断 slot1。
-              if (!packet_cross_page_q) resp1_q <= RESP_ACCESS_FAULT;
+              inst0_q <= fetch_data_q[`INST_W-1:0];
+              inst1_q <= fetch_data_q[`XLEN-1:`INST_W];
+              resp0_q <= RESP_OK;
+              resp1_q <= RESP_ACCESS_FAULT;
+              resp0_bytes_q <= fetch_offset_q;
               state_q <= S_RESP;
-            end else if (packet_cross_page_q && (resp1_q == RESP_OK)) begin
-              state_q <= S_AR1;
             end else begin
-              // 第二页 translation fault 只保留在 resp1 segment；bridge 不再猜 inst0 长度。
-              state_q <= S_RESP;
+              fetch_data_q <= fetch_data_after_r_w;
+              if (fetch_more_after_r_w) begin
+                fetch_offset_q <= fetch_next_offset_w;
+                if (fetch_next_cross_page_w) begin
+                  packet_cross_page_q <= 1'b1;
+                  if (paging_q && !second_page_ready_q) begin
+                    if (canonical_sv39(pc_second_page_vaddr_w)) begin
+                      walk_second_q <= 1'b1;
+                      walk_level_q <= 2'd2;
+                      walk_ppn_q <= req_satp_q[43:0];
+                      state_q <= S_WALK_AR;
+                    end else begin
+                      inst0_q <= fetch_data_after_r_w[`INST_W-1:0];
+                      inst1_q <= fetch_data_after_r_w[`XLEN-1:`INST_W];
+                      resp0_q <= RESP_OK;
+                      resp1_q <= RESP_PAGE_FAULT;
+                      resp0_bytes_q <= fetch_next_offset_w;
+                      state_q <= S_RESP;
+                    end
+                  end else begin
+                    state_q <= S_AR0;
+                  end
+                end else begin
+                  state_q <= S_AR0;
+                end
+              end else begin
+                inst0_q <= fetch_data_after_r_w[`INST_W-1:0];
+                inst1_q <= fetch_data_after_r_w[`XLEN-1:`INST_W];
+                resp0_q <= RESP_OK;
+                resp1_q <= RESP_OK;
+                resp0_bytes_q <= 3'd4;
+                state_q <= S_RESP;
+              end
             end
           end
         end
 
-        S_AR1: begin
-          if (ifu_axi_arready_i) begin
-            state_q <= S_R1;
-          end
-        end
-
-        S_R1: begin
-          if (ifu_axi_rvalid_i) begin
-            inst0_q <= merged_cross_packet_w[`INST_W-1:0];
-            inst1_q <= merged_cross_packet_w[`XLEN-1:`INST_W];
-            // 第二页 read response 只属于 resp1 segment；具体 slot owner 由 decoder 长度决定。
-            resp1_q <= (ifu_axi_rresp_i == RESP_OK) ? resp1_q :
-                       RESP_ACCESS_FAULT;
-            state_q <= S_RESP;
-          end
+        S_AR1, S_R1: begin
+          // legacy state encodings retained for debug compatibility; exact fetch never enters them.
+          state_q <= S_IDLE;
         end
 
         S_AD_UPDATE: begin
@@ -907,14 +904,12 @@ module OooFetchAxiBridge (
               state_q <= S_WALK_AR;
             end else begin
               // A 写失败(极罕见: PTE 落不可写区) → 取指 access fault, 避免 A=0 无限重试。
-              if (walk_second_q) begin
-                resp1_q <= RESP_ACCESS_FAULT;
-                state_q <= S_AR0;
-              end else begin
-                resp0_q <= RESP_ACCESS_FAULT;
-                resp1_q <= RESP_ACCESS_FAULT;
-                state_q <= S_RESP;
-              end
+              inst0_q <= fetch_data_q[`INST_W-1:0];
+              inst1_q <= fetch_data_q[`XLEN-1:`INST_W];
+              resp0_q <= RESP_OK;
+              resp1_q <= RESP_ACCESS_FAULT;
+              resp0_bytes_q <= fetch_offset_q;
+              state_q <= S_RESP;
             end
           end
         end
@@ -926,15 +921,17 @@ module OooFetchAxiBridge (
             if (fetch_req_valid_i) begin
               pc_q <= fetch_req_pc_i;
               paddr0_q <= fetch_req_pc_i;
-              paddr1_q <= req_cross_fetch_page_w ? req_second_page_vaddr_w :
-                                                     (fetch_req_pc_i + 64'd4);
-              packet_cross_page_q <= req_cross_fetch_page_w;
-              packet_first_bytes_q <= req_first_page_bytes_w;
-              first_beat_q <= {`XLEN{1'b0}};
+              paddr1_q <= {`XLEN{1'b0}};
+              packet_cross_page_q <= 1'b0;
+              walk_second_q <= 1'b0;
+              second_page_ready_q <= 1'b0;
+              fetch_offset_q <= 3'd0;
+              fetch_data_q <= {`XLEN{1'b0}};
               inst0_q <= {`INST_W{1'b0}};
               inst1_q <= {`INST_W{1'b0}};
               resp0_q <= RESP_OK;
               resp1_q <= RESP_OK;
+              resp0_bytes_q <= 3'd4;
               paging_q <= req_paging_w;
               req_priv_q <= priv_mode_i;
               req_satp_q <= satp_i;
@@ -1085,8 +1082,8 @@ module OooFetchAxiBridge (
     end
   end
 
-  // IFU-FETCH-G2 provenance shadow：fetch response 反压时 split 与 valid 同 payload 保持；
-  // split 的结构真源是当前 transaction q 状态，不得混入 hit-fusion 同拍的新 request。
+  // IFU-ACCESS-G1 provenance shadow：fetch response 反压时 split 与 valid 同 payload 保持；
+  // 合法边界仅 {0,2,4,6}，其中 0 是 first-halfword fault 的必要编码。
   reg g2_assert_rsp_stall_q;
   reg [2:0] g2_assert_resp0_bytes_q;
   always @(posedge clk) begin
@@ -1099,12 +1096,17 @@ module OooFetchAxiBridge (
            (fetch_rsp_resp0_bytes_o !== g2_assert_resp0_bytes_q)))
         $error("[IFU-FETCH-G2-HOLD] stalled fetch response withdrew/changed resp0 byte boundary");
       if (fetch_rsp_valid_o &&
-          ((fetch_rsp_resp0_bytes_o === 3'd0) ||
-           (^fetch_rsp_resp0_bytes_o === 1'bx)))
-        $error("[IFU-FETCH-G2-RANGE] valid fetch response has unknown/zero resp0 byte boundary");
-      if (fetch_rsp_valid_o && !packet_cross_page_q &&
+          ((^fetch_rsp_resp0_bytes_o === 1'bx) ||
+           fetch_rsp_resp0_bytes_o[0] ||
+           (fetch_rsp_resp0_bytes_o > 3'd6)))
+        $error("[IFU-ACCESS-SPLIT-RANGE] valid fetch response has illegal split");
+      if (fetch_rsp_valid_o &&
+          (fetch_rsp_resp0_o == RESP_OK) && (fetch_rsp_resp1_o == RESP_OK) &&
           (fetch_rsp_resp0_bytes_o !== 3'd4))
-        $error("[IFU-FETCH-G2-NONCROSS] non-cross/cache response boundary is not four bytes");
+        $error("[IFU-ACCESS-SUCCESS-SPLIT] successful fetch response split is not four");
+      if (fetch_rsp_valid_o && (fetch_rsp_resp1_o != RESP_OK) &&
+          (fetch_rsp_resp0_o != RESP_OK))
+        $error("[IFU-ACCESS-FAULT-ABI] fault response is not successful-prefix/fault-suffix");
 
       g2_assert_rsp_stall_q <= !mmu_flush_i && fetch_rsp_valid_o &&
                               !fetch_rsp_ready_i;

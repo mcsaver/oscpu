@@ -38,6 +38,10 @@
 - trap-exit lane1 capture 保留旧 scrub 语义：任意 lane1 barrier 都会触发
   trap/exit sequencer capture，具体是否留下 exit/arch valid 由 lane1 exit/trap
   facts 决定；这样非 trap/exit owner 仍会清掉 stale trap/exit valid bit。
+- ROB-walk 下对 `INST_ACCESS_FAULT` 的历史 cause filter 只允许过滤
+  `head_fetch_fault1_i=0` 的 pseudo/default payload。真实 lane1 fetch AF 以
+  `head_fetch_fault1_i=1` 证明 provenance，必须 capture，随后由 older branch resolve
+  决定保留（actual-NT）或 squash（actual-taken）。cause 值本身不能代替 owner 判定。
 - clear 事件继续保留旧语义差异：
   branch clear 不由 direct flush 直接触发；
   jump/memory/system clear 会被 direct flush 触发；
@@ -73,6 +77,8 @@
   branch/jump/mem/FP/SYSTEM typed owner capture。
 - I7：本模块不得引入任何时序状态；所有 precise boundary 仍由现有 sequencer
   的寄存器和 `late_clear_i` 保证。
+- I8（IFU-LANE1-OWNER）：`trap_exit_capture_lane1 && arch_valid && head_fetch_fault1`
+  不得因 cause=`INST_ACCESS_FAULT` 被 mode-based pseudo filter 删除。
 
 ## 2d. 数据通路约束
 

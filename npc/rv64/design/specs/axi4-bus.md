@@ -1,6 +1,8 @@
 # 规范：AXI4 总线（完整 AXI4 化战役 + AxiXbar 契约）
 
-> 状态：**spec 冻结（2026-07-10，侦查存 `.github/task-runs/2026-07-10-axi4-campaign/evidence/`）**。
+> 状态：**single-beat AXI4 主干已落地；IFU-ACCESS-G1 于 2026-07-13 补齐 read
+> ARSIZE/ARPROT 的 slave-side owner 与 execute-device firewall**。原始战役侦查存
+> `.github/task-runs/2026-07-10-axi4-campaign/evidence/`。
 > 动机：现总线是自定义 single-beat AXI-like（带非标 arstrb/aruser/abort 边带，缺
 > ID/LEN/SIZE/BURST/LAST），用户要求升级完整 AXI4 并改名 AxiLite*→Axi*；
 > 亦是接 ysyxSoC（完整 AXI4，32-bit 数据宽）的前置。
@@ -12,7 +14,7 @@
 | ARID/AWID | IFU 恒 4'd0，LSU 恒 4'd1 | xbar 端口本位已区分，ID 陪跑（RV32 legacy NpcSoCAxiBridge 同形态先例） |
 | RID/BID | slave 回环；xbar 按 owner 记账路由（现 rd/wr_owner_q 即等价物） | 记账结构不变 |
 | ARLEN/AWLEN | 恒 8'd0（单 beat） | 现协议即单 beat；**本刀只搭协议不启用 burst**，SoC 对接刀再做 64→32 降宽+len=1 |
-| ARSIZE | fetch 恒 3'b011；mem 按事务（对齐读/walk=3'b011，跨线窗口读=log2(size)，`access_size_from_wstrb` 已有） | **替代 arstrb**（信息量超集） |
+| ARSIZE | IFU instruction halfword=`3'b001`，IFU PTW=`3'b011`；mem 按事务（对齐读/walk=3'b011，跨线窗口读=log2(size)） | **替代 arstrb**（信息量超集）；与 address/prot/owner 一起锁存到 slave |
 | AWSIZE | 恒 3'b011，WSTRB 仍是字节权威 | AXI4 合法 |
 | ARBURST/AWBURST | 恒 2'b01 (INCR) | 单 beat 下无义 |
 | WLAST/RLAST | 恒 1'b1 | 单 beat |
@@ -27,7 +29,8 @@ DATA_W 保持 64（ysyxSoC 32-bit 的降宽桥属 SoC 对接刀，xbar 参数勿
   「araddr 对齐块覆盖 offset0」——现行 mem 桥对不跨线读恒发"对齐地址+全 1 strb"，
   lane 信息本已丢失，新判据逐位等价。DPI slave 本就无该端口（恒整 8B 读）。
 - **aruser→ARPROT[2]**：AxiDpiSlave 的 ifetch/mem_read 选择判据搬迁；virtio 端口
-  的 user 吸收线删除。
+  的 user 吸收线删除。IFU page-table walk 必须是 data (`3'b000`)，instruction data
+  必须是 execute (`3'b100`)。
 - **abort 边带删除（方案 B：master 自吞）**：
   - mem 桥已有 `drop_rsp_q` 先例——flush 读路径（S_WALK_R/S_READ_DATA）从"立即回
     IDLE 靠 xbar 吞 R"改走既有 drop_rsp_q 等 R 自吞路径；
@@ -66,9 +69,9 @@ DATA_W 保持 64（ysyxSoC 32-bit 的降宽桥属 SoC 对接刀，xbar 参数勿
 
 - **架构定型**：主干（master 桥↔NpcAxiBus↔AxiXbar master 口）=完整 AXI4
   （ID/LEN/SIZE/BURST/PROT/LAST 全信号集，单 beat 常量位）；xbar slave 口与
-  外设保持 AXI4-Lite（工业标准形态，外设文件名 AxiClint/AxiPlic/AxiToUart/
-  AxiVirtioBlk 已随战役去 Lite 前缀，协议注记在各头注）。AxiXbar=AXI4↔AXI4-Lite
-  转换互连。
+  外设保持 single-beat 子集（read address 侧保留 ARSIZE/ARPROT；简单内部外设可忽略，
+  DPI/memory slave 必须消费）。外设文件名 AxiClint/AxiPlic/AxiToUart/AxiVirtioBlk
+  已随战役去 Lite 前缀。
 - S1（`6db4acedd`）：fetch 桥 S_DRAIN+mem 桥 drop_rsp_q 持械自吞；
   S2（`5d79a0fdf`）：xbar 删 abort 边带与 drop 臂（反死锁 buffer 保留），
   顺手修 NpcSimTop active_port_q 悬空引用；S3-S5（`e3352c7fe`）：arstrb→ARSIZE
@@ -79,7 +82,30 @@ DATA_W 保持 64（ysyxSoC 32-bit 的降宽桥属 SoC 对接刀，xbar 参数勿
 - 后续（SoC 对接刀）：64→32 降宽桥+len=1 burst；S4 协议断言（AR fire 时
   LEN==0/RID 匹配）未随刀补，留小刀。
 
+## 5.1 IFU-ACCESS-G1 read owner 与设备执行防火墙（2026-07-13）
+
+- `AxiXbar` 的 read grant 同时锁存 `ARADDR/ARSIZE/ARPROT/ARID/owner`；slave
+  `ARREADY=0` 时，master 即使撤销 VALID 并改变 payload，slave 侧四拍保持原事务。
+- `SLAVE_EXEC_MASK` 默认全 1 以保持通用例化兼容。`NpcTop` 只允许 SRAM、MROM、FLASH、
+  PSRAM、SDRAM 与 CHIPLINK_MEM 成为 instruction read 目标；其余 device/MMIO 在仲裁前
+  重定向到既有 default-error slave。被拒绝设备永远看不到 ARVALID，因此 UART RBR、
+  PLIC claim 等 read side effect 不会发生。
+- `AxiDpiSlave` 对 execute narrow read 使用标准 AXI byte lanes：DPI 返回 exact-address
+  low window，slave 按 `ARADDR[2:0]` 左移到 RDATA lane；IFU bridge按同一 lane 抽取。
+  PTW 保持 aligned 8B data read。
+- LSU data read 暂保 exact-address/low-window 兼容扩展，因为当前 mem bridge 仍会发
+  offset5,size4 这类跨 8B lane 的 single beat。它不是 AXI4 signoff 声明；拆分事务属于
+  后续 LSU slice。
+- sized DPI 的 PMEM 路径只验证并读取声明的 `nbytes`，IFETCH 不回落 MMIO；合法的
+  PMEM-end 2B fetch 不再被宿主 8B load 扩张。execute firewall 与 DPI IFETCH 拒绝形成
+  两层无设备副作用边界。
+- 验证：xbar stall/firewall、bridge attributes、LSU control 与 focused integration 8/8；
+  module 93/93；真实 guard-page suite PASS；Difftest-ON AM 59/59 + official 177/177。
+  该证据关闭功能 owner，不替代 fresh STA 或外部物理 wrapper 接口审查。
+
 ## 6. 变更记录
 
 - 2026-07-10：spec 冻结（最小合规子集+方案 B 自吞+六步实施）。
 - 2026-07-10（同日）：S1-S5 落地+difftest 收口（§5）。
+- 2026-07-13：IFU-ACCESS-G1 补齐 slave `ARSIZE`、read payload stall owner、动态
+  instruction/PTW attributes、standard instruction lanes、sized DPI 与 execute allowlist。

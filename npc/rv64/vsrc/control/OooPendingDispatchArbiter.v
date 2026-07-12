@@ -251,7 +251,9 @@ module OooPendingDispatchArbiter (
       trap_exit_capture_csr_illegal0_w ||
       (trap_exit_capture_unsupported_w && !rob_walk_mode_i) ||
       (trap_exit_capture_lane1_w && trap_exit_lane1_arch_valid_w &&
-       !(rob_walk_mode_i &&
+       // rob-walk 下仍过滤无 provenance 的 pseudo default ACCESS；真实 lane1
+       // fetch AF 由 head_fetch_fault1_i 证明 owner，必须 capture 后等待 branch resolve。
+       !(rob_walk_mode_i && !head_fetch_fault1_i &&
          (trap_exit_lane1_cause_w == `EXC_INST_ACCESS_FAULT)));
   assign pending_trap_exit_capture_arch_valid_o =
       trap_exit_capture_fetch_fault0_w ||
@@ -263,7 +265,7 @@ module OooPendingDispatchArbiter (
       // INST_ACCESS_FAULT 并残留整个运行 → drain_trap_payload 误用 spurious trap。真实 arch trap
       // 走 commit 路径，riscv-tests 135/0 可证 mode=1 不依赖此 dispatch-capture。
       (trap_exit_capture_lane1_w && trap_exit_lane1_arch_valid_w &&
-       !(rob_walk_mode_i &&
+       !(rob_walk_mode_i && !head_fetch_fault1_i &&
          (trap_exit_lane1_cause_w == `EXC_INST_ACCESS_FAULT)));
   assign pending_trap_exit_capture_cause_o =
       trap_exit_capture_fetch_fault0_w ?

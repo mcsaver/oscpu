@@ -1,0 +1,9 @@
+node_id	owner_agent	depends_on	inputs	outputs	success_criteria	fallback	status
+contract-map	root	-	G2 evidence+RTL+DB brief	frozen end-to-end contract	all four root causes and boundaries explicit	stop	PASS
+footprint-red	access_footprint_red	contract-map	bridge+decoder+Sv39 TB	permanent dynamic RED	old RTL exact fail with controls	fix harness	RUNNING
+lane1-red	access_lane1_red	contract-map	pair/dispatch/pending path	permanent owner RED	PF/AF capture+squash cases exact	fix harness	RUNNING
+bus-firewall-red	access_bus_firewall	contract-map	xbar/NpcTop/DPI/device path	ABI map+RED	stall size/prot and device non-observation	narrow scope	PASS
+implement-bus	root	footprint-red,bus-firewall-red	frozen bus contract	SIZE/PROT/DPI/firewall RTL	old bus RED green	root-cause debug	PENDING
+implement-fetch	root	implement-bus,footprint-red	frozen halfword contract	bridge exact-fetch FSM	all footprint/page/PMP RED green	root-cause debug	PENDING
+implement-lane1	root	lane1-red	frozen owner table	pair/dispatch/arbiter RTL	all PF/AF priority RED green	root-cause debug	PENDING
+regression-review	root+reviewers	implement-fetch,implement-lane1	patched tree	full evidence+memory+STA	no blocker/no overclaim	deliver sub-slice	PENDING

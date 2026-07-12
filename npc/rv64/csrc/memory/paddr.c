@@ -53,6 +53,14 @@ static npc_word_t host_read_word(const uint8_t *base) {
   return data;
 }
 
+static npc_word_t host_read_sized(const uint8_t *base, size_t size) {
+  npc_word_t data = 0;
+  for (size_t lane = 0; lane < size; ++lane) {
+    data |= ((npc_word_t)base[lane]) << (lane * 8);
+  }
+  return data;
+}
+
 static void host_write_masked(uint8_t *base, npc_word_t data, npc_word_t mask) {
   for (int lane = 0; lane < (int)sizeof(npc_word_t); ++lane) {
     if ((mask & ((npc_word_t)1 << lane)) != 0) {
@@ -189,6 +197,35 @@ bool npc_paddr_read(npc_paddr_t addr, npc_word_t *data, enum NpcBusAccess kind) 
 
   fprintf(stderr, "[npc] %s out of bound at 0x%016" NPC_PRIxPADDR "\n", access_kind_name(kind), addr);
   return false;
+}
+
+bool npc_paddr_read_sized(npc_paddr_t addr, size_t size,
+                          npc_word_t *data, enum NpcBusAccess kind) {
+  if (!data || size == 0 || size > sizeof(npc_word_t)) return false;
+
+  // PMEM 是 sized ABI 的承重路径：只验证/读取事务声明的字节，不再把 2B IFU
+  // 或边界附近的合法访问隐式扩张成宿主 8B load。
+  if (npc_pmem_range_valid(addr, size)) {
+    *data = host_read_sized(npc_guest_to_host(addr), size);
+    if (kind == NPC_BUS_LOAD && memwatch_hits(addr, size)) {
+      Log("memwatch load addr=0x%016" NPC_PRIxPADDR
+          " size=%zu data=0x%016" NPC_PRIxWORD, addr, size, *data);
+    }
+    if (kind == NPC_BUS_LOAD && npc_mtrace_enabled()) {
+      Log("mtrace load addr=0x%016" NPC_PRIxPADDR
+          " size=%zu data=0x%016" NPC_PRIxWORD, addr, size, *data);
+    }
+    return true;
+  }
+
+  // instruction fetch 永不穿 MMIO。data MMIO 暂复用既有 exact-address/low-window
+  // 设备 ABI；把 LSU cross-lane single beat 标准化属于后续 split-transaction 切片。
+  if (kind == NPC_BUS_IFETCH) {
+    fprintf(stderr, "[npc] %s out of bound at 0x%016" NPC_PRIxPADDR
+                    " size=%zu\n", access_kind_name(kind), addr, size);
+    return false;
+  }
+  return npc_paddr_read(addr, data, kind);
 }
 
 bool npc_paddr_write(npc_paddr_t addr, npc_word_t data, npc_word_t mask, enum NpcBusAccess kind) {

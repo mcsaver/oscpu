@@ -1,9 +1,10 @@
 # 规范：取指 AXI 桥 OooFetchAxiBridge
 
 > 模块：`vsrc/frontend/OooFetchAxiBridge.v`。模板见 `../arch/SPEC-TEMPLATE.md`。
-> 状态：**主路径已实现**（含 iter1 取指 cache PMP 门控、fence.i 真 flush、Svnapot
-> 64KiB 与硬件 A update）；IFU-AXI-G1、IFU-FETCH-G2 已于 2026-07-12 关闭，§9 仍有
-> IFU-ACCESS-G1、IFU-TVAL-G1 与 PTW-PMP-G1 等开放合同，不能写成无条件“已完整验证”。
+> 状态：**主路径已实现**（含 fence.i 真 flush、Svnapot 64KiB、硬件 A update 与
+> exact-halfword fetch）；IFU-AXI-G1、IFU-FETCH-G2 已于 2026-07-12 关闭，
+> IFU-ACCESS-G1 于 2026-07-13 scoped 关闭。§9 的 IFU-TVAL-G1 与 PTW-PMP-G1
+> 仍开放，不能写成无条件“已完整验证”。
 
 ## 1. 目的与范围
 把前端取指请求(PC)落到 IFU AXI，返回一个 **fetch packet**（两条对齐的 32-bit 槽，支持 RVC）。
@@ -15,8 +16,9 @@
 | 信号 | 含义 |
 | --- | --- |
 | `fetch_req_valid_i/ready_o` + `fetch_req_pc_i` | 取指请求。fire 后在下一拍 S_LOOKUP 判决；hit 且 response 可接收时可同拍受理下一请求，命中稳态吞吐 1 packet/cycle |
-| `fetch_rsp_*`（inst0/inst1/resp0/resp1） | 返回 raw packet。非跨页时 resp0/1 分别覆盖低/高 4B；跨页时分别覆盖第一页/第二页 byte segment；不是最终 per-slot response |
-| `fetch_rsp_resp0_bytes_o` | resp0 从 packet 低地址起连续覆盖的字节数；非跨页/cache=4，跨页={2,4,6}。与 response 同 owner、同 stall 生命周期 |
+| `fetch_rsp_*`（inst0/inst1/resp0/resp1） | 返回 raw packet。成功=`(OK,OK)`；fault 使用 successful-prefix/fault-suffix `(OK,cause)`，不是最终 per-slot response |
+| `fetch_rsp_resp0_bytes_o` | 成功/cache=4；fault=首个失败 halfword offset `F∈{0,2,4,6}`。0 是合法 first-halfword fault。与 response 同 owner、同 stall 生命周期 |
+| `ifu_axi_araddr/arsize/arprot` | instruction data=`translate(PC+offset),2B,exec`；PTE walk=`pte_addr,8B,data`。valid stall 时 payload 保持 |
 | `priv_mode_i/satp_i/svpbmt_en_i` + `pmpcfg_i/pmpaddr_i` | 翻译/权限上下文 |
 | `mmu_flush_i`（sfence/satp/fence.i commit） | ITLB/walk 与取指包 cache 整体失效（模块无独立 `flush_i` 端口） |
 | `invalidate_*`（store fire 驱动） | 取指 cache 逐 store 盲失效：8B store footprint 直接清 m6/m4/m2/p0/p2/p4/p6 候选 index 的 valid(不读 pc 比较，超集覆盖)；lookup 两拍窗口由 cache 内旁路封堵 |
@@ -60,20 +62,25 @@ channel accepted，sticky `ad_drop_q` 持有语义 drop。xbar 只保存/路由�
 ## 3. 主要数据通路
 - **取指包 cache** `OooFetchPacketCache`：按 {PC, satp/priv 上下文} 命中，返回 inst0/1+resp0/1。
   SRAM 同步读协议：fire 拍(`fetch_req_fire_w`)发射 `lookup_en_i` 并锁存请求上下文
-  (pc_q/paging_q/req_priv_q/req_satp_q)，判决在次拍 `S_LOOKUP` 完成；fill 只在 S_R0/S_R1，
+  (pc_q/paging_q/req_priv_q/req_satp_q)，判决在次拍 `S_LOOKUP` 完成；fill 只在最终成功的 S_R0，
   与 lookup fire 状态互斥(cache 内 1RW 断言把关)。S_LOOKUP hit 组合回包且
   `fetch_rsp_ready_i=1` 时可融合下一次 request accept，因此稳态不是 1/2。
 - **ITLB** `OooSv39Tlb`：paging 时翻译 PC→paddr；miss 触发 page table walk(S_WALK_*)。
   lookup 输入接 fire 拍锁存值(pc_q/req_satp_q/paging_q)，使组合输出与 cache SRAM 读数在
   判决拍对齐；ITLB 本体保持 FF，不 SRAM 化。
-- **PMP**：当前对 exec_paddr 与 `+4` 按两个固定 4B word 检查(判决拍，priv 用锁存
-  req_priv_q，pmpcfg/pmpaddr 用当拍值——CSR 写经串行化无在飞取指交叠)；fault→
-  resp=ACCESS_FAULT。这还不是按真实 C/32 指令范围收窄的 precise footprint，见 §9 IFU-ACCESS-G1。
-- **跨页**：包尾跨 4KiB 页时，第二段需第二次翻译/取指并拼接(merge_cross_page)；bridge
-  保留 first/second-page segment response 与 3-bit split，`OooFetchPacketDecode` 作为唯一 RVC
-  长度 owner，再按实际 `[start,start+len)` 映射到 slot response。完整指令范围 fault 时输出
-  NOP，防止 fault tail 垃圾进入 semihost peer 等旁路比较；
-  **跨页包永不缓存**（fill 条件含 `!packet_cross_page_q`），每次命中该 PC 都重走两页翻译+两次读。
+- **PMP fast gate**：两个固定 4B checker 只提供 cache-hit 的保守充分条件，且在所有
+  privilege/pmpcfg（包括全零配置）下都运行。任一 fixed-window 拒绝只降级 slow path，
+  不直接形成架构 fault。
+- **PMP exact owner**：slow path 的每个 instruction AR 前，以完全相同的 PA、2B、EXEC
+  运行 checker；fault 抑制该 AR，并以当前 `fetch_offset_q` 形成 fault frontier。A=0 leaf
+  在产生 PTE write side effect 前也先对当前 exact PA/2B 做同一 EXEC PMP 检查。
+- **长度与 gather**：miss 从 offset0 开始，每次成功 R 只抽取 address-selected 2B lane，
+  写入 `fetch_data_q`。offset0 成功后才知道 L0 prefix；随后按已经成功的 prefix 依次决定
+  offset2/4/6，最终只访问 `0,2,...,N-2`，其中 `N=L0+L1∈{4,6,8}`。未访问 tail
+  保持 reset 后的确定性 0。
+- **跨页**：只有下一个实际需要的 halfword 跨 4KiB 页时才翻译第二页；`N<=B` 不得
+  因固定 8B packet 尾部越页而 walk。已成功 prefix 在 second-page walk/PMP/RRESP/A-update
+  期间保留。跨页包仍不缓存，避免 fast checker 用 `paddr0+4` 代替第二物理页。
 - **Svnapot 64KiB**：page walk 只接受 level0 leaf 且 `PTE.N=1 && PTE.PPN[3:0]=4'b1000`；
   非 leaf、level1/2 leaf 或其它 NAPOT 编码均报 instruction page fault。合法 leaf 的 PA 拼接使用
   VA[15:12] 替代 PTE.PPN[3:0]，再进入 PMP 与 fetch cache fill。
@@ -126,40 +133,44 @@ effective_drop   = ad_drop_q || mmu_flush_i
 | 无 flush + B error | B completion 有效，drop=0 | 按 first/second-page 归属 access fault |
 | rst + 任意事件 | 不承认局部 fire（总线共同 reset） | IDLE，全清 |
 
-## 4. PMP × 取指 cache 门控（iter1 性能修复；IFU-ACCESS-G1 仍有缺口）
-**问题**：原实现 `cache_hit = cache_hit_raw && !pmp_active`、`fill = !pmp_active && ...`——
-只要任何 PMP entry 激活就**整体禁用取指 cache**。真实 Linux/OpenSBI 永远配 PMP，导致取指永远
-miss→走慢速 AXI，CPI 近 2x。
-**当前 RTL**：命中在 `pmp_active=1` 时按 **PMP-grant 逐访问门控**、fill 恒开：
+## 4. PMP × 取指 cache 门控（IFU-ACCESS-G1 CLOSED）
+
+历史上先后出现过两个方向相反的错误：任意 PMP active 就整体禁用 cache，和 pmpcfg 全零就
+无条件允许 hit。后者会让 M-mode 填入的 same-PC packet 在切换到 S-mode 后绕过 default-deny。
+
+当前 RTL 把“cache 资格”和“架构 fault owner”分开：
+
+```text
+fast_hit = raw_hit && fixed4_checker0_grant && fixed4_checker1_grant
+           && (!paging || itlb_hit)
+fixed checker reject -> exact 2B slow path
+slow path checker reject at F -> no AR, raw response=(OK, ACCESS_FAULT, F)
 ```
-cache_hit_w = cache_hit_raw_w &&
-    (pmp_active ? (!req_exec_pmp_fault && !req_exec1_pmp_fault &&
-                   (!paging || itlb_hit))
-                : 1'b1);
-fetch_cache_fill_valid_w = (fill_r0 || fill_r1);   // 不再被 pmp_active 门控
-```
-- **FB-I1 当前只在 `pmp_active=1` 成立**：命中供给的包通过判决拍两个固定 4B checker；
-  请求上下文用 fire 拍锁存值、pmpcfg 用判决拍当拍值。
-- **FB-I2 的历史“不激活即允许”假设无效**：PMP 对 S/U 无匹配默认拒绝。M-mode bare 填 cache
-  后切 S-mode、`pmpcfg=0`，cache context 又不比较 privilege，当前 `1'b1` 分支可绕过本应产生的
-  instruction access fault。该 M-fill→S/no-PMP same-PC 用例归 IFU-ACCESS-G1 permanent RED。
-- 下一合同：cache eligibility 无条件要求当前 privilege 的 PMP grant；固定 4B checker 若只提供
-  conservative fast-hit 资格，过拒绝必须降级 exact slow path，不能直接形成 architecture fault。
-- 经验：把“任意 PMP active”当成全局 cache-disable 是性能杀手；把“无 active entry”当成所有
-  privilege 无条件允许同样错误。grant 必须来自当前权限与真实 footprint。
+
+- fixed checker 永远运行，不存在 `pmp_active==0` bypass；M-fill→S/no-PMP same-PC 动态用例
+  必须 miss 到 slow path并在 F=0 fault。
+- fixed 4B window 是 conservative sufficient condition。合法 C/C packet 即使 `PC+4` 被拒绝，
+  仍可经 exact offset0/2 slow path成功；fixed reject 不是 fault。
+- exact checker 与 instruction AR 共用 `fetch_current_paddr_w`、size=2B、EXEC，保证
+  checker/side-effect owner 一致。PMP、page walk 或 RRESP 在 F 失败后都禁止 younger AR。
+- fill 仅在完整 exact footprint 成功且非跨页时发生；未读 tail 维持 0。cache hit 稳态仍为
+  1 packet/cycle，冷 miss 因精确半字事务有可量化的额外 latency。
 
 ## 5. 状态机（简）
 ```
  S_IDLE/S_RESP --req fire(锁存+lookup_en)--> S_LOOKUP
  S_LOOKUP --hit+rsp_ready--> S_LOOKUP(同拍接受下一请求) / S_RESP
- S_LOOKUP --miss,no-trans--> S_AR0/S_R0[/S_AR1/S_R1 跨页] --> S_RESP
- S_LOOKUP --need-trans,itlb-miss--> S_WALK_AR/S_WALK_R(三级) --> 取指/RESP
+ S_LOOKUP --miss,no-trans/itlb-hit--> S_AR0(exact PMP+AR)/S_R0(2B gather)
+ S_R0 --more,same-page--> S_AR0
+ S_R0 --more,next-page,paging--> S_WALK_AR/S_WALK_R(三级) --> S_AR0
+ S_R0 --N complete--> S_RESP
+ 任一 frontier PMP/page/RRESP fault --> S_RESP(OK,cause,F)
  S_WALK_R --leaf A=0--> S_AD_UPDATE(AW/W 独立握手,等 B) --> re-walk
- S_LOOKUP --pmp/page fault--> S_RESP(resp=ACCESS_FAULT/PAGE_FAULT)
  已发读 --mmu_flush--> S_DRAIN(消费返回后回 IDLE)
  其它无已发事务状态 --mmu_flush--> S_IDLE
 ```
-direct miss 的 AR 在 S_LOOKUP 判决拍发起(`lookup_direct_miss_w`)；hit 快速路径
+`S_AR1/S_R1` 仅保留历史 debug state 编码，exact fetch 不再进入。RDATA 只在 S_R0 决定
+下一拍 offset/state，不存在 RDATA→下一 ARVALID/ARADDR 的同拍链；hit 快速路径
 fire→S_LOOKUP 判决，命中稳态可 1 packet/cycle。
 A/D：leaf PTE 的 A=0 进入 `S_AD_UPDATE`，AW/W 可独立握手；两通道完成并收到 B 后，
 若该请求未被 flush 则重新 page walk，再填 ITLB；若 flush 已把旧取指语义标为 drop，则仍
@@ -192,6 +203,13 @@ A/D：leaf PTE 的 A=0 进入 `S_AD_UPDATE`，AW/W 可独立握手；两通道�
   矩阵中的 4 个精确 RED；当前 source 的 focused 5/5 与 module 89/89 全绿。额外 poison
   用 fault tail 拼成 `32'h40705013`，证明 faulted slot 净化为 NOP，不能伪造 semihost peer。
   9 个 provenance/assertion marker 均需独立故意违约证据，ratchet 为 59/59。
+- IFU-ACCESS-G1 permanent historical runner 对 `b1b1156db` 得到 34 个精确 RED；current
+  footprint4/poison4/RRESP12/walk12/PMP6 全绿。second-page A=0 normal/flush-drop、xbar
+  slave-stall payload、UART firewall/LSU control、lane1 branch-resolve owner 与真实 DPI
+  guard-page 全绿；module 93/93、assertion non-vacuity 4/4、contract current=60。
+- Difftest-ON AM 59/59 与 official 177/177（含 rv64mi/rv64si）通过。CoreMark 10 iter
+  为 2,913,259 cycles/CPI 0.905/CoreMark/MHz 3.503；相对 G2 baseline +2.14%，记录为
+  exact cold-fetch transaction 的 correctness cost，不宣称 cycle-exact。
 - IFU-AXI-G1 切片新鲜回归：module 88/88、Verilator 5.051 lint、RTL style、clean NPC build、AM 59/59、
   official p-mode 153/153。当前 `.config` 为 Difftest OFF，且本轮 core-regress 未包含
   privileged rv64mi/rv64si；这些证据关闭 IFU owner 合同，不越级证明全部 ISA/特权范围。
@@ -199,6 +217,10 @@ A/D：leaf PTE 的 A=0 进入 `S_AD_UPDATE`，AW/W 可独立握手；两通道�
 ## 7. 关键路径
 PMP(16 entry) × 两槽 + ITLB + cache 命中比较并行，全部移到 S_LOOKUP 判决拍(以锁存请求为源)，
 fire 拍只剩锁存；原 fire 拍长组合链被同步读切断。
+exact miss 不再有 RDATA→下一 AR 的组合链；但最终 S_R0 仍存在
+`RDATA -> address-lane shift -> halfword insert -> length判定 -> fetch-cache fill` 同拍锥。
+fresh STA 若把该锥排进 leading family，下一刀应把 lane 抽取改为固定四路 case，并增加
+FINISH 寄存拍后再 fill；在报告命中前不能只凭 RTL 观感宣称 200MHz 收敛。
 取指包 cache 默认 `OOO_FETCH_PACKET_CACHE_INDEX_W=12`（4096 项）；综合/面积实验可通过同名
 define 显式缩小，但这只能改变容量/性能，不应作为语义修复手段。
 cache 模块级 1-cycle 同步读两拍协议、盲失效与 819200 state-bit lower bound
@@ -225,11 +247,15 @@ cache 模块级 1-cycle 同步读两拍协议、盲失效与 819200 state-bit lo
   单点解释 C/32 长度并做 fault-dominates-length/range。物理读 footprint、PMP/RRESP、branch
   后 lane1 page/access-fault capture 与 faulting-portion `mtval` 明确拆入 IFU-ACCESS-G1
   （含 IFU-LANE1-OWNER）/IFU-TVAL-G1。
+- 2026-07-13：关闭 IFU-ACCESS-G1。miss 改为 registered exact-2B gather；raw response
+  统一 success `(OK,OK,4)` / fault `(OK,cause,F)`；fixed 4B PMP 只作 fast gate；ARSIZE/
+  ARPROT 贯穿 xbar/slave，DPI 使用标准 instruction lane 和 exact host range；device execute
+  请求进 default-error；pred-NT branch 后 lane1 PF/AF 保留到 branch resolve。
 
 ## 已知隐患(2026-06-28 bug-hunt)
 - **[已修复]** 跨页已缓存包槽1 PMP 复检用错物理地址(`req_exec1_paddr_w=paddr0+4` 对跨页是错页);PMP 运行期 allow→deny 第二页且无取指 cache 失效时可绕过槽1 PMP。详见 `.github/memory/known-issues.md`(隐患B)。根因修复:**跨页取指包不缓存**(fill 条件含 `!packet_cross_page_q`,每次重取经 walk-leaf checker 用正确物理地址重查两页 PMP,`OooFetchAxiBridge.v:279-296` 注释自证);非跨页包内 `paddr0+4` 恒同页,复检恒正确。
 
-## 9. 合同状态（2026-07-12）
+## 9. 合同状态（2026-07-13）
 
 ### IFU-AXI-G1：A-update 写通道的 flush-drain（CLOSED 2026-07-12）
 
@@ -257,14 +283,26 @@ first/second-page provenance；decoder 用半开 byte range 映射并在完整 r
 contract/build 全绿，独立 reviewer 复跑 8 项无 G2 blocker。本合同只关闭 second-page page fault
 归属；不得把它扩写成物理 access 语义完整。
 
-### IFU-ACCESS-G1：精确物理取指 footprint 与 fetch-fault owner（OPEN）
+### IFU-ACCESS-G1：精确物理取指 footprint 与 fetch-fault owner（CLOSED 2026-07-13）
 
-当前 IFU 固定 `ARSIZE=8B`，xbar/slave 没有完整保留 size 语义，PMP 仍按两个固定 4B word
-检查；跨页实际所需字节由 L0+L1 决定，不能用 B/(8-B) 简化。`IFU-LANE1-OWNER` 子节点另有
-两个下游缺口：PairGate 会在 head0 branch 后无条件压掉 lane1 page/access fault，ROB-walk mode
-对 instruction access fault 又有 cause filter。下一刀必须同时冻结增量/窄读、PMP/RRESP precise
-footprint，以及 pred-NT branch 后 fault 保留 / actual-taken squash；G2 的 response remap 不能替代
-下游 trap owner。
+**目标合同**：成功长度 `N=L0+L1` 只允许访问 offsets `0,2,...,N-2`；每个 instruction
+AR 必须是同地址 exact EXEC-PMP 后的 2B transaction，首个失败 frontier F 停止 younger
+translation/PMP/AR。raw ABI 为 success `(OK,OK,4)` / fault `(OK,cause,F)`。pred-NT branch
+后的 lane1 PF/AF 必须保留到 branch resolve，actual-taken squash，actual-not-taken 精确 trap。
+
+**当前 RTL**：bridge 用 registered offset/data loop；第二页只在 `N>B` 时 walk；fixed 4B
+checker 仅作 cache fast gate且无全零 PMP bypass；xbar 锁存 size/prot 并用 execute allowlist
+拦 device；sized DPI 只读取 nbytes。PairGate 不再按 branch 类型销毁 lane1 fault，DispatchGate
+把该情形送入 barrier，PendingDispatchArbiter 只过滤无 provenance 的 pseudo ACCESS。
+
+**动态牙齿**：旧 `b1b1156db` footprint runner 精确 34 RED，当前 footprint/poison/RRESP/
+walk/PMP 全绿；F=0/2/4/6、M-fill→S default-deny、fixed reject→exact C/C、fault 后无
+younger AR、slave stall payload、UART side-effect firewall、LSU offset5,size4 control 均为
+permanent tests。真实 AxiDpiSlave→dpi.c→paddr.c guard-page test 证明 PMEM 尾端 2B 不做
+隐含 8B host read；second-page A=0 normal/re-walk 与 flush-drop owner 也端到端覆盖。
+
+本合同不关闭 faulting-portion TVAL、PTW PTE WRITE PMP、LSU cross-lane AXI 标准化或
+physical 200MHz；这些仍是独立 owner/时序切片。
 
 ### IFU-TVAL-G1：跨 segment faulting portion 地址（OPEN）
 

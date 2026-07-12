@@ -7,7 +7,8 @@ module NpcAxiBus #(
   parameter S_COUNT = 1,
   parameter DEFAULT_SLAVE = 0,
   parameter [S_COUNT*`XLEN-1:0] SLAVE_BASE = {S_COUNT{32'h0000_0000}},
-  parameter [S_COUNT*`XLEN-1:0] SLAVE_MASK = {S_COUNT{32'h0000_0000}}
+  parameter [S_COUNT*`XLEN-1:0] SLAVE_MASK = {S_COUNT{32'h0000_0000}},
+  parameter [S_COUNT-1:0] SLAVE_EXEC_MASK = {S_COUNT{1'b1}}
 ) (
   input clk,
   input rst,
@@ -72,6 +73,7 @@ module NpcAxiBus #(
   output [S_COUNT-1:0] s_axi_arvalid_o,
   input [S_COUNT-1:0] s_axi_arready_i,
   output [S_COUNT*`XLEN-1:0] s_axi_araddr_o,
+  output [S_COUNT*3-1:0] s_axi_arsize_o,
   output [S_COUNT*3-1:0] s_axi_arprot_o,
   input [S_COUNT-1:0] s_axi_rvalid_i,
   output [S_COUNT-1:0] s_axi_rready_o,
@@ -196,7 +198,8 @@ module NpcAxiBus #(
     .S_COUNT(S_COUNT),
     .DEFAULT_SLAVE(DEFAULT_SLAVE),
     .SLAVE_BASE(SLAVE_BASE),
-    .SLAVE_MASK(SLAVE_MASK)
+    .SLAVE_MASK(SLAVE_MASK),
+    .SLAVE_EXEC_MASK(SLAVE_EXEC_MASK)
   ) u_xbar (
     .clk(clk),
     .rst(rst),
@@ -233,6 +236,7 @@ module NpcAxiBus #(
     .s_arvalid_o(s_axi_arvalid_o),
     .s_arready_i(s_axi_arready_i),
     .s_araddr_o(s_axi_araddr_o),
+    .s_arsize_o(s_axi_arsize_o),
     .s_arprot_o(s_axi_arprot_o),
     .s_rvalid_i(s_axi_rvalid_i),
     .s_rready_o(s_axi_rready_o),

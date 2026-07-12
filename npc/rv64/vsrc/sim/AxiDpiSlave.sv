@@ -2,14 +2,16 @@
 
 // 仿真专用 AXI-like slave：把 crossbar slave 端请求桥接到宿主 PMEM/MMIO。
 // 该模块只属于 Verilator 顶层，不进入综合路径中的真实外设实现。
-import "DPI-C" task npc_ifetch(
+import "DPI-C" task npc_ifetch_sized(
   input longint unsigned addr,
+  input int unsigned nbytes,
   output longint unsigned data,
   output bit error
 );
 
-import "DPI-C" task npc_mem_read(
+import "DPI-C" task npc_mem_read_sized(
   input longint unsigned addr,
+  input int unsigned nbytes,
   output longint unsigned data,
   output bit error
 );
@@ -28,6 +30,7 @@ module AxiDpiSlave (
   input logic s_axi_arvalid_i,
   output logic s_axi_arready_o,
   input logic [`XLEN-1:0] s_axi_araddr_i,
+  input logic [2:0] s_axi_arsize_i,
   input logic [2:0] s_axi_arprot_i,
   output logic s_axi_rvalid_o,
   input logic s_axi_rready_i,
@@ -65,9 +68,12 @@ module AxiDpiSlave (
 
   always_ff @(posedge clk) begin
     longint unsigned bus_data_v;
+    longint unsigned read_data_v;
     longint unsigned write_addr_v;
     longint unsigned write_data_v;
     longint unsigned write_mask_v;
+    int unsigned read_size_v;
+    int unsigned lane_shift_v;
     bit bus_error_v;
 
     if (rst) begin
@@ -91,14 +97,28 @@ module AxiDpiSlave (
       end
 
       if (ar_fire_w) begin
-        // 【AXI4 化 S3】aruser→ARPROT[2](AXI 语义: bit2=1 表 instruction access)。
-        if (s_axi_arprot_i[2]) begin
-          npc_ifetch(s_axi_araddr_i, bus_data_v, bus_error_v);
+        read_size_v = (s_axi_arsize_i <= 3'd3) ?
+                      (32'd1 << s_axi_arsize_i) : 32'd0;
+        bus_data_v = 64'd0;
+        read_data_v = 64'd0;
+        bus_error_v = 1'b0;
+        // instruction narrow read 使用标准 AXI byte lane；DPI 返回 low-window，
+        // slave 再按 ARADDR[2:0] 放入对应 RDATA lane。PTW/LSU 是 data access：
+        // PTW 固定对齐 8B；LSU 暂保 exact-address/low-window 兼容 ABI。
+        if (s_axi_arprot_i[2] && (read_size_v != 0)) begin
+          npc_ifetch_sized(s_axi_araddr_i, read_size_v,
+                           bus_data_v, bus_error_v);
+          lane_shift_v = {29'd0, s_axi_araddr_i[2:0]} * 8;
+          read_data_v = bus_data_v << lane_shift_v;
+        end else if (!s_axi_arprot_i[2] && (read_size_v != 0)) begin
+          npc_mem_read_sized(s_axi_araddr_i, read_size_v,
+                             bus_data_v, bus_error_v);
+          read_data_v = bus_data_v;
         end else begin
-          npc_mem_read(s_axi_araddr_i, bus_data_v, bus_error_v);
+          bus_error_v = 1'b1;
         end
         s_axi_rvalid_o <= 1'b1;
-        s_axi_rdata_o <= bus_data_v[`XLEN-1:0];
+        s_axi_rdata_o <= read_data_v[`XLEN-1:0];
         s_axi_rresp_o <= bus_error_v ? 2'b10 : 2'b00;
       end
 

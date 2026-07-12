@@ -321,7 +321,10 @@ module tb_ooo_fetch_head_pair_gate;
     tb_check1("lane0 branch raw", head0_branch_raw, 1'b1);
     tb_check1("lane0 branch fact", head0_facts[`OOO_SLOT_FACT_BRANCH], 1'b1);
     tb_check1("lane0 branch suppresses lane1 branch", head1_branch_raw, 1'b0);
-    tb_check1("lane0 branch suppresses lane1 fault", head_fetch_fault1, 1'b0);
+    // slot1_valid=1 表示 fetch-time 预测为 NT；此时 lane1 仍在预测路径上，PF/AF
+    // 必须保留给 pending trap owner，不能仅因 head0 是 branch 就静默丢弃。
+    tb_check1("pred-NT lane0 branch preserves lane1 fault",
+              head_fetch_fault1, 1'b1);
     // domain-A(OOO_DBRANCH_DOMAIN_A=1): direct 分支 dispatch 资格恒 0, 分支经普通 dispatch。
     tb_check1("branch direct dispatch disabled (domain-A)", direct_branch0_dispatch_valid, 1'b0);
 

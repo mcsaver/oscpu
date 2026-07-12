@@ -1,6 +1,6 @@
 # OoO Frontend Dispatch Gate
 
-> **状态（2026-07-12，FDG-G1 CLOSED）**：模块仍在活跃主路径；
+> **状态（2026-07-13，FDG-G1 + IFU-LANE1-OWNER CLOSED）**：模块仍在活跃主路径；
 > `frontend_dispatch_to_backend_valid_o` 已在唯一 ordinary-admission 方程中排除
 > `dispatch0_arch_trap_i`。关闭证据包括旧 RTL 精确 RED、focused GREEN、父级断言负探针、
 > 87/87 module、59/59 Difftest-ON AM 与 177/177 official tests；证据索引见
@@ -80,7 +80,8 @@ reset/flush/kill 不进入本模块；同拍竞争由 §2.2 的排他表静态�
 ## 4. 不变量
 
 - lane1 普通/特殊 dispatch 必须被 slot0 exit/trap/system/JAL/JALR 阻断；slot0
-  分支仅在非 `dbranch_dual_go` 时阻断（F2），slot0 FP 已迁域 A、不再阻断 lane1。
+  分支仅在非 `dbranch_dual_go` 时阻断（F2），但 `head_fetch_fault1_i=1` 时必须形成
+  barrier，让更老的 branch 先入 ROB、fault 进入 pending owner；slot0 FP 已迁域 A。
 - lane1 branch fast path 仍要求 slot1 无 fetch fault。
 - lane1 barrier 必须覆盖 slot1 fetch fault、exit/system/trap、不可直接处理的
   branch/JALR；slot1 FP 已迁域 A 走普通双发，非返回 JALR 在
@@ -101,7 +102,7 @@ reset/flush/kill 不进入本模块；同拍竞争由 §2.2 的排他表静态�
 ## 5. 数据通路
 
 1. 计算 lane1 base：`dispatch_valid && !slot0 exit/trap/system/JAL/JALR &&
-   (!slot0 branch || dbranch_dual_go)`（slot0 FP 不参与阻断）。
+   (!slot0 branch || dbranch_dual_go || head_fetch_fault1)`（slot0 FP 不参与阻断）。
 2. 在 lane1 base 下生成 direct JAL、return、branch candidate。
 3. 在 lane1 base 下生成 barrier 与 control unsupported。
 4. 普通 `dispatch_fire` 要求 lane1 base、无 barrier、无 unsupported、两个 dispatch ready。
@@ -129,3 +130,8 @@ reset/flush/kill 不进入本模块；同拍竞争由 §2.2 的排他表静态�
 
 本切片只关闭功能合同。尚未据此声称 5 ns 时序改善或 200 MHz 达标；正式重综合与 STA
 归入后续架构切片的同模型 A/B。
+
+IFU-LANE1-OWNER 补充矩阵：ordinary+PF/AF、pred-NT actual-NT/actual-taken、predicted-taken
+poison、head0 fault/control priority，以及无 provenance 的 pseudo default ACCESS filter 均由
+`tb_ooo_ifu_lane1_fault_owner` 常驻覆盖。actual-taken 的 pending fault 被 squash；actual-NT
+则只在 older branch 后形成精确 trap。

@@ -1,0 +1,7 @@
+source=/tmp/ysyx-bpu-static-a
+size_human=728M
+size_bytes=789935811
+head=5bd7a15464f853a60e4f0c18d5ec3f7dec664af9
+branch=DETACHED
+status_short_begin
+status_short_end

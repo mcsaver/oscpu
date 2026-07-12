@@ -32,6 +32,7 @@ TESTS := \
   tb_axi_clint \
   tb_axi_plic \
   tb_axi_xbar \
+  tb_axi_exec_firewall \
   tb_csr_file \
   tb_decode_unit \
   tb_decode_stage \
@@ -101,7 +102,10 @@ TESTS := \
   tb_ooo_fetch_packet_cache \
   tb_ooo_data_word_cache \
   tb_ooo_fetch_axi_bridge \
+  tb_ooo_fetch_axi_access_attrs \
   tb_ooo_fetch_page_end_fault \
+  tb_ooo_fetch_access_footprint \
+  tb_ooo_ifu_lane1_fault_owner \
   tb_ooo_fetch_axi_bridge_xbar \
   tb_ooo_fetch_trap_gate \
   tb_ooo_priv_system \
@@ -121,6 +125,7 @@ TB_SRCS_tb_axi_to_uart := tests/tb_axi_to_uart.sv $(RTL_UART) $(RTL_AXI_TO_UART)
 TB_SRCS_tb_axi_clint := tests/tb_axi_clint.sv $(RTL_AXI_CLINT)
 TB_SRCS_tb_axi_plic := tests/tb_axi_plic.sv $(RTL_AXI_PLIC)
 TB_SRCS_tb_axi_xbar := tests/tb_axi_xbar.sv $(RTL_AXI_XBAR)
+TB_SRCS_tb_axi_exec_firewall := tests/tb_axi_exec_firewall.sv $(RTL_AXI_XBAR) $(RTL_AXI_DEFAULT_SLAVE) $(RTL_UART) $(RTL_AXI_TO_UART)
 TB_SRCS_tb_csr_file := tests/tb_csr_file.sv $(RTL_CSR_FILE)
 TB_SRCS_tb_decode_unit := tests/tb_decode_unit.sv $(RTL_DECODE_UNIT)
 TB_SRCS_tb_decode_stage := tests/tb_decode_stage.sv $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(RTL_DECODE_STAGE)
@@ -194,13 +199,25 @@ TB_SRCS_tb_pipe_stage_reg := tests/tb_pipe_stage_reg.sv $(RTL_PIPE_STAGE_REG)
 TB_SRCS_tb_ooo_fetch_packet_cache := tests/tb_ooo_fetch_packet_cache.sv $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_FETCH_PACKET_CACHE_CHECKER)
 TB_SRCS_tb_ooo_data_word_cache := tests/tb_ooo_data_word_cache.sv $(RTL_OOO_DATA_WORD_CACHE) $(RTL_SRAM_DATA_WORD) $(RTL_OOO_DATA_WORD_CACHE_CHECKER)
 TB_SRCS_tb_ooo_fetch_axi_bridge := tests/tb_ooo_fetch_axi_bridge.sv $(RTL_PMP_CHECKER) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
+TB_SRCS_tb_ooo_fetch_axi_access_attrs := tests/tb_ooo_fetch_axi_access_attrs.sv $(RTL_PMP_CHECKER) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
 TB_SRCS_tb_ooo_fetch_page_end_fault := tests/tb_ooo_fetch_page_end_fault.sv $(RTL_PMP_CHECKER) $(RTL_OOO_RVC_DECOMPRESSOR) $(RTL_OOO_FETCH_PACKET_DECODE) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
+TB_SRCS_tb_ooo_fetch_access_footprint := tests/tb_ooo_fetch_access_footprint.sv $(RTL_PMP_CHECKER) $(RTL_OOO_RVC_DECOMPRESSOR) $(RTL_OOO_FETCH_PACKET_DECODE) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
+TB_SRCS_tb_ooo_ifu_lane1_fault_owner := tests/tb_ooo_ifu_lane1_fault_owner.sv $(RTL_OOO_FP_DECODE) $(RTL_OOO_FETCH_HEAD_CLASSIFY_GATE) $(RTL_OOO_FETCH_HEAD_PAIR_GATE) $(RTL_OOO_FRONTEND_DISPATCH_GATE) $(RTL_OOO_PENDING_LANE1_CAPTURE_GATE) $(RTL_OOO_PENDING_DISPATCH_ARBITER) $(RTL_OOO_PENDING_TRAP_EXIT_SEQUENCER) $(RTL_OOO_STOP_PENDING_SEQUENCER) $(RTL_OOO_CSR_TRAP_REQUEST_MUX)
 TB_SRCS_tb_ooo_fetch_axi_bridge_xbar := tests/tb_ooo_fetch_axi_bridge_xbar.sv $(RTL_PMP_CHECKER) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE) $(RTL_AXI_XBAR)
 TB_SRCS_tb_ooo_fetch_trap_gate := tests/tb_ooo_fetch_trap_gate.sv $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
 TB_SRCS_tb_ooo_priv_system := tests/tb_ooo_priv_system.sv $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
 TB_SRCS_tb_ooo_sv39_boot := tests/tb_ooo_sv39_boot.sv $(RTL_CORE_SRCS)
 TB_SRCS_tb_ooo_mem_axi_bridge := tests/tb_ooo_mem_axi_bridge.sv $(RTL_PMP_CHECKER) $(RTL_OOO_DATA_WORD_CACHE) $(RTL_SRAM_DATA_WORD) $(RTL_OOO_SV39_TLB) $(RTL_OOO_MEM_AXI_BRIDGE)
 .DEFAULT_GOAL := run
+
+.PHONY: axi-dpi-sized ifu-access-assert-negative
+axi-dpi-sized:
+	@AXI_DPI_SIZED_BUILD_DIR="$(abspath $(BUILD_DIR)/axi-dpi-sized)" \
+	  $(abspath scripts/run_axi_dpi_sized.sh)
+
+ifu-access-assert-negative:
+	@$(abspath scripts/run_ifu_access_assert_negative.sh) \
+	  "$(abspath $(BUILD_DIR)/ifu-access-assert-negative)"
 
 run: $(TESTS:%=$(LOG_DIR)/%.log) summary
 	@cat $(RESULT_DIR)/summary.txt

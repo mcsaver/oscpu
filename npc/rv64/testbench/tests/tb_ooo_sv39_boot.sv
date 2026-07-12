@@ -9,6 +9,8 @@ module tb_ooo_sv39_boot;
   wire ifu_axi_arvalid;
   reg ifu_axi_arready;
   wire [`XLEN-1:0] ifu_axi_araddr;
+  wire [2:0] ifu_axi_arsize;
+  wire [2:0] ifu_axi_arprot;
   reg ifu_axi_rvalid;
   wire ifu_axi_rready;
   reg [`XLEN-1:0] ifu_axi_rdata;
@@ -109,6 +111,8 @@ module tb_ooo_sv39_boot;
     .ifu_axi_arvalid_o(ifu_axi_arvalid),
     .ifu_axi_arready_i(ifu_axi_arready),
     .ifu_axi_araddr_o(ifu_axi_araddr),
+    .ifu_axi_arsize_o(ifu_axi_arsize),
+    .ifu_axi_arprot_o(ifu_axi_arprot),
     .ifu_axi_rvalid_i(ifu_axi_rvalid),
     .ifu_axi_rready_o(ifu_axi_rready),
     .ifu_axi_rdata_i(ifu_axi_rdata),
@@ -510,8 +514,19 @@ module tb_ooo_sv39_boot;
     end else begin
       if (ifu_axi_rvalid && ifu_axi_rready) ifu_axi_rvalid <= 1'b0;
       if (ifu_axi_arvalid && ifu_axi_arready) begin
+        if (ifu_axi_arprot[2] && (ifu_axi_arsize !== 3'd1)) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] IFU instruction AR size got=%0d expected=1",
+                   ifu_axi_arsize);
+        end
+        if (!ifu_axi_arprot[2] && (ifu_axi_arsize !== 3'd3)) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] IFU PTW AR size got=%0d expected=3",
+                   ifu_axi_arsize);
+        end
         ifu_axi_rvalid <= 1'b1;
-        ifu_axi_rdata <= read64(ifu_axi_araddr);
+        // instruction narrow transfer 返回标准 AXI byte lanes；PTE 地址本就 8B 对齐。
+        ifu_axi_rdata <= read64({ifu_axi_araddr[`XLEN-1:3], 3'b000});
         ifu_axi_rresp <= 2'b00;
         if (ifu_axi_araddr == (ROOT_PT + 64'd16)) begin
           ifu_page_walk_reads = ifu_page_walk_reads + 1;

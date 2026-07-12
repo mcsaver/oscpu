@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T14:31:49+00:00",
-  "updated_at": "2026-07-12T15:35:04+00:00",
+  "updated_at": "2026-07-12T17:29:21+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -1014,10 +1014,10 @@
     {
       "path": ".github/memory/known-issues.md",
       "kind": "memory",
-      "size_bytes": 524334,
-      "sha256": "4786d45e584483c01c17af1e953f5537879b3c2ddb45260485339a696e2770d0",
+      "size_bytes": 526331,
+      "sha256": "91313d76d39246a3039f4459d64927f6daa229e64b2e967fecc45c4ee7c60197",
       "backup_source": "database",
-      "archived_at": "2026-07-12T15:32:49+00:00"
+      "archived_at": "2026-07-12T17:26:24+00:00"
     },
     {
       "path": ".github/memory/modules/abstract-machine.md",
@@ -1070,10 +1070,10 @@
     {
       "path": ".github/memory/modules/npc.md",
       "kind": "memory-module",
-      "size_bytes": 610102,
-      "sha256": "1cb33507130c52a9fb32ca8c7cdc86c3e76b3826b8ecd11d40e2564c0a9235ac",
+      "size_bytes": 611541,
+      "sha256": "cad0cf8097154440bca9be1072023538d7a2897ec687a86b59a07dc4d21e3f90",
       "backup_source": "database",
-      "archived_at": "2026-07-12T15:32:49+00:00"
+      "archived_at": "2026-07-12T17:26:24+00:00"
     },
     {
       "path": ".github/memory/modules/software-flow.md",
@@ -1102,10 +1102,10 @@
     {
       "path": ".github/memory/project-status.md",
       "kind": "memory",
-      "size_bytes": 639997,
-      "sha256": "bc6cc731a7627906770f36b83d43c1c737d06e7e36837cee69c73494f536fd1a",
+      "size_bytes": 641578,
+      "sha256": "b8e117484de6cd245db8cdd4b7635c32592817060d09ab19b5f4f1c6aca525a0",
       "backup_source": "database",
-      "archived_at": "2026-07-12T15:32:49+00:00"
+      "archived_at": "2026-07-12T17:26:23+00:00"
     },
     {
       "path": ".github/task-runs/2026-04-13-npc-dpic-bringup/dispatch-log.md",
@@ -42932,6 +42932,22 @@
       "archived_at": "2026-07-12T03:16:27+00:00"
     },
     {
+      "path": ".github/task-runs/2026-07-12-rv64-ifu-access-g1-red/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 6234,
+      "sha256": "20e42069ebee3873069d86f063fbce6ca2d7c9861c94d79914376ab2cabade07",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T17:26:51+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-ifu-access-g1/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 630794,
+      "sha256": "c41318cdad95b6b11a4cc5a647cf86386bef7f1bd75a5e16751c78c9b6d915fa",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T17:29:21+00:00"
+    },
+    {
       "path": ".github/task-runs/2026-07-12-rv64-ifu-axi-g1-flush-drain/evidence-index.md",
       "kind": "task-run",
       "size_bytes": 545698,
@@ -43074,6 +43090,30 @@
       "sha256": "086abe166aa8b17b997d04d508e2da207bb94f26da0cb839bf15e499a593c1d9",
       "backup_source": "database",
       "archived_at": "2026-07-11T16:31:33+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-ifu-access-g1-agent-final/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 6059,
+      "sha256": "2cdc69f814bbf8081b6ace20cf8788d15f4fd90c915e9345f8e9740be110eb7b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T17:26:51+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-ifu-access-g1-final/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 3060,
+      "sha256": "0be4c5d59f1a3c72690ebadbea99844822200cf1c3b59e34258d2c07830c964c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T17:26:51+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-ifu-access-g1-yosys-final/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4516,
+      "sha256": "47e33a577753270f3a6cc760afdf90d86bed6d1c47cd460266d5ea552c39eb70",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T17:26:51+00:00"
     },
     {
       "path": ".github/task-runs/README.md",

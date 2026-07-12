@@ -22,10 +22,12 @@
 - `rsp_pc_i` 是 response slot0 的 PC。
 - `rsp_inst0_i` 是从 `rsp_pc_i` 对应 fetch word 返回的 32-bit 数据。
 - `rsp_inst1_i` 是下一 fetch word 返回的 32-bit 数据。
-- 非跨页/cache response 中，`rsp_resp0_i/rsp_resp1_i` 分别覆盖 packet 的低/高 4B。
-- 跨页 response 中，`rsp_resp0_i/rsp_resp1_i` 分别覆盖 first/second-page byte segment。
-- `rsp_resp0_bytes_i` 是 resp0 从 packet byte0 起连续覆盖的字节数；普通包=4，跨页包为
-  `{2,4,6}`。`2'b00` 表示对应 segment 正常。
+- 完整成功/cache response 固定为 `(resp0=OK, resp1=OK, split=4)`。
+- fault response 使用 successful-prefix/fault-suffix ABI：首个失败 halfword offset 为
+  `F∈{0,2,4,6}` 时，`resp0=OK`、`resp1=cause`、`rsp_resp0_bytes_i=F`。因此 split=0
+  是合法且必要的 first-halfword fault 编码；bridge 不再把 resp0/resp1 固定解释成两个 4B word。
+- `2'b00` 表示对应 byte range 正常。decoder 是唯一把 byte-range provenance 归一为
+  per-slot response 的 owner。
 
 输出：
 
@@ -36,8 +38,9 @@
 
 slot response 选择：
 
-- 对 slot 的半开区间 `[start,start+len)`，若触及 faulted resp0 segment，resp0 fault 优先；
-  否则区间越过 split 时选 resp1，完全落在 split 之前时选 resp0。
+- 对 slot 的半开区间 `[start,start+len)`，完全落在 split 之前时选 resp0；触及 split
+  之后的 fault suffix 时选 resp1。该规则同时兼容历史 G2 segment 表达与当前 G1
+  successful-prefix/fault-suffix 表达。
 - prefix 所在 segment fault 时不得读取 prefix 长度；使用安全 C.NOP 形状提供确定的组合 PC，
   response fault 仍胜出。
 - slot0 fault 后 slot1 没有架构 owner，`dec1_resp_o` 继承 slot0 fault。
@@ -72,12 +75,14 @@ slot response 选择：
 5. 完整 effective response fault 时输出 NOP；PC/next PC 仍按安全/有效 prefix 长度顺序累加，
    packet next PC 等于 slot1 next PC。
 
-## 6. IFU-FETCH-G2 证据与边界（2026-07-12）
+## 6. IFU-FETCH-G2 / IFU-ACCESS-G1 证据与边界（2026-07-13）
 
 - 旧 RTL 真实 Sv39 两页三级 walk 的 B=2/4/6 × C/32 共 12 行矩阵精确 4 RED，8 个控制行通过。
 - current-source page matrix 12/12，decoder/Glue/trap focused 5/5，module 89/89。
 - split=4 的 C.EBREAK + faulted upper half 精确拼成 `32'h40705013`，输出仍净化 NOP，
   证明 response 对 invalid tail 与 semihost peer 非干扰。
-- 本合同只关闭 second-page page-fault provenance。物理 8B overread、ARSIZE、PMP/RRESP，
-  以及 PairGate/ROB-walk 对 branch 后 lane1 page/access-fault 的 capture 属 IFU-ACCESS-G1
-  （IFU-LANE1-OWNER 子节点）；faulting portion `mtval/stval` 属 IFU-TVAL-G1。
+- IFU-ACCESS-G1 把 bridge raw ABI 收敛为 success=`(OK,OK,4)`、fault=`(OK,cause,F)`，
+  permanent matrix 覆盖 F=0/2/4/6、PMP 与 RRESP fault、4/6/8B 实际 packet footprint；
+  decoder 对 split=0 及 slot0/slot1 owner 均有动态检查。
+- IFU-ACCESS-G1 已关闭物理窄读/PMP/RRESP 与 lane1 fault owner；faulting portion
+  `mtval/stval` 仍属独立 IFU-TVAL-G1，不能由 response owner 证据越级关闭。

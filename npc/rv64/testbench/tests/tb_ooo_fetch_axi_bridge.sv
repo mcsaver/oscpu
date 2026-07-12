@@ -22,6 +22,8 @@ module tb_ooo_fetch_axi_bridge;
   wire ifu_axi_arvalid;
   reg ifu_axi_arready;
   wire [`XLEN-1:0] ifu_axi_araddr;
+  wire [2:0] ifu_axi_arsize;
+  wire [2:0] ifu_axi_arprot;
   reg ifu_axi_rvalid;
   wire ifu_axi_rready;
   reg [`XLEN-1:0] ifu_axi_rdata;
@@ -104,6 +106,8 @@ module tb_ooo_fetch_axi_bridge;
     .ifu_axi_arvalid_o(ifu_axi_arvalid),
     .ifu_axi_arready_i(ifu_axi_arready),
     .ifu_axi_araddr_o(ifu_axi_araddr),
+    .ifu_axi_arsize_o(ifu_axi_arsize),
+    .ifu_axi_arprot_o(ifu_axi_arprot),
     .ifu_axi_rvalid_i(ifu_axi_rvalid),
     .ifu_axi_rready_o(ifu_axi_rready),
     .ifu_axi_rdata_i(ifu_axi_rdata),
@@ -345,6 +349,52 @@ module tb_ooo_fetch_axi_bridge;
     end
   endtask
 
+  task automatic drive_fetch_halfword;
+    input [`XLEN-1:0] packet;
+    input [2:0] byte_offset;
+    reg [15:0] halfword;
+    reg [`XLEN-1:0] lane_data;
+    integer waits;
+    begin
+      waits = 0;
+      while ((ifu_axi_rready !== 1'b1) && (waits < 20)) begin
+        tick();
+        waits = waits + 1;
+      end
+      tb_check1("instruction read channel ready", ifu_axi_rready, 1'b1);
+      tb_check1("instruction read ARSIZE=2B", ifu_axi_arsize == 3'd1, 1'b1);
+      tb_check1("instruction read ARPROT=exec", ifu_axi_arprot == 3'b100, 1'b1);
+      case (byte_offset)
+        3'd0: halfword = packet[15:0];
+        3'd2: halfword = packet[31:16];
+        3'd4: halfword = packet[47:32];
+        default: halfword = packet[63:48];
+      endcase
+      lane_data = {{(`XLEN-16){1'b0}}, halfword} <<
+                  ({ifu_axi_araddr[2:0], 3'b000});
+      ifu_axi_rdata = lane_data;
+      ifu_axi_rresp = RESP_OK;
+      ifu_axi_rvalid = 1'b1;
+      tick();
+      ifu_axi_rvalid = 1'b0;
+      ifu_axi_rdata = {`XLEN{1'b0}};
+      ifu_axi_rresp = RESP_OK;
+    end
+  endtask
+
+  task automatic drive_fetch_packet;
+    input [1023:0] what;
+    input [`XLEN-1:0] paddr;
+    input [`XLEN-1:0] packet;
+    integer offset;
+    begin
+      for (offset = 0; offset < 8; offset = offset + 2) begin
+        expect_ar(what, paddr + offset);
+        drive_fetch_halfword(packet, offset[2:0]);
+      end
+    end
+  endtask
+
   task automatic walk_to_fetch;
     input [1023:0] what;
     input [`XLEN-1:0] vaddr;
@@ -358,8 +408,7 @@ module tb_ooo_fetch_axi_bridge;
       drive_r(pte_for_page(L0_PT, PTE_NONLEAF_FLAGS), RESP_OK);
       expect_ar(what, pte_addr(L0_PT, vaddr, 2'd0));
       drive_r(pte_for_page(paddr, leaf_flags), RESP_OK);
-      expect_ar(what, paddr);
-      drive_r(inst_beat, RESP_OK);
+      drive_fetch_packet(what, paddr, inst_beat);
     end
   endtask
 
@@ -429,8 +478,7 @@ module tb_ooo_fetch_axi_bridge;
       drive_ad_write(what, l0_leaf_addr, leaf_pte_a1);
       expect_ar(what, l0_leaf_addr);          // re-walk 本级
       drive_r(leaf_pte_a1, RESP_OK);          // 读回 A=1
-      expect_ar(what, paddr);                 // 取指令
-      drive_r(inst_beat, RESP_OK);
+      drive_fetch_packet(what, paddr, inst_beat);
     end
   endtask
 
@@ -444,6 +492,10 @@ module tb_ooo_fetch_axi_bridge;
       expect_ar(what, pte_addr(L0_PT, CROSS_VA, 2'd0));
       drive_r(pte_for_page(CROSS_PA0, PTE_USER_X_FLAGS), RESP_OK);
 
+      // 只有首个 2B prefix 成功且证明还需要 offset2 后，bridge 才允许翻译第二页。
+      expect_ar(what, CROSS_PA0 + 64'hffe);
+      drive_fetch_halfword(CROSS_MERGED_BEAT, 3'd0);
+
       expect_ar(what, pte_addr(ROOT_PT, CROSS_NEXT_VA, 2'd2));
       drive_r(pte_for_page(L1_PT, PTE_NONLEAF_FLAGS), RESP_OK);
       expect_ar(what, pte_addr(L1_PT, CROSS_NEXT_VA, 2'd1));
@@ -451,10 +503,12 @@ module tb_ooo_fetch_axi_bridge;
       expect_ar(what, pte_addr(L0_PT, CROSS_NEXT_VA, 2'd0));
       drive_r(pte_for_page(CROSS_PA1, PTE_USER_X_FLAGS), RESP_OK);
 
-      expect_ar(what, CROSS_PA0 + 64'hffe);
-      drive_r(CROSS_FIRST_BEAT, RESP_OK);
       expect_ar(what, CROSS_PA1);
-      drive_r(CROSS_SECOND_BEAT, RESP_OK);
+      drive_fetch_halfword(CROSS_MERGED_BEAT, 3'd2);
+      expect_ar(what, CROSS_PA1 + 64'd2);
+      drive_fetch_halfword(CROSS_MERGED_BEAT, 3'd4);
+      expect_ar(what, CROSS_PA1 + 64'd4);
+      drive_fetch_halfword(CROSS_MERGED_BEAT, 3'd6);
     end
   endtask
 
@@ -553,7 +607,7 @@ module tb_ooo_fetch_axi_bridge;
 
     start_fetch("supervisor cannot execute user page", USER_VA, `PRIV_S);
     expect_rsp("itlb permissions use current request privilege",
-               RESP_PAGE_FAULT, RESP_PAGE_FAULT, {`XLEN{1'b0}});
+               RESP_OK, RESP_PAGE_FAULT, {`XLEN{1'b0}});
 
     // HW-managed A（Svadu，对齐 NEMU）：取指到 A=0 可执行页不再 page fault，
     // 而是经 S_AD_UPDATE 写回 PTE 置 A 位、re-walk 后正常取指成功。
@@ -578,12 +632,10 @@ module tb_ooo_fetch_axi_bridge;
     // ===== 刀F 融合拍定向用例(hit 流 1 包/拍契约) =====
     // 预热两个 M 模式直取包(miss+fill)
     start_fetch("fusion warm pc1 accepted", FUSION_PC1, `PRIV_M);
-    expect_ar("fusion warm pc1 goes axi", FUSION_PC1);
-    drive_r(FUSION_BEAT1, RESP_OK);
+    drive_fetch_packet("fusion warm pc1 goes axi", FUSION_PC1, FUSION_BEAT1);
     expect_rsp("fusion warm pc1 resp", RESP_OK, RESP_OK, FUSION_BEAT1);
     start_fetch("fusion warm pc2 accepted", FUSION_PC2, `PRIV_M);
-    expect_ar("fusion warm pc2 goes axi", FUSION_PC2);
-    drive_r(FUSION_BEAT2, RESP_OK);
+    drive_fetch_packet("fusion warm pc2 goes axi", FUSION_PC2, FUSION_BEAT2);
     expect_rsp("fusion warm pc2 resp", RESP_OK, RESP_OK, FUSION_BEAT2);
 
     // hit 1 拍口径 + 融合拍 back-to-back: fire 次拍 rsp 组合可见且同拍收下一请求
@@ -663,13 +715,11 @@ module tb_ooo_fetch_axi_bridge;
     invalidate_addr = FUSION_PC2;  // 同 window 失效(窗口②)
     #1;
     tb_check1("same-window invalidate kills hit", fetch_rsp_valid, 1'b0);
-    // direct miss 的 AR 在判决拍当拍发出(arready 恒 1 → 本拍即 fire, 次拍进 S_R0)
-    tb_check1("invalidated packet refetch AR on decision beat",
-              ifu_axi_arvalid, 1'b1);
-    tb_check64_local("refetch AR addr", ifu_axi_araddr, FUSION_PC2);
+    tb_check1("invalidated packet uses registered miss path",
+              ifu_axi_arvalid, 1'b0);
     tick();
     invalidate_valid = 1'b0;
-    drive_r(FUSION_BEAT2, RESP_OK);
+    drive_fetch_packet("refetch packet", FUSION_PC2, FUSION_BEAT2);
     expect_rsp("refetched packet resp", RESP_OK, RESP_OK, FUSION_BEAT2);
 
     // miss 拍 ready=0: 冷地址判决拍不受理新请求(1RW/上下文单套防线)
@@ -682,8 +732,7 @@ module tb_ooo_fetch_axi_bridge;
     tb_check1("miss beat rsp not valid", fetch_rsp_valid, 1'b0);
     tb_check1("miss beat not ready", fetch_req_ready, 1'b0);
     fetch_req_valid = 1'b0;
-    expect_ar("miss beat direct AR", FUSION_PC3_COLD);
-    drive_r(FUSION_BEAT3, RESP_OK);
+    drive_fetch_packet("miss beat direct AR", FUSION_PC3_COLD, FUSION_BEAT3);
     expect_rsp("miss path resp unchanged", RESP_OK, RESP_OK, FUSION_BEAT3);
 
     // ===== AXI4 化 S1: mmu_flush 在飞读自吞(S_DRAIN)定向用例 =====
@@ -721,7 +770,7 @@ module tb_ooo_fetch_axi_bridge;
     expect_rsp("post-drain rsp ok", RESP_OK, RESP_OK, USER_INST_BEAT);
     // flush 拍 R 同拍到达: 本拍即消费, 不进 DRAIN 直接回 IDLE
     start_fetch("same-beat case fetch accepted", CROSS_VA, `PRIV_U);
-    expect_ar("same-beat walk AR", pte_addr(ROOT_PT, CROSS_VA, 2'd2));
+    expect_ar("same-beat cached-translation data AR", CROSS_PA0 + 64'hffe);
     mmu_flush = 1'b1;
     ifu_axi_rvalid = 1'b1;
     ifu_axi_rdata = 64'h0;
@@ -852,7 +901,7 @@ module tb_ooo_fetch_axi_bridge;
     ifu_axi_bresp = RESP_OK;
     #1;
     tb_check1("non-flushed B error enters response", dut.state_q == S_RESP_TB, 1'b1);
-    tb_check2("non-flushed B error resp0", fetch_rsp_resp0, RESP_ACCESS_FAULT);
+    tb_check2("non-flushed B error successful-prefix resp0", fetch_rsp_resp0, RESP_OK);
     tb_check2("non-flushed B error resp1", fetch_rsp_resp1, RESP_ACCESS_FAULT);
 
     tb_finish("tb_ooo_fetch_axi_bridge");

@@ -186,6 +186,7 @@ module NpcSimTop (
   logic psram_axi_arvalid_w;
   logic psram_axi_arready_w;
   logic [`XLEN-1:0] psram_axi_araddr_w;
+  logic [2:0] psram_axi_arsize_w;
   logic [2:0] psram_axi_arprot_w;
   logic psram_axi_rvalid_w;
   logic psram_axi_rready_w;
@@ -205,6 +206,7 @@ module NpcSimTop (
   logic sdram_axi_arvalid_w;
   logic sdram_axi_arready_w;
   logic [`XLEN-1:0] sdram_axi_araddr_w;
+  logic [2:0] sdram_axi_arsize_w;
   logic [2:0] sdram_axi_arprot_w;
   logic sdram_axi_rvalid_w;
   logic sdram_axi_rready_w;
@@ -224,6 +226,7 @@ module NpcSimTop (
   logic legacy_mmio_axi_arvalid_w;
   logic legacy_mmio_axi_arready_w;
   logic [`XLEN-1:0] legacy_mmio_axi_araddr_w;
+  logic [2:0] legacy_mmio_axi_arsize_w;
   logic [2:0] legacy_mmio_axi_arprot_w;
   logic legacy_mmio_axi_rvalid_w;
   logic legacy_mmio_axi_rready_w;
@@ -243,6 +246,7 @@ module NpcSimTop (
   logic virtio_blk_axi_arvalid_w;
   logic virtio_blk_axi_arready_w;
   logic [`XLEN-1:0] virtio_blk_axi_araddr_w;
+  logic [2:0] virtio_blk_axi_arsize_w;
   logic [2:0] virtio_blk_axi_arprot_w;
   logic virtio_blk_axi_rvalid_w;
   logic virtio_blk_axi_rready_w;
@@ -339,6 +343,7 @@ module NpcSimTop (
     .psram_axi_arvalid_o(psram_axi_arvalid_w),
     .psram_axi_arready_i(psram_axi_arready_w),
     .psram_axi_araddr_o(psram_axi_araddr_w),
+    .psram_axi_arsize_o(psram_axi_arsize_w),
     .psram_axi_arprot_o(psram_axi_arprot_w),
     .psram_axi_rvalid_i(psram_axi_rvalid_w),
     .psram_axi_rready_o(psram_axi_rready_w),
@@ -358,6 +363,7 @@ module NpcSimTop (
     .sdram_axi_arvalid_o(sdram_axi_arvalid_w),
     .sdram_axi_arready_i(sdram_axi_arready_w),
     .sdram_axi_araddr_o(sdram_axi_araddr_w),
+    .sdram_axi_arsize_o(sdram_axi_arsize_w),
     .sdram_axi_arprot_o(sdram_axi_arprot_w),
     .sdram_axi_rvalid_i(sdram_axi_rvalid_w),
     .sdram_axi_rready_o(sdram_axi_rready_w),
@@ -377,6 +383,7 @@ module NpcSimTop (
     .legacy_mmio_axi_arvalid_o(legacy_mmio_axi_arvalid_w),
     .legacy_mmio_axi_arready_i(legacy_mmio_axi_arready_w),
     .legacy_mmio_axi_araddr_o(legacy_mmio_axi_araddr_w),
+    .legacy_mmio_axi_arsize_o(legacy_mmio_axi_arsize_w),
     .legacy_mmio_axi_arprot_o(legacy_mmio_axi_arprot_w),
     .legacy_mmio_axi_rvalid_i(legacy_mmio_axi_rvalid_w),
     .legacy_mmio_axi_rready_o(legacy_mmio_axi_rready_w),
@@ -396,6 +403,7 @@ module NpcSimTop (
     .virtio_blk_axi_arvalid_o(virtio_blk_axi_arvalid_w),
     .virtio_blk_axi_arready_i(virtio_blk_axi_arready_w),
     .virtio_blk_axi_araddr_o(virtio_blk_axi_araddr_w),
+    .virtio_blk_axi_arsize_o(virtio_blk_axi_arsize_w),
     .virtio_blk_axi_arprot_o(virtio_blk_axi_arprot_w),
     .virtio_blk_axi_rvalid_i(virtio_blk_axi_rvalid_w),
     .virtio_blk_axi_rready_o(virtio_blk_axi_rready_w),
@@ -468,7 +476,7 @@ module NpcSimTop (
       core_halted_w | core_commit0_write_w | core_commit1_write_w |
       (|core_retire_count_w) | (|core_free_count_w) |
       (|core_rob_count_w) | (|core_issue_count_w) |
-      (|virtio_blk_axi_arprot_w);
+      (|virtio_blk_axi_arsize_w) | (|virtio_blk_axi_arprot_w);
 
   assign debug_clint_mtime_o = clint_mtime_w;
 `ifdef CONFIG_NPC_DEBUG_PORTS
@@ -615,6 +623,7 @@ module NpcSimTop (
     .s_axi_arvalid_i(psram_axi_arvalid_w),
     .s_axi_arready_o(psram_axi_arready_w),
     .s_axi_araddr_i(psram_axi_araddr_w),
+    .s_axi_arsize_i(psram_axi_arsize_w),
     .s_axi_arprot_i(psram_axi_arprot_w),
     .s_axi_rvalid_o(psram_axi_rvalid_w),
     .s_axi_rready_i(psram_axi_rready_w),
@@ -638,6 +647,7 @@ module NpcSimTop (
     .s_axi_arvalid_i(sdram_axi_arvalid_w),
     .s_axi_arready_o(sdram_axi_arready_w),
     .s_axi_araddr_i(sdram_axi_araddr_w),
+    .s_axi_arsize_i(sdram_axi_arsize_w),
     .s_axi_arprot_i(sdram_axi_arprot_w),
     .s_axi_rvalid_o(sdram_axi_rvalid_w),
     .s_axi_rready_i(sdram_axi_rready_w),
@@ -661,6 +671,7 @@ module NpcSimTop (
     .s_axi_arvalid_i(legacy_mmio_axi_arvalid_w),
     .s_axi_arready_o(legacy_mmio_axi_arready_w),
     .s_axi_araddr_i(legacy_mmio_axi_araddr_w),
+    .s_axi_arsize_i(legacy_mmio_axi_arsize_w),
     .s_axi_arprot_i(legacy_mmio_axi_arprot_w),
     .s_axi_rvalid_o(legacy_mmio_axi_rvalid_w),
     .s_axi_rready_i(legacy_mmio_axi_rready_w),
