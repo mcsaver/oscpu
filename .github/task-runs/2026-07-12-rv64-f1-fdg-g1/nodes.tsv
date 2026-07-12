@@ -1,0 +1,8 @@
+node_id	owner_agent	depends_on	inputs	outputs	success_criteria	fallback	status
+recall-contract	root+f1_backlog_audit	-	current RTL/spec/memory	root cause	code/doc agree	re-audit	PASS
+red-path-matrix	root	recall-contract	four invalid FP encodings + legal FADD.S	failing integration TB	old RTL fails at backend valid	split classifier/gate tests	PASS
+freeze-contract	root	recall-contract	SPEC-TEMPLATE + six contracts	filled spec/task report	all affected cells resolved	stop before RTL	PASS
+implement-gate	root	red-path-matrix,freeze-contract	frozen contract	gate mask + assertion	focused GREEN	revert slice	PASS
+assert-negative-probe	root	implement-gate	forced violation	failure evidence	assertion fires	fix observation point	PASS
+full-regression	root	implement-gate	current RTL	module/AM/official/contract/lint	all raw rc pass	localize and rerun	PASS
+record-review	root	full-regression	all evidence	memory/task-run/guard	no unresolved reviewer objection	deliver slice only	PASS

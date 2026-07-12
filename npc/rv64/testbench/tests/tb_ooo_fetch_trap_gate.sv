@@ -147,6 +147,18 @@ module tb_ooo_fetch_trap_gate;
 
     tb_check1("baseline fetch request valid", fetch_req_valid, 1'b1);
 
+`ifdef FDG_G1_NEGATIVE_PROBE
+    // 合同非真空探针：只在显式负测试构建中制造不可能组合，证明父级立即断言确实会响。
+    // 正常 module 回归不定义本宏，因此不会 force 生产信号或改变功能路径。
+    force dut.u_frontend.dispatch0_arch_trap_w = 1'b1;
+    force dut.u_frontend.frontend_dispatch_to_backend_valid_w = 1'b1;
+    @(posedge clk);
+    #1;
+    $display("[FDG-G1-NEGATIVE-PROBE] forced arch_trap && backend_valid");
+    // 负探针只验证断言有牙；立即退出，避免多消耗的一拍污染本 TB 后续正常时序场景。
+    $finish_and_return(0);
+`endif
+
     force dut.csr_trap_mem_valid_w = 1'b1;
     #1;
     tb_check1("committing memory trap blocks fetch request",

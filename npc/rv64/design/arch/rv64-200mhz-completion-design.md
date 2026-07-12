@@ -121,7 +121,9 @@ module/AM 才报告全绿。后续切片把这些 gate 作为回归基线，而�
 
 按独立 slice 顺序处理，每项必须有定向 RED、非真空断言、focused GREEN 与整核回归：
 
-1. FDG-G1：arch trap 不得送 backend；
+1. **FDG-G1（CLOSED 2026-07-12）**：arch trap 不得送 backend；旧 RTL 四类非法 FP
+   精确 RED，修复后 focused 4/4、断言负探针、module 87/87、Difftest-ON AM 59/59、
+   official 177/177 均通过；
 2. XRET-G1：MRET/SRET current-mode 合法性；
 3. IFU-AXI-G1：A/D partial write 遇 flush 必须排水；
 4. IFU-FETCH-G2：page-end 16-bit 指令 fault 归属；

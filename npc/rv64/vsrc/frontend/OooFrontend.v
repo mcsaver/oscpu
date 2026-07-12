@@ -2201,6 +2201,14 @@ module OooFrontend #(
       fetch_dec0_predict_strong_w | fetch_dec1_predict_strong_w;
 
 `ifdef OOO_ASSERT
+  // FDG-I1：classifier 已决定 head0 为精确 arch trap 时，普通 backend admission 必须关闭。
+  // 真理来自精确异常边界；不重述 FP decode，故能覆盖 fetch fault/illegal/privileged 等所有来源。
+  always @(posedge clk) if (!rst) begin
+    if (dispatch0_arch_trap_w && frontend_dispatch_to_backend_valid_w)
+      $error("[FDG-CONTRACT FDG-I1] head0 arch trap 同拍仍呈现 backend: pc=%h inst=%h @%0t",
+             head_pc_w, head_inst0_w, $time);
+  end
+
   // INV-1' (flush-redirect 契约 §4, GAP-1 后继, P4 切消费点改口径): arbiter branch 口
   // 赢家拍, 统一 redirect PC 必等于 core_branch_resolve_next_pc(branch 口 pc 源接线守卫)。
   // 旧 INV-1 守的是 mux 三元链「untracked 最高档」——该链已删, 单源化后改守 arbiter

@@ -25,14 +25,16 @@
 RECALL(读 ROADMAP+spec+记忆) → SPEC(动 RTL 前先写/更新规范) → IMPL(状态机优先) →
 EVAL(`eval/npc-eval.sh --all` 三 gate 全绿 + CPI 对比) → DECIDE(负优化撤回) → RECORD+COMMIT。
 
-## 当前一句话状态（2026-07-11）
+## 当前一句话状态（2026-07-12）
 
 当前核是双 dispatch/双 commit、ROB16、int/FP 独立 rename+IQ 的小窗口 RV64 OoO；
 branch/FP/store 已进入正式 OoO 主路径，system/trap 默认仍走 pending+drain。fetch redirect PC
-已由年龄律 arbiter 单源化，但 IFU 单 outstanding、LSU 单请求、无 LQ/MSHR/coherence，且
-trap-dispatch、xRET current-mode、IFU A-update flush、page-end C fault、`minstret` 等合同仍开放。
-验证方面 177 项 riscv-tests 通过；最新 module/AM 汇总存在误报，不能称全绿。当前实现与证据
-边界见 `arch/rtl-ground-truth-2026-07-11.md`，优先级见 `arch/ROADMAP.md`。
+已由年龄律 arbiter 单源化，但 IFU 单 outstanding、LSU 单请求、无 LQ/MSHR/coherence。
+`FDG-G1` trap-dispatch 合同已关闭；xRET current-mode、IFU A-update flush、page-end C fault、
+PTE-write PMP、MIQ ghost 与 `minstret` 等合同仍开放。新鲜功能基线为 module 87/87、
+AM Difftest ON 59/59、official 177/177；5 ns target-driven STA 仍为 WNS -15.74 ns，尚未达到
+200 MHz。当前实现与证据边界见 `arch/rtl-ground-truth-2026-07-11.md`，优先级见
+`arch/ROADMAP.md`。
 
 ## 长期记忆
 跨会话事实/经验在 `.github/memory/modules/npc.md` 与 `.github/memory/project-status.md`。

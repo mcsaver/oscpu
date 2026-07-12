@@ -38,8 +38,14 @@
 - **验证聚合缺口**: `perf/results/20260711-125729/module-testbench/summary.txt` 写 86/86 PASS，但 `tb_ooo_control_commit_sequencer.log`、`tb_ooo_pending_system_sequencer.log`、`tb_ooo_stop_pending_sequencer.log` 均先出现 FAIL 与 `$finish(1)`，随后仍输出 `[RESULT] PASS`。`core-regress/20260711-133547-973361/am-cpu-tests.log` 列出 59 项，实际 58 PASS、`fp-difftest-probe` FAIL，但上层仍写 AM PASS / `overall_rc=0`。
 - **可采信边界**: 同轮 177 项 official riscv-tests 有逐项 PASS 记录；module 86/86 与 AM PASS 只能称“摘要文本”，不能作为全绿证明。当前 `.config` 未开启 Difftest。
 - **F0 已解决（2026-07-11）**: module checker 已同时核验 compile/sim rc、测试自身精确 PASS、failure marker、error count 与失败型 `$finish`；AM checker 已拒绝 FAIL/缺项/重复/未知/损坏行并上传 rc。三个 sequencer TB 已按 current contract 更新。`OooFpBackend` 的 FPR busy/bypass/wakeup/write 已统一使用 `valid && frd`，GPR 目的 FP completion 不再因 preg 数字别名误唤醒 FPR。新鲜结果为 module 86/86、AM 59/59（`fp-difftest-probe` 明确 Difftest ON）、official 177/177、strict guard PASS。因此本条中的“验证聚合缺口”和 FP 域资格问题已关闭；FDG-G1/XRET-G1/IFU-AXI-G1 等 F1 接口合同仍保持活跃，本条不能整体移入已解决区。
+- **FDG-G1 已解决（2026-07-12）**: ordinary backend admission 已门控
+  `dispatch0_arch_trap_i`，并加入 FDG-I1 非真空断言。旧 RTL 四类非法 FP 精确 RED；修复后
+  focused 4/4、module 87/87、Difftest-ON AM 59/59、official 177/177。配置恢复后已 clean
+  rebuild Difftest-OFF artifact 并用 fresh AM smoke 证明 runtime OFF。FDG-G1 从本条 active
+  列表移除；XRET-G1、IFU-AXI-G1、IFU-FETCH-G2、PTW-PMP-G1、MIQ-G1、INSTRET-G1 与
+  store/device 边界仍开放，因此 [113] 仍保持 active。
 - **稳定教训**: integer preg 与 FPR preg 即使数值相同也属于不同寄存器域；任何 busy clear、source bypass、wakeup 或物理寄存器写使能都必须带 destination-domain qualifier，不能只用 completion valid。
-- **当前权威与证据**: `npc/rv64/design/arch/rtl-ground-truth-2026-07-11.md`、`npc/rv64/design/arch/rv64-200mhz-completion-design.md`、task-run `2026-07-11-rv64-f0-truthful-regression`。
+- **当前权威与证据**: `npc/rv64/design/arch/rtl-ground-truth-2026-07-11.md`、`npc/rv64/design/arch/rv64-200mhz-completion-design.md`、task-run `2026-07-11-rv64-f0-truthful-regression` 与 `2026-07-12-rv64-f1-fdg-g1`。
 
 ### [111] rv64 全 RTL 重读定死的正确性缺口家族(2026-07-03 定死; 2026-07-06 已 4/4 全修+合规批闭合)
 

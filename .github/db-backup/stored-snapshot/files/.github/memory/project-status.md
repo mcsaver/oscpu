@@ -588,3 +588,22 @@ flush 契约诊断确认 UC-A：整数 MulDiv/CLMUL **独缺 mispredict-kill 端
 - 当前 non-signoff OpenSTA 5ns 结果为 **WNS `-15.74ns` / TNS `-196567.73ns`**；最差路径从 `OooStoreQueue` 状态 FF 到 `OooMemInflightQueue` D，arrival `20.709ns`、required `4.971ns`、slack `-15.739ns`，静态弧穿过 SQ/issue-ready/backend glue/PRF/双 ALU/MulDiv/IQ/PRF/双 ALU/MIQ。当前根因排序是后端 issue/execute/ready/kill 缺少寄存边界，不再是旧报告所称的 DCache completion 单链。
 - T1 候选是在两条 IQ issue 输出后增加独立 elastic stage，使 same-cycle wakeup/select 终止于 stage D，并在测试证明不可达/时序安全后删除 issue0->issue1 死前递与 PRF 当拍 write-through。该方案仍待设计批准与 TDD，不是已实现结论。
 - iEDA 同网表有界运行 600s 后停在 data backward propagation，未生成可用报告；当前数值真源为 OpenSTA。证据索引：`.github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline/`。边界仍为 ideal clock、无 SPEF/CTS/OCV/完整 IO 约束、四宏 placeholder Liberty，故不是物理 signoff。
+
+## 2026-07-12 RV64 F1 FDG-G1 arch-trap admission 合同关闭
+
+- `FDG-G1` 已按独立 correctness slice 关闭：根因是 `OooFrontendDispatchGate` 的 ordinary
+  backend-valid 方程复制 stop predicate 时遗漏 `dispatch0_arch_trap_i`；修复在唯一 admission
+  方程加入排除项，并在 `OooFrontend` 增加不重述 decode 的 `FDG-I1` 立即断言。
+- TDD 证据：旧 RTL 对 unknown OP-FP funct7、reserved FMA fmt、reserved static rm、
+  DYN+reserved frm 四类精确 RED（均只错 backend valid，errors=4）；修复后 focused 4/4，合法
+  FADD.S 正对照通过；故意强制 `arch_trap && backend_valid` 会触发 FDG-I1 且 runner 非零。
+- 新鲜功能门禁：module 87/87；bundled Verilator 5.051 core-regress overall_rc=0；
+  current-config AM 59/59（Difftest OFF）；official 177/177；另用 default_defconfig 跑
+  Difftest-ON AM 59/59。错误使用 system Verilator 5.020 的首次 run overall_rc=1，且其 official
+  结果可能复用旧 binary，已明确排除出 GREEN。
+- NPC/NEMU 六个配置文件按 SHA-256 恢复后，又 clean rebuild 当前 Difftest-OFF artifact，
+  fresh `add` AM smoke 明确打印 `Difftest: OFF` 并 PASS，避免旧 mtime 让 ON binary 残留。
+  structural gate 为 style PASS、contract `current=35 baseline=35`、lint PASS。
+- 证据：`.github/task-runs/2026-07-12-rv64-f1-fdg-g1/`。本刀只关闭功能合同；未据此
+  声称时序改善或 200 MHz 达标。parent 目标仍 active，下一步冻结/实现安全的 IQ→EX 专用
+  stage（含 selection stability、ROB age kill、staged-store barrier），并做 target-driven 5ns A/B。

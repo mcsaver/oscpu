@@ -78,6 +78,7 @@ TESTS := \
   tb_ooo_trap_exit_output_sequencer \
   tb_ooo_frontend_uop_safety \
   tb_ooo_frontend_dispatch_gate \
+  tb_ooo_fp_legality_dispatch_path \
   tb_ooo_frontend_backend_dispatch_mux \
   tb_ooo_direct_branch_resolve_gate \
   tb_ooo_branch_resolve_recovery_gate \
@@ -166,6 +167,7 @@ TB_SRCS_tb_ooo_trap_exit_event_mux := tests/tb_ooo_trap_exit_event_mux.sv $(RTL_
 TB_SRCS_tb_ooo_trap_exit_output_sequencer := tests/tb_ooo_trap_exit_output_sequencer.sv $(RTL_OOO_TRAP_EXIT_OUTPUT_SEQUENCER)
 TB_SRCS_tb_ooo_frontend_uop_safety := tests/tb_ooo_frontend_uop_safety.sv $(RTL_OOO_FRONTEND_UOP_SAFETY)
 TB_SRCS_tb_ooo_frontend_dispatch_gate := tests/tb_ooo_frontend_dispatch_gate.sv $(RTL_OOO_FRONTEND_DISPATCH_GATE)
+TB_SRCS_tb_ooo_fp_legality_dispatch_path := tests/tb_ooo_fp_legality_dispatch_path.sv $(RTL_DECODE_UNIT) $(RTL_OOO_FP_DECODE) $(RTL_OOO_FETCH_HEAD_CLASSIFY_GATE) $(RTL_OOO_FRONTEND_DISPATCH_GATE)
 TB_SRCS_tb_ooo_frontend_backend_dispatch_mux := tests/tb_ooo_frontend_backend_dispatch_mux.sv $(RTL_OOO_FRONTEND_BACKEND_DISPATCH_MUX)
 TB_SRCS_tb_ooo_direct_branch_resolve_gate := tests/tb_ooo_direct_branch_resolve_gate.sv $(RTL_OOO_DIRECT_BRANCH_RESOLVE_GATE)
 TB_SRCS_tb_ooo_branch_resolve_recovery_gate := tests/tb_ooo_branch_resolve_recovery_gate.sv $(RTL_OOO_BRANCH_RESOLVE_RECOVERY_GATE)

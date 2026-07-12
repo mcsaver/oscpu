@@ -621,3 +621,24 @@ mismatch,与 FP 无关)。
 - `OooFpBackend` 新增唯一 FPR completion 资格 `fp_fpr_complete_w = fp_result_wb_valid_w && fp_result_wb_frd_w`，仅用于 FPR busy clear、8 路 source bypass、FP wake 与 FPR write；ROB/GPR done/FIFO 保持 generic valid。根因是 integer/FPR preg 数字别名，不是 FSQRT 算法。
 - RED 证明 `FMV.X.W` 的 GPR-destination FP completion 曾真实广播 FP wake；GREEN 后 focused 3/3，系统 `fp-difftest-probe` 在 Difftest ON 下 GOOD TRAP。全量 module 86/86、AM 59/59、official 177/177、lint/build/contract 与 strict guard PASS。
 - 后续所有跨整数/浮点域的 completion、bypass、wakeup、busy-clear 和 write-port 改动都必须显式带 destination-domain qualifier；preg 编号相等不构成域等价。
+
+## 2026-07-12 FDG-G1 关闭与 200 MHz 后端切分约束
+
+- `OooFrontendDispatchGate` 的 ordinary backend admission 已加入
+  `!dispatch0_arch_trap_i`；`OooFrontend` 的 `FDG-I1` 立即断言守住
+  `arch_trap -> !backend_valid`。该断言消费 classifier fact，不复制 FP/privileged decode。
+- 常驻 `tb_ooo_fp_legality_dispatch_path` 串接 DecodeUnit→FP legality→classifier→dispatch
+  admission：旧 RTL 四类非法 FP 精确 RED（errors=4），修复后 focused 4/4，合法 FADD.S
+  正对照 PASS；负探针能明确触发 FDG-I1。full module 现为 87/87。
+- bundled core-regress overall_rc=0，official 177/177；Difftest-ON AM 59/59。配置恢复后已
+  clean rebuild Difftest-OFF artifact，并以 fresh `add` smoke 证明 runtime 为 OFF/PASS。
+  `check-contract` 已 ratchet 到 `current=35 baseline=35`。
+- 失败工具链边界：system Verilator 5.020 不支持 `PROCASSINIT` 的 run overall_rc=1；其中
+  official PASS 可能来自旧 binary，不作为证据。只采信仓库绑定 Verilator 5.051 run。
+- T0 top40 是 SQ→issue/execute/kill→IQ/PRF/ALU→MIQ 的单一路径家族。普通
+  `PipeStageReg` 不足以切 ready 回边；下一刀必须是专用双-lane non-fall-through issue stage，
+  同时处理 IQ offer stability、ROB-age partial kill、lane age inversion 和 staged-store 隐形窗口。
+  issue0→issue1 same-cycle forward 可在断言证明不可达后删除；PRF write-through 第一刀仍需保留，
+  且 FP GPR read8 bypass 不能随整数 read0-3 一并删除。
+- 本刀无新 5ns STA，不作频率结论。权威证据：
+  `.github/task-runs/2026-07-12-rv64-f1-fdg-g1/`。

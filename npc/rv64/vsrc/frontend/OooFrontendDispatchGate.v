@@ -158,6 +158,9 @@ module OooFrontendDispatchGate (
       (!dispatch0_jump_i || dispatch0_depend_jump_w) &&
       // 【serialize Phase1 §4#1】合法 head0-CSR(dispatch0_csr_i) 放行进 ROB; 其余 system op 仍拦(走 drain)。
       !dispatch0_exit_i && !(dispatch0_system_i && !dispatch0_csr_i) &&
+      // FDG-I1：已分类的精确 arch trap 只能走 trap owner，禁止同时复制成 backend uop。
+      // 在 admission policy 单一方程处排除，可同时保护 core dispatch0/1 且不污染 ROB/FP 后端。
+      !dispatch0_arch_trap_i &&
       // 【B-FP 簇】FP 迁域 A: head0 FP 走普通 dispatch 进 ROB/FP 簇, 不再 capture。
       !dispatch1_barrier_o &&
       !dispatch1_control_unsupported_o && !dispatch1_mem_unsupported_o;

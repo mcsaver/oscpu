@@ -2,7 +2,7 @@
 
 > **类型**：active plan / living backlog。
 >
-> **最近更新**：2026-07-11。
+> **最近更新**：2026-07-12。
 >
 > **现状输入**：`rtl-ground-truth-2026-07-11.md`；架构原则：
 > `ooo-core-architecture.md`；逐模块合同：`../specs/README.md`。
@@ -31,7 +31,7 @@
 | gate | 2026-07-11 可采信结果 | 当前边界 |
 | --- | --- | --- |
 | official riscv-tests | 177/177 逐项 PASS | current-config sweep 非 Difftest；F0 另有 Difftest-ON AM gate |
-| module testbench | 86/86 真 PASS | checker 同时核验 compile/sim rc、TB 自身 marker 与失败语义 |
+| module testbench | 87/87 真 PASS | 新增 FDG 整链回归；checker 同时核验 compile/sim rc、TB marker 与失败语义 |
 | AM cpu-tests | 59/59 真 PASS | `fp-difftest-probe` 明确 Difftest ON |
 | directed contracts | 6 组脚本 exit 0 | 用于复现开放合同，不是修复证明 |
 | lint/build | 最新 core-regress summary 写 PASS | 不替代功能和合同 gate |
@@ -42,8 +42,8 @@ F0 结果聚合已修正并重跑；后续切片必须复用真实 rc gate，仍
 ### 1.3 PPA / 性能
 
 - CoreMark 专项 CPI：约 0.886；不能外推为所有 workload 的加权 CPI。
-- whole-core OpenSTA：10ns 目标下 WNS 约 -5.35ns，最差路径位于 IFU bridge `pc_q`
-  到 frontend `next_fetch_pc` 回环。
+- target-driven 5 ns whole-core OpenSTA 基线：WNS `-15.74 ns`、TNS `-196567.73 ns`；
+  top40 是 SQ→issue/execute/kill→IQ/PRF/ALU→MIQ 的同一反馈家族。当前远未达到 200 MHz。
 - SRAM、FP arith、BPU 等宏模型与 ideal-clock 条件不完整；当前 STA 只用于同模型相对比较，
   不是 post-route Fmax。
 
@@ -51,7 +51,7 @@ F0 结果聚合已修正并重跑；后续切片必须复用真实 rc gate，仍
 
 | ID | 项目 | 当前证据 | 关闭标准 |
 | --- | --- | --- | --- |
-| FDG-G1 | `arch_trap` head0 不得呈现 backend | 四类 FP 代表编码动态到 dispatch gate | 全编码/代表矩阵 + 合法正对照；trap 槽 backend valid 恒 0 |
+| FDG-G1 | **CLOSED 2026-07-12**：`arch_trap` head0 不得呈现 backend | 旧 RTL 四类非法 FP 精确 RED；断言负探针非真空；focused 4/4 | module 87/87、AM Difftest ON 59/59、official 177/177；后续只防回退 |
 | XRET-G1 | MRET/SRET current-mode 合法性 | MRET-from-S/U、SRET-from-U 已复现 | classifier + CsrFile 边界合同；正反例常驻回归 |
 | IFU-AXI-G1 | A-update AW/W/B 随 flush 完整排水 | AW-only+flush bridge 局部复现 | bridge+xbar 联测；任一已握手 channel 不遗弃 |
 | IFU-FETCH-G2 | page-end C fault 归属 | page+FFE C + next-page fault 已复现 | C/32-bit × page/PMP/AXI fault 矩阵 |

@@ -45,6 +45,7 @@ module tb_ooo_frontend_dispatch_gate;
   wire direct_ret1_fire;
   wire direct_branch1_fire;
   wire dbranch_dual_go;
+  wire frontend_dispatch_to_backend_valid;
 
   OooFrontendDispatchGate dut (
     .dispatch_valid_i(dispatch_valid),
@@ -88,6 +89,7 @@ module tb_ooo_frontend_dispatch_gate;
     .dispatch_unsupported_o(dispatch_unsupported),
     .dispatch_fire_o(dispatch_fire),
     .dispatch1_barrier_fire_o(dispatch1_barrier_fire),
+    .frontend_dispatch_to_backend_valid_o(frontend_dispatch_to_backend_valid),
     .direct_jal0_fire_o(direct_jal0_fire),
     .direct_jal1_fire_o(direct_jal1_fire),
     .direct_ret1_fire_o(direct_ret1_fire),
@@ -133,7 +135,15 @@ module tb_ooo_frontend_dispatch_gate;
 
     reset_inputs();
     tb_check1("plain dual dispatch fires", dispatch_fire, 1'b1);
+    tb_check1("plain head reaches backend", frontend_dispatch_to_backend_valid, 1'b1);
     tb_check1("no mem unsupported", dispatch1_mem_unsupported, 1'b0);
+
+    reset_inputs();
+    dispatch0_arch_trap = 1'b1;
+    #1;
+    tb_check1("head0 arch trap blocks ordinary backend",
+              frontend_dispatch_to_backend_valid, 1'b0);
+    tb_check1("head0 arch trap blocks dual dispatch", dispatch_fire, 1'b0);
 
     reset_inputs();
     head1_jal_raw = 1'b1;
@@ -264,4 +274,3 @@ module tb_ooo_frontend_dispatch_gate;
   end
 
 endmodule
-

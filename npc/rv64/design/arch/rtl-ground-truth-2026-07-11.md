@@ -1,8 +1,10 @@
 # RV64 OoO RTL Ground Truth — 2026-07-11
 
-> **类型**：snapshot（当前时点实现快照）。
+> **类型**：snapshot + current delta（2026-07-12 FDG-G1 关闭后校正）。
 >
-> **状态**：CURRENT，基于代码快照 `cab1814b0622e53e1e62f2b0fc17ed6873c72ba2`。
+> **状态**：CURRENT。主体基于代码快照 `cab1814b0622e53e1e62f2b0fc17ed6873c72ba2`；
+> 2026-07-12 已同步 FDG-G1 关闭事实与新鲜回归证据。下一次结构性架构切片必须生成新的
+> dated snapshot 并把本文件整体归档，避免继续累积 delta。
 >
 > **预期归宿**：下一份 ground-truth snapshot 产生时，移入 `history/` 并登记为
 > `SUPERSEDED`；不要在本文件累积跨版本实施历史。
@@ -90,16 +92,17 @@ NpcSimTop                         仿真 shell
   exclusive/lock/coherence，不能外推到多主平台级原子事务。
 - AXI 使用单拍、单 outstanding 有效子集；不支持 burst、多 ID 并行。
 
-## 5. 仍开放的正确性合同
+## 5. 正确性合同状态
 
-以下条目描述当前 RTL，不表示已经修复：
+除明确标为 CLOSED 的条目外，以下内容描述当前仍开放的 RTL 合同：
 
-1. **FDG-G1 — head0 arch-trap 仍可呈现 backend**
+1. **FDG-G1 — CLOSED 2026-07-12：head0 arch-trap 不得呈现 backend**
 
-   `OooFetchHeadClassifyGate` 能把保留/非法 FP 编码分类为 trap，但
-   `OooFrontendDispatchGate.v:156-163` 的主 backend valid 未门控
-   `dispatch0_arch_trap_i`。四类代表编码已动态覆盖到 dispatch gate；最终 ROB
-   停顿或执行后果仍是整链静态判断。
+   `OooFrontendDispatchGate` 的唯一 ordinary backend-valid 方程已门控
+   `dispatch0_arch_trap_i`，父级同时以 `FDG-I1` 立即断言守护。旧 RTL 四类非法 FP
+   在 admission 输出精确 RED；修复后 focused 4/4、负探针、module 87/87、
+   Difftest-ON AM 59/59 与 official 177/177 均通过。下游 mux 是直接 OR sink；本刀不改变
+   pending trap、FIFO pop、ROB 或提交 owner。
 
 2. **XRET-G1 — current-mode 合法性不完整**
 
@@ -164,10 +167,11 @@ NpcSimTop                         仿真 shell
   - `tb_ooo_stop_pending_sequencer.log`：direct-branch 检查失败。
 
 上述内容是 F0 前的审计反例，不能继续描述 current gate。2026-07-11 F0 已修复结果传播、
-三个 sequencer TB 合同和 FP destination-domain 资格；新鲜证据为 module 86/86、AM
+三个 sequencer TB 合同和 FP destination-domain 资格；FDG-G1 后新鲜证据为 module 87/87、AM
 59/59（`fp-difftest-probe` 明确 Difftest ON）、official 177/177，core-regress 的
-module/lint/build/AM 子层与 `overall_rc=0` 一致。原失败日志继续作为 RED 历史证据；current
-结果见 `.github/task-runs/2026-07-11-rv64-f0-truthful-regression/`。
+module/lint/build/AM 子层与 `overall_rc=0` 一致。原失败日志继续作为 RED 历史证据；F0 与
+FDG-G1 current 结果分别见 `.github/task-runs/2026-07-11-rv64-f0-truthful-regression/` 和
+`.github/task-runs/2026-07-12-rv64-f1-fdg-g1/`。
 
 ### 6.3 PPA 与 Difftest 限定
 

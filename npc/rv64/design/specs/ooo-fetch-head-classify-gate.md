@@ -103,8 +103,9 @@ FP 子译码、privileged 非法检查、pending/CSR/trap glue 和提交修饰�
 - SFENCE/SINVAL under U-mode illegal。
 - S-mode TVM 只作用于 `sfence.vma/sinval.vma`。
 - fetch fault 产生 arch trap/stop，并抑制其它类别 facts。
-- 跨模块检查 `arch_trap_raw_o && frontend_dispatch_to_backend_valid_o`；当前 head0 FP
-  代表反例应标为 KNOWN GAP，而不是 PASS 条件。
+- 跨模块检查 `arch_trap_raw_o && frontend_dispatch_to_backend_valid_o`。`FDG-G1` 已于
+  2026-07-12 关闭：四类 head0 FP 代表反例必须满足 `arch_trap && !backend_valid`，合法
+  FADD.S 必须继续满足 `fp_enabled && backend_valid`。
 
 实现后最小回归：
 
@@ -132,6 +133,14 @@ FP 子译码、privileged 非法检查、pending/CSR/trap glue 和提交修饰�
   `arch_trap` 已在 dispatch gate 关闭 backend valid。
 - MRET-from-S/U、SRET-from-U 已在真实 decode/classify 链复现为缺少 illegal；
   SRET-from-S+TSR 正对照正常。
+
+### 2026-07-12 FDG-G1 关闭
+
+- `tb_ooo_fp_legality_dispatch_path` 已把真实 DecodeUnit、FP legality、classifier 与
+  ordinary dispatch admission 串接；旧 RTL 对四类非法编码精确 RED，修复后 4/4 focused PASS。
+- `OooFrontend` 的 `FDG-I1` 立即断言已用故意违约负探针证明非真空；正常 module 87/87、
+  Difftest-ON AM 59/59、official 177/177 均通过。
+- 本节只关闭 classifier→dispatch admission 合同；上面的 xRET current-mode 缺口仍开放。
 
 ## 实施顺序
 
