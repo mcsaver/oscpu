@@ -58,6 +58,7 @@ module OooFrontend #(
   input [`INST_W-1:0] fetch_rsp_inst1_i,
   input [1:0] fetch_rsp_resp0_i,
   input [1:0] fetch_rsp_resp1_i,
+  input [2:0] fetch_rsp_resp0_bytes_i,
   input fetch_rsp_valid_i,
   input flush_i,
   input halted_q,
@@ -1021,6 +1022,7 @@ module OooFrontend #(
     .rsp_resp0_i(fetch_rsp_resp0_i),
     .rsp_inst1_i(fetch_rsp_inst1_i),
     .rsp_resp1_i(fetch_rsp_resp1_i),
+    .rsp_resp0_bytes_i(fetch_rsp_resp0_bytes_i),
     .dec0_pc_o(fetch_dec0_pc_w),
     .dec0_next_pc_o(fetch_dec0_next_pc_w),
     .dec0_inst_o(fetch_dec0_inst_w),
@@ -2266,6 +2268,40 @@ module OooFrontend #(
   always @(posedge clk) if (!rst) begin
     if (fetch_pred_taken_redirect_w && can_issue_request_w)
       $error("[B2S2-PRED-BLOCK] pred-taken 改流拍顺序取指臂未被关断(can_issue 泄漏) @%0t", $time);
+  end
+
+  // IFU-FETCH-G2 独立矩阵守卫：直接按 raw prefix + provenance boundary 检查 slot response，
+  // 不复用 decoder 的 byte_range_resp 函数，避免实现/断言同一公式共盲。
+  always @(posedge clk) if (!rst && fetch_rsp_valid_i &&
+                            (fetch_rsp_resp0_i == 2'b00) &&
+                            (fetch_rsp_resp1_i != 2'b00)) begin
+    if ((fetch_rsp_resp0_bytes_i == 3'd2) &&
+        (fetch_rsp_inst0_i[1:0] != 2'b11) &&
+        (fetch_dec0_resp_w !== fetch_rsp_resp0_i))
+      $error("[IFU-FETCH-G2-B2-C0] B=2 compressed slot0 consumed second-segment fault");
+    if ((fetch_rsp_resp0_bytes_i == 3'd2) &&
+        (fetch_rsp_inst0_i[1:0] != 2'b11) &&
+        (fetch_dec1_resp_w !== fetch_rsp_resp1_i))
+      $error("[IFU-FETCH-G2-B2-C1] B=2 slot1 did not consume second-segment fault");
+    if ((fetch_rsp_resp0_bytes_i == 3'd2) &&
+        (fetch_rsp_inst0_i[1:0] == 2'b11) &&
+        (fetch_dec0_resp_w !== fetch_rsp_resp1_i))
+      $error("[IFU-FETCH-G2-B2-U0] B=2 32-bit slot0 did not consume second-segment fault");
+    if ((fetch_rsp_resp0_bytes_i == 3'd6) &&
+        (fetch_rsp_inst0_i[1:0] != 2'b11) &&
+        (fetch_rsp_inst0_i[17:16] == 2'b11) &&
+        (fetch_dec1_resp_w !== fetch_rsp_resp0_i))
+      $error("[IFU-FETCH-G2-B6-CU] B=6 C+32 slot1 was falsely assigned second-segment fault");
+    if ((fetch_rsp_resp0_bytes_i == 3'd6) &&
+        (fetch_rsp_inst0_i[1:0] == 2'b11) &&
+        (fetch_rsp_inst1_i[1:0] != 2'b11) &&
+        (fetch_dec1_resp_w !== fetch_rsp_resp0_i))
+      $error("[IFU-FETCH-G2-B6-UC] B=6 32+C slot1 was falsely assigned second-segment fault");
+    if ((fetch_rsp_resp0_bytes_i == 3'd6) &&
+        (fetch_rsp_inst0_i[1:0] == 2'b11) &&
+        (fetch_rsp_inst1_i[1:0] == 2'b11) &&
+        (fetch_dec1_resp_w !== fetch_rsp_resp1_i))
+      $error("[IFU-FETCH-G2-B6-UU] B=6 32+32 slot1 did not consume second-segment fault");
   end
 `endif
 

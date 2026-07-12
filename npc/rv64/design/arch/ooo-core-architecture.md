@@ -45,8 +45,9 @@
   `minstret` 当前还接 raw ROB count，见 `INSTRET-G1`。
 - `FDG-G1` 的 `arch_trap -> no backend dispatch`、`XRET-G1` current-mode legality 与
   `MEM-ISSUE-G1` 的 lane1 dequeue/request/MIQ owner 同源、IFU A-update write-drain 已于
-  2026-07-12 关闭；当前优先继续关闭 page-end C fault、PTE-write PMP、MIQ ghost 与唯一 retirement
-  source 等合同，再扩窗口或 memory MLP。
+  2026-07-12 关闭；IFU-FETCH-G2 的 second-page page-fault byte provenance 同日收窄关闭。
+  当前优先继续关闭精确 IFU physical access/lane1 trap、faulting-portion tval、PTE-write PMP、
+  MIQ ghost 与唯一 retirement source 等合同，再扩窗口或 memory MLP。
 
 ---
 

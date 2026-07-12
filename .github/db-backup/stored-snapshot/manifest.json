@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T14:31:49+00:00",
-  "updated_at": "2026-07-12T14:21:23+00:00",
+  "updated_at": "2026-07-12T15:35:04+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -1014,10 +1014,10 @@
     {
       "path": ".github/memory/known-issues.md",
       "kind": "memory",
-      "size_bytes": 523606,
-      "sha256": "a01b1d1395c76beff7f93d11bb638558c0d070cd223ce15c7558d98f54d868c8",
+      "size_bytes": 524334,
+      "sha256": "4786d45e584483c01c17af1e953f5537879b3c2ddb45260485339a696e2770d0",
       "backup_source": "database",
-      "archived_at": "2026-07-12T14:15:06+00:00"
+      "archived_at": "2026-07-12T15:32:49+00:00"
     },
     {
       "path": ".github/memory/modules/abstract-machine.md",
@@ -1070,10 +1070,10 @@
     {
       "path": ".github/memory/modules/npc.md",
       "kind": "memory-module",
-      "size_bytes": 608528,
-      "sha256": "dad8b3b900c413dc8b66596b8110cd75f239ae84f24a52b2c7879c157af710a9",
+      "size_bytes": 610102,
+      "sha256": "1cb33507130c52a9fb32ca8c7cdc86c3e76b3826b8ecd11d40e2564c0a9235ac",
       "backup_source": "database",
-      "archived_at": "2026-07-12T14:15:06+00:00"
+      "archived_at": "2026-07-12T15:32:49+00:00"
     },
     {
       "path": ".github/memory/modules/software-flow.md",
@@ -1086,10 +1086,10 @@
     {
       "path": ".github/memory/modules/yosys-sta.md",
       "kind": "memory-module",
-      "size_bytes": 34077,
-      "sha256": "7e86ccf9e5dc743d16d1871ae361620dd0c065fa7fca2f8b1bbdea45a19f1875",
+      "size_bytes": 35405,
+      "sha256": "a3343a89dacee971782590d821cf95f18d50340536f4ac7d212a8582e491552e",
       "backup_source": "database",
-      "archived_at": "2026-07-11T19:06:00+00:00"
+      "archived_at": "2026-07-12T15:32:49+00:00"
     },
     {
       "path": ".github/memory/modules/ysyx-soc.md",
@@ -1102,10 +1102,10 @@
     {
       "path": ".github/memory/project-status.md",
       "kind": "memory",
-      "size_bytes": 638879,
-      "sha256": "7720d5198b18e0dcb6ee16c4d4ca3d72fa9f21b5ff0e304bfc597512fa4895ec",
+      "size_bytes": 639997,
+      "sha256": "bc6cc731a7627906770f36b83d43c1c737d06e7e36837cee69c73494f536fd1a",
       "backup_source": "database",
-      "archived_at": "2026-07-12T14:15:01+00:00"
+      "archived_at": "2026-07-12T15:32:49+00:00"
     },
     {
       "path": ".github/task-runs/2026-04-13-npc-dpic-bringup/dispatch-log.md",
@@ -42938,6 +42938,14 @@
       "sha256": "fc32eb3b8dc0ffef09ce058914c9a76e7d8162d827fd5c2086c988f85bf1a617",
       "backup_source": "filesystem",
       "archived_at": "2026-07-12T14:21:23+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-ifu-fetch-g2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 565282,
+      "sha256": "d7a725244c87df3e19aba85c8512312cd924537af4c782ba5a1bd3c7fb06ad08",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T15:35:04+00:00"
     },
     {
       "path": ".github/task-runs/2026-07-12-rv64-t3a-dead-crosslane-forward/evidence-index.md",

@@ -8,6 +8,7 @@ module tb_ooo_fetch_packet_decode;
   reg [1:0] rsp_resp0;
   reg [`INST_W-1:0] rsp_inst1;
   reg [1:0] rsp_resp1;
+  reg [2:0] rsp_resp0_bytes;
 
   wire [`XLEN-1:0] dec0_pc;
   wire [`XLEN-1:0] dec0_next_pc;
@@ -32,6 +33,7 @@ module tb_ooo_fetch_packet_decode;
     .rsp_resp0_i(rsp_resp0),
     .rsp_inst1_i(rsp_inst1),
     .rsp_resp1_i(rsp_resp1),
+    .rsp_resp0_bytes_i(rsp_resp0_bytes),
     .dec0_pc_o(dec0_pc),
     .dec0_next_pc_o(dec0_next_pc),
     .dec0_inst_o(dec0_inst),
@@ -74,6 +76,7 @@ module tb_ooo_fetch_packet_decode;
       rsp_resp0 = resp0;
       rsp_inst1 = inst1;
       rsp_resp1 = resp1;
+      rsp_resp0_bytes = 3'd4;
       #1;
     end
   endtask
@@ -107,7 +110,7 @@ module tb_ooo_fetch_packet_decode;
           32'hbabe_0010, 2'b10);
     check_xlen("c+u32 dec0 next", dec0_next_pc, 64'h0000_0000_0000_3002);
     check_xlen("c+u32 dec1 next", dec1_next_pc, 64'h0000_0000_0000_3006);
-    tb_check32("c+u32 stitched inst", dec1_inst, 32'h0010_0093);
+    tb_check32("c+u32 faulted inst sanitized", dec1_inst, 32'h0000_0013);
     tb_check32("c+u32 dec1 resp from word1", {30'b0, dec1_resp}, 32'h0000_0002);
     tb_check1("c+u32 resp creates stop", dec1_control_stop, 1'b1);
 
@@ -151,6 +154,25 @@ module tb_ooo_fetch_packet_decode;
     tb_check32("c+c fault propagates dec1 resp", {30'b0, dec1_resp},
                32'h0000_0003);
     tb_check1("word0 fault stops dec1 when contained", dec1_control_stop, 1'b1);
+
+    // IFU-FETCH-G2: split=4 时 slot1 的 32b prefix 在成功 segment0，upper half 在
+    // fault segment1。特意把 fault tail 拼成 semihost exit sentinel；response 必须胜出，
+    // 且 inst 必须净化成 NOP，不能让 head0 C.EBREAK 把垃圾 peer 误判成 semihost。
+    rsp_pc = 64'h0000_0000_0000_8000;
+    rsp_inst0 = {16'h5013, 16'h9002};
+    rsp_resp0 = 2'b00;
+    rsp_inst1 = {16'hdeaf, 16'h4070};
+    rsp_resp1 = 2'b10;
+    rsp_resp0_bytes = 3'd4;
+    #1;
+    tb_check32("fault-tail poison slot0 c.ebreak", dec0_inst, 32'h0010_0073);
+    tb_check32("fault-tail poison slot1 response",
+               {30'b0, dec1_resp}, 32'h0000_0002);
+    tb_check32("fault-tail poison slot1 sanitized", dec1_inst, 32'h0000_0013);
+    if (dec1_inst === 32'h4070_5013) begin
+      tb_errors = tb_errors + 1;
+      $display("[CHECK-FAIL] fault-tail poison forged semihost exit peer");
+    end
 
     tb_finish("tb_ooo_fetch_packet_decode");
   end

@@ -47,8 +47,8 @@ T-PRE 不能替代 T-PHYS。当前 icsprout55 TT/1.2 V/25°C、ideal clock、无
 
 - official riscv-tests：177/177 逐项真实 PASS；
 - AM：59/59 真实 PASS；`fp-difftest-probe` 在 Difftest ON 下 GOOD TRAP；
-- module TB：86/86 真实 PASS，runner 已逐项检查编译/仿真 rc、测试自身 PASS marker 与
-  failure marker；
+- module TB：current 89/89 真实 PASS，runner 已逐项检查编译/仿真 rc、测试自身 PASS marker
+  与 failure marker；
 - lint/build/style/contract：PASS；F0 验证使用 `default_defconfig` 开启 Difftest，验证后已把
   当前工作区 `.config` 三件套恢复到进入任务时的哈希；
 - current RTL 没有新鲜 Linux L1+ 原始启动证据；历史最高为 rootfs/systemd 部分到达，不能外推。
@@ -59,13 +59,13 @@ F0 已于 2026-07-11 完成，证据见
 
 ### 2.2 时序
 
-- 最新全核网表在 10.000 ns 下：WNS = −5.35 ns、TNS = −34779.97 ns；
-- 最差路径 `pc_q[15] -> next_fetch_pc_o[16]`，arrival 约 15.32 ns；
-- top40 全从 `pc_q[15]` 出发，终点分成 `next_fetch_pc_o` 与 FIFO `packet_next_pc_q`；
-- 共同路径族：ITLB/context/PTE → PMP/fault/invalidate → cache response → RVC/predecode →
-  branch/B-imm → next-PC；
-- `dec1_branch_o` 单弧约 7.89 ns，但把该弧理想化为零后剩余仍约 7.43 ns，buffer 不是充分解；
-- 同一 100 MHz 网表的 5 ns 重约束只作诊断。正式 T-PRE 必须以 5 ns 重新 ABC 映射。
+- current-source 全核已按 5.000ns target 重新映射：105/105 个最终 ABC cone 收到
+  `-D 5000ps`，final check=0；OpenSTA WNS=`-9.99ns`、TNS=`-121006.91ns`；
+- 最差路径 D-cache SRAM rdata→memory/int backend→branch recovery/fetch control→fetch packet
+  cache SRAM enable，arrival 13.144ns，宏 setup 1.842ns，诊断临界周期约 14.99ns；
+- top40 另有 39 条 D-cache SRAM→MIQ 路径；IFU-FETCH-G2 的 split/decoder 命名锥未进入 top40；
+- T3A/F1a 等历史 5ns 报告使用不同 RTL 或 BPU placeholder ABI，不把 WNS 数值变化机械归因于
+  单个切片。正式 T-PRE 仍要求 WNS≥0，且当前 ideal-clock/placeholder 宏不等于物理签核。
 
 ## 3. 总体路线裁决
 
@@ -134,11 +134,16 @@ module/AM 才报告全绿。后续切片把这些 gate 作为回归基线，而�
 4. **IFU-AXI-G1（CLOSED 2026-07-12）**：A/D partial write 遇 flush 以 sticky drop
    保持 AW/W/B owner；旧 RTL bridge+xbar RED，修复后 focused 2/2、module 88/88、
    AM 59/59、official p-mode 153/153；
-5. IFU-FETCH-G2：page-end 16-bit 指令 fault 归属；
-6. PTW-PMP-G1：A/D PTE write 独立 PMP WRITE check；
-7. MIQ-G1：flush + 同拍 DRAIN pop 不得保留 ghost；
-8. INSTRET-G1：唯一 ISA retirement 源；
-9. store/device：late B error、翻译后地址分类、lane/size 与排序合同。
+5. **IFU-FETCH-G2（CLOSED 2026-07-12）**：bridge 保留 first/second-page byte-segment
+   response 与 split，decoder 单点按 C/32 完整 range 映射；旧 RTL 真实 Sv39 12 行矩阵
+   精确 4 RED，current module 89/89、AM 59/59、official 177/177；
+6. IFU-ACCESS-G1：精确 physical footprint、PMP/RRESP；其 IFU-LANE1-OWNER 子节点还需保留
+   pred-NT branch 后的 lane1 page/access fault，并允许 actual-taken squash；
+7. IFU-TVAL-G1：跨 segment 变长指令 faulting-portion `mtval/stval`；
+8. PTW-PMP-G1：A/D PTE write 独立 PMP WRITE check；
+9. MIQ-G1：flush + 同拍 DRAIN pop 不得保留 ghost；
+10. INSTRET-G1：唯一 ISA retirement 源；
+11. store/device：late B error、翻译后地址分类、lane/size 与排序合同。
 
 ### F2：声明 ISA/特权范围证明
 
@@ -179,8 +184,9 @@ F0 request/ITLB/PMP/cache lookup
 
 关键设计选择：
 
-- R0 是真正的寄存 valid/ready 边界，payload 至少包含 response PC、raw inst words、resp bits 与
-  fault/context tag；禁止用 fall-through bypass 重新接回长数据链；
+- R0 是真正的寄存 valid/ready 边界，payload 至少包含 response PC、raw inst words、两个
+  byte-segment resp、resp0 连续字节数与 fault/context tag；禁止在寄存边界前猜 RVC 长度，
+  也禁止用 fall-through bypass 重新接回长数据链；
 - 为恢复 1 packet/cycle，在 R0 捕获旧 response 的同拍，仅用 raw halfword 的长度位计算短
   `sequential_packet_pc`，允许发起至多一个顺序推测请求；完整 RVC/branch/BPU 判决不再组合回送；
 - P1 若判 taken/control/fault，走统一 redirect/kill，丢弃或 drain 至多一个顺序 wrong-path 请求；

@@ -28,10 +28,10 @@
 
 ### 1.2 验证状态
 
-| gate | 2026-07-11 可采信结果 | 当前边界 |
+| gate | 2026-07-12 可采信结果 | 当前边界 |
 | --- | --- | --- |
 | official riscv-tests | 177/177 逐项 PASS | current-config sweep 非 Difftest；F0 另有 Difftest-ON AM gate |
-| module testbench | 87/87 真 PASS | 新增 FDG 整链回归；checker 同时核验 compile/sim rc、TB marker 与失败语义 |
+| module testbench | 89/89 真 PASS | 含 IFU-FETCH-G2 真实 Sv39 page-end 矩阵；checker 同时核验 compile/sim rc、TB marker 与失败语义 |
 | AM cpu-tests | 59/59 真 PASS | `fp-difftest-probe` 明确 Difftest ON |
 | directed contracts | 6 组脚本 exit 0 | 用于复现开放合同，不是修复证明 |
 | lint/build | 最新 core-regress summary 写 PASS | 不替代功能和合同 gate |
@@ -42,8 +42,10 @@ F0 结果聚合已修正并重跑；后续切片必须复用真实 rc gate，仍
 ### 1.3 PPA / 性能
 
 - CoreMark 专项 CPI：约 0.886；不能外推为所有 workload 的加权 CPI。
-- target-driven 5 ns whole-core OpenSTA 基线：WNS `-15.74 ns`、TNS `-196567.73 ns`；
-  top40 是 SQ→issue/execute/kill→IQ/PRF/ALU→MIQ 的同一反馈家族。当前远未达到 200 MHz。
+- current-source target-driven 5 ns whole-core OpenSTA：WNS `-9.99 ns`、TNS
+  `-121006.91 ns`；top40 为 39 条 D-cache SRAM→MIQ 与 1 条 D-cache SRAM→branch/fetch
+  control→fetch-cache SRAM enable。历史 `-15.74/-11.74/-12.90ns` 报告的 RTL 或 BPU placeholder
+  ABI 不同，只作 path-family 参照；当前诊断临界周期约 14.99ns，远未达到 200 MHz。
 - SRAM、FP arith、BPU 等宏模型与 ideal-clock 条件不完整；当前 STA 只用于同模型相对比较，
   不是 post-route Fmax。
 
@@ -55,7 +57,9 @@ F0 结果聚合已修正并重跑；后续切片必须复用真实 rc gate，仍
 | XRET-G1 | **CLOSED 2026-07-12**：MRET/SRET current-mode 合法性 | 旧 RTL MRET-from-S/U、SRET-from-U 精确 RED；真实编码 integration 覆盖 head0/lane1 | classifier + CsrFile 边界合同已冻结；module 87/87、AM 59/59、official 177/177；后续只防回退 |
 | MEM-ISSUE-G1 | **CLOSED 2026-07-12**：lane1 memory dequeue/request/MIQ owner 同源 | 旧 RTL `fire=1/request=0` 丢事务；reviewer 负探针再锁 `request=1/fire=0` 幽灵 MIQ | eligible/available 单一事实 + MEM-I1/I2；module 87/87、AM Difftest ON 59/59、official 177/177 |
 | IFU-AXI-G1 | **CLOSED 2026-07-12**：A-update AW/W/B 随 flush 完整排水 | 旧 RTL bridge 22 RED、bridge+xbar owner deadlock 3 RED | sticky drop + 独立 shadow；focused 2/2、module 88/88、AM 59/59、official p-mode 153/153 |
-| IFU-FETCH-G2 | page-end C fault 归属 | page+FFE C + next-page fault 已复现 | C/32-bit × page/PMP/AXI fault 矩阵 |
+| IFU-FETCH-G2 | **CLOSED 2026-07-12**：跨页 second-page page-fault byte provenance | 旧 RTL 真实 Sv39 12 行矩阵精确 4 RED；当前 12/12 + poison + reviewer 8/8 | bridge segment split + decoder 单一长度 owner；module 89/89、lint/style/contract/build |
+| IFU-ACCESS-G1 | 精确物理取指 footprint、PMP/RRESP；子节点 IFU-LANE1-OWNER 保留 branch 后 page/access fault | ARSIZE/固定 word PMP、`pmp_active=0` cache bypass；PairGate branch 抑制与 ROB-walk access cause filter 已静态实锤 | 增量/窄读、M-fill→S/no-PMP 与 B=2/4/6 C/U AF；pred-NT branch 后 PF/AF 保留、actual-taken 可 squash |
+| IFU-TVAL-G1 | 跨 segment 变长指令 faulting-portion trap value | 当前统一使用 slot 起始 PC | page/access fault 的 `mtval/stval` 地址合同与 current RTL 程序回归 |
 | PTW-PMP-G1 | A/D PTE write 独立 PMP WRITE 判定 | 静态路径未见 write checker | I/D walker 共用明确合同 + 允许/拒绝正反例 |
 | INSTRET-G1 | 唯一 ISA-retirement 计数源 | 顶层静态接线不等价 | exception 不计、control retire 各计一次的程序回归 |
 
@@ -69,8 +73,9 @@ F0 结果聚合已修正并重跑；后续切片必须复用真实 rc gate，仍
   三个陈旧 TB 已刷新 current contract。
 - AM runner 已上传单项失败并拒绝缺项/重复/未知/损坏行；`fp-difftest-probe` 的 FP
   destination-domain 根因已修复。
-- current gate 为 module 86/86、AM 59/59（Difftest ON）、official 177/177；后续工作只需
-  防回退，可补 child-command 注入失败 fixture 锁定 core-regress 的 `OVERALL_RC` 合同。
+- F0 当时 gate 为 module 86/86、AM 59/59（Difftest ON）、official 177/177；后续切片已把
+  current module gate 推进到 89/89。结果传播只需防回退，可补 child-command 注入失败 fixture
+  锁定 core-regress 的 `OVERALL_RC` 合同。
 
 ### 3.2 memory / flush
 
@@ -124,9 +129,14 @@ violation replay、tagged outstanding、MSHR、burst refill 与独立 PTW 资源
 - MEM-ISSUE-G1：lane0 exception 与 lane1 normal memory 的端口资格、IQ fire、request mux 与
   MIQ owner 已收敛到不依赖 ready 的 eligible/available 单一事实；正向 co-fire 与 head-blocked
   反例均为常驻回归，`MEM-I1/I2` 立即断言基线已提升到 37。
+- IFU-AXI-G1：A-update write owner 与 fetch semantic owner 已分离；flush 只 sticky-drop 旧语义，
+  AW/W/B 完整排空后回 IDLE。bridge 22 RED、bridge+xbar 3 RED 与 12 条非真空断言均已闭合。
+- IFU-FETCH-G2：bridge 已用 3-bit split 保存 first/second-page response provenance，decoder
+  按真实 C/32 byte range 映射并净化 faulted inst；真实 Sv39 B=2/4/6 矩阵与 semihost poison
+  常驻。PMP/RRESP/物理读宽、branch 后 lane1 page/access-fault capture、faulting-portion tval
+  明确仍在开放项。
 - fence.i：真实 pending-system commit + mmu_flush + refetch 已落地。
-- Sv39 HW A/D：I/D 主路径已落地；实施计划已归档，PTE write PMP 与 IFU write-drain
-  作为 P0 重新打开。
+- Sv39 HW A/D：I/D 主路径已落地；实施计划已归档，PTE write PMP 仍作为 P0 开放项。
 
 对应实施史见 `history/`、`../specs/history/` 与 Git 历史；active ROADMAP 不重复保存逐次
 失败实验和过期 gate 数字。

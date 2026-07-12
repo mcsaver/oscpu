@@ -42,7 +42,8 @@
 
 ## 取指 / 前端 / 分支预测
 - ★ `ooo-fetch-axi-bridge` — 取指桥(ITLB+硬件 PTW+硬件 A update+取指包 cache+PMP；
-  IFU A-update flush-drain 已关闭，当前开放 page-end C fault 与 PTE-write PMP 合同)
+  IFU A-update flush-drain 与 page-fault byte provenance 已关闭；精确 physical access/tval 与
+  PTE-write PMP 合同仍开放)
 - ★ `ooo-fetch-packet-cache` — 取指包 cache 语义、debug/common checker 与 macro/OOC 前置合同
 - `ooo-fetch-packet-*`、`ooo-fetch-pc-outstanding-sequencer`、`ooo-fetch-request-mux`、
   `ooo-frontend-*-gate`、`ooo-fetch-head-*-gate`

@@ -75,6 +75,7 @@ module tb_ooo_fetch_trap_gate;
     .fetch_rsp_resp0_i(2'b00),
     .fetch_rsp_inst1_i({`INST_W{1'b0}}),
     .fetch_rsp_resp1_i(2'b00),
+    .fetch_rsp_resp0_bytes_i(3'd4),
     .mem_req_valid_o(mem_req_valid),
     .mem_req_ready_i(1'b1),
     .mem_req_write_o(mem_req_write),

@@ -11,6 +11,7 @@
 - [ ] 综合分析通过
 ## 已完成的工作
 <!-- 按时间倒序记录，格式: - [日期] 简要描述 -->
+- [2026-07-12] **IFU-FETCH-G2 收窄关闭：跨页 second-page page-fault 由 byte-segment provenance 精确归属 slot**。bridge 新增 3-bit split、删除 `first_bytes<4` 长度猜测，decoder 成为唯一 C/32 长度 owner，并按完整 range fault 净化 inst；旧 RTL 真实 Sv39 12 行矩阵精确 4 RED，当前 focused 5/5、module 89/89、AM 59/59、official 177/177、9/9 assertion 非真空、独立 reviewer 8/8；CoreMark cycle-exact 保持 2,852,201/3,218,573、CPI 0.886。fresh 5ns target remap 105/105 cone、post-map 0 problem；OpenSTA WNS/TNS=`-9.99/-121006.91ns`，诊断周期约 14.986ns（66.7MHz），top40=39 条 D-cache→MIQ + 1 条 D-cache→branch/fetch→fetch-cache，G2 命名锥 0 hit；ideal clock/四 placeholder 宏/1851 unconstrained/109 loops 下不是物理 signoff。IFU-ACCESS-G1 仍含 ARSIZE/物理 8B overread/fixed-word PMP/RRESP、`pmp_active=0` 的 S/U cache bypass，以及 IFU-LANE1-OWNER（pred-NT branch 后 PF/AF 保留、actual-taken squash）；IFU-TVAL-G1 仍开放，parent 200MHz 未完成。证据：`.github/task-runs/2026-07-12-rv64-ifu-fetch-g2/`。
 - [2026-07-11] 拓扑防火墙战役收口:WNS -15.37→-5.35(收回10ns),CPI 0.886,difftest 全绿;真缝合点=mmu_flush 组合链(两次解剖推翻假设);详证 topology-analysis-2026-07-11.md §5。
 - [2026-07-11] 全电路拓扑分析冻结:25ns 五级并一拍传递闭包病理+融合经济学表+redirect 防火墙主案(CPI +0.05-0.1 换 Fmax 翻倍);详证 design/arch/topology-analysis-2026-07-11.md。
 - [2026-07-11] 刀B2 完整落地:CPI 0.877(-73% 总账,越过 F2 峰值);difftest 全绿;S1.5 失败学费+潜伏 bug 修复+时序债(-15.37)移交独立战役;详证 modules/npc.md 同日条目。

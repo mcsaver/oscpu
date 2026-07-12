@@ -30,11 +30,12 @@ EVAL(`eval/npc-eval.sh --all` 三 gate 全绿 + CPI 对比) → DECIDE(负优化
 当前核是双 dispatch/双 commit、ROB16、int/FP 独立 rename+IQ 的小窗口 RV64 OoO；
 branch/FP/store 已进入正式 OoO 主路径，system/trap 默认仍走 pending+drain。fetch redirect PC
 已由年龄律 arbiter 单源化，但 IFU 单 outstanding、LSU 单请求、无 LQ/MSHR/coherence。
-`FDG-G1` trap-dispatch、`XRET-G1` current-mode、`MEM-ISSUE-G1` 与 IFU A-update flush-drain
-合同已关闭；page-end C fault、PTE-write PMP、MIQ ghost 与 `minstret` 等合同仍开放。本切片
-新鲜功能基线为 module 88/88、AM 59/59、official p-mode 153/153（当前配置 Difftest OFF，
-privileged rv64mi/si 未重跑）；5 ns target-driven STA 仍远未达到
-200 MHz。当前实现与证据边界见 `arch/rtl-ground-truth-2026-07-11.md`，优先级见
+`FDG-G1` trap-dispatch、`XRET-G1` current-mode、`MEM-ISSUE-G1`、IFU A-update flush-drain 与
+IFU-FETCH-G2 page-fault provenance 合同已关闭；精确 IFU physical access、branch 后 lane1
+fetch-fault owner、faulting-portion `mtval/stval`、PTE-write PMP、MIQ ghost 与 `minstret` 等合同
+仍开放。本切片新鲜功能基线为 module 89/89、AM 59/59、official 177/177（当前配置 Difftest
+OFF）；5 ns target-driven STA 仍远未达到 200 MHz（current WNS `-9.99ns` / TNS
+`-121006.91ns`）。当前实现与证据边界见 `arch/rtl-ground-truth-2026-07-11.md`，优先级见
 `arch/ROADMAP.md`。
 
 ## 长期记忆

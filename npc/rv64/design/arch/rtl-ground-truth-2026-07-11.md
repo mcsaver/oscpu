@@ -130,28 +130,46 @@ NpcSimTop                         仿真 shell
    无进展；修复后同用例、同拍 corner、12 条独立 shadow 负探针、module 88/88、AM 59/59
    与 official p-mode 153/153 全绿。当前配置 Difftest OFF，privileged rv64mi/si 本轮未重跑。
 
-5. **IFU-FETCH-G2 — page-end C fault 归属**
+5. **IFU-FETCH-G2 — CLOSED 2026-07-12：page-end page-fault byte provenance**
 
-   PC=page+0xFFE 且当前指令为 16-bit 时，bridge 以“首 4B 是否跨页”判断首指令，
-   会把下一页 fault 覆写到当前 C 指令的 `resp0`。局部可达状态 + 真实 packet decoder 已复现。
+   bridge 已删除 `first_bytes<4` 的长度猜测，并以 3-bit split 保存 first/second-page segment
+   response；`OooFetchPacketDecode` 成为唯一 C/32 长度 owner，按完整半开 byte range 生成
+   per-slot response，faulted inst 净化为 NOP。旧 RTL 真实 Sv39 B=2/4/6 12 行矩阵精确
+   4 RED；current focused 5/5、module 89/89、AM 59/59、official 177/177、9/9 assertion
+   non-vacuity 与独立 reviewer 8/8 全绿。
 
-6. **PTW-PMP-G1 — A/D PTE 写回缺独立 PMP WRITE 判定**
+6. **IFU-ACCESS-G1 — 精确物理 footprint/access-fault owner（OPEN）**
+
+   IFU 仍固定发 exact-address 8B read，xbar/slave 未完整保留 ARSIZE，PMP 仍按固定两个 4B
+   word 检查；`IFU-LANE1-OWNER` 子节点还发现 PairGate 会在 head0 branch 后压掉 lane1
+   page/access fault，ROB-walk 对 instruction-access fault 另有 cause filter。简单 B/(8-B)
+   会在不知道 L0+L1 时继续过查；`pmp_active=0` 的 cache-hit allow 分支还会在 M-fill 后切
+   S/no-PMP 时绕过 S/U default deny。必须以增量/窄读、PMP/RRESP、M→S cache context 与
+   pred-NT/actual-taken branch 下的精确 fault capture/squash 整体关闭。G2 只关闭
+   bridge→decoder response owner。
+
+7. **IFU-TVAL-G1 — faulting instruction portion 地址（OPEN）**
+
+   当前 fetch fault payload 统一使用 slot 起始 PC；跨 segment 32-bit 指令的 faulting portion
+   `mtval/stval` 合同与程序证据尚未冻结。G2 只关闭 response owner。
+
+8. **PTW-PMP-G1 — A/D PTE 写回缺独立 PMP WRITE 判定**
 
    walker 读取 PTE 时做 read check；进入 A/D update 后未见以 WRITE 类型重新检查 PTE
    物理地址。
 
-7. **MIQ-G1 — flush 与 DRAIN pop 同拍可留下 ghost entry**
+9. **MIQ-G1 — flush 与 DRAIN pop 同拍可留下 ghost entry**
 
    MIQ 局部动态已复现；年轻同步异常与更老 retired-store drain 的默认整链交叠为高置信
    静态序列，尚无完整 NpcCoreTop 程序波形。另一个 MIQ full+pop 模块反例在当前
    active+staged bridge 下不可达到 full=4，只是未来扩展前的潜伏接口项。
 
-8. **INSTRET-G1 — CsrFile 计数源不等于唯一 ISA retirement**
+10. **INSTRET-G1 — CsrFile 计数源不等于唯一 ISA retirement**
 
    `NpcCoreTop` 把 raw ROB commit count 接入 CsrFile；异常 entry 未过滤，control-path
    pseudo-commit 未合并。当前结论来自整机静态接线，尚无专门 counter 程序波形。
 
-9. **store/device 平台边界**
+11. **store/device 平台边界**
 
    retired store 的 late B error 已无 ROB entry，只能报告；Sv39 device 访问资格按翻译前
    VA 数值窗分类；对齐 full-beat device read 会丢原 lane/size。后两项仍需
@@ -162,10 +180,11 @@ NpcSimTop                         仿真 shell
 ### 6.1 当前可直接采信
 
 - 2026-07-11 core-regress 中 177 个 official `riscv-tests` 项逐项记录为 PASS。
-- 本轮六组定向 RTL 检查脚本 exit 0，并复现 §5 中 FP dispatch、xRET、page-end C、
-  IFU A-update、MIQ 两类合同；其中 MIQ full 项已按不可达性降级。
-- whole-core OpenSTA 在 10ns 目标下 WNS 约 `-5.35ns`；最差路径位于 IFU bridge
-  `pc_q` 到 frontend `next_fetch_pc` 回环。
+- IFU-FETCH-G2 current-source focused 5/5、module 89/89、AM 59/59、official 177/177；
+  9 个新增 marker 均有 exact 独立违约证据，ABI reviewer 复跑 8/8。
+- current-source whole-core 5ns target remap/OpenSTA 为 WNS `-9.99ns`、TNS
+  `-121006.91ns`；top40 为 39 条 D-cache SRAM→MIQ 与 1 条跨 backend/frontend 到 fetch-cache
+  SRAM enable 的控制链。该结果只作同模型 current path-family 真源，不是 post-route Fmax。
 
 ### 6.2 历史汇总缺口与 F0 收口
 

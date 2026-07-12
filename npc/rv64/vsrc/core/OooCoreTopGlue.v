@@ -30,6 +30,7 @@ module OooCoreTopGlue #(
   input [1:0] fetch_rsp_resp0_i,
   input [`INST_W-1:0] fetch_rsp_inst1_i,
   input [1:0] fetch_rsp_resp1_i,
+  input [2:0] fetch_rsp_resp0_bytes_i,
 
   output mem_req_valid_o,
   input mem_req_ready_i,
@@ -1167,6 +1168,7 @@ module OooCoreTopGlue #(
     .fetch_rsp_ready_o(fetch_rsp_ready_o),
     .fetch_rsp_resp0_i(fetch_rsp_resp0_i),
     .fetch_rsp_resp1_i(fetch_rsp_resp1_i),
+    .fetch_rsp_resp0_bytes_i(fetch_rsp_resp0_bytes_i),
     .fetch_rsp_valid_i(fetch_rsp_valid_i),
     .fifo_has_packet_w(fifo_has_packet_w),
     .flush_i(flush_i),

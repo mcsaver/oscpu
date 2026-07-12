@@ -1,0 +1,7 @@
+node_id	owner_agent	depends_on	inputs	outputs	success_criteria	fallback	status
+recall-map	root+reviewers	-	DB brief/spec/RTL/audit	byte-level dataflow map	word/provenance loss proven	re-audit	PASS
+freeze-contract	root	recall-map	matrix+bus boundaries	task report/spec phase0	six contracts and scope explicit	stop	PASS
+red-matrix	fetch_g2_red	freeze-contract	current old-G2 RTL	permanent TB+logs	all false-fix classes fail precisely	fix harness	PASS
+implement-provenance	root	red-matrix,abi-map	frozen ABI	RTL+assertions	RED green; noncross unchanged	revert	PASS
+regression	root	implement-provenance	patched tree	focused/module/core/STA logs	all scoped gates pass	root-cause debug	PASS
+record-review	root+reviewers	regression	all evidence	docs/memory/profile/guard	no blocker/no overclaim	deliver slice only	PASS

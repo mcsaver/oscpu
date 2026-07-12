@@ -136,6 +136,7 @@ module tb_ooo_core_top_glue;
     .fetch_rsp_resp0_i(fetch_rsp_resp0),
     .fetch_rsp_inst1_i(fetch_rsp_inst1),
     .fetch_rsp_resp1_i(fetch_rsp_resp1),
+    .fetch_rsp_resp0_bytes_i(3'd4),
     .mem_req_valid_o(mem_req_valid),
     .mem_req_ready_i(mem_req_ready),
     .mem_req_write_o(mem_req_write),

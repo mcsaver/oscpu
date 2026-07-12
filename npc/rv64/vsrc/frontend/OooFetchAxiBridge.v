@@ -23,6 +23,9 @@ module OooFetchAxiBridge (
   output [1:0] fetch_rsp_resp0_o,
   output [`INST_W-1:0] fetch_rsp_inst1_o,
   output [1:0] fetch_rsp_resp1_o,
+  // resp0 负责 packet 低地址起的连续字节数。普通包/缓存包恒为 4；跨页包为第一页
+  // 实际字节数。decoder 以该 split 和真实 RVC 长度把 segment resp 归一到 slot resp。
+  output [2:0] fetch_rsp_resp0_bytes_o,
 
   output ifu_axi_arvalid_o,
   input ifu_axi_arready_i,
@@ -352,8 +355,6 @@ module OooFetchAxiBridge (
   wire [`XLEN-1:0] merged_cross_packet_w =
       merge_cross_page_packet(first_beat_q, ifu_axi_rdata_i,
                               packet_first_bytes_q);
-  wire first_inst_cross_page_w =
-      packet_cross_page_q && (packet_first_bytes_q < 3'd4);
   wire itlb_fill_valid_w =
       !mmu_flush_i && (state_q == S_WALK_R) && ifu_axi_rvalid_i &&
       (ifu_axi_rresp_i == RESP_OK) &&
@@ -526,6 +527,10 @@ module OooFetchAxiBridge (
   assign fetch_rsp_inst1_o = lookup_hit_resp_w ? cache_inst1_w : inst1_q;
   assign fetch_rsp_resp0_o = lookup_hit_resp_w ? cache_resp0_w : resp0_q;
   assign fetch_rsp_resp1_o = lookup_hit_resp_w ? cache_resp1_w : resp1_q;
+  // 非跨页 bridge/cache response 延续两个 32-bit word segment；跨页 response 则保留
+  // first-page/second-page byte provenance。跨页包不缓存，因此不存在 cache ABI 混用。
+  assign fetch_rsp_resp0_bytes_o = packet_cross_page_q ?
+                                    packet_first_bytes_q : 3'd4;
 
   // 【AXI4 化 S1】flush 拍不发新 AR(撤销待发读, 无 orphan; 已 fire 的读走 S_DRAIN 自吞)
   assign ifu_axi_arvalid_o =
@@ -853,15 +858,14 @@ module OooFetchAxiBridge (
             inst1_q <= fetch_beat_inst1_w;
             if (ifu_axi_rresp_i != RESP_OK) begin
               resp0_q <= RESP_ACCESS_FAULT;
-              resp1_q <= RESP_ACCESS_FAULT;
+              // 普通包仍是两个 word response；跨页包的 resp1 已代表第二页 segment，
+              // 第一页 read error 不得改写其 provenance。slot0 fault 会在 decoder 阻断 slot1。
+              if (!packet_cross_page_q) resp1_q <= RESP_ACCESS_FAULT;
               state_q <= S_RESP;
             end else if (packet_cross_page_q && (resp1_q == RESP_OK)) begin
               state_q <= S_AR1;
             end else begin
-              if (packet_cross_page_q && first_inst_cross_page_w &&
-                  (resp1_q != RESP_OK)) begin
-                resp0_q <= resp1_q;
-              end
+              // 第二页 translation fault 只保留在 resp1 segment；bridge 不再猜 inst0 长度。
               state_q <= S_RESP;
             end
           end
@@ -877,9 +881,7 @@ module OooFetchAxiBridge (
           if (ifu_axi_rvalid_i) begin
             inst0_q <= merged_cross_packet_w[`INST_W-1:0];
             inst1_q <= merged_cross_packet_w[`XLEN-1:`INST_W];
-            if (first_inst_cross_page_w && (ifu_axi_rresp_i != RESP_OK)) begin
-              resp0_q <= RESP_ACCESS_FAULT;
-            end
+            // 第二页 read response 只属于 resp1 segment；具体 slot owner 由 decoder 长度决定。
             resp1_q <= (ifu_axi_rresp_i == RESP_OK) ? resp1_q :
                        RESP_ACCESS_FAULT;
             state_q <= S_RESP;
@@ -1080,6 +1082,34 @@ module OooFetchAxiBridge (
         ad_assert_wstrb_q <= ifu_axi_wstrb_o;
         ad_assert_wlast_q <= ifu_axi_wlast_o;
       end
+    end
+  end
+
+  // IFU-FETCH-G2 provenance shadow：fetch response 反压时 split 与 valid 同 payload 保持；
+  // split 的结构真源是当前 transaction q 状态，不得混入 hit-fusion 同拍的新 request。
+  reg g2_assert_rsp_stall_q;
+  reg [2:0] g2_assert_resp0_bytes_q;
+  always @(posedge clk) begin
+    if (rst) begin
+      g2_assert_rsp_stall_q <= 1'b0;
+      g2_assert_resp0_bytes_q <= 3'd0;
+    end else begin
+      if (g2_assert_rsp_stall_q && !mmu_flush_i &&
+          ((fetch_rsp_valid_o !== 1'b1) ||
+           (fetch_rsp_resp0_bytes_o !== g2_assert_resp0_bytes_q)))
+        $error("[IFU-FETCH-G2-HOLD] stalled fetch response withdrew/changed resp0 byte boundary");
+      if (fetch_rsp_valid_o &&
+          ((fetch_rsp_resp0_bytes_o === 3'd0) ||
+           (^fetch_rsp_resp0_bytes_o === 1'bx)))
+        $error("[IFU-FETCH-G2-RANGE] valid fetch response has unknown/zero resp0 byte boundary");
+      if (fetch_rsp_valid_o && !packet_cross_page_q &&
+          (fetch_rsp_resp0_bytes_o !== 3'd4))
+        $error("[IFU-FETCH-G2-NONCROSS] non-cross/cache response boundary is not four bytes");
+
+      g2_assert_rsp_stall_q <= !mmu_flush_i && fetch_rsp_valid_o &&
+                              !fetch_rsp_ready_i;
+      if (!mmu_flush_i && fetch_rsp_valid_o && !fetch_rsp_ready_i)
+        g2_assert_resp0_bytes_q <= fetch_rsp_resp0_bytes_o;
     end
   end
 `endif

@@ -117,6 +117,7 @@ module NpcCoreTop (
   wire [1:0] ooo_fetch_rsp_resp0_w;
   wire [`INST_W-1:0] ooo_fetch_rsp_inst1_w;
   wire [1:0] ooo_fetch_rsp_resp1_w;
+  wire [2:0] ooo_fetch_rsp_resp0_bytes_w;
 
   wire ooo_mem0_req_valid_w;
   wire ooo_mem0_req_ready_w;
@@ -219,6 +220,7 @@ module NpcCoreTop (
     .fetch_rsp_resp0_o(ooo_fetch_rsp_resp0_w),
     .fetch_rsp_inst1_o(ooo_fetch_rsp_inst1_w),
     .fetch_rsp_resp1_o(ooo_fetch_rsp_resp1_w),
+    .fetch_rsp_resp0_bytes_o(ooo_fetch_rsp_resp0_bytes_w),
     .ifu_axi_arvalid_o(ifu_axi_arvalid_o),
     .ifu_axi_arready_i(ifu_axi_arready_i),
     .ifu_axi_araddr_o(ifu_axi_araddr_o),
@@ -325,6 +327,7 @@ module NpcCoreTop (
     .fetch_rsp_resp0_i(ooo_fetch_rsp_resp0_w),
     .fetch_rsp_inst1_i(ooo_fetch_rsp_inst1_w),
     .fetch_rsp_resp1_i(ooo_fetch_rsp_resp1_w),
+    .fetch_rsp_resp0_bytes_i(ooo_fetch_rsp_resp0_bytes_w),
     .mem_req_valid_o(ooo_mem0_req_valid_w),
     .mem_req_ready_i(ooo_mem0_req_ready_w),
     .mem_req_write_o(ooo_mem0_req_write_w),

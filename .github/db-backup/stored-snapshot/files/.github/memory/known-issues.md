@@ -31,23 +31,21 @@
 - **建议修复顺序**: 下一步按 `yosys-macro-boundary-contracts.md` 逐项推进真实 timing/area/OOC：`OooFetchPacketCache`、`OooDataWordCache` 与 `OooBranchDirectionPredictor` 已有 dedicated spec/checker 与 placeholder v0，后续应转为真实 SRAM/Liberty/LEF macro model 或 OOC timing report，并把 top-level STA 对 blackbox input/output delay、area、power 的假设列入 task-run；`OooFpArithGate` 已有 decision placeholder v0，后续应产出 full-module OOC timing report，或形成 Mul/FMA production child split/top constraints。同时，iEDA active blocker 已从 parser 方言后移到 `StaDataPropagation` 长尾，需继续拆解为什么 `2400s` 未生成 `NpcTop.rpt/.pwr`。每次修改宏边界合同后跑 `python3 yosys-sta/scripts/check_macro_contracts.py`，涉及 BPU/Fetch/D-cache/FP placeholder 时分别追加 `python3 yosys-sta/scripts/check_bpu_macro_contract.py` / `python3 yosys-sta/scripts/check_fetch_cache_macro_contract.py` / `python3 yosys-sta/scripts/check_dcache_macro_contract.py` / `python3 yosys-sta/scripts/check_fp_arith_macro_contract.py`；进入 iEDA 前追加 `python3 yosys-sta/scripts/check_ieda_netlist_compat.py`。`debug/` 与 `common/` 的作用之一是审核 RTL 是否符合 spec 语义；上述边界优化必须用 facts/checker/TB 审核 predictor update/predict、cache hit/invalid/fill、B-FP meta、kill age、redirect/facts 与 fflags 对齐语义。不要因 contract checker PASS、PmpChecker/MulDiv/AddSub/internal cone OOC PASS、BPU/Fetch/D-cache/FP placeholder checker PASS、iEDA netlist preflight PASS 或四黑盒网表产出越级宣称全顶 STA-ready。
 - **证据**: `.github/task-runs/2026-07-07-yosys-rv64-synth-probe/`；`.github/task-runs/2026-07-07-yosys-fetch-packet-cache-valid-next/`；`.github/task-runs/2026-07-08-yosys-pmpchecker-range-share/`；`.github/task-runs/2026-07-08-yosys-fetch-cache-index-config/`；`.github/task-runs/2026-07-08-yosys-fp-arith-gate-ooc/`；`.github/task-runs/2026-07-08-fp-arith-cone-ooc/`；`.github/task-runs/2026-07-08-fp-arith-internal-cones/`；`.github/task-runs/2026-07-08-fp-arith-macro-decision/`；`.github/task-runs/2026-07-08-ieda-netlist-compat/`；`.github/task-runs/2026-07-08-npctop-cache-fp-blackbox-syn/`；`.github/task-runs/2026-07-08-npctop-cache-data-fp-blackbox-syn/`；`.github/task-runs/2026-07-08-npctop-cache-data-fp-bpu-blackbox-syn/`；`.github/task-runs/2026-07-08-yosys-sta-flow-versioned/`；`.github/task-runs/2026-07-08-yosys-macro-boundary-contracts/`；`.github/task-runs/2026-07-08-data-word-cache-semantic-contract/`；`.github/task-runs/2026-07-08-data-word-cache-macro-placeholder/`；`.github/task-runs/2026-07-08-fetch-packet-cache-macro-placeholder/`；`.github/task-runs/2026-07-08-branch-direction-predictor-macro-placeholder/`。
 
-- **2026-07-12 current 5ns blocker 更新**: 当前可复现 A 基线为 NpcTop WNS `-11.74ns`、
-  TNS `-122774.48ns`，105/105 target cone、0 post-map problem；旧 T0 `-15.74ns` backend
-  family 不再是 current top。top40 40/40 同起点 `OooFetchAxiBridge.pc_q[13]`，经 ITLB/PMP/
-  cache-hit、RVC 与 B-imm target 到 FIFO/PC-outstanding。lane1 B-imm sign net fanout=294、
-  Cload=0.716795pF、slew=14.348ns，约超标准单元 max-cap 19.55×；仅 BPU placeholder 52 个
-  无功能意义的 imm pin 就占 0.520pF。该 7.871ns 单 cell arc 是 DRC-invalid NLDM 外推，
-  但乐观压到表内后整条仍约7.96ns，真实一拍架构也过深。
-- **约束/签核缺口仍 OPEN**: OpenSTA `check_setup` 有303 inputs无input-delay、1849 outputs无
-  output-delay、1851 unconstrained endpoints；A/B组合环为109/142，需任意断环；理想时钟、
-  无SPEF/CTS/OCV且四宏是placeholder。故任何绝对WNS/TNS只能用于pre-layout排序，不能称
-  物理200MHz。dead-forward删除候选在同口径下WNS无收益、其它可见PPA不优，已回退。
-- **建议下一步**: 先把 BPU lookup 64-bit `imm` 收窄为实际消费的 static-taken/sign bit并
-  修 placeholder pin-cap合同，取得可信排序；随后按 owner/credit 合同把 bridge raw response
-  强制寄存，并在RVC/predecode与64-bit target之间加compact no-fallthrough prepared-packet
-  边界。IFU-AXI-G1 已于 2026-07-12 关闭；继续关闭 [113] 的 IFU-FETCH-G2、PTW-PMP-G1，
-  不能以 repipeline 掩盖功能缺口。证据
-  `.github/task-runs/2026-07-12-rv64-t3a-dead-crosslane-forward/`。
+- **2026-07-12 current 5ns blocker 更新**: IFU-FETCH-G2 current-source full remap 的 105/105
+  target cone 与 post-map check 均通过；OpenSTA WNS=`-9.99ns`、TNS=`-121006.91ns`，约束路径
+  所需周期 14.986ns（诊断约66.7MHz）。top40 40/40 同起点 D-cache SRAM rdata[87]：39 条到
+  MIQ，1 条经 int-backend/branch recovery/frontend request flow 到 fetch-cache payload SRAM
+  enable；G2 decoder/split 命名锥 0 hit，只能说明未主导 top40，不能称 timing-neutral。
+- **历史/签核边界仍 OPEN**: T3A `-11.74/-122774.48` 使用旧 RTL+wide-BPU placeholder 且
+  pc_q→frontend；F1a `-12.90/-197335.64` 使用 scalar ABI 但早于 IFU-AXI/G2。无同源隔离 A/B，
+  当前改善不得归因 G2。check_setup 仍有303 inputs/1849 outputs无delay、1851 unconstrained
+  endpoints、109 loops；ideal clock、无SPEF/CTS/OCV、四宏placeholder且macro power=0，绝对
+  WNS/TNS只能做pre-layout排序，不能称物理200MHz。
+- **建议下一步**: correctness 先关闭 IFU-ACCESS-G1/IFU-LANE1-OWNER：精确 ARSIZE/物理
+  footprint/PMP/RRESP、M-mode cache fill→S/no-PMP default-deny、pred-NT branch 后 lane1 PF/AF
+  保留与 actual-taken squash；随后再用 owner/credit 合同建立 D-cache→backend/redirect→
+  fetch-cache 与 D-cache→MIQ 的 mandatory registered boundary。IFU-TVAL-G1、PTW-PMP-G1
+  仍不能被 repipeline 掩盖。证据 `.github/task-runs/2026-07-12-rv64-ifu-fetch-g2/`。
 
 ### [113] RV64 代码优先复审重新打开接口合同与验证聚合缺口（2026-07-11）
 
@@ -55,7 +53,7 @@
 - **范围更正**: [111] 的“4/4 全修、已知正确性缺口清零”只表示 2026-07-03 当时登记的四项家族已关闭，不能解释为当前 RTL 的全部正确性合同永久清零。2026-07-11 代码优先复审在后续 RTL 上重新登记 FDG-G1、XRET-G1、IFU-AXI-G1、IFU-FETCH-G2、PTW-PMP-G1、MIQ-G1、INSTRET-G1；证据等级和可达性边界见 current snapshot。
 - **验证聚合缺口**: `perf/results/20260711-125729/module-testbench/summary.txt` 写 86/86 PASS，但 `tb_ooo_control_commit_sequencer.log`、`tb_ooo_pending_system_sequencer.log`、`tb_ooo_stop_pending_sequencer.log` 均先出现 FAIL 与 `$finish(1)`，随后仍输出 `[RESULT] PASS`。`core-regress/20260711-133547-973361/am-cpu-tests.log` 列出 59 项，实际 58 PASS、`fp-difftest-probe` FAIL，但上层仍写 AM PASS / `overall_rc=0`。
 - **可采信边界**: 同轮 177 项 official riscv-tests 有逐项 PASS 记录；module 86/86 与 AM PASS 只能称“摘要文本”，不能作为全绿证明。当前 `.config` 未开启 Difftest。
-- **F0 已解决（2026-07-11）**: module checker 已同时核验 compile/sim rc、测试自身精确 PASS、failure marker、error count 与失败型 `$finish`；AM checker 已拒绝 FAIL/缺项/重复/未知/损坏行并上传 rc。三个 sequencer TB 已按 current contract 更新。`OooFpBackend` 的 FPR busy/bypass/wakeup/write 已统一使用 `valid && frd`，GPR 目的 FP completion 不再因 preg 数字别名误唤醒 FPR。新鲜结果为 module 86/86、AM 59/59（`fp-difftest-probe` 明确 Difftest ON）、official 177/177、strict guard PASS。因此本条中的“验证聚合缺口”和 FP 域资格问题已关闭；后续 F1 slice 状态见下列增量。本条仍因 IFU-FETCH-G2、PTW-PMP-G1、MIQ-G1、INSTRET-G1 与 store/device 边界保持 active，不能整体移入已解决区。
+- **F0 已解决（2026-07-11）**: module checker 已同时核验 compile/sim rc、测试自身精确 PASS、failure marker、error count 与失败型 `$finish`；AM checker 已拒绝 FAIL/缺项/重复/未知/损坏行并上传 rc。三个 sequencer TB 已按 current contract 更新。`OooFpBackend` 的 FPR busy/bypass/wakeup/write 已统一使用 `valid && frd`，GPR 目的 FP completion 不再因 preg 数字别名误唤醒 FPR。新鲜结果为 module 86/86、AM 59/59（`fp-difftest-probe` 明确 Difftest ON）、official 177/177、strict guard PASS。因此本条中的“验证聚合缺口”和 FP 域资格问题已关闭；后续 F1 slice 状态见下列增量。本条仍因 IFU-ACCESS-G1、IFU-TVAL-G1、PTW-PMP-G1、MIQ-G1、INSTRET-G1 与 store/device 边界保持 active，不能整体移入已解决区。
 - **FDG-G1 已解决（2026-07-12）**: ordinary backend admission 已门控
   `dispatch0_arch_trap_i`，并加入 FDG-I1 非真空断言。旧 RTL 四类非法 FP 精确 RED；修复后
   focused 4/4、module 87/87、Difftest-ON AM 59/59、official 177/177。配置恢复后已 clean
@@ -73,8 +71,17 @@
   保持 payload、补齐 AW/W 并消费 B，完成后无声回 IDLE；旧 RTL bridge 22 RED、bridge+xbar
   3 RED。最终 current-source focused 2/2、module 88/88、contract 50/50、lint/style/build
   全绿，12 条独立 shadow 断言均有故意违约证据。未覆盖本轮 Difftest/rv64mi/rv64si，且
-  不提供新 STA；IFU-FETCH-G2、PTW-PMP-G1、MIQ-G1、INSTRET-G1 与 store/device 仍开放，
+  不提供新 STA；IFU-ACCESS-G1、IFU-TVAL-G1、PTW-PMP-G1、MIQ-G1、INSTRET-G1 与 store/device 仍开放，
   因此 [113] 保持 active。
+- **IFU-FETCH-G2 已收窄解决（2026-07-12）**: bridge 以 3-bit byte split 保留 first/second-page
+  response provenance，decoder 作为唯一 RVC length owner 按完整 byte range 生成 per-slot response，
+  并把 faulted inst 净化为 NOP。旧 RTL 真实 Sv39 12 行矩阵精确 4 RED；当前 focused 5/5、
+  module 89/89、AM 59/59、official 177/177、9/9 assertion 非真空、独立 reviewer 8/8。
+  本项只关闭 second-page **page fault** 归属；IFU 固定 8B 读、xbar/slave ARSIZE footprint、
+  fixed-word PMP/RRESP、`pmp_active=0` cache-hit 对 S/U default deny 的绕过，以及 PairGate 对
+  pred-NT branch 后 lane1 page/access fault 的抑制和 ROB-walk access cause filter 归新
+  `IFU-ACCESS-G1`/`IFU-LANE1-OWNER`；变长 instruction faulting-portion `mtval/stval` 归
+  `IFU-TVAL-G1`。因此 [113] 仍 active。
 - **稳定教训**: integer preg 与 FPR preg 即使数值相同也属于不同寄存器域；任何 busy clear、source bypass、wakeup 或物理寄存器写使能都必须带 destination-domain qualifier，不能只用 completion valid。
 - **当前权威与证据**: `npc/rv64/design/arch/rtl-ground-truth-2026-07-11.md`、`npc/rv64/design/arch/rv64-200mhz-completion-design.md`、task-run `2026-07-11-rv64-f0-truthful-regression` 与 `2026-07-12-rv64-f1-fdg-g1`。
 
