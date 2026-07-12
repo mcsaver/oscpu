@@ -1,0 +1,8 @@
+node_id	owner_agent	depends_on	inputs	outputs	success_criteria	fallback	status
+recall-contract	root+xret_f1_slice	-	current RTL/spec/memory	root cause	code/doc agree	re-audit	PASS
+freeze-contract	root+xret_f1_slice	recall-contract	SPEC-TEMPLATE + six contracts	filled spec/task report	all affected cells resolved	stop before RTL	PASS
+red-matrix	xret_f1_slice	freeze-contract	invalid and legal xRET matrix	exact old-RTL failures	three illegal classes fail only expected facts	split decode/classifier	PASS
+implement-classifier	xret_f1_slice	red-matrix	frozen contract	two predicates + OR	focused GREEN	revert slice	PASS
+integration-green	root	implement-classifier	real xRET encodings	priv-system end-to-end scenarios	cause/pc/tval/no commit	localize pending owner	PASS
+full-regression	root	implement-classifier	current RTL	module/lint/build/AM/official	all raw rc pass	localize and rerun	PASS
+record-review	root+xret_review	integration-green,full-regression	all evidence	memory/task-run/guard	no unresolved reviewer objection	deliver slice only	PASS

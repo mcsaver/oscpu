@@ -642,3 +642,21 @@ mismatch,与 FP 无关)。
   且 FP GPR read8 bypass 不能随整数 read0-3 一并删除。
 - 本刀无新 5ns STA，不作频率结论。权威证据：
   `.github/task-runs/2026-07-12-rv64-f1-fdg-g1/`。
+
+## 2026-07-12 XRET-G1 关闭与 T3 naive FIFO 否决
+
+- `OooFetchHeadClassifyGate` 已补 `mret_raw && priv!=M`、`sret_raw && priv==U`，复用既有
+  privileged-illegal→arch-trap→pending trap 链。TSR 只拦 S-mode SRET；合法 MRET@M、
+  SRET@S/TSR0、SRET@M 语义不变，CsrFile 不增加重复 decode。
+- old-RTL classifier matrix 对 MRET@S/U、SRET@U 精确 6 fail；修复后真实编码
+  `tb_ooo_priv_system` 进一步贯穿 Decode→classifier→head0/lane1 pending→CsrFile，检查
+  cause=illegal、fault PC、`mtval=xRET encoding`、handler return、no commit，并直接证明
+  `csr_real_mret_valid/csr_sret_valid` 对非法 request 恒为 0。
+- 验证：focused 5/5、module 87/87、core-regress overall_rc=0、official 177/177、
+  Difftest-ON AM 59/59；配置哈希恢复后 clean OFF rebuild + `add` 1/1；style/contract35/lint
+  与独立 reviewer 无 blocker。证据 `.github/task-runs/2026-07-12-rv64-f1-xret-g1/`。
+- T3 活性反例已冻结：IQ 输出是 oldest-ready 而非 ROB-age 单调，普通 finite-depth FIFO/row
+  buffer 可先被年轻 MMIO/AMO 占满并等待 ROB head，使随后 wake 的 older uop 无槽、形成硬死锁；
+  单纯 age-select 或预留一个槽也不足。下一版拓扑必须按类分流、用 registered credit，并在
+  PRF/AGU 后用 age-aware memory reservation station 管理 SQ/MIQ order；删 dead cross-lane forward
+  与 int PRF write-through 需和相应 stage/断言原子验证。未做新 5ns STA。

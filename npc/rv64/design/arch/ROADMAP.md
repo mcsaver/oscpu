@@ -52,7 +52,7 @@ F0 结果聚合已修正并重跑；后续切片必须复用真实 rc gate，仍
 | ID | 项目 | 当前证据 | 关闭标准 |
 | --- | --- | --- | --- |
 | FDG-G1 | **CLOSED 2026-07-12**：`arch_trap` head0 不得呈现 backend | 旧 RTL 四类非法 FP 精确 RED；断言负探针非真空；focused 4/4 | module 87/87、AM Difftest ON 59/59、official 177/177；后续只防回退 |
-| XRET-G1 | MRET/SRET current-mode 合法性 | MRET-from-S/U、SRET-from-U 已复现 | classifier + CsrFile 边界合同；正反例常驻回归 |
+| XRET-G1 | **CLOSED 2026-07-12**：MRET/SRET current-mode 合法性 | 旧 RTL MRET-from-S/U、SRET-from-U 精确 RED；真实编码 integration 覆盖 head0/lane1 | classifier + CsrFile 边界合同已冻结；module 87/87、AM 59/59、official 177/177；后续只防回退 |
 | IFU-AXI-G1 | A-update AW/W/B 随 flush 完整排水 | AW-only+flush bridge 局部复现 | bridge+xbar 联测；任一已握手 channel 不遗弃 |
 | IFU-FETCH-G2 | page-end C fault 归属 | page+FFE C + next-page fault 已复现 | C/32-bit × page/PMP/AXI fault 矩阵 |
 | PTW-PMP-G1 | A/D PTE write 独立 PMP WRITE 判定 | 静态路径未见 write checker | I/D walker 共用明确合同 + 允许/拒绝正反例 |
@@ -118,6 +118,8 @@ violation replay、tagged outstanding、MSHR、burst refill 与独立 PTW 资源
   arbiter 已进入生产路径。
 - B4：pending branch/jump/memory、prefetch/BTC、synthetic lane1-ret 等可分离死模块已删除；
   剩余大文件拆分与 owner 归位仍是维护性 backlog。
+- XRET-G1：classifier current-mode legality 已闭合；S-mode MRET 与 U-mode lane1 SRET 均以
+  precise illegal-instruction 进入 CsrFile trap，`mepc/mtval` 与 no-xRET-commit 常驻回归通过。
 - fence.i：真实 pending-system commit + mmu_flush + refetch 已落地。
 - Sv39 HW A/D：I/D 主路径已落地；实施计划已归档，PTE write PMP 与 IFU write-drain
   作为 P0 重新打开。

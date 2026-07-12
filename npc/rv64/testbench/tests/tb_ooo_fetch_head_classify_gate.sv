@@ -282,9 +282,29 @@ module tb_ooo_fetch_head_classify_gate;
     reset_inputs();
     set_ctrl_bit(`CTRL_MRET_BIT, 1'b1);
     #1;
-    tb_check1("mret raw", mret_raw, 1'b1);
-    tb_check1("mret xret raw", xret_raw, 1'b1);
-    tb_check1("mret system raw", system_raw, 1'b1);
+    tb_check1("mret in M-mode raw", mret_raw, 1'b1);
+    tb_check1("mret in M-mode xret raw", xret_raw, 1'b1);
+    tb_check1("mret in M-mode system raw", system_raw, 1'b1);
+    tb_check1("mret in M-mode legal", priv_system_illegal, 1'b0);
+    tb_check1("mret in M-mode no trap", arch_trap_raw, 1'b0);
+
+    // XRET-G1：MRET 只能从 M-mode 执行；raw fact 仍保留，但必须改走 illegal trap。
+    reset_inputs();
+    set_ctrl_bit(`CTRL_MRET_BIT, 1'b1);
+    priv_mode = `PRIV_S;
+    #1;
+    tb_check1("mret in S-mode remains classified", mret_raw, 1'b1);
+    tb_check1("mret in S-mode illegal", priv_system_illegal, 1'b1);
+    tb_check1("mret in S-mode traps", arch_trap_raw, 1'b1);
+    tb_check1("mret in S-mode stops", stop_raw, 1'b1);
+
+    reset_inputs();
+    set_ctrl_bit(`CTRL_MRET_BIT, 1'b1);
+    priv_mode = `PRIV_U;
+    #1;
+    tb_check1("mret in U-mode remains classified", mret_raw, 1'b1);
+    tb_check1("mret in U-mode illegal", priv_system_illegal, 1'b1);
+    tb_check1("mret in U-mode traps", arch_trap_raw, 1'b1);
 
     reset_inputs();
     set_ctrl_bit(`CTRL_SRET_BIT, 1'b1);
@@ -297,6 +317,25 @@ module tb_ooo_fetch_head_classify_gate;
     tb_check1("sret under tsr illegal", priv_system_illegal, 1'b1);
     tb_check1("sret under tsr traps", arch_trap_raw, 1'b1);
     check_fact_aliases("sret tsr");
+
+    // XRET-G1：SRET 可从 S 或更高特权执行，但 U-mode 必须 illegal。
+    reset_inputs();
+    set_ctrl_bit(`CTRL_SRET_BIT, 1'b1);
+    priv_mode = `PRIV_U;
+    #1;
+    tb_check1("sret in U-mode remains classified", sret_raw, 1'b1);
+    tb_check1("sret in U-mode illegal", priv_system_illegal, 1'b1);
+    tb_check1("sret in U-mode traps", arch_trap_raw, 1'b1);
+    tb_check1("sret in U-mode stops", stop_raw, 1'b1);
+
+    // TSR 只拦截 S-mode；M-mode 执行 SRET 时即使 TSR=1 也合法。
+    reset_inputs();
+    set_ctrl_bit(`CTRL_SRET_BIT, 1'b1);
+    priv_mode = `PRIV_M;
+    mstatus = `MSTATUS_FS_CLEAN | `MSTATUS_TSR;
+    #1;
+    tb_check1("sret in M-mode ignores tsr", priv_system_illegal, 1'b0);
+    tb_check1("sret in M-mode with tsr no trap", arch_trap_raw, 1'b0);
 
     reset_inputs();
     set_ctrl_bit(`CTRL_SFENCE_VMA_BIT, 1'b1);

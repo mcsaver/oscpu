@@ -22,7 +22,7 @@ FP 子译码、privileged 非法检查、pending/CSR/trap glue 和提交修饰�
 - CSR、ECALL、EBREAK、MRET/SRET、WFI、SFENCE/SINVAL 事实。
 - U-mode supervisor fence illegal、S-mode TVM fence illegal、S-mode TSR SRET illegal
   和 FS-off FP illegal。
-- current-mode xRET 检查的当前实现边界；目标合同见下文 `XRET-G1`。
+- MRET/SRET current-mode 合法性与 SRET/TSR privileged illegal 分类。
 - base decoder illegal 对 FP 合法指令的豁免。
 - `exit_raw`、`system_raw`、`arch_trap_raw`、`stop_raw`、`fp_enabled` 等父模块
   下游需要的组合输出。
@@ -50,6 +50,26 @@ FP 子译码、privileged 非法检查、pending/CSR/trap glue 和提交修饰�
 - 输出 facts 只描述“当前槽是什么”；是否 dispatch/fire/commit 仍由父模块和既有
   gate 决定。
 
+### XRET-G1 current-mode 接口合同（2026-07-12，RTL 前冻结）
+
+| 类别 | producer / 输入 | classifier 输出 | consumer 约束 |
+| --- | --- | --- | --- |
+| MRET current mode | `DecodeUnit.CTRL_MRET_BIT` + `CsrFile.priv_mode_o` | `mret_raw_o && priv_mode_i != PRIV_M` 必须置 `priv_system_illegal_o` 与 `arch_trap_raw_o` | `OooPendingDispatchArbiter` 必须以 arch-trap 胜过 system capture，CsrFile 不得收到该 xRET 请求 |
+| SRET current mode | `DecodeUnit.CTRL_SRET_BIT` + `CsrFile.priv_mode_o` | `sret_raw_o && priv_mode_i == PRIV_U` 必须置 `priv_system_illegal_o` 与 `arch_trap_raw_o` | 同上；S/M mode 的 SRET 不因 current-mode gate 变非法 |
+| SRET TSR | `CTRL_SRET_BIT` + `priv_mode_i` + `mstatus_i.TSR` | 仅 `SRET && priv==S && TSR` 置 privileged illegal | M-mode SRET 不受 TSR 约束；S-mode TSR=0 合法 |
+
+六类跨模块契约冻结如下：
+
+1. **握手**：模块无 valid/ready 状态；输入到 facts 为同拍纯组合映射，不能持有或撤回事务。
+2. **stall**：模块不产生 stall；上游冻结时输入保持即可，classifier 无独立推进动作。
+3. **flush/redirect/trap**：模块无状态可清。非法 xRET 同拍同时保留 xRET raw fact 并置
+   `arch_trap_raw_o`；下游既有优先级必须是 arch-trap capture 胜过 system/xRET capture。
+4. **异常序**：classifier 只形成 illegal-instruction fact；精确 trap 仍由 pending trap/ROB
+   边界触发。`CsrFile` 只消费已由此门判定合法的 xRET 请求。
+5. **访存序**：不读写 SQ/LSU/AXI，无访存序副作用。
+6. **投机恢复/单一真源**：current mode 与 TSR 均只消费 `CsrFile` 导出的架构状态；模块不保存
+   镜像。wrong-path facts 仍由父级 FIFO 可见性与 squash 控制。
+
 ## 状态机
 
 无状态机。该模块是纯组合分类器。
@@ -66,11 +86,13 @@ FP 子译码、privileged 非法检查、pending/CSR/trap glue 和提交修饰�
 - `sfence.vma` 与 `sinval.vma` 受 `mstatus.TVM` 约束；
   `sfence.w.inval` 与 `sfence.inval.ir` 只作为 supervisor 序列化点，不受 TVM 约束。
 - U-mode 下所有 supervisor fence 都 illegal。
-- **CURRENT**：`priv_system_illegal` 当前包含 supervisor fence from U、
-  S-mode TVM fence、S-mode+TSR 的 SRET、以及受 TW 约束的 WFI。
-- **KNOWN GAP XRET-G1**：当前缺 `MRET && priv_mode!=M` 与
-  `SRET && priv_mode==U`。目标合同是 MRET 仅 M-mode 合法；SRET 在 U-mode 非法，
-  S-mode 还受 TSR 约束。`CsrFile` 不复查 current mode，不能依赖下游兜底。
+- **XRET-I1（已验证）**：MRET 仅 M-mode 合法；
+  `mret_raw_o && priv_mode_i != PRIV_M` 必须进入 privileged illegal。
+- **XRET-I2（已验证）**：SRET 在 U-mode 非法，在 S/M-mode 可执行；
+  `sret_raw_o && priv_mode_i == PRIV_U` 必须进入 privileged illegal。
+- **XRET-I3（冻结，既有合同）**：TSR 只拦截 S-mode SRET；M-mode SRET 即使 TSR=1 也不非法。
+- `priv_system_illegal` 必须统一汇总 current-mode xRET、supervisor fence from U、
+  S-mode TVM fence、S-mode+TSR SRET 与受 TW 约束的 WFI。
 - semihost EBREAK 不产生 `exit_raw_o`，但必须产生 `arch_trap_raw_o`，保持原先
   semihost trap 观测路径。
 - 本模块不读取或修改 pending、CSR 文件、FPR、ROB、FIFO、RAS、BPU 或 PC/outstanding
@@ -87,6 +109,19 @@ FP 子译码、privileged 非法检查、pending/CSR/trap glue 和提交修饰�
    FS-off FP、privileged illegal 与 `unsupported_residual`。
 6. `stop_raw_o` 汇总 fetch fault/exit/system/arch trap；FP 已迁域 A，
    `fp_raw` 不再属 stop 类（普通 dispatch 进 ROB/FP 簇；FS-off 经 arch trap 仍 stop）。
+
+### XRET-G1 RTL 级拓扑（RTL 前冻结）
+
+- **边界/协议**：不改端口；`ctrl_i/priv_mode_i/mstatus_i` 输入与
+  `priv_system_illegal_o/arch_trap_raw_o/facts_o` 输出均为同拍组合信号。
+- **寄存器/FSM/pipeline**：无寄存器、无 FSM、无 pipeline；reset/flush/stall 无本地对象。
+- **组合块**：`ctrl_legal_w` 生成 MRET/SRET raw facts；一个 `priv!=M` 比较器形成
+  MRET current-mode illegal，一个 `priv==U` 比较器形成 SRET current-mode illegal；既有
+  SRET/S/TSR 比较保持；三者与其它 privileged illegal 源经 OR 汇合，再进入 arch-trap/stop。
+- **优先级**：本块只形成 facts，不仲裁副作用；下游保持 arch-trap > system/xRET capture。
+- **资源/关键路径**：只新增两个 2-bit 特权比较与浅层 OR，无共享时序资源；预计路径为
+  `ctrl bit + priv compare -> priv_system_illegal -> arch_trap -> stop/facts`。
+- **function 划分**：不新增 function；所有逻辑保持显式 wire/assign。
 
 ## 验证计划
 
@@ -140,7 +175,24 @@ FP 子译码、privileged 非法检查、pending/CSR/trap glue 和提交修饰�
   ordinary dispatch admission 串接；旧 RTL 对四类非法编码精确 RED，修复后 4/4 focused PASS。
 - `OooFrontend` 的 `FDG-I1` 立即断言已用故意违约负探针证明非真空；正常 module 87/87、
   Difftest-ON AM 59/59、official 177/177 均通过。
-- 本节只关闭 classifier→dispatch admission 合同；上面的 xRET current-mode 缺口仍开放。
+- 本节只关闭 classifier→dispatch admission 合同；xRET current-mode 由下一节的独立
+  XRET-G1 RED/GREEN 关闭。
+
+### 2026-07-12 XRET-G1 关闭
+
+- 常驻 classifier 矩阵新增 MRET@S/U、SRET@U 三类反例，并保留 MRET@M、
+  SRET@S+TSR=0/1；额外覆盖 SRET@M+TSR=1，证明 TSR 不会越权拦截 M-mode。
+- 旧 RTL 精确 RED：仅 6 个预期检查失败（3 类反例各自缺
+  `priv_system_illegal/arch_trap`），全部正对照继续通过。
+- classifier 最小修复后单测 1/1 PASS；DecodeUnit、classifier、head-pair、lane1 capture、
+  pending-dispatch focused gate 5/5 PASS。
+- `tb_ooo_priv_system` 另以真实 `30200073/10200073` 贯穿 Decode→classifier→pending→CsrFile：
+  S-mode lane0 MRET 与 U-mode lane1 SRET 均得到 cause=illegal、正确 `mepc/mtval`，handler
+  返回后继续执行，且非法 xRET 没有 synthetic commit；包含该整核场景的 focused 5/5 与
+  final module 87/87 均 PASS。
+- 未给纯组合 classifier 强加仅供断言使用的时钟端口：仓库要求时序块立即断言，而本模块
+  无 `clk`/状态；常驻矩阵直接编码 ISA current-mode 真理，旧 RTL 的精确 RED 已证明其非真空。
+  下游 `FDG-I1` 继续独立保证任何 `arch_trap` 不进入普通 backend dispatch。
 
 ## 实施顺序
 

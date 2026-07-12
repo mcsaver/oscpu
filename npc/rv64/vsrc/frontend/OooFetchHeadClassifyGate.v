@@ -134,6 +134,12 @@ module OooFetchHeadClassifyGate (
       sfence_raw_o && ctrl_i[`CTRL_SFENCE_TVM_BIT] &&
       (priv_mode_i == `PRIV_S) &&
       ((mstatus_i & `MSTATUS_TVM) != {`XLEN{1'b0}});
+  // XRET-G1：xRET 只能在目标特权级或更高特权执行。CsrFile 只消费已判定
+  // 合法的 return 请求，因此 current-mode illegal 必须在 classifier 单点形成。
+  wire mret_mode_illegal_w =
+      mret_raw_o && (priv_mode_i != `PRIV_M);
+  wire sret_mode_illegal_w =
+      sret_raw_o && (priv_mode_i == `PRIV_U);
   wire sret_tsr_illegal_w =
       sret_raw_o && (priv_mode_i == `PRIV_S) &&
       ((mstatus_i & `MSTATUS_TSR) != {`XLEN{1'b0}});
@@ -146,7 +152,8 @@ module OooFetchHeadClassifyGate (
       ((mstatus_i & `MSTATUS_TW) != {`XLEN{1'b0}});
 
   assign priv_system_illegal_o =
-      sfence_u_illegal_w || sfence_tvm_illegal_w || sret_tsr_illegal_w ||
+      sfence_u_illegal_w || sfence_tvm_illegal_w ||
+      mret_mode_illegal_w || sret_mode_illegal_w || sret_tsr_illegal_w ||
       wfi_tw_illegal_w;
   assign exit_raw_o = ebreak_raw_o && !semihost_ebreak_o;
   assign system_raw_o =

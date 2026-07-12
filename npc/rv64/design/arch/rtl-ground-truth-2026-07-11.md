@@ -104,11 +104,14 @@ NpcSimTop                         仿真 shell
    Difftest-ON AM 59/59 与 official 177/177 均通过。下游 mux 是直接 OR sink；本刀不改变
    pending trap、FIFO pop、ROB 或提交 owner。
 
-2. **XRET-G1 — current-mode 合法性不完整**
+2. **XRET-G1 — CLOSED 2026-07-12：current-mode 合法性**
 
-   `OooFetchHeadClassifyGate.v:132-150` 缺 `MRET && priv!=M` 与
-   `SRET && priv==U`；`CsrFile` 下游不复查 current mode。MRET-from-S/U、
-   SRET-from-U 已在真实 decode/classify 链复现，TSR 正对照正常。
+   `OooFetchHeadClassifyGate` 已在唯一 privileged-illegal 汇合点加入
+   `MRET && priv!=M` 与 `SRET && priv==U`；S-mode+TSR 的 SRET 保持非法，M-mode SRET
+   不受 TSR 越权拦截。旧 RTL 对 MRET-from-S/U、SRET-from-U 精确 6 fail；真实编码整核
+   integration 进一步覆盖 S-mode lane0 MRET 与 U-mode lane1 SRET，检查 illegal cause、
+   `mepc/mtval`、handler return 与 no illegal-xRET commit。current module 87/87、AM 59/59、
+   official 177/177 均通过；CsrFile 不复制 legality decode。
 
 3. **IFU-AXI-G1 — A-update partial write 未随 flush 排水**
 

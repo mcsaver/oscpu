@@ -607,3 +607,23 @@ flush 契约诊断确认 UC-A：整数 MulDiv/CLMUL **独缺 mispredict-kill 端
 - 证据：`.github/task-runs/2026-07-12-rv64-f1-fdg-g1/`。本刀只关闭功能合同；未据此
   声称时序改善或 200 MHz 达标。parent 目标仍 active，下一步冻结/实现安全的 IQ→EX 专用
   stage（含 selection stability、ROB age kill、staged-store barrier），并做 target-driven 5ns A/B。
+
+## 2026-07-12 RV64 F1 XRET-G1 current-mode 合同关闭
+
+- `XRET-G1` 已按独立 correctness slice 关闭：`OooFetchHeadClassifyGate` 在唯一
+  privileged-illegal 汇合点加入 `MRET && priv!=M` 与 `SRET && priv==U`；S-mode+TSR SRET
+  继续非法，M-mode SRET 不受 TSR 越权拦截，CsrFile 不复制第二份 legality decode。
+- 旧 RTL current-mode 矩阵精确 RED：MRET@S/U、SRET@U 三类各缺
+  `priv_system_illegal/arch_trap`，共 6 fail；MRET@M、SRET@S+TSR0/1、SRET@M+TSR1
+  正对照通过。修复只增加两个 2-bit privilege compare 与 OR 输入。
+- 真实编码整核回归覆盖 S-mode lane0 MRET 与 U-mode lane1 SRET：两者均形成 precise
+  illegal-instruction，`mepc/mtval` 正确，handler 返回后继续执行，非法 xRET 不提交；sticky
+  同时直接监视 CsrFile `real_mret/sret` 请求为 0，排除 arch-trap/system 双 owner 被优先级掩蔽的假绿。
+- 新鲜门禁：focused 5/5、current module 87/87、bundled core-regress overall_rc=0、
+  current-config AM 59/59（明确 Difftest OFF）、official 177/177；独立 Difftest-ON AM 59/59。
+  NPC/NEMU 六配置按 SHA-256 恢复后 clean rebuild OFF artifact，fresh `add` smoke 明确 OFF/PASS；
+  style、contract `35/35`、lint 与独立 reviewer 均 PASS。
+- 证据：`.github/task-runs/2026-07-12-rv64-f1-xret-g1/`。本刀无新 STA，不声称 200 MHz；
+  parent 目标继续 active。T3 预研已推翻普通 IQ→EX FIFO：oldest-ready admission 非 ROB-age
+  单调，年轻 ROB-head-dependent uop 可填满 stage 并与 late-wake older uop互等；后续必须改为
+  按类注册 credit + PRF/AGU 后 age-aware memory station，先冻结 liveness 合同再写 RTL。

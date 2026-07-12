@@ -1,7 +1,7 @@
 # 规范：控制状态寄存器文件 CsrFile
 
 > 模块：`vsrc/core/CsrFile.v`。模板见 `../arch/SPEC-TEMPLATE.md`。状态：主路径已实现；
-> xRET current-mode 与 `minstret` 系统级输入合同仍有开放项。
+> xRET current-mode 合同已冻结由上游 classifier 负责；`minstret` 系统级输入合同仍有开放项。
 > 由 `core/NpcCoreTop.v` 直接例化，`OooCoreTopGlue` 只导出 CSR access/trap/fflags/retire 事件并消费状态。
 
 ## 1. 目的与范围
@@ -24,9 +24,11 @@ RV64 特权状态机:M/S/U 三态、CSR 读写、trap/中断进入与 xRET 返�
   **sret**:收到已判定合法的请求后，SPIE→SIE、priv←SPP、SPP←U;pc←sepc。
 - 委托:异常按 medeleg、中断按 mideleg 决定 trap 到 M 还是 S(且当前 priv ≤ S)。
 
-**KNOWN GAP XRET-G1**：xRET current-mode 合法性由上游 classifier 负责，CsrFile 不复查。
-当前上游缺 `MRET && priv!=M` 与 `SRET && priv==U`，因此本节只能描述“合法请求到达后”
-的状态转移，不能把 current-mode gate 写成已完整验证。
+**XRET-G1 已验证合同（2026-07-12）**：xRET current-mode 合法性由
+上游 `OooFetchHeadClassifyGate` 负责，CsrFile 不复查。上游必须将 `MRET && priv!=M` 与
+`SRET && priv==U` 分类为 illegal-instruction arch trap；`SRET && priv==S && TSR` 同样非法，
+而 MRET@M、SRET@S/TSR=0、SRET@M（TSR 任意）可形成合法请求。pending capture 必须以
+arch-trap 胜过 system/xRET，故只有已过此门的请求可到达本模块的 mret/sret 输入。
 
 ## 4. 不变量
 - **CSR-I1 特权合法性**：CSR 访问按 `addr[9:8]`（最低特权）与 `addr[11:10]`（读写）
@@ -50,8 +52,13 @@ Vivado OOC:CsrFile 22 逻辑级/logic 3.9ns,主要是 64-bit minstret 计数器�
 - riscv-tests `rv64mi-*`(machine trap/csr/illegal/pmpaddr/zicntr)、`rv64si-*`(supervisor csr/wfi/dirty)。
 - ACT4:PMP(PMPSm/PMPS/PMPU)、Sv39/Svpbmt/Svinval、mstatus.SD。
 - AM:counteren-time/sbi-*/sv39-*(配合 trm.c PMP 配置)。
+- XRET-G1：`tb_ooo_priv_system` 用真实编码覆盖 S-mode lane0 MRET 与 U-mode lane1 SRET；
+  检查 illegal cause、fault PC、`mtval` 原编码、M handler return 与 no illegal-xRET commit。
 
 ## 7. 变更记录
 - 2026-06-28：逆向文档化(M/S 特权 / trap-return 栈 / 委托 / PMP/satp/counters / 不变量)。
 - 2026-07-03：补登 FP CSR 域(fflags/frm/fcsr、fp_dirty→FS=Dirty、frm_o)与 mcounteren/scounteren、menvcfg(PBMTE),对齐 FP 簇落地后的 RTL 现状。
 - 2026-07-11：补充 xRET current-mode 与唯一 ISA-retirement 计数源的跨模块合同。
+- 2026-07-12：冻结 XRET-G1 classifier→pending capture→CsrFile current-mode 合同。
+- 2026-07-12：XRET-G1 旧 RTL 精确 RED；classifier 与真实编码 CsrFile 边界 focused GREEN、
+  final module 87/87；CsrFile 边界不需改 RTL。

@@ -43,8 +43,8 @@
   “8实例/10R2W”是 07-03 以前的拓扑。
 - commit 观察接口仍以分立信号为主，不能称为统一 `commit_event` 类型；CsrFile 的
   `minstret` 当前还接 raw ROB count，见 `INSTRET-G1`。
-- `FDG-G1` 的 `arch_trap -> no backend dispatch` 已于 2026-07-12 关闭；当前优先继续关闭
-  xRET current-mode、IFU A-update write-drain、page-end C fault、PTE-write PMP、MIQ ghost 与
+- `FDG-G1` 的 `arch_trap -> no backend dispatch` 与 `XRET-G1` current-mode legality 已于
+  2026-07-12 关闭；当前优先继续关闭 IFU A-update write-drain、page-end C fault、PTE-write PMP、MIQ ghost 与
   唯一 retirement source 等合同，再扩窗口或 memory MLP。
 
 ---

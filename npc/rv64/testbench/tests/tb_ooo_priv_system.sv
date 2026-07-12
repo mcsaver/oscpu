@@ -75,6 +75,8 @@ module tb_ooo_priv_system;
   localparam [3:0] MODE_SMODE_BOOT = 4'd2;
   localparam [3:0] MODE_SBI_ECALL = 4'd3;
   localparam [3:0] MODE_S_EXT_IRQ = 4'd4;
+  localparam [3:0] MODE_MRET_S_ILLEGAL = 4'd5;
+  localparam [3:0] MODE_SRET_U_ILLEGAL = 4'd6;
   localparam [`XLEN-1:0] BASE_PC = 64'h0000_0000_8000_0000;
   localparam [`XLEN-1:0] HANDLER_PC = 64'h0000_0000_8000_0080;
   localparam [`XLEN-1:0] S_ENTRY_PC = 64'h0000_0000_8000_0040;
@@ -93,6 +95,8 @@ module tb_ooo_priv_system;
   reg saw_smode_handler_fetch;
   reg saw_sret_commit;
   reg saw_satp_commit;
+  reg saw_illegal_xret_commit;
+  reg saw_illegal_xret_csr_request;
 
   wire [`XLEN-1:0] tb_csr_time_w = 64'd1234;
   wire tb_csr_irq_software_w = irq_software;
@@ -422,6 +426,61 @@ module tb_ooo_priv_system;
             default: begin end
           endcase
         end
+        MODE_MRET_S_ILLEGAL: begin
+          case (addr)
+            // M-mode setup enters S-mode at S_ENTRY_PC.
+            BASE_PC + 64'h00: program_word = inst_auipc(5'd1, 20'h00000);
+            BASE_PC + 64'h04: program_word = inst_addi(5'd1, 5'd1, 12'h080);
+            BASE_PC + 64'h08: program_word = inst_csrrw(5'd0, `CSR_MTVEC, 5'd1);
+            BASE_PC + 64'h0c: program_word = inst_auipc(5'd3, 20'h00000);
+            BASE_PC + 64'h10: program_word = inst_addi(5'd3, 5'd3, 12'h034);
+            BASE_PC + 64'h14: program_word = inst_csrrw(5'd0, `CSR_MEPC, 5'd3);
+            BASE_PC + 64'h18: program_word = inst_lui(5'd4, 20'h00001);
+            BASE_PC + 64'h1c: program_word = inst_addi(5'd4, 5'd4, 12'h800);
+            BASE_PC + 64'h20: program_word = inst_csrrw(5'd0, `CSR_MSTATUS, 5'd4);
+            BASE_PC + 64'h24: program_word = inst_mret();
+            // This MRET is illegal in S-mode and must not become a synthetic commit.
+            S_ENTRY_PC + 64'h00: program_word = inst_mret();
+            S_ENTRY_PC + 64'h04: program_word = inst_addi(5'd7, 5'd0, 12'h075);
+            S_ENTRY_PC + 64'h08: program_word = inst_ebreak();
+            HANDLER_PC + 64'h00: program_word = inst_csrrs(5'd8, `CSR_MCAUSE, 5'd0);
+            HANDLER_PC + 64'h04: program_word = inst_csrrs(5'd9, `CSR_MEPC, 5'd0);
+            HANDLER_PC + 64'h08: program_word = inst_csrrs(5'd10, `CSR_MTVAL, 5'd0);
+            HANDLER_PC + 64'h0c: program_word = inst_addi(5'd12, 5'd9, 12'h000);
+            HANDLER_PC + 64'h10: program_word = inst_addi(5'd9, 5'd9, 12'h004);
+            HANDLER_PC + 64'h14: program_word = inst_csrrw(5'd0, `CSR_MEPC, 5'd9);
+            HANDLER_PC + 64'h18: program_word = inst_addi(5'd11, 5'd0, 12'h076);
+            HANDLER_PC + 64'h1c: program_word = inst_mret();
+            default: begin end
+          endcase
+        end
+        MODE_SRET_U_ILLEGAL: begin
+          case (addr)
+            // M-mode setup enters U-mode at S_ENTRY_PC (the address name is historical).
+            BASE_PC + 64'h00: program_word = inst_auipc(5'd1, 20'h00000);
+            BASE_PC + 64'h04: program_word = inst_addi(5'd1, 5'd1, 12'h080);
+            BASE_PC + 64'h08: program_word = inst_csrrw(5'd0, `CSR_MTVEC, 5'd1);
+            BASE_PC + 64'h0c: program_word = inst_auipc(5'd3, 20'h00000);
+            BASE_PC + 64'h10: program_word = inst_addi(5'd3, 5'd3, 12'h034);
+            BASE_PC + 64'h14: program_word = inst_csrrw(5'd0, `CSR_MEPC, 5'd3);
+            BASE_PC + 64'h18: program_word = inst_csrrw(5'd0, `CSR_MSTATUS, 5'd0);
+            BASE_PC + 64'h1c: program_word = inst_mret();
+            // Place SRET in lane1 to cover the lane1 pending-trap capture path.
+            S_ENTRY_PC + 64'h00: program_word = inst_addi(5'd6, 5'd0, 12'h065);
+            S_ENTRY_PC + 64'h04: program_word = inst_sret();
+            S_ENTRY_PC + 64'h08: program_word = inst_addi(5'd7, 5'd0, 12'h075);
+            S_ENTRY_PC + 64'h0c: program_word = inst_ebreak();
+            HANDLER_PC + 64'h00: program_word = inst_csrrs(5'd8, `CSR_MCAUSE, 5'd0);
+            HANDLER_PC + 64'h04: program_word = inst_csrrs(5'd9, `CSR_MEPC, 5'd0);
+            HANDLER_PC + 64'h08: program_word = inst_csrrs(5'd10, `CSR_MTVAL, 5'd0);
+            HANDLER_PC + 64'h0c: program_word = inst_addi(5'd12, 5'd9, 12'h000);
+            HANDLER_PC + 64'h10: program_word = inst_addi(5'd9, 5'd9, 12'h004);
+            HANDLER_PC + 64'h14: program_word = inst_csrrw(5'd0, `CSR_MEPC, 5'd9);
+            HANDLER_PC + 64'h18: program_word = inst_addi(5'd11, 5'd0, 12'h076);
+            HANDLER_PC + 64'h1c: program_word = inst_mret();
+            default: begin end
+          endcase
+        end
         default: begin end
       endcase
     end
@@ -461,6 +520,8 @@ module tb_ooo_priv_system;
       saw_smode_handler_fetch = 1'b0;
       saw_sret_commit = 1'b0;
       saw_satp_commit = 1'b0;
+      saw_illegal_xret_commit = 1'b0;
+      saw_illegal_xret_csr_request = 1'b0;
       `TB_TICK(clk);
       rst = 1'b0;
       #1;
@@ -544,6 +605,12 @@ module tb_ooo_priv_system;
         end
         if (inst == inst_mret()) saw_mret_commit <= 1'b1;
         if (inst == inst_sret()) saw_sret_commit <= 1'b1;
+        if (((program_mode == MODE_MRET_S_ILLEGAL) ||
+             (program_mode == MODE_SRET_U_ILLEGAL)) &&
+            (pc == S_ENTRY_PC || pc == (S_ENTRY_PC + 64'h04)) &&
+            ((inst == inst_mret()) || (inst == inst_sret()))) begin
+          saw_illegal_xret_commit <= 1'b1;
+        end
         if (inst == inst_sfence_vma(5'd0, 5'd0)) saw_sfence_commit <= 1'b1;
         if (inst == inst_wfi()) saw_wfi_commit <= 1'b1;
       end
@@ -557,6 +624,15 @@ module tb_ooo_priv_system;
       commit_total <= commit_total + commit0_valid + commit1_valid;
       observe_commit(commit0_valid, commit0_pc, commit0_inst);
       observe_commit(commit1_valid, commit1_pc, commit1_inst);
+      if ((program_mode == MODE_MRET_S_ILLEGAL) &&
+          tb_csr_real_mret_valid_w &&
+          (dut.pending_system_pc_q == S_ENTRY_PC)) begin
+        saw_illegal_xret_csr_request <= 1'b1;
+      end
+      if ((program_mode == MODE_SRET_U_ILLEGAL) &&
+          tb_csr_sret_valid_w) begin
+        saw_illegal_xret_csr_request <= 1'b1;
+      end
     end
   end
 
@@ -654,6 +730,42 @@ module tb_ooo_priv_system;
     tb_check64("s external irq handler body executed", gpr(5'd11), 64'h72);
     tb_check64("s external irq returned to s body", gpr(5'd7), 64'h71);
     tb_check32("s external irq backend drained after ebreak", {27'b0, rob_count}, 32'd0);
+
+    reset_dut(MODE_MRET_S_ILLEGAL);
+    run_until_exit(1000);
+    tb_check1("s-mode mret reaches ebreak exit", exit_valid, 1'b1);
+    tb_check1("s-mode mret exits via ebreak", exit_is_ebreak, 1'b1);
+    tb_check1("s-mode mret no fatal trap", trap_valid, 1'b0);
+    tb_check1("s-mode mret enters m handler", saw_handler_fetch, 1'b1);
+    tb_check1("s-mode illegal mret does not commit", saw_illegal_xret_commit, 1'b0);
+    tb_check1("s-mode illegal mret does not request CsrFile mret",
+              saw_illegal_xret_csr_request, 1'b0);
+    tb_check64("s-mode mret mcause", gpr(5'd8),
+               {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, `EXC_ILLEGAL_INST});
+    tb_check64("s-mode mret mepc", gpr(5'd12), S_ENTRY_PC);
+    tb_check64("s-mode mret mtval", gpr(5'd10), 64'h0000_0000_3020_0073);
+    tb_check64("s-mode mret handler body", gpr(5'd11), 64'h76);
+    tb_check64("s-mode mret returns after fault", gpr(5'd7), 64'h75);
+    tb_check32("s-mode mret backend drained", {27'b0, rob_count}, 32'd0);
+
+    reset_dut(MODE_SRET_U_ILLEGAL);
+    run_until_exit(1000);
+    tb_check1("u-mode lane1 sret reaches ebreak exit", exit_valid, 1'b1);
+    tb_check1("u-mode lane1 sret exits via ebreak", exit_is_ebreak, 1'b1);
+    tb_check1("u-mode lane1 sret no fatal trap", trap_valid, 1'b0);
+    tb_check1("u-mode lane1 sret enters m handler", saw_handler_fetch, 1'b1);
+    tb_check1("u-mode illegal sret does not commit", saw_illegal_xret_commit, 1'b0);
+    tb_check1("u-mode illegal sret does not request CsrFile sret",
+              saw_illegal_xret_csr_request, 1'b0);
+    tb_check1("u-mode illegal sret is not a legal xret commit", saw_sret_commit, 1'b0);
+    tb_check64("u-mode lane1 sret mcause", gpr(5'd8),
+               {{(`XLEN-`TRAP_CAUSE_W){1'b0}}, `EXC_ILLEGAL_INST});
+    tb_check64("u-mode lane1 sret mepc", gpr(5'd12), S_ENTRY_PC + 64'h04);
+    tb_check64("u-mode lane1 sret mtval", gpr(5'd10), 64'h0000_0000_1020_0073);
+    tb_check64("u-mode lane1 sret older instruction", gpr(5'd6), 64'h65);
+    tb_check64("u-mode lane1 sret handler body", gpr(5'd11), 64'h76);
+    tb_check64("u-mode lane1 sret returns after fault", gpr(5'd7), 64'h75);
+    tb_check32("u-mode lane1 sret backend drained", {27'b0, rob_count}, 32'd0);
 
     tb_finish("tb_ooo_priv_system");
   end

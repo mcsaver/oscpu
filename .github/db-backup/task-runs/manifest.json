@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T11:40:43+00:00",
-  "updated_at": "2026-07-12T02:41:46+00:00",
+  "updated_at": "2026-07-12T03:20:22+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -29986,6 +29986,46 @@
       "sha256": "a53b3f693e0719673239df705e328f5d6115de64f7a479a2c99fae0c22ecf228",
       "backup_source": "filesystem",
       "archived_at": "2026-07-12T02:38:03+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1-xret-g1-final-npc-dev/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 7703,
+      "sha256": "e7a4ea5081dd40d57a18823fca7062f1cae152b8a89e6ae0656aab45d77e403f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T03:15:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1-xret-g1-final-npc-dev/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5858,
+      "sha256": "6b42242b64697c44a7b337c166b6c2d50406199fbee1d78415b515e40aa1fe95",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T03:15:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1-xret-g1-final-npc-dev/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 3095,
+      "sha256": "d8422086ac05150a25bd0bc90910a9a3138a173c562a74ac4615b1bb026b938a",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T03:15:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1-xret-g1-final-npc-dev/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 934,
+      "sha256": "a858a38f0aeeedafd595186e5912ef30f174ce3510979529140525388456fa54",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T03:15:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-12-rv64-f1-xret-g1-final-npc-dev/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4487,
+      "sha256": "a816d177367d15e9c67f7fd1743fa8132947c20a8e6fd44cc77002f65fae0b96",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-12T03:15:24+00:00"
     },
     {
       "path": ".github/task-runs/2026-07-12-rv64-t0-5ns-remap-baseline-npc-dev/context-brief.md",
