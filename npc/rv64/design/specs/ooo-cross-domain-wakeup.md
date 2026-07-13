@@ -23,7 +23,7 @@ FP store 数据源只要求最终可发射，不要求执行完成同拍发射�
 
 - **握手**：不新增端口/ready；`fp_wake0/1` 仍是单拍 execution-completion/load-WB 广播。
 - **stall/backpressure**：N 拍 wake0 不允许让 FP-store entry 同拍 select；N 沿吸收，N+1
-  可 select。wake1 与整数 EX/MEM fast select 均保留同拍快路。
+  可 select。wake1 与整数 EX fast select 均保留同拍快路；T3G 起 MEM 为 formal-only。
 - **flush/kill/redirect**：kill 拍仍压 issue；存活前缀必须吸收同拍 FP wake，年轻后缀 squash。
 - **异常序**：FP completion/fflags/ROB done owner 不动；只给 FP-store consumer 增加一拍。
 - **访存序**：FP store 的 SQ/MIQ/request owner 不变，延迟发生在进入 memory issue 前。

@@ -181,9 +181,8 @@ module OooIntBackend #(
   // 共用同一 valid 真源，过滤 FP-only/probe/x0 completion 的 p0 tag。
   wire gpr_wb0_write_valid_w;
   wire gpr_wb1_write_valid_w;
-  // 【T3B】EX/MEM-only fast broadcast：与 formal WB 物理分离，避免
-  // MulDiv/CLMUL/FPWB payload 经 IQ select / PRF write-through 形成组合反馈。
-  // formal WB 仍是完成、sticky wakeup 与 PRF 时序写的唯一真源。
+  // 【T3G】EX-only fast broadcast：与 formal WB 物理分离；MEM/long-op/FPWB
+  // 只在沿上更新 IQ/PRF/ROB，依赖者下一拍消费。
   wire fast_wb0_valid_w;
   wire [PHY_REG_ADDR_W-1:0] fast_wb0_pdest_w;
   wire [`XLEN-1:0] fast_wb0_data_w;
@@ -2408,8 +2407,8 @@ module OooIntBackend #(
                                             mem_amo_old_value_w)) :
       mem_rsp_fp_load_w ? mem_rsp_fp_boxed_w :
       mem_wb_is_load_w ? mem_rsp_load_data_w : {`XLEN{1'b0}};
-  // 整数 MEM 目的寄存器在 full/fast 两条物理总线上共享同一语义；FP load 与
-  // store probe 不得唤醒或旁路整数 p0 之外的寄存器。
+  // T3G：整数 MEM 目的只进入 formal WB；此处仍负责把 FP load / store probe
+  // 映射为 p0，禁止它们误写或误唤醒整数物理寄存器。
   wire [PHY_REG_ADDR_W-1:0] mem_rsp_int_pdest_w =
       (miq_head_pdest_fp_w || miq_probe_wb_fire_w) ?
         {PHY_REG_ADDR_W{1'b0}} : miq_head_pdest_w;
@@ -2426,31 +2425,49 @@ module OooIntBackend #(
   assign muldiv_resp_ready_w = muldiv_rsp_to_wb0_w || muldiv_rsp_to_wb1_w;
   assign clmul_resp_ready_w = clmul_rsp_to_wb0_w || clmul_rsp_to_wb1_w;
 
-  // 【T3B】fast payload 必须直接取 raw EX/MEM winner，禁止从 full-WB 五源 mux
-  // 回读。pdest=0 与 exception/fault 都没有可消费的合法 operand，故在源头压掉
-  // valid；后者仍经 formal WB 记录异常，前者同时使 PRF FAST-WB-SUBSET 与
-  // formal write-valid（同样按 p0 gate）逐 lane 可执行。
-  assign fast_wb0_pdest_w = ex0_valid_q ? ex0_pdest_q :
-                             mem_rsp_to_wb0_w ? mem_rsp_int_pdest_w :
-                                               {PHY_REG_ADDR_W{1'b0}};
-  assign fast_wb0_data_w = ex0_valid_q ? ex0_result_q :
-                           mem_rsp_to_wb0_w ? mem_rsp_wb_data_w :
-                                             {`XLEN{1'b0}};
+  // 【T3G】fast 是 raw EX formal winner 的精确 operand 投影，禁止从 full-WB
+  // 五源 mux 回读，也禁止 MEM response 同拍进入 IQ select/PRF bypass。无 EX 时
+  // payload 归零，异常或 p0 EX 仍可 formal WB，但不是合法 operand。
+  assign fast_wb0_pdest_w =
+      ex0_valid_q ? ex0_pdest_q : {PHY_REG_ADDR_W{1'b0}};
+  assign fast_wb0_data_w =
+      ex0_valid_q ? ex0_result_q : {`XLEN{1'b0}};
   assign fast_wb0_valid_w =
-      (fast_wb0_pdest_w != {PHY_REG_ADDR_W{1'b0}}) &&
-      (ex0_valid_q ? !ex0_exception_q :
-       mem_rsp_to_wb0_w ? !mem_rsp_fault_w : 1'b0);
+      ex0_valid_q && !ex0_exception_q &&
+      (ex0_pdest_q != {PHY_REG_ADDR_W{1'b0}});
 
-  assign fast_wb1_pdest_w = ex1_valid_q ? ex1_pdest_q :
-                             mem_rsp_to_wb1_w ? mem_rsp_int_pdest_w :
-                                               {PHY_REG_ADDR_W{1'b0}};
-  assign fast_wb1_data_w = ex1_valid_q ? ex1_result_q :
-                           mem_rsp_to_wb1_w ? mem_rsp_wb_data_w :
-                                             {`XLEN{1'b0}};
+  assign fast_wb1_pdest_w =
+      ex1_valid_q ? ex1_pdest_q : {PHY_REG_ADDR_W{1'b0}};
+  assign fast_wb1_data_w =
+      ex1_valid_q ? ex1_result_q : {`XLEN{1'b0}};
   assign fast_wb1_valid_w =
-      (fast_wb1_pdest_w != {PHY_REG_ADDR_W{1'b0}}) &&
-      (ex1_valid_q ? !ex1_exception_q :
-       mem_rsp_to_wb1_w ? !mem_rsp_fault_w : 1'b0);
+      ex1_valid_q && !ex1_exception_q &&
+      (ex1_pdest_q != {PHY_REG_ADDR_W{1'b0}});
+
+`ifdef OOO_ASSERT
+  // T3G：subset 断言只能证明 fast→formal，不能禁止 MEM 冒充 fast，也不能
+  // 证明所有合法 EX 均被广播；故逐 lane精确比较 valid/tag/data 投影。
+  always @(posedge clk) begin
+    if (!rst &&
+        ({fast_wb0_valid_w, fast_wb0_pdest_w, fast_wb0_data_w} !==
+         {ex0_valid_q && !ex0_exception_q &&
+            (ex0_pdest_q != {PHY_REG_ADDR_W{1'b0}}),
+          ex0_valid_q ? ex0_pdest_q : {PHY_REG_ADDR_W{1'b0}},
+          ex0_valid_q ? ex0_result_q : {`XLEN{1'b0}}})) begin
+      $error("[INT-FAST-WB-EX-ONLY] lane0 fast projection differs from EX @%0t",
+             $time);
+    end
+    if (!rst &&
+        ({fast_wb1_valid_w, fast_wb1_pdest_w, fast_wb1_data_w} !==
+         {ex1_valid_q && !ex1_exception_q &&
+            (ex1_pdest_q != {PHY_REG_ADDR_W{1'b0}}),
+          ex1_valid_q ? ex1_pdest_q : {PHY_REG_ADDR_W{1'b0}},
+          ex1_valid_q ? ex1_result_q : {`XLEN{1'b0}}})) begin
+      $error("[INT-FAST-WB-EX-ONLY] lane1 fast projection differs from EX @%0t",
+             $time);
+    end
+  end
+`endif
 
   assign wb0_valid_w =
       ex0_valid_q || mem_rsp_to_wb0_w ||

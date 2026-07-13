@@ -1,0 +1,8 @@
+bytes	sha256	path
+68328773	95bac1a0e1ecc0fe3154d1461997098caf0f8182760fb9b111aacd95f79ef7b4	tmp/2026-07-13-rv64-t3g-mem-formal-only/sta-build/NpcTop-200MHz/NpcTop.netlist.v
+54808270	e03de187a30f0d17278e23efd4f459288be251244c2bc631e21eb7d344374674	tmp/2026-07-13-rv64-t3g-mem-formal-only/sta-build/NpcTop-200MHz/NpcTop.netlist.v.sim
+41	651d740188ddb19c58fded2ec4185871ff23a1f453af22dc3f44583503743e7c	tmp/2026-07-13-rv64-t3g-mem-formal-only/sta-build/NpcTop-200MHz/abc.sdc
+6262	3f8aba355b11c9df58142ed3b248bcee535536721146b451285ba806f3b5b982	tmp/2026-07-13-rv64-t3g-mem-formal-only/sta-build/NpcTop-200MHz/synth_check.txt
+250691	f1902f11f6dd1118ba3008bc707bb70e57920dcc4d2fa61acbde5e486a8ad538	tmp/2026-07-13-rv64-t3g-mem-formal-only/sta-build/NpcTop-200MHz/synth_stat.txt
+756479806	62bb997d1cdf24f5f6eedb8a2153a3d51c3555c16126fd6029e5bcf3c13776a3	tmp/2026-07-13-rv64-t3g-mem-formal-only/sta-build/NpcTop-200MHz/yosys.log
+3260	d6858c9328197cf74b2e16bf97ea03afb82f301ed5f78ba008d6a6f21f479de3	tmp/2026-07-13-rv64-t3g-mem-formal-only/sta-provenance.md

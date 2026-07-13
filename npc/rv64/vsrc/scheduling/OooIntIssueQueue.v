@@ -69,8 +69,8 @@ module OooIntIssueQueue #(
   input [PHY_REG_ADDR_W-1:0] wakeup0_pdest_i,
   input wakeup1_valid_i,
   input [PHY_REG_ADDR_W-1:0] wakeup1_pdest_i,
-  // T3B：select 只前视 EX/MEM fast broadcast；full wakeup 仍用于
-  // compaction/dispatch/kill survivor 的时序 ready 更新。
+  // T3G：select 只前视 EX fast broadcast；full wakeup（含 MEM）仍用于
+  // compaction/dispatch/kill survivor 的时序 ready 更新，下一拍可发射。
   input select_wakeup0_valid_i,
   input [PHY_REG_ADDR_W-1:0] select_wakeup0_pdest_i,
   input select_wakeup1_valid_i,

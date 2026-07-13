@@ -13,8 +13,8 @@
 - 每项:valid/src1_ready/src2_ready/src preg/pdest/imm/ctrl/rob_idx/pc...,**按程序序排列**(新进尾)。
 - **wakeup**:2 个 full整数 writeback + 2 个 FP wakeup pdest 广播,匹配 src preg → 置该 src ready。
   T3B 起整数口分成两种视图：full wakeup 继续服务 compaction/dispatch insertion/kill survivor 的
-  sticky ready；独立 EX/MEM-only select wakeup 才允许 resident entry 同拍进入 select。MulDiv/
-  CLMUL/FPWB 的 full pulse 在 N 拍粘住 ready，依赖项 N+1 才可选。T3D 起 FP execution
+  sticky ready；T3G 起仅独立 EX-only select wakeup 允许 resident entry 同拍进入 select。MEM/
+  MulDiv/CLMUL/FPWB 的 full pulse 在 N 拍粘住 ready，依赖项 N+1 才可选。T3D 起 FP execution
   completion口(wake0)只服务 FP-store fs2 的 sticky ready：N沿吸收、N+1才可选；FP load
   WB口(wake1)无 branch-kill 回边，保留同拍 select。
 - **select**:顺序扫描(oldest-first)选最老的 2 个 src1&src2 都 ready 的 uop → issue0/issue1。
@@ -94,7 +94,8 @@ payload 直读。顺序扫描 select 仍随 ENTRY_COUNT 增深(故 iter2 撤回 
 - 2026-07-13：因 current A top40 的40条路径均实际经过旧 mux，做唯一 RTL 差异 retry；
   focused/module/CoreMark 全绿且旧 arc 真实消失，但 full-chip WNS/TNS/loops/area/power 再次
   全面回退，候选还原。109-loop root 已收敛为108条 long-op full-WB feedback +1条 FP admission
-  SCC；下一刀只让 EX/MEM fast broadcast 参与同拍 select，full wakeup 仍粘入 IQ state。
+  SCC；T3B 随后让 EX/MEM fast broadcast 参与同拍 select，T3G 又根据 fresh DCache 路径
+  将其收紧为 EX-only；full wakeup 始终粘入 IQ state。
   证据 `.github/task-runs/2026-07-13-rv64-t3a-current-top-retry/`。
 - 2026-07-13 T3D：FP admission 拆环后 full Verilator 暴露 `FP completion→FP-store
   same-cycle select→branch kill→FP completion` 分支；execution wake0 改为 sticky-only、

@@ -48,8 +48,8 @@ T3B 把 full-WB 与 EX/MEM fast broadcast 分开后，FP IQ 仍把 integer full 
 ### 2.2 Integer PRF read8 只读已落账状态
 
 - `read8_data_o` 只读 `regs_q[read8_addr_i]`，preg0 仍恒 0。
-- `read8` 既不消费 full write-through，也不消费 EX/MEM fast bypass。
-- read0–3 继续消费 EX/MEM fast bypass；正式 `write0/1` 仍是 `regs_q` 唯一
+- `read8` 既不消费 full write-through，也不消费 fast bypass。
+- read0–3 继续消费 EX-only fast bypass（T3G 起 MEM formal-only）；正式 `write0/1` 仍是 `regs_q` 唯一
   更新真源。
 
 IQ tag 边界和 PRF data 边界必须原子修改。只切 IQ 会留下无用的 full/fast
@@ -86,7 +86,8 @@ payload 长弧；只切 read8 会使旧 IQ 在 N 拍发射时读到尚未落账�
 ### 3.5 访存序
 
 - 本刀只作用于进入 FP issue 的 GPR source，不改 integer load/store 的 MIQ/SQ/order。
-- integer load→FP convert/move 变为 WB 后 N+1 发射；整数域内 load-use 仍保留 T3B fast path。
+- integer load→FP convert/move 变为 WB 后 N+1 发射；T3G 起整数域内 load-use 也在
+  MEM formal WB 后 N+1 发射，见 `ooo-mem-formal-only.md`。
 
 ### 3.6 恢复 / 单一真源
 
@@ -118,7 +119,7 @@ payload 长弧；只切 read8 会使旧 IQ 在 N 拍发射时读到尚未落账�
 
 ## 6. 已拒绝方案与非声明
 
-- **拒绝 EX/MEM-only fast-select**：它能切掉 MulDiv/full-WB 回穿，但仍留下
+- **拒绝把 EX/MEM fast-select 接入 FP 域**：它能切掉 MulDiv/full-WB 回穿，但仍留下
   DCache→fast-WB→FpIQ→FpConvert 约 12–15 ns 跨域路径，不适合 5 ns 目标。
 - **拒绝 false-path/UNOPTFLAT**：该路径是功能上真实可激活的组合路，不能被约束掩盖。
 - 本刀不保证 FP IQ 本域 oldest-select/FP PRF/FpConvert 自身已小于 5 ns，也不声称

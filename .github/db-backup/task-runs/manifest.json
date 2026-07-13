@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T11:40:43+00:00",
-  "updated_at": "2026-07-13T04:09:03+00:00",
+  "updated_at": "2026-07-13T05:28:40+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -31106,6 +31106,86 @@
       "sha256": "baf4f19f3d4ad9d7bed75c59da84cfb9a49d581973dd5efc1603f1d964fb0598",
       "backup_source": "filesystem",
       "archived_at": "2026-07-13T04:09:03+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3g-mem-formal-only-2/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 7698,
+      "sha256": "7e0b950dc4624b93a570af2f337dfde1f6bc95fa8e3a6fca8a6d6ac49f5eade8",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T05:26:10+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3g-mem-formal-only-2/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5805,
+      "sha256": "7a23e94b6cf39462a31f56ac812d0c90d9ecce7e5f1e1d4264338b204788e486",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T05:26:10+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3g-mem-formal-only-2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 3072,
+      "sha256": "86dd88e47ea407f5a7a382a630bc55f67b11d2a697fcaa1298014f8186102563",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T05:26:10+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3g-mem-formal-only-2/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 934,
+      "sha256": "a858a38f0aeeedafd595186e5912ef30f174ce3510979529140525388456fa54",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T05:26:10+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3g-mem-formal-only-2/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4443,
+      "sha256": "c0c01e8caf026b3a1513e5cae6be60a85eb2000e3d925e033deea21f01ceefa1",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T05:26:10+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3g-mem-formal-only-final/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 7704,
+      "sha256": "bce9d714ee9a1c567075ffbfb582275c149caea259e19769bd6a3c36bf206c40",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T05:28:40+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3g-mem-formal-only-final/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5875,
+      "sha256": "e56946a9cae39c365676e98c4dc810059ba8f055e53c785b15dd427c0d33efac",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T05:28:40+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3g-mem-formal-only-final/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 3102,
+      "sha256": "33ee77c02e225c5b264ff1352db0bb4cb5eaf2aedcddbe0580bac7936fb602da",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T05:28:40+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3g-mem-formal-only-final/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 934,
+      "sha256": "a858a38f0aeeedafd595186e5912ef30f174ce3510979529140525388456fa54",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T05:28:40+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3g-mem-formal-only-final/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4501,
+      "sha256": "bb9b88a087f25b165351886522f95283667f9922617e5adc42c39b98418a6ff7",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T05:28:40+00:00"
     }
   ]
 }

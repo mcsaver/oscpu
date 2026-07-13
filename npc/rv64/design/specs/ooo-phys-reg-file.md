@@ -11,7 +11,7 @@
 ## 2. 接口与端口
 - 读:多个 `readN_addr_i`→`readN_data_o`(组合读)。
 - full写:`write0/1_valid_i + write0/1_addr_i + write0/1_data_i`(时序写，所有正式WB source)。
-- fast旁路:`bypass0/1_valid_i + bypass0/1_addr_i + bypass0/1_data_i`，只允许EX/MEM winner；
+- fast旁路:`bypass0/1_valid_i + bypass0/1_addr_i + bypass0/1_data_i`，只允许 EX winner；
   只由 read0–3 消费。read8 不消费 full 或 fast 同拍旁路。
 - 复位:regs_q 全 0(x0 物理寄存器恒 0)。
 - 恢复:`recover_i`(flush 拍)时 preg1..31 载入已提交架构 GPR(`recover_gprs_i`)、preg32..63 清零
@@ -43,4 +43,4 @@ Vivado OOC:PRF 单独 3 逻辑级/logic ~0.4ns(浅,健康),非 Fmax 瓶颈。多
 ## 7. 变更记录
 - 2026-06-28：逆向文档化(多读 2 写 / 写-读旁路 / write1>write0 / x0)。
 - 2026-07-13：T3B 把 read0–3 收窄为 EX/MEM fast bypass；T3F 进一步删除 read8
-  同拍旁路，与 FpIQ integer sticky wake 的周期边界对齐。
+  同拍旁路；T3G 再将 read0–3 fast 收紧为 EX-only，MEM 在 formal WB 后 N+1 读取。

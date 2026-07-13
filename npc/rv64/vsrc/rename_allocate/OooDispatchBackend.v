@@ -89,8 +89,8 @@ module OooDispatchBackend #(
   input [`XLEN-1:0] wb1_tval_i,
   input [4:0] wb1_fflags_i,
 
-  // 【T3B】EX/MEM-only fast select wakeup；full wb0/1 仍独占
-  // BusyTable、IQ sticky-ready 与 ROB 完成状态更新。
+  // 【T3G】EX-only fast select wakeup；full wb0/1 仍独占 BusyTable、IQ
+  // sticky-ready 与 ROB 完成状态更新，MEM 依赖在下一拍消费。
   input select_wakeup0_valid_i,
   input [PHY_REG_ADDR_W-1:0] select_wakeup0_pdest_i,
   input select_wakeup1_valid_i,

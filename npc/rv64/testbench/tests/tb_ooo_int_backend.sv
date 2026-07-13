@@ -100,6 +100,9 @@ module tb_ooo_int_backend;
   reg mem_rsp_valid;
   reg [`XLEN-1:0] mem_rsp_rdata;
   reg mem_rsp_error;
+  reg [PHY_REG_ADDR_W-1:0] t3g_load0_pdest;
+  reg [PHY_REG_ADDR_W-1:0] t3g_load1_pdest;
+  reg [PHY_REG_ADDR_W-1:0] t3g_dependent_pdest;
 
   wire unused_mem_ready = mem_rsp_ready;
 
@@ -1771,6 +1774,47 @@ module tb_ooo_int_backend;
     $finish_and_return(0);
 `endif
 
+`ifdef INT_FAST_WB_EX_ONLY_NEGATIVE
+    // 非真空负探针：先让一条真实 load 发出并进入 MIQ，再在无 EX 的合法 MEM
+    // formal-WB0 窗口把 fast0 强制成相同 payload。既有 subset 断言仍满足，
+    // 应只由 EX-only 精确投影断言报错。
+    set_dispatch0(32'h8000_0e20,
+                  make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+                  5'd0, 5'd0, 5'd5, 64'h8000_02e0);
+    #1;
+    if (!dispatch0_ready)
+      $fatal(1, "[INT-FAST-WB-EX-ONLY-NEGATIVE-SETUP] load dispatch blocked");
+    t3g_load0_pdest = dut.dispatch0_pdest_w;
+    `TB_TICK(clk);
+    clear_dispatch();
+    #1;
+    if (!(mem_req_valid && !mem_req_write))
+      $fatal(1, "[INT-FAST-WB-EX-ONLY-NEGATIVE-SETUP] load request absent");
+    `TB_TICK(clk);
+    #1;
+    mem_rsp_valid = 1'b1;
+    mem_rsp_rdata = 64'h0123_4567_89ab_cdef;
+    mem_rsp_error = 1'b0;
+    #1;
+    if (!(mem_rsp_ready && dut.mem_rsp_to_wb0_w && dut.wb0_valid_w &&
+          !dut.ex0_valid_q && !dut.ex1_valid_q &&
+          (dut.wb0_pdest_w == t3g_load0_pdest)))
+      $fatal(1, "[INT-FAST-WB-EX-ONLY-NEGATIVE-SETUP] legal MEM-only WB0 window absent");
+    force dut.fast_wb0_valid_w = 1'b1;
+    force dut.fast_wb0_pdest_w = dut.wb0_pdest_w;
+    force dut.fast_wb0_data_w = dut.wb0_data_w;
+    $display("[INT-FAST-WB-EX-ONLY-NEGATIVE] forced MEM formal0 into fast0 pdest=%0d data=0x%016h",
+             dut.fast_wb0_pdest_w, dut.fast_wb0_data_w);
+    `TB_TICK(clk);
+    release dut.fast_wb0_valid_w;
+    release dut.fast_wb0_pdest_w;
+    release dut.fast_wb0_data_w;
+    mem_rsp_valid = 1'b0;
+    #1;
+    $display("[INT-FAST-WB-EX-ONLY-NEGATIVE] completed one assertion edge");
+    $finish_and_return(0);
+`endif
+
 `ifdef RAW_I1_NEGATIVE_PROBE
     // 非真空负探针：先建立两个合法 independent integer issue lane，再只 force
     // issue1 enabled source tag 撞 issue0 integer pdest，证明 RAW-I1 立即断言有牙。
@@ -1978,6 +2022,7 @@ module tb_ooo_int_backend;
 	                  5'd0, 5'd0, 5'd15, 32'h8000_0270);  // 【F2】EA 入 pmem: 非 pmem load 现按 MMIO 队头独占, 本场景测 buffer 串行化
 	    #1;
 	    tb_check1("buffer seed load dispatch ready", dispatch0_ready, 1'b1);
+	    t3g_load0_pdest = dut.dispatch0_pdest_w;
 	    // 【P5 刀 B】load 不再 dispatch 拍直通:req 在 issue 拍(次拍)组合出 AGU 才可见。
 	    tb_check1("no same-cycle load request", mem_req_valid, 1'b0);
 	    `TB_TICK(clk);
@@ -1992,6 +2037,7 @@ module tb_ooo_int_backend;
 	                  5'd0, 5'd0, 5'd16, 32'h8000_0276);
 	    #1;
 	    tb_check1("buffered lhu dispatch ready", dispatch0_ready, 1'b1);
+	    t3g_load1_pdest = dut.dispatch0_pdest_w;
 	    `TB_TICK(clk);
 	    clear_dispatch();
 	    #1;
@@ -2005,14 +2051,15 @@ module tb_ooo_int_backend;
 	    #1;
 	    tb_check1("no third request in flight", mem_req_valid, 1'b0);
 
-	    // T3B 正向覆盖：在首条 load 返回前放入真实依赖者。响应拍必须同时
-	    // 形成 MEM fast-WB0、唤醒驻留 IQ 项并把返回值旁路到其 EX 源操作数。
+	    // T3G 正向覆盖：在首条 load 返回前放入真实依赖者。MEM response 拍只
+	    // formal-WB；沿上写 PRF/ready sticky，依赖者下一拍从 regs_q 发射。
 	    set_dispatch0(32'h8000_2608,
 	                  make_alu_ctrl(`OP1_SEL_RS1, `OP2_SEL_IMM,
 	                                `ALU_OP_ADD, 1'b1, 1'b0, 1'b1),
 	                  5'd15, 5'd0, 5'd17, 64'd1);
 	    #1;
 	    tb_check1("load-use dependent dispatch ready", dispatch0_ready, 1'b1);
+	    t3g_dependent_pdest = dut.dispatch0_pdest_w;
 	    `TB_TICK(clk);
 	    clear_dispatch();
 	    #1;
@@ -2028,27 +2075,36 @@ module tb_ooo_int_backend;
 	    tb_check1("buffer seed rsp ready", mem_rsp_ready, 1'b1);
 	    tb_check1("buffer seed commit valid", commit0_valid, 1'b1);
 	    tb_check32("buffer seed commit data", commit0_data, 32'h1234_5678);
-	    tb_check1("load MEM fast WB0 valid", dut.fast_wb0_valid_w, 1'b1);
-	    tb_check32("load MEM fast/full WB0 pdest agree",
-	               {26'b0, dut.fast_wb0_pdest_w},
-	               {26'b0, dut.wb0_pdest_w});
-	    tb_check64("load MEM fast WB0 data", dut.fast_wb0_data_w,
+	    tb_check1("load MEM formal WB0 valid", dut.wb0_valid_w, 1'b1);
+	    tb_check32("load MEM formal WB0 pdest",
+	               {26'b0, dut.wb0_pdest_w},
+	               {26'b0, t3g_load0_pdest});
+	    tb_check64("load MEM formal WB0 data", dut.wb0_data_w,
 	               64'h0000_0000_1234_5678);
-	    tb_check1("load-use selects on response",
-	              dut.issue0_valid_w, 1'b1);
-	    tb_check32("load-use selected PC", dut.issue0_pc_w[31:0],
-	               32'h8000_2608);
-	    tb_check32("load-use source tag matches fast WB0",
-	               {26'b0, dut.issue0_src1_preg_w},
-	               {26'b0, dut.fast_wb0_pdest_w});
-	    tb_check64("load-use source data bypasses response",
-	               dut.issue0_src1_data_w, 64'h0000_0000_1234_5678);
-	    $display("[T3B-COVERAGE-OBS] load-use fast0 valid=%0b pdest=%0d data=0x%016h issue0_pc=0x%08h src=0x%016h",
-	             dut.fast_wb0_valid_w, dut.fast_wb0_pdest_w,
-	             dut.fast_wb0_data_w, dut.issue0_pc_w[31:0],
-	             dut.issue0_src1_data_w);
+	    tb_check1("load MEM fast WB0 suppressed", dut.fast_wb0_valid_w, 1'b0);
+	    tb_check1("load MEM fast WB1 suppressed", dut.fast_wb1_valid_w, 1'b0);
+	    tb_check1("load-use does not select on response",
+	              dut.issue0_valid_w || dut.issue1_valid_w, 1'b0);
+	    $display("[T3G-RED-OBS] mem-N formal0=%0b pdest=%0d fast={%0b,%0b} issue={%0b,%0b}",
+	             dut.wb0_valid_w, dut.wb0_pdest_w,
+	             dut.fast_wb0_valid_w, dut.fast_wb1_valid_w,
+	             dut.issue0_valid_w, dut.issue1_valid_w);
 	    `TB_TICK(clk);
 	    mem_rsp_valid = 1'b0;
+	    #1;
+	    tb_check1("load-use selects after sticky edge", dut.issue0_valid_w, 1'b1);
+	    tb_check32("load-use selected PC after sticky edge",
+	               dut.issue0_pc_w[31:0], 32'h8000_2608);
+	    tb_check32("load-use source tag is load pdest",
+	               {26'b0, dut.issue0_src1_preg_w},
+	               {26'b0, t3g_load0_pdest});
+	    tb_check64("load-use source data reads stored PRF",
+	               dut.issue0_src1_data_w, 64'h0000_0000_1234_5678);
+	    $display("[T3G-COVERAGE-OBS] mem-N+1 issue0_pc=0x%08h preg=%0d stored=0x%016h",
+	             dut.issue0_pc_w[31:0], dut.issue0_src1_preg_w,
+	             dut.issue0_src1_data_w);
+	    // 把 dependent add 推进 EX；下一拍与第二条 load response 形成 EX0+MEM1。
+	    `TB_TICK(clk);
 	    #1;
 
 	    mem_rsp_valid = 1'b1;
@@ -2058,18 +2114,26 @@ module tb_ooo_int_backend;
 	    tb_check1("buffered lhu rsp ready", mem_rsp_ready, 1'b1);
 	    tb_check1("buffered lhu commit valid", commit0_valid, 1'b1);
 	    tb_check32("buffered lhu commit data", commit0_data, 32'h0000_1800);
-	    // 首条 load 的依赖者此拍占 EX/WB0，因此第二条 load 自然落 MEM
-	    // fast-WB1；同时覆盖 MEM 端口的 lane1 仲裁与 payload 一致性。
-	    tb_check1("buffered lhu MEM fast WB1 valid",
-	              dut.fast_wb1_valid_w, 1'b1);
-	    tb_check32("buffered lhu fast/full WB1 pdest agree",
-	               {26'b0, dut.fast_wb1_pdest_w},
-	               {26'b0, dut.wb1_pdest_w});
-	    tb_check64("buffered lhu MEM fast WB1 data",
-	               dut.fast_wb1_data_w, 64'h0000_0000_0000_1800);
-	    $display("[T3B-COVERAGE-OBS] lhu-response fast1 valid=%0b pdest=%0d data=0x%016h",
-	             dut.fast_wb1_valid_w, dut.fast_wb1_pdest_w,
-	             dut.fast_wb1_data_w);
+	    // dependent add 此拍占 EX/WB0 且继续 fast；第二条 load 自然落 formal WB1，
+	    // 但 MEM 不得出现在 fast-WB1。
+	    tb_check1("dependent EX fast WB0 preserved", dut.fast_wb0_valid_w, 1'b1);
+	    tb_check32("dependent EX fast WB0 pdest",
+	               {26'b0, dut.fast_wb0_pdest_w},
+	               {26'b0, t3g_dependent_pdest});
+	    tb_check64("dependent EX fast WB0 data", dut.fast_wb0_data_w,
+	               64'h0000_0000_1234_5679);
+	    tb_check1("buffered lhu formal WB1 valid", dut.wb1_valid_w, 1'b1);
+	    tb_check32("buffered lhu formal WB1 pdest",
+	               {26'b0, dut.wb1_pdest_w},
+	               {26'b0, t3g_load1_pdest});
+	    tb_check64("buffered lhu formal WB1 data", dut.wb1_data_w,
+	               64'h0000_0000_0000_1800);
+	    tb_check1("buffered lhu MEM fast WB1 suppressed",
+	              dut.fast_wb1_valid_w, 1'b0);
+	    $display("[T3G-COVERAGE-OBS] mixed ex-fast0={%0b,%0d,0x%016h} mem-formal1={%0b,%0d,0x%016h} fast1=%0b",
+	             dut.fast_wb0_valid_w, dut.fast_wb0_pdest_w,
+	             dut.fast_wb0_data_w, dut.wb1_valid_w, dut.wb1_pdest_w,
+	             dut.wb1_data_w, dut.fast_wb1_valid_w);
 	    `TB_TICK(clk);
 	    mem_rsp_valid = 1'b0;
 	    #1;
