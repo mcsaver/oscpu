@@ -97,6 +97,8 @@ module tb_ooo_priv_system;
   reg saw_satp_commit;
   reg saw_illegal_xret_commit;
   reg saw_illegal_xret_csr_request;
+  reg [31:0] t3k_lane1_candidate_count;
+  reg [31:0] t3k_lane1_match_count;
 
   wire [`XLEN-1:0] tb_csr_time_w = 64'd1234;
   wire tb_csr_irq_software_w = irq_software;
@@ -523,6 +525,8 @@ module tb_ooo_priv_system;
       saw_satp_commit = 1'b0;
       saw_illegal_xret_commit = 1'b0;
       saw_illegal_xret_csr_request = 1'b0;
+      t3k_lane1_candidate_count = 32'd0;
+      t3k_lane1_match_count = 32'd0;
       `TB_TICK(clk);
       rst = 1'b0;
       #1;
@@ -625,6 +629,33 @@ module tb_ooo_priv_system;
       commit_total <= commit_total + commit0_valid + commit1_valid;
       observe_commit(commit0_valid, commit0_pc, commit0_inst);
       observe_commit(commit1_valid, commit1_pc, commit1_inst);
+      // MODE_ECALL_MRET 的 0x08/0x0c 包是真实 decode/classify 链产生的
+      // lane0 ADDI + lane1 CSRRW。candidate 钉住真实 barrier fire；match 再要求
+      // pending capture 与 head-only probe 同拍命中，exact-one 可抓缺失或重复消费。
+      if ((program_mode == MODE_ECALL_MRET) &&
+          dut.dispatch1_barrier_fire_w &&
+          (dut.head_pc_w == (BASE_PC + 64'h08)) &&
+          (dut.head_pc1_w == (BASE_PC + 64'h0c)) &&
+          (dut.head_inst0_w == inst_addi(5'd1, 5'd1, 12'h07c)) &&
+          (dut.head_inst1_w == inst_csrrw(5'd5, `CSR_MTVEC, 5'd1)) &&
+          !dut.dispatch0_system_w &&
+          !dut.head0_csr_raw_w && dut.head1_csr_raw_w) begin
+        t3k_lane1_candidate_count <= t3k_lane1_candidate_count + 32'd1;
+        if (dut.pending_system_capture_lane1_w &&
+            tb_csr_probe_valid_w &&
+            (tb_csr_probe_addr_w == `CSR_MTVEC) &&
+            (tb_csr_probe_funct3_w == 3'b001) &&
+            (tb_csr_probe_rs1_idx_w == 5'd1) &&
+            !tb_csr_illegal_w) begin
+          if (t3k_lane1_match_count == 32'd0) begin
+            $display("[T3K-LANE1-CSR-PROBE] pc0=%h pc1=%h addr=%03h funct3=%b rs1=%0d illegal=%b",
+                     dut.head_pc_w, dut.head_pc1_w, tb_csr_probe_addr_w,
+                     tb_csr_probe_funct3_w, tb_csr_probe_rs1_idx_w,
+                     tb_csr_illegal_w);
+          end
+          t3k_lane1_match_count <= t3k_lane1_match_count + 32'd1;
+        end
+      end
       if ((program_mode == MODE_MRET_S_ILLEGAL) &&
           tb_csr_real_mret_valid_w &&
           (dut.pending_system_pc_q == S_ENTRY_PC)) begin
@@ -649,6 +680,10 @@ module tb_ooo_priv_system;
     tb_check1("ecall handler fetch observed", saw_handler_fetch, 1'b1);
     tb_check1("csr old-value commits observed", saw_csr_commit, 1'b1);
     tb_check1("lane1 csr barrier commits", saw_lane1_csr_commit, 1'b1);
+    tb_check32("T3K real lane0-ordinary/lane1-CSR fire count",
+               t3k_lane1_candidate_count, 32'd1);
+    tb_check32("T3K lane1 capture/probe/legality match count",
+               t3k_lane1_match_count, 32'd1);
     tb_check1("mret synthetic commit observed", saw_mret_commit, 1'b1);
     tb_check1("sfence synthetic commit observed", saw_sfence_commit, 1'b1);
     tb_check1("wfi synthetic commit observed", saw_wfi_commit, 1'b1);

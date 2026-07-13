@@ -142,6 +142,10 @@ module OooControlPlane #(
   output [`XLEN-1:0] csr_access_rs1_data_w,
   output [`REG_ADDR_W-1:0] csr_access_rs1_idx_w,
   output csr_access_valid_w,
+  output [11:0] csr_probe_addr_w,
+  output [2:0] csr_probe_funct3_w,
+  output [`REG_ADDR_W-1:0] csr_probe_rs1_idx_w,
+  output csr_probe_valid_w,
   output csr_mret_valid_w,
   output csr_real_mret_valid_w,
   output csr_sret_valid_w,
@@ -297,6 +301,10 @@ module OooControlPlane #(
     .csr_access_rs1_data_o(csr_access_rs1_data_w),
     .csr_access_set_clear_noop_o(csr_access_set_clear_noop_w),
     .csr_access_need_write_o(csr_access_need_write_w),
+    .csr_probe_valid_o(csr_probe_valid_w),
+    .csr_probe_addr_o(csr_probe_addr_w),
+    .csr_probe_funct3_o(csr_probe_funct3_w),
+    .csr_probe_rs1_idx_o(csr_probe_rs1_idx_w),
     .pending_system_satp_write_commit_o(pending_system_satp_write_commit_w),
     .pending_system_sfence_commit_o(pending_system_sfence_commit_w)
   );

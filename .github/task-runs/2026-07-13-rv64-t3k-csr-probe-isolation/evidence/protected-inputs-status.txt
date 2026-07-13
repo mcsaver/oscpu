@@ -1,0 +1,8 @@
+status=PASS
+policy=pre-existing user changes preserved and excluded from T3K staging
+build/linux-logs/npc-linux.log=3d66ffa3564aa5f5171604af9b13eb22b3cad3df771d5b37be556064bea64d15
+npc/rv64/vsrc/debug/OooAdUpdateChecker.sv=3863f022cddf2f72818a0fddfe424be9308735d5bc9575d8b2703a8346cacb42
+npc/rv64/vsrc/frontend/OooFrontend.v=065738b97763decb386b3eb48034556256dc346c384b75bc1ad67ddcd74c405a
+npc/rv64/vsrc/sim/NpcSimTop.sv=94bbe2ceb997e2e7c0cd2f5f858797f3c7bcf0db293ea3a55b49ff6edced546a
+/tmp/ysyx-t3k-user-npc-linux.log=3d66ffa3564aa5f5171604af9b13eb22b3cad3df771d5b37be556064bea64d15
+protected_log_pre_post_exact=true

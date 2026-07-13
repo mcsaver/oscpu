@@ -7,6 +7,10 @@
   wire [2:0] tb_csr_access_funct3_w;
   wire [`REG_ADDR_W-1:0] tb_csr_access_rs1_idx_w;
   wire [`XLEN-1:0] tb_csr_access_rs1_data_w;
+  wire tb_csr_probe_valid_w;
+  wire [11:0] tb_csr_probe_addr_w;
+  wire [2:0] tb_csr_probe_funct3_w;
+  wire [`REG_ADDR_W-1:0] tb_csr_probe_rs1_idx_w;
   wire tb_pending_fp_fflags_commit_w;
   wire [4:0] tb_pending_fp_commit_fflags_w;
   wire tb_csr_trap_mem_valid_w;
@@ -49,6 +53,10 @@
     .csr_rs1_idx_i(tb_csr_access_rs1_idx_w),
     .csr_rs1_data_i(tb_csr_access_rs1_data_w),
     .csr_zimm_i(tb_csr_access_rs1_idx_w),
+    .csr_probe_valid_i(tb_csr_probe_valid_w),
+    .csr_probe_addr_i(tb_csr_probe_addr_w),
+    .csr_probe_funct3_i(tb_csr_probe_funct3_w),
+    .csr_probe_rs1_idx_i(tb_csr_probe_rs1_idx_w),
     // Mirror NpcCoreTop: CSR state commits via the drained pending-system path
     // or via the queue-head CSR retire pulse when OOO_CSR_QUEUE_HEAD is enabled.
     .csr_commit_i(tb_pending_system_csr_commit_w || tb_head0_csr_commit_w),
@@ -97,6 +105,10 @@
     .csr_access_funct3_w(tb_csr_access_funct3_w), \
     .csr_access_rs1_idx_w(tb_csr_access_rs1_idx_w), \
     .csr_access_rs1_data_w(tb_csr_access_rs1_data_w), \
+    .csr_probe_valid_w(tb_csr_probe_valid_w), \
+    .csr_probe_addr_w(tb_csr_probe_addr_w), \
+    .csr_probe_funct3_w(tb_csr_probe_funct3_w), \
+    .csr_probe_rs1_idx_w(tb_csr_probe_rs1_idx_w), \
     .pending_fp_fflags_commit_w(tb_pending_fp_fflags_commit_w), \
     .pending_fp_commit_fflags_w(tb_pending_fp_commit_fflags_w), \
     .csr_trap_mem_valid_w(tb_csr_trap_mem_valid_w), \

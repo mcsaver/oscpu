@@ -75,7 +75,9 @@ module/core 回归和性能样本分析。
   CSR 存储（TOR/NA4/NAPOT + lock 链）、`misa` WARL no-op 写入，以及
   `mstatus.TVM/TW/TSR` 可写位；
   当前由 `core/NpcCoreTop.v` 直接例化，`OooCoreTopGlue` 只导出 CSR access/trap/
-  fflags/retire 事件并消费 CSR 状态。
+  fflags/retire 事件并消费 CSR 状态。T3K 起 CSR 接口分为 commit/pending/readback
+  使用的 `csr_access_*` 与 current-head-only、无副作用的 `csr_probe_*`；两者在
+  `CsrFile` 内复用唯一 legality predicate，但 probe 结果不参与架构状态更新。
 - `frontend/OooFetchHeadClassifyGate.v` 承接单个 fetch head 的 decoder illegal、
   branch/jump/memory、FP decode、FS-off FP、semihost EBREAK、ECALL/CSR/xRET/WFI、
   supervisor fence/TVM/TSR privilege illegal、stop 和 architectural trap 组合事实；
@@ -187,7 +189,8 @@ module/core 回归和性能样本分析。
   `trap_redirect_squash` 和 `checkpoint_mem_flush` 注册状态；父模块仍负责 CSR/trap
   side effect、pending owner 清理、branch checkpoint 事件和 PC/outstanding 时序。
 - `control/OooCsrAccessRequestMux.v` 承接 commit0 CSR、pending SYSTEM CSR、
-  lane1 CSR probe 与 lane0 head 到 `CsrFile` CSR access request 的纯组合选择；
+  lane1 CSR head 与 lane0 head 到 `CsrFile` main access request 的纯组合选择，
+  并另行导出不依赖 commit/pending 的 head-only legality probe；
   父模块仍负责 CSR 文件实例、CSR legality/side effect、pending owner 和 precise
   recovery。
 - `control/OooStopPendingSequencer.v` 承接 `stop_pending` 注册状态；父模块仍

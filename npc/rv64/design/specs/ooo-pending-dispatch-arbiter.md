@@ -79,6 +79,10 @@
   的寄存器和 `late_clear_i` 保证。
 - I8（IFU-LANE1-OWNER）：`trap_exit_capture_lane1 && arch_valid && head_fetch_fault1`
   不得因 cause=`INST_ACCESS_FAULT` 被 mode-based pseudo filter 删除。
+- I9（CSR-PROBE-OWNER）：`head0_csr_illegal_i/head1_csr_illegal_i` 必须来自
+  同拍 current-head-only legality view；commit0、pending SYSTEM 或 CSR readback
+  access 的优先级不得改变它们。trap/exit、direct flush 与 privileged-policy
+  transition 仍必须先阻断普通 capture，禁止用一拍延迟 legality 补偿错拍。
 
 ## 2d. 数据通路约束
 

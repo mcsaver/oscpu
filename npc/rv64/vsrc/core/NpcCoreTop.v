@@ -160,6 +160,10 @@ module NpcCoreTop (
   wire [2:0] ooo_csr_access_funct3_w;
   wire [`REG_ADDR_W-1:0] ooo_csr_access_rs1_idx_w;
   wire [`XLEN-1:0] ooo_csr_access_rs1_data_w;
+  wire ooo_csr_probe_valid_w;
+  wire [11:0] ooo_csr_probe_addr_w;
+  wire [2:0] ooo_csr_probe_funct3_w;
+  wire [`REG_ADDR_W-1:0] ooo_csr_probe_rs1_idx_w;
   wire ooo_pending_fp_fflags_commit_w;
   wire ooo_fp_dirty_commit_w;
   wire [4:0] ooo_pending_fp_commit_fflags_w;
@@ -354,6 +358,10 @@ module NpcCoreTop (
     .csr_access_funct3_w(ooo_csr_access_funct3_w),
     .csr_access_rs1_idx_w(ooo_csr_access_rs1_idx_w),
     .csr_access_rs1_data_w(ooo_csr_access_rs1_data_w),
+    .csr_probe_valid_w(ooo_csr_probe_valid_w),
+    .csr_probe_addr_w(ooo_csr_probe_addr_w),
+    .csr_probe_funct3_w(ooo_csr_probe_funct3_w),
+    .csr_probe_rs1_idx_w(ooo_csr_probe_rs1_idx_w),
     .pending_fp_fflags_commit_w(ooo_pending_fp_fflags_commit_w),
     .fp_dirty_commit_w(ooo_fp_dirty_commit_w),
     .pending_fp_commit_fflags_w(ooo_pending_fp_commit_fflags_w),
@@ -440,8 +448,13 @@ module NpcCoreTop (
     .csr_rs1_idx_i(ooo_csr_access_rs1_idx_w),
     .csr_rs1_data_i(ooo_csr_access_rs1_data_w),
     .csr_zimm_i(ooo_csr_access_rs1_idx_w),
+    .csr_probe_valid_i(ooo_csr_probe_valid_w),
+    .csr_probe_addr_i(ooo_csr_probe_addr_w),
+    .csr_probe_funct3_i(ooo_csr_probe_funct3_w),
+    .csr_probe_rs1_idx_i(ooo_csr_probe_rs1_idx_w),
     // 【serialize Phase1 §E5】CSR 状态写在 drain 路(pending_system_csr_commit) 或 head0 队头路(mem 静默拍) fire。
-    // csr_valid_i/addr/rs1 已由 csr_access_* 覆盖 head0-CSR(core_commit0_csr 优先); satp state 也经此写(内部 :759)。
+    // csr_valid_i/addr/rs1 已由 csr_access_* 覆盖 head0-CSR(core_commit0_csr 优先)；
+    // csr_probe_* 独立回答 current-head legality，不参与 satp/其它 CSR 写副作用。
     // 注: satp 的 mmu_flush 不在 head0 拍开(靠 serial_flush redirect + ITLB satp-tag miss)。
     .csr_commit_i(ooo_pending_system_csr_commit_w || ooo_head0_csr_commit_w),
     .csr_rdata_o(ooo_csr_rdata_w),

@@ -30,10 +30,42 @@ RV64 特权状态机:M/S/U 三态、CSR 读写、trap/中断进入与 xRET 返�
 而 MRET@M、SRET@S/TSR=0、SRET@M（TSR 任意）可形成合法请求。pending capture 必须以
 arch-trap 胜过 system/xRET，故只有已过此门的请求可到达本模块的 mret/sret 输入。
 
+### 3.1 CSR access 与 legality probe 双视图合同（T3K）
+
+`CsrFile` 同拍接收两条无握手组合视图：
+
+| View | 输入 | 输出/用途 | 允许影响状态 |
+| --- | --- | --- | --- |
+| main access | `csr_valid/addr/funct3/rs1_idx/rs1_data/zimm/commit` | `csr_rdata`、内部 `csr_access_illegal_w`、提交写副作用 | 仅 `csr_commit && valid && !illegal && need_write` |
+| head probe | `csr_probe_valid/addr/funct3/rs1_idx` | 对外 `csr_illegal_o`，供 pending trap 分类 | 永不允许 |
+
+两条视图必须调用同一个纯组合 `csr_access_illegal_raw` 定义。该定义完整覆盖
+known/implemented、write-intent 与 writable、当前 privilege、S-mode SATP+TVM、
+`mcounteren/scounteren`；不得复制或弱化为第二张地址表。main 与 probe 可以同拍
+访问不同地址，`csr_illegal_o` 只回答 probe，main 写入许可只看内部
+`csr_access_illegal_w`。
+
+令上升沿前架构状态为 `S_q`，则同拍语义固定为：
+
+```text
+main_illegal  = L(S_q, main_access)
+probe_illegal = L(S_q, head_probe)
+S_next        = T(S_q, trap/xRET/main_commit/fp_dirty)
+```
+
+两次合法性都观察 pre-edge `S_q`。禁止把同拍提交、trap 或 xRET 形成的
+`S_next` 旁路给 probe；NBA 更新后从下一拍起才按新状态重算。probe 不进入
+`csr_new_value`、read-data mux、PMP lock/write 或任何时序块。上游继续以
+trap/exit/privileged boundary 优先级阻断 younger probe 的消费。
+
 ## 4. 不变量
 - **CSR-I1 特权合法性**：CSR 访问按 `addr[9:8]`（最低特权）与 `addr[11:10]`（读写）
   校验；非法访问产生 illegal instruction（由 probe gate 上报）。
 - **CSR-I2 精确性**:CSR 副作用只在该 CSR 指令/ trap 提交边界生效(配合 ROB 精确提交)。
+- **CSR-I2a probe 隔离**：`csr_illegal_o` 只依赖 head probe payload 与当前 CSR
+  状态；commit/pending/main-access payload 不得进入该输出的组合依赖锥。
+- **CSR-I2b 定义唯一**：main 与 probe 的 legality 对同一 payload/同一 `S_q`
+  必须 bit-exact；main legality 仍独立守住所有 CSR 写副作用。
 - **CSR-I3 mstatus 派生**:SD 由 FS==Dirty 派生;SXL/UXL 固定 RV64;WARL 位按规范钳位(已知例外:medeleg/mideleg 无只读 0 掩码,见 §2)。
 - **CSR-I4（模块内）计数器**：CsrFile 按 `instret_inc_i` 加 `minstret`，并受
   `mcountinhibit.IR` 抑制。
@@ -54,6 +86,9 @@ Vivado OOC:CsrFile 22 逻辑级/logic 3.9ns,主要是 64-bit minstret 计数器�
 - AM:counteren-time/sbi-*/sv39-*(配合 trm.c PMP 配置)。
 - XRET-G1：`tb_ooo_priv_system` 用真实编码覆盖 S-mode lane0 MRET 与 U-mode lane1 SRET；
   检查 illegal cause、fault PC、`mtval` 原编码、M handler return 与 no illegal-xRET commit。
+- T3K：standalone TB 交叉 main/probe 地址与合法性，覆盖 read-only write-intent、
+  privilege、TVM、counter-enable，并证明 probe 无副作用与 policy 写入边沿的
+  pre-edge→post-edge 翻转；结构/变异检查证明 commit/pending 不再进入 probe 锥。
 
 ## 7. 变更记录
 - 2026-06-28：逆向文档化(M/S 特权 / trap-return 栈 / 委托 / PMP/satp/counters / 不变量)。
@@ -62,3 +97,5 @@ Vivado OOC:CsrFile 22 逻辑级/logic 3.9ns,主要是 64-bit minstret 计数器�
 - 2026-07-12：冻结 XRET-G1 classifier→pending capture→CsrFile current-mode 合同。
 - 2026-07-12：XRET-G1 旧 RTL 精确 RED；classifier 与真实编码 CsrFile 边界 focused GREEN、
   final module 87/87；CsrFile 边界不需改 RTL。
+- 2026-07-13：冻结 T3K 双视图 legality 合同：head-only probe 与
+  commit/pending main access 解耦，共用唯一纯组合 predicate，保持 pre-edge 语义。

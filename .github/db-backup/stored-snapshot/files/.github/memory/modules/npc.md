@@ -778,3 +778,20 @@ mismatch,与 FP 无关)。
   再由commit-priority CSR access mux与head probe共享`CsrFile.csr_illegal`，扇到pending tval。
   下一刀不得直接清宽payload或加false-path；推荐commit access与head probe双view、同一
   legality predicate两次求值，并证明pre-edge policy、zero-rs1 write-intent、TVM/counteren。
+
+## 2026-07-13 T3K CSR current-head legality 双 view
+
+- `OooCsrAccessRequestMux` 的 probe 选择规则与真实 head 顺序一致：lane1 仅在 lane0 非 CSR、
+  lane1 为可探测 CSR 时拥有 probe，否则取 lane0；payload 只含 addr/funct3/rs1 index，不取
+  GPR data，也不接 commit/pending selector。四个信号穿过 ControlPlane/CoreTopGlue/NpcCoreTop
+  后直达 CsrFile，主 access ABI 与副作用时序不变。
+- `CsrFile.csr_access_illegal_raw` 是 main/probe 唯一 legality 定义，输入显式包含 addr、
+  funct3、rs1、priv、mstatus、mcounteren、scounteren。公开 head legality 与 main commit guard
+  分离，但二者都观察 pre-edge q state；不得为追时序旁路同拍 CSR write 的 next state。
+- 可达性审查已补强：S-mode TVM/TSR/MPP 状态必须经真实 M-mode CSR 操作和 MRET 建立；双发
+  ADDI+CSR 的 lane1 probe 通过真实 frontend/dispatch/pending capture 精确一次观测。人工制造
+  的 tuple 不一致仅作 structural/mutation 证据，不冒充可达微架构事件。
+- 最终 gate：focused 3/3、module 96/96、core regression official+privileged 177/177、AM、
+  lint/style/contract88/88、CoreMark 10 iter 全绿。fresh physical proof 将旧
+  main-legality→pending 133 条替换为 probe→pending 133 条；全核 WNS 仅改善到 -8.720ns，
+  下一瓶颈已迁移到 frontend response/decode→fetch-PC-outstanding。

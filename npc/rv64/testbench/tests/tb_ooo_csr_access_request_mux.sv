@@ -33,6 +33,10 @@ module tb_ooo_csr_access_request_mux;
   wire [`XLEN-1:0] csr_access_rs1_data_o;
   wire csr_access_set_clear_noop_o;
   wire csr_access_need_write_o;
+  wire csr_probe_valid_o;
+  wire [11:0] csr_probe_addr_o;
+  wire [2:0] csr_probe_funct3_o;
+  wire [`REG_ADDR_W-1:0] csr_probe_rs1_idx_o;
   wire pending_system_satp_write_commit_o;
   wire pending_system_sfence_commit_o;
 
@@ -68,6 +72,10 @@ module tb_ooo_csr_access_request_mux;
     .csr_access_rs1_data_o(csr_access_rs1_data_o),
     .csr_access_set_clear_noop_o(csr_access_set_clear_noop_o),
     .csr_access_need_write_o(csr_access_need_write_o),
+    .csr_probe_valid_o(csr_probe_valid_o),
+    .csr_probe_addr_o(csr_probe_addr_o),
+    .csr_probe_funct3_o(csr_probe_funct3_o),
+    .csr_probe_rs1_idx_o(csr_probe_rs1_idx_o),
     .pending_system_satp_write_commit_o(pending_system_satp_write_commit_o),
     .pending_system_sfence_commit_o(pending_system_sfence_commit_o)
   );
@@ -108,6 +116,25 @@ module tb_ooo_csr_access_request_mux;
       debug_gprs_i[6 * `XLEN +: `XLEN] = 64'h0000_0000_0000_0006;
       debug_gprs_i[7 * `XLEN +: `XLEN] = 64'h0000_0000_0000_0007;
       debug_gprs_i[8 * `XLEN +: `XLEN] = 64'h0000_0000_0000_0008;
+    end
+  endtask
+
+  // probe 只观察 ROB head；即使同拍有 commit/pending access，也不能改写其 payload。
+  task expect_probe;
+    input exp_valid;
+    input [`INST_W-1:0] exp_inst;
+    begin
+      #1;
+      if (csr_probe_valid_o !== exp_valid ||
+          (exp_valid &&
+           (csr_probe_addr_o !== exp_inst[31:20] ||
+            csr_probe_funct3_o !== exp_inst[14:12] ||
+            csr_probe_rs1_idx_o !== exp_inst[19:15]))) begin
+        $display("FAIL probe valid=%0b addr=%0h funct3=%0h rs1=%0d expected_valid=%0b expected_inst=%0h",
+                 csr_probe_valid_o, csr_probe_addr_o, csr_probe_funct3_o,
+                 csr_probe_rs1_idx_o, exp_valid, exp_inst);
+        $finish;
+      end
     end
   endtask
 
@@ -152,19 +179,23 @@ module tb_ooo_csr_access_request_mux;
     clear_inputs();
     expect_access(1'b0, 1'b0, 1'b0, 1'b0, head_inst0_i,
                   1'b1, 1'b0, 1'b0);
+    expect_probe(1'b0, head_inst0_i);
 
     clear_inputs();
     head0_csr_raw_i = 1'b1;
     expect_access(1'b0, 1'b0, 1'b0, 1'b1, head_inst0_i,
                   1'b1, 1'b0, 1'b0);
+    expect_probe(1'b1, head_inst0_i);
 
+    // 流水线可达正例：lane0 是普通 ADDI，lane1 是 CSR barrier；probe/access 均应取 lane1。
     clear_inputs();
+    head_inst0_i = 32'h0010_0093;
     dispatch_valid_i = 1'b1;
     dispatch1_barrier_i = 1'b1;
-    head0_csr_raw_i = 1'b1;
     head1_csr_raw_i = 1'b1;
     expect_access(1'b0, 1'b0, 1'b1, 1'b1, head_inst1_i,
                   1'b1, 1'b0, 1'b0);
+    expect_probe(1'b1, head_inst1_i);
 
     clear_inputs();
     dispatch_valid_i = 1'b1;
@@ -173,7 +204,10 @@ module tb_ooo_csr_access_request_mux;
     head1_csr_raw_i = 1'b1;
     expect_access(1'b0, 1'b0, 1'b0, 1'b0, head_inst0_i,
                   1'b1, 1'b0, 1'b0);
+    expect_probe(1'b0, head_inst0_i);
 
+    // 结构/mutation 隔离：pending 与新 dispatch 通常被上游 stop 门控互斥；这里仅验证
+    // 即使直接单元输入被同时拉高，pending main access 也不能污染 head-only probe。
     clear_inputs();
     pending_system_i = 1'b1;
     pending_system_csr_i = 1'b1;
@@ -182,6 +216,23 @@ module tb_ooo_csr_access_request_mux;
     head1_csr_raw_i = 1'b1;
     expect_access(1'b0, 1'b0, 1'b1, 1'b1, pending_system_inst_i,
                   1'b1, 1'b0, 1'b0);
+    expect_probe(1'b1, head_inst1_i);
+
+    // 结构/mutation 隔离（非流水线可达声明）：手工同时置 head0/head1 CSR raw、
+    // pending 与 commit，验证 access 取 commit0 而 probe 仍只取 lane1 payload。
+    clear_inputs();
+    core_commit0_valid_i = 1'b1;
+    core_commit0_inst_i = csr_inst(`CSR_SATP, 3'b001, 5'd6);
+    pending_system_i = 1'b1;
+    pending_system_csr_i = 1'b1;
+    pending_system_inst_i = csr_inst(`CSR_MSTATUS, 3'b001, 5'd5);
+    dispatch_valid_i = 1'b1;
+    dispatch1_barrier_i = 1'b1;
+    head0_csr_raw_i = 1'b1;
+    head1_csr_raw_i = 1'b1;
+    expect_access(1'b1, 1'b0, 1'b1, 1'b1, core_commit0_inst_i,
+                  1'b1, 1'b0, 1'b0);
+    expect_probe(1'b1, head_inst1_i);
 
     clear_inputs();
     pending_system_i = 1'b1;
@@ -191,6 +242,7 @@ module tb_ooo_csr_access_request_mux;
     core_commit0_inst_i = csr_inst(`CSR_SATP, 3'b001, 5'd6);
     expect_access(1'b1, 1'b1, 1'b0, 1'b1, core_commit0_inst_i,
                   1'b1, 1'b1, 1'b0);
+    expect_probe(1'b0, head_inst0_i);
 
     clear_inputs();
     pending_system_i = 1'b1;
@@ -201,6 +253,7 @@ module tb_ooo_csr_access_request_mux;
     core_commit0_inst_i = csr_inst(`CSR_SATP, 3'b001, 5'd6);
     expect_access(1'b1, 1'b0, 1'b0, 1'b1, core_commit0_inst_i,
                   1'b1, 1'b0, 1'b0);
+    expect_probe(1'b0, head_inst0_i);
 
     clear_inputs();
     pending_system_i = 1'b1;
@@ -210,6 +263,7 @@ module tb_ooo_csr_access_request_mux;
     core_commit0_inst_i = csr_inst(`CSR_SATP, 3'b010, 5'd0);
     expect_access(1'b1, 1'b1, 1'b0, 1'b1, core_commit0_inst_i,
                   1'b0, 1'b0, 1'b0);
+    expect_probe(1'b0, head_inst0_i);
     if (csr_access_set_clear_noop_o !== 1'b1) begin
       $display("FAIL expected set/clear noop");
       $finish;
@@ -222,6 +276,7 @@ module tb_ooo_csr_access_request_mux;
     drain_complete_i = 1'b1;
     expect_access(1'b0, 1'b0, 1'b0, 1'b0, pending_system_inst_i,
                   1'b1, 1'b0, 1'b1);
+    expect_probe(1'b0, head_inst0_i);
 
     clear_inputs();
     pending_system_i = 1'b1;
@@ -229,12 +284,14 @@ module tb_ooo_csr_access_request_mux;
     stop_pending_i = 1'b1;
     expect_access(1'b0, 1'b0, 1'b0, 1'b0, pending_system_inst_i,
                   1'b1, 1'b0, 1'b0);
+    expect_probe(1'b0, head_inst0_i);
 
     clear_inputs();
     core_commit0_valid_i = 1'b1;
     core_commit0_exception_i = 1'b1;
     expect_access(1'b0, 1'b0, 1'b0, 1'b0, head_inst0_i,
                   1'b1, 1'b0, 1'b0);
+    expect_probe(1'b0, head_inst0_i);
 
     $display("PASS tb_ooo_csr_access_request_mux");
     $finish;

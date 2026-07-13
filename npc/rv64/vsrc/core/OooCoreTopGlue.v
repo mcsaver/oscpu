@@ -56,6 +56,10 @@ module OooCoreTopGlue #(
   output [2:0] csr_access_funct3_w,
   output [`REG_ADDR_W-1:0] csr_access_rs1_idx_w,
   output [`XLEN-1:0] csr_access_rs1_data_w,
+  output csr_probe_valid_w,
+  output [11:0] csr_probe_addr_w,
+  output [2:0] csr_probe_funct3_w,
+  output [`REG_ADDR_W-1:0] csr_probe_rs1_idx_w,
   // 【B-FP 簇】fflags 提交脉冲(源=ROB commit; 名字保留 pending_ 前缀以稳住
   // NpcCoreTop 接线, pending-FP 壳已拆)。
   output pending_fp_fflags_commit_w,
@@ -854,6 +858,10 @@ module OooCoreTopGlue #(
     .csr_access_rs1_data_w(csr_access_rs1_data_w),
     .csr_access_rs1_idx_w(csr_access_rs1_idx_w),
     .csr_access_valid_w(csr_access_valid_w),
+    .csr_probe_addr_w(csr_probe_addr_w),
+    .csr_probe_funct3_w(csr_probe_funct3_w),
+    .csr_probe_rs1_idx_w(csr_probe_rs1_idx_w),
+    .csr_probe_valid_w(csr_probe_valid_w),
     .csr_ecall_cause_w(csr_ecall_cause_w),
     .csr_illegal_w(csr_illegal_w),
     .csr_irq_cause_w(csr_irq_cause_w),

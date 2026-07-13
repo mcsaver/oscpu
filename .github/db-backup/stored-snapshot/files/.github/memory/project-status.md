@@ -760,3 +760,28 @@ flush 契约诊断确认 UC-A：整数 MulDiv/CLMUL **独缺 mispredict-kill 端
   与head CSR无副作用legality probe拆成双view，复用同一predicate，切断
   EX→WB→ROB commit→共享CSR legality→pending payload长链。证据：
   `.github/task-runs/2026-07-13-rv64-t3j-fetch-read-window/`。
+
+## 2026-07-13 RV64 T3K current-head CSR legality probe isolation
+
+- `OooCsrAccessRequestMux` 新增只由 current head 指令驱动的
+  `csr_probe_{valid,addr,funct3,rs1_idx}` view；commit/pending/main CSR access 仍负责
+  readback 与架构副作用。`CsrFile` 将 legality 收敛为唯一 7 参数纯函数，分别以 main 与
+  probe payload、同一拍 pre-edge privilege/mstatus/counteren 状态求值，公开
+  `csr_illegal_o` 只回答 probe，commit 写守卫只看 main legality。
+- 机器证据闭合：source cone/16 级联接、720896 legality-domain + 45056 routing +
+  45056 isolation、10/10 mutation、精确负向断言均 PASS。`[CSR-LEGAL-VIEW-EQUIV]`
+  只证明相同 tuple 的两个调用点一致，不替代 domain/mutation 对 predicate 语义的独立证明。
+  审查发现原 SRET/TSR 测试从不可达状态注入会假绿；改为从 M-mode 合法写 mstatus、MRET
+  进入真实 S-mode 后，最终 module 96/96、official+privileged 177/177、AM、lint/style、
+  contract88/88、CoreMark `3020147 cycles / 3218532 commits / CPI .938 / CRC fcaf` 全绿。
+- fresh synthesis netlist SHA `0161d3d4...b32f`，known area `1573200.16`；扩展冻结
+  110 RTL、完整 vsrc、14 flow、5 liberty、9 evidence scripts 与 6 tool binaries，pre/post
+  和参数/版本审计均 PASS，但 dynamic libraries/tool support tree 未全冻结，不能称 signoff。
+- H7CL 5ns focused physical proof：旧网表 pending endpoint 仍有 legacy legality 133 条、
+  probe 0；fresh 变为 legacy 0、probe 133，head/state/illegal 各 133 保持活性。global
+  loops0、WNS/TNS=`-8.720/-199154.36ns`、power `0.117W`，target checker expected RED；
+  T3K 成功移除共享 main-access 路径，但父 goal 仍 active。
+- 新 top path 是 fetch bridge/ITLB/PMP/packet decode/RVC/frontend control 到
+  `OooFetchPcOutstandingSequencer` D，arrival 约 13.688ns；T3L 必须先追踪 response accept、
+  prepared-packet 与 outstanding next-state 的真实依赖，再做功能保持的寄存/语义切分，禁止
+  false path。证据：`.github/task-runs/2026-07-13-rv64-t3k-csr-probe-isolation/`。

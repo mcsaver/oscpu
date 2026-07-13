@@ -17,6 +17,10 @@ module CsrFile (
   input [`XLEN-1:0] csr_rs1_data_i,
   input [4:0] csr_zimm_i,
   input csr_commit_i,
+  input csr_probe_valid_i,
+  input [11:0] csr_probe_addr_i,
+  input [2:0] csr_probe_funct3_i,
+  input [`REG_ADDR_W-1:0] csr_probe_rs1_idx_i,
   output [`XLEN-1:0] csr_rdata_o,
   output csr_illegal_o,
 
@@ -310,13 +314,11 @@ module CsrFile (
     end
   endfunction
 
-  // CSR 合法性 decode 由下方两个 always @(*) 组合块算出(纯组合)
-  reg csr_known_r, csr_writable_r;
-  always @(*) begin : csr_writable_blk
-    reg [11:0] csr_addr;
+  // T3K: main access 与 current-head probe 必须复用同一 legality 定义，但用各自
+  // payload 独立求值。函数只描述纯组合 predicate，不拥有仲裁、状态或副作用。
+  function csr_addr_writable;
+    input [11:0] csr_addr;
     begin
-      csr_addr = csr_addr_i;
-      csr_writable_r = 0;
       case (csr_addr)
         `CSR_FFLAGS,
         `CSR_FRM,
@@ -352,18 +354,16 @@ module CsrFile (
         `CSR_TSELECT,
         `CSR_TDATA1,
         `CSR_TDATA2,
-        `CSR_TCONTROL: csr_writable_r = 1'b1;
-        default:      csr_writable_r = csr_pmpcfg_known(csr_addr) ||
-                                      csr_pmpaddr_known(csr_addr);
+        `CSR_TCONTROL: csr_addr_writable = 1'b1;
+        default:       csr_addr_writable = csr_pmpcfg_known(csr_addr) ||
+                                           csr_pmpaddr_known(csr_addr);
       endcase
     end
-  end
+  endfunction
 
-  always @(*) begin : csr_known_blk
-    reg [11:0] csr_addr;
+  function csr_addr_known;
+    input [11:0] csr_addr;
     begin
-      csr_addr = csr_addr_i;
-      csr_known_r = 0;
       case (csr_addr)
         `CSR_FFLAGS,
         `CSR_FRM,
@@ -406,15 +406,64 @@ module CsrFile (
         `CSR_CYCLE,
         `CSR_TIME,
         `CSR_INSTRET,
-        // RV64 下 cycleh/timeh/instreth/mcycleh/minstreth 不存在（XLEN=64 计数器无高半
-        // 镜像）；访问应触发 illegal-instruction。从 known 列表移除 → 落 default →
-        // csr_illegal_o 拉高，与金标 NEMU(RV64) 一致。
-        `CSR_MHARTID: csr_known_r = 1'b1;
-        default:      csr_known_r = csr_pmpcfg_known(csr_addr) ||
-                                  csr_pmpaddr_known(csr_addr);
+        // RV64 没有 32-bit high-half counter aliases；它们落入 default 并非法。
+        `CSR_MHARTID: csr_addr_known = 1'b1;
+        default:      csr_addr_known = csr_pmpcfg_known(csr_addr) ||
+                                      csr_pmpaddr_known(csr_addr);
       endcase
     end
-  end
+  endfunction
+
+  function csr_write_intent;
+    input [2:0] csr_funct3;
+    input [`REG_ADDR_W-1:0] csr_rs1_idx;
+    reg csr_set_clear_noop;
+    begin
+      csr_set_clear_noop =
+          ((csr_funct3 == 3'b010) || (csr_funct3 == 3'b011) ||
+           (csr_funct3 == 3'b110) || (csr_funct3 == 3'b111)) &&
+          (csr_rs1_idx == {`REG_ADDR_W{1'b0}});
+      csr_write_intent =
+          (csr_funct3 == 3'b001) || (csr_funct3 == 3'b101) ||
+          !csr_set_clear_noop;
+    end
+  endfunction
+
+  function csr_access_illegal_raw;
+    input [11:0] csr_addr;
+    input [2:0] csr_funct3;
+    input [`REG_ADDR_W-1:0] csr_rs1_idx;
+    input [1:0] priv_mode;
+    input [`XLEN-1:0] csr_mstatus;
+    input [`XLEN-1:0] csr_mcounteren;
+    input [`XLEN-1:0] csr_scounteren;
+    reg csr_counter_m_allowed;
+    reg csr_counter_s_allowed;
+    reg csr_counter_allowed;
+    reg csr_satp_tvm_illegal;
+    begin
+      csr_counter_m_allowed =
+          (csr_mcounteren & csr_counter_bit(csr_addr)) != {`XLEN{1'b0}};
+      csr_counter_s_allowed =
+          (csr_scounteren & csr_counter_bit(csr_addr)) != {`XLEN{1'b0}};
+      csr_counter_allowed =
+          !csr_counter(csr_addr) ||
+          (priv_mode == `PRIV_M) ||
+          ((priv_mode == `PRIV_S) && csr_counter_m_allowed) ||
+          ((priv_mode == `PRIV_U) && csr_counter_m_allowed &&
+           csr_counter_s_allowed);
+      csr_satp_tvm_illegal =
+          (csr_addr == `CSR_SATP) && (priv_mode == `PRIV_S) &&
+          ((csr_mstatus & `MSTATUS_TVM) != {`XLEN{1'b0}});
+      csr_access_illegal_raw =
+          !csr_addr_known(csr_addr) ||
+          !(priv_mode >= csr_addr[9:8]) ||
+          csr_satp_tvm_illegal ||
+          !csr_counter_allowed ||
+          (csr_write_intent(csr_funct3, csr_rs1_idx) &&
+           !csr_addr_writable(csr_addr));
+    end
+  endfunction
 
   function [`XLEN-1:0] sanitize_satp;
     input [`XLEN-1:0] value;
@@ -464,28 +513,20 @@ module CsrFile (
   wire csr_imm_op_w = csr_funct3_i[2];
   wire [`XLEN-1:0] csr_zimm_w = {{(`XLEN-5){1'b0}}, csr_zimm_i};
   wire [`XLEN-1:0] csr_src_w = csr_imm_op_w ? csr_zimm_w : csr_rs1_data_i;
-  wire csr_set_clear_noop_w = ((csr_funct3_i == 3'b010) || (csr_funct3_i == 3'b011) ||
-                               (csr_funct3_i == 3'b110) || (csr_funct3_i == 3'b111)) &&
-                              (csr_rs1_idx_i == {`REG_ADDR_W{1'b0}});
-  wire csr_need_write_w = csr_valid_i && ((csr_funct3_i == 3'b001) ||
-                                          (csr_funct3_i == 3'b101) ||
-                                          ~csr_set_clear_noop_w);
-  wire csr_priv_ok_w = (priv_mode_q >= csr_addr_i[9:8]);
-  wire csr_satp_tvm_illegal_w =
-      csr_valid_i && (csr_addr_i == `CSR_SATP) &&
-      (priv_mode_q == `PRIV_S) &&
-      ((csr_mstatus_q & `MSTATUS_TVM) != {`XLEN{1'b0}});
+  wire csr_need_write_w =
+      csr_valid_i && csr_write_intent(csr_funct3_i, csr_rs1_idx_i);
+  wire csr_access_illegal_w =
+      csr_valid_i &&
+      csr_access_illegal_raw(
+          csr_addr_i, csr_funct3_i, csr_rs1_idx_i, priv_mode_q,
+          csr_mstatus_q, csr_mcounteren_q, csr_scounteren_q);
+  wire csr_probe_illegal_w =
+      csr_probe_valid_i &&
+      csr_access_illegal_raw(
+          csr_probe_addr_i, csr_probe_funct3_i, csr_probe_rs1_idx_i,
+          priv_mode_q, csr_mstatus_q, csr_mcounteren_q, csr_scounteren_q);
   wire mcycle_inhibit_w = (csr_mcountinhibit_q & `MCOUNTINHIBIT_CY) != {`XLEN{1'b0}};
   wire minstret_inhibit_w = (csr_mcountinhibit_q & `MCOUNTINHIBIT_IR) != {`XLEN{1'b0}};
-  wire csr_counter_m_allowed_w =
-      (csr_mcounteren_q & csr_counter_bit(csr_addr_i)) != {`XLEN{1'b0}};
-  wire csr_counter_s_allowed_w =
-      (csr_scounteren_q & csr_counter_bit(csr_addr_i)) != {`XLEN{1'b0}};
-  wire csr_counter_allowed_w =
-      !csr_counter(csr_addr_i) ||
-      (priv_mode_q == `PRIV_M) ||
-      ((priv_mode_q == `PRIV_S) && csr_counter_m_allowed_w) ||
-      ((priv_mode_q == `PRIV_U) && csr_counter_m_allowed_w && csr_counter_s_allowed_w);
   wire csr_pmpcfg_known_w = csr_pmpcfg_known(csr_addr_i);
   wire csr_pmpcfg_storage_w = csr_pmpcfg_storage(csr_addr_i);
   wire [0:0] csr_pmpcfg_idx_w = csr_pmpcfg_idx(csr_addr_i);
@@ -605,11 +646,9 @@ module CsrFile (
       (csr_addr_i == `CSR_INSTRET)  ? csr_minstret_q :
       (csr_addr_i == `CSR_MHARTID)  ? {`XLEN{1'b0}} :
                                       {`XLEN{1'b0}};
-  assign csr_illegal_o = csr_valid_i && (~csr_known_r ||
-                                         ~csr_priv_ok_w ||
-                                         csr_satp_tvm_illegal_w ||
-                                         ~csr_counter_allowed_w ||
-                                         (csr_need_write_w && ~csr_writable_r));
+  // Public legality answers the current-head probe. Architectural CSR writes
+  // remain guarded by the independent main-access legality above.
+  assign csr_illegal_o = csr_probe_illegal_w;
   assign trap_target_o = trap_to_s_w ? {csr_stvec_q[`XLEN-1:2], 2'b00} :
                                       {csr_mtvec_q[`XLEN-1:2], 2'b00};
   assign mepc_o = csr_mepc_q;
@@ -625,6 +664,20 @@ module CsrFile (
   assign irq_pending_o = s_irq_pending_w | m_irq_pending_w;
   // M 级中断优先于 S 级(规范全序 MEI>MSI>MTI>SEI>SSI>STI);双 pending 时先取 M。
   assign irq_cause_o = m_irq_pending_w ? m_irq_cause_w : s_irq_cause_w;
+
+`ifdef OOO_ASSERT
+  // The two ports may carry different requests, but identical payload/state
+  // must never diverge. This guards the single-predicate source contract.
+  always @(posedge clk) begin
+    if (!rst && csr_valid_i && csr_probe_valid_i &&
+        (csr_addr_i == csr_probe_addr_i) &&
+        (csr_funct3_i == csr_probe_funct3_i) &&
+        (csr_rs1_idx_i == csr_probe_rs1_idx_i) &&
+        (csr_access_illegal_w !== csr_probe_illegal_w)) begin
+      $error("[CSR-LEGAL-VIEW-EQUIV] main/probe legality diverged");
+    end
+  end
+`endif
 
   genvar pmp_out_idx;
   generate
@@ -727,7 +780,7 @@ module CsrFile (
           csr_mstatus_q <= sret_mstatus(csr_mstatus_q);
         end
 
-        if (csr_commit_i && csr_valid_i && ~csr_illegal_o && csr_need_write_w) begin
+        if (csr_commit_i && csr_valid_i && ~csr_access_illegal_w && csr_need_write_w) begin
           if (csr_pmpcfg_storage_w) begin
             csr_pmpcfg_q[csr_pmpcfg_idx_w] <= csr_pmpcfg_write_value_w;
           end else if (csr_pmpaddr_known_w) begin

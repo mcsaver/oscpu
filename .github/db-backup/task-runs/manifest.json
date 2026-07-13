@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T11:40:43+00:00",
-  "updated_at": "2026-07-13T09:50:27+00:00",
+  "updated_at": "2026-07-13T11:18:16+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -31386,6 +31386,126 @@
       "sha256": "784c7d3a65611b77589886bdffbe9568c49fc782f4c176a6958bcc8e111596de",
       "backup_source": "filesystem",
       "archived_at": "2026-07-13T09:50:27+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3k-agent-system-final/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 10102,
+      "sha256": "a2eab5e414c8d12fd946e11f2fd5c77570712202f1e255b281cadda975e98c89",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T11:18:14+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3k-agent-system-final/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11238,
+      "sha256": "f75b91c712221eb92fea2749e99bff7d2a87a750d1de2aa92576a6883020211b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T11:18:14+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3k-agent-system-final/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 6028,
+      "sha256": "53f229fb3b77c222f402505757db81f66cf07b775d3dea34df44a171946dcf19",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T11:18:14+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3k-agent-system-final/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1673,
+      "sha256": "8b3d126d3085198342ff9baaf11ab584946588b0f3e6cb90887f03a220bfff7c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T11:18:14+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3k-agent-system-final/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6127,
+      "sha256": "66cff879d91c387b3753fedfff3060aad87b30a2f189c32750da3e15ce2f057d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T11:18:14+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3k-csr-probe-isolation-final/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 7709,
+      "sha256": "ef131fbb89796efd08c2b80b2266abab79ca86ecbffe841e59730fbffd9e55e5",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T11:18:06+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3k-csr-probe-isolation-final/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5943,
+      "sha256": "f3549876334224df89c3276ee6ff65d600bcd3f97a2bb384211befa20fa25d45",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T11:18:06+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3k-csr-probe-isolation-final/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 3130,
+      "sha256": "08d896348a67cda7c7cd66c585f69d7b50be1165ab497fc095658090f5691a5b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T11:18:06+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3k-csr-probe-isolation-final/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T11:18:06+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3k-csr-probe-isolation-final/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4557,
+      "sha256": "3bc9b0d5cb7fa408a7dcf60d2bee9533efb24109edf67eda5883554af3e3b80d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T11:18:06+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3k-yosys-sta-final/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 8422,
+      "sha256": "f2ae9da5d077d40f96ec9de86f8ca028ef282bad4191add495d3edad12bc4115",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T11:18:16+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3k-yosys-sta-final/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 7819,
+      "sha256": "f62089075095ac6aa7f15c345e6f6b5eab35404b39f75b160cbc68cf98cc2f64",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T11:18:16+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3k-yosys-sta-final/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4462,
+      "sha256": "afe2c5a96d590896bbb30e7f2325d4559db5a68d1773ce1ab1a8b7f98342231e",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T11:18:16+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3k-yosys-sta-final/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1224,
+      "sha256": "dde391f86398c9befee19f7e780eeb9547b77edb2df5de88b5c3652f595e3bf2",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T11:18:16+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3k-yosys-sta-final/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4951,
+      "sha256": "76f245909ee0466d33494707ad764fcd242c5c48dd9908552272b7b809de97a3",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T11:18:16+00:00"
     }
   ]
 }

@@ -1509,3 +1509,18 @@
   counteren/zero-rs1等价、side-effect noninterference和fresh netlist path removal关闭。
 - 即便T3K关闭该族也不能预判200MHz；继续以current-source extended-provenance H7CL fresh
   WNS>=0/TNS=0作为唯一完成标准。T3J证据目录同task-report。
+
+### 2026-07-13 T3K CSR 共享 legality 长链已关闭；前端 response→outstanding 成为当前瓶颈
+
+- T3K 已将 current-head legality probe 与 commit/pending/main access 物理解耦。fresh 网表
+  structure + OpenSTA 证明 pending endpoints 的 legacy/main legality 交集由 133 降为 0，
+  probe/head/state/illegal 交集 133 保留；不能把这个结论扩张成“所有 commit→pending 路径
+  消失”，commit 对 pending clear/priority 的合法控制路径仍可存在。
+- 当前 H7CL 5ns 仍为 WNS `-8.720ns`、TNS `-199154.36ns`、loops 0，故 200MHz 未达。
+  top path 从 fetch bridge/ITLB/PMP，经 packet/RVC decode 和 frontend control，落到
+  fetch-PC-outstanding 状态 D；下一刀优先审计是否把 response payload 的深 decode 结果
+  同拍反向送入 outstanding 控制。任何切分都必须保持 flush、fault、跨页、FIFO backpressure、
+  same-cycle consume/accept 语义，并以 fresh current-source STA 复核。
+- 证据边界：等价断言只守相同 tuple 的双调用一致性；语义正确性由穷举 domain、routing/
+  isolation 与 10 类 mutation 独立承担。综合扩展 provenance 仍未冻结 dynamic library loader
+  与完整 tool support tree，不得称物理 signoff。

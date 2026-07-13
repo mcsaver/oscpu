@@ -12,6 +12,10 @@ module tb_csr_file;
   reg [`XLEN-1:0] csr_rs1_data;
   reg [4:0] csr_zimm;
   reg csr_commit;
+  reg csr_probe_valid;
+  reg [11:0] csr_probe_addr;
+  reg [2:0] csr_probe_funct3;
+  reg [`REG_ADDR_W-1:0] csr_probe_rs1_idx;
   reg fp_fflags_valid;
   reg [4:0] fp_fflags;
   reg fp_dirty;  // F8：FP 写 FPR/fcsr 的脏脉冲（硬件中 fp_fflags_valid ⊆ fp_dirty）
@@ -33,6 +37,7 @@ module tb_csr_file;
   wire [`PMP_ADDR_BUS_W-1:0] pmpaddr;
 
   localparam [`XLEN-1:0] PMPADDR_MASK_TB = `PMP_ADDR_MASK;
+  reg [`XLEN-1:0] mstatus_snapshot;
 
   task automatic tb_check64;
     input [1023:0] what;
@@ -60,6 +65,38 @@ module tb_csr_file;
       csr_rs1_data = rs1_data;
       csr_zimm = rs1_idx[4:0];
       csr_commit = do_commit;
+      // 默认镜像 main/probe，旧用例同时证明两份纯 legality predicate 一致。
+      csr_probe_valid = 1'b1;
+      csr_probe_addr = addr;
+      csr_probe_funct3 = funct3;
+      csr_probe_rs1_idx = rs1_idx;
+    end
+  endtask
+
+  task automatic drive_probe;
+    input valid;
+    input [11:0] addr;
+    input [2:0] funct3;
+    input [`REG_ADDR_W-1:0] rs1_idx;
+    begin
+      csr_probe_valid = valid;
+      csr_probe_addr = addr;
+      csr_probe_funct3 = funct3;
+      csr_probe_rs1_idx = rs1_idx;
+    end
+  endtask
+
+  task automatic tb_check_mirrored_legality;
+    input [1023:0] what;
+    input exp;
+    begin
+      tb_check1(what, csr_illegal, exp);
+      if (dut.csr_access_illegal_w !== exp ||
+          dut.csr_access_illegal_w !== csr_illegal) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] %0s main_illegal=%0b probe_illegal=%0b expected=%0b",
+                 what, dut.csr_access_illegal_w, csr_illegal, exp);
+      end
     end
   endtask
 
@@ -76,6 +113,10 @@ module tb_csr_file;
     .csr_rs1_data_i(csr_rs1_data),
     .csr_zimm_i(csr_zimm),
     .csr_commit_i(csr_commit),
+    .csr_probe_valid_i(csr_probe_valid),
+    .csr_probe_addr_i(csr_probe_addr),
+    .csr_probe_funct3_i(csr_probe_funct3),
+    .csr_probe_rs1_idx_i(csr_probe_rs1_idx),
     .csr_rdata_o(csr_rdata),
     .csr_illegal_o(csr_illegal),
     .fp_fflags_valid_i(fp_fflags_valid),
@@ -123,6 +164,10 @@ module tb_csr_file;
     csr_rs1_data = {`XLEN{1'b0}};
     csr_zimm = 5'd0;
     csr_commit = 1'b0;
+    csr_probe_valid = 1'b0;
+    csr_probe_addr = 12'h000;
+    csr_probe_funct3 = 3'b010;
+    csr_probe_rs1_idx = {`REG_ADDR_W{1'b0}};
     fp_fflags_valid = 1'b0;
     fp_fflags = 5'b00000;
     fp_dirty = 1'b0;
@@ -132,14 +177,80 @@ module tb_csr_file;
     `TB_TICK(clk);
     rst = 1'b0;
 
+    // 只读 CSR 的 CSRRS/CSRRC 零源操作不产生写意图；非零源必须判非法。
+    drive_csr(`CSR_MVENDORID, 3'b010, {`REG_ADDR_W{1'b0}},
+              {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check_mirrored_legality("read-only CSRRS x0 is legal", 1'b0);
+    drive_csr(`CSR_MVENDORID, 3'b010, 5'd1, {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check_mirrored_legality("read-only CSRRS x1 has write intent", 1'b1);
+    drive_csr(`CSR_MVENDORID, 3'b110, {`REG_ADDR_W{1'b0}},
+              {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check_mirrored_legality("read-only CSRRSI zimm0 is legal", 1'b0);
+    drive_csr(`CSR_MVENDORID, 3'b110, 5'd1, {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check_mirrored_legality("read-only CSRRSI zimm1 has write intent", 1'b1);
+
+    // probe 不携带 data/commit，单独拉高写型 metadata 也不得改变 CSR 状态。
+    drive_csr(`CSR_MSTATUS, 3'b010, {`REG_ADDR_W{1'b0}},
+              {`XLEN{1'b0}}, 1'b0);
+    #1;
+    mstatus_snapshot = csr_rdata;
+    csr_valid = 1'b0;
+    csr_commit = 1'b0;
+    drive_probe(1'b1, `CSR_MSTATUS, 3'b001, 5'd1);
+    #1;
+    tb_check1("probe-only write metadata is legal", csr_illegal, 1'b0);
+    tb_check1("inactive main access is not illegal",
+              dut.csr_access_illegal_w, 1'b0);
+    `TB_TICK(clk);
+    drive_csr(`CSR_MSTATUS, 3'b010, {`REG_ADDR_W{1'b0}},
+              {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("probe-only metadata has no mstatus side effect",
+               csr_rdata, mstatus_snapshot);
+
+    // main 与 probe 可同拍访问不同地址；probe 非法不能阻塞合法 main 提交。
+    drive_csr(`CSR_MSCRATCH, 3'b001, 5'd1,
+              64'h0123_4567_89ab_cdef, 1'b1);
+    drive_probe(1'b1, 12'h7af, 3'b010, {`REG_ADDR_W{1'b0}});
+    #1;
+    tb_check1("unknown probe is illegal", csr_illegal, 1'b1);
+    tb_check1("legal main stays legal beside illegal probe",
+              dut.csr_access_illegal_w, 1'b0);
+    `TB_TICK(clk);
+    drive_csr(`CSR_MSCRATCH, 3'b010, {`REG_ADDR_W{1'b0}},
+              {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("illegal probe does not suppress legal main write",
+               csr_rdata, 64'h0123_4567_89ab_cdef);
+
+    // 反向交叉也必须独立：probe 合法不能把 read-only main 写误判为合法。
+    drive_csr(`CSR_MVENDORID, 3'b001, 5'd1, {`XLEN{1'b1}}, 1'b1);
+    drive_probe(1'b1, `CSR_MSTATUS, 3'b010, {`REG_ADDR_W{1'b0}});
+    #1;
+    tb_check1("legal probe remains legal beside illegal main", csr_illegal, 1'b0);
+    tb_check1("read-only main write remains illegal",
+              dut.csr_access_illegal_w, 1'b1);
+    `TB_TICK(clk);
+
+    drive_csr(`CSR_MVENDORID, 3'b001, 5'd1, {`XLEN{1'b1}}, 1'b0);
+    drive_probe(1'b0, 12'h7af, 3'b001, 5'd1);
+    #1;
+    tb_check1("inactive probe suppresses illegal payload", csr_illegal, 1'b0);
+    tb_check1("inactive probe does not mask main illegality",
+              dut.csr_access_illegal_w, 1'b1);
+
     drive_csr(`CSR_TSELECT, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
-    tb_check1("tselect read is legal", csr_illegal, 1'b0);
+    tb_check_mirrored_legality("tselect read is legal", 1'b0);
     tb_check64("tselect reports no usable trigger", csr_rdata, {{(`XLEN-1){1'b0}}, 1'b1});
 
     drive_csr(`CSR_TSELECT, 3'b001, 5'd1, {`XLEN{1'b0}}, 1'b1);
     #1;
-    tb_check1("tselect write is WARL legal", csr_illegal, 1'b0);
+    tb_check_mirrored_legality("tselect write is WARL legal", 1'b0);
     `TB_TICK(clk);
     drive_csr(`CSR_TSELECT, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
@@ -147,7 +258,7 @@ module tb_csr_file;
 
     drive_csr(`CSR_TDATA1, 3'b001, 5'd1, {`XLEN{1'b1}}, 1'b1);
     #1;
-    tb_check1("tdata1 write is legal no-op", csr_illegal, 1'b0);
+    tb_check_mirrored_legality("tdata1 write is legal no-op", 1'b0);
     `TB_TICK(clk);
     drive_csr(`CSR_TDATA1, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
@@ -155,7 +266,7 @@ module tb_csr_file;
 
     drive_csr(`CSR_TDATA2, 3'b001, 5'd1, 64'h8000_0040, 1'b1);
     #1;
-    tb_check1("tdata2 write is legal no-op", csr_illegal, 1'b0);
+    tb_check_mirrored_legality("tdata2 write is legal no-op", 1'b0);
     `TB_TICK(clk);
     drive_csr(`CSR_TDATA2, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
@@ -163,7 +274,7 @@ module tb_csr_file;
 
     drive_csr(`CSR_TCONTROL, 3'b010, 5'd1, 64'h8, 1'b1);
     #1;
-    tb_check1("tcontrol csrs is legal no-op", csr_illegal, 1'b0);
+    tb_check_mirrored_legality("tcontrol csrs is legal no-op", 1'b0);
     `TB_TICK(clk);
     drive_csr(`CSR_TCONTROL, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
@@ -171,7 +282,7 @@ module tb_csr_file;
 
     drive_csr(`CSR_MISA, 3'b111, 5'd4, {`XLEN{1'b0}}, 1'b1);
     #1;
-    tb_check1("misa csrci is legal WARL no-op", csr_illegal, 1'b0);
+    tb_check_mirrored_legality("misa csrci is legal WARL no-op", 1'b0);
     `TB_TICK(clk);
     drive_csr(`CSR_MISA, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
@@ -179,7 +290,7 @@ module tb_csr_file;
 
     drive_csr(`CSR_PMPCFG0, 3'b001, 5'd1, 64'h18, 1'b1);
     #1;
-    tb_check1("pmpcfg0 write is legal", csr_illegal, 1'b0);
+    tb_check_mirrored_legality("pmpcfg0 write is legal", 1'b0);
     `TB_TICK(clk);
     drive_csr(`CSR_PMPCFG0, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
@@ -187,7 +298,7 @@ module tb_csr_file;
 
     drive_csr(`CSR_PMPCFG0, 3'b001, 5'd1, 64'h1e, 1'b1);
     #1;
-    tb_check1("pmpcfg0 R0W1 WARL write is legal", csr_illegal, 1'b0);
+    tb_check_mirrored_legality("pmpcfg0 R0W1 WARL write is legal", 1'b0);
     `TB_TICK(clk);
     drive_csr(`CSR_PMPCFG0, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
@@ -195,7 +306,7 @@ module tb_csr_file;
 
     drive_csr(`CSR_PMPADDR15, 3'b001, 5'd1, 64'h0000_0000_1234_5678, 1'b1);
     #1;
-    tb_check1("pmpaddr15 write is legal before lock", csr_illegal, 1'b0);
+    tb_check_mirrored_legality("pmpaddr15 write is legal before lock", 1'b0);
     `TB_TICK(clk);
     drive_csr(`CSR_PMPADDR15, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
@@ -204,7 +315,7 @@ module tb_csr_file;
 
     drive_csr(`CSR_PMPCFG2, 3'b001, 5'd1, 64'h9f00_0000_0000_0000, 1'b1);
     #1;
-    tb_check1("pmpcfg2 entry15 lock write is legal", csr_illegal, 1'b0);
+    tb_check_mirrored_legality("pmpcfg2 entry15 lock write is legal", 1'b0);
     `TB_TICK(clk);
     drive_csr(`CSR_PMPCFG2, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
@@ -213,7 +324,7 @@ module tb_csr_file;
 
     drive_csr(`CSR_PMPADDR15, 3'b001, 5'd1, 64'h0000_0000_8765_4321, 1'b1);
     #1;
-    tb_check1("pmpaddr15 locked write remains legal no-op", csr_illegal, 1'b0);
+    tb_check_mirrored_legality("pmpaddr15 locked write remains legal no-op", 1'b0);
     `TB_TICK(clk);
     drive_csr(`CSR_PMPADDR15, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
@@ -221,7 +332,7 @@ module tb_csr_file;
 
     drive_csr(`CSR_PMPCFG2, 3'b001, 5'd1, 64'h0000_0000_0800_0000, 1'b1);
     #1;
-    tb_check1("pmpcfg2 locked byte preserve write is legal", csr_illegal, 1'b0);
+    tb_check_mirrored_legality("pmpcfg2 locked byte preserve write is legal", 1'b0);
     `TB_TICK(clk);
     drive_csr(`CSR_PMPCFG2, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
@@ -230,23 +341,23 @@ module tb_csr_file;
 
     drive_csr(`CSR_PMPCFG1, 3'b001, 5'd1, {`XLEN{1'b1}}, 1'b1);
     #1;
-    tb_check1("pmpcfg1 write is illegal on RV64", csr_illegal, 1'b1);
+    tb_check_mirrored_legality("pmpcfg1 write is illegal on RV64", 1'b1);
     `TB_TICK(clk);
     drive_csr(`CSR_PMPCFG1, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
-    tb_check1("pmpcfg1 read is illegal on RV64", csr_illegal, 1'b1);
+    tb_check_mirrored_legality("pmpcfg1 read is illegal on RV64", 1'b1);
 
     drive_csr(`CSR_PMPCFG3, 3'b001, 5'd1, {`XLEN{1'b1}}, 1'b1);
     #1;
-    tb_check1("pmpcfg3 write is illegal on RV64", csr_illegal, 1'b1);
+    tb_check_mirrored_legality("pmpcfg3 write is illegal on RV64", 1'b1);
     `TB_TICK(clk);
     drive_csr(`CSR_PMPCFG3, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
-    tb_check1("pmpcfg3 read is illegal on RV64", csr_illegal, 1'b1);
+    tb_check_mirrored_legality("pmpcfg3 read is illegal on RV64", 1'b1);
 
     drive_csr(`CSR_PMPADDR0, 3'b001, 5'd1, {`XLEN{1'b1}}, 1'b1);
     #1;
-    tb_check1("pmpaddr0 write is legal", csr_illegal, 1'b0);
+    tb_check_mirrored_legality("pmpaddr0 write is legal", 1'b0);
     `TB_TICK(clk);
     drive_csr(`CSR_PMPADDR0, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
@@ -255,7 +366,7 @@ module tb_csr_file;
 
     drive_csr(`CSR_PMPADDR0, 3'b001, 5'd1, (64'h1 << (`PMP_ADDR_BITS - 1)), 1'b1);
     #1;
-    tb_check1("pmpaddr0 top implemented bit write is legal", csr_illegal, 1'b0);
+    tb_check_mirrored_legality("pmpaddr0 top implemented bit write is legal", 1'b0);
     `TB_TICK(clk);
     drive_csr(`CSR_PMPADDR0, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
@@ -264,7 +375,7 @@ module tb_csr_file;
 
     drive_csr(`CSR_PMPADDR0, 3'b001, 5'd1, (64'h1 << `PMP_ADDR_BITS), 1'b1);
     #1;
-    tb_check1("pmpaddr0 first unimplemented bit write is legal", csr_illegal, 1'b0);
+    tb_check_mirrored_legality("pmpaddr0 first unimplemented bit write is legal", 1'b0);
     `TB_TICK(clk);
     drive_csr(`CSR_PMPADDR0, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
@@ -272,11 +383,11 @@ module tb_csr_file;
 
     drive_csr(12'h3c0, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
-    tb_check1("pmpaddr16 is outside configured 16-entry PMP", csr_illegal, 1'b1);
+    tb_check_mirrored_legality("pmpaddr16 is outside configured 16-entry PMP", 1'b1);
 
     drive_csr(`CSR_MENVCFG, 3'b001, 5'd1, `MENVCFG_PBMTE, 1'b1);
     #1;
-    tb_check1("menvcfg PBMTE set is legal", csr_illegal, 1'b0);
+    tb_check_mirrored_legality("menvcfg PBMTE set is legal", 1'b0);
     `TB_TICK(clk);
     drive_csr(`CSR_MENVCFG, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
@@ -284,7 +395,7 @@ module tb_csr_file;
     tb_check1("svpbmt enable output follows menvcfg", svpbmt_en, 1'b1);
     drive_csr(`CSR_MENVCFG, 3'b011, 5'd1, `MENVCFG_PBMTE, 1'b1);
     #1;
-    tb_check1("menvcfg PBMTE clear is legal", csr_illegal, 1'b0);
+    tb_check_mirrored_legality("menvcfg PBMTE clear is legal", 1'b0);
     `TB_TICK(clk);
     drive_csr(`CSR_MENVCFG, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
@@ -303,7 +414,7 @@ module tb_csr_file;
     fp_fflags = 5'b01000;
     drive_csr(`CSR_FFLAGS, 3'b001, 5'd1, {`XLEN{1'b0}}, 1'b1);
     #1;
-    tb_check1("fflags explicit write remains legal", csr_illegal, 1'b0);
+    tb_check_mirrored_legality("fflags explicit write remains legal", 1'b0);
     `TB_TICK(clk);
     fp_fflags_valid = 1'b0;
     drive_csr(`CSR_FFLAGS, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
@@ -321,7 +432,7 @@ module tb_csr_file;
     drive_csr(`CSR_MSTATUS, 3'b001, 5'd1,
               `MSTATUS_TVM | `MSTATUS_TSR | `MSTATUS_MPP_S, 1'b1);
     #1;
-    tb_check1("mstatus TVM/TSR write is legal", csr_illegal, 1'b0);
+    tb_check_mirrored_legality("mstatus TVM/TSR write is legal", 1'b0);
     `TB_TICK(clk);
     drive_csr(`CSR_MSTATUS, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
@@ -372,34 +483,124 @@ module tb_csr_file;
     // ===== F7：RV64 下 *h 计数器 CSR 非法 =====
     drive_csr(`CSR_CYCLEH, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
-    tb_check1("RV64 cycleh is illegal", csr_illegal, 1'b1);
+    tb_check_mirrored_legality("RV64 cycleh is illegal", 1'b1);
     drive_csr(`CSR_MCYCLEH, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
-    tb_check1("RV64 mcycleh is illegal", csr_illegal, 1'b1);
+    tb_check_mirrored_legality("RV64 mcycleh is illegal", 1'b1);
     drive_csr(`CSR_INSTRETH, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
-    tb_check1("RV64 instreth is illegal", csr_illegal, 1'b1);
+    tb_check_mirrored_legality("RV64 instreth is illegal", 1'b1);
 
+    // 为 S/U 计数器 probe 构造逐级授权：M 放行 CY/TM，S 只放行 CY。
+    drive_csr(`CSR_MCOUNTEREN, 3'b001, 5'd1,
+              `COUNTEREN_CY | `COUNTEREN_TM, 1'b1);
+    #1;
+    tb_check_mirrored_legality("mcounteren setup is legal", 1'b0);
+    `TB_TICK(clk);
+    drive_csr(`CSR_SCOUNTEREN, 3'b001, 5'd1, `COUNTEREN_CY, 1'b1);
+    #1;
+    tb_check_mirrored_legality("scounteren setup is legal", 1'b0);
+    `TB_TICK(clk);
+
+    // 早先的 TSR=1 读回覆盖保留；进入可达 xRET 流程前，由 M 态合法写只清 TSR，
+    // 同时证明 TVM 与 MPP=S 未被误伤，使后续 SRET 符合真实前端的准入条件。
+    drive_csr(`CSR_MSTATUS, 3'b011, 5'd1, `MSTATUS_TSR, 1'b1);
+    #1;
+    tb_check_mirrored_legality("mstatus TSR clear before xRET is legal", 1'b0);
+    `TB_TICK(clk);
+    drive_csr(`CSR_MSTATUS, 3'b010, {`REG_ADDR_W{1'b0}},
+              {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("xRET setup keeps TVM, clears TSR, and keeps MPP=S",
+               csr_rdata & (`MSTATUS_TVM | `MSTATUS_TSR | `MSTATUS_MPP_MASK),
+               `MSTATUS_TVM | `MSTATUS_MPP_S);
+
+    // policy 改变沿采用 pre-edge 状态：MRET 沿前 MSTATUS probe 合法，沿后才因 S 态非法。
+    csr_valid = 1'b0;
+    csr_commit = 1'b0;
+    drive_probe(1'b1, `CSR_MSTATUS, 3'b010, {`REG_ADDR_W{1'b0}});
     mret_valid = 1'b1;
+    #1;
+    tb_check1("mret edge probe sees pre-edge M privilege", csr_illegal, 1'b0);
     `TB_TICK(clk);
     mret_valid = 1'b0;
     #1;
     tb_check1("mret enters supervisor mode", priv_mode == `PRIV_S, 1'b1);
+    tb_check1("same probe sees post-edge S privilege", csr_illegal, 1'b1);
+
+    // S 态只看 mcounteren：CY/TM 均放行，IR 未放行。
+    drive_csr(`CSR_SSTATUS, 3'b010, {`REG_ADDR_W{1'b0}},
+              {`XLEN{1'b0}}, 1'b0);
+    drive_probe(1'b1, `CSR_CYCLE, 3'b010, {`REG_ADDR_W{1'b0}});
+    #1;
+    tb_check1("S-mode cycle probe allowed by mcounteren", csr_illegal, 1'b0);
+    tb_check1("independent SSTATUS main access stays legal",
+              dut.csr_access_illegal_w, 1'b0);
+    drive_probe(1'b1, `CSR_TIME, 3'b010, {`REG_ADDR_W{1'b0}});
+    #1;
+    tb_check1("S-mode time probe allowed by mcounteren", csr_illegal, 1'b0);
+    drive_probe(1'b1, `CSR_INSTRET, 3'b010, {`REG_ADDR_W{1'b0}});
+    #1;
+    tb_check1("S-mode instret probe denied by mcounteren", csr_illegal, 1'b1);
+
+    // TVM 非法 probe 不得反向阻塞合法的 S-mode main 写。
+    drive_csr(`CSR_SSCRATCH, 3'b001, 5'd1,
+              64'h55aa_0123_4567_89ab, 1'b1);
+    drive_probe(1'b1, `CSR_SATP, 3'b010, {`REG_ADDR_W{1'b0}});
+    #1;
+    tb_check1("S-mode SATP probe is illegal under TVM", csr_illegal, 1'b1);
+    tb_check1("legal SSCRATCH main write remains legal",
+              dut.csr_access_illegal_w, 1'b0);
+    `TB_TICK(clk);
+    drive_csr(`CSR_SSCRATCH, 3'b010, {`REG_ADDR_W{1'b0}},
+              {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("illegal SATP probe does not suppress SSCRATCH write",
+               csr_rdata, 64'h55aa_0123_4567_89ab);
+
+    // 反向交叉：S 态 main 写 MSTATUS 非法，即使同拍 probe 合法也不得清掉 TVM。
+    drive_csr(`CSR_MSTATUS, 3'b001, 5'd1, {`XLEN{1'b0}}, 1'b1);
+    drive_probe(1'b1, `CSR_SSTATUS, 3'b010, {`REG_ADDR_W{1'b0}});
+    #1;
+    tb_check1("SSTATUS probe remains legal beside illegal main", csr_illegal, 1'b0);
+    tb_check1("S-mode MSTATUS main write is illegal",
+              dut.csr_access_illegal_w, 1'b1);
+    `TB_TICK(clk);
     drive_csr(`CSR_SATP, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
-    tb_check1("satp access traps under S-mode TVM", csr_illegal, 1'b1);
+    tb_check_mirrored_legality("illegal main write preserves TVM policy", 1'b1);
 
     drive_csr(`CSR_PMPADDR0, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
-    tb_check1("pmpaddr0 access traps outside M-mode", csr_illegal, 1'b1);
+    tb_check_mirrored_legality("pmpaddr0 access traps outside M-mode", 1'b1);
 
     drive_csr(`CSR_PMPCFG0, 3'b001, 5'd1, {`XLEN{1'b1}}, 1'b1);
     #1;
-    tb_check1("pmpcfg0 write traps outside M-mode", csr_illegal, 1'b1);
+    tb_check_mirrored_legality("pmpcfg0 write traps outside M-mode", 1'b1);
 
     drive_csr(12'h7af, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
-    tb_check1("unknown debug CSR remains illegal", csr_illegal, 1'b1);
+    tb_check_mirrored_legality("unknown debug CSR remains illegal", 1'b1);
+
+    // TSR 已由上面的合法 M 态 CSR 写清零，因此该 SRET 是前端可达请求；其状态变化
+    // 同样只在时钟沿后进入 probe 视图。U 态计数器需同时通过 M/S 两级授权。
+    csr_valid = 1'b0;
+    csr_commit = 1'b0;
+    drive_probe(1'b1, `CSR_SSTATUS, 3'b010, {`REG_ADDR_W{1'b0}});
+    sret_valid = 1'b1;
+    #1;
+    tb_check1("sret edge probe sees pre-edge S privilege", csr_illegal, 1'b0);
+    `TB_TICK(clk);
+    sret_valid = 1'b0;
+    #1;
+    tb_check1("sret enters user mode", priv_mode == `PRIV_U, 1'b1);
+    tb_check1("same probe sees post-edge U privilege", csr_illegal, 1'b1);
+    drive_probe(1'b1, `CSR_CYCLE, 3'b010, {`REG_ADDR_W{1'b0}});
+    #1;
+    tb_check1("U-mode cycle probe allowed by M/S counteren", csr_illegal, 1'b0);
+    drive_probe(1'b1, `CSR_TIME, 3'b010, {`REG_ADDR_W{1'b0}});
+    #1;
+    tb_check1("U-mode time probe denied by scounteren", csr_illegal, 1'b1);
 
     tb_finish("tb_csr_file");
   end

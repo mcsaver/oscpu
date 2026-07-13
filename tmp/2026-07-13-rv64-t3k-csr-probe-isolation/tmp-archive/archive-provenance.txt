@@ -1,0 +1,7 @@
+task_slug=2026-07-13-rv64-t3k-csr-probe-isolation
+selection=/tmp/{t3k-*,ysyx-t3k-*}
+source_roots=4
+inventory_entries=41
+logical_bytes=16986222
+sources_retained=true
+archive_sha256=031297be37c1ee454c1d0b9d6ec4539befedbe2877a5e856d83844fa68ea7620

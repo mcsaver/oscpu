@@ -80,3 +80,23 @@
 - 最终达标综合必须扩展pre/post manifest：workspace/yosys Makefile、auto.conf{,.cmd}、
   config.mk、common/PDK Tcl、H7CL与4 macro lib、wrapper/checker/Tcl、Yosys/ABC/OpenSTA
   binary+version和exact parameter KV；T3J网表含protected dirty input，HEAD本身不可复现。
+
+## 2026-07-13 T3K fresh H7CL 200MHz evidence
+
+- fresh netlist SHA `0161d3d4...b32f`，known area `1573200.16`，synthesis runtime
+  `1349.67s`。审计冻结 110 RTL、完整 vsrc tree、14 flow inputs、5 liberty、9 evidence
+  scripts、6 tool binaries及 exact parameter/version，pre/post 全绿；但
+  `dynamic_libraries_frozen=false`、`tool_support_tree_frozen=false`，只可称扩展 provenance，
+  不能称 signoff。综合时冻结的 9 个 evidence scripts 已另存快照，避免后续 OpenSTA checker
+  修订篡改综合输入身份。
+- focused v6 采用 structure cone + physical endpoint intersection：旧网表
+  `legacy/head/state/illegal/probe=133/133/133/133/0`，fresh 为
+  `0/133/133/133/133`；旧网表冒充 fresh 精确 RED。该证据证明共享 main legality 物理路径
+  被 probe 替换，不要求删除所有 commit/pending 合法控制弧。
+- global 5ns final-v6：OpenSTA 3.1.0、loops0、top40=40、WNS `-8.720ns`、TNS
+  `-199154.36ns`、power `0.117W`；告警集合仍精确为 input303/output1861/
+  unconstrained1863。target `--expect miss` PASS、`--expect met` 精确 rc=1，200MHz 未达。
+- 当前 top path arrival 约 13.688ns，起于 fetch bridge/ITLB 状态，经过 PMP、packet/RVC
+  decode 与 frontend control，落到 fetch-PC-outstanding 寄存器；下一轮 T3L 必须以新的
+  source/structure/focused timing contract 证明切点，不能复用 T3K 网表或仅按 top40 token
+  计数宣称优化。
