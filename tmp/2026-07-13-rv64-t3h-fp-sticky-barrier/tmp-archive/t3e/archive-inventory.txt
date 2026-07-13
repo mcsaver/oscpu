@@ -1,0 +1,6 @@
+t3e-first-path.txt
+t3e-loop-brief.txt
+t3e-opensta-brief.txt
+t3e-red-test/
+t3e-red-test/logs/
+t3e-red-test/logs/tb_ooo_branch_resolve_recovery_gate.log

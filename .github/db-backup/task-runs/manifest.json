@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T11:40:43+00:00",
-  "updated_at": "2026-07-13T05:28:40+00:00",
+  "updated_at": "2026-07-13T06:49:58+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -31186,6 +31186,46 @@
       "sha256": "bb9b88a087f25b165351886522f95283667f9922617e5adc42c39b98418a6ff7",
       "backup_source": "filesystem",
       "archived_at": "2026-07-13T05:28:40+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3h-fp-sticky-barrier-final/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 7707,
+      "sha256": "c7c5f628ccc11291ab3a59ad149107802d1f6c8d6d175131348a62479188dbbe",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T06:49:58+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3h-fp-sticky-barrier-final/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5909,
+      "sha256": "307bd81149b4e3fdc1363bc6470a0db24459e54c3e28b3d984a8dac31f6bae51",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T06:49:58+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3h-fp-sticky-barrier-final/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 3116,
+      "sha256": "adebaf15ed2a3a64d30d7f0b7bc6fb33859a6323fc62d6de8602ae1606321854",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T06:49:58+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3h-fp-sticky-barrier-final/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T06:49:58+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3h-fp-sticky-barrier-final/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4529,
+      "sha256": "0a9b8cced251a118173521b01e36457e8fc514996bded90ea5bdfc0827b08fa5",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T06:49:58+00:00"
     }
   ]
 }

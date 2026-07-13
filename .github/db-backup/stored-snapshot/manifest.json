@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T14:31:49+00:00",
-  "updated_at": "2026-07-13T05:24:49+00:00",
+  "updated_at": "2026-07-13T06:53:06+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -44498,6 +44498,14 @@
       "sha256": "1725ae58eea53e2c1cbc398187397335d607758f782a0c5bdf31e2a7005a7512",
       "backup_source": "database",
       "archived_at": "2026-07-13T05:24:49+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3h-fp-sticky-barrier/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 1957611,
+      "sha256": "49b3f0e2b357f4b608929d8a9531c3a19d3cdaaee2106eec275b60d3ea7cc40c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T06:53:06+00:00"
     },
     {
       "path": ".github/task-runs/README.md",

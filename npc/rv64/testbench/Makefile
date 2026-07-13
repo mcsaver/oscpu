@@ -42,6 +42,7 @@ TESTS := \
   tb_ooo_rob \
   tb_ooo_phys_reg_file \
   tb_ooo_fp_reg_file \
+  tb_ooo_fp_phys_reg_file \
   tb_ooo_busy_table \
   tb_ooo_int_issue_queue \
   tb_ooo_fp_issue_queue \
@@ -136,6 +137,7 @@ TB_SRCS_tb_ooo_store_queue := tests/tb_ooo_store_queue.sv $(RTL_OOO_STORE_QUEUE)
 TB_SRCS_tb_ooo_rob := tests/tb_ooo_rob.sv $(RTL_OOO_ROB)
 TB_SRCS_tb_ooo_phys_reg_file := tests/tb_ooo_phys_reg_file.sv $(RTL_OOO_PHYS_REG_FILE)
 TB_SRCS_tb_ooo_fp_reg_file := tests/tb_ooo_fp_reg_file.sv $(RTL_OOO_FP_REG_FILE)
+TB_SRCS_tb_ooo_fp_phys_reg_file := tests/tb_ooo_fp_phys_reg_file.sv $(RTL_OOO_FP_PHYS_REG_FILE)
 TB_SRCS_tb_ooo_busy_table := tests/tb_ooo_busy_table.sv $(RTL_OOO_BUSY_TABLE)
 TB_SRCS_tb_ooo_int_issue_queue := tests/tb_ooo_int_issue_queue.sv $(RTL_OOO_INT_ISSUE_QUEUE)
 TB_SRCS_tb_ooo_fp_issue_queue := tests/tb_ooo_fp_issue_queue.sv $(RTL_OOO_FP_ISSUE_QUEUE)

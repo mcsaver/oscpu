@@ -1,0 +1,16 @@
+bytes	sha256	path
+68022941	f27b937f50fcccec453a5823983de6c26f0efc13baac6823373ea5ad3af2a8f7	tmp/2026-07-13-rv64-t3h-fp-sticky-barrier/sta-build/NpcTop-200MHz/NpcTop.netlist.v
+54502438	073ed6664cb963594eaaeeaeddff9c6bd74fde6df6270495f16c2d2e3a13d17f	tmp/2026-07-13-rv64-t3h-fp-sticky-barrier/sta-build/NpcTop-200MHz/NpcTop.netlist.v.sim
+41	651d740188ddb19c58fded2ec4185871ff23a1f453af22dc3f44583503743e7c	tmp/2026-07-13-rv64-t3h-fp-sticky-barrier/sta-build/NpcTop-200MHz/abc.sdc
+6262	3f8aba355b11c9df58142ed3b248bcee535536721146b451285ba806f3b5b982	tmp/2026-07-13-rv64-t3h-fp-sticky-barrier/sta-build/NpcTop-200MHz/synth_check.txt
+250134	f2c19af4cc6acaac54c854a5b2c2524f0279e42f36e7754114c2af674c27670a	tmp/2026-07-13-rv64-t3h-fp-sticky-barrier/sta-build/NpcTop-200MHz/synth_stat.txt
+756146887	7b2184fbb9d3f1c4259439003f30ba9316de79d26060982b49b448be765b2d50	tmp/2026-07-13-rv64-t3h-fp-sticky-barrier/sta-build/NpcTop-200MHz/yosys.log
+12	bde294368bfed77c2cddf8cec271d398aee9cdbab3b26e1059281bd33adb0120	tmp/2026-07-13-rv64-t3h-fp-sticky-barrier/synth-exit-status.txt
+48	cf28d0e76da01906cc0f59f0d1d017e68d6f0c88bf964b889153981690ff3c92	tmp/2026-07-13-rv64-t3h-fp-sticky-barrier/synth-input-hash-cmp.txt
+14936	c1d8467998b9cdb667c9182da3ed2ad827fbe4e0ef0e6b0825a9697a06f2dbe0	tmp/2026-07-13-rv64-t3h-fp-sticky-barrier/synth-rtl-inputs.pre.sha256
+14936	c1d8467998b9cdb667c9182da3ed2ad827fbe4e0ef0e6b0825a9697a06f2dbe0	tmp/2026-07-13-rv64-t3h-fp-sticky-barrier/synth-rtl-inputs.post.sha256
+13811	e14811d9aec8ac16d0813280e4bd9df929ca1154fc2ce2ade6edfefe04267551	tmp/2026-07-13-rv64-t3h-fp-sticky-barrier/synth-vsrc-tree.pre.sha256
+13811	e14811d9aec8ac16d0813280e4bd9df929ca1154fc2ce2ade6edfefe04267551	tmp/2026-07-13-rv64-t3h-fp-sticky-barrier/synth-vsrc-tree.post.sha256
+449	bd2e2441042d7d9478a23a85afed879f651d2e491120fda260136b92da178586	tmp/2026-07-13-rv64-t3h-fp-sticky-barrier/synth-flow-inputs.sha256
+449	bd2e2441042d7d9478a23a85afed879f651d2e491120fda260136b92da178586	tmp/2026-07-13-rv64-t3h-fp-sticky-barrier/synth-flow-inputs.post.sha256
+3438	6a0d062e0a612521780d80c1a90664583a809e6eb3a22f05851d21ba01022e72	tmp/2026-07-13-rv64-t3h-fp-sticky-barrier/sta-provenance.md

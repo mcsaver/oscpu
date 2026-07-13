@@ -1,7 +1,8 @@
 # 规范：整数发射队列 OooIntIssueQueue
 
 > 模块：`vsrc/scheduling/OooIntIssueQueue.v`(核心调度器)。模板见 `../arch/SPEC-TEMPLATE.md`。
-> 状态：已实现并验证。**2026-07-09 P5 刀 B:dispatch→issue 同拍 bypass 族已整体删除**
+> 状态：已实现并验证。**T3H：FP wake0/1 resident select 均已 sticky-only**；
+> **2026-07-09 P5 刀 B:dispatch→issue 同拍 bypass 族已整体删除**
 > (决策与数据见 `../arch/p5-repipeline-first-batch.md`、`../arch/timing-dispatch-issue-path.md` §6c)。
 
 ## 1. 目的与范围
@@ -15,8 +16,8 @@
   T3B 起整数口分成两种视图：full wakeup 继续服务 compaction/dispatch insertion/kill survivor 的
   sticky ready；T3G 起仅独立 EX-only select wakeup 允许 resident entry 同拍进入 select。MEM/
   MulDiv/CLMUL/FPWB 的 full pulse 在 N 拍粘住 ready，依赖项 N+1 才可选。T3D 起 FP execution
-  completion口(wake0)只服务 FP-store fs2 的 sticky ready：N沿吸收、N+1才可选；FP load
-  WB口(wake1)无 branch-kill 回边，保留同拍 select。
+  completion口(wake0)只服务 FP-store fs2 的 sticky ready：N沿吸收、N+1才可选；T3H 起
+  FP load WB口(wake1)也遵守同一边界，以切断 DCache→FP-store 同拍长锥。
 - **select**:顺序扫描(oldest-first)选最老的 2 个 src1&src2 都 ready 的 uop → issue0/issue1。
   simultaneous valid 双 lane 的 enabled integer source 不可能 RAW：consumer 只能在 producer WB
   wakeup 后成为 ready；`RAW-I1` 在 backend 消费边界看护该不变量。current-result forward
@@ -29,8 +30,9 @@
   才可被 select**——"dispatch 活值作虚拟队尾同拍参与 select"的 bypass 族(bypass 许可判定/
   活值 entry_ready/issue0 前递 forward/payload 直通臂)已整体删除。select 唯一真源=已寄存
   valid_q 项,由 `IQ-NO-BYPASS` 立即断言看护;mode 下 branch/JAL/JALR 原"禁旁路"特例随之
-  普适化,pred_npc 恒取寄存 pred_npc_q(loop-free by construction)。同拍 wakeup→select
-  直通(寄存项唤醒 CAM)**保留**,非 dispatch bypass。backend 中仍有由 issue0_fire
+  普适化,pred_npc 恒取寄存 pred_npc_q(loop-free by construction)。只有整数 EX-only
+  fast wakeup→select 直通仍保留；full integer wake 与两路 FP wake 都只写 sticky state。
+  backend 中仍有由 issue0_fire
   驱动的 current-result mux，但 RAW-I1 证明其 true arm 对合法双 lane 不可达；保留原因见上。
   历史:load-dependent-branch 快路径消费端已删(E7);旧 bypass 的 CPI 价值在现核已萎缩
   (CoreMark 10 迭代实测 +0.23%,见 §6 变更记录)。
@@ -58,9 +60,9 @@
 - **IQ-I8 fast select 是 full wakeup 子集**：`select_wakeupN_valid` 时同 lane full wakeup 必须
   valid 且 pdest 相同；select 不拥有状态。full-only pulse 不得在本拍把尚未ready项选出，但必须
   在所有 next-state/kill-survivor路径粘住ready，下一拍可选。
-- **IQ-I9 FP 跨域最小切点**：`fp_wake0` 不得进入 resident select 的组合 ready 视图；
-  `fp_wake1` 保留同拍快路。compaction、dispatch insertion 与 kill survivor 必须继续把两者
-  OR 入 `fp_st_ready_q`。
+- **IQ-I9 FP 跨域 sticky-only**：`fp_wake0/1` 均不得进入 resident select 的组合 ready
+  视图。compaction、dispatch insertion 与 kill survivor 必须继续把两者 OR 入
+  `fp_st_ready_q`；dispatch insertion 必须由 IQ 自身捕获，不能隐式依赖上游 query 前视。
 
 ## 4. 关键路径
 P5 刀 B 前,dispatch→issue bypass 把 free-list 分配+busy 查询+IQ select **单拍合一**
@@ -101,3 +103,7 @@ payload 直读。顺序扫描 select 仍随 ENTRY_COUNT 增深(故 iter2 撤回 
   same-cycle select→branch kill→FP completion` 分支；execution wake0 改为 sticky-only、
   load wake1 保留快路，合同见
   `ooo-cross-domain-wakeup.md`。
+- 2026-07-13 T3H：T3G fresh STA 证明 load wake1 快路形成 DCache→FP-store→全核 top1；
+  wake1 改为 resident sticky-only，两个 dispatch lane 在 IQ 内显式捕获 wake0/1 collision，
+  并与 FP PRF R3 stored-only 原子落地。统一合同见
+  `ooo-fp-sticky-wakeup-barrier.md`。

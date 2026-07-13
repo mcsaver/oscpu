@@ -1,8 +1,8 @@
 `include "define.v"
 
-// T3F：整数 formal-WB 对 FP IQ 的 GPR source 只能在上升沿落 sticky
-// ready，不能把 resident entry 在 WB 当拍直接送进 select。本 TB 锁住双 wake lane、
-// dispatch 同拍吸收、branch-kill survivor 和无关 wake 不阻塞独立 ready entry。
+// T3F/T3H：GPR/FP source wake 只能在上升沿落 sticky ready，
+// resident entry 不能在 wake 当拍直接送进 select。dispatch 同拍 wake 仍必须
+// 吸收，否则入队后会永久丢失唯一广播；FP preg0 是真 FPR，不得做 x0 特判。
 module tb_ooo_fp_issue_queue;
   `include "tb_common.svh"
 
@@ -255,6 +255,279 @@ module tb_ooo_fp_issue_queue;
       dispatch1_gpr_en = 1'b1;
       dispatch1_gpr_preg = gpr_preg;
       dispatch1_gpr_ready = 1'b0;
+    end
+  endtask
+
+  task automatic dispatch_waiting_fp_entry;
+    input [ROB_INDEX_W-1:0] rob_idx;
+    input [1:0] src_sel;
+    input [PHY_REG_ADDR_W-1:0] fp_preg;
+    begin
+      dispatch_valid = 1'b1;
+      dispatch_rob_idx = rob_idx;
+      dispatch_inst = 32'h0200_0053;
+      dispatch_double = 1'b1;
+      dispatch_pdest = 6'd40;
+      dispatch_dst_en = 1'b1;
+      case (src_sel)
+        2'd0: begin
+          dispatch_fs1_en = 1'b1;
+          dispatch_fs1_preg = fp_preg;
+          dispatch_fs1_ready = 1'b0;
+        end
+        2'd1: begin
+          dispatch_fs2_en = 1'b1;
+          dispatch_fs2_preg = fp_preg;
+          dispatch_fs2_ready = 1'b0;
+        end
+        default: begin
+          dispatch_fs3_en = 1'b1;
+          dispatch_fs3_preg = fp_preg;
+          dispatch_fs3_ready = 1'b0;
+        end
+      endcase
+    end
+  endtask
+
+  task automatic run_fp_resident_sticky;
+    input [1:0] src_sel;
+    input wake_lane;
+    input [PHY_REG_ADDR_W-1:0] fp_preg;
+    input [ROB_INDEX_W-1:0] rob_idx;
+    begin
+      reset_dut();
+      dispatch_waiting_fp_entry(rob_idx, src_sel, fp_preg);
+      #1;
+      tb_check1("T3H waiting FP entry dispatch ready", dispatch_ready, 1'b1);
+      tb_check1("T3H FP dispatch does not bypass into issue", issue_valid, 1'b0);
+      `TB_TICK(clk);
+      clear_inputs();
+      #1;
+      tb_check32("T3H waiting FP entry resident", {28'b0, count}, 32'd1);
+      case (src_sel)
+        2'd0: tb_check1("T3H resident fs1 starts sticky-unready",
+                        dut.fs1_ready_q[0], 1'b0);
+        2'd1: tb_check1("T3H resident fs2 starts sticky-unready",
+                        dut.fs2_ready_q[0], 1'b0);
+        default: tb_check1("T3H resident fs3 starts sticky-unready",
+                           dut.fs3_ready_q[0], 1'b0);
+      endcase
+      tb_check1("T3H resident waits before FP completion", issue_valid, 1'b0);
+
+      // 压低 ready 使旧 RTL 即使违约拉起 valid 也不会提前删 entry，
+      // 同一用例因此还能继续验证 N 沿 sticky 与 N+1 issue。
+      issue_ready = 1'b0;
+      if (wake_lane == 1'b0) begin
+        fp_wake0_valid = 1'b1;
+        fp_wake0_preg = fp_preg;
+      end else begin
+        fp_wake1_valid = 1'b1;
+        fp_wake1_preg = fp_preg;
+      end
+      #1;
+      $display("[T3H-RED-OBS] resident src=%0d wake=%0d preg=%0d N sticky={%0b,%0b,%0b} issue=%0b",
+               src_sel, wake_lane, fp_preg, dut.fs1_ready_q[0],
+               dut.fs2_ready_q[0], dut.fs3_ready_q[0], issue_valid);
+      tb_check1("T3H resident FP wake cannot issue in N", issue_valid, 1'b0);
+      tb_check32("T3H resident preserved through wake N", {28'b0, count}, 32'd1);
+
+      `TB_TICK(clk);
+      fp_wake0_valid = 1'b0;
+      fp_wake0_preg = {PHY_REG_ADDR_W{1'b0}};
+      fp_wake1_valid = 1'b0;
+      fp_wake1_preg = {PHY_REG_ADDR_W{1'b0}};
+      issue_ready = 1'b1;
+      #1;
+      case (src_sel)
+        2'd0: tb_check1("T3H fs1 wake sets sticky at N edge",
+                        dut.fs1_ready_q[0], 1'b1);
+        2'd1: tb_check1("T3H fs2 wake sets sticky at N edge",
+                        dut.fs2_ready_q[0], 1'b1);
+        default: tb_check1("T3H fs3 wake sets sticky at N edge",
+                           dut.fs3_ready_q[0], 1'b1);
+      endcase
+      $display("[T3H-COVERAGE-OBS] resident src=%0d wake=%0d preg=%0d N+1 issue={valid=%0b,rob=%0d}",
+               src_sel, wake_lane, fp_preg, issue_valid, issue_rob_idx);
+      tb_check1("T3H sticky FP resident issues in N+1", issue_valid, 1'b1);
+      tb_check32("T3H sticky FP resident ROB identity",
+                 {28'b0, issue_rob_idx}, {28'b0, rob_idx});
+      case (src_sel)
+        2'd0: tb_check32("T3H fs1 preg identity",
+                         {26'b0, issue_fs1_preg}, {26'b0, fp_preg});
+        2'd1: tb_check32("T3H fs2 preg identity",
+                         {26'b0, issue_fs2_preg}, {26'b0, fp_preg});
+        default: tb_check32("T3H fs3 preg identity",
+                            {26'b0, issue_fs3_preg}, {26'b0, fp_preg});
+      endcase
+      `TB_TICK(clk);
+      #1;
+      tb_check32("T3H sticky FP resident drains", {28'b0, count}, 32'd0);
+    end
+  endtask
+
+  task automatic run_fp_dual_source_dual_wake;
+    begin
+      reset_dut();
+      dispatch_valid = 1'b1;
+      dispatch_rob_idx = 4'd6;
+      dispatch_inst = 32'h0200_0053;
+      dispatch_double = 1'b1;
+      dispatch_pdest = 6'd43;
+      dispatch_dst_en = 1'b1;
+      dispatch_fs1_en = 1'b1;
+      dispatch_fs1_preg = 6'd36;
+      dispatch_fs1_ready = 1'b0;
+      dispatch_fs2_en = 1'b1;
+      dispatch_fs2_preg = 6'd37;
+      dispatch_fs2_ready = 1'b0;
+      `TB_TICK(clk);
+      clear_inputs();
+      issue_ready = 1'b0;
+      fp_wake0_valid = 1'b1;
+      fp_wake0_preg = 6'd36;
+      fp_wake1_valid = 1'b1;
+      fp_wake1_preg = 6'd37;
+      #1;
+      $display("[T3H-RED-OBS] dual-source N sticky={fs1=%0b,fs2=%0b} wake={p%0d,p%0d} issue=%0b",
+               dut.fs1_ready_q[0], dut.fs2_ready_q[0], fp_wake0_preg,
+               fp_wake1_preg, issue_valid);
+      tb_check1("T3H dual FP wakes cannot issue resident in N",
+                issue_valid, 1'b0);
+      tb_check1("T3H dual wake fs1 remains unready before edge",
+                dut.fs1_ready_q[0], 1'b0);
+      tb_check1("T3H dual wake fs2 remains unready before edge",
+                dut.fs2_ready_q[0], 1'b0);
+      `TB_TICK(clk);
+      fp_wake0_valid = 1'b0;
+      fp_wake1_valid = 1'b0;
+      issue_ready = 1'b1;
+      #1;
+      tb_check1("T3H dual wake fs1 sticky at N edge", dut.fs1_ready_q[0], 1'b1);
+      tb_check1("T3H dual wake fs2 sticky at N edge", dut.fs2_ready_q[0], 1'b1);
+      tb_check1("T3H dual-woken resident issues in N+1", issue_valid, 1'b1);
+      `TB_TICK(clk);
+      #1;
+      tb_check32("T3H dual-woken resident drains", {28'b0, count}, 32'd0);
+    end
+  endtask
+
+  task automatic run_fp_dispatch_wake_collision;
+    begin
+      reset_dut();
+      issue_ready = 1'b0;
+      dispatch_waiting_fp_entry(4'd7, 2'd1, 6'd38);
+      fp_wake1_valid = 1'b1;
+      fp_wake1_preg = 6'd38;
+      #1;
+      tb_check1("T3H FP dispatch/wake collision accepted", dispatch_ready, 1'b1);
+      tb_check1("T3H FP collision cannot dispatch-bypass issue", issue_valid, 1'b0);
+      `TB_TICK(clk);
+      clear_inputs();
+      #1;
+      $display("[T3H-COVERAGE-OBS] dispatch/wake collision sticky=%0b issue={valid=%0b,rob=%0d}",
+               dut.fs2_ready_q[0], issue_valid, issue_rob_idx);
+      tb_check1("T3H FP dispatch/wake collision captures sticky",
+                dut.fs2_ready_q[0], 1'b1);
+      tb_check1("T3H FP dispatch/wake collision issues in N+1",
+                issue_valid, 1'b1);
+      tb_check32("T3H FP dispatch/wake collision ROB identity",
+                 {28'b0, issue_rob_idx}, 32'd7);
+      `TB_TICK(clk);
+      #1;
+      tb_check32("T3H FP dispatch/wake collision drains", {28'b0, count}, 32'd0);
+    end
+  endtask
+
+  task automatic run_fp_kill_survivor_wake1;
+    begin
+      reset_dut();
+      issue_ready = 1'b0;
+      dispatch_waiting_fp_entry(4'd2, 2'd0, 6'd43);
+      `TB_TICK(clk);
+      clear_inputs();
+      issue_ready = 1'b0;
+      dispatch_waiting_fp_entry(4'd6, 2'd1, 6'd43);
+      `TB_TICK(clk);
+      clear_inputs();
+      #1;
+      tb_check32("T3H FP kill setup has two residents",
+                 {28'b0, count}, 32'd2);
+
+      kill_valid = 1'b1;
+      kill_rob_idx = 4'd4;
+      rob_head_idx = 4'd0;
+      fp_wake1_valid = 1'b1;
+      fp_wake1_preg = 6'd43;
+      #1;
+      tb_check1("T3H FP kill/wake1 N blocks issue", issue_valid, 1'b0);
+      tb_check1("T3H FP kill keeps older slot", dut.squash_r[0], 1'b0);
+      tb_check1("T3H FP kill squashes younger slot", dut.squash_r[1], 1'b1);
+      `TB_TICK(clk);
+      clear_inputs();
+      #1;
+      $display("[T3H-COVERAGE-OBS] kill/wake1 count=%0d valid={%0b,%0b} fs1_sticky=%0b issue={%0b,rob=%0d}",
+               count, dut.valid_q[0], dut.valid_q[1], dut.fs1_ready_q[0],
+               issue_valid, issue_rob_idx);
+      tb_check32("T3H FP kill removes only younger entry",
+                 {28'b0, count}, 32'd1);
+      tb_check1("T3H FP kill survivor absorbs wake1",
+                dut.fs1_ready_q[0], 1'b1);
+      tb_check1("T3H FP kill survivor issues in N+1", issue_valid, 1'b1);
+      tb_check32("T3H FP kill survivor ROB identity",
+                 {28'b0, issue_rob_idx}, 32'd2);
+      `TB_TICK(clk);
+      #1;
+      tb_check32("T3H FP kill survivor drains", {28'b0, count}, 32'd0);
+    end
+  endtask
+
+  task automatic run_fp_recover_absorbs_wake0;
+    begin
+      reset_dut();
+      dispatch_waiting_fp_entry(4'd5, 2'd1, 6'd44);
+      `TB_TICK(clk);
+      clear_inputs();
+      recover_active = 1'b1;
+      fp_wake0_valid = 1'b1;
+      fp_wake0_preg = 6'd44;
+      #1;
+      tb_check1("T3H FP recover/wake0 N blocks issue", issue_valid, 1'b0);
+      `TB_TICK(clk);
+      fp_wake0_valid = 1'b0;
+      fp_wake0_preg = {PHY_REG_ADDR_W{1'b0}};
+      #1;
+      tb_check1("T3H FP recover survivor absorbs wake0",
+                dut.fs2_ready_q[0], 1'b1);
+      tb_check1("T3H FP multi-cycle recover blocks sticky entry",
+                issue_valid, 1'b0);
+      `TB_TICK(clk);
+      recover_active = 1'b0;
+      #1;
+      tb_check1("T3H FP recovered sticky entry issues", issue_valid, 1'b1);
+      tb_check32("T3H FP recovered entry ROB identity",
+                 {28'b0, issue_rob_idx}, 32'd5);
+      `TB_TICK(clk);
+      #1;
+      tb_check32("T3H FP recovered entry drains", {28'b0, count}, 32'd0);
+    end
+  endtask
+
+  task automatic run_fp_flush_discards_dispatch_wake1;
+    begin
+      reset_dut();
+      flush = 1'b1;
+      dispatch_waiting_fp_entry(4'd6, 2'd2, {PHY_REG_ADDR_W{1'b0}});
+      fp_wake1_valid = 1'b1;
+      fp_wake1_preg = {PHY_REG_ADDR_W{1'b0}};
+      #1;
+      tb_check1("T3H FP flush/wake1 never issues", issue_valid, 1'b0);
+      `TB_TICK(clk);
+      clear_inputs();
+      #1;
+      tb_check32("T3H FP flush discards dispatch/wake1 preg0",
+                 {28'b0, count}, 32'd0);
+      tb_check1("T3H FP flush leaves no resurrected issue",
+                issue_valid, 1'b0);
     end
   endtask
 
@@ -582,6 +855,43 @@ module tb_ooo_fp_issue_queue;
     $display("[FP-IQ-INT-STICKY-NEGATIVE] completed one assertion edge");
     $finish_and_return(0);
 `endif
+
+`ifdef FP_IQ_FP_STICKY_NEGATIVE
+    // 先自然建立一个未 ready 的 FP resident source，再只强制 select
+    // 视图跨过一个断言沿。当 RTL 加入 T3H sticky-only 断言后，
+    // 该宏应精确触发新 marker；本 RED 切片不提前修改 RTL 断言。
+    dispatch_waiting_fp_entry(4'd2, 2'd0, 6'd33);
+    #1;
+    tb_check1("T3H FP sticky negative dispatch ready", dispatch_ready, 1'b1);
+    `TB_TICK(clk);
+    clear_inputs();
+    issue_ready = 1'b0;
+    #1;
+    tb_check1("T3H FP sticky negative resident valid", dut.valid_q[0], 1'b1);
+    tb_check1("T3H FP sticky negative source unready", dut.fs1_ready_q[0], 1'b0);
+    tb_check1("T3H FP sticky negative natural issue blocked", issue_valid, 1'b0);
+    force dut.entry_ready_r[0] = 1'b1;
+    #1;
+    $display("[FP-IQ-FP-STICKY-NEGATIVE] force entry_ready[0], issue=%0b sticky=%0b",
+             issue_valid, dut.fs1_ready_q[0]);
+    `TB_TICK(clk);
+    release dut.entry_ready_r[0];
+    #1;
+    $display("[FP-IQ-FP-STICKY-NEGATIVE] completed one assertion edge");
+    $finish_and_return(0);
+`endif
+
+    // T3H RED 先跑：旧 RTL 应只在各用例的 N 拍同拍 issue 检查上变红，
+    // N 沿 sticky、N+1 issue、dispatch 碰 wake 与 preg0 真 FPR 语义仍可继续取证。
+    run_fp_resident_sticky(2'd0, 1'b0, 6'd33, 4'd2);
+    run_fp_resident_sticky(2'd1, 1'b1, 6'd34, 4'd3);
+    run_fp_resident_sticky(2'd2, 1'b0, 6'd35, 4'd4);
+    run_fp_resident_sticky(2'd2, 1'b1, 6'd0, 4'd5);
+    run_fp_dual_source_dual_wake();
+    run_fp_dispatch_wake_collision();
+    run_fp_kill_survivor_wake1();
+    run_fp_recover_absorbs_wake0();
+    run_fp_flush_discards_dispatch_wake1();
 
     run_full_wake0_resident();
     run_full_wake1_resident();

@@ -214,6 +214,20 @@ module OooIntIssueQueue #(
     end
   endfunction
 
+  // FP preg0 对应真实 f0，不能复用上面的整数 x0 过滤规则。
+  function fp_wakeup_match;
+    input [PHY_REG_ADDR_W-1:0] preg;
+    input wakeup0_valid;
+    input [PHY_REG_ADDR_W-1:0] wakeup0_pdest;
+    input wakeup1_valid;
+    input [PHY_REG_ADDR_W-1:0] wakeup1_pdest;
+    begin
+      fp_wakeup_match =
+          (wakeup0_valid && (wakeup0_pdest == preg)) ||
+          (wakeup1_valid && (wakeup1_pdest == preg));
+    end
+  endfunction
+
   function ctrl_is_mem;
     input ctrl_load;
     input ctrl_store;
@@ -261,13 +275,11 @@ module OooIntIssueQueue #(
                                             select_wakeup0_pdest_i,
                                             select_wakeup1_valid_i,
                                             select_wakeup1_pdest_i)) &&
-                              // T3D：FP execution completion(wake0)只在时序
-                              // next-state粘住fp_st_ready，避免 completion→branch
-                              // kill→completion 环；FP load WB(wake1)无该回边，保留快路。
+                              // T3H：FP execution/load completion 均只在时序
+                              // next-state 粘住 fp_st_ready。resident FP-store 在
+                              // N 沿吸收 wake，N+1 才可发射。
                               (!fp_st_en_q[scan_i] ||
-                               fp_st_ready_q[scan_i] ||
-                               (fp_wake1_valid_i &&
-                                (fp_wake1_preg_i == fp_st_preg_q[scan_i])));
+                               fp_st_ready_q[scan_i]);
       if (entry_ready_r[scan_i]) begin
         if (!issue0_found_r) begin
           issue0_found_r = 1'b1;
@@ -436,7 +448,12 @@ module OooIntIssueQueue #(
       fp_pdest_next_r[write_i] = dispatch0_fp_pdest_i;
       fp_st_en_next_r[write_i] = dispatch0_fp_st_src_en_i;
       fp_st_preg_next_r[write_i] = dispatch0_fp_st_src_preg_i;
-      fp_st_ready_next_r[write_i] = dispatch0_fp_st_src_ready_i;
+      // 队列自身吸收 dispatch 与唯一 FP wake pulse 的碰撞，不把正确性
+      // 隐式绑定到上游 fpst query 是否仍保留同拍前视。
+      fp_st_ready_next_r[write_i] = dispatch0_fp_st_src_ready_i ||
+          fp_wakeup_match(dispatch0_fp_st_src_preg_i,
+                          fp_wake0_valid_i, fp_wake0_preg_i,
+                          fp_wake1_valid_i, fp_wake1_preg_i);
       imm_next_r[write_i] = dispatch0_imm_i;
       write_i = write_i + 1;
     end
@@ -467,7 +484,10 @@ module OooIntIssueQueue #(
       fp_pdest_next_r[write_i] = dispatch1_fp_pdest_i;
       fp_st_en_next_r[write_i] = dispatch1_fp_st_src_en_i;
       fp_st_preg_next_r[write_i] = dispatch1_fp_st_src_preg_i;
-      fp_st_ready_next_r[write_i] = dispatch1_fp_st_src_ready_i;
+      fp_st_ready_next_r[write_i] = dispatch1_fp_st_src_ready_i ||
+          fp_wakeup_match(dispatch1_fp_st_src_preg_i,
+                          fp_wake0_valid_i, fp_wake0_preg_i,
+                          fp_wake1_valid_i, fp_wake1_preg_i);
       imm_next_r[write_i] = dispatch1_imm_i;
       write_i = write_i + 1;
     end
@@ -595,19 +615,16 @@ module OooIntIssueQueue #(
             (select_wakeup1_pdest_i === wakeup1_pdest_i)))
         $error("[IQ-FAST-WAKE-SUBSET] lane1 select=%0d full_valid=%b full=%0d @%0t",
                select_wakeup1_pdest_i, wakeup1_valid_i, wakeup1_pdest_i, $time);
-      // 跨域 FP wake 只能落 sticky ready；若未 sticky 的 FP-store 项在命中
-      // wake 的同拍被选中，说明 same-cycle select 回边被重新引入。
+      // T3H：跨域 FP wake0/1 都只能落 sticky ready。用更强的消费边界
+      // 不变量覆盖两类 wake 和无 wake mutation：任何 FP-store source 在
+      // 发射前都必须已有 fp_st_ready_q。
       if (issue0_valid_o && fp_st_en_q[issue0_idx_r] &&
-          !fp_st_ready_q[issue0_idx_r] &&
-          (fp_wake0_valid_i &&
-           (fp_wake0_preg_i == fp_st_preg_q[issue0_idx_r])))
-        $error("[IQ-FP-WAKE-STICKY-ONLY] issue0 selected on same-cycle FP wake @%0t",
+          !fp_st_ready_q[issue0_idx_r])
+        $error("[IQ-FP-WAKE-STICKY-ONLY] issue0 selected before FP sticky ready @%0t",
                $time);
       if (issue1_valid_o && fp_st_en_q[issue1_idx_r] &&
-          !fp_st_ready_q[issue1_idx_r] &&
-          (fp_wake0_valid_i &&
-           (fp_wake0_preg_i == fp_st_preg_q[issue1_idx_r])))
-        $error("[IQ-FP-WAKE-STICKY-ONLY] issue1 selected on same-cycle FP wake @%0t",
+          !fp_st_ready_q[issue1_idx_r])
+        $error("[IQ-FP-WAKE-STICKY-ONLY] issue1 selected before FP sticky ready @%0t",
                $time);
     end
   end

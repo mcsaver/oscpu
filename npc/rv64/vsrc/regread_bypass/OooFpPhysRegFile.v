@@ -3,7 +3,8 @@
 // 【B-FP 簇】FP 物理寄存器堆(spec ooo-fp-cluster-implementation-plan.md §7)。
 // 与 OooPhysRegFile 同构但**无 x0 特判**——f0 是真寄存器, 可读写可分配。
 // 4R: FP 算术三源(fs1/fs2/fs3) + FP store 发射拍数据读(fs2, 来自整数 IQ mem 通道);
-// 2W: FP 算术/跨域结果 + FP load 响应。写-读同拍旁路与整数堆同款。
+// 2W: FP 算术/跨域结果 + FP load 响应。T3H 四个读口统一只读已落账
+// regs_q；与 FP/FP-store sticky-only 发射边界成对，切断 completion 同拍锥。
 // recover: trap flush 时低 32 项单拍拷入架构 FPR(committed 承载区), 高 32 清 0,
 // 配合 FP RenameMap 恒等重置(照抄整数恢复模式)。
 module OooFpPhysRegFile #(
@@ -35,37 +36,10 @@ module OooFpPhysRegFile #(
   reg [`XLEN-1:0] regs_q [0:PHY_REG_COUNT-1];
   integer idx;
 
-  function [`XLEN-1:0] read_port_data;
-    input [PHY_REG_ADDR_W-1:0] addr;
-    input write0_valid;
-    input [PHY_REG_ADDR_W-1:0] write0_addr;
-    input [`XLEN-1:0] write0_data;
-    input write1_valid;
-    input [PHY_REG_ADDR_W-1:0] write1_addr;
-    input [`XLEN-1:0] write1_data;
-    begin
-      if (write1_valid && (write1_addr == addr)) begin
-        read_port_data = write1_data;
-      end else if (write0_valid && (write0_addr == addr)) begin
-        read_port_data = write0_data;
-      end else begin
-        read_port_data = regs_q[addr];
-      end
-    end
-  endfunction
-
-  assign read0_data_o = read_port_data(read0_addr_i,
-                                       write0_valid_i, write0_addr_i, write0_data_i,
-                                       write1_valid_i, write1_addr_i, write1_data_i);
-  assign read1_data_o = read_port_data(read1_addr_i,
-                                       write0_valid_i, write0_addr_i, write0_data_i,
-                                       write1_valid_i, write1_addr_i, write1_data_i);
-  assign read2_data_o = read_port_data(read2_addr_i,
-                                       write0_valid_i, write0_addr_i, write0_data_i,
-                                       write1_valid_i, write1_addr_i, write1_data_i);
-  assign read3_data_o = read_port_data(read3_addr_i,
-                                       write0_valid_i, write0_addr_i, write0_data_i,
-                                       write1_valid_i, write1_addr_i, write1_data_i);
+  assign read0_data_o = regs_q[read0_addr_i];
+  assign read1_data_o = regs_q[read1_addr_i];
+  assign read2_data_o = regs_q[read2_addr_i];
+  assign read3_data_o = regs_q[read3_addr_i];
 
   always @(posedge clk) begin
     if (rst) begin
@@ -90,5 +64,16 @@ module OooFpPhysRegFile #(
       end
     end
   end
+
+`ifdef OOO_ASSERT
+  always @(posedge clk) begin
+    if (!rst &&
+        ({read0_data_o, read1_data_o, read2_data_o, read3_data_o} !==
+         {regs_q[read0_addr_i], regs_q[read1_addr_i],
+          regs_q[read2_addr_i], regs_q[read3_addr_i]})) begin
+      $error("[FP-PRF-STORED-ONLY] read port bypassed stored regs_q data");
+    end
+  end
+`endif
 
 endmodule

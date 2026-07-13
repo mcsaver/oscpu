@@ -1,7 +1,7 @@
 # 规范：FP completion → integer IQ 的跨域 sticky wakeup
 
 > 模块：`OooFpBackend`、`OooIntBackend`、`OooIntIssueQueue`。
-> 状态：**T3D 已实现并验证（2026-07-13）**。
+> 状态：**T3D 已实现；T3H 已扩展为 wake0/1 全 sticky（2026-07-13）**。
 
 ## 1. 根因与切点
 
@@ -15,15 +15,17 @@ FP completion valid/pdest
  -> FP completion valid/pdest
 ```
 
-FP store 数据源只要求最终可发射，不要求执行完成同拍发射。T3D 只删除
-`fp_wake0(execution completion) -> integer IQ resident select` 的同拍前视；wake0 仍在上升沿
-写 sticky ready。`fp_wake1(FP load WB)` 不依赖 branch kill，保留同拍 select 快路。
+FP store 数据源只要求最终可发射，不要求 producer 完成同拍发射。T3D 先删除
+`fp_wake0(execution completion) -> integer IQ resident select` 的同拍前视；T3G fresh STA
+随后证明 `fp_wake1(FP load WB)` 快路形成 DCache→IntIQ→ALU/control→FetchPacketCache 的
+top1。T3H 因此把 wake0/1 都收紧为上升沿写 sticky ready、N+1 才 select，并同步删除
+FP PRF R3 的同拍 write-through。
 
 ## 2. 六类接口合同
 
 - **握手**：不新增端口/ready；`fp_wake0/1` 仍是单拍 execution-completion/load-WB 广播。
-- **stall/backpressure**：N 拍 wake0 不允许让 FP-store entry 同拍 select；N 沿吸收，N+1
-  可 select。wake1 与整数 EX fast select 均保留同拍快路；T3G 起 MEM 为 formal-only。
+- **stall/backpressure**：N 拍 wake0/1 都不允许让 FP-store entry 同拍 select；N 沿吸收，
+  N+1 可 select。整数 EX-only fast select 独立保留；T3G 起整数 MEM 为 formal-only。
 - **flush/kill/redirect**：kill 拍仍压 issue；存活前缀必须吸收同拍 FP wake，年轻后缀 squash。
 - **异常序**：FP completion/fflags/ROB done owner 不动；只给 FP-store consumer 增加一拍。
 - **访存序**：FP store 的 SQ/MIQ/request owner 不变，延迟发生在进入 memory issue 前。
@@ -31,18 +33,19 @@ FP store 数据源只要求最终可发射，不要求执行完成同拍发射�
 
 ## 3. 周期与验证
 
-| 周期 | fp_wake0 | FP-store select | sticky state |
+| 周期 | fp_wake0/1 | FP-store select | sticky state |
 | --- | --- | --- | --- |
 | N | pulse | 不因该 pulse 发射 | N 沿置 ready |
 | N+1 | 0 | 可发射 | 保持 ready |
 
 - 旧 RTL RED：resident FP-store 在 N 拍被错误提前 select。
-- GREEN：wake0 N 不 issue、N+1 issue；wake1 N 同拍 issue；dispatch insertion、compaction、
-  kill survivor 均不漏 wake。
+- GREEN：wake0/1 均为 N 不 issue、N+1 issue；dispatch insertion 在 IQ 内显式 OR 两路
+  wake，compaction/kill survivor 均不漏 wake。
 - full Verilator `--assert` build 不得再报告上述 cross-domain SCC。
 - fresh OpenSTA 中 `fp_wake -> IntIssueQueue select -> branch kill -> FpArith` loop family 必须为0。
 
 T3D 实施时未延迟 fp_wake1 或 FpIssueQueue 的整数/FP self wakeup。后续 T3E fresh
-网表已给出反例：integer full-WB→FpIssueQueue→FpConvert 成为 22.23 ns top40
-同族路径。因此 integer→FP 方向已由独立的
-`ooo-int-to-fp-sticky-wakeup.md` 契约接管；FP self wake 仍不在 T3F 范围。
+网表先给出 integer full-WB→FpIssueQueue→FpConvert 反例，integer→FP 方向由
+`ooo-int-to-fp-sticky-wakeup.md` 接管；T3G 又给出 FP-load wake1 的 DCache 首路径。
+T3H 最终由 `ooo-fp-sticky-wakeup-barrier.md` 统一接管 wake0/1 的 FP self 与 FP-store
+消费边界。

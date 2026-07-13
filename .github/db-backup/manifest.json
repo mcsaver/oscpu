@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-13T07:57:11+00:00",
-  "updated_at": "2026-07-12T14:16:32+00:00",
+  "updated_at": "2026-07-13T06:56:22+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -21298,6 +21298,46 @@
       "sha256": "1f89758eee6c22e54295d11b70a44c1f3deba5be7614bb226b79287334b1ae14",
       "backup_source": "filesystem",
       "archived_at": "2026-07-12T05:31:21+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3h-fp-sticky-barrier-final/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 7706,
+      "sha256": "579f50ba8ddf6ea4f252a263c5eb609ecaebbaecca7c7494aea98e030d774de8",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T06:56:22+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3h-fp-sticky-barrier-final/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 934,
+      "sha256": "a858a38f0aeeedafd595186e5912ef30f174ce3510979529140525388456fa54",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T06:56:22+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3h-fp-sticky-barrier/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 779,
+      "sha256": "3a3deedc26d8af4dd7275c8f8c3095ab319f2bf188dc11a8307be63f2aa5bddc",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T06:56:22+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3h-fp-sticky-barrier/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 1957609,
+      "sha256": "2129524018789a10bdfb98bab6b01f7db8ad7c3dab83de401dc84d5ca118ca4c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T06:56:22+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3h-fp-sticky-barrier/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6575,
+      "sha256": "011036f69bda7e62a861c31e07e8356d1b9147de291b444fc3753c41fd9c5793",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T06:56:22+00:00"
     },
     {
       "path": ".github/task-runs/README.md",

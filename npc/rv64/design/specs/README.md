@@ -29,6 +29,8 @@
 - FP 入口 ready DAG 与双 lane 原子接收：`ooo-fp-admission-credit.md`；
 - FP completion 到整数 IQ 的跨域 sticky wake：`ooo-cross-domain-wakeup.md`；
 - Integer completion 到 FP IQ/read8 的全 sticky 时序边界：`ooo-int-to-fp-sticky-wakeup.md`；
+- FP execution/load completion 到 FP IQ、FP-store 与四口 FP PRF 的全 sticky/stored-only
+  边界：`ooo-fp-sticky-wakeup-barrier.md`；
   `ooo-fp-arith-gate` — FP short arithmetic 5-cycle 流水、B-FP launch/out 与 macro/OOC decision contract;
   `ooo-fp-reg-file` — 架构 FPR(commit 双写+trap 恢复源)
 

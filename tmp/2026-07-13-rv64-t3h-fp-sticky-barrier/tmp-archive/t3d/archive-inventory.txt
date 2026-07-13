@@ -1,0 +1,7 @@
+t3d-kill-survivor-focused/
+t3d-kill-survivor-focused/logs/
+t3d-kill-survivor-focused/logs/tb_ooo_int_issue_queue.log
+ysyx-t3d-root-iq-build/
+ysyx-t3d-root-iq-build/tb_ooo_int_issue_queue.vvp
+ysyx-t3d-root-iq2-build/
+ysyx-t3d-root-iq2-build/tb_ooo_int_issue_queue.vvp

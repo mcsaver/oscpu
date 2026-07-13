@@ -304,6 +304,66 @@ module tb_ooo_int_issue_queue;
     end
   endtask
 
+  task automatic run_fp_dispatch_wake_collision;
+    input dispatch_lane;
+    input wake_lane;
+    input [PHY_REG_ADDR_W-1:0] fp_preg;
+    input [`XLEN-1:0] pc;
+    input [ROB_INDEX_W-1:0] rob_idx;
+    begin
+      reset_dut();
+      if (dispatch_lane == 1'b0) begin
+        set_dispatch0(pc, rob_idx, 6'd9, 1'b1, 6'd10, 1'b1, 6'd0);
+        dispatch0_ctrl[`CTRL_STORE_BIT] = 1'b1;
+        dispatch0_fp_st_src_en = 1'b1;
+        dispatch0_fp_st_src_preg = fp_preg;
+        dispatch0_fp_st_src_ready = 1'b0;
+      end else begin
+        set_dispatch1(pc, rob_idx, 6'd11, 1'b1, 6'd12, 1'b1, 6'd0);
+        dispatch1_ctrl[`CTRL_STORE_BIT] = 1'b1;
+        dispatch1_fp_st_src_en = 1'b1;
+        dispatch1_fp_st_src_preg = fp_preg;
+        dispatch1_fp_st_src_ready = 1'b0;
+      end
+      if (wake_lane == 1'b0) begin
+        fp_wake0_valid = 1'b1;
+        fp_wake0_preg = fp_preg;
+      end else begin
+        fp_wake1_valid = 1'b1;
+        fp_wake1_preg = fp_preg;
+      end
+      #1;
+      if (dispatch_lane == 1'b0)
+        tb_check1("[T3H-COLLISION] lane0 dispatch accepted",
+                  dispatch0_ready, 1'b1);
+      else
+        tb_check1("[T3H-COLLISION] lane1 dispatch accepted",
+                  dispatch1_ready, 1'b1);
+      tb_check1("[T3H-COLLISION] no dispatch bypass issue0",
+                issue0_valid, 1'b0);
+      tb_check1("[T3H-COLLISION] no dispatch bypass issue1",
+                issue1_valid, 1'b0);
+      `TB_TICK(clk);
+      clear_inputs();
+      #1;
+      $display("[T3H-COLLISION-OBS] dispatch=%0d wake=%0d preg=%0d N+1 count=%0d sticky=%0b issue={%0b,%0b} pc=0x%08x",
+               dispatch_lane, wake_lane, fp_preg, count,
+               dut.fp_st_ready_q[0], issue0_valid, issue1_valid,
+               issue0_pc[31:0]);
+      tb_check32("[T3H-COLLISION] entry remains resident",
+                 {28'b0, count}, 32'd1);
+      tb_check1("[T3H-COLLISION] N edge captures wake into sticky",
+                dut.fp_st_ready_q[0], 1'b1);
+      tb_check1("[T3H-COLLISION] captured entry issues in N+1",
+                issue0_valid, 1'b1);
+      tb_check32("[T3H-COLLISION] issue PC identity", issue0_pc, pc);
+      `TB_TICK(clk);
+      clear_inputs();
+      #1;
+      tb_check1("[T3H-COLLISION] captured entry drains", empty, 1'b1);
+    end
+  endtask
+
   initial begin
     tb_errors = 0;
     reset_dut();
@@ -348,6 +408,37 @@ module tb_ooo_int_issue_queue;
     #1;
     release dut.issue0_valid_o;
     $display("[IQ-FP-WAKE-STICKY-NEGATIVE] completed one assertion edge");
+    $finish_and_return(0);
+`endif
+
+`ifdef IQ_FP_WAKE_STICKY_NEGATIVE_LANE1
+    // issue1 对 store 在合法 select 中结构性禁止；该防御分支用最小 malformed
+    // mutation 证明并非真空。index 默认指向合法 resident idx0，只 force valid。
+    set_dispatch0(32'h8000_0fc4, 4'd7,
+                  6'd3, 1'b1, 6'd4, 1'b1, 6'd0);
+    dispatch0_ctrl[`CTRL_STORE_BIT] = 1'b1;
+    dispatch0_fp_st_src_en = 1'b1;
+    dispatch0_fp_st_src_preg = 6'd24;
+    dispatch0_fp_st_src_ready = 1'b0;
+    `TB_TICK(clk);
+    clear_inputs();
+    issue0_ready = 1'b0;
+    issue1_ready = 1'b0;
+    fp_wake1_valid = 1'b1;
+    fp_wake1_preg = 6'd24;
+    #1;
+    tb_check1("IQ FP sticky lane1 negative resident valid",
+              dut.valid_q[0], 1'b1);
+    tb_check1("IQ FP sticky lane1 negative starts unready",
+              dut.fp_st_ready_q[0], 1'b0);
+    tb_check1("IQ FP sticky lane1 negative naturally blocked",
+              issue1_valid, 1'b0);
+    force dut.issue1_valid_o = 1'b1;
+    $display("[IQ-FP-WAKE-STICKY-NEGATIVE-LANE1] force issue1_valid idx=%0d sticky=%0b",
+             dut.issue1_idx_r, dut.fp_st_ready_q[0]);
+    `TB_TICK(clk);
+    release dut.issue1_valid_o;
+    $display("[IQ-FP-WAKE-STICKY-NEGATIVE-LANE1] completed one assertion edge");
     $finish_and_return(0);
 `endif
 
@@ -855,7 +946,7 @@ module tb_ooo_int_issue_queue;
     #1;
     tb_check1("[T3D-KILL] survivor drains after delayed issue", empty, 1'b1);
 
-    // ===== T3D 正向边界：fp_wake1(load WB)保留 N 拍 same-cycle select =====
+    // ===== T3H RED：fp_wake1(load WB)也只可落 sticky，N+1 才 select =====
     set_dispatch0(32'h8000_00c4, 4'd7,
                   6'd3, 1'b1, 6'd4, 1'b1, 6'd0);
     dispatch0_ctrl[`CTRL_STORE_BIT] = 1'b1;
@@ -872,22 +963,48 @@ module tb_ooo_int_issue_queue;
     fp_wake1_valid = 1'b1;
     fp_wake1_preg = 6'd24;
     #1;
-    $display("[T3D-GREEN-OBS] N fp_wake1=%0b fp_preg=%0d issue={%0b,%0b} pc=0x%08x sticky=%0b",
+    $display("[T3H-RED-OBS] N fp_wake1=%0b fp_preg=%0d issue={%0b,%0b} pc=0x%08x sticky=%0b",
              fp_wake1_valid, fp_wake1_preg,
              issue0_valid, issue1_valid, issue0_pc[31:0],
              dut.fp_st_ready_q[0]);
-    tb_check1("[T3D-GREEN] load-WB FP wake issues in N",
+    tb_check1("[T3H-RED] load-WB FP wake must not issue in N",
+              issue0_valid, 1'b0);
+    tb_check1("[T3H-RED] load-WB sticky remains low before N edge",
+              dut.fp_st_ready_q[0], 1'b0);
+    tb_check32("[T3H-RED] load-WB FP store remains resident in N",
+               {28'b0, count}, 32'd1);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    $display("[T3H-RED-OBS] N+1 issue={%0b,%0b} pc=0x%08x sticky=%0b count=%0d",
+             issue0_valid, issue1_valid, issue0_pc[31:0],
+             dut.fp_st_ready_q[0], count);
+    tb_check1("[T3H-RED] load-WB sticky set at N edge",
+              dut.fp_st_ready_q[0], 1'b1);
+    tb_check1("[T3H-RED] load-WB FP store issues in N+1",
               issue0_valid, 1'b1);
-    tb_check32("[T3D-GREEN] load-WB FP wake issue PC",
+    tb_check32("[T3H-RED] load-WB FP wake issue PC",
                issue0_pc, 32'h8000_00c4);
-    tb_check1("[T3D-GREEN] load-WB keeps FP source enable",
+    tb_check1("[T3H-RED] load-WB keeps FP source enable",
               issue0_fp_st_src_en, 1'b1);
-    tb_check32("[T3D-GREEN] load-WB keeps FP source preg",
+    tb_check32("[T3H-RED] load-WB keeps FP source preg",
                {26'b0, issue0_fp_st_src_preg}, 32'd24);
     `TB_TICK(clk);
     clear_inputs();
     #1;
-    tb_check1("[T3D-GREEN] load-WB fast FP store drains", empty, 1'b1);
+    tb_check1("[T3H-RED] delayed load-WB FP store drains", empty, 1'b1);
+
+    // ===== T3H dispatch/wake collision：IQ 自身必须吸收唯一 FP 广播 =====
+    // 集成查询面会给 ready 前视，但队列不能把正确性隐式绑定到上游实现。
+    // 四象限覆盖两个 dispatch lane、两个 wake lane；preg0 是真 FPR，必须命中。
+    run_fp_dispatch_wake_collision(1'b0, 1'b0, 6'd0,
+                                   32'h8000_00d0, 4'd10);
+    run_fp_dispatch_wake_collision(1'b0, 1'b1, 6'd26,
+                                   32'h8000_00d4, 4'd11);
+    run_fp_dispatch_wake_collision(1'b1, 1'b0, 6'd27,
+                                   32'h8000_00d8, 4'd12);
+    run_fp_dispatch_wake_collision(1'b1, 1'b1, 6'd0,
+                                   32'h8000_00dc, 4'd13);
 
     tb_finish("tb_ooo_int_issue_queue");
   end

@@ -4,8 +4,8 @@
 // 8 项单发射 oldest-ready。承接纯 FP 算术与 FMV/FCVT 跨域指令(FP load/store 走
 // 整数 IQ mem 通道, 不进本队列)。三 FP 源(fs1/fs2/fs3)监听 FP wakeup(算术 wb +
 // load wb 双口), 一 GPR 源(FMV.W.X/FCVT.from-int)监听整数 formal wakeup 双口。
-// T3F：integer wake 只在沿上落 sticky，不允许 resident entry 同拍 select；
-// 这与 integer PRF read8 只读已落账 regs_q 的 data 边界成对。
+// T3F/T3H：integer/FP wake 都只在沿上落 sticky，不允许 resident entry
+// 同拍 select；这与两类 PRF 只读已落账 regs_q 的 data 边界成对。
 // squash 语义与 OooIntIssueQueue 对齐: flush 全清; mispredict kill 拍清掉比
 // kill_rob_idx 更年轻(ROB 环形 age 更大)的 entry, recover 期冻结发射。
 // 无 dispatch-bypass/mem-order 等整数 IQ 脚手架——FP 簇不需要。
@@ -125,24 +125,7 @@ module OooFpIssueQueue #(
     end
   endfunction
 
-  // FP 源唤醒后的即时 ready 视图；integer GPR 源的 formal wake
-  // 由 T3F 契约禁止进入该组合视图，只能更新 gpr_ready_q。
-  function entry_src_ready;
-    input src_en;
-    input src_ready;
-    input [PHY_REG_ADDR_W-1:0] src_preg;
-    input wake0_v;
-    input [PHY_REG_ADDR_W-1:0] wake0_p;
-    input wake1_v;
-    input [PHY_REG_ADDR_W-1:0] wake1_p;
-    begin
-      entry_src_ready = !src_en || src_ready ||
-                        (wake0_v && (wake0_p == src_preg)) ||
-                        (wake1_v && (wake1_p == src_preg));
-    end
-  endfunction
-
-  // dispatch 拍同拍 wakeup 前视: 入队写与存量唤醒同 always(后写胜), 不 mux
+  // dispatch 拍同拍 wakeup 前视: 入队写与存量唤醒同 always(后写胜), 不捕获
   // 会把同拍广播覆盖成 not-ready → 错过唯一唤醒, entry 永睡(fcvt.d.w 等
   // GPR 源撞 li wb 拍即死锁)。
   wire d0_fs1_wake_w =
@@ -175,15 +158,9 @@ module OooFpIssueQueue #(
     integer k;
     for (k = 0; k < ENTRY_COUNT; k = k + 1) begin
       entry_ready_r[k] = valid_q[k] &&
-          entry_src_ready(fs1_en_q[k], fs1_ready_q[k], fs1_preg_q[k],
-                          fp_wake0_valid_i, fp_wake0_preg_i,
-                          fp_wake1_valid_i, fp_wake1_preg_i) &&
-          entry_src_ready(fs2_en_q[k], fs2_ready_q[k], fs2_preg_q[k],
-                          fp_wake0_valid_i, fp_wake0_preg_i,
-                          fp_wake1_valid_i, fp_wake1_preg_i) &&
-          entry_src_ready(fs3_en_q[k], fs3_ready_q[k], fs3_preg_q[k],
-                          fp_wake0_valid_i, fp_wake0_preg_i,
-                          fp_wake1_valid_i, fp_wake1_preg_i) &&
+          (!fs1_en_q[k] || fs1_ready_q[k]) &&
+          (!fs2_en_q[k] || fs2_ready_q[k]) &&
+          (!fs3_en_q[k] || fs3_ready_q[k]) &&
           (!gpr_en_q[k] || gpr_ready_q[k]);
     end
   end
@@ -294,8 +271,7 @@ module OooFpIssueQueue #(
         gpr_ready_q[i] <= 1'b0;
       end
     end else begin
-      // 唤醒时序落账：FP 源仍可通过 entry_ready_r 同拍发射；
-      // integer GPR 源只能在此处置 sticky，最早下一拍发射。
+      // 唤醒时序落账：FP/GPR 源都只能在此处置 sticky，最早下一拍发射。
       for (i = 0; i < ENTRY_COUNT; i = i + 1) begin
         if (valid_q[i]) begin
           if (fs1_en_q[i] &&
@@ -382,9 +358,18 @@ module OooFpIssueQueue #(
   end
 
 `ifdef OOO_ASSERT
-  // T3F 硬边界：带 GPR source 的 resident entry 只能在 sticky ready
-  // 已落账后发射，禁止恢复 formal-wake 同拍前视。
+  // T3F/T3H 硬边界：resident entry 的所有 source 都只能在 sticky ready
+  // 已落账后发射，禁止恢复任一 formal-wake 同拍前视。
   always @(posedge clk) begin
+    if (!rst && (issue_valid_o === 1'b1) &&
+        (((fs1_en_q[issue_idx_r] === 1'b1) &&
+          (fs1_ready_q[issue_idx_r] !== 1'b1)) ||
+         ((fs2_en_q[issue_idx_r] === 1'b1) &&
+          (fs2_ready_q[issue_idx_r] !== 1'b1)) ||
+         ((fs3_en_q[issue_idx_r] === 1'b1) &&
+          (fs3_ready_q[issue_idx_r] !== 1'b1)))) begin
+      $error("[FP-IQ-FP-STICKY-ONLY] FP source issued before sticky ready");
+    end
     if (!rst && (issue_valid_o === 1'b1) &&
         (gpr_en_q[issue_idx_r] === 1'b1) &&
         (gpr_ready_q[issue_idx_r] !== 1'b1)) begin
