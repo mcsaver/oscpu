@@ -2,10 +2,6 @@
 
 // 物理寄存器 freelist 先作为 OoO 后端的独立环形队列验证。
 // 释放项下一拍再可分配，避免和 ROB commit/rename 的时序边界过早耦合。
-/* verilator lint_off UNOPTFLAT */
-// 【B-FP 簇】FP 交叉 wakeup/ready 菱形使 Verilator 跨实例保守判环
-// (__Vcellinp__ 端口注入形态)。行为正确性由全量测试守; 真伪甄别与
-// 结构化真修(交叉唤醒打拍)列为 FP 簇收尾项。
 module OooFreeList #(
   parameter PHY_REG_COUNT = `OOO_PHY_REG_COUNT,
   parameter PHY_REG_ADDR_W = `OOO_PHY_REG_ADDR_W,
@@ -119,4 +115,3 @@ module OooFreeList #(
   end
 
 endmodule
-/* verilator lint_on UNOPTFLAT */

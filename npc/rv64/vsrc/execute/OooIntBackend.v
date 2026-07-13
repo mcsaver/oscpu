@@ -3,10 +3,6 @@
 // ALU-only OoO integer backend slice.  The frontend still supplies decoded uops;
 // this module closes the loop from rename/issue through PRF read, dual ALU
 // execute, writeback wakeup, and in-order ROB commit.
-/* verilator lint_off UNOPTFLAT */
-// 【B-FP 簇】FP 交叉 wakeup/ready 菱形使 Verilator 跨实例保守判环
-// (__Vcellinp__ 端口注入形态)。行为正确性由全量测试守; 真伪甄别与
-// 结构化真修(交叉唤醒打拍)列为 FP 簇收尾项。
 module OooIntBackend #(
   parameter PHY_REG_ADDR_W = `OOO_PHY_REG_ADDR_W,
   parameter ROB_INDEX_W = `OOO_ROB_INDEX_W,
@@ -181,6 +177,19 @@ module OooIntBackend #(
   wire wb1_exception_w;
   wire [`TRAP_CAUSE_W-1:0] wb1_cause_w;
   wire [`XLEN-1:0] wb1_tval_w;
+  // T3F：真实 integer PRF write event 与送往 FP IQ 的 formal sticky wake
+  // 共用同一 valid 真源，过滤 FP-only/probe/x0 completion 的 p0 tag。
+  wire gpr_wb0_write_valid_w;
+  wire gpr_wb1_write_valid_w;
+  // 【T3B】EX/MEM-only fast broadcast：与 formal WB 物理分离，避免
+  // MulDiv/CLMUL/FPWB payload 经 IQ select / PRF write-through 形成组合反馈。
+  // formal WB 仍是完成、sticky wakeup 与 PRF 时序写的唯一真源。
+  wire fast_wb0_valid_w;
+  wire [PHY_REG_ADDR_W-1:0] fast_wb0_pdest_w;
+  wire [`XLEN-1:0] fast_wb0_data_w;
+  wire fast_wb1_valid_w;
+  wire [PHY_REG_ADDR_W-1:0] fast_wb1_pdest_w;
+  wire [`XLEN-1:0] fast_wb1_data_w;
   wire issue0_valid_w;
   wire issue0_ready_w;
   wire [`XLEN-1:0] issue0_pc_w;
@@ -214,7 +223,7 @@ module OooIntBackend #(
 
   // 【B-FP 簇】dispatch 分流: FP 算术/跨域 → FpBackend.disp; FP load → fpld_alloc
   // (lane0/lane1 均可, 每拍一条); FP store → fpst_query(数据源进整数 IQ fp_src2)。
-  // fire 原子性: 双方 ready 交叉 gate 对方 valid(容量型 ready 无组合环)。
+  // T3C:raw intent 不含 ready；容量只读 FP 寄存 count，actual accept 才更新状态。
   wire d0_fp_arith_w = dispatch0_is_fp_i && !dispatch0_fp_load_i &&
                        !dispatch0_fp_store_i;
   wire d1_fp_arith_w = dispatch1_is_fp_i && !dispatch1_fp_load_i &&
@@ -227,12 +236,18 @@ module OooIntBackend #(
   wire fp_disp1_ready_w;
   wire fp_alloc0_ready_w;
   wire fp_alloc1_ready_w;
-  wire d0_fp_ok_w = !dispatch0_is_fp_i ||
-                    (d0_fp_arith_w ? fp_disp_ready_w :
-                     dispatch0_fp_load_i ? fp_alloc0_ready_w : 1'b1);
-  wire d1_fp_ok_w = !dispatch1_is_fp_i ||
-                    (d1_fp_arith_w ? fp_disp1_ready_w :
-                     dispatch1_fp_load_i ? fp_alloc1_ready_w : 1'b1);
+  wire d0_fp_own_ok_w = !dispatch0_is_fp_i ||
+                        (d0_fp_arith_w ? fp_disp_ready_w :
+                         dispatch0_fp_load_i ? fp_alloc0_ready_w : 1'b1);
+  // lane1 的 ready 是两 lane FP need 的 packet credit（lane0 need=0 时自然退化）。
+  wire d1_fp_pair_ok_w = !dispatch1_is_fp_i ||
+                         (d1_fp_arith_w ? fp_disp1_ready_w :
+                          dispatch1_fp_load_i ? fp_alloc1_ready_w : 1'b1);
+  wire fp_mandatory_pair_w = dispatch0_valid_i && dispatch1_valid_i &&
+                             !dispatch1_optional_i;
+  wire d0_fp_ok_w = d0_fp_own_ok_w &&
+                     (!fp_mandatory_pair_w || d1_fp_pair_ok_w);
+  wire d1_fp_ok_w = d1_fp_pair_ok_w;
   wire [PHY_REG_ADDR_W-1:0] fp_disp_new_pdest_w;
   wire [PHY_REG_ADDR_W-1:0] fp_disp_old_pdest_w;
   wire [PHY_REG_ADDR_W-1:0] fp_disp1_new_pdest_w;
@@ -393,6 +408,10 @@ module OooIntBackend #(
     .wb1_cause_i(wb1_cause_w),
     .wb1_tval_i(wb1_tval_w),
     .wb1_fflags_i(wb1_fflags_w),
+    .select_wakeup0_valid_i(fast_wb0_valid_w),
+    .select_wakeup0_pdest_i(fast_wb0_pdest_w),
+    .select_wakeup1_valid_i(fast_wb1_valid_w),
+    .select_wakeup1_pdest_i(fast_wb1_pdest_w),
     .issue0_valid_o(issue0_valid_w),
     .issue0_ready_i(issue0_ready_w),
     .issue0_pc_o(issue0_pc_w),
@@ -519,12 +538,18 @@ module OooIntBackend #(
     .read3_data_o(issue1_src2_data_w),
     .read8_addr_i(fp_gpr_read_addr_w),
     .read8_data_o(fp_gpr_read_data_w),
-    .write0_valid_i(wb0_valid_w && (wb0_pdest_w != {PHY_REG_ADDR_W{1'b0}})),
+    .write0_valid_i(gpr_wb0_write_valid_w),
     .write0_addr_i(wb0_pdest_w),
     .write0_data_i(wb0_data_w),
-    .write1_valid_i(wb1_valid_w && (wb1_pdest_w != {PHY_REG_ADDR_W{1'b0}})),
+    .write1_valid_i(gpr_wb1_write_valid_w),
     .write1_addr_i(wb1_pdest_w),
-    .write1_data_i(wb1_data_w)
+    .write1_data_i(wb1_data_w),
+    .bypass0_valid_i(fast_wb0_valid_w),
+    .bypass0_addr_i(fast_wb0_pdest_w),
+    .bypass0_data_i(fast_wb0_data_w),
+    .bypass1_valid_i(fast_wb1_valid_w),
+    .bypass1_addr_i(fast_wb1_pdest_w),
+    .bypass1_data_i(fast_wb1_data_w)
   );
 
   function [`XLEN-1:0] select_op1;
@@ -638,8 +663,14 @@ module OooIntBackend #(
     end
   endfunction
 
-  // 声明前置：iverilog 14 拒绝前向引用（驱动/定义仍在后文原处）
+  // 声明前置：iverilog 14 拒绝前向引用（驱动/定义仍在后文原处）。
+  // RAW-I1 已证明合法双 issue lane 不会形成 lane0→lane1 RAW；但两轮 fresh
+  // 5ns A/B 均表明物理删除该不可达 mux 会恶化 WNS/TNS/area/loop count，因此保留
+  // production 拓扑。只对 Verilator 报告此 net 的跨 memory-ready 保守 SCC 做最窄
+  // waiver，禁止再用整模块 UNOPTFLAT 围栏遮住真实 FP/long-op 回边。
+  /* verilator lint_off UNOPTFLAT */
   wire issue0_current_result_valid_w;
+  /* verilator lint_on UNOPTFLAT */
   wire [`XLEN-1:0] issue0_wb_data_w;
 
   wire issue1_src1_issue0_forward_w =
@@ -1713,6 +1744,24 @@ module OooIntBackend #(
              issue0_rob_idx_w, issue0_pdest_w, issue1_rob_idx_w,
              issue1_src1_preg_w, issue1_src2_preg_w, $time);
     end
+    if (!rst && dispatch0_valid_i && dispatch1_valid_i &&
+        !dispatch1_optional_i &&
+        (dispatch0_fire_w != dispatch1_fire_w)) begin
+      $error("[FP-DISPATCH-PAIR-ATOMIC] mandatory packet fired one lane only: fire0=%b fire1=%b fp_ok0=%b fp_ok1=%b @%0t",
+             dispatch0_fire_w, dispatch1_fire_w,
+             d0_fp_ok_w, d1_fp_ok_w, $time);
+    end
+    if (!rst && dispatch1_fire_w && !dispatch0_fire_w) begin
+      $error("[FP-DISPATCH-PAIR-ATOMIC] lane1 fired without lane0 @%0t", $time);
+    end
+    // T3B 的两路 fast bypass 不允许重新读取另一 lane 的 full-WB tag；因此
+    // 非零物理目的必须由 formal WB lane 唯一拥有，禁止同拍双写同一 pdest。
+    if (!rst && wb0_valid_w && wb1_valid_w &&
+        (wb0_pdest_w != {PHY_REG_ADDR_W{1'b0}}) &&
+        (wb0_pdest_w == wb1_pdest_w)) begin
+      $error("[INT-WB-PDEST-UNIQUE] two formal WB lanes own pdest=%0d @%0t",
+             wb0_pdest_w, $time);
+    end
   end
 `endif
   wire issue0_muldiv_fire_w = issue0_fire_w && issue0_is_muldiv_w;
@@ -2359,6 +2408,11 @@ module OooIntBackend #(
                                             mem_amo_old_value_w)) :
       mem_rsp_fp_load_w ? mem_rsp_fp_boxed_w :
       mem_wb_is_load_w ? mem_rsp_load_data_w : {`XLEN{1'b0}};
+  // 整数 MEM 目的寄存器在 full/fast 两条物理总线上共享同一语义；FP load 与
+  // store probe 不得唤醒或旁路整数 p0 之外的寄存器。
+  wire [PHY_REG_ADDR_W-1:0] mem_rsp_int_pdest_w =
+      (miq_head_pdest_fp_w || miq_probe_wb_fire_w) ?
+        {PHY_REG_ADDR_W{1'b0}} : miq_head_pdest_w;
   // store 语义(fault cause 用): PROBE(plain store 探测)或 LEGACY store/AMO 写臂
   wire mem_wb_store_cause_w =
       miq_probe_wb_fire_w ||
@@ -2372,6 +2426,32 @@ module OooIntBackend #(
   assign muldiv_resp_ready_w = muldiv_rsp_to_wb0_w || muldiv_rsp_to_wb1_w;
   assign clmul_resp_ready_w = clmul_rsp_to_wb0_w || clmul_rsp_to_wb1_w;
 
+  // 【T3B】fast payload 必须直接取 raw EX/MEM winner，禁止从 full-WB 五源 mux
+  // 回读。pdest=0 与 exception/fault 都没有可消费的合法 operand，故在源头压掉
+  // valid；后者仍经 formal WB 记录异常，前者同时使 PRF FAST-WB-SUBSET 与
+  // formal write-valid（同样按 p0 gate）逐 lane 可执行。
+  assign fast_wb0_pdest_w = ex0_valid_q ? ex0_pdest_q :
+                             mem_rsp_to_wb0_w ? mem_rsp_int_pdest_w :
+                                               {PHY_REG_ADDR_W{1'b0}};
+  assign fast_wb0_data_w = ex0_valid_q ? ex0_result_q :
+                           mem_rsp_to_wb0_w ? mem_rsp_wb_data_w :
+                                             {`XLEN{1'b0}};
+  assign fast_wb0_valid_w =
+      (fast_wb0_pdest_w != {PHY_REG_ADDR_W{1'b0}}) &&
+      (ex0_valid_q ? !ex0_exception_q :
+       mem_rsp_to_wb0_w ? !mem_rsp_fault_w : 1'b0);
+
+  assign fast_wb1_pdest_w = ex1_valid_q ? ex1_pdest_q :
+                             mem_rsp_to_wb1_w ? mem_rsp_int_pdest_w :
+                                               {PHY_REG_ADDR_W{1'b0}};
+  assign fast_wb1_data_w = ex1_valid_q ? ex1_result_q :
+                           mem_rsp_to_wb1_w ? mem_rsp_wb_data_w :
+                                             {`XLEN{1'b0}};
+  assign fast_wb1_valid_w =
+      (fast_wb1_pdest_w != {PHY_REG_ADDR_W{1'b0}}) &&
+      (ex1_valid_q ? !ex1_exception_q :
+       mem_rsp_to_wb1_w ? !mem_rsp_fault_w : 1'b0);
+
   assign wb0_valid_w =
       ex0_valid_q || mem_rsp_to_wb0_w ||
       muldiv_rsp_to_wb0_w || clmul_rsp_to_wb0_w || fpwb_to_wb0_w;
@@ -2381,10 +2461,7 @@ module OooIntBackend #(
                          clmul_rsp_to_wb0_w ? clmul_resp_rob_idx_w :
                                               fpwb_rob_idx_w;
   assign wb0_pdest_w = ex0_valid_q ? ex0_pdest_q :
-                       mem_rsp_to_wb0_w ? ((miq_head_pdest_fp_w ||
-                                            miq_probe_wb_fire_w) ?
-                                           {PHY_REG_ADDR_W{1'b0}} :
-                                           miq_head_pdest_w) :
+                       mem_rsp_to_wb0_w ? mem_rsp_int_pdest_w :
                        muldiv_rsp_to_wb0_w ? muldiv_resp_pdest_w :
                        clmul_rsp_to_wb0_w ? clmul_resp_pdest_w :
                        (fpwb_rd_en_w ? fpwb_pdest_w
@@ -2416,10 +2493,7 @@ module OooIntBackend #(
                          clmul_rsp_to_wb1_w ? clmul_resp_rob_idx_w :
                                               fpwb_rob_idx_w;
   assign wb1_pdest_w = ex1_valid_q ? ex1_pdest_q :
-                       mem_rsp_to_wb1_w ? ((miq_head_pdest_fp_w ||
-                                            miq_probe_wb_fire_w) ?
-                                           {PHY_REG_ADDR_W{1'b0}} :
-                                           miq_head_pdest_w) :
+                       mem_rsp_to_wb1_w ? mem_rsp_int_pdest_w :
                        muldiv_rsp_to_wb1_w ? muldiv_resp_pdest_w :
                        clmul_rsp_to_wb1_w ? clmul_resp_pdest_w :
                        (fpwb_rd_en_w ? fpwb_pdest_w
@@ -2440,6 +2514,11 @@ module OooIntBackend #(
   assign wb1_tval_w = ex1_valid_q ? ex1_tval_q :
                       mem_rsp_to_wb1_w ? miq_head_addr_w :
                                           {`XLEN{1'b0}};
+
+  assign gpr_wb0_write_valid_w =
+      wb0_valid_w && (wb0_pdest_w != {PHY_REG_ADDR_W{1'b0}});
+  assign gpr_wb1_write_valid_w =
+      wb1_valid_w && (wb1_pdest_w != {PHY_REG_ADDR_W{1'b0}});
 
   assign execute0_valid_o = wb0_valid_w;
   assign execute1_valid_o = wb1_valid_w;
@@ -2544,6 +2623,8 @@ module OooIntBackend #(
     .kill_rob_idx_i(branch_resolve_rob_idx_o),
     .rob_head_idx_i(rob_head_idx_w),
     .recover_active_i(rob_recover_active_w),
+    .dispatch0_accept_i(dispatch0_fire_w),
+    .dispatch1_accept_i(dispatch1_fire_w),
     .walk0_fp_valid_i(walk0_fp_valid_w),
     .walk0_arch_i(walk0_fp_arch_w),
     .walk0_old_pdest_i(walk0_fp_old_w),
@@ -2552,8 +2633,7 @@ module OooIntBackend #(
     .walk1_arch_i(walk1_fp_arch_w),
     .walk1_old_pdest_i(walk1_fp_old_w),
     .walk1_new_pdest_i(walk1_fp_new_w),
-    .disp_valid_i(dispatch0_valid_i && d0_fp_arith_w &&
-                  dispatch0_dbe_ready_w),
+    .disp_valid_i(dispatch0_valid_i && d0_fp_arith_w),
     .disp_ready_o(fp_disp_ready_w),
     .disp_rob_idx_i(dispatch0_rob_idx_w),
     .disp_inst_i(dispatch0_inst_i),
@@ -2573,8 +2653,7 @@ module OooIntBackend #(
     .disp_gpr_src_ready_i(dispatch0_src1_ready_w),
     .disp_frd_new_pdest_o(fp_disp_new_pdest_w),
     .disp_frd_old_pdest_o(fp_disp_old_pdest_w),
-    .disp1_valid_i(dispatch1_valid_i && d1_fp_arith_w &&
-                   dispatch1_dbe_ready_w),
+    .disp1_valid_i(dispatch1_valid_i && d1_fp_arith_w),
     .disp1_ready_o(fp_disp1_ready_w),
     .disp1_rob_idx_i(dispatch1_rob_idx_w),
     .disp1_inst_i(dispatch1_inst_i),
@@ -2595,12 +2674,12 @@ module OooIntBackend #(
     .disp1_frd_new_pdest_o(fp_disp1_new_pdest_w),
     .disp1_frd_old_pdest_o(fp_disp1_old_pdest_w),
     .fpld0_alloc_valid_i(dispatch0_valid_i && dispatch0_is_fp_i &&
-                         dispatch0_fp_load_i && dispatch0_dbe_ready_w),
+                         dispatch0_fp_load_i),
     .fpld0_alloc_arch_i(dispatch0_inst_i[11:7]),
     .fpld0_new_pdest_o(fpld0_new_pdest_w),
     .fpld0_old_pdest_o(fpld0_old_pdest_w),
     .fpld1_alloc_valid_i(dispatch1_valid_i && dispatch1_is_fp_i &&
-                         dispatch1_fp_load_i && dispatch1_dbe_ready_w),
+                         dispatch1_fp_load_i),
     .fpld1_alloc_arch_i(dispatch1_inst_i[11:7]),
     .fpld1_new_pdest_o(fpld1_new_pdest_w),
     .fpld1_old_pdest_o(fpld1_old_pdest_w),
@@ -2622,9 +2701,9 @@ module OooIntBackend #(
     .fpld_wb_pdest_i(miq_head_pdest_w),
     .fpld_wb_data_i(mem_rsp_fp_boxed_w),
     .fpld_wb_double_i(1'b1),
-    .int_wake0_valid_i(wb0_valid_w),
+    .int_wake0_valid_i(gpr_wb0_write_valid_w),
     .int_wake0_preg_i(wb0_pdest_w),
-    .int_wake1_valid_i(wb1_valid_w),
+    .int_wake1_valid_i(gpr_wb1_write_valid_w),
     .int_wake1_preg_i(wb1_pdest_w),
     .gpr_read_addr_o(fp_gpr_read_addr_w),
     .gpr_read_data_i(fp_gpr_read_data_w),

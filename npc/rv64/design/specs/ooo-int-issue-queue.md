@@ -11,8 +11,12 @@
 
 ## 2. 结构与时序
 - 每项:valid/src1_ready/src2_ready/src preg/pdest/imm/ctrl/rob_idx/pc...,**按程序序排列**(新进尾)。
-- **wakeup**:2 个整数 writeback + 2 个 FP wakeup pdest 广播,匹配 src preg → 置该 src ready
-  (同拍旁路,新发射 uop 同拍可见;FP 口服务 FP store 数据源 fs2 的就绪监听)。
+- **wakeup**:2 个 full整数 writeback + 2 个 FP wakeup pdest 广播,匹配 src preg → 置该 src ready。
+  T3B 起整数口分成两种视图：full wakeup 继续服务 compaction/dispatch insertion/kill survivor 的
+  sticky ready；独立 EX/MEM-only select wakeup 才允许 resident entry 同拍进入 select。MulDiv/
+  CLMUL/FPWB 的 full pulse 在 N 拍粘住 ready，依赖项 N+1 才可选。T3D 起 FP execution
+  completion口(wake0)只服务 FP-store fs2 的 sticky ready：N沿吸收、N+1才可选；FP load
+  WB口(wake1)无 branch-kill 回边，保留同拍 select。
 - **select**:顺序扫描(oldest-first)选最老的 2 个 src1&src2 都 ready 的 uop → issue0/issue1。
   simultaneous valid 双 lane 的 enabled integer source 不可能 RAW：consumer 只能在 producer WB
   wakeup 后成为 ready；`RAW-I1` 在 backend 消费边界看护该不变量。current-result forward
@@ -51,6 +55,12 @@
 - **IQ-I7 双 lane 无 RAW(`RAW-I1`，backend 消费边界)**:issue0/issue1 同时 valid 时，
   issue1 任一 enabled integer source preg 不得等于 issue0 非零 integer pdest。该合同依赖
   无 dispatch bypass/early-result wakeup；FP destination domain 与 invalid/default payload 排除。
+- **IQ-I8 fast select 是 full wakeup 子集**：`select_wakeupN_valid` 时同 lane full wakeup 必须
+  valid 且 pdest 相同；select 不拥有状态。full-only pulse 不得在本拍把尚未ready项选出，但必须
+  在所有 next-state/kill-survivor路径粘住ready，下一拍可选。
+- **IQ-I9 FP 跨域最小切点**：`fp_wake0` 不得进入 resident select 的组合 ready 视图；
+  `fp_wake1` 保留同拍快路。compaction、dispatch insertion 与 kill survivor 必须继续把两者
+  OR 入 `fp_st_ready_q`。
 
 ## 4. 关键路径
 P5 刀 B 前,dispatch→issue bypass 把 free-list 分配+busy 查询+IQ select **单拍合一**
@@ -86,3 +96,7 @@ payload 直读。顺序扫描 select 仍随 ENTRY_COUNT 增深(故 iter2 撤回 
   全面回退，候选还原。109-loop root 已收敛为108条 long-op full-WB feedback +1条 FP admission
   SCC；下一刀只让 EX/MEM fast broadcast 参与同拍 select，full wakeup 仍粘入 IQ state。
   证据 `.github/task-runs/2026-07-13-rv64-t3a-current-top-retry/`。
+- 2026-07-13 T3D：FP admission 拆环后 full Verilator 暴露 `FP completion→FP-store
+  same-cycle select→branch kill→FP completion` 分支；execution wake0 改为 sticky-only、
+  load wake1 保留快路，合同见
+  `ooo-cross-domain-wakeup.md`。

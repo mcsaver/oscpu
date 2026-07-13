@@ -1,0 +1,7 @@
+node_id	kind	status	owner	evidence
+t3e-root-cause	analysis	completed	root	evidence/red/opensta-loop-map.md
+t3e-contract	spec	completed	root	npc/rv64/design/specs/ooo-branch-resolve-recovery-gate.md
+t3e-red	test	completed	root	evidence/red/tb_ooo_branch_resolve_recovery_gate.log
+t3e-rtl	implementation	completed	root	npc/rv64/vsrc/frontend/OooBranchResolveRecoveryGate.v
+t3e-regress	verification	completed	root	evidence/green
+t3e-sta	verification	completed	root	evidence/opensta-fresh/opensta-current-summary.txt

@@ -1,0 +1,8 @@
+node_id	kind	status	owner	evidence
+t3f-root-cause	analysis	completed	root	T3E fresh top40 path map
+t3f-contract	spec	completed	root	npc/rv64/design/specs/ooo-int-to-fp-sticky-wakeup.md
+t3f-fpiq-red	test	completed	root	evidence/red/tb_ooo_fp_issue_queue.log
+t3f-prf-red	test	completed	root	evidence/red/tb_ooo_phys_reg_file.log
+t3f-rtl	implementation	completed	root	npc/rv64/vsrc/scheduling/OooFpIssueQueue.v
+t3f-regress	verification	completed	root	evidence/green; evidence/module-tests; evidence/core-regress
+t3f-sta	verification	completed	root	evidence/opensta-fresh

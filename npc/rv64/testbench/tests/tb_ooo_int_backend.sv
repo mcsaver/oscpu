@@ -22,6 +22,15 @@ module tb_ooo_int_backend;
   reg [`REG_ADDR_W-1:0] dispatch0_rs2_arch;
   reg [`REG_ADDR_W-1:0] dispatch0_rd_arch;
   reg [`XLEN-1:0] dispatch0_imm;
+  reg dispatch0_is_fp;
+  reg dispatch0_fp_load;
+  reg dispatch0_fp_store;
+  reg dispatch0_fp_double;
+  reg dispatch0_fp_gpr_write;
+  reg dispatch0_fp_gpr_src;
+  reg dispatch0_fp_fs1_en;
+  reg dispatch0_fp_fs2_en;
+  reg dispatch0_fp_fs3_en;
 
   reg dispatch1_valid;
   wire dispatch1_ready;
@@ -32,6 +41,15 @@ module tb_ooo_int_backend;
   reg [`REG_ADDR_W-1:0] dispatch1_rs2_arch;
   reg [`REG_ADDR_W-1:0] dispatch1_rd_arch;
   reg [`XLEN-1:0] dispatch1_imm;
+  reg dispatch1_is_fp;
+  reg dispatch1_fp_load;
+  reg dispatch1_fp_store;
+  reg dispatch1_fp_double;
+  reg dispatch1_fp_gpr_write;
+  reg dispatch1_fp_gpr_src;
+  reg dispatch1_fp_fs1_en;
+  reg dispatch1_fp_fs2_en;
+  reg dispatch1_fp_fs3_en;
 
   reg commit_ready;
   wire commit0_valid;
@@ -107,24 +125,24 @@ module tb_ooo_int_backend;
     .dispatch0_rs2_arch_i(dispatch0_rs2_arch),
     .dispatch0_rd_arch_i(dispatch0_rd_arch),
     .dispatch0_imm_i(dispatch0_imm),
-    .dispatch0_is_fp_i(1'b0),
-    .dispatch0_fp_load_i(1'b0),
-    .dispatch0_fp_store_i(1'b0),
-    .dispatch0_fp_double_i(1'b0),
-    .dispatch0_fp_gpr_write_i(1'b0),
-    .dispatch0_fp_gpr_src_i(1'b0),
-    .dispatch0_fp_fs1_en_i(1'b0),
-    .dispatch0_fp_fs2_en_i(1'b0),
-    .dispatch0_fp_fs3_en_i(1'b0),
-    .dispatch1_is_fp_i(1'b0),
-    .dispatch1_fp_load_i(1'b0),
-    .dispatch1_fp_store_i(1'b0),
-    .dispatch1_fp_double_i(1'b0),
-    .dispatch1_fp_gpr_write_i(1'b0),
-    .dispatch1_fp_gpr_src_i(1'b0),
-    .dispatch1_fp_fs1_en_i(1'b0),
-    .dispatch1_fp_fs2_en_i(1'b0),
-    .dispatch1_fp_fs3_en_i(1'b0),
+    .dispatch0_is_fp_i(dispatch0_is_fp),
+    .dispatch0_fp_load_i(dispatch0_fp_load),
+    .dispatch0_fp_store_i(dispatch0_fp_store),
+    .dispatch0_fp_double_i(dispatch0_fp_double),
+    .dispatch0_fp_gpr_write_i(dispatch0_fp_gpr_write),
+    .dispatch0_fp_gpr_src_i(dispatch0_fp_gpr_src),
+    .dispatch0_fp_fs1_en_i(dispatch0_fp_fs1_en),
+    .dispatch0_fp_fs2_en_i(dispatch0_fp_fs2_en),
+    .dispatch0_fp_fs3_en_i(dispatch0_fp_fs3_en),
+    .dispatch1_is_fp_i(dispatch1_is_fp),
+    .dispatch1_fp_load_i(dispatch1_fp_load),
+    .dispatch1_fp_store_i(dispatch1_fp_store),
+    .dispatch1_fp_double_i(dispatch1_fp_double),
+    .dispatch1_fp_gpr_write_i(dispatch1_fp_gpr_write),
+    .dispatch1_fp_gpr_src_i(dispatch1_fp_gpr_src),
+    .dispatch1_fp_fs1_en_i(dispatch1_fp_fs1_en),
+    .dispatch1_fp_fs2_en_i(dispatch1_fp_fs2_en),
+    .dispatch1_fp_fs3_en_i(dispatch1_fp_fs3_en),
     .frm_i(3'b000),
     .dispatch1_valid_i(dispatch1_valid),
     .dispatch1_optional_i(1'b0),
@@ -279,6 +297,22 @@ module tb_ooo_int_backend;
     end
   endfunction
 
+  function [`CTRL_BUS_W-1:0] make_muldiv_ctrl;
+    begin
+      make_muldiv_ctrl = make_alu_ctrl(`OP1_SEL_RS1, `OP2_SEL_RS2,
+                                      `ALU_OP_ADD, 1'b1, 1'b1, 1'b1);
+      make_muldiv_ctrl[`CTRL_MULDIV_BIT] = 1'b1;
+    end
+  endfunction
+
+  function [`CTRL_BUS_W-1:0] make_fp_arith_ctrl;
+    begin
+      make_fp_arith_ctrl = {`CTRL_BUS_W{1'b0}};
+      make_fp_arith_ctrl[`CTRL_VALID_BIT] = 1'b1;
+      make_fp_arith_ctrl[`CTRL_NEED_EXEC_BIT] = 1'b1;
+    end
+  endfunction
+
   function [`INST_W-1:0] inst_op_imm;
     input [6:0] funct7;
     input [4:0] imm5;
@@ -298,6 +332,17 @@ module tb_ooo_int_backend;
     input [4:0] rd;
     begin
       inst_op = {funct7, rs2, rs1, funct3, rd, `OPCODE_OP};
+    end
+  endfunction
+
+  function [`INST_W-1:0] inst_op_fp;
+    input [6:0] funct7;
+    input [4:0] fs2;
+    input [4:0] fs1;
+    input [2:0] rm;
+    input [4:0] frd;
+    begin
+      inst_op_fp = {funct7, fs2, fs1, rm, frd, `OPCODE_OP_FP};
     end
   endfunction
 
@@ -372,6 +417,15 @@ module tb_ooo_int_backend;
       dispatch0_rs2_arch = 5'd0;
       dispatch0_rd_arch = 5'd0;
       dispatch0_imm = 32'h0;
+      dispatch0_is_fp = 1'b0;
+      dispatch0_fp_load = 1'b0;
+      dispatch0_fp_store = 1'b0;
+      dispatch0_fp_double = 1'b0;
+      dispatch0_fp_gpr_write = 1'b0;
+      dispatch0_fp_gpr_src = 1'b0;
+      dispatch0_fp_fs1_en = 1'b0;
+      dispatch0_fp_fs2_en = 1'b0;
+      dispatch0_fp_fs3_en = 1'b0;
       dispatch1_valid = 1'b0;
       dispatch1_pc = 32'h0;
       dispatch1_inst = 32'h0;
@@ -380,6 +434,15 @@ module tb_ooo_int_backend;
       dispatch1_rs2_arch = 5'd0;
       dispatch1_rd_arch = 5'd0;
       dispatch1_imm = 32'h0;
+      dispatch1_is_fp = 1'b0;
+      dispatch1_fp_load = 1'b0;
+      dispatch1_fp_store = 1'b0;
+      dispatch1_fp_double = 1'b0;
+      dispatch1_fp_gpr_write = 1'b0;
+      dispatch1_fp_gpr_src = 1'b0;
+      dispatch1_fp_fs1_en = 1'b0;
+      dispatch1_fp_fs2_en = 1'b0;
+      dispatch1_fp_fs3_en = 1'b0;
     end
   endtask
 
@@ -433,6 +496,50 @@ module tb_ooo_int_backend;
       dispatch1_rs2_arch = rs2;
       dispatch1_rd_arch = rd;
       dispatch1_imm = imm;
+    end
+  endtask
+
+  task automatic set_fp_binary0;
+    input [`XLEN-1:0] pc;
+    input [6:0] funct7;
+    input [4:0] fs2;
+    input [4:0] fs1;
+    input [4:0] frd;
+    input fp_double;
+    begin
+      set_dispatch0(pc, make_fp_arith_ctrl(), 5'd0, 5'd0, frd, 64'd0);
+      dispatch0_inst = inst_op_fp(funct7, fs2, fs1, 3'b000, frd);
+      dispatch0_is_fp = 1'b1;
+      dispatch0_fp_load = 1'b0;
+      dispatch0_fp_store = 1'b0;
+      dispatch0_fp_double = fp_double;
+      dispatch0_fp_gpr_write = 1'b0;
+      dispatch0_fp_gpr_src = 1'b0;
+      dispatch0_fp_fs1_en = 1'b1;
+      dispatch0_fp_fs2_en = 1'b1;
+      dispatch0_fp_fs3_en = 1'b0;
+    end
+  endtask
+
+  task automatic set_fp_binary1;
+    input [`XLEN-1:0] pc;
+    input [6:0] funct7;
+    input [4:0] fs2;
+    input [4:0] fs1;
+    input [4:0] frd;
+    input fp_double;
+    begin
+      set_dispatch1(pc, make_fp_arith_ctrl(), 5'd0, 5'd0, frd, 64'd0);
+      dispatch1_inst = inst_op_fp(funct7, fs2, fs1, 3'b000, frd);
+      dispatch1_is_fp = 1'b1;
+      dispatch1_fp_load = 1'b0;
+      dispatch1_fp_store = 1'b0;
+      dispatch1_fp_double = fp_double;
+      dispatch1_fp_gpr_write = 1'b0;
+      dispatch1_fp_gpr_src = 1'b0;
+      dispatch1_fp_fs1_en = 1'b1;
+      dispatch1_fp_fs2_en = 1'b1;
+      dispatch1_fp_fs3_en = 1'b0;
     end
   endtask
 
@@ -544,6 +651,20 @@ module tb_ooo_int_backend;
       tb_check1({label, " commit1 valid via wb bypass"}, commit1_valid, 1'b1);
       tb_check32({label, " commit0 data via wb bypass"}, commit0_data, exp0);
       tb_check32({label, " commit1 data via wb bypass"}, commit1_data, exp1);
+      // T3B 正向覆盖：双整数 EX 必须各自直达 fast payload，尤其锁住
+      // lane1 不得退化成仅 formal-WB 可见的实现。
+      tb_check1({label, " fast WB0 valid"}, dut.fast_wb0_valid_w, 1'b1);
+      tb_check1({label, " fast WB1 valid"}, dut.fast_wb1_valid_w, 1'b1);
+      tb_check32({label, " fast/full WB0 pdest agree"},
+                 {26'b0, dut.fast_wb0_pdest_w}, {26'b0, dut.wb0_pdest_w});
+      tb_check32({label, " fast/full WB1 pdest agree"},
+                 {26'b0, dut.fast_wb1_pdest_w}, {26'b0, dut.wb1_pdest_w});
+      tb_check64({label, " fast WB0 data"}, dut.fast_wb0_data_w, exp0);
+      tb_check64({label, " fast WB1 data"}, dut.fast_wb1_data_w, exp1);
+      $display("[T3B-COVERAGE-OBS] %0s fast_valid={%0b,%0b} pdest={%0d,%0d} data={0x%016h,0x%016h}",
+               label, dut.fast_wb0_valid_w, dut.fast_wb1_valid_w,
+               dut.fast_wb0_pdest_w, dut.fast_wb1_pdest_w,
+               dut.fast_wb0_data_w, dut.fast_wb1_data_w);
 
       `TB_TICK(clk);
       #1;
@@ -892,6 +1013,13 @@ module tb_ooo_int_backend;
       #1;
 
       tb_check1("lane1 PRF producer WB visible", dut.wb0_valid_w, 1'b1);
+      tb_check1("lane1 PRF producer remains fast WB0",
+                dut.fast_wb0_valid_w, 1'b1);
+      tb_check32("lane1 PRF fast/full WB0 pdest agree",
+                 {26'b0, dut.fast_wb0_pdest_w},
+                 {26'b0, dut.wb0_pdest_w});
+      tb_check64("lane1 PRF fast WB0 data",
+                 dut.fast_wb0_data_w, 64'h1122_3344_5566_7780);
       tb_check1("lane1 PRF A wakes into issue0", dut.issue0_valid_w, 1'b1);
       tb_check1("lane1 PRF C wakes into issue1", dut.issue1_valid_w, 1'b1);
       tb_check32("lane1 PRF A issue PC", dut.issue0_pc_w[31:0],
@@ -934,6 +1062,646 @@ module tb_ooo_int_backend;
     end
   endtask
 
+  // T3B 集成契约：MulDiv/CLMUL 的 formal WB 仍负责 ROB done、PRF 正式写入和
+  // IQ ready 状态更新，但不能回灌 select/PRF fast payload。依赖者必须在响应拍
+  // 保持等待，下一拍才从已登记的 PRF 值发射。
+  task automatic run_t3b_divu_wb0_isolation;
+    reg [PHY_REG_ADDR_W-1:0] producer_pdest;
+    begin
+      reset_dut();
+
+      set_dispatch0(32'h8000_6400, make_muldiv_ctrl(),
+                    5'd0, 5'd0, 5'd5, 64'd0);
+      dispatch0_inst = inst_op(`FUNCT7_MULDIV, 5'd0, 5'd0,
+                               3'b101, 5'd5);
+      set_dispatch1(32'h8000_6404,
+                    make_alu_ctrl(`OP1_SEL_RS1, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b1, 1'b0, 1'b1),
+                    5'd5, 5'd0, 5'd6, 64'd1);
+      #1;
+      tb_check1("T3B DIVU WB0 producer dispatch ready",
+                dispatch0_ready, 1'b1);
+      tb_check1("T3B DIVU WB0 dependent dispatch ready",
+                dispatch1_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+
+      tb_check32("T3B DIVU WB0 pair resident",
+                 {28'b0, issue_count}, 32'd2);
+      tb_check1("T3B DIVU WB0 producer selected",
+                dut.issue0_valid_w, 1'b1);
+      tb_check32("T3B DIVU WB0 producer PC",
+                 dut.issue0_pc_w[31:0], 32'h8000_6400);
+      tb_check1("T3B DIVU WB0 dependent waits before response",
+                dut.issue1_valid_w, 1'b0);
+      producer_pdest = dut.issue0_pdest_w;
+
+      // DIVU x0,x0 由真实 MulDiv 单元装载拍直进 RESP。
+      `TB_TICK(clk);
+      #1;
+      tb_check1("T3B DIVU response maps formal WB0",
+                dut.muldiv_rsp_to_wb0_w, 1'b1);
+      tb_check1("T3B DIVU formal WB0 valid", dut.wb0_valid_w, 1'b1);
+      tb_check32("T3B DIVU formal WB0 pdest",
+                 {26'b0, dut.wb0_pdest_w}, {26'b0, producer_pdest});
+      tb_check64("T3B DIVU formal WB0 data",
+                 dut.wb0_data_w, 64'hffff_ffff_ffff_ffff);
+      tb_check1("T3B DIVU response excluded from fast WB0",
+                dut.fast_wb0_valid_w, 1'b0);
+      tb_check1("T3B DIVU dependent cannot select on response",
+                dut.issue0_valid_w || dut.issue1_valid_w, 1'b0);
+      tb_check32("T3B DIVU dependent remains resident on response",
+                 {28'b0, issue_count}, 32'd1);
+
+      // formal WB 在该上升沿写 PRF/ready；响应后的 N+1 周期才允许发射。
+      `TB_TICK(clk);
+      #1;
+      tb_check1("T3B DIVU dependent selects at N+1",
+                dut.issue0_valid_w, 1'b1);
+      tb_check32("T3B DIVU dependent PC at N+1",
+                 dut.issue0_pc_w[31:0], 32'h8000_6404);
+      tb_check32("T3B DIVU dependent source tag",
+                 {26'b0, dut.issue0_src1_preg_w},
+                 {26'b0, producer_pdest});
+      tb_check64("T3B DIVU dependent reads registered PRF",
+                 dut.issue0_src1_data_w, 64'hffff_ffff_ffff_ffff);
+
+      `TB_TICK(clk);
+      #1;
+      tb_check1("T3B DIVU dependent commits", commit0_valid, 1'b1);
+      tb_check64("T3B DIVU dependent result", commit0_data, 64'd0);
+
+      `TB_TICK(clk);
+      #1;
+      tb_check32("T3B DIVU WB0 ROB drains", {27'b0, rob_count}, 32'd0);
+      tb_check32("T3B DIVU WB0 IQ drains", {28'b0, issue_count}, 32'd0);
+      tb_check32("T3B DIVU WB0 freelist recovers",
+                 {25'b0, free_count}, 32'd32);
+    end
+  endtask
+
+  task automatic run_t3b_clmul_wb0_isolation;
+    reg [PHY_REG_ADDR_W-1:0] producer_pdest;
+    reg early_issue;
+    integer wait_cycles;
+    begin
+      reset_dut();
+
+      set_dispatch0(32'h8000_6500,
+                    make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+                    5'd0, 5'd0, 5'd1, 64'd3);
+      set_dispatch1(32'h8000_6504,
+                    make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+                    5'd0, 5'd0, 5'd2, 64'd5);
+      tick_dispatch_to_commit("T3B CLMUL operand setup", 64'd3, 64'd5);
+
+      set_dispatch0(32'h8000_6510, make_bitmanip_op_ctrl(),
+                    5'd1, 5'd2, 5'd3, 64'd0);
+      dispatch0_inst = inst_op(7'h05, 5'd2, 5'd1,
+                               `FUNCT3_SLL, 5'd3);
+      set_dispatch1(32'h8000_6514,
+                    make_alu_ctrl(`OP1_SEL_RS1, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b1, 1'b0, 1'b1),
+                    5'd3, 5'd0, 5'd4, 64'd1);
+      #1;
+      tb_check1("T3B CLMUL WB0 producer dispatch ready",
+                dispatch0_ready, 1'b1);
+      tb_check1("T3B CLMUL WB0 dependent dispatch ready",
+                dispatch1_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+
+      tb_check32("T3B CLMUL WB0 pair resident",
+                 {28'b0, issue_count}, 32'd2);
+      tb_check1("T3B CLMUL WB0 producer selected",
+                dut.issue0_valid_w, 1'b1);
+      tb_check32("T3B CLMUL WB0 producer PC",
+                 dut.issue0_pc_w[31:0], 32'h8000_6510);
+      producer_pdest = dut.issue0_pdest_w;
+
+      `TB_TICK(clk);
+      #1;
+      early_issue = 1'b0;
+      wait_cycles = 0;
+      while (!dut.clmul_rsp_to_wb0_w && (wait_cycles < 70)) begin
+        if (dut.issue0_valid_w || dut.issue1_valid_w)
+          early_issue = 1'b1;
+        `TB_TICK(clk);
+        #1;
+        wait_cycles = wait_cycles + 1;
+      end
+      if (dut.issue0_valid_w || dut.issue1_valid_w)
+        early_issue = 1'b1;
+
+      tb_check1("T3B CLMUL dependent never selects before response",
+                early_issue, 1'b0);
+      tb_check1("T3B CLMUL response reaches formal WB0",
+                dut.clmul_rsp_to_wb0_w, 1'b1);
+      tb_check1("T3B CLMUL formal WB0 valid", dut.wb0_valid_w, 1'b1);
+      tb_check32("T3B CLMUL formal WB0 pdest",
+                 {26'b0, dut.wb0_pdest_w}, {26'b0, producer_pdest});
+      tb_check64("T3B CLMUL formal WB0 data",
+                 dut.wb0_data_w, ref_clmul(2'd0, 64'd3, 64'd5));
+      tb_check1("T3B CLMUL response excluded from fast WB0",
+                dut.fast_wb0_valid_w, 1'b0);
+      tb_check1("T3B CLMUL dependent cannot select on response",
+                dut.issue0_valid_w || dut.issue1_valid_w, 1'b0);
+      tb_check32("T3B CLMUL dependent remains resident on response",
+                 {28'b0, issue_count}, 32'd1);
+
+      `TB_TICK(clk);
+      #1;
+      tb_check1("T3B CLMUL dependent selects at N+1",
+                dut.issue0_valid_w, 1'b1);
+      tb_check32("T3B CLMUL dependent PC at N+1",
+                 dut.issue0_pc_w[31:0], 32'h8000_6514);
+      tb_check32("T3B CLMUL dependent source tag",
+                 {26'b0, dut.issue0_src1_preg_w},
+                 {26'b0, producer_pdest});
+      tb_check64("T3B CLMUL dependent reads registered PRF",
+                 dut.issue0_src1_data_w, 64'd15);
+
+      `TB_TICK(clk);
+      #1;
+      tb_check1("T3B CLMUL dependent commits", commit0_valid, 1'b1);
+      tb_check64("T3B CLMUL dependent result", commit0_data, 64'd16);
+
+      `TB_TICK(clk);
+      #1;
+      tb_check32("T3B CLMUL WB0 ROB drains", {27'b0, rob_count}, 32'd0);
+      tb_check32("T3B CLMUL WB0 IQ drains", {28'b0, issue_count}, 32'd0);
+      tb_check32("T3B CLMUL WB0 freelist recovers",
+                 {25'b0, free_count}, 32'd32);
+    end
+  endtask
+
+  task automatic run_t3b_divu_wb1_isolation;
+    reg [PHY_REG_ADDR_W-1:0] producer_pdest;
+    begin
+      reset_dut();
+
+      // 两条 ready uop 同拍发射：较老 ALU 自然占 WB0，DIVU 除零响应自然落 WB1。
+      set_dispatch0(32'h8000_6600,
+                    make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b0, 1'b0, 1'b1),
+                    5'd0, 5'd0, 5'd1, 64'd7);
+      set_dispatch1(32'h8000_6604, make_muldiv_ctrl(),
+                    5'd0, 5'd0, 5'd2, 64'd0);
+      dispatch1_inst = inst_op(`FUNCT7_MULDIV, 5'd0, 5'd0,
+                               3'b101, 5'd2);
+      #1;
+      tb_check1("T3B DIVU WB1 older ALU dispatch ready",
+                dispatch0_ready, 1'b1);
+      tb_check1("T3B DIVU WB1 producer dispatch ready",
+                dispatch1_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+
+      tb_check1("T3B DIVU WB1 older ALU selected",
+                dut.issue0_valid_w, 1'b1);
+      tb_check1("T3B DIVU WB1 producer selected",
+                dut.issue1_valid_w, 1'b1);
+      tb_check32("T3B DIVU WB1 producer PC",
+                 dut.issue1_pc_w[31:0], 32'h8000_6604);
+      producer_pdest = dut.issue1_pdest_w;
+
+      // 生产者正在 issue 时插入依赖者，rename map 已指向其 pdest。
+      set_dispatch0(32'h8000_6608,
+                    make_alu_ctrl(`OP1_SEL_RS1, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b1, 1'b0, 1'b1),
+                    5'd2, 5'd0, 5'd3, 64'd1);
+      #1;
+      tb_check1("T3B DIVU WB1 dependent dispatch ready",
+                dispatch0_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+
+      tb_check1("T3B DIVU response maps formal WB1",
+                dut.muldiv_rsp_to_wb1_w, 1'b1);
+      tb_check1("T3B DIVU formal WB1 valid", dut.wb1_valid_w, 1'b1);
+      tb_check32("T3B DIVU formal WB1 pdest",
+                 {26'b0, dut.wb1_pdest_w}, {26'b0, producer_pdest});
+      tb_check64("T3B DIVU formal WB1 data",
+                 dut.wb1_data_w, 64'hffff_ffff_ffff_ffff);
+      tb_check1("T3B DIVU WB1 excluded from fast WB1",
+                dut.fast_wb1_valid_w, 1'b0);
+      tb_check1("T3B DIVU older ALU preserves fast WB0",
+                dut.fast_wb0_valid_w, 1'b1);
+      tb_check64("T3B DIVU older ALU fast WB0 data",
+                 dut.fast_wb0_data_w, 64'd7);
+      tb_check1("T3B DIVU WB1 dependent cannot select on response",
+                dut.issue0_valid_w || dut.issue1_valid_w, 1'b0);
+      tb_check32("T3B DIVU WB1 dependent remains resident",
+                 {28'b0, issue_count}, 32'd1);
+
+      `TB_TICK(clk);
+      #1;
+      tb_check1("T3B DIVU WB1 dependent selects at N+1",
+                dut.issue0_valid_w, 1'b1);
+      tb_check32("T3B DIVU WB1 dependent PC at N+1",
+                 dut.issue0_pc_w[31:0], 32'h8000_6608);
+      tb_check32("T3B DIVU WB1 dependent source tag",
+                 {26'b0, dut.issue0_src1_preg_w},
+                 {26'b0, producer_pdest});
+      tb_check64("T3B DIVU WB1 dependent reads registered PRF",
+                 dut.issue0_src1_data_w, 64'hffff_ffff_ffff_ffff);
+
+      `TB_TICK(clk);
+      #1;
+      tb_check1("T3B DIVU WB1 dependent commits", commit0_valid, 1'b1);
+      tb_check64("T3B DIVU WB1 dependent result", commit0_data, 64'd0);
+
+      `TB_TICK(clk);
+      #1;
+      tb_check32("T3B DIVU WB1 ROB drains", {27'b0, rob_count}, 32'd0);
+      tb_check32("T3B DIVU WB1 IQ drains", {28'b0, issue_count}, 32'd0);
+      tb_check32("T3B DIVU WB1 freelist recovers",
+                 {25'b0, free_count}, 32'd32);
+    end
+  endtask
+
+  // T3B domain exclusion：整数与 FP 物理寄存器编号空间可以出现相同数值，
+  // 但 FP load response 只能写 FP PRF / 广播 fp_wake1，绝不能借 MEM fast-WB
+  // 误唤醒同编号的整数 IQ source。用固定延迟 CLMUL 持有 GPR preg，再让单发
+  // FP load 从独立 FP free-list 取得同号 preg，构造真实 tag alias。
+  task automatic run_t3b_fp_load_tag_alias_exclusion;
+    reg [PHY_REG_ADDR_W-1:0] gpr_pdest;
+    reg [PHY_REG_ADDR_W-1:0] fp_pdest;
+    begin
+      reset_dut();
+
+      // CLMUL 固定运行 64 拍，给后续 FP load response 留出稳定的整数等待窗。
+      set_dispatch0(32'h8000_6700, make_bitmanip_op_ctrl(),
+                    5'd0, 5'd0, 5'd5, 64'd0);
+      dispatch0_inst = inst_op(7'h05, 5'd0, 5'd0,
+                               `FUNCT3_SLL, 5'd5);
+      #1;
+      tb_check1("T3B FP-load alias CLMUL dispatch ready",
+                dispatch0_ready, 1'b1);
+      gpr_pdest = dut.dispatch0_pdest_w;
+      tb_check1("T3B FP-load alias GPR pdest nonzero",
+                gpr_pdest != {PHY_REG_ADDR_W{1'b0}}, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check1("T3B FP-load alias CLMUL selected",
+                dut.issue0_valid_w && dut.issue0_is_clmul_w, 1'b1);
+      `TB_TICK(clk);
+      #1;
+      tb_check1("T3B FP-load alias CLMUL remains inflight",
+                dut.clmul_resp_valid_w, 1'b0);
+
+      // 单发 lane0 FP load 使用 FP alloc0，因此复位后的首个 FPR preg 与上面的
+      // 首个 GPR preg 数值相同；两个 free-list 仍是完全独立的状态域。
+      set_dispatch0(32'h8000_6704,
+                    make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+                    5'd0, 5'd0, 5'd9, 64'h8000_02a0);
+      dispatch0_inst = {12'd0, 5'd0, `FUNCT3_LD, 5'd9,
+                        `OPCODE_LOAD_FP};
+      dispatch0_is_fp = 1'b1;
+      dispatch0_fp_load = 1'b1;
+      dispatch0_fp_double = 1'b1;
+      #1;
+      tb_check1("T3B FP-load alias dispatch ready", dispatch0_ready, 1'b1);
+      fp_pdest = dut.fpld0_new_pdest_w;
+      tb_check32("T3B FP-load/GPR numeric tag aliases",
+                 {26'b0, fp_pdest}, {26'b0, gpr_pdest});
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check1("T3B FP-load alias request visible", mem_req_valid, 1'b1);
+      tb_check1("T3B FP-load alias request is read", mem_req_write, 1'b0);
+      tb_check32("T3B FP-load alias request address",
+                 mem_req_addr[31:0], 32'h8000_02a0);
+
+      // load 发射同拍把真正依赖 CLMUL GPR preg 的整数 uop 放入 IQ。
+      set_dispatch0(32'h8000_6708,
+                    make_alu_ctrl(`OP1_SEL_RS1, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b1, 1'b0, 1'b1),
+                    5'd5, 5'd0, 5'd6, 64'd1);
+      #1;
+      tb_check1("T3B FP-load alias dependent dispatch ready",
+                dispatch0_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check32("T3B FP-load alias dependent resident",
+                 {28'b0, issue_count}, 32'd1);
+      tb_check32("T3B FP-load alias dependent source tag",
+                 {26'b0, dut.u_dispatch_backend.u_issue_queue.src1_preg_q[0]},
+                 {26'b0, gpr_pdest});
+      tb_check1("T3B FP-load alias dependent waits before response",
+                dut.issue0_valid_w || dut.issue1_valid_w, 1'b0);
+
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = 64'h0123_4567_89ab_cdef;
+      mem_rsp_error = 1'b0;
+      #1;
+      tb_check1("T3B FP-load alias response ready", mem_rsp_ready, 1'b1);
+      tb_check1("T3B FP-load alias classified FP", dut.mem_rsp_fp_load_w,
+                1'b1);
+      tb_check32("T3B FP-load alias response keeps numeric tag",
+                 {26'b0, dut.miq_head_pdest_w}, {26'b0, gpr_pdest});
+      tb_check1("T3B FP-load alias FP wake1 valid", dut.fp_wake1_valid_w,
+                1'b1);
+      tb_check32("T3B FP-load alias FP wake1 tag",
+                 {26'b0, dut.fp_wake1_preg_w}, {26'b0, gpr_pdest});
+      tb_check1("T3B FP-load alias excluded from fast WB0",
+                dut.fast_wb0_valid_w, 1'b0);
+      tb_check1("T3B FP-load alias excluded from fast WB1",
+                dut.fast_wb1_valid_w, 1'b0);
+      tb_check1("T3B FP-load alias cannot wake integer issue",
+                dut.issue0_valid_w || dut.issue1_valid_w, 1'b0);
+      tb_check32("T3B FP-load alias integer resident preserved",
+                 {28'b0, issue_count}, 32'd1);
+      $display("[T3B-COVERAGE-OBS] fp-load alias gpr_pdest=%0d fp_pdest=%0d fast={%0b,%0b} int_issue={%0b,%0b}",
+               gpr_pdest, fp_pdest, dut.fast_wb0_valid_w,
+               dut.fast_wb1_valid_w, dut.issue0_valid_w,
+               dut.issue1_valid_w);
+
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      mem_rsp_rdata = {`XLEN{1'b0}};
+      #1;
+      // 本场景只验证 response 拍跨域隔离；复位清理长操作和未提交依赖者。
+      reset_dut();
+    end
+  endtask
+
+  // T3B fault exclusion：accepted integer load access-fault 仍必须由 formal WB
+  // 携带 exception/cause/tval 完成 ROB 身份，但 fault payload 不是合法 operand，
+  // response 拍不得进入 fast select / PRF bypass。
+  task automatic run_t3b_integer_load_fault_exclusion;
+    reg [PHY_REG_ADDR_W-1:0] load_pdest;
+    begin
+      reset_dut();
+
+      set_dispatch0(32'h8000_6800,
+                    make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+                    5'd0, 5'd0, 5'd10, 64'h8000_02c0);
+      #1;
+      tb_check1("T3B load-fault dispatch ready", dispatch0_ready, 1'b1);
+      load_pdest = dut.dispatch0_pdest_w;
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check1("T3B load-fault request visible", mem_req_valid, 1'b1);
+      tb_check1("T3B load-fault request is read", mem_req_write, 1'b0);
+      tb_check32("T3B load-fault request address",
+                 mem_req_addr[31:0], 32'h8000_02c0);
+
+      // 请求发射同拍插入依赖者，证明 fault response 不会被 fast CAM 消费。
+      set_dispatch0(32'h8000_6804,
+                    make_alu_ctrl(`OP1_SEL_RS1, `OP2_SEL_IMM,
+                                  `ALU_OP_ADD, 1'b1, 1'b0, 1'b1),
+                    5'd10, 5'd0, 5'd11, 64'd1);
+      #1;
+      tb_check1("T3B load-fault dependent dispatch ready",
+                dispatch0_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check1("T3B load-fault dependent waits before response",
+                dut.issue0_valid_w || dut.issue1_valid_w, 1'b0);
+      tb_check32("T3B load-fault dependent resident",
+                 {28'b0, issue_count}, 32'd1);
+
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = 64'hfeed_face_dead_beef;
+      mem_rsp_error = 1'b1;
+      #1;
+      tb_check1("T3B load-fault response ready", mem_rsp_ready, 1'b1);
+      tb_check1("T3B load-fault maps formal WB0",
+                dut.mem_rsp_to_wb0_w, 1'b1);
+      tb_check1("T3B load-fault formal WB0 valid", dut.wb0_valid_w, 1'b1);
+      tb_check32("T3B load-fault formal WB0 pdest",
+                 {26'b0, dut.wb0_pdest_w}, {26'b0, load_pdest});
+      tb_check1("T3B load-fault formal exception",
+                dut.wb0_exception_w, 1'b1);
+      tb_check32("T3B load-fault formal cause",
+                 {{(32-`TRAP_CAUSE_W){1'b0}}, dut.wb0_cause_w},
+                 {{(32-`TRAP_CAUSE_W){1'b0}}, `EXC_LOAD_ACCESS_FAULT});
+      tb_check64("T3B load-fault formal tval",
+                 dut.wb0_tval_w, 64'h0000_0000_8000_02c0);
+      tb_check1("T3B load-fault excluded from fast WB0",
+                dut.fast_wb0_valid_w, 1'b0);
+      tb_check1("T3B load-fault excluded from fast WB1",
+                dut.fast_wb1_valid_w, 1'b0);
+      tb_check1("T3B load-fault cannot fast-wake dependent",
+                dut.issue0_valid_w || dut.issue1_valid_w, 1'b0);
+      tb_check1("T3B load-fault commit visible", commit0_valid, 1'b1);
+      tb_check1("T3B load-fault commit exception", commit0_exception, 1'b1);
+      tb_check32("T3B load-fault commit cause",
+                 {{(32-`TRAP_CAUSE_W){1'b0}}, commit0_cause},
+                 {{(32-`TRAP_CAUSE_W){1'b0}}, `EXC_LOAD_ACCESS_FAULT});
+      tb_check64("T3B load-fault commit tval", commit0_tval,
+                 64'h0000_0000_8000_02c0);
+      $display("[T3B-COVERAGE-OBS] load-fault pdest=%0d formal={valid=%0b exc=%0b cause=%0d tval=0x%016h} fast={%0b,%0b}",
+               load_pdest, dut.wb0_valid_w, dut.wb0_exception_w,
+               dut.wb0_cause_w, dut.wb0_tval_w,
+               dut.fast_wb0_valid_w, dut.fast_wb1_valid_w);
+
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      mem_rsp_rdata = {`XLEN{1'b0}};
+      mem_rsp_error = 1'b0;
+      #1;
+      reset_dut();
+    end
+  endtask
+
+  // T3C RED：通过合法 dispatch 把 FP IQ 填到 7/8。mandatory 双 FP pair 此时
+  // 需要两个槽，必须整体阻塞；旧顶层却把 lane1 的 fp_ok=0 当成 valid=0 送给
+  // DispatchBackend，导致 lane0 被误判成单发并单边改写 FP rename/IQ/ROB。
+  task automatic run_t3c_fp_mandatory_pair_atomicity_red;
+    reg [3:0] fp_iq_before;
+    reg [FREE_COUNT_W-1:0] fp_free_before;
+    reg [ROB_COUNT_W-1:0] rob_before;
+    reg [PHY_REG_ADDR_W-1:0] map9_before;
+    reg [PHY_REG_ADDR_W-1:0] map10_before;
+    reg resource_recovered;
+    integer lane0_fire_count;
+    integer lane1_fire_count;
+    integer wait_cycles;
+    begin
+      reset_dut();
+
+      // f1 = FDIV.D f0,f0：真实 56-step 长操作，保证随后依赖 f1 的 FADD.D
+      // 在填充阶段全部常驻 FP IQ，不依赖任何内部 force。
+      set_fp_binary0(32'h8000_6a00, 7'b0001101,
+                     5'd0, 5'd0, 5'd1, 1'b1);
+      #1;
+      tb_check1("T3C FP seed FDIV dispatch ready", dispatch0_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check32("T3C FP seed enters IQ",
+                 {28'b0, dut.u_fp_backend.fp_iq_count_w}, 32'd1);
+      tb_check1("T3C FP seed selected",
+                dut.u_fp_backend.issue_valid_w, 1'b1);
+
+      // 首对依赖者入队时，FDIV 同拍离开 IQ 进入 long-op：1 + 2 - 1 = 2。
+      set_fp_binary0(32'h8000_6a10, 7'b0000001,
+                     5'd0, 5'd1, 5'd2, 1'b1);
+      set_fp_binary1(32'h8000_6a14, 7'b0000001,
+                     5'd0, 5'd1, 5'd3, 1'b1);
+      #1;
+      tb_check1("T3C FP fill pair0 lane0 ready", dispatch0_ready, 1'b1);
+      tb_check1("T3C FP fill pair0 lane1 ready", dispatch1_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check1("T3C FP seed is long-op inflight",
+                dut.u_fp_backend.long_meta_valid_q, 1'b1);
+      tb_check1("T3C FP divider busy",
+                dut.u_fp_backend.long_div_busy_w, 1'b1);
+      tb_check32("T3C FP fill count two",
+                 {28'b0, dut.u_fp_backend.fp_iq_count_w}, 32'd2);
+
+      set_fp_binary0(32'h8000_6a18, 7'b0000001,
+                     5'd0, 5'd1, 5'd4, 1'b1);
+      set_fp_binary1(32'h8000_6a1c, 7'b0000001,
+                     5'd0, 5'd1, 5'd5, 1'b1);
+      #1;
+      tb_check1("T3C FP fill pair1 lane0 ready", dispatch0_ready, 1'b1);
+      tb_check1("T3C FP fill pair1 lane1 ready", dispatch1_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check32("T3C FP fill count four",
+                 {28'b0, dut.u_fp_backend.fp_iq_count_w}, 32'd4);
+
+      set_fp_binary0(32'h8000_6a20, 7'b0000001,
+                     5'd0, 5'd1, 5'd6, 1'b1);
+      set_fp_binary1(32'h8000_6a24, 7'b0000001,
+                     5'd0, 5'd1, 5'd7, 1'b1);
+      #1;
+      tb_check1("T3C FP fill pair2 lane0 ready", dispatch0_ready, 1'b1);
+      tb_check1("T3C FP fill pair2 lane1 ready", dispatch1_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check32("T3C FP fill count six",
+                 {28'b0, dut.u_fp_backend.fp_iq_count_w}, 32'd6);
+
+      set_fp_binary0(32'h8000_6a28, 7'b0000001,
+                     5'd0, 5'd1, 5'd8, 1'b1);
+      #1;
+      tb_check1("T3C FP fill single ready", dispatch0_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check32("T3C FP legal boundary is seven of eight",
+                 {28'b0, dut.u_fp_backend.fp_iq_count_w}, 32'd7);
+      tb_check32("T3C FP boundary free count",
+                 {25'b0, dut.u_fp_backend.fp_free_count_w}, 32'd24);
+      tb_check32("T3C FP boundary ROB count",
+                 {27'b0, rob_count}, 32'd8);
+
+      // 保持同一 mandatory pair 的 raw-valid，模拟前端在 ready 前不得 pop。
+      // 两条均写 FPR 且均依赖 f1；只剩一个 FP IQ slot 时必须 ready={0,0}。
+      set_fp_binary0(32'h8000_6a30, 7'b0000001,
+                     5'd0, 5'd1, 5'd9, 1'b1);
+      set_fp_binary1(32'h8000_6a34, 7'b0000001,
+                     5'd0, 5'd1, 5'd10, 1'b1);
+      #1;
+      fp_iq_before = dut.u_fp_backend.fp_iq_count_w;
+      fp_free_before = dut.u_fp_backend.fp_free_count_w;
+      rob_before = rob_count;
+      map9_before = dut.u_fp_backend.fp_map_q[9];
+      map10_before = dut.u_fp_backend.fp_map_q[10];
+      lane0_fire_count = 0;
+      lane1_fire_count = 0;
+      resource_recovered = 1'b0;
+
+      $display("[T3C-RED-OBS] blocked raw_fp_ready={%0b,%0b} top_ready={%0b,%0b} fp_fire={%0b,%0b} fp_iq=%0d fp_free=%0d rob=%0d",
+               dut.fp_disp_ready_w, dut.fp_disp1_ready_w,
+               dispatch0_ready, dispatch1_ready,
+               dut.u_fp_backend.disp_fire_w,
+               dut.u_fp_backend.disp1_fire_w,
+               dut.u_fp_backend.fp_iq_count_w,
+               dut.u_fp_backend.fp_free_count_w, rob_count);
+      tb_check1("T3C mandatory pair blocks lane0", dispatch0_ready, 1'b0);
+      tb_check1("T3C mandatory pair blocks lane1", dispatch1_ready, 1'b0);
+      tb_check1("T3C mandatory pair no FP lane0 fire",
+                dut.u_fp_backend.disp_fire_w, 1'b0);
+      tb_check1("T3C mandatory pair no FP lane1 fire",
+                dut.u_fp_backend.disp1_fire_w, 1'b0);
+
+      if (dispatch0_valid && dispatch0_ready)
+        lane0_fire_count = lane0_fire_count + 1;
+      if (dispatch1_valid && dispatch1_ready)
+        lane1_fire_count = lane1_fire_count + 1;
+      `TB_TICK(clk);
+      #1;
+
+      $display("[T3C-RED-OBS] blocked-post fp_iq=%0d fp_free=%0d rob=%0d map9=%0d map10=%0d fires={%0d,%0d}",
+               dut.u_fp_backend.fp_iq_count_w,
+               dut.u_fp_backend.fp_free_count_w, rob_count,
+               dut.u_fp_backend.fp_map_q[9],
+               dut.u_fp_backend.fp_map_q[10],
+               lane0_fire_count, lane1_fire_count);
+      tb_check32("T3C blocked FP IQ state unchanged",
+                 {28'b0, dut.u_fp_backend.fp_iq_count_w},
+                 {28'b0, fp_iq_before});
+      tb_check32("T3C blocked FP free state unchanged",
+                 {25'b0, dut.u_fp_backend.fp_free_count_w},
+                 {25'b0, fp_free_before});
+      tb_check32("T3C blocked ROB state unchanged",
+                 {27'b0, rob_count}, {27'b0, rob_before});
+      tb_check32("T3C blocked lane0 FP map unchanged",
+                 {26'b0, dut.u_fp_backend.fp_map_q[9]},
+                 {26'b0, map9_before});
+      tb_check32("T3C blocked lane1 FP map unchanged",
+                 {26'b0, dut.u_fp_backend.fp_map_q[10]},
+                 {26'b0, map10_before});
+
+      // raw-valid 保持到资源恢复。修复后，FDIV 完成并释放足够 IQ credit 后，
+      // pair 应在同一拍恰好各接收一次；旧 RTL 会重复接收 lane0/饿死 lane1。
+      wait_cycles = 0;
+      while ((lane1_fire_count == 0) && (wait_cycles < 90)) begin
+        if (dut.u_fp_backend.fp_iq_count_w <= 4'd6)
+          resource_recovered = 1'b1;
+        if (dispatch0_valid && dispatch0_ready)
+          lane0_fire_count = lane0_fire_count + 1;
+        if (dispatch1_valid && dispatch1_ready)
+          lane1_fire_count = lane1_fire_count + 1;
+        `TB_TICK(clk);
+        #1;
+        wait_cycles = wait_cycles + 1;
+      end
+      clear_dispatch();
+      #1;
+
+      $display("[T3C-RED-OBS] recovery wait=%0d recovered=%0b fires={%0d,%0d} fp_iq=%0d fp_free=%0d rob=%0d map9=%0d map10=%0d",
+               wait_cycles, resource_recovered,
+               lane0_fire_count, lane1_fire_count,
+               dut.u_fp_backend.fp_iq_count_w,
+               dut.u_fp_backend.fp_free_count_w, rob_count,
+               dut.u_fp_backend.fp_map_q[9],
+               dut.u_fp_backend.fp_map_q[10]);
+      tb_check1("T3C FP IQ resource eventually recovers",
+                resource_recovered, 1'b1);
+      tb_check32("T3C mandatory lane0 accepted exactly once",
+                 lane0_fire_count, 32'd1);
+      tb_check32("T3C mandatory lane1 accepted exactly once",
+                 lane1_fire_count, 32'd1);
+      tb_check1("T3C lane0 FP map updates after atomic accept",
+                dut.u_fp_backend.fp_map_q[9] != map9_before, 1'b1);
+      tb_check1("T3C lane1 FP map updates after atomic accept",
+                dut.u_fp_backend.fp_map_q[10] != map10_before, 1'b1);
+
+      // RED 之后清理长操作/队列，避免污染本文件既有回归；tb_errors 保留。
+      reset_dut();
+    end
+  endtask
+
   initial begin
     tb_errors = 0;
     reset_dut();
@@ -941,6 +1709,67 @@ module tb_ooo_int_backend;
     tb_check32("initial freelist count", {25'b0, free_count}, 32'd32);
     tb_check32("initial rob count", {27'b0, rob_count}, 32'd0);
     tb_check32("initial issue count", {28'b0, issue_count}, 32'd0);
+
+`ifdef FP_PAIR_ATOMIC_NEGATIVE
+    // 非真空负探针：先建立有容量的合法 mandatory 双 FP packet，确认两 lane
+    // 原本都会 fire，再只压掉 lane1 的消费边界 fire，跨沿验证原子断言有牙。
+    set_fp_binary0(32'h8000_0e00, 7'b0000001,
+                   5'd0, 5'd0, 5'd9, 1'b1);
+    set_fp_binary1(32'h8000_0e04, 7'b0000001,
+                   5'd0, 5'd0, 5'd10, 1'b1);
+    #1;
+    if (!(dispatch0_ready && dispatch1_ready &&
+          dut.dispatch0_fire_w && dut.dispatch1_fire_w))
+      $fatal(1, "[FP-PAIR-ATOMIC-NEGATIVE-SETUP] legal pair did not reach dual-fire window");
+    force dut.dispatch1_fire_w = 1'b0;
+    $display("[FP-PAIR-ATOMIC-NEGATIVE] forced fire={%0b,%0b} in legal mandatory window",
+             dut.dispatch0_fire_w, dut.dispatch1_fire_w);
+    `TB_TICK(clk);
+    release dut.dispatch1_fire_w;
+    #1;
+    $display("[FP-PAIR-ATOMIC-NEGATIVE] completed one assertion edge");
+    $finish_and_return(0);
+`endif
+
+`ifdef INT_WB_PDEST_UNIQUE_NEGATIVE
+    // 非真空负探针：lane0 是真实非零整数目的 ALU，lane1 是无目的但仍经 EX
+    // 正式完成的 ALU。这样双 formal-WB valid 真实成立而 lane1 fast valid 为 0；
+    // 仅 force formal wb1 pdest 即可孤立命中 unique marker，不扰动 fast-subset 断言。
+    set_dispatch0(32'h8000_0e10,
+                  make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM, `ALU_OP_ADD,
+                                1'b0, 1'b0, 1'b1),
+                  5'd0, 5'd0, 5'd5, 64'd17);
+    set_dispatch1(32'h8000_0e14,
+                  make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM, `ALU_OP_ADD,
+                                1'b0, 1'b0, 1'b0),
+                  5'd0, 5'd0, 5'd0, 64'd23);
+    #1;
+    if (!(dispatch0_ready && dispatch1_ready))
+      $fatal(1, "[INT-WB-PDEST-UNIQUE-NEGATIVE-SETUP] legal dual dispatch not ready");
+    `TB_TICK(clk);
+    clear_dispatch();
+    #1;
+    if (!(dut.issue0_valid_w && dut.issue1_valid_w))
+      $fatal(1, "[INT-WB-PDEST-UNIQUE-NEGATIVE-SETUP] legal dual EX issue window absent");
+    `TB_TICK(clk);
+    #1;
+    if (!(dut.wb0_valid_w && dut.wb1_valid_w &&
+          (dut.wb0_pdest_w != {PHY_REG_ADDR_W{1'b0}}) &&
+          (dut.wb1_pdest_w == {PHY_REG_ADDR_W{1'b0}})))
+      $fatal(1, "[INT-WB-PDEST-UNIQUE-NEGATIVE-SETUP] expected dual formal-WB/nonzero-zero pdest window absent");
+    force dut.wb1_pdest_w = dut.wb0_pdest_w;
+    $display("[INT-WB-PDEST-UNIQUE-NEGATIVE] forced formal pdest={%0d,%0d} valid={%0b,%0b}",
+             dut.wb0_pdest_w, dut.wb1_pdest_w,
+             dut.wb0_valid_w, dut.wb1_valid_w);
+    // flush 只用于静默同沿 ROB slot-identity 哨兵；EX_q 的双 formal-WB valid
+    // 在该沿前仍真实有效，IntBackend unique 断言刻意不受 flush 门控。
+    flush = 1'b1;
+    `TB_TICK(clk);
+    release dut.wb1_pdest_w;
+    #1;
+    $display("[INT-WB-PDEST-UNIQUE-NEGATIVE] completed one assertion edge");
+    $finish_and_return(0);
+`endif
 
 `ifdef RAW_I1_NEGATIVE_PROBE
     // 非真空负探针：先建立两个合法 independent integer issue lane，再只 force
@@ -1016,6 +1845,12 @@ module tb_ooo_int_backend;
     tb_check32("dependent freelist recovers", {25'b0, free_count}, 32'd32);
 
     run_lane1_prf_wb_wakeup();
+    run_t3b_divu_wb0_isolation();
+    run_t3b_clmul_wb0_isolation();
+    run_t3b_divu_wb1_isolation();
+    run_t3b_fp_load_tag_alias_exclusion();
+    run_t3b_integer_load_fault_exclusion();
+    run_t3c_fp_mandatory_pair_atomicity_red();
 
     set_dispatch0(32'h8000_0800,
                   make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM, `ALU_OP_ADD,
@@ -1102,8 +1937,9 @@ module tb_ooo_int_backend;
                   make_alu_ctrl(`OP1_SEL_ZERO, `OP2_SEL_IMM,
                                 `ALU_OP_COPY_B, 1'b0, 1'b0, 1'b1),
                   5'd0, 5'd0, 5'd23, 64'hfedc_ba98_7654_3210);
-    tick_dispatch_to_commit("clmul setup operands", 32'h9abc_def0,
-                            32'h7654_3210);
+    tick_dispatch_to_commit("clmul setup operands",
+                            64'h1234_5678_9abc_def0,
+                            64'hfedc_ba98_7654_3210);
 
     run_clmul_backend_case("backend clmul", 32'h8000_1850,
                            `FUNCT3_SLL, 5'd24, 2'd0);
@@ -1169,6 +2005,22 @@ module tb_ooo_int_backend;
 	    #1;
 	    tb_check1("no third request in flight", mem_req_valid, 1'b0);
 
+	    // T3B 正向覆盖：在首条 load 返回前放入真实依赖者。响应拍必须同时
+	    // 形成 MEM fast-WB0、唤醒驻留 IQ 项并把返回值旁路到其 EX 源操作数。
+	    set_dispatch0(32'h8000_2608,
+	                  make_alu_ctrl(`OP1_SEL_RS1, `OP2_SEL_IMM,
+	                                `ALU_OP_ADD, 1'b1, 1'b0, 1'b1),
+	                  5'd15, 5'd0, 5'd17, 64'd1);
+	    #1;
+	    tb_check1("load-use dependent dispatch ready", dispatch0_ready, 1'b1);
+	    `TB_TICK(clk);
+	    clear_dispatch();
+	    #1;
+	    tb_check32("load-use dependent remains resident",
+	               {28'b0, issue_count}, 32'd1);
+	    tb_check1("load-use dependent waits before response",
+	              dut.issue0_valid_w || dut.issue1_valid_w, 1'b0);
+
 	    mem_rsp_valid = 1'b1;
 	    mem_rsp_rdata = 64'h0000_0000_1234_5678;
 	    mem_rsp_error = 1'b0;
@@ -1176,6 +2028,25 @@ module tb_ooo_int_backend;
 	    tb_check1("buffer seed rsp ready", mem_rsp_ready, 1'b1);
 	    tb_check1("buffer seed commit valid", commit0_valid, 1'b1);
 	    tb_check32("buffer seed commit data", commit0_data, 32'h1234_5678);
+	    tb_check1("load MEM fast WB0 valid", dut.fast_wb0_valid_w, 1'b1);
+	    tb_check32("load MEM fast/full WB0 pdest agree",
+	               {26'b0, dut.fast_wb0_pdest_w},
+	               {26'b0, dut.wb0_pdest_w});
+	    tb_check64("load MEM fast WB0 data", dut.fast_wb0_data_w,
+	               64'h0000_0000_1234_5678);
+	    tb_check1("load-use selects on response",
+	              dut.issue0_valid_w, 1'b1);
+	    tb_check32("load-use selected PC", dut.issue0_pc_w[31:0],
+	               32'h8000_2608);
+	    tb_check32("load-use source tag matches fast WB0",
+	               {26'b0, dut.issue0_src1_preg_w},
+	               {26'b0, dut.fast_wb0_pdest_w});
+	    tb_check64("load-use source data bypasses response",
+	               dut.issue0_src1_data_w, 64'h0000_0000_1234_5678);
+	    $display("[T3B-COVERAGE-OBS] load-use fast0 valid=%0b pdest=%0d data=0x%016h issue0_pc=0x%08h src=0x%016h",
+	             dut.fast_wb0_valid_w, dut.fast_wb0_pdest_w,
+	             dut.fast_wb0_data_w, dut.issue0_pc_w[31:0],
+	             dut.issue0_src1_data_w);
 	    `TB_TICK(clk);
 	    mem_rsp_valid = 1'b0;
 	    #1;
@@ -1187,6 +2058,18 @@ module tb_ooo_int_backend;
 	    tb_check1("buffered lhu rsp ready", mem_rsp_ready, 1'b1);
 	    tb_check1("buffered lhu commit valid", commit0_valid, 1'b1);
 	    tb_check32("buffered lhu commit data", commit0_data, 32'h0000_1800);
+	    // 首条 load 的依赖者此拍占 EX/WB0，因此第二条 load 自然落 MEM
+	    // fast-WB1；同时覆盖 MEM 端口的 lane1 仲裁与 payload 一致性。
+	    tb_check1("buffered lhu MEM fast WB1 valid",
+	              dut.fast_wb1_valid_w, 1'b1);
+	    tb_check32("buffered lhu fast/full WB1 pdest agree",
+	               {26'b0, dut.fast_wb1_pdest_w},
+	               {26'b0, dut.wb1_pdest_w});
+	    tb_check64("buffered lhu MEM fast WB1 data",
+	               dut.fast_wb1_data_w, 64'h0000_0000_0000_1800);
+	    $display("[T3B-COVERAGE-OBS] lhu-response fast1 valid=%0b pdest=%0d data=0x%016h",
+	             dut.fast_wb1_valid_w, dut.fast_wb1_pdest_w,
+	             dut.fast_wb1_data_w);
 	    `TB_TICK(clk);
 	    mem_rsp_valid = 1'b0;
 	    #1;

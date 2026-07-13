@@ -4,12 +4,9 @@
 // 保持队列内程序序，监听两个 writeback wakeup，每拍最多发射两个最老 ready uop。
 // 【P5 刀 B(2026-07-09)】dispatch→issue 同拍 bypass 族已整体删除：dispatch 项当拍只写入
 // 阵列，次拍(N+1)起才可被 select——select 唯一真源=已寄存 valid_q 阵列项(有 IQ-NO-BYPASS
-// 立即断言看护)。同拍 wakeup→select 直通(寄存项的唤醒 CAM)保留。历史数据与决策见
+// 立即断言看护)。同拍 fast wakeup→select 直通(寄存项的唤醒 CAM)保留；
+// full wakeup 只更新 ready 状态，不直接进入 select。历史数据与决策见
 // design/arch/timing-dispatch-issue-path.md §6c 与 design/arch/p5-repipeline-first-batch.md。
-/* verilator lint_off UNOPTFLAT */
-// 【B-FP 簇】FP 交叉 wakeup/ready 菱形使 Verilator 跨实例保守判环
-// (__Vcellinp__ 端口注入形态)。行为正确性由全量测试守; 真伪甄别与
-// 结构化真修(交叉唤醒打拍)列为 FP 簇收尾项。
 module OooIntIssueQueue #(
   parameter ENTRY_COUNT = (1 << `OOO_ISSUE_INDEX_W),
   parameter ENTRY_INDEX_W = `OOO_ISSUE_INDEX_W,
@@ -72,6 +69,12 @@ module OooIntIssueQueue #(
   input [PHY_REG_ADDR_W-1:0] wakeup0_pdest_i,
   input wakeup1_valid_i,
   input [PHY_REG_ADDR_W-1:0] wakeup1_pdest_i,
+  // T3B：select 只前视 EX/MEM fast broadcast；full wakeup 仍用于
+  // compaction/dispatch/kill survivor 的时序 ready 更新。
+  input select_wakeup0_valid_i,
+  input [PHY_REG_ADDR_W-1:0] select_wakeup0_pdest_i,
+  input select_wakeup1_valid_i,
+  input [PHY_REG_ADDR_W-1:0] select_wakeup1_pdest_i,
   // 【B-FP 簇】FP wakeup(fp store 数据源 fs2 的就绪监听)
   input fp_wake0_valid_i,
   input [PHY_REG_ADDR_W-1:0] fp_wake0_preg_i,
@@ -248,15 +251,21 @@ module OooIntIssueQueue #(
                               !entry_mem_order_block_r &&
                               (src1_ready_q[scan_i] ||
                                wakeup_match(src1_preg_q[scan_i],
-                                            wakeup0_valid_i, wakeup0_pdest_i,
-                                            wakeup1_valid_i, wakeup1_pdest_i)) &&
+                                            select_wakeup0_valid_i,
+                                            select_wakeup0_pdest_i,
+                                            select_wakeup1_valid_i,
+                                            select_wakeup1_pdest_i)) &&
                               (src2_ready_q[scan_i] ||
                                wakeup_match(src2_preg_q[scan_i],
-                                            wakeup0_valid_i, wakeup0_pdest_i,
-                                            wakeup1_valid_i, wakeup1_pdest_i)) &&
-                              (!fp_st_en_q[scan_i] || fp_st_ready_q[scan_i] ||
-                               (fp_wake0_valid_i &&
-                                (fp_wake0_preg_i == fp_st_preg_q[scan_i])) ||
+                                            select_wakeup0_valid_i,
+                                            select_wakeup0_pdest_i,
+                                            select_wakeup1_valid_i,
+                                            select_wakeup1_pdest_i)) &&
+                              // T3D：FP execution completion(wake0)只在时序
+                              // next-state粘住fp_st_ready，避免 completion→branch
+                              // kill→completion 环；FP load WB(wake1)无该回边，保留快路。
+                              (!fp_st_en_q[scan_i] ||
+                               fp_st_ready_q[scan_i] ||
                                (fp_wake1_valid_i &&
                                 (fp_wake1_preg_i == fp_st_preg_q[scan_i])));
       if (entry_ready_r[scan_i]) begin
@@ -574,6 +583,32 @@ module OooIntIssueQueue #(
       if (kill_valid_i && (dispatch0_valid_i || dispatch1_valid_i))
         $error("[IQ-KILL-NO-DISPATCH] kill 拍收到 dispatch valid(上游 freeze 契约被破坏) @%0t",
                $time);
+      // Fast select 必须是同 lane full WB 广播的子集；否则反压拍只看到
+      // 瞬时 select wakeup，却无法在上升沿把 ready 持久化。
+      if ((select_wakeup0_valid_i === 1'b1) &&
+          !((wakeup0_valid_i === 1'b1) &&
+            (select_wakeup0_pdest_i === wakeup0_pdest_i)))
+        $error("[IQ-FAST-WAKE-SUBSET] lane0 select=%0d full_valid=%b full=%0d @%0t",
+               select_wakeup0_pdest_i, wakeup0_valid_i, wakeup0_pdest_i, $time);
+      if ((select_wakeup1_valid_i === 1'b1) &&
+          !((wakeup1_valid_i === 1'b1) &&
+            (select_wakeup1_pdest_i === wakeup1_pdest_i)))
+        $error("[IQ-FAST-WAKE-SUBSET] lane1 select=%0d full_valid=%b full=%0d @%0t",
+               select_wakeup1_pdest_i, wakeup1_valid_i, wakeup1_pdest_i, $time);
+      // 跨域 FP wake 只能落 sticky ready；若未 sticky 的 FP-store 项在命中
+      // wake 的同拍被选中，说明 same-cycle select 回边被重新引入。
+      if (issue0_valid_o && fp_st_en_q[issue0_idx_r] &&
+          !fp_st_ready_q[issue0_idx_r] &&
+          (fp_wake0_valid_i &&
+           (fp_wake0_preg_i == fp_st_preg_q[issue0_idx_r])))
+        $error("[IQ-FP-WAKE-STICKY-ONLY] issue0 selected on same-cycle FP wake @%0t",
+               $time);
+      if (issue1_valid_o && fp_st_en_q[issue1_idx_r] &&
+          !fp_st_ready_q[issue1_idx_r] &&
+          (fp_wake0_valid_i &&
+           (fp_wake0_preg_i == fp_st_preg_q[issue1_idx_r])))
+        $error("[IQ-FP-WAKE-STICKY-ONLY] issue1 selected on same-cycle FP wake @%0t",
+               $time);
     end
   end
 `endif
@@ -620,4 +655,3 @@ module OooIntIssueQueue #(
 `endif
 
 endmodule
-/* verilator lint_on UNOPTFLAT */

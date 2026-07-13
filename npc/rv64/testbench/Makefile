@@ -44,6 +44,7 @@ TESTS := \
   tb_ooo_fp_reg_file \
   tb_ooo_busy_table \
   tb_ooo_int_issue_queue \
+  tb_ooo_fp_issue_queue \
   tb_ooo_dispatch_backend \
   tb_ooo_muldiv_unit \
   tb_ooo_clmul_unit \
@@ -137,6 +138,7 @@ TB_SRCS_tb_ooo_phys_reg_file := tests/tb_ooo_phys_reg_file.sv $(RTL_OOO_PHYS_REG
 TB_SRCS_tb_ooo_fp_reg_file := tests/tb_ooo_fp_reg_file.sv $(RTL_OOO_FP_REG_FILE)
 TB_SRCS_tb_ooo_busy_table := tests/tb_ooo_busy_table.sv $(RTL_OOO_BUSY_TABLE)
 TB_SRCS_tb_ooo_int_issue_queue := tests/tb_ooo_int_issue_queue.sv $(RTL_OOO_INT_ISSUE_QUEUE)
+TB_SRCS_tb_ooo_fp_issue_queue := tests/tb_ooo_fp_issue_queue.sv $(RTL_OOO_FP_ISSUE_QUEUE)
 TB_SRCS_tb_ooo_dispatch_backend := tests/tb_ooo_dispatch_backend.sv $(RTL_OOO_DISPATCH_BACKEND) $(RTL_OOO_RENAME_MAP) $(RTL_OOO_FREE_LIST) $(RTL_OOO_BUSY_TABLE) $(RTL_OOO_ROB) $(RTL_OOO_INT_ISSUE_QUEUE)
 TB_SRCS_tb_ooo_muldiv_unit := tests/tb_ooo_muldiv_unit.sv $(RTL_OOO_MULDIV_UNIT)
 TB_SRCS_tb_ooo_clmul_unit := tests/tb_ooo_clmul_unit.sv $(RTL_OOO_CLMUL_UNIT)

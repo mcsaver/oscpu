@@ -13,8 +13,6 @@
 // 后第 LATENCY 拍拉高,父模块据此延后锁存 compute_done。算术逐行不变 → bit-exact 按构造
 // 保持。FP_ARITH_LATENCY=5:FMA(最深)5 级、FMUL 3 级、FADD 2 级真流水(各 op datapath
 // 内部切级,把原单拍 173/91/69 级关键路径压到每级 ≤ ~dispatch;见文件末各流水段)。
-/* verilator lint_off UNOPTFLAT */
-// kill 组合前视与 meta 链的保守判环, 行为由测试守。
 module OooFpArithGate (
   input              clk,
   input              rst,

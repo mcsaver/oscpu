@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T11:40:43+00:00",
-  "updated_at": "2026-07-12T18:36:20+00:00",
+  "updated_at": "2026-07-13T04:09:03+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -31066,6 +31066,46 @@
       "sha256": "c923ab80e7e21aaa19f5ebbb78f210b789ac52a5f6004066dbcabaf6d6f6f6fa",
       "backup_source": "filesystem",
       "archived_at": "2026-07-12T18:35:57+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3f-int-to-fp-final/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 7699,
+      "sha256": "e6ce67e52fda6ffaa8aa7deaa79db787ce1244882bdb2ca3c71f8bce38836029",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T04:09:03+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3f-int-to-fp-final/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5773,
+      "sha256": "eb7de64668421c71b484fa853fce7e2fdcd31ba2962813999887cb590c01446f",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T04:09:03+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3f-int-to-fp-final/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 3060,
+      "sha256": "79015c0a36866779ca45ca25b4572afda3f8341bdf66e44e7cb47dac7e454389",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T04:09:03+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3f-int-to-fp-final/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T04:09:03+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3f-int-to-fp-final/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4417,
+      "sha256": "baf4f19f3d4ad9d7bed75c59da84cfb9a49d581973dd5efc1603f1d964fb0598",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T04:09:03+00:00"
     }
   ]
 }

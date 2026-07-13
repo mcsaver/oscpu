@@ -43,7 +43,7 @@ rg -q '^status=PASS$' "${opensta_summary}"
       done
   printf '%s\t' "$(stat -c '%s' -- "${bundle_root}/sta-provenance.md")"
   sha256sum -- "${bundle_root}/sta-provenance.md" | awk '{printf "%s\t", $1}'
-  printf '%s\n' "tmp/2026-07-13-rv64-ifu-access-g1/sta-provenance.md"
+  printf '%s\n' "${bundle_root#${root}/}/sta-provenance.md"
 } > "${inventory}"
 
 rm -f -- "${archive_tmp}"

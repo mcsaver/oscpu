@@ -89,6 +89,13 @@ module OooDispatchBackend #(
   input [`XLEN-1:0] wb1_tval_i,
   input [4:0] wb1_fflags_i,
 
+  // 【T3B】EX/MEM-only fast select wakeup；full wb0/1 仍独占
+  // BusyTable、IQ sticky-ready 与 ROB 完成状态更新。
+  input select_wakeup0_valid_i,
+  input [PHY_REG_ADDR_W-1:0] select_wakeup0_pdest_i,
+  input select_wakeup1_valid_i,
+  input [PHY_REG_ADDR_W-1:0] select_wakeup1_pdest_i,
+
   // 【B-FP 簇】FP wakeup(整数 IQ 的 fp_src2 监听) + FP walk 分流输出
   input fp_wake0_valid_i,
   input [PHY_REG_ADDR_W-1:0] fp_wake0_preg_i,
@@ -652,6 +659,10 @@ module OooDispatchBackend #(
     .wakeup0_pdest_i(wb0_pdest_i),
     .wakeup1_valid_i(wb1_valid_i),
     .wakeup1_pdest_i(wb1_pdest_i),
+    .select_wakeup0_valid_i(select_wakeup0_valid_i),
+    .select_wakeup0_pdest_i(select_wakeup0_pdest_i),
+    .select_wakeup1_valid_i(select_wakeup1_valid_i),
+    .select_wakeup1_pdest_i(select_wakeup1_pdest_i),
     .fp_wake0_valid_i(fp_wake0_valid_i),
     .fp_wake0_preg_i(fp_wake0_preg_i),
     .fp_wake1_valid_i(fp_wake1_valid_i),

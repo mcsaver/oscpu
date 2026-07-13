@@ -1,0 +1,8 @@
+bytes	sha256	path
+68152723	8a7318ddb9a38761430b2f4e49e8b507da9e84b3a63016fa50d4cd355a6cdde9	tmp/2026-07-13-rv64-t3b-longop-fast-broadcast/sta-build/NpcTop-200MHz/NpcTop.netlist.v
+54632220	c44d2fefd49ee640d7b913d0ffaa1d7ba479c1d69be07a90c8970da48cf83f15	tmp/2026-07-13-rv64-t3b-longop-fast-broadcast/sta-build/NpcTop-200MHz/NpcTop.netlist.v.sim
+41	651d740188ddb19c58fded2ec4185871ff23a1f453af22dc3f44583503743e7c	tmp/2026-07-13-rv64-t3b-longop-fast-broadcast/sta-build/NpcTop-200MHz/abc.sdc
+6262	3f8aba355b11c9df58142ed3b248bcee535536721146b451285ba806f3b5b982	tmp/2026-07-13-rv64-t3b-longop-fast-broadcast/sta-build/NpcTop-200MHz/synth_check.txt
+250486	9695c8b3add3723f1fb3ae722a7252af088f6d17e9a1e796e7db84144510c9e3	tmp/2026-07-13-rv64-t3b-longop-fast-broadcast/sta-build/NpcTop-200MHz/synth_stat.txt
+756541455	9d5580bb85a76e334fa3e03ef5f485345f35cb8dfa7e5b950608d6ece0067557	tmp/2026-07-13-rv64-t3b-longop-fast-broadcast/sta-build/NpcTop-200MHz/yosys.log
+2725	41f6fbdd79736a517d1f0646dd4988bb3dbd3241802fd1f5a25a3c3dd6bc31f2	tmp/2026-07-13-rv64-t3b-longop-fast-broadcast/sta-provenance.md

@@ -1,0 +1,6 @@
+node_id	kind	status	owner	evidence
+t3d-contract	spec	completed	root	npc/rv64/design/specs/ooo-cross-domain-wakeup.md
+t3d-red	test	completed	longop_quarantine_red	evidence/red-old
+t3d-rtl	implementation	completed	root	OooIntIssueQueue.v
+t3d-full-build	verification	completed	root	Verilator --assert
+t3d-sta	verification	completed	root	cross-domain loop removed; parent timing rejected

@@ -1,0 +1,8 @@
+node_id	owner_agent	depends_on	status	output
+recall-contract	root	-	PASS	context brief; six-class spec
+iq-prf-red	root	recall-contract	PASS	old-RTL behavioral RED logs
+fast-interface	root,subagents	iq-prf-red	PASS	four-module independent fast buses
+focused-green	root	fast-interface	PASS	IQ/PRF/DBE/IntBackend focused + negative probes
+full-regression	root	focused-green	PASS	module/lint/contract/CoreMark/full core
+fresh-sta	root	full-regression	PASS	structural accepted; timing candidate rejected
+review-record	root	fresh-sta	PASS	task-report; T3F superseding read8 contract

@@ -77,7 +77,13 @@ module OooBranchResolveRecoveryGate (
   assign backend_execute_quiet_o =
       !execute0_valid_i && !execute1_valid_i &&
       !mem_rsp_ready_i;
+  // T3E: checkpoint capture is a legacy mode-0 mechanism.  In ROB-walk mode
+  // pending_branch is architecturally unreachable, but relying on that parent-
+  // level constant leaves a false full-WB -> quiet -> capture -> issue-block ->
+  // branch-kill SCC when hierarchy is preserved.  Encode the configuration
+  // truth at the producer; the complete mode-0 predicate remains unchanged.
   assign branch_spec_checkpoint_capture_o =
+      !rob_walk_mode_w &&
       branch_spec_checkpoint_pending_i && stop_pending_i &&
       pending_branch_i && pending_branch_dispatched_i &&
       backend_execute_quiet_o &&

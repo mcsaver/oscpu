@@ -1,0 +1,6 @@
+node_id	kind	status	owner	evidence
+t3c-contract	spec	completed	root	npc/rv64/design/specs/ooo-fp-admission-credit.md
+t3c-red	test	completed	longop_quarantine_red	evidence/red-old
+t3c-rtl	implementation	completed	root	OooIntBackend.v;OooFpBackend.v
+t3c-functional	verification	completed	root	focused/module/full regression
+t3c-sta	verification	completed	root	admission loop removed; parent timing rejected

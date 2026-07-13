@@ -23,7 +23,11 @@
 - ★ `ooo-phys-reg-file` — 物理寄存器堆(写-读旁路/write1>write0/x0)
 - ★ `ooo-rename-map` — 重命名映射(同拍 RAW/WAW 前递/walk 还原)
 - `ooo-execute-backend`、`ooo-clmul-unit`
+- Integer full-WB 与 EX/MEM fast broadcast 的独立完成/消费边界：`ooo-longop-fast-broadcast.md`；
 - FP 簇现状:`vsrc/execute/OooFpBackend.v` 为真源(实施方案与旧 pending 壳 spec 已归档);
+- FP 入口 ready DAG 与双 lane 原子接收：`ooo-fp-admission-credit.md`；
+- FP completion 到整数 IQ 的跨域 sticky wake：`ooo-cross-domain-wakeup.md`；
+- Integer completion 到 FP IQ/read8 的全 sticky 时序边界：`ooo-int-to-fp-sticky-wakeup.md`；
   `ooo-fp-arith-gate` — FP short arithmetic 5-cycle 流水、B-FP launch/out 与 macro/OOC decision contract;
   `ooo-fp-reg-file` — 架构 FPR(commit 双写+trap 恢复源)
 

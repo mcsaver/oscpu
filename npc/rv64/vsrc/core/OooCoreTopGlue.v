@@ -3,10 +3,6 @@
 
 // OoO core 顶层装配壳：只实例化 frontend/control/execute/memory/writeback/
 // regread_bypass 等子系统，功能规则继续归入对应目录，避免 core glue 再膨胀为 owner。
-/* verilator lint_off UNOPTFLAT */
-// 【B-FP 簇】FP 交叉 wakeup/ready 菱形使 Verilator 跨实例保守判环
-// (__Vcellinp__ 端口注入形态)。行为正确性由全量测试守; 真伪甄别与
-// 结构化真修(交叉唤醒打拍)列为 FP 簇收尾项。
 module OooCoreTopGlue #(
   parameter PHY_REG_ADDR_W = `OOO_PHY_REG_ADDR_W,
   parameter ROB_INDEX_W = `OOO_ROB_INDEX_W,
@@ -1320,4 +1316,3 @@ module OooCoreTopGlue #(
 `endif
 
 endmodule
-/* verilator lint_on UNOPTFLAT */

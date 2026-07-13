@@ -15,10 +15,6 @@
 //  - 恢复: trap flush=map 恒等+物理堆低 32 拷架构 FPR(单拍, 照抄整数模式);
 //    mispredict=ROB-walk FP 分流(walk*_fp_* 还原 map/回收 preg)+IQ age-squash+
 //    执行簇 meta kill。
-/* verilator lint_off UNOPTFLAT */
-// 【B-FP 簇】FP 交叉 wakeup/ready 菱形使 Verilator 跨实例保守判环
-// (__Vcellinp__ 端口注入形态)。行为正确性由全量测试守; 真伪甄别与
-// 结构化真修(交叉唤醒打拍)列为 FP 簇收尾项。
 module OooFpBackend #(
   parameter ROB_INDEX_W = `OOO_ROB_INDEX_W,
   parameter PHY_REG_ADDR_W = `OOO_PHY_REG_ADDR_W
@@ -84,6 +80,10 @@ module OooFpBackend #(
   input disp1_gpr_src_ready_i,
   output [PHY_REG_ADDR_W-1:0] disp1_frd_new_pdest_o,
   output [PHY_REG_ADDR_W-1:0] disp1_frd_old_pdest_o,
+
+  // T3C：DBE dispatch fire 的逐 lane 投影，是 FP rename/IQ 状态更新的唯一 accept。
+  input dispatch0_accept_i,
+  input dispatch1_accept_i,
 
   input fpld0_alloc_valid_i,
   input [`REG_ADDR_W-1:0] fpld0_alloc_arch_i,
@@ -172,8 +172,63 @@ module OooFpBackend #(
   // 无同拍 alloc 前视——FP 源受 lane 序约束不需要, 也避免跨模块组合环)。
   // 双 lane: lane0=disp0(算术)或 fpld0(load); lane1=disp1(算术)或 fpld1(load)。
   // ===========================================================================
+  localparam FP_IQ_ENTRY_INDEX_W = 3;
+  localparam FP_IQ_COUNT_W = FP_IQ_ENTRY_INDEX_W + 1;
+  localparam [FP_IQ_COUNT_W:0] FP_IQ_CAPACITY_EXT =
+      (1 << FP_IQ_ENTRY_INDEX_W);
+
+  // FreeList/FpIQ 的寄存 count 是唯一容量真源；子模块组合 ready 只保留作合同检查。
+  wire [`OOO_FREE_COUNT_W-1:0] fp_free_count_w;
+  wire [FP_IQ_COUNT_W-1:0] fp_iq_count_w;
+  wire [`OOO_FREE_COUNT_W:0] fp_free_count_ext_w =
+      {1'b0, fp_free_count_w};
+  wire [FP_IQ_COUNT_W:0] fp_iq_count_ext_w = {1'b0, fp_iq_count_w};
+
+  // raw resource intent：算术恒耗一个 FP-IQ credit；FPR 目的算术/load 各耗
+  // 一个 FPR credit。每 lane 的 arith/load 类别必须 onehot（断言见文件尾）。
+  wire fp_free_need0_w =
+      fpld0_alloc_valid_i || (disp_valid_i && disp_frd_en_i);
+  wire fp_free_need1_w =
+      fpld1_alloc_valid_i || (disp1_valid_i && disp1_frd_en_i);
+  wire fp_iq_need0_w = disp_valid_i;
+  wire fp_iq_need1_w = disp1_valid_i;
+
+  wire [`OOO_FREE_COUNT_W:0] fp_free_need0_ext_w =
+      {{`OOO_FREE_COUNT_W{1'b0}}, fp_free_need0_w};
+  wire [`OOO_FREE_COUNT_W:0] fp_free_need1_ext_w =
+      {{`OOO_FREE_COUNT_W{1'b0}}, fp_free_need1_w};
+  wire [`OOO_FREE_COUNT_W:0] fp_free_need_pair_ext_w =
+      fp_free_need0_ext_w + fp_free_need1_ext_w;
+  wire [FP_IQ_COUNT_W:0] fp_iq_need0_ext_w =
+      {{FP_IQ_COUNT_W{1'b0}}, fp_iq_need0_w};
+  wire [FP_IQ_COUNT_W:0] fp_iq_need1_ext_w =
+      {{FP_IQ_COUNT_W{1'b0}}, fp_iq_need1_w};
+  wire [FP_IQ_COUNT_W:0] fp_iq_need_pair_ext_w =
+      fp_iq_need0_ext_w + fp_iq_need1_ext_w;
+
+  wire fp_lane0_credit_w =
+      (fp_free_count_ext_w >= fp_free_need0_ext_w) &&
+      ((fp_iq_count_ext_w + fp_iq_need0_ext_w) <= FP_IQ_CAPACITY_EXT);
+  wire fp_packet_credit_w =
+      (fp_free_count_ext_w >= fp_free_need_pair_ext_w) &&
+      ((fp_iq_count_ext_w + fp_iq_need_pair_ext_w) <= FP_IQ_CAPACITY_EXT);
+  wire fp_admission_open_w = !recover_active_i && !kill_valid_i;
+
+  // lane0 是 local credit；lane1 恒随 packet accept，故使用两 lane need 精确和。
+  // 四个 legacy ready 名保留以缩小接口改面，但不再读取子模块 ready/fire。
+  assign disp_ready_o = fp_lane0_credit_w && fp_admission_open_w;
+  assign fp_alloc0_ready_o = fp_lane0_credit_w && fp_admission_open_w;
+  assign disp1_ready_o = fp_packet_credit_w && fp_admission_open_w;
+  assign fp_alloc1_ready_o = fp_packet_credit_w && fp_admission_open_w;
+
+  wire dispatch0_accept_w = dispatch0_accept_i && !flush_i &&
+                            !recover_active_i && !kill_valid_i;
+  wire dispatch1_accept_w = dispatch1_accept_i && !flush_i &&
+                            !recover_active_i && !kill_valid_i;
   wire disp_fire_w;
   wire disp1_fire_w;
+  assign disp_fire_w = disp_valid_i && dispatch0_accept_w;
+  assign disp1_fire_w = disp1_valid_i && dispatch1_accept_w;
   wire disp_frd_fire_w = disp_fire_w && disp_frd_en_i;
   wire disp1_frd_fire_w = disp1_fire_w && disp1_frd_en_i;
 
@@ -181,16 +236,10 @@ module OooFpBackend #(
   wire freelist_alloc1_ready_w;
   wire [PHY_REG_ADDR_W-1:0] freelist_alloc0_preg_w;
   wire [PHY_REG_ADDR_W-1:0] freelist_alloc1_preg_w;
-  wire fpld0_fire_w = fpld0_alloc_valid_i && fp_alloc0_ready_o && !flush_i &&
-                      !recover_active_i && !kill_valid_i;
-  wire fpld1_fire_w = fpld1_alloc_valid_i && fp_alloc1_ready_o && !flush_i &&
-                      !recover_active_i && !kill_valid_i;
+  wire fpld0_fire_w = fpld0_alloc_valid_i && dispatch0_accept_w;
+  wire fpld1_fire_w = fpld1_alloc_valid_i && dispatch1_accept_w;
   wire alloc0_valid_w = disp_frd_fire_w || fpld0_fire_w;
   wire alloc1_valid_w = disp1_frd_fire_w || fpld1_fire_w;
-  assign fp_alloc0_ready_o = freelist_alloc0_ready_w && !recover_active_i &&
-                             !kill_valid_i;
-  assign fp_alloc1_ready_o = freelist_alloc1_ready_w && !recover_active_i &&
-                             !kill_valid_i;
 
   reg [PHY_REG_ADDR_W-1:0] fp_map_q [0:`REG_NUM-1];
   integer mi;
@@ -248,8 +297,6 @@ module OooFpBackend #(
   wire [PHY_REG_ADDR_W-1:0] free1_preg_w =
       recover_active_i ? walk1_new_pdest_i : commit1_fp_old_pdest_i;
 
-  // 声明前置，iverilog 14 拒绝前向引用(实例端口连接须先声明)
-  wire [`OOO_FREE_COUNT_W-1:0] fp_free_count_unused_w;
   wire fp_free_empty_unused_w;
   wire fp_free_full_unused_w;
 
@@ -269,7 +316,7 @@ module OooFpBackend #(
     .free0_preg_i(free0_preg_w),
     .free1_valid_i(free1_valid_w),
     .free1_preg_i(free1_preg_w),
-    .free_count_o(fp_free_count_unused_w),
+    .free_count_o(fp_free_count_w),
     .empty_o(fp_free_empty_unused_w),
     .full_o(fp_free_full_unused_w)
   );
@@ -412,20 +459,8 @@ module OooFpBackend #(
   wire issue_dst_gpr_w;
   wire issue_dst_en_w;
   wire [PHY_REG_ADDR_W-1:0] issue_gpr_preg_w;
-  // 声明前置，iverilog 14 拒绝前向引用(实例端口连接须先声明)
-  wire [3:0] fp_iq_count_unused_w;
-
-  assign disp_ready_o = iq_dispatch_ready_w &&
-                        (!disp_frd_en_i || fp_alloc0_ready_o) &&
-                        !recover_active_i && !kill_valid_i;
-  assign disp1_ready_o = iq_dispatch1_ready_w &&
-                         (!disp1_frd_en_i || fp_alloc1_ready_o) &&
-                         !recover_active_i && !kill_valid_i;
-  assign disp_fire_w = disp_valid_i && disp_ready_o && !flush_i;
-  assign disp1_fire_w = disp1_valid_i && disp1_ready_o && !flush_i;
-
   OooFpIssueQueue #(
-    .ENTRY_INDEX_W(3),
+    .ENTRY_INDEX_W(FP_IQ_ENTRY_INDEX_W),
     .ROB_INDEX_W(ROB_INDEX_W),
     .PHY_REG_ADDR_W(PHY_REG_ADDR_W)
   ) u_fp_issue_queue (
@@ -498,7 +533,7 @@ module OooFpBackend #(
     .issue_fs2_preg_o(issue_fs2_preg_w),
     .issue_fs3_preg_o(issue_fs3_preg_w),
     .issue_gpr_preg_o(issue_gpr_preg_w),
-    .count_o(fp_iq_count_unused_w)
+    .count_o(fp_iq_count_w)
   );
 
   assign gpr_read_addr_o = issue_gpr_preg_w;
@@ -923,6 +958,40 @@ module OooFpBackend #(
   end
 
 `ifdef OOO_ASSERT
+  // T3C admission 合同：raw intent 不得混类；accepted fire 必须有对应的
+  // state-only credit，且下游 FreeList/FP-IQ 的防溢出 ready 必须同意本次更新。
+  always @(posedge clk) begin
+    if (!rst && !flush_i) begin
+      if (disp_valid_i && fpld0_alloc_valid_i)
+        $error("[FP-ADMISSION-RAW-ONEHOT] lane0 arith/load raw intent overlap @%0t",
+               $time);
+      if (disp1_valid_i && fpld1_alloc_valid_i)
+        $error("[FP-ADMISSION-RAW-ONEHOT] lane1 arith/load raw intent overlap @%0t",
+               $time);
+
+      if ((disp_fire_w || fpld0_fire_w) && !fp_lane0_credit_w)
+        $error("[FP-ADMISSION-CREDIT] lane0 accepted without lane0 credit @%0t",
+               $time);
+      if ((disp1_fire_w || fpld1_fire_w) && !fp_packet_credit_w)
+        $error("[FP-ADMISSION-CREDIT] lane1 accepted without packet credit @%0t",
+               $time);
+
+      if (alloc0_valid_w && !freelist_alloc0_ready_w)
+        $error("[FP-ADMISSION-FREELIST-READY] lane0 alloc without FreeList ready @%0t",
+               $time);
+      if (alloc1_valid_w && !freelist_alloc1_ready_w)
+        $error("[FP-ADMISSION-FREELIST-READY] lane1 alloc without FreeList ready @%0t",
+               $time);
+
+      if (disp_fire_w && !iq_dispatch_ready_w)
+        $error("[FP-ADMISSION-IQ-READY] lane0 arith accept without FP-IQ ready @%0t",
+               $time);
+      if (disp1_fire_w && !iq_dispatch1_ready_w)
+        $error("[FP-ADMISSION-IQ-READY] lane1 arith accept without FP-IQ ready @%0t",
+               $time);
+    end
+  end
+
   // GPR 目的 FP completion 只能完成 ROB/整数写回，禁止跨域广播 FPR wake。
   always @(posedge clk) begin
     if (!rst && !flush_i && fp_result_wb_valid_w &&
@@ -933,4 +1002,3 @@ module OooFpBackend #(
 
 
 endmodule
-/* verilator lint_on UNOPTFLAT */

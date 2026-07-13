@@ -49,6 +49,11 @@ module tb_ooo_dispatch_backend;
   reg [`TRAP_CAUSE_W-1:0] wb1_cause;
   reg [`XLEN-1:0] wb1_tval;
 
+  reg select_wakeup0_valid;
+  reg [PHY_REG_ADDR_W-1:0] select_wakeup0_pdest;
+  reg select_wakeup1_valid;
+  reg [PHY_REG_ADDR_W-1:0] select_wakeup1_pdest;
+
   wire issue0_valid;
   reg issue0_ready;
   wire [`XLEN-1:0] issue0_pc;
@@ -168,6 +173,10 @@ module tb_ooo_dispatch_backend;
     .wb1_cause_i(wb1_cause),
     .wb1_tval_i(wb1_tval),
     .wb1_fflags_i(5'b00000),
+    .select_wakeup0_valid_i(select_wakeup0_valid),
+    .select_wakeup0_pdest_i(select_wakeup0_pdest),
+    .select_wakeup1_valid_i(select_wakeup1_valid),
+    .select_wakeup1_pdest_i(select_wakeup1_pdest),
     .issue0_valid_o(issue0_valid),
     .issue0_ready_i(issue0_ready),
     .issue0_pc_o(issue0_pc),
@@ -274,6 +283,10 @@ module tb_ooo_dispatch_backend;
       wb1_exception = 1'b0;
       wb1_cause = {`TRAP_CAUSE_W{1'b0}};
       wb1_tval = 32'h0;
+      select_wakeup0_valid = 1'b0;
+      select_wakeup0_pdest = 6'd0;
+      select_wakeup1_valid = 1'b0;
+      select_wakeup1_pdest = 6'd0;
     end
   endtask
 
@@ -370,6 +383,8 @@ module tb_ooo_dispatch_backend;
     wb0_rob_idx = 4'd0;
     wb0_pdest = 6'd32;
     wb0_data = 32'h1111_0005;
+    select_wakeup0_valid = 1'b1;
+    select_wakeup0_pdest = 6'd32;
     #1;
     tb_check1("lane0 commit becomes valid via wb bypass", commit0_valid, 1'b1);
     tb_check32("lane0 commit old pdest via wb bypass", {26'b0, commit0_old_pdest}, 32'd5);
@@ -436,6 +451,99 @@ module tb_ooo_dispatch_backend;
     #1;
     tb_check32("freelist recovers after waw commits", {25'b0, free_count}, 32'd32);
     tb_check32("rob drains after waw", {27'b0, rob_count}, 32'd0);
+
+    // 隔离 T3B 周期场景并恢复 canonical free-list/ROB 索引，避免前序合法
+    // 分配轮转让定向使用的 pdest32/rob0 变成脆弱隐含前提。
+    flush = 1'b1;
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+
+    // ===== T3B full-only WB0：resident 不得在 N 拍被 select，但 full wakeup
+    // 必须同时更新 BusyTable 查询、IQ survivor sticky ready 与新 dispatch entry。 =====
+    set_dispatch0(32'h8000_0030, 5'd1, 1'b1, 5'd2, 1'b1, 5'd9, 1'b1);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("T3B WB0 producer issues", issue0_valid, 1'b1);
+    tb_check32("T3B WB0 producer issue pc", issue0_pc, 32'h8000_0030);
+    `TB_TICK(clk);
+    clear_inputs();
+
+    set_dispatch0(32'h8000_0034, 5'd9, 1'b1, 5'd0, 1'b0, 5'd10, 1'b1);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check32("T3B WB0 resident queued", {28'b0, issue_count}, 32'd1);
+    tb_check1("T3B WB0 resident initially waits", issue0_valid, 1'b0);
+
+    wb0_valid = 1'b1;
+    wb0_rob_idx = 4'd0;
+    wb0_pdest = 6'd32;
+    wb0_data = 32'h3333_0009;
+    set_dispatch0(32'h8000_0038, 5'd9, 1'b1, 5'd0, 1'b0, 5'd11, 1'b1);
+    #1;
+    tb_check1("T3B WB0 full-only dispatch accepted", dispatch0_ready, 1'b1);
+    tb_check1("T3B WB0 full-only resident not selected in N", issue0_valid, 1'b0);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("T3B WB0 resident issues in N+1", issue0_valid, 1'b1);
+    tb_check32("T3B WB0 resident keeps oldest pc", issue0_pc, 32'h8000_0034);
+    tb_check1("T3B WB0 dispatch absorbed BusyTable wakeup", issue1_valid, 1'b1);
+    tb_check32("T3B WB0 absorbed dispatch pc", issue1_pc, 32'h8000_0038);
+    `TB_TICK(clk);
+    clear_inputs();
+    flush = 1'b1;
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check32("T3B WB0 cleanup freelist", {25'b0, free_count}, 32'd32);
+    tb_check32("T3B WB0 cleanup rob", {27'b0, rob_count}, 32'd0);
+    tb_check32("T3B WB0 cleanup iq", {28'b0, issue_count}, 32'd0);
+
+    // ===== T3B full-only WB1：与 WB0 相同的 sticky/dispatch 合同，证明 lane1
+    // 不是因遗漏透传而退化成永不 select。 =====
+    set_dispatch0(32'h8000_0040, 5'd1, 1'b1, 5'd2, 1'b1, 5'd12, 1'b1);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("T3B WB1 producer issues", issue0_valid, 1'b1);
+    tb_check32("T3B WB1 producer issue pc", issue0_pc, 32'h8000_0040);
+    `TB_TICK(clk);
+    clear_inputs();
+
+    set_dispatch0(32'h8000_0044, 5'd12, 1'b1, 5'd0, 1'b0, 5'd13, 1'b1);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check32("T3B WB1 resident queued", {28'b0, issue_count}, 32'd1);
+    tb_check1("T3B WB1 resident initially waits", issue0_valid, 1'b0);
+
+    wb1_valid = 1'b1;
+    wb1_rob_idx = 4'd0;
+    wb1_pdest = 6'd32;
+    wb1_data = 32'h4444_000c;
+    set_dispatch0(32'h8000_0048, 5'd12, 1'b1, 5'd0, 1'b0, 5'd14, 1'b1);
+    #1;
+    tb_check1("T3B WB1 full-only dispatch accepted", dispatch0_ready, 1'b1);
+    tb_check1("T3B WB1 full-only resident not selected in N", issue0_valid, 1'b0);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("T3B WB1 resident issues in N+1", issue0_valid, 1'b1);
+    tb_check32("T3B WB1 resident keeps oldest pc", issue0_pc, 32'h8000_0044);
+    tb_check1("T3B WB1 dispatch absorbed BusyTable wakeup", issue1_valid, 1'b1);
+    tb_check32("T3B WB1 absorbed dispatch pc", issue1_pc, 32'h8000_0048);
+    `TB_TICK(clk);
+    clear_inputs();
+    flush = 1'b1;
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check32("T3B WB1 cleanup freelist", {25'b0, free_count}, 32'd32);
+    tb_check32("T3B WB1 cleanup rob", {27'b0, rob_count}, 32'd0);
+    tb_check32("T3B WB1 cleanup iq", {28'b0, issue_count}, 32'd0);
 
     // weak checkpoint capture/restore 场景已删（mode=0 专有恢复机制，dead silicon）；
     // mode=1 误预测恢复改用 ROB-walk reverse-undo（见 tb_ooo_rob 的 walk 测试），

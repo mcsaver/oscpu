@@ -129,7 +129,7 @@ module tb_ooo_branch_resolve_recovery_gate;
     #1;
     check1("pending pc match", branch_resolve_pending_pc_match, 1'b1);
     check1("pending owner match", branch_resolve_pending_match, 1'b1);
-`ifndef OOO_ROB_WALK_MODE
+    if (!`OOO_ROB_WALK_MODE) begin
     // mode=0 pending-based tracked-redirect contract. In mode=1 (ROB-walk de-pend)
     // branches go speculative dispatch; no pending branch ever drives this path, so the
     // pending tracked-redirect (and its prefetch-hit/misaligned blocking siblings) is bypassed.
@@ -144,7 +144,7 @@ module tb_ooo_branch_resolve_recovery_gate;
     #1;
     check1("misaligned blocks tracked redirect",
            branch_resolve_redirect, 1'b0);
-`endif
+    end
 
     reset_inputs();
     stop_pending = 1'b1;
@@ -153,11 +153,11 @@ module tb_ooo_branch_resolve_recovery_gate;
     core_branch_resolve_valid = 1'b1;
     trap_redirect_squash = 1'b1;
     #1;
-`ifndef OOO_ROB_WALK_MODE
+    if (!`OOO_ROB_WALK_MODE) begin
     // mode=0 pending tracked-redirect contract (bypassed in mode=1).
     check1("trap squash masks tracked redirect",
            branch_resolve_redirect, 1'b0);
-`endif
+    end
     check1("trap squash keeps pending match",
            branch_resolve_pending_match, 1'b1);
 
@@ -169,7 +169,11 @@ module tb_ooo_branch_resolve_recovery_gate;
     core_mem_idle = 1'b1;
     #1;
     check1("quiet backend", backend_execute_quiet, 1'b1);
-    check1("checkpoint capture", branch_spec_checkpoint_capture, 1'b1);
+    // T3E: checkpoint capture belongs exclusively to legacy mode 0.  Drive the
+    // otherwise unreachable legacy owner tuple in mode 1 so a missing local
+    // configuration gate cannot hide behind parent-level constant propagation.
+    check1("checkpoint capture mode contract",
+           branch_spec_checkpoint_capture, !`OOO_ROB_WALK_MODE);
     execute0_valid = 1'b1;
     #1;
     check1("execute busy blocks checkpoint",
@@ -213,17 +217,17 @@ module tb_ooo_branch_resolve_recovery_gate;
     check1("direct wait resolve match",
            direct_branch_wait_resolve_match, 1'b1);
     check1("direct wait untracked", direct_branch_wait_untracked, 1'b1);
-`ifndef OOO_ROB_WALK_MODE
+    if (!`OOO_ROB_WALK_MODE) begin
     // mode=0 untracked-redirect (direct-branch-wait path). In mode=1 untracked redirect
     // fires ONLY on explicit backend mispredict, so this path is bypassed.
     check1("untracked redirect", branch_resolve_untracked_redirect, 1'b1);
-`endif
+    end
     direct_branch_resolve_valid = 1'b1;
     #1;
     check1("direct resolve suppresses wait untracked",
            direct_branch_wait_untracked, 1'b0);
 
-`ifndef OOO_ROB_WALK_MODE
+    if (!`OOO_ROB_WALK_MODE) begin
     // mode=0 non-stop untracked-resolve contract (valid && !stop_pending && !pending_pc_match
     // && !direct_resolve). In mode=1 untracked fires ONLY on explicit mispredict, so this
     // whole untracked datapath (incl. the misaligned-untracked blocking sibling) is bypassed.
@@ -235,9 +239,9 @@ module tb_ooo_branch_resolve_recovery_gate;
     check1("non-stop untracked resolve", branch_resolve_untracked, 1'b1);
     check1("misaligned untracked redirect blocked",
            branch_resolve_untracked_redirect, 1'b0);
-`endif
+    end
 
-`ifndef OOO_ROB_WALK_MODE
+    if (!`OOO_ROB_WALK_MODE) begin
     // mode=0 untracked path includes the !branch_spec_resolve_valid_o suppression term.
     // In mode=1 that term is gone (untracked = mispredict-only), so this is mode=0-only.
     reset_inputs();
@@ -253,9 +257,9 @@ module tb_ooo_branch_resolve_recovery_gate;
     #1;
     check1("branch spec suppresses untracked",
            branch_resolve_untracked, 1'b0);
-`endif
+    end
 
-`ifdef OOO_ROB_WALK_MODE
+    if (`OOO_ROB_WALK_MODE) begin
     // mode=1 (ROB-walk de-pend) contract: untracked redirect fires ONLY on an explicit
     // backend mispredict (valid && mispredict && !misaligned), independent of any pending/
     // stop_pending/prefetch/direct-wait state. Drive the new de-pend mispredict input and
@@ -297,7 +301,7 @@ module tb_ooo_branch_resolve_recovery_gate;
     #1;
     check1("mode1 trap squash masks redirect",
            branch_resolve_untracked, 1'b0);
-`endif
+    end
 
     if (errors == 0) begin
       $display("[PASS] tb_ooo_branch_resolve_recovery_gate");

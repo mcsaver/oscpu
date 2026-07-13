@@ -43,4 +43,7 @@ iter7 后 **39 逻辑级 / logic ~7.95ns**(16 LUT6),仍是全核最深。
 
 ## 6. 变更记录
 - iter7(2026-06-28)：free list alloc1 并行读时序优化。
+- T3C(2026-07-13，进行中)：FP 簇不再把 FreeList/FpIQ 组合 ready/fire 反喂 packet valid；
+  采用 raw intent、寄存 count 精确 credit、mandatory pair joint admission 与 actual accept 更新。
+  六类合同及 0/1/2 credit 公式见 `ooo-fp-admission-credit.md`。整数 rename/alloc 语义不变。
 - 本规范(2026-06-28)：文档化子系统 + #1 关键路径分析 + 流水化方向。
