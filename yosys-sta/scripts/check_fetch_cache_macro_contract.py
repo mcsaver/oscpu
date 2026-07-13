@@ -18,6 +18,8 @@ from pathlib import Path
 REQUIRED_SPEC_PATTERNS = {
     "section": r"##\s+8\.\s+Macro/OOC Contract v1",
     "lookup_read_latency": r"lookup read latency\s*\|\s*`1 cycle`",
+    "physical_read_port": r"`lookup_read_en_i`[^\n]*(物理|physical)[^\n]*(SRAM|sram)",
+    "accept_requires_read": r"lookup_en_i\s*->\s*lookup_read_en_i",
     "write_visibility": r"write visibility\s*\|\s*`next lookup issue`",
     "same_cycle_priority": r"same-cycle priority\s*\|\s*reset/clear > blind invalidate > non-blocked fill",
     "reset_model": r"reset\s*\|\s*valid-only clear",
@@ -37,6 +39,7 @@ REQUIRED_BOUNDARY_PATTERNS = {
     "fetch_row": r"\|\s*OooFetchPacketCache\s*\|",
     "sram_macro_v1": r"OooFetchPacketCache[^\n]*SRAM macro v1",
     "one_cycle": r"OooFetchPacketCache[^\n]*1-cycle sync lookup read",
+    "read_accept_split": r"OooFetchPacketCache[^\n]*physical-read/semantic-accept split",
     "next_visibility": r"OooFetchPacketCache[^\n]*next-lookup-issue fill/invalidate visibility",
     "clear_valid": r"OooFetchPacketCache[^\n]*clear-valid-only",
     "state_bits": r"OooFetchPacketCache[^\n]*819200 state-bit",

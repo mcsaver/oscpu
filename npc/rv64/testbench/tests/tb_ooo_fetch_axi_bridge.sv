@@ -45,8 +45,10 @@ module tb_ooo_fetch_axi_bridge;
   localparam [1:0] RESP_PAGE_FAULT = 2'b10;
   localparam [3:0] S_IDLE_TB = 4'd0;
   localparam [3:0] S_WALK_AR_TB = 4'd1;
+  localparam [3:0] S_R0_TB = 4'd4;
   localparam [3:0] S_RESP_TB = 4'd7;
   localparam [3:0] S_AD_UPDATE_TB = 4'd8;
+  localparam [3:0] S_LOOKUP_TB = 4'd9;
   localparam [`XLEN-1:0] PTE_A_BIT_TB = 64'h40;  // bit 6 (Accessed)
   localparam [`XLEN-1:0] ROOT_PT = 64'h0000_0000_8100_0000;
   localparam [`XLEN-1:0] L1_PT = 64'h0000_0000_8100_1000;
@@ -375,6 +377,14 @@ module tb_ooo_fetch_axi_bridge;
       ifu_axi_rdata = lane_data;
       ifu_axi_rresp = RESP_OK;
       ifu_axi_rvalid = 1'b1;
+      #1;
+      if (dut.fetch_cache_fill_complete_w) begin
+        tb_check1("final R0 fill owns state", dut.state_q == S_R0_TB, 1'b1);
+        tb_check1("final R0 fill closes physical read window",
+                  dut.fetch_cache_read_window_w, 1'b0);
+        tb_check1("final R0 fill drives SRAM write",
+                  dut.u_fetch_packet_cache.sram_we_w, 1'b1);
+      end
       tick();
       ifu_axi_rvalid = 1'b0;
       ifu_axi_rdata = {`XLEN{1'b0}};
@@ -645,9 +655,19 @@ module tb_ooo_fetch_axi_bridge;
     fetch_rsp_ready = 1'b1;
     #1;
     tb_check1("fusion refetch pc1 ready", fetch_req_ready, 1'b1);
+    tb_check1("idle opens physical read window",
+              dut.fetch_cache_read_window_w, 1'b1);
+    tb_check1("idle fire is semantic lookup accept",
+              dut.fetch_req_fire_w, 1'b1);
+    tb_check1("idle fire enables payload SRAM",
+              dut.u_fetch_packet_cache.sram_en_w, 1'b1);
     tick();                       // fire PC1 → 判决拍
     fetch_req_pc = FUSION_PC2;    // 判决拍驱动下一请求(valid 保持)
     #1;
+    tb_check1("fusion decision stays in lookup",
+              dut.state_q == S_LOOKUP_TB, 1'b1);
+    tb_check1("lookup fusion keeps physical read window",
+              dut.fetch_cache_read_window_w, 1'b1);
     tb_check1("fusion hit rsp in 1 cycle", fetch_rsp_valid, 1'b1);
     tb_check32_local("fusion hit inst0", fetch_rsp_inst0,
                      FUSION_BEAT1[`INST_W-1:0]);
@@ -655,6 +675,10 @@ module tb_ooo_fetch_axi_bridge;
     tick();                       // 融合拍: PC1 rsp 消费 + PC2 fire, 留 S_LOOKUP
     fetch_req_valid = 1'b0;
     #1;
+    tb_check1("lookup dummy read has no semantic accept",
+              dut.fetch_req_fire_w, 1'b0);
+    tb_check1("lookup dummy read still enables payload SRAM",
+              dut.u_fetch_packet_cache.sram_en_w, 1'b1);
     tb_check1("fusion back-to-back second rsp", fetch_rsp_valid, 1'b1);
     tb_check32_local("fusion second inst0", fetch_rsp_inst0,
                      FUSION_BEAT2[`INST_W-1:0]);
@@ -678,8 +702,32 @@ module tb_ooo_fetch_axi_bridge;
     tb_check1("skid holds rsp valid", fetch_rsp_valid, 1'b1);
     tb_check32_local("skid holds inst0", fetch_rsp_inst0,
                      FUSION_BEAT1[`INST_W-1:0]);
+    tb_check1("response skid opens physical read window",
+              dut.fetch_cache_read_window_w, 1'b1);
+    tb_check1("response skid without request is dummy read",
+              dut.fetch_req_fire_w, 1'b0);
+
+    // S_RESP 消费旧响应的同拍必须可 accept 下一请求；否则只覆盖 S_IDLE/S_LOOKUP
+    // 会漏掉第三个物理读窗入口。
+    fetch_req_pc = FUSION_PC2;
+    fetch_req_valid = 1'b1;
     fetch_rsp_ready = 1'b1;
-    tick();                       // 消费
+    #1;
+    tb_check1("response skid accepts next request", fetch_req_ready, 1'b1);
+    tb_check1("response accept is semantic lookup",
+              dut.fetch_req_fire_w, 1'b1);
+    tb_check1("response accept enables payload SRAM",
+              dut.u_fetch_packet_cache.sram_en_w, 1'b1);
+    tick();                       // 消费 PC1 + 从 S_RESP accept PC2 → S_LOOKUP
+    fetch_req_valid = 1'b0;
+    #1;
+    tb_check1("response-accepted request reaches lookup",
+              dut.state_q == S_LOOKUP_TB, 1'b1);
+    tb_check1("response-accepted request returns cached packet",
+              fetch_rsp_valid, 1'b1);
+    tb_check32_local("response-accepted request payload",
+                     fetch_rsp_inst0, FUSION_BEAT2[`INST_W-1:0]);
+    tick();                       // 消费 PC2
     fetch_rsp_ready = 1'b0;
 
     // invalidate 拍融合关断: 判决拍撞不同地址的失效 → 组合 rsp 关闭(降级),

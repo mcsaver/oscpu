@@ -1,0 +1,12 @@
+status=PASS
+checked_at=2026-07-13T17:53:06+08:00
+protected_log=build/linux-logs/npc-linux.log
+protected_log_expected_sha256=3d66ffa3564aa5f5171604af9b13eb22b3cad3df771d5b37be556064bea64d15
+protected_log_current_sha256=3d66ffa3564aa5f5171604af9b13eb22b3cad3df771d5b37be556064bea64d15
+protected_log_backup=/tmp/ysyx-t3j-user-npc-linux.log
+protected_log_backup_sha256=3d66ffa3564aa5f5171604af9b13eb22b3cad3df771d5b37be556064bea64d15
+user_dirty_debug_t3j_sha256=3863f022cddf2f72818a0fddfe424be9308735d5bc9575d8b2703a8346cacb42
+user_dirty_frontend_t3j_sha256=065738b97763decb386b3eb48034556256dc346c384b75bc1ad67ddcd74c405a
+user_dirty_sim_top_t3j_sha256=94bbe2ceb997e2e7c0cd2f5f858797f3c7bcf0db293ea3a55b49ff6edced546a
+user_dirty_vsrc_t3i_t3j_match=PASS
+note=Regression and synthesis used the shared working tree, including these pre-existing user edits. Their hashes still match the T3I baseline and they are excluded from the T3J commit.

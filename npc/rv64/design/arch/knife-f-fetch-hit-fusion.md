@@ -5,6 +5,12 @@
 > 动机：刀 X 后 CoreMark 等待源分解 **fetch 占 90.8% 成唯一压倒性瓶颈**；根因=SRAM 化
 > 一期把 hit 吞吐砍半（S_LOOKUP 不在 ready 集合，1 包/2 拍=前端供给 1 指令/拍=双发射
 > 需求 50%），CPI 考证归因 +0.50。本刀恢复 hit 流 1 包/拍。
+>
+> **T3J supersession（2026-07-13）**：本文冻结的是刀 F 的 hit-fusion 语义与历史数据；
+> 其中“`lookup_en`/fire 发射 SRAM 读”的物理描述已由
+> `ooo-fetch-packet-cache.md` Contract v1 + T3J 超越。当前实现由
+> `fetch_cache_read_window_w={S_IDLE,S_RESP,S_LOOKUP}` 驱动物理读，fire/`lookup_en_i`
+> 只形成 semantic accept、锁存上下文和置判决资格；fusion 吞吐与 1-outstanding 语义不变。
 
 ## 1. 方案选型（三案对比后冻结 A）
 
@@ -38,6 +44,10 @@
   语义、前端全部记账。
 - **1RW 互斥保持**：ready 集合不含 S_R0/S_R1，lookup fire 与 fill 状态互斥不变，
   `CONTRACT-FPC-1RW` 断言原样看门。
+
+T3J 对上述物理端口合同的补充：S_IDLE/S_RESP/S_LOOKUP 的 read window 恒开，无 fire 时是
+无语义 dummy read；S_R0 final fill 时 read window=0、实际 write=1。1RW 断言现审核
+`lookup_read_en_i && sram_we_w`，另以 `FPC-ACCEPT-REQUIRES-READ` 审核 accept 必须落在读窗内。
 
 ## 3. 稳态时序与收益
 
@@ -99,3 +109,5 @@ CoreMark 0xfcaf。
 
 - 2026-07-10：spec 冻结（方案 A；B 否决=F2 雷区+改动半径；C 留作退出条件升级项）。
 - 2026-07-10（同日）：落地+R1 触发与修复（§6）。
+- 2026-07-13(T3J supersession)：hit-fusion 语义不变；物理 SRAM 读改由三态 read window
+  提前打开，semantic accept 与物理 `en_i` 解耦。当前合同以 fetch-cache/bridge dedicated spec 为准。

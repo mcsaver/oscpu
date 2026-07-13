@@ -9,8 +9,8 @@
   `OooFetchPacketCacheFacts.vh` 与 `OooDataWordCacheFacts.vh` 维护 debug 观测层 facts bit
   layout，用于审核 RTL 是否符合 spec 语义。
 - `decode/`：基础 decode、立即数生成、RVC 预译码、FP decode、OoO decode glue。
-- `cache/`：取指包 cache（4096 项直接映射 VIVT）与 data word cache（32KB 直接
-  映射 PIPT dcache，write-through/no-allocate）。
+- `cache/`：取指包 cache（4096 项直接映射 VIVT、1RW 同步读，物理读窗与语义 accept
+  分离）与 data word cache（32KB 直接映射 PIPT dcache，write-through/no-allocate）。
 - `rename_allocate/`：rename map、free list、busy table、dispatch/ROB/IQ 分配。
 - `scheduling/`：issue queue、wakeup/select 相关调度状态。
 - `regread_bypass/`：整数物理寄存器堆、FP 架构/物理寄存器堆（由

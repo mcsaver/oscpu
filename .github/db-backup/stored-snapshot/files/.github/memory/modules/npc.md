@@ -761,3 +761,20 @@ mismatch,与 FP 无关)。
   fast，IQ compaction/dispatch/kill-survivor state 继续吸收 full wakeup。周期合同为 long-op WB
   N 拍写 PRF/粘 IQ ready、N+1 select；ALU/load 仍 N 拍 select+bypass。只复用 full-WB payload
   再加分类 bit 无法结构断环，禁止该假切法。
+
+## 2026-07-13 T3J fetch read-window / semantic-accept split
+
+- `OooFetchAxiBridge.fetch_cache_read_window_w` 精确覆盖 S_IDLE、S_RESP、S_LOOKUP，直接驱动
+  FPC physical read；`fetch_req_fire_w`仍独占 semantic accept、五项请求context与`dec_en_q`。
+  S_LOOKUP保证hit fusion A→B，S_RESP保证消费旧response同拍accept B；S_R0 final fill
+  read=0/write=1。无accept的dummy read不得产生cache-visible命中。
+- `OooFetchPacketCache`新增accept=>read与physical-read/write互斥断言，facts扩为11位；TB动态
+  承重三态、different-index fusion、S_RESP accept、dummy与final fill。source AST、finite
+  proof与9类mutation还钉住live-PC地址源，防止功能仍绿但时序窗退回fire。
+- 完整功能无变化：96 module、177 official/privileged、AM、CoreMark cycle-exact；contract
+  ratchet86→87。fresh H7CL 5ns把旧fetch SRAM-enable top1结构性移除，WNS从旧路径
+  `-9.377`转为pending-trap `-8.840ns`，top40 pending=40/fetch=0。
+- 新root cause是`ex0_valid`经fast select/PRF/ALU/branch-kill/full-WB/ROB same-cycle commit，
+  再由commit-priority CSR access mux与head probe共享`CsrFile.csr_illegal`，扇到pending tval。
+  下一刀不得直接清宽payload或加false-path；推荐commit access与head probe双view、同一
+  legality predicate两次求值，并证明pre-edge policy、zero-rs1 write-intent、TVM/counteren。

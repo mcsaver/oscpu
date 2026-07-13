@@ -24,11 +24,12 @@
 
 | 端口组 | 方向 | 契约 |
 | --- | --- | --- |
-| `lookup_en_i` | 输入 | lookup fire 拍使能。当拍锁存 lookup 请求并发射 SRAM 同步读；**次拍(判决拍)** lookup 输出针对该锁存请求有效。fire 拍与 fill 拍必须互斥(SRAM 1RW)。 |
-| `lookup_paging_i/lookup_priv_i/lookup_satp_i` | 输入 | lookup 上下文(fire 拍采样)。paged lookup 必须比较 paging、priv、satp；bare lookup 只比较 paging=0，不比较 priv/satp。 |
-| `lookup_pc_i` | 输入 | lookup packet PC(fire 拍采样)。index 由 `lookup_pc_i[INDEX_W:1]` 形成。 |
+| `lookup_read_en_i` | 输入 | 物理 SRAM 同步读窗。可在没有语义请求的拍执行 dummy read；必须与实际 fill 写互斥(SRAM 1RW)。 |
+| `lookup_en_i` | 输入 | 语义 lookup accept。当拍锁存 lookup 请求并置次拍判决资格；必须满足 `lookup_en_i -> lookup_read_en_i`，但不再直接驱动 SRAM `en_i`。 |
+| `lookup_paging_i/lookup_priv_i/lookup_satp_i` | 输入 | lookup 上下文(语义 accept 拍采样)。paged lookup 必须比较 paging、priv、satp；bare lookup 只比较 paging=0，不比较 priv/satp。 |
+| `lookup_pc_i` | 输入 | lookup packet PC。物理读窗打开时作为读地址；只有语义 accept 拍才锁存为判决请求。index 由 `lookup_pc_i[INDEX_W:1]` 形成。 |
 | `lookup_context_hit_o` | 输出 | 判决拍有效：valid、paging 和 paged context 命中时为 1；不要求 exact PC 命中。非判决拍恒 0。 |
-| `lookup_hit_o` | 输出 | 判决拍有效：`lookup_context_hit_o`、exact PC，且 fire 拍与判决拍两拍窗口内均无 store footprint 重叠时为 1。非判决拍恒 0。 |
+| `lookup_hit_o` | 输出 | 判决拍有效：`lookup_context_hit_o`、exact PC，且 semantic accept 拍与判决拍两拍窗口内均无 store footprint 重叠时为 1。非判决拍恒 0。 |
 | `lookup_inst*/lookup_resp*` | 输出 | 判决拍的 SRAM 读出 payload。只有 `lookup_hit_o=1` 时才有语义。 |
 | `fill_valid_i/fill_*` | 输入 | 在 `posedge clk` 写入一条 packet(SRAM 写口)；若同拍 store footprint 与 fill PC 重叠，fill 必须被阻止。 |
 | `invalidate_valid_i/invalidate_addr_i` | 输入 | 已提交 store 驱动的 SMC 失效。盲失效：直接清 7 邻域 index 的 valid FF，不读 pc 比较。 |
@@ -41,15 +42,19 @@
   `Sram4096x199` 1RW 同步读宏；位段布局
   `{paging[198], priv[197:196], satp[195:132], pc[131:68], inst0[67:36], inst1[35:4], resp0[3:2], resp1[1:0]}`。
   `valid` 保持 `ENTRY_COUNT` bit FF(SRAM 内容无复位，全清/失效语义由 valid FF 承担)。
-- lookup 为两拍协议：fire 拍(`lookup_en_i`)锁存请求+发射 SRAM 读，判决拍(次拍)输出有效；
+- lookup 为两拍协议：物理读窗拍(`lookup_read_en_i`)发射 SRAM 读；其中只有语义 accept
+  (`lookup_en_i`)才锁存请求并置判决资格，判决拍(次拍)输出对该 accept 有效；
+  `lookup_read_en_i=1 && lookup_en_i=0` 的 dummy read 只可改变 raw SRAM rdata，不能形成
+  context/hit/payload 语义；
   fill/invalidate/clear 在 `posedge clk` 生效。
-- valid 在**判决拍**用锁存 index 组合读 FF(不随 SRAM 走)：fire 拍同拍到达的 invalidate
+- valid 在**判决拍**用锁存 index 组合读 FF(不随 SRAM 走)：semantic accept 拍同拍到达的 invalidate
   在拍尾清 valid，判决拍即可见(两拍窗口①的 FF 侧封堵)。
-- 两拍 store 窗口封堵：窗口①(fire 拍 store)由锁存旁路+判决拍 valid 读双保险；
+- 两拍 store 窗口封堵：窗口①(semantic accept 拍 store)由锁存旁路+判决拍 valid 读双保险；
   窗口②(判决拍才到的 store)由锁存 pc 对当拍 invalidate 的旁路比较压掉 hit。
 - reset/clear 只清 `valid_q`；payload/context 在 invalid entry 中不可作为语义值使用。
 - 同拍优先级为 reset/clear 优先；否则盲失效清 7 邻域 valid，且与同拍 store footprint 重叠的
-  fill 被阻止；未阻止的 fill(同 index 后写胜出)在同一时钟沿写入，从下一次 lookup fire 起可见。
+  fill 被阻止；未阻止的 fill(同 index 后写胜出)在同一时钟沿写入，从下一次 semantic lookup
+  accept 起可见。
 - 盲失效候选 index 覆盖 m6/m4/m2/p0/p2/p4/p6：与 store 足迹重叠的取指包 index 必落在该
   邻域内(精确失效集合的严格超集)，多清同 index 异 PC 的 entry 只损 hit 率不损正确性；
   8B store footprint 的高半取指包 `pc=base+4/base+6` 不漏失效。
@@ -57,7 +62,7 @@
 ## 4. 不变量
 
 - **FPC-I1 hit gating**：`lookup_hit_o -> lookup_context_hit_o`(判决拍)。
-- **FPC-I2 two-cycle store block**：锁存 lookup PC 与 fire 拍**或**判决拍 store footprint
+- **FPC-I2 two-cycle store block**：锁存 lookup PC 与 semantic accept 拍**或**判决拍 store footprint
   重叠时，`lookup_hit_o` 必须为 0(两拍窗口都要封)。
 - **FPC-I3 paged context**：paged lookup 命中必须同时匹配 `priv` 与 `satp`。
 - **FPC-I4 bare context**：bare lookup 不比较 `priv/satp`；同 index、paging=0 的 entry 允许在不同
@@ -69,22 +74,28 @@
   候选 index 的 valid(不读 pc 比较，超集覆盖)，不得只按 4B store footprint 失效。
 - **FPC-I9 decision frame**：非判决拍(上一拍无 `lookup_en_i`)时 `lookup_hit_o` 必须为 0，
   防止 stale SRAM rdata 被误当命中。
-- **FPC-I10 1RW exclusivity**：`lookup_en_i` 与 `fill_valid_i` 不得同拍(使用方 FSM 保证；
-  cache 内 `OOO_ASSERT` 立即断言 `[CONTRACT-FPC-1RW]` 把关)。
+- **FPC-I10 1RW exclusivity**：`lookup_read_en_i` 与实际 SRAM fill 写(`sram_we_w`)不得同拍
+  (使用方 FSM 保证；cache 内 `OOO_ASSERT` 立即断言 `[CONTRACT-FPC-1RW]` 把关)。
+- **FPC-I11 accept requires read**：`lookup_en_i -> lookup_read_en_i`；违约由
+  `[FPC-ACCEPT-REQUIRES-READ]` 精确报错。
+- **FPC-I12 dummy-read noninterference**：没有 `lookup_en_i` 的物理读不得置判决资格，次拍
+  `lookup_context_hit_o/lookup_hit_o` 必须仍为 0；raw payload 只有 hit 时才有语义。
 
 ## 5. debug/common 审核
 
 当前审核层由两部分组成：
 
 - `vsrc/common/OooFetchPacketCacheFacts.vh`：定义 `LOOKUP_CONTEXT_HIT`、`LOOKUP_HIT`、
-  `LOOKUP_INVALIDATED`、`FILL_BLOCKED_BY_STORE`、`INVALIDATE`、`CLEAR` 等外部观测 facts。
-  lookup 类 facts 的参照系是判决拍(fire 拍锁存请求)；该表只描述 spec 语义，不规定
+  `LOOKUP_INVALIDATED`、`LOOKUP_READ`、`LOOKUP_ACCEPT`、`FILL_BLOCKED_BY_STORE`、
+  `INVALIDATE`、`CLEAR` 等外部观测 facts。
+  lookup 类 facts 的参照系是判决拍(semantic accept 拍锁存请求)；该表只描述 spec 语义，不规定
   cache 的物理编码。
-- `vsrc/debug/OooFetchPacketCacheChecker.sv`：在 focused TB 中旁挂到真实端口，自建 fire 拍
+- `vsrc/debug/OooFetchPacketCacheChecker.sv`：在 focused TB 中旁挂到真实端口，自建 semantic accept 拍
   锁存影子模型(`lookup_en_i` 次拍为判决拍)，投影 facts 并用立即断言检查
   FPC-I1(`FPC-HIT-GATE`)/FPC-I2(`FPC-LOOKUP-INVALIDATED`，两拍窗口)/FPC-I9(`FPC-HIT-FRAME`)。
-  它不进入 `RTL_CORE_SRCS`，不参与综合面积。FPC-I10 的 `[CONTRACT-FPC-1RW]` 断言在
-  cache RTL 内(`OOO_ASSERT` 编译门控)。
+  它不进入 `RTL_CORE_SRCS`，不参与综合面积。FPC-I10/FPC-I11 的
+  `[CONTRACT-FPC-1RW]`/`[FPC-ACCEPT-REQUIRES-READ]` 断言在 cache RTL 内
+  (`OOO_ASSERT` 编译门控)。
 
 后续若把取指包 cache 换成 SRAM/macro/OOC module，必须先保持本 checker PASS，或在本文件中
 记录被替代的不变量、替代检查和豁免理由。
@@ -101,11 +112,13 @@
 - 8B store footprint 对 `pc=base+4/base+6` 高半取指包失效；
 - 同拍 store footprint 阻止同窗口 fill；
 - blocked fill 后 refill 可见；
-- 两拍窗口①：store 与 lookup fire 同拍时判决拍 miss；
+- 两拍窗口①：store 与 semantic lookup accept 同拍时判决拍 miss；
 - 两拍窗口②：store 在判决拍才到达时 context hit 但 hit 被旁路压 0，且下一拍 entry 已被盲失效；
 - clear 整体清 valid。
+- T3J 物理 dummy read 打开 SRAM `en_i`，但次拍不形成 context/hit 判决；正常 semantic accept
+  仍可命中；两个独立 negative probe 分别命中 accept-without-read 与 physical-read/write 冲突 marker。
 
-所有 lookup 都按两拍协议驱动(`set_lookup` 内含 fire 拍 tick，判决拍采样)。
+所有语义 lookup 都按两拍协议驱动(`set_lookup` 同拍拉高 read+accept，tick 后在判决拍采样)。
 
 建议命令：
 
@@ -143,12 +156,12 @@ v1 采用 **SRAM-macro-inside-module boundary**：模块名 `OooFetchPacketCache
 
 | 类别 | v1 假设 | 说明 |
 | --- | --- | --- |
-| lookup read latency | `1 cycle` | 同步读：`lookup_en_i` fire 拍锁存请求+发射 SRAM 读，次拍(判决拍)`lookup_context_hit_o/lookup_hit_o/lookup_inst*/lookup_resp*` 针对锁存请求有效；非判决拍 hit 输出恒 0。 |
+| lookup read latency | `1 cycle` | 同步读：`lookup_read_en_i` 发射物理读，`lookup_en_i` 同拍语义 accept 并锁存请求；次拍(判决拍)`lookup_context_hit_o/lookup_hit_o/lookup_inst*/lookup_resp*` 针对锁存请求有效。dummy read 无判决资格，非判决拍 hit 输出恒 0。 |
 | write edge | `posedge clk` | `fill_valid_i`(SRAM 写口)、`invalidate_valid_i` 与 `clear_i`(valid FF) 均在时钟沿维护内部状态。 |
-| write visibility | `next lookup issue` | fill/invalidate/clear 在拍尾生效；对下一次 fire 的 lookup(判决拍再 +1 拍)可见。fire 拍同拍 invalidate 由判决拍 valid FF 读+锁存旁路封堵，判决拍同拍 invalidate 由锁存 pc 旁路封堵。 |
+| write visibility | `next lookup issue` | fill/invalidate/clear 在拍尾生效；对下一次 semantic lookup accept(判决拍再 +1 拍)可见。accept 拍同拍 invalidate 由判决拍 valid FF 读+锁存旁路封堵，判决拍同拍 invalidate 由锁存 pc 旁路封堵。 |
 | same-cycle priority | reset/clear > blind invalidate > non-blocked fill | reset/clear 清 valid；盲失效清 7 邻域 index；store footprint 命中的 fill 被阻止；未阻止 fill 同 index 后写胜出。 |
 | reset | valid-only clear | reset/clear 只清 `valid_q`；SRAM 内容无复位，invalid entry 的 context/payload 无语义值。 |
-| read ports | one synchronous 1RW SRAM port | lookup 读(fire 拍)与 fill 写分拍复用同一 1RW 口，使用方 FSM 保证互斥(`[CONTRACT-FPC-1RW]` 断言)；valid 为判决拍组合读 FF，不走 SRAM。 |
+| read ports | one synchronous 1RW SRAM port | 物理读窗与 fill 实际写分拍复用同一 1RW 口；bridge 仅在 S_IDLE/S_RESP/S_LOOKUP 打开读窗，fill 只在最终成功 S_R0，使用方 FSM 保证互斥(`[CONTRACT-FPC-1RW]`)；语义 accept 必须落在读窗内(`[FPC-ACCEPT-REQUIRES-READ]`)；valid 为判决拍组合读 FF，不走 SRAM。 |
 
 ### 8.3 Area Placeholder
 
@@ -190,3 +203,7 @@ v1 采用 **SRAM-macro-inside-module boundary**：模块名 `OooFetchPacketCache
   新增 FPC-I9(判决拍框架)/FPC-I10(1RW 互斥) 与 `[CONTRACT-FPC-1RW]`/`FPC-HIT-FRAME` 断言；
   satp/paging/priv tag 原样保留(`OOO_CSR_QUEUE_HEAD=1` 时 satp 写不拉 mmu_flush，
   satp tag 是唯一防线)。819200 state bits 数值不变(4096 valid FF + 815104 SRAM 宏 bits)。
+- 2026-07-13(T3J)：把物理 `lookup_read_en_i` 与语义 `lookup_en_i` accept 拆分；bridge 在
+  S_IDLE/S_RESP/S_LOOKUP 预开读窗，accept 仍单独锁存 context/判决资格。新增 FPC-I11/I12、
+  facts、dummy-read/S_RESP/fill 动态覆盖和两个精确 negative marker；不改变 1-cycle latency、
+  1RW 宏、cache-visible 命中语义或 819200 state-bit 合同。

@@ -1,7 +1,8 @@
 // OooFetchPacketCache 外部观测 checker。
 // 只用于仿真/测试的 debug 层：读真实端口，投影 common facts，并审核 cache-visible spec 语义。
-// SRAM 同步读两拍协议参照系：checker 在 fire 拍(lookup_en_i)自行锁存请求，
-// 判决拍(次拍)对 lookup_hit_i/lookup_context_hit_i 断言 —— 与 DUT 内部锁存同参照系。
+// SRAM 同步读两拍协议参照系：lookup_read_en_i 只描述物理 SRAM 读窗；checker 在
+// 语义 accept 拍(lookup_en_i)自行锁存请求，判决拍(次拍)对
+// lookup_hit_i/lookup_context_hit_i 断言 —— 与 DUT 内部锁存同参照系。
 `include "define.v"
 `include "common/OooFetchPacketCacheFacts.vh"
 
@@ -10,6 +11,7 @@ module OooFetchPacketCacheChecker (
   input wire rst,
   input wire clear_i,
 
+  input wire lookup_read_en_i,
   input wire lookup_en_i,
   input wire lookup_paging_i,
   input wire [1:0] lookup_priv_i,
@@ -40,7 +42,7 @@ module OooFetchPacketCacheChecker (
     end
   endfunction
 
-  // fire 拍锁存(两拍协议影子模型): lkp_en_q=1 的拍即判决拍。
+  // accept 拍锁存(两拍协议影子模型): lkp_en_q=1 的拍即判决拍。
   reg lkp_en_q;
   reg [`XLEN-1:0] lkp_pc_q;
   reg lkp_inv_fire_q;
@@ -57,7 +59,7 @@ module OooFetchPacketCacheChecker (
     end
   end
 
-  // 两拍窗口: 窗口①=fire 拍 store footprint(锁存), 窗口②=判决拍 store footprint
+  // 两拍窗口: 窗口①=accept 拍 store footprint(锁存), 窗口②=判决拍 store footprint
   // (锁存 pc 对当拍 invalidate)。任一重叠都必须挡 hit。
   wire lookup_invalidated_w =
       lkp_en_q &&
@@ -77,6 +79,8 @@ module OooFetchPacketCacheChecker (
   assign facts_w[`OOO_FPC_CLEAR] = clear_i;
   assign facts_w[`OOO_FPC_PAGED_LOOKUP] = lookup_paging_i;
   assign facts_w[`OOO_FPC_BARE_LOOKUP] = !lookup_paging_i;
+  assign facts_w[`OOO_FPC_LOOKUP_READ] = lookup_read_en_i;
+  assign facts_w[`OOO_FPC_LOOKUP_ACCEPT] = lookup_en_i;
 
   wire _unused_facts_w =
       |facts_w | (|lookup_priv_i) | (|lookup_satp_i) |
@@ -102,7 +106,7 @@ module OooFetchPacketCacheChecker (
 
   always @(posedge clk) begin
     if (!rst && lkp_en_q && lookup_hit_i && lookup_invalidated_w) begin
-      $error("[FPC-LOOKUP-INVALIDATED] fire/decision-cycle store footprint must block hit: pc=%h store=%h @%0t",
+      $error("[FPC-LOOKUP-INVALIDATED] accept/decision-cycle store footprint must block hit: pc=%h store=%h @%0t",
              lkp_pc_q, invalidate_addr_i, $time);
       $fatal;
     end

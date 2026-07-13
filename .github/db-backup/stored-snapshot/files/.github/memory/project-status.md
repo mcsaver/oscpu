@@ -741,3 +741,22 @@ flush 契约诊断确认 UC-A：整数 MulDiv/CLMUL **独缺 mispredict-kill 端
   和 1 条 FP dual-lane credit/ready 真环。下一 timing 刀采用独立 EX/MEM-only fast broadcast：
   full WB 继续写 ROB/BusyTable/IQ state/PRF，MulDiv/CLMUL 只退出同拍 IQ select 与 PRF read0–3
   bypass，预计只给 long-op dependency +1 拍并保留 ALU/load 快路；FP credit 环独立修复。
+
+## 2026-07-13 RV64 T3J fetch-cache physical read window
+
+- T3J 把 `OooFetchPacketCache` 的物理 `lookup_read_en_i` 与 semantic `lookup_en_i`
+  accept 拆分。bridge 的物理窗严格是 S_IDLE/S_RESP/S_LOOKUP；fill 只在最终 S_R0，
+  `sram_en=read_window||sram_we`，context/decision仍只由accept驱动，地址仍用live PC。
+- source gate、1024-case finite proof、9/9 mutation、两个精确negative marker全绿；module
+  96/96、official+privileged 177/177、AM、lint/style/contract87均PASS。CoreMark保持
+  `3020147 cycles / 3218532 commits / CPI .938 / CRC fcaf`，与T3I周期级一致。
+- fresh netlist `e5ae3b37...8349a`；H7CL 5ns directed proof确认旧accept→SRAM-en路径消失、
+  state-only CK→Q→`state_q_{0,6,8}`三条真实上游、PC→addr 12/12保留。global top40全转
+  pending trap，WNS/TNS=`-8.840/-199477.67ns`，power `0.117W`，独立target checker rc=1。
+- fresh STA 60-member archive与OS `/tmp`唯一持久T3J对象均已放入workspace并通过
+  inventory/SHA；源未删除。综合仅冻结5个flow inputs，audit明确
+  `limited_freeze_inputs=5`，最终达标刀必须扩展PDK/lib/tool/config pre/post provenance。
+- 本刀功能/结构/定向时序闭合但父goal仍active。T3K首选把commit CSR side-effect access
+  与head CSR无副作用legality probe拆成双view，复用同一predicate，切断
+  EX→WB→ROB commit→共享CSR legality→pending payload长链。证据：
+  `.github/task-runs/2026-07-13-rv64-t3j-fetch-read-window/`。

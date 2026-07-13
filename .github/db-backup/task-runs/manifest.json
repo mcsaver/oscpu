@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T11:40:43+00:00",
-  "updated_at": "2026-07-13T08:23:55+00:00",
+  "updated_at": "2026-07-13T09:50:27+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -31266,6 +31266,126 @@
       "sha256": "0a9b8cced251a118173521b01e36457e8fc514996bded90ea5bdfc0827b08fa5",
       "backup_source": "filesystem",
       "archived_at": "2026-07-13T06:49:58+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3j-agent-system-final/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 10102,
+      "sha256": "7378da43f951eeb320583e854456470fbfe4da8626656ac0ffe4430920956081",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T09:50:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3j-agent-system-final/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 11238,
+      "sha256": "b915b4cdae9ff65e20c93925e36d423dc17802fbd0c151b6af5fabb1096bdbb1",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T09:50:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3j-agent-system-final/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 6028,
+      "sha256": "2192b9db0e77ae4839dd16902ae78b3a5bc7ab3f6fe25d5b2915a9469af8accc",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T09:50:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3j-agent-system-final/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1673,
+      "sha256": "8b3d126d3085198342ff9baaf11ab584946588b0f3e6cb90887f03a220bfff7c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T09:50:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3j-agent-system-final/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 6127,
+      "sha256": "87ded436520a81ce52788dc61e816a24a700966bfa76786827dad44a8146610b",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T09:50:24+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3j-fetch-read-window-final/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 7707,
+      "sha256": "0c0844a501fe5e229e46e535381bb68313d3d276a935be4f826abd005ec61946",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T09:49:40+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3j-fetch-read-window-final/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5909,
+      "sha256": "f6ca909980da236eae8cdb6e1e20e98b188bd734ced13be9d80f5d89eaeaf6e1",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T09:49:40+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3j-fetch-read-window-final/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 3116,
+      "sha256": "c2f3d444e4f1f528dc7332bf26e478b89366894d7639e3264c0c5d79f2c66702",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T09:49:40+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3j-fetch-read-window-final/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T09:49:40+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3j-fetch-read-window-final/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4529,
+      "sha256": "6ec4960420514420f1e3b9d0d4dfc50ec3f7308fe425b04d9935ccd07dd99ed8",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T09:49:40+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3j-yosys-sta-final/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 8422,
+      "sha256": "b56cacf8274ccf4c301df6e28518327f7080bd7eb53e490770c85a40e0e49666",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T09:50:27+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3j-yosys-sta-final/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 7819,
+      "sha256": "0ee9b7161c9f0deba07704813ee4abbf9a7b8868026488f993ab5f0aaeb806df",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T09:50:27+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3j-yosys-sta-final/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 4462,
+      "sha256": "d8fc1e7cec8d29f6138a13cd24bab16bb3e478d60d8cafd765259bc6bd53e78e",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T09:50:27+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3j-yosys-sta-final/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 1224,
+      "sha256": "dde391f86398c9befee19f7e780eeb9547b77edb2df5de88b5c3652f595e3bf2",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T09:50:27+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3j-yosys-sta-final/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4951,
+      "sha256": "784c7d3a65611b77589886bdffbe9568c49fc782f4c176a6958bcc8e111596de",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T09:50:27+00:00"
     }
   ]
 }

@@ -15,7 +15,7 @@
 ## 2. 接口（要点）
 | 信号 | 含义 |
 | --- | --- |
-| `fetch_req_valid_i/ready_o` + `fetch_req_pc_i` | 取指请求。fire 后在下一拍 S_LOOKUP 判决；hit 且 response 可接收时可同拍受理下一请求，命中稳态吞吐 1 packet/cycle |
+| `fetch_req_valid_i/ready_o` + `fetch_req_pc_i` | 取指请求。S_IDLE/S_RESP/S_LOOKUP 物理 SRAM 读窗提前打开，fire 只形成语义 accept 并锁存上下文；下一拍 S_LOOKUP 判决。hit 且 response 可接收时可同拍受理下一请求，命中稳态吞吐 1 packet/cycle |
 | `fetch_rsp_*`（inst0/inst1/resp0/resp1） | 返回 raw packet。成功=`(OK,OK)`；fault 使用 successful-prefix/fault-suffix `(OK,cause)`，不是最终 per-slot response |
 | `fetch_rsp_resp0_bytes_o` | 成功/cache=4；fault=首个失败 halfword offset `F∈{0,2,4,6}`。0 是合法 first-halfword fault。与 response 同 owner、同 stall 生命周期 |
 | `ifu_axi_araddr/arsize/arprot` | instruction data=`translate(PC+offset),2B,exec`；PTE walk=`pte_addr,8B,data`。valid stall 时 payload 保持 |
@@ -61,9 +61,11 @@ channel accepted，sticky `ad_drop_q` 持有语义 drop。xbar 只保存/路由�
 
 ## 3. 主要数据通路
 - **取指包 cache** `OooFetchPacketCache`：按 {PC, satp/priv 上下文} 命中，返回 inst0/1+resp0/1。
-  SRAM 同步读协议：fire 拍(`fetch_req_fire_w`)发射 `lookup_en_i` 并锁存请求上下文
-  (pc_q/paging_q/req_priv_q/req_satp_q)，判决在次拍 `S_LOOKUP` 完成；fill 只在最终成功的 S_R0，
-  与 lookup fire 状态互斥(cache 内 1RW 断言把关)。S_LOOKUP hit 组合回包且
+  SRAM 同步读协议把物理读窗与语义 accept 分开：`fetch_cache_read_window_w` 在
+  S_IDLE/S_RESP/S_LOOKUP 恒为 1，直接驱动 `lookup_read_en_i`；`fetch_req_fire_w` 只驱动
+  `lookup_en_i` 并锁存请求上下文(pc_q/paging_q/req_priv_q/req_satp_q)。无 fire 的 dummy read
+  不置判决资格；判决在次拍 `S_LOOKUP` 完成。fill 只在最终成功的 S_R0，此时读窗为 0，
+  与物理读严格互斥(cache 内 1RW 断言把关)。S_LOOKUP hit 组合回包且
   `fetch_rsp_ready_i=1` 时可融合下一次 request accept，因此稳态不是 1/2。
 - **ITLB** `OooSv39Tlb`：paging 时翻译 PC→paddr；miss 触发 page table walk(S_WALK_*)。
   lookup 输入接 fire 拍锁存值(pc_q/req_satp_q/paging_q)，使组合输出与 cache SRAM 读数在
@@ -84,6 +86,21 @@ channel accepted，sticky `ad_drop_q` 持有语义 drop。xbar 只保存/路由�
 - **Svnapot 64KiB**：page walk 只接受 level0 leaf 且 `PTE.N=1 && PTE.PPN[3:0]=4'b1000`；
   非 leaf、level1/2 leaf 或其它 NAPOT 编码均报 instruction page fault。合法 leaf 的 PA 拼接使用
   VA[15:12] 替代 PTE.PPN[3:0]，再进入 PMP 与 fetch cache fill。
+
+取指 cache 1RW 端口所有权冻结如下：
+
+| bridge 状态/事件 | `lookup_read_en_i` | semantic accept (`lookup_en_i`) | SRAM 写 | 可见语义 |
+| --- | ---: | ---: | ---: | --- |
+| S_IDLE | 1 | 仅 request fire | 0 | 无 fire 为 dummy；fire 锁存 live request PC/context |
+| S_RESP | 1 | 仅旧 response 被接收且新 request valid | 0 | stall 为 dummy；可消费旧响应同拍 accept 新请求 |
+| S_LOOKUP | 1 | 仅 hit-fusion request fire | 0 | 无新 fire 为 dummy；必须覆盖 A→B 融合读 |
+| S_R0 final successful fill | 0 | 0 | 1 | fill PC/payload 写入；物理读写严格互斥 |
+| 其它 walk/AR/R/drain/write 状态 | 0 | 0 | 0 | 不占 payload SRAM 端口 |
+
+`mmu_flush_i` 组合压低 ready/fire 并在拍尾 clear valid，但不组合关掉上述 state-only 读窗；
+因此 flush 撞 S_IDLE/S_RESP/S_LOOKUP 只产生无判决资格的 dummy read。读地址仍取 live
+`fetch_req_pc_i[INDEX_W:1]`，写地址才取 fill PC；raw SRAM payload 在 semantic hit=0 时
+是 don't-care，禁止被任何架构路径消费。
 
 ### 3.1 IFU-AXI-G1 状态 / 子模式
 
@@ -158,8 +175,8 @@ slow path checker reject at F -> no AR, raw response=(OK, ACCESS_FAULT, F)
 
 ## 5. 状态机（简）
 ```
- S_IDLE/S_RESP --req fire(锁存+lookup_en)--> S_LOOKUP
- S_LOOKUP --hit+rsp_ready--> S_LOOKUP(同拍接受下一请求) / S_RESP
+ S_IDLE/S_RESP --物理读窗已开；req fire(语义 accept+锁存)--> S_LOOKUP
+ S_LOOKUP(物理读窗保持) --hit+rsp_ready--> S_LOOKUP(同拍接受下一请求) / S_RESP
  S_LOOKUP --miss,no-trans/itlb-hit--> S_AR0(exact PMP+AR)/S_R0(2B gather)
  S_R0 --more,same-page--> S_AR0
  S_R0 --more,next-page,paging--> S_WALK_AR/S_WALK_R(三级) --> S_AR0
@@ -215,8 +232,11 @@ A/D：leaf PTE 的 A=0 进入 `S_AD_UPDATE`，AW/W 可独立握手；两通道�
   privileged rv64mi/rv64si；这些证据关闭 IFU owner 合同，不越级证明全部 ISA/特权范围。
 
 ## 7. 关键路径
-PMP(16 entry) × 两槽 + ITLB + cache 命中比较并行，全部移到 S_LOOKUP 判决拍(以锁存请求为源)，
-fire 拍只剩锁存；原 fire 拍长组合链被同步读切断。
+PMP(16 entry) × 两槽 + ITLB + cache 命中比较并行，全部移到 S_LOOKUP 判决拍(以锁存请求为源)。
+T3J 进一步让 SRAM `en_i` 只依赖三态读窗(S_IDLE/S_RESP/S_LOOKUP)，不再依赖 request
+valid/ready/fire 长组合锥；fire 拍只锁存语义上下文。S_LOOKUP 必须保持读窗，承接融合 A→B；
+S_RESP 必须保持读窗，承接消费旧响应同拍 accept B；S_R0 fill 拍必须关闭读窗。
+该结构刀是否改善当前 5ns WNS 只由新鲜同源综合/STA 判定，不能凭 RTL 结构宣称 200MHz。
 exact miss 不再有 RDATA→下一 AR 的组合链；但最终 S_R0 仍存在
 `RDATA -> address-lane shift -> halfword insert -> length判定 -> fetch-cache fill` 同拍锥。
 fresh STA 若把该锥排进 leading family，下一刀应把 lane 抽取改为固定四路 case，并增加
@@ -251,6 +271,10 @@ cache 模块级 1-cycle 同步读两拍协议、盲失效与 819200 state-bit lo
   统一 success `(OK,OK,4)` / fault `(OK,cause,F)`；fixed 4B PMP 只作 fast gate；ARSIZE/
   ARPROT 贯穿 xbar/slave，DPI 使用标准 instruction lane 和 exact host range；device execute
   请求进 default-error；pred-NT branch 后 lane1 PF/AF 保留到 branch resolve。
+- 2026-07-13(T3J)：把 fetch-cache 物理读窗与 semantic accept 拆分：读窗固定覆盖
+  S_IDLE/S_RESP/S_LOOKUP，`fetch_req_fire_w` 仅锁存请求与置判决资格，S_R0 fill 物理写与读窗
+  互斥。focused TB 新增 S_IDLE/S_LOOKUP/S_RESP 连续读、dummy read、S_RESP accept 与 final-fill
+  动态承重；时序结论等待冻结网表的 5ns STA。
 
 ## 已知隐患(2026-06-28 bug-hunt)
 - **[已修复]** 跨页已缓存包槽1 PMP 复检用错物理地址(`req_exec1_paddr_w=paddr0+4` 对跨页是错页);PMP 运行期 allow→deny 第二页且无取指 cache 失效时可绕过槽1 PMP。详见 `.github/memory/known-issues.md`(隐患B)。根因修复:**跨页取指包不缓存**(fill 条件含 `!packet_cross_page_q`,每次重取经 walk-leaf checker 用正确物理地址重查两页 PMP,`OooFetchAxiBridge.v:279-296` 注释自证);非跨页包内 `paddr0+4` 恒同页,复检恒正确。

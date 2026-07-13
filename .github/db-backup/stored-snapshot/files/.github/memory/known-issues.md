@@ -1491,3 +1491,21 @@
   bypass（full WB/state wakeup/kill不变），fresh STA目标 loops=1；再以 raw intent/actual accept
   分离和寄存 resource credit 关闭 FP 真环。两刀都必须有非真空 RED、CoreMark/全回归和 fresh
   5ns A/B；关闭前不得宣称 200MHz。
+
+## 2026-07-13 T3J 后 200MHz 未闭合：共享 CSR legality→pending payload
+
+- T3J 已结构性移除旧 request/fire→fetch payload SRAM-enable top1；fresh H7CL 5ns的top40
+  现全是pending-trap，WNS仍`-8.840ns`、TNS`-199477.67ns`，target checker rc=1。
+- 40条当前榜单直接证明同一起点`ex0_valid_q`到`pending_trap_tval[0..39]`同族；完整链经过
+  fast-select/PRF/ALU、branch→MulDiv kill、full-WB、ROB same-cycle completion/commit、
+  commit-priority CSR access、共享CsrFile legality、lane capture和宽pending mux。
+- 禁止把它简化为“宽payload清零扇出”：event mux仍用`pending_trap_pc!=0`作fallback validity，
+  历史GAP-6证明stale payload能触发spurious trap。直接预装payload/窄valid必须先引入显式
+  payload_valid并移除pc fallback，风险高。
+- T3K首选零预期CPI的CSR双view：现有access/readback/commit side effect口不变；新增只依赖
+  head0/head1的无副作用probe addr/funct3/rs1，CsrFile用唯一pure legality predicate分别计算
+  access和probe。probe不得引用commit/pending selector，不得观察同拍post-edge CSR state；
+  policy transition只能squash younger probe。必须以cross-address RED、4096地址/priv/TVM/
+  counteren/zero-rs1等价、side-effect noninterference和fresh netlist path removal关闭。
+- 即便T3K关闭该族也不能预判200MHz；继续以current-source extended-provenance H7CL fresh
+  WNS>=0/TNS=0作为唯一完成标准。T3J证据目录同task-report。

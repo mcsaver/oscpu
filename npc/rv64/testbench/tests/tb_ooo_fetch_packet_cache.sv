@@ -7,6 +7,7 @@ module tb_ooo_fetch_packet_cache;
   reg rst;
   reg clear;
 
+  reg lookup_read_en;
   reg lookup_en;
   reg lookup_paging;
   reg [1:0] lookup_priv;
@@ -44,6 +45,7 @@ module tb_ooo_fetch_packet_cache;
     .clk(clk),
     .rst(rst),
     .clear_i(clear),
+    .lookup_read_en_i(lookup_read_en),
     .lookup_en_i(lookup_en),
     .lookup_paging_i(lookup_paging),
     .lookup_priv_i(lookup_priv),
@@ -72,6 +74,7 @@ module tb_ooo_fetch_packet_cache;
     .clk(clk),
     .rst(rst),
     .clear_i(clear),
+    .lookup_read_en_i(lookup_read_en),
     .lookup_en_i(lookup_en),
     .lookup_paging_i(lookup_paging),
     .lookup_priv_i(lookup_priv),
@@ -110,6 +113,7 @@ module tb_ooo_fetch_packet_cache;
   task automatic clear_inputs;
     begin
       clear = 1'b0;
+      lookup_read_en = 1'b0;
       lookup_en = 1'b0;
       lookup_paging = 1'b0;
       lookup_priv = 2'd0;
@@ -154,8 +158,8 @@ module tb_ooo_fetch_packet_cache;
     end
   endtask
 
-  // 两拍协议(1-cycle SRAM 同步读合同): fire 拍驱动请求+lookup_en, 打一拍后进入
-  // 判决拍(lookup_*_o 针对 fire 拍锁存请求有效), 随后 expect_lookup 组合采样。
+  // 两拍协议(1-cycle SRAM 同步读合同): accept 拍同时打开物理读窗并拉 lookup_en，
+  // 打一拍后进入判决拍(lookup_*_o 针对 accept 拍锁存请求有效)，随后组合采样。
   task automatic set_lookup;
     input do_paging;
     input [1:0] priv;
@@ -166,8 +170,10 @@ module tb_ooo_fetch_packet_cache;
       lookup_priv = priv;
       lookup_satp = satp;
       lookup_pc = pc;
+      lookup_read_en = 1'b1;
       lookup_en = 1'b1;
-      tick();          // fire 拍→判决拍: SRAM 读发射+请求锁存
+      tick();          // accept 拍→判决拍: SRAM 读发射+请求锁存
+      lookup_read_en = 1'b0;
       lookup_en = 1'b0;
       #1;
     end
@@ -210,6 +216,19 @@ module tb_ooo_fetch_packet_cache;
 
     fill_packet(1'b0, 2'd0, {`XLEN{1'b0}}, PC0,
                 32'h0000_0013, 2'b00, 32'h0000_8093, 2'b01);
+
+    // T3J: physical dummy read may update raw SRAM rdata, but without semantic
+    // lookup_en it must not create a decision frame or a visible hit.
+    lookup_pc = PC0;
+    lookup_read_en = 1'b1;
+    #1;
+    tb_check1("dummy read drives physical SRAM enable", dut.sram_en_w, 1'b1);
+    tick();
+    lookup_read_en = 1'b0;
+    #1;
+    expect_lookup("dummy read has no semantic decision", 1'b0, 1'b0,
+                  32'h0, 2'b00, 32'h0, 2'b00);
+
     set_lookup(1'b0, 2'd3, SATP1, PC0);
     expect_lookup("bare mode hit", 1'b1, 1'b1,
                   32'h0000_0013, 2'b00, 32'h0000_8093, 2'b01);
@@ -290,7 +309,7 @@ module tb_ooo_fetch_packet_cache;
     expect_lookup("refill after blocked fill", 1'b1, 1'b1,
                   32'h0000_0213, 2'b00, 32'h0000_8293, 2'b00);
 
-    // 【两拍窗口①】store 与 lookup fire 同拍: 盲失效在拍尾清 valid(判决拍 FF 读见
+    // 【两拍窗口①】store 与 lookup accept 同拍: 盲失效在拍尾清 valid(判决拍 FF 读见
     // 新值)+锁存旁路 lkp_inv 双保险 → 判决拍 context/hit 都为 0。
     lookup_paging = 1'b0;
     lookup_priv = 2'd0;
@@ -298,8 +317,10 @@ module tb_ooo_fetch_packet_cache;
     lookup_pc = PC2;
     invalidate_addr = PC2 + 64'd4;
     invalidate_valid = 1'b1;
+    lookup_read_en = 1'b1;
     lookup_en = 1'b1;
     tick();
+    lookup_read_en = 1'b0;
     lookup_en = 1'b0;
     invalidate_valid = 1'b0;
     #1;
@@ -311,8 +332,10 @@ module tb_ooo_fetch_packet_cache;
     fill_packet(1'b0, 2'd0, {`XLEN{1'b0}}, PC2,
                 32'h0000_0213, 2'b00, 32'h0000_8293, 2'b00);
     lookup_pc = PC2;
+    lookup_read_en = 1'b1;
     lookup_en = 1'b1;
-    tick();                     // fire 拍(无 store)→判决拍
+    tick();                     // accept 拍(无 store)→判决拍
+    lookup_read_en = 1'b0;
     lookup_en = 1'b0;
     invalidate_addr = PC2 + 64'd4;
     invalidate_valid = 1'b1;    // 判决拍才出现的 store footprint
@@ -337,6 +360,26 @@ module tb_ooo_fetch_packet_cache;
                   32'h0, 2'b00, 32'h0, 2'b00);
 
     tb_check64("lookup pc preserved", lookup_pc, PC2);
+
+`ifdef OOO_NEGATIVE_FPC_ACCEPT_WITHOUT_READ
+    lookup_pc = PC0;
+    lookup_read_en = 1'b0;
+    lookup_en = 1'b1;
+    tick();
+    lookup_en = 1'b0;
+`endif
+
+`ifdef OOO_NEGATIVE_FPC_READ_WRITE_CONFLICT
+    invalidate_valid = 1'b0;
+    lookup_read_en = 1'b1;
+    lookup_en = 1'b0;
+    fill_pc = PC0;
+    fill_valid = 1'b1;
+    tick();
+    lookup_read_en = 1'b0;
+    fill_valid = 1'b0;
+`endif
+
     tb_finish("tb_ooo_fetch_packet_cache");
   end
 endmodule

@@ -64,3 +64,19 @@
 - 2026-07-07: RV64 RTL 直接进 `yosys-sta` 时必须传 `VERILOG_INCLUDE_DIRS="$(VSRCDIR) $(RTL_INCLUDE_DIR)"`，否则 `read_verilog -sv` 会在 `define.v` include 上失败。全顶首次 smoke 不宜 `flatten`，也不宜跑 SAT `share -aggressive`；`yosys-sta` 现有 `SYNTH_FLATTEN`、`SYNTH_SHARE`、`SYNTH_STOP_AFTER_COARSE`、`SYNTH_PUBLIC_AUTONAME` 开关，RV64 默认使用 hierarchy + no-share。`SYNTH_STOP_AFTER_COARSE=1` 只用于 front/coarse 可综合性验证，不可替代标准单元网表和 STA。
 - 2026-04-14: 把 `npc/single` 的 RTL 直接喂给 `yosys-sta` 时，不应该把 `NpcSimTop.sv` 混进去；它含有 `import "DPI-C"` 的宿主桥接任务，只适合 Verilator 仿真。当前应把综合对象收敛为 `NpcCore` 及其纯 RTL 子模块。
 - 2026-04-14: `WNS/TNS` 过关不代表报告全清；本轮 `NpcCore` 在 500MHz 下时序满足，但 `NpcCore.cap` 仍出现 `ICGX0P5H7L/ECK` 最大电容违规，因此做综合复盘时必须同时看 `synth_check.txt`、`NpcCore.rpt` 和 `NpcCore.cap/trans/fanout`。
+
+## 2026-07-13 T3J fresh H7CL 200MHz evidence
+
+- fresh synthesis：110 modules，ABC 220/10/210，area `1574381.48`，netlist SHA
+  `e5ae3b37...8349a`。hardened audit逐项重算manifest并锁DELAY-4/5000ps、4 blackbox、
+  7 keep与3 skip marker；同时明确只冻结5个flow inputs，不能冒充full provenance。
+- focused OpenSTA不只验端口名：旧T3I accept→SRAM-en存在；fresh accept→en消失，
+  physical window由3条`CK→same-cell Q→state_q_{0,6,8}`真实上游驱动且拒绝request/fire/PC
+  alias，PC→addr路径12/12非空。首次误把startpoint当Q的checker失败被保留，正式`-final`重跑。
+- global 5ns闭合check_setup已知三类告警为303 input-delay、1861 output-delay、1863
+  unconstrained endpoints，拒绝第四类/console Warning/Error；loops0、top40 pending=40、
+  WNS/TNS=`-8.840/-199477.67ns`、power0.117W。archive PASS只表示60-member证据完整；
+  independent target checker为expected RED rc=1，不能声明200MHz。
+- 最终达标综合必须扩展pre/post manifest：workspace/yosys Makefile、auto.conf{,.cmd}、
+  config.mk、common/PDK Tcl、H7CL与4 macro lib、wrapper/checker/Tcl、Yosys/ABC/OpenSTA
+  binary+version和exact parameter KV；T3J网表含protected dirty input，HEAD本身不可复现。

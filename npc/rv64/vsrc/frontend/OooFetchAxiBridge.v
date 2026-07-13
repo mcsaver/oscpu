@@ -79,7 +79,7 @@ module OooFetchAxiBridge (
   localparam [3:0] S_R1 = 4'd6;
   localparam [3:0] S_RESP = 4'd7;
   localparam [3:0] S_AD_UPDATE = 4'd8;  // HW A 更新: 写回 leaf PTE 置 A 位, 再 re-walk 续原取指
-  localparam [3:0] S_LOOKUP = 4'd9;     // 取指包 cache SRAM 同步读判决拍(fire 次拍, ready=0)
+  localparam [3:0] S_LOOKUP = 4'd9;     // cache 判决拍；hit+rsp_ready 时可融合 accept 下一请求
   // 【AXI4 化 S1】mmu_flush 命中在飞 AXI 读(AR 已 fire、R 未归)时的自吞排水态:
   // rready 保持拉高吞掉 R 后才回 IDLE; 期间 fetch_req_ready=0(防新请求与残 R 串包)。
   // 取代旧"xbar abort 边带吞 R"机制——master 自吞使互连成为纯标准 AXI4。
@@ -398,12 +398,18 @@ module OooFetchAxiBridge (
   wire [1:0] fetch_cache_fill_resp0_w = RESP_OK;
   wire [1:0] fetch_cache_fill_resp1_w = RESP_OK;
 
-  // 两拍 lookup 协议: fire 拍(fetch_req_fire_w)发射 lookup_en 并传当拍请求上下文,
-  // cache 内部锁存; 判决拍(S_LOOKUP)输出 cache_hit_raw_w/inst/resp 针对锁存请求有效。
+  // T3J 物理读窗与语义 accept 分离：三种可受理/连续判决状态提前打开 SRAM 读口，
+  // 从 request valid/ready/fire 的长组合锥上切掉 payload SRAM en；fetch_req_fire_w
+  // 仍独占 context 锁存与 dec_en_q，dummy read 没有 cache-visible 语义。
+  // S_LOOKUP 必须属于读窗，否则 hit 融合 A→B 的 B 请求会少一次同步读。
+  wire fetch_cache_read_window_w =
+      (state_q == S_IDLE) || (state_q == S_RESP) ||
+      (state_q == S_LOOKUP);
   OooFetchPacketCache u_fetch_packet_cache (
     .clk(clk),
     .rst(rst),
     .clear_i(mmu_flush_i),
+    .lookup_read_en_i(fetch_cache_read_window_w),
     .lookup_en_i(fetch_req_fire_w),
     .lookup_paging_i(req_paging_w),
     .lookup_priv_i(priv_mode_i),
@@ -642,7 +648,7 @@ module OooFetchAxiBridge (
     end else begin
       case (state_q)
         S_IDLE: begin
-          // fire 拍只锁存请求上下文并发射 cache 同步读(lookup_en_i=fetch_req_fire_w),
+          // 物理 SRAM 读窗在本状态已打开；fire 只形成 semantic accept 并锁存上下文，
           // hit/fault/walk 判决整体移到次拍 S_LOOKUP(SRAM 1-cycle 同步读合同)。
           if (fetch_req_fire_w) begin
             pc_q <= fetch_req_pc_i;
@@ -667,15 +673,15 @@ module OooFetchAxiBridge (
         end
 
         S_LOOKUP: begin
-          // 判决拍: cache_hit_raw_w=SRAM 同步读结果, ITLB/PMP 复检用 fire 拍锁存值。
+          // 判决拍: cache_hit_raw_w=SRAM 同步读结果, ITLB/PMP 复检用 accept 拍锁存值。
           // 刀F 融合拍: hit 响应本拍组合交付(见 fetch_rsp_valid_o 组合臂); miss/fault
           // 拍 ready=0；miss 进入 registered CHECK→AR→R，mmu_flush 经顶部复位
           // 分支回 S_IDLE，本判决自然作废。
           if (cache_hit_w) begin
             if (cache_hit_fusion_w && fetch_rsp_ready_i) begin
               if (fetch_req_valid_i) begin
-                // 融合拍=新 fire 拍: 锁新上下文+发射新 SRAM 读(lookup_en_i 自动覆盖),
-                // 留在 S_LOOKUP —— hit 稳态 1 包/拍。
+                // 融合拍=新 semantic accept：本状态物理读窗已开，只需锁新上下文并
+                // 置下一拍判决资格，留在 S_LOOKUP —— hit 稳态 1 包/拍。
                 pc_q <= fetch_req_pc_i;
                 paddr0_q <= fetch_req_pc_i;
                 paddr1_q <= {`XLEN{1'b0}};
@@ -915,8 +921,8 @@ module OooFetchAxiBridge (
         end
 
         S_RESP: begin
-          // back-to-back accept: 与 S_IDLE 同为 fire 拍, 只锁存请求并进 S_LOOKUP
-          // (fetch_req_fire_w = valid && S_RESP && rsp_ready, 同拍发射 lookup_en_i)。
+          // back-to-back accept：本状态物理读窗已开；消费旧响应同拍的 fire 只锁存
+          // 新请求并置 semantic 判决资格，随后进入 S_LOOKUP。
           if (fetch_rsp_ready_i) begin
             if (fetch_req_valid_i) begin
               pc_q <= fetch_req_pc_i;
