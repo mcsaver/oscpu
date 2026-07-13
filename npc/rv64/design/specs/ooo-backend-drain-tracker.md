@@ -16,7 +16,7 @@
 
 输入：
 
-- `backend_empty_i`：上游(`control/OooPendingDrainResolveGate`,经 glue/父模块端口)已经计算好的组合事实，表示 ROB、issue queue、retire、synthetic lane1 状态都为空，且访存退休侧静默(SQ 排空且无 drain 在飞,`mem_retire_quiet`,LSQ·SQ 切换后并入)。
+- `backend_empty_i`：上游(`control/OooPendingDrainResolveGate`,经 glue/父模块端口)已经计算好的组合事实，表示 ROB、issue queue、synthetic lane1 状态都为空，且访存退休侧静默(SQ 排空且无 drain 在飞,`mem_retire_quiet`,LSQ·SQ 切换后并入)。core retire count 不再重复参与：ROB empty 已严格蕴含本拍无 core retire，定理由 `OooAluCoreSlice` 断言守护。
 - `dispatch_fire_i`：本拍有新的 dispatch0 fire，会让下一拍不能继续认为 drained。
 - `force_drained_i`：trap/precise recovery 边界强制清空前端视角下的 drain tracker。
 

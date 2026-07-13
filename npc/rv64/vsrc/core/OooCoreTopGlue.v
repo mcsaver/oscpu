@@ -847,7 +847,6 @@ module OooCoreTopGlue #(
     .core_debug_gprs_w(core_debug_gprs_w),
     .core_local_flush_w(core_local_flush_w),
     .core_mem_issue_block_w(core_mem_issue_block_w),
-    .core_retire_count_w(core_retire_count_w),
     .core_serial_flush_q(core_serial_flush_q),
     .core_trap_flush_q(core_trap_flush_q),
     .csr_access_addr_w(csr_access_addr_w),

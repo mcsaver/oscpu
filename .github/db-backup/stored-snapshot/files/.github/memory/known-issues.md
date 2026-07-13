@@ -4,6 +4,20 @@
 
 ## 活跃问题
 <!-- 当前未解决的问题 -->
+
+### [116] T3I 后 200MHz 仍未闭合：EX→FPC physical read enable 与 pending-trap 长链（2026-07-13）
+
+- **已关闭切片**：ROB-empty严格蕴含零retire，drain gate/control-plane/glue中的retire-count ABI和条件已物理删除；assertion、顶层纯AND theorem ratchet、删除guard/OR-bypass mutation、96/96 module、177/177与cycle-exact CoreMark共同闭合功能。旧canonical-retire fanout命中fetch/trap=1/137，fresh为0/0且仍有66个合法instret/debug endpoints，ROB residual path继续存在，故不是空collection假绿。
+- **仍开放根因**：fresh correct-H7CL 5ns WNS/TNS=`-9.38/-199464.16ns`；top40只剩1条integer EX→fetch payload SRAM `en_i`（明细`-9.377ns`）和39条EX→pending-trap D（`-8.843ns`）。T3I只回收约0.72ns，parent 200MHz明确未完成。
+- **下一切点**：FPC把物理SRAM读窗口与语义accept分开；`S_IDLE|S_RESP|S_LOOKUP`三态window驱动`en_i`，现有fetch request fire继续独占decision enable/context capture，fill与window必须互斥。不能只含IDLE/RESP（会破坏fused A→B），不能改address source，也不能把dummy-read raw rdata变化当架构payload。预计先切掉`en_i`长链，地址链仍可能约`-8.17ns`，必须fresh STA后再裁决。
+- **工具假绿门禁**：H7L网表若误配H7CR liberty会出现204类`Warning 198 ... Creating black box`并把真实路径报成NO_PATH；所有focused/global checker必须拒绝unknown-module blackbox。层级input/output pin不是可靠`report_checks -from/-to`对象，定向路径应用`-through`并绑定exact collection，absence还需canonical fanout endpoint交集与非空残余证明。TB runner必须拒绝`ERROR:`/`%Error`后exact PASS；文本定理必须有OR-bypass mutation，不能只搜索guard字符串。
+
+### [115] T3H 后 physical 200MHz 仍未闭合：整数 EX fast consumer 跨 IQ/PRF/双 ALU/ROB/redirect（2026-07-13）
+
+- **已关闭切片**：T3H 已将 FP execution/load wake 到 FpIQ、IntIQ FP-store 与 FpPRF R0–R3 的同拍 ready/data 消费切为 sticky/stored-only；95/95 module、整核+177/177、CoreMark、fresh synthesis 与 fail-closed directed STA 全绿。旧 T3G directed preflight RED，fresh 20 个 forbidden path 全为 NO_TIMING_PATH；DCache 到三类 execute stage 只剩 `+1.468/+1.373/+0.155ns` 的合法短控制弧。
+- **仍开放根因**：fresh 5ns WNS/TNS=`-10.10/-201564.20ns`。top40 40/40 从 `ex0_valid_q` 起并共同经过 integer `fast_wb0`→IntIQ `select_wakeup0`→IntPRF bypass0→ALU0→cross-lane/ALU1→MulDiv→ROB→drain/trap，随后到 FPC payload en（1）、fetch outstanding（21）或 CSR（18）。ROB 末累计约 11.860ns，违例不只是 SRAM 1.842ns setup 假象。
+- **下一切点**：成对移除 IntIQ resident EX same-cycle lookahead 与 IntPRF read0–3 EX bypass，让 EX completion 在 N 沿 formal write/sticky，dependent consumer N+1 issue；保留 formal WB/ROB/exception owner。必须用双发 RAW、branch/redirect、kill/flush/recover、WB0/WB1 collision、x0、backpressure 的 RED/GREEN/negative 与 fresh STA 证明。禁止仅给 FPC `en_i` 打拍（会错位请求上下文且不解决 CSR/fetch-outstanding 链），禁止 false path。
+- **非 signoff 边界**：当前仍是 ideal clock、四 placeholder macro、无 SPEF/CTS/OCV，且有 303 input/1861 output delay缺失、1863 unconstrained endpoints；即使后续 pre-layout WNS≥0，也只能称 current-source architecture timing closure，不能越级声明 physical signoff。
 ### [114] IFU-ACCESS-G1 后续边界：TVAL、PTE WRITE PMP、LSU split 与 physical 200MHz（2026-07-13）
 
 - **已关闭**：取指物理 footprint 已按真实 C/32 长度收窄为 exact 2B；PMP/page/RRESP 首个失败 F 停 younger AR；ARSIZE/ARPROT 到 slave；device execute firewall；pred-NT lane1 PF/AF precise owner；PMEM-end host overread。旧 RTL 34 RED，current 93/93 module、AM59/59、official177/177、DPI guard 全绿。

@@ -333,6 +333,23 @@ module tb_ooo_alu_core_slice;
     tb_check32("flush drops speculative x9", gpr(5'd9), 32'd0);
     tb_check32("a0 remains zero", a0_data, 32'd0);
     tb_check32("x0 remains zero", gpr(5'd0), 32'd0);
+    tb_check32("empty ROB after flush", {27'b0, rob_count}, 32'd0);
+    tb_check32("empty ROB has no retire", {30'b0, retire_count}, 32'd0);
+
+`ifdef OOO_NEGATIVE_CORE_RETIRE_WITH_EMPTY_ROB
+    // Assertion non-vacuity only: the ROB is naturally empty here. Force the
+    // theorem's producer, not both theorem endpoints, for exactly one edge.
+    force dut.commit0_valid_o = 1'b1;
+    `TB_TICK(clk);
+    release dut.commit0_valid_o;
+`endif
+
+`ifdef OOO_NEGATIVE_CORE_RETIRE_X_WITH_EMPTY_ROB
+    // Four-state companion: an unknown retire producer must not silently pass.
+    force dut.commit0_valid_o = 1'bx;
+    `TB_TICK(clk);
+    release dut.commit0_valid_o;
+`endif
 
     tb_finish("tb_ooo_alu_core_slice");
   end

@@ -61,9 +61,10 @@ module OooMemoryRequestGate (
       core_mem_rsp_ready_i;
 
   assign mem_flush_o = core_local_flush_i || checkpoint_mem_flush_i;
-  // 【拓扑防火墙 v2(2026-07-11)】mmu_flush 出口打拍: 组合生成链(rsp→wb→ROB
-  // commit→retire_count→drain_complete→本式)当拍打进 fetch/mem 桥与 cache/TLB
-  // 清除口, 是 dcache-rdata→…→fetch dec→pred 传递闭包的真缝合点。satp/sfence/
+  // 【拓扑防火墙 v2(2026-07-11)】mmu_flush 出口打拍: drain/system 组合生成链
+  // 当拍打进 fetch/mem 桥与 cache/TLB 清除口, 是跨控制域传递闭包的缝合点。
+  // T3I 已用 ROB-empty 定理删除 commit→retire_count→drain 的冗余依赖，但本拍
+  // 仍保留以隔离其它合法 drain/trap 控制弧。satp/sfence/
   // fence.i 都是 stop+drain 整机静止事件, flush 晚一拍到达零语义影响(重启取指
   // 本就在 serialize 开销里)。全体消费者同拍延迟, 一致性保持。
   reg mmu_flush_q;

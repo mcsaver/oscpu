@@ -98,6 +98,21 @@ class CheckTbResultTest(unittest.TestCase):
         self.assertTrue(reasons)
         self.assertTrue(any("errors=2" in reason.lower() for reason in reasons))
 
+    def test_simulator_error_diagnostic_rejects_false_pass(self) -> None:
+        for diagnostic in (
+            "ERROR: dut.sv:17: assertion fired",
+            "%Error: dut.sv:17: assertion fired",
+            "%Error-ASSERT: dut.sv:17: assertion fired",
+        ):
+            with self.subTest(diagnostic=diagnostic):
+                reasons = self.classify_fixture(
+                    log=f"{diagnostic}\n[PASS] {TEST_NAME}\n"
+                )
+                self.assertTrue(reasons)
+                self.assertTrue(
+                    any("error diagnostic" in reason.lower() for reason in reasons)
+                )
+
     def test_missing_exact_pass_line_rejects_runner_result(self) -> None:
         for log in (
             "[RESULT] PASS\n",
@@ -298,6 +313,19 @@ class MakeRunnerIntegrationTest(unittest.TestCase):
             f"stdout:\n{completed.stdout}\nstderr:\n{completed.stderr}",
         )
         self.assertIn("[RESULT] PASS", log_text)
+
+    def test_make_rejects_icarus_error_followed_by_pass(self) -> None:
+        completed, log_text = self.run_make_fixture(
+            "tb_error_then_pass", "error-then-pass"
+        )
+
+        self.assertNotEqual(
+            0,
+            completed.returncode,
+            f"stdout:\n{completed.stdout}\nstderr:\n{completed.stderr}",
+        )
+        self.assertIn("ERROR:", log_text)
+        self.assertIn("[RESULT] FAIL", log_text)
 
 
 if __name__ == "__main__":

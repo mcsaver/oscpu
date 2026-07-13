@@ -1,0 +1,52 @@
+# T3I fresh synthesis / OpenSTA provenance
+
+status=COMPLETE
+task_slug=2026-07-13-rv64-t3i-drain-retire-redundancy
+started_at=2026-07-13T15:31:31+08:00
+sta_completed_at=2026-07-13T16:13:26+08:00
+base_head=0b0d71673a40a8e582106857176cd6c106bb847d
+design=NpcTop
+mode=current-source hierarchical pre-layout STA
+target_frequency_mhz=200
+period_ns=5.0
+netlist_sha256=91badd2b5c77b72222b7d5bba6d9ea4986c554b43f274e3d8a460e9adedf6926
+netlist_bytes=68022335
+yosys_modules=110
+yosys_abc_candidates=220
+yosys_area=1572549.16
+yosys_error_lines=0
+opensta_version=3.1.0
+combinational_loops=0
+top_path_count=40
+worst_reported_path_slack_ns=-9.377
+wns_ns=-9.38
+tns_ns=-199464.16
+target_200mhz_met=false
+top40_endpoint_fetch_payload_sram=1
+top40_endpoint_pending_trap_exit=39
+top40_retire_port_tokens=0
+top40_drain_gate_tokens=0
+focused_old_retire_ports=2
+focused_fresh_retire_ports=0
+focused_old_retire_fanout_endpoints=7288
+focused_fresh_retire_fanout_endpoints=66
+focused_old_fetch_hits=1
+focused_old_pending_trap_hits=137
+focused_fresh_fetch_hits=0
+focused_fresh_pending_trap_hits=0
+opensta_unknown_module_blackboxes=0
+stdlib=ics55_LLSC_H7CL_typ_tt_1p2_25_nldm.lib
+stdlib_sha256=55c129ca0f03a409622e6c309f7f2da3034a003323fc6f4e58ae2225ed416264
+sram4096x199_lib_sha256=8ab0ad9dbdf1fd04ef4ef298a76738f0b89bfb8dd0a59436a2499007b695c8c6
+sram4096x113_lib_sha256=ec50e7d4a37bd389fe365d425a577aed93c49f260faa428bba2cb3ef43070f67
+ooo_fp_arith_gate_lib_sha256=e151ba88bb84bdf81ce3a7ca1e2c5f3b22eb79bf3d0af32c50ada43f7d9ef703
+ooo_branch_direction_predictor_lib_sha256=ddbd7ba12b76f06efa81b59bfaef9599f4a337e52457679a8d3462ca3441699c
+global_tcl_sha256=ef06bebdac789ceac0c9bb2b8a7f1e20f3c7c08554873dc1c2c8f5f29ab5abaa
+focused_tcl_sha256=b8e7c852349c1706d377f7d86d5f67b291656744b8f7e027e0427686a8b4a15d
+top40_report_sha256=60ea0e65b444c0d8c616600e693e37bb5089e1cb87f36622698dfa1d3e0c298a
+global_summary_sha256=6239c519da482401ab45a5746c2f0607ec008237019ceb85a12b97f3abccc1ae
+
+The timing result is the repository's current hierarchical, pre-layout
+OpenSTA flow at the typical 1.2 V / 25 C library point. It is not a routed
+CTS/SPEF/OCV sign-off result. The 200 MHz objective is not met because WNS is
+negative; no false path or multicycle exception was added.

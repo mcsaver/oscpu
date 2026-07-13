@@ -7,7 +7,6 @@ module OooPendingDrainResolveGate #(
 )(
   input [ROB_COUNT_W-1:0] rob_count_i,
   input [ISSUE_COUNT_W-1:0] issue_count_i,
-  input [1:0] core_retire_count_i,
   input synth_lane1_ret_pending_i,
   input synth_lane1_branch_drop_pending_i,
   input direct_frontend_flush_i,
@@ -46,9 +45,12 @@ module OooPendingDrainResolveGate #(
       pending_branch_i && pending_branch_dispatched_i &&
       !branch_resolve_pending_match_i && !pending_branch_commit_resolve_o;
 
+  // T3I：ROB 空严格蕴含本拍 core retire count 为零。OooRob 的 commit0
+  // 明含 count_q!=0，commit1 又蕴含 commit0，而 rob_count_o=count_q；因此把
+  // retire count 再 AND 一次只会把 WB/commit 组合锥接进 drain/redirect 长链，
+  // 不会排除任何可达状态。跨模块定理由 OooAluCoreSlice 断言守护。
   assign backend_drained_o = (rob_count_i == {ROB_COUNT_W{1'b0}}) &&
                              (issue_count_i == {ISSUE_COUNT_W{1'b0}}) &&
-                             (core_retire_count_i == 2'b00) &&
                              !synth_lane1_ret_pending_i &&
                              !synth_lane1_branch_drop_pending_i &&
                              mem_retire_quiet_i;

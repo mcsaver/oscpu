@@ -105,7 +105,9 @@ module/core 回归和性能样本分析。
 - `control/OooPendingDrainResolveGate.v` 承接 stop-pending 后的 backend drained、
   pending replay wait、drain complete、branch commit resolve/match clear、jump/system/mem
   dispatch valid/fire 组合中枢（FP start 臂已随 pending-FP 拆除；jump/mem 臂随
-  pending 通道证死）；父模块只消费这些事件，不再内联 pending/drain 规则。
+  pending 通道证死）；父模块只消费这些事件，不再内联 pending/drain 规则。backend
+  drained 不再重复读取 core retire count：ROB-empty 已严格蕴含本拍无 ROB commit，
+  `OooAluCoreSlice` 的 `[CORE-RETIRE-REQUIRES-ROB]` 守护该跨模块定理。
 - `memory/OooMemAxiBridge.v` 与 `frontend/OooFetchAxiBridge.v` 已按 Sv39
   leaf PTE 检查 A/D 位：A=0 或 store 且 D=0 返回 page fault，不把该 PTE
   填入 TLB。

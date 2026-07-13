@@ -31,6 +31,8 @@
 - Integer completion 到 FP IQ/read8 的全 sticky 时序边界：`ooo-int-to-fp-sticky-wakeup.md`；
 - FP execution/load completion 到 FP IQ、FP-store 与四口 FP PRF 的全 sticky/stored-only
   边界：`ooo-fp-sticky-wakeup-barrier.md`；
+- backend drain 的 ROB-empty / core-retire-count 冗余消除：
+  `ooo-drain-retire-redundancy.md`；
   `ooo-fp-arith-gate` — FP short arithmetic 5-cycle 流水、B-FP launch/out 与 macro/OOC decision contract;
   `ooo-fp-reg-file` — 架构 FPR(commit 双写+trap 恢复源)
 

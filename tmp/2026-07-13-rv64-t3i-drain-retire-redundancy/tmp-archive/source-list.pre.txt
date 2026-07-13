@@ -1,0 +1,5 @@
+t3i-archive-fresh-dryrun.out
+t3i-drain-proof-mutation
+t3i-drain-retire-projection
+t3i-review-brief.txt
+ysyx-t3i-user-npc-linux.log

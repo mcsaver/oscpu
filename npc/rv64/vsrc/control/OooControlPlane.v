@@ -34,7 +34,6 @@ module OooControlPlane #(
   input [`XLEN-1:0] core_commit1_tval_w,
   input core_commit1_valid_w,
   input [`XLEN * `REG_NUM - 1:0] core_debug_gprs_w,
-  input [1:0] core_retire_count_w,
   input core_serial_flush_q,
   input [`TRAP_CAUSE_W-1:0] csr_ecall_cause_w,
   input csr_illegal_w,
@@ -378,7 +377,6 @@ module OooControlPlane #(
   ) u_pending_drain_resolve_gate (
     .rob_count_i(rob_count_o),
     .issue_count_i(issue_count_o),
-    .core_retire_count_i(core_retire_count_w),
     .synth_lane1_ret_pending_i(synth_lane1_ret_pending_q),
     .synth_lane1_branch_drop_pending_i(synth_lane1_branch_drop_pending_q),
     .direct_frontend_flush_i(direct_frontend_flush_w),

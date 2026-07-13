@@ -14,6 +14,7 @@ _ANSI_ESCAPE_RE = re.compile(
 _FINISH_ARGUMENT_RE = re.compile(r"\$finish\b\s*\(([^)]*)\)", re.DOTALL)
 _FAIL_MARKER_RE = re.compile(r"(?<![A-Za-z0-9_])FAIL(?![A-Za-z0-9_])")
 _ERROR_COUNT_RE = re.compile(r"\berrors\s*=\s*([+-]?\d+)\b", re.IGNORECASE)
+_ERROR_DIAGNOSTIC_RE = re.compile(r"^(?:ERROR:|%Error(?:[-:]))", re.MULTILINE)
 _STRING_SENTINEL = "S"
 
 
@@ -120,6 +121,8 @@ def classify(
         reasons.append(f"simulation returned nonzero status {sim_rc}")
     if _FAIL_MARKER_RE.search(normalized_log):
         reasons.append("log contains a FAIL marker")
+    if _ERROR_DIAGNOSTIC_RE.search(normalized_log):
+        reasons.append("log contains an ERROR diagnostic")
 
     nonzero_error_count = next(
         (

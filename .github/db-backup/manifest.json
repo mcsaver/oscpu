@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-13T07:57:11+00:00",
-  "updated_at": "2026-07-13T06:56:22+00:00",
+  "updated_at": "2026-07-13T08:24:42+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -21338,6 +21338,30 @@
       "sha256": "011036f69bda7e62a861c31e07e8356d1b9147de291b444fc3753c41fd9c5793",
       "backup_source": "filesystem",
       "archived_at": "2026-07-13T06:56:22+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3i-drain-retire-redundancy/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 7913,
+      "sha256": "b55c3293cda1aebf98de27de49af44777003d5a1b70f4ef11c55ae69b72f424c",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T08:24:42+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3i-drain-retire-redundancy/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 4603,
+      "sha256": "85135cfcd186a33b7a3646c1f7df98fdf7c03f7e831f223156f8b8e7839c23ca",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T08:24:42+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-13-rv64-t3i-drain-retire-redundancy/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 9698,
+      "sha256": "25b66a2705244ae1d710793cba25568c9089cda9a06ba81bcc289b5b292e47da",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-13T08:24:42+00:00"
     },
     {
       "path": ".github/task-runs/README.md",

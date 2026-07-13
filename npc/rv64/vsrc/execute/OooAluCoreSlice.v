@@ -276,6 +276,20 @@ module OooAluCoreSlice #(
 
   assign debug_gprs_o = arch_debug_gprs_w;
   assign retire_count_o = {1'b0, commit0_valid_o} + {1'b0, commit1_valid_o};
+
+`ifdef OOO_ASSERT
+  // T3I drain 定理：ROB 的 commit0 以 count_q!=0 为必要条件，commit1 又
+  // 蕴含 commit0；故精确空 ROB 不可能同时产生 core retire。这个跨模块不变量
+  // 允许 drain gate 删除冗余 retire-count 输入，且防止未来 ROB 改写破坏前提。
+  always @(posedge clk) begin
+    if (!rst && (rob_count_o === {ROB_COUNT_W{1'b0}}) &&
+        (retire_count_o !== 2'b00)) begin
+      $error("[CORE-RETIRE-REQUIRES-ROB] retire=%0d while ROB is empty @%0t",
+             retire_count_o, $time);
+    end
+  end
+`endif
+
   assign commit0_cause_o = commit0_cause_w;
   assign commit0_tval_o = commit0_tval_w;
   assign commit1_cause_o = commit1_cause_w;
