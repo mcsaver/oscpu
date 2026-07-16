@@ -1,0 +1,102 @@
+{
+  "schema": "rv64-dse-archive-registry-v1",
+  "created_utc": "2026-07-16T05:30:00Z",
+  "bindings": [
+    {
+      "role": "global_dse_meta_strategy_input",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/design-inputs/global-dse-meta-strategy-input.txt",
+      "sha256": "9729c31ed3773ae233aa88c9ca908728c0023c6f47225f2fed7614a34a418a24"
+    },
+    {
+      "role": "non_normative_companion_policy",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/global-dse-archive-companion-policy.md",
+      "sha256": "8b439ebcd248165a1994867c10ba09ab143bb96433c5ef1f5f55d607fd275992"
+    },
+    {
+      "role": "normative_architecture_ppa_contract",
+      "path": "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "sha256": "f29ea5568045ea5113214eaef866a2e61731f9da5f2919aed162124921ab0050"
+    },
+    {
+      "role": "normative_ppa_policy",
+      "path": "npc/rv64/eval/ppa/policies/proxy-200mhz-v1.json",
+      "sha256": "3d45d18c3158c5015b5d83843cd35d1e3fca815a3ad54a103e395c443875573c"
+    },
+    {
+      "role": "r3p6_performance_logic_area_anchor",
+      "path": "npc/rv64/eval/ppa/baselines/r3p6-recovery-baseline.json",
+      "sha256": "7ae6dbced368d6e4160e9795a6da238741b0cda60f953739dfbb4b98ece05929"
+    },
+    {
+      "role": "r4p0a_semantic_timing_floor",
+      "path": "npc/rv64/eval/ppa/baselines/r4-p0a-timing-recovery-checkpoint.json",
+      "sha256": "75aa1411b053742daab311ebda3e61935bd85b4d50fe9c5215c0855ae6682d8e"
+    }
+  ],
+  "required_test_inventory_contract": {
+    "normative_policy": {
+      "path": "npc/rv64/eval/ppa/policies/proxy-200mhz-v1.json",
+      "sha256": "3d45d18c3158c5015b5d83843cd35d1e3fca815a3ad54a103e395c443875573c"
+    },
+    "development_makefile": {
+      "path": "npc/rv64/testbench/Makefile",
+      "sha256": "9087a53d8a9a8449c594182443531a86eb625c87b8b48d93603d41db88665181"
+    },
+    "contract_required_count": 102,
+    "development_derived_count": 103,
+    "drift_blocker_active": true
+  },
+  "workload_contract": {
+    "minimum_per_workload_ratio": 0.995,
+    "required_workloads": {
+      "coremark": {
+        "reference_cycles": 4904511,
+        "reference_retired_instructions": 3183617
+      },
+      "dhrystone_10000": {
+        "reference_cycles": 9481620,
+        "reference_retired_instructions": 4250000
+      }
+    }
+  },
+  "architecture_feasible_seed_id": null,
+  "canonical_design_id": null,
+  "ppa_champion_design_id": null,
+  "point_manifests": [
+    {
+      "design_id": "sha256:a80d45cb559652773c43fe6a765eff2bba7607e968b9565703b26c4a8a87adf1",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/dse-archive/points/3440827d275ae7443fc7f24490565efbd79a838d125a84d04e4869d5940abb19.json",
+      "sha256": "3440827d275ae7443fc7f24490565efbd79a838d125a84d04e4869d5940abb19"
+    }
+  ],
+  "pools": {
+    "feasible_pareto": [],
+    "development": [
+      "sha256:a80d45cb559652773c43fe6a765eff2bba7607e968b9565703b26c4a8a87adf1"
+    ],
+    "high_uncertainty": [
+      "sha256:a80d45cb559652773c43fe6a765eff2bba7607e968b9565703b26c4a8a87adf1"
+    ],
+    "diversity": []
+  },
+  "engineering_proxy_archive": {
+    "front_accepted": false,
+    "canonical": false,
+    "ppa_champion": false,
+    "members": []
+  },
+  "formal_promotions": [],
+  "scalar_ranking": [],
+  "global_thaw": {
+    "k_completed_points": 4,
+    "completed_points_since_last_thaw": 0,
+    "thaw_due": false,
+    "last_thaw_event_sha256": null
+  },
+  "ledger": {
+    "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/dse-archive/ledger.jsonl",
+    "sha256": "f6fc99b937fc0c96c175e42a0ca19c6bdd4bd4fb87a7d4ae4d8da1b156f7a742",
+    "event_count": 2,
+    "head_event_sha256": "876339a2057f20afc1705b2c46917d1dd1713bc64998c563185fc1f6ab5014f6"
+  }
+}

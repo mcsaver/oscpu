@@ -20,6 +20,7 @@ module OooCoreTopGlue #(
   output fetch_req_valid_o,
   input fetch_req_ready_i,
   output [`XLEN-1:0] fetch_req_pc_o,
+  input [`XLEN-1:0] fetch_req_owner_pc_i,
   input fetch_rsp_valid_i,
   output fetch_rsp_ready_o,
   input [`INST_W-1:0] fetch_rsp_inst0_i,
@@ -34,6 +35,11 @@ module OooCoreTopGlue #(
   output mem_req_probe_o,
   output mem_req_pretrans_o,
   output mem_req_nokill_o,
+  output mem_req_attr_valid_o,
+  output [1:0] mem_req_class_o,
+  output mem_req_cacheable_o,
+  output mem_req_device_release_o,
+  output mem_req_device_cancel_o,
   output [`XLEN-1:0] mem_req_addr_o,
   output [`XLEN-1:0] mem_req_wdata_o,
   output [`STRB_W-1:0] mem_req_wstrb_o,
@@ -42,6 +48,9 @@ module OooCoreTopGlue #(
   input [`XLEN-1:0] mem_rsp_rdata_i,
   input mem_rsp_error_i,
   input mem_rsp_page_fault_i,
+  input mem_rsp_attr_valid_i,
+  input [1:0] mem_rsp_class_i,
+  input mem_rsp_cacheable_i,
   input mem_translate_active_i,
   output mem_flush_o,
   output mmu_flush_o,
@@ -221,6 +230,7 @@ module OooCoreTopGlue #(
   wire [1:0] head_resp0_w;
   wire [1:0] head_resp1_w;
   wire head_fetch_fault0_w;
+  wire [`XLEN-1:0] head_fetch_fault_tval_w;
   wire [`CTRL_BUS_W-1:0] head0_ctrl_w;
   wire [`REG_ADDR_W-1:0] head0_rd_unused_w;
   wire [`CTRL_BUS_W-1:0] head1_ctrl_w;
@@ -390,9 +400,21 @@ module OooCoreTopGlue #(
   wire core_mem_req_probe_w;
   wire core_mem_req_pretrans_w;
   wire core_mem_req_nokill_w;
+  wire core_mem_req_attr_valid_w;
+  wire [1:0] core_mem_req_class_w;
+  wire core_mem_req_cacheable_w;
+  wire core_mem_req_device_release_w;
+  wire core_mem_req_device_cancel_w;
   wire [`XLEN-1:0] core_mem_req_addr_w;
   wire [`XLEN-1:0] core_mem_req_wdata_w;
   wire [`STRB_W-1:0] core_mem_req_wstrb_w;
+  // Lifetime sidebands bypass OooMemoryAccess: that helper only reshapes the
+  // request/flush plane, while these bits name the in-order MIQ/FSM owner.
+  assign mem_req_device_release_o = core_mem_req_device_release_w;
+  assign mem_req_device_cancel_o = core_mem_req_device_cancel_w;
+  assign mem_req_attr_valid_o = core_mem_req_attr_valid_w;
+  assign mem_req_class_o = core_mem_req_class_w;
+  assign mem_req_cacheable_o = core_mem_req_cacheable_w;
   wire core_mem_rsp_ready_w;
   wire core_branch_resolve_valid_w;
   wire [`XLEN-1:0] core_branch_resolve_pc_w;
@@ -678,6 +700,11 @@ module OooCoreTopGlue #(
     .core_mem_req_probe_w(core_mem_req_probe_w),
     .core_mem_req_pretrans_w(core_mem_req_pretrans_w),
     .core_mem_req_nokill_w(core_mem_req_nokill_w),
+    .core_mem_req_attr_valid_w(core_mem_req_attr_valid_w),
+    .core_mem_req_class_w(core_mem_req_class_w),
+    .core_mem_req_cacheable_w(core_mem_req_cacheable_w),
+    .core_mem_req_device_release_w(core_mem_req_device_release_w),
+    .core_mem_req_device_cancel_w(core_mem_req_device_cancel_w),
     .core_mem_req_wstrb_w(core_mem_req_wstrb_w),
     .core_mem_rsp_ready_w(core_mem_rsp_ready_w),
     .mem_translate_active_i(mem_translate_active_i),
@@ -704,6 +731,9 @@ module OooCoreTopGlue #(
     .mem_req_ready_i(mem_req_ready_i),
     .mem_rsp_error_i(mem_rsp_error_i),
     .mem_rsp_page_fault_i(mem_rsp_page_fault_i),
+    .mem_rsp_attr_valid_i(mem_rsp_attr_valid_i),
+    .mem_rsp_class_i(mem_rsp_class_i),
+    .mem_rsp_cacheable_i(mem_rsp_cacheable_i),
     .mem_rsp_rdata_i(mem_rsp_rdata_i),
     .mem_rsp_valid_i(mem_rsp_valid_i),
     .pending_branch_cmp_op_q(pending_branch_cmp_op_q),
@@ -818,6 +848,7 @@ module OooCoreTopGlue #(
     .backend_drained_q(backend_drained_q),
     .backend_drained_w(backend_drained_w),
     .mem_retire_quiet_i(core_mem_retire_quiet_w),
+    .mem_idle_i(core_mem_idle_w),
     .branch_resolve_pending_match_w(branch_resolve_pending_match_w),
     .branch_resolve_untracked_w(branch_resolve_untracked_w),
     .branch_spec_active_q(branch_spec_active_q),
@@ -940,6 +971,7 @@ module OooCoreTopGlue #(
     .head1_xret_raw_w(head1_xret_raw_w),
     .head_fetch_fault0_w(head_fetch_fault0_w),
     .head_fetch_fault1_w(head_fetch_fault1_w),
+    .head_fetch_fault_tval_w(head_fetch_fault_tval_w),
     .head_inst0_w(head_inst0_w),
     .head_inst1_w(head_inst1_w),
     .head_next_pc0_w(head_next_pc0_w),
@@ -1160,6 +1192,7 @@ module OooCoreTopGlue #(
     .execute1_valid_unused_w(execute1_valid_unused_w),
     .exit_valid_q(exit_valid_q),
     .fetch_req_fire_w(fetch_req_fire_w),
+    .fetch_req_owner_pc_i(fetch_req_owner_pc_i),
     .fetch_req_pc_o(fetch_req_pc_o),
     .fetch_req_ready_i(fetch_req_ready_i),
     .fetch_req_valid_o(fetch_req_valid_o),
@@ -1204,6 +1237,7 @@ module OooCoreTopGlue #(
     .head_fetch_fault0_w(head_fetch_fault0_w),
     .head_fetch_fault1_w(head_fetch_fault1_w),
     .head_fetch_fault_w(head_fetch_fault_w),
+    .head_fetch_fault_tval_w(head_fetch_fault_tval_w),
     .head_inst0_w(head_inst0_w),
     .head_inst1_w(head_inst1_w),
     .head_next_pc0_w(head_next_pc0_w),

@@ -1,19 +1,17 @@
 `include "define.v"
 
-// 【LSQ·Store Queue 组件】(spec: design/specs/ooo-lsq-implementation-plan.md Phase1/§3.5)
-// 程序序环形 SQ: dispatch 拍按序 alloc(entry 序即年龄, 双发口), 发射拍按 rob_idx CAM
-// 单拍回填 addr+data+strb(§3.5 首选: uop 不必携带 sq_idx; 双口覆盖同拍直入/入 buffer
-// 两路), ROB 退休按 rob_idx CAM 置 committed(双退休口; 不假设退休者恰为 SQ 队头——
-// 队头可能是更早已退休、尚未 drain 的 store), 队头 committed 且齐备的 entry 经 drain
-// 口后台落存, fire 即释放。CAM 无命中的回填/退休标记被忽略(消费侧可宽判定: AMO/SC
-// 未 alloc, 天然 miss)。
-// squash 语义分两种(§3.5 推演: 全清未 committed 对 branch-kill 会错杀分支之前的在飞
-// store):
-//   - flush_all_i=1(trap): 清全部未 committed(trap 之前的 store 必已退休);
-//   - flush_all_i=0(branch ROB-walk kill): 只清比 boundary(分支 rob_idx)年轻的
-//     未 committed entry, 分支之前的在飞 store 保留。年龄以 ROB head 为基准环形距离
-//     判定; 已退休 entry 恒 committed 存活, 不参与距离判定。
-// 本模块只管数据结构与顺序不变量; 前递 CAM/发射决策替换属接线步。
+// Program-order store queue with a precise late-B terminal.
+//
+// A plain store has three deliberately distinct lifecycle events:
+//   1. req_fire_i          : the physical write was accepted exactly once;
+//   2. terminal_valid_i    : probe fault or physical-write B response arrived;
+//   3. release_valid_i     : the terminal ROB entry commits and releases the SQ head.
+//
+// A successful translation/protection probe only fills VA/PA/data/strb.  It does
+// not make the ROB entry done.  The physical write is exposed only when both the
+// physical SQ head and ROB head name the same store.  The entry remains resident
+// after request fire and after B, so forwarding and precise error ownership do
+// not depend on a transient MIQ entry.
 module OooStoreQueue #(
   parameter ENTRY_COUNT_W = 2,
   parameter ROB_INDEX_W = `OOO_ROB_INDEX_W
@@ -21,13 +19,18 @@ module OooStoreQueue #(
   input clk,
   input rst,
 
-  // squash(flush 拍的同拍 alloc 属 wrong-path, 一并丢弃; 同拍退休标记/drain 正常生效)
+  // Selective branch squash keeps the non-younger prefix.  Global squash may
+  // clear speculative/probe-fault entries, but must never nuke an accepted
+  // physical write owner; OOO_ASSERT makes that architectural contract explicit.
   input flush_valid_i,
   input flush_all_i,
   input [ROB_INDEX_W-1:0] flush_rob_head_i,
   input [ROB_INDEX_W-1:0] flush_boundary_rob_i,
 
-  // dispatch 拍按程序序分配(双发; slot1 仅在 slot0 同拍 fire 时可 fire)
+  input rob_head_valid_i,
+  input [ROB_INDEX_W-1:0] rob_head_idx_i,
+
+  // Dispatch allocation is in program order.  Slot1 may allocate only with slot0.
   input alloc0_valid_i,
   output alloc0_ready_o,
   input [ROB_INDEX_W-1:0] alloc0_rob_idx_i,
@@ -35,55 +38,89 @@ module OooStoreQueue #(
   output alloc1_ready_o,
   input [ROB_INDEX_W-1:0] alloc1_rob_idx_i,
 
-  // 发射拍回填(rob_idx CAM; addr/data/strb 单拍全填, 已填则忽略——misaligned 硬件
-  // 拆笔/buffer 转发重复触发只记首笔; CAM miss 忽略)
+  // Probe-success fill, indexed by ROB tag.  VA is retained for forwarding/tval;
+  // PA is retained solely for the later pretranslated physical write.
   input fill0_valid_i,
   input [ROB_INDEX_W-1:0] fill0_rob_idx_i,
-  input [`XLEN-1:0] fill0_addr_i,
+  input [`XLEN-1:0] fill0_vaddr_i,
+  input [`XLEN-1:0] fill0_paddr_i,
+  input fill0_attr_valid_i,
+  input [1:0] fill0_class_i,
+  // Migration-only derived view; assertion-only, never stored or routed.
+  input fill0_cacheable_i,
   input [`XLEN-1:0] fill0_data_i,
   input [`STRB_W-1:0] fill0_strb_i,
   input fill1_valid_i,
   input [ROB_INDEX_W-1:0] fill1_rob_idx_i,
-  input [`XLEN-1:0] fill1_addr_i,
+  input [`XLEN-1:0] fill1_vaddr_i,
+  input [`XLEN-1:0] fill1_paddr_i,
+  input fill1_attr_valid_i,
+  input [1:0] fill1_class_i,
+  input fill1_cacheable_i,
   input [`XLEN-1:0] fill1_data_i,
   input [`STRB_W-1:0] fill1_strb_i,
 
-  // ROB 退休标记(rob_idx CAM 匹配; 双退休口)
-  input mark0_valid_i,
-  input [ROB_INDEX_W-1:0] mark0_rob_idx_i,
-  input mark1_valid_i,
-  input [ROB_INDEX_W-1:0] mark1_rob_idx_i,
+  // One terminal event per store: probe fault (no request) or physical B response.
+  input terminal_valid_i,
+  input [ROB_INDEX_W-1:0] terminal_rob_idx_i,
+  // 独立第二 terminal 端口承接同拍 local exception；双端口避免把 B response
+  // backpressure 组合耦合回 issue-ready，也不会丢失任一 ROB owner。
+  input terminal1_valid_i,
+  input [ROB_INDEX_W-1:0] terminal1_rob_idx_i,
 
-  // drain 口: 队头 committed 且 addr/data 齐备的 entry 供落存; fire 即释放
-  output drain_valid_o,
-  output [`XLEN-1:0] drain_addr_o,
-  output [`XLEN-1:0] drain_data_o,
-  output [`STRB_W-1:0] drain_strb_o,
-  input drain_fire_i,
+  // ROB terminal release.  Ready includes a same-cycle terminal event so a ROB
+  // writeback-to-commit bypass cannot strand the entry.
+  input release_valid_i,
+  input [ROB_INDEX_W-1:0] release_rob_idx_i,
+  output release_ready_o,
+  output release_fire_o,
 
-  // 前递/歧义消解查询面: 全 entry 平铺导出(消费者做 CAM); head 供程序序遍历
-  // (前递取"最年轻的更老重叠"需按年龄序扫描)。
+  // Physical-write request.  Fire marks request_sent but never releases the entry.
+  output req_valid_o,
+  output [ROB_INDEX_W-1:0] req_rob_idx_o,
+  output [`XLEN-1:0] req_vaddr_o,
+  output [`XLEN-1:0] req_paddr_o,
+  output req_attr_valid_o,
+  output [1:0] req_class_o,
+  output req_cacheable_o,
+  output [`XLEN-1:0] req_data_o,
+  output [`STRB_W-1:0] req_strb_o,
+  input req_fire_i,
+
+  // Forwarding/ordering query face.  Addresses here are original virtual/effective
+  // addresses; translated mode already disables alias-unsafe forwarding.
   output [(1 << ENTRY_COUNT_W)-1:0] snoop_valid_o,
   output [(1 << ENTRY_COUNT_W)-1:0] snoop_addr_valid_o,
   output [(1 << ENTRY_COUNT_W) * `XLEN - 1:0] snoop_addr_o,
+  // Canonical physical query view for the future dual-load ordering stage.
+  // Keep snoop_addr_o as the existing VA view until that stage is integrated.
+  output [(1 << ENTRY_COUNT_W) * `XLEN - 1:0] snoop_paddr_o,
+  output [(1 << ENTRY_COUNT_W)-1:0] snoop_attr_valid_o,
+  output [(1 << ENTRY_COUNT_W) * 2 - 1:0] snoop_class_o,
+  output [(1 << ENTRY_COUNT_W)-1:0] snoop_cacheable_o,
   output [(1 << ENTRY_COUNT_W) * `XLEN - 1:0] snoop_data_o,
   output [(1 << ENTRY_COUNT_W) * `STRB_W - 1:0] snoop_strb_o,
   output [(1 << ENTRY_COUNT_W) * ROB_INDEX_W - 1:0] snoop_rob_idx_o,
-  output [(1 << ENTRY_COUNT_W)-1:0] snoop_committed_o,
+  output [(1 << ENTRY_COUNT_W)-1:0] snoop_request_sent_o,
+  output [(1 << ENTRY_COUNT_W)-1:0] snoop_terminal_o,
   output [ENTRY_COUNT_W-1:0] snoop_head_o,
   output [ENTRY_COUNT_W:0] count_o
 );
 
-  localparam ENTRY_COUNT = (1 << ENTRY_COUNT_W);
+  localparam integer ENTRY_COUNT = (1 << ENTRY_COUNT_W);
+  localparam [ENTRY_COUNT_W:0] ENTRY_COUNT_CONST = ENTRY_COUNT;
 
   reg [ENTRY_COUNT_W-1:0] head_q;
   reg [ENTRY_COUNT_W-1:0] tail_q;
   reg [ENTRY_COUNT_W:0] count_q;
   reg valid_q [0:ENTRY_COUNT-1];
-  reg committed_q [0:ENTRY_COUNT-1];
-  reg addr_valid_q [0:ENTRY_COUNT-1];
-  reg data_valid_q [0:ENTRY_COUNT-1];
-  reg [`XLEN-1:0] addr_q [0:ENTRY_COUNT-1];
+  reg filled_q [0:ENTRY_COUNT-1];
+  reg request_sent_q [0:ENTRY_COUNT-1];
+  reg terminal_q [0:ENTRY_COUNT-1];
+  reg [`XLEN-1:0] vaddr_q [0:ENTRY_COUNT-1];
+  reg [`XLEN-1:0] paddr_q [0:ENTRY_COUNT-1];
+  reg attr_valid_q [0:ENTRY_COUNT-1];
+  reg [1:0] class_q [0:ENTRY_COUNT-1];
   reg [`XLEN-1:0] data_q [0:ENTRY_COUNT-1];
   reg [`STRB_W-1:0] strb_q [0:ENTRY_COUNT-1];
   reg [ROB_INDEX_W-1:0] rob_idx_q [0:ENTRY_COUNT-1];
@@ -91,45 +128,9 @@ module OooStoreQueue #(
   integer i;
 `ifdef OOO_ASSERT
   integer assert_i;
+  integer active_count_r;
 `endif
 
-  wire alloc0_fire_w = alloc0_valid_i && alloc0_ready_o && !flush_valid_i;
-  wire alloc1_fire_w = alloc1_valid_i && alloc1_ready_o && alloc0_fire_w;
-  wire drain_release_w = drain_fire_i && drain_valid_o;
-  wire [ENTRY_COUNT_W-1:0] alloc0_idx_w = tail_q;
-  wire [ENTRY_COUNT_W-1:0] alloc1_idx_w =
-      tail_q + {{(ENTRY_COUNT_W-1){1'b0}}, 1'b1};
-
-  // 回填 CAM(命中未填 entry 才写, 首笔保持)
-  wire [ENTRY_COUNT-1:0] fill_hit0_w;
-  wire [ENTRY_COUNT-1:0] fill_hit1_w;
-  genvar gf;
-  generate
-    for (gf = 0; gf < ENTRY_COUNT; gf = gf + 1) begin : gen_fill
-      assign fill_hit0_w[gf] =
-          fill0_valid_i && valid_q[gf] && !addr_valid_q[gf] &&
-          (rob_idx_q[gf] == fill0_rob_idx_i);
-      assign fill_hit1_w[gf] =
-          fill1_valid_i && valid_q[gf] && !addr_valid_q[gf] &&
-          (rob_idx_q[gf] == fill1_rob_idx_i);
-    end
-  endgenerate
-
-  // 退休标记 CAM(幂等; 命中含"本拍即将退休"供 flush 存活判定并用)
-  wire [ENTRY_COUNT-1:0] mark_hit0_w;
-  wire [ENTRY_COUNT-1:0] mark_hit1_w;
-  genvar gm;
-  generate
-    for (gm = 0; gm < ENTRY_COUNT; gm = gm + 1) begin : gen_mark
-      assign mark_hit0_w[gm] =
-          mark0_valid_i && valid_q[gm] && (rob_idx_q[gm] == mark0_rob_idx_i);
-      assign mark_hit1_w[gm] =
-          mark1_valid_i && valid_q[gm] && (rob_idx_q[gm] == mark1_rob_idx_i);
-    end
-  endgenerate
-
-  // flush 存活判定: committed(含本拍标记)恒存活; 未 committed 仅在非全清且
-  // 不比 boundary 年轻(环形距离以 ROB head 为基准)时存活。
   function [ROB_INDEX_W-1:0] rob_dist;
     input [ROB_INDEX_W-1:0] idx;
     input [ROB_INDEX_W-1:0] head;
@@ -138,6 +139,108 @@ module OooStoreQueue #(
     end
   endfunction
 
+  function typed_attr_admitted;
+    input attr_valid;
+    input [1:0] mem_class;
+    begin
+      typed_attr_admitted = 1'b0;
+      case ({attr_valid, mem_class})
+        {1'b1, `OOO_MEM_CLASS_CACHED},
+        {1'b1, `OOO_MEM_CLASS_NC},
+        {1'b1, `OOO_MEM_CLASS_IO}: typed_attr_admitted = 1'b1;
+        default: typed_attr_admitted = 1'b0;
+      endcase
+    end
+  endfunction
+
+  wire fill0_attr_admitted_w =
+      typed_attr_admitted(fill0_attr_valid_i, fill0_class_i);
+  wire fill1_attr_admitted_w =
+      typed_attr_admitted(fill1_attr_valid_i, fill1_class_i);
+
+  wire head_valid_w = (count_q != {(ENTRY_COUNT_W+1){1'b0}}) &&
+                       valid_q[head_q];
+  wire alloc0_fire_w = alloc0_valid_i && alloc0_ready_o && !flush_valid_i;
+  wire alloc1_fire_w = alloc1_valid_i && alloc1_ready_o && alloc0_fire_w;
+  wire [ENTRY_COUNT_W-1:0] alloc0_idx_w = tail_q;
+  wire [ENTRY_COUNT_W-1:0] alloc1_idx_w =
+      tail_q + {{(ENTRY_COUNT_W-1){1'b0}}, 1'b1};
+
+  wire [ENTRY_COUNT-1:0] fill_hit0_w;
+  wire [ENTRY_COUNT-1:0] fill_hit1_w;
+  wire [ENTRY_COUNT-1:0] terminal_hit_w;
+  wire [ENTRY_COUNT-1:0] terminal1_hit_w;
+  genvar gc;
+  generate
+    for (gc = 0; gc < ENTRY_COUNT; gc = gc + 1) begin : gen_cam
+      assign fill_hit0_w[gc] =
+          fill0_valid_i && valid_q[gc] && !filled_q[gc] &&
+          (rob_idx_q[gc] == fill0_rob_idx_i);
+      assign fill_hit1_w[gc] =
+          fill1_valid_i && valid_q[gc] && !filled_q[gc] &&
+          (rob_idx_q[gc] == fill1_rob_idx_i);
+      assign terminal_hit_w[gc] =
+          terminal_valid_i && valid_q[gc] && !terminal_q[gc] &&
+          (rob_idx_q[gc] == terminal_rob_idx_i);
+      assign terminal1_hit_w[gc] =
+          terminal1_valid_i && valid_q[gc] && !terminal_q[gc] &&
+          (rob_idx_q[gc] == terminal1_rob_idx_i);
+    end
+  endgenerate
+
+  assign req_valid_o =
+      head_valid_w && filled_q[head_q] && !request_sent_q[head_q] &&
+      attr_valid_q[head_q] && !terminal_q[head_q] && rob_head_valid_i &&
+      (rob_idx_q[head_q] == rob_head_idx_i);
+  assign req_rob_idx_o = rob_idx_q[head_q];
+  assign req_vaddr_o = vaddr_q[head_q];
+  assign req_paddr_o = paddr_q[head_q];
+  assign req_attr_valid_o = head_valid_w && filled_q[head_q] &&
+                            attr_valid_q[head_q];
+  assign req_class_o = req_attr_valid_o ? class_q[head_q] :
+                       `OOO_MEM_CLASS_RSVD;
+  assign req_cacheable_o = req_attr_valid_o &&
+                           (req_class_o == `OOO_MEM_CLASS_CACHED);
+  assign req_data_o = data_q[head_q];
+  assign req_strb_o = strb_q[head_q];
+
+  wire terminal_head_now_w = terminal_hit_w[head_q] ||
+                             terminal1_hit_w[head_q];
+  assign release_ready_o =
+      head_valid_w && (rob_idx_q[head_q] == release_rob_idx_i) &&
+      (terminal_q[head_q] || terminal_head_now_w);
+  assign release_fire_o = release_valid_i && release_ready_o;
+
+  assign alloc0_ready_o = (count_q != ENTRY_COUNT_CONST);
+  assign alloc1_ready_o =
+      (count_q < (ENTRY_COUNT_CONST - {{ENTRY_COUNT_W{1'b0}}, 1'b1}));
+  assign count_o = count_q;
+  assign snoop_head_o = head_q;
+
+  genvar gs;
+  generate
+    for (gs = 0; gs < ENTRY_COUNT; gs = gs + 1) begin : gen_snoop
+      assign snoop_valid_o[gs] = valid_q[gs];
+      assign snoop_addr_valid_o[gs] = valid_q[gs] && filled_q[gs];
+      assign snoop_addr_o[gs * `XLEN +: `XLEN] = vaddr_q[gs];
+      assign snoop_paddr_o[gs * `XLEN +: `XLEN] = paddr_q[gs];
+      assign snoop_attr_valid_o[gs] = valid_q[gs] && filled_q[gs] &&
+                                      attr_valid_q[gs];
+      assign snoop_class_o[gs * 2 +: 2] = snoop_attr_valid_o[gs] ?
+          class_q[gs] : `OOO_MEM_CLASS_RSVD;
+      assign snoop_cacheable_o[gs] = snoop_attr_valid_o[gs] &&
+          (snoop_class_o[gs * 2 +: 2] == `OOO_MEM_CLASS_CACHED);
+      assign snoop_data_o[gs * `XLEN +: `XLEN] = data_q[gs];
+      assign snoop_strb_o[gs * `STRB_W +: `STRB_W] = strb_q[gs];
+      assign snoop_rob_idx_o[gs * ROB_INDEX_W +: ROB_INDEX_W] = rob_idx_q[gs];
+      assign snoop_request_sent_o[gs] = valid_q[gs] && request_sent_q[gs];
+      assign snoop_terminal_o[gs] = valid_q[gs] && terminal_q[gs];
+    end
+  endgenerate
+
+  // Branch squash retains the non-younger prefix.  An accepted physical owner
+  // is always retained defensively; assertions below prove that this exception
+  // is never needed to excuse an illegal global nuke or branch-age violation.
   reg survive_r [0:ENTRY_COUNT-1];
   reg [ENTRY_COUNT_W:0] survive_count_r;
   always @(*) begin : survive_blk
@@ -145,43 +248,21 @@ module OooStoreQueue #(
     survive_count_r = {(ENTRY_COUNT_W+1){1'b0}};
     for (k = 0; k < ENTRY_COUNT; k = k + 1) begin
       survive_r[k] = valid_q[k] &&
-          (committed_q[k] || mark_hit0_w[k] || mark_hit1_w[k] ||
+          (request_sent_q[k] ||
            (!flush_all_i &&
             (rob_dist(rob_idx_q[k], flush_rob_head_i) <=
              rob_dist(flush_boundary_rob_i, flush_rob_head_i))));
       if (survive_r[k])
-        survive_count_r = survive_count_r + {{ENTRY_COUNT_W{1'b0}}, 1'b1};
+        survive_count_r = survive_count_r +
+            {{ENTRY_COUNT_W{1'b0}}, 1'b1};
     end
   end
 
-  wire head_valid_w = (count_q != {(ENTRY_COUNT_W+1){1'b0}});
-
-  assign alloc0_ready_o = (count_q != ENTRY_COUNT[ENTRY_COUNT_W:0]);
-  assign alloc1_ready_o =
-      (count_q != ENTRY_COUNT[ENTRY_COUNT_W:0]) &&
-      (count_q != ENTRY_COUNT[ENTRY_COUNT_W:0] - {{ENTRY_COUNT_W{1'b0}}, 1'b1});
-
-  assign drain_valid_o =
-      head_valid_w && valid_q[head_q] && committed_q[head_q] &&
-      addr_valid_q[head_q] && data_valid_q[head_q];
-  assign drain_addr_o = addr_q[head_q];
-  assign drain_data_o = data_q[head_q];
-  assign drain_strb_o = strb_q[head_q];
-  assign count_o = count_q;
-
-  genvar g;
-  generate
-    for (g = 0; g < ENTRY_COUNT; g = g + 1) begin : gen_snoop
-      assign snoop_valid_o[g] = valid_q[g];
-      assign snoop_addr_valid_o[g] = valid_q[g] && addr_valid_q[g];
-      assign snoop_addr_o[g * `XLEN +: `XLEN] = addr_q[g];
-      assign snoop_data_o[g * `XLEN +: `XLEN] = data_q[g];
-      assign snoop_strb_o[g * `STRB_W +: `STRB_W] = strb_q[g];
-      assign snoop_rob_idx_o[g * ROB_INDEX_W +: ROB_INDEX_W] = rob_idx_q[g];
-      assign snoop_committed_o[g] = valid_q[g] && committed_q[g];
-    end
-  endgenerate
-  assign snoop_head_o = head_q;
+  wire release_in_survive_w = release_fire_o && survive_r[head_q];
+  wire [ENTRY_COUNT_W:0] kept_after_release_w =
+      survive_count_r - {{ENTRY_COUNT_W{1'b0}}, release_in_survive_w};
+  wire [ENTRY_COUNT_W-1:0] head_after_release_w =
+      head_q + {{(ENTRY_COUNT_W-1){1'b0}}, release_fire_o};
 
   always @(posedge clk) begin
     if (rst) begin
@@ -190,71 +271,89 @@ module OooStoreQueue #(
       count_q <= {(ENTRY_COUNT_W+1){1'b0}};
       for (i = 0; i < ENTRY_COUNT; i = i + 1) begin
         valid_q[i] <= 1'b0;
-        committed_q[i] <= 1'b0;
-        addr_valid_q[i] <= 1'b0;
-        data_valid_q[i] <= 1'b0;
-        addr_q[i] <= {`XLEN{1'b0}};
+        filled_q[i] <= 1'b0;
+        request_sent_q[i] <= 1'b0;
+        terminal_q[i] <= 1'b0;
+        vaddr_q[i] <= {`XLEN{1'b0}};
+        paddr_q[i] <= {`XLEN{1'b0}};
+        attr_valid_q[i] <= 1'b0;
+        class_q[i] <= `OOO_MEM_CLASS_RSVD;
         data_q[i] <= {`XLEN{1'b0}};
         strb_q[i] <= {`STRB_W{1'b0}};
         rob_idx_q[i] <= {ROB_INDEX_W{1'b0}};
       end
     end else begin
-      // 乱序回填(CAM; flush 拍也生效——被清 entry 的回填无害, 存活 entry 的不可丢)
+      // CAM updates are accepted even on a squash cycle; a surviving older owner
+      // must not lose its response, while killed entries are cleared below.
       for (i = 0; i < ENTRY_COUNT; i = i + 1) begin
         if (fill_hit0_w[i]) begin
-          addr_q[i] <= fill0_addr_i;
+          filled_q[i] <= 1'b1;
+          vaddr_q[i] <= fill0_vaddr_i;
+          paddr_q[i] <= fill0_paddr_i;
+          attr_valid_q[i] <= fill0_attr_admitted_w;
+          class_q[i] <= fill0_attr_admitted_w ? fill0_class_i :
+                        `OOO_MEM_CLASS_RSVD;
           data_q[i] <= fill0_data_i;
           strb_q[i] <= fill0_strb_i;
-          addr_valid_q[i] <= 1'b1;
-          data_valid_q[i] <= 1'b1;
         end else if (fill_hit1_w[i]) begin
-          addr_q[i] <= fill1_addr_i;
+          filled_q[i] <= 1'b1;
+          vaddr_q[i] <= fill1_vaddr_i;
+          paddr_q[i] <= fill1_paddr_i;
+          attr_valid_q[i] <= fill1_attr_admitted_w;
+          class_q[i] <= fill1_attr_admitted_w ? fill1_class_i :
+                        `OOO_MEM_CLASS_RSVD;
           data_q[i] <= fill1_data_i;
           strb_q[i] <= fill1_strb_i;
-          addr_valid_q[i] <= 1'b1;
-          data_valid_q[i] <= 1'b1;
         end
+        if (terminal_hit_w[i] || terminal1_hit_w[i])
+          terminal_q[i] <= 1'b1;
       end
-      // 退休标记(CAM; flush 拍同拍退休的 entry 经 survive 判定保留)
-      for (i = 0; i < ENTRY_COUNT; i = i + 1) begin
-        if (mark_hit0_w[i] || mark_hit1_w[i])
-          committed_q[i] <= 1'b1;
-      end
-      // 队头 drain 释放(flush 拍照常——head 为 committed, 不在清除域)
-      if (drain_release_w) begin
+
+      if (req_fire_i && req_valid_o)
+        request_sent_q[head_q] <= 1'b1;
+
+      if (release_fire_o) begin
         valid_q[head_q] <= 1'b0;
-        committed_q[head_q] <= 1'b0;
-        addr_valid_q[head_q] <= 1'b0;
-        data_valid_q[head_q] <= 1'b0;
-        head_q <= head_q + {{(ENTRY_COUNT_W-1){1'b0}}, 1'b1};
+        filled_q[head_q] <= 1'b0;
+        request_sent_q[head_q] <= 1'b0;
+        terminal_q[head_q] <= 1'b0;
+        attr_valid_q[head_q] <= 1'b0;
+        class_q[head_q] <= `OOO_MEM_CLASS_RSVD;
+        head_q <= head_after_release_w;
       end
 
       if (flush_valid_i) begin
-        // 清除域: 非存活 entry(同拍 drain 释放的 head 已在上方清, 恒属存活集)
         for (i = 0; i < ENTRY_COUNT; i = i + 1) begin
           if (valid_q[i] && !survive_r[i]) begin
             valid_q[i] <= 1'b0;
-            addr_valid_q[i] <= 1'b0;
-            data_valid_q[i] <= 1'b0;
+            filled_q[i] <= 1'b0;
+            request_sent_q[i] <= 1'b0;
+            terminal_q[i] <= 1'b0;
+            attr_valid_q[i] <= 1'b0;
+            class_q[i] <= `OOO_MEM_CLASS_RSVD;
           end
         end
-        // 存活段自 head 连续(committed 前缀 + 比 boundary 老的程序序段), tail 回卷
-        tail_q <= head_q + survive_count_r[ENTRY_COUNT_W-1:0];
-        count_q <= survive_count_r -
-            {{ENTRY_COUNT_W{1'b0}}, drain_release_w};
+        head_q <= head_after_release_w;
+        tail_q <= head_after_release_w +
+                  kept_after_release_w[ENTRY_COUNT_W-1:0];
+        count_q <= kept_after_release_w;
       end else begin
         if (alloc0_fire_w) begin
           valid_q[alloc0_idx_w] <= 1'b1;
-          committed_q[alloc0_idx_w] <= 1'b0;
-          addr_valid_q[alloc0_idx_w] <= 1'b0;
-          data_valid_q[alloc0_idx_w] <= 1'b0;
+          filled_q[alloc0_idx_w] <= 1'b0;
+          request_sent_q[alloc0_idx_w] <= 1'b0;
+          terminal_q[alloc0_idx_w] <= 1'b0;
+          attr_valid_q[alloc0_idx_w] <= 1'b0;
+          class_q[alloc0_idx_w] <= `OOO_MEM_CLASS_RSVD;
           rob_idx_q[alloc0_idx_w] <= alloc0_rob_idx_i;
         end
         if (alloc1_fire_w) begin
           valid_q[alloc1_idx_w] <= 1'b1;
-          committed_q[alloc1_idx_w] <= 1'b0;
-          addr_valid_q[alloc1_idx_w] <= 1'b0;
-          data_valid_q[alloc1_idx_w] <= 1'b0;
+          filled_q[alloc1_idx_w] <= 1'b0;
+          request_sent_q[alloc1_idx_w] <= 1'b0;
+          terminal_q[alloc1_idx_w] <= 1'b0;
+          attr_valid_q[alloc1_idx_w] <= 1'b0;
+          class_q[alloc1_idx_w] <= `OOO_MEM_CLASS_RSVD;
           rob_idx_q[alloc1_idx_w] <= alloc1_rob_idx_i;
         end
         tail_q <= tail_q +
@@ -263,22 +362,88 @@ module OooStoreQueue #(
         count_q <= count_q +
             {{ENTRY_COUNT_W{1'b0}}, alloc0_fire_w} +
             {{ENTRY_COUNT_W{1'b0}}, alloc1_fire_w} -
-            {{ENTRY_COUNT_W{1'b0}}, drain_release_w};
+            {{ENTRY_COUNT_W{1'b0}}, release_fire_o};
       end
     end
   end
 
 `ifdef OOO_ASSERT
-  // INV-4-committed: flush 只允许清未退休 store; 已 committed 或同拍 mark 的 store 必须进入 survive 集。
-  // 这是 serial/trap flush 能安全接入 SQ flush_all 的承重不变量。
+  integer terminal_hit_count_r;
+  integer terminal1_hit_count_r;
+  always @(*) begin : active_count_blk
+    integer k;
+    active_count_r = 0;
+    terminal_hit_count_r = 0;
+    terminal1_hit_count_r = 0;
+    for (k = 0; k < ENTRY_COUNT; k = k + 1) begin
+      if (valid_q[k] && request_sent_q[k]) active_count_r = active_count_r + 1;
+      if (terminal_hit_w[k]) terminal_hit_count_r = terminal_hit_count_r + 1;
+      if (terminal1_hit_w[k]) terminal1_hit_count_r = terminal1_hit_count_r + 1;
+    end
+  end
+
   always @(posedge clk) begin
-    if (!rst && flush_valid_i) begin
+    if (!rst) begin
+      if (fill0_valid_i && !fill0_attr_admitted_w)
+        $error("[S1-TYPED-SQ-FILL0] successful probe lacks legal typed attr @%0t",
+               $time);
+      if (fill1_valid_i && !fill1_attr_admitted_w)
+        $error("[S1-TYPED-SQ-FILL1] successful probe lacks legal typed attr @%0t",
+               $time);
+      if (fill0_valid_i &&
+          (fill0_cacheable_i !==
+           (fill0_attr_admitted_w &&
+            (fill0_class_i == `OOO_MEM_CLASS_CACHED))))
+        $error("[S1-TYPED-SQ-LEGACY0] fill0 Boolean diverged from typed attr @%0t",
+               $time);
+      if (fill1_valid_i &&
+          (fill1_cacheable_i !==
+           (fill1_attr_admitted_w &&
+            (fill1_class_i == `OOO_MEM_CLASS_CACHED))))
+        $error("[S1-TYPED-SQ-LEGACY1] fill1 Boolean diverged from typed attr @%0t",
+               $time);
+      if (req_fire_i && !req_valid_o)
+        $error("[T4N-SQ-REQ-FIRE] physical request fire without eligible head @%0t", $time);
+      if (req_cacheable_o !==
+          (req_attr_valid_o && (req_class_o == `OOO_MEM_CLASS_CACHED)))
+        $error("[S1-TYPED-SQ-LEGACY-REQ] request Boolean diverged from typed attr @%0t",
+               $time);
+      if (req_valid_o &&
+          ((!req_attr_valid_o) ||
+           (req_class_o !== class_q[head_q]) ||
+           (req_paddr_o !== paddr_q[head_q])))
+        $error("[S1-TYPED-SQ-DRAIN-ECHO] drain changed head PA/class provenance @%0t",
+               $time);
+      if (release_valid_i && !release_ready_o)
+        $error("[T4N-SQ-RELEASE] ROB released nonterminal/nonhead store rob=%0d @%0t",
+               release_rob_idx_i, $time);
+      if (terminal_valid_i && (terminal_hit_count_r != 1))
+        $error("[T4N-SQ-TERMINAL0-HIT] terminal0 hit count=%0d rob=%0d @%0t",
+               terminal_hit_count_r, terminal_rob_idx_i, $time);
+      if (terminal1_valid_i && (terminal1_hit_count_r != 1))
+        $error("[T4N-SQ-TERMINAL1-HIT] terminal1 hit count=%0d rob=%0d @%0t",
+               terminal1_hit_count_r, terminal1_rob_idx_i, $time);
+      if (terminal_valid_i && terminal1_valid_i &&
+          (terminal_rob_idx_i == terminal1_rob_idx_i))
+        $error("[T4N-SQ-TERMINAL-SAME-TAG] dual terminal ports named rob=%0d @%0t",
+               terminal_rob_idx_i, $time);
+      if (active_count_r > 1)
+        $error("[T4N-SQ-AT-MOST-ONE] multiple physical write owners=%0d @%0t",
+               active_count_r, $time);
       for (assert_i = 0; assert_i < ENTRY_COUNT; assert_i = assert_i + 1) begin
-        if (valid_q[assert_i] &&
-            (committed_q[assert_i] || mark_hit0_w[assert_i] || mark_hit1_w[assert_i]) &&
-            !survive_r[assert_i])
-          $error("[FLUSH-CONTRACT INV-4] SQ flush 试图清 committed store entry=%0d rob=%0d @%0t",
-                 assert_i, rob_idx_q[assert_i], $time);
+        if (valid_q[assert_i] && request_sent_q[assert_i] &&
+            (assert_i[ENTRY_COUNT_W-1:0] != head_q))
+          $error("[T4N-SQ-PHYSICAL-HEAD] accepted owner is not physical head entry=%0d @%0t",
+                 assert_i, $time);
+        if (flush_valid_i && flush_all_i && valid_q[assert_i] &&
+            request_sent_q[assert_i] &&
+            !(release_fire_o && (assert_i[ENTRY_COUNT_W-1:0] == head_q)))
+          $error("[T4N-SQ-GLOBAL-NUKE] global flush overlapped live physical store rob=%0d @%0t",
+                 rob_idx_q[assert_i], $time);
+        if (flush_valid_i && !flush_all_i && valid_q[assert_i] &&
+            request_sent_q[assert_i] && !survive_r[assert_i])
+          $error("[T4N-SQ-BRANCH-SURVIVE] branch flush killed physical owner rob=%0d @%0t",
+                 rob_idx_q[assert_i], $time);
       end
     end
   end

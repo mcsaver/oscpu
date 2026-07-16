@@ -1,0 +1,436 @@
+## 核心判断
+
+你遇到的问题通常不是“局部优化算法不够强”，而是优化过程存在三个结构性问题：
+
+1. **把完整微架构拆成顺序决策，并在每一步立即追求 PPA 改善**；
+2. **只保留当前最优点，丢弃暂时变差但有后续潜力的配置**；
+3. **前面修改过的参数被隐式冻结，后续无法通过跨模块协同补偿**。
+
+在 OoO 中，前端宽度、ROB、物理寄存器、Issue Queue、FU 数量、LSU、MSHR、Cache 和频率之间存在强耦合。高维 CPU DSE 研究也把“参数间复杂依赖、代理模型扩展性和搜索引导”视为核心问题，而不是简单地逐参数爬山。([arXiv][1])
+
+因此，所谓“全局优化”不应该理解成数学上一定找到全局最优，而应该定义为：
+
+> 在完整设计点上评估，维护一组跨 workload 稳健的 Pareto 解，并持续允许跨模块联合修改、回退和重新分配资源。
+
+---
+
+# 一、不要优化“每一步”，要优化“完整配置”
+
+假设微架构参数为：
+
+[
+x=[W_{fetch},W_{decode},ROB,PRF,IQ,LSQ,FU,L1,L2,MSHR,\ldots]
+]
+
+不要给单步动作定义这样的即时奖励：
+
+[
+r_t=Score(x_{t+1})-Score(x_t)
+]
+
+这会拒绝所有“先退一步、再取得更大收益”的路径。例如：
+
+* 单独扩大 ROB：面积和功耗先恶化，IPC 可能还不明显；
+* 随后扩大 IQ、LSQ、物理寄存器并调整前端宽度：ROB 才真正被利用；
+* 逐步贪心策略会在第一步就把这条路径剪掉。
+
+更合理的是：
+
+[
+r_t=0,\quad t<T
+]
+
+[
+r_T=J(x_T)
+]
+
+也就是主要使用**终局奖励**，完整配置完成后再评估 PPA。
+
+如果终局奖励过于稀疏，可以使用 potential-based shaping：
+
+[
+r_t=\Phi(s_{t+1})-\Phi(s_t)
+]
+
+其中 (\Phi(s_t)) 不是“当前部分配置的实际 PPA”，而是代理模型对“从当前部分配置继续完成后，最终全局目标”的预测。这样中间奖励表达的是**最终潜力变化**，而不是眼前收益。
+
+---
+
+# 二、不要过早把 PPA 压缩成单一标量
+
+很多策略坍塌来自类似下面的奖励：
+
+[
+J=IPC^\alpha /(Power^\beta Area^\gamma)
+]
+
+或者：
+
+[
+J=w_pP-w_wW-w_aA
+]
+
+固定权重会让策略快速收敛到一种固定偏好。例如面积惩罚稍大，策略可能持续选择窄发射、小 ROB、小 Cache，最后坍塌成一类保守结构。
+
+## 更好的方式：直接优化 Pareto 前沿
+
+分别保留目标：
+
+[
+\max Perf(x)
+]
+
+[
+\min Power(x),\quad \min Area(x)
+]
+
+同时维护一个 Pareto archive：
+
+[
+\mathcal A={x_i\mid x_i\text{ 不被其他设计点支配}}
+]
+
+新设计点的奖励可以定义成 Pareto hypervolume 增益：
+
+[
+r(x)=HV(\mathcal A\cup{x})-HV(\mathcal A)
+]
+
+这样，一个设计点即使综合分数不是最高，只要它提供了新的 PPA trade-off，就能获得正奖励。CPU DSE 工作通常也是用 Pareto frontier 或 Pareto hypervolume 衡量探索质量，而不是只找一个固定权重下的点。([arXiv][1])
+
+## 有明确产品约束时
+
+把硬指标设成约束，而不是奖励权重：
+
+[
+\begin{aligned}
+&\max Perf(x)\
+\text{s.t. }&
+Area(x)\le A_{\max}\
+&Power(x)\le P_{\max}\
+&Slack(x)\ge 0\
+&IPC_b(x)\ge (1-\delta)IPC_{b,baseline}
+\end{aligned}
+]
+
+这通常比“IPC、面积、功耗全部加权求和”稳定，因为优化器不需要猜测违约成本应该对应多大的 penalty。
+
+---
+
+# 三、保留多个候选点，而不是单一路径
+
+全局搜索和局部爬山最大的区别不是更新公式，而是**状态保留机制**。
+
+不要只维护：
+
+```text
+current_best
+```
+
+至少维护三类候选：
+
+```text
+Pareto archive
+高不确定度候选
+多样性候选
+```
+
+每轮候选可以按下面的比例生成，比例只是实用起点：
+
+* 50%：从不同 Pareto 点附近联合扰动；
+* 20%：最大化预测 hypervolume improvement；
+* 15%：选择代理模型不确定度最高的区域；
+* 15%：全空间随机重启或远距离 mutation。
+
+关键规则是：
+
+> 不允许新的单个最优点覆盖整个种群。
+
+使用 Pareto rank、crowding distance 或 objective-space clustering，确保候选不会全部聚集到同一个 PPA 区域。
+
+---
+
+# 四、采用“全局—局部—全局”的循环
+
+纯全局搜索成本太高，纯局部搜索容易陷入路径依赖。实际可以采用三层结构。
+
+## 第一层：全局资源预算搜索
+
+先决定资源怎样在子系统之间分配：
+
+[
+B=[B_{frontend},B_{backend},B_{memory}]
+]
+
+例如搜索：
+
+* 前端占多少功耗和面积；
+* OoO window 占多少；
+* Cache 和 memory-level parallelism 占多少；
+* 性能预算应偏向 ILP 还是 memory latency hiding。
+
+这里不要立即决定每个具体参数。
+
+## 第二层：子系统条件优化
+
+在给定全局预算下分别优化：
+
+* Frontend：预测器、fetch/decode width、queue；
+* Rename/Window：ROB、PRF、IQ、dispatch/commit；
+* Execution：FU 数量、端口、调度结构；
+* Memory：LSQ、MSHR、L1/L2、prefetcher。
+
+多智能体 DSE 的典型思路也是让不同 agent 负责不同子系统，但使用共享或中央全局目标，而不是让每个 agent 独立最大化自己的局部收益。相关工作在特定内存控制器实验中报告了相对于单智能体 PPO/SAC 基线的改善，但其关键启示是“分解动作空间、集中评价”，而不是让各模块各自贪心。([arXiv][2])
+
+## 第三层：周期性联合解冻
+
+每隔 (K) 轮：
+
+* 解冻所有参数；
+* 从多个 Pareto 点出发；
+* 同时修改两个或三个强耦合参数组；
+* 允许暂时降低预测目标；
+* 重新进行完整仿真。
+
+例如联合动作应当包括：
+
+```text
+ROB ↑ + IQ ↑ + PRF ↑
+Fetch width ↑ + branch predictor capacity ↑
+L1D size ↑ + MSHR ↑ + LSQ ↑
+Issue width ↑ + FU/port 数量 ↑
+```
+
+而不是永远一次只修改一个参数。
+
+---
+
+# 五、显式建模参数交互，而不只是参数重要性
+
+只学习每个参数的单独 sensitivity 不够。你真正需要的是：
+
+[
+\frac{\partial^2 J}{\partial x_i\partial x_j}
+]
+
+或者离散情况下的交互增益：
+
+[
+I_{ij}=
+J(x+\Delta_i+\Delta_j)
+-J(x+\Delta_i)
+-J(x+\Delta_j)
++J(x)
+]
+
+当 (I_{ij}) 很大时，说明 (x_i,x_j) 应被联合优化。
+
+建议周期性建立交互矩阵，把强耦合变量放入同一个 block：
+
+```text
+{fetch width, decode width, fetch queue}
+{ROB, PRF, IQ, commit width}
+{LSQ, MSHR, L1D, prefetch}
+{issue width, FU count, bypass/ports}
+```
+
+AttentionDSE 一类方法就是通过能够表示上下文依赖的模型预测 PPA，并根据参数之间的关联识别瓶颈；其工作也明确强调，不同微架构参数存在局部强相关和全局复杂依赖。([arXiv][1])
+
+注意：attention weight 或 SHAP 只能作为搜索启发，不应直接当作因果关系。最终仍需要联合扰动实验验证。
+
+---
+
+# 六、如果你正在用 RL，重点防止这几种坍塌
+
+## 1. 使用 preference-conditioned policy
+
+不要训练一个固定 PPA 权重的策略：
+
+[
+\pi(a|s)
+]
+
+改成：
+
+[
+\pi(a|s,\lambda)
+]
+
+其中：
+
+[
+\lambda=[\lambda_{perf},\lambda_{power},\lambda_{area}]
+]
+
+每个 episode 随机采样不同的 (\lambda)。这样一个策略能够产生多种 PPA 偏好的设计，而不是只收敛到单一结构。
+
+部署时再输入目标偏好，例如：
+
+```text
+高性能服务器：[0.7, 0.2, 0.1]
+移动端：[0.35, 0.45, 0.20]
+面积受限：[0.35, 0.20, 0.45]
+```
+
+## 2. 中央 critic，子系统 actor
+
+可以设置：
+
+```text
+Actor_frontend
+Actor_window
+Actor_execution
+Actor_memory
+Central_Critic
+```
+
+每个 actor 负责较小动作空间，但 critic 输入完整配置、所有动作、workload 和最终 PPA：
+
+[
+Q(s,a_{front},a_{window},a_{exec},a_{mem})
+]
+
+这样 credit assignment 是分解的，但优化目标仍然是全局的。
+
+## 3. 保留最小探索强度
+
+不能让 entropy 系数过早衰减到零。可设置：
+
+* entropy lower bound；
+* mutation probability floor；
+* 定期重启部分 policy head；
+* 多策略 ensemble；
+* 对重复设计点施加 novelty penalty。
+
+例如：
+
+[
+r'=r+\eta D(x,\mathcal A)
+]
+
+其中 (D) 可以同时包含参数空间距离和 PPA 空间距离：
+
+[
+D=
+\alpha D_{design}
++(1-\alpha)D_{objective}
+]
+
+## 4. Replay buffer 不按奖励简单排序
+
+按以下维度分层采样：
+
+* workload；
+* Pareto 区域；
+* 微架构类别；
+* 成功/失败设计；
+* 高不确定度设计。
+
+否则 buffer 很快会被一种“小核”或“大核”设计占据，进一步强化策略坍塌。
+
+---
+
+# 七、跨 workload 目标必须进入全局优化
+
+如果每次优化只看一个 benchmark，得到的往往是 benchmark-specific 局部最优。
+
+可以定义：
+
+[
+Perf(x)=\sum_b q_b
+\log\frac{IPC_b(x)}{IPC_{b,0}}
+]
+
+同时增加最差 workload 或尾部风险约束：
+
+[
+RobustPerf(x)
+=============
+
+E_b[Perf_b(x)]
+-\kappa \cdot CVaR_{\tau}(-Perf_b(x))
+]
+
+直观含义是：
+
+* 奖励平均性能；
+* 惩罚性能最差的一部分 workload；
+* 防止策略通过严重牺牲某几类 workload 获得平均分优势。
+
+现代 CPU DSE 的一个重要方向就是把 workload 信息纳入预测器和搜索器，因为同一微架构参数在不同 workload 上的收益可能不同；OneDSE 把 workload-aware metric prediction 与参数搜索结合起来，也是为了避免只学习一个 workload-independent 的静态映射。([arXiv][3])
+
+---
+
+# 八、一个可直接实现的优化闭环
+
+```text
+1. 生成初始样本
+   - Sobol / Latin Hypercube / 合法配置随机采样
+   - 覆盖不同宽度、window、memory hierarchy 区域
+
+2. 运行真实评估
+   - cycle-accurate simulation
+   - power model
+   - area/timing model
+   - 多 workload 评估
+
+3. 训练代理模型 ensemble
+   输入：
+       完整微架构参数
+       workload 特征
+   输出：
+       IPC / latency
+       power
+       area
+       frequency / timing
+       prediction uncertainty
+
+4. 构建 Pareto archive
+   - 不使用单一 current_best
+   - 使用 nondominated sorting
+   - 使用 crowding distance 保持分布
+
+5. 批量选择下一轮候选
+   - constrained hypervolume improvement
+   - 多个 Pareto elite 周围联合扰动
+   - uncertainty exploration
+   - random restart
+   - cross-subsystem mutation
+
+6. 多保真评估
+   - 低保真快速筛选
+   - 中保真校准
+   - 高保真验证最有潜力的候选
+
+7. 每 K 轮进行全局解冻
+   - 重新允许修改早期参数
+   - 重建参数交互矩阵
+   - 重新分组强耦合参数
+
+8. 最终选择
+   - 只从高保真确认过的 Pareto 点中选择
+   - 在未参与优化的 workload 上验证
+   - 检查 timing、power corner 和面积误差
+```
+
+高维 CPU DSE 中，仿真数据生成通常是主要成本，因此代理模型、多保真评估和主动采样比单纯增加 RL 训练步数更重要。相关工作也把快速 PPA 预测器作为高效探索的基础。([arXiv][3])
+
+---
+
+# 最优先修改的五项
+
+按收益优先级，建议先实施：
+
+1. **从单一最优点改成 Pareto archive**；
+2. **从逐步即时奖励改成完整配置终局奖励或 hypervolume 增益**；
+3. **每隔若干轮解冻全部参数，允许跨模块联合 mutation**；
+4. **加入 workload-aware 目标和 worst-case/CVaR 项**；
+5. **加入随机重启、不确定度探索和设计多样性约束**。
+
+最关键的一句话是：
+
+> 局部优化可以作为候选生成器，但不能同时负责候选淘汰；候选是否保留，必须依据完整配置、全局 PPA、跨 workload 表现和 Pareto 贡献来决定。
+
+[1]: https://arxiv.org/html/2410.18368v2 "Multi-objective Optimization in CPU Design Space Exploration: Attention is All You Need"
+[2]: https://arxiv.org/abs/2211.16385 "[2211.16385] Multi-Agent Reinforcement Learning for Microprocessor Design Space Exploration"
+[3]: https://arxiv.org/html/2505.03771v2 "OneDSE: A Unified CPU Metric Prediction and Design Space Exploration Framework"

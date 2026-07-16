@@ -5,6 +5,9 @@ module OooMemAxiBridge (
   input rst,
   input flush_i,
   input mmu_flush_i,
+  // Registered synchronous-DMA completion event.  It is independent of
+  // pipeline/MMU flush and only changes D-cache visibility.
+  input dcache_dma_invalidate_all_i,
 
   input [1:0] priv_mode_i,
   input [`XLEN-1:0] mstatus_i,
@@ -24,6 +27,18 @@ module OooMemAxiBridge (
   input mem0_req_probe_i,
   input mem0_req_pretrans_i,
   input mem0_req_nokill_i,
+  // Typed final-PA provenance.  Ordinary VA requests carry invalid/RSVD;
+  // only a pretranslated SQ drain may carry a valid class captured by its
+  // earlier side-effect-free probe.
+  input mem0_req_attr_valid_i,
+  input [1:0] mem0_req_class_i,
+  // Migration-only compatibility view.  It is asserted against the typed
+  // payload and is never used for routing or state.
+  input mem0_req_cacheable_i,
+  // T4M: backend MIQ/ROB owns whether the current in-order device read may
+  // become externally visible.  cancel is the ROB-walk killed-head path.
+  input mem0_device_release_i,
+  input mem0_device_cancel_i,
   input [`XLEN-1:0] mem0_req_addr_i,
   input [`XLEN-1:0] mem0_req_wdata_i,
   input [`STRB_W-1:0] mem0_req_wstrb_i,
@@ -32,6 +47,9 @@ module OooMemAxiBridge (
   output [`XLEN-1:0] mem0_rsp_rdata_o,
   output mem0_rsp_error_o,
   output mem0_rsp_page_fault_o,
+  output mem0_rsp_attr_valid_o,
+  output [1:0] mem0_rsp_class_o,
+  output mem0_rsp_cacheable_o,
   // 当前特权/satp 上下文下数据访问是否经 Sv39 翻译(供后端 load-vs-SQ 判定选 blind 模式)
   output translate_active_o,
 
@@ -65,14 +83,16 @@ module OooMemAxiBridge (
 );
 
   // 【AXI4 化 S4】常量协议位: LSU ID 恒 4'd1、单 beat(LEN=0/WLAST=1)、INCR、
-  // data access(ARPROT[2]=0)、AWSIZE 恒 8B(WSTRB 仍是字节权威)。
+  // data access(ARPROT[2]=0)。AWSIZE 必须随逻辑访问宽度；A/D PTE 写固定 8B。
   assign lsu_axi_arid_o = 4'd1;
   assign lsu_axi_arlen_o = 8'd0;
   assign lsu_axi_arburst_o = 2'b01;
   assign lsu_axi_arprot_o = 3'b000;
   assign lsu_axi_awid_o = 4'd1;
   assign lsu_axi_awlen_o = 8'd0;
-  assign lsu_axi_awsize_o = 3'd3;
+  assign lsu_axi_awsize_o =
+      (state_q == S_AD_UPDATE) ? 3'd3 :
+      axsize_from_bytes(access_size_from_wstrb(wstrb_q));
   assign lsu_axi_awburst_o = 2'b01;
   assign lsu_axi_wlast_o = 1'b1;
 
@@ -88,6 +108,9 @@ module OooMemAxiBridge (
   // 【SRAM 同步读】dcache 判决态: 上拍已发 dcache 单口读(发射拍), 本拍 SRAM rdata
   // 有效, 判 hit(→S_RESP)/miss(当拍发 AR)。load hit 1→2 拍是一期接受的代价。
   localparam [3:0] S_LOOKUP = 4'd9;
+  // T4M: final PA is outside cacheable PMEM.  No data AR is presented until
+  // the exact MIQ owner reaches ROB head; a killed owner is quietly cancelled.
+  localparam [3:0] S_DEVICE_WAIT = 4'd10;
   localparam [`XLEN-1:0] PTE_A_BIT = {{(`XLEN-7){1'b0}}, 7'h40};  // bit 6 (Accessed)
   localparam [`XLEN-1:0] PTE_D_BIT = {{(`XLEN-8){1'b0}}, 8'h80};  // bit 7 (Dirty)
   // 【LSQ Phase2+3】8KB(2^10×8B)直映对 CoreMark 工作集 miss 率 47.6%——
@@ -112,11 +135,10 @@ module OooMemAxiBridge (
   reg aw_done_q;
   reg w_done_q;
   reg drop_rsp_q;
-  // B1 访存解耦：cacheable-PMEM store 在数据落 PMEM(AW&W fire)后即报完成、提前推进，
-  // 其滞后的 AXI B 由 bpend_q 跟踪器在后台吸收，使紧随的 load 可与 B drain 重叠。
-  // 仅对 PMEM(bresp 恒 OK)解耦；MMIO/可错 store 仍等 B 以保精确异常(MEM-I3)。详见
-  // design/specs/ooo-mem-axi-bridge-fsm.md 与 design/arch/mem-store-decouple.md。
-  reg bpend_q;
+  // T4I 后统一以 B 作为 store 的完成点：LSU lane adapter 的上游
+  // AW/W fire 只表示命令被其寄存，不代表所有下游 beat 已完成。
+  // 等待聚合 B 可防止 split write 被后续访存越过，并向上传递
+  // adapter 粘滞 BRESP。
   // 【LSQ·SQ 切换】当前事务属性(advance 拍锁存, 每次 accept 覆盖)。pretrans 的效果
   // (跳过翻译/PMP)全部在 advance 拍组合完成, 无需再寄存进 FSM。
   reg probe_q;
@@ -136,9 +158,24 @@ module OooMemAxiBridge (
   reg stg_probe_q;
   reg stg_pretrans_q;
   reg stg_nokill_q;
+  reg stg_attr_valid_q;
+  reg [1:0] stg_class_q;
   // 【line-dcache】本读事务是否跨 8B line(跨线走窗口读不 fill; 不跨线发对齐
-  // AR, 回填 line 并把窗口视图给 CPU)
+  // AR, 回填 line 并把窗口视图给 CPU)。read_exact_q 还覆盖 uncacheable：这类
+  // 访问必须保留原 PA/size，不能把 MMIO 扩大成带额外读副作用的 8B line 访问。
   reg read_cross_q;
+  reg read_exact_q;
+  // Final-PA typed provenance after PMA and PBMT.  This is the single active
+  // transaction truth used after a walk/A-D update and on post-target R/B
+  // errors; it is never reconstructed from PA or a legacy Boolean.
+  reg access_attr_valid_q;
+  reg [1:0] access_class_q;
+  wire access_cacheable_w = access_attr_valid_q &&
+                            (access_class_q == `OOO_MEM_CLASS_CACHED);
+  wire access_nc_w = access_attr_valid_q &&
+                     (access_class_q == `OOO_MEM_CLASS_NC);
+  wire access_io_w = access_attr_valid_q &&
+                     (access_class_q == `OOO_MEM_CLASS_IO);
 
   function [1:0] mstatus_mpp_priv;
     input [`XLEN-1:0] status;
@@ -215,24 +252,20 @@ module OooMemAxiBridge (
 
   function pte_reserved_fault;
     input [`XLEN-1:0] pte;
-    input svpbmt_en;
     input [1:0] level;
     begin
+      // Leaf PBMT legality is intentionally absent here.  It has one owner:
+      // OooTypedMemoryClassifier.  Non-leaf PBMT remains structurally illegal.
       pte_reserved_fault =
           (pte_leaf(pte) ?
-           (((pte & ((svpbmt_en ? `SV39_PTE_RESERVED_MASK_SVPBMT :
-                                  `SV39_PTE_RESERVED_MASK) &
+           (((pte & (`SV39_PTE_RESERVED_MASK_SVPBMT &
                                  ~`SV39_PTE_N)) != {`XLEN{1'b0}}) ||
             (((pte & `SV39_PTE_N) != {`XLEN{1'b0}}) &&
              ((level != 2'd0) || (pte[13:10] != 4'b1000)))) :
-           (((pte & (svpbmt_en ? `SV39_PTE_RESERVED_MASK_SVPBMT :
-                                  `SV39_PTE_RESERVED_MASK)) !=
+           (((pte & `SV39_PTE_RESERVED_MASK_SVPBMT) !=
              {`XLEN{1'b0}}) ||
             ((pte & `SV39_PTE_NONLEAF_RESERVED_MASK) != {`XLEN{1'b0}}) ||
-            (svpbmt_en &&
-             (pte[`SV39_PTE_PBMT_HI:`SV39_PTE_PBMT_LO] != 2'b00)))) ||
-          (pte_leaf(pte) && svpbmt_en &&
-           (pte[`SV39_PTE_PBMT_HI:`SV39_PTE_PBMT_LO] == 2'b11));
+            (pte[`SV39_PTE_PBMT_HI:`SV39_PTE_PBMT_LO] != 2'b00)));
     end
   endfunction
 
@@ -382,7 +415,7 @@ module OooMemAxiBridge (
   wire [`XLEN-1:0] req_translated_paddr_w;
   wire req_dtlb_perm_fault_w =
       req_dtlb_context_hit_w &&
-      (pte_reserved_fault(req_dtlb_pte_w, svpbmt_en_i, req_dtlb_level_w) ||
+      (pte_reserved_fault(req_dtlb_pte_w, req_dtlb_level_w) ||
        data_permission_fault(req_dtlb_pte_w, req_write_w, req_priv_w,
                              mstatus_i));
   // HW A/D: TLB 命中项若 A/D 不足(如 load 填的 A=1/D=0 项被 store 命中)→ 视为 miss,
@@ -398,53 +431,116 @@ module OooMemAxiBridge (
   wire req_data_pmp_fault_w =
       (!req_translate_w || req_dtlb_hit_w) && req_pmp_fault_raw_w &&
       !stg_pretrans_q;
-  wire req_dcacheable_unused_w;
+  wire req_pma_fault_raw_w;
+  wire req_pma_attr_valid_raw_w;
+  wire [1:0] req_pma_class_raw_w;
+  wire req_typed_attr_valid_w;
+  wire [1:0] req_typed_class_w;
+  wire req_typed_fault_w;
+  wire req_typed_page_fault_w;
+  wire req_typed_access_fault_w;
+  wire req_typed_pbmt_fault_w;
+  wire req_typed_cacheable_w;
+  wire req_typed_serialized_w;
+  // Plain Verilog case/default gives an X/Z-safe fail-closed admission and
+  // still synthesizes as the small typed decoder it describes.
+  reg req_pretrans_attr_admitted_r;
+  always @(*) begin
+    req_pretrans_attr_admitted_r = 1'b0;
+    case ({stg_attr_valid_q, stg_class_q})
+      {1'b1, `OOO_MEM_CLASS_CACHED},
+      {1'b1, `OOO_MEM_CLASS_NC},
+      {1'b1, `OOO_MEM_CLASS_IO}: req_pretrans_attr_admitted_r = 1'b1;
+      default: req_pretrans_attr_admitted_r = 1'b0;
+    endcase
+  end
+  wire req_pretrans_attr_fault_w =
+      stg_pretrans_q && !req_pretrans_attr_admitted_r;
+  wire req_data_pma_fault_w = req_pretrans_attr_fault_w ||
+                              req_typed_access_fault_w;
+  wire req_effective_attr_valid_w =
+      stg_pretrans_q ? req_pretrans_attr_admitted_r :
+      (req_typed_attr_valid_w && !req_data_pmp_fault_w &&
+       !req_dtlb_perm_fault_w);
+  wire [1:0] req_effective_class_w = req_effective_attr_valid_w ?
+      (stg_pretrans_q ? stg_class_q : req_typed_class_w) :
+      `OOO_MEM_CLASS_RSVD;
+  wire req_addr_dcacheable_w;
+  wire req_dcacheable_w = req_effective_attr_valid_w &&
+                          (req_effective_class_w == `OOO_MEM_CLASS_CACHED);
+  wire req_nc_w = req_effective_attr_valid_w &&
+                  (req_effective_class_w == `OOO_MEM_CLASS_NC);
+  wire req_io_w = req_effective_attr_valid_w &&
+                  (req_effective_class_w == `OOO_MEM_CLASS_IO);
   wire req_line_cross_w;
   wire [`XLEN-1:0] walk_pte_addr_w =
       pte_addr(walk_ppn_q, addr_q, walk_level_q);
   wire [`XLEN-1:0] walk_leaf_paddr_w =
       leaf_paddr(lsu_axi_rdata_i, addr_q, walk_level_q);
   wire walk_leaf_pmp_fault_w;
-  wire walk_leaf_dcacheable_unused_w;
+  wire walk_leaf_pma_fault_raw_w;
+  wire walk_leaf_pma_attr_valid_raw_w;
+  wire [1:0] walk_leaf_pma_class_raw_w;
+  wire walk_leaf_classified_attr_valid_w;
+  wire [1:0] walk_leaf_classified_class_w;
+  wire walk_leaf_attr_valid_w;
+  wire [1:0] walk_leaf_class_w;
+  wire walk_leaf_typed_fault_w;
+  wire walk_leaf_page_fault_w;
+  wire walk_leaf_pma_fault_w;
+  wire walk_leaf_pbmt_fault_w;
+  wire walk_leaf_cacheable_w;
+  wire walk_leaf_serialized_w;
+  wire walk_leaf_addr_dcacheable_w;
+  wire walk_leaf_dcacheable_w = walk_leaf_attr_valid_w &&
+                                (walk_leaf_class_w == `OOO_MEM_CLASS_CACHED);
+  wire walk_leaf_nc_w = walk_leaf_attr_valid_w &&
+                        (walk_leaf_class_w == `OOO_MEM_CLASS_NC);
+  wire walk_leaf_io_w = walk_leaf_attr_valid_w &&
+                        (walk_leaf_class_w == `OOO_MEM_CLASS_IO);
+  wire paddr_dcacheable_w = access_cacheable_w;
   wire write_paddr_virtio_blk_w =
       ((paddr_q & `NPC_AXI_VIRTIO_BLK_MASK) == `NPC_AXI_VIRTIO_BLK_BASE);
   wire dtlb_leaf_ok_w =
       (state_q == S_WALK_R) && lsu_axi_rvalid_i &&
       (lsu_axi_rresp_i == 2'b00) &&
       !pte_invalid(lsu_axi_rdata_i) &&
-      !pte_reserved_fault(lsu_axi_rdata_i, access_svpbmt_en_q, walk_level_q) &&
+      !pte_reserved_fault(lsu_axi_rdata_i, walk_level_q) &&
       pte_leaf(lsu_axi_rdata_i) &&
       !superpage_misaligned(lsu_axi_rdata_i, walk_level_q) &&
       !data_permission_fault(lsu_axi_rdata_i, write_q, access_priv_q,
                              mstatus_i);
   wire walk_ad_needed_w = data_ad_update_needed(lsu_axi_rdata_i, write_q);
-  // A/D 写回 B 完成拍(bresp OK): 用 ad_pte_q 填 TLB(A/D 已置)+ 续原访问。
+  // B terminal and B success are deliberately distinct.  A lane adapter may
+  // have completed an earlier split beat before a later beat reports error;
+  // therefore every terminal conservatively maintains a possible hot alias,
+  // while only an all-OK data-store terminal may write-update cache data.
+  wire data_store_b_terminal_w =
+      (state_q == S_WRITE_RESP) && lsu_axi_bvalid_i;
+  wire data_store_b_ok_w =
+      data_store_b_terminal_w && (lsu_axi_bresp_i == 2'b00);
+  wire ad_update_b_terminal_w =
+      (state_q == S_AD_UPDATE) && lsu_axi_bvalid_i;
+  // A/D 写回 B 成功拍: 用 ad_pte_q 填 TLB(A/D 已置)+ 续原访问。
   wire ad_update_b_ok_w =
-      (state_q == S_AD_UPDATE) && lsu_axi_bvalid_i && (lsu_axi_bresp_i == 2'b00);
+      ad_update_b_terminal_w && (lsu_axi_bresp_i == 2'b00);
   // 无需更新 → S_WALK_R 填原始 PTE(A/D 已足); 需更新 → 待 S_AD_UPDATE 写完填 ad_pte_q。
-  wire dtlb_fill_valid_w = (dtlb_leaf_ok_w && !walk_ad_needed_w) || ad_update_b_ok_w;
+  wire dtlb_fill_valid_w =
+      (dtlb_leaf_ok_w && walk_leaf_attr_valid_w && !walk_ad_needed_w) ||
+      ad_update_b_ok_w;
   wire [`XLEN-1:0] dtlb_fill_pte_w =
       ad_update_b_ok_w ? ad_pte_q : lsu_axi_rdata_i;
   wire dcache_read_fill_valid_w =
       !cpu_kill_w && (state_q == S_READ_DATA) && lsu_axi_rvalid_i &&
-      (lsu_axi_rresp_i == 2'b00) && !read_cross_q;
-  // 声明前置，iverilog 14 拒绝前向引用(赋值仍在下方 B 通道段)。
-  wire store_decouple_w;
-  // 解耦 store 在数据落 PMEM 当拍(S_WRITE_REQ 两 beat 完成且走解耦)就必须更新/失效 dcache，
-  // 否则跳过 S_WRITE_RESP 会漏掉 dcache 维护、令同地址后续 load 命中旧值(MEM-I2 破坏)。
-  // 【store RMW】限定正常推进分支(fsm_normal_w): flush-drain 拍 FSM 进 S_WRITE_RESP
-  // 等 B, 改由 b-ok 拍单次提交——否则同一 store 双 commit, 第二次 RMW 读会撞上
-  // 第一次的判决拍(1RW 违约)。语义不变: drain store 仍在 B ok 拍维护 dcache。
-  wire store_decouple_commit_w =
-      fsm_normal_w &&
-      (state_q == S_WRITE_REQ) &&
-      ((aw_done_q || aw_fire_w) && (w_done_q || w_fire_w)) &&
-      store_decouple_w;
+      (lsu_axi_rresp_i == 2'b00) && access_cacheable_w && !read_exact_q;
+  // Store/PTE aliases are maintained on every B terminal.  Data RMW is
+  // separately enabled only for an all-OK final-cacheable data store; B error,
+  // PBMT NC/IO, and A/D maintenance all take the valid-only invalidate path.
   wire dcache_store_commit_w =
-      ((state_q == S_WRITE_RESP) && lsu_axi_bvalid_i &&
-       (lsu_axi_bresp_i == 2'b00)) ||
-      store_decouple_commit_w ||
-      ad_update_b_ok_w;   // HW A/D: PTE 写回也维护 dcache(否则读 PTE 得 stale A/D, rv64si-dirty 破)
+      data_store_b_terminal_w || ad_update_b_terminal_w;
+  wire dcache_store_rmw_en_w = data_store_b_ok_w && access_cacheable_w;
+  wire dcache_store_cacheable_w =
+      ad_update_b_terminal_w || access_cacheable_w;
 
   // 【SRAM 同步读】dcache 单读口发射条件(三源所在状态互斥, 见 dcache spec):
   //   req 路: 【刀 M】stage_advance 拍 read-可翻译-无 fault(原 fire 拍, 已随寄存站
@@ -455,15 +551,19 @@ module OooMemAxiBridge (
   //     lsu_axi_rdata_i 的依赖(第二个既有 bug)。
   wire req_read_lookup_fire_w =
       stage_advance_w && !req_write_w &&
-      (!req_translate_w || req_dtlb_hit_w) &&
-      !req_data_pmp_fault_w &&
-      !(req_translate_w && req_dtlb_perm_fault_w);
+      req_dcacheable_w && !req_typed_fault_w &&
+      !req_data_pmp_fault_w && !req_dtlb_perm_fault_w;
+  // S1.2 strict cache authorization: neither NC nor IO may even issue a raw
+  // SRAM preview.  Payload selection remains unqualified below, so the wide
+  // permission/class cone reaches only lookup_en, never the macro address mux.
+  wire req_read_lookup_issue_w = req_read_lookup_fire_w;
   wire walk_read_lookup_fire_w =
-      dtlb_leaf_ok_w && !walk_leaf_pmp_fault_w && !walk_ad_needed_w &&
-      !write_q;
+      dtlb_leaf_ok_w && walk_leaf_dcacheable_w && !walk_leaf_typed_fault_w &&
+      !walk_ad_needed_w && !write_q;
   wire ad_read_lookup_fire_w =
       ad_update_b_ok_w &&
-      (aw_done_q || aw_fire_w) && (w_done_q || w_fire_w) && !write_q;
+      (aw_done_q || aw_fire_w) && (w_done_q || w_fire_w) &&
+      !write_q && access_cacheable_w;
   // walk/A/D 路只在 FSM 正常推进分支发读(flush/drop 拍事务被释放, 不发)。
   // req 路已由 stage_advance_w 含 (!cpu_kill_w||stg_nokill_q) 与 !rmw_busy 把关
   // (nokill 恒 write, 不落入 read-lookup 分支)。
@@ -471,11 +571,25 @@ module OooMemAxiBridge (
   // 三源所在状态与 RMW 判决拍状态互斥, 由下方 OOO_ASSERT 证实恒不触发)。
   wire dcache_lookup_en_w =
       !dcache_rmw_busy_w &&
-      (req_read_lookup_fire_w ||
+      (req_read_lookup_issue_w ||
        (fsm_normal_w && (walk_read_lookup_fire_w || ad_read_lookup_fire_w)));
+  // Payload ownership must not reuse the permission/class-qualified enable.
+  // This prevents the typed PMA/PMP cone from entering any SRAM address bit.
+  wire req_lookup_payload_owner_w = stage_advance_w && !req_write_w;
+  // T4C: S_WALK_R owns the PTE-derived address payload for the whole receive
+  // state.  RVALID/PTE/PMP/A-D qualification remains exclusively on lookup
+  // enable, so a deny/wait cycle cannot drag the permission tree into SRAM
+  // address selection while every meaningful lookup keeps the same address.
+  wire walk_lookup_payload_owner_w = (state_q == S_WALK_R);
+  // The payload is don't-care whenever the typed CACHED enable is low: an
+  // untranslated/NC/IO/faulting request must never issue a cache lookup.  Keep
+  // the payload mux independent of that qualification so the PMA/PMP cone
+  // cannot enter SRAM address timing.
+  wire [`XLEN-1:0] req_lookup_candidate_addr_w =
+      req_translate_w ? req_translated_paddr_w : req_addr_w;
   wire [`XLEN-1:0] dcache_lookup_addr_w =
-      req_read_lookup_fire_w  ? req_cache_addr_w :
-      walk_read_lookup_fire_w ? walk_leaf_paddr_w : paddr_q;
+      req_lookup_payload_owner_w ? req_lookup_candidate_addr_w :
+      walk_lookup_payload_owner_w ? walk_leaf_paddr_w : paddr_q;
   wire dcache_lookup_hit_w;
   wire [`XLEN-1:0] dcache_lookup_line_w;
   // S_LOOKUP 判决: 跨线阻断统一用锁存 read_cross_q(accept 拍按 VA 低 3 位判,
@@ -521,6 +635,25 @@ module OooMemAxiBridge (
     .fault_o(req_pmp_fault_raw_w)
   );
 
+  // Typed PMA owns the implemented-region class.  A pretranslated drain is
+  // deliberately excluded: its class must be the exact probe provenance,
+  // never a second address-based classification.
+  // PBMT/PTE legality must be evaluated before PMP/PMA fault selection.
+  // Therefore a final leaf remains classifier-valid even when PMP denies it;
+  // final routable provenance is separately masked below.
+  wire req_classify_valid_w =
+      (!req_translate_w || req_dtlb_hit_w) && !stg_pretrans_q &&
+      !req_dtlb_perm_fault_w;
+  OooTypedPmaChecker u_req_pma_checker (
+    .paddr_i(req_cache_addr_w),
+    .access_size_i(req_access_size_w),
+    .access_read_i(req_classify_valid_w && !req_write_w),
+    .access_write_i(req_classify_valid_w && req_write_w),
+    .fault_o(req_pma_fault_raw_w),
+    .attr_valid_o(req_pma_attr_valid_raw_w),
+    .class_o(req_pma_class_raw_w)
+  );
+
   PmpChecker u_walk_leaf_pmp_checker (
     .paddr_i(walk_leaf_paddr_w),
     .access_size_i(active_access_size_w),
@@ -533,15 +666,76 @@ module OooMemAxiBridge (
     .fault_o(walk_leaf_pmp_fault_w)
   );
 
+  wire walk_leaf_classify_valid_w = dtlb_leaf_ok_w;
+  OooTypedPmaChecker u_walk_leaf_pma_checker (
+    .paddr_i(walk_leaf_paddr_w),
+    .access_size_i(active_access_size_w),
+    .access_read_i(walk_leaf_classify_valid_w && !write_q),
+    .access_write_i(walk_leaf_classify_valid_w && write_q),
+    .fault_o(walk_leaf_pma_fault_raw_w),
+    .attr_valid_o(walk_leaf_pma_attr_valid_raw_w),
+    .class_o(walk_leaf_pma_class_raw_w)
+  );
+
+  // The typed classifier is the only PBMT/PMA merge owner.  pbmt_valid means
+  // "translated leaf exists", independently of whether PBMTE is enabled.
+  OooTypedMemoryClassifier u_req_post_translate_class (
+    .clk(clk),
+    .rst(rst),
+    .access_valid_i(req_classify_valid_w),
+    .pma_fault_i(req_pma_fault_raw_w),
+    .pma_attr_valid_i(req_pma_attr_valid_raw_w),
+    .pma_class_i(req_pma_class_raw_w),
+    .pbmt_valid_i(req_translate_w),
+    .pbmte_i(svpbmt_en_i),
+    .pbmt_i(req_dtlb_pte_w[`SV39_PTE_PBMT_HI:`SV39_PTE_PBMT_LO]),
+    .attr_valid_o(req_typed_attr_valid_w),
+    .class_o(req_typed_class_w),
+    .fault_valid_o(req_typed_fault_w),
+    .page_fault_o(req_typed_page_fault_w),
+    .access_fault_o(req_typed_access_fault_w),
+    .pbmt_fault_o(req_typed_pbmt_fault_w),
+    .cacheable_o(req_typed_cacheable_w),
+    .serialized_o(req_typed_serialized_w)
+  );
+
+  OooTypedMemoryClassifier u_walk_post_translate_class (
+    .clk(clk),
+    .rst(rst),
+    .access_valid_i(walk_leaf_classify_valid_w),
+    .pma_fault_i(walk_leaf_pma_fault_raw_w),
+    .pma_attr_valid_i(walk_leaf_pma_attr_valid_raw_w),
+    .pma_class_i(walk_leaf_pma_class_raw_w),
+    .pbmt_valid_i(1'b1),
+    .pbmte_i(access_svpbmt_en_q),
+    .pbmt_i(lsu_axi_rdata_i[`SV39_PTE_PBMT_HI:`SV39_PTE_PBMT_LO]),
+    .attr_valid_o(walk_leaf_classified_attr_valid_w),
+    .class_o(walk_leaf_classified_class_w),
+    .fault_valid_o(walk_leaf_typed_fault_w),
+    .page_fault_o(walk_leaf_page_fault_w),
+    .access_fault_o(walk_leaf_pma_fault_w),
+    .pbmt_fault_o(walk_leaf_pbmt_fault_w),
+    .cacheable_o(walk_leaf_cacheable_w),
+    .serialized_o(walk_leaf_serialized_w)
+  );
+
+  // Classifier outputs describe PBMT/PMA legality only.  PMP is a later
+  // pre-target authorization stage and must poison final provenance without
+  // suppressing an older PBMT page fault.
+  assign walk_leaf_attr_valid_w = walk_leaf_classified_attr_valid_w &&
+                                  !walk_leaf_pmp_fault_w;
+  assign walk_leaf_class_w = walk_leaf_attr_valid_w ?
+      walk_leaf_classified_class_w : `OOO_MEM_CLASS_RSVD;
+
   // F9：priv-spec 要求 PMP 适用于地址翻译期间对页表的隐式访问。旧实现只检查最终数据 PA
   // (req/leaf)，每级 PTE 读地址（walk_pte_addr_w）绕过了 PMP——OS 把页表放入对 S 态拒绝
   // 的 PMP 区时硬件仍能读出 PTE，绕过 M 态隔离。这里对 PTE 读地址补 PMP 检查（8B 读，
-  // 用被翻译访问的特权级 access_priv_q，与 leaf 检查器一致）。
+  // 隐式页表访问按 S-mode 检查；U/S 发起者在 PMP 上都不能借 walker 提权）。
   wire walk_pte_pmp_fault_w;
   PmpChecker u_walk_pte_pmp_checker (
     .paddr_i(walk_pte_addr_w),
     .access_size_i(4'd8),
-    .priv_mode_i(access_priv_q),
+    .priv_mode_i(`PRIV_S),
     .access_read_i(1'b1),
     .access_write_i(1'b0),
     .access_exec_i(1'b0),
@@ -550,15 +744,36 @@ module OooMemAxiBridge (
     .fault_o(walk_pte_pmp_fault_w)
   );
 
+  // T4F / PTW-PMP-G1：A/D 回写是另一笔隐式 8B store，PTE READ 许可
+  // 不能推出 WRITE 许可。独立 checker 只落在 S_WALK_R leaf 决策锥；deny
+  // 直接形成原 load/store 的 access fault，绝不进入 S_AD_UPDATE/呈现 AW/W。
+  wire walk_pte_write_pmp_fault_w;
+  PmpChecker u_walk_pte_write_pmp_checker (
+    .paddr_i(walk_pte_addr_w),
+    .access_size_i(4'd8),
+    .priv_mode_i(`PRIV_S),
+    .access_read_i(1'b0),
+    .access_write_i(1'b1),
+    .access_exec_i(1'b0),
+    .pmpcfg_i(pmpcfg_i),
+    .pmpaddr_i(pmpaddr_i),
+    .fault_o(walk_pte_write_pmp_fault_w)
+  );
+
+  wire walk_ad_write_deny_w =
+      dtlb_leaf_ok_w && !walk_leaf_pmp_fault_w && walk_ad_needed_w &&
+      walk_pte_write_pmp_fault_w;
+
   OooDataWordCache u_dcache (
     .clk(clk),
     .rst(rst),
+    .dma_invalidate_all_i(dcache_dma_invalidate_all_i),
     .req_lookup_addr_i(req_cache_addr_w),
     .req_nbytes_i(req_access_size_w),
-    .req_cacheable_o(req_dcacheable_unused_w),
+    .req_cacheable_o(req_addr_dcacheable_w),
     .req_line_cross_o(req_line_cross_w),
     .walk_lookup_addr_i(walk_leaf_paddr_w),
-    .walk_cacheable_o(walk_leaf_dcacheable_unused_w),
+    .walk_cacheable_o(walk_leaf_addr_dcacheable_w),
     // 单读口两拍协议: 发射拍状态互斥 mux(req/walk/A-D 三源), 判决在 S_LOOKUP。
     .lookup_en_i(dcache_lookup_en_w),
     .lookup_addr_i(dcache_lookup_addr_w),
@@ -567,15 +782,16 @@ module OooMemAxiBridge (
     .fill_valid_i(dcache_read_fill_valid_w),
     .fill_addr_i({paddr_q[`XLEN-1:3], 3'b000}),
     .fill_data_i(lsu_axi_rdata_i),
-    // 【store RMW·二期赎回】真 store commit(S_WRITE_REQ 解耦/S_WRITE_RESP b-ok,
-    // 该拍宏读口空闲)走 2 拍 RMW write-update; HW A/D PTE 写回维护路保持无条件
-    // 失效(该拍的 read 续访问可能同拍发 lookup, 读口不空闲)。
+    // 【store RMW·二期赎回】只有真 cacheable store B-ok 走 2 拍
+    // RMW write-update; B-error/PBMT NC/IO/HW A/D 终点一律无条件失效。
     .store_commit_i(dcache_store_commit_w),
-    .store_rmw_en_i(!ad_update_b_ok_w),
-    // HW A/D: PTE 写回拍(ad_update_b_ok_w)对 PTE 地址维护 dcache; 否则用 store 地址。
-    .store_addr_i(ad_update_b_ok_w ? walk_pte_addr_w : paddr_q),
+    .store_rmw_en_i(dcache_store_rmw_en_w),
+    .store_cacheable_i(dcache_store_cacheable_w),
+    // HW A/D: every PTE-write terminal maintains the PTE address; data-store
+    // terminals maintain the translated store PA.
+    .store_addr_i(ad_update_b_terminal_w ? walk_pte_addr_w : paddr_q),
     .store_wdata_i(wdata_q),
-    .store_wstrb_i(ad_update_b_ok_w ? {`STRB_W{1'b1}} : wstrb_q),
+    .store_wstrb_i(ad_update_b_terminal_w ? {`STRB_W{1'b1}} : wstrb_q),
     .rmw_busy_o(dcache_rmw_busy_w)
   );
 
@@ -604,27 +820,39 @@ module OooMemAxiBridge (
       (dcache_lookup_line_w >> {paddr_q[2:0], 3'b000}) : rsp_rdata_q;
   assign mem0_rsp_error_o = lookup_hit_fusion_w ? 1'b0 : rsp_error_q;
   assign mem0_rsp_page_fault_o = lookup_hit_fusion_w ? 1'b0 : rsp_page_fault_q;
+  assign mem0_rsp_attr_valid_o = access_attr_valid_q;
+  assign mem0_rsp_class_o = access_attr_valid_q ? access_class_q :
+                            `OOO_MEM_CLASS_RSVD;
+  assign mem0_rsp_cacheable_o = mem0_rsp_attr_valid_o &&
+                                (mem0_rsp_class_o == `OOO_MEM_CLASS_CACHED);
   assign translate_active_o = ctx_translate_w;
 
   // 【SRAM 同步读】read miss 的 AR 从 fire 拍推迟到 S_LOOKUP 判决拍(晚 1 拍),
   // 地址/strb 统一取锁存 paddr_q/wstrb_q, 原 req_* 直通支路随之删除。
   // S_LOOKUP 项的 !rmw_busy 与 FSM 转移侧一致(读口互斥安全网, 状态互斥下恒真)。
+  // T4E: once an AR has been presented and stalled, AXI requires VALID and
+  // every payload field to remain stable through the eventual handshake.
+  // S_WALK_AR/S_READ_ADDR are registered owners, so flush/drop must drain the
+  // address handshake instead of combinationally withdrawing VALID.  Only the
+  // one-cycle speculative S_LOOKUP arm may be cancelled before it is owned by
+  // S_READ_ADDR; a stalled S_LOOKUP AR moves to S_READ_ADDR at the same edge.
   assign lsu_axi_arvalid_o =
-      !cpu_kill_w &&
-      (((state_q == S_WALK_AR) && !walk_pte_pmp_fault_w) ||
-       (state_q == S_READ_ADDR) ||
-       ((state_q == S_LOOKUP) && !dcache_lookup_hit_final_w &&
-        !dcache_rmw_busy_w));
+      ((state_q == S_WALK_AR) && !walk_pte_pmp_fault_w) ||
+      (state_q == S_READ_ADDR) ||
+      (!cpu_kill_w && (state_q == S_DEVICE_WAIT) &&
+       mem0_device_release_i && !mem0_device_cancel_i) ||
+      (!cpu_kill_w &&
+       (state_q == S_LOOKUP) && !dcache_lookup_hit_final_w &&
+       !dcache_rmw_busy_w);
   wire [`XLEN-1:0] pend_read_araddr_w =
-      read_cross_q ? paddr_q : {paddr_q[`XLEN-1:3], 3'b000};
+      read_exact_q ? paddr_q : {paddr_q[`XLEN-1:3], 3'b000};
   assign lsu_axi_araddr_o =
       (state_q == S_WALK_AR) ? walk_pte_addr_w : pend_read_araddr_w;
-  // 【AXI4 化 S3】arstrb(非标)→ARSIZE: walk/对齐 line 读=8B; 跨线窗口读=实际访问
-  // 宽度(log2(popcount(wstrb)), 配非对齐 araddr)。slave 侧(DPI pmem)本就整 8B 读
-  // 由 master 取窗口, 行为零变化。
+  // 【AXI4 化 S3】walk/cache line 读=8B；uncacheable 或跨 line 的 exact 读保留
+  // 原始 PA/size。下游 lane adapter 负责标准 byte-lane 映射；MMIO 不得被扩大读。
   assign lsu_axi_arsize_o =
       (state_q == S_WALK_AR) ? 3'd3 :
-      (read_cross_q ? axsize_from_bytes(access_size_from_wstrb(wstrb_q)) : 3'd3);
+      (read_exact_q ? axsize_from_bytes(access_size_from_wstrb(wstrb_q)) : 3'd3);
   assign lsu_axi_rready_o = (state_q == S_WALK_R) || (state_q == S_READ_DATA);
   wire write_drain_w =
       drop_rsp_q || (flush_i && (aw_done_q || w_done_q));
@@ -642,12 +870,9 @@ module OooMemAxiBridge (
       ((state_q == S_AD_UPDATE) && !w_done_q);
   assign lsu_axi_wdata_o = (state_q == S_AD_UPDATE) ? ad_pte_q : wdata_q;
   assign lsu_axi_wstrb_o = (state_q == S_AD_UPDATE) ? {`STRB_W{1'b1}} : wstrb_q;
-  // 解耦 store 的 B 由跟踪器吸收：bpend_q 期间持续拉 bready。S_AD_UPDATE 也收 B。
+  // 所有 store 与 HW A/D 写回均等 B；聚合 BRESP 是唯一完成点。
   assign lsu_axi_bready_o =
-      (state_q == S_WRITE_RESP) || bpend_q || (state_q == S_AD_UPDATE);
-  // 仅 PMEM store 可提前完成(bresp 恒 OK)；!bpend_q 保证至多一个未收 B。
-  assign store_decouple_w =
-      ((paddr_q & `NPC_AXI_PMEM_MASK) == `NPC_AXI_PMEM_BASE) && !bpend_q;
+      (state_q == S_WRITE_RESP) || (state_q == S_AD_UPDATE);
 
   // 【刀 M】accept_request 的调用时机从 req fire 拍改为 stage_advance 拍, 全部
   // 数据源经 req_*_w 簇取自寄存站(stg_*); 分流决策文本与旧版逐字一致。
@@ -660,6 +885,9 @@ module OooMemAxiBridge (
       addr_q <= req_addr_w;
       paddr_q <= req_cache_addr_w;
       read_cross_q <= req_line_cross_w;
+      read_exact_q <= !req_dcacheable_w || req_line_cross_w;
+      access_attr_valid_q <= req_effective_attr_valid_w;
+      access_class_q <= req_effective_class_w;
       wdata_q <= req_wdata_w;
       wstrb_q <= req_wstrb_w;
       probe_q <= stg_probe_q && req_write_w;
@@ -669,24 +897,31 @@ module OooMemAxiBridge (
       rsp_page_fault_q <= 1'b0;
       aw_done_q <= 1'b0;
       w_done_q <= 1'b0;
-      if (req_data_pmp_fault_w) begin
+      if (req_typed_page_fault_w) begin
         rsp_error_q <= 1'b1;
-        rsp_page_fault_q <= 1'b0;
+        rsp_page_fault_q <= 1'b1;
         state_q <= S_RESP;
       end else if (req_translate_w && req_dtlb_perm_fault_w) begin
         rsp_error_q <= 1'b1;
         rsp_page_fault_q <= 1'b1;
         state_q <= S_RESP;
+      end else if (req_translate_w && !req_dtlb_hit_w &&
+                   !canonical_sv39(req_addr_w)) begin
+        rsp_error_q <= 1'b1;
+        rsp_page_fault_q <= 1'b1;
+        state_q <= S_RESP;
+      end else if (req_data_pmp_fault_w) begin
+        rsp_error_q <= 1'b1;
+        rsp_page_fault_q <= 1'b0;
+        state_q <= S_RESP;
+      end else if (req_data_pma_fault_w) begin
+        rsp_error_q <= 1'b1;
+        rsp_page_fault_q <= 1'b0;
+        state_q <= S_RESP;
       end else if (req_translate_w && !req_dtlb_hit_w) begin
-        if (canonical_sv39(req_addr_w)) begin
-          walk_level_q <= 2'd2;
-          walk_ppn_q <= satp_i[43:0];
-          state_q <= S_WALK_AR;
-        end else begin
-          rsp_error_q <= 1'b1;
-          rsp_page_fault_q <= 1'b1;
-          state_q <= S_RESP;
-        end
+        walk_level_q <= 2'd2;
+        walk_ppn_q <= satp_i[43:0];
+        state_q <= S_WALK_AR;
       end else if (req_write_w) begin
         if (stg_probe_q) begin
           // 【LSQ·SQ 切换】write 探测:翻译+PMP 已过, 不写内存, PA 经 rsp_rdata 回传。
@@ -696,9 +931,20 @@ module OooMemAxiBridge (
           state_q <= S_WRITE_REQ;
         end
       end else begin
-        // 【SRAM 同步读】读路径统一经 S_LOOKUP: fire 拍已发 dcache 读
-        // (req_read_lookup_fire_w, 与本分支条件严格一致), 次拍判决 hit/miss。
-        state_q <= S_LOOKUP;
+        // Typed three-way target routing.  CACHED alone owns the SRAM lookup;
+        // NC is an exact idempotent AXI read; IO waits for the exact ROB-head
+        // owner and remains cancellable until it becomes externally visible.
+        if (req_dcacheable_w)
+          state_q <= S_LOOKUP;
+        else if (req_nc_w)
+          state_q <= S_READ_ADDR;
+        else if (req_io_w)
+          state_q <= S_DEVICE_WAIT;
+        else begin
+          rsp_error_q <= 1'b1;
+          rsp_page_fault_q <= 1'b0;
+          state_q <= S_RESP;
+        end
       end
     end
   endtask
@@ -716,6 +962,9 @@ module OooMemAxiBridge (
       paddr_q <= {`XLEN{1'b0}};
       ad_pte_q <= {`XLEN{1'b0}};
       read_cross_q <= 1'b0;
+      read_exact_q <= 1'b0;
+      access_attr_valid_q <= 1'b0;
+      access_class_q <= `OOO_MEM_CLASS_RSVD;
       wdata_q <= {`XLEN{1'b0}};
       wstrb_q <= {`STRB_W{1'b0}};
       rsp_rdata_q <= {`XLEN{1'b0}};
@@ -724,14 +973,9 @@ module OooMemAxiBridge (
       aw_done_q <= 1'b0;
       w_done_q <= 1'b0;
       drop_rsp_q <= 1'b0;
-      bpend_q <= 1'b0;
       probe_q <= 1'b0;
       nokill_q <= 1'b0;
     end else begin
-      // B-drain 跟踪器(状态无关，flush 期间也照常吸收已解耦 store 的 B)
-      if (bpend_q && lsu_axi_bvalid_i) begin
-        bpend_q <= 1'b0;
-      end
       // 【刀 M】寄存站项进 FSM(stage_advance 拍)最高优先: 只可能发生在 S_IDLE 或
       // S_RESP&&rsp_ready(两态 drop_rsp_q 恒 0、无遗留清理义务, done 位由
       // accept_request 清零)。nokill 项经 (!cpu_kill_w||stg_nokill_q) 豁免, flush
@@ -749,12 +993,43 @@ module OooMemAxiBridge (
           drop_rsp_q <= 1'b0;
         end
 
-        // S_LOOKUP: dcache 读无外部副作用, flush 当拍直接释放。
-        S_WALK_AR, S_READ_ADDR, S_LOOKUP: begin
+        // S_LOOKUP 的组合 AR 尚未形成跨拍 owner，flush 可当拍取消。
+        S_LOOKUP: begin
           state_q <= S_IDLE;
           aw_done_q <= 1'b0;
           w_done_q <= 1'b0;
           drop_rsp_q <= 1'b0;
+        end
+
+        // 尚未 release 的 device read 从未呈现 AR，可在 global flush/drop
+        // 拍直接释放；ROB-walk selective kill 走正常分支的 cancel quiet rsp。
+        S_DEVICE_WAIT: begin
+          state_q <= S_IDLE;
+          aw_done_q <= 1'b0;
+          w_done_q <= 1'b0;
+          drop_rsp_q <= 1'b0;
+        end
+
+        // T4E AXI AR hold：注册地址态一旦对外呈现 VALID，即使 flush/drop
+        // 也必须保持 VALID+payload 到 READY。握手后进入 R drain，残响应只吞不交付。
+        // PTE 地址 PMP 已拒绝时从未呈现 VALID，可直接释放。
+        S_WALK_AR: begin
+          aw_done_q <= 1'b0;
+          w_done_q <= 1'b0;
+          if (walk_pte_pmp_fault_w) begin
+            state_q <= S_IDLE;
+            drop_rsp_q <= 1'b0;
+          end else begin
+            state_q <= lsu_axi_arready_i ? S_WALK_R : S_WALK_AR;
+            drop_rsp_q <= 1'b1;
+          end
+        end
+
+        S_READ_ADDR: begin
+          aw_done_q <= 1'b0;
+          w_done_q <= 1'b0;
+          state_q <= lsu_axi_arready_i ? S_READ_DATA : S_READ_ADDR;
+          drop_rsp_q <= 1'b1;
         end
 
         S_WALK_R, S_READ_DATA: begin
@@ -853,9 +1128,7 @@ module OooMemAxiBridge (
               rsp_page_fault_q <= 1'b0;
               state_q <= S_RESP;
             end else if (pte_invalid(lsu_axi_rdata_i) ||
-                         pte_reserved_fault(lsu_axi_rdata_i,
-                                            access_svpbmt_en_q,
-                                            walk_level_q) ||
+                         pte_reserved_fault(lsu_axi_rdata_i, walk_level_q) ||
                          (!pte_leaf(lsu_axi_rdata_i) &&
                           (walk_level_q == 2'd0))) begin
               rsp_error_q <= 1'b1;
@@ -868,7 +1141,23 @@ module OooMemAxiBridge (
                 rsp_error_q <= 1'b1;
                 rsp_page_fault_q <= 1'b1;
                 state_q <= S_RESP;
+              end else if (walk_leaf_page_fault_w) begin
+                rsp_error_q <= 1'b1;
+                rsp_page_fault_q <= 1'b1;
+                state_q <= S_RESP;
               end else if (walk_leaf_pmp_fault_w) begin
+                rsp_error_q <= 1'b1;
+                rsp_page_fault_q <= 1'b0;
+                state_q <= S_RESP;
+              end else if (walk_leaf_pma_fault_w) begin
+                // 最终 data PA 未落入真实实现窗口：在任何 A/D 写或 data
+                // AW/W/AR 前形成原 load/store 的 access fault。
+                rsp_error_q <= 1'b1;
+                rsp_page_fault_q <= 1'b0;
+                state_q <= S_RESP;
+              end else if (walk_ad_needed_w &&
+                           walk_pte_write_pmp_fault_w) begin
+                // PTE 可读但不可写：原始 load/store 报 access fault，不是 page fault。
                 rsp_error_q <= 1'b1;
                 rsp_page_fault_q <= 1'b0;
                 state_q <= S_RESP;
@@ -877,11 +1166,17 @@ module OooMemAxiBridge (
                 ad_pte_q <= lsu_axi_rdata_i | PTE_A_BIT |
                             (write_q ? PTE_D_BIT : {`XLEN{1'b0}});
                 paddr_q <= walk_leaf_paddr_w;
+                read_exact_q <= !walk_leaf_dcacheable_w || read_cross_q;
+                access_attr_valid_q <= walk_leaf_attr_valid_w;
+                access_class_q <= walk_leaf_class_w;
                 aw_done_q <= 1'b0;
                 w_done_q <= 1'b0;
                 state_q <= S_AD_UPDATE;
               end else begin
                 paddr_q <= walk_leaf_paddr_w;
+                read_exact_q <= !walk_leaf_dcacheable_w || read_cross_q;
+                access_attr_valid_q <= walk_leaf_attr_valid_w;
+                access_class_q <= walk_leaf_class_w;
                 if (write_q) begin
                   if (probe_q) begin
                     // 【LSQ·SQ 切换】PTW 完成的 write 探测同样短路:PA 回传, 不写。
@@ -893,11 +1188,17 @@ module OooMemAxiBridge (
                     state_q <= S_WRITE_REQ;
                   end
                 end else begin
-                  // 【SRAM 同步读】leaf-ok read: 当拍已发 dcache 读
-                  // (walk_read_lookup_fire_w, addr=walk_leaf_paddr_w), 统一
-                  // 进 S_LOOKUP 判决——修复旧 walk 组合口无移位无跨线检查
-                  // 直接回整行的错值 bug。
-                  state_q <= S_LOOKUP;
+                  if (walk_leaf_dcacheable_w)
+                    state_q <= S_LOOKUP;
+                  else if (walk_leaf_nc_w)
+                    state_q <= S_READ_ADDR;
+                  else if (walk_leaf_io_w)
+                    state_q <= S_DEVICE_WAIT;
+                  else begin
+                    rsp_error_q <= 1'b1;
+                    rsp_page_fault_q <= 1'b0;
+                    state_q <= S_RESP;
+                  end
                 end
               end
             end else begin
@@ -905,6 +1206,19 @@ module OooMemAxiBridge (
               walk_level_q <= walk_level_q - 2'd1;
               state_q <= S_WALK_AR;
             end
+          end
+        end
+
+        S_DEVICE_WAIT: begin
+          // cancel 必须先于 release：即便上游合同被破坏，也不能把 killed
+          // device read 变成外部 AR side effect。
+          if (mem0_device_cancel_i) begin
+            rsp_rdata_q <= {`XLEN{1'b0}};
+            rsp_error_q <= 1'b0;
+            rsp_page_fault_q <= 1'b0;
+            state_q <= S_RESP;
+          end else if (mem0_device_release_i) begin
+            state_q <= lsu_axi_arready_i ? S_READ_DATA : S_READ_ADDR;
           end
         end
 
@@ -944,9 +1258,9 @@ module OooMemAxiBridge (
 
         S_READ_DATA: begin
           if (lsu_axi_rvalid_i) begin
-            // 不跨线: AXI 返回对齐 line → CPU 视图右移窗口偏移;
-            // 跨线: 窗口读原样。
-            rsp_rdata_q <= read_cross_q ? lsu_axi_rdata_i :
+            // cache line: AXI 返回对齐 line → CPU 视图右移窗口偏移；
+            // exact(uncacheable/跨 line): lane adapter 已重组为低位窗口，原样返回。
+            rsp_rdata_q <= read_exact_q ? lsu_axi_rdata_i :
                            (lsu_axi_rdata_i >> {paddr_q[2:0], 3'b000});
             rsp_error_q <= (lsu_axi_rresp_i != 2'b00);
             rsp_page_fault_q <= 1'b0;
@@ -962,17 +1276,7 @@ module OooMemAxiBridge (
             w_done_q <= 1'b1;
           end
           if ((aw_done_q || aw_fire_w) && (w_done_q || w_fire_w)) begin
-            if (store_decouple_w) begin
-              // PMEM store：数据已落 PMEM(MEM-I2)，bresp 恒 OK；提前报完成，B 交跟踪器。
-              rsp_rdata_q <= {`XLEN{1'b0}};
-              rsp_error_q <= 1'b0;
-              rsp_page_fault_q <= 1'b0;
-              bpend_q <= 1'b1;
-              state_q <= S_RESP;
-            end else begin
-              // MMIO/uncacheable：仍等 B 以保精确总线异常。
-              state_q <= S_WRITE_RESP;
-            end
+            state_q <= S_WRITE_RESP;
           end
         end
 
@@ -996,6 +1300,10 @@ module OooMemAxiBridge (
             if (lsu_axi_bresp_i != 2'b00) begin
               rsp_error_q <= 1'b1;         // A/D 写总线异常 → access fault
               rsp_page_fault_q <= 1'b0;
+              // PTE maintenance failed before any data target existed.  Do
+              // not leak the candidate data PA class as post-target provenance.
+              access_attr_valid_q <= 1'b0;
+              access_class_q <= `OOO_MEM_CLASS_RSVD;
               state_q <= S_RESP;
             end else if (write_q) begin
               if (probe_q) begin
@@ -1007,10 +1315,17 @@ module OooMemAxiBridge (
                 state_q <= S_WRITE_REQ;    // 真 store: 续写数据
               end
             end else begin
-              // 【SRAM 同步读】续 read: 当拍已发 dcache 读(ad_read_lookup_fire_w,
-              // addr=paddr_q, 不再依赖 R 通道残留的 lsu_axi_rdata_i), 统一进
-              // S_LOOKUP 判决。
-              state_q <= S_LOOKUP;
+              if (access_cacheable_w)
+                state_q <= S_LOOKUP;
+              else if (access_nc_w)
+                state_q <= S_READ_ADDR;
+              else if (access_io_w)
+                state_q <= S_DEVICE_WAIT;
+              else begin
+                rsp_error_q <= 1'b1;
+                rsp_page_fault_q <= 1'b0;
+                state_q <= S_RESP;
+              end
             end
           end
         end
@@ -1047,6 +1362,8 @@ module OooMemAxiBridge (
       stg_probe_q <= 1'b0;
       stg_pretrans_q <= 1'b0;
       stg_nokill_q <= 1'b0;
+      stg_attr_valid_q <= 1'b0;
+      stg_class_q <= `OOO_MEM_CLASS_RSVD;
     end else if (mem0_req_fire_w) begin
       stg_valid_q <= 1'b1;
       stg_addr_q <= mem0_req_addr_i;
@@ -1056,6 +1373,9 @@ module OooMemAxiBridge (
       stg_probe_q <= mem0_req_probe_i;
       stg_pretrans_q <= mem0_req_pretrans_i;
       stg_nokill_q <= mem0_req_nokill_i;
+      stg_attr_valid_q <= mem0_req_attr_valid_i;
+      stg_class_q <= mem0_req_attr_valid_i ? mem0_req_class_i :
+                     `OOO_MEM_CLASS_RSVD;
     end else if (stage_advance_w) begin
       stg_valid_q <= 1'b0;
     end else if (flush_i && !stg_nokill_q) begin
@@ -1064,17 +1384,120 @@ module OooMemAxiBridge (
   end
 
 `ifdef OOO_ASSERT
+  reg assert_pte_write_deny_r;
+  always @(posedge clk) begin
+    if (rst) begin
+      assert_pte_write_deny_r <= 1'b0;
+    end else begin
+      if (walk_ad_write_deny_w &&
+          (lsu_axi_awvalid_o || lsu_axi_wvalid_o)) begin
+        $error("[MEM-PTW-PMP-WRITE] denied PTE write exposed AW/W @%0t", $time);
+        $fatal;
+      end
+      if (assert_pte_write_deny_r &&
+          ((state_q != S_RESP) || !rsp_error_q || rsp_page_fault_q)) begin
+        $error("[MEM-PTW-PMP-WRITE] deny did not become access-fault response @%0t",
+               $time);
+        $fatal;
+      end
+      assert_pte_write_deny_r <= !cpu_kill_w && walk_ad_write_deny_w;
+    end
+  end
+
+  // Typed lookup authorization and payload/valid split.  NC/IO must not issue
+  // even a raw SRAM preview; every enabled read therefore has a CACHED owner.
+  always @(posedge clk) begin
+    if (!rst) begin
+      if (req_read_lookup_fire_w && !req_read_lookup_issue_w) begin
+        $error("[S1-TYPED-DCACHE-AUTH] authorized request lookup lost enable @%0t",
+               $time);
+        $fatal;
+      end
+      if (req_read_lookup_issue_w && !req_dcacheable_w) begin
+        $error("[S1-TYPED-DCACHE-REQ] non-CACHED request issued lookup @%0t", $time);
+        $fatal;
+      end
+      if (walk_read_lookup_fire_w && !walk_leaf_dcacheable_w) begin
+        $error("[S1-TYPED-DCACHE-WALK] non-CACHED leaf issued lookup @%0t", $time);
+        $fatal;
+      end
+      if (ad_read_lookup_fire_w && !access_cacheable_w) begin
+        $error("[S1-TYPED-DCACHE-AD] non-CACHED A/D continuation issued lookup @%0t",
+               $time);
+        $fatal;
+      end
+      if (req_read_lookup_fire_w &&
+          (req_lookup_candidate_addr_w !== req_cache_addr_w)) begin
+        $error("[T3W-DCACHE-SPEC-AUTH] authorized lookup candidate differs from PA @%0t",
+               $time);
+        $fatal;
+      end
+      if (walk_read_lookup_fire_w && !walk_lookup_payload_owner_w) begin
+        $error("[T4C-WALK-PAYLOAD-OWNER] qualified walk lookup lacks state owner @%0t",
+               $time);
+        $fatal;
+      end
+      if (walk_lookup_payload_owner_w && !req_lookup_payload_owner_w &&
+          (dcache_lookup_addr_w !== walk_leaf_paddr_w)) begin
+        $error("[T4C-WALK-PAYLOAD-OWNER] walk state selected non-leaf address @%0t",
+               $time);
+        $fatal;
+      end
+      if ((state_q == S_WALK_R) && !walk_read_lookup_fire_w &&
+          dcache_lookup_en_w) begin
+        $error("[T4C-WALK-DISABLED-NO-LOOKUP] unqualified walk issued cache lookup @%0t",
+               $time);
+        $fatal;
+      end
+      if (fsm_normal_w && !dcache_rmw_busy_w &&
+          walk_read_lookup_fire_w && !dcache_lookup_en_w) begin
+        $error("[T4C-WALK-QUALIFIED-LOOKUP] qualified walk lost cache lookup @%0t",
+               $time);
+        $fatal;
+      end
+      if (dcache_lookup_en_w) begin
+        if (req_read_lookup_issue_w &&
+            (dcache_lookup_addr_w !== req_lookup_candidate_addr_w)) begin
+          $error("[T3W-DCACHE-PAYLOAD-OWNER] request lookup selected wrong address @%0t",
+                 $time);
+          $fatal;
+        end
+        if (walk_read_lookup_fire_w &&
+            (dcache_lookup_addr_w !== walk_leaf_paddr_w)) begin
+          $error("[T3W-DCACHE-PAYLOAD-OWNER] walk lookup selected wrong address @%0t",
+                 $time);
+          $fatal;
+        end
+        if (ad_read_lookup_fire_w &&
+            (dcache_lookup_addr_w !== paddr_q)) begin
+          $error("[T3W-DCACHE-PAYLOAD-OWNER] A/D lookup selected wrong address @%0t",
+                 $time);
+          $fatal;
+        end
+      end
+      if (dcache_read_fill_valid_w && !access_cacheable_w) begin
+        $error("[S1-TYPED-DCACHE-FILL] non-CACHED transaction attempted fill @%0t",
+               $time);
+        $fatal;
+      end
+      if (dcache_store_rmw_en_w && !access_cacheable_w) begin
+        $error("[S1-TYPED-DCACHE-RMW] non-CACHED store attempted RMW @%0t", $time);
+        $fatal;
+      end
+    end
+  end
+
   // 【store RMW 读口互斥】RMW 判决拍(rmw_busy)宏口被占, 桥侧不得出现任何
   // 会用口的动作: 三源 lookup 发射意图/fill/S_LOOKUP 判决。由 FSM 状态互斥
   // (RMW 判决拍状态∈{S_RESP,S_IDLE})+stage_advance 压制(刀 M 后 req 源随
   // advance 迁移, !rmw_busy 项迁入 stage_advance_w)保证, 违反即门控链被破坏。
   always @(posedge clk) begin
     if (!rst && dcache_rmw_busy_w &&
-        (req_read_lookup_fire_w || walk_read_lookup_fire_w ||
+        (req_read_lookup_issue_w || walk_read_lookup_fire_w ||
          ad_read_lookup_fire_w || dcache_read_fill_valid_w ||
          (state_q == S_LOOKUP))) begin
       $error("[MEM-RMW-PORT] RMW 判决拍出现 lookup/fill/S_LOOKUP: state=%0d req=%b walk=%b ad=%b fill=%b @%0t",
-             state_q, req_read_lookup_fire_w, walk_read_lookup_fire_w,
+             state_q, req_read_lookup_issue_w, walk_read_lookup_fire_w,
              ad_read_lookup_fire_w, dcache_read_fill_valid_w, $time);
       $fatal;
     end
@@ -1084,15 +1507,31 @@ module OooMemAxiBridge (
   reg assert_stg_valid_r;
   reg assert_fire_r;
   reg assert_nokill_hold_r;
+  reg assert_req_pma_deny_r;
+  reg assert_walk_pma_deny_r;
   reg [`XLEN-1:0] assert_stg_addr_r;
   reg [`XLEN-1:0] assert_stg_wdata_r;
   reg [`STRB_W-1:0] assert_stg_wstrb_r;
-  reg [3:0] assert_stg_attr_r;
+  reg [6:0] assert_stg_attr_r;
+  reg assert_pretrans_advance_r;
+  reg assert_pretrans_attr_valid_r;
+  reg [1:0] assert_pretrans_class_r;
+  reg assert_ar_stalled_r;
+  reg [`XLEN-1:0] assert_araddr_r;
+  reg [3:0] assert_arid_r;
+  reg [7:0] assert_arlen_r;
+  reg [2:0] assert_arsize_r;
+  reg [1:0] assert_arburst_r;
+  reg [2:0] assert_arprot_r;
   always @(posedge clk) begin
     if (rst) begin
       assert_stg_valid_r <= 1'b0;
       assert_fire_r <= 1'b0;
       assert_nokill_hold_r <= 1'b0;
+      assert_req_pma_deny_r <= 1'b0;
+      assert_walk_pma_deny_r <= 1'b0;
+      assert_ar_stalled_r <= 1'b0;
+      assert_pretrans_advance_r <= 1'b0;
     end else begin
       // BRG-NOFIRE-FLUSH: flush 拍不得 fire(ready 含 !flush_i ⟺ 寄存站↔MIQ 双射,
       // MIQ flush 分支是 else-if、flush 拍 push 被忽略)。
@@ -1106,9 +1545,51 @@ module OooMemAxiBridge (
         $error("[BRG-ADV-NODROP] drop_rsp_q=1 拍出现 stage_advance @%0t", $time);
         $fatal;
       end
+      if (mem0_req_fire_w &&
+          (mem0_req_cacheable_i !==
+           (mem0_req_attr_valid_i &&
+            (mem0_req_class_i == `OOO_MEM_CLASS_CACHED)))) begin
+        $error("[S1-TYPED-LEGACY-REQ] request Boolean diverged from typed payload @%0t",
+               $time);
+        $fatal;
+      end
+      if (mem0_req_fire_w && !mem0_req_pretrans_i &&
+          ((mem0_req_attr_valid_i !== 1'b0) ||
+           (mem0_req_class_i !== `OOO_MEM_CLASS_RSVD))) begin
+        $error("[S1-TYPED-ORDINARY-REQ] VA request carried forged final-PA attr @%0t",
+               $time);
+        $fatal;
+      end
+      if (stage_advance_w && stg_pretrans_q &&
+          !req_pretrans_attr_admitted_r) begin
+        $error("[S1-TYPED-PRETRANS-INVALID] drain lacks legal typed provenance @%0t",
+               $time);
+        $fatal;
+      end
+      if (assert_pretrans_advance_r &&
+          ((access_attr_valid_q !== assert_pretrans_attr_valid_r) ||
+           (access_class_q !== assert_pretrans_class_r))) begin
+        $error("[S1-TYPED-PRETRANS-ECHO] bridge changed SQ drain typed provenance @%0t",
+               $time);
+        $fatal;
+      end
+      if (assert_req_pma_deny_r &&
+          ((state_q != S_RESP) || !rsp_error_q || rsp_page_fault_q ||
+           lsu_axi_arvalid_o || lsu_axi_awvalid_o || lsu_axi_wvalid_o)) begin
+        $error("[MEM-PMA-DIRECT] deny did not become quiet access-fault response @%0t",
+               $time);
+        $fatal;
+      end
+      if (assert_walk_pma_deny_r &&
+          ((state_q != S_RESP) || !rsp_error_q || rsp_page_fault_q ||
+           lsu_axi_arvalid_o || lsu_axi_awvalid_o || lsu_axi_wvalid_o)) begin
+        $error("[MEM-PMA-WALK] leaf deny did not become quiet access-fault response @%0t",
+               $time);
+        $fatal;
+      end
       // BRG-STG-LOOKUP: req 源 dcache lookup 只允许出现在 stage_advance 拍
       // (fire 拍恒 0——旧"fire 拍发 lookup"路径已被寄存站切断)。
-      if (req_read_lookup_fire_w && !stage_advance_w) begin
+      if (req_read_lookup_issue_w && !stage_advance_w) begin
         $error("[BRG-STG-LOOKUP] 非 advance 拍出现 req 源 dcache lookup @%0t",
                $time);
         $fatal;
@@ -1118,7 +1599,8 @@ module OooMemAxiBridge (
           ((stg_addr_q != assert_stg_addr_r) ||
            (stg_wdata_q != assert_stg_wdata_r) ||
            (stg_wstrb_q != assert_stg_wstrb_r) ||
-           ({stg_write_q, stg_probe_q, stg_pretrans_q, stg_nokill_q} !=
+           ({stg_write_q, stg_probe_q, stg_pretrans_q, stg_nokill_q,
+             stg_attr_valid_q, stg_class_q} !=
             assert_stg_attr_r))) begin
         $error("[BRG-STG-HOLD] stall 拍寄存站字段被改写 @%0t", $time);
         $fatal;
@@ -1128,15 +1610,88 @@ module OooMemAxiBridge (
         $error("[BRG-STG-NOKILL] flush 拍 nokill 寄存站项被丢弃 @%0t", $time);
         $fatal;
       end
+      // MEM-AR-HOLD：上拍 VALID&&!READY 后，本拍必须继续 VALID 且 payload
+      // 逐位冻结；覆盖 WALK/DATA 两类 owner 以及 flush/drop/repeated-flush。
+      if (assert_ar_stalled_r &&
+          (!lsu_axi_arvalid_o ||
+           (lsu_axi_araddr_o !== assert_araddr_r) ||
+           (lsu_axi_arid_o !== assert_arid_r) ||
+           (lsu_axi_arlen_o !== assert_arlen_r) ||
+           (lsu_axi_arsize_o !== assert_arsize_r) ||
+           (lsu_axi_arburst_o !== assert_arburst_r) ||
+           (lsu_axi_arprot_o !== assert_arprot_r))) begin
+        $error("[MEM-AR-HOLD] stalled AR withdrew VALID or changed payload @%0t",
+               $time);
+        $fatal;
+      end
+      // MEM-DEVICE-OWNER: wait/cancel 绝不能呈现 data AR；release/cancel
+      // 互斥。registered S_READ_ADDR owner 已形成后仍由 MEM-AR-HOLD 管理。
+      if (mem0_device_release_i && mem0_device_cancel_i) begin
+        $error("[MEM-DEVICE-OWNER] release/cancel overlap @%0t", $time);
+        $fatal;
+      end
+      if ((state_q == S_DEVICE_WAIT) &&
+          ((!mem0_device_release_i || mem0_device_cancel_i) &&
+           lsu_axi_arvalid_o)) begin
+        $error("[MEM-DEVICE-OWNER] unowned/killed device read presented AR: pa=%h @%0t",
+               paddr_q, $time);
+        $fatal;
+      end
+      if ((state_q == S_DEVICE_WAIT) &&
+          (write_q || !access_io_w || !read_exact_q)) begin
+        $error("[MEM-DEVICE-OWNER] invalid wait payload: write=%b attr=%b class=%b exact=%b pa=%h @%0t",
+               write_q, access_attr_valid_q, access_class_q, read_exact_q,
+               paddr_q, $time);
+        $fatal;
+      end
+      if ((state_q == S_DEVICE_WAIT) && access_nc_w) begin
+        $error("[S1-TYPED-NC-NO-WAIT] NC read entered IO head-wait @%0t", $time);
+        $fatal;
+      end
+      if ((state_q == S_RESP) && !access_attr_valid_q &&
+          (access_class_q != `OOO_MEM_CLASS_RSVD)) begin
+        $error("[S1-TYPED-FAULT-POISON] invalid response retained routable class @%0t",
+               $time);
+        $fatal;
+      end
+      if (access_attr_valid_q &&
+          !((access_class_q == `OOO_MEM_CLASS_CACHED) ||
+            (access_class_q == `OOO_MEM_CLASS_NC) ||
+            (access_class_q == `OOO_MEM_CLASS_IO))) begin
+        $error("[S1-TYPED-ACTIVE-LEGAL] active transaction has illegal class @%0t",
+               $time);
+        $fatal;
+      end
+      if (mem0_rsp_cacheable_o !==
+          (mem0_rsp_attr_valid_o &&
+           (mem0_rsp_class_o == `OOO_MEM_CLASS_CACHED))) begin
+        $error("[S1-TYPED-LEGACY-RSP] response Boolean diverged from typed payload @%0t",
+               $time);
+        $fatal;
+      end
       assert_stg_valid_r <= stg_valid_q;
       assert_fire_r <= mem0_req_fire_w;
       assert_nokill_hold_r <= flush_i && stg_valid_q && stg_nokill_q &&
                               !stage_advance_w;
+      assert_req_pma_deny_r <= stage_advance_w && req_data_pma_fault_w;
+      assert_walk_pma_deny_r <=
+          fsm_normal_w && dtlb_leaf_ok_w && walk_leaf_pma_fault_w;
+      assert_pretrans_advance_r <= stage_advance_w && stg_pretrans_q &&
+                                   req_pretrans_attr_admitted_r;
+      assert_pretrans_attr_valid_r <= req_effective_attr_valid_w;
+      assert_pretrans_class_r <= req_effective_class_w;
+      assert_ar_stalled_r <= lsu_axi_arvalid_o && !lsu_axi_arready_i;
+      assert_araddr_r <= lsu_axi_araddr_o;
+      assert_arid_r <= lsu_axi_arid_o;
+      assert_arlen_r <= lsu_axi_arlen_o;
+      assert_arsize_r <= lsu_axi_arsize_o;
+      assert_arburst_r <= lsu_axi_arburst_o;
+      assert_arprot_r <= lsu_axi_arprot_o;
       assert_stg_addr_r <= stg_addr_q;
       assert_stg_wdata_r <= stg_wdata_q;
       assert_stg_wstrb_r <= stg_wstrb_q;
       assert_stg_attr_r <= {stg_write_q, stg_probe_q, stg_pretrans_q,
-                            stg_nokill_q};
+                            stg_nokill_q, stg_attr_valid_q, stg_class_q};
     end
   end
 `endif

@@ -7,11 +7,14 @@ module tb_ooo_mem_axi_bridge;
   reg rst;
   reg flush;
   reg mmu_flush;
+  reg dcache_dma_invalidate_all;
 
   reg [1:0] priv_mode;
   reg [`XLEN-1:0] mstatus;
   reg [`XLEN-1:0] satp;
   reg svpbmt_en;
+  reg [`PMP_CFG_BUS_W-1:0] pmpcfg;
+  reg [`PMP_ADDR_BUS_W-1:0] pmpaddr;
 
   reg mem0_req_valid;
   wire mem0_req_ready;
@@ -19,6 +22,11 @@ module tb_ooo_mem_axi_bridge;
   reg mem0_req_probe;
   reg mem0_req_pretrans;
   reg mem0_req_nokill;
+  reg mem0_req_attr_valid;
+  reg [1:0] mem0_req_class;
+  reg mem0_req_cacheable;
+  reg mem0_device_release;
+  reg mem0_device_cancel;
   reg [`XLEN-1:0] mem0_req_addr;
   reg [`XLEN-1:0] mem0_req_wdata;
   reg [`STRB_W-1:0] mem0_req_wstrb;
@@ -27,6 +35,9 @@ module tb_ooo_mem_axi_bridge;
   wire [`XLEN-1:0] mem0_rsp_rdata;
   wire mem0_rsp_error;
   wire mem0_rsp_page_fault;
+  wire mem0_rsp_attr_valid;
+  wire [1:0] mem0_rsp_class;
+  wire mem0_rsp_cacheable;
   wire mem_translate_active;
 
   wire lsu_axi_arvalid;
@@ -62,27 +73,78 @@ module tb_ooo_mem_axi_bridge;
   localparam [`XLEN-1:0] LEAF_NO_DIRTY_FLAGS = 64'h04f;
   localparam [`XLEN-1:0] SUPERPAGE_PTE =
       (SUPERPAGE_PPN << 10) | LEAF_FLAGS;
+  // T4M counterexample: VA numerically belongs to the PMEM window, but a
+  // level-2 Sv39 leaf maps it to the PLIC physical window.
+  localparam [`XLEN-1:0] DEVICE_VA = 64'h0000_0000_8c00_0004;
+  localparam [`XLEN-1:0] DEVICE_PA = 64'h0000_0000_0c00_0004;
+  localparam [`XLEN-1:0] DEVICE_SUPERPAGE_PTE = LEAF_FLAGS;
+  // T3W speculative-lookup owner tests: S-mode + SUM first fills this user
+  // superpage DTLB entry, then SUM=0/mmu_flush create permission-fault and
+  // context-miss cases while the translated physical line remains hot.
+  localparam [`XLEN-1:0] SPEC_USER_VA = 64'h0000_0000_8000_b000;
+  localparam [`XLEN-1:0] SPEC_USER_PA = 64'h0000_0000_8000_b000;
+  localparam [`XLEN-1:0] SPEC_USER_DATA = 64'hd71b_5eed_f00d_cafe;
+  localparam [`XLEN-1:0] SPEC_USER_SUPERPAGE_PTE =
+      (SUPERPAGE_PPN << 10) | 64'h0df;
+  localparam [`XLEN-1:0] PMA_BAD_VA = 64'h0000_0000_4000_3000;
+  localparam [`XLEN-1:0] PMA_BAD_PA = 64'h0000_0000_4000_3000;
+  localparam [`XLEN-1:0] PMA_BAD_SUPERPAGE_PTE =
+      ((64'h0000_0000_4000_0000 >> 12) << 10) | LEAF_FLAGS;
   localparam [`PMP_CFG_BUS_W-1:0] PMP_ALLOW_ALL_CFG =
       {{(`PMP_ENTRY_COUNT-1){8'h00}}, 8'h1f};
   localparam [`PMP_ADDR_BUS_W-1:0] PMP_ALLOW_ALL_ADDR = {`PMP_ADDR_BUS_W{1'b1}};
+  // Entry0 is an 8-byte NAPOT region allowing only the root leaf-PTE read.
+  // All other S-mode addresses (including DATA_PA) have no match and deny.
+  localparam [`PMP_CFG_BUS_W-1:0] PMP_ROOT_PTE_READ_CFG =
+      {{(`PMP_ENTRY_COUNT-1){8'h00}}, 8'h19};
+  localparam [`PMP_ADDR_BUS_W-1:0] PMP_ROOT_PTE_READ_ADDR =
+      {{(`PMP_ADDR_BUS_W-`XLEN){1'b0}}, ((ROOT_PT + 64'd16) >> 2)};
+
+  reg class_access_valid;
+  reg class_pma_fault;
+  reg class_addr_cacheable;
+  reg class_pbmt_valid;
+  reg [1:0] class_pbmt;
+  wire class_pbmt_fault;
+  wire class_cacheable;
+  wire class_serialized;
+
+  OooPostTranslateMemoryClass class_dut (
+    .clk(clk),
+    .rst(rst),
+    .access_valid_i(class_access_valid),
+    .pma_fault_i(class_pma_fault),
+    .address_cacheable_i(class_addr_cacheable),
+    .pbmt_valid_i(class_pbmt_valid),
+    .pbmt_i(class_pbmt),
+    .pbmt_fault_o(class_pbmt_fault),
+    .cacheable_o(class_cacheable),
+    .serialized_o(class_serialized)
+  );
 
   OooMemAxiBridge dut (
     .clk(clk),
     .rst(rst),
     .flush_i(flush),
     .mmu_flush_i(mmu_flush),
+    .dcache_dma_invalidate_all_i(dcache_dma_invalidate_all),
     .priv_mode_i(priv_mode),
     .mstatus_i(mstatus),
     .satp_i(satp),
     .svpbmt_en_i(svpbmt_en),
-    .pmpcfg_i(PMP_ALLOW_ALL_CFG),
-    .pmpaddr_i(PMP_ALLOW_ALL_ADDR),
+    .pmpcfg_i(pmpcfg),
+    .pmpaddr_i(pmpaddr),
     .mem0_req_valid_i(mem0_req_valid),
     .mem0_req_ready_o(mem0_req_ready),
     .mem0_req_write_i(mem0_req_write),
     .mem0_req_probe_i(mem0_req_probe),
     .mem0_req_pretrans_i(mem0_req_pretrans),
     .mem0_req_nokill_i(mem0_req_nokill),
+    .mem0_req_attr_valid_i(mem0_req_attr_valid),
+    .mem0_req_class_i(mem0_req_class),
+    .mem0_req_cacheable_i(mem0_req_cacheable),
+    .mem0_device_release_i(mem0_device_release),
+    .mem0_device_cancel_i(mem0_device_cancel),
     .mem0_req_addr_i(mem0_req_addr),
     .mem0_req_wdata_i(mem0_req_wdata),
     .mem0_req_wstrb_i(mem0_req_wstrb),
@@ -91,6 +153,9 @@ module tb_ooo_mem_axi_bridge;
     .mem0_rsp_rdata_o(mem0_rsp_rdata),
     .mem0_rsp_error_o(mem0_rsp_error),
     .mem0_rsp_page_fault_o(mem0_rsp_page_fault),
+    .mem0_rsp_attr_valid_o(mem0_rsp_attr_valid),
+    .mem0_rsp_class_o(mem0_rsp_class),
+    .mem0_rsp_cacheable_o(mem0_rsp_cacheable),
     .translate_active_o(mem_translate_active),
     .lsu_axi_arvalid_o(lsu_axi_arvalid),
     .lsu_axi_arready_i(lsu_axi_arready),
@@ -135,15 +200,23 @@ module tb_ooo_mem_axi_bridge;
     begin
       flush = 1'b0;
       mmu_flush = 1'b0;
+      dcache_dma_invalidate_all = 1'b0;
       priv_mode = `PRIV_M;
       mstatus = {`XLEN{1'b0}};
       satp = {`XLEN{1'b0}};
       svpbmt_en = 1'b0;
+      pmpcfg = PMP_ALLOW_ALL_CFG;
+      pmpaddr = PMP_ALLOW_ALL_ADDR;
       mem0_req_valid = 1'b0;
       mem0_req_write = 1'b0;
       mem0_req_probe = 1'b0;
       mem0_req_pretrans = 1'b0;
       mem0_req_nokill = 1'b0;
+      mem0_req_attr_valid = 1'b0;
+      mem0_req_class = `OOO_MEM_CLASS_RSVD;
+      mem0_req_cacheable = 1'b0;
+      mem0_device_release = 1'b0;
+      mem0_device_cancel = 1'b0;
       mem0_req_addr = {`XLEN{1'b0}};
       mem0_req_wdata = {`XLEN{1'b0}};
       mem0_req_wstrb = {`STRB_W{1'b0}};
@@ -156,6 +229,223 @@ module tb_ooo_mem_axi_bridge;
       lsu_axi_wready = 1'b0;
       lsu_axi_bvalid = 1'b0;
       lsu_axi_bresp = 2'b00;
+    end
+  endtask
+
+  // T4P: a line that is already hot when synchronous virtio DMA completes
+  // must not escape through the S_LOOKUP hit-fusion arm.  The same request
+  // becomes an AXI miss, refills host-updated PMEM data, and is hot thereafter.
+  task automatic dma_invalidate_blocks_hit_fusion;
+    localparam [`XLEN-1:0] DMA_ADDR = 64'h0000_0000_8000_d000;
+    localparam [`XLEN-1:0] STALE_DATA = 64'h1111_2222_3333_4444;
+    localparam [`XLEN-1:0] FRESH_DATA = 64'ha5a5_5a5a_c3c3_3c3c;
+    begin
+      // Seed a cold line through the real miss/fill path.
+      issue_mem0_read(DMA_ADDR);
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = STALE_DATA;
+      lsu_axi_rresp = 2'b00;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("dma seed response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("dma seed response data", mem0_rsp_rdata, STALE_DATA);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+
+      // Reissue the hot line.  Assert invalidate only in its decision cycle:
+      // raw tag/data are stale, but the visible hit and fusion response are 0.
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = DMA_ADDR;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      mem0_rsp_ready = 1'b1;
+      lsu_axi_arready = 1'b1;
+      #1;
+      tb_check1("dma hot request ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      tick();
+      dcache_dma_invalidate_all = 1'b1;
+      #1;
+      tb_check1("dma masks cached decision", dut.dcache_lookup_hit_w, 1'b0);
+      tb_check1("dma masks hit fusion", dut.lookup_hit_fusion_w, 1'b0);
+      tb_check1("dma decision has no stale response", mem0_rsp_valid, 1'b0);
+      tb_check1("dma decision refetches PMEM", lsu_axi_arvalid, 1'b1);
+      tb_check64("dma refetch address", lsu_axi_araddr, DMA_ADDR);
+      tick();
+      dcache_dma_invalidate_all = 1'b0;
+      lsu_axi_arready = 1'b0;
+
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = FRESH_DATA;
+      lsu_axi_rresp = 2'b00;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("dma refill response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("dma refill exposes fresh data", mem0_rsp_rdata, FRESH_DATA);
+      tick();
+      mem0_rsp_ready = 1'b0;
+
+      // The new fill is cacheable again; no permanent disable/deadlock.
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = DMA_ADDR;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      mem0_rsp_ready = 1'b1;
+      lsu_axi_arready = 1'b1;
+      tick();
+      mem0_req_valid = 1'b0;
+      tick();
+      #1;
+      tb_check1("post-dma line hits", mem0_rsp_valid, 1'b1);
+      tb_check64("post-dma hit returns fresh data", mem0_rsp_rdata, FRESH_DATA);
+      tb_check1("post-dma hit avoids AR", lsu_axi_arvalid, 1'b0);
+      tick();
+      mem0_rsp_ready = 1'b0;
+      lsu_axi_arready = 1'b0;
+    end
+  endtask
+
+  task automatic t4m_issue_device_load;
+    input expect_walk;
+    begin
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = DEVICE_VA;
+      mem0_req_wstrb = 8'h0f;
+      #1;
+      tb_check1("T4M device request ready", mem0_req_ready, 1'b1);
+      tb_check1("T4M device request fire has no AR", lsu_axi_arvalid, 1'b0);
+      tick();
+      mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("T4M device request advance has no AR", lsu_axi_arvalid, 1'b0);
+      tick();
+      #1;
+      if (expect_walk) begin
+        tb_check1("T4M device walk AR valid", lsu_axi_arvalid, 1'b1);
+        tb_check64("T4M device walk PTE address", lsu_axi_araddr,
+                   ROOT_PT + 64'd16);
+        lsu_axi_arready = 1'b1;
+        tick();
+        #1;
+        tb_check1("T4M device walk waits PTE", lsu_axi_rready, 1'b1);
+        lsu_axi_rvalid = 1'b1;
+        lsu_axi_rdata = DEVICE_SUPERPAGE_PTE;
+        tick();
+        lsu_axi_rvalid = 1'b0;
+        #1;
+      end
+    end
+  endtask
+
+  task automatic sv39_posttranslate_device_owner;
+    reg old_logic_leaked_ar;
+    begin
+      mmu_flush = 1'b1;
+      tick();
+      mmu_flush = 1'b0;
+      priv_mode = `PRIV_S;
+      satp = (64'h8 << 60) | ROOT_PPN;
+      mem0_device_release = 1'b0;
+      mem0_device_cancel = 1'b0;
+      mem0_rsp_ready = 1'b0;
+      lsu_axi_arready = 1'b0;
+
+      // PTW first access.  The old VA-based policy enters S_LOOKUP and exposes
+      // DEVICE_PA immediately; keep the branch recoverable so RED finishes.
+      t4m_issue_device_load(1'b1);
+      old_logic_leaked_ar = lsu_axi_arvalid;
+      tb_check1("T4M translated device waits without AR",
+                old_logic_leaked_ar, 1'b0);
+      tb_check64("T4M translated device final PA", dut.paddr_q, DEVICE_PA);
+      if (old_logic_leaked_ar) begin
+        $display("[T4M-OLD-LOGIC-LEAK] wrong-path AR addr=%h", lsu_axi_araddr);
+        tick();
+        lsu_axi_arready = 1'b0;
+        lsu_axi_rvalid = 1'b1;
+        lsu_axi_rdata = 64'hbad0_bad0_bad0_bad0;
+        tick();
+        lsu_axi_rvalid = 1'b0;
+        #1;
+        mem0_rsp_ready = 1'b1;
+        tick();
+        mem0_rsp_ready = 1'b0;
+      end else begin
+        tb_check1("T4M translated device enters owner wait",
+                  dut.state_q == 4'd10, 1'b1);
+        tick();
+        #1;
+        tb_check1("T4M owner wait remains AR quiet", lsu_axi_arvalid, 1'b0);
+        mem0_device_cancel = 1'b1;
+        #1;
+        tb_check1("T4M killed owner has no AR", lsu_axi_arvalid, 1'b0);
+        tick();
+        mem0_device_cancel = 1'b0;
+        lsu_axi_arready = 1'b0;
+        #1;
+        tb_check1("T4M killed owner gets quiet response", mem0_rsp_valid, 1'b1);
+        tb_check1("T4M killed owner response has no error", mem0_rsp_error, 1'b0);
+        tb_check1("T4M killed owner response is not page fault",
+                  mem0_rsp_page_fault, 1'b0);
+        mem0_rsp_ready = 1'b1;
+        tick();
+        mem0_rsp_ready = 1'b0;
+      end
+
+      // The leaf filled DTLB even though the first owner was cancelled.  A
+      // global flush while the DTLB-hit device request waits must stay AR quiet.
+      lsu_axi_arready = 1'b1;
+      t4m_issue_device_load(1'b0);
+      tb_check1("T4M DTLB-hit device enters owner wait",
+                dut.state_q == 4'd10, 1'b1);
+      tb_check1("T4M DTLB-hit device waits without AR", lsu_axi_arvalid, 1'b0);
+      flush = 1'b1;
+      #1;
+      tb_check1("T4M wait flush has no AR side effect", lsu_axi_arvalid, 1'b0);
+      tick();
+      flush = 1'b0;
+      #1;
+      tb_check1("T4M wait flush returns idle", dut.state_q == 4'd0, 1'b1);
+      tb_check1("T4M wait flush has no ghost response", mem0_rsp_valid, 1'b0);
+      tb_check1("T4M wait flush has no ghost AR", lsu_axi_arvalid, 1'b0);
+
+      // A live exact owner is the only path that may expose the PLIC read.
+      t4m_issue_device_load(1'b0);
+      tb_check1("T4M live device initially waits", lsu_axi_arvalid, 1'b0);
+      mem0_device_release = 1'b1;
+      #1;
+      tb_check1("T4M live owner releases one AR", lsu_axi_arvalid, 1'b1);
+      tb_check64("T4M live owner AR uses translated PA", lsu_axi_araddr,
+                 DEVICE_PA);
+      tb_check64("T4M live owner AR keeps exact word size",
+                 {{(`XLEN-3){1'b0}}, lsu_axi_arsize},
+                 {{(`XLEN-3){1'b0}}, 3'd2});
+      tick();
+      mem0_device_release = 1'b0;
+      lsu_axi_arready = 1'b0;
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'h0000_0000_1234_5678;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("T4M live device response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("T4M live device response data", mem0_rsp_rdata,
+                 64'h0000_0000_1234_5678);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+
+      mmu_flush = 1'b1;
+      tick();
+      mmu_flush = 1'b0;
+      priv_mode = `PRIV_M;
+      satp = {`XLEN{1'b0}};
+      lsu_axi_arready = 1'b0;
+      $display("[T4M-POSTTRANSLATE-DEVICE] cancel+flush quiet, live owner exact AR");
     end
   endtask
 
@@ -178,26 +468,81 @@ module tb_ooo_mem_axi_bridge;
           (SUPERPAGE_PTE & ~(64'hf << 10)) | (64'h7 << 10) | `SV39_PTE_N;
       napot_nonleaf = ((ROOT_PT >> 12) << 10) | 64'h001 | `SV39_PTE_N;
 
-      tb_check1("mem PBMT=1 leaf faults while Svpbmt disabled",
-                dut.pte_reserved_fault(pbmt1_leaf, 1'b0, 2'd0), 1'b1);
-      tb_check1("mem PBMT=1 leaf is legal when Svpbmt enabled",
-                dut.pte_reserved_fault(pbmt1_leaf, 1'b1, 2'd0), 1'b0);
-      tb_check1("mem PBMT=2 leaf is legal when Svpbmt enabled",
-                dut.pte_reserved_fault(pbmt2_leaf, 1'b1, 2'd0), 1'b0);
-      tb_check1("mem PBMT=3 leaf remains reserved",
-                dut.pte_reserved_fault(pbmt3_leaf, 1'b1, 2'd0), 1'b1);
+      tb_check1("mem structural checker leaves PBMT=1 to typed owner",
+                dut.pte_reserved_fault(pbmt1_leaf, 2'd0), 1'b0);
+      tb_check1("mem structural checker leaves PBMT=2 to typed owner",
+                dut.pte_reserved_fault(pbmt2_leaf, 2'd0), 1'b0);
+      tb_check1("mem structural checker leaves PBMT=3 to typed owner",
+                dut.pte_reserved_fault(pbmt3_leaf, 2'd0), 1'b0);
       tb_check1("mem non-leaf PBMT remains reserved",
-                dut.pte_reserved_fault(pbmt1_nonleaf, 1'b1, 2'd1), 1'b1);
+                dut.pte_reserved_fault(pbmt1_nonleaf, 2'd1), 1'b1);
       tb_check1("mem Svnapot 64KiB leaf is legal",
-                dut.pte_reserved_fault(napot_leaf, 1'b0, 2'd0), 1'b0);
+                dut.pte_reserved_fault(napot_leaf, 2'd0), 1'b0);
       tb_check1("mem Svnapot bad ppn encoding faults",
-                dut.pte_reserved_fault(napot_bad_leaf, 1'b0, 2'd0), 1'b1);
+                dut.pte_reserved_fault(napot_bad_leaf, 2'd0), 1'b1);
       tb_check1("mem Svnapot non-leaf faults",
-                dut.pte_reserved_fault(napot_nonleaf, 1'b0, 2'd1), 1'b1);
+                dut.pte_reserved_fault(napot_nonleaf, 2'd1), 1'b1);
       tb_check1("mem Svnapot level1 leaf faults",
-                dut.pte_reserved_fault(napot_leaf, 1'b0, 2'd1), 1'b1);
+                dut.pte_reserved_fault(napot_leaf, 2'd1), 1'b1);
       tb_check64("mem Svnapot PA uses VA low PPN bits",
                  dut.leaf_paddr(napot_leaf, DATA_VA, 2'd0), DATA_PA);
+    end
+  endtask
+
+  task automatic check_post_translate_memory_class;
+    integer raw_cacheable;
+    integer pma_fault_case;
+    integer pbmt_case;
+    reg expected_fault;
+    reg expected_cacheable;
+    reg expected_serialized;
+    begin
+      class_access_valid = 1'b0;
+      class_pma_fault = 1'b1;
+      class_addr_cacheable = 1'b1;
+      class_pbmt_valid = 1'b1;
+      class_pbmt = 2'b00;
+      #1;
+      tb_check1("inactive classifier has no PBMT fault", class_pbmt_fault, 1'b0);
+      tb_check1("inactive classifier has no cache class", class_cacheable, 1'b0);
+      tb_check1("inactive classifier has no serialized class", class_serialized, 1'b0);
+
+      class_access_valid = 1'b1;
+      class_pbmt_valid = 1'b1;
+      for (raw_cacheable = 0; raw_cacheable < 2; raw_cacheable = raw_cacheable + 1) begin
+        for (pma_fault_case = 0; pma_fault_case < 2;
+             pma_fault_case = pma_fault_case + 1) begin
+          for (pbmt_case = 0; pbmt_case < 4; pbmt_case = pbmt_case + 1) begin
+            class_addr_cacheable = raw_cacheable[0];
+            class_pma_fault = pma_fault_case[0];
+            class_pbmt = pbmt_case[1:0];
+            expected_fault = (pbmt_case[1:0] == 2'b11);
+            expected_cacheable = raw_cacheable[0] && !pma_fault_case[0] &&
+                                 (pbmt_case[1:0] == 2'b00);
+            expected_serialized = !pma_fault_case[0] &&
+                                  (pbmt_case[1:0] != 2'b11) &&
+                                  !expected_cacheable;
+            #1;
+            tb_check1("post-translate PBMT fault matrix",
+                      class_pbmt_fault, expected_fault);
+            tb_check1("post-translate cacheable matrix",
+                      class_cacheable, expected_cacheable);
+            tb_check1("post-translate serialized matrix",
+                      class_serialized, expected_serialized);
+          end
+        end
+      end
+
+      class_pbmt_valid = 1'b0;
+      class_pbmt = 2'b10;
+      class_pma_fault = 1'b0;
+      class_addr_cacheable = 1'b1;
+      #1;
+      tb_check1("disabled Svpbmt uses PMA default cacheability",
+                class_cacheable, 1'b1);
+      tb_check1("disabled Svpbmt ignores leaf bits",
+                class_pbmt_fault, 1'b0);
+      $display("[R4-S0-POSTXLATE-CLASS] 2x2x4 matrix + inactive/default PASS");
     end
   endtask
 
@@ -252,6 +597,8 @@ module tb_ooo_mem_axi_bridge;
       // 对旧"fire 拍发 lookup"实现本检查必 FAIL(负测试证据存 task-runs)。
       tb_check1("mem0 read no req lookup at fire", dut.req_read_lookup_fire_w,
                 1'b0);
+      tb_check1("mem0 read no speculative lookup at fire",
+                dut.req_read_lookup_issue_w, 1'b0);
       tick();
       mem0_req_valid = 1'b0;
       #1;
@@ -259,6 +606,8 @@ module tb_ooo_mem_axi_bridge;
       tb_check1("mem0 read advance no AR", lsu_axi_arvalid, 1'b0);
       tb_check1("mem0 read req lookup at advance", dut.req_read_lookup_fire_w,
                 1'b1);
+      tb_check1("mem0 read speculative lookup at advance",
+                dut.req_read_lookup_issue_w, 1'b1);
       tick();
       #1;
       tb_check1("mem0 read issues AR", lsu_axi_arvalid, 1'b1);
@@ -418,6 +767,104 @@ module tb_ooo_mem_axi_bridge;
       mem0_rsp_ready = 1'b1;
       tick();
       mem0_rsp_ready = 1'b0;
+    end
+  endtask
+
+  // T4E：AXI AR 一旦在 READY=0 时呈现，flush/drop 只能把事务转为本地
+  // drain，不能撤回 VALID 或改 payload。分别覆盖 data miss 与 PTW walk，含
+  // repeated flush、live-input poison，以及 flush+READY 同拍握手。
+  task automatic stalled_ar_survives_flush;
+    reg [`XLEN-1:0] held_araddr;
+    begin
+      // (a) data miss: S_LOOKUP 首拍 AR stall 后进入注册地址 owner S_READ_ADDR。
+      priv_mode = `PRIV_M;
+      satp = {`XLEN{1'b0}};
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = 64'h0000_0000_8000_7000;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      lsu_axi_arready = 1'b0;
+      tick();
+      mem0_req_valid = 1'b0;
+      tick();                    // advance -> S_LOOKUP
+      #1;
+      tb_check1("T4E data stalled AR is presented", lsu_axi_arvalid, 1'b1);
+      held_araddr = lsu_axi_araddr;
+      tick();                    // sampled VALID&&!READY -> S_READ_ADDR
+
+      flush = 1'b1;
+      mem0_req_addr = 64'hffff_ffff_dead_beef;  // live-input poison
+      #1;
+      tb_check1("T4E data flush holds ARVALID", lsu_axi_arvalid, 1'b1);
+      tb_check64("T4E data flush holds ARADDR", lsu_axi_araddr, held_araddr);
+      tick();                    // repeated flush, still stalled
+      #1;
+      tb_check1("T4E data repeated flush holds ARVALID", lsu_axi_arvalid,
+                1'b1);
+      tb_check64("T4E data repeated flush holds ARADDR", lsu_axi_araddr,
+                 held_araddr);
+
+      lsu_axi_arready = 1'b1;
+      tick();                    // flush+READY: AR handshake must complete
+      lsu_axi_arready = 1'b0;
+      flush = 1'b0;
+      #1;
+      tb_check1("T4E data post-AR drains R", lsu_axi_rready, 1'b1);
+      tb_check1("T4E data drain suppresses CPU response", mem0_rsp_valid,
+                1'b0);
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'hbad0_bad0_bad0_bad0;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("T4E data stale R swallowed", mem0_rsp_valid, 1'b0);
+      tb_check1("T4E data drain returns idle", mem0_req_ready, 1'b1);
+
+      // (b) PTW: S_WALK_AR itself is the registered owner.  Hold for one
+      // full stalled beat before asserting flush, then handshake under flush.
+      priv_mode = `PRIV_S;
+      satp = (64'h8 << 60) | ROOT_PPN;
+      mem0_req_addr = DATA_VA;
+      mem0_req_valid = 1'b1;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      tick();
+      mem0_req_valid = 1'b0;
+      tick();                    // advance -> S_WALK_AR
+      #1;
+      tb_check1("T4E walk stalled AR is presented", lsu_axi_arvalid, 1'b1);
+      held_araddr = lsu_axi_araddr;
+      tick();                    // sampled VALID&&!READY, remains S_WALK_AR
+
+      flush = 1'b1;
+      mem0_req_addr = 64'h1111_2222_3333_4444;  // live-input poison
+      #1;
+      tb_check1("T4E walk flush holds ARVALID", lsu_axi_arvalid, 1'b1);
+      tb_check64("T4E walk flush holds ARADDR", lsu_axi_araddr, held_araddr);
+      tick();
+      #1;
+      tb_check1("T4E walk repeated flush holds ARVALID", lsu_axi_arvalid,
+                1'b1);
+      tb_check64("T4E walk repeated flush holds ARADDR", lsu_axi_araddr,
+                 held_araddr);
+
+      lsu_axi_arready = 1'b1;
+      tick();                    // flush+READY: walk AR handshake
+      lsu_axi_arready = 1'b0;
+      flush = 1'b0;
+      #1;
+      tb_check1("T4E walk post-AR drains PTE R", lsu_axi_rready, 1'b1);
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = SUPERPAGE_PTE;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("T4E walk stale PTE swallowed", mem0_rsp_valid, 1'b0);
+      tb_check1("T4E walk drain returns idle", mem0_req_ready, 1'b1);
+
+      priv_mode = `PRIV_M;
+      satp = {`XLEN{1'b0}};
+      mem0_req_addr = {`XLEN{1'b0}};
+      $display("[T4E-MEM-AR-HOLD] data+walk valid/payload held; repeated-flush+ready drained");
     end
   endtask
 
@@ -685,6 +1132,90 @@ module tb_ooo_mem_axi_bridge;
     end
   endtask
 
+  // R4 S0: an aggregated B error does not prove that no split sub-write reached
+  // memory.  The bridge must therefore invalidate a possible hot alias without
+  // starting the B-OK RMW path.  The following read must miss and refill.
+  task automatic b_error_invalidates_possible_partial_store_alias;
+    localparam [`XLEN-1:0] HOT_ADDR = 64'h0000_0000_8000_7800;
+    begin
+      clear_inputs();
+      tick();
+
+      issue_mem0_read(HOT_ADDR);
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'h1111_2222_3333_4444;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("B-error alias seed response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("B-error alias seed data", mem0_rsp_rdata,
+                 64'h1111_2222_3333_4444);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b1;
+      mem0_req_pretrans = 1'b1;
+      mem0_req_nokill = 1'b1;
+      mem0_req_attr_valid = 1'b1;
+      mem0_req_class = `OOO_MEM_CLASS_CACHED;
+      mem0_req_cacheable = 1'b1;
+      mem0_req_addr = HOT_ADDR;
+      mem0_req_wdata = 64'haaaa_bbbb_cccc_dddd;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      #1;
+      tb_check1("B-error alias store request ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      mem0_req_pretrans = 1'b0;
+      mem0_req_nokill = 1'b0;
+      mem0_req_attr_valid = 1'b0;
+      mem0_req_class = `OOO_MEM_CLASS_RSVD;
+      mem0_req_cacheable = 1'b0;
+      tick();
+      #1;
+      tb_check1("B-error alias store AW valid", lsu_axi_awvalid, 1'b1);
+      tb_check1("B-error alias store W valid", lsu_axi_wvalid, 1'b1);
+      lsu_axi_awready = 1'b1;
+      lsu_axi_wready = 1'b1;
+      tick();
+      lsu_axi_awready = 1'b0;
+      lsu_axi_wready = 1'b0;
+      #1;
+      tb_check1("B-error alias store waits terminal", lsu_axi_bready, 1'b1);
+      lsu_axi_bvalid = 1'b1;
+      lsu_axi_bresp = 2'b10;
+      tick();
+      lsu_axi_bvalid = 1'b0;
+      #1;
+      tb_check1("B-error alias response valid", mem0_rsp_valid, 1'b1);
+      tb_check1("B-error alias response reports error", mem0_rsp_error, 1'b1);
+      tb_check1("B-error alias does not start RMW", dut.dcache_rmw_busy_w,
+                1'b0);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+      lsu_axi_bresp = 2'b00;
+
+      // issue_mem0_read contains the decisive no-hit/AR-present checks.  It
+      // would fail in the old implementation that kept the stale hot line.
+      issue_mem0_read(HOT_ADDR);
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'h5555_6666_7777_8888;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("B-error alias refill response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("B-error alias refills non-stale memory view", mem0_rsp_rdata,
+                 64'h5555_6666_7777_8888);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+      $display("[R4-S0-BERR-ALIAS] terminal error invalidates hot line without RMW PASS");
+    end
+  endtask
+
   // 【store RMW×刀 M 定向】write-update 的 2 拍 RMW 与读口仲裁:
   //   (a) store advance 拍站口即空出——back-to-back load 当拍进寄存站(免费 skid);
   //   (b) store 完成次拍(RMW 判决拍)rmw_busy 压 stage_advance——站内 load 被
@@ -705,7 +1236,7 @@ module tb_ooo_mem_axi_bridge;
       tick();
       mem0_rsp_ready = 1'b0;
 
-      // 低 4B 部分 store(PMEM 解耦: AW/W 完成拍即 commit=RMW 发射拍)
+      // 低 4B 部分 store：AW/W 仅被 adapter 接收，聚合 B 才 commit/RMW。
       mem0_req_valid = 1'b1;
       mem0_req_write = 1'b1;
       mem0_req_addr = 64'h0000_0000_8000_7000;
@@ -735,7 +1266,14 @@ module tb_ooo_mem_axi_bridge;
       lsu_axi_awready = 1'b0;
       lsu_axi_wready = 1'b0;
       #1;
-      // RMW 判决拍: store 响应有效(S_RESP)且被消费, 但 rmw_busy 必须压住站内
+      tb_check1("rmw store waits aggregate B", lsu_axi_bready, 1'b1);
+      tb_check1("rmw store has no pre-B response", mem0_rsp_valid, 1'b0);
+      lsu_axi_bvalid = 1'b1;
+      tick();
+      lsu_axi_bvalid = 1'b0;
+      #1;
+      // B-ok 后的 RMW 判决拍: store 响应有效(S_RESP)且被消费，
+      // 但 rmw_busy 必须压住站内
       // load 的 advance(不发 lookup)——这就是 store 后 1 bubble 的新观察点。
       tb_check1("rmw decision cycle store response valid", mem0_rsp_valid,
                 1'b1);
@@ -764,10 +1302,6 @@ module tb_ooo_mem_axi_bridge;
       tick();
       mem0_rsp_ready = 1'b0;
 
-      // 解耦 store 的后台 B 由 bpend 吸收
-      lsu_axi_bvalid = 1'b1;
-      tick();
-      lsu_axi_bvalid = 1'b0;
       tick();
     end
   endtask
@@ -889,8 +1423,34 @@ module tb_ooo_mem_axi_bridge;
       lsu_axi_arready = 1'b0;
       #1;
       tb_check1("sv39 walk-hit waits PTE", lsu_axi_rready, 1'b1);
+      // T4C: S_WALK_R owns the leaf-derived payload even before RVALID, while
+      // enable remains low.  Poison the live RDATA so a qualified-fire mux
+      // regression selects the stale paddr_q and is directly observable.
+      // Level-2 leaves preserve PTE[53:28] and replace PTE[27:10] with the
+      // virtual-page offset.  Flip PTE bit 28 so the poison is guaranteed to
+      // change the derived PA (bit 30), rather than an ignored superpage bit.
+      lsu_axi_rdata = SUPERPAGE_PTE ^ 64'h0000_0000_1000_0000;
+      #1;
+      tb_check1("T4C walk wait owns payload", dut.walk_lookup_payload_owner_w,
+                1'b1);
+      tb_check1("T4C walk wait has no lookup", dut.dcache_lookup_en_w, 1'b0);
+      tb_check64("T4C poison leaf PA",
+                 dut.walk_leaf_paddr_w,
+                 DATA_PA ^ 64'h0000_0000_4000_0000);
+      tb_check1("T4C poison differs from fallback",
+                (dut.walk_leaf_paddr_w !== dut.paddr_q), 1'b1);
+      tb_check64("T4C walk wait selects leaf payload",
+                 dut.dcache_lookup_addr_w, dut.walk_leaf_paddr_w);
       lsu_axi_rvalid = 1'b1;
       lsu_axi_rdata = SUPERPAGE_PTE;
+      #1;
+      tb_check1("T4C qualified walk keeps owner",
+                dut.walk_lookup_payload_owner_w, 1'b1);
+      tb_check1("T4C qualified walk issues lookup",
+                dut.dcache_lookup_en_w, 1'b1);
+      tb_check64("T4C qualified walk selects leaf PA",
+                 dut.dcache_lookup_addr_w, dut.walk_leaf_paddr_w);
+      $display("[T4C-WALK-PAYLOAD-OWNER] waiting=owner/no-en qualified=owner/en");
       tick();
       lsu_axi_rvalid = 1'b0;
       #1;
@@ -912,10 +1472,304 @@ module tb_ooo_mem_axi_bridge;
     end
   endtask
 
+  // A PBMT NC/IO leaf may map to a PA whose raw address is in PMEM.  Keep the
+  // physical line hot, clear only the DTLB, then prove that the translated
+  // request ignores the raw cache hit and waits for the precise serialized
+  // owner before issuing an exact AXI read.
+  // S1 fault priority, DTLB-hit form.  First cache DATA_PA and fill a DTLB
+  // entry carrying legal PBMT-NC.  Then disable PBMTE and simultaneously PMP
+  // deny DATA_PA: the now-reserved PBMT must win as page fault, provenance is
+  // poisoned, and the known-hot cache line must not receive a lookup enable.
+  task automatic pbmt_reserved_beats_pmp_dtlb_hit;
+    reg [`XLEN-1:0] pbmt_nc_leaf;
+    begin
+      pbmt_nc_leaf = SUPERPAGE_PTE | (64'd1 << 61);
+      clear_inputs();
+      tick();
+      dcache_dma_invalidate_all = 1'b1;
+      tick();
+      dcache_dma_invalidate_all = 1'b0;
+
+      // Seed a known-hot physical line.
+      issue_mem0_read(DATA_PA);
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'h5eed_cafe_1234_5678;
+      lsu_axi_rresp = 2'b00;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("PBMT/PMP DTLB seed cached response", mem0_rsp_valid, 1'b1);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+
+      // Fill DTLB with PBMT-NC while all permissions allow.
+      mmu_flush = 1'b1;
+      tick();
+      mmu_flush = 1'b0;
+      priv_mode = `PRIV_S;
+      satp = (64'h8 << 60) | ROOT_PPN;
+      svpbmt_en = 1'b1;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = DATA_VA;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      #1;
+      tb_check1("PBMT/PMP DTLB fill request ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      tick();
+      #1;
+      tb_check1("PBMT/PMP DTLB fill walk AR", lsu_axi_arvalid, 1'b1);
+      lsu_axi_arready = 1'b1;
+      tick();
+      lsu_axi_arready = 1'b0;
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = pbmt_nc_leaf;
+      lsu_axi_rresp = 2'b00;
+      #1;
+      tb_check1("PBMT/PMP legal leaf fills DTLB", dut.dtlb_fill_valid_w, 1'b1);
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("PBMT/PMP NC bypass presents exact AR", lsu_axi_arvalid, 1'b1);
+      lsu_axi_arready = 1'b1;
+      tick();
+      lsu_axi_arready = 1'b0;
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'h1111_2222_3333_4444;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("PBMT/PMP DTLB fill response", mem0_rsp_valid, 1'b1);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+
+      // Same cached DTLB PTE: PBMTE-off makes PBMT=01 reserved, while the
+      // root-only PMP map independently denies final DATA_PA.
+      svpbmt_en = 1'b0;
+      pmpcfg = PMP_ROOT_PTE_READ_CFG;
+      pmpaddr = PMP_ROOT_PTE_READ_ADDR;
+      mem0_req_valid = 1'b1;
+      mem0_req_addr = DATA_VA;
+      #1;
+      tb_check1("PBMT/PMP DTLB deny request ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("PBMT/PMP DTLB context hit", dut.req_dtlb_context_hit_w, 1'b1);
+      tb_check1("PBMT/PMP DTLB reserved detected", dut.req_typed_page_fault_w,
+                1'b1);
+      tb_check1("PBMT/PMP DTLB final PA independently PMP denied",
+                dut.req_data_pmp_fault_w, 1'b1);
+      tb_check1("PBMT/PMP DTLB final attr poisoned",
+                dut.req_effective_attr_valid_w, 1'b0);
+      tb_check32("PBMT/PMP DTLB final class poison",
+                 {30'b0, dut.req_effective_class_w},
+                 {30'b0, `OOO_MEM_CLASS_RSVD});
+      tb_check1("PBMT/PMP DTLB hot line lookup suppressed",
+                dut.dcache_lookup_en_w, 1'b0);
+      tb_check1("PBMT/PMP DTLB has no target side effect",
+                lsu_axi_arvalid | lsu_axi_awvalid | lsu_axi_wvalid, 1'b0);
+      tick();
+      #1;
+      tb_check1("PBMT/PMP DTLB response valid", mem0_rsp_valid, 1'b1);
+      tb_check1("PBMT/PMP DTLB priority reports page fault",
+                mem0_rsp_page_fault, 1'b1);
+      tb_check1("PBMT/PMP DTLB response attr invalid",
+                mem0_rsp_attr_valid, 1'b0);
+      tb_check32("PBMT/PMP DTLB response class poison",
+                 {30'b0, mem0_rsp_class},
+                 {30'b0, `OOO_MEM_CLASS_RSVD});
+      tb_check1("PBMT/PMP DTLB response cacheable poison",
+                mem0_rsp_cacheable, 1'b0);
+      tb_check1("PBMT/PMP DTLB response still no target",
+                lsu_axi_arvalid | lsu_axi_awvalid | lsu_axi_wvalid, 1'b0);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+      pmpcfg = PMP_ALLOW_ALL_CFG;
+      pmpaddr = PMP_ALLOW_ALL_ADDR;
+      priv_mode = `PRIV_M;
+      satp = {`XLEN{1'b0}};
+      $display("[S1-PBMT-PMP-PRIORITY-DTLB] page>PMP, attr poison, no lookup/target PASS");
+    end
+  endtask
+
+  // Same priority counterexample at the PTW leaf.  PMP allows the PTE read but
+  // denies final DATA_PA, while PBMT=11 is reserved.  No DTLB fill, cache
+  // lookup, A/D write, or data target may escape.
+  task automatic pbmt_reserved_beats_pmp_ptw_leaf;
+    reg [`XLEN-1:0] pbmt_reserved_leaf;
+    begin
+      pbmt_reserved_leaf = SUPERPAGE_PTE | (64'd3 << 61);
+      clear_inputs();
+      tick();
+      mmu_flush = 1'b1;
+      tick();
+      mmu_flush = 1'b0;
+      priv_mode = `PRIV_S;
+      satp = (64'h8 << 60) | ROOT_PPN;
+      svpbmt_en = 1'b1;
+      pmpcfg = PMP_ROOT_PTE_READ_CFG;
+      pmpaddr = PMP_ROOT_PTE_READ_ADDR;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = DATA_VA;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      #1;
+      tb_check1("PBMT/PMP PTW request ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      tick();
+      #1;
+      tb_check1("PBMT/PMP PTW root PTE AR allowed", lsu_axi_arvalid, 1'b1);
+      tb_check64("PBMT/PMP PTW root PTE address", lsu_axi_araddr,
+                 ROOT_PT + 64'd16);
+      lsu_axi_arready = 1'b1;
+      tick();
+      lsu_axi_arready = 1'b0;
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = pbmt_reserved_leaf;
+      lsu_axi_rresp = 2'b00;
+      #1;
+      tb_check1("PBMT/PMP PTW reserved detected",
+                dut.walk_leaf_page_fault_w, 1'b1);
+      tb_check1("PBMT/PMP PTW final PA independently PMP denied",
+                dut.walk_leaf_pmp_fault_w, 1'b1);
+      tb_check1("PBMT/PMP PTW final attr poisoned",
+                dut.walk_leaf_attr_valid_w, 1'b0);
+      tb_check32("PBMT/PMP PTW final class poison",
+                 {30'b0, dut.walk_leaf_class_w},
+                 {30'b0, `OOO_MEM_CLASS_RSVD});
+      tb_check1("PBMT/PMP PTW cannot fill DTLB", dut.dtlb_fill_valid_w, 1'b0);
+      tb_check1("PBMT/PMP PTW cannot lookup cache", dut.dcache_lookup_en_w,
+                1'b0);
+      tb_check1("PBMT/PMP PTW leaf has no target/write side effect",
+                lsu_axi_arvalid | lsu_axi_awvalid | lsu_axi_wvalid, 1'b0);
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("PBMT/PMP PTW response valid", mem0_rsp_valid, 1'b1);
+      tb_check1("PBMT/PMP PTW priority reports page fault",
+                mem0_rsp_page_fault, 1'b1);
+      tb_check1("PBMT/PMP PTW response attr invalid",
+                mem0_rsp_attr_valid, 1'b0);
+      tb_check32("PBMT/PMP PTW response class poison",
+                 {30'b0, mem0_rsp_class},
+                 {30'b0, `OOO_MEM_CLASS_RSVD});
+      tb_check1("PBMT/PMP PTW response cacheable poison",
+                mem0_rsp_cacheable, 1'b0);
+      tb_check1("PBMT/PMP PTW response has no target/write side effect",
+                lsu_axi_arvalid | lsu_axi_awvalid | lsu_axi_wvalid, 1'b0);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+      pmpcfg = PMP_ALLOW_ALL_CFG;
+      pmpaddr = PMP_ALLOW_ALL_ADDR;
+      priv_mode = `PRIV_M;
+      satp = {`XLEN{1'b0}};
+      svpbmt_en = 1'b0;
+      $display("[S1-PBMT-PMP-PRIORITY-PTW] page>PMP, no fill/lookup/target PASS");
+    end
+  endtask
+
+  task automatic sv39_pbmt_pmem_bypasses_dcache;
+    input [1:0] pbmt;
+    input [`XLEN-1:0] returned_data;
+    reg [`XLEN-1:0] pbmt_leaf;
+    begin
+      pbmt_leaf = SUPERPAGE_PTE | ({{(`XLEN-2){1'b0}}, pbmt} << 61);
+      mmu_flush = 1'b1;
+      tick();
+      mmu_flush = 1'b0;
+      priv_mode = `PRIV_S;
+      satp = (64'h8 << 60) | ROOT_PPN;
+      svpbmt_en = 1'b1;
+      mem0_device_release = 1'b0;
+      mem0_device_cancel = 1'b0;
+      mem0_rsp_ready = 1'b0;
+      lsu_axi_arready = 1'b0;
+
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = DATA_VA;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      #1;
+      tb_check1("PBMT PMEM request ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      tick();
+      #1;
+      tb_check1("PBMT PMEM walk AR valid", lsu_axi_arvalid, 1'b1);
+      tb_check64("PBMT PMEM walk PTE address", lsu_axi_araddr,
+                 ROOT_PT + 64'd16);
+      lsu_axi_arready = 1'b1;
+      tick();
+      lsu_axi_arready = 1'b0;
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = pbmt_leaf;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check64("PBMT PMEM final PA", dut.paddr_q, DATA_PA);
+      tb_check1("PBMT PMEM final class is non-cacheable",
+                dut.access_attr_valid_q &&
+                (dut.access_class_q == `OOO_MEM_CLASS_CACHED), 1'b0);
+      tb_check1("PBMT PMEM typed attr valid",
+                dut.access_attr_valid_q, 1'b1);
+      tb_check32("PBMT PMEM exact typed class",
+                 {30'b0, dut.access_class_q},
+                 {30'b0, (pbmt == 2'b01) ? `OOO_MEM_CLASS_NC :
+                                           `OOO_MEM_CLASS_IO});
+      tb_check1("PBMT PMEM hot line cannot respond", mem0_rsp_valid, 1'b0);
+      if (pbmt == 2'b01) begin
+        tb_check1("PBMT NC enters exact read owner",
+                  dut.state_q == 4'd3, 1'b1);
+        tb_check1("PBMT NC presents exact AR without device wait",
+                  lsu_axi_arvalid, 1'b1);
+      end else begin
+        tb_check1("PBMT IO enters serialized owner wait",
+                  dut.state_q == 4'd10, 1'b1);
+        tb_check1("PBMT IO wait presents no unowned AR",
+                  lsu_axi_arvalid, 1'b0);
+        mem0_device_release = 1'b1;
+      end
+      lsu_axi_arready = 1'b1;
+      #1;
+      tb_check1("PBMT PMEM exact AR visible", lsu_axi_arvalid, 1'b1);
+      tb_check64("PBMT PMEM exact AR address", lsu_axi_araddr, DATA_PA);
+      tick();
+      mem0_device_release = 1'b0;
+      lsu_axi_arready = 1'b0;
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = returned_data;
+      lsu_axi_rresp = 2'b00;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("PBMT PMEM exact response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("PBMT PMEM exact response data", mem0_rsp_rdata,
+                 returned_data);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+
+      mmu_flush = 1'b1;
+      tick();
+      mmu_flush = 1'b0;
+      priv_mode = `PRIV_M;
+      satp = {`XLEN{1'b0}};
+      svpbmt_en = 1'b0;
+      $display("[R4-S0-PBMT-PMEM] pbmt=%0d hot-line bypass + exact owner PASS", pbmt);
+    end
+  endtask
+
   // HW-managed A/D（Svadu，对齐 NEMU）：leaf 真权限过但 A=0(任意)/D=0(store) 不再 page fault，
   // 而是经 S_AD_UPDATE 写回 leaf PTE 置 A(D) 位、填 TLB 后续原访问：
   //   A=0 load  → 写 PTE|A → load miss 续 S_READ_ADDR(data AR) → 返回数据；
-  //   D=0 store → 写 PTE|A|D → 续 S_WRITE_REQ(store AW/W→DATA_PA, PMEM decouple 提前完成)。
+  //   D=0 store → 写 PTE|A|D → 续 S_WRITE_REQ(store AW/W→DATA_PA→B) 后完成。
   // 两情形置位后 PTE 均 == SUPERPAGE_PTE(A=1,D=1)。
   task automatic sv39_leaf_ad_update;
     input [1023:0] what;
@@ -956,6 +1810,13 @@ module tb_ooo_mem_axi_bridge;
       tb_check1("sv39 A/D update waits PTE", lsu_axi_rready, 1'b1);
       lsu_axi_rvalid = 1'b1;
       lsu_axi_rdata = orig_pte;
+      #1;
+      tb_check1("T4C A/D-needed walk keeps payload owner",
+                dut.walk_lookup_payload_owner_w, 1'b1);
+      tb_check1("T4C A/D-needed walk suppresses lookup",
+                dut.dcache_lookup_en_w, 1'b0);
+      tb_check64("T4C A/D-needed walk selects leaf PA",
+                 dut.dcache_lookup_addr_w, dut.walk_leaf_paddr_w);
       tick();
       lsu_axi_rvalid = 1'b0;
 
@@ -979,7 +1840,7 @@ module tb_ooo_mem_axi_bridge;
       lsu_axi_bvalid = 1'b0;
 
       if (write_access) begin
-        // 续 store：AW/W 到 DATA_PA（store 数据），PMEM decouple 提前报完成。
+        // 续 store：AW/W 到 DATA_PA（store 数据），等聚合 B 后报完成。
         #1;
         tb_check1("sv39 A/D update store issues AW", lsu_axi_awvalid, 1'b1);
         tb_check64("sv39 A/D update store AW address", lsu_axi_awaddr,
@@ -992,6 +1853,13 @@ module tb_ooo_mem_axi_bridge;
         lsu_axi_awready = 1'b0;
         lsu_axi_wready = 1'b0;
         #1;
+        tb_check1("sv39 A/D update store waits B", lsu_axi_bready, 1'b1);
+        tb_check1("sv39 A/D update store no pre-B response", mem0_rsp_valid,
+                  1'b0);
+        lsu_axi_bvalid = 1'b1;
+        tick();
+        lsu_axi_bvalid = 1'b0;
+        #1;
         tb_check1("sv39 A/D update store response valid", mem0_rsp_valid,
                   1'b1);
         tb_check1("sv39 A/D update store no error", mem0_rsp_error, 1'b0);
@@ -1000,10 +1868,6 @@ module tb_ooo_mem_axi_bridge;
         mem0_rsp_ready = 1'b1;
         tick();
         mem0_rsp_ready = 1'b0;
-        // decoupled PMEM store 的 B（bpend）吸收。
-        lsu_axi_bvalid = 1'b1;
-        tick();
-        lsu_axi_bvalid = 1'b0;
       end else begin
         // 续 load miss：S_READ_ADDR → data AR(DATA_PA) → R → 返回数据。
         #1;
@@ -1035,6 +1899,83 @@ module tb_ooo_mem_axi_bridge;
       mmu_flush = 1'b0;
       priv_mode = `PRIV_M;
       satp = {`XLEN{1'b0}};
+    end
+  endtask
+
+  // T4F：PTE 地址所在 TOR 区域 R-only，最终 data PA 由后续 allow-all
+  // entry 放行。A/D-needed leaf 必须形成原 load/store 的 access fault，
+  // 不进入 S_AD_UPDATE、不发 AW/W。参数化覆盖 load-A 与 store-D 两类。
+  task automatic sv39_ad_write_pmp_deny;
+    input [1023:0] what;
+    input write_access;
+    input [`XLEN-1:0] leaf_flags;
+    reg [`XLEN-1:0] orig_pte;
+    begin
+      mmu_flush = 1'b1;
+      tick();
+      mmu_flush = 1'b0;
+      orig_pte = (SUPERPAGE_PPN << 10) | leaf_flags;
+      pmpcfg = {`PMP_CFG_BUS_W{1'b0}};
+      pmpaddr = {`PMP_ADDR_BUS_W{1'b0}};
+      // entry0: TOR [0,0x8000_8000), R-only；entry1: NAPOT all, RWX。
+      pmpcfg[0 +: 8] = 8'h09;
+      pmpcfg[8 +: 8] = 8'h1f;
+      pmpaddr[0 +: `XLEN] = 64'h0000_0000_8000_8000 >> 2;
+      pmpaddr[`XLEN +: `XLEN] = {`XLEN{1'b1}};
+      priv_mode = `PRIV_S;
+      satp = (64'h8 << 60) | ROOT_PPN;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = write_access;
+      mem0_req_addr = DATA_VA_AD;
+      mem0_req_wdata = 64'h1234_5678_9abc_def0;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      lsu_axi_arready = 1'b0;
+      lsu_axi_awready = 1'b0;
+      lsu_axi_wready = 1'b0;
+      #1;
+      tb_check1(what, mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      tick();
+      #1;
+      tb_check1("T4F LSU PTE read remains allowed", lsu_axi_arvalid, 1'b1);
+      tb_check64("T4F LSU PTE read address", lsu_axi_araddr,
+                 ROOT_PT + 64'd16);
+      lsu_axi_arready = 1'b1;
+      tick();
+      lsu_axi_arready = 1'b0;
+      #1;
+      tb_check1("T4F LSU waits leaf PTE", lsu_axi_rready, 1'b1);
+      lsu_axi_rdata = orig_pte;
+      lsu_axi_rresp = 2'b00;
+      lsu_axi_rvalid = 1'b1;
+      #1;
+      tb_check1("T4F LSU final data PMP remains allowed",
+                dut.walk_leaf_pmp_fault_w, 1'b0);
+      tb_check1("T4F LSU PTE WRITE PMP denies",
+                dut.walk_pte_write_pmp_fault_w, 1'b1);
+      tb_check1("T4F LSU deny event qualified", dut.walk_ad_write_deny_w,
+                1'b1);
+      tb_check1("T4F LSU denied PTE emits no AW", lsu_axi_awvalid, 1'b0);
+      tb_check1("T4F LSU denied PTE emits no W", lsu_axi_wvalid, 1'b0);
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      lsu_axi_rdata = {`XLEN{1'b0}};
+      #1;
+      tb_check1("T4F LSU deny returns response", mem0_rsp_valid, 1'b1);
+      tb_check1("T4F LSU deny is access fault", mem0_rsp_error, 1'b1);
+      tb_check1("T4F LSU deny is not page fault", mem0_rsp_page_fault, 1'b0);
+      tb_check1("T4F LSU response still has no AW", lsu_axi_awvalid, 1'b0);
+      tb_check1("T4F LSU response still has no W", lsu_axi_wvalid, 1'b0);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+      pmpcfg = PMP_ALLOW_ALL_CFG;
+      pmpaddr = PMP_ALLOW_ALL_ADDR;
+      priv_mode = `PRIV_M;
+      satp = {`XLEN{1'b0}};
+      $display("[T4F-LSU-PTW-PMP-WRITE] op=%0s read=allow write=deny access-fault aw=0 w=0",
+               write_access ? "store" : "load");
     end
   endtask
 
@@ -1072,6 +2013,104 @@ module tb_ooo_mem_axi_bridge;
     end
   endtask
 
+  // T4H / MEM-PMA-G1：M-mode PMP no-match allow 不能授权 default/stub PA。
+  // probe 必须在 ROB 完成前返回 access fault，且不能向 xbar 呈现任何 data channel。
+  task automatic probe_write_pma_deny_bare;
+    begin
+      clear_inputs();
+      tick();
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b1;
+      mem0_req_probe = 1'b1;
+      mem0_req_addr = 64'h0000_0000_1800_0000;
+      mem0_req_wdata = 64'h55aa_aa55_1234_5678;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      #1;
+      tb_check1("T4H bare PMA request ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      mem0_req_probe = 1'b0;
+      #1;
+      tb_check1("T4H bare PMA deny qualified",
+                dut.req_data_pma_fault_w, 1'b1);
+      tb_check1("T4H bare PMA advance emits no AR", lsu_axi_arvalid, 1'b0);
+      tb_check1("T4H bare PMA advance emits no AW", lsu_axi_awvalid, 1'b0);
+      tb_check1("T4H bare PMA advance emits no W", lsu_axi_wvalid, 1'b0);
+      tick();
+      #1;
+      tb_check1("T4H bare PMA response valid", mem0_rsp_valid, 1'b1);
+      tb_check1("T4H bare PMA is access fault", mem0_rsp_error, 1'b1);
+      tb_check1("T4H bare PMA is not page fault",
+                mem0_rsp_page_fault, 1'b0);
+      tb_check1("T4H bare PMA response emits no AR", lsu_axi_arvalid, 1'b0);
+      tb_check1("T4H bare PMA response emits no AW", lsu_axi_awvalid, 1'b0);
+      tb_check1("T4H bare PMA response emits no W", lsu_axi_wvalid, 1'b0);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+      $display("[T4H-PMA-BARE-PROBE] default PA rejected before AW/W with access fault");
+    end
+  endtask
+
+  // Sv39 leaf 可通过权限/PMP、却把最终 data PA 指向当前 NpcTop stub window。
+  // PMA deny 必须先于 A/D/data side effect，并沿原 store probe fault ABI 返回。
+  task automatic probe_write_pma_deny_sv39_leaf;
+    begin
+      clear_inputs();
+      mmu_flush = 1'b1;
+      tick();
+      mmu_flush = 1'b0;
+      priv_mode = `PRIV_S;
+      satp = (64'h8 << 60) | ROOT_PPN;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b1;
+      mem0_req_probe = 1'b1;
+      mem0_req_addr = PMA_BAD_VA;
+      mem0_req_wdata = 64'h0123_4567_89ab_cdef;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      #1;
+      tb_check1("T4H Sv39 PMA request ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      mem0_req_probe = 1'b0;
+      tick();
+      #1;
+      tb_check1("T4H Sv39 PMA walk AR valid", lsu_axi_arvalid, 1'b1);
+      tb_check64("T4H Sv39 PMA root PTE address", lsu_axi_araddr,
+                 ROOT_PT + 64'd8);
+      lsu_axi_arready = 1'b1;
+      tick();
+      lsu_axi_arready = 1'b0;
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = PMA_BAD_SUPERPAGE_PTE;
+      #1;
+      tb_check64("T4H Sv39 PMA leaf physical address",
+                 dut.walk_leaf_paddr_w, PMA_BAD_PA);
+      tb_check1("T4H Sv39 PMA leaf deny qualified",
+                dut.walk_leaf_pma_fault_w, 1'b1);
+      tb_check1("T4H Sv39 PMA leaf emits no data AR",
+                lsu_axi_arvalid, 1'b0);
+      tb_check1("T4H Sv39 PMA leaf emits no AW", lsu_axi_awvalid, 1'b0);
+      tb_check1("T4H Sv39 PMA leaf emits no W", lsu_axi_wvalid, 1'b0);
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      lsu_axi_rdata = {`XLEN{1'b0}};
+      #1;
+      tb_check1("T4H Sv39 PMA response valid", mem0_rsp_valid, 1'b1);
+      tb_check1("T4H Sv39 PMA is access fault", mem0_rsp_error, 1'b1);
+      tb_check1("T4H Sv39 PMA is not page fault",
+                mem0_rsp_page_fault, 1'b0);
+      tb_check1("T4H Sv39 PMA response emits no AW", lsu_axi_awvalid, 1'b0);
+      tb_check1("T4H Sv39 PMA response emits no W", lsu_axi_wvalid, 1'b0);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+      priv_mode = `PRIV_M;
+      satp = {`XLEN{1'b0}};
+      $display("[T4H-PMA-SV39-PROBE] leaf-to-stub PA rejected before A/D/data side effects");
+    end
+  endtask
+
   // 【LSQ·SQ 切换×刀 M】pretrans+nokill(退休 store 落存): 跳过翻译直写 PA, 且
   // flush 期间事务照常推进(写必达)——寄存站项 flush 拍经 nokill 豁免照常
   // advance 进 FSM, 响应不被 kill 压制。
@@ -1083,6 +2122,9 @@ module tb_ooo_mem_axi_bridge;
       mem0_req_write = 1'b1;
       mem0_req_pretrans = 1'b1;
       mem0_req_nokill = 1'b1;
+      mem0_req_attr_valid = 1'b1;
+      mem0_req_class = `OOO_MEM_CLASS_CACHED;
+      mem0_req_cacheable = 1'b1;
       mem0_req_addr = DATA_PA;
       mem0_req_wdata = 64'h1122_3344_5566_7788;
       mem0_req_wstrb = {`STRB_W{1'b1}};
@@ -1092,6 +2134,9 @@ module tb_ooo_mem_axi_bridge;
       mem0_req_valid = 1'b0;
       mem0_req_pretrans = 1'b0;
       mem0_req_nokill = 1'b0;
+      mem0_req_attr_valid = 1'b0;
+      mem0_req_class = `OOO_MEM_CLASS_RSVD;
+      mem0_req_cacheable = 1'b0;
       // 立刻 flush: 站内 nokill 项必须在 flush 拍照常 advance 进 FSM(写必达)
       flush = 1'b1;
       #1;
@@ -1111,18 +2156,111 @@ module tb_ooo_mem_axi_bridge;
       lsu_axi_awready = 1'b0;
       lsu_axi_wready = 1'b0;
       #1;
-      // PMEM store 解耦: AW/W 落地即响应, flush 不得压制 nokill 事务的 rsp_valid
+      // nokill store 在 flush 下仍等待并接收聚合 B。
+      tb_check1("nokill waits B under flush", lsu_axi_bready, 1'b1);
+      tb_check1("nokill has no pre-B response under flush", mem0_rsp_valid,
+                1'b0);
+      lsu_axi_bvalid = 1'b1;
+      tick();
+      lsu_axi_bvalid = 1'b0;
+      #1;
       tb_check1("nokill response valid under flush", mem0_rsp_valid, 1'b1);
       tb_check1("nokill response no error", mem0_rsp_error, 1'b0);
       mem0_rsp_ready = 1'b1;
       tick();
       mem0_rsp_ready = 1'b0;
       flush = 1'b0;
-      // 后台 B 由 bpend 吸收
+      tick();
+    end
+  endtask
+
+  // T4N bridge half of the precise terminal ABI.  All legal B outcomes produce
+  // exactly one held response; OKAY maps error=0, while SLVERR and DECERR both
+  // map error=1 for the backend's cause-7/tval-VA terminal WB.
+  task automatic pretrans_bresp_terminal_case;
+    input [1023:0] label;
+    input [`XLEN-1:0] pa;
+    input [1:0] bresp;
+    input exp_error;
+    begin
+      clear_inputs();
+      tick();
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b1;
+      mem0_req_pretrans = 1'b1;
+      mem0_req_nokill = 1'b1;
+      mem0_req_attr_valid = 1'b1;
+      mem0_req_class = `OOO_MEM_CLASS_CACHED;
+      mem0_req_cacheable = 1'b1;
+      mem0_req_addr = pa;
+      mem0_req_wdata = 64'h55aa_1122_3344_7788;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      #1;
+      tb_check1({label, " request ready"}, mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      mem0_req_pretrans = 1'b0;
+      mem0_req_nokill = 1'b0;
+      mem0_req_attr_valid = 1'b0;
+      mem0_req_class = `OOO_MEM_CLASS_RSVD;
+      mem0_req_cacheable = 1'b0;
+      #1;
+      tick();
+      #1;
+      tb_check1({label, " AW valid"}, lsu_axi_awvalid, 1'b1);
+      tb_check1({label, " W valid"}, lsu_axi_wvalid, 1'b1);
+      tb_check64({label, " physical AW address"}, lsu_axi_awaddr, pa);
+      lsu_axi_awready = 1'b1;
+      lsu_axi_wready = 1'b1;
+      tick();
+      lsu_axi_awready = 1'b0;
+      lsu_axi_wready = 1'b0;
+      #1;
+      tb_check1({label, " waits B"}, lsu_axi_bready, 1'b1);
+      tb_check1({label, " no pre-B response"}, mem0_rsp_valid, 1'b0);
       lsu_axi_bvalid = 1'b1;
+      lsu_axi_bresp = bresp;
       tick();
       lsu_axi_bvalid = 1'b0;
+      #1;
+      tb_check1({label, " response valid"}, mem0_rsp_valid, 1'b1);
+      tb_check1({label, " response error mapping"},
+                mem0_rsp_error, exp_error);
+      tb_check1({label, " response is not page fault"},
+                mem0_rsp_page_fault, 1'b0);
+      // B is a post-target terminal: the public typed response must echo the
+      // SQ drain provenance, including errors, instead of poisoning it like a
+      // pre-target translation/PMP/PMA fault.
+      tb_check1({label, " response typed attr valid"},
+                mem0_rsp_attr_valid, 1'b1);
+      tb_check32({label, " response typed class retained"},
+                 {30'b0, mem0_rsp_class},
+                 {30'b0, `OOO_MEM_CLASS_CACHED});
+      tb_check1({label, " response cacheability retained"},
+                mem0_rsp_cacheable, 1'b1);
+      // Backend WB credit can stall ready.  The bridge must retain the one
+      // terminal and all public typed provenance rather than consume/recreate
+      // or reclassify it.
       tick();
+      #1;
+      tb_check1({label, " response held under credit stall"},
+                mem0_rsp_valid, 1'b1);
+      tb_check1({label, " held error stable"}, mem0_rsp_error, exp_error);
+      tb_check1({label, " held typed attr stable"},
+                mem0_rsp_attr_valid, 1'b1);
+      tb_check32({label, " held typed class stable"},
+                 {30'b0, mem0_rsp_class},
+                 {30'b0, `OOO_MEM_CLASS_CACHED});
+      tb_check1({label, " held cacheability stable"},
+                mem0_rsp_cacheable, 1'b1);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+      #1;
+      tb_check1({label, " response consumed exactly once"},
+                mem0_rsp_valid, 1'b0);
+      $display("[S1-PRETRANS-BRESP-ATTR-HOLD] %0s error=%0d typed provenance retained PASS",
+               label, exp_error);
     end
   endtask
 
@@ -1197,6 +2335,9 @@ module tb_ooo_mem_axi_bridge;
       mem0_req_write = 1'b1;
       mem0_req_pretrans = 1'b1;
       mem0_req_nokill = 1'b1;
+      mem0_req_attr_valid = 1'b1;
+      mem0_req_class = `OOO_MEM_CLASS_CACHED;
+      mem0_req_cacheable = 1'b1;
       mem0_req_addr = 64'h0000_0000_8000_8300;
       mem0_req_wdata = 64'hc001_c0de_0000_ffff;
       mem0_req_wstrb = {`STRB_W{1'b1}};
@@ -1207,6 +2348,9 @@ module tb_ooo_mem_axi_bridge;
       mem0_req_pretrans = 1'b0;
       mem0_req_nokill = 1'b0;
       mem0_req_write = 1'b0;
+      mem0_req_attr_valid = 1'b0;
+      mem0_req_class = `OOO_MEM_CLASS_RSVD;
+      mem0_req_cacheable = 1'b0;
       #1;
       tick();   // C 判决拍 miss→AR fire→S_READ_DATA
       lsu_axi_arready = 1'b0;
@@ -1238,15 +2382,19 @@ module tb_ooo_mem_axi_bridge;
       lsu_axi_awready = 1'b0;
       lsu_axi_wready = 1'b0;
       #1;
+      tb_check1("nokill staged store waits B", lsu_axi_bready, 1'b1);
+      tb_check1("nokill staged store has no pre-B response", mem0_rsp_valid,
+                1'b0);
+      lsu_axi_bvalid = 1'b1;
+      tick();
+      lsu_axi_bvalid = 1'b0;
+      #1;
       tb_check1("nokill staged store response valid", mem0_rsp_valid, 1'b1);
       tb_check1("nokill staged store no error", mem0_rsp_error, 1'b0);
       mem0_rsp_ready = 1'b1;
       tick();
       mem0_rsp_ready = 1'b0;
-      // 后台 B 由 bpend 吸收; 再空转一拍越过 RMW 判决拍
-      lsu_axi_bvalid = 1'b1;
-      tick();
-      lsu_axi_bvalid = 1'b0;
+      // 再空转一拍越过 RMW 判决拍。
       tick();
     end
   endtask
@@ -1388,9 +2536,360 @@ module tb_ooo_mem_axi_bridge;
     end
   endtask
 
+  // S1 strict authorization: seed a hot line, then PMP-deny the exact same
+  // address.  Even a potential hit must not issue a raw SRAM lookup.
+  task automatic speculative_cache_hit_cannot_bypass_pmp;
+    // Keep this line cold with respect to the preceding window/fusion cases;
+    // 0x8000_6000 is intentionally populated earlier with different data.
+    localparam [`XLEN-1:0] SPEC_DENY_ADDR = 64'h0000_0000_8000_9000;
+    localparam [`XLEN-1:0] SPEC_DENY_DATA = 64'h5a5a_c3c3_9696_0f0f;
+    begin
+      priv_mode = `PRIV_M;
+      satp = {`XLEN{1'b0}};
+      pmpcfg = PMP_ALLOW_ALL_CFG;
+      pmpaddr = PMP_ALLOW_ALL_ADDR;
+      mem0_rsp_ready = 1'b0;
+
+      issue_mem0_read(SPEC_DENY_ADDR);
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = SPEC_DENY_DATA;
+      lsu_axi_rresp = 2'b00;
+      #1;
+      tb_check1("spec PMP seed accepts AXI R", lsu_axi_rready, 1'b1);
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("spec PMP seed response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("spec PMP seed response data", mem0_rsp_rdata,
+                 SPEC_DENY_DATA);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+
+      priv_mode = `PRIV_S;
+      // Entry0 NAPOT spans the full address space but grants no R/W/X.
+      pmpcfg = {{(`PMP_ENTRY_COUNT-1){8'h00}}, 8'h18};
+      pmpaddr = PMP_ALLOW_ALL_ADDR;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = SPEC_DENY_ADDR;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      #1;
+      tb_check1("spec PMP denied request enters station", mem0_req_ready,
+                1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("spec PMP denied read issues no internal lookup",
+                dut.req_read_lookup_issue_w, 1'b0);
+      tb_check1("spec PMP denied read is not authorized",
+                dut.req_read_lookup_fire_w, 1'b0);
+      tb_check1("spec PMP denied macro enable is low",
+                dut.dcache_lookup_en_w, 1'b0);
+      tb_check1("spec PMP denied read has no AXI AR", lsu_axi_arvalid,
+                1'b0);
+      tick();
+      #1;
+      tb_check1("spec PMP denied hit cannot fuse",
+                dut.lookup_hit_fusion_w, 1'b0);
+      tb_check1("spec PMP denied response valid", mem0_rsp_valid, 1'b1);
+      tb_check1("spec PMP denied response is access fault",
+                mem0_rsp_error, 1'b1);
+      tb_check1("spec PMP denied response is not page fault",
+                mem0_rsp_page_fault, 1'b0);
+      tb_check1("spec PMP denied response attr invalid",
+                mem0_rsp_attr_valid, 1'b0);
+      tb_check32("spec PMP denied response class poison",
+                 {30'b0, mem0_rsp_class},
+                 {30'b0, `OOO_MEM_CLASS_RSVD});
+      tb_check1("spec PMP denied response still has no AXI AR",
+                lsu_axi_arvalid, 1'b0);
+      $display("[S1-DCACHE-NO-PREVIEW-PMP] hot-line potential, lookup_en=0 access_fault=1");
+
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+      priv_mode = `PRIV_M;
+      pmpcfg = PMP_ALLOW_ALL_CFG;
+      pmpaddr = PMP_ALLOW_ALL_ADDR;
+    end
+  endtask
+
+  // T3W: 先用 SUM=1 的 S-mode walk 建立 user-page DTLB 项，并让翻译后的
+  // 物理行保持 hot；随后仅清 SUM。相同 DTLB context 此时必须命中旧 PTE 但
+  // 由权限检查产生 page fault，投机 SRAM hit 不能融合、不能发 data AR，也
+  // 不能改变 cache 内容。
+  task automatic speculative_cache_hit_cannot_bypass_dtlb_permission;
+    begin
+      // 先以 bare M-mode 填入物理 cache 行，后续允许的 page walk 应直接命中。
+      priv_mode = `PRIV_M;
+      mstatus = {`XLEN{1'b0}};
+      satp = {`XLEN{1'b0}};
+      pmpcfg = PMP_ALLOW_ALL_CFG;
+      pmpaddr = PMP_ALLOW_ALL_ADDR;
+      issue_mem0_read(SPEC_USER_PA);
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = SPEC_USER_DATA;
+      lsu_axi_rresp = 2'b00;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("spec DTLB seed response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("spec DTLB seed response data", mem0_rsp_rdata,
+                 SPEC_USER_DATA);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+
+      // SUM=1 允许 S-mode 访问 U=1 leaf，完成真实 walk + DTLB fill；物理
+      // 行已 hot，因此 leaf 后只能走 internal hit，不能出现 data AR。
+      mmu_flush = 1'b1;
+      tick();
+      mmu_flush = 1'b0;
+      priv_mode = `PRIV_S;
+      mstatus = `MSTATUS_SUM;
+      satp = (64'h8 << 60) | ROOT_PPN;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = SPEC_USER_VA;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      #1;
+      tb_check1("spec DTLB fill request ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("spec DTLB fill advance no AR", lsu_axi_arvalid, 1'b0);
+      tick();
+      #1;
+      tb_check1("spec DTLB fill walk AR valid", lsu_axi_arvalid, 1'b1);
+      tb_check64("spec DTLB fill walk PTE address", lsu_axi_araddr,
+                 ROOT_PT + 64'd16);
+      lsu_axi_arready = 1'b1;
+      tick();
+      lsu_axi_arready = 1'b0;
+      #1;
+      tb_check1("spec DTLB fill waits PTE", lsu_axi_rready, 1'b1);
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = SPEC_USER_SUPERPAGE_PTE;
+      lsu_axi_rresp = 2'b00;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("spec DTLB fill leaf hits hot line",
+                dut.dcache_lookup_hit_w, 1'b1);
+      tb_check1("spec DTLB fill leaf has no data AR", lsu_axi_arvalid,
+                1'b0);
+      tick();
+      #1;
+      tb_check1("spec DTLB fill response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("spec DTLB fill response data", mem0_rsp_rdata,
+                 SPEC_USER_DATA);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+
+      // 同一 TLB 项在 SUM=0 下必须成为 permission fault；给 AR ready 置 1
+      // 作为陷阱，确保既不会把 internal hit 当 data response，也不会发总线读。
+      mstatus = {`XLEN{1'b0}};
+      lsu_axi_arready = 1'b1;
+      mem0_req_valid = 1'b1;
+      mem0_req_addr = SPEC_USER_VA;
+      #1;
+      tb_check1("spec DTLB denied request ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("spec DTLB denied context hit",
+                dut.req_dtlb_context_hit_w, 1'b1);
+      tb_check1("spec DTLB denied permission fault",
+                dut.req_dtlb_perm_fault_w, 1'b1);
+      tb_check1("spec DTLB denied issues no internal lookup",
+                dut.req_read_lookup_issue_w, 1'b0);
+      tb_check1("spec DTLB denied lookup is not authorized",
+                dut.req_read_lookup_fire_w, 1'b0);
+      tb_check1("spec DTLB denied macro enable is low",
+                dut.dcache_lookup_en_w, 1'b0);
+      tb_check64("spec DTLB denied lookup keeps translated PA",
+                 dut.dcache_lookup_addr_w, SPEC_USER_PA);
+      tb_check1("spec DTLB denied advance has no data AR", lsu_axi_arvalid,
+                1'b0);
+      tick();
+      #1;
+      tb_check1("spec DTLB denied hit cannot fuse",
+                dut.lookup_hit_fusion_w, 1'b0);
+      tb_check1("spec DTLB denied response valid", mem0_rsp_valid, 1'b1);
+      tb_check1("spec DTLB denied response error", mem0_rsp_error, 1'b1);
+      tb_check1("spec DTLB denied response is page fault",
+                mem0_rsp_page_fault, 1'b1);
+      tb_check1("spec DTLB denied response attr invalid",
+                mem0_rsp_attr_valid, 1'b0);
+      tb_check32("spec DTLB denied response class poison",
+                 {30'b0, mem0_rsp_class},
+                 {30'b0, `OOO_MEM_CLASS_RSVD});
+      tb_check1("spec DTLB denied response has no data AR", lsu_axi_arvalid,
+                1'b0);
+      tb_check1("spec DTLB denied response has no write side effect",
+                lsu_axi_awvalid | lsu_axi_wvalid, 1'b0);
+      $display("[S1-DCACHE-NO-PREVIEW-DTLB-PERM] hot-line potential, lookup_en=0 page_fault=1");
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+      lsu_axi_arready = 1'b0;
+
+      // 恢复 SUM 后同一 DTLB/物理 cache 行仍须直接命中原数据，证明 fault
+      // 期间的 speculative SRAM read 没有更新、失效或污染 cache。
+      mstatus = `MSTATUS_SUM;
+      lsu_axi_arready = 1'b1;
+      mem0_req_valid = 1'b1;
+      mem0_req_addr = SPEC_USER_VA;
+      #1;
+      tick();
+      mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("spec DTLB post-fault authorized lookup",
+                dut.req_read_lookup_fire_w, 1'b1);
+      tb_check1("spec DTLB post-fault advance no AR", lsu_axi_arvalid,
+                1'b0);
+      tick();
+      #1;
+      tb_check1("spec DTLB post-fault cache hit",
+                dut.dcache_lookup_hit_w, 1'b1);
+      tb_check1("spec DTLB post-fault response valid", mem0_rsp_valid,
+                1'b1);
+      tb_check64("spec DTLB post-fault cache data unchanged",
+                 mem0_rsp_rdata, SPEC_USER_DATA);
+      tb_check1("spec DTLB post-fault still has no AR", lsu_axi_arvalid,
+                1'b0);
+      tick();
+      lsu_axi_arready = 1'b0;
+      #1;
+      tb_check1("spec DTLB post-fault held response valid", mem0_rsp_valid,
+                1'b1);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+    end
+  endtask
+
+  // T3W: mmu_flush 只清 TLB valid，旧 PTE payload 仍可能让 speculative
+  // candidate 恰好指向 hot cache 行。context miss 必须由 page-walk owner 接管；
+  // 这里让 walk 返回 invalid PTE，精确验证 internal hit 不能伪造 data response。
+  task automatic speculative_stale_tlb_candidate_cannot_bypass_walk;
+    begin
+      priv_mode = `PRIV_S;
+      mstatus = `MSTATUS_SUM;
+      satp = (64'h8 << 60) | ROOT_PPN;
+      mmu_flush = 1'b1;
+      tick();
+      mmu_flush = 1'b0;
+
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = SPEC_USER_VA;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      #1;
+      tb_check1("spec stale TLB request ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("spec stale TLB context misses",
+                dut.req_dtlb_context_hit_w, 1'b0);
+      tb_check1("spec stale TLB issues no internal lookup",
+                dut.req_read_lookup_issue_w, 1'b0);
+      tb_check1("spec stale TLB lookup is not authorized",
+                dut.req_read_lookup_fire_w, 1'b0);
+      tb_check1("spec stale TLB macro enable is low",
+                dut.dcache_lookup_en_w, 1'b0);
+      tb_check64("spec stale TLB candidate aliases hot PA",
+                 dut.dcache_lookup_addr_w, SPEC_USER_PA);
+      tb_check1("spec stale TLB advance has no AR", lsu_axi_arvalid,
+                1'b0);
+      tick();
+      #1;
+      tb_check1("spec stale TLB hit cannot fuse",
+                dut.lookup_hit_fusion_w, 1'b0);
+      tb_check1("spec stale TLB walk AR owns channel", lsu_axi_arvalid,
+                1'b1);
+      tb_check64("spec stale TLB walk PTE address", lsu_axi_araddr,
+                 ROOT_PT + 64'd16);
+      tb_check64("spec stale TLB walk AR size",
+                 {{(`XLEN-3){1'b0}}, lsu_axi_arsize},
+                 {{(`XLEN-3){1'b0}}, 3'd3});
+      lsu_axi_arready = 1'b1;
+      tick();
+      lsu_axi_arready = 1'b0;
+      #1;
+      tb_check1("spec stale TLB walk waits PTE", lsu_axi_rready, 1'b1);
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = {`XLEN{1'b0}};
+      lsu_axi_rresp = 2'b00;
+      #1;
+      tb_check1("T4C invalid PTE keeps walk payload owner",
+                dut.walk_lookup_payload_owner_w, 1'b1);
+      tb_check1("T4C invalid PTE suppresses lookup",
+                dut.dcache_lookup_en_w, 1'b0);
+      tb_check64("T4C invalid PTE still selects leaf payload",
+                 dut.dcache_lookup_addr_w, dut.walk_leaf_paddr_w);
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("spec stale TLB invalid PTE response valid",
+                mem0_rsp_valid, 1'b1);
+      tb_check1("spec stale TLB invalid PTE response error",
+                mem0_rsp_error, 1'b1);
+      tb_check1("spec stale TLB invalid PTE is page fault",
+                mem0_rsp_page_fault, 1'b1);
+      tb_check64("spec stale TLB hit data never becomes response",
+                 mem0_rsp_rdata, {`XLEN{1'b0}});
+      tb_check1("spec stale TLB fault has no second data AR",
+                lsu_axi_arvalid, 1'b0);
+      tb_check1("spec stale TLB fault has no write side effect",
+                lsu_axi_awvalid | lsu_axi_wvalid, 1'b0);
+      $display("[S1-DCACHE-NO-PREVIEW-TLB-MISS] lookup_en=0 walk_owner=1 page_fault=1");
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+
+      // bare 物理回读必须仍命中原数据；若 miss/fault 路错误地把 speculative
+      // result 当成 fill/store owner，这个检查会暴露 cache 状态污染。
+      priv_mode = `PRIV_M;
+      mstatus = {`XLEN{1'b0}};
+      satp = {`XLEN{1'b0}};
+      lsu_axi_arready = 1'b1;
+      mem0_req_valid = 1'b1;
+      mem0_req_addr = SPEC_USER_PA;
+      #1;
+      tick();
+      mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("spec stale TLB post-fault physical lookup authorized",
+                dut.req_read_lookup_fire_w, 1'b1);
+      tb_check1("spec stale TLB post-fault physical advance no AR",
+                lsu_axi_arvalid, 1'b0);
+      tick();
+      #1;
+      tb_check1("spec stale TLB post-fault physical cache hit",
+                dut.dcache_lookup_hit_w, 1'b1);
+      tb_check1("spec stale TLB post-fault physical response valid",
+                mem0_rsp_valid, 1'b1);
+      tb_check64("spec stale TLB post-fault cache data unchanged",
+                 mem0_rsp_rdata, SPEC_USER_DATA);
+      tb_check1("spec stale TLB post-fault physical no AR",
+                lsu_axi_arvalid, 1'b0);
+      tick();
+      lsu_axi_arready = 1'b0;
+      #1;
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+      pmpcfg = PMP_ALLOW_ALL_CFG;
+      pmpaddr = PMP_ALLOW_ALL_ADDR;
+    end
+  endtask
+
   wire unused_outputs =
       mem0_rsp_error | mem0_rsp_page_fault | (|lsu_axi_wstrb) |
-      mem_translate_active;
+      mem_translate_active | mem0_rsp_cacheable;
 
   initial begin
     tb_errors = 0;
@@ -1402,21 +2901,45 @@ module tb_ooo_mem_axi_bridge;
     rst = 1'b0;
     #1;
     check_svpbmt_pte_reserved_policy();
+    check_post_translate_memory_class();
 
     held_response_flush_drop();
     inflight_read_flush_abort();
+    stalled_ar_survives_flush();
     read_arsize_tracks_load_mask();
     cached_window_shift_and_cross_block();
     dcache_hit_fusion_cases();
+    dma_invalidate_blocks_hit_fusion();
+    speculative_cache_hit_cannot_bypass_pmp();
+    speculative_cache_hit_cannot_bypass_dtlb_permission();
+    speculative_stale_tlb_candidate_cannot_bypass_walk();
     partial_write_flush_drain();
     flushed_store_does_not_poison_dcache();
+    b_error_invalidates_possible_partial_store_alias();
     store_rmw_write_update_and_bubble();
+    sv39_ad_write_pmp_deny("T4F load A-update PTE write denied", 1'b0,
+                           LEAF_NO_ACCESS_FLAGS);
+    sv39_ad_write_pmp_deny("T4F store D-update PTE write denied", 1'b1,
+                           LEAF_NO_DIRTY_FLAGS);
     sv39_leaf_ad_update("sv39 A=0 load triggers HW A update", 1'b0,
                        LEAF_NO_ACCESS_FLAGS);
     sv39_leaf_ad_update("sv39 D=0 store triggers HW D update", 1'b1,
                        LEAF_NO_DIRTY_FLAGS);
+    sv39_posttranslate_device_owner();
     sv39_dtlb_and_paddr_cache_hit();
+    pbmt_reserved_beats_pmp_dtlb_hit();
+    pbmt_reserved_beats_pmp_ptw_leaf();
+    sv39_pbmt_pmem_bypasses_dcache(2'b01, 64'h1111_0000_aaaa_5555);
+    sv39_pbmt_pmem_bypasses_dcache(2'b10, 64'h2222_0000_bbbb_6666);
     probe_write_returns_pa();
+    probe_write_pma_deny_bare();
+    probe_write_pma_deny_sv39_leaf();
+    pretrans_bresp_terminal_case("T4N B OKAY", DATA_PA + 64'h100,
+                                 2'b00, 1'b0);
+    pretrans_bresp_terminal_case("T4N B SLVERR", DATA_PA + 64'h108,
+                                 2'b10, 1'b1);
+    pretrans_bresp_terminal_case("T4N B DECERR", DATA_PA + 64'h110,
+                                 2'b11, 1'b1);
     pretrans_nokill_store_survives_flush();
     stage_skid_hold_and_flush_semantics();
 

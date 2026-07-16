@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rv64-dse-design-point-v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "design_id",
+    "state",
+    "role",
+    "architecture_feasible",
+    "parent_seed_id",
+    "completion_definition",
+    "hard_gates",
+    "objectives",
+    "evidence",
+    "ledger_event_sha256"
+  ],
+  "properties": {
+    "schema": {"const": "rv64-dse-design-point-v1"},
+    "design_id": {"type": "string", "minLength": 1},
+    "state": {"enum": ["intermediate_checkpoint", "complete_design_point"]},
+    "role": {
+      "enum": [
+        "development_checkpoint",
+        "seed_candidate",
+        "architecture_feasible_seed",
+        "performance_branch",
+        "area_timing_branch",
+        "power_branch",
+        "global_thaw_combined"
+      ]
+    },
+    "architecture_feasible": {"type": "boolean"},
+    "parent_seed_id": {"type": ["string", "null"]},
+    "ledger_event_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "immutable_source_snapshot": {"type": ["object", "null"]},
+    "required_test_inventory": {"type": ["object", "null"]},
+    "hard_gates": {"type": "object"},
+    "per_workload_metrics": {"type": "object"},
+    "worst_workload": {"type": ["object", "null"]},
+    "objectives": {"type": "object"},
+    "evidence": {"type": "array", "items": {"type": "object"}}
+  },
+  "additionalProperties": true
+}

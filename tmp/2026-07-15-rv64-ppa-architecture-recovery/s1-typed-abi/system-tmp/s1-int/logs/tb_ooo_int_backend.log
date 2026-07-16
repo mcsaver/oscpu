@@ -1,0 +1,709 @@
+[TEST] tb_ooo_int_backend
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_ooo_int_backend -o build/tb_ooo_int_backend.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/ALU.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/CompareUnit.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooAmoGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooBitmanipGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooClmulUnit.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpArithGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpBackend.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpClassifyGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpCompareGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpConvertGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpDivIter.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpLongOpGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpSgnjGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpSqrtIter.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooMulDivUnit.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/LSU.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/LSUControl.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/LSUDataPath.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemInflightQueue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/pipeline/PipeStageReg.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/regread_bypass/OooFpPhysRegFile.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/regread_bypass/OooFpRegFile.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/regread_bypass/OooPhysRegFile.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/rename_allocate/OooBusyTable.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/rename_allocate/OooFreeList.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/rename_allocate/OooRenameMap.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/OooRob.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/WBU.v tests/tb_ooo_int_backend.sv
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:504: warning: @* is sensitive to all 8 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:510: warning: @* is sensitive to all 8 words in array 'pc_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:511: warning: @* is sensitive to all 8 words in array 'next_pc_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:512: warning: @* is sensitive to all 8 words in array 'pred_npc_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:513: warning: @* is sensitive to all 8 words in array 'bht_idx_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:514: warning: @* is sensitive to all 8 words in array 'pred_taken_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:515: warning: @* is sensitive to all 8 words in array 'inst_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:516: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:517: warning: @* is sensitive to all 8 words in array 'rob_idx_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:518: warning: @* is sensitive to all 8 words in array 'src1_preg_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:520: warning: @* is sensitive to all 8 words in array 'src1_ready_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:521: warning: @* is sensitive to all 8 words in array 'src1_preg_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:524: warning: @* is sensitive to all 8 words in array 'src2_preg_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:526: warning: @* is sensitive to all 8 words in array 'src2_ready_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:527: warning: @* is sensitive to all 8 words in array 'src2_preg_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:530: warning: @* is sensitive to all 8 words in array 'pdest_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:531: warning: @* is sensitive to all 8 words in array 'fp_pdest_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:532: warning: @* is sensitive to all 8 words in array 'fp_st_en_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:533: warning: @* is sensitive to all 8 words in array 'fp_st_preg_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:535: warning: @* is sensitive to all 8 words in array 'fp_st_ready_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:536: warning: @* is sensitive to all 8 words in array 'fp_st_preg_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:537: warning: @* is sensitive to all 8 words in array 'fp_st_preg_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:538: warning: @* is sensitive to all 8 words in array 'imm_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:540: warning: @* is sensitive to all 8 words in array 'alu_terminal_capable_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:542: warning: @* is sensitive to all 8 words in array 'fixed_gpr_producer_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:640: warning: @* is sensitive to all 8 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:641: warning: @* is sensitive to all 8 words in array 'rob_idx_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemInflightQueue.v:138: warning: @* is sensitive to all 4 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemInflightQueue.v:138: warning: @* is sensitive to all 4 words in array 'kind_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:160: warning: @* is sensitive to all 8 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:161: warning: @* is sensitive to all 8 words in array 'fs1_en_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:161: warning: @* is sensitive to all 8 words in array 'fs1_ready_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:162: warning: @* is sensitive to all 8 words in array 'fs2_en_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:162: warning: @* is sensitive to all 8 words in array 'fs2_ready_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:163: warning: @* is sensitive to all 8 words in array 'fs3_en_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:163: warning: @* is sensitive to all 8 words in array 'fs3_ready_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:164: warning: @* is sensitive to all 8 words in array 'gpr_en_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:164: warning: @* is sensitive to all 8 words in array 'gpr_ready_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:178: warning: @* is sensitive to all 8 words in array 'rob_idx_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:179: warning: @* is sensitive to all 8 words in array 'rob_idx_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:223: warning: @* is sensitive to all 8 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:241: warning: @* is sensitive to all 8 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:242: warning: @* is sensitive to all 8 words in array 'rob_idx_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:250: warning: @* is sensitive to all 4 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:251: warning: @* is sensitive to all 4 words in array 'request_sent_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:253: warning: @* is sensitive to all 4 words in array 'rob_idx_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:255: warning: @* is sensitive to all 4 words in array 'survive_r'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:379: warning: @* is sensitive to all 4 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:379: warning: @* is sensitive to all 4 words in array 'request_sent_q'.
+tests/tb_ooo_int_backend.sv:136: warning: Instantiating module OooIntBackend with dangling input port 80 (mem_rsp_attr_valid_i) floating.
+tests/tb_ooo_int_backend.sv:136: warning: Instantiating module OooIntBackend with dangling input port 81 (mem_rsp_class_i) floating.
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @17
+       Time: 17  Scope: tb_ooo_int_backend.dut
+[T4H-PMA-PRECISE-STORE] cause=7 tval=0000000018000040 SQ-fill=0 drain=0
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @40
+       Time: 40  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3625: [S1-TYPED-PROBE-MISSING] successful probe lacked admitted provenance @40
+       Time: 40  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:388: [S1-TYPED-SQ-FILL0] successful probe lacks legal typed attr @40
+       Time: 40  Scope: tb_ooo_int_backend.dut.u_store_queue
+[CHECK-FAIL] T4N B-error store physical request visible got=0 expected=1
+[CHECK-FAIL] T4N B-error store physical request write got=0 expected=1
+[CHECK-FAIL] T4N B-error store physical request addr got=0x0000000040001040 expected=0x0000000080001240
+[CHECK-FAIL] T4N B-error store physical request pretranslated got=0 expected=1
+[CHECK-FAIL] T4N B-error store physical request nokill got=0 expected=1
+[CHECK-FAIL] T4N B-error store physical request preserves post-translate class got=0 expected=1
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @95
+       Time: 95  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @98
+       Time: 98  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @101
+       Time: 101  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @104
+       Time: 104  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @107
+       Time: 107  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @110
+       Time: 110  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @113
+       Time: 113  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @116
+       Time: 116  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @119
+       Time: 119  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @122
+       Time: 122  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @125
+       Time: 125  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @128
+       Time: 128  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @131
+       Time: 131  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @134
+       Time: 134  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @137
+       Time: 137  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @140
+       Time: 140  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] T4N B-error store B response ready got=0 expected=1
+[CHECK-FAIL] T4N B-error store B response owns formal WB got=0 expected=1
+[CHECK-FAIL] T4N B-error store B formal exception got=0 expected=1
+[CHECK-FAIL] T4N B-error store B error cause7 got=0x00000000 expected=0x00000007
+[CHECK-FAIL] T4N B-error store B error tval original VA got=0x0000000000000000 expected=0x0000000040001040
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @143
+       Time: 143  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] T4N B-error store commit after B got=0 expected=1
+[CHECK-FAIL] T4N B-error store commit exception got=0 expected=1
+[CHECK-FAIL] T4N B-error store commit cause7 got=0x00000000 expected=0x00000007
+[CHECK-FAIL] T4N B-error store commit tval original VA got=0x0000000000000000 expected=0x0000000040001040
+[CHECK-FAIL] T4N B-error ROB drained got=0x00000001 expected=0x00000000
+[CHECK-FAIL] T4N B-error SQ drained got=0x00000001 expected=0x00000000
+[T4N-B-ERROR-PRECISE] va=0x0000000040001040 pa=0x0000000080001240 cause=7
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:388: [S1-TYPED-SQ-FILL0] successful probe lacks legal typed attr @166
+       Time: 166  Scope: tb_ooo_int_backend.dut.u_store_queue
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3625: [S1-TYPED-PROBE-MISSING] successful probe lacked admitted provenance @166
+       Time: 166  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] R4 S0 PBMT-NC store physical request visible got=0 expected=1
+[CHECK-FAIL] R4 S0 PBMT-NC store physical request write got=0 expected=1
+[CHECK-FAIL] R4 S0 PBMT-NC store physical request addr got=0x0000000040001080 expected=0x0000000080001280
+[CHECK-FAIL] R4 S0 PBMT-NC store physical request pretranslated got=0 expected=1
+[CHECK-FAIL] R4 S0 PBMT-NC store physical request nokill got=0 expected=1
+[CHECK-FAIL] R4 S0 PBMT-NC store B response ready got=0 expected=1
+[CHECK-FAIL] R4 S0 PBMT-NC store B response owns formal WB got=0 expected=1
+[CHECK-FAIL] R4 S0 PBMT-NC store commit after B got=0 expected=1
+[CHECK-FAIL] R4 S0 PBMT store ROB drained got=0x00000001 expected=0x00000000
+[CHECK-FAIL] R4 S0 PBMT store SQ drained got=0x00000001 expected=0x00000000
+[R4-S0-STORE-CLASS] va=0x0000000040001080 pa=0x0000000080001280 cacheable=0 PASS
+[T4N-PAGE-END-STORE-TERMINAL] kind= SD va=0x0000000040001ffc
+[T4N-PAGE-END-STORE-TERMINAL] kind=FSD va=0x0000000040002ffc
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @335
+       Time: 335  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3625: [S1-TYPED-PROBE-MISSING] successful probe lacked admitted provenance @335
+       Time: 335  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:388: [S1-TYPED-SQ-FILL0] successful probe lacks legal typed attr @335
+       Time: 335  Scope: tb_ooo_int_backend.dut.u_store_queue
+[CHECK-FAIL] T4N dual-terminal older physical request visible got=0 expected=1
+[CHECK-FAIL] T4N dual-terminal older physical request write got=0 expected=1
+[CHECK-FAIL] T4N dual-terminal older physical request addr got=0x0000000040003a00 expected=0x0000000080005a00
+[CHECK-FAIL] T4N dual-terminal physical request pretranslated got=0 expected=1
+[CHECK-FAIL] T4N dual-terminal older DRAIN owns MIQ got=0x00000000 expected=0x00000001
+[CHECK-FAIL] T4N dual-terminal B response ready got=0 expected=1
+[CHECK-FAIL] T4N dual-terminal response source fires got=0 expected=1
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @398
+       Time: 398  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] T4N dual-terminal older tag sticky got=0 expected=1
+[CHECK-FAIL] T4N dual-terminal older store commits first got=0 expected=1
+[CHECK-FAIL] T4N dual-terminal younger remains after older release got=0x00000002 expected=0x00000001
+[CHECK-FAIL] T4N dual-terminal younger exception becomes commit0 got=0 expected=1
+[CHECK-FAIL] T4N dual-terminal younger tval got=0x0000000000000000 expected=0x0000000040005ffc
+[CHECK-FAIL] T4N dual-terminal ROB drains got=0x00000002 expected=0x00000000
+[CHECK-FAIL] T4N dual-terminal SQ drains got=0x00000002 expected=0x00000000
+[T4N-B-LOCAL-DUAL-TERMINAL] younger= SD older_rob=0 younger_rob=1 PASS
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @423
+       Time: 423  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3625: [S1-TYPED-PROBE-MISSING] successful probe lacked admitted provenance @423
+       Time: 423  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:388: [S1-TYPED-SQ-FILL0] successful probe lacks legal typed attr @423
+       Time: 423  Scope: tb_ooo_int_backend.dut.u_store_queue
+[CHECK-FAIL] T4N dual-terminal older physical request visible got=0 expected=1
+[CHECK-FAIL] T4N dual-terminal older physical request write got=0 expected=1
+[CHECK-FAIL] T4N dual-terminal older physical request addr got=0x0000000040003a00 expected=0x0000000080005a00
+[CHECK-FAIL] T4N dual-terminal physical request pretranslated got=0 expected=1
+[CHECK-FAIL] T4N dual-terminal older DRAIN owns MIQ got=0x00000000 expected=0x00000001
+[CHECK-FAIL] T4N dual-terminal B response ready got=0 expected=1
+[CHECK-FAIL] T4N dual-terminal response source fires got=0 expected=1
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @486
+       Time: 486  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] T4N dual-terminal older tag sticky got=0 expected=1
+[CHECK-FAIL] T4N dual-terminal older store commits first got=0 expected=1
+[CHECK-FAIL] T4N dual-terminal younger remains after older release got=0x00000002 expected=0x00000001
+[CHECK-FAIL] T4N dual-terminal younger exception becomes commit0 got=0 expected=1
+[CHECK-FAIL] T4N dual-terminal younger tval got=0x0000000000000000 expected=0x0000000040006ffc
+[CHECK-FAIL] T4N dual-terminal ROB drains got=0x00000002 expected=0x00000000
+[CHECK-FAIL] T4N dual-terminal SQ drains got=0x00000002 expected=0x00000000
+[T4N-B-LOCAL-DUAL-TERMINAL] younger=FSD older_rob=0 younger_rob=1 PASS
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @511
+       Time: 511  Scope: tb_ooo_int_backend.dut
+[T4N-OLDER-ALU-YOUNGER-STORE-FAULT] commit1 blocked; next-cycle commit0 trap PASS
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @535
+       Time: 535  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3625: [S1-TYPED-PROBE-MISSING] successful probe lacked admitted provenance @535
+       Time: 535  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:388: [S1-TYPED-SQ-FILL0] successful probe lacks legal typed attr @535
+       Time: 535  Scope: tb_ooo_int_backend.dut.u_store_queue
+[CHECK-FAIL] T4N restore setup physical request eligible got=0 expected=1
+[CHECK-FAIL] T4N request resumes after restore got=0 expected=1
+[CHECK-FAIL] T4N resumed request keeps PA got=0x0000000000000000 expected=0x0000000080004800
+[CHECK-FAIL] T4N resumed request owns MIQ got=0x00000000 expected=0x00000001
+[CHECK-FAIL] T4N resumed B response ready got=0 expected=1
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @546
+       Time: 546  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] T4N resumed store commits got=0 expected=1
+[CHECK-FAIL] T4N restore scenario ROB drains got=0x00000001 expected=0x00000000
+[CHECK-FAIL] T4N restore scenario SQ drains got=0x00000001 expected=0x00000000
+[T4N-CHECKPOINT-RESTORE-SQ-GATE] no fire/no owner loss PASS
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:388: [S1-TYPED-SQ-FILL0] successful probe lacks legal typed attr @572
+       Time: 572  Scope: tb_ooo_int_backend.dut.u_store_queue
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @572
+       Time: 572  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3625: [S1-TYPED-PROBE-MISSING] successful probe lacked admitted provenance @572
+       Time: 572  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] T4N SQ wins request grant got=0 expected=1
+[CHECK-FAIL] T4N younger issue loses request grant got=1 expected=0
+[CHECK-FAIL] T4N younger has no false request fire got=1 expected=0
+[CHECK-FAIL] T4N younger transfers to buffer got=0 expected=1
+[CHECK-FAIL] T4N first physical write uses PA0 got=0x0000000040003000 expected=0x0000000080002000
+[CHECK-FAIL] T4N first physical write pretrans got=0 expected=1
+[CHECK-FAIL] T4N buffered store1 probe visible got=0 expected=1
+[CHECK-FAIL] T4N buffered store1 is probe got=0 expected=1
+[CHECK-FAIL] T4N store0 B owns WB got=0 expected=1
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @582
+       Time: 582  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3625: [S1-TYPED-PROBE-MISSING] successful probe lacked admitted provenance @582
+       Time: 582  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:388: [S1-TYPED-SQ-FILL0] successful probe lacks legal typed attr @582
+       Time: 582  Scope: tb_ooo_int_backend.dut.u_store_queue
+[CHECK-FAIL] T4N store0 commits after B got=0 expected=1
+[CHECK-FAIL] T4N store1 probe response ready got=0 expected=1
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @586
+       Time: 586  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] T4N second physical write visible got=0 expected=1
+[CHECK-FAIL] T4N second physical write uses PA1 got=0x0000000040003000 expected=0x0000000080003000
+[CHECK-FAIL] T4N second physical write pretrans got=0 expected=1
+[CHECK-FAIL] T4N store1 B ready got=0 expected=1
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @593
+       Time: 593  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] T4N store1 commits after B got=0 expected=1
+[CHECK-FAIL] T4N two-store ROB drained got=0x00000002 expected=0x00000000
+[CHECK-FAIL] T4N two-store SQ drained got=0x00000002 expected=0x00000000
+[T4N-TWO-STORE-ORDER] sq-priority/no-false-fire/order PASS
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:388: [S1-TYPED-SQ-FILL0] successful probe lacks legal typed attr @619
+       Time: 619  Scope: tb_ooo_int_backend.dut.u_store_queue
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @619
+       Time: 619  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3625: [S1-TYPED-PROBE-MISSING] successful probe lacked admitted provenance @619
+       Time: 619  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] T4N/T4M older store physical grant got=0 expected=1
+[CHECK-FAIL] T4N/T4M older store physical PA got=0x0000000080005000 expected=0x0000000080004000
+[CHECK-FAIL] T4N/T4M store B ready got=0 expected=1
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @626
+       Time: 626  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] T4N/T4M store commits after B got=0 expected=1
+[CHECK-FAIL] T4N/T4M younger load issues after store release got=0 expected=1
+[CHECK-FAIL] T4N/T4M load MIQ owner enables device release got=0 expected=1
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @660
+       Time: 660  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @663
+       Time: 663  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @666
+       Time: 666  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @669
+       Time: 669  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @672
+       Time: 672  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @675
+       Time: 675  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @678
+       Time: 678  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @681
+       Time: 681  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @684
+       Time: 684  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @687
+       Time: 687  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @690
+       Time: 690  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @693
+       Time: 693  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @696
+       Time: 696  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @699
+       Time: 699  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @702
+       Time: 702  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @705
+       Time: 705  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] T4N/T4M younger translated load rsp ready got=0 expected=1
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @708
+       Time: 708  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] T4N/T4M younger translated load commit valid from ROB Q got=0 expected=1
+[CHECK-FAIL] T4N/T4M younger translated load commit rd en from ROB Q got=0 expected=1
+[CHECK-FAIL] T4N/T4M younger translated load commit data from ROB Q got=0x0000000000000000 expected=0x00000000000055aa
+[T4N-T4M-STORE-BEFORE-DEVICE] store write/B/commit precedes load release PASS
+[R3.2-RAW64] fired=64 committed=64 cycles=66
+[T3B-COVERAGE-OBS] fp-load alias gpr_pdest=32 fp_pdest=32 int_wb_pdest=0 int_issue={0,0}
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @1266
+       Time: 1266  Scope: tb_ooo_int_backend.dut
+[T3B-COVERAGE-OBS] load-fault pdest=32 formal={valid=1 exc=1 cause=5 tval=0x00000000800002c0}
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @1287
+       Time: 1287  Scope: tb_ooo_int_backend.dut
+[T4S-FP-RAW-INTENT] invalid payload state isolation PASS
+[T3C-RED-OBS] blocked raw_fp_ready={1,0} top_ready={0,0} fp_fire={0,0} fp_iq=7 fp_free=24 rob=8
+[T3C-RED-OBS] blocked-post fp_iq=7 fp_free=24 rob=8 map9=9 map10=10 fires={0,0}
+[T3C-RED-OBS] recovery wait=56 recovered=1 fires={1,1} fp_iq=7 fp_free=23 rob=9 map9=40 map10=41
+[T3Q-FP-STAGE-HOLD] cycles=3 rob=1 packet=0x2340002a7850000c0
+[T3Q-FP-STAGE-FLUSH] raw_before=1 masked_before=1 raw_after=0
+[T3Q-FP-STAGE-KILL-YOUNGER] branch_rob=1 fp_rob=2 raw_after=0 older_long=1
+[T3Q-FP-STAGE-KILL-OLDER-SURVIVOR] fp_rob=1 branch_rob=2 raw_after=1 payload=0x2340002a7850000c0
+[T3Q-CHECKPOINT-RESTORE-NO-ISSUE] ready=0 fire=0 req_valid=0
+[T3M-RED-OBS] mem-N formal0=1 pdest=32 issue={0,0}
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2444
+       Time: 2444  Scope: tb_ooo_int_backend.dut
+[T3G-COVERAGE-OBS] mem-N+1 issue0_pc=0x80002608 preg=32 stored=0x0000000012345678
+[T3M-COVERAGE-OBS] mixed ex-formal0={1,34,0x0000000012345679} mem-formal1={1,33,0x0000000000001800}
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2451
+       Time: 2451  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:388: [S1-TYPED-SQ-FILL0] successful probe lacks legal typed attr @2466
+       Time: 2466  Scope: tb_ooo_int_backend.dut.u_store_queue
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2466
+       Time: 2466  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3625: [S1-TYPED-PROBE-MISSING] successful probe lacked admitted provenance @2466
+       Time: 2466  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] store physical request visible got=0 expected=1
+[CHECK-FAIL] store physical request write got=0 expected=1
+[CHECK-FAIL] store physical request uses PA got=0x0000000000000200 expected=0x0000000080000200
+[CHECK-FAIL] store physical request pretrans got=0 expected=1
+[CHECK-FAIL] store physical request nokill got=0 expected=1
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2480
+       Time: 2480  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] mem rsp accepted after wb port frees got=0 expected=1
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2483
+       Time: 2483  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] store commits from ROB Q got=0 expected=1
+[CHECK-FAIL] first ALU commits beside store from ROB Q got=0 expected=1
+[CHECK-FAIL] second ALU commits after delayed store pair got=0 expected=1
+[CHECK-FAIL] second ALU data after delayed store pair got=0x0000000000000000 expected=0x0000000000000016
+[CHECK-FAIL] dual alu mem overlap rob drains got=0x00000003 expected=0x00000000
+[CHECK-FAIL] dual alu mem overlap freelist recovers got=0x0000001e expected=0x00000020
+[CHECK-FAIL] R3 older ALU commits from ROB Q got=0 expected=1
+[CHECK-FAIL] R3 older ALU commit data from ROB Q got=0x0000000000000000 expected=0x0000000000000055
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:388: [S1-TYPED-SQ-FILL0] successful probe lacks legal typed attr @2506
+       Time: 2506  Scope: tb_ooo_int_backend.dut.u_store_queue
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2506
+       Time: 2506  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3625: [S1-TYPED-PROBE-MISSING] successful probe lacked admitted provenance @2506
+       Time: 2506  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] R3 younger store physical request visible got=0 expected=1
+[CHECK-FAIL] R3 younger store physical request write got=0 expected=1
+[CHECK-FAIL] R3 younger store physical request addr got=0x0000000000000100 expected=0x0000000080000100
+[CHECK-FAIL] R3 younger store physical request pretranslated got=0 expected=1
+[CHECK-FAIL] R3 younger store physical request nokill got=0 expected=1
+[CHECK-FAIL] R3 younger store physical request preserves post-translate class got=0 expected=1
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2561
+       Time: 2561  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2564
+       Time: 2564  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2567
+       Time: 2567  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2570
+       Time: 2570  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2573
+       Time: 2573  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2576
+       Time: 2576  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2579
+       Time: 2579  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2582
+       Time: 2582  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2585
+       Time: 2585  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2588
+       Time: 2588  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2591
+       Time: 2591  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2594
+       Time: 2594  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2597
+       Time: 2597  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2600
+       Time: 2600  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2603
+       Time: 2603  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2606
+       Time: 2606  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] R3 younger store B response ready got=0 expected=1
+[CHECK-FAIL] R3 younger store B response owns formal WB got=0 expected=1
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2609
+       Time: 2609  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] R3 younger store commit after B got=0 expected=1
+[CHECK-FAIL] R3 younger store rob drains got=0x00000005 expected=0x00000000
+[CHECK-FAIL] R3 younger store freelist recovers got=0x0000001d expected=0x00000020
+[CHECK-FAIL] amo setup base/value rob has two entries got=0x00000007 expected=0x00000002
+[CHECK-FAIL] amo setup base/value commit0 valid from ROB Q got=0 expected=1
+[CHECK-FAIL] amo setup base/value commit1 valid from ROB Q got=0 expected=1
+[CHECK-FAIL] amo setup base/value commit0 data from ROB Q got=0x0000000000000000 expected=0x0000000000000300
+[CHECK-FAIL] amo setup base/value commit1 data from ROB Q got=0x0000000000000015 expected=0x0000000000000005
+[CHECK-FAIL] amo setup base/value ROB holds pair through Q commit window got=0x00000007 expected=0x00000002
+[CHECK-FAIL] amo setup base/value rob drains got=0x00000007 expected=0x00000000
+[CHECK-FAIL] amo setup base/value freelist recovers got=0x0000001b expected=0x00000020
+[CHECK-FAIL] lr.d request visible got=0 expected=1
+[CHECK-FAIL] lr.d request addr got=0x0000000000000100 expected=0x0000000000000300
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2681
+       Time: 2681  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2684
+       Time: 2684  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2687
+       Time: 2687  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2690
+       Time: 2690  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2693
+       Time: 2693  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2696
+       Time: 2696  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2699
+       Time: 2699  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2702
+       Time: 2702  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2705
+       Time: 2705  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2708
+       Time: 2708  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2711
+       Time: 2711  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2714
+       Time: 2714  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2717
+       Time: 2717  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2720
+       Time: 2720  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2723
+       Time: 2723  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2726
+       Time: 2726  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] lr.d rsp ready got=0 expected=1
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2729
+       Time: 2729  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] lr.d commit valid from ROB Q got=0 expected=1
+[CHECK-FAIL] lr.d commit rd en from ROB Q got=0 expected=1
+[CHECK-FAIL] lr.d commit data from ROB Q got=0x0000000000000000 expected=0x1111222233334444
+[CHECK-FAIL] sc.d success request visible got=0 expected=1
+[CHECK-FAIL] sc.d success request write got=0 expected=1
+[CHECK-FAIL] sc.d success request addr got=0x0000000000000100 expected=0x0000000000000300
+[CHECK-FAIL] sc.d success request wdata got=0x0000000000000000 expected=0x0000000000000005
+[CHECK-FAIL] sc.d success request wstrb got=0x0000000f expected=0x000000ff
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2791
+       Time: 2791  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2794
+       Time: 2794  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2797
+       Time: 2797  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2800
+       Time: 2800  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2803
+       Time: 2803  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2806
+       Time: 2806  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2809
+       Time: 2809  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2812
+       Time: 2812  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2815
+       Time: 2815  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2818
+       Time: 2818  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2821
+       Time: 2821  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2824
+       Time: 2824  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2827
+       Time: 2827  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2830
+       Time: 2830  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2833
+       Time: 2833  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2836
+       Time: 2836  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] sc.d success rsp ready got=0 expected=1
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2839
+       Time: 2839  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] sc.d success commit valid from ROB Q got=0 expected=1
+[CHECK-FAIL] sc.d success commit rd en from ROB Q got=0 expected=1
+[CHECK-FAIL] T3S sc.d fail reservation capture pending got=0 expected=1
+[CHECK-FAIL] sc.d fail formal WB visible got=0 expected=1
+[CHECK-FAIL] sc.d fail formal status is one got=0x0000000000000000 expected=0x0000000000000001
+[CHECK-FAIL] sc.d fail commits from ROB Q got=0 expected=1
+[CHECK-FAIL] sc.d fail returns one from ROB Q got=0x0000000000000000 expected=0x0000000000000001
+[CHECK-FAIL] amoadd.d read request visible got=0 expected=1
+[CHECK-FAIL] amoadd.d read request addr got=0x0000000000000100 expected=0x0000000000000300
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2917
+       Time: 2917  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2920
+       Time: 2920  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2923
+       Time: 2923  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2926
+       Time: 2926  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2929
+       Time: 2929  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2932
+       Time: 2932  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2935
+       Time: 2935  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2938
+       Time: 2938  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2941
+       Time: 2941  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2944
+       Time: 2944  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2947
+       Time: 2947  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2950
+       Time: 2950  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2953
+       Time: 2953  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2956
+       Time: 2956  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2959
+       Time: 2959  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2962
+       Time: 2962  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] amoadd.d read rsp ready got=0 expected=1
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @2965
+       Time: 2965  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] amoadd.d write request visible got=0 expected=1
+[CHECK-FAIL] amoadd.d write request write got=0 expected=1
+[CHECK-FAIL] amoadd.d write request addr got=0x0000000000000100 expected=0x0000000000000300
+[CHECK-FAIL] amoadd.d write request wdata got=0x0000000000000000 expected=0x000000000000000c
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3021
+       Time: 3021  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3024
+       Time: 3024  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3027
+       Time: 3027  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3030
+       Time: 3030  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3033
+       Time: 3033  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3036
+       Time: 3036  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3039
+       Time: 3039  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3042
+       Time: 3042  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3045
+       Time: 3045  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3048
+       Time: 3048  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3051
+       Time: 3051  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3054
+       Time: 3054  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3057
+       Time: 3057  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3060
+       Time: 3060  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3063
+       Time: 3063  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3066
+       Time: 3066  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] amoadd.d write rsp ready got=0 expected=1
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3069
+       Time: 3069  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] amoadd.d write commit valid from ROB Q got=0 expected=1
+[CHECK-FAIL] amoadd.d write commit rd en from ROB Q got=0 expected=1
+[CHECK-FAIL] amoadd.d write commit data from ROB Q got=0x0000000000000000 expected=0x0000000000000007
+[CHECK-FAIL] amo sequence rob drains got=0x0000000b expected=0x00000000
+[CHECK-FAIL] amo sequence iq drains got=0x00000004 expected=0x00000000
+[CHECK-FAIL] amo sequence freelist recovers got=0x00000017 expected=0x00000020
+[CHECK-FAIL] amo word x0 setup rob has two entries got=0x0000000d expected=0x00000002
+[CHECK-FAIL] amo word x0 setup ready uops queued in iq got=0x00000006 expected=0x00000002
+[CHECK-FAIL] amo word x0 setup queued pair issues got=0x00000005 expected=0x00000000
+[CHECK-FAIL] amo word x0 setup execute0 captures got=0 expected=1
+[CHECK-FAIL] amo word x0 setup formal WB0 valid got=0 expected=1
+[CHECK-FAIL] amo word x0 setup formal WB0 data got=0x0000000000000000 expected=0x0000000000000304
+[CHECK-FAIL] amo word x0 setup formal WB1 data got=0x0000000000000304 expected=0x0000000000000001
+[CHECK-FAIL] amo word x0 setup commit0 valid from ROB Q got=0 expected=1
+[CHECK-FAIL] amo word x0 setup commit1 valid from ROB Q got=0 expected=1
+[CHECK-FAIL] amo word x0 setup commit0 data from ROB Q got=0x0000000000000000 expected=0x0000000000000304
+[CHECK-FAIL] amo word x0 setup commit1 data from ROB Q got=0x0000000000000015 expected=0x0000000000000001
+[CHECK-FAIL] amo word x0 setup ROB holds pair through Q commit window got=0x0000000d expected=0x00000002
+[CHECK-FAIL] amo word x0 setup rob drains got=0x0000000d expected=0x00000000
+[CHECK-FAIL] amo word x0 setup iq drains got=0x00000004 expected=0x00000000
+[CHECK-FAIL] amo word x0 setup freelist recovers got=0x00000015 expected=0x00000020
+[CHECK-FAIL] amoadd.w x0 read request visible got=0 expected=1
+[CHECK-FAIL] amoadd.w x0 read request addr got=0x0000000000000100 expected=0x0000000000000304
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3144
+       Time: 3144  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3147
+       Time: 3147  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3150
+       Time: 3150  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3153
+       Time: 3153  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3156
+       Time: 3156  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3159
+       Time: 3159  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3162
+       Time: 3162  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3165
+       Time: 3165  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3168
+       Time: 3168  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3171
+       Time: 3171  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3174
+       Time: 3174  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3177
+       Time: 3177  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3180
+       Time: 3180  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3183
+       Time: 3183  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3186
+       Time: 3186  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3189
+       Time: 3189  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] amoadd.w x0 read rsp ready got=0 expected=1
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3192
+       Time: 3192  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] amoadd.w x0 write request visible got=0 expected=1
+[CHECK-FAIL] amoadd.w x0 write request write got=0 expected=1
+[CHECK-FAIL] amoadd.w x0 write request addr got=0x0000000000000100 expected=0x0000000000000304
+[CHECK-FAIL] amoadd.w x0 write request wdata got=0x0000000000000000 expected=0x0000000000000008
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3248
+       Time: 3248  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3251
+       Time: 3251  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3254
+       Time: 3254  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3257
+       Time: 3257  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3260
+       Time: 3260  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3263
+       Time: 3263  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3266
+       Time: 3266  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3269
+       Time: 3269  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3272
+       Time: 3272  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3275
+       Time: 3275  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3278
+       Time: 3278  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3281
+       Time: 3281  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3284
+       Time: 3284  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3287
+       Time: 3287  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3290
+       Time: 3290  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3293
+       Time: 3293  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] amoadd.w x0 write rsp ready got=0 expected=1
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3296
+       Time: 3296  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] amoadd.w x0 write commit valid from ROB Q got=0 expected=1
+[CHECK-FAIL] amoadd.w x0 write commit data from ROB Q got=0x0000000000000000 expected=0x0000000000000007
+[CHECK-FAIL] amoadd.w x0 rob drains got=0x0000000e expected=0x00000000
+[CHECK-FAIL] amoadd.w x0 iq drains got=0x00000005 expected=0x00000000
+[CHECK-FAIL] amoadd.w x0 freelist recovers got=0x00000015 expected=0x00000020
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3330
+       Time: 3330  Scope: tb_ooo_int_backend.dut
+[T3V-MEM-RES-RELEASE] younger_fire=1 younger_wb=1 younger_commit=1
+[T3S-MEM-RES-HOLD] cycles=3 rob=0 addr=0x80000310 younger_iq=0
+[T3S-MEM-RES-FLUSH] valid=0 req=0
+[T3T-MEM-RES-OLDEST-CORRECT] branch=0x80006d04 resident=0x80006d08
+[T3T-MEM-RES-OLDEST-MISPREDICT] valid=0 req=0
+[T3T-MEM-RES-AMO-HEAD] wait=3 rob=2
+[CHECK-FAIL] T3V buffer-kill seed is LEGACY push got=0 expected=1
+[CHECK-FAIL] T3V buffer-kill seed pending got=0 expected=1
+[CHECK-FAIL] T3V buffer-kill real buffer handoff got=0 expected=1
+[CHECK-FAIL] T3V buffer-kill handoff has no request got=1 expected=0
+[CHECK-FAIL] T3V buffer-kill younger resident in buffer got=0 expected=1
+[CHECK-FAIL] T3V buffer-kill buffer ROB identity got=0x00000000 expected=0x00000002
+[CHECK-FAIL] T3V buffer-kill buffer address got=0x0000000000000000 expected=0x00000000800003c0
+[CHECK-FAIL] T3V buffer-kill recognizes younger buffer got=0 expected=1
+[CHECK-FAIL] T3V buffer-kill preserves older MIQ only got=0x00000002 expected=0x00000001
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3448
+       Time: 3448  Scope: tb_ooo_int_backend.dut
+[CHECK-FAIL] T3V buffer-kill old MIQ drains got=0x00000001 expected=0x00000000
+[T3V-MEM-BUFFER-KILL] boundary_rob=1 killed_rob=2 quiet_cycles=4
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3517
+       Time: 3517  Scope: tb_ooo_int_backend.dut
+[T3V-MIQ-FULL-POP] fifth_rob=4 fifth_pdest=36 addr=0x0000000080000440
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3537
+       Time: 3537  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3540
+       Time: 3540  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3571
+       Time: 3571  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3574
+       Time: 3574  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3605
+       Time: 3605  Scope: tb_ooo_int_backend.dut
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3608
+       Time: 3608  Scope: tb_ooo_int_backend.dut
+[T3V-LRSC-WIDTH-MISALIGN] mismatch_pairs=2 matching_misaligned=1 reservation_valid=0
+[R3-ALU-TERMINAL-NO-LSU] live=1 fire=1 req=0 push=0
+[CHECK-FAIL] R3.1 MMIO cannot request before older retires got=1 expected=0
+[CHECK-FAIL] R3.1 MMIO still has no early request got=1 expected=0
+ERROR: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v:3621: [S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @3666
+       Time: 3666  Scope: tb_ooo_int_backend.dut
+[R3P1-SWAPPED-MMIO-ATOMIC] wait=0 PASS
+[R3P1-DIVU-8-YOUNGER] cycles=39 mask=ff commits=9 PASS
+[FAIL] tb_ooo_int_backend errors=197
+FATAL: common/tb_common.svh:35: 
+       Time: 3822  Scope: tb_ooo_int_backend.tb_finish
+simulation returned nonzero status 1
+log contains a FAIL marker
+log contains an ERROR diagnostic
+log reports errors=197
+missing exact PASS line for tb_ooo_int_backend
+[RESULT] FAIL status=1

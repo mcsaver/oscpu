@@ -5,6 +5,7 @@
 module NpcCoreTop (
   input clk,
   input rst,
+  input dcache_dma_invalidate_all_i,
 
   output ifu_axi_arvalid_o,
   input ifu_axi_arready_i,
@@ -111,6 +112,7 @@ module NpcCoreTop (
   wire ooo_fetch_req_valid_w;
   wire ooo_fetch_req_ready_w;
   wire [`XLEN-1:0] ooo_fetch_req_pc_w;
+  wire [`XLEN-1:0] ooo_fetch_req_owner_pc_w;
   wire ooo_fetch_rsp_valid_w;
   wire ooo_fetch_rsp_ready_w;
   wire [`INST_W-1:0] ooo_fetch_rsp_inst0_w;
@@ -125,14 +127,22 @@ module NpcCoreTop (
   wire ooo_mem0_req_probe_w;
   wire ooo_mem0_req_pretrans_w;
   wire ooo_mem0_req_nokill_w;
+  wire ooo_mem0_req_attr_valid_w;
+  wire [1:0] ooo_mem0_req_class_w;
+  wire ooo_mem0_req_cacheable_w;
   wire [`XLEN-1:0] ooo_mem0_req_addr_w;
   wire [`XLEN-1:0] ooo_mem0_req_wdata_w;
   wire [`STRB_W-1:0] ooo_mem0_req_wstrb_w;
+  wire ooo_mem0_req_device_release_w;
+  wire ooo_mem0_req_device_cancel_w;
   wire ooo_mem0_rsp_valid_w;
   wire ooo_mem0_rsp_ready_w;
   wire [`XLEN-1:0] ooo_mem0_rsp_rdata_w;
   wire ooo_mem0_rsp_error_w;
   wire ooo_mem0_rsp_page_fault_w;
+  wire ooo_mem0_rsp_attr_valid_w;
+  wire [1:0] ooo_mem0_rsp_class_w;
+  wire ooo_mem0_rsp_cacheable_w;
   wire ooo_mem_translate_active_w;
 
   wire ooo_mem_flush_w;
@@ -189,27 +199,41 @@ module NpcCoreTop (
   wire [`XLEN-1:0] ooo_csr_ret_target_w;
   wire [`TRAP_CAUSE_W-1:0] ooo_csr_ecall_cause_w;
 
-  // mem1(双发射 load 第二端口)死硅删除后,icache 失效只由 mem0 store fire 触发。
-  // 【拓扑防火墙 v2(2026-07-11)】盲失效打一拍: 斩断 backend AGU→fetch 融合关断→
-  // dec→pred 的跨域缝合(25ns 传递闭包的 13.5ns 切点)。SMC 语义合法: 无 fence.i
-  // 的自修改代码无架构承诺(NEMU 参考模型无 icache, difftest 不敏感), 盲失效晚
-  // 一拍仍是 fence.i 之外的保守防线; fence.i 走 mmu_flush 全清不受影响。
-  reg icache_inv_valid_q;
-  reg [`XLEN-1:0] icache_inv_addr_q;
-  always @(posedge clk) begin
-    icache_inv_valid_q <= !rst && ooo_mem0_req_valid_w && ooo_mem0_req_ready_w &&
-                          ooo_mem0_req_write_w;
-    icache_inv_addr_q <= ooo_mem0_req_addr_w;
-  end
-  wire ooo_icache_invalidate_valid_w = icache_inv_valid_q;
-  wire [`XLEN-1:0] ooo_icache_invalidate_addr_w = icache_inv_addr_q;
+
+  // Bridge-side logical low-window ABI.  Registered lane adapters below own
+  // the conversion to the standard AXI byte-lane ABI exported by NpcCoreTop.
+  wire lsu_raw_arvalid_w;
+  wire lsu_raw_arready_w;
+  wire [`XLEN-1:0] lsu_raw_araddr_w;
+  wire [2:0] lsu_raw_arsize_w;
+  wire [2:0] lsu_raw_arprot_w;
+  wire lsu_raw_rvalid_w;
+  wire lsu_raw_rready_w;
+  wire [`XLEN-1:0] lsu_raw_rdata_w;
+  wire [1:0] lsu_raw_rresp_w;
+  wire lsu_raw_awvalid_w;
+  wire lsu_raw_awready_w;
+  wire [`XLEN-1:0] lsu_raw_awaddr_w;
+  wire [2:0] lsu_raw_awsize_w;
+  wire lsu_raw_wvalid_w;
+  wire lsu_raw_wready_w;
+  wire [`XLEN-1:0] lsu_raw_wdata_w;
+  wire [`STRB_W-1:0] lsu_raw_wstrb_w;
+  wire lsu_raw_bvalid_w;
+  wire lsu_raw_bready_w;
+  wire [1:0] lsu_raw_bresp_w;
 
   OooFetchAxiBridge u_ooo_fetch_bridge (
     .clk(clk),
     .rst(rst),
     .mmu_flush_i(ooo_mmu_flush_w),
-    .invalidate_valid_i(ooo_icache_invalidate_valid_w),
-    .invalidate_addr_i(ooo_icache_invalidate_addr_w),
+    // R2.5 coherence contract: an ordinary store does not make instruction
+    // bytes visible to fetch.  Software must execute FENCE.I, whose serialized
+    // commit reaches this bridge through mmu_flush_i and clears the whole I$.
+    // Keep the generic bridge/cache invalidate ABI, but do not reconnect it to
+    // a speculative or completed LSU store without a new coherence contract.
+    .invalidate_valid_i(1'b0),
+    .invalidate_addr_i({`XLEN{1'b0}}),
     .priv_mode_i(ooo_priv_mode_w),
     .satp_i(ooo_satp_w),
     .svpbmt_en_i(ooo_svpbmt_en_w),
@@ -218,6 +242,7 @@ module NpcCoreTop (
     .fetch_req_valid_i(ooo_fetch_req_valid_w),
     .fetch_req_ready_o(ooo_fetch_req_ready_w),
     .fetch_req_pc_i(ooo_fetch_req_pc_w),
+    .fetch_req_owner_pc_o(ooo_fetch_req_owner_pc_w),
     .fetch_rsp_valid_o(ooo_fetch_rsp_valid_w),
     .fetch_rsp_ready_i(ooo_fetch_rsp_ready_w),
     .fetch_rsp_inst0_o(ooo_fetch_rsp_inst0_w),
@@ -259,6 +284,7 @@ module NpcCoreTop (
     .rst(rst),
     .flush_i(ooo_mem_flush_w),
     .mmu_flush_i(ooo_mmu_flush_w),
+    .dcache_dma_invalidate_all_i(dcache_dma_invalidate_all_i),
     .priv_mode_i(ooo_priv_mode_w),
     .mstatus_i(ooo_mstatus_w),
     .satp_i(ooo_satp_w),
@@ -271,6 +297,11 @@ module NpcCoreTop (
     .mem0_req_probe_i(ooo_mem0_req_probe_w),
     .mem0_req_pretrans_i(ooo_mem0_req_pretrans_w),
     .mem0_req_nokill_i(ooo_mem0_req_nokill_w),
+    .mem0_req_attr_valid_i(ooo_mem0_req_attr_valid_w),
+    .mem0_req_class_i(ooo_mem0_req_class_w),
+    .mem0_req_cacheable_i(ooo_mem0_req_cacheable_w),
+    .mem0_device_release_i(ooo_mem0_req_device_release_w),
+    .mem0_device_cancel_i(ooo_mem0_req_device_cancel_w),
     .mem0_req_addr_i(ooo_mem0_req_addr_w),
     .mem0_req_wdata_i(ooo_mem0_req_wdata_w),
     .mem0_req_wstrb_i(ooo_mem0_req_wstrb_w),
@@ -279,34 +310,94 @@ module NpcCoreTop (
     .mem0_rsp_rdata_o(ooo_mem0_rsp_rdata_w),
     .mem0_rsp_error_o(ooo_mem0_rsp_error_w),
     .mem0_rsp_page_fault_o(ooo_mem0_rsp_page_fault_w),
+    .mem0_rsp_attr_valid_o(ooo_mem0_rsp_attr_valid_w),
+    .mem0_rsp_class_o(ooo_mem0_rsp_class_w),
+    .mem0_rsp_cacheable_o(ooo_mem0_rsp_cacheable_w),
     .translate_active_o(ooo_mem_translate_active_w),
-    .lsu_axi_arvalid_o(lsu_axi_arvalid_o),
-    .lsu_axi_arready_i(lsu_axi_arready_i),
-    .lsu_axi_araddr_o(lsu_axi_araddr_o),
+    .lsu_axi_arvalid_o(lsu_raw_arvalid_w),
+    .lsu_axi_arready_i(lsu_raw_arready_w),
+    .lsu_axi_araddr_o(lsu_raw_araddr_w),
     .lsu_axi_arid_o(lsu_axi_arid_o),
     .lsu_axi_arlen_o(lsu_axi_arlen_o),
-    .lsu_axi_arsize_o(lsu_axi_arsize_o),
+    .lsu_axi_arsize_o(lsu_raw_arsize_w),
     .lsu_axi_arburst_o(lsu_axi_arburst_o),
-    .lsu_axi_arprot_o(lsu_axi_arprot_o),
-    .lsu_axi_rvalid_i(lsu_axi_rvalid_i),
-    .lsu_axi_rready_o(lsu_axi_rready_o),
-    .lsu_axi_rdata_i(lsu_axi_rdata_i),
-    .lsu_axi_rresp_i(lsu_axi_rresp_i),
-    .lsu_axi_awvalid_o(lsu_axi_awvalid_o),
-    .lsu_axi_awready_i(lsu_axi_awready_i),
-    .lsu_axi_awaddr_o(lsu_axi_awaddr_o),
+    .lsu_axi_arprot_o(lsu_raw_arprot_w),
+    .lsu_axi_rvalid_i(lsu_raw_rvalid_w),
+    .lsu_axi_rready_o(lsu_raw_rready_w),
+    .lsu_axi_rdata_i(lsu_raw_rdata_w),
+    .lsu_axi_rresp_i(lsu_raw_rresp_w),
+    .lsu_axi_awvalid_o(lsu_raw_awvalid_w),
+    .lsu_axi_awready_i(lsu_raw_awready_w),
+    .lsu_axi_awaddr_o(lsu_raw_awaddr_w),
     .lsu_axi_awid_o(lsu_axi_awid_o),
     .lsu_axi_awlen_o(lsu_axi_awlen_o),
-    .lsu_axi_awsize_o(lsu_axi_awsize_o),
+    .lsu_axi_awsize_o(lsu_raw_awsize_w),
     .lsu_axi_awburst_o(lsu_axi_awburst_o),
-    .lsu_axi_wvalid_o(lsu_axi_wvalid_o),
-    .lsu_axi_wready_i(lsu_axi_wready_i),
-    .lsu_axi_wdata_o(lsu_axi_wdata_o),
-    .lsu_axi_wstrb_o(lsu_axi_wstrb_o),
+    .lsu_axi_wvalid_o(lsu_raw_wvalid_w),
+    .lsu_axi_wready_i(lsu_raw_wready_w),
+    .lsu_axi_wdata_o(lsu_raw_wdata_w),
+    .lsu_axi_wstrb_o(lsu_raw_wstrb_w),
     .lsu_axi_wlast_o(lsu_axi_wlast_o),
-    .lsu_axi_bvalid_i(lsu_axi_bvalid_i),
-    .lsu_axi_bready_o(lsu_axi_bready_o),
-    .lsu_axi_bresp_i(lsu_axi_bresp_i)
+    .lsu_axi_bvalid_i(lsu_raw_bvalid_w),
+    .lsu_axi_bready_o(lsu_raw_bready_w),
+    .lsu_axi_bresp_i(lsu_raw_bresp_w)
+  );
+
+  wire lsu_raw_ar_pmem_w =
+      ((lsu_raw_araddr_w & `NPC_AXI_PMEM_MASK) == `NPC_AXI_PMEM_BASE);
+  wire lsu_raw_aw_pmem_w =
+      ((lsu_raw_awaddr_w & `NPC_AXI_PMEM_MASK) == `NPC_AXI_PMEM_BASE);
+  wire lsu_raw_split_allowed_w =
+      (lsu_raw_arvalid_w && lsu_raw_ar_pmem_w) ||
+      (lsu_raw_awvalid_w && lsu_raw_aw_pmem_w);
+
+  // Only ordinary PMEM may split.  The backend already traps translating
+  // cross-page misaligned accesses, while bridge PMP/PMA check the complete
+  // logical footprint before either channel can be accepted here.
+  OooLsuAxiLaneAdapter u_lsu_lane_adapter (
+    .clk(clk),
+    .rst(rst),
+    .u_axi_split_allowed_i(lsu_raw_split_allowed_w),
+    .u_axi_arvalid_i(lsu_raw_arvalid_w),
+    .u_axi_arready_o(lsu_raw_arready_w),
+    .u_axi_araddr_i(lsu_raw_araddr_w),
+    .u_axi_arsize_i(lsu_raw_arsize_w),
+    .u_axi_arprot_i(lsu_raw_arprot_w),
+    .u_axi_rvalid_o(lsu_raw_rvalid_w),
+    .u_axi_rready_i(lsu_raw_rready_w),
+    .u_axi_rdata_o(lsu_raw_rdata_w),
+    .u_axi_rresp_o(lsu_raw_rresp_w),
+    .u_axi_awvalid_i(lsu_raw_awvalid_w),
+    .u_axi_awready_o(lsu_raw_awready_w),
+    .u_axi_awaddr_i(lsu_raw_awaddr_w),
+    .u_axi_awsize_i(lsu_raw_awsize_w),
+    .u_axi_wvalid_i(lsu_raw_wvalid_w),
+    .u_axi_wready_o(lsu_raw_wready_w),
+    .u_axi_wdata_i(lsu_raw_wdata_w),
+    .u_axi_wstrb_i(lsu_raw_wstrb_w),
+    .u_axi_bvalid_o(lsu_raw_bvalid_w),
+    .u_axi_bready_i(lsu_raw_bready_w),
+    .u_axi_bresp_o(lsu_raw_bresp_w),
+    .d_axi_arvalid_o(lsu_axi_arvalid_o),
+    .d_axi_arready_i(lsu_axi_arready_i),
+    .d_axi_araddr_o(lsu_axi_araddr_o),
+    .d_axi_arsize_o(lsu_axi_arsize_o),
+    .d_axi_arprot_o(lsu_axi_arprot_o),
+    .d_axi_rvalid_i(lsu_axi_rvalid_i),
+    .d_axi_rready_o(lsu_axi_rready_o),
+    .d_axi_rdata_i(lsu_axi_rdata_i),
+    .d_axi_rresp_i(lsu_axi_rresp_i),
+    .d_axi_awvalid_o(lsu_axi_awvalid_o),
+    .d_axi_awready_i(lsu_axi_awready_i),
+    .d_axi_awaddr_o(lsu_axi_awaddr_o),
+    .d_axi_awsize_o(lsu_axi_awsize_o),
+    .d_axi_wvalid_o(lsu_axi_wvalid_o),
+    .d_axi_wready_i(lsu_axi_wready_i),
+    .d_axi_wdata_o(lsu_axi_wdata_o),
+    .d_axi_wstrb_o(lsu_axi_wstrb_o),
+    .d_axi_bvalid_i(lsu_axi_bvalid_i),
+    .d_axi_bready_o(lsu_axi_bready_o),
+    .d_axi_bresp_i(lsu_axi_bresp_i)
   );
 
   OooCoreTopGlue #(
@@ -325,6 +416,7 @@ module NpcCoreTop (
     .fetch_req_valid_o(ooo_fetch_req_valid_w),
     .fetch_req_ready_i(ooo_fetch_req_ready_w),
     .fetch_req_pc_o(ooo_fetch_req_pc_w),
+    .fetch_req_owner_pc_i(ooo_fetch_req_owner_pc_w),
     .fetch_rsp_valid_i(ooo_fetch_rsp_valid_w),
     .fetch_rsp_ready_o(ooo_fetch_rsp_ready_w),
     .fetch_rsp_inst0_i(ooo_fetch_rsp_inst0_w),
@@ -338,6 +430,11 @@ module NpcCoreTop (
     .mem_req_probe_o(ooo_mem0_req_probe_w),
     .mem_req_pretrans_o(ooo_mem0_req_pretrans_w),
     .mem_req_nokill_o(ooo_mem0_req_nokill_w),
+    .mem_req_attr_valid_o(ooo_mem0_req_attr_valid_w),
+    .mem_req_class_o(ooo_mem0_req_class_w),
+    .mem_req_cacheable_o(ooo_mem0_req_cacheable_w),
+    .mem_req_device_release_o(ooo_mem0_req_device_release_w),
+    .mem_req_device_cancel_o(ooo_mem0_req_device_cancel_w),
     .mem_req_addr_o(ooo_mem0_req_addr_w),
     .mem_req_wdata_o(ooo_mem0_req_wdata_w),
     .mem_req_wstrb_o(ooo_mem0_req_wstrb_w),
@@ -346,6 +443,9 @@ module NpcCoreTop (
     .mem_rsp_rdata_i(ooo_mem0_rsp_rdata_w),
     .mem_rsp_error_i(ooo_mem0_rsp_error_w),
     .mem_rsp_page_fault_i(ooo_mem0_rsp_page_fault_w),
+    .mem_rsp_attr_valid_i(ooo_mem0_rsp_attr_valid_w),
+    .mem_rsp_class_i(ooo_mem0_rsp_class_w),
+    .mem_rsp_cacheable_i(ooo_mem0_rsp_cacheable_w),
     .mem_translate_active_i(ooo_mem_translate_active_w),
     .mem_flush_o(ooo_mem_flush_w),
     .mmu_flush_o(ooo_mmu_flush_w),
@@ -441,7 +541,9 @@ module NpcCoreTop (
     .rst(rst),
     .cycle_count_enable_i(ooo_csr_cycle_count_enable_w),
     .time_i(mtime_i),
-    .instret_inc_i(ooo_core_retire_count_w),
+    // INSTRET-G1: consume the final two-lane ISA-retirement count after
+    // control/core arbitration and exception filtering, not raw ROB dequeue.
+    .instret_inc_i(retire_count_o),
     .csr_valid_i(ooo_csr_access_valid_w),
     .csr_addr_i(ooo_csr_access_addr_w),
     .csr_funct3_i(ooo_csr_access_funct3_w),

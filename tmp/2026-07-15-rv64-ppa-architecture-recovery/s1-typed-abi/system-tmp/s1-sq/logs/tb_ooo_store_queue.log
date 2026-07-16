@@ -1,0 +1,14 @@
+[TEST] tb_ooo_store_queue
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_ooo_store_queue -o build/tb_ooo_store_queue.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v tests/tb_ooo_store_queue.sv
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:250: warning: @* is sensitive to all 4 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:251: warning: @* is sensitive to all 4 words in array 'request_sent_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:253: warning: @* is sensitive to all 4 words in array 'rob_idx_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:255: warning: @* is sensitive to all 4 words in array 'survive_r'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:379: warning: @* is sensitive to all 4 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:379: warning: @* is sensitive to all 4 words in array 'request_sent_q'.
+[T4N-SQ-RELEASE-DUAL-ALLOC] count=2 head_rob=13 PASS
+[T4N-SQ-DUAL-TERMINAL] distinct ROB tags both sticky PASS
+[T4N-SQ-TERMINAL-RELEASE-GLOBAL-FLUSH] accepted owner released exactly once PASS
+[PASS] tb_ooo_store_queue
+common/tb_common.svh:32: $finish called at 77 (1s)
+[RESULT] PASS

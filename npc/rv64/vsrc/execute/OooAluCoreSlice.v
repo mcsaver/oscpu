@@ -59,6 +59,11 @@ module OooAluCoreSlice #(
   output mem_req_probe_o,
   output mem_req_pretrans_o,
   output mem_req_nokill_o,
+  output mem_req_attr_valid_o,
+  output [1:0] mem_req_class_o,
+  output mem_req_cacheable_o,
+  output mem_req_device_release_o,
+  output mem_req_device_cancel_o,
   output [`XLEN-1:0] mem_req_addr_o,
   output [`XLEN-1:0] mem_req_wdata_o,
   output [`STRB_W-1:0] mem_req_wstrb_o,
@@ -67,6 +72,9 @@ module OooAluCoreSlice #(
   input [`XLEN-1:0] mem_rsp_rdata_i,
   input mem_rsp_error_i,
   input mem_rsp_page_fault_i,
+  input mem_rsp_attr_valid_i,
+  input [1:0] mem_rsp_class_i,
+  input mem_rsp_cacheable_i,
   input mem_translate_active_i,
   input [2:0] frm_i,
   output mem_retire_quiet_o,
@@ -188,6 +196,11 @@ module OooAluCoreSlice #(
     .mem_req_probe_o(mem_req_probe_o),
     .mem_req_pretrans_o(mem_req_pretrans_o),
     .mem_req_nokill_o(mem_req_nokill_o),
+    .mem_req_attr_valid_o(mem_req_attr_valid_o),
+    .mem_req_class_o(mem_req_class_o),
+    .mem_req_cacheable_o(mem_req_cacheable_o),
+    .mem_req_device_release_o(mem_req_device_release_o),
+    .mem_req_device_cancel_o(mem_req_device_cancel_o),
     .mem_req_addr_o(mem_req_addr_o),
     .mem_req_wdata_o(mem_req_wdata_o),
     .mem_req_wstrb_o(mem_req_wstrb_o),
@@ -196,6 +209,9 @@ module OooAluCoreSlice #(
     .mem_rsp_rdata_i(mem_rsp_rdata_i),
     .mem_rsp_error_i(mem_rsp_error_i),
     .mem_rsp_page_fault_i(mem_rsp_page_fault_i),
+    .mem_rsp_attr_valid_i(mem_rsp_attr_valid_i),
+    .mem_rsp_class_i(mem_rsp_class_i),
+    .mem_rsp_cacheable_i(mem_rsp_cacheable_i),
     .mem_translate_active_i(mem_translate_active_i),
     .frm_i(frm_i),
     .mem_retire_quiet_o(mem_retire_quiet_o),
@@ -275,7 +291,20 @@ module OooAluCoreSlice #(
 	  );
 
   assign debug_gprs_o = arch_debug_gprs_w;
-  assign retire_count_o = {1'b0, commit0_valid_o} + {1'b0, commit1_valid_o};
+
+  // INSTRET-G1: ROB commit-valid means "remove this completed entry", not
+  // necessarily "an ISA instruction retired".  A precise synchronous
+  // exception still leaves the ROB through a valid commit lane so that the
+  // trap payload can be consumed, but that instruction must not increment
+  // minstret.  Encode the two-bit population count explicitly; this cannot
+  // produce the architecturally impossible value 3 and keeps the counter cone
+  // to one AND/XOR level.
+  wire commit0_isa_retire_w = commit0_valid_o && !commit0_exception_o;
+  wire commit1_isa_retire_w = commit1_valid_o && !commit1_exception_o;
+  assign retire_count_o = {
+      commit0_isa_retire_w && commit1_isa_retire_w,
+      commit0_isa_retire_w ^ commit1_isa_retire_w
+  };
 
 `ifdef OOO_ASSERT
   // T3I drain 定理：ROB 的 commit0 以 count_q!=0 为必要条件，commit1 又
@@ -286,6 +315,11 @@ module OooAluCoreSlice #(
         (retire_count_o !== 2'b00)) begin
       $error("[CORE-RETIRE-REQUIRES-ROB] retire=%0d while ROB is empty @%0t",
              retire_count_o, $time);
+    end
+    if (!rst && (retire_count_o === 2'b11)) begin
+      $error("[INSTRET-G1-CORE-RANGE] core ISA retire count exceeded two lanes @%0t",
+             $time);
+      $fatal;
     end
   end
 `endif

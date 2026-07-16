@@ -60,8 +60,28 @@
 
 // [已删死宏 CACHEABLE_BASE/LAST — RV32 遗留，与真实可缓存判定(NPC_AXI_PMEM_MASK 256MB 窗)
 //  矛盾且全仓零消费。可缓存区真源见 OooDataWordCache/OooMemAxiBridge 的 PMEM mask 判定。]
+// R4-S1 typed memory ABI：class 编码是跨 PMA/classifier/owner 的固定合同，
+// RSVD 只作 attr_valid=0 时的 poison，禁止作为可路由属性。
+`ifndef OOO_MEM_CLASS_CACHED
+`define OOO_MEM_CLASS_CACHED 2'b00
+`endif
+`ifndef OOO_MEM_CLASS_NC
+`define OOO_MEM_CLASS_NC     2'b01
+`endif
+`ifndef OOO_MEM_CLASS_IO
+`define OOO_MEM_CLASS_IO     2'b10
+`endif
+`ifndef OOO_MEM_CLASS_RSVD
+`define OOO_MEM_CLASS_RSVD   2'b11
+`endif
 // ysyxSoC 地址图统一在这里预留。未实现设备先在顶层接错误 slave，
 // 后续替换成真实 IP 时只需要沿用同名窗口，不再改 core/cache 接口。
+`ifndef NPC_AXI_RESET_SYSCON_BASE
+`define NPC_AXI_RESET_SYSCON_BASE 64'h0000_0000_0010_0000
+`endif
+`ifndef NPC_AXI_RESET_SYSCON_MASK
+`define NPC_AXI_RESET_SYSCON_MASK 64'hffff_ffff_ffff_f000
+`endif
 `ifndef NPC_AXI_CLINT_BASE
 `define NPC_AXI_CLINT_BASE 64'h0000_0000_0200_0000
 `endif
@@ -614,7 +634,7 @@
 `define CTRL_STORE_BIT           9   // 是否属于 store
 `define CTRL_ECALL_BIT           10  // 是否为 ecall
 `define CTRL_EBREAK_BIT          11  // 是否为 ebreak
-`define CTRL_FENCE_BIT           12  // 是否为 fence/fence.i；当前实现视为合法 no-op
+`define CTRL_FENCE_BIT           12  // 普通 fence；head classify 将其送入 pending-system drain/retire
 `define CTRL_IMM_TYPE_LSB        13  // 立即数字段低位：交给 ImmGen 选择拼接规则
 `define CTRL_IMM_TYPE_MSB        15  // 立即数字段高位
 `define CTRL_OP1_SEL_LSB         16  // EXU 第一个操作数来源字段低位

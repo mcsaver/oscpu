@@ -1,4 +1,5 @@
 `include "define.v"
+`include "common/OooSlotFacts.v"
 
 module tb_ooo_core_top_glue;
   `include "tb_common.svh"
@@ -13,6 +14,7 @@ module tb_ooo_core_top_glue;
   wire fetch_req_valid;
   wire fetch_req_ready;
   wire [`XLEN-1:0] fetch_req_pc;
+  reg [`XLEN-1:0] fetch_req_owner_pc;
   reg fetch_rsp_valid;
   wire fetch_rsp_ready;
   reg [`INST_W-1:0] fetch_rsp_inst0;
@@ -90,6 +92,12 @@ module tb_ooo_core_top_glue;
   reg saw_lane1_ret_fallthrough;
   reg saw_fp_gpr_completion;
   reg saw_fp_gpr_completion_wake;
+  reg saw_head0_csr_stop_owner;
+  reg saw_fetch_fault_packet_enqueue;
+  reg saw_fetch_fault_predecode_fifo;
+  reg saw_fetch_fault_raw_fp_response;
+  reg saw_fetch_fault_static_zero_enqueue;
+  reg saw_fetch_fault_static_zero_fifo;
   reg [4:0] program_mode;
   reg [`XLEN-1:0] fault_addr;
   reg [`XLEN-1:0] data_mem_word;
@@ -114,6 +122,19 @@ module tb_ooo_core_top_glue;
   localparam [4:0] MODE_BRANCH_LANE1_RET = 5'd16;
   localparam [4:0] MODE_ECALL = 5'd17;
   localparam [4:0] MODE_FMV_W_X = 5'd18;
+  localparam [4:0] MODE_FETCH_ACCESS_FAULT = 5'd19;
+  // Deliberately use a raw instruction whose 18-bit T3W static pack is
+  // non-zero.  PacketDecode must replace it with a NOP on the fault path,
+  // and the FIFO must store the sanitized NOP's all-zero static pack.
+  localparam [`INST_W-1:0] FETCH_FAULT_RAW_FP_INST = 32'he000_0153;
+
+  wire [`OOO_SLOT_STATIC_FACTS_W-1:0] fetch_fault_raw_static_facts_w;
+  OooFetchStaticClassify u_fetch_fault_raw_static_reference (
+    .inst_i(FETCH_FAULT_RAW_FP_INST),
+    .semihost_peer_inst_i(32'h0000_0013),
+    .semihost_peer_is_enter_i(1'b1),
+    .static_facts_o(fetch_fault_raw_static_facts_w)
+  );
 
   wire [`XLEN-1:0] tb_csr_time_w = {`XLEN{1'b0}};
   wire tb_csr_irq_software_w = 1'b0;
@@ -130,6 +151,7 @@ module tb_ooo_core_top_glue;
     .fetch_req_valid_o(fetch_req_valid),
     .fetch_req_ready_i(fetch_req_ready),
     .fetch_req_pc_o(fetch_req_pc),
+    .fetch_req_owner_pc_i(fetch_req_owner_pc),
     .fetch_rsp_valid_i(fetch_rsp_valid),
     .fetch_rsp_ready_o(fetch_rsp_ready),
     .fetch_rsp_inst0_i(fetch_rsp_inst0),
@@ -140,6 +162,9 @@ module tb_ooo_core_top_glue;
     .mem_req_valid_o(mem_req_valid),
     .mem_req_ready_i(mem_req_ready),
     .mem_req_write_o(mem_req_write),
+    .mem_req_attr_valid_o(),
+    .mem_req_class_o(),
+    .mem_req_cacheable_o(),
     .mem_req_addr_o(mem_req_addr),
     .mem_req_wdata_o(mem_req_wdata),
     .mem_req_wstrb_o(mem_req_wstrb),
@@ -148,6 +173,10 @@ module tb_ooo_core_top_glue;
     .mem_rsp_rdata_i(mem_rsp_rdata),
     .mem_rsp_error_i(mem_rsp_error),
     .mem_rsp_page_fault_i(1'b0),
+    .mem_rsp_attr_valid_i(1'b1),
+    .mem_rsp_class_i(`OOO_MEM_CLASS_CACHED),
+    .mem_rsp_cacheable_i(1'b1),
+    .mem_translate_active_i(1'b0),
     .mem_flush_o(mem_flush),
     .mmu_flush_o(),
     `TB_OOO_CORE_TOP_GLUE_CSR_PORTS
@@ -200,6 +229,9 @@ module tb_ooo_core_top_glue;
   wire fp_wake0_valid =
       dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
          .u_fp_backend.fp_wake0_valid_o;
+  wire mem_issue_res_capture =
+      dut.u_execute_backend.u_core_slice.u_decode_backend.u_int_backend
+         .mem_issue_res_capture_w;
 
   function [`XLEN-1:0] gpr;
     input [`REG_ADDR_W-1:0] idx;
@@ -501,7 +533,13 @@ module tb_ooo_core_top_glue;
               32'h8000_0014: program_word = inst_lw(5'd4, 5'd2, 12'd0);
               32'h8000_0018: program_word = inst_addi(5'd5, 5'd4, 12'd1);
               32'h8000_001c: program_word = inst_addi(5'd6, 5'd0, 12'd6);
-              32'h8000_0020: program_word = inst_ebreak();
+              // Keep one complete fetch packet behind the memory body.  Integer
+              // consumers now wake from registered WB state, so an immediately
+              // following ebreak may legitimately enter stop-pending before the
+              // store reaches the request port and mask the streaming property.
+              32'h8000_0020: program_word = inst_addi(5'd7, 5'd0, 12'd7);
+              32'h8000_0024: program_word = inst_addi(5'd8, 5'd0, 12'd8);
+              32'h8000_0028: program_word = inst_ebreak();
               default:       program_word = inst_ebreak();
             endcase
           end
@@ -596,6 +634,38 @@ module tb_ooo_core_top_glue;
               default:       program_word = inst_beq_self();
             endcase
           end
+          MODE_FETCH_ACCESS_FAULT: begin
+            case (addr)
+              // Install a real handler before injecting the fault.  CSR
+              // serialization refetches at 0x8000_000c, making 0x8000_0010
+              // lane1 of the first post-CSR packet.
+              32'h8000_0000: program_word = inst_auipc(5'd7, 20'h00000);
+              32'h8000_0004: program_word = inst_addi(5'd7, 5'd7, 12'h030);
+              32'h8000_0008: program_word = inst_csrrw(5'd0, `CSR_MTVEC,
+                                                       5'd7);
+              // The older lane0 write proves precise same-packet retirement;
+              // the raw lane1 FP move deliberately names the same rd so the
+              // fault packet is not a trivially inert encoding.
+              32'h8000_000c: program_word = inst_addi(5'd2, 5'd0, 12'd55);
+              // FMV.X.W x2,f0 has a non-zero T3W FP_MOVE_TO_GPR static bit.
+              // The injected access fault must sanitize both the instruction
+              // and the static pack before FIFO ownership transfers.
+              32'h8000_0010: program_word = FETCH_FAULT_RAW_FP_INST;
+              32'h8000_0014: program_word = inst_addi(5'd3, 5'd0, 12'd99);
+              32'h8000_0018: program_word = inst_addi(5'd4, 5'd0, 12'd77);
+              32'h8000_001c: program_word = inst_beq_self();
+              // The handler exposes precise trap state through architectural
+              // GPRs, then exits through the existing semihost EBREAK path.
+              32'h8000_0030: program_word = inst_csrrs(5'd13, `CSR_MCAUSE,
+                                                       5'd0);
+              32'h8000_0034: program_word = inst_csrrs(5'd14, `CSR_MEPC,
+                                                       5'd0);
+              32'h8000_0038: program_word = inst_csrrs(5'd15, `CSR_MTVAL,
+                                                       5'd0);
+              32'h8000_003c: program_word = inst_ebreak();
+              default:       program_word = inst_beq_self();
+            endcase
+          end
           default: begin
             case (addr)
               32'h8000_0000: program_word = inst_addi(5'd1, 5'd0, 12'd1);
@@ -655,6 +725,12 @@ module tb_ooo_core_top_glue;
       saw_lane1_ret_fallthrough = 1'b0;
       saw_fp_gpr_completion = 1'b0;
       saw_fp_gpr_completion_wake = 1'b0;
+      saw_head0_csr_stop_owner = 1'b0;
+      saw_fetch_fault_packet_enqueue = 1'b0;
+      saw_fetch_fault_predecode_fifo = 1'b0;
+      saw_fetch_fault_raw_fp_response = 1'b0;
+      saw_fetch_fault_static_zero_enqueue = 1'b0;
+      saw_fetch_fault_static_zero_fifo = 1'b0;
       program_mode = mode_i;
       fault_addr = fault_addr_i;
       `TB_TICK(clk);
@@ -668,6 +744,7 @@ module tb_ooo_core_top_glue;
 
   always @(posedge clk) begin
     if (rst || flush) begin
+      fetch_req_owner_pc <= {`XLEN{1'b0}};
       fetch_rsp_valid <= 1'b0;
       fetch_rsp_inst0 <= {`INST_W{1'b0}};
       fetch_rsp_inst1 <= {`INST_W{1'b0}};
@@ -679,6 +756,7 @@ module tb_ooo_core_top_glue;
       end
 
       if (fetch_req_valid && fetch_req_ready) begin
+        fetch_req_owner_pc <= fetch_req_pc;
         fetch_rsp_valid <= 1'b1;
         fetch_rsp_inst0 <= program_word(fetch_req_pc);
         fetch_rsp_inst1 <= program_word(fetch_req_pc + 32'd4);
@@ -761,6 +839,12 @@ module tb_ooo_core_top_glue;
       saw_lane1_ret_fallthrough <= 1'b0;
       saw_fp_gpr_completion <= 1'b0;
       saw_fp_gpr_completion_wake <= 1'b0;
+      saw_head0_csr_stop_owner <= 1'b0;
+      saw_fetch_fault_packet_enqueue <= 1'b0;
+      saw_fetch_fault_predecode_fifo <= 1'b0;
+      saw_fetch_fault_raw_fp_response <= 1'b0;
+      saw_fetch_fault_static_zero_enqueue <= 1'b0;
+      saw_fetch_fault_static_zero_fifo <= 1'b0;
     end else begin
       commit_total <= commit_total + commit0_valid + commit1_valid;
       if (fetch_req_valid && fetch_req_ready) begin
@@ -773,7 +857,10 @@ module tb_ooo_core_top_glue;
       if (commit0_valid && commit1_valid) begin
         saw_dual_commit <= 1'b1;
       end
-      if ((mem_req_valid && mem_req_ready) && !dut.stop_pending_q) begin
+      // T3S 后 memory 的架构 issue owner 是 reservation capture；外部 request
+      // 固定晚一拍，届时前端可能已看到后续 stop uop，不能再用 request 拍代替 issue 拍。
+      if (((mem_req_valid && mem_req_ready) || mem_issue_res_capture) &&
+          !dut.stop_pending_q) begin
         saw_memory_streaming <= 1'b1;
       end
       if (mem_req_valid && mem_req_ready && mem_rsp_valid && mem_rsp_ready) begin
@@ -834,6 +921,48 @@ module tb_ooo_core_top_glue;
         saw_fp_gpr_completion <= 1'b1;
         if (fp_wake0_valid)
           saw_fp_gpr_completion_wake <= 1'b1;
+      end
+      // T3V integration witness: the injected lane1 access fault must first be
+      // sanitized by PacketDecode, then survive as fault provenance alongside
+      // the stored predecode bundle in the registered packet FIFO.
+      if (dut.u_frontend.fetch_rsp_enqueue_w &&
+          (dut.u_frontend.fetch_dec1_pc_w == fault_addr) &&
+          (dut.u_frontend.fetch_dec1_resp_w == FETCH_RESP_ACCESS_FAULT) &&
+          (dut.u_frontend.fetch_dec1_inst_w == 32'h0000_0013)) begin
+        saw_fetch_fault_packet_enqueue <= 1'b1;
+        if ((fetch_rsp_inst1 == FETCH_FAULT_RAW_FP_INST) &&
+            (fetch_rsp_resp1 == FETCH_RESP_ACCESS_FAULT)) begin
+          saw_fetch_fault_raw_fp_response <= 1'b1;
+        end
+        if (dut.u_frontend.fetch_dec1_static_facts_w ==
+            {`OOO_SLOT_STATIC_FACTS_W{1'b0}}) begin
+          saw_fetch_fault_static_zero_enqueue <= 1'b1;
+          if (!saw_fetch_fault_static_zero_enqueue)
+            $display("[T3W-FETCH-FAULT-STATIC] enqueue sanitized NOP facts=0");
+        end
+      end
+      if (dut.u_frontend.fifo_has_packet_w &&
+          (dut.u_frontend.head_pc1_w == fault_addr) &&
+          (dut.u_frontend.head_resp1_w == FETCH_RESP_ACCESS_FAULT) &&
+          (dut.u_frontend.head_inst1_w == 32'h0000_0013)) begin
+        saw_fetch_fault_predecode_fifo <= 1'b1;
+        if (dut.u_frontend.head1_static_facts_w ==
+            {`OOO_SLOT_STATIC_FACTS_W{1'b0}}) begin
+          saw_fetch_fault_static_zero_fifo <= 1'b1;
+          if (!saw_fetch_fault_static_zero_fifo)
+            $display("[T3W-FETCH-FAULT-STATIC] FIFO head sanitized NOP facts=0");
+        end
+        if (!saw_fetch_fault_predecode_fifo)
+          $display("[T3V-FETCH-FAULT-PREDECODE] lane1 fault reached registered FIFO as sanitized NOP");
+      end
+      // 真实 CSR 集成合同：只认可 Frontend 由 CSR dispatch 产生的 inflight，
+      // 不用 ALU/白盒强塞代理。inflight 与 stop 共存时，RunGate 必须持续封锁。
+      if (`OOO_CSR_QUEUE_HEAD && dut.head0_csr_inflight_w &&
+          dut.stop_pending_q && !dut.orphan_stop_pending_w &&
+          dut.u_frontend.stop_pending_busy_w && !dut.can_run_w) begin
+        saw_head0_csr_stop_owner <= 1'b1;
+        if (!saw_head0_csr_stop_owner)
+          $display("[T3U-CSR-STOP-OWNER-INTEGRATION] real CSR inflight owns stop");
       end
     end
   end
@@ -1034,15 +1163,17 @@ module tb_ooo_core_top_glue;
 
     tb_check1("memory program reaches ebreak", exit_valid, 1'b1);
     tb_check1("memory program is not trap", trap_valid, 1'b0);
-    tb_check32("memory program commits store/load body", commit_total, 32'd8);
-    tb_check1("memory issues while frontend is not stopped",
+    tb_check32("memory program commits store/load body", commit_total, 32'd10);
+    tb_check1("memory reservation issues while frontend is not stopped",
               saw_memory_streaming, 1'b1);
-    tb_check1("memory request leaves frontend running",
+    tb_check1("memory reservation/request leaves frontend running",
               saw_memory_streaming || saw_memory_rsp_req_overlap, 1'b1);
     tb_check32("memory store writes word", data_mem_word, 32'd11);
     tb_check32("memory load reads stored word", gpr(5'd4), 32'd11);
     tb_check32("load consumer sees loaded value", gpr(5'd5), 32'd12);
     tb_check32("post-load lane1 executes", gpr(5'd6), 32'd6);
+    tb_check32("memory streaming pad lane0 executes", gpr(5'd7), 32'd7);
+    tb_check32("memory streaming pad lane1 executes", gpr(5'd8), 32'd8);
     tb_check1("memory ebreak flag", exit_is_ebreak, 1'b1);
 
     reset_dut(MODE_LANE1_EBREAK, 32'h0000_0000);
@@ -1178,6 +1309,55 @@ module tb_ooo_core_top_glue;
     tb_check32("ecall exit code from a0", exit_code, 32'd0);
     tb_check32("ecall rob drained after stop", {27'b0, rob_count}, 32'd0);
     tb_check32("ecall issue queue drained after stop", {28'b0, issue_count}, 32'd0);
+    if (`OOO_CSR_QUEUE_HEAD)
+      tb_check1("real CSR inflight owns stop until commit",
+                saw_head0_csr_stop_owner, 1'b1);
+
+    reset_dut(MODE_FETCH_ACCESS_FAULT, 32'h8000_0010);
+    repeat (180) begin
+      `TB_TICK(clk);
+      #1;
+    end
+
+    tb_check1("fetch fault packet enqueues sanitized lane1 NOP",
+              saw_fetch_fault_packet_enqueue, 1'b1);
+    tb_check1("fetch fault stored predecode reaches FIFO head",
+              saw_fetch_fault_predecode_fifo, 1'b1);
+    tb_check1("live fetch response carries non-zero-class FP raw",
+              saw_fetch_fault_raw_fp_response, 1'b1);
+    $display("[T3W-FETCH-FAULT-RAW] inst=0x%08x facts=0x%05x",
+             FETCH_FAULT_RAW_FP_INST, fetch_fault_raw_static_facts_w);
+    tb_check1("raw fault FP instruction has non-zero static pack",
+              |fetch_fault_raw_static_facts_w, 1'b1);
+    tb_check1("raw fault FP instruction sets move-to-GPR static bit",
+              fetch_fault_raw_static_facts_w[
+                  `OOO_SLOT_STATIC_FACT_FP_MOVE_TO_GPR], 1'b1);
+    tb_check1("fault-sanitized enqueue static pack is all zero",
+              saw_fetch_fault_static_zero_enqueue, 1'b1);
+    tb_check1("fault-sanitized FIFO static pack is all zero",
+              saw_fetch_fault_static_zero_fifo, 1'b1);
+    tb_check1("fetch fault handler reaches ebreak", exit_valid, 1'b1);
+    tb_check1("fetch fault is handled by CSR, not fatal trap", trap_valid,
+              1'b0);
+    tb_check1("fetch fault handler exits by ebreak", exit_is_ebreak, 1'b1);
+    tb_check32("fetch fault commits only older and handler instructions",
+               commit_total, 32'd7);
+    tb_check32("fetch fault preserves same-packet older lane0", gpr(5'd2),
+               32'd55);
+    tb_check32("fetch fault squashes first younger instruction", gpr(5'd3),
+               32'd0);
+    tb_check32("fetch fault squashes later younger instruction", gpr(5'd4),
+               32'd0);
+    tb_check32("fetch fault handler reads mcause", gpr(5'd13),
+               `EXC_INST_ACCESS_FAULT);
+    tb_check32("fetch fault handler reads precise mepc", gpr(5'd14),
+               32'h8000_0010);
+    tb_check32("fetch fault handler reads precise mtval", gpr(5'd15),
+               32'h8000_0010);
+    tb_check32("fetch fault rob drains before handler ebreak",
+               {27'b0, rob_count}, 32'd0);
+    tb_check32("fetch fault issue queue drains before handler ebreak",
+               {28'b0, issue_count}, 32'd0);
 
     tb_finish("tb_ooo_core_top_glue");
   end

@@ -1,0 +1,139 @@
+{
+  "schema": "rv64-dse-design-point-v1",
+  "design_id": "sha256:a80d45cb559652773c43fe6a765eff2bba7607e968b9565703b26c4a8a87adf1",
+  "architecture_rtl_design_id": "sha256:4a7d748a600096fa8010abbcef0245f6f524786fb0a2ab42857c7db6f81cf5fa",
+  "state": "intermediate_checkpoint",
+  "role": "development_checkpoint",
+  "architecture_feasible": false,
+  "parent_seed_id": null,
+  "completion_definition": {
+    "coupled_blocks": [
+      "typed PMA/PBMT classifier",
+      "memory bridge station/active/response ABI",
+      "backend and SQ provenance",
+      "hierarchy wrappers"
+    ],
+    "completion_conditions": [
+      "CACHED/NC/IO/RSVD and fault provenance are exact on the current single-owner path",
+      "R4-S1-ID owner kind/token/epoch is exact before a second AGU is enabled",
+      "S2 supplies LQ4, two AGUs, two translation/order/cache admissions and tagged completions",
+      "the eventual complete point passes every hard gate and restores the R4-P0A/R3.6 floors"
+    ],
+    "slice_completed_conditions": [
+      "typed classifier, bridge, backend, SQ and wrappers pass focused tests",
+      "page fault has priority over PMP and PMA without target/cache side effects",
+      "unknown-class younger loads cannot deadlock behind older nonterminal stores",
+      "full-cover SQ forwarding remains live and exactly once"
+    ],
+    "maximum_validation_boundary": "focused module and wrapper simulation only; no Linux, full regression, benchmark, synthesis, STA or PPA"
+  },
+  "immutable_source_snapshot": {
+    "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/dse-archive/source-bundles/a80d45cb559652773c43fe6a765eff2bba7607e968b9565703b26c4a8a87adf1.tar",
+    "sha256": "a80d45cb559652773c43fe6a765eff2bba7607e968b9565703b26c4a8a87adf1",
+    "immutable": true,
+    "file_count": 138,
+    "source_set_manifest": {
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/dse-archive/source-bundles/6ed7ec7b570acdac84a02bb29ee4ae0e4ab4c4bb429e603828de249be07c9fd6.rtl-source-set.json",
+      "sha256": "6ed7ec7b570acdac84a02bb29ee4ae0e4ab4c4bb429e603828de249be07c9fd6"
+    }
+  },
+  "required_test_inventory": null,
+  "hard_gates": {
+    "functional_correctness": "focused_pass_only",
+    "full_dual_issue": "red",
+    "full_ooo": "red",
+    "precise_exception_recovery": "focused_partial",
+    "real_dual_memory_datapath": "red",
+    "di_1_frontend_ii1": "unmeasured",
+    "di_2_width_continuity": "unmeasured",
+    "di_3_pair_matrix": "red",
+    "di_4_no_static_lane_semantics": "unmeasured",
+    "di_5_dual_memory_issue": "red",
+    "ooo_1_true_ooo_long_latency": "unmeasured",
+    "ooo_2_selective_scheduling": "red_single_reservation",
+    "ooo_3_memory_ordering": "red_no_lq",
+    "ooo_4_speculation_recovery": "unmeasured",
+    "exact_5ns_200mhz": "unmeasured_for_this_source"
+  },
+  "per_workload_metrics": {},
+  "worst_workload": null,
+  "objectives": {
+    "performance": {
+      "qualification": "unqualified",
+      "value": null,
+      "reason": "intermediate checkpoint; benchmarks intentionally not run"
+    },
+    "area": {
+      "qualification": "unqualified",
+      "value": null,
+      "reason": "intermediate checkpoint; synthesis intentionally not run"
+    },
+    "power": {
+      "qualification": "unqualified",
+      "value": null,
+      "reason": "no activity coverage or macro model"
+    }
+  },
+  "evidence": [
+    {
+      "kind": "focused_summary",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/dse-archive/evidence/s1-typed-abi-focused-summary.md",
+      "sha256": "c6706ccf3d4c5b609571920d4c9615db8c73f79d285a758ef8e20d800b7e5789"
+    },
+    {
+      "kind": "immutable_source_bundle",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/dse-archive/source-bundles/a80d45cb559652773c43fe6a765eff2bba7607e968b9565703b26c4a8a87adf1.tar",
+      "sha256": "a80d45cb559652773c43fe6a765eff2bba7607e968b9565703b26c4a8a87adf1"
+    },
+    {
+      "kind": "rtl_source_set",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/dse-archive/source-bundles/6ed7ec7b570acdac84a02bb29ee4ae0e4ab4c4bb429e603828de249be07c9fd6.rtl-source-set.json",
+      "sha256": "6ed7ec7b570acdac84a02bb29ee4ae0e4ab4c4bb429e603828de249be07c9fd6"
+    },
+    {
+      "kind": "tmp_archive_inventory",
+      "path": "tmp/2026-07-15-rv64-ppa-architecture-recovery/s1-typed-abi/SHA256SUMS",
+      "sha256": "3f41973a13d8f419d8cc99d06e1feffba403a8ae49d0492dc2e6cad09cd4d6e6"
+    },
+    {
+      "kind": "typed_classifier_focused",
+      "path": "tmp/2026-07-15-rv64-ppa-architecture-recovery/s1-typed-abi/system-tmp/s1-typed-classifier/logs/tb_ooo_typed_memory_classifier.log",
+      "sha256": "8f4af1a3003b7dede25cc515f53ceb4ba4db8d7009f406b16fc5d8719a33ef58"
+    },
+    {
+      "kind": "bridge_independent_rerun",
+      "path": "tmp/2026-07-15-rv64-ppa-architecture-recovery/s1-typed-abi/system-tmp/s1-fault-review-final-bridge-results/logs/tb_ooo_mem_axi_bridge.log",
+      "sha256": "19107cee0154a5c0598a0dc54442101598469d0aef022183d4f18a679f151412"
+    },
+    {
+      "kind": "backend_independent_rerun",
+      "path": "tmp/2026-07-15-rv64-ppa-architecture-recovery/s1-typed-abi/system-tmp/s1-fault-review-final-results/logs/tb_ooo_int_backend.log",
+      "sha256": "dc37159ccc8fdd354c6f55609dc76e16366f7a591c8dda66c0006493ea54d771"
+    },
+    {
+      "kind": "store_queue_focused",
+      "path": "tmp/2026-07-15-rv64-ppa-architecture-recovery/s1-typed-abi/system-tmp/s1-sq/logs/tb_ooo_store_queue.log",
+      "sha256": "f4c0d235436b0b4d306d146e24bc50d39e73b73f72bf306f15f3f3bfbe335951"
+    },
+    {
+      "kind": "public_attr_stall_focused",
+      "path": "tmp/2026-07-15-rv64-ppa-architecture-recovery/s1-typed-abi/system-tmp/s1-attr-stall-v2/logs/tb_ooo_mem_axi_bridge.log",
+      "sha256": "1d3da45c0d8a358e7b64ea3c2b3a8178ec6d20bde8ac06733649dc72def1333a"
+    }
+  ],
+  "uncertainty": {
+    "kind": "evidence_gap",
+    "evidence": "focused tests only; complete hard gates, full regression and PPA are absent",
+    "reduction_experiment": "finish exact owner provenance and S2, then run the complete same-design gate suite"
+  },
+  "diversity": {
+    "signature": "typed-memory-provenance-cross-module",
+    "distance_basis": "changes bridge/backend/SQ and wrappers rather than a scalar PPA knob"
+  },
+  "next_compensation_experiment": "R4-S1-ID exact-owner-provenance on the existing single-width chain",
+  "normative_promotion": {
+    "requested": false,
+    "checker_status": "not_run"
+  },
+  "ledger_event_sha256": "876339a2057f20afc1705b2c46917d1dd1713bc64998c563185fc1f6ab5014f6"
+}

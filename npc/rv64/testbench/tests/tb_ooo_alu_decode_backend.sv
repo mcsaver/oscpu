@@ -108,6 +108,12 @@ module tb_ooo_alu_decode_backend;
     .mem_rsp_rdata_i({`XLEN{1'b0}}),
     .mem_rsp_error_i(1'b0),
     .mem_rsp_page_fault_i(1'b0),
+    .mem_rsp_attr_valid_i(1'b1),
+    .mem_rsp_class_i(`OOO_MEM_CLASS_CACHED),
+    .mem_rsp_cacheable_i(1'b1),
+    .mem_req_attr_valid_o(),
+    .mem_req_class_o(),
+    .mem_req_cacheable_o(),
     .commit_ready_i(commit_ready),
     .commit1_block_i(1'b0),
     .commit0_valid_o(commit0_valid),
@@ -295,20 +301,35 @@ module tb_ooo_alu_decode_backend;
     `TB_TICK(clk);
     clear_dispatch();
     #1;
-    // 【P5 刀 B】IQ dispatch→issue 同拍 bypass 已删除:RAW 对先入队,producer 次拍发射,
-    // consumer 等 producer 的 wb wakeup(同拍 wakeup→select 直通),两者依次经 commit0 退休。
+    // R3.2: producer actual fire writes IQ sticky ready and registered EX0
+    // payload on the same edge.  The consumer selects in N+1 and forwards
+    // only from that registered payload; both still retire in ROB order.
     tb_check32("raw dependent pair queued", {28'b0, issue_count}, 32'd2);
     `TB_TICK(clk);
     #1;
-    tb_check32("raw consumer waits in iq", {28'b0, issue_count}, 32'd1);
+    tb_check32("raw consumer waits resident in iq", {28'b0, issue_count},
+               32'd1);
     tb_check1("raw producer execute", execute0_valid, 1'b1);
-    tb_check1("raw producer commit via wb bypass", commit0_valid, 1'b1);
-    tb_check32("raw producer data via wb bypass", commit0_data, 32'd7);
+    tb_check1("R3.2 raw consumer selects N+1",
+              dut.u_int_backend.issue0_valid_w, 1'b1);
+    tb_check1("R3.2 raw consumer registered EX0 hit",
+              dut.u_int_backend.issue0_src1_ex0_fwd_hit_w, 1'b1);
+    tb_check32("R3.2 raw consumer forwarded source",
+               dut.u_int_backend.issue0_src1_data_w[31:0], 32'd7);
+    tb_check1("raw producer does not retire on formal WB cycle",
+              commit0_valid, 1'b0);
     `TB_TICK(clk);
     #1;
-    tb_check1("raw consumer execute after wakeup", execute0_valid, 1'b1);
-    tb_check1("raw consumer commit via wb bypass", commit0_valid, 1'b1);
-    tb_check32("raw consumer data via wb bypass", commit0_data, 32'd10);
+    tb_check32("raw consumer leaves IQ on N+1 fire",
+               {28'b0, issue_count}, 32'd0);
+    tb_check1("raw producer commits from ROB Q", commit0_valid, 1'b1);
+    tb_check32("raw producer data from ROB Q", commit0_data, 32'd7);
+    tb_check1("raw consumer executes from registered EX", execute0_valid,
+              1'b1);
+    `TB_TICK(clk);
+    #1;
+    tb_check1("raw consumer commits from ROB Q", commit0_valid, 1'b1);
+    tb_check32("raw consumer data from ROB Q", commit0_data, 32'd10);
     `TB_TICK(clk);
     #1;
 

@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rv64-dse-archive-registry-v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "bindings",
+    "required_test_inventory_contract",
+    "workload_contract",
+    "architecture_feasible_seed_id",
+    "point_manifests",
+    "pools",
+    "engineering_proxy_archive",
+    "formal_promotions",
+    "global_thaw",
+    "ledger"
+  ],
+  "properties": {
+    "schema": {"const": "rv64-dse-archive-registry-v1"},
+    "architecture_feasible_seed_id": {"type": ["string", "null"]},
+    "canonical_design_id": {"type": ["string", "null"]},
+    "ppa_champion_design_id": {"type": ["string", "null"]},
+    "point_manifests": {"type": "array", "items": {"$ref": "#/$defs/fileRef"}},
+    "pools": {
+      "type": "object",
+      "required": ["feasible_pareto", "development", "high_uncertainty", "diversity"],
+      "additionalProperties": false,
+      "properties": {
+        "feasible_pareto": {"$ref": "#/$defs/designIds"},
+        "development": {"$ref": "#/$defs/designIds"},
+        "high_uncertainty": {"$ref": "#/$defs/designIds"},
+        "diversity": {"$ref": "#/$defs/designIds"}
+      }
+    },
+    "formal_promotions": {"$ref": "#/$defs/designIds"},
+    "global_thaw": {
+      "type": "object",
+      "required": ["k_completed_points", "completed_points_since_last_thaw", "thaw_due"],
+      "properties": {
+        "k_completed_points": {"const": 4},
+        "completed_points_since_last_thaw": {"type": "integer", "minimum": 0, "maximum": 4},
+        "thaw_due": {"type": "boolean"}
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "fileRef": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "designIds": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "additionalProperties": true
+}

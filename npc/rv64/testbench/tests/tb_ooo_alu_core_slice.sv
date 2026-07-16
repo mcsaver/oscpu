@@ -110,6 +110,12 @@ module tb_ooo_alu_core_slice;
     .mem_rsp_rdata_i({`XLEN{1'b0}}),
     .mem_rsp_error_i(1'b0),
     .mem_rsp_page_fault_i(1'b0),
+    .mem_rsp_attr_valid_i(1'b1),
+    .mem_rsp_class_i(`OOO_MEM_CLASS_CACHED),
+    .mem_rsp_cacheable_i(1'b1),
+    .mem_req_attr_valid_o(),
+    .mem_req_class_o(),
+    .mem_req_cacheable_o(),
     .commit_ready_i(commit_ready),
     .commit1_block_i(1'b0),
     // 【serialize Phase1】commit-time CSR rd 覆写端口(此 TB 不测 CSR 队头化, 恒 0 = 基线 commit0_data)。
@@ -335,6 +341,37 @@ module tb_ooo_alu_core_slice;
     tb_check32("x0 remains zero", gpr(5'd0), 32'd0);
     tb_check32("empty ROB after flush", {27'b0, rob_count}, 32'd0);
     tb_check32("empty ROB has no retire", {30'b0, retire_count}, 32'd0);
+
+    // INSTRET-G1 focused white-box vectors.  ROB commit-valid must remain high
+    // for a precise exception, but the core ISA-retirement count filters that
+    // lane.  Force only the already-public commit boundary; no internal ROB
+    // state is modified.
+    force dut.commit0_valid_o = 1'b1;
+    force dut.commit0_exception_o = 1'b1;
+    force dut.commit1_valid_o = 1'b0;
+    force dut.commit1_exception_o = 1'b0;
+    #1;
+    tb_check32("exceptional lane0 is not ISA-retired",
+               {30'b0, retire_count}, 32'd0);
+
+    force dut.commit0_exception_o = 1'b0;
+    force dut.commit1_valid_o = 1'b1;
+    force dut.commit1_exception_o = 1'b1;
+    #1;
+    tb_check32("normal lane0 plus exceptional lane1 retires one",
+               {30'b0, retire_count}, 32'd1);
+
+    force dut.commit1_exception_o = 1'b0;
+    #1;
+    tb_check32("two normal commit lanes retire two",
+               {30'b0, retire_count}, 32'd2);
+    release dut.commit0_valid_o;
+    release dut.commit0_exception_o;
+    release dut.commit1_valid_o;
+    release dut.commit1_exception_o;
+    #1;
+    tb_check32("forced retirement vectors release cleanly",
+               {30'b0, retire_count}, 32'd0);
 
 `ifdef OOO_NEGATIVE_CORE_RETIRE_WITH_EMPTY_ROB
     // Assertion non-vacuity only: the ROB is naturally empty here. Force the

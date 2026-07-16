@@ -9,6 +9,11 @@ LOG_DIR := $(RESULT_DIR)/logs
 IVERILOG ?= iverilog
 PYTHON ?= python3
 TB_RESULT_CHECKER := scripts/check_tb_result.py
+IFU_ICACHE_COHERENCE_CHECKER := scripts/check_ifu_icache_coherence_contract.py
+ARCH_GATE_CHECKER := $(NPC_SINGLE_HOME)/eval/ppa/tools/architecture_hard_gates.py
+ARCH_GATE_EVIDENCE ?= $(NPC_SINGLE_HOME)/eval/ppa/evidence/architecture-current.json
+ARCH_GATE_RESULT ?= $(abspath $(BUILD_DIR)/arch-gates/result.json)
+ARCH_GATE_TEST_DIR := $(NPC_SINGLE_HOME)/eval/ppa/tests
 # iverilog 与 vvp 必须同源同版本：14.0 编译产物喂 12.0 runtime 会拒跑
 # ("VVP input file 14.0 can not be run with run time version 12.0")。
 # 取实际命中 iverilog 的同目录 vvp，找不到才退回 PATH。
@@ -27,8 +32,11 @@ TESTS := \
   tb_lsu_datapath \
   tb_lsu \
   tb_pmp_checker \
+  tb_ooo_pma_checker \
+  tb_ooo_typed_memory_classifier \
   tb_uart \
   tb_axi_to_uart \
+  tb_axi_reset_syscon \
   tb_axi_clint \
   tb_axi_plic \
   tb_axi_xbar \
@@ -39,6 +47,7 @@ TESTS := \
   tb_ooo_rename_map \
   tb_ooo_free_list \
   tb_ooo_store_queue \
+  tb_ooo_mem_inflight_queue \
   tb_ooo_rob \
   tb_ooo_phys_reg_file \
   tb_ooo_fp_reg_file \
@@ -97,9 +106,11 @@ TESTS := \
   tb_ooo_backend_drain_tracker \
   tb_ooo_fetch_packet_head_mux \
   tb_ooo_fetch_packet_seed_mux \
+  tb_ooo_fetch_branch_target \
   tb_ooo_fetch_packet_decode \
   tb_ooo_fetch_packet_fifo \
   tb_ooo_fetch_flow_control \
+  tb_ooo_fetch_static_classify \
   tb_ooo_fetch_head_pair_gate \
   tb_ooo_fetch_head_classify_gate \
   tb_ooo_fetch_packet_cache \
@@ -113,6 +124,7 @@ TESTS := \
   tb_ooo_fetch_trap_gate \
   tb_ooo_priv_system \
   tb_ooo_sv39_boot \
+  tb_ooo_lsu_axi_lane_adapter \
   tb_ooo_mem_axi_bridge
 
 TB_SRCS_tb_alu := tests/tb_alu.sv $(RTL_ALU)
@@ -123,8 +135,11 @@ TB_SRCS_tb_lsu_control := tests/tb_lsu_control.sv $(RTL_LSU_CONTROL)
 TB_SRCS_tb_lsu_datapath := tests/tb_lsu_datapath.sv $(RTL_LSU_DATAPATH)
 TB_SRCS_tb_lsu := tests/tb_lsu.sv $(RTL_LSU_CONTROL) $(RTL_LSU_DATAPATH) $(RTL_LSU)
 TB_SRCS_tb_pmp_checker := tests/tb_pmp_checker.sv $(RTL_PMP_CHECKER)
+TB_SRCS_tb_ooo_pma_checker := tests/tb_ooo_pma_checker.sv $(RTL_TYPED_PMA_CHECKER) $(RTL_PMA_CHECKER)
+TB_SRCS_tb_ooo_typed_memory_classifier := tests/tb_ooo_typed_memory_classifier.sv $(RTL_OOO_TYPED_MEMORY_CLASSIFIER)
 TB_SRCS_tb_uart := tests/tb_uart.sv $(RTL_UART)
 TB_SRCS_tb_axi_to_uart := tests/tb_axi_to_uart.sv $(RTL_UART) $(RTL_AXI_TO_UART)
+TB_SRCS_tb_axi_reset_syscon := tests/tb_axi_reset_syscon.sv $(RTL_AXI_RESET_SYSCON)
 TB_SRCS_tb_axi_clint := tests/tb_axi_clint.sv $(RTL_AXI_CLINT)
 TB_SRCS_tb_axi_plic := tests/tb_axi_plic.sv $(RTL_AXI_PLIC)
 TB_SRCS_tb_axi_xbar := tests/tb_axi_xbar.sv $(RTL_AXI_XBAR)
@@ -135,7 +150,8 @@ TB_SRCS_tb_decode_stage := tests/tb_decode_stage.sv $(RTL_DECODE_UNIT) $(RTL_IMM
 TB_SRCS_tb_ooo_rename_map := tests/tb_ooo_rename_map.sv $(RTL_OOO_RENAME_MAP)
 TB_SRCS_tb_ooo_free_list := tests/tb_ooo_free_list.sv $(RTL_OOO_FREE_LIST)
 TB_SRCS_tb_ooo_store_queue := tests/tb_ooo_store_queue.sv $(RTL_OOO_STORE_QUEUE)
-TB_SRCS_tb_ooo_rob := tests/tb_ooo_rob.sv $(RTL_OOO_ROB)
+TB_SRCS_tb_ooo_mem_inflight_queue := tests/tb_ooo_mem_inflight_queue.sv $(RTL_OOO_MEM_INFLIGHT_QUEUE)
+TB_SRCS_tb_ooo_rob := tests/tb_ooo_rob.sv $(RTL_OOO_ROB) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_CSR_TRAP_REQUEST_MUX)
 TB_SRCS_tb_ooo_phys_reg_file := tests/tb_ooo_phys_reg_file.sv $(RTL_OOO_PHYS_REG_FILE)
 TB_SRCS_tb_ooo_fp_reg_file := tests/tb_ooo_fp_reg_file.sv $(RTL_OOO_FP_REG_FILE)
 TB_SRCS_tb_ooo_fp_phys_reg_file := tests/tb_ooo_fp_phys_reg_file.sv $(RTL_OOO_FP_PHYS_REG_FILE)
@@ -180,7 +196,7 @@ TB_SRCS_tb_ooo_trap_exit_event_mux := tests/tb_ooo_trap_exit_event_mux.sv $(RTL_
 TB_SRCS_tb_ooo_trap_exit_output_sequencer := tests/tb_ooo_trap_exit_output_sequencer.sv $(RTL_OOO_TRAP_EXIT_OUTPUT_SEQUENCER)
 TB_SRCS_tb_ooo_frontend_uop_safety := tests/tb_ooo_frontend_uop_safety.sv $(RTL_OOO_FRONTEND_UOP_SAFETY)
 TB_SRCS_tb_ooo_frontend_dispatch_gate := tests/tb_ooo_frontend_dispatch_gate.sv $(RTL_OOO_FRONTEND_DISPATCH_GATE)
-TB_SRCS_tb_ooo_fp_legality_dispatch_path := tests/tb_ooo_fp_legality_dispatch_path.sv $(RTL_DECODE_UNIT) $(RTL_OOO_FP_DECODE) $(RTL_OOO_FETCH_HEAD_CLASSIFY_GATE) $(RTL_OOO_FRONTEND_DISPATCH_GATE)
+TB_SRCS_tb_ooo_fp_legality_dispatch_path := tests/tb_ooo_fp_legality_dispatch_path.sv $(RTL_DECODE_UNIT) $(RTL_OOO_FP_DECODE) $(RTL_OOO_FETCH_STATIC_CLASSIFY) $(RTL_OOO_FETCH_HEAD_CLASSIFY_GATE) $(RTL_OOO_FRONTEND_DISPATCH_GATE)
 TB_SRCS_tb_ooo_frontend_backend_dispatch_mux := tests/tb_ooo_frontend_backend_dispatch_mux.sv $(RTL_OOO_FRONTEND_BACKEND_DISPATCH_MUX)
 TB_SRCS_tb_ooo_direct_branch_resolve_gate := tests/tb_ooo_direct_branch_resolve_gate.sv $(RTL_OOO_DIRECT_BRANCH_RESOLVE_GATE)
 TB_SRCS_tb_ooo_branch_resolve_recovery_gate := tests/tb_ooo_branch_resolve_recovery_gate.sv $(RTL_OOO_BRANCH_RESOLVE_RECOVERY_GATE)
@@ -196,27 +212,31 @@ TB_SRCS_tb_ooo_direct_branch_wait_buffer := tests/tb_ooo_direct_branch_wait_buff
 TB_SRCS_tb_ooo_backend_drain_tracker := tests/tb_ooo_backend_drain_tracker.sv $(RTL_OOO_BACKEND_DRAIN_TRACKER)
 TB_SRCS_tb_ooo_fetch_packet_head_mux := tests/tb_ooo_fetch_packet_head_mux.sv $(RTL_OOO_FETCH_PACKET_HEAD_MUX)
 TB_SRCS_tb_ooo_fetch_packet_seed_mux := tests/tb_ooo_fetch_packet_seed_mux.sv $(RTL_OOO_FETCH_PACKET_SEED_MUX)
+TB_SRCS_tb_ooo_fetch_branch_target := tests/tb_ooo_fetch_branch_target.sv $(RTL_OOO_FETCH_BRANCH_TARGET)
 TB_SRCS_tb_ooo_fetch_packet_decode := tests/tb_ooo_fetch_packet_decode.sv $(RTL_OOO_RVC_DECOMPRESSOR) $(RTL_OOO_FETCH_PACKET_DECODE)
 TB_SRCS_tb_ooo_fetch_packet_fifo := tests/tb_ooo_fetch_packet_fifo.sv $(RTL_OOO_FETCH_PACKET_FIFO)
 TB_SRCS_tb_ooo_fetch_flow_control := tests/tb_ooo_fetch_flow_control.sv $(RTL_OOO_FETCH_FLOW_CONTROL)
-TB_SRCS_tb_ooo_fetch_head_pair_gate := tests/tb_ooo_fetch_head_pair_gate.sv $(RTL_OOO_FP_DECODE) $(RTL_OOO_FETCH_HEAD_CLASSIFY_GATE) $(RTL_OOO_FETCH_HEAD_PAIR_GATE)
-TB_SRCS_tb_ooo_fetch_head_classify_gate := tests/tb_ooo_fetch_head_classify_gate.sv $(RTL_OOO_FP_DECODE) $(RTL_OOO_FETCH_HEAD_CLASSIFY_GATE)
+TB_SRCS_tb_ooo_fetch_static_classify := tests/tb_ooo_fetch_static_classify.sv $(RTL_OOO_FP_DECODE) $(RTL_OOO_FETCH_STATIC_CLASSIFY)
+TB_SRCS_tb_ooo_fetch_head_pair_gate := tests/tb_ooo_fetch_head_pair_gate.sv $(RTL_OOO_FP_DECODE) $(RTL_OOO_FETCH_STATIC_CLASSIFY) $(RTL_OOO_FETCH_HEAD_CLASSIFY_GATE) $(RTL_OOO_FETCH_HEAD_PAIR_GATE)
+TB_SRCS_tb_ooo_fetch_head_classify_gate := tests/tb_ooo_fetch_head_classify_gate.sv $(RTL_OOO_FP_DECODE) $(RTL_OOO_FETCH_STATIC_CLASSIFY) $(RTL_OOO_FETCH_HEAD_CLASSIFY_GATE)
 TB_SRCS_tb_pipe_stage_reg := tests/tb_pipe_stage_reg.sv $(RTL_PIPE_STAGE_REG)
 TB_SRCS_tb_ooo_fetch_packet_cache := tests/tb_ooo_fetch_packet_cache.sv $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_FETCH_PACKET_CACHE_CHECKER)
 TB_SRCS_tb_ooo_data_word_cache := tests/tb_ooo_data_word_cache.sv $(RTL_OOO_DATA_WORD_CACHE) $(RTL_SRAM_DATA_WORD) $(RTL_OOO_DATA_WORD_CACHE_CHECKER)
-TB_SRCS_tb_ooo_fetch_axi_bridge := tests/tb_ooo_fetch_axi_bridge.sv $(RTL_PMP_CHECKER) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
+TB_SRCS_tb_ooo_fetch_axi_bridge := tests/tb_ooo_fetch_axi_bridge.sv $(RTL_PMP_CHECKER) $(RTL_OOO_RVC_DECOMPRESSOR) $(RTL_OOO_FETCH_PACKET_DECODE) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
 TB_SRCS_tb_ooo_fetch_axi_access_attrs := tests/tb_ooo_fetch_axi_access_attrs.sv $(RTL_PMP_CHECKER) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
 TB_SRCS_tb_ooo_fetch_page_end_fault := tests/tb_ooo_fetch_page_end_fault.sv $(RTL_PMP_CHECKER) $(RTL_OOO_RVC_DECOMPRESSOR) $(RTL_OOO_FETCH_PACKET_DECODE) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
 TB_SRCS_tb_ooo_fetch_access_footprint := tests/tb_ooo_fetch_access_footprint.sv $(RTL_PMP_CHECKER) $(RTL_OOO_RVC_DECOMPRESSOR) $(RTL_OOO_FETCH_PACKET_DECODE) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
-TB_SRCS_tb_ooo_ifu_lane1_fault_owner := tests/tb_ooo_ifu_lane1_fault_owner.sv $(RTL_OOO_FP_DECODE) $(RTL_OOO_FETCH_HEAD_CLASSIFY_GATE) $(RTL_OOO_FETCH_HEAD_PAIR_GATE) $(RTL_OOO_FRONTEND_DISPATCH_GATE) $(RTL_OOO_PENDING_LANE1_CAPTURE_GATE) $(RTL_OOO_PENDING_DISPATCH_ARBITER) $(RTL_OOO_PENDING_TRAP_EXIT_SEQUENCER) $(RTL_OOO_STOP_PENDING_SEQUENCER) $(RTL_OOO_CSR_TRAP_REQUEST_MUX)
+TB_SRCS_tb_ooo_ifu_lane1_fault_owner := tests/tb_ooo_ifu_lane1_fault_owner.sv $(RTL_OOO_FP_DECODE) $(RTL_OOO_FETCH_STATIC_CLASSIFY) $(RTL_OOO_FETCH_HEAD_CLASSIFY_GATE) $(RTL_OOO_FETCH_HEAD_PAIR_GATE) $(RTL_OOO_FRONTEND_DISPATCH_GATE) $(RTL_OOO_PENDING_LANE1_CAPTURE_GATE) $(RTL_OOO_PENDING_DISPATCH_ARBITER) $(RTL_OOO_PENDING_TRAP_EXIT_SEQUENCER) $(RTL_OOO_STOP_PENDING_SEQUENCER) $(RTL_OOO_CSR_TRAP_REQUEST_MUX)
 TB_SRCS_tb_ooo_fetch_axi_bridge_xbar := tests/tb_ooo_fetch_axi_bridge_xbar.sv $(RTL_PMP_CHECKER) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE) $(RTL_AXI_XBAR)
 TB_SRCS_tb_ooo_fetch_trap_gate := tests/tb_ooo_fetch_trap_gate.sv $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
 TB_SRCS_tb_ooo_priv_system := tests/tb_ooo_priv_system.sv $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
 TB_SRCS_tb_ooo_sv39_boot := tests/tb_ooo_sv39_boot.sv $(RTL_CORE_SRCS)
-TB_SRCS_tb_ooo_mem_axi_bridge := tests/tb_ooo_mem_axi_bridge.sv $(RTL_PMP_CHECKER) $(RTL_OOO_DATA_WORD_CACHE) $(RTL_SRAM_DATA_WORD) $(RTL_OOO_SV39_TLB) $(RTL_OOO_MEM_AXI_BRIDGE)
+TB_SRCS_tb_ooo_lsu_axi_lane_adapter := tests/tb_ooo_lsu_axi_lane_adapter.sv $(RTL_OOO_LSU_AXI_LANE_ADAPTER)
+TB_SRCS_tb_ooo_mem_axi_bridge := tests/tb_ooo_mem_axi_bridge.sv $(RTL_PMP_CHECKER) $(RTL_TYPED_PMA_CHECKER) $(RTL_OOO_TYPED_MEMORY_CLASSIFIER) $(RTL_PMA_CHECKER) $(RTL_OOO_POST_TRANSLATE_MEMORY_CLASS) $(RTL_OOO_DATA_WORD_CACHE) $(RTL_SRAM_DATA_WORD) $(RTL_OOO_SV39_TLB) $(RTL_OOO_MEM_AXI_BRIDGE)
 .DEFAULT_GOAL := run
 
-.PHONY: axi-dpi-sized ifu-access-assert-negative
+.PHONY: axi-dpi-sized ifu-access-assert-negative ifu-icache-coherence-contract \
+        arch-gates arch-gates-self-test
 axi-dpi-sized:
 	@AXI_DPI_SIZED_BUILD_DIR="$(abspath $(BUILD_DIR)/axi-dpi-sized)" \
 	  $(abspath scripts/run_axi_dpi_sized.sh)
@@ -225,7 +245,23 @@ ifu-access-assert-negative:
 	@$(abspath scripts/run_ifu_access_assert_negative.sh) \
 	  "$(abspath $(BUILD_DIR)/ifu-access-assert-negative)"
 
-run: $(TESTS:%=$(LOG_DIR)/%.log) summary
+ifu-icache-coherence-contract:
+	@$(PYTHON) $(IFU_ICACHE_COHERENCE_CHECKER)
+
+
+arch-gates-self-test:
+	@$(PYTHON) -m unittest discover \
+	  -s $(ARCH_GATE_TEST_DIR) \
+	  -p 'test_architecture_hard_gates.py' -v
+
+arch-gates: arch-gates-self-test
+	@mkdir -p $(dir $(ARCH_GATE_RESULT))
+	@$(PYTHON) $(ARCH_GATE_CHECKER) \
+	  --evidence-manifest $(ARCH_GATE_EVIDENCE) \
+	  --output $(ARCH_GATE_RESULT)
+
+
+run: ifu-icache-coherence-contract $(TESTS:%=$(LOG_DIR)/%.log) summary
 	@cat $(RESULT_DIR)/summary.txt
 
 define RUN_TEST
