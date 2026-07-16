@@ -1,11 +1,26 @@
 # RV64 完整功能与 200 MHz 收敛设计
 
-> **性质**：ACTIVE implementation-program plan。本文只定义收敛目标、依赖、架构边界与验收
-> gate，不声明当前已经完成。全部 gate 达成后，本文件应归档到 `design/arch/history/`，仍有价值的
-> 稳定原则提炼回架构宪法、active specs 与 DB-backed memory。
+> **性质**：ACTIVE physical-follow-up plan。2026-07-14 已完成当前冻结 RTL 的功能回归与
+> T-PRE gate-level proxy；T-PHYS 和本文件列出的剩余显式功能合同未完成前，不归档本计划，也不
+> 宣称 physical/tapeout 200MHz。
 >
 > **默认决策**：采用“功能与时序双门槛交替推进”。200 MHz 采用两级证据：5 ns pre-layout
 > Yosys/OpenSTA 是阶段门槛；含 P&R/CTS/SPEF/OCV/真实宏的 200 MHz 是最终门槛。
+
+## 0. 2026-07-14 状态更新
+
+- T-PRE 已关闭：fresh frozen-input Yosys 116 modules/ABC220/check+freeze PASS，网表
+  `d7e5263f…e93eac`；exact 5ns OpenSTA top40 40/40 MET，actual worst
+  `+0.017907454ns`，setup member `303/1873/1875` 精确匹配。
+- 当前功能回归：module100/100、official/privileged177/177、AM59/59、CoreMark、
+  Dhrystone-10000、sized DPI；functional audit 把当前137个源绑定到仿真 binary。
+- T4G/T4F/T4H/T4I 已关闭 faulting-portion tval、I/D PTE WRITE PMP、plain-store PMA 与
+  LSU standard lane/AWSIZE/B owner。默认500000-run Dhrystone在20分钟预算内 timeout，只有
+  10000-run smoke可声明通过。
+- T-PHYS 仍开放：303 inputs/1873 outputs 缺 delay、1875 unconstrained endpoints、ideal clock、
+  placeholder macro、无SPEF/CTS/OCV/uncertainty；17.907ps 只占5ns的0.36%。
+- 本节是增量状态，下面的2026-07-11 baseline保留作历史路径 provenance；OPEN 合同仍以 active
+  specs/ROADMAP和最新 task-run裁决，不能用旧 baseline文字反向覆盖新证据。
 
 ## 1. 目标与完成定义
 

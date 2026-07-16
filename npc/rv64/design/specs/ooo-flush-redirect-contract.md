@@ -203,7 +203,10 @@ fetch 侧关闭；但全控制面仍没有统一 event 类型。后端靠扁平 
 ### 铁律① committed store 不得被清 —— **✅ 成立**
 
 - 直接执行者 `OooStoreQueue.v:143-152` [验证] `survive_r[k]=valid && (committed_q ‖ mark_hit0/1 ‖ (!flush_all && rob_dist<=boundary_dist))` —— **committed 与本拍标记恒存活**，flush_all 只清未 committed。
-- `OooMemInflightQueue` 压缩保 `KIND_DRAIN`（退休 store 落存）[逆向 `:163-190`]；`kill_valid`(mispredict) 只标 LOAD/PROBE，不动 DRAIN。
+- `OooMemInflightQueue` 压缩保 `KIND_DRAIN`（退休 store 落存）；`kill_valid`(mispredict)
+  只标 LOAD/PROBE，不动 DRAIN。**T4K 同拍全序**：若 DRAIN response pop 与 flush 同拍，pop
+  已是最终消费事件，flush keep-set 必须取 `filter_DRAIN(Q_old - fired_head)`；flush 拍 push 不接收，
+  kill 对 survivor DRAIN 无效。该规则避免 SQ/bridge 已释放而 MIQ 把旧 owner 压回的 ghost。
 - **✅ 跨子系统纠正（GAP-5，对抗审查复核确认准）**：子系统4 称"serial/trap_flush 不碰 SQ（`sq_flush_valid=flush_i‖branch_mispredict`）"。实测 `OooExecuteBackend.v:150 .flush_i(core_local_flush_w)` [验证] → `OooIntBackend.v:2590 sq_flush_valid_w = flush_i || branch_resolve_mispredict_w` [验证] → `OooStoreQueue.flush_all_i` = **core_local_flush（含 trap/serial）**。故 trap/serial **确实进 SQ flush_all**，清 CSR-之后 younger 的未 committed store（这正是 serialize 应做的），committed 仍恒存活。**铁律①结论不变，但子系统4 陈述的机制不准**：正确性来自"committed survive + serial_flush 恒在 mem_quiet(SQ 空) 拍"，**非**"serial 被排除出 SQ 路"。此为 §4 INV-4 挂靠的构造不变量。
 
 ### 铁律② 不得 kill 已发 AXI（只能 drain 完）—— **⚠️ 全局部分满足 / IFU-AXI-G1 CLOSED**

@@ -8,9 +8,10 @@
 - [ ] 多周期 CPU 设计
 - [x] 流水线 CPU 设计
 - [x] 差分测试通过
-- [ ] 综合分析通过
+- [x] 综合分析通过
 ## 已完成的工作
 <!-- 按时间倒序记录，格式: - [日期] 简要描述 -->
+- [2026-07-14] **RV64 架构功能与当前冻结 RTL 的 200MHz gate-level proxy 闭合**。T3J–T4I 继续把 FPC read window、CSR probe、branch target、EX/MEM wake、resolve/checkpoint、owner/credit/predecode/fault-tval/PMP/PMA 与 LSU AXI lane 逐项切到时序 owner；T4I 新增 `OooLsuAxiLaneAdapter`，全链贯通 `AWSIZE`，xbar 保持独立 AW/W owner 到 B，`OooMemAxiBridge` 删除 `bpend_q`/store 提前完成并让 cache RMW 仅在 B 成功后提交，UART/CLINT/PLIC/DPI/virtio 统一标准 byte lane。当前 module `100/100`、official/privileged `177/177`、AM `59/59`、CoreMark GOOD TRAP（`6563047 cycles / 3218532 commits / CPI2.039`）、Dhrystone 10000-run smoke GOOD TRAP、sized DPI 全绿；functional audit 把 137 个当前源绑定到 binary `8d6cf96d…09b`。fresh Yosys 116 modules/ABC220/check+freeze 全绿，网表 `d7e5263f…e93eac`；exact 5ns OpenSTA top40 `40/40 MET`，实际最差正 slack `+0.017907454ns`，setup members `303/1873/1875` 精确匹配，mutation 拒绝负 slack `-0.0` 和 count-only 假绿。这里的“200MHz”严格限定为典型 liberty、ideal clock、placeholder macro、内部受约束路径的 gate-level proxy；无 SPEF/CTS/OCV/clock uncertainty、303 input/1873 output delay 缺失和1875 unconstrained endpoints，不能越级称 physical signoff。默认 500000-run Dhrystone 在20分钟预算内 timeout，未冒充 PASS。任务证据 `.github/task-runs/2026-07-14-rv64-t4i-standard-axi-lanes/`；OS `/tmp` 相关对象已归档到 workspace `tmp/os-tmp-archive/2026-07-14-rv64-200mhz/`。
 - [2026-07-13] **RV64 200MHz T3I ROB-empty/retire 冗余切片完成，父目标继续 active**。`OooPendingDrainResolveGate` 从 backend-drained 判据和 ControlPlane/glue ABI 删除 `core_retire_count`；依据 `commit0->count_q!=0`、`commit1->commit0`、valid=fire、count_o=count_q 的定理，空 ROB 严格蕴含本拍零退休，`[CORE-RETIRE-REQUIRES-ROB]` 对 1/X 违约均有单 marker negative。theorem runner 将 commit0/1 RHS 锁成顶层纯 AND exact-conjunct，并用删除 guard 与 `||1` 绕过两种 mutation 防假绿；同时修复全局 TB runner 对 Icarus `$error` 后 exact PASS 的误接收。最终 module `96/96`、contract `86/86`、整核 build/AM、official+privileged `177/177` 全绿；CoreMark10 与 T3H cycle-exact=`3,020,147 cycles / 3,218,532 commits / CPI0.938 / CRCfcaf`。fresh frozen-input Yosys 110/110 modules、ABC `220-10=210`、check0、网表 `91badd2b…f6926`、area `1,572,549.16`；正确 H7CL OpenSTA 5ns loops0、WNS/TNS=`-9.38/-199464.16ns`，较 T3H 回收约0.72ns但未达200MHz。旧 retire fanout 对 fetch/trap 命中1/137，fresh命中0/0且 ROB residual 存在；top40 转为1条 EX→fetch payload SRAM和39条 EX→pending-trap。下一刀优先拆 FPC 物理读窗口与语义 accept，不能加 false path。fresh synthesis/STA 与 OS `/tmp` 的5个T3I相关顶层对象均已在 workspace `tmp/` 留档并通过 zstd/tar/inventory/SHA。
 - [2026-07-13] **RV64 200MHz T3H FP 全消费域 sticky barrier 完成，父目标继续 active**。FpIQ resident fs1/fs2/fs3 与 IntIQ resident FP-store source 只读 sticky ready，FP PRF R0–R3 只读已落账 `regs_q`；dispatch+wake collision、f0/preg0、kill survivor/recover/flush、双写优先级均有 RED/GREEN/单 marker negative。最终 module `95/95`、lint/style/contract `85/85`、整核 build/AM、official+privileged `177/177` 全绿；CoreMark10 与 T3G cycle-exact=`3,020,147 cycles / CPI0.938 / CRCfcaf`。fresh Yosys 两轮 ABC 各 `110-5=105`、check0、网表 `f27b937f…a8f7`、area `1,572,550.00`；OpenSTA 5ns loops0、WNS/TNS=`-10.10/-201564.20ns`、power≈0.120W，较 T3G 显著改善但未达 200MHz。fail-closed directed gate 在旧 T3G 精确 RED；fresh 的三个 DCache 短控制 residual=`+1.468/+1.373/+0.155ns`，20 条 wake/write-through 禁止弧全为 NO_TIMING_PATH，fanout state-only。top40 40/40 已转为 EX0 valid→integer fast wake/select+PRF bypass→ALU/ROB/drain/trap→fetch/CSR，最差 `-10.097ns`，下一刀优先将整数 EX consumer 改为 sticky/stored-only，不能先给 FPC en 单独打拍或用 false path。fresh synth 与 `/tmp` T3B–H 增量均在 `tmp/2026-07-13-rv64-t3h-fp-sticky-barrier/` 分组归档并通过 zstd/tar/SHA；证据 `.github/task-runs/2026-07-13-rv64-t3h-fp-sticky-barrier/`。
 - [2026-07-13] **RV64 200MHz T3G 整数 MEM formal-only 切点完成，父目标继续 active**。integer fast-WB 已从 EX/MEM 收紧为逐 lane raw EX 精确投影，普通/MMIO load、LR/AMO/成功 SC 的 response 只在 N 沿 formal WB/PRF/IQ sticky 落账，consumer N+1 发射；failed SC 与 SQ-forwarded load 仍为本地 EX fast。focused RED/GREEN、目标 marker 单一 negative、module `94/94`、lint/style/contract `83>=59`、AM、official+privileged `177/177`、CoreMark10 全绿；CoreMark=`3,020,147 cycles / 3,218,532 commits / CPI0.938 / CRCfcaf / 3.379/MHz`，较 T3F `+2.80% cycles`，符合 load-use +1 拍。fresh Yosys `105/105`/check0/netlist `95bac1a0…ef7b4`/area `1,573,356.12`；独立 OpenSTA loops0、WNS/TNS=`-12.979/-287092.31ns`、power≈0.120W，故 200MHz 未达。审查反例把残余 top1 定位为 `DCache→FP-load fpld_wb/fp_wake1→IntIQ resident FP-store 同拍 issue→ALU/control→FetchPacketCache en_i`；定向 DCache→int ex0/ex1=`-4.900/-7.150ns`、DCache→FP exec=`-8.149ns`、FpIQ state→FP exec=`-3.484ns`。下一刀 T3H 必须同时隔离 FpIQ resident FPR consumer 与 IntIQ resident FP-store 的 FP wake，不能只改 FP arithmetic 队列。fresh synthesis 与 `/tmp` 相关产物均已在 `tmp/2026-07-13-rv64-t3g-mem-formal-only/` 归档并通过 zstd/tar/SHA；证据 `.github/task-runs/2026-07-13-rv64-t3g-mem-formal-only/`。
@@ -785,3 +786,24 @@ flush 契约诊断确认 UC-A：整数 MulDiv/CLMUL **独缺 mispredict-kill 端
   `OooFetchPcOutstandingSequencer` D，arrival 约 13.688ns；T3L 必须先追踪 response accept、
   prepared-packet 与 outstanding next-state 的真实依赖，再做功能保持的寄存/语义切分，禁止
   false path。证据：`.github/task-runs/2026-07-13-rv64-t3k-csr-probe-isolation/`。
+
+## 2026-07-14 RV64 T3V memory dataplane 独立审查补强
+
+- T3V reservation-only AGU/LSU 数据面审查确认 raw memory、generic issue0 与 resident
+  owner 已物理解耦，但发现三个后续 owner 生命周期漏洞：younger plain-memory buffer
+  不参加 selective branch kill；MIQ old-full+pop 同拍错误接收 refill、桥请求会丢 metadata；
+  LR reservation 未记录 size，且 matching misaligned SC 本地异常不清 reservation。
+- `OooIntBackend` 现按 ROB 环形年龄清除未 fire 的 younger buffer；kill 同拍 fire 只移交
+  MIQ same-cycle push-kill。MIQ 满拍采用 parent 一拍 backpressure，下一拍再发；LR 同时保存
+  address/size，SC 必须两者匹配，任意 SC consume（成功/失败/本地异常）都清 reservation。
+- TB 新增五类真实反例：buffer kill 后无 ghost request/MIQ/WB/commit、MIQ full+pop 不接单且
+  次拍 metadata 完整、LR.W→SC.D 与 LR.D→SC.W 均本地失败、matching misaligned SC 精确异常
+  后 reservation 清除、released younger ALU exactly-once fire/commit=9；memory helper 同时升级
+  为完整 64-bit address/wdata/data 比较。
+- 独立 `BUILD_DIR/RESULT_DIR` focused gate：`tb_ooo_int_backend` PASS、
+  `tb_ooo_int_issue_queue` PASS、full Verilator lint/style/contract129 与 diff-check PASS。
+  证据：`.github/task-runs/2026-07-14-rv64-t3v-predecode-mem-dataplane/evidence/review-fixes/`。
+  本结论只签收功能与结构合同；200 MHz 仍等待修正后 fresh synthesis / exact 5 ns OpenSTA。
+- 本子任务执行 strict guard 时，因共享工作树同时包含 2235 个 changed paths 且尚无覆盖全树的
+  `npc-dev` profile evidence 而中间态失败；这不是最终豁免，也不冒充功能失败。主任务集成者将在
+  freeze/fresh synthesis 完成后生成正式 profile evidence 并重跑 strict guard。

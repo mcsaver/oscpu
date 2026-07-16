@@ -10,6 +10,7 @@ module tb_ooo_ifu_lane1_fault_owner;
 
   localparam [`XLEN-1:0] PC0 = 64'h0000_0000_8000_1000;
   localparam [`XLEN-1:0] PC1 = 64'h0000_0000_8000_1004;
+  localparam [`XLEN-1:0] FAULT_TVAL = 64'h0000_0000_8000_1006;
   localparam [`INST_W-1:0] INST_ADDI = 32'h0000_0093;
   localparam [`INST_W-1:0] INST_BNE_X0_X0 = 32'h0000_1063;
   localparam [`INST_W-1:0] INST_BEQ_X0_X0 = 32'h0000_0063;
@@ -37,6 +38,8 @@ module tb_ooo_ifu_lane1_fault_owner;
   wire head_fetch_fault0;
   wire head_fetch_fault1;
   wire head_fetch_fault;
+  wire [`OOO_SLOT_STATIC_FACTS_W-1:0] head_static_facts0;
+  wire [`OOO_SLOT_STATIC_FACTS_W-1:0] head_static_facts1;
   wire head0_fp_raw;
   wire head0_csr_raw;
   wire head1_fp_raw;
@@ -99,13 +102,27 @@ module tb_ooo_ifu_lane1_fault_owner;
   wire [`XLEN-1:0] trap_ex_pc;
   wire [`XLEN-1:0] trap_ex_tval;
 
+  OooFetchStaticClassify u_static0 (
+    .inst_i(head_inst0),
+    .semihost_peer_inst_i(head_inst1),
+    .semihost_peer_is_enter_i(1'b0),
+    .static_facts_o(head_static_facts0)
+  );
+
+  OooFetchStaticClassify u_static1 (
+    .inst_i(head_inst1),
+    .semihost_peer_inst_i(head_inst0),
+    .semihost_peer_is_enter_i(1'b1),
+    .static_facts_o(head_static_facts1)
+  );
+
   OooFetchHeadPairGate u_pair (
     .fifo_has_packet_i(fifo_has_packet),
     .head_slot1_valid_i(head_slot1_valid),
     .head_resp0_i(head_resp0),
     .head_resp1_i(head_resp1),
-    .head_inst0_i(head_inst0),
-    .head_inst1_i(head_inst1),
+    .head_static_facts0_i(head_static_facts0),
+    .head_static_facts1_i(head_static_facts1),
     .head0_ctrl_i(head0_ctrl),
     .head1_ctrl_i(head1_ctrl),
     .priv_mode_i(`PRIV_M),
@@ -203,6 +220,7 @@ module tb_ooo_ifu_lane1_fault_owner;
     .direct_branch1_fire_i(1'b0),
     .head_fetch_fault0_i(head_fetch_fault0),
     .head_fetch_fault1_i(head_fetch_fault1),
+    .head_fetch_fault_tval_i(FAULT_TVAL),
     .head_resp0_i(head_resp0),
     .head_resp1_i(head_resp1),
     .head_pc0_i(PC0),
@@ -451,14 +469,14 @@ module tb_ooo_ifu_lane1_fault_owner;
           (pending_trap_capture_arch_valid === 1'b1) &&
           (pending_trap_capture_cause === expected_cause) &&
           (pending_trap_capture_pc === PC1) &&
-          (pending_trap_capture_tval === PC1);
+          (pending_trap_capture_tval === FAULT_TVAL);
       tick();
       captured_ok =
           (pending_arch_trap === 1'b1) &&
           (stop_pending === 1'b1) &&
           (pending_trap_cause === expected_cause) &&
           (pending_trap_pc === PC1) &&
-          (pending_trap_tval === PC1);
+          (pending_trap_tval === FAULT_TVAL);
       // barrier fire 后 packet 已 pop；drain 点必须把 pending owner 变成 CSR trap request。
       fifo_has_packet = 1'b0;
       drain_complete = 1'b1;
@@ -468,7 +486,7 @@ module tb_ooo_ifu_lane1_fault_owner;
           (trap_ex_valid === 1'b1) &&
           (trap_ex_cause === expected_cause) &&
           (trap_ex_pc === PC1) &&
-          (trap_ex_tval === PC1);
+          (trap_ex_tval === FAULT_TVAL);
       $display("[ROW-STAGES] %0s pair=%b dispatch=%b capture_req=%b pending=%b drain=%b",
                name, pair_ok, dispatch_ok, capture_request_ok, captured_ok,
                drained_ok);
@@ -596,6 +614,8 @@ module tb_ooo_ifu_lane1_fault_owner;
     run_pred_taken_poison_row("pred-taken poison lane1 AF is invisible",
                               2'b01);
     run_pseudo_default_access_row();
+    $display("[T4G-IFU-LANE1-FAULT-TVAL] PC=%h tval=%h survives capture/pending/drain",
+             PC1, FAULT_TVAL);
 
     tb_finish("tb_ooo_ifu_lane1_fault_owner");
   end

@@ -1,4 +1,0 @@
-/tmp/ysyx-t3k-functional-tests
-/tmp/ysyx-t3k-integration-focused
-/tmp/ysyx-t3k-integration-focused-final
-/tmp/ysyx-t3k-user-npc-linux.log

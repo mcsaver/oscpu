@@ -6,6 +6,7 @@
 module OooPendingLane1CaptureGate (
   input barrier_base_i,
   input head_fetch_fault_i,
+  input [`XLEN-1:0] head_fetch_fault_tval_i,
   input [1:0] head_resp_i,
   input [`XLEN-1:0] head_pc_i,
   input [`INST_W-1:0] head_inst_i,
@@ -69,6 +70,7 @@ module OooPendingLane1CaptureGate (
       fp_disabled_w ? head_inst_i :
       priv_system_illegal_w ? head_inst_i :
       csr_illegal_i ? head_inst_i :
+      head_fetch_fault_i ? head_fetch_fault_tval_i :
       head_pc_i;
 
 endmodule

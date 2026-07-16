@@ -18,7 +18,7 @@
 
 module OooFetchRequestMux (
   input outstanding_valid_i,
-  input fetch_rsp_fire_i,
+  input fetch_rsp_valid_i,
   input [`XLEN-1:0] fetch_rsp_packet_next_pc_i,
   input [`XLEN-1:0] next_fetch_pc_i,
   input direct_jal_fire_i,
@@ -54,7 +54,10 @@ module OooFetchRequestMux (
 );
 
   wire [`XLEN-1:0] fetch_req_seq_pc_w =
-      (outstanding_valid_i && fetch_rsp_fire_i) ?
+      // T3Z: response presence is registered by the Bridge and is sufficient
+      // to preload the normal replacement candidate.  Waiting for fire would
+      // feed downstream ready back into the next immutable-context bank D.
+      (outstanding_valid_i && fetch_rsp_valid_i) ?
       fetch_rsp_packet_next_pc_i : next_fetch_pc_i;
 
   assign direct_redirect_fetch_o =

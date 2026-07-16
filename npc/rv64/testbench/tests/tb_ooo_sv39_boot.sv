@@ -104,10 +104,12 @@ module tb_ooo_sv39_boot;
   reg saw_sfence_commit;
   reg saw_sret_commit;
   reg debug_sv39;
+  reg [`XLEN-1:0] expected_minstret_q;
 
   NpcCoreTop dut (
     .clk(clk),
     .rst(rst),
+    .dcache_dma_invalidate_all_i(1'b0),
     .ifu_axi_arvalid_o(ifu_axi_arvalid),
     .ifu_axi_arready_i(ifu_axi_arready),
     .ifu_axi_araddr_o(ifu_axi_araddr),
@@ -596,7 +598,15 @@ module tb_ooo_sv39_boot;
   end
 
   always @(posedge clk) begin
-    if (!rst) begin
+    if (rst) begin
+      expected_minstret_q <= {`XLEN{1'b0}};
+    end else begin
+      // 独立从最终可见退休 lane 计数；异常 lane 不属于 minstret。
+      // 该 oracle 跨越 mret/sret/sfence/ecall/page-fault，防止隐藏退休源
+      // 或前级“完成数”再次污染 CsrFile 的单一计数源。
+      expected_minstret_q <= expected_minstret_q +
+          {{(`XLEN-1){1'b0}}, commit0_valid && !commit0_exception} +
+          {{(`XLEN-1){1'b0}}, commit1_valid && !commit1_exception};
       observe_commit(commit0_valid, commit0_inst);
       observe_commit(commit1_valid, commit1_inst);
     end
@@ -752,6 +762,8 @@ module tb_ooo_sv39_boot;
                gpr(5'd27) & `MSTATUS_SPP, 64'h0);
     tb_check64("u-mode returned after load page fault", gpr(5'd4), 64'hef);
     tb_check64("u-mode load fault handler marker", gpr(5'd1), 64'h5a);
+    tb_check64("minstret equals final non-exception commit lanes",
+               dut.u_csr_file.csr_minstret_q, expected_minstret_q);
     if (ifu_page_walk_reads == 0) begin
       tb_errors = tb_errors + 1;
       $display("[CHECK-FAIL] IFU page-table walk was not observed");

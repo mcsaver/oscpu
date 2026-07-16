@@ -17,7 +17,6 @@ module tb_ooo_fetch_flow_control;
   reg [FETCH_COUNT_W-1:0] fifo_count;
   reg [FETCH_COUNT_W-1:0] fifo_depth;
   reg fifo_pop;
-  reg fetch_rsp_dispatch_bypass;
   reg direct_frontend_flush;
   reg stop_pending_busy;
   reg halted;
@@ -35,7 +34,6 @@ module tb_ooo_fetch_flow_control;
   wire fetch_rsp_can_enqueue;
   wire fetch_rsp_can_drop;
   wire direct_fetch_drop;
-  wire fetch_rsp_bypass_consumed;
   wire fetch_rsp_enqueue;
 
   OooFetchFlowControl #(
@@ -58,7 +56,6 @@ module tb_ooo_fetch_flow_control;
     .fifo_count_i(fifo_count),
     .fifo_depth_i(fifo_depth),
     .fifo_pop_i(fifo_pop),
-    .fetch_rsp_dispatch_bypass_i(fetch_rsp_dispatch_bypass),
     .direct_frontend_flush_i(direct_frontend_flush),
     .stop_pending_busy_i(stop_pending_busy),
     .halted_i(halted),
@@ -74,7 +71,6 @@ module tb_ooo_fetch_flow_control;
     .fetch_rsp_can_enqueue_o(fetch_rsp_can_enqueue),
     .fetch_rsp_can_drop_o(fetch_rsp_can_drop),
     .direct_fetch_drop_o(direct_fetch_drop),
-    .fetch_rsp_bypass_consumed_o(fetch_rsp_bypass_consumed),
     .fetch_rsp_enqueue_o(fetch_rsp_enqueue)
   );
 
@@ -95,7 +91,6 @@ module tb_ooo_fetch_flow_control;
       fifo_count = 3'd0;
       fifo_depth = 3'd4;
       fifo_pop = 1'b0;
-      fetch_rsp_dispatch_bypass = 1'b0;
       direct_frontend_flush = 1'b0;
       stop_pending_busy = 1'b0;
       halted = 1'b0;
@@ -146,19 +141,49 @@ module tb_ooo_fetch_flow_control;
     fifo_count = 3'd4;
     fifo_pop = 1'b1;
     #1;
-    tb_check1("full fifo accepts with pop", fifo_can_accept_rsp, 1'b1);
-    tb_check1("full fifo enqueue with pop", fetch_rsp_enqueue, 1'b1);
+    tb_check1("T3U full fifo does not look through pop",
+              fifo_can_accept_rsp, 1'b0);
+    tb_check1("T3U full fifo backpressures response on pop",
+              fetch_rsp_ready, 1'b0);
+    tb_check1("T3U full fifo does not fire response on pop",
+              fetch_rsp_fire, 1'b0);
+    tb_check1("T3U full fifo does not enqueue on pop",
+              fetch_rsp_enqueue, 1'b0);
+    tb_check1("T3U outstanding is not replaced through pop",
+              can_issue_request, 1'b0);
     tb_check1("storage pop when no bypass", fifo_storage_pop, 1'b1);
 
+    // 下一拍寄存 count 已反映 pop，T3R bridge 的 S_RESP 保持同一 response；
+    // 此时正常接收，不丢包、不重复；但 Q=3,O=1 已用完四个 credit，不能
+    // 同拍再融合一个后继请求。
+    fifo_count = 3'd3;
+    fifo_pop = 1'b0;
+    fifo_reserve_available = 1'b0;
+    #1;
+    tb_check1("T3U registered pop credit accepts held response",
+              fifo_can_accept_rsp, 1'b1);
+    tb_check1("T3U held response becomes ready next cycle",
+              fetch_rsp_ready, 1'b1);
+    tb_check1("T3U held response fires next cycle",
+              fetch_rsp_fire, 1'b1);
+    tb_check1("T3U held response enqueues next cycle",
+              fetch_rsp_enqueue, 1'b1);
+    tb_check1("T3U full reserved capacity blocks fused successor",
+              can_issue_request, 1'b0);
+
+    // 合法的 Q=2,O=1 边界仍有一个空 credit，response 入队与 successor request
+    // 可同拍原子替换 outstanding，证明删除非法 full+pop 旁路不伤活吞吐。
     reset_inputs();
     outstanding_valid = 1'b1;
     fetch_rsp_valid = 1'b1;
-    fetch_rsp_dispatch_bypass = 1'b1;
-    fifo_pop = 1'b1;
+    fifo_count = 3'd2;
+    fifo_reserve_available = 1'b1;
     #1;
-    tb_check1("bypass consumed", fetch_rsp_bypass_consumed, 1'b1);
-    tb_check1("bypass does not storage-pop", fifo_storage_pop, 1'b0);
-    tb_check1("bypass consumed does not enqueue", fetch_rsp_enqueue, 1'b0);
+    tb_check1("T3U legal credit accepts response", fetch_rsp_ready, 1'b1);
+    tb_check1("T3U legal credit fires response", fetch_rsp_fire, 1'b1);
+    tb_check1("T3U legal credit enqueues response", fetch_rsp_enqueue, 1'b1);
+    tb_check1("T3U legal credit keeps fused successor throughput",
+              can_issue_request, 1'b1);
 
     reset_inputs();
     outstanding_valid = 1'b1;

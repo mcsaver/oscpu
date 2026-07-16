@@ -15,8 +15,8 @@ module OooDispatchBackend #(
   input clk,
   input rst,
   input flush_i,
-  input [ROB_INDEX_W-1:0] kill_rob_idx_i,   // B2 ROB-walk：mispredict 分支 rob_idx（kill 边界）；mode 关时无效
-  input branch_mispredict_valid_i,          // B2 ROB-walk kill 触发：后端显式 branch/JALR mispredict（取代 checkpoint_restore）
+  input [ROB_INDEX_W-1:0] kill_rob_idx_i,   // T3N：已寄存 coherent resolve packet 的 rob_idx
+  input branch_mispredict_valid_i,          // T3N：已寄存 coherent resolve packet 的 mispredict valid
   input issue_mem_block_i,
   // 【LSQ·SQ 切换】SQ 空闲槽(由 SQ count_q 时序生成, 无跨层组合环): store dispatch
   // 需要 SQ slot, 满则反压。
@@ -88,13 +88,6 @@ module OooDispatchBackend #(
   input [`TRAP_CAUSE_W-1:0] wb1_cause_i,
   input [`XLEN-1:0] wb1_tval_i,
   input [4:0] wb1_fflags_i,
-
-  // 【T3G】EX-only fast select wakeup；full wb0/1 仍独占 BusyTable、IQ
-  // sticky-ready 与 ROB 完成状态更新，MEM 依赖在下一拍消费。
-  input select_wakeup0_valid_i,
-  input [PHY_REG_ADDR_W-1:0] select_wakeup0_pdest_i,
-  input select_wakeup1_valid_i,
-  input [PHY_REG_ADDR_W-1:0] select_wakeup1_pdest_i,
 
   // 【B-FP 簇】FP wakeup(整数 IQ 的 fp_src2 监听) + FP walk 分流输出
   input fp_wake0_valid_i,
@@ -308,16 +301,17 @@ module OooDispatchBackend #(
   wire rob_walk1_rd_en_w;
   wire rename_restore0_en_w;
   wire rename_restore1_en_w;
-  reg kill_valid_q;
-  reg [ROB_INDEX_W-1:0] kill_idx_q;
-
   // Dispatch owner 直接用容量计数生成 ready，避免 parent fire 再反喂
   // ROB/IQ ready 形成跨层组合环；子模块仍接收同一个 fire 更新状态。
-  // B2 关键：ROB 在 recover_active(walk 中) 或 kill 脉冲当拍会冻结 tail 不分配，IQ 同拍 squash/gate；
+  // T3N 关键：输入 kill 本身来自 resolve PipeStageReg q；可直接在同拍冻结
+  // tail/dispatch 并驱动 IQ squash，不再重复打一拍，也不会重建旧 resolve→ready 环。
   // 而本层 ready 只看 count(非满)，不知道冻结 → 仍会 dispatch，使 ROB tail 不前进而 rob_idx 复用、
   // 多条指令共用同一 ROB 槽 → wakeup 错配/僵尸项。故用「已寄存」的 recover/kill 同步冻结本层 dispatch
-  // （均为寄存信号，不引入跨层组合环）。
-  wire dispatch_freeze_w = rob_recover_active_w || kill_valid_q;
+  // （均为寄存来源，不引入跨层组合环）。
+  wire rob_walk_mode_w = `OOO_ROB_WALK_MODE;
+  wire rob_kill_valid_w = rob_walk_mode_w && branch_mispredict_valid_i;
+  wire [ROB_INDEX_W-1:0] rob_kill_idx_w = kill_rob_idx_i;
+  wire dispatch_freeze_w = rob_recover_active_w || rob_kill_valid_w;
   assign dispatch0_ready_o = rob_slot0_ready_w &&
                              (iq_slot0_ready_w || dispatch0_fp_arith_w) &&
                              free_ok0_w && sq_ok0_w &&
@@ -459,21 +453,9 @@ module OooDispatchBackend #(
   // （walk/kill 相关声明已前置到 dispatch_freeze_w 之前，此处只留驱动逻辑。）
   // B2 Step B：后端显式 branch/JALR mispredict(branch_mispredict_valid_i) 驱动 ROB-walk kill；
   // kill_rob_idx 来自后端解析控制流 rob_idx（ROB-walk 全阵列 restore，无 checkpoint）。
-  wire rob_walk_mode_w = `OOO_ROB_WALK_MODE;
-  // mispredict 与 backend 解析组合相连；直接驱动 kill 会与 dispatch_ready 成组合环
-  // (mispredict→recovering→dispatch_ready→issue→branch_resolve→mispredict)。故 kill 打一拍寄存打破环：
-  // 前端 redirect 仍当拍生效；后端 ROB-walk 恢复延后 1 拍（mispredicted 分支非 head，wrong-path 当拍来不及提交）。
-  always @(posedge clk) begin
-    if (rst || flush_i) begin
-      kill_valid_q <= 1'b0;
-      kill_idx_q <= {ROB_INDEX_W{1'b0}};
-    end else begin
-      kill_valid_q <= rob_walk_mode_w && branch_mispredict_valid_i;
-      kill_idx_q <= kill_rob_idx_i;
-    end
-  end
-  wire rob_kill_valid_w = kill_valid_q;
-  wire [ROB_INDEX_W-1:0] rob_kill_idx_w = kill_idx_q;
+  // 旧版在这里把组合 branch resolve 再寄存一拍以断环；T3N 已把完整 resolve
+  // packet 在 OooIntBackend 统一寄存，故本层直接消费 q，保持 issue→ROB/IQ kill
+  // 总延迟仍为一拍，并保证 valid/index 同源同拍。
   // walk→rename restore：恢复 map[arch]=old_pdest（仅 squashed 且 rd_en）。
   assign rename_restore0_en_w = rob_walk0_valid_w && rob_walk0_rd_en_w;
   assign rename_restore1_en_w = rob_walk1_valid_w && rob_walk1_rd_en_w;
@@ -659,10 +641,6 @@ module OooDispatchBackend #(
     .wakeup0_pdest_i(wb0_pdest_i),
     .wakeup1_valid_i(wb1_valid_i),
     .wakeup1_pdest_i(wb1_pdest_i),
-    .select_wakeup0_valid_i(select_wakeup0_valid_i),
-    .select_wakeup0_pdest_i(select_wakeup0_pdest_i),
-    .select_wakeup1_valid_i(select_wakeup1_valid_i),
-    .select_wakeup1_pdest_i(select_wakeup1_pdest_i),
     .fp_wake0_valid_i(fp_wake0_valid_i),
     .fp_wake0_preg_i(fp_wake0_preg_i),
     .fp_wake1_valid_i(fp_wake1_valid_i),

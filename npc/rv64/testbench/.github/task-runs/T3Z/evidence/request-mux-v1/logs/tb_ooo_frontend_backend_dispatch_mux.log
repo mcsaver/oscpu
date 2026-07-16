@@ -1,0 +1,10 @@
+[TEST] tb_ooo_frontend_backend_dispatch_mux
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_ooo_frontend_backend_dispatch_mux -o build-t3z-request-mux-v1/tb_ooo_frontend_backend_dispatch_mux.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFrontendBackendDispatchMux.v tests/tb_ooo_frontend_backend_dispatch_mux.sv
+warning: Some design elements have no explicit time unit and/or
+       : time precision. This may cause confusing timing results.
+       : Affected design elements are:
+       :   -- module OooFrontendBackendDispatchMux declared here: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFrontendBackendDispatchMux.v:3
+       :   -- compilation unit
+[PASS] tb_ooo_frontend_backend_dispatch_mux
+common/tb_common.svh:32: $finish called at 24000 (1ps)
+[RESULT] PASS

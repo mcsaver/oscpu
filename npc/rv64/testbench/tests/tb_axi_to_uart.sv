@@ -7,6 +7,7 @@ module tb_axi_to_uart;
   reg arvalid;
   wire arready;
   reg [31:0] araddr;
+  reg [2:0] arsize;
   wire rvalid;
   reg rready;
   wire [31:0] rdata;
@@ -15,6 +16,7 @@ module tb_axi_to_uart;
   reg awvalid;
   wire awready;
   reg [31:0] awaddr;
+  reg [2:0] awsize;
   reg wvalid;
   wire wready;
   reg [31:0] wdata;
@@ -42,6 +44,7 @@ module tb_axi_to_uart;
     .s_axi_arvalid_i(arvalid),
     .s_axi_arready_o(arready),
     .s_axi_araddr_i(araddr),
+    .s_axi_arsize_i(arsize),
     .s_axi_rvalid_o(rvalid),
     .s_axi_rready_i(rready),
     .s_axi_rdata_o(rdata),
@@ -49,6 +52,7 @@ module tb_axi_to_uart;
     .s_axi_awvalid_i(awvalid),
     .s_axi_awready_o(awready),
     .s_axi_awaddr_i(awaddr),
+    .s_axi_awsize_i(awsize),
     .s_axi_wvalid_i(wvalid),
     .s_axi_wready_o(wready),
     .s_axi_wdata_i(wdata),
@@ -76,9 +80,11 @@ module tb_axi_to_uart;
       rst = 1'b1;
       arvalid = 1'b0;
       araddr = 32'h0;
+      arsize = 3'd2;
       rready = 1'b0;
       awvalid = 1'b0;
       awaddr = 32'h0;
+      awsize = 3'd2;
       wvalid = 1'b0;
       wdata = 32'h0;
       wstrb = 4'h0;
@@ -97,6 +103,7 @@ module tb_axi_to_uart;
     input [31:0] exp_data;
     begin
       araddr = addr;
+      arsize = 3'd2;
       arvalid = 1'b1;
       rready = 1'b0;
       #1;
@@ -125,6 +132,7 @@ module tb_axi_to_uart;
     input [7:0] exp_ch;
     begin
       awaddr = addr;
+      awsize = 3'd2;
       wdata = data;
       wstrb = strb;
       awvalid = 1'b1;

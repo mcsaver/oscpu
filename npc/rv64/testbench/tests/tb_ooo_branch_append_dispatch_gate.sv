@@ -15,7 +15,6 @@ module tb_ooo_branch_append_dispatch_gate;
   reg outstanding_valid;
   reg [`XLEN-1:0] outstanding_pc;
   reg [`XLEN-1:0] head_next_pc1;
-  reg fetch_rsp_dispatch_bypass;
   reg branch_fallthrough_safe;
   reg branch_target_cache_hit;
   reg direct_branch0_fire;
@@ -40,7 +39,6 @@ module tb_ooo_branch_append_dispatch_gate;
   reg branch_prefetch_dispatch1_safe;
   reg branch_prefetch_rsp_dispatch0_safe;
   reg branch_prefetch_rsp_dispatch1_safe;
-  reg branch_prefetch_hit_available;
 
   wire return_cont_optional;
   wire return_cont_attempt_ready;
@@ -58,13 +56,11 @@ module tb_ooo_branch_append_dispatch_gate;
   wire branch_target_dispatch;
   wire branch_fallthrough_dispatch;
   wire branch_fallthrough_keep_outstanding;
-  wire branch_fallthrough_capture_rsp;
   wire branch_prefetch_rsp_raw_match;
   wire branch_prefetch_dispatch_buffer;
   wire branch_prefetch_dispatch_rsp;
   wire branch_prefetch_dispatch_attempt;
   wire branch_prefetch_dispatch_fire;
-  wire branch_prefetch_hit_to_fifo;
   wire dispatch1_optional;
 
   integer errors;
@@ -83,7 +79,6 @@ module tb_ooo_branch_append_dispatch_gate;
     .outstanding_valid_i(outstanding_valid),
     .outstanding_pc_i(outstanding_pc),
     .head_next_pc1_i(head_next_pc1),
-    .fetch_rsp_dispatch_bypass_i(fetch_rsp_dispatch_bypass),
     .branch_fallthrough_safe_i(branch_fallthrough_safe),
     .branch_target_cache_hit_i(branch_target_cache_hit),
     .direct_branch0_fire_i(direct_branch0_fire),
@@ -108,7 +103,6 @@ module tb_ooo_branch_append_dispatch_gate;
     .branch_prefetch_dispatch1_safe_i(branch_prefetch_dispatch1_safe),
     .branch_prefetch_rsp_dispatch0_safe_i(branch_prefetch_rsp_dispatch0_safe),
     .branch_prefetch_rsp_dispatch1_safe_i(branch_prefetch_rsp_dispatch1_safe),
-    .branch_prefetch_hit_available_i(branch_prefetch_hit_available),
     .return_cont_optional_o(return_cont_optional),
     .return_cont_attempt_ready_o(return_cont_attempt_ready),
     .return_cont_attempt_o(return_cont_attempt),
@@ -128,13 +122,11 @@ module tb_ooo_branch_append_dispatch_gate;
     .branch_fallthrough_dispatch_o(branch_fallthrough_dispatch),
     .branch_fallthrough_keep_outstanding_o(
         branch_fallthrough_keep_outstanding),
-    .branch_fallthrough_capture_rsp_o(branch_fallthrough_capture_rsp),
     .branch_prefetch_rsp_raw_match_o(branch_prefetch_rsp_raw_match),
     .branch_prefetch_dispatch_buffer_o(branch_prefetch_dispatch_buffer),
     .branch_prefetch_dispatch_rsp_o(branch_prefetch_dispatch_rsp),
     .branch_prefetch_dispatch_attempt_o(branch_prefetch_dispatch_attempt),
     .branch_prefetch_dispatch_fire_o(branch_prefetch_dispatch_fire),
-    .branch_prefetch_hit_to_fifo_o(branch_prefetch_hit_to_fifo),
     .dispatch1_optional_o(dispatch1_optional)
   );
 
@@ -163,7 +155,6 @@ module tb_ooo_branch_append_dispatch_gate;
       outstanding_valid = 1'b0;
       outstanding_pc = 64'h8000_0008;
       head_next_pc1 = 64'h8000_0008;
-      fetch_rsp_dispatch_bypass = 1'b0;
       branch_fallthrough_safe = 1'b0;
       branch_target_cache_hit = 1'b0;
       direct_branch0_fire = 1'b0;
@@ -188,7 +179,6 @@ module tb_ooo_branch_append_dispatch_gate;
       branch_prefetch_dispatch1_safe = 1'b0;
       branch_prefetch_rsp_dispatch0_safe = 1'b0;
       branch_prefetch_rsp_dispatch1_safe = 1'b0;
-      branch_prefetch_hit_available = 1'b0;
     end
   endtask
 
@@ -246,11 +236,6 @@ module tb_ooo_branch_append_dispatch_gate;
     #1;
     check1("mismatched outstanding blocks fallthrough safe",
            branch_fallthrough_append_safe, 1'b0);
-    fetch_rsp_dispatch_bypass = 1'b1;
-    #1;
-    check1("bypass response allows fallthrough safe",
-           branch_fallthrough_append_safe, 1'b1);
-
     reset_inputs();
     branch_prefetch_active = 1'b1;
     branch_prefetch_buffer_valid = 1'b0;
@@ -282,7 +267,6 @@ module tb_ooo_branch_append_dispatch_gate;
     fetch_rsp_valid = 1'b1;
     branch_prefetch_pc = 64'h8000_4000;
     core_branch_resolve_next_pc = 64'h8000_4000;
-    branch_prefetch_hit_available = 1'b1;
     #1;
     check1("branch prefetch buffer dispatch disabled",
            branch_prefetch_dispatch_buffer, 1'b0);
@@ -292,8 +276,6 @@ module tb_ooo_branch_append_dispatch_gate;
            branch_prefetch_dispatch_attempt, 1'b0);
     check1("branch prefetch fire disabled",
            branch_prefetch_dispatch_fire, 1'b0);
-    check1("branch prefetch hit goes to fifo",
-           branch_prefetch_hit_to_fifo, 1'b1);
 
     if (errors == 0) begin
       $display("[PASS] tb_ooo_branch_append_dispatch_gate");

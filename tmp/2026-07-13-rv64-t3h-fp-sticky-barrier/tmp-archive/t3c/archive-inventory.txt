@@ -1,3 +1,0 @@
-t3cd-review-brief.txt
-ysyx-t3c-root-int-build/
-ysyx-t3c-root-int-build/tb_ooo_int_backend.vvp

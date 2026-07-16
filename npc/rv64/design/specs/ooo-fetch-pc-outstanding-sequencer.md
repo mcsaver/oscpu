@@ -8,7 +8,9 @@
 > （csr_trap_target/csr_ret_target/direct_fire_succ 及 E4 fire 家族/capture/
 > core_commit0_next_pc/pending_system_next_pc/ecall/irq/mret/pending_jump_target/
 > pending_mem_next_pc）随之删除。**各臂 outstanding/discard 记账全部保留**（模块仍是
-> outstanding 状态机权威 owner）。保留 PC 写臂 = 顺序推进 + E7(commit_resolve/match_clear,
+> outstanding validity/discard 状态机权威 owner）。T3Z 又删除了重复的 64-bit
+> `outstanding_pc_q`：输出 payload 直接别名到 `OooFetchAxiBridge` active context PC，
+> 仅在 valid=1 时有语义。保留 next-PC 写臂 = 顺序推进 + E7(commit_resolve/match_clear,
 > 半死) + E8(pending_jump, tie-0 死硅) + E9(branch_spec restore, 死)——shadow 排除集，
 > arb 终写与它们同拍仅限 E1 拍，由新增 INV-3c 钉住；INV-2 重写为新写者集 onehot0。
 >
@@ -18,9 +20,9 @@
 
 ## Stage 1 - Requirements
 
-- `OooFetchPcOutstandingSequencer` owns the registered frontend fetch PC state:
-  `next_fetch_pc`, `outstanding_valid`, `outstanding_pc`, and
-  `discard_fetch_rsp`.
+- `OooFetchPcOutstandingSequencer` owns `next_fetch_pc`, `outstanding_valid`,
+  and `discard_fetch_rsp`.  `outstanding_pc_o` is a payload alias of
+  `fetch_req_owner_pc_i`; the Bridge owns its register lifetime.
 - The parent still owns fetch request selection, fetch FIFO storage, packet
   decode, branch/pending predicate generation, CSR/trap side effects, commit
   state, BPU/RAS/BTB tables, and backend drain policy.
@@ -31,15 +33,16 @@
   A precise CSR trap is a late priority clear and redirects `next_fetch_pc` to
   `csr_trap_target_i`.
 - Out of scope: changing branch prediction policy, adding extra fetch credits,
-  changing FIFO seed/clear behavior, or moving pending/trap/commit state.
+  changing FIFO clear behavior, or moving pending/trap/commit state.
 
 ## Stage 2a - Protocol Rules
 
 - The module is a fixed-latency synchronous state owner. It has no backpressure
   and no valid/ready output handshake.
-- A normal fetch request arms one outstanding fetch for `fetch_req_pc_i`; a
+- A normal fetch request arms one outstanding fetch; the payload is the Bridge
+  active owner PC after the same edge. A
   response without a same-cycle request clears the outstanding bit.
-- A response that is enqueued or bypass-consumed advances `next_fetch_pc` to the
+- A response that is enqueued advances `next_fetch_pc` to the
   packet next PC when no new fetch request fires. A new fetch request advances
   `next_fetch_pc` to the request PC.
 - Redirect/recovery events overwrite the normal fetch progress in the same
@@ -55,7 +58,8 @@
   when a redirect/trap invalidates the in-flight request. It clears when that
   stale response fires.
 - Branch/JALR prefetch pending-match events can adopt the prefetch request as
-  the new outstanding fetch instead of discarding it.
+  the new outstanding fetch instead of discarding it, only when the already
+  active Bridge PC equals the adopted prefetch PC and no request/response fires.
 
 ## Stage 2b - State Machine
 
@@ -74,7 +78,8 @@ new request/prefetch as outstanding while an older response is still stale.
   `outstanding_valid_o` is a single bit and is only armed by fetch request or
   prefetch-adopt events.
 - `outstanding_pc_o` is meaningful only when `outstanding_valid_o` is high;
-  all redirect clear paths drive it to zero when no new outstanding is adopted.
+  invalid payload may retain the Bridge's stale active PC and is never required
+  to be zero.
 - `discard_fetch_rsp_o` can only be set by redirect/trap/recovery events that
   invalidate either an old outstanding request or a same-cycle JALR hit/request
   overlap.
@@ -87,11 +92,11 @@ new request/prefetch as outstanding while an older response is still stale.
 
 ## Stage 2d - Datapath Constraints
 
-- Registers: `next_fetch_pc_q`, `outstanding_valid_q`, `outstanding_pc_q`,
-  `discard_fetch_rsp_q`.
+- Registers: `next_fetch_pc_q`, `outstanding_valid_q`, `discard_fetch_rsp_q`.
+  There is no local wide outstanding-PC register.
 - Normal progress mux:
-  - `fetch_rsp_enqueue_i || fetch_rsp_bypass_consumed_i` selects
-    `fetch_rsp_packet_next_pc_i` when no request fires.
+  - `fetch_rsp_enqueue_i` selects `fetch_rsp_packet_next_pc_i` when no request
+    fires；T3V 已物理删除 response-to-dispatch bypass 输入与死 OR。
   - `fetch_req_fire_i` selects `fetch_req_pc_i` and arms outstanding.
 - 【P4】Direct flush 臂只剩记账：`direct_fire_succ`（F2 单源构造，含 fallthrough
   capture 覆写）已上移为 `OooFrontend` 的 e4 构造式（arbiter direct 口输入），本模块
@@ -103,4 +108,3 @@ new request/prefetch as outstanding while an older response is still stale.
 - All muxes are registered at the module clock edge; the module adds no new
   combinational path from a response or branch resolve back into fetch request
   generation beyond the existing registered outputs.
-

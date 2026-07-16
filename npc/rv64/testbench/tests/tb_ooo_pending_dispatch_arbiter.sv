@@ -24,6 +24,7 @@ module tb_ooo_pending_dispatch_arbiter;
   reg direct_branch1_fire;
   reg head_fetch_fault0;
   reg head_fetch_fault1;
+  reg [`XLEN-1:0] head_fetch_fault_tval;
   reg [1:0] head_resp0;
   reg [1:0] head_resp1;
   reg [`XLEN-1:0] head_pc0;
@@ -103,6 +104,7 @@ module tb_ooo_pending_dispatch_arbiter;
     .direct_branch1_fire_i(direct_branch1_fire),
     .head_fetch_fault0_i(head_fetch_fault0),
     .head_fetch_fault1_i(head_fetch_fault1),
+    .head_fetch_fault_tval_i(head_fetch_fault_tval),
     .head_resp0_i(head_resp0),
     .head_resp1_i(head_resp1),
     .head_pc0_i(head_pc0),
@@ -222,6 +224,7 @@ module tb_ooo_pending_dispatch_arbiter;
       direct_branch1_fire = 1'b0;
       head_fetch_fault0 = 1'b0;
       head_fetch_fault1 = 1'b0;
+      head_fetch_fault_tval = 64'h0000_0000_8000_1ffe;
       head_resp0 = 2'b00;
       head_resp1 = 2'b00;
       head_pc0 = 64'h0000_0000_8000_1000;
@@ -271,6 +274,10 @@ module tb_ooo_pending_dispatch_arbiter;
 
     reset_inputs();
     csr_irq_pending = 1'b1;
+    // Non-vacuous T4L priority check: an IRQ arriving over a head FENCE owns
+    // the pending-system capture; the FENCE remains in the FIFO for replay.
+    dispatch0_system = 1'b1;
+    head_inst0 = 32'h0ff0_000f;
     #1;
     tb_check1("irq captures system", pending_system_capture_irq, 1'b1);
     tb_check1("irq blocks head0 system", pending_system_capture_head0, 1'b0);
@@ -286,7 +293,8 @@ module tb_ooo_pending_dispatch_arbiter;
     check_cause("head0 fetch page fault cause",
                 pending_trap_exit_capture_cause, `EXC_INST_PAGE_FAULT);
     check_xlen("head0 fetch fault pc", pending_trap_exit_capture_pc, head_pc0);
-    check_xlen("head0 fetch fault tval", pending_trap_exit_capture_tval, head_pc0);
+    check_xlen("head0 fetch fault tval", pending_trap_exit_capture_tval,
+               head_fetch_fault_tval);
 
     reset_inputs();
     dispatch0_system = 1'b1;
@@ -294,6 +302,26 @@ module tb_ooo_pending_dispatch_arbiter;
     tb_check1("legal head0 system capture", pending_system_capture_head0, 1'b1);
     tb_check1("legal head0 system no arch capture",
               pending_trap_exit_capture_arch_valid, 1'b0);
+
+    reset_inputs();
+    dispatch1_barrier_fire = 1'b1;
+    head1_system_raw = 1'b1;
+    head_inst1 = 32'h0ff0_000f;
+    #1;
+    tb_check1("lane1 fence captures pending system",
+              pending_system_capture_lane1, 1'b1);
+    tb_check1("lane1 fence does not capture head0 system",
+              pending_system_capture_head0, 1'b0);
+
+    reset_inputs();
+    dispatch1_barrier_fire = 1'b1;
+    head1_system_raw = 1'b1;
+    head_inst1 = 32'h0ff0_000f;
+    csr_irq_pending = 1'b1;
+    #1;
+    tb_check1("irq wins over lane1 fence", pending_system_capture_irq, 1'b1);
+    tb_check1("irq blocks lane1 fence capture",
+              pending_system_capture_lane1, 1'b0);
 
     reset_inputs();
     dispatch0_system = 1'b1;
@@ -341,7 +369,9 @@ module tb_ooo_pending_dispatch_arbiter;
     check_cause("lane1 fetch access fault cause",
                 pending_trap_exit_capture_cause, `EXC_INST_ACCESS_FAULT);
     check_xlen("lane1 fetch fault pc", pending_trap_exit_capture_pc, head_pc1);
-    check_xlen("lane1 fetch fault tval", pending_trap_exit_capture_tval, head_pc1);
+    check_xlen("lane1 fetch fault tval", pending_trap_exit_capture_tval,
+               head_fetch_fault_tval);
+    $display("[T4G-PENDING-FETCH-FAULT-TVAL] lane0/lane1 capture preserve common portion frontier");
 
     reset_inputs();
     dispatch_unsupported = 1'b1;
@@ -369,6 +399,30 @@ module tb_ooo_pending_dispatch_arbiter;
     #1;
     tb_check1("direct flush clears system", pending_system_clear, 1'b1);
     tb_check1("direct branch clears exit", pending_trap_exit_clear_exit, 1'b1);
+    tb_check1("direct flush does not capture system irq",
+              pending_system_capture_irq, 1'b0);
+    tb_check1("direct flush does not capture head0 system",
+              pending_system_capture_head0, 1'b0);
+    tb_check1("direct flush does not capture lane1 system",
+              pending_system_capture_lane1, 1'b0);
+    tb_check1("direct flush does not capture exit",
+              pending_trap_exit_capture_exit, 1'b0);
+    tb_check1("direct flush does not capture arch",
+              pending_trap_exit_capture_arch, 1'b0);
+
+    // 合法 direct JAL0 的分类反例：capture_base 不再读取 direct flush，
+    // 互斥必须由 slot facts/dispatch owner 本身成立。
+    reset_inputs();
+    direct_frontend_flush = 1'b1;
+    dispatch0_jal = 1'b1;
+    direct_jal0_dispatch_valid = 1'b1;
+    #1;
+    tb_check1("direct jal0 no system capture",
+              pending_system_capture_head0, 1'b0);
+    tb_check1("direct jal0 no exit capture",
+              pending_trap_exit_capture_exit, 1'b0);
+    tb_check1("direct jal0 no arch capture",
+              pending_trap_exit_capture_arch, 1'b0);
 
     reset_inputs();
     pending_jump_resolve_ready = 1'b1;

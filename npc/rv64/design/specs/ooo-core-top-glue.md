@@ -30,6 +30,8 @@
 
 - `OooCoreTopGlue` 不包含 `always` 状态块；新增功能状态必须落到职责目录的
   sequencer/register owner 中。
+- T3Z active fetch-owner PC 由 `NpcCoreTop.u_ooo_fetch_bridge` 持有，Glue 只做
+  `NpcCoreTop -> OooFrontend` 端口透传；不得在 Glue 或 Frontend 再造 64-bit owner 状态。
 - `OooCoreTopGlue` 可以保留跨子系统 wire、实例参数和端口转接；顶层只保留少量
   聚合级连续赋值（当前 4 个 `assign`：`csr_cycle_count_enable_w` 与 FP
   fflags/dirty commit 聚合，另有 `dispatch0_facts_w` packing 等 `wire =` 赋值），
@@ -43,6 +45,9 @@
 - direct JAL/return、predictor update、CSR illegal lane 归属、synthetic lane1 retire
   和 core slice commit/flush 准入都必须由职责目录 owner 输出，不能在 core glue
   重新拼布尔公式。
+- IFU fetch fault 的 xEPC 与 xTVAL 是两条独立 payload：frontend 提供 slot PC
+  与 packet-level `head_fetch_fault_tval_w`，glue 只把二者透传到 control plane；
+  禁止在装配层把 xTVAL alias 为 `head_pc_w/head_pc1_w`。
 - 子模块不得绕过 core glue 直接提交架构事件；commit/trap/exit 输出仍通过既有
   writeback/control mux 和 sequencer 形成。
 - 后续新增 helper 必须有同名源文件、filelist 条目和 focused 或父模块回归覆盖。

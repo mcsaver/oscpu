@@ -16,6 +16,8 @@ module tb_ooo_fetch_axi_bridge_xbar;
   reg clk;
   reg rst;
   reg mmu_flush;
+  reg fetch_req_valid;
+  reg [`XLEN-1:0] fetch_req_pc;
 
   wire ifu_arvalid;
   wire ifu_arready;
@@ -89,6 +91,7 @@ module tb_ooo_fetch_axi_bridge_xbar;
   reg [S_COUNT*2-1:0] s_bresp;
 
   wire fetch_req_ready_unused;
+  wire [`XLEN-1:0] fetch_req_owner_pc;
   wire fetch_rsp_valid_unused;
   wire [`INST_W-1:0] fetch_rsp_inst0_unused;
   wire [1:0] fetch_rsp_resp0_unused;
@@ -119,9 +122,10 @@ module tb_ooo_fetch_axi_bridge_xbar;
     .svpbmt_en_i(1'b0),
     .pmpcfg_i({`PMP_CFG_BUS_W{1'b0}}),
     .pmpaddr_i({`PMP_ADDR_BUS_W{1'b0}}),
-    .fetch_req_valid_i(1'b0),
+    .fetch_req_valid_i(fetch_req_valid),
     .fetch_req_ready_o(fetch_req_ready_unused),
-    .fetch_req_pc_i({`XLEN{1'b0}}),
+    .fetch_req_pc_i(fetch_req_pc),
+    .fetch_req_owner_pc_o(fetch_req_owner_pc),
     .fetch_rsp_valid_o(fetch_rsp_valid_unused),
     .fetch_rsp_ready_i(1'b0),
     .fetch_rsp_inst0_o(fetch_rsp_inst0_unused),
@@ -249,6 +253,8 @@ module tb_ooo_fetch_axi_bridge_xbar;
     clk = 1'b0;
     rst = 1'b1;
     mmu_flush = 1'b0;
+    fetch_req_valid = 1'b0;
+    fetch_req_pc = {`XLEN{1'b0}};
     lsu_awvalid = 1'b0;
     lsu_awaddr = LSU_ADDR;
     lsu_wvalid = 1'b0;
@@ -267,19 +273,33 @@ module tb_ooo_fetch_axi_bridge_xbar;
     rst = 1'b0;
     tick();
 
-    // 自然 walk→A=0 已由 bridge TB 覆盖；这里投影到 write owner，专测互连生命周期。
+    // 自然 walk→A=0 已由 bridge TB 覆盖；先经真实 request fire 建立 T4A
+    // immutable-context owner，再投影到 write owner 专测互连生命周期。
+    // T4A 的 AWADDR 来自 S_WALK_CHECK 原子捕获的 registered PTE 地址，
+    // 因而直接种入该边界产物，不能再依赖 live walk_ppn 组合重建。
+    @(negedge clk);
+    fetch_req_pc = 64'h0000_0000_0000_4000;
+    fetch_req_valid = 1'b1;
+    #1;
+    tb_check1("IFU context seed request ready", fetch_req_ready_unused, 1'b1);
+    tick();
+    fetch_req_valid = 1'b0;
+    tick();
+    tick();
     @(negedge clk);
     u_bridge.state_q = S_AD_UPDATE_TB;
     u_bridge.walk_second_q = 1'b0;
     u_bridge.walk_level_q = 2'd0;
     u_bridge.walk_ppn_q = 44'h0000_081002;
-    u_bridge.pc_q = 64'h0000_0000_0000_4000;
+    u_bridge.walk_pte_addr_q = PTE_ADDR;
     u_bridge.ad_pte_q = PTE_DATA;
     u_bridge.aw_done_q = 1'b0;
     u_bridge.w_done_q = 1'b0;
     #1;
     tb_check1("IFU bridge presents AW", ifu_awvalid, 1'b1);
     tb_check1("IFU bridge presents W", ifu_wvalid, 1'b1);
+    tb_check64_local("IFU bridge active owner PC", fetch_req_owner_pc,
+                     64'h0000_0000_0000_4000);
     tb_check64_local("IFU PTE address", ifu_awaddr, PTE_ADDR);
 
     // master-side capture -> slave grant -> slave AW/W fire，之后故意延迟 B。

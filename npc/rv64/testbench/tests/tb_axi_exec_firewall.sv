@@ -48,6 +48,7 @@ module tb_axi_exec_firewall;
   wire [S_COUNT-1:0] s_rready;
   wire [S_COUNT-1:0] s_awvalid;
   wire [S_COUNT*ADDR_W-1:0] s_awaddr;
+  wire [S_COUNT*3-1:0] s_awsize;
   wire [S_COUNT-1:0] s_wvalid;
   wire [S_COUNT*DATA_W-1:0] s_wdata;
   wire [S_COUNT*STRB_W-1:0] s_wstrb;
@@ -153,6 +154,7 @@ module tb_axi_exec_firewall;
     .s_awvalid_o(s_awvalid),
     .s_awready_i(s_awready),
     .s_awaddr_o(s_awaddr),
+    .s_awsize_o(s_awsize),
     .s_wvalid_o(s_wvalid),
     .s_wready_i(s_wready),
     .s_wdata_o(s_wdata),
@@ -172,6 +174,7 @@ module tb_axi_exec_firewall;
     .s_axi_arvalid_i(s_arvalid[S_UART]),
     .s_axi_arready_o(uart_arready),
     .s_axi_araddr_i(s_araddr[S_UART*ADDR_W +: ADDR_W]),
+    .s_axi_arsize_i(s_arsize[S_UART*3 +: 3]),
     .s_axi_rvalid_o(uart_rvalid),
     .s_axi_rready_i(s_rready[S_UART]),
     .s_axi_rdata_o(uart_rdata),
@@ -179,6 +182,7 @@ module tb_axi_exec_firewall;
     .s_axi_awvalid_i(s_awvalid[S_UART]),
     .s_axi_awready_o(uart_awready),
     .s_axi_awaddr_i(s_awaddr[S_UART*ADDR_W +: ADDR_W]),
+    .s_axi_awsize_i(s_awsize[S_UART*3 +: 3]),
     .s_axi_wvalid_i(s_wvalid[S_UART]),
     .s_axi_wready_o(uart_wready),
     .s_axi_wdata_i(s_wdata[S_UART*DATA_W +: DATA_W]),

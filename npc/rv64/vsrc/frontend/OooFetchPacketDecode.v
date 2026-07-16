@@ -28,11 +28,13 @@ module OooFetchPacketDecode (
   // 32b B-type)。bimm 供 resp 拍 BPU lookup 的静态兜底(imm 符号位); 非分支 slot
   // gate 为 0(=静态 not-taken 安全值, 消费端本就有 branch 谓词门, don't-care)。
   output dec0_branch_o,
-  output [`XLEN-1:0] dec0_bimm_o,
+  output [12:0] dec0_bimm_o,
   output dec1_branch_o,
-  output [`XLEN-1:0] dec1_bimm_o,
+  output [12:0] dec1_bimm_o,
 
-  output [`XLEN-1:0] packet_next_pc_o
+  output [`XLEN-1:0] packet_next_pc_o,
+  // 首个失败 fetch portion 的精确地址；下游以同一 packet owner 同时保存。
+  output [`XLEN-1:0] fault_tval_o
 );
 
   localparam [1:0] RESP_OK = 2'b00;
@@ -136,17 +138,19 @@ module OooFetchPacketDecode (
       (dec1_inst_o[6:0] == `OPCODE_JALR) ||
       (dec1_inst_o[6:0] == `OPCODE_SYSTEM);
 
-  // 【B2 S1】B-imm 位域与 ImmGen `IMM_TYPE_B 完全同式(分支时 dec*_bimm ≡ DecodeStage
-  // head imm), 保证 BPU lookup 从 head 拍迁到 resp 拍后 imm 输入逐位一致。
+  // T3L: B-imm stays in its raw 13-bit form across the module boundary. The
+  // predictor consumes bit 12; OooFetchBranchTarget owns RV64 page correction.
   assign dec0_branch_o = (dec0_inst_o[6:0] == `OPCODE_BRANCH);
   assign dec0_bimm_o = dec0_branch_o ?
-      {{(`XLEN-13){dec0_inst_o[31]}}, dec0_inst_o[31], dec0_inst_o[7],
-       dec0_inst_o[30:25], dec0_inst_o[11:8], 1'b0} : {`XLEN{1'b0}};
+      {dec0_inst_o[31], dec0_inst_o[7], dec0_inst_o[30:25],
+       dec0_inst_o[11:8], 1'b0} : 13'b0;
   assign dec1_branch_o = (dec1_inst_o[6:0] == `OPCODE_BRANCH);
   assign dec1_bimm_o = dec1_branch_o ?
-      {{(`XLEN-13){dec1_inst_o[31]}}, dec1_inst_o[31], dec1_inst_o[7],
-       dec1_inst_o[30:25], dec1_inst_o[11:8], 1'b0} : {`XLEN{1'b0}};
+      {dec1_inst_o[31], dec1_inst_o[7], dec1_inst_o[30:25],
+       dec1_inst_o[11:8], 1'b0} : 13'b0;
 
   assign packet_next_pc_o = dec1_next_pc_o;
+  assign fault_tval_o =
+      rsp_pc_i + {{(`XLEN-3){1'b0}}, rsp_resp0_bytes_i};
 
 endmodule

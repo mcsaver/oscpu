@@ -176,6 +176,19 @@ clear_loop:
   li t1, 1
   sh t1, 2(t0)
   fence rw, rw
+
+  // Deliberately make representative fields from each device-written region
+  // resident in DCache before the notify.  A virtio backend that updates PMEM
+  // without completing the DMA/cache-coherence contract must not be allowed
+  // to pass this smoke through cold misses after the device has written them.
+  li t2, VIRTIO_STATUS_ADDR
+  lbu t4, 0(t2)
+  li t2, VIRTIO_USED_ADDR
+  lhu t4, 2(t2)
+  li t2, VIRTIO_DATA_ADDR
+  lhu t4, 0x38(t2)
+  fence rw, rw
+
   sw zero, REG_QUEUE_NOTIFY(s0)
   fence rw, rw
 

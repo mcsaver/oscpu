@@ -1,0 +1,14 @@
+[TEST] tb_ooo_fp_legality_dispatch_path
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_ooo_fp_legality_dispatch_path -o build-t3z-request-mux-v1/tb_ooo_fp_legality_dispatch_path.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/DecodeUnit.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/OooFpDecode.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchHeadClassifyGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchStaticClassify.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v tests/tb_ooo_fp_legality_dispatch_path.sv
+warning: Some design elements have no explicit time unit and/or
+       : time precision. This may cause confusing timing results.
+       : Affected design elements are:
+       :   -- module DecodeUnit declared here: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/DecodeUnit.v:3
+       :   -- module OooFetchHeadClassifyGate declared here: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchHeadClassifyGate.v:5
+       :   -- module OooFetchStaticClassify declared here: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchStaticClassify.v:7
+       :   -- module OooFpDecode declared here: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/OooFpDecode.v:3
+       :   -- module OooFrontendDispatchGate declared here: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v:3
+       :   -- compilation unit
+[PASS] tb_ooo_fp_legality_dispatch_path
+common/tb_common.svh:32: $finish called at 6000 (1ps)
+[RESULT] PASS

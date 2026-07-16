@@ -137,3 +137,5 @@ dispatch+wake collision 在 N 沿直接写入 sticky，entry 最早仍从 N+1 �
   wake/select/PRF bypass→ALU/ROB/redirect→Fetch SRAM `en_i`，最差 `-10.097 ns`。
   下一轮必须优先切 integer EX 同拍快广播长链，再按 fresh residual 决定是否加入
   FP issue/preg elastic stage；不得用 false path 掩盖。
+- 后续 T3M 已执行上述下一步并删除 integer EX fast ABI；本节数值是 T3H checkpoint
+  的历史裁决，当前整数边界见 `ooo-ex-sticky-wakeup-barrier.md`。

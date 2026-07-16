@@ -22,6 +22,9 @@ module tb_ooo_fetch_head_pair_gate;
   wire head_fetch_fault0;
   wire head_fetch_fault1;
   wire head_fetch_fault;
+  wire [`OOO_SLOT_STATIC_FACTS_W-1:0] head_static_facts0;
+  wire [`OOO_SLOT_STATIC_FACTS_W-1:0] head_static_facts1;
+  reg [`OOO_SLOT_STATIC_FACTS_W-1:0] static_snapshot;
 
   wire head0_illegal_raw;
   wire head0_branch_raw;
@@ -123,14 +126,30 @@ module tb_ooo_fetch_head_pair_gate;
 
   localparam [`INST_W-1:0] INST_ADDI = 32'h0000_0093;
   localparam [`INST_W-1:0] INST_FADD_S = 32'h0020_80d3;
+  localparam [`INST_W-1:0] INST_FADD_S_DYN = 32'h0020_f0d3;
+  localparam [`INST_W-1:0] INST_FENCE = 32'h0ff0_000f;
+
+  OooFetchStaticClassify static0 (
+    .inst_i(head_inst0),
+    .semihost_peer_inst_i(head_inst1),
+    .semihost_peer_is_enter_i(1'b0),
+    .static_facts_o(head_static_facts0)
+  );
+
+  OooFetchStaticClassify static1 (
+    .inst_i(head_inst1),
+    .semihost_peer_inst_i(head_inst0),
+    .semihost_peer_is_enter_i(1'b1),
+    .static_facts_o(head_static_facts1)
+  );
 
   OooFetchHeadPairGate dut (
     .fifo_has_packet_i(fifo_has_packet),
     .head_slot1_valid_i(head_slot1_valid),
     .head_resp0_i(head_resp0),
     .head_resp1_i(head_resp1),
-    .head_inst0_i(head_inst0),
-    .head_inst1_i(head_inst1),
+    .head_static_facts0_i(head_static_facts0),
+    .head_static_facts1_i(head_static_facts1),
     .head0_ctrl_i(head0_ctrl),
     .head1_ctrl_i(head1_ctrl),
     .priv_mode_i(priv_mode),
@@ -313,6 +332,24 @@ module tb_ooo_fetch_head_pair_gate;
     tb_check1("dual alu head1 facts stop", head1_facts[`OOO_SLOT_FACT_STOP],
               head1_stop_raw);
 
+    // T4L dual-lane boundary: lane0 ordinary + lane1 FENCE must preserve the
+    // lane0 dispatch opportunity while exposing lane1 as a system barrier.
+    reset_inputs();
+    head_inst1 = INST_FENCE;
+    set_ctrl1_bit(`CTRL_FENCE_BIT, 1'b1);
+    set_ctrl1_bit(`CTRL_MISC_MEM_BIT, 1'b1);
+    #1;
+    tb_check1("lane1 fence classified system", head1_system_raw, 1'b1);
+    tb_check1("lane1 fence classified stop", head1_stop_raw, 1'b1);
+    tb_check1("lane1 fence system fact",
+              head1_facts[`OOO_SLOT_FACT_SYSTEM], 1'b1);
+    tb_check1("lane1 fence stop fact",
+              head1_facts[`OOO_SLOT_FACT_STOP], 1'b1);
+    tb_check1("lane1 fence does not turn lane0 into system",
+              dispatch0_system, 1'b0);
+    tb_check1("lane1 fence packet keeps lane0 dispatch eligible",
+              dispatch_valid, 1'b1);
+
     reset_inputs();
     set_ctrl0_bit(`CTRL_BRANCH_BIT, 1'b1);
     set_ctrl1_bit(`CTRL_BRANCH_BIT, 1'b1);
@@ -426,6 +463,34 @@ module tb_ooo_fetch_head_pair_gate;
     tb_check1("fs off fp arch trap", head0_arch_trap_raw, 1'b1);
     tb_check1("fs off fp no dispatch0 fp", dispatch0_fp, 1'b0);
     tb_check1("fs off fp dispatch0 arch trap", dispatch0_arch_trap, 1'b1);
+
+    // T3W: the FIFO-owned static pack stays unchanged while committed head
+    // state is re-evaluated.  DYN frm legality must therefore change only the
+    // dynamic 42-bit result, never the stored instruction facts.
+    reset_inputs();
+    head_inst0 = INST_FADD_S_DYN;
+    set_ctrl0_bit(`CTRL_ILLEGAL_BIT, 1'b1);
+    frm = 3'b010;
+    #1;
+    static_snapshot = head_static_facts0;
+    tb_check1("held DYN with legal frm enabled", head0_fp_enabled, 1'b1);
+    frm = 3'b101;
+    #1;
+    if (head_static_facts0 !== static_snapshot) begin
+      tb_errors = tb_errors + 1;
+      $display("[CHECK-FAIL] head-time frm changed stored static facts");
+    end
+    tb_check1("held DYN with reserved frm illegal", head0_illegal_raw, 1'b1);
+    tb_check1("held DYN with reserved frm disabled", head0_fp_enabled, 1'b0);
+    frm = 3'b000;
+    mstatus = {`XLEN{1'b0}};
+    #1;
+    if (head_static_facts0 !== static_snapshot) begin
+      tb_errors = tb_errors + 1;
+      $display("[CHECK-FAIL] head-time FS changed stored static facts");
+    end
+    tb_check1("held DYN with FS off classified disabled", head0_fp_disabled,
+              1'b1);
 
     tb_finish("tb_ooo_fetch_head_pair_gate");
   end

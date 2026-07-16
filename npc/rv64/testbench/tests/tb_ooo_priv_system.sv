@@ -15,6 +15,7 @@ module tb_ooo_priv_system;
   wire fetch_req_valid;
   reg fetch_req_ready;
   wire [`XLEN-1:0] fetch_req_pc;
+  reg [`XLEN-1:0] fetch_req_owner_pc;
   reg fetch_rsp_valid;
   wire fetch_rsp_ready;
   reg [`INST_W-1:0] fetch_rsp_inst0;
@@ -25,6 +26,9 @@ module tb_ooo_priv_system;
   wire mem_req_valid;
   reg mem_req_ready;
   wire mem_req_write;
+  wire mem_req_probe;
+  wire mem_req_pretrans;
+  wire mem_req_nokill;
   wire [`XLEN-1:0] mem_req_addr;
   wire [`XLEN-1:0] mem_req_wdata;
   wire [`STRB_W-1:0] mem_req_wstrb;
@@ -77,6 +81,7 @@ module tb_ooo_priv_system;
   localparam [3:0] MODE_S_EXT_IRQ = 4'd4;
   localparam [3:0] MODE_MRET_S_ILLEGAL = 4'd5;
   localparam [3:0] MODE_SRET_U_ILLEGAL = 4'd6;
+  localparam [3:0] MODE_FENCE_ORDERING = 4'd7;
   localparam [`XLEN-1:0] BASE_PC = 64'h0000_0000_8000_0000;
   localparam [`XLEN-1:0] HANDLER_PC = 64'h0000_0000_8000_0080;
   localparam [`XLEN-1:0] S_ENTRY_PC = 64'h0000_0000_8000_0040;
@@ -99,6 +104,16 @@ module tb_ooo_priv_system;
   reg saw_illegal_xret_csr_request;
   reg [31:0] t3k_lane1_candidate_count;
   reg [31:0] t3k_lane1_match_count;
+  reg [31:0] fence_commit_count;
+  reg [31:0] fence_store_probe_count;
+  reg [31:0] fence_store_drain_count;
+  reg [31:0] fence_device_read_count;
+  integer fence_mem_ready_hold_count;
+  reg saw_fence_lane1_capture;
+  reg saw_fence_drain_wait;
+  reg fence_retired_before_store_drain;
+  reg device_read_before_store_drain;
+  reg device_read_before_fence_retire;
 
   wire [`XLEN-1:0] tb_csr_time_w = 64'd1234;
   wire tb_csr_irq_software_w = irq_software;
@@ -115,6 +130,7 @@ module tb_ooo_priv_system;
     .fetch_req_valid_o(fetch_req_valid),
     .fetch_req_ready_i(fetch_req_ready),
     .fetch_req_pc_o(fetch_req_pc),
+    .fetch_req_owner_pc_i(fetch_req_owner_pc),
     .fetch_rsp_valid_i(fetch_rsp_valid),
     .fetch_rsp_ready_o(fetch_rsp_ready),
     .fetch_rsp_inst0_i(fetch_rsp_inst0),
@@ -125,6 +141,9 @@ module tb_ooo_priv_system;
     .mem_req_valid_o(mem_req_valid),
     .mem_req_ready_i(mem_req_ready),
     .mem_req_write_o(mem_req_write),
+    .mem_req_probe_o(mem_req_probe),
+    .mem_req_pretrans_o(mem_req_pretrans),
+    .mem_req_nokill_o(mem_req_nokill),
     .mem_req_addr_o(mem_req_addr),
     .mem_req_wdata_o(mem_req_wdata),
     .mem_req_wstrb_o(mem_req_wstrb),
@@ -133,6 +152,7 @@ module tb_ooo_priv_system;
     .mem_rsp_rdata_i(mem_rsp_rdata),
     .mem_rsp_error_i(mem_rsp_error),
     .mem_rsp_page_fault_i(1'b0),
+    .mem_translate_active_i(1'b0),
     .mem_flush_o(mem_flush),
     .mmu_flush_o(),
     `TB_OOO_CORE_TOP_GLUE_CSR_PORTS
@@ -284,6 +304,31 @@ module tb_ooo_priv_system;
   function [`INST_W-1:0] inst_wfi;
     begin
       inst_wfi = 32'h1050_0073;
+    end
+  endfunction
+
+  function [`INST_W-1:0] inst_fence;
+    begin
+      // fm=0, pred=RW, succ=RW, rs1=rd=0.
+      inst_fence = 32'h0ff0_000f;
+    end
+  endfunction
+
+  function [`INST_W-1:0] inst_sd;
+    input [4:0] rs2;
+    input [4:0] rs1;
+    input [11:0] imm;
+    begin
+      inst_sd = rv32_s(imm, rs2, rs1, `FUNCT3_SD);
+    end
+  endfunction
+
+  function [`INST_W-1:0] inst_lw;
+    input [4:0] rd;
+    input [4:0] rs1;
+    input [11:0] imm;
+    begin
+      inst_lw = rv32_i(imm, rs1, `FUNCT3_LW, rd, `OPCODE_LOAD);
     end
   endfunction
 
@@ -484,6 +529,21 @@ module tb_ooo_priv_system;
             default: begin end
           endcase
         end
+        MODE_FENCE_ORDERING: begin
+          case (addr)
+            // +08/+0c is the decisive dual-lane packet: an older store in
+            // lane0 and FENCE in lane1.  +14 is a younger side-effecting
+            // device read that must not reach the memory bridge early.
+            BASE_PC + 64'h00: program_word = inst_auipc(5'd1, 20'h00000);
+            BASE_PC + 64'h04: program_word = inst_addi(5'd3, 5'd0, 12'h035);
+            BASE_PC + 64'h08: program_word = inst_sd(5'd3, 5'd1, 12'h000);
+            BASE_PC + 64'h0c: program_word = inst_fence();
+            BASE_PC + 64'h10: program_word = inst_lui(5'd2, 20'h10000);
+            BASE_PC + 64'h14: program_word = inst_lw(5'd4, 5'd2, 12'h000);
+            BASE_PC + 64'h18: program_word = inst_ebreak();
+            default: begin end
+          endcase
+        end
         default: begin end
       endcase
     end
@@ -527,6 +587,16 @@ module tb_ooo_priv_system;
       saw_illegal_xret_csr_request = 1'b0;
       t3k_lane1_candidate_count = 32'd0;
       t3k_lane1_match_count = 32'd0;
+      fence_commit_count = 32'd0;
+      fence_store_probe_count = 32'd0;
+      fence_store_drain_count = 32'd0;
+      fence_device_read_count = 32'd0;
+      fence_mem_ready_hold_count = 0;
+      saw_fence_lane1_capture = 1'b0;
+      saw_fence_drain_wait = 1'b0;
+      fence_retired_before_store_drain = 1'b0;
+      device_read_before_store_drain = 1'b0;
+      device_read_before_fence_retire = 1'b0;
       `TB_TICK(clk);
       rst = 1'b0;
       #1;
@@ -550,6 +620,7 @@ module tb_ooo_priv_system;
 
   always @(posedge clk) begin
     if (rst || flush) begin
+      fetch_req_owner_pc <= {`XLEN{1'b0}};
       fetch_rsp_valid <= 1'b0;
       fetch_rsp_inst0 <= {`INST_W{1'b0}};
       fetch_rsp_inst1 <= {`INST_W{1'b0}};
@@ -560,6 +631,7 @@ module tb_ooo_priv_system;
         fetch_rsp_valid <= 1'b0;
       end
       if (fetch_req_valid && fetch_req_ready) begin
+        fetch_req_owner_pc <= fetch_req_pc;
         fetch_rsp_valid <= 1'b1;
         fetch_rsp_inst0 <= program_word(fetch_req_pc);
         fetch_rsp_inst1 <= program_word(fetch_req_pc + 64'd4);
@@ -584,6 +656,31 @@ module tb_ooo_priv_system;
 
   always @(posedge clk) begin
     if (rst || flush) begin
+      mem_req_ready <= 1'b1;
+      fence_mem_ready_hold_count <= 0;
+    end else if (program_mode == MODE_FENCE_ORDERING) begin
+      // After the store translation probe is accepted, close the shared
+      // request port long enough for a broken backend-no-op FENCE and its
+      // younger device load to become contenders.  When the port reopens,
+      // the architectural ordering contract requires the SQ drain to win.
+      if (mem_req_valid && mem_req_ready && mem_req_probe &&
+          (mem_req_addr == BASE_PC)) begin
+        mem_req_ready <= 1'b0;
+        fence_mem_ready_hold_count <= 40;
+      end else if (fence_mem_ready_hold_count > 0) begin
+        fence_mem_ready_hold_count <= fence_mem_ready_hold_count - 1;
+        if (fence_mem_ready_hold_count == 1) begin
+          mem_req_ready <= 1'b1;
+        end
+      end
+    end else begin
+      mem_req_ready <= 1'b1;
+      fence_mem_ready_hold_count <= 0;
+    end
+  end
+
+  always @(posedge clk) begin
+    if (rst || flush) begin
       mem_rsp_valid <= 1'b0;
       mem_rsp_rdata <= {`XLEN{1'b0}};
       mem_rsp_error <= 1'b0;
@@ -591,7 +688,11 @@ module tb_ooo_priv_system;
       if (mem_rsp_valid && mem_rsp_ready) mem_rsp_valid <= 1'b0;
       if (mem_req_valid && mem_req_ready) begin
         mem_rsp_valid <= 1'b1;
-        mem_rsp_rdata <= {`XLEN{1'b0}};
+        // Store probes return the translated PA; ordinary reads get a stable
+        // data signature so the younger device load can be checked end-to-end.
+        mem_rsp_rdata <= mem_req_probe ? mem_req_addr :
+                         (!mem_req_write ? 64'h0000_0000_1234_5678 :
+                                           {`XLEN{1'b0}});
         mem_rsp_error <= 1'b0;
       end
     end
@@ -625,10 +726,64 @@ module tb_ooo_priv_system;
   always @(posedge clk) begin
     if (rst) begin
       commit_total <= 0;
+      fence_commit_count <= 32'd0;
+      fence_store_probe_count <= 32'd0;
+      fence_store_drain_count <= 32'd0;
+      fence_device_read_count <= 32'd0;
+      saw_fence_lane1_capture <= 1'b0;
+      saw_fence_drain_wait <= 1'b0;
+      fence_retired_before_store_drain <= 1'b0;
+      device_read_before_store_drain <= 1'b0;
+      device_read_before_fence_retire <= 1'b0;
     end else begin
       commit_total <= commit_total + commit0_valid + commit1_valid;
       observe_commit(commit0_valid, commit0_pc, commit0_inst);
       observe_commit(commit1_valid, commit1_pc, commit1_inst);
+      if (program_mode == MODE_FENCE_ORDERING) begin
+        if ((commit0_valid && (commit0_inst == inst_fence())) ||
+            (commit1_valid && (commit1_inst == inst_fence()))) begin
+          fence_commit_count <= fence_commit_count +
+              (commit0_valid && (commit0_inst == inst_fence())) +
+              (commit1_valid && (commit1_inst == inst_fence()));
+          if (fence_store_drain_count == 32'd0) begin
+            fence_retired_before_store_drain <= 1'b1;
+          end
+        end
+
+        if (mem_req_valid && mem_req_ready && mem_req_probe &&
+            (mem_req_addr == BASE_PC)) begin
+          fence_store_probe_count <= fence_store_probe_count + 32'd1;
+        end
+        if (mem_req_valid && mem_req_ready && mem_req_write &&
+            mem_req_pretrans && mem_req_nokill &&
+            (mem_req_addr == BASE_PC)) begin
+          fence_store_drain_count <= fence_store_drain_count + 32'd1;
+        end
+        if (mem_req_valid && mem_req_ready && !mem_req_write &&
+            !mem_req_probe && !mem_req_pretrans &&
+            (mem_req_addr == 64'h0000_0000_1000_0000)) begin
+          fence_device_read_count <= fence_device_read_count + 32'd1;
+          if (fence_store_drain_count == 32'd0) begin
+            device_read_before_store_drain <= 1'b1;
+          end
+          if (fence_commit_count == 32'd0) begin
+            device_read_before_fence_retire <= 1'b1;
+          end
+        end
+
+        if (dut.dispatch1_barrier_fire_w &&
+            dut.pending_system_capture_lane1_w &&
+            (dut.head_pc_w == (BASE_PC + 64'h08)) &&
+            (dut.head_pc1_w == (BASE_PC + 64'h0c)) &&
+            (dut.head_inst1_w == inst_fence())) begin
+          saw_fence_lane1_capture <= 1'b1;
+        end
+        if (dut.pending_system_q &&
+            (dut.pending_system_inst_q == inst_fence()) &&
+            !dut.core_mem_idle_w && !dut.drain_complete_w) begin
+          saw_fence_drain_wait <= 1'b1;
+        end
+      end
       // MODE_ECALL_MRET 的 0x08/0x0c 包是真实 decode/classify 链产生的
       // lane0 ADDI + lane1 CSRRW。candidate 钉住真实 barrier fire；match 再要求
       // pending capture 与 head-only probe 同拍命中，exact-one 可抓缺失或重复消费。
@@ -803,11 +958,40 @@ module tb_ooo_priv_system;
     tb_check64("u-mode lane1 sret returns after fault", gpr(5'd7), 64'h75);
     tb_check32("u-mode lane1 sret backend drained", {27'b0, rob_count}, 32'd0);
 
+    reset_dut(MODE_FENCE_ORDERING);
+    run_until_exit(1000);
+    tb_check1("fence ordering reaches ebreak exit", exit_valid, 1'b1);
+    tb_check1("fence ordering exits via ebreak", exit_is_ebreak, 1'b1);
+    tb_check1("fence ordering no fatal trap", trap_valid, 1'b0);
+    tb_check1("store/fence dual-lane capture observed",
+              saw_fence_lane1_capture, 1'b1);
+    tb_check1("fence waits while memory system is not idle",
+              saw_fence_drain_wait, 1'b1);
+    tb_check32("ordinary fence retires exactly once",
+               fence_commit_count, 32'd1);
+    tb_check32("older store probes exactly once",
+               fence_store_probe_count, 32'd1);
+    tb_check32("older store drains exactly once",
+               fence_store_drain_count, 32'd1);
+    tb_check32("younger device read issues exactly once",
+               fence_device_read_count, 32'd1);
+    tb_check1("fence cannot retire before older store drain",
+              fence_retired_before_store_drain, 1'b0);
+    tb_check1("younger device read cannot overtake store drain",
+              device_read_before_store_drain, 1'b0);
+    tb_check1("younger device read waits for fence retirement",
+              device_read_before_fence_retire, 1'b0);
+    tb_check64("younger device read returns expected data",
+               gpr(5'd4), 64'h0000_0000_1234_5678);
+    tb_check32("fence ordering backend drained after ebreak",
+               {27'b0, rob_count}, 32'd0);
+
     tb_finish("tb_ooo_priv_system");
   end
 
   wire unused_observe_w =
       mem_req_write | (|mem_req_addr) | (|mem_req_wdata) |
+      mem_req_probe | mem_req_pretrans | mem_req_nokill |
       (|mem_req_wstrb) |
       commit0_rd_en | (|commit0_rd_addr) | (|commit0_rd_data) |
       commit0_exception | commit0_write | (|commit0_next_pc) |

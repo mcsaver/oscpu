@@ -1,9 +1,7 @@
 # OooFetchFlowControl Boundary Spec
 
-> ⚠️ **状态(2026-07-03 RTL 重读)**：模块本体存活；但 dispatch-bypass 相关输出
-> （`fetch_rsp_bypass_consumed_o` 及各式 bypass 分流）在 `OOO_ROB_WALK_MODE=1'b1`（默认）下
-> 因 `fetch_rsp_dispatch_bypass_i` 恒 0 而为配置性死路（`OooFrontendRunGate.v:62-70`）；
-> 拆除计划见 `../arch/ooo-core-architecture.md` §8.3。下文保留其设计语义描述。
+> **T3V 状态**：原 dispatch-bypass 在生产配置结构性不可达，但保层级综合仍保留其 mux。
+> 现已从 RunGate、FlowControl 与 HeadMux 物理删除；response 只可 enqueue、drop 或 direct-drop。
 
 ## 1. Requirement
 
@@ -15,7 +13,7 @@ from PC sequencing, outstanding response tracking and redirect recovery state.
 
 - decide whether a fetch request is valid;
 - decide whether a fetch response is ready;
-- derive response fire, enqueue, bypass-consumed and FIFO-storage pop;
+- derive response fire, enqueue and FIFO-storage pop;
 - report whether a normal sequential request may issue.
 
 The parent keeps ownership of all state: `next_fetch_pc_q`,
@@ -31,7 +29,7 @@ Inputs are already-decoded predicates from the parent:
 - request blockers: trap/serial flush, stop-head, response-control-stop,
   discard flag and FIFO reserve;
 - response conditions: response valid, outstanding present, FIFO count/depth,
-  FIFO pop, dispatch bypass, direct frontend flush, drop conditions.
+  FIFO pop, direct frontend flush, drop conditions.
 
 Outputs:
 
@@ -40,8 +38,7 @@ Outputs:
 - `can_issue_request_o`;
 - `fifo_storage_pop_o`, `fifo_can_accept_rsp_o`;
 - `fetch_rsp_can_enqueue_o`, `fetch_rsp_can_drop_o`;
-- `direct_fetch_drop_o`, `fetch_rsp_bypass_consumed_o`,
-  `fetch_rsp_enqueue_o`.
+- `direct_fetch_drop_o`, `fetch_rsp_enqueue_o`.
 
 The module does not select `fetch_req_pc_o`, does not update `next_fetch_pc`,
 does not modify outstanding/discard state, and does not inspect instruction
@@ -60,17 +57,18 @@ Combinational ordering mirrors the old equations:
    no outstanding response or a same-cycle response fire.
 3. Request valid is true when trap/serial blockers are clear and any request
    source is active: redirect, branch prefetch or normal issue.
-4. Response ready is true when it can enqueue, bypass, drop or direct-drop.
-5. Enqueue requires valid response, enqueue allowance, no direct drop and no
-   bypass-consumed path.
+4. Response ready is true when it can enqueue, drop or direct-drop.
+5. Enqueue requires valid response, enqueue allowance and no direct drop.
 
 ## 4. Invariants
 
 - `fetch_req_fire_o` is gated by the module's own `fetch_req_valid_o`.
-- `fifo_storage_pop_o` is false for same-cycle dispatch bypass packets; bypass
-  consumption is reported separately.
-- `fetch_rsp_enqueue_o` is false when a response is directly dropped or consumed
-  by dispatch bypass.
-- FIFO accept allows a pop in the same cycle to make space even when count is
-  at depth.
-
+- `fifo_storage_pop_o == fifo_pop_i`；不存在 response bypass 对 storage pop 的分流。
+- `fetch_rsp_enqueue_o` is false when a response is directly dropped.
+- T3U 起 FIFO response credit 只读取寄存的 `fifo_count_i < fifo_depth_i`，
+  禁止把本拍 `fifo_pop_i` 组合 look-through 成本拍 response-ready。系统级承重
+  不变量是 `fifo_count + outstanding <= depth`：当存在 outstanding response
+  时 FIFO 不可能已经满，因此旧 full+pop 旁路只覆盖非法状态、没有合法吞吐收益；
+  删除它同时切断 FIFO head/decode/backend-ready 经 pop 返回 request/next-PC 的长链。
+- 若 response 因容量反压，T3R `OooFetchAxiBridge.S_RESP` 必须保持 valid 与完整
+  payload；寄存 count 在 pop 后下降的下一拍再接收，不得丢包或重复。

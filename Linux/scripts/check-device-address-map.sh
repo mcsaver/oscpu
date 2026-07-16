@@ -3,7 +3,7 @@
 #   AM   : abstract-machine/am/include/device_address.h      (DEV_*_BASE, SoC 分支)
 #   NEMU : nemu/include/device/device_address.h              (DEV_*_MMIO, SoC 分支)
 #   NPC  : npc/rv64/csrc/include/device_address.h            (NPC_*)
-#        + npc/rv64/vsrc/include/define.v                    (NPC_AXI_LEGACY_MMIO_BASE 窗口)
+#        + npc/rv64/vsrc/include/define.v                    (DPI/syscon RTL 窗口)
 # difftest 要求三方设备地址逐一相等;RV32 legacy(0xa0000000)分支不在校验范围。
 set -euo pipefail
 
@@ -27,14 +27,17 @@ norm() { printf '0x%x' "$1"; }  # 归一化十六进制
 # 期望的统一 SoC 图
 declare -A EXP=(
   [serial]=0x10000000 [clint]=0x02000000 [plic]=0x0c000000
+  [syscon]=0x00100000
   [rtc]=0x12000048 [kbd]=0x12000060 [vgactl]=0x12000100 [fb]=0x13000000 [disk]=0x10001000
 )
 
 am_serial=$(soc_val "$AM" DEV_SERIAL_BASE); am_clint=$(soc_val "$AM" DEV_CLINT_BASE); am_plic=$(soc_val "$AM" DEV_PLIC_BASE)
+am_syscon=$(soc_val "$AM" DEV_SYSCON_BASE)
 am_rtc=$(soc_val "$AM" DEV_RTC_BASE); am_kbd=$(soc_val "$AM" DEV_KBD_BASE); am_vga=$(soc_val "$AM" DEV_VGACTL_BASE)
 am_fb=$(soc_val "$AM" DEV_FB_BASE); am_disk=$(soc_val "$AM" DEV_DISK_BASE)
 
 ne_serial=$(soc_val "$NEMU" DEV_SERIAL_MMIO); ne_clint=$(soc_val "$NEMU" DEV_CLINT_MMIO); ne_plic=$(soc_val "$NEMU" DEV_PLIC_MMIO)
+ne_syscon=$(soc_val "$NEMU" DEV_SYSCON_RESET_MMIO)
 ne_rtc=$(soc_val "$NEMU" DEV_RTC_MMIO); ne_kbd=$(soc_val "$NEMU" DEV_KBD_MMIO); ne_vga=$(soc_val "$NEMU" DEV_VGA_CTL_MMIO)
 ne_fb=$(soc_val "$NEMU" DEV_FB_ADDR); ne_disk=$(soc_val "$NEMU" DEV_DISK_MMIO)
 
@@ -42,11 +45,13 @@ ne_fb=$(soc_val "$NEMU" DEV_FB_ADDR); ne_disk=$(soc_val "$NEMU" DEV_DISK_MMIO)
 np_uart=$(grep -oE 'NPC_UART_BASE[[:space:]]+UINT64_C\(0x[0-9a-fA-F]+' "$NPC" | grep -oE '0x[0-9a-fA-F]+')
 np_clint=$(grep -oE 'NPC_CLINT_BASE[[:space:]]+UINT64_C\(0x[0-9a-fA-F]+' "$NPC" | grep -oE '0x[0-9a-fA-F]+')
 np_plic=$(grep -oE 'NPC_PLIC_BASE[[:space:]]+UINT64_C\(0x[0-9a-fA-F]+' "$NPC" | grep -oE '0x[0-9a-fA-F]+')
+np_syscon=$(grep -oE 'NPC_SYSCON_BASE[[:space:]]+UINT64_C\(0x[0-9a-fA-F]+' "$NPC" | grep -oE '0x[0-9a-fA-F]+')
 np_base=$(grep -oE 'NPC_DEVICE_BASE[[:space:]]+UINT64_C\(0x[0-9a-fA-F]+' "$NPC" | grep -oE '0x[0-9a-fA-F]+')
 np_rtc=$(norm $((np_base + 0x48))); np_kbd=$(norm $((np_base + 0x60)))
 np_vga=$(norm $((np_base + 0x100))); np_fb=$(norm $((np_base + 0x1000000)))
 
 defv_legacy=$(defv_val "$DEFV" NPC_AXI_LEGACY_MMIO_BASE)
+defv_syscon=$(defv_val "$DEFV" NPC_AXI_RESET_SYSCON_BASE)
 
 chk() { # name expected am nemu npc
   local n=$1 e=$2 a=$3 m=$4 p=$5
@@ -59,6 +64,7 @@ chk() { # name expected am nemu npc
 chk serial "${EXP[serial]}" "$am_serial" "$ne_serial" "$np_uart"
 chk clint  "${EXP[clint]}"  "$am_clint"  "$ne_clint"  "$np_clint"
 chk plic   "${EXP[plic]}"   "$am_plic"   "$ne_plic"   "$np_plic"
+chk syscon "${EXP[syscon]}" "$am_syscon" "$ne_syscon" "$np_syscon"
 chk rtc    "${EXP[rtc]}"    "$am_rtc"    "$ne_rtc"    "$np_rtc"
 chk kbd    "${EXP[kbd]}"    "$am_kbd"    "$ne_kbd"    "$np_kbd"
 chk vgactl "${EXP[vgactl]}" "$am_vga"    "$ne_vga"    "$np_vga"
@@ -70,6 +76,8 @@ chk fb     "${EXP[fb]}"     "$am_fb"     "$ne_fb"     "$np_fb"
 # define.v 的 DPI 窗口基址必须等于 NPC_DEVICE_BASE
 [ "$((defv_legacy))" = "$((np_base))" ] || err "define.v LEGACY_MMIO_BASE=$defv_legacy != NPC_DEVICE_BASE=$np_base"
 [ "$fail" = 0 ] && note "define.v DPI 窗口 = NPC_DEVICE_BASE = $np_base"
+[ "$((defv_syscon))" = "$((np_syscon))" ] || err "define.v RESET_SYSCON_BASE=$defv_syscon != NPC_SYSCON_BASE=$np_syscon"
+[ "$fail" = 0 ] && note "define.v reset-syscon = NPC_SYSCON_BASE = $np_syscon"
 
 if [ "$fail" = 0 ]; then
   note "PASS: AM / NEMU / NPC 三侧设备地址图一致"

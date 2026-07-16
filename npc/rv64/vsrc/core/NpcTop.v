@@ -19,6 +19,7 @@ module NpcTop (
   output psram_axi_awvalid_o,
   input psram_axi_awready_i,
   output [`XLEN-1:0] psram_axi_awaddr_o,
+  output [2:0] psram_axi_awsize_o,
   output psram_axi_wvalid_o,
   input psram_axi_wready_i,
   output [`XLEN-1:0] psram_axi_wdata_o,
@@ -39,6 +40,7 @@ module NpcTop (
   output sdram_axi_awvalid_o,
   input sdram_axi_awready_i,
   output [`XLEN-1:0] sdram_axi_awaddr_o,
+  output [2:0] sdram_axi_awsize_o,
   output sdram_axi_wvalid_o,
   input sdram_axi_wready_i,
   output [`XLEN-1:0] sdram_axi_wdata_o,
@@ -59,6 +61,7 @@ module NpcTop (
   output legacy_mmio_axi_awvalid_o,
   input legacy_mmio_axi_awready_i,
   output [`XLEN-1:0] legacy_mmio_axi_awaddr_o,
+  output [2:0] legacy_mmio_axi_awsize_o,
   output legacy_mmio_axi_wvalid_o,
   input legacy_mmio_axi_wready_i,
   output [`XLEN-1:0] legacy_mmio_axi_wdata_o,
@@ -79,6 +82,7 @@ module NpcTop (
   output virtio_blk_axi_awvalid_o,
   input virtio_blk_axi_awready_i,
   output [`XLEN-1:0] virtio_blk_axi_awaddr_o,
+  output [2:0] virtio_blk_axi_awsize_o,
   output virtio_blk_axi_wvalid_o,
   input virtio_blk_axi_wready_i,
   output [`XLEN-1:0] virtio_blk_axi_wdata_o,
@@ -87,6 +91,9 @@ module NpcTop (
   output virtio_blk_axi_bready_o,
   input [1:0] virtio_blk_axi_bresp_i,
   input virtio_blk_irq_i,
+  // Current producer contract: the synchronous virtio queue-notify backend
+  // has completed its host writes to PMEM and requests a full D-cache clear.
+  input virtio_blk_dma_dcache_invalidate_all_i,
 
   input uart_rx_valid_i,
   input [7:0] uart_rx_data_i,
@@ -102,6 +109,8 @@ module NpcTop (
   output uart_irq_o,
   output plic_external_irq_o,
   output [63:0] clint_mtime_o,
+  output reset_syscon_write_valid_o,
+  output [31:0] reset_syscon_write_value_o,
 
   output commit0_valid_o,
   output [`XLEN-1:0] commit0_pc_o,
@@ -144,7 +153,9 @@ module NpcTop (
 
   localparam [3:0] AXI_S_CLINT = 4'd0;
   localparam [3:0] AXI_S_PLIC = 4'd1;
-  localparam [3:0] AXI_S_SRAM = 4'd2;
+  // 原 SRAM 槽位 0x0f00_0000 被更高优先级的 64MiB PLIC 窗口完整遮蔽，
+  // 复用其 index 接 reset-syscon，保持 xbar 16 路拓扑和译码深度不变。
+  localparam [3:0] AXI_S_RESET_SYSCON = 4'd2;
   localparam [3:0] AXI_S_UART = 4'd3;
   localparam [3:0] AXI_S_VIRTIO_BLK = 4'd4;
   localparam [3:0] AXI_S_GPIO = 4'd5;
@@ -171,7 +182,6 @@ module NpcTop (
   endfunction
 
   localparam [AXI_S_COUNT-1:0] AXI_S_STUB_MASK =
-      axi_slave_bit(AXI_S_SRAM) |
       axi_slave_bit(AXI_S_GPIO) |
       axi_slave_bit(AXI_S_PS2) |
       axi_slave_bit(AXI_S_MROM) |
@@ -184,7 +194,6 @@ module NpcTop (
   // 只有真实 memory/ROM 窗口可成为 instruction read 目标。其余 device/MMIO
   // 命中在 xbar 仲裁前重定向到 DEFAULT，故设备看不到 IFU ARVALID。
   localparam [AXI_S_COUNT-1:0] AXI_S_EXEC_MASK =
-      axi_slave_bit(AXI_S_SRAM) |
       axi_slave_bit(AXI_S_MROM) |
       axi_slave_bit(AXI_S_FLASH) |
       axi_slave_bit(AXI_S_PSRAM) |
@@ -260,6 +269,7 @@ module NpcTop (
   wire [AXI_S_COUNT-1:0] bus_axi_awvalid_w;
   wire [AXI_S_COUNT-1:0] bus_axi_awready_w;
   wire [AXI_S_COUNT*`XLEN-1:0] bus_axi_awaddr_w;
+  wire [AXI_S_COUNT*3-1:0] bus_axi_awsize_w;
   wire [AXI_S_COUNT-1:0] bus_axi_wvalid_w;
   wire [AXI_S_COUNT-1:0] bus_axi_wready_w;
   wire [AXI_S_COUNT*`XLEN-1:0] bus_axi_wdata_w;
@@ -279,6 +289,8 @@ module NpcTop (
   NpcCoreTop u_core (
     .clk(clk),
     .rst(rst),
+    .dcache_dma_invalidate_all_i(
+        virtio_blk_dma_dcache_invalidate_all_i),
     .ifu_axi_arvalid_o(ifu_axi_arvalid_w),
     .ifu_axi_arready_i(ifu_axi_arready_w),
     .ifu_axi_araddr_o(ifu_axi_araddr_w),
@@ -388,7 +400,7 @@ module NpcTop (
                  `NPC_AXI_FLASH_BASE, `NPC_AXI_VGA_BASE,
                  `NPC_AXI_MROM_BASE, `NPC_AXI_PS2_BASE,
                  `NPC_AXI_GPIO_BASE, `NPC_AXI_VIRTIO_BLK_BASE,
-                 `NPC_AXI_UART_BASE, `NPC_AXI_SRAM_BASE,
+                 `NPC_AXI_UART_BASE, `NPC_AXI_RESET_SYSCON_BASE,
                  `NPC_AXI_PLIC_BASE,
                  `NPC_AXI_CLINT_BASE}),
     .SLAVE_MASK({`NPC_AXI_DEFAULT_MASK, `NPC_AXI_CHIPLINK_MEM_MASK,
@@ -397,7 +409,7 @@ module NpcTop (
                  `NPC_AXI_FLASH_MASK, `NPC_AXI_VGA_MASK,
                  `NPC_AXI_MROM_MASK, `NPC_AXI_PS2_MASK,
                  `NPC_AXI_GPIO_MASK, `NPC_AXI_VIRTIO_BLK_MASK,
-                 `NPC_AXI_UART_MASK, `NPC_AXI_SRAM_MASK,
+                 `NPC_AXI_UART_MASK, `NPC_AXI_RESET_SYSCON_MASK,
                  `NPC_AXI_PLIC_MASK,
                  `NPC_AXI_CLINT_MASK}),
     .SLAVE_EXEC_MASK(AXI_S_EXEC_MASK)
@@ -470,6 +482,7 @@ module NpcTop (
     .s_axi_awvalid_o(bus_axi_awvalid_w),
     .s_axi_awready_i(bus_axi_awready_w),
     .s_axi_awaddr_o(bus_axi_awaddr_w),
+    .s_axi_awsize_o(bus_axi_awsize_w),
     .s_axi_wvalid_o(bus_axi_wvalid_w),
     .s_axi_wready_i(bus_axi_wready_w),
     .s_axi_wdata_o(bus_axi_wdata_w),
@@ -477,6 +490,36 @@ module NpcTop (
     .s_axi_bvalid_i(bus_axi_bvalid_w),
     .s_axi_bready_o(bus_axi_bready_w),
     .s_axi_bresp_i(bus_axi_bresp_w)
+  );
+
+  AxiResetSyscon #(
+    .ADDR_W(`XLEN),
+    .DATA_W(`XLEN),
+    .STRB_W(`STRB_W)
+  ) u_reset_syscon_axi (
+    .clk(clk),
+    .rst(rst),
+    .s_axi_arvalid_i(bus_axi_arvalid_w[AXI_S_RESET_SYSCON]),
+    .s_axi_arready_o(bus_axi_arready_w[AXI_S_RESET_SYSCON]),
+    .s_axi_araddr_i(bus_axi_araddr_w[AXI_S_RESET_SYSCON*`XLEN +: `XLEN]),
+    .s_axi_arsize_i(bus_axi_arsize_w[AXI_S_RESET_SYSCON*3 +: 3]),
+    .s_axi_rvalid_o(bus_axi_rvalid_w[AXI_S_RESET_SYSCON]),
+    .s_axi_rready_i(bus_axi_rready_w[AXI_S_RESET_SYSCON]),
+    .s_axi_rdata_o(bus_axi_rdata_w[AXI_S_RESET_SYSCON*`XLEN +: `XLEN]),
+    .s_axi_rresp_o(bus_axi_rresp_w[AXI_S_RESET_SYSCON*2 +: 2]),
+    .s_axi_awvalid_i(bus_axi_awvalid_w[AXI_S_RESET_SYSCON]),
+    .s_axi_awready_o(bus_axi_awready_w[AXI_S_RESET_SYSCON]),
+    .s_axi_awaddr_i(bus_axi_awaddr_w[AXI_S_RESET_SYSCON*`XLEN +: `XLEN]),
+    .s_axi_awsize_i(bus_axi_awsize_w[AXI_S_RESET_SYSCON*3 +: 3]),
+    .s_axi_wvalid_i(bus_axi_wvalid_w[AXI_S_RESET_SYSCON]),
+    .s_axi_wready_o(bus_axi_wready_w[AXI_S_RESET_SYSCON]),
+    .s_axi_wdata_i(bus_axi_wdata_w[AXI_S_RESET_SYSCON*`XLEN +: `XLEN]),
+    .s_axi_wstrb_i(bus_axi_wstrb_w[AXI_S_RESET_SYSCON*`STRB_W +: `STRB_W]),
+    .s_axi_bvalid_o(bus_axi_bvalid_w[AXI_S_RESET_SYSCON]),
+    .s_axi_bready_i(bus_axi_bready_w[AXI_S_RESET_SYSCON]),
+    .s_axi_bresp_o(bus_axi_bresp_w[AXI_S_RESET_SYSCON*2 +: 2]),
+    .syscon_write_valid_o(reset_syscon_write_valid_o),
+    .syscon_write_value_o(reset_syscon_write_value_o)
   );
 
   AxiToUart #(
@@ -489,6 +532,7 @@ module NpcTop (
     .s_axi_arvalid_i(bus_axi_arvalid_w[AXI_S_UART]),
     .s_axi_arready_o(bus_axi_arready_w[AXI_S_UART]),
     .s_axi_araddr_i(bus_axi_araddr_w[AXI_S_UART*`XLEN +: `XLEN]),
+    .s_axi_arsize_i(bus_axi_arsize_w[AXI_S_UART*3 +: 3]),
     .s_axi_rvalid_o(bus_axi_rvalid_w[AXI_S_UART]),
     .s_axi_rready_i(bus_axi_rready_w[AXI_S_UART]),
     .s_axi_rdata_o(bus_axi_rdata_w[AXI_S_UART*`XLEN +: `XLEN]),
@@ -496,6 +540,7 @@ module NpcTop (
     .s_axi_awvalid_i(bus_axi_awvalid_w[AXI_S_UART]),
     .s_axi_awready_o(bus_axi_awready_w[AXI_S_UART]),
     .s_axi_awaddr_i(bus_axi_awaddr_w[AXI_S_UART*`XLEN +: `XLEN]),
+    .s_axi_awsize_i(bus_axi_awsize_w[AXI_S_UART*3 +: 3]),
     .s_axi_wvalid_i(bus_axi_wvalid_w[AXI_S_UART]),
     .s_axi_wready_o(bus_axi_wready_w[AXI_S_UART]),
     .s_axi_wdata_i(bus_axi_wdata_w[AXI_S_UART*`XLEN +: `XLEN]),
@@ -528,6 +573,7 @@ module NpcTop (
     .s_axi_arvalid_i(bus_axi_arvalid_w[AXI_S_CLINT]),
     .s_axi_arready_o(bus_axi_arready_w[AXI_S_CLINT]),
     .s_axi_araddr_i(bus_axi_araddr_w[AXI_S_CLINT*`XLEN +: `XLEN]),
+    .s_axi_arsize_i(bus_axi_arsize_w[AXI_S_CLINT*3 +: 3]),
     .s_axi_rvalid_o(bus_axi_rvalid_w[AXI_S_CLINT]),
     .s_axi_rready_i(bus_axi_rready_w[AXI_S_CLINT]),
     .s_axi_rdata_o(bus_axi_rdata_w[AXI_S_CLINT*`XLEN +: `XLEN]),
@@ -535,6 +581,7 @@ module NpcTop (
     .s_axi_awvalid_i(bus_axi_awvalid_w[AXI_S_CLINT]),
     .s_axi_awready_o(bus_axi_awready_w[AXI_S_CLINT]),
     .s_axi_awaddr_i(bus_axi_awaddr_w[AXI_S_CLINT*`XLEN +: `XLEN]),
+    .s_axi_awsize_i(bus_axi_awsize_w[AXI_S_CLINT*3 +: 3]),
     .s_axi_wvalid_i(bus_axi_wvalid_w[AXI_S_CLINT]),
     .s_axi_wready_o(bus_axi_wready_w[AXI_S_CLINT]),
     .s_axi_wdata_i(bus_axi_wdata_w[AXI_S_CLINT*`XLEN +: `XLEN]),
@@ -563,6 +610,7 @@ module NpcTop (
     .s_axi_arvalid_i(bus_axi_arvalid_w[AXI_S_PLIC]),
     .s_axi_arready_o(bus_axi_arready_w[AXI_S_PLIC]),
     .s_axi_araddr_i(bus_axi_araddr_w[AXI_S_PLIC*`XLEN +: `XLEN]),
+    .s_axi_arsize_i(bus_axi_arsize_w[AXI_S_PLIC*3 +: 3]),
     .s_axi_rvalid_o(bus_axi_rvalid_w[AXI_S_PLIC]),
     .s_axi_rready_i(bus_axi_rready_w[AXI_S_PLIC]),
     .s_axi_rdata_o(bus_axi_rdata_w[AXI_S_PLIC*`XLEN +: `XLEN]),
@@ -570,6 +618,7 @@ module NpcTop (
     .s_axi_awvalid_i(bus_axi_awvalid_w[AXI_S_PLIC]),
     .s_axi_awready_o(bus_axi_awready_w[AXI_S_PLIC]),
     .s_axi_awaddr_i(bus_axi_awaddr_w[AXI_S_PLIC*`XLEN +: `XLEN]),
+    .s_axi_awsize_i(bus_axi_awsize_w[AXI_S_PLIC*3 +: 3]),
     .s_axi_wvalid_i(bus_axi_wvalid_w[AXI_S_PLIC]),
     .s_axi_wready_o(bus_axi_wready_w[AXI_S_PLIC]),
     .s_axi_wdata_i(bus_axi_wdata_w[AXI_S_PLIC*`XLEN +: `XLEN]),
@@ -593,6 +642,7 @@ module NpcTop (
   assign psram_axi_awvalid_o = bus_axi_awvalid_w[AXI_S_PSRAM];
   assign bus_axi_awready_w[AXI_S_PSRAM] = psram_axi_awready_i;
   assign psram_axi_awaddr_o = bus_axi_awaddr_w[AXI_S_PSRAM*`XLEN +: `XLEN];
+  assign psram_axi_awsize_o = bus_axi_awsize_w[AXI_S_PSRAM*3 +: 3];
   assign psram_axi_wvalid_o = bus_axi_wvalid_w[AXI_S_PSRAM];
   assign bus_axi_wready_w[AXI_S_PSRAM] = psram_axi_wready_i;
   assign psram_axi_wdata_o = bus_axi_wdata_w[AXI_S_PSRAM*`XLEN +: `XLEN];
@@ -615,6 +665,7 @@ module NpcTop (
   assign bus_axi_awready_w[AXI_S_SDRAM] = sdram_axi_awready_i;
   assign sdram_axi_awaddr_o =
       bus_axi_awaddr_w[AXI_S_SDRAM*`XLEN +: `XLEN];
+  assign sdram_axi_awsize_o = bus_axi_awsize_w[AXI_S_SDRAM*3 +: 3];
   assign sdram_axi_wvalid_o = bus_axi_wvalid_w[AXI_S_SDRAM];
   assign bus_axi_wready_w[AXI_S_SDRAM] = sdram_axi_wready_i;
   assign sdram_axi_wdata_o = bus_axi_wdata_w[AXI_S_SDRAM*`XLEN +: `XLEN];
@@ -641,6 +692,8 @@ module NpcTop (
   assign bus_axi_awready_w[AXI_S_LEGACY_MMIO] = legacy_mmio_axi_awready_i;
   assign legacy_mmio_axi_awaddr_o =
       bus_axi_awaddr_w[AXI_S_LEGACY_MMIO*`XLEN +: `XLEN];
+  assign legacy_mmio_axi_awsize_o =
+      bus_axi_awsize_w[AXI_S_LEGACY_MMIO*3 +: 3];
   assign legacy_mmio_axi_wvalid_o = bus_axi_wvalid_w[AXI_S_LEGACY_MMIO];
   assign bus_axi_wready_w[AXI_S_LEGACY_MMIO] = legacy_mmio_axi_wready_i;
   assign legacy_mmio_axi_wdata_o =
@@ -669,6 +722,8 @@ module NpcTop (
   assign bus_axi_awready_w[AXI_S_VIRTIO_BLK] = virtio_blk_axi_awready_i;
   assign virtio_blk_axi_awaddr_o =
       bus_axi_awaddr_w[AXI_S_VIRTIO_BLK*`XLEN +: `XLEN];
+  assign virtio_blk_axi_awsize_o =
+      bus_axi_awsize_w[AXI_S_VIRTIO_BLK*3 +: 3];
   assign virtio_blk_axi_wvalid_o = bus_axi_wvalid_w[AXI_S_VIRTIO_BLK];
   assign bus_axi_wready_w[AXI_S_VIRTIO_BLK] = virtio_blk_axi_wready_i;
   assign virtio_blk_axi_wdata_o =
@@ -707,6 +762,7 @@ module NpcTop (
             bus_axi_araddr_w[stub_idx*`XLEN +: `XLEN],
             bus_axi_arprot_w[stub_idx*3 +: 3],
             bus_axi_awaddr_w[stub_idx*`XLEN +: `XLEN],
+            bus_axi_awsize_w[stub_idx*3 +: 3],
             bus_axi_wdata_w[stub_idx*`XLEN +: `XLEN],
             bus_axi_wstrb_w[stub_idx*`STRB_W +: `STRB_W]
         };

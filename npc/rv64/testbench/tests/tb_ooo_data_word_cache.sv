@@ -6,7 +6,8 @@
 // 仍同拍 #1 观测。窗口移位与跨线阻断职责移至桥判决拍, 由 tb_ooo_mem_axi_bridge
 // 的 unaligned-hit/跨线读场景审核。
 // 【store RMW·write-update 赎回】真 store commit(store_rmw_en=1)走 2 拍 RMW:
-// commit 拍占宏口读, 次拍(rmw_busy=1)tag match 则线内字节合并写(tag 段不写)。
+// commit 拍占宏口读, 次拍(rmw_busy=1)tag match 则线内字节合并写，并以
+// 全 1 tag mask 幂等写回锁存 tag。
 // commit_store 任务同步审核 rmw_busy 恰为发射次拍; 一期"无条件失效"预期全部
 // 重写为 write-update 预期。A/D 维护路(store_rmw_en=0)保持无条件失效。
 // INDEX_W 固定 12(Sram4096x113 宏定死), TB 不再用小参数覆盖。
@@ -15,6 +16,7 @@ module tb_ooo_data_word_cache;
 
   reg clk;
   reg rst;
+  reg dma_invalidate_all;
 
   reg [`XLEN-1:0] req_lookup_addr;
   reg [3:0] req_nbytes;
@@ -50,6 +52,7 @@ module tb_ooo_data_word_cache;
   OooDataWordCache dut (
     .clk(clk),
     .rst(rst),
+    .dma_invalidate_all_i(dma_invalidate_all),
     .req_lookup_addr_i(req_lookup_addr),
     .req_nbytes_i(req_nbytes),
     .req_cacheable_o(req_cacheable),
@@ -74,6 +77,7 @@ module tb_ooo_data_word_cache;
   OooDataWordCacheChecker u_checker (
     .clk(clk),
     .rst(rst),
+    .dma_invalidate_all_i(dma_invalidate_all),
     .req_lookup_addr_i(req_lookup_addr),
     .req_nbytes_i(req_nbytes),
     .req_cacheable_i(req_cacheable),
@@ -115,6 +119,7 @@ module tb_ooo_data_word_cache;
   task automatic clear_inputs;
     begin
       req_lookup_addr = WORD0;
+      dma_invalidate_all = 1'b0;
       req_nbytes = 4'd8;
       walk_lookup_addr = WORD0;
       lookup_en = 1'b0;
@@ -183,6 +188,109 @@ module tb_ooo_data_word_cache;
     end
   endtask
 
+  // T4P DMA coherence: full invalidate does not own the 1RW SRAM port, but it
+  // has highest valid-bit priority and masks a lookup already in its decision
+  // cycle.  Exercise every existing SRAM owner collision explicitly.
+  task automatic dma_invalidate_conflicts;
+    begin
+      // Basic all-line clear and refill recovery.
+      fill_word(WORD0, 64'h1111_2222_3333_4444);
+      fill_word(WORD1, 64'h5555_6666_7777_8888);
+      dma_invalidate_all = 1'b1;
+      tick();
+      dma_invalidate_all = 1'b0;
+      #1;
+      issue_lookup(WORD0);
+      tb_check1("dma invalidate clears word0", lookup_hit, 1'b0);
+      issue_lookup(WORD1);
+      tb_check1("dma invalidate clears word1", lookup_hit, 1'b0);
+
+      // Existing lookup decision and invalidate overlap: hit must be masked
+      // before the clearing edge, so bridge hit-fusion cannot leak stale data.
+      fill_word(WORD0, 64'haaaa_bbbb_cccc_dddd);
+      lookup_addr = WORD0;
+      lookup_en = 1'b1;
+      tick();
+      lookup_en = 1'b0;
+      dma_invalidate_all = 1'b1;
+      #1;
+      tb_check1("dma masks lookup decision immediately", lookup_hit, 1'b0);
+      tick();
+      dma_invalidate_all = 1'b0;
+      #1;
+
+      // Lookup issue may still use the macro port; the same edge clears valid,
+      // hence its following decision is a miss.
+      fill_word(WORD0, 64'h0102_0304_0506_0708);
+      lookup_addr = WORD0;
+      lookup_en = 1'b1;
+      dma_invalidate_all = 1'b1;
+      tick();
+      lookup_en = 1'b0;
+      dma_invalidate_all = 1'b0;
+      #1;
+      tb_check1("dma plus lookup issue resolves miss", lookup_hit, 1'b0);
+      tick();
+
+      // Fill may write SRAM in the invalidate edge, but must not set valid.
+      fill_addr = WORD0;
+      fill_data = 64'hdead_beef_cafe_f00d;
+      fill_valid = 1'b1;
+      dma_invalidate_all = 1'b1;
+      tick();
+      fill_valid = 1'b0;
+      dma_invalidate_all = 1'b0;
+      #1;
+      issue_lookup(WORD0);
+      tb_check1("dma wins over same-cycle fill valid", lookup_hit, 1'b0);
+
+      // RMW start keeps its busy cadence, but the cleared line makes its
+      // decision miss/no-write.
+      fill_word(WORD0, 64'h1111_2222_3333_4444);
+      store_addr = WORD0;
+      store_wstrb = 8'hff;
+      store_wdata = 64'h9999_aaaa_bbbb_cccc;
+      store_rmw_en = 1'b1;
+      store_commit = 1'b1;
+      dma_invalidate_all = 1'b1;
+      tick();
+      store_commit = 1'b0;
+      dma_invalidate_all = 1'b0;
+      #1;
+      tb_check1("dma plus rmw-start preserves busy cadence", rmw_busy, 1'b1);
+      tick();
+      #1;
+      tb_check1("dma plus rmw-start busy clears", rmw_busy, 1'b0);
+      issue_lookup(WORD0);
+      tb_check1("dma plus rmw-start leaves line invalid", lookup_hit, 1'b0);
+
+      // Invalidate on the RMW decision edge also wins over the SRAM write.
+      fill_word(WORD0, 64'h0123_4567_89ab_cdef);
+      store_addr = WORD0;
+      store_wstrb = 8'h0f;
+      store_wdata = 64'h0000_0000_5566_7788;
+      store_rmw_en = 1'b1;
+      store_commit = 1'b1;
+      tick();
+      store_commit = 1'b0;
+      dma_invalidate_all = 1'b1;
+      #1;
+      tb_check1("rmw decision active before dma edge", rmw_busy, 1'b1);
+      tick();
+      dma_invalidate_all = 1'b0;
+      #1;
+      tb_check1("dma plus rmw-decision busy clears", rmw_busy, 1'b0);
+      issue_lookup(WORD0);
+      tb_check1("dma wins over same-cycle rmw decision", lookup_hit, 1'b0);
+
+      fill_word(WORD0, 64'hfeed_face_1234_5678);
+      issue_lookup(WORD0);
+      tb_check1("post-dma refill hits again", lookup_hit, 1'b1);
+      tb_check64("post-dma refill data", lookup_line,
+                 64'hfeed_face_1234_5678);
+    end
+  endtask
+
   initial begin
     tb_errors = 0;
     clk = 1'b0;
@@ -238,12 +346,19 @@ module tb_ooo_data_word_cache;
     #1;
 
     // 【store RMW·write-update】命中线内字节合并: 低 4B 覆盖, 高 4B 保持,
-    // line 依旧有效(一期无条件失效预期废止)。
+    // line 依旧有效(一期无条件失效预期废止)。故意把当前无效的 fill_addr
+    // 留在同 index 异 tag 的 ALIAS0，反证 RMW tag 幂等写回错误取 live fill
+    // payload（正确 owner 必须是 commit 拍锁存的 rmw_tag_q）。
+    fill_addr = ALIAS0;
+    fill_data = 64'hface_cafe_dead_beef;
+    fill_valid = 1'b0;
     commit_store(WORD0, 8'b0000_1111, 64'haabb_ccdd_1122_3344, 1'b1);
     issue_lookup(WORD0);
     tb_check1("rmw store keeps line valid", lookup_hit, 1'b1);
     tb_check64("rmw store merges low bytes", lookup_line,
                64'h0011_2233_1122_3344);
+    issue_lookup(ALIAS0);
+    tb_check1("rmw tag ignores inactive live fill payload", lookup_hit, 1'b0);
 
     // 偏移合并: off=4 的 2B store 只覆盖 byte4..5(窗口数据低位起)
     commit_store(WORD0 + 64'd4, 8'b0000_0011, 64'h0000_0000_0000_8899, 1'b1);
@@ -270,6 +385,18 @@ module tb_ooo_data_word_cache;
     issue_lookup(ALIAS0);
     tb_check1("alias-index store no allocate", lookup_hit, 1'b0);
 
+    // Fill 仍拥有完整 tag：同 index 换 tag 后新行命中、旧行必须失配。
+    fill_word(ALIAS0, 64'h1357_9bdf_2468_ace0);
+    issue_lookup(ALIAS0);
+    tb_check1("alias replacement fill owns full tag", lookup_hit, 1'b1);
+    tb_check64("alias replacement fill data", lookup_line,
+               64'h1357_9bdf_2468_ace0);
+    fill_word(WORD0, 64'h0f1e_2d3c_4b5a_6978);
+    issue_lookup(WORD0);
+    tb_check1("same-index replacement restores word0 tag", lookup_hit, 1'b1);
+    issue_lookup(ALIAS0);
+    tb_check1("same-index replacement evicts alias tag", lookup_hit, 1'b0);
+
     // 跨线 store: 本行照常线内合并(掩码截断=线内字节), 下一行保守失效
     fill_word(WORD0, 64'h1111_2222_3333_4444);
     fill_word(WORD1, 64'h5555_6666_7777_8888);
@@ -294,6 +421,8 @@ module tb_ooo_data_word_cache;
     issue_lookup(WORD2);
     tb_check1("ad-maintenance store invalidates unconditionally",
               lookup_hit, 1'b0);
+
+    dma_invalidate_conflicts();
 
     // MMIO: 组合视图不 cacheable, store commit 无 RMW(busy 恒 0), 判决必 miss
     commit_store(MMIO_WORD, 8'b1111_1111, 64'h1234_5678_9abc_def0, 1'b1);

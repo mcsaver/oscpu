@@ -13,6 +13,7 @@
 module OooDataWordCacheChecker (
   input wire clk,
   input wire rst,
+  input wire dma_invalidate_all_i,
 
   input wire [`XLEN-1:0] req_lookup_addr_i,
   input wire [3:0] req_nbytes_i,
@@ -105,6 +106,7 @@ module OooDataWordCacheChecker (
       store_commit_i && store_line_cross_w;
   assign facts_w[`OOO_DWC_STORE_RMW_ISSUE] = store_rmw_issue_w;
   assign facts_w[`OOO_DWC_STORE_RMW_BUSY] = rmw_busy_i;
+  assign facts_w[`OOO_DWC_DMA_INVALIDATE_ALL] = dma_invalidate_all_i;
 
   wire _unused_facts_w =
       |facts_w | (|walk_lookup_addr_i) | (|fill_addr_i) |
@@ -161,6 +163,15 @@ module OooDataWordCacheChecker (
     if (!rst && lookup_hit_i && !cacheable_addr(lookup_addr_q)) begin
       $error("[DWC-HIT-GATE] hit on uncacheable latched addr=%h @%0t",
              lookup_addr_q, $time);
+      $fatal;
+    end
+  end
+
+  // DMA invalidation is visible combinationally in the lookup decision cycle:
+  // a previously valid/tag-matching SRAM result must never fuse as a hit.
+  always @(posedge clk) begin
+    if (!rst && dma_invalidate_all_i && lookup_hit_i) begin
+      $error("[DWC-DMA-HIT] lookup hit survived invalidate-all @%0t", $time);
       $fatal;
     end
   end

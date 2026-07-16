@@ -12,6 +12,8 @@ module tb_ooo_dispatch_backend;
   reg clk;
   reg rst;
   reg flush;
+  reg branch_mispredict_valid;
+  reg [ROB_INDEX_W-1:0] kill_rob_idx;
 
   reg dispatch0_valid;
   wire dispatch0_ready;
@@ -48,11 +50,6 @@ module tb_ooo_dispatch_backend;
   reg wb1_exception;
   reg [`TRAP_CAUSE_W-1:0] wb1_cause;
   reg [`XLEN-1:0] wb1_tval;
-
-  reg select_wakeup0_valid;
-  reg [PHY_REG_ADDR_W-1:0] select_wakeup0_pdest;
-  reg select_wakeup1_valid;
-  reg [PHY_REG_ADDR_W-1:0] select_wakeup1_pdest;
 
   wire issue0_valid;
   reg issue0_ready;
@@ -108,14 +105,17 @@ module tb_ooo_dispatch_backend;
   wire [FREE_COUNT_W-1:0] free_count;
   wire [ROB_COUNT_W-1:0] rob_count;
   wire [ISSUE_COUNT_W-1:0] issue_count;
+  wire rob_recover_active;
 
   OooDispatchBackend dut (
     .clk(clk),
     .rst(rst),
     .flush_i(flush),
+    .kill_rob_idx_i(kill_rob_idx),
+    .issue_mem_block_i(1'b0),
     .sq_alloc0_ready_i(1'b1),
     .sq_alloc1_ready_i(1'b1),
-    .branch_mispredict_valid_i(1'b0),
+    .branch_mispredict_valid_i(branch_mispredict_valid),
     .dispatch0_valid_i(dispatch0_valid),
     .dispatch0_ready_o(dispatch0_ready),
     .dispatch0_pc_i(dispatch0_pc),
@@ -173,10 +173,6 @@ module tb_ooo_dispatch_backend;
     .wb1_cause_i(wb1_cause),
     .wb1_tval_i(wb1_tval),
     .wb1_fflags_i(5'b00000),
-    .select_wakeup0_valid_i(select_wakeup0_valid),
-    .select_wakeup0_pdest_i(select_wakeup0_pdest),
-    .select_wakeup1_valid_i(select_wakeup1_valid),
-    .select_wakeup1_pdest_i(select_wakeup1_pdest),
     .issue0_valid_o(issue0_valid),
     .issue0_ready_i(issue0_ready),
     .issue0_pc_o(issue0_pc),
@@ -227,7 +223,8 @@ module tb_ooo_dispatch_backend;
     .commit1_tval_o(commit1_tval),
     .free_count_o(free_count),
     .rob_count_o(rob_count),
-    .issue_count_o(issue_count)
+    .issue_count_o(issue_count),
+    .rob_recover_active_o(rob_recover_active)
   );
 
   wire unused_next_pc_w =
@@ -253,6 +250,8 @@ module tb_ooo_dispatch_backend;
   task automatic clear_inputs;
     begin
       flush = 1'b0;
+      branch_mispredict_valid = 1'b0;
+      kill_rob_idx = {ROB_INDEX_W{1'b0}};
       dispatch0_valid = 1'b0;
       dispatch0_pc = 32'h0;
       dispatch0_inst = 32'h0;
@@ -283,10 +282,6 @@ module tb_ooo_dispatch_backend;
       wb1_exception = 1'b0;
       wb1_cause = {`TRAP_CAUSE_W{1'b0}};
       wb1_tval = 32'h0;
-      select_wakeup0_valid = 1'b0;
-      select_wakeup0_pdest = 6'd0;
-      select_wakeup1_valid = 1'b0;
-      select_wakeup1_pdest = 6'd0;
     end
   endtask
 
@@ -353,7 +348,7 @@ module tb_ooo_dispatch_backend;
     tb_check32("initial issue count", {28'b0, issue_count}, 32'd0);
 
     // 【P5 刀 B】IQ dispatch→issue 同拍 bypass 已删除:dispatch 项当拍只入队,
-    // 次拍(N+1)起才从寄存项发射;依赖 uop 等 wb wakeup(同拍 wakeup→select 直通保留)。
+    // 次拍(N+1)起才从寄存项发射;T3M 起依赖 uop 等 wb 在沿上落 sticky 后再发射。
     set_dispatch0(32'h8000_0000, 5'd1, 1'b1, 5'd2, 1'b1, 5'd5, 1'b1);
     set_dispatch1(32'h8000_0004, 5'd5, 1'b1, 5'd3, 1'b1, 5'd6, 1'b1);
     #1;
@@ -383,14 +378,19 @@ module tb_ooo_dispatch_backend;
     wb0_rob_idx = 4'd0;
     wb0_pdest = 6'd32;
     wb0_data = 32'h1111_0005;
-    select_wakeup0_valid = 1'b1;
-    select_wakeup0_pdest = 6'd32;
     #1;
-    tb_check1("lane0 commit becomes valid via wb bypass", commit0_valid, 1'b1);
-    tb_check32("lane0 commit old pdest via wb bypass", {26'b0, commit0_old_pdest}, 32'd5);
-    tb_check32("lane0 commit new pdest via wb bypass", {26'b0, commit0_new_pdest}, 32'd32);
-    tb_check32("lane0 commit data via wb bypass", commit0_data, 32'h1111_0005);
-    tb_check1("dependent wakes on wb wakeup", issue0_valid, 1'b1);
+    tb_check1("lane0 formal WB does not retire combinationally",
+              commit0_valid, 1'b0);
+    tb_check1("T3M dependent does not wake-select in WB cycle",
+              issue0_valid, 1'b0);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("lane0 commit becomes valid from ROB Q", commit0_valid, 1'b1);
+    tb_check32("lane0 commit old pdest from ROB Q", {26'b0, commit0_old_pdest}, 32'd5);
+    tb_check32("lane0 commit new pdest from ROB Q", {26'b0, commit0_new_pdest}, 32'd32);
+    tb_check32("lane0 commit data from ROB Q", commit0_data, 32'h1111_0005);
+    tb_check1("dependent wakes after wb sticky edge", issue0_valid, 1'b1);
     tb_check32("woken dependent issue pc", issue0_pc, 32'h8000_0004);
     tb_check32("woken dependent sees lane0 pdest", {26'b0, issue0_src1_preg}, 32'd32);
     tb_check32("woken dependent pdest", {26'b0, issue0_pdest}, 32'd33);
@@ -402,10 +402,15 @@ module tb_ooo_dispatch_backend;
     wb1_pdest = 6'd33;
     wb1_data = 32'h2222_0006;
     #1;
-    tb_check1("lane1 commit becomes valid via wb bypass", commit0_valid, 1'b1);
-    tb_check32("lane1 commit old pdest via wb bypass", {26'b0, commit0_old_pdest}, 32'd6);
-    tb_check32("lane1 commit new pdest via wb bypass", {26'b0, commit0_new_pdest}, 32'd33);
-    tb_check32("lane1 commit data via wb bypass", commit0_data, 32'h2222_0006);
+    tb_check1("lane1 formal WB does not retire combinationally",
+              commit0_valid, 1'b0);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("lane1 commit becomes valid from ROB Q", commit0_valid, 1'b1);
+    tb_check32("lane1 commit old pdest from ROB Q", {26'b0, commit0_old_pdest}, 32'd6);
+    tb_check32("lane1 commit new pdest from ROB Q", {26'b0, commit0_new_pdest}, 32'd33);
+    tb_check32("lane1 commit data from ROB Q", commit0_data, 32'h2222_0006);
     `TB_TICK(clk);
     clear_inputs();
     #1;
@@ -440,12 +445,17 @@ module tb_ooo_dispatch_backend;
     wb1_pdest = 6'd35;
     wb1_data = 32'hbbbb_0007;
     #1;
-    tb_check1("waw commit0 valid via wb bypass", commit0_valid, 1'b1);
-    tb_check1("waw commit1 valid via wb bypass", commit1_valid, 1'b1);
-    tb_check32("waw older frees original x7 via wb bypass", {26'b0, commit0_old_pdest}, 32'd7);
-    tb_check32("waw younger frees lane0 pdest via wb bypass", {26'b0, commit1_old_pdest}, 32'd34);
-    tb_check32("waw older new pdest via wb bypass", {26'b0, commit0_new_pdest}, 32'd34);
-    tb_check32("waw younger new pdest via wb bypass", {26'b0, commit1_new_pdest}, 32'd35);
+    tb_check1("waw formal WBs do not retire combinationally",
+              commit0_valid, 1'b0);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("waw commit0 valid from ROB Q", commit0_valid, 1'b1);
+    tb_check1("waw commit1 valid from ROB Q", commit1_valid, 1'b1);
+    tb_check32("waw older frees original x7 from ROB Q", {26'b0, commit0_old_pdest}, 32'd7);
+    tb_check32("waw younger frees lane0 pdest from ROB Q", {26'b0, commit1_old_pdest}, 32'd34);
+    tb_check32("waw older new pdest from ROB Q", {26'b0, commit0_new_pdest}, 32'd34);
+    tb_check32("waw younger new pdest from ROB Q", {26'b0, commit1_new_pdest}, 32'd35);
     `TB_TICK(clk);
     clear_inputs();
     #1;
@@ -561,6 +571,104 @@ module tb_ooo_dispatch_backend;
     tb_check32("flush restores freelist", {25'b0, free_count}, 32'd32);
     tb_check32("flush clears rob", {27'b0, rob_count}, 32'd0);
     tb_check32("flush clears issue queue", {28'b0, issue_count}, 32'd0);
+
+    // T3N：branch resolve 已在 IntBackend 打成 coherent q packet，本层必须
+    // 直接消费该拍 kill。用一个 done head、存活 branch 与 younger 构造
+    // 同拍原本可 commit/issue/dispatch 的窗口，再证明 q kill 全部关断，且
+    // 下一拍不会出现旧 kill_valid_q 的重复脉冲。
+    commit_ready = 1'b0;
+    set_dispatch0(32'h8000_0900,
+                  5'd1, 1'b1, 5'd2, 1'b1, 5'd7, 1'b1);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("T3N direct-kill head reaches IQ", issue0_valid, 1'b1);
+    tb_check32("T3N direct-kill head ROB index",
+               {28'b0, issue0_rob_idx}, 32'd0);
+    `TB_TICK(clk);
+    clear_inputs();
+
+    wb0_valid = 1'b1;
+    wb0_rob_idx = 4'd0;
+    wb0_pdest = 6'd32;
+    wb0_data = 32'h9000_0007;
+    set_dispatch0(32'h8000_0904,
+                  5'd0, 1'b0, 5'd0, 1'b0, 5'd0, 1'b0);
+    dispatch0_ctrl[`CTRL_BRANCH_BIT] = 1'b1;
+    set_dispatch1(32'h8000_0908,
+                  5'd3, 1'b1, 5'd4, 1'b1, 5'd8, 1'b1);
+    #1;
+    tb_check1("T3N direct-kill setup branch dispatch ready",
+              dispatch0_ready, 1'b1);
+    tb_check1("T3N direct-kill setup younger dispatch ready",
+              dispatch1_ready, 1'b1);
+    `TB_TICK(clk);
+    clear_inputs();
+    commit_ready = 1'b1;
+
+    // 额外放一对 dispatch 候选，锁住 kill 当拍的 freeze，而不是仅观察
+    // ROB 内部状态。
+    set_dispatch0(32'h8000_090c,
+                  5'd0, 1'b0, 5'd0, 1'b0, 5'd9, 1'b1);
+    set_dispatch1(32'h8000_0910,
+                  5'd0, 1'b0, 5'd0, 1'b0, 5'd10, 1'b1);
+    #1;
+    tb_check1("T3N direct-kill setup head could commit", commit0_valid, 1'b1);
+    tb_check1("T3N direct-kill setup branch could issue", issue0_valid, 1'b1);
+    tb_check1("T3N direct-kill setup younger could issue", issue1_valid, 1'b1);
+    tb_check1("T3N direct-kill setup dispatch0 could accept",
+              dispatch0_ready, 1'b1);
+    tb_check1("T3N direct-kill setup dispatch1 could accept",
+              dispatch1_ready, 1'b1);
+
+    branch_mispredict_valid = 1'b1;
+    kill_rob_idx = 4'd1;
+    #1;
+    tb_check1("T3N resolve q directly asserts ROB kill",
+              dut.rob_kill_valid_w, 1'b1);
+    tb_check32("T3N direct ROB kill keeps coherent index",
+               {28'b0, dut.rob_kill_idx_w}, 32'd1);
+    tb_check1("T3N q kill freezes dispatch0", dispatch0_ready, 1'b0);
+    tb_check1("T3N q kill freezes dispatch1", dispatch1_ready, 1'b0);
+    tb_check1("T3N q kill suppresses issue0", issue0_valid, 1'b0);
+    tb_check1("T3N q kill suppresses issue1", issue1_valid, 1'b0);
+    tb_check1("T3N q kill suppresses commit0", commit0_valid, 1'b0);
+    tb_check1("T3N q kill suppresses commit1", commit1_valid, 1'b0);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("T3N direct kill does not repeat next cycle",
+              dut.rob_kill_valid_w, 1'b0);
+    tb_check1("T3N one-shot kill starts legal ROB walk",
+              rob_recover_active, 1'b1);
+    tb_check32("T3N kill edge keeps ROB until walk",
+               {27'b0, rob_count}, 32'd3);
+    tb_check32("T3N IQ synchronously squashes only younger",
+               {28'b0, issue_count}, 32'd1);
+
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("T3N single-younger ROB walk completes",
+              rob_recover_active, 1'b0);
+    tb_check32("T3N ROB retains head and branch",
+               {27'b0, rob_count}, 32'd2);
+    tb_check32("T3N IQ retains only branch",
+               {28'b0, issue_count}, 32'd1);
+    tb_check1("T3N activity resumes dispatch", dispatch0_ready, 1'b1);
+    tb_check1("T3N activity resumes head commit", commit0_valid, 1'b1);
+    tb_check1("T3N activity resumes branch issue", issue0_valid, 1'b1);
+
+    flush = 1'b1;
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check32("T3N direct-kill cleanup freelist",
+               {25'b0, free_count}, 32'd32);
+    tb_check32("T3N direct-kill cleanup ROB",
+               {27'b0, rob_count}, 32'd0);
+    tb_check32("T3N direct-kill cleanup IQ",
+               {28'b0, issue_count}, 32'd0);
 
     tb_finish("tb_ooo_dispatch_backend");
   end

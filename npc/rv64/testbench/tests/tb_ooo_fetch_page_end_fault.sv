@@ -57,10 +57,11 @@ module tb_ooo_fetch_page_end_fault;
   wire [1:0] dec1_resp;
   wire dec1_control_stop;
   wire dec0_branch;
-  wire [`XLEN-1:0] dec0_bimm;
+  wire [12:0] dec0_bimm;
   wire dec1_branch;
-  wire [`XLEN-1:0] dec1_bimm;
+  wire [12:0] dec1_bimm;
   wire [`XLEN-1:0] packet_next_pc;
+  wire [`XLEN-1:0] dec_fault_tval;
 
   localparam [1:0] RESP_OK = 2'b00;
   localparam [1:0] RESP_PAGE_FAULT = 2'b10;
@@ -82,6 +83,20 @@ module tb_ooo_fetch_page_end_fault;
       {{(`PMP_ENTRY_COUNT-1){8'h00}}, 8'h1f};
   localparam [`PMP_ADDR_BUS_W-1:0] PMP_ALLOW_ALL_ADDR =
       {`PMP_ADDR_BUS_W{1'b1}};
+
+  // 只在真实 second-page invalid-PTE 行启用：分别记录 fault transaction 是否
+  // 误触发 packet-cache fill/SRAM write，以及 fault frontier 后是否又呈现年轻 AR。
+  reg fault_txn_monitor_q;
+  reg fault_frontier_seen_q;
+  integer fault_cache_fill_count_q;
+  integer fault_sram_write_count_q;
+  integer fault_monitor_cycles_q;
+  integer fault_frontier_cycles_q;
+  integer fault_instruction_ar_count_q;
+  integer fault_post_frontier_ar_count_q;
+  integer raw_frontier_f2_rows_q;
+  integer raw_frontier_f4_rows_q;
+  integer raw_frontier_f6_rows_q;
 
   OooFetchAxiBridge u_bridge (
     .clk(clk),
@@ -147,10 +162,31 @@ module tb_ooo_fetch_page_end_fault;
     .dec0_bimm_o(dec0_bimm),
     .dec1_branch_o(dec1_branch),
     .dec1_bimm_o(dec1_bimm),
-    .packet_next_pc_o(packet_next_pc)
+    .packet_next_pc_o(packet_next_pc),
+    .fault_tval_o(dec_fault_tval)
   );
 
   always #5 clk = ~clk;
+
+  always @(posedge clk) begin
+    if (fault_txn_monitor_q) begin
+      // !==0 同时拒绝 X，避免内部 owner 未初始化时静默假绿。
+      fault_monitor_cycles_q <= fault_monitor_cycles_q + 1;
+      if (u_bridge.fetch_cache_fill_valid_w !== 1'b0)
+        fault_cache_fill_count_q <= fault_cache_fill_count_q + 1;
+      if (u_bridge.u_fetch_packet_cache.sram_we_w !== 1'b0)
+        fault_sram_write_count_q <= fault_sram_write_count_q + 1;
+      if ((ifu_axi_arvalid === 1'b1) &&
+          (ifu_axi_arprot === 3'b100))
+        fault_instruction_ar_count_q <= fault_instruction_ar_count_q + 1;
+      if (fault_frontier_seen_q) begin
+        fault_frontier_cycles_q <= fault_frontier_cycles_q + 1;
+        if (ifu_axi_arvalid !== 1'b0)
+          fault_post_frontier_ar_count_q <=
+              fault_post_frontier_ar_count_q + 1;
+      end
+    end
+  end
 
   task automatic check_resp;
     input [1023:0] what;
@@ -515,6 +551,9 @@ module tb_ooo_fetch_page_end_fault;
         expect_ar(what, pte_addr(L1_PT, NEXT_PAGE_VA, 2'd1));
         drive_r(pte_for_page(L0_PT, PTE_NONLEAF_FLAGS));
         expect_ar(what, pte_addr(L0_PT, NEXT_PAGE_VA, 2'd0));
+        // invalid leaf R 是 fault frontier 的闭合事件；从该拍起任何新 AR 都是
+        // 年轻访问，必须在 response 被消费前持续为零。
+        fault_frontier_seen_q = 1'b1;
         drive_r({`XLEN{1'b0}});  // V=0: 真实 next-page instruction page fault
       end
     end
@@ -527,8 +566,30 @@ module tb_ooo_fetch_page_end_fault;
     input [1:0] exp_dec0_resp;
     input [1:0] exp_dec1_resp;
     integer waits;
+    integer first_page_bytes;
+    reg fault_case;
+    reg [2:0] expected_frontier;
+    reg [`XLEN-1:0] raw_packet;
+    reg prefix_ok;
+    reg tail_zero;
     begin
+      first_page_bytes = 4096 - pc[11:0];
+      // 是否为 fault 行直接取既有 matrix owner 期望，避免 monitor 与 DUT/driver
+      // 共用一份长度判定而把同一个错误同时算成“不需要观察”。
+      fault_case = (exp_dec0_resp == RESP_PAGE_FAULT) ||
+                   (exp_dec1_resp == RESP_PAGE_FAULT);
+      expected_frontier = first_page_bytes[2:0];
+
+      fault_txn_monitor_q = 1'b0;
+      fault_frontier_seen_q = 1'b0;
       reset_case();
+      fault_cache_fill_count_q = 0;
+      fault_sram_write_count_q = 0;
+      fault_monitor_cycles_q = 0;
+      fault_frontier_cycles_q = 0;
+      fault_instruction_ar_count_q = 0;
+      fault_post_frontier_ar_count_q = 0;
+      fault_txn_monitor_q = fault_case;
       rsp_pc = pc;
       fetch_req_pc = pc;
       fetch_req_valid = 1'b1;
@@ -539,6 +600,17 @@ module tb_ooo_fetch_page_end_fault;
       fetch_req_pc = {`XLEN{1'b0}};
 
       walk_first_page_ok_next_page_fault(what, pc, first_beat);
+      if (fault_case) begin
+        // 故意 hold response 两拍；若 fault 后错误续发 instruction/PTE AR，
+        // sticky monitor 与逐拍直接检查会同时报错。
+        tb_check1("G2 fault frontier immediately blocks younger AR",
+                  ifu_axi_arvalid, 1'b0);
+        repeat (2) begin
+          tick();
+          tb_check1("G2 held fault response blocks younger AR",
+                    ifu_axi_arvalid, 1'b0);
+        end
+      end
       waits = 0;
       while ((fetch_rsp_valid !== 1'b1) && (waits < 30)) begin
         tick();
@@ -554,7 +626,66 @@ module tb_ooo_fetch_page_end_fault;
                    pc + ((first_beat[1:0] == 2'b11) ? 64'd4 : 64'd2));
         check_resp({what, " slot0 response"}, dec0_resp, exp_dec0_resp);
         check_resp({what, " slot1 response"}, dec1_resp, exp_dec1_resp);
+        if (fault_case) begin
+          raw_packet = {fetch_rsp_inst1, fetch_rsp_inst0};
+          prefix_ok = 1'b0;
+          tail_zero = 1'b0;
+          case (expected_frontier)
+            3'd2: begin
+              prefix_ok = raw_packet[15:0] === first_beat[15:0];
+              tail_zero = raw_packet[63:16] === 48'd0;
+              raw_frontier_f2_rows_q = raw_frontier_f2_rows_q + 1;
+            end
+            3'd4: begin
+              prefix_ok = raw_packet[31:0] === first_beat[31:0];
+              tail_zero = raw_packet[63:32] === 32'd0;
+              raw_frontier_f4_rows_q = raw_frontier_f4_rows_q + 1;
+            end
+            3'd6: begin
+              prefix_ok = raw_packet[47:0] === first_beat[47:0];
+              tail_zero = raw_packet[63:48] === 16'd0;
+              raw_frontier_f6_rows_q = raw_frontier_f6_rows_q + 1;
+            end
+            default: begin
+              prefix_ok = 1'b0;
+              tail_zero = 1'b0;
+            end
+          endcase
+          check_resp({what, " raw prefix owner"}, fetch_rsp_resp0, RESP_OK);
+          check_resp({what, " raw fault owner"}, fetch_rsp_resp1,
+                     RESP_PAGE_FAULT);
+          tb_check1({what, " raw resp0_bytes is exact F=2/4/6"},
+                    fetch_rsp_resp0_bytes == expected_frontier, 1'b1);
+          check_xlen({what, " precise fault portion tval"}, dec_fault_tval,
+                     pc + {{(`XLEN-3){1'b0}}, expected_frontier});
+          tb_check1({what, " successful raw prefix retained"}, prefix_ok,
+                    1'b1);
+          tb_check1({what, " raw instruction tail after F is zero"},
+                    tail_zero, 1'b1);
+          tb_check1({what, " fault monitor spans transaction"},
+                    fault_monitor_cycles_q > 0, 1'b1);
+          tb_check1({what, " fault frontier monitor is non-vacuous"},
+                    fault_frontier_cycles_q >= 3, 1'b1);
+          tb_check1({what, " instruction AR count stops exactly at F"},
+                    fault_instruction_ar_count_q ==
+                        (expected_frontier >> 1), 1'b1);
+          tb_check1({what, " fault frontier emits no younger AR"},
+                    fault_post_frontier_ar_count_q == 0, 1'b1);
+          tb_check1({what, " fault transaction emits no cache fill"},
+                    fault_cache_fill_count_q == 0, 1'b1);
+          tb_check1({what, " fault transaction emits no SRAM write"},
+                    fault_sram_write_count_q == 0, 1'b1);
+          $display("[G2-RAW-FAULT-OWNER] %0s F=%0d split=%0d prefix_ok=%0b tail_zero=%0b inst_ar=%0d monitor_cycles=%0d frontier_cycles=%0d younger_ar=%0d cache_fill=%0d sram_write=%0d raw=%016x",
+                   what, expected_frontier, fetch_rsp_resp0_bytes,
+                   prefix_ok, tail_zero, fault_instruction_ar_count_q,
+                   fault_monitor_cycles_q, fault_frontier_cycles_q,
+                   fault_post_frontier_ar_count_q,
+                   fault_cache_fill_count_q, fault_sram_write_count_q,
+                   raw_packet);
+        end
       end
+      fault_txn_monitor_q = 1'b0;
+      fault_frontier_seen_q = 1'b0;
       fetch_rsp_ready = 1'b1;
       tick();
       fetch_rsp_ready = 1'b0;
@@ -564,6 +695,17 @@ module tb_ooo_fetch_page_end_fault;
   initial begin
     tb_errors = 0;
     clk = 1'b0;
+    fault_txn_monitor_q = 1'b0;
+    fault_frontier_seen_q = 1'b0;
+    fault_cache_fill_count_q = 0;
+    fault_sram_write_count_q = 0;
+    fault_monitor_cycles_q = 0;
+    fault_frontier_cycles_q = 0;
+    fault_instruction_ar_count_q = 0;
+    fault_post_frontier_ar_count_q = 0;
+    raw_frontier_f2_rows_q = 0;
+    raw_frontier_f4_rows_q = 0;
+    raw_frontier_f6_rows_q = 0;
 
     // PC=FFA：本页还剩 6B。C+32 与 32+C 的两条指令都完整落在本页；
     // 32+32 仅第二条跨页。旧 word-resp 映射会把前两种的 slot1 错报为 fault。
@@ -603,6 +745,18 @@ module tb_ooo_fetch_page_end_fault;
     // A-update re-walk，以及 mmu_flush write-drain 绑定到同一真实跨页请求。
     run_second_page_ad_success();
     run_second_page_ad_flush_drop();
+
+    tb_check1("G2 raw fault matrix covers four F=2 rows",
+              raw_frontier_f2_rows_q == 4, 1'b1);
+    tb_check1("G2 raw fault matrix covers three F=4 rows",
+              raw_frontier_f4_rows_q == 3, 1'b1);
+    tb_check1("G2 raw fault matrix covers one F=6 row",
+              raw_frontier_f6_rows_q == 1, 1'b1);
+    $display("[G2-RAW-FAULT-SUMMARY] F2=%0d F4=%0d F6=%0d total=%0d",
+             raw_frontier_f2_rows_q, raw_frontier_f4_rows_q,
+             raw_frontier_f6_rows_q,
+             raw_frontier_f2_rows_q + raw_frontier_f4_rows_q +
+             raw_frontier_f6_rows_q);
 
     tb_finish("tb_ooo_fetch_page_end_fault");
   end

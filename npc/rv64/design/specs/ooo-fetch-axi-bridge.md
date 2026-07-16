@@ -3,8 +3,11 @@
 > 模块：`vsrc/frontend/OooFetchAxiBridge.v`。模板见 `../arch/SPEC-TEMPLATE.md`。
 > 状态：**主路径已实现**（含 fence.i 真 flush、Svnapot 64KiB、硬件 A update 与
 > exact-halfword fetch）；IFU-AXI-G1、IFU-FETCH-G2 已于 2026-07-12 关闭，
-> IFU-ACCESS-G1 于 2026-07-13 scoped 关闭。§9 的 IFU-TVAL-G1 与 PTW-PMP-G1
-> 仍开放，不能写成无条件“已完整验证”。
+> IFU-ACCESS-G1 于 2026-07-13 scoped 关闭。T3R 请求/响应非穿透边界、T3W
+> ITLB/PMP registered authorization boundary、T3X derived-scratch 初始化边界与
+> T4A fixed-role candidate→execution context、PTE READ authorization register boundary
+> 已实现；IFU stalled-AR flush owner 与 T4F PTW PTE WRITE PMP 均已闭合。
+> §9 的 IFU-TVAL-G1 已由 T4G 关闭；完整系统结论仍须结合 memory bridge 与最终回归。
 
 ## 1. 目的与范围
 把前端取指请求(PC)落到 IFU AXI，返回一个 **fetch packet**（两条对齐的 32-bit 槽，支持 RVC）。
@@ -15,10 +18,11 @@
 ## 2. 接口（要点）
 | 信号 | 含义 |
 | --- | --- |
-| `fetch_req_valid_i/ready_o` + `fetch_req_pc_i` | 取指请求。S_IDLE/S_RESP/S_LOOKUP 物理 SRAM 读窗提前打开，fire 只形成语义 accept 并锁存上下文；下一拍 S_LOOKUP 判决。hit 且 response 可接收时可同拍受理下一请求，命中稳态吞吐 1 packet/cycle |
+| `fetch_req_valid_i/ready_o` + `fetch_req_pc_i` | 取指请求。只在 S_IDLE，或 S_RESP 旧响应同拍 fire 时 accept；candidate context 每拍无条件预装 raw live，fire 只取得标量 FSM owner。下一拍 S_CACHE_READ 用 candidate 发同步 SRAM/ITLB lookup，拍尾 candidate→exec，再下一拍 S_LOOKUP 判决。不得从 live request 组合穿透到 SRAM/response |
+| `fetch_req_owner_pc_o` | frontend outstanding PC 唯一载荷真源。S_CACHE_READ 取 candidate PC，其余状态取 frozen exec PC；交接值保持。无 outstanding 时该 payload 可 stale，response stall/MMU flush 不得改变有效 owner |
 | `fetch_rsp_*`（inst0/inst1/resp0/resp1） | 返回 raw packet。成功=`(OK,OK)`；fault 使用 successful-prefix/fault-suffix `(OK,cause)`，不是最终 per-slot response |
 | `fetch_rsp_resp0_bytes_o` | 成功/cache=4；fault=首个失败 halfword offset `F∈{0,2,4,6}`。0 是合法 first-halfword fault。与 response 同 owner、同 stall 生命周期 |
-| `ifu_axi_araddr/arsize/arprot` | instruction data=`translate(PC+offset),2B,exec`；PTE walk=`pte_addr,8B,data`。valid stall 时 payload 保持 |
+| `ifu_axi_araddr/arsize/arprot` | instruction data=`translate(PC+offset),2B,exec`；PTE walk=`registered pte_addr,8B,data`。ARVALID 一经呈现，包含 flush 在内都必须保持 valid/payload 到 fire；被 flush 作废者进入对应 AR_DROP，fire 后在 S_DRAIN 吞 R |
 | `priv_mode_i/satp_i/svpbmt_en_i` + `pmpcfg_i/pmpaddr_i` | 翻译/权限上下文 |
 | `mmu_flush_i`（sfence/satp/fence.i commit） | ITLB/walk 与取指包 cache 整体失效（模块无独立 `flush_i` 端口） |
 | `invalidate_*`（store fire 驱动） | 取指 cache 逐 store 盲失效：8B store footprint 直接清 m6/m4/m2/p0/p2/p4/p6 候选 index 的 valid(不读 pc 比较，超集覆盖)；lookup 两拍窗口由 cache 内旁路封堵 |
@@ -61,21 +65,35 @@ channel accepted，sticky `ad_drop_q` 持有语义 drop。xbar 只保存/路由�
 
 ## 3. 主要数据通路
 - **取指包 cache** `OooFetchPacketCache`：按 {PC, satp/priv 上下文} 命中，返回 inst0/1+resp0/1。
-  SRAM 同步读协议把物理读窗与语义 accept 分开：`fetch_cache_read_window_w` 在
-  S_IDLE/S_RESP/S_LOOKUP 恒为 1，直接驱动 `lookup_read_en_i`；`fetch_req_fire_w` 只驱动
-  `lookup_en_i` 并锁存请求上下文(pc_q/paging_q/req_priv_q/req_satp_q)。无 fire 的 dummy read
-  不置判决资格；判决在次拍 `S_LOOKUP` 完成。fill 只在最终成功的 S_R0，此时读窗为 0，
-  与物理读严格互斥(cache 内 1RW 断言把关)。S_LOOKUP hit 组合回包且
-  `fetch_rsp_ready_i=1` 时可融合下一次 request accept，因此稳态不是 1/2。
+  T3R 把 semantic accept 与物理读分成两个注册边界；T4A 把完整 context
+  `{pc,paging,priv,satp,svpbmt}` 固定分成 candidate/exec 两种物理角色。candidate 每拍无条件
+  跟踪 raw live，S_CACHE_READ 的 cache/ITLB lookup 只显式消费 candidate；该拍尾 exec 只按
+  registered `state_q==S_CACHE_READ` 原子捕获旧 candidate。S_LOOKUP 及以后所有 transaction
+  consumer 只显式消费 frozen exec。历史别名 `pc_q/paging_q/req_*_q` 仅供 owner output、XMR
+  debug 与 assertion 使用，不得回流功能数据通路。T3X 的 `paddr*`、walk/cross-page flag、
+  gather data/offset 和 response/split 等派生 scratch 仍只在 S_CACHE_READ 拍尾初始化。
+  S_LOOKUP 消费同步 SRAM payload 并把结果写 response Q；只有 S_RESP 对外 valid。fill 只在
+  最终成功的 S_R0，与 1RW read 严格互斥。
 - **ITLB** `OooSv39Tlb`：paging 时翻译 PC→paddr；miss 触发 page table walk(S_WALK_*)。
-  lookup 输入接 fire 拍锁存值(pc_q/req_satp_q/paging_q)，使组合输出与 cache SRAM 读数在
-  判决拍对齐；ITLB 本体保持 FF，不 SRAM 化。
+  lookup 输入接 candidate。T3W/T4A 在 S_CACHE_READ 拍尾同时锁存
+  `lookup_itlb_hit_q`、`lookup_itlb_perm_fault_q`、translated-or-bare
+  `lookup_exec_paddr_q` 与 exec context；S_LOOKUP 的两个 4B fast PMP checker 只消费这些
+  registered owner。这样 PC→ITLB 与 PMP 不再和 cache-hit/response payload 串在同一拍，
+  同时不增加 T3R cadence。
 - **PMP fast gate**：两个固定 4B checker 只提供 cache-hit 的保守充分条件，且在所有
   privilege/pmpcfg（包括全零配置）下都运行。任一 fixed-window 拒绝只降级 slow path，
   不直接形成架构 fault。
 - **PMP exact owner**：slow path 的每个 instruction AR 前，以完全相同的 PA、2B、EXEC
   运行 checker；fault 抑制该 AR，并以当前 `fetch_offset_q` 形成 fault frontier。A=0 leaf
   在产生 PTE write side effect 前也先对当前 exact PA/2B 做同一 EXEC PMP 检查。
+- **PTW READ authorization boundary**：所有初始 walk、non-leaf next-level、second-page walk
+  与 A-update B=OK re-walk 都先进入 S_WALK_CHECK。该静默拍原子寄存当前 PTE 物理地址与
+  8B implicit-data READ PMP fault；下一拍 S_WALK_AR 的 ARADDR/ARVALID 只读这两个 q。
+  A-update AWADDR/debug 地址复用 registered address，但 READ 许可不等价于 WRITE 许可。
+- **PTW WRITE authorization（T4F）**：A=0 leaf 在进入 `S_AD_UPDATE` 前，以 registered
+  PTE physical address、8B、S-mode、WRITE 独立运行 checker。deny 返回当前 frontier 的
+  instruction access fault，保留 successful prefix，且不发 AW/W、不填 ITLB、不续原取指；
+  grant 才建立既有 write owner，随后 flush 仍按 IFU-AXI-G1 写必达/drain。
 - **长度与 gather**：miss 从 offset0 开始，每次成功 R 只抽取 address-selected 2B lane，
   写入 `fetch_data_q`。offset0 成功后才知道 L0 prefix；随后按已经成功的 prefix 依次决定
   offset2/4/6，最终只访问 `0,2,...,N-2`，其中 `N=L0+L1∈{4,6,8}`。未访问 tail
@@ -91,16 +109,21 @@ channel accepted，sticky `ad_drop_q` 持有语义 drop。xbar 只保存/路由�
 
 | bridge 状态/事件 | `lookup_read_en_i` | semantic accept (`lookup_en_i`) | SRAM 写 | 可见语义 |
 | --- | ---: | ---: | ---: | --- |
-| S_IDLE | 1 | 仅 request fire | 0 | 无 fire 为 dummy；fire 锁存 live request PC/context |
-| S_RESP | 1 | 仅旧 response 被接收且新 request valid | 0 | stall 为 dummy；可消费旧响应同拍 accept 新请求 |
-| S_LOOKUP | 1 | 仅 hit-fusion request fire | 0 | 无新 fire 为 dummy；必须覆盖 A→B 融合读 |
+| S_IDLE | 0 | 0 | 0 | request fire 只取得 FSM owner；candidate 已在该沿预装完整 context，物理 SRAM 保持关闭 |
+| S_RESP | 0 | 0 | 0 | response stall 保持 payload；旧响应 fire 可同拍锁存 replacement request |
+| S_CACHE_READ | 1 | 1 | 0 | 只用 candidate 发 SRAM/ITLB lookup；拍尾同时捕获 ITLB/PA authorization 与 candidate→exec |
+| S_LOOKUP | 0 | 0 | 0 | 消费上拍 SRAM payload与 registered ITLB/PMP owner，拍尾写 response Q 或进入 slow path |
 | S_R0 final successful fill | 0 | 0 | 1 | fill PC/payload 写入；物理读写严格互斥 |
 | 其它 walk/AR/R/drain/write 状态 | 0 | 0 | 0 | 不占 payload SRAM 端口 |
 
-`mmu_flush_i` 组合压低 ready/fire 并在拍尾 clear valid，但不组合关掉上述 state-only 读窗；
-因此 flush 撞 S_IDLE/S_RESP/S_LOOKUP 只产生无判决资格的 dummy read。读地址仍取 live
-`fetch_req_pc_i[INDEX_W:1]`，写地址才取 fill PC；raw SRAM payload 在 semantic hit=0 时
-是 don't-care，禁止被任何架构路径消费。
+`mmu_flush_i` 组合压低 fetch ready，并同步 clear cache/TLB。candidate 在包括 flush 在内的所有
+非 reset 拍继续采 live；exec 只在旧 state=S_CACHE_READ 时捕获旧 candidate，flush 不进入其
+宽 D 门控，其余状态保持。S_CACHE_READ+flush 仍完成值保持交接，但事务随即作废；无有效
+outstanding 时 owner payload 可 stale。普通非写态 flush 清逻辑 scratch，唯独已呈现且 stalled
+的 AR 必须转 `S_WALK_AR_DROP/S_FETCH_AR_DROP` 并保留 payload 真源，直到 AR fire 后进
+S_DRAIN 吞 R；已 fire 的读直接排水。S_AD_UPDATE 中则 exec、registered PTE address、AD payload
+与 AW/W/B owner 保持到 B completion，仅 sticky-drop 架构语义。raw SRAM payload 在 semantic
+hit=0 时是 don't-care，禁止被任何架构路径消费。
 
 ### 3.1 IFU-AXI-G1 状态 / 子模式
 
@@ -111,7 +134,7 @@ enter(A=0 leaf) -> S_AD_UPDATE, ad_drop=0, aw_done=0, w_done=0
 S_AD_UPDATE --AW/W independent fire--> accepted bit 单调置 1
 S_AD_UPDATE --mmu_flush--> ad_drop=1，状态与 payload 保持
 S_AD_UPDATE --AW+W accepted, B fire, effective_drop=1--> IDLE
-S_AD_UPDATE --AW+W accepted, B fire, effective_drop=0, B OK--> S_WALK_AR
+S_AD_UPDATE --AW+W accepted, B fire, effective_drop=0, B OK--> S_WALK_CHECK
 S_AD_UPDATE --AW+W accepted, B fire, effective_drop=0, B error--> S_RESP/S_AR0
 ```
 
@@ -135,7 +158,11 @@ effective_drop   = ad_drop_q || mmu_flush_i
 | `w_done_q` | 当前 write 的 W accepted | complete 清 0 | 保持并吸收同拍 fire | 0 |
 | `ad_drop_q` | 当前 write 完成后的 fetch 语义 | 新 A-update/complete 清 0 | sticky 置 1 | 0 |
 | `ad_pte_q` | WDATA payload | re-walk 后可覆写 | 保持 | 0 |
-| `walk_ppn_q/walk_level_q/pc_q/walk_second_q` | AWADDR 与 fault/re-walk provenance | 按原 FSM 使用 | 保持到 B completion | 0/default |
+| candidate context | 下一次 S_CACHE_READ lookup | 每个非 reset 拍采 raw live | write/flush 期间仍可变化，但不是 transaction owner | 0/default |
+| exec context | 整个有效 fetch transaction | S_CACHE_READ 拍尾从 candidate 捕获，其余保持 | 保持到 B completion；普通 flush 后只成为 invalid stale payload | 0/default |
+| `walk_ppn_q/walk_level_q/walk_second_q` | walk/re-walk provenance | 按原 FSM 使用 | write owner 中保持到 B completion | 0 |
+| `walk_pte_addr_q/walk_pte_pmp_fault_q` | 当前 PTE READ address + 8B READ-PMP verdict | S_WALK_CHECK 原子捕获；AR/AWADDR/debug 消费 | 普通 flush 不驱动有效 AR；write owner 保持 address provenance | 0 |
+| `S_*_AR_DROP` + fetch scratch | 已呈现但被 flush 作废的 AR payload | AR fire 后进 S_DRAIN | 重复 flush 与反压期间完整保持 | IDLE/0 |
 
 ### 3.3 同拍竞争表
 
@@ -146,7 +173,7 @@ effective_drop   = ad_drop_q || mmu_flush_i
 | flush + 最后缺失 channel fire，B 未到 | 两 accepted=1，drop=1 | 留写 owner等 B |
 | flush + B fire（两 channel 已 accepted） | B completion 有效，drop=1 | IDLE，忽略 BRESP |
 | repeated flush | accepted/payload 不变，drop 保持 1 | 同上，幂等 |
-| 无 flush + B OK | B completion 有效，drop=0 | S_WALK_AR |
+| 无 flush + B OK | B completion 有效，drop=0 | S_WALK_CHECK |
 | 无 flush + B error | B completion 有效，drop=0 | 按 first/second-page 归属 access fault |
 | rst + 任意事件 | 不承认局部 fire（总线共同 reset） | IDLE，全清 |
 
@@ -175,20 +202,26 @@ slow path checker reject at F -> no AR, raw response=(OK, ACCESS_FAULT, F)
 
 ## 5. 状态机（简）
 ```
- S_IDLE/S_RESP --物理读窗已开；req fire(语义 accept+锁存)--> S_LOOKUP
- S_LOOKUP(物理读窗保持) --hit+rsp_ready--> S_LOOKUP(同拍接受下一请求) / S_RESP
+ S_IDLE --req fire(candidate 已预装，取得 FSM owner)--> S_CACHE_READ
+ S_RESP --旧 response fire + replacement req fire--> S_CACHE_READ
+ S_CACHE_READ --candidate lookup；candidate→exec；锁存 ITLB owner；初始化 scratch--> S_LOOKUP
+ S_LOOKUP --cache hit / first-frontier fault--> S_RESP
  S_LOOKUP --miss,no-trans/itlb-hit--> S_AR0(exact PMP+AR)/S_R0(2B gather)
  S_R0 --more,same-page--> S_AR0
- S_R0 --more,next-page,paging--> S_WALK_AR/S_WALK_R(三级) --> S_AR0
+ S_LOOKUP/S_WALK_R/S_R0/S_AD_UPDATE(B OK) --> S_WALK_CHECK --> S_WALK_AR/S_WALK_R
+ S_R0 --more,next-page,paging--> S_WALK_CHECK/S_WALK_AR/S_WALK_R(三级) --> S_AR0
  S_R0 --N complete--> S_RESP
  任一 frontier PMP/page/RRESP fault --> S_RESP(OK,cause,F)
  S_WALK_R --leaf A=0--> S_AD_UPDATE(AW/W 独立握手,等 B) --> re-walk
- 已发读 --mmu_flush--> S_DRAIN(消费返回后回 IDLE)
- 其它无已发事务状态 --mmu_flush--> S_IDLE
+ 已呈现未 fire 的 AR --mmu_flush--> 对应 S_*_AR_DROP --AR fire--> S_DRAIN
+ 已 fire 读 --mmu_flush--> S_DRAIN(消费返回后回 IDLE)
+ 未呈现 AR/PMP fault/其它无总线 owner 状态 --mmu_flush--> S_IDLE
 ```
 `S_AR1/S_R1` 仅保留历史 debug state 编码，exact fetch 不再进入。RDATA 只在 S_R0 决定
 下一拍 offset/state，不存在 RDATA→下一 ARVALID/ARADDR 的同拍链；hit 快速路径
-fire→S_LOOKUP 判决，命中稳态可 1 packet/cycle。
+固定经过 request fire→S_CACHE_READ→S_LOOKUP→S_RESP，不允许 response 或下一个 request
+穿透 cache 判决拍。S_RESP 仍可在旧响应 fire 同拍锁存 replacement request，随后按相同
+两拍 read/decision cadence 前进。
 A/D：leaf PTE 的 A=0 进入 `S_AD_UPDATE`，AW/W 可独立握手；两通道完成并收到 B 后，
 若该请求未被 flush 则重新 page walk，再填 ITLB；若 flush 已把旧取指语义标为 drop，则仍
 补齐 AW/W、消费 B，随后直接回 IDLE。reserved 扩展位检查在 Svpbmt/Svnapot 规则之后完成；ITLB
@@ -196,14 +229,16 @@ A/D：leaf PTE 的 A=0 进入 `S_AD_UPDATE`，AW/W 可独立握手；两通道�
 
 ### 5.1 reset / flush / completion 优先级全序
 
-1. `rst`：全总线共同复位，清所有 owner/context，回 IDLE。
-2. `mmu_flush_i`：非写态沿用 read-drain/semantic clear；写态只置 sticky drop 并保持事务。
+1. `rst`：全总线共同复位，清 candidate/exec、PTW q、scratch 与全部 owner，回 IDLE。
+2. `mmu_flush_i`：已呈现 stalled AR 保持 payload 并转 AR_DROP，已 fire read 进 S_DRAIN；
+   无 read owner 时清 semantic scratch。写态只置 sticky drop 并保持事务。
 3. AW/W/B completion：flush/drop 同拍或既有 sticky drop 时，完成后回 IDLE；否则 B=OK
    re-walk，B error 按当前 first/second-page 归属返回 instruction access fault。
 4. 普通 FSM 转移。
 
-重复 flush 幂等；flush 与最后 AW/W 或 B 同拍时，channel fire/completion 仍有效，但 drop 在
-语义后继上胜出。排水期间 fetch request/response 与新 AR 均禁止。
+重复 flush 幂等；flush 与 ARREADY 同拍时 AR fire 有效并进入 S_DRAIN；flush 与最后 AW/W
+或 B 同拍时 channel fire/completion 也有效，但 drop 在语义后继上胜出。AR_DROP 只保持当前
+AR，S_DRAIN 只拉 RREADY；两种排水期都禁止 fetch request/response、fill 与其它 AXI channel。
 
 ## 6. 验证
 - riscv-tests `rv64ui`(取指正确性)、`rv64mi/si`(特权/翻译)、ACT4 Sv39/PMP。
@@ -230,13 +265,24 @@ A/D：leaf PTE 的 A=0 进入 `S_AD_UPDATE`，AW/W 可独立握手；两通道�
 - IFU-AXI-G1 切片新鲜回归：module 88/88、Verilator 5.051 lint、RTL style、clean NPC build、AM 59/59、
   official p-mode 153/153。当前 `.config` 为 Difftest OFF，且本轮 core-regress 未包含
   privileged rv64mi/rv64si；这些证据关闭 IFU owner 合同，不越级证明全部 ISA/特权范围。
+- T4A 当前新鲜证据：Bridge candidate/exec、PTW deny/register、WALK/Data stalled-AR flush、
+  repeated flush、flush+READY 与 dropped-R 全部通过；focused frontend/core/xbar 8/8、module
+  98/98、lint/style/contract(current immediate assertions=166)、source mutation 10/10 与动态
+  mutation 5/5 全绿。fresh frozen netlist `0f1e7b22…928b` 的 exact 5.000ns STA 为
+  `WNS=-0.130ns/TNS=-7.45ns/loops=0/power=0.117W`：相对 T3Z 明显改善但仍未闭合；top40
+  已全部迁出 Bridge，下一瓶颈属于 FIFO-head classify→dispatch/outstanding，不能宣称 200MHz。
 
 ## 7. 关键路径
-PMP(16 entry) × 两槽 + ITLB + cache 命中比较并行，全部移到 S_LOOKUP 判决拍(以锁存请求为源)。
-T3J 进一步让 SRAM `en_i` 只依赖三态读窗(S_IDLE/S_RESP/S_LOOKUP)，不再依赖 request
-valid/ready/fire 长组合锥；fire 拍只锁存语义上下文。S_LOOKUP 必须保持读窗，承接融合 A→B；
-S_RESP 必须保持读窗，承接消费旧响应同拍 accept B；S_R0 fill 拍必须关闭读窗。
-该结构刀是否改善当前 5ns WNS 只由新鲜同源综合/STA 判定，不能凭 RTL 结构宣称 200MHz。
+T3R 后 SRAM `en_i` 只依赖 registered `S_CACHE_READ`，S_IDLE/S_RESP/S_LOOKUP 均关闭读窗。
+T3W 把 PC→ITLB 结果打拍，使 S_LOOKUP 的两个固定 4B PMP checker 只消费 registered PA。
+T3X 再把 `paddr0_q/fetch_data_q` 等宽派生 scratch 从 request-fire D mux 移到
+S_CACHE_READ state owner；fire 拍仅锁 immutable context，不增加状态或可见 latency。
+T4A 物理删除 T3Z 的双 bank 与高扇出 active selector，改成固定角色 candidate→exec：
+S_CACHE_READ lookup 只读 candidate，拍尾 exec 本地捕获，后续 PMP/walk/AXI/fill 只读 exec。
+同时在 page walk 增加 S_WALK_CHECK，把 exec→PTE address/PMP cone 截止在 q，下一拍
+registered address/fault 才进入 AXI/xbar。T3Z fresh exact-5ns 的 `WNS=-0.850ns` 是本刀输入
+基线，不是 T4A 收敛结论；T4A 必须使用新鲜冻结网表复测。
+每一刀是否改善 5ns WNS 只由新鲜同源综合/STA 判定，不能凭 RTL 结构宣称 200MHz。
 exact miss 不再有 RDATA→下一 AR 的组合链；但最终 S_R0 仍存在
 `RDATA -> address-lane shift -> halfword insert -> length判定 -> fetch-cache fill` 同拍锥。
 fresh STA 若把该锥排进 leading family，下一刀应把 lane 抽取改为固定四路 case，并增加
@@ -275,11 +321,16 @@ cache 模块级 1-cycle 同步读两拍协议、盲失效与 819200 state-bit lo
   S_IDLE/S_RESP/S_LOOKUP，`fetch_req_fire_w` 仅锁存请求与置判决资格，S_R0 fill 物理写与读窗
   互斥。focused TB 新增 S_IDLE/S_LOOKUP/S_RESP 连续读、dummy read、S_RESP accept 与 final-fill
   动态承重；时序结论等待冻结网表的 5ns STA。
+- 2026-07-14(T4A)：删除 T3Z 双 context bank/selector，改为 unconditional candidate preload
+  与 S_CACHE_READ 本地 candidate→exec 交接；lookup/transaction consumer 物理分域。新增
+  S_WALK_CHECK，寄存 PTE READ address/PMP verdict 后才进入 AXI。审查同时修复 IFU stalled
+  AR 被 `mmu_flush_i` 撤回的问题：WALK/FETCH 各有 AR_DROP owner，保持 valid/payload 到 fire，
+  再进 S_DRAIN 吞 R；新增独立端口 shadow、deny/flush/READY/poison 动态矩阵。
 
 ## 已知隐患(2026-06-28 bug-hunt)
 - **[已修复]** 跨页已缓存包槽1 PMP 复检用错物理地址(`req_exec1_paddr_w=paddr0+4` 对跨页是错页);PMP 运行期 allow→deny 第二页且无取指 cache 失效时可绕过槽1 PMP。详见 `.github/memory/known-issues.md`(隐患B)。根因修复:**跨页取指包不缓存**(fill 条件含 `!packet_cross_page_q`,每次重取经 walk-leaf checker 用正确物理地址重查两页 PMP,`OooFetchAxiBridge.v:279-296` 注释自证);非跨页包内 `paddr0+4` 恒同页,复检恒正确。
 
-## 9. 合同状态（2026-07-13）
+## 9. 合同状态（2026-07-14）
 
 ### IFU-AXI-G1：A-update 写通道的 flush-drain（CLOSED 2026-07-12）
 
@@ -294,6 +345,19 @@ cache 模块级 1-cycle 同步读两拍协议、盲失效与 819200 state-bit lo
 accepted+B delayed、flush 与最后 channel/B 同拍、重复 flush、valid/payload stall stability、
 B error drop，以及 xbar owner release/后一 master 精确地址+数据+B 全部动态闭合。独立 shadow
 断言已进入 `` `OOO_ASSERT `` ratchet 50/50。本合同 CLOSED；PTW WRITE PMP 仍归下一条独立合同。
+
+### IFU-AR-G1：读地址 channel 的 flush owner（CLOSED 2026-07-14）
+
+**目标合同**：`mmu_flush_i` 不是 AXI reset。ARVALID 一旦呈现，即使尚未 fire、随后发生
+flush，也必须保持完整 payload 到 ARREADY；语义已 drop 的 read 在 AR fire 后必须消费 R，
+且不得形成 fetch response、cache/TLB fill 或新请求进展。
+
+**当前 RTL 与验收**：普通 WALK/FETCH AR 在 flush+stall 时分别转
+`S_WALK_AR_DROP/S_FETCH_AR_DROP`，继续从冻结的 PTW q 或 exec/scratch 驱动原 payload；
+flush+READY 同拍直接进 S_DRAIN。DROP owner 只发当前 AR，S_DRAIN 只收 R。独立端口 shadow
+对上拍 stalled 的 addr/id/len/size/burst/prot 无 flush 豁免；WALK/Data、重复 flush、live poison、
+READY 同拍及错误 R 均有动态牙齿。该 CLOSED 只覆盖 IFU bridge；LSU memory bridge 同型风险
+仍须独立修复，不能越级称“全局 AXI read owner 已关闭”。
 
 ### IFU-FETCH-G2：page-end 压缩指令的 page-fault 归属（CLOSED 2026-07-12）
 
@@ -325,20 +389,28 @@ younger AR、slave stall payload、UART side-effect firewall、LSU offset5,size4
 permanent tests。真实 AxiDpiSlave→dpi.c→paddr.c guard-page test 证明 PMEM 尾端 2B 不做
 隐含 8B host read；second-page A=0 normal/re-walk 与 flush-drop owner 也端到端覆盖。
 
-本合同不关闭 faulting-portion TVAL、PTW PTE WRITE PMP、LSU cross-lane AXI 标准化或
-physical 200MHz；这些仍是独立 owner/时序切片。
+faulting-portion TVAL 已由 T4G 关闭，LSU cross-lane AXI 标准化已由 T4I 关闭；
+physical 200MHz 仍是独立于当前 gate-level proxy 的签核阶段。
 
-### IFU-TVAL-G1：跨 segment faulting portion 地址（OPEN）
+### IFU-TVAL-G1：跨 segment faulting portion 地址（CLOSED 2026-07-14）
 
-当前 lane1/fetch fault payload 使用 slot 起始 PC。变长 32-bit 指令若只有后半段所在 segment
-fault，`mtval/stval` 是否必须指向 faulting instruction portion 仍需按 ISA/platform 合同冻结并做
-端到端回归；G2 只证明 response owner，不关闭 trap-value 语义。
+T4G 将 bridge 的首个失败 halfword offset 转成 packet-level fault address，并随 packet/FIFO
+metadata 保存；lane0/lane1 page/access fault 都使用 faulting portion 地址作为 `mtval/stval`，
+`xepc` 仍保持 instruction start。真实 page-end 32-bit 反例覆盖 offset 2/4/6，16-bit control
+保持 slot PC，flush/branch owner 不改变该 payload。G2 只提供 response provenance，T4G 才关闭
+trap-value 语义；证据见 `.github/task-runs/2026-07-14-rv64-t4g-fetch-fault-tval/`。
 
-### PTW-PMP-G1：A-update PTE 写回必须独立做 PMP WRITE 判定
+### PTW-PMP-G1：A-update PTE 写回独立 PMP WRITE 判定（CLOSED 2026-07-14）
 
 **目标合同**：walker 对 PTE 地址的 READ 许可不能替代后续 A 位写回许可。进入
 `S_AD_UPDATE` 前，必须按 PTE 物理地址、写宽度和 PTW 有效特权执行独立 PMP WRITE
 检查；拒绝时不得发 AW/W，并按冻结的平台合同返回 access fault。
 
-**当前 RTL**：walker 读 PTE 时有 read-side PMP 判定，但 A-update 发 AW/W 前未见独立
-WRITE checker。该合同同时适用于数据桥，配套 owner 见 `ooo-mem-axi-bridge-fsm.md`。
+**当前 RTL 与验收**：`u_walk_pte_write_pmp_checker` 对 registered PTE address 执行
+8B/S-mode/WRITE 检查；leaf 决策优先处理 deny，形成 `(OK,ACCESS_FAULT,F)` 并跳过
+`S_AD_UPDATE`。`IFU-PTW-PMP-WRITE` shadow 断言证明真实 deny event 次拍只形成
+access-fault response，且 deny 拍不呈现 AW/W；不以可被 XMR/CSR live 值污染的
+`S_AD_UPDATE -> current checker grant` 作伪前提。
+定向测试以 TOR R-only 页表区 + 后续 NAPOT RWX data 区证明三级 PTE READ 均允许、最终
+EXEC 允许，但 A-bit WRITE 被拒绝且 AW/W 计数为零；RW allow 的原 A-update/re-walk
+control 继续通过。数据桥的同一合同见 `ooo-mem-axi-bridge-fsm.md`。

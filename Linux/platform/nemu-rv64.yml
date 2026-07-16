@@ -31,11 +31,11 @@ rootfs:
 
 # NEMU 独有设备:NPC RTL 未实现,避免给 NPC DTB 写实际总线无响应的节点。
 # 这些节点仅在 NEMU rootfs DTB 规则以 --virtio-rng/--virtio-net/
-# --goldfish-rtc/--reset-syscon 开关打开时进入 DTS。
-# 注意:check-device-address-map.sh 门禁不校验这 4 个设备,改地址时
+# --goldfish-rtc 开关打开时进入 DTS；reset_syscon 已提升为 common 设备。
+# 注意:check-device-address-map.sh 门禁不校验这 3 个设备,改地址时
 # 必须人工同步 nemu/include/device/device_address.h,其中 goldfish_rtc/
-# reset_syscon 还被 abstract-machine/am/include/device_address.h 消费
-# (AM timer 时间源 / AM halt 通路),漏改会静默失联。
+# reset_syscon 还被 abstract-machine/am/include/device_address.h 消费，
+# 改 common 地址时必须同步 AM/NEMU/NPC 三侧，漏改会静默失联。
 devices:
   virtio_rng:
     base: 0x10002000
@@ -49,12 +49,6 @@ devices:
     base: 0x10003000
     size: 0x1000
     irq: 4
-  reset_syscon:
-    base: 0x00100000
-    size: 0x1000
-    poweroff_value: 0x5555
-    reboot_value: 0x7777
-
 # NEMU rootfs DTB 的 bootargs 真源(Makefile 只追加
 # NEMU_ROOTFS_BOOTARGS_EXTRA ?= console=tty0,不整串覆盖)。
 bootargs:

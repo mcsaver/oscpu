@@ -187,12 +187,20 @@ module tb_ooo_branch_resolve_recovery_gate;
     core_branch_resolve_next_pc = 64'h8000_0400;
     branch_spec_pred_pc = 64'h8000_0200;
     #1;
-    check1("branch spec resolve valid", branch_spec_resolve_valid, 1'b1);
-    check1("branch spec restore", branch_spec_restore, 1'b1);
-    check1("branch spec redirect", branch_spec_redirect, 1'b1);
+    // T3O: the whole legacy checkpoint resolve domain is locally tied off in
+    // ROB-walk mode, even when this TB deliberately drives its otherwise
+    // unreachable owner tuple.  This prevents resolve_q -> restore ->
+    // checkpoint_restore -> resolve_valid feedback across preserved hierarchy.
+    check1("branch spec resolve mode contract",
+           branch_spec_resolve_valid, !`OOO_ROB_WALK_MODE);
+    check1("branch spec restore mode contract",
+           branch_spec_restore, !`OOO_ROB_WALK_MODE);
+    check1("branch spec redirect mode contract",
+           branch_spec_redirect, !`OOO_ROB_WALK_MODE);
     core_branch_resolve_next_pc = branch_spec_pred_pc;
     #1;
-    check1("branch spec prediction match", branch_spec_pred_match, 1'b1);
+    check1("branch spec prediction-match mode contract",
+           branch_spec_pred_match, !`OOO_ROB_WALK_MODE);
     check1("prediction match blocks restore", branch_spec_restore, 1'b0);
 
     reset_inputs();
@@ -204,8 +212,8 @@ module tb_ooo_branch_resolve_recovery_gate;
     core_branch_resolve_next_pc = 64'h8000_0400;
     branch_spec_pred_pc = 64'h8000_0200;
     #1;
-    check1("misaligned spec restore remains visible",
-           branch_spec_restore, 1'b1);
+    check1("misaligned spec restore mode contract",
+           branch_spec_restore, !`OOO_ROB_WALK_MODE);
     check1("misaligned spec redirect blocked", branch_spec_redirect, 1'b0);
 
     reset_inputs();

@@ -14,7 +14,6 @@ module OooBranchAppendDispatchGate #(
   input outstanding_valid_i,
   input [`XLEN-1:0] outstanding_pc_i,
   input [`XLEN-1:0] head_next_pc1_i,
-  input fetch_rsp_dispatch_bypass_i,
   input branch_fallthrough_safe_i,
   input branch_target_cache_hit_i,
   input direct_branch0_fire_i,
@@ -39,7 +38,6 @@ module OooBranchAppendDispatchGate #(
   input branch_prefetch_dispatch1_safe_i,
   input branch_prefetch_rsp_dispatch0_safe_i,
   input branch_prefetch_rsp_dispatch1_safe_i,
-  input branch_prefetch_hit_available_i,
   output return_cont_optional_o,
   output return_cont_attempt_ready_o,
   output return_cont_attempt_o,
@@ -56,13 +54,11 @@ module OooBranchAppendDispatchGate #(
   output branch_target_dispatch_o,
   output branch_fallthrough_dispatch_o,
   output branch_fallthrough_keep_outstanding_o,
-  output branch_fallthrough_capture_rsp_o,
   output branch_prefetch_rsp_raw_match_o,
   output branch_prefetch_dispatch_buffer_o,
   output branch_prefetch_dispatch_rsp_o,
   output branch_prefetch_dispatch_attempt_o,
   output branch_prefetch_dispatch_fire_o,
-  output branch_prefetch_hit_to_fifo_o,
   output dispatch1_optional_o
 );
   localparam BRANCH_APPEND_DISPATCH_ENABLE = 1'b0;
@@ -87,7 +83,7 @@ module OooBranchAppendDispatchGate #(
       dispatch0_branch_i && branch_target_cache_hit_i;
   assign branch_fallthrough_append_safe_o =
       branch_fallthrough_safe_i &&
-      (!outstanding_valid_i || fetch_rsp_dispatch_bypass_i ||
+      (!outstanding_valid_i ||
        branch_fallthrough_outstanding_match_o);
   assign branch_fallthrough_append_candidate_o =
       dispatch0_branch_i && branch_fallthrough_append_safe_o;
@@ -116,10 +112,6 @@ module OooBranchAppendDispatchGate #(
   assign branch_fallthrough_keep_outstanding_o =
       branch_fallthrough_dispatch_o &&
       branch_fallthrough_outstanding_match_o && !fetch_rsp_fire_i;
-  assign branch_fallthrough_capture_rsp_o =
-      branch_fallthrough_dispatch_o &&
-      branch_fallthrough_outstanding_match_o && fetch_rsp_fire_i;
-
   assign branch_prefetch_rsp_raw_match_o =
       branch_prefetch_active_i && !branch_prefetch_buffer_valid_i &&
       stop_pending_i && pending_branch_i && pending_branch_dispatched_i &&
@@ -144,9 +136,6 @@ module OooBranchAppendDispatchGate #(
   assign branch_prefetch_dispatch_attempt_o =
       branch_prefetch_dispatch_buffer_o || branch_prefetch_dispatch_rsp_o;
   assign branch_prefetch_dispatch_fire_o = 1'b0;
-  assign branch_prefetch_hit_to_fifo_o =
-      branch_prefetch_hit_available_i && !branch_prefetch_dispatch_fire_o;
-
   // 【F2】optional 恒 0: direct 模型 lane1 选发槽遗产(append 快速路已恒禁)。F2 的
   // dual 双发(not-taken 分支+head1)必须 pair 原子——optional 让 DispatchBackend 豁免
   // pair-ready 后 d0 可独发, dbranch pop 会把未发射的 head1 从 FIFO 蒸发。

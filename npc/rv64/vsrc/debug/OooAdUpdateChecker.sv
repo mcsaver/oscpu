@@ -1,5 +1,5 @@
 // ┌─ Sv39 HW-managed A/D 更新(Svadu)的外部观测 checker ──────────────────────────────────────┐
-// │ 归属: ooo-sv39-hw-ad-update.md §5 + ooo-debug-observability-architecture.md §5 三层模型 ② 层。│
+// │ 归属: ooo-fetch-axi-bridge.md / ooo-mem-axi-bridge-fsm.md + debug observability 三层模型。 │
 // │ 作用: XMR 读两桥(取指 OooFetchAxiBridge / 数据 OooMemAxiBridge)的 walker + PTE 写信号,       │
 // │       断言 A/D 更新的结构不变量。挂 SIM_TOP_SRCS, DCE 零面积; ① 电路一行不动。               │
 // │ 通用单桥模块, NpcSimTop 实例化两次(ALLOW_D 区分: 取指只置 A ⇒ 0; 数据可置 A/D ⇒ 1)。         │

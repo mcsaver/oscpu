@@ -204,6 +204,87 @@ module tb_ooo_muldiv_unit;
     tb_errors = 0;
     reset_dut();
 
+    // ===== T3Q 非穿透 request buffer：capture/hold/kill/flush 定向矩阵 =====
+    // capture 后故意在初始化沿前改坏全部外部 payload；结果/身份仍必须来自 buffer Q。
+    req_valid = 1'b1;
+    req_inst = rv64m_inst(3'b000);
+    req_src1 = 64'd7;
+    req_src2 = 64'd9;
+    req_word = 1'b0;
+    req_rob_idx = 4'h1;
+    req_pdest = 6'd5;
+    `TB_TICK(clk)
+    tb_check1("request buffer capture closes ready", req_ready, 1'b0);
+    tb_check1("request buffer capture has no fallthrough response", resp_valid, 1'b0);
+    if (dut.state_q !== 3'd1) begin
+      tb_errors = tb_errors + 1;
+      $display("[CHECK-FAIL] request buffer state got=%0d expected=1", dut.state_q);
+    end
+    tb_check64("request buffer captures src1", dut.req_src1_q, 64'd7);
+    tb_check64("request buffer captures src2", dut.req_src2_q, 64'd9);
+    if ((dut.req_rob_idx_q !== 4'h1) || (dut.req_pdest_q !== 6'd5) ||
+        (dut.req_inst_q !== rv64m_inst(3'b000)) || (dut.req_word_q !== 1'b0)) begin
+      tb_errors = tb_errors + 1;
+      $display("[CHECK-FAIL] request buffer did not capture complete metadata");
+    end
+    req_inst = rv64m_inst(3'b100);
+    req_src1 = 64'hdead_beef_cafe_f00d;
+    req_src2 = 64'd0;
+    req_word = 1'b1;
+    req_rob_idx = 4'he;
+    req_pdest = 6'd31;
+    `TB_TICK(clk)
+    req_valid = 1'b0;
+    req_inst = {`INST_W{1'b0}};
+    req_src1 = {`XLEN{1'b0}};
+    req_src2 = {`XLEN{1'b0}};
+    req_word = 1'b0;
+    req_rob_idx = {ROB_INDEX_W{1'b0}};
+    req_pdest = {PHY_REG_ADDR_W{1'b0}};
+    expect_resp("request buffer holds captured payload", 64'd63, 4'h1, 6'd5, 10);
+
+    // kill 与新 request 同拍命中：上游看见 fire，但该请求不得进入 buffer。
+    rob_head_idx = 4'h0;
+    kill_valid = 1'b1;
+    kill_rob_idx = 4'h4;
+    req_valid = 1'b1;
+    req_inst = rv64m_inst(3'b000);
+    req_src1 = 64'd5;
+    req_src2 = 64'd6;
+    req_rob_idx = 4'h8;
+    req_pdest = 6'd6;
+    `TB_TICK(clk)
+    kill_valid = 1'b0;
+    req_valid = 1'b0;
+    tb_check1("same-cycle killed request not captured", req_ready, 1'b1);
+    tb_check1("same-cycle killed request has no response", resp_valid, 1'b0);
+
+    // buffer 驻留拍 kill-hit 必须在预处理前丢弃。
+    issue_req("kill buffered request", 3'b000, 1'b0, 64'd11, 64'd13, 4'h8, 6'd7);
+    tb_check1("buffered request closes ready before kill", req_ready, 1'b0);
+    kill_valid = 1'b1;
+    kill_rob_idx = 4'h4;
+    `TB_TICK(clk)
+    kill_valid = 1'b0;
+    tb_check1("buffer kill hit returns idle", req_ready, 1'b1);
+    tb_check1("buffer kill hit emits no response", resp_valid, 1'b0);
+
+    // buffer 驻留拍 kill-miss 不能误杀，仍须从原 payload 初始化并完成。
+    issue_req("kill miss buffered request", 3'b000, 1'b0, 64'd11, 64'd13, 4'h2, 6'd8);
+    kill_valid = 1'b1;
+    kill_rob_idx = 4'h6;
+    `TB_TICK(clk)
+    kill_valid = 1'b0;
+    expect_resp("buffer kill miss survives", 64'd143, 4'h2, 6'd8, 12);
+
+    // flush 命中 buffer 必须优先于初始化，并恢复外部 ready。
+    issue_req("flush buffered request", 3'b100, 1'b0, 64'd77, 64'd5, 4'h5, 6'd9);
+    flush = 1'b1;
+    `TB_TICK(clk)
+    flush = 1'b0;
+    tb_check1("buffer flush returns idle", req_ready, 1'b1);
+    tb_check1("buffer flush emits no response", resp_valid, 1'b0);
+
     run_case("mul low signed operands", 3'b000, 1'b0, 64'd7,
              64'hffff_ffff_ffff_fffd, 64'hffff_ffff_ffff_ffeb);
     run_case("mulh signed signed", 3'b001, 1'b0,

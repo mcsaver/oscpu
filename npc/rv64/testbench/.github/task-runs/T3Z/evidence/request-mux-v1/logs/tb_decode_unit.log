@@ -1,0 +1,5 @@
+[TEST] tb_decode_unit
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_decode_unit -o build-t3z-request-mux-v1/tb_decode_unit.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/DecodeUnit.v tests/tb_decode_unit.sv
+[PASS] tb_decode_unit
+common/tb_common.svh:32: $finish called at 19 (1s)
+[RESULT] PASS

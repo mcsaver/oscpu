@@ -47,4 +47,27 @@
 `define OOO_SLOT_FACT_FENCEI               41  // fence.i(真 flush，OOO_FENCEI_TRUE_FLUSH)
 `define OOO_SLOT_FACTS_W                   42
 
+// T3W response-time static facts.  These bits depend only on the
+// fault-sanitized packet instructions and therefore travel atomically with
+// each FIFO entry; privilege/CSR/fault/visibility state remains head-time.
+`define OOO_SLOT_STATIC_FACT_FP_LOAD              0
+`define OOO_SLOT_STATIC_FACT_FP_STORE             1
+`define OOO_SLOT_STATIC_FACT_FP_MOVE_TO_FPR       2
+`define OOO_SLOT_STATIC_FACT_FP_MOVE_TO_GPR       3
+`define OOO_SLOT_STATIC_FACT_FP_CLASS              4
+`define OOO_SLOT_STATIC_FACT_FP_SGNJ               5
+`define OOO_SLOT_STATIC_FACT_FP_ADDSUB             6
+`define OOO_SLOT_STATIC_FACT_FP_MUL                7
+`define OOO_SLOT_STATIC_FACT_FP_FMA                8
+`define OOO_SLOT_STATIC_FACT_FP_DIV                9
+`define OOO_SLOT_STATIC_FACT_FP_SQRT               10
+`define OOO_SLOT_STATIC_FACT_FP_MINMAX             11
+`define OOO_SLOT_STATIC_FACT_FP_COMPARE            12
+`define OOO_SLOT_STATIC_FACT_FP_CONVERT_TO_FPR     13
+`define OOO_SLOT_STATIC_FACT_FP_CONVERT_TO_GPR     14
+`define OOO_SLOT_STATIC_FACT_FP_DOUBLE_RAW         15
+`define OOO_SLOT_STATIC_FACT_FP_DYN_RM_BEARING     16
+`define OOO_SLOT_STATIC_FACT_SEMIHOST_PEER_SIGNATURE 17
+`define OOO_SLOT_STATIC_FACTS_W                    18
+
 `endif

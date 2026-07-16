@@ -24,7 +24,6 @@ module OooFetchFlowControl #(
   input [FETCH_COUNT_W-1:0] fifo_count_i,
   input [FETCH_COUNT_W-1:0] fifo_depth_i,
   input fifo_pop_i,
-  input fetch_rsp_dispatch_bypass_i,
   input direct_frontend_flush_i,
   input stop_pending_busy_i,
   input halted_i,
@@ -41,16 +40,18 @@ module OooFetchFlowControl #(
   output fetch_rsp_can_enqueue_o,
   output fetch_rsp_can_drop_o,
   output direct_fetch_drop_o,
-  output fetch_rsp_bypass_consumed_o,
   output fetch_rsp_enqueue_o
 );
 
-  assign fetch_rsp_bypass_consumed_o =
-      fetch_rsp_dispatch_bypass_i &&
-      (fifo_pop_i || direct_frontend_flush_i);
-  assign fifo_storage_pop_o = fifo_pop_i && !fetch_rsp_dispatch_bypass_i;
-  assign fifo_can_accept_rsp_o =
-      (fifo_count_i < fifo_depth_i) || fifo_storage_pop_o;
+  // T3V: response-to-dispatch bypass was unreachable in the production
+  // ROB-walk configuration.  Removing the port also removes the muxes that a
+  // hierarchy-preserving synthesis could not fold through the constant owner.
+  assign fifo_storage_pop_o = fifo_pop_i;
+  // T3U：response credit 只读寄存 occupancy，禁止 full+pop 的组合
+  // look-through。合法状态始终满足 fifo_count+outstanding<=depth；有
+  // outstanding response 时 FIFO 不可能已满，因此 pop 旁路没有合法吞吐收益，
+  // 却会把 FIFO head decode→backend ready→pop 接回 rsp/request/next-PC。
+  assign fifo_can_accept_rsp_o = (fifo_count_i < fifo_depth_i);
 
   assign fetch_rsp_can_enqueue_o = can_run_i && outstanding_valid_i &&
                                    fifo_can_accept_rsp_o;
@@ -60,13 +61,11 @@ module OooFetchFlowControl #(
   assign direct_fetch_drop_o = direct_frontend_flush_i ||
                                discard_fetch_rsp_i;
   assign fetch_rsp_ready_o = fetch_rsp_can_enqueue_o ||
-                             fetch_rsp_dispatch_bypass_i ||
                              fetch_rsp_can_drop_o ||
                              direct_fetch_drop_o;
   assign fetch_rsp_fire_o = fetch_rsp_valid_i && fetch_rsp_ready_o;
   assign fetch_rsp_enqueue_o = fetch_rsp_valid_i && fetch_rsp_can_enqueue_o &&
-                               !direct_fetch_drop_o &&
-                               !fetch_rsp_bypass_consumed_o;
+                               !direct_fetch_drop_o;
 
   // 【F2 障碍①正解】direct flush 拍封死顺序取指臂: 该拍 next_fetch_pc_q 仍是旧值
   // (重取目标下拍才可见), 顺序请求会以 wrong-path 旧地址发出并被 flush 臂登记为

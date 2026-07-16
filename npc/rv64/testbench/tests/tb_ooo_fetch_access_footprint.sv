@@ -56,9 +56,9 @@ module tb_ooo_fetch_access_footprint;
   wire [1:0] dec1_resp;
   wire dec1_control_stop;
   wire dec0_branch;
-  wire [`XLEN-1:0] dec0_bimm;
+  wire [12:0] dec0_bimm;
   wire dec1_branch;
-  wire [`XLEN-1:0] dec1_bimm;
+  wire [12:0] dec1_bimm;
   wire [`XLEN-1:0] packet_next_pc;
 
   localparam [1:0] RESP_OK = 2'b00;

@@ -1,0 +1,5 @@
+[TEST] tb_ooo_frontend_uop_safety
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_ooo_frontend_uop_safety -o build-t3z-request-mux-v1/tb_ooo_frontend_uop_safety.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFrontendUopSafety.v tests/tb_ooo_frontend_uop_safety.sv
+[PASS] tb_ooo_frontend_uop_safety
+common/tb_common.svh:32: $finish called at 17 (1s)
+[RESULT] PASS

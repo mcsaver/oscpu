@@ -1,0 +1,88 @@
+[TEST] tb_ooo_int_backend
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_ooo_int_backend -o build-t3z-request-mux-v1/tb_ooo_int_backend.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/ALU.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/CompareUnit.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooAmoGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooBitmanipGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooClmulUnit.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpArithGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpBackend.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpClassifyGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpCompareGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpConvertGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpDivIter.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpLongOpGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpSgnjGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpSqrtIter.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooMulDivUnit.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/LSU.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/LSUControl.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/LSUDataPath.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemInflightQueue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/pipeline/PipeStageReg.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/regread_bypass/OooFpPhysRegFile.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/regread_bypass/OooFpRegFile.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/regread_bypass/OooPhysRegFile.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/rename_allocate/OooBusyTable.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/rename_allocate/OooFreeList.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/rename_allocate/OooRenameMap.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/OooRob.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/WBU.v tests/tb_ooo_int_backend.sv
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:275: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:276: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:277: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:285: warning: @* is sensitive to all 8 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:287: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:288: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:290: warning: @* is sensitive to all 8 words in array 'src1_ready_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:291: warning: @* is sensitive to all 8 words in array 'src2_ready_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:295: warning: @* is sensitive to all 8 words in array 'fp_st_en_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:296: warning: @* is sensitive to all 8 words in array 'fp_st_ready_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:297: warning: @* is sensitive to all 8 words in array 'entry_ready_r'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:304: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:305: warning: @* is sensitive to all 8 words in array 'fp_pdest_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:305: warning: @* is sensitive to all 8 words in array 'fp_st_en_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:310: warning: @* is sensitive to all 8 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:392: warning: @* is sensitive to all 8 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:398: warning: @* is sensitive to all 8 words in array 'pc_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:399: warning: @* is sensitive to all 8 words in array 'next_pc_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:400: warning: @* is sensitive to all 8 words in array 'pred_npc_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:401: warning: @* is sensitive to all 8 words in array 'bht_idx_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:402: warning: @* is sensitive to all 8 words in array 'pred_taken_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:403: warning: @* is sensitive to all 8 words in array 'inst_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:404: warning: @* is sensitive to all 8 words in array 'ctrl_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:405: warning: @* is sensitive to all 8 words in array 'rob_idx_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:406: warning: @* is sensitive to all 8 words in array 'src1_preg_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:408: warning: @* is sensitive to all 8 words in array 'src1_ready_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:409: warning: @* is sensitive to all 8 words in array 'src1_preg_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:412: warning: @* is sensitive to all 8 words in array 'src2_preg_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:414: warning: @* is sensitive to all 8 words in array 'src2_ready_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:415: warning: @* is sensitive to all 8 words in array 'src2_preg_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:418: warning: @* is sensitive to all 8 words in array 'pdest_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:419: warning: @* is sensitive to all 8 words in array 'fp_pdest_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:420: warning: @* is sensitive to all 8 words in array 'fp_st_en_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:421: warning: @* is sensitive to all 8 words in array 'fp_st_preg_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:423: warning: @* is sensitive to all 8 words in array 'fp_st_ready_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:424: warning: @* is sensitive to all 8 words in array 'fp_st_preg_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:425: warning: @* is sensitive to all 8 words in array 'fp_st_preg_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:426: warning: @* is sensitive to all 8 words in array 'imm_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:508: warning: @* is sensitive to all 8 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v:509: warning: @* is sensitive to all 8 words in array 'rob_idx_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemInflightQueue.v:138: warning: @* is sensitive to all 4 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemInflightQueue.v:138: warning: @* is sensitive to all 4 words in array 'kind_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:160: warning: @* is sensitive to all 8 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:161: warning: @* is sensitive to all 8 words in array 'fs1_en_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:161: warning: @* is sensitive to all 8 words in array 'fs1_ready_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:162: warning: @* is sensitive to all 8 words in array 'fs2_en_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:162: warning: @* is sensitive to all 8 words in array 'fs2_ready_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:163: warning: @* is sensitive to all 8 words in array 'fs3_en_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:163: warning: @* is sensitive to all 8 words in array 'fs3_ready_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:164: warning: @* is sensitive to all 8 words in array 'gpr_en_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:164: warning: @* is sensitive to all 8 words in array 'gpr_ready_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:178: warning: @* is sensitive to all 8 words in array 'rob_idx_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:179: warning: @* is sensitive to all 8 words in array 'rob_idx_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:223: warning: @* is sensitive to all 8 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:241: warning: @* is sensitive to all 8 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v:242: warning: @* is sensitive to all 8 words in array 'rob_idx_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:147: warning: @* is sensitive to all 4 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:148: warning: @* is sensitive to all 4 words in array 'committed_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:150: warning: @* is sensitive to all 4 words in array 'rob_idx_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v:152: warning: @* is sensitive to all 4 words in array 'survive_r'.
+[T3B-COVERAGE-OBS] fp-load alias gpr_pdest=32 fp_pdest=32 int_wb_pdest=0 int_issue={0,0}
+[T3B-COVERAGE-OBS] load-fault pdest=32 formal={valid=1 exc=1 cause=5 tval=0x00000000800002c0}
+[T3C-RED-OBS] blocked raw_fp_ready={1,0} top_ready={0,0} fp_fire={0,0} fp_iq=7 fp_free=24 rob=8
+[T3C-RED-OBS] blocked-post fp_iq=7 fp_free=24 rob=8 map9=9 map10=10 fires={0,0}
+[T3C-RED-OBS] recovery wait=56 recovered=1 fires={1,1} fp_iq=7 fp_free=23 rob=9 map9=40 map10=41
+[T3Q-FP-STAGE-HOLD] cycles=3 rob=1 packet=0x2340002a7850000c0
+[T3Q-FP-STAGE-FLUSH] raw_before=1 masked_before=1 raw_after=0
+[T3Q-FP-STAGE-KILL-YOUNGER] branch_rob=1 fp_rob=2 raw_after=0 older_long=1
+[T3Q-FP-STAGE-KILL-OLDER-SURVIVOR] fp_rob=1 branch_rob=2 raw_after=1 payload=0x2340002a7850000c0
+[T3Q-CHECKPOINT-RESTORE-NO-ISSUE] ready=0 fire=0 req_valid=0
+[T3M-RED-OBS] mem-N formal0=1 pdest=32 issue={0,0}
+[T3G-COVERAGE-OBS] mem-N+1 issue0_pc=0x80002608 preg=32 stored=0x0000000012345678
+[T3M-COVERAGE-OBS] mixed ex-formal0={1,34,0x0000000012345679} mem-formal1={1,33,0x0000000000001800}
+[T3V-MEM-RES-RELEASE] younger_fire=1 younger_commit=1
+[T3S-MEM-RES-HOLD] cycles=3 rob=0 addr=0x80000310 younger_iq=0
+[T3S-MEM-RES-FLUSH] valid=0 req=0
+[T3T-MEM-RES-OLDEST-CORRECT] branch=0x80006d04 resident=0x80006d08
+[T3T-MEM-RES-OLDEST-MISPREDICT] valid=0 req=0
+[T3T-MEM-RES-AMO-HEAD] wait=3 rob=2
+[T3V-MEM-BUFFER-KILL] boundary_rob=1 killed_rob=2 quiet_cycles=4
+[T3V-MIQ-FULL-POP] fifth_rob=4 fifth_pdest=36 addr=0x0000000080000440
+[T3V-LRSC-WIDTH-MISALIGN] mismatch_pairs=2 matching_misaligned=1 reservation_valid=0
+[T3U-LANE1-MEM-TIEOFF] live=1 fire=1 req=0 push=0
+[PASS] tb_ooo_int_backend
+common/tb_common.svh:32: $finish called at 2032 (1s)
+[RESULT] PASS

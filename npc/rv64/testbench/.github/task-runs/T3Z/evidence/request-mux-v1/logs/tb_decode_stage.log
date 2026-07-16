@@ -1,0 +1,5 @@
+[TEST] tb_decode_stage
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_decode_stage -o build-t3z-request-mux-v1/tb_decode_stage.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/DecodeStage.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/DecodeUnit.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/ImmGen.v tests/tb_decode_stage.sv
+[PASS] tb_decode_stage
+common/tb_common.svh:32: $finish called at 3 (1s)
+[RESULT] PASS

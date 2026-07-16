@@ -744,7 +744,7 @@ Boolean check(int cond) {
   if (!cond) pass = false;
   return cond;
 }
-int main ()
+int main (const char *args)
 /*****/
 
   /* main program, corresponds to procedures        */
@@ -763,6 +763,12 @@ int main ()
   ioe_init();
 
  Number_Of_Runs = NUMBER_OF_RUNS;
+ if (args != NULL && args[0] != '\0') {
+   int Requested_Runs = atoi(args);
+   if (Requested_Runs > 0) {
+     Number_Of_Runs = Requested_Runs;
+   }
+ }
 
   /* Initializations */
 
@@ -941,10 +947,9 @@ int main ()
   printf ("Finished in %d ms\n", (int)User_Time);
   printf("==================================================\n");
   printf("Dhrystone %s         %d Marks\n", pass ? "PASS" : "FAIL",
-      880900 / (int)User_Time * NUMBER_OF_RUNS/ 500000);
+      880900 / (int)User_Time * Number_Of_Runs / 500000);
   printf("                   vs. 100000 Marks (i7-7700K @ 4.20GHz)\n");
 
   return (pass ? 0 : 1);
 }
-
 

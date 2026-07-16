@@ -1,0 +1,5 @@
+[TEST] tb_ooo_branch_direction_predictor
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_ooo_branch_direction_predictor -o build-t3z-request-mux-v1/tb_ooo_branch_direction_predictor.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/debug/OooBranchDirectionPredictorChecker.sv /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v tests/tb_ooo_branch_direction_predictor.sv
+[PASS] tb_ooo_branch_direction_predictor
+common/tb_common.svh:32: $finish called at 31 (1s)
+[RESULT] PASS

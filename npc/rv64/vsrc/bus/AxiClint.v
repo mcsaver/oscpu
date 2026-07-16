@@ -14,6 +14,7 @@ module AxiClint #(
   input s_axi_arvalid_i,
   output s_axi_arready_o,
   input [ADDR_W-1:0] s_axi_araddr_i,
+  input [2:0] s_axi_arsize_i,
   output reg s_axi_rvalid_o,
   input s_axi_rready_i,
   output reg [DATA_W-1:0] s_axi_rdata_o,
@@ -22,6 +23,7 @@ module AxiClint #(
   input s_axi_awvalid_i,
   output s_axi_awready_o,
   input [ADDR_W-1:0] s_axi_awaddr_i,
+  input [2:0] s_axi_awsize_i,
   input s_axi_wvalid_i,
   output s_axi_wready_o,
   input [DATA_W-1:0] s_axi_wdata_i,
@@ -34,6 +36,8 @@ module AxiClint #(
   output msip_irq_o,
   output reg mtip_irq_o
 );
+
+  localparam integer LANE_BITS = $clog2(STRB_W);
 
   localparam [15:0] CLINT_MSIP_OFFSET      = 16'h0000;
   localparam [15:0] CLINT_MTIMECMP_LO      = 16'h4000;
@@ -62,11 +66,19 @@ module AxiClint #(
   wire [15:0] write_addr_low_w = aw_fire_w ? s_axi_awaddr_i[15:0] : awaddr_low_q;
   wire [DATA_W-1:0] write_data_w = w_fire_w ? s_axi_wdata_i : wdata_q;
   wire [STRB_W-1:0] write_strb_w = w_fire_w ? s_axi_wstrb_i : wstrb_q;
+  wire [LANE_BITS-1:0] write_lane_w = write_addr_low_w[LANE_BITS-1:0];
+  wire [LANE_BITS-1:0] read_lane_w = s_axi_araddr_i[LANE_BITS-1:0];
+  wire [5:0] write_lane_shift_w = write_lane_w * 6'd8;
+  wire [5:0] read_lane_shift_w = read_lane_w * 6'd8;
+  wire [DATA_W-1:0] native_write_data_w = write_data_w >> write_lane_shift_w;
+  wire [STRB_W-1:0] native_write_strb_w = write_strb_w >> write_lane_w;
   wire [63:0] write_data_pad_w;
   wire [7:0] write_strb_pad_w;
   wire unused_addr_hi_w = |{
       s_axi_araddr_i[ADDR_W-1:16],
-      s_axi_awaddr_i[ADDR_W-1:16]
+      s_axi_awaddr_i[ADDR_W-1:16],
+      s_axi_arsize_i,
+      s_axi_awsize_i
   };
 
   assign s_axi_arready_o = !s_axi_rvalid_o;
@@ -83,17 +95,17 @@ module AxiClint #(
   // 斩断该组合直通(P5 刀P,白送时序余量)。
   wire mtip_irq_next_w = (mtime_q >= mtimecmp_q);
 
-  assign write_data_pad_w[31:0] = write_data_w[31:0];
-  assign write_strb_pad_w[3:0] = write_strb_w[3:0];
+  assign write_data_pad_w[31:0] = native_write_data_w[31:0];
+  assign write_strb_pad_w[3:0] = native_write_strb_w[3:0];
   generate
     if (DATA_W > 32) begin : gen_clint_data_high_lanes
-      assign write_data_pad_w[63:32] = write_data_w[63:32];
+      assign write_data_pad_w[63:32] = native_write_data_w[63:32];
     end else begin : gen_clint_data_high_zero
       assign write_data_pad_w[63:32] = 32'h0000_0000;
     end
 
     if (STRB_W > 4) begin : gen_clint_strb_high_lanes
-      assign write_strb_pad_w[7:4] = write_strb_w[7:4];
+      assign write_strb_pad_w[7:4] = native_write_strb_w[7:4];
     end else begin : gen_clint_strb_high_zero
       assign write_strb_pad_w[7:4] = 4'h0;
     end
@@ -200,7 +212,8 @@ module AxiClint #(
 
       if (ar_fire_w) begin
         s_axi_rvalid_o <= 1'b1;
-        s_axi_rdata_o <= read_clint_word(s_axi_araddr_i[15:0]);
+        s_axi_rdata_o <= read_clint_word(s_axi_araddr_i[15:0]) <<
+                        read_lane_shift_w;
       end
 
       if (aw_fire_w) begin
@@ -219,7 +232,8 @@ module AxiClint #(
         aw_seen_q <= 1'b0;
         w_seen_q <= 1'b0;
         case (write_addr_low_w)
-          CLINT_MSIP_OFFSET: msip_q <= apply_msip_wstrb_bit(msip_q, write_data_w[0], write_strb_w[0]);
+          CLINT_MSIP_OFFSET: msip_q <= apply_msip_wstrb_bit(
+              msip_q, native_write_data_w[0], native_write_strb_w[0]);
           CLINT_MTIMECMP_LO: mtimecmp_q <= apply_wstrb64_aligned(mtimecmp_q,
                                                                  write_data_pad_w,
                                                                  write_strb_pad_w);

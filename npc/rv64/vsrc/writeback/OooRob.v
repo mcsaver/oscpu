@@ -152,10 +152,6 @@ module OooRob #(
   reg [ROB_INDEX_W-1:0] kill_idx_q;   // 存活分支 idx（walk 终点：到它即停）
 
   wire [ROB_INDEX_W-1:0] head1_w;
-  wire wb0_head_match_w;
-  wire wb1_head_match_w;
-  wire wb0_head1_match_w;
-  wire wb1_head1_match_w;
   wire head_done_w;
   wire head1_done_w;
   wire [`XLEN-1:0] head_data_w;
@@ -187,56 +183,24 @@ module OooRob #(
   endfunction
 
   assign head1_w = rob_ptr_add(head_q, 2'd1);
-  assign wb0_head_match_w =
-      wb0_valid_i && valid_q[head_q] && (wb0_rob_idx_i == head_q);
-  assign wb1_head_match_w =
-      wb1_valid_i && valid_q[head_q] && (wb1_rob_idx_i == head_q);
-  assign wb0_head1_match_w =
-      wb0_valid_i && valid_q[head1_w] && (wb0_rob_idx_i == head1_w);
-  assign wb1_head1_match_w =
-      wb1_valid_i && valid_q[head1_w] && (wb1_rob_idx_i == head1_w);
-  assign head_done_w = done_q[head_q] || wb0_head_match_w ||
-                       wb1_head_match_w;
-  assign head1_done_w = done_q[head1_w] || wb0_head1_match_w ||
-                        wb1_head1_match_w;
-  assign head_data_w = done_q[head_q] ? data_q[head_q] :
-                       wb0_head_match_w ? wb0_data_i :
-                       wb1_head_match_w ? wb1_data_i : data_q[head_q];
-  assign head1_data_w = done_q[head1_w] ? data_q[head1_w] :
-                        wb0_head1_match_w ? wb0_data_i :
-                        wb1_head1_match_w ? wb1_data_i : data_q[head1_w];
-  assign head_exception_w = done_q[head_q] ? exception_q[head_q] :
-                            wb0_head_match_w ? wb0_exception_i :
-                            wb1_head_match_w ? wb1_exception_i :
-                            exception_q[head_q];
-  assign head1_exception_w = done_q[head1_w] ? exception_q[head1_w] :
-                             wb0_head1_match_w ? wb0_exception_i :
-                             wb1_head1_match_w ? wb1_exception_i :
-                             exception_q[head1_w];
-  assign head_cause_w = done_q[head_q] ? cause_q[head_q] :
-                        wb0_head_match_w ? wb0_cause_i :
-                        wb1_head_match_w ? wb1_cause_i :
-                        cause_q[head_q];
-  assign head1_cause_w = done_q[head1_w] ? cause_q[head1_w] :
-                         wb0_head1_match_w ? wb0_cause_i :
-                         wb1_head1_match_w ? wb1_cause_i :
-                         cause_q[head1_w];
-  assign head_fflags_w = done_q[head_q] ? fflags_q[head_q] :
-                         wb0_head_match_w ? wb0_fflags_i :
-                         wb1_head_match_w ? wb1_fflags_i :
-                         fflags_q[head_q];
-  assign head1_fflags_w = done_q[head1_w] ? fflags_q[head1_w] :
-                          wb0_head1_match_w ? wb0_fflags_i :
-                          wb1_head1_match_w ? wb1_fflags_i :
-                          fflags_q[head1_w];
-  assign head_tval_w = done_q[head_q] ? tval_q[head_q] :
-                       wb0_head_match_w ? wb0_tval_i :
-                       wb1_head_match_w ? wb1_tval_i :
-                       tval_q[head_q];
-  assign head1_tval_w = done_q[head1_w] ? tval_q[head1_w] :
-                        wb0_head1_match_w ? wb0_tval_i :
-                        wb1_head1_match_w ? wb1_tval_i :
-                        tval_q[head1_w];
+  // T3W retirement boundary: writeback is absorbed by ROB state on this edge;
+  // commit validity and every commit payload are generated only from Q on the
+  // following cycle.  The former same-cycle head bypass let a D-cache SRAM
+  // response traverse memory arbitration, ROB matching, CSR ownership and the
+  // architectural CSR flops in one cycle.  Wakeup/PRF write latency is
+  // unchanged; only completion-to-retirement gains one cycle.
+  assign head_done_w = done_q[head_q];
+  assign head1_done_w = done_q[head1_w];
+  assign head_data_w = data_q[head_q];
+  assign head1_data_w = data_q[head1_w];
+  assign head_exception_w = exception_q[head_q];
+  assign head1_exception_w = exception_q[head1_w];
+  assign head_cause_w = cause_q[head_q];
+  assign head1_cause_w = cause_q[head1_w];
+  assign head_fflags_w = fflags_q[head_q];
+  assign head1_fflags_w = fflags_q[head1_w];
+  assign head_tval_w = tval_q[head_q];
+  assign head1_tval_w = tval_q[head1_w];
   // ---- B2 ROB-walk 恢复（组合）----
   wire [ROB_INDEX_W-1:0] kill_next_start_w = rob_ptr_add(kill_rob_idx_i, 2'd1);
   wire kill_has_younger_w = kill_valid_i && (tail_q != kill_next_start_w);
@@ -288,7 +252,8 @@ module OooRob #(
   wire csr_commit1_block_w =
       `OOO_CSR_QUEUE_HEAD && (head0_is_csr_w || head1_is_csr_w);
   assign commit1_fire_w = commit0_fire_w && !commit1_block_i &&
-                          !head_exception_w && !csr_commit1_block_w &&
+                          !head_exception_w && !head1_exception_w &&
+                          !csr_commit1_block_w &&
                           (count_q > {{(ROB_COUNT_W-1){1'b0}}, 1'b1}) &&
                           valid_q[head1_w] && head1_done_w;
   assign commit_count_w = {1'b0, commit0_fire_w} + {1'b0, commit1_fire_w};
@@ -515,6 +480,42 @@ module OooRob #(
   // 复用的槽 = 静默撞号。仅 pdest!=0(真 int 生产者写 PRF)时校验; FP-rd/store/no-rd 携 0 跳过, 无假阳。
   always @(posedge clk) begin
     if (!rst && !flush_i) begin
+      // A ROB entry has exactly one completion owner per cycle.  Silently
+      // defining WB1 as the winner would make exception/data/fflags depend on
+      // source ordering and leaves pdest=0 producers outside UC-A coverage.
+      if (wb0_valid_i && wb1_valid_i &&
+          (wb0_rob_idx_i == wb1_rob_idx_i) && valid_q[wb0_rob_idx_i]) begin
+        $error("[T3W-ROB-WB-OWNER-COLLISION] WB0/WB1 completed the same live ROB idx=%0d @%0t",
+               wb0_rob_idx_i, $time);
+        $fatal;
+      end
+      if (commit0_fire_w && !done_q[head_q])
+        $error("[T3W-ROB-Q-RETIRE] commit0 bypassed registered done state @%0t",
+               $time);
+      if (commit1_fire_w && !done_q[head1_w])
+        $error("[T3W-ROB-Q-RETIRE] commit1 bypassed registered done state @%0t",
+               $time);
+      // 精确异常只允许从 commit0 宣告；older normal 可先退休，但异常项必须
+      // 留到下一拍成为 ROB head，不能由 commit1 越过精确 trap 边界。
+      if (commit1_fire_w && (head_exception_w || head1_exception_w))
+        $error("[T4N-ROB-EXCEPTION-LANE0] exception retired through commit1 @%0t",
+               $time);
+      if (commit0_fire_w &&
+          ((commit0_data_o !== data_q[head_q]) ||
+           (commit0_exception_o !== exception_q[head_q]) ||
+           (commit0_cause_o !== cause_q[head_q]) ||
+           (commit0_tval_o !== tval_q[head_q]) ||
+           (commit0_fflags_o !== fflags_q[head_q])))
+        $error("[T3W-ROB-Q-RETIRE] commit0 payload bypassed registered ROB state @%0t",
+               $time);
+      if (commit1_fire_w &&
+          ((commit1_data_o !== data_q[head1_w]) ||
+           (commit1_exception_o !== exception_q[head1_w]) ||
+           (commit1_cause_o !== cause_q[head1_w]) ||
+           (commit1_tval_o !== tval_q[head1_w]) ||
+           (commit1_fflags_o !== fflags_q[head1_w])))
+        $error("[T3W-ROB-Q-RETIRE] commit1 payload bypassed registered ROB state @%0t",
+               $time);
       if (wb0_valid_i && valid_q[wb0_rob_idx_i] &&
           (wb0_pdest_i != {PHY_REG_ADDR_W{1'b0}}) &&
           (wb0_pdest_i !== new_pdest_q[wb0_rob_idx_i]))

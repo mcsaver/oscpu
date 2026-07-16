@@ -68,6 +68,15 @@ module tb_ooo_rob;
   wire [ROB_COUNT_W-1:0] count;
   wire empty;
   wire full;
+  wire arch_commit0_write;
+  wire arch_commit1_write;
+  wire [`XLEN-1:0] arch_a0;
+  wire [`XLEN * `REG_NUM - 1:0] arch_gprs;
+  wire commit_exception_trap;
+  wire trap_mem_valid;
+  wire [`XLEN-1:0] trap_mem_pc;
+  wire [`TRAP_CAUSE_W-1:0] trap_mem_cause;
+  wire [`XLEN-1:0] trap_mem_tval;
   reg [ROB_INDEX_W-1:0] saved0;
   reg [ROB_INDEX_W-1:0] saved1;
 
@@ -172,7 +181,79 @@ module tb_ooo_rob;
     .walk1_rd_en_o(walk1_rd_en)
   );
 
-  wire unused_next_pc_w = (|commit0_next_pc) | (|commit1_next_pc);
+  // 用生产侧副作用/陷阱模块消费真实 ROB commit，总线不靠 TB 重写判据。
+  // 这样 head1 exception 的定向用例同时覆盖 lane1 trap 选择和 GPR 写抑制。
+  OooArchRegFile u_arch_regfile (
+    .clk(clk),
+    .rst(rst),
+    .commit0_valid_i(commit0_valid),
+    .commit0_rd_en_i(commit0_rd_en),
+    .commit0_arch_rd_i(commit0_arch_rd),
+    .commit0_data_i(commit0_data),
+    .commit0_exception_i(commit0_exception),
+    .commit1_valid_i(commit1_valid),
+    .commit1_rd_en_i(commit1_rd_en),
+    .commit1_arch_rd_i(commit1_arch_rd),
+    .commit1_data_i(commit1_data),
+    .commit1_exception_i(commit1_exception),
+    .serial_write_valid_i(1'b0),
+    .serial_write_arch_rd_i({`REG_ADDR_W{1'b0}}),
+    .serial_write_data_i({`XLEN{1'b0}}),
+    .commit0_write_o(arch_commit0_write),
+    .commit1_write_o(arch_commit1_write),
+    .a0_data_o(arch_a0),
+    .debug_gprs_o(arch_gprs)
+  );
+
+  OooCsrTrapRequestMux u_trap_request_mux (
+    .core_commit0_valid_i(commit0_valid),
+    .core_commit0_exception_i(commit0_exception),
+    .core_commit0_pc_i(commit0_pc),
+    .core_commit0_cause_i(commit0_cause),
+    .core_commit0_tval_i(commit0_tval),
+    .core_commit1_valid_i(commit1_valid),
+    .core_commit1_exception_i(commit1_exception),
+    .core_commit1_pc_i(commit1_pc),
+    .core_commit1_cause_i(commit1_cause),
+    .core_commit1_tval_i(commit1_tval),
+    .stop_pending_i(1'b0),
+    .drain_complete_i(1'b0),
+    .pending_arch_trap_i(1'b0),
+    .pending_trap_cause_i({`TRAP_CAUSE_W{1'b0}}),
+    .pending_trap_pc_i({`XLEN{1'b0}}),
+    .pending_trap_tval_i({`XLEN{1'b0}}),
+    .pending_system_i(1'b0),
+    .pending_system_ecall_i(1'b0),
+    .pending_system_mret_i(1'b0),
+    .pending_system_irq_i(1'b0),
+    .pending_system_pc_i({`XLEN{1'b0}}),
+    .pending_system_inst_i({`INST_W{1'b0}}),
+    .pending_system_irq_cause_i({`TRAP_CAUSE_W{1'b0}}),
+    .csr_ecall_cause_i({`TRAP_CAUSE_W{1'b0}}),
+    .pending_system_satp_write_commit_i(1'b0),
+    .pending_system_sfence_commit_i(1'b0),
+    .core_commit_exception_trap_o(commit_exception_trap),
+    .trap_mem_valid_o(trap_mem_valid),
+    .trap_mem_pc_o(trap_mem_pc),
+    .trap_mem_cause_o(trap_mem_cause),
+    .trap_mem_tval_o(trap_mem_tval),
+    .pending_system_ecall_trap_o(),
+    .pending_arch_trap_fire_o(),
+    .trap_ex_valid_o(),
+    .trap_ex_pc_o(),
+    .trap_ex_cause_o(),
+    .trap_ex_tval_o(),
+    .trap_irq_valid_o(),
+    .trap_irq_pc_o(),
+    .trap_irq_cause_o(),
+    .mret_valid_o(),
+    .sret_valid_o(),
+    .real_mret_valid_o(),
+    .priv_predictor_boundary_o()
+  );
+
+  wire unused_next_pc_w = (|commit0_next_pc) | (|commit1_next_pc) |
+                          (|arch_a0);
 
   task automatic clear_inputs;
     begin
@@ -225,6 +306,27 @@ module tb_ooo_rob;
     reset_dut();
     tb_check1("reset empty", empty, 1'b1);
 
+    // Kept behind a plusarg so the normal regression remains positive while
+    // the task-run negative runner can prove the dual-WB owner contract fires.
+    if ($test$plusargs("T3W_ROB_WB_COLLISION_NEGATIVE")) begin
+      dispatch0_valid = 1'b1;
+      dispatch0_pc = 32'h8000_0bad;
+      dispatch0_inst = 32'h0000_0013;
+      #1;
+      saved0 = dispatch0_rob_idx;
+      `TB_TICK(clk);
+      clear_inputs();
+      wb0_valid = 1'b1;
+      wb0_rob_idx = saved0;
+      wb0_data = 32'h1111_1111;
+      wb1_valid = 1'b1;
+      wb1_rob_idx = saved0;
+      wb1_data = 32'h2222_2222;
+      `TB_TICK(clk);
+      $display("[CHECK-FAIL] dual-WB collision contract did not terminate");
+      $fatal;
+    end
+
     dispatch0_valid = 1'b1;
     dispatch0_pc = 32'h8000_0000;
     dispatch0_inst = 32'h0000_0093;
@@ -268,18 +370,102 @@ module tb_ooo_rob;
     wb0_rob_idx = saved0;
     wb0_data = 32'h1111_0001;
     #1;
-    tb_check1("commit0 valid via wb bypass", commit0_valid, 1'b1);
-    tb_check1("commit1 valid via existing done", commit1_valid, 1'b1);
-    tb_check32("commit0 pc via wb bypass", commit0_pc, 32'h8000_0000);
-    tb_check32("commit1 pc via existing done", commit1_pc, 32'h8000_0004);
-    tb_check32("commit0 data via wb bypass", commit0_data, 32'h1111_0001);
-    tb_check32("commit1 data via existing done", commit1_data, 32'h2222_0002);
-    tb_check32("commit0 old pdest via wb bypass", {26'b0, commit0_old_pdest}, 32'd1);
-    tb_check32("commit1 new pdest via existing done", {26'b0, commit1_new_pdest}, 32'd33);
+    tb_check1("writeback edge required before commit0", commit0_valid, 1'b0);
+    tb_check1("head blocks younger before registered done", commit1_valid, 1'b0);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("commit0 valid from registered done", commit0_valid, 1'b1);
+    tb_check1("commit1 valid from registered done", commit1_valid, 1'b1);
+    tb_check32("commit0 pc from ROB Q", commit0_pc, 32'h8000_0000);
+    tb_check32("commit1 pc from ROB Q", commit1_pc, 32'h8000_0004);
+    tb_check32("commit0 data from ROB Q", commit0_data, 32'h1111_0001);
+    tb_check32("commit1 data from ROB Q", commit1_data, 32'h2222_0002);
+    tb_check32("commit0 old pdest from ROB Q", {26'b0, commit0_old_pdest}, 32'd1);
+    tb_check32("commit1 new pdest from ROB Q", {26'b0, commit1_new_pdest}, 32'd33);
+    $display("[T3W-ROB-Q-RETIRE] dual writeback is absorbed before exact dual retirement");
     `TB_TICK(clk);
     clear_inputs();
     #1;
     tb_check32("count after dual commit", {27'b0, count}, 32'd0);
+
+    // T4N reviewer: 异常只能由 commit0 精确退休。即使 lane0 是可退休的正常指令，
+    // lane1 异常项也必须留在 ROB，下一拍升为 head 后再宣告 trap。
+    dispatch0_valid = 1'b1;
+    dispatch0_pc = 32'h8000_0080;
+    dispatch0_inst = 32'h0020_0193;
+    dispatch0_rd_en = 1'b1;
+    dispatch0_arch_rd = 5'd3;
+    dispatch0_old_pdest = 6'd3;
+    dispatch0_new_pdest = 6'd34;
+    dispatch1_valid = 1'b1;
+    dispatch1_pc = 32'h8000_0084;
+    dispatch1_inst = 32'h0000_2203;  // lw x4,0(x0): fault 时 rd_en 仍非真空
+    dispatch1_rd_en = 1'b1;
+    dispatch1_arch_rd = 5'd4;
+    dispatch1_old_pdest = 6'd4;
+    dispatch1_new_pdest = 6'd35;
+    #1;
+    saved0 = dispatch0_rob_idx;
+    saved1 = dispatch1_rob_idx;
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check32("head1 exception pair count after dispatch", {27'b0, count}, 32'd2);
+
+    wb0_valid = 1'b1;
+    wb0_rob_idx = saved0;
+    wb0_data = 32'h4444_0004;
+    wb1_valid = 1'b1;
+    wb1_rob_idx = saved1;
+    wb1_data = 32'hdead_0005;
+    wb1_exception = 1'b1;
+    wb1_cause = `EXC_LOAD_ACCESS_FAULT;
+    wb1_tval = 32'hdead_1000;
+    #1;
+    tb_check1("head1 exception pair waits for registered WB commit0", commit0_valid, 1'b0);
+    tb_check1("head1 exception pair waits for registered WB commit1", commit1_valid, 1'b0);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("head1 exception pair commit0 valid", commit0_valid, 1'b1);
+    tb_check1("head1 exception structurally blocks commit1", commit1_valid, 1'b0);
+    tb_check32("head1 exception pair count before retire edge", {27'b0, count}, 32'd2);
+    tb_check32("head1 exception pair commit0 pc", commit0_pc, 32'h8000_0080);
+    tb_check32("head1 exception pair commit0 data", commit0_data, 32'h4444_0004);
+    tb_check1("head1 exception pair commit0 is normal", commit0_exception, 1'b0);
+    tb_check1("head1 exception does not trap before becoming head", commit_exception_trap, 1'b0);
+    tb_check1("head1 exception keeps trap invalid in lane1 cycle", trap_mem_valid, 1'b0);
+    tb_check1("head1 exception pair normal lane0 writes GPR", arch_commit0_write, 1'b1);
+    tb_check1("blocked exceptional lane1 suppresses GPR write",
+              arch_commit1_write, 1'b0);
+    $display("[T4N-ROB-HEAD1-EXCEPTION-BLOCK] normal head0 retires alone; exceptional head1 stays resident");
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check32("exception remains after older-only retire", {27'b0, count}, 32'd1);
+    tb_check32("head1 exception pair normal lane0 GPR side effect", arch_gprs[3*`XLEN +: `XLEN],
+               32'h4444_0004);
+    tb_check32("head1 exception pair exceptional lane1 GPR remains zero",
+               arch_gprs[4*`XLEN +: `XLEN], 32'd0);
+    tb_check1("exception becomes commit0 at new head", commit0_valid, 1'b1);
+    tb_check1("new-head exception cannot pair commit1", commit1_valid, 1'b0);
+    tb_check32("new-head exception pc", commit0_pc, 32'h8000_0084);
+    tb_check1("new-head exception metadata valid", commit0_exception, 1'b1);
+    tb_check32("new-head exception cause", {27'b0, commit0_cause},
+               {27'b0, `EXC_LOAD_ACCESS_FAULT});
+    tb_check32("new-head exception tval", commit0_tval, 32'hdead_1000);
+    tb_check1("new-head exception raises precise trap", commit_exception_trap, 1'b1);
+    tb_check1("new-head exception trap valid", trap_mem_valid, 1'b1);
+    tb_check32("new-head trap pc", trap_mem_pc, 32'h8000_0084);
+    tb_check32("new-head trap cause", {27'b0, trap_mem_cause},
+               {27'b0, `EXC_LOAD_ACCESS_FAULT});
+    tb_check32("new-head trap tval", trap_mem_tval, 32'hdead_1000);
+    tb_check1("exceptional commit0 suppresses GPR write", arch_commit0_write, 1'b0);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check32("count after precise exception retire", {27'b0, count}, 32'd0);
 
     dispatch0_valid = 1'b1;
     dispatch0_pc = 32'h8000_0100;
@@ -302,11 +488,16 @@ module tb_ooo_rob;
     wb1_rob_idx = saved1;
     wb1_data = 32'h3333_0003;
     #1;
-    tb_check1("exception head commit0 via wb bypass", commit0_valid, 1'b1);
-    tb_check1("exception blocks commit1 via wb bypass", commit1_valid, 1'b0);
-    tb_check1("commit0 exception via wb bypass", commit0_exception, 1'b1);
-    tb_check32("commit0 cause via wb bypass", {27'b0, commit0_cause}, {27'b0, `EXC_ILLEGAL_INST});
-    tb_check32("commit0 tval via wb bypass", commit0_tval, 32'hfeed_beef);
+    tb_check1("exception writeback cannot retire combinationally", commit0_valid, 1'b0);
+    tb_check1("younger cannot pass unregistered exception", commit1_valid, 1'b0);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("registered exception commits at head", commit0_valid, 1'b1);
+    tb_check1("registered exception blocks younger", commit1_valid, 1'b0);
+    tb_check1("commit0 exception from ROB Q", commit0_exception, 1'b1);
+    tb_check32("commit0 cause from ROB Q", {27'b0, commit0_cause}, {27'b0, `EXC_ILLEGAL_INST});
+    tb_check32("commit0 tval from ROB Q", commit0_tval, 32'hfeed_beef);
     `TB_TICK(clk);
     clear_inputs();
     #1;
@@ -378,6 +569,9 @@ module tb_ooo_rob;
     // 存活 idx0/1 仍可按序提交、状态完好
     wb0_valid = 1'b1; wb0_rob_idx = 4'd0; wb0_data = 32'h0000_aaaa;
     wb1_valid = 1'b1; wb1_rob_idx = 4'd1; wb1_data = 32'h0000_bbbb;
+    #1;
+    tb_check1("walk survivors wait for registered WB", commit0_valid, 1'b0);
+    `TB_TICK(clk); clear_inputs();
     #1;
     tb_check1("walk surv commit0 valid", commit0_valid, 1'b1);
     tb_check32("walk surv commit0 pc", commit0_pc, 32'h9000_0000);

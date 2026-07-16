@@ -20,10 +20,12 @@
 - ★ `ooo-int-issue-queue` — 发射队列(压缩程序序/2 唤醒/2 oldest-ready)
 - ★ `ooo-rename-alloc` — rename/free-list/busy-table/dispatch 分配链
 - ★ `ooo-rob` — 重排序缓冲(2-wide 程序序提交/精确异常/ROB-walk 恢复)
-- ★ `ooo-phys-reg-file` — 物理寄存器堆(写-读旁路/write1>write0/x0)
+- ★ `ooo-phys-reg-file` — 物理寄存器堆(stored-only 5R2W/write1>write0/x0)
 - ★ `ooo-rename-map` — 重命名映射(同拍 RAW/WAW 前递/walk 还原)
 - `ooo-execute-backend`、`ooo-clmul-unit`
-- Integer full-WB 与 EX-only fast broadcast 的独立完成/消费边界：`ooo-longop-fast-broadcast.md`；
+- Integer full-WB 与历史 EX-only fast broadcast 的 T3B/T3G 切点：`ooo-longop-fast-broadcast.md`；
+- Integer EX completion 的全 sticky / PRF stored-only 最终边界：
+  `ooo-ex-sticky-wakeup-barrier.md`；
 - Integer MEM completion formal-only、依赖 N+1 消费：`ooo-mem-formal-only.md`；
 - FP 簇现状:`vsrc/execute/OooFpBackend.v` 为真源(实施方案与旧 pending 壳 spec 已归档);
 - FP 入口 ready DAG 与双 lane 原子接收：`ooo-fp-admission-credit.md`；
@@ -41,20 +43,25 @@
 - ★ `ooo-data-word-cache` — 数据侧 8B line D-cache 语义、debug/common checker 与 macro/OOC 前置合同
 - ★ `ooo-sv39-tlb` — Sv39 TLB(64 项/上下文/superpage)
 - ★ `pmp-checker` — PMP 检查器(16 项 TOR/NA4/NAPOT)
+- ★ `ooo-pma-checker` — 当前 NpcTop 实例静态地址图检查器（完整 byte range、空壳/default fail closed）
+- ★ `ooo-lsu-axi-lane-adapter` — LSU 逻辑 byte window 到标准 64-bit AXI lane/AxSIZE，非对齐逐 byte split
+- `ooo-store-bresp-precise-terminal` — T4N plain-store probe/physical-write/B/ROB-release 三事件、
+  cause7+tval-VA 与 T4M post-translate device 交叠合同
 - `yosys-macro-boundary-contracts` — Yosys 四黑盒宏/OOC 边界合同（timing/area/语义缺口与任务清单）
 - `ooo-memory-access`(wrapper)〔`ooo-pending-memory-sequencer` 已 B4 物理删除 → `history/`〕
-- LSQ 现状:SQ(4)+probe/drain+store→load 前递已落地,LQ/MSHR/多 outstanding 未做
+- LSQ 现状:SQ(4)+probe/late-B precise physical write+store→load 前递已落地,LQ/MSHR/多 outstanding 未做
   (见 current snapshot §2/§4；实施方案已归档 `history/ooo-lsq-implementation-plan.md`)
 - HW A/D 当前语义由 `ooo-fetch-axi-bridge` 与 `ooo-mem-axi-bridge-fsm` 承载；一次性实施
   计划 `history/ooo-sv39-hw-ad-update.md` 已归档。IFU partial-write flush-drain 已于
-  2026-07-12 关闭；PTE write PMP 边界仍在 active spec 开放。
+  2026-07-12 关闭；PTE write PMP 边界已由 2026-07-14 T4F 的独立 WRITE checker 关闭。
 
 ## 取指 / 前端 / 分支预测
 - ★ `ooo-fetch-axi-bridge` — 取指桥(ITLB+硬件 PTW+硬件 A update+取指包 cache+PMP；
-  IFU A-update flush-drain 与 page-fault byte provenance 已关闭；精确 physical access/tval 与
-  PTE-write PMP 合同仍开放)
+  IFU A-update flush-drain、page-fault byte provenance 与 PTE-write PMP 合同已关闭；
+  其余精确 physical access/tval 边界仍按 active spec 跟踪)
 - ★ `ooo-fetch-packet-cache` — 取指包 cache 语义、debug/common checker 与 macro/OOC 前置合同
-- `ooo-fetch-packet-*`、`ooo-fetch-pc-outstanding-sequencer`、`ooo-fetch-request-mux`、
+- `ooo-fetch-packet-*`、`ooo-fetch-predecode-bundle`（T3V packet 所有权边界预译码）、
+  `ooo-fetch-pc-outstanding-sequencer`、`ooo-fetch-request-mux`、
   `ooo-frontend-*-gate`、`ooo-fetch-head-*-gate`
 - 活预测件:`ooo-branch-direction-predictor`(gshare+局部混合，含 debug/common checker 与 macro/OOC 前置合同)、`ooo-direct-*`、`ooo-ras-*`、
   `ooo-branch-bpu-update-gate`(issue-resolve 单源)、`ooo-branch-resolve-recovery-gate`、
@@ -72,6 +79,8 @@
 - `ooo-control-plane`、`ooo-commit-output-mux`、`ooo-csr-*-mux`、`ooo-pending-system-sequencer`、
   `ooo-pending-trap-exit-sequencer`、`ooo-stop-pending-sequencer`(域 B 仅剩 system/trap 类)、
   `ooo-trap-exit-*`、`ooo-pending-dispatch-arbiter`、`ooo-pending-lane1-capture-gate`
+- `ooo-fence-drain-ordering` — 普通 FENCE 的 pending-system 序列化、
+  backend/SQ/MIQ/bridge 全 drain 与 exactly-once ISA retirement 合同
 - 〔`ooo-synthetic-lane1-ret-sequencer`(+CommitGate) 已 B4 物理删除 → `history/`〕
 
 ## 装配 / 总线

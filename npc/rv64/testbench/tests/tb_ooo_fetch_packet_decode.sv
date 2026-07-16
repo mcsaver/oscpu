@@ -22,10 +22,11 @@ module tb_ooo_fetch_packet_decode;
   wire dec1_control_stop;
   // B2 S1: per-slot 分支识别 + B-imm 提取
   wire dec0_branch;
-  wire [`XLEN-1:0] dec0_bimm;
+  wire [12:0] dec0_bimm;
   wire dec1_branch;
-  wire [`XLEN-1:0] dec1_bimm;
+  wire [12:0] dec1_bimm;
   wire [`XLEN-1:0] packet_next_pc;
+  wire [`XLEN-1:0] fault_tval;
 
   OooFetchPacketDecode dut (
     .rsp_pc_i(rsp_pc),
@@ -48,7 +49,8 @@ module tb_ooo_fetch_packet_decode;
     .dec0_bimm_o(dec0_bimm),
     .dec1_branch_o(dec1_branch),
     .dec1_bimm_o(dec1_bimm),
-    .packet_next_pc_o(packet_next_pc)
+    .packet_next_pc_o(packet_next_pc),
+    .fault_tval_o(fault_tval)
   );
 
   task automatic check_xlen;
@@ -59,6 +61,19 @@ module tb_ooo_fetch_packet_decode;
       if (got !== exp) begin
         tb_errors = tb_errors + 1;
         $display("[CHECK-FAIL] %0s got=0x%016x expected=0x%016x",
+                 what, got, exp);
+      end
+    end
+  endtask
+
+  task automatic check_bimm;
+    input [1023:0] what;
+    input [12:0] got;
+    input [12:0] exp;
+    begin
+      if (got !== exp) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] %0s got=0x%04x expected=0x%04x",
                  what, got, exp);
       end
     end
@@ -120,18 +135,17 @@ module tb_ooo_fetch_packet_decode;
     tb_check32("u32+u32 dec1 resp from word1", {30'b0, dec1_resp}, 32'h0000_0001);
     tb_check1("u32+u32 resp1 stop", dec1_control_stop, 1'b1);
     tb_check1("beq slot0 branch flag", dec0_branch, 1'b1);
-    check_xlen("beq x0,x0,0 bimm zero", dec0_bimm, 64'h0);
+    check_bimm("beq x0,x0,0 bimm zero", dec0_bimm, 13'h0000);
     tb_check1("addi slot1 not branch", dec1_branch, 1'b0);
-    check_xlen("non-branch slot1 bimm gated zero", dec1_bimm, 64'h0);
+    check_bimm("non-branch slot1 bimm gated zero", dec1_bimm, 13'h0000);
 
     // B2 S1: 32b 分支 B-imm 提取(负/正偏移绝对锚, rv32_b 精确编码)
     drive(64'h0000_0000_0000_6000, rv32_b(-13'd8, 5'd0, 5'd0, 3'b000), 2'b00,
           rv32_b(13'd16, 5'd1, 5'd2, 3'b001), 2'b00);
     tb_check1("neg-offset beq slot0 branch flag", dec0_branch, 1'b1);
-    check_xlen("neg-offset beq bimm -8", dec0_bimm,
-               64'hffff_ffff_ffff_fff8);
+    check_bimm("neg-offset beq bimm -8", dec0_bimm, 13'h1ff8);
     tb_check1("pos-offset bne slot1 branch flag", dec1_branch, 1'b1);
-    check_xlen("pos-offset bne bimm +16", dec1_bimm, 64'd16);
+    check_bimm("pos-offset bne bimm +16", dec1_bimm, 13'h0010);
 
     // B2 S1: RVC 分支(c.beqz x8,-4=0xdc75)经解压后识别+提取——bimm 必须与解压
     // inst 的 B 位域逐位一致(契约: bimm 在解压后 inst 上提取)且等于 -4
@@ -140,13 +154,12 @@ module tb_ooo_fetch_packet_decode;
     tb_check1("rvc c.beqz slot0 branch flag", dec0_branch, 1'b1);
     tb_check32("rvc c.beqz decompressed opcode",
                {25'b0, dec0_inst[6:0]}, {25'b0, `OPCODE_BRANCH});
-    check_xlen("rvc c.beqz bimm -4", dec0_bimm,
-               64'hffff_ffff_ffff_fffc);
-    check_xlen("rvc c.beqz bimm matches decompressed B field", dec0_bimm,
-               {{(`XLEN-13){dec0_inst[31]}}, dec0_inst[31], dec0_inst[7],
-                dec0_inst[30:25], dec0_inst[11:8], 1'b0});
+    check_bimm("rvc c.beqz bimm -4", dec0_bimm, 13'h1ffc);
+    check_bimm("rvc c.beqz bimm matches decompressed B field", dec0_bimm,
+               {dec0_inst[31], dec0_inst[7], dec0_inst[30:25],
+                dec0_inst[11:8], 1'b0});
     tb_check1("rvc slot1 c.nop not branch", dec1_branch, 1'b0);
-    check_xlen("rvc slot1 bimm zero", dec1_bimm, 64'h0);
+    check_bimm("rvc slot1 bimm zero", dec1_bimm, 13'h0000);
 
     drive(64'h0000_0000_0000_5000, 32'h0001_0001, 2'b11,
           32'h0000_0013, 2'b00);
@@ -173,6 +186,25 @@ module tb_ooo_fetch_packet_decode;
       tb_errors = tb_errors + 1;
       $display("[CHECK-FAIL] fault-tail poison forged semihost exit peer");
     end
+
+    // T4G: xEPC 仍是 faulting instruction 的 slot PC；xTVAL 必须是首个失败
+    // 2B portion 的 frontier。覆盖跨页常见 F=2/4/6 三种布局。
+    rsp_pc = 64'h0000_0000_0000_0ffe;
+    rsp_resp0_bytes = 3'd2;
+    #1;
+    check_xlen("fault frontier F=2", fault_tval,
+               64'h0000_0000_0000_1000);
+    rsp_pc = 64'h0000_0000_0000_1ffc;
+    rsp_resp0_bytes = 3'd4;
+    #1;
+    check_xlen("fault frontier F=4", fault_tval,
+               64'h0000_0000_0000_2000);
+    rsp_pc = 64'h0000_0000_0000_2ffa;
+    rsp_resp0_bytes = 3'd6;
+    #1;
+    check_xlen("fault frontier F=6", fault_tval,
+               64'h0000_0000_0000_3000);
+    $display("[T4G-FETCH-FAULT-TVAL-FRONTIER] F=2/4/6 exact portion addresses covered");
 
     tb_finish("tb_ooo_fetch_packet_decode");
   end

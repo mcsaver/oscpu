@@ -10,7 +10,7 @@
 #                    [--all] [--quick] [--tag NAME] [--max-cycles N]
 #
 #   --build   先重建 NPC（默认复用现有 build/NpcSimTop）
-#   --module  跑模块 testbench 回归（iverilog，112 项）
+#   --module  跑模块 testbench 回归（iverilog，数量以 summary 为准）
 #   --riscv   跑官方 riscv-tests（默认 + 特权）
 #   --am      跑 AM cpu-tests 全量并采集每测试 cycles/commits/CPI
 #   --bench   跑 CoreMark/Dhrystone（长，需较大 max-cycles）
@@ -97,10 +97,19 @@ if [[ $DO_RISCV -eq 1 ]]; then
   NPC_HOME="$NPC_RV64" bash "$NPC_RV64/testsuites/scripts/npc-rv64-core-regress.sh" \
       --riscv-tests-dir "$RISCV_DIR" --riscv-privileged \
       --skip-module --skip-lint --skip-build --skip-am > "$OUT/riscv.log" 2>&1
-  rp=$(sed 's/\x1b\[[0-9;]*m//g' "$OUT/riscv.log" | grep -cE '  PASS ')
-  rf=$(sed 's/\x1b\[[0-9;]*m//g' "$OUT/riscv.log" | grep -cE '  FAIL ')
-  echo "- **riscv-tests**: $rp PASS, $rf FAIL" >> "$SUM"
-  [[ "$rf" -gt 0 ]] && sed 's/\x1b\[[0-9;]*m//g' "$OUT/riscv.log" | grep -E '  FAIL ' >> "$OUT/riscv-fails.txt"
+  rp=$(sed 's/\x1b\[[0-9;]*m//g' "$OUT/riscv.log" | \
+    awk '$1 == "PASS" && $2 != "build" && $2 != "riscv-clean" { n++ } END { print n + 0 }')
+  rf=$(sed 's/\x1b\[[0-9;]*m//g' "$OUT/riscv.log" | \
+    awk '$1 == "FAIL" && $2 != "build" && $2 != "riscv-clean" { n++ } END { print n + 0 }')
+  rbp=$(sed 's/\x1b\[[0-9;]*m//g' "$OUT/riscv.log" | \
+    awk '$1 == "PASS" && $2 == "build" { n++ } END { print n + 0 }')
+  rbf=$(sed 's/\x1b\[[0-9;]*m//g' "$OUT/riscv.log" | \
+    awk '$1 == "FAIL" && $2 == "build" { n++ } END { print n + 0 }')
+  echo "- **riscv-tests**: $rp PASS, $rf FAIL (build: $rbp PASS, $rbf FAIL)" >> "$SUM"
+  if [[ "$rf" -gt 0 || "$rbf" -gt 0 ]]; then
+    sed 's/\x1b\[[0-9;]*m//g' "$OUT/riscv.log" | grep -E '  FAIL ' \
+      >> "$OUT/riscv-fails.txt"
+  fi
 fi
 
 # ---- AM cpu-tests + CPI ----
@@ -205,13 +214,35 @@ fi
 if [[ $DO_BENCH -eq 1 ]]; then
   log "benchmarks (CoreMark/Dhrystone) ..."
   echo "" >> "$SUM"; echo "### benchmarks" >> "$SUM"; echo '```' >> "$SUM"
+  bench_failed=0
+  bench_timeout_sec="${BENCH_TIMEOUT_SEC:-1200}"
   for b in coremark dhrystone; do
-    out=$(timeout 1200 make -C "$ROOT/am-kernels/benchmarks/$b" AM_HOME="$AM_HOME" ARCH=riscv64-npc \
-            NPC_SIM_BACKEND=rv64 run NPC_RUN_ARGS="--no-progress --max-cycles 2000000000" 2>&1)
-    cc=$(echo "$out" | grep -oE 'cycles=[0-9]+, commits=[0-9]+|CPI \(cycles/instruction\) = [0-9.]+|Marks|GOOD TRAP' | tr '\n' ' ')
-    echo "  $b: $cc" >> "$SUM"
+    bench_log="$OUT/bench-$b.log"
+    bench_make_args=()
+    bench_label="$b"
+    if [[ $b == dhrystone ]]; then
+      dhrystone_runs="${DHRYSTONE_RUNS:-500000}"
+      bench_make_args+=("mainargs=$dhrystone_runs")
+      bench_label="$b(runs=$dhrystone_runs)"
+    fi
+    timeout "$bench_timeout_sec" make -C "$ROOT/am-kernels/benchmarks/$b" AM_HOME="$AM_HOME" ARCH=riscv64-npc \
+      NPC_SIM_BACKEND=rv64 "${bench_make_args[@]}" run NPC_RUN_ARGS="--no-progress --max-cycles $MAXCYC" \
+      > "$bench_log" 2>&1
+    bench_rc=$?
+    cc=$(grep -oE 'cycles=[0-9]+, commits=[0-9]+|CPI \(cycles/instruction\) = [0-9.]+|Marks|GOOD TRAP' \
+      "$bench_log" | tr '\n' ' ')
+    if [[ $bench_rc -eq 0 ]] && grep -q 'HIT GOOD TRAP' "$bench_log"; then
+      echo "  $bench_label: PASS $cc" >> "$SUM"
+    else
+      echo "  $bench_label: FAIL rc=$bench_rc $cc (见 bench-$b.log)" >> "$SUM"
+      bench_failed=$((bench_failed + 1))
+    fi
   done
   echo '```' >> "$SUM"
+  if [[ $bench_failed -ne 0 ]]; then
+    log "benchmarks FAILED: $bench_failed item(s)"
+    exit 1
+  fi
 fi
 
 # ---- FP 硬件 smoke (Linux/tools;补 soft-float AM 测不测硬件 FP 的盲点,见 META-EVAL) ----

@@ -1,0 +1,5 @@
+[TEST] tb_axi_to_uart
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_axi_to_uart -o build-t3z-request-mux-v1/tb_axi_to_uart.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiToUart.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/Uart.v tests/tb_axi_to_uart.sv
+[PASS] tb_axi_to_uart
+common/tb_common.svh:32: $finish called at 145 (1s)
+[RESULT] PASS

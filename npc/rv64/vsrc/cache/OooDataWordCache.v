@@ -23,8 +23,8 @@
 //   commit 拍(桥 S_WRITE_REQ 解耦/S_WRITE_RESP b-ok, 该拍宏读口空闲)占宏口
 //   发读 st_idx 并锁存 store 上下文(idx/tag/line 掩码/line 数据);
 //   次拍(判决拍, rmw_busy_o=1, 桥压 req_ready 产生 store 后 1 bubble)判
-//   valid && tag match: 命中则以 wmask 只写 line 内被 store 覆盖的 data 字节
-//   (tag 段掩码恒 0——store 不写 tag, tag match 才写 data), miss 无动作
+//   valid && tag match: 命中则以 wmask 写 line 内被 store 覆盖的 data 字节，
+//   同时用全 1 tag mask 幂等写回锁存 tag；miss 无动作
 //   (write-no-allocate)。跨线 store 的下一行(p1)仍无条件清 valid(跨线 RMW
 //   不做, 保守失效); 本行照常线内合并(line 掩码=wstrb<<off 截断即线内字节)。
 // - store_rmw_en_i=0(HW A/D PTE 写回维护路): 保持无条件失效(清 valid, 不读
@@ -40,6 +40,9 @@ module OooDataWordCache #(
 ) (
   input clk,
   input rst,
+  // Full invalidate after the synchronous virtio DMA batch has completed.
+  // This is not a SRAM-port owner: only valid visibility changes.
+  input dma_invalidate_all_i,
 
   // ---- 纯地址 0-cycle 组合视图(桥 accept 拍决策用, 不查存储阵列) ----
   input [`XLEN-1:0] req_lookup_addr_i,
@@ -180,18 +183,25 @@ module OooDataWordCache #(
 
   wire sram_en_w = lookup_en_i || fill_we_w || rmw_start_w || rmw_hit_w;
   wire sram_we_w = fill_we_w || rmw_hit_w;
+  // T4S timing boundary：地址 owner 只需知道本拍有 fill 请求；真正 SRAM
+  // en/we/wmask 与 valid 更新仍由 fill_we_w 的 cacheable 重判保护。集成合同
+  // 要求 fill_valid 必为 cacheable+8B aligned，故合法域内两者等价；这里避免
+  // 把 cacheability reduction/高扇出写控串进 SRAM addr setup，且不改变
+  // DMA>fill valid 优先级。
   wire [INDEX_W-1:0] sram_addr_w =
-      fill_we_w   ? fill_idx_w :
+      fill_valid_i ? fill_idx_w :
       rmw_hit_w   ? rmw_idx_q :
       rmw_start_w ? st_idx_w : lookup_idx_w;
   wire [TAG_W+`XLEN-1:0] sram_wdata_w =
       fill_we_w ? {line_tag(fill_addr_i), fill_data_i}
-                : {{TAG_W{1'b0}}, rmw_line_data_q};
-  // fill 全行写=全 1 掩码; RMW 写只覆盖 data 段被 store 命中的字节,
-  // tag 段掩码恒 0(store 不写 tag, tag match 才写 data)。
+                : {rmw_tag_q, rmw_line_data_q};
+  // fill 全行写=全 1 掩码。RMW hit 已证明宏内 tag==rmw_tag_q，因此 tag
+  // 段也置写并幂等写回锁存 tag；data 段仍只覆盖 store 命中的字节。
+  // 这避免用 fill_we_w 直驱 49 个高电容 tag-wmask 宏引脚，否则该共享
+  // net 的慢 slew 会同时污染 valid bitmap 与 SRAM setup 路径。
   wire [TAG_W+`XLEN-1:0] sram_wmask_w =
-      fill_we_w ? {(TAG_W+`XLEN){1'b1}}
-                : {{TAG_W{1'b0}}, expand_bytemask(rmw_line_mask_q)};
+      {{TAG_W{1'b1}},
+       fill_we_w ? {`XLEN{1'b1}} : expand_bytemask(rmw_line_mask_q)};
 
   Sram4096x113 u_sram (
     .clk(clk),
@@ -225,7 +235,8 @@ module OooDataWordCache #(
 
   assign lookup_hit_o =
       lookup_pend_q && lookup_cacheable_q && valid_q[lookup_idx_q] &&
-      (sram_rdata_w[TAG_W+`XLEN-1:`XLEN] == lookup_tag_q);
+      (sram_rdata_w[TAG_W+`XLEN-1:`XLEN] == lookup_tag_q) &&
+      !dma_invalidate_all_i;
   assign lookup_line_o = sram_rdata_w[`XLEN-1:0];
 
   // ---- valid FF 维护 ----
@@ -236,6 +247,10 @@ module OooDataWordCache #(
   //   A/D 维护路(store_rmw_en_i=0)保持一期无条件失效(含跨线 p1)。
   always @(posedge clk) begin
     if (rst) begin
+      valid_q <= {ENTRY_COUNT{1'b0}};
+    end else if (dma_invalidate_all_i) begin
+      // Highest runtime maintenance priority.  SRAM tag/data may retain old
+      // bits, but no fill/store action in this edge may make them visible.
       valid_q <= {ENTRY_COUNT{1'b0}};
     end else begin
       if (fill_we_w)
@@ -261,14 +276,26 @@ module OooDataWordCache #(
     end
   end
 
+  // fill_valid 是 SRAM 地址 owner，因此必须在模块本地承重 cacheable/aligned
+  // 合同；不能只依赖 direct-TB 才实例化的外部 checker。
+  always @(posedge clk) begin
+    if (!rst && fill_valid_i &&
+        (!cacheable_addr(fill_addr_i) || (fill_addr_i[2:0] != 3'b000))) begin
+      $error("[DWC-FILL-ADDR] fill must be PMEM cacheable and 8B aligned: addr=%h @%0t",
+             fill_addr_i, $time);
+      $fatal;
+    end
+  end
+
   // 1RW 合同: 宏口四占用者(lookup 发射/fill 写/RMW 读/RMW 判决拍)两两不得
   // 同拍(桥 FSM 状态互斥+req_ready 压制保证)。RMW 判决拍即便 miss 不写,
-  // 口也已保留(busy), 同拍其他占用一律违约。
+  // 口也已保留(busy), 同拍其他占用一律违约。fill owner 按 fill_valid 计数，
+  // 与上面的地址 mux owner 完全一致，而不是等 cacheability 重判后的 fill_we。
   always @(posedge clk) begin
-    if (!rst && (({2'b00, lookup_en_i} + {2'b00, fill_we_w} +
+    if (!rst && (({2'b00, lookup_en_i} + {2'b00, fill_valid_i} +
                   {2'b00, rmw_start_w} + {2'b00, rmw_pending_q}) > 3'd1)) begin
       $error("[DWC-SRAM-1RW] 宏口冲突: lookup=%b fill=%b rmw_rd=%b rmw_wr=%b @%0t",
-             lookup_en_i, fill_we_w, rmw_start_w, rmw_pending_q, $time);
+             lookup_en_i, fill_valid_i, rmw_start_w, rmw_pending_q, $time);
       $fatal;
     end
   end

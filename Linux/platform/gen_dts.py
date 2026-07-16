@@ -190,12 +190,12 @@ def render(
         reset_size = int(reset["size"])
         poweroff_value = int(reset["poweroff_value"])
         reboot_value = int(reset["reboot_value"])
-        # NEMU 专用 rootfs DTB 通过标准 syscon-poweroff/syscon-reboot binding
+        # NEMU/NPC rootfs DTB 通过标准 syscon-poweroff/syscon-reboot binding
         # 暴露关机/重启终点，让 systemd -> kernel -> OpenSBI 的官方 reset 链闭合。
         reset_syscon_node = f"""
 
     SYSCON: syscon@{reset_base:x} {{
-      compatible = "ysyx,nemu-reset-syscon", "syscon";
+      compatible = "ysyx,reset-syscon", "syscon";
       reg = <{u32_cells(reset_base)} {u32_cells(reset_size)}>;
       reg-io-width = <4>;
 

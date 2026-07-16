@@ -216,11 +216,15 @@ module tb_ooo_control_commit_sequencer;
     drain_complete = 1'b1;
     drain_pending_system = 1'b1;
     pending_system_pc = 64'h8000_2100;
-    pending_system_inst = 32'h1200_0073;
+    pending_system_inst = 32'h0ff0_000f;
     pending_system_next_pc = 64'h8000_2104;
     tick();
-    tb_check1("system control commit valid", ctrl_commit_valid, 1'b1);
-    tb_check64("system control next", ctrl_commit_next_pc, 64'h8000_2104);
+    tb_check1("fence control commit valid", ctrl_commit_valid, 1'b1);
+    tb_check32("fence control commit inst", ctrl_commit_inst, 32'h0ff0_000f);
+    tb_check64("fence control commit next", ctrl_commit_next_pc, 64'h8000_2104);
+    clear_inputs();
+    tick();
+    expect_idle("fence control commit is exactly one pulse");
 
     clear_inputs();
     drain_complete = 1'b1;

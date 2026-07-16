@@ -18,7 +18,6 @@ module OooFetchPcOutstandingSequencer (
   input [`XLEN-1:0] reset_pc_i,
 
   input fetch_rsp_enqueue_i,
-  input fetch_rsp_bypass_consumed_i,
   input fetch_rsp_fire_i,
   // 【B2 S2】父模块接线已换为包级 pred_next_pc(taken 预测拍=分支 target, 其余拍
   // ≡fall-through packet_next_pc): 顺序推进臂(非终态)写它即完成 resp 拍改流——
@@ -28,6 +27,8 @@ module OooFetchPcOutstandingSequencer (
   input [`XLEN-1:0] fetch_rsp_packet_next_pc_i,
   input fetch_req_fire_i,
   input [`XLEN-1:0] fetch_req_pc_i,
+  // T3Z: active immutable-context PC owned by OooFetchAxiBridge.
+  input [`XLEN-1:0] fetch_req_owner_pc_i,
 
   input csr_trap_mem_valid_i,
 
@@ -85,23 +86,22 @@ module OooFetchPcOutstandingSequencer (
 
   reg [`XLEN-1:0] next_fetch_pc_q;
   reg outstanding_valid_q;
-  reg [`XLEN-1:0] outstanding_pc_q;
   reg discard_fetch_rsp_q;
 
   assign next_fetch_pc_o = next_fetch_pc_q;
   assign outstanding_valid_o = outstanding_valid_q;
-  assign outstanding_pc_o = outstanding_pc_q;
+  // Payload is meaningful only under outstanding_valid_o.  Keeping it as a
+  // direct alias removes the duplicate 64-bit request-fire-selected state.
+  assign outstanding_pc_o = fetch_req_owner_pc_i;
   assign discard_fetch_rsp_o = discard_fetch_rsp_q;
 
   always @(posedge clk) begin
     if (rst) begin
       next_fetch_pc_q <= reset_pc_i;
       outstanding_valid_q <= 1'b0;
-      outstanding_pc_q <= {`XLEN{1'b0}};
       discard_fetch_rsp_q <= 1'b0;
     end else begin
-      if ((fetch_rsp_enqueue_i || fetch_rsp_bypass_consumed_i) &&
-          !fetch_req_fire_i) begin
+      if (fetch_rsp_enqueue_i && !fetch_req_fire_i) begin
         next_fetch_pc_q <= fetch_rsp_packet_next_pc_i;
       end else if (fetch_req_fire_i) begin
         next_fetch_pc_q <= fetch_req_pc_i;
@@ -111,7 +111,6 @@ module OooFetchPcOutstandingSequencer (
         outstanding_valid_q <= 1'b0;
       end else if (fetch_req_fire_i) begin
         outstanding_valid_q <= 1'b1;
-        outstanding_pc_q <= fetch_req_pc_i;
       end
 
       // 下面的顺序刻意保持父模块原 nonblocking 覆盖优先级。
@@ -121,10 +120,6 @@ module OooFetchPcOutstandingSequencer (
       if (direct_frontend_flush_i) begin
         outstanding_valid_q <= branch_fallthrough_keep_outstanding_i ? 1'b1 :
                                fetch_req_fire_i;
-        outstanding_pc_q <= branch_fallthrough_keep_outstanding_i ?
-                            outstanding_pc_q :
-                            (fetch_req_fire_i ? fetch_req_pc_i :
-                                                {`XLEN{1'b0}});
         discard_fetch_rsp_q <= branch_fallthrough_keep_outstanding_i ? 1'b0 :
                                (outstanding_valid_q && !fetch_rsp_fire_i);
       end else begin
@@ -139,9 +134,6 @@ module OooFetchPcOutstandingSequencer (
         if (branch_spec_restore_i) begin
           outstanding_valid_q <= fetch_req_fire_i &&
                                  !core_branch_resolve_misaligned_i;
-          outstanding_pc_q <= (fetch_req_fire_i &&
-                               !core_branch_resolve_misaligned_i) ?
-                              fetch_req_pc_i : {`XLEN{1'b0}};
           discard_fetch_rsp_q <= outstanding_valid_q && !fetch_rsp_fire_i;
           if (!core_branch_resolve_misaligned_i) begin
             next_fetch_pc_q <= core_branch_resolve_next_pc_i;
@@ -152,7 +144,6 @@ module OooFetchPcOutstandingSequencer (
       // E7 commit_resolve / match_clear(半死): 整臂原样保留(记账+PC)。
       if (pending_branch_commit_resolve_i) begin
         outstanding_valid_q <= 1'b0;
-        outstanding_pc_q <= {`XLEN{1'b0}};
         discard_fetch_rsp_q <= fetch_req_fire_i ||
                                (outstanding_valid_q && !fetch_rsp_fire_i);
         if (!pending_branch_misaligned_i) begin
@@ -162,11 +153,6 @@ module OooFetchPcOutstandingSequencer (
         outstanding_valid_q <= (!core_branch_resolve_misaligned_i &&
                                 branch_prefetch_pending_match_i) ? 1'b1 :
                                fetch_req_fire_i;
-        outstanding_pc_q <= (!core_branch_resolve_misaligned_i &&
-                             branch_prefetch_pending_match_i) ?
-                            branch_prefetch_pc_i :
-                            (fetch_req_fire_i ? fetch_req_pc_i :
-                                                {`XLEN{1'b0}});
         discard_fetch_rsp_q <= ((core_branch_resolve_misaligned_i ||
                                  !branch_prefetch_pending_match_i) &&
                                 outstanding_valid_q && !fetch_rsp_fire_i);
@@ -182,24 +168,16 @@ module OooFetchPcOutstandingSequencer (
         // ——arbiter branch 口(真 rob_idx 年龄)给出同值赢家。
         outstanding_valid_q <= fetch_req_fire_i &&
                                !core_branch_resolve_misaligned_i;
-        outstanding_pc_q <= (fetch_req_fire_i &&
-                             !core_branch_resolve_misaligned_i) ?
-                            fetch_req_pc_i : {`XLEN{1'b0}};
         discard_fetch_rsp_q <= outstanding_valid_q && !fetch_rsp_fire_i;
       end else if (!direct_frontend_flush_i && pending_jump_resolve_ready_i) begin
         // E8 pending_jump(OooFrontend tie-0 死硅, OooRedirectSeqChecker INV-S1 哨兵):
         // 整臂原样保留(记账+PC)。
         if (pending_jump_misaligned_i) begin
           outstanding_valid_q <= 1'b0;
-          outstanding_pc_q <= {`XLEN{1'b0}};
         end else if (pending_jump_nolink_commit_i ||
                      pending_jump_redirect_after_dispatch_i) begin
           outstanding_valid_q <= jalr_prefetch_pending_match_i ? 1'b1 :
                                  fetch_req_fire_i;
-          outstanding_pc_q <= jalr_prefetch_pending_match_i ?
-                              branch_prefetch_pc_i :
-                              (fetch_req_fire_i ? fetch_req_pc_i :
-                                                  {`XLEN{1'b0}});
           discard_fetch_rsp_q <= (jalr_prefetch_hit_available_i &&
                                   fetch_req_fire_i) ||
                                  (!jalr_prefetch_pending_match_i &&
@@ -215,7 +193,6 @@ module OooFetchPcOutstandingSequencer (
         // 【P4】E5 csr commit 臂: 记账保留; PC 写(head0?core_commit0_next_pc:
         // pending_system_next_pc)已删——arbiter trap 口(E5 pre-mux, age0)覆盖。
         outstanding_valid_q <= 1'b0;
-        outstanding_pc_q <= {`XLEN{1'b0}};
         discard_fetch_rsp_q <= outstanding_valid_q && !fetch_rsp_fire_i;
       end else if (!csr_trap_mem_valid_i &&
                    !direct_frontend_flush_i && drain_complete_i) begin
@@ -224,22 +201,16 @@ module OooFetchPcOutstandingSequencer (
         // jalr_prefetch/jump_target/mem_next_pc)已删——arbiter trap 口(E6 pre-mux)覆盖。
         if (pending_arch_trap_i) begin
           outstanding_valid_q <= 1'b0;
-          outstanding_pc_q <= {`XLEN{1'b0}};
         end else if (pending_system_i) begin
           outstanding_valid_q <= 1'b0;
-          outstanding_pc_q <= {`XLEN{1'b0}};
         end else if (pending_branch_i && !pending_branch_dispatched_i) begin
           outstanding_valid_q <= 1'b0;
-          outstanding_pc_q <= {`XLEN{1'b0}};
         end else if (pending_jump_i) begin
           outstanding_valid_q <= jalr_prefetch_pending_match_i;
-          outstanding_pc_q <= jalr_prefetch_pending_match_i ?
-                              branch_prefetch_pc_i : {`XLEN{1'b0}};
           discard_fetch_rsp_q <= (!jalr_prefetch_pending_match_i &&
                                   outstanding_valid_q && !fetch_rsp_fire_i);
         end else if (pending_mem_i) begin
           outstanding_valid_q <= 1'b0;
-          outstanding_pc_q <= {`XLEN{1'b0}};
         end
       end
 
@@ -252,7 +223,6 @@ module OooFetchPcOutstandingSequencer (
       if (direct_frontend_flush_i && branch_resolve_untracked_i &&
           !core_branch_resolve_misaligned_i) begin
         outstanding_valid_q <= fetch_req_fire_i;
-        outstanding_pc_q <= fetch_req_fire_i ? fetch_req_pc_i : {`XLEN{1'b0}};
         discard_fetch_rsp_q <= outstanding_valid_q && !fetch_rsp_fire_i;
       end
 
@@ -260,7 +230,6 @@ module OooFetchPcOutstandingSequencer (
       // (E1 pre-mux 最高档, age0 恒胜)覆盖, 由 OooRedirectSeqChecker INV-S2 延迟一拍守。
       if (csr_trap_mem_valid_i) begin
         outstanding_valid_q <= 1'b0;
-        outstanding_pc_q <= {`XLEN{1'b0}};
         discard_fetch_rsp_q <= outstanding_valid_q && !fetch_rsp_fire_i;
       end
 
@@ -273,6 +242,37 @@ module OooFetchPcOutstandingSequencer (
   end
 
 `ifdef OOO_ASSERT
+  // T3Z special-prefetch adoption is legal only when the Bridge is already
+  // the owner of that exact request.  Capturing a live prefetch-buffer PC here
+  // would be unsafe because the buffer clears on the same adoption edge.
+  wire t3z_branch_owner_adopt_w = pending_branch_match_clear_i &&
+      !core_branch_resolve_misaligned_i && branch_prefetch_pending_match_i;
+  wire t3z_e8_owner_slot_w = !pending_branch_commit_resolve_i &&
+      !pending_branch_match_clear_i && !direct_frontend_flush_i &&
+      !branch_resolve_untracked_i && pending_jump_resolve_ready_i;
+  wire t3z_jump_e8_owner_adopt_w = t3z_e8_owner_slot_w &&
+      !pending_jump_misaligned_i &&
+      (pending_jump_nolink_commit_i ||
+       pending_jump_redirect_after_dispatch_i) &&
+      jalr_prefetch_pending_match_i;
+  wire t3z_e6_owner_slot_w = !pending_branch_commit_resolve_i &&
+      !pending_branch_match_clear_i && !direct_frontend_flush_i &&
+      !branch_resolve_untracked_i && !pending_jump_resolve_ready_i &&
+      !(pending_system_csr_commit_i || head0_csr_commit_i) &&
+      !csr_trap_mem_valid_i && drain_complete_i;
+  wire t3z_jump_e6_owner_adopt_w = t3z_e6_owner_slot_w &&
+      !pending_arch_trap_i && !pending_system_i &&
+      !(pending_branch_i && !pending_branch_dispatched_i) &&
+      pending_jump_i && jalr_prefetch_pending_match_i;
+  wire t3z_special_owner_adopt_w = t3z_branch_owner_adopt_w ||
+      t3z_jump_e8_owner_adopt_w || t3z_jump_e6_owner_adopt_w;
+
+  always @(posedge clk) if (!rst && t3z_special_owner_adopt_w) begin
+    if ((fetch_req_owner_pc_i !== branch_prefetch_pc_i) ||
+        fetch_req_fire_i || fetch_rsp_fire_i)
+      $error("[T3Z-SPECIAL-OWNER-PC] prefetch adoption did not reuse the quiescent Bridge active PC");
+  end
+
   // INV-2 (flush-redirect 契约 §4, P4 切消费点后重写): next_fetch_pc_q 各终态写者同拍
   // 至多一个赢。新写者集 = {顺序推进(非终态, 不计), E9(:c), E7cr/E7mc/E8 保留臂(:d),
   // arb 终写(:g, 文本最后 = 最高优先)}。win_x = 条件成立且无更高优先(文本更后)写者。

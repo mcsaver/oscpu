@@ -38,7 +38,7 @@ chosen:
   rng_seed: "79 73 79 78 2d 72 76 36 34 2d 6e 65 6d 75 2d 73 79 73 74 65 6d 64 2d 72 6e 67 2d 73 65 65 64 01"
 
 # 共有设备:两侧都实现,地址/中断号是 difftest 级契约。
-# 平台专属设备(virtio_rng/virtio_net/goldfish_rtc/reset_syscon 等)写在
+# 平台专属设备(virtio_rng/virtio_net/goldfish_rtc 等)写在
 # 各自平台 yml 的 devices 段,深合并后追加到这里。
 devices:
   clint:
@@ -61,6 +61,12 @@ devices:
     base: 0x10001000
     size: 0x1000
     irq: 2
+  # NEMU 与 NPC 都实现的标准 syscon reset endpoint。
+  reset_syscon:
+    base: 0x00100000
+    size: 0x1000
+    poweroff_value: 0x5555
+    reboot_value: 0x7777
 
 # rootfs 场景的 bootargs 两侧不同,写在各自平台 yml;这里只放共享场景。
 bootargs:

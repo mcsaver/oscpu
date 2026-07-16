@@ -6,7 +6,8 @@ module AxiPlic #(
   parameter ADDR_W = `XLEN,
   parameter DATA_W = `XLEN,
   parameter STRB_W = DATA_W / 8,
-  parameter SOURCE_NUM = 32
+  parameter SOURCE_NUM = 32,
+  parameter PRIORITY_BITS = 3
 ) (
   input clk,
   input rst,
@@ -14,6 +15,7 @@ module AxiPlic #(
   input s_axi_arvalid_i,
   output s_axi_arready_o,
   input [ADDR_W-1:0] s_axi_araddr_i,
+  input [2:0] s_axi_arsize_i,
   output reg s_axi_rvalid_o,
   input s_axi_rready_i,
   output reg [DATA_W-1:0] s_axi_rdata_o,
@@ -22,6 +24,7 @@ module AxiPlic #(
   input s_axi_awvalid_i,
   output s_axi_awready_o,
   input [ADDR_W-1:0] s_axi_awaddr_i,
+  input [2:0] s_axi_awsize_i,
   input s_axi_wvalid_i,
   output s_axi_wready_o,
   input [DATA_W-1:0] s_axi_wdata_i,
@@ -33,6 +36,8 @@ module AxiPlic #(
   input [SOURCE_NUM-1:0] source_irq_i,
   output reg external_irq_o
 );
+
+  localparam integer LANE_BITS = $clog2(STRB_W);
 
   localparam [21:0] PLIC_PRIORITY_BASE = 22'h000000;
   localparam [21:0] PLIC_PENDING_OFFSET = 22'h001000;
@@ -49,13 +54,13 @@ module AxiPlic #(
   reg [STRB_W-1:0] wstrb_q;
   reg w_seen_q;
 
-  reg [31:0] priority_q [0:SOURCE_NUM-1];
+  reg [PRIORITY_BITS-1:0] priority_q [0:SOURCE_NUM-1];
   reg [SOURCE_NUM-1:0] pending_q;
   reg [SOURCE_NUM-1:0] in_service_q;
   reg [SOURCE_NUM-1:0] enable_m_q;
   reg [SOURCE_NUM-1:0] enable_s_q;
-  reg [31:0] threshold_m_q;
-  reg [31:0] threshold_s_q;
+  reg [PRIORITY_BITS-1:0] threshold_m_q;
+  reg [PRIORITY_BITS-1:0] threshold_s_q;
 
   wire [4:0] m_claim_id_r;
   wire [4:0] s_claim_id_r;
@@ -74,27 +79,33 @@ module AxiPlic #(
   wire [21:0] write_addr_low_w = aw_fire_w ? s_axi_awaddr_i[21:0] : awaddr_low_q;
   wire [DATA_W-1:0] write_data_w = w_fire_w ? s_axi_wdata_i : wdata_q;
   wire [STRB_W-1:0] write_strb_w = w_fire_w ? s_axi_wstrb_i : wstrb_q;
+  wire [LANE_BITS-1:0] write_lane_w = write_addr_low_w[LANE_BITS-1:0];
+  wire [LANE_BITS-1:0] read_lane_w = s_axi_araddr_i[LANE_BITS-1:0];
+  wire [5:0] write_lane_shift_w = write_lane_w * 6'd8;
+  wire [5:0] read_lane_shift_w = read_lane_w * 6'd8;
+  wire [DATA_W-1:0] native_write_data_w = write_data_w >> write_lane_shift_w;
+  wire [STRB_W-1:0] native_write_strb_w = write_strb_w >> write_lane_w;
   wire [63:0] write_data_pad_w;
   wire [7:0] write_strb_pad_w;
-  wire [31:0] m_claim_prio_l0 [0:31];
+  wire [PRIORITY_BITS-1:0] m_claim_prio_l0 [0:31];
   wire [4:0] m_claim_id_l0 [0:31];
-  wire [31:0] s_claim_prio_l0 [0:31];
+  wire [PRIORITY_BITS-1:0] s_claim_prio_l0 [0:31];
   wire [4:0] s_claim_id_l0 [0:31];
-  wire [31:0] m_claim_prio_l1 [0:15];
+  wire [PRIORITY_BITS-1:0] m_claim_prio_l1 [0:15];
   wire [4:0] m_claim_id_l1 [0:15];
-  wire [31:0] s_claim_prio_l1 [0:15];
+  wire [PRIORITY_BITS-1:0] s_claim_prio_l1 [0:15];
   wire [4:0] s_claim_id_l1 [0:15];
-  wire [31:0] m_claim_prio_l2 [0:7];
+  wire [PRIORITY_BITS-1:0] m_claim_prio_l2 [0:7];
   wire [4:0] m_claim_id_l2 [0:7];
-  wire [31:0] s_claim_prio_l2 [0:7];
+  wire [PRIORITY_BITS-1:0] s_claim_prio_l2 [0:7];
   wire [4:0] s_claim_id_l2 [0:7];
-  wire [31:0] m_claim_prio_l3 [0:3];
+  wire [PRIORITY_BITS-1:0] m_claim_prio_l3 [0:3];
   wire [4:0] m_claim_id_l3 [0:3];
-  wire [31:0] s_claim_prio_l3 [0:3];
+  wire [PRIORITY_BITS-1:0] s_claim_prio_l3 [0:3];
   wire [4:0] s_claim_id_l3 [0:3];
-  wire [31:0] m_claim_prio_l4 [0:1];
+  wire [PRIORITY_BITS-1:0] m_claim_prio_l4 [0:1];
   wire [4:0] m_claim_id_l4 [0:1];
-  wire [31:0] s_claim_prio_l4 [0:1];
+  wire [PRIORITY_BITS-1:0] s_claim_prio_l4 [0:1];
   wire [4:0] s_claim_id_l4 [0:1];
   wire m_claim_take_upper_w;
   wire s_claim_take_upper_w;
@@ -127,7 +138,9 @@ module AxiPlic #(
   wire unused_addr_hi_w = |{
       s_axi_araddr_i[ADDR_W-1:22],
       s_axi_awaddr_i[ADDR_W-1:22],
-      PLIC_PRIORITY_BASE
+      PLIC_PRIORITY_BASE,
+      s_axi_arsize_i,
+      s_axi_awsize_i
   };
 
   assign s_axi_arready_o = !s_axi_rvalid_o;
@@ -141,17 +154,17 @@ module AxiPlic #(
   // 的组合直通(全核关键路径头段 0–3.4ns,白送 3.4ns)。claim/complete 仲裁
   // 仍取组合 m/s_claim_id_r(AXI 读拍语义不变),只有对核可见的 irq 输出晚一拍。
   wire external_irq_next_w = (m_claim_id_r != 5'd0) || (s_claim_id_r != 5'd0);
-  assign write_data_pad_w[31:0] = write_data_w[31:0];
-  assign write_strb_pad_w[3:0] = write_strb_w[3:0];
+  assign write_data_pad_w[31:0] = native_write_data_w[31:0];
+  assign write_strb_pad_w[3:0] = native_write_strb_w[3:0];
 
   generate
     if (DATA_W >= 64) begin : gen_write_data_hi
-      assign write_data_pad_w[63:32] = write_data_w[63:32];
+      assign write_data_pad_w[63:32] = native_write_data_w[63:32];
     end else begin : gen_write_data_hi_zero
       assign write_data_pad_w[63:32] = 32'h0;
     end
     if (STRB_W >= 8) begin : gen_write_strb_hi
-      assign write_strb_pad_w[7:4] = write_strb_w[7:4];
+      assign write_strb_pad_w[7:4] = native_write_strb_w[7:4];
     end else begin : gen_write_strb_hi_zero
       assign write_strb_pad_w[7:4] = 4'h0;
     end
@@ -166,18 +179,20 @@ module AxiPlic #(
         assign m_valid_w = pending_q[claim_idx] && enable_m_q[claim_idx] &&
                            !in_service_q[claim_idx] &&
                            (priority_q[claim_idx] > threshold_m_q) &&
-                           (priority_q[claim_idx] != 32'h0);
+                           (priority_q[claim_idx] != {PRIORITY_BITS{1'b0}});
         assign s_valid_w = pending_q[claim_idx] && enable_s_q[claim_idx] &&
                            !in_service_q[claim_idx] &&
                            (priority_q[claim_idx] > threshold_s_q) &&
-                           (priority_q[claim_idx] != 32'h0);
-        assign m_claim_prio_l0[claim_idx] = m_valid_w ? priority_q[claim_idx] : 32'h0;
-        assign s_claim_prio_l0[claim_idx] = s_valid_w ? priority_q[claim_idx] : 32'h0;
+                           (priority_q[claim_idx] != {PRIORITY_BITS{1'b0}});
+        assign m_claim_prio_l0[claim_idx] =
+            m_valid_w ? priority_q[claim_idx] : {PRIORITY_BITS{1'b0}};
+        assign s_claim_prio_l0[claim_idx] =
+            s_valid_w ? priority_q[claim_idx] : {PRIORITY_BITS{1'b0}};
         assign m_claim_id_l0[claim_idx] = m_valid_w ? claim_idx[4:0] : 5'd0;
         assign s_claim_id_l0[claim_idx] = s_valid_w ? claim_idx[4:0] : 5'd0;
       end else begin : gen_source_tieoff
-        assign m_claim_prio_l0[claim_idx] = 32'h0;
-        assign s_claim_prio_l0[claim_idx] = 32'h0;
+        assign m_claim_prio_l0[claim_idx] = {PRIORITY_BITS{1'b0}};
+        assign s_claim_prio_l0[claim_idx] = {PRIORITY_BITS{1'b0}};
         assign m_claim_id_l0[claim_idx] = 5'd0;
         assign s_claim_id_l0[claim_idx] = 5'd0;
       end
@@ -277,11 +292,34 @@ module AxiPlic #(
     end
   endfunction
 
+  // Priority and threshold are 32-bit WARL MMIO fields.  The implemented
+  // low bits remain byte-strobe merged; unimplemented high bits read zero and
+  // ignore writes.  Keeping the merge in a 32-bit view also makes a legal
+  // PRIORITY_BITS=32 configuration exactly preserve the former behavior.
+  function [31:0] priority_to_u32;
+    input [PRIORITY_BITS-1:0] value;
+    begin
+      priority_to_u32 = 32'h0;
+      priority_to_u32[PRIORITY_BITS-1:0] = value;
+    end
+  endfunction
+
+  function [31:0] apply_priority_wstrb;
+    input [PRIORITY_BITS-1:0] old_value;
+    input [31:0] new_value;
+    input [3:0] strb;
+    begin
+      apply_priority_wstrb =
+          apply_wstrb32_lane(priority_to_u32(old_value), new_value, strb);
+    end
+  endfunction
+
   function [31:0] priority_at;
     input [21:0] word_index;
     begin
-      if (word_index < SOURCE_NUM[21:0])
-        priority_at = priority_q[word_index];
+      // PLIC source 0 is architecturally reserved and hardwired to priority 0.
+      if ((word_index != 22'd0) && (word_index < SOURCE_NUM[21:0]))
+        priority_at = priority_to_u32(priority_q[word_index]);
       else
         priority_at = 32'h0;
     end
@@ -315,9 +353,11 @@ module AxiPlic #(
           PLIC_S_ENABLE_OFFSET:
             read_plic_word_r = pack_u32_pair(bitmap32(enable_s_q), 32'h0);
           PLIC_M_THRESH_OFFSET:
-            read_plic_word_r = pack_u32_pair(threshold_m_q, {27'h0, m_claim_id_r});
+            read_plic_word_r = pack_u32_pair(priority_to_u32(threshold_m_q),
+                                             {27'h0, m_claim_id_r});
           PLIC_S_THRESH_OFFSET:
-            read_plic_word_r = pack_u32_pair(threshold_s_q, {27'h0, s_claim_id_r});
+            read_plic_word_r = pack_u32_pair(priority_to_u32(threshold_s_q),
+                                             {27'h0, s_claim_id_r});
           PLIC_M_CLAIM_OFFSET:
             read_plic_word_r = pack_u32_pair({27'h0, m_claim_id_r}, 32'h0);
           PLIC_S_CLAIM_OFFSET:
@@ -370,11 +410,11 @@ module AxiPlic #(
       in_service_q <= {SOURCE_NUM{1'b0}};
       enable_m_q <= {SOURCE_NUM{1'b0}};
       enable_s_q <= {SOURCE_NUM{1'b0}};
-      threshold_m_q <= 32'h0;
-      threshold_s_q <= 32'h0;
+      threshold_m_q <= {PRIORITY_BITS{1'b0}};
+      threshold_s_q <= {PRIORITY_BITS{1'b0}};
       external_irq_o <= 1'b0;
       for (i = 0; i < SOURCE_NUM; i = i + 1)
-        priority_q[i] <= 32'h0;
+        priority_q[i] <= {PRIORITY_BITS{1'b0}};
     end else begin
       pending_q <= pending_next_r;
       in_service_q <= in_service_next_r;
@@ -389,7 +429,7 @@ module AxiPlic #(
 
       if (ar_fire_w) begin
         s_axi_rvalid_o <= 1'b1;
-        s_axi_rdata_o <= read_plic_word_r;
+        s_axi_rdata_o <= read_plic_word_r << read_lane_shift_w;
       end
 
       if (aw_fire_w) begin
@@ -410,18 +450,20 @@ module AxiPlic #(
 
         if (write_addr_low_w < PLIC_PENDING_OFFSET) begin
           if (write_strb_pad_w[3:0] != 4'h0 &&
+              (write_addr_low_w[21:2] != 22'd0) &&
               (write_addr_low_w[21:2] < SOURCE_NUM[21:0])) begin
             priority_q[write_addr_low_w[21:2]] <=
-                apply_wstrb32_lane(priority_q[write_addr_low_w[21:2]],
-                                   write_data_pad_w[31:0],
-                                   write_strb_pad_w[3:0]);
+                apply_priority_wstrb(priority_q[write_addr_low_w[21:2]],
+                                     write_data_pad_w[31:0],
+                                     write_strb_pad_w[3:0]);
           end
           if (write_strb_pad_w[7:4] != 4'h0 &&
+              ((write_addr_low_w[21:2] + 22'd1) != 22'd0) &&
               ((write_addr_low_w[21:2] + 22'd1) < SOURCE_NUM[21:0])) begin
             priority_q[write_addr_low_w[21:2] + 22'd1] <=
-                apply_wstrb32_lane(priority_q[write_addr_low_w[21:2] + 22'd1],
-                                   write_data_pad_w[63:32],
-                                   write_strb_pad_w[7:4]);
+                apply_priority_wstrb(priority_q[write_addr_low_w[21:2] + 22'd1],
+                                     write_data_pad_w[63:32],
+                                     write_strb_pad_w[7:4]);
           end
         end else begin
           case (write_addr_low_w)
@@ -433,14 +475,14 @@ module AxiPlic #(
                 enable_s_q <= enable_s_write_bitmap_w[SOURCE_NUM-1:0];
             PLIC_M_THRESH_OFFSET:
               if (write_strb_pad_w[3:0] != 4'h0)
-                threshold_m_q <= apply_wstrb32_lane(threshold_m_q,
-                                                    write_data_pad_w[31:0],
-                                                    write_strb_pad_w[3:0]);
+                threshold_m_q <= apply_priority_wstrb(threshold_m_q,
+                                                      write_data_pad_w[31:0],
+                                                      write_strb_pad_w[3:0]);
             PLIC_S_THRESH_OFFSET:
               if (write_strb_pad_w[3:0] != 4'h0)
-                threshold_s_q <= apply_wstrb32_lane(threshold_s_q,
-                                                    write_data_pad_w[31:0],
-                                                    write_strb_pad_w[3:0]);
+                threshold_s_q <= apply_priority_wstrb(threshold_s_q,
+                                                      write_data_pad_w[31:0],
+                                                      write_strb_pad_w[3:0]);
             default: begin end
           endcase
         end

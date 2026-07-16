@@ -29,6 +29,7 @@ module OooPendingDispatchArbiter (
   input direct_branch1_fire_i,
   input head_fetch_fault0_i,
   input head_fetch_fault1_i,
+  input [`XLEN-1:0] head_fetch_fault_tval_i,
   input [1:0] head_resp0_i,
   input [1:0] head_resp1_i,
   input [`XLEN-1:0] head_pc0_i,
@@ -73,9 +74,12 @@ module OooPendingDispatchArbiter (
   output [`XLEN-1:0] pending_trap_exit_capture_tval_o
 );
 
+  // T3Y：所有 set/capture 事件都由 head/lane 分类与真实 dispatch fire 约束，
+  // 与 JAL/RET/JALR-spec 的 direct fire 结构互斥。删除 late direct mask，避免
+  // backend-ready/direct-flush 锥进入 pending trap 的宽 payload D；真实 direct
+  // squash/clear 输出仍在本模块下方保留，父层断言守住互斥契约。
   wire capture_base_w =
-      !csr_trap_mem_valid_i && !direct_frontend_flush_i &&
-      can_run_i && fifo_has_packet_i;
+      !csr_trap_mem_valid_i && can_run_i && fifo_has_packet_i;
   wire dispatch0_arch_trap_w =
       dispatch0_facts_i[`OOO_SLOT_FACT_ARCH_TRAP];
   wire dispatch0_exit_w = dispatch0_facts_i[`OOO_SLOT_FACT_EXIT];
@@ -135,6 +139,7 @@ module OooPendingDispatchArbiter (
   OooPendingLane1CaptureGate u_lane1_capture_gate (
     .barrier_base_i(lane1_barrier_base_w),
     .head_fetch_fault_i(head_fetch_fault1_i),
+    .head_fetch_fault_tval_i(head_fetch_fault_tval_i),
     .head_resp_i(head_resp1_i),
     .head_pc_i(head_pc1_i),
     .head_inst_i(head_inst1_i),
@@ -282,7 +287,7 @@ module OooPendingDispatchArbiter (
        (trap_exit_capture_unsupported_w &&
         !dispatch0_unsupported_i)) ? head_pc1_i : head_pc0_i;
   assign pending_trap_exit_capture_tval_o =
-      trap_exit_capture_fetch_fault0_w ? head_pc0_i :
+      trap_exit_capture_fetch_fault0_w ? head_fetch_fault_tval_i :
       trap_exit_capture_arch0_w ?
           (head0_semihost_ebreak_w ? {`XLEN{1'b0}} : head_inst0_i) :
       trap_exit_capture_csr_illegal0_w ? head_inst0_i :

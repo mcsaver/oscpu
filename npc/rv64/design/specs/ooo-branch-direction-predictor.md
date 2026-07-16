@@ -28,7 +28,7 @@ JALR-BTB/BTC/pending jump sequencer 在 mode=1 下已判死,见 2026-07-03 RTL �
 | flush/clear | `rst || clear_i` 清 valid、GHR 与 update 流水 valid；同拍 update 被丢弃，优先级保持 `reset/clear > update stage1/stage2`。 |
 | 异常序 | predictor 不拥有异常、fault 或 redirect；非 branch/fault/invalid slot 是否消费预测仍由 frontend gate 单一决定。 |
 | 访存序 | 无 AXI/cache/访存 owner，接口收窄不改变请求、响应或信用。 |
-| 投机恢复/单一真源 | `fetch_dec*_bimm_w[XLEN-1]` 是两路 static fallback 的唯一真源；lower 63 immediate bits 禁止进入 predictor/macro ABI，GHR/update 语义不变。 |
+| 投机恢复/单一真源 | `fetch_dec*_bimm_w[12]` 是两路 static fallback 的唯一真源；其余 12 immediate bits 禁止进入 predictor/macro ABI，GHR/update 语义不变。 |
 
 典型组合语义：`pred_taken = selected_valid ? selected_counter[1] : static_taken`。接口收窄
 不新增寄存级、不改变 lookup latency，也不允许在 predictor 内重新解码 immediate。
@@ -41,6 +41,9 @@ JALR-BTB/BTC/pending jump sequencer 在 mode=1 下已判死,见 2026-07-03 RTL �
 - **BP-I4 静态 fallback ABI (`BPU-ST1`)**:两路外部 ABI 各只有 1-bit
   `lookup*_static_taken_i`，且分别来自对应 slot B-imm 符号位。表项 valid 时 counter 必须覆盖
   static bit；表项 invalid 时该 bit 必须直接决定方向，lane0/1 不得串线。
+- **BP-I5 decoder immediate ABI (`T3L`)**：frontend 内部 B-imm 总线宽度固定为 13，
+  predictor 只取 bit12；branch target 由独立 split-target 模块消费完整 13 位，禁止恢复
+  XLEN-wide sign-extension 作为跨模块接口。
 - 预测错不影响正确性(只影响性能):误预测由后端 resolve→精确 redirect 纠正。
 
 ## 4. 关键路径

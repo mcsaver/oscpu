@@ -65,6 +65,7 @@ struct ExitEvent {
   bool     valid;
   bool     is_ebreak;
   bool     is_ecall;
+  bool     is_system_reset;
   npc_word_t code;
   npc_word_t pc;
 };
@@ -462,6 +463,7 @@ static bool maybe_stop_on_tohost(void) {
   st->halt_ret = (npc_word_t)code;
   st->exit_is_ebreak = false;
   st->exit_is_ecall = false;
+  st->exit_is_system_reset = false;
   st->exit_is_tohost = true;
   st->tohost_value = value;
   LogBothTag("tohost", "observed value=0x%016" NPC_PRIxWORD " code=%llu",
@@ -1038,10 +1040,12 @@ extern "C" void npc_commit_event(npc_word_t pc, uint32_t inst, npc_word_t next_p
 }
 
 extern "C" void npc_exit_event(uint32_t is_ebreak, uint32_t is_ecall,
+                               uint32_t is_system_reset,
                                npc_word_t code, npc_word_t pc) {
   g_exit_event.valid = true;
   g_exit_event.is_ebreak = is_ebreak != 0;
   g_exit_event.is_ecall = is_ecall != 0;
+  g_exit_event.is_system_reset = is_system_reset != 0;
   g_exit_event.code = code;
   g_exit_event.pc = pc;
 }
@@ -1979,10 +1983,12 @@ static void report_run_result(void) {
     case NPC_END: {
       const bool guest_watch_exit =
           (st->halt_ret == 0) && !st->exit_is_ebreak && !st->exit_is_ecall &&
+          !st->exit_is_system_reset &&
           !st->exit_is_tohost &&
           npc_guest_expect_matched();
       const bool commit_watch_exit =
           (st->halt_ret == 0) && !st->exit_is_ebreak && !st->exit_is_ecall &&
+          !st->exit_is_system_reset &&
           !st->exit_is_tohost &&
           g_commit_watch_matched;
       const bool tohost_exit = st->exit_is_tohost;
@@ -2001,8 +2007,9 @@ static void report_run_result(void) {
       const char *exit_via = tohost_exit ? "tohost" :
           (guest_watch_exit ? "guest-watch" :
           (commit_watch_exit ? "commit-watch" :
+          (st->exit_is_system_reset ? "system-reset" :
           (st->exit_is_ebreak ? "ebreak" :
-          (st->exit_is_ecall ? "ecall" : "unknown"))));
+          (st->exit_is_ecall ? "ecall" : "unknown")))));
       if (tohost_exit) {
         LogBoth("exit via %s, value=0x%016" NPC_PRIxWORD ", code=%" PRIu64
                 ", cycles=%llu, commits=%llu",
@@ -2100,6 +2107,8 @@ static void report_exit(void) {
   st->halt_ret = g_exit_event.valid ? g_exit_event.code : 1;
   st->exit_is_ebreak = g_exit_event.valid && g_exit_event.is_ebreak;
   st->exit_is_ecall = g_exit_event.valid && g_exit_event.is_ecall;
+  st->exit_is_system_reset =
+      g_exit_event.valid && g_exit_event.is_system_reset;
   st->exit_is_tohost = false;
   st->tohost_value = 0;
 }
@@ -2194,6 +2203,7 @@ int npc_cpu_exec(uint64_t max_instructions) {
   st->watchpoint_id = -1;
   st->watchpoint_expr[0] = '\0';
   st->exit_is_tohost = false;
+  st->exit_is_system_reset = false;
   st->tohost_value = 0;
 
   uint64_t timer_start_us = npc_get_time_us();
@@ -2219,6 +2229,13 @@ int npc_cpu_exec(uint64_t max_instructions) {
 
     step_cycle();
 
+    // Guest-visible terminal（含 reset-syscon）优先于人为 guest/commit watch，
+    // 防止同拍观察器把自然关机伪装成测试提前结束。
+    if (g_exit_event.valid) {
+      report_exit();
+      return finish_exec(timer_start_us, (int)st->halt_ret, true);
+    }
+
     if (maybe_stop_on_tohost()) {
       return finish_exec(timer_start_us, (int)st->halt_ret, true);
     }
@@ -2228,6 +2245,7 @@ int npc_cpu_exec(uint64_t max_instructions) {
       st->halt_ret = 0;
       st->exit_is_ebreak = false;
       st->exit_is_ecall = false;
+      st->exit_is_system_reset = false;
       st->exit_is_tohost = false;
       st->tohost_value = 0;
       LogBothTag("guest-watch", "matched NPC_GUEST_EXPECT='%s'",
@@ -2249,6 +2267,7 @@ int npc_cpu_exec(uint64_t max_instructions) {
       st->halt_ret = 0;
       st->exit_is_ebreak = false;
       st->exit_is_ecall = false;
+      st->exit_is_system_reset = false;
       st->exit_is_tohost = false;
       st->tohost_value = 0;
       LogBothTag("commitwatch", "stop after %llu matching committed PC(s)",
@@ -2256,10 +2275,6 @@ int npc_cpu_exec(uint64_t max_instructions) {
       return finish_exec(timer_start_us, 0, true);
     }
 
-    if (g_exit_event.valid) {
-      report_exit();
-      return finish_exec(timer_start_us, (int)st->halt_ret, true);
-    }
     if (g_trap_event.valid) {
       report_trap();
       return finish_exec(timer_start_us, 1, true);
@@ -2296,8 +2311,8 @@ int npc_cpu_exec(uint64_t max_instructions) {
         if (!Verilated::gotFinish() &&
             (!npc_cycle_limit_enabled(g_cycle_limit) || npc_stats()->cycles < g_cycle_limit)) {
           step_cycle();
-          if (maybe_stop_on_tohost()) { return finish_exec(timer_start_us, (int)st->halt_ret, true); }
           if (g_exit_event.valid) { report_exit(); return finish_exec(timer_start_us, (int)st->halt_ret, true); }
+          if (maybe_stop_on_tohost()) { return finish_exec(timer_start_us, (int)st->halt_ret, true); }
           if (g_trap_event.valid) { report_trap(); return finish_exec(timer_start_us, 1, true); }
         }
         st->state = NPC_STOP;

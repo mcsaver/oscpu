@@ -70,7 +70,8 @@ module AxiXbar #(
 
   output [S_COUNT-1:0] s_awvalid_o,
   input [S_COUNT-1:0] s_awready_i,
-  output [S_COUNT*ADDR_W-1:0] s_awaddr_o,
+    output [S_COUNT*ADDR_W-1:0] s_awaddr_o,
+    output [S_COUNT*3-1:0]      s_awsize_o,
   output [S_COUNT-1:0] s_wvalid_o,
   input [S_COUNT-1:0] s_wready_i,
   output [S_COUNT*DATA_W-1:0] s_wdata_o,
@@ -85,8 +86,8 @@ module AxiXbar #(
 
   // 单 outstanding 单 beat互连不消费 burst 元数据；read SIZE 已成为 slave ABI，
   // 不得再并入 unused。
-  wire unused_axi4_meta_w = |{m_arlen_i, m_arburst_i,
-                              m_awlen_i, m_awsize_i, m_awburst_i, m_wlast_i};
+    wire unused_axi4_meta_w = |{m_arlen_i, m_arburst_i,
+                                m_awlen_i, m_awburst_i, m_wlast_i};
 
   function [ADDR_W-1:0] m_addr_slice;
     input [M_COUNT*ADDR_W-1:0] bus;
@@ -222,7 +223,8 @@ module AxiXbar #(
   reg [S_COUNT*3-1:0] s_arprot_r;
   reg [S_COUNT-1:0] s_rready_r;
   reg [S_COUNT-1:0] s_awvalid_r;
-  reg [S_COUNT*ADDR_W-1:0] s_awaddr_r;
+    reg [S_COUNT*ADDR_W-1:0] s_awaddr_r;
+    reg [S_COUNT*3-1:0]      s_awsize_r;
   reg [S_COUNT-1:0] s_wvalid_r;
   reg [S_COUNT*DATA_W-1:0] s_wdata_r;
   reg [S_COUNT*STRB_W-1:0] s_wstrb_r;
@@ -245,7 +247,8 @@ module AxiXbar #(
   reg [M_COUNT-1:0] wr_master_busy_q;
   reg [M_COUNT-1:0] wr_aw_hold_q;
   reg [M_COUNT-1:0] wr_w_hold_q;
-  reg [ADDR_W-1:0] wr_awaddr_q [0:M_COUNT-1];
+    reg [ADDR_W-1:0] wr_awaddr_q [0:M_COUNT-1];
+    reg [2:0]        wr_awsize_q [0:M_COUNT-1];
   reg [3:0] wr_awid_q [0:M_COUNT-1];
   reg [SLAVE_W-1:0] wr_awtarget_q [0:M_COUNT-1];
   reg [DATA_W-1:0] wr_wdata_q [0:M_COUNT-1];
@@ -256,7 +259,8 @@ module AxiXbar #(
   reg [S_COUNT-1:0] wr_w_sent_q;
   reg [MASTER_W-1:0] wr_owner_q [0:S_COUNT-1];
   reg [MASTER_W-1:0] wr_rr_q [0:S_COUNT-1];
-  reg [ADDR_W-1:0] wr_addr_q [0:S_COUNT-1];
+    reg [ADDR_W-1:0] wr_addr_q [0:S_COUNT-1];
+    reg [2:0]        wr_size_q [0:S_COUNT-1];
   reg [DATA_W-1:0] wr_data_q [0:S_COUNT-1];
   reg [STRB_W-1:0] wr_strb_q [0:S_COUNT-1];
   reg [3:0] wr_id_q [0:S_COUNT-1];
@@ -287,7 +291,8 @@ module AxiXbar #(
   assign s_arprot_o = s_arprot_r;
   assign s_rready_o = s_rready_r;
   assign s_awvalid_o = s_awvalid_r;
-  assign s_awaddr_o = s_awaddr_r;
+    assign s_awaddr_o = s_awaddr_r;
+    assign s_awsize_o = s_awsize_r;
   assign s_wvalid_o = s_wvalid_r;
   assign s_wdata_o = s_wdata_r;
   assign s_wstrb_o = s_wstrb_r;
@@ -317,7 +322,8 @@ module AxiXbar #(
     s_arprot_r = {S_COUNT*3{1'b0}};
     s_rready_r = {S_COUNT{1'b0}};
     s_awvalid_r = {S_COUNT{1'b0}};
-    s_awaddr_r = {S_COUNT*ADDR_W{1'b0}};
+        s_awaddr_r = {S_COUNT*ADDR_W{1'b0}};
+        s_awsize_r = {S_COUNT*3{1'b0}};
     s_wvalid_r = {S_COUNT{1'b0}};
     s_wdata_r = {S_COUNT*DATA_W{1'b0}};
     s_wstrb_r = {S_COUNT*STRB_W{1'b0}};
@@ -397,12 +403,11 @@ module AxiXbar #(
       if (rd_active_q[s] && rd_ar_sent_q[s]) begin
         owner = master_int(rd_owner_q[s]);
         if (!rd_resp_valid_q[owner]) begin
-          m_rvalid_r[owner] = s_rvalid_i[s];
-          m_rdata_r[owner*DATA_W +: DATA_W] = s_rdata_i[s*DATA_W +: DATA_W];
-          m_rresp_r[owner*2 +: 2] = s_rresp_i[s*2 +: 2];
-          m_rid_r[owner*4 +: 4] = rd_id_q[s];
-          // 即使 master 暂时不 ready，也先把 response 收进 master-side buffer，
-          // 释放 slave，避免 IFU response 阻塞 LSU miss 形成结构死锁。
+          // R 通道是严格非穿透的 registered response slice：slave response
+          // 无论 master 当拍是否 ready，都先进入 per-master rd_resp_*_q，
+          // 下一拍才由上面的 buffer owner 驱动 m_r*。这既保留“先释放
+          // slave、避免跨 master 结构死锁”的性质，也切断
+          // rd_active/slave-R mux -> master consumer 的跨模块长组合路径。
           s_rready_r[s] = 1'b1;
         end
       end
@@ -455,7 +460,8 @@ module AxiXbar #(
 
       if (wr_active_q[s] && !wr_aw_sent_q[s]) begin
         s_awvalid_r[s] = 1'b1;
-        s_awaddr_r[s*ADDR_W +: ADDR_W] = wr_addr_q[s];
+                s_awaddr_r[s*ADDR_W +: ADDR_W] = wr_addr_q[s];
+                s_awsize_r[s*3 +: 3] = wr_size_q[s];
       end
 
       if (wr_active_q[s] && !wr_w_sent_q[s]) begin
@@ -490,7 +496,8 @@ module AxiXbar #(
         rd_resp_data_q[m] <= {DATA_W{1'b0}};
         rd_resp_resp_q[m] <= 2'b00;
         rd_resp_id_q[m] <= 4'd0;
-        wr_awaddr_q[m] <= {ADDR_W{1'b0}};
+                wr_awaddr_q[m] <= {ADDR_W{1'b0}};
+                wr_awsize_q[m] <= 3'b000;
         wr_awid_q[m] <= 4'd0;
         wr_awtarget_q[m] <= {SLAVE_W{1'b0}};
         wr_wdata_q[m] <= {DATA_W{1'b0}};
@@ -505,7 +512,8 @@ module AxiXbar #(
         rd_id_q[s] <= 4'd0;
         wr_owner_q[s] <= {MASTER_W{1'b0}};
         wr_rr_q[s] <= {MASTER_W{1'b0}};
-        wr_addr_q[s] <= {ADDR_W{1'b0}};
+                wr_addr_q[s] <= {ADDR_W{1'b0}};
+                wr_size_q[s] <= 3'b000;
         wr_data_q[s] <= {DATA_W{1'b0}};
         wr_strb_q[s] <= {STRB_W{1'b0}};
         wr_id_q[s] <= 4'd0;
@@ -529,14 +537,14 @@ module AxiXbar #(
             s_rvalid_i[s] && s_rready_r[s]) begin
           rd_active_q[s] <= 1'b0;
           rd_ar_sent_q[s] <= 1'b0;
-          if (m_rready_i[master_int(rd_owner_q[s])]) begin
-            rd_master_busy_q[master_int(rd_owner_q[s])] <= 1'b0;
-          end else begin
-            rd_resp_valid_q[master_int(rd_owner_q[s])] <= 1'b1;
-            rd_resp_data_q[master_int(rd_owner_q[s])] <= s_rdata_i[s*DATA_W +: DATA_W];
-            rd_resp_resp_q[master_int(rd_owner_q[s])] <= s_rresp_i[s*2 +: 2];
-            rd_resp_id_q[master_int(rd_owner_q[s])] <= rd_id_q[s];
-          end
+          // 始终捕获，不允许以 m_rready_i 构造 fall-through bypass。
+          // busy 只能在下一拍真正的 buffered master R fire 时释放。
+          rd_resp_valid_q[master_int(rd_owner_q[s])] <= 1'b1;
+          rd_resp_data_q[master_int(rd_owner_q[s])] <=
+              s_rdata_i[s*DATA_W +: DATA_W];
+          rd_resp_resp_q[master_int(rd_owner_q[s])] <=
+              s_rresp_i[s*2 +: 2];
+          rd_resp_id_q[master_int(rd_owner_q[s])] <= rd_id_q[s];
         end
 
         if (!rd_active_q[s] && rd_grant_valid_r[s]) begin
@@ -557,7 +565,8 @@ module AxiXbar #(
       for (m = 0; m < M_COUNT; m = m + 1) begin
         if (m_awvalid_i[m] && m_awready_r[m]) begin
           wr_aw_hold_q[m] <= 1'b1;
-          wr_awaddr_q[m] <= m_addr_slice(m_awaddr_i, m);
+                    wr_awaddr_q[m] <= m_addr_slice(m_awaddr_i, m);
+                    wr_awsize_q[m] <= m_size_slice(m_awsize_i, m);
           wr_awid_q[m] <= m_id_slice(m_awid_i, m);
           wr_awtarget_q[m] <= awtarget_decode_r[m];
         end
@@ -593,7 +602,8 @@ module AxiXbar #(
           wr_aw_sent_q[s] <= 1'b0;
           wr_w_sent_q[s] <= 1'b0;
           wr_owner_q[s] <= wr_grant_master_r[s];
-          wr_addr_q[s] <= wr_awaddr_q[master_int(wr_grant_master_r[s])];
+                        wr_addr_q[s] <= wr_awaddr_q[master_int(wr_grant_master_r[s])];
+                        wr_size_q[s] <= wr_awsize_q[master_int(wr_grant_master_r[s])];
           wr_data_q[s] <= wr_wdata_q[master_int(wr_grant_master_r[s])];
           wr_strb_q[s] <= wr_wstrb_q[master_int(wr_grant_master_r[s])];
           wr_id_q[s] <= wr_awid_q[master_int(wr_grant_master_r[s])];

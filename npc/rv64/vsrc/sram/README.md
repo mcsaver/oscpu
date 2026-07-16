@@ -28,4 +28,4 @@
 | 模块 | 规格 | 使用方 | 用途 |
 | --- | --- | --- | --- |
 | `Sram4096x199` | 4096×199, 1RW | `OooFetchPacketCache` | 取指包 payload（paging/priv/satp/pc/inst0/inst1/resp0/resp1 拼宽） |
-| `Sram4096x113` | 4096×113, 1RW, bit-write-mask | `OooDataWordCache` | d-cache tag+data 拼宽；store RMW write-update 只写 data 段字节（tag 段掩码 0） |
+| `Sram4096x113` | 4096×113, 1RW, bit-write-mask | `OooDataWordCache` | d-cache tag+data 拼宽；store RMW 的 tag 段全写同值、data 段按 byte mask 更新 |

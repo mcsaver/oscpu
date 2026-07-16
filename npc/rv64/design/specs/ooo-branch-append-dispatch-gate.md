@@ -11,7 +11,7 @@ inside `OooFrontend`.
 It does not store fetch, pending, RAS, branch prefetch, or outstanding state. It
 does not select dispatch payload data, update PC, consume return-continuation
 entries, or modify the branch target cache. The parent remains the owner of
-all registers, payload muxes, FIFO seed/enqueue sequencing, and PC/outstanding
+all registers, payload muxes, FIFO enqueue/clear sequencing, and PC/outstanding
 state transitions.
 
 ## Inputs
@@ -19,7 +19,7 @@ state transitions.
 - Current lane0 branch dispatch fact and return-continuation match.
 - Lane1-ret continuation readiness inputs used for the disabled same-cycle
   return-cont append fast path.
-- Outstanding fetch PC, bypass response state, and fallthrough safety.
+- Outstanding fetch PC and fallthrough safety.
 - Branch target cache hit and direct branch resolve facts.
 - Branch prefetch buffer/raw-response match inputs and safety checks.
 - Dispatch lane1 readiness and fetch response fire status.
@@ -29,9 +29,9 @@ state transitions.
 - `return_cont_optional` and disabled `return_cont_attempt`.
 - Branch target/fallthrough append candidate, attempt, append, and dispatch
   predicates.
-- Fallthrough outstanding match/keep/capture predicates.
+- Fallthrough outstanding match/keep predicates.
 - Branch prefetch raw-response match, disabled direct-dispatch predicates, and
-  branch-prefetch-hit-to-FIFO predicate.
+  dispatch-fire predicates.
 - `dispatch1_optional` for backend dispatch lane1 optional readiness.
 
 ## Invariants
@@ -45,21 +45,18 @@ state transitions.
 - Branch fallthrough append candidate requires lane0 branch and a fallthrough
   path that is safe with respect to outstanding fetch response state.
 - Fallthrough append is safe when fallthrough itself is safe and either there is
-  no outstanding fetch, the current fetch response is bypassed, or the
-  outstanding PC already matches lane1 fallthrough PC.
+  no outstanding fetch or the outstanding PC already matches lane1 fallthrough PC.
 - Branch target/fallthrough append attempts remain disabled until the parent
   deliberately enables the fast path through a future architectural change.
 - Append dispatch aliases (`return_cont_dispatch`, `branch_target_dispatch`,
   and `branch_fallthrough_dispatch`) must match their corresponding append
   fire predicates.
-- Fallthrough outstanding keep/capture are only true for a fallthrough dispatch
-  that matches the outstanding PC; fetch response fire selects capture instead
-  of keep.
+- Fallthrough outstanding keep is only true for a fallthrough dispatch that
+  matches the outstanding PC while no response fires；旧 capture-to-seed 输出已由 T3V 删除。
 - Branch prefetch direct dispatch remains disabled; buffer/rsp dispatch attempts
   and dispatch fire must be zero even when their raw readiness conditions are
   true.
-- Branch prefetch hit goes to FIFO whenever a hit is available and direct
-  dispatch did not fire.
+- 旧 branch-prefetch-hit-to-FIFO seed 输出已由 T3V 删除。
 - `dispatch1_optional` is tied to zero: F2 dual dispatch (not-taken branch +
   head1) must stay pair-atomic, so the legacy optional-lane1 exemption is
   permanently disabled alongside the append fast paths.

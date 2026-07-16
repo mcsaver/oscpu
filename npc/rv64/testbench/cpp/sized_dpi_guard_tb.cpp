@@ -65,6 +65,7 @@ void reset(VAxiDpiSlave &dut) {
   dut.s_axi_rready_i = 0;
   dut.s_axi_awvalid_i = 0;
   dut.s_axi_awaddr_i = 0;
+  dut.s_axi_awsize_i = 0;
   dut.s_axi_wvalid_i = 0;
   dut.s_axi_wdata_i = 0;
   dut.s_axi_wstrb_i = 0;
@@ -166,7 +167,7 @@ int main(int argc, char **argv) {
   VAxiDpiSlave dut;
   reset(dut);
   issue_read(dut, tail_addr, 1, 4, expected << 48, 0);
-  issue_read(dut, tail_addr, 1, 0, expected, 0);
+  issue_read(dut, tail_addr, 1, 0, expected << 48, 0);
   // 紧邻 PMEM 之后的 IFU 请求不得碰 guard page，应返回 SLVERR + zero。
   issue_read(dut, NPC_PMEM_BASE + kLogicalPmemSize, 1, 4, 0, 2);
   dut.final();

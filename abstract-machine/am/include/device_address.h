@@ -38,7 +38,8 @@
 #  define DEV_CLINT_BASE    0x02000000UL  // RTL CLINT (中断/mtimecmp, AM 不作功能读)
 #  define DEV_PLIC_BASE     0x0c000000UL  // RTL PLIC  (外部中断)
 #  define DEV_DISK_BASE     0x10001000UL  // virtio-blk (Linux; AM 侧 present=false)
-//   设备树真设备 (NEMU 已实现, AM 的 TRM/timer 直接架构其上, 与 Linux 走同一套设备):
+//   设备树真设备 (syscon 已由 NEMU/NPC 实现；RTC 由 NEMU 实现，AM 的
+//   TRM/timer 直接架构其上，与 Linux 走同一套设备):
 #  define DEV_GOLDFISH_RTC_BASE 0x10003000UL // goldfish-rtc: AM timer 的时间源(纳秒), 设备树 goldfish_rtc
 #  define DEV_SYSCON_BASE       0x00100000UL // reset_syscon(SiFive Test Finisher): AM halt→poweroff/exit
 //   简易仿真设备: 无 RTL/无 Linux 对等, 集中在一个 DPI 窗口 (0x12000000, NPC 经 LEGACY_MMIO

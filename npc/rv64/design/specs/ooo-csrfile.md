@@ -71,10 +71,11 @@ trap/exit/privileged boundary 优先级阻断 younger probe 的消费。
   `mcountinhibit.IR` 抑制。
 - **CSR-I4（系统合同）**：`instret_inc_i` 必须来自唯一 ISA-retirement 计数源：异常项
   不计，实际退休的 control-path 指令各计一次。
-- **KNOWN GAP INSTRET-G1**：`NpcCoreTop` 当前接入 raw `ooo_core_retire_count_w`，不是
-  ISA 过滤后的唯一源；异常 commit-valid 可进入计数，而 mret/sret/wfi/sfence/fence.i
-  等 control pseudo-commit 不在该 raw 输入中。此结论来自整机静态接线，尚无专门计数器
-  程序波形。
+- **INSTRET-G1（2026-07-14 T4J RTL 已实现）**：`NpcCoreTop` 接入 output mux 的最终
+  `retire_count_o`；该值只按最终 commit lane 的 `valid && !exception` 计数，故异常项不计，
+  mret/sret/wfi/sfence/fence.i 等实际产生的 control pseudo-commit 各计一次。focused TB
+  已覆盖 0/1/2、异常过滤、control 优先级、`mcountinhibit.IR` 与显式 minstret 写优先；
+  ROADMAP 要求的程序级 exception/control delta 长回归仍需独立留证后再宣称全局关闭。
 
 ## 5. 关键路径
 Vivado OOC:CsrFile 22 逻辑级/logic 3.9ns,主要是 64-bit minstret 计数器加法器(16 CARRY4,专用进位,快);

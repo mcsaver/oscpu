@@ -1,0 +1,6 @@
+[TEST] tb_ooo_busy_table
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_ooo_busy_table -o build-t3z-request-mux-v1/tb_ooo_busy_table.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/rename_allocate/OooBusyTable.v tests/tb_ooo_busy_table.sv
+tests/tb_ooo_busy_table.sv:28: warning: Instantiating module OooBusyTable with dangling input port 20 (query_raw_preg_i) floating.
+[PASS] tb_ooo_busy_table
+common/tb_common.svh:32: $finish called at 19 (1s)
+[RESULT] PASS

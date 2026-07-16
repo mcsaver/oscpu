@@ -1,0 +1,8 @@
+[TEST] tb_ooo_memory_request_gate
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_ooo_memory_request_gate -o build-t3z-request-mux-v1/tb_ooo_memory_request_gate.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemoryRequestGate.v tests/tb_ooo_memory_request_gate.sv
+tests/tb_ooo_memory_request_gate.sv:35: warning: Instantiating module OooMemoryRequestGate with dangling input port 12 (core_mem_req_probe_i) floating.
+tests/tb_ooo_memory_request_gate.sv:35: warning: Instantiating module OooMemoryRequestGate with dangling input port 13 (core_mem_req_pretrans_i) floating.
+tests/tb_ooo_memory_request_gate.sv:35: warning: Instantiating module OooMemoryRequestGate with dangling input port 14 (core_mem_req_nokill_i) floating.
+[PASS] tb_ooo_memory_request_gate
+common/tb_common.svh:32: $finish called at 12 (1s)
+[RESULT] PASS

@@ -35,8 +35,6 @@ module OooCommitOutputMux (
   input core_commit1_exception_i,
   input core_commit1_write_i,
 
-  input [1:0] core_retire_count_i,
-
   output commit0_valid_o,
   output [`XLEN-1:0] commit0_pc_o,
   output [`INST_W-1:0] commit0_inst_o,
@@ -146,8 +144,15 @@ module OooCommitOutputMux (
       1'b0 :
       core_commit1_write_i;
 
-  assign retire_count_o = core_retire_count_i +
-                          {1'b0, ctrl_commit_valid_i} +
-                          {1'b0, synth_lane1_branch_append_i};
+  // INSTRET-G1 single source: count only the two commit events that survive
+  // this mux's priority rules, and exclude precise synchronous exceptions.
+  // The explicit two-bit population count is structurally bounded to 0..2;
+  // hidden core/synthetic sources under a control commit cannot leak into it.
+  wire commit0_isa_retire_w = commit0_valid_o && !commit0_exception_o;
+  wire commit1_isa_retire_w = commit1_valid_o && !commit1_exception_o;
+  assign retire_count_o = {
+      commit0_isa_retire_w && commit1_isa_retire_w,
+      commit0_isa_retire_w ^ commit1_isa_retire_w
+  };
 
 endmodule

@@ -1,5 +1,6 @@
 `timescale 1ns/1ps
 `include "define.v"
+`include "common/OooSlotFacts.v"
 `include "tb_common.svh"
 
 // FDG-G1 常驻整链回归：不能把“classifier 已标 trap”误当成“backend 已被阻断”。
@@ -14,18 +15,24 @@ module tb_ooo_fp_legality_dispatch_path;
   wire fp_enabled;
   wire arch_trap;
   wire frontend_backend_valid;
+  wire [`OOO_SLOT_STATIC_FACTS_W-1:0] static_facts;
 
   DecodeUnit u_decode (
     .inst_i(inst),
     .ctrl_o(ctrl)
   );
 
-  OooFetchHeadClassifyGate u_classify (
-    .decode_valid_i(1'b1),
-    .fetch_fault_i(1'b0),
+  OooFetchStaticClassify u_static_classify (
     .inst_i(inst),
     .semihost_peer_inst_i({`INST_W{1'b0}}),
     .semihost_peer_is_enter_i(1'b0),
+    .static_facts_o(static_facts)
+  );
+
+  OooFetchHeadClassifyGate u_classify (
+    .decode_valid_i(1'b1),
+    .fetch_fault_i(1'b0),
+    .static_facts_i(static_facts),
     .ctrl_i(ctrl),
     .priv_mode_i(`PRIV_M),
     .mstatus_i(`MSTATUS_FS_DIRTY),

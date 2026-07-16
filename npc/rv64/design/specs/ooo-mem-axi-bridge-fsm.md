@@ -1,22 +1,41 @@
 # 规范：访存桥状态机 OooMemAxiBridge（FSM / flush-drain / 响应时序）
 
-> 模块：`vsrc/memory/OooMemAxiBridge.v`。本规范逆向并固化其控制 FSM，作为 B1(store 写回解耦)
-> 的实现前置（B1 已落地）。模板见 `../arch/SPEC-TEMPLATE.md`。状态：**已文档化当前实现（行为基线，
-> 2026-07-03 RTL 重读校正）**。
+> 模块：`vsrc/memory/OooMemAxiBridge.v`。本规范逆向并固化其控制 FSM。历史 B1
+> (store AW/W-fire 写回解耦) 已被 T4I lane-adapter owner 契约取代；当前所有
+> store 都等待聚合 B。模板见 `../arch/SPEC-TEMPLATE.md`。状态：**已文档化当前实现（行为基线，
+> 2026-07-03 RTL 重读校正）**。T3W 将 req load 的内部 D-cache SRAM 读与
+> DTLB/PMP 判决并行化；只有授权结果可消费投机 payload。
+> T4C 进一步把 PTW leaf 的地址 payload owner 固定为 `S_WALK_R`，而
+> `walk_read_lookup_fire` 只保留权限/类型/有效性许可；两者不得再在 SRAM
+> 地址 mux 上合并。T4E 固化 AXI AR hold：注册地址 owner 的 VALID/payload
+> 在 READY 前不受 flush/drop 撤回，握手后由桥本地吞掉 R。T4F 补齐
+> A/D PTE 回写前独立的 S-mode/8B/WRITE PMP authorization。T4H 在最终数据 PA
+> 上增加与当前 `NpcTop` 实例地址图一致的 fail-closed PMA 检查，使默认/空壳窗口的
+> plain store 在 probe 阶段形成精确 access fault，而不是退休后才观察到 B 错误。
+> T4I 将标准 AXI lane/split 放在 NpcCoreTop 独立 adapter；本桥继续输出 logical low-window，
+> 但 cacheable line 与 uncached exact read 的 owner 必须显式区分。
+> T4P 新增同步 virtio queue-notify DMA 完成事件的透传；桥不为其增加 FSM 状态，
+> D-cache 在事件拍屏蔽 hit 并 valid-only 全失效。
 
 ## 1. 目的与范围
 把后端 lane0/lane1 的访存请求（含 Sv39 翻译、PMP、dcache）落到 LSU AXI 总线，并把结果回送后端。
 FSM 单事务在飞（single outstanding）+ 桥侧 req 寄存站单深度排队（P5 刀 M：桥内至多
 "1 站内待发 + 1 FSM 在飞"，两者都记账在 MIQ）。本规范只描述控制 FSM 与响应/flush 时序，
-不展开 PTW/PMP 细节。
+不展开 PTW/PMP/PMA 的编码细节。
+
+DMA 边界只覆盖当前仿真 `AxiVirtioBlk`：queue-notify 的 DPI task 同步完成本批 guest PMEM
+写后，经 `NpcSimTop -> NpcTop -> NpcCoreTop -> OooMemAxiBridge` 送入
+`dcache_dma_invalidate_all_i`。桥仅把脉冲透传给 `OooDataWordCache`，不把它解释为请求、
+不占 AXI owner、不改变桥 FSM，也不声明 autonomous DMA 或通用 IO coherence。
 
 ## 2. 状态与 req 寄存站
 | 状态 | 含义 |
 |---|---|
-| （req 寄存站） | 【P5 刀 M】非 FSM 状态：`stg_*_q` 8 字段(valid/addr/wdata/wstrb/write/probe/pretrans/nokill)。req fire 拍**零计算**只锁存字段（core 侧 req mux 组合、次拍即消失，必须当拍接住）；翻译(DTLB CAM)/PMP/dcache 发射/全部分流决策推迟到 `stage_advance_w` 拍。CSR 上下文(priv/mstatus/satp/svpbmt/pmp)不进站——寄存站占用⇒MIQ 非空⇒mem_idle=0⇒CSR/trap 不能退休(serialize-at-retire)，advance 拍上下文必与 fire 拍相同（KM-STG-CTX 断言固化） |
+| （req 寄存站） | 【P5 刀 M】非 FSM 状态：`stg_*_q` 8 字段(valid/addr/wdata/wstrb/write/probe/pretrans/nokill)。req fire 拍**零计算**只锁存字段；翻译/权限/分流推迟到 `stage_advance_w`。T3W 对每个 advance load 同拍投机发内部 D-cache SRAM read，地址用翻译命中 PA，否则用原地址候选；DTLB/PMP/PMA fault/miss 只丢弃 raw payload，不得消费为 hit。CSR 上下文不进站——寄存站占用⇒MIQ 非空⇒mem_idle=0⇒CSR/trap 不能退休，advance 拍上下文必与 fire 拍相同（KM-STG-CTX） |
 | S_IDLE | 空闲，等寄存站项 advance(`accept_request` 从 `stg_*` 取数) |
 | S_LOOKUP | 【SRAM 同步读】dcache 判决态：上拍已发单口读，本拍 SRAM rdata 有效，判 hit(→S_RESP)/miss(当拍发 AR) |
-| S_WALK_AR/S_WALK_R | Sv39 页表遍历 发 AR / 收 PTE |
+| S_DEVICE_WAIT | 【T4M】最终授权 PA 为非 PMEM 的 read 等待精确 non-spec owner；release 前无 data AR，cancel 则 quiet response |
+| S_WALK_AR/S_WALK_R | Sv39 页表遍历 发 AR / 收 PTE；`S_WALK_R` 同时是 leaf-derived lookup 地址的固定角色 owner，RVALID/PTE/PMP/A-D 只决定是否抬 lookup enable |
 | S_READ_ADDR/S_READ_DATA | load: 发读地址 / 收读数据 |
 | S_WRITE_REQ | store: 发 AW+W |
 | S_WRITE_RESP | store: 等 B |
@@ -43,30 +62,38 @@ mem0_req_ready_o = !flush_i && (!stg_valid_q || stage_advance_w)
 
 ## 3. 正常转移（`else` 分支，flush_i=0 且 drop_rsp_q=0；req=寄存站项 advance）
 ```
- (寄存站) --advance(load,可翻译无fault)------------> S_LOOKUP(advance 拍发 dcache 同步读+锁 paddr_q/wstrb_q/read_cross_q)
+ (寄存站) --advance(load,任意翻译结果)--------------> 同拍投机发 dcache 同步读
+              |--可翻译无fault,PMEM-----------------> S_LOOKUP(锁 paddr_q/wstrb_q/read_cross_q，次拍才可消费 raw payload)
+              |--可翻译无fault,device---------------> S_DEVICE_WAIT -(release)-> S_READ_{ADDR|DATA}
+                                                                  \-(cancel)-> S_RESP(quiet,no AR)
+              |--DTLB/PMP/PMA fault 或 TLB miss-----> fault response / PTW（投机 payload 无效）
  S_LOOKUP --(hit 且 !read_cross_q)-----------------> S_RESP(判决拍锁 rsp_rdata = line >> {paddr_q[2:0],3'b0})
  S_LOOKUP --(miss/跨线)----------------------------> S_READ_ADDR -> S_READ_DATA -(rvalid)-> S_RESP
                                                     (判决拍当拍发 AR;arready 即 fire 时跳过 S_READ_ADDR 直入 S_READ_DATA)
- (寄存站) --advance(store,probe)-------------------> S_RESP(不写内存,PA 经 rsp_rdata 回传)
- (寄存站) --advance(store,no-trans)----------------> S_WRITE_REQ -(aw&w)-> {S_RESP(PMEM 解耦,B 交 bpend_q) | S_WRITE_RESP -(bvalid)-> S_RESP(MMIO/uncacheable)}
+ (寄存站) --advance(store,probe,PMP/PMA allow)-----> S_RESP(不写内存,PA 经 rsp_rdata 回传)
+ (寄存站) --advance(store,no-trans)----------------> S_WRITE_REQ -(aw&w)-> S_WRITE_RESP -(bvalid)-> S_RESP
  (寄存站) --advance(need-trans,tlb-miss)-----------> S_WALK_AR -> S_WALK_R -(...)-> {S_RESP | S_LOOKUP | S_WRITE_REQ | 下一级 S_WALK_AR}
- S_WALK_R --(leaf-ok,read)-------------------------> S_LOOKUP(当拍发 dcache 读,addr=walk_leaf_paddr_w)
- S_AD_UPDATE --(b-ok,read)-------------------------> S_LOOKUP(当拍发 dcache 读,addr=paddr_q)
+ S_WALK_R --(leaf-ok,read,PMEM)--------------------> S_LOOKUP(当拍发 dcache 读,addr=walk_leaf_paddr_w；addr owner 由 state 固定，fire 只作 enable)
+ S_WALK_R --(leaf-ok,read,device)------------------> S_DEVICE_WAIT
+ S_AD_UPDATE --(b-ok,read,PMEM/device)-------------> S_LOOKUP / S_DEVICE_WAIT(用锁存 paddr_q 分类)
  S_WALK_AR --(PTE 读地址 PMP 违例,F9)-------------> S_RESP(access fault,不发 AR)
- (寄存站) --advance(pmp/perm/page fault)-----------> S_RESP(error/page_fault 置位)
+ (寄存站) --advance(pmp/pma/perm/page fault)-------> S_RESP(error/page_fault 置位)
  S_RESP --(rsp_ready)-----------------------------> S_IDLE(站内有项则同拍 advance 直接 accept,back-to-back;
                                                     且 advance 拍站口腾出、新请求可同拍 fire 进站)
 ```
 要点：
-- **store 分两类（B1 已落地）**：PMEM store 在 `aw&w` 完成拍即到 S_RESP（数据已落 PMEM，`bresp`
-  恒 OK 假设），滞后 B 由 `bpend_q` 跟踪器后台吸收（`store_decouple_w` 含 `!bpend_q`，至多 1 笔）；
-  MMIO/uncacheable store 仍经 S_WRITE_RESP 等 B，`rsp_error` 来自 `bresp`——精确 store 总线异常
-  仅对该类保留。
-- **事务三属性（LSQ·SQ 切换新增）**：`probe`=write 探测（翻译+PMP 走完不写内存，PA 经 rsp_rdata
-  回传）；`pretrans`=地址已是 PA（SQ drain 落存），跳过翻译/PMP；`nokill`=flush/drop 对该事务
-  失效（已退休 store 写必达）。三位全 0 时行为与旧版一致。
-- **line 读（LSQ Phase2+3 → SRAM 同步读）**：dcache 为 32KB 直映 word cache（`OOO_DATA_WORD_CACHE_INDEX_W=12`，
-  tag+data 已进 1RW 同步读宏 Sram4096x113）。读请求(可翻译、无 fault)fire 拍发 dcache 单口读并锁
+- **store 统一等 B（T4I）**：`S_WRITE_REQ` 的 AW/W fire 只表示
+  `OooLsuAxiLaneAdapter` 已收下逻辑命令，不代表所有物理 beat 已落存。
+  PMEM/MMIO/uncacheable store 均进 `S_WRITE_RESP`，以聚合 B 作唯一完成点，
+  `rsp_error` 统一来自 `bresp`。这保证 split write 不被后续 read 越过，并让
+  adapter 粘滞错误可见。
+- **事务三属性（LSQ·SQ 切换新增，T4H 收紧）**：`probe`=write 探测（翻译+PMP+PMA
+  走完不写内存，PA 经 rsp_rdata 回传）；`pretrans`=地址已是此前 probe 授权的 PA（SQ drain
+  落存），功能路径跳过翻译/PMP/PMA，`MEM-PMA-PRETRANS` 断言复核其静态地址图 provenance；
+  `nokill`=flush/drop 对该事务失效（已退休 store 写必达）。三位全 0 时行为与旧版一致。
+- **line 读（LSQ Phase2+3 + T3W speculative read）**：dcache 为 32KB 直映 word cache（`OOO_DATA_WORD_CACHE_INDEX_W=12`，
+  tag+data 已进 1RW 同步读宏 Sram4096x113）。每个 staged load advance 拍先发内部单口读；
+  同拍 DTLB/PMP/PMA 决定是否有权进入 S_LOOKUP，并只在授权路径锁
   `paddr_q/wstrb_q/read_cross_q` → **S_LOOKUP 判决拍**：hit 且不跨线 → `rsp_rdata` 按 line 内偏移
   （`paddr_q[2:0]`）右移出 CPU 视图 → S_RESP；miss/跨线 → 判决拍当拍发 AR（不跨线发 line 对齐 AR、
   回填整 line；跨线按原地址窗口读且不 fill）。**load hit 1→2 拍、miss AR 晚 1 拍**是 SRAM 化一期
@@ -79,23 +106,57 @@ mem0_req_ready_o = !flush_i && (!stg_valid_q || stage_advance_w)
   VA/PA 页内偏移相同故对 walk 路径同样成立。D-cache 模块级 lookup/fill/store 维护语义由
   `ooo-data-word-cache.md` 冻结（store 维护 = 2 拍 RMW write-update，v1.1），桥 spec 只约束
   事务级 FSM 与 AXI 行为。
+  投机 read 只能改变 SRAM raw rdata/lookup shadow；不得置 valid、fill、RMW、replacement，
+  也不得在 fault/walk/miss 路径产生成功 response 或 data AXI AR。
+  **T4C PTW valid/payload 分离**：`walk_lookup_payload_owner=(state==S_WALK_R)`
+  只选择 `walk_leaf_paddr_w` 到 lookup address；`walk_read_lookup_fire` 继续完整包含
+  RVALID/RRESP/PTE validity/permission/PMP/A-D/read-only 条件；`fsm_normal/RMW`
+  继续在 `dcache_lookup_en_w` 外层把关实际发射。因此所有 `lookup_en=1` 的地址与旧实现逐位相同；差异只在
+  S_WALK_R 等待、invalid/nonleaf、PMP deny、A-D needed、write 或 flush/drop 的
+  `lookup_en=0` 周期，D-cache 不锁 lookup context、SRAM enable 不抬，没有可见副作用。
+- **T4P 同步 virtio DMA 完成边界**：`dcache_dma_invalidate_all_i` 不参与
+  `stage_advance_w`、状态转移或 1RW 宏口仲裁，只透传到 D-cache。DPI 已先完成 data/status/
+  used-ring PMEM 写；失效脉冲可见拍 D-cache 组合屏蔽 `lookup_hit_o`，因此即使正处于
+  S_LOOKUP 判决拍也必须走 miss/AR，从已更新 PMEM 取 fresh line，而不能融合旧 cache line。
+  下一沿清空全部 valid；`AxiVirtioBlk` 直到该沿才把锁存的 notify B/IRQ 发布，故 CPU/PLIC
+  观察到完成时 cache 已采样失效。全失效只丢 clean line：当前 CPU store 均在聚合 B 后更新
+  D-cache，没有 dirty/write-back 数据。该端口不覆盖设备自主异步写、line snoop 或任意 DMA master。
+- **T4I cacheable/exact read 边界（已实施）**：只有 cacheable 且不跨 8B line 的
+  miss 才能发 `{paddr[63:3],3'b0},ARSIZE=8B` 并 fill；uncacheable 或跨线访问必须发 exact
+  `paddr,ARSIZE=原访问宽度`，raw RDATA 保持 low-window 且禁止 fill。后者由 NpcCoreTop 的
+  `OooLsuAxiLaneAdapter` 转成标准 lane；misaligned 再拆 byte 微事务。桥不得再用全行 MMIO read
+  扩张设备 side effect，也不得把 adapter 下游 lane 语义反向渗入 SQ/forwarding。
+- **T4M 翻译后 device non-spec owner**：最终 data PA 的 device 分类只属于 bridge；VA 数值窗
+  不能替代该判决。direct/Bare/DTLB-hit、PTW leaf 与 A/D update continuation 三条 read 路径若
+  最终 PA 非 PMEM，均先进入 `S_DEVICE_WAIT`。backend 只在当前 MIQ head 未 kill 且等于 ROB head
+  时 release；MIQ killed 则 cancel。wait/release 前、cancel 与 wait 中 global flush 均不得发
+  data AR；cancel 只生成 quiet response 给 MIQ 静默 pop。release 后复用 exact read payload 与
+  既有 AR hold/drain。translated PMEM 仍走原 S_LOOKUP，不得被 ROB-head 门控。
 - **store RMW write-update（2026-07-09 赎回，刀 M 重述观察点）**：真 store commit
-  （S_WRITE_REQ 解耦拍 / S_WRITE_RESP b-ok 拍——两拍均非 lookup/fill 消费态，dcache 宏读口
+  （S_WRITE_RESP b-ok 拍——非 lookup/fill 消费态，dcache 宏读口
   空闲）即 dcache RMW 发射拍；次拍（判决拍，状态必∈{S_RESP,S_IDLE}）dcache 拉 `rmw_busy_o`
   占宏口，桥以 `!dcache_rmw_busy_w` 压 `stage_advance_w`——**store 完成后 1 bubble**
   （站内项被保持一拍；判决拍 ready 可为 1=新请求可进站排队，bubble 数不变）。
   `dcache_lookup_en_w`/S_LOOKUP-miss 的 arvalid 与状态转移同加
   `!rmw_busy` 安全网（状态互斥下恒不触发，MEM-RMW-PORT 断言把关）。
-  `store_decouple_commit_w` 限定 FSM 正常推进分支（`fsm_normal_w`）：flush-drain 拍
-  FSM 进 S_WRITE_RESP 等 B、改由 b-ok 拍单次提交，消灭同一 store 双 commit（第二次 RMW
-  发射会撞第一次判决拍，1RW 违约）。HW A/D PTE 写回维护（S_AD_UPDATE b-ok）不走 RMW
+  普通与 flush-drain store 都只在 b-ok 拍单次提交，不再存在 AW/W-fire 早提交
+  与双 commit 窗口。HW A/D PTE 写回维护（S_AD_UPDATE b-ok）不走 RMW
   （`store_rmw_en_i=0`，无条件失效）——该拍的 read 续访问可能同拍发 lookup，宏读口不空闲。
-- **PTW 隐式访问 PMP（F9）**：每级 PTE 读地址（`walk_pte_addr_w`）经独立 PmpChecker 检查，违例在
-  S_WALK_AR 直接转 S_RESP 报 access fault（非 page fault），不发 AR。
-- **KNOWN GAP PTW-PMP-G1（PTE 写回）**：F9 只证明 PTE READ 许可；进入
-  `S_AD_UPDATE` 写 A/D 位前未见对同一 PTE 物理地址执行独立 PMP WRITE 检查。目标是
-  WRITE 拒绝时不发 AW/W，并按明确平台合同返回 access fault；取指侧同一合同见
+- **PTW 隐式访问 PMP（F9 + T4F）**：每级 PTE read address（`walk_pte_addr_w`）按
+  S-mode/8B/READ 经独立 PmpChecker 检查，违例在 S_WALK_AR 报 access fault 且不发 AR。
+  leaf 需要 A/D 回写时，再对同一 PTE address 按 S-mode/8B/WRITE 独立检查；WRITE deny
+  优先于进入 `S_AD_UPDATE`，原 load/store 返回 `rsp_error=1,page_fault=0`，不发 AW/W、
+  不填 DTLB、不续原访问。READ grant 不能替代 WRITE grant。取指侧同一合同见
   `ooo-fetch-axi-bridge.md`。
+- **最终 PA 的静态 PMA（T4H）**：Bare、DTLB hit 与 PTW leaf 三条数据路径都在成功
+  response、D-cache/AXI 数据访问及 A/D 后续动作前，用 `OooPmaChecker` 检查完整 byte range。
+  当前允许 CLINT、PLIC、UART、virtio-blk、PSRAM、legacy-MMIO、SDRAM 的真实 RTL/外部端口；
+  GPIO、PS2、MROM、VGA、FLASH、ChipLink 与 default 等 `AxiDefaultSlave` 空壳窗口 fail closed。
+  名义 SRAM 窗口被更高优先级 PLIC decode 完整覆盖，故按实际 xbar 路由归入 PLIC。首尾地址必须
+  位于同一允许区域，跨区域与地址回绕均拒绝。deny 返回 access fault（`page_fault=0`），不发
+  data AR/AW/W、不填 DTLB、不进入成功 probe。PMA 是实现地址图，不受 M-mode PMP no-match
+  放行语义替代。PTE read/write 的总线错误发生在原指令退休前，仍由 PTW 原路径精确报告；
+  T4H 只补最终数据 PA 的提前判决。
 - **Svnapot 64KiB**：PTW 只接受 level0 leaf 且 `PTE.N=1 && PTE.PPN[3:0]=4'b1000`；非 leaf、
   level1/2 leaf 或其它 NAPOT 编码均报 load/store page fault。合法 leaf 的 PA 拼接使用 VA[15:12]
   替代 PTE.PPN[3:0]，再进入 PMP、dcache 或 AXI 访问；DTLB hit 复核必须带 leaf level。
@@ -106,16 +167,22 @@ mem0_req_ready_o = !flush_i && (!stg_valid_q || stage_advance_w)
 
 ## 4. flush / drain 路径（`if (flush_i || drop_rsp_q)` 分支）
 `drop_rsp_q` = "本地已放弃当前事务、但下游可能仍会回一个需吞掉的响应" 的粘滞标志。
-- `cpu_kill_w = flush_i || drop_rsp_q`：拉低对外 valid/ready，阻止把被取消事务的结果当真。
-- 各状态被 flush 时：读地址态与 **S_LOOKUP**（dcache 读无外部副作用）直接回 S_IDLE；读数据/PTE 态
-  flush 当拍**本地直接释放**回 S_IDLE
-  （读无外部副作用，依赖 flush 同步请求 xbar abort/drop，不再等 R；`drop_rsp_q` 现只服务写路径）；
-  写态用 `write_drain_w` 把 AW/W 发完(避免半截事务挂总线)，收到 B 后清 drop。S_RESP/S_IDLE 态
-  清零并回 S_IDLE。walk/A-D 路的 dcache 读发射（`walk_read_lookup_fire_w/ad_read_lookup_fire_w`）
-  只在 FSM 正常推进分支有效，flush 拍不发。
+- `cpu_kill_w = flush_i || drop_rsp_q`：压 CPU response、fill/lookup 等可见副作用；**不得**组合门控
+  已由 `S_WALK_AR/S_READ_ADDR` 注册拥有的 AXI ARVALID。
+- **T4E AR hold**：若 `S_WALK_AR/S_READ_ADDR` 已呈现 AR 且 READY=0，flush/drop 后继续逐位保持
+  VALID/ADDR/ID/LEN/SIZE/BURST/PROT；READY 到达才转 `S_WALK_R/S_READ_DATA`，随后保持 RREADY
+  本地吞掉残响应。`S_WALK_AR` 的 PTE PMP 已拒绝（从未呈现 VALID）可直接释放。
+  `S_LOOKUP` 的组合 miss AR 尚未形成跨拍 owner，flush 当拍仍可取消；若其在前一拍已经
+  VALID&&!READY，则同一边沿必转入 `S_READ_ADDR`，之后按上述规则保持。
+- 读数据/PTE 态 flush 置 `drop_rsp_q` 并本地等待/吞掉 R；写态用 `write_drain_w` 把 AW/W 发完
+  （避免半截事务挂总线），收到 B 后清 drop。S_RESP/S_IDLE 态清零并回 S_IDLE。walk/A-D 路的
+  dcache 读发射（`walk_read_lookup_fire_w/ad_read_lookup_fire_w`）只在 FSM 正常推进分支有效，
+  flush 拍不发。当前 xbar/总线没有 read-abort 边带，不能把 flush 当作撤销 AXI 握手的例外。
 - 【刀 M】寄存站 flush 臂：`flush_i && !stg_nokill_q → stg_valid_q<=0`（payload 留脏，全核
   valid-only 惯例）。站内项=**未发** AXI/dcache 事务，flush 可清（比 FSM 内 drain 更早止损）；
-  MIQ 侧同拍 flush-compress 掉对应 LOAD/PROBE 项，双射不破。mispredict/ROB-walk kill 不触桥
+  MIQ 侧同拍 flush-compress 掉对应 LOAD/PROBE 项，双射不破。若 head 是 nokill DRAIN 且 response
+  与 flush 同拍 fire，MIQ 的 keep-set 必须先扣除该 fired head，再压缩其余 DRAIN，即
+  `filter_DRAIN(Q_old - fired_head)`；不得把已消费 owner 复活。mispredict/ROB-walk kill 不触桥
   （现状无 kill 口），站内 killed LOAD/PROBE 照常推进发射，rsp 由 MIQ `head_killed` 恒收吞掉。
 - 不变量：被 flush 的事务，其 AXI 响应必须被吞掉且不得置 `mem*_rsp_valid`（**nokill 事务例外**：
   `nokill_busy_w` 使 flush/drop 对其推进与响应握手均无效，写必达；站内 nokill 项同理存活并可
@@ -125,31 +192,84 @@ mem0_req_ready_o = !flush_i && (!stg_valid_q || stage_advance_w)
 - **MEM-I1 单事务（刀 M 重述）**：FSM 单事务在飞——非 S_IDLE/(S_RESP&&rsp_ready) 寄存站项不
   advance；桥内至多 1 站内 + 1 FSM 在飞，两者都在 MIQ 记账（KM-STG-MIQ：`stg_valid_q ⇒
   !miq_empty`，mem_quiet 独占谓词族自动计入寄存站，任何消费点无需加 term）。
-- **MEM-I2 写顺序可见性**：sim slave 在 `AW.fire&&W.fire` 当拍写 PMEM，B 在其后一拍 ⇒ store 数据
-  在 write_complete 当拍即对后续访问可见。
-- **MEM-I3 精确异常（B1/SQ 后收窄）**：仅 MMIO/uncacheable store 的总线错误经 `bresp`→`rsp_error`
-  在 S_RESP 报告；PMEM 解耦 store 假设 `bresp` 恒 OK（B 后台吸收不报错）；SQ 语义下 plain store 的
-  翻译/PMP fault 已在发射拍 probe 前置，退休后 drain 的总线错误仅 `[SQ-DRAIN-ERROR]` 警告。
-  flush 中的响应必须吞掉。
+- **MEM-I2 写顺序可见性**：bridge 在聚合 B 到达前不报 store 完成；
+  lane adapter 与 xbar 都在 B 前锁住 write owner，因而后续 bus read 不会越过未完成的
+  aligned 或 split write。
+- **MEM-I3 异常传递边界（SQ/T4H/T4I/T4N）**：所有 store 的聚合 `bresp`
+  都会进 `rsp_error`，不再假设 PMEM B 恒 OK。plain store 的翻译/PMP/PMA fault 在 probe 前置；
+  T4N 又让 ROB/SQ owner 保持到 physical write 的 B，故设备运行时 `SLVERR/DECERR` 也形成精确
+  cause 7 terminal，`tval` 使用 SQ 保存的 original VA。B response 必须等 formal-WB credit，
+  flush 不得吞掉 `nokill` physical owner。完整合同见 `ooo-store-bresp-precise-terminal.md`。
 - **MEM-I4 无 ready/valid 组合环**：`mem0_req_ready` 只依赖 flush/寄存站占用/state/rmw/rsp_ready，
   不依赖本拍新请求是否 fire（valid）。
+- **MEM-I5 PTW lookup owner/许可分离**：S_WALK_R 是 PTE-derived address 的唯一
+  payload role；权限资格只能进入 lookup enable，禁止反向作为 address mux select。
+  `fsm_normal && !rmw_busy && walk_read_lookup_fire -> state==S_WALK_R && lookup_en && addr==walk_leaf_paddr`；
+  S_WALK_R 非 qualified-fire 时不得产生 lookup enable。
+- **MEM-I6 AXI AR hold**：任一拍 `ARVALID && !ARREADY` 后，下一拍必须继续 ARVALID 且
+  ARADDR/ARID/ARLEN/ARSIZE/ARBURST/ARPROT 逐位不变，flush/drop 不例外；握手后的 killed read
+  只能经 R drain 释放。`MEM-AR-HOLD` 立即断言覆盖此契约。
+- **MEM-I7 PTW PTE WRITE authorization**：真实 leaf A/D deny event 下一拍只能是
+  access-fault S_RESP，且 deny 拍 AW/W 恒 0；grant 才能由正常 FSM 转入 `S_AD_UPDATE`。
+  `MEM-PTW-PMP-WRITE` shadow 断言覆盖 deny→response 与无 side effect，不把写态期间的
+  live PMP 配置误当成已锁存授权证据。
+- **MEM-I8 PMA fail closed**：direct/Bare/DTLB-hit 与 PTW-leaf deny 都必须转 quiet access-fault
+  S_RESP；deny 周期以及其 shadow 响应周期不得发 data AR/AW/W。pretrans drain 只能携带同一静态
+  checker 认可的 PA。`MEM-PMA-DIRECT`、`MEM-PMA-WALK` 与 `MEM-PMA-PRETRANS` 立即断言覆盖三条边界。
+- **MEM-I9 翻译后 device 无投机 AR**：`S_DEVICE_WAIT && !device_release` 时 data AR 恒为 0；
+  cancel 与 release 互斥且 cancel 拍无 AR。release 只能驱动当前 FSM/MIQ head owner，进入
+  `S_READ_ADDR/S_READ_DATA` 后继续服从 MEM-I6。global flush/drop 可取消尚未 release 的 wait，
+  但不得撤销已呈现的 registered AR owner。
+- **MEM-I10 DMA stale-hit 禁止**：`dcache_dma_invalidate_all_i` 与 S_LOOKUP 判决重合时，
+  D-cache hit 必须为 0；桥只能沿既有 miss/AR/refill 路径取得 DPI 已写入的 PMEM 数据。
+  事件不创建 bridge transaction 或 AXI owner，也不允许 B/IRQ 先于 D-cache 采样失效对外可见。
 - **桥内断言族（OOO_ASSERT，立即断言）**：MEM-RMW-PORT（RMW 判决拍宏读口独占）、
   BRG-NOFIRE-FLUSH（flush 拍无 fire）、BRG-ADV-NODROP（advance ⇒ drop_rsp_q=0）、
   BRG-STG-LOOKUP（req 源 lookup 只在 advance 拍）、BRG-STG-HOLD（stall 拍站内字段冻结）、
-  BRG-STG-NOKILL（flush 拍未 advance 的 nokill 项次拍存活）；跨模块（NpcSimTop）：
+  BRG-STG-NOKILL（flush 拍未 advance 的 nokill 项次拍存活）、MEM-PMA-*（静态地址图 deny 与
+  pretrans provenance）；跨模块（NpcSimTop）：
   KM-STG-MIQ（站占用⇒MIQ 非空）、KM-STG-CTX（站占用期 satp/mstatus/priv/svpbmt 冻结，
   pretrans 豁免）。
 
-## 6. B1(store 写回解耦) 的安全改造点（据本规范；**已落地**——`bpend_q`+`store_decouple_w`，见 §3 要点）
-- 目标：store 在 `aw&w done`(数据已落 PMEM, MEM-I2) 后即推进，不占用桥等 B；B 交独立 `bpend_q` 跟踪器。
-- 必须保留：MEM-I3——若需保持精确 store 总线异常，跟踪器要能在 B 返回 error 时上报；
-  若裁定 PMEM store 恒 OK、可接受 store 总线异常为非精确，则记录该真实度假设(verilator-tapeout-realism)。
-- 必须保留：MEM-I1/I4 与 flush drain（§4）——`bpend_q` 在 flush 时也要被正确 drain，不得泄漏/误判。
-- store-after-store 由 slave `awready=!bvalid` 自然串行（新写的 AW 等旧 B 排空）。
-- 验证：`ooo-mem-order`(store→load 同地址)、`string`/`mem-test`/`load-store`、riscv-tests `ua`/`ui`，
-  全量 `eval/npc-eval.sh --all` 三 gate 绿 + 加权 CPI 下降。
+## 6. 历史 B1 状态（T4I 已取代）
+
+旧 B1 依赖“bridge AW/W fire=数据已落 PMEM”，并用 `bpend_q` 后台吸收 B。
+T4I 在 bridge 与物理总线之间加入寄存 lane adapter 后，该前提不再成立：
+upstream AW/W fire 只是 capture，split write 可能尚有多个下游 beat。因此 RTL 已删除
+`bpend_q/store_decouple_w/store_decouple_commit_w`，统一走 `S_WRITE_RESP`。历史方案仅保留在
+`design/arch/history/mem-store-decouple.md`，不得当作当前行为依据。
 
 ## 7. 变更记录
+- 2026-07-15（T4P virtio DMA/D-cache contract）：桥新增
+  `dcache_dma_invalidate_all_i` 透传，不增状态/owner/宏口占用；D-cache 以 lookup-hit masking +
+  valid-only 全失效阻断 queue-notify 同步 DPI 写造成的 stale hit，设备端将 notify B/IRQ 延后一拍。
+  `tb_ooo_mem_axi_bridge` 用 hot stale line + S_LOOKUP 同拍事件证明 miss/AR/fresh refill；
+  `Linux/tools/virtio-blk-smoke.S` 永久预热 status/used/data line 防冷 miss 假绿。范围仍仅是当前
+  同步 virtio-blk 后端；截至该日 Linux 已推进到 ext4/systemd，但 strict guest-check +
+  natural-poweroff 尚未闭合，不能据此声称完整 Linux 或 autonomous DMA coherence。
+- 2026-07-14（T4M post-translate device owner）：最终 PA 非 PMEM 的 read 新增
+  `S_DEVICE_WAIT`，由 MIQ/ROB 精确 release 或 killed cancel；修复 PMEM-window VA 经 Sv39
+  映射到 PLIC/UART/virtio PA 时 wrong-path load 可发 device AR 的根因，且不串行化 translated PMEM。
+- 2026-07-14（T4K MIQ-G1）：冻结 nokill DRAIN response 与 flush 同拍的跨模块事件代数；
+  `OooMemInflightQueue` flush 压缩先排除 fired head，再保留其余 DRAIN，并用 delayed count
+  invariant 与 wrapped/push/kill 交叠 focused TB 防止 ghost owner 回退。
+- 2026-07-14（T4I standard-lane）：cacheable line 与 exact read owner 分离；
+  `OooLsuAxiLaneAdapter` 在 core 边界完成标准 lane/授权 PMEM byte split。由于
+  bridge AW/W fire 只代表 adapter capture，删除 B1 `bpend/store_decouple` 路，
+  所有 store 等聚合 B 后单次提交 dcache RMW/响应。
+- 2026-07-14（T4H PMA-PRECISE-STORE）：新增与具体 `NpcTop` 非空壳地址图一致的
+  `OooPmaChecker`；Bare/DTLB-hit/PTW-leaf 的最终数据 PA 在成功 probe 或任何数据副作用前检查，
+  default/空壳、跨区域与回绕 store 现在精确报 store access fault，原 VA 保持为 `tval`，SQ 不
+  fill/drain。静态 PMA 无法预知设备内部动态 `SLVERR`，MEM-I3 明确保留该架构限制。
+- 2026-07-14（T4F PTW-PMP-G1）：IFU/LSU walker 都新增独立 PTE WRITE checker；
+  LSU 的 load-A/store-D R-only 页表反例与 IFU instruction 反例均证明 READ allow 不再绕过
+  WRITE deny，RW allow control 保持原 A/D update 行为。
+- 2026-07-14（T4E AXI AR hold）：移除注册地址态 ARVALID 的 live kill 门；flush/drop 对
+  stalled data/walk AR 改为保持握手后本地 R drain，新增 `MEM-AR-HOLD` payload 冻结断言与
+  data/walk repeated-flush 定向反例，删除对已移除 xbar abort 的陈旧依赖。
+- 2026-07-14（T4C 契约冻结）：PTW leaf D-cache lookup 的 payload owner 从
+  permission-qualified fire 分离为 fixed-role `S_WALK_R`；不改 enable、状态转移、
+  响应拍或 AXI 行为，目标是切断 leaf PMP→SRAM address 的无意义控制污染。
 - 2026-06-28：逆向文档化当前 FSM（行为基线），为 B1 提供安全改造依据。
 - 2026-07-03：RTL 重读对照校正——B1 落地（PMEM store 解耦/`bpend_q`）、probe/pretrans/nokill
   三事务属性、flush 读态改本地直接释放（依赖 xbar abort/drop）、MEM-I3 收窄。
@@ -184,7 +304,8 @@ mem0_req_ready_o = !flush_i && (!stg_valid_q || stage_advance_w)
   CoreMark 10 迭代 0xfcaf，CPI 3.197→3.280（+2.57%，低于 +3~8% 预估带）。
   实施记录：`.github/task-runs/2026-07-09-p5-knife-m/`。
 - 2026-07-11：把 F9 的 PTE READ 范围与 A/D PTE WRITE 权限分开，登记
-  `PTW-PMP-G1`；本次只更新合同，不表示 RTL 已补 WRITE checker。
+  `PTW-PMP-G1`；该合同已由 2026-07-14 T4F 的独立 WRITE checker 关闭。
 
-## 已知隐患(2026-06-28 bug-hunt,当前不可触发)
-- "至多一个未收 B" 不变量未由桥自身保证,依赖外部 `AxiLiteXbar` 串行化写;接流水化写互连会 B 归因 off-by-one。详见 `.github/memory/known-issues.md`(隐患A)。IP 复用前应桥内自保证(accept 新写前 `!bpend_q` 或 B 计数+归属)。
+## 已关闭隐患
+- 2026-06-28 的“未收 B / `bpend_q` 归因”隐患已随 T4I 结构性关闭：
+  bridge 不再在 B 前释放 write owner，lane adapter 单 owner，xbar 也锁 owner 至 B。

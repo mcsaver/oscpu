@@ -16,6 +16,7 @@ import "DPI-C" function void npc_commit_event(
 import "DPI-C" function void npc_exit_event(
   input int unsigned is_ebreak,
   input int unsigned is_ecall,
+  input int unsigned is_system_reset,
   input longint unsigned code,
   input longint unsigned pc
 );
@@ -179,7 +180,7 @@ module NpcSimTop (
 
 `ifdef CONFIG_NPC_DEBUG_PORTS
   localparam [3:0] AXI_S_CLINT = 4'd0;
-  localparam [3:0] AXI_S_SRAM = 4'd2;
+  localparam [3:0] AXI_S_RESET_SYSCON = 4'd2;
   localparam [3:0] AXI_S_UART = 4'd3;
   localparam [3:0] AXI_S_DEFAULT = 4'd15;
 `endif
@@ -195,6 +196,7 @@ module NpcSimTop (
   logic psram_axi_awvalid_w;
   logic psram_axi_awready_w;
   logic [`XLEN-1:0] psram_axi_awaddr_w;
+  logic [2:0] psram_axi_awsize_w;
   logic psram_axi_wvalid_w;
   logic psram_axi_wready_w;
   logic [`XLEN-1:0] psram_axi_wdata_w;
@@ -215,6 +217,7 @@ module NpcSimTop (
   logic sdram_axi_awvalid_w;
   logic sdram_axi_awready_w;
   logic [`XLEN-1:0] sdram_axi_awaddr_w;
+  logic [2:0] sdram_axi_awsize_w;
   logic sdram_axi_wvalid_w;
   logic sdram_axi_wready_w;
   logic [`XLEN-1:0] sdram_axi_wdata_w;
@@ -235,6 +238,7 @@ module NpcSimTop (
   logic legacy_mmio_axi_awvalid_w;
   logic legacy_mmio_axi_awready_w;
   logic [`XLEN-1:0] legacy_mmio_axi_awaddr_w;
+  logic [2:0] legacy_mmio_axi_awsize_w;
   logic legacy_mmio_axi_wvalid_w;
   logic legacy_mmio_axi_wready_w;
   logic [`XLEN-1:0] legacy_mmio_axi_wdata_w;
@@ -255,6 +259,7 @@ module NpcSimTop (
   logic virtio_blk_axi_awvalid_w;
   logic virtio_blk_axi_awready_w;
   logic [`XLEN-1:0] virtio_blk_axi_awaddr_w;
+  logic [2:0] virtio_blk_axi_awsize_w;
   logic virtio_blk_axi_wvalid_w;
   logic virtio_blk_axi_wready_w;
   logic [`XLEN-1:0] virtio_blk_axi_wdata_w;
@@ -279,6 +284,7 @@ module NpcSimTop (
   logic plic_external_irq_w;
   logic uart_irq_w;
   logic virtio_blk_irq_w;
+  logic virtio_blk_dma_dcache_invalidate_all_w;
   logic sim_icache_access_w;
   logic sim_icache_hit_w;
   logic sim_icache_miss_w;
@@ -296,6 +302,8 @@ module NpcSimTop (
   logic exit_reported_q;
   logic uart_irq_prev_q;
   logic plic_irq_prev_q;
+  logic reset_syscon_write_valid_w;
+  logic [31:0] reset_syscon_write_value_w;
 
   function automatic logic sim_is_link_reg(input logic [4:0] reg_idx);
     begin
@@ -336,6 +344,23 @@ module NpcSimTop (
   logic [4:0] core_rob_count_w;
   logic [3:0] core_issue_count_w;
 
+  wire reset_syscon_poweroff_w =
+      reset_syscon_write_valid_w &&
+      (reset_syscon_write_value_w == 32'h0000_5555);
+  wire reset_syscon_reboot_w =
+      reset_syscon_write_valid_w &&
+      (reset_syscon_write_value_w == 32'h0000_7777);
+  wire reset_syscon_finisher_w =
+      reset_syscon_write_valid_w &&
+      (reset_syscon_write_value_w[15:0] == 16'h3333);
+  wire reset_syscon_terminal_w =
+      reset_syscon_poweroff_w || reset_syscon_reboot_w ||
+      reset_syscon_finisher_w;
+  wire [`XLEN-1:0] reset_syscon_exit_code_w =
+      reset_syscon_finisher_w
+          ? {{(`XLEN-16){1'b0}}, reset_syscon_write_value_w[31:16]}
+          : {`XLEN{1'b0}};
+
   NpcTop u_top (
     .clk(clk),
     .rst(rst),
@@ -352,6 +377,7 @@ module NpcSimTop (
     .psram_axi_awvalid_o(psram_axi_awvalid_w),
     .psram_axi_awready_i(psram_axi_awready_w),
     .psram_axi_awaddr_o(psram_axi_awaddr_w),
+    .psram_axi_awsize_o(psram_axi_awsize_w),
     .psram_axi_wvalid_o(psram_axi_wvalid_w),
     .psram_axi_wready_i(psram_axi_wready_w),
     .psram_axi_wdata_o(psram_axi_wdata_w),
@@ -372,6 +398,7 @@ module NpcSimTop (
     .sdram_axi_awvalid_o(sdram_axi_awvalid_w),
     .sdram_axi_awready_i(sdram_axi_awready_w),
     .sdram_axi_awaddr_o(sdram_axi_awaddr_w),
+    .sdram_axi_awsize_o(sdram_axi_awsize_w),
     .sdram_axi_wvalid_o(sdram_axi_wvalid_w),
     .sdram_axi_wready_i(sdram_axi_wready_w),
     .sdram_axi_wdata_o(sdram_axi_wdata_w),
@@ -392,6 +419,7 @@ module NpcSimTop (
     .legacy_mmio_axi_awvalid_o(legacy_mmio_axi_awvalid_w),
     .legacy_mmio_axi_awready_i(legacy_mmio_axi_awready_w),
     .legacy_mmio_axi_awaddr_o(legacy_mmio_axi_awaddr_w),
+    .legacy_mmio_axi_awsize_o(legacy_mmio_axi_awsize_w),
     .legacy_mmio_axi_wvalid_o(legacy_mmio_axi_wvalid_w),
     .legacy_mmio_axi_wready_i(legacy_mmio_axi_wready_w),
     .legacy_mmio_axi_wdata_o(legacy_mmio_axi_wdata_w),
@@ -412,6 +440,7 @@ module NpcSimTop (
     .virtio_blk_axi_awvalid_o(virtio_blk_axi_awvalid_w),
     .virtio_blk_axi_awready_i(virtio_blk_axi_awready_w),
     .virtio_blk_axi_awaddr_o(virtio_blk_axi_awaddr_w),
+    .virtio_blk_axi_awsize_o(virtio_blk_axi_awsize_w),
     .virtio_blk_axi_wvalid_o(virtio_blk_axi_wvalid_w),
     .virtio_blk_axi_wready_i(virtio_blk_axi_wready_w),
     .virtio_blk_axi_wdata_o(virtio_blk_axi_wdata_w),
@@ -420,6 +449,8 @@ module NpcSimTop (
     .virtio_blk_axi_bready_o(virtio_blk_axi_bready_w),
     .virtio_blk_axi_bresp_i(virtio_blk_axi_bresp_w),
     .virtio_blk_irq_i(virtio_blk_irq_w),
+    .virtio_blk_dma_dcache_invalidate_all_i(
+        virtio_blk_dma_dcache_invalidate_all_w),
 
     .uart_rx_valid_i(uart_rx_valid_q),
     .uart_rx_data_i(uart_rx_data_q),
@@ -435,6 +466,8 @@ module NpcSimTop (
     .uart_irq_o(uart_irq_w),
     .plic_external_irq_o(plic_external_irq_w),
     .clint_mtime_o(clint_mtime_w),
+    .reset_syscon_write_valid_o(reset_syscon_write_valid_w),
+    .reset_syscon_write_value_o(reset_syscon_write_value_w),
 
     .commit0_valid_o(core_commit0_valid_w),
     .commit0_pc_o(core_commit0_pc_w),
@@ -557,13 +590,13 @@ module NpcSimTop (
     u_top.u_bus.u_xbar.rd_ar_sent_q,  // AXI4化S2: rd_drop_q 已删,占位换 ar_sent
     u_top.u_bus.u_xbar.rd_ar_sent_q,
     u_top.u_bus.u_xbar.rd_owner_q[AXI_S_DEFAULT],
-    u_top.u_bus.u_xbar.rd_owner_q[AXI_S_SRAM],
+    u_top.u_bus.u_xbar.rd_owner_q[AXI_S_RESET_SYSCON],
     u_top.u_bus.u_xbar.rd_owner_q[AXI_S_UART],
     u_top.u_bus.u_xbar.rd_owner_q[AXI_S_CLINT],
-    u_top.bus_axi_rready_w[AXI_S_SRAM],
-    u_top.bus_axi_rvalid_w[AXI_S_SRAM],
-    u_top.bus_axi_arready_w[AXI_S_SRAM],
-    u_top.bus_axi_arvalid_w[AXI_S_SRAM],
+    u_top.bus_axi_rready_w[AXI_S_RESET_SYSCON],
+    u_top.bus_axi_rvalid_w[AXI_S_RESET_SYSCON],
+    u_top.bus_axi_arready_w[AXI_S_RESET_SYSCON],
+    u_top.bus_axi_arvalid_w[AXI_S_RESET_SYSCON],
     u_top.u_core.u_ooo_mem_bridge.flush_i,   // AXI4化S2: abort 边带已删,探针改引等价 flush 源
     u_top.u_core.u_ooo_fetch_bridge.mmu_flush_i,
     u_top.u_core.u_ooo_mem_bridge.flush_i,
@@ -600,6 +633,7 @@ module NpcSimTop (
     .s_axi_arvalid_i(virtio_blk_axi_arvalid_w),
     .s_axi_arready_o(virtio_blk_axi_arready_w),
     .s_axi_araddr_i(virtio_blk_axi_araddr_w),
+    .s_axi_arsize_i(virtio_blk_axi_arsize_w),
     .s_axi_rvalid_o(virtio_blk_axi_rvalid_w),
     .s_axi_rready_i(virtio_blk_axi_rready_w),
     .s_axi_rdata_o(virtio_blk_axi_rdata_w),
@@ -607,6 +641,7 @@ module NpcSimTop (
     .s_axi_awvalid_i(virtio_blk_axi_awvalid_w),
     .s_axi_awready_o(virtio_blk_axi_awready_w),
     .s_axi_awaddr_i(virtio_blk_axi_awaddr_w),
+    .s_axi_awsize_i(virtio_blk_axi_awsize_w),
     .s_axi_wvalid_i(virtio_blk_axi_wvalid_w),
     .s_axi_wready_o(virtio_blk_axi_wready_w),
     .s_axi_wdata_i(virtio_blk_axi_wdata_w),
@@ -614,7 +649,9 @@ module NpcSimTop (
     .s_axi_bvalid_o(virtio_blk_axi_bvalid_w),
     .s_axi_bready_i(virtio_blk_axi_bready_w),
     .s_axi_bresp_o(virtio_blk_axi_bresp_w),
-    .irq_o(virtio_blk_irq_w)
+    .irq_o(virtio_blk_irq_w),
+    .dma_dcache_invalidate_all_o(
+        virtio_blk_dma_dcache_invalidate_all_w)
   );
 
   AxiDpiSlave u_psram_slave (
@@ -632,6 +669,7 @@ module NpcSimTop (
     .s_axi_awvalid_i(psram_axi_awvalid_w),
     .s_axi_awready_o(psram_axi_awready_w),
     .s_axi_awaddr_i(psram_axi_awaddr_w),
+    .s_axi_awsize_i(psram_axi_awsize_w),
     .s_axi_wvalid_i(psram_axi_wvalid_w),
     .s_axi_wready_o(psram_axi_wready_w),
     .s_axi_wdata_i(psram_axi_wdata_w),
@@ -656,6 +694,7 @@ module NpcSimTop (
     .s_axi_awvalid_i(sdram_axi_awvalid_w),
     .s_axi_awready_o(sdram_axi_awready_w),
     .s_axi_awaddr_i(sdram_axi_awaddr_w),
+    .s_axi_awsize_i(sdram_axi_awsize_w),
     .s_axi_wvalid_i(sdram_axi_wvalid_w),
     .s_axi_wready_o(sdram_axi_wready_w),
     .s_axi_wdata_i(sdram_axi_wdata_w),
@@ -680,6 +719,7 @@ module NpcSimTop (
     .s_axi_awvalid_i(legacy_mmio_axi_awvalid_w),
     .s_axi_awready_o(legacy_mmio_axi_awready_w),
     .s_axi_awaddr_i(legacy_mmio_axi_awaddr_w),
+    .s_axi_awsize_i(legacy_mmio_axi_awsize_w),
     .s_axi_wvalid_i(legacy_mmio_axi_wvalid_w),
     .s_axi_wready_o(legacy_mmio_axi_wready_w),
     .s_axi_wdata_i(legacy_mmio_axi_wdata_w),
@@ -1093,11 +1133,32 @@ module NpcSimTop (
       );
 `endif
 
-      if (core_exit_valid_w && !exit_reported_q) begin
+      if (reset_syscon_terminal_w && !exit_reported_q) begin
+        exit_reported_q <= 1'b1;
+        if (reset_syscon_poweroff_w) begin
+          $display("syscon-reset: poweroff requested value=0x%08x pc=0x%016x",
+                   reset_syscon_write_value_w, debug_pc_o);
+        end else if (reset_syscon_reboot_w) begin
+          $display("syscon-reset: reboot requested value=0x%08x pc=0x%016x",
+                   reset_syscon_write_value_w, debug_pc_o);
+        end else begin
+          $display("syscon-reset: test-finisher exit code=%0d value=0x%08x pc=0x%016x",
+                   reset_syscon_write_value_w[31:16],
+                   reset_syscon_write_value_w, debug_pc_o);
+        end
+        npc_exit_event(
+          32'd0,
+          32'd0,
+          32'd1,
+          reset_syscon_exit_code_w,
+          debug_pc_o
+        );
+      end else if (core_exit_valid_w && !exit_reported_q) begin
         exit_reported_q <= 1'b1;
         npc_exit_event(
           core_exit_is_ebreak_w ? 32'd1 : 32'd0,
           core_exit_is_ecall_w ? 32'd1 : 32'd0,
+          32'd0,
           core_exit_code_w,
           core_exit_pc_w
         );
@@ -1223,7 +1284,7 @@ module NpcSimTop (
   // ─────────────────────────────────────────────────────────────────────────────────────────
   // §5 三层观测模型 ② 层: Sv39 HW-managed A/D 更新(Svadu)观测 checker(数据+取指双桥)。
   // XMR 从 u_top.u_core.u_ooo_{fetch,mem}_bridge.* 连入两桥的 walker + PTE 写信号。
-  // 通用单桥模块实例化两次: 取指桥 ALLOW_D=0(只置 A) / 数据桥 ALLOW_D=1(置 A/D)。见 ooo-sv39-hw-ad-update.md §5。
+  // 通用单桥模块实例化两次: 取指桥 ALLOW_D=0(只置 A) / 数据桥 ALLOW_D=1(置 A/D)。现状见 active fetch/mem AXI bridge spec。
   // ─────────────────────────────────────────────────────────────────────────────────────────
 `ifdef OOO_ASSERT
 `define ADF_XMR u_top.u_core.u_ooo_fetch_bridge
@@ -1284,10 +1345,10 @@ module NpcSimTop (
   // 首次暴露,module TB 不含 NpcSimTop 未覆盖)。km_arm_q 必须**声明初始化**:
   // 本工程 --x-initial fast 会给未显式初始化的 reg 填非零快速值(计数器可能
   // 直接=3 当拍武装),显式初始化不受其影响。(本文件 sim-only,声明初始化+过程赋值
-  // 的 PROCASSINIT 告警在此局部豁免——观测计数器必须有确定初值,这正是意图。)
-  /* verilator lint_off PROCASSINIT */
+  // 的潜在 process/init 混用告警由当前工具链在声明初始化语义下处理——观测
+  // 计数器必须有确定初值,这正是意图。不要使用版本相关的 lint message pragma，
+  // 否则旧版 Verilator 会把未知 message code 当作编译错误。)
   reg [1:0] km_arm_q = 2'b00;
-  /* verilator lint_on PROCASSINIT */
   always @(posedge clk) begin
     if (rst) begin
       km_ctx_seen_q <= 1'b0;

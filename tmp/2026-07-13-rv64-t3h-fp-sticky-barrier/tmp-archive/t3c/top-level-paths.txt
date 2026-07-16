@@ -1,2 +1,0 @@
-t3cd-review-brief.txt
-ysyx-t3c-root-int-build

@@ -88,14 +88,21 @@ module OooBranchResolveRecoveryGate (
       pending_branch_i && pending_branch_dispatched_i &&
       backend_execute_quiet_o &&
       (core_mem_idle_i || core_pending_load_branch_dep_i);
+  // T3O: resolve/restore/pred-match are one legacy checkpoint domain and must
+  // all be structurally dead in ROB-walk mode.  Relying only on the parent
+  // invariant pending_branch==0 leaves a preserved-hierarchy feedback arc:
+  // registered issue-resolve -> restore -> IntBackend checkpoint_restore ->
+  // resolve effective-valid.  Local configuration gating makes the boundary
+  // unidirectional while leaving the complete mode-0 predicate unchanged.
   assign branch_spec_resolve_valid_o =
-      branch_spec_active_i && pending_branch_i &&
+      !rob_walk_mode_w && branch_spec_active_i && pending_branch_i &&
       pending_branch_dispatched_i && branch_resolve_pending_pc_match_o;
   assign branch_spec_pred_match_o =
-      !core_branch_resolve_misaligned_i &&
+      !rob_walk_mode_w && !core_branch_resolve_misaligned_i &&
       (core_branch_resolve_next_pc_i == branch_spec_pred_pc_i);
   assign branch_spec_restore_o =
-      branch_spec_resolve_valid_o && !branch_spec_pred_match_o;
+      !rob_walk_mode_w && branch_spec_resolve_valid_o &&
+      !branch_spec_pred_match_o;
   assign branch_spec_redirect_o =
       branch_spec_redirect_raw_w && !trap_redirect_squash_i;
   assign direct_branch_wait_resolve_match_o =

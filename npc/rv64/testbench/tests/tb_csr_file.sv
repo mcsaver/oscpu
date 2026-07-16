@@ -5,6 +5,8 @@ module tb_csr_file;
 
   reg clk;
   reg rst;
+  reg cycle_count_enable;
+  reg [1:0] instret_inc;
   reg csr_valid;
   reg [11:0] csr_addr;
   reg [2:0] csr_funct3;
@@ -103,9 +105,9 @@ module tb_csr_file;
   CsrFile dut (
     .clk(clk),
     .rst(rst),
-    .cycle_count_enable_i(1'b0),
+    .cycle_count_enable_i(cycle_count_enable),
     .time_i({`XLEN{1'b0}}),
-    .instret_inc_i(2'b00),
+    .instret_inc_i(instret_inc),
     .csr_valid_i(csr_valid),
     .csr_addr_i(csr_addr),
     .csr_funct3_i(csr_funct3),
@@ -157,6 +159,8 @@ module tb_csr_file;
     tb_errors = 0;
     clk = 1'b0;
     rst = 1'b1;
+    cycle_count_enable = 1'b0;
+    instret_inc = 2'b00;
     csr_valid = 1'b0;
     csr_addr = 12'h000;
     csr_funct3 = 3'b010;
@@ -176,6 +180,61 @@ module tb_csr_file;
 
     `TB_TICK(clk);
     rst = 1'b0;
+
+    // INSTRET-G1 owner contract: CsrFile consumes exactly the supplied unique
+    // ISA-retirement count, supports dual retirement, obeys IR inhibit, and an
+    // explicit minstret write wins over the automatic increment on that edge.
+    drive_csr(`CSR_MINSTRET, 3'b010, {`REG_ADDR_W{1'b0}},
+              {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("minstret reset value", csr_rdata, 64'd0);
+
+    cycle_count_enable = 1'b1;
+    instret_inc = 2'd1;
+    csr_valid = 1'b0;
+    csr_commit = 1'b0;
+    drive_probe(1'b0, 12'h000, 3'b010, {`REG_ADDR_W{1'b0}});
+    `TB_TICK(clk);
+    instret_inc = 2'd0;
+    drive_csr(`CSR_MINSTRET, 3'b010, {`REG_ADDR_W{1'b0}},
+              {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("minstret increments by one", csr_rdata, 64'd1);
+
+    instret_inc = 2'd2;
+    `TB_TICK(clk);
+    instret_inc = 2'd0;
+    #1;
+    tb_check64("minstret increments by two", csr_rdata, 64'd3);
+
+    instret_inc = 2'd1;
+    drive_csr(`CSR_MINSTRET, 3'b001, 5'd1, 64'd9, 1'b1);
+    `TB_TICK(clk);
+    instret_inc = 2'd0;
+    drive_csr(`CSR_MINSTRET, 3'b010, {`REG_ADDR_W{1'b0}},
+              {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("explicit minstret write suppresses same-edge increment",
+               csr_rdata, 64'd9);
+
+    drive_csr(`CSR_MCOUNTINHIBIT, 3'b001, 5'd1,
+              `MCOUNTINHIBIT_IR, 1'b1);
+    `TB_TICK(clk);
+    csr_valid = 1'b0;
+    csr_commit = 1'b0;
+    instret_inc = 2'd2;
+    `TB_TICK(clk);
+    instret_inc = 2'd0;
+    drive_csr(`CSR_MINSTRET, 3'b010, {`REG_ADDR_W{1'b0}},
+              {`XLEN{1'b0}}, 1'b0);
+    #1;
+    tb_check64("mcountinhibit IR suppresses minstret", csr_rdata, 64'd9);
+
+    drive_csr(`CSR_MCOUNTINHIBIT, 3'b001, 5'd1,
+              {`XLEN{1'b0}}, 1'b1);
+    `TB_TICK(clk);
+    cycle_count_enable = 1'b0;
+    instret_inc = 2'd0;
 
     // 只读 CSR 的 CSRRS/CSRRC 零源操作不产生写意图；非零源必须判非法。
     drive_csr(`CSR_MVENDORID, 3'b010, {`REG_ADDR_W{1'b0}},

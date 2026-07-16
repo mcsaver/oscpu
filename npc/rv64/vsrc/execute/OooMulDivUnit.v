@@ -28,12 +28,20 @@ module OooMulDivUnit #(
   output [`XLEN-1:0] resp_data_o
 );
 
-  localparam STATE_IDLE = 2'd0;
-  localparam STATE_MUL_RUN = 2'd1;
-  localparam STATE_DIV_RUN = 2'd2;
-  localparam STATE_RESP = 2'd3;
+  localparam STATE_IDLE = 3'd0;
+  localparam STATE_REQ_BUF = 3'd1;
+  localparam STATE_MUL_RUN = 3'd2;
+  localparam STATE_DIV_RUN = 3'd3;
+  localparam STATE_RESP = 3'd4;
 
-  reg [1:0] state_q;
+  reg [2:0] state_q;
+  // T3Q: 非穿透请求级只捕获完整 payload；abs/CLZ/3x 与迭代状态初始化统一从下一拍 Q 侧出发。
+  reg [ROB_INDEX_W-1:0] req_rob_idx_q;
+  reg [PHY_REG_ADDR_W-1:0] req_pdest_q;
+  reg [`INST_W-1:0] req_inst_q;
+  reg [`XLEN-1:0] req_src1_q;
+  reg [`XLEN-1:0] req_src2_q;
+  reg req_word_q;
   reg [ROB_INDEX_W-1:0] resp_rob_idx_q;
   reg [PHY_REG_ADDR_W-1:0] resp_pdest_q;
   reg [`XLEN-1:0] resp_data_q;
@@ -76,14 +84,14 @@ module OooMulDivUnit #(
   endfunction
 
   wire req_fire_w = req_valid_i && req_ready_o;
-  wire [2:0] req_funct3_w = req_inst_i[14:12];
+  wire [2:0] req_funct3_w = req_inst_q[14:12];
   wire req_is_div_w = req_funct3_w[2];
-  wire req_is_rem_w = req_inst_i[13];
-  wire req_signed_w = !req_inst_i[12];
+  wire req_is_rem_w = req_inst_q[13];
+  wire req_signed_w = !req_inst_q[12];
   wire [`XLEN-1:0] req_mul_op1_w =
-      req_word_i ? sign_extend_word(req_src1_i[31:0]) : req_src1_i;
+      req_word_q ? sign_extend_word(req_src1_q[31:0]) : req_src1_q;
   wire [`XLEN-1:0] req_mul_op2_w =
-      req_word_i ? sign_extend_word(req_src2_i[31:0]) : req_src2_i;
+      req_word_q ? sign_extend_word(req_src2_q[31:0]) : req_src2_q;
   wire req_mul_op1_signed_w = (req_funct3_w == 3'b001) ||
                               (req_funct3_w == 3'b010);
   wire req_mul_op2_signed_w = (req_funct3_w == 3'b001);
@@ -96,15 +104,15 @@ module OooMulDivUnit #(
       req_mul_op2_neg_w ? (~req_mul_op2_w + {{(`XLEN-1){1'b0}}, 1'b1}) :
                           req_mul_op2_w;
   wire req_mul_neg_w = req_mul_op1_neg_w ^ req_mul_op2_neg_w;
-  wire req_word_unsigned_w = req_word_i && req_inst_i[12];
+  wire req_word_unsigned_w = req_word_q && req_inst_q[12];
   wire [`XLEN-1:0] req_op1_w =
-      req_word_i ? (req_word_unsigned_w ? zero_extend_word(req_src1_i[31:0]) :
-                                          sign_extend_word(req_src1_i[31:0])) :
-                   req_src1_i;
+      req_word_q ? (req_word_unsigned_w ? zero_extend_word(req_src1_q[31:0]) :
+                                          sign_extend_word(req_src1_q[31:0])) :
+                   req_src1_q;
   wire [`XLEN-1:0] req_op2_w =
-      req_word_i ? (req_word_unsigned_w ? zero_extend_word(req_src2_i[31:0]) :
-                                          sign_extend_word(req_src2_i[31:0])) :
-                   req_src2_i;
+      req_word_q ? (req_word_unsigned_w ? zero_extend_word(req_src2_q[31:0]) :
+                                          sign_extend_word(req_src2_q[31:0])) :
+                   req_src2_q;
   wire req_op1_neg_w = req_signed_w && req_op1_w[`XLEN-1];
   wire req_op2_neg_w = req_signed_w && req_op2_w[`XLEN-1];
   wire [`XLEN-1:0] req_op1_abs_w =
@@ -120,7 +128,7 @@ module OooMulDivUnit #(
       req_is_rem_w ? (req_div_by_zero_w ? req_op1_w : {`XLEN{1'b0}}) :
                      (req_div_by_zero_w ? all_ones_w : signed_min_w);
   wire [`XLEN-1:0] req_special_result_final_w =
-      req_word_i ? sign_extend_word(req_special_result_w[31:0]) :
+      req_word_q ? sign_extend_word(req_special_result_w[31:0]) :
                    req_special_result_w;
 
   // radix-4 无符号数字迭代(非 Booth): 每拍消费 multiplier 低 2 位 digit∈{0..3},
@@ -238,10 +246,13 @@ module OooMulDivUnit #(
   // 两仿真器中仅展开形态在 iverilog 下正确(另一家两形态一致)。函数体引用模块级变量禁令家族。
   wire [ROB_INDEX_W-1:0] kill_age_thresh_w = kill_rob_idx_i - rob_head_idx_i;
   wire [ROB_INDEX_W-1:0] kill_age_resp_w = resp_rob_idx_q - rob_head_idx_i;
+  wire [ROB_INDEX_W-1:0] kill_age_buf_w = req_rob_idx_q - rob_head_idx_i;
   wire [ROB_INDEX_W-1:0] kill_age_req_w = req_rob_idx_i - rob_head_idx_i;
   wire kill_inflight_w =
-      ((state_q == STATE_MUL_RUN) || (state_q == STATE_DIV_RUN) || (state_q == STATE_RESP)) &&
-      kill_valid_i && (kill_age_resp_w > kill_age_thresh_w);
+      kill_valid_i &&
+      (((state_q == STATE_REQ_BUF) && (kill_age_buf_w > kill_age_thresh_w)) ||
+       (((state_q == STATE_MUL_RUN) || (state_q == STATE_DIV_RUN) ||
+         (state_q == STATE_RESP)) && (kill_age_resp_w > kill_age_thresh_w)));
   wire kill_new_req_w = req_fire_w && kill_valid_i && (kill_age_req_w > kill_age_thresh_w);
 
   assign req_ready_o = state_q == STATE_IDLE;
@@ -254,6 +265,12 @@ module OooMulDivUnit #(
   always @(posedge clk) begin
     if (rst || flush_i) begin
       state_q <= STATE_IDLE;
+      req_rob_idx_q <= {ROB_INDEX_W{1'b0}};
+      req_pdest_q <= {PHY_REG_ADDR_W{1'b0}};
+      req_inst_q <= {`INST_W{1'b0}};
+      req_src1_q <= {`XLEN{1'b0}};
+      req_src2_q <= {`XLEN{1'b0}};
+      req_word_q <= 1'b0;
       resp_rob_idx_q <= {ROB_INDEX_W{1'b0}};
       resp_pdest_q <= {PHY_REG_ADDR_W{1'b0}};
       resp_data_q <= {`XLEN{1'b0}};
@@ -276,8 +293,14 @@ module OooMulDivUnit #(
       mul_word_q <= 1'b0;
       mul_neg_q <= 1'b0;
     end else if (kill_inflight_w) begin
-      // UC-A: kill 命中在飞 op → 强制回 IDLE(覆盖优先, 胜过 case 的 DIV_RUN/RESP 推进), 抹 resp 身份防脏写回
+      // UC-A/T3Q: kill 命中缓冲或在飞 op → 强制回 IDLE，抹身份防止下一拍初始化或脏写回。
       state_q <= STATE_IDLE;
+      req_rob_idx_q <= {ROB_INDEX_W{1'b0}};
+      req_pdest_q <= {PHY_REG_ADDR_W{1'b0}};
+      req_inst_q <= {`INST_W{1'b0}};
+      req_src1_q <= {`XLEN{1'b0}};
+      req_src2_q <= {`XLEN{1'b0}};
+      req_word_q <= 1'b0;
       resp_rob_idx_q <= {ROB_INDEX_W{1'b0}};
       resp_pdest_q <= {PHY_REG_ADDR_W{1'b0}};
       resp_data_q <= {`XLEN{1'b0}};
@@ -285,49 +308,60 @@ module OooMulDivUnit #(
       case (state_q)
         STATE_IDLE: begin
           if (req_fire_w && !kill_new_req_w) begin
-            resp_rob_idx_q <= req_rob_idx_i;
-            resp_pdest_q <= req_pdest_i;
-            if (!req_is_div_w) begin
-              if (mul_any_zero_w) begin
-                // R1 防线: 任一幅值 0 装载拍直进 RESP,禁走 count_init=0 绕回
-                resp_data_q <= {`XLEN{1'b0}};
-                state_q <= STATE_RESP;
-              end else begin
-                mul_acc_q <= {(`XLEN*2){1'b0}};
-                mul_multiplicand_q <= {{`XLEN{1'b0}}, mul_mcand_sel_w};
-                // 3M 装载拍预算(128 位语境下 (M<<1)+M,有效宽 66 位),镜像 div_d3_q
-                mul_m3_q <= {{(`XLEN-1){1'b0}}, mul_mcand_sel_w, 1'b0} +
-                            {{`XLEN{1'b0}}, mul_mcand_sel_w};
-                mul_multiplier_q <= mul_mplier_sel_w;
-                mul_count_q <= mul_count_init_w;
-                mul_funct3_q <= req_funct3_w;
-                mul_word_q <= req_word_i;
-                mul_neg_q <= req_mul_neg_w;
-                state_q <= STATE_MUL_RUN;
-              end
-            end else if (req_div_by_zero_w || req_signed_overflow_w) begin
-              resp_data_q <= req_special_result_final_w;
-              state_q <= STATE_RESP;
-            end else if (req_op1_zero_w) begin
-              // 0/d = 0、0%d = 0（d!=0 已由上面排除）；word 下 sign_extend_word(0)=0。
+            // 非穿透边界：该拍只锁存请求，禁止从外部 payload 直接初始化运算数据通路。
+            req_rob_idx_q <= req_rob_idx_i;
+            req_pdest_q <= req_pdest_i;
+            req_inst_q <= req_inst_i;
+            req_src1_q <= req_src1_i;
+            req_src2_q <= req_src2_i;
+            req_word_q <= req_word_i;
+            state_q <= STATE_REQ_BUF;
+          end
+        end
+
+        STATE_REQ_BUF: begin
+          resp_rob_idx_q <= req_rob_idx_q;
+          resp_pdest_q <= req_pdest_q;
+          if (!req_is_div_w) begin
+            if (mul_any_zero_w) begin
+              // R1 防线: 任一幅值 0 装载拍直进 RESP,禁走 count_init=0 绕回
               resp_data_q <= {`XLEN{1'b0}};
               state_q <= STATE_RESP;
             end else begin
-              // CLZ 定位：把 abs 左移使其 MSB 到 bit63，只跑有效位的 radix-4 迭代。
-              // 取代原 word({abs,32'd0}/32 拍)与 dword(64 拍)固定方案，对小操作数大幅减拍。
-              div_dividend_q <= div_dividend_pos_w;
-              div_divisor_q <= req_op2_abs_w;
-              div_d3_q <= {1'b0, req_op2_abs_w, 1'b0} +
-                          {2'b0, req_op2_abs_w};  // 3×divisor 预算并寄存
-              div_quot_q <= {`XLEN{1'b0}};
-              div_rem_q <= {(`XLEN+1){1'b0}};
-              div_count_q <= div_count_init_w;
-              div_rem_result_q <= req_is_rem_w;
-              div_quot_neg_q <= req_signed_w && (req_op1_neg_w ^ req_op2_neg_w);
-              div_rem_neg_q <= req_signed_w && req_op1_neg_w;
-              div_word_q <= req_word_i;
-              state_q <= STATE_DIV_RUN;
+              mul_acc_q <= {(`XLEN*2){1'b0}};
+              mul_multiplicand_q <= {{`XLEN{1'b0}}, mul_mcand_sel_w};
+              // 3M 装载拍预算(128 位语境下 (M<<1)+M,有效宽 66 位),镜像 div_d3_q
+              mul_m3_q <= {{(`XLEN-1){1'b0}}, mul_mcand_sel_w, 1'b0} +
+                          {{`XLEN{1'b0}}, mul_mcand_sel_w};
+              mul_multiplier_q <= mul_mplier_sel_w;
+              mul_count_q <= mul_count_init_w;
+              mul_funct3_q <= req_funct3_w;
+              mul_word_q <= req_word_q;
+              mul_neg_q <= req_mul_neg_w;
+              state_q <= STATE_MUL_RUN;
             end
+          end else if (req_div_by_zero_w || req_signed_overflow_w) begin
+            resp_data_q <= req_special_result_final_w;
+            state_q <= STATE_RESP;
+          end else if (req_op1_zero_w) begin
+            // 0/d = 0、0%d = 0（d!=0 已由上面排除）；word 下 sign_extend_word(0)=0。
+            resp_data_q <= {`XLEN{1'b0}};
+            state_q <= STATE_RESP;
+          end else begin
+            // CLZ 定位：把 abs 左移使其 MSB 到 bit63，只跑有效位的 radix-4 迭代。
+            // 取代原 word({abs,32'd0}/32 拍)与 dword(64 拍)固定方案，对小操作数大幅减拍。
+            div_dividend_q <= div_dividend_pos_w;
+            div_divisor_q <= req_op2_abs_w;
+            div_d3_q <= {1'b0, req_op2_abs_w, 1'b0} +
+                        {2'b0, req_op2_abs_w};  // 3×divisor 预算并寄存
+            div_quot_q <= {`XLEN{1'b0}};
+            div_rem_q <= {(`XLEN+1){1'b0}};
+            div_count_q <= div_count_init_w;
+            div_rem_result_q <= req_is_rem_w;
+            div_quot_neg_q <= req_signed_w && (req_op1_neg_w ^ req_op2_neg_w);
+            div_rem_neg_q <= req_signed_w && req_op1_neg_w;
+            div_word_q <= req_word_q;
+            state_q <= STATE_DIV_RUN;
           end
         end
 
@@ -371,6 +405,47 @@ module OooMulDivUnit #(
   end
 
 `ifdef OOO_ASSERT
+  // MD-I8: capture 后必须先驻留非穿透请求级，且完整 payload 与 capture 拍逐位一致。
+  reg md_req_capture_pending_q;
+  reg [ROB_INDEX_W-1:0] md_req_rob_idx_q;
+  reg [PHY_REG_ADDR_W-1:0] md_req_pdest_q;
+  reg [`INST_W-1:0] md_req_inst_q;
+  reg [`XLEN-1:0] md_req_src1_q;
+  reg [`XLEN-1:0] md_req_src2_q;
+  reg md_req_word_q;
+  always @(posedge clk) begin
+    if (rst || flush_i || kill_inflight_w) begin
+      md_req_capture_pending_q <= 1'b0;
+    end else begin
+      if (md_req_capture_pending_q) begin
+        if ((state_q != STATE_REQ_BUF) ||
+            (req_rob_idx_q !== md_req_rob_idx_q) ||
+            (req_pdest_q !== md_req_pdest_q) ||
+            (req_inst_q !== md_req_inst_q) ||
+            (req_src1_q !== md_req_src1_q) ||
+            (req_src2_q !== md_req_src2_q) ||
+            (req_word_q !== md_req_word_q)) begin
+          $error("[MD-I8] request buffer 未形成完整非穿透 capture @%0t", $time);
+          $fatal;
+        end
+        md_req_capture_pending_q <= 1'b0;
+      end
+      if ((state_q == STATE_IDLE) && req_fire_w && !kill_new_req_w) begin
+        md_req_capture_pending_q <= 1'b1;
+        md_req_rob_idx_q <= req_rob_idx_i;
+        md_req_pdest_q <= req_pdest_i;
+        md_req_inst_q <= req_inst_i;
+        md_req_src1_q <= req_src1_i;
+        md_req_src2_q <= req_src2_i;
+        md_req_word_q <= req_word_i;
+      end
+      if ((state_q == STATE_REQ_BUF) && req_ready_o) begin
+        $error("[MD-I8] request buffer 驻留时错误开放 ready @%0t", $time);
+        $fatal;
+      end
+    end
+  end
+
   // MD-I6/MD-I7: MUL 早退出等价与拍数不变量(sim-only,行为乘法金标准)。
   // golden 在装载拍用 * 一步算出最终期望 resp_data(含 negate+funct3 切片+word sext),
   // RESP 拍纯等值比对——断言逻辑最小化,写错方向假 fail 的面最小。
@@ -388,14 +463,13 @@ module OooMulDivUnit #(
     endcase
   end
   wire [`XLEN-1:0] md_g_final_w =
-      req_word_i ? sign_extend_word(md_g_raw_w[31:0]) : md_g_raw_w;
+      req_word_q ? sign_extend_word(md_g_raw_w[31:0]) : md_g_raw_w;
 
   reg [`XLEN-1:0] md_mul_golden_q;
   reg md_mul_golden_valid_q;
   reg [6:0] md_mul_expect_iters_q;
   reg [7:0] md_mul_iters_q;
-  wire md_mul_load_w = (state_q == STATE_IDLE) && req_fire_w &&
-                       !kill_new_req_w && !req_is_div_w;
+  wire md_mul_load_w = (state_q == STATE_REQ_BUF) && !req_is_div_w;
   always @(posedge clk) begin
     if (rst || flush_i || kill_inflight_w) begin
       md_mul_golden_valid_q <= 1'b0;
@@ -411,7 +485,7 @@ module OooMulDivUnit #(
         $error("[MD-I7] MUL count_init=%0d 非偶或 <2 @%0t", mul_count_init_w, $time);
         $fatal;
       end
-    end else if ((state_q == STATE_IDLE) && req_fire_w && !kill_new_req_w) begin
+    end else if (state_q == STATE_REQ_BUF) begin
       md_mul_golden_valid_q <= 1'b0;  // DIV 装载: 清 MUL golden,DIV 的 RESP 不比对
       md_mul_iters_q <= 8'd0;
     end else if (state_q == STATE_MUL_RUN) begin

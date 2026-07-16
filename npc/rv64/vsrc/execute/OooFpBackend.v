@@ -459,6 +459,18 @@ module OooFpBackend #(
   wire issue_dst_gpr_w;
   wire issue_dst_en_w;
   wire [PHY_REG_ADDR_W-1:0] issue_gpr_preg_w;
+  wire iq_issue_valid_w;
+  wire iq_issue_ready_w;
+  wire [ROB_INDEX_W-1:0] iq_issue_rob_idx_w;
+  wire [`INST_W-1:0] iq_issue_inst_w;
+  wire iq_issue_double_w;
+  wire [PHY_REG_ADDR_W-1:0] iq_issue_pdest_w;
+  wire iq_issue_dst_gpr_w;
+  wire iq_issue_dst_en_w;
+  wire [PHY_REG_ADDR_W-1:0] iq_issue_fs1_preg_w;
+  wire [PHY_REG_ADDR_W-1:0] iq_issue_fs2_preg_w;
+  wire [PHY_REG_ADDR_W-1:0] iq_issue_fs3_preg_w;
+  wire [PHY_REG_ADDR_W-1:0] iq_issue_gpr_preg_w;
   OooFpIssueQueue #(
     .ENTRY_INDEX_W(FP_IQ_ENTRY_INDEX_W),
     .ROB_INDEX_W(ROB_INDEX_W),
@@ -521,19 +533,63 @@ module OooFpBackend #(
     .int_wake0_preg_i(int_wake0_preg_i),
     .int_wake1_valid_i(int_wake1_valid_i),
     .int_wake1_preg_i(int_wake1_preg_i),
-    .issue_valid_o(issue_valid_w),
-    .issue_ready_i(issue_ready_w),
-    .issue_rob_idx_o(issue_rob_idx_w),
-    .issue_inst_o(issue_inst_w),
-    .issue_double_o(issue_double_w),
-    .issue_pdest_o(issue_pdest_w),
-    .issue_dst_gpr_o(issue_dst_gpr_w),
-    .issue_dst_en_o(issue_dst_en_w),
-    .issue_fs1_preg_o(issue_fs1_preg_w),
-    .issue_fs2_preg_o(issue_fs2_preg_w),
-    .issue_fs3_preg_o(issue_fs3_preg_w),
-    .issue_gpr_preg_o(issue_gpr_preg_w),
+    .issue_valid_o(iq_issue_valid_w),
+    .issue_ready_i(iq_issue_ready_w),
+    .issue_rob_idx_o(iq_issue_rob_idx_w),
+    .issue_inst_o(iq_issue_inst_w),
+    .issue_double_o(iq_issue_double_w),
+    .issue_pdest_o(iq_issue_pdest_w),
+    .issue_dst_gpr_o(iq_issue_dst_gpr_w),
+    .issue_dst_en_o(iq_issue_dst_en_w),
+    .issue_fs1_preg_o(iq_issue_fs1_preg_w),
+    .issue_fs2_preg_o(iq_issue_fs2_preg_w),
+    .issue_fs3_preg_o(iq_issue_fs3_preg_w),
+    .issue_gpr_preg_o(iq_issue_gpr_preg_w),
     .count_o(fp_iq_count_w)
+  );
+
+  // T3Q：FP IQ 选择与 PRF/执行之间的真实 non-fallthrough packet 边界。
+  // 上半拍只做 age/select 并捕获 preg/control；下半拍从 packet Q 读 PRF、计算并
+  // 进入既有 exec1/arith/long 寄存边界。kill 拍禁止 refill，避免 IQ 旧组合输出
+  // 在 ROB-walk 同拍重新装入已被 squash 的 younger uop。
+  localparam FP_ISSUE_PACKET_W =
+      ROB_INDEX_W + `INST_W + (5 * PHY_REG_ADDR_W) + 3;
+  wire [FP_ISSUE_PACKET_W-1:0] fp_issue_stage_up_payload_w =
+      {iq_issue_rob_idx_w, iq_issue_inst_w, iq_issue_double_w,
+       iq_issue_pdest_w, iq_issue_dst_gpr_w, iq_issue_dst_en_w,
+       iq_issue_fs1_preg_w, iq_issue_fs2_preg_w, iq_issue_fs3_preg_w,
+       iq_issue_gpr_preg_w};
+  wire [FP_ISSUE_PACKET_W-1:0] fp_issue_stage_down_payload_w;
+  wire fp_issue_stage_up_ready_w;
+  wire fp_issue_stage_valid_w;
+  wire fp_issue_stage_kill_w = kill_valid_i && fp_issue_stage_valid_w &&
+      ((issue_rob_idx_w - rob_head_idx_i) >
+       (kill_rob_idx_i - rob_head_idx_i));
+
+  assign iq_issue_ready_w = fp_issue_stage_up_ready_w &&
+                            !flush_i && !kill_valid_i;
+  // kill/flush 拍 raw stage valid 仍会保持到时钟沿；对执行面必须组合屏蔽，
+  // 同时禁止 down_fire，才能让 older survivor 留在 stage、younger 只被 kill 清除。
+  assign issue_valid_w = fp_issue_stage_valid_w &&
+                         !flush_i && !kill_valid_i;
+  assign {issue_rob_idx_w, issue_inst_w, issue_double_w,
+          issue_pdest_w, issue_dst_gpr_w, issue_dst_en_w,
+          issue_fs1_preg_w, issue_fs2_preg_w, issue_fs3_preg_w,
+          issue_gpr_preg_w} = fp_issue_stage_down_payload_w;
+
+  PipeStageReg #(
+    .WIDTH(FP_ISSUE_PACKET_W)
+  ) u_fp_issue_stage (
+    .clk(clk),
+    .rst(rst),
+    .flush_i(flush_i),
+    .kill_i(fp_issue_stage_kill_w),
+    .up_valid_i(iq_issue_valid_w && !kill_valid_i),
+    .up_ready_o(fp_issue_stage_up_ready_w),
+    .up_payload_i(fp_issue_stage_up_payload_w),
+    .down_valid_o(fp_issue_stage_valid_w),
+    .down_ready_i(issue_ready_w && !flush_i && !kill_valid_i),
+    .down_payload_o(fp_issue_stage_down_payload_w)
   );
 
   assign gpr_read_addr_o = issue_gpr_preg_w;
@@ -958,6 +1014,17 @@ module OooFpBackend #(
   end
 
 `ifdef OOO_ASSERT
+  // T3Q issue-packet 承重合同：ROB kill/全局 flush 拍不得把 raw stage
+  // valid 当作 launch；refill/pop 已由显式 gate 禁止，PipeStageReg 负责 hold/kill。
+  always @(posedge clk) begin
+    if (!rst && (flush_i || kill_valid_i) && issue_fire_w)
+      $error("[FP-ISSUE-STAGE-NO-KILL-LAUNCH] kill/flush 拍仍 launch @%0t",
+             $time);
+    if (!rst && kill_valid_i && iq_issue_ready_w)
+      $error("[FP-ISSUE-STAGE-NO-KILL-REFILL] kill 拍 IQ ready 未压低 @%0t",
+             $time);
+  end
+
   // T3C admission 合同：raw intent 不得混类；accepted fire 必须有对应的
   // state-only credit，且下游 FreeList/FP-IQ 的防溢出 ready 必须同意本次更新。
   always @(posedge clk) begin

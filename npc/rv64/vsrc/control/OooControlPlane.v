@@ -87,6 +87,7 @@ module OooControlPlane #(
   input head1_xret_raw_w,
   input head_fetch_fault0_w,
   input head_fetch_fault1_w,
+  input [`XLEN-1:0] head_fetch_fault_tval_w,
   input [`INST_W-1:0] head_inst0_w,
   input [`INST_W-1:0] head_inst1_w,
   input [`XLEN-1:0] head_next_pc0_w,
@@ -127,6 +128,9 @@ module OooControlPlane #(
   input synth_lane1_ret_pending_q,
   // 【LSQ·SQ 切换】退休侧访存静默(SQ 排空且无 drain 在飞), AND 进 backend_drained
   input mem_retire_quiet_i,
+  // Complete memory-owner quiet (MIQ/bridge/reservation), used only by
+  // ordinary FENCE's stronger ordering boundary.
+  input mem_idle_i,
   output backend_drained_w,
   output checkpoint_mem_flush_q,
   output core_checkpoint_capture_w,
@@ -243,6 +247,10 @@ module OooControlPlane #(
   assign pending_system_fencei_commit_w =
       stop_pending_q && drain_complete_w && pending_system_q && pending_system_fencei_q;
   wire pending_system_wfi_q;
+  wire pending_system_fence_w =
+      pending_system_q &&
+      (pending_system_inst_q[6:0] == `OPCODE_MISC_MEM) &&
+      (pending_system_inst_q[14:12] == `FUNCT3_FENCE);
   wire pending_trap_exit_capture_arch_valid_w;
   wire pending_trap_exit_capture_arch_w;
   wire [`TRAP_CAUSE_W-1:0] pending_trap_exit_capture_cause_w;
@@ -404,9 +412,11 @@ module OooControlPlane #(
     .pending_jump_nolink_i(pending_jump_nolink_w),
     .pending_jump_misaligned_i(pending_jump_misaligned_w),
     .pending_system_i(pending_system_q),
+    .pending_system_fence_i(pending_system_fence_w),
     .pending_system_csr_i(pending_system_csr_q),
     .pending_system_dispatched_i(pending_system_dispatched_q),
     .mem_retire_quiet_i(mem_retire_quiet_i),
+    .mem_idle_i(mem_idle_i),
     .backend_drained_o(backend_drained_w),
     .jump_dispatch_valid_o(jump_dispatch_valid_w),
     .system_csr_dispatch_valid_o(system_csr_dispatch_valid_w),
@@ -448,6 +458,7 @@ module OooControlPlane #(
     .direct_branch1_fire_i(direct_branch1_fire_w),
     .head_fetch_fault0_i(head_fetch_fault0_w),
     .head_fetch_fault1_i(head_fetch_fault1_w),
+    .head_fetch_fault_tval_i(head_fetch_fault_tval_w),
     .head_resp0_i(head_resp0_w),
     .head_resp1_i(head_resp1_w),
     .head_pc0_i(head_pc_w),
@@ -769,6 +780,16 @@ module OooControlPlane #(
   );
 
 `ifdef OOO_ASSERT
+  // Mutation-sensitive contract guard: if the T4L memory-idle term is ever
+  // removed from the functional drain equation, this fires on the exact
+  // pending-FENCE/busy-memory completion edge.
+  always @(posedge clk) begin
+    if (!rst && !flush_i && drain_complete_w &&
+        pending_system_fence_w && !mem_idle_i) begin
+      $error("[FENCE-DRAIN-MEM-IDLE] ordinary FENCE completed with MIQ/bridge/reservation busy");
+    end
+  end
+
   // ── 契约 INV-3 (GAP-2 互斥): CSR-commit 队头退休 redirect ⊥ 同拍 younger-branch-mispredict redirect ──
   // 【P4 切消费点(2026-07-09)升格】GAP-2 甲门(shadow 段 !branch_resolve_untracked_w)已随
   // 统一 redirect 仲裁真源化删除——年龄律下 commit 家族(age0)构造性胜过 younger 分支。
@@ -806,9 +827,8 @@ module OooControlPlane #(
   // 谓词照抄 Sequencer E5/E6 臂条件(drain_complete_i = stop_pending_q && drain_complete_w,
   // 见 OooFrontend 实例), 与 u_frontend 内 commit 家族 pre-mux(E5/E6 valid)同一文本源。
   wire inv3b_commit_family_redirect_w =
-      (!direct_frontend_flush_w &&
-       (pending_system_csr_commit_w || head0_csr_commit_w)) ||           // E5
-      (!csr_trap_mem_valid_w && !direct_frontend_flush_w &&
+      (pending_system_csr_commit_w || head0_csr_commit_w) ||             // E5
+      (!csr_trap_mem_valid_w &&
        stop_pending_q && drain_complete_w &&
        (pending_arch_trap_q || pending_system_q ||
         (pending_branch_q && !pending_branch_dispatched_q) ||
@@ -817,9 +837,27 @@ module OooControlPlane #(
     if (!rst && !flush_i &&
         inv3b_commit_family_redirect_w && branch_resolve_untracked_w) begin
       $error("[FLUSH-CONTRACT INV-3b] commit 家族(E5/E6) redirect 与 younger-branch untracked mispredict 同拍(GAP-2 互斥被违反): e5=%b e6=%b untracked=%b",
-             (!direct_frontend_flush_w &&
-              (pending_system_csr_commit_w || head0_csr_commit_w)),
+             (pending_system_csr_commit_w || head0_csr_commit_w),
              (stop_pending_q && drain_complete_w), branch_resolve_untracked_w);
+    end
+  end
+
+  // T3Y：PendingDispatchArbiter 的 capture_base 已删除 late direct mask；合法
+  // direct JAL/RET/JALR-spec 与 IRQ/head0/lane1 pending/trap capture 必须由分类与
+  // dispatch-fire 构造性互斥。这里只统计 set/capture，不统计预期可与 direct 同拍
+  // 的 squash/clear 输出。
+  always @(posedge clk) begin
+    if (!rst && !flush_i && direct_frontend_flush_w &&
+        (pending_system_capture_irq_w ||
+         pending_system_capture_head0_w ||
+         pending_system_capture_lane1_w ||
+         pending_trap_exit_capture_exit_w ||
+         pending_trap_exit_capture_arch_w)) begin
+      $error("[T3Y-DIRECT-CAPTURE-DISJOINT] direct flush collided with pending capture: irq=%b h0=%b l1=%b exit=%b arch=%b",
+             pending_system_capture_irq_w, pending_system_capture_head0_w,
+             pending_system_capture_lane1_w,
+             pending_trap_exit_capture_exit_w,
+             pending_trap_exit_capture_arch_w);
     end
   end
 `endif

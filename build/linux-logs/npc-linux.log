@@ -1,60 +1,60 @@
 [log.c:145 npc_init_log] Log is written to build/linux-logs/npc-linux.log
-[paddr.c:83 npc_init_mem] physical memory area [0x0000000080000000, 0x00000000bfffffff]
-[paddr.c:142 npc_load_img_at] The image is /home/lyg/PA/ysyx-workbench/npc/rv64/perf/results/core-regress/20260710-145459-296758/riscv-bin/rv64si-p-wfi.bin, size = 8280
+[paddr.c:91 npc_init_mem] physical memory area [0x0000000080000000, 0x00000000bfffffff]
+[paddr.c:150 npc_load_img_at] The image is /home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-15-rv64-t4t-dcache-tag-mask/evidence/core-regression-final/20260715-135532-2679580/riscv-bin/rv64si-p-wfi.bin, size = 8280
 [map.c:76 npc_add_mmio_map] Add mmio map 'rtc' at [0x12000048, 0x1200004f]
 [map.c:76 npc_add_mmio_map] Add mmio map 'keyboard' at [0x12000060, 0x12000063]
 [vga.c:186 npc_vga_init] NPC VGA disabled; GPU_CONFIG will report present=false.
 [map.c:76 npc_add_mmio_map] Add mmio map 'vgactl' at [0x12000100, 0x12000107]
 [map.c:76 npc_add_mmio_map] Add mmio map 'framebuffer' at [0x13000000, 0x131fffff]
 [virtio_blk.c:522 virtio-blk] disabled: no --block image
-[cpu-exec.cpp:433 tohost] watching word at 0x0000000080001000
+[cpu-exec.cpp:434 tohost] watching word at 0x0000000080001000
 [monitor.c:41 welcome] Wave Trace: [1;31mOFF[0m
 [monitor.c:42 welcome] Text Trace: [1;31mOFF[0m (itrace=off, mtrace=off, dtrace=off)
 [monitor.c:44 welcome] Difftest: [1;31mOFF[0m
-[monitor.c:45 welcome] Build time: 14:53:18, Jul 10 2026
-[cpu-exec.cpp:467 tohost] observed value=0x0000000000000001 code=0
-[cpu-exec.cpp:2000 cpu_exec] npc: [1;32mTOHOST PASS[0m at pc = 0x0000000080000040
-[cpu-exec.cpp:2007 report_run_result] exit via tohost, value=0x0000000000000001, code=0, cycles=423, commits=94
-[cpu-exec.cpp:1754 statistic] host time spent = 1699 us
-[cpu-exec.cpp:1756 statistic] total guest instructions = 94
-[cpu-exec.cpp:1759 statistic] total guest cycles = 423
-[cpu-exec.cpp:1761 statistic] CLINT mtime = 42 (= cycles/10, expected 42, delta=+0, match=yes)
-[cpu-exec.cpp:1768 statistic] CPI (cycles/instruction) = 4.500
-[cpu-exec.cpp:1772 statistic] simulation frequency = 55326 inst/s
-[cpu-exec.cpp:1545 statistic] === Branch/Jump Statistics ===
-[cpu-exec.cpp:1546 statistic]   conditional branch  = 5 (taken 0, not-taken 5, taken rate 0.0%)
-[cpu-exec.cpp:1550 statistic]   JAL  (unconditional) = 1
-[cpu-exec.cpp:1551 statistic]   JALR (indirect/ret)  = 0
-[cpu-exec.cpp:1552 statistic]   total jump/branch    = 6 (6.4% of all instructions)
-[cpu-exec.cpp:1554 statistic] === BPU Prediction Statistics ===
-[cpu-exec.cpp:1555 statistic]   branch accuracy      = 2/5 correct, 3 mispredict (40.0%)
-[cpu-exec.cpp:1560 statistic]   branch direction     = 2/5 correct (40.0%), dir miss=3, gshare cold=4
-[cpu-exec.cpp:1566 statistic]   JAL accuracy         = 1/1 correct (100.0%)
-[cpu-exec.cpp:1570 statistic]   JALR accuracy        = 0/0 correct (0.0%)
-[cpu-exec.cpp:1574 statistic]   return accuracy      = 0/0 correct (0.0%)
-[cpu-exec.cpp:1578 statistic]   BTB JALR lookup      = hit 0, miss 0
-[cpu-exec.cpp:1581 statistic]   direction predictor  = correct 2, miss 3
-[cpu-exec.cpp:1584 statistic]   RAS lookup           = hit 0, miss/underflow 0, overflow 0
-[cpu-exec.cpp:1588 statistic]   top branch miss PCs  =
-[cpu-exec.cpp:1600 statistic]     #1 pc=0x8000000c miss=1
-[cpu-exec.cpp:1600 statistic]     #2 pc=0x8000014c miss=1
-[cpu-exec.cpp:1600 statistic]     #3 pc=0x80000014 miss=1
-[cpu-exec.cpp:1611 statistic] === Cache Statistics ===
-[cpu-exec.cpp:1612 statistic] icache: access=65, hit=2, miss=63
-[cpu-exec.cpp:1616 statistic] dcache: access=10, hit=0, miss=7
-[cpu-exec.cpp:1620 statistic] dcache load: access=7, hit=0, miss=0
-[cpu-exec.cpp:1624 statistic] dcache store: access=3, hit=0, miss=0
-[cpu-exec.cpp:1628 statistic] dcache writeback = 0, write-through store = 0
-[cpu-exec.cpp:1638 statistic] === OoO Pipeline Statistics ===
-[cpu-exec.cpp:1639 statistic] ooo cycles observed = 423
-[cpu-exec.cpp:1641 statistic] retire hist 0/1/2 = 349/55/19
-[cpu-exec.cpp:1645 statistic] execute hist 0/1/2 = 351/52/20
-[cpu-exec.cpp:1649 statistic] dispatch hist 0/1/2 = 361/30/32
-[cpu-exec.cpp:1653 statistic] fetch req valid/fire = 65/65, rsp fire=64, enqueue=61, bypass=0
-[cpu-exec.cpp:1659 statistic] control wait cycles: stop=109, branch=0, jump=0, mem=0, synth-ret=0, commit1-block=0
-[cpu-exec.cpp:1666 statistic] cycle buckets (overlap): fetch=288(68.1%), mem=50(11.8%), axi_wait=72(17.0%), hazard=19(4.5%), branch_flush=7(1.7%), exception=2(0.5%)
-[cpu-exec.cpp:1684 statistic] branch prefetch fire/hit = 0/0
-[cpu-exec.cpp:1687 statistic] top branch wait PCs =
-[cpu-exec.cpp:1709 statistic] top jump wait PCs =
-[cpu-exec.cpp:1730 statistic] mem req0/req1/rsp0/rsp1 = 10/0/9/0
-[cpu-exec.cpp:1335 ooo_window] partial cycles=1..423 n=423 retire=93 exec=92 dispatch=94 fetch=288(68.1%) mem=50(11.8%) axi_wait=72(17.0%) hazard=19(4.5%) branch_flush=7(1.7%) exception=2(0.5%)
+[monitor.c:45 welcome] Build time: 13:55:40, Jul 15 2026
+[cpu-exec.cpp:469 tohost] observed value=0x0000000000000001 code=0
+[cpu-exec.cpp:2006 cpu_exec] npc: [1;32mTOHOST PASS[0m at pc = 0x0000000080000048
+[cpu-exec.cpp:2014 report_run_result] exit via tohost, value=0x0000000000000001, code=0, cycles=1375, commits=92
+[cpu-exec.cpp:1758 statistic] host time spent = 5617 us
+[cpu-exec.cpp:1760 statistic] total guest instructions = 92
+[cpu-exec.cpp:1763 statistic] total guest cycles = 1375
+[cpu-exec.cpp:1765 statistic] CLINT mtime = 137 (= cycles/10, expected 137, delta=+0, match=yes)
+[cpu-exec.cpp:1772 statistic] CPI (cycles/instruction) = 14.946
+[cpu-exec.cpp:1776 statistic] simulation frequency = 16378 inst/s
+[cpu-exec.cpp:1549 statistic] === Branch/Jump Statistics ===
+[cpu-exec.cpp:1550 statistic]   conditional branch  = 5 (taken 0, not-taken 5, taken rate 0.0%)
+[cpu-exec.cpp:1554 statistic]   JAL  (unconditional) = 1
+[cpu-exec.cpp:1555 statistic]   JALR (indirect/ret)  = 0
+[cpu-exec.cpp:1556 statistic]   total jump/branch    = 6 (6.5% of all instructions)
+[cpu-exec.cpp:1558 statistic] === BPU Prediction Statistics ===
+[cpu-exec.cpp:1559 statistic]   branch accuracy      = 2/5 correct, 3 mispredict (40.0%)
+[cpu-exec.cpp:1564 statistic]   branch direction     = 2/5 correct (40.0%), dir miss=3, gshare cold=3
+[cpu-exec.cpp:1570 statistic]   JAL accuracy         = 1/1 correct (100.0%)
+[cpu-exec.cpp:1574 statistic]   JALR accuracy        = 0/0 correct (0.0%)
+[cpu-exec.cpp:1578 statistic]   return accuracy      = 0/0 correct (0.0%)
+[cpu-exec.cpp:1582 statistic]   BTB JALR lookup      = hit 0, miss 0
+[cpu-exec.cpp:1585 statistic]   direction predictor  = correct 2, miss 3
+[cpu-exec.cpp:1588 statistic]   RAS lookup           = hit 0, miss/underflow 0, overflow 0
+[cpu-exec.cpp:1592 statistic]   top branch miss PCs  =
+[cpu-exec.cpp:1604 statistic]     #1 pc=0x8000000c miss=1
+[cpu-exec.cpp:1604 statistic]     #2 pc=0x8000014c miss=1
+[cpu-exec.cpp:1604 statistic]     #3 pc=0x80000014 miss=1
+[cpu-exec.cpp:1615 statistic] === Cache Statistics ===
+[cpu-exec.cpp:1616 statistic] icache: access=64, hit=0, miss=64
+[cpu-exec.cpp:1620 statistic] dcache: access=9, hit=0, miss=7
+[cpu-exec.cpp:1624 statistic] dcache load: access=7, hit=0, miss=0
+[cpu-exec.cpp:1628 statistic] dcache store: access=2, hit=0, miss=0
+[cpu-exec.cpp:1632 statistic] dcache writeback = 0, write-through store = 0
+[cpu-exec.cpp:1642 statistic] === OoO Pipeline Statistics ===
+[cpu-exec.cpp:1643 statistic] ooo cycles observed = 1375
+[cpu-exec.cpp:1645 statistic] retire hist 0/1/2 = 1302/55/18
+[cpu-exec.cpp:1649 statistic] execute hist 0/1/2 = 1305/52/18
+[cpu-exec.cpp:1653 statistic] dispatch hist 0/1/2 = 1315/31/29
+[cpu-exec.cpp:1657 statistic] fetch req valid/fire = 80/63, rsp fire=62, enqueue=58, bypass=0
+[cpu-exec.cpp:1663 statistic] control wait cycles: stop=132, branch=0, jump=0, mem=0, synth-ret=0, commit1-block=0
+[cpu-exec.cpp:1670 statistic] cycle buckets (overlap): fetch=1218(88.6%), mem=82(6.0%), axi_wait=508(36.9%), hazard=20(1.5%), branch_flush=6(0.4%), exception=2(0.1%)
+[cpu-exec.cpp:1688 statistic] branch prefetch fire/hit = 0/0
+[cpu-exec.cpp:1691 statistic] top branch wait PCs =
+[cpu-exec.cpp:1713 statistic] top jump wait PCs =
+[cpu-exec.cpp:1734 statistic] mem req0/req1/rsp0/rsp1 = 9/0/8/0
+[cpu-exec.cpp:1339 ooo_window] partial cycles=1..1375 n=1375 retire=91 exec=88 dispatch=89 fetch=1218(88.6%) mem=82(6.0%) axi_wait=508(36.9%) hazard=20(1.5%) branch_flush=6(0.4%) exception=2(0.1%)

@@ -36,8 +36,6 @@ module tb_ooo_commit_output_mux;
   reg core_commit1_exception;
   reg core_commit1_write;
 
-  reg [1:0] core_retire_count;
-
   wire commit0_valid;
   wire [`XLEN-1:0] commit0_pc;
   wire [`INST_W-1:0] commit0_inst;
@@ -92,7 +90,6 @@ module tb_ooo_commit_output_mux;
     .core_commit1_rd_data_i(core_commit1_rd_data),
     .core_commit1_exception_i(core_commit1_exception),
     .core_commit1_write_i(core_commit1_write),
-    .core_retire_count_i(core_retire_count),
     .commit0_valid_o(commit0_valid),
     .commit0_pc_o(commit0_pc),
     .commit0_inst_o(commit0_inst),
@@ -209,8 +206,6 @@ module tb_ooo_commit_output_mux;
       core_commit1_rd_data = 64'hbbbb_0000_0000_0002;
       core_commit1_exception = 1'b0;
       core_commit1_write = 1'b1;
-
-      core_retire_count = 2'd2;
     end
   endtask
 
@@ -267,6 +262,21 @@ module tb_ooo_commit_output_mux;
     tb_check2("baseline retire", retire_count, 2'd2);
 
     clear_inputs();
+    core_commit0_exception = 1'b1;
+    core_commit1_valid = 1'b0;
+    #1;
+    expect_commit0_core0("head0 exception", 64'h8000_0004);
+    tb_check1("head0 exception c1 invalid", commit1_valid, 1'b0);
+    tb_check2("head0 exception does not retire", retire_count, 2'd0);
+
+    clear_inputs();
+    core_commit1_exception = 1'b1;
+    #1;
+    expect_commit0_core0("lane1 exception", 64'h8000_0004);
+    expect_commit1_core1("lane1 exception", 64'h8000_0008);
+    tb_check2("normal plus lane1 exception retires one", retire_count, 2'd1);
+
+    clear_inputs();
     core_commit0_inst = 32'h0080_006f;
     core_commit1_inst = 32'h0080_00ef;
     #1;
@@ -275,7 +285,6 @@ module tb_ooo_commit_output_mux;
 
     clear_inputs();
     ctrl_commit_valid = 1'b1;
-    core_retire_count = 2'd0;
     #1;
     tb_check1("ctrl c0 valid", commit0_valid, 1'b1);
     tb_check64("ctrl c0 pc", commit0_pc, ctrl_commit_pc);
@@ -293,7 +302,6 @@ module tb_ooo_commit_output_mux;
 
     clear_inputs();
     synth_lane1_branch_append = 1'b1;
-    core_retire_count = 2'd1;
     #1;
     expect_commit0_core0("branch append", 64'h8000_0004);
     tb_check1("branch append c1 valid", commit1_valid, 1'b1);
@@ -308,11 +316,10 @@ module tb_ooo_commit_output_mux;
     clear_inputs();
     ctrl_commit_valid = 1'b1;
     synth_lane1_branch_append = 1'b1;
-    core_retire_count = 2'd0;
     #1;
     tb_check64("ctrl priority c0 pc", commit0_pc, ctrl_commit_pc);
     tb_check1("ctrl priority c1 valid", commit1_valid, 1'b0);
-    tb_check2("ctrl priority retire", retire_count, 2'd2);
+    tb_check2("ctrl priority hides non-selected retire sources", retire_count, 2'd1);
 
     if (errors == 0) begin
       $display("PASS tb_ooo_commit_output_mux");

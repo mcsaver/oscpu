@@ -1,0 +1,9 @@
+[TEST] tb_ooo_control_commit_sequencer
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_ooo_control_commit_sequencer -o build-t3z-request-mux-v1/tb_ooo_control_commit_sequencer.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/OooControlCommitSequencer.v tests/tb_ooo_control_commit_sequencer.sv
+warning: Some design elements have no explicit time unit and/or
+       : time precision. This may cause confusing timing results.
+       : Affected design elements are:
+       :   -- module OooControlCommitSequencer declared here: /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/OooControlCommitSequencer.v:3
+PASS tb_ooo_control_commit_sequencer
+tests/tb_ooo_control_commit_sequencer.sv:273: $finish called at 136000 (1ps)
+[RESULT] PASS

@@ -1,0 +1,12 @@
+[TEST] tb_ooo_fp_phys_reg_file
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_ooo_fp_phys_reg_file -o build-t3z-request-mux-v1/tb_ooo_fp_phys_reg_file.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/regread_bypass/OooFpPhysRegFile.v tests/tb_ooo_fp_phys_reg_file.sv
+[T3H-RED-OBS] write0 p33 N reads={3333333300000021,3333333300000021,3333333300000021,3333333300000021}
+[T3H-COVERAGE-OBS] write0 p33 N+1 stored=aaaaaaaa00000021
+[T3H-RED-OBS] write1 p34 N reads={3434343400000022,3434343400000022,3434343400000022,3434343400000022}
+[T3H-COVERAGE-OBS] write1 p34 N+1 stored=bbbbbbbb00000022
+[T3H-COVERAGE-OBS] collision N+1 write1-wins=dddddddd00000023
+[T3H-COVERAGE-OBS] preg0 N+1 stored=000000000000f000
+[T3H-COVERAGE-OBS] recover p0=1111000000000000 p31=313100000000001f p33=0000000000000000
+[PASS] tb_ooo_fp_phys_reg_file
+common/tb_common.svh:32: $finish called at 30 (1s)
+[RESULT] PASS

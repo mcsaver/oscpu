@@ -28,7 +28,12 @@ module OooPendingDrainResolveGate #(
   // 【LSQ·SQ 切换】退休侧访存静默: SQ 化后 ROB 空不再隐含"store 已全部落存"
   // (退休 store 可能仍在 SQ 待 drain), 串行点必须等它。
   input mem_retire_quiet_i,
+  // T4L: ordinary FENCE additionally waits for the complete memory owner
+  // graph (MIQ, bridge transaction/buffer and memory issue reservation).
+  // Other system controls retain their established drain/priority contract.
+  input mem_idle_i,
   input pending_system_i,
+  input pending_system_fence_i,
   input pending_system_csr_i,
   input pending_system_dispatched_i,
   output backend_drained_o,
@@ -80,8 +85,10 @@ module OooPendingDrainResolveGate #(
       pending_branch_resolve_wait_w ||
       (pending_jump_i && !pending_jump_dispatched_i) ||
       (pending_system_i && pending_system_csr_i);
+  wire pending_fence_mem_quiet_w =
+      !pending_system_fence_i || mem_idle_i;
   assign drain_complete_o =
       stop_pending_i && backend_drained_o && pending_control_ready_i &&
-      !pending_replay_wait_o;
+      !pending_replay_wait_o && pending_fence_mem_quiet_w;
 
 endmodule

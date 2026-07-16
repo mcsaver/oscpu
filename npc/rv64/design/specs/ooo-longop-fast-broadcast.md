@@ -1,9 +1,11 @@
 # 规范：整数 full-WB 与 EX fast broadcast 分离
 
 > 模块：`OooIntBackend`、`OooDispatchBackend`、`OooIntIssueQueue`、`OooPhysRegFile`。
-> 状态：**T3B 已实现并验证；T3G 已将 fast 从 EX/MEM 收紧为 EX-only（2026-07-13）**。
+> 状态：**T3B/T3G 历史切点已实现并验证；T3M 已进一步删除 EX fast ABI**。
+> 本文保留 T3B/T3G 的阶段性证据；当前 authoritative 消费边界见
+> `ooo-ex-sticky-wakeup-barrier.md`：所有整数 completion 都在 N 沿落账、N+1 消费。
 > 目标：结构切断 MulDiv/CLMUL response→full-WB→PRF/IQ→branch-kill 的108条组合反馈环，
-> 不延迟 long-op 当拍 kill；EX producer→consumer 仍保持同拍快路。
+> 不延迟 long-op 当拍 kill；“EX 同拍快路”仅描述 T3B/T3G 历史状态，已被 T3M 覆盖。
 
 ## 1. 根因与范围
 

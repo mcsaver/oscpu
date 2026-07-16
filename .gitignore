@@ -3,6 +3,7 @@
 *.s
 __pycache__/
 *.py[cod]
+/tmp/
 *oss-cad-suite/
 oss-cad-suite-linux-x64-*.tgz
 *jcs/

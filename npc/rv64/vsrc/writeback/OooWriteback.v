@@ -159,7 +159,6 @@ module OooWriteback (
     .core_commit1_rd_data_i(core_commit1_rd_data_w),
     .core_commit1_exception_i(core_commit1_exception_w),
     .core_commit1_write_i(core_commit1_write_w),
-    .core_retire_count_i(core_retire_count_w),
     .commit0_valid_o(commit0_valid_o),
     .commit0_pc_o(commit0_pc_o),
     .commit0_inst_o(commit0_inst_o),
@@ -180,5 +179,46 @@ module OooWriteback (
     .commit1_write_o(commit1_write_o),
     .retire_count_o(retire_count_o)
   );
+
+`ifdef OOO_ASSERT
+  wire core_commit0_isa_retire_w =
+      core_commit0_valid_w && !core_commit0_exception_w;
+  wire core_commit1_isa_retire_w =
+      core_commit1_valid_w && !core_commit1_exception_w;
+  wire [1:0] core_isa_retire_count_w = {
+      core_commit0_isa_retire_w && core_commit1_isa_retire_w,
+      core_commit0_isa_retire_w ^ core_commit1_isa_retire_w
+  };
+  wire final_commit0_isa_retire_w =
+      commit0_valid_o && !commit0_exception_o;
+  wire final_commit1_isa_retire_w =
+      commit1_valid_o && !commit1_exception_o;
+  wire [1:0] final_isa_retire_count_w = {
+      final_commit0_isa_retire_w && final_commit1_isa_retire_w,
+      final_commit0_isa_retire_w ^ final_commit1_isa_retire_w
+  };
+
+  // INSTRET-G1: preserve the distinction between core ROB dequeue and ISA
+  // retirement, then prove that the externally selected lanes are the one
+  // authoritative count source.  A value of three is impossible for two
+  // commit lanes and therefore also catches accidental multi-source addition.
+  always @(posedge clk) begin
+    if (!rst && !flush_i) begin
+      if (core_retire_count_w !== core_isa_retire_count_w) begin
+        $error("[INSTRET-G1-CORE-EQ] core_count=%0d expected=%0d @%0t",
+               core_retire_count_w, core_isa_retire_count_w, $time);
+        $fatal;
+      end
+      if ((retire_count_o !== final_isa_retire_count_w) ||
+          (retire_count_o === 2'b11)) begin
+        $error("[INSTRET-G1-FINAL-EQ] final_count=%0d expected=%0d c0=%b/%b c1=%b/%b @%0t",
+               retire_count_o, final_isa_retire_count_w,
+               commit0_valid_o, commit0_exception_o,
+               commit1_valid_o, commit1_exception_o, $time);
+        $fatal;
+      end
+    end
+  end
+`endif
 
 endmodule

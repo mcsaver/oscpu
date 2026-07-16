@@ -7,7 +7,7 @@
 // redirect_fetch_req_valid/fetch_req_pc 三段)语义未动, 用例保留。
 module tb_ooo_fetch_request_mux;
   reg outstanding_valid;
-  reg fetch_rsp_fire;
+  reg fetch_rsp_valid;
   reg [`XLEN-1:0] fetch_rsp_packet_next_pc;
   reg [`XLEN-1:0] next_fetch_pc;
   reg direct_jal_fire;
@@ -37,7 +37,7 @@ module tb_ooo_fetch_request_mux;
 
   OooFetchRequestMux dut (
     .outstanding_valid_i(outstanding_valid),
-    .fetch_rsp_fire_i(fetch_rsp_fire),
+    .fetch_rsp_valid_i(fetch_rsp_valid),
     .fetch_rsp_packet_next_pc_i(fetch_rsp_packet_next_pc),
     .next_fetch_pc_i(next_fetch_pc),
     .direct_jal_fire_i(direct_jal_fire),
@@ -83,7 +83,7 @@ module tb_ooo_fetch_request_mux;
   task automatic reset_inputs;
     begin
       outstanding_valid = 1'b0;
-      fetch_rsp_fire = 1'b0;
+      fetch_rsp_valid = 1'b0;
       fetch_rsp_packet_next_pc = 64'h0000_0000_0000_1100;
       next_fetch_pc = 64'h0000_0000_0000_1000;
       direct_jal_fire = 1'b0;
@@ -118,10 +118,16 @@ module tb_ooo_fetch_request_mux;
 
     reset_inputs();
     outstanding_valid = 1'b1;
-    fetch_rsp_fire = 1'b1;
+    fetch_rsp_valid = 1'b1;
     #1;
-    check_xlen("response fire advances seq pc", fetch_req_pc,
+    check_xlen("registered response preloads seq pc", fetch_req_pc,
                fetch_rsp_packet_next_pc);
+
+    reset_inputs();
+    fetch_rsp_valid = 1'b1;
+    #1;
+    check_xlen("stale response without owner does not preload", fetch_req_pc,
+               next_fetch_pc);
 
     reset_inputs();
     branch_prefetch_req_valid = 1'b1;
@@ -181,7 +187,7 @@ module tb_ooo_fetch_request_mux;
     redirect_valid = 1'b1;
     redirect_pc = 64'h0000_0000_0000_3000;
     outstanding_valid = 1'b1;
-    fetch_rsp_fire = 1'b0;
+    fetch_rsp_valid = 1'b0;
     #1;
     tb_check1("outstanding blocks redirect request", redirect_fetch_req_valid,
               1'b0);
@@ -192,7 +198,7 @@ module tb_ooo_fetch_request_mux;
     redirect_valid = 1'b1;
     redirect_pc = 64'h0000_0000_0000_3000;
     outstanding_valid = 1'b1;
-    fetch_rsp_fire = 1'b1;
+    fetch_rsp_valid = 1'b1;
     #1;
     tb_check1("firewall: rsp fire no same-cycle redirect", redirect_fetch_req_valid,
               1'b0);
@@ -232,7 +238,7 @@ module tb_ooo_fetch_request_mux;
     // not-taken 拍 pred_next_pc≡packet_next_pc): 融合拍地址=packet_next_pc。
     reset_inputs();
     outstanding_valid = 1'b1;
-    fetch_rsp_fire = 1'b1;
+    fetch_rsp_valid = 1'b1;
     fetch_rsp_packet_next_pc = 64'h5678;
     #1;
     check_xlen("S2: fused seq arm uses fall-through", fetch_req_pc, 64'h5678);

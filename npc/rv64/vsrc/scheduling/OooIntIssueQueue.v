@@ -4,8 +4,8 @@
 // 保持队列内程序序，监听两个 writeback wakeup，每拍最多发射两个最老 ready uop。
 // 【P5 刀 B(2026-07-09)】dispatch→issue 同拍 bypass 族已整体删除：dispatch 项当拍只写入
 // 阵列，次拍(N+1)起才可被 select——select 唯一真源=已寄存 valid_q 阵列项(有 IQ-NO-BYPASS
-// 立即断言看护)。同拍 fast wakeup→select 直通(寄存项的唤醒 CAM)保留；
-// full wakeup 只更新 ready 状态，不直接进入 select。历史数据与决策见
+// 立即断言看护)。T3M 起所有 integer full wakeup（含 EX）都只在沿上更新
+// ready 状态，不直接进入 resident select。历史数据与决策见
 // design/arch/timing-dispatch-issue-path.md §6c 与 design/arch/p5-repipeline-first-batch.md。
 module OooIntIssueQueue #(
   parameter ENTRY_COUNT = (1 << `OOO_ISSUE_INDEX_W),
@@ -69,12 +69,6 @@ module OooIntIssueQueue #(
   input [PHY_REG_ADDR_W-1:0] wakeup0_pdest_i,
   input wakeup1_valid_i,
   input [PHY_REG_ADDR_W-1:0] wakeup1_pdest_i,
-  // T3G：select 只前视 EX fast broadcast；full wakeup（含 MEM）仍用于
-  // compaction/dispatch/kill survivor 的时序 ready 更新，下一拍可发射。
-  input select_wakeup0_valid_i,
-  input [PHY_REG_ADDR_W-1:0] select_wakeup0_pdest_i,
-  input select_wakeup1_valid_i,
-  input [PHY_REG_ADDR_W-1:0] select_wakeup1_pdest_i,
   // 【B-FP 簇】FP wakeup(fp store 数据源 fs2 的就绪监听)
   input fp_wake0_valid_i,
   input [PHY_REG_ADDR_W-1:0] fp_wake0_preg_i,
@@ -178,12 +172,10 @@ module OooIntIssueQueue #(
   // dispatch 活值相关的 issue*_dispatch*/forward/entry_ready_for_issue1 族已删除。
   reg issue0_found_r;
   reg issue1_found_r;
-  reg issue0_mem_r;
-  reg issue0_load_r;
-  reg older_store_seen_r;
   reg older_valid_seen_r;
   reg entry_load_r;
   reg entry_store_r;
+  reg entry_amo_r;
   reg entry_mem_order_block_r;
   reg [ENTRY_INDEX_W-1:0] issue0_idx_r;
   reg [ENTRY_INDEX_W-1:0] issue1_idx_r;
@@ -236,6 +228,35 @@ module OooIntIssueQueue #(
     end
   endfunction
 
+  // T3P：lane1 只承载固定延迟的 RV64I simple-ALU。所有会读取地址/SQ、共享
+  // long-op 单元或在退休端序列化的类别都留在 IQ，待其晋升 lane0；第二候选会
+  // 继续向后扫描，因此更年轻的独立 simple-ALU 仍可双发。这个 owner 边界使
+  // lane1 的出队许可不再需要执行结果或 LSU resource predicate。
+  function ctrl_is_lane1_simple_alu;
+    input [`CTRL_BUS_W-1:0] ctrl;
+    begin
+      ctrl_is_lane1_simple_alu =
+          ctrl[`CTRL_VALID_BIT] &&
+          ctrl[`CTRL_RD_EN_BIT] &&
+          ctrl[`CTRL_NEED_EXEC_BIT] &&
+          !ctrl[`CTRL_NEED_MEM_BIT] &&
+          ctrl[`CTRL_NEED_WB_BIT] &&
+          ((ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] == `WB_SEL_ALU) ||
+           (ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] == `WB_SEL_IMM)) &&
+          !ctrl[`CTRL_ILLEGAL_BIT] &&
+          !ctrl[`CTRL_BRANCH_BIT] && !ctrl[`CTRL_JAL_BIT] &&
+          !ctrl[`CTRL_JALR_BIT] && !ctrl[`CTRL_LOAD_BIT] &&
+          !ctrl[`CTRL_STORE_BIT] && !ctrl[`CTRL_ECALL_BIT] &&
+          !ctrl[`CTRL_EBREAK_BIT] && !ctrl[`CTRL_FENCE_BIT] &&
+          !ctrl[`CTRL_SYSTEM_BIT] && !ctrl[`CTRL_MISC_MEM_BIT] &&
+          !ctrl[`CTRL_CSR_BIT] && !ctrl[`CTRL_MRET_BIT] &&
+          !ctrl[`CTRL_WFI_BIT] && !ctrl[`CTRL_MULDIV_BIT] &&
+          !ctrl[`CTRL_BITMANIP_BIT] && !ctrl[`CTRL_SFENCE_VMA_BIT] &&
+          !ctrl[`CTRL_SRET_BIT] && !ctrl[`CTRL_AMO_BIT] &&
+          !ctrl[`CTRL_SFENCE_TVM_BIT] && !ctrl[`CTRL_FENCEI_BIT];
+    end
+  endfunction
+
   // 【P5 刀 B】dispatch→issue bypass 族(bypass 许可判定/dispatch 活值 entry_ready/
   // issue0 结果前递 forward 判定/clmul 甄别)已整体删除:dispatch 活值退出 select 锥,
   // select 唯一真源=已寄存阵列项。mode 下 branch/JAL/JALR 原"禁 bypass"特例随之普适化,
@@ -243,38 +264,31 @@ module OooIntIssueQueue #(
   always @(*) begin
     issue0_found_r = 1'b0;
     issue1_found_r = 1'b0;
-    issue0_mem_r = 1'b0;
-    issue0_load_r = 1'b0;
-    older_store_seen_r = 1'b0;
     older_valid_seen_r = 1'b0;
     entry_load_r = 1'b0;
     entry_store_r = 1'b0;
+    entry_amo_r = 1'b0;
     entry_mem_order_block_r = 1'b0;
     issue0_idx_r = {ENTRY_INDEX_W{1'b0}};
     issue1_idx_r = {ENTRY_INDEX_W{1'b0}};
     for (scan_i = 0; scan_i < ENTRY_COUNT; scan_i = scan_i + 1) begin
       entry_load_r = ctrl_q[scan_i][`CTRL_LOAD_BIT];
       entry_store_r = ctrl_q[scan_i][`CTRL_STORE_BIT];
+      entry_amo_r = ctrl_q[scan_i][`CTRL_AMO_BIT];
+      // T3T：单槽 memory reservation 只允许 IQ 中没有任何更老 valid 项时晋升。
+      // 这比仅保持 memory-memory 顺序更强：驻留 memory 天生不可能挡住更老
+      // raw branch/long-op/load，因此 backend 无需用 raw IQ 年龄动态选择执行 owner。
+      // 该结构不变量同时切断 IQ select→resident mux→AGU/MIQ 的组合回接。
       entry_mem_order_block_r =
-          (entry_load_r && older_store_seen_r) ||
-          (entry_store_r && older_valid_seen_r);
+          (entry_load_r || entry_store_r || entry_amo_r) &&
+          older_valid_seen_r;
       entry_ready_r[scan_i] = valid_q[scan_i] &&
                               !(issue_mem_block_i &&
                                 ctrl_is_mem(ctrl_q[scan_i][`CTRL_LOAD_BIT],
                                             ctrl_q[scan_i][`CTRL_STORE_BIT])) &&
                               !entry_mem_order_block_r &&
-                              (src1_ready_q[scan_i] ||
-                               wakeup_match(src1_preg_q[scan_i],
-                                            select_wakeup0_valid_i,
-                                            select_wakeup0_pdest_i,
-                                            select_wakeup1_valid_i,
-                                            select_wakeup1_pdest_i)) &&
-                              (src2_ready_q[scan_i] ||
-                               wakeup_match(src2_preg_q[scan_i],
-                                            select_wakeup0_valid_i,
-                                            select_wakeup0_pdest_i,
-                                            select_wakeup1_valid_i,
-                                            select_wakeup1_pdest_i)) &&
+                              src1_ready_q[scan_i] &&
+                              src2_ready_q[scan_i] &&
                               // T3H：FP execution/load completion 均只在时序
                               // next-state 粘住 fp_st_ready。resident FP-store 在
                               // N 沿吸收 wake，N+1 才可发射。
@@ -284,23 +298,15 @@ module OooIntIssueQueue #(
         if (!issue0_found_r) begin
           issue0_found_r = 1'b1;
           issue0_idx_r = scan_i[ENTRY_INDEX_W-1:0];
-          issue0_mem_r = ctrl_is_mem(ctrl_q[scan_i][`CTRL_LOAD_BIT],
-                                     ctrl_q[scan_i][`CTRL_STORE_BIT]);
-          issue0_load_r = ctrl_q[scan_i][`CTRL_LOAD_BIT];
         end else if (!issue1_found_r &&
-                     !ctrl_q[scan_i][`CTRL_STORE_BIT] &&
-                     !(issue0_mem_r &&
-                       ctrl_is_mem(ctrl_q[scan_i][`CTRL_LOAD_BIT],
-                                   ctrl_q[scan_i][`CTRL_STORE_BIT]) &&
-                       !(issue0_load_r &&
-                         ctrl_q[scan_i][`CTRL_LOAD_BIT]))) begin
+                     // T3P：复杂类别保留等待 lane0；继续扫描更年轻 simple-ALU。
+                     // 与 IntBackend 的 shallow ready/无 crosslane-forward 同源。
+                     ctrl_is_lane1_simple_alu(ctrl_q[scan_i]) &&
+                     !fp_pdest_q[scan_i] && !fp_st_en_q[scan_i]) begin
           issue1_found_r = 1'b1;
           issue1_idx_r = scan_i[ENTRY_INDEX_W-1:0];
         end
       end
-      older_store_seen_r = older_store_seen_r ||
-                           (valid_q[scan_i] &&
-                            ctrl_q[scan_i][`CTRL_STORE_BIT]);
       older_valid_seen_r = older_valid_seen_r || valid_q[scan_i];
     end
     // 【P5 刀 B】"dispatch 活值作 IQ 虚拟队尾同拍参与 select" 的三个臂已删除:
@@ -588,8 +594,8 @@ module OooIntIssueQueue #(
   // 任何被选中发射的 lane 必须指向 valid_q=1 的寄存项;若重新引入"dispatch 活值当拍参与
   // select"的臂,选中槽位将不是寄存项,此断言当拍命中(负测试证据见
   // .github/task-runs/2026-07-09-p5-first-batch/)。
-  // IQ-KILL-NO-DISPATCH:kill 拍不得有 dispatch valid——上游 OooDispatchBackend 用与
-  // kill_valid_i 同源的寄存 kill_valid_q 生成 dispatch_freeze(OooDispatchBackend.v:313)。
+  // IQ-KILL-NO-DISPATCH:kill 拍不得有 dispatch valid——T3N resolve packet 自身已经
+  // 寄存，上游 OooDispatchBackend 直接用同一个 q valid 生成 dispatch_freeze。
   // 该互斥是"当拍 dispatch 写入+同拍 kill"窗口结构性不存在的承重契约:本模块 kill 分支
   // 不消费 valid_next_r 写入计划,若互斥被破坏,kill 拍的新写项会被静默丢弃而非入队。
   always @(posedge clk) begin
@@ -600,21 +606,30 @@ module OooIntIssueQueue #(
       if (issue1_valid_o && !valid_q[issue1_idx_r])
         $error("[IQ-NO-BYPASS] issue1 select 源非寄存 valid_q 项: idx=%0d @%0t",
                issue1_idx_r, $time);
+      if (issue1_valid_o &&
+          (issue1_ctrl_o[`CTRL_BRANCH_BIT] || issue1_ctrl_o[`CTRL_JAL_BIT] ||
+           issue1_ctrl_o[`CTRL_JALR_BIT]))
+        $error("[IQ-CTRL-LANE0-OWNER] issue1 selected control-flow idx=%0d rob=%0d @%0t",
+               issue1_idx_r, issue1_rob_idx_o, $time);
+      if (issue1_valid_o &&
+          (!ctrl_is_lane1_simple_alu(issue1_ctrl_o) ||
+           issue1_fp_pdest_o || issue1_fp_st_src_en_o))
+        $error("[IQ-LANE1-SIMPLE-OWNER] issue1 selected non-simple uop idx=%0d rob=%0d ctrl=%h @%0t",
+               issue1_idx_r, issue1_rob_idx_o, issue1_ctrl_o, $time);
       if (kill_valid_i && (dispatch0_valid_i || dispatch1_valid_i))
         $error("[IQ-KILL-NO-DISPATCH] kill 拍收到 dispatch valid(上游 freeze 契约被破坏) @%0t",
                $time);
-      // Fast select 必须是同 lane full WB 广播的子集；否则反压拍只看到
-      // 瞬时 select wakeup，却无法在上升沿把 ready 持久化。
-      if ((select_wakeup0_valid_i === 1'b1) &&
-          !((wakeup0_valid_i === 1'b1) &&
-            (select_wakeup0_pdest_i === wakeup0_pdest_i)))
-        $error("[IQ-FAST-WAKE-SUBSET] lane0 select=%0d full_valid=%b full=%0d @%0t",
-               select_wakeup0_pdest_i, wakeup0_valid_i, wakeup0_pdest_i, $time);
-      if ((select_wakeup1_valid_i === 1'b1) &&
-          !((wakeup1_valid_i === 1'b1) &&
-            (select_wakeup1_pdest_i === wakeup1_pdest_i)))
-        $error("[IQ-FAST-WAKE-SUBSET] lane1 select=%0d full_valid=%b full=%0d @%0t",
-               select_wakeup1_pdest_i, wakeup1_valid_i, wakeup1_pdest_i, $time);
+      // T3M：任一被 select 的整数源都必须已经在前一上升沿落入 sticky
+      // ready。full WB 当拍 pulse 不能替代这个状态；负变异把 wake CAM 重新
+      // OR 进 entry_ready 时会精准命中本 marker。
+      if (issue0_valid_o &&
+          (!src1_ready_q[issue0_idx_r] || !src2_ready_q[issue0_idx_r]))
+        $error("[IQ-INT-WAKE-STICKY-ONLY] issue0 selected before integer sticky ready @%0t",
+               $time);
+      if (issue1_valid_o &&
+          (!src1_ready_q[issue1_idx_r] || !src2_ready_q[issue1_idx_r]))
+        $error("[IQ-INT-WAKE-STICKY-ONLY] issue1 selected before integer sticky ready @%0t",
+               $time);
       // T3H：跨域 FP wake0/1 都只能落 sticky ready。用更强的消费边界
       // 不变量覆盖两类 wake 和无 wake mutation：任何 FP-store source 在
       // 发射前都必须已有 fp_st_ready_q。

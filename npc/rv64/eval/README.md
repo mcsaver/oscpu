@@ -44,9 +44,14 @@ NEMU 对 A/D/PMP 与本核有意不同,故只跑 M-mode 计算子集(不含 Sv39
 ## 三大正确性 gate（任何 RTL 改动后必须全绿）
 | gate | 内容 | 当前基准 |
 | --- | --- | --- |
-| 模块 testbench | `testbench/` 下 112 个 tb（iverilog） | 112/112 |
-| 官方 riscv-tests | rv64ui/um/uc/uzb* + 特权 mi/si（tohost 协议） | 271/0 |
-| AM cpu-tests | 56 项功能 + 性能（ebreak GOOD TRAP） | 56/56 |
+| 模块 testbench | `testbench/` 当前生产清单（iverilog） | 100/100 |
+| 官方/特权 riscv-tests | current production sweep（tohost 协议） | 177/177 |
+| AM cpu-tests | current production sweep（ebreak GOOD TRAP） | 59/59 |
+
+`--bench` 对每个 benchmark 同时检查子进程返回值、timeout 与 `HIT GOOD TRAP`；任一缺失即失败。
+可用 `DHRYSTONE_RUNS=<正整数>` 通过 AM `mainargs` 做缩短的功能 smoke，未设置时仍保持 upstream
+默认 500000。2026-07-14 当前证据中 CoreMark 与 Dhrystone-10000 通过；默认500000在20分钟预算
+内 timeout，不能把前者扩写成默认长跑性能 PASS。
 
 ## 性能方法学（对齐 `.github/instructions/npc-optimization-workflow`）
 - 加权 CPI = Σcycles / Σcommits（仅 PASS 子集）。所有 AM 测试经 `trm.c` 配 PMP（真实场景）。

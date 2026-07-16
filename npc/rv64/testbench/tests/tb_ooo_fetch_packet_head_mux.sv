@@ -1,27 +1,9 @@
 `include "define.v"
+`include "common/OooSlotFacts.v"
 `include "tb_common.svh"
 
 module tb_ooo_fetch_packet_head_mux;
-  reg bypass_valid;
   reg fifo_head_valid;
-
-  reg [`XLEN-1:0] bypass_pc0;
-  reg [`XLEN-1:0] bypass_pc1;
-  reg [`XLEN-1:0] bypass_next_pc0;
-  reg [`XLEN-1:0] bypass_next_pc1;
-  reg [`XLEN-1:0] bypass_packet_next_pc;
-  reg [`INST_W-1:0] bypass_inst0;
-  reg [`INST_W-1:0] bypass_inst1;
-  reg [1:0] bypass_resp0;
-  reg [1:0] bypass_resp1;
-  // B2 S1: per-slot 预测位管道化
-  reg bypass_pred_taken0;
-  reg bypass_pred_taken1;
-  reg [`BPU_BHT_INDEX_W-1:0] bypass_bht_idx0;
-  reg [`BPU_BHT_INDEX_W-1:0] bypass_bht_idx1;
-  reg bypass_bht_valid0;
-  reg bypass_bht_valid1;
-  reg bypass_slot1_valid;   // B2 S2: 截断位管道化
 
   reg [`XLEN-1:0] fifo_pc0;
   reg [`XLEN-1:0] fifo_pc1;
@@ -30,6 +12,18 @@ module tb_ooo_fetch_packet_head_mux;
   reg [`XLEN-1:0] fifo_packet_next_pc;
   reg [`INST_W-1:0] fifo_inst0;
   reg [`INST_W-1:0] fifo_inst1;
+  reg [`CTRL_BUS_W-1:0] fifo_ctrl0;
+  reg [`CTRL_BUS_W-1:0] fifo_ctrl1;
+  reg [`OOO_SLOT_STATIC_FACTS_W-1:0] fifo_static_facts0;
+  reg [`OOO_SLOT_STATIC_FACTS_W-1:0] fifo_static_facts1;
+  reg [`REG_ADDR_W-1:0] fifo_rs1_0;
+  reg [`REG_ADDR_W-1:0] fifo_rs2_0;
+  reg [`REG_ADDR_W-1:0] fifo_rd0;
+  reg [`XLEN-1:0] fifo_imm0;
+  reg [`REG_ADDR_W-1:0] fifo_rs1_1;
+  reg [`REG_ADDR_W-1:0] fifo_rs2_1;
+  reg [`REG_ADDR_W-1:0] fifo_rd1;
+  reg [`XLEN-1:0] fifo_imm1;
   reg [1:0] fifo_resp0;
   reg [1:0] fifo_resp1;
   reg fifo_pred_taken0;
@@ -48,6 +42,18 @@ module tb_ooo_fetch_packet_head_mux;
   wire [`XLEN-1:0] head_packet_next_pc;
   wire [`INST_W-1:0] head_inst0;
   wire [`INST_W-1:0] head_inst1;
+  wire [`CTRL_BUS_W-1:0] head_ctrl0;
+  wire [`CTRL_BUS_W-1:0] head_ctrl1;
+  wire [`OOO_SLOT_STATIC_FACTS_W-1:0] head_static_facts0;
+  wire [`OOO_SLOT_STATIC_FACTS_W-1:0] head_static_facts1;
+  wire [`REG_ADDR_W-1:0] head_rs1_0;
+  wire [`REG_ADDR_W-1:0] head_rs2_0;
+  wire [`REG_ADDR_W-1:0] head_rd0;
+  wire [`XLEN-1:0] head_imm0;
+  wire [`REG_ADDR_W-1:0] head_rs1_1;
+  wire [`REG_ADDR_W-1:0] head_rs2_1;
+  wire [`REG_ADDR_W-1:0] head_rd1;
+  wire [`XLEN-1:0] head_imm1;
   wire [1:0] head_resp0;
   wire [1:0] head_resp1;
   wire head_pred_taken0;
@@ -59,24 +65,7 @@ module tb_ooo_fetch_packet_head_mux;
   wire head_slot1_valid;
 
   OooFetchPacketHeadMux dut (
-    .bypass_valid_i(bypass_valid),
     .fifo_head_valid_i(fifo_head_valid),
-    .bypass_pc0_i(bypass_pc0),
-    .bypass_pc1_i(bypass_pc1),
-    .bypass_next_pc0_i(bypass_next_pc0),
-    .bypass_next_pc1_i(bypass_next_pc1),
-    .bypass_packet_next_pc_i(bypass_packet_next_pc),
-    .bypass_inst0_i(bypass_inst0),
-    .bypass_inst1_i(bypass_inst1),
-    .bypass_resp0_i(bypass_resp0),
-    .bypass_resp1_i(bypass_resp1),
-    .bypass_pred_taken0_i(bypass_pred_taken0),
-    .bypass_pred_taken1_i(bypass_pred_taken1),
-    .bypass_bht_idx0_i(bypass_bht_idx0),
-    .bypass_bht_idx1_i(bypass_bht_idx1),
-    .bypass_bht_valid0_i(bypass_bht_valid0),
-    .bypass_bht_valid1_i(bypass_bht_valid1),
-    .bypass_slot1_valid_i(bypass_slot1_valid),
     .fifo_pc0_i(fifo_pc0),
     .fifo_pc1_i(fifo_pc1),
     .fifo_next_pc0_i(fifo_next_pc0),
@@ -84,6 +73,18 @@ module tb_ooo_fetch_packet_head_mux;
     .fifo_packet_next_pc_i(fifo_packet_next_pc),
     .fifo_inst0_i(fifo_inst0),
     .fifo_inst1_i(fifo_inst1),
+    .fifo_ctrl0_i(fifo_ctrl0),
+    .fifo_ctrl1_i(fifo_ctrl1),
+    .fifo_static_facts0_i(fifo_static_facts0),
+    .fifo_static_facts1_i(fifo_static_facts1),
+    .fifo_rs1_0_i(fifo_rs1_0),
+    .fifo_rs2_0_i(fifo_rs2_0),
+    .fifo_rd0_i(fifo_rd0),
+    .fifo_imm0_i(fifo_imm0),
+    .fifo_rs1_1_i(fifo_rs1_1),
+    .fifo_rs2_1_i(fifo_rs2_1),
+    .fifo_rd1_i(fifo_rd1),
+    .fifo_imm1_i(fifo_imm1),
     .fifo_resp0_i(fifo_resp0),
     .fifo_resp1_i(fifo_resp1),
     .fifo_pred_taken0_i(fifo_pred_taken0),
@@ -101,6 +102,18 @@ module tb_ooo_fetch_packet_head_mux;
     .head_packet_next_pc_o(head_packet_next_pc),
     .head_inst0_o(head_inst0),
     .head_inst1_o(head_inst1),
+    .head_ctrl0_o(head_ctrl0),
+    .head_ctrl1_o(head_ctrl1),
+    .head_static_facts0_o(head_static_facts0),
+    .head_static_facts1_o(head_static_facts1),
+    .head_rs1_0_o(head_rs1_0),
+    .head_rs2_0_o(head_rs2_0),
+    .head_rd0_o(head_rd0),
+    .head_imm0_o(head_imm0),
+    .head_rs1_1_o(head_rs1_1),
+    .head_rs2_1_o(head_rs2_1),
+    .head_rd1_o(head_rd1),
+    .head_imm1_o(head_imm1),
     .head_resp0_o(head_resp0),
     .head_resp1_o(head_resp1),
     .head_pred_taken0_o(head_pred_taken0),
@@ -125,6 +138,28 @@ module tb_ooo_fetch_packet_head_mux;
     end
   endtask
 
+  function automatic [`CTRL_BUS_W-1:0] ctrl0_of;
+    input [`INST_W-1:0] inst;
+    begin ctrl0_of = {{(`CTRL_BUS_W-`INST_W){1'b0}}, inst}; end
+  endfunction
+
+  function automatic [`CTRL_BUS_W-1:0] ctrl1_of;
+    input [`INST_W-1:0] inst;
+    begin ctrl1_of = ~{{(`CTRL_BUS_W-`INST_W){1'b0}}, inst}; end
+  endfunction
+
+  function automatic [`XLEN-1:0] imm0_of;
+    input [`XLEN-1:0] pc;
+    input [`INST_W-1:0] inst;
+    begin imm0_of = {pc[31:0], inst}; end
+  endfunction
+
+  function automatic [`XLEN-1:0] imm1_of;
+    input [`XLEN-1:0] pc;
+    input [`INST_W-1:0] inst;
+    begin imm1_of = ~{pc[31:0], inst}; end
+  endfunction
+
   task automatic check_packet;
     input [1023:0] tag;
     input [`XLEN-1:0] exp_pc0;
@@ -145,6 +180,23 @@ module tb_ooo_fetch_packet_head_mux;
                  exp_packet_next_pc);
       tb_check32({tag, " inst0"}, head_inst0, exp_inst0);
       tb_check32({tag, " inst1"}, head_inst1, exp_inst1);
+      if ({head_ctrl0, head_rs1_0, head_rs2_0, head_rd0, head_imm0} !==
+          {ctrl0_of(exp_inst0), exp_inst0[19:15], exp_inst0[24:20],
+           exp_inst0[11:7], imm0_of(exp_pc0, exp_inst0)}) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] %0s lane0 predecode source mismatch", tag);
+      end
+      if ({head_ctrl1, head_rs1_1, head_rs2_1, head_rd1, head_imm1} !==
+          {ctrl1_of(exp_inst1), exp_inst1[19:15], exp_inst1[24:20],
+           exp_inst1[11:7], imm1_of(exp_pc1, exp_inst1)}) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] %0s lane1 predecode source mismatch", tag);
+      end
+      if ({head_static_facts0, head_static_facts1} !==
+          {fifo_static_facts0, fifo_static_facts1}) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] %0s static facts identity mismatch", tag);
+      end
       tb_check32({tag, " resp0"}, {30'b0, head_resp0}, {30'b0, exp_resp0});
       tb_check32({tag, " resp1"}, {30'b0, head_resp1}, {30'b0, exp_resp1});
     end
@@ -177,17 +229,7 @@ module tb_ooo_fetch_packet_head_mux;
 
   task automatic drive_defaults;
     begin
-      bypass_valid = 1'b0;
       fifo_head_valid = 1'b0;
-      bypass_pc0 = 64'h1000;
-      bypass_pc1 = 64'h1004;
-      bypass_next_pc0 = 64'h1004;
-      bypass_next_pc1 = 64'h1008;
-      bypass_packet_next_pc = 64'h1008;
-      bypass_inst0 = 32'h0000_0013;
-      bypass_inst1 = 32'h0010_0093;
-      bypass_resp0 = 2'b01;
-      bypass_resp1 = 2'b10;
       fifo_pc0 = 64'h2000;
       fifo_pc1 = 64'h2002;
       fifo_next_pc0 = 64'h2002;
@@ -195,15 +237,20 @@ module tb_ooo_fetch_packet_head_mux;
       fifo_packet_next_pc = 64'h2004;
       fifo_inst0 = 32'h0020_0113;
       fifo_inst1 = 32'h0030_0193;
+      fifo_ctrl0 = ctrl0_of(fifo_inst0);
+      fifo_ctrl1 = ctrl1_of(fifo_inst1);
+      fifo_static_facts0 = `OOO_SLOT_STATIC_FACTS_W'h2a155;
+      fifo_static_facts1 = `OOO_SLOT_STATIC_FACTS_W'h155aa;
+      fifo_rs1_0 = fifo_inst0[19:15];
+      fifo_rs2_0 = fifo_inst0[24:20];
+      fifo_rd0 = fifo_inst0[11:7];
+      fifo_imm0 = imm0_of(fifo_pc0, fifo_inst0);
+      fifo_rs1_1 = fifo_inst1[19:15];
+      fifo_rs2_1 = fifo_inst1[24:20];
+      fifo_rd1 = fifo_inst1[11:7];
+      fifo_imm1 = imm1_of(fifo_pc1, fifo_inst1);
       fifo_resp0 = 2'b00;
       fifo_resp1 = 2'b11;
-      bypass_pred_taken0 = 1'b1;
-      bypass_pred_taken1 = 1'b0;
-      bypass_bht_idx0 = `BPU_BHT_INDEX_W'h1a5;
-      bypass_bht_idx1 = `BPU_BHT_INDEX_W'h05a;
-      bypass_bht_valid0 = 1'b1;
-      bypass_bht_valid1 = 1'b0;
-      bypass_slot1_valid = 1'b0;
       fifo_pred_taken0 = 1'b0;
       fifo_pred_taken1 = 1'b1;
       fifo_bht_idx0 = `BPU_BHT_INDEX_W'h233;
@@ -235,31 +282,7 @@ module tb_ooo_fetch_packet_head_mux;
                fifo_bht_idx0, fifo_bht_idx1, fifo_bht_valid0,
                fifo_bht_valid1, fifo_slot1_valid);
 
-    drive_defaults();
-    bypass_valid = 1'b1;
-    #1;
-    tb_check1("bypass source has packet", head_has_packet, 1'b1);
-    check_packet("bypass selected", bypass_pc0, bypass_pc1, bypass_next_pc0,
-                 bypass_next_pc1, bypass_packet_next_pc, bypass_inst0,
-                 bypass_inst1, bypass_resp0, bypass_resp1);
-    check_pred("bypass selected", bypass_pred_taken0, bypass_pred_taken1,
-               bypass_bht_idx0, bypass_bht_idx1, bypass_bht_valid0,
-               bypass_bht_valid1, bypass_slot1_valid);
-
-    drive_defaults();
-    bypass_valid = 1'b1;
-    fifo_head_valid = 1'b1;
-    #1;
-    tb_check1("both sources have packet", head_has_packet, 1'b1);
-    check_packet("bypass wins over fifo", bypass_pc0, bypass_pc1,
-                 bypass_next_pc0, bypass_next_pc1, bypass_packet_next_pc,
-                 bypass_inst0, bypass_inst1, bypass_resp0, bypass_resp1);
-    check_pred("bypass wins over fifo", bypass_pred_taken0,
-               bypass_pred_taken1, bypass_bht_idx0, bypass_bht_idx1,
-               bypass_bht_valid0, bypass_bht_valid1, bypass_slot1_valid);
-
     tb_finish("tb_ooo_fetch_packet_head_mux");
   end
 
 endmodule
-

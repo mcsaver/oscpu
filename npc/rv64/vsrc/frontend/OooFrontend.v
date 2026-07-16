@@ -54,6 +54,7 @@ module OooFrontend #(
   input execute1_valid_unused_w,
   input exit_valid_q,
   input fetch_req_ready_i,
+  input [`XLEN-1:0] fetch_req_owner_pc_i,
   input [`INST_W-1:0] fetch_rsp_inst0_i,
   input [`INST_W-1:0] fetch_rsp_inst1_i,
   input [1:0] fetch_rsp_resp0_i,
@@ -235,6 +236,7 @@ module OooFrontend #(
   output head_fetch_fault0_w,
   output head_fetch_fault1_w,
   output head_fetch_fault_w,
+  output [`XLEN-1:0] head_fetch_fault_tval_w,
   output [`INST_W-1:0] head_inst0_w,
   output [`INST_W-1:0] head_inst1_w,
   output [`XLEN-1:0] head_next_pc0_w,
@@ -300,7 +302,6 @@ module OooFrontend #(
   wire branch_fallthrough_append_candidate_w;
   wire branch_fallthrough_append_safe_w;
   wire branch_fallthrough_append_w;
-  wire branch_fallthrough_capture_rsp_w;
   wire branch_fallthrough_dispatch_w;
   wire branch_fallthrough_keep_outstanding_w;
   wire branch_fallthrough_outstanding_match_w;
@@ -328,7 +329,6 @@ module OooFrontend #(
   wire [`XLEN-1:0] branch_prefetch_hit_pc1_w;
   wire [1:0] branch_prefetch_hit_resp0_w;
   wire [1:0] branch_prefetch_hit_resp1_w;
-  wire branch_prefetch_hit_to_fifo_w;
   wire branch_prefetch_match_w;
   wire [`XLEN-1:0] branch_prefetch_pc_q;
   wire branch_prefetch_pending_match_w;
@@ -384,11 +384,24 @@ module OooFrontend #(
   wire dispatch1_return_w;
   wire fetch_dec0_control_stop_w;
   wire [`INST_W-1:0] fetch_dec0_inst_w;
+  wire [`CTRL_BUS_W-1:0] fetch_dec0_ctrl_w;
+  wire [`OOO_SLOT_STATIC_FACTS_W-1:0] fetch_dec0_static_facts_w;
+  wire [`REG_ADDR_W-1:0] fetch_dec0_rs1_w;
+  wire [`REG_ADDR_W-1:0] fetch_dec0_rs2_w;
+  wire [`REG_ADDR_W-1:0] fetch_dec0_rd_w;
+  wire [`XLEN-1:0] fetch_dec0_imm_w;
   wire [`XLEN-1:0] fetch_dec0_next_pc_w;
   wire [`XLEN-1:0] fetch_dec0_pc_w;
+  wire [`XLEN-1:0] fetch_dec_fault_tval_w;
   wire [1:0] fetch_dec0_resp_w;
   wire fetch_dec1_control_stop_w;
   wire [`INST_W-1:0] fetch_dec1_inst_w;
+  wire [`CTRL_BUS_W-1:0] fetch_dec1_ctrl_w;
+  wire [`OOO_SLOT_STATIC_FACTS_W-1:0] fetch_dec1_static_facts_w;
+  wire [`REG_ADDR_W-1:0] fetch_dec1_rs1_w;
+  wire [`REG_ADDR_W-1:0] fetch_dec1_rs2_w;
+  wire [`REG_ADDR_W-1:0] fetch_dec1_rd_w;
+  wire [`XLEN-1:0] fetch_dec1_imm_w;
   wire [`XLEN-1:0] fetch_dec1_next_pc_w;
   wire [`XLEN-1:0] fetch_dec1_pc_w;
   wire [1:0] fetch_dec1_resp_w;
@@ -397,9 +410,11 @@ module OooFrontend #(
   // 随包写入 FIFO——预测一次定格, dispatch 拍只消费存储位(head0/1_branch_* 改由
   // HeadMux 存储位驱动, BPU 的 head 拍活查询口物理断开=F2 #105 家族免疫)。
   wire fetch_dec0_branch_w;
-  wire [`XLEN-1:0] fetch_dec0_bimm_w;
+  wire [12:0] fetch_dec0_bimm_w;
+  wire [`XLEN-1:0] fetch_dec0_branch_target_w;
   wire fetch_dec1_branch_w;
-  wire [`XLEN-1:0] fetch_dec1_bimm_w;
+  wire [12:0] fetch_dec1_bimm_w;
+  wire [`XLEN-1:0] fetch_dec1_branch_target_w;
   wire [`BPU_BHT_INDEX_W-1:0] fetch_dec0_bht_idx_w;
   wire fetch_dec0_bht_valid_w;
   wire fetch_dec0_pred_taken_w;
@@ -424,7 +439,6 @@ module OooFrontend #(
   wire fetch_rsp_can_drop_w;
   wire fetch_rsp_can_enqueue_w;
   wire fetch_rsp_control_stop_w;
-  wire fetch_rsp_dispatch_bypass_w;
   wire [`XLEN-1:0] fetch_rsp_packet_next_pc_w;
   wire fifo_can_accept_rsp_w;
   wire fifo_clear_w;
@@ -432,9 +446,22 @@ module OooFrontend #(
   wire fifo_empty_storage_w;
   wire [`INST_W-1:0] fifo_head_inst0_w;
   wire [`INST_W-1:0] fifo_head_inst1_w;
+  wire [`CTRL_BUS_W-1:0] fifo_head_ctrl0_w;
+  wire [`CTRL_BUS_W-1:0] fifo_head_ctrl1_w;
+  wire [`OOO_SLOT_STATIC_FACTS_W-1:0] fifo_head_static_facts0_w;
+  wire [`OOO_SLOT_STATIC_FACTS_W-1:0] fifo_head_static_facts1_w;
+  wire [`REG_ADDR_W-1:0] fifo_head_rs1_0_w;
+  wire [`REG_ADDR_W-1:0] fifo_head_rs2_0_w;
+  wire [`REG_ADDR_W-1:0] fifo_head_rd0_w;
+  wire [`XLEN-1:0] fifo_head_imm0_w;
+  wire [`REG_ADDR_W-1:0] fifo_head_rs1_1_w;
+  wire [`REG_ADDR_W-1:0] fifo_head_rs2_1_w;
+  wire [`REG_ADDR_W-1:0] fifo_head_rd1_w;
+  wire [`XLEN-1:0] fifo_head_imm1_w;
   wire [`XLEN-1:0] fifo_head_next_pc0_w;
   wire [`XLEN-1:0] fifo_head_next_pc1_w;
   wire [`XLEN-1:0] fifo_head_packet_next_pc_w;
+  wire [`XLEN-1:0] fifo_head_fault_tval_w;
   wire [`XLEN-1:0] fifo_head_pc0_w;
   wire [`XLEN-1:0] fifo_head_pc1_w;
   wire [1:0] fifo_head_resp0_w;
@@ -449,26 +476,11 @@ module OooFrontend #(
   wire head_slot1_valid_w;
   wire fifo_pop_w;
   wire fifo_reserve_available_w;
-  wire [`INST_W-1:0] fifo_seed_inst0_w;
-  wire [`INST_W-1:0] fifo_seed_inst1_w;
-  wire [`XLEN-1:0] fifo_seed_next_pc0_w;
-  wire [`XLEN-1:0] fifo_seed_next_pc1_w;
-  wire [`XLEN-1:0] fifo_seed_packet_next_pc_w;
-  wire [`XLEN-1:0] fifo_seed_pc0_w;
-  wire [`XLEN-1:0] fifo_seed_pc1_w;
-  wire [1:0] fifo_seed_resp0_w;
-  wire [1:0] fifo_seed_resp1_w;
-  wire [`BPU_BHT_INDEX_W-1:0] fifo_seed_bht_idx0_w;
-  wire [`BPU_BHT_INDEX_W-1:0] fifo_seed_bht_idx1_w;
-  wire fifo_seed_bht_valid0_w;
-  wire fifo_seed_bht_valid1_w;
-  wire fifo_seed_pred_taken0_w;
-  wire fifo_seed_pred_taken1_w;
-  wire fifo_seed_slot1_valid_w;
-  wire fifo_seed_valid_w;
   wire fifo_storage_head_valid_w;
   wire fifo_storage_pop_w;
   wire frontend_dispatch_to_backend_valid_w;
+  wire [`OOO_SLOT_STATIC_FACTS_W-1:0] head0_static_facts_w;
+  wire [`OOO_SLOT_STATIC_FACTS_W-1:0] head1_static_facts_w;
   // 【B2 S1】head0/1_branch_{bht_idx,bht_valid,pred_taken}: 包内存储位(FIFO 经
   // HeadMux 读出), 不再是 BPU head 拍活查询直通。
   wire [`BPU_BHT_INDEX_W-1:0] head0_branch_bht_idx_w;
@@ -614,20 +626,18 @@ module OooFrontend #(
     .synth_lane1_branch_drop_pending_i(synth_lane1_branch_drop_pending_q),
     .branch_spec_checkpoint_pending_i(branch_spec_checkpoint_pending_q),
     .branch_spec_active_i(branch_spec_active_q),
+    .head0_csr_inflight_i(head0_csr_inflight_w),
     .halted_i(halted_q),
     .trap_valid_i(trap_valid_q),
     .exit_valid_i(exit_valid_q),
     .fifo_storage_head_valid_i(fifo_storage_head_valid_w),
     .outstanding_valid_i(outstanding_valid_q),
-    .fetch_rsp_valid_i(fetch_rsp_valid_i),
-    .discard_fetch_rsp_i(discard_fetch_rsp_q),
     .fifo_count_i(fifo_count_q),
     .fifo_depth_i(FETCH_PACKET_COUNT_VALUE),
     .orphan_stop_pending_o(orphan_stop_pending_w),
     .stop_pending_busy_o(stop_pending_busy_w),
     .can_run_o(can_run_w),
     .fifo_empty_storage_o(fifo_empty_storage_w),
-    .fetch_rsp_dispatch_bypass_o(fetch_rsp_dispatch_bypass_w),
     .outstanding_count_o(outstanding_count_w),
     .fifo_reserve_available_o(fifo_reserve_available_w)
   );
@@ -638,8 +648,8 @@ module OooFrontend #(
     .head_slot1_valid_i(head_slot1_valid_w),
     .head_resp0_i(head_resp0_w),
     .head_resp1_i(head_resp1_w),
-    .head_inst0_i(head_inst0_w),
-    .head_inst1_i(head_inst1_w),
+    .head_static_facts0_i(head0_static_facts_w),
+    .head_static_facts1_i(head1_static_facts_w),
     .head0_ctrl_i(head0_ctrl_w),
     .head1_ctrl_i(head1_ctrl_w),
     .priv_mode_i(csr_priv_mode_w),
@@ -1037,7 +1047,68 @@ module OooFrontend #(
     .dec0_bimm_o(fetch_dec0_bimm_w),
     .dec1_branch_o(fetch_dec1_branch_w),
     .dec1_bimm_o(fetch_dec1_bimm_w),
-    .packet_next_pc_o(fetch_rsp_packet_next_pc_w)
+    .packet_next_pc_o(fetch_rsp_packet_next_pc_w),
+    .fault_tval_o(fetch_dec_fault_tval_w)
+  );
+
+  // T4G: PacketDecode 在 response->FIFO 的 D 端把 resp0_bytes frontier
+  // 预计算成精确地址，避免 trap capture 拍从 slot PC 重建并把跨页 32-bit
+  // 指令的低半地址误写入 mtval/stval。
+
+  // T3V: DecodeStage is instruction-pure, so compute it at response ownership
+  // transfer and carry the result with the FIFO entry.  Dispatch only reads the
+  // registered bundle; response bypass and packet seed dataplanes are removed.
+  DecodeStage u_fetch_dec0_dispatch_decode (
+    .inst_i(fetch_dec0_inst_w),
+    .ctrl_o(fetch_dec0_ctrl_w),
+    .rs1_idx_o(fetch_dec0_rs1_w),
+    .rs2_idx_o(fetch_dec0_rs2_w),
+    .rd_idx_o(fetch_dec0_rd_w),
+    .imm_o(fetch_dec0_imm_w)
+  );
+
+  DecodeStage u_fetch_dec1_dispatch_decode (
+    .inst_i(fetch_dec1_inst_w),
+    .ctrl_o(fetch_dec1_ctrl_w),
+    .rs1_idx_o(fetch_dec1_rs1_w),
+    .rs2_idx_o(fetch_dec1_rs2_w),
+    .rd_idx_o(fetch_dec1_rd_w),
+    .imm_o(fetch_dec1_imm_w)
+  );
+
+  // T3W: instruction-only FP/semihost facts are captured at response
+  // ownership transfer.  PacketDecode has already sanitized faulting slots,
+  // while architectural state remains a head-time classifier input.
+  OooFetchStaticClassify u_fetch_dec0_static_classify (
+    .inst_i(fetch_dec0_inst_w),
+    .semihost_peer_inst_i(fetch_dec1_inst_w),
+    .semihost_peer_is_enter_i(1'b0),
+    .static_facts_o(fetch_dec0_static_facts_w)
+  );
+
+  OooFetchStaticClassify u_fetch_dec1_static_classify (
+    .inst_i(fetch_dec1_inst_w),
+    .semihost_peer_inst_i(fetch_dec0_inst_w),
+    .semihost_peer_is_enter_i(1'b1),
+    .static_facts_o(fetch_dec1_static_facts_w)
+  );
+
+  OooFetchBranchTarget u_fetch_dec0_branch_target (
+    .clk(clk),
+    .rst(rst),
+    .valid_i(fetch_dec0_branch_w),
+    .pc_i(fetch_dec0_pc_w),
+    .bimm_i(fetch_dec0_bimm_w),
+    .target_o(fetch_dec0_branch_target_w)
+  );
+
+  OooFetchBranchTarget u_fetch_dec1_branch_target (
+    .clk(clk),
+    .rst(rst),
+    .valid_i(fetch_dec1_branch_w),
+    .pc_i(fetch_dec1_pc_w),
+    .bimm_i(fetch_dec1_bimm_w),
+    .target_o(fetch_dec1_branch_target_w)
   );
 
   // ═══ 【B2 S2】resp 拍包级预测判决("包内预测位 + taken 拍断融合", spec §1) ═══
@@ -1058,8 +1129,8 @@ module OooFrontend #(
   // 该值只进寄存器 D 端(FIFO 表项/next_fetch_pc_q), 禁止组合进 fetch_req_pc
   // (刀 F WNS 家族: BPU 两级串联读+imm 加法器进取指回环)。
   assign fetch_pred_next_pc_w =
-      fetch_pred0_taken_w ? (fetch_dec0_pc_w + fetch_dec0_bimm_w) :
-      fetch_pred1_taken_w ? (fetch_dec1_pc_w + fetch_dec1_bimm_w) :
+      fetch_pred0_taken_w ? fetch_dec0_branch_target_w :
+      fetch_pred1_taken_w ? fetch_dec1_branch_target_w :
                             fetch_rsp_packet_next_pc_w;
   // taken 拍断融合关断(单 bit → OooFetchFlowControl.can_issue): 该拍融合连发的
   // 组合顺序地址是 fall-through 旧值(wrong-path), 压掉当拍顺序请求, target 拍尾
@@ -1084,26 +1155,7 @@ module OooFrontend #(
 
 
   OooFetchPacketHeadMux u_fetch_packet_head_mux (
-    .bypass_valid_i(fetch_rsp_dispatch_bypass_w),
     .fifo_head_valid_i(fifo_storage_head_valid_w),
-    .bypass_pc0_i(fetch_dec0_pc_w),
-    .bypass_pc1_i(fetch_dec1_pc_w),
-    .bypass_next_pc0_i(fetch_dec0_next_pc_w),
-    .bypass_next_pc1_i(fetch_dec1_next_pc_w),
-    // 【B2 S2】packet_next_pc 字段改造承载包级 pred_next_pc(bypass 臂死硅 tie-0,
-    // 接同拍组合保同源)。
-    .bypass_packet_next_pc_i(fetch_pred_next_pc_w),
-    .bypass_inst0_i(fetch_dec0_inst_w),
-    .bypass_inst1_i(fetch_dec1_inst_w),
-    .bypass_resp0_i(fetch_dec0_resp_w),
-    .bypass_resp1_i(fetch_dec1_resp_w),
-    .bypass_pred_taken0_i(fetch_dec0_pred_taken_w),
-    .bypass_pred_taken1_i(fetch_dec1_pred_taken_w),
-    .bypass_bht_idx0_i(fetch_dec0_bht_idx_w),
-    .bypass_bht_idx1_i(fetch_dec1_bht_idx_w),
-    .bypass_bht_valid0_i(fetch_dec0_bht_valid_w),
-    .bypass_bht_valid1_i(fetch_dec1_bht_valid_w),
-    .bypass_slot1_valid_i(fetch_slot1_valid_w),
     .fifo_pc0_i(fifo_head_pc0_w),
     .fifo_pc1_i(fifo_head_pc1_w),
     .fifo_next_pc0_i(fifo_head_next_pc0_w),
@@ -1111,6 +1163,18 @@ module OooFrontend #(
     .fifo_packet_next_pc_i(fifo_head_packet_next_pc_w),
     .fifo_inst0_i(fifo_head_inst0_w),
     .fifo_inst1_i(fifo_head_inst1_w),
+    .fifo_ctrl0_i(fifo_head_ctrl0_w),
+    .fifo_ctrl1_i(fifo_head_ctrl1_w),
+    .fifo_static_facts0_i(fifo_head_static_facts0_w),
+    .fifo_static_facts1_i(fifo_head_static_facts1_w),
+    .fifo_rs1_0_i(fifo_head_rs1_0_w),
+    .fifo_rs2_0_i(fifo_head_rs2_0_w),
+    .fifo_rd0_i(fifo_head_rd0_w),
+    .fifo_imm0_i(fifo_head_imm0_w),
+    .fifo_rs1_1_i(fifo_head_rs1_1_w),
+    .fifo_rs2_1_i(fifo_head_rs2_1_w),
+    .fifo_rd1_i(fifo_head_rd1_w),
+    .fifo_imm1_i(fifo_head_imm1_w),
     .fifo_resp0_i(fifo_head_resp0_w),
     .fifo_resp1_i(fifo_head_resp1_w),
     .fifo_pred_taken0_i(fifo_head_pred_taken0_w),
@@ -1128,6 +1192,18 @@ module OooFrontend #(
     .head_packet_next_pc_o(head_packet_next_pc_w),
     .head_inst0_o(head_inst0_w),
     .head_inst1_o(head_inst1_w),
+    .head_ctrl0_o(head0_ctrl_w),
+    .head_ctrl1_o(head1_ctrl_w),
+    .head_static_facts0_o(head0_static_facts_w),
+    .head_static_facts1_o(head1_static_facts_w),
+    .head_rs1_0_o(head0_rs1_w),
+    .head_rs2_0_o(head0_rs2_w),
+    .head_rd0_o(head0_rd_unused_w),
+    .head_imm0_o(head0_imm_w),
+    .head_rs1_1_o(head1_rs1_w),
+    .head_rs2_1_o(head1_rs2_w),
+    .head_rd1_o(head1_rd_unused_w),
+    .head_imm1_o(head1_imm_w),
     .head_resp0_o(head_resp0_w),
     .head_resp1_o(head_resp1_w),
     .head_pred_taken0_o(head0_branch_pred_taken_w),
@@ -1139,9 +1215,11 @@ module OooFrontend #(
     .head_slot1_valid_o(head_slot1_valid_w)
   );
 
+  assign head_fetch_fault_tval_w = fifo_head_fault_tval_w;
+
 
   // ================= 前端 prefetch / BTC / JALR-BTB / return-cont 死硅拆除后的行为中性 tie-off =================
-  // 依据 rtl-ground-truth-2026-07-03.md §4 + report-1：这些结构在 OOO_ROB_WALK_MODE=1'b1 /
+  // 依据 design/arch/history/rtl-ground-truth-2026-07-03.md §4（已归档历史证据）：这些结构在 OOO_ROB_WALK_MODE=1'b1 /
   // OOO_DBRANCH_DOMAIN_A=1'b1 下由编译常量证死——branch prefetch req 依赖 pending_branch(恒0)/jalr_btb_hit(恒0)；
   // BTC capture 依赖 direct_branch_resolve_taken(恒0) → 恒空 → hit 恒0，且消费端 BRANCH_APPEND_DISPATCH_ENABLE=1'b0；
   // JALR BTB update 依赖 pending_jump(恒0) → 表恒空 → 查询恒 miss；return_cont consume 依赖 return_cont_attempt=1'b0。
@@ -1312,14 +1390,16 @@ module OooFrontend #(
   wire commit_e1_valid_w = csr_trap_mem_valid_w;
   // E5: CSR 提交 redirect。head0 支默认 OOO_CSR_QUEUE_HEAD=0 恒 0(零 exercise,
   // 幸存者偏差照契约 §0 标注; 翻 flag 时 INV-3/INV-3b 是哨兵)。
-  // !direct_frontend_flush 门 = 现行 E4-压-E5/E6 序的忠实编码(drain 期 dispatch 停摆
-  // 使该拍本不可达, 保留 = 零语义风险)。
-  wire commit_e5_valid_w = !direct_frontend_flush_w &&
-      (pending_system_csr_commit_w || head0_csr_commit_w);
+  // T3Y：E5 owner 已持有 stop，head0 CSR commit 也由 inflight stop owner 封住
+  // younger dispatch；因此两者与 ready-qualified direct fire 结构互斥。删除这里的
+  // late direct mask，避免 head/backend-ready 锥反向进入 commit redirect PC。
+  // 真正的 direct squash/clear/drop 消费端保持不动，碰撞由下方断言 fail-loud。
+  wire commit_e5_valid_w =
+      pending_system_csr_commit_w || head0_csr_commit_w;
   wire [`XLEN-1:0] commit_e5_pc_w =
       head0_csr_commit_w ? core_commit0_next_pc_w : pending_system_next_pc_q;
   // E6: drain 终态, owner 序 arch_trap>system>branch>jump>mem 照抄 Sequencer 原臂序。
-  wire commit_e6_base_w = !csr_trap_mem_valid_w && !direct_frontend_flush_w &&
+  wire commit_e6_base_w = !csr_trap_mem_valid_w &&
       stop_pending_q && drain_complete_w;
   wire commit_e6_branch_undisp_w = pending_branch_q && !pending_branch_dispatched_q;
   wire commit_e6_sel_arch_w = pending_arch_trap_q;
@@ -1408,7 +1488,7 @@ module OooFrontend #(
   wire resolve_redirect_block_w;
   OooFetchRequestMux u_fetch_request_mux (
     .outstanding_valid_i(outstanding_valid_q),
-    .fetch_rsp_fire_i(fetch_rsp_fire_w),
+    .fetch_rsp_valid_i(fetch_rsp_valid_i),
     .fetch_rsp_packet_next_pc_i(fetch_rsp_packet_next_pc_w),
     .next_fetch_pc_i(next_fetch_pc_q),
     .direct_jal_fire_i(direct_jal_fire_w),
@@ -1502,7 +1582,6 @@ module OooFrontend #(
     .fifo_count_i(fifo_count_q),
     .fifo_depth_i(FETCH_PACKET_COUNT_VALUE),
     .fifo_pop_i(fifo_pop_w),
-    .fetch_rsp_dispatch_bypass_i(fetch_rsp_dispatch_bypass_w),
     .direct_frontend_flush_i(direct_frontend_flush_w),
     .stop_pending_busy_i(stop_pending_busy_w),
     .halted_i(halted_q),
@@ -1518,9 +1597,12 @@ module OooFrontend #(
     .fetch_rsp_can_enqueue_o(fetch_rsp_can_enqueue_w),
     .fetch_rsp_can_drop_o(fetch_rsp_can_drop_w),
     .direct_fetch_drop_o(direct_fetch_drop_w),
-    .fetch_rsp_bypass_consumed_o(fetch_rsp_bypass_consumed_w),
     .fetch_rsp_enqueue_o(fetch_rsp_enqueue_w)
   );
+
+  // T3V: the production frontend no longer has a response-to-dispatch bypass.
+  // Keep the public debug/contract signal as a structural constant.
+  assign fetch_rsp_bypass_consumed_w = 1'b0;
 
 
   // [wave5b 死硅拆除] OooPendingControlResolveGate 物理删除。该门纯组合，全部输出仅由
@@ -1590,7 +1672,6 @@ module OooFrontend #(
     .outstanding_valid_i(outstanding_valid_q),
     .outstanding_pc_i(outstanding_pc_q),
     .head_next_pc1_i(head_next_pc1_w),
-    .fetch_rsp_dispatch_bypass_i(fetch_rsp_dispatch_bypass_w),
     .branch_fallthrough_safe_i(branch_fallthrough_safe_w),
     .branch_target_cache_hit_i(branch_target_cache_hit_w),
     .direct_branch0_fire_i(direct_branch0_fire_w),
@@ -1617,7 +1698,6 @@ module OooFrontend #(
         branch_prefetch_rsp_dispatch0_safe_w),
     .branch_prefetch_rsp_dispatch1_safe_i(
         branch_prefetch_rsp_dispatch1_safe_w),
-    .branch_prefetch_hit_available_i(branch_prefetch_hit_available_w),
     .return_cont_optional_o(return_cont_optional_w),
     .return_cont_attempt_ready_o(return_cont_attempt_ready_w),
     .return_cont_attempt_o(return_cont_attempt_w),
@@ -1637,13 +1717,11 @@ module OooFrontend #(
     .branch_fallthrough_dispatch_o(branch_fallthrough_dispatch_w),
     .branch_fallthrough_keep_outstanding_o(
         branch_fallthrough_keep_outstanding_w),
-    .branch_fallthrough_capture_rsp_o(branch_fallthrough_capture_rsp_w),
     .branch_prefetch_rsp_raw_match_o(branch_prefetch_rsp_raw_match_w),
     .branch_prefetch_dispatch_buffer_o(branch_prefetch_dispatch_buffer_w),
     .branch_prefetch_dispatch_rsp_o(branch_prefetch_dispatch_rsp_w),
     .branch_prefetch_dispatch_attempt_o(branch_prefetch_dispatch_attempt_w),
     .branch_prefetch_dispatch_fire_o(branch_prefetch_dispatch_fire_w),
-    .branch_prefetch_hit_to_fifo_o(branch_prefetch_hit_to_fifo_w),
     .dispatch1_optional_o(dispatch1_optional_w)
   );
 
@@ -1654,13 +1732,10 @@ module OooFrontend #(
   OooFetchPacketSeedMux u_fetch_packet_seed_mux (
     .csr_trap_i(csr_trap_mem_valid_w),
     .direct_flush_i(direct_frontend_flush_w),
-    .fallthrough_capture_i(branch_fallthrough_capture_rsp_w),
     .branch_spec_restore_i(branch_spec_resolve_valid_w &&
                            branch_spec_restore_w),
     .pending_branch_commit_resolve_i(pending_branch_commit_resolve_w),
     .pending_branch_match_i(pending_branch_match_clear_w),
-    .pending_branch_misaligned_i(core_branch_resolve_misaligned_w),
-    .branch_prefetch_hit_i(branch_prefetch_hit_to_fifo_w),
     .branch_resolve_untracked_i(branch_resolve_untracked_w),
     .pending_jump_resolve_i(pending_jump_resolve_ready_w),
     .pending_jump_misaligned_i(pending_jump_misaligned_w),
@@ -1677,60 +1752,7 @@ module OooFrontend #(
                                          !pending_branch_dispatched_q),
     .drain_pending_jump_i(pending_jump_q),
     .drain_pending_mem_i(pending_mem_q),
-    .jalr_prefetch_hit_i(jalr_prefetch_hit_available_w),
-    .fallthrough_pc0_i(fetch_dec0_pc_w),
-    .fallthrough_pc1_i(fetch_dec1_pc_w),
-    .fallthrough_next_pc0_i(fetch_dec0_next_pc_w),
-    .fallthrough_next_pc1_i(fetch_dec1_next_pc_w),
-    // 【B2 S2】packet_next_pc 字段改造承载包级 pred_next_pc(与 enqueue 同拍同源)
-    .fallthrough_packet_next_pc_i(fetch_pred_next_pc_w),
-    .fallthrough_inst0_i(fetch_dec0_inst_w),
-    .fallthrough_inst1_i(fetch_dec1_inst_w),
-    .fallthrough_resp0_i(fetch_dec0_resp_w),
-    .fallthrough_resp1_i(fetch_dec1_resp_w),
-    .fallthrough_pred_taken0_i(fetch_dec0_pred_taken_w),
-    .fallthrough_pred_taken1_i(fetch_dec1_pred_taken_w),
-    .fallthrough_bht_idx0_i(fetch_dec0_bht_idx_w),
-    .fallthrough_bht_idx1_i(fetch_dec1_bht_idx_w),
-    .fallthrough_bht_valid0_i(fetch_dec0_bht_valid_w),
-    .fallthrough_bht_valid1_i(fetch_dec1_bht_valid_w),
-    .fallthrough_slot1_valid_i(fetch_slot1_valid_w),
-    .branch_pc0_i(branch_prefetch_hit_pc0_w),
-    .branch_pc1_i(branch_prefetch_hit_pc1_w),
-    .branch_next_pc0_i(branch_prefetch_hit_next_pc0_w),
-    .branch_next_pc1_i(branch_prefetch_hit_next_pc1_w),
-    .branch_packet_next_pc_i(branch_prefetch_hit_packet_next_pc_w),
-    .branch_inst0_i(branch_prefetch_hit_inst0_w),
-    .branch_inst1_i(branch_prefetch_hit_inst1_w),
-    .branch_resp0_i(branch_prefetch_hit_resp0_w),
-    .branch_resp1_i(branch_prefetch_hit_resp1_w),
-    .jalr_pc0_i(jalr_prefetch_hit_pc0_w),
-    .jalr_pc1_i(jalr_prefetch_hit_pc1_w),
-    .jalr_next_pc0_i(jalr_prefetch_hit_next_pc0_w),
-    .jalr_next_pc1_i(jalr_prefetch_hit_next_pc1_w),
-    .jalr_packet_next_pc_i(jalr_prefetch_hit_packet_next_pc_w),
-    .jalr_inst0_i(jalr_prefetch_hit_inst0_w),
-    .jalr_inst1_i(jalr_prefetch_hit_inst1_w),
-    .jalr_resp0_i(jalr_prefetch_hit_resp0_w),
-    .jalr_resp1_i(jalr_prefetch_hit_resp1_w),
-    .clear_o(fifo_clear_w),
-    .seed_valid_o(fifo_seed_valid_w),
-    .seed_pc0_o(fifo_seed_pc0_w),
-    .seed_pc1_o(fifo_seed_pc1_w),
-    .seed_next_pc0_o(fifo_seed_next_pc0_w),
-    .seed_next_pc1_o(fifo_seed_next_pc1_w),
-    .seed_packet_next_pc_o(fifo_seed_packet_next_pc_w),
-    .seed_inst0_o(fifo_seed_inst0_w),
-    .seed_inst1_o(fifo_seed_inst1_w),
-    .seed_resp0_o(fifo_seed_resp0_w),
-    .seed_resp1_o(fifo_seed_resp1_w),
-    .seed_pred_taken0_o(fifo_seed_pred_taken0_w),
-    .seed_pred_taken1_o(fifo_seed_pred_taken1_w),
-    .seed_bht_idx0_o(fifo_seed_bht_idx0_w),
-    .seed_bht_idx1_o(fifo_seed_bht_idx1_w),
-    .seed_bht_valid0_o(fifo_seed_bht_valid0_w),
-    .seed_bht_valid1_o(fifo_seed_bht_valid1_w),
-    .seed_slot1_valid_o(fifo_seed_slot1_valid_w)
+    .clear_o(fifo_clear_w)
   );
 
 
@@ -1741,23 +1763,6 @@ module OooFrontend #(
     .clk(clk),
     .rst(rst || flush_i),
     .clear_i(fifo_clear_w),
-    .seed_valid_i(fifo_seed_valid_w),
-    .seed_pc0_i(fifo_seed_pc0_w),
-    .seed_pc1_i(fifo_seed_pc1_w),
-    .seed_next_pc0_i(fifo_seed_next_pc0_w),
-    .seed_next_pc1_i(fifo_seed_next_pc1_w),
-    .seed_packet_next_pc_i(fifo_seed_packet_next_pc_w),
-    .seed_inst0_i(fifo_seed_inst0_w),
-    .seed_inst1_i(fifo_seed_inst1_w),
-    .seed_resp0_i(fifo_seed_resp0_w),
-    .seed_resp1_i(fifo_seed_resp1_w),
-    .seed_pred_taken0_i(fifo_seed_pred_taken0_w),
-    .seed_pred_taken1_i(fifo_seed_pred_taken1_w),
-    .seed_bht_idx0_i(fifo_seed_bht_idx0_w),
-    .seed_bht_idx1_i(fifo_seed_bht_idx1_w),
-    .seed_bht_valid0_i(fifo_seed_bht_valid0_w),
-    .seed_bht_valid1_i(fifo_seed_bht_valid1_w),
-    .seed_slot1_valid_i(fifo_seed_slot1_valid_w),
     .enqueue_i(fetch_rsp_enqueue_w),
     .enqueue_pc0_i(fetch_dec0_pc_w),
     .enqueue_pc1_i(fetch_dec1_pc_w),
@@ -1767,8 +1772,21 @@ module OooFrontend #(
     // (head_pred_succ→dispatch pred_npc)语义="前端实际取指后继"——含 taken 预测
     // 改流, 机械同源于 Sequencer 顺序推进臂输入, count<2 哨兵缺口消灭。
     .enqueue_packet_next_pc_i(fetch_pred_next_pc_w),
+    .enqueue_fault_tval_i(fetch_dec_fault_tval_w),
     .enqueue_inst0_i(fetch_dec0_inst_w),
     .enqueue_inst1_i(fetch_dec1_inst_w),
+    .enqueue_ctrl0_i(fetch_dec0_ctrl_w),
+    .enqueue_ctrl1_i(fetch_dec1_ctrl_w),
+    .enqueue_static_facts0_i(fetch_dec0_static_facts_w),
+    .enqueue_static_facts1_i(fetch_dec1_static_facts_w),
+    .enqueue_rs1_0_i(fetch_dec0_rs1_w),
+    .enqueue_rs2_0_i(fetch_dec0_rs2_w),
+    .enqueue_rd0_i(fetch_dec0_rd_w),
+    .enqueue_imm0_i(fetch_dec0_imm_w),
+    .enqueue_rs1_1_i(fetch_dec1_rs1_w),
+    .enqueue_rs2_1_i(fetch_dec1_rs2_w),
+    .enqueue_rd1_i(fetch_dec1_rd_w),
+    .enqueue_imm1_i(fetch_dec1_imm_w),
     .enqueue_resp0_i(fetch_dec0_resp_w),
     .enqueue_resp1_i(fetch_dec1_resp_w),
     .enqueue_pred_taken0_i(fetch_dec0_pred_taken_w),
@@ -1785,8 +1803,21 @@ module OooFrontend #(
     .head_next_pc0_o(fifo_head_next_pc0_w),
     .head_next_pc1_o(fifo_head_next_pc1_w),
     .head_packet_next_pc_o(fifo_head_packet_next_pc_w),
+    .head_fault_tval_o(fifo_head_fault_tval_w),
     .head_inst0_o(fifo_head_inst0_w),
     .head_inst1_o(fifo_head_inst1_w),
+    .head_ctrl0_o(fifo_head_ctrl0_w),
+    .head_ctrl1_o(fifo_head_ctrl1_w),
+    .head_static_facts0_o(fifo_head_static_facts0_w),
+    .head_static_facts1_o(fifo_head_static_facts1_w),
+    .head_rs1_0_o(fifo_head_rs1_0_w),
+    .head_rs2_0_o(fifo_head_rs2_0_w),
+    .head_rd0_o(fifo_head_rd0_w),
+    .head_imm0_o(fifo_head_imm0_w),
+    .head_rs1_1_o(fifo_head_rs1_1_w),
+    .head_rs2_1_o(fifo_head_rs2_1_w),
+    .head_rd1_o(fifo_head_rd1_w),
+    .head_imm1_o(fifo_head_imm1_w),
     .head_resp0_o(fifo_head_resp0_w),
     .head_resp1_o(fifo_head_resp1_w),
     .head_pred_taken0_o(fifo_head_pred_taken0_w),
@@ -1911,13 +1942,13 @@ module OooFrontend #(
     .rst(rst),
     .clear_i(flush_i),
     .lookup0_pc_i(fetch_dec0_pc_w),
-    .lookup0_static_taken_i(fetch_dec0_bimm_w[`XLEN-1]),
+    .lookup0_static_taken_i(fetch_dec0_bimm_w[12]),
     .lookup0_bht_idx_o(fetch_dec0_bht_idx_w),
     .lookup0_bht_valid_o(fetch_dec0_bht_valid_w),
     .lookup0_pred_taken_o(fetch_dec0_pred_taken_w),
     .lookup0_predict_strong_o(fetch_dec0_predict_strong_w),
     .lookup1_pc_i(fetch_dec1_pc_w),
-    .lookup1_static_taken_i(fetch_dec1_bimm_w[`XLEN-1]),
+    .lookup1_static_taken_i(fetch_dec1_bimm_w[12]),
     .lookup1_bht_idx_o(fetch_dec1_bht_idx_w),
     .lookup1_bht_valid_o(fetch_dec1_bht_valid_w),
     .lookup1_pred_taken_o(fetch_dec1_pred_taken_w),
@@ -2041,28 +2072,6 @@ module OooFrontend #(
   // 切消费点删除, PC 收敛 arbiter(E6-jump pre-mux 忠实镜像常量 0)。
 
 
-  DecodeStage u_head0_decode (
-    .inst_i(head_inst0_w),
-    .ctrl_o(head0_ctrl_w),
-    .rs1_idx_o(head0_rs1_w),
-    .rs2_idx_o(head0_rs2_w),
-    .rd_idx_o(head0_rd_unused_w),
-    .imm_o(head0_imm_w)
-  );
-
-
-  DecodeStage u_head1_decode (
-    .inst_i(head_inst1_w),
-    .ctrl_o(head1_ctrl_w),
-    .rs1_idx_o(head1_rs1_w),
-    .rs2_idx_o(head1_rs2_w),
-    .rd_idx_o(head1_rd_unused_w),
-    .imm_o(head1_imm_w)
-  );
-
-
-
-
   OooRasUpdateGate u_ras_update_gate (
       .priv_predictor_boundary_i(priv_predictor_boundary_w),
       .branch_spec_restore_i(branch_spec_restore_w),
@@ -2111,7 +2120,6 @@ module OooFrontend #(
       .rst(rst || flush_i),
       .reset_pc_i(reset_pc_i),
       .fetch_rsp_enqueue_i(fetch_rsp_enqueue_w),
-      .fetch_rsp_bypass_consumed_i(fetch_rsp_bypass_consumed_w),
       .fetch_rsp_fire_i(fetch_rsp_fire_w),
       // 【B2 S2 改流落点】顺序推进臂输入换包级 pred_next_pc: taken 预测拍把分支
       // target 写进 next_fetch_pc_q(当拍融合请求被 pred_taken_block 关断), 次拍
@@ -2119,6 +2127,7 @@ module OooFrontend #(
       .fetch_rsp_packet_next_pc_i(fetch_pred_next_pc_w),
       .fetch_req_fire_i(fetch_req_fire_w),
       .fetch_req_pc_i(fetch_req_pc_o),
+      .fetch_req_owner_pc_i(fetch_req_owner_pc_i),
       .csr_trap_mem_valid_i(csr_trap_mem_valid_w),
       .direct_frontend_flush_i(direct_frontend_flush_w),
       .branch_fallthrough_keep_outstanding_i(branch_fallthrough_keep_outstanding_w),
@@ -2204,6 +2213,94 @@ module OooFrontend #(
       fetch_dec0_predict_strong_w | fetch_dec1_predict_strong_w;
 
 `ifdef OOO_ASSERT
+  wire [`OOO_SLOT_STATIC_FACTS_W-1:0] t3w_head0_static_ref_w;
+  wire [`OOO_SLOT_STATIC_FACTS_W-1:0] t3w_head1_static_ref_w;
+  OooFetchStaticClassify u_t3w_head0_static_reference (
+    .inst_i(head_inst0_w),
+    .semihost_peer_inst_i(head_inst1_w),
+    .semihost_peer_is_enter_i(1'b0),
+    .static_facts_o(t3w_head0_static_ref_w)
+  );
+  OooFetchStaticClassify u_t3w_head1_static_reference (
+    .inst_i(head_inst1_w),
+    .semihost_peer_inst_i(head_inst0_w),
+    .semihost_peer_is_enter_i(1'b1),
+    .static_facts_o(t3w_head1_static_ref_w)
+  );
+  always @(posedge clk) if (!rst && fifo_has_packet_w) begin
+    if (head0_static_facts_w !== t3w_head0_static_ref_w)
+      $error("[T3W-STATIC-FACTS-COHERENCE] lane0 stored facts mismatch instruction @%0t",
+             $time);
+    if (head1_static_facts_w !== t3w_head1_static_ref_w)
+      $error("[T3W-STATIC-FACTS-COHERENCE] lane1 stored facts mismatch instruction @%0t",
+             $time);
+  end
+
+  wire [`CTRL_BUS_W-1:0] t3v_head0_ctrl_ref_w;
+  wire [`CTRL_BUS_W-1:0] t3v_head1_ctrl_ref_w;
+  wire [`REG_ADDR_W-1:0] t3v_head0_rs1_ref_w;
+  wire [`REG_ADDR_W-1:0] t3v_head0_rs2_ref_w;
+  wire [`REG_ADDR_W-1:0] t3v_head0_rd_ref_w;
+  wire [`XLEN-1:0] t3v_head0_imm_ref_w;
+  wire [`REG_ADDR_W-1:0] t3v_head1_rs1_ref_w;
+  wire [`REG_ADDR_W-1:0] t3v_head1_rs2_ref_w;
+  wire [`REG_ADDR_W-1:0] t3v_head1_rd_ref_w;
+  wire [`XLEN-1:0] t3v_head1_imm_ref_w;
+  DecodeStage u_t3v_head0_decode_reference (
+    .inst_i(head_inst0_w), .ctrl_o(t3v_head0_ctrl_ref_w),
+    .rs1_idx_o(t3v_head0_rs1_ref_w), .rs2_idx_o(t3v_head0_rs2_ref_w),
+    .rd_idx_o(t3v_head0_rd_ref_w), .imm_o(t3v_head0_imm_ref_w)
+  );
+  DecodeStage u_t3v_head1_decode_reference (
+    .inst_i(head_inst1_w), .ctrl_o(t3v_head1_ctrl_ref_w),
+    .rs1_idx_o(t3v_head1_rs1_ref_w), .rs2_idx_o(t3v_head1_rs2_ref_w),
+    .rd_idx_o(t3v_head1_rd_ref_w), .imm_o(t3v_head1_imm_ref_w)
+  );
+  always @(posedge clk) if (!rst && fifo_has_packet_w) begin
+    if ({head0_ctrl_w, head0_rs1_w, head0_rs2_w, head0_rd_unused_w,
+         head0_imm_w} !==
+        {t3v_head0_ctrl_ref_w, t3v_head0_rs1_ref_w, t3v_head0_rs2_ref_w,
+         t3v_head0_rd_ref_w, t3v_head0_imm_ref_w})
+      $error("[T3V-PREDECODE-COHERENCE] lane0 stored decode mismatches instruction @%0t",
+             $time);
+    if ({head1_ctrl_w, head1_rs1_w, head1_rs2_w, head1_rd_unused_w,
+         head1_imm_w} !==
+        {t3v_head1_ctrl_ref_w, t3v_head1_rs1_ref_w, t3v_head1_rs2_ref_w,
+         t3v_head1_rd_ref_w, t3v_head1_imm_ref_w})
+      $error("[T3V-PREDECODE-COHERENCE] lane1 stored decode mismatches instruction @%0t",
+             $time);
+  end
+
+  // queue-head CSR 已 dispatch、尚未 commit 时必须持续封住 younger；这里按
+  // 架构状态检查 RunGate 结果，避免 owner OR 树再次漏接 inflight。
+  always @(posedge clk) if (!rst) begin
+    if (`OOO_CSR_QUEUE_HEAD && head0_csr_inflight_w && stop_pending_q &&
+        (orphan_stop_pending_w || !stop_pending_busy_w || can_run_w))
+      $error("[T3U-CSR-STOP-OWNER] inflight CSR lost stop ownership orphan=%0d busy=%0d run=%0d @%0t",
+             orphan_stop_pending_w, stop_pending_busy_w, can_run_w, $time);
+  end
+
+  // T3Y 承重不变量：direct fire 需要 can_run，而 E5/E6 commit owner 必须令
+  // stop_pending_busy 成立；二者合法态不共活。生产逻辑已删除晚到 direct mask，
+  // 若 owner 契约将来漂移，这里必须 fail-loud，不能静默恢复长组合门。
+  always @(posedge clk) if (!rst && !flush_i) begin
+    if (direct_frontend_flush_w &&
+        (commit_e5_valid_w || commit_e6_valid_w))
+      $error("[T3Y-DIRECT-COMMIT-DISJOINT] direct flush collided with E5/E6 owner: e5=%0d e6=%0d stop=%0d busy=%0d run=%0d @%0t",
+             commit_e5_valid_w, commit_e6_valid_w, stop_pending_q,
+             stop_pending_busy_w, can_run_w, $time);
+  end
+
+  // T3U fetch-credit 承重不变量：一个已接受、尚未返回的请求预留一个 FIFO
+  // 槽，因此寄存 occupancy 加 outstanding 永不超过物理深度。由此可物理删除
+  // full+pop→response-ready 的组合旁路，而不损失任何合法状态吞吐。
+  always @(posedge clk) if (!rst) begin
+    if ((fifo_count_q + outstanding_count_w) > FETCH_PACKET_COUNT_VALUE)
+      $error("[T3U-FETCH-CREDIT] fifo=%0d outstanding=%0d exceeds depth=%0d @%0t",
+             fifo_count_q, outstanding_count_w,
+             FETCH_PACKET_COUNT_VALUE, $time);
+  end
+
   // FDG-I1：classifier 已决定 head0 为精确 arch trap 时，普通 backend admission 必须关闭。
   // 真理来自精确异常边界；不重述 FP decode，故能覆盖 fetch fault/illegal/privileged 等所有来源。
   always @(posedge clk) if (!rst) begin

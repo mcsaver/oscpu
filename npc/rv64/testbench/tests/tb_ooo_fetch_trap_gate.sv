@@ -10,6 +10,7 @@ module tb_ooo_fetch_trap_gate;
   reg commit_ready;
   wire fetch_req_valid;
   wire [`XLEN-1:0] fetch_req_pc;
+  reg [`XLEN-1:0] fetch_req_owner_pc;
   wire fetch_rsp_ready;
   wire mem_req_valid;
   wire mem_req_write;
@@ -69,6 +70,7 @@ module tb_ooo_fetch_trap_gate;
     .fetch_req_valid_o(fetch_req_valid),
     .fetch_req_ready_i(1'b1),
     .fetch_req_pc_o(fetch_req_pc),
+    .fetch_req_owner_pc_i(fetch_req_owner_pc),
     .fetch_rsp_valid_i(1'b0),
     .fetch_rsp_ready_o(fetch_rsp_ready),
     .fetch_rsp_inst0_i({`INST_W{1'b0}}),
@@ -134,6 +136,16 @@ module tb_ooo_fetch_trap_gate;
 
   always #5 clk = ~clk;
 
+  // Minimal clocked Bridge-owner model.  Do not tie this input directly to
+  // candidate fetch_req_pc: response ownership survives until the handshake.
+  always @(posedge clk) begin
+    if (rst || flush) begin
+      fetch_req_owner_pc <= {`XLEN{1'b0}};
+    end else if (fetch_req_valid) begin
+      fetch_req_owner_pc <= fetch_req_pc;
+    end
+  end
+
   initial begin
     tb_errors = 0;
     clk = 1'b0;
@@ -141,6 +153,7 @@ module tb_ooo_fetch_trap_gate;
     flush = 1'b0;
     run = 1'b1;
     commit_ready = 1'b1;
+    fetch_req_owner_pc = {`XLEN{1'b0}};
     repeat (3) @(posedge clk);
     #1;
     rst = 1'b0;

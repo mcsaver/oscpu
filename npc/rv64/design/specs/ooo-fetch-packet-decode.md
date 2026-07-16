@@ -33,7 +33,12 @@
 
 - `dec0_*_o` 描述 slot0。
 - `dec1_*_o` 描述 slot1。
+- `dec{0,1}_bimm_o[12:0]` 是解压后 B-type 原始 immediate；非 branch 为零。完整
+  sign-extended immediate 不跨模块，bit12 是 predictor static fallback 的唯一符号真源。
 - `packet_next_pc_o == dec1_next_pc_o`。
+- `fault_tval_o == rsp_pc_i + zero_extend(rsp_resp0_bytes_i)`；当 response
+  为 fault 时，它是首个失败 2B fetch portion 的精确地址，而不是 faulting
+  instruction 的 slot PC。xEPC 仍由 slot PC 单独保存。
 - `dec*_control_stop_o` 在对应 slot response 非零，或解压后 opcode 是 branch/JAL/JALR/system 时为 1。
 
 slot response 选择：
@@ -58,7 +63,10 @@ slot response 选择：
 - 不产生 illegal/trap 判定；reserved/illegal 指令仍交给后续 decode。
 - 不读取或修改 `next_fetch_pc`、FIFO、branch prefetch、RAS、CSR 或 ROB 状态。
 - 对同一 fetch response，输出必须与原 `OooAluFetchCore` 内联半字拼接逻辑等价。
-- response provenance 只在本模块归一一次；decoder 后只剩 per-slot response，split 不进入 FIFO。
+- response provenance 只在本模块归一一次；decoder 后只剩 per-slot response，原始
+  split 不进入 FIFO，但由 split 预计算的 packet-level `fault_tval` 必须随包保存。
+- B-imm 位域只提取一次，宽度精确为 13；target 的 sign extension/页号修正在
+  `OooFetchBranchTarget` 单独完成。
 
 ## 5. 数据通路
 
@@ -74,6 +82,10 @@ slot response 选择：
    32-bit 拼接源，并对 `[L0,L0+L1)` 映射 response。
 5. 完整 effective response fault 时输出 NOP；PC/next PC 仍按安全/有效 prefix 长度顺序累加，
    packet next PC 等于 slot1 next PC。
+6. 对 response OK 且解压后 opcode 为 branch 的 slot，输出
+   `{inst[31],inst[7],inst[30:25],inst[11:8],1'b0}`；其它 slot 输出 13'b0。
+7. 同一组合边界计算 `fault_tval=rsp_pc+split`；下游不得从 dec0/dec1 PC
+   猜测失败 portion，也不得在 trap capture 临界路径重建该加法。
 
 ## 6. IFU-FETCH-G2 / IFU-ACCESS-G1 证据与边界（2026-07-13）
 
@@ -84,5 +96,6 @@ slot response 选择：
 - IFU-ACCESS-G1 把 bridge raw ABI 收敛为 success=`(OK,OK,4)`、fault=`(OK,cause,F)`，
   permanent matrix 覆盖 F=0/2/4/6、PMP 与 RRESP fault、4/6/8B 实际 packet footprint；
   decoder 对 split=0 及 slot0/slot1 owner 均有动态检查。
-- IFU-ACCESS-G1 已关闭物理窄读/PMP/RRESP 与 lane1 fault owner；faulting portion
-  `mtval/stval` 仍属独立 IFU-TVAL-G1，不能由 response owner 证据越级关闭。
+- T4G / IFU-TVAL-G1 已关闭：真实 bridge page-end 矩阵检查 F=2/4/6 的
+  `fault_tval=packet_pc+F`；decoder、FIFO、lane0/lane1 capture 与 drain 分层正向
+  回归通过，且丢 offset、FIFO 换回 slot PC、lane0/lane1 回退 PC 四个动态变异均被拒绝。

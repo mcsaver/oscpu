@@ -1,9 +1,10 @@
 # OooCommitOutputMux Spec
 
-> ⚠️ **状态（2026-07-11 RTL 重读）**：synthetic lane1-ret 相关模块已物理删除；
+> **状态（2026-07-14 T4J）**：synthetic lane1-ret 相关模块已物理删除；
 > branch-append 输入在当前配置下恒 0。mux 活路径是 ctrl pseudo-commit、core commit
-> 直通、JAL next-PC 修正与合并观察计数。本文同时登记 `INSTRET-G1`，不把观察计数
-> 误写成 CsrFile 已消费的 ISA-precise `minstret` 源。
+> 直通、JAL next-PC 修正与唯一 ISA-retirement 计数。`INSTRET-G1` 的 RTL 根因已修：
+> 最终计数只由仲裁后的两条 commit lane 产生并过滤 exception，`NpcCoreTop/CsrFile`
+> 消费同一个最终值；程序级长回归仍按 ROADMAP 的关闭标准单独留证。
 
 ## Scope
 
@@ -18,7 +19,8 @@ CSR side effects, trap side effects, ROB retirement, or pending-owner cleanup.
 - Control pseudo-commit source from `OooControlCommitSequencer`.
 - Branch-append compatibility controls from frontend recovery logic（当前恒 0）。
 - Core ROB commit0/commit1 payloads from `OooAluCoreSlice`.
-- Core retire count from `OooAluCoreSlice`.
+- Core ISA-retirement count from `OooAluCoreSlice`，仅用于 writeback 边界断言，
+  不参与本 mux 的最终计数逻辑。
 
 ## Output Priority
 
@@ -35,18 +37,22 @@ CSR side effects, trap side effects, ROB retirement, or pending-owner cleanup.
 
 ## Retire Count
 
-当前 RTL 的合并观察计数为：
+当前 RTL 的唯一计数为：
 
-`core_retire_count + ctrl_commit + synth_branch_append`。
+`popcount({commit1_valid && !commit1_exception,
+commit0_valid && !commit0_exception})`。
 
-The expression remains width-limited to the existing two-bit output contract.
+这里的 commit 字段是 mux 优先级已经选定的最终输出，因此 ctrl commit 覆盖 core、
+或未来 synthetic lane 覆盖 core lane1 时，被隐藏的源不会重复进入计数。显式
+AND/XOR 两位 popcount 结构保证值域严格为 0..2，不可能产生 3 或发生多源加法溢出。
 
-**CURRENT boundary**：`retire_count_o` 是 output-mux 的合并观察值；
-`NpcCoreTop/CsrFile` 当前没有消费它，而是直接消费 raw core count。
+**CURRENT boundary**：`retire_count_o` 同时是外部观察值与
+`NpcCoreTop/CsrFile.instret_inc_i` 的唯一系统输入。
 
-**KNOWN GAP INSTRET-G1**：raw core count 按 commit-valid 计数，未过滤 exception；本 mux
-虽加 control pseudo-commit，也不能自动修正 raw exception。故无论 raw count 还是当前 mux
-输出，都不能在未补 ISA 过滤合同前宣称为 `minstret` 的唯一精确来源。
+`OooAluCoreSlice` 的 core count 也按 `valid && !exception` 过滤；`OooWriteback`
+在 `OOO_ASSERT` 下逐拍核对 core count 与 core lanes、最终 count 与最终 lanes，防止
+ROB dequeue 与 ISA retirement 再次混义。异常 ROB entry 仍以 commit-valid 出队并携带
+trap payload，只是不计入 ISA retirement。
 
 ## Non-Goals
 

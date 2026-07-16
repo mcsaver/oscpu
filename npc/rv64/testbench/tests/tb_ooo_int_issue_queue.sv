@@ -3,11 +3,13 @@
 // tb_ooo_int_issue_queue —— P5 刀 B(2026-07-09)后的 IQ 契约:
 // 1. 【N+1 发射口径】dispatch 项当拍只写入阵列,当拍 issue*_valid 不得由 dispatch 活值拉高
 //    (dispatch→issue 同拍 bypass 已整体删除);次拍起才可被 select 发射。
-// 2. 【full/fast 分层】寄存项只允许 select_wakeup 同拍进 select；full wakeup
-//    继续被 compaction/dispatch/kill survivor 吸收到 ready，下拍发射(IQ-I2 无漏唤醒)。
+// 2. 【T3M sticky 边界】所有 integer full wakeup（含 EX）只被
+//    compaction/dispatch/kill survivor 吸收到 ready，下拍发射(IQ-I2 无漏唤醒)。
 // 3. select 唯一真源=已寄存 valid_q 项,由 RTL 内 IQ-NO-BYPASS 立即断言看护
 //    (本 TB 带 -DOOO_ASSERT 编译,断言命中会打印 [IQ-NO-BYPASS])。
 // 4. kill/recover/flush 语义不变:kill 拍压 issue、squash 更年轻后缀、幸存前缀同拍吸收 wakeup。
+// 5. 【T3N lane0 owner】第二候选跳过 branch/JAL/JALR，可继续选择更年轻的
+//    非控制流 ready 项；被跳过的控制流留队，下一拍晋升 lane0。
 // 断言与检查不可弱化;负测试(临时保留一条 bypass 臂使断言 fire)证据存
 // .github/task-runs/2026-07-09-p5-first-batch/。
 module tb_ooo_int_issue_queue;
@@ -56,10 +58,6 @@ module tb_ooo_int_issue_queue;
   reg [PHY_REG_ADDR_W-1:0] wakeup0_pdest;
   reg wakeup1_valid;
   reg [PHY_REG_ADDR_W-1:0] wakeup1_pdest;
-  reg select_wakeup0_valid;
-  reg [PHY_REG_ADDR_W-1:0] select_wakeup0_pdest;
-  reg select_wakeup1_valid;
-  reg [PHY_REG_ADDR_W-1:0] select_wakeup1_pdest;
   reg fp_wake0_valid;
   reg [PHY_REG_ADDR_W-1:0] fp_wake0_preg;
   reg fp_wake1_valid;
@@ -97,6 +95,7 @@ module tb_ooo_int_issue_queue;
   reg [ROB_INDEX_W-1:0] kill_rob_idx;
   reg [ROB_INDEX_W-1:0] rob_head_idx;
   reg recover_active;
+  integer lane1_negative_i;
 
   OooIntIssueQueue dut (
     .clk(clk),
@@ -148,10 +147,6 @@ module tb_ooo_int_issue_queue;
     .wakeup0_pdest_i(wakeup0_pdest),
     .wakeup1_valid_i(wakeup1_valid),
     .wakeup1_pdest_i(wakeup1_pdest),
-    .select_wakeup0_valid_i(select_wakeup0_valid),
-    .select_wakeup0_pdest_i(select_wakeup0_pdest),
-    .select_wakeup1_valid_i(select_wakeup1_valid),
-    .select_wakeup1_pdest_i(select_wakeup1_pdest),
     .fp_wake0_valid_i(fp_wake0_valid),
     .fp_wake0_preg_i(fp_wake0_preg),
     .fp_wake1_valid_i(fp_wake1_valid),
@@ -230,10 +225,6 @@ module tb_ooo_int_issue_queue;
       wakeup0_pdest = 6'd0;
       wakeup1_valid = 1'b0;
       wakeup1_pdest = 6'd0;
-      select_wakeup0_valid = 1'b0;
-      select_wakeup0_pdest = 6'd0;
-      select_wakeup1_valid = 1'b0;
-      select_wakeup1_pdest = 6'd0;
       fp_wake0_valid = 1'b0;
       fp_wake0_preg = 6'd0;
       fp_wake1_valid = 1'b0;
@@ -270,7 +261,12 @@ module tb_ooo_int_issue_queue;
       dispatch0_valid = 1'b1;
       dispatch0_pc = pc;
       dispatch0_inst = pc;
-      dispatch0_ctrl = {{(`CTRL_BUS_W-1){1'b0}}, 1'b1};
+      dispatch0_ctrl = {`CTRL_BUS_W{1'b0}};
+      dispatch0_ctrl[`CTRL_VALID_BIT] = 1'b1;
+      dispatch0_ctrl[`CTRL_RD_EN_BIT] = 1'b1;
+      dispatch0_ctrl[`CTRL_NEED_EXEC_BIT] = 1'b1;
+      dispatch0_ctrl[`CTRL_NEED_WB_BIT] = 1'b1;
+      dispatch0_ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_ALU;
       dispatch0_rob_idx = rob_idx;
       dispatch0_src1_preg = src1;
       dispatch0_src1_ready = src1_ready;
@@ -293,7 +289,12 @@ module tb_ooo_int_issue_queue;
       dispatch1_valid = 1'b1;
       dispatch1_pc = pc;
       dispatch1_inst = pc;
-      dispatch1_ctrl = {{(`CTRL_BUS_W-1){1'b0}}, 1'b1};
+      dispatch1_ctrl = {`CTRL_BUS_W{1'b0}};
+      dispatch1_ctrl[`CTRL_VALID_BIT] = 1'b1;
+      dispatch1_ctrl[`CTRL_RD_EN_BIT] = 1'b1;
+      dispatch1_ctrl[`CTRL_NEED_EXEC_BIT] = 1'b1;
+      dispatch1_ctrl[`CTRL_NEED_WB_BIT] = 1'b1;
+      dispatch1_ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_ALU;
       dispatch1_rob_idx = rob_idx;
       dispatch1_src1_preg = src1;
       dispatch1_src1_ready = src1_ready;
@@ -301,6 +302,86 @@ module tb_ooo_int_issue_queue;
       dispatch1_src2_ready = src2_ready;
       dispatch1_pdest = pdest;
       dispatch1_imm = pc + 32'h20;
+    end
+  endtask
+
+  // 审查者反例矩阵：每个复杂候选均夹在 older/younger simple-ALU 之间。
+  // lane1 必须越过候选选择 younger；候选只可在下一拍晋升 lane0。
+  task automatic run_lane1_negative_class;
+    input integer class_id;
+    reg [`CTRL_BUS_W-1:0] candidate_ctrl;
+    reg candidate_fp_st;
+    begin
+      reset_dut();
+      issue0_ready = 1'b0;
+      issue1_ready = 1'b0;
+      set_dispatch0(32'h8100_0000 + (class_id * 32'h20),
+                    4'd1, 6'd1, 1'b1, 6'd2, 1'b1, 6'd40);
+      set_dispatch1(32'h8100_0004 + (class_id * 32'h20),
+                    4'd2, 6'd3, 1'b1, 6'd4, 1'b1, 6'd41);
+      candidate_ctrl = dispatch1_ctrl;
+      candidate_fp_st = 1'b0;
+      case (class_id)
+        0: begin
+          candidate_ctrl[`CTRL_LOAD_BIT] = 1'b1;
+          candidate_ctrl[`CTRL_NEED_MEM_BIT] = 1'b1;
+          candidate_ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_LOAD;
+        end
+        1: candidate_ctrl[`CTRL_MULDIV_BIT] = 1'b1;
+        2: candidate_ctrl[`CTRL_BITMANIP_BIT] = 1'b1;
+        3: begin
+          candidate_ctrl[`CTRL_CSR_BIT] = 1'b1;
+          candidate_ctrl[`CTRL_SYSTEM_BIT] = 1'b1;
+          candidate_ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_CSR;
+        end
+        4: begin
+          candidate_ctrl[`CTRL_FENCE_BIT] = 1'b1;
+          candidate_ctrl[`CTRL_MISC_MEM_BIT] = 1'b1;
+          candidate_ctrl[`CTRL_RD_EN_BIT] = 1'b0;
+          candidate_ctrl[`CTRL_NEED_WB_BIT] = 1'b0;
+          candidate_ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_NONE;
+        end
+        5: begin
+          candidate_ctrl[`CTRL_AMO_BIT] = 1'b1;
+          candidate_ctrl[`CTRL_LOAD_BIT] = 1'b1;
+          candidate_ctrl[`CTRL_NEED_MEM_BIT] = 1'b1;
+        end
+        6: candidate_ctrl[`CTRL_NEED_MEM_BIT] = 1'b1;
+        7: candidate_fp_st = 1'b1;
+        default: candidate_ctrl[`CTRL_ILLEGAL_BIT] = 1'b1;
+      endcase
+      dispatch1_ctrl = candidate_ctrl;
+      dispatch1_fp_st_src_en = candidate_fp_st;
+      dispatch1_fp_st_src_preg = 6'd9;
+      dispatch1_fp_st_src_ready = 1'b1;
+      `TB_TICK(clk);
+      clear_inputs();
+      set_dispatch0(32'h8100_0008 + (class_id * 32'h20),
+                    4'd3, 6'd5, 1'b1, 6'd6, 1'b1, 6'd42);
+      `TB_TICK(clk);
+      clear_inputs();
+      issue0_ready = 1'b1;
+      issue1_ready = 1'b1;
+      #1;
+      $display("[T3Q-LANE1-NEG] class=%0d lane0_pc=%h lane1_pc=%h count=%0d",
+               class_id, issue0_pc, issue1_pc, count);
+      tb_check1("T3Q negative oldest simple owns lane0", issue0_valid, 1'b1);
+      tb_check1("T3Q negative younger simple owns lane1", issue1_valid, 1'b1);
+      tb_check32("T3Q negative lane0 identity", issue0_pc,
+                 32'h8100_0000 + (class_id * 32'h20));
+      tb_check32("T3Q negative lane1 skips candidate", issue1_pc,
+                 32'h8100_0008 + (class_id * 32'h20));
+      `TB_TICK(clk);
+      #1;
+      tb_check32("T3Q negative candidate remains", {28'b0, count}, 32'd1);
+      tb_check1("T3Q negative candidate promotes lane0", issue0_valid, 1'b1);
+      tb_check1("T3Q negative candidate never owns lane1", issue1_valid, 1'b0);
+      tb_check32("T3Q negative promoted identity", issue0_pc,
+                 32'h8100_0004 + (class_id * 32'h20));
+      `TB_TICK(clk);
+      clear_inputs();
+      #1;
+      tb_check1("T3Q negative case drains", empty, 1'b1);
     end
   endtask
 
@@ -442,18 +523,31 @@ module tb_ooo_int_issue_queue;
     $finish_and_return(0);
 `endif
 
-`ifdef IQ_FAST_WAKE_SUBSET_NEGATIVE
-    // 非真空负探针：reset 后立即制造 lane0 select/full tag 身份不一致，
-    // 跨 posedge 触发 DUT 的逐 lane 子集断言；lane1 保持 invalid，避免噪声命中。
+`ifdef IQ_INT_WAKE_STICKY_NEGATIVE
+    // 非真空负探针：合法建立一个等待 preg21 的 resident，匹配 full wake
+    // 自然不能在 N 拍 select；只 force issue valid 跨过 N 沿，精准证明
+    // IQ-INT-WAKE-STICKY-ONLY 有牙。
+    set_dispatch0(32'h8000_0fb0, 4'd5,
+                  6'd21, 1'b0, 6'd0, 1'b1, 6'd22);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("IQ integer sticky negative resident valid",
+              dut.valid_q[0], 1'b1);
+    tb_check1("IQ integer sticky negative source starts unready",
+              dut.src1_ready_q[0], 1'b0);
     wakeup0_valid = 1'b1;
     wakeup0_pdest = 6'd21;
-    select_wakeup0_valid = 1'b1;
-    select_wakeup0_pdest = 6'd22;
-    $display("[IQ-FAST-WAKE-SUBSET-NEGATIVE] arm lane0 select=%0d full=%0d",
-             select_wakeup0_pdest, wakeup0_pdest);
-    `TB_TICK(clk);
     #1;
-    $display("[IQ-FAST-WAKE-SUBSET-NEGATIVE] completed one assertion edge");
+    tb_check1("IQ integer sticky negative full wake stays non-select",
+              issue0_valid, 1'b0);
+    force dut.issue0_valid_o = 1'b1;
+    $display("[IQ-INT-WAKE-STICKY-NEGATIVE] force issue0 with sticky=%0b wake=%0b/%0d",
+             dut.src1_ready_q[0], wakeup0_valid, wakeup0_pdest);
+    `TB_TICK(clk);
+    release dut.issue0_valid_o;
+    #1;
+    $display("[IQ-INT-WAKE-STICKY-NEGATIVE] completed one assertion edge");
     $finish_and_return(0);
 `endif
 
@@ -498,7 +592,48 @@ module tb_ooo_int_issue_queue;
     #1;
     tb_check1("empty after dual issue", empty, 1'b1);
 
-    // ===== S4 依赖对:issue1 无同拍前递;寄存项 wakeup→select 直通保留 =====
+    // ===== T3N：控制流只能由 lane0 拥有，lane1 扫描可越过它 =====
+    set_dispatch0(32'h8000_0018, 4'd10,
+                  6'd1, 1'b1, 6'd2, 1'b1, 6'd36);
+    set_dispatch1(32'h8000_001c, 4'd11,
+                  6'd3, 1'b1, 6'd4, 1'b1, 6'd0);
+    dispatch1_ctrl[`CTRL_BRANCH_BIT] = 1'b1;
+    `TB_TICK(clk);
+    clear_inputs();
+    issue0_ready = 1'b0;
+    issue1_ready = 1'b0;
+    set_dispatch0(32'h8000_0020, 4'd12,
+                  6'd5, 1'b1, 6'd6, 1'b1, 6'd37);
+    #1;
+    tb_check1("T3N older non-control occupies lane0", issue0_valid, 1'b1);
+    tb_check32("T3N lane0 oldest pc", issue0_pc, 32'h8000_0018);
+    tb_check1("T3N control-flow not exposed on lane1", issue1_valid, 1'b0);
+    `TB_TICK(clk);
+    clear_inputs();
+    issue0_ready = 1'b1;
+    issue1_ready = 1'b1;
+    #1;
+    tb_check32("T3N three entries resident", {28'b0, count}, 32'd3);
+    tb_check1("T3N lane0 valid", issue0_valid, 1'b1);
+    tb_check1("T3N lane1 selects younger non-control", issue1_valid, 1'b1);
+    tb_check32("T3N lane1 skips branch pc", issue1_pc, 32'h8000_0020);
+    tb_check1("T3N lane1 payload is not branch",
+              issue1_ctrl[`CTRL_BRANCH_BIT], 1'b0);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check32("T3N skipped branch remains", {28'b0, count}, 32'd1);
+    tb_check1("T3N branch promotes to lane0", issue0_valid, 1'b1);
+    tb_check32("T3N promoted branch pc", issue0_pc, 32'h8000_001c);
+    tb_check1("T3N promoted payload is branch",
+              issue0_ctrl[`CTRL_BRANCH_BIT], 1'b1);
+    tb_check1("T3N lane1 idle behind sole branch", issue1_valid, 1'b0);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("T3N promoted branch drains", empty, 1'b1);
+
+    // ===== S4 / T3M RED→GREEN：EX/full wake 只落 sticky，N+1 发射 =====
     set_dispatch0(32'h8000_0020, 4'd4, 6'd1, 1'b1, 6'd2, 1'b1, 6'd40);
     set_dispatch1(32'h8000_0024, 4'd5, 6'd40, 1'b0, 6'd3, 1'b1, 6'd41);
     `TB_TICK(clk);
@@ -514,21 +649,21 @@ module tb_ooo_int_issue_queue;
     tb_check1("dependent not ready yet", issue0_valid, 1'b0);
     wakeup0_valid = 1'b1;
     wakeup0_pdest = 6'd40;
-    select_wakeup0_valid = 1'b1;
-    select_wakeup0_pdest = 6'd40;
     #1;
-    tb_check1("[IQ-FAST-WAKE-SUBSET] legal lane0 subset",
-              select_wakeup0_valid && wakeup0_valid &&
-              (select_wakeup0_pdest == wakeup0_pdest), 1'b1);
-    tb_check1("same-cycle wakeup selects queued entry", issue0_valid, 1'b1);
-    tb_check32("wakeup issue pc", issue0_pc, 32'h8000_0024);
+    tb_check1("T3M full wake does not select queued entry in N",
+              issue0_valid, 1'b0);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("T3M sticky entry selects in N+1", issue0_valid, 1'b1);
+    tb_check32("T3M sticky issue pc", issue0_pc, 32'h8000_0024);
     `TB_TICK(clk);
     clear_inputs();
     #1;
     tb_check1("empty after wakeup issue", empty, 1'b1);
 
     // ===== T3B RED→GREEN:full-only wakeup 只更新 resident ready =====
-    // select_wakeup0 保持 0；N 拍不发射，上升沿吸收 full wakeup 后 N+1 发射。
+    // N 拍不发射，上升沿吸收 full wakeup 后 N+1 发射。
     set_dispatch0(32'h8000_0028, 4'd6, 6'd42, 1'b0,
                   6'd0, 1'b1, 6'd39);
     `TB_TICK(clk);
@@ -578,7 +713,7 @@ module tb_ooo_int_issue_queue;
     #1;
     tb_check1("[T3B-GREEN] WB1 delayed resident drains", empty, 1'b1);
 
-    // ===== T3B mixed：lane1 fast 当拍发，lane0 full-only survivor 压缩后下拍发 =====
+    // ===== T3M dual-source：两路 full wake 同沿落 sticky，N+1 双发 =====
     set_dispatch0(32'h8000_0034, 4'd8, 6'd45, 1'b0,
                   6'd0, 1'b1, 6'd46);
     set_dispatch1(32'h8000_0038, 4'd9, 6'd44, 1'b0,
@@ -593,27 +728,24 @@ module tb_ooo_int_issue_queue;
     wakeup0_pdest = 6'd44;
     wakeup1_valid = 1'b1;
     wakeup1_pdest = 6'd45;
-    select_wakeup1_valid = 1'b1;
-    select_wakeup1_pdest = 6'd45;
     #1;
-    tb_check1("[IQ-FAST-WAKE-SUBSET] legal lane1 subset",
-              select_wakeup1_valid && wakeup1_valid &&
-              (select_wakeup1_pdest == wakeup1_pdest), 1'b1);
-    tb_check1("[T3B-GREEN] mixed fast resident issues in N",
-              issue0_valid, 1'b1);
-    tb_check32("[T3B-GREEN] mixed N selects fast older PC",
-               issue0_pc, 32'h8000_0034);
-    tb_check1("[T3B-GREEN] mixed full-only younger stays out of issue1",
+    tb_check1("[T3M-RED] dual full wake does not issue0 in N",
+              issue0_valid, 1'b0);
+    tb_check1("[T3M-RED] dual full wake does not issue1 in N",
               issue1_valid, 1'b0);
     `TB_TICK(clk);
     clear_inputs();
     #1;
-    tb_check32("[T3B-GREEN] mixed compaction keeps survivor",
-               {28'b0, count}, 32'd1);
-    tb_check1("[T3B-GREEN] mixed full-only survivor issues in N+1",
+    tb_check32("[T3M-GREEN] dual wake keeps both residents through edge",
+               {28'b0, count}, 32'd2);
+    tb_check1("[T3M-GREEN] older resident issues in N+1",
               issue0_valid, 1'b1);
-    tb_check32("[T3B-GREEN] mixed survivor PC",
-               issue0_pc, 32'h8000_0038);
+    tb_check1("[T3M-GREEN] younger resident issues in N+1",
+              issue1_valid, 1'b1);
+    tb_check32("[T3M-GREEN] older resident PC",
+               issue0_pc, 32'h8000_0034);
+    tb_check32("[T3M-GREEN] younger resident PC",
+               issue1_pc, 32'h8000_0038);
     `TB_TICK(clk);
     clear_inputs();
     #1;
@@ -624,8 +756,6 @@ module tb_ooo_int_issue_queue;
     wakeup0_valid = 1'b1;
     wakeup0_pdest = 6'd9;
     #1;
-    tb_check1("[T3B-GREEN] dispatch full-only has no select wakeup",
-              select_wakeup0_valid, 1'b0);
     tb_check1("wakeup does not enable same-cycle dispatch issue",
               issue0_valid, 1'b0);
     `TB_TICK(clk);
@@ -661,6 +791,86 @@ module tb_ooo_int_issue_queue;
     #1;
     tb_check1("empty after store-load order", empty, 1'b1);
 
+    // ===== T3S 年龄反例：younger LR 不得越过未 ready 的 older load =====
+    // 单槽 reservation 若先捕获 younger LR，LR 等 ROB head 与 older load 等
+    // raw lane0 会形成自等待；因此 memory uop 之间必须保持程序序。
+    set_dispatch0(32'h8000_0048, 4'd9,
+                  6'd20, 1'b0, 6'd0, 1'b1, 6'd55);
+    dispatch0_ctrl[`CTRL_LOAD_BIT] = 1'b1;
+    dispatch0_ctrl[`CTRL_NEED_MEM_BIT] = 1'b1;
+    dispatch0_ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_LOAD;
+    set_dispatch1(32'h8000_004c, 4'd10,
+                  6'd0, 1'b1, 6'd0, 1'b1, 6'd56);
+    dispatch1_ctrl[`CTRL_LOAD_BIT] = 1'b1;
+    dispatch1_ctrl[`CTRL_AMO_BIT] = 1'b1;
+    dispatch1_ctrl[`CTRL_AMO_LR_BIT] = 1'b1;
+    dispatch1_ctrl[`CTRL_NEED_MEM_BIT] = 1'b1;
+    dispatch1_ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_LOAD;
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check32("T3S load-LR pair resident", {28'b0, count}, 32'd2);
+    tb_check1("T3S younger LR blocked behind unready load",
+              issue0_valid, 1'b0);
+    tb_check1("T3S memory pair never reaches lane1", issue1_valid, 1'b0);
+    wakeup0_valid = 1'b1;
+    wakeup0_pdest = 6'd20;
+    #1;
+    tb_check1("T3S wake is sticky-only in N", issue0_valid, 1'b0);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("T3S older load releases first", issue0_valid, 1'b1);
+    tb_check32("T3S older load identity", issue0_pc, 32'h8000_0048);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check32("T3S younger LR remains after older pop",
+               {28'b0, count}, 32'd1);
+    tb_check1("T3S younger LR releases second", issue0_valid, 1'b1);
+    tb_check32("T3S younger LR identity", issue0_pc, 32'h8000_004c);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("T3S ordered memory pair drains", empty, 1'b1);
+
+    // ===== T3T 年龄反例：memory 不得越过未 ready 的 older non-memory =====
+    set_dispatch0(32'h8000_0140, 4'd11,
+                  6'd21, 1'b0, 6'd0, 1'b1, 6'd0);
+    dispatch0_ctrl[`CTRL_BRANCH_BIT] = 1'b1;
+    dispatch0_ctrl[`CTRL_RD_EN_BIT] = 1'b0;
+    dispatch0_ctrl[`CTRL_NEED_WB_BIT] = 1'b0;
+    set_dispatch1(32'h8000_0144, 4'd12,
+                  6'd0, 1'b1, 6'd0, 1'b1, 6'd57);
+    dispatch1_ctrl[`CTRL_LOAD_BIT] = 1'b1;
+    dispatch1_ctrl[`CTRL_NEED_MEM_BIT] = 1'b1;
+    dispatch1_ctrl[`CTRL_WB_SEL_MSB:`CTRL_WB_SEL_LSB] = `WB_SEL_LOAD;
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check32("T3T branch-load pair resident", {28'b0, count}, 32'd2);
+    tb_check1("T3T younger load blocked behind branch",
+              issue0_valid, 1'b0);
+    wakeup0_valid = 1'b1;
+    wakeup0_pdest = 6'd21;
+    #1;
+    tb_check1("T3T branch wake remains sticky-only in N",
+              issue0_valid, 1'b0);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check32("T3T older branch releases first",
+               issue0_pc, 32'h8000_0140);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check32("T3T younger load releases second",
+               issue0_pc, 32'h8000_0144);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("T3T branch-load pair drains", empty, 1'b1);
+
     // ===== S7 issue_mem_block 压制 mem 类寄存项 =====
     set_dispatch0(32'h8000_0050, 4'd9, 6'd1, 1'b1, 6'd2, 1'b1, 6'd42);
     dispatch0_ctrl[`CTRL_LOAD_BIT] = 1'b1;
@@ -693,7 +903,7 @@ module tb_ooo_int_issue_queue;
     #1;
     tb_check1("entry drains after ready", empty, 1'b1);
 
-    // ===== S9 双 load 成对发射(issue1 可载 load,不可载 store) =====
+    // ===== T3P：lane1 跳过复杂 load，选择更年轻 simple-ALU；load 随后晋升 lane0 =====
     issue0_ready = 1'b0;
     issue1_ready = 1'b0;
     set_dispatch0(32'h8000_0070, 4'd11, 6'd1, 1'b1, 6'd2, 1'b1, 6'd43);
@@ -710,17 +920,28 @@ module tb_ooo_int_issue_queue;
     issue0_ready = 1'b1;
     issue1_ready = 1'b1;
     #1;
-    tb_check1("dual load issue0 valid", issue0_valid, 1'b1);
-    tb_check1("dual load issue1 valid", issue1_valid, 1'b1);
-    tb_check32("dual load issue0 oldest load", issue0_pc, 32'h8000_0070);
-    tb_check32("dual load issue1 second load", issue1_pc, 32'h8000_0074);
+    tb_check1("T3P oldest load owns lane0", issue0_valid, 1'b1);
+    tb_check1("T3P younger simple ALU owns lane1", issue1_valid, 1'b1);
+    tb_check32("T3P lane0 oldest load", issue0_pc, 32'h8000_0070);
+    tb_check32("T3P lane1 skips second load", issue1_pc, 32'h8000_0078);
+    tb_check1("T3P lane1 payload is non-memory",
+              issue1_ctrl[`CTRL_LOAD_BIT] || issue1_ctrl[`CTRL_STORE_BIT],
+              1'b0);
     `TB_TICK(clk);
     #1;
-    tb_check32("dual load leaves later alu", {28'b0, count}, 32'd1);
-    tb_check32("dual load remaining pc", issue0_pc, 32'h8000_0078);
+    tb_check32("T3P skipped load remains", {28'b0, count}, 32'd1);
+    tb_check32("T3P skipped load promotes lane0", issue0_pc, 32'h8000_0074);
+    tb_check1("T3P promoted payload remains load",
+              issue0_ctrl[`CTRL_LOAD_BIT], 1'b1);
     `TB_TICK(clk);
     #1;
-    tb_check1("dual load drains", empty, 1'b1);
+    tb_check1("T3P promoted load drains", empty, 1'b1);
+
+    // T3Q reviewer matrix: LOAD/MULDIV/BITMANIP/CSR/FENCE/AMO/residual
+    // NEED_MEM/FP-store-sideband 全部必须 fail-closed，且不会阻断更年轻 simple。
+    for (lane1_negative_i = 0; lane1_negative_i < 8;
+         lane1_negative_i = lane1_negative_i + 1)
+      run_lane1_negative_class(lane1_negative_i);
 
     // ===== S10 乱序 select:ready 新项越过 unready 老项,但仍须先寄存(N+1) =====
     set_dispatch0(32'h8000_0080, 4'd14, 6'd20, 1'b0, 6'd0, 1'b1, 6'd50);
@@ -744,10 +965,13 @@ module tb_ooo_int_issue_queue;
     tb_check32("unready entry preserved", {28'b0, count}, 32'd1);
     wakeup0_valid = 1'b1;
     wakeup0_pdest = 6'd20;
-    select_wakeup0_valid = 1'b1;
-    select_wakeup0_pdest = 6'd20;
     #1;
-    tb_check1("preserved entry wakes", issue0_valid, 1'b1);
+    tb_check1("preserved entry does not wake-select in N",
+              issue0_valid, 1'b0);
+    `TB_TICK(clk);
+    clear_inputs();
+    #1;
+    tb_check1("preserved entry wakes in N+1", issue0_valid, 1'b1);
     tb_check32("preserved entry issue pc", issue0_pc, 32'h8000_0080);
     `TB_TICK(clk);
     clear_inputs();
@@ -775,8 +999,6 @@ module tb_ooo_int_issue_queue;
     wakeup0_valid = 1'b1;
     wakeup0_pdest = 6'd21;
     #1;
-    tb_check1("[T3B-GREEN] kill full-only has no select wakeup",
-              select_wakeup0_valid, 1'b0);
     tb_check1("kill gates issue0", issue0_valid, 1'b0);
     tb_check1("kill gates issue1", issue1_valid, 1'b0);
     `TB_TICK(clk);
@@ -838,19 +1060,16 @@ module tb_ooo_int_issue_queue;
     tb_check1("[T3D-RED] resident FP source starts not-ready",
               dut.fp_st_ready_q[0], 1'b0);
 
-    // N 拍只脉冲跨域 fp_wake0；integer full/select wake 均保持 0。
+    // N 拍只脉冲跨域 fp_wake0；integer full wake 保持 0。
     fp_wake0_valid = 1'b1;
     fp_wake0_preg = 6'd23;
     #1;
-    $display("[T3D-RED-OBS] N fp_wake0=%0b fp_preg=%0d int_full={%0b,%0b} int_select={%0b,%0b} issue={%0b,%0b} count=%0d sticky=%0b",
+    $display("[T3D-RED-OBS] N fp_wake0=%0b fp_preg=%0d int_full={%0b,%0b} issue={%0b,%0b} count=%0d sticky=%0b",
              fp_wake0_valid, fp_wake0_preg,
              wakeup0_valid, wakeup1_valid,
-             select_wakeup0_valid, select_wakeup1_valid,
              issue0_valid, issue1_valid, count, dut.fp_st_ready_q[0]);
     tb_check1("[T3D-RED] N contains no integer full wake",
               wakeup0_valid || wakeup1_valid, 1'b0);
-    tb_check1("[T3D-RED] N contains no integer select wake",
-              select_wakeup0_valid || select_wakeup1_valid, 1'b0);
     tb_check1("[T3D-RED] FP wake must not issue in N",
               issue0_valid, 1'b0);
     tb_check32("[T3D-RED] FP store remains resident during N",

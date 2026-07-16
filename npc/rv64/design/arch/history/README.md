@@ -10,7 +10,7 @@
 | --- | --- | --- | --- |
 | `EVAL-REPORT-2026-06-28.md` | SUPERSEDED | 时点评估快照；其"暂缓"决策（LSQ/前递/分支预测增强）均已被后续落地取代 | `../rtl-ground-truth-2026-07-11.md` + `.github/memory/project-status.md` |
 | `b2-branch-spec-redirect.md` | SUPERSEDED | B2 专项设计（方案评审+负结论记录）；分支/JALR 迁域 A + ROB-walk + 显式 mispredict 已以 F2 形态落地。残余（pending 死壳删除、RedirectArbiter 接线）归宪法 §8.3 | 宪法 §8.3 + 真相基线 §2.4/§4 |
-| `mem-store-decouple.md` | SUPERSEDED | B1 专项设计,机制已实现验证且至今在役（bpend/store_decouple_w）；桥现行 FSM 语义由 `specs/ooo-mem-axi-bridge-fsm.md` 承载 | `../../specs/ooo-mem-axi-bridge-fsm.md` |
+| `mem-store-decouple.md` | SUPERSEDED | B1 早完成机制曾实现验证，但 T4I lane adapter 使“上游 AW/W fire=物理落存”前提失效；`bpend/store_decouple` 已删除，现统一等聚合 B | `../../specs/ooo-mem-axi-bridge-fsm.md` + `../../specs/ooo-lsu-axi-lane-adapter.md` |
 
 ## 归档清单（2026-07-11，current authority 更新）
 

@@ -16,7 +16,7 @@
 - `regread_bypass/`：整数物理寄存器堆、FP 架构/物理寄存器堆（由
   `execute/OooFpBackend.v` 例化）、pending operand read gate 与后续旁路网络落点。
 - `execute/`：基础 ALU/Compare、OoO ALU slice、整数后端（含 AMO/bitmanip gate）、MUL/DIV、CLMUL，以及 FP 真乱序簇——`OooFpBackend` 装配壳（内部例化架构/物理 FPR 与 FP IQ）、FP 运算 gate 族（FADD/FMUL 3 级、FMA 5 级流水）与 FDIV/FSQRT 迭代单元；旧 pending FP sequencer 与 FP pending 执行数据通路已拆除。
-- `memory/`：LSU、Sv39 TLB、store queue（SQ，probe→commit→drain，store-to-load 前递已落地）、mem 在飞队列（MIQ）、PMP checker、memory request gate、memory AXI bridge；pending memory sequencer 已证死，MSHR 未做。
+- `memory/`：LSU、Sv39 TLB、store queue（SQ，probe→commit→drain，store-to-load 前递已落地）、mem 在飞队列（MIQ）、PMP checker、具体 NpcTop 地址图的 fail-closed PMA checker、memory request gate、memory AXI bridge、LSU logical-window→standard-lane adapter；pending memory sequencer 已证死，MSHR 未做。
 - `writeback/`：WBU、ROB、退休、synthetic lane1 retire commit gate（已证死）、commit output mux 和 commit 侧架构寄存器观测镜像；旧 FP commit gate 已随 pending-FP 拆除。
 - `control/`：flush/recovery/pending SYSTEM/CSR/interrupt/pending trap-exit、
   pending drain/resolve gate、CSR illegal probe gate、core slice control gate、final trap/debug/CSR observable output、PMU 等跨阶段控制的落点。
@@ -58,9 +58,12 @@ CSR 事件/状态边界；FPR 状态（架构 `regread_bypass/OooFpRegFile.v` �
 `design/specs/history/ooo-frontend.md`(已归档)。经此分层 glue 降为 6 个实例、约 1.3k 行、0 个
 `always`。
 
-当前 RV64 LSU/仿真 AXI 数据侧采用 byte-addressed 64-bit window：普通
-load/store 的请求地址保持 exact effective address，`wdata/wstrb` 从 lane0
-开始表达访问宽度；非对齐普通 load/store 由 DPI PMEM 连续字节窗口完成。
+当前 RV64 LSU 在 core-private 边界使用 byte-addressed logical window：请求地址
+保持 exact PA，`wdata/wstrb` 从 lane0 开始表达访问宽度。
+`memory/OooLsuAxiLaneAdapter.v` 在 NpcCoreTop master 边界将自然对齐请求转为
+标准 AXI byte lane，只对完整范围已通过 translation/PMP/PMA 的普通 PMEM
+非对齐请求逐 byte split 并聚合 R/B。xbar、设备、DPI 与对外 64-bit 端口
+均只看标准 lane/AxSIZE；MMIO/PTE 不获得 split 授权。
 AMO/LR/SC 仍在执行后端保留对齐异常约束。
 
 OoO 结构容量默认值统一由 `include/define.v` 中的 `OOO_*` 宏维护：
@@ -78,8 +81,11 @@ module/core 回归和性能样本分析。
   fflags/retire 事件并消费 CSR 状态。T3K 起 CSR 接口分为 commit/pending/readback
   使用的 `csr_access_*` 与 current-head-only、无副作用的 `csr_probe_*`；两者在
   `CsrFile` 内复用唯一 legality predicate，但 probe 结果不参与架构状态更新。
+- `frontend/OooFetchStaticClassify.v` 在 fault-sanitized response 指令上一次性生成每槽
+  18-bit 静态 facts（15 类 FP、raw double、DYN-rm-bearing、semihost peer signature），
+  不读取 privilege/CSR/fault/visibility 等 head-time 状态。
 - `frontend/OooFetchHeadClassifyGate.v` 承接单个 fetch head 的 decoder illegal、
-  branch/jump/memory、FP decode、FS-off FP、semihost EBREAK、ECALL/CSR/xRET/WFI、
+  branch/jump/memory、已存静态 FP facts 的可见性重组、FS-off FP、semihost EBREAK、ECALL/CSR/xRET/WFI、
   supervisor fence/TVM/TSR privilege illegal、stop 和 architectural trap 组合事实；
   同时输出 `common/OooSlotFacts.v` 定义的 `facts_o` packed bus，作为旧散线的
   等价 alias；
@@ -150,6 +156,9 @@ module/core 回归和性能样本分析。
 - `frontend/OooFetchPacketDecode.v` 承接取指 response packet 的 RVC 半字拼接、
   解压、slot PC/next PC、slot response 和 control-stop 组合事实；父模块仍保留
   response ready-valid、FIFO、redirect 和 trap/flush 策略。
+- `frontend/OooFetchBranchTarget.v` 以 13-bit B-imm 和 4KiB 页内 carry/sign 修正计算
+  RV64 条件分支目标，避免跨模块 XLEN-wide sign-extension；父模块仍保留预测选择、
+  FIFO/outstanding 落账和 redirect 优先级。
 - `frontend/OooFrontendUopSafety.v` 承接前端 fast path 使用的普通 uop 安全白名单
   组合策略；父模块仍保留 dispatch payload、prefetch 转正和 precise recovery
   的时序所有权。
@@ -257,13 +266,14 @@ module/core 回归和性能样本分析。
   父模块仍负责组合计算 ROB/IQ/retire/synthetic lane1 是否为空，以及 pending/trap
   控制使用该状态的策略。
 - `frontend/OooFetchPacketHeadMux.v` 承接 dispatch 可见 fetch packet head 的来源选择，
-  只在 response bypass 与 FIFO head payload 之间做组合 mux；父模块仍决定 bypass
-  条件、FIFO pop/seed 和 redirect/trap recovery。
+  当前是 registered FIFO head bundle（含双槽 static facts）的 identity view；父模块仍决定
+  FIFO pop/seed 和 redirect/trap recovery。
 - `frontend/OooFetchPacketSeedMux.v` 承接前端 redirect/recovery 事件到 FIFO
   clear/seed 动作的组合编码；父模块仍负责生成事件谓词、验证 prefetch hit 和更新
   `next_fetch_pc`。
 - `frontend/OooFetchPacketFifo.v` 承接前端取指 packet FIFO 的 head/tail/count
-  与 packet storage；父模块仍保留 response bypass、outstanding/stale response、
+  与 packet storage；T3W 要求每槽 18-bit static facts 与 inst/predecode/response 元数据
+  同表项原子写读；父模块仍保留 outstanding/stale response、
   redirect/flush/seed 仲裁和 `next_fetch_pc` 更新。
 - `frontend/OooFetchFlowControl.v` 承接前端 fetch request/response ready-valid
   组合策略；父模块仍保留 PC 选择、outstanding/discard 状态和精确 redirect/trap

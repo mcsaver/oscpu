@@ -1,9 +1,0 @@
-task_slug=2026-07-13-rv64-t3k-csr-probe-isolation
-period_ns=5.0
-netlist_sha256=0161d3d41300cd41a80f4da3cd649cc8defb98548c23eb324efc140fec583b32
-wns_ns=-8.720
-tns_ns=-199154.36
-target_200mhz_met=false
-inventory_entries=108
-logical_bytes=950626698
-archive_sha256=e1326a5795f2965b3f14ca9afa5aa987eadb2323dd53f98b179439ddb6109a93

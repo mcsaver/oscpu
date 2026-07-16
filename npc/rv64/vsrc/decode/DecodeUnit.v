@@ -781,7 +781,9 @@ module DecodeUnit (
       `OPCODE_MISC_MEM: begin
         if (funct3_w == `FUNCT3_FENCE) begin
           ctrl_o[`CTRL_ILLEGAL_BIT] = 1'b0;
-          ctrl_o[`CTRL_FENCE_BIT] = 1'b1;          // 纯内存序 fence：仍作合法 no-op
+          // T4L: legal ordinary FENCE; head classification consumes this bit
+          // as a pending-system serialization boundary (not a backend no-op).
+          ctrl_o[`CTRL_FENCE_BIT] = 1'b1;
           ctrl_o[`CTRL_MISC_MEM_BIT] = 1'b1;
           ctrl_o[`CTRL_NEED_EXEC_BIT] = 1'b1;
         end else if (funct3_w == `FUNCT3_FENCE_I) begin

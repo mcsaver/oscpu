@@ -9,6 +9,7 @@ module tb_axi_clint;
   reg arvalid;
   wire arready;
   reg [31:0] araddr;
+  reg [2:0] arsize;
   wire rvalid;
   reg rready;
   wire [31:0] rdata;
@@ -17,6 +18,7 @@ module tb_axi_clint;
   reg awvalid;
   wire awready;
   reg [31:0] awaddr;
+  reg [2:0] awsize;
   reg wvalid;
   wire wready;
   reg [31:0] wdata;
@@ -56,6 +58,7 @@ module tb_axi_clint;
   reg axi64_arvalid;
   wire axi64_arready;
   reg [63:0] axi64_araddr;
+  reg [2:0] axi64_arsize;
   wire axi64_rvalid;
   reg axi64_rready;
   wire [63:0] axi64_rdata;
@@ -64,6 +67,7 @@ module tb_axi_clint;
   reg axi64_awvalid;
   wire axi64_awready;
   reg [63:0] axi64_awaddr;
+  reg [2:0] axi64_awsize;
   reg axi64_wvalid;
   wire axi64_wready;
   reg [63:0] axi64_wdata;
@@ -84,6 +88,7 @@ module tb_axi_clint;
     .s_axi_arvalid_i(arvalid),
     .s_axi_arready_o(arready),
     .s_axi_araddr_i(araddr),
+    .s_axi_arsize_i(arsize),
     .s_axi_rvalid_o(rvalid),
     .s_axi_rready_i(rready),
     .s_axi_rdata_o(rdata),
@@ -91,6 +96,7 @@ module tb_axi_clint;
     .s_axi_awvalid_i(awvalid),
     .s_axi_awready_o(awready),
     .s_axi_awaddr_i(awaddr),
+    .s_axi_awsize_i(awsize),
     .s_axi_wvalid_i(wvalid),
     .s_axi_wready_o(wready),
     .s_axi_wdata_i(wdata),
@@ -111,6 +117,7 @@ module tb_axi_clint;
     .s_axi_arvalid_i(1'b0),
     .s_axi_arready_o(inc_arready),
     .s_axi_araddr_i(32'h0),
+    .s_axi_arsize_i(3'd2),
     .s_axi_rvalid_o(inc_rvalid),
     .s_axi_rready_i(1'b0),
     .s_axi_rdata_o(inc_rdata),
@@ -118,6 +125,7 @@ module tb_axi_clint;
     .s_axi_awvalid_i(1'b0),
     .s_axi_awready_o(inc_awready),
     .s_axi_awaddr_i(32'h0),
+    .s_axi_awsize_i(3'd2),
     .s_axi_wvalid_i(1'b0),
     .s_axi_wready_o(inc_wready),
     .s_axi_wdata_i(32'h0),
@@ -144,6 +152,7 @@ module tb_axi_clint;
     .s_axi_arvalid_i(1'b0),
     .s_axi_arready_o(div_arready),
     .s_axi_araddr_i(32'h0),
+    .s_axi_arsize_i(3'd2),
     .s_axi_rvalid_o(div_rvalid),
     .s_axi_rready_i(1'b0),
     .s_axi_rdata_o(div_rdata),
@@ -151,6 +160,7 @@ module tb_axi_clint;
     .s_axi_awvalid_i(1'b0),
     .s_axi_awready_o(div_awready),
     .s_axi_awaddr_i(32'h0),
+    .s_axi_awsize_i(3'd2),
     .s_axi_wvalid_i(1'b0),
     .s_axi_wready_o(div_wready),
     .s_axi_wdata_i(32'h0),
@@ -179,6 +189,7 @@ module tb_axi_clint;
     .s_axi_arvalid_i(axi64_arvalid),
     .s_axi_arready_o(axi64_arready),
     .s_axi_araddr_i(axi64_araddr),
+    .s_axi_arsize_i(axi64_arsize),
     .s_axi_rvalid_o(axi64_rvalid),
     .s_axi_rready_i(axi64_rready),
     .s_axi_rdata_o(axi64_rdata),
@@ -186,6 +197,7 @@ module tb_axi_clint;
     .s_axi_awvalid_i(axi64_awvalid),
     .s_axi_awready_o(axi64_awready),
     .s_axi_awaddr_i(axi64_awaddr),
+    .s_axi_awsize_i(axi64_awsize),
     .s_axi_wvalid_i(axi64_wvalid),
     .s_axi_wready_o(axi64_wready),
     .s_axi_wdata_i(axi64_wdata),
@@ -204,18 +216,22 @@ module tb_axi_clint;
       rst = 1'b1;
       arvalid = 1'b0;
       araddr = 32'h0;
+      arsize = 3'd2;
       rready = 1'b0;
       awvalid = 1'b0;
       awaddr = 32'h0;
+      awsize = 3'd2;
       wvalid = 1'b0;
       wdata = 32'h0;
       wstrb = 4'h0;
       bready = 1'b0;
       axi64_arvalid = 1'b0;
       axi64_araddr = 64'h0;
+      axi64_arsize = 3'd3;
       axi64_rready = 1'b0;
       axi64_awvalid = 1'b0;
       axi64_awaddr = 64'h0;
+      axi64_awsize = 3'd3;
       axi64_wvalid = 1'b0;
       axi64_wdata = 64'h0;
       axi64_wstrb = 8'h0;
@@ -232,6 +248,7 @@ module tb_axi_clint;
     input [31:0] exp_data;
     begin
       araddr = addr;
+      arsize = 3'd2;
       arvalid = 1'b1;
       rready = 1'b0;
       #1;
@@ -254,6 +271,7 @@ module tb_axi_clint;
     input [3:0] strb;
     begin
       awaddr = addr;
+      awsize = 3'd2;
       wdata = data;
       wstrb = strb;
       awvalid = 1'b1;
@@ -281,6 +299,7 @@ module tb_axi_clint;
     input aw_first;
     begin
       awaddr = addr;
+      awsize = 3'd2;
       wdata = data;
       wstrb = strb;
       awvalid = 1'b0;
@@ -325,8 +344,11 @@ module tb_axi_clint;
   task automatic axi64_read_word;
     input [63:0] addr;
     input [63:0] exp_data;
+    reg [63:0] exp_bus;
     begin
       axi64_araddr = addr;
+      axi64_arsize = (addr[2:0] == 3'd4) ? 3'd2 : 3'd3;
+      exp_bus = exp_data << {addr[2:0], 3'b000};
       axi64_arvalid = 1'b1;
       axi64_rready = 1'b0;
       #1;
@@ -335,8 +357,8 @@ module tb_axi_clint;
       axi64_arvalid = 1'b0;
       #1;
       tb_check1("read64 rvalid", axi64_rvalid, 1'b1);
-      tb_check32("read64 data low", axi64_rdata[31:0], exp_data[31:0]);
-      tb_check32("read64 data high", axi64_rdata[63:32], exp_data[63:32]);
+      tb_check32("read64 data low", axi64_rdata[31:0], exp_bus[31:0]);
+      tb_check32("read64 data high", axi64_rdata[63:32], exp_bus[63:32]);
       tb_check32("read64 resp", {30'b0, axi64_rresp}, 32'h0);
       axi64_rready = 1'b1;
       `TB_TICK(clk);
@@ -350,8 +372,9 @@ module tb_axi_clint;
     input [7:0] strb;
     begin
       axi64_awaddr = addr;
-      axi64_wdata = data;
-      axi64_wstrb = strb;
+      axi64_awsize = (addr[2:0] == 3'd4) ? 3'd2 : 3'd3;
+      axi64_wdata = data << {addr[2:0], 3'b000};
+      axi64_wstrb = strb << addr[2:0];
       axi64_awvalid = 1'b1;
       axi64_wvalid = 1'b1;
       axi64_bready = 1'b0;

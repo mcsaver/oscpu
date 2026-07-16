@@ -2,6 +2,8 @@
 
 > 模块：`OooIntBackend`、`OooIntIssueQueue`、`OooPhysRegFile`。
 > 状态：**T3G 已实现并通过功能门禁；fresh STA 保留该切点但未闭合 5 ns（2026-07-13）**。
+> T3M 已删除剩余 EX fast ABI；本文关于 MEM N/N+1 的合同继续成立，涉及 EX fast 的
+> 对照文字只记录 T3G 阶段，当前 authority 见 `ooo-ex-sticky-wakeup-barrier.md`。
 > 目标：切断 DCache response 到整数同拍 IQ select/PRF bypass 的真实长路径；
 > 保留正式完成、精确异常和下一拍依赖唤醒。
 

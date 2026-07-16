@@ -20,19 +20,20 @@
 
 `OooFetchRequestMux` 承接 `OooFrontend`（原 `OooAluFetchCore`，已重构删除）中 fetch request PC 来源选择的纯组合逻辑：
 
-- 计算顺序 fetch PC：若 outstanding response 本拍返回，则使用 response packet
-  next PC；否则使用 `next_fetch_pc_q`。
+- 计算顺序 fetch PC：若 registered outstanding response 已呈现 valid，则预装
+  response packet next PC；否则使用 `next_fetch_pc_q`。不得等待 ready/fire。
 - 计算 redirect fetch 是否能在本拍发起，并选择 redirect target。
 - 在 redirect、branch prefetch 和顺序取指三类来源中选择最终 `fetch_req_pc_o`。
 
 父模块仍保留所有时序状态，包括 `next_fetch_pc_q`、`outstanding_valid_q`、
-`outstanding_pc_q`、`discard_fetch_rsp_q`、redirect/flush recovery 和 FIFO 状态。
+`discard_fetch_rsp_q`、redirect/flush recovery 和 FIFO 状态；outstanding PC payload
+由 Bridge active context 单独持有并透传。
 
 ## 协议
 
 输入信号分为四类：
 
-- 顺序 PC：`outstanding_valid_i`、`fetch_rsp_fire_i`、
+- 顺序 PC：`outstanding_valid_i`、`fetch_rsp_valid_i`、
   `fetch_rsp_packet_next_pc_i`、`next_fetch_pc_i`。
 - redirect predicate：direct JAL/return、direct jump spec（B2 非返回 JALR 投机续取）、
   lane0 branch to lane1 return、pending JALR/no-link commit、direct branch resolve、
@@ -54,7 +55,8 @@
 ## 不变量
 
 - Redirect request 优先级高于 branch prefetch，高于顺序取指。
-- Outstanding 未返回且本拍 response 未 fire 时，redirect request valid 必须为假。
+- Response stall 时顺序 candidate 可以预装 successor，但上游 request valid 仍被
+  outstanding/flow control 关闭；candidate 是 don't-care，不改变 active owner。
 - Branch fallthrough 已有匹配 outstanding 时，redirect request valid 必须为假。
 - Redirect target（P4 单源）：`redirect_valid_i` 拍恒透传 `redirect_pc_i`（arbiter 年龄律
   赢家）；无赢家拍恒兜底 `core_branch_resolve_next_pc_i`。守卫=`OooRedirectMuxChecker`

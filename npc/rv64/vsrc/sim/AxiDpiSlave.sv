@@ -40,6 +40,7 @@ module AxiDpiSlave (
   input logic s_axi_awvalid_i,
   output logic s_axi_awready_o,
   input logic [`XLEN-1:0] s_axi_awaddr_i,
+  input logic [2:0] s_axi_awsize_i,
   input logic s_axi_wvalid_i,
   output logic s_axi_wready_o,
   input logic [`XLEN-1:0] s_axi_wdata_i,
@@ -50,6 +51,7 @@ module AxiDpiSlave (
 );
 
   logic [`XLEN-1:0] awaddr_q;
+  logic [2:0] awsize_q;
   logic aw_valid_q;
   logic [`XLEN-1:0] wdata_q;
   logic [`STRB_W-1:0] wstrb_q;
@@ -73,6 +75,7 @@ module AxiDpiSlave (
     longint unsigned write_data_v;
     longint unsigned write_mask_v;
     int unsigned read_size_v;
+    int unsigned write_size_v;
     int unsigned lane_shift_v;
     bit bus_error_v;
 
@@ -83,6 +86,7 @@ module AxiDpiSlave (
       s_axi_bvalid_o <= 1'b0;
       s_axi_bresp_o <= 2'b00;
       awaddr_q <= {`XLEN{1'b0}};
+      awsize_q <= 3'd0;
       aw_valid_q <= 1'b0;
       wdata_q <= {`XLEN{1'b0}};
       wstrb_q <= {`STRB_W{1'b0}};
@@ -102,9 +106,9 @@ module AxiDpiSlave (
         bus_data_v = 64'd0;
         read_data_v = 64'd0;
         bus_error_v = 1'b0;
-        // instruction narrow read 使用标准 AXI byte lane；DPI 返回 low-window，
-        // slave 再按 ARADDR[2:0] 放入对应 RDATA lane。PTW/LSU 是 data access：
-        // PTW 固定对齐 8B；LSU 暂保 exact-address/low-window 兼容 ABI。
+        // DPI returns a low-window value.  Both IFU and LSU now use the same
+        // standard AXI byte-lane ABI, so every successful read is shifted into
+        // the lane selected by ARADDR[2:0].
         if (s_axi_arprot_i[2] && (read_size_v != 0)) begin
           npc_ifetch_sized(s_axi_araddr_i, read_size_v,
                            bus_data_v, bus_error_v);
@@ -113,7 +117,8 @@ module AxiDpiSlave (
         end else if (!s_axi_arprot_i[2] && (read_size_v != 0)) begin
           npc_mem_read_sized(s_axi_araddr_i, read_size_v,
                              bus_data_v, bus_error_v);
-          read_data_v = bus_data_v;
+          lane_shift_v = {29'd0, s_axi_araddr_i[2:0]} * 8;
+          read_data_v = bus_data_v << lane_shift_v;
         end else begin
           bus_error_v = 1'b1;
         end
@@ -124,6 +129,7 @@ module AxiDpiSlave (
 
       if (aw_fire_w) begin
         awaddr_q <= s_axi_awaddr_i;
+        awsize_q <= s_axi_awsize_i;
         aw_valid_q <= 1'b1;
       end
 
@@ -135,9 +141,22 @@ module AxiDpiSlave (
 
       if (write_complete_w) begin
         write_addr_v = aw_fire_w ? s_axi_awaddr_i : awaddr_q;
-        write_data_v = w_fire_w ? s_axi_wdata_i : wdata_q;
-        write_mask_v = {{(64-`STRB_W){1'b0}}, (w_fire_w ? s_axi_wstrb_i : wstrb_q)};
-        npc_mem_write(write_addr_v, write_data_v, write_mask_v, bus_error_v);
+        write_size_v = ((aw_fire_w ? s_axi_awsize_i : awsize_q) <= 3'd3) ?
+                       (32'd1 << (aw_fire_w ? s_axi_awsize_i : awsize_q)) :
+                       32'd0;
+        lane_shift_v = {29'd0, write_addr_v[2:0]} * 8;
+        write_data_v = (w_fire_w ? s_axi_wdata_i : wdata_q) >> lane_shift_v;
+        write_mask_v =
+            {{(64-`STRB_W){1'b0}}, (w_fire_w ? s_axi_wstrb_i : wstrb_q)} >>
+            write_addr_v[2:0];
+        bus_error_v = 1'b0;
+        if ((write_size_v == 0) ||
+            (({29'd0, write_addr_v[2:0]} + write_size_v) > 32'd8) ||
+            (write_mask_v != ((64'd1 << write_size_v) - 64'd1))) begin
+          bus_error_v = 1'b1;
+        end else begin
+          npc_mem_write(write_addr_v, write_data_v, write_mask_v, bus_error_v);
+        end
         s_axi_bvalid_o <= 1'b1;
         s_axi_bresp_o <= bus_error_v ? 2'b10 : 2'b00;
         aw_valid_q <= 1'b0;

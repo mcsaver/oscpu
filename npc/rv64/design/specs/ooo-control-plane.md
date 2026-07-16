@@ -30,6 +30,15 @@
   commit/pending/head fallback 选择并服务 CsrFile 读回/副作用，后者只允许由
   current head0/head1 产生并服务 illegal pending 分类。wrapper 只接线，不得把
   两者重新 alias、打拍或增加选择器。
+- T4G 精确 IFU fault payload：`head_fetch_fault_tval_w` 是 frontend FIFO
+  提供的 packet-level portion frontier；`OooPendingDispatchArbiter` 对 lane0/lane1
+  fetch PF/AF 均使用它写 pending tval，同时继续用对应 slot PC 写 xEPC。control
+  wrapper 只透传该 owner，不允许从 `head_pc*` 重建 tval。
+- T4L 普通 FENCE：wrapper 从已捕获的 `pending_system_inst_q` 识别
+  `OPCODE_MISC_MEM/FUNCT3_FENCE`，并把 execute 侧 `mem_idle_i` 与该身份送入
+  `OooPendingDrainResolveGate`。基础 `backend_drained` 仍只含 ROB/IQ/synthetic/SQ；
+  仅普通 FENCE 的最终 `drain_complete` 额外要求 MIQ/bridge/reservation 全 idle。
+  完整合同见 [`ooo-fence-drain-ordering.md`](./ooo-fence-drain-ordering.md)。
 
 ## 4. 验证
 
@@ -38,5 +47,5 @@
 
 ## 5. 边界
 
-只完成 control 子系统 wrapper 抽取；不改变 CSR/trap/interrupt precise control、
-pending 状态机、drain/flush/recovery 语义。
+除已单独规范化的 T4L 普通 FENCE drain 条件外，本 wrapper 不改变
+CSR/trap/interrupt precise control、pending 状态机或既有 flush/recovery 语义。

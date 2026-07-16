@@ -583,8 +583,8 @@ void npc_virtio_blk_write(uint32_t offset, uint64_t data64, uint64_t mask64,
     return;
   }
 
-  // NPC LSU keeps store data/wstrb in the low lanes; addr[2:0] selects
-  // the byte lane within the AXI-Lite beat.
+  // The DPI ABI uses exact byte addresses plus a low-window data/strobe.
+  // AxiVirtioBlk normalizes standard AXI lanes before entering this function.
   uint32_t byte_lane = offset & 7u;
   uint64_t aligned_mask64 = raw_mask << byte_lane;
   uint64_t aligned_data64 = data64 << (byte_lane * 8);

@@ -8,8 +8,8 @@
 //
 // 与 AM (abstract-machine/am/include/device_address.h) 和
 //    NEMU (nemu/include/device/device_address.h) 三方数值必须一致 —— difftest 前提。
-// 由 Linux/scripts/check-device-address-map.sh 门禁校验;RTL 侧 vsrc/include/define.v
-// 的设备段由 npc/rv64/scripts/gen-define-devices.py 从本文件回写生成。
+// 由 Linux/scripts/check-device-address-map.sh 门禁校验；RTL 侧同名窗口也由
+// 该门禁逐值核对，防止软件/RTL 地址漂移。
 //
 // 分工:
 //   - serial : 真 RTL UART @ 0x10000000 (Uart.v; 写 THR 触发 npc_uart_event → host 输出
@@ -24,6 +24,7 @@
 #define NPC_SERIAL_PORT   NPC_UART_BASE
 #define NPC_CLINT_BASE    UINT64_C(0x02000000)  // 真 RTL CLINT
 #define NPC_PLIC_BASE     UINT64_C(0x0c000000)  // 真 RTL PLIC
+#define NPC_SYSCON_BASE   UINT64_C(0x00100000)  // 真 RTL reset-syscon
 
 // 简易 csrc 仿真设备 DPI 窗口 (须与 define.v NPC_AXI_LEGACY_MMIO_BASE/MASK 一致)
 #define NPC_DEVICE_BASE   UINT64_C(0x12000000)  // 窗口基址

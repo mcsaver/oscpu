@@ -10,15 +10,19 @@ module tb_ooo_fetch_axi_bridge;
   reg [1:0] priv_mode;
   reg [`XLEN-1:0] satp;
   reg svpbmt_en;
+  reg [`PMP_CFG_BUS_W-1:0] pmpcfg;
+  reg [`PMP_ADDR_BUS_W-1:0] pmpaddr;
   reg fetch_req_valid;
   wire fetch_req_ready;
   reg [`XLEN-1:0] fetch_req_pc;
+  wire [`XLEN-1:0] fetch_req_owner_pc;
   wire fetch_rsp_valid;
   reg fetch_rsp_ready;
   wire [`INST_W-1:0] fetch_rsp_inst0;
   wire [1:0] fetch_rsp_resp0;
   wire [`INST_W-1:0] fetch_rsp_inst1;
   wire [1:0] fetch_rsp_resp1;
+  wire [2:0] fetch_rsp_resp0_bytes;
   wire ifu_axi_arvalid;
   reg ifu_axi_arready;
   wire [`XLEN-1:0] ifu_axi_araddr;
@@ -49,6 +53,11 @@ module tb_ooo_fetch_axi_bridge;
   localparam [3:0] S_RESP_TB = 4'd7;
   localparam [3:0] S_AD_UPDATE_TB = 4'd8;
   localparam [3:0] S_LOOKUP_TB = 4'd9;
+  localparam [3:0] S_DRAIN_TB = 4'd10;
+  localparam [3:0] S_CACHE_READ_TB = 4'd11;
+  localparam [3:0] S_WALK_CHECK_TB = 4'd12;
+  localparam [3:0] S_WALK_AR_DROP_TB = 4'd13;
+  localparam [3:0] S_FETCH_AR_DROP_TB = 4'd14;
   localparam [`XLEN-1:0] PTE_A_BIT_TB = 64'h40;  // bit 6 (Accessed)
   localparam [`XLEN-1:0] ROOT_PT = 64'h0000_0000_8100_0000;
   localparam [`XLEN-1:0] L1_PT = 64'h0000_0000_8100_1000;
@@ -57,6 +66,7 @@ module tb_ooo_fetch_axi_bridge;
   localparam [`XLEN-1:0] USER_PA = 64'h0000_0000_8200_4000;
   localparam [`XLEN-1:0] CROSS_VA = 64'h0000_0000_0000_4ffe;
   localparam [`XLEN-1:0] CROSS_NEXT_VA = 64'h0000_0000_0000_5000;
+  localparam [`XLEN-1:0] NONCANON_VA = 64'h0000_0080_0000_0000;
   localparam [`XLEN-1:0] CROSS_PA0 = 64'h0000_0000_8200_4000;
   localparam [`XLEN-1:0] CROSS_PA1 = 64'h0000_0000_8200_9000;
   localparam [`XLEN-1:0] SUP_VA = 64'h0000_0000_0000_8000;
@@ -94,17 +104,19 @@ module tb_ooo_fetch_axi_bridge;
     .priv_mode_i(priv_mode),
     .satp_i(satp),
     .svpbmt_en_i(svpbmt_en),
-    .pmpcfg_i(PMP_ALLOW_ALL_CFG),
-    .pmpaddr_i(PMP_ALLOW_ALL_ADDR),
+    .pmpcfg_i(pmpcfg),
+    .pmpaddr_i(pmpaddr),
     .fetch_req_valid_i(fetch_req_valid),
     .fetch_req_ready_o(fetch_req_ready),
     .fetch_req_pc_i(fetch_req_pc),
+    .fetch_req_owner_pc_o(fetch_req_owner_pc),
     .fetch_rsp_valid_o(fetch_rsp_valid),
     .fetch_rsp_ready_i(fetch_rsp_ready),
     .fetch_rsp_inst0_o(fetch_rsp_inst0),
     .fetch_rsp_resp0_o(fetch_rsp_resp0),
     .fetch_rsp_inst1_o(fetch_rsp_inst1),
     .fetch_rsp_resp1_o(fetch_rsp_resp1),
+    .fetch_rsp_resp0_bytes_o(fetch_rsp_resp0_bytes),
     .ifu_axi_arvalid_o(ifu_axi_arvalid),
     .ifu_axi_arready_i(ifu_axi_arready),
     .ifu_axi_araddr_o(ifu_axi_araddr),
@@ -212,6 +224,8 @@ module tb_ooo_fetch_axi_bridge;
       priv_mode = `PRIV_M;
       satp = {`XLEN{1'b0}};
       svpbmt_en = 1'b0;
+      pmpcfg = PMP_ALLOW_ALL_CFG;
+      pmpaddr = PMP_ALLOW_ALL_ADDR;
       fetch_req_valid = 1'b0;
       fetch_req_pc = {`XLEN{1'b0}};
       fetch_rsp_ready = 1'b0;
@@ -239,6 +253,8 @@ module tb_ooo_fetch_axi_bridge;
       priv_mode = `PRIV_M;
       satp = {`XLEN{1'b0}};
       svpbmt_en = 1'b0;
+      pmpcfg = PMP_ALLOW_ALL_CFG;
+      pmpaddr = PMP_ALLOW_ALL_ADDR;
       fetch_req_valid = 1'b0;
       fetch_req_pc = {`XLEN{1'b0}};
       fetch_rsp_ready = 1'b0;
@@ -256,24 +272,37 @@ module tb_ooo_fetch_axi_bridge;
     end
   endtask
 
-  // 直接把已验证的 walk 前缀投影到 S_AD_UPDATE，定向隔离 AXI owner 生命周期。
-  // payload 地址仍由真实 walk_pte_addr_w 计算，不绕过 DUT 的 AWADDR 数据通路。
+  // 直接把已由自然 A-update/独立 PTW-CHECK 用例验证的边界产物投影到
+  // S_AD_UPDATE，定向隔离 write owner 生命周期。不能先呈现一个 stalled AR
+  // 再用 XMR 跳走，否则测试本身会违反 VALID-until-fire。
   task automatic seed_ad_update;
     input [`XLEN-1:0] pte_data;
     begin
+      // Establish the immutable context through the real request handshake so
+      // the T4A candidate/exec handoff assertions remain meaningful.  Let both
+      // registered request-boundary checks retire before projecting the FSM.
+      @(negedge clk);
+      fetch_req_pc = USER_VA;
+      fetch_req_valid = 1'b1;
+      #1;
+      tb_check1("A-update seed request ready", fetch_req_ready, 1'b1);
+      tick();
+      fetch_req_valid = 1'b0;
+      tick();
+      tick();
       @(negedge clk);
       dut.state_q = S_AD_UPDATE_TB;
-      dut.walk_second_q = 1'b0;
-      dut.walk_level_q = 2'd0;
-      dut.walk_ppn_q = L0_PT[55:12];
-      dut.pc_q = USER_VA;
+      dut.walk_pte_addr_q = pte_addr(L0_PT, USER_VA, 2'd0);
       dut.ad_pte_q = pte_data;
       dut.aw_done_q = 1'b0;
       dut.w_done_q = 1'b0;
+      ifu_axi_arready = 1'b1;
       #1;
       tb_check1("seeded A-update presents AW", ifu_axi_awvalid, 1'b1);
       tb_check1("seeded A-update presents W", ifu_axi_wvalid, 1'b1);
       tb_check1("seeded A-update presents BREADY", ifu_axi_bready, 1'b1);
+      tb_check64_local("seeded A-update owner PC", fetch_req_owner_pc,
+                       USER_VA);
       tb_check64_local("seeded A-update AWADDR", ifu_axi_awaddr,
                        pte_addr(L0_PT, USER_VA, 2'd0));
       tb_check64_local("seeded A-update WDATA", ifu_axi_wdata, pte_data);
@@ -492,6 +521,69 @@ module tb_ooo_fetch_axi_bridge;
     end
   endtask
 
+  // T4F：PTE 区域允许隐式 READ、拒绝隐式 WRITE，最终取指 PA 由后续
+  // allow-all entry 放行。A=0 leaf 必须返回 instruction access fault，且
+  // 不能进入 A-update owner 或呈现任何 AW/W。
+  task automatic ptw_ad_write_pmp_deny;
+    reg [`XLEN-1:0] leaf_pte_a0;
+    begin
+      reset_protocol_case();
+      pmpcfg = {`PMP_CFG_BUS_W{1'b0}};
+      pmpaddr = {`PMP_ADDR_BUS_W{1'b0}};
+      // entry0: TOR [0,0x8180_0000), R-only；entry1: NAPOT all, RWX。
+      pmpcfg[0 +: 8] = 8'h09;
+      pmpcfg[8 +: 8] = 8'h1f;
+      pmpaddr[0 +: `XLEN] = 64'h0000_0000_8180_0000 >> 2;
+      pmpaddr[`XLEN +: `XLEN] = {`XLEN{1'b1}};
+      ifu_axi_arready = 1'b1;
+      leaf_pte_a0 = pte_for_page(USER_PA, PTE_USER_X_NO_ACCESS_FLAGS);
+
+      start_fetch("T4F IFU PTE-write deny request accepted", USER_VA,
+                  `PRIV_U);
+      expect_ar("T4F IFU root PTE read allowed",
+                pte_addr(ROOT_PT, USER_VA, 2'd2));
+      drive_r(pte_for_page(L1_PT, PTE_NONLEAF_FLAGS), RESP_OK);
+      expect_ar("T4F IFU L1 PTE read allowed",
+                pte_addr(L1_PT, USER_VA, 2'd1));
+      drive_r(pte_for_page(L0_PT, PTE_NONLEAF_FLAGS), RESP_OK);
+      expect_ar("T4F IFU leaf PTE read allowed",
+                pte_addr(L0_PT, USER_VA, 2'd0));
+
+      while (ifu_axi_rready !== 1'b1) tick();
+      ifu_axi_rdata = leaf_pte_a0;
+      ifu_axi_rresp = RESP_OK;
+      ifu_axi_rvalid = 1'b1;
+      #1;
+      tb_check1("T4F IFU final exec PMP remains allowed",
+                dut.walk_leaf_current_pmp_fault_w, 1'b0);
+      tb_check1("T4F IFU PTE WRITE PMP denies",
+                dut.walk_pte_write_pmp_fault_w, 1'b1);
+      tb_check1("T4F IFU deny event qualified", dut.walk_ad_write_deny_w,
+                1'b1);
+      tb_check1("T4F IFU denied PTE emits no AW", ifu_axi_awvalid, 1'b0);
+      tb_check1("T4F IFU denied PTE emits no W", ifu_axi_wvalid, 1'b0);
+      tick();
+      ifu_axi_rvalid = 1'b0;
+      ifu_axi_rdata = {`XLEN{1'b0}};
+      #1;
+      tb_check1("T4F IFU deny never enters A-update",
+                dut.state_q == S_AD_UPDATE_TB, 1'b0);
+      tb_check1("T4F IFU deny returns response", fetch_rsp_valid, 1'b1);
+      tb_check2("T4F IFU deny returns access fault", fetch_rsp_resp1,
+                RESP_ACCESS_FAULT);
+      tb_check1("T4F IFU deny owns first halfword",
+                fetch_rsp_resp0_bytes == 3'd0, 1'b1);
+      tb_check1("T4F IFU response still has no AW", ifu_axi_awvalid, 1'b0);
+      tb_check1("T4F IFU response still has no W", ifu_axi_wvalid, 1'b0);
+      fetch_rsp_ready = 1'b1;
+      tick();
+      fetch_rsp_ready = 1'b0;
+      pmpcfg = PMP_ALLOW_ALL_CFG;
+      pmpaddr = PMP_ALLOW_ALL_ADDR;
+      $display("[T4F-IFU-PTW-PMP-WRITE] read=allow write=deny access-fault aw=0 w=0");
+    end
+  endtask
+
   task automatic walk_to_cross_fetch;
     input [1023:0] what;
     begin
@@ -634,120 +726,258 @@ module tb_ooo_fetch_axi_bridge;
     mmu_flush = 1'b0;
     tick();
 
+    ptw_ad_write_pmp_deny();
+
     start_fetch("cross-page user fetch request accepted", CROSS_VA, `PRIV_U);
     walk_to_cross_fetch("cross-page packet uses translated next page");
-    expect_rsp("cross-page packet merges non-contiguous pages",
-               RESP_OK, RESP_OK, CROSS_MERGED_BEAT);
 
-    // ===== 刀F 融合拍定向用例(hit 流 1 包/拍契约) =====
+    // T3X dirty-owner replacement: 旧跨页 slow path 在 fetch_data_q 留下完整非零
+    // packet。S_RESP 消费旧响应同拍接收 non-canonical 新请求；接收拍不能清宽
+    // scratch，而 S_CACHE_READ 必须在新请求 fault 判决前清净全部 payload/split。
+    priv_mode = `PRIV_U;
+    satp = SATP_VALUE;
+    fetch_req_pc = NONCANON_VA;
+    fetch_req_valid = 1'b1;
+    fetch_rsp_ready = 1'b1;
+    #1;
+    tb_check1("dirty replacement old response valid", fetch_rsp_valid, 1'b1);
+    tb_check2("dirty replacement old resp0", fetch_rsp_resp0, RESP_OK);
+    tb_check2("dirty replacement old resp1", fetch_rsp_resp1, RESP_OK);
+    tb_check32_local("dirty replacement old inst0", fetch_rsp_inst0,
+                     CROSS_MERGED_BEAT[`INST_W-1:0]);
+    tb_check32_local("dirty replacement old inst1", fetch_rsp_inst1,
+                     CROSS_MERGED_BEAT[`XLEN-1:`INST_W]);
+    tb_check1("dirty replacement old split is complete",
+              fetch_rsp_resp0_bytes == 3'd4, 1'b1);
+    tb_check1("dirty replacement accepts noncanonical request",
+              fetch_req_ready, 1'b1);
+    tb_check1("dirty replacement request fires", dut.fetch_req_fire_w, 1'b1);
+    tick();
+    fetch_req_valid = 1'b0;
+    fetch_rsp_ready = 1'b0;
+    #1;
+    tb_check1("dirty replacement reaches cache-read owner",
+              dut.state_q == S_CACHE_READ_TB, 1'b1);
+    tb_check64_local("dirty packet survives immutable-context capture",
+                     dut.fetch_data_q, CROSS_MERGED_BEAT);
+    tb_check1("dirty replacement cache-read emits no AR", ifu_axi_arvalid, 1'b0);
+    tick();
+    #1;
+    tb_check1("dirty replacement reaches lookup", dut.state_q == S_LOOKUP_TB,
+              1'b1);
+    tb_check64_local("cache-read clears dirty packet before fault lookup",
+                     dut.fetch_data_q, {`XLEN{1'b0}});
+    tb_check1("noncanonical lookup emits no AR", ifu_axi_arvalid, 1'b0);
+    tick();
+    #1;
+    tb_check1("noncanonical replacement response valid", fetch_rsp_valid, 1'b1);
+    tb_check2("noncanonical replacement resp0", fetch_rsp_resp0, RESP_OK);
+    tb_check2("noncanonical replacement resp1", fetch_rsp_resp1,
+              RESP_PAGE_FAULT);
+    tb_check32_local("noncanonical replacement inst0 is zero",
+                     fetch_rsp_inst0, {`INST_W{1'b0}});
+    tb_check32_local("noncanonical replacement inst1 is zero",
+                     fetch_rsp_inst1, {`INST_W{1'b0}});
+    tb_check1("noncanonical replacement split is zero",
+              fetch_rsp_resp0_bytes == 3'd0, 1'b1);
+    tb_check1("noncanonical response never emits AR", ifu_axi_arvalid, 1'b0);
+    $display("[T3X-IFU-DIRTY-FIRST-FAULT] replacement clears stale packet and returns split=0 without AR");
+    fetch_rsp_ready = 1'b1;
+    tick();
+    fetch_rsp_ready = 1'b0;
+
+    // ===== T3R fetch request/response 双侧非穿透边界 =====
     // 预热两个 M 模式直取包(miss+fill)
-    start_fetch("fusion warm pc1 accepted", FUSION_PC1, `PRIV_M);
-    drive_fetch_packet("fusion warm pc1 goes axi", FUSION_PC1, FUSION_BEAT1);
-    expect_rsp("fusion warm pc1 resp", RESP_OK, RESP_OK, FUSION_BEAT1);
-    start_fetch("fusion warm pc2 accepted", FUSION_PC2, `PRIV_M);
-    drive_fetch_packet("fusion warm pc2 goes axi", FUSION_PC2, FUSION_BEAT2);
-    expect_rsp("fusion warm pc2 resp", RESP_OK, RESP_OK, FUSION_BEAT2);
+    start_fetch("boundary warm pc1 accepted", FUSION_PC1, `PRIV_M);
+    drive_fetch_packet("boundary warm pc1 goes axi", FUSION_PC1, FUSION_BEAT1);
+    expect_rsp("boundary warm pc1 resp", RESP_OK, RESP_OK, FUSION_BEAT1);
+    start_fetch("boundary warm pc2 accepted", FUSION_PC2, `PRIV_M);
+    drive_fetch_packet("boundary warm pc2 goes axi", FUSION_PC2, FUSION_BEAT2);
+    expect_rsp("boundary warm pc2 resp", RESP_OK, RESP_OK, FUSION_BEAT2);
 
-    // hit 1 拍口径 + 融合拍 back-to-back: fire 次拍 rsp 组合可见且同拍收下一请求
+    // C0: IDLE 只捕获请求，不用 live PC 开 SRAM 读口。
     priv_mode = `PRIV_M;
+    satp = 64'h1111_2222_3333_4444;
+    svpbmt_en = 1'b1;
     fetch_req_pc = FUSION_PC1;
     fetch_req_valid = 1'b1;
     fetch_rsp_ready = 1'b1;
     #1;
-    tb_check1("fusion refetch pc1 ready", fetch_req_ready, 1'b1);
-    tb_check1("idle opens physical read window",
-              dut.fetch_cache_read_window_w, 1'b1);
-    tb_check1("idle fire is semantic lookup accept",
+    tb_check1("boundary refetch pc1 ready", fetch_req_ready, 1'b1);
+    tb_check1("idle keeps physical read window closed",
+              dut.fetch_cache_read_window_w, 1'b0);
+    tb_check1("idle fire captures request",
               dut.fetch_req_fire_w, 1'b1);
-    tb_check1("idle fire enables payload SRAM",
-              dut.u_fetch_packet_cache.sram_en_w, 1'b1);
-    tick();                       // fire PC1 → 判决拍
-    fetch_req_pc = FUSION_PC2;    // 判决拍驱动下一请求(valid 保持)
+    tb_check1("idle capture does not enable payload SRAM",
+              dut.u_fetch_packet_cache.sram_en_w, 1'b0);
+    tick();                       // C0 fire PC1 → C1 S_CACHE_READ
+
+    // C1: 只用 captured q 发射同步读；live 请求改成 PC2 也不得早 accept。
+    fetch_req_pc = FUSION_PC2;
+    satp = 64'h2222_3333_4444_5555;
+    svpbmt_en = 1'b0;
     #1;
-    tb_check1("fusion decision stays in lookup",
-              dut.state_q == S_LOOKUP_TB, 1'b1);
-    tb_check1("lookup fusion keeps physical read window",
+    tb_check1("captured request reaches cache read",
+              dut.state_q == S_CACHE_READ_TB, 1'b1);
+    tb_check1("cache read opens physical window",
               dut.fetch_cache_read_window_w, 1'b1);
-    tb_check1("fusion hit rsp in 1 cycle", fetch_rsp_valid, 1'b1);
-    tb_check32_local("fusion hit inst0", fetch_rsp_inst0,
-                     FUSION_BEAT1[`INST_W-1:0]);
-    tb_check1("fusion beat accepts next req", fetch_req_ready, 1'b1);
-    tick();                       // 融合拍: PC1 rsp 消费 + PC2 fire, 留 S_LOOKUP
-    fetch_req_valid = 1'b0;
+    tb_check1("cache read is semantic lookup",
+              dut.fetch_cache_lookup_issue_w, 1'b1);
+    tb_check64_local("cache read uses captured pc",
+                     dut.u_fetch_packet_cache.lookup_pc_i, FUSION_PC1);
+    tb_check64_local("Bridge owner output uses captured pc",
+                     fetch_req_owner_pc, FUSION_PC1);
+    tb_check64_local("candidate captures request-fire pc",
+                     dut.fetch_ctx_candidate_pc_q, FUSION_PC1);
+    tb_check64_local("exec still owns previous transaction in cache-read",
+                     dut.fetch_ctx_exec_pc_q, FUSION_PC2);
+    tb_check1("captured context keeps paging off", dut.paging_q, 1'b0);
+    tb_check2("captured context keeps privilege", dut.req_priv_q, `PRIV_M);
+    tb_check64_local("captured context keeps SATP", dut.req_satp_q,
+                     64'h1111_2222_3333_4444);
+    tb_check1("captured context keeps Svpbmt", dut.req_svpbmt_en_q, 1'b1);
+    // T3X physical contract: accept 只锁不可重建 context。此时仍能看到上一
+    // owner 的非零 scratch，证明 frontend ready/control 没有在 fire 拍驱动
+    // 宽 paddr/data D mux；本拍末由 registered S_CACHE_READ 统一初始化。
+    tb_check64_local("accept defers paddr scratch init to cache-read owner",
+                     dut.paddr0_q, FUSION_PC2);
+    tb_check64_local("accept defers data scratch init to cache-read owner",
+                     dut.fetch_data_q, FUSION_BEAT2);
+    tb_check1("cache read cannot accept live pc2", fetch_req_ready, 1'b0);
+    tb_check1("cache read cannot expose response", fetch_rsp_valid, 1'b0);
+    tick();                       // C1 read PC1 → C2 S_LOOKUP
+
+    // C2: 只判决并在拍尾落 payload，cache 内部结果不得穿透到端口。
     #1;
-    tb_check1("lookup dummy read has no semantic accept",
-              dut.fetch_req_fire_w, 1'b0);
-    tb_check1("lookup dummy read still enables payload SRAM",
-              dut.u_fetch_packet_cache.sram_en_w, 1'b1);
-    tb_check1("fusion back-to-back second rsp", fetch_rsp_valid, 1'b1);
-    tb_check32_local("fusion second inst0", fetch_rsp_inst0,
+    tb_check1("cache result reaches lookup decision",
+              dut.state_q == S_LOOKUP_TB, 1'b1);
+    tb_check1("lookup closes physical read window",
+              dut.fetch_cache_read_window_w, 1'b0);
+    tb_check64_local("candidate may advance to live pc after cache-read",
+                     dut.fetch_ctx_candidate_pc_q, FUSION_PC2);
+    tb_check64_local("cache-read hands request pc into frozen exec",
+                     dut.fetch_ctx_exec_pc_q, FUSION_PC1);
+    tb_check64_local("owner handoff keeps request pc stable",
+                     fetch_req_owner_pc, FUSION_PC1);
+    tb_check1("exec handoff keeps captured paging off",
+              dut.fetch_ctx_exec_paging_q, 1'b0);
+    tb_check2("exec handoff keeps captured privilege",
+              dut.fetch_ctx_exec_priv_q, `PRIV_M);
+    tb_check64_local("exec handoff keeps captured SATP",
+                     dut.fetch_ctx_exec_satp_q,
+                     64'h1111_2222_3333_4444);
+    tb_check1("exec handoff keeps captured Svpbmt",
+              dut.fetch_ctx_exec_svpbmt_en_q, 1'b1);
+    tb_check64_local("cache-read owner initializes paddr from captured pc",
+                     dut.paddr0_q, FUSION_PC1);
+    tb_check64_local("cache-read owner clears stale data before lookup",
+                     dut.fetch_data_q, {`XLEN{1'b0}});
+    $display("[T3X-IFU-INIT-BOUNDARY] stale paddr/data survive accept and are initialized before lookup");
+    tb_check1("lookup cannot accept live pc2", fetch_req_ready, 1'b0);
+    tb_check1("lookup cannot expose combinational hit", fetch_rsp_valid, 1'b0);
+    tick();                       // C2 落 PC1 payload → C3 S_RESP
+
+    // C3: registered PC1 response 与 PC2 replacement request 同拍 fire。
+    #1;
+    tb_check1("registered pc1 response valid", fetch_rsp_valid, 1'b1);
+    tb_check64_local("old response still sees old owner",
+                     fetch_req_owner_pc, FUSION_PC1);
+    tb_check32_local("registered pc1 response payload", fetch_rsp_inst0,
+                     FUSION_BEAT1[`INST_W-1:0]);
+    tb_check1("response replacement accepts pc2", fetch_req_ready, 1'b1);
+    tb_check1("response replacement request fires", dut.fetch_req_fire_w, 1'b1);
+    tb_check1("response replacement still does not read SRAM",
+              dut.fetch_cache_read_window_w, 1'b0);
+    tick();                       // rsp1 fire + capture PC2 → C4 S_CACHE_READ
+    fetch_req_valid = 1'b0;
+    fetch_req_pc = FUSION_PC3_COLD; // 改 live 值，必须不影响已捕获 PC2
+    priv_mode = `PRIV_U;
+    satp = SATP_VALUE;
+    svpbmt_en = 1'b1;
+    #1;
+    tb_check1("replacement reaches cache read",
+              dut.state_q == S_CACHE_READ_TB, 1'b1);
+    tb_check64_local("replacement pc remains captured",
+                     dut.u_fetch_packet_cache.lookup_pc_i, FUSION_PC2);
+    tb_check64_local("replacement atomically swaps Bridge owner",
+                     fetch_req_owner_pc, FUSION_PC2);
+    tb_check64_local("replacement candidate owns new pc in cache-read",
+                     dut.fetch_ctx_candidate_pc_q, FUSION_PC2);
+    tb_check64_local("replacement exec retains old response owner for one stage",
+                     dut.fetch_ctx_exec_pc_q, FUSION_PC1);
+    tb_check2("replacement keeps captured privilege", dut.req_priv_q, `PRIV_M);
+    tb_check64_local("replacement keeps captured SATP", dut.req_satp_q,
+                     64'h2222_3333_4444_5555);
+    tb_check1("replacement keeps captured Svpbmt", dut.req_svpbmt_en_q, 1'b0);
+    tb_check1("replacement read has no stale response", fetch_rsp_valid, 1'b0);
+    tick();                       // read PC2 → lookup
+    #1;
+    tb_check1("replacement lookup has no early response", fetch_rsp_valid, 1'b0);
+    tb_check64_local("replacement live poison reaches candidate only",
+                     dut.fetch_ctx_candidate_pc_q, FUSION_PC3_COLD);
+    tb_check64_local("replacement cache-read freezes new exec pc",
+                     dut.fetch_ctx_exec_pc_q, FUSION_PC2);
+    tb_check64_local("replacement owner handoff stays on new pc",
+                     fetch_req_owner_pc, FUSION_PC2);
+    tick();                       // lookup → registered response
+    #1;
+    tb_check1("replacement registered response valid", fetch_rsp_valid, 1'b1);
+    tb_check32_local("replacement response owns captured pc2", fetch_rsp_inst0,
                      FUSION_BEAT2[`INST_W-1:0]);
-    tick();                       // PC2 rsp 消费, 无新请求 → S_IDLE
+    tick();                       // consume PC2, no request → idle
     fetch_rsp_ready = 1'b0;
-    #1;
-    tb_check1("fusion drain back to idle ready", fetch_req_ready, 1'b1);
+    priv_mode = `PRIV_M;
 
-    // rsp 反压: hit 拍 rsp_ready=0 → 组合 rsp 保持 valid 但 ready=0, 次拍落寄存 S_RESP
-    fetch_req_pc = FUSION_PC1;
+    // 响应反压：registered valid/payload 必须稳定，stall 期间不预读 live 请求。
+    fetch_req_pc = FUSION_PC2;
     fetch_req_valid = 1'b1;
-    fetch_rsp_ready = 1'b0;
     #1;
-    tick();                       // fire → 判决拍
+    tick();                       // capture
     fetch_req_valid = 1'b0;
+    tick();                       // read
+    tick();                       // lookup 落 response
     #1;
-    tb_check1("stalled hit rsp valid", fetch_rsp_valid, 1'b1);
-    tb_check1("stalled hit not ready for next", fetch_req_ready, 1'b0);
-    tick();                       // 落寄存进 S_RESP(天然 skid)
+    tb_check1("stalled registered response valid", fetch_rsp_valid, 1'b1);
+    tb_check32_local("stalled registered response payload", fetch_rsp_inst0,
+                     FUSION_BEAT2[`INST_W-1:0]);
+    tb_check1("stalled response rejects next request", fetch_req_ready, 1'b0);
+    tb_check1("stalled response keeps SRAM closed",
+              dut.fetch_cache_read_window_w, 1'b0);
+    fetch_req_pc = FUSION_PC3_COLD;
+    priv_mode = `PRIV_U;
+    satp = SATP_VALUE ^ 64'h0000_0000_0000_1234;
+    svpbmt_en = 1'b1;
+    tick();
     #1;
-    tb_check1("skid holds rsp valid", fetch_rsp_valid, 1'b1);
-    tb_check32_local("skid holds inst0", fetch_rsp_inst0,
-                     FUSION_BEAT1[`INST_W-1:0]);
-    tb_check1("response skid opens physical read window",
-              dut.fetch_cache_read_window_w, 1'b1);
-    tb_check1("response skid without request is dummy read",
-              dut.fetch_req_fire_w, 1'b0);
+    tb_check1("stalled response remains valid", fetch_rsp_valid, 1'b1);
+    tb_check32_local("stalled response remains stable", fetch_rsp_inst0,
+                     FUSION_BEAT2[`INST_W-1:0]);
+    tb_check64_local("stalled response keeps active owner",
+                     fetch_req_owner_pc, FUSION_PC2);
+    fetch_rsp_ready = 1'b1;
+    tick();                       // consume stalled response
+    fetch_rsp_ready = 1'b0;
+    priv_mode = `PRIV_M;
+    satp = {`XLEN{1'b0}};
+    svpbmt_en = 1'b0;
 
-    // S_RESP 消费旧响应的同拍必须可 accept 下一请求；否则只覆盖 S_IDLE/S_LOOKUP
-    // 会漏掉第三个物理读窗入口。
+    // 判决拍的异 window invalidate 不得破坏精确 hit，但仍禁止组合响应。
     fetch_req_pc = FUSION_PC2;
     fetch_req_valid = 1'b1;
     fetch_rsp_ready = 1'b1;
     #1;
-    tb_check1("response skid accepts next request", fetch_req_ready, 1'b1);
-    tb_check1("response accept is semantic lookup",
-              dut.fetch_req_fire_w, 1'b1);
-    tb_check1("response accept enables payload SRAM",
-              dut.u_fetch_packet_cache.sram_en_w, 1'b1);
-    tick();                       // 消费 PC1 + 从 S_RESP accept PC2 → S_LOOKUP
+    tick();                       // capture → read
     fetch_req_valid = 1'b0;
-    #1;
-    tb_check1("response-accepted request reaches lookup",
-              dut.state_q == S_LOOKUP_TB, 1'b1);
-    tb_check1("response-accepted request returns cached packet",
-              fetch_rsp_valid, 1'b1);
-    tb_check32_local("response-accepted request payload",
-                     fetch_rsp_inst0, FUSION_BEAT2[`INST_W-1:0]);
-    tick();                       // 消费 PC2
-    fetch_rsp_ready = 1'b0;
-
-    // invalidate 拍融合关断: 判决拍撞不同地址的失效 → 组合 rsp 关闭(降级),
-    // 次拍经 S_RESP 精确交付(数据不损)
-    fetch_req_pc = FUSION_PC2;
-    fetch_req_valid = 1'b1;
-    fetch_rsp_ready = 1'b1;
-    #1;
-    tick();                       // fire → 判决拍
-    fetch_req_valid = 1'b0;
+    tick();                       // read → lookup
     invalidate_valid = 1'b1;
     invalidate_addr = 64'h0000_0000_8000_5000;  // 不同 window 的失效
     #1;
-    tb_check1("invalidate beat degrades fusion", fetch_rsp_valid, 1'b0);
-    tb_check1("invalidate beat not ready", fetch_req_ready, 1'b0);
-    tick();                       // 落寄存进 S_RESP
+    tb_check1("different-window decision has no early rsp", fetch_rsp_valid, 1'b0);
+    tick();                       // exact hit 落寄存
     invalidate_valid = 1'b0;
     #1;
-    tb_check1("degraded hit delivered via skid", fetch_rsp_valid, 1'b1);
-    tb_check32_local("degraded hit inst0 intact", fetch_rsp_inst0,
+    tb_check1("different-window hit delivered registered", fetch_rsp_valid, 1'b1);
+    tb_check32_local("different-window hit payload intact", fetch_rsp_inst0,
                      FUSION_BEAT2[`INST_W-1:0]);
     tick();                       // 消费
     fetch_rsp_ready = 1'b0;
@@ -757,31 +987,186 @@ module tb_ooo_fetch_axi_bridge;
     fetch_req_valid = 1'b1;
     fetch_rsp_ready = 1'b1;
     #1;
-    tick();                       // fire → 判决拍
+    tick();                       // capture → read
     fetch_req_valid = 1'b0;
+    tick();                       // read → lookup
     invalidate_valid = 1'b1;
     invalidate_addr = FUSION_PC2;  // 同 window 失效(窗口②)
     #1;
     tb_check1("same-window invalidate kills hit", fetch_rsp_valid, 1'b0);
     tb_check1("invalidated packet uses registered miss path",
               ifu_axi_arvalid, 1'b0);
-    tick();
+    tick();                       // lookup miss → S_AR0
     invalidate_valid = 1'b0;
     drive_fetch_packet("refetch packet", FUSION_PC2, FUSION_BEAT2);
     expect_rsp("refetched packet resp", RESP_OK, RESP_OK, FUSION_BEAT2);
+
+    // invalidate 同 window 撞 SRAM read 拍：即使判决拍 pulse 已拉低，也必须保留 poison。
+    fetch_req_pc = FUSION_PC2;
+    fetch_req_valid = 1'b1;
+    fetch_rsp_ready = 1'b1;
+    #1;
+    tick();                       // capture → read
+    fetch_req_valid = 1'b0;
+    invalidate_valid = 1'b1;
+    invalidate_addr = FUSION_PC2;
+    #1;
+    tb_check1("read-window invalidate occurs with cache issue",
+              dut.fetch_cache_lookup_issue_w, 1'b1);
+    tick();                       // read + invalidate → lookup
+    invalidate_valid = 1'b0;
+    #1;
+    tb_check1("read-window poison kills stale hit", dut.cache_hit_w, 1'b0);
+    tb_check1("read-window poison emits no response", fetch_rsp_valid, 1'b0);
+    tick();                       // lookup miss → S_AR0
+    drive_fetch_packet("read-window refetch packet", FUSION_PC2, FUSION_BEAT2);
+    expect_rsp("read-window refetched packet resp",
+               RESP_OK, RESP_OK, FUSION_BEAT2);
 
     // miss 拍 ready=0: 冷地址判决拍不受理新请求(1RW/上下文单套防线)
     fetch_req_pc = FUSION_PC3_COLD;
     fetch_req_valid = 1'b1;
     fetch_rsp_ready = 1'b1;
     #1;
-    tick();                       // fire → 判决拍(miss)
+    tick();                       // capture → read
+    fetch_req_valid = 1'b0;
+    tick();                       // read → lookup(miss)
     #1;
     tb_check1("miss beat rsp not valid", fetch_rsp_valid, 1'b0);
     tb_check1("miss beat not ready", fetch_req_ready, 1'b0);
-    fetch_req_valid = 1'b0;
+    tick();                       // lookup miss → S_AR0
     drive_fetch_packet("miss beat direct AR", FUSION_PC3_COLD, FUSION_BEAT3);
     expect_rsp("miss path resp unchanged", RESP_OK, RESP_OK, FUSION_BEAT3);
+
+    // ===== T4A PTW READ authorization：deny 判决必须寄存并抑制 AR =====
+    reset_protocol_case();
+    pmpcfg = {`PMP_CFG_BUS_W{1'b0}};
+    pmpaddr = {`PMP_ADDR_BUS_W{1'b0}};
+    ifu_axi_arready = 1'b0;
+    start_fetch("PTW deny request accepted", USER_VA, `PRIV_U);
+    tick();                       // S_CACHE_READ -> S_LOOKUP
+    tick();                       // S_LOOKUP -> S_WALK_CHECK
+    tick();                       // S_WALK_CHECK -> S_WALK_AR
+    #1;
+    tb_check1("PTW deny reaches registered AR decision",
+              dut.state_q == S_WALK_AR_TB, 1'b1);
+    tb_check64_local("PTW deny registers exact PTE address",
+                     dut.walk_pte_addr_q,
+                     pte_addr(ROOT_PT, USER_VA, 2'd2));
+    tb_check1("PTW deny registers read-side PMP fault",
+              dut.walk_pte_pmp_fault_q, 1'b1);
+    tb_check1("PTW deny suppresses ARVALID", ifu_axi_arvalid, 1'b0);
+    tick();                       // registered fault -> S_RESP
+    tb_check1("PTW deny returns response", fetch_rsp_valid, 1'b1);
+    tb_check2("PTW deny returns access fault", fetch_rsp_resp1,
+              RESP_ACCESS_FAULT);
+    tb_check1("PTW deny faults first halfword",
+              fetch_rsp_resp0_bytes == 3'd0, 1'b1);
+    fetch_rsp_ready = 1'b1;
+    tick();
+    fetch_rsp_ready = 1'b0;
+
+    // ===== IFU read AR VALID-until-fire：flush 只能 drop 语义，不能撤 owner =====
+    // Walk AR：先形成真实 stall，再 pulse/repeat flush。DROP owner 必须保持
+    // 8B/data metadata 与 PTE 地址；ready 后先 fire，再在 S_DRAIN 吞错误 R。
+    reset_protocol_case();
+    ifu_axi_arready = 1'b0;
+    start_fetch("stalled walk AR request accepted", USER_VA, `PRIV_U);
+    expect_ar("stalled walk AR exact address",
+              pte_addr(ROOT_PT, USER_VA, 2'd2));
+    mmu_flush = 1'b1;
+    #1;
+    tb_check1("walk AR remains valid on flush", ifu_axi_arvalid, 1'b1);
+    tb_check64_local("walk AR address remains stable on flush",
+                     ifu_axi_araddr, pte_addr(ROOT_PT, USER_VA, 2'd2));
+    tb_check1("walk ARSIZE remains 8B on flush",
+              ifu_axi_arsize == 3'd3, 1'b1);
+    tb_check1("walk ARPROT remains data on flush",
+              ifu_axi_arprot == 3'b000, 1'b1);
+    tick();
+    mmu_flush = 1'b0;
+    #1;
+    tb_check1("walk AR enters dropped owner",
+              dut.state_q == S_WALK_AR_DROP_TB, 1'b1);
+    tb_check1("walk dropped owner keeps valid", ifu_axi_arvalid, 1'b1);
+    tb_check1("walk dropped owner waits before RREADY", ifu_axi_rready, 1'b0);
+    tb_check1("walk dropped owner emits no response", fetch_rsp_valid, 1'b0);
+    tb_check64_local("walk dropped owner keeps PTE address",
+                     ifu_axi_araddr, pte_addr(ROOT_PT, USER_VA, 2'd2));
+    // Repeated flush while still stalled must be idempotent.
+    mmu_flush = 1'b1;
+    tick();
+    mmu_flush = 1'b0;
+    tb_check1("repeated flush keeps walk dropped owner",
+              dut.state_q == S_WALK_AR_DROP_TB, 1'b1);
+    tb_check1("repeated flush keeps walk ARVALID", ifu_axi_arvalid, 1'b1);
+    ifu_axi_arready = 1'b1;
+    tick();                       // dropped AR fire -> S_DRAIN
+    ifu_axi_arready = 1'b0;
+    tb_check1("walk dropped AR fire enters drain",
+              dut.state_q == S_DRAIN_TB, 1'b1);
+    tb_check1("walk dropped AR drain raises RREADY", ifu_axi_rready, 1'b1);
+    drive_r(64'hdead_beef_dead_beef, RESP_ACCESS_FAULT);
+    tb_check1("walk dropped R returns idle", fetch_req_ready, 1'b1);
+    tb_check1("walk dropped R never returns fetch response",
+              fetch_rsp_valid, 1'b0);
+
+    // Direct instruction AR uses a different payload dependency set.  Poison
+    // every live context input after flush; DROP must retain old exec/scratch.
+    reset_protocol_case();
+    ifu_axi_arready = 1'b0;
+    start_fetch("stalled direct AR request accepted", FUSION_PC3_COLD,
+                `PRIV_M);
+    expect_ar("stalled direct AR exact address", FUSION_PC3_COLD);
+    mmu_flush = 1'b1;
+    tick();
+    mmu_flush = 1'b0;
+    fetch_req_pc = USER_VA;
+    priv_mode = `PRIV_U;
+    satp = SATP_VALUE;
+    svpbmt_en = 1'b1;
+    #1;
+    tb_check1("direct AR enters dropped owner",
+              dut.state_q == S_FETCH_AR_DROP_TB, 1'b1);
+    tb_check1("direct dropped owner keeps valid", ifu_axi_arvalid, 1'b1);
+    tb_check64_local("direct dropped owner keeps address",
+                     ifu_axi_araddr, FUSION_PC3_COLD);
+    tb_check1("direct dropped owner keeps 2B size",
+              ifu_axi_arsize == 3'd1, 1'b1);
+    tb_check1("direct dropped owner keeps exec protection",
+              ifu_axi_arprot == 3'b100, 1'b1);
+    tick();
+    tb_check64_local("live poison cannot move dropped AR address",
+                     ifu_axi_araddr, FUSION_PC3_COLD);
+    ifu_axi_arready = 1'b1;
+    tick();
+    ifu_axi_arready = 1'b0;
+    tb_check1("direct dropped AR fire enters drain",
+              dut.state_q == S_DRAIN_TB, 1'b1);
+    drive_r(64'hfeed_face_cafe_beef, RESP_OK);
+    tb_check1("direct dropped R returns idle", fetch_req_ready, 1'b1);
+    tb_check1("direct dropped R never fills packet cache",
+              dut.fetch_cache_fill_valid_w, 1'b0);
+
+    // Flush 与 READY 同拍：此前 stall 的 AR 仍须完成唯一一次 fire，不能回
+    // IDLE 丢 owner，也不能错误等待一个从未发出的 R。
+    reset_protocol_case();
+    ifu_axi_arready = 1'b0;
+    start_fetch("flush-ready AR request accepted", FUSION_PC3_COLD,
+                `PRIV_M);
+    expect_ar("flush-ready AR exact address", FUSION_PC3_COLD);
+    mmu_flush = 1'b1;
+    ifu_axi_arready = 1'b1;
+    #1;
+    tb_check1("flush-ready keeps ARVALID", ifu_axi_arvalid, 1'b1);
+    tick();                       // same-cycle AR fire -> S_DRAIN
+    mmu_flush = 1'b0;
+    ifu_axi_arready = 1'b0;
+    tb_check1("flush-ready AR enters drain",
+              dut.state_q == S_DRAIN_TB, 1'b1);
+    drive_r(64'h0, RESP_OK);
+    tb_check1("flush-ready drain completes", fetch_req_ready, 1'b1);
+    ifu_axi_arready = 1'b1;
 
     // ===== AXI4 化 S1: mmu_flush 在飞读自吞(S_DRAIN)定向用例 =====
     // 先清 ITLB/cache(前序用例热态), 保证下面 fetch 走完整 walk
@@ -838,6 +1223,13 @@ module tb_ooo_fetch_axi_bridge;
     ifu_axi_awready = 1'b0;
     tb_check1("A-update AW-first accepted", dut.aw_done_q, 1'b1);
     tb_check1("A-update AW-first leaves W pending", dut.w_done_q, 1'b0);
+    // Poison every live context field while the write owner is stalled.  T4A
+    // candidate must continue tracking it, but frozen exec/AW provenance must
+    // remain on the accepted USER_VA request across flush and channel drain.
+    fetch_req_pc = CROSS_VA;
+    priv_mode = `PRIV_U;
+    satp = SATP_VALUE;
+    svpbmt_en = 1'b1;
     mmu_flush = 1'b1;
     tick();
     mmu_flush = 1'b0;
@@ -846,6 +1238,20 @@ module tb_ooo_fetch_axi_bridge;
     tb_check1("flush preserves accepted AW", dut.aw_done_q, 1'b1);
     tb_check1("flush keeps missing W valid", ifu_axi_wvalid, 1'b1);
     tb_check1("flush keeps BREADY", ifu_axi_bready, 1'b1);
+    tb_check64_local("A-update poison reaches candidate only",
+                     dut.fetch_ctx_candidate_pc_q, CROSS_VA);
+    tb_check64_local("A-update flush retains exec PC",
+                     dut.fetch_ctx_exec_pc_q, USER_VA);
+    tb_check2("A-update flush retains exec privilege",
+              dut.fetch_ctx_exec_priv_q, `PRIV_M);
+    tb_check64_local("A-update flush retains exec SATP",
+                     dut.fetch_ctx_exec_satp_q, {`XLEN{1'b0}});
+    tb_check1("A-update flush retains exec Svpbmt",
+              dut.fetch_ctx_exec_svpbmt_en_q, 1'b0);
+    tb_check64_local("A-update flush retains owner PC",
+                     fetch_req_owner_pc, USER_VA);
+    tb_check64_local("A-update flush retains AWADDR",
+                     ifu_axi_awaddr, pte_addr(L0_PT, USER_VA, 2'd0));
     tb_check64_local("flush preserves W payload", ifu_axi_wdata,
                      64'h0000_0000_1234_004f);
     ifu_axi_wready = 1'b1;
@@ -951,6 +1357,32 @@ module tb_ooo_fetch_axi_bridge;
     tb_check1("non-flushed B error enters response", dut.state_q == S_RESP_TB, 1'b1);
     tb_check2("non-flushed B error successful-prefix resp0", fetch_rsp_resp0, RESP_OK);
     tb_check2("non-flushed B error resp1", fetch_rsp_resp1, RESP_ACCESS_FAULT);
+
+    // T3W registered ITLB/PMP owner boundary: a flush on the physical
+    // S_CACHE_READ edge must drop both the lookup and its temporal assertion
+    // shadow.  Keep this after cache-hit tests because mmu_flush deliberately
+    // clears the fetch packet cache.  A one-cycle pulse is important: stale
+    // checker ownership would otherwise fail only on the next unflushed edge.
+    reset_protocol_case();
+    fetch_req_pc = FUSION_PC1;
+    fetch_req_valid = 1'b1;
+    #1;
+    tb_check1("cache-read flush setup accepts request", fetch_req_ready, 1'b1);
+    tick();
+    fetch_req_valid = 1'b0;
+    #1;
+    tb_check1("cache-read flush setup reaches boundary",
+              dut.state_q == S_CACHE_READ_TB, 1'b1);
+    mmu_flush = 1'b1;
+    tick();
+    mmu_flush = 1'b0;
+    #1;
+    tb_check1("cache-read flush drops request to idle",
+              dut.state_q == S_IDLE_TB, 1'b1);
+    tb_check1("cache-read flush exposes no response", fetch_rsp_valid, 1'b0);
+    tick();
+    tb_check1("cache-read one-shot flush leaves checker idle",
+              dut.state_q == S_IDLE_TB, 1'b1);
 
     tb_finish("tb_ooo_fetch_axi_bridge");
   end

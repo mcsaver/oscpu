@@ -12,11 +12,13 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
   reg [`XLEN-1:0] reset_pc;
 
   reg fetch_rsp_enqueue;
-  reg fetch_rsp_bypass_consumed;
   reg fetch_rsp_fire;
   reg [`XLEN-1:0] fetch_rsp_packet_next_pc;
   reg fetch_req_fire;
   reg [`XLEN-1:0] fetch_req_pc;
+  // Clocked Bridge-owner model.  It intentionally persists when inputs are
+  // cleared; candidate fetch_req_pc is not the response owner.
+  reg [`XLEN-1:0] fetch_req_owner_pc;
 
   reg csr_trap_mem_valid;
 
@@ -73,11 +75,11 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
     .rst(rst),
     .reset_pc_i(reset_pc),
     .fetch_rsp_enqueue_i(fetch_rsp_enqueue),
-    .fetch_rsp_bypass_consumed_i(fetch_rsp_bypass_consumed),
     .fetch_rsp_fire_i(fetch_rsp_fire),
     .fetch_rsp_packet_next_pc_i(fetch_rsp_packet_next_pc),
     .fetch_req_fire_i(fetch_req_fire),
     .fetch_req_pc_i(fetch_req_pc),
+    .fetch_req_owner_pc_i(fetch_req_owner_pc),
     .csr_trap_mem_valid_i(csr_trap_mem_valid),
     .direct_frontend_flush_i(direct_frontend_flush),
     .branch_fallthrough_keep_outstanding_i(branch_fallthrough_keep_outstanding),
@@ -129,7 +131,6 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
   task automatic clear_inputs;
     begin
       fetch_rsp_enqueue = 1'b0;
-      fetch_rsp_bypass_consumed = 1'b0;
       fetch_rsp_fire = 1'b0;
       fetch_rsp_packet_next_pc = {`XLEN{1'b0}};
       fetch_req_fire = 1'b0;
@@ -177,6 +178,7 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
     begin
       clear_inputs();
       reset_pc = pc;
+      fetch_req_owner_pc = {`XLEN{1'b0}};
       rst = 1'b1;
       tick();
       rst = 1'b0;
@@ -198,7 +200,13 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
       end
       tb_check1({what, " outstanding_valid"}, outstanding_valid,
                 exp_outstanding_valid);
-      if (outstanding_pc !== exp_outstanding_pc) begin
+      if (outstanding_pc !== fetch_req_owner_pc) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] %0s outstanding_pc is not Bridge owner got=0x%016x owner=0x%016x",
+                 what, outstanding_pc, fetch_req_owner_pc);
+      end
+      if (exp_outstanding_valid &&
+          (outstanding_pc !== exp_outstanding_pc)) begin
         tb_errors = tb_errors + 1;
         $display("[CHECK-FAIL] %0s outstanding_pc got=0x%016x expected=0x%016x",
                  what, outstanding_pc, exp_outstanding_pc);
@@ -213,6 +221,7 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
       clear_inputs();
       fetch_req_fire = 1'b1;
       fetch_req_pc = pc;
+      fetch_req_owner_pc = pc;
       tick();
     end
   endtask
@@ -319,6 +328,7 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
     branch_spec_restore = 1'b1;
     fetch_req_fire = 1'b1;
     fetch_req_pc = 64'h0000_0000_8000_7000;
+    fetch_req_owner_pc = fetch_req_pc;
     core_branch_resolve_next_pc = 64'h0000_0000_8000_7004;
     tick();
     check_state("branch spec restore redirects and adopts request",
@@ -331,6 +341,7 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
     pending_branch_match_clear = 1'b1;
     branch_prefetch_pending_match = 1'b1;
     branch_prefetch_pc = 64'h0000_0000_8000_8000;
+    fetch_req_owner_pc = branch_prefetch_pc;
     branch_prefetch_hit_available = 1'b1;
     branch_prefetch_hit_packet_next_pc = 64'h0000_0000_8000_8008;
     core_branch_resolve_next_pc = 64'h0000_0000_8000_8010;
@@ -347,6 +358,7 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
     pending_jump_nolink_commit = 1'b1;
     fetch_req_fire = 1'b1;
     fetch_req_pc = 64'h0000_0000_8000_9000;
+    fetch_req_owner_pc = fetch_req_pc;
     jalr_prefetch_hit_available = 1'b1;
     jalr_prefetch_hit_packet_next_pc = 64'h0000_0000_8000_9008;
     pending_jump_resolved_target = 64'h0000_0000_8000_9998;
@@ -354,6 +366,22 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
     check_state("pending jalr hit redirects and discards overlap",
                 64'h0000_0000_8000_9008, 1'b1,
                 64'h0000_0000_8000_9000, 1'b1);
+
+    // E8 pending-match adopts an already-issued branch-prefetch request.  The
+    // shared branch_prefetch_pc is the historical JALR-status-gate match key;
+    // no new request or response may fire on the adoption edge.
+    reset_dut(64'h0000_0000_8000_0000);
+    clear_inputs();
+    fetch_req_owner_pc = 64'h0000_0000_8000_9200;
+    branch_prefetch_pc = fetch_req_owner_pc;
+    pending_jump_resolve_ready = 1'b1;
+    pending_jump_nolink_commit = 1'b1;
+    jalr_prefetch_pending_match = 1'b1;
+    pending_jump_resolved_target = 64'h0000_0000_8000_9200;
+    tick();
+    check_state("E8 pending jalr adopts quiescent Bridge owner",
+                64'h0000_0000_8000_9200, 1'b1,
+                64'h0000_0000_8000_9200, 1'b0);
 
     // ── E3 untracked: 记账在模块内, PC 由 arb 终写(branch 口赢家) ──
     reset_dut(64'h0000_0000_8000_0000);
@@ -375,6 +403,7 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
     branch_resolve_untracked = 1'b1;
     fetch_req_fire = 1'b1;
     fetch_req_pc = 64'h0000_0000_8000_9b00;
+    fetch_req_owner_pc = fetch_req_pc;
     redirect_valid = 1'b1;
     redirect_pc = 64'h0000_0000_8000_9b00;  // 年龄律 branch 胜 direct(原 :263 语义)
     tick();
@@ -415,6 +444,23 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
     check_state("drained pending jump drops old outstanding",
                 64'h0000_0000_8000_b100, 1'b0, {`XLEN{1'b0}}, 1'b1);
 
+    // E6 has the same pending-match adoption contract after the pipeline has
+    // drained: the arbiter supplies the redirect PC while Bridge retains the
+    // exact prefetch request owner across the adoption edge.
+    reset_dut(64'h0000_0000_8000_0000);
+    clear_inputs();
+    fetch_req_owner_pc = 64'h0000_0000_8000_b200;
+    branch_prefetch_pc = fetch_req_owner_pc;
+    drain_complete = 1'b1;
+    pending_jump = 1'b1;
+    jalr_prefetch_pending_match = 1'b1;
+    redirect_valid = 1'b1;
+    redirect_pc = 64'h0000_0000_8000_b208;
+    tick();
+    check_state("E6 pending jalr adopts quiescent Bridge owner",
+                64'h0000_0000_8000_b208, 1'b1,
+                64'h0000_0000_8000_b200, 1'b0);
+
     // ── E1 csr trap: 记账在模块内, PC 由 arb 终写(trap 口 E1 最高档); 同拍 direct
     //    flush 记账被 E1 记账(文本更后)覆盖——原 "late csr trap wins" 语义 ──
     reset_dut(64'h0000_0000_8000_0000);
@@ -433,6 +479,7 @@ module tb_ooo_fetch_pc_outstanding_sequencer;
     clear_inputs();
     fetch_req_fire = 1'b1;
     fetch_req_pc = 64'h0000_0000_8000_d000;
+    fetch_req_owner_pc = fetch_req_pc;
     branch_resolve_untracked = 1'b1;        // 给 redirect 一个真实事件语境(E3 记账)
     redirect_valid = 1'b1;
     redirect_pc = 64'h0000_0000_8000_e000;

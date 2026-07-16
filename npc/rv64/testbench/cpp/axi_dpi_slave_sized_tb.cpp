@@ -22,6 +22,13 @@ struct ReadCall {
 
 ReadCall g_last_call;
 unsigned g_read_calls = 0;
+struct WriteCall {
+  uint64_t addr = 0;
+  uint64_t data = 0;
+  uint64_t mask = 0;
+};
+WriteCall g_last_write;
+unsigned g_write_calls = 0;
 int g_failures = 0;
 
 uint64_t ifetch_payload(uint64_t addr, uint32_t nbytes) {
@@ -61,6 +68,7 @@ void init_inputs(VAxiDpiSlave &dut) {
   dut.s_axi_rready_i = 0;
   dut.s_axi_awvalid_i = 0;
   dut.s_axi_awaddr_i = 0;
+  dut.s_axi_awsize_i = 0;
   dut.s_axi_wvalid_i = 0;
   dut.s_axi_wdata_i = 0;
   dut.s_axi_wstrb_i = 0;
@@ -120,6 +128,54 @@ void issue_read(VAxiDpiSlave &dut, uint64_t addr, uint32_t arsize,
   expect(dut.s_axi_rvalid_o == 0, "R fire 后必须撤销 RVALID");
 }
 
+void issue_write(VAxiDpiSlave &dut, uint64_t addr, uint32_t awsize,
+                 uint64_t bus_data, uint64_t bus_strb,
+                 uint32_t expected_resp, bool expect_dpi,
+                 uint64_t expected_data, uint64_t expected_mask) {
+  const unsigned calls_before = g_write_calls;
+  dut.s_axi_awaddr_i = addr;
+  dut.s_axi_awsize_i = awsize;
+  dut.s_axi_wdata_i = bus_data;
+  dut.s_axi_wstrb_i = bus_strb;
+  dut.s_axi_awvalid_i = 1;
+  dut.s_axi_wvalid_i = 1;
+  dut.s_axi_bready_i = 0;
+  dut.eval();
+  expect(dut.s_axi_awready_o == 1, "发写请求前 AWREADY 应为 1");
+  expect(dut.s_axi_wready_o == 1, "发写请求前 WREADY 应为 1");
+
+  tick(dut);
+  dut.s_axi_awvalid_i = 0;
+  dut.s_axi_wvalid_i = 0;
+  dut.eval();
+  expect(dut.s_axi_bvalid_o == 1, "AW/W fire 后应产生 BVALID");
+  expect(dut.s_axi_bresp_o == expected_resp, "BRESP 与预期不符");
+  if (expect_dpi) {
+    expect(g_write_calls == calls_before + 1,
+           "合法 AXI write 必须恰好调用一次 DPI write");
+    expect(g_last_write.addr == addr, "DPI write 地址与 AWADDR 不一致");
+    expect(g_last_write.data == expected_data,
+           "标准 lane WDATA 未归一化为 DPI low-window");
+    expect(g_last_write.mask == expected_mask,
+           "标准 lane WSTRB 未归一化为 DPI low-window");
+  } else {
+    expect(g_write_calls == calls_before,
+           "非法 AXI write 不应调用 DPI write");
+  }
+
+  const uint32_t held_resp = dut.s_axi_bresp_o;
+  tick(dut);
+  expect(dut.s_axi_bvalid_o == 1, "BREADY=0 时 BVALID 不得撤回");
+  expect(dut.s_axi_bresp_o == held_resp,
+         "BREADY=0 时写响应 payload 必须稳定");
+
+  dut.s_axi_bready_i = 1;
+  tick(dut);
+  dut.s_axi_bready_i = 0;
+  dut.eval();
+  expect(dut.s_axi_bvalid_o == 0, "B fire 后必须撤销 BVALID");
+}
+
 }  // namespace
 
 extern "C" void npc_ifetch_sized(uint64_t addr, uint32_t nbytes,
@@ -138,7 +194,10 @@ extern "C" void npc_mem_read_sized(uint64_t addr, uint32_t nbytes,
   *error = 0;
 }
 
-extern "C" void npc_mem_write(uint64_t, uint64_t, uint64_t, svBit *error) {
+extern "C" void npc_mem_write(uint64_t addr, uint64_t data, uint64_t mask,
+                                svBit *error) {
+  g_last_write = {addr, data, mask};
+  ++g_write_calls;
   *error = 0;
 }
 
@@ -155,9 +214,10 @@ int main(int argc, char **argv) {
                ReadKind::kIfetch, 2);
   }
 
-  // LSU/PTW data ABI 暂时保持 exact-address + low-window，不做 AXI lane shift。
+  // LSU/PTW 与 IFU 使用同一标准 AXI byte-lane ABI。
   const uint64_t data_addr = UINT64_C(0x80000006);
-  issue_read(dut, data_addr, 1, 0, data_payload(data_addr, 2), 0,
+  issue_read(dut, data_addr, 1, 0,
+             data_payload(data_addr, 2) << (6 * 8), 0,
              ReadKind::kData, 2);
   const uint64_t ptw_addr = UINT64_C(0x80000008);
   issue_read(dut, ptw_addr, 3, 0, data_payload(ptw_addr, 8), 0,
@@ -167,13 +227,39 @@ int main(int argc, char **argv) {
   issue_read(dut, UINT64_C(0x80000000), 4, 4, 0, 2,
              ReadKind::kNone, 0);
 
+  // 写通道从标准 lane 归一化回 exact-address + low-window DPI ABI。
+  issue_write(dut, UINT64_C(0x80000005), 0,
+              UINT64_C(0xab) << (5 * 8), UINT64_C(1) << 5,
+              0, true, UINT64_C(0xab), UINT64_C(0x1));
+  issue_write(dut, UINT64_C(0x80000006), 1,
+              UINT64_C(0xbeef) << (6 * 8), UINT64_C(0x3) << 6,
+              0, true, UINT64_C(0xbeef), UINT64_C(0x3));
+  issue_write(dut, UINT64_C(0x80000004), 2,
+              UINT64_C(0x11223344) << 32, UINT64_C(0xf0),
+              0, true, UINT64_C(0x11223344), UINT64_C(0xf));
+  issue_write(dut, UINT64_C(0x80000008), 3,
+              UINT64_C(0x8877665544332211), UINT64_C(0xff),
+              0, true, UINT64_C(0x8877665544332211), UINT64_C(0xff));
+
+  // 跨 bus-window、稀疏 strobe 与超大 size 都必须本地 SLVERR，零 DPI 副作用。
+  issue_write(dut, UINT64_C(0x80000007), 1,
+              UINT64_C(0xaa) << 56, UINT64_C(0x80),
+              2, false, 0, 0);
+  issue_write(dut, UINT64_C(0x80000000), 2,
+              UINT64_C(0x44332211), UINT64_C(0x3),
+              2, false, 0, 0);
+  issue_write(dut, UINT64_C(0x80000000), 4,
+              UINT64_C(0), UINT64_C(0),
+              2, false, 0, 0);
+
   dut.final();
   if (g_failures != 0) {
     std::fprintf(stderr, "AXI_DPI_SIZED_FAIL failures=%d calls=%u\n",
                  g_failures, g_read_calls);
     return 1;
   }
-  std::printf("AXI_DPI_SIZED_PASS ifetch_lanes=4 data_low_window=2 invalid_size=1 calls=%u\n",
-              g_read_calls);
+  std::printf("AXI_DPI_SIZED_PASS ifetch_lanes=4 data_lanes=2 invalid_read=1 "
+              "write_lanes=4 invalid_writes=3 read_calls=%u write_calls=%u\n",
+              g_read_calls, g_write_calls);
   return 0;
 }

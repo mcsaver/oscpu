@@ -175,6 +175,7 @@ typedef struct {
   npc_word_t trap_tval;
   bool exit_is_ebreak;
   bool exit_is_ecall;
+  bool exit_is_system_reset;
   bool exit_is_tohost;
   npc_word_t tohost_value;
   int watchpoint_id;

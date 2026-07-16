@@ -1,7 +1,9 @@
 # 规范：AXI4 总线（完整 AXI4 化战役 + AxiXbar 契约）
 
 > 状态：**single-beat AXI4 主干已落地；IFU-ACCESS-G1 于 2026-07-13 补齐 read
-> ARSIZE/ARPROT 的 slave-side owner 与 execute-device firewall**。原始战役侦查存
+> ARSIZE/ARPROT 的 slave-side owner 与 execute-device firewall；T4I 已关闭 LSU
+> exact-window 外泄，并把 AWSIZE 铺到 slave/external 端；T4R 已把 AxiXbar read
+> response 收口为严格非穿透的 per-master registered slice**。原始战役侦查存
 > `.github/task-runs/2026-07-10-axi4-campaign/evidence/`。
 > 动机：现总线是自定义 single-beat AXI-like（带非标 arstrb/aruser/abort 边带，缺
 > ID/LEN/SIZE/BURST/LAST），用户要求升级完整 AXI4 并改名 AxiLite*→Axi*；
@@ -14,14 +16,15 @@
 | ARID/AWID | IFU 恒 4'd0，LSU 恒 4'd1 | xbar 端口本位已区分，ID 陪跑（RV32 legacy NpcSoCAxiBridge 同形态先例） |
 | RID/BID | slave 回环；xbar 按 owner 记账路由（现 rd/wr_owner_q 即等价物） | 记账结构不变 |
 | ARLEN/AWLEN | 恒 8'd0（单 beat） | 现协议即单 beat；**本刀只搭协议不启用 burst**，SoC 对接刀再做 64→32 降宽+len=1 |
-| ARSIZE | IFU instruction halfword=`3'b001`，IFU PTW=`3'b011`；mem 按事务（对齐读/walk=3'b011，跨线窗口读=log2(size)） | **替代 arstrb**（信息量超集）；与 address/prot/owner 一起锁存到 slave |
-| AWSIZE | 恒 3'b011，WSTRB 仍是字节权威 | AXI4 合法 |
+| ARSIZE | IFU instruction halfword=`3'b001`，IFU PTW=`3'b011`；LSU cache line/walk=`3'b011`，uncached 原访问按 1/2/4/8B，misaligned 经 adapter 拆为 byte | **替代 arstrb**；与 address/prot/owner 一起锁存到 slave |
+| AWSIZE | IFU PTE write=`3'b011`；LSU aligned 按 1/2/4/8B，misaligned 微写=`3'b000` | 与 WSTRB 一致并锁存到 slave/external 端 |
 | ARBURST/AWBURST | 恒 2'b01 (INCR) | 单 beat 下无义 |
 | WLAST/RLAST | 恒 1'b1 | 单 beat |
 | ARPROT[2] | **替代 aruser**（ifetch=0 表 instruction access 按 AXI 定义 bit2=1 为 instruction——取 AXI 语义：instruction=1） | DPI slave 判据同构替换；ysyxSoC 接口无 user 线 |
 | 多 outstanding/interleave | 不支持；xbar per-master busy 记账原样 | 结构不动 |
 
-DATA_W 保持 64（ysyxSoC 32-bit 的降宽桥属 SoC 对接刀，xbar 参数勿写死）。
+DATA_W 保持 64。当前 NpcTop 64-bit external slave 端必须真实消费 ARSIZE/AWSIZE；若未来连接
+ysyxSoC 32-bit master，仍需独立 64→32 降宽桥，不能拿本轮同宽 lane adapter 越级证明。
 
 ## 2. 非标信号消化
 
@@ -63,7 +66,7 @@ DATA_W 保持 64（ysyxSoC 32-bit 的降宽桥属 SoC 对接刀，xbar 参数勿
 | xbar 反死锁逻辑与 abort 清理耦合 | 中 | S2 删臂时逐行核对 L341-348 buffer 释放路径 |
 | NpcSimTop XMR 探针族（debug_bus 引 xbar 内部记账） | 低 | 编译期暴露；同步改写 |
 | UART RBR pop 判据搬迁 | 低 | 等价性用例 |
-| bpend_q 与单 ID 写保序 | 低 | xbar busy+!bpend_q 双保证；AXI4 同 ID 保序覆盖将来放宽 |
+| split write 被后续 read 越过 | 高 | lane adapter 单 owner 串行；bridge 所有 store 等聚合 B；xbar 锁 owner 至 B |
 
 ## 5. 落地记录（2026-07-10 同日，S1-S5 全部完成）
 
@@ -93,9 +96,8 @@ DATA_W 保持 64（ysyxSoC 32-bit 的降宽桥属 SoC 对接刀，xbar 参数勿
 - `AxiDpiSlave` 对 execute narrow read 使用标准 AXI byte lanes：DPI 返回 exact-address
   low window，slave 按 `ARADDR[2:0]` 左移到 RDATA lane；IFU bridge按同一 lane 抽取。
   PTW 保持 aligned 8B data read。
-- LSU data read 暂保 exact-address/low-window 兼容扩展，因为当前 mem bridge 仍会发
-  offset5,size4 这类跨 8B lane 的 single beat。它不是 AXI4 signoff 声明；拆分事务属于
-  后续 LSU slice。
+- 本小节当时的 LSU exact-address/low-window 扩展已由 T4I 取代：它现在只存在
+  `OooLsuAxiLaneAdapter` 上游的 core-private ABI，不再出现于 xbar/slave/对外端口。
 - sized DPI 的 PMEM 路径只验证并读取声明的 `nbytes`，IFETCH 不回落 MMIO；合法的
   PMEM-end 2B fetch 不再被宿主 8B load 扩张。execute firewall 与 DPI IFETCH 拒绝形成
   两层无设备副作用边界。
@@ -103,9 +105,47 @@ DATA_W 保持 64（ysyxSoC 32-bit 的降宽桥属 SoC 对接刀，xbar 参数勿
   module 93/93；真实 guard-page suite PASS；Difftest-ON AM 59/59 + official 177/177。
   该证据关闭功能 owner，不替代 fresh STA 或外部物理 wrapper 接口审查。
 
+## 5.2 T4I LSU standard lane / split（2026-07-14，已落地）
+
+- `OooMemAxiBridge` 保留内部 logical low-window ABI，但只有 cacheable、非跨线 miss 才允许
+  aligned 8B line read/fill；uncacheable read 使用 exact PA 与原访问 ARSIZE，不再扩读设备；
+- `OooLsuAxiLaneAdapter` 在 NpcCoreTop master 边界把 aligned read/write 映射到标准 byte lane，
+  只对完整范围已通过 translation/PMP/PMA 的普通 PMEM misaligned 访问拆成
+  byte 微事务并聚合 R/B；MMIO/PTE misaligned 本地 DECERR、零下游副作用；
+- bridge 的上游 AW/W fire 现在只代表 adapter capture，因此删除旧
+  `bpend_q/store_decouple` 早完成路，所有 store 等待聚合 B；
+- AxiXbar/NpcAxiBus/NpcTop 将 AWSIZE 与 owner/address 同步锁存并送到 external 端；
+- UART/CLINT/PLIC、DPI memory 与 virtio 仿真 wrapper 统一消费标准 lane。旧 exact-window 扩展
+  只存在 adapter 上游，不再泄漏到 xbar/slave/physical ABI；
+- ysyxSoC 32-bit 降宽仍是明确范围外的另一层 adapter，本切片只关闭当前 NpcTop 64-bit ABI。
+- 定向证据：adapter、bridge、xbar、UART/CLINT/PLIC、DPI guard 均 PASS；
+  完整 module **100/100** PASS。系统软件与 fresh 5ns STA 由 T4I task-run 给出最终结论。
+
+## 5.3 T4R AxiXbar registered R response slice（2026-07-15，已落地）
+
+- 每个 master 各有一组 `rd_resp_valid/data/resp/id_q`，slave R 不再组合穿透到
+  `m_rvalid/rdata/rresp/rid`。只有对应 master 的 response slice 为空时，xbar 才向其
+  当前 owner slave 拉高 `s_rready`。
+- slave 侧 `s_rvalid && s_rready` 握手在时钟沿无条件捕获完整 R payload，并同时释放
+  `rd_active/rd_ar_sent` slave owner；捕获不依赖当拍 `m_rready`，也不存在 ready 时旁路。
+  因此从 slave R fire 到最早 master R fire 固定增加 **1 cycle**，不是可选 fall-through。
+- 捕获后的下一拍起，master 侧只由寄存切片驱动 R valid/payload。`m_rready=0` 时
+  valid/data/resp/id 必须逐拍稳定；只有 buffered `m_rvalid && m_rready` 握手才清 slice，
+  并释放对应 `rd_master_busy`，在此之前该 master 不接受下一笔 AR。
+- slave owner 在 capture 沿即释放，而 stalled master 的 payload 留在自己的 slice；因此该
+  master 的反压不会继续占住原 slave，其他 master 仍可按各自 owner/slice 推进。该性质与
+  per-master single-outstanding 记账共同构成 read-response 的保序与反死锁边界。
+
 ## 6. 变更记录
 
 - 2026-07-10：spec 冻结（最小合规子集+方案 B 自吞+六步实施）。
 - 2026-07-10（同日）：S1-S5 落地+difftest 收口（§5）。
 - 2026-07-13：IFU-ACCESS-G1 补齐 slave `ARSIZE`、read payload stall owner、动态
   instruction/PTW attributes、standard instruction lanes、sized DPI 与 execute allowlist。
+- 2026-07-14（T4I contract）：冻结 LSU logical-window→standard-lane adapter、misaligned byte
+  split、uncached exact read 与 slave/external AWSIZE owner。
+- 2026-07-14（T4I implementation）：上述 RTL/连接/设备/DPI 收口，删除旧
+  PMEM AW/W-fire 早完成路；验证状态见 §5.2。
+- 2026-07-15（T4R）：AxiXbar R 通道改为 per-master strict registered response slice；
+  slave R fire 捕获并释放 slave，master R fire 才释放 slice/master busy，返回固定增加 1 拍且
+  反压期间 payload 稳定。

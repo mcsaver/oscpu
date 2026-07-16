@@ -226,7 +226,7 @@ module OooFetchPacketCache #(
   end
 
   // 契约: SRAM 1RW 物理读写不同拍。使用方 FSM 的读窗只含
-  // S_IDLE/S_RESP/S_LOOKUP，fill 写只发生在 S_R0，二者必须互斥。
+  // S_CACHE_READ，fill 写只发生在 S_R0，二者必须互斥。
   always @(posedge clk) begin
     if (!rst && lookup_read_en_i && sram_we_w) begin
       $error("[CONTRACT-FPC-1RW] physical read and fill write in same cycle violate 1RW SRAM: lookup_pc=%h fill_pc=%h @%0t",

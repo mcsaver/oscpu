@@ -1,0 +1,5 @@
+[TEST] tb_ooo_clmul_unit
+[COMPILE] iverilog -g2012 -Wall -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc -I/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include -Icommon -DOOO_ASSERT -s tb_ooo_clmul_unit -o build-t3z-request-mux-v1/tb_ooo_clmul_unit.vvp /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooClmulUnit.v tests/tb_ooo_clmul_unit.sv
+[PASS] tb_ooo_clmul_unit
+common/tb_common.svh:32: $finish called at 674 (1s)
+[RESULT] PASS

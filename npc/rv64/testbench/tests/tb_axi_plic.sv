@@ -9,6 +9,7 @@ module tb_axi_plic;
   reg arvalid;
   wire arready;
   reg [`XLEN-1:0] araddr;
+  reg [2:0] arsize;
   wire rvalid;
   reg rready;
   wire [`XLEN-1:0] rdata;
@@ -17,6 +18,7 @@ module tb_axi_plic;
   reg awvalid;
   wire awready;
   reg [`XLEN-1:0] awaddr;
+  reg [2:0] awsize;
   reg wvalid;
   wire wready;
   reg [`XLEN-1:0] wdata;
@@ -27,6 +29,8 @@ module tb_axi_plic;
 
   reg [31:0] source_irq;
   wire external_irq;
+  wire [`XLEN-1:0] rdata_w1;
+  wire [`XLEN-1:0] rdata_w32;
 
   AxiPlic #(
     .ADDR_W(`XLEN),
@@ -38,6 +42,7 @@ module tb_axi_plic;
     .s_axi_arvalid_i(arvalid),
     .s_axi_arready_o(arready),
     .s_axi_araddr_i(araddr),
+    .s_axi_arsize_i(arsize),
     .s_axi_rvalid_o(rvalid),
     .s_axi_rready_i(rready),
     .s_axi_rdata_o(rdata),
@@ -45,6 +50,7 @@ module tb_axi_plic;
     .s_axi_awvalid_i(awvalid),
     .s_axi_awready_o(awready),
     .s_axi_awaddr_i(awaddr),
+    .s_axi_awsize_i(awsize),
     .s_axi_wvalid_i(wvalid),
     .s_axi_wready_o(wready),
     .s_axi_wdata_i(wdata),
@@ -56,15 +62,83 @@ module tb_axi_plic;
     .external_irq_o(external_irq)
   );
 
+  // Boundary elaboration/behavior instances share the same legal AXI
+  // stimulus.  Their read payloads provide permanent regression evidence that
+  // PRIORITY_BITS=1 is WARL-truncated and PRIORITY_BITS=32 preserves the old
+  // full-width register behavior.
+  AxiPlic #(
+    .ADDR_W(`XLEN),
+    .DATA_W(`XLEN),
+    .STRB_W(`STRB_W),
+    .PRIORITY_BITS(1)
+  ) dut_w1 (
+    .clk(clk),
+    .rst(rst),
+    .s_axi_arvalid_i(arvalid),
+    .s_axi_arready_o(),
+    .s_axi_araddr_i(araddr),
+    .s_axi_arsize_i(arsize),
+    .s_axi_rvalid_o(),
+    .s_axi_rready_i(rready),
+    .s_axi_rdata_o(rdata_w1),
+    .s_axi_rresp_o(),
+    .s_axi_awvalid_i(awvalid),
+    .s_axi_awready_o(),
+    .s_axi_awaddr_i(awaddr),
+    .s_axi_awsize_i(awsize),
+    .s_axi_wvalid_i(wvalid),
+    .s_axi_wready_o(),
+    .s_axi_wdata_i(wdata),
+    .s_axi_wstrb_i(wstrb),
+    .s_axi_bvalid_o(),
+    .s_axi_bready_i(bready),
+    .s_axi_bresp_o(),
+    .source_irq_i(source_irq),
+    .external_irq_o()
+  );
+
+  AxiPlic #(
+    .ADDR_W(`XLEN),
+    .DATA_W(`XLEN),
+    .STRB_W(`STRB_W),
+    .PRIORITY_BITS(32)
+  ) dut_w32 (
+    .clk(clk),
+    .rst(rst),
+    .s_axi_arvalid_i(arvalid),
+    .s_axi_arready_o(),
+    .s_axi_araddr_i(araddr),
+    .s_axi_arsize_i(arsize),
+    .s_axi_rvalid_o(),
+    .s_axi_rready_i(rready),
+    .s_axi_rdata_o(rdata_w32),
+    .s_axi_rresp_o(),
+    .s_axi_awvalid_i(awvalid),
+    .s_axi_awready_o(),
+    .s_axi_awaddr_i(awaddr),
+    .s_axi_awsize_i(awsize),
+    .s_axi_wvalid_i(wvalid),
+    .s_axi_wready_o(),
+    .s_axi_wdata_i(wdata),
+    .s_axi_wstrb_i(wstrb),
+    .s_axi_bvalid_o(),
+    .s_axi_bready_i(bready),
+    .s_axi_bresp_o(),
+    .source_irq_i(source_irq),
+    .external_irq_o()
+  );
+
   task automatic reset_dut;
     begin
       clk = 1'b0;
       rst = 1'b1;
       arvalid = 1'b0;
       araddr = {`XLEN{1'b0}};
+      arsize = 3'd2;
       rready = 1'b0;
       awvalid = 1'b0;
       awaddr = {`XLEN{1'b0}};
+      awsize = 3'd2;
       wvalid = 1'b0;
       wdata = {`XLEN{1'b0}};
       wstrb = {`STRB_W{1'b0}};
@@ -80,8 +154,14 @@ module tb_axi_plic;
   task automatic axi_read_word;
     input [`XLEN-1:0] addr;
     input [31:0] exp_data;
+    reg [`XLEN-1:0] exp_bus;
     begin
+      araddr = addr ^ {{(`XLEN-1){1'b0}}, 1'b1};
+      #0;
       araddr = addr;
+      arsize = 3'd2;
+      exp_bus = {{(`XLEN-32){1'b0}}, exp_data} <<
+                {addr[2:0], 3'b000};
       arvalid = 1'b1;
       rready = 1'b0;
       #1;
@@ -90,12 +170,16 @@ module tb_axi_plic;
       arvalid = 1'b0;
       #1;
       tb_check1("read rvalid", rvalid, 1'b1);
-      tb_check32("read data low", rdata[31:0], exp_data);
-      tb_check32("read data high", rdata[`XLEN-1:32], 32'h0);
+      tb_check32("read data low", rdata[31:0], exp_bus[31:0]);
+      tb_check32("read data high", rdata[`XLEN-1:32], exp_bus[`XLEN-1:32]);
       tb_check32("read resp", {30'b0, rresp}, 32'h0);
       rready = 1'b1;
       `TB_TICK(clk);
       rready = 1'b0;
+      // Icarus does not always include memory-array reads hidden in a function
+      // in an always-@* sensitivity set.  Return the address to zero so a
+      // later read of the same register necessarily re-evaluates readback.
+      araddr = {`XLEN{1'b0}};
     end
   endtask
 
@@ -104,7 +188,10 @@ module tb_axi_plic;
     input [31:0] exp_low;
     input [31:0] exp_high;
     begin
+      araddr = addr ^ {{(`XLEN-1){1'b0}}, 1'b1};
+      #0;
       araddr = addr;
+      arsize = 3'd3;
       arvalid = 1'b1;
       rready = 1'b0;
       #1;
@@ -118,6 +205,7 @@ module tb_axi_plic;
       rready = 1'b1;
       `TB_TICK(clk);
       rready = 1'b0;
+      araddr = {`XLEN{1'b0}};
     end
   endtask
 
@@ -127,8 +215,9 @@ module tb_axi_plic;
     input [`STRB_W-1:0] strb;
     begin
       awaddr = addr;
-      wdata = {{(`XLEN-32){1'b0}}, data};
-      wstrb = strb;
+      awsize = 3'd2;
+      wdata = {{(`XLEN-32){1'b0}}, data} << {addr[2:0], 3'b000};
+      wstrb = strb << addr[2:0];
       awvalid = 1'b1;
       wvalid = 1'b1;
       bready = 1'b0;
@@ -152,6 +241,7 @@ module tb_axi_plic;
     input [31:0] data;
     begin
       awaddr = addr;
+      awsize = 3'd2;
       awvalid = 1'b1;
       wvalid = 1'b0;
       bready = 1'b0;
@@ -159,8 +249,8 @@ module tb_axi_plic;
       tb_check1("split awready", awready, 1'b1);
       `TB_TICK(clk);
       awvalid = 1'b0;
-      wdata = {{(`XLEN-32){1'b0}}, data};
-      wstrb = {{(`STRB_W-4){1'b0}}, 4'hf};
+      wdata = {{(`XLEN-32){1'b0}}, data} << {addr[2:0], 3'b000};
+      wstrb = {{(`STRB_W-4){1'b0}}, 4'hf} << addr[2:0];
       wvalid = 1'b1;
       #1;
       tb_check1("split wready", wready, 1'b1);
@@ -180,6 +270,7 @@ module tb_axi_plic;
     input [`STRB_W-1:0] strb;
     begin
       awaddr = addr;
+      awsize = 3'd3;
       wdata = data;
       wstrb = strb;
       awvalid = 1'b1;
@@ -206,6 +297,49 @@ module tb_axi_plic;
     tb_check1("external irq reset low", external_irq, 1'b0);
     axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0000_0004, 32'h0);
     axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0000_1000, 32'h0);
+
+    axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0000_0000, 32'hffff_ffff,
+                   {{(`STRB_W-4){1'b0}}, 4'hf});
+    axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0000_0000, 32'h0);
+    tb_check32("priority bits1 source0 hard zero", rdata_w1[31:0], 32'h0);
+    tb_check32("priority bits32 source0 hard zero", rdata_w32[31:0], 32'h0);
+
+    // T4D: priority/threshold are 32-bit WARL MMIO fields backed by the
+    // platform's three implemented low bits.  High writes read zero, and a
+    // high-byte-only strobe must preserve the implemented value.
+    axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0000_000c, 32'hffff_fffd,
+                   {{(`STRB_W-4){1'b0}}, 4'hf});
+    axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0000_000c, 32'h5);
+    tb_check32("priority bits1 WARL truncate", rdata_w1[63:32], 32'h1);
+    tb_check32("priority bits32 full readback", rdata_w32[63:32], 32'hffff_fffd);
+    axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0000_000c, 32'ha500_0000,
+                   {{(`STRB_W-4){1'b0}}, 4'h8});
+    tb_check32("priority bits32 high strobe internal",
+               dut_w32.priority_q[3], 32'ha5ff_fffd);
+    axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0000_000c, 32'h5);
+    tb_check32("priority bits1 high strobe preserve", rdata_w1[63:32], 32'h1);
+    tb_check32("priority bits32 high strobe merge", rdata_w32[63:32], 32'ha5ff_fffd);
+    axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0020_0000, 32'hffff_fffc,
+                   {{(`STRB_W-4){1'b0}}, 4'hf});
+    axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0020_0000, 32'h4);
+    tb_check32("threshold bits1 WARL truncate", rdata_w1[31:0], 32'h0);
+    tb_check32("threshold bits32 full readback", rdata_w32[31:0], 32'hffff_fffc);
+    axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0020_0000, 32'h5a00_0000,
+                   {{(`STRB_W-4){1'b0}}, 4'h8});
+    axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0020_0000, 32'h4);
+    tb_check32("threshold bits1 high strobe preserve", rdata_w1[31:0], 32'h0);
+    tb_check32("threshold bits32 high strobe merge", rdata_w32[31:0], 32'h5aff_fffc);
+    axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0020_1000, 32'hffff_ffff,
+                   {{(`STRB_W-4){1'b0}}, 4'hf});
+    axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0020_1000, 32'h7);
+    tb_check32("S threshold bits1 WARL truncate", rdata_w1[31:0], 32'h1);
+    tb_check32("S threshold bits32 full readback", rdata_w32[31:0], 32'hffff_ffff);
+    axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0000_000c, 32'h0,
+                   {{(`STRB_W-4){1'b0}}, 4'hf});
+    axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0020_0000, 32'h0,
+                   {{(`STRB_W-4){1'b0}}, 4'hf});
+    axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0020_1000, 32'h0,
+                   {{(`STRB_W-4){1'b0}}, 4'hf});
 
     axi_write_double(`NPC_AXI_PLIC_BASE + 64'h0000_0000,
                      64'h0000_0005_0000_0000, 8'hf0);
@@ -275,6 +409,67 @@ module tb_axi_plic;
     axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h1);
     axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h1, {{(`STRB_W-4){1'b0}}, 4'hf});
     tb_check1("all multi-source claims complete", external_irq, 1'b0);
+
+    axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0000_0004, 32'h6,
+                   {{(`STRB_W-4){1'b0}}, 4'hf});
+    axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0000_0008, 32'h6,
+                   {{(`STRB_W-4){1'b0}}, 4'hf});
+    source_irq[1] = 1'b1;
+    source_irq[2] = 1'b1;
+    `TB_TICK(clk);
+    source_irq = 32'h0;
+    `TB_TICK(clk);
+    axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h1);
+    axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h1,
+                   {{(`STRB_W-4){1'b0}}, 4'hf});
+    axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h2);
+    axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h2,
+                   {{(`STRB_W-4){1'b0}}, 4'hf});
+
+    // Claim source1 and complete an already in-service source2 on the same
+    // edge.  Completion is the later state update only for its own ID; the new
+    // claim must still enter service without adding an AXI response cycle.
+    source_irq[2] = 1'b1;
+    `TB_TICK(clk);
+    source_irq[2] = 1'b0;
+    axi_read_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h2);
+    source_irq[1] = 1'b1;
+    `TB_TICK(clk);
+    source_irq[1] = 1'b0;
+    araddr = `NPC_AXI_PLIC_BASE + 64'h0020_1004;
+    arsize = 3'd2;
+    arvalid = 1'b1;
+    rready = 1'b0;
+    awaddr = `NPC_AXI_PLIC_BASE + 64'h0020_1004;
+    awsize = 3'd2;
+    awvalid = 1'b1;
+    wdata = 64'h0000_0002_0000_0000;
+    wstrb = 8'hf0;
+    wvalid = 1'b1;
+    bready = 1'b0;
+    #1;
+    tb_check1("same-cycle claim arready", arready, 1'b1);
+    tb_check1("same-cycle complete awready", awready, 1'b1);
+    tb_check1("same-cycle complete wready", wready, 1'b1);
+    `TB_TICK(clk);
+    arvalid = 1'b0;
+    awvalid = 1'b0;
+    wvalid = 1'b0;
+    #1;
+    tb_check1("same-cycle claim response", rvalid, 1'b1);
+    tb_check32("same-cycle claim ID", rdata[63:32], 32'h1);
+    tb_check1("same-cycle complete response", bvalid, 1'b1);
+    tb_check1("same-cycle claimed source in service", dut.in_service_q[1], 1'b1);
+    tb_check1("same-cycle completed source leaves service", dut.in_service_q[2], 1'b0);
+    rready = 1'b1;
+    bready = 1'b1;
+    `TB_TICK(clk);
+    rready = 1'b0;
+    bready = 1'b0;
+    araddr = {`XLEN{1'b0}};
+    axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0020_1004, 32'h1,
+                   {{(`STRB_W-4){1'b0}}, 4'hf});
+    $display("[T4D-PLIC-PRIORITY-WARL] high=zero wstrb=preserve tie=low-id params=1,3,32 source0=zero same-cycle=claim+complete");
 
     axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0000_0024, 32'h7, {{(`STRB_W-4){1'b0}}, 4'hf});
     axi_write_word(`NPC_AXI_PLIC_BASE + 64'h0000_2080, 32'h0000_0200,

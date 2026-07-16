@@ -142,6 +142,7 @@ module OooMemInflightQueue #(
 
   wire push_fire_w = push_valid_i && !full_o;
   wire pop_fire_w = pop_valid_i && head_valid_o;
+  wire flush_pop_drain_w = pop_fire_w && (kind_q[head_q] == KIND_DRAIN);
 
   always @(posedge clk) begin
     if (rst) begin
@@ -169,8 +170,11 @@ module OooMemInflightQueue #(
       wr = 0;
       for (rd = 0; rd < ENTRY_N; rd = rd + 1) begin
         src = head_q + rd[ENTRY_W-1:0];
+        // MIQ-G1：pop 永远消费逻辑 head(rd=0)。flush 必须先兑现该 fire，
+        // 再过滤未消费 DRAIN；否则已完成的 retired-store owner 会被压回成 ghost。
         if ((rd[ENTRY_W:0] < count_q) && valid_q[src] &&
-            (kind_q[src] == KIND_DRAIN)) begin
+            (kind_q[src] == KIND_DRAIN) &&
+            !(pop_fire_w && (rd == 0))) begin
           kind_q[wr[ENTRY_W-1:0]] <= kind_q[src];
           killed_q[wr[ENTRY_W-1:0]] <= 1'b0;
           rob_idx_q[wr[ENTRY_W-1:0]] <= rob_idx_q[src];
@@ -232,5 +236,27 @@ module OooMemInflightQueue #(
       end
     end
   end
+
+`ifdef OOO_ASSERT
+  // MIQ-G1：flush 的 keep-set 必须先扣除同拍已经 fire 的 head pop。
+  // 用独立的“旧 DRAIN 总数 - popped DRAIN”算术延迟一拍核对实现压缩结果，
+  // 防止压缩循环再次把已消费的 retired-store owner 复活成 ghost。
+  reg flush_count_check_q;
+  reg [ENTRY_W:0] flush_expected_count_q;
+  always @(posedge clk) begin
+    if (rst) begin
+      flush_count_check_q <= 1'b0;
+      flush_expected_count_q <= {(ENTRY_W+1){1'b0}};
+    end else begin
+      if (flush_count_check_q && (count_q !== flush_expected_count_q))
+        $error("[MIQ-FLUSH-POP-COUNT] flush keep count=%0d expected=%0d @%0t",
+               count_q, flush_expected_count_q, $time);
+      flush_count_check_q <= flush_i;
+      if (flush_i)
+        flush_expected_count_q <= flush_keep_count_r -
+            {{ENTRY_W{1'b0}}, flush_pop_drain_w};
+    end
+  end
+`endif
 
 endmodule

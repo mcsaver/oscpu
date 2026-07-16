@@ -5,12 +5,20 @@
 ## 活跃问题
 <!-- 当前未解决的问题 -->
 
+### [118] 200MHz proxy 已闭合，physical signoff 与默认 Dhrystone 长跑仍开放（2026-07-14）
+
+- **已闭合范围**：T3J–T4I 已消除 #114–#116 所指的当前架构组合长链与 LSU 私有 lane/B-owner 缺口；fresh source→Yosys netlist→OpenSTA binding 全绿，exact 5ns top40 40/40 MET，actual worst `+0.017907454ns`。功能为 module 100/100、official/privileged 177/177、AM59/59、CoreMark、Dhrystone-10000 与 sized DPI。
+- **仍开放边界**：303 inputs 无 input delay、1873 outputs 无 output delay、1875 unconstrained endpoints；ideal clock、无 SPEF/CTS/OCV/uncertainty，四类 macro 使用非签核 placeholder liberty。17.907ps 仅占5ns的0.36%，只能称 current frozen RTL gate-level proxy 200MHz，不能称 physical/tapeout/board signoff。
+- **长跑边界**：Dhrystone 默认500000-run 在20分钟预算内 timeout；harness 已改为 timeout/非零返回/缺 GOOD TRAP 任一即 FAIL。当前只有10000-run 功能 smoke 可声明 PASS，需要性能数字时单独给足预算。
+- **工作树保护事故**：whole-system eval 覆盖了开工前已有 dirty `build/linux-logs/npc-linux.log`；原始 SHA256 为 `4b0a3561…f23a7`，在 workspace、OS `/tmp` 与 Codex 缓存均未找到可恢复字节。该文件必须保持 unstaged，并在交付中披露，不能用 HEAD 或新日志伪装恢复。
+
 ### [116] T3I 后 200MHz 仍未闭合：EX→FPC physical read enable 与 pending-trap 长链（2026-07-13）
 
 - **已关闭切片**：ROB-empty严格蕴含零retire，drain gate/control-plane/glue中的retire-count ABI和条件已物理删除；assertion、顶层纯AND theorem ratchet、删除guard/OR-bypass mutation、96/96 module、177/177与cycle-exact CoreMark共同闭合功能。旧canonical-retire fanout命中fetch/trap=1/137，fresh为0/0且仍有66个合法instret/debug endpoints，ROB residual path继续存在，故不是空collection假绿。
 - **仍开放根因**：fresh correct-H7CL 5ns WNS/TNS=`-9.38/-199464.16ns`；top40只剩1条integer EX→fetch payload SRAM `en_i`（明细`-9.377ns`）和39条EX→pending-trap D（`-8.843ns`）。T3I只回收约0.72ns，parent 200MHz明确未完成。
 - **下一切点**：FPC把物理SRAM读窗口与语义accept分开；`S_IDLE|S_RESP|S_LOOKUP`三态window驱动`en_i`，现有fetch request fire继续独占decision enable/context capture，fill与window必须互斥。不能只含IDLE/RESP（会破坏fused A→B），不能改address source，也不能把dummy-read raw rdata变化当架构payload。预计先切掉`en_i`长链，地址链仍可能约`-8.17ns`，必须fresh STA后再裁决。
 - **工具假绿门禁**：H7L网表若误配H7CR liberty会出现204类`Warning 198 ... Creating black box`并把真实路径报成NO_PATH；所有focused/global checker必须拒绝unknown-module blackbox。层级input/output pin不是可靠`report_checks -from/-to`对象，定向路径应用`-through`并绑定exact collection，absence还需canonical fanout endpoint交集与非空残余证明。TB runner必须拒绝`ERROR:`/`%Error`后exact PASS；文本定理必须有OR-bypass mutation，不能只搜索guard字符串。
+- **2026-07-14 收口**：T3J–T4I 后上述 architecture timing family 在 current frozen RTL 的 exact-5ns gate-level proxy 中已由 fresh netlist 40/40 MET 关闭；physical signoff 限制转记 #118。
 
 ### [115] T3H 后 physical 200MHz 仍未闭合：整数 EX fast consumer 跨 IQ/PRF/双 ALU/ROB/redirect（2026-07-13）
 
@@ -18,12 +26,14 @@
 - **仍开放根因**：fresh 5ns WNS/TNS=`-10.10/-201564.20ns`。top40 40/40 从 `ex0_valid_q` 起并共同经过 integer `fast_wb0`→IntIQ `select_wakeup0`→IntPRF bypass0→ALU0→cross-lane/ALU1→MulDiv→ROB→drain/trap，随后到 FPC payload en（1）、fetch outstanding（21）或 CSR（18）。ROB 末累计约 11.860ns，违例不只是 SRAM 1.842ns setup 假象。
 - **下一切点**：成对移除 IntIQ resident EX same-cycle lookahead 与 IntPRF read0–3 EX bypass，让 EX completion 在 N 沿 formal write/sticky，dependent consumer N+1 issue；保留 formal WB/ROB/exception owner。必须用双发 RAW、branch/redirect、kill/flush/recover、WB0/WB1 collision、x0、backpressure 的 RED/GREEN/negative 与 fresh STA 证明。禁止仅给 FPC `en_i` 打拍（会错位请求上下文且不解决 CSR/fetch-outstanding 链），禁止 false path。
 - **非 signoff 边界**：当前仍是 ideal clock、四 placeholder macro、无 SPEF/CTS/OCV，且有 303 input/1861 output delay缺失、1863 unconstrained endpoints；即使后续 pre-layout WNS≥0，也只能称 current-source architecture timing closure，不能越级声明 physical signoff。
+- **2026-07-14 收口**：resident EX fast consumer、PRF bypass 与后续 owner/credit 长链已在 T3M–T4I 切片中关闭，current frozen proxy exact-5ns MET；physical 限制统一转记 #118。
 ### [114] IFU-ACCESS-G1 后续边界：TVAL、PTE WRITE PMP、LSU split 与 physical 200MHz（2026-07-13）
 
 - **已关闭**：取指物理 footprint 已按真实 C/32 长度收窄为 exact 2B；PMP/page/RRESP 首个失败 F 停 younger AR；ARSIZE/ARPROT 到 slave；device execute firewall；pred-NT lane1 PF/AF precise owner；PMEM-end host overread。旧 RTL 34 RED，current 93/93 module、AM59/59、official177/177、DPI guard 全绿。
 - **仍开放**：①跨 segment 32-bit fault 的 `mtval/stval` 当前仍沿 slot 起始 PC，需冻结 faulting-portion 地址合同；②A=0 PTE read grant 不能替代 WRITE PMP，IFU/LSU 两 walker 都需独立 checker；③PTW data read 的 PMA/device 禁止边界未由 execute firewall覆盖；④LSU offset5,size4 仍用 exact-address/low-window 非标准 single beat，须拆成标准 AXI transactions；⑤外部物理 wrapper 必须消费新增 ARSIZE；⑥fresh pre-layout 与真实 CTS/SPEF/OCV/宏签核均未证明 200MHz。
 - **性能账**：CoreMark 2,852,201→2,913,259 cycles（+2.14%），来自 7,463 个冷 packet 的精确半字事务。不能用恢复 fixed 8B overread 换回性能；后续优化应在已知长度后的合法 overlap/line architecture 或存储层无副作用合同上建立 RED/A-B。
 - **fresh STA 裁决**：target-driven synthesis 105/105、check0；OpenSTA WNS/TNS=`-10.00/-120125.49ns`，top40 为 39 条 D-cache→MIQ 和 1 条 D-cache→backend/redirect→fetch-cache enable，`RDATA→lane shift→length→fill` 与 AxiXbar 均未进入 top40。因此 IFU FINISH 只记账，不在 correctness slice 盲加拍。两类尾部共享 D-cache/backend 根源但不是同一串链；下一时序主刀须在 owner/credit/ready 网络评估一个或多个 registered cut（不能预先排除 IQ/PRF/ALU 拆分或 retime），并用 cut 后 STA+flush/kill/replay 证明具体位置。该报告仍有 ideal clock、四 placeholder 宏、1863 unconstrained endpoints、109 loops，不关闭 physical 200MHz。
+- **2026-07-14 收口**：faulting-portion tval、walker WRITE PMP/PMA、LSU standard split 与 AWSIZE wrapper 均已进入 T4G–T4I current source并通过定向/全量回归；physical signoff 限制转记 #118。
 
 ### [112] RV64 Yosys full stdcell synthesis 未闭合：四黑盒网表已产出，宏 timing/area 仍未闭合(2026-07-07)
 
@@ -1110,6 +1120,14 @@
 - **修复**: 如何修复的
 - **教训**: 从中学到了什么
 -->
+
+### [117] LSU 私有 lane、store B 归属与 eval 假绿（已修并验证，2026-07-14）
+
+- **模块**：NPC RV64 LSU / `OooMemAxiBridge` / AXI xbar+slaves / `npc-eval.sh`。
+- **根因**：misaligned PMEM/设备访问混用 exact-address/low-window 私有 ABI，`AWSIZE` 未贯通；bridge 用单 bit `bpend_q` 把 decoupled store 提前完成并依赖外部单 outstanding，B error 无法精确归属；eval 汇总把 build/clean `PASS` 与真实 riscv execution 混计，benchmark timeout 也可能只留日志不失败。
+- **修复**：在授权边界新增标准 lane adapter；xbar/slaves 按 `addr%bus_bytes` 与 size 解析且 AW/W 独立握手、owner 保持至 B；bridge 删除 `bpend_q`/early-complete，所有 store 聚合 B 后响应，RMW 只在 B OK 后提交；DPI 仅在 wrapper 内归一化 host ABI；eval 以真实 run marker、返回码、GOOD TRAP、timeout 判定。
+- **验证**：module 100/100、official/privileged 实际177/177、AM59/59、CoreMark/Dhrystone-10000 GOOD TRAP、sized DPI；fresh exact-5ns proxy 40/40 MET。旧 `bpend_q` “依赖 xbar 单 outstanding”的规避说明已被本修复取代，不得继续按历史 workaround 设计。
+- **教训**：协议 owner 必须由 producer 自身守恒，不能把 correctness 偶然建立在下游串行化；汇总数字必须从执行语义 marker 计算并绑定原始日志。
 
 ### [50] Agent 将路线图子任务误判为整体 goal 完成
 

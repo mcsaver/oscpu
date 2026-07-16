@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T11:40:43+00:00",
-  "updated_at": "2026-07-13T11:18:16+00:00",
+  "updated_at": "2026-07-14T00:42:52+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -31506,6 +31506,86 @@
       "sha256": "76f245909ee0466d33494707ad764fcd242c5c48dd9908552272b7b809de97a3",
       "backup_source": "filesystem",
       "archived_at": "2026-07-13T11:18:16+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-14-2026-07-14-rv64-t3w-retire-static-cache-owner/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 7720,
+      "sha256": "52615ff4f409270d918983d11b7cad6d16014d2d3729021db4583e8e45c7c4ad",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-14T00:42:37+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-14-2026-07-14-rv64-t3w-retire-static-cache-owner/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 6130,
+      "sha256": "9016da45f8149f50c07bc578f15bee8b21c274aaa8ed5318c6bf647815438591",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-14T00:42:37+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-14-2026-07-14-rv64-t3w-retire-static-cache-owner/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 3207,
+      "sha256": "7c37c1295749dccb2ebe9e93a09e99b809ed6a3ee0ac6439c5e8adcfaa66023d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-14T00:42:37+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-14-2026-07-14-rv64-t3w-retire-static-cache-owner/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-14T00:42:37+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-14-2026-07-14-rv64-t3w-retire-static-cache-owner/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4711,
+      "sha256": "7ed1b7b8350c5e31d9d8e7f50cec78672288861ed53bec87fffc77cadeba00a0",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-14T00:42:37+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-14-rv64-t3w-retire-static-cache-owner-2/context-brief.md",
+      "kind": "task-run",
+      "size_bytes": 11811,
+      "sha256": "5f528a8bff2cab55b2f07e0a886513337107497cd9aee04a58d21f55121324f9",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-14T00:42:52+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-14-rv64-t3w-retire-static-cache-owner-2/dispatch-log.md",
+      "kind": "dispatch-log",
+      "size_bytes": 5975,
+      "sha256": "91ed916fe6ab99947d3cc0fc3212af4e72756e89c7e46d4c3b1af81bc0e36cde",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-14T00:42:52+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-14-rv64-t3w-retire-static-cache-owner-2/evidence-index.md",
+      "kind": "task-run",
+      "size_bytes": 3142,
+      "sha256": "5e7c1ab19731d1a0d72e515d1a8b375cf29aa12ded0b32b9c7b83ba42d07f311",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-14T00:42:52+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-14-rv64-t3w-retire-static-cache-owner-2/profile-resolve.md",
+      "kind": "task-run",
+      "size_bytes": 935,
+      "sha256": "95b47496f2e91f5978269fa4c155a1ae80d204eb110cbf7a044bfa6a6e667576",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-14T00:42:52+00:00"
+    },
+    {
+      "path": ".github/task-runs/2026-07-14-rv64-t3w-retire-static-cache-owner-2/task-report.md",
+      "kind": "task-report",
+      "size_bytes": 4583,
+      "sha256": "a82c1853ae544ddfee5917c8716969b32b73f7a58c84e4186fb0907afc07379d",
+      "backup_source": "filesystem",
+      "archived_at": "2026-07-14T00:42:52+00:00"
     }
   ]
 }

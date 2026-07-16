@@ -195,6 +195,9 @@ NPC_SYSTEMD_UART_TRACE_LIMIT ?= 128
 NPC_SYSTEMD_UART_CYCLE_GAP ?= 10000
 NPC_SYSTEMD_GUEST_COMMAND_MODE ?= autocheck
 NPC_SYSTEMD_PROGRESS ?= 0
+NPC_SYSTEMD_REQUIRE_PROMPT ?= 1
+NPC_SYSTEMD_STRICT_CHECK ?= 0
+NPC_SYSTEMD_GUEST_POWEROFF ?= 0
 UBUNTU_ROOTFS_NPC_CONSOLE_SHELL ?= $(if $(filter npc,$(LINUX_PLATFORM)),1,0)
 UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL ?= $(UBUNTU_ROOTFS_NPC_CONSOLE_SHELL)
 UBUNTU_ROOTFS_NPC_TTY_READER ?= 0
@@ -217,7 +220,7 @@ UBUNTU_ROOTFS_REQUIRE_NPC_PRESEED_SYSTEMD_UPDATE ?= $(UBUNTU_ROOTFS_NPC_PRESEED_
 UBUNTU_ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS ?= $(UBUNTU_ROOTFS_NPC_CONSOLE_SHELL)
 UBUNTU_ROOTFS_EXPECT_NPC_SYSTEMD_GENERATORS ?= $(if $(filter 1,$(UBUNTU_ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS)),disabled,enabled)
 NPC_ROOTFS_INIT ?= $(if $(filter 1,$(UBUNTU_ROOTFS_NPC_CONSOLE_SHELL)),/usr/local/sbin/ysyx-npc-systemd-wrapper,/lib/systemd/systemd)
-NPC_ROOTFS_BOOTARGS ?= console=ttyS0,115200n8 root=/dev/vda rw init=$(NPC_ROOTFS_INIT)
+NPC_ROOTFS_BOOTARGS ?= console=ttyS0,115200n8 earlycon=sbi loglevel=8 ignore_loglevel pty.legacy_count=0 root=/dev/vda rw init=$(NPC_ROOTFS_INIT)
 NEMU_PERFORMANCE_REQUIRED ?= 1
 NEMU_MACHINE_INFO_FILE ?= $(BUILD_DIR)/nemu-machine-info.txt
 NEMU_MACHINE_INFO_LOG ?= $(BUILD_DIR)/nemu-machine-info.log
@@ -389,7 +392,7 @@ ROOTFS_OVERLAY := $(if $(strip $(NEMU_RUN_ROOTFS_OVERLAY)),--block-overlay='$(NE
         check-ubuntu-rootfs check-ubuntu-rootfs-systemd ubuntu-rootfs-systemd-image \
         ubuntu-rootfs-systemd-overlay ubuntu-rootfs-interactive-image ubuntu-rootfs-full-image \
         check-ubuntu-rootfs-interactive check-ubuntu-rootfs-full \
-        check-npc-systemd-guest __check-npc-systemd-guest \
+	        check-npc-systemd-guest check-npc-systemd-guest-full __check-npc-systemd-guest \
         check-nemu-systemd-guest check-nemu-systemd-guest-long \
         check-nemu-systemd-guest-interactive check-nemu-systemd-guest-full \
         check-nemu-systemd-guest-full-soak \
@@ -876,6 +879,15 @@ show-nemu-tap-teardown:
 check-npc-systemd-guest:
 	+$(MAKE) ARCH=riscv64-npc BOOT=ubuntu-rootfs __check-npc-systemd-guest
 
+check-npc-systemd-guest-full:
+	+$(MAKE) ARCH=riscv64-npc BOOT=ubuntu-rootfs \
+	  NPC_SYSTEMD_GUEST_COMMAND_MODE=uart \
+	  NPC_SYSTEMD_UART_WAIT=__NPC_CONSOLE_SHELL_READY__ \
+	  NPC_SYSTEMD_REQUIRE_PROMPT=0 \
+	  NPC_SYSTEMD_STRICT_CHECK=1 \
+	  NPC_SYSTEMD_GUEST_POWEROFF=1 \
+	  __check-npc-systemd-guest
+
 check-nemu-systemd-guest:
 	+$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs __check-nemu-systemd-guest
 
@@ -1013,6 +1025,16 @@ __check-npc-systemd-guest: $(RUN_DEPS)
 	NPC_SYSTEMD_UART_CYCLE_GAP='$(NPC_SYSTEMD_UART_CYCLE_GAP)' \
 	NPC_SYSTEMD_GUEST_COMMAND_MODE='$(NPC_SYSTEMD_GUEST_COMMAND_MODE)' \
 	NPC_SYSTEMD_PROGRESS='$(NPC_SYSTEMD_PROGRESS)' \
+	NPC_SYSTEMD_REQUIRE_PROMPT='$(NPC_SYSTEMD_REQUIRE_PROMPT)' \
+	NPC_SYSTEMD_STRICT_CHECK='$(NPC_SYSTEMD_STRICT_CHECK)' \
+	NPC_SYSTEMD_GUEST_POWEROFF='$(NPC_SYSTEMD_GUEST_POWEROFF)' \
+	NPC_SIM='$(NPC_SIM)' \
+	LINUX_IMAGE='$(LINUX_IMAGE)' \
+	RUN_FW='$(RUN_FW)' \
+	RUN_DTB='$(RUN_DTB)' \
+	RUN_ROOTFS='$(RUN_ROOTFS)' \
+	NEXT_ADDR='$(NEXT_ADDR)' \
+	DTB_ADDR='$(DTB_ADDR)' \
 	  bash '$(SCRIPT_DIR)/check-npc-systemd-guest.sh'
 
 __check-nemu-systemd-guest: $(RUN_DEPS) $(NEMU_SYSTEMD_ROOTFS_CHECK_TARGET) check-nemu-performance-config check-nemu-kernel-config
@@ -1187,6 +1209,7 @@ $(UBUNTU_SHELL_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(PLATFORM_CONFIG_COMMON) $(U
 
 $(NPC_ROOTFS_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(PLATFORM_CONFIG_COMMON) $(NPC_ROOTFS_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
 	$(PYTHON) '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode rootfs \
+	  --reset-syscon \
 	  --bootargs-override '$(NPC_ROOTFS_BOOTARGS)' \
 	  --bootargs-extra '$(BOOTARGS_EXTRA)' \
 	  --output '$(BUILD_DIR)/generated/npc-rv64-rootfs.dts'

@@ -41,8 +41,9 @@
   system/trap/IRQ/fault 类 pending+drain 主路径。
 - `DecodeStage` 当前共 4 个实例（frontend 2、backend 2），int PRF 当前为 5R2W；旧
   “8实例/10R2W”是 07-03 以前的拓扑。
-- commit 观察接口仍以分立信号为主，不能称为统一 `commit_event` 类型；CsrFile 的
-  `minstret` 当前还接 raw ROB count，见 `INSTRET-G1`。
+- commit 观察接口仍以分立信号为主，不能称为统一 `commit_event` 类型；2026-07-14
+  T4J 已让 CsrFile 的 `minstret` 消费最终两 lane 的 ISA-retirement count，并过滤异常，
+  `INSTRET-G1` 的程序级 exception/control delta 长回归仍按 ROADMAP 留证。
 - `FDG-G1` 的 `arch_trap -> no backend dispatch`、`XRET-G1` current-mode legality 与
   `MEM-ISSUE-G1` 的 lane1 dequeue/request/MIQ owner 同源、IFU A-update write-drain 已于
   2026-07-12 关闭；IFU-FETCH-G2 的 second-page page-fault byte provenance 同日收窄关闭。
@@ -313,8 +314,8 @@ v0.1 记录的"无显式 mispredict、靠隐式比对"已随 F2 落地而解决�
 字段：`{valid, pc, next_pc, inst, rd_en, arch_rd, old_pdest, new_pdest, data, exception, cause, tval}`。
 精确异常：异常项阻止 commit1（`OooRob.v:282-285`，ROB-I2）；commit0 必为 head、commit1 必为 head+1。
 `OooSyntheticLane1Ret*` 相关模块已物理删除。control pseudo-commit 仍由
-`OooControlCommitSequencer` 经 output mux 合并观察；CsrFile 的 `minstret` 尚未消费这个
-合并边界，见 `INSTRET-G1`。
+`OooControlCommitSequencer` 经 output mux 合并观察；T4J 后 CsrFile 的 `minstret` 与外部
+观察共同消费该 mux 按最终 `valid && !exception` 产生的唯一两位 retirement count。
 
 > 【宪法 C-OBJ-COMMIT】`commit_event` 是架构可见的程序序退休点，字段以本表为准。其它对象不得复制其语义。
 
@@ -393,12 +394,12 @@ store→load 前递已落地（LSQ Phase2/3）。**剩余缺口 = 无 LQ/依赖�
 
 | 例外 | 何时写 | 受规约约束（为何安全） | 证据 |
 | --- | --- | --- | --- |
-| **E1 · SQ drain / 解耦 store** | store 数据在 commit 后由 SQ 队头 nokill drain 落存（PMEM 解耦：AW&W fire 即完成，B 后台吸收） | 仅已退休 store 才 drain（发射拍只 probe 不落写）；MMIO/可错 store 仍等 B 保精确总线异常；drain 对 flush 免疫（写必达） | `OooStoreQueue.v`、`OooMemAxiBridge.v:479-481,738-748` |
+| **E1 · SQ nokill drain** | store 数据在 commit 后由 SQ 队头 nokill drain 落存；bridge/lane-adapter 等聚合 B 后才释放 owner | 仅已退休 store 才 drain（发射拍只 probe 不落写）；drain 对 flush 免疫（写必达）；动态 B error 可见但因 ROB 已退休仍无法精确 trap | `OooStoreQueue.v`、`OooMemAxiBridge.v`、`OooLsuAxiLaneAdapter.v` |
 | ~~**E2 · FPR 写**~~ | **已消除（2026-07-02，FP 簇落地）**：FPR 改为架构堆 commit 双写 | — | `OooFpBackend.v`（`OooFpCommitGate` 已删除） |
 | ~~**E3 · fflags 累积**~~ | **已消除（同上）**：fflags 随完成事务进 ROB，commit 拍非异常才 OR 入 fcsr（架构序精确） | — | `OooFpBackend.v` / `CsrFile.v` |
 
 > 【宪法 C6-限制】**不得新增新例外**。E2/E3 已随 FP 迁出 pending 而按计划消失（v0.1 的预言兑现）。
-> E1 从"B1 提交前落存"演进为"SQ 严格 commit 后 drain"——**已不再是提交前写内存**，
+> E1 从"B1 提交前落存"演进为"SQ 严格 commit 后 drain+聚合 B"——**已不再是提交前写内存**，
 > 仅剩"drain 落存遇总线错误无法精确 trap（打印计数警告）"这一已知边界；须维持 probe 拍前置翻译/PMP 的前提。
 
 ### 7.2 哪些路径允许 flush

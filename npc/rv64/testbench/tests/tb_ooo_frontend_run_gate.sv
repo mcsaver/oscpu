@@ -18,13 +18,12 @@ module tb_ooo_frontend_run_gate;
   reg synth_lane1_branch_drop_pending;
   reg branch_spec_checkpoint_pending;
   reg branch_spec_active;
+  reg head0_csr_inflight;
   reg halted;
   reg trap_valid;
   reg exit_valid;
   reg fifo_storage_head_valid;
   reg outstanding_valid;
-  reg fetch_rsp_valid;
-  reg discard_fetch_rsp;
   reg [FETCH_COUNT_W-1:0] fifo_count;
   reg [FETCH_COUNT_W-1:0] fifo_depth;
 
@@ -32,7 +31,6 @@ module tb_ooo_frontend_run_gate;
   wire stop_pending_busy;
   wire can_run;
   wire fifo_empty_storage;
-  wire fetch_rsp_dispatch_bypass;
   wire [FETCH_COUNT_W-1:0] outstanding_count;
   wire fifo_reserve_available;
 
@@ -53,20 +51,18 @@ module tb_ooo_frontend_run_gate;
     .synth_lane1_branch_drop_pending_i(synth_lane1_branch_drop_pending),
     .branch_spec_checkpoint_pending_i(branch_spec_checkpoint_pending),
     .branch_spec_active_i(branch_spec_active),
+    .head0_csr_inflight_i(head0_csr_inflight),
     .halted_i(halted),
     .trap_valid_i(trap_valid),
     .exit_valid_i(exit_valid),
     .fifo_storage_head_valid_i(fifo_storage_head_valid),
     .outstanding_valid_i(outstanding_valid),
-    .fetch_rsp_valid_i(fetch_rsp_valid),
-    .discard_fetch_rsp_i(discard_fetch_rsp),
     .fifo_count_i(fifo_count),
     .fifo_depth_i(fifo_depth),
     .orphan_stop_pending_o(orphan_stop_pending),
     .stop_pending_busy_o(stop_pending_busy),
     .can_run_o(can_run),
     .fifo_empty_storage_o(fifo_empty_storage),
-    .fetch_rsp_dispatch_bypass_o(fetch_rsp_dispatch_bypass),
     .outstanding_count_o(outstanding_count),
     .fifo_reserve_available_o(fifo_reserve_available)
   );
@@ -87,13 +83,12 @@ module tb_ooo_frontend_run_gate;
       synth_lane1_branch_drop_pending = 1'b0;
       branch_spec_checkpoint_pending = 1'b0;
       branch_spec_active = 1'b0;
+      head0_csr_inflight = 1'b0;
       halted = 1'b0;
       trap_valid = 1'b0;
       exit_valid = 1'b0;
       fifo_storage_head_valid = 1'b0;
       outstanding_valid = 1'b0;
-      fetch_rsp_valid = 1'b0;
-      discard_fetch_rsp = 1'b0;
       fifo_count = 3'd0;
       fifo_depth = 3'd4;
       #1;
@@ -105,7 +100,6 @@ module tb_ooo_frontend_run_gate;
     begin
       #1;
       tb_check1({tag, " blocks can_run"}, can_run, 1'b0);
-      tb_check1({tag, " suppresses bypass"}, fetch_rsp_dispatch_bypass, 1'b0);
     end
   endtask
 
@@ -140,6 +134,19 @@ module tb_ooo_frontend_run_gate;
     tb_check1("branch spec owns stop", stop_pending_busy, 1'b1);
     tb_check1("branch spec stop blocks can_run", can_run, 1'b0);
 
+    // T3U stop-owner 合同：flag=1 时，真实 head0 CSR 已离开 fetch head 后，
+    // inflight 锁存仍必须拥有 stop；flag=0 时新增端口必须完全不可观测。
+    reset_inputs();
+    stop_pending = 1'b1;
+    head0_csr_inflight = 1'b1;
+    #1;
+    tb_check1("head0 CSR inflight owner follows queue-head flag",
+              orphan_stop_pending, !`OOO_CSR_QUEUE_HEAD);
+    tb_check1("head0 CSR inflight busy follows queue-head flag",
+              stop_pending_busy, `OOO_CSR_QUEUE_HEAD);
+    tb_check1("head0 CSR inflight run permission follows queue-head flag",
+              can_run, !`OOO_CSR_QUEUE_HEAD);
+
     reset_inputs();
     core_trap_flush = 1'b1;
     check_blocker("trap flush");
@@ -162,29 +169,10 @@ module tb_ooo_frontend_run_gate;
 
     reset_inputs();
     outstanding_valid = 1'b1;
-    fetch_rsp_valid = 1'b1;
-    #1;
-    // mode=1（OOO_ROB_WALK_MODE）禁用 fetch-rsp dispatch-bypass（强制经 FIFO，打破投机组合环），
-    // 故 mode=1 期望 bypass=0；mode=0 保留 fifo-empty 快路径 bypass=1。
-    tb_check1("response bypass when fifo empty", fetch_rsp_dispatch_bypass,
-              !`OOO_ROB_WALK_MODE);
-    tb_check32("one outstanding count", {29'b0, outstanding_count}, 32'd1);
-
-    reset_inputs();
-    outstanding_valid = 1'b1;
-    fetch_rsp_valid = 1'b1;
     fifo_storage_head_valid = 1'b1;
     #1;
-    tb_check1("fifo head suppresses bypass", fifo_empty_storage, 1'b0);
-    tb_check1("nonempty fifo suppresses bypass", fetch_rsp_dispatch_bypass,
-              1'b0);
-
-    reset_inputs();
-    outstanding_valid = 1'b1;
-    fetch_rsp_valid = 1'b1;
-    discard_fetch_rsp = 1'b1;
-    #1;
-    tb_check1("discard suppresses bypass", fetch_rsp_dispatch_bypass, 1'b0);
+    tb_check1("fifo head marks storage nonempty", fifo_empty_storage, 1'b0);
+    tb_check32("one outstanding count", {29'b0, outstanding_count}, 32'd1);
 
     reset_inputs();
     fifo_count = 3'd3;

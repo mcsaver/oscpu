@@ -1,8 +1,0 @@
-bytes	sha256	path
-68288014	ed05a3609ff3c23109d3417506768511438bac00eb79f95d20e4fccc24f87654	tmp/2026-07-13-rv64-t3f-int-to-fp-sticky-barrier/sta-build/NpcTop-200MHz/NpcTop.netlist.v
-54767511	239ca9f9a50a993ea3eaa8ca1cfe04e79f3b8e3ec1d95f0a8e7bc1be31122c13	tmp/2026-07-13-rv64-t3f-int-to-fp-sticky-barrier/sta-build/NpcTop-200MHz/NpcTop.netlist.v.sim
-41	651d740188ddb19c58fded2ec4185871ff23a1f453af22dc3f44583503743e7c	tmp/2026-07-13-rv64-t3f-int-to-fp-sticky-barrier/sta-build/NpcTop-200MHz/abc.sdc
-6262	3f8aba355b11c9df58142ed3b248bcee535536721146b451285ba806f3b5b982	tmp/2026-07-13-rv64-t3f-int-to-fp-sticky-barrier/sta-build/NpcTop-200MHz/synth_check.txt
-250987	ba28db265fa15631deb3f9934236cad0d66ee9c59c84a2947988b96a2ec6dc31	tmp/2026-07-13-rv64-t3f-int-to-fp-sticky-barrier/sta-build/NpcTop-200MHz/synth_stat.txt
-756516897	9e4f47c85a284e50b0989a8a7e810286561d7300a17b29d6a192b824af945f03	tmp/2026-07-13-rv64-t3f-int-to-fp-sticky-barrier/sta-build/NpcTop-200MHz/yosys.log
-2524	bbab759f602f1e8ddf1ab6b490569fcfce8776b39522536510535296b3b1498c	tmp/2026-07-13-rv64-t3f-int-to-fp-sticky-barrier/sta-provenance.md

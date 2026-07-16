@@ -1,7 +1,0 @@
-t3g-green-build
-t3g-load-wakeup-brief.txt
-t3g-module-build
-t3g-negative-build
-t3g-npc-memory.txt
-t3g-red-build
-t3g-verilator-build

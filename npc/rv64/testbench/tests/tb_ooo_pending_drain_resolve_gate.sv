@@ -27,7 +27,9 @@ module tb_ooo_pending_drain_resolve_gate;
   reg pending_jump_nolink;
   reg pending_jump_misaligned;
   reg mem_retire_quiet;
+  reg mem_idle;
   reg pending_system;
+  reg pending_system_fence;
   reg pending_system_csr;
   reg pending_system_dispatched;
 
@@ -70,7 +72,9 @@ module tb_ooo_pending_drain_resolve_gate;
     .pending_jump_nolink_i(pending_jump_nolink),
     .pending_jump_misaligned_i(pending_jump_misaligned),
     .mem_retire_quiet_i(mem_retire_quiet),
+    .mem_idle_i(mem_idle),
     .pending_system_i(pending_system),
+    .pending_system_fence_i(pending_system_fence),
     .pending_system_csr_i(pending_system_csr),
     .pending_system_dispatched_i(pending_system_dispatched),
     .backend_drained_o(backend_drained),
@@ -106,7 +110,9 @@ module tb_ooo_pending_drain_resolve_gate;
       pending_jump_nolink = 1'b0;
       pending_jump_misaligned = 1'b0;
       mem_retire_quiet = 1'b1;
+      mem_idle = 1'b1;
       pending_system = 1'b0;
+      pending_system_fence = 1'b0;
       pending_system_csr = 1'b0;
       pending_system_dispatched = 1'b0;
     end
@@ -186,6 +192,37 @@ module tb_ooo_pending_drain_resolve_gate;
     pending_jump = 1'b1;
     #1;
     tb_check1("undispatched jump replay waits", pending_replay_wait, 1'b1);
+
+    // T4L: SQ quiet alone is insufficient for ordinary FENCE.  A resident
+    // MIQ entry, bridge transaction/buffer, or memory reservation keeps
+    // mem_idle low and must block the control retirement edge.
+    clear_inputs();
+    stop_pending = 1'b1;
+    pending_control_ready = 1'b1;
+    pending_system = 1'b1;
+    pending_system_fence = 1'b1;
+    mem_idle = 1'b0;
+    #1;
+    tb_check1("fence backend base predicate is drained",
+              backend_drained, 1'b1);
+    tb_check1("fence waits for MIQ bridge reservation idle",
+              drain_complete, 1'b0);
+    mem_idle = 1'b1;
+    #1;
+    tb_check1("fence completes after full memory idle",
+              drain_complete, 1'b1);
+
+    // Preserve existing system behavior: the stronger mem_idle term is
+    // scoped to ordinary FENCE only; WFI/SFENCE/FENCE.I/ECALL priority and
+    // drain contracts do not gain an accidental extra dependency.
+    clear_inputs();
+    stop_pending = 1'b1;
+    pending_control_ready = 1'b1;
+    pending_system = 1'b1;
+    mem_idle = 1'b0;
+    #1;
+    tb_check1("non-fence system keeps established drain contract",
+              drain_complete, 1'b1);
 
     tb_finish("tb_ooo_pending_drain_resolve_gate");
   end

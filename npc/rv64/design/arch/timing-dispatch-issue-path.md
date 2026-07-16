@@ -169,6 +169,11 @@ admission/free-list credit 真 SCC。下一刀不是延迟 branch kill，也不�
 
 证据 `.github/task-runs/2026-07-13-rv64-t3a-current-top-retry/`。
 
+> **T3M current override（2026-07-13）**：上述 1–5 是 T3A 后形成 T3B/T3G 的历史
+> 方案。T3L fresh top40 已证明剩余 EX fast wake/select/bypass 形成新的主长链，故 T3M
+> 物理删除 `select_wakeup*` 与 PRF `bypass*`；所有整数 completion 统一为 N 沿写 PRF/粘
+> ready、N+1 select。当前合同见 `../specs/ooo-ex-sticky-wakeup-barrier.md`。
+
 ## 7. 变更记录
 - 2026-06-28：基于 OOC 实测关键路径(39 级 free_list→busy_table→issue_queue 单拍链)建立规范,
   分 A(CPI-中性组合重构,可验)/B(流水化,需 P&R)两路,B 暂缓。

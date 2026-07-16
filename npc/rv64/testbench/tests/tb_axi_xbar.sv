@@ -71,6 +71,7 @@ module tb_axi_xbar;
   wire [S_COUNT-1:0] s_awvalid;
   reg [S_COUNT-1:0] s_awready;
   wire [S_COUNT*ADDR_W-1:0] s_awaddr;
+  wire [S_COUNT*3-1:0] s_awsize;
   wire [S_COUNT-1:0] s_wvalid;
   reg [S_COUNT-1:0] s_wready;
   wire [S_COUNT*DATA_W-1:0] s_wdata;
@@ -132,6 +133,7 @@ module tb_axi_xbar;
     .s_awvalid_o(s_awvalid),
     .s_awready_i(s_awready),
     .s_awaddr_o(s_awaddr),
+    .s_awsize_o(s_awsize),
     .s_wvalid_o(s_wvalid),
     .s_wready_i(s_wready),
     .s_wdata_o(s_wdata),
@@ -275,10 +277,16 @@ module tb_axi_xbar;
     drive_read_response(2, 32'hd00d_0001, 2'b10);
     #1;
     tb_check1("default read slave ready", s_rready[2], 1'b1);
-    check_master_read_data("default read", 0, 32'hd00d_0001, 2'b10, 4'h5);
+    tb_check1("default read has no R fall-through", m_rvalid[0], 1'b0);
     `TB_TICK(clk);
     s_rvalid[2] = 1'b0;
+    #1;
+    check_master_read_data("default read registered", 0,
+                           32'hd00d_0001, 2'b10, 4'h5);
+    `TB_TICK(clk);
     m_rready[0] = 1'b0;
+    #1;
+    tb_check1("default read consumed", m_rvalid[0], 1'b0);
 
     drive_read(0, 32'h0000_0020, PROT_IFETCH);
     s_arready[0] = 1'b1;
@@ -293,14 +301,20 @@ module tb_axi_xbar;
     drive_read_response(0, 32'hcafe_1000, 2'b01);
     #1;
     tb_check1("buffered read accepts slave response", s_rready[0], 1'b1);
-    check_master_read_data("buffered read direct", 0, 32'hcafe_1000, 2'b01,
-                           ARID_M0);
+    tb_check1("buffered read has no R fall-through", m_rvalid[0], 1'b0);
     `TB_TICK(clk);
     s_rvalid[0] = 1'b0;
     #1;
-    // buffer 路径: RID 随 data/resp 一起存进 master-side buffer(rd_resp_id_q)。
-    check_master_read_data("buffered read stored", 0, 32'hcafe_1000, 2'b01,
+    // 所有 response 都走 registered slice；RID 随 data/resp 一起锁存。
+    check_master_read_data("buffered read registered", 0,
+                           32'hcafe_1000, 2'b01,
                            ARID_M0);
+    s_rdata[0*DATA_W +: DATA_W] = 32'hdead_beef;
+    s_rresp[0*2 +: 2] = 2'b10;
+    `TB_TICK(clk);
+    #1;
+    check_master_read_data("buffered read stall stable", 0,
+                           32'hcafe_1000, 2'b01, ARID_M0);
     m_rready[0] = 1'b1;
     `TB_TICK(clk);
     m_rready[0] = 1'b0;
@@ -322,9 +336,13 @@ module tb_axi_xbar;
     m_rready[1] = 1'b1;   // master 自吞: 保持 rready 收响应
     drive_read_response(1, 32'hbad0_0001, 2'b11);
     #1;
-    tb_check1("flushed read delivered to master", m_rvalid[1], 1'b1);
+    tb_check1("flushed read has no R fall-through", m_rvalid[1], 1'b0);
     `TB_TICK(clk);
     s_rvalid[1] = 1'b0;
+    #1;
+    check_master_read_data("flushed read registered", 1,
+                           32'hbad0_0001, 2'b11, ARID_M1);
+    `TB_TICK(clk);
     m_rready[1] = 1'b0;
     #1;
     drive_read(1, 32'h1000_0044, PROT_IFETCH);
@@ -338,10 +356,13 @@ module tb_axi_xbar;
     m_rready[1] = 1'b1;
     drive_read_response(1, 32'h1234_5678, 2'b00);
     #1;
-    check_master_read_data("post-flush read", 1, 32'h1234_5678, 2'b00,
-                           ARID_M1);
+    tb_check1("post-flush read has no R fall-through", m_rvalid[1], 1'b0);
     `TB_TICK(clk);
     s_rvalid[1] = 1'b0;
+    #1;
+    check_master_read_data("post-flush read registered", 1,
+                           32'h1234_5678, 2'b00, ARID_M1);
+    `TB_TICK(clk);
     m_rready[1] = 1'b0;
 
     drive_read(0, 32'h0000_0100, PROT_IFETCH);
@@ -358,30 +379,41 @@ module tb_axi_xbar;
     drive_read_response(0, 32'h1111_0001, 2'b00);
     m_rready[1] = 1'b1;
     #1;
-    check_master_read_data("round-robin master1", 1, 32'h1111_0001, 2'b00,
-                           ARID_M1);
+    tb_check1("round-robin master1 has no R fall-through",
+              m_rvalid[1], 1'b0);
     `TB_TICK(clk);
     s_rvalid[0] = 1'b0;
-    m_rready[1] = 1'b0;
     #1;
+    check_master_read_data("round-robin master1 registered", 1,
+                           32'h1111_0001, 2'b00, ARID_M1);
+    // slave owner 已在 capture 拍释放；即使 master1 的 registered R 尚未
+    // consume，另一 master 也必须可取得同一 slave，证明无跨 master HOL。
     tb_check1("round-robin returns to master0", m_arready[0], 1'b1);
     `TB_TICK(clk);
+    m_rready[1] = 1'b0;
     m_arvalid[0] = 1'b0;
+    #1;
+    check_slave_read_addr("round-robin master0", 0,
+                          32'h0000_0100, PROT_IFETCH);
     `TB_TICK(clk);
     m_rready[0] = 1'b1;
     drive_read_response(0, 32'h2222_0000, 2'b00);
     #1;
-    check_master_read_data("round-robin master0", 0, 32'h2222_0000, 2'b00,
-                           ARID_M0);
+    tb_check1("round-robin master0 has no R fall-through",
+              m_rvalid[0], 1'b0);
     `TB_TICK(clk);
     s_rvalid[0] = 1'b0;
+    #1;
+    check_master_read_data("round-robin master0 registered", 0,
+                           32'h2222_0000, 2'b00, ARID_M0);
+    `TB_TICK(clk);
     s_arready[0] = 1'b0;
     m_rready[0] = 1'b0;
 
     m_awaddr[1*ADDR_W +: ADDR_W] = 32'h1000_0080;
     m_awid[1*4 +: 4] = 4'hb;
     m_awlen[1*8 +: 8] = 8'd0;
-    m_awsize[1*3 +: 3] = 3'd2;
+    m_awsize[1*3 +: 3] = 3'd0;
     m_awburst[1*2 +: 2] = 2'b01;
     m_awvalid[1] = 1'b1;
     #1;
@@ -401,13 +433,62 @@ module tb_axi_xbar;
     tb_check1("split write slave awvalid", s_awvalid[1], 1'b1);
     tb_check1("split write slave wvalid", s_wvalid[1], 1'b1);
     tb_check32("split write slave awaddr", s_awaddr[1*ADDR_W +: ADDR_W], 32'h1000_0080);
+    tb_check32("split write slave awsize",
+               {29'h0, s_awsize[1*3 +: 3]}, 32'd0);
     tb_check32("split write slave wdata", s_wdata[1*DATA_W +: DATA_W], 32'hfeed_beef);
     tb_check32("split write slave wstrb", {28'h0, s_wstrb[1*STRB_W +: STRB_W]}, 32'ha);
+
+    // Slave AW/W 均 stall 时，输出必须保持已锁存的 master1 owner 元数据。
+    m_awsize[1*3 +: 3] = 3'd7;
+    `TB_TICK(clk);
+    #1;
+    tb_check1("split write stalled awvalid stable", s_awvalid[1], 1'b1);
+    tb_check32("split write stalled awaddr stable",
+               s_awaddr[1*ADDR_W +: ADDR_W], 32'h1000_0080);
+    tb_check32("split write stalled awsize stable",
+               {29'h0, s_awsize[1*3 +: 3]}, 32'd0);
+
+    // master0 先送 W、后送 AW；它只能排队，不能在 master1 的 B 前串 owner。
+    m_wdata[0*DATA_W +: DATA_W] = 32'h1234_5678;
+    m_wstrb[0*STRB_W +: STRB_W] = 4'hf;
+    m_wlast[0] = 1'b1;
+    m_wvalid[0] = 1'b1;
+    #1;
+    tb_check1("w-first write accepts w", m_wready[0], 1'b1);
+    `TB_TICK(clk);
+    m_wvalid[0] = 1'b0;
+    m_awaddr[0*ADDR_W +: ADDR_W] = 32'h1000_0090;
+    m_awid[0*4 +: 4] = 4'ha;
+    m_awlen[0*8 +: 8] = 8'd0;
+    m_awsize[0*3 +: 3] = 3'd2;
+    m_awburst[0*2 +: 2] = 2'b01;
+    m_awvalid[0] = 1'b1;
+    #1;
+    tb_check1("w-first write accepts aw", m_awready[0], 1'b1);
+    `TB_TICK(clk);
+    m_awvalid[0] = 1'b0;
+    m_awsize[0*3 +: 3] = 3'd6;
+    #1;
+    tb_check32("split write keeps owner awaddr",
+               s_awaddr[1*ADDR_W +: ADDR_W], 32'h1000_0080);
+    tb_check32("split write keeps owner awsize",
+               {29'h0, s_awsize[1*3 +: 3]}, 32'd0);
+
     s_awready[1] = 1'b1;
     s_wready[1] = 1'b1;
     `TB_TICK(clk);
     s_awready[1] = 1'b0;
     s_wready[1] = 1'b0;
+    #1;
+    tb_check1("queued owner blocked before first b awvalid",
+              s_awvalid[1], 1'b0);
+    tb_check1("queued owner blocked before first b wvalid",
+              s_wvalid[1], 1'b0);
+    `TB_TICK(clk);
+    #1;
+    tb_check1("queued owner remains blocked without first b",
+              s_awvalid[1], 1'b0);
+
     s_bresp[1*2 +: 2] = 2'b01;
     s_bvalid[1] = 1'b1;
     m_bready[1] = 1'b1;
@@ -417,6 +498,49 @@ module tb_axi_xbar;
     tb_check32("split write bid", {28'b0, m_bid[1*4 +: 4]}, 32'hb);
     tb_check1("split write slave bready", s_bready[1], 1'b1);
     `TB_TICK(clk);
+    s_bvalid[1] = 1'b0;
+    m_bready[1] = 1'b0;
+
+    // 首个 B 完成后，排队的 master0 才能成为 slave1 owner。
+    `TB_TICK(clk);
+    #1;
+    tb_check1("w-first write slave awvalid", s_awvalid[1], 1'b1);
+    tb_check1("w-first write slave wvalid", s_wvalid[1], 1'b1);
+    tb_check32("w-first write slave awaddr",
+               s_awaddr[1*ADDR_W +: ADDR_W], 32'h1000_0090);
+    tb_check32("w-first write slave awsize",
+               {29'h0, s_awsize[1*3 +: 3]}, 32'd2);
+    tb_check32("w-first write slave wdata",
+               s_wdata[1*DATA_W +: DATA_W], 32'h1234_5678);
+    tb_check32("w-first write slave wstrb",
+               {28'h0, s_wstrb[1*STRB_W +: STRB_W]}, 32'hf);
+    m_awsize[0*3 +: 3] = 3'd1;
+    `TB_TICK(clk);
+    #1;
+    tb_check1("w-first stalled awvalid stable", s_awvalid[1], 1'b1);
+    tb_check32("w-first stalled awaddr stable",
+               s_awaddr[1*ADDR_W +: ADDR_W], 32'h1000_0090);
+    tb_check32("w-first stalled awsize stable",
+               {29'h0, s_awsize[1*3 +: 3]}, 32'd2);
+
+    s_awready[1] = 1'b1;
+    s_wready[1] = 1'b1;
+    `TB_TICK(clk);
+    s_awready[1] = 1'b0;
+    s_wready[1] = 1'b0;
+    s_bresp[1*2 +: 2] = 2'b00;
+    s_bvalid[1] = 1'b1;
+    m_bready[0] = 1'b1;
+    #1;
+    tb_check1("w-first write bvalid", m_bvalid[0], 1'b1);
+    tb_check32("w-first write bresp",
+               {30'b0, m_bresp[0*2 +: 2]}, 32'h0);
+    tb_check32("w-first write bid",
+               {28'b0, m_bid[0*4 +: 4]}, 32'ha);
+    tb_check1("w-first write slave bready", s_bready[1], 1'b1);
+    `TB_TICK(clk);
+    s_bvalid[1] = 1'b0;
+    m_bready[0] = 1'b0;
 
     tb_finish("tb_axi_xbar");
   end

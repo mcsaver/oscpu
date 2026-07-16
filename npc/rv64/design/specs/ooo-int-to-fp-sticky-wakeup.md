@@ -49,8 +49,9 @@ T3B 把 full-WB 与 EX/MEM fast broadcast 分开后，FP IQ 仍把 integer full 
 
 - `read8_data_o` 只读 `regs_q[read8_addr_i]`，preg0 仍恒 0。
 - `read8` 既不消费 full write-through，也不消费 fast bypass。
-- read0–3 继续消费 EX-only fast bypass（T3G 起 MEM formal-only）；正式 `write0/1` 仍是 `regs_q` 唯一
-  更新真源。
+- T3F 当时 read0–3 继续消费 EX-only fast bypass；T3M 已进一步删除该 ABI，当前五个读口
+  全部 stored-only。正式 `write0/1` 始终是 `regs_q` 唯一更新真源，最终合同见
+  `ooo-ex-sticky-wakeup-barrier.md`。
 
 IQ tag 边界和 PRF data 边界必须原子修改。只切 IQ 会留下无用的 full/fast
 payload 长弧；只切 read8 会使旧 IQ 在 N 拍发射时读到尚未落账的旧值。

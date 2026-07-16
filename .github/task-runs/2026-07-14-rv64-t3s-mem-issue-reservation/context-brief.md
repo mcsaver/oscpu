@@ -1,0 +1,181 @@
+# Agent Brief
+
+- `source`: live-or-stored
+- `profile`: yosys-sta
+- `terms`: rv64 integer issue queue store memory AGU reservation registered credit SQ MIQ timing 200MHz
+- `token_estimate`: 2130 / 2600
+
+## Profile Suggestions
+- `yosys-sta` score=22 matched=issue, memory, requested-profile, rv64, store, timing command=`scripts/agent-e2e.sh --profile yosys-sta`
+- `nemu` score=7 matched=integer, memory, queue, reservation, rv64, sq, store command=`scripts/agent-e2e.sh --profile nemu`
+- `rv64-linux` score=6 matched=rv64 command=`scripts/agent-e2e.sh --profile rv64-linux`
+- `github-index` score=4 matched=memory, sq, store command=`scripts/agent-e2e.sh --profile github-index`
+- `contracts` score=3 matched=memory, rv64, sq command=`scripts/agent-e2e.sh --profile contracts`
+
+## Commands
+- `python3 scripts/github_index_db.py brief <terms> --profile <profile>`
+- `python3 scripts/github_index_db.py load --source auto --path <path>`
+- `python3 scripts/github_index_db.py audit-db-first`
+- `python3 scripts/github_index_db.py audit-markdown-coverage --fail-on-live-evidence`
+- `scripts/agent-e2e.sh --list-profiles`
+- `scripts/agent-e2e.sh --profile yosys-sta`
+
+## Chunks
+
+### AGENTS.md#chunk-0001
+
+- `kind`: agent-shim
+- `lines`: 1-18
+- `tokens`: 643
+- `heading`: AGENTS.md
+- `summary`: > 完整规范统一维护在 [`.github/AGENTS.md`](./.github/AGENTS.md)。 / > / > 兼容说明：若当前 agent 只读取本文件、不继续跟随链接，则以下最小契约立即生效。 / 1. 使用中文；复杂任务先分析再动手。 / 2. 开工前读取 `.github/AGENTS.md`、`.github/copilot-instructions.md`、`.github/memory/project-status.md`、`.github/memory/known-issues...
+
+# AGENTS.md
+
+> 完整规范统一维护在 [`.github/AGENTS.md`](./.github/AGENTS.md)。
+>
+> 兼容说明：若当前 agent 只读取本文件、不继续跟随链接，则以下最小契约立即生效。
+
+1. 使用中文；复杂任务先分析再动手。
+2. 开工前读取 `.github/AGENTS.md`、`.github/copilot-instructions.md`、`.github/memory/project-status.md`、`.github/memory/known-issues.md` 以及相关 `modules/*.md` / `instructions/*.instructions.md`；非平凡任务优先用 `python3 scripts/github_index_db.py brief <关键词> --profile <profile>` 生成 bounded 上下文包。
+3. 跨模块或涉及 `>= 3` 个文件的任务，先摸清调用链、依赖关系和数据流，再改文件。
+4. 修 bug 先定位 root cause，禁止症状级补丁；真正修改后必须给出验证证据。
+5. 完成任务后必须更新 `.github/memory/project-status.md` 和相关 `.github/memory/modules/*.md`；若任务属于跨模块、图任务或长链调试，还应同步更新 `.github/task-runs/`。
+6. 若任务是 AI 开发环境 e2e、自检或降低不确定性，读取 `.github/instructions/agent-e2e-workflow.instructions.md` 和 `.github/e2e/README.md`，先用 `scripts/agent-e2e.sh --list-profiles` 选 profile，再生成 task-run 证据包。
+7. Windows 侧访问本 WSL 工作区时，PowerShell 只作为 `wsl.exe` 启动器，工程命令统一交给 Ubuntu：`wsl.exe -d Ubuntu --cd /home/lyg/PA/ysyx-workbench -- bash -lc '<cmd>'`；若 agent/CLI 已在 WSL/Linux 原生 shell 内运行，则直接使用原生命令，不再套 `wsl.exe`。
+8. 历史 task-run/evidence 回查使用 `python3 scripts/github_index_db.py runs --profile <profile>` 和 `python3 scripts/github_index_db.py evidence --run-id <run_id>`，不要默认手工 grep/cat 完整日志。
+9. 交付前必须显式切换“实现者人格”和“审查者人格”：实现者给出交付证据，审查者优先寻找反例、覆盖洞、假绿和越级结论；冲突未解决时只能交付子任务状态和剩余风险。
+10. 收尾前运行 `scripts/agent-e2e.sh --guard --guard-mode strict`；若提示缺少 profile evidence 或 DB 召回产物，必须运行建议的 profile 生成 `.github/task-runs/` 证据，或在回复和 memory 中写明豁免理由。
+
+请直接打开 [`.github/AGENTS.md`](./.github/AGENTS.md)。
+
+### .github/AGENTS.md#chunk-0001
+
+- `kind`: agent-rule
+- `lines`: 1-15
+- `tokens`: 328
+- `heading`: AGENTS.md — YSYX 工作区 Agent 通用工作流规范
+- `summary`: > 本文件遵循 [agents.md 事实标准](https://agents.md)，为所有进入本工程的 AI 编码 agent / > （GitHub Copilot / Claude Code / OpenAI Codex / Cursor / Windsurf / Aider / Gemini CLI 等） / > 提出统一的工作流要求。模型无关、跨平台、跨电脑生效；但不同生态是否能自动发现本规范，仍取决于对应 shim 是否已在仓库内落地。 / > / > 与本文件协作的入口文件分两类： / > 根...
+
+# AGENTS.md — YSYX 工作区 Agent 通用工作流规范
+
+> 本文件遵循 [agents.md 事实标准](https://agents.md)，为所有进入本工程的 AI 编码 agent
+> （GitHub Copilot / Claude Code / OpenAI Codex / Cursor / Windsurf / Aider / Gemini CLI 等）
+> 提出统一的工作流要求。模型无关、跨平台、跨电脑生效；但不同生态是否能自动发现本规范，仍取决于对应 shim 是否已在仓库内落地。
+>
+> 与本文件协作的入口文件分两类：
+> 根目录 `AGENTS.md` / 其他兼容入口文件是兼容 shim，保留最小可执行契约并回链本文件；
+> `.github/copilot-instructions.md` 不是薄指针，而是 GitHub Copilot 专属工程级补充规则。
+> 多份文件出现重叠时，以本文件作为跨 agent 通用基线；Copilot 的额外构建、调试与记录细则再叠加读取 `copilot-instructions.md`。
+>
+> 当前阶段的目标是“工程规则自动发现与会话恢复”，不是“插件式 UI 扩展”。因此本仓库优先补齐兼容 shim，不主动引入 `.codex-plugin/` 或 `.agents/plugins/marketplace.json`。
+
+---
+
+### .github/copilot-instructions.md#chunk-0001
+
+- `kind`: instruction
+- `lines`: 1-2
+- `tokens`: 11
+- `heading`: YSYX 工作区 — 全局指导规范
+- `summary`: YSYX 工作区 — 全局指导规范
+
+# YSYX 工作区 — 全局指导规范
+
+### .github/memory/project-status.md#chunk-0001
+
+- `kind`: memory
+- `lines`: 1-3
+- `tokens`: 38
+- `heading`: YSYX 项目状态总览
+- `summary`: > 本文件由 agent 自动维护，记录项目当前进度。每次完成重要任务后更新。
+
+# YSYX 项目状态总览
+
+> 本文件由 agent 自动维护，记录项目当前进度。每次完成重要任务后更新。
+
+### .github/memory/known-issues.md#chunk-0001
+
+- `kind`: memory
+- `lines`: 1-4
+- `tokens`: 35
+- `heading`: 已知问题与调试历史
+- `summary`: > 本文件记录遇到的 bug、调试过程和解决方案，避免重复踩坑。
+
+# 已知问题与调试历史
+
+> 本文件记录遇到的 bug、调试过程和解决方案，避免重复踩坑。
+
+### .github/e2e/README.md#chunk-0001
+
+- `kind`: markdown
+- `lines`: 1-2
+- `tokens`: 6
+- `heading`: Agent E2E Profiles
+- `summary`: Agent E2E Profiles
+
+# Agent E2E Profiles
+
+### .github/e2e/profiles/yosys-sta.tsv#chunk-0001
+
+- `kind`: e2e-profile
+- `lines`: 1-2
+- `tokens`: 42
+- `heading`: yosys-sta.tsv
+- `summary`: @include|npc-single|||| / yosys-sta-contract|yosys-sta|e2e_yosys_sta_contract|yosys-sta|yosys-sta Makefile/tools/memory|综合/STA 合约入口和工具状态可见
+
+@include|npc-single||||
+yosys-sta-contract|yosys-sta|e2e_yosys_sta_contract|yosys-sta|yosys-sta Makefile/tools/memory|综合/STA 合约入口和工具状态可见
+
+### .github/e2e/modules/yosys-sta.md#chunk-0001
+
+- `kind`: e2e-module
+- `lines`: 1-18
+- `tokens`: 872
+- `heading`: yosys-sta E2E Contract
+- `summary`: - **范围**: Yosys 综合、iEDA STA/功耗、PPA 下游节点。 / - **上游**: NPC 可综合 RTL filelist、SDC、PDK。 / - **下游**: tapeout-readiness、PPA regression。 / - **L0 gate**: `yosys-sta-contract` 检查 Makefile、memory 和工具状态。 / - **L1 gate**: 后续升级为 `make -C npc/single syn-check-env`。 / - *...
+
+# yosys-sta E2E Contract
+
+- **范围**: Yosys 综合、iEDA STA/功耗、PPA 下游节点。
+- **上游**: NPC 可综合 RTL filelist、SDC、PDK。
+- **下游**: tapeout-readiness、PPA regression。
+- **L0 gate**: `yosys-sta-contract` 检查 Makefile、memory 和工具状态。
+- **L1 gate**: 后续升级为 `make -C npc/single syn-check-env`。
+- **RV64 flow contract**: 可复现 flow 入口必须是 Git 可见的 `yosys-sta/Makefile`、`yosys-sta/scripts/*.tcl` 与 `yosys-sta/scripts/pdk/*.tcl`；`result/`、`bin/`、顶层 `pdk/`、日志和网表仍作为本地产物忽略。
+- **Fast probe contract**: bounded full-chip synthesis probe 默认可使用 `STA_SYNTH_PUBLIC_AUTONAME=0 STA_SYNTH_DFF_AUTONAME=0`，把机器网表生成和人类可读命名分离；若打开可读 autoname，需要单列 runtime/log-size 风险。
+- **Macro boundary contract**: `STA_SYNTH_BLACKBOX_MODULES` 只能用于显式宏/OOC 边界实验；unknown-area cell 必须在报告里作为未闭合 timing/area 边界列出。
+- **Macro checker contract**: 四黑盒 `NpcTop` synthesis 后续任务必须维护 `npc/rv64/design/specs/yosys-macro-boundary-contracts.md`，并可用 `python3 yosys-sta/scripts/check_macro_contracts.py` 检查 spec/RTL/netlist 覆盖。
+- **BPU placeholder contract**: `OooBranchDirectionPredictor` 的 macro/OOC placeholder 必须同步维护 dedicated spec 与四黑盒总表；可用 `python3 yosys-sta/scripts/check_bpu_macro_contract.py` 检查 0-cycle two-lookup read、next-cycle issue-resolve update、valid-only table clear plus GHR zero 和 26892 state-bit lower bound。
+- **Fetch-cache placeholder contract**: `OooFetchPacketCache` 的 macro/OOC placeholder 必须同步维护 dedicated spec 与四黑盒总表；可用 `python3 yosys-sta/scripts/check_fetch_cache_macro_contract.py` 检查 0-cycle lookup read、next-cycle fill/invalidate、clear-valid-only 和 819200 state-bit lower bound。
+- **D-cache placeholder contract**: `OooDataWordCache` 的 macro/OOC placeholder 必须同步维护 dedicated spec 与四黑盒总表；可用 `python3 yosys-sta/scripts/check_dcache_macro_contract.py` 检查 0-cycle read、next-cycle write、fill-then-store 和 466944 state-bit lower bound。
+- **FP-arith decision contract**: `OooFpArithGate` 的 macro/OOC decision placeholder 必须同步维护 dedicated spec 与四黑盒总表；可用 `python3 yosys-sta/scripts/check_fp_arith_macro_contract.py` 检查 5-cycle latency、1 op/cycle launch、OOC coarse PASS/full stdcell open、internal cone evidence，以及 latency/边界变化时必须补 common/debug 语义审核的约束。
+- **iEDA netlist compatibility contract**: `NpcTop` 四黑盒 netlist 进入 iEDA STA 前必须通过 `python3 yosys-sta/scripts/check_ieda_netlist_compat.py`，确认不含仿真/形式 side-effect cell、`defparam` 或 parameterized blackbox instance；该检查只证明 parser 兼容，不证明 timing/area closure。
+- **证据**: syn/sta env check、tracked flow script status、netlist、macro-boundary marker、timing/power report。
+- **升级路线**: 将 STA 结果纳入 profile diff，跟踪频率/面积/功耗变化。
+
+### .github/agents/yosys-sta.agent.md#chunk-0001
+
+- `kind`: agent
+- `lines`: 1-7
+- `tokens`: 148
+- `heading`: yosys-sta.agent.md
+- `summary`: --- / description: "Yosys 综合与 STA 时序分析专家。当用户需要对 NPC/RTL 设计进行逻辑综合（Yosys）、静态时序分析（iSTA）、功耗分析（iPA），查看综合报告，优化关键路径时序，配置时钟约束，或分析面积/功耗/时序 PPA 指标时使用。" / tools: [read, edit, search, execute, agent, todo] / --- / 你是 **Yosys 综合与 STA 时序分析**的专家。负责将 RTL 设计综合为门级网表，并进行时序和功耗分析。
+
+---
+description: "Yosys 综合与 STA 时序分析专家。当用户需要对 NPC/RTL 设计进行逻辑综合（Yosys）、静态时序分析（iSTA）、功耗分析（iPA），查看综合报告，优化关键路径时序，配置时钟约束，或分析面积/功耗/时序 PPA 指标时使用。"
+tools: [read, edit, search, execute, agent, todo]
+---
+
+你是 **Yosys 综合与 STA 时序分析**的专家。负责将 RTL 设计综合为门级网表，并进行时序和功耗分析。
+
+### .github/memory/modules/yosys-sta.md#chunk-0001
+
+- `kind`: memory-module
+- `lines`: 1-2
+- `tokens`: 7
+- `heading`: Yosys-STA 模块笔记
+- `summary`: Yosys-STA 模块笔记
+
+# Yosys-STA 模块笔记
+

@@ -6,6 +6,7 @@
 module tb_ooo_pending_lane1_capture_gate;
   reg barrier_base;
   reg head_fetch_fault;
+  reg [`XLEN-1:0] head_fetch_fault_tval;
   reg [1:0] head_resp;
   reg [`XLEN-1:0] head_pc;
   reg [`INST_W-1:0] head_inst;
@@ -27,6 +28,7 @@ module tb_ooo_pending_lane1_capture_gate;
   OooPendingLane1CaptureGate dut (
     .barrier_base_i(barrier_base),
     .head_fetch_fault_i(head_fetch_fault),
+    .head_fetch_fault_tval_i(head_fetch_fault_tval),
     .head_resp_i(head_resp),
     .head_pc_i(head_pc),
     .head_inst_i(head_inst),
@@ -75,6 +77,7 @@ module tb_ooo_pending_lane1_capture_gate;
     begin
       barrier_base = 1'b0;
       head_fetch_fault = 1'b0;
+      head_fetch_fault_tval = 64'h0000_0000_8000_2ffe;
       head_resp = 2'b00;
       head_pc = 64'h0000_0000_8000_2004;
       head_inst = 32'h0000_0073;
@@ -171,11 +174,15 @@ module tb_ooo_pending_lane1_capture_gate;
     tb_check1("fetch page fault arch valid", trap_exit_arch_valid, 1'b1);
     check_cause("fetch page fault cause",
                 trap_exit_cause, `EXC_INST_PAGE_FAULT);
-    check_xlen("fetch page fault tval", trap_exit_tval, head_pc);
+    check_xlen("fetch page fault tval", trap_exit_tval,
+               head_fetch_fault_tval);
     head_resp = 2'b01;
     #1;
     check_cause("fetch access fault cause",
                 trap_exit_cause, `EXC_INST_ACCESS_FAULT);
+    check_xlen("fetch access fault tval", trap_exit_tval,
+               head_fetch_fault_tval);
+    $display("[T4G-LANE1-FETCH-FAULT-TVAL] page/access faults use portion frontier, not slot PC");
 
     tb_finish("tb_ooo_pending_lane1_capture_gate");
   end
