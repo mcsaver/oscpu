@@ -1,0 +1,3 @@
+workspace_archive=/home/lyg/PA/ysyx-workbench/tmp/s2-g1-terminal-collector-leaf
+workspace_archive_manifest=/home/lyg/PA/ysyx-workbench/tmp/s2-g1-terminal-collector-leaf/SHA256SUMS
+os_tmp_originals_preserved=yes

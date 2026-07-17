@@ -1,0 +1,23 @@
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/tests/tb_s2_g1_bridge_owner_ports.sv:25: error: port ``mem0_req_owner_kind_i'' is not a port of dut.
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/tests/tb_s2_g1_bridge_owner_ports.sv:25: error: port ``mem0_req_owner_token_i'' is not a port of dut.
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/tests/tb_s2_g1_bridge_owner_ports.sv:25: error: port ``mem0_req_mmu_epoch_i'' is not a port of dut.
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/tests/tb_s2_g1_bridge_owner_ports.sv:25: error: port ``mem0_req_fault_tval_i'' is not a port of dut.
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/tests/tb_s2_g1_bridge_owner_ports.sv:25: error: port ``mem0_rsp_owner_kind_o'' is not a port of dut.
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/tests/tb_s2_g1_bridge_owner_ports.sv:25: error: port ``mem0_rsp_owner_token_o'' is not a port of dut.
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/tests/tb_s2_g1_bridge_owner_ports.sv:25: error: port ``mem0_rsp_mmu_epoch_o'' is not a port of dut.
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/tests/tb_s2_g1_bridge_owner_ports.sv:25: error: port ``mem0_rsp_fault_tval_o'' is not a port of dut.
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/tests/tb_s2_g1_bridge_owner_ports.sv:25: error: port ``mem0_drop0_valid_o'' is not a port of dut.
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/tests/tb_s2_g1_bridge_owner_ports.sv:25: error: port ``mem0_drop0_owner_kind_o'' is not a port of dut.
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/tests/tb_s2_g1_bridge_owner_ports.sv:25: error: port ``mem0_drop0_owner_token_o'' is not a port of dut.
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/tests/tb_s2_g1_bridge_owner_ports.sv:25: error: port ``mem0_drop0_mmu_epoch_o'' is not a port of dut.
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/tests/tb_s2_g1_bridge_owner_ports.sv:25: error: port ``mem0_drop0_fault_tval_o'' is not a port of dut.
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/tests/tb_s2_g1_bridge_owner_ports.sv:25: error: port ``mem0_drop1_valid_o'' is not a port of dut.
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/tests/tb_s2_g1_bridge_owner_ports.sv:25: error: port ``mem0_drop1_owner_kind_o'' is not a port of dut.
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/tests/tb_s2_g1_bridge_owner_ports.sv:25: error: port ``mem0_drop1_owner_token_o'' is not a port of dut.
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/tests/tb_s2_g1_bridge_owner_ports.sv:25: error: port ``mem0_drop1_mmu_epoch_o'' is not a port of dut.
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/tests/tb_s2_g1_bridge_owner_ports.sv:25: error: port ``mem0_drop1_fault_tval_o'' is not a port of dut.
+/tmp/s2-g1-id-old-red.Uyio24/source/npc/rv64/vsrc/memory/PmpChecker.v:108: warning: returning 'bx for out of bounds array access entry_addr_w[-1].
+/tmp/s2-g1-id-old-red.Uyio24/source/npc/rv64/vsrc/memory/PmpChecker.v:108: warning: returning 'bx for out of bounds array access entry_addr_w[-1].
+/tmp/s2-g1-id-old-red.Uyio24/source/npc/rv64/vsrc/memory/PmpChecker.v:108: warning: returning 'bx for out of bounds array access entry_addr_w[-1].
+/tmp/s2-g1-id-old-red.Uyio24/source/npc/rv64/vsrc/memory/PmpChecker.v:108: warning: returning 'bx for out of bounds array access entry_addr_w[-1].
+18 error(s) during elaboration.

@@ -1,0 +1,7 @@
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemInflightQueue.v:165: warning: @* is sensitive to all 4 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemInflightQueue.v:166: warning: @* is sensitive to all 4 words in array 'owner_token_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemInflightQueue.v:190: warning: @* is sensitive to all 4 words in array 'valid_q'.
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemInflightQueue.v:190: warning: @* is sensitive to all 4 words in array 'kind_q'.
+[T4N-DRAIN-B-GLOBAL-FLUSH-POP] completed DRAIN response is removed before flush keep-set PASS
+[PASS] tb_ooo_mem_inflight_queue
+/home/lyg/PA/ysyx-workbench/npc/rv64/testbench/common/tb_common.svh:32: $finish called at 180 (1s)

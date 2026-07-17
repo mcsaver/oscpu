@@ -1,0 +1,6 @@
+work_dir=/tmp/s2-g1-owner-tracker-green.yqo6jU
+positive=GREEN_2_OF_2
+negative=EXPECTED_FATAL_6_OF_6
+semantic_result=PASS
+timing_qualification=UNQUALIFIED_linear_priority_encoder
+result=PASS

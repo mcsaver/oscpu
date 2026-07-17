@@ -1,0 +1,8 @@
+[S2-G1-SQ-GLOBAL-SURVIVE-BOK] exact success-B terminal retained owner until release PASS
+[S2-G1-SQ-GLOBAL-SURVIVE-BERR] exact error-B terminal retained owner until release PASS
+[T4N-SQ-RELEASE-DUAL-ALLOC] count=2 head_rob=13 PASS
+[T4N-SQ-DUAL-TERMINAL] distinct ROB tags both sticky PASS
+[T4N-SQ-TERMINAL-RELEASE-GLOBAL-FLUSH] accepted owner released exactly once PASS
+[S2-G1-SQ-BIND-TERMINAL1] same-cycle exact owner terminal/release PASS
+[PASS] tb_ooo_store_queue
+/home/lyg/PA/ysyx-workbench/npc/rv64/testbench/common/tb_common.svh:32: $finish called at 153 (1s)

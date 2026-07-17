@@ -1,0 +1,11 @@
+# NPC single module testbench summary
+
+- result_dir: /tmp/s2-g1-wrapper-green.cB15HS/module
+- tool: Icarus Verilog version 12.0 (stable) ()
+
+- PASS tb_ooo_core_top_glue
+- PASS tb_ooo_sv39_boot
+
+- total: 2
+- passed: 2
+- failed: 0

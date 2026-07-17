@@ -69,6 +69,28 @@ power。三轴互不支配者保留为 Pareto front；加权分只用于合格 P
 
 ## 当前状态
 
+- S1 typed correctness 已闭合；S2-G1 compatibility token/tuple + effective-kill
+  子阶段为 intermediate GREEN，整个 R4-S1-ID 因真实 epoch 未完成仍为 RED：
+  backend effective-kill/AMO restore/stale-drain、bridge killed escaped-write
+  invalidate-only、以及 decode→slice→execute→glue→NpcCoreTop→bridge 的完整
+  request/response/expected/query/drop/residency ABI 均已落地。bridge focused 在
+  release/assert 两种构建覆盖真实 Sv39 A/D late-B、owner-mismatch fail-closed 与
+  prewrite kill；wrapper checker `228/228`，constant-token mutation 预期失败，
+  `tb_ooo_core_top_glue` 动态 exact-owner roundtrip PASS；`tb_ooo_sv39_boot` 只作为真实
+  `NpcCoreTop + OooMemAxiBridge` module smoke PASS，不冒充整链 exact-owner 动态证明。
+  source-bound leaf 证据为 `evidence/r4-s1-id-{owner-tracker,miq,sq,
+  terminal-collector}-green/`，integration 证据为
+  `evidence/r4-s2-g1-{backend-effective-kill,bridge-effective-kill,
+  wrapper-exact-owner}-green/`；三份 integration manifest 的 198 个 source-hash 条目
+  全部复核通过。全部 64 个 `/tmp/s2-g1*`
+  顶层对象已原样复制到
+  `tmp/2026-07-15-rv64-ppa-architecture-recovery/s2-exact-owner/system-tmp/`，
+  788 文件、303,240,349 bytes 逐路径/类型/大小/SHA-256 对等。精确 17-path
+  `npc-dev` strict guard 已由
+  `.github/task-runs/2026-07-17-s2-g1-checkpoint-guard/` 证明 PASS；该 profile 只检查
+  NPC/software-flow 入口合同，没有运行 Linux/NEMU Ubuntu。该子阶段仍是
+  intermediate，不是 architecture-feasible seed；真实 effective MMU epoch、LQ4、
+  双 AGU/translation/cache admission/completion、qualified power 与 200MHz 均待后续。
 - 架构/PPA 合同、policy、T4T/G2 manifests 与 fail-closed checker/comparator 已落地。
 - T4T checker：STRUCTURAL PASS、PROMOTABLE NO；默认 comparator 拒绝 provisional seed。
 - 后端 virtual-lane0-owner 候选已完成 102/177/59 功能、A-B-B-A-A-B benchmark、

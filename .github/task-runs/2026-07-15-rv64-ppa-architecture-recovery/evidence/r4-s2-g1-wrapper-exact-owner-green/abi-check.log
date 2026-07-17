@@ -1,0 +1,2 @@
+[S2-G1-WRAPPER-ABI][PASS] checks=228
+[S2-G1-WRAPPER-ABI-MUTATION][EXPECTED-FAIL] constant request token rejected

@@ -1,0 +1,3 @@
+[S2-G1-BRG-TVAL-PAYLOAD][PASS] token=0
+[PASS] tb_ooo_mem_axi_bridge
+/home/lyg/PA/ysyx-workbench/npc/rv64/testbench/common/tb_common.svh:32: $finish called at 20 (1s)

@@ -1,0 +1,8 @@
+work_dir=/tmp/s2-g1-sq-green.qlK3z4
+positive=GREEN_existing_plus_ports
+request_sent_global_flush=GREEN_BOK_BERR
+identity_fail_closed=GREEN_fill_3_OF_3_terminal_3_OF_3
+tval_payload=GREEN_fill_accept_capture_truth_1_OF_1_terminal_release_bound_token_1_OF_1
+negative=EXPECTED_FATAL_identity_6_OF_6_tval_echo_2_OF_2_protocol_4_OF_4
+timing_qualification=UNQUALIFIED_not_measured
+result=PASS

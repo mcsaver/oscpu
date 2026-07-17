@@ -1,0 +1,2 @@
+[S2-G1-SQ-TVAL][PASS] captured provenance accepted case=4 count=1
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/tests/tb_s2_g1_sq_owner_negative.sv:223: $finish called at 47000 (1ps)

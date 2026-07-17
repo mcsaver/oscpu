@@ -114,6 +114,10 @@ module tb_ooo_int_backend;
   wire mem_req_attr_valid;
   wire [1:0] mem_req_class;
   wire mem_req_cacheable;
+  wire [1:0] mem_req_owner_kind;
+  wire [4:0] mem_req_owner_token;
+  wire [1:0] mem_req_mmu_epoch;
+  wire [`XLEN-1:0] mem_req_fault_tval;
   wire mem_req_device_release;
   wire mem_req_device_cancel;
   wire [`XLEN-1:0] mem_req_addr;
@@ -127,6 +131,13 @@ module tb_ooo_int_backend;
   reg mem_rsp_cacheable;
   reg tb_mem_rsp_attr_valid;
   reg [1:0] tb_mem_rsp_class;
+  wire mem_expected_valid;
+  wire [1:0] mem_expected_owner_kind;
+  wire [4:0] mem_expected_owner_token;
+  wire [1:0] mem_expected_mmu_epoch;
+  wire mem_expected_tval_valid;
+  wire [`XLEN-1:0] mem_expected_fault_tval;
+  wire mem_expected_effective_killed;
   reg mem_translate_active;
   reg [PHY_REG_ADDR_W-1:0] t3g_load0_pdest;
   reg [PHY_REG_ADDR_W-1:0] t3g_load1_pdest;
@@ -203,6 +214,10 @@ module tb_ooo_int_backend;
     .mem_req_attr_valid_o(mem_req_attr_valid),
     .mem_req_class_o(mem_req_class),
     .mem_req_cacheable_o(mem_req_cacheable),
+    .mem_req_owner_kind_o(mem_req_owner_kind),
+    .mem_req_owner_token_o(mem_req_owner_token),
+    .mem_req_mmu_epoch_o(mem_req_mmu_epoch),
+    .mem_req_fault_tval_o(mem_req_fault_tval),
     .mem_req_device_release_o(mem_req_device_release),
     .mem_req_device_cancel_o(mem_req_device_cancel),
     .mem_req_addr_o(mem_req_addr),
@@ -216,6 +231,43 @@ module tb_ooo_int_backend;
     .mem_rsp_attr_valid_i(tb_mem_rsp_attr_valid),
     .mem_rsp_class_i(tb_mem_rsp_class),
     .mem_rsp_cacheable_i(mem_rsp_cacheable),
+    // The leaf TB models an in-order bridge by echoing the registered MIQ-head
+    // tuple.  Drop/query/residency behavior is covered by the bridge/full-chain
+    // focused benches rather than guessed in this functional backend model.
+    .mem_rsp_owner_kind_i(mem_expected_owner_kind),
+    .mem_rsp_owner_token_i(mem_expected_owner_token),
+    .mem_rsp_mmu_epoch_i(mem_expected_mmu_epoch),
+    .mem_rsp_fault_tval_i(mem_expected_fault_tval),
+    .mem_expected_valid_o(mem_expected_valid),
+    .mem_expected_owner_kind_o(mem_expected_owner_kind),
+    .mem_expected_owner_token_o(mem_expected_owner_token),
+    .mem_expected_mmu_epoch_o(mem_expected_mmu_epoch),
+    .mem_expected_tval_valid_o(mem_expected_tval_valid),
+    .mem_expected_fault_tval_o(mem_expected_fault_tval),
+    .mem_expected_effective_killed_o(mem_expected_effective_killed),
+    .mem_owner_query_valid_i(1'b0),
+    .mem_owner_query_token_i(5'b0),
+    .mem_tracker_expected_valid_o(),
+    .mem_tracker_expected_owner_kind_o(),
+    .mem_tracker_expected_owner_token_o(),
+    .mem_tracker_expected_mmu_epoch_o(),
+    .mem_station_query_valid_i(1'b0),
+    .mem_station_query_token_i(5'b0),
+    .mem_station_expected_valid_o(),
+    .mem_station_expected_owner_kind_o(),
+    .mem_station_expected_owner_token_o(),
+    .mem_station_expected_mmu_epoch_o(),
+    .mem_drop0_valid_i(1'b0),
+    .mem_drop0_owner_kind_i(2'b11),
+    .mem_drop0_owner_token_i(5'b0),
+    .mem_drop0_mmu_epoch_i(2'b0),
+    .mem_drop0_fault_tval_i({`XLEN{1'b0}}),
+    .mem_drop1_valid_i(1'b0),
+    .mem_drop1_owner_kind_i(2'b11),
+    .mem_drop1_owner_token_i(5'b0),
+    .mem_drop1_mmu_epoch_i(2'b0),
+    .mem_drop1_fault_tval_i({`XLEN{1'b0}}),
+    .mem_bridge_owner_residency_mask_i(32'b0),
     .mem_translate_active_i(mem_translate_active),
     .commit_ready_i(commit_ready),
     .commit1_block_i(1'b0),
@@ -263,6 +315,21 @@ module tb_ooo_int_backend;
 	    .dispatch_branch_resolve_next_pc_o(dispatch_branch_resolve_next_pc),
 	    .dispatch_branch_resolve_misaligned_o(dispatch_branch_resolve_misaligned)
 	  );
+
+`ifdef S2_G1_RSP_TRACE
+  // Optional focused trace.  It is compiled out of the canonical module test
+  // and exists only to distinguish a real in-flight response from a stale
+  // outer-transport beat before the assert build intentionally terminates.
+  always @(posedge clk) begin
+    if (!rst && mem_rsp_valid)
+      $display("[S2-G1-RSP-TRACE] t=%0t ready=%0b miq_count=%0d head=%0b kind=%0d effective_kill=%0b pop_transport=%0b owner_match=%0b mem_pending=%0b flush=%0b restore=%0b",
+               $time, mem_rsp_ready, dut.miq_count_w,
+               dut.miq_head_valid_w, dut.miq_head_kind_w,
+               dut.miq_head_effective_killed_w,
+               dut.miq_pop_transport_w, dut.miq_pop_owner_match_w,
+               dut.mem_pending_q, flush, checkpoint_restore);
+  end
+`endif
 
   wire unused_next_pc_w = (|commit0_next_pc) | (|commit1_next_pc) |
                           branch_resolve_valid | (|branch_resolve_pc) |
@@ -4157,6 +4224,371 @@ module tb_ooo_int_backend;
     end
   endtask
 
+  task automatic seed_s2_g1_selective_kill_boundary;
+    input [`XLEN-1:0] branch_pc;
+    output [ROB_INDEX_W-1:0] boundary_rob;
+    begin
+      reset_dut();
+      commit_ready = 1'b0;
+      mem_req_ready = 1'b1;
+      set_dispatch0(branch_pc, make_branch_ctrl(`CMP_OP_EQ),
+                    5'd0, 5'd0, 5'd0, 64'd8);
+      dispatch0_pred_taken = 1'b1;
+      dispatch0_pred_npc = branch_pc + 64'd8;
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check1("S2-G1 boundary branch fires",
+                dut.issue0_ctrlflow_fire_w, 1'b1);
+      boundary_rob = dut.issue0_rob_idx_w;
+      `TB_TICK(clk);
+      #1;
+      tb_check1("S2-G1 boundary branch resolves", branch_resolve_valid, 1'b1);
+      tb_check1("S2-G1 boundary branch is initially correct",
+                branch_resolve_mispredict, 1'b0);
+      `TB_TICK(clk);
+      #1;
+    end
+  endtask
+
+  // S2-G1: same-cycle selective kill must drain the exact response and create
+  // one accounting terminal, while suppressing every architectural side
+  // effect even when both formal WB slots are unavailable.
+  task automatic run_s2_g1_effective_kill_response_contract;
+    reg [ROB_INDEX_W-1:0] boundary_rob;
+    reg [4:0] owner_token;
+    integer wait_cycles;
+    begin
+      seed_s2_g1_selective_kill_boundary(64'h8000_6e80,
+                                         boundary_rob);
+      set_dispatch0(64'h8000_6e88,
+                    make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+                    5'd0, 5'd0, 5'd18, 64'h8000_0500);
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check1("S2-G1 killed LOAD capture",
+                dut.mem_issue_res_capture_w, 1'b1);
+      `TB_TICK(clk);
+      #1;
+      tb_check1("S2-G1 killed LOAD request fire",
+                dut.issue0_mem_request_fire_w, 1'b1);
+      tb_check32("S2-G1 killed LOAD request kind",
+                 {30'b0, dut.miq_push_kind_w}, 32'd0);
+      `TB_TICK(clk);
+      #1;
+      tb_check32("S2-G1 killed LOAD MIQ resident",
+                 {28'b0, dut.miq_count_w}, 32'd1);
+      owner_token = dut.miq_head_owner_token_w;
+
+      t3v_force_branch_rob = boundary_rob;
+      force dut.branch_resolve_mispredict_w = 1'b1;
+      force dut.branch_resolve_rob_idx_o = t3v_force_branch_rob;
+      force dut.wb_slot_free_w = 1'b0;
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = 64'h1122_3344_5566_7788;
+      mem_rsp_error = 1'b0;
+      #1;
+      tb_check1("S2-G1 killed LOAD effective kill",
+                dut.miq_head_effective_killed_w, 1'b1);
+      tb_check1("S2-G1 killed LOAD drains without WB credit",
+                mem_rsp_ready, 1'b1);
+      tb_check1("S2-G1 killed LOAD exact pop", dut.miq_pop_w, 1'b1);
+      tb_check1("S2-G1 killed LOAD has no WB", dut.mem_wb_fire_w, 1'b0);
+      tb_check1("S2-G1 killed LOAD lane0 terminal",
+                dut.mem_terminal_ingress_valid_w[0], 1'b1);
+      tb_check32("S2-G1 killed LOAD terminal token",
+                 {27'b0, dut.mem_terminal_ingress_token_w[4:0]},
+                 {27'b0, owner_token});
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      release dut.wb_slot_free_w;
+      release dut.branch_resolve_mispredict_w;
+      release dut.branch_resolve_rob_idx_o;
+      #1;
+      tb_check32("S2-G1 killed LOAD MIQ drains",
+                 {28'b0, dut.miq_count_w}, 32'd0);
+      for (wait_cycles = 0;
+           (wait_cycles < 6) && (dut.mem_owner_live_count_w != 6'd0);
+           wait_cycles = wait_cycles + 1) begin
+        `TB_TICK(clk);
+        #1;
+      end
+      tb_check32("S2-G1 killed LOAD owner frees once",
+                 {26'b0, dut.mem_owner_live_count_w}, 32'd0);
+      tb_check32("S2-G1 killed LOAD terminal queue drains",
+                 {26'b0, dut.mem_terminal_pending_count_w}, 32'd0);
+
+      seed_s2_g1_selective_kill_boundary(64'h8000_6ea0,
+                                         boundary_rob);
+      set_dispatch0(64'h8000_6ea8,
+                    make_store_ctrl(`MEM_SIZE_DWORD),
+                    5'd0, 5'd0, 5'd0, 64'h8000_0520);
+      dispatch0_inst = 32'h0000_3023;
+      `TB_TICK(clk);
+      clear_dispatch();
+      #1;
+      tb_check1("S2-G1 killed PROBE capture",
+                dut.mem_issue_res_capture_w, 1'b1);
+      `TB_TICK(clk);
+      #1;
+      tb_check1("S2-G1 killed PROBE request fire",
+                dut.issue0_mem_request_fire_w, 1'b1);
+      tb_check32("S2-G1 killed PROBE request kind",
+                 {30'b0, dut.miq_push_kind_w}, 32'd1);
+      `TB_TICK(clk);
+      #1;
+      owner_token = dut.miq_head_owner_token_w;
+
+      t3v_force_branch_rob = boundary_rob;
+      force dut.branch_resolve_mispredict_w = 1'b1;
+      force dut.branch_resolve_rob_idx_o = t3v_force_branch_rob;
+      force dut.wb_slot_free_w = 1'b0;
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = 64'h0000_0000_9000_0520;
+      mem_rsp_error = 1'b0;
+      #1;
+      tb_check1("S2-G1 killed PROBE effective kill",
+                dut.miq_head_effective_killed_w, 1'b1);
+      tb_check1("S2-G1 killed PROBE drains without WB credit",
+                mem_rsp_ready, 1'b1);
+      tb_check1("S2-G1 killed PROBE exact pop", dut.miq_pop_w, 1'b1);
+      tb_check1("S2-G1 killed PROBE has no WB",
+                dut.mem_wb_fire_w, 1'b0);
+      tb_check1("S2-G1 killed PROBE has no SQ fill",
+                dut.sq_fill_valid_w, 1'b0);
+      tb_check1("S2-G1 killed PROBE has no SQ terminal",
+                dut.sq_probe_terminal_w, 1'b0);
+      tb_check1("S2-G1 killed PROBE lane0 terminal",
+                dut.mem_terminal_ingress_valid_w[0], 1'b1);
+      tb_check32("S2-G1 killed PROBE terminal token",
+                 {27'b0, dut.mem_terminal_ingress_token_w[4:0]},
+                 {27'b0, owner_token});
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      release dut.wb_slot_free_w;
+      release dut.branch_resolve_mispredict_w;
+      release dut.branch_resolve_rob_idx_o;
+      #1;
+      for (wait_cycles = 0;
+           (wait_cycles < 6) && (dut.mem_owner_live_count_w != 6'd0);
+           wait_cycles = wait_cycles + 1) begin
+        `TB_TICK(clk);
+        #1;
+      end
+      tb_check32("S2-G1 killed PROBE owner frees once",
+                 {26'b0, dut.mem_owner_live_count_w}, 32'd0);
+      tb_check32("S2-G1 killed PROBE terminal queue drains",
+                 {26'b0, dut.mem_terminal_pending_count_w}, 32'd0);
+      $display("[T4S-EFFKILL-RSP] LOAD+PROBE exact-pop/terminal once, WB/SQ side effects zero PASS");
+      reset_dut();
+    end
+  endtask
+
+  task automatic seed_s2_g1_amo_read;
+    input [`XLEN-1:0] pc;
+    output [4:0] owner_token;
+    begin
+      reset_dut();
+      commit_ready = 1'b0;
+      mem_req_ready = 1'b1;
+      set_dispatch0(pc,
+                    make_amo_ctrl(`MEM_SIZE_DWORD, 1'b0, 1'b0),
+                    5'd0, 5'd0, 5'd19, 64'd0);
+      dispatch0_inst = inst_amo(5'b00000, 5'd0, 5'd0,
+                                `FUNCT3_LD, 5'd19);
+      `TB_TICK(clk);
+      clear_dispatch();
+      wait_mem0_request("S2-G1 AMO read", 1'b0, 64'd0,
+                        1'b0, {`XLEN{1'b0}},
+                        1'b0, {`STRB_W{1'b0}});
+      `TB_TICK(clk);
+      #1;
+      tb_check32("S2-G1 AMO read MIQ resident",
+                 {28'b0, dut.miq_count_w}, 32'd1);
+      tb_check1("S2-G1 AMO read pending", dut.mem_pending_q, 1'b1);
+      owner_token = dut.miq_head_owner_token_w;
+    end
+  endtask
+
+  // S2-G1 AMO read/restore priority, inter-phase lane5 accounting and the
+  // selected-grant-only write transition are checked independently.
+  task automatic run_s2_g1_amo_restore_and_grant_contract;
+    reg [4:0] owner_token;
+    integer wait_cycles;
+    begin
+      seed_s2_g1_amo_read(64'h8000_6ec0, owner_token);
+      checkpoint_restore = 1'b1;
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = 64'h0102_0304_0506_0708;
+      force dut.wb_slot_free_w = 1'b0;
+      #1;
+      tb_check1("S2-G1 AMO read+restore effective kill",
+                dut.miq_head_effective_killed_w, 1'b1);
+      tb_check1("S2-G1 AMO read+restore drains without WB credit",
+                mem_rsp_ready, 1'b1);
+      tb_check1("S2-G1 AMO read+restore is final",
+                dut.mem_rsp_final_fire_w, 1'b1);
+      tb_check1("S2-G1 AMO read+restore cannot enter write phase",
+                dut.mem_amo_read_rsp_w, 1'b0);
+      tb_check1("S2-G1 AMO read+restore has no WB",
+                dut.mem_wb_fire_w, 1'b0);
+      tb_check1("S2-G1 AMO read+restore lane0 terminal",
+                dut.mem_terminal_ingress_valid_w[0], 1'b1);
+      tb_check1("S2-G1 AMO read+restore no lane5 duplicate",
+                dut.mem_terminal_ingress_valid_w[5], 1'b0);
+      tb_check1("S2-G1 AMO read+restore no request",
+                mem_req_valid, 1'b0);
+      tb_check1("S2-G1 AMO read+restore no MIQ push",
+                dut.miq_push_valid_w, 1'b0);
+      `TB_TICK(clk);
+      checkpoint_restore = 1'b0;
+      mem_rsp_valid = 1'b0;
+      release dut.wb_slot_free_w;
+      #1;
+      tb_check1("S2-G1 AMO read+restore clears pending",
+                dut.mem_pending_q, 1'b0);
+      tb_check32("S2-G1 AMO read+restore drains MIQ",
+                 {28'b0, dut.miq_count_w}, 32'd0);
+      for (wait_cycles = 0;
+           (wait_cycles < 6) && (dut.mem_owner_live_count_w != 6'd0);
+           wait_cycles = wait_cycles + 1) begin
+        `TB_TICK(clk);
+        #1;
+      end
+      tb_check32("S2-G1 AMO read+restore owner frees once",
+                 {26'b0, dut.mem_owner_live_count_w}, 32'd0);
+
+      seed_s2_g1_amo_read(64'h8000_6ee0, owner_token);
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = 64'd7;
+      #1;
+      tb_check1("S2-G1 AMO read success enters interphase",
+                dut.mem_amo_read_rsp_w, 1'b1);
+      tb_check1("S2-G1 AMO read success is not terminal",
+                dut.mem_terminal_ingress_valid_w[0], 1'b0);
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      #1;
+      tb_check1("S2-G1 AMO write phase resident",
+                dut.mem_amo_write_phase_q, 1'b1);
+      tb_check1("S2-G1 AMO write not sent",
+                dut.mem_amo_write_sent_q, 1'b0);
+      tb_check32("S2-G1 AMO read popped MIQ",
+                 {28'b0, dut.miq_count_w}, 32'd0);
+
+      checkpoint_restore = 1'b1;
+      #1;
+      tb_check1("S2-G1 AMO interphase cancel",
+                dut.mem_amo_interphase_cancel_w, 1'b1);
+      tb_check1("S2-G1 AMO interphase lane5",
+                dut.mem_terminal_ingress_valid_w[5], 1'b1);
+      tb_check32("S2-G1 AMO interphase token",
+                 {27'b0, dut.mem_terminal_ingress_token_w[29:25]},
+                 {27'b0, owner_token});
+      tb_check1("S2-G1 AMO interphase restore gates request",
+                mem_req_valid, 1'b0);
+      tb_check1("S2-G1 AMO interphase restore gates push",
+                dut.miq_push_valid_w, 1'b0);
+      `TB_TICK(clk);
+      checkpoint_restore = 1'b0;
+      #1;
+      tb_check1("S2-G1 AMO interphase clears pending",
+                dut.mem_pending_q, 1'b0);
+      for (wait_cycles = 0;
+           (wait_cycles < 6) && (dut.mem_owner_live_count_w != 6'd0);
+           wait_cycles = wait_cycles + 1) begin
+        `TB_TICK(clk);
+        #1;
+      end
+      tb_check32("S2-G1 AMO lane5 owner frees once",
+                 {26'b0, dut.mem_owner_live_count_w}, 32'd0);
+
+      seed_s2_g1_amo_read(64'h8000_6f00, owner_token);
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = 64'd9;
+      #1;
+      tb_check1("S2-G1 AMO grant seed read response",
+                dut.mem_amo_read_rsp_w, 1'b1);
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      #1;
+      force dut.grant_amo_write_w = 1'b0;
+      #1;
+      tb_check1("S2-G1 AMO raw write remains eligible",
+                dut.mem_amo_write_req_valid_w, 1'b1);
+      tb_check1("S2-G1 AMO unselected write has no request",
+                mem_req_valid, 1'b0);
+      tb_check1("S2-G1 AMO unselected write has no push",
+                dut.push_amo_write_w, 1'b0);
+      `TB_TICK(clk);
+      #1;
+      tb_check1("S2-G1 AMO unselected write stays unsent",
+                dut.mem_amo_write_sent_q, 1'b0);
+      release dut.grant_amo_write_w;
+      #1;
+      tb_check1("S2-G1 AMO selected write requests",
+                mem_req_valid, 1'b1);
+      tb_check1("S2-G1 AMO selected write pushes",
+                dut.push_amo_write_w, 1'b1);
+      `TB_TICK(clk);
+      #1;
+      tb_check1("S2-G1 AMO selected write sent once",
+                dut.mem_amo_write_sent_q, 1'b1);
+      tb_check32("S2-G1 AMO selected write MIQ owner",
+                 {28'b0, dut.miq_count_w}, 32'd1);
+      tb_check1("S2-G1 AMO selected write does not repeat",
+                mem_req_valid, 1'b0);
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = { `XLEN{1'b0} };
+      #1;
+      tb_check1("S2-G1 AMO selected write response ready",
+                mem_rsp_ready, 1'b1);
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      #1;
+      for (wait_cycles = 0;
+           (wait_cycles < 6) && (dut.mem_owner_live_count_w != 6'd0);
+           wait_cycles = wait_cycles + 1) begin
+        `TB_TICK(clk);
+        #1;
+      end
+      tb_check32("S2-G1 AMO selected write owner frees once",
+                 {26'b0, dut.mem_owner_live_count_w}, 32'd0);
+      $display("[T4S-AMO-RESTORE] read+restore lane0, interphase lane5, selected-grant-only write PASS");
+      reset_dut();
+    end
+  endtask
+
+  task automatic run_s2_g1_empty_miq_stale_drain_contract;
+    begin
+      reset_dut();
+      mem_rsp_valid = 1'b1;
+      mem_rsp_rdata = 64'hdead_beef_cafe_f00d;
+      #1;
+      tb_check32("S2-G1 stale drain starts empty",
+                 {28'b0, dut.miq_count_w}, 32'd0);
+      tb_check1("S2-G1 stale drain transport ready", mem_rsp_ready, 1'b1);
+      tb_check1("S2-G1 stale drain presents pop transport",
+                dut.miq_pop_transport_w, 1'b1);
+      tb_check1("S2-G1 stale drain has no exact pop",
+                dut.miq_pop_w, 1'b0);
+      tb_check1("S2-G1 stale drain has no WB",
+                dut.mem_wb_fire_w, 1'b0);
+      tb_check1("S2-G1 stale drain has no terminal",
+                |dut.mem_terminal_ingress_valid_w, 1'b0);
+      `TB_TICK(clk);
+      mem_rsp_valid = 1'b0;
+      #1;
+      tb_check32("S2-G1 stale drain remains empty",
+                 {28'b0, dut.miq_count_w}, 32'd0);
+      tb_check32("S2-G1 stale drain creates no owner",
+                 {26'b0, dut.mem_owner_live_count_w}, 32'd0);
+      $display("[T4S-STALE-DRAIN] empty MIQ drains transport with zero side effects PASS");
+      reset_dut();
+    end
+  endtask
+
   // MIQ full+head-pop must backpressure the parent for one cycle.  The fifth
   // request remains in the memory station, then fires on the cycle after the
   // old head pop with its original metadata.
@@ -4288,6 +4720,10 @@ module tb_ooo_int_backend;
       clear_dispatch();
       wait_mem0_request("T3V LR.W seed", 1'b0, 64'h0000_0380,
                         1'b0, {`XLEN{1'b0}}, 1'b0, {`STRB_W{1'b0}});
+      // The in-order bridge cannot return a response before the request
+      // station fire has created its MIQ owner.
+      `TB_TICK(clk);
+      #1;
       complete_mem0_response("T3V LR.W seed", 64'h0000_0000_89ab_cdef,
                              1'b1, 1'b1, 1'b1,
                              64'hffff_ffff_89ab_cdef);
@@ -4347,6 +4783,8 @@ module tb_ooo_int_backend;
       clear_dispatch();
       wait_mem0_request("T3V LR.D seed", 1'b0, 64'h0000_0380,
                         1'b0, {`XLEN{1'b0}}, 1'b0, {`STRB_W{1'b0}});
+      `TB_TICK(clk);
+      #1;
       complete_mem0_response("T3V LR.D seed", 64'h1122_3344_5566_7788,
                              1'b1, 1'b1, 1'b1,
                              64'h1122_3344_5566_7788);
@@ -4408,6 +4846,8 @@ module tb_ooo_int_backend;
       clear_dispatch();
       wait_mem0_request("T3V LR.D misalign seed", 1'b0, 64'h0000_0380,
                         1'b0, {`XLEN{1'b0}}, 1'b0, {`STRB_W{1'b0}});
+      `TB_TICK(clk);
+      #1;
       complete_mem0_response("T3V LR.D misalign seed",
                              64'ha5a5_5a5a_0123_4567,
                              1'b1, 1'b1, 1'b1,
@@ -4867,6 +5307,7 @@ module tb_ooo_int_backend;
   // cannot create a synthetic ROB completion.  Both physical WB lanes cover
   // all five sources at nonzero/p0 destinations; FPWB also keeps rd-disable
   // separate from p0 so either gate cannot hide a regression in the other.
+`ifdef OOO_ASSERT
   task automatic run_p0_wb_write_valid_source_matrix;
     begin
       tb_check1("P0-A idle wb0 write invalid", dut.gpr_wb0_write_valid_w,
@@ -5065,6 +5506,7 @@ module tb_ooo_int_backend;
       $display("[P0-A-WB-VALID-SOURCE-MATRIX] 22/22 PASS: 2 lanes x (5 nonzero + 5 p0), plus 2 FP rd-disable");
     end
   endtask
+`endif
 
   initial begin
     tb_errors = 0;
@@ -6172,6 +6614,8 @@ module tb_ooo_int_backend;
     clear_dispatch();
     wait_mem0_request("lr.d", 1'b0, 32'h0000_0300,
                       1'b0, {`XLEN{1'b0}}, 1'b0, {`STRB_W{1'b0}});
+    `TB_TICK(clk);
+    #1;
     complete_mem0_response("lr.d", 64'h1111_2222_3333_4444,
                            1'b1, 1'b1, 1'b1,
                            64'h1111_2222_3333_4444);
@@ -6283,6 +6727,11 @@ module tb_ooo_int_backend;
     run_t3s_mem_issue_reservation_contract();
     run_t3s_mem_issue_age_liveness();
     run_t3v_mem_buffer_selective_kill_contract();
+    run_s2_g1_effective_kill_response_contract();
+    run_s2_g1_amo_restore_and_grant_contract();
+`ifndef OOO_ASSERT
+    run_s2_g1_empty_miq_stale_drain_contract();
+`endif
     run_t3v_miq_full_pop_parent_backpressure_contract();
     run_t3v_lrsc_width_and_exception_contract();
     run_r3_alu_terminal_no_lsu_contract();

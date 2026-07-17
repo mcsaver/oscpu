@@ -1,0 +1,2 @@
+[S2-G1-MIQ][PASS] exact-owner ABI elaborated
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/tests/tb_s2_g1_miq_owner_ports.sv:55: $finish called at 1000 (1ps)

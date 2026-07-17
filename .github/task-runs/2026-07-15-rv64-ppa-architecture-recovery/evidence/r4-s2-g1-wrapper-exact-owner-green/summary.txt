@@ -1,0 +1,9 @@
+work_dir=/tmp/s2-g1-wrapper-green.cB15HS
+static_abi=GREEN_228_checks
+mutation_negative=EXPECTED_FAIL_constant_request_token_1_OF_1
+dynamic_wrapper=GREEN_request_response_MIQ_tracker_station_exact_roundtrip
+npc_core_top_bridge=GREEN_sv39_module_test
+dangling_exact_owner_inputs=ZERO
+architecture_qualification=INTERMEDIATE_epoch_and_true_dual_memory_pending
+timing_qualification=UNQUALIFIED_not_measured
+result=PASS

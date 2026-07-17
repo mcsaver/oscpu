@@ -88,6 +88,10 @@ module OooIntBackend #(
   output mem_req_attr_valid_o,
   output [1:0] mem_req_class_o,
   output mem_req_cacheable_o,
+  output [1:0] mem_req_owner_kind_o,
+  output [4:0] mem_req_owner_token_o,
+  output [1:0] mem_req_mmu_epoch_o,
+  output [`XLEN-1:0] mem_req_fault_tval_o,
   output mem_req_device_release_o,
   output mem_req_device_cancel_o,
   output [`XLEN-1:0] mem_req_addr_o,
@@ -101,6 +105,44 @@ module OooIntBackend #(
   input mem_rsp_attr_valid_i,
   input [1:0] mem_rsp_class_i,
   input mem_rsp_cacheable_i,
+  input [1:0] mem_rsp_owner_kind_i,
+  input [4:0] mem_rsp_owner_token_i,
+  input [1:0] mem_rsp_mmu_epoch_i,
+  input [`XLEN-1:0] mem_rsp_fault_tval_i,
+  // Registered MIQ-head ordering proof exported to the bridge.  Equality is
+  // side-effect qualification only; it must never enter transport READY.
+  output mem_expected_valid_o,
+  output [1:0] mem_expected_owner_kind_o,
+  output [4:0] mem_expected_owner_token_o,
+  output [1:0] mem_expected_mmu_epoch_o,
+  output mem_expected_tval_valid_o,
+  output [`XLEN-1:0] mem_expected_fault_tval_o,
+  output mem_expected_effective_killed_o,
+  // Bridge active/station token queries into the edge-old tracker table.
+  input mem_owner_query_valid_i,
+  input [4:0] mem_owner_query_token_i,
+  output mem_tracker_expected_valid_o,
+  output [1:0] mem_tracker_expected_owner_kind_o,
+  output [4:0] mem_tracker_expected_owner_token_o,
+  output [1:0] mem_tracker_expected_mmu_epoch_o,
+  input mem_station_query_valid_i,
+  input [4:0] mem_station_query_token_i,
+  output mem_station_expected_valid_o,
+  output [1:0] mem_station_expected_owner_kind_o,
+  output [4:0] mem_station_expected_owner_token_o,
+  output [1:0] mem_station_expected_mmu_epoch_o,
+  // Exact bridge cancellation/drain terminals and its edge-old residency.
+  input mem_drop0_valid_i,
+  input [1:0] mem_drop0_owner_kind_i,
+  input [4:0] mem_drop0_owner_token_i,
+  input [1:0] mem_drop0_mmu_epoch_i,
+  input [`XLEN-1:0] mem_drop0_fault_tval_i,
+  input mem_drop1_valid_i,
+  input [1:0] mem_drop1_owner_kind_i,
+  input [4:0] mem_drop1_owner_token_i,
+  input [1:0] mem_drop1_mmu_epoch_i,
+  input [`XLEN-1:0] mem_drop1_fault_tval_i,
+  input [31:0] mem_bridge_owner_residency_mask_i,
   // 当前上下文数据访问是否经 Sv39 翻译(load-vs-SQ 判定在翻译开启时保守 blind, 防 VA 别名)
   input mem_translate_active_i,
 
@@ -170,6 +212,13 @@ module OooIntBackend #(
   localparam [1:0] CLMUL_OP_LOW = 2'd0;
   localparam [1:0] CLMUL_OP_HIGH = 2'd1;
   localparam [1:0] CLMUL_OP_REV = 2'd2;
+  localparam [1:0] MEM_OWNER_LOAD = 2'b00;
+  localparam [1:0] MEM_OWNER_STORE = 2'b01;
+  localparam [1:0] MEM_OWNER_ATOMIC = 2'b10;
+  localparam [1:0] MEM_OWNER_RESERVED = 2'b11;
+  // Epoch advancement/lock remains a later hard gate.  The typed field is
+  // nevertheless carried end-to-end in this exact-owner checkpoint.
+  localparam [1:0] MEM_OWNER_EPOCH_BASE = 2'b00;
   localparam integer BRANCH_RESOLVE_PAYLOAD_W =
       (2 * `XLEN) + ROB_INDEX_W + `BPU_BHT_INDEX_W + 5;
 
@@ -585,6 +634,18 @@ module OooIntBackend #(
   reg [`XLEN-1:0] mem_issue_res_src1_data_q;
   reg [`XLEN-1:0] mem_issue_res_src2_data_q;
   reg [`XLEN-1:0] mem_issue_res_store_data_q;
+  reg [1:0] mem_issue_res_owner_kind_q;
+  reg [4:0] mem_issue_res_owner_token_q;
+  reg [1:0] mem_issue_res_mmu_epoch_q;
+  reg [`XLEN-1:0] mem_issue_res_fault_tval_q;
+
+  function [1:0] mem_owner_kind_from_ctrl;
+    input [`CTRL_BUS_W-1:0] ctrl;
+    begin
+      mem_owner_kind_from_ctrl = ctrl[`CTRL_AMO_BIT] ? MEM_OWNER_ATOMIC :
+          ctrl[`CTRL_STORE_BIT] ? MEM_OWNER_STORE : MEM_OWNER_LOAD;
+    end
+  endfunction
 
   wire iq_issue0_mem_class_w =
       iq_issue0_valid_w &&
@@ -611,10 +672,35 @@ module OooIntBackend #(
   // the registered reservation only when that older ALU actually fires.
   wire iq_issue0_swapped_memory_w =
       iq_issue_pair_swapped_w && iq_issue0_mem_class_w;
-  wire mem_issue_res_capture_w =
+  wire mem_owner_alloc0_ready_w;
+  wire [4:0] mem_owner_alloc0_token_w;
+  wire [31:0] mem_owner_live_mask_w;
+  wire [63:0] mem_owner_kind_table_w;
+  wire [63:0] mem_owner_epoch_table_w;
+  wire [5:0] mem_owner_live_count_w;
+  wire [31:0] mem_terminal_pending_mask_w;
+  wire [5:0] mem_terminal_pending_count_w;
+  wire mem_terminal_deq0_valid_w;
+  wire [1:0] mem_terminal_deq0_kind_w;
+  wire [4:0] mem_terminal_deq0_token_w;
+  wire [1:0] mem_terminal_deq0_epoch_w;
+  wire mem_terminal_deq0_ready_w;
+  wire mem_terminal_deq1_valid_w;
+  wire [1:0] mem_terminal_deq1_kind_w;
+  wire [4:0] mem_terminal_deq1_token_w;
+  wire [1:0] mem_terminal_deq1_epoch_w;
+  wire mem_terminal_deq1_ready_w;
+  wire [5:0] mem_terminal_ingress_valid_w;
+  wire [11:0] mem_terminal_ingress_kind_w;
+  wire [29:0] mem_terminal_ingress_token_w;
+  wire [11:0] mem_terminal_ingress_epoch_w;
+  wire [31:0] sq_owner_release_effective_mask_w;
+  wire mem_issue_res_capture_candidate_w =
       iq_issue0_mem_class_w && mem_issue_res_credit_w &&
       mem_issue_res_admit_w &&
       (!iq_issue0_swapped_memory_w || issue1_fire_w);
+  wire mem_issue_res_capture_w =
+      mem_issue_res_capture_candidate_w && mem_owner_alloc0_ready_w;
 
   // raw non-memory 的 ready 锥只含全局门控及其自身 long-op resource，禁止复用
   // issue0_ready_w；后者含 AGU/SQ/MIQ/SC 深组合谓词，会重新回接 IQ compact。
@@ -644,7 +730,8 @@ module OooIntBackend #(
       (mem_issue_res_valid_q ? 1'b0 :
        iq_issue0_mem_class_w ?
          (mem_issue_res_credit_w && mem_issue_res_admit_w &&
-          (!iq_issue0_swapped_memory_w || issue1_fire_w)) :
+          (!iq_issue0_swapped_memory_w || issue1_fire_w) &&
+          mem_owner_alloc0_ready_w) :
                                iq_issue0_raw_nonmem_ready_w);
 
   // T3V：generic issue0 数据面只承载 raw non-memory。memory reservation 不再
@@ -797,6 +884,10 @@ module OooIntBackend #(
       mem_issue_res_src1_data_q <= {`XLEN{1'b0}};
       mem_issue_res_src2_data_q <= {`XLEN{1'b0}};
       mem_issue_res_store_data_q <= {`XLEN{1'b0}};
+      mem_issue_res_owner_kind_q <= MEM_OWNER_RESERVED;
+      mem_issue_res_owner_token_q <= 5'b0;
+      mem_issue_res_mmu_epoch_q <= MEM_OWNER_EPOCH_BASE;
+      mem_issue_res_fault_tval_q <= {`XLEN{1'b0}};
     end else if (mem_issue_res_kill_w) begin
       mem_issue_res_valid_q <= 1'b0;
     end else if (mem_issue_res_consume_fire_w) begin
@@ -823,6 +914,11 @@ module OooIntBackend #(
       mem_issue_res_store_data_q <= iq_issue0_fp_st_en_w ?
                                     fpst_read_data_w :
                                     issue0_src2_data_w;
+      mem_issue_res_owner_kind_q <=
+          mem_owner_kind_from_ctrl(iq_issue0_ctrl_w);
+      mem_issue_res_owner_token_q <= mem_owner_alloc0_token_w;
+      mem_issue_res_mmu_epoch_q <= MEM_OWNER_EPOCH_BASE;
+      mem_issue_res_fault_tval_q <= issue0_src1_data_w + iq_issue0_imm_w;
     end
   end
 
@@ -1247,6 +1343,10 @@ module OooIntBackend #(
   reg [`XLEN-1:0] mem_amo_old_value_q;
   reg [`XLEN-1:0] mem_amo_write_data_q;
   reg [`STRB_W-1:0] mem_amo_write_wstrb_q;
+  reg [1:0] mem_owner_kind_q;
+  reg [4:0] mem_owner_token_q;
+  reg [1:0] mem_mmu_epoch_q;
+  reg [`XLEN-1:0] mem_fault_tval_q;
   reg mem_buffer_valid_q;
   reg [ROB_INDEX_W-1:0] mem_buffer_rob_idx_q;
   reg [PHY_REG_ADDR_W-1:0] mem_buffer_pdest_q;
@@ -1258,6 +1358,10 @@ module OooIntBackend #(
   reg mem_buffer_unsigned_q;
   reg [`XLEN-1:0] mem_buffer_wdata_q;
   reg [`STRB_W-1:0] mem_buffer_wstrb_q;
+  reg [1:0] mem_buffer_owner_kind_q;
+  reg [4:0] mem_buffer_owner_token_q;
+  reg [1:0] mem_buffer_mmu_epoch_q;
+  reg [`XLEN-1:0] mem_buffer_fault_tval_q;
 
   // ===== 【LSQ·SQ 切换】(spec ooo-lsq-implementation-plan.md §3.6) =====
   // mode=1: plain store 发射即 probe(翻译探测), rsp 拍 VA/PA+data 进 SQ；只有
@@ -1278,6 +1382,10 @@ module OooIntBackend #(
   // sq_alloc0/1_ready_w 声明已前置到 u_dispatch_backend 实例之前(iverilog 14)
   wire sq_drain_valid_w;
   wire [ROB_INDEX_W-1:0] sq_drain_rob_w;
+  wire [1:0] sq_drain_owner_kind_w;
+  wire [4:0] sq_drain_owner_token_w;
+  wire [1:0] sq_drain_mmu_epoch_w;
+  wire [`XLEN-1:0] sq_drain_fault_tval_w;
   wire [`XLEN-1:0] sq_drain_vaddr_w;
   wire [`XLEN-1:0] sq_drain_addr_w;
   wire sq_drain_attr_valid_w;
@@ -1299,6 +1407,7 @@ module OooIntBackend #(
   wire [SQ_ENTRY_N-1:0] sq_snoop_terminal_w;
   wire [SQ_ENTRY_W-1:0] sq_snoop_head_w;
   wire [SQ_ENTRY_W:0] sq_count_w;
+  wire [31:0] sq_owner_release_mask_w;
   wire sq_empty_w = (sq_count_w == {(SQ_ENTRY_W+1){1'b0}});
   wire sq_no_active_write_w =
       (sq_snoop_request_sent_w == {SQ_ENTRY_N{1'b0}});
@@ -1372,6 +1481,10 @@ module OooIntBackend #(
   localparam [1:0] MIQ_KIND_LEGACY = 2'd3;
   wire miq_push_valid_w;
   wire [1:0] miq_push_kind_w;
+  wire [1:0] miq_push_owner_kind_w;
+  wire [4:0] miq_push_owner_token_w;
+  wire [1:0] miq_push_mmu_epoch_w;
+  wire [`XLEN-1:0] miq_push_fault_tval_w;
   wire [ROB_INDEX_W-1:0] miq_push_rob_w;
   wire [PHY_REG_ADDR_W-1:0] miq_push_pdest_w;
   wire miq_push_pdest_fp_w;
@@ -1380,10 +1493,18 @@ module OooIntBackend #(
   wire [`XLEN-1:0] miq_push_addr_w;
   wire [`XLEN-1:0] miq_push_wdata_w;
   wire [`STRB_W-1:0] miq_push_wstrb_w;
+  wire miq_pop_transport_w;
+  wire miq_pop_owner_match_w;
+  wire miq_pop_tval_echo_match_w;
   wire miq_pop_w;
   wire miq_head_valid_w;
   wire [1:0] miq_head_kind_w;
+  wire [1:0] miq_head_owner_kind_w;
+  wire [4:0] miq_head_owner_token_w;
+  wire [1:0] miq_head_mmu_epoch_w;
+  wire [`XLEN-1:0] miq_head_fault_tval_w;
   wire miq_head_killed_w;
+  wire miq_head_effective_killed_w;
   wire [ROB_INDEX_W-1:0] miq_head_rob_w;
   wire [PHY_REG_ADDR_W-1:0] miq_head_pdest_w;
   wire miq_head_pdest_fp_w;
@@ -1397,6 +1518,7 @@ module OooIntBackend #(
   wire [MIQ_ENTRY_N*2-1:0] miq_entry_kind_unused_w;
   wire [MIQ_ENTRY_N*ROB_INDEX_W-1:0] miq_entry_rob_unused_w;
   wire [MIQ_ENTRY_N*`XLEN-1:0] miq_entry_addr_unused_w;
+  wire [31:0] miq_occupancy_token_mask_w;
 
   OooMemInflightQueue #(
     .ENTRY_N(MIQ_ENTRY_N),
@@ -1409,6 +1531,10 @@ module OooIntBackend #(
     .flush_i(flush_i || checkpoint_restore_i),
     .push_valid_i(miq_push_valid_w),
     .push_kind_i(miq_push_kind_w),
+    .push_owner_kind_i(miq_push_owner_kind_w),
+    .push_owner_token_i(miq_push_owner_token_w),
+    .push_mmu_epoch_i(miq_push_mmu_epoch_w),
+    .push_fault_tval_i(miq_push_fault_tval_w),
     .push_rob_idx_i(miq_push_rob_w),
     .push_pdest_i(miq_push_pdest_w),
     .push_pdest_fp_i(miq_push_pdest_fp_w),
@@ -1417,13 +1543,24 @@ module OooIntBackend #(
     .push_eff_addr_i(miq_push_addr_w),
     .push_wdata_i(miq_push_wdata_w),
     .push_wstrb_i(miq_push_wstrb_w),
-    .pop_valid_i(miq_pop_w),
+    .pop_valid_i(miq_pop_transport_w),
+    .pop_owner_kind_i(mem_rsp_owner_kind_i),
+    .pop_owner_token_i(mem_rsp_owner_token_i),
+    .pop_mmu_epoch_i(mem_rsp_mmu_epoch_i),
+    .pop_fault_tval_i(mem_rsp_fault_tval_i),
+    .pop_owner_match_o(miq_pop_owner_match_w),
+    .pop_tval_echo_match_o(miq_pop_tval_echo_match_w),
     .kill_valid_i(branch_resolve_mispredict_w),
     .kill_rob_idx_i(branch_resolve_rob_idx_o),
     .rob_head_idx_i(rob_head_idx_w),
     .head_valid_o(miq_head_valid_w),
     .head_kind_o(miq_head_kind_w),
+    .head_owner_kind_o(miq_head_owner_kind_w),
+    .head_owner_token_o(miq_head_owner_token_w),
+    .head_mmu_epoch_o(miq_head_mmu_epoch_w),
+    .head_fault_tval_o(miq_head_fault_tval_w),
     .head_killed_o(miq_head_killed_w),
+    .head_effective_killed_o(miq_head_effective_killed_w),
     .head_rob_idx_o(miq_head_rob_w),
     .head_pdest_o(miq_head_pdest_w),
     .head_pdest_fp_o(miq_head_pdest_fp_w),
@@ -1435,6 +1572,7 @@ module OooIntBackend #(
     .count_o(miq_count_w),
     .empty_o(miq_empty_w),
     .full_o(miq_full_w),
+    .occupancy_token_mask_o(miq_occupancy_token_mask_w),
     .entry_valid_o(miq_entry_valid_unused_w),
     .entry_kind_o(miq_entry_kind_unused_w),
     .entry_rob_idx_o(miq_entry_rob_unused_w),
@@ -1488,16 +1626,24 @@ module OooIntBackend #(
   wire miq_head_probe_w = miq_head_valid_w && (miq_head_kind_w == MIQ_KIND_PROBE);
   wire miq_head_drain_w = miq_head_valid_w && (miq_head_kind_w == MIQ_KIND_DRAIN);
   wire miq_head_legacy_w = miq_head_valid_w && (miq_head_kind_w == MIQ_KIND_LEGACY);
+  assign mem_expected_valid_o = miq_head_valid_w;
+  assign mem_expected_owner_kind_o = miq_head_owner_kind_w;
+  assign mem_expected_owner_token_o = miq_head_owner_token_w;
+  assign mem_expected_mmu_epoch_o = miq_head_mmu_epoch_w;
+  assign mem_expected_tval_valid_o = miq_head_valid_w;
+  assign mem_expected_fault_tval_o = miq_head_fault_tval_w;
+  assign mem_expected_effective_killed_o = miq_head_effective_killed_w;
   // T4M: bridge FSM and MIQ responses are strictly in order, so MIQ head is
   // the exact owner of the current bridge transaction.  Physical device
   // classification remains in the bridge; backend only supplies lifetime.
   assign mem_req_device_release_o =
-      miq_head_valid_w && !miq_head_killed_w && rob_head_valid_w &&
+      miq_head_valid_w && !miq_head_effective_killed_w && rob_head_valid_w &&
       (miq_head_rob_w == rob_head_idx_w);
-  assign mem_req_device_cancel_o = miq_head_valid_w && miq_head_killed_w;
+  assign mem_req_device_cancel_o =
+      miq_head_valid_w && miq_head_effective_killed_w;
   // 旧 wants 语义收窄到 LEGACY(AMO/LR/SC/MMIO 独占族)
   wire mem_rsp_wants_w = miq_head_legacy_w && mem_pending_q &&
-                         mem_rsp_valid_i && !flush_i;
+                         mem_rsp_valid_i;
   // plain LOAD: killed 恒收(静默弃); 活 load 需 wb 槽。PROBE: mode1 成功只
   // fill、不占 wb；fault（以及 shadow mode 的真实写响应）需 wb 槽。DRAIN/B
   // 始终需要 formal WB credit，ready 不得提前吞掉精确 terminal。
@@ -1507,7 +1653,9 @@ module OooIntBackend #(
   wire mem_rsp_fault_w = mem_rsp_error_i || mem_rsp_page_fault_i;
   assign mem_idle_o =
       miq_empty_w && !mem_pending_q && !mem_buffer_valid_q &&
-      !mem_issue_res_valid_q;
+      !mem_issue_res_valid_q &&
+      (mem_owner_live_count_w == 6'd0) &&
+      (mem_terminal_pending_count_w == 6'd0);
   // 【LSQ·SQ 切换】退休侧静默: SQ 排空且无 drain 在飞。AND 进 backend_drained,
   // system/trap/FP 等串行点等它(mem_idle_o 保持原语义, 供分支恢复 quiet 判定)。
   assign mem_retire_quiet_o =
@@ -1578,30 +1726,41 @@ module OooIntBackend #(
       {1'b0, !ex0_valid_q} + {1'b0, !ex1_valid_q};
   wire wb_slot_free_w = (wb_free_count_w != 2'b00);
   wire miq_probe_needs_wb_w =
-      !miq_head_killed_w && (mem_rsp_fault_w || !sq_mode_w);
-  // ready 按队头 kind: LOAD(killed 恒收/活 load 等 wb 槽); PROBE(mode1
-  // 成功恒收，fault/shadow response 等 wb 槽); DRAIN/B 等 wb 槽。
+      !miq_head_effective_killed_w && (mem_rsp_fault_w || !sq_mode_w);
+  // ready 按队头 kind: no-head stale beat 只排 transport；LOAD(killed 恒收/
+  // 活 load 等 wb 槽); PROBE(mode1 成功恒收，fault/shadow response 等 wb
+  // 槽); DRAIN/B 等 wb 槽。LEGACY effective-kill 同样不占 WB credit。
   assign mem_rsp_ready_o =
+      !miq_head_valid_w ? 1'b1 :
       miq_head_drain_w ? wb_slot_free_w :
-      miq_head_load_w ? (miq_head_killed_w || wb_slot_free_w) :
+      miq_head_load_w ? (miq_head_effective_killed_w || wb_slot_free_w) :
       miq_head_probe_w ? (!miq_probe_needs_wb_w || wb_slot_free_w) :
-      (mem_rsp_wants_w && wb_slot_free_w);
-  // LEGACY 消费 fire(旧路径全部沿用此名)
-  wire mem_rsp_fire_w = mem_rsp_wants_w && mem_rsp_ready_o;
-  // plain 消费 fire
-  wire miq_load_rsp_fire_w = miq_load_rsp_wants_w && mem_rsp_ready_o;
-  wire miq_probe_rsp_fire_w = miq_probe_rsp_wants_w && mem_rsp_ready_o;
-  wire miq_drain_rsp_fire_w = miq_drain_rsp_wants_w && mem_rsp_ready_o;
-  // 队头出队: 任一类消费完成。AMO 读阶段(amo_read_rsp)也出队——AMO 写请求
-  // 发射时再 push 一个新 LEGACY entry(读/写两事务两 entry, 序天然正确)。
-  assign miq_pop_w = mem_rsp_fire_w || miq_load_rsp_fire_w ||
-                     miq_probe_rsp_fire_w || miq_drain_rsp_fire_w;
+      (mem_rsp_wants_w &&
+       (miq_head_effective_killed_w || wb_slot_free_w));
+  // Outer transport drains independently of equality.  Only the exact 9-bit
+  // owner advances MIQ/accounting and authorizes architectural side effects.
+  wire mem_rsp_transport_fire_w = mem_rsp_wants_w && mem_rsp_ready_o;
+  wire miq_load_rsp_transport_fire_w =
+      miq_load_rsp_wants_w && mem_rsp_ready_o;
+  wire miq_probe_rsp_transport_fire_w =
+      miq_probe_rsp_wants_w && mem_rsp_ready_o;
+  wire miq_drain_rsp_transport_fire_w =
+      miq_drain_rsp_wants_w && mem_rsp_ready_o;
+  assign miq_pop_transport_w = mem_rsp_valid_i && mem_rsp_ready_o;
+  assign miq_pop_w = miq_pop_transport_w && miq_pop_owner_match_w;
+  wire mem_rsp_fire_w = mem_rsp_transport_fire_w && miq_pop_owner_match_w;
+  wire miq_load_rsp_fire_w =
+      miq_load_rsp_transport_fire_w && miq_pop_owner_match_w;
+  wire miq_probe_rsp_fire_w =
+      miq_probe_rsp_transport_fire_w && miq_pop_owner_match_w;
+  wire miq_drain_rsp_fire_w =
+      miq_drain_rsp_transport_fire_w && miq_pop_owner_match_w;
   // AMO#2: 读阶段若 fault(error/page_fault),不得进入写阶段(否则病态 PMP W&!R 下会静默错写 +
   // rd 垃圾 + 无异常)。fault 时 mem_amo_read_rsp_w=0 → 走 mem_rsp_final_fire_w 经 mem_rsp_wb_cause_w
   // 报 LOAD fault(对齐 NEMU "AMO 先 Mr→Load fault"),且不写内存。常态(无 fault)行为不变。
   wire mem_amo_read_rsp_w =
       mem_rsp_fire_w && mem_amo_q && !mem_amo_lr_q && !mem_amo_sc_q &&
-      !mem_amo_write_phase_q &&
+      !mem_amo_write_phase_q && !miq_head_effective_killed_w &&
       !mem_rsp_error_i && !mem_rsp_page_fault_i;
   wire mem_rsp_final_fire_w = mem_rsp_fire_w && !mem_amo_read_rsp_w;
   // LEGACY 单例空闲(AMO/LR/SC 独占通道)
@@ -2131,13 +2290,13 @@ module OooIntBackend #(
              iq_issue0_src1_preg_w, iq_issue0_src2_preg_w, $time);
     end
     if (!rst && mem_req_device_release_o &&
-        (!miq_head_valid_w || miq_head_killed_w || !rob_head_valid_w ||
-         (miq_head_rob_w != rob_head_idx_w))) begin
+        (!miq_head_valid_w || miq_head_effective_killed_w ||
+         !rob_head_valid_w || (miq_head_rob_w != rob_head_idx_w))) begin
       $error("[INT-DEVICE-OWNER] release without live ROB-head MIQ owner @%0t", $time);
       $fatal;
     end
     if (!rst && mem_req_device_cancel_o &&
-        (!miq_head_valid_w || !miq_head_killed_w)) begin
+        (!miq_head_valid_w || !miq_head_effective_killed_w)) begin
       $error("[INT-DEVICE-OWNER] cancel without killed MIQ head @%0t", $time);
       $fatal;
     end
@@ -2462,13 +2621,19 @@ module OooIntBackend #(
       sq_mode_w && sq_drain_valid_w && !drain_inflight_q &&
       // restore/flush 会清 MIQ；同拍不得让 SQ 置 request_sent 却丢掉 push owner。
       !flush_i && !checkpoint_restore_i && mem_request_slot_open_w;
-  wire grant_sq_w = sq_drain_req_valid_w;
-  wire grant_amo_write_w = !grant_sq_w && mem_amo_write_req_valid_w;
+  wire mem_request_transport_open_w =
+      !flush_i && !checkpoint_restore_i;
+  wire grant_sq_w =
+      mem_request_transport_open_w && sq_drain_req_valid_w;
+  wire grant_amo_write_w =
+      mem_request_transport_open_w && !grant_sq_w &&
+      mem_amo_write_req_valid_w;
   wire grant_buffer_w =
-      !grant_sq_w && !grant_amo_write_w && mem_buffer_req_valid_w;
+      mem_request_transport_open_w && !grant_sq_w &&
+      !grant_amo_write_w && mem_buffer_req_valid_w;
   wire grant_issue0_w =
-      !grant_sq_w && !grant_amo_write_w && !grant_buffer_w &&
-      issue0_mem_req_valid_w;
+      mem_request_transport_open_w && !grant_sq_w &&
+      !grant_amo_write_w && !grant_buffer_w && issue0_mem_req_valid_w;
 
   wire sq_drain_req_fire_w = grant_sq_w && mem_req_ready_i;
   assign mem_buffer_req_fire_w = grant_buffer_w && mem_req_ready_i;
@@ -2510,6 +2675,22 @@ module OooIntBackend #(
                                                    `OOO_MEM_CLASS_RSVD;
   assign mem_req_cacheable_o = mem_req_attr_valid_o &&
                                (mem_req_class_o == `OOO_MEM_CLASS_CACHED);
+  assign mem_req_owner_kind_o = grant_sq_w ? sq_drain_owner_kind_w :
+      grant_amo_write_w ? mem_owner_kind_q :
+      grant_buffer_w ? mem_buffer_owner_kind_q :
+                       mem_issue_res_owner_kind_q;
+  assign mem_req_owner_token_o = grant_sq_w ? sq_drain_owner_token_w :
+      grant_amo_write_w ? mem_owner_token_q :
+      grant_buffer_w ? mem_buffer_owner_token_q :
+                       mem_issue_res_owner_token_q;
+  assign mem_req_mmu_epoch_o = grant_sq_w ? sq_drain_mmu_epoch_w :
+      grant_amo_write_w ? mem_mmu_epoch_q :
+      grant_buffer_w ? mem_buffer_mmu_epoch_q :
+                       mem_issue_res_mmu_epoch_q;
+  assign mem_req_fault_tval_o = grant_sq_w ? sq_drain_fault_tval_w :
+      grant_amo_write_w ? mem_fault_tval_q :
+      grant_buffer_w ? mem_buffer_fault_tval_q :
+                       mem_issue_res_fault_tval_q;
 
   // ============ MIQ push(与桥 req fire 同拍, 优先级与 req mux 一致) ============
   // 【P5 刀 M】fire 语义重释=进桥侧 req 寄存站(翻译/dcache 发射推迟到桥内 advance
@@ -2535,6 +2716,10 @@ module OooIntBackend #(
                        issue0_is_plain_store_w ? MIQ_KIND_PROBE :
                                                  MIQ_KIND_LOAD) :
                       MIQ_KIND_DRAIN;
+  assign miq_push_owner_kind_w = mem_req_owner_kind_o;
+  assign miq_push_owner_token_w = mem_req_owner_token_o;
+  assign miq_push_mmu_epoch_w = mem_req_mmu_epoch_o;
+  assign miq_push_fault_tval_w = mem_req_fault_tval_o;
   assign miq_push_rob_w =
       push_amo_write_w ? mem_rob_idx_q :
       push_buffer_w ? mem_buffer_rob_idx_q :
@@ -2650,6 +2835,10 @@ module OooIntBackend #(
       mem_amo_old_value_q <= {`XLEN{1'b0}};
       mem_amo_write_data_q <= {`XLEN{1'b0}};
       mem_amo_write_wstrb_q <= {`STRB_W{1'b0}};
+      mem_owner_kind_q <= MEM_OWNER_RESERVED;
+      mem_owner_token_q <= 5'b0;
+      mem_mmu_epoch_q <= MEM_OWNER_EPOCH_BASE;
+      mem_fault_tval_q <= {`XLEN{1'b0}};
       mem_probe_q <= 1'b0;
       mem_store_wdata_q <= {`XLEN{1'b0}};
       mem_store_wstrb_q <= {`STRB_W{1'b0}};
@@ -2664,6 +2853,10 @@ module OooIntBackend #(
       mem_buffer_unsigned_q <= 1'b0;
       mem_buffer_wdata_q <= {`XLEN{1'b0}};
       mem_buffer_wstrb_q <= {`STRB_W{1'b0}};
+      mem_buffer_owner_kind_q <= MEM_OWNER_RESERVED;
+      mem_buffer_owner_token_q <= 5'b0;
+      mem_buffer_mmu_epoch_q <= MEM_OWNER_EPOCH_BASE;
+      mem_buffer_fault_tval_q <= {`XLEN{1'b0}};
       reservation_valid_q <= 1'b0;
       reservation_addr_q <= {`XLEN{1'b0}};
       reservation_size_q <= 2'b00;
@@ -2676,16 +2869,19 @@ module OooIntBackend #(
         mem_amo_write_data_q <= mem_amo_write_wdata_w;
         mem_amo_write_wstrb_q <= mem_amo_write_wstrb_w;
       end else if (mem_rsp_final_fire_w) begin
-        if (mem_amo_lr_q && !mem_rsp_error_i) begin
-          reservation_valid_q <= 1'b1;
-          reservation_addr_q <= (mem_size_q == `MEM_SIZE_WORD) ?
-              (mem_eff_addr_q & {{(`XLEN-2){1'b1}}, 2'b00}) :
-              (mem_eff_addr_q & {{(`XLEN-`XLEN_BYTE_W){1'b1}}, {`XLEN_BYTE_W{1'b0}}});
-          reservation_size_q <= mem_size_q;
-        end else if (mem_amo_sc_q) begin
-          reservation_valid_q <= 1'b0;
-          reservation_addr_q <= {`XLEN{1'b0}};
-          reservation_size_q <= 2'b00;
+        if (!miq_head_effective_killed_w) begin
+          if (mem_amo_lr_q && !mem_rsp_error_i) begin
+            reservation_valid_q <= 1'b1;
+            reservation_addr_q <= (mem_size_q == `MEM_SIZE_WORD) ?
+                (mem_eff_addr_q & {{(`XLEN-2){1'b1}}, 2'b00}) :
+                (mem_eff_addr_q & {{(`XLEN-`XLEN_BYTE_W){1'b1}},
+                                   {`XLEN_BYTE_W{1'b0}}});
+            reservation_size_q <= mem_size_q;
+          end else if (mem_amo_sc_q) begin
+            reservation_valid_q <= 1'b0;
+            reservation_addr_q <= {`XLEN{1'b0}};
+            reservation_size_q <= 2'b00;
+          end
         end
         mem_pending_q <= 1'b0;
         mem_rob_idx_q <= {ROB_INDEX_W{1'b0}};
@@ -2705,6 +2901,10 @@ module OooIntBackend #(
         mem_amo_old_value_q <= {`XLEN{1'b0}};
         mem_amo_write_data_q <= {`XLEN{1'b0}};
         mem_amo_write_wstrb_q <= {`STRB_W{1'b0}};
+        mem_owner_kind_q <= MEM_OWNER_RESERVED;
+        mem_owner_token_q <= 5'b0;
+        mem_mmu_epoch_q <= MEM_OWNER_EPOCH_BASE;
+        mem_fault_tval_q <= {`XLEN{1'b0}};
         mem_probe_q <= 1'b0;
       end
       if (mem_buffer_req_fire_w && mem_buffer_store_q) begin
@@ -2724,8 +2924,12 @@ module OooIntBackend #(
         mem_buffer_unsigned_q <= 1'b0;
         mem_buffer_wdata_q <= {`XLEN{1'b0}};
         mem_buffer_wstrb_q <= {`STRB_W{1'b0}};
+        mem_buffer_owner_kind_q <= MEM_OWNER_RESERVED;
+        mem_buffer_owner_token_q <= 5'b0;
+        mem_buffer_mmu_epoch_q <= MEM_OWNER_EPOCH_BASE;
+        mem_buffer_fault_tval_q <= {`XLEN{1'b0}};
       end
-      if (mem_amo_write_req_valid_w && mem_req_ready_i) begin
+      if (push_amo_write_w) begin
         mem_amo_write_sent_q <= 1'b1;
         reservation_valid_q <= 1'b0;
         reservation_addr_q <= {`XLEN{1'b0}};
@@ -2773,6 +2977,10 @@ module OooIntBackend #(
         mem_probe_q <= sq_mode_w && issue0_is_plain_store_w;
         mem_store_wdata_q <= issue0_mem_wdata_w;
         mem_store_wstrb_q <= issue0_mem_wstrb_w;
+        mem_owner_kind_q <= mem_issue_res_owner_kind_q;
+        mem_owner_token_q <= mem_issue_res_owner_token_q;
+        mem_mmu_epoch_q <= mem_issue_res_mmu_epoch_q;
+        mem_fault_tval_q <= mem_issue_res_fault_tval_q;
       end
       if (issue1_mem_request_fire_w) begin
         if (issue1_mem_req_write_w && !issue1_is_sc_w) begin
@@ -2827,6 +3035,10 @@ module OooIntBackend #(
             mem_issue_res_ctrl_q[`CTRL_MEM_UNSIGNED_BIT];
         mem_buffer_wdata_q <= issue0_mem_wdata_w;
         mem_buffer_wstrb_q <= issue0_mem_wstrb_w;
+        mem_buffer_owner_kind_q <= mem_issue_res_owner_kind_q;
+        mem_buffer_owner_token_q <= mem_issue_res_owner_token_q;
+        mem_buffer_mmu_epoch_q <= mem_issue_res_mmu_epoch_q;
+        mem_buffer_fault_tval_q <= mem_issue_res_fault_tval_q;
       end
       if (issue1_mem_buffer_fire_w) begin
         if (issue1_is_store_w && !issue1_is_sc_w) begin
@@ -2853,12 +3065,15 @@ module OooIntBackend #(
 
   // mem 侧 wb 事务: LEGACY 完成 + plain LOAD + PROBE fault + physical
   // store B terminal。成功 probe 只 fill SQ，绝不提前标 ROB done。
-  wire miq_load_wb_fire_w = miq_load_rsp_fire_w && !miq_head_killed_w;
+  wire miq_load_wb_fire_w =
+      miq_load_rsp_fire_w && !miq_head_effective_killed_w;
   wire miq_probe_wb_fire_w =
-      miq_probe_rsp_fire_w && !miq_head_killed_w &&
+      miq_probe_rsp_fire_w && !miq_head_effective_killed_w &&
       (mem_rsp_fault_w || !sq_mode_w);
   wire miq_drain_wb_fire_w = miq_drain_rsp_fire_w;
-  wire mem_wb_fire_w = mem_rsp_final_fire_w || miq_load_wb_fire_w ||
+  wire mem_legacy_wb_fire_w =
+      mem_rsp_final_fire_w && !miq_head_effective_killed_w;
+  wire mem_wb_fire_w = mem_legacy_wb_fire_w || miq_load_wb_fire_w ||
                        miq_probe_wb_fire_w || miq_drain_wb_fire_w;
   wire mem_rsp_to_wb0_w = mem_wb_fire_w && !ex0_valid_q;
   wire mem_rsp_to_wb1_w = mem_wb_fire_w && !mem_rsp_to_wb0_w;
@@ -2886,14 +3101,14 @@ module OooIntBackend #(
   // 与 fpld_wb(写 FP 物理堆+FP 唤醒); int PRF 写与 int 唤醒按 fp gate(pdest 置 0)。
   // wb 事务是否 load 语义(plain LOAD 恒是; LEGACY 按单例)
   wire mem_wb_is_load_w = miq_load_wb_fire_w ||
-                          (mem_rsp_final_fire_w && mem_load_q);
+                          (mem_legacy_wb_fire_w && mem_load_q);
   wire mem_rsp_fp_load_w = miq_head_pdest_fp_w && mem_wb_is_load_w;
   wire [`XLEN-1:0] mem_rsp_fp_boxed_w =
       (miq_head_size_w == `MEM_SIZE_DWORD) ? mem_rsp_load_data_w :
       {32'hffff_ffff, mem_rsp_load_data_w[31:0]};
   wire [`XLEN-1:0] mem_rsp_wb_data_w =
       (miq_probe_wb_fire_w || miq_drain_wb_fire_w) ? {`XLEN{1'b0}} :
-      (mem_rsp_final_fire_w && mem_amo_q) ?
+      (mem_legacy_wb_fire_w && mem_amo_q) ?
                   (mem_amo_sc_q ? {`XLEN{1'b0}} :
                    (mem_amo_write_phase_q ? mem_amo_old_value_q :
                                             mem_amo_old_value_w)) :
@@ -2907,7 +3122,7 @@ module OooIntBackend #(
   // store 语义(fault cause 用): PROBE(plain store 探测)或 LEGACY store/AMO 写臂
   wire mem_wb_store_cause_w =
       miq_probe_wb_fire_w || miq_drain_wb_fire_w ||
-      (mem_rsp_final_fire_w &&
+      (mem_legacy_wb_fire_w &&
        (mem_store_q || (mem_amo_q && (mem_amo_sc_q || mem_amo_write_phase_q))));
   wire [`TRAP_CAUSE_W-1:0] mem_rsp_wb_cause_w =
       miq_drain_wb_fire_w ? `EXC_STORE_ACCESS_FAULT :
@@ -3350,12 +3565,14 @@ module OooIntBackend #(
   wire [ROB_INDEX_W-1:0] sq_alloc0_rob_w =
       sq_d0_store_w ? dispatch0_rob_idx_w : dispatch1_rob_idx_w;
   wire sq_alloc1_valid_w = sq_d0_store_w && sq_d1_store_w;
+  wire sq_owner_bind_valid_w = mem_issue_res_capture_w &&
+      (mem_owner_kind_from_ctrl(iq_issue0_ctrl_w) == MEM_OWNER_STORE);
 
   // 回填: mode=1 在 probe rsp 拍(PA=rsp_rdata + 发射拍寄存的 data/strb);
   // mode=0 影子在发射拍(VA; req 直入/req lane1/buffer 暂存三路同拍互斥)。
   // AMO/SC/FP-store 未 alloc, CAM miss 自然忽略。
   wire sq_fill_probe_w =
-      miq_probe_rsp_fire_w && !miq_head_killed_w &&
+      miq_probe_rsp_fire_w && !miq_head_effective_killed_w &&
       !mem_rsp_error_i && !mem_rsp_page_fault_i;
   wire shadow_fill_req0_w = issue0_mem_request_fire_w && issue0_is_store_w;
   wire shadow_fill_req1_w = issue1_mem_request_fire_w && issue1_is_store_w;
@@ -3392,6 +3609,14 @@ module OooIntBackend #(
       sq_mode_w ? miq_head_wdata_w : shadow_fill_data_w;
   wire [`STRB_W-1:0] sq_fill_strb_w =
       sq_mode_w ? miq_head_wstrb_w : shadow_fill_strb_w;
+  wire [1:0] sq_fill_owner_kind_w = sq_mode_w ?
+      miq_head_owner_kind_w : mem_issue_res_owner_kind_q;
+  wire [4:0] sq_fill_owner_token_w = sq_mode_w ?
+      miq_head_owner_token_w : mem_issue_res_owner_token_q;
+  wire [1:0] sq_fill_mmu_epoch_w = sq_mode_w ?
+      miq_head_mmu_epoch_w : mem_issue_res_mmu_epoch_q;
+  wire [`XLEN-1:0] sq_fill_fault_tval_w = sq_mode_w ?
+      miq_head_fault_tval_w : mem_issue_res_fault_tval_q;
 
   // Store terminal is a local plain-store exception, a probe fault (no write
   // was sent), or the actual B response.  Successful probe is intentionally
@@ -3401,7 +3626,7 @@ module OooIntBackend #(
       mem_issue_res_consume_fire_w && issue0_is_plain_store_w &&
       issue0_mem_exception_w;
   wire sq_probe_terminal_w =
-      miq_probe_rsp_fire_w && !miq_head_killed_w &&
+      miq_probe_rsp_fire_w && !miq_head_effective_killed_w &&
       (mem_rsp_fault_w || !sq_mode_w);
   wire sq_response_terminal_w = sq_probe_terminal_w ||
                                 miq_drain_rsp_fire_w;
@@ -3463,8 +3688,18 @@ module OooIntBackend #(
     .alloc1_valid_i(sq_alloc1_valid_w),
     .alloc1_ready_o(sq_alloc1_ready_w),
     .alloc1_rob_idx_i(dispatch1_rob_idx_w),
+    .owner_bind_valid_i(sq_owner_bind_valid_w),
+    .owner_bind_rob_idx_i(iq_issue0_rob_idx_w),
+    .owner_bind_kind_i(mem_owner_kind_from_ctrl(iq_issue0_ctrl_w)),
+    .owner_bind_token_i(mem_owner_alloc0_token_w),
+    .owner_bind_mmu_epoch_i(MEM_OWNER_EPOCH_BASE),
+    .owner_bind_fault_tval_i(issue0_src1_data_w + iq_issue0_imm_w),
     .fill0_valid_i(sq_fill_valid_w),
     .fill0_rob_idx_i(sq_fill_rob_w),
+    .fill0_owner_kind_i(sq_fill_owner_kind_w),
+    .fill0_owner_token_i(sq_fill_owner_token_w),
+    .fill0_mmu_epoch_i(sq_fill_mmu_epoch_w),
+    .fill0_fault_tval_i(sq_fill_fault_tval_w),
     .fill0_vaddr_i(sq_fill_vaddr_w),
     .fill0_paddr_i(sq_fill_paddr_w),
     .fill0_attr_valid_i(sq_fill_attr_valid_w),
@@ -3474,6 +3709,10 @@ module OooIntBackend #(
     .fill0_strb_i(sq_fill_strb_w),
     .fill1_valid_i(1'b0),
     .fill1_rob_idx_i({ROB_INDEX_W{1'b0}}),
+    .fill1_owner_kind_i(MEM_OWNER_RESERVED),
+    .fill1_owner_token_i(5'b0),
+    .fill1_mmu_epoch_i(MEM_OWNER_EPOCH_BASE),
+    .fill1_fault_tval_i({`XLEN{1'b0}}),
     .fill1_vaddr_i({`XLEN{1'b0}}),
     .fill1_paddr_i({`XLEN{1'b0}}),
     .fill1_attr_valid_i(1'b0),
@@ -3483,14 +3722,26 @@ module OooIntBackend #(
     .fill1_strb_i({`STRB_W{1'b0}}),
     .terminal_valid_i(sq_response_terminal_w),
     .terminal_rob_idx_i(miq_head_rob_w),
+    .terminal_owner_kind_i(miq_head_owner_kind_w),
+    .terminal_owner_token_i(miq_head_owner_token_w),
+    .terminal_mmu_epoch_i(miq_head_mmu_epoch_w),
+    .terminal_fault_tval_i(miq_head_fault_tval_w),
     .terminal1_valid_i(sq_local_store_exception_w),
     .terminal1_rob_idx_i(mem_issue_res_rob_idx_q),
+    .terminal1_owner_kind_i(mem_issue_res_owner_kind_q),
+    .terminal1_owner_token_i(mem_issue_res_owner_token_q),
+    .terminal1_mmu_epoch_i(mem_issue_res_mmu_epoch_q),
+    .terminal1_fault_tval_i(mem_issue_res_fault_tval_q),
     .release_valid_i(sq_release_valid_w),
     .release_rob_idx_i(sq_release_rob_w),
     .release_ready_o(sq_release_ready_w),
     .release_fire_o(sq_release_fire_w),
     .req_valid_o(sq_drain_valid_w),
     .req_rob_idx_o(sq_drain_rob_w),
+    .req_owner_kind_o(sq_drain_owner_kind_w),
+    .req_owner_token_o(sq_drain_owner_token_w),
+    .req_mmu_epoch_o(sq_drain_mmu_epoch_w),
+    .req_fault_tval_o(sq_drain_fault_tval_w),
     .req_vaddr_o(sq_drain_vaddr_w),
     .req_paddr_o(sq_drain_addr_w),
     .req_attr_valid_o(sq_drain_attr_valid_w),
@@ -3499,6 +3750,7 @@ module OooIntBackend #(
     .req_data_o(sq_drain_data_w),
     .req_strb_o(sq_drain_strb_w),
     .req_fire_i(sq_drain_req_fire_w),
+    .owner_release_mask_o(sq_owner_release_mask_w),
     .snoop_valid_o(sq_snoop_valid_w),
     .snoop_addr_valid_o(sq_snoop_addr_valid_w),
     .snoop_addr_o(sq_snoop_addr_w),
@@ -3514,6 +3766,211 @@ module OooIntBackend #(
     .snoop_head_o(sq_snoop_head_w),
     .count_o(sq_count_w)
   );
+
+  // ===========================================================================
+  // S2-G1 exact owner lifetime.  Allocation happens once at reservation
+  // capture.  Logical terminals use the lossless tagged collector; only an SQ
+  // release/squash may use the STORE-only bulk mask.  fault_tval remains
+  // provenance payload and is deliberately absent from the identity collector.
+  // ===========================================================================
+  wire mem_amo_interphase_cancel_w =
+      mem_pending_q && mem_amo_q && mem_amo_write_phase_q &&
+      !mem_amo_write_sent_q && (flush_i || checkpoint_restore_i);
+  wire mem_terminal_rsp_valid_w =
+      mem_rsp_final_fire_w || miq_load_rsp_fire_w ||
+      (miq_probe_rsp_fire_w && miq_head_effective_killed_w);
+  wire mem_issue_res_global_cancel_w =
+      (flush_i || checkpoint_restore_i) && mem_issue_res_valid_q;
+  wire mem_issue_res_tagged_terminal_w =
+      (mem_issue_res_owner_kind_q != MEM_OWNER_STORE) &&
+      (mem_issue_res_local_complete_w || mem_issue_res_kill_w ||
+       mem_issue_res_global_cancel_w);
+  wire mem_buffer_cancel_w = mem_buffer_valid_q &&
+      (mem_buffer_kill_w || flush_i || checkpoint_restore_i) &&
+      !mem_buffer_req_fire_w;
+  wire mem_buffer_tagged_terminal_w = mem_buffer_cancel_w &&
+      (mem_buffer_owner_kind_q != MEM_OWNER_STORE);
+
+  // Lane assignment is stable evidence, not priority: all six sources may
+  // arrive together. lane5 is the exact ATOMIC owner cancelled between a
+  // successful AMO read and its not-yet-fired write request.
+  assign mem_terminal_ingress_valid_w = {
+      mem_amo_interphase_cancel_w,
+      mem_buffer_tagged_terminal_w,
+      mem_issue_res_tagged_terminal_w,
+      mem_drop1_valid_i,
+      mem_drop0_valid_i,
+      mem_terminal_rsp_valid_w
+  };
+  assign mem_terminal_ingress_kind_w = {
+      mem_owner_kind_q,
+      mem_buffer_owner_kind_q,
+      mem_issue_res_owner_kind_q,
+      mem_drop1_owner_kind_i,
+      mem_drop0_owner_kind_i,
+      miq_head_owner_kind_w
+  };
+  assign mem_terminal_ingress_token_w = {
+      mem_owner_token_q,
+      mem_buffer_owner_token_q,
+      mem_issue_res_owner_token_q,
+      mem_drop1_owner_token_i,
+      mem_drop0_owner_token_i,
+      miq_head_owner_token_w
+  };
+  assign mem_terminal_ingress_epoch_w = {
+      mem_mmu_epoch_q,
+      mem_buffer_mmu_epoch_q,
+      mem_issue_res_mmu_epoch_q,
+      mem_drop1_mmu_epoch_i,
+      mem_drop0_mmu_epoch_i,
+      miq_head_mmu_epoch_w
+  };
+
+  wire [31:0] mem_terminal_ingress0_mask_w =
+      mem_terminal_ingress_valid_w[0] ?
+      (32'b1 << mem_terminal_ingress_token_w[4:0]) : 32'b0;
+  wire [31:0] mem_terminal_ingress1_mask_w =
+      mem_terminal_ingress_valid_w[1] ?
+      (32'b1 << mem_terminal_ingress_token_w[9:5]) : 32'b0;
+  wire [31:0] mem_terminal_ingress2_mask_w =
+      mem_terminal_ingress_valid_w[2] ?
+      (32'b1 << mem_terminal_ingress_token_w[14:10]) : 32'b0;
+  wire [31:0] mem_terminal_ingress3_mask_w =
+      mem_terminal_ingress_valid_w[3] ?
+      (32'b1 << mem_terminal_ingress_token_w[19:15]) : 32'b0;
+  wire [31:0] mem_terminal_ingress4_mask_w =
+      mem_terminal_ingress_valid_w[4] ?
+      (32'b1 << mem_terminal_ingress_token_w[24:20]) : 32'b0;
+  wire [31:0] mem_terminal_ingress5_mask_w =
+      mem_terminal_ingress_valid_w[5] ?
+      (32'b1 << mem_terminal_ingress_token_w[29:25]) : 32'b0;
+  wire [31:0] mem_terminal_ingress_mask_w =
+      mem_terminal_ingress0_mask_w | mem_terminal_ingress1_mask_w |
+      mem_terminal_ingress2_mask_w | mem_terminal_ingress3_mask_w |
+      mem_terminal_ingress4_mask_w | mem_terminal_ingress5_mask_w;
+
+  wire [31:0] mem_issue_res_owner_mask_w = mem_issue_res_valid_q ?
+      (32'b1 << mem_issue_res_owner_token_q) : 32'b0;
+  wire [31:0] mem_buffer_owner_mask_w = mem_buffer_valid_q ?
+      (32'b1 << mem_buffer_owner_token_q) : 32'b0;
+  wire [31:0] mem_req_fire_owner_mask_w = mem_req_fire_any_w ?
+      (32'b1 << mem_req_owner_token_o) : 32'b0;
+
+  // A raw SQ release cannot free a token that still has another authority.
+  // Three exact same-edge handoffs are exceptions: an exact STORE response
+  // ends MIQ/bridge residency, or a STORE reservation/buffer is locally
+  // cancelled while the SQ squash removes its final architectural owner.
+  wire [31:0] sq_response_terminal_owner_mask_w =
+      sq_response_terminal_w &&
+      (miq_head_owner_kind_w == MEM_OWNER_STORE) ?
+      (32'b1 << miq_head_owner_token_w) : 32'b0;
+  wire mem_issue_res_store_authority_end_w = mem_issue_res_valid_q &&
+      (mem_issue_res_owner_kind_q == MEM_OWNER_STORE) &&
+      (mem_issue_res_local_complete_w || mem_issue_res_kill_w ||
+       mem_issue_res_global_cancel_w);
+  wire [31:0] mem_issue_res_store_authority_end_mask_w =
+      mem_issue_res_store_authority_end_w ?
+      (32'b1 << mem_issue_res_owner_token_q) : 32'b0;
+  wire [31:0] mem_buffer_store_authority_end_mask_w =
+      mem_buffer_cancel_w &&
+      (mem_buffer_owner_kind_q == MEM_OWNER_STORE) ?
+      (32'b1 << mem_buffer_owner_token_q) : 32'b0;
+  wire [31:0] sq_owner_release_override_mask_w =
+      sq_response_terminal_owner_mask_w |
+      mem_issue_res_store_authority_end_mask_w |
+      mem_buffer_store_authority_end_mask_w;
+  wire [31:0] sq_owner_release_resident_mask_w =
+      miq_occupancy_token_mask_w | mem_bridge_owner_residency_mask_i |
+      mem_issue_res_owner_mask_w | mem_buffer_owner_mask_w |
+      mem_req_fire_owner_mask_w;
+  wire [31:0] sq_owner_release_nonoverride_mask_w =
+      mem_terminal_pending_mask_w | mem_terminal_ingress_mask_w;
+  assign sq_owner_release_effective_mask_w = sq_owner_release_mask_w &
+      ~sq_owner_release_nonoverride_mask_w &
+      (~sq_owner_release_resident_mask_w |
+       sq_owner_release_override_mask_w);
+
+  OooMemOwnerTerminalCollector #(
+    .INGRESS_N(6)
+  ) u_mem_owner_terminal_collector (
+    .clk(clk),
+    .rst(rst),
+    .ingress_valid_i(mem_terminal_ingress_valid_w),
+    .ingress_kind_i(mem_terminal_ingress_kind_w),
+    .ingress_token_i(mem_terminal_ingress_token_w),
+    .ingress_epoch_i(mem_terminal_ingress_epoch_w),
+    .live_mask_i(mem_owner_live_mask_w),
+    .live_kind_table_i(mem_owner_kind_table_w),
+    .live_epoch_table_i(mem_owner_epoch_table_w),
+    .deq0_valid_o(mem_terminal_deq0_valid_w),
+    .deq0_kind_o(mem_terminal_deq0_kind_w),
+    .deq0_token_o(mem_terminal_deq0_token_w),
+    .deq0_epoch_o(mem_terminal_deq0_epoch_w),
+    .deq0_ready_i(mem_terminal_deq0_ready_w),
+    .deq1_valid_o(mem_terminal_deq1_valid_w),
+    .deq1_kind_o(mem_terminal_deq1_kind_w),
+    .deq1_token_o(mem_terminal_deq1_token_w),
+    .deq1_epoch_o(mem_terminal_deq1_epoch_w),
+    .deq1_ready_i(mem_terminal_deq1_ready_w),
+    .pending_mask_o(mem_terminal_pending_mask_w),
+    .pending_count_o(mem_terminal_pending_count_w)
+  );
+
+  OooMemOwnerTracker u_mem_owner_tracker (
+    .clk(clk),
+    .rst(rst),
+    .alloc0_valid_i(mem_issue_res_capture_candidate_w),
+    .alloc0_kind_i(mem_owner_kind_from_ctrl(iq_issue0_ctrl_w)),
+    .alloc0_epoch_i(MEM_OWNER_EPOCH_BASE),
+    .alloc0_ready_o(mem_owner_alloc0_ready_w),
+    .alloc0_token_o(mem_owner_alloc0_token_w),
+    .alloc1_valid_i(1'b0),
+    .alloc1_kind_i(MEM_OWNER_RESERVED),
+    .alloc1_epoch_i(MEM_OWNER_EPOCH_BASE),
+    .alloc1_ready_o(),
+    .alloc1_token_o(),
+    .free0_valid_i(mem_terminal_deq0_valid_w),
+    .free0_kind_i(mem_terminal_deq0_kind_w),
+    .free0_token_i(mem_terminal_deq0_token_w),
+    .free0_epoch_i(mem_terminal_deq0_epoch_w),
+    .free0_ready_o(mem_terminal_deq0_ready_w),
+    .free1_valid_i(mem_terminal_deq1_valid_w),
+    .free1_kind_i(mem_terminal_deq1_kind_w),
+    .free1_token_i(mem_terminal_deq1_token_w),
+    .free1_epoch_i(mem_terminal_deq1_epoch_w),
+    .free1_ready_o(mem_terminal_deq1_ready_w),
+    .release_mask_i(sq_owner_release_effective_mask_w),
+    .live_mask_o(mem_owner_live_mask_w),
+    .kind_table_o(mem_owner_kind_table_w),
+    .epoch_table_o(mem_owner_epoch_table_w),
+    .live_count_o(mem_owner_live_count_w)
+  );
+
+  assign mem_tracker_expected_valid_o = mem_owner_query_valid_i &&
+      mem_owner_live_mask_w[mem_owner_query_token_i];
+  assign mem_tracker_expected_owner_kind_o =
+      mem_tracker_expected_valid_o ?
+      mem_owner_kind_table_w[mem_owner_query_token_i*2 +: 2] :
+      MEM_OWNER_RESERVED;
+  assign mem_tracker_expected_owner_token_o =
+      mem_tracker_expected_valid_o ? mem_owner_query_token_i : 5'b0;
+  assign mem_tracker_expected_mmu_epoch_o =
+      mem_tracker_expected_valid_o ?
+      mem_owner_epoch_table_w[mem_owner_query_token_i*2 +: 2] :
+      MEM_OWNER_EPOCH_BASE;
+  assign mem_station_expected_valid_o = mem_station_query_valid_i &&
+      mem_owner_live_mask_w[mem_station_query_token_i];
+  assign mem_station_expected_owner_kind_o =
+      mem_station_expected_valid_o ?
+      mem_owner_kind_table_w[mem_station_query_token_i*2 +: 2] :
+      MEM_OWNER_RESERVED;
+  assign mem_station_expected_owner_token_o =
+      mem_station_expected_valid_o ? mem_station_query_token_i : 5'b0;
+  assign mem_station_expected_mmu_epoch_o =
+      mem_station_expected_valid_o ?
+      mem_owner_epoch_table_w[mem_station_query_token_i*2 +: 2] :
+      MEM_OWNER_EPOCH_BASE;
 
   reg sq_release_hit_r;
   reg sq_release_terminal_r;
@@ -3602,13 +4059,37 @@ module OooIntBackend #(
             (mem_rsp_class_i == `OOO_MEM_CLASS_CACHED))))
         $error("[S1-TYPED-RSP-LEGACY] response legacy cacheable disagreed with typed class @%0t",
                $time);
-      if (sq_mode_w && miq_probe_rsp_fire_w && !miq_head_killed_w &&
+      if (sq_mode_w && miq_probe_rsp_fire_w &&
+          !miq_head_effective_killed_w &&
           !mem_rsp_fault_w && !mem_rsp_attr_admitted_w)
         $error("[S1-TYPED-PROBE-MISSING] successful probe lacked admitted provenance @%0t",
                $time);
       if ((flush_i || checkpoint_restore_i) &&
-          (grant_sq_w || sq_drain_req_fire_w))
-        $error("[T4N-SQ-FLUSH-GATE] flush/restore allowed SQ precommit request @%0t",
+          (mem_req_fire_any_w || miq_push_valid_w))
+        $error("[S2-G1-RESTORE-REQ-GATE] flush/restore allowed request/MIQ push @%0t",
+               $time);
+      if (mem_amo_interphase_cancel_w &&
+          (mem_owner_kind_q != MEM_OWNER_ATOMIC))
+        $error("[S2-G1-AMO-INTERPHASE-KIND] cancel owner was not ATOMIC @%0t",
+               $time);
+      if (mem_amo_interphase_cancel_w &&
+          (mem_req_fire_any_w || miq_push_valid_w))
+        $error("[S2-G1-AMO-INTERPHASE-FIRE] cancel overlapped request/MIQ push @%0t",
+               $time);
+      if (mem_amo_interphase_cancel_w &&
+          ((mem_terminal_ingress5_mask_w &
+            (mem_terminal_ingress0_mask_w |
+             mem_terminal_ingress1_mask_w |
+             mem_terminal_ingress2_mask_w)) != 32'b0))
+        $error("[S2-G1-AMO-INTERPHASE-DUP] cancel duplicated response/drop terminal @%0t",
+               $time);
+      if (mem_issue_res_capture_w &&
+          mem_terminal_ingress_mask_w[mem_owner_alloc0_token_w])
+        $error("[S2-G1-ALLOC-TERMINAL-ALIAS] new allocation aliased terminal ingress @%0t",
+               $time);
+      if (mem_buffer_kill_w && mem_buffer_req_fire_w &&
+          mem_buffer_cancel_w)
+        $error("[S2-G1-BUFFER-HANDOFF-CANCEL] fired killed buffer also locally cancelled @%0t",
                $time);
       if (mem_issue_res_consume_fire_w && issue0_is_plain_store_w &&
           issue0_mem_exception_w &&
@@ -3625,7 +4106,8 @@ module OooIntBackend #(
                $time);
       if (miq_drain_rsp_fire_w && !miq_drain_wb_fire_w)
         $error("[T4N-B-UNIQUE-WB] B terminal lacked unique WB @%0t", $time);
-      if (sq_mode_w && miq_probe_rsp_fire_w && !miq_head_killed_w &&
+      if (sq_mode_w && miq_probe_rsp_fire_w &&
+          !miq_head_effective_killed_w &&
           !mem_rsp_fault_w && miq_probe_wb_fire_w)
         $error("[T4N-PROBE-NO-DONE] successful probe generated WB @%0t", $time);
       if (sq_commit1_store_w)

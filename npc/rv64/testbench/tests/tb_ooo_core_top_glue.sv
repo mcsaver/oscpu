@@ -24,6 +24,10 @@ module tb_ooo_core_top_glue;
   wire mem_req_valid;
   wire mem_req_ready;
   wire mem_req_write;
+  wire [1:0] mem_req_owner_kind;
+  wire [4:0] mem_req_owner_token;
+  wire [1:0] mem_req_mmu_epoch;
+  wire [`XLEN-1:0] mem_req_fault_tval;
   wire [`XLEN-1:0] mem_req_addr;
   wire [`XLEN-1:0] mem_req_wdata;
   wire [`STRB_W-1:0] mem_req_wstrb;
@@ -31,6 +35,36 @@ module tb_ooo_core_top_glue;
   wire mem_rsp_ready;
   reg [`XLEN-1:0] mem_rsp_rdata;
   reg mem_rsp_error;
+  reg [1:0] mem_rsp_owner_kind;
+  reg [4:0] mem_rsp_owner_token;
+  reg [1:0] mem_rsp_mmu_epoch;
+  reg [`XLEN-1:0] mem_rsp_fault_tval;
+  wire mem_expected_valid;
+  wire [1:0] mem_expected_owner_kind;
+  wire [4:0] mem_expected_owner_token;
+  wire [1:0] mem_expected_mmu_epoch;
+  wire mem_expected_tval_valid;
+  wire [`XLEN-1:0] mem_expected_fault_tval;
+  wire mem_expected_effective_killed;
+  wire mem_owner_query_valid = mem_rsp_valid;
+  wire [4:0] mem_owner_query_token = mem_rsp_owner_token;
+  wire mem_tracker_expected_valid;
+  wire [1:0] mem_tracker_expected_owner_kind;
+  wire [4:0] mem_tracker_expected_owner_token;
+  wire [1:0] mem_tracker_expected_mmu_epoch;
+  reg mem_station_query_valid;
+  reg [1:0] mem_station_query_owner_kind;
+  reg [4:0] mem_station_query_token;
+  reg [1:0] mem_station_query_mmu_epoch;
+  wire mem_station_expected_valid;
+  wire [1:0] mem_station_expected_owner_kind;
+  wire [4:0] mem_station_expected_owner_token;
+  wire [1:0] mem_station_expected_mmu_epoch;
+  wire mem_drop0_valid = flush && mem_rsp_valid;
+  wire [31:0] mem_bridge_owner_residency_mask =
+      (mem_rsp_valid ? (32'b1 << mem_rsp_owner_token) : 32'b0) |
+      (mem_station_query_valid ?
+       (32'b1 << mem_station_query_token) : 32'b0);
 
   wire commit0_valid;
   wire [`XLEN-1:0] commit0_pc;
@@ -76,6 +110,7 @@ module tb_ooo_core_top_glue;
   reg saw_memory_streaming;
   reg saw_lane1_memory_streaming;
   reg saw_memory_rsp_req_overlap;
+  reg saw_exact_owner_roundtrip;
   reg saw_return_fastpath;
   reg saw_branch_fastpath;
   reg saw_direct_redirect_fetch;
@@ -165,6 +200,10 @@ module tb_ooo_core_top_glue;
     .mem_req_attr_valid_o(),
     .mem_req_class_o(),
     .mem_req_cacheable_o(),
+    .mem_req_owner_kind_o(mem_req_owner_kind),
+    .mem_req_owner_token_o(mem_req_owner_token),
+    .mem_req_mmu_epoch_o(mem_req_mmu_epoch),
+    .mem_req_fault_tval_o(mem_req_fault_tval),
     .mem_req_addr_o(mem_req_addr),
     .mem_req_wdata_o(mem_req_wdata),
     .mem_req_wstrb_o(mem_req_wstrb),
@@ -176,9 +215,44 @@ module tb_ooo_core_top_glue;
     .mem_rsp_attr_valid_i(1'b1),
     .mem_rsp_class_i(`OOO_MEM_CLASS_CACHED),
     .mem_rsp_cacheable_i(1'b1),
+    .mem_rsp_owner_kind_i(mem_rsp_owner_kind),
+    .mem_rsp_owner_token_i(mem_rsp_owner_token),
+    .mem_rsp_mmu_epoch_i(mem_rsp_mmu_epoch),
+    .mem_rsp_fault_tval_i(mem_rsp_fault_tval),
+    .mem_expected_valid_o(mem_expected_valid),
+    .mem_expected_owner_kind_o(mem_expected_owner_kind),
+    .mem_expected_owner_token_o(mem_expected_owner_token),
+    .mem_expected_mmu_epoch_o(mem_expected_mmu_epoch),
+    .mem_expected_tval_valid_o(mem_expected_tval_valid),
+    .mem_expected_fault_tval_o(mem_expected_fault_tval),
+    .mem_expected_effective_killed_o(mem_expected_effective_killed),
+    .mem_owner_query_valid_i(mem_owner_query_valid),
+    .mem_owner_query_token_i(mem_owner_query_token),
+    .mem_tracker_expected_valid_o(mem_tracker_expected_valid),
+    .mem_tracker_expected_owner_kind_o(mem_tracker_expected_owner_kind),
+    .mem_tracker_expected_owner_token_o(mem_tracker_expected_owner_token),
+    .mem_tracker_expected_mmu_epoch_o(mem_tracker_expected_mmu_epoch),
+    .mem_station_query_valid_i(mem_station_query_valid),
+    .mem_station_query_token_i(mem_station_query_token),
+    .mem_station_expected_valid_o(mem_station_expected_valid),
+    .mem_station_expected_owner_kind_o(mem_station_expected_owner_kind),
+    .mem_station_expected_owner_token_o(mem_station_expected_owner_token),
+    .mem_station_expected_mmu_epoch_o(mem_station_expected_mmu_epoch),
+    .mem_drop0_valid_i(mem_drop0_valid),
+    .mem_drop0_owner_kind_i(mem_rsp_owner_kind),
+    .mem_drop0_owner_token_i(mem_rsp_owner_token),
+    .mem_drop0_mmu_epoch_i(mem_rsp_mmu_epoch),
+    .mem_drop0_fault_tval_i(mem_rsp_fault_tval),
+    .mem_drop1_valid_i(1'b0),
+    .mem_drop1_owner_kind_i(2'b00),
+    .mem_drop1_owner_token_i(5'b00000),
+    .mem_drop1_mmu_epoch_i(2'b00),
+    .mem_drop1_fault_tval_i({`XLEN{1'b0}}),
+    .mem_bridge_owner_residency_mask_i(mem_bridge_owner_residency_mask),
     .mem_translate_active_i(1'b0),
     .mem_flush_o(mem_flush),
     .mmu_flush_o(),
+    .csr_frm_w(3'b000),
     `TB_OOO_CORE_TOP_GLUE_CSR_PORTS
     .commit_ready_i(commit_ready),
     .commit0_valid_o(commit0_valid),
@@ -701,6 +775,14 @@ module tb_ooo_core_top_glue;
       mem_rsp_valid = 1'b0;
       mem_rsp_rdata = {`XLEN{1'b0}};
       mem_rsp_error = 1'b0;
+      mem_rsp_owner_kind = 2'b00;
+      mem_rsp_owner_token = 5'b00000;
+      mem_rsp_mmu_epoch = 2'b00;
+      mem_rsp_fault_tval = {`XLEN{1'b0}};
+      mem_station_query_valid = 1'b0;
+      mem_station_query_owner_kind = 2'b00;
+      mem_station_query_token = 5'b00000;
+      mem_station_query_mmu_epoch = 2'b00;
       data_mem_word = {`XLEN{1'b0}};
       commit_total = 0;
       request_total = 0;
@@ -710,6 +792,7 @@ module tb_ooo_core_top_glue;
       saw_memory_streaming = 1'b0;
       saw_lane1_memory_streaming = 1'b0;
       saw_memory_rsp_req_overlap = 1'b0;
+      saw_exact_owner_roundtrip = 1'b0;
       saw_return_fastpath = 1'b0;
       saw_branch_fastpath = 1'b0;
       saw_direct_redirect_fetch = 1'b0;
@@ -773,8 +856,17 @@ module tb_ooo_core_top_glue;
       mem_rsp_valid <= 1'b0;
       mem_rsp_rdata <= {`XLEN{1'b0}};
       mem_rsp_error <= 1'b0;
+      mem_rsp_owner_kind <= 2'b00;
+      mem_rsp_owner_token <= 5'b00000;
+      mem_rsp_mmu_epoch <= 2'b00;
+      mem_rsp_fault_tval <= {`XLEN{1'b0}};
+      mem_station_query_valid <= 1'b0;
+      mem_station_query_owner_kind <= 2'b00;
+      mem_station_query_token <= 5'b00000;
+      mem_station_query_mmu_epoch <= 2'b00;
       data_mem_word <= {`XLEN{1'b0}};
     end else begin
+      mem_station_query_valid <= 1'b0;
       if (mem_rsp_valid && mem_rsp_ready) begin
         mem_rsp_valid <= 1'b0;
       end
@@ -782,6 +874,14 @@ module tb_ooo_core_top_glue;
       if (mem_req_valid && mem_req_ready) begin
         mem_rsp_valid <= 1'b1;
         mem_rsp_error <= 1'b0;
+        mem_rsp_owner_kind <= mem_req_owner_kind;
+        mem_rsp_owner_token <= mem_req_owner_token;
+        mem_rsp_mmu_epoch <= mem_req_mmu_epoch;
+        mem_rsp_fault_tval <= mem_req_fault_tval;
+        mem_station_query_valid <= 1'b1;
+        mem_station_query_owner_kind <= mem_req_owner_kind;
+        mem_station_query_token <= mem_req_owner_token;
+        mem_station_query_mmu_epoch <= mem_req_mmu_epoch;
         if (mem_req_write) begin
           if (mem_req_addr == 64'h0000_0000_8000_0040) begin
             if (mem_req_wstrb[0]) begin
@@ -826,6 +926,7 @@ module tb_ooo_core_top_glue;
       saw_back_to_back_fetch <= 1'b0;
       saw_dual_commit <= 1'b0;
       saw_memory_rsp_req_overlap <= 1'b0;
+      saw_exact_owner_roundtrip <= 1'b0;
       saw_direct_redirect_fetch <= 1'b0;
       last_direct_redirect <= 1'b0;
       saw_branch_redirect_fetch <= 1'b0;
@@ -865,6 +966,32 @@ module tb_ooo_core_top_glue;
       end
       if (mem_req_valid && mem_req_ready && mem_rsp_valid && mem_rsp_ready) begin
         saw_memory_rsp_req_overlap <= 1'b1;
+      end
+      if (mem_rsp_valid && !flush) begin
+        if (!mem_expected_valid || !mem_expected_tval_valid ||
+            (mem_expected_owner_kind !== mem_rsp_owner_kind) ||
+            (mem_expected_owner_token !== mem_rsp_owner_token) ||
+            (mem_expected_mmu_epoch !== mem_rsp_mmu_epoch) ||
+            (mem_expected_fault_tval !== mem_rsp_fault_tval) ||
+            !mem_tracker_expected_valid ||
+            (mem_tracker_expected_owner_kind !== mem_rsp_owner_kind) ||
+            (mem_tracker_expected_owner_token !== mem_rsp_owner_token) ||
+            (mem_tracker_expected_mmu_epoch !== mem_rsp_mmu_epoch)) begin
+          tb_errors = tb_errors + 1;
+          $display("[S2-G1-WRAPPER-OWNER][FAIL] response/MIQ/tracker tuple mismatch token=%0d", mem_rsp_owner_token);
+        end else begin
+          saw_exact_owner_roundtrip <= 1'b1;
+        end
+      end
+      if (mem_station_query_valid &&
+          (!mem_station_expected_valid ||
+           (mem_station_expected_owner_kind !==
+            mem_station_query_owner_kind) ||
+           (mem_station_expected_owner_token !== mem_station_query_token) ||
+           (mem_station_expected_mmu_epoch !==
+            mem_station_query_mmu_epoch))) begin
+        tb_errors = tb_errors + 1;
+        $display("[S2-G1-WRAPPER-STATION][FAIL] station/tracker tuple mismatch token=%0d", mem_station_query_token);
       end
       if (dut.dispatch_fire_w && dut.head1_mem_raw_w &&
           !dut.stop_pending_q) begin
@@ -1168,6 +1295,9 @@ module tb_ooo_core_top_glue;
               saw_memory_streaming, 1'b1);
     tb_check1("memory reservation/request leaves frontend running",
               saw_memory_streaming || saw_memory_rsp_req_overlap, 1'b1);
+    tb_check1("memory response preserves exact owner through wrappers",
+              saw_exact_owner_roundtrip, 1'b1);
+    $display("[S2-G1-WRAPPER-EXACT-OWNER][PASS] memory body roundtrip");
     tb_check32("memory store writes word", data_mem_word, 32'd11);
     tb_check32("memory load reads stored word", gpr(5'd4), 32'd11);
     tb_check32("load consumer sees loaded value", gpr(5'd5), 32'd12);
@@ -1256,6 +1386,8 @@ module tb_ooo_core_top_glue;
 
     tb_check1("lane1 memory program reaches ebreak", exit_valid, 1'b1);
     tb_check1("lane1 memory program is not trap", trap_valid, 1'b0);
+    tb_check1("lane1 memory preserves exact owner through wrappers",
+              saw_exact_owner_roundtrip, 1'b1);
     tb_check32("lane1 memory commits store/load body", commit_total, 32'd6);
     tb_check1("lane1 memory streams through normal dispatch",
               saw_lane1_memory_streaming, 1'b1);

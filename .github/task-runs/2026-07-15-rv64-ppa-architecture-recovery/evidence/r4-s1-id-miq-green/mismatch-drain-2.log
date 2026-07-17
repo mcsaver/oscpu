@@ -1,0 +1,2 @@
+[S2-G1-MIQ-MISMATCH][PASS] identity mutation 2 retained owner
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/tests/tb_s2_g1_miq_mismatch_drain.sv:122: $finish called at 36000 (1ps)

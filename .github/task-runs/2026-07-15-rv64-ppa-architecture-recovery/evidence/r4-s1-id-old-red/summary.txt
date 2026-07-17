@@ -1,0 +1,8 @@
+bundle_sha256=a80d45cb559652773c43fe6a765eff2bba7607e968b9565703b26c4a8a87adf1
+work_dir=/tmp/s2-g1-id-old-red.Uyio24
+tb_s2_g1_owner_tracker_contract=EXPECTED_RED rc=1 marker=OooMemOwnerTracker
+tb_s2_g1_mmu_epoch_owner_contract=EXPECTED_RED rc=1 marker=OooMmuEpochOwner
+tb_s2_g1_miq_owner_ports=EXPECTED_RED rc=13 marker=push_owner_token_i|pop_owner_token_i|head_owner_token_o
+tb_s2_g1_sq_owner_ports=EXPECTED_RED rc=20 marker=owner_bind_token_i|terminal_owner_token_i|req_owner_token_o
+tb_s2_g1_bridge_owner_ports=EXPECTED_RED rc=18 marker=owner_tuple_ports
+result=EXPECTED_RED_5_OF_5

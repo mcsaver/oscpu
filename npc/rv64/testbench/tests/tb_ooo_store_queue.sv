@@ -22,8 +22,18 @@ module tb_ooo_store_queue;
   reg [ROB_INDEX_W-1:0] alloc0_rob_idx;
   reg alloc1_valid;
   reg [ROB_INDEX_W-1:0] alloc1_rob_idx;
+  reg owner_bind_valid;
+  reg [ROB_INDEX_W-1:0] owner_bind_rob_idx;
+  reg [1:0] owner_bind_kind;
+  reg [4:0] owner_bind_token;
+  reg [1:0] owner_bind_mmu_epoch;
+  reg [`XLEN-1:0] owner_bind_fault_tval;
   reg fill0_valid;
   reg [ROB_INDEX_W-1:0] fill0_rob_idx;
+  reg [1:0] fill0_owner_kind;
+  reg [4:0] fill0_owner_token;
+  reg [1:0] fill0_mmu_epoch;
+  reg [`XLEN-1:0] fill0_fault_tval;
   reg [`XLEN-1:0] fill0_vaddr;
   reg [`XLEN-1:0] fill0_paddr;
   reg fill0_attr_valid;
@@ -33,6 +43,10 @@ module tb_ooo_store_queue;
   reg [`STRB_W-1:0] fill0_strb;
   reg fill1_valid;
   reg [ROB_INDEX_W-1:0] fill1_rob_idx;
+  reg [1:0] fill1_owner_kind;
+  reg [4:0] fill1_owner_token;
+  reg [1:0] fill1_mmu_epoch;
+  reg [`XLEN-1:0] fill1_fault_tval;
   reg [`XLEN-1:0] fill1_vaddr;
   reg [`XLEN-1:0] fill1_paddr;
   reg fill1_attr_valid;
@@ -42,8 +56,16 @@ module tb_ooo_store_queue;
   reg [`STRB_W-1:0] fill1_strb;
   reg terminal_valid;
   reg [ROB_INDEX_W-1:0] terminal_rob_idx;
+  reg [1:0] terminal_owner_kind;
+  reg [4:0] terminal_owner_token;
+  reg [1:0] terminal_mmu_epoch;
+  reg [`XLEN-1:0] terminal_fault_tval;
   reg terminal1_valid;
   reg [ROB_INDEX_W-1:0] terminal1_rob_idx;
+  reg [1:0] terminal1_owner_kind;
+  reg [4:0] terminal1_owner_token;
+  reg [1:0] terminal1_mmu_epoch;
+  reg [`XLEN-1:0] terminal1_fault_tval;
   reg release_valid;
   reg [ROB_INDEX_W-1:0] release_rob_idx;
   reg req_fire;
@@ -54,6 +76,10 @@ module tb_ooo_store_queue;
   wire release_fire;
   wire req_valid;
   wire [ROB_INDEX_W-1:0] req_rob_idx;
+  wire [1:0] req_owner_kind;
+  wire [4:0] req_owner_token;
+  wire [1:0] req_mmu_epoch;
+  wire [`XLEN-1:0] req_fault_tval;
   wire [`XLEN-1:0] req_vaddr;
   wire [`XLEN-1:0] req_paddr;
   wire req_attr_valid;
@@ -75,6 +101,7 @@ module tb_ooo_store_queue;
   wire [(1 << ENTRY_COUNT_W)-1:0] snoop_terminal;
   wire [ENTRY_COUNT_W-1:0] snoop_head;
   wire [ENTRY_COUNT_W:0] count;
+  wire [31:0] owner_release_mask;
 
   OooStoreQueue #(
     .ENTRY_COUNT_W(ENTRY_COUNT_W),
@@ -94,8 +121,18 @@ module tb_ooo_store_queue;
     .alloc1_valid_i(alloc1_valid),
     .alloc1_ready_o(alloc1_ready),
     .alloc1_rob_idx_i(alloc1_rob_idx),
+    .owner_bind_valid_i(owner_bind_valid),
+    .owner_bind_rob_idx_i(owner_bind_rob_idx),
+    .owner_bind_kind_i(owner_bind_kind),
+    .owner_bind_token_i(owner_bind_token),
+    .owner_bind_mmu_epoch_i(owner_bind_mmu_epoch),
+    .owner_bind_fault_tval_i(owner_bind_fault_tval),
     .fill0_valid_i(fill0_valid),
     .fill0_rob_idx_i(fill0_rob_idx),
+    .fill0_owner_kind_i(fill0_owner_kind),
+    .fill0_owner_token_i(fill0_owner_token),
+    .fill0_mmu_epoch_i(fill0_mmu_epoch),
+    .fill0_fault_tval_i(fill0_fault_tval),
     .fill0_vaddr_i(fill0_vaddr),
     .fill0_paddr_i(fill0_paddr),
     .fill0_attr_valid_i(fill0_attr_valid),
@@ -105,6 +142,10 @@ module tb_ooo_store_queue;
     .fill0_strb_i(fill0_strb),
     .fill1_valid_i(fill1_valid),
     .fill1_rob_idx_i(fill1_rob_idx),
+    .fill1_owner_kind_i(fill1_owner_kind),
+    .fill1_owner_token_i(fill1_owner_token),
+    .fill1_mmu_epoch_i(fill1_mmu_epoch),
+    .fill1_fault_tval_i(fill1_fault_tval),
     .fill1_vaddr_i(fill1_vaddr),
     .fill1_paddr_i(fill1_paddr),
     .fill1_attr_valid_i(fill1_attr_valid),
@@ -114,14 +155,26 @@ module tb_ooo_store_queue;
     .fill1_strb_i(fill1_strb),
     .terminal_valid_i(terminal_valid),
     .terminal_rob_idx_i(terminal_rob_idx),
+    .terminal_owner_kind_i(terminal_owner_kind),
+    .terminal_owner_token_i(terminal_owner_token),
+    .terminal_mmu_epoch_i(terminal_mmu_epoch),
+    .terminal_fault_tval_i(terminal_fault_tval),
     .terminal1_valid_i(terminal1_valid),
     .terminal1_rob_idx_i(terminal1_rob_idx),
+    .terminal1_owner_kind_i(terminal1_owner_kind),
+    .terminal1_owner_token_i(terminal1_owner_token),
+    .terminal1_mmu_epoch_i(terminal1_mmu_epoch),
+    .terminal1_fault_tval_i(terminal1_fault_tval),
     .release_valid_i(release_valid),
     .release_rob_idx_i(release_rob_idx),
     .release_ready_o(release_ready),
     .release_fire_o(release_fire),
     .req_valid_o(req_valid),
     .req_rob_idx_o(req_rob_idx),
+    .req_owner_kind_o(req_owner_kind),
+    .req_owner_token_o(req_owner_token),
+    .req_mmu_epoch_o(req_mmu_epoch),
+    .req_fault_tval_o(req_fault_tval),
     .req_vaddr_o(req_vaddr),
     .req_paddr_o(req_paddr),
     .req_attr_valid_o(req_attr_valid),
@@ -130,6 +183,7 @@ module tb_ooo_store_queue;
     .req_data_o(req_data),
     .req_strb_o(req_strb),
     .req_fire_i(req_fire),
+    .owner_release_mask_o(owner_release_mask),
     .snoop_valid_o(snoop_valid),
     .snoop_addr_valid_o(snoop_addr_valid),
     .snoop_addr_o(snoop_addr),
@@ -159,6 +213,34 @@ module tb_ooo_store_queue;
     end
   endtask
 
+  function automatic [`XLEN-1:0] owner_tval_for_rob;
+    input [ROB_INDEX_W-1:0] ridx;
+    begin
+      case (ridx)
+        4'd3: owner_tval_for_rob = 64'h0000_0000_0000_1000;
+        4'd4: owner_tval_for_rob = 64'h0000_0000_0000_2000;
+        4'd6: owner_tval_for_rob = 64'h0000_0000_0000_3000;
+        4'd15: owner_tval_for_rob = 64'h0000_0000_0000_5000;
+        default: owner_tval_for_rob =
+            {{(`XLEN-ROB_INDEX_W-12){1'b0}}, ridx, 12'b0};
+      endcase
+    end
+  endfunction
+
+  task automatic bind_one;
+    input [ROB_INDEX_W-1:0] ridx;
+    begin
+      owner_bind_valid = 1'b1;
+      owner_bind_rob_idx = ridx;
+      owner_bind_kind = 2'b01;
+      owner_bind_token = ridx;
+      owner_bind_mmu_epoch = ridx[1:0];
+      owner_bind_fault_tval = owner_tval_for_rob(ridx);
+      `TB_TICK(clk);
+      owner_bind_valid = 1'b0;
+    end
+  endtask
+
   task automatic alloc_one;
     input [ROB_INDEX_W-1:0] ridx;
     begin
@@ -166,6 +248,7 @@ module tb_ooo_store_queue;
       alloc0_rob_idx = ridx;
       `TB_TICK(clk);
       alloc0_valid = 1'b0;
+      bind_one(ridx);
     end
   endtask
 
@@ -177,6 +260,10 @@ module tb_ooo_store_queue;
     begin
       fill0_valid = 1'b1;
       fill0_rob_idx = ridx;
+      fill0_owner_kind = 2'b01;
+      fill0_owner_token = ridx;
+      fill0_mmu_epoch = ridx[1:0];
+      fill0_fault_tval = owner_tval_for_rob(ridx);
       fill0_vaddr = va;
       fill0_paddr = pa;
       fill0_attr_valid = 1'b1;
@@ -197,6 +284,10 @@ module tb_ooo_store_queue;
     begin
       terminal_valid = 1'b1;
       terminal_rob_idx = ridx;
+      terminal_owner_kind = 2'b01;
+      terminal_owner_token = ridx;
+      terminal_mmu_epoch = ridx[1:0];
+      terminal_fault_tval = owner_tval_for_rob(ridx);
       `TB_TICK(clk);
       terminal_valid = 1'b0;
     end
@@ -207,8 +298,59 @@ module tb_ooo_store_queue;
     begin
       release_valid = 1'b1;
       release_rob_idx = ridx;
+      #1;
+      tb_check1("precise release emits owner token", owner_release_mask[ridx], 1'b1);
       `TB_TICK(clk);
       release_valid = 1'b0;
+      #1;
+      tb_check32("owner release pulse is exactly once", owner_release_mask, 32'd0);
+    end
+  endtask
+
+  task automatic request_sent_global_flush_survival;
+    input [ROB_INDEX_W-1:0] ridx;
+    input b_error_case;
+    reg [`XLEN-1:0] va;
+    reg [`XLEN-1:0] pa;
+    begin
+      va = owner_tval_for_rob(ridx);
+      pa = 64'h0000_0000_8000_0000 | va;
+      alloc_one(ridx);
+      fill_one(ridx, va, pa, 64'hb000_0000_0000_0000 | ridx);
+      rob_head_valid = 1'b1;
+      rob_head_idx = ridx;
+      #1;
+      tb_check1("request_sent flush setup request", req_valid, 1'b1);
+      req_fire = 1'b1;
+      `TB_TICK(clk);
+      req_fire = 1'b0;
+      flush_valid = 1'b1;
+      flush_all = 1'b1;
+      flush_rob_head = ridx;
+      #1;
+      tb_check32("request_sent global flush emits no raw release",
+                 owner_release_mask, 32'd0);
+      `TB_TICK(clk);
+      flush_valid = 1'b0;
+      flush_all = 1'b0;
+      #1;
+      tb_check32("request_sent global flush keeps count", {28'b0, count}, 32'd1);
+      tb_check1("request_sent global flush keeps physical owner",
+                snoop_request_sent[snoop_head], 1'b1);
+      tb_check32("request_sent global flush keeps token",
+                 {27'b0, req_owner_token}, ridx);
+      tb_check32("request_sent global flush keeps epoch",
+                 {30'b0, req_mmu_epoch}, ridx[1:0]);
+      check64("request_sent global flush keeps tval", req_fault_tval, va);
+      check64("request_sent global flush keeps PA", req_paddr, pa);
+      send_terminal(ridx);
+      release_one(ridx);
+      #1;
+      tb_check32("request_sent post-B release empty", {28'b0, count}, 32'd0);
+      if (b_error_case)
+        $display("[S2-G1-SQ-GLOBAL-SURVIVE-BERR] exact error-B terminal retained owner until release PASS");
+      else
+        $display("[S2-G1-SQ-GLOBAL-SURVIVE-BOK] exact success-B terminal retained owner until release PASS");
     end
   endtask
 
@@ -226,8 +368,18 @@ module tb_ooo_store_queue;
     alloc0_rob_idx = '0;
     alloc1_valid = 1'b0;
     alloc1_rob_idx = '0;
+    owner_bind_valid = 1'b0;
+    owner_bind_rob_idx = '0;
+    owner_bind_kind = 2'b01;
+    owner_bind_token = 5'd0;
+    owner_bind_mmu_epoch = 2'b00;
+    owner_bind_fault_tval = '0;
     fill0_valid = 1'b0;
     fill0_rob_idx = '0;
+    fill0_owner_kind = 2'b01;
+    fill0_owner_token = 5'd0;
+    fill0_mmu_epoch = 2'b00;
+    fill0_fault_tval = '0;
     fill0_vaddr = '0;
     fill0_paddr = '0;
     fill0_attr_valid = 1'b0;
@@ -237,6 +389,10 @@ module tb_ooo_store_queue;
     fill0_strb = '0;
     fill1_valid = 1'b0;
     fill1_rob_idx = '0;
+    fill1_owner_kind = 2'b01;
+    fill1_owner_token = 5'd0;
+    fill1_mmu_epoch = 2'b00;
+    fill1_fault_tval = '0;
     fill1_vaddr = '0;
     fill1_paddr = '0;
     fill1_attr_valid = 1'b0;
@@ -246,8 +402,16 @@ module tb_ooo_store_queue;
     fill1_strb = '0;
     terminal_valid = 1'b0;
     terminal_rob_idx = '0;
+    terminal_owner_kind = 2'b01;
+    terminal_owner_token = 5'd0;
+    terminal_mmu_epoch = 2'b00;
+    terminal_fault_tval = '0;
     terminal1_valid = 1'b0;
     terminal1_rob_idx = '0;
+    terminal1_owner_kind = 2'b01;
+    terminal1_owner_token = 5'd0;
+    terminal1_mmu_epoch = 2'b00;
+    terminal1_fault_tval = '0;
     release_valid = 1'b0;
     release_rob_idx = '0;
     req_fire = 1'b0;
@@ -263,6 +427,8 @@ module tb_ooo_store_queue;
     alloc1_valid = 1'b1; alloc1_rob_idx = 4'd4;
     `TB_TICK(clk);
     alloc0_valid = 1'b0; alloc1_valid = 1'b0;
+    bind_one(4'd3);
+    bind_one(4'd4);
     alloc_one(4'd6);
     alloc_one(4'd9);
     #1;
@@ -271,6 +437,10 @@ module tb_ooo_store_queue;
 
     // Out-of-order fill.  The request face must retain both original VA and PA.
     fill1_valid = 1'b1; fill1_rob_idx = 4'd4;
+    fill1_owner_kind = 2'b01;
+    fill1_owner_token = 5'd4;
+    fill1_mmu_epoch = 2'b00;
+    fill1_fault_tval = owner_tval_for_rob(4'd4);
     fill1_vaddr = 64'h0000_0000_0000_2000;
     fill1_paddr = 64'h0000_0000_8000_2000;
     fill1_attr_valid = 1'b1;
@@ -279,6 +449,10 @@ module tb_ooo_store_queue;
     fill1_data = 64'h4444_4444_4444_4444;
     fill1_strb = 8'hff;
     fill0_valid = 1'b1; fill0_rob_idx = 4'd6;
+    fill0_owner_kind = 2'b01;
+    fill0_owner_token = 5'd6;
+    fill0_mmu_epoch = 2'b10;
+    fill0_fault_tval = owner_tval_for_rob(4'd6);
     fill0_vaddr = 64'h0000_0000_0000_3000;
     fill0_paddr = 64'h0000_0000_8000_3000;
     fill0_attr_valid = 1'b1;
@@ -303,6 +477,11 @@ module tb_ooo_store_queue;
     #1;
     tb_check1("head match exposes request", req_valid, 1'b1);
     tb_check32("head request ROB", {28'b0, req_rob_idx}, 32'd3);
+    tb_check32("head request owner kind", {30'b0, req_owner_kind}, 32'd1);
+    tb_check32("head request owner token", {27'b0, req_owner_token}, 32'd3);
+    tb_check32("head request owner epoch", {30'b0, req_mmu_epoch}, 32'd3);
+    check64("head request owner fault_tval", req_fault_tval,
+            64'h0000_0000_0000_1000);
     check64("request retains VA", req_vaddr, 64'h0000_0000_0000_1000);
     check64("request uses PA", req_paddr, 64'h0000_0000_8000_1000);
     tb_check1("request retains post-translate cacheable class",
@@ -339,6 +518,9 @@ module tb_ooo_store_queue;
     flush_all = 1'b0;
     flush_rob_head = 4'd3;
     flush_boundary_rob = 4'd6;
+    #1;
+    tb_check32("branch flush raw owner release mask", owner_release_mask,
+               32'h0000_0200);
     `TB_TICK(clk);
     flush_valid = 1'b0;
     #1;
@@ -380,6 +562,10 @@ module tb_ooo_store_queue;
     rob_head_idx = 4'd6;
     terminal_valid = 1'b1;
     terminal_rob_idx = 4'd6;
+    terminal_owner_kind = 2'b01;
+    terminal_owner_token = 5'd6;
+    terminal_mmu_epoch = 2'b10;
+    terminal_fault_tval = owner_tval_for_rob(4'd6);
     release_valid = 1'b1;
     release_rob_idx = 4'd6;
     #1;
@@ -397,12 +583,21 @@ module tb_ooo_store_queue;
     flush_valid = 1'b1;
     flush_all = 1'b1;
     flush_rob_head = 4'd10;
+    #1;
+    tb_check32("global flush raw owner release mask", owner_release_mask,
+               32'h0000_0c00);
     `TB_TICK(clk);
     flush_valid = 1'b0;
     flush_all = 1'b0;
     #1;
     tb_check32("global flush clears speculation", {28'b0, count}, 32'd0);
     tb_check1("empty request invalid", req_valid, 1'b0);
+
+    // An accepted physical STORE is nokill.  Global flush before B must keep
+    // the complete owner and must not emit a squash release; success/error B
+    // share the same exact SQ terminal and release boundary.
+    request_sent_global_flush_survival(4'd8, 1'b0);
+    request_sent_global_flush_survival(4'd7, 1'b1);
 
     // Reviewer event algebra: one terminal head release and two fresh dispatch
     // allocations are independent ports.  Occupancy is old(1)-release(1)+alloc(2).
@@ -422,6 +617,8 @@ module tb_ooo_store_queue;
     release_valid = 1'b0;
     alloc0_valid = 1'b0;
     alloc1_valid = 1'b0;
+    bind_one(4'd13);
+    bind_one(4'd14);
     #1;
     tb_check32("release+dual-alloc count", {28'b0, count}, 32'd2);
     tb_check1("release+dual-alloc new head valid", snoop_valid[snoop_head], 1'b1);
@@ -434,8 +631,16 @@ module tb_ooo_store_queue;
     // 两个不同 terminal tag 同拍各命中一次，不能由单 tag mux 丢掉一路。
     terminal_valid = 1'b1;
     terminal_rob_idx = 4'd13;
+    terminal_owner_kind = 2'b01;
+    terminal_owner_token = 5'd13;
+    terminal_mmu_epoch = 2'b01;
+    terminal_fault_tval = owner_tval_for_rob(4'd13);
     terminal1_valid = 1'b1;
     terminal1_rob_idx = 4'd14;
+    terminal1_owner_kind = 2'b01;
+    terminal1_owner_token = 5'd14;
+    terminal1_mmu_epoch = 2'b10;
+    terminal1_fault_tval = owner_tval_for_rob(4'd14);
 `ifdef T4N_DUAL_TERMINAL_SAME_TAG_NEGATIVE
     terminal1_rob_idx = 4'd13;
     $display("[T4N-DUAL-TERMINAL-SAME-TAG-NEGATIVE] forced both terminal tags to rob13");
@@ -469,6 +674,10 @@ module tb_ooo_store_queue;
     req_fire = 1'b0;
     terminal_valid = 1'b1;
     terminal_rob_idx = 4'd15;
+    terminal_owner_kind = 2'b01;
+    terminal_owner_token = 5'd15;
+    terminal_mmu_epoch = 2'b11;
+    terminal_fault_tval = owner_tval_for_rob(4'd15);
     release_valid = 1'b1;
     release_rob_idx = 4'd15;
     flush_valid = 1'b1;
@@ -476,6 +685,8 @@ module tb_ooo_store_queue;
     flush_rob_head = 4'd15;
     #1;
     tb_check1("terminal+release+flush same-cycle ready", release_ready, 1'b1);
+    tb_check32("terminal+release+flush exact owner release mask",
+               owner_release_mask, 32'h0000_8000);
     `TB_TICK(clk);
     terminal_valid = 1'b0;
     release_valid = 1'b0;
@@ -487,6 +698,37 @@ module tb_ooo_store_queue;
     tb_check32("terminal+release+flush no ghost owner",
                {28'b0, snoop_request_sent}, 32'd0);
     $display("[T4N-SQ-TERMINAL-RELEASE-GLOBAL-FLUSH] accepted owner released exactly once PASS");
+
+    // Capture-time local exception: owner bind and terminal1 arrive together,
+    // and the existing same-cycle terminal→release bypass must remain exact.
+    alloc0_valid = 1'b1;
+    alloc0_rob_idx = 4'd1;
+    `TB_TICK(clk);
+    alloc0_valid = 1'b0;
+    owner_bind_valid = 1'b1;
+    owner_bind_rob_idx = 4'd1;
+    owner_bind_kind = 2'b01;
+    owner_bind_token = 5'd1;
+    owner_bind_mmu_epoch = 2'b01;
+    owner_bind_fault_tval = owner_tval_for_rob(4'd1);
+    terminal1_valid = 1'b1;
+    terminal1_rob_idx = 4'd1;
+    terminal1_owner_kind = 2'b01;
+    terminal1_owner_token = 5'd1;
+    terminal1_mmu_epoch = 2'b01;
+    terminal1_fault_tval = owner_tval_for_rob(4'd1);
+    release_valid = 1'b1;
+    release_rob_idx = 4'd1;
+    #1;
+    tb_check1("bind+terminal1 release ready", release_ready, 1'b1);
+    tb_check32("bind+terminal1 exact owner mask", owner_release_mask, 32'h0000_0002);
+    `TB_TICK(clk);
+    owner_bind_valid = 1'b0;
+    terminal1_valid = 1'b0;
+    release_valid = 1'b0;
+    #1;
+    tb_check32("bind+terminal1 release leaves empty", {28'b0, count}, 32'd0);
+    $display("[S2-G1-SQ-BIND-TERMINAL1] same-cycle exact owner terminal/release PASS");
 
     tb_finish("tb_ooo_store_queue");
   end

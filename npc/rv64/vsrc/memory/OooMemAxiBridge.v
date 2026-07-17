@@ -35,6 +35,29 @@ module OooMemAxiBridge (
   // Migration-only compatibility view.  It is asserted against the typed
   // payload and is never used for routing or state.
   input mem0_req_cacheable_i,
+  input [1:0] mem0_req_owner_kind_i,
+  input [4:0] mem0_req_owner_token_i,
+  input [1:0] mem0_req_mmu_epoch_i,
+  input [`XLEN-1:0] mem0_req_fault_tval_i,
+  // Registered MIQ-head truth.  Equality is a side-effect qualification only:
+  // it must never feed request-ready or response-ready/transport advancement.
+  input mem0_expected_valid_i,
+  input [1:0] mem0_expected_owner_kind_i,
+  input [4:0] mem0_expected_owner_token_i,
+  input [1:0] mem0_expected_mmu_epoch_i,
+  input mem0_expected_tval_valid_i,
+  input [`XLEN-1:0] mem0_expected_fault_tval_i,
+  input mem0_expected_effective_killed_i,
+  // Edge-old tracker metadata for the active-token query.  This proves global
+  // liveness/ABA safety but does not prove MIQ in-order head ownership.
+  input mem0_tracker_expected_valid_i,
+  input [1:0] mem0_tracker_expected_owner_kind_i,
+  input [4:0] mem0_tracker_expected_owner_token_i,
+  input [1:0] mem0_tracker_expected_mmu_epoch_i,
+  input mem0_station_expected_valid_i,
+  input [1:0] mem0_station_expected_owner_kind_i,
+  input [4:0] mem0_station_expected_owner_token_i,
+  input [1:0] mem0_station_expected_mmu_epoch_i,
   // T4M: backend MIQ/ROB owns whether the current in-order device read may
   // become externally visible.  cancel is the ROB-walk killed-head path.
   input mem0_device_release_i,
@@ -50,6 +73,34 @@ module OooMemAxiBridge (
   output mem0_rsp_attr_valid_o,
   output [1:0] mem0_rsp_class_o,
   output mem0_rsp_cacheable_o,
+  output [1:0] mem0_rsp_owner_kind_o,
+  output [4:0] mem0_rsp_owner_token_o,
+  output [1:0] mem0_rsp_mmu_epoch_o,
+  output [`XLEN-1:0] mem0_rsp_fault_tval_o,
+  // Two independent, no-backpressure owner terminals.  drop0 is the active
+  // FSM owner after its real external drain/cancel terminal; drop1 is a plain
+  // request-station owner cancelled before stage advance.  They may coincide.
+  output mem0_drop0_valid_o,
+  output [1:0] mem0_drop0_owner_kind_o,
+  output [4:0] mem0_drop0_owner_token_o,
+  output [1:0] mem0_drop0_mmu_epoch_o,
+  output [`XLEN-1:0] mem0_drop0_fault_tval_o,
+  output mem0_drop1_valid_o,
+  output [1:0] mem0_drop1_owner_kind_o,
+  output [4:0] mem0_drop1_owner_token_o,
+  output [1:0] mem0_drop1_mmu_epoch_o,
+  output [`XLEN-1:0] mem0_drop1_fault_tval_o,
+  // Two independent token queries sent to the external edge-old owner tracker.
+  // Back-to-back response+advance needs the old active and next station owner
+  // verified on the same edge; a muxed single query would validate one with
+  // the other's metadata.
+  output mem0_owner_query_valid_o,
+  output [4:0] mem0_owner_query_token_o,
+  output mem0_station_query_valid_o,
+  output [4:0] mem0_station_query_token_o,
+  // Edge-old bridge residency used only to suppress an SQ bulk release while
+  // the exact STORE token still resides in station/active/held-response state.
+  output [31:0] mem0_owner_residency_mask_o,
   // 当前特权/satp 上下文下数据访问是否经 Sv39 翻译(供后端 load-vs-SQ 判定选 blind 模式)
   output translate_active_o,
 
@@ -111,6 +162,10 @@ module OooMemAxiBridge (
   // T4M: final PA is outside cacheable PMEM.  No data AR is presented until
   // the exact MIQ owner reaches ROB head; a killed owner is quietly cancelled.
   localparam [3:0] S_DEVICE_WAIT = 4'd10;
+  // Non-assert fail-closed quarantine for a request whose captured station
+  // tuple did not match the edge-old external owner tracker.  It performs no
+  // transport or architectural side effect and requires an explicit flush.
+  localparam [3:0] S_OWNER_HOLD = 4'd11;
   localparam [`XLEN-1:0] PTE_A_BIT = {{(`XLEN-7){1'b0}}, 7'h40};  // bit 6 (Accessed)
   localparam [`XLEN-1:0] PTE_D_BIT = {{(`XLEN-8){1'b0}}, 8'h80};  // bit 7 (Dirty)
   // 【LSQ Phase2+3】8KB(2^10×8B)直映对 CoreMark 工作集 miss 率 47.6%——
@@ -143,6 +198,27 @@ module OooMemAxiBridge (
   // (跳过翻译/PMP)全部在 advance 拍组合完成, 无需再寄存进 FSM。
   reg probe_q;
   reg nokill_q;
+  reg [1:0] active_owner_kind_q;
+  reg [4:0] active_owner_token_q;
+  reg [1:0] active_mmu_epoch_q;
+  reg [`XLEN-1:0] active_fault_tval_q;
+  reg active_owner_verified_q;
+  reg [1:0] verified_owner_kind_q;
+  reg [4:0] verified_owner_token_q;
+  reg [1:0] verified_mmu_epoch_q;
+  reg write_escaped_q;
+  // A write that was exact when killed may outlive the MIQ head because AXI
+  // VALID cannot be withdrawn after presentation.  Preserve only the narrow
+  // authority needed to invalidate a possible cache alias at its eventual B;
+  // this bit never authorizes response, fill, or data RMW side effects.
+  reg killed_write_maintenance_authorized_q;
+  // Held response provenance is a distinct snapshot.  It cannot borrow the
+  // active registers because a killed S_RESP owner may be atomically replaced
+  // by a queued nokill request on the same edge.
+  reg [1:0] rsp_owner_kind_q;
+  reg [4:0] rsp_owner_token_q;
+  reg [1:0] rsp_mmu_epoch_q;
+  reg [`XLEN-1:0] rsp_fault_tval_q;
   // 【P5 刀 M·桥侧 req 寄存站】req fire(=accept)拍只锁存 CPU 侧请求 8 字段, 零计算;
   // 翻译(DTLB CAM)/PMP/dcache 发射/全部分流决策整体推迟到 stage_advance 拍
   // (accept_request 改从寄存站取数)。必须留在 fire 拍的只有字段锁存本身——core 侧
@@ -160,6 +236,10 @@ module OooMemAxiBridge (
   reg stg_nokill_q;
   reg stg_attr_valid_q;
   reg [1:0] stg_class_q;
+  reg [1:0] stg_owner_kind_q;
+  reg [4:0] stg_owner_token_q;
+  reg [1:0] stg_mmu_epoch_q;
+  reg [`XLEN-1:0] stg_fault_tval_q;
   // 【line-dcache】本读事务是否跨 8B line(跨线走窗口读不 fill; 不跨线发对齐
   // AR, 回填 line 并把窗口视图给 CPU)。read_exact_q 还覆盖 uncacheable：这类
   // 访问必须保留原 PA/size，不能把 MMIO 扩大成带额外读副作用的 8B line 访问。
@@ -380,6 +460,41 @@ module OooMemAxiBridge (
   // 响应就绪/请求选择都直取 mem0,active_port 归属随之消失。
   wire rsp_ready_w = mem0_rsp_ready_i;
   wire cpu_kill_w = flush_i || drop_rsp_q;
+  wire lookup_hit_fusion_w;
+  wire active_rsp_identity_consistent_w =
+      (active_owner_kind_q == rsp_owner_kind_q) &&
+      (active_owner_token_q == rsp_owner_token_q) &&
+      (active_mmu_epoch_q == rsp_mmu_epoch_q);
+  wire active_rsp_tval_echo_match_w =
+      (active_fault_tval_q == rsp_fault_tval_q);
+  wire active_expected_identity_match_w = mem0_expected_valid_i &&
+      (active_owner_kind_q == mem0_expected_owner_kind_i) &&
+      (active_owner_token_q == mem0_expected_owner_token_i) &&
+      (active_mmu_epoch_q == mem0_expected_mmu_epoch_i);
+  wire active_expected_tval_echo_match_w =
+      (active_fault_tval_q == mem0_expected_fault_tval_i);
+  wire active_tracker_identity_match_w = mem0_tracker_expected_valid_i &&
+      (active_owner_kind_q == mem0_tracker_expected_owner_kind_i) &&
+      (active_owner_token_q == mem0_tracker_expected_owner_token_i) &&
+      (active_mmu_epoch_q == mem0_tracker_expected_mmu_epoch_i);
+  wire rsp_expected_identity_match_w = mem0_expected_valid_i &&
+      (rsp_owner_kind_q == mem0_expected_owner_kind_i) &&
+      (rsp_owner_token_q == mem0_expected_owner_token_i) &&
+      (rsp_mmu_epoch_q == mem0_expected_mmu_epoch_i);
+  wire rsp_expected_tval_echo_match_w =
+      (rsp_fault_tval_q == mem0_expected_fault_tval_i);
+  wire visible_rsp_expected_identity_match_w = lookup_hit_fusion_w ?
+      active_expected_identity_match_w : rsp_expected_identity_match_w;
+  wire visible_rsp_expected_tval_echo_match_w = lookup_hit_fusion_w ?
+      active_expected_tval_echo_match_w : rsp_expected_tval_echo_match_w;
+  wire station_expected_identity_match_w = mem0_station_expected_valid_i &&
+      (stg_owner_kind_q == mem0_station_expected_owner_kind_i) &&
+      (stg_owner_token_q == mem0_station_expected_owner_token_i) &&
+      (stg_mmu_epoch_q == mem0_station_expected_mmu_epoch_i);
+  wire active_sticky_identity_match_w = active_owner_verified_q &&
+      (active_owner_kind_q == verified_owner_kind_q) &&
+      (active_owner_token_q == verified_owner_token_q) &&
+      (active_mmu_epoch_q == verified_mmu_epoch_q);
   // nokill 事务(退休 store 落存)进行期间, flush/drop 对 FSM 推进与响应握手均无效——
   // 写必达。nokill_q 是"当前事务"属性(accept 拍覆盖), 非 IDLE 态即有效。
   wire nokill_busy_w = nokill_q && (state_q != S_IDLE);
@@ -397,12 +512,15 @@ module OooMemAxiBridge (
   // 刀D 融合谓词: S_LOOKUP 命中拍组合响应(load hit 流 1 拍/load)。声明先行、
   // assign 在 dcache hit 判定之后(iverilog14 net-decl-assign 前向引用禁令的
   // 拆声明修复形态)。谓词含 !cpu_kill(p42 型污染防线: 被 kill load 禁经融合臂交付)。
-  wire lookup_hit_fusion_w;
   wire stage_advance_w = stg_valid_q && !dcache_rmw_busy_w &&
                          ((state_q == S_IDLE) ||
                           ((state_q == S_RESP) && rsp_ready_w) ||
                           (lookup_hit_fusion_w && rsp_ready_w)) &&
                          (!cpu_kill_w || stg_nokill_q);
+  assign mem0_owner_query_valid_o = (state_q != S_IDLE);
+  assign mem0_owner_query_token_o = active_owner_token_q;
+  assign mem0_station_query_valid_o = stage_advance_w;
+  assign mem0_station_query_token_o = stg_owner_token_q;
   wire req_write_w = stg_write_q;
   wire [`XLEN-1:0] req_addr_w = stg_addr_q;
   wire [`XLEN-1:0] req_wdata_w = stg_wdata_q;
@@ -524,21 +642,54 @@ module OooMemAxiBridge (
   // A/D 写回 B 成功拍: 用 ad_pte_q 填 TLB(A/D 已置)+ 续原访问。
   wire ad_update_b_ok_w =
       ad_update_b_terminal_w && (lsu_axi_bresp_i == 2'b00);
+  // Once registered AW/W VALID is visible, AXI makes the write irrevocable
+  // even before READY.  The kill-edge capture is deliberately stricter than
+  // the later maintenance use: all three owner views must still name the
+  // exact edge-old transaction, and a retirement (nokill) store is excluded.
+  wire write_irrevocably_presented_w = write_escaped_q || aw_fire_w ||
+      w_fire_w ||
+      (((state_q == S_WRITE_REQ) || (state_q == S_AD_UPDATE)) &&
+       (lsu_axi_awvalid_o || lsu_axi_wvalid_o));
+  wire killed_write_maintenance_capture_w =
+      mem0_expected_effective_killed_i && !nokill_q &&
+      active_expected_identity_match_w && active_tracker_identity_match_w &&
+      active_sticky_identity_match_w && write_irrevocably_presented_w;
+  wire killed_write_maintenance_authorized_w =
+      killed_write_maintenance_authorized_q ||
+      killed_write_maintenance_capture_w;
   // 无需更新 → S_WALK_R 填原始 PTE(A/D 已足); 需更新 → 待 S_AD_UPDATE 写完填 ad_pte_q。
   wire dtlb_fill_valid_w =
-      (dtlb_leaf_ok_w && walk_leaf_attr_valid_w && !walk_ad_needed_w) ||
-      ad_update_b_ok_w;
+      active_expected_identity_match_w && active_tracker_identity_match_w &&
+      active_sticky_identity_match_w && fsm_normal_w &&
+      !mem0_expected_effective_killed_i &&
+      !killed_write_maintenance_authorized_w &&
+      ((dtlb_leaf_ok_w && walk_leaf_attr_valid_w && !walk_ad_needed_w) ||
+       ad_update_b_ok_w);
   wire [`XLEN-1:0] dtlb_fill_pte_w =
       ad_update_b_ok_w ? ad_pte_q : lsu_axi_rdata_i;
   wire dcache_read_fill_valid_w =
-      !cpu_kill_w && (state_q == S_READ_DATA) && lsu_axi_rvalid_i &&
+      active_expected_identity_match_w && active_tracker_identity_match_w &&
+      active_sticky_identity_match_w && fsm_normal_w &&
+      !mem0_expected_effective_killed_i &&
+      (state_q == S_READ_DATA) && lsu_axi_rvalid_i &&
       (lsu_axi_rresp_i == 2'b00) && access_cacheable_w && !read_exact_q;
   // Store/PTE aliases are maintained on every B terminal.  Data RMW is
   // separately enabled only for an all-OK final-cacheable data store; B error,
   // PBMT NC/IO, and A/D maintenance all take the valid-only invalidate path.
   wire dcache_store_commit_w =
-      data_store_b_terminal_w || ad_update_b_terminal_w;
-  wire dcache_store_rmw_en_w = data_store_b_ok_w && access_cacheable_w;
+      active_tracker_identity_match_w && active_sticky_identity_match_w &&
+      write_irrevocably_presented_w &&
+      (active_expected_identity_match_w ||
+       killed_write_maintenance_authorized_w) &&
+      (data_store_b_terminal_w || ad_update_b_terminal_w);
+  // A killed write that already escaped still needs a conservative alias
+  // invalidate, but may not use sticky verification to authorize an RMW data
+  // update.  RMW therefore requires a current exact owner and non-killed head.
+  wire dcache_store_rmw_en_w = data_store_b_ok_w && access_cacheable_w &&
+      active_expected_identity_match_w && active_tracker_identity_match_w &&
+      active_sticky_identity_match_w && fsm_normal_w &&
+      !mem0_expected_effective_killed_i &&
+      !killed_write_maintenance_authorized_w;
   wire dcache_store_cacheable_w =
       ad_update_b_terminal_w || access_cacheable_w;
 
@@ -550,7 +701,7 @@ module OooMemAxiBridge (
   //   A/D 路: S_AD_UPDATE b-ok read——改用锁存 paddr_q, 消灭对 R 通道残留
   //     lsu_axi_rdata_i 的依赖(第二个既有 bug)。
   wire req_read_lookup_fire_w =
-      stage_advance_w && !req_write_w &&
+      stage_advance_w && station_expected_identity_match_w && !req_write_w &&
       req_dcacheable_w && !req_typed_fault_w &&
       !req_data_pmp_fault_w && !req_dtlb_perm_fault_w;
   // S1.2 strict cache authorization: neither NC nor IO may even issue a raw
@@ -825,6 +976,30 @@ module OooMemAxiBridge (
                             `OOO_MEM_CLASS_RSVD;
   assign mem0_rsp_cacheable_o = mem0_rsp_attr_valid_o &&
                                 (mem0_rsp_class_o == `OOO_MEM_CLASS_CACHED);
+  // A fused lookup response belongs to the active transaction; a held S_RESP
+  // belongs to its distinct response snapshot.  Neither path reconstructs from
+  // the current request bus or ROB tag.
+  assign mem0_rsp_owner_kind_o = lookup_hit_fusion_w ?
+      active_owner_kind_q : rsp_owner_kind_q;
+  assign mem0_rsp_owner_token_o = lookup_hit_fusion_w ?
+      active_owner_token_q : rsp_owner_token_q;
+  assign mem0_rsp_mmu_epoch_o = lookup_hit_fusion_w ?
+      active_mmu_epoch_q : rsp_mmu_epoch_q;
+  assign mem0_rsp_fault_tval_o = lookup_hit_fusion_w ?
+      active_fault_tval_q : rsp_fault_tval_q;
+  reg [31:0] owner_residency_mask_r;
+  always @(*) begin
+    owner_residency_mask_r = 32'b0;
+    if (state_q != S_IDLE)
+      owner_residency_mask_r[active_owner_token_q] = 1'b1;
+    if (stg_valid_q)
+      owner_residency_mask_r[stg_owner_token_q] = 1'b1;
+    // S_RESP is intentionally listed as a distinct semantic residency even
+    // though the exact invariant normally aliases its token with active.
+    if (state_q == S_RESP)
+      owner_residency_mask_r[rsp_owner_token_q] = 1'b1;
+  end
+  assign mem0_owner_residency_mask_o = owner_residency_mask_r;
   assign translate_active_o = ctx_translate_w;
 
   // 【SRAM 同步读】read miss 的 AR 从 fire 拍推迟到 S_LOOKUP 判决拍(晚 1 拍),
@@ -837,11 +1012,12 @@ module OooMemAxiBridge (
   // one-cycle speculative S_LOOKUP arm may be cancelled before it is owned by
   // S_READ_ADDR; a stalled S_LOOKUP AR moves to S_READ_ADDR at the same edge.
   assign lsu_axi_arvalid_o =
-      ((state_q == S_WALK_AR) && !walk_pte_pmp_fault_w) ||
-      (state_q == S_READ_ADDR) ||
-      (!cpu_kill_w && (state_q == S_DEVICE_WAIT) &&
+      (active_owner_verified_q && (state_q == S_WALK_AR) &&
+       !walk_pte_pmp_fault_w) ||
+      (active_owner_verified_q && (state_q == S_READ_ADDR)) ||
+      (active_owner_verified_q && !cpu_kill_w && (state_q == S_DEVICE_WAIT) &&
        mem0_device_release_i && !mem0_device_cancel_i) ||
-      (!cpu_kill_w &&
+      (active_owner_verified_q && !cpu_kill_w &&
        (state_q == S_LOOKUP) && !dcache_lookup_hit_final_w &&
        !dcache_rmw_busy_w);
   wire [`XLEN-1:0] pend_read_araddr_w =
@@ -854,25 +1030,74 @@ module OooMemAxiBridge (
       (state_q == S_WALK_AR) ? 3'd3 :
       (read_exact_q ? axsize_from_bytes(access_size_from_wstrb(wstrb_q)) : 3'd3);
   assign lsu_axi_rready_o = (state_q == S_WALK_R) || (state_q == S_READ_DATA);
-  wire write_drain_w =
-      drop_rsp_q || (flush_i && (aw_done_q || w_done_q));
   // HW A/D: S_AD_UPDATE 复用写通道写回 leaf PTE(awaddr=PTE 地址, wdata=置位 PTE, wstrb=全 8B),
-  // 写必达(不受 cpu_kill 门控; flush 由 FSM 完成写后 drop, 幂等)。
+  // 写必达(不受 cpu_kill 门控; flush 由 FSM 完成写后 drop, 幂等)。S_WRITE_REQ
+  // 也一旦进入 registered VALID owner 后必须逐通道保持到 handshake；即使两个
+  // 通道都尚未 fire，flush 也不能撤回已经呈现的 VALID/payload。
   assign lsu_axi_awvalid_o =
-      ((state_q == S_WRITE_REQ) && !aw_done_q &&
-       (!cpu_kill_w || write_drain_w || nokill_q)) ||
-      ((state_q == S_AD_UPDATE) && !aw_done_q);
+      (active_owner_verified_q && (state_q == S_WRITE_REQ) && !aw_done_q) ||
+      (active_owner_verified_q && (state_q == S_AD_UPDATE) && !aw_done_q);
   assign lsu_axi_awaddr_o =
       (state_q == S_AD_UPDATE) ? walk_pte_addr_w : paddr_q;
   assign lsu_axi_wvalid_o =
-      ((state_q == S_WRITE_REQ) && !w_done_q &&
-       (!cpu_kill_w || write_drain_w || nokill_q)) ||
-      ((state_q == S_AD_UPDATE) && !w_done_q);
+      (active_owner_verified_q && (state_q == S_WRITE_REQ) && !w_done_q) ||
+      (active_owner_verified_q && (state_q == S_AD_UPDATE) && !w_done_q);
   assign lsu_axi_wdata_o = (state_q == S_AD_UPDATE) ? ad_pte_q : wdata_q;
   assign lsu_axi_wstrb_o = (state_q == S_AD_UPDATE) ? {`STRB_W{1'b1}} : wstrb_q;
   // 所有 store 与 HW A/D 写回均等 B；聚合 BRESP 是唯一完成点。
   assign lsu_axi_bready_o =
       (state_q == S_WRITE_RESP) || (state_q == S_AD_UPDATE);
+
+  // Exact owner drop terminals.  These predicates mirror the real FSM edges
+  // that retire a killed transport owner; flush itself is not a terminal when
+  // an AXI R/B drain remains outstanding.
+  reg active_drop_terminal_r;
+  always @(*) begin
+    active_drop_terminal_r = 1'b0;
+    if (stage_advance_w && cpu_kill_w && !nokill_busy_w &&
+        (state_q != S_IDLE)) begin
+      // Killed held response is replaced atomically by queued nokill work.
+      active_drop_terminal_r = 1'b1;
+    end else if ((flush_i || drop_rsp_q) && !nokill_busy_w) begin
+      case (state_q)
+        S_LOOKUP,
+        S_DEVICE_WAIT,
+        S_OWNER_HOLD,
+        S_RESP: active_drop_terminal_r = 1'b1;
+        S_WALK_AR: active_drop_terminal_r =
+            walk_pte_pmp_fault_w || !active_owner_verified_q;
+        S_WALK_R,
+        S_READ_DATA: active_drop_terminal_r = lsu_axi_rvalid_i;
+        // Entering S_WRITE_REQ has already presented registered AW/W owners;
+        // cancellation is no longer legal, so the exact terminal is B only.
+        S_WRITE_REQ: active_drop_terminal_r =
+            !active_owner_verified_q && !write_escaped_q;
+        S_WRITE_RESP: active_drop_terminal_r = lsu_axi_bvalid_i;
+        S_AD_UPDATE: active_drop_terminal_r =
+            (aw_done_q || aw_fire_w) && (w_done_q || w_fire_w) &&
+            lsu_axi_bvalid_i;
+        default: active_drop_terminal_r = 1'b0;
+      endcase
+    end
+  end
+
+  wire station_drop_terminal_w = flush_i && stg_valid_q &&
+      !stg_nokill_q && !stage_advance_w;
+  assign mem0_drop0_valid_o = active_drop_terminal_r;
+  wire drop0_uses_rsp_snapshot_w = (state_q == S_RESP);
+  assign mem0_drop0_owner_kind_o = drop0_uses_rsp_snapshot_w ?
+      rsp_owner_kind_q : active_owner_kind_q;
+  assign mem0_drop0_owner_token_o = drop0_uses_rsp_snapshot_w ?
+      rsp_owner_token_q : active_owner_token_q;
+  assign mem0_drop0_mmu_epoch_o = drop0_uses_rsp_snapshot_w ?
+      rsp_mmu_epoch_q : active_mmu_epoch_q;
+  assign mem0_drop0_fault_tval_o = drop0_uses_rsp_snapshot_w ?
+      rsp_fault_tval_q : active_fault_tval_q;
+  assign mem0_drop1_valid_o = station_drop_terminal_w;
+  assign mem0_drop1_owner_kind_o = stg_owner_kind_q;
+  assign mem0_drop1_owner_token_o = stg_owner_token_q;
+  assign mem0_drop1_mmu_epoch_o = stg_mmu_epoch_q;
+  assign mem0_drop1_fault_tval_o = stg_fault_tval_q;
 
   // 【刀 M】accept_request 的调用时机从 req fire 拍改为 stage_advance 拍, 全部
   // 数据源经 req_*_w 簇取自寄存站(stg_*); 分流决策文本与旧版逐字一致。
@@ -892,12 +1117,30 @@ module OooMemAxiBridge (
       wstrb_q <= req_wstrb_w;
       probe_q <= stg_probe_q && req_write_w;
       nokill_q <= stg_nokill_q;
+      active_owner_kind_q <= stg_owner_kind_q;
+      active_owner_token_q <= stg_owner_token_q;
+      active_mmu_epoch_q <= stg_mmu_epoch_q;
+      active_fault_tval_q <= stg_fault_tval_q;
+      // Preload the distinct response snapshot exactly once with the accepted
+      // owner.  It remains frozen through S_RESP stalls and is independently
+      // selected from active on the response port.
+      rsp_owner_kind_q <= stg_owner_kind_q;
+      rsp_owner_token_q <= stg_owner_token_q;
+      rsp_mmu_epoch_q <= stg_mmu_epoch_q;
+      rsp_fault_tval_q <= stg_fault_tval_q;
+      active_owner_verified_q <= station_expected_identity_match_w;
+      verified_owner_kind_q <= mem0_station_expected_owner_kind_i;
+      verified_owner_token_q <= mem0_station_expected_owner_token_i;
+      verified_mmu_epoch_q <= mem0_station_expected_mmu_epoch_i;
+      write_escaped_q <= 1'b0;
       rsp_rdata_q <= {`XLEN{1'b0}};
       rsp_error_q <= 1'b0;
       rsp_page_fault_q <= 1'b0;
       aw_done_q <= 1'b0;
       w_done_q <= 1'b0;
-      if (req_typed_page_fault_w) begin
+      if (!station_expected_identity_match_w) begin
+        state_q <= S_OWNER_HOLD;
+      end else if (req_typed_page_fault_w) begin
         rsp_error_q <= 1'b1;
         rsp_page_fault_q <= 1'b1;
         state_q <= S_RESP;
@@ -949,6 +1192,21 @@ module OooMemAxiBridge (
     end
   endtask
 
+  // Capture only while the edge-old expected owner is still exact.  A later
+  // MIQ advance may make active_expected_identity_match_w false, but the
+  // escaped write still owns one conservative invalidate at its real B.  B
+  // terminal wins over same-cycle capture because the authority is consumed.
+  always @(posedge clk) begin
+    if (rst)
+      killed_write_maintenance_authorized_q <= 1'b0;
+    else if (stage_advance_w)
+      killed_write_maintenance_authorized_q <= 1'b0;
+    else if (data_store_b_terminal_w || ad_update_b_terminal_w)
+      killed_write_maintenance_authorized_q <= 1'b0;
+    else if (killed_write_maintenance_capture_w)
+      killed_write_maintenance_authorized_q <= 1'b1;
+  end
+
   always @(posedge clk) begin
     if (rst) begin
       state_q <= S_IDLE;
@@ -975,7 +1233,22 @@ module OooMemAxiBridge (
       drop_rsp_q <= 1'b0;
       probe_q <= 1'b0;
       nokill_q <= 1'b0;
+      active_owner_kind_q <= 2'b00;
+      active_owner_token_q <= 5'b0;
+      active_mmu_epoch_q <= 2'b0;
+      active_fault_tval_q <= {`XLEN{1'b0}};
+      rsp_owner_kind_q <= 2'b00;
+      rsp_owner_token_q <= 5'b0;
+      rsp_mmu_epoch_q <= 2'b0;
+      rsp_fault_tval_q <= {`XLEN{1'b0}};
+      active_owner_verified_q <= 1'b0;
+      verified_owner_kind_q <= 2'b00;
+      verified_owner_token_q <= 5'b0;
+      verified_mmu_epoch_q <= 2'b0;
+      write_escaped_q <= 1'b0;
     end else begin
+      if (aw_fire_w || w_fire_w)
+        write_escaped_q <= 1'b1;
       // 【刀 M】寄存站项进 FSM(stage_advance 拍)最高优先: 只可能发生在 S_IDLE 或
       // S_RESP&&rsp_ready(两态 drop_rsp_q 恒 0、无遗留清理义务, done 位由
       // accept_request 清零)。nokill 项经 (!cpu_kill_w||stg_nokill_q) 豁免, flush
@@ -1004,6 +1277,13 @@ module OooMemAxiBridge (
         // 尚未 release 的 device read 从未呈现 AR，可在 global flush/drop
         // 拍直接释放；ROB-walk selective kill 走正常分支的 cancel quiet rsp。
         S_DEVICE_WAIT: begin
+          state_q <= S_IDLE;
+          aw_done_q <= 1'b0;
+          w_done_q <= 1'b0;
+          drop_rsp_q <= 1'b0;
+        end
+
+        S_OWNER_HOLD: begin
           state_q <= S_IDLE;
           aw_done_q <= 1'b0;
           w_done_q <= 1'b0;
@@ -1047,18 +1327,14 @@ module OooMemAxiBridge (
         end
 
         S_WRITE_REQ: begin
-          if (aw_done_q || w_done_q || aw_fire_w || w_fire_w || drop_rsp_q) begin
-            aw_done_q <= aw_done_q || aw_fire_w;
-            w_done_q <= w_done_q || w_fire_w;
-            drop_rsp_q <= 1'b1;
-            state_q <= ((aw_done_q || aw_fire_w) &&
-                        (w_done_q || w_fire_w)) ? S_WRITE_RESP : S_WRITE_REQ;
-          end else begin
-            state_q <= S_IDLE;
-            aw_done_q <= 1'b0;
-            w_done_q <= 1'b0;
-            drop_rsp_q <= 1'b0;
-          end
+          // AW/W are independent registered owners.  Even when neither has
+          // fired yet, a flush must hold both VALID/payloads until their own
+          // handshakes, then wait for the unique B terminal before dropping.
+          aw_done_q <= aw_done_q || aw_fire_w;
+          w_done_q <= w_done_q || w_fire_w;
+          drop_rsp_q <= 1'b1;
+          state_q <= ((aw_done_q || aw_fire_w) &&
+                      (w_done_q || w_fire_w)) ? S_WRITE_RESP : S_WRITE_REQ;
         end
 
         S_WRITE_RESP: begin
@@ -1340,6 +1616,10 @@ module OooMemAxiBridge (
           end
         end
 
+        S_OWNER_HOLD: begin
+          state_q <= S_OWNER_HOLD;
+        end
+
         default: begin
           state_q <= S_IDLE;
         end
@@ -1364,6 +1644,10 @@ module OooMemAxiBridge (
       stg_nokill_q <= 1'b0;
       stg_attr_valid_q <= 1'b0;
       stg_class_q <= `OOO_MEM_CLASS_RSVD;
+      stg_owner_kind_q <= 2'b00;
+      stg_owner_token_q <= 5'b0;
+      stg_mmu_epoch_q <= 2'b0;
+      stg_fault_tval_q <= {`XLEN{1'b0}};
     end else if (mem0_req_fire_w) begin
       stg_valid_q <= 1'b1;
       stg_addr_q <= mem0_req_addr_i;
@@ -1376,6 +1660,10 @@ module OooMemAxiBridge (
       stg_attr_valid_q <= mem0_req_attr_valid_i;
       stg_class_q <= mem0_req_attr_valid_i ? mem0_req_class_i :
                      `OOO_MEM_CLASS_RSVD;
+      stg_owner_kind_q <= mem0_req_owner_kind_i;
+      stg_owner_token_q <= mem0_req_owner_token_i;
+      stg_mmu_epoch_q <= mem0_req_mmu_epoch_i;
+      stg_fault_tval_q <= mem0_req_fault_tval_i;
     end else if (stage_advance_w) begin
       stg_valid_q <= 1'b0;
     end else if (flush_i && !stg_nokill_q) begin
@@ -1523,6 +1811,19 @@ module OooMemAxiBridge (
   reg [2:0] assert_arsize_r;
   reg [1:0] assert_arburst_r;
   reg [2:0] assert_arprot_r;
+  reg [72:0] assert_stg_owner_r;
+  reg assert_rsp_stalled_r;
+  reg [72:0] assert_rsp_owner_r;
+  reg assert_aw_stalled_r;
+  reg [`XLEN-1:0] assert_awaddr_r;
+  reg [3:0] assert_awid_r;
+  reg [7:0] assert_awlen_r;
+  reg [2:0] assert_awsize_r;
+  reg [1:0] assert_awburst_r;
+  reg assert_w_stalled_r;
+  reg [`XLEN-1:0] assert_wdata_r;
+  reg [`STRB_W-1:0] assert_wstrb_r;
+  reg assert_wlast_r;
   always @(posedge clk) begin
     if (rst) begin
       assert_stg_valid_r <= 1'b0;
@@ -1531,12 +1832,72 @@ module OooMemAxiBridge (
       assert_req_pma_deny_r <= 1'b0;
       assert_walk_pma_deny_r <= 1'b0;
       assert_ar_stalled_r <= 1'b0;
+      assert_rsp_stalled_r <= 1'b0;
+      assert_aw_stalled_r <= 1'b0;
+      assert_w_stalled_r <= 1'b0;
       assert_pretrans_advance_r <= 1'b0;
     end else begin
       // BRG-NOFIRE-FLUSH: flush 拍不得 fire(ready 含 !flush_i ⟺ 寄存站↔MIQ 双射,
       // MIQ flush 分支是 else-if、flush 拍 push 被忽略)。
       if (mem0_req_fire_w && flush_i) begin
         $error("[BRG-NOFIRE-FLUSH] flush 拍出现 mem0_req fire @%0t", $time);
+        $fatal;
+      end
+      if (mem0_req_fire_w && (mem0_req_owner_kind_i == 2'b11)) begin
+        $display("[S2-G1-BRG-REQ-RESERVED] reserved owner entered station @%0t", $time);
+        $fatal;
+      end
+      if (stage_advance_w && !station_expected_identity_match_w) begin
+        $display("[S2-G1-BRG-STATION-OWNER] station tuple mismatched edge-old tracker @%0t", $time);
+        $fatal;
+      end
+      if ((state_q != S_IDLE) &&
+          (!active_rsp_identity_consistent_w ||
+           !active_rsp_tval_echo_match_w)) begin
+        $display("[S2-G1-BRG-ACTIVE-RSP-ECHO] active/rsp provenance diverged @%0t", $time);
+        $fatal;
+      end
+      if (active_owner_verified_q && !active_sticky_identity_match_w) begin
+        $display("[S2-G1-BRG-STICKY-OWNER] active identity diverged from verified snapshot @%0t", $time);
+        $fatal;
+      end
+      if ((state_q != S_IDLE) && active_owner_verified_q &&
+          !active_tracker_identity_match_w) begin
+        $display("[S2-G1-BRG-ACTIVE-TRACKER] active tuple mismatched edge-old tracker @%0t", $time);
+        $fatal;
+      end
+      if (mem0_rsp_valid_o && !visible_rsp_expected_identity_match_w) begin
+        $display("[S2-G1-BRG-RSP-OWNER] response transport mismatched edge-old owner @%0t", $time);
+        $fatal;
+      end
+      if (mem0_rsp_valid_o && visible_rsp_expected_identity_match_w &&
+          mem0_expected_tval_valid_i &&
+          !visible_rsp_expected_tval_echo_match_w) begin
+        $display("[S2-G1-BRG-RSP-TVAL-ECHO] response tval drifted from MIQ capture @%0t", $time);
+        $fatal;
+      end
+      if (mem0_drop0_valid_o && mem0_drop1_valid_o &&
+          (mem0_drop0_owner_token_o == mem0_drop1_owner_token_o)) begin
+        $display("[S2-G1-BRG-DROP-DUP] active and station drops named one token @%0t", $time);
+        $fatal;
+      end
+      if (mem0_rsp_valid_o && mem0_drop0_valid_o) begin
+        $display("[S2-G1-BRG-RSP-DROP-OVERLAP] active owner responded and dropped together @%0t", $time);
+        $fatal;
+      end
+      if (!fsm_normal_w && (dtlb_fill_valid_w || dcache_read_fill_valid_w)) begin
+        $display("[S2-G1-BRG-KILL-FILL] killed owner changed DTLB/D-cache fill state @%0t", $time);
+        $fatal;
+      end
+      if (dcache_store_commit_w && !active_expected_identity_match_w &&
+          !killed_write_maintenance_authorized_w) begin
+        $display("[S2-G1-BRG-KILLED-WRITE-AUTH] cache maintenance lacked exact/current or captured owner authority @%0t", $time);
+        $fatal;
+      end
+      if (killed_write_maintenance_authorized_w &&
+          (dtlb_fill_valid_w || dcache_read_fill_valid_w ||
+           dcache_store_rmw_en_w)) begin
+        $display("[S2-G1-BRG-KILLED-WRITE-SIDEEFFECT] killed escaped write attempted fill/RMW @%0t", $time);
         $fatal;
       end
       // BRG-ADV-NODROP: advance 只可能发生在 drop_rsp_q=0 的拍
@@ -1601,7 +1962,9 @@ module OooMemAxiBridge (
            (stg_wstrb_q != assert_stg_wstrb_r) ||
            ({stg_write_q, stg_probe_q, stg_pretrans_q, stg_nokill_q,
              stg_attr_valid_q, stg_class_q} !=
-            assert_stg_attr_r))) begin
+            assert_stg_attr_r) ||
+           ({stg_owner_kind_q, stg_owner_token_q, stg_mmu_epoch_q,
+             stg_fault_tval_q} != assert_stg_owner_r))) begin
         $error("[BRG-STG-HOLD] stall 拍寄存站字段被改写 @%0t", $time);
         $fatal;
       end
@@ -1622,6 +1985,47 @@ module OooMemAxiBridge (
            (lsu_axi_arprot_o !== assert_arprot_r))) begin
         $error("[MEM-AR-HOLD] stalled AR withdrew VALID or changed payload @%0t",
                $time);
+        $fatal;
+      end
+      // A held bridge response may either remain valid with a frozen tuple or
+      // be converted by flush into the exact active drop terminal.  It may not
+      // disappear or be relabeled.
+      if (assert_rsp_stalled_r) begin
+        if (mem0_rsp_valid_o) begin
+          if ({mem0_rsp_owner_kind_o, mem0_rsp_owner_token_o,
+               mem0_rsp_mmu_epoch_o, mem0_rsp_fault_tval_o} !=
+              assert_rsp_owner_r) begin
+            $display("[S2-G1-BRG-RSP-HOLD] stalled response tuple changed @%0t", $time);
+            $fatal;
+          end
+        end else if (mem0_drop0_valid_o) begin
+          if ({mem0_drop0_owner_kind_o, mem0_drop0_owner_token_o,
+               mem0_drop0_mmu_epoch_o, mem0_drop0_fault_tval_o} !=
+              assert_rsp_owner_r) begin
+            $display("[S2-G1-BRG-RSP-DROP-ECHO] held response drop used wrong tuple @%0t", $time);
+            $fatal;
+          end
+        end else begin
+          $display("[S2-G1-BRG-RSP-HOLD] stalled response vanished without fire/drop @%0t", $time);
+          $fatal;
+        end
+      end
+      if (assert_aw_stalled_r &&
+          (!lsu_axi_awvalid_o ||
+           (lsu_axi_awaddr_o !== assert_awaddr_r) ||
+           (lsu_axi_awid_o !== assert_awid_r) ||
+           (lsu_axi_awlen_o !== assert_awlen_r) ||
+           (lsu_axi_awsize_o !== assert_awsize_r) ||
+           (lsu_axi_awburst_o !== assert_awburst_r))) begin
+        $display("[S2-G1-BRG-AW-HOLD] stalled AW withdrew VALID or changed payload @%0t", $time);
+        $fatal;
+      end
+      if (assert_w_stalled_r &&
+          (!lsu_axi_wvalid_o ||
+           (lsu_axi_wdata_o !== assert_wdata_r) ||
+           (lsu_axi_wstrb_o !== assert_wstrb_r) ||
+           (lsu_axi_wlast_o !== assert_wlast_r))) begin
+        $display("[S2-G1-BRG-W-HOLD] stalled W withdrew VALID or changed payload @%0t", $time);
         $fatal;
       end
       // MEM-DEVICE-OWNER: wait/cancel 绝不能呈现 data AR；release/cancel
@@ -1681,17 +2085,32 @@ module OooMemAxiBridge (
       assert_pretrans_attr_valid_r <= req_effective_attr_valid_w;
       assert_pretrans_class_r <= req_effective_class_w;
       assert_ar_stalled_r <= lsu_axi_arvalid_o && !lsu_axi_arready_i;
+      assert_rsp_stalled_r <= mem0_rsp_valid_o && !mem0_rsp_ready_i;
+      assert_aw_stalled_r <= lsu_axi_awvalid_o && !lsu_axi_awready_i;
+      assert_w_stalled_r <= lsu_axi_wvalid_o && !lsu_axi_wready_i;
       assert_araddr_r <= lsu_axi_araddr_o;
       assert_arid_r <= lsu_axi_arid_o;
       assert_arlen_r <= lsu_axi_arlen_o;
       assert_arsize_r <= lsu_axi_arsize_o;
       assert_arburst_r <= lsu_axi_arburst_o;
       assert_arprot_r <= lsu_axi_arprot_o;
+      assert_rsp_owner_r <= {mem0_rsp_owner_kind_o, mem0_rsp_owner_token_o,
+                             mem0_rsp_mmu_epoch_o, mem0_rsp_fault_tval_o};
+      assert_awaddr_r <= lsu_axi_awaddr_o;
+      assert_awid_r <= lsu_axi_awid_o;
+      assert_awlen_r <= lsu_axi_awlen_o;
+      assert_awsize_r <= lsu_axi_awsize_o;
+      assert_awburst_r <= lsu_axi_awburst_o;
+      assert_wdata_r <= lsu_axi_wdata_o;
+      assert_wstrb_r <= lsu_axi_wstrb_o;
+      assert_wlast_r <= lsu_axi_wlast_o;
       assert_stg_addr_r <= stg_addr_q;
       assert_stg_wdata_r <= stg_wdata_q;
       assert_stg_wstrb_r <= stg_wstrb_q;
       assert_stg_attr_r <= {stg_write_q, stg_probe_q, stg_pretrans_q,
                             stg_nokill_q, stg_attr_valid_q, stg_class_q};
+      assert_stg_owner_r <= {stg_owner_kind_q, stg_owner_token_q,
+                             stg_mmu_epoch_q, stg_fault_tval_q};
     end
   end
 `endif

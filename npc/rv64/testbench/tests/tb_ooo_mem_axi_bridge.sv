@@ -1,6 +1,8 @@
 `include "define.v"
 
-module tb_ooo_mem_axi_bridge;
+module tb_ooo_mem_axi_bridge #(
+  parameter S2_G1_CASE = 0
+);
   `include "tb_common.svh"
 
   reg clk;
@@ -25,6 +27,15 @@ module tb_ooo_mem_axi_bridge;
   reg mem0_req_attr_valid;
   reg [1:0] mem0_req_class;
   reg mem0_req_cacheable;
+  reg s2_station_identity_mutate;
+  reg s2_active_identity_mutate;
+  reg s2_active_tracker_mutate;
+  reg s2_active_tval_mutate;
+  reg s2_expected_effective_killed;
+  reg [4:0] mem0_req_owner_token;
+  wire [1:0] mem0_req_owner_kind = mem0_req_write ? 2'b01 : 2'b00;
+  wire [1:0] mem0_req_mmu_epoch = 2'b01;
+  wire [`XLEN-1:0] mem0_req_fault_tval = mem0_req_addr;
   reg mem0_device_release;
   reg mem0_device_cancel;
   reg [`XLEN-1:0] mem0_req_addr;
@@ -38,6 +49,29 @@ module tb_ooo_mem_axi_bridge;
   wire mem0_rsp_attr_valid;
   wire [1:0] mem0_rsp_class;
   wire mem0_rsp_cacheable;
+  wire [1:0] mem0_rsp_owner_kind;
+  wire [4:0] mem0_rsp_owner_token;
+  wire [1:0] mem0_rsp_mmu_epoch;
+  wire [`XLEN-1:0] mem0_rsp_fault_tval;
+  wire mem0_drop0_valid;
+  wire [1:0] mem0_drop0_owner_kind;
+  wire [4:0] mem0_drop0_owner_token;
+  wire [1:0] mem0_drop0_mmu_epoch;
+  wire [`XLEN-1:0] mem0_drop0_fault_tval;
+  wire mem0_drop1_valid;
+  wire [1:0] mem0_drop1_owner_kind;
+  wire [4:0] mem0_drop1_owner_token;
+  wire [1:0] mem0_drop1_mmu_epoch;
+  wire [`XLEN-1:0] mem0_drop1_fault_tval;
+  wire mem0_owner_query_valid;
+  wire [4:0] mem0_owner_query_token;
+  wire mem0_station_query_valid;
+  wire [4:0] mem0_station_query_token;
+  wire [31:0] mem0_owner_residency_mask;
+  reg [1:0] owner_kind_model [0:31];
+  reg [1:0] owner_epoch_model [0:31];
+  reg [`XLEN-1:0] owner_tval_model [0:31];
+  integer owner_model_i;
   wire mem_translate_active;
 
   wire lsu_axi_arvalid;
@@ -143,6 +177,29 @@ module tb_ooo_mem_axi_bridge;
     .mem0_req_attr_valid_i(mem0_req_attr_valid),
     .mem0_req_class_i(mem0_req_class),
     .mem0_req_cacheable_i(mem0_req_cacheable),
+    .mem0_req_owner_kind_i(mem0_req_owner_kind),
+    .mem0_req_owner_token_i(mem0_req_owner_token),
+    .mem0_req_mmu_epoch_i(mem0_req_mmu_epoch),
+    .mem0_req_fault_tval_i(mem0_req_fault_tval),
+    .mem0_expected_valid_i(mem0_owner_query_valid),
+    .mem0_expected_owner_kind_i(owner_kind_model[mem0_owner_query_token]),
+    .mem0_expected_owner_token_i(mem0_owner_query_token ^
+        (s2_active_identity_mutate ? 5'b00001 : 5'b00000)),
+    .mem0_expected_mmu_epoch_i(owner_epoch_model[mem0_owner_query_token]),
+    .mem0_expected_tval_valid_i(mem0_owner_query_valid),
+    .mem0_expected_fault_tval_i(owner_tval_model[mem0_owner_query_token] ^
+        (s2_active_tval_mutate ? {{(`XLEN-1){1'b0}}, 1'b1} : {`XLEN{1'b0}})),
+    .mem0_expected_effective_killed_i(s2_expected_effective_killed),
+    .mem0_tracker_expected_valid_i(mem0_owner_query_valid),
+    .mem0_tracker_expected_owner_kind_i(owner_kind_model[mem0_owner_query_token]),
+    .mem0_tracker_expected_owner_token_i(mem0_owner_query_token ^
+        (s2_active_tracker_mutate ? 5'b00001 : 5'b00000)),
+    .mem0_tracker_expected_mmu_epoch_i(owner_epoch_model[mem0_owner_query_token]),
+    .mem0_station_expected_valid_i(mem0_station_query_valid),
+    .mem0_station_expected_owner_kind_i(owner_kind_model[mem0_station_query_token]),
+    .mem0_station_expected_owner_token_i(mem0_station_query_token ^
+        (s2_station_identity_mutate ? 5'b00001 : 5'b00000)),
+    .mem0_station_expected_mmu_epoch_i(owner_epoch_model[mem0_station_query_token]),
     .mem0_device_release_i(mem0_device_release),
     .mem0_device_cancel_i(mem0_device_cancel),
     .mem0_req_addr_i(mem0_req_addr),
@@ -156,6 +213,25 @@ module tb_ooo_mem_axi_bridge;
     .mem0_rsp_attr_valid_o(mem0_rsp_attr_valid),
     .mem0_rsp_class_o(mem0_rsp_class),
     .mem0_rsp_cacheable_o(mem0_rsp_cacheable),
+    .mem0_rsp_owner_kind_o(mem0_rsp_owner_kind),
+    .mem0_rsp_owner_token_o(mem0_rsp_owner_token),
+    .mem0_rsp_mmu_epoch_o(mem0_rsp_mmu_epoch),
+    .mem0_rsp_fault_tval_o(mem0_rsp_fault_tval),
+    .mem0_drop0_valid_o(mem0_drop0_valid),
+    .mem0_drop0_owner_kind_o(mem0_drop0_owner_kind),
+    .mem0_drop0_owner_token_o(mem0_drop0_owner_token),
+    .mem0_drop0_mmu_epoch_o(mem0_drop0_mmu_epoch),
+    .mem0_drop0_fault_tval_o(mem0_drop0_fault_tval),
+    .mem0_drop1_valid_o(mem0_drop1_valid),
+    .mem0_drop1_owner_kind_o(mem0_drop1_owner_kind),
+    .mem0_drop1_owner_token_o(mem0_drop1_owner_token),
+    .mem0_drop1_mmu_epoch_o(mem0_drop1_mmu_epoch),
+    .mem0_drop1_fault_tval_o(mem0_drop1_fault_tval),
+    .mem0_owner_query_valid_o(mem0_owner_query_valid),
+    .mem0_owner_query_token_o(mem0_owner_query_token),
+    .mem0_station_query_valid_o(mem0_station_query_valid),
+    .mem0_station_query_token_o(mem0_station_query_token),
+    .mem0_owner_residency_mask_o(mem0_owner_residency_mask),
     .translate_active_o(mem_translate_active),
     .lsu_axi_arvalid_o(lsu_axi_arvalid),
     .lsu_axi_arready_i(lsu_axi_arready),
@@ -176,6 +252,26 @@ module tb_ooo_mem_axi_bridge;
     .lsu_axi_bready_o(lsu_axi_bready),
     .lsu_axi_bresp_i(lsu_axi_bresp)
   );
+
+  // Minimal independent tracker/MIQ model for this legacy bridge regression.
+  // Focused S2-G1 tests below use explicit mutations; this table simply keeps
+  // the pre-existing long-form test supplied with edge-old token metadata.
+  always @(posedge clk) begin
+    if (rst) begin
+      mem0_req_owner_token <= 5'b0;
+      for (owner_model_i = 0; owner_model_i < 32;
+           owner_model_i = owner_model_i + 1) begin
+        owner_kind_model[owner_model_i] <= 2'b00;
+        owner_epoch_model[owner_model_i] <= 2'b01;
+        owner_tval_model[owner_model_i] <= {`XLEN{1'b0}};
+      end
+    end else if (mem0_req_valid && mem0_req_ready) begin
+      owner_kind_model[mem0_req_owner_token] <= mem0_req_owner_kind;
+      owner_epoch_model[mem0_req_owner_token] <= mem0_req_mmu_epoch;
+      owner_tval_model[mem0_req_owner_token] <= mem0_req_fault_tval;
+      mem0_req_owner_token <= mem0_req_owner_token + 5'd1;
+    end
+  end
 
   task automatic tb_check64;
     input [1023:0] what;
@@ -215,6 +311,11 @@ module tb_ooo_mem_axi_bridge;
       mem0_req_attr_valid = 1'b0;
       mem0_req_class = `OOO_MEM_CLASS_RSVD;
       mem0_req_cacheable = 1'b0;
+      s2_station_identity_mutate = 1'b0;
+      s2_active_identity_mutate = 1'b0;
+      s2_active_tracker_mutate = 1'b0;
+      s2_active_tval_mutate = 1'b0;
+      s2_expected_effective_killed = 1'b0;
       mem0_device_release = 1'b0;
       mem0_device_cancel = 1'b0;
       mem0_req_addr = {`XLEN{1'b0}};
@@ -919,19 +1020,14 @@ module tb_ooo_mem_axi_bridge;
       lsu_axi_bvalid = 1'b0;
       mem0_req_valid = 1'b0;
       #1;
-      // 【store RMW×刀 M】drain store 的 B-ok 次拍是 RMW 判决拍(write-update
-      // 合并落宏): bubble 观察点从旧 req_ready 压制改为寄存站保持——站内 load
-      // 本拍不得 advance/发 lookup(bubble 数不变, 契约不弱化)。
-      tb_check1("write drain rmw bubble holds staged load",
-                dut.stage_advance_w, 1'b0);
-      tb_check1("write drain rmw bubble no req lookup",
-                dut.req_read_lookup_fire_w, 1'b0);
-      tb_check1("write drain never exposes response", mem0_rsp_valid, 1'b0);
-      tick();
-      #1;
-      // RMW 结束次拍: 站内 load 恢复 advance(发 lookup)。
-      tb_check1("staged load advances after rmw bubble",
+      // Killed write cleanup is conservative invalidate-only: it must not use
+      // the exact-owner RMW path.  Therefore no RMW bubble blocks the staged
+      // correct-path load; it advances immediately after the B/drop terminal.
+      tb_check1("write drain invalidate lets staged load advance",
                 dut.stage_advance_w, 1'b1);
+      tb_check1("write drain staged load owns req lookup",
+                dut.req_read_lookup_fire_w, 1'b1);
+      tb_check1("write drain never exposes response", mem0_rsp_valid, 1'b0);
       lsu_axi_arready = 1'b1;
       tick();
       #1;
@@ -1112,19 +1208,23 @@ module tb_ooo_mem_axi_bridge;
       tb_check1("post-drain read no AR at fire", lsu_axi_arvalid, 1'b0);
       tick();
       mem0_req_valid = 1'b0;
-      // 【store RMW·write-update】flush 下 drain 的 store 同样在完成拍 RMW
-      // 合并进 line(untracked-over-flush 语义保持: 数据已落 PMEM, cache 与
-      // PMEM 一致): 同址读命中新值, 不发 AR。
+      // A killed write may have reached PMEM, but it is not authorized to RMW
+      // cache data.  Its B terminal conservatively invalidates the alias; the
+      // next read must miss and refill the externally visible value.
       #1;
       tb_check1("post-drain read advance no AR", lsu_axi_arvalid, 1'b0);
       tick();
       #1;
-      tb_check1("post-drain read hits updated line", lsu_axi_arvalid, 1'b0);
+      tb_check1("post-drain read refetches invalidated line", lsu_axi_arvalid, 1'b1);
       tick();
       lsu_axi_arready = 1'b0;
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'h1234_5678_9abc_def0;
+      tick();
+      lsu_axi_rvalid = 1'b0;
       #1;
-      tb_check1("post-drain cached response valid", mem0_rsp_valid, 1'b1);
-      tb_check64("drained store data visible via cache hit", mem0_rsp_rdata,
+      tb_check1("post-drain refill response valid", mem0_rsp_valid, 1'b1);
+      tb_check64("drained store data visible after refill", mem0_rsp_rdata,
                  64'h1234_5678_9abc_def0);
       mem0_rsp_ready = 1'b1;
       tick();
@@ -2887,10 +2987,555 @@ module tb_ooo_mem_axi_bridge;
     end
   endtask
 
+  // S2-G1: once either write channel presents VALID, flush may not revoke it.
+  // Parameter 0 stalls both, 1 stalls AW only, 2 stalls W only for a full beat.
+  task automatic s2_g1_write_valid_hold_case;
+    input integer mode;
+    reg [4:0] token;
+    reg [`XLEN-1:0] addr;
+    reg [`XLEN-1:0] held_awaddr;
+    reg [`XLEN-1:0] held_wdata;
+    reg [`STRB_W-1:0] held_wstrb;
+    begin
+      clear_inputs();
+      tick();
+      addr = 64'h0000_0000_8000_9000 + (mode * 64'h20);
+      token = mem0_req_owner_token;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b1;
+      mem0_req_addr = addr;
+      mem0_req_wdata = 64'h5100_0000_0000_0000 + mode;
+      mem0_req_wstrb = 8'h3c;
+      #1;
+      tb_check1("S2-G1 write-hold request ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      lsu_axi_awready = (mode == 2);
+      lsu_axi_wready = (mode == 1);
+      tick();
+      #1;
+      tb_check1("S2-G1 write-hold AW presented", lsu_axi_awvalid, 1'b1);
+      tb_check1("S2-G1 write-hold W presented", lsu_axi_wvalid, 1'b1);
+      held_awaddr = lsu_axi_awaddr;
+      held_wdata = lsu_axi_wdata;
+      held_wstrb = lsu_axi_wstrb;
+      tick();
+
+      flush = 1'b1;
+      #1;
+      if (mode != 2) begin
+        tb_check1("S2-G1 flush keeps stalled AWVALID", lsu_axi_awvalid, 1'b1);
+        tb_check64("S2-G1 flush keeps AWADDR", lsu_axi_awaddr, held_awaddr);
+      end else begin
+        tb_check1("S2-G1 fired AW stays done", lsu_axi_awvalid, 1'b0);
+      end
+      if (mode != 1) begin
+        tb_check1("S2-G1 flush keeps stalled WVALID", lsu_axi_wvalid, 1'b1);
+        tb_check64("S2-G1 flush keeps WDATA", lsu_axi_wdata, held_wdata);
+        if (lsu_axi_wstrb !== held_wstrb) begin
+          $display("[CHECK-FAIL] S2-G1 flush changed WSTRB");
+          tb_errors = tb_errors + 1;
+        end
+      end else begin
+        tb_check1("S2-G1 fired W stays done", lsu_axi_wvalid, 1'b0);
+      end
+      tb_check1("S2-G1 no pre-B owner drop", mem0_drop0_valid, 1'b0);
+      lsu_axi_awready = 1'b1;
+      lsu_axi_wready = 1'b1;
+      tick();
+      lsu_axi_awready = 1'b0;
+      lsu_axi_wready = 1'b0;
+      #1;
+      tb_check1("S2-G1 write-hold waits B", lsu_axi_bready, 1'b1);
+      tb_check1("S2-G1 still no pre-B drop", mem0_drop0_valid, 1'b0);
+      lsu_axi_bvalid = 1'b1;
+      #1;
+      tb_check1("S2-G1 B is unique drop terminal", mem0_drop0_valid, 1'b1);
+      tb_check32("S2-G1 B drop token", {27'b0, mem0_drop0_owner_token},
+                 {27'b0, token});
+      tb_check32("S2-G1 B drop kind", {30'b0, mem0_drop0_owner_kind}, 32'd1);
+      tb_check32("S2-G1 B drop epoch", {30'b0, mem0_drop0_mmu_epoch}, 32'd1);
+      tb_check64("S2-G1 B drop tval", mem0_drop0_fault_tval, addr);
+      tick();
+      lsu_axi_bvalid = 1'b0;
+      flush = 1'b0;
+      #1;
+      tb_check1("S2-G1 drop pulses exactly once", mem0_drop0_valid, 1'b0);
+      tb_check1("S2-G1 killed write exposes no response", mem0_rsp_valid, 1'b0);
+      $display("[S2-G1-BRG-AW-W-HOLD][PASS] mode=%0d token=%0d", mode, token);
+    end
+  endtask
+
+  task automatic s2_g1_dual_drop_distinct_tuple;
+    reg [4:0] active_token;
+    reg [4:0] station_token;
+    localparam [`XLEN-1:0] ACTIVE_ADDR = 64'h0000_0000_8000_9800;
+    localparam [`XLEN-1:0] STATION_ADDR = 64'h0000_0000_8000_9880;
+    begin
+      clear_inputs();
+      tick();
+      active_token = mem0_req_owner_token;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b1;
+      mem0_req_probe = 1'b1;
+      mem0_req_addr = ACTIVE_ADDR;
+      mem0_req_wstrb = 8'hff;
+      tick();
+      mem0_req_valid = 1'b0;
+      mem0_req_probe = 1'b0;
+      tick();
+      #1;
+      tb_check1("S2-G1 dual-drop active response held", mem0_rsp_valid, 1'b1);
+
+      station_token = mem0_req_owner_token;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = STATION_ADDR;
+      mem0_req_wstrb = 8'hff;
+      tick();
+      mem0_req_valid = 1'b0;
+      flush = 1'b1;
+      #1;
+      tb_check1("S2-G1 active drop present", mem0_drop0_valid, 1'b1);
+      tb_check1("S2-G1 station drop present", mem0_drop1_valid, 1'b1);
+      tb_check32("S2-G1 active drop token", {27'b0, mem0_drop0_owner_token},
+                 {27'b0, active_token});
+      tb_check32("S2-G1 station drop token", {27'b0, mem0_drop1_owner_token},
+                 {27'b0, station_token});
+      tb_check64("S2-G1 active drop tval", mem0_drop0_fault_tval, ACTIVE_ADDR);
+      tb_check64("S2-G1 station drop tval", mem0_drop1_fault_tval, STATION_ADDR);
+      tb_check1("S2-G1 active residency bit",
+                mem0_owner_residency_mask[active_token], 1'b1);
+      tb_check1("S2-G1 station residency bit",
+                mem0_owner_residency_mask[station_token], 1'b1);
+      tick();
+      flush = 1'b0;
+      #1;
+      tb_check1("S2-G1 dual active drop pulses once", mem0_drop0_valid, 1'b0);
+      tb_check1("S2-G1 dual station drop pulses once", mem0_drop1_valid, 1'b0);
+      $display("[S2-G1-BRG-DUAL-DROP][PASS] active=%0d station=%0d",
+               active_token, station_token);
+    end
+  endtask
+
+  task automatic s2_g1_rsp_flush_nokill_atomic_replace;
+    reg [4:0] old_token;
+    reg [4:0] new_token;
+    localparam [`XLEN-1:0] OLD_ADDR = 64'h0000_0000_8000_9900;
+    localparam [`XLEN-1:0] NEW_ADDR = 64'h0000_0000_8000_9980;
+    begin
+      clear_inputs();
+      tick();
+      old_token = mem0_req_owner_token;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b1;
+      mem0_req_probe = 1'b1;
+      mem0_req_addr = OLD_ADDR;
+      mem0_req_wstrb = 8'hff;
+      tick();
+      mem0_req_valid = 1'b0;
+      mem0_req_probe = 1'b0;
+      tick();
+      #1;
+      tb_check1("S2-G1 replace old response held", mem0_rsp_valid, 1'b1);
+
+      new_token = mem0_req_owner_token;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b1;
+      mem0_req_pretrans = 1'b1;
+      mem0_req_nokill = 1'b1;
+      mem0_req_attr_valid = 1'b1;
+      mem0_req_class = `OOO_MEM_CLASS_CACHED;
+      mem0_req_cacheable = 1'b1;
+      mem0_req_addr = NEW_ADDR;
+      mem0_req_wdata = 64'h55aa_0123_4567_89ab;
+      mem0_req_wstrb = 8'hff;
+      tick();
+      mem0_req_valid = 1'b0;
+      flush = 1'b1;
+      mem0_rsp_ready = 1'b1;
+      #1;
+      tb_check1("S2-G1 replace advances nokill station", dut.stage_advance_w, 1'b1);
+      tb_check1("S2-G1 replace drops old rsp", mem0_drop0_valid, 1'b1);
+      tb_check1("S2-G1 replace does not drop nokill station", mem0_drop1_valid, 1'b0);
+      tb_check32("S2-G1 replace old rsp token", {27'b0, mem0_drop0_owner_token},
+                 {27'b0, old_token});
+      tb_check64("S2-G1 replace old rsp tval", mem0_drop0_fault_tval, OLD_ADDR);
+      tick();
+      mem0_rsp_ready = 1'b0;
+      #1;
+      tb_check32("S2-G1 replacement active token", {27'b0, dut.active_owner_token_q},
+                 {27'b0, new_token});
+      tb_check32("S2-G1 replacement rsp snapshot", {27'b0, dut.rsp_owner_token_q},
+                 {27'b0, new_token});
+      tb_check1("S2-G1 replacement AW survives flush", lsu_axi_awvalid, 1'b1);
+      tb_check1("S2-G1 replacement W survives flush", lsu_axi_wvalid, 1'b1);
+      lsu_axi_awready = 1'b1;
+      lsu_axi_wready = 1'b1;
+      tick();
+      lsu_axi_awready = 1'b0;
+      lsu_axi_wready = 1'b0;
+      lsu_axi_bvalid = 1'b1;
+      tick();
+      lsu_axi_bvalid = 1'b0;
+      #1;
+      tb_check1("S2-G1 nokill response survives flush", mem0_rsp_valid, 1'b1);
+      tb_check32("S2-G1 nokill response token", {27'b0, mem0_rsp_owner_token},
+                 {27'b0, new_token});
+      tb_check64("S2-G1 nokill response tval", mem0_rsp_fault_tval, NEW_ADDR);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+      flush = 1'b0;
+      $display("[S2-G1-BRG-ATOMIC-REPLACE][PASS] old=%0d new=%0d",
+               old_token, new_token);
+    end
+  endtask
+
+  // Focused owner-provenance mutation cases.  These are compiled separately
+  // from the long bridge regression so each OOO_ASSERT run has one precise
+  // expected fatal marker.  Equality may qualify side effects, but it must not
+  // enter transport VALID/READY or state advancement.
+  task automatic s2_g1_focused_station_mismatch;
+    reg [4:0] token;
+    localparam [`XLEN-1:0] ADDR = 64'h0000_0000_8000_e800;
+    begin
+      token = mem0_req_owner_token;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = ADDR;
+      mem0_req_wstrb = 8'hff;
+      #1;
+      tb_check1("S2-G1 station mismatch request ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      s2_station_identity_mutate = 1'b1;
+      #1;
+      tb_check1("S2-G1 station mismatch still advances transport station",
+                dut.stage_advance_w, 1'b1);
+      tb_check1("S2-G1 station mismatch blocks cache lookup",
+                dut.req_read_lookup_fire_w, 1'b0);
+      tick();
+      // OOO_ASSERT terminates on the edge above.  Release builds enter an
+      // explicit recovery-only hold and expose no AXI or response side effect.
+      s2_station_identity_mutate = 1'b0;
+      #1;
+      tb_check32("S2-G1 station mismatch enters owner hold",
+                 {28'b0, dut.state_q}, 32'd11);
+      tb_check1("S2-G1 owner hold has no AR", lsu_axi_arvalid, 1'b0);
+      tb_check1("S2-G1 owner hold has no AW/W",
+                lsu_axi_awvalid | lsu_axi_wvalid, 1'b0);
+      tb_check1("S2-G1 owner hold has no response", mem0_rsp_valid, 1'b0);
+      flush = 1'b1;
+      #1;
+      tb_check1("S2-G1 explicit recovery emits exact drop", mem0_drop0_valid, 1'b1);
+      tb_check32("S2-G1 owner-hold drop token",
+                 {27'b0, mem0_drop0_owner_token}, {27'b0, token});
+      tb_check64("S2-G1 owner-hold drop tval", mem0_drop0_fault_tval, ADDR);
+      tick();
+      flush = 1'b0;
+      #1;
+      tb_check1("S2-G1 owner-hold drop pulses once", mem0_drop0_valid, 1'b0);
+      $display("[S2-G1-BRG-STATION-FAILCLOSED][PASS] token=%0d", token);
+    end
+  endtask
+
+  task automatic s2_g1_focused_active_identity_mismatch;
+    reg [4:0] token;
+    localparam [`XLEN-1:0] ADDR = 64'h0000_0000_8000_e900;
+    begin
+      token = mem0_req_owner_token;
+      issue_mem0_read(ADDR);
+      s2_active_identity_mutate = 1'b1;
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'h0123_4567_89ab_cdef;
+      lsu_axi_rresp = 2'b00;
+      #1;
+      tb_check1("S2-G1 MIQ mismatch still drains AXI R", lsu_axi_rready, 1'b1);
+      tb_check1("S2-G1 MIQ mismatch blocks dcache fill",
+                dut.dcache_read_fill_valid_w, 1'b0);
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("S2-G1 MIQ mismatch does not suppress response transport",
+                mem0_rsp_valid, 1'b1);
+      tb_check32("S2-G1 mismatched response keeps captured token",
+                 {27'b0, mem0_rsp_owner_token}, {27'b0, token});
+      tb_check64("S2-G1 mismatched response keeps captured tval",
+                 mem0_rsp_fault_tval, ADDR);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      // OOO_ASSERT terminates on the response edge above.  The release build
+      // proves READY remains independent of equality and drains transport.
+      mem0_rsp_ready = 1'b0;
+      s2_active_identity_mutate = 1'b0;
+      #1;
+      tb_check1("S2-G1 mismatch transport drained", mem0_rsp_valid, 1'b0);
+      $display("[S2-G1-BRG-RSP-FAILCLOSED][PASS] token=%0d", token);
+    end
+  endtask
+
+  task automatic s2_g1_focused_active_tracker_mismatch;
+    localparam [`XLEN-1:0] ADDR = 64'h0000_0000_8000_ea00;
+    begin
+      issue_mem0_read(ADDR);
+      s2_active_tracker_mutate = 1'b1;
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'h5a5a_a5a5_c3c3_3c3c;
+      lsu_axi_rresp = 2'b00;
+      #1;
+      tb_check1("S2-G1 tracker mismatch still drains AXI R", lsu_axi_rready, 1'b1);
+      tb_check1("S2-G1 nonlive tracker mismatch blocks dcache fill",
+                dut.dcache_read_fill_valid_w, 1'b0);
+      tick();
+      // OOO_ASSERT terminates on the R edge above.  In a release build the
+      // transport may continue, but no tracker-mismatched side effect occurs.
+      lsu_axi_rvalid = 1'b0;
+      s2_active_tracker_mutate = 1'b0;
+      #1;
+      tb_check1("S2-G1 tracker mismatch transport remains visible",
+                mem0_rsp_valid, 1'b1);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      mem0_rsp_ready = 1'b0;
+      $display("[S2-G1-BRG-TRACKER-FAILCLOSED][PASS]");
+    end
+  endtask
+
+  task automatic s2_g1_focused_tval_drift;
+    reg [4:0] token;
+    localparam [`XLEN-1:0] ADDR = 64'h0000_0000_8000_eb00;
+    begin
+      token = mem0_req_owner_token;
+      issue_mem0_read(ADDR);
+      s2_active_tval_mutate = 1'b1;
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = 64'hfeed_face_7654_3210;
+      lsu_axi_rresp = 2'b00;
+      #1;
+      tb_check1("S2-G1 tval-only drift does not block exact-owner fill",
+                dut.dcache_read_fill_valid_w, 1'b1);
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("S2-G1 tval-only drift keeps response transport",
+                mem0_rsp_valid, 1'b1);
+      tb_check32("S2-G1 tval drift keeps exact token",
+                 {27'b0, mem0_rsp_owner_token}, {27'b0, token});
+      tb_check64("S2-G1 tval drift uses capture-time payload",
+                 mem0_rsp_fault_tval, ADDR);
+      mem0_rsp_ready = 1'b1;
+      tick();
+      // OOO_ASSERT terminates on the response edge above.  Non-assert builds
+      // consume the exact 9-bit owner despite diagnostic tval echo drift.
+      mem0_rsp_ready = 1'b0;
+      s2_active_tval_mutate = 1'b0;
+      $display("[S2-G1-BRG-TVAL-PAYLOAD][PASS] token=%0d", token);
+    end
+  endtask
+
+  // The highest-risk escaped-write case is a hardware A/D PTE update: the
+  // original load can be killed after registered AW/W presentation, the MIQ
+  // head can advance, and the late B must still invalidate the PTE alias while
+  // remaining forbidden from filling the DTLB or producing any response.
+  task automatic s2_g1_focused_killed_ad_maintenance;
+    reg [4:0] token;
+    reg [`XLEN-1:0] orig_pte;
+    begin
+      clear_inputs();
+      tick();
+      token = mem0_req_owner_token;
+      orig_pte = (SUPERPAGE_PPN << 10) | LEAF_NO_ACCESS_FLAGS;
+      priv_mode = `PRIV_S;
+      satp = (64'h8 << 60) | ROOT_PPN;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = DATA_VA_AD;
+      mem0_req_wstrb = {`STRB_W{1'b1}};
+      #1;
+      tb_check1("S2-G1 killed A/D request ready", mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      tick();
+      #1;
+      tb_check1("S2-G1 killed A/D walk AR", lsu_axi_arvalid, 1'b1);
+      lsu_axi_arready = 1'b1;
+      tick();
+      lsu_axi_arready = 1'b0;
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = orig_pte;
+      lsu_axi_rresp = 2'b00;
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      #1;
+      tb_check1("S2-G1 killed A/D registered AW", lsu_axi_awvalid, 1'b1);
+      tb_check1("S2-G1 killed A/D registered W", lsu_axi_wvalid, 1'b1);
+      tb_check1("S2-G1 killed A/D not escaped before READY",
+                dut.write_escaped_q, 1'b0);
+
+      // Capture while edge-old MIQ/tracker/sticky identity is still exact.
+      s2_expected_effective_killed = 1'b1;
+      flush = 1'b1;
+      #1;
+      tb_check1("S2-G1 killed A/D exact kill captures authority",
+                dut.killed_write_maintenance_capture_w, 1'b1);
+      tb_check1("S2-G1 killed A/D kill edge blocks DTLB fill",
+                dut.dtlb_fill_valid_w, 1'b0);
+      tick();
+      s2_expected_effective_killed = 1'b0;
+      s2_active_identity_mutate = 1'b1;
+      #1;
+      tb_check1("S2-G1 killed A/D authority latched",
+                dut.killed_write_maintenance_authorized_q, 1'b1);
+      tb_check1("S2-G1 killed A/D MIQ head advanced",
+                dut.active_expected_identity_match_w, 1'b0);
+
+      lsu_axi_awready = 1'b1;
+      lsu_axi_wready = 1'b1;
+      tick();
+      lsu_axi_awready = 1'b0;
+      lsu_axi_wready = 1'b0;
+      #1;
+      tb_check1("S2-G1 killed A/D waits real B", lsu_axi_bready, 1'b1);
+      lsu_axi_bvalid = 1'b1;
+      lsu_axi_bresp = 2'b00;
+      #1;
+      tb_check1("S2-G1 killed A/D late B invalidates alias",
+                dut.dcache_store_commit_w, 1'b1);
+      tb_check1("S2-G1 killed A/D late B forbids RMW",
+                dut.dcache_store_rmw_en_w, 1'b0);
+      tb_check1("S2-G1 killed A/D late B forbids DTLB fill",
+                dut.dtlb_fill_valid_w, 1'b0);
+      tb_check1("S2-G1 killed A/D late B has no response",
+                mem0_rsp_valid, 1'b0);
+      tb_check1("S2-G1 killed A/D late B is exact drop terminal",
+                mem0_drop0_valid, 1'b1);
+      tb_check32("S2-G1 killed A/D drop token",
+                 {27'b0, mem0_drop0_owner_token}, {27'b0, token});
+      tick();
+      lsu_axi_bvalid = 1'b0;
+      flush = 1'b0;
+      s2_active_identity_mutate = 1'b0;
+      #1;
+      tb_check1("S2-G1 killed A/D authority consumed once",
+                dut.killed_write_maintenance_authorized_q, 1'b0);
+      tb_check1("S2-G1 killed A/D commit pulses once",
+                dut.dcache_store_commit_w, 1'b0);
+      tb_check1("S2-G1 killed A/D drop pulses once", mem0_drop0_valid, 1'b0);
+      $display("[S2-G1-BRG-KILLED-AD-MAINT][PASS] token=%0d", token);
+    end
+  endtask
+
+  // Counterexample for the old `(cpu_kill || effective_killed)` bypass: if
+  // the edge-old MIQ owner is already different, neither raw flush nor a naked
+  // killed bit may mint cache-maintenance authority for the active write.
+  task automatic s2_g1_focused_killed_write_mismatch_failclosed;
+    reg [4:0] token;
+    localparam [`XLEN-1:0] ADDR = 64'h0000_0000_8000_ec00;
+    begin
+      clear_inputs();
+      tick();
+      token = mem0_req_owner_token;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b1;
+      mem0_req_addr = ADDR;
+      mem0_req_wdata = 64'hcafe_f00d_1234_5678;
+      mem0_req_wstrb = 8'hff;
+      tick();
+      mem0_req_valid = 1'b0;
+      tick();
+      #1;
+      tb_check1("S2-G1 mismatched killed write presents AW/W",
+                lsu_axi_awvalid & lsu_axi_wvalid, 1'b1);
+      s2_active_identity_mutate = 1'b1;
+      s2_expected_effective_killed = 1'b1;
+      flush = 1'b1;
+      #1;
+      tb_check1("S2-G1 mismatched kill cannot capture authority",
+                dut.killed_write_maintenance_capture_w, 1'b0);
+      tick();
+      s2_expected_effective_killed = 1'b0;
+      #1;
+      tb_check1("S2-G1 mismatched kill leaves authority clear",
+                dut.killed_write_maintenance_authorized_q, 1'b0);
+      lsu_axi_awready = 1'b1;
+      lsu_axi_wready = 1'b1;
+      tick();
+      lsu_axi_awready = 1'b0;
+      lsu_axi_wready = 1'b0;
+      lsu_axi_bvalid = 1'b1;
+      #1;
+      tb_check1("S2-G1 mismatched late B cannot maintain cache",
+                dut.dcache_store_commit_w, 1'b0);
+      tb_check1("S2-G1 mismatched late B cannot RMW cache",
+                dut.dcache_store_rmw_en_w, 1'b0);
+      tb_check1("S2-G1 mismatched late B still drains transport",
+                lsu_axi_bready, 1'b1);
+      tb_check1("S2-G1 mismatched late B still names exact drop",
+                mem0_drop0_valid, 1'b1);
+      tb_check32("S2-G1 mismatched killed drop token",
+                 {27'b0, mem0_drop0_owner_token}, {27'b0, token});
+      tick();
+      lsu_axi_bvalid = 1'b0;
+      flush = 1'b0;
+      s2_active_identity_mutate = 1'b0;
+      #1;
+      tb_check1("S2-G1 mismatched killed drop pulses once",
+                mem0_drop0_valid, 1'b0);
+      $display("[S2-G1-BRG-KILLED-WRITE-FAILCLOSED][PASS] token=%0d", token);
+    end
+  endtask
+
+  // A kill before any write phase has presented AW/W is cancelable and must
+  // not create the escaped-write exception.
+  task automatic s2_g1_focused_prewrite_kill_no_authority;
+    begin
+      clear_inputs();
+      tick();
+      priv_mode = `PRIV_S;
+      satp = (64'h8 << 60) | ROOT_PPN;
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_addr = DATA_VA_AD;
+      mem0_req_wstrb = 8'hff;
+      tick();
+      mem0_req_valid = 1'b0;
+      tick();
+      #1;
+      tb_check1("S2-G1 prewrite kill is still a read walk",
+                lsu_axi_arvalid, 1'b1);
+      tb_check1("S2-G1 prewrite kill has no AW/W",
+                lsu_axi_awvalid | lsu_axi_wvalid, 1'b0);
+      s2_expected_effective_killed = 1'b1;
+      flush = 1'b1;
+      #1;
+      tb_check1("S2-G1 prewrite kill cannot capture write authority",
+                dut.killed_write_maintenance_capture_w, 1'b0);
+      tick();
+      s2_expected_effective_killed = 1'b0;
+      #1;
+      tb_check1("S2-G1 prewrite kill leaves authority clear",
+                dut.killed_write_maintenance_authorized_q, 1'b0);
+      lsu_axi_arready = 1'b1;
+      tick();
+      lsu_axi_arready = 1'b0;
+      lsu_axi_rvalid = 1'b1;
+      lsu_axi_rdata = {`XLEN{1'b0}};
+      tick();
+      lsu_axi_rvalid = 1'b0;
+      flush = 1'b0;
+      #1;
+      tb_check1("S2-G1 prewrite kill produced no cache maintenance",
+                dut.dcache_store_commit_w, 1'b0);
+      $display("[S2-G1-BRG-PREWRITE-KILL][PASS]");
+    end
+  endtask
+
   wire unused_outputs =
       mem0_rsp_error | mem0_rsp_page_fault | (|lsu_axi_wstrb) |
       mem_translate_active | mem0_rsp_cacheable;
 
+`ifndef S2_G1_BRIDGE_FOCUSED
   initial begin
     tb_errors = 0;
     clk = 1'b0;
@@ -2942,9 +3587,40 @@ module tb_ooo_mem_axi_bridge;
                                  2'b11, 1'b1);
     pretrans_nokill_store_survives_flush();
     stage_skid_hold_and_flush_semantics();
+    s2_g1_write_valid_hold_case(0);
+    s2_g1_write_valid_hold_case(1);
+    s2_g1_write_valid_hold_case(2);
+    s2_g1_dual_drop_distinct_tuple();
+    s2_g1_rsp_flush_nokill_atomic_replace();
 
     tb_check1("unused outputs settle", unused_outputs, unused_outputs);
     tb_finish("tb_ooo_mem_axi_bridge");
   end
+`else
+  initial begin
+    tb_errors = 0;
+    clk = 1'b0;
+    rst = 1'b1;
+    clear_inputs();
+    tick();
+    tick();
+    rst = 1'b0;
+    #1;
+    case (S2_G1_CASE)
+      1: s2_g1_focused_station_mismatch();
+      2: s2_g1_focused_active_identity_mismatch();
+      3: s2_g1_focused_active_tracker_mismatch();
+      4: s2_g1_focused_tval_drift();
+      5: s2_g1_focused_killed_ad_maintenance();
+      6: s2_g1_focused_killed_write_mismatch_failclosed();
+      7: s2_g1_focused_prewrite_kill_no_authority();
+      default: begin
+        $display("[S2-G1-BRG-FOCUSED][FAIL] unsupported case=%0d", S2_G1_CASE);
+        tb_errors = tb_errors + 1;
+      end
+    endcase
+    tb_finish("tb_ooo_mem_axi_bridge");
+  end
+`endif
 
 endmodule

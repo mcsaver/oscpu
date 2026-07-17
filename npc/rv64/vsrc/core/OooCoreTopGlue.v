@@ -38,6 +38,10 @@ module OooCoreTopGlue #(
   output mem_req_attr_valid_o,
   output [1:0] mem_req_class_o,
   output mem_req_cacheable_o,
+  output [1:0] mem_req_owner_kind_o,
+  output [4:0] mem_req_owner_token_o,
+  output [1:0] mem_req_mmu_epoch_o,
+  output [`XLEN-1:0] mem_req_fault_tval_o,
   output mem_req_device_release_o,
   output mem_req_device_cancel_o,
   output [`XLEN-1:0] mem_req_addr_o,
@@ -51,6 +55,40 @@ module OooCoreTopGlue #(
   input mem_rsp_attr_valid_i,
   input [1:0] mem_rsp_class_i,
   input mem_rsp_cacheable_i,
+  input [1:0] mem_rsp_owner_kind_i,
+  input [4:0] mem_rsp_owner_token_i,
+  input [1:0] mem_rsp_mmu_epoch_i,
+  input [`XLEN-1:0] mem_rsp_fault_tval_i,
+  output mem_expected_valid_o,
+  output [1:0] mem_expected_owner_kind_o,
+  output [4:0] mem_expected_owner_token_o,
+  output [1:0] mem_expected_mmu_epoch_o,
+  output mem_expected_tval_valid_o,
+  output [`XLEN-1:0] mem_expected_fault_tval_o,
+  output mem_expected_effective_killed_o,
+  input mem_owner_query_valid_i,
+  input [4:0] mem_owner_query_token_i,
+  output mem_tracker_expected_valid_o,
+  output [1:0] mem_tracker_expected_owner_kind_o,
+  output [4:0] mem_tracker_expected_owner_token_o,
+  output [1:0] mem_tracker_expected_mmu_epoch_o,
+  input mem_station_query_valid_i,
+  input [4:0] mem_station_query_token_i,
+  output mem_station_expected_valid_o,
+  output [1:0] mem_station_expected_owner_kind_o,
+  output [4:0] mem_station_expected_owner_token_o,
+  output [1:0] mem_station_expected_mmu_epoch_o,
+  input mem_drop0_valid_i,
+  input [1:0] mem_drop0_owner_kind_i,
+  input [4:0] mem_drop0_owner_token_i,
+  input [1:0] mem_drop0_mmu_epoch_i,
+  input [`XLEN-1:0] mem_drop0_fault_tval_i,
+  input mem_drop1_valid_i,
+  input [1:0] mem_drop1_owner_kind_i,
+  input [4:0] mem_drop1_owner_token_i,
+  input [1:0] mem_drop1_mmu_epoch_i,
+  input [`XLEN-1:0] mem_drop1_fault_tval_i,
+  input [31:0] mem_bridge_owner_residency_mask_i,
   input mem_translate_active_i,
   output mem_flush_o,
   output mmu_flush_o,
@@ -403,6 +441,25 @@ module OooCoreTopGlue #(
   wire core_mem_req_attr_valid_w;
   wire [1:0] core_mem_req_class_w;
   wire core_mem_req_cacheable_w;
+  wire [1:0] core_mem_req_owner_kind_w;
+  wire [4:0] core_mem_req_owner_token_w;
+  wire [1:0] core_mem_req_mmu_epoch_w;
+  wire [`XLEN-1:0] core_mem_req_fault_tval_w;
+  wire core_mem_expected_valid_w;
+  wire [1:0] core_mem_expected_owner_kind_w;
+  wire [4:0] core_mem_expected_owner_token_w;
+  wire [1:0] core_mem_expected_mmu_epoch_w;
+  wire core_mem_expected_tval_valid_w;
+  wire [`XLEN-1:0] core_mem_expected_fault_tval_w;
+  wire core_mem_expected_effective_killed_w;
+  wire core_mem_tracker_expected_valid_w;
+  wire [1:0] core_mem_tracker_expected_owner_kind_w;
+  wire [4:0] core_mem_tracker_expected_owner_token_w;
+  wire [1:0] core_mem_tracker_expected_mmu_epoch_w;
+  wire core_mem_station_expected_valid_w;
+  wire [1:0] core_mem_station_expected_owner_kind_w;
+  wire [4:0] core_mem_station_expected_owner_token_w;
+  wire [1:0] core_mem_station_expected_mmu_epoch_w;
   wire core_mem_req_device_release_w;
   wire core_mem_req_device_cancel_w;
   wire [`XLEN-1:0] core_mem_req_addr_w;
@@ -415,6 +472,32 @@ module OooCoreTopGlue #(
   assign mem_req_attr_valid_o = core_mem_req_attr_valid_w;
   assign mem_req_class_o = core_mem_req_class_w;
   assign mem_req_cacheable_o = core_mem_req_cacheable_w;
+  assign mem_req_owner_kind_o = core_mem_req_owner_kind_w;
+  assign mem_req_owner_token_o = core_mem_req_owner_token_w;
+  assign mem_req_mmu_epoch_o = core_mem_req_mmu_epoch_w;
+  assign mem_req_fault_tval_o = core_mem_req_fault_tval_w;
+  assign mem_expected_valid_o = core_mem_expected_valid_w;
+  assign mem_expected_owner_kind_o = core_mem_expected_owner_kind_w;
+  assign mem_expected_owner_token_o = core_mem_expected_owner_token_w;
+  assign mem_expected_mmu_epoch_o = core_mem_expected_mmu_epoch_w;
+  assign mem_expected_tval_valid_o = core_mem_expected_tval_valid_w;
+  assign mem_expected_fault_tval_o = core_mem_expected_fault_tval_w;
+  assign mem_expected_effective_killed_o =
+      core_mem_expected_effective_killed_w;
+  assign mem_tracker_expected_valid_o = core_mem_tracker_expected_valid_w;
+  assign mem_tracker_expected_owner_kind_o =
+      core_mem_tracker_expected_owner_kind_w;
+  assign mem_tracker_expected_owner_token_o =
+      core_mem_tracker_expected_owner_token_w;
+  assign mem_tracker_expected_mmu_epoch_o =
+      core_mem_tracker_expected_mmu_epoch_w;
+  assign mem_station_expected_valid_o = core_mem_station_expected_valid_w;
+  assign mem_station_expected_owner_kind_o =
+      core_mem_station_expected_owner_kind_w;
+  assign mem_station_expected_owner_token_o =
+      core_mem_station_expected_owner_token_w;
+  assign mem_station_expected_mmu_epoch_o =
+      core_mem_station_expected_mmu_epoch_w;
   wire core_mem_rsp_ready_w;
   wire core_branch_resolve_valid_w;
   wire [`XLEN-1:0] core_branch_resolve_pc_w;
@@ -703,6 +786,32 @@ module OooCoreTopGlue #(
     .core_mem_req_attr_valid_w(core_mem_req_attr_valid_w),
     .core_mem_req_class_w(core_mem_req_class_w),
     .core_mem_req_cacheable_w(core_mem_req_cacheable_w),
+    .core_mem_req_owner_kind_w(core_mem_req_owner_kind_w),
+    .core_mem_req_owner_token_w(core_mem_req_owner_token_w),
+    .core_mem_req_mmu_epoch_w(core_mem_req_mmu_epoch_w),
+    .core_mem_req_fault_tval_w(core_mem_req_fault_tval_w),
+    .core_mem_expected_valid_w(core_mem_expected_valid_w),
+    .core_mem_expected_owner_kind_w(core_mem_expected_owner_kind_w),
+    .core_mem_expected_owner_token_w(core_mem_expected_owner_token_w),
+    .core_mem_expected_mmu_epoch_w(core_mem_expected_mmu_epoch_w),
+    .core_mem_expected_tval_valid_w(core_mem_expected_tval_valid_w),
+    .core_mem_expected_fault_tval_w(core_mem_expected_fault_tval_w),
+    .core_mem_expected_effective_killed_w(
+        core_mem_expected_effective_killed_w),
+    .core_mem_tracker_expected_valid_w(core_mem_tracker_expected_valid_w),
+    .core_mem_tracker_expected_owner_kind_w(
+        core_mem_tracker_expected_owner_kind_w),
+    .core_mem_tracker_expected_owner_token_w(
+        core_mem_tracker_expected_owner_token_w),
+    .core_mem_tracker_expected_mmu_epoch_w(
+        core_mem_tracker_expected_mmu_epoch_w),
+    .core_mem_station_expected_valid_w(core_mem_station_expected_valid_w),
+    .core_mem_station_expected_owner_kind_w(
+        core_mem_station_expected_owner_kind_w),
+    .core_mem_station_expected_owner_token_w(
+        core_mem_station_expected_owner_token_w),
+    .core_mem_station_expected_mmu_epoch_w(
+        core_mem_station_expected_mmu_epoch_w),
     .core_mem_req_device_release_w(core_mem_req_device_release_w),
     .core_mem_req_device_cancel_w(core_mem_req_device_cancel_w),
     .core_mem_req_wstrb_w(core_mem_req_wstrb_w),
@@ -734,6 +843,25 @@ module OooCoreTopGlue #(
     .mem_rsp_attr_valid_i(mem_rsp_attr_valid_i),
     .mem_rsp_class_i(mem_rsp_class_i),
     .mem_rsp_cacheable_i(mem_rsp_cacheable_i),
+    .mem_rsp_owner_kind_i(mem_rsp_owner_kind_i),
+    .mem_rsp_owner_token_i(mem_rsp_owner_token_i),
+    .mem_rsp_mmu_epoch_i(mem_rsp_mmu_epoch_i),
+    .mem_rsp_fault_tval_i(mem_rsp_fault_tval_i),
+    .mem_owner_query_valid_i(mem_owner_query_valid_i),
+    .mem_owner_query_token_i(mem_owner_query_token_i),
+    .mem_station_query_valid_i(mem_station_query_valid_i),
+    .mem_station_query_token_i(mem_station_query_token_i),
+    .mem_drop0_valid_i(mem_drop0_valid_i),
+    .mem_drop0_owner_kind_i(mem_drop0_owner_kind_i),
+    .mem_drop0_owner_token_i(mem_drop0_owner_token_i),
+    .mem_drop0_mmu_epoch_i(mem_drop0_mmu_epoch_i),
+    .mem_drop0_fault_tval_i(mem_drop0_fault_tval_i),
+    .mem_drop1_valid_i(mem_drop1_valid_i),
+    .mem_drop1_owner_kind_i(mem_drop1_owner_kind_i),
+    .mem_drop1_owner_token_i(mem_drop1_owner_token_i),
+    .mem_drop1_mmu_epoch_i(mem_drop1_mmu_epoch_i),
+    .mem_drop1_fault_tval_i(mem_drop1_fault_tval_i),
+    .mem_bridge_owner_residency_mask_i(mem_bridge_owner_residency_mask_i),
     .mem_rsp_rdata_i(mem_rsp_rdata_i),
     .mem_rsp_valid_i(mem_rsp_valid_i),
     .pending_branch_cmp_op_q(pending_branch_cmp_op_q),

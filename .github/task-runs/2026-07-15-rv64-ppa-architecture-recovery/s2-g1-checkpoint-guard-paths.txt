@@ -1,0 +1,17 @@
+npc/rv64/vsrc/filelist.mk
+npc/rv64/vsrc/memory/OooMemOwnerTracker.v
+npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v
+npc/rv64/vsrc/memory/OooMemInflightQueue.v
+npc/rv64/vsrc/memory/OooStoreQueue.v
+npc/rv64/vsrc/memory/OooMemAxiBridge.v
+npc/rv64/vsrc/execute/OooIntBackend.v
+npc/rv64/vsrc/decode/OooAluDecodeBackend.v
+npc/rv64/vsrc/execute/OooAluCoreSlice.v
+npc/rv64/vsrc/execute/OooExecuteBackend.v
+npc/rv64/vsrc/core/OooCoreTopGlue.v
+npc/rv64/vsrc/core/NpcCoreTop.v
+npc/rv64/testbench/tests/tb_ooo_mem_inflight_queue.sv
+npc/rv64/testbench/tests/tb_ooo_store_queue.sv
+npc/rv64/testbench/tests/tb_ooo_int_backend.sv
+npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv
+npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv

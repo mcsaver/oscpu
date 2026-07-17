@@ -1,0 +1,2 @@
+[S2-G1-TCOLL-GREEN][PASS] six-way+bursts+dual-backpressure+exact-once
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/tests/tb_s2_g1_terminal_collector_green.sv:256: $finish called at 196000 (1ps)

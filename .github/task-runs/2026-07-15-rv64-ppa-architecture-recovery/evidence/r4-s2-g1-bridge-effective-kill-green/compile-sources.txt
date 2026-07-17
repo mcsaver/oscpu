@@ -1,0 +1,14 @@
+/home/lyg/PA/ysyx-workbench/npc/rv64/testbench/common/rv32_encode.svh
+/home/lyg/PA/ysyx-workbench/npc/rv64/testbench/common/tb_common.svh
+/home/lyg/PA/ysyx-workbench/npc/rv64/testbench/common/tb_ooo_core_top_glue_csr.svh
+/home/lyg/PA/ysyx-workbench/npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/cache/OooDataWordCache.v
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include/define.v
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemAxiBridge.v
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooPmaChecker.v
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooPostTranslateMemoryClass.v
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooSv39Tlb.v
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooTypedMemoryClassifier.v
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooTypedPmaChecker.v
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/PmpChecker.v
+/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/sram/Sram4096x113.v
