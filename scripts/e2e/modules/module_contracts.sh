@@ -157,6 +157,9 @@ e2e_yosys_sta_contract() {
     yosys-sta/scripts/check_abc_delay_target_contract.py \
     yosys-sta/scripts/test_abc_delay_target_contract.py \
     .github/agents/yosys-sta.agent.md \
+    .github/instructions/rv64-ppa-optimization-workflow.instructions.md \
+    npc/rv64/design/arch/rv64-architecture-ppa-contract.md \
+    npc/rv64/eval/ppa/README.md \
     .github/memory/modules/yosys-sta.md || rc=1
   python3 "$E2E_ROOT_DIR/yosys-sta/scripts/test_abc_delay_target_contract.py" || rc=1
   python3 "$E2E_ROOT_DIR/yosys-sta/scripts/check_abc_delay_target_contract.py" || rc=1
@@ -233,6 +236,9 @@ e2e_verilator_tapeout_contract() {
   e2e_print_required_files \
     .github/agents/verilator-tapeout.agent.md \
     .github/instructions/verilator-tapeout-realism.instructions.md \
+    .github/instructions/rv64-ppa-optimization-workflow.instructions.md \
+    npc/rv64/design/arch/rv64-architecture-ppa-contract.md \
+    npc/rv64/eval/ppa/README.md \
     npc/rv64/Makefile
 }
 

@@ -240,6 +240,22 @@ synth-boundary-audit → verilator-perf-run → rtl-invariant-check → focused-
 
 适用场景：在暂不使用 Vivado 的阶段，用 Verilator 做尽量真实的性能/系统仿真，同时审计 core/SoC 可综合边界和后续流片风险。
 
+### `rv64-ppa-dse-loop`
+
+```text
+recall-and-freeze
+ → completion-definition
+ → reversible-implementation-slice
+ → focused-positive-and-mutation
+ → full-functional-and-representative-performance
+ → complete-design-hard-gates
+ → same-design-synth-sta-power-qualification
+ → global-pareto-or-development-record
+ → workflow-feedback
+```
+
+适用场景：持续优化 RV64 双发射完整 OoO 核及 PPA。只有同一完整设计状态通过功能、性能、时序、面积、功耗和证据硬门后，才允许进入全局 Pareto；流程摩擦和假绿必须回流到 AI 环境的唯一真源与自动 gate。
+
 ### `modular-agent-e2e`（兼容名：`agent-e2e-loop`）
 
 ```text

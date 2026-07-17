@@ -1,0 +1,75 @@
+{
+  "artifacts": {
+    "context_brief": ".github/task-runs/2026-07-17-rv64-ppa-ai-workflow-consolidation/context-brief.md",
+    "dispatch_log": ".github/task-runs/2026-07-17-rv64-ppa-ai-workflow-consolidation/dispatch-log.md",
+    "evidence_dir": ".github/task-runs/2026-07-17-rv64-ppa-ai-workflow-consolidation/evidence",
+    "evidence_index": ".github/task-runs/2026-07-17-rv64-ppa-ai-workflow-consolidation/evidence-index.md",
+    "nodes": ".github/task-runs/2026-07-17-rv64-ppa-ai-workflow-consolidation/nodes.tsv",
+    "profile_resolve": ".github/task-runs/2026-07-17-rv64-ppa-ai-workflow-consolidation/profile-resolve.md",
+    "run_dir": ".github/task-runs/2026-07-17-rv64-ppa-ai-workflow-consolidation",
+    "run_manifest": ".github/task-runs/2026-07-17-rv64-ppa-ai-workflow-consolidation/run-manifest.json",
+    "task_report": ".github/task-runs/2026-07-17-rv64-ppa-ai-workflow-consolidation/task-report.md"
+  },
+  "db": {
+    "markdown_archive": true,
+    "raw_evidence_index_only": true
+  },
+  "evidence": {
+    "asset_count": 1,
+    "by_kind": {
+      "log": 1
+    },
+    "total_size_bytes": 5868
+  },
+  "final_result": "profile=agent-system 存在失败节点；不能把后续工程判断建立在该节点上。",
+  "git": {
+    "branch": "ai",
+    "head": "186a067db",
+    "upstream": "myfork/ai"
+  },
+  "graph_mode": "static",
+  "graph_template": "modular-agent-e2e",
+  "node_counts": {
+    "by_status": {
+      "FAIL": 1
+    },
+    "total": 1
+  },
+  "nodes": [
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-ai-workflow-consolidation/evidence/recall-discovery.log",
+      "inputs": "AGENTS/copilot/instructions/memory/e2e profiles",
+      "module": "agent-system",
+      "node_id": "recall-discovery",
+      "outputs": "exit=1",
+      "owner_agent": "agent-system",
+      "status": "FAIL"
+    }
+  ],
+  "profile": "agent-system",
+  "run_id": "2026-07-17-rv64-ppa-ai-workflow-consolidation",
+  "schema_version": 1,
+  "started_at": "2026-07-17 17:50:46 +0800",
+  "state_traceback": {
+    "current_state": "verify",
+    "evidence_policy": "task-report + dispatch-log + run-manifest + evidence-index",
+    "failure_reason": "profile=agent-system 存在失败节点；不能把后续工程判断建立在该节点上。",
+    "failure_state": "verify",
+    "inspector": "agent-system",
+    "reviewer": "ysyx-coordinator",
+    "rollback_target": "implement",
+    "state_sequence": [
+      "recall_context",
+      "classify_layer",
+      "plan_graph",
+      "implement",
+      "verify",
+      "inspect",
+      "persist"
+    ]
+  },
+  "status": "blocked",
+  "task_slug": "rv64-ppa-ai-workflow-consolidation",
+  "trace_id": "e2e:2026-07-17-rv64-ppa-ai-workflow-consolidation",
+  "updated_at": "2026-07-17 17:50:49 +0800"
+}

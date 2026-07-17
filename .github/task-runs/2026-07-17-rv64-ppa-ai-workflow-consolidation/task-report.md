@@ -1,0 +1,78 @@
+# 任务报告
+
+## 基本信息
+
+- `task_id`: 2026-07-17-rv64-ppa-ai-workflow-consolidation
+- `trace_id`: e2e:2026-07-17-rv64-ppa-ai-workflow-consolidation
+- `task_slug`: rv64-ppa-ai-workflow-consolidation
+- `graph_template`: modular-agent-e2e
+- `profile`: agent-system
+- `graph_mode`: static
+- `status`: blocked
+- `owner`: agent-system + hardware-flow + module agents
+- `started_at`: 2026-07-17 17:50:46 +0800
+- `updated_at`: 2026-07-17 17:50:49 +0800
+
+## 任务目标
+
+- `source_request`: 将 agent 系统从纯语言提示升级为分层、分模块、可闭环和可优化的 e2e 流水线
+- `goal`: 依据 profile 执行模块化 e2e 节点，生成可复核证据包
+- `scope`: profile=agent-system；不越级声明未执行模块或业务 gate 已完成
+
+## 选图说明
+
+- `selected_template`: modular-agent-e2e
+- `why_this_graph`: 本 profile 从 `.github/e2e/profiles/` 读取节点，把 agent/instructions/memory 中的模块职责转换为可执行 gate。
+- `dynamic_nodes_added`: 无
+- `why_dynamic_nodes_were_needed`: 无
+
+## 状态回溯
+
+- `state_sequence`: recall_context -> classify_layer -> plan_graph -> implement -> verify -> inspect -> persist
+- `current_state`: verify
+- `failure_state`: verify
+- `rollback_target`: implement
+- `failure_reason`: profile=agent-system 存在失败节点；不能把后续工程判断建立在该节点上。
+- `reviewer`: ysyx-coordinator
+- `inspector`: agent-system
+- `evidence_policy`: task-report + dispatch-log + run-manifest + evidence-index
+
+## 节点概览
+
+| 节点ID (`node_id`) | 负责 Agent (`owner_agent`) | 模块 (`module`) | 状态 (`status`) | 输入 (`inputs`) | 输出 (`outputs`) | 证据 (`evidence`) |
+| ------------------ | -------------------------- | --------------- | --------------- | --------------- | ----------------- | ----------------- |
+| `recall-discovery` | `agent-system` | `agent-system` | `FAIL` | AGENTS/copilot/instructions/memory/e2e profiles | exit=1 | .github/task-runs/2026-07-17-rv64-ppa-ai-workflow-consolidation/evidence/recall-discovery.log |
+
+## 关键产物
+
+- `artifacts`: .github/task-runs/2026-07-17-rv64-ppa-ai-workflow-consolidation
+- `logs_or_traces`: .github/task-runs/2026-07-17-rv64-ppa-ai-workflow-consolidation/evidence
+- `context_brief`: .github/task-runs/2026-07-17-rv64-ppa-ai-workflow-consolidation/context-brief.md
+- `profile_resolve`: .github/task-runs/2026-07-17-rv64-ppa-ai-workflow-consolidation/profile-resolve.md
+- `evidence_index`: .github/task-runs/2026-07-17-rv64-ppa-ai-workflow-consolidation/evidence-index.md
+- `run_manifest`: .github/task-runs/2026-07-17-rv64-ppa-ai-workflow-consolidation/run-manifest.json
+- `profile_manifest`: .github/e2e/profiles/agent-system.tsv
+- `linked_memory_updates`: 由 agent 在收尾阶段按本轮稳定结论更新 memory
+
+## 当前阻塞点
+
+- `blockers`: 存在失败节点，详见 evidence 日志
+- `missing_dependencies`: 见对应 tool/env 节点日志
+- `risk_assessment`: 需要先查看 evidence 日志，按 regression-debug-loop 补 reproduce/collect/localize。
+
+## 下一步建议
+
+1. 修复失败节点或切换到更小 profile。
+2. 对含 `SKIP` 的模块，先补依赖或切换到合适配置，再把该模块提升到 PASS 证据。
+
+## 模板升级候选
+
+- `repeated_dynamic_subgraph`: 无
+- `should_promote_to_static_template`: 已作为 modular-agent-e2e profile 固化
+- `reason`: profile + module library + task-run 证据包能把 agent 提示转为可执行流水线
+
+## 收尾结论
+
+- `final_result`: profile=agent-system 存在失败节点；不能把后续工程判断建立在该节点上。
+- `evidence_summary`: 详见节点表与 `evidence/`
+- `notes`: 这是模块化 e2e gate，不替代未执行模块的功能回归、DiffTest、Linux/Ubuntu 分层 gate 或 PPA/STA signoff。

@@ -2,6 +2,8 @@
 
 `.github/ai-env/` 保存 AI 开发环境的可审计 contract。旧的 `.github/agent-env-*.json` 只保留兼容 shim，真实 source-of-truth 位于 `contracts/`。
 
+日常开工、单一真源选择和使用中反馈回流统一从仓库根 `AI_ENVIRONMENT.md` 进入；本目录 README 只解释 contract 布局，不承担第二套全局导航。
+
 ## 目录
 
 - `contracts/`：Database / Skill / Agent 三层 contract、delivery contract、runtime artifact contract、branch-health 与 review routing。

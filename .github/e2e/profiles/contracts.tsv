@@ -14,11 +14,11 @@ npc-soc-contract|npc|e2e_npc_soc_contract|npc|npc/soc + ysyxSoC CPU ABI|NPC SoC 
 npc-rv64-contract|npc|e2e_npc_rv64_contract|npc|npc/rv64 + Linux README|RV64 core/Linux 入口合约存在
 ysyx-soc-contract|ysyx-soc|e2e_ysyx_soc_contract|ysyx-soc|ysyxSoC Makefile/spec/agent/memory|ysyxSoC 合约入口存在
 difftest-contract|difftest|e2e_difftest_contract|difftest|NEMU spike-diff + npc/sim difftest-ref|DiffTest 合约入口存在
-yosys-sta-contract|yosys-sta|e2e_yosys_sta_contract|yosys-sta|yosys-sta Makefile/tools/memory|综合/STA 合约入口和工具状态可见
+yosys-sta-contract|yosys-sta|e2e_yosys_sta_contract|yosys-sta|yosys-sta Makefile/tools/memory + RV64 PPA workflow/architecture contract|综合/STA 与 RV64 PPA 合约入口和工具状态可见
 rv64-linux-contract|rv64-linux|e2e_rv64_linux_contract|rv64-linux|Linux Makefile/env/platform/instructions|RV64 Linux/Ubuntu 合约入口存在
 linux-device-contract|linux-device|e2e_linux_device_contract|linux-device|virtio-rootfs instruction + Linux scripts|Linux 设备合约入口存在
 display-vga-contract|display-vga|e2e_display_vga_contract|display-vga|linux-framebuffer-vga instruction + Linux README|显示/fbcon 合约入口存在
-verilator-tapeout-contract|verilator-tapeout|e2e_verilator_tapeout_contract|verilator-tapeout|verilator realism instruction + npc/rv64|Verilator-first 流片边界合约入口存在
+verilator-tapeout-contract|verilator-tapeout|e2e_verilator_tapeout_contract|verilator-tapeout|verilator realism instruction + RV64 PPA workflow/architecture contract + npc/rv64|Verilator-first 流片边界与 RV64 PPA 合约入口存在
 fceux-am-contract|fceux-am|e2e_fceux_am_contract|fceux-am|fceux-am Makefile/agent/memory|FCEUX-AM 合约入口存在
 nvboard-contract|nvboard|e2e_nvboard_contract|nvboard|nvboard README/scripts/example/agent|NVBoard 合约入口存在
 digital-logic-contract|digital-logic|e2e_digital_logic_contract|digital-logic|digital_logic_experiment + agent|数字逻辑实验合约入口存在

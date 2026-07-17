@@ -51,6 +51,7 @@ Verilog RTL → Yosys 综合 → 门级网表 (netlist.v) → iSTA 时序分析 
 2. 读取 `.github/memory/modules/yosys-sta.md` 了解历史综合结果
 3. 若综合对象来自 NPC，读取 `.github/memory/modules/npc.md`，确认当前应综合可综合核心（如 `NpcCore`）而不是含 DPI/仿真壳的 `NpcSimTop`
 4. 如果是调试任务，读取 `.github/memory/known-issues.md`
+5. 对 NPC RV64 做 PPA qualification 时，读取 `.github/instructions/rv64-ppa-optimization-workflow.instructions.md` 与 `npc/rv64/design/arch/rv64-architecture-ppa-contract.md`，不得把中间检查点或未限定 proxy 当成完整设计点结论。
 
 ### 完成工作后
 1. 更新 `.github/memory/modules/yosys-sta.md` 记录综合/STA 结果数据

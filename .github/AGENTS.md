@@ -22,6 +22,7 @@
 - **核心方法学**：涉及 RTL 正确性时，优先使用参考模型、trace、watchpoint、DiffTest 或等价证据链收敛问题，而不是直接猜修复点。
 - **构建系统**：GNU Make + Kconfig；详细命令与模块约束见 `.github/copilot-instructions.md`。
 - **长期知识入口**：`.github/memory/`、`.github/agentic-hardware-blueprint.md`、`npc/{single,soc}/design/study/README.md`、`ysyxSoC/spec/cpu-interface.md` 以及相关模块笔记；开发记忆系统作为独立工程目录维护在 `scripts/dev_memory/`，`scripts/github_index_db.py` 只保留兼容 CLI wrapper，也可用 `PYTHONPATH=scripts python3 -m dev_memory ...` 直接调用包入口。数据库只保留固定格式的长期记忆和 task-run 日志 stored documents：`.github/memory/**`、`.github/task-runs/**` 的报告/dispatch/context/profile/evidence-index 等；agent、instruction、e2e profile/module、contract 和说明文档直接保留在原文件。可用 `brief <关键词> --profile <profile>` 为 agent 开工生成 bounded 上下文包，用 `query <关键词>` 定位 `.github` 与根目录 agent shim 资料，用 `summary/compact` 压缩目录视图，用 `load --source auto` 按 token budget 拉取命中片段，用 `api` 为外部 AI 提供 JSON/JSONL `stat/search/summary/load/show/brief` 只读调用协议，用 `usage`/API `op=usage` 查看数据库最近一次 CLI/API 使用时间和访问明细，用 `index-evidence` 为 task-run 下的原始 `.log/.cmd/.tsv/.txt` 等 evidence asset 登记路径、大小、sha256、mtime、行数、marker 和 bounded 摘要并生成 `evidence-index.md`，用 `evidence`/API `op=evidence` 查询这些摘要，用 `promote`/`update-stored`/`archive-markdown` 维护 memory/log retained documents，用 `snapshot-stored` 为当前 retained documents 生成可重灌快照，用 `rehydrate` 在 `.github/cache` 数据库丢失后只从备份 manifest 重建 memory/log stored documents，用 `materialize --prune-non-retained` 把 stored 内容写回原文件并清理非 retained DB ownership，用 `audit-db-first` 实时审计 strict memory live 一致性并把历史 task-run stored-only/live drift 归为非阻塞归档状态，用 `audit-markdown-coverage --fail-on-live-evidence` 审计 Markdown ownership 边界。
+- **AI 环境导航**：`AI_ENVIRONMENT.md` 是“从哪里开始、内容写到哪一层、用什么 gate 收尾”的一页入口；`.github/agentic-hardware-blueprint.md` 只负责图任务和分层架构，不再承担日常导航。
 - **Profile 推荐**：当不知道该跑哪个 e2e profile 时，可先运行 `python3 scripts/github_index_db.py profiles <关键词>` 查看 live/indexed e2e profile 目录，用 `python3 scripts/github_index_db.py resolve-profile <profile>` 展开 include 闭包和实际节点序列，或运行 `python3 scripts/github_index_db.py brief <关键词>` 获取开工上下文；未指定 `--profile` 时 brief 会根据 live/indexed profile/module 文档输出 `Profile Suggestions` 和候选 `scripts/agent-e2e.sh --profile <profile>` 命令，再由具体 profile 产物闭合证据。
 - **历史证据回查**：需要回看已归档 e2e 证据时，运行 `python3 scripts/github_index_db.py runs --profile <profile>`；它从 stored task-report 汇总 run 状态、时间、final_result，并链接 report、dispatch、context brief、profile resolve、evidence index 和 evidence asset 数量。需要查原始 log 是否被登记时，用 `python3 scripts/github_index_db.py evidence --run-id <run_id>`；不要默认把完整 log 加载进上下文。
 - **语言约定**：所有注释、文档和记录默认使用中文。
@@ -37,6 +38,7 @@
 3. `.github/memory/project-status.md`
 4. `.github/memory/known-issues.md`
 5. `.github/memory/modules/<相关模块>.md`
+   - 若涉及 `npc/rv64` 完整双发射/OoO/CPI/PPA/综合/STA/功耗优化，**必读** `.github/instructions/rv64-ppa-optimization-workflow.instructions.md`，中间切片只作 development checkpoint，完整同源 design-id 通过 hard gates 后才能进入 Pareto/promotion
 6. `.github/instructions/<相关主题>.instructions.md`
    - 若涉及 `npc/rv64` 可综合 RTL 且触碰握手 / stall / flush·redirect·trap / 异常序 / 访存序 / 投机恢复，**必读** `.github/instructions/interface-contract-first.instructions.md`，先冻结六类跨模块契约再写逻辑（决策见 `.github/memory/decisions.md` [38]）
 7. 若任务涉及 `npc/single/` 或 `npc/soc/` 的数据通路、译码、控制、功能仿真、SoC wrapper 或 RTL，补读对应目录下的 `design/study/README.md` 及专题笔记
@@ -103,7 +105,7 @@
 - 需要查看结果时，应直接运行程序并基于真实终端输出总结关键结论。
 - 能脚本化的调试路径优先脚本化，例如 `--batch`、日志文件、trace、watchpoint、配置开关、临时代码插桩或专用测试程序。
 - 任何实际代码修改后，都要提供至少一条验证证据；如果无法验证，必须明确说明缺口。
-- NPC 性能/CPI/OoO 优化不得只看 `add` 单项；必须按 `.github/instructions/npc-optimization-workflow.instructions.md` 执行 CPU-test 全量优先、三类代表样本分析和一个 module 一个源文件约束。
+- NPC 性能/CPI/OoO 优化不得只看 `add` 单项；必须按 `.github/instructions/npc-optimization-workflow.instructions.md` 执行全量优先、三类代表样本分析和一个 module 一个源文件约束；`npc/rv64` 还须按 `.github/instructions/rv64-ppa-optimization-workflow.instructions.md` 执行完整设计点、同源证据、hard-gate-first、全局 Pareto 与 Power/宏面积资格化。
 - RV64 Linux/Ubuntu 性能仿真不得为了跑快绕过 guest 可见设备/中断/总线协议；Verilator 平台可用 DPI/host C++，但 core/长期 RTL 必须保持可综合边界并按 `.github/instructions/verilator-tapeout-realism.instructions.md` 记录真实度假设。
 
 ---

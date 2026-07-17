@@ -35,9 +35,12 @@ e2e_sanitize_task_run_text_artifacts() {
   local file
   [[ -n ${E2E_RUN_DIR:-} && -d $E2E_RUN_DIR ]] || return 0
 
-  # 统一清理 e2e 证据包中的行尾空白和 CR，避免生成物过不了 git diff --check。
+  # 统一清理 e2e 证据包中的行尾空白、CR 和文件尾空行，避免生成物过不了 git diff --check。
   while IFS= read -r -d '' file; do
     LC_ALL=C sed -i 's/[ \t\r]*$//' "$file"
+    while [[ -s $file && -z $(tail -n 1 "$file") ]]; do
+      sed -i '$d' "$file"
+    done
   done < <(
     find "$E2E_RUN_DIR" -type f \
       \( -name '*.md' -o -name '*.tsv' -o -name '*.log' -o -name '*.cmd' -o -name '*.txt' \) \

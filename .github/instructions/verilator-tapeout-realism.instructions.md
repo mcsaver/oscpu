@@ -30,4 +30,4 @@ applyTo: "npc/rv64/**"
 
 ## 性能优化约束
 
-触碰 CPI、cache、BPU、LSQ、issue/commit、AXI outstanding 等路径时，必须叠加 `.github/instructions/npc-optimization-workflow.instructions.md`。不能只用 `add` 或单个 Linux smoke 证明优化有效。
+触碰 CPI、cache、BPU、LSQ、issue/commit、AXI outstanding 等路径时，必须叠加 `.github/instructions/npc-optimization-workflow.instructions.md`；`npc/rv64` 还必须读取 `.github/instructions/rv64-ppa-optimization-workflow.instructions.md`，先闭合完整双发射/真 OoO/同源 PPA hard gates，再做 Pareto 或 champion 裁决。不能只用 `add`、单个 Linux smoke 或 vectorless/macro=0 proxy 证明优化有效。

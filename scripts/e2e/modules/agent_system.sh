@@ -649,6 +649,9 @@ EOF
 
   echo "[agent-system] task-run text artifact sanitizer"
   local report_sh="$E2E_ROOT_DIR/scripts/e2e/lib/report.sh"
+  local sanitizer_probe_dir sanitizer_probe_file
+  sanitizer_probe_dir="$E2E_EVIDENCE_DIR/agent-system-sanitizer-probe"
+  sanitizer_probe_file="$sanitizer_probe_dir/trailing-blank-lines.md"
   if [[ $(grep -Fc 'e2e_sanitize_task_run_text_artifacts' "$report_sh") -ge 2 ]]; then
     printf 'PASS report.sh sanitizer defined and called\n'
   else
@@ -665,6 +668,19 @@ EOF
     printf 'PASS report.sh limits sanitizer to current task-run\n'
   else
     printf 'FAIL report.sh limits sanitizer to current task-run\n'
+    rc=1
+  fi
+
+  mkdir -p "$sanitizer_probe_dir"
+  printf 'line  \r\n\n\n' > "$sanitizer_probe_file"
+  if (
+    E2E_RUN_DIR="$sanitizer_probe_dir"
+    e2e_sanitize_task_run_text_artifacts
+    cmp -s <(printf 'line\n') "$sanitizer_probe_file"
+  ); then
+    printf 'PASS report.sh removes trailing blank lines, trailing spaces, and CR\n'
+  else
+    printf 'FAIL report.sh sanitizer mutation probe retained trailing text noise\n'
     rc=1
   fi
   if grep -Fq '# 任务报告' "$report_sh" &&
@@ -707,6 +723,7 @@ e2e_agent_system_three_layer_contract() {
   echo "[agent-system] three-layer AI environment contract"
   local rc=0
   local layer_doc=".github/instructions/agent-env-layer-contract.instructions.md"
+  local nav_doc="AI_ENVIRONMENT.md"
   local policy_doc=".github/ai-env/contracts/agent-env-policy.json"
   local matrix_doc=".github/ai-env/contracts/agent-env-rebuild-matrix.json"
   local schema_doc=".github/ai-env/contracts/agent-env-schema-contract.json"
@@ -722,6 +739,7 @@ e2e_agent_system_three_layer_contract() {
   local maintain_sh="scripts/agent-maintain.sh"
 
   e2e_print_required_files \
+    "$nav_doc" \
     "$layer_doc" \
     "$policy_doc" \
     "$matrix_doc" \
@@ -744,6 +762,17 @@ e2e_agent_system_three_layer_contract() {
     printf 'PASS layer contract documents Database/Skill/Agent boundaries\n'
   else
     printf 'FAIL layer contract missing Database/Skill/Agent boundaries\n'
+    rc=1
+  fi
+
+  if e2e_file_contains "$nav_doc" '日常开工（最短路径）' &&
+     e2e_file_contains "$nav_doc" '单一真源与内容去向' &&
+     e2e_file_contains "$nav_doc" '使用中迭代' &&
+     e2e_file_contains "$nav_doc" '.github/ai-env/contracts/' &&
+     ! grep -Fq '.github/agent-env-' "$layer_doc"; then
+    printf 'PASS one-page navigation and canonical contract paths are explicit\n'
+  else
+    printf 'FAIL one-page navigation missing or layer contract still references compatibility shims\n'
     rc=1
   fi
 

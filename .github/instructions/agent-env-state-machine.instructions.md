@@ -46,4 +46,4 @@
 - 报告矩阵中的每个 requirement 必须至少有 `status`、`evidence`、`verification` 和 `next_action`。
 - `implemented` 只能用于当前仓库已有自动 gate 或 task-run evidence 支撑的项目。
 - `partial` 和 `planned` 必须保留下一步，不能被最终回复扩写成整体完成。
-- 长期目标完成前，必须对照 `.github/agent-env-rebuild-matrix.json` 逐项审计，而不是只看本轮命令是否为 0。
+- 长期目标完成前，必须对照 `.github/ai-env/contracts/agent-env-rebuild-matrix.json` 逐项审计，而不是只看本轮命令是否为 0。

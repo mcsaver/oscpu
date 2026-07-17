@@ -14,6 +14,12 @@ NPC 开发默认使用 NPC-only profile：
 
 - 快速 NPC 合同：`scripts/agent-e2e.sh --profile npc-dev`
 
+## RV64 PPA 持续优化
+
+涉及双发射完整 OoO 核的性能、面积、时序或功耗时，必须读取
+`.github/instructions/rv64-ppa-optimization-workflow.instructions.md` 与
+`npc/rv64/design/arch/rv64-architecture-ppa-contract.md`；中间检查点只能留开发证据，不能进入全局 Pareto、seed 或 champion。
+
 `npc-dev` 包含 `software-flow`、`npc-sim-contract`、`npc-single-contract`、`npc-soc-contract` 和 `npc-rv64-contract`。它不得包含 `nemu-dev`、`nemu-ubuntu`、`nemu-ubuntu-full-gate` 或 NEMU full Ubuntu gate。
 
 ## 软件流程

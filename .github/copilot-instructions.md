@@ -72,7 +72,7 @@ fceux-am (NES 模拟器, 运行在 AM 上)
 - 当任务是“搭建/验证 AI 开发环境 e2e”“降低 AI 不确定性”或检查规则发现漂移时，先读取 `.github/instructions/agent-e2e-workflow.instructions.md` 与 `.github/e2e/README.md`，用 `python3 scripts/github_index_db.py brief <关键词> --profile <profile>` 生成 bounded 上下文包，再用 `scripts/agent-e2e.sh --list-profiles` 和 `--validate-all-profiles` 选择模块 profile；全模块入口用 `--profile contracts`，软件流程入口用 `--profile software-flow`，`.github` 检索索引入口用 `--profile github-index`，最小 smoke 用 `--profile quick`，结果不能越级证明 target、Linux/Ubuntu 或 PPA 正确。
 - 当前默认主闭环已经推进为 `am-kernels -> abstract-machine -> npc/sim -> NPC/Verilator(target) + NEMU(reference)`；纯参考调研、AM/NEMU 平台问题或 target 不相关任务仍可截断到 `NEMU(reference)`。
 - 大任务允许并发调用多个只读子 agent 做 RECALL、资料审计和日志整理；涉及实现、验证、记录的节点仍按依赖顺序串行推进。
-- 工作区级蓝图统一维护在 `.github/agentic-hardware-blueprint.md`；处理 agent 架构、工作流编排或 AI 驱动硬件开发环境任务时优先读取。
+- `AI_ENVIRONMENT.md` 是 AI 开发环境的一页导航，工作区级图任务蓝图统一维护在 `.github/agentic-hardware-blueprint.md`；处理 agent 架构、工作流编排或 AI 驱动硬件开发环境任务时依次读取两者。
 
 ## Agent 本地学习资料约束
 - 若相关模块目录存在已整理的本地学习资料（例如 `design/study/README.md`、规范摘要、实现清单），agent 在 RECALL / PLAN 阶段必须先读取索引文件，再按任务类型补读对应笔记，之后才能开始给方案、改代码或跑验证。
@@ -121,6 +121,7 @@ fceux-am (NES 模拟器, 运行在 AM 上)
 
 ## Agent NPC 性能优化约束
 - 处理 NPC CPI、cache、BPU、LSQ、OoO/superscalar、issue/commit、取指/访存等性能优化时，必须叠加读取 `.github/instructions/npc-optimization-workflow.instructions.md`。
+- 处理 `npc/rv64` 完整双发射、真 OoO、PPA、综合/STA 或功耗取舍时，还必须读取 `.github/instructions/rv64-ppa-optimization-workflow.instructions.md`；中间切片不得作 PPA 淘汰，完整同源 design-id 先过功能/DI/OOO/timing hard gates，再做 Pareto/promotion。
 - 性能优化以 CPU-test 全量正确性为门槛；每次 RTL 性能改动后必须跑全量并收集每个测试的 `cycles/commits/CPI`，不能只用 `add` 作为有效性依据。
 - 每轮分析必须从同一次全量结果中同时选取 `highest_cpi`、`lowest_cpi`、`near_average_cpi` 三类代表样本，并报告它们与全量加权 CPI 的变化。
 - Verilog/SystemVerilog 源码默认一个 module 一个源文件；新增 module 必须放入同名源文件并更新 `vsrc/filelist.mk`。

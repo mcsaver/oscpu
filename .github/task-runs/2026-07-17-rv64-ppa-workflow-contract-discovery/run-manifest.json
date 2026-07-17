@@ -1,0 +1,291 @@
+{
+  "artifacts": {
+    "context_brief": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/context-brief.md",
+    "dispatch_log": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/dispatch-log.md",
+    "evidence_dir": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence",
+    "evidence_index": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence-index.md",
+    "nodes": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/nodes.tsv",
+    "profile_resolve": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/profile-resolve.md",
+    "run_dir": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery",
+    "run_manifest": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/run-manifest.json",
+    "task_report": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/task-report.md"
+  },
+  "db": {
+    "markdown_archive": true,
+    "raw_evidence_index_only": true
+  },
+  "evidence": {
+    "asset_count": 25,
+    "by_kind": {
+      "log": 25
+    },
+    "total_size_bytes": 74884
+  },
+  "final_result": "profile=contracts 通过，当前 modular e2e 证据链可复用。",
+  "git": {
+    "branch": "ai",
+    "head": "186a067db",
+    "upstream": "myfork/ai"
+  },
+  "graph_mode": "static",
+  "graph_template": "modular-agent-e2e",
+  "node_counts": {
+    "by_status": {
+      "PASS": 25
+    },
+    "total": 25
+  },
+  "nodes": [
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence/recall-discovery.log",
+      "inputs": "AGENTS/copilot/instructions/memory/e2e profiles",
+      "module": "agent-system",
+      "node_id": "recall-discovery",
+      "outputs": "规则发现链和 e2e 配置入口存在",
+      "owner_agent": "agent-system",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence/tool-env-check.log",
+      "inputs": "agent-env + bash/git/make/python/gcc/verilator/toolchain",
+      "module": "toolchain",
+      "node_id": "tool-env-check",
+      "outputs": "非交互软环境、hard requirements 与 optional tools 可见",
+      "owner_agent": "agent-system",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence/npc-sim-status.log",
+      "inputs": "npc/sim Kconfig 与 backend mk",
+      "module": "hardware-flow",
+      "node_id": "npc-sim-status",
+      "outputs": "当前 npc/sim 后端状态",
+      "owner_agent": "hardware-flow",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence/profile-index.log",
+      "inputs": ".github/e2e/profiles",
+      "module": "agent-system",
+      "node_id": "profile-index",
+      "outputs": "列出所有可执行 profile",
+      "owner_agent": "agent-system",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence/ysyx-coordinator-contract.log",
+      "inputs": "coordinator agent + blueprint + profile root",
+      "module": "ysyx-coordinator",
+      "node_id": "ysyx-coordinator-contract",
+      "outputs": "总调度 e2e 合约入口存在",
+      "owner_agent": "ysyx-coordinator",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence/hardware-flow-contract.log",
+      "inputs": "hardware-flow agent + scripts/am-regression.sh + e2e profiles",
+      "module": "hardware-flow",
+      "node_id": "hardware-flow-contract",
+      "outputs": "硬件流程合约入口存在",
+      "owner_agent": "hardware-flow",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence/software-flow-contract.log",
+      "inputs": "software-flow agent + profile + memory",
+      "module": "software-flow",
+      "node_id": "software-flow-contract",
+      "outputs": "软件开发全流程 agent 合约入口存在",
+      "owner_agent": "software-flow",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence/github-index-contract.log",
+      "inputs": "scripts/github_index_db.py + .github files",
+      "module": "github-index",
+      "node_id": "github-index-contract",
+      "outputs": ".github SQLite 索引数据库入口可构建、查询和巡检",
+      "owner_agent": "agent-system",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence/abstract-machine-contract.log",
+      "inputs": "AM Makefile/scripts/include/memory",
+      "module": "abstract-machine",
+      "node_id": "abstract-machine-contract",
+      "outputs": "AM 平台合约入口存在",
+      "owner_agent": "abstract-machine",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence/am-kernels-contract.log",
+      "inputs": "cpu-tests/am-tests/klib-tests/benchmarks",
+      "module": "am-kernels",
+      "node_id": "am-kernels-contract",
+      "outputs": "测试与 benchmark 合约入口存在",
+      "owner_agent": "am-kernels",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence/nemu-config-probe.log",
+      "inputs": "nemu Kconfig/configs/device filelist",
+      "module": "nemu",
+      "node_id": "nemu-config-probe",
+      "outputs": "NEMU 当前配置和参考入口可见",
+      "owner_agent": "nemu",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence/npc-sim-contract.log",
+      "inputs": "npc/sim + backends",
+      "module": "npc",
+      "node_id": "npc-sim-contract",
+      "outputs": "NPC 统一仿真入口合约存在",
+      "owner_agent": "npc",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence/npc-single-contract.log",
+      "inputs": "npc/single Makefile/Kconfig/vsrc/csrc",
+      "module": "npc",
+      "node_id": "npc-single-contract",
+      "outputs": "NPC single 后端合约入口存在",
+      "owner_agent": "npc",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence/npc-soc-contract.log",
+      "inputs": "npc/soc + ysyxSoC CPU ABI",
+      "module": "npc",
+      "node_id": "npc-soc-contract",
+      "outputs": "NPC SoC 后端合约入口存在",
+      "owner_agent": "npc",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence/npc-rv64-contract.log",
+      "inputs": "npc/rv64 + Linux README",
+      "module": "npc",
+      "node_id": "npc-rv64-contract",
+      "outputs": "RV64 core/Linux 入口合约存在",
+      "owner_agent": "npc",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence/ysyx-soc-contract.log",
+      "inputs": "ysyxSoC Makefile/spec/agent/memory",
+      "module": "ysyx-soc",
+      "node_id": "ysyx-soc-contract",
+      "outputs": "ysyxSoC 合约入口存在",
+      "owner_agent": "ysyx-soc",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence/difftest-contract.log",
+      "inputs": "NEMU spike-diff + npc/sim difftest-ref",
+      "module": "difftest",
+      "node_id": "difftest-contract",
+      "outputs": "DiffTest 合约入口存在",
+      "owner_agent": "difftest",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence/yosys-sta-contract.log",
+      "inputs": "yosys-sta Makefile/tools/memory",
+      "module": "yosys-sta",
+      "node_id": "yosys-sta-contract",
+      "outputs": "综合/STA 合约入口和工具状态可见",
+      "owner_agent": "yosys-sta",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence/rv64-linux-contract.log",
+      "inputs": "Linux Makefile/env/platform/instructions",
+      "module": "rv64-linux",
+      "node_id": "rv64-linux-contract",
+      "outputs": "RV64 Linux/Ubuntu 合约入口存在",
+      "owner_agent": "rv64-linux",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence/linux-device-contract.log",
+      "inputs": "virtio-rootfs instruction + Linux scripts",
+      "module": "linux-device",
+      "node_id": "linux-device-contract",
+      "outputs": "Linux 设备合约入口存在",
+      "owner_agent": "linux-device",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence/display-vga-contract.log",
+      "inputs": "linux-framebuffer-vga instruction + Linux README",
+      "module": "display-vga",
+      "node_id": "display-vga-contract",
+      "outputs": "显示/fbcon 合约入口存在",
+      "owner_agent": "display-vga",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence/verilator-tapeout-contract.log",
+      "inputs": "verilator realism instruction + npc/rv64",
+      "module": "verilator-tapeout",
+      "node_id": "verilator-tapeout-contract",
+      "outputs": "Verilator-first 流片边界合约入口存在",
+      "owner_agent": "verilator-tapeout",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence/fceux-am-contract.log",
+      "inputs": "fceux-am Makefile/agent/memory",
+      "module": "fceux-am",
+      "node_id": "fceux-am-contract",
+      "outputs": "FCEUX-AM 合约入口存在",
+      "owner_agent": "fceux-am",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence/nvboard-contract.log",
+      "inputs": "nvboard README/scripts/example/agent",
+      "module": "nvboard",
+      "node_id": "nvboard-contract",
+      "outputs": "NVBoard 合约入口存在",
+      "owner_agent": "nvboard",
+      "status": "PASS"
+    },
+    {
+      "evidence": ".github/task-runs/2026-07-17-rv64-ppa-workflow-contract-discovery/evidence/digital-logic-contract.log",
+      "inputs": "digital_logic_experiment + agent",
+      "module": "digital-logic",
+      "node_id": "digital-logic-contract",
+      "outputs": "数字逻辑实验合约入口存在",
+      "owner_agent": "digital-logic",
+      "status": "PASS"
+    }
+  ],
+  "profile": "contracts",
+  "run_id": "2026-07-17-rv64-ppa-workflow-contract-discovery",
+  "schema_version": 1,
+  "started_at": "2026-07-17 17:56:16 +0800",
+  "state_traceback": {
+    "current_state": "persist",
+    "evidence_policy": "task-report + dispatch-log + run-manifest + evidence-index",
+    "failure_reason": "",
+    "failure_state": "",
+    "inspector": "agent-system",
+    "reviewer": "ysyx-coordinator",
+    "rollback_target": "",
+    "state_sequence": [
+      "recall_context",
+      "classify_layer",
+      "plan_graph",
+      "implement",
+      "verify",
+      "inspect",
+      "persist"
+    ]
+  },
+  "status": "completed",
+  "task_slug": "rv64-ppa-workflow-contract-discovery",
+  "trace_id": "e2e:2026-07-17-rv64-ppa-workflow-contract-discovery",
+  "updated_at": "2026-07-17 17:56:25 +0800"
+}

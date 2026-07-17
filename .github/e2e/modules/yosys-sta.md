@@ -3,6 +3,7 @@
 - **范围**: Yosys 综合、iEDA STA/功耗、PPA 下游节点。
 - **上游**: NPC 可综合 RTL filelist、SDC、PDK。
 - **下游**: tapeout-readiness、PPA regression。
+- **RV64 PPA qualification contract**: `yosys-sta-contract` 必须发现专用 RV64 PPA 工作流、架构 PPA contract 与评测入口；中间检查点、unknown macro area 或未限定功耗不能被解释成完整设计点 PPA 结论。
 - **L0 gate**: `yosys-sta-contract` 检查 Makefile、memory 和工具状态。
 - **L1 gate**: 后续升级为 `make -C npc/single syn-check-env`。
 - **RV64 flow contract**: 可复现 flow 入口必须是 Git 可见的 `yosys-sta/Makefile`、`yosys-sta/scripts/*.tcl` 与 `yosys-sta/scripts/pdk/*.tcl`；`result/`、`bin/`、顶层 `pdk/`、日志和网表仍作为本地产物忽略。

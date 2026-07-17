@@ -1,16 +1,16 @@
 ---
-description: "NPC 性能优化强制流程。处理 npc/single 或 npc/soc 的 CPI、性能、cache、BPU、LSQ、OoO/superscalar 优化时，必须先全量 CPU-test 正确性闭合，再基于全量 CPI 分布选择代表样本分析，禁止只用 add 作为优化依据。"
-applyTo: "npc/{single,soc}/**"
+description: "NPC 性能优化强制流程。处理 npc/single、npc/soc 或 npc/rv64 的 CPI、性能、cache、BPU、LSQ、OoO/superscalar 优化时，必须先闭合当前目标的全量 CPU-test/功能回归，再基于全量 CPI 分布选择代表样本分析，禁止只用 add 作为优化依据。"
+applyTo: "npc/{single,soc,rv64}/**"
 ---
 
 # NPC 性能优化强制流程
 
-本流程适用于任何以降低 CPI、提高吞吐、优化 cache/BPU/LSQ/issue/commit/取指/访存为目标的 NPC 改动。它与 `npc-study.instructions.md` 和 `rtl-generation-workflow.instructions.md` 叠加执行。
+本流程适用于任何以降低 CPI、提高吞吐、优化 cache/BPU/LSQ/issue/commit/取指/访存为目标的 NPC 改动。它与 `npc-study.instructions.md` 和 `rtl-generation-workflow.instructions.md` 叠加执行。`npc/rv64` 还必须叠加 `rv64-ppa-optimization-workflow.instructions.md`，以完整双发射/真 OoO/同源 PPA hard gates 约束候选生命周期和晋级。
 
 ## 一、正确性门槛
 
-- 性能优化前必须先确认当前基线能跑通 CPU-test 全量；若全量未通过，先修正确性，不做性能结论。
-- 每次落 RTL 性能改动后，都必须跑 CPU-test 全量并收集每个测试的 `cycles/commits/CPI`；单个测试 PASS 只能作为冒烟，不能作为优化是否有效的结论。
+- 性能优化前必须先确认当前基线能跑通目标后端的全量 CPU-test/功能回归；RV64 还必须满足当前 architecture/PPA contract 规定的 module、official/privileged、AM、适用 Difftest 与固定 benchmark 语义门。若全量未通过，先修正确性，不做性能结论。
+- 每次落 RTL 性能改动后，都必须跑目标后端全量并收集每个测试的 `cycles/commits/CPI`；单个测试 PASS 只能作为冒烟，不能作为优化是否有效的结论。RV64 的 promotion workload 与 DI/OOO directed gate 是额外硬门，不能替代全量结果。
 - Difftest 如果当前配置不可用，必须在记录中说明；但这不降低 CPU-test 全量 GOOD TRAP 的门槛。
 
 ## 二、代表样本选择
@@ -40,5 +40,5 @@ applyTo: "npc/{single,soc}/**"
 
 ## 五、记录要求
 
-- `.github/task-runs/<日期-任务名>/task-report.md` 必须记录全量 CPI 表路径、三类代表样本、A/B 对比和最终保留/撤回决定。
+- `.github/task-runs/<日期-任务名>/task-report.md` 必须记录全量 CPI 表路径、三类代表样本、A/B 对比和最终保留/撤回决定；RV64 还需记录 design state、completion definition、hard-gate vector、timing/area/power qualification 与 archive/promotion 边界。
 - 稳定流程或踩坑写入 `.github/memory/modules/npc.md` 或 `.github/memory/known-issues.md`。

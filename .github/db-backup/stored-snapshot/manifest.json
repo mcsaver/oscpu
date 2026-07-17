@@ -1,6 +1,6 @@
 {
   "created_at": "2026-06-11T14:31:49+00:00",
-  "updated_at": "2026-07-14T12:41:08+00:00",
+  "updated_at": "2026-07-17T10:33:58+00:00",
   "schema_version": "4",
   "entries": [
     {
@@ -1030,10 +1030,10 @@
     {
       "path": ".github/memory/modules/agent-system.md",
       "kind": "memory-module",
-      "size_bytes": 125362,
-      "sha256": "d6255814a143185656fbf18d67405eee55028393a668a560f044b39db7b30fde",
+      "size_bytes": 126563,
+      "sha256": "b78fe48af692da950597685232e418c6c9e6f0a032394396ec10068e7fea82ba",
       "backup_source": "database",
-      "archived_at": "2026-07-14T12:41:08+00:00"
+      "archived_at": "2026-07-17T10:33:58+00:00"
     },
     {
       "path": ".github/memory/modules/am-kernels.md",
@@ -1070,10 +1070,10 @@
     {
       "path": ".github/memory/modules/npc.md",
       "kind": "memory-module",
-      "size_bytes": 625399,
-      "sha256": "742e2128b6918c5a4ef8c6d1542367583b7f039396c08fe9a3da918b1efe297b",
+      "size_bytes": 629563,
+      "sha256": "e5ec3e6cc4a2fa262889605d51cea71210dfeced622ee8009d3483ab70fd3dd7",
       "backup_source": "database",
-      "archived_at": "2026-07-14T12:41:08+00:00"
+      "archived_at": "2026-07-17T10:33:40+00:00"
     },
     {
       "path": ".github/memory/modules/software-flow.md",
@@ -1102,10 +1102,10 @@
     {
       "path": ".github/memory/project-status.md",
       "kind": "memory",
-      "size_bytes": 655929,
-      "sha256": "e8b3a3535dbf4a09646ef3e1e93a468aa637160024b8619b965719e9ddd3daa4",
+      "size_bytes": 660586,
+      "sha256": "db12faa610c5207add24b205f7afdaab671ae845f8359ae54c9b350930bac293",
       "backup_source": "database",
-      "archived_at": "2026-07-14T12:41:08+00:00"
+      "archived_at": "2026-07-17T10:33:23+00:00"
     },
     {
       "path": ".github/task-runs/2026-04-13-npc-dpic-bringup/dispatch-log.md",

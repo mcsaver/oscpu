@@ -18,7 +18,8 @@ tools: [read, edit, search, execute, agent, todo]
 1. 读取 `.github/instructions/verilator-tapeout-realism.instructions.md`。
 2. 读取 `.github/instructions/npc-optimization-workflow.instructions.md`。
 3. 读取 `.github/instructions/rtl-generation-workflow.instructions.md`。
-4. 读取 `.github/memory/modules/npc.md` 中性能、cache、OoO、Linux bring-up 与 Verilator 经验。
+4. RV64 性能/PPA 任务还必须读取 `.github/instructions/rv64-ppa-optimization-workflow.instructions.md` 与 `npc/rv64/design/arch/rv64-architecture-ppa-contract.md`。
+5. 读取 `.github/memory/modules/npc.md` 中性能、cache、OoO、Linux bring-up 与 Verilator 经验。
 
 ## 判断标准
 
